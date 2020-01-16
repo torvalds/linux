@@ -43,7 +43,7 @@ static ssize_t foo_store(struct kobject *kobj, struct kobj_attribute *attr,
 	return count;
 }
 
-/* Sysfs attributes cannot be world-writable. */
+/* Sysfs attributes canyest be world-writable. */
 static struct kobj_attribute foo_attribute =
 	__ATTR(foo, 0664, foo_show, foo_store);
 
@@ -116,10 +116,10 @@ static int __init example_init(void)
 	 * Create a simple kobject with the name of "kobject_example",
 	 * located under /sys/kernel/
 	 *
-	 * As this is a simple directory, no uevent will be sent to
-	 * userspace.  That is why this function should not be used for
+	 * As this is a simple directory, yes uevent will be sent to
+	 * userspace.  That is why this function should yest be used for
 	 * any type of dynamic kobjects, where the name and number are
-	 * not known ahead of time.
+	 * yest kyeswn ahead of time.
 	 */
 	example_kobj = kobject_create_and_add("kobject_example", kernel_kobj);
 	if (!example_kobj)

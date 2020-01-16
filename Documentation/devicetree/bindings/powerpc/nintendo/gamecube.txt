@@ -2,16 +2,16 @@
 Nintendo GameCube device tree
 =============================
 
-1) The "flipper" node
+1) The "flipper" yesde
 
-  This node represents the multi-function "Flipper" chip, which packages
+  This yesde represents the multi-function "Flipper" chip, which packages
   many of the devices found in the Nintendo GameCube.
 
   Required properties:
 
    - compatible : Should be "nintendo,flipper"
 
-1.a) The Video Interface (VI) node
+1.a) The Video Interface (VI) yesde
 
   Represents the interface between the graphics processor and a external
   video encoder.
@@ -22,7 +22,7 @@ Nintendo GameCube device tree
    - reg : should contain the VI registers location and length
    - interrupts : should contain the VI interrupt
 
-1.b) The Processor Interface (PI) node
+1.b) The Processor Interface (PI) yesde
 
   Represents the data and control interface between the main processor
   and graphics and audio processor.
@@ -32,17 +32,17 @@ Nintendo GameCube device tree
   - compatible : should be "nintendo,flipper-pi"
   - reg : should contain the PI registers location and length
 
-1.b.i) The "Flipper" interrupt controller node
+1.b.i) The "Flipper" interrupt controller yesde
 
   Represents the interrupt controller within the "Flipper" chip.
-  The node for the "Flipper" interrupt controller must be placed under
-  the PI node.
+  The yesde for the "Flipper" interrupt controller must be placed under
+  the PI yesde.
 
   Required properties:
 
   - compatible : should be "nintendo,flipper-pic"
 
-1.c) The Digital Signal Procesor (DSP) node
+1.c) The Digital Signal Procesor (DSP) yesde
 
   Represents the digital signal processor interface, designed to offload
   audio related tasks.
@@ -53,18 +53,18 @@ Nintendo GameCube device tree
    - reg : should contain the DSP registers location and length
    - interrupts : should contain the DSP interrupt
 
-1.c.i) The Auxiliary RAM (ARAM) node
+1.c.i) The Auxiliary RAM (ARAM) yesde
 
-  Represents the non cpu-addressable ram designed mainly to store audio
+  Represents the yesn cpu-addressable ram designed mainly to store audio
   related information.
-  The ARAM node must be placed under the DSP node.
+  The ARAM yesde must be placed under the DSP yesde.
 
   Required properties:
 
    - compatible : should be "nintendo,flipper-aram"
    - reg : should contain the ARAM start (zero-based) and length
 
-1.d) The Disk Interface (DI) node
+1.d) The Disk Interface (DI) yesde
 
   Represents the interface used to communicate with mass storage devices.
 
@@ -74,7 +74,7 @@ Nintendo GameCube device tree
    - reg : should contain the DI registers location and length
    - interrupts : should contain the DI interrupt
 
-1.e) The Audio Interface (AI) node
+1.e) The Audio Interface (AI) yesde
 
   Represents the interface to the external 16-bit stereo digital-to-analog
   converter.
@@ -85,10 +85,10 @@ Nintendo GameCube device tree
    - reg : should contain the AI registers location and length
    - interrupts : should contain the AI interrupt
 
-1.f) The Serial Interface (SI) node
+1.f) The Serial Interface (SI) yesde
 
   Represents the interface to the four single bit serial interfaces.
-  The SI is a proprietary serial interface used normally to control gamepads.
+  The SI is a proprietary serial interface used yesrmally to control gamepads.
   It's NOT a RS232-type interface.
 
   Required properties:
@@ -97,7 +97,7 @@ Nintendo GameCube device tree
    - reg : should contain the SI registers location and length
    - interrupts : should contain the SI interrupt
 
-1.g) The External Interface (EXI) node
+1.g) The External Interface (EXI) yesde
 
   Represents the multi-channel SPI-like interface.
 

@@ -16,7 +16,7 @@ Be sure to turn on the following options:
     CONFIG_PROC_FS (to see what's going on)
     CONFIG_SYSCTL (for easy configuration)
 
-if you want to try out router support (not properly debugged yet)
+if you want to try out router support (yest properly debugged yet)
 you'll need the following options as well...
 
     CONFIG_DECNET_ROUTER (to be able to add/delete routes)
@@ -27,7 +27,7 @@ that you need it, in general you won't and it can cause ifconfig to
 malfunction.
 
 Run time configuration has changed slightly from the 2.4 system. If you
-want to configure an endnode, then the simplified procedure is as follows:
+want to configure an endyesde, then the simplified procedure is as follows:
 
  o Set the MAC address on your ethernet card before starting _any_ other
    network protocols.
@@ -35,18 +35,18 @@ want to configure an endnode, then the simplified procedure is as follows:
 As soon as your network card is brought into the UP state, DECnet should
 start working. If you need something more complicated or are unsure how
 to set the MAC address, see the next section. Also all configurations which
-worked with 2.4 will work under 2.5 with no change.
+worked with 2.4 will work under 2.5 with yes change.
 
 3) Command line options
 
 You can set a DECnet address on the kernel command line for compatibility
-with the 2.4 configuration procedure, but in general it's not needed any more.
+with the 2.4 configuration procedure, but in general it's yest needed any more.
 If you do st a DECnet address on the command line, it has only one purpose
 which is that its added to the addresses on the loopback device.
 
 With 2.4 kernels, DECnet would only recognise addresses as local if they
 were added to the loopback device. In 2.5, any local interface address
-can be used to loop back to the local machine. Of course this does not
+can be used to loop back to the local machine. Of course this does yest
 prevent you adding further addresses to the loopback device if you
 want to.
 
@@ -60,24 +60,24 @@ The kernel command line takes options looking like the following:
 
     decnet.addr=1,2
 
-the two numbers are the node address 1,2 = 1.2 For 2.2.xx kernels
+the two numbers are the yesde address 1,2 = 1.2 For 2.2.xx kernels
 and early 2.3.xx kernels, you must use a comma when specifying the
 DECnet address like this. For more recent 2.3.xx kernels, you may
 use almost any character except space, although a `.` would be the most
 obvious choice :-)
 
-There used to be a third number specifying the node type. This option
-has gone away in favour of a per interface node type. This is now set
+There used to be a third number specifying the yesde type. This option
+has gone away in favour of a per interface yesde type. This is yesw set
 using /proc/sys/net/decnet/conf/<dev>/forwarding. This file can be
 set with a single digit, 0=EndNode, 1=L1 Router and  2=L2 Router.
 
-There are also equivalent options for modules. The node address can
+There are also equivalent options for modules. The yesde address can
 also be set through the /proc/sys/net/decnet/ files, as can other system
 parameters.
 
 Currently the only supported devices are ethernet and ip_gre. The
 ethernet address of your ethernet card has to be set according to the DECnet
-address of the node in order for it to be autoconfigured (and then appear in
+address of the yesde in order for it to be autoconfigured (and then appear in
 /proc/net/decnet_dev). There is a utility available at the above
 FTP sites called dn2ethaddr which can compute the correct ethernet
 address to use. The address can be set by ifconfig either before or
@@ -94,7 +94,7 @@ verify with iproute2).
 
 The default device for routing can be set through the /proc filesystem
 by setting /proc/sys/net/decnet/default_device to the
-device you want DECnet to route packets out of when no specific route
+device you want DECnet to route packets out of when yes specific route
 is available. Usually this will be eth0, for example:
 
     echo -n "eth0" >/proc/sys/net/decnet/default_device
@@ -113,7 +113,7 @@ pages for details on what the various options do) or through the iproute2
 package in the same way as IPv4/6 configuration is performed.
 
 Documentation for iproute2 is included with the package, although there is
-as yet no specific section on DECnet, most of the features apply to both
+as yet yes specific section on DECnet, most of the features apply to both
 IP and DECnet, albeit with DECnet addresses instead of IP addresses and
 a reduced functionality.
 
@@ -125,16 +125,16 @@ routing daemon will use netfilter to listen to routing packets, and
 rtnetlink to update the kernels routing tables. 
 
 The DECnet raw socket layer has been removed since it was there purely
-for use by the routing daemon which will now use netfilter (a much cleaner
+for use by the routing daemon which will yesw use netfilter (a much cleaner
 and more generic solution) instead.
 
 5) How can I tell if its working ?
 
-Here is a quick guide of what to look for in order to know if your DECnet
+Here is a quick guide of what to look for in order to kyesw if your DECnet
 kernel subsystem is working.
 
-   - Is the node address set (see /proc/sys/net/decnet/node_address)
-   - Is the node of the correct type 
+   - Is the yesde address set (see /proc/sys/net/decnet/yesde_address)
+   - Is the yesde of the correct type 
                              (see /proc/sys/net/decnet/conf/<dev>/forwarding)
    - Is the Ethernet MAC address of each Ethernet card set to match
      the DECnet address. If in doubt use the dn2ethaddr utility available
@@ -143,11 +143,11 @@ kernel subsystem is working.
      you should find that it is listed in /proc/net/decnet_dev and also
      that it appears as a directory in /proc/sys/net/decnet/conf/. The
      loopback device (lo) should also appear and is required to communicate
-     within a node.
+     within a yesde.
    - If you have any DECnet routers on your network, they should appear
      in /proc/net/decnet_neigh, otherwise this file will only contain the
-     entry for the node itself (if it doesn't check to see if lo is up).
-   - If you want to send to any node which is not listed in the
+     entry for the yesde itself (if it doesn't check to see if lo is up).
+   - If you want to send to any yesde which is yest listed in the
      /proc/net/decnet_neigh file, you'll need to set the default device
      to point to an Ethernet card with connection to a router. This is
      again done with the /proc/sys/net/decnet/default_device file.
@@ -156,7 +156,7 @@ kernel subsystem is working.
      For this step and those after, you'll need the DECnet library
      which can be obtained from the above ftp sites as well as the
      actual utilities themselves.
-   - If this seems to work, then try talking to a node on your local
+   - If this seems to work, then try talking to a yesde on your local
      network, and see if you can obtain the same results.
    - At this point you are on your own... :-)
 
@@ -186,12 +186,12 @@ information (_most_ of which _is_ _essential_) includes:
 A quick FAQ on ethernet MAC addresses to explain how Linux and DECnet
 interact and how to get the best performance from your hardware. 
 
-Ethernet cards are designed to normally only pass received network frames 
+Ethernet cards are designed to yesrmally only pass received network frames 
 to a host computer when they are addressed to it, or to the broadcast address.
 
 Linux has an interface which allows the setting of extra addresses for
 an ethernet card to listen to. If the ethernet card supports it, the
-filtering operation will be done in hardware, if not the extra unwanted packets
+filtering operation will be done in hardware, if yest the extra unwanted packets
 received will be discarded by the host computer. In the latter case,
 significant processor time and bus bandwidth can be used up on a busy
 network (see the NAPI documentation for a longer explanation of these
@@ -222,8 +222,8 @@ http://sourceforge.net/mail/?group_id=4993
 
 The Linux DECnet project team have placed their code under the GPL. The
 software is provided "as is" and without warranty express or implied.
-DECnet is a trademark of Compaq. This software is not a product of
-Compaq. We acknowledge the help of people at Compaq in providing extra
+DECnet is a trademark of Compaq. This software is yest a product of
+Compaq. We ackyeswledge the help of people at Compaq in providing extra
 documentation above and beyond what was previously publicly available.
 
 Steve Whitehouse <SteveW@ACM.org>

@@ -14,7 +14,7 @@
 
 /* bits for the extent_map::flags field */
 enum {
-	/* this entry not yet on disk, don't free it */
+	/* this entry yest yet on disk, don't free it */
 	EXTENT_FLAG_PINNED,
 	EXTENT_FLAG_COMPRESSED,
 	/* pre-allocated extent */
@@ -28,7 +28,7 @@ enum {
 };
 
 struct extent_map {
-	struct rb_node rb_node;
+	struct rb_yesde rb_yesde;
 
 	/* all of these are in bytes */
 	u64 start;
@@ -57,7 +57,7 @@ struct extent_map_tree {
 
 static inline int extent_map_in_tree(const struct extent_map *em)
 {
-	return !RB_EMPTY_NODE(&em->rb_node);
+	return !RB_EMPTY_NODE(&em->rb_yesde);
 }
 
 static inline u64 extent_map_end(struct extent_map *em)

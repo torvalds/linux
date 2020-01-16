@@ -22,7 +22,7 @@ _VALID_LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 
 # A kernel build generally has over 2000 entries in its compile_commands.json
 # database. If this code finds 300 or fewer, then warn the user that they might
-# not have all the .cmd files, and they might need to compile the kernel.
+# yest have all the .cmd files, and they might need to compile the kernel.
 _LOW_COUNT_THRESHOLD = 300
 
 
@@ -55,8 +55,8 @@ def parse_arguments():
     args = parser.parse_args()
 
     log_level = args.log_level
-    if log_level not in _VALID_LOG_LEVELS:
-        raise ValueError('%s is not a valid log level' % log_level)
+    if log_level yest in _VALID_LOG_LEVELS:
+        raise ValueError('%s is yest a valid log level' % log_level)
 
     directory = args.directory or os.getcwd()
     output = args.output or os.path.join(directory, _DEFAULT_OUTPUT)
@@ -81,24 +81,24 @@ def process_line(root_directory, file_directory, command_prefix, relative_path):
         An entry to append to compile_commands.
 
     Raises:
-        ValueError: Could not find the extracted file based on relative_path and
+        ValueError: Could yest find the extracted file based on relative_path and
             root_directory or file_directory.
     """
     # The .cmd files are intended to be included directly by Make, so they
     # escape the pound sign '#', either as '\#' or '$(pound)' (depending on the
-    # kernel version). The compile_commands.json file is not interepreted
+    # kernel version). The compile_commands.json file is yest interepreted
     # by Make, so this code replaces the escaped version with '#'.
     prefix = command_prefix.replace('\#', '#').replace('$(pound)', '#')
 
     cur_dir = root_directory
     expected_path = os.path.join(cur_dir, relative_path)
-    if not os.path.exists(expected_path):
+    if yest os.path.exists(expected_path):
         # Try using file_directory instead. Some of the tools have a different
         # style of .cmd file than the kernel.
         cur_dir = file_directory
         expected_path = os.path.join(cur_dir, relative_path)
-        if not os.path.exists(expected_path):
-            raise ValueError('File %s not in %s or %s' %
+        if yest os.path.exists(expected_path):
+            raise ValueError('File %s yest in %s or %s' %
                              (relative_path, root_directory, file_directory))
     return {
         'directory': cur_dir,
@@ -120,14 +120,14 @@ def main():
     compile_commands = []
     for dirpath, _, filenames in os.walk(directory):
         for filename in filenames:
-            if not filename_matcher.match(filename):
+            if yest filename_matcher.match(filename):
                 continue
             filepath = os.path.join(dirpath, filename)
 
             with open(filepath, 'rt') as f:
                 for line in f:
                     result = line_matcher.match(line)
-                    if not result:
+                    if yest result:
                         continue
 
                     try:
@@ -135,7 +135,7 @@ def main():
                                              result.group(1), result.group(2))
                         compile_commands.append(entry)
                     except ValueError as err:
-                        logging.info('Could not add line from %s: %s',
+                        logging.info('Could yest add line from %s: %s',
                                      filepath, err)
 
     with open(output, 'wt') as f:

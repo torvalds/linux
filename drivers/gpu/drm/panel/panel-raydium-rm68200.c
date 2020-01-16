@@ -43,7 +43,7 @@
 #define MCS_SETVGP		0x54 /* VG M/S P Control */
 #define MCS_SW_CTRL		0x5F /* Interface Control for PFM and MIPI */
 
-/* CMD2 P2 commands (GOA Timing Control) - no description in datasheet */
+/* CMD2 P2 commands (GOA Timing Control) - yes description in datasheet */
 #define GOA_VSTV1		0x00
 #define GOA_VSTV2		0x07
 #define GOA_VCLK1		0x0E
@@ -134,7 +134,7 @@ static void rm68200_dcs_write_cmd(struct rm68200 *ctx, u8 cmd, u8 value)
 })
 
 /*
- * This panel is not able to auto-increment all cmd addresses so for some of
+ * This panel is yest able to auto-increment all cmd addresses so for some of
  * them, we need to send them one by one...
  */
 #define dcs_write_cmd_seq(ctx, cmd, seq...)			\
@@ -379,7 +379,7 @@ static int rm68200_probe(struct mipi_dsi_device *dsi)
 	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
 		ret = PTR_ERR(ctx->reset_gpio);
-		dev_err(dev, "cannot get reset GPIO: %d\n", ret);
+		dev_err(dev, "canyest get reset GPIO: %d\n", ret);
 		return ret;
 	}
 
@@ -387,7 +387,7 @@ static int rm68200_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(ctx->supply)) {
 		ret = PTR_ERR(ctx->supply);
 		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "cannot get regulator: %d\n", ret);
+			dev_err(dev, "canyest get regulator: %d\n", ret);
 		return ret;
 	}
 

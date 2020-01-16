@@ -41,7 +41,7 @@ enum pq_init_status {
 /*
  * ArmCP Primary Queue Packets
  *
- * During normal operation, the host's kernel driver needs to send various
+ * During yesrmal operation, the host's kernel driver needs to send various
  * messages to ArmCP, usually either to SET some value into a H/W periphery or
  * to GET the current value of some H/W periphery. For example, SET the
  * frequency of MME/TPC and GET the value of the thermal sensor.
@@ -49,14 +49,14 @@ enum pq_init_status {
  * These messages can be initiated either by the User application or by the
  * host's driver itself, e.g. power management code. In either case, the
  * communication from the host's driver to ArmCP will *always* be in
- * synchronous mode, meaning that the host will send a single message and poll
- * until the message was acknowledged and the results are ready (if results are
+ * synchroyesus mode, meaning that the host will send a single message and poll
+ * until the message was ackyeswledged and the results are ready (if results are
  * needed).
  *
  * This means that only a single message can be sent at a time and the host's
  * driver must wait for its result before sending the next message. Having said
  * that, because these are control messages which are sent in a relatively low
- * frequency, this limitation seems acceptable. It's important to note that
+ * frequency, this limitation seems acceptable. It's important to yeste that
  * in case of multiple devices, messages to different devices *can* be sent
  * at the same time.
  *

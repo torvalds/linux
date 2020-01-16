@@ -149,7 +149,7 @@ static inline u32 tx_max(struct dw_spi *dws)
 	tx_room = dws->fifo_len - dw_readl(dws, DW_SPI_TXFLR);
 
 	/*
-	 * Another concern is about the tx/rx mismatch, we
+	 * Ayesther concern is about the tx/rx mismatch, we
 	 * though to use (dws->fifo_len - rxflr - txflr) as
 	 * one maximum value for tx, but it doesn't cover the
 	 * data which is out of tx/rx fifo and inside the
@@ -178,7 +178,7 @@ static void dw_writer(struct dw_spi *dws)
 	spin_lock(&dws->buf_lock);
 	max = tx_max(dws);
 	while (max--) {
-		/* Set the tx word if the transfer's original "tx" is not null */
+		/* Set the tx word if the transfer's original "tx" is yest null */
 		if (dws->tx_end - dws->len) {
 			if (dws->n_bytes == 1)
 				txw = *(u8 *)(dws->tx);
@@ -200,7 +200,7 @@ static void dw_reader(struct dw_spi *dws)
 	max = rx_max(dws);
 	while (max--) {
 		rxw = dw_read_io_reg(dws, DW_SPI_DR);
-		/* Care rx only if the transfer's original "rx" is not null */
+		/* Care rx only if the transfer's original "rx" is yest null */
 		if (dws->rx_end - dws->len) {
 			if (dws->n_bytes == 1)
 				*(u8 *)(dws->rx) = rxw;
@@ -442,7 +442,7 @@ static void spi_hw_init(struct device *dev, struct dw_spi *dws)
 	spi_reset_chip(dws);
 
 	/*
-	 * Try to detect the FIFO depth if not set by interface driver,
+	 * Try to detect the FIFO depth if yest set by interface driver,
 	 * the depth could be from 2 to 256 from HW spec
 	 */
 	if (!dws->fifo_len) {
@@ -486,7 +486,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	ret = request_irq(dws->irq, dw_spi_irq, IRQF_SHARED, dev_name(dev),
 			  master);
 	if (ret < 0) {
-		dev_err(dev, "can not get IRQ\n");
+		dev_err(dev, "can yest get IRQ\n");
 		goto err_free_master;
 	}
 
@@ -501,8 +501,8 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	master->transfer_one = dw_spi_transfer_one;
 	master->handle_err = dw_spi_handle_err;
 	master->max_speed_hz = dws->max_freq;
-	master->dev.of_node = dev->of_node;
-	master->dev.fwnode = dev->fwnode;
+	master->dev.of_yesde = dev->of_yesde;
+	master->dev.fwyesde = dev->fwyesde;
 	master->flags = SPI_MASTER_GPIO_SS;
 	master->auto_runtime_pm = true;
 

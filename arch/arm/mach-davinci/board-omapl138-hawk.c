@@ -72,7 +72,7 @@ static __init void omapl138_hawk_config_emac(void)
 }
 
 /*
- * The following EDMA channels/slots are not being used by drivers (for
+ * The following EDMA channels/slots are yest being used by drivers (for
  * example: Timer, GPIO, UART events etc) on da850/omap-l138 EVM/Hawkboard,
  * hence they are being reserved for codecs on the DSP side.
  */

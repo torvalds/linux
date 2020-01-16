@@ -13,7 +13,7 @@
  * in the LICENSE file that accompanied this code).
  *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; If not, see http://www.gnu.org/licenses
+ * version 2 along with this program; If yest, see http://www.gnu.org/licenses
  *
  * Please  visit http://www.xyratex.com/contact if you need additional
  * information or have any questions.
@@ -22,7 +22,7 @@
  */
 
 /*
- * Copyright 2012 Xyratex Technology Limited
+ * Copyright 2012 Xyratex Techyeslogy Limited
  *
  * Wrappers for kernel crypto shash api to pclmulqdq crc32 imlementation.
  */
@@ -182,7 +182,7 @@ static int __init crc32_pclmul_mod_init(void)
 {
 
 	if (!x86_match_cpu(crc32pclmul_cpu_id)) {
-		pr_info("PCLMULQDQ-NI instructions are not detected.\n");
+		pr_info("PCLMULQDQ-NI instructions are yest detected.\n");
 		return -ENODEV;
 	}
 	return crypto_register_shash(&alg);

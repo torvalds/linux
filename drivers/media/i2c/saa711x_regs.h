@@ -322,7 +322,7 @@ struct saa711x_reg_descr saa711x_regs[] = {
 	 "Audio master clock cycles per field"},
 	/* 0x33 - Reserved */
 	{R_34_AUD_MAST_CLK_NOMINAL_INC,3,
-	 "Audio master clock nominal increment"},
+	 "Audio master clock yesminal increment"},
 	/* 0x37 - Reserved */
 	{R_38_CLK_RATIO_AMXCLK_TO_ASCLK,1,
 	 "Clock ratio AMXCLK to ASCLK"},
@@ -555,6 +555,6 @@ struct saa711x_reg_descr saa711x_regs[] = {
 	 "Pulse C Position"},
 	/* 0xfc to 0xfe - Reserved */
 	{R_FF_S_PLL_MAX_PHASE_ERR_THRESH_NUM_LINES,1,
-	 "S_PLL max. phase, error threshold, PLL2 no. of lines, threshold"},
+	 "S_PLL max. phase, error threshold, PLL2 yes. of lines, threshold"},
 };
 #endif

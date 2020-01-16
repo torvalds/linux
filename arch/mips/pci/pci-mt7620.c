@@ -318,7 +318,7 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 		break;
 
 	default:
-		dev_err(&pdev->dev, "pcie is not supported on this hardware\n");
+		dev_err(&pdev->dev, "pcie is yest supported on this hardware\n");
 		return -1;
 	}
 	mdelay(50);
@@ -333,7 +333,7 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 		rt_sysc_m32(RALINK_PCIE0_CLK_EN, 0, RALINK_CLKCFG1);
 		if (ralink_soc == MT762X_SOC_MT7620A)
 			rt_sysc_m32(LC_CKDRVPD, PDRV_SW_SET, PPLL_DRV);
-		dev_err(&pdev->dev, "PCIE0 no card, disable it(RST&CLK)\n");
+		dev_err(&pdev->dev, "PCIE0 yes card, disable it(RST&CLK)\n");
 		return -1;
 	}
 
@@ -352,7 +352,7 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 	pci_config_read(NULL, 0, 4, 4, &val);
 	pci_config_write(NULL, 0, 4, 4, val | 0x7);
 
-	pci_load_of_ranges(&mt7620_controller, pdev->dev.of_node);
+	pci_load_of_ranges(&mt7620_controller, pdev->dev.of_yesde);
 	register_pci_controller(&mt7620_controller);
 
 	return 0;
@@ -372,7 +372,7 @@ int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	} else if ((dev->bus->number == 1) && (slot == 0x0)) {
 		irq = RALINK_INT_PCIE0;
 	} else {
-		dev_err(&dev->dev, "no irq found - bus=0x%x, slot = 0x%x\n",
+		dev_err(&dev->dev, "yes irq found - bus=0x%x, slot = 0x%x\n",
 			dev->bus->number, slot);
 		return 0;
 	}

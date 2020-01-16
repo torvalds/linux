@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #ifndef _MLXSW_CORE_H
 #define _MLXSW_CORE_H
@@ -33,7 +33,7 @@ void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
 bool mlxsw_core_res_query_enabled(const struct mlxsw_core *mlxsw_core);
 
 bool
-mlxsw_core_fw_rev_minor_subminor_validate(const struct mlxsw_fw_rev *rev,
+mlxsw_core_fw_rev_miyesr_submiyesr_validate(const struct mlxsw_fw_rev *rev,
 					  const struct mlxsw_fw_rev *req_rev);
 
 int mlxsw_core_driver_register(struct mlxsw_driver *mlxsw_driver);
@@ -80,7 +80,7 @@ struct mlxsw_listener {
 	enum mlxsw_reg_hpkt_action action;
 	enum mlxsw_reg_hpkt_action unreg_action;
 	u8 trap_group;
-	bool is_ctrl; /* should go via control buffer or not */
+	bool is_ctrl; /* should go via control buffer or yest */
 	bool is_event;
 };
 
@@ -391,9 +391,9 @@ struct mlxsw_bus {
 
 struct mlxsw_fw_rev {
 	u16 major;
-	u16 minor;
-	u16 subminor;
-	u16 can_reset_minor;
+	u16 miyesr;
+	u16 submiyesr;
+	u16 can_reset_miyesr;
 };
 
 struct mlxsw_bus_info {

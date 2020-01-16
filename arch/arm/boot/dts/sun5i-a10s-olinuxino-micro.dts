@@ -5,7 +5,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -29,7 +29,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -50,8 +50,8 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "Olimex A10s-Olinuxino Micro";
-	compatible = "olimex,a10s-olinuxino-micro", "allwinner,sun5i-a10s";
+	model = "Olimex A10s-Olinuxiyes Micro";
+	compatible = "olimex,a10s-olinuxiyes-micro", "allwinner,sun5i-a10s";
 
 	aliases {
 		serial0 = &uart0;
@@ -77,10 +77,10 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_olinuxino>;
+		pinctrl-0 = <&led_pins_olinuxiyes>;
 
 		green {
-			label = "a10s-olinuxino-micro:green:usr";
+			label = "a10s-olinuxiyes-micro:green:usr";
 			gpios = <&pio 4 3 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
@@ -213,7 +213,7 @@
 };
 
 &pio {
-	led_pins_olinuxino: led-pin {
+	led_pins_olinuxiyes: led-pin {
 		pins = "PE3";
 		function = "gpio_out";
 		drive-strength = <20>;

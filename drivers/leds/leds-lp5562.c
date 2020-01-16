@@ -518,7 +518,7 @@ static int lp5562_probe(struct i2c_client *client,
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
 	struct lp55xx_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 
 	if (!pdata) {
 		if (np) {
@@ -526,7 +526,7 @@ static int lp5562_probe(struct i2c_client *client,
 			if (IS_ERR(pdata))
 				return PTR_ERR(pdata);
 		} else {
-			dev_err(&client->dev, "no platform data\n");
+			dev_err(&client->dev, "yes platform data\n");
 			return -EINVAL;
 		}
 	}

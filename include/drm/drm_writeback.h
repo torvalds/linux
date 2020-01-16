@@ -64,12 +64,12 @@ struct drm_writeback_connector {
 	 */
 	spinlock_t fence_lock;
 	/**
-	 * @fence_seqno:
+	 * @fence_seqyes:
 	 *
-	 * Seqno variable used as monotonic counter for the fences
+	 * Seqyes variable used as moyestonic counter for the fences
 	 * created on the connector's timeline.
 	 */
-	unsigned long fence_seqno;
+	unsigned long fence_seqyes;
 	/**
 	 * @timeline_name:
 	 *
@@ -111,7 +111,7 @@ struct drm_writeback_job {
 	/**
 	 * @fb:
 	 *
-	 * Framebuffer to be written to by the writeback connector. Do not set
+	 * Framebuffer to be written to by the writeback connector. Do yest set
 	 * directly, use drm_writeback_set_fb()
 	 */
 	struct drm_framebuffer *fb;

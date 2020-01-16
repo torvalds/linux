@@ -10,7 +10,7 @@
  * Platform device conversion and hwmod support.
  *
  * Copyright (C) 2005 Nokia Corporation
- * Author: Lauri Leukkunen <lauri.leukkunen@nokia.com>
+ * Author: Lauri Leukkunen <lauri.leukkunen@yeskia.com>
  * PWM and clock framework support by Timo Teras.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if yest, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -54,7 +54,7 @@ struct omap_dm_timer;
 typedef struct omap_dm_timer pwm_omap_dmtimer;
 
 struct pwm_omap_dmtimer_pdata {
-	pwm_omap_dmtimer *(*request_by_node)(struct device_node *np);
+	pwm_omap_dmtimer *(*request_by_yesde)(struct device_yesde *np);
 	pwm_omap_dmtimer *(*request_specific)(int timer_id);
 	pwm_omap_dmtimer *(*request)(void);
 

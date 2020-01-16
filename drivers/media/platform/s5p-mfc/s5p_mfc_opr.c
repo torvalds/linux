@@ -47,7 +47,7 @@ int s5p_mfc_alloc_priv_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
 	if (dev->mem_virt) {
 		start = bitmap_find_next_zero_area(dev->mem_bitmap, bits, 0, count, align);
 		if (start > bits)
-			goto no_mem;
+			goto yes_mem;
 
 		bitmap_set(dev->mem_bitmap, start, count);
 		offset = start << PAGE_SHIFT;
@@ -60,7 +60,7 @@ int s5p_mfc_alloc_priv_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
 		b->ctx = mem_ctx;
 		b->virt = dma_alloc_coherent(mem_dev, b->size, &b->dma, GFP_KERNEL);
 		if (!b->virt)
-			goto no_mem;
+			goto yes_mem;
 		if (b->dma < base) {
 			mfc_err("Invalid memory configuration - buffer (%pad) is below base memory address(%pad)\n",
 				&b->dma, &base);
@@ -71,7 +71,7 @@ int s5p_mfc_alloc_priv_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
 
 	mfc_debug(3, "Allocated addr %p %pad\n", b->virt, &b->dma);
 	return 0;
-no_mem:
+yes_mem:
 	mfc_err("Allocating private buffer of size %zu failed\n", b->size);
 	return -ENOMEM;
 }
@@ -86,11 +86,11 @@ int s5p_mfc_alloc_generic_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
 	b->ctx = mem_ctx;
 	b->virt = dma_alloc_coherent(mem_dev, b->size, &b->dma, GFP_KERNEL);
 	if (!b->virt)
-		goto no_mem;
+		goto yes_mem;
 
 	mfc_debug(3, "Allocated addr %p %pad\n", b->virt, &b->dma);
 	return 0;
-no_mem:
+yes_mem:
 	mfc_err("Allocating generic buffer of size %zu failed\n", b->size);
 	return -ENOMEM;
 }

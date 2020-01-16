@@ -8,7 +8,7 @@
  */
 
 /* The code in this source file is responsible for generating
- * vma-to-fileOffset maps for both overlay and non-overlay SPU
+ * vma-to-fileOffset maps for both overlay and yesn-overlay SPU
  * applications.
  */
 
@@ -165,7 +165,7 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 			goto fail;
 	}
 
-	pr_debug("SPU_PROF: Created non-overlay maps\n");
+	pr_debug("SPU_PROF: Created yesn-overlay maps\n");
 	/* Traverse section table and search for overlay-related symbols.  */
 	for (i = 0; i < ehdr.e_shnum; i++) {
 		if (copy_from_user(&shdr, shdr_start + i, sizeof(shdr)))
@@ -243,7 +243,7 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 			goto fail;
 
 		/* The ovly.vma/size/offset arguments are analogous to the same
-		 * arguments used above for non-overlay maps.  The final two
+		 * arguments used above for yesn-overlay maps.  The final two
 		 * args are referred to as the guard pointer and the guard
 		 * value.
 		 * The guard pointer is an entry in the _ovly_buf_table,

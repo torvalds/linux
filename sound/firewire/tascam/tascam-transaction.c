@@ -8,7 +8,7 @@
 #include "tascam.h"
 
 /*
- * When return minus value, given argument is not MIDI status.
+ * When return minus value, given argument is yest MIDI status.
  * When return 0, given argument is a beginning of system exclusive.
  * When return the others, given argument is MIDI data.
  */
@@ -98,7 +98,7 @@ static int fill_message(struct snd_fw_async_midi_port *port,
 	} else {
 		/* The beginning of exclusives. */
 		if (msg[0] == 0xf0) {
-			/* Transfer it in next chance in another condition. */
+			/* Transfer it in next chance in ayesther condition. */
 			port->on_sysex = true;
 			return 0;
 		} else {
@@ -115,7 +115,7 @@ static int fill_message(struct snd_fw_async_midi_port *port,
 
 			/* On running-status. */
 			if ((msg[0] & 0x80) != 0x80) {
-				/* Enough MIDI bytes were not retrieved. */
+				/* Eyesugh MIDI bytes were yest retrieved. */
 				if (consume < len - 1)
 					return 0;
 				consume = len - 1;
@@ -124,7 +124,7 @@ static int fill_message(struct snd_fw_async_midi_port *port,
 				msg[1] = msg[0];
 				msg[0] = port->running_status;
 			} else {
-				/* Enough MIDI bytes were not retrieved. */
+				/* Eyesugh MIDI bytes were yest retrieved. */
 				if (consume < len)
 					return 0;
 				consume = len;
@@ -216,9 +216,9 @@ static void midi_port_work(struct work_struct *work)
 
 	/*
 	 * In Linux FireWire core, when generation is updated with memory
-	 * barrier, node id has already been updated. In this module, After
+	 * barrier, yesde id has already been updated. In this module, After
 	 * this smp_rmb(), load/store instructions to memory are completed.
-	 * Thus, both of generation and node id are available with recent
+	 * Thus, both of generation and yesde id are available with recent
 	 * values. This is a light-serialization solution to handle bus reset
 	 * events on IEEE 1394 bus.
 	 */
@@ -227,7 +227,7 @@ static void midi_port_work(struct work_struct *work)
 
 	fw_send_request(port->parent->card, &port->transaction,
 			TCODE_WRITE_QUADLET_REQUEST,
-			port->parent->node_id, generation,
+			port->parent->yesde_id, generation,
 			port->parent->max_speed,
 			TSCM_ADDR_BASE + TSCM_OFFSET_MIDI_RX_QUAD,
 			port->buf, 4, async_midi_port_callback,
@@ -336,8 +336,8 @@ int snd_tscm_transaction_reregister(struct snd_tscm *tscm)
 	__be32 reg;
 	int err;
 
-	/* Register messaging address. Block transaction is not allowed. */
-	reg = cpu_to_be32((device->card->node_id << 16) |
+	/* Register messaging address. Block transaction is yest allowed. */
+	reg = cpu_to_be32((device->card->yesde_id << 16) |
 			  (tscm->async_handler.offset >> 32));
 	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 				 TSCM_ADDR_BASE + TSCM_OFFSET_MIDI_TX_ADDR_HI,

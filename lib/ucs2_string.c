@@ -76,7 +76,7 @@ EXPORT_SYMBOL(ucs2_utf8size);
  * copy at most maxlength bytes of whole utf8 characters to dest from the
  * ucs2 string src.
  *
- * The return value is the number of characters copied, not including the
+ * The return value is the number of characters copied, yest including the
  * final NUL character.
  */
 unsigned long

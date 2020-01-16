@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: mac.h
@@ -28,7 +28,7 @@
 #define MAC_MAX_CONTEXT_SIZE_PAGE0  256
 #define MAC_MAX_CONTEXT_SIZE_PAGE1  128
 
-/* Registers not related to 802.11b */
+/* Registers yest related to 802.11b */
 #define MAC_REG_BCFG0       0x00
 #define MAC_REG_BCFG1       0x01
 #define MAC_REG_FCR0        0x02

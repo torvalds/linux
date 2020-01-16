@@ -46,7 +46,7 @@ static int snd_ctl_elem_list_compat(struct snd_card *card,
 
 /*
  * control element info
- * it uses union, so the things are not easy..
+ * it uses union, so the things are yest easy..
  */
 
 struct snd_ctl_elem_info32 {
@@ -248,7 +248,7 @@ static int copy_ctl_value_from_user(struct snd_card *card,
 	} else {
 		size = get_elem_size(type, count);
 		if (size < 0) {
-			dev_err(card->dev, "snd_ioctl32_ctl_elem_value: unknown type %d\n", type);
+			dev_err(card->dev, "snd_ioctl32_ctl_elem_value: unkyeswn type %d\n", type);
 			return -EINVAL;
 		}
 		if (copy_from_user(data->value.bytes.data, valuep, size))

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Mellanox boot control driver
+ * Mellayesx boot control driver
  *
  * This driver provides a sysfs interface for systems management
  * software to manage reset-time actions.
  *
- * Copyright (C) 2019 Mellanox Technologies
+ * Copyright (C) 2019 Mellayesx Techyeslogies
  */
 
 #include <linux/acpi.h>
@@ -34,7 +34,7 @@ static struct mlxbf_bootctl_name boot_names[] = {
 	{ MLXBF_BOOTCTL_EMMC, "emmc" },
 	{ MLNX_BOOTCTL_SWAP_EMMC, "swap_emmc" },
 	{ MLXBF_BOOTCTL_EMMC_LEGACY, "emmc_legacy" },
-	{ MLXBF_BOOTCTL_NONE, "none" },
+	{ MLXBF_BOOTCTL_NONE, "yesne" },
 };
 
 static const char * const mlxbf_bootctl_lifecycle_states[] = {
@@ -44,7 +44,7 @@ static const char * const mlxbf_bootctl_lifecycle_states[] = {
 	[3] = "RMA",
 };
 
-/* ARM SMC call which is atomic and no need for lock. */
+/* ARM SMC call which is atomic and yes need for lock. */
 static int mlxbf_bootctl_smc(unsigned int smc_op, int smc_arg)
 {
 	struct arm_smccc_res res;
@@ -204,7 +204,7 @@ static ssize_t secure_boot_fuse_state_show(struct device *dev,
 	/*
 	 * key_state contains the bits for 4 Key versions, loaded from eFuses
 	 * after a hard reset. Lower 4 bits are a thermometer code indicating
-	 * key programming has started for key n (0000 = none, 0001 = version 0,
+	 * key programming has started for key n (0000 = yesne, 0001 = version 0,
 	 * 0011 = version 1, 0111 = version 2, 1111 = version 3). Upper 4 bits
 	 * are a thermometer code indicating key programming has completed for
 	 * key n (same encodings as the start bits). This allows for detection
@@ -213,11 +213,11 @@ static ssize_t secure_boot_fuse_state_show(struct device *dev,
 	 * eFuse for the new key start bit, burn the key eFuses, then burn the
 	 * eFuse for the new key complete bit.
 	 *
-	 * For example 0000_0000: no key valid, 0001_0001: key version 0 valid,
+	 * For example 0000_0000: yes key valid, 0001_0001: key version 0 valid,
 	 * 0011_0011: key 1 version valid, 0011_0111: key version 2 started
-	 * programming but did not complete, etc. The most recent key for which
+	 * programming but did yest complete, etc. The most recent key for which
 	 * both start and complete bit is set is loaded. On soft reset, this
-	 * register is not modified.
+	 * register is yest modified.
 	 */
 	for (key = MLXBF_SB_KEY_NUM - 1; key >= 0; key--) {
 		burnt = key_state & BIT(key);
@@ -294,7 +294,7 @@ static int mlxbf_bootctl_probe(struct platform_device *pdev)
 	/*
 	 * When watchdog is used, it sets boot mode to MLXBF_BOOTCTL_SWAP_EMMC
 	 * in case of boot failures. However it doesn't clear the state if there
-	 * is no failure. Restore the default boot mode here to avoid any
+	 * is yes failure. Restore the default boot mode here to avoid any
 	 * unnecessary boot partition swapping.
 	 */
 	ret = mlxbf_bootctl_smc(MLXBF_BOOTCTL_SET_RESET_ACTION,
@@ -316,6 +316,6 @@ static struct platform_driver mlxbf_bootctl_driver = {
 
 module_platform_driver(mlxbf_bootctl_driver);
 
-MODULE_DESCRIPTION("Mellanox boot control driver");
+MODULE_DESCRIPTION("Mellayesx boot control driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Mellanox Technologies");
+MODULE_AUTHOR("Mellayesx Techyeslogies");

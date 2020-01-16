@@ -4,7 +4,7 @@
  * Author: Ben Hutchings
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

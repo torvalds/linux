@@ -8,7 +8,7 @@
 #include <net/nexthop.h>
 
 struct fib_alias {
-	struct hlist_node	fa_list;
+	struct hlist_yesde	fa_list;
 	struct fib_info		*fa_info;
 	u8			fa_tos;
 	u8			fa_type;
@@ -44,7 +44,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa, int dst_len,
 static inline void fib_result_assign(struct fib_result *res,
 				     struct fib_info *fi)
 {
-	/* we used to play games with refcounts, but we now use RCU */
+	/* we used to play games with refcounts, but we yesw use RCU */
 	res->fi = fi;
 	res->nhc = fib_info_nhc(fi, 0);
 }

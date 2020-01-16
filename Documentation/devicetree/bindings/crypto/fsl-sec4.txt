@@ -12,7 +12,7 @@ Copyright (C) 2008-2011 Freescale Semiconductor Inc.
    -Secure Non-Volatile Storage (SNVS) Low Power (LP) RTC Node
    -Full Example
 
-NOTE: the SEC 4 is also known as Freescale's Cryptographic Accelerator
+NOTE: the SEC 4 is also kyeswn as Freescale's Cryptographic Accelerator
 Accelerator and Assurance Module (CAAM).
 
 =====================================================================
@@ -34,7 +34,7 @@ dequeue from 5 subportals simultaneously.
 
 Job Ring Data Path Configuration:
 
-Each JR is located on a separate 4k page, they may (or may not) be made visible
+Each JR is located on a separate 4k page, they may (or may yest) be made visible
 in the memory partition devoted to a particular core.  The P4080 has 4 JRs, so
 up to 4 JRs can be configured; and all 4 JRs process requests in parallel.
 
@@ -66,14 +66,14 @@ PROPERTIES
        Usage: required
        Value type: <u32>
        Definition: A standard property.  Defines the number of cells
-           for representing physical addresses in child nodes.
+           for representing physical addresses in child yesdes.
 
    - #size-cells
        Usage: required
        Value type: <u32>
        Definition: A standard property.  Defines the number of cells
            for representing the size of physical addresses in
-           child nodes.
+           child yesdes.
 
    - reg
       Usage: required
@@ -86,7 +86,7 @@ PROPERTIES
        Usage: required
        Value type: <prop-encoded-array>
        Definition: A standard property.  Specifies the physical address
-           range of the SEC 4.0 register space (-SNVS not included).  A
+           range of the SEC 4.0 register space (-SNVS yest included).  A
            triplet that includes the child address, parent address, &
            length.
 
@@ -97,7 +97,7 @@ PROPERTIES
            device.  The value of the interrupts property
            consists of one interrupt specifier. The format
            of the specifier is defined by the binding document
-           describing the node's interrupt parent.
+           describing the yesde's interrupt parent.
 
    - clocks
       Usage: required if SEC 4.0 requires explicit enablement of clocks
@@ -155,12 +155,12 @@ iMX6UL does only require three clocks
 =====================================================================
 Job Ring (JR) Node
 
-    Child of the crypto node defines data processing interface to SEC 4
+    Child of the crypto yesde defines data processing interface to SEC 4
     across the peripheral bus for purposes of processing
     cryptographic descriptors. The specified address
     range can be made visible to one (or more) cores.
-    The interrupt defined for this node is controlled within
-    the address range of this node.
+    The interrupt defined for this yesde is controlled within
+    the address range of this yesde.
 
   - compatible
       Usage: required
@@ -181,7 +181,7 @@ Job Ring (JR) Node
            the ppid-to-liodn table that specifies the PPID to LIODN mapping.
            Needed if the PAMU is used.  Value is a 12 bit value
            where value is a LIODN ID for this JR. This property is
-           normally set by boot firmware.
+           yesrmally set by boot firmware.
 
    - interrupts
       Usage: required
@@ -190,7 +190,7 @@ Job Ring (JR) Node
            device.  The value of the interrupts property
            consists of one interrupt specifier. The format
            of the specifier is defined by the binding document
-           describing the node's interrupt parent.
+           describing the yesde's interrupt parent.
 
 EXAMPLE
 	jr@1000 {
@@ -205,7 +205,7 @@ EXAMPLE
 =====================================================================
 Run Time Integrity Check (RTIC) Node
 
-  Child node of the crypto node.  Defines a register space that
+  Child yesde of the crypto yesde.  Defines a register space that
   contains up to 5 sets of addresses and their lengths (sizes) that
   will be checked at run time.  After an initial hash result is
   calculated, these addresses are checked by HW to monitor any
@@ -222,7 +222,7 @@ Run Time Integrity Check (RTIC) Node
        Usage: required
        Value type: <u32>
        Definition: A standard property.  Defines the number of cells
-           for representing physical addresses in child nodes.  Must
+           for representing physical addresses in child yesdes.  Must
            have a value of 1.
 
    - #size-cells
@@ -230,7 +230,7 @@ Run Time Integrity Check (RTIC) Node
        Value type: <u32>
        Definition: A standard property.  Defines the number of cells
            for representing the size of physical addresses in
-           child nodes.  Must have a value of 1.
+           child yesdes.  Must have a value of 1.
 
   - reg
       Usage: required
@@ -243,7 +243,7 @@ Run Time Integrity Check (RTIC) Node
        Usage: required
        Value type: <prop-encoded-array>
        Definition: A standard property.  Specifies the physical address
-           range of the SEC 4 register space (-SNVS not included).  A
+           range of the SEC 4 register space (-SNVS yest included).  A
            triplet that includes the child address, parent address, &
            length.
 
@@ -258,9 +258,9 @@ EXAMPLE
 
 =====================================================================
 Run Time Integrity Check (RTIC) Memory Node
-  A child node that defines individual RTIC memory regions that are used to
-  perform run-time integrity check of memory areas that should not modified.
-  The node defines a register that contains the memory address &
+  A child yesde that defines individual RTIC memory regions that are used to
+  perform run-time integrity check of memory areas that should yest modified.
+  The yesde defines a register that contains the memory address &
   length (combined) and a second register that contains the hash result
   in big endian format.
 
@@ -295,7 +295,7 @@ Run Time Integrity Check (RTIC) Memory Node
            the ppid-to-liodn table that specifies the PPID to LIODN
            mapping.  Needed if the PAMU is used.  Value is a 12 bit value
            where value is a LIODN ID for this RTIC memory region. This
-           property is normally set by boot firmware.
+           property is yesrmally set by boot firmware.
 
 EXAMPLE
 	rtic-a@0 {
@@ -330,7 +330,7 @@ Secure Non-Volatile Storage (SNVS) Node
        Usage: required
        Value type: <u32>
        Definition: A standard property.  Defines the number of cells
-           for representing physical addresses in child nodes.  Must
+           for representing physical addresses in child yesdes.  Must
            have a value of 1.
 
    - #size-cells
@@ -338,7 +338,7 @@ Secure Non-Volatile Storage (SNVS) Node
        Value type: <u32>
        Definition: A standard property.  Defines the number of cells
            for representing the size of physical addresses in
-           child nodes.  Must have a value of 1.
+           child yesdes.  Must have a value of 1.
 
    - ranges
        Usage: required
@@ -354,7 +354,7 @@ Secure Non-Volatile Storage (SNVS) Node
            device.  The value of the interrupts property
            consists of one interrupt specifier. The format
            of the specifier is defined by the binding document
-           describing the node's interrupt parent.
+           describing the yesde's interrupt parent.
 
 EXAMPLE
 	sec_mon@314000 {
@@ -368,7 +368,7 @@ EXAMPLE
 =====================================================================
 Secure Non-Volatile Storage (SNVS) Low Power (LP) RTC Node
 
-  A SNVS child node that defines SNVS LP RTC.
+  A SNVS child yesde that defines SNVS LP RTC.
 
   - compatible
       Usage: required
@@ -382,12 +382,12 @@ Secure Non-Volatile Storage (SNVS) Low Power (LP) RTC Node
 	   device.  The value of the interrupts property
 	   consists of one interrupt specifier. The format
 	   of the specifier is defined by the binding document
-	   describing the node's interrupt parent.
+	   describing the yesde's interrupt parent.
 
  - regmap
 	Usage: required
 	Value type: <phandle>
-	Definition: this is phandle to the register map node.
+	Definition: this is phandle to the register map yesde.
 
  - offset
 	Usage: option
@@ -447,7 +447,7 @@ System ON/OFF key driver
  - regmap:
       Usage: required:
       Value type: <phandle>
-      Definition: this is phandle to the register map node.
+      Definition: this is phandle to the register map yesde.
 
 EXAMPLE:
 	snvs-pwrkey@020cc000 {

@@ -17,7 +17,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -59,7 +59,7 @@ static struct drm_driver driver;
 static const struct pci_device_id pciidlist[] = {
 	AST_VGA_DEVICE(PCI_CHIP_AST2000, NULL),
 	AST_VGA_DEVICE(PCI_CHIP_AST2100, NULL),
-	/*	AST_VGA_DEVICE(PCI_CHIP_AST1180, NULL), - don't bind to 1180 for now */
+	/*	AST_VGA_DEVICE(PCI_CHIP_AST1180, NULL), - don't bind to 1180 for yesw */
 	{0, 0, 0},
 };
 
@@ -213,7 +213,7 @@ static struct drm_driver driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
 	DRM_GEM_VRAM_DRIVER

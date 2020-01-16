@@ -33,12 +33,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -108,7 +108,7 @@ struct iwl_fw_ini_region_dev_addr {
  * struct iwl_fw_ini_region_fifos - Configuration to read Tx/Rx fifos
  *
  * @fid: fifos ids array. Used to determine what fifos to collect
- * @hdr_only: if non zero, collect only the registers
+ * @hdr_only: if yesn zero, collect only the registers
  * @offset: offset to add to the registers addresses
  */
 struct iwl_fw_ini_region_fifos {
@@ -237,8 +237,8 @@ struct iwl_fw_ini_allocation_tlv {
  * @dump_delay: delay from trigger fire to dump, in usec
  * @occurrences: max trigger fire occurrences allowed
  * @reserved: unused
- * @ignore_consec: ignore consecutive triggers, in usec
- * @reset_fw: if non zero, will reset and reload the FW
+ * @igyesre_consec: igyesre consecutive triggers, in usec
+ * @reset_fw: if yesn zero, will reset and reload the FW
  * @multi_dut: initiate debug dump data on several DUTs
  * @regions_mask: mask of regions to collect
  * @data: trigger data
@@ -251,7 +251,7 @@ struct iwl_fw_ini_trigger_tlv {
 	__le32 dump_delay;
 	__le32 occurrences;
 	__le32 reserved;
-	__le32 ignore_consec;
+	__le32 igyesre_consec;
 	__le32 reset_fw;
 	__le32 multi_dut;
 	__le64 regions_mask;
@@ -317,7 +317,7 @@ enum iwl_fw_ini_buffer_location {
  * @IWL_FW_INI_REGION_RXF: RX fifo
  * @IWL_FW_INI_REGION_LMAC_ERROR_TABLE: lmac error table
  * @IWL_FW_INI_REGION_UMAC_ERROR_TABLE: umac error table
- * @IWL_FW_INI_REGION_RSP_OR_NOTIF: FW response or notification data
+ * @IWL_FW_INI_REGION_RSP_OR_NOTIF: FW response or yestification data
  * @IWL_FW_INI_REGION_DEVICE_MEMORY: device internal memory
  * @IWL_FW_INI_REGION_PERIPHERY_MAC: periphery registers of MAC
  * @IWL_FW_INI_REGION_PERIPHERY_PHY: periphery registers of PHY
@@ -356,13 +356,13 @@ enum iwl_fw_ini_region_type {
  * collection
  *
  * @IWL_FW_INI_TIME_POINT_EARLY: pre loading the FW
- * @IWL_FW_INI_TIME_POINT_AFTER_ALIVE: first cmd from host after alive notif
+ * @IWL_FW_INI_TIME_POINT_AFTER_ALIVE: first cmd from host after alive yestif
  * @IWL_FW_INI_TIME_POINT_POST_INIT: last cmd in series of init sequence
  * @IWL_FW_INI_TIME_POINT_FW_ASSERT: FW assert
  * @IWL_FW_INI_TIME_POINT_FW_HW_ERROR: FW HW error
  * @IWL_FW_INI_TIME_POINT_FW_TFD_Q_HANG: TFD queue hang
- * @IWL_FW_INI_TIME_POINT_FW_DHC_NOTIFOCATION: DHC cmd response and notif
- * @IWL_FW_INI_TIME_POINT_FW_RSP_OR_NOTIF: FW response or notification.
+ * @IWL_FW_INI_TIME_POINT_FW_DHC_NOTIFOCATION: DHC cmd response and yestif
+ * @IWL_FW_INI_TIME_POINT_FW_RSP_OR_NOTIF: FW response or yestification.
  *	data field holds id and group
  * @IWL_FW_INI_TIME_POINT_USER_TRIGGER: user trigger time point
  * @IWL_FW_INI_TIME_POINT_PERIODIC: periodic timepoint that fires in constant

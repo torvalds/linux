@@ -3,7 +3,7 @@
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
  *  Copyright (c) 2009-2013  LSI Corporation
- *  Copyright (c) 2013-2016  Avago Technologies
+ *  Copyright (c) 2013-2016  Avago Techyeslogies
  *  Copyright (c) 2016-2018  Broadcom Inc.
  *
  *  FILE: megaraid_sas_fp.c
@@ -11,7 +11,7 @@
  *  Authors: Broadcom Inc.
  *           Sumant Patro
  *           Varad Talamacki
- *           Manoj Jose
+ *           Mayesj Jose
  *           Kashyap Desai <kashyap.desai@broadcom.com>
  *           Sumit Saxena <sumit.saxena@broadcom.com>
  *
@@ -181,7 +181,7 @@ static int MR_PopulateDrvRaidMap(struct megasas_instance *instance, u64 map_id)
 		desc_table =
 		(struct MR_RAID_MAP_DESC_TABLE *)((void *)fw_map_dyn + le32_to_cpu(fw_map_dyn->desc_table_offset));
 		if (desc_table != fw_map_dyn->raid_map_desc_table)
-			dev_dbg(&instance->pdev->dev, "offsets of desc table are not matching desc %p original %p\n",
+			dev_dbg(&instance->pdev->dev, "offsets of desc table are yest matching desc %p original %p\n",
 				desc_table, fw_map_dyn->raid_map_desc_table);
 
 		ld_count = (u16)le16_to_cpu(fw_map_dyn->ld_count);
@@ -245,7 +245,7 @@ static int MR_PopulateDrvRaidMap(struct megasas_instance *instance, u64 map_id)
 			(struct MR_FW_RAID_MAP_EXT *)fusion->ld_map[(map_id & 1)];
 		ld_count = (u16)le16_to_cpu(fw_map_ext->ldCount);
 		if (ld_count > MAX_LOGICAL_DRIVES_EXT) {
-			dev_dbg(&instance->pdev->dev, "megaraid_sas: LD count exposed in RAID map in not valid\n");
+			dev_dbg(&instance->pdev->dev, "megaraid_sas: LD count exposed in RAID map in yest valid\n");
 			return 1;
 		}
 
@@ -262,7 +262,7 @@ static int MR_PopulateDrvRaidMap(struct megasas_instance *instance, u64 map_id)
 		       sizeof(struct MR_DEV_HANDLE_INFO) *
 		       MAX_RAIDMAP_PHYSICAL_DEVICES);
 
-		/* New Raid map will not set totalSize, so keep expected value
+		/* New Raid map will yest set totalSize, so keep expected value
 		 * for legacy code in ValidateMapInfo
 		 */
 		pDrvRaidMap->totalSize =
@@ -274,7 +274,7 @@ static int MR_PopulateDrvRaidMap(struct megasas_instance *instance, u64 map_id)
 		ld_count = (u16)le32_to_cpu(pFwRaidMap->ldCount);
 		if (ld_count > MAX_LOGICAL_DRIVES) {
 			dev_dbg(&instance->pdev->dev,
-				"LD count exposed in RAID map in not valid\n");
+				"LD count exposed in RAID map in yest valid\n");
 			return 1;
 		}
 
@@ -334,7 +334,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance, u64 map_id)
 	if (le32_to_cpu(pDrvRaidMap->totalSize) != expected_size) {
 		dev_dbg(&instance->pdev->dev, "megasas: map info structure size 0x%x",
 			le32_to_cpu(pDrvRaidMap->totalSize));
-		dev_dbg(&instance->pdev->dev, "is not matching expected size 0x%x\n",
+		dev_dbg(&instance->pdev->dev, "is yest matching expected size 0x%x\n",
 			(unsigned int)expected_size);
 		dev_err(&instance->pdev->dev, "megasas: span map %x, pDrvRaidMap->totalSize : %x\n",
 			(unsigned int)sizeof(struct MR_LD_SPAN_MAP),
@@ -354,7 +354,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance, u64 map_id)
 	for (i = 0; (num_lds > 0) && (i < MAX_LOGICAL_DRIVES_EXT); i++) {
 		ld = MR_TargetIdToLdGet(i, drv_map);
 
-		/* For non existing VDs, iterate to next VD*/
+		/* For yesn existing VDs, iterate to next VD*/
 		if (ld >= (MAX_LOGICAL_DRIVES_EXT - 1))
 			continue;
 
@@ -377,7 +377,7 @@ u32 MR_GetSpanBlock(u32 ld, u64 row, u64 *span_blk,
 
 	for (span = 0; span < raid->spanDepth; span++, pSpanBlock++) {
 
-		for (j = 0; j < le32_to_cpu(pSpanBlock->block_span_info.noElements); j++) {
+		for (j = 0; j < le32_to_cpu(pSpanBlock->block_span_info.yesElements); j++) {
 			quad = &pSpanBlock->block_span_info.quad[j];
 
 			if (le32_to_cpu(quad->diff) == 0)
@@ -438,7 +438,7 @@ u32 mr_spanset_get_span_block(struct megasas_instance *instance,
 
 		for (span = 0; span < raid->spanDepth; span++)
 			if (le32_to_cpu(map->raidMap.ldSpanMap[ld].spanBlock[span].
-				block_span_info.noElements) >= info+1) {
+				block_span_info.yesElements) >= info+1) {
 				quad = &map->raidMap.ldSpanMap[ld].
 					spanBlock[span].
 					block_span_info.quad[info];
@@ -505,7 +505,7 @@ static u64  get_row_from_strip(struct megasas_instance *instance,
 				span_set->span_row_data_width) * span_set->diff;
 		for (span = 0, span_offset = 0; span < raid->spanDepth; span++)
 			if (le32_to_cpu(map->raidMap.ldSpanMap[ld].spanBlock[span].
-				block_span_info.noElements) >= info+1) {
+				block_span_info.yesElements) >= info+1) {
 				if (strip_offset >=
 					span_set->strip_offset[span])
 					span_offset++;
@@ -558,7 +558,7 @@ static u64 get_strip_from_row(struct megasas_instance *instance,
 
 		for (span = 0; span < raid->spanDepth; span++)
 			if (le32_to_cpu(map->raidMap.ldSpanMap[ld].spanBlock[span].
-				block_span_info.noElements) >= info+1) {
+				block_span_info.yesElements) >= info+1) {
 				quad = &map->raidMap.ldSpanMap[ld].
 					spanBlock[span].block_span_info.quad[info];
 				if (le64_to_cpu(quad->logStart) <= row  &&
@@ -621,7 +621,7 @@ static u32 get_arm_from_strip(struct megasas_instance *instance,
 
 		for (span = 0, span_offset = 0; span < raid->spanDepth; span++)
 			if (le32_to_cpu(map->raidMap.ldSpanMap[ld].spanBlock[span].
-				block_span_info.noElements) >= info+1) {
+				block_span_info.yesElements) >= info+1) {
 				if (strip_offset >=
 					span_set->strip_offset[span])
 					span_offset =
@@ -929,7 +929,7 @@ static void mr_get_phy_params_r56_rmw(struct megasas_instance *instance,
 	}
 
 	if (raid->level == 6) {
-		/* P Parity arm, note this can go negative adjust if negative */
+		/* P Parity arm, yeste this can go negative adjust if negative */
 		PParityArm = (arms - 2) - mega_mod64(rowNum, arms);
 
 		if (PParityArm < 0)
@@ -1072,7 +1072,7 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 
 	/* assume region is at the start of the first row */
 	regStart            = start_row << raid->stripeShift;
-	/* assume this IO needs the full row - we'll adjust if not true */
+	/* assume this IO needs the full row - we'll adjust if yest true */
 	regSize             = stripSize;
 
 	io_info->do_fp_rlbypass = raid->capability.fpBypassRegionLock;
@@ -1181,7 +1181,7 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 				MR_GetPhyParams(instance, ld, start_strip,
 					ref_in_start_stripe, io_info,
 					pRAID_Context, map);
-		/* If IO on an invalid Pd, then FP is not possible.*/
+		/* If IO on an invalid Pd, then FP is yest possible.*/
 		if (io_info->devHandle == MR_DEVHANDLE_INVALID)
 			io_info->fpOkForIo = false;
 		return retval;
@@ -1235,7 +1235,7 @@ void mr_update_span_set(struct MR_DRV_RAID_MAP_ALL *map,
 		for (element = 0; element < MAX_QUAD_DEPTH; element++) {
 			for (span = 0; span < raid->spanDepth; span++) {
 				if (le32_to_cpu(map->raidMap.ldSpanMap[ld].spanBlock[span].
-					block_span_info.noElements) <
+					block_span_info.yesElements) <
 					element + 1)
 					continue;
 				span_set = &(ldSpanInfo[ld].span_set[element]);
@@ -1250,7 +1250,7 @@ void mr_update_span_set(struct MR_DRV_RAID_MAP_ALL *map,
 					if (le32_to_cpu(map->raidMap.ldSpanMap[ld].
 						spanBlock[count].
 						block_span_info.
-						noElements) >= element + 1) {
+						yesElements) >= element + 1) {
 						span_set->strip_offset[count] =
 							span_row_width;
 						span_row_width +=

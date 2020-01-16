@@ -60,16 +60,16 @@
  * the state of the streaming buffers.  The IOMMU lock is
  * held when this is called.
  *
- * For the PCI error case we know which PBM (and thus which
+ * For the PCI error case we kyesw which PBM (and thus which
  * streaming buffer) caused the error, but for the uncorrectable
- * error case we do not.  So we always check both streaming caches.
+ * error case we do yest.  So we always check both streaming caches.
  */
 #define PSYCHO_STRBUF_CONTROL_A 0x2800UL
 #define PSYCHO_STRBUF_CONTROL_B 0x4800UL
 #define  PSYCHO_STRBUF_CTRL_LPTR    0x00000000000000f0UL /* LRU Lock Pointer */
 #define  PSYCHO_STRBUF_CTRL_LENAB   0x0000000000000008UL /* LRU Lock Enable */
 #define  PSYCHO_STRBUF_CTRL_RRDIS   0x0000000000000004UL /* Rerun Disable */
-#define  PSYCHO_STRBUF_CTRL_DENAB   0x0000000000000002UL /* Diagnostic Mode Enable */
+#define  PSYCHO_STRBUF_CTRL_DENAB   0x0000000000000002UL /* Diagyesstic Mode Enable */
 #define  PSYCHO_STRBUF_CTRL_ENAB    0x0000000000000001UL /* Streaming Buffer Enable */
 #define PSYCHO_STRBUF_FLUSH_A   0x2808UL
 #define PSYCHO_STRBUF_FLUSH_B   0x4808UL
@@ -104,7 +104,7 @@
 #define  PSYCHO_IOMMU_TSBSZ_128K    0x0000000000070000UL /* TSB Table 128k 8-byte entries */
 #define  PSYCHO_IOMMU_CTRL_RESV2    0x000000000000fff8UL /* Reserved                      */
 #define  PSYCHO_IOMMU_CTRL_TBWSZ    0x0000000000000004UL /* Assumed page size, 0=8k 1=64k */
-#define  PSYCHO_IOMMU_CTRL_DENAB    0x0000000000000002UL /* Diagnostic mode enable        */
+#define  PSYCHO_IOMMU_CTRL_DENAB    0x0000000000000002UL /* Diagyesstic mode enable        */
 #define  PSYCHO_IOMMU_CTRL_ENAB     0x0000000000000001UL /* IOMMU Enable                  */
 #define PSYCHO_IOMMU_TSBBASE	0x0208UL
 #define PSYCHO_IOMMU_FLUSH	0x0210UL
@@ -181,7 +181,7 @@ static irqreturn_t psycho_ue_intr(int irq, void *dev_id)
 		printk("(DMA Write)");
 	}
 	if (!reported)
-		printk("(none)");
+		printk("(yesne)");
 	printk("]\n");
 
 	/* Interrogate both IOMMUs for error status. */
@@ -266,7 +266,7 @@ static irqreturn_t psycho_ce_intr(int irq, void *dev_id)
 		printk("(DMA Write)");
 	}
 	if (!reported)
-		printk("(none)");
+		printk("(yesne)");
 	printk("]\n");
 
 	return IRQ_HANDLED;
@@ -287,7 +287,7 @@ static irqreturn_t psycho_ce_intr(int irq, void *dev_id)
 #define  PSYCHO_ECCCTRL_CE	 0x2000000000000000UL /* Enable CE INterrupts */
 static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct platform_device *op = of_find_device_by_node(pbm->op->dev.of_node);
+	struct platform_device *op = of_find_device_by_yesde(pbm->op->dev.of_yesde);
 	unsigned long base = pbm->controller_regs;
 	u64 tmp;
 	int err;
@@ -307,7 +307,7 @@ static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 	if (op->archdata.num_irqs < 6)
 		return;
 
-	/* We really mean to ignore the return result here.  Two
+	/* We really mean to igyesre the return result here.  Two
 	 * PCI controller share the same interrupt numbers and
 	 * drive the same front-end hardware.
 	 */
@@ -316,14 +316,14 @@ static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 	err = request_irq(op->archdata.irqs[2], psycho_ce_intr, IRQF_SHARED,
 			  "PSYCHO_CE", pbm);
 
-	/* This one, however, ought not to fail.  We can just warn
+	/* This one, however, ought yest to fail.  We can just warn
 	 * about it since the system can still operate properly even
 	 * if this fails.
 	 */
 	err = request_irq(op->archdata.irqs[0], psycho_pcierr_intr, IRQF_SHARED,
 			  "PSYCHO_PCIERR", pbm);
 	if (err)
-		printk(KERN_WARNING "%s: Could not register PCIERR, "
+		printk(KERN_WARNING "%s: Could yest register PCIERR, "
 		       "err=%d\n", pbm->name, err);
 
 	/* Enable UE and CE interrupts for controller. */
@@ -355,14 +355,14 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 	u8 *addr;
 
 	/* Set cache-line size to 64 bytes, this is actually
-	 * a nop but I do it for completeness.
+	 * a yesp but I do it for completeness.
 	 */
-	addr = psycho_pci_config_mkaddr(pbm, pbm->pci_first_busno,
+	addr = psycho_pci_config_mkaddr(pbm, pbm->pci_first_busyes,
 					0, PCI_CACHE_LINE_SIZE);
 	pci_config_write8(addr, 64 / sizeof(u32));
 
 	/* Set PBM latency timer to 64 PCI clocks. */
-	addr = psycho_pci_config_mkaddr(pbm, pbm->pci_first_busno,
+	addr = psycho_pci_config_mkaddr(pbm, pbm->pci_first_busyes,
 					0, PCI_LATENCY_TIMER);
 	pci_config_write8(addr, 64);
 }
@@ -508,7 +508,7 @@ static struct pci_pbm_info *psycho_find_sibling(u32 upa_portid)
 static int psycho_probe(struct platform_device *op)
 {
 	const struct linux_prom64_registers *pr_regs;
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	int is_pbm_a, err;
@@ -519,7 +519,7 @@ static int psycho_probe(struct platform_device *op)
 	err = -ENOMEM;
 	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
 	if (!pbm) {
-		printk(KERN_ERR PFX "Cannot allocate pci_pbm_info.\n");
+		printk(KERN_ERR PFX "Canyest allocate pci_pbm_info.\n");
 		goto out_err;
 	}
 
@@ -529,7 +529,7 @@ static int psycho_probe(struct platform_device *op)
 	} else {
 		iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
 		if (!iommu) {
-			printk(KERN_ERR PFX "Cannot allocate PBM iommu.\n");
+			printk(KERN_ERR PFX "Canyest allocate PBM iommu.\n");
 			goto out_free_controller;
 		}
 	}

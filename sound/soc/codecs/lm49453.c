@@ -494,7 +494,7 @@ static const DECLARE_TLV_DB_SCALE(port_tlv, -1800, 600, 0);
 static const DECLARE_TLV_DB_SCALE(stn_tlv, -7200, 150, 0);
 
 static const struct snd_kcontrol_new lm49453_sidetone_mixer_controls[] = {
-/* Sidetone supports mono only */
+/* Sidetone supports moyes only */
 SOC_DAPM_SINGLE_TLV("Sidetone ADCL Volume", LM49453_P0_STN_VOL_ADCL_REG,
 		     0, 0x3F, 0, stn_tlv),
 SOC_DAPM_SINGLE_TLV("Sidetone ADCR Volume", LM49453_P0_STN_VOL_ADCR_REG,
@@ -510,7 +510,7 @@ SOC_DAPM_SINGLE_TLV("Sidetone DMIC2R Volume", LM49453_P0_STN_VOL_DMIC2R_REG,
 };
 
 static const struct snd_kcontrol_new lm49453_snd_controls[] = {
-	/* mic1 and mic2 supports mono only */
+	/* mic1 and mic2 supports moyes only */
 	SOC_SINGLE_TLV("Mic1 Volume", LM49453_P0_MICL_REG, 0, 15, 0, mic_tlv),
 	SOC_SINGLE_TLV("Mic2 Volume", LM49453_P0_MICR_REG, 0, 15, 0, mic_tlv),
 
@@ -1396,7 +1396,7 @@ static const struct snd_soc_component_driver soc_component_dev_lm49453 = {
 	.num_dapm_routes	= ARRAY_SIZE(lm49453_audio_map),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config lm49453_regmap_config = {

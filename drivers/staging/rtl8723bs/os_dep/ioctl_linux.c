@@ -351,15 +351,15 @@ static char *translate_scan(struct adapter *padapter,
 
 	#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
 	{
-		s16 tmp_noise = 0;
-		rtw_hal_get_odm_var(padapter, HAL_ODM_NOISE_MONITOR,&(pnetwork->network.Configuration.DSConfig), &(tmp_noise));
-		iwe.u.qual.noise = tmp_noise ;
+		s16 tmp_yesise = 0;
+		rtw_hal_get_odm_var(padapter, HAL_ODM_NOISE_MONITOR,&(pnetwork->network.Configuration.DSConfig), &(tmp_yesise));
+		iwe.u.qual.yesise = tmp_yesise ;
 	}
 	#else
-	iwe.u.qual.noise = 0; /*  noise level */
+	iwe.u.qual.yesise = 0; /*  yesise level */
 	#endif
 
-	/* DBG_871X("iqual =%d, ilevel =%d, inoise =%d, iupdated =%d\n", iwe.u.qual.qual, iwe.u.qual.level , iwe.u.qual.noise, iwe.u.qual.updated); */
+	/* DBG_871X("iqual =%d, ilevel =%d, iyesise =%d, iupdated =%d\n", iwe.u.qual.qual, iwe.u.qual.level , iwe.u.qual.yesise, iwe.u.qual.updated); */
 
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_QUAL_LEN);
 
@@ -530,7 +530,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				/* DEBUG_ERR(("Set wpa_set_encryption: Obtain Sta_info fail\n")); */
 			} else {
 				/* Jeff: don't disable ieee8021x_blocked while clearing key */
-				if (strcmp(param->u.crypt.alg, "none") != 0)
+				if (strcmp(param->u.crypt.alg, "yesne") != 0)
 					psta->ieee8021x_blocked = false;
 
 				if ((padapter->securitypriv.ndisencryptstatus == Ndis802_11Encryption2Enabled)||
@@ -574,8 +574,8 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 						/* save the IGTK key, length 16 bytes */
 						memcpy(padapter->securitypriv.dot11wBIPKey[param->u.crypt.idx].skey,  param->u.crypt.key, (param->u.crypt.key_len>16 ?16:param->u.crypt.key_len));
 						/*printk("IGTK key below:\n");
-						for (no = 0;no<16;no++)
-							printk(" %02x ", padapter->securitypriv.dot11wBIPKey[param->u.crypt.idx].skey[no]);
+						for (yes = 0;yes<16;yes++)
+							printk(" %02x ", padapter->securitypriv.dot11wBIPKey[param->u.crypt.idx].skey[yes]);
 						printk("\n");*/
 						padapter->securitypriv.dot11wBIPKeyid = param->u.crypt.idx;
 						padapter->securitypriv.binstallBIPkey = true;
@@ -589,7 +589,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				/* DEBUG_ERR(("Set OID_802_11_ADD_KEY: bcmc stainfo is null\n")); */
 			} else {
 				/* Jeff: don't disable ieee8021x_blocked while clearing key */
-				if (strcmp(param->u.crypt.alg, "none") != 0)
+				if (strcmp(param->u.crypt.alg, "yesne") != 0)
 					pbcmc_sta->ieee8021x_blocked = false;
 
 				if ((padapter->securitypriv.ndisencryptstatus == Ndis802_11Encryption2Enabled)||
@@ -814,7 +814,7 @@ static int rtw_wx_set_freq(struct net_device *dev,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra)
 {
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, ("+rtw_wx_set_freq\n"));
+	RT_TRACE(_module_rtl871x_mlme_c_, _drv_yestice_, ("+rtw_wx_set_freq\n"));
 
 	return 0;
 }
@@ -861,7 +861,7 @@ static int rtw_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 
 	switch (wrqu->mode) {
 		case IW_MODE_AUTO:
-			networkType = Ndis802_11AutoUnknown;
+			networkType = Ndis802_11AutoUnkyeswn;
 			DBG_871X("set_mode = IW_MODE_AUTO\n");
 			break;
 		case IW_MODE_ADHOC:
@@ -880,7 +880,7 @@ static int rtw_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 
 		default :
 			ret = -EINVAL;
-			RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_, ("\n Mode: %s is not supported \n", iw_operation_mode[wrqu->mode]));
+			RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_, ("\n Mode: %s is yest supported \n", iw_operation_mode[wrqu->mode]));
 			goto exit;
 	}
 
@@ -891,7 +891,7 @@ static int rtw_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	}
 	else
 	{
-		rtw_setopmode_cmd(padapter, Ndis802_11AutoUnknown, true);
+		rtw_setopmode_cmd(padapter, Ndis802_11AutoUnkyeswn, true);
 	}
 */
 
@@ -1012,7 +1012,7 @@ static int rtw_wx_get_sens(struct net_device *dev,
 {
 	{
 		wrqu->sens.value = 0;
-		wrqu->sens.fixed = 0;	/* no auto select */
+		wrqu->sens.fixed = 0;	/* yes auto select */
 		wrqu->sens.disabled = 1;
 	}
 	return 0;
@@ -1050,14 +1050,14 @@ static int rtw_wx_get_range(struct net_device *dev,
 	/* percent values between 0 and 100. */
 	range->max_qual.qual = 100;
 	range->max_qual.level = 100;
-	range->max_qual.noise = 100;
+	range->max_qual.yesise = 100;
 	range->max_qual.updated = 7; /* Updated all three */
 
 
 	range->avg_qual.qual = 92; /* > 8% missed beacons is 'bad' */
 	/* TODO: Find real 'good' to 'bad' threshol value for RSSI */
 	range->avg_qual.level = 256 - 78;
-	range->avg_qual.noise = 0;
+	range->avg_qual.yesise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
 
 	range->num_bitrates = RATE_COUNT;
@@ -1292,8 +1292,8 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		goto exit;
 	}
 
-	/*  When Busy Traffic, driver do not site survey. So driver return success. */
-	/*  wpa_supplicant will not issue SIOCSIWSCAN cmd again after scan timeout. */
+	/*  When Busy Traffic, driver do yest site survey. So driver return success. */
+	/*  wpa_supplicant will yest issue SIOCSIWSCAN cmd again after scan timeout. */
 	/*  modify by thomas 2011-02-22. */
 	if (pmlmepriv->LinkDetectInfo.bBusyTraffic) {
 		indicate_wx_scan_complete_event(padapter);
@@ -1384,14 +1384,14 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 					pos+= 1; len-= 1;
 					break;
 				default:
-					/* DBG_871X("Unknown CSCAN section %c\n", section); */
+					/* DBG_871X("Unkyeswn CSCAN section %c\n", section); */
 					len = 0; /*  stop parsing */
 			}
 			/* DBG_871X("len:%d\n", len); */
 
 		}
 
-		/* jeff: it has still some scan paramater to parse, we only do this now... */
+		/* jeff: it has still some scan paramater to parse, we only do this yesw... */
 		_status = rtw_set_802_11_bssid_list_scan(padapter, ssid, RTW_SSID_SCAN_AMOUNT);
 
 	} else {
@@ -1736,7 +1736,7 @@ static int rtw_wx_get_rate(struct net_device *dev,
 	if (max_rate == 0)
 		return -EPERM;
 
-	wrqu->bitrate.fixed = 0;	/* no auto select */
+	wrqu->bitrate.fixed = 0;	/* yes auto select */
 	wrqu->bitrate.value = max_rate * 100000;
 
 	return 0;
@@ -1772,7 +1772,7 @@ static int rtw_wx_get_rts(struct net_device *dev,
 	DBG_871X("%s, rts_thresh =%d\n", __func__, padapter->registrypriv.rts_thresh);
 
 	wrqu->rts.value = padapter->registrypriv.rts_thresh;
-	wrqu->rts.fixed = 0;	/* no auto select */
+	wrqu->rts.fixed = 0;	/* yes auto select */
 	/* wrqu->rts.disabled = (wrqu->rts.value == DEFAULT_RTS_THRESHOLD); */
 
 	return 0;
@@ -1809,7 +1809,7 @@ static int rtw_wx_get_frag(struct net_device *dev,
 	DBG_871X("%s, frag_len =%d\n", __func__, padapter->xmitpriv.frag_len);
 
 	wrqu->frag.value = padapter->xmitpriv.frag_len;
-	wrqu->frag.fixed = 0;	/* no auto select */
+	wrqu->frag.fixed = 0;	/* yes auto select */
 	/* wrqu->frag.disabled = (wrqu->frag.value == DEFAULT_FRAG_THRESHOLD); */
 
 	return 0;
@@ -1823,7 +1823,7 @@ static int rtw_wx_get_retry(struct net_device *dev,
 
 
 	wrqu->retry.value = 7;
-	wrqu->retry.fixed = 0;	/* no auto select */
+	wrqu->retry.fixed = 0;	/* yes auto select */
 	wrqu->retry.disabled = 1;
 
 	return 0;
@@ -1911,7 +1911,7 @@ static int rtw_wx_set_enc(struct net_device *dev,
 	} else {
 		wep.KeyLength = 0 ;
 
-		if (keyindex_provided == 1) { /*  set key_id only, no given KeyMaterial(erq->length == 0). */
+		if (keyindex_provided == 1) { /*  set key_id only, yes given KeyMaterial(erq->length == 0). */
 			padapter->securitypriv.dot11PrivacyKeyIndex = key;
 
 			DBG_871X("(keyindex_provided == 1), keyid =%d, key_len =%d\n", key, padapter->securitypriv.dot11DefKeylen[key]);
@@ -2026,7 +2026,7 @@ static int rtw_wx_get_power(struct net_device *dev,
 	/* struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev); */
 
 	wrqu->power.value = 0;
-	wrqu->power.fixed = 0;	/* no auto select */
+	wrqu->power.fixed = 0;	/* yes auto select */
 	wrqu->power.disabled = 1;
 
 	return 0;
@@ -2058,7 +2058,7 @@ static int rtw_wx_set_auth(struct net_device *dev,
 		break;
 	case IW_AUTH_KEY_MGMT:
 		/*
-		 *  ??? does not use these parameters
+		 *  ??? does yest use these parameters
 		 */
 		break;
 	case IW_AUTH_TKIP_COUNTERMEASURES:
@@ -2074,8 +2074,8 @@ static int rtw_wx_set_auth(struct net_device *dev,
 		 * wpa_supplicant calls set_wpa_enabled when the driver
 		 * is loaded and unloaded, regardless of if WPA is being
 		 * used.  No other calls are made which can be used to
-		 * determine if encryption will be used or not prior to
-		 * association being expected.  If encryption is not being
+		 * determine if encryption will be used or yest prior to
+		 * association being expected.  If encryption is yest being
 		 * used, drop_unencrypted is set to false, else true -- we
 		 * can use this to determine if the CAP_PRIVACY_ON bit should
 		 * be set.
@@ -2148,7 +2148,7 @@ static int rtw_wx_set_enc_ext(struct net_device *dev,
 	case IW_ENCODE_ALG_NONE:
 		/* todo: remove key */
 		/* remove = 1; */
-		alg_name = "none";
+		alg_name = "yesne";
 		break;
 	case IW_ENCODE_ALG_WEP:
 		alg_name = "WEP";
@@ -2172,8 +2172,8 @@ static int rtw_wx_set_enc_ext(struct net_device *dev,
 	if (pext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY)
 		param->u.crypt.set_tx = 1;
 
-	/* cliW: WEP does not have group key
-	 * just not checking GROUP key setting
+	/* cliW: WEP does yest have group key
+	 * just yest checking GROUP key setting
 	 */
 	if ((pext->alg != IW_ENCODE_ALG_WEP) &&
 		((pext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
@@ -2660,7 +2660,7 @@ static int rtw_dbg_port(struct net_device *dev,
                                struct iw_request_info *info,
                                union iwreq_data *wrqu, char *extra)
 {
-	u8 major_cmd, minor_cmd;
+	u8 major_cmd, miyesr_cmd;
 	u16 arg;
 	u32 extra_arg, *pdata, val32;
 	struct sta_info *psta;
@@ -2677,13 +2677,13 @@ static int rtw_dbg_port(struct net_device *dev,
 	val32 = *pdata;
 	arg = (u16)(val32&0x0000ffff);
 	major_cmd = (u8)(val32>>24);
-	minor_cmd = (u8)((val32>>16)&0x00ff);
+	miyesr_cmd = (u8)((val32>>16)&0x00ff);
 
 	extra_arg = *(pdata+1);
 
 	switch (major_cmd) {
 		case 0x70:/* read_reg */
-			switch (minor_cmd) {
+			switch (miyesr_cmd) {
 				case 1:
 					DBG_871X("rtw_read8(0x%x) = 0x%02x\n", arg, rtw_read8(padapter, arg));
 					break;
@@ -2696,7 +2696,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			}
 			break;
 		case 0x71:/* write_reg */
-			switch (minor_cmd) {
+			switch (miyesr_cmd) {
 				case 1:
 					rtw_write8(padapter, arg, extra_arg);
 					DBG_871X("rtw_write8(0x%x) = 0x%02x\n", arg, rtw_read8(padapter, arg));
@@ -2719,16 +2719,16 @@ static int rtw_dbg_port(struct net_device *dev,
 			DBG_871X("write_bbreg(0x%x) = 0x%x\n", arg, rtw_hal_read_bbreg(padapter, arg, 0xffffffff));
 			break;
 		case 0x74:/* read_rf */
-			DBG_871X("read RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", minor_cmd, arg, rtw_hal_read_rfreg(padapter, minor_cmd, arg, 0xffffffff));
+			DBG_871X("read RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", miyesr_cmd, arg, rtw_hal_read_rfreg(padapter, miyesr_cmd, arg, 0xffffffff));
 			break;
 		case 0x75:/* write_rf */
-			rtw_hal_write_rfreg(padapter, minor_cmd, arg, 0xffffffff, extra_arg);
-			DBG_871X("write RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", minor_cmd, arg, rtw_hal_read_rfreg(padapter, minor_cmd, arg, 0xffffffff));
+			rtw_hal_write_rfreg(padapter, miyesr_cmd, arg, 0xffffffff, extra_arg);
+			DBG_871X("write RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", miyesr_cmd, arg, rtw_hal_read_rfreg(padapter, miyesr_cmd, arg, 0xffffffff));
 			break;
 
 		case 0x76:
-			switch (minor_cmd) {
-				case 0x00: /* normal mode, */
+			switch (miyesr_cmd) {
+				case 0x00: /* yesrmal mode, */
 					padapter->recvpriv.is_signal_dbg = 0;
 					break;
 				case 0x01: /* dbg mode */
@@ -2747,7 +2747,7 @@ static int rtw_dbg_port(struct net_device *dev,
 				* dbg 0x79010000 [value], set RESP_TXAGC to - value, value:0~15
 				*/
 				u8 value =  extra_arg & 0x0f;
-				u8 sign = minor_cmd;
+				u8 sign = miyesr_cmd;
 				u16 write_value = 0;
 
 				DBG_871X("%s set RESP_TXAGC to %s %u\n", __func__, sign?"minus":"plus", value);
@@ -2764,12 +2764,12 @@ static int rtw_dbg_port(struct net_device *dev,
 				, WLAN_REASON_EXPIRATION_CHK);
 			break;
 		case 0x7F:
-			switch (minor_cmd) {
+			switch (miyesr_cmd) {
 				case 0x0:
 					DBG_871X("fwstate = 0x%x\n", get_fwstate(pmlmepriv));
 					break;
 				case 0x01:
-					DBG_871X("minor_cmd 0x%x\n", minor_cmd);
+					DBG_871X("miyesr_cmd 0x%x\n", miyesr_cmd);
 					break;
 				case 0x02:
 					DBG_871X("pmlmeinfo->state = 0x%x\n", pmlmeinfo->state);
@@ -2832,7 +2832,7 @@ static int rtw_dbg_port(struct net_device *dev,
 					break;
 				case 0x08:
 					{
-						DBG_871X("minor_cmd 0x%x\n", minor_cmd);
+						DBG_871X("miyesr_cmd 0x%x\n", miyesr_cmd);
 					}
 					break;
 				case 0x09:
@@ -2970,7 +2970,7 @@ static int rtw_dbg_port(struct net_device *dev,
 				break;
 				case 0x14:
 				{
-					DBG_871X("minor_cmd 0x%x\n", minor_cmd);
+					DBG_871X("miyesr_cmd 0x%x\n", miyesr_cmd);
 				}
 				break;
 				case 0x16:
@@ -3089,10 +3089,10 @@ static int rtw_dbg_port(struct net_device *dev,
 						u8 chan = rtw_get_oper_ch(padapter);
 						DBG_871X("===========================================\n");
 						ODM_InbandNoise_Monitor(pDM_Odm, true, 0x1e, 100);
-						DBG_871X("channel(%d), noise_a = %d, noise_b = %d , noise_all:%d\n",
-							chan, pDM_Odm->noise_level.noise[ODM_RF_PATH_A],
-							pDM_Odm->noise_level.noise[ODM_RF_PATH_B],
-							pDM_Odm->noise_level.noise_all);
+						DBG_871X("channel(%d), yesise_a = %d, yesise_b = %d , yesise_all:%d\n",
+							chan, pDM_Odm->yesise_level.yesise[ODM_RF_PATH_A],
+							pDM_Odm->yesise_level.yesise[ODM_RF_PATH_B],
+							pDM_Odm->yesise_level.yesise_all);
 						DBG_871X("===========================================\n");
 
 					}
@@ -3282,8 +3282,8 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 		 * wpa_supplicant calls set_wpa_enabled when the driver
 		 * is loaded and unloaded, regardless of if WPA is being
 		 * used.  No other calls are made which can be used to
-		 * determine if encryption will be used or not prior to
-		 * association being expected.  If encryption is not being
+		 * determine if encryption will be used or yest prior to
+		 * association being expected.  If encryption is yest being
 		 * used, drop_unencrypted is set to false, else true -- we
 		 * can use this to determine if the CAP_PRIVACY_ON bit should
 		 * be set.
@@ -3316,7 +3316,7 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 		/*
 		spin_lock_irqsave(&ieee->wpax_suitlist_lock, flags);
 		ieee->wpax_type_set = 1;
-		ieee->wpax_type_notify = value;
+		ieee->wpax_type_yestify = value;
 		spin_unlock_irqrestore(&ieee->wpax_suitlist_lock, flags);
 		*/
 
@@ -3410,7 +3410,7 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 		break;
 
 	default:
-		DBG_871X("Unknown WPA supplicant request: %d\n", param->cmd);
+		DBG_871X("Unkyeswn WPA supplicant request: %d\n", param->cmd);
 		ret = -EOPNOTSUPP;
 		break;
 
@@ -3468,7 +3468,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 		}
 	}
 
-	if (strcmp(param->u.crypt.alg, "none") == 0 && (psta == NULL)) {
+	if (strcmp(param->u.crypt.alg, "yesne") == 0 && (psta == NULL)) {
 		/* todo:clear default encryption keys */
 
 		psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
@@ -3586,7 +3586,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 				memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,  param->u.crypt.key, (param->u.crypt.key_len>16 ?16:param->u.crypt.key_len));
 			} else {
-				DBG_871X("%s, set group_key, none\n", __func__);
+				DBG_871X("%s, set group_key, yesne\n", __func__);
 
 				psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
 			}
@@ -3639,7 +3639,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 					psta->dot118021XPrivacy = _AES_;
 				} else {
-					DBG_871X("%s, set pairwise key, none\n", __func__);
+					DBG_871X("%s, set pairwise key, yesne\n", __func__);
 
 					psta->dot118021XPrivacy = _NO_PRIVACY_;
 				}
@@ -3719,7 +3719,7 @@ static int rtw_set_beacon(struct net_device *dev, struct ieee_param *param, int 
 		pstapriv->max_num_sta = NUM_STA;
 
 
-	if (rtw_check_beacon_data(padapter, pbuf,  (len-12-2)) == _SUCCESS)/*  12 = param header, 2:no packed */
+	if (rtw_check_beacon_data(padapter, pbuf,  (len-12-2)) == _SUCCESS)/*  12 = param header, 2:yes packed */
 		ret = 0;
 	else
 		ret = -EINVAL;
@@ -3896,19 +3896,19 @@ static int rtw_ioctl_get_sta_data(struct net_device *dev, struct ieee_param *par
 		psta_data->flags = psta->flags;
 
 /*
-		nonerp_set : BIT(0)
-		no_short_slot_time_set : BIT(1)
-		no_short_preamble_set : BIT(2)
-		no_ht_gf_set : BIT(3)
-		no_ht_set : BIT(4)
+		yesnerp_set : BIT(0)
+		yes_short_slot_time_set : BIT(1)
+		yes_short_preamble_set : BIT(2)
+		yes_ht_gf_set : BIT(3)
+		yes_ht_set : BIT(4)
 		ht_20mhz_set : BIT(5)
 */
 
-		psta_data->sta_set =((psta->nonerp_set) |
-							(psta->no_short_slot_time_set <<1) |
-							(psta->no_short_preamble_set <<2) |
-							(psta->no_ht_gf_set <<3) |
-							(psta->no_ht_set <<4) |
+		psta_data->sta_set =((psta->yesnerp_set) |
+							(psta->yes_short_slot_time_set <<1) |
+							(psta->yes_short_preamble_set <<2) |
+							(psta->yes_ht_gf_set <<3) |
+							(psta->yes_ht_set <<4) |
 							(psta->ht_20mhz_set <<5));
 
 		psta_data->tx_supp_rates_len =  psta->bssratelen;
@@ -3989,7 +3989,7 @@ static int rtw_set_wps_beacon(struct net_device *dev, struct ieee_param *param, 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) != true)
 		return -EINVAL;
 
-	ie_len = len-12-2;/*  12 = param header, 2:no packed */
+	ie_len = len-12-2;/*  12 = param header, 2:yes packed */
 
 
 	kfree(pmlmepriv->wps_beacon_ie);
@@ -4027,7 +4027,7 @@ static int rtw_set_wps_probe_resp(struct net_device *dev, struct ieee_param *par
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) != true)
 		return -EINVAL;
 
-	ie_len = len-12-2;/*  12 = param header, 2:no packed */
+	ie_len = len-12-2;/*  12 = param header, 2:yes packed */
 
 
 	kfree(pmlmepriv->wps_probe_resp_ie);
@@ -4060,7 +4060,7 @@ static int rtw_set_wps_assoc_resp(struct net_device *dev, struct ieee_param *par
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) != true)
 		return -EINVAL;
 
-	ie_len = len-12-2;/*  12 = param header, 2:no packed */
+	ie_len = len-12-2;/*  12 = param header, 2:yes packed */
 
 
 	kfree(pmlmepriv->wps_assoc_resp_ie);
@@ -4093,7 +4093,7 @@ static int rtw_set_hidden_ssid(struct net_device *dev, struct ieee_param *param,
 	u8 *ssid_ie;
 	char ssid[NDIS_802_11_LENGTH_SSID + 1];
 	sint ssid_len;
-	u8 ignore_broadcast_ssid;
+	u8 igyesre_broadcast_ssid;
 
 	if (check_fwstate(mlmepriv, WIFI_AP_STATE) != true)
 		return -EPERM;
@@ -4101,9 +4101,9 @@ static int rtw_set_hidden_ssid(struct net_device *dev, struct ieee_param *param,
 	if (param->u.bcn_ie.reserved[0] != 0xea)
 		return -EINVAL;
 
-	mlmeinfo->hidden_ssid_mode = ignore_broadcast_ssid = param->u.bcn_ie.reserved[1];
+	mlmeinfo->hidden_ssid_mode = igyesre_broadcast_ssid = param->u.bcn_ie.reserved[1];
 
-	ie_len = len-12-2;/*  12 = param header, 2:no packed */
+	ie_len = len-12-2;/*  12 = param header, 2:yes packed */
 	ssid_ie = rtw_get_ie(param->u.bcn_ie.buf,  WLAN_EID_SSID, &ssid_len, ie_len);
 
 	if (ssid_ie && ssid_len > 0 && ssid_len <= NDIS_802_11_LENGTH_SSID) {
@@ -4130,8 +4130,8 @@ static int rtw_set_hidden_ssid(struct net_device *dev, struct ieee_param *param,
 				 pbss_network_ext->Ssid.Ssid, pbss_network_ext->Ssid.SsidLength);
 	}
 
-	DBG_871X(FUNC_ADPT_FMT" ignore_broadcast_ssid:%d, %s,%d\n", FUNC_ADPT_ARG(adapter),
-		ignore_broadcast_ssid, ssid, ssid_len);
+	DBG_871X(FUNC_ADPT_FMT" igyesre_broadcast_ssid:%d, %s,%d\n", FUNC_ADPT_ARG(adapter),
+		igyesre_broadcast_ssid, ssid, ssid_len);
 
 	return ret;
 }
@@ -4196,7 +4196,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 	/* DBG_871X("%s\n", __func__); */
 
 	/*
-	* this function is expect to call in master mode, which allows no power saving
+	* this function is expect to call in master mode, which allows yes power saving
 	* so, we just check hw_init_completed
 	*/
 
@@ -4312,7 +4312,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 		break;
 
 	default:
-		DBG_871X("Unknown hostapd request: %d\n", param->cmd);
+		DBG_871X("Unkyeswn hostapd request: %d\n", param->cmd);
 		ret = -EOPNOTSUPP;
 		break;
 
@@ -4347,7 +4347,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct iw_point *dwrq = (struct iw_point *)awrq;
 
-	/* RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_notice_, ("+rtw_wx_set_priv\n")); */
+	/* RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_yestice_, ("+rtw_wx_set_priv\n")); */
 	if (dwrq->length == 0)
 		return -EFAULT;
 
@@ -4361,7 +4361,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 	}
 
 
-	/* RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_notice_, */
+	/* RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_yestice_, */
 	/* 	 ("rtw_wx_set_priv: %s req =%s\n", */
 	/* 	  dev->name, ext)); */
 
@@ -4469,7 +4469,7 @@ static int rtw_test(
 
 	pbuf = rtw_zmalloc(len);
 	if (pbuf == NULL) {
-		DBG_871X("%s: no memory!\n", __func__);
+		DBG_871X("%s: yes memory!\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -4747,13 +4747,13 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 	struct iw_statistics *piwstats =&padapter->iwstats;
 	int tmp_level = 0;
 	int tmp_qual = 0;
-	int tmp_noise = 0;
+	int tmp_yesise = 0;
 
 	if (check_fwstate(&padapter->mlmepriv, _FW_LINKED) != true) {
 		piwstats->qual.qual = 0;
 		piwstats->qual.level = 0;
-		piwstats->qual.noise = 0;
-		/* DBG_871X("No link  level:%d, qual:%d, noise:%d\n", tmp_level, tmp_qual, tmp_noise); */
+		piwstats->qual.yesise = 0;
+		/* DBG_871X("No link  level:%d, qual:%d, yesise:%d\n", tmp_level, tmp_qual, tmp_yesise); */
 	} else {
 		#ifdef CONFIG_SIGNAL_DISPLAY_DBM
 		tmp_level = translate_percentage_to_dbm(padapter->recvpriv.signal_strength);
@@ -4775,7 +4775,7 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 #if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
 		if (rtw_linked_check(padapter)) {
 			struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-			struct noise_info info;
+			struct yesise_info info;
 			info.bPauseDIG = true;
 			info.IGIValue = 0x1e;
 			info.max_time = 100;/* ms */
@@ -4786,16 +4786,16 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 			rtw_hal_set_odm_var(padapter, HAL_ODM_NOISE_MONITOR,&info, false);
 			/* ODM_InbandNoise_Monitor(podmpriv, true, 0x20, 100); */
 			rtw_ps_deny_cancel(padapter, PS_DENY_IOCTL);
-			rtw_hal_get_odm_var(padapter, HAL_ODM_NOISE_MONITOR,&(info.chan), &(padapter->recvpriv.noise));
-			DBG_871X("chan:%d, noise_level:%d\n", info.chan, padapter->recvpriv.noise);
+			rtw_hal_get_odm_var(padapter, HAL_ODM_NOISE_MONITOR,&(info.chan), &(padapter->recvpriv.yesise));
+			DBG_871X("chan:%d, yesise_level:%d\n", info.chan, padapter->recvpriv.yesise);
 		}
 #endif
-		tmp_noise = padapter->recvpriv.noise;
-		DBG_871X("level:%d, qual:%d, noise:%d, rssi (%d)\n", tmp_level, tmp_qual, tmp_noise, padapter->recvpriv.rssi);
+		tmp_yesise = padapter->recvpriv.yesise;
+		DBG_871X("level:%d, qual:%d, yesise:%d, rssi (%d)\n", tmp_level, tmp_qual, tmp_yesise, padapter->recvpriv.rssi);
 
 		piwstats->qual.level = tmp_level;
 		piwstats->qual.qual = tmp_qual;
-		piwstats->qual.noise = tmp_noise;
+		piwstats->qual.yesise = tmp_yesise;
 	}
 	piwstats->qual.updated = IW_QUAL_ALL_UPDATED ;/* IW_QUAL_DBM; */
 
@@ -4910,7 +4910,7 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 	k = -1;
 	while ((++k < num_priv_args) && strcmp(priv_args[k].name, cmdname));
 
-	/* If not found... */
+	/* If yest found... */
 	if (k == num_priv_args) {
 		err = -EOPNOTSUPP;
 		goto exit;
@@ -4925,7 +4925,7 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 			(priv_args[j].set_args != priv_args[k].set_args) ||
 			(priv_args[j].get_args != priv_args[k].get_args)));
 
-		/* If not found... */
+		/* If yest found... */
 		if (j == num_priv_args) {
 			err = -EINVAL;
 			goto exit;
@@ -4935,7 +4935,7 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 		subcmd = priv_args[k].cmd;
 		/* Reserve one int (simplify alignment issues) */
 		offset = sizeof(__u32);
-		/* Use real ioctl definition from now on */
+		/* Use real ioctl definition from yesw on */
 		k = j;
 	}
 
@@ -5032,7 +5032,7 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 		if ((priv_args[k].set_args == 0) &&
 			(priv_args[k].get_args & IW_PRIV_SIZE_FIXED) &&
 			(get_priv_size(priv_args[k].get_args) <= IFNAMSIZ)) {
-			/* Second case : no SET args, GET args fit within wrq */
+			/* Second case : yes SET args, GET args fit within wrq */
 			if (offset)
 				wdata.mode = subcmd;
 		} else {

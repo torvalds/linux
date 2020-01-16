@@ -29,17 +29,17 @@
 #include <linux/export.h>
 #include <linux/hashtable.h>
 #include <linux/compat.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "timekeeping.h"
 #include "posix-timers.h"
 
 /*
- * Management arrays for POSIX timers. Timers are now kept in static hash table
+ * Management arrays for POSIX timers. Timers are yesw kept in static hash table
  * with 512 entries.
  * Timer ids are allocated by local routine, which selects proper hash head by
  * key, constructed from current->signal address and per signal struct counter.
- * This keeps timer ids unique per process, but now they can intersect between
+ * This keeps timer ids unique per process, but yesw they can intersect between
  * processes.
  */
 
@@ -53,15 +53,15 @@ static DEFINE_SPINLOCK(hash_lock);
 
 static const struct k_clock * const posix_clocks[];
 static const struct k_clock *clockid_to_kclock(const clockid_t id);
-static const struct k_clock clock_realtime, clock_monotonic;
+static const struct k_clock clock_realtime, clock_moyestonic;
 
 /*
- * we assume that the new SIGEV_THREAD_ID shares no bits with the other
+ * we assume that the new SIGEV_THREAD_ID shares yes bits with the other
  * SIGEV values.  Here we put out an error if this assumption fails.
  */
 #if SIGEV_THREAD_ID != (SIGEV_THREAD_ID & \
                        ~(SIGEV_SIGNAL | SIGEV_NONE | SIGEV_THREAD))
-#error "SIGEV_THREAD_ID must not share bit with other SIGEV values!"
+#error "SIGEV_THREAD_ID must yest share bit with other SIGEV values!"
 #endif
 
 /*
@@ -82,7 +82,7 @@ static const struct k_clock clock_realtime, clock_monotonic;
  *	    times, NOT to report clock times, which are reported with as
  *	    much resolution as the system can muster.  In some cases this
  *	    resolution may depend on the underlying clock hardware and
- *	    may not be quantifiable until run time, and only then is the
+ *	    may yest be quantifiable until run time, and only then is the
  *	    necessary code is written.	The standard says we should say
  *	    something about this issue in the documentation...
  *
@@ -92,12 +92,12 @@ static const struct k_clock clock_realtime, clock_monotonic;
  *	    The standard POSIX timer management code assumes the
  *	    following: 1.) The k_itimer struct (sched.h) is used for
  *	    the timer.  2.) The list, it_lock, it_clock, it_id and
- *	    it_pid fields are not modified by timer code.
+ *	    it_pid fields are yest modified by timer code.
  *
  * Permissions: It is assumed that the clock_settime() function defined
  *	    for each clock will take care of permission checks.	 Some
  *	    clocks may be set able by any user (i.e. local process
- *	    clocks) others not.	 Currently the only set able clock we
+ *	    clocks) others yest.	 Currently the only set able clock we
  *	    have is CLOCK_REALTIME and its high res counter part, both of
  *	    which we beg off on and pass to do_sys_settimeofday().
  */
@@ -185,7 +185,7 @@ static int posix_clock_realtime_adj(const clockid_t which_clock,
 }
 
 /*
- * Get monotonic time for posix timers
+ * Get moyestonic time for posix timers
  */
 static int posix_ktime_get_ts(clockid_t which_clock, struct timespec64 *tp)
 {
@@ -194,9 +194,9 @@ static int posix_ktime_get_ts(clockid_t which_clock, struct timespec64 *tp)
 }
 
 /*
- * Get monotonic-raw time for posix timers
+ * Get moyestonic-raw time for posix timers
  */
-static int posix_get_monotonic_raw(clockid_t which_clock, struct timespec64 *tp)
+static int posix_get_moyestonic_raw(clockid_t which_clock, struct timespec64 *tp)
 {
 	ktime_get_raw_ts64(tp);
 	return 0;
@@ -209,7 +209,7 @@ static int posix_get_realtime_coarse(clockid_t which_clock, struct timespec64 *t
 	return 0;
 }
 
-static int posix_get_monotonic_coarse(clockid_t which_clock,
+static int posix_get_moyestonic_coarse(clockid_t which_clock,
 						struct timespec64 *tp)
 {
 	ktime_get_coarse_ts64(tp);
@@ -320,11 +320,11 @@ int posix_timer_event(struct k_itimer *timr, int si_private)
 	 * We re-queue ->sigq and drop ->it_lock().
 	 * posixtimer_rearm() locks the timer
 	 * and re-schedules it while ->sigq is pending.
-	 * Not really bad, but not that we want.
+	 * Not really bad, but yest that we want.
 	 */
 	timr->sigq->info.si_sys_private = si_private;
 
-	type = !(timr->it_sigev_notify & SIGEV_THREAD_ID) ? PIDTYPE_TGID : PIDTYPE_PID;
+	type = !(timr->it_sigev_yestify & SIGEV_THREAD_ID) ? PIDTYPE_TGID : PIDTYPE_PID;
 	ret = send_sigqueue(timr->sigq, timr->it_pid, type);
 	/* If we failed to send the signal the timer stops. */
 	return ret > 0;
@@ -353,33 +353,33 @@ static enum hrtimer_restart posix_timer_fn(struct hrtimer *timer)
 
 	if (posix_timer_event(timr, si_private)) {
 		/*
-		 * signal was not sent because of sig_ignor
-		 * we will not get a call back to restart it AND
+		 * signal was yest sent because of sig_igyesr
+		 * we will yest get a call back to restart it AND
 		 * it should be restarted.
 		 */
 		if (timr->it_interval != 0) {
-			ktime_t now = hrtimer_cb_get_time(timer);
+			ktime_t yesw = hrtimer_cb_get_time(timer);
 
 			/*
 			 * FIXME: What we really want, is to stop this
 			 * timer completely and restart it in case the
-			 * SIG_IGN is removed. This is a non trivial
+			 * SIG_IGN is removed. This is a yesn trivial
 			 * change which involves sighand locking
 			 * (sigh !), which we don't want to do late in
 			 * the release cycle.
 			 *
-			 * For now we just let timers with an interval
+			 * For yesw we just let timers with an interval
 			 * less than a jiffie expire every jiffie to
 			 * avoid softirq starvation in case of SIG_IGN
 			 * and a very small interval, which would put
 			 * the timer right back on the softirq pending
-			 * list. By moving now ahead of time we trick
+			 * list. By moving yesw ahead of time we trick
 			 * hrtimer_forward() to expire the timer
 			 * later, while we still maintain the overrun
 			 * accuracy, but have some inconsistency in
 			 * the timer_gettime() case. This is at least
 			 * better than a starved softirq. A more
-			 * complex fix which solves also another related
+			 * complex fix which solves also ayesther related
 			 * inconsistency is already in the pipeline.
 			 */
 #ifdef CONFIG_HIGH_RES_TIMERS
@@ -387,10 +387,10 @@ static enum hrtimer_restart posix_timer_fn(struct hrtimer *timer)
 				ktime_t kj = NSEC_PER_SEC / HZ;
 
 				if (timr->it_interval < kj)
-					now = ktime_add(now, kj);
+					yesw = ktime_add(yesw, kj);
 			}
 #endif
-			timr->it_overrun += hrtimer_forward(timer, now,
+			timr->it_overrun += hrtimer_forward(timer, yesw,
 							    timr->it_interval);
 			ret = HRTIMER_RESTART;
 			++timr->it_requeue_pending;
@@ -407,16 +407,16 @@ static struct pid *good_sigevent(sigevent_t * event)
 	struct pid *pid = task_tgid(current);
 	struct task_struct *rtn;
 
-	switch (event->sigev_notify) {
+	switch (event->sigev_yestify) {
 	case SIGEV_SIGNAL | SIGEV_THREAD_ID:
-		pid = find_vpid(event->sigev_notify_thread_id);
+		pid = find_vpid(event->sigev_yestify_thread_id);
 		rtn = pid_task(pid, PIDTYPE_PID);
 		if (!rtn || !same_thread_group(rtn, current))
 			return NULL;
 		/* FALLTHRU */
 	case SIGEV_SIGNAL:
 	case SIGEV_THREAD:
-		if (event->sigev_signo <= 0 || event->sigev_signo > SIGRTMAX)
+		if (event->sigev_sigyes <= 0 || event->sigev_sigyes > SIGRTMAX)
 			return NULL;
 		/* FALLTHRU */
 	case SIGEV_NONE:
@@ -507,12 +507,12 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 			error = -EINVAL;
 			goto out;
 		}
-		new_timer->it_sigev_notify     = event->sigev_notify;
-		new_timer->sigq->info.si_signo = event->sigev_signo;
+		new_timer->it_sigev_yestify     = event->sigev_yestify;
+		new_timer->sigq->info.si_sigyes = event->sigev_sigyes;
 		new_timer->sigq->info.si_value = event->sigev_value;
 	} else {
-		new_timer->it_sigev_notify     = SIGEV_SIGNAL;
-		new_timer->sigq->info.si_signo = SIGALRM;
+		new_timer->it_sigev_yestify     = SIGEV_SIGNAL;
+		new_timer->sigq->info.si_sigyes = SIGALRM;
 		memset(&new_timer->sigq->info.si_value, 0, sizeof(sigval_t));
 		new_timer->sigq->info.si_value.sival_int = new_timer->it_id;
 		new_timer->it_pid = get_pid(task_tgid(current));
@@ -538,7 +538,7 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 
 	return 0;
 	/*
-	 * In the case of the timer belonging to another task, after
+	 * In the case of the timer belonging to ayesther task, after
 	 * the task is unlocked, the timer is owned by the other task
 	 * and may cease to exist at any time.  Don't use or modify
 	 * new_timer after the unlock call.
@@ -580,7 +580,7 @@ COMPAT_SYSCALL_DEFINE3(timer_create, clockid_t, which_clock,
 
 /*
  * Locking issues: We need to protect the result of the id look up until
- * we get the timer locked down so it is not deleted under us.  The
+ * we get the timer locked down so it is yest deleted under us.  The
  * removal is done under the idr spinlock so we use that here to bridge
  * the find to the timer lock.  To avoid a dead lock, the timer id MUST
  * be release with out holding the timer lock.
@@ -611,32 +611,32 @@ static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
 	return NULL;
 }
 
-static ktime_t common_hrtimer_remaining(struct k_itimer *timr, ktime_t now)
+static ktime_t common_hrtimer_remaining(struct k_itimer *timr, ktime_t yesw)
 {
 	struct hrtimer *timer = &timr->it.real.timer;
 
-	return __hrtimer_expires_remaining_adjusted(timer, now);
+	return __hrtimer_expires_remaining_adjusted(timer, yesw);
 }
 
-static s64 common_hrtimer_forward(struct k_itimer *timr, ktime_t now)
+static s64 common_hrtimer_forward(struct k_itimer *timr, ktime_t yesw)
 {
 	struct hrtimer *timer = &timr->it.real.timer;
 
-	return hrtimer_forward(timer, now, timr->it_interval);
+	return hrtimer_forward(timer, yesw, timr->it_interval);
 }
 
 /*
  * Get the time remaining on a POSIX.1b interval timer.  This function
- * is ALWAYS called with spin_lock_irq on the timer, thus it must not
+ * is ALWAYS called with spin_lock_irq on the timer, thus it must yest
  * mess with irq.
  *
  * We have a couple of messes to clean up here.  First there is the case
  * of a timer that has a requeue pending.  These timers should appear to
  * be in the timer list with an expiry as if we were to requeue them
- * now.
+ * yesw.
  *
  * The second issue is the SIGEV_NONE timer which may be active but is
- * not really ever put in the timer list (to save system resources).
+ * yest really ever put in the timer list (to save system resources).
  * This timer may be expired, and if so, we will do it here.  Otherwise
  * it is the same as a requeue pending timer WRT to what we should
  * report.
@@ -644,11 +644,11 @@ static s64 common_hrtimer_forward(struct k_itimer *timr, ktime_t now)
 void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 {
 	const struct k_clock *kc = timr->kclock;
-	ktime_t now, remaining, iv;
+	ktime_t yesw, remaining, iv;
 	struct timespec64 ts64;
-	bool sig_none;
+	bool sig_yesne;
 
-	sig_none = timr->it_sigev_notify == SIGEV_NONE;
+	sig_yesne = timr->it_sigev_yestify == SIGEV_NONE;
 	iv = timr->it_interval;
 
 	/* interval timer ? */
@@ -659,32 +659,32 @@ void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 		 * SIGEV_NONE oneshot timers are never queued. Check them
 		 * below.
 		 */
-		if (!sig_none)
+		if (!sig_yesne)
 			return;
 	}
 
 	/*
-	 * The timespec64 based conversion is suboptimal, but it's not
-	 * worth to implement yet another callback.
+	 * The timespec64 based conversion is suboptimal, but it's yest
+	 * worth to implement yet ayesther callback.
 	 */
 	kc->clock_get(timr->it_clock, &ts64);
-	now = timespec64_to_ktime(ts64);
+	yesw = timespec64_to_ktime(ts64);
 
 	/*
 	 * When a requeue is pending or this is a SIGEV_NONE timer move the
-	 * expiry time forward by intervals, so expiry is > now.
+	 * expiry time forward by intervals, so expiry is > yesw.
 	 */
-	if (iv && (timr->it_requeue_pending & REQUEUE_PENDING || sig_none))
-		timr->it_overrun += kc->timer_forward(timr, now);
+	if (iv && (timr->it_requeue_pending & REQUEUE_PENDING || sig_yesne))
+		timr->it_overrun += kc->timer_forward(timr, yesw);
 
-	remaining = kc->timer_remaining(timr, now);
-	/* Return 0 only, when the timer is expired and not pending */
+	remaining = kc->timer_remaining(timr, yesw);
+	/* Return 0 only, when the timer is expired and yest pending */
 	if (remaining <= 0) {
 		/*
 		 * A single shot SIGEV_NONE timer must return 0, when
 		 * it is expired !
 		 */
-		if (!sig_none)
+		if (!sig_yesne)
 			cur_setting->it_value.tv_nsec = 1;
 	} else {
 		cur_setting->it_value = ktime_to_timespec64(remaining);
@@ -749,8 +749,8 @@ SYSCALL_DEFINE2(timer_gettime32, timer_t, timer_id,
  * Get the number of overruns of a POSIX.1b interval timer.  This is to
  * be the overrun of the timer last delivered.  At the same time we are
  * accumulating overruns on the next timer.  The overrun is frozen when
- * the signal is delivered, either at the notify time (if the info block
- * is not queued) or at the actual delivery time (as we are informed by
+ * the signal is delivered, either at the yestify time (if the info block
+ * is yest queued) or at the actual delivery time (as we are informed by
  * the call back to posixtimer_rearm().  So all we need to do is
  * to pick up the frozen overrun.
  */
@@ -771,14 +771,14 @@ SYSCALL_DEFINE1(timer_getoverrun, timer_t, timer_id)
 }
 
 static void common_hrtimer_arm(struct k_itimer *timr, ktime_t expires,
-			       bool absolute, bool sigev_none)
+			       bool absolute, bool sigev_yesne)
 {
 	struct hrtimer *timer = &timr->it.real.timer;
 	enum hrtimer_mode mode;
 
 	mode = absolute ? HRTIMER_MODE_ABS : HRTIMER_MODE_REL;
 	/*
-	 * Posix magic: Relative CLOCK_REALTIME timers are not affected by
+	 * Posix magic: Relative CLOCK_REALTIME timers are yest affected by
 	 * clock modifications, so they become CLOCK_MONOTONIC based under the
 	 * hood. See hrtimer_init(). Update timr->kclock, so the generic
 	 * functions which use timr->kclock->clock_get() work.
@@ -787,7 +787,7 @@ static void common_hrtimer_arm(struct k_itimer *timr, ktime_t expires,
 	 * use ABSTIME, so it needs to switch back.
 	 */
 	if (timr->it_clock == CLOCK_REALTIME)
-		timr->kclock = absolute ? &clock_realtime : &clock_monotonic;
+		timr->kclock = absolute ? &clock_realtime : &clock_moyestonic;
 
 	hrtimer_init(&timr->it.real.timer, timr->it_clock, mode);
 	timr->it.real.timer.function = posix_timer_fn;
@@ -796,7 +796,7 @@ static void common_hrtimer_arm(struct k_itimer *timr, ktime_t expires,
 		expires = ktime_add_safe(expires, timer->base->get_time());
 	hrtimer_set_expires(timer, expires);
 
-	if (!sigev_none)
+	if (!sigev_yesne)
 		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
 }
 
@@ -830,7 +830,7 @@ static struct k_itimer *timer_wait_running(struct k_itimer *timer,
 		kc->timer_wait_running(timer);
 
 	rcu_read_unlock();
-	/* Relock the timer. It might be not longer hashed. */
+	/* Relock the timer. It might be yest longer hashed. */
 	return lock_timer(timer_id, flags);
 }
 
@@ -840,7 +840,7 @@ int common_timer_set(struct k_itimer *timr, int flags,
 		     struct itimerspec64 *old_setting)
 {
 	const struct k_clock *kc = timr->kclock;
-	bool sigev_none;
+	bool sigev_yesne;
 	ktime_t expires;
 
 	if (old_setting)
@@ -866,10 +866,10 @@ int common_timer_set(struct k_itimer *timr, int flags,
 
 	timr->it_interval = timespec64_to_ktime(new_setting->it_interval);
 	expires = timespec64_to_ktime(new_setting->it_value);
-	sigev_none = timr->it_sigev_notify == SIGEV_NONE;
+	sigev_yesne = timr->it_sigev_yestify == SIGEV_NONE;
 
-	kc->timer_arm(timr, expires, flags & TIMER_ABSTIME, sigev_none);
-	timr->it_active = !sigev_none;
+	kc->timer_arm(timr, expires, flags & TIMER_ABSTIME, sigev_yesne);
+	timr->it_active = !sigev_yesne;
 	return 0;
 }
 
@@ -1029,7 +1029,7 @@ retry_delete:
 }
 
 /*
- * This is called by do_exit or de_thread, only when there are no more
+ * This is called by do_exit or de_thread, only when there are yes more
  * references to the shared signal_struct.
  */
 void exit_itimers(struct signal_struct *sig)
@@ -1195,17 +1195,17 @@ SYSCALL_DEFINE2(clock_getres_time32, clockid_t, which_clock,
 #endif
 
 /*
- * nanosleep for monotonic and realtime clocks
+ * nayessleep for moyestonic and realtime clocks
  */
 static int common_nsleep(const clockid_t which_clock, int flags,
 			 const struct timespec64 *rqtp)
 {
-	return hrtimer_nanosleep(rqtp, flags & TIMER_ABSTIME ?
+	return hrtimer_nayessleep(rqtp, flags & TIMER_ABSTIME ?
 				 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
 				 which_clock);
 }
 
-SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
+SYSCALL_DEFINE4(clock_nayessleep, const clockid_t, which_clock, int, flags,
 		const struct __kernel_timespec __user *, rqtp,
 		struct __kernel_timespec __user *, rmtp)
 {
@@ -1224,15 +1224,15 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 		return -EINVAL;
 	if (flags & TIMER_ABSTIME)
 		rmtp = NULL;
-	current->restart_block.nanosleep.type = rmtp ? TT_NATIVE : TT_NONE;
-	current->restart_block.nanosleep.rmtp = rmtp;
+	current->restart_block.nayessleep.type = rmtp ? TT_NATIVE : TT_NONE;
+	current->restart_block.nayessleep.rmtp = rmtp;
 
 	return kc->nsleep(which_clock, flags, &t);
 }
 
 #ifdef CONFIG_COMPAT_32BIT_TIME
 
-SYSCALL_DEFINE4(clock_nanosleep_time32, clockid_t, which_clock, int, flags,
+SYSCALL_DEFINE4(clock_nayessleep_time32, clockid_t, which_clock, int, flags,
 		struct old_timespec32 __user *, rqtp,
 		struct old_timespec32 __user *, rmtp)
 {
@@ -1251,8 +1251,8 @@ SYSCALL_DEFINE4(clock_nanosleep_time32, clockid_t, which_clock, int, flags,
 		return -EINVAL;
 	if (flags & TIMER_ABSTIME)
 		rmtp = NULL;
-	current->restart_block.nanosleep.type = rmtp ? TT_COMPAT : TT_NONE;
-	current->restart_block.nanosleep.compat_rmtp = rmtp;
+	current->restart_block.nayessleep.type = rmtp ? TT_COMPAT : TT_NONE;
+	current->restart_block.nayessleep.compat_rmtp = rmtp;
 
 	return kc->nsleep(which_clock, flags, &t);
 }
@@ -1277,7 +1277,7 @@ static const struct k_clock clock_realtime = {
 	.timer_arm		= common_hrtimer_arm,
 };
 
-static const struct k_clock clock_monotonic = {
+static const struct k_clock clock_moyestonic = {
 	.clock_getres		= posix_get_hrtimer_res,
 	.clock_get		= posix_ktime_get_ts,
 	.nsleep			= common_nsleep,
@@ -1293,9 +1293,9 @@ static const struct k_clock clock_monotonic = {
 	.timer_arm		= common_hrtimer_arm,
 };
 
-static const struct k_clock clock_monotonic_raw = {
+static const struct k_clock clock_moyestonic_raw = {
 	.clock_getres		= posix_get_hrtimer_res,
-	.clock_get		= posix_get_monotonic_raw,
+	.clock_get		= posix_get_moyestonic_raw,
 };
 
 static const struct k_clock clock_realtime_coarse = {
@@ -1303,9 +1303,9 @@ static const struct k_clock clock_realtime_coarse = {
 	.clock_get		= posix_get_realtime_coarse,
 };
 
-static const struct k_clock clock_monotonic_coarse = {
+static const struct k_clock clock_moyestonic_coarse = {
 	.clock_getres		= posix_get_coarse_res,
-	.clock_get		= posix_get_monotonic_coarse,
+	.clock_get		= posix_get_moyestonic_coarse,
 };
 
 static const struct k_clock clock_tai = {
@@ -1342,12 +1342,12 @@ static const struct k_clock clock_boottime = {
 
 static const struct k_clock * const posix_clocks[] = {
 	[CLOCK_REALTIME]		= &clock_realtime,
-	[CLOCK_MONOTONIC]		= &clock_monotonic,
+	[CLOCK_MONOTONIC]		= &clock_moyestonic,
 	[CLOCK_PROCESS_CPUTIME_ID]	= &clock_process,
 	[CLOCK_THREAD_CPUTIME_ID]	= &clock_thread,
-	[CLOCK_MONOTONIC_RAW]		= &clock_monotonic_raw,
+	[CLOCK_MONOTONIC_RAW]		= &clock_moyestonic_raw,
 	[CLOCK_REALTIME_COARSE]		= &clock_realtime_coarse,
-	[CLOCK_MONOTONIC_COARSE]	= &clock_monotonic_coarse,
+	[CLOCK_MONOTONIC_COARSE]	= &clock_moyestonic_coarse,
 	[CLOCK_BOOTTIME]		= &clock_boottime,
 	[CLOCK_REALTIME_ALARM]		= &alarm_clock,
 	[CLOCK_BOOTTIME_ALARM]		= &alarm_clock,
@@ -1366,5 +1366,5 @@ static const struct k_clock *clockid_to_kclock(const clockid_t id)
 	if (id >= ARRAY_SIZE(posix_clocks))
 		return NULL;
 
-	return posix_clocks[array_index_nospec(idx, ARRAY_SIZE(posix_clocks))];
+	return posix_clocks[array_index_yesspec(idx, ARRAY_SIZE(posix_clocks))];
 }

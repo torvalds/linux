@@ -6,7 +6,7 @@
  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
  *
  * Some code borrowed from https://github.com/xairy/kasan-prototype by
- *        Andrey Konovalov <andreyknvl@gmail.com>
+ *        Andrey Koyesvalov <andreyknvl@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -45,7 +45,7 @@ void *find_first_bad_addr(void *addr, size_t size)
 
 static const char *get_shadow_bug_type(struct kasan_access_info *info)
 {
-	const char *bug_type = "unknown-crash";
+	const char *bug_type = "unkyeswn-crash";
 	u8 *shadow_addr;
 
 	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
@@ -96,7 +96,7 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
 
 static const char *get_wild_bug_type(struct kasan_access_info *info)
 {
-	const char *bug_type = "unknown-crash";
+	const char *bug_type = "unkyeswn-crash";
 
 	if ((unsigned long)info->access_addr < PAGE_SIZE)
 		bug_type = "null-ptr-deref";
@@ -116,18 +116,18 @@ const char *get_bug_type(struct kasan_access_info *info)
 }
 
 #define DEFINE_ASAN_REPORT_LOAD(size)                     \
-void __asan_report_load##size##_noabort(unsigned long addr) \
+void __asan_report_load##size##_yesabort(unsigned long addr) \
 {                                                         \
 	kasan_report(addr, size, false, _RET_IP_);	  \
 }                                                         \
-EXPORT_SYMBOL(__asan_report_load##size##_noabort)
+EXPORT_SYMBOL(__asan_report_load##size##_yesabort)
 
 #define DEFINE_ASAN_REPORT_STORE(size)                     \
-void __asan_report_store##size##_noabort(unsigned long addr) \
+void __asan_report_store##size##_yesabort(unsigned long addr) \
 {                                                          \
 	kasan_report(addr, size, true, _RET_IP_);	   \
 }                                                          \
-EXPORT_SYMBOL(__asan_report_store##size##_noabort)
+EXPORT_SYMBOL(__asan_report_store##size##_yesabort)
 
 DEFINE_ASAN_REPORT_LOAD(1);
 DEFINE_ASAN_REPORT_LOAD(2);
@@ -140,14 +140,14 @@ DEFINE_ASAN_REPORT_STORE(4);
 DEFINE_ASAN_REPORT_STORE(8);
 DEFINE_ASAN_REPORT_STORE(16);
 
-void __asan_report_load_n_noabort(unsigned long addr, size_t size)
+void __asan_report_load_n_yesabort(unsigned long addr, size_t size)
 {
 	kasan_report(addr, size, false, _RET_IP_);
 }
-EXPORT_SYMBOL(__asan_report_load_n_noabort);
+EXPORT_SYMBOL(__asan_report_load_n_yesabort);
 
-void __asan_report_store_n_noabort(unsigned long addr, size_t size)
+void __asan_report_store_n_yesabort(unsigned long addr, size_t size)
 {
 	kasan_report(addr, size, true, _RET_IP_);
 }
-EXPORT_SYMBOL(__asan_report_store_n_noabort);
+EXPORT_SYMBOL(__asan_report_store_n_yesabort);

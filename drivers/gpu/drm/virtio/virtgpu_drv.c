@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -60,7 +60,7 @@ static int virtio_gpu_pci_quirk(struct drm_device *dev, struct virtio_device *vd
 
 	/*
 	 * Normally the drm_dev_set_unique() call is done by core DRM.
-	 * The following comment covers, why virtio cannot rely on it.
+	 * The following comment covers, why virtio canyest rely on it.
 	 *
 	 * Unlike the other virtual GPU drivers, virtio abstracts the
 	 * underlying bus type by using struct virtio_device.
@@ -212,6 +212,6 @@ static struct drm_driver driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };

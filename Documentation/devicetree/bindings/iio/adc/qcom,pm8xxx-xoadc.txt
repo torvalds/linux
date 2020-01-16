@@ -19,7 +19,7 @@ Required properties:
   with PMIC variant but is typically something like 2.2 or 1.8V.
 
 The following required properties are standard for IO channels, see
-iio-bindings.txt for more details, but notice that this particular
+iio-bindings.txt for more details, but yestice that this particular
 ADC has a special addressing scheme that require two cells for
 identifying each ADC channel:
 
@@ -38,11 +38,11 @@ identifying each ADC channel:
 - interrupts: should refer to the parent PMIC interrupt controller
   and reference the proper ADC interrupt.
 
-Required subnodes:
+Required subyesdes:
 
-The ADC channels are configured as subnodes of the ADC.
+The ADC channels are configured as subyesdes of the ADC.
 
-Since some of them are used for calibrating the ADC, these nodes are
+Since some of them are used for calibrating the ADC, these yesdes are
 compulsory:
 
 adc-channel@c {
@@ -57,27 +57,27 @@ adc-channel@f {
 	reg = <0x00 0x0f>;
 };
 
-These three nodes are used for absolute and ratiometric calibration
+These three yesdes are used for absolute and ratiometric calibration
 and only need to have these reg values: they are by hardware definition
 1:1 ratio converters that sample 625, 1250 and 0 milliV and create
 an interpolation calibration for all other ADCs.
 
-Optional subnodes: any channels other than channels [0x00 0x0c],
+Optional subyesdes: any channels other than channels [0x00 0x0c],
 [0x00 0x0d] and [0x00 0x0f] are optional.
 
-Required channel node properties:
+Required channel yesde properties:
 
 - reg: should contain the hardware channel number in the range
   0 .. 0xff (8 bits).
 
-Optional channel node properties:
+Optional channel yesde properties:
 
 - qcom,decimation:
   Value type: <u32>
   Definition: This parameter is used to decrease the ADC sampling rate.
           Quicker measurements can be made by reducing the decimation ratio.
           Valid values are 512, 1024, 2048, 4096.
-          If the property is not found, a default value of 512 will be used.
+          If the property is yest found, a default value of 512 will be used.
 
 - qcom,ratiometric:
   Value type: <u32>
@@ -88,9 +88,9 @@ Optional channel node properties:
 	  to also specify this reference if ratiometric calibration
 	  is selected.
 
-	  If the property is not found, the channel will be
+	  If the property is yest found, the channel will be
           calibrated with the 0.625V and 1.25V reference channels, also
-          known as an absolute calibration.
+          kyeswn as an absolute calibration.
   The reference voltage pairs when using ratiometric calibration:
 	  0 = XO_IN/XOADC_GND
 	  1 = PMIC_IN/XOADC_GND
@@ -144,7 +144,7 @@ xoadc: xoadc@197 {
 	};
 };
 
-/* IIO client node */
+/* IIO client yesde */
 iio-hwmon {
 	compatible = "iio-hwmon";
 	io-channels = <&xoadc 0x00 0x01>, /* Battery */

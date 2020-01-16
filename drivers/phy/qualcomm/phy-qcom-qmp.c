@@ -80,7 +80,7 @@ struct qmp_phy_init_tbl {
 	unsigned int val;
 	/*
 	 * register part of layout ?
-	 * if yes, then offset gives index in the reg-layout
+	 * if no, then offset gives index in the reg-layout
 	 */
 	int in_layout;
 };
@@ -1021,8 +1021,8 @@ struct qmp_phy_cfg {
 	/* true, if PHY has secondary tx/rx lanes to be configured */
 	bool is_dual_lane_phy;
 
-	/* true, if PCS block has no separate SW_RESET register */
-	bool no_pcs_sw_reset;
+	/* true, if PCS block has yes separate SW_RESET register */
+	bool yes_pcs_sw_reset;
 };
 
 /**
@@ -1315,7 +1315,7 @@ static const struct qmp_phy_cfg sdm845_ufsphy_cfg = {
 	.pwrdn_ctrl		= SW_PWRDN,
 
 	.is_dual_lane_phy	= true,
-	.no_pcs_sw_reset	= true,
+	.yes_pcs_sw_reset	= true,
 };
 
 static const struct qmp_phy_cfg msm8998_pciephy_cfg = {
@@ -1390,7 +1390,7 @@ static const struct qmp_phy_cfg sm8150_ufsphy_cfg = {
 	.pwrdn_ctrl		= SW_PWRDN,
 
 	.is_dual_lane_phy	= true,
-	.no_pcs_sw_reset	= true,
+	.yes_pcs_sw_reset	= true,
 };
 
 static void qcom_qmp_phy_configure(void __iomem *base,
@@ -1571,9 +1571,9 @@ static int qcom_qmp_phy_enable(struct phy *phy)
 
 	dev_vdbg(qmp->dev, "Initializing QMP phy\n");
 
-	if (cfg->no_pcs_sw_reset) {
+	if (cfg->yes_pcs_sw_reset) {
 		/*
-		 * Get UFS reset, which is delayed until now to avoid a
+		 * Get UFS reset, which is delayed until yesw to avoid a
 		 * circular dependency where UFS needs its PHY, but the PHY
 		 * needs this UFS reset.
 		 */
@@ -1645,7 +1645,7 @@ static int qcom_qmp_phy_enable(struct phy *phy)
 		usleep_range(cfg->pwrdn_delay_min, cfg->pwrdn_delay_max);
 
 	/* Pull PHY out of reset state */
-	if (!cfg->no_pcs_sw_reset)
+	if (!cfg->yes_pcs_sw_reset)
 		qphy_clrbits(pcs, cfg->regs[QPHY_SW_RESET], SW_RESET);
 
 	if (cfg->has_phy_dp_com_ctrl)
@@ -1694,7 +1694,7 @@ static int qcom_qmp_phy_disable(struct phy *phy)
 	clk_disable_unprepare(qphy->pipe_clk);
 
 	/* PHY reset */
-	if (!cfg->no_pcs_sw_reset)
+	if (!cfg->yes_pcs_sw_reset)
 		qphy_setbits(qphy->pcs, cfg->regs[QPHY_SW_RESET], SW_RESET);
 
 	/* stop SerDes and Phy-Coding-Sublayer */
@@ -1724,7 +1724,7 @@ static int qcom_qmp_phy_set_mode(struct phy *phy,
 	return 0;
 }
 
-static void qcom_qmp_phy_enable_autonomous_mode(struct qmp_phy *qphy)
+static void qcom_qmp_phy_enable_autoyesmous_mode(struct qmp_phy *qphy)
 {
 	struct qcom_qmp *qmp = qphy->qmp;
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
@@ -1746,22 +1746,22 @@ static void qcom_qmp_phy_enable_autonomous_mode(struct qmp_phy *qphy)
 	qphy_clrbits(pcs, cfg->regs[QPHY_PCS_AUTONOMOUS_MODE_CTRL],
 		     ARCVR_DTCT_EN | ALFPS_DTCT_EN | ARCVR_DTCT_EVENT_SEL);
 
-	/* Enable required PHY autonomous mode interrupts */
+	/* Enable required PHY autoyesmous mode interrupts */
 	qphy_setbits(pcs, cfg->regs[QPHY_PCS_AUTONOMOUS_MODE_CTRL], intr_mask);
 
-	/* Enable i/o clamp_n for autonomous mode */
+	/* Enable i/o clamp_n for autoyesmous mode */
 	if (pcs_misc)
 		qphy_clrbits(pcs_misc, QPHY_V3_PCS_MISC_CLAMP_ENABLE, CLAMP_EN);
 }
 
-static void qcom_qmp_phy_disable_autonomous_mode(struct qmp_phy *qphy)
+static void qcom_qmp_phy_disable_autoyesmous_mode(struct qmp_phy *qphy)
 {
 	struct qcom_qmp *qmp = qphy->qmp;
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
 	void __iomem *pcs = qphy->pcs;
 	void __iomem *pcs_misc = qphy->pcs_misc;
 
-	/* Disable i/o clamp_n on resume for normal mode */
+	/* Disable i/o clamp_n on resume for yesrmal mode */
 	if (pcs_misc)
 		qphy_setbits(pcs_misc, QPHY_V3_PCS_MISC_CLAMP_ENABLE, CLAMP_EN);
 
@@ -1786,11 +1786,11 @@ static int __maybe_unused qcom_qmp_phy_runtime_suspend(struct device *dev)
 		return 0;
 
 	if (!qmp->phy_initialized) {
-		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		dev_vdbg(dev, "PHY yest initialized, bailing out\n");
 		return 0;
 	}
 
-	qcom_qmp_phy_enable_autonomous_mode(qphy);
+	qcom_qmp_phy_enable_autoyesmous_mode(qphy);
 
 	clk_disable_unprepare(qphy->pipe_clk);
 	clk_bulk_disable_unprepare(cfg->num_clks, qmp->clks);
@@ -1812,7 +1812,7 @@ static int __maybe_unused qcom_qmp_phy_runtime_resume(struct device *dev)
 		return 0;
 
 	if (!qmp->phy_initialized) {
-		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		dev_vdbg(dev, "PHY yest initialized, bailing out\n");
 		return 0;
 	}
 
@@ -1829,7 +1829,7 @@ static int __maybe_unused qcom_qmp_phy_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	qcom_qmp_phy_disable_autonomous_mode(qphy);
+	qcom_qmp_phy_disable_autoyesmous_mode(qphy);
 
 	return 0;
 }
@@ -1914,7 +1914,7 @@ static void phy_pipe_clk_release_provider(void *res)
  *    clk  |   +-------+   |                   +-----+
  *         +---------------+
  */
-static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_node *np)
+static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_yesde *np)
 {
 	struct clk_fixed_rate *fixed;
 	struct clk_init_data init = { };
@@ -1922,7 +1922,7 @@ static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_node *np)
 
 	if ((qmp->cfg->type != PHY_TYPE_USB3) &&
 	    (qmp->cfg->type != PHY_TYPE_PCIE)) {
-		/* not all phys register pipe clocks, so return success */
+		/* yest all phys register pipe clocks, so return success */
 		return 0;
 	}
 
@@ -1951,8 +1951,8 @@ static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_node *np)
 		return ret;
 
 	/*
-	 * Roll a devm action because the clock provider is the child node, but
-	 * the child node is not actually a device.
+	 * Roll a devm action because the clock provider is the child yesde, but
+	 * the child yesde is yest actually a device.
 	 */
 	ret = devm_add_action(qmp->dev, phy_pipe_clk_release_provider, np);
 	if (ret)
@@ -1976,7 +1976,7 @@ static const struct phy_ops qcom_qmp_ufs_ops = {
 };
 
 static
-int qcom_qmp_phy_create(struct device *dev, struct device_node *np, int id)
+int qcom_qmp_phy_create(struct device *dev, struct device_yesde *np, int id)
 {
 	struct qcom_qmp *qmp = dev_get_drvdata(dev);
 	struct phy *generic_phy;
@@ -2009,7 +2009,7 @@ int qcom_qmp_phy_create(struct device *dev, struct device_node *np, int id)
 
 	/*
 	 * If this is a dual-lane PHY, then there should be registers for the
-	 * second lane. Some old device trees did not specify this, so fall
+	 * second lane. Some old device trees did yest specify this, so fall
 	 * back to old legacy behavior of assuming they can be reached at an
 	 * offset from the first lane.
 	 */
@@ -2034,7 +2034,7 @@ int qcom_qmp_phy_create(struct device *dev, struct device_node *np, int id)
 	}
 
 	if (!qphy->pcs_misc)
-		dev_vdbg(dev, "PHY pcs_misc-reg not used\n");
+		dev_vdbg(dev, "PHY pcs_misc-reg yest used\n");
 
 	/*
 	 * Get PHY's Pipe clock, if any. USB3 and PCIe are PIPE3
@@ -2133,7 +2133,7 @@ static int qcom_qmp_phy_probe(struct platform_device *pdev)
 	struct qcom_qmp *qmp;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	struct device_node *child;
+	struct device_yesde *child;
 	struct phy_provider *phy_provider;
 	void __iomem *base;
 	int num, id;
@@ -2188,8 +2188,8 @@ static int qcom_qmp_phy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	num = of_get_available_child_count(dev->of_node);
-	/* do we have a rogue child node ? */
+	num = of_get_available_child_count(dev->of_yesde);
+	/* do we have a rogue child yesde ? */
 	if (num > qmp->cfg->nlanes)
 		return -EINVAL;
 
@@ -2206,13 +2206,13 @@ static int qcom_qmp_phy_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_forbid(dev);
 
-	for_each_available_child_of_node(dev->of_node, child) {
+	for_each_available_child_of_yesde(dev->of_yesde, child) {
 		/* Create per-lane phy */
 		ret = qcom_qmp_phy_create(dev, child, id);
 		if (ret) {
 			dev_err(dev, "failed to create lane%d phy, %d\n",
 				id, ret);
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
 		/*
@@ -2223,7 +2223,7 @@ static int qcom_qmp_phy_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(qmp->dev,
 				"failed to register pipe clock source\n");
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 		id++;
 	}
@@ -2236,9 +2236,9 @@ static int qcom_qmp_phy_probe(struct platform_device *pdev)
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 
-err_node_put:
+err_yesde_put:
 	pm_runtime_disable(dev);
-	of_node_put(child);
+	of_yesde_put(child);
 	return ret;
 }
 

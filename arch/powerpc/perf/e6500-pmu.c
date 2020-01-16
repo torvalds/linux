@@ -29,7 +29,7 @@ static int e6500_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means yest supported, -1 means yesnsensical, other values
  * are event codes.
  */
 static int e6500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
@@ -46,8 +46,8 @@ static int e6500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_PREFETCH)] = {	37,		0	},
 	},
 	/*
-	 * Assuming LL means L2, it's not a good match for this model.
-	 * It does not have separate read/write events (but it does have
+	 * Assuming LL means L2, it's yest a good match for this model.
+	 * It does yest have separate read/write events (but it does have
 	 * separate instruction/data events).
 	 */
 	[C(LL)] = {
@@ -58,7 +58,7 @@ static int e6500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 	/*
 	 * There are data/instruction MMU misses, but that's a miss on
-	 * the chip's internal level-one TLB which is probably not
+	 * the chip's internal level-one TLB which is probably yest
 	 * what the user wants.  Instead, unified level-two TLB misses
 	 * are reported here.
 	 */

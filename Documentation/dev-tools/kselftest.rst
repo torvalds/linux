@@ -146,7 +146,7 @@ Kselftest install as well as the Kselftest tarball provide a script
 named "run_kselftest.sh" to run the tests.
 
 You can simply do the following to run the installed Kselftests. Please
-note some tests will require root privileges::
+yeste some tests will require root privileges::
 
    $ cd kselftest
    $ ./run_kselftest.sh
@@ -156,7 +156,7 @@ Contributing new tests
 
 In general, the rules for selftests are
 
- * Do as much as you can if you're not root;
+ * Do as much as you can if you're yest root;
 
  * Don't take too long;
 
@@ -183,7 +183,7 @@ Contributing new tests (details)
    TEST_CUSTOM_PROGS and TEST_PROGS will be run by common run_tests.
 
    TEST_PROGS_EXTENDED, TEST_GEN_PROGS_EXTENDED mean it is the
-   executable which is not tested by default.
+   executable which is yest tested by default.
    TEST_FILES, TEST_GEN_FILES mean it is the file which is used by
    test.
 

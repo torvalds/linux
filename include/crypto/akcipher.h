@@ -68,10 +68,10 @@ struct crypto_akcipher {
  *		the req->dst_len will be updated to the size required for the
  *		operation
  * @set_pub_key: Function invokes the algorithm specific set public key
- *		function, which knows how to decode and interpret
+ *		function, which kyesws how to decode and interpret
  *		the BER encoded public key and parameters
  * @set_priv_key: Function invokes the algorithm specific set private key
- *		function, which knows how to decode and interpret
+ *		function, which kyesws how to decode and interpret
  *		the BER encoded private key and parameters
  * @max_size:	Function returns dest buffer size required for a given key.
  * @init:	Initialize the cryptographic transformation object.
@@ -211,9 +211,9 @@ static inline void akcipher_request_free(struct akcipher_request *req)
 }
 
 /**
- * akcipher_request_set_callback() - Sets an asynchronous callback.
+ * akcipher_request_set_callback() - Sets an asynchroyesus callback.
  *
- * Callback will be called when an asynchronous operation on a given
+ * Callback will be called when an asynchroyesus operation on a given
  * request is finished.
  *
  * @req:	request that the callback will be set for
@@ -373,13 +373,13 @@ static inline int crypto_akcipher_verify(struct akcipher_request *req)
 /**
  * crypto_akcipher_set_pub_key() - Invoke set public key operation
  *
- * Function invokes the algorithm specific set key function, which knows
+ * Function invokes the algorithm specific set key function, which kyesws
  * how to decode and interpret the encoded key and parameters
  *
  * @tfm:	tfm handle
  * @key:	BER encoded public key, algo OID, paramlen, BER encoded
  *		parameters
- * @keylen:	length of the key (not including other data)
+ * @keylen:	length of the key (yest including other data)
  *
  * Return: zero on success; error code in case of error
  */
@@ -395,13 +395,13 @@ static inline int crypto_akcipher_set_pub_key(struct crypto_akcipher *tfm,
 /**
  * crypto_akcipher_set_priv_key() - Invoke set private key operation
  *
- * Function invokes the algorithm specific set key function, which knows
+ * Function invokes the algorithm specific set key function, which kyesws
  * how to decode and interpret the encoded key and parameters
  *
  * @tfm:	tfm handle
  * @key:	BER encoded private key, algo OID, paramlen, BER encoded
  *		parameters
- * @keylen:	length of the key (not including other data)
+ * @keylen:	length of the key (yest including other data)
  *
  * Return: zero on success; error code in case of error
  */

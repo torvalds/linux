@@ -113,16 +113,16 @@ static struct drm_driver meson_driver = {
 	.desc			= DRIVER_DESC,
 	.date			= "20161109",
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 };
 
 static bool meson_vpu_has_available_connectors(struct device *dev)
 {
-	struct device_node *ep, *remote;
+	struct device_yesde *ep, *remote;
 
 	/* Parses each endpoint and check if remote exists */
-	for_each_endpoint_of_node(dev->of_node, ep) {
-		/* If the endpoint node exists, consider it enabled */
+	for_each_endpoint_of_yesde(dev->of_yesde, ep) {
+		/* If the endpoint yesde exists, consider it enabled */
 		remote = of_graph_get_remote_port(ep);
 		if (remote)
 			return true;
@@ -401,13 +401,13 @@ static int __maybe_unused meson_drv_pm_resume(struct device *dev)
 
 static int compare_of(struct device *dev, void *data)
 {
-	DRM_DEBUG_DRIVER("Comparing of node %pOF with %pOF\n",
-			 dev->of_node, data);
+	DRM_DEBUG_DRIVER("Comparing of yesde %pOF with %pOF\n",
+			 dev->of_yesde, data);
 
-	return dev->of_node == data;
+	return dev->of_yesde == data;
 }
 
-/* Possible connectors nodes to ignore */
+/* Possible connectors yesdes to igyesre */
 static const struct of_device_id connectors_match[] = {
 	{ .compatible = "composite-video-connector" },
 	{ .compatible = "svideo-connector" },
@@ -418,30 +418,30 @@ static const struct of_device_id connectors_match[] = {
 
 static int meson_probe_remote(struct platform_device *pdev,
 			      struct component_match **match,
-			      struct device_node *parent,
-			      struct device_node *remote)
+			      struct device_yesde *parent,
+			      struct device_yesde *remote)
 {
-	struct device_node *ep, *remote_node;
+	struct device_yesde *ep, *remote_yesde;
 	int count = 1;
 
-	/* If node is a connector, return and do not add to match table */
-	if (of_match_node(connectors_match, remote))
+	/* If yesde is a connector, return and do yest add to match table */
+	if (of_match_yesde(connectors_match, remote))
 		return 1;
 
 	component_match_add(&pdev->dev, match, compare_of, remote);
 
-	for_each_endpoint_of_node(remote, ep) {
-		remote_node = of_graph_get_remote_port_parent(ep);
-		if (!remote_node ||
-		    remote_node == parent || /* Ignore parent endpoint */
-		    !of_device_is_available(remote_node)) {
-			of_node_put(remote_node);
+	for_each_endpoint_of_yesde(remote, ep) {
+		remote_yesde = of_graph_get_remote_port_parent(ep);
+		if (!remote_yesde ||
+		    remote_yesde == parent || /* Igyesre parent endpoint */
+		    !of_device_is_available(remote_yesde)) {
+			of_yesde_put(remote_yesde);
 			continue;
 		}
 
-		count += meson_probe_remote(pdev, match, remote, remote_node);
+		count += meson_probe_remote(pdev, match, remote, remote_yesde);
 
-		of_node_put(remote_node);
+		of_yesde_put(remote_yesde);
 	}
 
 	return count;
@@ -450,25 +450,25 @@ static int meson_probe_remote(struct platform_device *pdev,
 static int meson_drv_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ep, *remote;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *ep, *remote;
 	int count = 0;
 
-	for_each_endpoint_of_node(np, ep) {
+	for_each_endpoint_of_yesde(np, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!remote || !of_device_is_available(remote)) {
-			of_node_put(remote);
+			of_yesde_put(remote);
 			continue;
 		}
 
 		count += meson_probe_remote(pdev, &match, np, remote);
-		of_node_put(remote);
+		of_yesde_put(remote);
 	}
 
 	if (count && !match)
 		return meson_drv_bind_master(&pdev->dev, false);
 
-	/* If some endpoints were found, initialize the nodes */
+	/* If some endpoints were found, initialize the yesdes */
 	if (count) {
 		dev_info(&pdev->dev, "Queued %d outputs on vpu\n", count);
 
@@ -477,7 +477,7 @@ static int meson_drv_probe(struct platform_device *pdev)
 						       match);
 	}
 
-	/* If no output endpoints were available, simply bail out */
+	/* If yes output endpoints were available, simply bail out */
 	return 0;
 };
 

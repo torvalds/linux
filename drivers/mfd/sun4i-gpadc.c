@@ -100,7 +100,7 @@ static int sun4i_gpadc_probe(struct platform_device *pdev)
 	unsigned int irq, size;
 	int ret;
 
-	of_id = of_match_node(sun4i_gpadc_of_match, pdev->dev.of_node);
+	of_id = of_match_yesde(sun4i_gpadc_of_match, pdev->dev.of_yesde);
 	if (!of_id)
 		return -EINVAL;
 

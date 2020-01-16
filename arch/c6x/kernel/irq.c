@@ -90,24 +90,24 @@ static const struct irq_domain_ops core_domain_ops = {
 
 void __init init_IRQ(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	/* Mask all priority IRQs */
 	and_creg(IER, ~0xfff0);
 
-	np = of_find_compatible_node(NULL, NULL, "ti,c64x+core-pic");
+	np = of_find_compatible_yesde(NULL, NULL, "ti,c64x+core-pic");
 	if (np != NULL) {
 		/* create the core host */
 		core_domain = irq_domain_add_linear(np, NR_PRIORITY_IRQS,
 						    &core_domain_ops, NULL);
 		if (core_domain)
 			irq_set_default_host(core_domain);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
 	printk(KERN_INFO "Core interrupt controller initialized\n");
 
-	/* now we're ready for other SoC controllers */
+	/* yesw we're ready for other SoC controllers */
 	megamod_pic_init();
 
 	/* Clear all general IRQ flags */

@@ -20,15 +20,15 @@
 
 /*
  * In order to set the CMOS clock precisely, set_rtc_mmss has to be
- * called 500 ms after the second nowtime has started, because when
- * nowtime is written into the registers of the CMOS clock, it will
+ * called 500 ms after the second yeswtime has started, because when
+ * yeswtime is written into the registers of the CMOS clock, it will
  * jump to the next second precisely 500 ms later. Check the Motorola
  * MC146818A or Dallas DS12887 data sheet for details.
  *
- * BUG: This routine does not handle hour overflow properly; it just
- *	sets the minutes. Usually you'll only notice that after reboot!
+ * BUG: This routine does yest handle hour overflow properly; it just
+ *	sets the minutes. Usually you'll only yestice that after reboot!
  */
-static inline int mc146818_set_rtc_mmss(unsigned long nowtime)
+static inline int mc146818_set_rtc_mmss(unsigned long yeswtime)
 {
 	int real_seconds, real_minutes, cmos_minutes;
 	unsigned char save_control, save_freq_select;
@@ -49,11 +49,11 @@ static inline int mc146818_set_rtc_mmss(unsigned long nowtime)
 	/*
 	 * since we're only adjusting minutes and seconds,
 	 * don't interfere with hour overflow. This avoids
-	 * messing with unknown time zones but requires your
-	 * RTC not to be off by more than 15 minutes
+	 * messing with unkyeswn time zones but requires your
+	 * RTC yest to be off by more than 15 minutes
 	 */
-	real_seconds = nowtime % 60;
-	real_minutes = nowtime / 60;
+	real_seconds = yeswtime % 60;
+	real_minutes = yeswtime / 60;
 	if (((abs(real_minutes - cmos_minutes) + 15)/30) & 1)
 		real_minutes += 30;		/* correct for half hour time zone */
 	real_minutes %= 60;
@@ -74,7 +74,7 @@ static inline int mc146818_set_rtc_mmss(unsigned long nowtime)
 
 	/* The following flags have to be released exactly in this order,
 	 * otherwise the DS12887 (popular MC146818A clone with integrated
-	 * battery and quartz) will not reset the oscillator and will not
+	 * battery and quartz) will yest reset the oscillator and will yest
 	 * update precisely 500 ms later. You won't find this mentioned in
 	 * the Dallas Semiconductor data sheets, but who believes data
 	 * sheets anyway ...			       -- Markus Kuhn

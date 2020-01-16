@@ -310,7 +310,7 @@ static enum drm_connector_status hdmi_connector_detect(
 	int retry = 20;
 
 	/*
-	 * some platforms may not have hpd gpio. Rely only on the status
+	 * some platforms may yest have hpd gpio. Rely only on the status
 	 * provided by REG_HDMI_HPD_INT_STATUS in this case.
 	 */
 	if (!hpd_gpio.gpiod)

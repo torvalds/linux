@@ -6,7 +6,7 @@
  * Copyright (C) 2006 Texas Instruments, Inc
  *
  * Written by 	Kalle Jokiniemi
- *		Peter De Schrijver <peter.de-schrijver@nokia.com>
+ *		Peter De Schrijver <peter.de-schrijver@yeskia.com>
  * Several fixes by Amit Kucheria <amit.kucheria@verdurent.com>
  *
  * This file is subject to the terms and conditions of the GNU General
@@ -19,7 +19,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -378,7 +378,7 @@ static int twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 	u8 remap;
 
 	if (rconfig->resource > TOTAL_RESOURCES) {
-		pr_err("TWL4030 Resource %d does not exist\n",
+		pr_err("TWL4030 Resource %d does yest exist\n",
 			rconfig->resource);
 		return -EINVAL;
 	}
@@ -389,7 +389,7 @@ static int twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 	err = twl_i2c_read_u8(TWL_MODULE_PM_RECEIVER, &grp,
 			      rconfig_addr + DEV_GRP_OFFSET);
 	if (err) {
-		pr_err("TWL4030 Resource %d group could not be read\n",
+		pr_err("TWL4030 Resource %d group could yest be read\n",
 			rconfig->resource);
 		return err;
 	}
@@ -409,7 +409,7 @@ static int twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 	err = twl_i2c_read_u8(TWL_MODULE_PM_RECEIVER, &type,
 				rconfig_addr + TYPE_OFFSET);
 	if (err < 0) {
-		pr_err("TWL4030 Resource %d type could not be read\n",
+		pr_err("TWL4030 Resource %d type could yest be read\n",
 			rconfig->resource);
 		return err;
 	}
@@ -435,7 +435,7 @@ static int twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 	err = twl_i2c_read_u8(TWL_MODULE_PM_RECEIVER, &remap,
 			      rconfig_addr + REMAP_OFFSET);
 	if (err < 0) {
-		pr_err("TWL4030 Resource %d remap could not be read\n",
+		pr_err("TWL4030 Resource %d remap could yest be read\n",
 			rconfig->resource);
 		return err;
 	}
@@ -675,15 +675,15 @@ void twl4030_power_off(void)
 }
 
 static bool twl4030_power_use_poweroff(const struct twl4030_power_data *pdata,
-					struct device_node *node)
+					struct device_yesde *yesde)
 {
 	if (pdata && pdata->use_poweroff)
 		return true;
 
-	if (of_property_read_bool(node, "ti,system-power-controller"))
+	if (of_property_read_bool(yesde, "ti,system-power-controller"))
 		return true;
 
-	if (of_property_read_bool(node, "ti,use_poweroff"))
+	if (of_property_read_bool(yesde, "ti,use_poweroff"))
 		return true;
 
 	return false;
@@ -882,13 +882,13 @@ MODULE_DEVICE_TABLE(of, twl4030_power_of_match);
 static int twl4030_power_probe(struct platform_device *pdev)
 {
 	const struct twl4030_power_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	const struct of_device_id *match;
 	int err = 0;
 	int err2 = 0;
 	u8 val;
 
-	if (!pdata && !node) {
+	if (!pdata && !yesde) {
 		dev_err(&pdev->dev, "Platform data is missing\n");
 		return -EINVAL;
 	}
@@ -923,7 +923,7 @@ static int twl4030_power_probe(struct platform_device *pdev)
 	}
 
 	/* Board has to be wired properly to use this feature */
-	if (twl4030_power_use_poweroff(pdata, node) && !pm_power_off) {
+	if (twl4030_power_use_poweroff(pdata, yesde) && !pm_power_off) {
 		/* Default for SEQ_OFFSYNC is set, lets ensure this */
 		err = twl_i2c_read_u8(TWL_MODULE_PM_MASTER, &val,
 				      TWL4030_PM_MASTER_CFG_P123_TRANSITION);

@@ -27,7 +27,7 @@
  * meaning throughout this entire routine.  The 'T' in
  * the comments mean that the register can only be
  * accessed when in the 'trap' window, 'G' means
- * accessible in any window.  Do not change these registers
+ * accessible in any window.  Do yest change these registers
  * after they have been set, until you are ready to return
  * from the trap.
  */
@@ -65,7 +65,7 @@ spnwin_patch3_7win:	and	%twin_tmp, 0x7f, %twin_tmp
 
 	/* Datum current_thread_info->uwinmask contains at all times a bitmask
 	 * where if any user windows are active, at least one bit will
-	 * be set in to mask.  If no user windows are active, the bitmask
+	 * be set in to mask.  If yes user windows are active, the bitmask
 	 * will be all zeroes.
 	 */
 	.globl	spill_window_entry 
@@ -108,9 +108,9 @@ spnwin_patch2:	and	%glob_tmp, 0xff, %glob_tmp
 	 * file.
 	 */
 	save	%g0, %g0, %g0		! save into the window to stash away
-	wr	%glob_tmp, 0x0, %wim	! set new %wim, this is safe now
+	wr	%glob_tmp, 0x0, %wim	! set new %wim, this is safe yesw
 
-spwin_no_userwins_from_kernel:
+spwin_yes_userwins_from_kernel:
 	/* LOCATION: Window to be saved */
 
 	STORE_WINDOW(sp)		! stash the window
@@ -134,7 +134,7 @@ spwin_exist_uwins:
 	 *
 	 * Note that how the execution path works out, the new %wim
 	 * will be left for us in the global temporary register,
-	 * %glob_tmp.  We cannot set the new %wim first because we
+	 * %glob_tmp.  We canyest set the new %wim first because we
 	 * need to save into the appropriate window without inducing
 	 * a trap (traps are off, we'd get a watchdog wheee)...
 	 * But first, store the new user window mask calculated
@@ -153,11 +153,11 @@ spwin_fromuser:
 	 * to validity of the users stack pointer by whatever means
 	 * are necessary.  This means that this is architecture
 	 * specific and thus this branch instruction will need to
-	 * be patched at boot time once the machine type is known.
-	 * This routine _shall not_ touch %curptr under any
+	 * be patched at boot time once the machine type is kyeswn.
+	 * This routine _shall yest_ touch %curptr under any
 	 * circumstances whatsoever!  It will branch back to the
 	 * label 'spwin_good_ustack' if the stack is ok but still
-	 * needs to be dumped (SRMMU for instance will not need to
+	 * needs to be dumped (SRMMU for instance will yest need to
 	 * do this) or 'spwin_finish_up' if the stack is ok and the
 	 * registers have already been saved.  If the stack is found
 	 * to be bogus for some reason the routine shall branch to
@@ -198,7 +198,7 @@ spwin_user_stack_is_bolixed:
 
 	/* Wheee, user has trashed his/her stack.  We have to decide
 	 * how to proceed based upon whether we came from kernel mode
-	 * or not.  If we came from kernel mode, toss the window into
+	 * or yest.  If we came from kernel mode, toss the window into
 	 * a special buffer and proceed, the kernel _needs_ a window
 	 * and we could be in an interrupt handler so timing is crucial.
 	 * If we came from user land we build a full stack frame and call
@@ -207,7 +207,7 @@ spwin_user_stack_is_bolixed:
 	rd	%psr, %glob_tmp
 	andcc	%glob_tmp, PSR_PS, %g0
 	bne	spwin_bad_ustack_from_kernel
-	 nop
+	 yesp
 
 	/* Oh well, throw this one window into the per-task window
 	 * buffer, the first one.
@@ -230,7 +230,7 @@ spwin_user_stack_is_bolixed:
 		 */
 		rd	%wim, %twin_tmp
 		or	%twin_tmp, %t_wim, %twin_tmp
-		not	%twin_tmp
+		yest	%twin_tmp
 spnwin_patch3:	and	%twin_tmp, 0xff, %twin_tmp	! patched on 7win Sparcs
 		st	%twin_tmp, [%curptr + TI_UWINMASK]
 
@@ -251,9 +251,9 @@ spnwin_patch3:	and	%twin_tmp, 0xff, %twin_tmp	! patched on 7win Sparcs
 
 	/* Turn on traps and call c-code to deal with it. */
 	wr	%t_psr, PSR_ET, %psr
-	nop
+	yesp
 	call	window_overflow_fault
-	 nop
+	 yesp
 
 	/* Return from trap if C-code actually fixes things, if it
 	 * doesn't then we never get this far as the process will
@@ -278,7 +278,7 @@ spwin_bad_ustack_from_kernel:
 
 	/* Restore globals, condition codes in the %psr and
 	 * return from trap.  Note, restoring %g6 when returning
-	 * to kernel mode is not necessarily these days. ;-)
+	 * to kernel mode is yest necessarily these days. ;-)
 	 */
 	mov	%saved_g5, %g5
 	mov	%saved_g6, %g6
@@ -303,10 +303,10 @@ spwin_bad_ustack_from_kernel:
 #undef saved_g6
 
 /* Now come the per-architecture window overflow stack checking routines.
- * As noted above %curptr cannot be touched by this routine at all.
+ * As yested above %curptr canyest be touched by this routine at all.
  */
 
-	/* This is a generic SRMMU routine.  As far as I know this
+	/* This is a generic SRMMU routine.  As far as I kyesw this
 	 * works for all current v8/srmmu implementations, we'll
 	 * see...
 	 */
@@ -317,7 +317,7 @@ spwin_srmmu_stackchk:
 	/* Because of SMP concerns and speed we play a trick.
 	 * We disable fault traps in the MMU control register,
 	 * Execute the stores, then check the fault registers
-	 * to see what happens.  I can hear Linus now
+	 * to see what happens.  I can hear Linus yesw
 	 * "disgusting... broken hardware...".
 	 *
 	 * But first, check to see if the users stack has ended
@@ -332,20 +332,20 @@ spwin_srmmu_stackchk:
 	bleu	spwin_user_stack_is_bolixed
 	 mov	AC_M_SFSR, %glob_tmp
 
-	/* Clear the fault status and turn on the no_fault bit. */
+	/* Clear the fault status and turn on the yes_fault bit. */
 LEON_PI(lda	[%glob_tmp] ASI_LEON_MMUREGS, %g0)	! eat SFSR
 SUN_PI_(lda	[%glob_tmp] ASI_M_MMUREGS, %g0)		! eat SFSR
 
 LEON_PI(lda	[%g0] ASI_LEON_MMUREGS, %glob_tmp)	! read MMU control
 SUN_PI_(lda	[%g0] ASI_M_MMUREGS, %glob_tmp)		! read MMU control
-	or	%glob_tmp, 0x2, %glob_tmp		! or in no_fault bit
+	or	%glob_tmp, 0x2, %glob_tmp		! or in yes_fault bit
 LEON_PI(sta	%glob_tmp, [%g0] ASI_LEON_MMUREGS)	! set it
 SUN_PI_(sta	%glob_tmp, [%g0] ASI_M_MMUREGS)		! set it
 
 	/* Dump the registers and cross fingers. */
 	STORE_WINDOW(sp)
 
-	/* Clear the no_fault bit and check the status. */
+	/* Clear the yes_fault bit and check the status. */
 	andn	%glob_tmp, 0x2, %glob_tmp
 LEON_PI(sta	%glob_tmp, [%g0] ASI_LEON_MMUREGS)
 SUN_PI_(sta	%glob_tmp, [%g0] ASI_M_MMUREGS)
@@ -363,4 +363,4 @@ SUN_PI_(lda	[%glob_tmp] ASI_M_MMUREGS, %glob_tmp)
 
 	rd	%psr, %glob_tmp
 	b	spwin_user_stack_is_bolixed + 0x4	! we faulted, ugh
-	 nop
+	 yesp

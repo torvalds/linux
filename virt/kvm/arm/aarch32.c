@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * (not much of an) Emulation layer for 32bit guests.
+ * (yest much of an) Emulation layer for 32bit guests.
  *
  * Copyright (C) 2012,2013 - ARM Ltd
  * Author: Marc Zyngier <marc.zyngier@arm.com>
@@ -45,7 +45,7 @@ static void prepare_fault32(struct kvm_vcpu *vcpu, u32 mode, u32 vect_offset)
 
 	*vcpu_cpsr(vcpu) = cpsr;
 
-	/* Note: These now point to the banked copies */
+	/* Note: These yesw point to the banked copies */
 	vcpu_write_spsr(vcpu, new_spsr_value);
 	*vcpu_reg32(vcpu, 14) = *vcpu_pc(vcpu) + return_offset;
 

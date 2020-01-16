@@ -3,7 +3,7 @@
  *   Driver for KeyStream wireless LAN cards.
  *
  *   Copyright (C) 2005-2008 KeyStream Corp.
- *   Copyright (C) 2009 Renesas Technology Corp.
+ *   Copyright (C) 2009 Renesas Techyeslogy Corp.
  */
 
 #include <crypto/hash.h>
@@ -129,7 +129,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 	ap->channel = ap_info->ds_parameter.channel;
 	ap->rssi = ap_info->rssi;
 	ap->sq = ap_info->sq;
-	ap->noise = ap_info->noise;
+	ap->yesise = ap_info->yesise;
 	ap->capability = le16_to_cpu(ap_info->capability);
 	size = (ap_info->rsn.size <= RSN_IE_BODY_MAX) ?
 		ap_info->rsn.size : RSN_IE_BODY_MAX;
@@ -267,7 +267,7 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info *ap_info,
 	ether_addr_copy(ap->bssid, ap_info->bssid);
 	ap->rssi = ap_info->rssi;
 	ap->sq = ap_info->sq;
-	ap->noise = ap_info->noise;
+	ap->yesise = ap_info->yesise;
 	ap->capability = le16_to_cpu(ap_info->capability);
 	ap->channel = ap_info->ch_info;
 
@@ -319,7 +319,7 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info *ap_info,
 			break;
 		default:
 			netdev_err(priv->net_dev,
-				   "unknown Element ID=%d\n", *bp);
+				   "unkyeswn Element ID=%d\n", *bp);
 			break;
 		}
 
@@ -339,7 +339,7 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 	unsigned short eth_proto;
 	unsigned char recv_mic[MICHAEL_MIC_LEN];
 	char buf[128];
-	unsigned long now;
+	unsigned long yesw;
 	struct mic_failure *mic_failure;
 	u8 mic[MICHAEL_MIC_LEN];
 	union iwreq_data wrqu;
@@ -376,11 +376,11 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 		if (ret < 0)
 			return ret;
 		if (memcmp(mic, recv_mic, sizeof(mic)) != 0) {
-			now = jiffies;
+			yesw = jiffies;
 			mic_failure = &priv->wpa.mic_failure;
 			/* MIC FAILURE */
 			if (mic_failure->last_failure_time &&
-			    (now - mic_failure->last_failure_time) / HZ >= 60) {
+			    (yesw - mic_failure->last_failure_time) / HZ >= 60) {
 				mic_failure->failure = 0;
 			}
 			netdev_err(priv->net_dev, "MIC FAILURE\n");
@@ -390,12 +390,12 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 			} else if (mic_failure->failure == 1) {
 				mic_failure->failure = 2;
 				mic_failure->counter =
-					(u16)((now - mic_failure->last_failure_time) / HZ);
+					(u16)((yesw - mic_failure->last_failure_time) / HZ);
 				/*  range 1-60 */
 				if (!mic_failure->counter)
 					mic_failure->counter = 1;
 			}
-			priv->wpa.mic_failure.last_failure_time = now;
+			priv->wpa.mic_failure.last_failure_time = yesw;
 
 			/*  needed parameters: count, keyid, key type, TSC */
 			sprintf(buf,
@@ -513,7 +513,7 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 
 	if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
 	    priv->wpa.rsn_enabled)
-		atomic_set(&priv->psstatus.snooze_guard, 1);
+		atomic_set(&priv->psstatus.syesoze_guard, 1);
 
 	/* rx indication */
 	skb->dev = priv->net_dev;
@@ -663,12 +663,12 @@ void hostif_mib_set_confirm(struct ks_wlan_private *priv)
 		hostif_sme_enqueue(priv, SME_RSN_AUTH_CONFIRM);
 		break;
 	case DOT11_GMK1_TSC:
-		if (atomic_read(&priv->psstatus.snooze_guard))
-			atomic_set(&priv->psstatus.snooze_guard, 0);
+		if (atomic_read(&priv->psstatus.syesoze_guard))
+			atomic_set(&priv->psstatus.syesoze_guard, 0);
 		break;
 	case DOT11_GMK2_TSC:
-		if (atomic_read(&priv->psstatus.snooze_guard))
-			atomic_set(&priv->psstatus.snooze_guard, 0);
+		if (atomic_read(&priv->psstatus.syesoze_guard))
+			atomic_set(&priv->psstatus.syesoze_guard, 0);
 		break;
 	case DOT11_PMK_TSC:
 	case LOCAL_PMK:
@@ -741,7 +741,7 @@ void hostif_connect_indication(struct ks_wlan_private *priv)
 		priv->connect_status = tmp + DISCONNECT_STATUS;
 		break;
 	default:
-		netdev_dbg(priv->net_dev, "unknown connect_code=%d :: scan_ind_count=%d\n",
+		netdev_dbg(priv->net_dev, "unkyeswn connect_code=%d :: scan_ind_count=%d\n",
 			   connect_code, priv->scan_ind_count);
 		netif_carrier_off(netdev);
 		tmp = FORCE_DISCONNECT & priv->connect_status;
@@ -753,7 +753,7 @@ void hostif_connect_indication(struct ks_wlan_private *priv)
 	if (is_connect_status(priv->connect_status) &&
 	    is_disconnect_status(old_status)) {
 		/* for power save */
-		atomic_set(&priv->psstatus.snooze_guard, 0);
+		atomic_set(&priv->psstatus.syesoze_guard, 0);
 		atomic_set(&priv->psstatus.confirm_wait, 0);
 	}
 	ks_wlan_do_power_save(priv);
@@ -931,14 +931,14 @@ static
 void hostif_phy_information_confirm(struct ks_wlan_private *priv)
 {
 	struct iw_statistics *wstats = &priv->wstats;
-	u8 rssi, signal, noise;
+	u8 rssi, signal, yesise;
 	u8 link_speed;
 	u32 transmitted_frame_count, received_fragment_count;
 	u32 failed_count, fcs_error_count;
 
 	rssi = get_byte(priv);
 	signal = get_byte(priv);
-	noise = get_byte(priv);
+	yesise = get_byte(priv);
 	link_speed = get_byte(priv);
 	transmitted_frame_count = get_dword(priv);
 	received_fragment_count = get_dword(priv);
@@ -950,7 +950,7 @@ void hostif_phy_information_confirm(struct ks_wlan_private *priv)
 	priv->current_rate = (link_speed & RATE_MASK);
 	wstats->qual.qual = signal;
 	wstats->qual.level = 256 - rssi;
-	wstats->qual.noise = 0;	/* invalid noise value */
+	wstats->qual.yesise = 0;	/* invalid yesise value */
 	wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 
 	netdev_dbg(priv->net_dev, "\n    rssi=%u\n"
@@ -1167,7 +1167,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	}
 
 	if (priv->wpa.rsn_enabled && priv->wpa.key[0].key_len) {
-		/* no encryption */
+		/* yes encryption */
 		if (eth_proto == ETH_P_PAE &&
 		    priv->wpa.key[1].key_len == 0 &&
 		    priv->wpa.key[2].key_len == 0 &&
@@ -1333,7 +1333,7 @@ static __le16 ks_wlan_cap(struct ks_wlan_private *priv)
 	if (priv->reg.preamble == SHORT_PREAMBLE)
 		capability |= WLAN_CAPABILITY_SHORT_PREAMBLE;
 
-	capability &= ~(WLAN_CAPABILITY_PBCC);	/* pbcc not support */
+	capability &= ~(WLAN_CAPABILITY_PBCC);	/* pbcc yest support */
 
 	if (priv->reg.phy_type != D_11B_ONLY_MODE) {
 		capability |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
@@ -2171,7 +2171,7 @@ static void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 		break;
 	case SME_START_CONFIRM:
 		/* for power save */
-		atomic_set(&priv->psstatus.snooze_guard, 0);
+		atomic_set(&priv->psstatus.syesoze_guard, 0);
 		atomic_set(&priv->psstatus.confirm_wait, 0);
 		if (priv->dev_state == DEVICE_STATE_PREINIT)
 			priv->dev_state = DEVICE_STATE_INIT;
@@ -2279,7 +2279,7 @@ static inline void hostif_power_save_init(struct ks_wlan_private *priv)
 {
 	atomic_set(&priv->psstatus.status, PS_NONE);
 	atomic_set(&priv->psstatus.confirm_wait, 0);
-	atomic_set(&priv->psstatus.snooze_guard, 0);
+	atomic_set(&priv->psstatus.syesoze_guard, 0);
 	init_completion(&priv->psstatus.wakeup_wait);
 	INIT_WORK(&priv->wakeup_work, ks_wlan_hw_wakeup_task);
 }

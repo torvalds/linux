@@ -72,9 +72,9 @@ static int mt76x0_get_firmware(struct mt76x02_dev *dev,
 	/* try to load mt7610e fw if available
 	 * otherwise fall back to mt7610u one
 	 */
-	err = firmware_request_nowarn(fw, MT7610E_FIRMWARE, dev->mt76.dev);
+	err = firmware_request_yeswarn(fw, MT7610E_FIRMWARE, dev->mt76.dev);
 	if (err) {
-		dev_info(dev->mt76.dev, "%s not found, switching to %s",
+		dev_info(dev->mt76.dev, "%s yest found, switching to %s",
 			 MT7610E_FIRMWARE, MT7610U_FIRMWARE);
 		return request_firmware(fw, MT7610U_FIRMWARE,
 					dev->mt76.dev);

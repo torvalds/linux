@@ -16,7 +16,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -65,7 +65,7 @@ void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue)
 
 	/* Wake the dealloc thread _after_ decrementing inflight_packets so
 	 * that if kthread_stop() has already been called, the dealloc thread
-	 * does not wait forever with nothing to wake it.
+	 * does yest wait forever with yesthing to wake it.
 	 */
 	wake_up(&queue->dealloc_wq);
 }
@@ -93,7 +93,7 @@ static int xenvif_poll(struct napi_struct *napi, int budget)
 		container_of(napi, struct xenvif_queue, napi);
 	int work_done;
 
-	/* This vif is rogue, we pretend we've there is nothing to do
+	/* This vif is rogue, we pretend we've there is yesthing to do
 	 * for this vif to deschedule it from NAPI. But this interface
 	 * will be turned off in thread context later.
 	 */
@@ -154,7 +154,7 @@ static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
 	unsigned int size = vif->hash.size;
 	unsigned int num_queues;
 
-	/* If queues are not set up internally - always return 0
+	/* If queues are yest set up internally - always return 0
 	 * as the packet going to be dropped anyway */
 	num_queues = READ_ONCE(vif->num_queues);
 	if (num_queues < 1)
@@ -184,7 +184,7 @@ xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	BUG_ON(skb->dev != dev);
 
-	/* Drop the packet if queues are not set up.
+	/* Drop the packet if queues are yest set up.
 	 * This handler should be called inside an RCU read section
 	 * so we don't need to enter it here explicitly.
 	 */
@@ -201,7 +201,7 @@ xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	queue = &vif->queues[index];
 
-	/* Drop the packet if queue is not ready */
+	/* Drop the packet if queue is yest ready */
 	if (queue->task == NULL ||
 	    queue->dealloc_task == NULL ||
 	    !xenvif_schedulable(vif))
@@ -217,8 +217,8 @@ xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	cb = XENVIF_RX_CB(skb);
 	cb->expires = jiffies + vif->drain_timeout;
 
-	/* If there is no hash algorithm configured then make sure there
-	 * is no hash information in the socket buffer otherwise it
+	/* If there is yes hash algorithm configured then make sure there
+	 * is yes hash information in the socket buffer otherwise it
 	 * would be incorrectly forwarded to the frontend.
 	 */
 	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
@@ -462,7 +462,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	dev = alloc_netdev_mq(sizeof(struct xenvif), name, NET_NAME_UNKNOWN,
 			      ether_setup, xenvif_max_queues);
 	if (dev == NULL) {
-		pr_warn("Could not allocate netdev for %s\n", name);
+		pr_warn("Could yest allocate netdev for %s\n", name);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -479,7 +479,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->drain_timeout = msecs_to_jiffies(rx_drain_timeout_msecs);
 	vif->stall_timeout = msecs_to_jiffies(rx_stall_timeout_msecs);
 
-	/* Start out with no queues. */
+	/* Start out with yes queues. */
 	vif->queues = NULL;
 	vif->num_queues = 0;
 
@@ -500,7 +500,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 
 	/*
 	 * Initialise a dummy MAC address. We choose the numerically
-	 * largest non-broadcast address to prevent the address getting
+	 * largest yesn-broadcast address to prevent the address getting
 	 * stolen by an Ethernet bridge for STP purposes.
 	 * (FE:FF:FF:FF:FF:FF)
 	 */
@@ -511,7 +511,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 
 	err = register_netdev(dev);
 	if (err) {
-		netdev_warn(dev, "Could not register device: err=%d\n", err);
+		netdev_warn(dev, "Could yest register device: err=%d\n", err);
 		free_netdev(dev);
 		return ERR_PTR(err);
 	}
@@ -552,7 +552,7 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 	err = gnttab_alloc_pages(MAX_PENDING_REQS,
 				 queue->mmap_pages);
 	if (err) {
-		netdev_err(queue->vif->dev, "Could not reserve mmap_pages\n");
+		netdev_err(queue->vif->dev, "Could yest reserve mmap_pages\n");
 		return -ENOMEM;
 	}
 
@@ -606,7 +606,7 @@ int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
 	err = request_threaded_irq(vif->ctrl_irq, NULL, xenvif_ctrl_irq_fn,
 				   IRQF_ONESHOT, "xen-netback-ctrl", vif);
 	if (err) {
-		pr_warn("Could not setup irq handler for %s\n", dev->name);
+		pr_warn("Could yest setup irq handler for %s\n", dev->name);
 		goto err_deinit;
 	}
 
@@ -732,7 +732,7 @@ int xenvif_connect_data(struct xenvif_queue *queue,
 	return 0;
 
 kthread_err:
-	pr_warn("Could not allocate kthread for %s\n", queue->name);
+	pr_warn("Could yest allocate kthread for %s\n", queue->name);
 	err = PTR_ERR(task);
 err:
 	xenvif_disconnect_queue(queue);

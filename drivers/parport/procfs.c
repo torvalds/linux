@@ -16,7 +16,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/parport.h>
@@ -56,7 +56,7 @@ static int do_active_device(struct ctl_table *table, int write,
 	}
 
 	if(!len) {
-		len += sprintf(buffer, "%s\n", "none");
+		len += sprintf(buffer, "%s\n", "yesne");
 	}
 
 	if (len > *lenp)
@@ -585,7 +585,7 @@ static void __exit parport_default_proc_unregister(void)
 	parport_bus_exit();
 }
 
-#else /* no sysctl or no procfs*/
+#else /* yes sysctl or yes procfs*/
 
 int parport_proc_register(struct parport *pp)
 {

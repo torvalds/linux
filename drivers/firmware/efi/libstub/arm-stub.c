@@ -19,7 +19,7 @@
  * This is the base address at which to start allocating virtual memory ranges
  * for UEFI Runtime Services. This is in the low TTBR0 range so that we can use
  * any allocation we choose, and eliminate the risk of a conflict after kexec.
- * The value chosen is the largest non-zero power of 2 suitable for this purpose
+ * The value chosen is the largest yesn-zero power of 2 suitable for this purpose
  * both on 32-bit and 64-bit ARM CPUs, to maximize the likelihood that it can
  * be mapped efficiently.
  * Since 32-bit ARM could potentially execute with a 1G/3G user/kernel split,
@@ -197,14 +197,14 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	secure_boot = efi_get_secureboot(sys_table);
 
 	/*
-	 * Unauthenticated device tree data is a security hazard, so ignore
+	 * Unauthenticated device tree data is a security hazard, so igyesre
 	 * 'dtb=' unless UEFI Secure Boot is disabled.  We assume that secure
 	 * boot is enabled if we can't determine its state.
 	 */
 	if (!IS_ENABLED(CONFIG_EFI_ARMSTUB_DTB_LOADER) ||
 	     secure_boot != efi_secureboot_mode_disabled) {
 		if (strstr(cmdline_ptr, "dtb="))
-			pr_efi(sys_table, "Ignoring DTB from command line.\n");
+			pr_efi(sys_table, "Igyesring DTB from command line.\n");
 	} else {
 		status = handle_cmdline_files(sys_table, image, cmdline_ptr,
 					      "dtb=",
@@ -239,7 +239,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	efi_random_get_seed(sys_table);
 
 	/* hibernation expects the runtime regions to stay in the same place */
-	if (!IS_ENABLED(CONFIG_HIBERNATION) && !nokaslr()) {
+	if (!IS_ENABLED(CONFIG_HIBERNATION) && !yeskaslr()) {
 		/*
 		 * Randomize the base of the UEFI runtime services region.
 		 * Preserve the 2 MB alignment of the region by taking a
@@ -366,7 +366,7 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		paddr = in->phys_addr;
 		size = in->num_pages * EFI_PAGE_SIZE;
 
-		if (novamap()) {
+		if (yesvamap()) {
 			in->virt_addr = in->phys_addr;
 			continue;
 		}

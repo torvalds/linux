@@ -80,7 +80,7 @@ enum mpls_payload_type {
 	MPT_IPV4 = 4,
 	MPT_IPV6 = 6,
 
-	/* Other types not implemented:
+	/* Other types yest implemented:
 	 *  - Pseudo-wire with or without control word (RFC4385)
 	 *  - GAL (RFC5586)
 	 */

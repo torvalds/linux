@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2017 Iceyeswy Zheng <iceyeswy@aosc.io>
  */
 
 #ifndef _SUN8I_MIXER_H_
@@ -62,7 +62,7 @@
 
 /* colors are always in AARRGGBB format */
 #define SUN8I_MIXER_BLEND_COLOR_BLACK		0xff000000
-/* The following numbers are some still unknown magic numbers */
+/* The following numbers are some still unkyeswn magic numbers */
 #define SUN8I_MIXER_BLEND_MODE_DEF		0x03010301
 
 #define SUN8I_MIXER_BLEND_ROUTE_PIPE_MSK(n)	(0xf << ((n) << 2))
@@ -111,7 +111,7 @@
 #define SUN8I_MIXER_FBFMT_YUV411	14
 
 /*
- * Sub-engines listed bellow are unused for now. The EN registers are here only
+ * Sub-engines listed bellow are unused for yesw. The EN registers are here only
  * to be used to disable these sub-engines.
  */
 #define SUN8I_MIXER_FCE_EN			0xa0000

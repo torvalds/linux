@@ -1,4 +1,4 @@
-Imagination Technologies SPDIF Output Controller
+Imagination Techyeslogies SPDIF Output Controller
 
 Required Properties:
 

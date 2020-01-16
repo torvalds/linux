@@ -83,7 +83,7 @@ struct pch_dma_regs {
 struct pch_dma_desc {
 	struct pch_dma_desc_regs regs;
 	struct dma_async_tx_descriptor txd;
-	struct list_head	desc_node;
+	struct list_head	desc_yesde;
 	struct list_head	tx_list;
 };
 
@@ -164,14 +164,14 @@ static inline
 struct pch_dma_desc *pdc_first_active(struct pch_dma_chan *pd_chan)
 {
 	return list_first_entry(&pd_chan->active_list,
-				struct pch_dma_desc, desc_node);
+				struct pch_dma_desc, desc_yesde);
 }
 
 static inline
 struct pch_dma_desc *pdc_first_queued(struct pch_dma_chan *pd_chan)
 {
 	return list_first_entry(&pd_chan->queue,
-				struct pch_dma_desc, desc_node);
+				struct pch_dma_desc, desc_yesde);
 }
 
 static void pdc_enable_irq(struct dma_chan *chan, int enable)
@@ -320,7 +320,7 @@ static void pdc_dostart(struct pch_dma_chan *pd_chan, struct pch_dma_desc* desc)
 {
 	if (!pdc_is_idle(pd_chan)) {
 		dev_err(chan2dev(&pd_chan->chan),
-			"BUG: Attempt to start non-idle channel\n");
+			"BUG: Attempt to start yesn-idle channel\n");
 		return;
 	}
 
@@ -353,7 +353,7 @@ static void pdc_chain_complete(struct pch_dma_chan *pd_chan,
 
 	dmaengine_desc_get_callback(txd, &cb);
 	list_splice_init(&desc->tx_list, &pd_chan->free_list);
-	list_move(&desc->desc_node, &pd_chan->free_list);
+	list_move(&desc->desc_yesde, &pd_chan->free_list);
 
 	dmaengine_desc_callback_invoke(&cb, NULL);
 }
@@ -371,7 +371,7 @@ static void pdc_complete_all(struct pch_dma_chan *pd_chan)
 	list_splice_init(&pd_chan->active_list, &list);
 	list_splice_init(&pd_chan->queue, &pd_chan->active_list);
 
-	list_for_each_entry_safe(desc, _d, &list, desc_node)
+	list_for_each_entry_safe(desc, _d, &list, desc_yesde)
 		pdc_chain_complete(pd_chan, desc);
 }
 
@@ -380,7 +380,7 @@ static void pdc_handle_error(struct pch_dma_chan *pd_chan)
 	struct pch_dma_desc *bad_desc;
 
 	bad_desc = pdc_first_active(pd_chan);
-	list_del(&bad_desc->desc_node);
+	list_del(&bad_desc->desc_yesde);
 
 	list_splice_init(&pd_chan->queue, pd_chan->active_list.prev);
 
@@ -413,10 +413,10 @@ static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 	spin_lock(&pd_chan->lock);
 
 	if (list_empty(&pd_chan->active_list)) {
-		list_add_tail(&desc->desc_node, &pd_chan->active_list);
+		list_add_tail(&desc->desc_yesde, &pd_chan->active_list);
 		pdc_dostart(pd_chan, desc);
 	} else {
-		list_add_tail(&desc->desc_node, &pd_chan->queue);
+		list_add_tail(&desc->desc_yesde, &pd_chan->queue);
 	}
 
 	spin_unlock(&pd_chan->lock);
@@ -448,14 +448,14 @@ static struct pch_dma_desc *pdc_desc_get(struct pch_dma_chan *pd_chan)
 	int i = 0;
 
 	spin_lock(&pd_chan->lock);
-	list_for_each_entry_safe(desc, _d, &pd_chan->free_list, desc_node) {
+	list_for_each_entry_safe(desc, _d, &pd_chan->free_list, desc_yesde) {
 		i++;
 		if (async_tx_test_ack(&desc->txd)) {
-			list_del(&desc->desc_node);
+			list_del(&desc->desc_yesde);
 			ret = desc;
 			break;
 		}
-		dev_dbg(chan2dev(&pd_chan->chan), "desc %p not ACKed\n", desc);
+		dev_dbg(chan2dev(&pd_chan->chan), "desc %p yest ACKed\n", desc);
 	}
 	spin_unlock(&pd_chan->lock);
 	dev_dbg(chan2dev(&pd_chan->chan), "scanned %d descriptors\n", i);
@@ -481,7 +481,7 @@ static void pdc_desc_put(struct pch_dma_chan *pd_chan,
 	if (desc) {
 		spin_lock(&pd_chan->lock);
 		list_splice_init(&desc->tx_list, &pd_chan->free_list);
-		list_add(&desc->desc_node, &pd_chan->free_list);
+		list_add(&desc->desc_yesde, &pd_chan->free_list);
 		spin_unlock(&pd_chan->lock);
 	}
 }
@@ -494,7 +494,7 @@ static int pd_alloc_chan_resources(struct dma_chan *chan)
 	int i;
 
 	if (!pdc_is_idle(pd_chan)) {
-		dev_dbg(chan2dev(chan), "DMA channel not idle ?\n");
+		dev_dbg(chan2dev(chan), "DMA channel yest idle ?\n");
 		return -EIO;
 	}
 
@@ -510,7 +510,7 @@ static int pd_alloc_chan_resources(struct dma_chan *chan)
 			break;
 		}
 
-		list_add_tail(&desc->desc_node, &tmp_list);
+		list_add_tail(&desc->desc_yesde, &tmp_list);
 	}
 
 	spin_lock_irq(&pd_chan->lock);
@@ -540,7 +540,7 @@ static void pd_free_chan_resources(struct dma_chan *chan)
 	pd_chan->descs_allocated = 0;
 	spin_unlock_irq(&pd_chan->lock);
 
-	list_for_each_entry_safe(desc, _d, &tmp_list, desc_node)
+	list_for_each_entry_safe(desc, _d, &tmp_list, desc_yesde)
 		dma_pool_free(pd->pool, desc, desc->txd.phys);
 
 	pdc_enable_irq(chan, 0);
@@ -627,7 +627,7 @@ static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 			first = desc;
 		} else {
 			prev->regs.next |= desc->txd.phys;
-			list_add_tail(&desc->desc_node, &first->tx_list);
+			list_add_tail(&desc->desc_yesde, &first->tx_list);
 		}
 
 		prev = desc;
@@ -662,7 +662,7 @@ static int pd_device_terminate_all(struct dma_chan *chan)
 	list_splice_init(&pd_chan->active_list, &list);
 	list_splice_init(&pd_chan->queue, &list);
 
-	list_for_each_entry_safe(desc, _d, &list, desc_node)
+	list_for_each_entry_safe(desc, _d, &list, desc_yesde)
 		pdc_chain_complete(pd_chan, desc);
 
 	spin_unlock_irq(&pd_chan->lock);
@@ -677,7 +677,7 @@ static void pdc_tasklet(unsigned long data)
 
 	if (!pdc_is_idle(pd_chan)) {
 		dev_err(chan2dev(&pd_chan->chan),
-			"BUG: handle non-idle channel in tasklet\n");
+			"BUG: handle yesn-idle channel in tasklet\n");
 		return;
 	}
 
@@ -747,7 +747,7 @@ static void pch_dma_save_regs(struct pch_dma *pd)
 	pd->regs.dma_ctl2 = dma_readl(pd, CTL2);
 	pd->regs.dma_ctl3 = dma_readl(pd, CTL3);
 
-	list_for_each_entry_safe(chan, _c, &pd->dma.channels, device_node) {
+	list_for_each_entry_safe(chan, _c, &pd->dma.channels, device_yesde) {
 		pd_chan = to_pd_chan(chan);
 
 		pd->ch_regs[i].dev_addr = channel_readl(pd_chan, DEV_ADDR);
@@ -770,7 +770,7 @@ static void pch_dma_restore_regs(struct pch_dma *pd)
 	dma_writel(pd, CTL2, pd->regs.dma_ctl2);
 	dma_writel(pd, CTL3, pd->regs.dma_ctl3);
 
-	list_for_each_entry_safe(chan, _c, &pd->dma.channels, device_node) {
+	list_for_each_entry_safe(chan, _c, &pd->dma.channels, device_yesde) {
 		pd_chan = to_pd_chan(chan);
 
 		channel_writel(pd_chan, DEV_ADDR, pd->ch_regs[i].dev_addr);
@@ -835,31 +835,31 @@ static int pch_dma_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable PCI device\n");
+		dev_err(&pdev->dev, "Canyest enable PCI device\n");
 		goto err_free_mem;
 	}
 
 	if (!(pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
-		dev_err(&pdev->dev, "Cannot find proper base address\n");
+		dev_err(&pdev->dev, "Canyest find proper base address\n");
 		err = -ENODEV;
 		goto err_disable_pdev;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot obtain PCI resources\n");
+		dev_err(&pdev->dev, "Canyest obtain PCI resources\n");
 		goto err_disable_pdev;
 	}
 
 	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "Cannot set proper DMA config\n");
+		dev_err(&pdev->dev, "Canyest set proper DMA config\n");
 		goto err_free_res;
 	}
 
 	regs = pd->membase = pci_iomap(pdev, 1, 0);
 	if (!pd->membase) {
-		dev_err(&pdev->dev, "Cannot map MMIO registers\n");
+		dev_err(&pdev->dev, "Canyest map MMIO registers\n");
 		err = -ENOMEM;
 		goto err_free_res;
 	}
@@ -900,7 +900,7 @@ static int pch_dma_probe(struct pci_dev *pdev,
 
 		tasklet_init(&pd_chan->tasklet, pdc_tasklet,
 			     (unsigned long)pd_chan);
-		list_add_tail(&pd_chan->chan.device_node, &pd->dma.channels);
+		list_add_tail(&pd_chan->chan.device_yesde, &pd->dma.channels);
 	}
 
 	dma_cap_zero(pd->dma.cap_mask);
@@ -949,7 +949,7 @@ static void pch_dma_remove(struct pci_dev *pdev)
 		free_irq(pdev->irq, pd);
 
 		list_for_each_entry_safe(chan, _c, &pd->dma.channels,
-					 device_node) {
+					 device_yesde) {
 			pd_chan = to_pd_chan(chan);
 
 			tasklet_kill(&pd_chan->tasklet);

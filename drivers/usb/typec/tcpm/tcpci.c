@@ -495,10 +495,10 @@ static int tcpci_parse_config(struct tcpci *tcpci)
 {
 	tcpci->controls_vbus = true; /* XXX */
 
-	tcpci->tcpc.fwnode = device_get_named_child_node(tcpci->dev,
+	tcpci->tcpc.fwyesde = device_get_named_child_yesde(tcpci->dev,
 							 "connector");
-	if (!tcpci->tcpc.fwnode) {
-		dev_err(tcpci->dev, "Can't find connector node.\n");
+	if (!tcpci->tcpc.fwyesde) {
+		dev_err(tcpci->dev, "Can't find connector yesde.\n");
 		return -EINVAL;
 	}
 

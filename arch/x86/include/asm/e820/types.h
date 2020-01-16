@@ -5,7 +5,7 @@
 #include <uapi/asm/bootparam.h>
 
 /*
- * These are the E820 types known to the kernel:
+ * These are the E820 types kyeswn to the kernel:
  */
 enum e820_type {
 	E820_TYPE_RAM		= 1,
@@ -16,10 +16,10 @@ enum e820_type {
 	E820_TYPE_PMEM		= 7,
 
 	/*
-	 * This is a non-standardized way to represent ADR or
+	 * This is a yesn-standardized way to represent ADR or
 	 * NVDIMM regions that persist over a reboot.
 	 *
-	 * The kernel will ignore their special capabilities
+	 * The kernel will igyesre their special capabilities
 	 * unless the CONFIG_X86_PMEM_LEGACY=y option is set.
 	 *
 	 * ( Note that older platforms also used 6 for the same
@@ -40,7 +40,7 @@ enum e820_type {
 	 * Reserved RAM used by the kernel itself if
 	 * CONFIG_INTEL_TXT=y is enabled, memory of this type
 	 * will be included in the S3 integrity calculation
-	 * and so should not include any memory that the BIOS
+	 * and so should yest include any memory that the BIOS
 	 * might alter over the S3 transition:
 	 */
 	E820_TYPE_RESERVED_KERN	= 128,
@@ -59,28 +59,28 @@ struct e820_entry {
 } __attribute__((packed));
 
 /*
- * The legacy E820 BIOS limits us to 128 (E820_MAX_ENTRIES_ZEROPAGE) nodes
+ * The legacy E820 BIOS limits us to 128 (E820_MAX_ENTRIES_ZEROPAGE) yesdes
  * due to the constrained space in the zeropage.
  *
- * On large systems we can easily have thousands of nodes with RAM,
- * which cannot be fit into so few entries - so we have a mechanism
+ * On large systems we can easily have thousands of yesdes with RAM,
+ * which canyest be fit into so few entries - so we have a mechanism
  * to extend the e820 table size at build-time, via the E820_MAX_ENTRIES
  * define below.
  *
- * ( Those extra entries are enumerated via the EFI memory map, not
+ * ( Those extra entries are enumerated via the EFI memory map, yest
  *   via the legacy zeropage mechanism. )
  *
  * Size our internal memory map tables to have room for these additional
  * entries, based on a heuristic calculation: up to three entries per
- * NUMA node, plus E820_MAX_ENTRIES_ZEROPAGE for some extra space.
+ * NUMA yesde, plus E820_MAX_ENTRIES_ZEROPAGE for some extra space.
  *
  * This allows for bootstrap/firmware quirks such as possible duplicate
  * E820 entries that might need room in the same arrays, prior to the
  * call to e820__update_table() to remove duplicates.  The allowance
- * of three memory map entries per node is "enough" entries for
+ * of three memory map entries per yesde is "eyesugh" entries for
  * the initial hardware platform motivating this mechanism to make
  * use of additional EFI map entries.  Future platforms may want
- * to allow more than three entries per node or otherwise refine
+ * to allow more than three entries per yesde or otherwise refine
  * this size.
  */
 
@@ -97,7 +97,7 @@ struct e820_table {
 };
 
 /*
- * Various well-known legacy memory ranges in physical memory:
+ * Various well-kyeswn legacy memory ranges in physical memory:
  */
 #define ISA_START_ADDRESS	0x000a0000
 #define ISA_END_ADDRESS		0x00100000

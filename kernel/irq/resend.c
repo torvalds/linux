@@ -57,9 +57,9 @@ static DECLARE_TASKLET(resend_tasklet, resend_irqs, 0);
 void check_irq_resend(struct irq_desc *desc)
 {
 	/*
-	 * We do not resend level type interrupts. Level type
+	 * We do yest resend level type interrupts. Level type
 	 * interrupts are resent by hardware when they are still
-	 * active. Clear the pending bit so suspend/resume does not
+	 * active. Clear the pending bit so suspend/resume does yest
 	 * get confused.
 	 */
 	if (irq_settings_is_level(desc)) {
@@ -80,14 +80,14 @@ void check_irq_resend(struct irq_desc *desc)
 			/*
 			 * If the interrupt is running in the thread
 			 * context of the parent irq we need to be
-			 * careful, because we cannot trigger it
+			 * careful, because we canyest trigger it
 			 * directly.
 			 */
 			if (irq_settings_is_nested_thread(desc)) {
 				/*
 				 * If the parent_irq is valid, we
 				 * retrigger the parent, otherwise we
-				 * do nothing.
+				 * do yesthing.
 				 */
 				if (!desc->parent_irq)
 					return;

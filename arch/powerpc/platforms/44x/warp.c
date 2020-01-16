@@ -2,7 +2,7 @@
 /*
  * PIKA Warp(tm) board specific routines
  *
- * Copyright (c) 2008-2009 PIKA Technologies
+ * Copyright (c) 2008-2009 PIKA Techyeslogies
  *   Sean MacLennan <smaclennan@pikatech.com>
  */
 #include <linux/init.h>
@@ -62,17 +62,17 @@ define_machine(warp) {
 
 static int __init warp_post_info(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *fpga;
 	u32 post1, post2;
 
 	/* Sighhhh... POST information is in the sd area. */
-	np = of_find_compatible_node(NULL, NULL, "pika,fpga-sd");
+	np = of_find_compatible_yesde(NULL, NULL, "pika,fpga-sd");
 	if (np == NULL)
 		return -ENOENT;
 
 	fpga = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (fpga == NULL)
 		return -ENOENT;
 
@@ -166,26 +166,26 @@ static irqreturn_t temp_isr(int irq, void *context)
 
 static int pika_setup_leds(void)
 {
-	struct device_node *np, *child;
+	struct device_yesde *np, *child;
 
-	np = of_find_compatible_node(NULL, NULL, "gpio-leds");
+	np = of_find_compatible_yesde(NULL, NULL, "gpio-leds");
 	if (!np) {
 		printk(KERN_ERR __FILE__ ": Unable to find leds\n");
 		return -ENOENT;
 	}
 
-	for_each_child_of_node(np, child)
-		if (of_node_name_eq(child, "green"))
+	for_each_child_of_yesde(np, child)
+		if (of_yesde_name_eq(child, "green"))
 			green_led = of_get_gpio(child, 0);
-		else if (of_node_name_eq(child, "red"))
+		else if (of_yesde_name_eq(child, "red"))
 			red_led = of_get_gpio(child, 0);
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 }
 
-static void pika_setup_critical_temp(struct device_node *np,
+static void pika_setup_critical_temp(struct device_yesde *np,
 				     struct i2c_client *client)
 {
 	int irq, rc;
@@ -228,22 +228,22 @@ static inline void pika_dtm_check_fan(void __iomem *fpga)
 
 static int pika_dtm_thread(void __iomem *fpga)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct i2c_client *client;
 
-	np = of_find_compatible_node(NULL, NULL, "adi,ad7414");
+	np = of_find_compatible_yesde(NULL, NULL, "adi,ad7414");
 	if (np == NULL)
 		return -ENOENT;
 
-	client = of_find_i2c_device_by_node(np);
+	client = of_find_i2c_device_by_yesde(np);
 	if (client == NULL) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENOENT;
 	}
 
 	pika_setup_critical_temp(np, client);
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	printk(KERN_INFO "Warp DTM thread running.\n");
 
@@ -270,14 +270,14 @@ static int pika_dtm_thread(void __iomem *fpga)
 static int __init pika_dtm_start(void)
 {
 	struct task_struct *dtm_thread;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "pika,fpga");
+	np = of_find_compatible_yesde(NULL, NULL, "pika,fpga");
 	if (np == NULL)
 		return -ENOENT;
 
 	dtm_fpga = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (dtm_fpga == NULL)
 		return -ENOENT;
 

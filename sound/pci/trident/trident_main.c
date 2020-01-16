@@ -325,7 +325,7 @@ EXPORT_SYMBOL(snd_trident_stop_voice);
   
     Parameters :  trident - pointer to target device class for 4DWave.
   
-    Return Value: hardware channel - 32-63 or -1 when no channel is available
+    Return Value: hardware channel - 32-63 or -1 when yes channel is available
   
   ---------------------------------------------------------------------------*/
 
@@ -353,7 +353,7 @@ static int snd_trident_allocate_pcm_channel(struct snd_trident * trident)
     Parameters :  trident - pointer to target device class for 4DWave.
 	          channel - hardware channel number 0-63
   
-    Return Value: none
+    Return Value: yesne
   
   ---------------------------------------------------------------------------*/
 
@@ -375,7 +375,7 @@ static void snd_trident_free_pcm_channel(struct snd_trident *trident, int channe
   
     Parameters :  trident - pointer to target device class for 4DWave.
   
-    Return Value: hardware channel - 0-31 or -1 when no channel is available
+    Return Value: hardware channel - 0-31 or -1 when yes channel is available
   
   ---------------------------------------------------------------------------*/
 
@@ -401,7 +401,7 @@ static int snd_trident_allocate_synth_channel(struct snd_trident * trident)
     Parameters :  trident - pointer to target device class for 4DWave.
 	          channel - hardware channel number 0-63
   
-    Return Value: none
+    Return Value: yesne
   
   ---------------------------------------------------------------------------*/
 
@@ -668,7 +668,7 @@ static unsigned int snd_trident_convert_rate(unsigned int rate)
 	unsigned int delta;
 
 	// We special case 44100 and 8000 since rounding with the equation
-	// does not give us an accurate enough value. For 11025 and 22050
+	// does yest give us an accurate eyesugh value. For 11025 and 22050
 	// the equation gives us the best answer. All other frequencies will
 	// also use the equation. JDW
 	if (rate == 44100)
@@ -698,7 +698,7 @@ static unsigned int snd_trident_convert_adc_rate(unsigned int rate)
 	unsigned int delta;
 
 	// We special case 44100 and 8000 since rounding with the equation
-	// does not give us an accurate enough value. For 11025 and 22050
+	// does yest give us an accurate eyesugh value. For 11025 and 22050
 	// the equation gives us the best answer. All other frequencies will
 	// also use the equation. JDW
 	if (rate == 44100)
@@ -751,7 +751,7 @@ static unsigned int snd_trident_control_mode(struct snd_pcm_substream *substream
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	/* set ctrl mode
-	   CTRL default: 8-bit (unsigned) mono, loop mode enabled
+	   CTRL default: 8-bit (unsigned) moyes, loop mode enabled
 	 */
 	CTRL = 0x00000001;
 	if (snd_pcm_format_width(runtime->format) == 16)
@@ -1073,7 +1073,7 @@ static int snd_trident_capture_prepare(struct snd_pcm_substream *substream)
 
 	outl((val << 16) | val, TRID_REG(trident, T4D_SBBL_SBCL));
 
-	// Right now, set format and start to run captureing, 
+	// Right yesw, set format and start to run captureing, 
 	// continuous run loop enable.
 	trident->bDMAStart = 0x19;	// 0001 1001b
 
@@ -1371,7 +1371,7 @@ static int snd_trident_spdif_hw_params(struct snd_pcm_substream *substream,
 	spin_unlock_irq(&trident->reg_lock);
 
 	if (change)
-		snd_ctl_notify(trident->card, SNDRV_CTL_EVENT_MASK_VALUE, &trident->spdif_pcm_ctl->id);
+		snd_ctl_yestify(trident->card, SNDRV_CTL_EVENT_MASK_VALUE, &trident->spdif_pcm_ctl->id);
 
 	return 0;
 }
@@ -1861,7 +1861,7 @@ static int snd_trident_playback_open(struct snd_pcm_substream *substream)
 /*---------------------------------------------------------------------------
    snd_trident_playback_close
   
-   Description: This routine will close the 4DWave playback device. For now 
+   Description: This routine will close the 4DWave playback device. For yesw 
                 we will simply free the dma transfer buffer.
                 
    Parameters:	substream  - PCM substream class
@@ -1912,7 +1912,7 @@ static int snd_trident_spdif_open(struct snd_pcm_substream *substream)
 	}
 
 	trident->spdif_pcm_ctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(trident->card, SNDRV_CTL_EVENT_MASK_VALUE |
+	snd_ctl_yestify(trident->card, SNDRV_CTL_EVENT_MASK_VALUE |
 		       SNDRV_CTL_EVENT_MASK_INFO, &trident->spdif_pcm_ctl->id);
 
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 0, 64*1024);
@@ -1951,7 +1951,7 @@ static int snd_trident_spdif_close(struct snd_pcm_substream *substream)
 	}
 	spin_unlock_irq(&trident->reg_lock);
 	trident->spdif_pcm_ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(trident->card, SNDRV_CTL_EVENT_MASK_VALUE |
+	snd_ctl_yestify(trident->card, SNDRV_CTL_EVENT_MASK_VALUE |
 		       SNDRV_CTL_EVENT_MASK_INFO, &trident->spdif_pcm_ctl->id);
 	return 0;
 }
@@ -1989,7 +1989,7 @@ static int snd_trident_capture_open(struct snd_pcm_substream *substream)
 /*---------------------------------------------------------------------------
    snd_trident_capture_close
   
-   Description: This routine will close the 4DWave capture device. For now 
+   Description: This routine will close the 4DWave capture device. For yesw 
                 we will simply free the dma transfer buffer.
                 
    Parameters:	substream  - PCM substream class
@@ -2033,7 +2033,7 @@ static int snd_trident_foldback_open(struct snd_pcm_substream *substream)
    snd_trident_foldback_close
   
    Description: This routine will close the 4DWave foldback capture device. 
-		For now we will simply free the dma transfer buffer.
+		For yesw we will simply free the dma transfer buffer.
                 
    Parameters:	substream  - PCM substream class
 
@@ -2300,7 +2300,7 @@ int snd_trident_spdif_pcm(struct snd_trident *trident, int device)
     Description: enable/disable S/PDIF out from ac97 mixer
   ---------------------------------------------------------------------------*/
 
-#define snd_trident_spdif_control_info	snd_ctl_boolean_mono_info
+#define snd_trident_spdif_control_info	snd_ctl_boolean_moyes_info
 
 static int snd_trident_spdif_control_get(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
@@ -2520,7 +2520,7 @@ static const struct snd_kcontrol_new snd_trident_spdif_stream =
     Description: enable/disable rear path for ac97
   ---------------------------------------------------------------------------*/
 
-#define snd_trident_ac97_control_info	snd_ctl_boolean_mono_info
+#define snd_trident_ac97_control_info	snd_ctl_boolean_moyes_info
 
 static int snd_trident_ac97_control_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
@@ -2699,7 +2699,7 @@ static const struct snd_kcontrol_new snd_trident_pcm_vol_control =
 	.info =		snd_trident_pcm_vol_control_info,
 	.get =		snd_trident_pcm_vol_control_get,
 	.put =		snd_trident_pcm_vol_control_put,
-	/* FIXME: no tlv yet */
+	/* FIXME: yes tlv yet */
 };
 
 /*---------------------------------------------------------------------------
@@ -2879,7 +2879,7 @@ static const struct snd_kcontrol_new snd_trident_pcm_cvol_control =
 	.tlv = { .p = db_scale_crvol },
 };
 
-static void snd_trident_notify_pcm_change1(struct snd_card *card,
+static void snd_trident_yestify_pcm_change1(struct snd_card *card,
 					   struct snd_kcontrol *kctl,
 					   int num, int activate)
 {
@@ -2891,19 +2891,19 @@ static void snd_trident_notify_pcm_change1(struct snd_card *card,
 		kctl->vd[num].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	else
 		kctl->vd[num].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE |
+	snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE |
 		       SNDRV_CTL_EVENT_MASK_INFO,
 		       snd_ctl_build_ioff(&id, kctl, num));
 }
 
-static void snd_trident_notify_pcm_change(struct snd_trident *trident,
+static void snd_trident_yestify_pcm_change(struct snd_trident *trident,
 					  struct snd_trident_pcm_mixer *tmix,
 					  int num, int activate)
 {
-	snd_trident_notify_pcm_change1(trident->card, trident->ctl_vol, num, activate);
-	snd_trident_notify_pcm_change1(trident->card, trident->ctl_pan, num, activate);
-	snd_trident_notify_pcm_change1(trident->card, trident->ctl_rvol, num, activate);
-	snd_trident_notify_pcm_change1(trident->card, trident->ctl_cvol, num, activate);
+	snd_trident_yestify_pcm_change1(trident->card, trident->ctl_vol, num, activate);
+	snd_trident_yestify_pcm_change1(trident->card, trident->ctl_pan, num, activate);
+	snd_trident_yestify_pcm_change1(trident->card, trident->ctl_rvol, num, activate);
+	snd_trident_yestify_pcm_change1(trident->card, trident->ctl_cvol, num, activate);
 }
 
 static int snd_trident_pcm_mixer_build(struct snd_trident *trident,
@@ -2920,7 +2920,7 @@ static int snd_trident_pcm_mixer_build(struct snd_trident *trident,
 	tmix->pan = T4D_DEFAULT_PCM_PAN;
 	tmix->rvol = T4D_DEFAULT_PCM_RVOL;
 	tmix->cvol = T4D_DEFAULT_PCM_CVOL;
-	snd_trident_notify_pcm_change(trident, tmix, substream->number, 1);
+	snd_trident_yestify_pcm_change(trident, tmix, substream->number, 1);
 	return 0;
 }
 
@@ -2932,7 +2932,7 @@ static int snd_trident_pcm_mixer_free(struct snd_trident *trident, struct snd_tr
 		return -EINVAL;
 	tmix = &trident->pcm_mixer[substream->number];
 	tmix->voice = NULL;
-	snd_trident_notify_pcm_change(trident, tmix, substream->number, 0);
+	snd_trident_yestify_pcm_change(trident, tmix, substream->number, 0);
 	return 0;
 }
 
@@ -3022,22 +3022,22 @@ static int snd_trident_mixer(struct snd_trident *trident, int pcm_spdif_device)
 		tmix->voice = NULL;
 	}
 	if ((trident->ctl_vol = snd_ctl_new1(&snd_trident_pcm_vol_control, trident)) == NULL)
-		goto __nomem;
+		goto __yesmem;
 	if ((err = snd_ctl_add(card, trident->ctl_vol)))
 		goto __out;
 		
 	if ((trident->ctl_pan = snd_ctl_new1(&snd_trident_pcm_pan_control, trident)) == NULL)
-		goto __nomem;
+		goto __yesmem;
 	if ((err = snd_ctl_add(card, trident->ctl_pan)))
 		goto __out;
 
 	if ((trident->ctl_rvol = snd_ctl_new1(&snd_trident_pcm_rvol_control, trident)) == NULL)
-		goto __nomem;
+		goto __yesmem;
 	if ((err = snd_ctl_add(card, trident->ctl_rvol)))
 		goto __out;
 
 	if ((trident->ctl_cvol = snd_ctl_new1(&snd_trident_pcm_cvol_control, trident)) == NULL)
-		goto __nomem;
+		goto __yesmem;
 	if ((err = snd_ctl_add(card, trident->ctl_cvol)))
 		goto __out;
 
@@ -3097,7 +3097,7 @@ static int snd_trident_mixer(struct snd_trident *trident, int pcm_spdif_device)
 	err = 0;
 	goto __out;
 
- __nomem:
+ __yesmem:
 	err = -ENOMEM;
 
  __out:
@@ -3175,7 +3175,7 @@ int snd_trident_create_gameport(struct snd_trident *chip)
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		dev_err(chip->card->dev,
-			"cannot allocate memory for gameport\n");
+			"canyest allocate memory for gameport\n");
 		return -ENOMEM;
 	}
 
@@ -3542,7 +3542,7 @@ int snd_trident_create(struct snd_card *card,
 	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(30)) < 0 ||
 	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(30)) < 0) {
 		dev_err(card->dev,
-			"architecture does not support 30bit PCI busmaster DMA\n");
+			"architecture does yest support 30bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}

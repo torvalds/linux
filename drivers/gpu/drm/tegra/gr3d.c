@@ -280,7 +280,7 @@ static const u32 gr3d_addr_regs[] = {
 
 static int gr3d_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct host1x_syncpt **syncpts;
 	struct gr3d *gr3d;
 	unsigned int i;
@@ -298,27 +298,27 @@ static int gr3d_probe(struct platform_device *pdev)
 
 	gr3d->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(gr3d->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "canyest get clock\n");
 		return PTR_ERR(gr3d->clk);
 	}
 
 	gr3d->rst = devm_reset_control_get(&pdev->dev, "3d");
 	if (IS_ERR(gr3d->rst)) {
-		dev_err(&pdev->dev, "cannot get reset\n");
+		dev_err(&pdev->dev, "canyest get reset\n");
 		return PTR_ERR(gr3d->rst);
 	}
 
 	if (of_device_is_compatible(np, "nvidia,tegra30-gr3d")) {
 		gr3d->clk_secondary = devm_clk_get(&pdev->dev, "3d2");
 		if (IS_ERR(gr3d->clk_secondary)) {
-			dev_err(&pdev->dev, "cannot get secondary clock\n");
+			dev_err(&pdev->dev, "canyest get secondary clock\n");
 			return PTR_ERR(gr3d->clk_secondary);
 		}
 
 		gr3d->rst_secondary = devm_reset_control_get(&pdev->dev,
 								"3d2");
 		if (IS_ERR(gr3d->rst_secondary)) {
-			dev_err(&pdev->dev, "cannot get secondary reset\n");
+			dev_err(&pdev->dev, "canyest get secondary reset\n");
 			return PTR_ERR(gr3d->rst_secondary);
 		}
 	}

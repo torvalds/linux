@@ -25,7 +25,7 @@
 
 static void __iomem *kona_reset_base;
 
-static int kona_reset_handler(struct notifier_block *this,
+static int kona_reset_handler(struct yestifier_block *this,
 				unsigned long mode, void *cmd)
 {
 	/*
@@ -41,8 +41,8 @@ static int kona_reset_handler(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block kona_reset_nb = {
-	.notifier_call = kona_reset_handler,
+static struct yestifier_block kona_reset_nb = {
+	.yestifier_call = kona_reset_handler,
 	.priority = 128,
 };
 

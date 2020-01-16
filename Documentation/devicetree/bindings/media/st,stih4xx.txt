@@ -22,7 +22,7 @@ Example:
 	};
 
 Aliases:
-Each BDISP should have a numbered alias in the aliases node, in the form of
+Each BDISP should have a numbered alias in the aliases yesde, in the form of
 bdispN, N = 0 or 1.
 
 Example:

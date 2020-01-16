@@ -818,7 +818,7 @@ static inline void l2cap_set_timer(struct l2cap_chan *chan,
 	BT_DBG("chan %p state %s timeout %ld", chan,
 	       state_to_string(chan->state), timeout);
 
-	/* If delayed work cancelled do not hold(chan)
+	/* If delayed work cancelled do yest hold(chan)
 	   since it is already done with previous set_timer */
 	if (!cancel_delayed_work(work))
 		l2cap_chan_hold(chan);
@@ -861,57 +861,57 @@ static inline __u16 __next_seq(struct l2cap_chan *chan, __u16 seq)
 	return (seq + 1) % (chan->tx_win_max + 1);
 }
 
-static inline struct l2cap_chan *l2cap_chan_no_new_connection(struct l2cap_chan *chan)
+static inline struct l2cap_chan *l2cap_chan_yes_new_connection(struct l2cap_chan *chan)
 {
 	return NULL;
 }
 
-static inline int l2cap_chan_no_recv(struct l2cap_chan *chan, struct sk_buff *skb)
+static inline int l2cap_chan_yes_recv(struct l2cap_chan *chan, struct sk_buff *skb)
 {
 	return -ENOSYS;
 }
 
-static inline struct sk_buff *l2cap_chan_no_alloc_skb(struct l2cap_chan *chan,
+static inline struct sk_buff *l2cap_chan_yes_alloc_skb(struct l2cap_chan *chan,
 						      unsigned long hdr_len,
 						      unsigned long len, int nb)
 {
 	return ERR_PTR(-ENOSYS);
 }
 
-static inline void l2cap_chan_no_teardown(struct l2cap_chan *chan, int err)
+static inline void l2cap_chan_yes_teardown(struct l2cap_chan *chan, int err)
 {
 }
 
-static inline void l2cap_chan_no_close(struct l2cap_chan *chan)
+static inline void l2cap_chan_yes_close(struct l2cap_chan *chan)
 {
 }
 
-static inline void l2cap_chan_no_ready(struct l2cap_chan *chan)
+static inline void l2cap_chan_yes_ready(struct l2cap_chan *chan)
 {
 }
 
-static inline void l2cap_chan_no_state_change(struct l2cap_chan *chan,
+static inline void l2cap_chan_yes_state_change(struct l2cap_chan *chan,
 					      int state, int err)
 {
 }
 
-static inline void l2cap_chan_no_defer(struct l2cap_chan *chan)
+static inline void l2cap_chan_yes_defer(struct l2cap_chan *chan)
 {
 }
 
-static inline void l2cap_chan_no_suspend(struct l2cap_chan *chan)
+static inline void l2cap_chan_yes_suspend(struct l2cap_chan *chan)
 {
 }
 
-static inline void l2cap_chan_no_resume(struct l2cap_chan *chan)
+static inline void l2cap_chan_yes_resume(struct l2cap_chan *chan)
 {
 }
 
-static inline void l2cap_chan_no_set_shutdown(struct l2cap_chan *chan)
+static inline void l2cap_chan_yes_set_shutdown(struct l2cap_chan *chan)
 {
 }
 
-static inline long l2cap_chan_no_get_sndtimeo(struct l2cap_chan *chan)
+static inline long l2cap_chan_yes_get_sndtimeo(struct l2cap_chan *chan)
 {
 	return 0;
 }

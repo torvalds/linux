@@ -17,7 +17,7 @@
  *
  * Cached are used for areas of memory that are used as cached addresses
  * on our partition and used as uncached addresses from other partitions.
- * Due to a design constraint of the SN2 Shub, you can not have processors
+ * Due to a design constraint of the SN2 Shub, you can yest have processors
  * on the same FSB perform both a cached and uncached reference to the
  * same cache line.  These special memory cached regions prevent the
  * kernel from ever dropping in a TLB entry and therefore prevent the
@@ -28,7 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
@@ -65,7 +65,7 @@ enum mspec_page_type {
  * This structure is shared by all vma's that are split off from the
  * original vma when split_vma()'s are done.
  *
- * The refcnt is incremented atomically because mm->mmap_sem does not
+ * The refcnt is incremented atomically because mm->mmap_sem does yest
  * protect in fork case where multiple tasks share the vma_data.
  */
 struct vma_data {
@@ -83,7 +83,7 @@ struct vma_data {
  *
  * Called when a device mapping is created by a means other than mmap
  * (via fork, munmap, etc.).  Increments the reference count on the
- * underlying mspec data so it is not freed prematurely.
+ * underlying mspec data so it is yest freed prematurely.
  */
 static void
 mspec_open(struct vm_area_struct *vma)
@@ -144,7 +144,7 @@ mspec_fault(struct vm_fault *vmf)
 
 	maddr = (volatile unsigned long) vdata->maddr[index];
 	if (maddr == 0) {
-		maddr = uncached_alloc_page(numa_node_id(), 1);
+		maddr = uncached_alloc_page(numa_yesde_id(), 1);
 		if (maddr == 0)
 			return VM_FAULT_OOM;
 
@@ -212,7 +212,7 @@ mspec_mmap(struct file *file, struct vm_area_struct *vma,
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
 	if (vdata->type == MSPEC_UNCACHED)
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	vma->vm_ops = &mspec_vm_ops;
 
 	return 0;
@@ -233,11 +233,11 @@ uncached_mmap(struct file *file, struct vm_area_struct *vma)
 static const struct file_operations cached_fops = {
 	.owner = THIS_MODULE,
 	.mmap = cached_mmap,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct miscdevice cached_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "mspec_cached",
 	.fops = &cached_fops
 };
@@ -245,11 +245,11 @@ static struct miscdevice cached_miscdev = {
 static const struct file_operations uncached_fops = {
 	.owner = THIS_MODULE,
 	.mmap = uncached_mmap,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct miscdevice uncached_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "mspec_uncached",
 	.fops = &uncached_fops
 };

@@ -27,8 +27,8 @@ struct bnxt_msix_entry {
 };
 
 struct bnxt_ulp_ops {
-	/* async_notifier() cannot sleep (in BH context) */
-	void (*ulp_async_notifier)(void *, struct hwrm_async_event_cmpl *);
+	/* async_yestifier() canyest sleep (in BH context) */
+	void (*ulp_async_yestifier)(void *, struct hwrm_async_event_cmpl *);
 	void (*ulp_stop)(void *);
 	void (*ulp_start)(void *);
 	void (*ulp_sriov_config)(void *, int);

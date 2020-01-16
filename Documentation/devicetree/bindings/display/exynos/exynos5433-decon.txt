@@ -1,12 +1,12 @@
-Device-Tree bindings for Samsung Exynos SoC display controller (DECON)
+Device-Tree bindings for Samsung Exyyess SoC display controller (DECON)
 
 DECON (Display and Enhancement Controller) is the Display Controller for the
-Exynos series of SoCs which transfers the image data from a video memory
+Exyyess series of SoCs which transfers the image data from a video memory
 buffer to an external LCD interface.
 
 Required properties:
 - compatible: value should be one of:
-	"samsung,exynos5433-decon", "samsung,exynos5433-decon-tv";
+	"samsung,exyyess5433-decon", "samsung,exyyess5433-decon-tv";
 - reg: physical base address and length of the DECON registers set.
 - interrupt-names: should contain the interrupt names depending on mode of work:
 		video mode: "vsync",
@@ -22,15 +22,15 @@ Required properties:
 	       "aclk_xiu_decon0x", "pclk_smmu_decon0x", "aclk_smmu_decon1x",
 	       "aclk_xiu_decon1x", "pclk_smmu_decon1x", clk_decon_vclk",
 	       "sclk_decon_eclk"
-- ports: contains a port which is connected to mic node. address-cells and
+- ports: contains a port which is connected to mic yesde. address-cells and
 	 size-cells must 1 and 0, respectively.
-- port: contains an endpoint node which is connected to the endpoint in the mic
-	node. The reg value muset be 0.
+- port: contains an endpoint yesde which is connected to the endpoint in the mic
+	yesde. The reg value muset be 0.
 
 Example:
 SoC specific DT entry:
 decon: decon@13800000 {
-	compatible = "samsung,exynos5433-decon";
+	compatible = "samsung,exyyess5433-decon";
 	reg = <0x13800000 0x2104>;
 	clocks = <&cmu_disp CLK_ACLK_DECON>, <&cmu_disp CLK_ACLK_SMMU_DECON0X>,
 		<&cmu_disp CLK_ACLK_XIU_DECON0X>,

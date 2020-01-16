@@ -73,7 +73,7 @@ do {							\
  * Caller must check the specified block with access_ok() before calling
  * this function.
  *
- * On success, returns the length of the string (not including the trailing
+ * On success, returns the length of the string (yest including the trailing
  * NUL).
  *
  * If access to userspace fails, returns -EFAULT (some data may have been
@@ -100,7 +100,7 @@ EXPORT_SYMBOL(__strncpy_from_user);
  *
  * Copies a NUL-terminated string from userspace to kernel space.
  *
- * On success, returns the length of the string (not including the trailing
+ * On success, returns the length of the string (yest including the trailing
  * NUL).
  *
  * If access to userspace fails, returns -EFAULT (some data may have been
@@ -230,7 +230,7 @@ do {							\
  *
  * Zero a block of memory in user space.
  *
- * Returns number of bytes that could not be cleared.
+ * Returns number of bytes that could yest be cleared.
  * On success, this will be zero.
  */
 unsigned long
@@ -250,7 +250,7 @@ EXPORT_SYMBOL(clear_user);
  * Zero a block of memory in user space.  Caller must check
  * the specified block with access_ok() before calling this function.
  *
- * Returns number of bytes that could not be cleared.
+ * Returns number of bytes that could yest be cleared.
  * On success, this will be zero.
  */
 unsigned long

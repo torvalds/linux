@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <net/pkt_cls.h>
 #include <net/red.h>
@@ -37,10 +37,10 @@ struct mlxsw_sp_qdisc_ops {
 			  void *xstats_ptr);
 	void (*clean_stats)(struct mlxsw_sp_port *mlxsw_sp_port,
 			    struct mlxsw_sp_qdisc *mlxsw_sp_qdisc);
-	/* unoffload - to be used for a qdisc that stops being offloaded without
+	/* uyesffload - to be used for a qdisc that stops being offloaded without
 	 * being destroyed.
 	 */
-	void (*unoffload)(struct mlxsw_sp_port *mlxsw_sp_port,
+	void (*uyesffload)(struct mlxsw_sp_port *mlxsw_sp_port,
 			  struct mlxsw_sp_qdisc *mlxsw_sp_qdisc, void *params);
 };
 
@@ -160,8 +160,8 @@ mlxsw_sp_qdisc_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 
 err_bad_param:
 err_config:
-	if (mlxsw_sp_qdisc->handle == handle && ops->unoffload)
-		ops->unoffload(mlxsw_sp_port, mlxsw_sp_qdisc, params);
+	if (mlxsw_sp_qdisc->handle == handle && ops->uyesffload)
+		ops->uyesffload(mlxsw_sp_port, mlxsw_sp_qdisc, params);
 
 	mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
 	return err;
@@ -342,7 +342,7 @@ mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static void
-mlxsw_sp_qdisc_red_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
+mlxsw_sp_qdisc_red_uyesffload(struct mlxsw_sp_port *mlxsw_sp_port,
 			     struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			     void *params)
 {
@@ -430,7 +430,7 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_red = {
 	.type = MLXSW_SP_QDISC_RED,
 	.check_params = mlxsw_sp_qdisc_red_check_params,
 	.replace = mlxsw_sp_qdisc_red_replace,
-	.unoffload = mlxsw_sp_qdisc_red_unoffload,
+	.uyesffload = mlxsw_sp_qdisc_red_uyesffload,
 	.destroy = mlxsw_sp_qdisc_red_destroy,
 	.get_stats = mlxsw_sp_qdisc_get_red_stats,
 	.get_xstats = mlxsw_sp_qdisc_get_red_xstats,
@@ -545,7 +545,7 @@ mlxsw_sp_qdisc_prio_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static void
-mlxsw_sp_qdisc_prio_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
+mlxsw_sp_qdisc_prio_uyesffload(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			      void *params)
 {
@@ -625,16 +625,16 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_prio = {
 	.type = MLXSW_SP_QDISC_PRIO,
 	.check_params = mlxsw_sp_qdisc_prio_check_params,
 	.replace = mlxsw_sp_qdisc_prio_replace,
-	.unoffload = mlxsw_sp_qdisc_prio_unoffload,
+	.uyesffload = mlxsw_sp_qdisc_prio_uyesffload,
 	.destroy = mlxsw_sp_qdisc_prio_destroy,
 	.get_stats = mlxsw_sp_qdisc_get_prio_stats,
 	.clean_stats = mlxsw_sp_setup_tc_qdisc_prio_clean_stats,
 };
 
-/* Grafting is not supported in mlxsw. It will result in un-offloading of the
+/* Grafting is yest supported in mlxsw. It will result in un-offloading of the
  * grafted qdisc as well as the qdisc in the qdisc new location.
  * (However, if the graft is to the location where the qdisc is already at, it
- * will be ignored completely and won't cause un-offloading).
+ * will be igyesred completely and won't cause un-offloading).
  */
 static int
 mlxsw_sp_qdisc_prio_graft(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -645,7 +645,7 @@ mlxsw_sp_qdisc_prio_graft(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp_qdisc *old_qdisc;
 
 	/* Check if the grafted qdisc is already in its "new" location. If so -
-	 * nothing needs to be done.
+	 * yesthing needs to be done.
 	 */
 	if (p->band < IEEE_8021QAZ_MAX_TCS &&
 	    mlxsw_sp_port->tclass_qdiscs[tclass_num].handle == p->child_handle)
@@ -653,13 +653,13 @@ mlxsw_sp_qdisc_prio_graft(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (!p->child_handle) {
 		/* This is an invisible FIFO replacing the original Qdisc.
-		 * Ignore it--the original Qdisc's destroy will follow.
+		 * Igyesre it--the original Qdisc's destroy will follow.
 		 */
 		return 0;
 	}
 
 	/* See if the grafted qdisc is already offloaded on any tclass. If so,
-	 * unoffload it.
+	 * uyesffload it.
 	 */
 	old_qdisc = mlxsw_sp_qdisc_find_by_handle(mlxsw_sp_port,
 						  p->child_handle);

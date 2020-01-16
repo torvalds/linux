@@ -621,8 +621,8 @@ union gmac_rxdesc_3 {
 		unsigned int l7_offset:8;
 		/* bit 24 Duplicated ACK detected */
 		unsigned int dup_ack:1;
-		/* bit 25 abnormal case found */
-		unsigned int abnormal:1;
+		/* bit 25 abyesrmal case found */
+		unsigned int abyesrmal:1;
 		/* bit 26 IPV4 option or IPV6 extension header */
 		unsigned int option:1;
 		/* bit 27 Out of Sequence packet */
@@ -931,7 +931,7 @@ union gmac_status {
 #define NONTOE_Q_HDR_AREA_END (INTERRUPT_QUEUE_HDR_ADDR(TOE_INTR_QUEUE_MAX + 1))
 
 /* NONTOE Queue Header Word 0 */
-union nontoe_qhdr0 {
+union yesntoe_qhdr0 {
 	unsigned int bits32;
 	unsigned int base_size;
 };
@@ -939,9 +939,9 @@ union nontoe_qhdr0 {
 #define NONTOE_QHDR0_BASE_MASK	(~0x0f)
 
 /* NONTOE Queue Header Word 1 */
-union nontoe_qhdr1 {
+union yesntoe_qhdr1 {
 	unsigned int bits32;
-	struct bit_nonqhdr1 {
+	struct bit_yesnqhdr1 {
 		/* bit 15:0 */
 		unsigned int rptr:16;
 		/* bit 31:16 */
@@ -950,9 +950,9 @@ union nontoe_qhdr1 {
 };
 
 /* Non-TOE Queue Header */
-struct nontoe_qhdr {
-	union nontoe_qhdr0 word0;
-	union nontoe_qhdr1 word1;
+struct yesntoe_qhdr {
+	union yesntoe_qhdr0 word0;
+	union yesntoe_qhdr1 word1;
 };
 
 #endif /* _GEMINI_ETHERNET_H */

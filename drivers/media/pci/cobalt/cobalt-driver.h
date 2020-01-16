@@ -38,7 +38,7 @@
 /* System device ID */
 #define PCI_DEVICE_ID_COBALT	0x2732
 
-/* Number of cobalt device nodes. */
+/* Number of cobalt device yesdes. */
 #define COBALT_NUM_INPUTS	4
 #define COBALT_NUM_NODES	6
 
@@ -153,7 +153,7 @@
 
 /* debugging */
 extern int cobalt_debug;
-extern int cobalt_ignore_err;
+extern int cobalt_igyesre_err;
 
 #define cobalt_err(fmt, arg...)  v4l2_err(&cobalt->v4l2_dev, fmt, ## arg)
 #define cobalt_warn(fmt, arg...) v4l2_warn(&cobalt->v4l2_dev, fmt, ## arg)
@@ -257,7 +257,7 @@ struct cobalt {
 	u8 card_rev;
 	u16 device_id;
 
-	/* device nodes */
+	/* device yesdes */
 	struct cobalt_stream streams[DMA_CHANNELS_MAX];
 	struct i2c_adapter i2c_adap[COBALT_NUM_ADAPTERS];
 	struct cobalt_i2c_data i2c_data[COBALT_NUM_ADAPTERS];
@@ -273,7 +273,7 @@ struct cobalt {
 	u32 irq_advout;
 	u32 irq_dma_tot;
 	u32 irq_dma[COBALT_NUM_STREAMS];
-	u32 irq_none;
+	u32 irq_yesne;
 	u32 irq_full_fifo;
 
 	/* omnitek dma */

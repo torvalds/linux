@@ -130,7 +130,7 @@ struct abort_iocb_entry_fx00 {
 	__le32 abort_handle;		/* System handle. */
 	__le32 reserved_2;
 
-	__le16 req_que_no;
+	__le16 req_que_yes;
 	uint8_t reserved_1[38];
 };
 
@@ -151,7 +151,7 @@ struct ioctl_iocb_entry_fx00 {
 	uint32_t adapid;		/* Adapter ID */
 	uint32_t dataword_r_extra;
 
-	__le32 seq_no;
+	__le32 seq_yes;
 	uint8_t reserved_2[20];
 	uint32_t residuallen;
 	__le32 status;
@@ -186,16 +186,16 @@ struct fxdisc_entry_fx00 {
 	__le32 dataword_extra;
 };
 
-struct qlafx00_tgt_node_info {
-	uint8_t tgt_node_wwpn[WWN_SIZE];
-	uint8_t tgt_node_wwnn[WWN_SIZE];
-	uint32_t tgt_node_state;
+struct qlafx00_tgt_yesde_info {
+	uint8_t tgt_yesde_wwpn[WWN_SIZE];
+	uint8_t tgt_yesde_wwnn[WWN_SIZE];
+	uint32_t tgt_yesde_state;
 	uint8_t reserved[128];
 	uint32_t reserved_1[8];
 	uint64_t reserved_2[4];
 } __packed;
 
-#define QLAFX00_TGT_NODE_INFO sizeof(struct qlafx00_tgt_node_info)
+#define QLAFX00_TGT_NODE_INFO sizeof(struct qlafx00_tgt_yesde_info)
 
 #define QLAFX00_LINK_STATUS_DOWN	0x10
 #define QLAFX00_LINK_STATUS_UP		0x11
@@ -231,13 +231,13 @@ struct port_info_data {
 	uint16_t        adap_haddr;
 	uint8_t         tgt_disc;
 	uint8_t         log_tout;
-	uint8_t         node_name[8];
+	uint8_t         yesde_name[8];
 	uint16_t        erisc_opt1;
 	uint8_t         resp_acc_tmr;
 	uint8_t         intr_del_tmr;
 	uint8_t         erisc_opt2;
 	uint8_t         alt_port_name[8];
-	uint8_t         alt_node_name[8];
+	uint8_t         alt_yesde_name[8];
 	uint8_t         link_down_tout;
 	uint8_t         conn_type;
 	uint8_t         fc_fw_mode;
@@ -259,7 +259,7 @@ struct port_info_data {
 struct host_system_info {
 	uint32_t os_type;
 	char    sysname[SYSNAME_LENGTH];
-	char    nodename[NODENAME_LENGTH];
+	char    yesdename[NODENAME_LENGTH];
 	char    release[RELEASE_LENGTH];
 	char    version[VERSION_LENGTH];
 	char    machine[MACHINE_LENGTH];
@@ -312,7 +312,7 @@ struct config_info_data {
 	uint64_t	cluster_slave_id;
 	uint8_t		cluster_flags;
 	uint32_t	enabled_capabilities;
-	uint32_t	nominal_temp_value;
+	uint32_t	yesminal_temp_value;
 } __packed;
 
 #define FXDISC_GET_CONFIG_INFO		0x01
@@ -472,7 +472,7 @@ struct mr_data_fx00 {
 	uint8_t	uboot_version[16];
 	uint8_t	fru_serial_num[32];
 	fc_port_t       fcport;		/* fcport used for requests
-					 * that are not linked
+					 * that are yest linked
 					 * to a particular target
 					 */
 	uint8_t fw_hbt_en;

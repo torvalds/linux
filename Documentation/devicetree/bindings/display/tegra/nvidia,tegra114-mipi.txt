@@ -10,8 +10,8 @@ Required properties:
 - #nvidia,mipi-calibrate-cells: Should be 1. The cell is a bitmask of the pads
   that need to be calibrated for a given device.
 
-User nodes need to contain an nvidia,mipi-calibrate property that has a
-phandle to refer to the calibration controller node and a bitmask of the pads
+User yesdes need to contain an nvidia,mipi-calibrate property that has a
+phandle to refer to the calibration controller yesde and a bitmask of the pads
 that need to be calibrated.
 
 Example:

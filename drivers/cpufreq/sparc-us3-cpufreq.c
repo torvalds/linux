@@ -56,7 +56,7 @@ static void update_safari_cfg(void *arg)
 
 	__asm__ __volatile__("stxa	%0, [%%g0] %1\n\t"
 			     "membar	#Sync"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (reg), "i" (ASI_SAFARI_CONFIG)
 			     : "memory");
 }

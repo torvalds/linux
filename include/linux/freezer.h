@@ -12,7 +12,7 @@
 #ifdef CONFIG_FREEZER
 extern atomic_t system_freezing_cnt;	/* nr of freezing conds in effect */
 extern bool pm_freezing;		/* PM freezing in effect */
-extern bool pm_nosig_freezing;		/* PM nosig freezing in effect */
+extern bool pm_yessig_freezing;		/* PM yessig freezing in effect */
 
 /*
  * Timeout for stopping processes
@@ -63,7 +63,7 @@ static inline bool try_to_freeze_unsafe(void)
 static inline bool try_to_freeze(void)
 {
 	if (!(current->flags & PF_NOFREEZE))
-		debug_check_no_locks_held();
+		debug_check_yes_locks_held();
 	return try_to_freeze_unsafe();
 }
 
@@ -94,25 +94,25 @@ static inline bool cgroup_freezing(struct task_struct *task)
 
 
 /**
- * freezer_do_not_count - tell freezer to ignore %current
+ * freezer_do_yest_count - tell freezer to igyesre %current
  *
- * Tell freezers to ignore the current task when determining whether the
+ * Tell freezers to igyesre the current task when determining whether the
  * target frozen state is reached.  IOW, the current task will be
- * considered frozen enough by freezers.
+ * considered frozen eyesugh by freezers.
  *
  * The caller shouldn't do anything which isn't allowed for a frozen task
- * until freezer_cont() is called.  Usually, freezer[_do_not]_count() pair
- * wrap a scheduling operation and nothing much else.
+ * until freezer_cont() is called.  Usually, freezer[_do_yest]_count() pair
+ * wrap a scheduling operation and yesthing much else.
  */
-static inline void freezer_do_not_count(void)
+static inline void freezer_do_yest_count(void)
 {
 	current->flags |= PF_FREEZER_SKIP;
 }
 
 /**
- * freezer_count - tell freezer to stop ignoring %current
+ * freezer_count - tell freezer to stop igyesring %current
  *
- * Undo freezer_do_not_count().  It tells freezers that %current should be
+ * Undo freezer_do_yest_count().  It tells freezers that %current should be
  * considered again and tries to freeze if freezing condition is already in
  * effect.
  */
@@ -144,7 +144,7 @@ static inline void freezer_count_unsafe(void)
  * This function is used by freezers after establishing %true freezing() to
  * test whether a task should be skipped when determining the target frozen
  * state is reached.  IOW, if this function returns %true, @p is considered
- * frozen enough.
+ * frozen eyesugh.
  */
 static inline bool freezer_should_skip(struct task_struct *p)
 {
@@ -165,10 +165,10 @@ static inline bool freezer_should_skip(struct task_struct *p)
  * whether a freeze event happened while in this function.
  */
 
-/* Like schedule(), but should not block the freezer. */
+/* Like schedule(), but should yest block the freezer. */
 static inline void freezable_schedule(void)
 {
-	freezer_do_not_count();
+	freezer_do_yest_count();
 	schedule();
 	freezer_count();
 }
@@ -176,42 +176,42 @@ static inline void freezable_schedule(void)
 /* DO NOT ADD ANY NEW CALLERS OF THIS FUNCTION */
 static inline void freezable_schedule_unsafe(void)
 {
-	freezer_do_not_count();
+	freezer_do_yest_count();
 	schedule();
 	freezer_count_unsafe();
 }
 
 /*
- * Like schedule_timeout(), but should not block the freezer.  Do not
+ * Like schedule_timeout(), but should yest block the freezer.  Do yest
  * call this with locks held.
  */
 static inline long freezable_schedule_timeout(long timeout)
 {
 	long __retval;
-	freezer_do_not_count();
+	freezer_do_yest_count();
 	__retval = schedule_timeout(timeout);
 	freezer_count();
 	return __retval;
 }
 
 /*
- * Like schedule_timeout_interruptible(), but should not block the freezer.  Do not
+ * Like schedule_timeout_interruptible(), but should yest block the freezer.  Do yest
  * call this with locks held.
  */
 static inline long freezable_schedule_timeout_interruptible(long timeout)
 {
 	long __retval;
-	freezer_do_not_count();
+	freezer_do_yest_count();
 	__retval = schedule_timeout_interruptible(timeout);
 	freezer_count();
 	return __retval;
 }
 
-/* Like schedule_timeout_killable(), but should not block the freezer. */
+/* Like schedule_timeout_killable(), but should yest block the freezer. */
 static inline long freezable_schedule_timeout_killable(long timeout)
 {
 	long __retval;
-	freezer_do_not_count();
+	freezer_do_yest_count();
 	__retval = schedule_timeout_killable(timeout);
 	freezer_count();
 	return __retval;
@@ -221,21 +221,21 @@ static inline long freezable_schedule_timeout_killable(long timeout)
 static inline long freezable_schedule_timeout_killable_unsafe(long timeout)
 {
 	long __retval;
-	freezer_do_not_count();
+	freezer_do_yest_count();
 	__retval = schedule_timeout_killable(timeout);
 	freezer_count_unsafe();
 	return __retval;
 }
 
 /*
- * Like schedule_hrtimeout_range(), but should not block the freezer.  Do not
+ * Like schedule_hrtimeout_range(), but should yest block the freezer.  Do yest
  * call this with locks held.
  */
 static inline int freezable_schedule_hrtimeout_range(ktime_t *expires,
 		u64 delta, const enum hrtimer_mode mode)
 {
 	int __retval;
-	freezer_do_not_count();
+	freezer_do_yest_count();
 	__retval = schedule_hrtimeout_range(expires, delta, mode);
 	freezer_count();
 	return __retval;
@@ -251,7 +251,7 @@ static inline int freezable_schedule_hrtimeout_range(ktime_t *expires,
 #define wait_event_freezekillable_unsafe(wq, condition)			\
 ({									\
 	int __retval;							\
-	freezer_do_not_count();						\
+	freezer_do_yest_count();						\
 	__retval = wait_event_killable(wq, (condition));		\
 	freezer_count_unsafe();						\
 	__retval;							\
@@ -268,10 +268,10 @@ static inline int freeze_kernel_threads(void) { return -ENOSYS; }
 static inline void thaw_processes(void) {}
 static inline void thaw_kernel_threads(void) {}
 
-static inline bool try_to_freeze_nowarn(void) { return false; }
+static inline bool try_to_freeze_yeswarn(void) { return false; }
 static inline bool try_to_freeze(void) { return false; }
 
-static inline void freezer_do_not_count(void) {}
+static inline void freezer_do_yest_count(void) {}
 static inline void freezer_count(void) {}
 static inline int freezer_should_skip(struct task_struct *p) { return 0; }
 static inline void set_freezable(void) {}

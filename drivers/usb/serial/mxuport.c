@@ -2,7 +2,7 @@
 /*
  *	mxuport.c - MOXA UPort series driver
  *
- *	Copyright (c) 2006 Moxa Technologies Co., Ltd.
+ *	Copyright (c) 2006 Moxa Techyeslogies Co., Ltd.
  *	Copyright (c) 2013 Andrew Lunn <andrew@lunn.ch>
  *
  *	Supports the following Moxa USB to serial converters:
@@ -129,7 +129,7 @@
 #define MX_RTS_DISABLE			0x0
 #define MX_RTS_ENABLE			0x1
 #define MX_RTS_HW			0x2
-#define MX_RTS_NO_CHANGE		0x3 /* Flag, not valid register value*/
+#define MX_RTS_NO_CHANGE		0x3 /* Flag, yest valid register value*/
 
 #define MX_INT_RS232			0
 #define MX_INT_2W_RS485			1
@@ -284,7 +284,7 @@ static int mxuport_send_ctrl_urb(struct usb_serial *serial,
  *
  * This function is called by the tty driver when it wants to stop the
  * data being read from the port. Since all the data comes over one
- * bulk in endpoint, we cannot stop submitting urbs by setting
+ * bulk in endpoint, we canyest stop submitting urbs by setting
  * port->throttle. Instead tell the device to stop sending us data for
  * the port.
  */
@@ -451,7 +451,7 @@ static void mxuport_process_read_urb_event(struct usb_serial_port *port,
 	case UPORT_EVENT_MCR:
 		/*
 		 * Event to indicate a change in XON/XOFF from the
-		 * peer.  Currently not used. We just continue
+		 * peer.  Currently yest used. We just continue
 		 * sending the device data and it will buffer it if
 		 * needed. This event could be used for flow control
 		 * between the host and the device.
@@ -572,7 +572,7 @@ static void mxuport_process_read_urb(struct urb *urb)
 
 /*
  * Ask the device how many bytes it has queued to be sent out. If
- * there are none, return true.
+ * there are yesne, return true.
  */
 static bool mxuport_tx_empty(struct usb_serial_port *port)
 {
@@ -658,14 +658,14 @@ static int mxuport_set_rts(struct usb_serial_port *port, u8 state)
 		break;
 	case MX_RTS_HW:
 		/*
-		 * Do not update mxport->mcr_state when doing hardware
+		 * Do yest update mxport->mcr_state when doing hardware
 		 * flow control.
 		 */
 		break;
 	default:
 		/*
-		 * Should not happen, but somebody might try passing
-		 * MX_RTS_NO_CHANGE, which is not valid.
+		 * Should yest happen, but somebody might try passing
+		 * MX_RTS_NO_CHANGE, which is yest valid.
 		 */
 		err = -EINVAL;
 		goto out;
@@ -854,7 +854,7 @@ static void mxuport_set_termios(struct tty_struct *tty,
 	if (old_termios &&
 	    !tty_termios_hw_change(&tty->termios, old_termios) &&
 	    tty->termios.c_iflag == old_termios->c_iflag) {
-		dev_dbg(&port->dev, "%s - nothing to change\n", __func__);
+		dev_dbg(&port->dev, "%s - yesthing to change\n", __func__);
 		return;
 	}
 
@@ -959,7 +959,7 @@ static int mxuport_calc_num_ports(struct usb_serial *serial,
 		num_ports = 16;
 	} else {
 		dev_warn(&serial->interface->dev,
-				"unknown device, assuming two ports\n");
+				"unkyeswn device, assuming two ports\n");
 		num_ports = 2;
 	}
 
@@ -1081,7 +1081,7 @@ static int mxuport_probe(struct usb_serial *serial,
 
 	err = request_firmware(&fw_p, buf, &serial->interface->dev);
 	if (err) {
-		dev_warn(&serial->interface->dev, "Firmware %s not found\n",
+		dev_warn(&serial->interface->dev, "Firmware %s yest found\n",
 			 buf);
 
 		/* Use the firmware already in the device */
@@ -1217,7 +1217,7 @@ static int mxuport_open(struct tty_struct *tty, struct usb_serial_port *port)
 		mxuport_set_termios(tty, port, NULL);
 
 	/*
-	 * TODO: use RQ_VENDOR_GET_MSR, once we know what it
+	 * TODO: use RQ_VENDOR_GET_MSR, once we kyesw what it
 	 * returns.
 	 */
 	mxport->msr_state = 0;

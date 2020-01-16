@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __UAPI_CORESIGHT_STM_H_
 #define __UAPI_CORESIGHT_STM_H_
 
@@ -10,7 +10,7 @@
  * transactions.  Guaranteed transactions are guaranteed to be
  * traced, this might involve stalling the bus or system to
  * ensure the transaction is accepted by the STM.  While invariant
- * timing transactions are not guaranteed to be traced, they
+ * timing transactions are yest guaranteed to be traced, they
  * will take an invariant amount of time regardless of the
  * state of the STM.
  */

@@ -17,7 +17,7 @@
         "Unit": "QPI LL"
     },
     {
-        "BriefDescription": "Number of non data (control) flits transmitted . Derived from unc_q_txl_flits_g0.non_data",
+        "BriefDescription": "Number of yesn data (control) flits transmitted . Derived from unc_q_txl_flits_g0.yesn_data",
         "Counter": "0,1,2,3",
         "EventName": "QPI_CTL_BANDWIDTH_TX",
         "PerPkg": "1",

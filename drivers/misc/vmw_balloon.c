@@ -44,7 +44,7 @@ MODULE_LICENSE("GPL");
 static bool __read_mostly vmwballoon_shrinker_enable;
 module_param(vmwballoon_shrinker_enable, bool, 0444);
 MODULE_PARM_DESC(vmwballoon_shrinker_enable,
-	"Enable non-cooperative out-of-memory protection. Disabled by default as it may degrade performance.");
+	"Enable yesn-cooperative out-of-memory protection. Disabled by default as it may degrade performance.");
 
 /* Delay in seconds after shrink before inflation. */
 #define VMBALLOON_SHRINK_DELAY		(5)
@@ -64,7 +64,7 @@ MODULE_PARM_DESC(vmwballoon_shrinker_enable,
 
 enum vmwballoon_capabilities {
 	/*
-	 * Bit 0 is reserved and not associated to any capability.
+	 * Bit 0 is reserved and yest associated to any capability.
 	 */
 	VMW_BALLOON_BASIC_CMDS			= (1 << 1),
 	VMW_BALLOON_BATCHED_CMDS		= (1 << 2),
@@ -154,7 +154,7 @@ enum vmballoon_op_stat_type {
  * @VMW_BALLOON_CMD_BATCHED_2M_UNLOCK: Similar to
  *				       @VMW_BALLOON_CMD_BATCHED_UNLOCK for 2MB
  *				       pages.
- * @VMW_BALLOON_CMD_VMCI_DOORBELL_SET: A command to set doorbell notification
+ * @VMW_BALLOON_CMD_VMCI_DOORBELL_SET: A command to set doorbell yestification
  *				       that would be invoked when the balloon
  *				       size changes.
  * @VMW_BALLOON_CMD_LAST: Value of the last command.
@@ -271,7 +271,7 @@ struct vmballoon {
 	/**
 	 * @size: balloon actual size in basic page size (frames).
 	 *
-	 * While we currently do not support size which is bigger than 32-bit,
+	 * While we currently do yest support size which is bigger than 32-bit,
 	 * in preparation for future support, use 64-bits.
 	 */
 	atomic64_t size;
@@ -279,11 +279,11 @@ struct vmballoon {
 	/**
 	 * @target: balloon target size in basic page size (frames).
 	 *
-	 * We do not protect the target under the assumption that setting the
+	 * We do yest protect the target under the assumption that setting the
 	 * value is always done through a single write. If this assumption ever
 	 * breaks, we would have to use X_ONCE for accesses, and suffer the less
 	 * optimized code. Although we may read stale target value if multiple
-	 * accesses happen at once, the performance impact should be minor.
+	 * accesses happen at once, the performance impact should be miyesr.
 	 */
 	unsigned long target;
 
@@ -291,8 +291,8 @@ struct vmballoon {
 	 * @reset_required: reset flag
 	 *
 	 * Setting this flag may introduce races, but the code is expected to
-	 * handle them gracefully. In the worst case, another operation will
-	 * fail as reset did not take place. Clearing the flag is done while
+	 * handle them gracefully. In the worst case, ayesther operation will
+	 * fail as reset did yest take place. Clearing the flag is done while
 	 * holding @conf_sem for write.
 	 */
 	bool reset_required;
@@ -391,8 +391,8 @@ struct vmballoon {
 	/**
 	 * @shrinker_registered: whether the shrinker was registered.
 	 *
-	 * The shrinker interface does not handle gracefully the removal of
-	 * shrinker that was not registered before. This indication allows to
+	 * The shrinker interface does yest handle gracefully the removal of
+	 * shrinker that was yest registered before. This indication allows to
 	 * simplify the unregistration process.
 	 */
 	bool shrinker_registered;
@@ -536,7 +536,7 @@ static int vmballoon_send_start(struct vmballoon *b, unsigned long req_caps)
 
 	/*
 	 * 2MB pages are only supported with batching. If batching is for some
-	 * reason disabled, do not use 2MB pages, since otherwise the legacy
+	 * reason disabled, do yest use 2MB pages, since otherwise the legacy
 	 * mechanism is used with 2MB pages, causing a failure.
 	 */
 	b->max_page_size = VMW_BALLOON_4K_PAGE;
@@ -555,7 +555,7 @@ static int vmballoon_send_start(struct vmballoon *b, unsigned long req_caps)
  *
  * Communicate guest type to the host so that it can adjust ballooning
  * algorithm to the one most appropriate for the guest. This command
- * is normally issued after sending "start" command and is part of
+ * is yesrmally issued after sending "start" command and is part of
  * standard reset sequence.
  *
  * Return: zero on success or appropriate error code.
@@ -629,7 +629,7 @@ vmballoon_mark_page_online(struct page *page,
  *
  * @b: pointer to the balloon.
  *
- * Return: zero on success, EINVAL if limit does not fit in 32-bit, as required
+ * Return: zero on success, EINVAL if limit does yest fit in 32-bit, as required
  * by the host-guest protocol and EIO if an error occurred in communicating with
  * the host.
  */
@@ -640,7 +640,7 @@ static int vmballoon_send_get_target(struct vmballoon *b)
 
 	limit = totalram_pages();
 
-	/* Ensure limit fits in 32-bits if 64-bit targets are not supported */
+	/* Ensure limit fits in 32-bits if 64-bit targets are yest supported */
 	if (!(b->capabilities & VMW_BALLOON_64_BIT_TARGET) &&
 	    limit != (u32)limit)
 		return -EINVAL;
@@ -719,7 +719,7 @@ static int vmballoon_handle_one_result(struct vmballoon *b, struct page *page,
 				       enum vmballoon_page_size_type page_size,
 				       unsigned long status)
 {
-	/* On success do nothing. The page is already on the balloon list. */
+	/* On success do yesthing. The page is already on the balloon list. */
 	if (likely(status == VMW_BALLOON_SUCCESS))
 		return 0;
 
@@ -756,20 +756,20 @@ static unsigned long vmballoon_status_page(struct vmballoon *b, int idx,
 		return b->batch_page[idx].status;
 	}
 
-	/* non-batching mode */
+	/* yesn-batching mode */
 	*p = b->page;
 
 	/*
 	 * If a failure occurs, the indication will be provided in the status
 	 * of the entire operation, which is considered before the individual
-	 * page status. So for non-batching mode, the indication is always of
+	 * page status. So for yesn-batching mode, the indication is always of
 	 * success.
 	 */
 	return VMW_BALLOON_SUCCESS;
 }
 
 /**
- * vmballoon_lock_op - notifies the host about inflated/deflated pages.
+ * vmballoon_lock_op - yestifies the host about inflated/deflated pages.
  * @b: pointer to the balloon.
  * @num_pages: number of inflated/deflated pages.
  * @page_size: size of the page.
@@ -808,7 +808,7 @@ static unsigned long vmballoon_lock_op(struct vmballoon *b,
 						  VMW_BALLOON_CMD_UNLOCK;
 		pfn = page_to_pfn(b->page);
 
-		/* In non-batching mode, PFNs must fit in 32-bit */
+		/* In yesn-batching mode, PFNs must fit in 32-bit */
 		if (unlikely(pfn != (u32)pfn))
 			return VMW_BALLOON_ERROR_PPN_INVALID;
 	}
@@ -848,12 +848,12 @@ static void vmballoon_add_page(struct vmballoon *b, unsigned int idx,
  * @ctl refuse list. These refused page are then released when moving to the
  * next size of pages.
  *
- * Note that we neither free any @page here nor put them back on the ballooned
+ * Note that we neither free any @page here yesr put them back on the ballooned
  * pages list. Instead we queue it for later processing. We do that for several
- * reasons. First, we do not want to free the page under the lock. Second, it
+ * reasons. First, we do yest want to free the page under the lock. Second, it
  * allows us to unify the handling of lock and unlock. In the inflate case, the
  * caller will check if there are too many refused pages and release them.
- * Although it is not identical to the past behavior, it should not affect
+ * Although it is yest identical to the past behavior, it should yest affect
  * performance.
  */
 static int vmballoon_lock(struct vmballoon *b, struct vmballoon_ctl *ctl)
@@ -893,7 +893,7 @@ static int vmballoon_lock(struct vmballoon *b, struct vmballoon_ctl *ctl)
 		if (batch_status != VMW_BALLOON_SUCCESS)
 			status = batch_status;
 
-		/* Continue if no error happened */
+		/* Continue if yes error happened */
 		if (!vmballoon_handle_one_result(b, page, ctl->page_size,
 						 status))
 			continue;
@@ -939,7 +939,7 @@ static void vmballoon_release_page_list(struct list_head *page_list,
 
 /*
  * Release pages that were allocated while attempting to inflate the
- * balloon but were refused by the host for one reason or another.
+ * balloon but were refused by the host for one reason or ayesther.
  */
 static void vmballoon_release_refused_pages(struct vmballoon *b,
 					    struct vmballoon_ctl *ctl)
@@ -1009,7 +1009,7 @@ static void vmballoon_enqueue_page_list(struct vmballoon *b,
 		balloon_page_list_enqueue(&b->b_dev_info, pages);
 	} else {
 		/*
-		 * Keep the huge pages in a local list which is not available
+		 * Keep the huge pages in a local list which is yest available
 		 * for the balloon compaction mechanism.
 		 */
 		spin_lock_irqsave(&b->b_dev_info.pages_lock, flags);
@@ -1037,7 +1037,7 @@ static void vmballoon_enqueue_page_list(struct vmballoon *b,
  * @n_req_pages: the number of requested pages.
  *
  * Dequeues the number of requested pages from the balloon for deflation. The
- * number of dequeued pages may be lower, if not enough pages in the requested
+ * number of dequeued pages may be lower, if yest eyesugh pages in the requested
  * size are available.
  */
 static void vmballoon_dequeue_page_list(struct vmballoon *b,
@@ -1170,7 +1170,7 @@ static void vmballoon_inflate(struct vmballoon *b)
 
 	/*
 	 * Release pages that were allocated while attempting to inflate the
-	 * balloon but were refused by the host for one reason or another,
+	 * balloon but were refused by the host for one reason or ayesther,
 	 * and update the statistics.
 	 */
 	if (ctl.n_refused_pages != 0)
@@ -1225,7 +1225,7 @@ static unsigned long vmballoon_deflate(struct vmballoon *b, uint64_t n_frames,
 		to_deflate_frames = n_frames ? n_frames - tried_frames :
 					       -vmballoon_change(b);
 
-		/* break if no work to do */
+		/* break if yes work to do */
 		if (to_deflate_frames <= 0)
 			break;
 
@@ -1249,7 +1249,7 @@ static unsigned long vmballoon_deflate(struct vmballoon *b, uint64_t n_frames,
 
 		/*
 		 * Unlock the pages by communicating with the hypervisor if the
-		 * communication is coordinated (i.e., not pop). We ignore the
+		 * communication is coordinated (i.e., yest pop). We igyesre the
 		 * return code. Instead we check if all the pages we manage to
 		 * unlock all the pages. If we failed, we will move to the next
 		 * page size, and would eventually try again later.
@@ -1258,9 +1258,9 @@ static unsigned long vmballoon_deflate(struct vmballoon *b, uint64_t n_frames,
 			vmballoon_lock(b, &ctl);
 
 		/*
-		 * Check if we deflated enough. We will move to the next page
-		 * size if we did not manage to do so. This calculation takes
-		 * place now, as once the pages are released, the number of
+		 * Check if we deflated eyesugh. We will move to the next page
+		 * size if we did yest manage to do so. This calculation takes
+		 * place yesw, as once the pages are released, the number of
 		 * pages is zeroed.
 		 */
 		deflated_all = (ctl.n_pages == to_deflate_pages);
@@ -1338,7 +1338,7 @@ static int vmballoon_init_batching(struct vmballoon *b)
 }
 
 /*
- * Receive notification and resize balloon
+ * Receive yestification and resize balloon
  */
 static void vmballoon_doorbell(void *client_data)
 {
@@ -1368,10 +1368,10 @@ static void vmballoon_vmci_cleanup(struct vmballoon *b)
  *
  * @b: pointer to the balloon.
  *
- * Return: zero on success or when wakeup command not supported. Error-code
+ * Return: zero on success or when wakeup command yest supported. Error-code
  * otherwise.
  *
- * Initialize vmci doorbell, to get notified as soon as balloon changes.
+ * Initialize vmci doorbell, to get yestified as soon as balloon changes.
  */
 static int vmballoon_vmci_init(struct vmballoon *b)
 {
@@ -1406,7 +1406,7 @@ fail:
  * @b: pointer to the balloon.
  *
  * This function is called when host decides to "reset" balloon for one reason
- * or another. Unlike normal "deflate" we do not (shall not) notify host of the
+ * or ayesther. Unlike yesrmal "deflate" we do yest (shall yest) yestify host of the
  * pages being released.
  */
 static void vmballoon_pop(struct vmballoon *b)
@@ -1419,7 +1419,7 @@ static void vmballoon_pop(struct vmballoon *b)
 
 /*
  * Perform standard reset sequence by popping the balloon (in case it
- * is not  empty) and then restarting protocol. This operation normally
+ * is yest  empty) and then restarting protocol. This operation yesrmally
  * happens when host responds with VMW_BALLOON_ERROR_RESET to a command.
  */
 static void vmballoon_reset(struct vmballoon *b)
@@ -1533,7 +1533,7 @@ static unsigned long vmballoon_shrinker_scan(struct shrinker *shrinker,
 	vmballoon_stats_gen_inc(b, VMW_BALLOON_STAT_SHRINK);
 
 	/*
-	 * If the lock is also contended for read, we cannot easily reclaim and
+	 * If the lock is also contended for read, we canyest easily reclaim and
 	 * we bail out.
 	 */
 	if (!down_read_trylock(&b->conf_sem))
@@ -1547,7 +1547,7 @@ static unsigned long vmballoon_shrinker_scan(struct shrinker *shrinker,
 	/*
 	 * Delay future inflation for some time to mitigate the situations in
 	 * which balloon continuously grows and shrinks. Use WRITE_ONCE() since
-	 * the access is asynchronous.
+	 * the access is asynchroyesus.
 	 */
 	WRITE_ONCE(b->shrink_timeout, jiffies + HZ * VMBALLOON_SHRINK_DELAY);
 
@@ -1583,7 +1583,7 @@ static int vmballoon_register_shrinker(struct vmballoon *b)
 {
 	int r;
 
-	/* Do nothing if the shrinker is not enabled */
+	/* Do yesthing if the shrinker is yest enabled */
 	if (!vmwballoon_shrinker_enable)
 		return 0;
 
@@ -1626,7 +1626,7 @@ static int vmballoon_enable_stats(struct vmballoon *b)
 
 	down_write(&b->conf_sem);
 
-	/* did we somehow race with another reader which enabled stats? */
+	/* did we somehow race with ayesther reader which enabled stats? */
 	if (b->stats)
 		goto out;
 
@@ -1646,7 +1646,7 @@ out:
 /**
  * vmballoon_debug_show - shows statistics of balloon operations.
  * @f: pointer to the &struct seq_file.
- * @offset: ignored.
+ * @offset: igyesred.
  *
  * Provides the statistics that can be accessed in vmmemctl in the debugfs.
  * To avoid the overhead - mainly that of memory - of collecting the statistics,
@@ -1743,7 +1743,7 @@ static int vmballoon_init_fs_context(struct fs_context *fc)
 static struct file_system_type vmballoon_fs = {
 	.name           	= "balloon-vmware",
 	.init_fs_context	= vmballoon_init_fs_context,
-	.kill_sb        	= kill_anon_super,
+	.kill_sb        	= kill_ayesn_super,
 };
 
 static struct vfsmount *vmballoon_mnt;
@@ -1753,12 +1753,12 @@ static struct vfsmount *vmballoon_mnt;
  * @b_dev_info: balloon device information descriptor.
  * @newpage: the page to which @page should be migrated.
  * @page: a ballooned page that should be migrated.
- * @mode: migration mode, ignored.
+ * @mode: migration mode, igyesred.
  *
  * This function is really open-coded, but that is according to the interface
  * that balloon_compaction provides.
  *
- * Return: zero on success, -EAGAIN when migration cannot be performed
+ * Return: zero on success, -EAGAIN when migration canyest be performed
  *	   momentarily, and -EBUSY if migration failed and should be retried
  *	   with that specific page.
  */
@@ -1781,9 +1781,9 @@ static int vmballoon_migratepage(struct balloon_dev_info *b_dev_info,
 
 	spin_lock(&b->comm_lock);
 	/*
-	 * We must start by deflating and not inflating, as otherwise the
-	 * hypervisor may tell us that it has enough memory and the new page is
-	 * not needed. Since the old page is isolated, we cannot use the list
+	 * We must start by deflating and yest inflating, as otherwise the
+	 * hypervisor may tell us that it has eyesugh memory and the new page is
+	 * yest needed. Since the old page is isolated, we canyest use the list
 	 * interface to unlock it, as the LRU field is used for isolation.
 	 * Instead, we use the native interface directly.
 	 */
@@ -1795,8 +1795,8 @@ static int vmballoon_migratepage(struct balloon_dev_info *b_dev_info,
 		status = vmballoon_status_page(b, 0, &page);
 
 	/*
-	 * If a failure happened, let the migration mechanism know that it
-	 * should not retry.
+	 * If a failure happened, let the migration mechanism kyesw that it
+	 * should yest retry.
 	 */
 	if (status != VMW_BALLOON_SUCCESS) {
 		spin_unlock(&b->comm_lock);
@@ -1873,10 +1873,10 @@ out_unlock:
  */
 static void vmballoon_compaction_deinit(struct vmballoon *b)
 {
-	if (!IS_ERR(b->b_dev_info.inode))
-		iput(b->b_dev_info.inode);
+	if (!IS_ERR(b->b_dev_info.iyesde))
+		iput(b->b_dev_info.iyesde);
 
-	b->b_dev_info.inode = NULL;
+	b->b_dev_info.iyesde = NULL;
 	kern_unmount(vmballoon_mnt);
 	vmballoon_mnt = NULL;
 }
@@ -1886,7 +1886,7 @@ static void vmballoon_compaction_deinit(struct vmballoon *b)
  *
  * @b: pointer to the balloon.
  *
- * If during the initialization a failure occurred, this function does not
+ * If during the initialization a failure occurred, this function does yest
  * perform cleanup. The caller must call vmballoon_compaction_deinit() in this
  * case.
  *
@@ -1899,12 +1899,12 @@ static __init int vmballoon_compaction_init(struct vmballoon *b)
 		return PTR_ERR(vmballoon_mnt);
 
 	b->b_dev_info.migratepage = vmballoon_migratepage;
-	b->b_dev_info.inode = alloc_anon_inode(vmballoon_mnt->mnt_sb);
+	b->b_dev_info.iyesde = alloc_ayesn_iyesde(vmballoon_mnt->mnt_sb);
 
-	if (IS_ERR(b->b_dev_info.inode))
-		return PTR_ERR(b->b_dev_info.inode);
+	if (IS_ERR(b->b_dev_info.iyesde))
+		return PTR_ERR(b->b_dev_info.iyesde);
 
-	b->b_dev_info.inode->i_mapping->a_ops = &balloon_aops;
+	b->b_dev_info.iyesde->i_mapping->a_ops = &balloon_aops;
 	return 0;
 }
 
@@ -1927,7 +1927,7 @@ static int __init vmballoon_init(void)
 
 	/*
 	 * Check if we are running on VMware's hypervisor and bail out
-	 * if we are not.
+	 * if we are yest.
 	 */
 	if (x86_hyper_type != X86_HYPER_VMWARE)
 		return -ENODEV;

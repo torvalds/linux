@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -29,28 +29,28 @@
  *
  * Interface to the hardware Packet Output unit.
  *
- * Starting with SDK 1.7.0, the PKO output functions now support
+ * Starting with SDK 1.7.0, the PKO output functions yesw support
  * two types of locking. CVMX_PKO_LOCK_ATOMIC_TAG continues to
  * function similarly to previous SDKs by using POW atomic tags
  * to preserve ordering and exclusivity. As a new option, you
- * can now pass CVMX_PKO_LOCK_CMD_QUEUE which uses a ll/sc
+ * can yesw pass CVMX_PKO_LOCK_CMD_QUEUE which uses a ll/sc
  * memory based locking instead. This locking has the advantage
- * of not affecting the tag state but doesn't preserve packet
+ * of yest affecting the tag state but doesn't preserve packet
  * ordering. CVMX_PKO_LOCK_CMD_QUEUE is appropriate in most
  * generic code while CVMX_PKO_LOCK_CMD_QUEUE should be used
  * with hand tuned fast path code.
  *
  * Some of other SDK differences visible to the command command
  * queuing:
- * - PKO indexes are no longer stored in the FAU. A large
+ * - PKO indexes are yes longer stored in the FAU. A large
  *   percentage of the FAU register block used to be tied up
- *   maintaining PKO queue pointers. These are now stored in a
+ *   maintaining PKO queue pointers. These are yesw stored in a
  *   global named block.
- * - The PKO <b>use_locking</b> parameter can now have a global
+ * - The PKO <b>use_locking</b> parameter can yesw have a global
  *   effect. Since all application use the same named block,
  *   queue locking correctly applies across all operating
  *   systems when using CVMX_PKO_LOCK_CMD_QUEUE.
- * - PKO 3 word commands are now supported. Use
+ * - PKO 3 word commands are yesw supported. Use
  *   cvmx_pko_send_packet_finish3().
  *
  */
@@ -64,7 +64,7 @@
 #include <asm/octeon/cvmx-pko-defs.h>
 
 /* Adjust the command buffer size by 1 word so that in the case of using only
- * two word PKO commands no command words stradle buffers.  The useful values
+ * two word PKO commands yes command words stradle buffers.  The useful values
  * for this are 0 and 1. */
 #define CVMX_PKO_COMMAND_BUFFER_SIZE_ADJUST (1)
 
@@ -75,7 +75,7 @@
 		(OCTEON_IS_MODEL(OCTEON_CN58XX) || \
 		OCTEON_IS_MODEL(OCTEON_CN56XX)) ? 256 : 128)
 #define CVMX_PKO_NUM_OUTPUT_PORTS	40
-/* use this for queues that are not used */
+/* use this for queues that are yest used */
 #define CVMX_PKO_MEM_QUEUE_PTRS_ILLEGAL_PID 63
 #define CVMX_PKO_QUEUE_STATIC_PRIORITY	9
 #define CVMX_PKO_ILLEGAL_QUEUE	0xFFFF
@@ -97,7 +97,7 @@ typedef enum {
 typedef enum {
 	/*
 	 * PKO doesn't do any locking. It is the responsibility of the
-	 * application to make sure that no other core is accessing
+	 * application to make sure that yes other core is accessing
 	 * the same queue at the same time
 	 */
 	CVMX_PKO_LOCK_NONE = 0,
@@ -134,7 +134,7 @@ typedef union {
 		uint64_t reserved:13;
 		/* Must be one */
 		uint64_t is_io:1;
-		/* The ID of the device on the non-coherent bus */
+		/* The ID of the device on the yesn-coherent bus */
 		uint64_t did:8;
 		/* Must be zero */
 		uint64_t reserved2:4;
@@ -190,12 +190,12 @@ typedef union {
 		uint64_t subone1:1;
 		/*
 		 * The register, subtract will be done if reg1 is
-		 * non-zero.
+		 * yesn-zero.
 		 */
 		uint64_t reg1:11;
 		/* If set, subtract 1, if clear, subtract packet size */
 		uint64_t subone0:1;
-		/* The register, subtract will be done if reg0 is non-zero */
+		/* The register, subtract will be done if reg0 is yesn-zero */
 		uint64_t reg0:11;
 		/*
 		 * When set, interpret segment pointer and segment
@@ -203,7 +203,7 @@ typedef union {
 		 */
 		uint64_t le:1;
 		/*
-		 * When set, packet data not allocated in L2 cache by
+		 * When set, packet data yest allocated in L2 cache by
 		 * PKO.
 		 */
 		uint64_t n2:1;
@@ -220,16 +220,16 @@ typedef union {
 		 */
 		uint64_t gather:1;
 		/*
-		 * If ipoffp1 is non zero, (ipoffp1-1) is the number
+		 * If ipoffp1 is yesn zero, (ipoffp1-1) is the number
 		 * of bytes to IP header, and the hardware will
 		 * calculate and insert the UDP/TCP checksum.
 		 */
 		uint64_t ipoffp1:7;
 		/*
-		 * If set, ignore the I bit (force to zero) from all
+		 * If set, igyesre the I bit (force to zero) from all
 		 * pointer structures.
 		 */
-		uint64_t ignore_i:1;
+		uint64_t igyesre_i:1;
 		/*
 		 * If clear, the hardware will attempt to free the
 		 * buffers containing the packet.
@@ -240,13 +240,13 @@ typedef union {
 		 * set, also gather list length.
 		 */
 		uint64_t segs:6;
-		/* Including L2, but no trailing CRC */
+		/* Including L2, but yes trailing CRC */
 		uint64_t total_bytes:16;
 #else
 	        uint64_t total_bytes:16;
 	        uint64_t segs:6;
 	        uint64_t dontfree:1;
-	        uint64_t ignore_i:1;
+	        uint64_t igyesre_i:1;
 	        uint64_t ipoffp1:7;
 	        uint64_t gather:1;
 	        uint64_t rsp:1;
@@ -287,7 +287,7 @@ extern int cvmx_pko_initialize_local(void);
 extern void cvmx_pko_enable(void);
 
 /**
- * Disables the packet output. Does not affect any configuration.
+ * Disables the packet output. Does yest affect any configuration.
  */
 extern void cvmx_pko_disable(void);
 
@@ -354,7 +354,7 @@ static inline void cvmx_pko_doorbell(uint64_t port, uint64_t queue,
  * possible locking modes.
  * - CVMX_PKO_LOCK_NONE
  *	- PKO doesn't do any locking. It is the responsibility
- *	    of the application to make sure that no other core
+ *	    of the application to make sure that yes other core
  *	    is accessing the same queue at the same time.
  * - CVMX_PKO_LOCK_ATOMIC_TAG
  *	- PKO performs an atomic tagswitch to insure exclusive
@@ -367,7 +367,7 @@ static inline void cvmx_pko_doorbell(uint64_t port, uint64_t queue,
  *	    locking mechanism.
  *
  * NOTE: If atomic locking is used, the POW entry CANNOT be
- * descheduled, as it does not contain a valid WQE pointer.
+ * descheduled, as it does yest contain a valid WQE pointer.
  *
  * @port:   Port to send it on
  * @queue:  Queue to use
@@ -381,13 +381,13 @@ static inline void cvmx_pko_send_packet_prepare(uint64_t port, uint64_t queue,
 	if (use_locking == CVMX_PKO_LOCK_ATOMIC_TAG) {
 		/*
 		 * Must do a full switch here to handle all cases.  We
-		 * use a fake WQE pointer, as the POW does not access
+		 * use a fake WQE pointer, as the POW does yest access
 		 * this memory.	 The WQE pointer and group are only
-		 * used if this work is descheduled, which is not
+		 * used if this work is descheduled, which is yest
 		 * supported by the
 		 * cvmx_pko_send_packet_prepare/cvmx_pko_send_packet_finish
 		 * combination.	 Note that this is a special case in
-		 * which these fake values can be used - this is not a
+		 * which these fake values can be used - this is yest a
 		 * general technique.
 		 */
 		uint32_t tag =
@@ -486,7 +486,7 @@ static inline cvmx_pko_status_t cvmx_pko_send_packet_finish3(
 
 /**
  * Return the pko output queue associated with a port and a specific core.
- * In normal mode (PKO lockless operation is disabled), the value returned
+ * In yesrmal mode (PKO lockless operation is disabled), the value returned
  * is the base queue.
  *
  * @port:   Port number

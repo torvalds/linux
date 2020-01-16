@@ -19,7 +19,7 @@
 #include <linux/mempool.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
@@ -44,7 +44,7 @@
 
 #define PCI_DEVICE_ID_CISCO_FNIC	0x0045
 
-/* Timer to poll notification area for events. Used for MSI interrupts */
+/* Timer to poll yestification area for events. Used for MSI interrupts */
 #define FNIC_NOTIFY_TIMER_PERIOD	(2 * HZ)
 
 static struct kmem_cache *fnic_sgl_cache[FNIC_SGL_NUM_CACHES];
@@ -142,7 +142,7 @@ static void fnic_reset_host_stats(struct Scsi_Host *);
 
 static struct fc_function_template fnic_fc_functions = {
 
-	.show_host_node_name = 1,
+	.show_host_yesde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_fc4s = 1,
@@ -159,7 +159,7 @@ static struct fc_function_template fnic_fc_functions = {
 	.show_rport_maxframe_size = 1,
 	.show_rport_supported_classes = 1,
 	.show_host_fabric_name = 1,
-	.show_starget_node_name = 1,
+	.show_starget_yesde_name = 1,
 	.show_starget_port_name = 1,
 	.show_starget_port_id = 1,
 	.show_rport_dev_loss_tmo = 1,
@@ -243,7 +243,7 @@ static struct fc_host_statistics *fnic_get_stats(struct Scsi_Host *host)
 
 /*
  * fnic_dump_fchost_stats
- * note : dumps fc_statistics into system logs
+ * yeste : dumps fc_statistics into system logs
  */
 void fnic_dump_fchost_stats(struct Scsi_Host *host,
 				struct fc_host_statistics *stats)
@@ -267,8 +267,8 @@ void fnic_dump_fchost_stats(struct Scsi_Host *host,
 			"fnic: lip count		= %llu\n",
 			stats->lip_count);
 	FNIC_MAIN_NOTE(KERN_NOTICE, host,
-			"fnic: nos count		= %llu\n",
-			stats->nos_count);
+			"fnic: yess count		= %llu\n",
+			stats->yess_count);
 	FNIC_MAIN_NOTE(KERN_NOTICE, host,
 			"fnic: error frames		= %llu\n",
 			stats->error_frames);
@@ -313,7 +313,7 @@ void fnic_dump_fchost_stats(struct Scsi_Host *host,
 
 /*
  * fnic_reset_host_stats : clears host stats
- * note : called when reset_statistics set under sysfs dir
+ * yeste : called when reset_statistics set under sysfs dir
  */
 static void fnic_reset_host_stats(struct Scsi_Host *host)
 {
@@ -388,24 +388,24 @@ void fnic_handle_link_event(struct fnic *fnic)
 
 }
 
-static int fnic_notify_set(struct fnic *fnic)
+static int fnic_yestify_set(struct fnic *fnic)
 {
 	int err;
 
 	switch (vnic_dev_get_intr_mode(fnic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
-		err = vnic_dev_notify_set(fnic->vdev, FNIC_INTX_NOTIFY);
+		err = vnic_dev_yestify_set(fnic->vdev, FNIC_INTX_NOTIFY);
 		break;
 	case VNIC_DEV_INTR_MODE_MSI:
-		err = vnic_dev_notify_set(fnic->vdev, -1);
+		err = vnic_dev_yestify_set(fnic->vdev, -1);
 		break;
 	case VNIC_DEV_INTR_MODE_MSIX:
-		err = vnic_dev_notify_set(fnic->vdev, FNIC_MSIX_ERR_NOTIFY);
+		err = vnic_dev_yestify_set(fnic->vdev, FNIC_MSIX_ERR_NOTIFY);
 		break;
 	default:
 		shost_printk(KERN_ERR, fnic->lport->host,
 			     "Interrupt mode should be set up"
-			     " before devcmd notify set %d\n",
+			     " before devcmd yestify set %d\n",
 			     vnic_dev_get_intr_mode(fnic->vdev));
 		err = -1;
 		break;
@@ -414,34 +414,34 @@ static int fnic_notify_set(struct fnic *fnic)
 	return err;
 }
 
-static void fnic_notify_timer(struct timer_list *t)
+static void fnic_yestify_timer(struct timer_list *t)
 {
-	struct fnic *fnic = from_timer(fnic, t, notify_timer);
+	struct fnic *fnic = from_timer(fnic, t, yestify_timer);
 
 	fnic_handle_link_event(fnic);
-	mod_timer(&fnic->notify_timer,
+	mod_timer(&fnic->yestify_timer,
 		  round_jiffies(jiffies + FNIC_NOTIFY_TIMER_PERIOD));
 }
 
-static void fnic_fip_notify_timer(struct timer_list *t)
+static void fnic_fip_yestify_timer(struct timer_list *t)
 {
 	struct fnic *fnic = from_timer(fnic, t, fip_timer);
 
 	fnic_handle_fip_timer(fnic);
 }
 
-static void fnic_notify_timer_start(struct fnic *fnic)
+static void fnic_yestify_timer_start(struct fnic *fnic)
 {
 	switch (vnic_dev_get_intr_mode(fnic->vdev)) {
 	case VNIC_DEV_INTR_MODE_MSI:
 		/*
 		 * Schedule first timeout immediately. The driver is
-		 * initiatialized and ready to look for link up notification
+		 * initiatialized and ready to look for link up yestification
 		 */
-		mod_timer(&fnic->notify_timer, jiffies);
+		mod_timer(&fnic->yestify_timer, jiffies);
 		break;
 	default:
-		/* Using intr for notification for INTx/MSI-X */
+		/* Using intr for yestification for INTx/MSI-X */
 		break;
 	};
 }
@@ -464,7 +464,7 @@ static int fnic_dev_wait(struct vnic_dev *vdev,
 
 	/* Wait for func to complete.
 	* Sometime schedule_timeout_uninterruptible take long time
-	* to wake up so we do not retry as we are only waiting for
+	* to wake up so we do yest retry as we are only waiting for
 	* 2 seconds in while loop. By adding count, we make sure
 	* we try atleast three times before returning -ETIMEDOUT
 	*/
@@ -512,7 +512,7 @@ static int fnic_cleanup(struct fnic *fnic)
 	fnic_wq_cmpl_handler(fnic, -1);
 	fnic_rq_cmpl_handler(fnic, -1);
 
-	/* Clean up the IOs and FCS frames that have not completed */
+	/* Clean up the IOs and FCS frames that have yest completed */
 	for (i = 0; i < fnic->raw_wq_count; i++)
 		vnic_wq_clean(&fnic->wq[i], fnic_free_wq_buf);
 	for (i = 0; i < fnic->rq_count; i++)
@@ -582,7 +582,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	fnic->ctlr.lp = lp;
 
 	snprintf(fnic->name, sizeof(fnic->name) - 1, "%s%d", DRV_NAME,
-		 host->host_no);
+		 host->host_yes);
 
 	host->transportt = fnic_fc_transport;
 
@@ -596,14 +596,14 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = pci_enable_device(pdev);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Cannot enable PCI device, aborting.\n");
+			     "Canyest enable PCI device, aborting.\n");
 		goto err_out_free_hba;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Cannot enable PCI resources, aborting\n");
+			     "Canyest enable PCI resources, aborting\n");
 		goto err_out_disable_device;
 	}
 
@@ -627,7 +627,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Map vNIC resources from BAR0 */
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		shost_printk(KERN_ERR, fnic->lport->host,
-			     "BAR0 not memory-map'able, aborting.\n");
+			     "BAR0 yest memory-map'able, aborting.\n");
 		err = -ENODEV;
 		goto err_out_release_regions;
 	}
@@ -638,7 +638,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (!fnic->bar0.vaddr) {
 		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Cannot memory-map BAR0 res hdr, "
+			     "Canyest memory-map BAR0 res hdr, "
 			     "aborting.\n");
 		err = -ENODEV;
 		goto err_out_release_regions;
@@ -682,7 +682,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			     "vNIC get MAC addr failed \n");
 		goto err_out_dev_close;
 	}
-	/* set data_src for point-to-point mode and to keep it non-zero */
+	/* set data_src for point-to-point mode and to keep it yesn-zero */
 	memcpy(fnic->data_src_addr, fnic->ctlr.ctl_src_addr, ETH_ALEN);
 
 	/* Get vNIC configuration */
@@ -772,7 +772,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		vnic_dev_add_addr(fnic->vdev, fnic->ctlr.ctl_src_addr);
 		fnic->set_vlan = fnic_set_vlan;
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_AUTO);
-		timer_setup(&fnic->fip_timer, fnic_fip_notify_timer, 0);
+		timer_setup(&fnic->fip_timer, fnic_fip_yestify_timer, 0);
 		spin_lock_init(&fnic->vlans_lock);
 		INIT_WORK(&fnic->fip_frame_work, fnic_handle_fip_frame);
 		INIT_WORK(&fnic->event_work, fnic_handle_event);
@@ -781,7 +781,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		INIT_LIST_HEAD(&fnic->vlans);
 	} else {
 		shost_printk(KERN_INFO, fnic->lport->host,
-			     "firmware uses non-FIP mode\n");
+			     "firmware uses yesn-FIP mode\n");
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_NON_FIP);
 		fnic->ctlr.state = FIP_ST_NON_FIP;
 	}
@@ -793,17 +793,17 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Enable hardware stripping of vlan header on ingress */
 	fnic_set_nic_config(fnic, 0, 0, 0, 0, 0, 0, 1);
 
-	/* Setup notification buffer area */
-	err = fnic_notify_set(fnic);
+	/* Setup yestification buffer area */
+	err = fnic_yestify_set(fnic);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Failed to alloc notify buffer, aborting.\n");
+			     "Failed to alloc yestify buffer, aborting.\n");
 		goto err_out_free_max_pool;
 	}
 
-	/* Setup notify timer when using MSI interrupts */
+	/* Setup yestify timer when using MSI interrupts */
 	if (vnic_dev_get_intr_mode(fnic->vdev) == VNIC_DEV_INTR_MODE_MSI)
-		timer_setup(&fnic->notify_timer, fnic_notify_timer, 0);
+		timer_setup(&fnic->yestify_timer, fnic_yestify_timer, 0);
 
 	/* allocate RQ buffers and post them to RQ*/
 	for (i = 0; i < fnic->rq_count; i++) {
@@ -843,7 +843,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	lp->e_d_tov = fnic->config.ed_tov;
 	lp->r_a_tov = fnic->config.ra_tov;
 	lp->link_supported_speeds = FC_PORTSPEED_10GBIT;
-	fc_set_wwnn(lp, fnic->config.node_wwn);
+	fc_set_wwnn(lp, fnic->config.yesde_wwn);
 	fc_set_wwpn(lp, fnic->config.port_wwn);
 
 	fcoe_libfc_config(lp, &fnic->ctlr, &fnic_transport_template, 0);
@@ -899,7 +899,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	for (i = 0; i < fnic->intr_count; i++)
 		vnic_intr_unmask(&fnic->intr[i]);
 
-	fnic_notify_timer_start(fnic);
+	fnic_yestify_timer_start(fnic);
 
 	return 0;
 
@@ -911,7 +911,7 @@ err_out_remove_scsi_host:
 err_out_free_rq_buf:
 	for (i = 0; i < fnic->rq_count; i++)
 		vnic_rq_clean(&fnic->rq[i], fnic_free_rq_buf);
-	vnic_dev_notify_unset(fnic->vdev);
+	vnic_dev_yestify_unset(fnic->vdev);
 err_out_free_max_pool:
 	mempool_destroy(fnic->io_sgl_pool[FNIC_SGL_CACHE_MAX]);
 err_out_free_dflt_pool:
@@ -957,11 +957,11 @@ static void fnic_remove(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
 	if (vnic_dev_get_intr_mode(fnic->vdev) == VNIC_DEV_INTR_MODE_MSI)
-		del_timer_sync(&fnic->notify_timer);
+		del_timer_sync(&fnic->yestify_timer);
 
 	/*
 	 * Flush the fnic event queue. After this call, there should
-	 * be no event queued for this fnic device in the workqueue
+	 * be yes event queued for this fnic device in the workqueue
 	 */
 	flush_workqueue(fnic_event_queue);
 	skb_queue_purge(&fnic->frame_queue);
@@ -1006,7 +1006,7 @@ static void fnic_remove(struct pci_dev *pdev)
 	fc_remove_host(fnic->lport->host);
 	scsi_remove_host(fnic->lport->host);
 	fc_exch_mgr_free(fnic->lport);
-	vnic_dev_notify_unset(fnic->vdev);
+	vnic_dev_yestify_unset(fnic->vdev);
 	fnic_free_intr(fnic);
 	fnic_free_vnic_resources(fnic);
 	fnic_clear_intr_mode(fnic);

@@ -343,7 +343,7 @@ static int wm8904_configure_clocking(struct snd_soc_component *component)
 		break;
 
 	default:
-		dev_err(component->dev, "System clock not configured\n");
+		dev_err(component->dev, "System clock yest configured\n");
 		return -EINVAL;
 	}
 
@@ -1455,7 +1455,7 @@ static int wm8904_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion yest valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1646,7 +1646,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range yesw rounding is done */
 	fll_div->k = K / 10;
 
 	pr_debug("N=%x K=%x FLL_FRATIO=%x FLL_OUTDIV=%x FLL_CLK_REF_DIV=%x\n",
@@ -1701,7 +1701,7 @@ static int wm8904_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 
 	case WM8904_FLL_FREE_RUNNING:
 		dev_dbg(component->dev, "Using free running FLL\n");
-		/* Force 12MHz and output/4 for now */
+		/* Force 12MHz and output/4 for yesw */
 		Fout = 12000000;
 		Fref = 12000000;
 
@@ -1710,7 +1710,7 @@ static int wm8904_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown FLL ID %d\n", fll_id);
+		dev_err(component->dev, "Unkyeswn FLL ID %d\n", fll_id);
 		return -EINVAL;
 	}
 
@@ -1806,7 +1806,7 @@ static int wm8904_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 	switch (clk_id) {
 	case WM8904_CLK_AUTO:
-		/* We don't have any rate constraints, so just ignore the
+		/* We don't have any rate constraints, so just igyesre the
 		 * request to disable constraining.
 		 */
 		if (!freq)
@@ -2104,7 +2104,7 @@ static int wm8904_probe(struct snd_soc_component *component)
 		memset(&wm8904_dai.capture, 0, sizeof(wm8904_dai.capture));
 		break;
 	default:
-		dev_err(component->dev, "Unknown device type %d\n",
+		dev_err(component->dev, "Unkyeswn device type %d\n",
 			wm8904->devtype);
 		return -EINVAL;
 	}
@@ -2130,7 +2130,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8904 = {
 	.set_bias_level		= wm8904_set_bias_level,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8904_regmap = {
@@ -2188,10 +2188,10 @@ static int wm8904_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	if (i2c->dev.of_node) {
+	if (i2c->dev.of_yesde) {
 		const struct of_device_id *match;
 
-		match = of_match_node(wm8904_of_match, i2c->dev.of_node);
+		match = of_match_yesde(wm8904_of_match, i2c->dev.of_yesde);
 		if (match == NULL)
 			return -EINVAL;
 		wm8904->devtype = (enum wm8904_type)match->data;
@@ -2225,7 +2225,7 @@ static int wm8904_i2c_probe(struct i2c_client *i2c,
 		goto err_enable;
 	}
 	if (val != 0x8904) {
-		dev_err(&i2c->dev, "Device is not a WM8904, ID is %x\n", val);
+		dev_err(&i2c->dev, "Device is yest a WM8904, ID is %x\n", val);
 		ret = -EINVAL;
 		goto err_enable;
 	}
@@ -2294,7 +2294,7 @@ static int wm8904_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(wm8904->regmap, WM8904_CLASS_W_0,
 			    WM8904_CP_DYN_PWR, WM8904_CP_DYN_PWR);
 
-	/* Use normal bias source */
+	/* Use yesrmal bias source */
 	regmap_update_bits(wm8904->regmap, WM8904_BIAS_CONTROL_0,
 			    WM8904_POBCTRL, 0);
 

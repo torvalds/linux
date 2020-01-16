@@ -50,7 +50,7 @@ static void qcom_hwspinlock_unlock(struct hwspinlock *lock)
 	}
 
 	if (lock_owner != QCOM_MUTEX_APPS_PROC_ID) {
-		pr_err("%s: spinlock not owned by us (actual owner is %d)\n",
+		pr_err("%s: spinlock yest owned by us (actual owner is %d)\n",
 				__func__, lock_owner);
 	}
 
@@ -74,7 +74,7 @@ MODULE_DEVICE_TABLE(of, qcom_hwspinlock_of_match);
 static int qcom_hwspinlock_probe(struct platform_device *pdev)
 {
 	struct hwspinlock_device *bank;
-	struct device_node *syscon;
+	struct device_yesde *syscon;
 	struct reg_field field;
 	struct regmap *regmap;
 	size_t array_size;
@@ -83,26 +83,26 @@ static int qcom_hwspinlock_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	syscon = of_parse_phandle(pdev->dev.of_node, "syscon", 0);
+	syscon = of_parse_phandle(pdev->dev.of_yesde, "syscon", 0);
 	if (!syscon) {
-		dev_err(&pdev->dev, "no syscon property\n");
+		dev_err(&pdev->dev, "yes syscon property\n");
 		return -ENODEV;
 	}
 
-	regmap = syscon_node_to_regmap(syscon);
-	of_node_put(syscon);
+	regmap = syscon_yesde_to_regmap(syscon);
+	of_yesde_put(syscon);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 1, &base);
+	ret = of_property_read_u32_index(pdev->dev.of_yesde, "syscon", 1, &base);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "no offset in syscon\n");
+		dev_err(&pdev->dev, "yes offset in syscon\n");
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 2, &stride);
+	ret = of_property_read_u32_index(pdev->dev.of_yesde, "syscon", 2, &stride);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "no stride syscon\n");
+		dev_err(&pdev->dev, "yes stride syscon\n");
 		return -EINVAL;
 	}
 

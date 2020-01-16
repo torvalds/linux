@@ -87,7 +87,7 @@ int max1600_configure(struct max1600 *m, unsigned int vcc, unsigned int vpp)
 		}
 		n = MAX1600_GPIO_MAX;
 	} else if (vpp != vcc && vpp != 0) {
-		dev_err(m->dev, "no VPP control\n");
+		dev_err(m->dev, "yes VPP control\n");
 		return -EINVAL;
 	}
 

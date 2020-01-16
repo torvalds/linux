@@ -73,15 +73,15 @@ static __always_inline int clock_getres_fallback(
 static __always_inline u64 __arch_get_hw_counter(int clock_mode)
 {
 #ifdef CONFIG_ARM_ARCH_TIMER
-	u64 cycle_now;
+	u64 cycle_yesw;
 
 	if (!clock_mode)
 		return -EINVAL;
 
 	isb();
-	cycle_now = read_sysreg(CNTVCT);
+	cycle_yesw = read_sysreg(CNTVCT);
 
-	return cycle_now;
+	return cycle_yesw;
 #else
 	return -EINVAL; /* use fallback */
 #endif

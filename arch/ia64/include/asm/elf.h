@@ -46,7 +46,7 @@
 #define PT_IA_64_UNWIND		0x70000001
 
 /* IA-64 relocations: */
-#define R_IA64_NONE		0x00	/* none */
+#define R_IA64_NONE		0x00	/* yesne */
 #define R_IA64_IMM14		0x21	/* symbol + addend, add imm14 */
 #define R_IA64_IMM22		0x22	/* symbol + addend, add imm22 */
 #define R_IA64_IMM64		0x23	/* symbol + addend, mov imm64 */

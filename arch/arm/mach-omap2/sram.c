@@ -53,7 +53,7 @@ static unsigned long omap_sram_size;
 /*
  * Depending on the target RAMFS firewall setup, the public usable amount of
  * SRAM varies.  The default accessible size for all device types is 2k. A GP
- * device allows ARM11 but not other initiators for full size. This
+ * device allows ARM11 but yest other initiators for full size. This
  * functionality seems ok until some nice security API happens.
  */
 static int is_sram_locked(void)
@@ -74,13 +74,13 @@ static int is_sram_locked(void)
 		}
 		return 0;
 	} else
-		return 1; /* assume locked with no PPA or security driver */
+		return 1; /* assume locked with yes PPA or security driver */
 }
 
 /*
  * The amount of SRAM depends on the core type.
- * Note that we cannot try to test for SRAM here because writes
- * to secure SRAM will hang the system. Also the SRAM is not
+ * Note that we canyest try to test for SRAM here because writes
+ * to secure SRAM will hang the system. Also the SRAM is yest
  * yet mapped at this point.
  */
 static void __init omap_detect_sram(void)
@@ -115,7 +115,7 @@ static void __init omap_detect_sram(void)
 }
 
 /*
- * Note that we cannot use ioremap for SRAM, as clock init needs SRAM early.
+ * Note that we canyest use ioremap for SRAM, as clock init needs SRAM early.
  */
 static void __init omap2_map_sram(void)
 {
@@ -123,7 +123,7 @@ static void __init omap2_map_sram(void)
 
 	if (cpu_is_omap34xx()) {
 		/*
-		 * SRAM must be marked as non-cached on OMAP3 since the
+		 * SRAM must be marked as yesn-cached on OMAP3 since the
 		 * CORE DPLL M2 divider change code (in SRAM) runs with the
 		 * SDRAM controller disabled, and if it is marked cached,
 		 * the ARM may attempt to write cache lines back to SDRAM

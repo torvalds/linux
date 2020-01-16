@@ -2,7 +2,7 @@
 /* atlx.c -- common functions for Attansic network drivers
  *
  * Copyright(c) 2005 - 2006 Attansic Corporation. All rights reserved.
- * Copyright(c) 2006 - 2007 Chris Snook <csnook@redhat.com>
+ * Copyright(c) 2006 - 2007 Chris Syesok <csyesok@redhat.com>
  * Copyright(c) 2006 - 2008 Jay Cliburn <jcliburn@gmail.com>
  * Copyright(c) 2007 Atheros Corporation. All rights reserved.
  *
@@ -15,7 +15,7 @@
 #define ATLX_C
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/if.h>
 #include <linux/netdevice.h>
@@ -87,7 +87,7 @@ static void atlx_check_for_link(struct atlx_adapter *adapter)
 	atlx_read_phy_reg(&adapter->hw, MII_BMSR, &phy_data);
 	spin_unlock(&adapter->lock);
 
-	/* notify upper layer link down ASAP */
+	/* yestify upper layer link down ASAP */
 	if (!(phy_data & BMSR_LSTATUS)) {
 		/* Link Down */
 		if (netif_carrier_ok(netdev)) {
@@ -241,7 +241,7 @@ static netdev_features_t atlx_fix_features(struct net_device *netdev,
 	netdev_features_t features)
 {
 	/*
-	 * Since there is no support for separate rx/tx vlan accel
+	 * Since there is yes support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)

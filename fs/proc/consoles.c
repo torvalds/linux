@@ -35,7 +35,7 @@ static int show_console_dev(struct seq_file *m, void *v)
 		int index;
 		driver = con->device(con, &index);
 		if (driver) {
-			dev = MKDEV(driver->major, driver->minor_start);
+			dev = MKDEV(driver->major, driver->miyesr_start);
 			dev += index;
 		}
 	}

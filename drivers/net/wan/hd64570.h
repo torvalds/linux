@@ -128,20 +128,20 @@
 #define BCRL   0x0E		/* Byte Count L */
 #define BCRH   0x0F		/* Byte Count H */
 #define DSR    0x10		/* DMA Status */
-#define DSR_RX(node) (DSR + (node ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
-#define DSR_TX(node) (DSR + (node ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
+#define DSR_RX(yesde) (DSR + (yesde ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
+#define DSR_TX(yesde) (DSR + (yesde ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
 #define DMR    0x11		/* DMA Mode */
-#define DMR_RX(node) (DMR + (node ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
-#define DMR_TX(node) (DMR + (node ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
+#define DMR_RX(yesde) (DMR + (yesde ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
+#define DMR_TX(yesde) (DMR + (yesde ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
 #define FCT    0x13		/* Frame End Interrupt Counter */
-#define FCT_RX(node) (FCT + (node ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
-#define FCT_TX(node) (FCT + (node ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
+#define FCT_RX(yesde) (FCT + (yesde ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
+#define FCT_TX(yesde) (FCT + (yesde ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
 #define DIR    0x14		/* DMA Interrupt Enable */
-#define DIR_RX(node) (DIR + (node ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
-#define DIR_TX(node) (DIR + (node ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
+#define DIR_RX(yesde) (DIR + (yesde ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
+#define DIR_TX(yesde) (DIR + (yesde ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
 #define DCR    0x15		/* DMA Command  */
-#define DCR_RX(node) (DCR + (node ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
-#define DCR_TX(node) (DCR + (node ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
+#define DCR_RX(yesde) (DCR + (yesde ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
+#define DCR_TX(yesde) (DCR + (yesde ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
 
 
 

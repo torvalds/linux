@@ -21,7 +21,7 @@
 #include <linux/suspend.h>
 #include <linux/t10-pi.h>
 #include <linux/types.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/sed-opal.h>
 #include <linux/pci-p2pdma.h>
 
@@ -71,7 +71,7 @@ MODULE_PARM_DESC(io_queue_depth, "set io queue depth, should >= 2");
 static unsigned int write_queues;
 module_param(write_queues, uint, 0644);
 MODULE_PARM_DESC(write_queues,
-	"Number of queues to use for writes. If not set, reads and writes "
+	"Number of queues to use for writes. If yest set, reads and writes "
 	"will share a queue set.");
 
 static unsigned int poll_queues;
@@ -405,7 +405,7 @@ static int nvme_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 }
 
 static int nvme_init_request(struct blk_mq_tag_set *set, struct request *req,
-		unsigned int hctx_idx, unsigned int numa_node)
+		unsigned int hctx_idx, unsigned int numa_yesde)
 {
 	struct nvme_dev *dev = set->driver_data;
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
@@ -887,7 +887,7 @@ static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	iod->nents = 0;
 
 	/*
-	 * We should not need to do this, but we're still using this to
+	 * We should yest need to do this, but we're still using this to
 	 * ensure we can drain requests on a dying queue.
 	 */
 	if (unlikely(!test_bit(NVMEQ_ENABLED, &nvmeq->flags)))
@@ -1022,7 +1022,7 @@ static irqreturn_t nvme_irq(int irq, void *data)
 
 	/*
 	 * The rmb/wmb pair ensures we see all updates from a previous run of
-	 * the irq handler, even if that was on another CPU.
+	 * the irq handler, even if that was on ayesther CPU.
 	 */
 	rmb();
 	nvme_process_cq(nvmeq, &start, &end, -1);
@@ -1045,7 +1045,7 @@ static irqreturn_t nvme_irq_check(int irq, void *data)
 }
 
 /*
- * Poll for completions any queue, including those not dedicated to polling.
+ * Poll for completions any queue, including those yest dedicated to polling.
  * Can be called from any context.
  */
 static int nvme_poll_irqdisable(struct nvme_queue *nvmeq, unsigned int tag)
@@ -1056,7 +1056,7 @@ static int nvme_poll_irqdisable(struct nvme_queue *nvmeq, unsigned int tag)
 
 	/*
 	 * For a poll queue we need to protect against the polling thread
-	 * using the CQ lock.  For normal interrupt driven threads we have
+	 * using the CQ lock.  For yesrmal interrupt driven threads we have
 	 * to disable the interrupt to avoid racing with it.
 	 */
 	if (test_bit(NVMEQ_POLLED, &nvmeq->flags)) {
@@ -1123,7 +1123,7 @@ static int adapter_alloc_cq(struct nvme_dev *dev, u16 qid,
 		flags |= NVME_CQ_IRQ_ENABLED;
 
 	/*
-	 * Note: we (ab)use the fact that the prp fields survive if no data
+	 * Note: we (ab)use the fact that the prp fields survive if yes data
 	 * is attached to the request.
 	 */
 	memset(&c, 0, sizeof(c));
@@ -1153,7 +1153,7 @@ static int adapter_alloc_sq(struct nvme_dev *dev, u16 qid,
 		flags |= NVME_SQ_PRIO_MEDIUM;
 
 	/*
-	 * Note: we (ab)use the fact that the prp fields survive if no data
+	 * Note: we (ab)use the fact that the prp fields survive if yes data
 	 * is attached to the request.
 	 */
 	memset(&c, 0, sizeof(c));
@@ -1241,7 +1241,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	struct nvme_command cmd;
 	u32 csts = readl(dev->bar + NVME_REG_CSTS);
 
-	/* If PCI error recovery process is happening, we cannot reset or
+	/* If PCI error recovery process is happening, we canyest reset or
 	 * the recovery mechanism will surely fail.
 	 */
 	mb();
@@ -1331,7 +1331,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 
 	abort_req->timeout = ADMIN_TIMEOUT;
 	abort_req->end_io_data = NULL;
-	blk_execute_rq_nowait(abort_req->q, NULL, abort_req, 0, abort_endio);
+	blk_execute_rq_yeswait(abort_req->q, NULL, abort_req, 0, abort_endio);
 
 	/*
 	 * The aborted req will be completed on receiving the abort req.
@@ -1610,7 +1610,7 @@ static int nvme_alloc_admin_tags(struct nvme_dev *dev)
 
 		dev->admin_tagset.queue_depth = NVME_AQ_MQ_TAG_DEPTH;
 		dev->admin_tagset.timeout = ADMIN_TIMEOUT;
-		dev->admin_tagset.numa_node = dev_to_node(dev->dev);
+		dev->admin_tagset.numa_yesde = dev_to_yesde(dev->dev);
 		dev->admin_tagset.cmd_size = sizeof(struct nvme_iod);
 		dev->admin_tagset.flags = BLK_MQ_F_NO_SCHED;
 		dev->admin_tagset.driver_data = dev;
@@ -1739,7 +1739,7 @@ static int nvme_create_io_queues(struct nvme_dev *dev)
 	}
 
 	/*
-	 * Ignore failing Create SQ/CQ commands, we can continue with less
+	 * Igyesre failing Create SQ/CQ commands, we can continue with less
 	 * than the desired amount of queues, and even a controller without
 	 * I/O queues can still be used to issue admin commands.  This might
 	 * be useful to upgrade a buggy firmware for example.
@@ -2017,9 +2017,9 @@ static void nvme_calc_irq_sets(struct irq_affinity *affd, unsigned int nrirqs)
 	unsigned int nr_read_queues;
 
 	/*
-	 * If there is no interupt available for queues, ensure that
+	 * If there is yes interupt available for queues, ensure that
 	 * the default queue is set to 1. The affinity set size is
-	 * also set to one, but the irq core ignores it for this case.
+	 * also set to one, but the irq core igyesres it for this case.
 	 *
 	 * If only one interrupt is available or 'write_queue' == 0, combine
 	 * write and read queues.
@@ -2057,7 +2057,7 @@ static int nvme_setup_irqs(struct nvme_dev *dev, unsigned int nr_io_queues)
 
 	/*
 	 * Poll queues don't need interrupts, but we need at least one IO
-	 * queue left over for non-polled IO.
+	 * queue left over for yesn-polled IO.
 	 */
 	this_p_queues = poll_queues;
 	if (this_p_queues >= nr_io_queues) {
@@ -2138,7 +2138,7 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	pci_free_irq(pdev, 0, adminq);
 
 	/*
-	 * If we enable msix early due to not intx, disable it again before
+	 * If we enable msix early due to yest intx, disable it again before
 	 * setting up the full range we need.
 	 */
 	pci_free_irq_vectors(pdev);
@@ -2215,7 +2215,7 @@ static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 	req->end_io_data = nvmeq;
 
 	init_completion(&nvmeq->delete_done);
-	blk_execute_rq_nowait(q, NULL, req, false,
+	blk_execute_rq_yeswait(q, NULL, req, false,
 			opcode == nvme_admin_delete_cq ?
 				nvme_del_cq_end : nvme_del_queue_end);
 	return 0;
@@ -2265,7 +2265,7 @@ static void nvme_dev_add(struct nvme_dev *dev)
 		if (dev->io_queues[HCTX_TYPE_POLL])
 			dev->tagset.nr_maps++;
 		dev->tagset.timeout = NVME_IO_TIMEOUT;
-		dev->tagset.numa_node = dev_to_node(dev->dev);
+		dev->tagset.numa_yesde = dev_to_yesde(dev->dev);
 		dev->tagset.queue_depth =
 				min_t(int, dev->q_depth, BLK_MQ_MAX_DEPTH) - 1;
 		dev->tagset.cmd_size = sizeof(struct nvme_iod);
@@ -2290,7 +2290,7 @@ static void nvme_dev_add(struct nvme_dev *dev)
 	} else {
 		blk_mq_update_nr_hw_queues(&dev->tagset, dev->online_queues - 1);
 
-		/* Free previously allocated queues that are no longer usable */
+		/* Free previously allocated queues that are yes longer usable */
 		nvme_free_queues(dev, dev->online_queues);
 	}
 
@@ -2333,8 +2333,8 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 	dev->dbs = dev->bar + 4096;
 
 	/*
-	 * Some Apple controllers require a non-standard SQE size.
-	 * Interestingly they also seem to ignore the CC:IOSQES register
+	 * Some Apple controllers require a yesn-standard SQE size.
+	 * Interestingly they also seem to igyesre the CC:IOSQES register
 	 * so we don't bother updating it here.
 	 */
 	if (dev->ctrl.quirks & NVME_QUIRK_128_BYTES_SQES)
@@ -2361,7 +2361,7 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 
 	/*
 	 * Controllers with the shared tags quirk need the IO queue to be
-	 * big enough so that we get 32 tags for the admin queue
+	 * big eyesugh so that we get 32 tags for the admin queue
 	 */
 	if ((dev->ctrl.quirks & NVME_QUIRK_SHARED_TAGS) &&
 	    (dev->q_depth < (NVME_AQ_DEPTH + 2))) {
@@ -2416,7 +2416,7 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 			nvme_start_freeze(&dev->ctrl);
 		}
 		dead = !!((csts & NVME_CSTS_CFS) || !(csts & NVME_CSTS_RDY) ||
-			pdev->error_state  != pci_channel_io_normal);
+			pdev->error_state  != pci_channel_io_yesrmal);
 	}
 
 	/*
@@ -2442,9 +2442,9 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 	blk_mq_tagset_wait_completed_request(&dev->admin_tagset);
 
 	/*
-	 * The driver will not be starting up queues again if shutting down so
+	 * The driver will yest be starting up queues again if shutting down so
 	 * must flush all entered requests to their failed completion to avoid
-	 * deadlocking blk-mq hot-cpu notifier.
+	 * deadlocking blk-mq hot-cpu yestifier.
 	 */
 	if (shutdown) {
 		nvme_start_queues(&dev->ctrl);
@@ -2510,7 +2510,7 @@ static void nvme_pci_free_ctrl(struct nvme_ctrl *ctrl)
 static void nvme_remove_dead_ctrl(struct nvme_dev *dev)
 {
 	/*
-	 * Set state to deleting now to avoid blocking nvme_wait_reset(), which
+	 * Set state to deleting yesw to avoid blocking nvme_wait_reset(), which
 	 * may be holding this pci_dev's device lock.
 	 */
 	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DELETING);
@@ -2617,7 +2617,7 @@ static void nvme_reset_work(struct work_struct *work)
 	 * any working I/O queue.
 	 */
 	if (dev->online_queues < 2) {
-		dev_warn(dev->ctrl.device, "IO queues not created\n");
+		dev_warn(dev->ctrl.device, "IO queues yest created\n");
 		nvme_kill_queues(&dev->ctrl);
 		nvme_remove_namespaces(&dev->ctrl);
 		nvme_free_tagset(dev);
@@ -2757,21 +2757,21 @@ static void nvme_async_probe(void *data, async_cookie_t cookie)
 
 static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	int node, result = -ENOMEM;
+	int yesde, result = -ENOMEM;
 	struct nvme_dev *dev;
 	unsigned long quirks = id->driver_data;
 	size_t alloc_size;
 
-	node = dev_to_node(&pdev->dev);
-	if (node == NUMA_NO_NODE)
-		set_dev_node(&pdev->dev, first_memory_node);
+	yesde = dev_to_yesde(&pdev->dev);
+	if (yesde == NUMA_NO_NODE)
+		set_dev_yesde(&pdev->dev, first_memory_yesde);
 
-	dev = kzalloc_node(sizeof(*dev), GFP_KERNEL, node);
+	dev = kzalloc_yesde(sizeof(*dev), GFP_KERNEL, yesde);
 	if (!dev)
 		return -ENOMEM;
 
-	dev->queues = kcalloc_node(max_queue_count(), sizeof(struct nvme_queue),
-					GFP_KERNEL, node);
+	dev->queues = kcalloc_yesde(max_queue_count(), sizeof(struct nvme_queue),
+					GFP_KERNEL, yesde);
 	if (!dev->queues)
 		goto free;
 
@@ -2800,10 +2800,10 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 						NVME_MAX_SEGS, true);
 	WARN_ON_ONCE(alloc_size > PAGE_SIZE);
 
-	dev->iod_mempool = mempool_create_node(1, mempool_kmalloc,
+	dev->iod_mempool = mempool_create_yesde(1, mempool_kmalloc,
 						mempool_kfree,
 						(void *) alloc_size,
-						GFP_KERNEL, node);
+						GFP_KERNEL, yesde);
 	if (!dev->iod_mempool) {
 		result = -ENOMEM;
 		goto release_pools;
@@ -2865,7 +2865,7 @@ static void nvme_shutdown(struct pci_dev *pdev)
 
 /*
  * The driver's remove may be called on a device in a partially initialized
- * state. This function must not have any dependencies on the device state in
+ * state. This function must yest have any dependencies on the device state in
  * order to proceed.
  */
 static void nvme_remove(struct pci_dev *pdev)
@@ -2927,17 +2927,17 @@ static int nvme_suspend(struct device *dev)
 	ndev->last_ps = U32_MAX;
 
 	/*
-	 * The platform does not remove power for a kernel managed suspend so
+	 * The platform does yest remove power for a kernel managed suspend so
 	 * use host managed nvme power settings for lowest idle power if
 	 * possible. This should have quicker resume latency than a full device
 	 * shutdown.  But if the firmware is involved after the suspend or the
-	 * device does not support any non-default power states, shut down the
+	 * device does yest support any yesn-default power states, shut down the
 	 * device fully.
 	 *
-	 * If ASPM is not enabled for the device, shut down the device and allow
+	 * If ASPM is yest enabled for the device, shut down the device and allow
 	 * the PCI bus layer to put it into D3 in order to take the PCIe link
 	 * down, so as to allow the platform to achieve its minimum low-power
-	 * state (which may not be possible if the link is up).
+	 * state (which may yest be possible if the link is up).
 	 */
 	if (pm_suspend_via_firmware() || !ctrl->npss ||
 	    !pcie_aspm_enabled(pdev) ||
@@ -3017,7 +3017,7 @@ static pci_ers_result_t nvme_error_detected(struct pci_dev *pdev,
 	 * after the slot reset through driver's slot_reset callback.
 	 */
 	switch (state) {
-	case pci_channel_io_normal:
+	case pci_channel_io_yesrmal:
 		return PCI_ERS_RESULT_CAN_RECOVER;
 	case pci_channel_io_frozen:
 		dev_warn(dev->ctrl.device,

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_MEMFD_H
 #define _UAPI_LINUX_MEMFD_H
 
@@ -12,8 +12,8 @@
 /*
  * Huge page size encoding when MFD_HUGETLB is specified, and a huge page
  * size other than the default is desired.  See hugetlb_encode.h.
- * All known huge page size encodings are provided here.  It is the
- * responsibility of the application to know which sizes are supported on
+ * All kyeswn huge page size encodings are provided here.  It is the
+ * responsibility of the application to kyesw which sizes are supported on
  * the running system.  See mmap(2) man page for details.
  */
 #define MFD_HUGE_SHIFT	HUGETLB_FLAG_ENCODE_SHIFT

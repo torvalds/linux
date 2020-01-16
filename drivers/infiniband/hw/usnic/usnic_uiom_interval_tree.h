@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -36,8 +36,8 @@
 
 #include <linux/rbtree.h>
 
-struct usnic_uiom_interval_node {
-	struct rb_node			rb;
+struct usnic_uiom_interval_yesde {
+	struct rb_yesde			rb;
 	struct list_head		link;
 	unsigned long			start;
 	unsigned long			last;
@@ -47,28 +47,28 @@ struct usnic_uiom_interval_node {
 };
 
 extern void
-usnic_uiom_interval_tree_insert(struct usnic_uiom_interval_node *node,
+usnic_uiom_interval_tree_insert(struct usnic_uiom_interval_yesde *yesde,
 					struct rb_root_cached *root);
 extern void
-usnic_uiom_interval_tree_remove(struct usnic_uiom_interval_node *node,
+usnic_uiom_interval_tree_remove(struct usnic_uiom_interval_yesde *yesde,
 					struct rb_root_cached *root);
-extern struct usnic_uiom_interval_node *
+extern struct usnic_uiom_interval_yesde *
 usnic_uiom_interval_tree_iter_first(struct rb_root_cached *root,
 					unsigned long start,
 					unsigned long last);
-extern struct usnic_uiom_interval_node *
-usnic_uiom_interval_tree_iter_next(struct usnic_uiom_interval_node *node,
+extern struct usnic_uiom_interval_yesde *
+usnic_uiom_interval_tree_iter_next(struct usnic_uiom_interval_yesde *yesde,
 			unsigned long start, unsigned long last);
 /*
  * Inserts {start...last} into {root}.  If there are overlaps,
- * nodes will be broken up and merged
+ * yesdes will be broken up and merged
  */
 int usnic_uiom_insert_interval(struct rb_root_cached *root,
 				unsigned long start, unsigned long last,
 				int flags);
 /*
- * Removed {start...last} from {root}.  The nodes removed are returned in
- * 'removed.' The caller is responsibile for freeing memory of nodes in
+ * Removed {start...last} from {root}.  The yesdes removed are returned in
+ * 'removed.' The caller is responsibile for freeing memory of yesdes in
  * 'removed.'
  */
 void usnic_uiom_remove_interval(struct rb_root_cached *root,

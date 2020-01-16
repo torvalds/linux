@@ -94,7 +94,7 @@ enum max77843_muic_accessory_type {
 
 	/*
 	 * The below accessories should check
-	 * not only ADC value but also ADC1K and VBVolt value.
+	 * yest only ADC value but also ADC1K and VBVolt value.
 	 */
 						/* Offset|ADC1K|VBVolt| */
 	MAX77843_MUIC_GND_USB_HOST = 0x100,	/*    0x1|    0|     0| */
@@ -197,7 +197,7 @@ static const struct regmap_irq_chip max77843_muic_irq_chip = {
 };
 
 static int max77843_muic_set_path(struct max77843_muic_info *info,
-		u8 val, bool attached, bool nobccomp)
+		u8 val, bool attached, bool yesbccomp)
 {
 	struct max77693_dev *max77843 = info->max77843;
 	int ret = 0;
@@ -207,7 +207,7 @@ static int max77843_muic_set_path(struct max77843_muic_info *info,
 		ctrl1 = val;
 	else
 		ctrl1 = MAX77843_MUIC_CONTROL1_SW_OPEN;
-	if (nobccomp) {
+	if (yesbccomp) {
 		/* Disable BC1.2 protocol and force manual switch control */
 		ctrl1 |= MAX77843_MUIC_CONTROL1_NOBCCOMP_MASK;
 	}
@@ -218,7 +218,7 @@ static int max77843_muic_set_path(struct max77843_muic_info *info,
 				MAX77843_MUIC_CONTROL1_NOBCCOMP_MASK,
 			ctrl1);
 	if (ret < 0) {
-		dev_err(info->dev, "Cannot switch MUIC port\n");
+		dev_err(info->dev, "Canyest switch MUIC port\n");
 		return ret;
 	}
 
@@ -232,7 +232,7 @@ static int max77843_muic_set_path(struct max77843_muic_info *info,
 			MAX77843_MUIC_CONTROL2_LOWPWR_MASK |
 			MAX77843_MUIC_CONTROL2_CPEN_MASK, ctrl2);
 	if (ret < 0) {
-		dev_err(info->dev, "Cannot update lowpower mode\n");
+		dev_err(info->dev, "Canyest update lowpower mode\n");
 		return ret;
 	}
 
@@ -358,7 +358,7 @@ static int max77843_muic_get_cable_type(struct max77843_muic_info *info,
 		}
 		break;
 	default:
-		dev_err(info->dev, "Unknown cable group (%d)\n", group);
+		dev_err(info->dev, "Unkyeswn cable group (%d)\n", group);
 		cable_type = -EINVAL;
 		break;
 	}
@@ -637,7 +637,7 @@ static void max77843_muic_irq_work(struct work_struct *work)
 			MAX77843_MUIC_REG_STATUS1, info->status,
 			MAX77843_MUIC_STATUS_NUM);
 	if (ret) {
-		dev_err(info->dev, "Cannot read STATUS registers\n");
+		dev_err(info->dev, "Canyest read STATUS registers\n");
 		mutex_unlock(&info->mutex);
 		return;
 	}
@@ -645,14 +645,14 @@ static void max77843_muic_irq_work(struct work_struct *work)
 	if (info->irq_adc) {
 		ret = max77843_muic_adc_handler(info);
 		if (ret)
-			dev_err(info->dev, "Unknown cable type\n");
+			dev_err(info->dev, "Unkyeswn cable type\n");
 		info->irq_adc = false;
 	}
 
 	if (info->irq_chg) {
 		ret = max77843_muic_chg_handler(info);
 		if (ret)
-			dev_err(info->dev, "Unknown charger type\n");
+			dev_err(info->dev, "Unkyeswn charger type\n");
 		info->irq_chg = false;
 	}
 
@@ -691,7 +691,7 @@ static irqreturn_t max77843_muic_irq_handler(int irq, void *data)
 	case MAX77843_MUIC_IRQ_INT3_MRXRDY:
 		break;
 	default:
-		dev_err(info->dev, "Cannot recognize IRQ(%d)\n", irq_type);
+		dev_err(info->dev, "Canyest recognize IRQ(%d)\n", irq_type);
 		break;
 	}
 
@@ -714,7 +714,7 @@ static void max77843_muic_detect_cable_wq(struct work_struct *work)
 			MAX77843_MUIC_REG_STATUS1, info->status,
 			MAX77843_MUIC_STATUS_NUM);
 	if (ret) {
-		dev_err(info->dev, "Cannot read STATUS registers\n");
+		dev_err(info->dev, "Canyest read STATUS registers\n");
 		goto err_cable_wq;
 	}
 
@@ -723,7 +723,7 @@ static void max77843_muic_detect_cable_wq(struct work_struct *work)
 	if (attached && adc != MAX77843_MUIC_ADC_OPEN) {
 		ret = max77843_muic_adc_handler(info);
 		if (ret < 0) {
-			dev_err(info->dev, "Cannot detect accessory\n");
+			dev_err(info->dev, "Canyest detect accessory\n");
 			goto err_cable_wq;
 		}
 	}
@@ -733,7 +733,7 @@ static void max77843_muic_detect_cable_wq(struct work_struct *work)
 	if (attached && chg_type != MAX77843_MUIC_CHG_NONE) {
 		ret = max77843_muic_chg_handler(info);
 		if (ret < 0) {
-			dev_err(info->dev, "Cannot detect charger accessory\n");
+			dev_err(info->dev, "Canyest detect charger accessory\n");
 			goto err_cable_wq;
 		}
 	}
@@ -758,7 +758,7 @@ static int max77843_muic_set_debounce_time(struct max77843_muic_info *info,
 				MAX77843_MUIC_CONTROL4_ADCDBSET_MASK,
 				time << MAX77843_MUIC_CONTROL4_ADCDBSET_SHIFT);
 		if (ret < 0) {
-			dev_err(info->dev, "Cannot write MUIC regmap\n");
+			dev_err(info->dev, "Canyest write MUIC regmap\n");
 			return ret;
 		}
 		break;
@@ -778,7 +778,7 @@ static int max77843_init_muic_regmap(struct max77693_dev *max77843)
 			I2C_ADDR_MUIC);
 	if (IS_ERR(max77843->i2c_muic)) {
 		dev_err(&max77843->i2c->dev,
-				"Cannot allocate I2C device for MUIC\n");
+				"Canyest allocate I2C device for MUIC\n");
 		return PTR_ERR(max77843->i2c_muic);
 	}
 
@@ -795,7 +795,7 @@ static int max77843_init_muic_regmap(struct max77693_dev *max77843)
 			IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_SHARED,
 			0, &max77843_muic_irq_chip, &max77843->irq_data_muic);
 	if (ret < 0) {
-		dev_err(&max77843->i2c->dev, "Cannot add MUIC IRQ chip\n");
+		dev_err(&max77843->i2c->dev, "Canyest add MUIC IRQ chip\n");
 		goto err_muic_i2c;
 	}
 
@@ -863,7 +863,7 @@ static int max77843_muic_probe(struct platform_device *pdev)
 			MAX77843_MUIC_REG_STATUS1, info->status,
 			MAX77843_MUIC_STATUS_NUM);
 	if (ret) {
-		dev_err(info->dev, "Cannot read STATUS registers\n");
+		dev_err(info->dev, "Canyest read STATUS registers\n");
 		goto err_muic_irq;
 	}
 	cable_type = max77843_muic_get_cable_type(info, MAX77843_CABLE_GROUP_ADC,

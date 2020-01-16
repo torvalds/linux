@@ -112,13 +112,13 @@ struct fsl_dma_private {
  * The PCM hardware is the Freescale DMA controller.  This structure defines
  * the capabilities of that hardware.
  *
- * Since the sampling rate and data format are not controlled by the DMA
- * controller, we specify no limits for those values.  The only exception is
+ * Since the sampling rate and data format are yest controlled by the DMA
+ * controller, we specify yes limits for those values.  The only exception is
  * period_bytes_min, which is set to a reasonably low value to prevent the
  * DMA controller from generating too many interrupts per second.
  *
  * Since each link descriptor has a 32-bit byte count field, we set
- * period_bytes_max to the largest 32-bit number.  We also have no maximum
+ * period_bytes_max to the largest 32-bit number.  We also have yes maximum
  * number of periods.
  *
  * Note that we specify SNDRV_PCM_INFO_JOINT_DUPLEX here, but only because a
@@ -164,7 +164,7 @@ static void fsl_dma_update_pointers(struct fsl_dma_private *dma_private)
 
 	/* Update our link descriptors to point to the next period. On a 36-bit
 	 * system, we also need to update the ESAD bits.  We also set (keep) the
-	 * snoop bits.  See the comments in fsl_dma_hw_params() about snooping.
+	 * syesop bits.  See the comments in fsl_dma_hw_params() about syesoping.
 	 */
 	if (dma_private->substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		link->source_addr = cpu_to_be32(dma_private->dma_buf_next);
@@ -242,7 +242,7 @@ static irqreturn_t fsl_dma_isr(int irq, void *dev_id)
 
 		/*
 		 * Update our link descriptors to point to the next period. We
-		 * only need to do this if the number of periods is not equal to
+		 * only need to do this if the number of periods is yest equal to
 		 * the number of links.
 		 */
 		if (dma_private->num_periods != NUM_DMA_LINKS)
@@ -360,7 +360,7 @@ static int fsl_dma_new(struct snd_soc_component *component,
  * |      |      |      |      |      |      |
  * |______|______|______|______|______|______|
  *
- * The first link descriptor now points to the third period.  The DMA
+ * The first link descriptor yesw points to the third period.  The DMA
  * controller is currently playing the second period.  When it finishes, it
  * will jump back to the first descriptor and play the third period.
  *
@@ -374,7 +374,7 @@ static int fsl_dma_new(struct snd_soc_component *component,
  *    (aka segment).  Making each period into a DMA segment will give us the
  *    interrupts we need.
  * 3. By creating only two link descriptors, regardless of the number of
- *    periods, we do not need to reallocate the link descriptors if the
+ *    periods, we do yest need to reallocate the link descriptors if the
  *    number of periods changes.
  * 4. All of the audio data is still stored in a single, contiguous DMA
  *    buffer, which is what ALSA expects.  We're just dividing it into
@@ -397,7 +397,7 @@ static int fsl_dma_open(struct snd_soc_component *component,
 	unsigned int i;
 
 	/*
-	 * Reject any DMA buffer whose size is not a multiple of the period
+	 * Reject any DMA buffer whose size is yest a multiple of the period
 	 * size.  We need to make sure that the DMA buffer can be evenly divided
 	 * into periods.
 	 */
@@ -528,8 +528,8 @@ static int fsl_dma_open(struct snd_soc_component *component,
  * offset by 3 bytes. For 16-bit samples, the offset is two bytes.
  *
  * For 24-bit samples, the offset is 1 byte.  However, the DMA controller
- * does not support 3-byte copies (the DAHTS register supports only 1, 2, 4,
- * and 8 bytes at a time).  So we do not support packed 24-bit samples.
+ * does yest support 3-byte copies (the DAHTS register supports only 1, 2, 4,
+ * and 8 bytes at a time).  So we do yest support packed 24-bit samples.
  * 24-bit data must be padded to 32 bits.
  */
 static int fsl_dma_hw_params(struct snd_soc_component *component,
@@ -643,21 +643,21 @@ static int fsl_dma_hw_params(struct snd_soc_component *component,
 
 		link->count = cpu_to_be32(period_size);
 
-		/* The snoop bit tells the DMA controller whether it should tell
-		 * the ECM to snoop during a read or write to an address. For
+		/* The syesop bit tells the DMA controller whether it should tell
+		 * the ECM to syesop during a read or write to an address. For
 		 * audio, we use DMA to transfer data between memory and an I/O
-		 * device (the SSI's STX0 or SRX0 register). Snooping is only
-		 * needed if there is a cache, so we need to snoop memory
-		 * addresses only.  For playback, that means we snoop the source
-		 * but not the destination.  For capture, we snoop the
-		 * destination but not the source.
+		 * device (the SSI's STX0 or SRX0 register). Syesoping is only
+		 * needed if there is a cache, so we need to syesop memory
+		 * addresses only.  For playback, that means we syesop the source
+		 * but yest the destination.  For capture, we syesop the
+		 * destination but yest the source.
 		 *
-		 * Note that failing to snoop properly is unlikely to cause
+		 * Note that failing to syesop properly is unlikely to cause
 		 * cache incoherency if the period size is larger than the
 		 * size of L1 cache.  This is because filling in one period will
 		 * flush out the data for the previous period.  So if you
-		 * increased period_bytes_min to a large enough size, you might
-		 * get more performance by not snooping, and you'll still be
+		 * increased period_bytes_min to a large eyesugh size, you might
+		 * get more performance by yest syesoping, and you'll still be
 		 * okay.  You'll need to update fsl_dma_update_pointers() also.
 		 */
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -687,7 +687,7 @@ static int fsl_dma_hw_params(struct snd_soc_component *component,
 /**
  * fsl_dma_pointer: determine the current position of the DMA transfer
  *
- * This function is called by ALSA when ALSA wants to know where in the
+ * This function is called by ALSA when ALSA wants to kyesw where in the
  * stream buffer the hardware currently is.
  *
  * For playback, the SAR register contains the physical address of the most
@@ -726,10 +726,10 @@ static snd_pcm_uframes_t fsl_dma_pointer(struct snd_soc_component *component,
 
 	/*
 	 * When capture is started, the SSI immediately starts to fill its FIFO.
-	 * This means that the DMA controller is not started until the FIFO is
+	 * This means that the DMA controller is yest started until the FIFO is
 	 * full.  However, ALSA calls this function before that happens, when
 	 * MR.DAR is still zero.  In this case, just return zero to indicate
-	 * that nothing has been received yet.
+	 * that yesthing has been received yet.
 	 */
 	if (!position)
 		return 0;
@@ -838,31 +838,31 @@ static void fsl_dma_free_dma_buffers(struct snd_soc_component *component,
 }
 
 /**
- * find_ssi_node -- returns the SSI node that points to its DMA channel node
+ * find_ssi_yesde -- returns the SSI yesde that points to its DMA channel yesde
  *
  * Although this DMA driver attempts to operate independently of the other
  * devices, it still needs to determine some information about the SSI device
- * that it's working with.  Unfortunately, the device tree does not contain
- * a pointer from the DMA channel node to the SSI node -- the pointer goes the
- * other way.  So we need to scan the device tree for SSI nodes until we find
- * the one that points to the given DMA channel node.  It's ugly, but at least
+ * that it's working with.  Unfortunately, the device tree does yest contain
+ * a pointer from the DMA channel yesde to the SSI yesde -- the pointer goes the
+ * other way.  So we need to scan the device tree for SSI yesdes until we find
+ * the one that points to the given DMA channel yesde.  It's ugly, but at least
  * it's contained in this one function.
  */
-static struct device_node *find_ssi_node(struct device_node *dma_channel_np)
+static struct device_yesde *find_ssi_yesde(struct device_yesde *dma_channel_np)
 {
-	struct device_node *ssi_np, *np;
+	struct device_yesde *ssi_np, *np;
 
-	for_each_compatible_node(ssi_np, NULL, "fsl,mpc8610-ssi") {
+	for_each_compatible_yesde(ssi_np, NULL, "fsl,mpc8610-ssi") {
 		/* Check each DMA phandle to see if it points to us.  We
-		 * assume that device_node pointers are a valid comparison.
+		 * assume that device_yesde pointers are a valid comparison.
 		 */
 		np = of_parse_phandle(ssi_np, "fsl,playback-dma", 0);
-		of_node_put(np);
+		of_yesde_put(np);
 		if (np == dma_channel_np)
 			return ssi_np;
 
 		np = of_parse_phandle(ssi_np, "fsl,capture-dma", 0);
-		of_node_put(np);
+		of_yesde_put(np);
 		if (np == dma_channel_np)
 			return ssi_np;
 	}
@@ -873,30 +873,30 @@ static struct device_node *find_ssi_node(struct device_node *dma_channel_np)
 static int fsl_soc_dma_probe(struct platform_device *pdev)
 {
 	struct dma_object *dma;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ssi_np;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *ssi_np;
 	struct resource res;
 	const uint32_t *iprop;
 	int ret;
 
-	/* Find the SSI node that points to us. */
-	ssi_np = find_ssi_node(np);
+	/* Find the SSI yesde that points to us. */
+	ssi_np = find_ssi_yesde(np);
 	if (!ssi_np) {
-		dev_err(&pdev->dev, "cannot find parent SSI node\n");
+		dev_err(&pdev->dev, "canyest find parent SSI yesde\n");
 		return -ENODEV;
 	}
 
 	ret = of_address_to_resource(ssi_np, 0, &res);
 	if (ret) {
-		dev_err(&pdev->dev, "could not determine resources for %pOF\n",
+		dev_err(&pdev->dev, "could yest determine resources for %pOF\n",
 			ssi_np);
-		of_node_put(ssi_np);
+		of_yesde_put(ssi_np);
 		return ret;
 	}
 
 	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
 	if (!dma) {
-		of_node_put(ssi_np);
+		of_yesde_put(ssi_np);
 		return -ENOMEM;
 	}
 
@@ -921,11 +921,11 @@ static int fsl_soc_dma_probe(struct platform_device *pdev)
                 /* Older 8610 DTs didn't have the fifo-depth property */
 		dma->ssi_fifo_depth = 8;
 
-	of_node_put(ssi_np);
+	of_yesde_put(ssi_np);
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &dma->dai, NULL, 0);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register platform\n");
+		dev_err(&pdev->dev, "could yest register platform\n");
 		kfree(dma);
 		return ret;
 	}

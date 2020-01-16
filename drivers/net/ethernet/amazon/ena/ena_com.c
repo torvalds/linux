@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -328,7 +328,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 			      struct ena_com_io_sq *io_sq)
 {
 	size_t size;
-	int dev_node = 0;
+	int dev_yesde = 0;
 
 	memset(&io_sq->desc_addr, 0x0, sizeof(io_sq->desc_addr));
 
@@ -341,13 +341,13 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 	size = io_sq->desc_entry_size * io_sq->q_depth;
 
 	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST) {
-		dev_node = dev_to_node(ena_dev->dmadev);
-		set_dev_node(ena_dev->dmadev, ctx->numa_node);
+		dev_yesde = dev_to_yesde(ena_dev->dmadev);
+		set_dev_yesde(ena_dev->dmadev, ctx->numa_yesde);
 		io_sq->desc_addr.virt_addr =
 			dma_alloc_coherent(ena_dev->dmadev, size,
 					   &io_sq->desc_addr.phys_addr,
 					   GFP_KERNEL);
-		set_dev_node(ena_dev->dmadev, dev_node);
+		set_dev_yesde(ena_dev->dmadev, dev_yesde);
 		if (!io_sq->desc_addr.virt_addr) {
 			io_sq->desc_addr.virt_addr =
 				dma_alloc_coherent(ena_dev->dmadev, size,
@@ -372,11 +372,11 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 		size = io_sq->bounce_buf_ctrl.buffer_size *
 			 io_sq->bounce_buf_ctrl.buffers_num;
 
-		dev_node = dev_to_node(ena_dev->dmadev);
-		set_dev_node(ena_dev->dmadev, ctx->numa_node);
+		dev_yesde = dev_to_yesde(ena_dev->dmadev);
+		set_dev_yesde(ena_dev->dmadev, ctx->numa_yesde);
 		io_sq->bounce_buf_ctrl.base_buffer =
 			devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
-		set_dev_node(ena_dev->dmadev, dev_node);
+		set_dev_yesde(ena_dev->dmadev, dev_yesde);
 		if (!io_sq->bounce_buf_ctrl.base_buffer)
 			io_sq->bounce_buf_ctrl.base_buffer =
 				devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
@@ -414,7 +414,7 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
 			      struct ena_com_io_cq *io_cq)
 {
 	size_t size;
-	int prev_node = 0;
+	int prev_yesde = 0;
 
 	memset(&io_cq->cdesc_addr, 0x0, sizeof(io_cq->cdesc_addr));
 
@@ -426,12 +426,12 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
 
 	size = io_cq->cdesc_entry_size_in_bytes * io_cq->q_depth;
 
-	prev_node = dev_to_node(ena_dev->dmadev);
-	set_dev_node(ena_dev->dmadev, ctx->numa_node);
+	prev_yesde = dev_to_yesde(ena_dev->dmadev);
+	set_dev_yesde(ena_dev->dmadev, ctx->numa_yesde);
 	io_cq->cdesc_addr.virt_addr =
 		dma_alloc_coherent(ena_dev->dmadev, size,
 				   &io_cq->cdesc_addr.phys_addr, GFP_KERNEL);
-	set_dev_node(ena_dev->dmadev, prev_node);
+	set_dev_yesde(ena_dev->dmadev, prev_yesde);
 	if (!io_cq->cdesc_addr.virt_addr) {
 		io_cq->cdesc_addr.virt_addr =
 			dma_alloc_coherent(ena_dev->dmadev, size,
@@ -491,7 +491,7 @@ static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_qu
 	/* Go over all the completions */
 	while ((READ_ONCE(cqe->acq_common_descriptor.flags) &
 		ENA_ADMIN_ACQ_COMMON_DESC_PHASE_MASK) == phase) {
-		/* Do not read the rest of the completion entry before the
+		/* Do yest read the rest of the completion entry before the
 		 * phase bit was validated
 		 */
 		dma_rmb();
@@ -513,7 +513,7 @@ static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_qu
 	admin_queue->stats.completed_cmd += comp_num;
 }
 
-static int ena_com_comp_status_to_errno(u8 comp_status)
+static int ena_com_comp_status_to_erryes(u8 comp_status)
 {
 	if (unlikely(comp_status != 0))
 		pr_err("admin command failed[%u]\n", comp_status);
@@ -559,7 +559,7 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 			pr_err("Wait for completion (polling) timeout\n");
 			/* ENA didn't have any completion */
 			spin_lock_irqsave(&admin_queue->q_lock, flags);
-			admin_queue->stats.no_completion++;
+			admin_queue->stats.yes_completion++;
 			admin_queue->running_state = false;
 			spin_unlock_irqrestore(&admin_queue->q_lock, flags);
 
@@ -582,7 +582,7 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 	WARN(comp_ctx->status != ENA_CMD_COMPLETED, "Invalid comp status %d\n",
 	     comp_ctx->status);
 
-	ret = ena_com_comp_status_to_errno(comp_ctx->comp_status);
+	ret = ena_com_comp_status_to_erryes(comp_ctx->comp_status);
 err:
 	comp_ctxt_release(admin_queue, comp_ctx);
 	return ret;
@@ -661,7 +661,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 				return -EINVAL;
 			}
 
-			pr_err("Default llq stride ctrl is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
+			pr_err("Default llq stride ctrl is yest supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
 			       llq_default_cfg->llq_stride_ctrl, supported_feat,
 			       llq_info->desc_stride_ctrl);
 		}
@@ -689,7 +689,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 			return -EINVAL;
 		}
 
-		pr_err("Default llq ring entry size is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
+		pr_err("Default llq ring entry size is yest supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
 		       llq_default_cfg->llq_ring_entry_size, supported_feat,
 		       llq_info->desc_list_entry_size);
 	}
@@ -726,7 +726,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 			return -EINVAL;
 		}
 
-		pr_err("Default llq num descs before header is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
+		pr_err("Default llq num descs before header is yest supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
 		       llq_default_cfg->llq_num_decs_before_header,
 		       supported_feat, llq_info->descs_num_before_header);
 	}
@@ -736,7 +736,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 
 	rc = ena_com_set_llq(ena_dev);
 	if (rc)
-		pr_err("Cannot set LLQ configuration: %d\n", rc);
+		pr_err("Canyest set LLQ configuration: %d\n", rc);
 
 	return rc;
 }
@@ -759,7 +759,7 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 	if (unlikely(comp_ctx->status == ENA_CMD_SUBMITTED)) {
 		spin_lock_irqsave(&admin_queue->q_lock, flags);
 		ena_com_handle_admin_completion(admin_queue);
-		admin_queue->stats.no_completion++;
+		admin_queue->stats.yes_completion++;
 		spin_unlock_irqrestore(&admin_queue->q_lock, flags);
 
 		if (comp_ctx->status == ENA_CMD_COMPLETED) {
@@ -775,7 +775,7 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 		}
 		/* Check if shifted to polling mode.
 		 * This will happen if there is a completion without an interrupt
-		 * and autopolling mode is enabled. Continuing normal execution in such case
+		 * and autopolling mode is enabled. Continuing yesrmal execution in such case
 		 */
 		if (!admin_queue->polling) {
 			admin_queue->running_state = false;
@@ -784,7 +784,7 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 		}
 	}
 
-	ret = ena_com_comp_status_to_errno(comp_ctx->comp_status);
+	ret = ena_com_comp_status_to_erryes(comp_ctx->comp_status);
 err:
 	comp_ctxt_release(admin_queue, comp_ctx);
 	return ret;
@@ -1391,10 +1391,10 @@ int ena_com_create_io_cq(struct ena_com_dev *ena_dev,
 			(u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
 			cmd_completion.cq_head_db_register_offset);
 
-	if (cmd_completion.numa_node_register_offset)
-		io_cq->numa_node_cfg_reg =
+	if (cmd_completion.numa_yesde_register_offset)
+		io_cq->numa_yesde_cfg_reg =
 			(u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
-			cmd_completion.numa_node_register_offset);
+			cmd_completion.numa_yesde_register_offset);
 
 	pr_debug("created cq[%u], depth[%u]\n", io_cq->idx, io_cq->q_depth);
 
@@ -2769,7 +2769,7 @@ bool ena_com_interrupt_moderation_supported(struct ena_com_dev *ena_dev)
 						  ENA_ADMIN_INTERRUPT_MODERATION);
 }
 
-static int ena_com_update_nonadaptive_moderation_interval(u32 coalesce_usecs,
+static int ena_com_update_yesnadaptive_moderation_interval(u32 coalesce_usecs,
 							  u32 intr_delay_resolution,
 							  u32 *intr_moder_interval)
 {
@@ -2783,18 +2783,18 @@ static int ena_com_update_nonadaptive_moderation_interval(u32 coalesce_usecs,
 	return 0;
 }
 
-int ena_com_update_nonadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev,
+int ena_com_update_yesnadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev,
 						      u32 tx_coalesce_usecs)
 {
-	return ena_com_update_nonadaptive_moderation_interval(tx_coalesce_usecs,
+	return ena_com_update_yesnadaptive_moderation_interval(tx_coalesce_usecs,
 							      ena_dev->intr_delay_resolution,
 							      &ena_dev->intr_moder_tx_interval);
 }
 
-int ena_com_update_nonadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev,
+int ena_com_update_yesnadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev,
 						      u32 rx_coalesce_usecs)
 {
-	return ena_com_update_nonadaptive_moderation_interval(rx_coalesce_usecs,
+	return ena_com_update_yesnadaptive_moderation_interval(rx_coalesce_usecs,
 							      ena_dev->intr_delay_resolution,
 							      &ena_dev->intr_moder_rx_interval);
 }
@@ -2818,7 +2818,7 @@ int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev)
 			       rc);
 		}
 
-		/* no moderation supported, disable adaptive support */
+		/* yes moderation supported, disable adaptive support */
 		ena_com_disable_adaptive_moderation(ena_dev);
 		return rc;
 	}
@@ -2833,12 +2833,12 @@ int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev)
 	return 0;
 }
 
-unsigned int ena_com_get_nonadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev)
+unsigned int ena_com_get_yesnadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev)
 {
 	return ena_dev->intr_moder_tx_interval;
 }
 
-unsigned int ena_com_get_nonadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev)
+unsigned int ena_com_get_yesnadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev)
 {
 	return ena_dev->intr_moder_rx_interval;
 }

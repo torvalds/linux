@@ -224,7 +224,7 @@ static bool is_blacklisted_cpu(void)
 		 * storing blocks in 64bit registers to allow three blocks to
 		 * be processed parallel. Parallel operation then allows gaining
 		 * more performance than was trade off, on out-of-order CPUs.
-		 * However Atom does not benefit from this parallellism and
+		 * However Atom does yest benefit from this parallellism and
 		 * should be blacklisted.
 		 */
 		return true;
@@ -245,7 +245,7 @@ static bool is_blacklisted_cpu(void)
 
 static int force;
 module_param(force, int, 0);
-MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
+MODULE_PARM_DESC(force, "Force module load, igyesre CPU blacklist");
 
 static int __init init(void)
 {

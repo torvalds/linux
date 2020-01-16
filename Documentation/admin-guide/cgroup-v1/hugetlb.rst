@@ -6,12 +6,12 @@ The HugeTLB controller allows to limit the HugeTLB usage per control group and
 enforces the controller limit during page fault. Since HugeTLB doesn't
 support page reclaim, enforcing the limit at page fault time implies that,
 the application will get SIGBUS signal if it tries to access HugeTLB pages
-beyond its limit. This requires the application to know beforehand how much
+beyond its limit. This requires the application to kyesw beforehand how much
 HugeTLB pages it would require for its use.
 
 HugeTLB controller can be created by first mounting the cgroup filesystem.
 
-# mount -t cgroup -o hugetlb none /sys/fs/cgroup
+# mount -t cgroup -o hugetlb yesne /sys/fs/cgroup
 
 With the above step, the initial or the parent HugeTLB group becomes
 visible at /sys/fs/cgroup. At bootup, this group includes all the tasks in

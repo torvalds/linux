@@ -6,11 +6,11 @@
 #include <asm/pgtable.h>
 #include <asm/processor-flags.h>
 #include <asm/tlb.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <asm/mmu_context.h>
 
 /*
- * We map the EFI regions needed for runtime services non-contiguously,
+ * We map the EFI regions needed for runtime services yesn-contiguously,
  * with preserved alignment on virtual addresses starting from -4G down
  * for a total max space of 64G. This way, we provide for stable runtime
  * services addresses across kernels so that a kexec'd kernel can still

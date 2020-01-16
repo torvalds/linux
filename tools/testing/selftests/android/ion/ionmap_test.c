@@ -1,4 +1,4 @@
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -115,14 +115,14 @@ int main()
 	sync.flags = DMA_BUF_SYNC_START | DMA_BUF_SYNC_RW;
 	ret = ioctl(info.buffd, DMA_BUF_IOCTL_SYNC, &sync);
 	if (ret)
-		printf("sync start failed %d\n", errno);
+		printf("sync start failed %d\n", erryes);
 
 	memset(info.buffer, 0xff, 4096);
 
 	sync.flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_RW;
 	ret = ioctl(info.buffd, DMA_BUF_IOCTL_SYNC, &sync);
 	if (ret)
-		printf("sync end failed %d\n", errno);
+		printf("sync end failed %d\n", erryes);
 
 	close_handle(vgem_fd, handle);
 	ret = 0;

@@ -187,7 +187,7 @@ static int axg_pdm_set_sample_pointer(struct axg_pdm *priv)
 	spmax = DIV_ROUND_UP_ULL((u64)clk_get_rate(priv->sysclk),
 				 clk_get_rate(priv->dclk) * 2);
 
-	/* Check if sysclk is not too fast - should not happen */
+	/* Check if sysclk is yest too fast - should yest happen */
 	if (WARN_ON(spmax > PDM_CHAN_CTRL_POINTER_MAX))
 		return -EINVAL;
 

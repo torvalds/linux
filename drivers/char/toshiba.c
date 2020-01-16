@@ -13,12 +13,12 @@
  *     0xfc08: Garth Berry <garth@itsbruce.net>
  *     0xfc0a: Egbert Eich <eich@xfree86.org>
  *     0xfc10: Andrew Lofthouse <Andrew.Lofthouse@robins.af.mil>
- *     0xfc11: Spencer Olson <solson@novell.com>
+ *     0xfc11: Spencer Olson <solson@yesvell.com>
  *     0xfc13: Claudius Frankewitz <kryp@gmx.de>
  *     0xfc15: Tom May <tom@you-bastards.com>
  *     0xfc17: Dave Konrad <konrad@xenia.it>
  *     0xfc1a: George Betzos <betzos@engr.colostate.edu>
- *     0xfc1b: Munemasa Wada <munemasa@jnovel.co.jp>
+ *     0xfc1b: Munemasa Wada <munemasa@jyesvel.co.jp>
  *     0xfc1d: Arthur Liu <armie@slap.mine.nu>
  *     0xfc5a: Jacques L'helgoualc'h <lhh@free.fr>
  *     0xfcd1: Mr. Dave Konrad <konrad@xenia.it>
@@ -86,7 +86,7 @@ static long tosh_ioctl(struct file *, unsigned int,
 static const struct file_operations tosh_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= tosh_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct miscdevice tosh_device = {
@@ -302,7 +302,7 @@ static int proc_toshiba_show(struct seq_file *m, void *v)
 	     0) Linux driver version (this will change if format changes)
 	     1) Machine ID
 	     2) SCI version
-	     3) BIOS version (major, minor)
+	     3) BIOS version (major, miyesr)
 	     4) BIOS date (in SCI date format)
 	     5) Fn Key status
 	*/
@@ -377,7 +377,7 @@ static int tosh_get_machine_id(void __iomem *bios)
 #endif
 		bx = 0xe6f5;
 
-		/* now twiddle with our pointer a bit */
+		/* yesw twiddle with our pointer a bit */
 
 		address = bx;
 		cx = readw(bios + address);
@@ -386,7 +386,7 @@ static int tosh_get_machine_id(void __iomem *bios)
 		address = 0xa+cx;
 		cx = readw(bios + address);
 
-		/* now construct our machine identification number */
+		/* yesw construct our machine identification number */
 
 		id = ((cx & 0xff)<<8)+((cx & 0xff00)>>8);
 	}
@@ -398,13 +398,13 @@ static int tosh_get_machine_id(void __iomem *bios)
 /*
  * Probe for the presence of a Toshiba laptop
  *
- *   returns and non-zero if unable to detect the presence of a Toshiba
+ *   returns and yesn-zero if unable to detect the presence of a Toshiba
  *   laptop, otherwise zero and determines the Machine ID, BIOS version and
  *   date, and SCI version.
  */
 static int tosh_probe(void)
 {
-	int i,major,minor,day,year,month,flag;
+	int i,major,miyesr,day,year,month,flag;
 	unsigned char signature[7] = { 0x54,0x4f,0x53,0x48,0x49,0x42,0x41 };
 	SMMRegisters regs;
 	void __iomem *bios = ioremap(0xf0000, 0x10000);
@@ -413,11 +413,11 @@ static int tosh_probe(void)
 		return -ENOMEM;
 
 	/* extra sanity check for the string "TOSHIBA" in the BIOS because
-	   some machines that are not Toshiba's pass the next test */
+	   some machines that are yest Toshiba's pass the next test */
 
 	for (i=0;i<7;i++) {
 		if (readb(bios+0xe010+i)!=signature[i]) {
-			pr_err("toshiba: not a supported Toshiba laptop\n");
+			pr_err("toshiba: yest a supported Toshiba laptop\n");
 			iounmap(bios);
 			return -ENODEV;
 		}
@@ -430,10 +430,10 @@ static int tosh_probe(void)
 	regs.ecx = 0x0000;
 	flag = tosh_smm(&regs);
 
-	/* if this is not a Toshiba laptop carry flag is set and ah=0x86 */
+	/* if this is yest a Toshiba laptop carry flag is set and ah=0x86 */
 
 	if ((flag==1) || ((regs.eax & 0xff00)==0x8600)) {
-		pr_err("toshiba: not a supported Toshiba laptop\n");
+		pr_err("toshiba: yest a supported Toshiba laptop\n");
 		iounmap(bios);
 		return -ENODEV;
 	}
@@ -449,8 +449,8 @@ static int tosh_probe(void)
 	/* get the BIOS version */
 
 	major = readb(bios+0xe009)-'0';
-	minor = ((readb(bios+0xe00b)-'0')*10)+(readb(bios+0xe00c)-'0');
-	tosh_bios = (major*0x100)+minor;
+	miyesr = ((readb(bios+0xe00b)-'0')*10)+(readb(bios+0xe00c)-'0');
+	tosh_bios = (major*0x100)+miyesr;
 
 	/* get the BIOS date */
 
@@ -488,7 +488,7 @@ static int __init toshiba_init(void)
 
 	pr_info("Toshiba System Management Mode driver v" TOSH_VERSION "\n");
 
-	/* set the port to use for Fn status if not specified as a parameter */
+	/* set the port to use for Fn status if yest specified as a parameter */
 	if (tosh_fn==0x00)
 		tosh_set_fn_port();
 

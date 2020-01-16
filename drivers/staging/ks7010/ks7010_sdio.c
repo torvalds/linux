@@ -3,7 +3,7 @@
  *   Driver for KeyStream, KS7010 based SDIO cards.
  *
  *   Copyright (C) 2006-2008 KeyStream Corp.
- *   Copyright (C) 2009 Renesas Technology Corp.
+ *   Copyright (C) 2009 Renesas Techyeslogy Corp.
  *   Copyright (C) 2016 Sang Engineering, Wolfram Sang
  */
 
@@ -239,15 +239,15 @@ static void _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 		   "STATUS:\n"
 		   "- psstatus.status = %d\n"
 		   "- psstatus.confirm_wait = %d\n"
-		   "- psstatus.snooze_guard = %d\n"
+		   "- psstatus.syesoze_guard = %d\n"
 		   "- txq_count = %d\n",
 		   atomic_read(&priv->psstatus.status),
 		   atomic_read(&priv->psstatus.confirm_wait),
-		   atomic_read(&priv->psstatus.snooze_guard),
+		   atomic_read(&priv->psstatus.syesoze_guard),
 		   txq_count(priv));
 
 	if (atomic_read(&priv->psstatus.confirm_wait) ||
-	    atomic_read(&priv->psstatus.snooze_guard) ||
+	    atomic_read(&priv->psstatus.syesoze_guard) ||
 	    txq_has_space(priv)) {
 		queue_delayed_work(priv->wq, &priv->rw_dwork, 0);
 		return;
@@ -328,7 +328,7 @@ static int write_to_device(struct ks_wlan_private *priv, u8 *buffer,
 
 	if (le16_to_cpu(hdr->event) < HIF_DATA_REQ ||
 	    le16_to_cpu(hdr->event) > HIF_REQ_MAX) {
-		netdev_err(priv->net_dev, "unknown event=%04X\n", hdr->event);
+		netdev_err(priv->net_dev, "unkyeswn event=%04X\n", hdr->event);
 		return 0;
 	}
 
@@ -387,7 +387,7 @@ int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
 
 	if (le16_to_cpu(hdr->event) < HIF_DATA_REQ ||
 	    le16_to_cpu(hdr->event) > HIF_REQ_MAX) {
-		netdev_err(priv->net_dev, "unknown event=%04X\n", hdr->event);
+		netdev_err(priv->net_dev, "unkyeswn event=%04X\n", hdr->event);
 		return 0;
 	}
 

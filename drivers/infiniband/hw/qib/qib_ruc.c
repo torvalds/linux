@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -298,7 +298,7 @@ void qib_do_send(struct rvt_qp *qp)
 		if (qp->s_hdrwords != 0) {
 			spin_unlock_irqrestore(&qp->s_lock, flags);
 			/*
-			 * If the packet cannot be sent now, return and
+			 * If the packet canyest be sent yesw, return and
 			 * the send tasklet will be woken up later.
 			 */
 			if (qib_verbs_send(qp, priv->s_hdr, qp->s_hdrwords,

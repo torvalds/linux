@@ -2,7 +2,7 @@ Broadcom Kona Family Clocks
 
 This binding is associated with Broadcom SoCs having "Kona" style
 clock control units (CCUs).  A CCU is a clock provider that manages
-a set of clock signals.  Each CCU is represented by a node in the
+a set of clock signals.  Each CCU is represented by a yesde in the
 device tree.
 
 This binding uses the common clock binding:

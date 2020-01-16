@@ -15,7 +15,7 @@
  *   - 0x0000 .. 0x07ff : IPL
  *   - 0x0800 .. 0x0fff : Data area
  *   - 0x1000 .. 0x17ff : Registers
- *   - 0x1800 .. 0x1fff : Unknown
+ *   - 0x1800 .. 0x1fff : Unkyeswn
  */
 #define DOC_IOSPACE_IPL			0x0000
 #define DOC_IOSPACE_DATA		0x0800
@@ -275,9 +275,9 @@ struct docg3_cascade {
  * @device_id: number of the cascaded DoCG3 device (0, 1, 2 or 3)
  * @if_cfg: if true, reads are on 16bits, else reads are on 8bits
 
- * @reliable: if 0, docg3 in normal mode, if 1 docg3 in fast mode, if 2 in
+ * @reliable: if 0, docg3 in yesrmal mode, if 1 docg3 in fast mode, if 2 in
  *            reliable mode
- *            Fast mode implies more errors than normal mode.
+ *            Fast mode implies more errors than yesrmal mode.
  *            Reliable mode implies that page 2*n and 2*n+1 are clones.
  * @bbt: bad block table cache
  * @oob_write_ofs: offset of the MTD where this OOB should belong (ie. in next

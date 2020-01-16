@@ -2,7 +2,7 @@
 /*
  * Regulator driver for Ricoh RN5T618 PMIC
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamiyes Galvani <b.galvani@gmail.com>
  */
 
 #include <linux/mfd/rn5t618.h>
@@ -26,7 +26,7 @@ static const struct regulator_ops rn5t618_reg_ops = {
 	{								\
 		.name		= #rid,					\
 		.of_match	= of_match_ptr(#rid),			\
-		.regulators_node = of_match_ptr("regulators"),		\
+		.regulators_yesde = of_match_ptr("regulators"),		\
 		.id		= RN5T618_##rid,			\
 		.type		= REGULATOR_VOLTAGE,			\
 		.owner		= THIS_MODULE,				\
@@ -149,6 +149,6 @@ static struct platform_driver rn5t618_regulator_driver = {
 module_platform_driver(rn5t618_regulator_driver);
 
 MODULE_ALIAS("platform:rn5t618-regulator");
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamiyes Galvani <b.galvani@gmail.com>");
 MODULE_DESCRIPTION("RN5T618 regulator driver");
 MODULE_LICENSE("GPL v2");

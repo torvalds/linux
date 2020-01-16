@@ -30,7 +30,7 @@
 	@ fiq_rcount	The number of bytes to move
 
 	@ each entry starts with a word entry of how long it is
-	@ and an offset to the irq acknowledgment word
+	@ and an offset to the irq ackyeswledgment word
 
 ENTRY(s3c24xx_spi_fiq_rx)
 s3c24xx_spi_fix_rx:

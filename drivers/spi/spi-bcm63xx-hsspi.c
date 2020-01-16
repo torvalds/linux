@@ -238,7 +238,7 @@ static int bcm63xx_hsspi_setup(struct spi_device *spi)
 	mutex_lock(&bs->bus_mutex);
 	reg = __raw_readl(bs->regs + HSSPI_GLOBAL_CTRL_REG);
 
-	/* only change actual polarities if there is no transfer */
+	/* only change actual polarities if there is yes transfer */
 	if ((reg & GLOBAL_CTRL_CS_POLARITY_MASK) == bs->cs_polarity) {
 		if (spi->mode & SPI_CS_HIGH)
 			reg |= BIT(spi->chip_select);
@@ -267,7 +267,7 @@ static int bcm63xx_hsspi_transfer_one(struct spi_master *master,
 	int dummy_cs;
 	u32 reg;
 
-	/* This controller does not support keeping CS active during idle.
+	/* This controller does yest support keeping CS active during idle.
 	 * To work around this, we use the following ugly hack:
 	 *
 	 * a. Invert the target chip select's polarity so it will be active.
@@ -390,11 +390,11 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	mutex_init(&bs->bus_mutex);
 	init_completion(&bs->done);
 
-	master->dev.of_node = dev->of_node;
-	if (!dev->of_node)
+	master->dev.of_yesde = dev->of_yesde;
+	if (!dev->of_yesde)
 		master->bus_num = HSSPI_BUS_NUM;
 
-	of_property_read_u32(dev->of_node, "num-cs", &num_cs);
+	of_property_read_u32(dev->of_yesde, "num-cs", &num_cs);
 	if (num_cs > 8) {
 		dev_warn(dev, "unsupported number of cs (%i), reducing to 8\n",
 			 num_cs);

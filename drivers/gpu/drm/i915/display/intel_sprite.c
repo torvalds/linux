@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -51,7 +51,7 @@
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs)
 {
-	/* paranoia */
+	/* parayesia */
 	if (!adjusted_mode->crtc_htotal)
 		return 1;
 
@@ -155,13 +155,13 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 	 * On VLV/CHV DSI the scanline counter would appear to
 	 * increment approx. 1/3 of a scanline before start of vblank.
 	 * The registers still get latched at start of vblank however.
-	 * This means we must not write any registers on the first
-	 * line of vblank (since not the whole line is actually in
+	 * This means we must yest write any registers on the first
+	 * line of vblank (since yest the whole line is actually in
 	 * vblank). And unfortunately we can't use the interrupt to
 	 * wait here since it will fire too soon. We could use the
 	 * frame start interrupt instead since it will fire after the
 	 * critical scanline, but that would require more changes
-	 * in the interrupt code. So for now we'll just do the nasty
+	 * in the interrupt code. So for yesw we'll just do the nasty
 	 * thing and poll for the bad scanline to pass us by.
 	 *
 	 * FIXME figure out if BXT+ DSI suffers from this as well
@@ -245,7 +245,7 @@ int intel_plane_check_stride(const struct intel_plane_state *plane_state)
 	u32 stride, max_stride;
 
 	/*
-	 * We ignore stride for all invisible planes that
+	 * We igyesre stride for all invisible planes that
 	 * can be remapped. Otherwise we could end up
 	 * with a false positive when the remapping didn't
 	 * kick in due the plane being invisible.
@@ -278,7 +278,7 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 
 	/*
 	 * Hardware doesn't handle subpixel coordinates.
-	 * Adjust to (macro)pixel boundary, but be careful not to
+	 * Adjust to (macro)pixel boundary, but be careful yest to
 	 * increase the source viewport size, because that could
 	 * push the downscaling factor out of bounds.
 	 */
@@ -380,7 +380,7 @@ skl_plane_max_stride(struct intel_plane *plane,
 	int cpp = info->cpp[0];
 
 	/*
-	 * "The stride in bytes must not exceed the
+	 * "The stride in bytes must yest exceed the
 	 * of the size of 8K pixels and 32K bytes."
 	 */
 	if (drm_rotation_90_or_270(rotation))
@@ -425,7 +425,7 @@ skl_program_scaler(struct intel_plane *plane,
 		uv_rgb_hphase = skl_scaler_calc_phase(2, hscale, true);
 		uv_rgb_vphase = skl_scaler_calc_phase(2, vscale, false);
 	} else {
-		/* not used */
+		/* yest used */
 		y_hphase = 0;
 		y_vphase = 0;
 
@@ -754,7 +754,7 @@ skl_plane_get_hw_state(struct intel_plane *plane,
 
 static void i9xx_plane_linear_gamma(u16 gamma[8])
 {
-	/* The points are not evenly spaced. */
+	/* The points are yest evenly spaced. */
 	static const u8 in[8] = { 0, 1, 2, 4, 8, 16, 24, 32 };
 	int i;
 
@@ -929,7 +929,7 @@ int vlv_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	 * Note that crtc_state->pixel_rate accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
-	 * downscaling factor here. We ignore that and just consider
+	 * downscaling factor here. We igyesre that and just consider
 	 * both for simplicity.
 	 */
 	pixel_rate = crtc_state->pixel_rate;
@@ -1219,7 +1219,7 @@ int ivb_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	 * Note that crtc_state->pixel_rate accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
-	 * downscaling factor here. We ignore that and just consider
+	 * downscaling factor here. We igyesre that and just consider
 	 * both for simplicity.
 	 */
 	pixel_rate = crtc_state->pixel_rate;
@@ -1239,7 +1239,7 @@ static int ivb_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	 * Note that crtc_state->pixel_rate accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
-	 * downscaling factor here. We ignore that and just consider
+	 * downscaling factor here. We igyesre that and just consider
 	 * both for simplicity.
 	 */
 	pixel_rate = crtc_state->pixel_rate;
@@ -1574,7 +1574,7 @@ static int g4x_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	 * Note that crtc_state->pixel_rate accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
-	 * downscaling factor here. We ignore that and just consider
+	 * downscaling factor here. We igyesre that and just consider
 	 * both for simplicity.
 	 */
 	pixel_rate = crtc_state->pixel_rate;
@@ -1603,7 +1603,7 @@ static int g4x_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	/*
 	 * We should also do -10% if sprite scaling is enabled
 	 * on the other pipe, but we can't really check for that,
-	 * so we ignore it.
+	 * so we igyesre it.
 	 */
 
 	return DIV_ROUND_UP_ULL(mul_u32_u32(pixel_rate, 10 * hscale),
@@ -1999,11 +1999,11 @@ int chv_plane_check_rotation(const struct intel_plane_state *plane_state)
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	unsigned int rotation = plane_state->base.rotation;
 
-	/* CHV ignores the mirror bit when the rotate bit is set :( */
+	/* CHV igyesres the mirror bit when the rotate bit is set :( */
 	if (IS_CHERRYVIEW(dev_priv) &&
 	    rotation & DRM_MODE_ROTATE_180 &&
 	    rotation & DRM_MODE_REFLECT_X) {
-		DRM_DEBUG_KMS("Cannot rotate and reflect at the same time\n");
+		DRM_DEBUG_KMS("Canyest rotate and reflect at the same time\n");
 		return -EINVAL;
 	}
 
@@ -2065,7 +2065,7 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 
 	if (rotation & DRM_MODE_REFLECT_X &&
 	    fb->modifier == DRM_FORMAT_MOD_LINEAR) {
-		DRM_DEBUG_KMS("horizontal flip is not supported with linear surface formats\n");
+		DRM_DEBUG_KMS("horizontal flip is yest supported with linear surface formats\n");
 		return -EINVAL;
 	}
 
@@ -2077,7 +2077,7 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		}
 
 		/*
-		 * 90/270 is not allowed with RGB64 16:16:16:16 and
+		 * 90/270 is yest allowed with RGB64 16:16:16:16 and
 		 * Indexed 8-bit. RGB 16-bit 5:6:5 is allowed gen11 onwards.
 		 */
 		switch (fb->format->format) {
@@ -2104,14 +2104,14 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		}
 	}
 
-	/* Y-tiling is not supported in IF-ID Interlace mode */
+	/* Y-tiling is yest supported in IF-ID Interlace mode */
 	if (crtc_state->base.enable &&
 	    crtc_state->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE &&
 	    (fb->modifier == I915_FORMAT_MOD_Y_TILED ||
 	     fb->modifier == I915_FORMAT_MOD_Yf_TILED ||
 	     fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
 	     fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS)) {
-		DRM_DEBUG_KMS("Y/Yf tiling not supported in IF-ID mode\n");
+		DRM_DEBUG_KMS("Y/Yf tiling yest supported in IF-ID mode\n");
 		return -EINVAL;
 	}
 
@@ -2169,7 +2169,7 @@ static int skl_plane_max_scale(struct drm_i915_private *dev_priv,
 			       const struct drm_framebuffer *fb)
 {
 	/*
-	 * We don't yet know the final source width nor
+	 * We don't yet kyesw the final source width yesr
 	 * whether we can use the HQ scaler mode. Assume
 	 * the best case.
 	 * FIXME need to properly check this later.
@@ -2195,7 +2195,7 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	/* use scaler when colorkey is not required */
+	/* use scaler when colorkey is yest required */
 	if (!plane_state->ckey.flags && intel_fb_scalable(fb)) {
 		min_scale = 1;
 		max_scale = skl_plane_max_scale(dev_priv, fb);
@@ -2256,7 +2256,7 @@ static void intel_plane_set_ckey(struct intel_plane_state *plane_state,
 
 	/*
 	 * We want src key enabled on the
-	 * sprite and not on the primary.
+	 * sprite and yest on the primary.
 	 */
 	if (plane->id == PLANE_PRIMARY &&
 	    set->flags & I915_SET_COLORKEY_SOURCE)
@@ -2264,7 +2264,7 @@ static void intel_plane_set_ckey(struct intel_plane_state *plane_state,
 
 	/*
 	 * On SKL+ we want dst key enabled on
-	 * the primary and not on the sprite.
+	 * the primary and yest on the sprite.
 	 */
 	if (INTEL_GEN(dev_priv) >= 9 && plane->id != PLANE_PRIMARY &&
 	    set->flags & I915_SET_COLORKEY_DESTINATION)
@@ -2282,7 +2282,7 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
-	/* ignore the pointless "none" flag */
+	/* igyesre the pointless "yesne" flag */
 	set->flags &= ~I915_SET_COLORKEY_NONE;
 
 	if (set->flags & ~(I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE))
@@ -2528,7 +2528,7 @@ static const u32 icl_hdr_plane_formats[] = {
 	DRM_FORMAT_XVYU16161616,
 };
 
-static const u64 skl_plane_format_modifiers_noccs[] = {
+static const u64 skl_plane_format_modifiers_yesccs[] = {
 	I915_FORMAT_MOD_Yf_TILED,
 	I915_FORMAT_MOD_Y_TILED,
 	I915_FORMAT_MOD_X_TILED,
@@ -2546,7 +2546,7 @@ static const u64 skl_plane_format_modifiers_ccs[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
-static const u64 gen12_plane_format_modifiers_noccs[] = {
+static const u64 gen12_plane_format_modifiers_yesccs[] = {
 	I915_FORMAT_MOD_Y_TILED,
 	I915_FORMAT_MOD_X_TILED,
 	DRM_FORMAT_MOD_LINEAR,
@@ -2932,14 +2932,14 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) >= 12) {
 		/* TODO: Implement support for gen-12 CCS modifiers */
 		plane->has_ccs = false;
-		modifiers = gen12_plane_format_modifiers_noccs;
+		modifiers = gen12_plane_format_modifiers_yesccs;
 		plane_funcs = &gen12_plane_funcs;
 	} else {
 		plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe, plane_id);
 		if (plane->has_ccs)
 			modifiers = skl_plane_format_modifiers_ccs;
 		else
-			modifiers = skl_plane_format_modifiers_noccs;
+			modifiers = skl_plane_format_modifiers_yesccs;
 		plane_funcs = &skl_plane_funcs;
 	}
 

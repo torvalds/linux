@@ -203,7 +203,7 @@
 /*
  * Stream table.
  *
- * Linear: Enough to cover 1 << IDR1.SIDSIZE entries
+ * Linear: Eyesugh to cover 1 << IDR1.SIDSIZE entries
  * 2lvl: 128k L1 entries,
  *       256 lazy entries per table (each table covers a PCI bus)
  */
@@ -385,13 +385,13 @@
 #define MSI_IOVA_LENGTH			0x100000
 
 /*
- * not really modular, but the easiest way to keep compat with existing
+ * yest really modular, but the easiest way to keep compat with existing
  * bootargs behaviour is to continue using module_param_named here.
  */
 static bool disable_bypass = 1;
 module_param_named(disable_bypass, disable_bypass, bool, S_IRUGO);
 MODULE_PARM_DESC(disable_bypass,
-	"Disable bypass streams such that incoming transactions from devices that are not attached to an iommu domain will report an abort back to the device and will not be allowed to pass through the SMMU.");
+	"Disable bypass streams such that incoming transactions from devices that are yest attached to an iommu domain will report an abort back to the device and will yest be allowed to pass through the SMMU.");
 
 enum pri_resp {
 	PRI_RESP_DENY = 0,
@@ -653,7 +653,7 @@ struct arm_smmu_domain {
 	struct mutex			init_mutex; /* Protects smmu pointer */
 
 	struct io_pgtable_ops		*pgtbl_ops;
-	bool				non_strict;
+	bool				yesn_strict;
 	atomic_t			nr_ats_masters;
 
 	enum arm_smmu_domain_stage	stage;
@@ -699,10 +699,10 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 	int i = 0;
 
 	do {
-		if (of_property_read_bool(smmu->dev->of_node,
+		if (of_property_read_bool(smmu->dev->of_yesde,
 						arm_smmu_options[i].prop)) {
 			smmu->options |= arm_smmu_options[i].opt;
-			dev_notice(smmu->dev, "option %s\n",
+			dev_yestice(smmu->dev, "option %s\n",
 				arm_smmu_options[i].prop);
 		}
 	} while (arm_smmu_options[++i].opt);
@@ -951,7 +951,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 	};
 
 	dev_err(smmu->dev, "CMDQ error (cons 0x%08x): %s\n", cons,
-		idx < ARRAY_SIZE(cerror_str) ?  cerror_str[idx] : "Unknown");
+		idx < ARRAY_SIZE(cerror_str) ?  cerror_str[idx] : "Unkyeswn");
 
 	switch (idx) {
 	case CMDQ_ERR_CERROR_ABT_IDX:
@@ -974,7 +974,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 
 	/*
 	 * We may have concurrent producers, so we need to be careful
-	 * not to touch any of the shadow cmdq state.
+	 * yest to touch any of the shadow cmdq state.
 	 */
 	queue_read(cmd, Q_ENT(q, cons), q->ent_dwords);
 	dev_err(smmu->dev, "skipping command in error state:\n");
@@ -999,7 +999,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
  *   dependency.
  *
  * - The UNLOCK routines are supplemented with shared_tryunlock(), which
- *   fails if the caller appears to be the last lock holder (yes, this is
+ *   fails if the caller appears to be the last lock holder (no, this is
  *   racy). All successful UNLOCK routines have RELEASE semantics.
  */
 static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq)
@@ -1059,12 +1059,12 @@ static bool arm_smmu_cmdq_shared_tryunlock(struct arm_smmu_cmdq *cmdq)
  * then you'll *love* this monstrosity.
  *
  * The basic idea is to split the queue up into ranges of commands that are
- * owned by a given CPU; the owner may not have written all of the commands
+ * owned by a given CPU; the owner may yest have written all of the commands
  * itself, but is responsible for advancing the hardware prod pointer when
  * the time comes. The algorithm is roughly:
  *
  * 	1. Allocate some space in the queue. At this point we also discover
- *	   whether the head of the queue is currently owned by another CPU,
+ *	   whether the head of the queue is currently owned by ayesther CPU,
  *	   or whether we are the owner.
  *
  *	2. Write our commands into our allocated slots in the queue.
@@ -1073,13 +1073,13 @@ static bool arm_smmu_cmdq_shared_tryunlock(struct arm_smmu_cmdq *cmdq)
  *
  *	4. If we are an owner:
  *		a. Wait for the previous owner to finish.
- *		b. Mark the queue head as unowned, which tells us the range
+ *		b. Mark the queue head as uyeswned, which tells us the range
  *		   that we are responsible for publishing.
  *		c. Wait for all commands in our owned range to become valid.
  *		d. Advance the hardware prod pointer.
  *		e. Tell the next owner we've finished.
  *
- *	5. If we are inserting a CMD_SYNC (we may or may not have been an
+ *	5. If we are inserting a CMD_SYNC (we may or may yest have been an
  *	   owner), then we need to stick around until it has completed:
  *		a. If we have MSIs, the SMMU can write back into the CMD_SYNC
  *		   to clear the first 4 bytes.
@@ -1150,8 +1150,8 @@ static void arm_smmu_cmdq_poll_valid_map(struct arm_smmu_cmdq *cmdq,
 	__arm_smmu_cmdq_poll_set_valid_map(cmdq, sprod, eprod, false);
 }
 
-/* Wait for the command queue to become non-full */
-static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
+/* Wait for the command queue to become yesn-full */
+static int arm_smmu_cmdq_poll_until_yest_full(struct arm_smmu_device *smmu,
 					     struct arm_smmu_ll_queue *llq)
 {
 	unsigned long flags;
@@ -1324,7 +1324,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
-			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
+			if (arm_smmu_cmdq_poll_until_yest_full(smmu, &llq))
 				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 			local_irq_save(flags);
 		}
@@ -1355,7 +1355,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		/*
 		 * In order to determine completion of our CMD_SYNC, we must
-		 * ensure that the queue can't wrap twice without us noticing.
+		 * ensure that the queue can't wrap twice without us yesticing.
 		 * We achieve that by taking the cmdq lock as shared before
 		 * marking our slot as valid.
 		 */
@@ -1372,7 +1372,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
 
 		/* b. Stop gathering work by clearing the owned flag */
-		prod = atomic_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG,
+		prod = atomic_fetch_andyest_relaxed(CMDQ_PROD_OWNED_FLAG,
 						   &cmdq->q.llq.atomic.prod);
 		prod &= ~CMDQ_PROD_OWNED_FLAG;
 
@@ -1429,7 +1429,7 @@ static int arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
 	u64 cmd[CMDQ_ENT_DWORDS];
 
 	if (arm_smmu_cmdq_build_cmd(cmd, ent)) {
-		dev_warn(smmu->dev, "ignoring unknown CMDQ opcode 0x%x\n",
+		dev_warn(smmu->dev, "igyesring unkyeswn CMDQ opcode 0x%x\n",
 			 ent->opcode);
 		return -EINVAL;
 	}
@@ -1447,7 +1447,7 @@ static u64 arm_smmu_cpu_tcr_to_cd(u64 tcr)
 {
 	u64 val = 0;
 
-	/* Repack the TCR. Just care about TTBR0 for now */
+	/* Repack the TCR. Just care about TTBR0 for yesw */
 	val |= ARM_SMMU_TCR2CD(tcr, T0SZ);
 	val |= ARM_SMMU_TCR2CD(tcr, TG0);
 	val |= ARM_SMMU_TCR2CD(tcr, IRGN0);
@@ -1971,8 +1971,8 @@ static void arm_smmu_tlb_inv_context(void *cookie)
 	}
 
 	/*
-	 * NOTE: when io-pgtable is in non-strict mode, we may get here with
-	 * PTEs previously cleared by unmaps on the current CPU not yet visible
+	 * NOTE: when io-pgtable is in yesn-strict mode, we may get here with
+	 * PTEs previously cleared by unmaps on the current CPU yest yet visible
 	 * to the SMMU. We are relying on the dma_wmb() implicit during cmd
 	 * insertion to guarantee those are observed before the TLBI. Do be
 	 * careful, 007.
@@ -2028,7 +2028,7 @@ static void arm_smmu_tlb_inv_range(unsigned long iova, size_t size,
 	arm_smmu_atc_inv_domain(smmu_domain, 0, start, size);
 }
 
-static void arm_smmu_tlb_inv_page_nosync(struct iommu_iotlb_gather *gather,
+static void arm_smmu_tlb_inv_page_yessync(struct iommu_iotlb_gather *gather,
 					 unsigned long iova, size_t granule,
 					 void *cookie)
 {
@@ -2054,7 +2054,7 @@ static const struct iommu_flush_ops arm_smmu_flush_ops = {
 	.tlb_flush_all	= arm_smmu_tlb_inv_context,
 	.tlb_flush_walk = arm_smmu_tlb_inv_walk,
 	.tlb_flush_leaf = arm_smmu_tlb_inv_leaf,
-	.tlb_add_page	= arm_smmu_tlb_inv_page_nosync,
+	.tlb_add_page	= arm_smmu_tlb_inv_page_yessync,
 };
 
 /* IOMMU API */
@@ -2248,7 +2248,7 @@ static int arm_smmu_domain_finalise(struct iommu_domain *domain)
 		.iommu_dev	= smmu->dev,
 	};
 
-	if (smmu_domain->non_strict)
+	if (smmu_domain->yesn_strict)
 		pgtbl_cfg.quirks |= IO_PGTABLE_QUIRK_NON_STRICT;
 
 	pgtbl_ops = alloc_io_pgtable_ops(fmt, &pgtbl_cfg, smmu_domain);
@@ -2339,7 +2339,7 @@ static void arm_smmu_enable_ats(struct arm_smmu_master *master)
 	struct arm_smmu_device *smmu = master->smmu;
 	struct arm_smmu_domain *smmu_domain = master->domain;
 
-	/* Don't enable ATS at the endpoint if it's not enabled in the STE */
+	/* Don't enable ATS at the endpoint if it's yest enabled in the STE */
 	if (!master->ats_enabled)
 		return;
 
@@ -2419,7 +2419,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		}
 	} else if (smmu_domain->smmu != smmu) {
 		dev_err(dev,
-			"cannot attach to SMMU %s (upstream of %s)\n",
+			"canyest attach to SMMU %s (upstream of %s)\n",
 			dev_name(smmu_domain->smmu->dev),
 			dev_name(smmu->dev));
 		ret = -ENXIO;
@@ -2504,10 +2504,10 @@ arm_smmu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova)
 static struct platform_driver arm_smmu_driver;
 
 static
-struct arm_smmu_device *arm_smmu_get_by_fwnode(struct fwnode_handle *fwnode)
+struct arm_smmu_device *arm_smmu_get_by_fwyesde(struct fwyesde_handle *fwyesde)
 {
-	struct device *dev = driver_find_device_by_fwnode(&arm_smmu_driver.driver,
-							  fwnode);
+	struct device *dev = driver_find_device_by_fwyesde(&arm_smmu_driver.driver,
+							  fwyesde);
 	put_device(dev);
 	return dev ? dev_get_drvdata(dev) : NULL;
 }
@@ -2537,13 +2537,13 @@ static int arm_smmu_add_device(struct device *dev)
 	/*
 	 * We _can_ actually withstand dodgy bus code re-calling add_device()
 	 * without an intervening remove_device()/of_xlate() sequence, but
-	 * we're not going to do so quietly...
+	 * we're yest going to do so quietly...
 	 */
 	if (WARN_ON_ONCE(fwspec->iommu_priv)) {
 		master = fwspec->iommu_priv;
 		smmu = master->smmu;
 	} else {
-		smmu = arm_smmu_get_by_fwnode(fwspec->iommu_fwnode);
+		smmu = arm_smmu_get_by_fwyesde(fwspec->iommu_fwyesde);
 		if (!smmu)
 			return -ENODEV;
 		master = kzalloc(sizeof(*master), GFP_KERNEL);
@@ -2634,7 +2634,7 @@ static int arm_smmu_domain_get_attr(struct iommu_domain *domain,
 	case IOMMU_DOMAIN_DMA:
 		switch (attr) {
 		case DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE:
-			*(int *)data = smmu_domain->non_strict;
+			*(int *)data = smmu_domain->yesn_strict;
 			return 0;
 		default:
 			return -ENODEV;
@@ -2674,7 +2674,7 @@ static int arm_smmu_domain_set_attr(struct iommu_domain *domain,
 	case IOMMU_DOMAIN_DMA:
 		switch(attr) {
 		case DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE:
-			smmu_domain->non_strict = *(int *)data;
+			smmu_domain->yesn_strict = *(int *)data;
 			break;
 		default:
 			ret = -ENODEV;
@@ -2991,7 +2991,7 @@ static int arm_smmu_update_gbpa(struct arm_smmu_device *smmu, u32 set, u32 clr)
 					 1, ARM_SMMU_POLL_TIMEOUT_US);
 
 	if (ret)
-		dev_err(smmu->dev, "GBPA not responding to update\n");
+		dev_err(smmu->dev, "GBPA yest responding to update\n");
 	return ret;
 }
 
@@ -3039,7 +3039,7 @@ static void arm_smmu_setup_msis(struct arm_smmu_device *smmu)
 		return;
 	}
 
-	/* Allocate MSIs for evtq, gerror and priq. Ignore cmdq */
+	/* Allocate MSIs for evtq, gerror and priq. Igyesre cmdq */
 	ret = platform_msi_domain_alloc_irqs(dev, nvec, arm_smmu_write_msi_msg);
 	if (ret) {
 		dev_warn(dev, "failed to allocate MSIs - falling back to wired irqs\n");
@@ -3057,7 +3057,7 @@ static void arm_smmu_setup_msis(struct arm_smmu_device *smmu)
 		case PRIQ_MSI_INDEX:
 			smmu->priq.q.irq = desc->irq;
 			break;
-		default:	/* Unknown */
+		default:	/* Unkyeswn */
 			continue;
 		}
 	}
@@ -3082,7 +3082,7 @@ static void arm_smmu_setup_unique_irqs(struct arm_smmu_device *smmu)
 		if (ret < 0)
 			dev_warn(smmu->dev, "failed to enable evtq irq\n");
 	} else {
-		dev_warn(smmu->dev, "no evtq irq - events will not be reported!\n");
+		dev_warn(smmu->dev, "yes evtq irq - events will yest be reported!\n");
 	}
 
 	irq = smmu->gerr_irq;
@@ -3092,7 +3092,7 @@ static void arm_smmu_setup_unique_irqs(struct arm_smmu_device *smmu)
 		if (ret < 0)
 			dev_warn(smmu->dev, "failed to enable gerror irq\n");
 	} else {
-		dev_warn(smmu->dev, "no gerr irq - errors will not be reported!\n");
+		dev_warn(smmu->dev, "yes gerr irq - errors will yest be reported!\n");
 	}
 
 	if (smmu->features & ARM_SMMU_FEAT_PRI) {
@@ -3107,7 +3107,7 @@ static void arm_smmu_setup_unique_irqs(struct arm_smmu_device *smmu)
 				dev_warn(smmu->dev,
 					 "failed to enable priq irq\n");
 		} else {
-			dev_warn(smmu->dev, "no priq irq - PRI will be broken\n");
+			dev_warn(smmu->dev, "yes priq irq - PRI will be broken\n");
 		}
 	}
 }
@@ -3333,7 +3333,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 		break;
 #endif
 	default:
-		dev_err(smmu->dev, "unknown/unsupported TT endianness!\n");
+		dev_err(smmu->dev, "unkyeswn/unsupported TT endianness!\n");
 		return -ENXIO;
 	}
 
@@ -3376,7 +3376,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 		smmu->features |= ARM_SMMU_FEAT_TRANS_S2;
 
 	if (!(reg & (IDR0_S1P | IDR0_S2P))) {
-		dev_err(smmu->dev, "no translation support!\n");
+		dev_err(smmu->dev, "yes translation support!\n");
 		return -ENXIO;
 	}
 
@@ -3388,7 +3388,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	case IDR0_TTF_AARCH64:
 		break;
 	default:
-		dev_err(smmu->dev, "AArch64 table format not supported!\n");
+		dev_err(smmu->dev, "AArch64 table format yest supported!\n");
 		return -ENXIO;
 	}
 
@@ -3399,7 +3399,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	/* IDR1 */
 	reg = readl_relaxed(smmu->base + ARM_SMMU_IDR1);
 	if (reg & (IDR1_TABLES_PRESET | IDR1_QUEUES_PRESET | IDR1_REL)) {
-		dev_err(smmu->dev, "embedded implementation not supported\n");
+		dev_err(smmu->dev, "embedded implementation yest supported\n");
 		return -ENXIO;
 	}
 
@@ -3410,10 +3410,10 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 		/*
 		 * We don't support splitting up batches, so one batch of
 		 * commands plus an extra sync needs to fit inside the command
-		 * queue. There's also no way we can handle the weird alignment
+		 * queue. There's also yes way we can handle the weird alignment
 		 * restrictions on the base pointer for a unit-length queue.
 		 */
-		dev_err(smmu->dev, "command queue size <= %d entries not supported\n",
+		dev_err(smmu->dev, "command queue size <= %d entries yest supported\n",
 			CMDQ_BATCH_ENTRIES);
 		return -ENXIO;
 	}
@@ -3475,7 +3475,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 		break;
 	default:
 		dev_info(smmu->dev,
-			"unknown output address size. Truncating to 48-bit\n");
+			"unkyeswn output address size. Truncating to 48-bit\n");
 		/* Fallthrough */
 	case IDR5_OAS_48_BIT:
 		smmu->oas = 48;
@@ -3510,7 +3510,7 @@ static void acpi_smmu_get_options(u32 model, struct arm_smmu_device *smmu)
 		break;
 	}
 
-	dev_notice(smmu->dev, "option mask 0x%x\n", smmu->options);
+	dev_yestice(smmu->dev, "option mask 0x%x\n", smmu->options);
 }
 
 static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
@@ -3518,12 +3518,12 @@ static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
 {
 	struct acpi_iort_smmu_v3 *iort_smmu;
 	struct device *dev = smmu->dev;
-	struct acpi_iort_node *node;
+	struct acpi_iort_yesde *yesde;
 
-	node = *(struct acpi_iort_node **)dev_get_platdata(dev);
+	yesde = *(struct acpi_iort_yesde **)dev_get_platdata(dev);
 
 	/* Retrieve SMMUv3 specific data */
-	iort_smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+	iort_smmu = (struct acpi_iort_smmu_v3 *)yesde->yesde_data;
 
 	acpi_smmu_get_options(iort_smmu->model, smmu);
 
@@ -3547,7 +3547,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev,
 	u32 cells;
 	int ret = -EINVAL;
 
-	if (of_property_read_u32(dev->of_node, "#iommu-cells", &cells))
+	if (of_property_read_u32(dev->of_yesde, "#iommu-cells", &cells))
 		dev_err(dev, "missing #iommu-cells property\n");
 	else if (cells != 1)
 		dev_err(dev, "invalid #iommu-cells value (%d)\n", cells);
@@ -3556,7 +3556,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev,
 
 	parse_driver_options(smmu);
 
-	if (of_dma_is_coherent(dev->of_node))
+	if (of_dma_is_coherent(dev->of_yesde))
 		smmu->features |= ARM_SMMU_FEAT_COHERENCY;
 
 	return ret;
@@ -3586,7 +3586,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	}
 	smmu->dev = dev;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		ret = arm_smmu_device_dt_probe(pdev, smmu);
 	} else {
 		ret = arm_smmu_device_acpi_probe(pdev, smmu);
@@ -3652,7 +3652,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		return ret;
 
 	iommu_device_set_ops(&smmu->iommu, &arm_smmu_ops);
-	iommu_device_set_fwnode(&smmu->iommu, dev->fwnode);
+	iommu_device_set_fwyesde(&smmu->iommu, dev->fwyesde);
 
 	ret = iommu_device_register(&smmu->iommu);
 	if (ret) {

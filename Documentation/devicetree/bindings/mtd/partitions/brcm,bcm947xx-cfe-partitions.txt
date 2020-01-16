@@ -27,8 +27,8 @@ the same header. To distinguish currently used firmware a CFE's environment
 variable "bootpartition" is used.
 
 
-Devices using Broadcom partitions described above should should have flash node
-with a subnode named "partitions" using following properties:
+Devices using Broadcom partitions described above should should have flash yesde
+with a subyesde named "partitions" using following properties:
 
 Required properties:
 - compatible : (required) must be "brcm,bcm947xx-cfe-partitions"

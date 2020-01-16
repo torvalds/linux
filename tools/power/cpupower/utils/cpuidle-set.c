@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
@@ -17,7 +17,7 @@ static struct option info_opts[] = {
      {"disable",	required_argument,		NULL, 'd'},
      {"enable",		required_argument,		NULL, 'e'},
      {"disable-by-latency", required_argument,		NULL, 'D'},
-     {"enable-all",	no_argument,			NULL, 'E'},
+     {"enable-all",	yes_argument,			NULL, 'E'},
      { },
 };
 
@@ -91,7 +91,7 @@ int cmd_idle_set(int argc, char **argv)
 			 "output-specific argument\n"));
 		exit(EXIT_FAILURE);
 	case '?':
-		printf(_("invalid or unknown argument\n"));
+		printf(_("invalid or unkyeswn argument\n"));
 		exit(EXIT_FAILURE);
 	}
 
@@ -118,12 +118,12 @@ int cmd_idle_set(int argc, char **argv)
 			if (ret == 0)
 		printf(_("Idlestate %u disabled on CPU %u\n"),  idlestate, cpu);
 			else if (ret == -1)
-		printf(_("Idlestate %u not available on CPU %u\n"),
+		printf(_("Idlestate %u yest available on CPU %u\n"),
 		       idlestate, cpu);
 			else if (ret == -2)
-		printf(_("Idlestate disabling not supported by kernel\n"));
+		printf(_("Idlestate disabling yest supported by kernel\n"));
 			else
-		printf(_("Idlestate %u not disabled on CPU %u\n"),
+		printf(_("Idlestate %u yest disabled on CPU %u\n"),
 		       idlestate, cpu);
 			break;
 		case 'e':
@@ -131,12 +131,12 @@ int cmd_idle_set(int argc, char **argv)
 			if (ret == 0)
 		printf(_("Idlestate %u enabled on CPU %u\n"),  idlestate, cpu);
 			else if (ret == -1)
-		printf(_("Idlestate %u not available on CPU %u\n"),
+		printf(_("Idlestate %u yest available on CPU %u\n"),
 		       idlestate, cpu);
 			else if (ret == -2)
-		printf(_("Idlestate enabling not supported by kernel\n"));
+		printf(_("Idlestate enabling yest supported by kernel\n"));
 			else
-		printf(_("Idlestate %u not enabled on CPU %u\n"),
+		printf(_("Idlestate %u yest enabled on CPU %u\n"),
 		       idlestate, cpu);
 			break;
 		case 'D':
@@ -176,7 +176,7 @@ int cmd_idle_set(int argc, char **argv)
 			break;
 		default:
 			/* Not reachable with proper args checking */
-			printf(_("Invalid or unknown argument\n"));
+			printf(_("Invalid or unkyeswn argument\n"));
 			exit(EXIT_FAILURE);
 			break;
 		}

@@ -7,8 +7,8 @@
 #include "ar9331.dtsi"
 
 / {
-	model = "Dragino MS14 (Dragino 2)";
-	compatible = "dragino,ms14";
+	model = "Dragiyes MS14 (Dragiyes 2)";
+	compatible = "dragiyes,ms14";
 
 	aliases {
 		serial0 = &uart;
@@ -23,25 +23,25 @@
 		compatible = "gpio-leds";
 
 		wlan {
-			label = "dragino2:red:wlan";
+			label = "dragiyes2:red:wlan";
 			gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
 		lan {
-			label = "dragino2:red:lan";
+			label = "dragiyes2:red:lan";
 			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		wan {
-			label = "dragino2:red:wan";
+			label = "dragiyes2:red:wan";
 			gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		system {
-			label = "dragino2:red:system";
+			label = "dragiyes2:red:system";
 			gpios = <&gpio 28 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
@@ -95,7 +95,7 @@
 	spiflash: w25q128@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "winbond,w25q128", "jedec,spi-nor";
+		compatible = "winbond,w25q128", "jedec,spi-yesr";
 		spi-max-frequency = <104000000>;
 		reg = <0>;
 	};

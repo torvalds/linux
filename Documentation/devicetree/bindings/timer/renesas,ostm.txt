@@ -20,7 +20,7 @@ Required Properties:
 
   - clocks: clock specifier for the timer channel.
 
-Example: R7S72100 (RZ/A1H) OSTM node
+Example: R7S72100 (RZ/A1H) OSTM yesde
 
 	ostm0: timer@fcfec000 {
 		compatible = "renesas,r7s72100-ostm", "renesas,ostm";

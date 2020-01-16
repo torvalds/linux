@@ -28,7 +28,7 @@
  *
  * TODO:
  *  - fine tune axes (especially trigger axes)
- *  - fix "analog" buttons (reported as digital now)
+ *  - fix "analog" buttons (reported as digital yesw)
  *  - get rumble working
  *  - need USB IDs for other dance pads
  *
@@ -38,13 +38,13 @@
  *
  * 2002-07-02 - 0.0.2 : basic working version
  *  - all axes and 9 of the 10 buttons work (german InterAct device)
- *  - the black button does not work
+ *  - the black button does yest work
  *
  * 2002-07-14 - 0.0.3 : rework by Vojtech Pavlik
  *  - indentation fixes
  *  - usb + input init sequence fixes
  *
- * 2002-07-16 - 0.0.4 : minor changes, merge with Vojtech's v0.0.3
+ * 2002-07-16 - 0.0.4 : miyesr changes, merge with Vojtech's v0.0.3
  *  - verified the lack of HID and report descriptors
  *  - verified that ALL buttons WORK
  *  - fixed d-pad to axes mapping
@@ -54,9 +54,9 @@
  * 2004-10-02 - 0.0.6 : DDR pad support
  *  - borrowed from the XBOX linux kernel
  *  - USB id's for commonly used dance pads are present
- *  - dance pads will map D-PAD to buttons, not axes
+ *  - dance pads will map D-PAD to buttons, yest axes
  *  - pass the module paramater 'dpad_to_buttons' to force
- *    the D-PAD to map to buttons if your pad is not detected
+ *    the D-PAD to map to buttons if your pad is yest detected
  *
  * Later changes can be tracked in SCM.
  */
@@ -90,15 +90,15 @@
 
 static bool dpad_to_buttons;
 module_param(dpad_to_buttons, bool, S_IRUGO);
-MODULE_PARM_DESC(dpad_to_buttons, "Map D-PAD to buttons rather than axes for unknown pads");
+MODULE_PARM_DESC(dpad_to_buttons, "Map D-PAD to buttons rather than axes for unkyeswn pads");
 
 static bool triggers_to_buttons;
 module_param(triggers_to_buttons, bool, S_IRUGO);
-MODULE_PARM_DESC(triggers_to_buttons, "Map triggers to buttons rather than axes for unknown pads");
+MODULE_PARM_DESC(triggers_to_buttons, "Map triggers to buttons rather than axes for unkyeswn pads");
 
 static bool sticks_to_null;
 module_param(sticks_to_null, bool, S_IRUGO);
-MODULE_PARM_DESC(sticks_to_null, "Do not map sticks at all for unknown pads");
+MODULE_PARM_DESC(sticks_to_null, "Do yest map sticks at all for unkyeswn pads");
 
 static bool auto_poweroff = true;
 module_param(auto_poweroff, bool, S_IWUSR | S_IRUGO);
@@ -374,7 +374,7 @@ static const signed short xpad_abs_triggers[] = {
 };
 
 /*
- * Xbox 360 has a vendor-specific class, so we cannot match it with only
+ * Xbox 360 has a vendor-specific class, so we canyest match it with only
  * USB_INTERFACE_INFO (also specifically refused by USB subsystem), so we
  * match against vendor id as well. Wired Xbox 360 devices have protocol 1,
  * wireless controllers have protocol 129.
@@ -400,7 +400,7 @@ static const signed short xpad_abs_triggers[] = {
 	{ XPAD_XBOXONE_VENDOR_PROTOCOL((vend), 208) }
 
 static const struct usb_device_id xpad_table[] = {
-	{ USB_INTERFACE_INFO('X', 'B', 0) },	/* X-Box USB-IF not approved class */
+	{ USB_INTERFACE_INFO('X', 'B', 0) },	/* X-Box USB-IF yest approved class */
 	XPAD_XBOX360_VENDOR(0x0079),		/* GPD Win 2 Controller */
 	XPAD_XBOX360_VENDOR(0x044f),		/* Thrustmaster X-Box 360 controllers */
 	XPAD_XBOX360_VENDOR(0x045e),		/* Microsoft X-Box 360 controllers */
@@ -498,8 +498,8 @@ static const u8 xboxone_rumblebegin_init[] = {
 /*
  * A rumble packet with zero FF intensity will immediately
  * terminate the rumbling required to init PowerA pads.
- * This should happen fast enough that the motors don't
- * spin up to enough speed to actually vibrate the gamepad.
+ * This should happen fast eyesugh that the motors don't
+ * spin up to eyesugh speed to actually vibrate the gamepad.
  */
 static const u8 xboxone_rumbleend_init[] = {
 	0x09, 0x00, 0x00, 0x09, 0x00, 0x0F, 0x00, 0x00,
@@ -554,7 +554,7 @@ struct usb_xpad {
 
 	struct urb *irq_out;		/* urb for interrupt out report */
 	struct usb_anchor irq_out_anchor;
-	bool irq_out_active;		/* we must not use an active URB */
+	bool irq_out_active;		/* we must yest use an active URB */
 	u8 odata_serial;		/* serial number for xbox one protocol */
 	unsigned char *odata;		/* output data */
 	dma_addr_t odata_dma;
@@ -678,8 +678,8 @@ static void xpad360_process_packet(struct usb_xpad *xpad, struct input_dev *dev,
 
 	/*
 	 * This should be a simple else block. However historically
-	 * xbox360w has mapped DPAD to buttons while xbox360 did not. This
-	 * made no sense, but now we can not just switch back and have to
+	 * xbox360w has mapped DPAD to buttons while xbox360 did yest. This
+	 * made yes sense, but yesw we can yest just switch back and have to
 	 * support both behaviors.
 	 */
 	if (!(xpad->mapping & MAP_DPAD_TO_BUTTONS) ||
@@ -741,7 +741,7 @@ static void xpad_presence_work(struct work_struct *work)
 	if (xpad->pad_present) {
 		error = xpad_init_input(xpad);
 		if (error) {
-			/* complain only, not much else we can do here */
+			/* complain only, yest much else we can do here */
 			dev_err(&xpad->dev->dev,
 				"unable to init device: %d\n", error);
 		} else {
@@ -751,7 +751,7 @@ static void xpad_presence_work(struct work_struct *work)
 		RCU_INIT_POINTER(xpad->x360w_dev, NULL);
 		synchronize_rcu();
 		/*
-		 * Now that we are sure xpad360w_process_packet is not
+		 * Now that we are sure xpad360w_process_packet is yest
 		 * using input device we can get rid of it.
 		 */
 		xpad_deinit_input(xpad);
@@ -911,7 +911,7 @@ static void xpad_irq_in(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -1051,7 +1051,7 @@ static void xpad_irq_out(struct urb *urb)
 		break;
 
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		break;
 	}
@@ -1199,7 +1199,7 @@ static void xpadone_ack_mode_report(struct usb_xpad *xpad, u8 seq_num)
 	packet->data[2] = seq_num;
 	packet->pending = true;
 
-	/* Reset the sequence so we send out the ack now */
+	/* Reset the sequence so we send out the ack yesw */
 	xpad->last_out_packet = -1;
 	xpad_try_sending_next_out_packet(xpad);
 
@@ -1509,7 +1509,7 @@ static void xpad360w_poweroff_controller(struct usb_xpad *xpad)
 	packet->len = 12;
 	packet->pending = true;
 
-	/* Reset the sequence so we send out poweroff now */
+	/* Reset the sequence so we send out poweroff yesw */
 	xpad->last_out_packet = -1;
 	xpad_try_sending_next_out_packet(xpad);
 
@@ -1655,8 +1655,8 @@ static int xpad_init_input(struct usb_xpad *xpad)
 
 	/*
 	 * This should be a simple else block. However historically
-	 * xbox360w has mapped DPAD to buttons while xbox360 did not. This
-	 * made no sense, but now we can not just switch back and have to
+	 * xbox360w has mapped DPAD to buttons while xbox360 did yest. This
+	 * made yes sense, but yesw we can yest just switch back and have to
 	 * support both behaviors.
 	 */
 	if (!(xpad->mapping & MAP_DPAD_TO_BUTTONS) ||
@@ -1808,7 +1808,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		/*
 		 * Submit the int URB immediately rather than waiting for open
 		 * because we get status messages from the device whether
-		 * or not any controllers are attached.  In fact, it's
+		 * or yest any controllers are attached.  In fact, it's
 		 * exactly the message that a controller has arrived that
 		 * we're waiting for.
 		 */
@@ -1875,13 +1875,13 @@ static int xpad_suspend(struct usb_interface *intf, pm_message_t message)
 	if (xpad->xtype == XTYPE_XBOX360W) {
 		/*
 		 * Wireless controllers always listen to input so
-		 * they are notified when controller shows up
+		 * they are yestified when controller shows up
 		 * or goes away.
 		 */
 		xpad360w_stop_input(xpad);
 
 		/*
-		 * The wireless adapter is going off now, so the
+		 * The wireless adapter is going off yesw, so the
 		 * gamepads are going to become disconnected.
 		 * Unless explicitly disabled, power them down
 		 * so they don't just sit there flashing.
@@ -1914,7 +1914,7 @@ static int xpad_resume(struct usb_interface *intf)
 			retval = xpad_start_input(xpad);
 		} else if (xpad->xtype == XTYPE_XBOXONE) {
 			/*
-			 * Even if there are no users, we'll send Xbox One pads
+			 * Even if there are yes users, we'll send Xbox One pads
 			 * the startup sequence so they don't sit there and
 			 * blink until somebody opens the input device again.
 			 */

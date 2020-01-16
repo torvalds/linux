@@ -22,7 +22,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -86,7 +86,7 @@ int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
 				int readonly);
 
 /*
- * End access through the given grant reference, iff the grant entry is no
+ * End access through the given grant reference, iff the grant entry is yes
  * longer in use.  Return 1 if the grant entry was freed, 0 if it is still in
  * use.
  */
@@ -95,8 +95,8 @@ int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly);
 /*
  * Eventually end access through the given grant reference, and once that
  * access has been ended, free the given page too.  Access will be ended
- * immediately iff the grant entry is not in use, otherwise it will happen
- * some time later.  page may be 0, in which case no freeing will occur.
+ * immediately iff the grant entry is yest in use, otherwise it will happen
+ * some time later.  page may be 0, in which case yes freeing will occur.
  */
 void gnttab_end_foreign_access(grant_ref_t ref, int readonly,
 			       unsigned long page);
@@ -236,7 +236,7 @@ int gnttab_unmap_refs_sync(struct gntab_unmap_queue_data *item);
  * Will retry for 1, 2, ... 255 ms, i.e. 256 times during 32 seconds.
  *
  * Return value in each iand every status field of the batch guaranteed
- * to not be GNTST_eagain.
+ * to yest be GNTST_eagain.
  */
 void gnttab_batch_map(struct gnttab_map_grant_ref *batch, unsigned count);
 void gnttab_batch_copy(struct gnttab_copy *batch, unsigned count);

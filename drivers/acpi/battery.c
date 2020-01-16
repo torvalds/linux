@@ -60,7 +60,7 @@ MODULE_LICENSE("GPL");
 static async_cookie_t async_cookie;
 static bool battery_driver_registered;
 static int battery_bix_broken_package;
-static int battery_notification_delay_ms;
+static int battery_yestification_delay_ms;
 static int battery_ac_is_broken;
 static int battery_check_pmic = 1;
 static unsigned int cache_time = 1000;
@@ -88,16 +88,16 @@ enum {
 	ACPI_BATTERY_ALARM_PRESENT,
 	ACPI_BATTERY_XINFO_PRESENT,
 	ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY,
-	/* On Lenovo Thinkpad models from 2010 and 2011, the power unit
+	/* On Leyesvo Thinkpad models from 2010 and 2011, the power unit
 	   switches between mWh and mAh depending on whether the system
-	   is running on battery or not.  When mAh is the unit, most
+	   is running on battery or yest.  When mAh is the unit, most
 	   reported values are incorrect and need to be adjusted by
 	   10000/design_voltage.  Verified on x201, t410, t410s, and x220.
 	   Pre-2010 and 2012 models appear to always report in mWh and
 	   are thus unaffected (tested with t42, t61, t500, x200, x300,
-	   and x230).  Also, in mid-2012 Lenovo issued a BIOS update for
+	   and x230).  Also, in mid-2012 Leyesvo issued a BIOS update for
 	   the 2011 models that fixes the issue (tested on x220 with a
-	   post-1.29 BIOS), but as of Nov. 2012, no such update is
+	   post-1.29 BIOS), but as of Nov. 2012, yes such update is
 	   available for the 2010 models.  */
 	ACPI_BATTERY_QUIRK_THINKPAD_MAH,
 	/* for batteries reporting current capacity with design capacity
@@ -112,16 +112,16 @@ struct acpi_battery {
 	struct power_supply *bat;
 	struct power_supply_desc bat_desc;
 	struct acpi_device *device;
-	struct notifier_block pm_nb;
+	struct yestifier_block pm_nb;
 	struct list_head list;
 	unsigned long update_time;
 	int revision;
-	int rate_now;
-	int capacity_now;
-	int voltage_now;
+	int rate_yesw;
+	int capacity_yesw;
+	int voltage_yesw;
 	int design_capacity;
 	int full_charge_capacity;
-	int technology;
+	int techyeslogy;
 	int design_voltage;
 	int design_capacity_warning;
 	int design_capacity_low;
@@ -150,7 +150,7 @@ static inline int acpi_battery_present(struct acpi_battery *battery)
 	return battery->device->status.battery_present;
 }
 
-static int acpi_battery_technology(struct acpi_battery *battery)
+static int acpi_battery_techyeslogy(struct acpi_battery *battery)
 {
 	if (!strcasecmp("NiCd", battery->type))
 		return POWER_SUPPLY_TECHNOLOGY_NiCd;
@@ -173,17 +173,17 @@ static int acpi_battery_is_charged(struct acpi_battery *battery)
 	if (battery->state != 0)
 		return 0;
 
-	/* battery not reporting charge */
-	if (battery->capacity_now == ACPI_BATTERY_VALUE_UNKNOWN ||
-	    battery->capacity_now == 0)
+	/* battery yest reporting charge */
+	if (battery->capacity_yesw == ACPI_BATTERY_VALUE_UNKNOWN ||
+	    battery->capacity_yesw == 0)
 		return 0;
 
 	/* good batteries update full_charge as the batteries degrade */
-	if (battery->full_charge_capacity == battery->capacity_now)
+	if (battery->full_charge_capacity == battery->capacity_yesw)
 		return 1;
 
 	/* fallback to using design values for broken batteries */
-	if (battery->design_capacity == battery->capacity_now)
+	if (battery->design_capacity == battery->capacity_yesw)
 		return 1;
 
 	/* we don't do any sort of metric based on percentages */
@@ -201,10 +201,10 @@ static int acpi_battery_handle_discharging(struct acpi_battery *battery)
 	/*
 	 * Some devices wrongly report discharging if the battery's charge level
 	 * was above the device's start charging threshold atm the AC adapter
-	 * was plugged in and the device thus did not start a new charge cycle.
+	 * was plugged in and the device thus did yest start a new charge cycle.
 	 */
 	if ((battery_ac_is_broken || power_supply_is_system_supplied()) &&
-	    battery->rate_now == 0)
+	    battery->rate_yesw == 0)
 		return POWER_SUPPLY_STATUS_NOT_CHARGING;
 
 	return POWER_SUPPLY_STATUS_DISCHARGING;
@@ -237,7 +237,7 @@ static int acpi_battery_get_property(struct power_supply *psy,
 		val->intval = acpi_battery_present(battery);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = acpi_battery_technology(battery);
+		val->intval = acpi_battery_techyeslogy(battery);
 		break;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		val->intval = battery->cycle_count;
@@ -249,17 +249,17 @@ static int acpi_battery_get_property(struct power_supply *psy,
 			val->intval = battery->design_voltage * 1000;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		if (battery->voltage_now == ACPI_BATTERY_VALUE_UNKNOWN)
+		if (battery->voltage_yesw == ACPI_BATTERY_VALUE_UNKNOWN)
 			ret = -ENODEV;
 		else
-			val->intval = battery->voltage_now * 1000;
+			val->intval = battery->voltage_yesw * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 	case POWER_SUPPLY_PROP_POWER_NOW:
-		if (battery->rate_now == ACPI_BATTERY_VALUE_UNKNOWN)
+		if (battery->rate_yesw == ACPI_BATTERY_VALUE_UNKNOWN)
 			ret = -ENODEV;
 		else
-			val->intval = battery->rate_now * 1000;
+			val->intval = battery->rate_yesw * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
@@ -277,14 +277,14 @@ static int acpi_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
-		if (battery->capacity_now == ACPI_BATTERY_VALUE_UNKNOWN)
+		if (battery->capacity_yesw == ACPI_BATTERY_VALUE_UNKNOWN)
 			ret = -ENODEV;
 		else
-			val->intval = battery->capacity_now * 1000;
+			val->intval = battery->capacity_yesw * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		if (battery->capacity_now && battery->full_charge_capacity)
-			val->intval = battery->capacity_now * 100/
+		if (battery->capacity_yesw && battery->full_charge_capacity)
+			val->intval = battery->capacity_yesw * 100/
 					battery->full_charge_capacity;
 		else
 			val->intval = 0;
@@ -293,7 +293,7 @@ static int acpi_battery_get_property(struct power_supply *psy,
 		if (battery->state & ACPI_BATTERY_STATE_CRITICAL)
 			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
 		else if (test_bit(ACPI_BATTERY_ALARM_PRESENT, &battery->flags) &&
-			(battery->capacity_now <= battery->alarm))
+			(battery->capacity_yesw <= battery->alarm))
 			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
 		else if (acpi_battery_is_charged(battery))
 			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
@@ -375,16 +375,16 @@ struct acpi_offsets {
 
 static const struct acpi_offsets state_offsets[] = {
 	{offsetof(struct acpi_battery, state), 0},
-	{offsetof(struct acpi_battery, rate_now), 0},
-	{offsetof(struct acpi_battery, capacity_now), 0},
-	{offsetof(struct acpi_battery, voltage_now), 0},
+	{offsetof(struct acpi_battery, rate_yesw), 0},
+	{offsetof(struct acpi_battery, capacity_yesw), 0},
+	{offsetof(struct acpi_battery, voltage_yesw), 0},
 };
 
 static const struct acpi_offsets info_offsets[] = {
 	{offsetof(struct acpi_battery, power_unit), 0},
 	{offsetof(struct acpi_battery, design_capacity), 0},
 	{offsetof(struct acpi_battery, full_charge_capacity), 0},
-	{offsetof(struct acpi_battery, technology), 0},
+	{offsetof(struct acpi_battery, techyeslogy), 0},
 	{offsetof(struct acpi_battery, design_voltage), 0},
 	{offsetof(struct acpi_battery, design_capacity_warning), 0},
 	{offsetof(struct acpi_battery, design_capacity_low), 0},
@@ -401,7 +401,7 @@ static const struct acpi_offsets extended_info_offsets[] = {
 	{offsetof(struct acpi_battery, power_unit), 0},
 	{offsetof(struct acpi_battery, design_capacity), 0},
 	{offsetof(struct acpi_battery, full_charge_capacity), 0},
-	{offsetof(struct acpi_battery, technology), 0},
+	{offsetof(struct acpi_battery, techyeslogy), 0},
 	{offsetof(struct acpi_battery, design_voltage), 0},
 	{offsetof(struct acpi_battery, design_capacity_warning), 0},
 	{offsetof(struct acpi_battery, design_capacity_low), 0},
@@ -493,11 +493,11 @@ static int extract_battery_info(const int use_bix,
 		   is correct.  */
 		/* capacity_granularity_* equal 1 on the systems tested, so
 		   it's impossible to tell if they would need an adjustment
-		   or not if their values were higher.  */
+		   or yest if their values were higher.  */
 	}
 	if (test_bit(ACPI_BATTERY_QUIRK_DEGRADED_FULL_CHARGE, &battery->flags) &&
-	    battery->capacity_now > battery->full_charge_capacity)
-		battery->capacity_now = battery->full_charge_capacity;
+	    battery->capacity_yesw > battery->full_charge_capacity)
+		battery->capacity_yesw = battery->full_charge_capacity;
 
 	return result;
 }
@@ -575,24 +575,24 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 	 * due to bad math.
 	 */
 	if (battery->power_unit == ACPI_BATTERY_POWER_UNIT_MA &&
-		battery->rate_now != ACPI_BATTERY_VALUE_UNKNOWN &&
-		(s16)(battery->rate_now) < 0) {
-		battery->rate_now = abs((s16)battery->rate_now);
+		battery->rate_yesw != ACPI_BATTERY_VALUE_UNKNOWN &&
+		(s16)(battery->rate_yesw) < 0) {
+		battery->rate_yesw = abs((s16)battery->rate_yesw);
 		pr_warn_once(FW_BUG "battery: (dis)charge rate invalid.\n");
 	}
 
 	if (test_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags)
-	    && battery->capacity_now >= 0 && battery->capacity_now <= 100)
-		battery->capacity_now = (battery->capacity_now *
+	    && battery->capacity_yesw >= 0 && battery->capacity_yesw <= 100)
+		battery->capacity_yesw = (battery->capacity_yesw *
 				battery->full_charge_capacity) / 100;
 	if (test_bit(ACPI_BATTERY_QUIRK_THINKPAD_MAH, &battery->flags) &&
 	    battery->power_unit && battery->design_voltage) {
-		battery->capacity_now = battery->capacity_now *
+		battery->capacity_yesw = battery->capacity_yesw *
 		    10000 / battery->design_voltage;
 	}
 	if (test_bit(ACPI_BATTERY_QUIRK_DEGRADED_FULL_CHARGE, &battery->flags) &&
-	    battery->capacity_now > battery->full_charge_capacity)
-		battery->capacity_now = battery->full_charge_capacity;
+	    battery->capacity_yesw > battery->full_charge_capacity)
+		battery->capacity_yesw = battery->full_charge_capacity;
 
 	return result;
 }
@@ -703,16 +703,16 @@ void battery_hook_register(struct acpi_battery_hook *hook)
 	list_add(&hook->list, &battery_hook_list);
 	/*
 	 * Now that the driver is registered, we need
-	 * to notify the hook that a battery is available
+	 * to yestify the hook that a battery is available
 	 * for each battery, so that the driver may add
 	 * its attributes.
 	 */
 	list_for_each_entry(battery, &acpi_battery_list, list) {
 		if (hook->add_battery(battery->bat)) {
 			/*
-			 * If a add-battery returns non-zero,
+			 * If a add-battery returns yesn-zero,
 			 * the registration of the extension has failed,
-			 * and we will not add it to the list of loaded
+			 * and we will yest add it to the list of loaded
 			 * hooks.
 			 */
 			pr_err("extension failed to load: %s", hook->name);
@@ -733,7 +733,7 @@ EXPORT_SYMBOL_GPL(battery_hook_register);
 */
 static void battery_hook_add_battery(struct acpi_battery *battery)
 {
-	struct acpi_battery_hook *hook_node, *tmp;
+	struct acpi_battery_hook *hook_yesde, *tmp;
 
 	mutex_lock(&hook_mutex);
 	INIT_LIST_HEAD(&battery->list);
@@ -745,15 +745,15 @@ static void battery_hook_add_battery(struct acpi_battery *battery)
 	 * when a battery gets hotplugged or initialized
 	 * during the battery module initialization.
 	 */
-	list_for_each_entry_safe(hook_node, tmp, &battery_hook_list, list) {
-		if (hook_node->add_battery(battery->bat)) {
+	list_for_each_entry_safe(hook_yesde, tmp, &battery_hook_list, list) {
+		if (hook_yesde->add_battery(battery->bat)) {
 			/*
-			 * The notification of the extensions has failed, to
+			 * The yestification of the extensions has failed, to
 			 * prevent further errors we will unload the extension.
 			 */
 			pr_err("error in extension, unloading: %s",
-					hook_node->name);
-			__battery_hook_unregister(hook_node, 0);
+					hook_yesde->name);
+			__battery_hook_unregister(hook_yesde, 0);
 		}
 	}
 	mutex_unlock(&hook_mutex);
@@ -814,7 +814,7 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 	battery->bat_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 	battery->bat_desc.get_property = acpi_battery_get_property;
 
-	battery->bat = power_supply_register_no_ws(&battery->device->dev,
+	battery->bat = power_supply_register_yes_ws(&battery->device->dev,
 				&battery->bat_desc, &psy_cfg);
 
 	if (IS_ERR(battery->bat)) {
@@ -877,11 +877,11 @@ static void acpi_battery_quirks(struct acpi_battery *battery)
 		return;
 
 	if (battery->full_charge_capacity == 100 &&
-		battery->rate_now == ACPI_BATTERY_VALUE_UNKNOWN &&
-		battery->capacity_now >= 0 && battery->capacity_now <= 100) {
+		battery->rate_yesw == ACPI_BATTERY_VALUE_UNKNOWN &&
+		battery->capacity_yesw >= 0 && battery->capacity_yesw <= 100) {
 		set_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags);
 		battery->full_charge_capacity = battery->design_capacity;
-		battery->capacity_now = (battery->capacity_now *
+		battery->capacity_yesw = (battery->capacity_yesw *
 				battery->full_charge_capacity) / 100;
 	}
 
@@ -905,7 +905,7 @@ static void acpi_battery_quirks(struct acpi_battery *battery)
 				battery->design_capacity_warning =
 				    battery->design_capacity_warning *
 				    10000 / battery->design_voltage;
-				battery->capacity_now = battery->capacity_now *
+				battery->capacity_yesw = battery->capacity_yesw *
 				    10000 / battery->design_voltage;
 			}
 		}
@@ -915,9 +915,9 @@ static void acpi_battery_quirks(struct acpi_battery *battery)
 		return;
 
 	if (acpi_battery_is_degraded(battery) &&
-	    battery->capacity_now > battery->full_charge_capacity) {
+	    battery->capacity_yesw > battery->full_charge_capacity) {
 		set_bit(ACPI_BATTERY_QUIRK_DEGRADED_FULL_CHARGE, &battery->flags);
-		battery->capacity_now = battery->full_charge_capacity;
+		battery->capacity_yesw = battery->full_charge_capacity;
 	}
 }
 
@@ -961,7 +961,7 @@ static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 	 */
 	if ((battery->state & ACPI_BATTERY_STATE_CRITICAL) ||
 	    (test_bit(ACPI_BATTERY_ALARM_PRESENT, &battery->flags) &&
-            (battery->capacity_now <= battery->alarm)))
+            (battery->capacity_yesw <= battery->alarm)))
 		acpi_pm_wakeup_event(&battery->device->dev);
 
 	return result;
@@ -1008,28 +1008,28 @@ static int acpi_battery_info_proc_show(struct seq_file *seq, void *offset)
 		goto end;
 
 	seq_printf(seq, "present:                 %s\n",
-		   acpi_battery_present(battery) ? "yes" : "no");
+		   acpi_battery_present(battery) ? "no" : "yes");
 	if (!acpi_battery_present(battery))
 		goto end;
 	if (battery->design_capacity == ACPI_BATTERY_VALUE_UNKNOWN)
-		seq_printf(seq, "design capacity:         unknown\n");
+		seq_printf(seq, "design capacity:         unkyeswn\n");
 	else
 		seq_printf(seq, "design capacity:         %d %sh\n",
 			   battery->design_capacity,
 			   acpi_battery_units(battery));
 
 	if (battery->full_charge_capacity == ACPI_BATTERY_VALUE_UNKNOWN)
-		seq_printf(seq, "last full capacity:      unknown\n");
+		seq_printf(seq, "last full capacity:      unkyeswn\n");
 	else
 		seq_printf(seq, "last full capacity:      %d %sh\n",
 			   battery->full_charge_capacity,
 			   acpi_battery_units(battery));
 
-	seq_printf(seq, "battery technology:      %srechargeable\n",
-		   battery->technology ? "" : "non-");
+	seq_printf(seq, "battery techyeslogy:      %srechargeable\n",
+		   battery->techyeslogy ? "" : "yesn-");
 
 	if (battery->design_voltage == ACPI_BATTERY_VALUE_UNKNOWN)
-		seq_printf(seq, "design voltage:          unknown\n");
+		seq_printf(seq, "design voltage:          unkyeswn\n");
 	else
 		seq_printf(seq, "design voltage:          %d mV\n",
 			   battery->design_voltage);
@@ -1065,7 +1065,7 @@ static int acpi_battery_state_proc_show(struct seq_file *seq, void *offset)
 		goto end;
 
 	seq_printf(seq, "present:                 %s\n",
-		   acpi_battery_present(battery) ? "yes" : "no");
+		   acpi_battery_present(battery) ? "no" : "yes");
 	if (!acpi_battery_present(battery))
 		goto end;
 
@@ -1081,22 +1081,22 @@ static int acpi_battery_state_proc_show(struct seq_file *seq, void *offset)
 	else
 		seq_printf(seq, "charging state:          charged\n");
 
-	if (battery->rate_now == ACPI_BATTERY_VALUE_UNKNOWN)
-		seq_printf(seq, "present rate:            unknown\n");
+	if (battery->rate_yesw == ACPI_BATTERY_VALUE_UNKNOWN)
+		seq_printf(seq, "present rate:            unkyeswn\n");
 	else
 		seq_printf(seq, "present rate:            %d %s\n",
-			   battery->rate_now, acpi_battery_units(battery));
+			   battery->rate_yesw, acpi_battery_units(battery));
 
-	if (battery->capacity_now == ACPI_BATTERY_VALUE_UNKNOWN)
-		seq_printf(seq, "remaining capacity:      unknown\n");
+	if (battery->capacity_yesw == ACPI_BATTERY_VALUE_UNKNOWN)
+		seq_printf(seq, "remaining capacity:      unkyeswn\n");
 	else
 		seq_printf(seq, "remaining capacity:      %d %sh\n",
-			   battery->capacity_now, acpi_battery_units(battery));
-	if (battery->voltage_now == ACPI_BATTERY_VALUE_UNKNOWN)
-		seq_printf(seq, "present voltage:         unknown\n");
+			   battery->capacity_yesw, acpi_battery_units(battery));
+	if (battery->voltage_yesw == ACPI_BATTERY_VALUE_UNKNOWN)
+		seq_printf(seq, "present voltage:         unkyeswn\n");
 	else
 		seq_printf(seq, "present voltage:         %d mV\n",
-			   battery->voltage_now);
+			   battery->voltage_yesw);
       end:
 	if (result)
 		seq_printf(seq, "ERROR: Unable to read battery state\n");
@@ -1113,7 +1113,7 @@ static int acpi_battery_alarm_proc_show(struct seq_file *seq, void *offset)
 		goto end;
 
 	if (!acpi_battery_present(battery)) {
-		seq_printf(seq, "present:                 no\n");
+		seq_printf(seq, "present:                 yes\n");
 		goto end;
 	}
 	seq_printf(seq, "alarm:                   ");
@@ -1160,9 +1160,9 @@ static ssize_t acpi_battery_write_alarm(struct file *file,
 	return count;
 }
 
-static int acpi_battery_alarm_proc_open(struct inode *inode, struct file *file)
+static int acpi_battery_alarm_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, acpi_battery_alarm_proc_show, PDE_DATA(inode));
+	return single_open(file, acpi_battery_alarm_proc_show, PDE_DATA(iyesde));
 }
 
 static const struct file_operations acpi_battery_alarm_fops = {
@@ -1211,7 +1211,7 @@ static void acpi_battery_remove_fs(struct acpi_device *device)
                                  Driver Interface
    -------------------------------------------------------------------------- */
 
-static void acpi_battery_notify(struct acpi_device *device, u32 event)
+static void acpi_battery_yestify(struct acpi_device *device, u32 event)
 {
 	struct acpi_battery *battery = acpi_driver_data(device);
 	struct power_supply *old;
@@ -1220,26 +1220,26 @@ static void acpi_battery_notify(struct acpi_device *device, u32 event)
 		return;
 	old = battery->bat;
 	/*
-	* On Acer Aspire V5-573G notifications are sometimes triggered too
-	* early. For example, when AC is unplugged and notification is
+	* On Acer Aspire V5-573G yestifications are sometimes triggered too
+	* early. For example, when AC is unplugged and yestification is
 	* triggered, battery state is still reported as "Full", and changes to
-	* "Discharging" only after short delay, without any notification.
+	* "Discharging" only after short delay, without any yestification.
 	*/
-	if (battery_notification_delay_ms > 0)
-		msleep(battery_notification_delay_ms);
+	if (battery_yestification_delay_ms > 0)
+		msleep(battery_yestification_delay_ms);
 	if (event == ACPI_BATTERY_NOTIFY_INFO)
 		acpi_battery_refresh(battery);
 	acpi_battery_update(battery, false);
 	acpi_bus_generate_netlink_event(device->pnp.device_class,
 					dev_name(&device->dev), event,
 					acpi_battery_present(battery));
-	acpi_notifier_call_chain(device, event, acpi_battery_present(battery));
+	acpi_yestifier_call_chain(device, event, acpi_battery_present(battery));
 	/* acpi_battery_update could remove power_supply object */
 	if (old && battery->bat)
 		power_supply_changed(battery->bat);
 }
 
-static int battery_notify(struct notifier_block *nb,
+static int battery_yestify(struct yestifier_block *nb,
 			       unsigned long mode, void *_unused)
 {
 	struct acpi_battery *battery = container_of(nb, struct acpi_battery,
@@ -1280,9 +1280,9 @@ battery_bix_broken_package_quirk(const struct dmi_system_id *d)
 }
 
 static int __init
-battery_notification_delay_quirk(const struct dmi_system_id *d)
+battery_yestification_delay_quirk(const struct dmi_system_id *d)
 {
-	battery_notification_delay_ms = 1000;
+	battery_yestification_delay_ms = 1000;
 	return 0;
 }
 
@@ -1294,7 +1294,7 @@ battery_ac_is_broken_quirk(const struct dmi_system_id *d)
 }
 
 static int __init
-battery_do_not_check_pmic_quirk(const struct dmi_system_id *d)
+battery_do_yest_check_pmic_quirk(const struct dmi_system_id *d)
 {
 	battery_check_pmic = 0;
 	return 0;
@@ -1311,7 +1311,7 @@ static const struct dmi_system_id bat_dmi_table[] __initconst = {
 	},
 	{
 		/* Acer Aspire V5-573G */
-		.callback = battery_notification_delay_quirk,
+		.callback = battery_yestification_delay_quirk,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire V5-573G"),
@@ -1330,25 +1330,25 @@ static const struct dmi_system_id bat_dmi_table[] __initconst = {
 	},
 	{
 		/* ECS EF20EA */
-		.callback = battery_do_not_check_pmic_quirk,
+		.callback = battery_do_yest_check_pmic_quirk,
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
 		},
 	},
 	{
-		/* Lenovo Ideapad Miix 320 */
-		.callback = battery_do_not_check_pmic_quirk,
+		/* Leyesvo Ideapad Miix 320 */
+		.callback = battery_do_yest_check_pmic_quirk,
 		.matches = {
 		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "80XF"),
-		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Leyesvo MIIX 320-10ICR"),
 		},
 	},
 	{},
 };
 
 /*
- * Some machines'(E,G Lenovo Z480) ECs are not stable
+ * Some machines'(E,G Leyesvo Z480) ECs are yest stable
  * during boot up and this causes battery driver fails to be
  * probed due to failure of getting battery information
  * from EC sometimes. After several retries, the operation
@@ -1408,8 +1408,8 @@ static int acpi_battery_add(struct acpi_device *device)
 		ACPI_BATTERY_DEVICE_NAME, acpi_device_bid(device),
 		device->status.battery_present ? "present" : "absent");
 
-	battery->pm_nb.notifier_call = battery_notify;
-	register_pm_notifier(&battery->pm_nb);
+	battery->pm_nb.yestifier_call = battery_yestify;
+	register_pm_yestifier(&battery->pm_nb);
 
 	device_init_wakeup(&device->dev, 1);
 
@@ -1431,7 +1431,7 @@ static int acpi_battery_remove(struct acpi_device *device)
 		return -EINVAL;
 	device_init_wakeup(&device->dev, 0);
 	battery = acpi_driver_data(device);
-	unregister_pm_notifier(&battery->pm_nb);
+	unregister_pm_yestifier(&battery->pm_nb);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_remove_fs(device);
 #endif
@@ -1473,7 +1473,7 @@ static struct acpi_driver acpi_battery_driver = {
 	.ops = {
 		.add = acpi_battery_add,
 		.remove = acpi_battery_remove,
-		.notify = acpi_battery_notify,
+		.yestify = acpi_battery_yestify,
 		},
 	.drv.pm = &acpi_battery_pm,
 };
@@ -1489,7 +1489,7 @@ static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 		for (i = 0; i < ARRAY_SIZE(acpi_battery_blacklist); i++)
 			if (acpi_dev_present(acpi_battery_blacklist[i], "1", -1)) {
 				pr_info(PREFIX ACPI_BATTERY_DEVICE_NAME
-					": found native %s PMIC, not loading\n",
+					": found native %s PMIC, yest loading\n",
 					acpi_battery_blacklist[i]);
 				return;
 			}

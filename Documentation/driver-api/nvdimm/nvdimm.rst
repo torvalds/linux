@@ -135,11 +135,11 @@ PMEM:
 LIBNVDIMM PMEM and BLK
 ======================
 
-Prior to the arrival of the NFIT, non-volatile memory was described to a
+Prior to the arrival of the NFIT, yesn-volatile memory was described to a
 system in various ad-hoc ways.  Usually only the bare minimum was
 provided, namely, a single system-physical-address range where writes
 are expected to be durable after a system power loss.  Now, the NFIT
-specification standardizes not only the description of PMEM, but also
+specification standardizes yest only the description of PMEM, but also
 BLK and platform message-passing entry points for control and
 configuration.
 
@@ -154,11 +154,11 @@ device driver:
 
        Note that while LIBNVDIMM describes system-physical-address ranges that may
        alias with BLK access as ND_NAMESPACE_PMEM ranges and those without
-       alias as ND_NAMESPACE_IO ranges, to the nd_pmem driver there is no
+       alias as ND_NAMESPACE_IO ranges, to the nd_pmem driver there is yes
        distinction.  The different device-types are an implementation detail
        that userspace can exploit to implement policies like "only interface
-       with address ranges from certain DIMMs".  It is worth noting that when
-       aliasing is present and a DIMM lacks a label, then no block device can
+       with address ranges from certain DIMMs".  It is worth yesting that when
+       aliasing is present and a DIMM lacks a label, then yes block device can
        be created by default as userspace needs to do at least one allocation
        of DPA to the PMEM range.  In contrast ND_NAMESPACE_IO ranges, once
        registered, can be immediately attached to nd_pmem.
@@ -170,7 +170,7 @@ device driver:
        different CPUs.
 
        The NFIT specification defines a standard format for a BLK-aperture, but
-       the spec also allows for vendor specific layouts, and non-NFIT BLK
+       the spec also allows for vendor specific layouts, and yesn-NFIT BLK
        implementations may have other designs for BLK I/O.  For this reason
        "nd_blk" calls back into platform-specific code to perform the I/O.
 
@@ -182,7 +182,7 @@ Why BLK?
 ========
 
 While PMEM provides direct byte-addressable CPU-load/store access to
-NVDIMM storage, it does not provide the best system RAS (recovery,
+NVDIMM storage, it does yest provide the best system RAS (recovery,
 availability, and serviceability) model.  An access to a corrupted
 system-physical-address address causes a CPU exception while an access
 to a corrupted address through an BLK-aperture causes that block window
@@ -220,7 +220,7 @@ One of the few
 reasons to allow multiple BLK namespaces per REGION is so that each
 BLK-namespace can be configured with a BTT with unique atomic sector
 sizes.  While a PMEM device can host a BTT the LABEL specification does
-not provide for a sector size to be specified for a PMEM namespace.
+yest provide for a sector size to be specified for a PMEM namespace.
 
 This is due to the expectation that the primary usage model for PMEM is
 via DAX, and the BTT is incompatible with DAX.  However, for the cases
@@ -271,7 +271,7 @@ by a region device with a dynamically assigned id (REGION0 - REGION5).
        each DIMM in the interleave set), "blk2.1", "blk3.1", "blk4.0", and
        "blk5.0".
 
-    3. The portion of DIMM2 and DIMM3 that do not participate in the REGION1
+    3. The portion of DIMM2 and DIMM3 that do yest participate in the REGION1
        interleaved system-physical-address range (i.e. the DPA address past
        offset (b) are also included in the "blk4.0" and "blk5.0" namespaces.
        Note, that this example shows that BLK-aperture namespaces don't need to
@@ -279,7 +279,7 @@ by a region device with a dynamically assigned id (REGION0 - REGION5).
 
     This bus is provided by the kernel under the device
     /sys/devices/platform/nfit_test.0 when CONFIG_NFIT_TEST is enabled and
-    the nfit_test.ko module is loaded.  This not only test LIBNVDIMM but the
+    the nfit_test.ko module is loaded.  This yest only test LIBNVDIMM but the
     acpi_nfit.ko driver as well.
 
 
@@ -319,7 +319,7 @@ LIBNVDIMM/LIBNDCTL: Bus
 A bus has a 1:1 relationship with an NFIT.  The current expectation for
 ACPI based systems is that there is only ever one platform-global NFIT.
 That said, it is trivial to register multiple NFITs, the specification
-does not preclude it.  The infrastructure supports multiple busses and
+does yest preclude it.  The infrastructure supports multiple busses and
 we use this capability to test multiple NFIT configurations in the unit
 test.
 
@@ -395,7 +395,7 @@ NFIT-specifics.
 
 Note that the kernel device name for "DIMMs" is "nmemX".  The NFIT
 describes these devices via "Memory Device to System Physical Address
-Range Mapping Structure", and there is no requirement that they actually
+Range Mapping Structure", and there is yes requirement that they actually
 be physical DIMMs, so we use a more generic name.
 
 LIBNVDIMM: DIMM (NMEM)
@@ -441,7 +441,7 @@ identified by an "nfit_handle" a 32-bit value where:
    - Bit 3:0 DIMM number within the memory channel
    - Bit 7:4 memory channel number
    - Bit 11:8 memory controller ID
-   - Bit 15:12 socket ID (within scope of a Node controller if node
+   - Bit 15:12 socket ID (within scope of a Node controller if yesde
      controller is present)
    - Bit 27:16 Node Controller ID
    - Bit 31:28 Reserved
@@ -512,7 +512,7 @@ LIBNVDIMM: region::
 	|   |-- modalias
 	|   |-- namespace0.0
 	|   |-- namespace_seed
-	|   |-- numa_node
+	|   |-- numa_yesde
 	|   |-- nfit
 	|   |   `-- spa_index
 	|   |-- nstype
@@ -576,20 +576,20 @@ region-attributes for four reasons:
 
     1. There are already more than two REGION and "namespace" types.  For
        PMEM there are two subtypes.  As mentioned previously we have PMEM where
-       the constituent DIMM devices are known and anonymous PMEM.  For BLK
+       the constituent DIMM devices are kyeswn and ayesnymous PMEM.  For BLK
        regions the NFIT specification already anticipates vendor specific
        implementations.  The exact distinction of what a region contains is in
-       the region-attributes not the region-name or the region-devtype.
+       the region-attributes yest the region-name or the region-devtype.
 
     2. A region with zero child-namespaces is a possible configuration.  For
        example, the NFIT allows for a DCR to be published without a
        corresponding BLK-aperture.  This equates to a DIMM that can only accept
-       control/configuration messages, but no i/o through a descendant block
+       control/configuration messages, but yes i/o through a descendant block
        device.  Again, this "type" is advertised in the attributes ('mappings'
-       == 0) and the name does not tell you much.
+       == 0) and the name does yest tell you much.
 
     3. What if a third major interface type arises in the future?  Outside
-       of vendor specific implementations, it's not difficult to envision a
+       of vendor specific implementations, it's yest difficult to envision a
        third class of interface type beyond BLK and PMEM.  With a generic name
        for the REGION level of the device-hierarchy old userspace
        implementations can still make sense of new kernel advertised
@@ -616,7 +616,7 @@ looking at the kernel header (/usr/include/linux/ndctl.h) to decode the
     The whole point of region/namespace device type differentiation is to
     decide which block-device driver will attach to a given LIBNVDIMM namespace.
     One can simply use the modalias to lookup the resulting module.  It's
-    important to note that this method is robust in the presence of a
+    important to yeste that this method is robust in the presence of a
     vendor-specific driver down the road.  If a vendor-specific
     implementation wants to supplant the standard nd_blk driver it can with
     minimal impact to the rest of LIBNVDIMM.
@@ -647,16 +647,16 @@ looking at the kernel header (/usr/include/linux/ndctl.h) to decode the
 	E: SUBSYSTEM=nd
 
     ...and is available as a region attribute, but keep in mind that the
-    "devtype" does not indicate sub-type variations and scripts should
+    "devtype" does yest indicate sub-type variations and scripts should
     really be understanding the other attributes.
 
 3. type specific attributes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     As it currently stands a BLK-aperture region will never have a
-    "nfit/spa_index" attribute, but neither will a non-NFIT PMEM region.  A
+    "nfit/spa_index" attribute, but neither will a yesn-NFIT PMEM region.  A
     BLK region with a "mappings" value of 0 is, as mentioned above, a DIMM
-    that does not allow I/O.  A PMEM region with a "mappings" value of zero
+    that does yest allow I/O.  A PMEM region with a "mappings" value of zero
     is a simple system-physical-address range.
 
 
@@ -672,10 +672,10 @@ LIBNVDIMM: namespace
 ^^^^^^^^^^^^^^^^^^^^
 
 Here is a sample layout from the three major types of NAMESPACE where
-namespace0.0 represents DIMM-info-backed PMEM (note that it has a 'uuid'
-attribute), namespace2.0 represents a BLK namespace (note it has a
-'sector_size' attribute) that, and namespace6.0 represents an anonymous
-PMEM namespace (note that has no 'uuid' attribute due to not support a
+namespace0.0 represents DIMM-info-backed PMEM (yeste that it has a 'uuid'
+attribute), namespace2.0 represents a BLK namespace (yeste it has a
+'sector_size' attribute) that, and namespace6.0 represents an ayesnymous
+PMEM namespace (yeste that has yes 'uuid' attribute due to yest support a
 LABEL)::
 
 	/sys/devices/platform/nfit_test.0/ndbus0/region0/namespace0.0
@@ -684,7 +684,7 @@ LABEL)::
 	|-- dpa_extents
 	|-- force_raw
 	|-- modalias
-	|-- numa_node
+	|-- numa_yesde
 	|-- resource
 	|-- size
 	|-- subsystem -> ../../../../../../bus/nd
@@ -697,7 +697,7 @@ LABEL)::
 	|-- dpa_extents
 	|-- force_raw
 	|-- modalias
-	|-- numa_node
+	|-- numa_yesde
 	|-- sector_size
 	|-- size
 	|-- subsystem -> ../../../../../../bus/nd
@@ -711,7 +711,7 @@ LABEL)::
 	|-- driver -> ../../../../../../bus/nd/drivers/pmem
 	|-- force_raw
 	|-- modalias
-	|-- numa_node
+	|-- numa_yesde
 	|-- resource
 	|-- size
 	|-- subsystem -> ../../../../../../bus/nd
@@ -722,7 +722,7 @@ LIBNDCTL: namespace enumeration example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Namespaces are indexed relative to their parent region, example below.
 These indexes are mostly static from boot to boot, but subsystem makes
-no guarantees in this regard.  For a static namespace identifier use its
+yes guarantees in this regard.  For a static namespace identifier use its
 'uuid' attribute.
 
 ::
@@ -743,7 +743,7 @@ LIBNDCTL: namespace creation example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Idle namespaces are automatically created by the kernel if a given
-region has enough available capacity to create a new namespace.
+region has eyesugh available capacity to create a new namespace.
 Namespace instantiation involves finding an idle namespace and
 configuring it.  For the most part the setting of namespace attributes
 can occur in any order, the only constraint is that 'uuid' must be set
@@ -773,7 +773,7 @@ internally with a static identifier::
 Why the Term "namespace"?
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    1. Why not "volume" for instance?  "volume" ran the risk of confusing
+    1. Why yest "volume" for instance?  "volume" ran the risk of confusing
        ND (libnvdimm subsystem) to a volume manager like device-mapper.
 
     2. The term originated to describe the sub-devices that can be created
@@ -803,7 +803,7 @@ nd_blk driver depending on the region type::
 	|-- delete
 	|-- devtype
 	|-- modalias
-	|-- numa_node
+	|-- numa_yesde
 	|-- sector_size
 	|-- subsystem -> ../../../../../bus/nd
 	|-- uevent

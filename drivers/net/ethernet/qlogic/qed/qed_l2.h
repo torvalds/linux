@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -107,7 +107,7 @@ struct qed_filter_ucast {
 };
 
 struct qed_filter_mcast {
-	/* MOVE is not supported for multicast */
+	/* MOVE is yest supported for multicast */
 	enum qed_filter_opcode opcode;
 	u8 vport_to_add_to;
 	u8 vport_to_remove_from;
@@ -255,7 +255,7 @@ int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
  * This ramrod updates an RX queue. It is used for setting the active state
  * of the queue and updating the TPA and SGE parameters.
  *
- * @note At the moment - only used by non-linux VFs.
+ * @yeste At the moment - only used by yesn-linux VFs.
  *
  * @param p_hwfn
  * @param pp_rxq_handlers	An array of queue handlers to be updated.
@@ -303,7 +303,7 @@ void qed_arfs_mode_configure(struct qed_hwfn *p_hwfn,
  *
  * @params p_hwfn
  * @params p_cb - Used for QED_SPQ_MODE_CB,where client would initialize
- *		  it with cookie and callback function address, if not
+ *		  it with cookie and callback function address, if yest
  *		  using this mode then client must pass NULL.
  * @params p_params
  */
@@ -350,7 +350,7 @@ struct qed_queue_cid {
 	struct qed_queue_cid_params rel;
 	struct qed_queue_cid_params abs;
 
-	/* These have no 'relative' meaning */
+	/* These have yes 'relative' meaning */
 	u16 sb_igu_id;
 	u8 sb_idx;
 
@@ -359,17 +359,17 @@ struct qed_queue_cid {
 
 	bool b_is_rx;
 
-	/* VFs queues are mapped differently, so we need to know the
+	/* VFs queues are mapped differently, so we need to kyesw the
 	 * relative queue associated with them [0-based].
 	 * Notice this is relevant on the *PF* queue-cid of its VF's queues,
-	 * and not on the VF itself.
+	 * and yest on the VF itself.
 	 */
 	u8 vfid;
 	u8 vf_qid;
 
 	/* We need an additional index to differentiate between queues opened
 	 * for same queue-zone, as VFs would have to communicate the info
-	 * to the PF [otherwise PF has no way to differentiate].
+	 * to the PF [otherwise PF has yes way to differentiate].
 	 */
 	u8 qid_usage_idx;
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@yesvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@yesvell.com>
  */
 
 #include <linux/mISDNif.h>
@@ -46,14 +46,14 @@ static void
 mISDN_sock_link(struct mISDN_sock_list *l, struct sock *sk)
 {
 	write_lock_bh(&l->lock);
-	sk_add_node(sk, &l->head);
+	sk_add_yesde(sk, &l->head);
 	write_unlock_bh(&l->lock);
 }
 
 static void mISDN_sock_unlink(struct mISDN_sock_list *l, struct sock *sk)
 {
 	write_lock_bh(&l->lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	write_unlock_bh(&l->lock);
 }
 
@@ -357,7 +357,7 @@ data_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case IMGETVERSION:
 		ver.major = MISDN_MAJOR_VERSION;
-		ver.minor = MISDN_MINOR_VERSION;
+		ver.miyesr = MISDN_MINOR_VERSION;
 		ver.release = MISDN_RELEASE;
 		if (copy_to_user((void __user *)arg, &ver, sizeof(ver)))
 			err = -EFAULT;
@@ -579,14 +579,14 @@ static const struct proto_ops data_sock_ops = {
 	.sendmsg	= mISDN_sock_sendmsg,
 	.recvmsg	= mISDN_sock_recvmsg,
 	.poll		= datagram_poll,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
+	.listen		= sock_yes_listen,
+	.shutdown	= sock_yes_shutdown,
 	.setsockopt	= data_sock_setsockopt,
 	.getsockopt	= data_sock_getsockopt,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.mmap		= sock_no_mmap
+	.connect	= sock_yes_connect,
+	.socketpair	= sock_yes_socketpair,
+	.accept		= sock_yes_accept,
+	.mmap		= sock_yes_mmap
 };
 
 static int
@@ -640,7 +640,7 @@ base_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case IMGETVERSION:
 		ver.major = MISDN_MAJOR_VERSION;
-		ver.minor = MISDN_MINOR_VERSION;
+		ver.miyesr = MISDN_MINOR_VERSION;
 		ver.release = MISDN_RELEASE;
 		if (copy_to_user((void __user *)arg, &ver, sizeof(ver)))
 			err = -EFAULT;
@@ -733,17 +733,17 @@ static const struct proto_ops base_sock_ops = {
 	.release	= base_sock_release,
 	.ioctl		= base_sock_ioctl,
 	.bind		= base_sock_bind,
-	.getname	= sock_no_getname,
-	.sendmsg	= sock_no_sendmsg,
-	.recvmsg	= sock_no_recvmsg,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
-	.setsockopt	= sock_no_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.mmap		= sock_no_mmap
+	.getname	= sock_yes_getname,
+	.sendmsg	= sock_yes_sendmsg,
+	.recvmsg	= sock_yes_recvmsg,
+	.listen		= sock_yes_listen,
+	.shutdown	= sock_yes_shutdown,
+	.setsockopt	= sock_yes_setsockopt,
+	.getsockopt	= sock_yes_getsockopt,
+	.connect	= sock_yes_connect,
+	.socketpair	= sock_yes_socketpair,
+	.accept		= sock_yes_accept,
+	.mmap		= sock_yes_mmap
 };
 
 

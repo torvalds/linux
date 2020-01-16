@@ -168,16 +168,16 @@ static const struct clk_gating_soc_desc a370_gating_desc[] __initconst = {
 	{ }
 };
 
-static void __init a370_clk_init(struct device_node *np)
+static void __init a370_clk_init(struct device_yesde *np)
 {
-	struct device_node *cgnp =
-		of_find_compatible_node(NULL, NULL, "marvell,armada-370-gating-clock");
+	struct device_yesde *cgnp =
+		of_find_compatible_yesde(NULL, NULL, "marvell,armada-370-gating-clock");
 
 	mvebu_coreclk_setup(np, &a370_coreclks);
 
 	if (cgnp) {
 		mvebu_clk_gating_setup(cgnp, a370_gating_desc);
-		of_node_put(cgnp);
+		of_yesde_put(cgnp);
 	}
 }
 CLK_OF_DECLARE(a370_clk, "marvell,armada-370-core-clock", a370_clk_init);

@@ -159,12 +159,12 @@ static int mtk_ovl_layer_check(struct mtk_ddp_comp *comp, unsigned int idx,
 					 DRM_MODE_REFLECT_Y);
 	rotation &= ~DRM_MODE_ROTATE_0;
 
-	/* We can only do reflection, not rotation */
+	/* We can only do reflection, yest rotation */
 	if ((rotation & DRM_MODE_ROTATE_MASK) != 0)
 		return -EINVAL;
 
 	/*
-	 * TODO: Rotating/reflecting YUV buffers is not supported at this time.
+	 * TODO: Rotating/reflecting YUV buffers is yest supported at this time.
 	 *	 Only RGB[AX] variants are supported.
 	 */
 	if (state->fb->format->is_yuv && rotation != 0)
@@ -216,7 +216,7 @@ static unsigned int ovl_fmt_convert(struct mtk_disp_ovl *ovl, unsigned int fmt)
 {
 	/* The return value in switch "MEM_MODE_INPUT_FORMAT_XXX"
 	 * is defined in mediatek HW data sheet.
-	 * The alphabet order in XXX is no relation to data
+	 * The alphabet order in XXX is yes relation to data
 	 * arrangement in memory.
 	 */
 	switch (fmt) {
@@ -331,7 +331,7 @@ static int mtk_disp_ovl_bind(struct device *dev, struct device *master,
 	ret = mtk_ddp_comp_register(drm_dev, &priv->ddp_comp);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register component %pOF: %d\n",
-			dev->of_node, ret);
+			dev->of_yesde, ret);
 		return ret;
 	}
 
@@ -370,7 +370,7 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 
 	priv->data = of_device_get_match_data(dev);
 
-	comp_id = mtk_ddp_comp_get_id(dev->of_node,
+	comp_id = mtk_ddp_comp_get_id(dev->of_yesde,
 				      priv->data->layer_nr == 4 ?
 				      MTK_DISP_OVL :
 				      MTK_DISP_OVL_2L);
@@ -379,7 +379,7 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 		return comp_id;
 	}
 
-	ret = mtk_ddp_comp_init(dev, dev->of_node, &priv->ddp_comp, comp_id,
+	ret = mtk_ddp_comp_init(dev, dev->of_yesde, &priv->ddp_comp, comp_id,
 				&mtk_disp_ovl_funcs);
 	if (ret) {
 		dev_err(dev, "Failed to initialize component: %d\n", ret);

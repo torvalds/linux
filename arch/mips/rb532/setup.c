@@ -49,10 +49,10 @@ void __init plat_mem_setup(void)
 
 	set_io_port_base(KSEG1);
 
-	pci_reg = ioremap_nocache(pci0_res[0].start,
+	pci_reg = ioremap_yescache(pci0_res[0].start,
 				pci0_res[0].end - pci0_res[0].start);
 	if (!pci_reg) {
-		printk(KERN_ERR "Could not remap PCI registers\n");
+		printk(KERN_ERR "Could yest remap PCI registers\n");
 		return;
 	}
 

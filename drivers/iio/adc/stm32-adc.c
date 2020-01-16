@@ -563,7 +563,7 @@ err_clk_dis:
  * @dma: use dma to transfer conversion result
  *
  * Start conversions for regular channels.
- * Also take care of normal or DMA mode. Circular DMA may be used for regular
+ * Also take care of yesrmal or DMA mode. Circular DMA may be used for regular
  * conversions, in IIO buffer modes. Otherwise, use ADC interrupt with direct
  * DR read instead (e.g. read_raw, or triggered buffer mode without DMA).
  */
@@ -755,7 +755,7 @@ static int stm32h7_adc_read_selfcalib(struct stm32_adc *adc)
 /**
  * stm32h7_adc_restore_selfcalib() - Restore saved self-calibration result
  * @adc: stm32 adc instance
- * Note: ADC must be enabled, with no on-going conversions.
+ * Note: ADC must be enabled, with yes on-going conversions.
  */
 static int stm32h7_adc_restore_selfcalib(struct stm32_adc *adc)
 {
@@ -802,7 +802,7 @@ static int stm32h7_adc_restore_selfcalib(struct stm32_adc *adc)
 		}
 		val = stm32_adc_readl(adc, STM32H7_ADC_CALFACT2);
 		if (val != adc->cal.lincalfact[i] << STM32H7_LINCALFACT_SHIFT) {
-			dev_err(&indio_dev->dev, "calfact not consistent\n");
+			dev_err(&indio_dev->dev, "calfact yest consistent\n");
 			return -EIO;
 		}
 
@@ -821,7 +821,7 @@ static int stm32h7_adc_restore_selfcalib(struct stm32_adc *adc)
  * - 131,072 ADC clock cycle for the linear calibration
  * - 20 ADC clock cycle for the offset calibration
  *
- * Set to 100ms for now
+ * Set to 100ms for yesw
  */
 #define STM32H7_ADC_CALIB_TIMEOUT_US		100000
 
@@ -1118,7 +1118,7 @@ static int stm32_adc_single_conv(struct iio_dev *indio_dev,
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		return ret;
 	}
 
@@ -1271,7 +1271,7 @@ static int stm32_adc_update_scan_mode(struct iio_dev *indio_dev,
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		return ret;
 	}
 
@@ -1320,7 +1320,7 @@ static int stm32_adc_debugfs_reg_access(struct iio_dev *indio_dev,
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		return ret;
 	}
 
@@ -1422,7 +1422,7 @@ static int __stm32_adc_buffer_postenable(struct iio_dev *indio_dev)
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		return ret;
 	}
 
@@ -1537,7 +1537,7 @@ static irqreturn_t stm32_adc_trigger_handler(int irq, void *p)
 		}
 	}
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	/* re-enable eoc irq */
 	if (!adc->dma_chan)
@@ -1559,12 +1559,12 @@ static const struct iio_chan_spec_ext_info stm32_adc_ext_info[] = {
 
 static int stm32_adc_of_get_resolution(struct iio_dev *indio_dev)
 {
-	struct device_node *node = indio_dev->dev.of_node;
+	struct device_yesde *yesde = indio_dev->dev.of_yesde;
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	unsigned int i;
 	u32 res;
 
-	if (of_property_read_u32(node, "assigned-resolution-bits", &res))
+	if (of_property_read_u32(yesde, "assigned-resolution-bits", &res))
 		res = adc->cfg->adc_info->resolutions[0];
 
 	for (i = 0; i < adc->cfg->adc_info->num_res; i++)
@@ -1638,7 +1638,7 @@ static void stm32_adc_chan_init_one(struct iio_dev *indio_dev,
 
 static int stm32_adc_chan_of_init(struct iio_dev *indio_dev)
 {
-	struct device_node *node = indio_dev->dev.of_node;
+	struct device_yesde *yesde = indio_dev->dev.of_yesde;
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	const struct stm32_adc_info *adc_info = adc->cfg->adc_info;
 	struct stm32_adc_diff_channel diff[STM32_ADC_CH_MAX];
@@ -1648,7 +1648,7 @@ static int stm32_adc_chan_of_init(struct iio_dev *indio_dev)
 	int scan_index = 0, num_channels = 0, num_diff = 0, ret, i;
 	u32 val, smp = 0;
 
-	ret = of_property_count_u32_elems(node, "st,adc-channels");
+	ret = of_property_count_u32_elems(yesde, "st,adc-channels");
 	if (ret > adc_info->max_channels) {
 		dev_err(&indio_dev->dev, "Bad st,adc-channels?\n");
 		return -EINVAL;
@@ -1656,7 +1656,7 @@ static int stm32_adc_chan_of_init(struct iio_dev *indio_dev)
 		num_channels += ret;
 	}
 
-	ret = of_property_count_elems_of_size(node, "st,adc-diff-channels",
+	ret = of_property_count_elems_of_size(yesde, "st,adc-diff-channels",
 					      sizeof(*diff));
 	if (ret > adc_info->max_channels) {
 		dev_err(&indio_dev->dev, "Bad st,adc-diff-channels?\n");
@@ -1666,7 +1666,7 @@ static int stm32_adc_chan_of_init(struct iio_dev *indio_dev)
 
 		num_diff = ret;
 		num_channels += ret;
-		ret = of_property_read_u32_array(node, "st,adc-diff-channels",
+		ret = of_property_read_u32_array(yesde, "st,adc-diff-channels",
 						 (u32 *)diff, size);
 		if (ret)
 			return ret;
@@ -1678,7 +1678,7 @@ static int stm32_adc_chan_of_init(struct iio_dev *indio_dev)
 	}
 
 	/* Optional sample time is provided either for each, or all channels */
-	ret = of_property_count_u32_elems(node, "st,min-sample-time-nsecs");
+	ret = of_property_count_u32_elems(yesde, "st,min-sample-time-nsecs");
 	if (ret > 1 && ret != num_channels) {
 		dev_err(&indio_dev->dev, "Invalid st,min-sample-time-nsecs\n");
 		return -EINVAL;
@@ -1689,7 +1689,7 @@ static int stm32_adc_chan_of_init(struct iio_dev *indio_dev)
 	if (!channels)
 		return -ENOMEM;
 
-	of_property_for_each_u32(node, "st,adc-channels", prop, cur, val) {
+	of_property_for_each_u32(yesde, "st,adc-channels", prop, cur, val) {
 		if (val >= adc_info->max_channels) {
 			dev_err(&indio_dev->dev, "Invalid channel %d\n", val);
 			return -EINVAL;
@@ -1725,10 +1725,10 @@ static int stm32_adc_chan_of_init(struct iio_dev *indio_dev)
 		/*
 		 * Using of_property_read_u32_index(), smp value will only be
 		 * modified if valid u32 value can be decoded. This allows to
-		 * get either no value, 1 shared value for all indexes, or one
+		 * get either yes value, 1 shared value for all indexes, or one
 		 * value per channel.
 		 */
-		of_property_read_u32_index(node, "st,min-sample-time-nsecs",
+		of_property_read_u32_index(yesde, "st,min-sample-time-nsecs",
 					   i, &smp);
 		/* Prepare sampling time settings */
 		stm32_adc_smpr_init(adc, channels[i].channel, smp);
@@ -1786,7 +1786,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	struct stm32_adc *adc;
 	int ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc));
@@ -1802,13 +1802,13 @@ static int stm32_adc_probe(struct platform_device *pdev)
 
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->info = &stm32_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_HARDWARE_TRIGGERED;
 
 	platform_set_drvdata(pdev, adc);
 
-	ret = of_property_read_u32(pdev->dev.of_node, "reg", &adc->offset);
+	ret = of_property_read_u32(pdev->dev.of_yesde, "reg", &adc->offset);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "missing reg property\n");
 		return -EINVAL;
@@ -1858,7 +1858,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	}
 
 	/* Get stm32-adc-core PM online */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_set_autosuspend_delay(dev, STM32_ADC_HW_STOP_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
@@ -1885,7 +1885,7 @@ err_hw_stop:
 err_buffer_cleanup:
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 
 err_dma_disable:
@@ -1909,7 +1909,7 @@ static int stm32_adc_remove(struct platform_device *pdev)
 	stm32_adc_hw_stop(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	if (adc->dma_chan) {
 		dma_free_coherent(adc->dma_chan->device->dev,

@@ -33,7 +33,7 @@ struct konepure_mouse_report_button {
 	uint8_t data1;
 	uint8_t data2;
 	uint8_t zero2;
-	uint8_t unknown[2];
+	uint8_t unkyeswn[2];
 } __packed;
 
 static struct class *konepure_class;
@@ -103,7 +103,7 @@ static int konepure_init_specials(struct hid_device *hdev)
 	if (retval < 0) {
 		hid_err(hdev, "couldn't init char dev\n");
 	} else {
-		konepure->chrdev_minor = retval;
+		konepure->chrdev_miyesr = retval;
 		konepure->roccat_claimed = 1;
 	}
 
@@ -124,7 +124,7 @@ static void konepure_remove_specials(struct hid_device *hdev)
 
 	konepure = hid_get_drvdata(hdev);
 	if (konepure->roccat_claimed)
-		roccat_disconnect(konepure->chrdev_minor);
+		roccat_disconnect(konepure->chrdev_miyesr);
 	kfree(konepure);
 }
 
@@ -179,7 +179,7 @@ static int konepure_raw_event(struct hid_device *hdev,
 		return 0;
 
 	if (konepure != NULL && konepure->roccat_claimed)
-		roccat_report_event(konepure->chrdev_minor, data);
+		roccat_report_event(konepure->chrdev_miyesr, data);
 
 	return 0;
 }

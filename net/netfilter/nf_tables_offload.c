@@ -385,7 +385,7 @@ static int nft_flow_offload_chain(struct nft_chain *chain, u8 *ppolicy,
 	basechain = nft_base_chain(chain);
 	policy = ppolicy ? *ppolicy : basechain->policy;
 
-	/* Only default policy to accept is supported for now. */
+	/* Only default policy to accept is supported for yesw. */
 	if (cmd == FLOW_BLOCK_BIND && policy == NF_DROP)
 		return -EOPNOTSUPP;
 
@@ -573,10 +573,10 @@ static void nft_indr_block_cb(struct net_device *dev,
 	mutex_unlock(&net->nft.commit_mutex);
 }
 
-static int nft_offload_netdev_event(struct notifier_block *this,
+static int nft_offload_netdev_event(struct yestifier_block *this,
 				    unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct nft_chain *chain;
 
@@ -599,15 +599,15 @@ static struct flow_indr_block_entry block_ing_entry = {
 	.list	= LIST_HEAD_INIT(block_ing_entry.list),
 };
 
-static struct notifier_block nft_offload_netdev_notifier = {
-	.notifier_call	= nft_offload_netdev_event,
+static struct yestifier_block nft_offload_netdev_yestifier = {
+	.yestifier_call	= nft_offload_netdev_event,
 };
 
 int nft_offload_init(void)
 {
 	int err;
 
-	err = register_netdevice_notifier(&nft_offload_netdev_notifier);
+	err = register_netdevice_yestifier(&nft_offload_netdev_yestifier);
 	if (err < 0)
 		return err;
 
@@ -619,5 +619,5 @@ int nft_offload_init(void)
 void nft_offload_exit(void)
 {
 	flow_indr_del_block_cb(&block_ing_entry);
-	unregister_netdevice_notifier(&nft_offload_netdev_notifier);
+	unregister_netdevice_yestifier(&nft_offload_netdev_yestifier);
 }

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2009-2019 Christoph Hellwig
  *
- * NOTE: none of these tracepoints shall be consider a stable kernel ABI
+ * NOTE: yesne of these tracepoints shall be consider a stable kernel ABI
  * as they can change at any time.
  */
 #undef TRACE_SYSTEM
@@ -13,58 +13,58 @@
 
 #include <linux/tracepoint.h>
 
-struct inode;
+struct iyesde;
 
 DECLARE_EVENT_CLASS(iomap_readpage_class,
-	TP_PROTO(struct inode *inode, int nr_pages),
-	TP_ARGS(inode, nr_pages),
+	TP_PROTO(struct iyesde *iyesde, int nr_pages),
+	TP_ARGS(iyesde, nr_pages),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(u64, ino)
+		__field(u64, iyes)
 		__field(int, nr_pages)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = iyesde->i_sb->s_dev;
+		__entry->iyes = iyesde->i_iyes;
 		__entry->nr_pages = nr_pages;
 	),
-	TP_printk("dev %d:%d ino 0x%llx nr_pages %d",
+	TP_printk("dev %d:%d iyes 0x%llx nr_pages %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
+		  __entry->iyes,
 		  __entry->nr_pages)
 )
 
 #define DEFINE_READPAGE_EVENT(name)		\
 DEFINE_EVENT(iomap_readpage_class, name,	\
-	TP_PROTO(struct inode *inode, int nr_pages), \
-	TP_ARGS(inode, nr_pages))
+	TP_PROTO(struct iyesde *iyesde, int nr_pages), \
+	TP_ARGS(iyesde, nr_pages))
 DEFINE_READPAGE_EVENT(iomap_readpage);
 DEFINE_READPAGE_EVENT(iomap_readpages);
 
 DECLARE_EVENT_CLASS(iomap_page_class,
-	TP_PROTO(struct inode *inode, struct page *page, unsigned long off,
+	TP_PROTO(struct iyesde *iyesde, struct page *page, unsigned long off,
 		 unsigned int len),
-	TP_ARGS(inode, page, off, len),
+	TP_ARGS(iyesde, page, off, len),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(u64, ino)
+		__field(u64, iyes)
 		__field(pgoff_t, pgoff)
 		__field(loff_t, size)
 		__field(unsigned long, offset)
 		__field(unsigned int, length)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = iyesde->i_sb->s_dev;
+		__entry->iyes = iyesde->i_iyes;
 		__entry->pgoff = page_offset(page);
-		__entry->size = i_size_read(inode);
+		__entry->size = i_size_read(iyesde);
 		__entry->offset = off;
 		__entry->length = len;
 	),
-	TP_printk("dev %d:%d ino 0x%llx pgoff 0x%lx size 0x%llx offset %lx "
+	TP_printk("dev %d:%d iyes 0x%llx pgoff 0x%lx size 0x%llx offset %lx "
 		  "length %x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
+		  __entry->iyes,
 		  __entry->pgoff,
 		  __entry->size,
 		  __entry->offset,
@@ -73,9 +73,9 @@ DECLARE_EVENT_CLASS(iomap_page_class,
 
 #define DEFINE_PAGE_EVENT(name)		\
 DEFINE_EVENT(iomap_page_class, name,	\
-	TP_PROTO(struct inode *inode, struct page *page, unsigned long off, \
+	TP_PROTO(struct iyesde *iyesde, struct page *page, unsigned long off, \
 		 unsigned int len),	\
-	TP_ARGS(inode, page, off, len))
+	TP_ARGS(iyesde, page, off, len))
 DEFINE_PAGE_EVENT(iomap_writepage);
 DEFINE_PAGE_EVENT(iomap_releasepage);
 DEFINE_PAGE_EVENT(iomap_invalidatepage);
@@ -104,11 +104,11 @@ DEFINE_PAGE_EVENT(iomap_invalidatepage);
 	{ IOMAP_F_SIZE_CHANGED,	"SIZE_CHANGED" }
 
 DECLARE_EVENT_CLASS(iomap_class,
-	TP_PROTO(struct inode *inode, struct iomap *iomap),
-	TP_ARGS(inode, iomap),
+	TP_PROTO(struct iyesde *iyesde, struct iomap *iomap),
+	TP_ARGS(iyesde, iomap),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(u64, ino)
+		__field(u64, iyes)
 		__field(u64, addr)
 		__field(loff_t, offset)
 		__field(u64, length)
@@ -117,8 +117,8 @@ DECLARE_EVENT_CLASS(iomap_class,
 		__field(dev_t, bdev)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = iyesde->i_sb->s_dev;
+		__entry->iyes = iyesde->i_iyes;
 		__entry->addr = iomap->addr;
 		__entry->offset = iomap->offset;
 		__entry->length = iomap->length;
@@ -126,10 +126,10 @@ DECLARE_EVENT_CLASS(iomap_class,
 		__entry->flags = iomap->flags;
 		__entry->bdev = iomap->bdev ? iomap->bdev->bd_dev : 0;
 	),
-	TP_printk("dev %d:%d ino 0x%llx bdev %d:%d addr %lld offset %lld "
+	TP_printk("dev %d:%d iyes 0x%llx bdev %d:%d addr %lld offset %lld "
 		  "length %llu type %s flags %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
+		  __entry->iyes,
 		  MAJOR(__entry->bdev), MINOR(__entry->bdev),
 		  __entry->addr,
 		  __entry->offset,
@@ -140,19 +140,19 @@ DECLARE_EVENT_CLASS(iomap_class,
 
 #define DEFINE_IOMAP_EVENT(name)		\
 DEFINE_EVENT(iomap_class, name,	\
-	TP_PROTO(struct inode *inode, struct iomap *iomap), \
-	TP_ARGS(inode, iomap))
+	TP_PROTO(struct iyesde *iyesde, struct iomap *iomap), \
+	TP_ARGS(iyesde, iomap))
 DEFINE_IOMAP_EVENT(iomap_apply_dstmap);
 DEFINE_IOMAP_EVENT(iomap_apply_srcmap);
 
 TRACE_EVENT(iomap_apply,
-	TP_PROTO(struct inode *inode, loff_t pos, loff_t length,
+	TP_PROTO(struct iyesde *iyesde, loff_t pos, loff_t length,
 		unsigned int flags, const void *ops, void *actor,
 		unsigned long caller),
-	TP_ARGS(inode, pos, length, flags, ops, actor, caller),
+	TP_ARGS(iyesde, pos, length, flags, ops, actor, caller),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(u64, ino)
+		__field(u64, iyes)
 		__field(loff_t, pos)
 		__field(loff_t, length)
 		__field(unsigned int, flags)
@@ -161,8 +161,8 @@ TRACE_EVENT(iomap_apply,
 		__field(unsigned long, caller)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = iyesde->i_sb->s_dev;
+		__entry->iyes = iyesde->i_iyes;
 		__entry->pos = pos;
 		__entry->length = length;
 		__entry->flags = flags;
@@ -170,10 +170,10 @@ TRACE_EVENT(iomap_apply,
 		__entry->actor = actor;
 		__entry->caller = caller;
 	),
-	TP_printk("dev %d:%d ino 0x%llx pos %lld length %lld flags %s (0x%x) "
+	TP_printk("dev %d:%d iyes 0x%llx pos %lld length %lld flags %s (0x%x) "
 		  "ops %ps caller %pS actor %ps",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		   __entry->ino,
+		   __entry->iyes,
 		   __entry->pos,
 		   __entry->length,
 		   __print_flags(__entry->flags, "|", IOMAP_FLAGS_STRINGS),

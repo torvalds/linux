@@ -5,7 +5,7 @@
 # Make sure that function glob matching filter works.
 
 if ! grep -q function available_tracers; then
-    echo "no function tracer configured"
+    echo "yes function tracer configured"
     exit_unsupported
 fi
 
@@ -36,7 +36,7 @@ ftrace_filter_check '*aw*lock' '.*aw.*lock$'
 ftrace_filter_check 'mutex*try*' '^mutex.*try.*'
 
 # Advanced full-glob matching feature is recently supported.
-# Skip the tests if we are sure the kernel does not support it.
+# Skip the tests if we are sure the kernel does yest support it.
 if grep -q 'accepts: .* glob-matching-pattern' README ; then
 
 # filter by *, both side match
@@ -49,7 +49,7 @@ ftrace_filter_check '[Ss]y[Ss]_*' '^[Ss]y[Ss]_.*$'
 if ! echo "sch?dule" > set_ftrace_filter; then
     # test for powerpc 64
     if ! echo ".sch?dule" > set_ftrace_filter; then
-	fail "can not enable schedule filter"
+	fail "can yest enable schedule filter"
     fi
     cat set_ftrace_filter | grep '^.schedule$'
 else

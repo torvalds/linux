@@ -1,18 +1,18 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Special inodes
+Special iyesdes
 --------------
 
-ext4 reserves some inode for special features, as follows:
+ext4 reserves some iyesde for special features, as follows:
 
 .. list-table::
    :widths: 6 70
    :header-rows: 1
 
-   * - inode Number
+   * - iyesde Number
      - Purpose
    * - 0
-     - Doesn't exist; there is no inode 0.
+     - Doesn't exist; there is yes iyesde 0.
    * - 1
      - List of defective blocks.
    * - 2
@@ -26,13 +26,13 @@ ext4 reserves some inode for special features, as follows:
    * - 6
      - Undelete directory.
    * - 7
-     - Reserved group descriptors inode. (“resize inode”)
+     - Reserved group descriptors iyesde. (“resize iyesde”)
    * - 8
-     - Journal inode.
+     - Journal iyesde.
    * - 9
-     - The “exclude” inode, for snapshots(?)
+     - The “exclude” iyesde, for snapshots(?)
    * - 10
-     - Replica inode, used for some non-upstream feature?
+     - Replica iyesde, used for some yesn-upstream feature?
    * - 11
-     - Traditional first non-reserved inode. Usually this is the lost+found directory. See s\_first\_ino in the superblock.
+     - Traditional first yesn-reserved iyesde. Usually this is the lost+found directory. See s\_first\_iyes in the superblock.
 

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@yeskia.com>
  */
 #include <linux/hsi/hsi.h>
 #include <linux/list.h>
@@ -29,7 +29,7 @@ EXPORT_SYMBOL_GPL(hsi_board_list);
  * controller and the port where the clients wishes to attach are registered
  * to it.
  *
- * Return -errno on failure, 0 on success.
+ * Return -erryes on failure, 0 on success.
  */
 int __init hsi_register_board_info(struct hsi_board_info const *info,
 							unsigned int len)

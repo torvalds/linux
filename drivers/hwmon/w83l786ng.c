@@ -8,7 +8,7 @@
  * Supports following chips:
  *
  * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
- * w83l786ng	3	2	2	2	0x7b	0x5ca3	yes	no
+ * w83l786ng	3	2	2	2	0x7b	0x5ca3	no	yes
  */
 
 #include <linux/module.h>
@@ -23,13 +23,13 @@
 #include <linux/jiffies.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2e, 0x2f, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2e, 0x2f, I2C_CLIENT_END };
 
 /* Insmod parameters */
 
 static bool reset;
 module_param(reset, bool, 0);
-MODULE_PARM_DESC(reset, "Set to 1 to reset chip, not recommended");
+MODULE_PARM_DESC(reset, "Set to 1 to reset chip, yest recommended");
 
 #define W83L786NG_REG_IN_MIN(nr)	(0x2C + (nr) * 2)
 #define W83L786NG_REG_IN_MAX(nr)	(0x2B + (nr) * 2)
@@ -115,8 +115,8 @@ struct w83l786ng_data {
 	struct mutex update_lock;
 	char valid;			/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
-	unsigned long last_nonvolatile;	/* In jiffies, last time we update the
-					 * nonvolatile registers */
+	unsigned long last_yesnvolatile;	/* In jiffies, last time we update the
+					 * yesnvolatile registers */
 
 	u8 in[3];
 	u8 in_max[3];
@@ -755,7 +755,7 @@ static struct i2c_driver w83l786ng_driver = {
 	.probe		= w83l786ng_probe,
 	.id_table	= w83l786ng_id,
 	.detect		= w83l786ng_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(w83l786ng_driver);

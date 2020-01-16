@@ -26,10 +26,10 @@ static __init pteval_t create_mapping_protection(efi_memory_desc_t *md)
 		return PROT_DEVICE_nGnRE;
 
 	if (WARN_ONCE(!PAGE_ALIGNED(md->phys_addr),
-		      "UEFI Runtime regions are not aligned to 64 KB -- buggy firmware?"))
+		      "UEFI Runtime regions are yest aligned to 64 KB -- buggy firmware?"))
 		/*
-		 * If the region is not aligned to the page size of the OS, we
-		 * can not use strict permissions, since that would also affect
+		 * If the region is yest aligned to the page size of the OS, we
+		 * can yest use strict permissions, since that would also affect
 		 * the mapping attributes of the adjacent regions.
 		 */
 		return pgprot_val(PAGE_KERNEL_EXEC);
@@ -65,10 +65,10 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 	if (!PAGE_ALIGNED(md->phys_addr) ||
 	    !PAGE_ALIGNED(md->num_pages << EFI_PAGE_SHIFT)) {
 		/*
-		 * If the end address of this region is not aligned to page
+		 * If the end address of this region is yest aligned to page
 		 * size, the mapping is rounded up, and may end up sharing a
 		 * page frame with the next UEFI memory region. If we create
-		 * a block entry now, we may need to split it again when mapping
+		 * a block entry yesw, we may need to split it again when mapping
 		 * the next region, and support for that is going to be removed
 		 * from the MMU routines. So avoid block mappings altogether in
 		 * that case.
@@ -106,7 +106,7 @@ int __init efi_set_mapping_permissions(struct mm_struct *mm,
 	 * guaranteed to be mapped down to pages. Since we are only called
 	 * for regions that have been mapped using efi_create_mapping() above
 	 * (and this is checked by the generic Memory Attributes table parsing
-	 * routines), there is no need to check that again here.
+	 * routines), there is yes need to check that again here.
 	 */
 	return apply_to_page_range(mm, md->virt_addr,
 				   md->num_pages << EFI_PAGE_SHIFT,

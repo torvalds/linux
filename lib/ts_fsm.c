@@ -13,7 +13,7 @@
  *   specific character or ctype based set of characters. The available
  *   type of recurrences include 1, (0|1), [0 n], and [1 n].
  *
- *   The algorithm differs between strict/non-strict mode specifying
+ *   The algorithm differs between strict/yesn-strict mode specifying
  *   whether the pattern has to start at the first octet. Strict mode
  *   is enabled by default and can be disabled by inserting
  *   TS_FSM_HEAD_IGNORE as the first token in the chain.
@@ -147,7 +147,7 @@ static unsigned int fsm_find(struct ts_config *conf, struct ts_state *state)
 #define TOKEN_MISMATCH()		\
 	do {				\
 		if (strict)		\
-			goto no_match;	\
+			goto yes_match;	\
 		block_idx++;		\
 		goto startover;		\
 	} while(0)
@@ -155,7 +155,7 @@ static unsigned int fsm_find(struct ts_config *conf, struct ts_state *state)
 #define end_of_data() unlikely(block_idx >= block_len && !GET_NEXT_BLOCK())
 
 	if (end_of_data())
-		goto no_match;
+		goto yes_match;
 
 	strict = fsm->tokens[0].recur != TS_FSM_HEAD_IGNORE;
 
@@ -173,7 +173,7 @@ startover:
 		switch (cur->recur) {
 		case TS_FSM_SINGLE:
 			if (end_of_data())
-				goto no_match;
+				goto yes_match;
 
 			if (!match_token(cur, data[block_idx]))
 				TOKEN_MISMATCH();
@@ -187,7 +187,7 @@ startover:
 
 		case TS_FSM_MULTI:
 			if (end_of_data())
-				goto no_match;
+				goto yes_match;
 
 			if (!match_token(cur, data[block_idx]))
 				TOKEN_MISMATCH();
@@ -207,7 +207,7 @@ startover:
 					TOKEN_MISMATCH();
 				block_idx++;
 				if (end_of_data())
-					goto no_match;
+					goto yes_match;
 			}
 			continue;
 
@@ -224,14 +224,14 @@ startover:
 				 * Special case, don't start over upon
 				 * a mismatch, give the user the
 				 * chance to specify the type of data
-				 * allowed to be ignored.
+				 * allowed to be igyesred.
 				 */
 				if (!match_token(cur, data[block_idx]))
-					goto no_match;
+					goto yes_match;
 
 				block_idx++;
 				if (end_of_data())
-					goto no_match;
+					goto yes_match;
 			}
 
 			match_start = consumed + block_idx;
@@ -244,7 +244,7 @@ startover:
 	if (end_of_data())
 		goto found_match;
 
-no_match:
+yes_match:
 	return UINT_MAX;
 
 found_match:

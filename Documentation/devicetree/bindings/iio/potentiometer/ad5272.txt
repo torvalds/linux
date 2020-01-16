@@ -1,6 +1,6 @@
 * Analog Devices AD5272 digital potentiometer
 
-The node for this device must be a child node of a I2C controller, hence
+The yesde for this device must be a child yesde of a I2C controller, hence
 all mandatory properties for your controller must be specified. See directory:
 
         Documentation/devicetree/bindings/i2c

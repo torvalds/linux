@@ -198,26 +198,26 @@ static int hclge_client_setup_tc(struct hclge_dev *hdev)
 	return 0;
 }
 
-static int hclge_notify_down_uinit(struct hclge_dev *hdev)
+static int hclge_yestify_down_uinit(struct hclge_dev *hdev)
 {
 	int ret;
 
-	ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	ret = hclge_yestify_client(hdev, HNAE3_DOWN_CLIENT);
 	if (ret)
 		return ret;
 
-	return hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+	return hclge_yestify_client(hdev, HNAE3_UNINIT_CLIENT);
 }
 
-static int hclge_notify_init_up(struct hclge_dev *hdev)
+static int hclge_yestify_init_up(struct hclge_dev *hdev)
 {
 	int ret;
 
-	ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
+	ret = hclge_yestify_client(hdev, HNAE3_INIT_CLIENT);
 	if (ret)
 		return ret;
 
-	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+	return hclge_yestify_client(hdev, HNAE3_UP_CLIENT);
 }
 
 static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
@@ -240,7 +240,7 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 	if (map_changed) {
 		netif_dbg(h, drv, netdev, "set ets\n");
 
-		ret = hclge_notify_down_uinit(hdev);
+		ret = hclge_yestify_down_uinit(hdev);
 		if (ret)
 			return ret;
 	}
@@ -260,7 +260,7 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 		if (ret)
 			goto err_out;
 
-		ret = hclge_notify_init_up(hdev);
+		ret = hclge_yestify_init_up(hdev);
 		if (ret)
 			return ret;
 	}
@@ -271,7 +271,7 @@ err_out:
 	if (!map_changed)
 		return ret;
 
-	hclge_notify_init_up(hdev);
+	hclge_yestify_init_up(hdev);
 
 	return ret;
 }
@@ -352,17 +352,17 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 	if (ret)
 		return ret;
 
-	ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	ret = hclge_yestify_client(hdev, HNAE3_DOWN_CLIENT);
 	if (ret)
 		return ret;
 
 	ret = hclge_buffer_alloc(hdev);
 	if (ret) {
-		hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+		hclge_yestify_client(hdev, HNAE3_UP_CLIENT);
 		return ret;
 	}
 
-	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+	return hclge_yestify_client(hdev, HNAE3_UP_CLIENT);
 }
 
 /* DCBX configuration */
@@ -410,7 +410,7 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 	if (ret)
 		return -EINVAL;
 
-	ret = hclge_notify_down_uinit(hdev);
+	ret = hclge_yestify_down_uinit(hdev);
 	if (ret)
 		return ret;
 
@@ -432,10 +432,10 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 	else
 		hdev->flag &= ~HCLGE_FLAG_MQPRIO_ENABLE;
 
-	return hclge_notify_init_up(hdev);
+	return hclge_yestify_init_up(hdev);
 
 err_out:
-	hclge_notify_init_up(hdev);
+	hclge_yestify_init_up(hdev);
 
 	return ret;
 }
@@ -455,8 +455,8 @@ void hclge_dcb_ops_set(struct hclge_dev *hdev)
 	struct hclge_vport *vport = hdev->vport;
 	struct hnae3_knic_private_info *kinfo;
 
-	/* Hdev does not support DCB or vport is
-	 * not a pf, then dcb_ops is not set.
+	/* Hdev does yest support DCB or vport is
+	 * yest a pf, then dcb_ops is yest set.
 	 */
 	if (!hnae3_dev_dcb_supported(hdev) ||
 	    vport->vport_id != 0)

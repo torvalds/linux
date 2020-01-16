@@ -101,7 +101,7 @@ struct fpga_image_info {
 	int region_id;
 	struct device *dev;
 #ifdef CONFIG_OF
-	struct device_node *overlay;
+	struct device_yesde *overlay;
 #endif
 };
 
@@ -185,7 +185,7 @@ int fpga_mgr_load(struct fpga_manager *mgr, struct fpga_image_info *info);
 int fpga_mgr_lock(struct fpga_manager *mgr);
 void fpga_mgr_unlock(struct fpga_manager *mgr);
 
-struct fpga_manager *of_fpga_mgr_get(struct device_node *node);
+struct fpga_manager *of_fpga_mgr_get(struct device_yesde *yesde);
 
 struct fpga_manager *fpga_mgr_get(struct device *dev);
 

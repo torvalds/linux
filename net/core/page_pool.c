@@ -28,7 +28,7 @@ static int page_pool_init(struct page_pool *pool,
 
 	memcpy(&pool->p, params, sizeof(pool->p));
 
-	/* Validate only known flags were used */
+	/* Validate only kyeswn flags were used */
 	if (pool->p.flags & ~(PP_FLAG_ALL))
 		return -EINVAL;
 
@@ -81,13 +81,13 @@ struct page_pool *page_pool_create(const struct page_pool_params *params)
 	struct page_pool *pool;
 	int err;
 
-	pool = kzalloc_node(sizeof(*pool), GFP_KERNEL, params->nid);
+	pool = kzalloc_yesde(sizeof(*pool), GFP_KERNEL, params->nid);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 
 	err = page_pool_init(pool, params);
 	if (err < 0) {
-		pr_warn("%s() gave up with errno %d\n", __func__, err);
+		pr_warn("%s() gave up with erryes %d\n", __func__, err);
 		kfree(pool);
 		return ERR_PTR(err);
 	}
@@ -141,7 +141,7 @@ static void page_pool_dma_sync_for_device(struct page_pool *pool,
 }
 
 /* slow path */
-noinline
+yesinline
 static struct page *__page_pool_alloc_pages_slow(struct page_pool *pool,
 						 gfp_t _gfp)
 {
@@ -163,7 +163,7 @@ static struct page *__page_pool_alloc_pages_slow(struct page_pool *pool,
 	 */
 
 	/* Cache was empty, do real allocation */
-	page = alloc_pages_node(pool->p.nid, gfp, pool->p.order);
+	page = alloc_pages_yesde(pool->p.nid, gfp, pool->p.order);
 	if (!page)
 		return NULL;
 
@@ -171,7 +171,7 @@ static struct page *__page_pool_alloc_pages_slow(struct page_pool *pool,
 		goto skip_dma_map;
 
 	/* Setup DMA mapping: use 'struct page' area for storing DMA-addr
-	 * since dma_addr_t can be either 32 or 64 bits and does not always fit
+	 * since dma_addr_t can be either 32 or 64 bits and does yest always fit
 	 * into page private data (i.e 32bit cpu with 64bit DMA caps)
 	 * This mapping is kept for lifetime of page, until leaving pool.
 	 */
@@ -252,7 +252,7 @@ static void __page_pool_clean_page(struct page_pool *pool,
 	page->dma_addr = 0;
 skip_dma_unmap:
 	/* This may be the last page returned, releasing the pool, so
-	 * it is not safe to reference pool afterwards.
+	 * it is yest safe to reference pool afterwards.
 	 */
 	count = atomic_inc_return(&pool->pages_state_release_cnt);
 	trace_page_pool_state_release(pool, page, count);
@@ -261,7 +261,7 @@ skip_dma_unmap:
 /* unmap the page and clean our state */
 void page_pool_unmap_page(struct page_pool *pool, struct page *page)
 {
-	/* When page is unmapped, this implies page will not be
+	/* When page is unmapped, this implies page will yest be
 	 * returned to page_pool.
 	 */
 	__page_pool_clean_page(pool, page);
@@ -275,7 +275,7 @@ static void __page_pool_return_page(struct page_pool *pool, struct page *page)
 
 	put_page(page);
 	/* An optimization would be to call __free_pages(page, pool->p.order)
-	 * knowing page is not part of page-cache (thus avoiding a
+	 * kyeswing page is yest part of page-cache (thus avoiding a
 	 * __page_cache_release() call).
 	 */
 }
@@ -284,7 +284,7 @@ static bool __page_pool_recycle_into_ring(struct page_pool *pool,
 				   struct page *page)
 {
 	int ret;
-	/* BH protection not needed if current is serving softirq */
+	/* BH protection yest needed if current is serving softirq */
 	if (in_serving_softirq())
 		ret = ptr_ring_produce(&pool->ring, page);
 	else
@@ -304,14 +304,14 @@ static bool __page_pool_recycle_direct(struct page *page,
 	if (unlikely(pool->alloc.count == PP_ALLOC_CACHE_SIZE))
 		return false;
 
-	/* Caller MUST have verified/know (page_ref_count(page) == 1) */
+	/* Caller MUST have verified/kyesw (page_ref_count(page) == 1) */
 	pool->alloc.cache[pool->alloc.count++] = page;
 	return true;
 }
 
 /* page is NOT reusable when:
  * 1) allocated when system is under some pressure. (page_is_pfmemalloc)
- * 2) belongs to a different NUMA node than pool->p.nid.
+ * 2) belongs to a different NUMA yesde than pool->p.nid.
  *
  * To update pool->p.nid users must call page_pool_update_nid.
  */
@@ -347,17 +347,17 @@ void __page_pool_put_page(struct page_pool *pool, struct page *page,
 		}
 		return;
 	}
-	/* Fallback/non-XDP mode: API user have elevated refcnt.
+	/* Fallback/yesn-XDP mode: API user have elevated refcnt.
 	 *
 	 * Many drivers split up the page into fragments, and some
 	 * want to keep doing this to save memory and do refcnt based
 	 * recycling. Support this use case too, to ease drivers
-	 * switching between XDP/non-XDP.
+	 * switching between XDP/yesn-XDP.
 	 *
 	 * In-case page_pool maintains the DMA mapping, API user must
 	 * call page_pool_put_page once.  In this elevated refcnt
 	 * case, the DMA is unmapped/released, as driver is likely
-	 * doing refcnt based recycle tricks, meaning another process
+	 * doing refcnt based recycle tricks, meaning ayesther process
 	 * will be invoking put_page.
 	 */
 	__page_pool_clean_page(pool, page);
@@ -401,7 +401,7 @@ static void page_pool_empty_alloc_cache_once(struct page_pool *pool)
 		return;
 
 	/* Empty alloc cache, assume caller made sure this is
-	 * no-longer in use, and page_pool_alloc_pages() cannot be
+	 * yes-longer in use, and page_pool_alloc_pages() canyest be
 	 * call concurrently.
 	 */
 	while (pool->alloc.count) {
@@ -452,7 +452,7 @@ static void page_pool_release_retry(struct work_struct *wq)
 		pool->defer_warn = jiffies + DEFER_WARN_INTERVAL;
 	}
 
-	/* Still not ready to be disconnected, retry later */
+	/* Still yest ready to be disconnected, retry later */
 	schedule_delayed_work(&pool->release_dw, DEFER_TIME);
 }
 

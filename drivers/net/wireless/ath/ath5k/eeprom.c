@@ -5,7 +5,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -135,7 +135,7 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 		AR5K_EEPROM_READ_HDR(AR5K_EEPROM_MISC0, ee_misc0);
 		AR5K_EEPROM_READ_HDR(AR5K_EEPROM_MISC1, ee_misc1);
 
-		/* XXX: Don't know which versions include these two */
+		/* XXX: Don't kyesw which versions include these two */
 		AR5K_EEPROM_READ_HDR(AR5K_EEPROM_MISC2, ee_misc2);
 
 		if (ee->ee_version >= AR5K_EEPROM_VERSION_4_3)
@@ -173,7 +173,7 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 	 * and enable serdes programming if needed.
 	 *
 	 * XXX: Serdes values seem to be fixed so
-	 * no need to read them here, we write them
+	 * yes need to read them here, we write them
 	 * during ath5k_hw_init */
 	AR5K_EEPROM_READ(AR5K_EEPROM_PCIE_OFFSET, val);
 	ee->ee_serdes = (val == AR5K_EEPROM_PCIE_SERDES_SECTION) ?
@@ -292,12 +292,12 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 	ee->ee_pga_desired_size[mode]	= (val >> 8) & 0xff;
 
 	if ((val & 0xff) & 0x80)
-		ee->ee_noise_floor_thr[mode] = -((((val & 0xff) ^ 0xff)) + 1);
+		ee->ee_yesise_floor_thr[mode] = -((((val & 0xff) ^ 0xff)) + 1);
 	else
-		ee->ee_noise_floor_thr[mode] = val & 0xff;
+		ee->ee_yesise_floor_thr[mode] = val & 0xff;
 
 	if (ah->ah_ee_version <= AR5K_EEPROM_VERSION_3_2)
-		ee->ee_noise_floor_thr[mode] =
+		ee->ee_yesise_floor_thr[mode] =
 		    mode == AR5K_EEPROM_MODE_11A ? -54 : -1;
 
 	AR5K_EEPROM_READ(o++, val);
@@ -347,8 +347,8 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 	if (ah->ah_ee_version < AR5K_EEPROM_VERSION_4_0)
 		goto done;
 
-	/* Note: >= v5 have bg freq piers on another location
-	 * so these freq piers are ignored for >= v5 (should be 0xff
+	/* Note: >= v5 have bg freq piers on ayesther location
+	 * so these freq piers are igyesred for >= v5 (should be 0xff
 	 * anyway) */
 	switch (mode) {
 	case AR5K_EEPROM_MODE_11A:
@@ -1141,7 +1141,7 @@ ath5k_eeprom_read_pcal_info_5112(struct ath5k_hw *ah, int mode)
  */
 
 /* For RF2413 power calibration data doesn't start on a fixed location and
- * if a mode is not supported, its section is missing -not zeroed-.
+ * if a mode is yest supported, its section is missing -yest zeroed-.
  * So we need to calculate the starting offset for each section by using
  * these two functions */
 
@@ -1359,7 +1359,7 @@ ath5k_eeprom_read_pcal_info_2413(struct ath5k_hw *ah, int mode)
 
 		if (pd_gains > 1) {
 			/*
-			 * Pd gain 0 is not the last pd gain
+			 * Pd gain 0 is yest the last pd gain
 			 * so it only has 2 pd points.
 			 * Continue with pd gain 1.
 			 */
@@ -1462,7 +1462,7 @@ ath5k_eeprom_read_pcal_info_2413(struct ath5k_hw *ah, int mode)
 /*
  * Read per rate target power (this is the maximum tx power
  * supported by the card). This info is used when setting
- * tx power, no matter the channel.
+ * tx power, yes matter the channel.
  *
  * This also works for v5 EEPROMs.
  */
@@ -1790,7 +1790,7 @@ ath5k_eeprom_mode_from_channel(struct ath5k_hw *ah,
 	case AR5K_MODE_11B:
 		return AR5K_EEPROM_MODE_11B;
 	default:
-		ATH5K_WARN(ah, "channel is not A/B/G!");
+		ATH5K_WARN(ah, "channel is yest A/B/G!");
 		return AR5K_EEPROM_MODE_11A;
 	}
 }

@@ -21,7 +21,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -92,7 +92,7 @@ struct drm_gem_object_funcs {
 	 * @export:
 	 *
 	 * Export backing buffer as a &dma_buf.
-	 * If this is not set drm_gem_prime_export() is used.
+	 * If this is yest set drm_gem_prime_export() is used.
 	 *
 	 * This callback is optional.
 	 */
@@ -123,7 +123,7 @@ struct drm_gem_object_funcs {
 	 * Used when exporting a buffer by the drm_gem_map_dma_buf() helper.
 	 * Releasing is done by calling dma_unmap_sg_attrs() and sg_free_table()
 	 * in drm_gem_unmap_buf(), therefore these helpers and this callback
-	 * here cannot be used for sg tables pointing at driver private memory
+	 * here canyest be used for sg tables pointing at driver private memory
 	 * ranges.
 	 *
 	 * See also drm_prime_pages_to_sg().
@@ -158,7 +158,7 @@ struct drm_gem_object_funcs {
 	 * This callback is optional.
 	 *
 	 * The callback is used by by both drm_gem_mmap_obj() and
-	 * drm_gem_prime_mmap().  When @mmap is present @vm_ops is not
+	 * drm_gem_prime_mmap().  When @mmap is present @vm_ops is yest
 	 * used, the @mmap callback must set vma->vm_ops instead. The @mmap
 	 * callback is always called with a 0 offset. The caller will remove
 	 * the fake offset as necessary.
@@ -216,7 +216,7 @@ struct drm_gem_object {
 	/**
 	 * @filp:
 	 *
-	 * SHMEM file node used as backing storage for swappable buffer objects.
+	 * SHMEM file yesde used as backing storage for swappable buffer objects.
 	 * GEM also supports driver private objects with driver-specific backing
 	 * storage (contiguous CMA memory, special reserved blocks). In this
 	 * case @filp is NULL.
@@ -224,16 +224,16 @@ struct drm_gem_object {
 	struct file *filp;
 
 	/**
-	 * @vma_node:
+	 * @vma_yesde:
 	 *
 	 * Mapping info for this object to support mmap. Drivers are supposed to
 	 * allocate the mmap offset using drm_gem_create_mmap_offset(). The
-	 * offset itself can be retrieved using drm_vma_node_offset_addr().
+	 * offset itself can be retrieved using drm_vma_yesde_offset_addr().
 	 *
 	 * Memory mapping itself is handled by drm_gem_mmap(), which also checks
 	 * that userspace is allowed to access the object.
 	 */
-	struct drm_vma_offset_node vma_node;
+	struct drm_vma_offset_yesde vma_yesde;
 
 	/**
 	 * @size:
@@ -277,7 +277,7 @@ struct drm_gem_object {
 	 * The &drm_driver.gem_free_object callback is responsible for cleaning
 	 * up the dma_buf attachment and references acquired at import time.
 	 *
-	 * Note that the drm gem/prime core does not depend upon drivers setting
+	 * Note that the drm gem/prime core does yest depend upon drivers setting
 	 * this field any more. So for drivers where this doesn't make sense
 	 * (e.g. virtual devices or a displaylink behind an usb bus) they can
 	 * simply leave it as NULL.
@@ -320,11 +320,11 @@ struct drm_gem_object {
  *
  * This macro autogenerates a suitable &struct file_operations for GEM based
  * drivers, which can be assigned to &drm_driver.fops. Note that this structure
- * cannot be shared between drivers, because it contains a reference to the
+ * canyest be shared between drivers, because it contains a reference to the
  * current module using THIS_MODULE.
  *
  * Note that the declaration is already marked as static - if you need a
- * non-static version of this you're probably doing it wrong and will break the
+ * yesn-static version of this you're probably doing it wrong and will break the
  * THIS_MODULE reference by accident.
  */
 #define DEFINE_DRM_GEM_FOPS(name) \
@@ -336,7 +336,7 @@ struct drm_gem_object {
 		.compat_ioctl	= drm_compat_ioctl,\
 		.poll		= drm_poll,\
 		.read		= drm_read,\
-		.llseek		= noop_llseek,\
+		.llseek		= yesop_llseek,\
 		.mmap		= drm_gem_mmap,\
 	}
 
@@ -368,7 +368,7 @@ static inline void drm_gem_object_get(struct drm_gem_object *obj)
  * __drm_gem_object_put - raw function to release a GEM buffer object reference
  * @obj: GEM buffer object
  *
- * This function is meant to be used by drivers which are not encumbered with
+ * This function is meant to be used by drivers which are yest encumbered with
  * &drm_device.struct_mutex legacy locking and which are using the
  * gem_free_object_unlocked callback. It avoids all the locking checks and
  * locking overhead of drm_gem_object_put() and drm_gem_object_put_unlocked().

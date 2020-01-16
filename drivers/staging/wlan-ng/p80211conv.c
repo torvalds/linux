@@ -9,7 +9,7 @@
  * linux-wlan
  *
  *   The contents of this file are subject to the Mozilla Public
- *   License Version 1.1 (the "License"); you may not use this file
+ *   License Version 1.1 (the "License"); you may yest use this file
  *   except in compliance with the License. You may obtain a copy of
  *   the License at http://www.mozilla.org/MPL/
  *
@@ -22,10 +22,10 @@
  *   terms of the GNU Public License version 2 (the "GPL"), in which
  *   case the provisions of the GPL are applicable instead of the
  *   above.  If you wish to allow the use of your version of this file
- *   only under the terms of the GPL and not to allow others to use
+ *   only under the terms of the GPL and yest to allow others to use
  *   your version of this file under the MPL, indicate your decision
- *   by deleting the provisions above and replace them with the notice
- *   and other provisions required by the GPL.  If you do not delete
+ *   by deleting the provisions above and replace them with the yestice
+ *   and other provisions required by the GPL.  If you do yest delete
  *   the provisions above, a recipient may use your version of this
  *   file under either the MPL or the GPL.
  *
@@ -91,7 +91,7 @@ static const u8 oui_8021h[] = { 0x00, 0x00, 0xf8 };
  * with 802.11.
  *
  * Note -- 802.11 header is NOT part of the skb.  Likewise, the 802.11
- *         FCS is also not present and will need to be added elsewhere.
+ *         FCS is also yest present and will need to be added elsewhere.
  *
  * Arguments:
  *	ethconv		Conversion type to perform
@@ -99,10 +99,10 @@ static const u8 oui_8021h[] = { 0x00, 0x00, 0xf8 };
  *       p80211_hdr      802.11 header
  *
  * Returns:
- *	0 on success, non-zero otherwise
+ *	0 on success, yesn-zero otherwise
  *
  * Call context:
- *	May be called in interrupt or non-interrupt context
+ *	May be called in interrupt or yesn-interrupt context
  *----------------------------------------------------------------
  */
 int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
@@ -193,7 +193,7 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 		break;
 	default:
 		netdev_err(wlandev->netdev,
-			   "Error: Converting eth to wlan in unknown mode.\n");
+			   "Error: Converting eth to wlan in unkyeswn mode.\n");
 		return 1;
 	}
 
@@ -229,8 +229,8 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 	return 0;
 }
 
-/* jkriegl: from orinoco, modified */
-static void orinoco_spy_gather(struct wlandevice *wlandev, char *mac,
+/* jkriegl: from oriyesco, modified */
+static void oriyesco_spy_gather(struct wlandevice *wlandev, char *mac,
 			       struct p80211_rxmeta *rxmeta)
 {
 	int i;
@@ -242,11 +242,11 @@ static void orinoco_spy_gather(struct wlandevice *wlandev, char *mac,
 	for (i = 0; i < wlandev->spy_number; i++) {
 		if (!memcmp(wlandev->spy_address[i], mac, ETH_ALEN)) {
 			wlandev->spy_stat[i].level = rxmeta->signal;
-			wlandev->spy_stat[i].noise = rxmeta->noise;
+			wlandev->spy_stat[i].yesise = rxmeta->yesise;
 			wlandev->spy_stat[i].qual =
 			    (rxmeta->signal >
-			     rxmeta->noise) ? (rxmeta->signal -
-					       rxmeta->noise) : 0;
+			     rxmeta->yesise) ? (rxmeta->signal -
+					       rxmeta->yesise) : 0;
 			wlandev->spy_stat[i].updated = 0x7;
 		}
 	}
@@ -266,10 +266,10 @@ static void orinoco_spy_gather(struct wlandevice *wlandev, char *mac,
  *	skb		Packet buffer containing the 802.11 frame
  *
  * Returns:
- *	0 on success, non-zero otherwise
+ *	0 on success, yesn-zero otherwise
  *
  * Call context:
- *	May be called in interrupt or non-interrupt context
+ *	May be called in interrupt or yesn-interrupt context
  *----------------------------------------------------------------
  */
 int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
@@ -419,7 +419,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		(e_llc->ssap == 0xaa) &&
 		(e_llc->ctl == 0x03)) {
 		pr_debug("802.1h/RFC1042 len: %d\n", payload_length);
-		/* it's an 802.1h frame || (an RFC1042 && protocol not in STT)
+		/* it's an 802.1h frame || (an RFC1042 && protocol yest in STT)
 		 * build a DIXII + RFC894
 		 */
 
@@ -493,10 +493,10 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 	 */
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	/* jkriegl: process signal and noise as set in hfa384x_int_rx() */
-	/* jkriegl: only process signal/noise if requested by iwspy */
+	/* jkriegl: process signal and yesise as set in hfa384x_int_rx() */
+	/* jkriegl: only process signal/yesise if requested by iwspy */
 	if (wlandev->spy_number)
-		orinoco_spy_gather(wlandev, eth_hdr(skb)->h_source,
+		oriyesco_spy_gather(wlandev, eth_hdr(skb)->h_source,
 				   p80211skb_rxmeta(skb));
 
 	/* Free the metadata */
@@ -516,15 +516,15 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
  *
  * Returns:
  *	1 - if the table is empty or a match is found.
- *	0 - if the table is non-empty and a match is not found.
+ *	0 - if the table is yesn-empty and a match is yest found.
  *
  * Call context:
- *	May be called in interrupt or non-interrupt context
+ *	May be called in interrupt or yesn-interrupt context
  *----------------------------------------------------------------
  */
 int p80211_stt_findproto(u16 proto)
 {
-	/* Always return found for now.  This is the behavior used by the */
+	/* Always return found for yesw.  This is the behavior used by the */
 	/* Zoom Win95 driver when 802.1h mode is selected */
 	/* TODO: If necessary, add an actual search we'll probably
 	 * need this to match the CMAC's way of doing things.
@@ -547,10 +547,10 @@ int p80211_stt_findproto(u16 proto)
  *	skb		The skb we're attaching to.
  *
  * Returns:
- *	0 on success, non-zero otherwise
+ *	0 on success, yesn-zero otherwise
  *
  * Call context:
- *	May be called in interrupt or non-interrupt context
+ *	May be called in interrupt or yesn-interrupt context
  *----------------------------------------------------------------
  */
 void p80211skb_rxmeta_detach(struct sk_buff *skb)
@@ -564,7 +564,7 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb)
 		return;
 	}
 	frmmeta = p80211skb_frmmeta(skb);
-	if (!frmmeta) {	/* no magic */
+	if (!frmmeta) {	/* yes magic */
 		pr_debug("Called w/ bad frmmeta magic.\n");
 		return;
 	}
@@ -592,10 +592,10 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb)
  *	skb		The skb we're attaching to.
  *
  * Returns:
- *	0 on success, non-zero otherwise
+ *	0 on success, yesn-zero otherwise
  *
  * Call context:
- *	May be called in interrupt or non-interrupt context
+ *	May be called in interrupt or yesn-interrupt context
  *----------------------------------------------------------------
  */
 int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
@@ -644,10 +644,10 @@ exit:
  *	skb		The skb we're attaching to.
  *
  * Returns:
- *	0 on success, non-zero otherwise
+ *	0 on success, yesn-zero otherwise
  *
  * Call context:
- *	May be called in interrupt or non-interrupt context
+ *	May be called in interrupt or yesn-interrupt context
  *----------------------------------------------------------------
  */
 void p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb)
@@ -659,6 +659,6 @@ void p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb)
 		p80211skb_rxmeta_detach(skb);
 	else
 		netdev_err(wlandev->netdev,
-			   "Freeing an skb (%p) w/ no frmmeta.\n", skb);
+			   "Freeing an skb (%p) w/ yes frmmeta.\n", skb);
 	dev_kfree_skb(skb);
 }

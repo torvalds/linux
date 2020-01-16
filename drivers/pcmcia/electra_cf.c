@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -116,7 +116,7 @@ static int electra_cf_set_socket(struct pcmcia_socket *sock,
 
 	cf = container_of(sock, struct electra_cf_socket, socket);
 
-	/* "reset" means no power in our case */
+	/* "reset" means yes power in our case */
 	vcc = (s->flags & SS_RESET) ? 0 : s->Vcc;
 
 	switch (vcc) {
@@ -175,7 +175,7 @@ static struct pccard_operations electra_cf_ops = {
 static int electra_cf_probe(struct platform_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct electra_cf_socket   *cf;
 	struct resource mem, io;
 	int status;
@@ -217,7 +217,7 @@ static int electra_cf_probe(struct platform_device *ofdev)
 
 	if (!cf->mem_base || !cf->io_virt || !cf->gpio_base ||
 	    (__ioremap_at(io.start, cf->io_virt, cf->io_size,
-			  pgprot_noncached(PAGE_KERNEL)) == NULL)) {
+			  pgprot_yesncached(PAGE_KERNEL)) == NULL)) {
 		dev_err(device, "can't ioremap ranges\n");
 		status = -ENOMEM;
 		goto fail1;

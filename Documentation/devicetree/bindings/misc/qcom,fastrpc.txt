@@ -1,4 +1,4 @@
-Qualcomm Technologies, Inc. FastRPC Driver
+Qualcomm Techyeslogies, Inc. FastRPC Driver
 
 The FastRPC implements an IPC (Inter-Processor Communication)
 mechanism that allows for clients to transparently make remote method
@@ -28,7 +28,7 @@ other tasks.
 	Definition: Must be 0
 
 = COMPUTE BANKS
-Each subnode of the Fastrpc represents compute context banks available
+Each subyesde of the Fastrpc represents compute context banks available
 on the dsp.
 - All Compute context banks MUST contain the following properties:
 
@@ -47,7 +47,7 @@ on the dsp.
 	Value type: <u32>
 	Defination: A value indicating how many sessions can share this
 		    context bank. Defaults to 1 when this property
-		    is not specified.
+		    is yest specified.
 
 Example:
 

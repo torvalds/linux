@@ -320,9 +320,9 @@
 #define V_PCMCIA_MODE(x)	_SB_MAKEVALUE(x, S_PCMCIA_MODE)
 #define G_PCMCIA_MODE(x)	_SB_GETVALUE(x, S_PCMCIA_MODE, M_PCMCIA_MODE)
 
-#define K_PCMCIA_MODE_PCMA_NOB	0	/* standard PCMCIA "A", no "B" */
-#define K_PCMCIA_MODE_IDEA_NOB	1	/* IDE "A", no "B" */
-#define K_PCMCIA_MODE_PCMIOA_NOB 2	/* PCMCIA with I/O "A", no "B" */
+#define K_PCMCIA_MODE_PCMA_NOB	0	/* standard PCMCIA "A", yes "B" */
+#define K_PCMCIA_MODE_IDEA_NOB	1	/* IDE "A", yes "B" */
+#define K_PCMCIA_MODE_PCMIOA_NOB 2	/* PCMCIA with I/O "A", yes "B" */
 #define K_PCMCIA_MODE_PCMA_PCMB 4	/* standard PCMCIA "A", standard PCMCIA "B" */
 #define K_PCMCIA_MODE_IDEA_PCMB 5	/* IDE "A", standard PCMCIA "B" */
 #define K_PCMCIA_MODE_PCMA_IDEB 6	/* standard PCMCIA "A", IDE "B" */

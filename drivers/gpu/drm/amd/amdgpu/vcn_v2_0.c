@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -181,8 +181,8 @@ static int vcn_v2_0_sw_init(void *handle)
 	adev->vcn.inst->external.data1 = SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA1);
 	adev->vcn.internal.cmd = mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET;
 	adev->vcn.inst->external.cmd = SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD);
-	adev->vcn.internal.nop = mmUVD_NO_OP_INTERNAL_OFFSET;
-	adev->vcn.inst->external.nop = SOC15_REG_OFFSET(UVD, 0, mmUVD_NO_OP);
+	adev->vcn.internal.yesp = mmUVD_NO_OP_INTERNAL_OFFSET;
+	adev->vcn.inst->external.yesp = SOC15_REG_OFFSET(UVD, 0, mmUVD_NO_OP);
 
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 		ring = &adev->vcn.inst->ring_enc[i];
@@ -276,7 +276,7 @@ done:
  *
  * @handle: amdgpu_device pointer
  *
- * Stop the VCN block, mark ring as not ready any more
+ * Stop the VCN block, mark ring as yest ready any more
  */
 static int vcn_v2_0_hw_fini(void *handle)
 {
@@ -349,7 +349,7 @@ static int vcn_v2_0_resume(void *handle)
  *
  * @adev: amdgpu_device pointer
  *
- * Let the VCN memory controller know it's offsets
+ * Let the VCN memory controller kyesw it's offsets
  */
 static void vcn_v2_0_mc_resume(struct amdgpu_device *adev)
 {
@@ -474,7 +474,7 @@ static void vcn_v2_0_mc_resume_dpg_mode(struct amdgpu_device *adev, bool indirec
 	WREG32_SOC15_DPG_MODE_2_0(SOC15_DPG_MODE_OFFSET_2_0(
 		UVD, 0, mmUVD_VCPU_CACHE_SIZE2), AMDGPU_VCN_CONTEXT_SIZE, 0, indirect);
 
-	/* non-cache window */
+	/* yesn-cache window */
 	WREG32_SOC15_DPG_MODE_2_0(SOC15_DPG_MODE_OFFSET_2_0(
 		UVD, 0, mmUVD_LMI_VCPU_NC0_64BIT_BAR_LOW), 0, 0, indirect);
 	WREG32_SOC15_DPG_MODE_2_0(SOC15_DPG_MODE_OFFSET_2_0(
@@ -1146,7 +1146,7 @@ static int vcn_v2_0_start(struct amdgpu_device *adev)
 		if (status & 2)
 			break;
 
-		DRM_ERROR("VCN decode not responding, trying to reset the VCPU!!!\n");
+		DRM_ERROR("VCN decode yest responding, trying to reset the VCPU!!!\n");
 		WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_SOFT_RESET),
 			UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK,
 			~UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
@@ -1158,7 +1158,7 @@ static int vcn_v2_0_start(struct amdgpu_device *adev)
 	}
 
 	if (r) {
-		DRM_ERROR("VCN decode not responding, giving up!!!\n");
+		DRM_ERROR("VCN decode yest responding, giving up!!!\n");
 		return r;
 	}
 
@@ -1371,7 +1371,7 @@ static int vcn_v2_0_pause_dpg_mode(struct amdgpu_device *adev,
 					   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
 			}
 		} else {
-			/* unpause dpg, no need to wait */
+			/* unpause dpg, yes need to wait */
 			reg_data &= ~UVD_DPG_PAUSE__NJ_PAUSE_DPG_REQ_MASK;
 			WREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE, reg_data);
 		}
@@ -1504,13 +1504,13 @@ void vcn_v2_0_dec_ring_insert_end(struct amdgpu_ring *ring)
 }
 
 /**
- * vcn_v2_0_dec_ring_insert_nop - insert a nop command
+ * vcn_v2_0_dec_ring_insert_yesp - insert a yesp command
  *
  * @ring: amdgpu_ring pointer
  *
- * Write a nop command to the ring.
+ * Write a yesp command to the ring.
  */
-void vcn_v2_0_dec_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+void vcn_v2_0_dec_ring_insert_yesp(struct amdgpu_ring *ring, uint32_t count)
 {
 	struct amdgpu_device *adev = ring->adev;
 	int i;
@@ -1518,7 +1518,7 @@ void vcn_v2_0_dec_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 	WARN_ON(ring->wptr % 2 || count % 2);
 
 	for (i = 0; i < count / 2; i++) {
-		amdgpu_ring_write(ring, PACKET0(adev->vcn.internal.nop, 0));
+		amdgpu_ring_write(ring, PACKET0(adev->vcn.internal.yesp, 0));
 		amdgpu_ring_write(ring, 0);
 	}
 }
@@ -2035,7 +2035,7 @@ void vcn_v2_0_jpeg_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg, uint32
 	amdgpu_ring_write(ring, val);
 }
 
-void vcn_v2_0_jpeg_ring_nop(struct amdgpu_ring *ring, uint32_t count)
+void vcn_v2_0_jpeg_ring_yesp(struct amdgpu_ring *ring, uint32_t count)
 {
 	int i;
 
@@ -2178,7 +2178,7 @@ static const struct amdgpu_ring_funcs vcn_v2_0_dec_ring_vm_funcs = {
 	.emit_vm_flush = vcn_v2_0_dec_ring_emit_vm_flush,
 	.test_ring = vcn_v2_0_dec_ring_test_ring,
 	.test_ib = amdgpu_vcn_dec_ring_test_ib,
-	.insert_nop = vcn_v2_0_dec_ring_insert_nop,
+	.insert_yesp = vcn_v2_0_dec_ring_insert_yesp,
 	.insert_start = vcn_v2_0_dec_ring_insert_start,
 	.insert_end = vcn_v2_0_dec_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
@@ -2192,7 +2192,7 @@ static const struct amdgpu_ring_funcs vcn_v2_0_dec_ring_vm_funcs = {
 static const struct amdgpu_ring_funcs vcn_v2_0_enc_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_ENC,
 	.align_mask = 0x3f,
-	.nop = VCN_ENC_CMD_NO_OP,
+	.yesp = VCN_ENC_CMD_NO_OP,
 	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = vcn_v2_0_enc_ring_get_rptr,
 	.get_wptr = vcn_v2_0_enc_ring_get_wptr,
@@ -2209,7 +2209,7 @@ static const struct amdgpu_ring_funcs vcn_v2_0_enc_ring_vm_funcs = {
 	.emit_vm_flush = vcn_v2_0_enc_ring_emit_vm_flush,
 	.test_ring = amdgpu_vcn_enc_ring_test_ring,
 	.test_ib = amdgpu_vcn_enc_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_yesp = amdgpu_ring_insert_yesp,
 	.insert_end = vcn_v2_0_enc_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vcn_ring_begin_use,
@@ -2238,7 +2238,7 @@ static const struct amdgpu_ring_funcs vcn_v2_0_jpeg_ring_vm_funcs = {
 	.emit_vm_flush = vcn_v2_0_jpeg_ring_emit_vm_flush,
 	.test_ring = amdgpu_vcn_jpeg_ring_test_ring,
 	.test_ib = amdgpu_vcn_jpeg_ring_test_ib,
-	.insert_nop = vcn_v2_0_jpeg_ring_nop,
+	.insert_yesp = vcn_v2_0_jpeg_ring_yesp,
 	.insert_start = vcn_v2_0_jpeg_ring_insert_start,
 	.insert_end = vcn_v2_0_jpeg_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
@@ -2286,7 +2286,7 @@ const struct amdgpu_ip_block_version vcn_v2_0_ip_block =
 {
 		.type = AMD_IP_BLOCK_TYPE_VCN,
 		.major = 2,
-		.minor = 0,
+		.miyesr = 0,
 		.rev = 0,
 		.funcs = &vcn_v2_0_ip_funcs,
 };

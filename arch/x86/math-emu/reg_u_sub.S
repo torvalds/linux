@@ -24,7 +24,7 @@
  |    and returns their difference as a TAG_Valid or TAG_Zero f.p.
  |    number.
  |    The first number (arg1) must be the larger.
- |    The returned number is normalized.
+ |    The returned number is yesrmalized.
  |    Basic checks are performed if PARANOID is defined.
  */
 
@@ -50,7 +50,7 @@ SYM_FUNC_START(FPU_u_sub)
 	/* source 2 is always smaller than source 1 */
 	js	L_bugged_1
 
-	testl	$0x80000000,SIGH(%edi)	/* The args are assumed to be be normalized */
+	testl	$0x80000000,SIGH(%edi)	/* The args are assumed to be be yesrmalized */
 	je	L_bugged_2
 
 	testl	$0x80000000,SIGH(%esi)
@@ -95,11 +95,11 @@ L_more_than_31:
 	shrd	%cl,%eax,%edx
 	shr	%cl,%eax
 	orl	%ebx,%ebx
-	jz	L_more_31_no_low	/* none of the lowest bits is set */
+	jz	L_more_31_yes_low	/* yesne of the lowest bits is set */
 
 	orl	$1,%edx			/* record the fact in the extension */
 
-L_more_31_no_low:
+L_more_31_yes_low:
 	movl	%eax,%ebx
 	xorl	%eax,%eax
 	jmp	L_shift_done
@@ -117,10 +117,10 @@ L_more_than_63:
 	/* Shift right by 64 bits */
 	movl	%eax,%edx
 	orl	%ebx,%ebx
-	jz	L_more_63_no_low
+	jz	L_more_63_yes_low
 
 	orl	$1,%edx
-	jmp	L_more_63_no_low
+	jmp	L_more_63_yes_low
 
 L_more_than_64:
 	jne	L_more_than_65
@@ -132,19 +132,19 @@ L_more_than_64:
 	jnc	L_shift_65_nc
 
 	orl	$1,%edx
-	jmp	L_more_63_no_low
+	jmp	L_more_63_yes_low
 
 L_shift_65_nc:
 	orl	%ebx,%ebx
-	jz	L_more_63_no_low
+	jz	L_more_63_yes_low
 
 	orl	$1,%edx
-	jmp	L_more_63_no_low
+	jmp	L_more_63_yes_low
 
 L_more_than_65:
 	movl	$1,%edx		/* The shifted nr always at least one '1' */
 
-L_more_63_no_low:
+L_more_63_yes_low:
 	xorl	%ebx,%ebx
 	xorl	%eax,%eax
 
@@ -172,7 +172,7 @@ L_subtr:
  |	Normalize the result		|
  +--------------------------------------*/
 	testl	$0x80000000,%eax
-	jnz	L_round		/* no shifting needed */
+	jnz	L_round		/* yes shifting needed */
 
 	orl	%eax,%eax
 	jnz	L_shift_1	/* shift left 1 - 31 bits */
@@ -181,7 +181,7 @@ L_subtr:
 	jnz	L_shift_32	/* shift left 32 - 63 bits */
 
 /*
- *	 A rare case, the only one which is non-zero if we got here
+ *	 A rare case, the only one which is yesn-zero if we got here
  *         is:           1000000 .... 0000
  *                      -0111111 .... 1111 1
  *                       -------------------- 

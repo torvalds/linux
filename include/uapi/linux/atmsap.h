@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /* atmsap.h - ATM Service Access Point addressing definitions */
 
 /* Written 1995-1999 by Werner Almesberger, EPFL LRC/ICA */
@@ -11,7 +11,7 @@
 
 /*
  * BEGIN_xx and END_xx markers are used for automatic generation of
- * documentation. Do not change them.
+ * documentation. Do yest change them.
  */
 
 
@@ -20,7 +20,7 @@
  */
 
 /* BEGIN_L2 */
-#define ATM_L2_NONE	0	/* L2 not specified */
+#define ATM_L2_NONE	0	/* L2 yest specified */
 #define ATM_L2_ISO1745  0x01	/* Basic mode ISO 1745 */
 #define ATM_L2_Q291	0x02	/* ITU-T Q.291 (Rec. I.441) */
 #define ATM_L2_X25_LL	0x06	/* ITU-T X.25, link layer */
@@ -42,7 +42,7 @@
  */
 
 /* BEGIN_L3 */
-#define ATM_L3_NONE	0	/* L3 not specified */
+#define ATM_L3_NONE	0	/* L3 yest specified */
 #define ATM_L3_X25	0x06	/* ITU-T X.25, packet layer */
 #define ATM_L3_ISO8208	0x07	/* ISO/IEC 8208 */
 #define ATM_L3_X223	0x08	/* ITU-T X.223 | ISO/IEC 8878 */
@@ -60,7 +60,7 @@
  */
 
 /* BEGIN_HL */
-#define ATM_HL_NONE	0	/* HL not specified */
+#define ATM_HL_NONE	0	/* HL yest specified */
 #define ATM_HL_ISO	0x01	/* ISO */
 #define ATM_HL_USER	0x02	/* user-specific */
 #define ATM_HL_HLP	0x03	/* high layer profile - UNI 3.0 only */
@@ -73,8 +73,8 @@
  */
 
 /* BEGIN_IMD */
-#define ATM_IMD_NONE	 0	/* mode not specified */
-#define ATM_IMD_NORMAL	 1	/* normal mode of operation */
+#define ATM_IMD_NONE	 0	/* mode yest specified */
+#define ATM_IMD_NORMAL	 1	/* yesrmal mode of operation */
 #define ATM_IMD_EXTENDED 2	/* extended mode of operation */
 /* END_IMD */
 
@@ -82,12 +82,12 @@
  * H.310 code points
  */
 
-#define ATM_TT_NONE	0	/* terminal type not specified */
+#define ATM_TT_NONE	0	/* terminal type yest specified */
 #define ATM_TT_RX	1	/* receive only */
 #define ATM_TT_TX	2	/* send only */
 #define ATM_TT_RXTX	3	/* receive and send */
 
-#define ATM_MC_NONE	0	/* no multiplexing */
+#define ATM_MC_NONE	0	/* yes multiplexing */
 #define ATM_MC_TS	1	/* transport stream (TS) */
 #define ATM_MC_TS_FEC	2	/* transport stream with forward error corr. */
 #define ATM_MC_PS	3	/* program stream (PS) */

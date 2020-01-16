@@ -118,7 +118,7 @@ static inline void load_ksp_mmu(struct task_struct *task)
 	if (mmuar >= PAGE_OFFSET) {
 		mm = &init_mm;
 	} else {
-		pr_info("load_ksp_mmu: non-kernel mm found: 0x%p\n", task->mm);
+		pr_info("load_ksp_mmu: yesn-kernel mm found: 0x%p\n", task->mm);
 		mm = task->mm;
 	}
 
@@ -126,24 +126,24 @@ static inline void load_ksp_mmu(struct task_struct *task)
 		goto bug;
 
 	pgd = pgd_offset(mm, mmuar);
-	if (pgd_none(*pgd))
+	if (pgd_yesne(*pgd))
 		goto bug;
 
 	p4d = p4d_offset(pgd, mmuar);
-	if (p4d_none(*p4d))
+	if (p4d_yesne(*p4d))
 		goto bug;
 
 	pud = pud_offset(p4d, mmuar);
-	if (pud_none(*pud))
+	if (pud_yesne(*pud))
 		goto bug;
 
 	pmd = pmd_offset(pud, mmuar);
-	if (pmd_none(*pmd))
+	if (pmd_yesne(*pmd))
 		goto bug;
 
 	pte = (mmuar >= PAGE_OFFSET) ? pte_offset_kernel(pmd, mmuar)
 				     : pte_offset_map(pmd, mmuar);
-	if (pte_none(*pte) || !pte_present(*pte))
+	if (pte_yesne(*pte) || !pte_present(*pte))
 		goto bug;
 
 	set_pte(pte, pte_mkyoung(*pte));

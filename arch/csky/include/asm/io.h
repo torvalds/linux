@@ -14,7 +14,7 @@
  * Normal memory access.
  *
  * For CACHEV1 (807, 810), store instruction could fast retire, so we need
- * another mb() to prevent st fast retire.
+ * ayesther mb() to prevent st fast retire.
  *
  * For CACHEV2 (860), store instruction with PAGE_ATTR_NO_BUFFERABLE won't
  * fast retire.

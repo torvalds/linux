@@ -99,7 +99,7 @@
 #define EM28XX_XCLK_FREQUENCY_24MHZ	0x0b
 
 #define EM28XX_R10_VINMODE	0x10
-	  /* used by all non-camera devices: */
+	  /* used by all yesn-camera devices: */
 #define   EM28XX_VINMODE_YUV422_CbYCrY  0x10
 	  /* used by camera devices: */
 #define   EM28XX_VINMODE_YUV422_YUYV    0x08
@@ -194,7 +194,7 @@
 #define EM28XX_R35_VBI_START_V	0x35
 /*
  * NOTE: the EM276x (and EM25xx, EM277x/8x ?) (camera bridges) use these
- * registers for a different unknown purpose.
+ * registers for a different unkyeswn purpose.
  *   => register 0x34 is set to capture width / 16
  *   => register 0x35 is set to capture height / 16
  */
@@ -221,7 +221,7 @@
 #define EM2874_R5D_TS1_PKT_SIZE 0x5d
 #define EM2874_R5E_TS2_PKT_SIZE 0x5e
 	/*
-	 * For both TS1 and TS2, In isochronous mode:
+	 * For both TS1 and TS2, In isochroyesus mode:
 	 *  0x01  188 bytes
 	 *  0x02  376 bytes
 	 *  0x03  564 bytes
@@ -235,7 +235,7 @@
 
 /* em2874/174/84, em25xx, em276x/7x/8x GPIO registers */
 /*
- * NOTE: not all ports are bonded out;
+ * NOTE: yest all ports are bonded out;
  * Some ports are multiplexed with special function I/O
  */
 #define EM2874_R80_GPIO_P0_CTRL    0x80

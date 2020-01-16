@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -31,9 +31,9 @@
 extern "C" {
 #endif
 
-/* Please note that modifications to all structs defined here are
+/* Please yeste that modifications to all structs defined here are
  * subject to backwards-compatibility constraints:
- *  1) Do not use pointers, use __u64 instead for 32 bit / 64 bit
+ *  1) Do yest use pointers, use __u64 instead for 32 bit / 64 bit
  *     user/kernel compatibility
  *  2) Keep fields aligned to their size
  *  3) Because of how drm_ioctl() works, we can add new fields at
@@ -58,13 +58,13 @@ extern "C" {
 #define MSM_PIPE_ID(x)       ((x) & MSM_PIPE_ID_MASK)
 #define MSM_PIPE_FLAGS(x)    ((x) & ~MSM_PIPE_ID_MASK)
 
-/* timeouts are specified in clock-monotonic absolute times (to simplify
+/* timeouts are specified in clock-moyestonic absolute times (to simplify
  * restarting interrupted ioctls).  The following struct is logically the
  * same as 'struct timespec' but 32/64b ABI safe.
  */
 struct drm_msm_timespec {
 	__s64 tv_sec;          /* seconds */
-	__s64 tv_nsec;         /* nanoseconds */
+	__s64 tv_nsec;         /* nayesseconds */
 };
 
 #define MSM_PARAM_GPU_ID     0x01
@@ -87,7 +87,7 @@ struct drm_msm_param {
  * GEM buffers:
  */
 
-#define MSM_BO_SCANOUT       0x00000001     /* scanout capable */
+#define MSM_BO_SCANOUT       0x00000001     /* scayesut capable */
 #define MSM_BO_GPU_READONLY  0x00000002
 #define MSM_BO_CACHE_MASK    0x000f0000
 /* cache modes */
@@ -167,9 +167,9 @@ struct drm_msm_gem_submit_reloc {
 };
 
 /* submit-types:
- *   BUF - this cmd buffer is executed normally.
+ *   BUF - this cmd buffer is executed yesrmally.
  *   IB_TARGET_BUF - this cmd buffer is an IB target.  Reloc's are
- *      processed normally, but the kernel does not setup an IB to
+ *      processed yesrmally, but the kernel does yest setup an IB to
  *      this buffer in the first-level ringbuffer
  *   CTX_RESTORE_BUF - only executed if there has been a GPU context
  *      switch since the last SUBMIT ioctl
@@ -239,7 +239,7 @@ struct drm_msm_gem_submit {
 	__u32 queueid;         /* in, submitqueue id */
 };
 
-/* The normal way to synchronize with the GPU is just to CPU_PREP on
+/* The yesrmal way to synchronize with the GPU is just to CPU_PREP on
  * a buffer if you need to access it from the CPU (other cmdstream
  * submission from same or other contexts, PAGE_FLIP ioctl, etc, all
  * handle the required synchronization under the hood).  This ioctl
@@ -265,7 +265,7 @@ struct drm_msm_wait_fence {
  * backing pages still exist.
  */
 #define MSM_MADV_WILLNEED 0       /* backing pages are needed, status returned in 'retained' */
-#define MSM_MADV_DONTNEED 1       /* backing pages not needed */
+#define MSM_MADV_DONTNEED 1       /* backing pages yest needed */
 #define __MSM_MADV_PURGED 2       /* internal state */
 
 struct drm_msm_gem_madvise {

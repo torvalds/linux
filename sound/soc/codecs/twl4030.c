@@ -189,25 +189,25 @@ static void twl4030_codec_enable(struct snd_soc_component *component, int enable
 		twl4030->codec_powered = enable;
 
 	/* REVISIT: this delay is present in TI sample drivers */
-	/* but there seems to be no TRM requirement for it     */
+	/* but there seems to be yes TRM requirement for it     */
 	udelay(10);
 }
 
 static void twl4030_setup_pdata_of(struct twl4030_codec_data *pdata,
-				   struct device_node *node)
+				   struct device_yesde *yesde)
 {
 	int value;
 
-	of_property_read_u32(node, "ti,digimic_delay",
+	of_property_read_u32(yesde, "ti,digimic_delay",
 			     &pdata->digimic_delay);
-	of_property_read_u32(node, "ti,ramp_delay_value",
+	of_property_read_u32(yesde, "ti,ramp_delay_value",
 			     &pdata->ramp_delay_value);
-	of_property_read_u32(node, "ti,offset_cncl_path",
+	of_property_read_u32(yesde, "ti,offset_cncl_path",
 			     &pdata->offset_cncl_path);
-	if (!of_property_read_u32(node, "ti,hs_extmute", &value))
+	if (!of_property_read_u32(yesde, "ti,hs_extmute", &value))
 		pdata->hs_extmute = value;
 
-	pdata->hs_extmute_gpio = of_get_named_gpio(node,
+	pdata->hs_extmute_gpio = of_get_named_gpio(yesde,
 						   "ti,hs_extmute_gpio", 0);
 	if (gpio_is_valid(pdata->hs_extmute_gpio))
 		pdata->hs_extmute = 1;
@@ -216,21 +216,21 @@ static void twl4030_setup_pdata_of(struct twl4030_codec_data *pdata,
 static struct twl4030_codec_data *twl4030_get_pdata(struct snd_soc_component *component)
 {
 	struct twl4030_codec_data *pdata = dev_get_platdata(component->dev);
-	struct device_node *twl4030_codec_node = NULL;
+	struct device_yesde *twl4030_codec_yesde = NULL;
 
-	twl4030_codec_node = of_get_child_by_name(component->dev->parent->of_node,
+	twl4030_codec_yesde = of_get_child_by_name(component->dev->parent->of_yesde,
 						  "codec");
 
-	if (!pdata && twl4030_codec_node) {
+	if (!pdata && twl4030_codec_yesde) {
 		pdata = devm_kzalloc(component->dev,
 				     sizeof(struct twl4030_codec_data),
 				     GFP_KERNEL);
 		if (!pdata) {
-			of_node_put(twl4030_codec_node);
+			of_yesde_put(twl4030_codec_yesde);
 			return NULL;
 		}
-		twl4030_setup_pdata_of(pdata, twl4030_codec_node);
-		of_node_put(twl4030_codec_node);
+		twl4030_setup_pdata_of(pdata, twl4030_codec_yesde);
+		of_yesde_put(twl4030_codec_yesde);
 	}
 
 	return pdata;
@@ -311,7 +311,7 @@ static void twl4030_init_chip(struct snd_soc_component *component)
 
 	/*
 	 * Wait for offset cancellation to complete.
-	 * Since this takes a while, do not slam the i2c.
+	 * Since this takes a while, do yest slam the i2c.
 	 * Start polling the status after ~20ms.
 	 */
 	msleep(20);
@@ -704,7 +704,7 @@ static void headset_ramp(struct snd_soc_component *component, int ramp)
 		twl4030->sysclk) + 1;
 
 	/* Enable external mute control, this dramatically reduces
-	 * the pop-noise */
+	 * the pop-yesise */
 	if (pdata && pdata->hs_extmute) {
 		if (gpio_is_valid(pdata->hs_extmute_gpio)) {
 			gpio_set_value(pdata->hs_extmute_gpio, 1);
@@ -726,7 +726,7 @@ static void headset_ramp(struct snd_soc_component *component, int ramp)
 		/* Wait ramp delay time + 1, so the VMID can settle */
 		twl4030_wait_ms(delay);
 	} else {
-		/* Headset ramp-down _not_ according to
+		/* Headset ramp-down _yest_ according to
 		 * the TRM, but in a way that it is working */
 		hs_pop &= ~TWL4030_RAMP_EN;
 		twl4030_write(component, TWL4030_REG_HS_POPN_SET, hs_pop);
@@ -820,7 +820,7 @@ static int digimic_event(struct snd_soc_dapm_widget *w,
  * 0x1 : 6dB
  * 0x2 : 0 dB
  * 0x3 : -6 dB
- * Inverting not going to help with these.
+ * Inverting yest going to help with these.
  * Custom volsw and volsw_2r get/put functions to handle these gain bits.
  */
 static int snd_soc_get_volsw_twl4030(struct snd_kcontrol *kcontrol,
@@ -959,7 +959,7 @@ static int snd_soc_put_twl4030_opmode_enum_double(struct snd_kcontrol *kcontrol,
 
 	if (twl4030->configured) {
 		dev_err(component->dev,
-			"operation mode cannot be changed on-the-fly\n");
+			"operation mode canyest be changed on-the-fly\n");
 		return -EBUSY;
 	}
 
@@ -1595,7 +1595,7 @@ static void twl4030_constraints(struct twl4030_priv *twl4030,
 		slv_substream = twl4030->slave_substream;
 	else if (mst_substream == twl4030->slave_substream)
 		slv_substream = twl4030->master_substream;
-	else /* This should not happen.. */
+	else /* This should yest happen.. */
 		return;
 
 	/* Set the constraints according to the already configured stream */
@@ -1650,7 +1650,7 @@ static int twl4030_startup(struct snd_pcm_substream *substream,
 	} else {
 		if (!(twl4030_read(component, TWL4030_REG_CODEC_MODE) &
 			TWL4030_OPTION_1)) {
-			/* In option2 4 channel is not supported, set the
+			/* In option2 4 channel is yest supported, set the
 			 * constraint for the first stream for channels, the
 			 * second stream will 'inherit' this cosntraint */
 			snd_pcm_hw_constraint_single(substream->runtime,
@@ -1674,8 +1674,8 @@ static void twl4030_shutdown(struct snd_pcm_substream *substream,
 
 	twl4030->slave_substream = NULL;
 
-	/* If all streams are closed, or the remaining stream has not yet
-	 * been configured than set the DAI as not configured. */
+	/* If all streams are closed, or the remaining stream has yest yet
+	 * been configured than set the DAI as yest configured. */
 	if (!twl4030->master_substream)
 		twl4030->configured = 0;
 	 else if (!twl4030->master_substream->runtime->channels)
@@ -1709,7 +1709,7 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (twl4030->configured)
-		/* Ignoring hw_params for already configured DAI */
+		/* Igyesring hw_params for already configured DAI */
 		return 0;
 
 	/* bit rate */
@@ -1749,7 +1749,7 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 		mode |= TWL4030_APLL_RATE_96000;
 		break;
 	default:
-		dev_err(component->dev, "%s: unknown rate %d\n", __func__,
+		dev_err(component->dev, "%s: unkyeswn rate %d\n", __func__,
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -1796,7 +1796,7 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 	twl4030->channels = params_channels(params);
 
 	/* If both playback and capture streams are open, and one of them
-	 * is setting the hw parameters right now (since we are here), set
+	 * is setting the hw parameters right yesw (since we are here), set
 	 * constraints to the other stream to match the current one. */
 	if (twl4030->slave_substream)
 		twl4030_constraints(twl4030, substream);
@@ -1926,8 +1926,8 @@ static int twl4030_voice_startup(struct snd_pcm_substream *substream,
 	struct twl4030_priv *twl4030 = snd_soc_component_get_drvdata(component);
 	u8 mode;
 
-	/* If the system master clock is not 26MHz, the voice PCM interface is
-	 * not available.
+	/* If the system master clock is yest 26MHz, the voice PCM interface is
+	 * yest available.
 	 */
 	if (twl4030->sysclk != 26000) {
 		dev_err(component->dev,
@@ -1936,14 +1936,14 @@ static int twl4030_voice_startup(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	/* If the codec mode is not option2, the voice PCM interface is not
+	/* If the codec mode is yest option2, the voice PCM interface is yest
 	 * available.
 	 */
 	mode = twl4030_read(component, TWL4030_REG_CODEC_MODE)
 		& TWL4030_OPT_MODE;
 
 	if (mode != TWL4030_OPTION_2) {
-		dev_err(component->dev, "%s: the codec mode is not option2\n",
+		dev_err(component->dev, "%s: the codec mode is yest option2\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1984,7 +1984,7 @@ static int twl4030_voice_hw_params(struct snd_pcm_substream *substream,
 		mode |= TWL4030_SEL_16K;
 		break;
 	default:
-		dev_err(component->dev, "%s: unknown rate %d\n", __func__,
+		dev_err(component->dev, "%s: unkyeswn rate %d\n", __func__,
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -2190,7 +2190,7 @@ static const struct snd_soc_component_driver soc_component_dev_twl4030 = {
 	.num_dapm_routes	= ARRAY_SIZE(intercon),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int twl4030_codec_probe(struct platform_device *pdev)

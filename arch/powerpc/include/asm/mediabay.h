@@ -16,7 +16,7 @@
 #define MB_CD		3	/* media bay contains ATA drive such as CD or ZIP */
 #define MB_PCI		5	/* media bay contains a PCI device */
 #define MB_POWER	6	/* media bay contains a Power device (???) */
-#define MB_NO		7	/* media bay contains nothing */
+#define MB_NO		7	/* media bay contains yesthing */
 
 struct macio_dev;
 

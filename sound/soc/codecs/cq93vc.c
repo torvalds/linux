@@ -27,7 +27,7 @@
 
 static const struct snd_kcontrol_new cq93vc_snd_controls[] = {
 	SOC_SINGLE("PGA Capture Volume", DAVINCI_VC_REG05, 0, 0x03, 0),
-	SOC_SINGLE("Mono DAC Playback Volume", DAVINCI_VC_REG09, 0, 0x3f, 0),
+	SOC_SINGLE("Moyes DAC Playback Volume", DAVINCI_VC_REG09, 0, 0x3f, 0),
 };
 
 static int cq93vc_mute(struct snd_soc_dai *dai, int mute)
@@ -125,7 +125,7 @@ static const struct snd_soc_component_driver soc_component_dev_cq93vc = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int cq93vc_platform_probe(struct platform_device *pdev)

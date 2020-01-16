@@ -289,7 +289,7 @@ static int inv_mpu6050_set_lpf_regs(struct inv_mpu6050_state *st,
 	case INV_MPU6050:
 	case INV_MPU6000:
 	case INV_MPU9150:
-		/* old chips, nothing to do */
+		/* old chips, yesthing to do */
 		result = 0;
 		break;
 	default:
@@ -352,7 +352,7 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	 */
 	st->chip_period = NSEC_PER_MSEC;
 
-	/* magn chip init, noop if not present in the chip */
+	/* magn chip init, yesop if yest present in the chip */
 	result = inv_mpu_magn_probe(st);
 	if (result)
 		goto error_power_off;
@@ -596,7 +596,7 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 
 	/*
 	 * we should only update scale when the chip is disabled, i.e.
-	 * not running
+	 * yest running
 	 */
 	result = iio_device_claim_direct_mode(indio_dev);
 	if (result)
@@ -732,7 +732,7 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 	if (result)
 		goto fifo_rate_fail_power_off;
 
-	/* update rate for magn, noop if not present in chip */
+	/* update rate for magn, yesop if yest present in chip */
 	result = inv_mpu_magn_set_rate(st, fifo_rate);
 	if (result)
 		goto fifo_rate_fail_power_off;
@@ -860,7 +860,7 @@ static const struct iio_chan_spec inv_mpu_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(INV_MPU6050_SCAN_TIMESTAMP),
 	/*
 	 * Note that temperature should only be via polled reading only,
-	 * not the final scan elements output.
+	 * yest the final scan elements output.
 	 */
 	{
 		.type = IIO_TEMP,
@@ -919,7 +919,7 @@ static const struct iio_chan_spec inv_mpu9250_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(INV_MPU9X50_SCAN_TIMESTAMP),
 	/*
 	 * Note that temperature should only be via polled reading only,
-	 * not the final scan elements output.
+	 * yest the final scan elements output.
 	 */
 	{
 		.type = IIO_TEMP,
@@ -1117,7 +1117,7 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 		}
 	}
 
-	/* reset to make sure previous state are not there */
+	/* reset to make sure previous state are yest there */
 	result = regmap_write(st->map, st->reg->pwr_mgmt_1,
 			      INV_MPU6050_BIT_H_RESET);
 	if (result)
@@ -1234,7 +1234,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 
 	desc = irq_get_irq_data(irq);
 	if (!desc) {
-		dev_err(dev, "Could not find IRQ %d\n", irq);
+		dev_err(dev, "Could yest find IRQ %d\n", irq);
 		return -EINVAL;
 	}
 
@@ -1307,7 +1307,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 
 	result = inv_mpu6050_init_config(indio_dev);
 	if (result) {
-		dev_err(dev, "Could not initialize device.\n");
+		dev_err(dev, "Could yest initialize device.\n");
 		return result;
 	}
 
@@ -1327,7 +1327,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	case INV_MPU9250:
 	case INV_MPU9255:
 		/*
-		 * Use magnetometer inside the chip only if there is no i2c
+		 * Use magnetometer inside the chip only if there is yes i2c
 		 * auxiliary device in use.
 		 */
 		if (!st->magn_disabled) {

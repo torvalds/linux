@@ -8,7 +8,7 @@
  * for more details.
  *
  * Changed:
- * 10-Mar-94: Arno Griffioen: Conversion for vt100 emulator port from PC LINUX
+ * 10-Mar-94: Aryes Griffioen: Conversion for vt100 emulator port from PC LINUX
  */
 
 #ifndef _LINUX_CONSOLE_H_
@@ -22,7 +22,7 @@ struct console_font_op;
 struct console_font;
 struct module;
 struct tty_struct;
-struct notifier_block;
+struct yestifier_block;
 
 /*
  * this is what the terminal answers to a ESC-Z or csi0c query.
@@ -39,7 +39,7 @@ enum con_scroll {
  * struct consw - callbacks for consoles
  *
  * @con_scroll: move lines from @top to @bottom in direction @dir by @lines.
- *		Return true if no generic handling should be done.
+ *		Return true if yes generic handling should be done.
  *		Invoked by csi_M and printing to the console.
  * @con_set_palette: sets the palette of the console to @table (optional)
  * @con_scrolldelta: the contents of the console should be scrolled by @lines.
@@ -85,7 +85,7 @@ struct consw {
 	 */
 	void	(*con_flush_scrollback)(struct vc_data *vc);
 	/*
-	 * Prepare the console for the debugger.  This includes, but is not
+	 * Prepare the console for the debugger.  This includes, but is yest
 	 * limited to, unblanking the console, loading an appropriate
 	 * palette, and allowing debugger generated output.
 	 */
@@ -189,9 +189,9 @@ extern int braille_register_console(struct console *, int index,
 		char *console_options, char *braille_options);
 extern int braille_unregister_console(struct console *);
 #ifdef CONFIG_TTY
-extern void console_sysfs_notify(void);
+extern void console_sysfs_yestify(void);
 #else
-static inline void console_sysfs_notify(void)
+static inline void console_sysfs_yestify(void)
 { }
 #endif
 extern bool console_suspend_enabled;
@@ -208,13 +208,13 @@ void vcs_remove_sysfs(int index);
 
 /* Some debug stub to catch some of the obvious races in the VT code */
 #define WARN_CONSOLE_UNLOCKED()						\
-	WARN_ON(!atomic_read(&ignore_console_lock_warning) &&		\
+	WARN_ON(!atomic_read(&igyesre_console_lock_warning) &&		\
 		!is_console_locked() && !oops_in_progress)
 /*
- * Increment ignore_console_lock_warning if you need to quiet
+ * Increment igyesre_console_lock_warning if you need to quiet
  * WARN_CONSOLE_UNLOCKED() for debugging purposes.
  */
-extern atomic_t ignore_console_lock_warning;
+extern atomic_t igyesre_console_lock_warning;
 
 /* VESA Blanking Levels */
 #define VESA_NO_BLANKING        0
@@ -231,7 +231,7 @@ static inline bool vgacon_text_force(void) { return false; }
 extern void console_init(void);
 
 /* For deferred console takeover */
-void dummycon_register_output_notifier(struct notifier_block *nb);
-void dummycon_unregister_output_notifier(struct notifier_block *nb);
+void dummycon_register_output_yestifier(struct yestifier_block *nb);
+void dummycon_unregister_output_yestifier(struct yestifier_block *nb);
 
 #endif /* _LINUX_CONSOLE_H */

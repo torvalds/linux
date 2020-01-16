@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -102,7 +102,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	struct resource res;
 	struct mii_bus *new_bus;
 	struct fec_info *fec;
-	int (*get_bus_freq)(struct device_node *);
+	int (*get_bus_freq)(struct device_yesde *);
 	int ret = -ENOMEM, clock, speed;
 
 	match = of_match_device(fs_enet_mdio_fec_match, &ofdev->dev);
@@ -123,7 +123,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	new_bus->read = &fs_enet_fec_mii_read;
 	new_bus->write = &fs_enet_fec_mii_write;
 
-	ret = of_address_to_resource(ofdev->dev.of_node, 0, &res);
+	ret = of_address_to_resource(ofdev->dev.of_yesde, 0, &res);
 	if (ret)
 		goto out_res;
 
@@ -136,10 +136,10 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	}
 
 	if (get_bus_freq) {
-		clock = get_bus_freq(ofdev->dev.of_node);
+		clock = get_bus_freq(ofdev->dev.of_yesde);
 		if (!clock) {
-			/* Use maximum divider if clock is unknown */
-			dev_warn(&ofdev->dev, "could not determine IPS clock\n");
+			/* Use maximum divider if clock is unkyeswn */
+			dev_warn(&ofdev->dev, "could yest determine IPS clock\n");
 			clock = 0x3F * 5000000;
 		}
 	} else
@@ -170,7 +170,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	new_bus->parent = &ofdev->dev;
 	platform_set_drvdata(ofdev, new_bus);
 
-	ret = of_mdiobus_register(new_bus, ofdev->dev.of_node);
+	ret = of_mdiobus_register(new_bus, ofdev->dev.of_yesde);
 	if (ret)
 		goto out_unmap_regs;
 

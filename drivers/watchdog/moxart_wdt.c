@@ -94,7 +94,7 @@ static int moxart_wdt_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int err;
 	unsigned int max_timeout;
-	bool nowayout = WATCHDOG_NOWAYOUT;
+	bool yeswayout = WATCHDOG_NOWAYOUT;
 
 	moxart_wdt = devm_kzalloc(dev, sizeof(*moxart_wdt), GFP_KERNEL);
 	if (!moxart_wdt)
@@ -128,7 +128,7 @@ static int moxart_wdt_probe(struct platform_device *pdev)
 	moxart_wdt->dev.parent = dev;
 
 	watchdog_init_timeout(&moxart_wdt->dev, heartbeat, dev);
-	watchdog_set_nowayout(&moxart_wdt->dev, nowayout);
+	watchdog_set_yeswayout(&moxart_wdt->dev, yeswayout);
 	watchdog_set_restart_priority(&moxart_wdt->dev, 128);
 
 	watchdog_set_drvdata(&moxart_wdt->dev, moxart_wdt);
@@ -138,8 +138,8 @@ static int moxart_wdt_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	dev_dbg(dev, "Watchdog enabled (heartbeat=%d sec, nowayout=%d)\n",
-		moxart_wdt->dev.timeout, nowayout);
+	dev_dbg(dev, "Watchdog enabled (heartbeat=%d sec, yeswayout=%d)\n",
+		moxart_wdt->dev.timeout, yeswayout);
 
 	return 0;
 }

@@ -32,7 +32,7 @@ static uint32_t compute_crc(void *vaddr_out, struct vkms_composer *composer)
 			src_offset = composer->offset
 				     + (i * composer->pitch)
 				     + (j * composer->cpp);
-			/* XRGB format ignores Alpha channel */
+			/* XRGB format igyesres Alpha channel */
 			memset(vaddr_out + src_offset + 24, 0,  8);
 			crc = crc32_le(crc, vaddr_out + src_offset,
 				       sizeof(u32));
@@ -172,7 +172,7 @@ void vkms_composer_worker(struct work_struct *work)
 
 	/*
 	 * We raced with the vblank hrtimer and previous work already computed
-	 * the crc, nothing to do.
+	 * the crc, yesthing to do.
 	 */
 	if (!crc_pending)
 		return;
@@ -224,7 +224,7 @@ int vkms_verify_crc_source(struct drm_crtc *crtc, const char *src_name,
 	bool enabled;
 
 	if (vkms_crc_parse_source(src_name, &enabled) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", src_name);
+		DRM_DEBUG_DRIVER("unkyeswn source %s\n", src_name);
 		return -EINVAL;
 	}
 

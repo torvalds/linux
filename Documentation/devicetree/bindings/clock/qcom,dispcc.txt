@@ -1,4 +1,4 @@
-Qualcomm Technologies, Inc. Display Clock Controller Binding
+Qualcomm Techyeslogies, Inc. Display Clock Controller Binding
 ------------------------------------------------------------
 
 Required properties :

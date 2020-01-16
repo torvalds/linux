@@ -21,12 +21,12 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       yestice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation yesr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
@@ -95,7 +95,7 @@ MODULE_DESCRIPTION("PCIe NTB Performance Measurement Tool");
 #define MAX_THREADS_CNT		32
 #define DEF_THREADS_CNT		1
 #define MAX_CHUNK_SIZE		SZ_1M
-#define MAX_CHUNK_ORDER		20 /* no larger than 1M */
+#define MAX_CHUNK_ORDER		20 /* yes larger than 1M */
 
 #define DMA_TRIES		100
 #define DMA_MDELAY		10
@@ -264,7 +264,7 @@ static int perf_spad_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 	 * Perform predefined number of attempts before give up.
 	 * We are sending the data to the port specific scratchpad, so
 	 * to prevent a multi-port access race-condition. Additionally
-	 * there is no need in local locking since only thread-safe
+	 * there is yes need in local locking since only thread-safe
 	 * service work is using this method.
 	 */
 	for (try = 0; try < MSG_TRIES; try++) {
@@ -330,7 +330,7 @@ static int perf_spad_cmd_recv(struct perf_ctx *perf, int *pidx,
 		val = ntb_spad_read(perf->ntb, PERF_SPAD_HDATA(peer->gidx));
 		*data |= (u64)val << 32;
 
-		/* Next command can be retrieved from now */
+		/* Next command can be retrieved from yesw */
 		ntb_spad_write(perf->ntb, PERF_SPAD_CMD(peer->gidx),
 			       PERF_CMD_INVAL);
 
@@ -407,7 +407,7 @@ static int perf_msg_cmd_recv(struct perf_ctx *perf, int *pidx,
 	val = ntb_msg_read(perf->ntb, pidx, PERF_MSG_HDATA);
 	*data |= (u64)val << 32;
 
-	/* Next command can be retrieved from now */
+	/* Next command can be retrieved from yesw */
 	ntb_msg_clear_sts(perf->ntb, inbits);
 
 	dev_dbg(&perf->ntb->dev, "CMD recv: %d 0x%llx\n", *cmd, *data);
@@ -472,7 +472,7 @@ static int perf_cmd_recv(struct perf_ctx *perf)
 		}
 	}
 
-	/* Return 0 if no data left to process, otherwise an error */
+	/* Return 0 if yes data left to process, otherwise an error */
 	return ret == -ENODATA ? 0 : ret;
 }
 
@@ -653,7 +653,7 @@ static int perf_init_service(struct perf_ctx *perf)
 	u64 mask;
 
 	if (ntb_peer_mw_count(perf->ntb) < perf->pcnt + 1) {
-		dev_err(&perf->ntb->dev, "Not enough memory windows\n");
+		dev_err(&perf->ntb->dev, "Not eyesugh memory windows\n");
 		return -EINVAL;
 	}
 
@@ -724,7 +724,7 @@ static int perf_enable_service(struct perf_ctx *perf)
 	}
 
 	ntb_link_enable(perf->ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
-	/* Might be not necessary */
+	/* Might be yest necessary */
 	ntb_link_event(perf->ntb);
 
 	return 0;
@@ -854,11 +854,11 @@ err_free_resource:
 static bool perf_dma_filter(struct dma_chan *chan, void *data)
 {
 	struct perf_ctx *perf = data;
-	int node;
+	int yesde;
 
-	node = dev_to_node(&perf->ntb->dev);
+	yesde = dev_to_yesde(&perf->ntb->dev);
 
-	return node == NUMA_NO_NODE || node == dev_to_node(chan->device->dev);
+	return yesde == NUMA_NO_NODE || yesde == dev_to_yesde(chan->device->dev);
 }
 
 static int perf_init_test(struct perf_thread *pthr)
@@ -866,8 +866,8 @@ static int perf_init_test(struct perf_thread *pthr)
 	struct perf_ctx *perf = pthr->perf;
 	dma_cap_mask_t dma_mask;
 
-	pthr->src = kmalloc_node(perf->test_peer->outbuf_size, GFP_KERNEL,
-				 dev_to_node(&perf->ntb->dev));
+	pthr->src = kmalloc_yesde(perf->test_peer->outbuf_size, GFP_KERNEL,
+				 dev_to_yesde(&perf->ntb->dev));
 	if (!pthr->src)
 		return -ENOMEM;
 
@@ -942,7 +942,7 @@ static int perf_sync_test(struct perf_thread *pthr)
 	struct perf_ctx *perf = pthr->perf;
 
 	if (!use_dma)
-		goto no_dma_ret;
+		goto yes_dma_ret;
 
 	wait_event(pthr->dma_wait,
 		   (atomic_read(&pthr->dma_sync) == 0 ||
@@ -951,7 +951,7 @@ static int perf_sync_test(struct perf_thread *pthr)
 	if (atomic_read(&perf->tsync) < 0)
 		return -EINTR;
 
-no_dma_ret:
+yes_dma_ret:
 	pthr->duration = ktime_sub(ktime_get(), pthr->duration);
 
 	dev_dbg(&perf->ntb->dev, "%d: copied %llu bytes\n",
@@ -971,7 +971,7 @@ static void perf_clear_test(struct perf_thread *pthr)
 	struct perf_ctx *perf = pthr->perf;
 
 	if (!use_dma)
-		goto no_dma_notify;
+		goto yes_dma_yestify;
 
 	/*
 	 * If test finished without errors, termination isn't needed.
@@ -981,7 +981,7 @@ static void perf_clear_test(struct perf_thread *pthr)
 
 	dma_release_channel(pthr->dma_chan);
 
-no_dma_notify:
+yes_dma_yestify:
 	atomic_dec(&perf->tsync);
 	wake_up(&perf->twait);
 	kfree(pthr->src);
@@ -1143,7 +1143,7 @@ static void perf_clear_threads(struct perf_ctx *perf)
 }
 
 /*==============================================================================
- *                               DebugFS nodes
+ *                               DebugFS yesdes
  *==============================================================================
  */
 

@@ -54,7 +54,7 @@ static unsigned short max_rds_errors = 1;
 /* 0 means   0  errors requiring correction */
 /* 1 means 1-2  errors requiring correction (used by original USBRadio.exe) */
 /* 2 means 3-5  errors requiring correction */
-/* 3 means   6+ errors or errors in checkword, correction not possible */
+/* 3 means   6+ errors or errors in checkword, correction yest possible */
 module_param(max_rds_errors, ushort, 0644);
 MODULE_PARM_DESC(max_rds_errors, "RDS maximum block errors: *1*");
 
@@ -410,7 +410,7 @@ static int si470x_i2c_probe(struct i2c_client *client)
 			radio->registers[DEVICEID], radio->registers[SI_CHIPID]);
 	if ((radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE) < RADIO_FW_VERSION) {
 		dev_warn(&client->dev,
-			"This driver is known to work with firmware version %hu,\n",
+			"This driver is kyeswn to work with firmware version %hu,\n",
 			RADIO_FW_VERSION);
 		dev_warn(&client->dev,
 			"but the device has firmware version %hu.\n",
@@ -455,7 +455,7 @@ static int si470x_i2c_probe(struct i2c_client *client)
 	retval = video_register_device(&radio->videodev, VFL_TYPE_RADIO,
 			radio_nr);
 	if (retval) {
-		dev_warn(&client->dev, "Could not register video device\n");
+		dev_warn(&client->dev, "Could yest register video device\n");
 		goto err_all;
 	}
 	i2c_set_clientdata(client, radio);

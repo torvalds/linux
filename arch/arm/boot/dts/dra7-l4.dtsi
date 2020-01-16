@@ -2081,7 +2081,7 @@
 				status = "disabled";
 				/* Errata i887 limits max-frequency of MMC3 to 64 MHz */
 				max-frequency = <64000000>;
-				/* SDMA is not supported */
+				/* SDMA is yest supported */
 				sdhci-caps-mask = <0x0 0x400000>;
 			};
 		};
@@ -2095,7 +2095,7 @@
 			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,syss-mask = <1>;
-			ti,no-reset-on-init;
+			ti,yes-reset-on-init;
 			/* Domains (P, C): l4per_pwrdm, l4per_clkdm */
 			clocks = <&l4per_clkctrl DRA7_L4PER_HDQ1W_CLKCTRL 0>;
 			clock-names = "fck";
@@ -2138,7 +2138,7 @@
 				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 				max-frequency = <192000000>;
-				/* SDR104/DDR50/SDR50 bits in CAPA2 is not supported */
+				/* SDR104/DDR50/SDR50 bits in CAPA2 is yest supported */
 				sdhci-caps-mask = <0x7 0x0>;
 				mmc-hs200-1_8v;
 				mmc-ddr-1_8v;
@@ -2236,7 +2236,7 @@
 				interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 				max-frequency = <192000000>;
-				/* SDMA is not supported */
+				/* SDMA is yest supported */
 				sdhci-caps-mask = <0x0 0x400000>;
 			};
 		};
@@ -3015,13 +3015,13 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x84000 0x4000>;
 			/*
-			 * Do not allow gating of cpsw clock as workaround
+			 * Do yest allow gating of cpsw clock as workaround
 			 * for errata i877. Keeping internal clock disabled
 			 * causes the device switching characteristics
 			 * to degrade over time and eventually fail to meet
 			 * the data manual delay time/skew specs.
 			 */
-			ti,no-idle;
+			ti,yes-idle;
 
 			mac: ethernet@0 {
 				compatible = "ti,dra7-cpsw","ti,cpsw";

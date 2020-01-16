@@ -12,10 +12,10 @@ skfp-objs :=  skfddi.o    hwmtm.o    fplustm.o  smt.o      cfm.o     \
 
 # NOTE:
 #   Compiling this driver produces some warnings (and some more are 
-#   switched off below), but I did not fix this, because the Hardware
+#   switched off below), but I did yest fix this, because the Hardware
 #   Module source (see skfddi.c for details) is used for different
 #   drivers, and fixing it for Linux might bring problems on other
 #   projects. To keep the source common for all those drivers (and
-#   thus simplify fixes to it), please do not clean it up!
+#   thus simplify fixes to it), please do yest clean it up!
 
-ccflags-y := -DPCI -DMEM_MAPPED_IO -Wno-strict-prototypes
+ccflags-y := -DPCI -DMEM_MAPPED_IO -Wyes-strict-prototypes

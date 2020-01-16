@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * MCT (Magic Control Technology Corp.) USB RS232 Converter Driver
+ * MCT (Magic Control Techyeslogy Corp.) USB RS232 Converter Driver
  *
  *   Copyright (C) 2000 Wolfgang Grandegger (wolfgang@ces.ch)
  *
@@ -18,7 +18,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -33,7 +33,7 @@
 #include "mct_u232.h"
 
 #define DRIVER_AUTHOR "Wolfgang Grandegger <wolfgang@ces.ch>"
-#define DRIVER_DESC "Magic Control Technology USB-RS232 converter driver"
+#define DRIVER_DESC "Magic Control Techyeslogy USB-RS232 converter driver"
 
 /*
  * Function prototypes
@@ -114,7 +114,7 @@ struct mct_u232_private {
 
 /*
  * Later day 2.6.0-test kernels have new baud rates like B230400 which
- * we do not know how to support. We ignore them for the moment.
+ * we do yest kyesw how to support. We igyesre them for the moment.
  */
 static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
 					speed_t value, speed_t *result)
@@ -127,7 +127,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
 		case 300:
 			return 0x01;
 		case 600:
-			return 0x02; /* this one not tested */
+			return 0x02; /* this one yest tested */
 		case 1200:
 			return 0x03;
 		case 2400:
@@ -201,18 +201,18 @@ static int mct_u232_set_baud_rate(struct tty_struct *tty,
 	/* Mimic the MCT-supplied Windows driver (version 1.21P.0104), which
 	   always sends two extra USB 'device request' messages after the
 	   'baud rate change' message.  The actual functionality of the
-	   request codes in these messages is not fully understood but these
+	   request codes in these messages is yest fully understood but these
 	   particular codes are never seen in any operation besides a baud
 	   rate change.  Both of these messages send a single byte of data.
 	   In the first message, the value of this byte is always zero.
 
 	   The second message has been determined experimentally to control
-	   whether data will be transmitted to a device which is not asserting
+	   whether data will be transmitted to a device which is yest asserting
 	   the 'CTS' signal.  If the second message's data byte is zero, data
-	   will be transmitted even if 'CTS' is not asserted (i.e. no hardware
-	   flow control).  if the second message's data byte is nonzero (a
-	   value of 1 is used by this driver), data will not be transmitted to
-	   a device which is not asserting 'CTS'.
+	   will be transmitted even if 'CTS' is yest asserted (i.e. yes hardware
+	   flow control).  if the second message's data byte is yesnzero (a
+	   value of 1 is used by this driver), data will yest be transmitted to
+	   a device which is yest asserting 'CTS'.
 	*/
 
 	buf[0] = 0;
@@ -429,9 +429,9 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 						== MCT_U232_SITECOM_PID)
 		port->bulk_out_size = 16;
 
-	/* Do a defined restart: the normal serial device seems to
-	 * always turn on DTR and RTS here, so do the same. I'm not
-	 * sure if this is really necessary. But it should not harm
+	/* Do a defined restart: the yesrmal serial device seems to
+	 * always turn on DTR and RTS here, so do the same. I'm yest
+	 * sure if this is really necessary. But it should yest harm
 	 * either.
 	 */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -526,7 +526,7 @@ static void mct_u232_read_int_callback(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -562,7 +562,7 @@ static void mct_u232_read_int_callback(struct urb *urb)
 	/* Now to report any errors */
 	priv->last_lsr = data[MCT_U232_LSR_INDEX];
 	/*
-	 * fill in the flip buffer here, but I do not know the relation
+	 * fill in the flip buffer here, but I do yest kyesw the relation
 	 * to the current/next receive buffer or characters.  I need
 	 * to look in to this before committing any code.
 	 */
@@ -614,7 +614,7 @@ static void mct_u232_set_termios(struct tty_struct *tty,
 
 	/*
 	 * Update baud rate.
-	 * Do not attempt to cache old rates and skip settings,
+	 * Do yest attempt to cache old rates and skip settings,
 	 * disconnects screw such tricks up completely.
 	 * Premature optimization is the root of all evil.
 	 */
@@ -658,7 +658,7 @@ static void mct_u232_set_termios(struct tty_struct *tty,
 		last_lcr |= MCT_U232_DATA_BITS_8; break;
 	default:
 		dev_err(&port->dev,
-			"CSIZE was not CS5-CS8, using default of 8\n");
+			"CSIZE was yest CS5-CS8, using default of 8\n");
 		last_lcr |= MCT_U232_DATA_BITS_8;
 		break;
 	}

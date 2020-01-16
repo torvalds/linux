@@ -15,7 +15,7 @@ struct xfs_trans_res {
 	uint	tr_logres;	/* log space unit in bytes per log ticket */
 	int	tr_logcount;	/* number of log operations per log ticket */
 	int	tr_logflags;	/* log flags, currently only used for indicating
-				 * a reservation request is permanent or not */
+				 * a reservation request is permanent or yest */
 };
 
 struct xfs_trans_resv {
@@ -28,10 +28,10 @@ struct xfs_trans_resv {
 	struct xfs_trans_res	tr_create;	/* create trans */
 	struct xfs_trans_res	tr_create_tmpfile; /* create O_TMPFILE trans */
 	struct xfs_trans_res	tr_mkdir;	/* mkdir trans */
-	struct xfs_trans_res	tr_ifree;	/* inode free trans */
-	struct xfs_trans_res	tr_ichange;	/* inode update trans */
+	struct xfs_trans_res	tr_ifree;	/* iyesde free trans */
+	struct xfs_trans_res	tr_ichange;	/* iyesde update trans */
 	struct xfs_trans_res	tr_growdata;	/* fs data section grow trans */
-	struct xfs_trans_res	tr_addafork;	/* add inode attr fork trans */
+	struct xfs_trans_res	tr_addafork;	/* add iyesde attr fork trans */
 	struct xfs_trans_res	tr_writeid;	/* write setuid/setgid file */
 	struct xfs_trans_res	tr_attrinval;	/* attr fork buffer
 						 * invalidation */

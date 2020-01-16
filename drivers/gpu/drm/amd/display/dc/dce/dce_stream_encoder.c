@@ -8,7 +8,7 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -69,7 +69,7 @@ static void dce110_update_generic_info_packet(
 {
 	uint32_t regval;
 	/* TODOFPGA Figure out a proper number for max_retries polling for lock
-	 * use 50 for now.
+	 * use 50 for yesw.
 	 */
 	uint32_t max_retries = 50;
 
@@ -81,7 +81,7 @@ static void dce110_update_generic_info_packet(
 		if (packet_index >= 8)
 			ASSERT(0);
 
-		/* poll dig_update_lock is not locked -> asic internal signal
+		/* poll dig_update_lock is yest locked -> asic internal signal
 		 * assume otg master lock will unlock it
 		 */
 /*		REG_WAIT(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_LOCK_STATUS,
@@ -91,8 +91,8 @@ static void dce110_update_generic_info_packet(
 		REG_WAIT(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_CONFLICT,
 				0, 10, max_retries);
 
-		/* HW does is not reading GSP memory not reading too long ->
-		 * something wrong. clear GPS memory access and notify?
+		/* HW does is yest reading GSP memory yest reading too long ->
+		 * something wrong. clear GPS memory access and yestify?
 		 * hw SW is writing to GSP memory
 		 */
 		REG_UPDATE(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_CONFLICT_CLR, 1);
@@ -284,7 +284,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 	uint32_t misc1 = 0;
 	uint32_t h_blank;
 	uint32_t h_back_porch;
-	uint8_t synchronous_clock = 0; /* asynchronous mode */
+	uint8_t synchroyesus_clock = 0; /* asynchroyesus mode */
 	uint8_t colorimetry_bpc;
 	uint8_t dynamic_range_rgb = 0; /*full range*/
 	uint8_t dynamic_range_ycbcr = 1; /*bt709*/
@@ -313,7 +313,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 
 		if (hw_crtc_timing.flags.Y_ONLY)
 			if (hw_crtc_timing.display_color_depth != COLOR_DEPTH_666)
-				/* HW testing only, no use case yet.
+				/* HW testing only, yes use case yet.
 				 * Color depth of Y-only could be
 				 * 8, 10, 12, 16 bits */
 				REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
@@ -393,7 +393,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		break;
 	}
 
-	misc0 = misc0 | synchronous_clock;
+	misc0 = misc0 | synchroyesus_clock;
 	misc0 = colorimetry_bpc << 5;
 
 	if (REG(DP_MSA_TIMING_PARAM1)) {
@@ -445,7 +445,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		case COLOR_SPACE_APPCTRL:
 		case COLOR_SPACE_CUSTOMPOINTS:
 		case COLOR_SPACE_UNKNOWN:
-			/* do nothing */
+			/* do yesthing */
 			break;
 		}
 		if (enc110->se_mask->DP_DYN_RANGE && enc110->se_mask->DP_YCBCR_RANGE)
@@ -731,7 +731,7 @@ static void dce110_stream_encoder_set_mst_bandwidth(
 
 	/* wait for update to be completed on the link */
 	/* i.e. DP_MSE_RATE_UPDATE_PENDING field (read only) */
-	/* is reset to 0 (not pending) */
+	/* is reset to 0 (yest pending) */
 	REG_WAIT(DP_MSE_RATE_UPDATE, DP_MSE_RATE_UPDATE_PENDING,
 			0,
 			10, DP_MST_UPDATE_MAX_RETRY);
@@ -883,7 +883,7 @@ static void dce110_stream_encoder_update_dp_info_packets(
 	* this master bit must also be set.
 	* This register shared with audio info frame.
 	* Therefore we need to enable master bit
-	* if at least on of the fields is not 0
+	* if at least on of the fields is yest 0
 	*/
 	value = REG_READ(DP_SEC_CNTL);
 	if (value)
@@ -910,7 +910,7 @@ static void dce110_stream_encoder_stop_dp_info_packets(
 
 	/* this register shared with audio info frame.
 	 * therefore we need to keep master enabled
-	 * if at least one of the fields is not 0 */
+	 * if at least one of the fields is yest 0 */
 	value = REG_READ(DP_SEC_CNTL);
 	if (value)
 		REG_UPDATE(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, 1);
@@ -927,19 +927,19 @@ static void dce110_stream_encoder_dp_blank(
 	/* Note: For CZ, we are changing driver default to disable
 	 * stream deferred to next VBLANK. If results are positive, we
 	 * will make the same change to all DCE versions. There are a
-	 * handful of panels that cannot handle disable stream at
+	 * handful of panels that canyest handle disable stream at
 	 * HBLANK and will result in a white line flash across the
 	 * screen on stream disable. */
 	REG_GET(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, &reg1);
 	if ((reg1 & 0x1) == 0)
-		/*stream not enabled*/
+		/*stream yest enabled*/
 		return;
 	/* Specify the video stream disable point
 	 * (2 = start of the next vertical blank) */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_DIS_DEFER, 2);
 	/* Larger delay to wait until VBLANK - use max retry of
 	 * 10us*3000=30ms. This covers 16.6ms of typical 60 Hz mode +
-	 * a little more because we may not trust delay accuracy.
+	 * a little more because we may yest trust delay accuracy.
 	 */
 	max_retries = DP_BLANK_MAX_RETRY * 150;
 
@@ -955,7 +955,7 @@ static void dce110_stream_encoder_dp_blank(
 			0,
 			10, max_retries);
 
-	/* Tell the DP encoder to ignore timing from CRTC, must be done after
+	/* Tell the DP encoder to igyesre timing from CRTC, must be done after
 	 * the polling. If we set DP_STEER_FIFO_RESET before DP stream blank is
 	 * complete, stream status will be stuck in video stream enabled state,
 	 * i.e. DP_VID_STREAM_STATUS stuck at 1.
@@ -1019,8 +1019,8 @@ static void dce110_stream_encoder_dp_unblank(
 	/* the hardware would start sending video at the start of the next DP
 	* frame (i.e. rising edge of the vblank).
 	* NOTE: We used to program DP_VID_STREAM_DIS_DEFER = 2 here, but this
-	* register has no effect on enable transition! HW always guarantees
-	* VID_STREAM enable at start of next frame, and this is not
+	* register has yes effect on enable transition! HW always guarantees
+	* VID_STREAM enable at start of next frame, and this is yest
 	* programmable
 	*/
 
@@ -1301,7 +1301,7 @@ static void get_audio_clock_info(
 		for (index = 0; index < audio_array_size; index++) {
 			if (clock_info[index].pixel_clock_in_10khz >
 				crtc_pixel_clock_in_10khz)
-				break;  /* not match */
+				break;  /* yest match */
 			else if (clock_info[index].pixel_clock_in_10khz ==
 					crtc_pixel_clock_in_10khz) {
 				/* match found */
@@ -1311,7 +1311,7 @@ static void get_audio_clock_info(
 		}
 	}
 
-	/* not found */
+	/* yest found */
 	if (actual_pixel_clock_100Hz == 0)
 		actual_pixel_clock_100Hz = crtc_pixel_clock_100Hz;
 
@@ -1340,7 +1340,7 @@ static void dce110_se_audio_setup(
 
 	ASSERT(audio_info);
 	if (audio_info == NULL)
-		/* This should not happen.it does so we don't get BSOD*/
+		/* This should yest happen.it does so we don't get BSOD*/
 		return;
 
 	speakers = audio_info->flags.info.ALLSPEAKERS;
@@ -1362,7 +1362,7 @@ static void dce110_se_setup_hdmi_audio(
 	struct audio_clock_info audio_clock_info = {0};
 	uint32_t max_packets_per_line;
 
-	/* For now still do calculation, although this field is ignored when
+	/* For yesw still do calculation, although this field is igyesred when
 	above HDMI_PACKET_GEN_VERSION set to 1 */
 	max_packets_per_line = calc_max_audio_packets_per_line(crtc_info);
 
@@ -1414,7 +1414,7 @@ static void dce110_se_setup_hdmi_audio(
 	/* HDMI_ACR_48_1__HDMI_ACR_N_48_MASK */
 	REG_UPDATE(HDMI_ACR_48_1, HDMI_ACR_N_48, audio_clock_info.n_48khz);
 
-	/* Video driver cannot know in advance which sample rate will
+	/* Video driver canyest kyesw in advance which sample rate will
 	   be used by HD Audio driver
 	   HDMI_ACR_PACKET_CONTROL__HDMI_ACR_N_MULTIPLE field is
 	   programmed below in interruppt callback */
@@ -1428,7 +1428,7 @@ static void dce110_se_setup_hdmi_audio(
 	/* AFMT_60958_1 AFMT_60958_CS_CHALNNEL_NUMBER_R */
 	REG_UPDATE(AFMT_60958_1, AFMT_60958_CS_CHANNEL_NUMBER_R, 2);
 
-	/*AFMT_60958_2 now keep this settings until
+	/*AFMT_60958_2 yesw keep this settings until
 	 *  Programming guide comes out*/
 	REG_UPDATE_6(AFMT_60958_2,
 			AFMT_60958_CS_CHANNEL_NUMBER_2, 3,
@@ -1480,7 +1480,7 @@ static void dce110_se_enable_audio_clock(
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
 
 	if (REG(AFMT_CNTL) == 0)
-		return;   /* DCE8/10 does not have this register */
+		return;   /* DCE8/10 does yest have this register */
 
 	REG_UPDATE(AFMT_CNTL, AFMT_AUDIO_CLOCK_EN, !!enable);
 
@@ -1489,8 +1489,8 @@ static void dce110_se_enable_audio_clock(
 	 *
 	 * REG_WAIT(AFMT_CNTL, AFMT_AUDIO_CLOCK_ON, !!enable, 1, 10);
 	 *
-	 * TODO: wait for clock_on does not work well. May need HW
-	 * program sequence. But audio seems work normally even without wait
+	 * TODO: wait for clock_on does yest work well. May need HW
+	 * program sequence. But audio seems work yesrmally even without wait
 	 * for clock_on status change
 	 */
 }
@@ -1527,7 +1527,7 @@ static void dce110_se_disable_dp_audio(
 			DP_SEC_STREAM_ENABLE, 0);
 
 	/* This register shared with encoder info frame. Therefore we need to
-	keep master enabled if at least on of the fields is not 0 */
+	keep master enabled if at least on of the fields is yest 0 */
 	value = REG_READ(DP_SEC_CNTL);
 	if (value != 0)
 		REG_UPDATE(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, 1);

@@ -50,7 +50,7 @@ struct cros_ec_rpmsg {
  * @ec_dev: ChromeOS EC device
  * @ec_msg: Message to transfer
  *
- * This is only used for old EC proto version, and is not supported for this
+ * This is only used for old EC proto version, and is yest supported for this
  * driver.
  *
  * Return: -EINVAL

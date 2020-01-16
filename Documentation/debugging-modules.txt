@@ -4,7 +4,7 @@ Debugging Modules after 2.6.3
 In almost all distributions, the kernel asks for modules which don't
 exist, such as "net-pf-10" or whatever.  Changing "modprobe -q" to
 "succeed" in this case is hacky and breaks some setups, and also we
-want to know if it failed for the fallback code for old aliases in
+want to kyesw if it failed for the fallback code for old aliases in
 fs/char_dev.c, for example.
 
 In the past a debugging message which would fill people's logs was

@@ -8,7 +8,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/asm-offsets.h>
 
 		.text
@@ -73,10 +73,10 @@
 #include "csumpartialcopygeneric.S"
 
 /*
- * FIXME: minor buglet here
+ * FIXME: miyesr buglet here
  * We don't return the checksum for the data present in the buffer.  To do
  * so properly, we would have to add in whatever registers were loaded before
- * the fault, which, with the current asm above is not predictable.
+ * the fault, which, with the current asm above is yest predictable.
  */
 		.pushsection .text.fixup,"ax"
 		.align	4

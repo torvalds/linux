@@ -3,7 +3,7 @@
 The RTS signal is capable of automatically controlling line direction for
 the built-in half-duplex mode.
 The properties described hereafter shall be given to a half-duplex capable
-UART node.
+UART yesde.
 
 Optional properties:
 - rs485-rts-delay: prop-encoded-array <a b> where:
@@ -11,7 +11,7 @@ Optional properties:
       it corresponds to the delay before sending data.
   * b is the delay between end of data sent and rts signal in milliseconds
       it corresponds to the delay after sending data and actual release of the line.
-  If this property is not specified, <0 0> is assumed.
+  If this property is yest specified, <0 0> is assumed.
 - rs485-rts-active-low: drive RTS low when sending (default is high).
 - linux,rs485-enabled-at-boot-time: empty property telling to enable the rs485
   feature at boot time. It can be disabled later with proper ioctl.

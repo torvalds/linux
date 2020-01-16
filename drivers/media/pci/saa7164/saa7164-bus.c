@@ -101,21 +101,21 @@ static void saa7164_bus_dumpmsg(struct saa7164_dev *dev, struct tmComResInfo *m,
 	dprintk(DBGLVL_BUS, " .size             = 0x%x\n", m->size);
 	dprintk(DBGLVL_BUS, " .command          = 0x%x\n", m->command);
 	dprintk(DBGLVL_BUS, " .controlselector  = 0x%x\n", m->controlselector);
-	dprintk(DBGLVL_BUS, " .seqno            = %d\n",   m->seqno);
+	dprintk(DBGLVL_BUS, " .seqyes            = %d\n",   m->seqyes);
 	if (buf)
-		dprintk(DBGLVL_BUS, " .buffer (ignored)\n");
+		dprintk(DBGLVL_BUS, " .buffer (igyesred)\n");
 }
 
 /*
- * Places a command or a response on the bus. The implementation does not
- * know if it is a command or a response it just places the data on the
+ * Places a command or a response on the bus. The implementation does yest
+ * kyesw if it is a command or a response it just places the data on the
  * bus depending on the bus information given in the struct tmComResBusInfo
- * structure. If the command or response does not fit into the bus ring
+ * structure. If the command or response does yest fit into the bus ring
  * buffer it will be refused.
  *
  * Return Value:
  *  SAA_OK     The function executed successfully.
- *  < 0        One or more members are not initialized.
+ *  < 0        One or more members are yest initialized.
  */
 int saa7164_bus_set(struct saa7164_dev *dev, struct tmComResInfo* msg,
 	void *buf)
@@ -160,7 +160,7 @@ int saa7164_bus_set(struct saa7164_dev *dev, struct tmComResInfo* msg,
 		/* Deal with the wrapped ring */
 		free_write_space = curr_srp - curr_swp;
 	else
-		/* The ring has not wrapped yet */
+		/* The ring has yest wrapped yet */
 		free_write_space = (curr_srp + bus->m_dwSizeSetRing) - curr_swp;
 
 	dprintk(DBGLVL_BUS, "%s() bytes_to_write = %d\n", __func__,
@@ -293,14 +293,14 @@ out:
 }
 
 /*
- * Receive a command or a response from the bus. The implementation does not
- * know if it is a command or a response it simply dequeues the data,
+ * Receive a command or a response from the bus. The implementation does yest
+ * kyesw if it is a command or a response it simply dequeues the data,
  * depending on the bus information given in the struct tmComResBusInfo
  * structure.
  *
  * Return Value:
  *  0          The function executed successfully.
- *  < 0        One or more members are not initialized.
+ *  < 0        One or more members are yest initialized.
  */
 int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 	void *buf, int peekonly)
@@ -331,7 +331,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 
 	mutex_lock(&bus->lock);
 
-	/* Peek the bus to see if a msg exists, if it's not what we're expecting
+	/* Peek the bus to see if a msg exists, if it's yest what we're expecting
 	 * then return cleanly else read the message from the bus.
 	 */
 	curr_gwp = saa7164_readl(bus->m_dwGetWritePos);
@@ -390,7 +390,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 	/* Check if the command/response matches what is expected */
 	if ((msg_tmp.id != msg->id) || (msg_tmp.command != msg->command) ||
 		(msg_tmp.controlselector != msg->controlselector) ||
-		(msg_tmp.seqno != msg->seqno) || (msg_tmp.size != msg->size)) {
+		(msg_tmp.seqyes != msg->seqyes) || (msg_tmp.size != msg->size)) {
 
 		printk(KERN_ERR "%s() Unexpected msg miss-match\n", __func__);
 		saa7164_bus_dumpmsg(dev, msg, buf);

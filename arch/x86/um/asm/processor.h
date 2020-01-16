@@ -21,12 +21,12 @@
 #include <asm/user.h>
 
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-static inline void rep_nop(void)
+static inline void rep_yesp(void)
 {
-	__asm__ __volatile__("rep;nop": : :"memory");
+	__asm__ __volatile__("rep;yesp": : :"memory");
 }
 
-#define cpu_relax()		rep_nop()
+#define cpu_relax()		rep_yesp()
 
 #define task_pt_regs(t) (&(t)->thread.regs)
 

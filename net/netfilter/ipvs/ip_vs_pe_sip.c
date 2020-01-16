@@ -127,7 +127,7 @@ static bool ip_vs_sip_ct_match(const struct ip_vs_conn_param *p,
 		      ip_vs_proto_name(p->protocol),
 		      IP_VS_DEBUG_CALLID(p->pe_data, p->pe_data_len),
 		      IP_VS_DBG_ADDR(p->af, p->vaddr), ntohs(p->vport),
-		      ret ? "hit" : "not hit");
+		      ret ? "hit" : "yest hit");
 
 	return ret;
 }
@@ -154,7 +154,7 @@ ip_vs_sip_conn_out(struct ip_vs_service *svc,
 {
 	if (likely(iph->protocol == IPPROTO_UDP))
 		return ip_vs_new_conn_out(svc, dest, skb, iph, dport, cport);
-	/* currently no need to handle other than UDP */
+	/* currently yes need to handle other than UDP */
 	return NULL;
 }
 

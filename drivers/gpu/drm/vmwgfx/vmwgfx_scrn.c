@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -176,7 +176,7 @@ static int vmw_sou_fifo_destroy(struct vmw_private *dev_priv,
 		SVGAFifoCmdDestroyScreen body;
 	} *cmd;
 
-	/* no need to do anything */
+	/* yes need to do anything */
 	if (unlikely(!sou->defined))
 		return 0;
 
@@ -202,14 +202,14 @@ static int vmw_sou_fifo_destroy(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_sou_crtc_mode_set_nofb - Create new screen
+ * vmw_sou_crtc_mode_set_yesfb - Create new screen
  *
  * @crtc: CRTC associated with the new screen
  *
- * This function creates/destroys a screen.  This function cannot fail, so if
+ * This function creates/destroys a screen.  This function canyest fail, so if
  * somehow we run into a failure, just do the best we can to get out.
  */
-static void vmw_sou_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void vmw_sou_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_object_unit *sou;
@@ -443,7 +443,7 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 
 	vmw_svga_enable(dev_priv);
 
-	/* After we have alloced the backing store might not be able to
+	/* After we have alloced the backing store might yest be able to
 	 * resume the overlays, this is preferred to failing to alloc.
 	 */
 	vmw_overlay_pause_all(dev_priv);
@@ -480,7 +480,7 @@ static uint32_t vmw_sou_bo_define_gmrfb(struct vmw_du_update_plane *update,
 	struct vmw_kms_sou_define_gmrfb *gmr = cmd;
 	int depth = update->vfb->base.format->depth;
 
-	/* Emulate RGBA support, contrary to svga_reg.h this is not
+	/* Emulate RGBA support, contrary to svga_reg.h this is yest
 	 * supported by hosts. This is only a problem if we are reading
 	 * this value later and expecting what we uploaded back.
 	 */
@@ -528,7 +528,7 @@ static uint32_t vmw_stud_bo_post_clip(struct vmw_du_update_plane  *update,
  * @plane: Plane state.
  * @old_state: Old plane state.
  * @vfb: Framebuffer which is blitted to display unit.
- * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ * @out_fence: If yesn-NULL, will return a ref-counted pointer to vmw_fence_obj.
  *             The returned fence pointer may be NULL in which case the device
  *             has already synchronized.
  *
@@ -689,7 +689,7 @@ static uint32_t vmw_sou_surface_post_clip(struct vmw_du_update_plane *update,
  * @plane: Plane state.
  * @old_state: Old plane state.
  * @vfb: Framebuffer which is blitted to display unit
- * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ * @out_fence: If yesn-NULL, will return a ref-counted pointer to vmw_fence_obj.
  *             The returned fence pointer may be NULL in which case the device
  *             has already synchronized.
  *
@@ -748,7 +748,7 @@ vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
 		if (ret != 0)
 			DRM_ERROR("Failed to update screen.\n");
 	} else {
-		/* Do nothing when fb and crtc is NULL (blank crtc) */
+		/* Do yesthing when fb and crtc is NULL (blank crtc) */
 		return;
 	}
 
@@ -814,7 +814,7 @@ drm_plane_helper_funcs vmw_sou_primary_plane_helper_funcs = {
 
 static const struct drm_crtc_helper_funcs vmw_sou_crtc_helper_funcs = {
 	.prepare = vmw_sou_crtc_helper_prepare,
-	.mode_set_nofb = vmw_sou_crtc_mode_set_nofb,
+	.mode_set_yesfb = vmw_sou_crtc_mode_set_yesfb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
 	.atomic_flush = vmw_du_crtc_atomic_flush,
@@ -987,7 +987,7 @@ static int do_bo_define_gmrfb(struct vmw_private *dev_priv,
 		SVGAFifoCmdDefineGMRFB body;
 	} *cmd;
 
-	/* Emulate RGBA support, contrary to svga_reg.h this is not
+	/* Emulate RGBA support, contrary to svga_reg.h this is yest
 	 * supported by hosts. This is only a problem if we are reading
 	 * this value later and expecting what we uploaded back.
 	 */
@@ -1114,7 +1114,7 @@ static void vmw_sou_surface_clip(struct vmw_kms_dirty *dirty)
  * @dest_y: Y coordinate offset to align @srf with framebuffer coordinates.
  * @num_clips: Number of clip rects in @clips.
  * @inc: Increment to use when looping over @clips.
- * @out_fence: If non-NULL, will return a ref-counted pointer to a
+ * @out_fence: If yesn-NULL, will return a ref-counted pointer to a
  * struct vmw_fence_obj. The returned fence pointer may be NULL in which
  * case the device has already synchronized.
  * @crtc: If crtc is passed, perform surface dirty on that crtc only.
@@ -1230,7 +1230,7 @@ static void vmw_sou_bo_clip(struct vmw_kms_dirty *dirty)
  * @num_clips: Number of clip rects in @clips.
  * @increment: Increment to use when looping over @clips.
  * @interruptible: Whether to perform waits interruptible if possible.
- * @out_fence: If non-NULL, will return a ref-counted pointer to a
+ * @out_fence: If yesn-NULL, will return a ref-counted pointer to a
  * struct vmw_fence_obj. The returned fence pointer may be NULL in which
  * case the device has already synchronized.
  * @crtc: If crtc is passed, perform bo dirty on that crtc only.
@@ -1338,7 +1338,7 @@ static void vmw_sou_readback_clip(struct vmw_kms_dirty *dirty)
  * Must be set to NULL if @user_fence_rep is NULL.
  * @vfb: Pointer to the buffer-object backed framebuffer.
  * @user_fence_rep: User-space provided structure for fence information.
- * Must be set to non-NULL if @file_priv is non-NULL.
+ * Must be set to yesn-NULL if @file_priv is yesn-NULL.
  * @vclips: Array of clip rects.
  * @num_clips: Number of clip rects in @vclips.
  * @crtc: If crtc is passed, readback on that crtc only.

@@ -23,7 +23,7 @@ static const char *const stih41x_dt_match[] __initconst = {
 static void sti_l2_write_sec(unsigned long val, unsigned reg)
 {
 	/*
-	 * We can't write to secure registers as we are in non-secure
+	 * We can't write to secure registers as we are in yesn-secure
 	 * mode, until we have some SMI service available.
 	 */
 }

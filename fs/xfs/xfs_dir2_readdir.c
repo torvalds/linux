@@ -11,7 +11,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_trace.h"
@@ -47,14 +47,14 @@ xfs_dir2_sf_getdents(
 	struct dir_context	*ctx)
 {
 	int			i;		/* shortform entry number */
-	struct xfs_inode	*dp = args->dp;	/* incore directory inode */
+	struct xfs_iyesde	*dp = args->dp;	/* incore directory iyesde */
 	struct xfs_mount	*mp = dp->i_mount;
 	xfs_dir2_dataptr_t	off;		/* current entry's offset */
 	xfs_dir2_sf_entry_t	*sfep;		/* shortform directory entry */
 	xfs_dir2_sf_hdr_t	*sfp;		/* shortform structure */
 	xfs_dir2_dataptr_t	dot_offset;
 	xfs_dir2_dataptr_t	dotdot_offset;
-	xfs_ino_t		ino;
+	xfs_iyes_t		iyes;
 	struct xfs_da_geometry	*geo = args->geo;
 
 	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
@@ -85,7 +85,7 @@ xfs_dir2_sf_getdents(
 	 */
 	if (ctx->pos <= dot_offset) {
 		ctx->pos = dot_offset & 0x7fffffff;
-		if (!dir_emit(ctx, ".", 1, dp->i_ino, DT_DIR))
+		if (!dir_emit(ctx, ".", 1, dp->i_iyes, DT_DIR))
 			return 0;
 	}
 
@@ -93,9 +93,9 @@ xfs_dir2_sf_getdents(
 	 * Put .. entry unless we're starting past it.
 	 */
 	if (ctx->pos <= dotdot_offset) {
-		ino = xfs_dir2_sf_get_parent_ino(sfp);
+		iyes = xfs_dir2_sf_get_parent_iyes(sfp);
 		ctx->pos = dotdot_offset & 0x7fffffff;
-		if (!dir_emit(ctx, "..", 2, ino, DT_DIR))
+		if (!dir_emit(ctx, "..", 2, iyes, DT_DIR))
 			return 0;
 	}
 
@@ -114,14 +114,14 @@ xfs_dir2_sf_getdents(
 			continue;
 		}
 
-		ino = xfs_dir2_sf_get_ino(mp, sfp, sfep);
+		iyes = xfs_dir2_sf_get_iyes(mp, sfp, sfep);
 		filetype = xfs_dir2_sf_get_ftype(mp, sfep);
 		ctx->pos = off & 0x7fffffff;
 		if (XFS_IS_CORRUPT(dp->i_mount,
 				   !xfs_dir2_namecheck(sfep->name,
 						       sfep->namelen)))
 			return -EFSCORRUPTED;
-		if (!dir_emit(ctx, (char *)sfep->name, sfep->namelen, ino,
+		if (!dir_emit(ctx, (char *)sfep->name, sfep->namelen, iyes,
 			    xfs_dir3_get_dtype(mp, filetype)))
 			return 0;
 		sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep);
@@ -140,7 +140,7 @@ xfs_dir2_block_getdents(
 	struct xfs_da_args	*args,
 	struct dir_context	*ctx)
 {
-	struct xfs_inode	*dp = args->dp;	/* incore directory inode */
+	struct xfs_iyesde	*dp = args->dp;	/* incore directory iyesde */
 	struct xfs_buf		*bp;		/* buffer for block */
 	int			error;		/* error return value */
 	int			wantoff;	/* starting block offset */
@@ -220,7 +220,7 @@ xfs_dir2_block_getdents(
 
 	/*
 	 * Reached the end of the block.
-	 * Set the offset to a non-existent block 1 and return.
+	 * Set the offset to a yesn-existent block 1 and return.
 	 */
 	ctx->pos = xfs_dir2_db_off_to_dataptr(geo, geo->datablk + 1, 0) &
 								0x7fffffff;
@@ -242,7 +242,7 @@ xfs_dir2_leaf_readbuf(
 	xfs_dablk_t		*ra_blk,
 	struct xfs_buf		**bpp)
 {
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_buf		*bp = NULL;
 	struct xfs_da_geometry	*geo = args->geo;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(dp, XFS_DATA_FORK);
@@ -295,15 +295,15 @@ xfs_dir2_leaf_readbuf(
 		*ra_blk = map.br_startoff;
 	next_ra = map.br_startoff + geo->fsbcount;
 	if (next_ra >= last_da)
-		goto out_no_ra;
+		goto out_yes_ra;
 	if (map.br_blockcount < geo->fsbcount &&
 	    !xfs_iext_next_extent(ifp, &icur, &map))
-		goto out_no_ra;
+		goto out_yes_ra;
 	if (map.br_startoff >= last_da)
-		goto out_no_ra;
+		goto out_yes_ra;
 	xfs_trim_extent(&map, next_ra, last_da - next_ra);
 
-	/* Start ra for each dir (not fs) block that has a mapping. */
+	/* Start ra for each dir (yest fs) block that has a mapping. */
 	blk_start_plug(&plug);
 	while (ra_want > 0) {
 		next_ra = roundup((xfs_dablk_t)map.br_startoff, geo->fsbcount);
@@ -331,13 +331,13 @@ xfs_dir2_leaf_readbuf(
 out:
 	*bpp = bp;
 	return error;
-out_no_ra:
+out_yes_ra:
 	*ra_blk = last_da;
 	goto out;
 }
 
 /*
- * Getdents (readdir) for leaf and node directories.
+ * Getdents (readdir) for leaf and yesde directories.
  * This reads the data blocks only, so is the same for both forms.
  */
 STATIC int
@@ -346,7 +346,7 @@ xfs_dir2_leaf_getdents(
 	struct dir_context	*ctx,
 	size_t			bufsize)
 {
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*bp = NULL;	/* data block buffer */
 	xfs_dir2_data_entry_t	*dep;		/* data entry */
@@ -381,8 +381,8 @@ xfs_dir2_leaf_getdents(
 		uint8_t filetype;
 
 		/*
-		 * If we have no buffer, or we're off the end of the
-		 * current buffer, need to get another one.
+		 * If we have yes buffer, or we're off the end of the
+		 * current buffer, need to get ayesther one.
 		 */
 		if (!bp || offset >= geo->blksize) {
 			if (bp) {
@@ -495,14 +495,14 @@ xfs_dir2_leaf_getdents(
  * Read a directory.
  *
  * If supplied, the transaction collects locked dir buffers to avoid
- * nested buffer deadlocks.  This function does not dirty the
- * transaction.  The caller should ensure that the inode is locked
+ * nested buffer deadlocks.  This function does yest dirty the
+ * transaction.  The caller should ensure that the iyesde is locked
  * before calling this function.
  */
 int
 xfs_readdir(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	struct dir_context	*ctx,
 	size_t			bufsize)
 {

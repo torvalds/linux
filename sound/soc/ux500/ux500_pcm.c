@@ -135,7 +135,7 @@ static const struct snd_dmaengine_pcm_config ux500_dmaengine_of_pcm_config = {
 int ux500_pcm_register_platform(struct platform_device *pdev)
 {
 	const struct snd_dmaengine_pcm_config *pcm_config;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	if (np)

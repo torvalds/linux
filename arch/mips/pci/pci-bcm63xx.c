@@ -216,12 +216,12 @@ static int __init bcm63xx_register_pci(void)
 	 * configuration  access are  done through  IO space,  remap 4
 	 * first bytes to access it from CPU.
 	 *
-	 * this means that  no io access from CPU  should happen while
-	 * we do a configuration cycle,	 but there's no way we can add
+	 * this means that  yes io access from CPU  should happen while
+	 * we do a configuration cycle,	 but there's yes way we can add
 	 * a spinlock for each io access, so this is currently kind of
 	 * broken on SMP.
 	 */
-	pci_iospace_start = ioremap_nocache(BCM_PCI_IO_BASE_PA, 4);
+	pci_iospace_start = ioremap_yescache(BCM_PCI_IO_BASE_PA, 4);
 	if (!pci_iospace_start)
 		return -ENOMEM;
 
@@ -251,8 +251,8 @@ static int __init bcm63xx_register_pci(void)
 #endif
 
 	/* setup local bus  to PCI access (IO memory),	we have only 1
-	 * IO window  for both PCI  and cardbus, but it	 cannot handle
-	 * both	 at the	 same time,  assume standard  PCI for  now, if
+	 * IO window  for both PCI  and cardbus, but it	 canyest handle
+	 * both	 at the	 same time,  assume standard  PCI for  yesw, if
 	 * cardbus card has  IO zone, PCI fixup will  change window to
 	 * cardbus */
 	val = BCM_PCI_IO_BASE_PA & MPI_L2P_BASE_MASK;
@@ -282,7 +282,7 @@ static int __init bcm63xx_register_pci(void)
 	if (BCMCPU_IS_6348() && (bcm63xx_get_cpu_rev() & 0xf0) == 0xa0) {
 		if (mem_size > (16 * 1024 * 1024))
 			printk(KERN_WARNING "bcm63xx: this CPU "
-			       "revision cannot handle more than 16MB "
+			       "revision canyest handle more than 16MB "
 			       "of RAM for PCI bus mastering\n");
 	} else {
 		/* setup sp0 range to local RAM size */

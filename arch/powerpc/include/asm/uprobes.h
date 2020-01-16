@@ -9,7 +9,7 @@
  * Adapted from the x86 port by Ananth N Mavinakayanahalli <ananth@in.ibm.com>
  */
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <asm/probes.h>
 
 typedef ppc_opcode_t uprobe_opcode_t;
@@ -17,7 +17,7 @@ typedef ppc_opcode_t uprobe_opcode_t;
 #define MAX_UINSN_BYTES		4
 #define UPROBE_XOL_SLOT_BYTES	(MAX_UINSN_BYTES)
 
-/* The following alias is needed for reference from arch-agnostic code */
+/* The following alias is needed for reference from arch-agyesstic code */
 #define UPROBE_SWBP_INSN	BREAKPOINT_INSTRUCTION
 #define UPROBE_SWBP_INSN_SIZE	4 /* swbp insn size in bytes */
 

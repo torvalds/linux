@@ -5,7 +5,7 @@
  *	Changes
  *	1/9/98	alan@lxorguk.ukuu.org.uk
  *					Merge to 2.0.x kernel tree
- *					Obtain and use official major/minors
+ *					Obtain and use official major/miyesrs
  *					Loader switched to a misc device
  *					(fixed range check bug as a side effect)
  *					Printk clean up
@@ -17,18 +17,18 @@
  *
  *	3/9/99	sameer			Added support for ISI4616 cards.
  *
- *	16/9/99	sameer			We do not force RTS low anymore.
+ *	16/9/99	sameer			We do yest force RTS low anymore.
  *					This is to prevent the firmware
  *					from getting confused.
  *
- *	26/10/99 sameer			Cosmetic changes:The driver now
+ *	26/10/99 sameer			Cosmetic changes:The driver yesw
  *					dumps the Port Count information
  *					along with I/O address and IRQ.
  *
  *	13/12/99 sameer			Fixed the problem with IRQ sharing.
  *
  *	10/5/00  sameer			Fixed isicom_shutdown_board()
- *					to not lower DTR on all the ports
+ *					to yest lower DTR on all the ports
  *					when the last port on the card is
  *					closed.
  *
@@ -36,7 +36,7 @@
  *					to  isicom_setup_port and
  *					isicom_shutdown_port.
  *
- *	24/5/00  sameer			The driver is now SMP aware.
+ *	24/5/00  sameer			The driver is yesw SMP aware.
  *
  *
  *	27/11/00 Vinayak P Risbud	Fixed the Driver Crash Problem
@@ -53,7 +53,7 @@
  *
  *	30/04/01  anil .s		Fixed the remote login through
  *					ISI port problem. Now the link
- *					does not go down before password
+ *					does yest go down before password
  *					prompt.
  *
  *	03/05/01  anil .s		Fixed the problem with IRQ sharing
@@ -72,7 +72,7 @@
  *					shutdown_port as well as raise them
  *					during isicom_config_port.
  *
- *	09/06/01 acme@conectiva.com.br	use capable, not suser, do
+ *	09/06/01 acme@conectiva.com.br	use capable, yest suser, do
  *					restore_flags on failure in
  *					isicom_send_break, verify put_user
  *					result
@@ -138,9 +138,9 @@
 #define ClearInterrupt(base) inw((base) + 0x0a)
 
 #ifdef DEBUG
-#define isicom_paranoia_check(a, b, c) __isicom_paranoia_check((a), (b), (c))
+#define isicom_parayesia_check(a, b, c) __isicom_parayesia_check((a), (b), (c))
 #else
-#define isicom_paranoia_check(a, b, c) 0
+#define isicom_parayesia_check(a, b, c) 0
 #endif
 
 static int isicom_probe(struct pci_dev *, const struct pci_device_id *);
@@ -168,7 +168,7 @@ static struct pci_driver isicom_driver = {
 };
 
 static int prev_card = 3;	/*	start servicing isi_card[0]	*/
-static struct tty_driver *isicom_normal;
+static struct tty_driver *isicom_yesrmal;
 
 static void isicom_tx(struct timer_list *unused);
 static void isicom_start(struct tty_struct *tty);
@@ -366,7 +366,7 @@ static void drop_dtr_rts(struct isi_port *port)
  *
  */
 
-static inline int __isicom_paranoia_check(struct isi_port const *port,
+static inline int __isicom_parayesia_check(struct isi_port const *port,
 	char *name, const char *routine)
 {
 	if (!port) {
@@ -429,7 +429,7 @@ static void isicom_tx(struct timer_list *unused)
 		goto put_unlock;
 
 	for (; count > 0; count--, port++) {
-		/* port not active or tx disabled to force flow control */
+		/* port yest active or tx disabled to force flow control */
 		if (!tty_port_initialized(&port->port) ||
 			!(port->status & ISI_TXOK))
 			continue;
@@ -495,7 +495,7 @@ put_unlock:
 	tty_kref_put(tty);
 unlock:
 	spin_unlock_irqrestore(&isi_card[card].card_lock, flags);
-	/*	schedule another tx for hopefully in about 10ms	*/
+	/*	schedule ayesther tx for hopefully in about 10ms	*/
 sched_again:
 	mod_timer(&tx, jiffies + msecs_to_jiffies(10));
 }
@@ -636,7 +636,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 			break;
 
 		default:
-			pr_debug("%s: Unknown code in status packet.\n",
+			pr_debug("%s: Unkyeswn code in status packet.\n",
 				 __func__);
 			break;
 		}
@@ -845,7 +845,7 @@ static struct tty_port *isicom_find_port(struct tty_struct *tty)
 		return NULL;
 
 	port = &isi_ports[line];
-	if (isicom_paranoia_check(port, tty->name, "isicom_open"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_open"))
 		return NULL;
 
 	return &port->port;
@@ -888,7 +888,7 @@ static void isicom_flush_buffer(struct tty_struct *tty)
 	struct isi_board *card = port->card;
 	unsigned long flags;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_flush_buffer"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_flush_buffer"))
 		return;
 
 	spin_lock_irqsave(&card->card_lock, flags);
@@ -904,7 +904,7 @@ static void isicom_shutdown(struct tty_port *port)
 	struct isi_board *card = ip->card;
 	unsigned long flags;
 
-	/* indicate to the card that no more data can be received
+	/* indicate to the card that yes more data can be received
 	   on this port */
 	spin_lock_irqsave(&card->card_lock, flags);
 	card->port_status &= ~(1 << ip->channel);
@@ -923,7 +923,7 @@ static void isicom_close(struct tty_struct *tty, struct file *filp)
 		return;
 
 	port = &ip->port;
-	if (isicom_paranoia_check(ip, tty->name, "isicom_close"))
+	if (isicom_parayesia_check(ip, tty->name, "isicom_close"))
 		return;
 	tty_port_close(port, tty, filp);
 }
@@ -937,7 +937,7 @@ static int isicom_write(struct tty_struct *tty,	const unsigned char *buf,
 	unsigned long flags;
 	int cnt, total = 0;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_write"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_write"))
 		return 0;
 
 	spin_lock_irqsave(&card->card_lock, flags);
@@ -969,7 +969,7 @@ static int isicom_put_char(struct tty_struct *tty, unsigned char ch)
 	struct isi_board *card = port->card;
 	unsigned long flags;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_put_char"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_put_char"))
 		return 0;
 
 	spin_lock_irqsave(&card->card_lock, flags);
@@ -990,7 +990,7 @@ static void isicom_flush_chars(struct tty_struct *tty)
 {
 	struct isi_port *port = tty->driver_data;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_flush_chars"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_flush_chars"))
 		return;
 
 	if (port->xmit_cnt <= 0 || tty->stopped || tty->hw_stopped ||
@@ -1008,7 +1008,7 @@ static int isicom_write_room(struct tty_struct *tty)
 	struct isi_port *port = tty->driver_data;
 	int free;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_write_room"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_write_room"))
 		return 0;
 
 	free = SERIAL_XMIT_SIZE - port->xmit_cnt - 1;
@@ -1021,7 +1021,7 @@ static int isicom_write_room(struct tty_struct *tty)
 static int isicom_chars_in_buffer(struct tty_struct *tty)
 {
 	struct isi_port *port = tty->driver_data;
-	if (isicom_paranoia_check(port, tty->name, "isicom_chars_in_buffer"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_chars_in_buffer"))
 		return 0;
 	return port->xmit_cnt;
 }
@@ -1054,7 +1054,7 @@ static int isicom_tiocmget(struct tty_struct *tty)
 	/* just send the port status */
 	u16 status = port->status;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_ioctl"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_ioctl"))
 		return -ENODEV;
 
 	return  ((status & ISI_RTS) ? TIOCM_RTS : 0) |
@@ -1071,7 +1071,7 @@ static int isicom_tiocmset(struct tty_struct *tty,
 	struct isi_port *port = tty->driver_data;
 	unsigned long flags;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_ioctl"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_ioctl"))
 		return -ENODEV;
 
 	spin_lock_irqsave(&port->card->card_lock, flags);
@@ -1095,7 +1095,7 @@ static int isicom_set_serial_info(struct tty_struct *tty,
 	struct isi_port *port = tty->driver_data;
 	int reconfig_port;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_ioctl"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_ioctl"))
 		return -ENODEV;
 
 	mutex_lock(&port->port.mutex);
@@ -1133,7 +1133,7 @@ static int isicom_get_serial_info(struct tty_struct *tty,
 {
 	struct isi_port *port = tty->driver_data;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_ioctl"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_ioctl"))
 		return -ENODEV;
 
 	mutex_lock(&port->port.mutex);
@@ -1156,7 +1156,7 @@ static void isicom_set_termios(struct tty_struct *tty,
 	struct isi_port *port = tty->driver_data;
 	unsigned long flags;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_set_termios"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_set_termios"))
 		return;
 
 	if (tty->termios.c_cflag == old_termios->c_cflag &&
@@ -1179,10 +1179,10 @@ static void isicom_throttle(struct tty_struct *tty)
 	struct isi_port *port = tty->driver_data;
 	struct isi_board *card = port->card;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_throttle"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_throttle"))
 		return;
 
-	/* tell the card that this port cannot handle any more data for now */
+	/* tell the card that this port canyest handle any more data for yesw */
 	card->port_status &= ~(1 << port->channel);
 	outw(card->port_status, card->base + 0x02);
 }
@@ -1193,7 +1193,7 @@ static void isicom_unthrottle(struct tty_struct *tty)
 	struct isi_port *port = tty->driver_data;
 	struct isi_board *card = port->card;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_unthrottle"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_unthrottle"))
 		return;
 
 	/* tell the card that this port is ready to accept more data */
@@ -1206,10 +1206,10 @@ static void isicom_stop(struct tty_struct *tty)
 {
 	struct isi_port *port = tty->driver_data;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_stop"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_stop"))
 		return;
 
-	/* this tells the transmitter not to consider this port for
+	/* this tells the transmitter yest to consider this port for
 	   data output to the card. */
 	port->status &= ~ISI_TXOK;
 }
@@ -1219,7 +1219,7 @@ static void isicom_start(struct tty_struct *tty)
 {
 	struct isi_port *port = tty->driver_data;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_start"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_start"))
 		return;
 
 	/* this tells the transmitter to consider this port for
@@ -1231,7 +1231,7 @@ static void isicom_hangup(struct tty_struct *tty)
 {
 	struct isi_port *port = tty->driver_data;
 
-	if (isicom_paranoia_check(port, tty->name, "isicom_hangup"))
+	if (isicom_parayesia_check(port, tty->name, "isicom_hangup"))
 		return;
 	tty_port_hangup(&port->port);
 }
@@ -1366,7 +1366,7 @@ static int load_firmware(struct pci_dev *pdev,
 		name = "isi4616.bin";
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown signature.\n");
+		dev_err(&pdev->dev, "Unkyeswn signature.\n");
 		goto end;
 	}
 
@@ -1457,7 +1457,7 @@ static int load_firmware(struct pci_dev *pdev,
 		data = kmalloc_array(word_count, 2, GFP_KERNEL);
 		if (data == NULL) {
 			dev_err(&pdev->dev, "Card%d, firmware upload "
-				"failed, not enough memory\n", index + 1);
+				"failed, yest eyesugh memory\n", index + 1);
 			goto errrelfw;
 		}
 		inw(base);
@@ -1560,7 +1560,7 @@ static int isicom_probe(struct pci_dev *pdev,
 	retval = request_irq(board->irq, isicom_interrupt,
 			IRQF_SHARED, ISICOM_NAME, board);
 	if (retval < 0) {
-		dev_err(&pdev->dev, "Could not install handler at Irq %d. "
+		dev_err(&pdev->dev, "Could yest install handler at Irq %d. "
 			"Card%d will be disabled.\n", board->irq, index + 1);
 		goto errunrr;
 	}
@@ -1579,7 +1579,7 @@ static int isicom_probe(struct pci_dev *pdev,
 		tport->ops = &isicom_port_ops;
 		tport->close_delay = 50 * HZ/100;
 		tport->closing_wait = 3000 * HZ/100;
-		tty_port_register_device(tport, isicom_normal,
+		tty_port_register_device(tport, isicom_yesrmal,
 				board->index * 16 + index, &pdev->dev);
 	}
 
@@ -1604,7 +1604,7 @@ static void isicom_remove(struct pci_dev *pdev)
 	unsigned int i;
 
 	for (i = 0; i < board->port_count; i++) {
-		tty_unregister_device(isicom_normal, board->index * 16 + i);
+		tty_unregister_device(isicom_yesrmal, board->index * 16 + i);
 		tty_port_destroy(&board->ports[i].port);
 	}
 
@@ -1636,25 +1636,25 @@ static int __init isicom_init(void)
 	}
 
 	/* tty driver structure initialization */
-	isicom_normal = alloc_tty_driver(PORT_COUNT);
-	if (!isicom_normal) {
+	isicom_yesrmal = alloc_tty_driver(PORT_COUNT);
+	if (!isicom_yesrmal) {
 		retval = -ENOMEM;
 		goto error;
 	}
 
-	isicom_normal->name 			= "ttyM";
-	isicom_normal->major			= ISICOM_NMAJOR;
-	isicom_normal->minor_start		= 0;
-	isicom_normal->type			= TTY_DRIVER_TYPE_SERIAL;
-	isicom_normal->subtype			= SERIAL_TYPE_NORMAL;
-	isicom_normal->init_termios		= tty_std_termios;
-	isicom_normal->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL |
+	isicom_yesrmal->name 			= "ttyM";
+	isicom_yesrmal->major			= ISICOM_NMAJOR;
+	isicom_yesrmal->miyesr_start		= 0;
+	isicom_yesrmal->type			= TTY_DRIVER_TYPE_SERIAL;
+	isicom_yesrmal->subtype			= SERIAL_TYPE_NORMAL;
+	isicom_yesrmal->init_termios		= tty_std_termios;
+	isicom_yesrmal->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL |
 		CLOCAL;
-	isicom_normal->flags			= TTY_DRIVER_REAL_RAW |
+	isicom_yesrmal->flags			= TTY_DRIVER_REAL_RAW |
 		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_HARDWARE_BREAK;
-	tty_set_operations(isicom_normal, &isicom_ops);
+	tty_set_operations(isicom_yesrmal, &isicom_ops);
 
-	retval = tty_register_driver(isicom_normal);
+	retval = tty_register_driver(isicom_yesrmal);
 	if (retval) {
 		pr_debug("Couldn't register the dialin driver\n");
 		goto err_puttty;
@@ -1670,9 +1670,9 @@ static int __init isicom_init(void)
 
 	return 0;
 err_unrtty:
-	tty_unregister_driver(isicom_normal);
+	tty_unregister_driver(isicom_yesrmal);
 err_puttty:
-	put_tty_driver(isicom_normal);
+	put_tty_driver(isicom_yesrmal);
 error:
 	return retval;
 }
@@ -1682,8 +1682,8 @@ static void __exit isicom_exit(void)
 	del_timer_sync(&tx);
 
 	pci_unregister_driver(&isicom_driver);
-	tty_unregister_driver(isicom_normal);
-	put_tty_driver(isicom_normal);
+	tty_unregister_driver(isicom_yesrmal);
+	put_tty_driver(isicom_yesrmal);
 }
 
 module_init(isicom_init);

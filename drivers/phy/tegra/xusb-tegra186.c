@@ -144,7 +144,7 @@ to_tegra186_xusb_padctl(struct tegra_xusb_padctl *padctl)
 
 /* USB 2.0 UTMI PHY support */
 static struct tegra_xusb_lane *
-tegra186_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra186_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_yesde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_usb2_lane *usb2;
@@ -261,7 +261,7 @@ static void tegra_phy_xusb_utmi_pad_power_on(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, index);
 	if (!port) {
-		dev_err(dev, "no port found for USB2 lane %u\n", index);
+		dev_err(dev, "yes port found for USB2 lane %u\n", index);
 		return;
 	}
 
@@ -314,7 +314,7 @@ static int tegra186_utmi_phy_power_on(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, index);
 	if (!port) {
-		dev_err(dev, "no port found for USB2 lane %u\n", index);
+		dev_err(dev, "yes port found for USB2 lane %u\n", index);
 		return -ENODEV;
 	}
 
@@ -391,7 +391,7 @@ static int tegra186_utmi_phy_init(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, index);
 	if (!port) {
-		dev_err(dev, "no port found for USB2 lane %u\n", index);
+		dev_err(dev, "yes port found for USB2 lane %u\n", index);
 		return -ENODEV;
 	}
 
@@ -418,7 +418,7 @@ static int tegra186_utmi_phy_exit(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, index);
 	if (!port) {
-		dev_err(dev, "no port found for USB2 lane %u\n", index);
+		dev_err(dev, "yes port found for USB2 lane %u\n", index);
 		return -ENODEV;
 	}
 
@@ -445,7 +445,7 @@ static const struct phy_ops utmi_phy_ops = {
 static struct tegra_xusb_pad *
 tegra186_usb2_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_yesde *np)
 {
 	struct tegra186_xusb_padctl *priv = to_tegra186_xusb_padctl(padctl);
 	struct tegra_xusb_usb2_pad *usb2;
@@ -539,7 +539,7 @@ static const struct tegra_xusb_port_ops tegra186_usb2_port_ops = {
 
 /* SuperSpeed PHY support */
 static struct tegra_xusb_lane *
-tegra186_usb3_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra186_usb3_lane_probe(struct tegra_xusb_pad *pad, struct device_yesde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_usb3_lane *usb3;
@@ -608,13 +608,13 @@ static int tegra186_usb3_phy_power_on(struct phy *phy)
 
 	port = tegra_xusb_find_usb3_port(padctl, index);
 	if (!port) {
-		dev_err(dev, "no port found for USB3 lane %u\n", index);
+		dev_err(dev, "yes port found for USB3 lane %u\n", index);
 		return -ENODEV;
 	}
 
 	usb2 = tegra_xusb_find_usb2_port(padctl, port->port);
 	if (!usb2) {
-		dev_err(dev, "no companion port found for USB3 lane %u\n",
+		dev_err(dev, "yes companion port found for USB3 lane %u\n",
 			index);
 		return -ENODEV;
 	}
@@ -667,7 +667,7 @@ static int tegra186_usb3_phy_power_off(struct phy *phy)
 
 	port = tegra_xusb_find_usb3_port(padctl, index);
 	if (!port) {
-		dev_err(dev, "no port found for USB3 lane %u\n", index);
+		dev_err(dev, "yes port found for USB3 lane %u\n", index);
 		return -ENODEV;
 	}
 
@@ -715,7 +715,7 @@ static const struct phy_ops usb3_phy_ops = {
 static struct tegra_xusb_pad *
 tegra186_usb3_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_yesde *np)
 {
 	struct tegra_xusb_usb3_pad *usb3;
 	struct tegra_xusb_pad *pad;

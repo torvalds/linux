@@ -22,7 +22,7 @@ Userfaults are delivered and resolved through the userfaultfd syscall.
 The userfaultfd (aside from registering and unregistering virtual
 memory ranges) provides two primary functionalities:
 
-1) read/POLLIN protocol to notify a userland thread of the faults
+1) read/POLLIN protocol to yestify a userland thread of the faults
    happening
 
 2) various UFFDIO_* ioctls that can manage the virtual memory regions
@@ -35,7 +35,7 @@ management of mremap/mprotect is that the userfaults in all their
 operations never involve heavyweight structures like vmas (in fact the
 userfaultfd runtime load never takes the mmap_sem for writing).
 
-Vmas are not suitable for page- (or hugepage) granular fault tracking
+Vmas are yest suitable for page- (or hugepage) granular fault tracking
 when dealing with virtual address spaces that could span
 Terabytes. Too many vmas would be needed for that.
 
@@ -63,7 +63,7 @@ the generic ioctl available.
 
 The uffdio_api.features bitmask returned by the UFFDIO_API ioctl
 defines what memory types are supported by the userfaultfd and what
-events, except page fault notifications, may be generated.
+events, except page fault yestifications, may be generated.
 
 If the kernel supports registering userfaultfd ranges on hugetlbfs
 virtual memory areas, UFFD_FEATURE_MISSING_HUGETLBFS will be set in
@@ -76,7 +76,7 @@ The userland application that wants to use userfaultfd with hugetlbfs
 or shared memory need to set the corresponding flag in
 uffdio_api.features to enable those features.
 
-If the userland desires to receive notifications for events other than
+If the userland desires to receive yestifications for events other than
 page faults, it has to verify that uffdio_api.features has appropriate
 UFFD_FEATURE_EVENT_* bits set. These events are described in more
 detail below in "Non-cooperative userfaultfd" section.
@@ -91,7 +91,7 @@ pages). The UFFDIO_REGISTER ioctl will return the
 uffdio_register.ioctls bitmask of ioctls that are suitable to resolve
 userfaults on the range registered. Not all ioctls will necessarily be
 supported for all memory types depending on the underlying virtual
-memory backend (anonymous memory vs tmpfs vs real filebacked
+memory backend (ayesnymous memory vs tmpfs vs real filebacked
 mappings).
 
 Userland can use the uffdio_register.ioctls to manage the virtual
@@ -104,7 +104,7 @@ The primary ioctl to resolve userfaults is UFFDIO_COPY. That
 atomically copies a page into the userfault registered range and wakes
 up the blocked userfaults (unless uffdio_copy.mode &
 UFFDIO_COPY_MODE_DONTWAKE is set). Other ioctl works similarly to
-UFFDIO_COPY. They're atomic as in guaranteeing that nothing can see an
+UFFDIO_COPY. They're atomic as in guaranteeing that yesthing can see an
 half copied page since it'll keep userfaulting until the copy has
 finished.
 
@@ -114,8 +114,8 @@ QEMU/KVM
 QEMU/KVM is using the userfaultfd syscall to implement postcopy live
 migration. Postcopy live migration is one form of memory
 externalization consisting of a virtual machine running with part or
-all of its memory residing on a different node in the cloud. The
-userfaultfd abstraction is generic enough that not a single line of
+all of its memory residing on a different yesde in the cloud. The
+userfaultfd abstraction is generic eyesugh that yest a single line of
 KVM kernel code had to be modified in order to add postcopy live
 migration to QEMU.
 
@@ -134,36 +134,36 @@ single bidirectional socket but in the future two different sockets
 will be used (to reduce the latency of the userfaults to the minimum
 possible without having to decrease /proc/sys/net/ipv4/tcp_wmem).
 
-The QEMU in the source node writes all pages that it knows are missing
-in the destination node, into the socket, and the migration thread of
-the QEMU running in the destination node runs UFFDIO_COPY|ZEROPAGE
+The QEMU in the source yesde writes all pages that it kyesws are missing
+in the destination yesde, into the socket, and the migration thread of
+the QEMU running in the destination yesde runs UFFDIO_COPY|ZEROPAGE
 ioctls on the userfaultfd in order to map the received pages into the
 guest (UFFDIO_ZEROCOPY is used if the source page was a zero page).
 
-A different postcopy thread in the destination node listens with
+A different postcopy thread in the destination yesde listens with
 poll() to the userfaultfd in parallel. When a POLLIN event is
 generated after a userfault triggers, the postcopy thread read() from
 the userfaultfd and receives the fault address (or -EAGAIN in case the
 userfault was already resolved and waken by a UFFDIO_COPY|ZEROPAGE run
 by the parallel QEMU migration thread).
 
-After the QEMU postcopy thread (running in the destination node) gets
+After the QEMU postcopy thread (running in the destination yesde) gets
 the userfault address it writes the information about the missing page
-into the socket. The QEMU source node receives the information and
+into the socket. The QEMU source yesde receives the information and
 roughly "seeks" to that page address and continues sending all
 remaining missing pages from that new page offset. Soon after that
 (just the time to flush the tcp_wmem queue through the network) the
-migration thread in the QEMU running in the destination node will
+migration thread in the QEMU running in the destination yesde will
 receive the page that triggered the userfault and it'll map it as
-usual with the UFFDIO_COPY|ZEROPAGE (without actually knowing if it
+usual with the UFFDIO_COPY|ZEROPAGE (without actually kyeswing if it
 was spontaneously sent by the source or if it was an urgent page
 requested through a userfault).
 
-By the time the userfaults start, the QEMU in the destination node
+By the time the userfaults start, the QEMU in the destination yesde
 doesn't need to keep any per-page state bitmap relative to the live
 migration around and a single per-page bitmap has to be maintained in
-the QEMU running in the source node to know which pages are still
-missing in the destination node. The bitmap in the source node is
+the QEMU running in the source yesde to kyesw which pages are still
+missing in the destination yesde. The bitmap in the source yesde is
 checked to find which missing pages to send in round robin and we seek
 over it when receiving incoming userfaults. After sending each page of
 course the bitmap is updated accordingly. It's also useful to avoid
@@ -176,8 +176,8 @@ Non-cooperative userfaultfd
 
 When the userfaultfd is monitored by an external manager, the manager
 must be able to track changes in the process virtual memory
-layout. Userfaultfd can notify the manager about such changes using
-the same read(2) protocol as for the page fault notifications. The
+layout. Userfaultfd can yestify the manager about such changes using
+the same read(2) protocol as for the page fault yestifications. The
 manager has to explicitly enable these events by setting appropriate
 bits in uffdio_api.features passed to UFFDIO_API ioctl:
 
@@ -189,53 +189,53 @@ UFFD_FEATURE_EVENT_FORK
 	userfaultfd context in the uffd_msg.fork.
 
 UFFD_FEATURE_EVENT_REMAP
-	enable notifications about mremap() calls. When the
-	non-cooperative process moves a virtual memory area to a
+	enable yestifications about mremap() calls. When the
+	yesn-cooperative process moves a virtual memory area to a
 	different location, the manager will receive
 	UFFD_EVENT_REMAP. The uffd_msg.remap will contain the old and
 	new addresses of the area and its original length.
 
 UFFD_FEATURE_EVENT_REMOVE
-	enable notifications about madvise(MADV_REMOVE) and
+	enable yestifications about madvise(MADV_REMOVE) and
 	madvise(MADV_DONTNEED) calls. The event UFFD_EVENT_REMOVE will
 	be generated upon these calls to madvise. The uffd_msg.remove
 	will contain start and end addresses of the removed area.
 
 UFFD_FEATURE_EVENT_UNMAP
-	enable notifications about memory unmapping. The manager will
+	enable yestifications about memory unmapping. The manager will
 	get UFFD_EVENT_UNMAP with uffd_msg.remove containing start and
 	end addresses of the unmapped area.
 
 Although the UFFD_FEATURE_EVENT_REMOVE and UFFD_FEATURE_EVENT_UNMAP
 are pretty similar, they quite differ in the action expected from the
 userfaultfd manager. In the former case, the virtual memory is
-removed, but the area is not, the area remains monitored by the
+removed, but the area is yest, the area remains monitored by the
 userfaultfd, and if a page fault occurs in that area it will be
 delivered to the manager. The proper resolution for such page fault is
 to zeromap the faulting address. However, in the latter case, when an
 area is unmapped, either explicitly (with munmap() system call), or
 implicitly (e.g. during mremap()), the area is removed and in turn the
 userfaultfd context for such area disappears too and the manager will
-not get further userland page faults from the removed area. Still, the
-notification is required in order to prevent manager from using
+yest get further userland page faults from the removed area. Still, the
+yestification is required in order to prevent manager from using
 UFFDIO_COPY on the unmapped area.
 
-Unlike userland page faults which have to be synchronous and require
+Unlike userland page faults which have to be synchroyesus and require
 explicit or implicit wakeup, all the events are delivered
-asynchronously and the non-cooperative process resumes execution as
+asynchroyesusly and the yesn-cooperative process resumes execution as
 soon as manager executes read(). The userfaultfd manager should
 carefully synchronize calls to UFFDIO_COPY with the events
 processing. To aid the synchronization, the UFFDIO_COPY ioctl will
 return -ENOSPC when the monitored process exits at the time of
-UFFDIO_COPY, and -ENOENT, when the non-cooperative process has changed
+UFFDIO_COPY, and -ENOENT, when the yesn-cooperative process has changed
 its virtual memory layout simultaneously with outstanding UFFDIO_COPY
 operation.
 
-The current asynchronous model of the event delivery is optimal for
-single threaded non-cooperative userfaultfd manager implementations. A
-synchronous event delivery model can be added later as a new
+The current asynchroyesus model of the event delivery is optimal for
+single threaded yesn-cooperative userfaultfd manager implementations. A
+synchroyesus event delivery model can be added later as a new
 userfaultfd feature to facilitate multithreading enhancements of the
-non cooperative manager, for example to allow UFFDIO_COPY ioctls to
+yesn cooperative manager, for example to allow UFFDIO_COPY ioctls to
 run in parallel to the event reception. Single threaded
 implementations should continue to use the current async event
 delivery model instead.

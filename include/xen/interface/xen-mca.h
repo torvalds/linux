@@ -15,7 +15,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -35,18 +35,18 @@
 
 #define XEN_MCA_INTERFACE_VERSION	0x01ecc003
 
-/* IN: Dom0 calls hypercall to retrieve nonurgent error log entry */
+/* IN: Dom0 calls hypercall to retrieve yesnurgent error log entry */
 #define XEN_MC_NONURGENT	0x1
 /* IN: Dom0 calls hypercall to retrieve urgent error log entry */
 #define XEN_MC_URGENT		0x2
-/* IN: Dom0 acknowledges previosly-fetched error log entry */
+/* IN: Dom0 ackyeswledges previosly-fetched error log entry */
 #define XEN_MC_ACK		0x4
 
 /* OUT: All is ok */
 #define XEN_MC_OK		0x0
-/* OUT: Domain could not fetch data. */
+/* OUT: Domain could yest fetch data. */
 #define XEN_MC_FETCHFAILED	0x1
-/* OUT: There was no machine check data to fetch. */
+/* OUT: There was yes machine check data to fetch. */
 #define XEN_MC_NODATA		0x2
 
 #ifndef __ASSEMBLY__
@@ -277,18 +277,18 @@ DEFINE_GUEST_HANDLE_STRUCT(xen_mc_fetch);
 
 
 /*
- * This tells the hypervisor to notify a DomU about the machine check error
+ * This tells the hypervisor to yestify a DomU about the machine check error
  */
-#define XEN_MC_notifydomain	2
-struct xen_mc_notifydomain {
+#define XEN_MC_yestifydomain	2
+struct xen_mc_yestifydomain {
 	/* IN variables */
-	uint16_t mc_domid; /* The unprivileged domain to notify */
-	uint16_t mc_vcpuid; /* The vcpu in mc_domid to notify */
+	uint16_t mc_domid; /* The unprivileged domain to yestify */
+	uint16_t mc_vcpuid; /* The vcpu in mc_domid to yestify */
 
 	/* IN/OUT variables */
 	uint32_t flags;
 };
-DEFINE_GUEST_HANDLE_STRUCT(xen_mc_notifydomain);
+DEFINE_GUEST_HANDLE_STRUCT(xen_mc_yestifydomain);
 
 #define XEN_MC_physcpuinfo	3
 struct xen_mc_physcpuinfo {
@@ -323,7 +323,7 @@ struct xen_mc {
 	uint32_t interface_version; /* XEN_MCA_INTERFACE_VERSION */
 	union {
 		struct xen_mc_fetch        mc_fetch;
-		struct xen_mc_notifydomain mc_notifydomain;
+		struct xen_mc_yestifydomain mc_yestifydomain;
 		struct xen_mc_physcpuinfo  mc_physcpuinfo;
 		struct xen_mc_msrinject    mc_msrinject;
 		struct xen_mc_mceinject    mc_mceinject;
@@ -332,7 +332,7 @@ struct xen_mc {
 DEFINE_GUEST_HANDLE_STRUCT(xen_mc);
 
 /*
- * Fields are zero when not available. Also, this struct is shared with
+ * Fields are zero when yest available. Also, this struct is shared with
  * userspace mcelog and thus must keep existing fields at current offsets.
  * Only add new fields to the end of the structure
  */
@@ -350,7 +350,7 @@ struct xen_mce {
 	__u32 cpuid;	/* CPUID 1 EAX */
 	__u8  cs;		/* code segment */
 	__u8  bank;	/* machine check bank */
-	__u8  cpu;	/* cpu number; obsolete; use extcpu now */
+	__u8  cpu;	/* cpu number; obsolete; use extcpu yesw */
 	__u8  finished;   /* entry is valid */
 	__u32 extcpu;	/* linux cpu number that detected the error */
 	__u32 socketid;	/* CPU socket ID */

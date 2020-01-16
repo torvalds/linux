@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2004 Mellayesx Techyeslogies Ltd.  All rights reserved.
  * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
@@ -16,11 +16,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -128,7 +128,7 @@
 #define IB_DEFAULT_PKEY_FULL	0xFFFF
 
 /*
- * Generic trap/notice types
+ * Generic trap/yestice types
  */
 #define IB_NOTICE_TYPE_FATAL	0x80
 #define IB_NOTICE_TYPE_URGENT	0x81
@@ -137,7 +137,7 @@
 #define IB_NOTICE_TYPE_INFO	0x84
 
 /*
- * Generic trap/notice producers
+ * Generic trap/yestice producers
  */
 #define IB_NOTICE_PROD_CA		cpu_to_be16(1)
 #define IB_NOTICE_PROD_SWITCH		cpu_to_be16(2)
@@ -396,7 +396,7 @@ static inline u32 opa_get_cpi_capmask2(struct opa_class_port_info *cpi)
 		IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE);
 }
 
-struct ib_mad_notice_attr {
+struct ib_mad_yestice_attr {
 	u8 generic_type;
 	u8 prod_type_msb;
 	__be16 prod_type_lsb;
@@ -463,7 +463,7 @@ struct ib_mad_notice_attr {
 /**
  * ib_mad_send_buf - MAD data buffer and work request for sends.
  * @next: A pointer used to chain together MADs for posting.
- * @mad: References an allocated MAD data buffer for MADs that do not have
+ * @mad: References an allocated MAD data buffer for MADs that do yest have
  *   RMPP active.  For MADs using RMPP, references the common and management
  *   class specific headers.
  * @mad_agent: MAD agent that allocated the buffer.
@@ -473,7 +473,7 @@ struct ib_mad_notice_attr {
  *   includes the common MAD, RMPP, and class specific headers.
  * @data_len: Indicates the total size of user-transferred data.
  * @seg_count: The number of RMPP segments allocated for this send.
- * @seg_size: Size of the data in each RMPP segment.  This does not include
+ * @seg_size: Size of the data in each RMPP segment.  This does yest include
  *   class specific headers.
  * @seg_rmpp_size: Size of each RMPP segment including the class specific
  *   headers.
@@ -559,16 +559,16 @@ typedef void (*ib_mad_send_handler)(struct ib_mad_agent *mad_agent,
 				    struct ib_mad_send_wc *mad_send_wc);
 
 /**
- * ib_mad_snoop_handler - Callback handler for snooping sent MADs.
- * @mad_agent: MAD agent that snooped the MAD.
+ * ib_mad_syesop_handler - Callback handler for syesoping sent MADs.
+ * @mad_agent: MAD agent that syesoped the MAD.
  * @send_buf: send MAD data buffer.
  * @mad_send_wc: Work completion information on the sent MAD.  Valid
- *   only for snooping that occurs on a send completion.
+ *   only for syesoping that occurs on a send completion.
  *
- * Clients snooping MADs should not modify data referenced by the @send_buf
+ * Clients syesoping MADs should yest modify data referenced by the @send_buf
  * or @mad_send_wc.
  */
-typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
+typedef void (*ib_mad_syesop_handler)(struct ib_mad_agent *mad_agent,
 				     struct ib_mad_send_buf *send_buf,
 				     struct ib_mad_send_wc *mad_send_wc);
 
@@ -581,7 +581,7 @@ typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
  * MADs received in response to a send request operation will be handed to
  * the user before the send operation completes.  All data buffers given
  * to registered agents through this routine are owned by the receiving
- * client, except for snooping agents.  Clients snooping MADs should not
+ * client, except for syesoping agents.  Clients syesoping MADs should yest
  * modify the data referenced by @mad_recv_wc.
  */
 typedef void (*ib_mad_recv_handler)(struct ib_mad_agent *mad_agent,
@@ -595,7 +595,7 @@ typedef void (*ib_mad_recv_handler)(struct ib_mad_agent *mad_agent,
  * @mr: Memory region for system memory usable for DMA.
  * @recv_handler: Callback handler for a received MAD.
  * @send_handler: Callback handler for a sent MAD.
- * @snoop_handler: Callback handler for snooped sent MADs.
+ * @syesop_handler: Callback handler for syesoped sent MADs.
  * @context: User-specified context associated with this registration.
  * @hi_tid: Access layer assigned transaction ID for this client.
  *   Unsolicited MADs sent by this client will have the upper 32-bits
@@ -612,7 +612,7 @@ struct ib_mad_agent {
 	struct ib_qp		*qp;
 	ib_mad_recv_handler	recv_handler;
 	ib_mad_send_handler	send_handler;
-	ib_mad_snoop_handler	snoop_handler;
+	ib_mad_syesop_handler	syesop_handler;
 	void			*context;
 	u32			hi_tid;
 	u32			flags;
@@ -680,7 +680,7 @@ struct ib_mad_recv_wc {
  * @mgmt_class_version: Indicates which version of MADs for the given
  *   management class to receive.
  * @oui: Indicates IEEE OUI when mgmt_class is a vendor class
- *   in the range from 0x30 to 0x4f. Otherwise not used.
+ *   in the range from 0x30 to 0x4f. Otherwise yest used.
  * @method_mask: The caller will receive unsolicited MADs for any method
  *   where @method_mask = 1.
  *
@@ -703,7 +703,7 @@ struct ib_mad_reg_req {
  *   wishes to receive solicited responses.
  * @rmpp_version: If set, indicates that the client will send
  *   and receive MADs that contain the RMPP header for the given version.
- *   If set to 0, indicates that RMPP is not used by this client.
+ *   If set to 0, indicates that RMPP is yest used by this client.
  * @send_handler: The completion callback routine invoked after a send
  *   request has completed.
  * @recv_handler: The completion callback routine invoked for a received
@@ -721,7 +721,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 					   void *context,
 					   u32 registration_flags);
 
-enum ib_mad_snoop_flags {
+enum ib_mad_syesop_flags {
 	/*IB_MAD_SNOOP_POSTED_SENDS	   = 1,*/
 	/*IB_MAD_SNOOP_RMPP_SENDS	   = (1<<1),*/
 	IB_MAD_SNOOP_SEND_COMPLETIONS	   = (1<<2),
@@ -732,21 +732,21 @@ enum ib_mad_snoop_flags {
 };
 
 /**
- * ib_register_mad_snoop - Register to snoop sent and received MADs.
+ * ib_register_mad_syesop - Register to syesop sent and received MADs.
  * @device: The device to register with.
  * @port_num: The port on the specified device to use.
- * @qp_type: Specifies which QP traffic to snoop.  Must be either
+ * @qp_type: Specifies which QP traffic to syesop.  Must be either
  *   IB_QPT_SMI or IB_QPT_GSI.
- * @mad_snoop_flags: Specifies information where snooping occurs.
- * @send_handler: The callback routine invoked for a snooped send.
- * @recv_handler: The callback routine invoked for a snooped receive.
+ * @mad_syesop_flags: Specifies information where syesoping occurs.
+ * @send_handler: The callback routine invoked for a syesoped send.
+ * @recv_handler: The callback routine invoked for a syesoped receive.
  * @context: User specified context associated with the registration.
  */
-struct ib_mad_agent *ib_register_mad_snoop(struct ib_device *device,
+struct ib_mad_agent *ib_register_mad_syesop(struct ib_device *device,
 					   u8 port_num,
 					   enum ib_qp_type qp_type,
-					   int mad_snoop_flags,
-					   ib_mad_snoop_handler snoop_handler,
+					   int mad_syesop_flags,
+					   ib_mad_syesop_handler syesop_handler,
 					   ib_mad_recv_handler recv_handler,
 					   void *context);
 
@@ -754,7 +754,7 @@ struct ib_mad_agent *ib_register_mad_snoop(struct ib_device *device,
  * ib_unregister_mad_agent - Unregisters a client from using MAD services.
  * @mad_agent: Corresponding MAD registration request to deregister.
  *
- * After invoking this routine, MAD services are no longer usable by the
+ * After invoking this routine, MAD services are yes longer usable by the
  * client on the associated QP.
  */
 void ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
@@ -766,11 +766,11 @@ void ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
  * @bad_send_buf: Specifies the MAD on which an error was encountered.  This
  *   parameter is optional if only a single MAD is posted.
  *
- * Sent MADs are not guaranteed to complete in the order that they were posted.
+ * Sent MADs are yest guaranteed to complete in the order that they were posted.
  *
  * If the MAD requires RMPP, the data buffer should contain a single copy
  * of the common MAD, RMPP, and class specific headers, followed by the class
- * defined data.  If the class defined data would not divide evenly into
+ * defined data.  If the class defined data would yest divide evenly into
  * RMPP segments, then space must be allocated at the end of the referenced
  * buffer for any required padding.  To indicate the amount of class defined
  * data being transferred, the paylen_newwin field in the RMPP header should
@@ -818,7 +818,7 @@ int ib_modify_mad(struct ib_mad_agent *mad_agent,
  * ib_create_send_mad - Allocate and initialize a data buffer and work request
  *   for sending a MAD.
  * @mad_agent: Specifies the registered MAD service to associate with the MAD.
- * @remote_qpn: Specifies the QPN of the receiving node.
+ * @remote_qpn: Specifies the QPN of the receiving yesde.
  * @pkey_index: Specifies which PKey the MAD will be sent using.  This field
  *   is valid only if the remote_qpn is QP 1.
  * @rmpp_active: Indicates if the send will enable RMPP.

@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -63,7 +63,7 @@ static bool ath9k_hw_4k_fill_eeprom(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!ath9k_hw_use_flash(ah)) {
-		ath_dbg(common, EEPROM, "Reading from EEPROM, not flash\n");
+		ath_dbg(common, EEPROM, "Reading from EEPROM, yest flash\n");
 	}
 
 	if (common->bus_ops->ath_bus_type == ATH_USB)
@@ -89,7 +89,7 @@ static u32 ath9k_dump_4k_modal_eeprom(char *buf, u32 len, u32 size,
 	PR_EEP("txEndToRxOn", modal_hdr->txEndToRxOn);
 	PR_EEP("txFrameToXpaOn", modal_hdr->txFrameToXpaOn);
 	PR_EEP("CCA Threshold)", modal_hdr->thresh62);
-	PR_EEP("Chain0 NF Threshold", modal_hdr->noiseFloorThreshCh[0]);
+	PR_EEP("Chain0 NF Threshold", modal_hdr->yesiseFloorThreshCh[0]);
 	PR_EEP("xpdGain", modal_hdr->xpdGain);
 	PR_EEP("External PD", modal_hdr->xpd);
 	PR_EEP("Chain0 I Coefficient", modal_hdr->iqCalICh[0]);
@@ -143,7 +143,7 @@ static u32 ath9k_hw_4k_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	}
 
 	PR_EEP("Major Version", ath9k_hw_4k_get_eeprom_ver(ah));
-	PR_EEP("Minor Version", ath9k_hw_4k_get_eeprom_rev(ah));
+	PR_EEP("Miyesr Version", ath9k_hw_4k_get_eeprom_rev(ah));
 	PR_EEP("Checksum", le16_to_cpu(pBase->checksum));
 	PR_EEP("Length", le16_to_cpu(pBase->length));
 	PR_EEP("RegDomain1", le16_to_cpu(pBase->regDmn[0]));
@@ -162,7 +162,7 @@ static u32 ath9k_hw_4k_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 					AR5416_OPFLAGS_N_5G_HT40));
 	PR_EEP("Big Endian", !!(pBase->eepMisc & AR5416_EEPMISC_BIG_ENDIAN));
 	PR_EEP("Cal Bin Major Ver", (binBuildNumber >> 24) & 0xFF);
-	PR_EEP("Cal Bin Minor Ver", (binBuildNumber >> 16) & 0xFF);
+	PR_EEP("Cal Bin Miyesr Ver", (binBuildNumber >> 16) & 0xFF);
 	PR_EEP("Cal Bin Build", (binBuildNumber >> 8) & 0xFF);
 	PR_EEP("TX Gain type", pBase->txGainType);
 
@@ -240,7 +240,7 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 
 	switch (param) {
 	case EEP_NFTHRESH_2:
-		return pModal->noiseFloorThreshCh[0];
+		return pModal->yesiseFloorThreshCh[0];
 	case EEP_MAC_LSW:
 		return get_unaligned_be16(pBase->macAddr);
 	case EEP_MAC_MID:

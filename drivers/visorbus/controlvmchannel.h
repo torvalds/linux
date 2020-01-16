@@ -42,13 +42,13 @@
  * @alive:     Configure message sent to service/server.
  * @revoked:   Similar to partition state ShuttingDown.
  * @allocated: Memory (device/port number) has been selected by Command.
- * @known:     Has been introduced to the service/guest partition.
+ * @kyeswn:     Has been introduced to the service/guest partition.
  * @ready:     Service/Guest partition has responded to introduction.
  * @operating: Resource is configured and operating.
  * @reserved:  Natural alignment.
  *
  * Note: Don't use high bit unless we need to switch to ushort which is
- * non-compliant.
+ * yesn-compliant.
  */
 struct visor_segment_state  {
 	u16 enabled:1;
@@ -56,7 +56,7 @@ struct visor_segment_state  {
 	u16 alive:1;
 	u16 revoked:1;
 	u16 allocated:1;
-	u16 known:1;
+	u16 kyeswn:1;
 	u16 ready:1;
 	u16 operating:1;
 	u16 reserved:8;
@@ -141,7 +141,7 @@ enum controlvm_id {
  *		     are used to connect to the corresponding interrupt.
  *		     Used by IOPart-GP only.
  * @recv_irq_shared: Specifies if the recvInterrupt is shared.  It, interrupt
- *		     pin and vector are used to connect to 0 = not shared;
+ *		     pin and vector are used to connect to 0 = yest shared;
  *		     1 = shared the corresponding interrupt.
  *		     Used by IOPart-GP only.
  * @reserved:	     Natural alignment purposes
@@ -189,12 +189,12 @@ enum visor_chipset_feature {
  *			     message receiver is to act as the bus or device
  *			     server.
  *	@test_message:	     =1 for testing use only (Control and Command
- *			     ignore this).
+ *			     igyesre this).
  *	@partial_completion: =1 if there are forthcoming responses/acks
  *                           associated with this message.
- *      @preserve:	     =1 this is to let us know to preserve channel
+ *      @preserve:	     =1 this is to let us kyesw to preserve channel
  *			     contents.
- *	@writer_in_diag:     =1 the DiagWriter is active in the Diagnostic
+ *	@writer_in_diag:     =1 the DiagWriter is active in the Diagyesstic
  *			     Partition.
  *	@reserve:	     Natural alignment.
  * @reserved:	       Natural alignment.
@@ -203,7 +203,7 @@ enum visor_chipset_feature {
  * @payload_max_bytes: Maximum bytes allocated in payload area of ControlVm
  *		       segment.
  * @payload_bytes:     Actual number of bytes of payload area to copy between
- *		       IO/Command. If non-zero, there is a payload to copy.
+ *		       IO/Command. If yesn-zero, there is a payload to copy.
  *
  * This is the common structure that is at the beginning of every
  * ControlVm message (both commands and responses) in any ControlVm
@@ -238,8 +238,8 @@ struct controlvm_message_header  {
 
 /*
  * struct controlvm_packet_device_create - For CONTROLVM_DEVICE_CREATE
- * @bus_no:	    Bus # (0..n-1) from the msg receiver's end.
- * @dev_no:	    Bus-relative (0..n-1) device number.
+ * @bus_yes:	    Bus # (0..n-1) from the msg receiver's end.
+ * @dev_yes:	    Bus-relative (0..n-1) device number.
  * @channel_addr:   Guest physical address of the channel, which can be
  *		    dereferenced by the receiver of this ControlVm command.
  * @channel_bytes:  Specifies size of the channel in bytes.
@@ -248,8 +248,8 @@ struct controlvm_message_header  {
  * @irq_info intr:  Specifies interrupt information.
  */
 struct controlvm_packet_device_create  {
-	u32 bus_no;
-	u32 dev_no;
+	u32 bus_yes;
+	u32 dev_yes;
 	u64 channel_addr;
 	u64 channel_bytes;
 	guid_t data_type_guid;
@@ -259,12 +259,12 @@ struct controlvm_packet_device_create  {
 
 /*
  * struct controlvm_packet_device_configure - For CONTROLVM_DEVICE_CONFIGURE
- * @bus_no: Bus number (0..n-1) from the msg receiver's perspective.
- * @dev_no: Bus-relative (0..n-1) device number.
+ * @bus_yes: Bus number (0..n-1) from the msg receiver's perspective.
+ * @dev_yes: Bus-relative (0..n-1) device number.
  */
 struct controlvm_packet_device_configure  {
-	u32 bus_no;
-	u32 dev_no;
+	u32 bus_yes;
+	u32 dev_yes;
 } __packed;
 
 /* Total 128 bytes */
@@ -283,7 +283,7 @@ struct controlvm_message_device_configure  {
  * struct controlvm_message_packet - This is the format for a message in any
  *                                   ControlVm queue.
  * @struct create_bus:		For CONTROLVM_BUS_CREATE.
- *	@bus_no:	     Bus # (0..n-1) from the msg receiver's perspective.
+ *	@bus_yes:	     Bus # (0..n-1) from the msg receiver's perspective.
  *	@dev_count:	     Indicates the max number of devices on this bus.
  *	@channel_addr:	     Guest physical address of the channel, which can be
  *			     dereferenced by the receiver of this ControlVM
@@ -293,40 +293,40 @@ struct controlvm_message_device_configure  {
  *	@bus_inst_uuid:	     Instance uuid for the bus.
  *
  * @struct destroy_bus:		For CONTROLVM_BUS_DESTROY.
- *	@bus_no: Bus # (0..n-1) from the msg receiver's perspective.
+ *	@bus_yes: Bus # (0..n-1) from the msg receiver's perspective.
  *	@reserved: Natural alignment purposes.
  *
  * @struct configure_bus:	For CONTROLVM_BUS_CONFIGURE.
- *	@bus_no:	      Bus # (0..n-1) from the receiver's perspective.
+ *	@bus_yes:	      Bus # (0..n-1) from the receiver's perspective.
  *	@reserved1:	      For alignment purposes.
  *	@guest_handle:	      This is used to convert guest physical address to
  *			      physical address.
  *	@recv_bus_irq_handle: Specifies interrupt info. It is used by SP to
  *			      register to receive interrupts from the CP. This
- *			      interrupt is used for bus level notifications.
+ *			      interrupt is used for bus level yestifications.
  *			      The corresponding sendBusInterruptHandle is kept
  *			      in CP.
  *
  * @struct create_device:	For CONTROLVM_DEVICE_CREATE.
  *
  * @struct destroy_device:	For CONTROLVM_DEVICE_DESTROY.
- *	@bus_no: Bus # (0..n-1) from the msg receiver's perspective.
- *	@dev_no: Bus-relative (0..n-1) device number.
+ *	@bus_yes: Bus # (0..n-1) from the msg receiver's perspective.
+ *	@dev_yes: Bus-relative (0..n-1) device number.
  *
  * @struct configure_device:	For CONTROLVM_DEVICE_CONFIGURE.
  *
  * @struct reconfigure_device:	For CONTROLVM_DEVICE_RECONFIGURE.
- *	@bus_no: Bus # (0..n-1) from the msg receiver's perspective.
- *	@dev_no: Bus-relative (0..n-1) device number.
+ *	@bus_yes: Bus # (0..n-1) from the msg receiver's perspective.
+ *	@dev_yes: Bus-relative (0..n-1) device number.
  *
  * @struct bus_change_state:	For CONTROLVM_BUS_CHANGESTATE.
- *	@bus_no:
+ *	@bus_yes:
  *	@struct state:
  *	@reserved: Natural alignment purposes.
  *
  * @struct device_change_state:	For CONTROLVM_DEVICE_CHANGESTATE.
- *	@bus_no:
- *	@dev_no:
+ *	@bus_yes:
+ *	@dev_yes:
  *	@struct state:
  *	@struct flags:
  *		@phys_device: =1 if message is for a physical device.
@@ -335,8 +335,8 @@ struct controlvm_message_device_configure  {
  *	@reserved:    Natural alignment purposes.
  *
  * @struct device_change_state_event:	For CONTROLVM_DEVICE_CHANGESTATE_EVENT.
- *	@bus_no:
- *	@dev_no:
+ *	@bus_yes:
+ *	@dev_yes:
  *	@struct state:
  *	@reserved:     Natural alignment purposes.
  *
@@ -358,7 +358,7 @@ struct controlvm_message_device_configure  {
 struct controlvm_message_packet  {
 	union  {
 		struct  {
-			u32 bus_no;
+			u32 bus_yes;
 			u32 dev_count;
 			u64 channel_addr;
 			u64 channel_bytes;
@@ -366,33 +366,33 @@ struct controlvm_message_packet  {
 			guid_t bus_inst_guid;
 		} __packed create_bus;
 		struct  {
-			u32 bus_no;
+			u32 bus_yes;
 			u32 reserved;
 		} __packed destroy_bus;
 		struct  {
-			u32 bus_no;
+			u32 bus_yes;
 			u32 reserved1;
 			u64 guest_handle;
 			u64 recv_bus_irq_handle;
 		} __packed configure_bus;
 		struct controlvm_packet_device_create create_device;
 		struct  {
-			u32 bus_no;
-			u32 dev_no;
+			u32 bus_yes;
+			u32 dev_yes;
 		} __packed destroy_device;
 		struct controlvm_packet_device_configure configure_device;
 		struct  {
-			u32 bus_no;
-			u32 dev_no;
+			u32 bus_yes;
+			u32 dev_yes;
 		} __packed reconfigure_device;
 		struct  {
-			u32 bus_no;
+			u32 bus_yes;
 			struct visor_segment_state state;
 			u8 reserved[2];
 		} __packed bus_change_state;
 		struct  {
-			u32 bus_no;
-			u32 dev_no;
+			u32 bus_yes;
+			u32 dev_yes;
 			struct visor_segment_state state;
 			struct  {
 				u32 phys_device:1;
@@ -402,8 +402,8 @@ struct controlvm_message_packet  {
 			u8 reserved[2];
 		} __packed device_change_state;
 		struct  {
-			u32 bus_no;
-			u32 dev_no;
+			u32 bus_yes;
+			u32 dev_yes;
 			struct visor_segment_state state;
 			u8 reserved[6];
 		} __packed device_change_state_event;
@@ -433,14 +433,14 @@ struct controlvm_message {
  * @struct header:
  * @gp_controlvm:			Guest phys addr of this channel.
  * @gp_partition_tables:		Guest phys addr of partition tables.
- * @gp_diag_guest:			Guest phys addr of diagnostic channel.
+ * @gp_diag_guest:			Guest phys addr of diagyesstic channel.
  * @gp_boot_romdisk:			Guest phys addr of (read* only) Boot
  *					ROM disk.
  * @gp_boot_ramdisk:			Guest phys addr of writable Boot RAM
  *					disk.
  * @gp_acpi_table:			Guest phys addr of acpi table.
  * @gp_control_channel:			Guest phys addr of control channel.
- * @gp_diag_romdisk:			Guest phys addr of diagnostic ROM disk.
+ * @gp_diag_romdisk:			Guest phys addr of diagyesstic ROM disk.
  * @gp_nvram:				Guest phys addr of NVRAM channel.
  * @request_payload_offset:		Offset to request payload area.
  * @event_payload_offset:		Offset to event payload area.
@@ -493,13 +493,13 @@ struct controlvm_message {
  * @struct event_ack_queue:		Service or guest partition uses this
  *					queue to ack Control events.
  * @struct request_msg:			Request fixed-size message pool -
- *					does not include payload.
+ *					does yest include payload.
  * @struct response_msg:		Response fixed-size message pool -
- *					does not include payload.
+ *					does yest include payload.
  * @struct event_msg:			Event fixed-size message pool -
- *					does not include payload.
+ *					does yest include payload.
  * @struct event_ack_msg:		Ack fixed-size message pool -
- *					does not include payload.
+ *					does yest include payload.
  * @struct saved_crash_msg:		Message stored during IOVM creation to
  *					be reused after crash.
  */

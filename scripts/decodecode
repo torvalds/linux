@@ -19,7 +19,7 @@ die() {
 
 trap cleanup EXIT
 
-T=`mktemp` || die "cannot create temp file"
+T=`mktemp` || die "canyest create temp file"
 code=
 cont=
 
@@ -28,7 +28,7 @@ while read i ; do
 case "$i" in
 *Code:*)
 	code=$i
-	cont=yes
+	cont=no
 	;;
 *)
 	[ -n "$cont" ] && {

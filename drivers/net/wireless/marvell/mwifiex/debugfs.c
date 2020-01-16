@@ -247,7 +247,7 @@ free_and_exit:
  *      - Number of histogram samples
  *      - Receive packet number of each rx_rate
  *      - Receive packet number of each snr
- *      - Receive packet number of each nosie_flr
+ *      - Receive packet number of each yessie_flr
  *      - Receive packet number of each signal streath
  */
 static ssize_t
@@ -306,9 +306,9 @@ mwifiex_histogram_read(struct file *file, char __user *ubuf,
 			p += sprintf(p, "snr[%02ddB] = %d\n", i, value);
 	}
 	for (i = 0; i < MWIFIEX_MAX_NOISE_FLR; i++) {
-		value = atomic_read(&phist_data->noise_flr[i]);
+		value = atomic_read(&phist_data->yesise_flr[i]);
 		if (value)
-			p += sprintf(p, "noise_flr[%02ddBm] = %d\n",
+			p += sprintf(p, "yesise_flr[%02ddBm] = %d\n",
 				(int)(i-128), value);
 	}
 	for (i = 0; i < MWIFIEX_MAX_SIG_STRENGTH; i++) {

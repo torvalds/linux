@@ -268,7 +268,7 @@ static int si514_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	err = si514_set_muldiv(data, &settings);
 	if (err < 0)
-		return err; /* Undefined state now, best to leave disabled */
+		return err; /* Undefined state yesw, best to leave disabled */
 
 	/* Trigger calibration */
 	err = regmap_write(data->regmap, SI514_REG_CONTROL, SI514_CONTROL_FCAL);
@@ -344,9 +344,9 @@ static int si514_probe(struct i2c_client *client,
 	data->hw.init = &init;
 	data->i2c_client = client;
 
-	if (of_property_read_string(client->dev.of_node, "clock-output-names",
+	if (of_property_read_string(client->dev.of_yesde, "clock-output-names",
 			&init.name))
-		init.name = client->dev.of_node->name;
+		init.name = client->dev.of_yesde->name;
 
 	data->regmap = devm_regmap_init_i2c(client, &si514_regmap_config);
 	if (IS_ERR(data->regmap)) {
@@ -361,7 +361,7 @@ static int si514_probe(struct i2c_client *client,
 		dev_err(&client->dev, "clock registration failed\n");
 		return err;
 	}
-	err = of_clk_add_hw_provider(client->dev.of_node, of_clk_hw_simple_get,
+	err = of_clk_add_hw_provider(client->dev.of_yesde, of_clk_hw_simple_get,
 				     &data->hw);
 	if (err) {
 		dev_err(&client->dev, "unable to add clk provider\n");
@@ -373,7 +373,7 @@ static int si514_probe(struct i2c_client *client,
 
 static int si514_remove(struct i2c_client *client)
 {
-	of_clk_del_provider(client->dev.of_node);
+	of_clk_del_provider(client->dev.of_yesde);
 	return 0;
 }
 

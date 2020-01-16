@@ -19,7 +19,7 @@
 struct nvs_region {
 	__u64 phys_start;
 	__u64 size;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static LIST_HEAD(nvs_region_list);
@@ -42,7 +42,7 @@ int acpi_nvs_register(__u64 start, __u64 size)
 		return -ENOMEM;
 	region->phys_start = start;
 	region->size = size;
-	list_add_tail(&region->node, &nvs_region_list);
+	list_add_tail(&region->yesde, &nvs_region_list);
 
 	return suspend_nvs_register(start, size);
 }
@@ -53,7 +53,7 @@ int acpi_nvs_for_each_region(int (*func)(__u64 start, __u64 size, void *data),
 	int rc;
 	struct nvs_region *region;
 
-	list_for_each_entry(region, &nvs_region_list, node) {
+	list_for_each_entry(region, &nvs_region_list, yesde) {
 		rc = func(region->phys_start, region->size, data);
 		if (rc)
 			return rc;
@@ -76,7 +76,7 @@ struct nvs_page {
 	void *kaddr;
 	void *data;
 	bool unmap;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static LIST_HEAD(nvs_list);
@@ -86,7 +86,7 @@ static LIST_HEAD(nvs_list);
  *	@start - physical address of the region
  *	@size - size of the region
  *
- *	The NVS region need not be page-aligned (both ends) and we arrange
+ *	The NVS region need yest be page-aligned (both ends) and we arrange
  *	things so that the data from page-aligned addresses in this region will
  *	be copied into separate RAM pages.
  */
@@ -104,7 +104,7 @@ static int suspend_nvs_register(unsigned long start, unsigned long size)
 		if (!entry)
 			goto Error;
 
-		list_add_tail(&entry->node, &nvs_list);
+		list_add_tail(&entry->yesde, &nvs_list);
 		entry->phys_start = start;
 		nr_bytes = PAGE_SIZE - (start & ~PAGE_MASK);
 		entry->size = (size < nr_bytes) ? size : nr_bytes;
@@ -115,8 +115,8 @@ static int suspend_nvs_register(unsigned long start, unsigned long size)
 	return 0;
 
  Error:
-	list_for_each_entry_safe(entry, next, &nvs_list, node) {
-		list_del(&entry->node);
+	list_for_each_entry_safe(entry, next, &nvs_list, yesde) {
+		list_del(&entry->yesde);
 		kfree(entry);
 	}
 	return -ENOMEM;
@@ -129,7 +129,7 @@ void suspend_nvs_free(void)
 {
 	struct nvs_page *entry;
 
-	list_for_each_entry(entry, &nvs_list, node)
+	list_for_each_entry(entry, &nvs_list, yesde)
 		if (entry->data) {
 			free_page((unsigned long)entry->data);
 			entry->data = NULL;
@@ -153,7 +153,7 @@ int suspend_nvs_alloc(void)
 {
 	struct nvs_page *entry;
 
-	list_for_each_entry(entry, &nvs_list, node) {
+	list_for_each_entry(entry, &nvs_list, yesde) {
 		entry->data = (void *)__get_free_page(GFP_KERNEL);
 		if (!entry->data) {
 			suspend_nvs_free();
@@ -172,7 +172,7 @@ int suspend_nvs_save(void)
 
 	printk(KERN_INFO "PM: Saving platform NVS memory\n");
 
-	list_for_each_entry(entry, &nvs_list, node)
+	list_for_each_entry(entry, &nvs_list, yesde)
 		if (entry->data) {
 			unsigned long phys = entry->phys_start;
 			unsigned int size = entry->size;
@@ -196,7 +196,7 @@ int suspend_nvs_save(void)
  *	suspend_nvs_restore - restore NVS memory regions
  *
  *	This function is going to be called with interrupts disabled, so it
- *	cannot iounmap the virtual addresses used to access the NVS region.
+ *	canyest iounmap the virtual addresses used to access the NVS region.
  */
 void suspend_nvs_restore(void)
 {
@@ -204,7 +204,7 @@ void suspend_nvs_restore(void)
 
 	printk(KERN_INFO "PM: Restoring platform NVS memory\n");
 
-	list_for_each_entry(entry, &nvs_list, node)
+	list_for_each_entry(entry, &nvs_list, yesde)
 		if (entry->data)
 			memcpy(entry->kaddr, entry->data, entry->size);
 }

@@ -6,7 +6,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -57,18 +57,18 @@ struct ts102_regs {
 
 /* Bits for uctrl_intr register */
 #define UCTRL_INTR_TXE_REQ         0x01    /* transmit FIFO empty int req */
-#define UCTRL_INTR_TXNF_REQ        0x02    /* transmit FIFO not full int req */
-#define UCTRL_INTR_RXNE_REQ        0x04    /* receive FIFO not empty int req */
+#define UCTRL_INTR_TXNF_REQ        0x02    /* transmit FIFO yest full int req */
+#define UCTRL_INTR_RXNE_REQ        0x04    /* receive FIFO yest empty int req */
 #define UCTRL_INTR_RXO_REQ         0x08    /* receive FIFO overflow int req */
 #define UCTRL_INTR_TXE_MSK         0x10    /* transmit FIFO empty mask */
-#define UCTRL_INTR_TXNF_MSK        0x20    /* transmit FIFO not full mask */
-#define UCTRL_INTR_RXNE_MSK        0x40    /* receive FIFO not empty mask */
+#define UCTRL_INTR_TXNF_MSK        0x20    /* transmit FIFO yest full mask */
+#define UCTRL_INTR_RXNE_MSK        0x40    /* receive FIFO yest empty mask */
 #define UCTRL_INTR_RXO_MSK         0x80    /* receive FIFO overflow mask */
 
 /* Bits for uctrl_stat register */
 #define UCTRL_STAT_TXE_STA         0x01    /* transmit FIFO empty status */
-#define UCTRL_STAT_TXNF_STA        0x02    /* transmit FIFO not full status */
-#define UCTRL_STAT_RXNE_STA        0x04    /* receive FIFO not empty status */
+#define UCTRL_STAT_TXNF_STA        0x02    /* transmit FIFO yest full status */
+#define UCTRL_STAT_RXNE_STA        0x04    /* receive FIFO yest empty status */
 #define UCTRL_STAT_RXO_STA         0x08    /* receive FIFO overflow status */
 
 static DEFINE_MUTEX(uctrl_mutex);
@@ -208,7 +208,7 @@ uctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static int
-uctrl_open(struct inode *inode, struct file *file)
+uctrl_open(struct iyesde *iyesde, struct file *file)
 {
 	mutex_lock(&uctrl_mutex);
 	uctrl_get_event_status(global_driver);
@@ -224,7 +224,7 @@ static irqreturn_t uctrl_interrupt(int irq, void *dev_id)
 
 static const struct file_operations uctrl_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 	.unlocked_ioctl =	uctrl_ioctl,
 	.open =		uctrl_open,
 };
@@ -381,7 +381,7 @@ static int uctrl_probe(struct platform_device *op)
 
 	sbus_writel(UCTRL_INTR_RXNE_REQ|UCTRL_INTR_RXNE_MSK, &p->regs->uctrl_intr);
 	printk(KERN_INFO "%pOF: uctrl regs[0x%p] (irq %d)\n",
-	       op->dev.of_node, p->regs, p->irq);
+	       op->dev.of_yesde, p->regs, p->irq);
 	uctrl_get_event_status(p);
 	uctrl_get_external_status(p);
 

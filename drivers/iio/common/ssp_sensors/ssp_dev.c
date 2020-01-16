@@ -227,7 +227,7 @@ int ssp_enable_sensor(struct ssp_data *data, enum ssp_sensor_type type,
 
 	switch (data->check_status[type]) {
 	case SSP_INITIALIZATION_STATE:
-		/* do calibration step, now just enable */
+		/* do calibration step, yesw just enable */
 	case SSP_ADD_SENSOR_STATE:
 		ret = ssp_send_instruction(data,
 					   SSP_MSG2SSP_INST_BYPASS_SENSOR_ADD,
@@ -359,7 +359,7 @@ static int ssp_initialize_mcu(struct ssp_data *data)
 	ret = ssp_get_chipid(data);
 	if (ret != SSP_DEVICE_ID) {
 		dev_err(&data->spi->dev, "%s - MCU %s ret = %d\n", __func__,
-			ret < 0 ? "is not working" : "identification failed",
+			ret < 0 ? "is yest working" : "identification failed",
 			ret);
 		return ret < 0 ? ret : -ENODEV;
 	}
@@ -367,7 +367,7 @@ static int ssp_initialize_mcu(struct ssp_data *data)
 	dev_info(&data->spi->dev, "MCU device ID = %d\n", ret);
 
 	/*
-	 * needs clarification, for now do not want to export all transfer
+	 * needs clarification, for yesw do yest want to export all transfer
 	 * methods to sensors' drivers
 	 */
 	ret = ssp_set_magnetic_matrix(data);
@@ -443,22 +443,22 @@ static struct ssp_data *ssp_parse_dt(struct device *dev)
 {
 	int ret;
 	struct ssp_data *data;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	const struct of_device_id *match;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return NULL;
 
-	data->mcu_ap_gpio = of_get_named_gpio(node, "mcu-ap-gpios", 0);
+	data->mcu_ap_gpio = of_get_named_gpio(yesde, "mcu-ap-gpios", 0);
 	if (data->mcu_ap_gpio < 0)
 		return NULL;
 
-	data->ap_mcu_gpio = of_get_named_gpio(node, "ap-mcu-gpios", 0);
+	data->ap_mcu_gpio = of_get_named_gpio(yesde, "ap-mcu-gpios", 0);
 	if (data->ap_mcu_gpio < 0)
 		return NULL;
 
-	data->mcu_reset_gpio = of_get_named_gpio(node, "mcu-reset-gpios", 0);
+	data->mcu_reset_gpio = of_get_named_gpio(yesde, "mcu-reset-gpios", 0);
 	if (data->mcu_reset_gpio < 0)
 		return NULL;
 
@@ -472,7 +472,7 @@ static struct ssp_data *ssp_parse_dt(struct device *dev)
 	if (ret)
 		return NULL;
 
-	match = of_match_node(ssp_of_match, node);
+	match = of_match_yesde(ssp_of_match, yesde);
 	if (!match)
 		return NULL;
 
@@ -578,7 +578,7 @@ static int ssp_probe(struct spi_device *spi)
 			goto err_read_reg;
 		}
 	} else {
-		dev_err(&spi->dev, "Firmware version not supported\n");
+		dev_err(&spi->dev, "Firmware version yest supported\n");
 		ret = -EPERM;
 		goto err_read_reg;
 	}

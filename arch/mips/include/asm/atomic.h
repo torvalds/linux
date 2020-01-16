@@ -247,7 +247,7 @@ static __inline__ int pfx##_sub_if_positive(type i, pfx##_t * v)	\
 	 * In the Loongson3 workaround case we already have a		\
 	 * completion barrier at 2: above, which is needed due to the	\
 	 * bltz that can branch	to code outside of the LL/SC loop. As	\
-	 * such, we don't need to emit another barrier here.		\
+	 * such, we don't need to emit ayesther barrier here.		\
 	 */								\
 	if (!__SYNC_loongson3_war)					\
 		smp_mb__after_atomic();					\

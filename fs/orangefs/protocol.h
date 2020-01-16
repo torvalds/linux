@@ -73,23 +73,23 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
  * the sign is stripped before decoding.
  */
 
-/* Bit 31 is not used since it is the sign. */
+/* Bit 31 is yest used since it is the sign. */
 
 /*
  * Bit 30 specifies that this is a ORANGEFS error. A ORANGEFS error is either an
- * encoded errno value or a ORANGEFS protocol error.
+ * encoded erryes value or a ORANGEFS protocol error.
  */
 #define ORANGEFS_ERROR_BIT (1 << 30)
 
 /*
- * Bit 29 specifies that this is a ORANGEFS protocol error and not an encoded
- * errno value.
+ * Bit 29 specifies that this is a ORANGEFS protocol error and yest an encoded
+ * erryes value.
  */
 #define ORANGEFS_NON_ERRNO_ERROR_BIT (1 << 29)
 
 /*
  * Bits 9, 8, and 7 specify the error class, which encodes the section of
- * server code the error originated in for logging purposes. It is not used
+ * server code the error originated in for logging purposes. It is yest used
  * in the kernel except to be masked out.
  */
 #define ORANGEFS_ERROR_CLASS_BITS 0x380
@@ -97,7 +97,7 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 /* Bits 6 - 0 are reserved for the actual error code. */
 #define ORANGEFS_ERROR_NUMBER_BITS 0x7f
 
-/* Encoded errno values decoded by PINT_errno_mapping in orangefs-utils.c. */
+/* Encoded erryes values decoded by PINT_erryes_mapping in orangefs-utils.c. */
 
 /* Our own ORANGEFS protocol error codes. */
 #define ORANGEFS_ECANCEL    (1|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
@@ -120,7 +120,7 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 #define ORANGEFS_U_EXECUTE (1 << 6)
 #define ORANGEFS_U_WRITE   (1 << 7)
 #define ORANGEFS_U_READ    (1 << 8)
-/* no ORANGEFS_U_VTX (sticky bit) */
+/* yes ORANGEFS_U_VTX (sticky bit) */
 #define ORANGEFS_G_SGID    (1 << 10)
 #define ORANGEFS_U_SUID    (1 << 11)
 
@@ -177,7 +177,7 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
  * NOTE: Please retain them as multiples of 8 even if you wish to change them
  * This is *NECESSARY* for supporting 32 bit user-space binaries on a 64-bit
  * kernel. Due to implementation within DBPF, this really needs to be
- * ORANGEFS_NAME_MAX, which it was the same value as, but no reason to let it
+ * ORANGEFS_NAME_MAX, which it was the same value as, but yes reason to let it
  * break if that changes in the future.
  */
 #define ORANGEFS_MAX_XATTR_NAMELEN   ORANGEFS_NAME_MAX	/* Not the same as
@@ -235,16 +235,16 @@ struct ORANGEFS_sys_attr_s {
 	/* NOTE: caller must free if valid */
 	char *link_target;
 
-	/* Changed to __s32 so that size of structure does not change */
+	/* Changed to __s32 so that size of structure does yest change */
 	__s32 dfile_count;
 
-	/* Changed to __s32 so that size of structure does not change */
+	/* Changed to __s32 so that size of structure does yest change */
 	__s32 distr_dir_servers_initial;
 
-	/* Changed to __s32 so that size of structure does not change */
+	/* Changed to __s32 so that size of structure does yest change */
 	__s32 distr_dir_servers_max;
 
-	/* Changed to __s32 so that size of structure does not change */
+	/* Changed to __s32 so that size of structure does yest change */
 	__s32 distr_dir_split_size;
 
 	__u32 mirror_copies_count;
@@ -337,7 +337,7 @@ enum {
  * describes memory regions to map in the ORANGEFS_DEV_MAP ioctl.
  * NOTE: See devorangefs-req.c for 32 bit compat structure.
  * Since this structure has a variable-sized layout that is different
- * on 32 and 64 bit platforms, we need to normalize to a 64 bit layout
+ * on 32 and 64 bit platforms, we need to yesrmalize to a 64 bit layout
  * on such systems before servicing ioctl calls from user-space binaries
  * that may be 32 bit!
  */

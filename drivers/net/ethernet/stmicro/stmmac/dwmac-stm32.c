@@ -63,7 +63,7 @@
  *|  GMII   |	 -   |     eth-ck    |	      n/a	  |	  n/a        |
  *|         |        |               |                    |		     |
  * ---------------------------------------------------------------------------
- *| RGMII   |	 -   |     eth-ck    |	      n/a	  |  eth-ck (no pin) |
+ *| RGMII   |	 -   |     eth-ck    |	      n/a	  |  eth-ck (yes pin) |
  *|         |        |               |                    |  st,eth-clk-sel  |
  * ---------------------------------------------------------------------------
  *| RMII    |	 -   |     eth-ck    |	    eth-ck        |	  n/a        |
@@ -71,7 +71,7 @@
  * ---------------------------------------------------------------------------
  *
  * BIT(17) : set this bit in RMII mode when you have PHY without crystal 50MHz
- * BIT(16) : set this bit in GMII/RGMII PHY when you do not want use 125Mhz
+ * BIT(16) : set this bit in GMII/RGMII PHY when you do yest want use 125Mhz
  * from PHY
  *-----------------------------------------------------
  * src	 |         BIT(17)       |       BIT(16)      |
@@ -200,9 +200,9 @@ static int stm32mp1_set_mode(struct plat_stmmacenet_data *plat_dat)
 		pr_debug("SYSCFG init : PHY_INTERFACE_MODE_RGMII\n");
 		break;
 	default:
-		pr_debug("SYSCFG init :  Do not manage %d interface\n",
+		pr_debug("SYSCFG init :  Do yest manage %d interface\n",
 			 plat_dat->interface);
-		/* Do not manage others interfaces */
+		/* Do yest manage others interfaces */
 		return -EINVAL;
 	}
 
@@ -231,9 +231,9 @@ static int stm32mcu_set_mode(struct plat_stmmacenet_data *plat_dat)
 		pr_debug("SYSCFG init : PHY_INTERFACE_MODE_RMII\n");
 		break;
 	default:
-		pr_debug("SYSCFG init :  Do not manage %d interface\n",
+		pr_debug("SYSCFG init :  Do yest manage %d interface\n",
 			 plat_dat->interface);
-		/* Do not manage others interfaces */
+		/* Do yest manage others interfaces */
 		return -EINVAL;
 	}
 
@@ -253,7 +253,7 @@ static void stm32_dwmac_clk_disable(struct stm32_dwmac *dwmac)
 static int stm32_dwmac_parse_data(struct stm32_dwmac *dwmac,
 				  struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int err;
 
 	/*  Get TX/RX clocks */
@@ -291,7 +291,7 @@ static int stm32mp1_parse_data(struct stm32_dwmac *dwmac,
 			       struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int err = 0;
 
 	/* Gigabit Ethernet 125MHz clock selection. */
@@ -370,7 +370,7 @@ static int stm32_dwmac_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
-		dev_err(&pdev->dev, "no of match data provided\n");
+		dev_err(&pdev->dev, "yes of match data provided\n");
 		ret = -EINVAL;
 		goto err_remove_config_dt;
 	}

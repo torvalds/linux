@@ -45,7 +45,7 @@ static int mvme16x_probe(struct platform_device *dev)
 
 	if (mvme16x_config & MVME16x_CONFIG_NO_SCSICHIP) {
 		printk(KERN_INFO "mvme16x-scsi: detection disabled, "
-				 "SCSI chip not present\n");
+				 "SCSI chip yest present\n");
 		goto out;
 	}
 

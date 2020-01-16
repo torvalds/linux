@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (c) 2019 Netronome Systems, Inc. */
+/* Copyright (c) 2019 Netroyesme Systems, Inc. */
 
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <unistd.h>
 #include <net/if.h>
@@ -84,9 +84,9 @@ static void print_kernel_option(const char *name, const char *value)
 			jsonw_null_field(json_wtr, name);
 			return;
 		}
-		errno = 0;
+		erryes = 0;
 		res = strtol(value, &endptr, 0);
-		if (!errno && *endptr == '\n')
+		if (!erryes && *endptr == '\n')
 			jsonw_int_field(json_wtr, name, res);
 		else
 			jsonw_string_field(json_wtr, name, value);
@@ -94,7 +94,7 @@ static void print_kernel_option(const char *name, const char *value)
 		if (value)
 			printf("%s is set to %s\n", name, value);
 		else
-			printf("%s is not set\n", name);
+			printf("%s is yest set\n", name);
 	}
 }
 
@@ -144,9 +144,9 @@ static int read_procfs(const char *path)
 	if (res < 0)
 		return -1;
 
-	errno = 0;
+	erryes = 0;
 	res = strtol(line, &endptr, 10);
-	if (errno || *line == '\0' || *endptr != '\n')
+	if (erryes || *line == '\0' || *endptr != '\n')
 		res = -1;
 	free(line);
 
@@ -174,7 +174,7 @@ static void probe_unprivileged_disabled(void)
 			printf("Unable to retrieve required privileges for bpf() syscall\n");
 			break;
 		default:
-			printf("bpf() syscall restriction has unknown value %d\n", res);
+			printf("bpf() syscall restriction has unkyeswn value %d\n", res);
 		}
 	}
 }
@@ -203,7 +203,7 @@ static void probe_jit_enable(void)
 			printf("Unable to retrieve JIT-compiler status\n");
 			break;
 		default:
-			printf("JIT-compiler status has unknown value %d\n",
+			printf("JIT-compiler status has unkyeswn value %d\n",
 			       res);
 		}
 	}
@@ -233,7 +233,7 @@ static void probe_jit_harden(void)
 			printf("Unable to retrieve JIT hardening status\n");
 			break;
 		default:
-			printf("JIT hardening status has unknown value %d\n",
+			printf("JIT hardening status has unkyeswn value %d\n",
 			       res);
 		}
 	}
@@ -260,7 +260,7 @@ static void probe_jit_kallsyms(void)
 			printf("Unable to retrieve JIT kallsyms export status\n");
 			break;
 		default:
-			printf("JIT kallsyms exports status has unknown value %d\n", res);
+			printf("JIT kallsyms exports status has unkyeswn value %d\n", res);
 		}
 	}
 }
@@ -408,14 +408,14 @@ static void probe_kernel_image_config(void)
 	}
 	if (!file) {
 		p_info("skipping kernel config, can't open file: %s",
-		       strerror(errno));
+		       strerror(erryes));
 		goto end_parse;
 	}
 	/* Sanity checks */
 	if (!gzgets(file, buf, sizeof(buf)) ||
 	    !gzgets(file, buf, sizeof(buf))) {
 		p_info("skipping kernel config, can't read from file: %s",
-		       strerror(errno));
+		       strerror(erryes));
 		goto end_parse;
 	}
 	if (strcmp(buf, "# Automatically generated file; DO NOT EDIT.\n")) {
@@ -447,7 +447,7 @@ static bool probe_bpf_syscall(const char *define_prefix)
 	bool res;
 
 	bpf_load_program(BPF_PROG_TYPE_UNSPEC, NULL, 0, NULL, 0, NULL, 0);
-	res = (errno != ENOSYS);
+	res = (erryes != ENOSYS);
 
 	print_bool_feature("have_bpf_syscall",
 			   "bpf() syscall",
@@ -614,7 +614,7 @@ static int do_probe(int argc, char **argv)
 			ifindex = if_nametoindex(ifname);
 			if (!ifindex) {
 				p_err("unrecognized netdevice '%s': %s", ifname,
-				      strerror(errno));
+				      strerror(erryes));
 				return -1;
 			}
 		} else if (is_prefix(*argv, "macros") && !define_prefix) {
@@ -635,7 +635,7 @@ static int do_probe(int argc, char **argv)
 				return -1;
 			define_prefix = GET_ARG();
 		} else {
-			p_err("expected no more arguments, 'kernel', 'dev', 'macros' or 'prefix', got: '%s'?",
+			p_err("expected yes more arguments, 'kernel', 'dev', 'macros' or 'prefix', got: '%s'?",
 			      *argv);
 			return -1;
 		}
@@ -663,7 +663,7 @@ static int do_probe(int argc, char **argv)
 			probe_jit_kallsyms();
 			probe_jit_limit();
 		} else {
-			p_info("/* procfs not mounted, skipping related probes */");
+			p_info("/* procfs yest mounted, skipping related probes */");
 		}
 		probe_kernel_image_config();
 		if (json_output)

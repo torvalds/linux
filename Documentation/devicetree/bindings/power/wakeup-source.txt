@@ -1,7 +1,7 @@
 Specifying wakeup capability for devices
 ============================================
 
-Any device nodes
+Any device yesdes
 ----------------
 Nodes that describe devices which has wakeup capability must contain an
 "wakeup-source" boolean property.

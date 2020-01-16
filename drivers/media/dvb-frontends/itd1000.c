@@ -124,7 +124,7 @@ static void itd1000_set_lpf_bw(struct itd1000_state *state, u32 symbol_rate)
 
 	itd_dbg("symbol_rate = %d\n", symbol_rate);
 
-	/* not sure what is that ? - starting to download the table */
+	/* yest sure what is that ? - starting to download the table */
 	itd1000_write_reg(state, CON1, con1 | (1 << 1));
 
 	for (i = 0; i < ARRAY_SIZE(itd1000_lpf_pga); i++)
@@ -277,8 +277,8 @@ static int itd1000_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 }
 
 static u8 itd1000_init_tab[][2] = {
-	{ PLLCON1,       0x65 }, /* Register does not change */
-	{ PLLNH,         0x80 }, /* Bits [7:6] do not change */
+	{ PLLCON1,       0x65 }, /* Register does yest change */
+	{ PLLNH,         0x80 }, /* Bits [7:6] do yest change */
 	{ RESERVED_0X6D, 0x3b },
 	{ VCO_CHP2_I2C,  0x12 },
 	{ 0x72,          0xf9 }, /* No such regsister defined */

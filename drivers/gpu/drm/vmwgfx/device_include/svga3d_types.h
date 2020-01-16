@@ -10,7 +10,7 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright yestice and this permission yestice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -55,7 +55,7 @@ typedef
 #include "vmware_pack_begin.h"
 struct {
    uint32 numerator;
-   uint32 denominator;
+   uint32 deyesminator;
 }
 #include "vmware_pack_end.h"
 SVGA3dFraction64;
@@ -315,7 +315,7 @@ typedef enum SVGA3dSurfaceFormat {
 #define SVGA3D_SURFACE_CUBEMAP                (1 << 0)
 
 /*
- * HINT flags are not enforced by the device but are useful for
+ * HINT flags are yest enforced by the device but are useful for
  * performance.
  */
 #define SVGA3D_SURFACE_HINT_STATIC            (CONST64U(1) << 1)
@@ -334,7 +334,7 @@ typedef enum SVGA3dSurfaceFormat {
 /*
  * Is this surface using a base-level pitch for it's mob backing?
  *
- * This flag is not intended to be set by guest-drivers, but is instead
+ * This flag is yest intended to be set by guest-drivers, but is instead
  * set by the device when the surface is bound to a mob with a specified
  * pitch.
  */
@@ -370,13 +370,13 @@ typedef enum SVGA3dSurfaceFormat {
 #define SVGA3D_SURFACE_BIND_STREAM_OUTPUT     (CONST64U(1) << 26)
 
 /*
- * The STAGING flags notes that the surface will not be used directly by the
- * drawing pipeline, i.e. that it will not be bound to any bind point.
+ * The STAGING flags yestes that the surface will yest be used directly by the
+ * drawing pipeline, i.e. that it will yest be bound to any bind point.
  * Staging surfaces may be used by copy operations to move data in and out
  * of other surfaces.  No bind flags may be set on surfaces with this flag.
  *
  * The HINT_INDIRECT_UPDATE flag suggests that the surface will receive
- * updates indirectly, i.e. the surface will not be updated directly, but
+ * updates indirectly, i.e. the surface will yest be updated directly, but
  * will receive copies from staging surfaces.
  */
 #define SVGA3D_SURFACE_STAGING_UPLOAD         (CONST64U(1) << 27)
@@ -386,7 +386,7 @@ typedef enum SVGA3dSurfaceFormat {
 /*
  * Setting this flag allow this surface to be used with the
  * SVGA_3D_CMD_DX_TRANSFER_FROM_BUFFER command.  It is only valid for
- * buffer surfaces, and no bind flags are allowed to be set on surfaces
+ * buffer surfaces, and yes bind flags are allowed to be set on surfaces
  * with this flag.
  */
 #define SVGA3D_SURFACE_TRANSFER_FROM_BUFFER   (CONST64U(1) << 30)
@@ -530,7 +530,7 @@ typedef enum {
 
 /*
  * This format can be used as a render target if the current display mode
- * is the same depth if the alpha channel is ignored. e.g. if the device
+ * is the same depth if the alpha channel is igyesred. e.g. if the device
  * can render to A8R8G8B8 when the display mode is X8R8G8B8, then the
  * format op list entry for A8R8G8B8 should have this cap.
  */
@@ -538,7 +538,7 @@ typedef enum {
 
 /*
  * This format contains DirectDraw support (including Flip).  This flag
- * should not to be set on alpha formats.
+ * should yest to be set on alpha formats.
  */
    SVGA3DFORMAT_OP_DISPLAYMODE                           = 0x00000400,
 
@@ -584,7 +584,7 @@ typedef enum {
    SVGA3DFORMAT_OP_DMAP                                  = 0x00020000,
 
 /*
- * Indicates that this format cannot be used with texture filtering.
+ * Indicates that this format canyest be used with texture filtering.
  */
    SVGA3DFORMAT_OP_NOFILTER                              = 0x00040000,
 
@@ -601,7 +601,7 @@ typedef enum {
    SVGA3DFORMAT_OP_SRGBWRITE                             = 0x00100000,
 
 /*
- * Indicates that this format cannot be used with alpha blending.
+ * Indicates that this format canyest be used with alpha blending.
  */
    SVGA3DFORMAT_OP_NOALPHABLEND                          = 0x00200000,
 
@@ -618,7 +618,7 @@ typedef enum {
 
 /*
  * Indicates that this format supports neither texture coordinate
- * wrap modes, nor mipmapping.
+ * wrap modes, yesr mipmapping.
  */
    SVGA3DFORMAT_OP_NOTEXCOORDWRAPNORMIP                  = 0x01000000
 } SVGA3dFormatOp;
@@ -662,11 +662,11 @@ typedef union {
       uint32 cubeTexture : 1;
       uint32 offscreenRenderTarget : 1;
       uint32 sameFormatRenderTarget : 1;
-      uint32 unknown1 : 1;
+      uint32 unkyeswn1 : 1;
       uint32 zStencil : 1;
       uint32 zStencilArbitraryDepth : 1;
       uint32 sameFormatUpToAlpha : 1;
-      uint32 unknown2 : 1;
+      uint32 unkyeswn2 : 1;
       uint32 displayMode : 1;
       uint32 acceleration3d : 1;
       uint32 pixelSize : 1;
@@ -675,13 +675,13 @@ typedef union {
       uint32 sRGBRead : 1;
       uint32 bumpMap : 1;
       uint32 dmap : 1;
-      uint32 noFilter : 1;
+      uint32 yesFilter : 1;
       uint32 memberOfGroupARGB : 1;
       uint32 sRGBWrite : 1;
-      uint32 noAlphaBlend : 1;
+      uint32 yesAlphaBlend : 1;
       uint32 autoGenMipMap : 1;
       uint32 vertexTexture : 1;
-      uint32 noTexCoordWrapNorMip : 1;
+      uint32 yesTexCoordWrapNorMip : 1;
    };
 } SVGA3dSurfaceFormatCaps;
 
@@ -764,7 +764,7 @@ typedef enum {
     *
     * Output gamma effects the gamma curve of colors that are output from the
     * rendering pipeline.  A value of 1.0 specifies a linear color space. If the
-    * value is <= 0.0, gamma correction is ignored and linear color space is
+    * value is <= 0.0, gamma correction is igyesred and linear color space is
     * used.
     */
 
@@ -936,7 +936,7 @@ typedef enum {
 } SVGA3dFace;
 
 /*
- * The order and the values should not be changed
+ * The order and the values should yest be changed
  */
 
 typedef enum {
@@ -1019,7 +1019,7 @@ typedef enum {
    /*
     * Hint only, must be used together with SVGA3D_CLEAR_COLOR. If
     * SVGA3D_CLEAR_DEPTH or SVGA3D_CLEAR_STENCIL bit is set, this
-    * bit will be ignored.
+    * bit will be igyesred.
     */
    SVGA3D_CLEAR_COLORFILL          = 0x8
 } SVGA3dClearFlag;
@@ -1111,7 +1111,7 @@ typedef enum {
     *
     * Sampler gamma effects the color of samples taken from the sampler.  A
     * value of 1.0 will produce linear samples.  If the value is <= 0.0 the
-    * gamma value is ignored and a linear space is used.
+    * gamma value is igyesred and a linear space is used.
     */
 
    SVGA3D_TS_GAMMA                      = 25,   /* float */
@@ -1181,8 +1181,8 @@ typedef enum {
    SVGA3D_TEX_FILTER_NEAREST        = 1,
    SVGA3D_TEX_FILTER_LINEAR         = 2,
    SVGA3D_TEX_FILTER_ANISOTROPIC    = 3,
-   SVGA3D_TEX_FILTER_FLATCUBIC      = 4, /* Deprecated, not implemented */
-   SVGA3D_TEX_FILTER_GAUSSIANCUBIC  = 5, /* Deprecated, not implemented */
+   SVGA3D_TEX_FILTER_FLATCUBIC      = 4, /* Deprecated, yest implemented */
+   SVGA3D_TEX_FILTER_GAUSSIANCUBIC  = 5, /* Deprecated, yest implemented */
    SVGA3D_TEX_FILTER_PYRAMIDALQUAD  = 6, /* Not currently implemented */
    SVGA3D_TEX_FILTER_GAUSSIANQUAD   = 7, /* Not currently implemented */
    SVGA3D_TEX_FILTER_MAX
@@ -1237,7 +1237,7 @@ typedef enum {
  * SVGA3D_DECLUSAGE_POSITIONT is for pre-transformed vertices. If you
  * draw with any POSITIONT vertex arrays, the programmable vertex
  * pipeline will be implicitly disabled. Drawing will take place as if
- * no vertex shader was bound.
+ * yes vertex shader was bound.
  */
 
 typedef enum {
@@ -1553,7 +1553,7 @@ struct {
 SVGADXOcclusion64QueryResult;
 
 /*
- * SVGADXQueryResultUnion is not intended for use in the protocol, but is
+ * SVGADXQueryResultUnion is yest intended for use in the protocol, but is
  * very helpful when working with queries generically.
  */
 typedef
@@ -1573,7 +1573,7 @@ union SVGADXQueryResultUnion {
 SVGADXQueryResultUnion;
 
 typedef enum {
-   SVGA3D_QUERYSTATE_PENDING     = 0,      /* Query is not finished yet */
+   SVGA3D_QUERYSTATE_PENDING     = 0,      /* Query is yest finished yet */
    SVGA3D_QUERYSTATE_SUCCEEDED   = 1,      /* Completed successfully */
    SVGA3D_QUERYSTATE_FAILED      = 2,      /* Completed unsuccessfully */
    SVGA3D_QUERYSTATE_NEW         = 3,      /* Never submitted (guest only) */
@@ -1712,7 +1712,7 @@ typedef enum SVGAMobFormat {
 
    /*
     * This isn't actually used by the guest, but is a mob-format used
-    * internally by the SVGA device (and is therefore not binary compatible).
+    * internally by the SVGA device (and is therefore yest binary compatible).
     */
    SVGA3D_MOBFMT_HB,
 } SVGAMobFormat;

@@ -59,8 +59,8 @@ struct coex_dm_8821a_2ant {
 	bool		cur_dec_bt_pwr_lvl;
 	u8		pre_fw_dac_swing_lvl;
 	u8		cur_fw_dac_swing_lvl;
-	bool		cur_ignore_wlan_act;
-	bool		pre_ignore_wlan_act;
+	bool		cur_igyesre_wlan_act;
+	bool		pre_igyesre_wlan_act;
 	u8		pre_ps_tdma;
 	u8		cur_ps_tdma;
 	u8		ps_tdma_para[5];
@@ -147,7 +147,7 @@ struct coex_sta_8821a_2ant {
 };
 
 /*===========================================
- *	The following is interface which will notify coex module.
+ *	The following is interface which will yestify coex module.
  *===========================================
  */
 void
@@ -159,43 +159,43 @@ ex_btc8821a2ant_init_coex_dm(
 	struct btc_coexist *btcoexist
 	);
 void
-ex_btc8821a2ant_ips_notify(
+ex_btc8821a2ant_ips_yestify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_lps_notify(
+ex_btc8821a2ant_lps_yestify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_scan_notify(
+ex_btc8821a2ant_scan_yestify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_connect_notify(
+ex_btc8821a2ant_connect_yestify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_media_status_notify(
+ex_btc8821a2ant_media_status_yestify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_special_packet_notify(
+ex_btc8821a2ant_special_packet_yestify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_bt_info_notify(
+ex_btc8821a2ant_bt_info_yestify(
 	struct btc_coexist *btcoexist,
 	u8 *tmp_buf,
 	u8 length
 	);
 void
-ex_btc8821a2ant_halt_notify(
+ex_btc8821a2ant_halt_yestify(
 	struct btc_coexist *btcoexist
 	);
 void
@@ -207,5 +207,5 @@ ex_btc8821a2ant_display_coex_info(
 	struct btc_coexist *btcoexist,
 	struct seq_file *m
 	);
-void ex_btc8821a2ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state);
+void ex_btc8821a2ant_pnp_yestify(struct btc_coexist *btcoexist, u8 pnp_state);
 void ex_btc8821a2ant_pre_load_firmware(struct btc_coexist *btcoexist);

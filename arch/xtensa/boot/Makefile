@@ -9,7 +9,7 @@
 
 
 # KBUILD_CFLAGS used when building rest of boot (takes effect recursively)
-KBUILD_CFLAGS	+= -fno-builtin -Iarch/$(ARCH)/boot/include
+KBUILD_CFLAGS	+= -fyes-builtin -Iarch/$(ARCH)/boot/include
 HOSTFLAGS	+= -Iarch/$(ARCH)/boot/include
 
 BIG_ENDIAN	:= $(shell echo __XTENSA_EB__ | $(CC) -E - | grep -v "\#")
@@ -34,7 +34,7 @@ xipImage: $(obj)/xipImage
 boot-elf boot-redboot: $(addprefix $(obj)/,$(subdir-y))
 	$(Q)$(MAKE) $(build)=$(obj)/$@ $(MAKECMDGOALS)
 
-OBJCOPYFLAGS = --strip-all -R .comment -R .notes -O binary
+OBJCOPYFLAGS = --strip-all -R .comment -R .yestes -O binary
 
 vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)

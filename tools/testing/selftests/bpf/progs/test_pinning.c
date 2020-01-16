@@ -18,7 +18,7 @@ struct {
 	__uint(max_entries, 1);
 	__type(key, __u32);
 	__type(value, __u64);
-} nopinmap SEC(".maps");
+} yespinmap SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -26,6 +26,6 @@ struct {
 	__type(key, __u32);
 	__type(value, __u64);
 	__uint(pinning, LIBBPF_PIN_NONE);
-} nopinmap2 SEC(".maps");
+} yespinmap2 SEC(".maps");
 
 char _license[] SEC("license") = "GPL";

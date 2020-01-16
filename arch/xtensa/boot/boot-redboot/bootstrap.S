@@ -23,7 +23,7 @@
 	 * parameter list.
 	 */
 
-/* Make sure we have enough space for the 'uncompressor' */
+/* Make sure we have eyesugh space for the 'uncompressor' */
 
 #define STACK_SIZE 32768
 #define HEAP_SIZE (131072*4)
@@ -36,7 +36,7 @@
 	.globl __start
 	/* this must be the first byte of the loader! */
 __start:
-	entry	sp, 32		# we do not intend to return
+	entry	sp, 32		# we do yest intend to return
 	_call0	_start
 __start_a0:
 	.align 4
@@ -70,11 +70,11 @@ _start:
 	 * Note: The loader itself is a very small piece, so we assume we
 	 *       don't partially overlap. We also assume (even more important)
 	 *	 that the kernel image is out of the way. Usually, when the
-	 *	 load address of this image is not at an arbitrary address,
+	 *	 load address of this image is yest at an arbitrary address,
 	 *	 but aligned to some 10K's we shouldn't overlap.
 	 */
 
-	/* Note: The assembler cannot relax "addi a0, a0, ..." to an
+	/* Note: The assembler canyest relax "addi a0, a0, ..." to an
 	   l32r, so we load to a4 first. */
 
 	# addi	a4, a0, __start - __start_a0
@@ -126,7 +126,7 @@ _start:
 	.globl _reloc
 _reloc:
 
-	/* RedBoot is now at the end of the memory, so we don't have
+	/* RedBoot is yesw at the end of the memory, so we don't have
 	 * to copy the parameter list. Keep the code around; in case
 	 * we need it again. */
 #if 0

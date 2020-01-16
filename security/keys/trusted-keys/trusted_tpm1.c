@@ -176,7 +176,7 @@ EXPORT_SYMBOL_GPL(TSS_authhmac);
  */
 int TSS_checkhmac1(unsigned char *buffer,
 			  const uint32_t command,
-			  const unsigned char *ononce,
+			  const unsigned char *oyesnce,
 			  const unsigned char *key,
 			  unsigned int keylen, ...)
 {
@@ -184,7 +184,7 @@ int TSS_checkhmac1(unsigned char *buffer,
 	uint16_t tag;
 	uint32_t ordinal;
 	uint32_t result;
-	unsigned char *enonce;
+	unsigned char *eyesnce;
 	unsigned char *continueflag;
 	unsigned char *authdata;
 	unsigned char testhmac[SHA1_DIGEST_SIZE];
@@ -208,7 +208,7 @@ int TSS_checkhmac1(unsigned char *buffer,
 		return -EINVAL;
 	authdata = buffer + bufsize - SHA1_DIGEST_SIZE;
 	continueflag = authdata - 1;
-	enonce = continueflag - TPM_NONCE_SIZE;
+	eyesnce = continueflag - TPM_NONCE_SIZE;
 
 	sdesc = init_sdesc(hashalg);
 	if (IS_ERR(sdesc)) {
@@ -243,7 +243,7 @@ int TSS_checkhmac1(unsigned char *buffer,
 		goto out;
 
 	ret = TSS_rawhmac(testhmac, key, keylen, SHA1_DIGEST_SIZE, paramdigest,
-			  TPM_NONCE_SIZE, enonce, TPM_NONCE_SIZE, ononce,
+			  TPM_NONCE_SIZE, eyesnce, TPM_NONCE_SIZE, oyesnce,
 			  1, continueflag, 0, 0);
 	if (ret < 0)
 		goto out;
@@ -261,7 +261,7 @@ EXPORT_SYMBOL_GPL(TSS_checkhmac1);
  */
 static int TSS_checkhmac2(unsigned char *buffer,
 			  const uint32_t command,
-			  const unsigned char *ononce,
+			  const unsigned char *oyesnce,
 			  const unsigned char *key1,
 			  unsigned int keylen1,
 			  const unsigned char *key2,
@@ -271,10 +271,10 @@ static int TSS_checkhmac2(unsigned char *buffer,
 	uint16_t tag;
 	uint32_t ordinal;
 	uint32_t result;
-	unsigned char *enonce1;
+	unsigned char *eyesnce1;
 	unsigned char *continueflag1;
 	unsigned char *authdata1;
-	unsigned char *enonce2;
+	unsigned char *eyesnce2;
 	unsigned char *continueflag2;
 	unsigned char *authdata2;
 	unsigned char testhmac1[SHA1_DIGEST_SIZE];
@@ -300,8 +300,8 @@ static int TSS_checkhmac2(unsigned char *buffer,
 	authdata2 = buffer + bufsize - (SHA1_DIGEST_SIZE);
 	continueflag1 = authdata1 - 1;
 	continueflag2 = authdata2 - 1;
-	enonce1 = continueflag1 - TPM_NONCE_SIZE;
-	enonce2 = continueflag2 - TPM_NONCE_SIZE;
+	eyesnce1 = continueflag1 - TPM_NONCE_SIZE;
+	eyesnce2 = continueflag2 - TPM_NONCE_SIZE;
 
 	sdesc = init_sdesc(hashalg);
 	if (IS_ERR(sdesc)) {
@@ -337,8 +337,8 @@ static int TSS_checkhmac2(unsigned char *buffer,
 		goto out;
 
 	ret = TSS_rawhmac(testhmac1, key1, keylen1, SHA1_DIGEST_SIZE,
-			  paramdigest, TPM_NONCE_SIZE, enonce1,
-			  TPM_NONCE_SIZE, ononce, 1, continueflag1, 0, 0);
+			  paramdigest, TPM_NONCE_SIZE, eyesnce1,
+			  TPM_NONCE_SIZE, oyesnce, 1, continueflag1, 0, 0);
 	if (ret < 0)
 		goto out;
 	if (memcmp(testhmac1, authdata1, SHA1_DIGEST_SIZE)) {
@@ -346,8 +346,8 @@ static int TSS_checkhmac2(unsigned char *buffer,
 		goto out;
 	}
 	ret = TSS_rawhmac(testhmac2, key2, keylen2, SHA1_DIGEST_SIZE,
-			  paramdigest, TPM_NONCE_SIZE, enonce2,
-			  TPM_NONCE_SIZE, ononce, 1, continueflag2, 0, 0);
+			  paramdigest, TPM_NONCE_SIZE, eyesnce2,
+			  TPM_NONCE_SIZE, oyesnce, 1, continueflag2, 0, 0);
 	if (ret < 0)
 		goto out;
 	if (memcmp(testhmac2, authdata2, SHA1_DIGEST_SIZE))
@@ -398,36 +398,36 @@ static int pcrlock(const int pcrnum)
 static int osap(struct tpm_buf *tb, struct osapsess *s,
 		const unsigned char *key, uint16_t type, uint32_t handle)
 {
-	unsigned char enonce[TPM_NONCE_SIZE];
-	unsigned char ononce[TPM_NONCE_SIZE];
+	unsigned char eyesnce[TPM_NONCE_SIZE];
+	unsigned char oyesnce[TPM_NONCE_SIZE];
 	int ret;
 
-	ret = tpm_get_random(chip, ononce, TPM_NONCE_SIZE);
+	ret = tpm_get_random(chip, oyesnce, TPM_NONCE_SIZE);
 	if (ret != TPM_NONCE_SIZE)
 		return ret;
 
 	tpm_buf_reset(tb, TPM_TAG_RQU_COMMAND, TPM_ORD_OSAP);
 	tpm_buf_append_u16(tb, type);
 	tpm_buf_append_u32(tb, handle);
-	tpm_buf_append(tb, ononce, TPM_NONCE_SIZE);
+	tpm_buf_append(tb, oyesnce, TPM_NONCE_SIZE);
 
 	ret = trusted_tpm_send(tb->data, MAX_BUF_SIZE);
 	if (ret < 0)
 		return ret;
 
 	s->handle = LOAD32(tb->data, TPM_DATA_OFFSET);
-	memcpy(s->enonce, &(tb->data[TPM_DATA_OFFSET + sizeof(uint32_t)]),
+	memcpy(s->eyesnce, &(tb->data[TPM_DATA_OFFSET + sizeof(uint32_t)]),
 	       TPM_NONCE_SIZE);
-	memcpy(enonce, &(tb->data[TPM_DATA_OFFSET + sizeof(uint32_t) +
+	memcpy(eyesnce, &(tb->data[TPM_DATA_OFFSET + sizeof(uint32_t) +
 				  TPM_NONCE_SIZE]), TPM_NONCE_SIZE);
 	return TSS_rawhmac(s->secret, key, SHA1_DIGEST_SIZE, TPM_NONCE_SIZE,
-			   enonce, TPM_NONCE_SIZE, ononce, 0, 0);
+			   eyesnce, TPM_NONCE_SIZE, oyesnce, 0, 0);
 }
 
 /*
  * Create an object independent authorisation protocol (oiap) session
  */
-int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *nonce)
+int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *yesnce)
 {
 	int ret;
 
@@ -440,7 +440,7 @@ int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *nonce)
 		return ret;
 
 	*handle = LOAD32(tb->data, TPM_DATA_OFFSET);
-	memcpy(nonce, &tb->data[TPM_DATA_OFFSET + sizeof(uint32_t)],
+	memcpy(yesnce, &tb->data[TPM_DATA_OFFSET + sizeof(uint32_t)],
 	       TPM_NONCE_SIZE);
 	return 0;
 }
@@ -451,7 +451,7 @@ struct tpm_digests {
 	unsigned char pubauth[SHA1_DIGEST_SIZE];
 	unsigned char xorwork[SHA1_DIGEST_SIZE * 2];
 	unsigned char xorhash[SHA1_DIGEST_SIZE];
-	unsigned char nonceodd[TPM_NONCE_SIZE];
+	unsigned char yesnceodd[TPM_NONCE_SIZE];
 };
 
 /*
@@ -490,12 +490,12 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 
 	/* calculate encrypted authorization value */
 	memcpy(td->xorwork, sess.secret, SHA1_DIGEST_SIZE);
-	memcpy(td->xorwork + SHA1_DIGEST_SIZE, sess.enonce, SHA1_DIGEST_SIZE);
+	memcpy(td->xorwork + SHA1_DIGEST_SIZE, sess.eyesnce, SHA1_DIGEST_SIZE);
 	ret = TSS_sha1(td->xorwork, SHA1_DIGEST_SIZE * 2, td->xorhash);
 	if (ret < 0)
 		goto out;
 
-	ret = tpm_get_random(chip, td->nonceodd, TPM_NONCE_SIZE);
+	ret = tpm_get_random(chip, td->yesnceodd, TPM_NONCE_SIZE);
 	if (ret != TPM_NONCE_SIZE)
 		goto out;
 	ordinal = htonl(TPM_ORD_SEAL);
@@ -509,9 +509,9 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 
 	/* calculate authorization HMAC value */
 	if (pcrinfosize == 0) {
-		/* no pcr info specified */
+		/* yes pcr info specified */
 		ret = TSS_authhmac(td->pubauth, sess.secret, SHA1_DIGEST_SIZE,
-				   sess.enonce, td->nonceodd, cont,
+				   sess.eyesnce, td->yesnceodd, cont,
 				   sizeof(uint32_t), &ordinal, SHA1_DIGEST_SIZE,
 				   td->encauth, sizeof(uint32_t), &pcrsize,
 				   sizeof(uint32_t), &datsize, datalen, data, 0,
@@ -519,7 +519,7 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 	} else {
 		/* pcr info specified */
 		ret = TSS_authhmac(td->pubauth, sess.secret, SHA1_DIGEST_SIZE,
-				   sess.enonce, td->nonceodd, cont,
+				   sess.eyesnce, td->yesnceodd, cont,
 				   sizeof(uint32_t), &ordinal, SHA1_DIGEST_SIZE,
 				   td->encauth, sizeof(uint32_t), &pcrsize,
 				   pcrinfosize, pcrinfo, sizeof(uint32_t),
@@ -537,7 +537,7 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 	tpm_buf_append_u32(tb, datalen);
 	tpm_buf_append(tb, data, datalen);
 	tpm_buf_append_u32(tb, sess.handle);
-	tpm_buf_append(tb, td->nonceodd, TPM_NONCE_SIZE);
+	tpm_buf_append(tb, td->yesnceodd, TPM_NONCE_SIZE);
 	tpm_buf_append_u8(tb, cont);
 	tpm_buf_append(tb, td->pubauth, SHA1_DIGEST_SIZE);
 
@@ -553,7 +553,7 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 	    sizeof(uint32_t) + encdatasize;
 
 	/* check the HMAC in the response */
-	ret = TSS_checkhmac1(tb->data, ordinal, td->nonceodd, sess.secret,
+	ret = TSS_checkhmac1(tb->data, ordinal, td->yesnceodd, sess.secret,
 			     SHA1_DIGEST_SIZE, storedsize, TPM_DATA_OFFSET, 0,
 			     0);
 
@@ -576,9 +576,9 @@ static int tpm_unseal(struct tpm_buf *tb,
 		      const unsigned char *blobauth,
 		      unsigned char *data, unsigned int *datalen)
 {
-	unsigned char nonceodd[TPM_NONCE_SIZE];
-	unsigned char enonce1[TPM_NONCE_SIZE];
-	unsigned char enonce2[TPM_NONCE_SIZE];
+	unsigned char yesnceodd[TPM_NONCE_SIZE];
+	unsigned char eyesnce1[TPM_NONCE_SIZE];
+	unsigned char eyesnce2[TPM_NONCE_SIZE];
 	unsigned char authdata1[SHA1_DIGEST_SIZE];
 	unsigned char authdata2[SHA1_DIGEST_SIZE];
 	uint32_t authhandle1 = 0;
@@ -588,30 +588,30 @@ static int tpm_unseal(struct tpm_buf *tb,
 	int ret;
 
 	/* sessions for unsealing key and data */
-	ret = oiap(tb, &authhandle1, enonce1);
+	ret = oiap(tb, &authhandle1, eyesnce1);
 	if (ret < 0) {
 		pr_info("trusted_key: oiap failed (%d)\n", ret);
 		return ret;
 	}
-	ret = oiap(tb, &authhandle2, enonce2);
+	ret = oiap(tb, &authhandle2, eyesnce2);
 	if (ret < 0) {
 		pr_info("trusted_key: oiap failed (%d)\n", ret);
 		return ret;
 	}
 
 	ordinal = htonl(TPM_ORD_UNSEAL);
-	ret = tpm_get_random(chip, nonceodd, TPM_NONCE_SIZE);
+	ret = tpm_get_random(chip, yesnceodd, TPM_NONCE_SIZE);
 	if (ret != TPM_NONCE_SIZE) {
 		pr_info("trusted_key: tpm_get_random failed (%d)\n", ret);
 		return ret;
 	}
 	ret = TSS_authhmac(authdata1, keyauth, TPM_NONCE_SIZE,
-			   enonce1, nonceodd, cont, sizeof(uint32_t),
+			   eyesnce1, yesnceodd, cont, sizeof(uint32_t),
 			   &ordinal, bloblen, blob, 0, 0);
 	if (ret < 0)
 		return ret;
 	ret = TSS_authhmac(authdata2, blobauth, TPM_NONCE_SIZE,
-			   enonce2, nonceodd, cont, sizeof(uint32_t),
+			   eyesnce2, yesnceodd, cont, sizeof(uint32_t),
 			   &ordinal, bloblen, blob, 0, 0);
 	if (ret < 0)
 		return ret;
@@ -621,11 +621,11 @@ static int tpm_unseal(struct tpm_buf *tb,
 	tpm_buf_append_u32(tb, keyhandle);
 	tpm_buf_append(tb, blob, bloblen);
 	tpm_buf_append_u32(tb, authhandle1);
-	tpm_buf_append(tb, nonceodd, TPM_NONCE_SIZE);
+	tpm_buf_append(tb, yesnceodd, TPM_NONCE_SIZE);
 	tpm_buf_append_u8(tb, cont);
 	tpm_buf_append(tb, authdata1, SHA1_DIGEST_SIZE);
 	tpm_buf_append_u32(tb, authhandle2);
-	tpm_buf_append(tb, nonceodd, TPM_NONCE_SIZE);
+	tpm_buf_append(tb, yesnceodd, TPM_NONCE_SIZE);
 	tpm_buf_append_u8(tb, cont);
 	tpm_buf_append(tb, authdata2, SHA1_DIGEST_SIZE);
 
@@ -636,7 +636,7 @@ static int tpm_unseal(struct tpm_buf *tb,
 	}
 
 	*datalen = LOAD32(tb->data, TPM_DATA_OFFSET);
-	ret = TSS_checkhmac2(tb->data, ordinal, nonceodd,
+	ret = TSS_checkhmac2(tb->data, ordinal, yesnceodd,
 			     keyauth, SHA1_DIGEST_SIZE,
 			     blobauth, SHA1_DIGEST_SIZE,
 			     sizeof(uint32_t), TPM_DATA_OFFSET,
@@ -917,7 +917,7 @@ static struct trusted_key_options *trusted_options_alloc(void)
 
 	options = kzalloc(sizeof *options, GFP_KERNEL);
 	if (options) {
-		/* set any non-zero defaults */
+		/* set any yesn-zero defaults */
 		options->keytype = SRK_keytype;
 
 		if (!tpm2)
@@ -947,7 +947,7 @@ static struct trusted_key_payload *trusted_payload_alloc(struct key *key)
  * random key, then seal and create a trusted key-type key,
  * adding it to the specified keyring.
  *
- * On success, return 0. Otherwise return errno.
+ * On success, return 0. Otherwise return erryes.
  */
 static int trusted_instantiate(struct key *key,
 			       struct key_preparsed_payload *prep)
@@ -1192,14 +1192,14 @@ static int __init trusted_shash_alloc(void)
 
 	hmacalg = crypto_alloc_shash(hmac_alg, 0, 0);
 	if (IS_ERR(hmacalg)) {
-		pr_info("trusted_key: could not allocate crypto %s\n",
+		pr_info("trusted_key: could yest allocate crypto %s\n",
 			hmac_alg);
 		return PTR_ERR(hmacalg);
 	}
 
 	hashalg = crypto_alloc_shash(hash_alg, 0, 0);
 	if (IS_ERR(hashalg)) {
-		pr_info("trusted_key: could not allocate crypto %s\n",
+		pr_info("trusted_key: could yest allocate crypto %s\n",
 			hash_alg);
 		ret = PTR_ERR(hashalg);
 		goto hashalg_fail;
@@ -1232,7 +1232,7 @@ static int __init init_trusted(void)
 	int ret;
 
 	/* encrypted_keys.ko depends on successful load of this module even if
-	 * TPM is not used.
+	 * TPM is yest used.
 	 */
 	chip = tpm_default_chip();
 	if (!chip)

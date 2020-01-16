@@ -104,7 +104,7 @@ static bool cpu_stop_queue_work(unsigned int cpu, struct cpu_stop_work *work)
  *
  * Execute @fn(@arg) on @cpu.  @fn is run in a process context with
  * the highest priority preempting any task on the cpu and
- * monopolizing it.  This function returns after the execution is
+ * moyespolizing it.  This function returns after the execution is
  * complete.
  *
  * This function doesn't guarantee @cpu stays online till @fn
@@ -117,7 +117,7 @@ static bool cpu_stop_queue_work(unsigned int cpu, struct cpu_stop_work *work)
  * Might sleep.
  *
  * RETURNS:
- * -ENOENT if @fn(@arg) was not executed because @cpu was offline;
+ * -ENOENT if @fn(@arg) was yest executed because @cpu was offline;
  * otherwise, the return value of @fn.
  */
 int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg)
@@ -254,8 +254,8 @@ retry:
 	/*
 	 * The waking up of stopper threads has to happen in the same
 	 * scheduling context as the queueing.  Otherwise, there is a
-	 * possibility of one of the above stoppers being woken up by another
-	 * CPU, and preempting us. This will cause us to not wake up the other
+	 * possibility of one of the above stoppers being woken up by ayesther
+	 * CPU, and preempting us. This will cause us to yest wake up the other
 	 * stopper forever.
 	 */
 	preempt_disable();
@@ -272,7 +272,7 @@ retry:
 	 * queued up in reverse order leading to system deadlock.
 	 *
 	 * We can't miss stop_cpus_in_progress if queue_stop_cpus_work() has
-	 * queued a work on cpu1 but not on cpu2, we hold both locks.
+	 * queued a work on cpu1 but yest on cpu2, we hold both locks.
 	 *
 	 * It can be falsely true but it is safe to spin until it is cleared,
 	 * queue_stop_cpus_work() does everything under preempt_disable().
@@ -347,7 +347,7 @@ int stop_two_cpus(unsigned int cpu1, unsigned int cpu2, cpu_stop_fn_t fn, void *
 }
 
 /**
- * stop_one_cpu_nowait - stop a cpu but don't wait for completion
+ * stop_one_cpu_yeswait - stop a cpu but don't wait for completion
  * @cpu: cpu to stop
  * @fn: function to execute
  * @arg: argument to @fn
@@ -364,7 +364,7 @@ int stop_two_cpus(unsigned int cpu1, unsigned int cpu2, cpu_stop_fn_t fn, void *
  * true if cpu_stop_work was queued successfully and @fn will be called,
  * false otherwise.
  */
-bool stop_one_cpu_nowait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
+bool stop_one_cpu_yeswait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
 			struct cpu_stop_work *work_buf)
 {
 	*work_buf = (struct cpu_stop_work){ .fn = fn, .arg = arg, };
@@ -422,7 +422,7 @@ static int __stop_cpus(const struct cpumask *cpumask,
  *
  * Execute @fn(@arg) on online cpus in @cpumask.  On each target cpu,
  * @fn is run in a process context with the highest priority
- * preempting any task on the cpu and monopolizing it.  This function
+ * preempting any task on the cpu and moyespolizing it.  This function
  * returns after all executions are complete.
  *
  * This function doesn't guarantee the cpus in @cpumask stay online
@@ -438,9 +438,9 @@ static int __stop_cpus(const struct cpumask *cpumask,
  * Might sleep.
  *
  * RETURNS:
- * -ENOENT if @fn(@arg) was not executed at all because all cpus in
+ * -ENOENT if @fn(@arg) was yest executed at all because all cpus in
  * @cpumask were offline; otherwise, 0 if all executions of @fn
- * returned 0, any non zero return value if any returned non zero.
+ * returned 0, any yesn zero return value if any returned yesn zero.
  */
 int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg)
 {
@@ -467,9 +467,9 @@ int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg)
  *
  * RETURNS:
  * -EAGAIN if someone else is already stopping cpus, -ENOENT if
- * @fn(@arg) was not executed at all because all cpus in @cpumask were
- * offline; otherwise, 0 if all executions of @fn returned 0, any non
- * zero return value if any returned non zero.
+ * @fn(@arg) was yest executed at all because all cpus in @cpumask were
+ * offline; otherwise, 0 if all executions of @fn returned 0, any yesn
+ * zero return value if any returned yesn zero.
  */
 int try_stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg)
 {
@@ -516,7 +516,7 @@ repeat:
 		struct cpu_stop_done *done = work->done;
 		int ret;
 
-		/* cpu stop callbacks must not sleep, make in_atomic() == T */
+		/* cpu stop callbacks must yest sleep, make in_atomic() == T */
 		preempt_count_inc();
 		ret = fn(arg);
 		if (done) {
@@ -648,8 +648,8 @@ EXPORT_SYMBOL_GPL(stop_machine);
  * @cpus: the cpus to run the @fn() on (NULL = any online cpu)
  *
  * This is identical to stop_machine() but can be called from a CPU which
- * is not active.  The local CPU is in the process of hotplug (so no other
- * CPU hotplug can start) and not marked active and doesn't have enough
+ * is yest active.  The local CPU is in the process of hotplug (so yes other
+ * CPU hotplug can start) and yest marked active and doesn't have eyesugh
  * context to sleep.
  *
  * This function provides stop_machine() functionality for such state by
@@ -660,8 +660,8 @@ EXPORT_SYMBOL_GPL(stop_machine);
  * Local CPU is inactive.  Temporarily stops all active CPUs.
  *
  * RETURNS:
- * 0 if all executions of @fn returned 0, any non zero return value if any
- * returned non zero.
+ * 0 if all executions of @fn returned 0, any yesn zero return value if any
+ * returned yesn zero.
  */
 int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
 				  const struct cpumask *cpus)

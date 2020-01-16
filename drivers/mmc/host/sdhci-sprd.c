@@ -55,9 +55,9 @@
 
 /*
  * According to the standard specification, BIT(3) of SDHCI_SOFTWARE_RESET is
- * reserved, and only used on Spreadtrum's design, the hardware cannot work
+ * reserved, and only used on Spreadtrum's design, the hardware canyest work
  * if this bit is cleared.
- * 1 : normal work
+ * 1 : yesrmal work
  * 0 : hardware reset
  */
 #define  SDHCI_HW_RESET_CARD		BIT(3)
@@ -146,7 +146,7 @@ static inline void sdhci_sprd_writeb(struct sdhci_host *host, u8 val, int reg)
 	 * standard specification, sdhci_reset() write this register directly
 	 * without checking other reserved bits, that will clear BIT(3) which
 	 * is defined as hardware reset on Spreadtrum's platform and clearing
-	 * it by mistake will lead the card not work. So here we need to work
+	 * it by mistake will lead the card yest work. So here we need to work
 	 * around it.
 	 */
 	if (unlikely(reg == SDHCI_SOFTWARE_RESET)) {
@@ -355,7 +355,7 @@ static void sdhci_sprd_hw_reset(struct sdhci_host *host)
 	 * Note: don't use sdhci_writeb() API here since it is redirected to
 	 * sdhci_sprd_writeb() in which we have a workaround for
 	 * SDHCI_SOFTWARE_RESET which would make bit SDHCI_HW_RESET_CARD can
-	 * not be cleared.
+	 * yest be cleared.
 	 */
 	val = readb_relaxed(host->ioaddr + SDHCI_SOFTWARE_RESET);
 	val &= ~SDHCI_HW_RESET_CARD;
@@ -490,7 +490,7 @@ static void sdhci_sprd_hs400_enhanced_strobe(struct mmc_host *mmc,
 }
 
 static void sdhci_sprd_phy_param_parse(struct sdhci_sprd_host *sprd_host,
-				       struct device_node *np)
+				       struct device_yesde *np)
 {
 	u32 *p = sprd_host->phy_delay;
 	int ret, i, index;
@@ -534,9 +534,9 @@ static int sdhci_sprd_probe(struct platform_device *pdev)
 	host->mmc_host_ops.hs400_enhanced_strobe =
 		sdhci_sprd_hs400_enhanced_strobe;
 	/*
-	 * We can not use the standard ops to change and detect the voltage
+	 * We can yest use the standard ops to change and detect the voltage
 	 * signal for Spreadtrum SD host controller, since our voltage regulator
-	 * for I/O is fixed in hardware, that means we do not need control
+	 * for I/O is fixed in hardware, that means we do yest need control
 	 * the standard SD host controller to change the I/O voltage.
 	 */
 	host->mmc_host_ops.start_signal_voltage_switch =
@@ -549,7 +549,7 @@ static int sdhci_sprd_probe(struct platform_device *pdev)
 		goto pltfm_free;
 
 	sprd_host = TO_SPRD_HOST(host);
-	sdhci_sprd_phy_param_parse(sprd_host, pdev->dev.of_node);
+	sdhci_sprd_phy_param_parse(sprd_host, pdev->dev.of_yesde);
 
 	sprd_host->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (!IS_ERR(sprd_host->pinctrl)) {
@@ -606,12 +606,12 @@ static int sdhci_sprd_probe(struct platform_device *pdev)
 	sprd_host->version = ((host->version & SDHCI_VENDOR_VER_MASK) >>
 			       SDHCI_VENDOR_VER_SHIFT);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_suspend_ignore_children(&pdev->dev, 1);
+	pm_suspend_igyesre_children(&pdev->dev, 1);
 
 	sdhci_enable_v4_mode(host);
 
@@ -644,7 +644,7 @@ err_cleanup_host:
 	sdhci_cleanup_host(host);
 
 pm_runtime_disable:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 

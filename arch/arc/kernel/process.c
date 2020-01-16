@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
- * Amit Bhor, Kanika Nema: Codito Technologies 2004
+ * Amit Bhor, Kanika Nema: Codito Techyeslogies 2004
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
@@ -31,7 +31,7 @@ SYSCALL_DEFINE1(arc_settls, void *, user_tls_data_ptr)
  * Ideally it should be copy to user.
  * However we can cheat by the fact that some sys-calls do return
  * absurdly high values
- * Since the tls dat aptr is not going to be in range of 0xFFFF_xxxx
+ * Since the tls dat aptr is yest going to be in range of 0xFFFF_xxxx
  * it won't be considered a sys-call error
  * and it will be loads better than copy-to-user, which is a definite
  * D-TLB Miss
@@ -244,7 +244,7 @@ int copy_thread(unsigned long clone_flags,
 	 * when child is picked by scheduler, __switch_to() uses @c_callee to
 	 * populate usermode callee regs: this works (despite being in a kernel
 	 * function) since special return path for child @ret_from_fork()
-	 * ensures those regs are not clobbered all the way to RTIE to usermode
+	 * ensures those regs are yest clobbered all the way to RTIE to usermode
 	 */
 	c_callee->r25 = task_thread_info(p)->thr_ptr;
 
@@ -302,7 +302,7 @@ int elf_check_arch(const struct elf32_hdr *x)
 	unsigned int eflags;
 
 	if (x->e_machine != EM_ARC_INUSE) {
-		pr_err("ELF not built for %s ISA\n",
+		pr_err("ELF yest built for %s ISA\n",
 			is_isa_arcompact() ? "ARCompact":"ARCv2");
 		return 0;
 	}

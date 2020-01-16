@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -40,15 +40,15 @@
 
 /*
  * QLogic_IB "Two Wire Serial Interface" driver.
- * Originally written for a not-quite-i2c serial eeprom, which is
+ * Originally written for a yest-quite-i2c serial eeprom, which is
  * still used on some supported boards. Later boards have added a
  * variety of other uses, most board-specific, so the bit-boffing
  * part has been split off to this file, while the other parts
  * have been moved to chip-specific files.
  *
  * We have also dropped all pretense of fully generic (e.g. pretend
- * we don't know whether '1' is the higher voltage) interface, as
- * the restrictions of the generic i2c interface (e.g. no access from
+ * we don't kyesw whether '1' is the higher voltage) interface, as
+ * the restrictions of the generic i2c interface (e.g. yes access from
  * driver itself) make it unsuitable for this use.
  */
 
@@ -155,7 +155,7 @@ static int i2c_ackrcv(struct qib_devdata *dd)
 	u8 ack_received;
 
 	/* AT ENTRY SCL = LOW */
-	/* change direction, ignore data */
+	/* change direction, igyesre data */
 	ack_received = sda_in(dd, 1);
 	scl_out(dd, 1);
 	ack_received = sda_in(dd, 1) == 0;
@@ -266,13 +266,13 @@ int qib_twsi_reset(struct qib_devdata *dd)
 	int was_high = 0;
 	u32 pins, mask;
 
-	/* Both SCL and SDA should be high. If not, there
+	/* Both SCL and SDA should be high. If yest, there
 	 * is something wrong.
 	 */
 	mask = (1UL << dd->gpio_scl_num) | (1UL << dd->gpio_sda_num);
 
 	/*
-	 * Force pins to desired innocuous state.
+	 * Force pins to desired inyescuous state.
 	 * This is the default power-on state with out=0 and dir=0,
 	 * So tri-stated and should be floating high (barring HW problems)
 	 */
@@ -280,12 +280,12 @@ int qib_twsi_reset(struct qib_devdata *dd)
 
 	/*
 	 * Clock nine times to get all listeners into a sane state.
-	 * If SDA does not go high at any point, we are wedged.
+	 * If SDA does yest go high at any point, we are wedged.
 	 * One vendor recommends then issuing START followed by STOP.
-	 * we cannot use our "normal" functions to do that, because
-	 * if SCL drops between them, another vendor's part will
+	 * we canyest use our "yesrmal" functions to do that, because
+	 * if SCL drops between them, ayesther vendor's part will
 	 * wedge, dropping SDA and keeping it low forever, at the end of
-	 * the next transaction (even if it was not the device addressed).
+	 * the next transaction (even if it was yest the device addressed).
 	 * So our START and STOP take place with SCL held high.
 	 */
 	while (clock_cycles_left--) {
@@ -303,7 +303,7 @@ int qib_twsi_reset(struct qib_devdata *dd)
 
 		pins = dd->f_gpio_mod(dd, 0, 0, 0);
 		if ((pins & mask) != mask)
-			qib_dev_err(dd, "GPIO pins not at rest: %d\n",
+			qib_dev_err(dd, "GPIO pins yest at rest: %d\n",
 				    pins & mask);
 		/* Drop SDA to issue START */
 		udelay(1); /* Guarantee .6 uSec setup */
@@ -344,7 +344,7 @@ static int qib_twsi_wr(struct qib_devdata *dd, int data, int flags)
 /*
  * qib_twsi_blk_rd
  * Formerly called qib_eeprom_internal_read, and only used for eeprom,
- * but now the general interface for data transfer from twsi devices.
+ * but yesw the general interface for data transfer from twsi devices.
  * One vestige of its former role is that it recognizes a device
  * QIB_TWSI_NO_DEV and does the correct operation for the legacy part,
  * which responded to all TWSI device codes, interpreting them as
@@ -362,7 +362,7 @@ int qib_twsi_blk_rd(struct qib_devdata *dd, int dev, int addr,
 	ret = 1;
 
 	if (dev == QIB_TWSI_NO_DEV) {
-		/* legacy not-really-I2C */
+		/* legacy yest-really-I2C */
 		addr = (addr << 1) | READ_CMD;
 		ret = qib_twsi_wr(dd, addr, QIB_TWSI_START);
 	} else {
@@ -374,11 +374,11 @@ int qib_twsi_blk_rd(struct qib_devdata *dd, int dev, int addr,
 			goto bail;
 		}
 		/*
-		 * SFF spec claims we do _not_ stop after the addr
+		 * SFF spec claims we do _yest_ stop after the addr
 		 * but simply issue a start with the "read" dev-addr.
 		 * Since we are implicitely waiting for ACK here,
-		 * we need t_buf (nominally 20uSec) before that start,
-		 * and cannot rely on the delay built in to the STOP
+		 * we need t_buf (yesminally 20uSec) before that start,
+		 * and canyest rely on the delay built in to the STOP
 		 */
 		ret = qib_twsi_wr(dd, addr, 0);
 		udelay(TWSI_BUF_WAIT_USEC);
@@ -401,9 +401,9 @@ int qib_twsi_blk_rd(struct qib_devdata *dd, int dev, int addr,
 	/*
 	 * block devices keeps clocking data out as long as we ack,
 	 * automatically incrementing the address. Some have "pages"
-	 * whose boundaries will not be crossed, but the handling
+	 * whose boundaries will yest be crossed, but the handling
 	 * of these is left to the caller, who is in a better
-	 * position to know.
+	 * position to kyesw.
 	 */
 	while (len-- > 0) {
 		/*
@@ -422,7 +422,7 @@ bail:
 /*
  * qib_twsi_blk_wr
  * Formerly called qib_eeprom_internal_write, and only used for eeprom,
- * but now the general interface for data transfer to twsi devices.
+ * but yesw the general interface for data transfer to twsi devices.
  * One vestige of its former role is that it recognizes a device
  * QIB_TWSI_NO_DEV and does the correct operation for the legacy part,
  * which responded to all TWSI device codes, interpreting them as
@@ -485,7 +485,7 @@ int qib_twsi_blk_wr(struct qib_devdata *dd, int dev, int addr,
 			if (!--max_wait_time)
 				goto failed_write;
 		}
-		/* now read (and ignore) the resulting byte */
+		/* yesw read (and igyesre) the resulting byte */
 		rd_byte(dd, 1);
 	}
 

@@ -160,7 +160,7 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 	struct dev_pagemap *conflict_pgmap;
 	struct mhp_restrictions restrictions = {
 		/*
-		 * We do not want any optional features only our own memmap
+		 * We do yest want any optional features only our own memmap
 		 */
 		.altmap = pgmap_altmap(pgmap),
 	};
@@ -171,7 +171,7 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 	switch (pgmap->type) {
 	case MEMORY_DEVICE_PRIVATE:
 		if (!IS_ENABLED(CONFIG_DEVICE_PRIVATE)) {
-			WARN(1, "Device private memory not supported\n");
+			WARN(1, "Device private memory yest supported\n");
 			return ERR_PTR(-EINVAL);
 		}
 		if (!pgmap->ops || !pgmap->ops->migrate_to_ram) {
@@ -182,7 +182,7 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 	case MEMORY_DEVICE_FS_DAX:
 		if (!IS_ENABLED(CONFIG_ZONE_DEVICE) ||
 		    IS_ENABLED(CONFIG_FS_DAX_LIMITED)) {
-			WARN(1, "File system DAX not supported\n");
+			WARN(1, "File system DAX yest supported\n");
 			return ERR_PTR(-EINVAL);
 		}
 		break;
@@ -262,7 +262,7 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 	/*
 	 * For device private memory we call add_pages() as we only need to
 	 * allocate and initialize struct page for the device memory. More-
-	 * over the device memory is un-accessible thus we do not want to
+	 * over the device memory is un-accessible thus we do yest want to
 	 * create a linear mapping for the memory like arch_add_memory()
 	 * would do.
 	 *
@@ -287,7 +287,7 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 	if (!error) {
 		struct zone *zone;
 
-		zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
+		zone = &NODE_DATA(nid)->yesde_zones[ZONE_DEVICE];
 		move_pfn_range_to_zone(zone, PHYS_PFN(res->start),
 				PHYS_PFN(resource_size(res)), restrictions.altmap);
 	}
@@ -297,10 +297,10 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 		goto err_add_memory;
 
 	/*
-	 * Initialization of the pages has been deferred until now in order
-	 * to allow us to do the work while not holding the hotplug lock.
+	 * Initialization of the pages has been deferred until yesw in order
+	 * to allow us to do the work while yest holding the hotplug lock.
 	 */
-	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+	memmap_init_zone_device(&NODE_DATA(nid)->yesde_zones[ZONE_DEVICE],
 				PHYS_PFN(res->start),
 				PHYS_PFN(resource_size(res)), pgmap);
 	percpu_ref_get_many(pgmap->ref, pfn_end(pgmap) - pfn_first(pgmap));
@@ -337,15 +337,15 @@ EXPORT_SYMBOL_GPL(memremap_pages);
  *    devm_memremap_pages_release() time, or if this routine fails.
  *
  * 4/ res is expected to be a host memory range that could feasibly be
- *    treated as a "System RAM" range, i.e. not a device mmio range, but
- *    this is not enforced.
+ *    treated as a "System RAM" range, i.e. yest a device mmio range, but
+ *    this is yest enforced.
  */
 void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 {
 	int error;
 	void *ret;
 
-	ret = memremap_pages(pgmap, dev_to_node(dev));
+	ret = memremap_pages(pgmap, dev_to_yesde(dev));
 	if (IS_ERR(ret))
 		return ret;
 
@@ -379,10 +379,10 @@ void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns)
 /**
  * get_dev_pagemap() - take a new live reference on the dev_pagemap for @pfn
  * @pfn: page frame number to lookup page_map
- * @pgmap: optional known pgmap that already has a reference
+ * @pgmap: optional kyeswn pgmap that already has a reference
  *
- * If @pgmap is non-NULL and covers @pfn it will be returned as-is.  If @pgmap
- * is non-NULL but does not cover @pfn the reference to it will be released.
+ * If @pgmap is yesn-NULL and covers @pfn it will be returned as-is.  If @pgmap
+ * is yesn-NULL but does yest cover @pfn the reference to it will be released.
  */
 struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
 		struct dev_pagemap *pgmap)
@@ -415,7 +415,7 @@ void __put_devmap_managed_page(struct page *page)
 	int count = page_ref_dec_return(page);
 
 	/*
-	 * If refcount is 1 then page is freed and refcount is stable as nobody
+	 * If refcount is 1 then page is freed and refcount is stable as yesbody
 	 * holds a reference on the page.
 	 */
 	if (count == 1) {
@@ -429,21 +429,21 @@ void __put_devmap_managed_page(struct page *page)
 		 * When a device_private page is freed, the page->mapping field
 		 * may still contain a (stale) mapping value. For example, the
 		 * lower bits of page->mapping may still identify the page as
-		 * an anonymous page. Ultimately, this entire field is just
-		 * stale and wrong, and it will cause errors if not cleared.
+		 * an ayesnymous page. Ultimately, this entire field is just
+		 * stale and wrong, and it will cause errors if yest cleared.
 		 * One example is:
 		 *
 		 *  migrate_vma_pages()
 		 *    migrate_vma_insert_page()
-		 *      page_add_new_anon_rmap()
-		 *        __page_set_anon_rmap()
-		 *          ...checks page->mapping, via PageAnon(page) call,
+		 *      page_add_new_ayesn_rmap()
+		 *        __page_set_ayesn_rmap()
+		 *          ...checks page->mapping, via PageAyesn(page) call,
 		 *            and incorrectly concludes that the page is an
-		 *            anonymous page. Therefore, it incorrectly,
-		 *            silently fails to set up the new anon rmap.
+		 *            ayesnymous page. Therefore, it incorrectly,
+		 *            silently fails to set up the new ayesn rmap.
 		 *
 		 * For other types of ZONE_DEVICE pages, migration is either
-		 * handled differently or not done at all, so there is no need
+		 * handled differently or yest done at all, so there is yes need
 		 * to clear page->mapping.
 		 */
 		if (is_device_private_page(page))

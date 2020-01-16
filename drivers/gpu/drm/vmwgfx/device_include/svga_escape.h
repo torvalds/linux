@@ -10,7 +10,7 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright yestice and this permission yestice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -46,7 +46,7 @@
  * Within SVGA_ESCAPE_NSID_VMWARE, we multiplex commands according to
  * the first DWORD of escape data (after the nsID and size). As a
  * guideline we're using the high word and low word as a major and
- * minor command number, respectively.
+ * miyesr command number, respectively.
  *
  * Major command number allocation:
  *

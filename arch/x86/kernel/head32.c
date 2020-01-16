@@ -64,7 +64,7 @@ asmlinkage __visible void __init i386_start_kernel(void)
  * and PAGE_OFFSET for up to _end.
  *
  * In PAE mode initial_page_table is statically defined to contain
- * enough entries to cover the VMSPLIT option (that is the top 1, 2 or 3
+ * eyesugh entries to cover the VMSPLIT option (that is the top 1, 2 or 3
  * entries). The identity mapping is handled by pointing two PGD entries
  * to the first kernel PMD. Note the upper half of each PMD or PTE are
  * always zero at this stage.
@@ -78,7 +78,7 @@ void __init mk_early_pgtbl_32(void)
 	pte_t pte, *ptep;
 	int i;
 	unsigned long *ptr;
-	/* Enough space to fit pagetables for the low memory linear map */
+	/* Eyesugh space to fit pagetables for the low memory linear map */
 	const unsigned long limit = __pa(_end) +
 		(PAGE_TABLE_SIZE(LOWMEM_PAGES) << PAGE_SHIFT);
 #ifdef CONFIG_X86_PAE

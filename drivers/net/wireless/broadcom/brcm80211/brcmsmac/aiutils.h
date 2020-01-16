@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -23,7 +23,7 @@
 
 /*
  * SOC Interconnect Address Map.
- * All regions may not exist on all chips.
+ * All regions may yest exist on all chips.
  */
 /* each core gets 4Kbytes for registers */
 #define SI_CORE_SIZE		0x1000
@@ -106,7 +106,7 @@
 /* GPIO usage priorities */
 #define GPIO_DRV_PRIORITY	0	/* Driver */
 #define GPIO_APP_PRIORITY	1	/* Application */
-#define GPIO_HI_PRIORITY	2	/* Highest priority. Ignore GPIO
+#define GPIO_HI_PRIORITY	2	/* Highest priority. Igyesre GPIO
 					 * reservation
 					 */
 
@@ -167,7 +167,7 @@ struct si_info {
  * Allocate this by calling si_attach().  Free it by calling si_detach().
  * At any one time, the sih is logically focused on one particular si core
  * (the "current core").
- * Use si_setcore() or si_setcoreidx() to change the association to another core
+ * Use si_setcore() or si_setcoreidx() to change the association to ayesther core
  */
 
 

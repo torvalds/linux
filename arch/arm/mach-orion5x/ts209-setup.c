@@ -30,7 +30,7 @@
 #define QNAP_TS209_NOR_BOOT_SIZE SZ_8M
 
 /****************************************************************************
- * 8MiB NOR flash. The struct mtd_partition is not in the same order as the
+ * 8MiB NOR flash. The struct mtd_partition is yest in the same order as the
  *     partitions on the device because we want to keep compatibility with
  *     existing QNAP firmware.
  *
@@ -72,25 +72,25 @@ static struct mtd_partition qnap_ts209_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data qnap_ts209_nor_flash_data = {
+static struct physmap_flash_data qnap_ts209_yesr_flash_data = {
 	.width		= 1,
 	.parts		= qnap_ts209_partitions,
 	.nr_parts	= ARRAY_SIZE(qnap_ts209_partitions)
 };
 
-static struct resource qnap_ts209_nor_flash_resource = {
+static struct resource qnap_ts209_yesr_flash_resource = {
 	.flags	= IORESOURCE_MEM,
 	.start	= QNAP_TS209_NOR_BOOT_BASE,
 	.end	= QNAP_TS209_NOR_BOOT_BASE + QNAP_TS209_NOR_BOOT_SIZE - 1,
 };
 
-static struct platform_device qnap_ts209_nor_flash = {
+static struct platform_device qnap_ts209_yesr_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &qnap_ts209_nor_flash_data,
+		.platform_data	= &qnap_ts209_yesr_flash_data,
 	},
-	.resource	= &qnap_ts209_nor_flash_resource,
+	.resource	= &qnap_ts209_yesr_flash_resource,
 	.num_resources	= 1,
 };
 
@@ -286,7 +286,7 @@ static void __init qnap_ts209_init(void)
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
 				    QNAP_TS209_NOR_BOOT_BASE,
 				    QNAP_TS209_NOR_BOOT_SIZE);
-	platform_device_register(&qnap_ts209_nor_flash);
+	platform_device_register(&qnap_ts209_yesr_flash);
 
 	orion5x_ehci0_init();
 	orion5x_ehci1_init();

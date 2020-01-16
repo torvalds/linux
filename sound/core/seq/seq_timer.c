@@ -191,7 +191,7 @@ int snd_seq_timer_set_tempo_ppq(struct snd_seq_timer *tmr, int tempo, int ppq)
 		/* refuse to change ppq on running timers */
 		/* because it will upset the song position (ticks) */
 		spin_unlock_irqrestore(&tmr->lock, flags);
-		pr_debug("ALSA: seq: cannot change ppq of a running timer\n");
+		pr_debug("ALSA: seq: canyest change ppq of a running timer\n");
 		return -EBUSY;
 	}
 	changed = (tempo != tmr->tempo) || (ppq != tmr->ppq);
@@ -292,7 +292,7 @@ int snd_seq_timer_open(struct snd_seq_queue *q)
 		}
 	}
 	if (err < 0) {
-		pr_err("ALSA: seq fatal error: cannot create timer (%i)\n", err);
+		pr_err("ALSA: seq fatal error: canyest create timer (%i)\n", err);
 		snd_timer_instance_free(t);
 		return err;
 	}

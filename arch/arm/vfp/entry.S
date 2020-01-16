@@ -16,7 +16,7 @@
 @
 @  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
 @  r2  = PC value to resume execution after successful emulation
-@  r9  = normal "successful" return address
+@  r9  = yesrmal "successful" return address
 @  r10 = this threads thread_info structure
 @  lr  = unrecognised instruction return address
 @  IRQs enabled.
@@ -38,14 +38,14 @@ ENDPROC(vfp_null_entry)
 .LCvfp:
 	.word	vfp_vector
 
-@ This code is called if the VFP does not exist. It needs to flag the
+@ This code is called if the VFP does yest exist. It needs to flag the
 @ failure to the VFP initialisation code.
 
 	__INIT
 ENTRY(vfp_testing_entry)
 	dec_preempt_count_ti r10, r4
 	ldr	r0, VFP_arch_address
-	str	r0, [r0]		@ set to non-zero value
+	str	r0, [r0]		@ set to yesn-zero value
 	ret	r9			@ we have handled the fault
 ENDPROC(vfp_testing_entry)
 

@@ -385,8 +385,8 @@ struct object_id {
 #define OBJID_reserved               31
 #define OBJID_cw_max_msb             32
 #define OBJID_cw_min_msb             33
-#define OBJID_noise_filter_gain      34
-#define OBJID_noise_limit_offset     35
+#define OBJID_yesise_filter_gain      34
+#define OBJID_yesise_limit_offset     35
 #define OBJID_det_rssi_thresh_offset 36
 #define OBJID_med_busy_thresh_offset 37
 #define OBJID_det_sync_thresh        38
@@ -416,7 +416,7 @@ struct status {
     short mrx_overflow;                  /* ECF increments on rx overflow    */
     short mrx_checksum_error;            /* ECF increments on rx CRC error   */
     short rx_hec_error;                  /* ECF incs on mac header CRC error */
-    UCHAR rxnoise;                       /* Average RSL measurement          */
+    UCHAR rxyesise;                       /* Average RSL measurement          */
 };
 
 /****** Host-to-ECF Data Area at Shared RAM offset 0x200 *********************/
@@ -544,7 +544,7 @@ struct tib_structure {
     UCHAR retry_count;
     UCHAR max_retries;
     UCHAR frags_remaining;
-    UCHAR no_rb;
+    UCHAR yes_rb;
     UCHAR rts_reqd;
     UCHAR csma_tx_cntrl_2;
     UCHAR sifs_tx_cntrl_2;
@@ -648,8 +648,8 @@ struct b4_startup_params {
 /* b4 - b5 differences start here */
     UCHAR a_cw_max;                      /*                                  */
     UCHAR a_cw_min;                      /*                                  */
-    UCHAR a_noise_filter_gain;           /*                                  */
-    UCHAR a_noise_limit_offset;          /*                                  */
+    UCHAR a_yesise_filter_gain;           /*                                  */
+    UCHAR a_yesise_limit_offset;          /*                                  */
     UCHAR a_det_rssi_thresh_offset;      /*                                  */
     UCHAR a_med_busy_thresh_offset;      /*                                  */
     UCHAR a_det_sync_thresh;             /*                                  */
@@ -696,8 +696,8 @@ struct b5_startup_params {
 /* b4 - b5 differences start here */
     UCHAR a_cw_max[2];                   /*                                  */
     UCHAR a_cw_min[2];                   /*                                  */
-    UCHAR a_noise_filter_gain;           /*                                  */
-    UCHAR a_noise_limit_offset;          /*                                  */
+    UCHAR a_yesise_filter_gain;           /*                                  */
+    UCHAR a_yesise_limit_offset;          /*                                  */
     UCHAR a_det_rssi_thresh_offset;      /*                                  */
     UCHAR a_med_busy_thresh_offset;      /*                                  */
     UCHAR a_det_sync_thresh;             /*                                  */

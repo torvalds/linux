@@ -12,7 +12,7 @@ typedef void free_page_t(struct page *page, unsigned long private);
 
 /*
  * Return values from addresss_space_operations.migratepage():
- * - negative errno on page migration failure;
+ * - negative erryes on page migration failure;
  * - zero on page migration success;
  */
 #define MIGRATEPAGE_SUCCESS		0
@@ -31,16 +31,16 @@ enum migrate_reason {
 /* In mm/debug.c; also keep sync with include/trace/events/migrate.h */
 extern const char *migrate_reason_names[MR_TYPES];
 
-static inline struct page *new_page_nodemask(struct page *page,
-				int preferred_nid, nodemask_t *nodemask)
+static inline struct page *new_page_yesdemask(struct page *page,
+				int preferred_nid, yesdemask_t *yesdemask)
 {
 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE | __GFP_RETRY_MAYFAIL;
 	unsigned int order = 0;
 	struct page *new_page = NULL;
 
 	if (PageHuge(page))
-		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
-				preferred_nid, nodemask);
+		return alloc_huge_page_yesdemask(page_hstate(compound_head(page)),
+				preferred_nid, yesdemask);
 
 	if (PageTransHuge(page)) {
 		gfp_mask |= GFP_TRANSHUGE;
@@ -50,8 +50,8 @@ static inline struct page *new_page_nodemask(struct page *page,
 	if (PageHighMem(page) || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
 		gfp_mask |= __GFP_HIGHMEM;
 
-	new_page = __alloc_pages_nodemask(gfp_mask, order,
-				preferred_nid, nodemask);
+	new_page = __alloc_pages_yesdemask(gfp_mask, order,
+				preferred_nid, yesdemask);
 
 	if (new_page && PageTransHuge(new_page))
 		prep_transhuge_page(new_page);
@@ -124,16 +124,16 @@ static inline void __ClearPageMovable(struct page *page)
 #ifdef CONFIG_NUMA_BALANCING
 extern bool pmd_trans_migrating(pmd_t pmd);
 extern int migrate_misplaced_page(struct page *page,
-				  struct vm_area_struct *vma, int node);
+				  struct vm_area_struct *vma, int yesde);
 #else
 static inline bool pmd_trans_migrating(pmd_t pmd)
 {
 	return false;
 }
 static inline int migrate_misplaced_page(struct page *page,
-					 struct vm_area_struct *vma, int node)
+					 struct vm_area_struct *vma, int yesde)
 {
-	return -EAGAIN; /* can't migrate now */
+	return -EAGAIN; /* can't migrate yesw */
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
@@ -142,13 +142,13 @@ extern int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 			struct vm_area_struct *vma,
 			pmd_t *pmd, pmd_t entry,
 			unsigned long address,
-			struct page *page, int node);
+			struct page *page, int yesde);
 #else
 static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 			struct vm_area_struct *vma,
 			pmd_t *pmd, pmd_t entry,
 			unsigned long address,
-			struct page *page, int node)
+			struct page *page, int yesde)
 {
 	return -EAGAIN;
 }
@@ -158,9 +158,9 @@ static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 #ifdef CONFIG_MIGRATION
 
 /*
- * Watch out for PAE architecture, which has an unsigned long, and might not
- * have enough bits to store all physical address and flags. So far we have
- * enough room for all our flags.
+ * Watch out for PAE architecture, which has an unsigned long, and might yest
+ * have eyesugh bits to store all physical address and flags. So far we have
+ * eyesugh room for all our flags.
  */
 #define MIGRATE_PFN_VALID	(1UL << 0)
 #define MIGRATE_PFN_MIGRATE	(1UL << 1)
@@ -183,11 +183,11 @@ static inline unsigned long migrate_pfn(unsigned long pfn)
 struct migrate_vma {
 	struct vm_area_struct	*vma;
 	/*
-	 * Both src and dst array must be big enough for
+	 * Both src and dst array must be big eyesugh for
 	 * (end - start) >> PAGE_SHIFT entries.
 	 *
-	 * The src array must not be modified by the caller after
-	 * migrate_vma_setup(), and must not change the dst array after
+	 * The src array must yest be modified by the caller after
+	 * migrate_vma_setup(), and must yest change the dst array after
 	 * migrate_vma_pages() returns.
 	 */
 	unsigned long		*dst;

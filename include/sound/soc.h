@@ -13,7 +13,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -374,9 +374,9 @@
  * @ON:      Bias is fully on for audio playback and capture operations.
  * @PREPARE: Prepare for audio operations. Called before DAPM switching for
  *           stream start and stop operations.
- * @STANDBY: Low power standby state when no playback/capture operations are
+ * @STANDBY: Low power standby state when yes playback/capture operations are
  *           in progress. NOTE: The transition time between STANDBY and ON
- *           should be as fast as possible and no longer than 10ms.
+ *           should be as fast as possible and yes longer than 10ms.
  * @OFF:     Power Off. No restrictions on transition times.
  */
 enum snd_soc_bias_level {
@@ -386,7 +386,7 @@ enum snd_soc_bias_level {
 	SND_SOC_BIAS_ON = 3,
 };
 
-struct device_node;
+struct device_yesde;
 struct snd_jack;
 struct snd_soc_card;
 struct snd_soc_pcm_stream;
@@ -469,7 +469,7 @@ struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 		const char *dai_link);
 
-bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd);
+bool snd_soc_runtime_igyesre_pmdown_time(struct snd_soc_pcm_runtime *rtd);
 void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream);
 void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream);
 
@@ -504,10 +504,10 @@ int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask);
 int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 			  struct snd_soc_jack_pin *pins);
-void snd_soc_jack_notifier_register(struct snd_soc_jack *jack,
-				    struct notifier_block *nb);
-void snd_soc_jack_notifier_unregister(struct snd_soc_jack *jack,
-				      struct notifier_block *nb);
+void snd_soc_jack_yestifier_register(struct snd_soc_jack *jack,
+				    struct yestifier_block *nb);
+void snd_soc_jack_yestifier_unregister(struct snd_soc_jack *jack,
+				      struct yestifier_block *nb);
 int snd_soc_jack_add_zones(struct snd_soc_jack *jack, int count,
 			  struct snd_soc_jack_zone *zones);
 int snd_soc_jack_get_type(struct snd_soc_jack *jack, int micbias_voltage);
@@ -588,7 +588,7 @@ int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
 int snd_soc_info_volsw_sx(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_info *uinfo);
-#define snd_soc_info_bool_ext		snd_ctl_boolean_mono_info
+#define snd_soc_info_bool_ext		snd_ctl_boolean_moyes_info
 int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
@@ -633,7 +633,7 @@ int snd_soc_put_strobe(struct snd_kcontrol *kcontrol,
  *
  * @pin:    name of the pin to update
  * @mask:   bits to check for in reported jack status
- * @invert: if non-zero then pin is enabled when status is not reported
+ * @invert: if yesn-zero then pin is enabled when status is yest reported
  * @list:   internal list entry
  */
 struct snd_soc_jack_pin {
@@ -691,7 +691,7 @@ struct snd_soc_jack_gpio {
 	/* private: */
 	struct snd_soc_jack *jack;
 	struct delayed_work work;
-	struct notifier_block pm_notifier;
+	struct yestifier_block pm_yestifier;
 	struct gpio_desc *desc;
 
 	void *data;
@@ -705,7 +705,7 @@ struct snd_soc_jack {
 	struct snd_soc_card *card;
 	struct list_head pins;
 	int status;
-	struct blocking_notifier_head notifier;
+	struct blocking_yestifier_head yestifier;
 	struct list_head jack_zones;
 };
 
@@ -754,7 +754,7 @@ snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 
 struct snd_soc_dai_link_component {
 	const char *name;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	const char *dai_name;
 };
 
@@ -765,14 +765,14 @@ struct snd_soc_dai_link {
 
 	/*
 	 * You MAY specify the link's CPU-side device, either by device name,
-	 * or by DT/OF node, but not both. If this information is omitted,
+	 * or by DT/OF yesde, but yest both. If this information is omitted,
 	 * the CPU-side DAI is matched using .cpu_dai_name only, which hence
 	 * must be globally unique. These fields are currently typically used
 	 * only for codec to codec links, or systems using device tree.
 	 */
 	/*
 	 * You MAY specify the DAI name of the CPU DAI. If this information is
-	 * omitted, the CPU-side DAI is matched using .cpu_name/.cpu_of_node
+	 * omitted, the CPU-side DAI is matched using .cpu_name/.cpu_of_yesde
 	 * only, which only works well when that device exposes a single DAI.
 	 */
 	struct snd_soc_dai_link_component *cpus;
@@ -780,7 +780,7 @@ struct snd_soc_dai_link {
 
 	/*
 	 * You MUST specify the link's codec, either by device name, or by
-	 * DT/OF node, but not both.
+	 * DT/OF yesde, but yest both.
 	 */
 	/* You MUST specify the DAI name within the codec */
 	struct snd_soc_dai_link_component *codecs;
@@ -788,8 +788,8 @@ struct snd_soc_dai_link {
 
 	/*
 	 * You MAY specify the link's platform/PCM/DMA driver, either by
-	 * device name, or by DT/OF node, but not both. Some forms of link
-	 * do not need a platform. In such case, platforms are not mandatory.
+	 * device name, or by DT/OF yesde, but yest both. Some forms of link
+	 * do yest need a platform. In such case, platforms are yest mandatory.
 	 */
 	struct snd_soc_dai_link_component *platforms;
 	unsigned int num_platforms;
@@ -814,23 +814,23 @@ struct snd_soc_dai_link {
 	const struct snd_soc_ops *ops;
 	const struct snd_soc_compr_ops *compr_ops;
 
-	/* Mark this pcm with non atomic ops */
-	bool nonatomic;
+	/* Mark this pcm with yesn atomic ops */
+	bool yesnatomic;
 
 	/* For unidirectional dai links */
 	unsigned int playback_only:1;
 	unsigned int capture_only:1;
 
 	/* Keep DAI active over suspend */
-	unsigned int ignore_suspend:1;
+	unsigned int igyesre_suspend:1;
 
 	/* Symmetry requirements */
 	unsigned int symmetric_rates:1;
 	unsigned int symmetric_channels:1;
 	unsigned int symmetric_samplebits:1;
 
-	/* Do not create a PCM for this DAI link (Backend link) */
-	unsigned int no_pcm:1;
+	/* Do yest create a PCM for this DAI link (Backend link) */
+	unsigned int yes_pcm:1;
 
 	/* This DAI link can route to other DAI links at runtime (Frontend)*/
 	unsigned int dynamic:1;
@@ -846,11 +846,11 @@ struct snd_soc_dai_link {
 	/* DPCM used FE & BE merged rate */
 	unsigned int dpcm_merged_rate:1;
 
-	/* pmdown_time is ignored at stop */
-	unsigned int ignore_pmdown_time:1;
+	/* pmdown_time is igyesred at stop */
+	unsigned int igyesre_pmdown_time:1;
 
-	/* Do not create a PCM for this DAI link (Backend link) */
-	unsigned int ignore:1;
+	/* Do yest create a PCM for this DAI link (Backend link) */
+	unsigned int igyesre:1;
 
 	struct list_head list; /* DAI link list of the soc card */
 #ifdef CONFIG_SND_SOC_TOPOLOGY
@@ -881,7 +881,7 @@ struct snd_soc_dai_link {
  *	SND_SOC_DAILINK_REG(test),
  * };
  *
- * Sample 2 : Multi CPU/Codec, no Platform
+ * Sample 2 : Multi CPU/Codec, yes Platform
  *
  * SND_SOC_DAILINK_DEFS(test,
  *	DAILINK_COMP_ARRAY(COMP_CPU("cpu_dai1"),
@@ -960,10 +960,10 @@ extern struct snd_soc_dai_link_component null_dailink_component[0];
 struct snd_soc_codec_conf {
 	/*
 	 * specify device either by device name, or by
-	 * DT/OF node, but not both.
+	 * DT/OF yesde, but yest both.
 	 */
 	const char *dev_name;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 
 	/*
 	 * optional map of kcontrol, widget and path name prefixes that are
@@ -975,7 +975,7 @@ struct snd_soc_codec_conf {
 struct snd_soc_aux_dev {
 	/*
 	 * specify multi-codec either by device name, or by
-	 * DT/OF node, but not both.
+	 * DT/OF yesde, but yest both.
 	 */
 	struct snd_soc_dai_link_component dlc;
 
@@ -1155,7 +1155,7 @@ struct snd_soc_pcm_runtime {
 	struct dentry *debugfs_dpcm_root;
 #endif
 
-	unsigned int num; /* 0-based and monotonic increasing */
+	unsigned int num; /* 0-based and moyestonic increasing */
 	struct list_head list; /* rtd list of the soc card */
 	struct list_head component_list; /* list of connected components */
 
@@ -1295,41 +1295,41 @@ int snd_soc_of_parse_card_name(struct snd_soc_card *card,
 			       const char *propname);
 int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 					  const char *propname);
-int snd_soc_of_get_slot_mask(struct device_node *np,
+int snd_soc_of_get_slot_mask(struct device_yesde *np,
 			     const char *prop_name,
 			     unsigned int *mask);
-int snd_soc_of_parse_tdm_slot(struct device_node *np,
+int snd_soc_of_parse_tdm_slot(struct device_yesde *np,
 			      unsigned int *tx_mask,
 			      unsigned int *rx_mask,
 			      unsigned int *slots,
 			      unsigned int *slot_width);
-void snd_soc_of_parse_node_prefix(struct device_node *np,
+void snd_soc_of_parse_yesde_prefix(struct device_yesde *np,
 				   struct snd_soc_codec_conf *codec_conf,
-				   struct device_node *of_node,
+				   struct device_yesde *of_yesde,
 				   const char *propname);
 static inline
 void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
 				   struct snd_soc_codec_conf *codec_conf,
-				   struct device_node *of_node,
+				   struct device_yesde *of_yesde,
 				   const char *propname)
 {
-	snd_soc_of_parse_node_prefix(card->dev->of_node,
-				     codec_conf, of_node, propname);
+	snd_soc_of_parse_yesde_prefix(card->dev->of_yesde,
+				     codec_conf, of_yesde, propname);
 }
 
 int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname);
-unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
+unsigned int snd_soc_of_parse_daifmt(struct device_yesde *np,
 				     const char *prefix,
-				     struct device_node **bitclkmaster,
-				     struct device_node **framemaster);
-int snd_soc_get_dai_id(struct device_node *ep);
+				     struct device_yesde **bitclkmaster,
+				     struct device_yesde **framemaster);
+int snd_soc_get_dai_id(struct device_yesde *ep);
 int snd_soc_get_dai_name(struct of_phandle_args *args,
 			 const char **dai_name);
-int snd_soc_of_get_dai_name(struct device_node *of_node,
+int snd_soc_of_get_dai_name(struct device_yesde *of_yesde,
 			    const char **dai_name);
 int snd_soc_of_get_dai_link_codecs(struct device *dev,
-				   struct device_node *of_node,
+				   struct device_yesde *of_yesde,
 				   struct snd_soc_dai_link *dai_link);
 void snd_soc_of_put_dai_link_codecs(struct snd_soc_dai_link *dai_link);
 
@@ -1373,7 +1373,7 @@ int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
 	const char *name;
 	int i;
 
-	if (!platform_name) /* nothing to do */
+	if (!platform_name) /* yesthing to do */
 		return 0;
 
 	/* set platform name for each dailink */
@@ -1385,7 +1385,7 @@ int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
 		if (!dai_link->platforms)
 			return -EINVAL;
 
-		/* only single platform is supported for now */
+		/* only single platform is supported for yesw */
 		dai_link->platforms->name = name;
 	}
 

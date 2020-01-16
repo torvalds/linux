@@ -411,7 +411,7 @@ int ath10k_hw_diag_fast_download(struct ath10k *ar,
 #define QCA_REV_40XX(ar) ((ar)->hw_rev == ATH10K_HW_QCA4019)
 #define QCA_REV_WCN3990(ar) ((ar)->hw_rev == ATH10K_HW_WCN3990)
 
-/* Known peculiarities:
+/* Kyeswn peculiarities:
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
  *  - raw have FCS, nwifi doesn't
  *  - ethernet frames have 802.11 header decapped and parts (base hdr, cipher
@@ -771,7 +771,7 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
 #define TARGET_HL_TLV_AST_SKID_LIMIT		16
 #define TARGET_HL_TLV_NUM_WDS_ENTRIES		2
 
-/* Diagnostic Window */
+/* Diagyesstic Window */
 #define CE_DIAG_PIPE	7
 
 #define NUM_TARGET_CE_CONFIG_WLAN ar->hw_values->num_target_ce_config_wlan
@@ -846,7 +846,7 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
  * Granted MSIs are assigned as follows:
  * Firmware uses the first
  * Remaining MSIs, if any, are used by Copy Engines
- * This mapping is known to both Target firmware and Host software.
+ * This mapping is kyeswn to both Target firmware and Host software.
  * It may be changed as long as Host and Target are kept in sync.
  */
 /* MSI for firmware (errors, etc.) */

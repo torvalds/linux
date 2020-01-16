@@ -62,7 +62,7 @@ The third cell specifies the transfer priority as below.
 
 Optional properties:
 
-- gpr : The phandle to the General Purpose Register (GPR) node.
+- gpr : The phandle to the General Purpose Register (GPR) yesde.
 - fsl,sdma-event-remap : Register bits of sdma event remap, the format is
   <reg shift val>.
     reg is the GPR register offset.

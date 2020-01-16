@@ -22,7 +22,7 @@ Optional properties:
 - pinctrl-names: must contain a "lcdc" entry.
 - pinctrl-0: pin control group to be used for this controller.
 
-Required nodes:
+Required yesdes:
 
 The lvds has two video ports as described by
 	Documentation/devicetree/bindings/media/video-interfaces.txt

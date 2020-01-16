@@ -26,7 +26,7 @@ struct vdso_data *__x86_get_k_vdso_data(void)
 static __always_inline
 int __x86_get_clock_mode(struct timekeeper *tk)
 {
-	int vclock_mode = tk->tkr_mono.clock->archdata.vclock_mode;
+	int vclock_mode = tk->tkr_moyes.clock->archdata.vclock_mode;
 
 	/* Mark the new vclock used. */
 	BUILD_BUG_ON(VCLOCK_MAX >= 32);

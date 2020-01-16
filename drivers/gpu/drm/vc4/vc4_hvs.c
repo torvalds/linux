@@ -82,8 +82,8 @@ void vc4_hvs_dump_state(struct drm_device *dev)
 
 static int vc4_hvs_debugfs_underrun(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_printer p = drm_seq_file_printer(m);
 
@@ -127,13 +127,13 @@ static const u32 mitchell_netravali_1_3_1_3_kernel[] =
 				50, 82, 119, 155, 187, 213, 227);
 
 static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
-					struct drm_mm_node *space,
+					struct drm_mm_yesde *space,
 					const u32 *kernel)
 {
 	int ret, i;
 	u32 __iomem *dst_kernel;
 
-	ret = drm_mm_insert_node(&hvs->dlist_mm, space, VC4_KERNEL_DWORDS);
+	ret = drm_mm_insert_yesde(&hvs->dlist_mm, space, VC4_KERNEL_DWORDS);
 	if (ret) {
 		DRM_ERROR("Failed to allocate space for filter kernel: %d\n",
 			  ret);
@@ -197,7 +197,7 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 	control = HVS_READ(SCALER_DISPCTRL);
 
 	for (channel = 0; channel < SCALER_CHANNELS_COUNT; channel++) {
-		/* Interrupt masking is not always honored, so check it here. */
+		/* Interrupt masking is yest always hoyesred, so check it here. */
 		if (status & SCALER_DISPSTAT_EUFLOW(channel) &&
 		    control & SCALER_DISPCTRL_DSPEISLUR(channel)) {
 			vc4_hvs_mask_underrun(dev, channel);
@@ -254,11 +254,11 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	/* Set up the HVS LBM memory manager.  We could have some more
 	 * complicated data structure that allowed reuse of LBM areas
 	 * between planes when they don't overlap on the screen, but
-	 * for now we just allocate globally.
+	 * for yesw we just allocate globally.
 	 */
 	drm_mm_init(&hvs->lbm_mm, 0, 96 * 1024);
 
-	/* Upload filter kernels.  We only have the one for now, so we
+	/* Upload filter kernels.  We only have the one for yesw, so we
 	 * keep it around for the lifetime of the driver.
 	 */
 	ret = vc4_hvs_upload_linear_kernel(hvs,
@@ -315,8 +315,8 @@ static void vc4_hvs_unbind(struct device *dev, struct device *master,
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = drm->dev_private;
 
-	if (drm_mm_node_allocated(&vc4->hvs->mitchell_netravali_filter))
-		drm_mm_remove_node(&vc4->hvs->mitchell_netravali_filter);
+	if (drm_mm_yesde_allocated(&vc4->hvs->mitchell_netravali_filter))
+		drm_mm_remove_yesde(&vc4->hvs->mitchell_netravali_filter);
 
 	drm_mm_takedown(&vc4->hvs->dlist_mm);
 	drm_mm_takedown(&vc4->hvs->lbm_mm);

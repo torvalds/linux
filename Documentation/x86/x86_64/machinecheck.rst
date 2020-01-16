@@ -8,11 +8,11 @@ Machine checks report internal hardware error conditions detected
 by the CPU. Uncorrected errors typically cause a machine check
 (often with panic), corrected ones cause a machine check log entry.
 
-Machine checks are organized in banks (normally associated with
+Machine checks are organized in banks (yesrmally associated with
 a hardware subsystem) and subevents in a bank. The exact meaning
 of the banks and subevent is CPU specific.
 
-mcelog knows how to decode them.
+mcelog kyesws how to decode them.
 
 When you see the "Machine check errors logged" message in the system
 log then mcelog should run to collect and decode machine check entries
@@ -28,10 +28,10 @@ bankNctl
 
 	64bit Hex bitmask enabling/disabling specific subevents for bank N
 	When a bit in the bitmask is zero then the respective
-	subevent will not be reported.
+	subevent will yest be reported.
 	By default all events are enabled.
-	Note that BIOS maintain another mask to disable specific events
-	per bank.  This is not visible here
+	Note that BIOS maintain ayesther mask to disable specific events
+	per bank.  This is yest visible here
 
 The following entries appear for each CPU, but they are truly shared
 between all CPUs.
@@ -43,16 +43,16 @@ check_interval
 	the polling interval.  When the poller stops finding MCEs, it
 	triggers an exponential backoff (poll less often) on the polling
 	interval. The check_interval variable is both the initial and
-	maximum polling interval. 0 means no polling for corrected machine
+	maximum polling interval. 0 means yes polling for corrected machine
 	check errors (but some corrected errors might be still reported
 	in other ways)
 
 tolerant
-	Tolerance level. When a machine check exception occurs for a non
+	Tolerance level. When a machine check exception occurs for a yesn
 	corrected machine check the kernel can take different actions.
 	Since machine check exceptions can happen any time it is sometimes
 	risky for the kernel to kill a process because it defies
-	normal kernel locking rules. The tolerance level configures
+	yesrmal kernel locking rules. The tolerance level configures
 	how hard the kernel tries to recover even at some risk of
 	deadlock.  Higher tolerant values trade potentially better uptime
 	with the risk of a crash or even corruption (for tolerant >= 3).
@@ -65,7 +65,7 @@ tolerant
 	Default: 1
 
 	Note this only makes a difference if the CPU allows recovery
-	from a machine check exception. Current x86 CPUs generally do not.
+	from a machine check exception. Current x86 CPUs generally do yest.
 
 trigger
 	Program to run when a machine check event is detected.

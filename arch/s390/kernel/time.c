@@ -16,7 +16,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/kernel_stat.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
@@ -35,7 +35,7 @@
 #include <linux/types.h>
 #include <linux/profile.h>
 #include <linux/timex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/timekeeper_internal.h>
 #include <linux/clockchips.h>
 #include <linux/gfp.h>
@@ -64,8 +64,8 @@ EXPORT_SYMBOL_GPL(clock_comparator_max);
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
-ATOMIC_NOTIFIER_HEAD(s390_epoch_delta_notifier);
-EXPORT_SYMBOL(s390_epoch_delta_notifier);
+ATOMIC_NOTIFIER_HEAD(s390_epoch_delta_yestifier);
+EXPORT_SYMBOL(s390_epoch_delta_yestifier);
 
 unsigned char ptff_function_mask[16];
 
@@ -102,11 +102,11 @@ void __init time_early_init(void)
 }
 
 /*
- * Scheduler clock - returns current time in nanosec units.
+ * Scheduler clock - returns current time in nayessec units.
  */
-unsigned long long notrace sched_clock(void)
+unsigned long long yestrace sched_clock(void)
 {
-	return tod_to_ns(get_tod_clock_monotonic());
+	return tod_to_ns(get_tod_clock_moyestonic());
 }
 NOKPROBE_SYMBOL(sched_clock);
 
@@ -117,7 +117,7 @@ static void ext_to_timespec64(unsigned char *clk, struct timespec64 *xt)
 	/* Split extendnd TOD clock to micro-seconds and sub-micro-seconds */
 	high = (*(unsigned long long *) clk) >> 4;
 	low = (*(unsigned long long *)&clk[7]) << 4;
-	/* Calculate seconds and nano-seconds */
+	/* Calculate seconds and nayes-seconds */
 	sec = high;
 	rem = do_div(sec, 1000000);
 	nsec = (((low >> 32) + (rem << 32)) * 1000) >> 32;
@@ -232,11 +232,11 @@ void __init read_persistent_wall_and_boot_offset(struct timespec64 *wall_time,
 
 static u64 read_tod_clock(struct clocksource *cs)
 {
-	unsigned long long now, adj;
+	unsigned long long yesw, adj;
 
 	preempt_disable(); /* protect from changes to steering parameters */
-	now = get_tod_clock();
-	adj = tod_steering_end - now;
+	yesw = get_tod_clock();
+	adj = tod_steering_end - yesw;
 	if (unlikely((s64) adj >= 0))
 		/*
 		 * manually steer by 1 cycle every 2^16 cycles. This
@@ -244,9 +244,9 @@ static u64 read_tod_clock(struct clocksource *cs)
 		 * therefore steered in ~9h. The adjust will decrease
 		 * over time, until it finally reaches 0.
 		 */
-		now += (tod_steering_delta < 0) ? (adj >> 15) : -(adj >> 15);
+		yesw += (tod_steering_delta < 0) ? (adj >> 15) : -(adj >> 15);
 	preempt_enable();
-	return now;
+	return yesw;
 }
 
 static struct clocksource clocksource_tod = {
@@ -268,20 +268,20 @@ void update_vsyscall(struct timekeeper *tk)
 {
 	u64 nsecps;
 
-	if (tk->tkr_mono.clock != &clocksource_tod)
+	if (tk->tkr_moyes.clock != &clocksource_tod)
 		return;
 
 	/* Make userspace gettimeofday spin until we're done. */
 	++vdso_data->tb_update_count;
 	smp_wmb();
-	vdso_data->xtime_tod_stamp = tk->tkr_mono.cycle_last;
+	vdso_data->xtime_tod_stamp = tk->tkr_moyes.cycle_last;
 	vdso_data->xtime_clock_sec = tk->xtime_sec;
-	vdso_data->xtime_clock_nsec = tk->tkr_mono.xtime_nsec;
+	vdso_data->xtime_clock_nsec = tk->tkr_moyes.xtime_nsec;
 	vdso_data->wtom_clock_sec =
-		tk->xtime_sec + tk->wall_to_monotonic.tv_sec;
-	vdso_data->wtom_clock_nsec = tk->tkr_mono.xtime_nsec +
-		+ ((u64) tk->wall_to_monotonic.tv_nsec << tk->tkr_mono.shift);
-	nsecps = (u64) NSEC_PER_SEC << tk->tkr_mono.shift;
+		tk->xtime_sec + tk->wall_to_moyestonic.tv_sec;
+	vdso_data->wtom_clock_nsec = tk->tkr_moyes.xtime_nsec +
+		+ ((u64) tk->wall_to_moyestonic.tv_nsec << tk->tkr_moyes.shift);
+	nsecps = (u64) NSEC_PER_SEC << tk->tkr_moyes.shift;
 	while (vdso_data->wtom_clock_nsec >= nsecps) {
 		vdso_data->wtom_clock_nsec -= nsecps;
 		vdso_data->wtom_clock_sec++;
@@ -289,18 +289,18 @@ void update_vsyscall(struct timekeeper *tk)
 
 	vdso_data->xtime_coarse_sec = tk->xtime_sec;
 	vdso_data->xtime_coarse_nsec =
-		(long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
+		(long)(tk->tkr_moyes.xtime_nsec >> tk->tkr_moyes.shift);
 	vdso_data->wtom_coarse_sec =
-		vdso_data->xtime_coarse_sec + tk->wall_to_monotonic.tv_sec;
+		vdso_data->xtime_coarse_sec + tk->wall_to_moyestonic.tv_sec;
 	vdso_data->wtom_coarse_nsec =
-		vdso_data->xtime_coarse_nsec + tk->wall_to_monotonic.tv_nsec;
+		vdso_data->xtime_coarse_nsec + tk->wall_to_moyestonic.tv_nsec;
 	while (vdso_data->wtom_coarse_nsec >= NSEC_PER_SEC) {
 		vdso_data->wtom_coarse_nsec -= NSEC_PER_SEC;
 		vdso_data->wtom_coarse_sec++;
 	}
 
-	vdso_data->tk_mult = tk->tkr_mono.mult;
-	vdso_data->tk_shift = tk->tkr_mono.shift;
+	vdso_data->tk_mult = tk->tkr_moyes.mult;
+	vdso_data->tk_shift = tk->tkr_moyes.shift;
 	smp_wmb();
 	++vdso_data->tb_update_count;
 }
@@ -331,7 +331,7 @@ void __init time_init(void)
 		panic("Couldn't request external interrupt 0x1406");
 
 	if (__clocksource_register(&clocksource_tod) != 0)
-		panic("Could not register TOD clock source");
+		panic("Could yest register TOD clock source");
 
 	/* Enable TOD clock interrupts on the boot cpu. */
 	init_cpu_timer();
@@ -352,7 +352,7 @@ static unsigned long clock_sync_flags;
  * TOD clock, subtract the LPAR offset and write the result to *clock.
  * The function returns 0 if the clock is in sync with the external time
  * source. If the clock mode is local it will return -EOPNOTSUPP and
- * -EAGAIN if the clock is not in sync with the external reference.
+ * -EAGAIN if the clock is yest in sync with the external reference.
  */
 int get_phys_clock(unsigned long *clock)
 {
@@ -387,7 +387,7 @@ static void disable_sync_clock(void *dummy)
 	 * increase the "sequence" counter to avoid the race of an
 	 * stp event and the complete recovery against get_phys_clock.
 	 */
-	atomic_andnot(0x80000000, sw_ptr);
+	atomic_andyest(0x80000000, sw_ptr);
 	atomic_inc(sw_ptr);
 }
 
@@ -421,18 +421,18 @@ static inline int check_sync_clock(void)
  */
 static void clock_sync_global(unsigned long long delta)
 {
-	unsigned long now, adj;
+	unsigned long yesw, adj;
 	struct ptff_qto qto;
 
-	/* Fixup the monotonic sched clock. */
+	/* Fixup the moyestonic sched clock. */
 	*(unsigned long long *) &tod_clock_base[1] += delta;
 	if (*(unsigned long long *) &tod_clock_base[1] < delta)
 		/* Epoch overflow */
 		tod_clock_base[0]++;
 	/* Adjust TOD steering parameters. */
 	vdso_data->tb_update_count++;
-	now = get_tod_clock();
-	adj = tod_steering_end - now;
+	yesw = get_tod_clock();
+	adj = tod_steering_end - yesw;
 	if (unlikely((s64) adj >= 0))
 		/* Calculate how much of the old adjustment is left. */
 		tod_steering_delta = (tod_steering_delta < 0) ?
@@ -441,15 +441,15 @@ static void clock_sync_global(unsigned long long delta)
 	if ((abs(tod_steering_delta) >> 48) != 0)
 		panic("TOD clock sync offset %lli is too large to drift\n",
 		      tod_steering_delta);
-	tod_steering_end = now + (abs(tod_steering_delta) << 15);
+	tod_steering_end = yesw + (abs(tod_steering_delta) << 15);
 	vdso_data->ts_dir = (tod_steering_delta < 0) ? 0 : 1;
 	vdso_data->ts_end = tod_steering_end;
 	vdso_data->tb_update_count++;
 	/* Update LPAR offset. */
 	if (ptff_query(PTFF_QTO) && ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
 		lpar_offset = qto.tod_epoch_difference;
-	/* Call the TOD clock change notifier. */
-	atomic_notifier_call_chain(&s390_epoch_delta_notifier, 0, &delta);
+	/* Call the TOD clock change yestifier. */
+	atomic_yestifier_call_chain(&s390_epoch_delta_yestifier, 0, &delta);
 }
 
 /*
@@ -513,7 +513,7 @@ static void __init stp_reset(void)
 	if (rc == 0)
 		set_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags);
 	else if (stp_online) {
-		pr_warn("The real or virtual hardware system does not provide an STP interface\n");
+		pr_warn("The real or virtual hardware system does yest provide an STP interface\n");
 		free_page((unsigned long) stp_page);
 		stp_page = NULL;
 		stp_online = false;
@@ -545,7 +545,7 @@ arch_initcall(stp_init);
  * 2) link availability change
  * 3) time control parameter change
  * In all three cases we are only interested in the clock source state.
- * If a STP clock source is now available use it.
+ * If a STP clock source is yesw available use it.
  */
 static void stp_timing_alert(struct stp_irq_parm *intparm)
 {
@@ -556,7 +556,7 @@ static void stp_timing_alert(struct stp_irq_parm *intparm)
 /*
  * STP sync check machine check. This is called when the timing state
  * changes from the synchronized state to the unsynchronized state.
- * After a STP sync check the clock is not in sync. The machine check
+ * After a STP sync check the clock is yest in sync. The machine check
  * is broadcasted to all cpus at the same time.
  */
 int stp_sync_check(void)
@@ -569,7 +569,7 @@ int stp_sync_check(void)
  * STP island condition machine check. This is called when an attached
  * server  attempts to communicate over an STP link and the servers
  * have matching CTN ids and have a valid stratum-1 configuration
- * but the configurations do not match.
+ * but the configurations do yest match.
  */
 int stp_island_check(void)
 {

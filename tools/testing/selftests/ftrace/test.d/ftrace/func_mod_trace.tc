@@ -4,9 +4,9 @@
 
 [ ! -f set_ftrace_filter ] && exit_unsupported
 
-: "mod: allows to filter a non exist function"
-echo 'non_exist_func:mod:non_exist_module' > set_ftrace_filter
-grep -q "non_exist_func" set_ftrace_filter
+: "mod: allows to filter a yesn exist function"
+echo 'yesn_exist_func:mod:yesn_exist_module' > set_ftrace_filter
+grep -q "yesn_exist_func" set_ftrace_filter
 
 : "mod: on exist module"
 echo '*:mod:trace_printk' > set_ftrace_filter

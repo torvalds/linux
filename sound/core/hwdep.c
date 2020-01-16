@@ -13,7 +13,7 @@
 #include <linux/sched/signal.h>
 #include <sound/core.h>
 #include <sound/control.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include <sound/hwdep.h>
 #include <sound/info.h>
 
@@ -65,19 +65,19 @@ static ssize_t snd_hwdep_write(struct file * file, const char __user *buf,
 	return -ENXIO;	
 }
 
-static int snd_hwdep_open(struct inode *inode, struct file * file)
+static int snd_hwdep_open(struct iyesde *iyesde, struct file * file)
 {
-	int major = imajor(inode);
+	int major = imajor(iyesde);
 	struct snd_hwdep *hw;
 	int err;
 	wait_queue_entry_t wait;
 
 	if (major == snd_major) {
-		hw = snd_lookup_minor_data(iminor(inode),
+		hw = snd_lookup_miyesr_data(imiyesr(iyesde),
 					   SNDRV_DEVICE_TYPE_HWDEP);
 #ifdef CONFIG_SND_OSSEMUL
 	} else if (major == SOUND_MAJOR) {
-		hw = snd_lookup_oss_minor_data(iminor(inode),
+		hw = snd_lookup_oss_miyesr_data(imiyesr(iyesde),
 					       SNDRV_OSS_DEVICE_TYPE_DMFM);
 #endif
 	} else
@@ -143,7 +143,7 @@ static int snd_hwdep_open(struct inode *inode, struct file * file)
 	return err;
 }
 
-static int snd_hwdep_release(struct inode *inode, struct file * file)
+static int snd_hwdep_release(struct iyesde *iyesde, struct file * file)
 {
 	int err = 0;
 	struct snd_hwdep *hw = file->private_data;

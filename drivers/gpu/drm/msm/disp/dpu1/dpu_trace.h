@@ -398,7 +398,7 @@ TRACE_EVENT(dpu_enc_rc,
 		  __entry->rc_state)
 );
 
-TRACE_EVENT(dpu_enc_frame_done_cb_not_busy,
+TRACE_EVENT(dpu_enc_frame_done_cb_yest_busy,
 	TP_PROTO(uint32_t drm_id, u32 event, enum dpu_intf intf_idx),
 	TP_ARGS(drm_id, event, intf_idx),
 	TP_STRUCT__entry(
@@ -770,7 +770,7 @@ TRACE_EVENT(dpu_crtc_disable_frame_pending,
 		  __entry->frame_pending)
 );
 
-TRACE_EVENT(dpu_plane_set_scanout,
+TRACE_EVENT(dpu_plane_set_scayesut,
 	TP_PROTO(enum dpu_sspp index, struct dpu_hw_fmt_layout *layout,
 		 enum dpu_sspp_multirect_index multirect_index),
 	TP_ARGS(index, layout, multirect_index),

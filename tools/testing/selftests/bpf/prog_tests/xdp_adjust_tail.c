@@ -17,13 +17,13 @@ void test_xdp_adjust_tail(void)
 				buf, &size, &retval, &duration);
 
 	CHECK(err || retval != XDP_DROP,
-	      "ipv4", "err %d errno %d retval %d size %d\n",
-	      err, errno, retval, size);
+	      "ipv4", "err %d erryes %d retval %d size %d\n",
+	      err, erryes, retval, size);
 
 	err = bpf_prog_test_run(prog_fd, 1, &pkt_v6, sizeof(pkt_v6),
 				buf, &size, &retval, &duration);
 	CHECK(err || retval != XDP_TX || size != 54,
-	      "ipv6", "err %d errno %d retval %d size %d\n",
-	      err, errno, retval, size);
+	      "ipv6", "err %d erryes %d retval %d size %d\n",
+	      err, erryes, retval, size);
 	bpf_object__close(obj);
 }

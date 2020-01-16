@@ -41,7 +41,7 @@
 /* Board Label      Front Label
    LED1             Power
    LED2             Wireless-G
-   LED3             not populated but could be
+   LED3             yest populated but could be
    LED4             Internet
    LED5 - LED8      Controlled by KS8995M Switch
    LED9             DMZ */
@@ -64,7 +64,7 @@
  *   compiled big-endian.  Since register writes are done on a
  *   single byte basis, if the shift isn't done the driver will
  *   write the value into the most significant byte of the register,
- *   which is ignored, instead of the least significant.
+ *   which is igyesred, instead of the least significant.
  */
 
 #ifdef	__ARMEB__

@@ -8,7 +8,7 @@
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
@@ -127,10 +127,10 @@ static struct resource tusb_resources[] = {
 	/* Order is significant!  The start/end fields
 	 * are updated during setup..
 	 */
-	{ /* Asynchronous access */
+	{ /* Asynchroyesus access */
 		.flags	= IORESOURCE_MEM,
 	},
-	{ /* Synchronous access */
+	{ /* Synchroyesus access */
 		.flags	= IORESOURCE_MEM,
 	},
 	{ /* IRQ */

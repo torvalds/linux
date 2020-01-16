@@ -97,13 +97,13 @@ static const struct mfd_cell tqmx86_devs[] = {
 		.name = "tqmx86-wdt",
 		.resources = tqmx_watchdog_resources,
 		.num_resources = ARRAY_SIZE(tqmx_watchdog_resources),
-		.ignore_resource_conflicts = true,
+		.igyesre_resource_conflicts = true,
 	},
 	{
 		.name = "tqmx86-gpio",
 		.resources = tqmx_gpio_resources,
 		.num_resources = ARRAY_SIZE(tqmx_gpio_resources),
-		.ignore_resource_conflicts = true,
+		.igyesre_resource_conflicts = true,
 	},
 };
 
@@ -131,7 +131,7 @@ static const char *tqmx86_board_id_to_name(u8 board_id)
 	case TQMX86_REG_BOARD_ID_90UC:
 		return "TQMx90UC";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -204,7 +204,7 @@ static int tqmx86_probe(struct platform_device *pdev)
 		iowrite8(io_ext_int_val, io_base + TQMX86_REG_IO_EXT_INT);
 		readback = ioread8(io_base + TQMX86_REG_IO_EXT_INT);
 		if (readback != io_ext_int_val) {
-			dev_warn(dev, "GPIO interrupts not supported.\n");
+			dev_warn(dev, "GPIO interrupts yest supported.\n");
 			return -EINVAL;
 		}
 

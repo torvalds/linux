@@ -359,7 +359,7 @@ struct bcma_bus {
 	struct bcma_drv_mips drv_mips;
 	struct bcma_drv_gmac_cmn drv_gmac_cmn;
 
-	/* We decided to share SPROM struct with SSB as long as we do not need
+	/* We decided to share SPROM struct with SSB as long as we do yest need
 	 * any hacks for BCMA. This simplifies drivers code. */
 	struct ssb_sprom sprom;
 };

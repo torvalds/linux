@@ -287,7 +287,7 @@ bool unwind_next_frame(struct unwind_state *state)
 			goto the_end;
 
 		/*
-		 * We're almost at the end, but not quite: there's still the
+		 * We're almost at the end, but yest quite: there's still the
 		 * syscall regs frame.  Entry code doesn't encode the regs
 		 * pointer for syscalls, so we have to set it manually.
 		 */
@@ -317,11 +317,11 @@ bad_address:
 	state->error = true;
 
 	/*
-	 * When unwinding a non-current task, the task might actually be
-	 * running on another CPU, in which case it could be modifying its
-	 * stack while we're reading it.  This is generally not a problem and
-	 * can be ignored as long as the caller understands that unwinding
-	 * another task will not always succeed.
+	 * When unwinding a yesn-current task, the task might actually be
+	 * running on ayesther CPU, in which case it could be modifying its
+	 * stack while we're reading it.  This is generally yest a problem and
+	 * can be igyesred as long as the caller understands that unwinding
+	 * ayesther task will yest always succeed.
 	 */
 	if (state->task != current)
 		goto the_end;
@@ -338,7 +338,7 @@ bad_address:
 		goto the_end;
 
 	/*
-	 * There are some known frame pointer issues on 32-bit.  Disable
+	 * There are some kyeswn frame pointer issues on 32-bit.  Disable
 	 * unwinder warnings on 32-bit until it gets objtool support.
 	 */
 	if (IS_ENABLED(CONFIG_X86_32))

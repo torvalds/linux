@@ -27,7 +27,7 @@ struct scsi_dev_info_list {
 };
 
 struct scsi_dev_info_list_table {
-	struct list_head node;	/* our node for being on the master list */
+	struct list_head yesde;	/* our yesde for being on the master list */
 	struct list_head scsi_dev_info_list; /* head of dev info list */
 	const char *name;	/* name of list for /proc (NULL for global) */
 	int key;		/* unique numeric identifier */
@@ -44,18 +44,18 @@ static char scsi_dev_flags[256];
  * devices. The entries here are added to the tail of scsi_dev_info_list
  * via scsi_dev_info_list_init.
  *
- * Do not add to this list, use the command line or proc interface to add
+ * Do yest add to this list, use the command line or proc interface to add
  * to the scsi_dev_info_list. This table will eventually go away.
  */
 static struct {
 	char *vendor;
 	char *model;
-	char *revision;	/* revision known to be bad, unused */
+	char *revision;	/* revision kyeswn to be bad, unused */
 	blist_flags_t flags;
 } scsi_static_device_list[] __initdata = {
 	/*
-	 * The following devices are known not to tolerate a lun != 0 scan
-	 * for one reason or another. Some will respond to all luns,
+	 * The following devices are kyeswn yest to tolerate a lun != 0 scan
+	 * for one reason or ayesther. Some will respond to all luns,
 	 * others will lock up.
 	 */
 	{"Aashima", "IMAGERY 2400SP", "1.03", BLIST_NOLUN},	/* locks up */
@@ -159,7 +159,7 @@ static struct {
 	{"DELL", "PV530F", NULL, BLIST_SPARSELUN},
 	{"DELL", "PERCRAID", NULL, BLIST_FORCELUN},
 	{"DGC", "RAID", NULL, BLIST_SPARSELUN},	/* EMC CLARiiON, storage on LUN 0 */
-	{"DGC", "DISK", NULL, BLIST_SPARSELUN},	/* EMC CLARiiON, no storage on LUN 0 */
+	{"DGC", "DISK", NULL, BLIST_SPARSELUN},	/* EMC CLARiiON, yes storage on LUN 0 */
 	{"EMC",  "Invista", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
 	{"EMC", "SYMMETRIX", NULL, BLIST_SPARSELUN | BLIST_LARGELUN |
 	 BLIST_REPORTLUN2 | BLIST_RETRY_ITF},
@@ -267,7 +267,7 @@ static struct scsi_dev_info_list_table *scsi_devinfo_lookup_by_key(int key)
 	struct scsi_dev_info_list_table *devinfo_table;
 	int found = 0;
 
-	list_for_each_entry(devinfo_table, &scsi_dev_info_list, node)
+	list_for_each_entry(devinfo_table, &scsi_dev_info_list, yesde)
 		if (devinfo_table->key == key) {
 			found = 1;
 			break;
@@ -311,7 +311,7 @@ static void scsi_strcpy_devinfo(char *name, char *to, size_t to_length,
  *
  * Description:
  *	Create and add one dev_info entry for @vendor, @model, @strflags or
- *	@flag. If @compatible, add to the tail of the list, do not space
+ *	@flag. If @compatible, add to the tail of the list, do yest space
  *	pad, and set devinfo->compatible. The scsi_static_device_list entries
  *	are added with @compatible 1 and @clfags NULL.
  *
@@ -337,7 +337,7 @@ static int scsi_dev_info_list_add(int compatible, char *vendor, char *model,
  * Description:
  *	Create and add one dev_info entry for @vendor, @model,
  *	@strflags or @flag in list specified by @key. If @compatible,
- *	add to the tail of the list, do not space pad, and set
+ *	add to the tail of the list, do yest space pad, and set
  *	devinfo->compatible. The scsi_static_device_list entries are
  *	added with @compatible 1 and @clfags NULL.
  *
@@ -356,7 +356,7 @@ int scsi_dev_info_list_add_keyed(int compatible, char *vendor, char *model,
 
 	devinfo = kmalloc(sizeof(*devinfo), GFP_KERNEL);
 	if (!devinfo) {
-		printk(KERN_ERR "%s: no memory\n", __func__);
+		printk(KERN_ERR "%s: yes memory\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -426,7 +426,7 @@ static struct scsi_dev_info_list *scsi_dev_info_list_find(const char *vendor,
 	 * value, that should have been part of the
 	 * scsi_static_device_list[] entry, such as "  FOO"
 	 * rather than "FOO". Since this code is already
-	 * here, and we don't know what device it is
+	 * here, and we don't kyesw what device it is
 	 * trying to work with, leave it as-is.
 	 */
 	vmax = sizeof(devinfo->vendor);
@@ -527,7 +527,7 @@ static int scsi_dev_info_list_add_str(char *dev_list)
 	next = dev_list;
 	if (next && next[0] == '"') {
 		/*
-		 * Ignore both the leading and trailing quote.
+		 * Igyesre both the leading and trailing quote.
 		 */
 		next++;
 		next_check = ",\"";
@@ -602,7 +602,7 @@ blist_flags_t scsi_get_device_flags_keyed(struct scsi_device *sdev,
 	if (!IS_ERR(devinfo))
 		return devinfo->flags;
 
-	/* key or device not found: return nothing */
+	/* key or device yest found: return yesthing */
 	if (key != SCSI_DEVINFO_GLOBAL)
 		return 0;
 
@@ -624,7 +624,7 @@ static int devinfo_seq_show(struct seq_file *m, void *v)
 {
 	struct double_list *dl = v;
 	struct scsi_dev_info_list_table *devinfo_table =
-		list_entry(dl->top, struct scsi_dev_info_list_table, node);
+		list_entry(dl->top, struct scsi_dev_info_list_table, yesde);
 	struct scsi_dev_info_list *devinfo =
 		list_entry(dl->bottom, struct scsi_dev_info_list,
 			   dev_info_list);
@@ -649,7 +649,7 @@ static void *devinfo_seq_start(struct seq_file *m, loff_t *ppos)
 	list_for_each(dl->top, &scsi_dev_info_list) {
 		struct scsi_dev_info_list_table *devinfo_table =
 			list_entry(dl->top, struct scsi_dev_info_list_table,
-				   node);
+				   yesde);
 		list_for_each(dl->bottom, &devinfo_table->scsi_dev_info_list)
 			if (pos-- == 0)
 				return dl;
@@ -663,7 +663,7 @@ static void *devinfo_seq_next(struct seq_file *m, void *v, loff_t *ppos)
 {
 	struct double_list *dl = v;
 	struct scsi_dev_info_list_table *devinfo_table =
-		list_entry(dl->top, struct scsi_dev_info_list_table, node);
+		list_entry(dl->top, struct scsi_dev_info_list_table, yesde);
 
 	++*ppos;
 	dl->bottom = dl->bottom->next;
@@ -675,7 +675,7 @@ static void *devinfo_seq_next(struct seq_file *m, void *v, loff_t *ppos)
 		}
 		devinfo_table = list_entry(dl->top,
 					   struct scsi_dev_info_list_table,
-					   node);
+					   yesde);
 		dl->bottom = devinfo_table->scsi_dev_info_list.next;
 	}
 
@@ -694,7 +694,7 @@ static const struct seq_operations scsi_devinfo_seq_ops = {
 	.show	= devinfo_seq_show,
 };
 
-static int proc_scsi_devinfo_open(struct inode *inode, struct file *file)
+static int proc_scsi_devinfo_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &scsi_devinfo_seq_ops);
 }
@@ -790,11 +790,11 @@ int scsi_dev_info_add_list(enum scsi_devinfo_key key, const char *name)
 	if (!devinfo_table)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&devinfo_table->node);
+	INIT_LIST_HEAD(&devinfo_table->yesde);
 	INIT_LIST_HEAD(&devinfo_table->scsi_dev_info_list);
 	devinfo_table->name = name;
 	devinfo_table->key = key;
-	list_add_tail(&devinfo_table->node, &scsi_dev_info_list);
+	list_add_tail(&devinfo_table->yesde, &scsi_dev_info_list);
 
 	return 0;
 }
@@ -815,11 +815,11 @@ int scsi_dev_info_remove_list(enum scsi_devinfo_key key)
 		scsi_devinfo_lookup_by_key(key);
 
 	if (IS_ERR(devinfo_table))
-		/* no such list */
+		/* yes such list */
 		return -EINVAL;
 
 	/* remove from the master list */
-	list_del(&devinfo_table->node);
+	list_del(&devinfo_table->yesde);
 
 	list_for_each_safe(lh, lh_next, &devinfo_table->scsi_dev_info_list) {
 		struct scsi_dev_info_list *devinfo;

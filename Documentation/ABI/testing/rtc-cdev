@@ -35,8 +35,8 @@ Description:
 
 		The ioctl() calls supported by the older /dev/rtc interface are
 		also supported by the newer RTC class framework. However,
-		because the chips and systems are not standardized, some PC/AT
-		functionality might not be provided. And in the same way, some
+		because the chips and systems are yest standardized, some PC/AT
+		functionality might yest be provided. And in the same way, some
 		newer features -- including those enabled by ACPI -- are exposed
 		by the RTC class framework, but can't be supported by the older
 		driver.

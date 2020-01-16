@@ -18,9 +18,9 @@
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
- * This is a relaxed atomic operation (no implied memory barriers).
+ * This is a relaxed atomic operation (yes implied memory barriers).
  *
- * Note that @nr may be almost arbitrarily large; this function is not
+ * Note that @nr may be almost arbitrarily large; this function is yest
  * restricted to acting on a single-word quantity.
  */
 static inline void set_bit(long nr, volatile unsigned long *addr)
@@ -34,7 +34,7 @@ static inline void set_bit(long nr, volatile unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to start counting from
  *
- * This is a relaxed atomic operation (no implied memory barriers).
+ * This is a relaxed atomic operation (yes implied memory barriers).
  */
 static inline void clear_bit(long nr, volatile unsigned long *addr)
 {
@@ -47,9 +47,9 @@ static inline void clear_bit(long nr, volatile unsigned long *addr)
  * @nr: Bit to change
  * @addr: Address to start counting from
  *
- * This is a relaxed atomic operation (no implied memory barriers).
+ * This is a relaxed atomic operation (yes implied memory barriers).
  *
- * Note that @nr may be almost arbitrarily large; this function is not
+ * Note that @nr may be almost arbitrarily large; this function is yest
  * restricted to acting on a single-word quantity.
  */
 static inline void change_bit(long nr, volatile unsigned long *addr)

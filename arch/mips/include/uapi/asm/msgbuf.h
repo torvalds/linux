@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ASM_MSGBUF_H
 #define _ASM_MSGBUF_H
 
@@ -62,7 +62,7 @@ struct msqid64_ds {
 	unsigned long  __unused5;
 };
 #else
-#warning no endianess set
+#warning yes endianess set
 #endif
 
 #endif /* _ASM_MSGBUF_H */

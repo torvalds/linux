@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -373,7 +373,7 @@ static int t4_sched_class_bind_unbind_op(struct port_info *pi, void *arg,
  * @type: Entity type (Queue)
  *
  * Binds an entity (queue) to a scheduling class.  If the entity
- * is bound to another class, it will be unbound from the other class
+ * is bound to ayesther class, it will be unbound from the other class
  * and bound to the class specified in @arg.
  */
 int cxgb4_sched_class_bind(struct net_device *dev, void *arg,
@@ -583,7 +583,7 @@ struct sched_class *cxgb4_sched_class_alloc(struct net_device *dev,
  * @dev: net_device pointer
  * @e: scheduling class
  *
- * Frees a scheduling class if there are no users.
+ * Frees a scheduling class if there are yes users.
  */
 void cxgb4_sched_class_free(struct net_device *dev, u8 classid)
 {

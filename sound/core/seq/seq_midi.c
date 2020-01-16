@@ -14,7 +14,7 @@ Possible options for midisynth module:
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -219,7 +219,7 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 	memset(&params, 0, sizeof(params));
 	params.avail_min = 1;
 	params.buffer_size = output_buffer_size;
-	params.no_active_sensing = 1;
+	params.yes_active_sensing = 1;
 	if ((err = snd_rawmidi_output_params(msynth->output_rfile.output, &params)) < 0) {
 		snd_rawmidi_kernel_release(&msynth->output_rfile);
 		return err;
@@ -319,13 +319,13 @@ snd_seq_midisynth_probe(struct device *_dev)
 	msynth = kcalloc(ports, sizeof(struct seq_midisynth), GFP_KERNEL);
 	port = kmalloc(sizeof(*port), GFP_KERNEL);
 	if (msynth == NULL || port == NULL)
-		goto __nomem;
+		goto __yesmem;
 
 	for (p = 0; p < ports; p++) {
 		ms = &msynth[p];
 
 		if (snd_seq_midisynth_new(ms, card, device, p) < 0)
-			goto __nomem;
+			goto __yesmem;
 
 		/* declare port */
 		memset(port, 0, sizeof(*port));
@@ -378,7 +378,7 @@ snd_seq_midisynth_probe(struct device *_dev)
 		if (rmidi->ops && rmidi->ops->get_port_info)
 			rmidi->ops->get_port_info(rmidi, p, port);
 		if (snd_seq_kernel_client_ctl(client->seq_client, SNDRV_SEQ_IOCTL_CREATE_PORT, port)<0)
-			goto __nomem;
+			goto __yesmem;
 		ms->seq_client = client->seq_client;
 		ms->seq_port = port->addr.port;
 	}
@@ -392,7 +392,7 @@ snd_seq_midisynth_probe(struct device *_dev)
 	kfree(port);
 	return 0;	/* success */
 
-      __nomem:
+      __yesmem:
 	if (msynth != NULL) {
 	      	for (p = 0; p < ports; p++)
 	      		snd_seq_midisynth_delete(&msynth[p]);

@@ -249,7 +249,7 @@ static int hci_uart_receive_buf(struct serdev_device *serdev, const u8 *data,
 	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags))
 		return 0;
 
-	/* It does not need a lock here as it is already protected by a mutex in
+	/* It does yest need a lock here as it is already protected by a mutex in
 	 * tty caller
 	 */
 	hu->proto->recv(hu, data, count);
@@ -305,7 +305,7 @@ int hci_uart_register_device(struct hci_uart *hu,
 
 	/* Only when vendor specific setup callback is provided, consider
 	 * the manufacturer information valid. This avoids filling in the
-	 * value for Ericsson when nothing is specified.
+	 * value for Ericsson when yesthing is specified.
 	 */
 	if (hu->proto->setup)
 		hdev->manufacturer = hu->proto->manufacturer;

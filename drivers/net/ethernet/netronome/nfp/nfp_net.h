@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_net.h
- * Declarations for Netronome network device driver.
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Declarations for Netroyesme network device driver.
+ * Authors: Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *          Jason McMullan <jason.mcmullan@netroyesme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroyesme.com>
  */
 
 #ifndef _NFP_NET_H_
@@ -17,7 +17,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-yesnatomic-hi-lo.h>
 #include <linux/semaphore.h>
 #include <linux/workqueue.h>
 #include <net/xdp.h>
@@ -167,15 +167,15 @@ struct nfp_net_tx_desc {
 
 /**
  * struct nfp_net_tx_buf - software TX buffer descriptor
- * @skb:	normal ring, sk_buff associated with this buffer
+ * @skb:	yesrmal ring, sk_buff associated with this buffer
  * @frag:	XDP ring, page frag associated with this buffer
  * @dma_addr:	DMA mapping address of the buffer
  * @fidx:	Fragment index (-1 for the head and [0..nr_frags-1] for frags)
  * @pkt_cnt:	Number of packets to be produced out of the skb associated
  *		with this buffer (valid only on the head's buffer).
- *		Will be 1 for all non-TSO packets.
+ *		Will be 1 for all yesn-TSO packets.
  * @real_len:	Number of bytes which to be produced out of the skb (valid only
- *		on the head's buffer). Equal to skb->len for non-TSO packets.
+ *		on the head's buffer). Equal to skb->len for yesn-TSO packets.
  */
 struct nfp_net_tx_buf {
 	union {
@@ -379,10 +379,10 @@ struct nfp_net_rx_ring {
  * @hw_tls_tx:	    Counter of TLS packets sent with crypto offloaded to HW
  * @tls_tx_fallback:	Counter of TLS packets sent which had to be encrypted
  *			by the fallback path because packets came out of order
- * @tls_tx_no_fallback:	Counter of TLS packets not sent because the fallback
- *			path could not encrypt them
+ * @tls_tx_yes_fallback:	Counter of TLS packets yest sent because the fallback
+ *			path could yest encrypt them
  * @tx_errors:	    How many TX errors were encountered
- * @tx_busy:        How often was TX busy (no space)?
+ * @tx_busy:        How often was TX busy (yes space)?
  * @rx_replace_buf_alloc_fail:	Counter of RX buffer allocation failures
  * @irq_vector:     Interrupt vector number (use for talking to the OS)
  * @handler:        Interrupt handler for this ring vector
@@ -435,7 +435,7 @@ struct nfp_net_r_vector {
 	u64 hw_tls_tx;
 
 	u64 tls_tx_fallback;
-	u64 tls_tx_no_fallback;
+	u64 tls_tx_yes_fallback;
 	u64 tx_errors;
 	u64 tx_busy;
 
@@ -449,19 +449,19 @@ struct nfp_net_r_vector {
 
 /* Firmware version as it is written in the 32bit value in the BAR */
 struct nfp_net_fw_version {
-	u8 minor;
+	u8 miyesr;
 	u8 major;
 	u8 class;
 	u8 resv;
 } __packed;
 
 static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
-				     u8 resv, u8 class, u8 major, u8 minor)
+				     u8 resv, u8 class, u8 major, u8 miyesr)
 {
 	return fw_ver->resv == resv &&
 	       fw_ver->class == class &&
 	       fw_ver->major == major &&
-	       fw_ver->minor == minor;
+	       fw_ver->miyesr == miyesr;
 }
 
 struct nfp_stat_pair {
@@ -490,7 +490,7 @@ struct nfp_stat_pair {
  * @rxd_cnt:		Size of the RX ring in number of descriptors
  * @num_r_vecs:		Number of used ring vectors
  * @num_tx_rings:	Currently configured number of TX rings
- * @num_stack_tx_rings:	Number of TX rings used by the stack (not XDP)
+ * @num_stack_tx_rings:	Number of TX rings used by the stack (yest XDP)
  * @num_rx_rings:	Currently configured number of RX rings
  * @mtu:		Device MTU
  */
@@ -564,9 +564,9 @@ struct nfp_net_dp {
  *			@bar_lock)
  * @reconfig_posted:	Pending reconfig bits coming from async sources
  * @reconfig_timer_active:  Timer for reading reconfiguration results is pending
- * @reconfig_sync_present:  Some thread is performing synchronous reconfig
+ * @reconfig_sync_present:  Some thread is performing synchroyesus reconfig
  * @reconfig_timer:	Timer for async reading of reconfig results
- * @reconfig_in_progress_update:	Update FW is processing now (debug only)
+ * @reconfig_in_progress_update:	Update FW is processing yesw (debug only)
  * @bar_lock:		vNIC config BAR access lock, protects: update,
  *			mailbox area, crypto TLV
  * @link_up:            Is the link up?
@@ -577,14 +577,14 @@ struct nfp_net_dp {
  * @tx_coalesce_max_frames: TX interrupt moderation frame count parameter
  * @vxlan_ports:	VXLAN ports for RX inner csum offload communicated to HW
  * @vxlan_usecnt:	IPv4/IPv6 VXLAN port use counts
- * @qcp_cfg:            Pointer to QCP queue used for configuration notification
+ * @qcp_cfg:            Pointer to QCP queue used for configuration yestification
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @tlv_caps:		Parsed TLV capabilities
  * @ktls_tx_conn_cnt:	Number of offloaded kTLS TX connections
  * @ktls_rx_conn_cnt:	Number of offloaded kTLS RX connections
  * @ktls_conn_id_gen:	Trivial generator for kTLS connection ids (for TX)
- * @ktls_no_space:	Counter of firmware rejecting kTLS connection due to
+ * @ktls_yes_space:	Counter of firmware rejecting kTLS connection due to
  *			lack of space
  * @mbox_cmsg:		Common Control Message via vNIC mailbox state
  * @mbox_cmsg.queue:	CCM mbox queue of pending messages
@@ -597,7 +597,7 @@ struct nfp_net_dp {
  * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
  * @app:		APP handle if available
- * @vnic_no_name:	For non-port PF vNIC make ndo_get_phys_port_name return
+ * @vnic_yes_name:	For yesn-port PF vNIC make ndo_get_phys_port_name return
  *			-EOPNOTSUPP to keep backwards compatibility (set by app)
  * @port:		Pointer to nfp_port structure if vNIC is a port
  * @app_priv:		APP private data for this vNIC
@@ -673,7 +673,7 @@ struct nfp_net {
 
 	atomic64_t ktls_conn_id_gen;
 
-	atomic_t ktls_no_space;
+	atomic_t ktls_yes_space;
 
 	struct {
 		struct sk_buff_head queue;
@@ -691,7 +691,7 @@ struct nfp_net {
 	struct pci_dev *pdev;
 	struct nfp_app *app;
 
-	bool vnic_no_name;
+	bool vnic_yes_name;
 
 	struct nfp_port *port;
 

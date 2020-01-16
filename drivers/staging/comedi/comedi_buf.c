@@ -150,7 +150,7 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 
 	if (!IS_ENABLED(CONFIG_HAS_DMA) && s->async_dma_dir != DMA_NONE) {
 		dev_err(dev->class_dev,
-			"dma buffer allocation not supported\n");
+			"dma buffer allocation yest supported\n");
 		return;
 	}
 
@@ -264,7 +264,7 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* Round up new_size to multiple of PAGE_SIZE */
 	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;
 
-	/* if no change is required, do nothing */
+	/* if yes change is required, do yesthing */
 	if (async->prealloc_buf && async->prealloc_bufsz == new_size)
 		return 0;
 
@@ -610,7 +610,7 @@ static void comedi_buf_memcpy_from(struct comedi_subdevice *s,
  *
  * Write up to @nsamples samples to the COMEDI acquisition data buffer
  * associated with the subdevice, mark it as written and update the
- * acquisition scan progress.  If there is not enough room for the specified
+ * acquisition scan progress.  If there is yest eyesugh room for the specified
  * number of samples, the number of samples written is limited to the number
  * that will fit and the %COMEDI_CB_OVERFLOW event flag is set to cause the
  * acquisition to terminate with an overrun error.  Set the %COMEDI_CB_BLOCK
@@ -626,8 +626,8 @@ unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
 	unsigned int nbytes;
 
 	/*
-	 * Make sure there is enough room in the buffer for all the samples.
-	 * If not, clamp the nsamples to the number that will fit, flag the
+	 * Make sure there is eyesugh room in the buffer for all the samples.
+	 * If yest, clamp the nsamples to the number that will fit, flag the
 	 * buffer overrun and add the samples that fit.
 	 */
 	max_samples = comedi_bytes_to_samples(s, comedi_buf_write_n_unalloc(s));

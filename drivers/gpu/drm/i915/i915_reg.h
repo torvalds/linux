@@ -9,7 +9,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -32,14 +32,14 @@
  * DOC: The i915 register macro definition style guide
  *
  * Follow the style described here for new macros, and while changing existing
- * macros. Do **not** mass change existing definitions just to update the style.
+ * macros. Do **yest** mass change existing definitions just to update the style.
  *
  * Layout
  * ~~~~~~
  *
  * Keep helper macros near the top. For example, _PIPE() and friends.
  *
- * Prefix macros that generally should not be used outside of this file with
+ * Prefix macros that generally should yest be used outside of this file with
  * underscore '_'. For example, _PIPE() and friends, single instances of
  * registers that are defined solely for the use by function-like macros.
  *
@@ -65,10 +65,10 @@
  * Define bit fields using ``REG_GENMASK(h, l)``. Define bit field contents
  * using ``REG_FIELD_PREP(mask, value)``. This will define the values already
  * shifted in place, so they can be directly OR'd together. For convenience,
- * function-like macros may be used to define bit fields, but do note that the
+ * function-like macros may be used to define bit fields, but do yeste that the
  * macros may be needed to read as well as write the register contents.
  *
- * Define bits using ``REG_BIT(N)``. Do **not** add ``_BIT`` suffix to the name.
+ * Define bits using ``REG_BIT(N)``. Do **yest** add ``_BIT`` suffix to the name.
  *
  * Group the register and its contents together without blank lines, separate
  * from other registers and their contents with one blank line.
@@ -82,10 +82,10 @@
  * ~~~~~~
  *
  * Try to name registers according to the specs. If the register name changes in
- * the specs from platform to another, stick to the original name.
+ * the specs from platform to ayesther, stick to the original name.
  *
  * Try to re-use existing register macro definitions. Only add new macros for
- * new register offsets, or when the register contents have changed enough to
+ * new register offsets, or when the register contents have changed eyesugh to
  * warrant a full redefinition.
  *
  * When a register macro changes for a new platform, prefix the new macro using
@@ -1325,7 +1325,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   VLV_BIAS_CPU_125_SOC_875	(6 << 2)
 #define   CHV_BIAS_CPU_50_SOC_50	(3 << 2)
 
-/* vlv2 north clock has */
+/* vlv2 yesrth clock has */
 #define CCK_FUSE_REG				0x8
 #define  CCK_FUSE_HPLL_FREQ_MASK		0x3
 #define CCK_REG_DSI_PLL_FUSE			0x44
@@ -2738,7 +2738,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   DERRMR_PIPEB_SPR_FLIP_DONE	(1 << 10)
 #define   DERRMR_PIPEB_VBLANK		(1 << 11)
 #define   DERRMR_PIPEB_HBLANK		(1 << 13)
-/* Note that PIPEC is not a simple translation of PIPEA/PIPEB */
+/* Note that PIPEC is yest a simple translation of PIPEA/PIPEB */
 #define   DERRMR_PIPEC_SCANLINE		(1 << 14)
 #define   DERRMR_PIPEC_PRI_FLIP_DONE	(1 << 15)
 #define   DERRMR_PIPEC_SPR_FLIP_DONE	(1 << 20)
@@ -2759,7 +2759,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 /* Disables pipelining of read flushes past the SF-WIZ interface.
  * Required on all Ironlake steppings according to the B-Spec, but the
- * particular danger of not doing so is not specified.
+ * particular danger of yest doing so is yest specified.
  */
 # define _3D_CHICKEN2_WM_READ_PIPELINED			(1 << 14)
 #define _3D_CHICKEN3	_MMIO(0x2090)
@@ -2857,7 +2857,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define INSTPM	        _MMIO(0x20c0)
 #define   INSTPM_SELF_EN (1 << 12) /* 915GM only */
 #define   INSTPM_AGPBUSY_INT_EN (1 << 11) /* gen3: when disabled, pending interrupts
-					will not assert AGPBUSY# and will only
+					will yest assert AGPBUSY# and will only
 					be delivered when out of C3. */
 #define   INSTPM_FORCE_ORDERING				(1 << 7) /* GEN6+ */
 #define   INSTPM_TLB_INVALIDATE	(1 << 9)
@@ -2905,7 +2905,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define MBUS_BBOX_CTL_S2		_MMIO(0x45044)
 
 /* Make render/texture TLB fetches lower priorty than associated data
- *   fetches. This is not turned on by default
+ *   fetches. This is yest turned on by default
  */
 #define   MI_ARB_RENDER_TLB_LOW_PRIORITY	(1 << 15)
 
@@ -2930,21 +2930,21 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
  */
 #define   MI_ARB_C3_LP_WRITE_ENABLE		(1 << 11)
 
-/* This acknowledges an async flip immediately instead
+/* This ackyeswledges an async flip immediately instead
  * of waiting for 2TLB fetches.
  */
 #define   MI_ARB_ASYNC_FLIP_ACK_IMMEDIATE	(1 << 10)
 
-/* Enables non-sequential data reads through arbiter
+/* Enables yesn-sequential data reads through arbiter
  */
 #define   MI_ARB_DUAL_DATA_PHASE_DISABLE	(1 << 9)
 
-/* Disable FSB snooping of cacheable write cycles from binner/render
+/* Disable FSB syesoping of cacheable write cycles from binner/render
  * command stream
  */
 #define   MI_ARB_CACHE_SNOOP_DISABLE		(1 << 8)
 
-/* Arbiter time slice for non-isoch streams */
+/* Arbiter time slice for yesn-isoch streams */
 #define   MI_ARB_TIME_SLICE_MASK		(7 << 5)
 #define   MI_ARB_TIME_SLICE_1			(0 << 5)
 #define   MI_ARB_TIME_SLICE_2			(1 << 5)
@@ -3093,10 +3093,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
  * interrupt. The second control is for the functional block generating the
  * interrupt. These are PM, GT, DE, etc.
  *
- * Luckily *knocks on wood* all the ring interrupt bits match up with the
+ * Luckily *kyescks on wood* all the ring interrupt bits match up with the
  * GT interrupt bits, so we don't need to duplicate the defines.
  *
- * These defines should cover us well from SNB->HSW with minor exceptions
+ * These defines should cover us well from SNB->HSW with miyesr exceptions
  * it can also work on ILK.
  */
 #define GT_BLT_FLUSHDW_NOTIFY_INTERRUPT		(1 << 26)
@@ -3439,7 +3439,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS	0x003f0000
 #define   DPLL_FPA01_P1_POST_DIV_SHIFT	16
 #define   DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW 15
-/* i830, required in DVO non-gang */
+/* i830, required in DVO yesn-gang */
 #define   PLL_P2_DIVIDE_BY_4		(1 << 23)
 #define   PLL_P1_DIVIDE_BY_TWO		(1 << 21) /* i830 */
 #define   PLL_REF_INPUT_DREFCLK		(0 << 13)
@@ -3492,7 +3492,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
  * clock rate is 10 times the DPLL clock.  At low resolution/refresh rate
  * modes, the bus rate would be below the limits, so SDVO allows for stuffing
  * dummy bytes in the datastream at an increased clock rate, with both sides of
- * the link knowing how many bytes are fill.
+ * the link kyeswing how many bytes are fill.
  *
  * So, for a mode with a dotclock of 65Mhz, we would want to double the clock
  * rate to 130Mhz to get a bus rate of 1.30Ghz.  The DPLL clock rate would be
@@ -3699,7 +3699,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
  *
  * This mirrors the MCHBAR MMIO space whose location is determined by
  * device 0 function 0's pci config register 0x44 or 0x48 and matches it in
- * every way.  It is not accessible from the CP register read instructions.
+ * every way.  It is yest accessible from the CP register read instructions.
  *
  * Starting from Haswell, you can't write registers using the MCHBAR mirror,
  * just read.
@@ -3921,7 +3921,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   RS2EN			(1 << 30)
 #define   RS3EN			(1 << 29)
 #define   D3RS3EN		(1 << 28) /* Display D3 imlies RS3 */
-#define   SWPROMORSX		(1 << 27) /* RSx promotion timers ignored */
+#define   SWPROMORSX		(1 << 27) /* RSx promotion timers igyesred */
 #define   RCWAKERW		(1 << 26) /* Resetwarn from PCH causes wakeup */
 #define   DPRSLPVREN		(1 << 25) /* Fast voltage ramp enable */
 #define   GFXTGHYST		(1 << 24) /* Hysteresis to allow trunk gating */
@@ -3958,8 +3958,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   RS_CSTATE_C36_RS1_C7_RS2 (1 << 4)
 #define   RS_CSTATE_RSVD	(2 << 4)
 #define   RS_CSTATE_C367_RS2	(3 << 4)
-#define   REDSAVES		(1 << 3) /* no context save if was idle during rs0 */
-#define   REDRESTORES		(1 << 2) /* no restore if was idle during rs0 */
+#define   REDSAVES		(1 << 3) /* yes context save if was idle during rs0 */
+#define   REDRESTORES		(1 << 2) /* yes restore if was idle during rs0 */
 #define VIDCTL			_MMIO(0x111c0)
 #define VIDSTS			_MMIO(0x111c8)
 #define VIDSTART		_MMIO(0x111cc) /* 8 bits */
@@ -4059,12 +4059,12 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 /*
  * Notes on SNB/IVB/VLV context size:
  * - Power context is saved elsewhere (LLC or stolen)
- * - Ring/execlist context is saved on SNB, not on IVB
+ * - Ring/execlist context is saved on SNB, yest on IVB
  * - Extended context size already includes render context size
  * - We always need to follow the extended context size.
  *   SNB BSpec has comments indicating that we should use the
  *   render context size instead if execlists are disabled, but
- *   based on empirical testing that's just nonsense.
+ *   based on empirical testing that's just yesnsense.
  * - Pipelined/VF state is saved on SNB/IVB respectively
  * - GT1 size just indicates how much of render context
  *   doesn't need saving on GT1
@@ -4212,7 +4212,7 @@ enum {
 #define   PIPE_CRC_SOURCE_PRIMARY_ILK	(0 << 28)
 #define   PIPE_CRC_SOURCE_SPRITE_ILK	(1 << 28)
 #define   PIPE_CRC_SOURCE_PIPE_ILK	(2 << 28)
-/* embedded DP port on the north display block, reserved on ivb */
+/* embedded DP port on the yesrth display block, reserved on ivb */
 #define   PIPE_CRC_SOURCE_PORT_A_ILK	(4 << 28)
 #define   PIPE_CRC_SOURCE_FDI_ILK	(5 << 28) /* reserved on ivb */
 /* vlv source selection */
@@ -4370,7 +4370,7 @@ enum {
 
 /*
  * Until TGL, IMR/IIR are fixed at 0x648xx. On TGL+ those registers are relative
- * to transcoder and bits defined for each one as if using no shift (i.e. as if
+ * to transcoder and bits defined for each one as if using yes shift (i.e. as if
  * it was for TRANSCODER_EDP)
  */
 #define EDP_PSR_IMR				_MMIO(0x64834)
@@ -5022,7 +5022,7 @@ enum {
  * This is the number of cycles out of the backlight modulation cycle for which
  * the backlight is on.
  *
- * This field must be no greater than the number of cycles in the complete
+ * This field must be yes greater than the number of cycles in the complete
  * backlight modulation cycle.
  */
 #define   BACKLIGHT_DUTY_CYCLE_SHIFT		(0)
@@ -5041,7 +5041,7 @@ enum {
 #define HSW_BLC_PWM2_CTL	_MMIO(0x48350)
 
 /* PCH CTL1 is totally different, all but the below bits are reserved. CTL2 is
- * like the normal CTL from gen4 and earlier. Hooray for confusing naming. */
+ * like the yesrmal CTL from gen4 and earlier. Hooray for confusing naming. */
 #define BLC_PWM_PCH_CTL1	_MMIO(0xc8250)
 #define   BLM_PCH_PWM_ENABLE			(1 << 31)
 #define   BLM_PCH_OVERRIDE_ENABLE		(1 << 30)
@@ -5101,14 +5101,14 @@ enum {
 # define TV_OVERSAMPLE_4X		(0 << 18)
 /* Selects 2x oversampling for 720p and 1080i */
 # define TV_OVERSAMPLE_2X		(1 << 18)
-/* Selects no oversampling for 1080p */
+/* Selects yes oversampling for 1080p */
 # define TV_OVERSAMPLE_NONE		(2 << 18)
 /* Selects 8x oversampling */
 # define TV_OVERSAMPLE_8X		(3 << 18)
 # define TV_OVERSAMPLE_MASK		(3 << 18)
 /* Selects progressive mode rather than interlaced */
 # define TV_PROGRESSIVE			(1 << 17)
-/* Sets the colorburst to PAL mode.  Required for non-M PAL modes. */
+/* Sets the colorburst to PAL mode.  Required for yesn-M PAL modes. */
 # define TV_PAL_BURST			(1 << 16)
 /* Field for setting delay of Y compared to C */
 # define TV_YC_SKEW_MASK		(7 << 12)
@@ -5137,7 +5137,7 @@ enum {
 # define TV_TEST_MODE_PATTERN_2		(2 << 0)
 /* Encoder test pattern 3 - full screen horizontal 75% color bars */
 # define TV_TEST_MODE_PATTERN_3		(3 << 0)
-/* Encoder test pattern 4 - random noise */
+/* Encoder test pattern 4 - random yesise */
 # define TV_TEST_MODE_PATTERN_4		(4 << 0)
 /* Encoder test pattern 5 - linear color ramps */
 # define TV_TEST_MODE_PATTERN_5		(5 << 0)
@@ -5282,7 +5282,7 @@ enum {
 # define TV_HTOTAL_SHIFT		0
 
 #define TV_H_CTL_2		_MMIO(0x68034)
-/* Enables the colorburst (needed for non-component color) */
+/* Enables the colorburst (needed for yesn-component color) */
 # define TV_BURST_ENA			(1 << 31)
 /* Offset of the colorburst from the start of hsync, in pixels minus one. */
 # define TV_HBURST_START_SHIFT		16
@@ -5462,7 +5462,7 @@ enum {
 /*
  * Enables automatic scaling calculation.
  *
- * If set, the rest of the registers are ignored, and the calculated values can
+ * If set, the rest of the registers are igyesred, and the calculated values can
  * be read back from the register.
  */
 # define TV_AUTO_SCALE			(1 << 31)
@@ -5772,7 +5772,7 @@ enum {
 #define   PIPECONF_GAMMA_MODE_SHIFT	24
 #define   PIPECONF_INTERLACE_MASK	(7 << 21)
 #define   PIPECONF_INTERLACE_MASK_HSW	(3 << 21)
-/* Note that pre-gen3 does not support interlaced display directly. Panel
+/* Note that pre-gen3 does yest support interlaced display directly. Panel
  * fitting must be disabled on pre-ilk for interlaced. */
 #define   PIPECONF_PROGRESSIVE			(0 << 21)
 #define   PIPECONF_INTERLACE_W_SYNC_SHIFT_PANEL	(4 << 21) /* gen4 only */
@@ -5864,7 +5864,7 @@ enum {
 #define PIPE_D_OFFSET		0x73000
 #define CHV_PIPE_C_OFFSET	0x74000
 /*
- * There's actually no pipe EDP. Some pipe registers have
+ * There's actually yes pipe EDP. Some pipe registers have
  * simply shifted from the pipe to the transcoder, while
  * keeping their original offset. Thus we need PIPE_EDP_OFFSET
  * to access such registers in transcoder EDP.
@@ -6259,7 +6259,7 @@ enum {
 #define SSKPD_WM3_SHIFT		24
 
 /*
- * The two pipe frame counter registers are not synchronized, so
+ * The two pipe frame counter registers are yest synchronized, so
  * reading a stable value is somewhat tricky. The following code
  * should work:
  *
@@ -9382,13 +9382,13 @@ enum skl_power_gate {
 #define SKL_FUSE_STATUS				_MMIO(0x42000)
 #define  SKL_FUSE_DOWNLOAD_STATUS		(1 << 31)
 /*
- * PG0 is HW controlled, so doesn't have a corresponding power well control knob
+ * PG0 is HW controlled, so doesn't have a corresponding power well control kyesb
  * SKL_DISP_PW1_IDX..SKL_DISP_PW2_IDX -> PG1..PG2
  */
 #define  SKL_PW_CTL_IDX_TO_PG(pw_idx)		\
 	((pw_idx) - SKL_PW_CTL_IDX_PW_1 + SKL_PG1)
 /*
- * PG0 is HW controlled, so doesn't have a corresponding power well control knob
+ * PG0 is HW controlled, so doesn't have a corresponding power well control kyesb
  * ICL_DISP_PW1_IDX..ICL_DISP_PW4_IDX -> PG1..PG4
  */
 #define  ICL_PW_CTL_IDX_TO_PG(pw_idx)		\
@@ -9648,7 +9648,7 @@ enum skl_power_gate {
 #define TRANS_DDI_FUNC_CTL(tran) _MMIO_TRANS2(tran, _TRANS_DDI_FUNC_CTL_A)
 
 #define  TRANS_DDI_FUNC_ENABLE		(1 << 31)
-/* Those bits are ignored by pipe EDP since it can only connect to DDI A */
+/* Those bits are igyesred by pipe EDP since it can only connect to DDI A */
 #define  TRANS_DDI_PORT_SHIFT		28
 #define  TGL_TRANS_DDI_PORT_SHIFT	27
 #define  TRANS_DDI_PORT_MASK		(7 << TRANS_DDI_PORT_SHIFT)
@@ -9829,7 +9829,7 @@ enum skl_power_gate {
 #define  WRPLL_REF_BCLK			(0 << 28)
 #define  WRPLL_REF_PCH_SSC		(1 << 28)
 #define  WRPLL_REF_MUXED_SSC_BDW	(2 << 28) /* CPU SSC if fused enabled, PCH SSC otherwise */
-#define  WRPLL_REF_SPECIAL_HSW		(2 << 28) /* muxed SSC (ULT), non-SSC (non-ULT) */
+#define  WRPLL_REF_SPECIAL_HSW		(2 << 28) /* muxed SSC (ULT), yesn-SSC (yesn-ULT) */
 #define  WRPLL_REF_LCPLL		(3 << 28)
 #define  WRPLL_REF_MASK			(3 << 28)
 /* WRPLL divider programming */

@@ -176,22 +176,22 @@ static void __init imx6q_enet_phy_init(void)
 
 static void __init imx6q_1588_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct clk *ptp_clk;
 	struct clk *enet_ref;
 	struct regmap *gpr;
 	u32 clksel;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-fec");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx6q-fec");
 	if (!np) {
-		pr_warn("%s: failed to find fec node\n", __func__);
+		pr_warn("%s: failed to find fec yesde\n", __func__);
 		return;
 	}
 
 	ptp_clk = of_clk_get(np, 2);
 	if (IS_ERR(ptp_clk)) {
 		pr_warn("%s: failed to get ptp clock\n", __func__);
-		goto put_node;
+		goto put_yesde;
 	}
 
 	enet_ref = clk_get_sys(NULL, "enet_ref");
@@ -219,8 +219,8 @@ static void __init imx6q_1588_init(void)
 	clk_put(enet_ref);
 put_ptp_clk:
 	clk_put(ptp_clk);
-put_node:
-	of_node_put(np);
+put_yesde:
+	of_yesde_put(np);
 }
 
 static void __init imx6q_axi_init(void)
@@ -284,7 +284,7 @@ static void __init imx6q_init_late(void)
 {
 	/*
 	 * WAIT mode is broken on imx6 Dual/Quad revision 1.0 and 1.1 so
-	 * there is no point to run cpuidle on them.
+	 * there is yes point to run cpuidle on them.
 	 *
 	 * It does work on imx6 Solo/DualLite starting from 1.1
 	 */

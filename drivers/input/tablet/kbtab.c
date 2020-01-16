@@ -50,7 +50,7 @@ static void kbtab_irq(struct urb *urb)
 		return;
 	default:
 		dev_dbg(&kbtab->intf->dev,
-			"%s - nonzero urb status received: %d\n",
+			"%s - yesnzero urb status received: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}

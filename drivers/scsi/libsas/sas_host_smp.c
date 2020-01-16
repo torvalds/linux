@@ -57,7 +57,7 @@ static void sas_host_smp_discover(struct sas_ha_struct *sas_ha, u8 *resp_data,
  * @count: total number of registers in the bitstream (from frame)
  * @bit: bit position of 'od' in the returned byte
  *
- * returns NULL if 'od' is not in 'data'
+ * returns NULL if 'od' is yest in 'data'
  *
  * From SFF-8485 v0.7:
  * "In GPIO_TX[1], bit 0 of byte 3 contains the first bit (i.e., OD0.0)
@@ -253,7 +253,7 @@ void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost)
 	if (req_data[0] != SMP_REQUEST)
 		goto out_free_resp;
 
-	/* set up default don't know response */
+	/* set up default don't kyesw response */
 	resp_data[0] = SMP_RESPONSE;
 	resp_data[1] = req_data[1];
 	resp_data[2] = SMP_RESP_FUNC_UNK;
@@ -298,7 +298,7 @@ void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost)
 		break;
 
 	case SMP_REPORT_ROUTE_INFO:
-		/* Can't implement; hosts have no routes */
+		/* Can't implement; hosts have yes routes */
 		break;
 
 	case SMP_WRITE_GPIO_REG: {
@@ -319,7 +319,7 @@ void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost)
 	}
 
 	case SMP_CONF_ROUTE_INFO:
-		/* Can't implement; hosts have no routes */
+		/* Can't implement; hosts have yes routes */
 		break;
 
 	case SMP_PHY_CONTROL:

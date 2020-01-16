@@ -9,7 +9,7 @@
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
  *
- * Notwithstanding the above, under no circumstances may you combine this
+ * Notwithstanding the above, under yes circumstances may you combine this
  * software in any way with any other QLogic software provided under a
  * license other than the GPL, without QLogic's express prior written
  * consent.
@@ -114,9 +114,9 @@ static bool bnx2x_validate_vf_sp_objs(struct bnx2x *bp,
 {
 	if (!bnx2x_leading_vfq(vf, sp_initialized)) {
 		if (print_err)
-			BNX2X_ERR("Slowpath objects not yet initialized!\n");
+			BNX2X_ERR("Slowpath objects yest yet initialized!\n");
 		else
-			DP(BNX2X_MSG_IOV, "Slowpath objects not yet initialized!\n");
+			DP(BNX2X_MSG_IOV, "Slowpath objects yest yet initialized!\n");
 		return false;
 	}
 	return true;
@@ -575,7 +575,7 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		mc = kcalloc(mc_num, sizeof(struct bnx2x_mcast_list_elem),
 			     GFP_KERNEL);
 		if (!mc) {
-			BNX2X_ERR("Cannot Configure multicasts due to lack of memory\n");
+			BNX2X_ERR("Canyest Configure multicasts due to lack of memory\n");
 			return -ENOMEM;
 		}
 	}
@@ -821,7 +821,7 @@ static u8 bnx2x_vf_is_pcie_pending(struct bnx2x *bp, u8 abs_vfid)
 
 int bnx2x_vf_flr_clnup_epilog(struct bnx2x *bp, u8 abs_vfid)
 {
-	/* Verify no pending pci transactions */
+	/* Verify yes pending pci transactions */
 	if (bnx2x_vf_is_pcie_pending(bp, abs_vfid))
 		BNX2X_ERR("PCIE Transactions still pending\n");
 
@@ -829,7 +829,7 @@ int bnx2x_vf_flr_clnup_epilog(struct bnx2x *bp, u8 abs_vfid)
 }
 
 /* must be called after the number of PF queues and the number of VFs are
- * both known
+ * both kyeswn
  */
 static void
 bnx2x_iov_static_resc(struct bnx2x *bp, struct bnx2x_virtf *vf)
@@ -843,7 +843,7 @@ bnx2x_iov_static_resc(struct bnx2x *bp, struct bnx2x_virtf *vf)
 	resc->num_mac_filters = VF_MAC_CREDIT_CNT;
 	resc->num_vlan_filters = VF_VLAN_CREDIT_CNT;
 
-	/* no real limitation */
+	/* yes real limitation */
 	resc->num_mc_filters = 0;
 
 	/* num_sbs already set */
@@ -939,8 +939,8 @@ static void bnx2x_vf_flr_clnup(struct bnx2x *bp)
 		bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_FLR);
 	}
 
-	/* Acknowledge the handled VFs.
-	 * we are acknowledge all the vfs which an flr was requested for, even
+	/* Ackyeswledge the handled VFs.
+	 * we are ackyeswledge all the vfs which an flr was requested for, even
 	 * if amongst them there are such that we never opened, since the mcp
 	 * will interrupt us immediately again if we only ack some of the bits,
 	 * resulting in an endless loop. This can happen for example in KVM
@@ -1021,7 +1021,7 @@ void bnx2x_iov_init_dq(struct bnx2x *bp)
 	 */
 	REG_WR(bp, DORQ_REG_VF_NORM_CID_OFST, 3);
 
-	/* No security checks for now -
+	/* No security checks for yesw -
 	 * configure single rule (out of 16) mask = 0x1, value = 0x0,
 	 * CID range 0 - 0x1ffff
 	 */
@@ -1089,7 +1089,7 @@ bnx2x_get_vf_igu_cam_info(struct bnx2x *bp)
 	u32 val;
 	u8 fid, current_pf = 0;
 
-	/* IGU in normal mode - read CAM */
+	/* IGU in yesrmal mode - read CAM */
 	for (sb_id = 0; sb_id < IGU_REG_MAPPING_MEMORY_SIZE; sb_id++) {
 		val = REG_RD(bp, IGU_REG_MAPPING_MEMORY + sb_id * 4);
 		if (!(val & IGU_REG_MAPPING_MEMORY_VALID))
@@ -1216,13 +1216,13 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 	err = -EIO;
 	/* verify ari is enabled */
 	if (!pci_ari_enabled(bp->pdev->bus)) {
-		BNX2X_ERR("ARI not supported (check pci bridge ARI forwarding), SRIOV can not be enabled\n");
+		BNX2X_ERR("ARI yest supported (check pci bridge ARI forwarding), SRIOV can yest be enabled\n");
 		return 0;
 	}
 
-	/* verify igu is in normal mode */
+	/* verify igu is in yesrmal mode */
 	if (CHIP_INT_MODE_IS_BC(bp)) {
-		BNX2X_ERR("IGU not normal mode,  SRIOV can not be enabled\n");
+		BNX2X_ERR("IGU yest yesrmal mode,  SRIOV can yest be enabled\n");
 		return 0;
 	}
 
@@ -1244,7 +1244,7 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 	if (err)
 		goto failed;
 
-	/* SR-IOV capability was enabled but there are no VFs*/
+	/* SR-IOV capability was enabled but there are yes VFs*/
 	if (iov->total == 0)
 		goto failed;
 
@@ -1311,7 +1311,7 @@ void bnx2x_iov_remove_one(struct bnx2x *bp)
 {
 	int vf_idx;
 
-	/* if SRIOV is not enabled there's nothing to do */
+	/* if SRIOV is yest enabled there's yesthing to do */
 	if (!IS_SRIOV(bp))
 		return;
 
@@ -1526,7 +1526,7 @@ int bnx2x_set_vf_link_state(struct net_device *dev, int idx, int link_state)
 		return -EINVAL;
 
 	if (vf->link_cfg == link_state)
-		return 0; /* nothing todo */
+		return 0; /* yesthing todo */
 
 	vf->link_cfg = link_state;
 
@@ -1550,7 +1550,7 @@ int bnx2x_iov_nic_init(struct bnx2x *bp)
 	int vfid;
 
 	if (!IS_SRIOV(bp)) {
-		DP(BNX2X_MSG_IOV, "vfdb was not allocated\n");
+		DP(BNX2X_MSG_IOV, "vfdb was yest allocated\n");
 		return 0;
 	}
 
@@ -1768,12 +1768,12 @@ int bnx2x_iov_eq_sp_event(struct bnx2x *bp, union event_ring_elem *elem)
 		break;
 	case EVENT_RING_OPCODE_VF_FLR:
 		abs_vfid = elem->message.data.vf_flr_event.vf_id;
-		DP(BNX2X_MSG_IOV, "Got VF FLR notification abs_vfid=%d\n",
+		DP(BNX2X_MSG_IOV, "Got VF FLR yestification abs_vfid=%d\n",
 		   abs_vfid);
 		goto get_vf;
 	case EVENT_RING_OPCODE_MALICIOUS_VF:
 		abs_vfid = elem->message.data.malicious_vf_event.vf_id;
-		BNX2X_ERR("Got VF MALICIOUS notification abs_vfid=%d err_id=0x%x\n",
+		BNX2X_ERR("Got VF MALICIOUS yestification abs_vfid=%d err_id=0x%x\n",
 			  abs_vfid,
 			  elem->message.data.malicious_vf_event.err_id);
 		goto get_vf;
@@ -1797,7 +1797,7 @@ get_vf:
 	vf = bnx2x_vf_by_abs_fid(bp, abs_vfid);
 
 	if (!vf) {
-		BNX2X_ERR("EQ completion for unknown VF, cid %d, abs_vfid %d\n",
+		BNX2X_ERR("EQ completion for unkyeswn VF, cid %d, abs_vfid %d\n",
 			  cid, abs_vfid);
 		return 0;
 	}
@@ -1832,7 +1832,7 @@ get_vf:
 		bnx2x_vf_handle_rss_update_eqe(bp, vf);
 		/* fall through */
 	case EVENT_RING_OPCODE_VF_FLR:
-		/* Do nothing for now */
+		/* Do yesthing for yesw */
 		return 0;
 	case EVENT_RING_OPCODE_MALICIOUS_VF:
 		vf->malicious = true;
@@ -1895,7 +1895,7 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 		(is_fcoe ? 0 : 1);
 
 	DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
-	       "BNX2X_NUM_ETH_QUEUES %d, is_fcoe %d, first_queue_query_index %d => determined the last non virtual statistics query index is %d. Will add queries on top of that\n",
+	       "BNX2X_NUM_ETH_QUEUES %d, is_fcoe %d, first_queue_query_index %d => determined the last yesn virtual statistics query index is %d. Will add queries on top of that\n",
 	       BNX2X_NUM_ETH_QUEUES(bp), is_fcoe, first_queue_query_index,
 	       first_queue_query_index + num_queues_req);
 
@@ -1912,14 +1912,14 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 
 		if (vf->state != VF_ENABLED) {
 			DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
-			       "vf %d not enabled so no stats for it\n",
+			       "vf %d yest enabled so yes stats for it\n",
 			       vf->abs_vfid);
 			continue;
 		}
 
 		if (vf->malicious) {
 			DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
-			       "vf %d malicious so no stats for it\n",
+			       "vf %d malicious so yes stats for it\n",
 			       vf->abs_vfid);
 			continue;
 		}
@@ -2028,13 +2028,13 @@ int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		(base_vf_cid & (ILT_PAGE_CIDS-1));
 	int i;
 
-	/* if state is 'acquired' the VF was not released or FLR'd, in
+	/* if state is 'acquired' the VF was yest released or FLR'd, in
 	 * this case the returned resources match the acquired already
 	 * acquired resources. Verify that the requested numbers do
-	 * not exceed the already acquired numbers.
+	 * yest exceed the already acquired numbers.
 	 */
 	if (vf->state == VF_ACQUIRED) {
-		DP(BNX2X_MSG_IOV, "VF[%d] Trying to re-acquire resources (VF was not released or FLR'd)\n",
+		DP(BNX2X_MSG_IOV, "VF[%d] Trying to re-acquire resources (VF was yest released or FLR'd)\n",
 		   vf->abs_vfid);
 
 		if (!bnx2x_vf_chk_avail_resc(bp, vf, resc)) {
@@ -2047,7 +2047,7 @@ int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 	/* Otherwise vf state must be 'free' or 'reset' */
 	if (vf->state != VF_FREE && vf->state != VF_RESET) {
-		BNX2X_ERR("VF[%d] Can not acquire a VF with state %d\n",
+		BNX2X_ERR("VF[%d] Can yest acquire a VF with state %d\n",
 			  vf->abs_vfid, vf->state);
 		return -EINVAL;
 	}
@@ -2058,7 +2058,7 @@ int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	 */
 	if (!bnx2x_vf_chk_avail_resc(bp, vf, resc)) {
 		DP(BNX2X_MSG_IOV,
-		   "cannot fulfill vf resource request. Placing maximal available values in response\n");
+		   "canyest fulfill vf resource request. Placing maximal available values in response\n");
 		/* set the max resource in the vf */
 		return -ENOMEM;
 	}
@@ -2076,7 +2076,7 @@ int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 	/* Initialize the queues */
 	if (!vf->vfqs) {
-		DP(BNX2X_MSG_IOV, "vf->vfqs was not allocated\n");
+		DP(BNX2X_MSG_IOV, "vf->vfqs was yest allocated\n");
 		return -EINVAL;
 	}
 
@@ -2084,7 +2084,7 @@ int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		struct bnx2x_vf_queue *q = vfq_get(vf, i);
 
 		if (!q) {
-			BNX2X_ERR("q number %d was not allocated\n", i);
+			BNX2X_ERR("q number %d was yest allocated\n", i);
 			return -EINVAL;
 		}
 
@@ -2116,7 +2116,7 @@ int bnx2x_vf_init(struct bnx2x *bp, struct bnx2x_virtf *vf, dma_addr_t *sb_map)
 
 	/* Sanity checks */
 	if (vf->state != VF_ACQUIRED) {
-		DP(BNX2X_MSG_IOV, "VF[%d] is not in VF_ACQUIRED, but %d\n",
+		DP(BNX2X_MSG_IOV, "VF[%d] is yest in VF_ACQUIRED, but %d\n",
 		   vf->abs_vfid, vf->state);
 		return -EINVAL;
 	}
@@ -2186,7 +2186,7 @@ int bnx2x_vf_close(struct bnx2x *bp, struct bnx2x_virtf *vf)
 	DP(BNX2X_MSG_IOV, "clearing qtbl\n");
 	bnx2x_vf_clr_qtbl(bp, vf);
 
-	/* need to make sure there are no outstanding stats ramrods which may
+	/* need to make sure there are yes outstanding stats ramrods which may
 	 * cause the device to access the VF's stats buffer which it will free
 	 * as soon as we return from the close flow.
 	 */
@@ -2209,7 +2209,7 @@ op_err:
 }
 
 /* VF release can be called either: 1. The VF was acquired but
- * not enabled 2. the vf was enabled or in the process of being
+ * yest enabled 2. the vf was enabled or in the process of being
  * enabled
  */
 int bnx2x_vf_free(struct bnx2x *bp, struct bnx2x_virtf *vf)
@@ -2221,7 +2221,7 @@ int bnx2x_vf_free(struct bnx2x *bp, struct bnx2x_virtf *vf)
 	   vf->state == VF_ACQUIRED ? "Acquired" :
 	   vf->state == VF_ENABLED ? "Enabled" :
 	   vf->state == VF_RESET ? "Reset" :
-	   "Unknown");
+	   "Unkyeswn");
 
 	switch (vf->state) {
 	case VF_ENABLED:
@@ -2424,7 +2424,7 @@ int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 	struct bnx2x *bp = netdev_priv(pci_get_drvdata(dev));
 
 	if (!IS_SRIOV(bp)) {
-		BNX2X_ERR("failed to configure SR-IOV since vfdb was not allocated. Check dmesg for errors in probe stage\n");
+		BNX2X_ERR("failed to configure SR-IOV since vfdb was yest allocated. Check dmesg for errors in probe stage\n");
 		return -EINVAL;
 	}
 
@@ -2433,7 +2433,7 @@ int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 
 	/* HW channel is only operational when PF is up */
 	if (bp->state != BNX2X_STATE_OPEN) {
-		BNX2X_ERR("VF num configuration via sysfs not supported while PF is down\n");
+		BNX2X_ERR("VF num configuration via sysfs yest supported while PF is down\n");
 		return -EINVAL;
 	}
 
@@ -2563,7 +2563,7 @@ void bnx2x_disable_sriov(struct bnx2x *bp)
 {
 	if (pci_vfs_assigned(bp->pdev)) {
 		DP(BNX2X_MSG_IOV,
-		   "Unloading driver while VFs are assigned - VFs will not be deallocated\n");
+		   "Unloading driver while VFs are assigned - VFs will yest be deallocated\n");
 		return;
 	}
 
@@ -2659,7 +2659,7 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 			/* mac configured by ndo so its in bulletin board */
 			memcpy(&ivi->mac, bulletin->mac, ETH_ALEN);
 		else
-			/* function has not been loaded yet. Show mac as 0s */
+			/* function has yest been loaded yet. Show mac as 0s */
 			eth_zero_addr(ivi->mac);
 
 		/* vlan */
@@ -2667,7 +2667,7 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 			/* vlan configured by ndo so its in bulletin board */
 			memcpy(&ivi->vlan, &bulletin->vlan, VLAN_HLEN);
 		else
-			/* function has not been loaded yet. Show vlans as 0s */
+			/* function has yest been loaded yet. Show vlans as 0s */
 			memset(&ivi->vlan, 0, VLAN_HLEN);
 
 		mutex_unlock(&bp->vfdb->bulletin_mutex);
@@ -2679,11 +2679,11 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 /* New mac for VF. Consider these cases:
  * 1. VF hasn't been acquired yet - save the mac in local bulletin board and
  *    supply at acquire.
- * 2. VF has already been acquired but has not yet initialized - store in local
+ * 2. VF has already been acquired but has yest yet initialized - store in local
  *    bulletin board. mac will be posted on VF bulletin board after VF init. VF
  *    will configure this mac when it is ready.
- * 3. VF has already initialized but has not yet setup a queue - post the new
- *    mac on VF's bulletin board right now. VF will configure this mac when it
+ * 3. VF has already initialized but has yest yet setup a queue - post the new
+ *    mac on VF's bulletin board right yesw. VF will configure this mac when it
  *    is ready.
  * 4. VF has already set a queue - delete any macs already configured for this
  *    queue and manually config the new mac.
@@ -2712,7 +2712,7 @@ int bnx2x_set_vf_mac(struct net_device *dev, int vfidx, u8 *mac)
 
 	mutex_lock(&bp->vfdb->bulletin_mutex);
 
-	/* update PF's copy of the VF's bulletin. Will no longer accept mac
+	/* update PF's copy of the VF's bulletin. Will yes longer accept mac
 	 * configuration requests from vf unless match this mac
 	 */
 	bulletin->valid_bitmap |= 1 << MAC_ADDR_VALID;
@@ -2845,7 +2845,7 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos,
 
 	/* update PF's copy of the VF's bulletin. No point in posting the vlan
 	 * to the VF since it doesn't have anything to do with it. But it useful
-	 * to store it here in case the VF is not up yet and we can only
+	 * to store it here in case the VF is yest up yet and we can only
 	 * configure the vlan later when it does. Treat vlan id 0 as remove the
 	 * Host tag.
 	 */
@@ -2921,7 +2921,7 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos,
 		if (vlan == 0) {
 			/* if vlan is 0 then we want to leave the VF traffic
 			 * untagged, and leave the incoming traffic untouched
-			 * (i.e. do not remove any vlan tags).
+			 * (i.e. do yest remove any vlan tags).
 			 */
 			__clear_bit(BNX2X_Q_UPDATE_DEF_VLAN_EN,
 				    &update_params->update_flags);
@@ -2970,7 +2970,7 @@ int bnx2x_set_vf_spoofchk(struct net_device *dev, int idx, bool val)
 	if (!vf)
 		return -EINVAL;
 
-	/* nothing to do */
+	/* yesthing to do */
 	if (vf->spoofchk == val)
 		return 0;
 

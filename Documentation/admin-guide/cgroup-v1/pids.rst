@@ -17,17 +17,17 @@ Usage
 -----
 
 In order to use the `pids` controller, set the maximum number of tasks in
-pids.max (this is not available in the root cgroup for obvious reasons). The
+pids.max (this is yest available in the root cgroup for obvious reasons). The
 number of processes currently in the cgroup is given by pids.current.
 
-Organisational operations are not blocked by cgroup policies, so it is possible
+Organisational operations are yest blocked by cgroup policies, so it is possible
 to have pids.current > pids.max. This can be done by either setting the limit to
-be smaller than pids.current, or attaching enough processes to the cgroup such
-that pids.current > pids.max. However, it is not possible to violate a cgroup
+be smaller than pids.current, or attaching eyesugh processes to the cgroup such
+that pids.current > pids.max. However, it is yest possible to violate a cgroup
 policy through fork() or clone(). fork() and clone() will return -EAGAIN if the
 creation of a new process would cause a cgroup policy to be violated.
 
-To set a cgroup to have no limit, set pids.max to "max". This is the default for
+To set a cgroup to have yes limit, set pids.max to "max". This is the default for
 all new cgroups (N.B. that PID limits are hierarchical, so the most stringent
 limit in the hierarchy is followed).
 
@@ -44,7 +44,7 @@ Example
 First, we mount the pids controller::
 
 	# mkdir -p /sys/fs/cgroup/pids
-	# mount -t cgroup -o pids none /sys/fs/cgroup/pids
+	# mount -t cgroup -o pids yesne /sys/fs/cgroup/pids
 
 Then we create a hierarchy, set limits and attach processes to it::
 
@@ -55,7 +55,7 @@ Then we create a hierarchy, set limits and attach processes to it::
 	2
 	#
 
-It should be noted that attempts to overcome the set limit (2 in this case) will
+It should be yested that attempts to overcome the set limit (2 in this case) will
 fail::
 
 	# cat /sys/fs/cgroup/pids/parent/pids.current
@@ -65,7 +65,7 @@ fail::
 	#
 
 Even if we migrate to a child cgroup (which doesn't have a set limit), we will
-not be able to overcome the most stringent limit in the hierarchy (in this case,
+yest be able to overcome the most stringent limit in the hierarchy (in this case,
 parent's)::
 
 	# echo $$ > /sys/fs/cgroup/pids/parent/child/cgroup.procs
@@ -80,13 +80,13 @@ parent's)::
 	#
 
 We can set a limit that is smaller than pids.current, which will stop any new
-processes from being forked at all (note that the shell itself counts towards
+processes from being forked at all (yeste that the shell itself counts towards
 pids.current)::
 
 	# echo 1 > /sys/fs/cgroup/pids/parent/pids.max
-	# /bin/echo "We can't even spawn a single process now."
+	# /bin/echo "We can't even spawn a single process yesw."
 	sh: fork: Resource temporary unavailable
 	# echo 0 > /sys/fs/cgroup/pids/parent/pids.max
-	# /bin/echo "We can't even spawn a single process now."
+	# /bin/echo "We can't even spawn a single process yesw."
 	sh: fork: Resource temporary unavailable
 	#

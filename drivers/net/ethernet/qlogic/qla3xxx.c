@@ -20,7 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/ip.h>
 #include <linux/in.h>
@@ -59,7 +59,7 @@ static const u32 default_msg
 
 static int debug = -1;		/* defaults above */
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=yesne,...,16=all)");
 
 static int msi;
 module_param(msi, int, 0);
@@ -75,7 +75,7 @@ static const struct pci_device_id ql3xxx_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, ql3xxx_pci_tbl);
 
 /*
- *  These are the known PHY's which are used
+ *  These are the kyeswn PHY's which are used
  */
 enum PHY_DEVICE_TYPE {
    PHY_TYPE_UNKNOWN   = 0,
@@ -842,7 +842,7 @@ static void phyAgereSpecificInit(struct ql3_adapter *qdev, u32 miiAddr)
 	netdev_info(qdev->ndev, "enabling Agere specific PHY\n");
 	/* power down device bit 11 = 1 */
 	ql_mii_write_reg_ex(qdev, 0x00, 0x1940, miiAddr);
-	/* enable diagnostic mode bit 2 = 1 */
+	/* enable diagyesstic mode bit 2 = 1 */
 	ql_mii_write_reg_ex(qdev, 0x12, 0x840e, miiAddr);
 	/* 1000MB amplitude adjust (see Agere errata) */
 	ql_mii_write_reg_ex(qdev, 0x10, 0x8805, miiAddr);
@@ -862,7 +862,7 @@ static void phyAgereSpecificInit(struct ql3_adapter *qdev, u32 miiAddr)
 	ql_mii_write_reg_ex(qdev, 0x11,
 			    0x0020 | (PHYAddr[qdev->mac_index] >> 8), miiAddr);
 	/*
-	 * Disable diagnostic mode bit 2 = 0
+	 * Disable diagyesstic mode bit 2 = 0
 	 * Power up device bit 11 = 0
 	 * Link up (on) and activity (blink)
 	 */
@@ -976,13 +976,13 @@ static int PHY_Setup(struct ql3_adapter *qdev)
 	/*  Determine the PHY we are using by reading the ID's */
 	err = ql_mii_read_reg(qdev, PHY_ID_0_REG, &reg1);
 	if (err != 0) {
-		netdev_err(qdev->ndev, "Could not read from reg PHY_ID_0_REG\n");
+		netdev_err(qdev->ndev, "Could yest read from reg PHY_ID_0_REG\n");
 		return err;
 	}
 
 	err = ql_mii_read_reg(qdev, PHY_ID_1_REG, &reg2);
 	if (err != 0) {
-		netdev_err(qdev->ndev, "Could not read from reg PHY_ID_1_REG\n");
+		netdev_err(qdev->ndev, "Could yest read from reg PHY_ID_1_REG\n");
 		return err;
 	}
 
@@ -999,13 +999,13 @@ static int PHY_Setup(struct ql3_adapter *qdev)
 		err = ql_mii_read_reg_ex(qdev, PHY_ID_0_REG, &reg1, miiAddr);
 		if (err != 0) {
 			netdev_err(qdev->ndev,
-				   "Could not read from reg PHY_ID_0_REG after Agere detected\n");
+				   "Could yest read from reg PHY_ID_0_REG after Agere detected\n");
 			return err;
 		}
 
 		err = ql_mii_read_reg_ex(qdev, PHY_ID_1_REG, &reg2, miiAddr);
 		if (err != 0) {
-			netdev_err(qdev->ndev, "Could not read from reg PHY_ID_1_REG after Agere detected\n");
+			netdev_err(qdev->ndev, "Could yest read from reg PHY_ID_1_REG after Agere detected\n");
 			return err;
 		}
 
@@ -1021,7 +1021,7 @@ static int PHY_Setup(struct ql3_adapter *qdev)
 		/* need this here so address gets changed */
 		phyAgereSpecificInit(qdev, miiAddr);
 	} else if (qdev->phyType == PHY_TYPE_UNKNOWN) {
-		netdev_err(qdev->ndev, "PHY is unknown\n");
+		netdev_err(qdev->ndev, "PHY is unkyeswn\n");
 		return -EIO;
 	}
 
@@ -1312,7 +1312,7 @@ static int ql_this_adapter_controls_port(struct ql3_adapter *qdev)
 	temp = ql_read_page0_reg(qdev, &port_regs->portStatus);
 	if (temp & bitToCheck) {
 		netif_printk(qdev, link, KERN_DEBUG, qdev->ndev,
-			     "not link master\n");
+			     "yest link master\n");
 		return 0;
 	}
 
@@ -1439,7 +1439,7 @@ static int ql_port_start(struct ql3_adapter *qdev)
 	if (ql_sem_spinlock(qdev, QL_PHY_GIO_SEM_MASK,
 		(QL_RESOURCE_BITS_BASE_CODE | (qdev->mac_index) *
 			 2) << 7)) {
-		netdev_err(qdev->ndev, "Could not get hw lock for GIO\n");
+		netdev_err(qdev->ndev, "Could yest get hw lock for GIO\n");
 		return -1;
 	}
 
@@ -1930,10 +1930,10 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 	/*  Check the transmit response flags for any errors */
 	if (mac_rsp->flags & OB_MAC_IOCB_RSP_S) {
 		netdev_err(qdev->ndev,
-			   "Frame too short to be legal, frame not sent\n");
+			   "Frame too short to be legal, frame yest sent\n");
 
 		qdev->ndev->stats.tx_errors++;
-		goto frame_not_sent;
+		goto frame_yest_sent;
 	}
 
 	if (tx_cb->seg_count == 0) {
@@ -1961,7 +1961,7 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 	qdev->ndev->stats.tx_packets++;
 	qdev->ndev->stats.tx_bytes += tx_cb->skb->len;
 
-frame_not_sent:
+frame_yest_sent:
 	dev_kfree_skb_irq(tx_cb->skb);
 	tx_cb->skb = NULL;
 
@@ -2027,7 +2027,7 @@ static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 			 dma_unmap_len(lrg_buf_cb2, maplen),
 			 PCI_DMA_FROMDEVICE);
 	prefetch(skb->data);
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 	skb->protocol = eth_type_trans(skb, qdev->ndev);
 
 	napi_gro_receive(&qdev->napi, skb);
@@ -2074,7 +2074,7 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 			 PCI_DMA_FROMDEVICE);
 	prefetch(skb2->data);
 
-	skb_checksum_none_assert(skb2);
+	skb_checksum_yesne_assert(skb2);
 	if (qdev->device_id == QL3022_DEVICE_ID) {
 		/*
 		 * Copy the ethhdr from first buffer to second. This
@@ -2152,7 +2152,7 @@ static int ql_tx_rx_clean(struct ql3_adapter *qdev, int budget)
 		default: {
 			u32 *tmp = (u32 *)net_rsp;
 			netdev_err(ndev,
-				   "Hit default case, not handled!\n"
+				   "Hit default case, yest handled!\n"
 				   "	dropping the packet, opcode = %x\n"
 				   "0x%08lx 0x%08lx 0x%08lx 0x%08lx\n",
 				   net_rsp->opcode,
@@ -2240,7 +2240,7 @@ static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
 			 */
 			set_bit(QL_RESET_PER_SCSI, &qdev->flags) ;
 			netdev_err(ndev,
-				   "Another function issued a reset to the chip. ISR value = %x\n",
+				   "Ayesther function issued a reset to the chip. ISR value = %x\n",
 				   value);
 		}
 		queue_delayed_work(qdev->workqueue, &qdev->reset_work, 0);
@@ -2260,7 +2260,7 @@ static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
  * This is necessary because outbound address lists (OAL) will be used when
  * more than two frags are given.  Each address list has 5 addr/len pairs.
  * The 5th pair in each OAL is used to  point to the next OAL if more frags
- * are coming.  That is why the frags:segment count ratio is not linear.
+ * are coming.  That is why the frags:segment count ratio is yest linear.
  */
 static int ql_get_seg_count(struct ql3_adapter *qdev, unsigned short frags)
 {
@@ -2404,9 +2404,9 @@ static int ql_send_map(struct ql3_adapter *qdev,
 	return NETDEV_TX_OK;
 
 map_error:
-	/* A PCI mapping failed and now we will need to back out
+	/* A PCI mapping failed and yesw we will need to back out
 	 * We need to traverse through the oal's and associated pages which
-	 * have been mapped and now we must unmap them to clean up properly
+	 * have been mapped and yesw we must unmap them to clean up properly
 	 */
 
 	seg = 1;
@@ -2492,7 +2492,7 @@ static netdev_tx_t ql3xxx_send(struct sk_buff *skb,
 		ql_hw_csum_setup(skb, mac_iocb_ptr);
 
 	if (ql_send_map(qdev, mac_iocb_ptr, tx_cb, skb) != NETDEV_TX_OK) {
-		netdev_err(ndev, "%s: Could not map the segments!\n", __func__);
+		netdev_err(ndev, "%s: Could yest map the segments!\n", __func__);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -3134,7 +3134,7 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 	value = ql_read_page0_reg(qdev, &port_regs->portStatus);
 	if ((value & PORT_STATUS_IC) == 0) {
 
-		/* Chip has not been configured yet, so let it rip. */
+		/* Chip has yest been configured yet, so let it rip. */
 		if (ql_init_misc_registers(qdev)) {
 			status = -1;
 			goto out;
@@ -3451,7 +3451,7 @@ static int ql_adapter_down(struct ql3_adapter *qdev, int do_reset)
 				   "Releasing driver lock via chip reset\n");
 		} else {
 			netdev_err(ndev,
-				   "Could not acquire driver lock to do reset!\n");
+				   "Could yest acquire driver lock to do reset!\n");
 			retval = -1;
 		}
 		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
@@ -3505,7 +3505,7 @@ static int ql_adapter_up(struct ql3_adapter *qdev)
 		netdev_err(ndev, "Releasing driver lock\n");
 		ql_sem_unlock(qdev, QL_DRVR_SEM_MASK);
 	} else {
-		netdev_err(ndev, "Could not acquire driver lock\n");
+		netdev_err(ndev, "Could yest acquire driver lock\n");
 		goto err_lock;
 	}
 
@@ -3773,13 +3773,13 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		pr_err("%s cannot enable PCI device\n", pci_name(pdev));
+		pr_err("%s canyest enable PCI device\n", pci_name(pdev));
 		goto err_out;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		pr_err("%s cannot obtain PCI resources\n", pci_name(pdev));
+		pr_err("%s canyest obtain PCI resources\n", pci_name(pdev));
 		goto err_out_disable_pdev;
 	}
 
@@ -3794,7 +3794,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 	}
 
 	if (err) {
-		pr_err("%s no usable DMA configuration\n", pci_name(pdev));
+		pr_err("%s yes usable DMA configuration\n", pci_name(pdev));
 		goto err_out_free_regions;
 	}
 
@@ -3826,7 +3826,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 
 	qdev->mem_map_registers = pci_ioremap_bar(pdev, 1);
 	if (!qdev->mem_map_registers) {
-		pr_err("%s: cannot map device registers\n", pci_name(pdev));
+		pr_err("%s: canyest map device registers\n", pci_name(pdev));
 		err = -EIO;
 		goto err_out_free_ndev;
 	}
@@ -3876,11 +3876,11 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 
 	err = register_netdev(ndev);
 	if (err) {
-		pr_err("%s: cannot register net device\n", pci_name(pdev));
+		pr_err("%s: canyest register net device\n", pci_name(pdev));
 		goto err_out_iounmap;
 	}
 
-	/* we're going to reset, so assume we have no link for now */
+	/* we're going to reset, so assume we have yes link for yesw */
 
 	netif_carrier_off(ndev);
 	netif_stop_queue(ndev);

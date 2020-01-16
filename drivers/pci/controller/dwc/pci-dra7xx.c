@@ -238,17 +238,17 @@ static int dra7xx_pcie_init_irq_domain(struct pcie_port *pp)
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct device *dev = pci->dev;
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
-	struct device_node *node = dev->of_node;
-	struct device_node *pcie_intc_node =  of_get_next_child(node, NULL);
+	struct device_yesde *yesde = dev->of_yesde;
+	struct device_yesde *pcie_intc_yesde =  of_get_next_child(yesde, NULL);
 
-	if (!pcie_intc_node) {
-		dev_err(dev, "No PCIe Intc node found\n");
+	if (!pcie_intc_yesde) {
+		dev_err(dev, "No PCIe Intc yesde found\n");
 		return -ENODEV;
 	}
 
-	dra7xx->irq_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
+	dra7xx->irq_domain = irq_domain_add_linear(pcie_intc_yesde, PCI_NUM_INTX,
 						   &intx_domain_ops, pp);
-	of_node_put(pcie_intc_node);
+	of_yesde_put(pcie_intc_yesde);
 	if (!dra7xx->irq_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
 		return -ENODEV;
@@ -351,7 +351,7 @@ static void dra7xx_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
-	enum pci_barno bar;
+	enum pci_baryes bar;
 
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		dw_pcie_ep_reset_bar(pci, bar);
@@ -376,7 +376,7 @@ static void dra7xx_pcie_raise_msi_irq(struct dra7xx_pcie *dra7xx,
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_TI_CONF_MSI_XMT, reg);
 }
 
-static int dra7xx_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int dra7xx_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_yes,
 				 enum pci_epc_irq_type type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
@@ -397,7 +397,7 @@ static int dra7xx_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 }
 
 static const struct pci_epc_features dra7xx_pcie_epc_features = {
-	.linkup_notifier = true,
+	.linkup_yestifier = true,
 	.msi_capable = true,
 	.msix_capable = false,
 };
@@ -605,9 +605,9 @@ static const struct of_device_id of_dra7xx_pcie_match[] = {
  * dra7xx_pcie_unaligned_memaccess: workaround for AM572x/AM571x Errata i870
  * @dra7xx: the dra7xx device where the workaround should be applied
  *
- * Access to the PCIe slave port that are not 32-bit aligned will result
+ * Access to the PCIe slave port that are yest 32-bit aligned will result
  * in incorrect mapping to TLP Address and Byte enable fields. Therefore,
- * byte and half-word accesses are not possible to byte offset 0x1, 0x2, or
+ * byte and half-word accesses are yest possible to byte offset 0x1, 0x2, or
  * 0x3.
  *
  * To avoid this issue set PCIE_SS1_AXI2OCP_LEGACY_MODE_ENABLE to 1.
@@ -615,7 +615,7 @@ static const struct of_device_id of_dra7xx_pcie_match[] = {
 static int dra7xx_pcie_unaligned_memaccess(struct device *dev)
 {
 	int ret;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_phandle_args args;
 	struct regmap *regmap;
 
@@ -638,7 +638,7 @@ static int dra7xx_pcie_unaligned_memaccess(struct device *dev)
 	if (ret)
 		dev_err(dev, "failed to enable unaligned access\n");
 
-	of_node_put(args.np);
+	of_yesde_put(args.np);
 
 	return ret;
 }
@@ -646,7 +646,7 @@ static int dra7xx_pcie_unaligned_memaccess(struct device *dev)
 static int dra7xx_pcie_configure_two_lane(struct device *dev,
 					  u32 b1co_mode_sel_mask)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct regmap *pcie_syscon;
 	unsigned int pcie_reg;
 	u32 mask;
@@ -685,7 +685,7 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	struct dra7xx_pcie *dra7xx;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	char name[10];
 	struct gpio_desc *reset;
 	const struct of_device_id *match;
@@ -719,7 +719,7 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ti_conf");
-	base = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	base = devm_ioremap_yescache(dev, res->start, resource_size(res));
 	if (!base)
 		return -ENOMEM;
 
@@ -803,7 +803,7 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 
 		ret = dra7xx_pcie_unaligned_memaccess(dev);
 		if (ret)
-			dev_err(dev, "WA for Errata i870 not applied\n");
+			dev_err(dev, "WA for Errata i870 yest applied\n");
 
 		ret = dra7xx_add_pcie_port(dra7xx, pdev);
 		if (ret < 0)
@@ -889,7 +889,7 @@ static int dra7xx_pcie_resume(struct device *dev)
 	return 0;
 }
 
-static int dra7xx_pcie_suspend_noirq(struct device *dev)
+static int dra7xx_pcie_suspend_yesirq(struct device *dev)
 {
 	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
 
@@ -898,7 +898,7 @@ static int dra7xx_pcie_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int dra7xx_pcie_resume_noirq(struct device *dev)
+static int dra7xx_pcie_resume_yesirq(struct device *dev)
 {
 	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
 	int ret;
@@ -931,8 +931,8 @@ static void dra7xx_pcie_shutdown(struct platform_device *pdev)
 
 static const struct dev_pm_ops dra7xx_pcie_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend, dra7xx_pcie_resume)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend_noirq,
-				      dra7xx_pcie_resume_noirq)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend_yesirq,
+				      dra7xx_pcie_resume_yesirq)
 };
 
 static struct platform_driver dra7xx_pcie_driver = {

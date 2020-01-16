@@ -243,7 +243,7 @@ static void prepare_table(struct hantro_ctx *ctx)
 struct hantro_h264_reflist_builder {
 	const struct v4l2_h264_dpb_entry *dpb;
 	s32 pocs[HANTRO_H264_DPB_SIZE];
-	u8 unordered_reflist[HANTRO_H264_DPB_SIZE];
+	u8 uyesrdered_reflist[HANTRO_H264_DPB_SIZE];
 	int frame_nums[HANTRO_H264_DPB_SIZE];
 	s32 curpoc;
 	u8 num_valid;
@@ -313,12 +313,12 @@ init_reflist_builder(struct hantro_ctx *ctx,
 
 		b->pocs[i] = get_poc(buf->field, dpb[i].top_field_order_cnt,
 				     dpb[i].bottom_field_order_cnt);
-		b->unordered_reflist[b->num_valid] = i;
+		b->uyesrdered_reflist[b->num_valid] = i;
 		b->num_valid++;
 	}
 
 	for (i = b->num_valid; i < ARRAY_SIZE(ctx->h264_dec.dpb); i++)
-		b->unordered_reflist[i] = i;
+		b->uyesrdered_reflist[i] = i;
 }
 
 static int p_ref_list_cmp(const void *ptra, const void *ptrb, const void *data)
@@ -438,8 +438,8 @@ static void
 build_p_ref_list(const struct hantro_h264_reflist_builder *builder,
 		 u8 *reflist)
 {
-	memcpy(reflist, builder->unordered_reflist,
-	       sizeof(builder->unordered_reflist));
+	memcpy(reflist, builder->uyesrdered_reflist,
+	       sizeof(builder->uyesrdered_reflist));
 	sort_r(reflist, builder->num_valid, sizeof(*reflist),
 	       p_ref_list_cmp, NULL, builder);
 }
@@ -448,13 +448,13 @@ static void
 build_b_ref_lists(const struct hantro_h264_reflist_builder *builder,
 		  u8 *b0_reflist, u8 *b1_reflist)
 {
-	memcpy(b0_reflist, builder->unordered_reflist,
-	       sizeof(builder->unordered_reflist));
+	memcpy(b0_reflist, builder->uyesrdered_reflist,
+	       sizeof(builder->uyesrdered_reflist));
 	sort_r(b0_reflist, builder->num_valid, sizeof(*b0_reflist),
 	       b0_ref_list_cmp, NULL, builder);
 
-	memcpy(b1_reflist, builder->unordered_reflist,
-	       sizeof(builder->unordered_reflist));
+	memcpy(b1_reflist, builder->uyesrdered_reflist,
+	       sizeof(builder->uyesrdered_reflist));
 	sort_r(b1_reflist, builder->num_valid, sizeof(*b1_reflist),
 	       b1_ref_list_cmp, NULL, builder);
 
@@ -492,7 +492,7 @@ static void update_dpb(struct hantro_ctx *ctx)
 
 		/*
 		 * To cut off some comparisons, iterate only on target DPB
-		 * entries which are not used yet.
+		 * entries which are yest used yet.
 		 */
 		for_each_clear_bit(j, used, ARRAY_SIZE(ctx->h264_dec.dpb)) {
 			struct v4l2_h264_dpb_entry *cdpb;
@@ -511,14 +511,14 @@ static void update_dpb(struct hantro_ctx *ctx)
 			set_bit(i, new);
 	}
 
-	/* For entries that could not be matched, use remaining free slots. */
+	/* For entries that could yest be matched, use remaining free slots. */
 	for_each_set_bit(i, new, ARRAY_SIZE(dec_param->dpb)) {
 		const struct v4l2_h264_dpb_entry *ndpb = &dec_param->dpb[i];
 		struct v4l2_h264_dpb_entry *cdpb;
 
 		/*
-		 * Both arrays are of the same sizes, so there is no way
-		 * we can end up with no space in target array, unless
+		 * Both arrays are of the same sizes, so there is yes way
+		 * we can end up with yes space in target array, unless
 		 * something is buggy.
 		 */
 		j = find_first_zero_bit(used, ARRAY_SIZE(ctx->h264_dec.dpb));

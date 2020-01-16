@@ -11,7 +11,7 @@ Compile-time configuration
 ==========================
 
 ACPI debug output is globally enabled by CONFIG_ACPI_DEBUG.  If this config
-option is turned off, the debug messages are not even built into the
+option is turned off, the debug messages are yest even built into the
 kernel.
 
 Boot- and run-time configuration

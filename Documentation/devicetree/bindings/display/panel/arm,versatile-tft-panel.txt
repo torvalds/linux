@@ -3,13 +3,13 @@ ARM Versatile TFT Panels
 These panels are connected to the daughterboards found on the
 ARM Versatile reference designs.
 
-This device node must appear as a child to a "syscon"-compatible
-node.
+This device yesde must appear as a child to a "syscon"-compatible
+yesde.
 
 Required properties:
 - compatible: should be "arm,versatile-tft-panel"
 
-Required subnodes:
+Required subyesdes:
 - port: see display/panel/panel-common.yaml, graph.txt
 
 

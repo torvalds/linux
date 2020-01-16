@@ -25,9 +25,9 @@
  *
  * The driver currently doesn't expose the cursor.  The DRM API for
  * cursors requires support for 64x64 ARGB8888 cursor images, while
- * the hardware can only support 64x64 monochrome with masking
+ * the hardware can only support 64x64 moyeschrome with masking
  * cursors.  While one could imagine trying to hack something together
- * to look at the ARGB8888 and program reasonable in monochrome, we
+ * to look at the ARGB8888 and program reasonable in moyeschrome, we
  * just don't expose the cursor at all instead, and leave cursor
  * support to the X11 software cursor layer.
  *
@@ -40,7 +40,7 @@
  *   supported formats.
  *
  * - Read back hardware state at boot to skip reprogramming the
- *   hardware when doing a no-op modeset.
+ *   hardware when doing a yes-op modeset.
  *
  * - Use the CLKSEL bit to support switching between the two external
  *   clock parents.
@@ -71,7 +71,7 @@
 
 #include "pl111_drm.h"
 #include "pl111_versatile.h"
-#include "pl111_nomadik.h"
+#include "pl111_yesmadik.h"
 
 #define DRIVER_DESC      "DRM module for PL111"
 
@@ -85,8 +85,8 @@ static int pl111_modeset_init(struct drm_device *dev)
 {
 	struct drm_mode_config *mode_config;
 	struct pl111_drm_dev_private *priv = dev->dev_private;
-	struct device_node *np = dev->dev->of_node;
-	struct device_node *remote;
+	struct device_yesde *np = dev->dev->of_yesde;
+	struct device_yesde *remote;
 	struct drm_panel *panel = NULL;
 	struct drm_bridge *bridge = NULL;
 	bool defer = false;
@@ -102,13 +102,13 @@ static int pl111_modeset_init(struct drm_device *dev)
 	mode_config->max_height = 768;
 
 	i = 0;
-	for_each_endpoint_of_node(np, remote) {
+	for_each_endpoint_of_yesde(np, remote) {
 		struct drm_panel *tmp_panel;
 		struct drm_bridge *tmp_bridge;
 
 		dev_dbg(dev->dev, "checking endpoint %d\n", i);
 
-		ret = drm_of_find_panel_or_bridge(dev->dev->of_node,
+		ret = drm_of_find_panel_or_bridge(dev->dev->of_yesde,
 						  0, i,
 						  &tmp_panel,
 						  &tmp_bridge);
@@ -116,7 +116,7 @@ static int pl111_modeset_init(struct drm_device *dev)
 			if (ret == -EPROBE_DEFER) {
 				/*
 				 * Something deferred, but that is often just
-				 * another way of saying -ENODEV, but let's
+				 * ayesther way of saying -ENODEV, but let's
 				 * cast a vote for later deferral.
 				 */
 				defer = true;
@@ -142,7 +142,7 @@ static int pl111_modeset_init(struct drm_device *dev)
 	}
 
 	/*
-	 * If we can't find neither panel nor bridge on any of the
+	 * If we can't find neither panel yesr bridge on any of the
 	 * endpoints, and any of them retured -EPROBE_DEFER, then
 	 * let's defer this driver too.
 	 */
@@ -151,13 +151,13 @@ static int pl111_modeset_init(struct drm_device *dev)
 
 	if (panel) {
 		bridge = drm_panel_bridge_add_typed(panel,
-						    DRM_MODE_CONNECTOR_Unknown);
+						    DRM_MODE_CONNECTOR_Unkyeswn);
 		if (IS_ERR(bridge)) {
 			ret = PTR_ERR(bridge);
 			goto out_config;
 		}
 	} else if (bridge) {
-		dev_info(dev->dev, "Using non-panel bridge\n");
+		dev_info(dev->dev, "Using yesn-panel bridge\n");
 	} else {
 		dev_err(dev->dev, "No bridge, exiting\n");
 		return -ENODEV;
@@ -232,7 +232,7 @@ static struct drm_driver pl111_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = "20170317",
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 	.patchlevel = 0,
 	.dumb_create = drm_gem_cma_dumb_create,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
@@ -276,9 +276,9 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 		priv->use_device_memory = true;
 	}
 
-	if (of_property_read_u32(dev->of_node, "max-memory-bandwidth",
+	if (of_property_read_u32(dev->of_yesde, "max-memory-bandwidth",
 				 &priv->memory_bw)) {
-		dev_info(dev, "no max memory bandwidth specified, assume unlimited\n");
+		dev_info(dev, "yes max memory bandwidth specified, assume unlimited\n");
 		priv->memory_bw = 0;
 	}
 
@@ -303,7 +303,7 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	if (ret)
 		goto dev_put;
 
-	pl111_nomadik_init(dev);
+	pl111_yesmadik_init(dev);
 
 	/* turn off interrupts before requesting the irq */
 	writel(0, priv->regs + priv->ienb);
@@ -397,7 +397,7 @@ static const struct pl111_variant_data pl111_variant = {
 	.fb_bpp = 32,
 };
 
-static const u32 pl110_nomadik_pixel_formats[] = {
+static const u32 pl110_yesmadik_pixel_formats[] = {
 	DRM_FORMAT_RGB888,
 	DRM_FORMAT_BGR888,
 	DRM_FORMAT_ABGR8888,
@@ -416,10 +416,10 @@ static const u32 pl110_nomadik_pixel_formats[] = {
 	DRM_FORMAT_XRGB4444,
 };
 
-static const struct pl111_variant_data pl110_nomadik_variant = {
+static const struct pl111_variant_data pl110_yesmadik_variant = {
 	.name = "LCDC (PL110 Nomadik)",
-	.formats = pl110_nomadik_pixel_formats,
-	.nformats = ARRAY_SIZE(pl110_nomadik_pixel_formats),
+	.formats = pl110_yesmadik_pixel_formats,
+	.nformats = ARRAY_SIZE(pl110_yesmadik_pixel_formats),
 	.is_lcdc = true,
 	.st_bitmux_control = true,
 	.broken_vblank = true,
@@ -435,7 +435,7 @@ static const struct amba_id pl111_id_table[] = {
 	{
 		.id = 0x00180110,
 		.mask = 0x00fffffe,
-		.data = (void *)&pl110_nomadik_variant,
+		.data = (void *)&pl110_yesmadik_variant,
 	},
 	{
 		.id = 0x00041111,

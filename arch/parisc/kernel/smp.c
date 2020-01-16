@@ -59,7 +59,7 @@ static int smp_debug_lvl = 0;
 volatile struct task_struct *smp_init_current_idle_task;
 
 /* track which CPU is booting */
-static volatile int cpu_now_booting;
+static volatile int cpu_yesw_booting;
 
 static int parisc_max_cpus = 1;
 
@@ -79,7 +79,7 @@ enum ipi_message_type {
 
 #undef PER_CPU_IRQ_REGION
 #ifdef PER_CPU_IRQ_REGION
-/* XXX REVISIT Ignore for now.
+/* XXX REVISIT Igyesre for yesw.
 **    *May* need this "hook" to register IPI handler
 **    once we have perCPU ExtIntr switch tables.
 */
@@ -105,8 +105,8 @@ ipi_init(int cpuid)
 static void
 halt_processor(void) 
 {
-	/* REVISIT : redirect I/O Interrupts to another CPU? */
-	/* REVISIT : does PM *know* this CPU isn't available? */
+	/* REVISIT : redirect I/O Interrupts to ayesther CPU? */
+	/* REVISIT : does PM *kyesw* this CPU isn't available? */
 	set_cpu_online(smp_processor_id(), false);
 	local_irq_disable();
 	__pdc_cpu_rendezvous();
@@ -171,7 +171,7 @@ ipi_interrupt(int irq, void *dev_id)
 				break;
 
 			default:
-				printk(KERN_CRIT "Unknown IPI num on CPU%d: %lu\n",
+				printk(KERN_CRIT "Unkyeswn IPI num on CPU%d: %lu\n",
 					this_cpu, which);
 				return IRQ_NONE;
 			} /* Switch */
@@ -233,7 +233,7 @@ void
 smp_send_reschedule(int cpu) { send_IPI_single(cpu, IPI_RESCHEDULE); }
 
 void
-smp_send_all_nop(void)
+smp_send_all_yesp(void)
 {
 	send_IPI_allbutself(IPI_NOP);
 }
@@ -272,7 +272,7 @@ smp_cpu_init(int cpunum)
 		machine_halt();
 	}
 
-	notify_cpu_starting(cpunum);
+	yestify_cpu_starting(cpunum);
 
 	set_cpu_online(cpunum, true);
 
@@ -282,7 +282,7 @@ smp_cpu_init(int cpunum)
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 
-	init_IRQ();   /* make sure no IRQs are enabled or pending */
+	init_IRQ();   /* make sure yes IRQs are enabled or pending */
 	start_cpu_itimer();
 }
 
@@ -293,7 +293,7 @@ smp_cpu_init(int cpunum)
  */
 void __init smp_callin(unsigned long pdce_proc)
 {
-	int slave_id = cpu_now_booting;
+	int slave_id = cpu_yesw_booting;
 
 #ifdef CONFIG_64BIT
 	WARN_ON(((unsigned long)(PAGE0->mem_pdc_hi) << 32
@@ -303,10 +303,10 @@ void __init smp_callin(unsigned long pdce_proc)
 	smp_cpu_init(slave_id);
 	preempt_disable();
 
-	flush_cache_all_local(); /* start with known state */
+	flush_cache_all_local(); /* start with kyeswn state */
 	flush_tlb_all_local(NULL);
 
-	local_irq_enable();  /* Interrupts have been off until now */
+	local_irq_enable();  /* Interrupts have been off until yesw */
 
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 
@@ -324,19 +324,19 @@ int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 
 	task_thread_info(idle)->cpu = cpuid;
 
-	/* Let _start know what logical CPU we're booting
+	/* Let _start kyesw what logical CPU we're booting
 	** (offset into init_tasks[],cpu_data[])
 	*/
-	cpu_now_booting = cpuid;
+	cpu_yesw_booting = cpuid;
 
 	/* 
-	** boot strap code needs to know the task address since
+	** boot strap code needs to kyesw the task address since
 	** it also contains the process stack.
 	*/
 	smp_init_current_idle_task = idle ;
 	mb();
 
-	printk(KERN_INFO "Releasing cpu %d now, hpa=%lx\n", cpuid, p->hpa);
+	printk(KERN_INFO "Releasing cpu %d yesw, hpa=%lx\n", cpuid, p->hpa);
 
 	/*
 	** This gets PDC to release the CPU from a very tight loop.
@@ -344,7 +344,7 @@ int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 	** From the PA-RISC 2.0 Firmware Architecture Reference Specification:
 	** "The MEM_RENDEZ vector specifies the location of OS_RENDEZ which 
 	** is executed after receiving the rendezvous signal (an interrupt to 
-	** EIR{0}). MEM_RENDEZ is valid only when it is nonzero and the 
+	** EIR{0}). MEM_RENDEZ is valid only when it is yesnzero and the 
 	** contents of memory are valid."
 	*/
 	gsc_writel(TIMER_IRQ - CPU_IRQ_BASE, p->hpa);
@@ -358,7 +358,7 @@ int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 	for (timeout = 0; timeout < 10000; timeout++) {
 		if(cpu_online(cpuid)) {
 			/* Which implies Slave has started up */
-			cpu_now_booting = 0;
+			cpu_yesw_booting = 0;
 			smp_init_current_idle_task = NULL;
 			goto alive ;
 		}

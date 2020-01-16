@@ -168,7 +168,7 @@ static void qlcnic_delete_rx_list_mac(struct qlcnic_adapter *adapter,
 	op = vlan_id ? QLCNIC_MAC_VLAN_DEL : QLCNIC_MAC_DEL;
 	ret = qlcnic_sre_macaddr_change(adapter, addr, vlan_id, op);
 	if (!ret) {
-		hlist_del(&fil->fnode);
+		hlist_del(&fil->fyesde);
 		adapter->rx_fhash.fnum--;
 	}
 }
@@ -177,9 +177,9 @@ static struct qlcnic_filter *qlcnic_find_mac_filter(struct hlist_head *head,
 						    void *addr, u16 vlan_id)
 {
 	struct qlcnic_filter *tmp_fil = NULL;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
-	hlist_for_each_entry_safe(tmp_fil, n, head, fnode) {
+	hlist_for_each_entry_safe(tmp_fil, n, head, fyesde) {
 		if (ether_addr_equal(tmp_fil->faddr, addr) &&
 		    tmp_fil->vlan_id == vlan_id)
 			return tmp_fil;
@@ -228,7 +228,7 @@ static void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter,
 		memcpy(fil->faddr, &src_addr, ETH_ALEN);
 		fil->vlan_id = vlan_id;
 		spin_lock(&adapter->rx_mac_learn_lock);
-		hlist_add_head(&(fil->fnode), head);
+		hlist_add_head(&(fil->fyesde), head);
 		adapter->rx_fhash.fnum++;
 		spin_unlock(&adapter->rx_mac_learn_lock);
 	} else {
@@ -243,7 +243,7 @@ static void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter,
 							(u8 *)&src_addr,
 							vlan_id, op);
 			if (!ret) {
-				hlist_del(&tmp_fil->fnode);
+				hlist_del(&tmp_fil->fyesde);
 				adapter->fhash.fnum--;
 			}
 
@@ -308,7 +308,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	u16 protocol = ntohs(skb->protocol);
 	struct qlcnic_filter *fil, *tmp_fil;
 	struct hlist_head *head;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	u64 src_addr = 0;
 	u16 vlan_id = 0;
 	u8 hindex, hval;
@@ -330,7 +330,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	hindex = hval & (adapter->fhash.fbucket_size - 1);
 	head = &(adapter->fhash.fhead[hindex]);
 
-	hlist_for_each_entry_safe(tmp_fil, n, head, fnode) {
+	hlist_for_each_entry_safe(tmp_fil, n, head, fyesde) {
 		if (ether_addr_equal(tmp_fil->faddr, (u8 *)&src_addr) &&
 		    tmp_fil->vlan_id == vlan_id) {
 			if (jiffies > (QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
@@ -355,7 +355,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	fil->vlan_id = vlan_id;
 	memcpy(fil->faddr, &src_addr, ETH_ALEN);
 	spin_lock(&adapter->mac_learn_lock);
-	hlist_add_head(&(fil->fnode), head);
+	hlist_add_head(&(fil->fyesde), head);
 	adapter->fhash.fnum++;
 	spin_unlock(&adapter->mac_learn_lock);
 }
@@ -676,7 +676,7 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
 
-	/* 14 frags supported for normal packet and
+	/* 14 frags supported for yesrmal packet and
 	 * 32 frags supported for TSO packet
 	 */
 	if (!skb_is_gso(skb) && frag_count > QLCNIC_MAX_FRAGS_PER_TX) {
@@ -798,7 +798,7 @@ void qlcnic_advert_link_change(struct qlcnic_adapter *adapter, int linkup)
 	} else if (!adapter->ahw->linkup && linkup) {
 		adapter->ahw->linkup = 1;
 
-		/* Do not advertise Link up to the stack if device
+		/* Do yest advertise Link up to the stack if device
 		 * is in loopback mode
 		 */
 		if (qlcnic_83xx_check(adapter) && adapter->ahw->lb_mode) {
@@ -841,7 +841,7 @@ static int qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static void qlcnic_post_rx_buffers_nodb(struct qlcnic_adapter *adapter,
+static void qlcnic_post_rx_buffers_yesdb(struct qlcnic_adapter *adapter,
 					struct qlcnic_host_rds_ring *rds_ring,
 					u8 ring_id)
 {
@@ -1116,7 +1116,7 @@ static void qlcnic_handle_fw_message(int desc_cnt, int index,
 			adapter->ahw->diag_cnt = -EINPROGRESS;
 			break;
 		case 2:
-			dev_info(dev, "loopback cable is not connected\n");
+			dev_info(dev, "loopback cable is yest connected\n");
 			adapter->ahw->diag_cnt = -ENODEV;
 			break;
 		default:
@@ -1157,7 +1157,7 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 		adapter->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else {
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 	}
 
 
@@ -1180,7 +1180,7 @@ static inline int qlcnic_check_rx_tagging(struct qlcnic_adapter *adapter,
 		return 0;
 
 	if (*vlan_tag == adapter->rx_pvid) {
-		/* Outer vlan tag. Packet should follow non-vlan path */
+		/* Outer vlan tag. Packet should follow yesn-vlan path */
 		*vlan_tag = 0xffff;
 		return 0;
 	}
@@ -1423,7 +1423,7 @@ skip:
 			spin_unlock(&rds_ring->lock);
 		}
 
-		qlcnic_post_rx_buffers_nodb(adapter, rds_ring, ring);
+		qlcnic_post_rx_buffers_yesdb(adapter, rds_ring, ring);
 	}
 
 	if (count) {
@@ -1910,7 +1910,7 @@ static int qlcnic_83xx_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring,
 			break;
 		default:
 			dev_info(&adapter->pdev->dev,
-				 "Unknown opcode: 0x%x\n", opcode);
+				 "Unkyeswn opcode: 0x%x\n", opcode);
 			goto skip;
 		}
 
@@ -1938,7 +1938,7 @@ skip:
 					      &rds_ring->free_list);
 			spin_unlock(&rds_ring->lock);
 		}
-		qlcnic_post_rx_buffers_nodb(adapter, rds_ring, ring);
+		qlcnic_post_rx_buffers_yesdb(adapter, rds_ring, ring);
 	}
 	if (count) {
 		sds_ring->consumer = consumer;

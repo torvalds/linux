@@ -65,7 +65,7 @@ static void usb2_clock_sel_disable(struct clk_hw *hw)
 
 /*
  * This module seems a mux, but this driver assumes a gate because
- * ehci/ohci platform drivers don't support clk_set_parent() for now.
+ * ehci/ohci platform drivers don't support clk_set_parent() for yesw.
  * If this driver acts as a gate, ehci/ohci-platform drivers don't need
  * any modification.
  */
@@ -104,7 +104,7 @@ static int rcar_usb2_clock_sel_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct usb2_clock_sel_priv *priv = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(dev->of_node);
+	of_clk_del_provider(dev->of_yesde);
 	clk_hw_unregister(&priv->hw);
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
@@ -115,7 +115,7 @@ static int rcar_usb2_clock_sel_remove(struct platform_device *pdev)
 static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct usb2_clock_sel_priv *priv;
 	struct clk *clk;
 	struct clk_init_data init;

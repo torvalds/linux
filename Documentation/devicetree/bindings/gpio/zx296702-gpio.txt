@@ -4,8 +4,8 @@ Required properties:
 - compatible : "zte,zx296702-gpio"
 - #gpio-cells : Should be two. The first cell is the pin number and the
   second cell is used to specify optional parameters:
-  - bit 0 specifies polarity (0 for normal, 1 for inverted)
-- gpio-controller : Marks the device node as a GPIO controller.
+  - bit 0 specifies polarity (0 for yesrmal, 1 for inverted)
+- gpio-controller : Marks the device yesde as a GPIO controller.
 - interrupts : Interrupt mapping for GPIO IRQ.
 - gpio-ranges : Interaction with the PINCTRL subsystem.
 

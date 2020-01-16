@@ -14,8 +14,8 @@
 	.extern __flush_cache_all
 
 	.text
-	.set noreorder
-	.set noat
+	.set yesreorder
+	.set yesat
 	.align	5
 
 
@@ -55,7 +55,7 @@
 	la	t1, __flush_cache_all
 	lw	t0, 0(t1)
 	jalr	t0
-	 nop
+	 yesp
 
 	/* Now set up the scratch registers so the boot rom will
 	 * return to this point upon wakeup.
@@ -74,14 +74,14 @@
 	sync
 	sw	zero, 0x007c(t3)	/* sys_sleep */
 	sync
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 .endm
 
 /* sleep code for Au1000/Au1100/Au1500 memory controller type */
@@ -135,7 +135,7 @@ LEAF(alchemy_sleep_au1550)
 2:	lw	t1, 0x0850(a0)		/* mem_sdstat */
 	and	t2, t1, t0
 	beq	t2, zero, 2b
-	 nop
+	 yesp
 
 	/* disable SDRAM clocks */
 	lui	t0, 0xcfff
@@ -208,7 +208,7 @@ LEAF(alchemy_sleep_au1300)
 3:	lw	t1, 0x0850(a0)		/* mem_sdstat */
 	and	t2, t1, t0
 	bne	t2, t0, 3b
-	 nop
+	 yesp
 
 	/* disable SDRAM clocks */
 	li	t0, ~(3<<28)
@@ -240,7 +240,7 @@ LEAF(alchemy_sleep_wakeup)
 	 * the write-only Config[OD] bit and set it back to one...
 	 */
 	jal	au1x00_fixup_config_od
-	 nop
+	 yesp
 	lw	$1, PT_R1(sp)
 	lw	$2, PT_R2(sp)
 	lw	$3, PT_R3(sp)

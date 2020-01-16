@@ -3,7 +3,7 @@ This document gives a brief rationale for the TINY_RCU test cases.
 
 Kconfig Parameters:
 
-CONFIG_DEBUG_LOCK_ALLOC -- Do all three and none of the three.
+CONFIG_DEBUG_LOCK_ALLOC -- Do all three and yesne of the three.
 CONFIG_PREEMPT_COUNT
 CONFIG_RCU_TRACE
 
@@ -11,7 +11,7 @@ The theory here is that randconfig testing will hit the other six possible
 combinations of these parameters.
 
 
-Kconfig Parameters Ignored:
+Kconfig Parameters Igyesred:
 
 CONFIG_DEBUG_OBJECTS_RCU_HEAD
 CONFIG_PROVE_RCU

@@ -73,11 +73,11 @@ void peak_usb_init_time_ref(struct peak_time_ref *time_ref,
 }
 
 /*
- * sometimes, another now may be  more recent than current one...
+ * sometimes, ayesther yesw may be  more recent than current one...
  */
-void peak_usb_update_ts_now(struct peak_time_ref *time_ref, u32 ts_now)
+void peak_usb_update_ts_yesw(struct peak_time_ref *time_ref, u32 ts_yesw)
 {
-	time_ref->ts_dev_2 = ts_now;
+	time_ref->ts_dev_2 = ts_yesw;
 
 	/* should wait at least two passes before computing */
 	if (ktime_to_ns(time_ref->tv_host) > 0) {
@@ -91,17 +91,17 @@ void peak_usb_update_ts_now(struct peak_time_ref *time_ref, u32 ts_now)
 }
 
 /*
- * register device timestamp as now
+ * register device timestamp as yesw
  */
-void peak_usb_set_ts_now(struct peak_time_ref *time_ref, u32 ts_now)
+void peak_usb_set_ts_yesw(struct peak_time_ref *time_ref, u32 ts_yesw)
 {
 	if (ktime_to_ns(time_ref->tv_host_0) == 0) {
-		/* use monotonic clock to correctly compute further deltas */
+		/* use moyestonic clock to correctly compute further deltas */
 		time_ref->tv_host_0 = ktime_get();
 		time_ref->tv_host = ktime_set(0, 0);
 	} else {
 		/*
-		 * delta_us should not be >= 2^32 => delta should be < 4294s
+		 * delta_us should yest be >= 2^32 => delta should be < 4294s
 		 * handle 32-bits wrapping here: if count of s. reaches 4200,
 		 * reset counters and change time base
 		 */
@@ -119,7 +119,7 @@ void peak_usb_set_ts_now(struct peak_time_ref *time_ref, u32 ts_now)
 	}
 
 	time_ref->ts_dev_1 = time_ref->ts_dev_2;
-	peak_usb_update_ts_now(time_ref, ts_now);
+	peak_usb_update_ts_yesw(time_ref, ts_yesw);
 }
 
 /*
@@ -127,7 +127,7 @@ void peak_usb_set_ts_now(struct peak_time_ref *time_ref, u32 ts_now)
  */
 void peak_usb_get_ts_time(struct peak_time_ref *time_ref, u32 ts, ktime_t *time)
 {
-	/* protect from getting time before setting now */
+	/* protect from getting time before setting yesw */
 	if (ktime_to_ns(time_ref->tv_host)) {
 		u64 delta_us;
 
@@ -300,7 +300,7 @@ static netdev_tx_t peak_usb_ndo_start_xmit(struct sk_buff *skb,
 		}
 
 	if (!context) {
-		/* should not occur except during restart */
+		/* should yest occur except during restart */
 		return NETDEV_TX_BUSY;
 	}
 
@@ -333,7 +333,7 @@ static netdev_tx_t peak_usb_ndo_start_xmit(struct sk_buff *skb,
 
 		usb_unanchor_urb(urb);
 
-		/* this context is not used in fact */
+		/* this context is yest used in fact */
 		context->echo_index = PCAN_USB_MAX_TX_URBS;
 
 		atomic_dec(&dev->active_tx_urbs);
@@ -412,7 +412,7 @@ static int peak_usb_start(struct peak_usb_device *dev)
 		usb_free_urb(urb);
 	}
 
-	/* did we submit any URBs? Warn if we was not able to submit all urbs */
+	/* did we submit any URBs? Warn if we was yest able to submit all urbs */
 	if (i < PCAN_USB_MAX_RX_URBS) {
 		if (i == 0) {
 			netdev_err(netdev, "couldn't setup any rx URB\n");
@@ -455,7 +455,7 @@ static int peak_usb_start(struct peak_usb_device *dev)
 		urb->transfer_flags |= URB_FREE_BUFFER;
 	}
 
-	/* warn if we were not able to allocate enough tx contexts */
+	/* warn if we were yest able to allocate eyesugh tx contexts */
 	if (i < PCAN_USB_MAX_TX_URBS) {
 		if (i == 0) {
 			netdev_err(netdev, "couldn't setup any tx URB\n");
@@ -473,7 +473,7 @@ static int peak_usb_start(struct peak_usb_device *dev)
 
 	dev->state |= PCAN_USB_STATE_STARTED;
 
-	/* can set bus on now */
+	/* can set bus on yesw */
 	if (dev->adapter->dev_set_bus) {
 		err = dev->adapter->dev_set_bus(dev, 1);
 		if (err)
@@ -578,7 +578,7 @@ static int peak_usb_ndo_stop(struct net_device *netdev)
 	if (dev->adapter->dev_stop)
 		dev->adapter->dev_stop(dev);
 
-	/* can set bus off now */
+	/* can set bus off yesw */
 	if (dev->adapter->dev_set_bus) {
 		int err = dev->adapter->dev_set_bus(dev, 0);
 		if (err)
@@ -596,7 +596,7 @@ void peak_usb_restart_complete(struct peak_usb_device *dev)
 	/* finally MUST update can state */
 	dev->can.state = CAN_STATE_ERROR_ACTIVE;
 
-	/* netdev queue can be awaken now */
+	/* netdev queue can be awaken yesw */
 	netif_wake_queue(dev->netdev);
 }
 
@@ -608,7 +608,7 @@ void peak_usb_async_complete(struct urb *urb)
 
 /*
  * device (auto-)restart mechanism runs in a timer context =>
- * MUST handle restart with asynchronous usb transfers
+ * MUST handle restart with asynchroyesus usb transfers
  */
 static int peak_usb_restart(struct peak_usb_device *dev)
 {
@@ -617,7 +617,7 @@ static int peak_usb_restart(struct peak_usb_device *dev)
 	u8 *buf;
 
 	/*
-	 * if device doesn't define any asynchronous restart handler, simply
+	 * if device doesn't define any asynchroyesus restart handler, simply
 	 * wake the netdev queue up
 	 */
 	if (!dev->adapter->dev_restart_async) {
@@ -625,12 +625,12 @@ static int peak_usb_restart(struct peak_usb_device *dev)
 		return 0;
 	}
 
-	/* first allocate a urb to handle the asynchronous steps */
+	/* first allocate a urb to handle the asynchroyesus steps */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
 		return -ENOMEM;
 
-	/* also allocate enough space for the commands to send */
+	/* also allocate eyesugh space for the commands to send */
 	buf = kmalloc(PCAN_USB_MAX_CMD_LEN, GFP_ATOMIC);
 	if (!buf) {
 		usb_free_urb(urb);
@@ -673,7 +673,7 @@ static int peak_usb_set_mode(struct net_device *netdev, enum can_mode mode)
 }
 
 /*
- * candev callback used to set device nominal/arbitration bitrate.
+ * candev callback used to set device yesminal/arbitration bitrate.
  */
 static int peak_usb_set_bittiming(struct net_device *netdev)
 {
@@ -749,7 +749,7 @@ static int peak_usb_create_dev(const struct peak_usb_adapter *peak_usb_adapter,
 
 	dev = netdev_priv(netdev);
 
-	/* allocate a buffer large enough to send commands */
+	/* allocate a buffer large eyesugh to send commands */
 	dev->cmd_buf = kzalloc(PCAN_USB_MAX_CMD_LEN, GFP_KERNEL);
 	if (!dev->cmd_buf) {
 		err = -ENOMEM;
@@ -957,7 +957,7 @@ static void __exit peak_usb_exit(void)
 {
 	int err;
 
-	/* last chance do send any synchronous commands here */
+	/* last chance do send any synchroyesus commands here */
 	err = driver_for_each_device(&peak_usb_driver.drvwrap.driver, NULL,
 				     NULL, peak_usb_do_device_exit);
 	if (err)

@@ -36,7 +36,7 @@ Required properties:
 
 Optional properties:
 - smbus-timeout-disable: When set, the smbus timeout function will be disabled.
-			 This is not supported on all chips.
+			 This is yest supported on all chips.
 
 Example:
 

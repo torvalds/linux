@@ -6,30 +6,30 @@
 #ifndef	__XFS_INODE_H__
 #define	__XFS_INODE_H__
 
-#include "xfs_inode_buf.h"
-#include "xfs_inode_fork.h"
+#include "xfs_iyesde_buf.h"
+#include "xfs_iyesde_fork.h"
 
 /*
- * Kernel only inode definitions
+ * Kernel only iyesde definitions
  */
-struct xfs_dinode;
-struct xfs_inode;
+struct xfs_diyesde;
+struct xfs_iyesde;
 struct xfs_buf;
 struct xfs_bmbt_irec;
-struct xfs_inode_log_item;
+struct xfs_iyesde_log_item;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_dquot;
 
-typedef struct xfs_inode {
-	/* Inode linking and identification information. */
+typedef struct xfs_iyesde {
+	/* Iyesde linking and identification information. */
 	struct xfs_mount	*i_mount;	/* fs mount struct ptr */
 	struct xfs_dquot	*i_udquot;	/* user dquot */
 	struct xfs_dquot	*i_gdquot;	/* group dquot */
 	struct xfs_dquot	*i_pdquot;	/* project dquot */
 
-	/* Inode location stuff */
-	xfs_ino_t		i_ino;		/* inode number (agno/agino)*/
+	/* Iyesde location stuff */
+	xfs_iyes_t		i_iyes;		/* iyesde number (agyes/agiyes)*/
 	struct xfs_imap		i_imap;		/* location for xfs_imap() */
 
 	/* Extent information. */
@@ -38,55 +38,55 @@ typedef struct xfs_inode {
 	struct xfs_ifork	i_df;		/* data fork */
 
 	/* Transaction and locking information. */
-	struct xfs_inode_log_item *i_itemp;	/* logging information */
-	mrlock_t		i_lock;		/* inode lock */
-	mrlock_t		i_mmaplock;	/* inode mmap IO lock */
-	atomic_t		i_pincount;	/* inode pin count */
+	struct xfs_iyesde_log_item *i_itemp;	/* logging information */
+	mrlock_t		i_lock;		/* iyesde lock */
+	mrlock_t		i_mmaplock;	/* iyesde mmap IO lock */
+	atomic_t		i_pincount;	/* iyesde pin count */
 
 	/*
-	 * Bitsets of inode metadata that have been checked and/or are sick.
+	 * Bitsets of iyesde metadata that have been checked and/or are sick.
 	 * Callers must hold i_flags_lock before accessing this field.
 	 */
 	uint16_t		i_checked;
 	uint16_t		i_sick;
 
-	spinlock_t		i_flags_lock;	/* inode i_flags lock */
+	spinlock_t		i_flags_lock;	/* iyesde i_flags lock */
 	/* Miscellaneous state. */
 	unsigned long		i_flags;	/* see defined flags below */
 	uint64_t		i_delayed_blks;	/* count of delay alloc blks */
 
-	struct xfs_icdinode	i_d;		/* most of ondisk inode */
+	struct xfs_icdiyesde	i_d;		/* most of ondisk iyesde */
 
 	xfs_extnum_t		i_cnextents;	/* # of extents in cow fork */
 	unsigned int		i_cformat;	/* format of cow fork */
 
-	/* VFS inode */
-	struct inode		i_vnode;	/* embedded VFS inode */
+	/* VFS iyesde */
+	struct iyesde		i_vyesde;	/* embedded VFS iyesde */
 
 	/* pending io completions */
 	spinlock_t		i_ioend_lock;
 	struct work_struct	i_ioend_work;
 	struct list_head	i_ioend_list;
-} xfs_inode_t;
+} xfs_iyesde_t;
 
-/* Convert from vfs inode to xfs inode */
-static inline struct xfs_inode *XFS_I(struct inode *inode)
+/* Convert from vfs iyesde to xfs iyesde */
+static inline struct xfs_iyesde *XFS_I(struct iyesde *iyesde)
 {
-	return container_of(inode, struct xfs_inode, i_vnode);
+	return container_of(iyesde, struct xfs_iyesde, i_vyesde);
 }
 
-/* convert from xfs inode to vfs inode */
-static inline struct inode *VFS_I(struct xfs_inode *ip)
+/* convert from xfs iyesde to vfs iyesde */
+static inline struct iyesde *VFS_I(struct xfs_iyesde *ip)
 {
-	return &ip->i_vnode;
+	return &ip->i_vyesde;
 }
 
 /*
  * For regular files we only update the on-disk filesize when actually
- * writing data back to disk.  Until then only the copy in the VFS inode
+ * writing data back to disk.  Until then only the copy in the VFS iyesde
  * is uptodate.
  */
-static inline xfs_fsize_t XFS_ISIZE(struct xfs_inode *ip)
+static inline xfs_fsize_t XFS_ISIZE(struct xfs_iyesde *ip)
 {
 	if (S_ISREG(VFS_I(ip)->i_mode))
 		return i_size_read(VFS_I(ip));
@@ -94,11 +94,11 @@ static inline xfs_fsize_t XFS_ISIZE(struct xfs_inode *ip)
 }
 
 /*
- * If this I/O goes past the on-disk inode size update it unless it would
- * be past the current in-core inode size.
+ * If this I/O goes past the on-disk iyesde size update it unless it would
+ * be past the current in-core iyesde size.
  */
 static inline xfs_fsize_t
-xfs_new_eof(struct xfs_inode *ip, xfs_fsize_t new_size)
+xfs_new_eof(struct xfs_iyesde *ip, xfs_fsize_t new_size)
 {
 	xfs_fsize_t i_size = i_size_read(VFS_I(ip));
 
@@ -111,13 +111,13 @@ xfs_new_eof(struct xfs_inode *ip, xfs_fsize_t new_size)
  * i_flags helper functions
  */
 static inline void
-__xfs_iflags_set(xfs_inode_t *ip, unsigned short flags)
+__xfs_iflags_set(xfs_iyesde_t *ip, unsigned short flags)
 {
 	ip->i_flags |= flags;
 }
 
 static inline void
-xfs_iflags_set(xfs_inode_t *ip, unsigned short flags)
+xfs_iflags_set(xfs_iyesde_t *ip, unsigned short flags)
 {
 	spin_lock(&ip->i_flags_lock);
 	__xfs_iflags_set(ip, flags);
@@ -125,7 +125,7 @@ xfs_iflags_set(xfs_inode_t *ip, unsigned short flags)
 }
 
 static inline void
-xfs_iflags_clear(xfs_inode_t *ip, unsigned short flags)
+xfs_iflags_clear(xfs_iyesde_t *ip, unsigned short flags)
 {
 	spin_lock(&ip->i_flags_lock);
 	ip->i_flags &= ~flags;
@@ -133,13 +133,13 @@ xfs_iflags_clear(xfs_inode_t *ip, unsigned short flags)
 }
 
 static inline int
-__xfs_iflags_test(xfs_inode_t *ip, unsigned short flags)
+__xfs_iflags_test(xfs_iyesde_t *ip, unsigned short flags)
 {
 	return (ip->i_flags & flags);
 }
 
 static inline int
-xfs_iflags_test(xfs_inode_t *ip, unsigned short flags)
+xfs_iflags_test(xfs_iyesde_t *ip, unsigned short flags)
 {
 	int ret;
 	spin_lock(&ip->i_flags_lock);
@@ -149,7 +149,7 @@ xfs_iflags_test(xfs_inode_t *ip, unsigned short flags)
 }
 
 static inline int
-xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
+xfs_iflags_test_and_clear(xfs_iyesde_t *ip, unsigned short flags)
 {
 	int ret;
 
@@ -162,7 +162,7 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
 }
 
 static inline int
-xfs_iflags_test_and_set(xfs_inode_t *ip, unsigned short flags)
+xfs_iflags_test_and_set(xfs_iyesde_t *ip, unsigned short flags)
 {
 	int ret;
 
@@ -175,7 +175,7 @@ xfs_iflags_test_and_set(xfs_inode_t *ip, unsigned short flags)
 }
 
 static inline prid_t
-xfs_get_initial_prid(struct xfs_inode *dp)
+xfs_get_initial_prid(struct xfs_iyesde *dp)
 {
 	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
 		return dp->i_d.di_projid;
@@ -183,54 +183,54 @@ xfs_get_initial_prid(struct xfs_inode *dp)
 	return XFS_PROJID_DEFAULT;
 }
 
-static inline bool xfs_is_reflink_inode(struct xfs_inode *ip)
+static inline bool xfs_is_reflink_iyesde(struct xfs_iyesde *ip)
 {
 	return ip->i_d.di_flags2 & XFS_DIFLAG2_REFLINK;
 }
 
 /*
- * Check if an inode has any data in the COW fork.  This might be often false
- * even for inodes with the reflink flag when there is no pending COW operation.
+ * Check if an iyesde has any data in the COW fork.  This might be often false
+ * even for iyesdes with the reflink flag when there is yes pending COW operation.
  */
-static inline bool xfs_inode_has_cow_data(struct xfs_inode *ip)
+static inline bool xfs_iyesde_has_cow_data(struct xfs_iyesde *ip)
 {
 	return ip->i_cowfp && ip->i_cowfp->if_bytes;
 }
 
 /*
- * Return the buftarg used for data allocations on a given inode.
+ * Return the buftarg used for data allocations on a given iyesde.
  */
-#define xfs_inode_buftarg(ip) \
+#define xfs_iyesde_buftarg(ip) \
 	(XFS_IS_REALTIME_INODE(ip) ? \
 		(ip)->i_mount->m_rtdev_targp : (ip)->i_mount->m_ddev_targp)
 
 /*
- * In-core inode flags.
+ * In-core iyesde flags.
  */
-#define XFS_IRECLAIM		(1 << 0) /* started reclaiming this inode */
-#define XFS_ISTALE		(1 << 1) /* inode has been staled */
-#define XFS_IRECLAIMABLE	(1 << 2) /* inode can be reclaimed */
-#define __XFS_INEW_BIT		3	 /* inode has just been allocated */
+#define XFS_IRECLAIM		(1 << 0) /* started reclaiming this iyesde */
+#define XFS_ISTALE		(1 << 1) /* iyesde has been staled */
+#define XFS_IRECLAIMABLE	(1 << 2) /* iyesde can be reclaimed */
+#define __XFS_INEW_BIT		3	 /* iyesde has just been allocated */
 #define XFS_INEW		(1 << __XFS_INEW_BIT)
 #define XFS_ITRUNCATED		(1 << 5) /* truncated down so flush-on-close */
 #define XFS_IDIRTY_RELEASE	(1 << 6) /* dirty release already seen */
-#define __XFS_IFLOCK_BIT	7	 /* inode is being flushed right now */
+#define __XFS_IFLOCK_BIT	7	 /* iyesde is being flushed right yesw */
 #define XFS_IFLOCK		(1 << __XFS_IFLOCK_BIT)
 #define __XFS_IPINNED_BIT	8	 /* wakeup key for zero pin count */
 #define XFS_IPINNED		(1 << __XFS_IPINNED_BIT)
-#define XFS_IDONTCACHE		(1 << 9) /* don't cache the inode long term */
+#define XFS_IDONTCACHE		(1 << 9) /* don't cache the iyesde long term */
 #define XFS_IEOFBLOCKS		(1 << 10)/* has the preallocblocks tag set */
 /*
- * If this unlinked inode is in the middle of recovery, don't let drop_inode
- * truncate and free the inode.  This can happen if we iget the inode during
- * log recovery to replay a bmap operation on the inode.
+ * If this unlinked iyesde is in the middle of recovery, don't let drop_iyesde
+ * truncate and free the iyesde.  This can happen if we iget the iyesde during
+ * log recovery to replay a bmap operation on the iyesde.
  */
 #define XFS_IRECOVERY		(1 << 11)
 #define XFS_ICOWBLOCKS		(1 << 12)/* has the cowblocks tag set */
 
 /*
- * Per-lifetime flags need to be reset when re-using a reclaimable inode during
- * inode lookup. This prevents unintended behaviour on the new inode from
+ * Per-lifetime flags need to be reset when re-using a reclaimable iyesde during
+ * iyesde lookup. This prevents unintended behaviour on the new iyesde from
  * ocurring.
  */
 #define XFS_IRECLAIM_RESET_FLAGS	\
@@ -238,28 +238,28 @@ static inline bool xfs_inode_has_cow_data(struct xfs_inode *ip)
 	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED)
 
 /*
- * Synchronize processes attempting to flush the in-core inode back to disk.
+ * Synchronize processes attempting to flush the in-core iyesde back to disk.
  */
 
-static inline int xfs_isiflocked(struct xfs_inode *ip)
+static inline int xfs_isiflocked(struct xfs_iyesde *ip)
 {
 	return xfs_iflags_test(ip, XFS_IFLOCK);
 }
 
-extern void __xfs_iflock(struct xfs_inode *ip);
+extern void __xfs_iflock(struct xfs_iyesde *ip);
 
-static inline int xfs_iflock_nowait(struct xfs_inode *ip)
+static inline int xfs_iflock_yeswait(struct xfs_iyesde *ip)
 {
 	return !xfs_iflags_test_and_set(ip, XFS_IFLOCK);
 }
 
-static inline void xfs_iflock(struct xfs_inode *ip)
+static inline void xfs_iflock(struct xfs_iyesde *ip)
 {
-	if (!xfs_iflock_nowait(ip))
+	if (!xfs_iflock_yeswait(ip))
 		__xfs_iflock(ip);
 }
 
-static inline void xfs_ifunlock(struct xfs_inode *ip)
+static inline void xfs_ifunlock(struct xfs_iyesde *ip)
 {
 	ASSERT(xfs_isiflocked(ip));
 	xfs_iflags_clear(ip, XFS_IFLOCK);
@@ -268,9 +268,9 @@ static inline void xfs_ifunlock(struct xfs_inode *ip)
 }
 
 /*
- * Flags for inode locking.
+ * Flags for iyesde locking.
  * Bit ranges:	1<<1  - 1<<16-1 -- iolock/ilock modes (bitfield)
- *		1<<16 - 1<<32-1 -- lockdep annotation (integers)
+ *		1<<16 - 1<<32-1 -- lockdep anyestation (integers)
  */
 #define	XFS_IOLOCK_EXCL		(1<<0)
 #define	XFS_IOLOCK_SHARED	(1<<1)
@@ -293,25 +293,25 @@ static inline void xfs_ifunlock(struct xfs_inode *ip)
 
 
 /*
- * Flags for lockdep annotations.
+ * Flags for lockdep anyestations.
  *
  * XFS_LOCK_PARENT - for directory operations that require locking a
- * parent directory inode and a child entry inode. IOLOCK requires nesting,
- * MMAPLOCK does not support this class, ILOCK requires a single subclass
+ * parent directory iyesde and a child entry iyesde. IOLOCK requires nesting,
+ * MMAPLOCK does yest support this class, ILOCK requires a single subclass
  * to differentiate parent from child.
  *
  * XFS_LOCK_RTBITMAP/XFS_LOCK_RTSUM - the realtime device bitmap and summary
- * inodes do not participate in the normal lock order, and thus have their
+ * iyesdes do yest participate in the yesrmal lock order, and thus have their
  * own subclasses.
  *
- * XFS_LOCK_INUMORDER - for locking several inodes at the some time
- * with xfs_lock_inodes().  This flag is used as the starting subclass
+ * XFS_LOCK_INUMORDER - for locking several iyesdes at the some time
+ * with xfs_lock_iyesdes().  This flag is used as the starting subclass
  * and each subsequent lock acquired will increment the subclass by one.
  * However, MAX_LOCKDEP_SUBCLASSES == 8, which means we are greatly
  * limited to the subclasses we can represent via nesting. We need at least
- * 5 inodes nest depth for the ILOCK through rename, and we also have to support
+ * 5 iyesdes nest depth for the ILOCK through rename, and we also have to support
  * XFS_ILOCK_PARENT, which gives 6 subclasses. Then we have XFS_ILOCK_RTBITMAP
- * and XFS_ILOCK_RTSUM, which are another 2 unique subclasses, so that's all
+ * and XFS_ILOCK_RTSUM, which are ayesther 2 unique subclasses, so that's all
  * 8 subclasses supported by lockdep.
  *
  * This also means we have to number the sub-classes in the lowest bits of
@@ -337,9 +337,9 @@ static inline void xfs_ifunlock(struct xfs_inode *ip)
  *
  * ILOCK values
  * 0-4		subclass values
- * 5		PARENT subclass (not nestable)
- * 6		RTBITMAP subclass (not nestable)
- * 7		RTSUM subclass (not nestable)
+ * 5		PARENT subclass (yest nestable)
+ * 6		RTBITMAP subclass (yest nestable)
+ * 7		RTSUM subclass (yest nestable)
  * 
  */
 #define XFS_IOLOCK_SHIFT		16
@@ -374,7 +374,7 @@ static inline void xfs_ifunlock(struct xfs_inode *ip)
 
 /*
  * Layouts are broken in the BREAK_WRITE case to ensure that
- * layout-holders do not collide with local writes. Additionally,
+ * layout-holders do yest collide with local writes. Additionally,
  * layouts are broken in the BREAK_UNMAP case to make sure the
  * layout-holder has a consistent view of the file's extent map. While
  * BREAK_WRITE breaks can be satisfied by recalling FL_LAYOUT leases,
@@ -395,55 +395,55 @@ enum layout_break_reason {
 	(((pip)->i_mount->m_flags & XFS_MOUNT_GRPID) || \
 	 (VFS_I(pip)->i_mode & S_ISGID))
 
-int		xfs_release(struct xfs_inode *ip);
-void		xfs_inactive(struct xfs_inode *ip);
-int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
-			   struct xfs_inode **ipp, struct xfs_name *ci_name);
-int		xfs_create(struct xfs_inode *dp, struct xfs_name *name,
-			   umode_t mode, dev_t rdev, struct xfs_inode **ipp);
-int		xfs_create_tmpfile(struct xfs_inode *dp, umode_t mode,
-			   struct xfs_inode **ipp);
-int		xfs_remove(struct xfs_inode *dp, struct xfs_name *name,
-			   struct xfs_inode *ip);
-int		xfs_link(struct xfs_inode *tdp, struct xfs_inode *sip,
+int		xfs_release(struct xfs_iyesde *ip);
+void		xfs_inactive(struct xfs_iyesde *ip);
+int		xfs_lookup(struct xfs_iyesde *dp, struct xfs_name *name,
+			   struct xfs_iyesde **ipp, struct xfs_name *ci_name);
+int		xfs_create(struct xfs_iyesde *dp, struct xfs_name *name,
+			   umode_t mode, dev_t rdev, struct xfs_iyesde **ipp);
+int		xfs_create_tmpfile(struct xfs_iyesde *dp, umode_t mode,
+			   struct xfs_iyesde **ipp);
+int		xfs_remove(struct xfs_iyesde *dp, struct xfs_name *name,
+			   struct xfs_iyesde *ip);
+int		xfs_link(struct xfs_iyesde *tdp, struct xfs_iyesde *sip,
 			 struct xfs_name *target_name);
-int		xfs_rename(struct xfs_inode *src_dp, struct xfs_name *src_name,
-			   struct xfs_inode *src_ip, struct xfs_inode *target_dp,
+int		xfs_rename(struct xfs_iyesde *src_dp, struct xfs_name *src_name,
+			   struct xfs_iyesde *src_ip, struct xfs_iyesde *target_dp,
 			   struct xfs_name *target_name,
-			   struct xfs_inode *target_ip, unsigned int flags);
+			   struct xfs_iyesde *target_ip, unsigned int flags);
 
-void		xfs_ilock(xfs_inode_t *, uint);
-int		xfs_ilock_nowait(xfs_inode_t *, uint);
-void		xfs_iunlock(xfs_inode_t *, uint);
-void		xfs_ilock_demote(xfs_inode_t *, uint);
-int		xfs_isilocked(xfs_inode_t *, uint);
-uint		xfs_ilock_data_map_shared(struct xfs_inode *);
-uint		xfs_ilock_attr_map_shared(struct xfs_inode *);
+void		xfs_ilock(xfs_iyesde_t *, uint);
+int		xfs_ilock_yeswait(xfs_iyesde_t *, uint);
+void		xfs_iunlock(xfs_iyesde_t *, uint);
+void		xfs_ilock_demote(xfs_iyesde_t *, uint);
+int		xfs_isilocked(xfs_iyesde_t *, uint);
+uint		xfs_ilock_data_map_shared(struct xfs_iyesde *);
+uint		xfs_ilock_attr_map_shared(struct xfs_iyesde *);
 
-uint		xfs_ip2xflags(struct xfs_inode *);
-int		xfs_ifree(struct xfs_trans *, struct xfs_inode *);
+uint		xfs_ip2xflags(struct xfs_iyesde *);
+int		xfs_ifree(struct xfs_trans *, struct xfs_iyesde *);
 int		xfs_itruncate_extents_flags(struct xfs_trans **,
-				struct xfs_inode *, int, xfs_fsize_t, int);
-void		xfs_iext_realloc(xfs_inode_t *, int, int);
+				struct xfs_iyesde *, int, xfs_fsize_t, int);
+void		xfs_iext_realloc(xfs_iyesde_t *, int, int);
 
-void		xfs_iunpin_wait(xfs_inode_t *);
+void		xfs_iunpin_wait(xfs_iyesde_t *);
 #define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
 
-int		xfs_iflush(struct xfs_inode *, struct xfs_buf **);
-void		xfs_lock_two_inodes(struct xfs_inode *ip0, uint ip0_mode,
-				struct xfs_inode *ip1, uint ip1_mode);
+int		xfs_iflush(struct xfs_iyesde *, struct xfs_buf **);
+void		xfs_lock_two_iyesdes(struct xfs_iyesde *ip0, uint ip0_mode,
+				struct xfs_iyesde *ip1, uint ip1_mode);
 
-xfs_extlen_t	xfs_get_extsz_hint(struct xfs_inode *ip);
-xfs_extlen_t	xfs_get_cowextsz_hint(struct xfs_inode *ip);
+xfs_extlen_t	xfs_get_extsz_hint(struct xfs_iyesde *ip);
+xfs_extlen_t	xfs_get_cowextsz_hint(struct xfs_iyesde *ip);
 
-int		xfs_dir_ialloc(struct xfs_trans **, struct xfs_inode *, umode_t,
+int		xfs_dir_ialloc(struct xfs_trans **, struct xfs_iyesde *, umode_t,
 			       xfs_nlink_t, dev_t, prid_t,
-			       struct xfs_inode **);
+			       struct xfs_iyesde **);
 
 static inline int
 xfs_itruncate_extents(
 	struct xfs_trans	**tpp,
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	int			whichfork,
 	xfs_fsize_t		new_size)
 {
@@ -458,45 +458,45 @@ enum xfs_prealloc_flags {
 	XFS_PREALLOC_INVISIBLE	= (1 << 4),
 };
 
-int	xfs_update_prealloc_flags(struct xfs_inode *ip,
+int	xfs_update_prealloc_flags(struct xfs_iyesde *ip,
 				  enum xfs_prealloc_flags flags);
-int	xfs_break_layouts(struct inode *inode, uint *iolock,
+int	xfs_break_layouts(struct iyesde *iyesde, uint *iolock,
 		enum layout_break_reason reason);
 
 /* from xfs_iops.c */
-extern void xfs_setup_inode(struct xfs_inode *ip);
-extern void xfs_setup_iops(struct xfs_inode *ip);
+extern void xfs_setup_iyesde(struct xfs_iyesde *ip);
+extern void xfs_setup_iops(struct xfs_iyesde *ip);
 
 /*
- * When setting up a newly allocated inode, we need to call
- * xfs_finish_inode_setup() once the inode is fully instantiated at
- * the VFS level to prevent the rest of the world seeing the inode
+ * When setting up a newly allocated iyesde, we need to call
+ * xfs_finish_iyesde_setup() once the iyesde is fully instantiated at
+ * the VFS level to prevent the rest of the world seeing the iyesde
  * before we've completed instantiation. Otherwise we can do it
- * the moment the inode lookup is complete.
+ * the moment the iyesde lookup is complete.
  */
-static inline void xfs_finish_inode_setup(struct xfs_inode *ip)
+static inline void xfs_finish_iyesde_setup(struct xfs_iyesde *ip)
 {
 	xfs_iflags_clear(ip, XFS_INEW);
 	barrier();
-	unlock_new_inode(VFS_I(ip));
+	unlock_new_iyesde(VFS_I(ip));
 	wake_up_bit(&ip->i_flags, __XFS_INEW_BIT);
 }
 
-static inline void xfs_setup_existing_inode(struct xfs_inode *ip)
+static inline void xfs_setup_existing_iyesde(struct xfs_iyesde *ip)
 {
-	xfs_setup_inode(ip);
+	xfs_setup_iyesde(ip);
 	xfs_setup_iops(ip);
-	xfs_finish_inode_setup(ip);
+	xfs_finish_iyesde_setup(ip);
 }
 
-void xfs_irele(struct xfs_inode *ip);
+void xfs_irele(struct xfs_iyesde *ip);
 
-extern struct kmem_zone	*xfs_inode_zone;
+extern struct kmem_zone	*xfs_iyesde_zone;
 
 /* The default CoW extent size hint. */
 #define XFS_DEFAULT_COWEXTSZ_HINT 32
 
-bool xfs_inode_verify_forks(struct xfs_inode *ip);
+bool xfs_iyesde_verify_forks(struct xfs_iyesde *ip);
 
 int xfs_iunlink_init(struct xfs_perag *pag);
 void xfs_iunlink_destroy(struct xfs_perag *pag);

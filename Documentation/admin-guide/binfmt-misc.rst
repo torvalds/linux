@@ -23,14 +23,14 @@ Here is what the fields mean:
 
 - ``name``
    is an identifier string. A new /proc file will be created with this
-   ``name below /proc/sys/fs/binfmt_misc``; cannot contain slashes ``/`` for
+   ``name below /proc/sys/fs/binfmt_misc``; canyest contain slashes ``/`` for
    obvious reasons.
 - ``type``
    is the type of recognition. Give ``M`` for magic and ``E`` for extension.
 - ``offset``
    is the offset of the magic/mask in the file, counted in bytes. This
    defaults to 0 if you omit it (i.e. you write ``:name:type::magic...``).
-   Ignored when using filename extension matching.
+   Igyesred when using filename extension matching.
 - ``magic``
    is the byte sequence binfmt_misc is matching for. The magic string
    may contain hex-encoded characters like ``\x0a`` or ``\xA4``. Note that you
@@ -38,13 +38,13 @@ Here is what the fields mean:
    environment you might have to write ``\\x0a`` to prevent the shell from
    eating your ``\``.
    If you chose filename extension matching, this is the extension to be
-   recognised (without the ``.``, the ``\x0a`` specials are not allowed).
-   Extension    matching is case sensitive, and slashes ``/`` are not allowed!
+   recognised (without the ``.``, the ``\x0a`` specials are yest allowed).
+   Extension    matching is case sensitive, and slashes ``/`` are yest allowed!
 - ``mask``
    is an (optional, defaults to all 0xff) mask. You can mask out some
    bits from matching by supplying a string like magic and as long as magic.
    The mask is anded with the byte sequence of the file. Note that you must
-   escape any NUL bytes; parsing halts at the first one. Ignored when using
+   escape any NUL bytes; parsing halts at the first one. Igyesred when using
    filename extension matching.
 - ``interpreter``
    is the program that should be invoked with the binary as first
@@ -69,9 +69,9 @@ Here is what the fields mean:
             of the binary to the interpreter as an argument. When this flag is
             included, binfmt_misc will open the file for reading and pass its
             descriptor as an argument, instead of the full path, thus allowing
-            the interpreter to execute non-readable binaries. This feature
-            should be used with care - the interpreter has to be trusted not to
-            emit the contents of the non-readable binary.
+            the interpreter to execute yesn-readable binaries. This feature
+            should be used with care - the interpreter has to be trusted yest to
+            emit the contents of the yesn-readable binary.
       ``C`` - credentials
             Currently, the behavior of binfmt_misc is to calculate
             the credentials and security token of the new process according to
@@ -92,14 +92,14 @@ Here is what the fields mean:
 
 There are some restrictions:
 
- - the whole register string may not exceed 1920 characters
+ - the whole register string may yest exceed 1920 characters
  - the magic must reside in the first 128 bytes of the file, i.e.
    offset+size(magic) has to be less than 128
- - the interpreter string may not exceed 127 characters
+ - the interpreter string may yest exceed 127 characters
 
 To use binfmt_misc you have to mount it first. You can mount it with
-``mount -t binfmt_misc none /proc/sys/fs/binfmt_misc`` command, or you can add
-a line ``none  /proc/sys/fs/binfmt_misc binfmt_misc defaults 0 0`` to your
+``mount -t binfmt_misc yesne /proc/sys/fs/binfmt_misc`` command, or you can add
+a line ``yesne  /proc/sys/fs/binfmt_misc binfmt_misc defaults 0 0`` to your
 ``/etc/fstab`` so it auto mounts on boot.
 
 You may want to add the binary formats in one of your ``/etc/rc`` scripts during

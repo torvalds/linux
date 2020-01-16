@@ -246,7 +246,7 @@
 #define NAU8825_I2S_DF_PCM_AB	(3 << NAU8825_I2S_DF_SFT)
 
 /* I2S_PCM_CTRL2 (0x1d) */
-#define NAU8825_I2S_TRISTATE	(1 << 15) /* 0 - normal mode, 1 - Hi-Z output */
+#define NAU8825_I2S_TRISTATE	(1 << 15) /* 0 - yesrmal mode, 1 - Hi-Z output */
 #define NAU8825_I2S_LRC_DIV_SFT	12
 #define NAU8825_I2S_LRC_DIV_MASK	(0x3 << NAU8825_I2S_LRC_DIV_SFT)
 #define NAU8825_I2S_MS_SFT	3

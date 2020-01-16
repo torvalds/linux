@@ -46,7 +46,7 @@ GLOBAL_ENTRY(mca_handler_bhhook)
 	srlz.i
 	;;
 	ssm	psr.i
-	br.call.sptk.many rp=b6		// does not return ...
+	br.call.sptk.many rp=b6		// does yest return ...
 	;;
 	mov	ar.pfs=loc0
 	mov 	rp=loc1

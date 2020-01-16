@@ -8,7 +8,7 @@ Required properties:
 - reg: The base address of the APDMA register bank.
 
 - interrupts: A single interrupt specifier.
- One interrupt per dma-requests, or 8 if no dma-requests property is present
+ One interrupt per dma-requests, or 8 if yes dma-requests property is present
 
 - dma-requests: The number of DMA channels
 

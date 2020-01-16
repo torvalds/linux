@@ -24,7 +24,7 @@
 * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
 * solely responsible for determining the appropriateness of using and
 * distributing the Program and assumes all risks associated with its
-* exercise of rights under this Agreement, including but not limited to
+* exercise of rights under this Agreement, including but yest limited to
 * the risks and costs of program errors, damage to or loss of data,
 * programs or equipment, and unavailability or interruption of operations.
 *
@@ -38,7 +38,7 @@
 * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 *
 * You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
+* along with this program; if yest, write to the Free Software
 * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 *
 *
@@ -139,7 +139,7 @@ int smapi_query_DSP_cfg(SMAPI_DSP_SETTINGS * pSettings)
 	bRC = smapi_request(0x1802, 0x0000, 0, 0,
 		&usAX, &usBX, &usCX, &usDX, &usDI, &usSI);
 	if (bRC) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "smapi::smapi_query_DSP_cfg: Error: Could not get DSP Settings. Aborting.\n");
+		PRINTK_ERROR(KERN_ERR_MWAVE "smapi::smapi_query_DSP_cfg: Error: Could yest get DSP Settings. Aborting.\n");
 		return bRC;
 	}
 
@@ -169,7 +169,7 @@ int smapi_query_DSP_cfg(SMAPI_DSP_SETTINGS * pSettings)
 	bRC = smapi_request(0x1804, 0x0000, 0, 0,
 	   	&usAX, &usBX, &usCX, &usDX, &usDI, &usSI);
 	if (bRC) {
-		PRINTK_ERROR("smapi::smapi_query_DSP_cfg: Error: Could not get DSP modem settings. Aborting.\n");
+		PRINTK_ERROR("smapi::smapi_query_DSP_cfg: Error: Could yest get DSP modem settings. Aborting.\n");
 		return bRC;
 	} 
 
@@ -385,7 +385,7 @@ int smapi_set_DSP_cfg(void)
 			&usAX, &usBX, &usCX, &usDX, &usDI, &usSI);
 		if (bRC) goto exit_smapi_request_error;
 		/* bRC == 0 */
-		if ((usCX & 0xff) != 0xff) { /* IR port not disabled */
+		if ((usCX & 0xff) != 0xff) { /* IR port yest disabled */
 			if ((usCX & 0xff) == mwave_uart_irq) {
 #ifndef MWAVE_FUTZ_WITH_OTHER_DEVICES
 				PRINTK_ERROR(KERN_ERR_MWAVE
@@ -481,7 +481,7 @@ int smapi_set_DSP_cfg(void)
 		&usAX, &usBX, &usCX, &usDX, &usDI, &usSI);
 	if (bRC) goto exit_smapi_request_error;
 
-/* normal exit: */
+/* yesrmal exit: */
 	PRINTK_1(TRACE_SMAPI, "smapi::smapi_set_DSP_cfg exit\n");
 	return 0;
 

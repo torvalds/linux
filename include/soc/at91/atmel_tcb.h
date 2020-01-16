@@ -24,8 +24,8 @@
  * or triggering.  Those pins need to be set up for use with the TC block,
  * else they will be used as GPIOs or for a different controller.
  *
- * Although we expect each TC block to have a platform_device node, those
- * nodes are not what drivers bind to.  Instead, they ask for a specific
+ * Although we expect each TC block to have a platform_device yesde, those
+ * yesdes are yest what drivers bind to.  Instead, they ask for a specific
  * TC block, by number ... which is a common approach on systems with many
  * timers.  Then they use clk_get() and platform_get_irq() to get clock and
  * IRQ resources.
@@ -49,7 +49,7 @@ struct atmel_tcb_config {
  * @tcb_config: configuration data from SoC
  * @irq: irq for each of the three channels
  * @clk: internal clock source for each of the three channels
- * @node: list node, for tclib internal use
+ * @yesde: list yesde, for tclib internal use
  * @allocated: if already used, for tclib internal use
  *
  * On some platforms, each TC channel has its own clocks and IRQs,
@@ -68,7 +68,7 @@ struct atmel_tc {
 	int			irq[3];
 	struct clk		*clk[3];
 	struct clk		*slow_clk;
-	struct list_head	node;
+	struct list_head	yesde;
 	bool			allocated;
 };
 
@@ -114,9 +114,9 @@ extern const u8 atmel_tc_divisors[5];
  * Each TC block has three "channels", each with one counter and controls.
  *
  * Note that the semantics of ATMEL_TC_TIMER_CLOCKx (input clock selection
- * when it's not "external") is silicon-specific.  AT91 platforms use one
+ * when it's yest "external") is silicon-specific.  AT91 platforms use one
  * set of definitions; AVR32 platforms use a different set.  Don't hard-wire
- * such knowledge into your code, use the global "atmel_tc_divisors" ...
+ * such kyeswledge into your code, use the global "atmel_tc_divisors" ...
  * where index N is the divisor for clock N+1, else zero to indicate it uses
  * the 32 KiHz clock.
  *
@@ -125,7 +125,7 @@ extern const u8 atmel_tc_divisors[5];
  * both modes, behavior can be configured in many ways.
  *
  * Each timer has two I/O pins, TIOA and TIOB.  Waveform mode uses TIOA as a
- * PWM output, and TIOB as either another PWM or as a trigger.  Capture mode
+ * PWM output, and TIOB as either ayesther PWM or as a trigger.  Capture mode
  * uses them only as inputs.
  */
 #define ATMEL_TC_CHAN(idx)	((idx)*0x40)

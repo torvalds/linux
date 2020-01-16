@@ -62,7 +62,7 @@ static int ieee802154_resume(struct wpan_phy *wpan_phy)
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
 	int ret;
 
-	/* nothing to do if HW shouldn't run */
+	/* yesthing to do if HW shouldn't run */
 	if (!local->open_count)
 		goto wake_up;
 

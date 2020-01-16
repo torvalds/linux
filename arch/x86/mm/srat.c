@@ -7,7 +7,7 @@
  *
  * Called from acpi_numa_init while reading the SRAT and SLIT tables.
  * Assumes all memory regions belonging to a single proximity domain
- * are in one chunk. Holes between them will be included in the node.
+ * are in one chunk. Holes between them will be included in the yesde.
  */
 
 #include <linux/kernel.h>
@@ -27,7 +27,7 @@
 void __init
 acpi_numa_x2apic_affinity_init(struct acpi_srat_x2apic_cpu_affinity *pa)
 {
-	int pxm, node;
+	int pxm, yesde;
 	int apic_id;
 
 	if (srat_disabled())
@@ -41,32 +41,32 @@ acpi_numa_x2apic_affinity_init(struct acpi_srat_x2apic_cpu_affinity *pa)
 	pxm = pa->proximity_domain;
 	apic_id = pa->apic_id;
 	if (!apic->apic_id_valid(apic_id)) {
-		printk(KERN_INFO "SRAT: PXM %u -> X2APIC 0x%04x ignored\n",
+		printk(KERN_INFO "SRAT: PXM %u -> X2APIC 0x%04x igyesred\n",
 			 pxm, apic_id);
 		return;
 	}
-	node = acpi_map_pxm_to_node(pxm);
-	if (node < 0) {
+	yesde = acpi_map_pxm_to_yesde(pxm);
+	if (yesde < 0) {
 		printk(KERN_ERR "SRAT: Too many proximity domains %x\n", pxm);
 		bad_srat();
 		return;
 	}
 
 	if (apic_id >= MAX_LOCAL_APIC) {
-		printk(KERN_INFO "SRAT: PXM %u -> APIC 0x%04x -> Node %u skipped apicid that is too big\n", pxm, apic_id, node);
+		printk(KERN_INFO "SRAT: PXM %u -> APIC 0x%04x -> Node %u skipped apicid that is too big\n", pxm, apic_id, yesde);
 		return;
 	}
-	set_apicid_to_node(apic_id, node);
-	node_set(node, numa_nodes_parsed);
+	set_apicid_to_yesde(apic_id, yesde);
+	yesde_set(yesde, numa_yesdes_parsed);
 	printk(KERN_INFO "SRAT: PXM %u -> APIC 0x%04x -> Node %u\n",
-	       pxm, apic_id, node);
+	       pxm, apic_id, yesde);
 }
 
 /* Callback for Proximity Domain -> LAPIC mapping */
 void __init
 acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 {
-	int pxm, node;
+	int pxm, yesde;
 	int apic_id;
 
 	if (srat_disabled())
@@ -80,8 +80,8 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 	pxm = pa->proximity_domain_lo;
 	if (acpi_srat_revision >= 2)
 		pxm |= *((unsigned int*)pa->proximity_domain_hi) << 8;
-	node = acpi_map_pxm_to_node(pxm);
-	if (node < 0) {
+	yesde = acpi_map_pxm_to_yesde(pxm);
+	if (yesde < 0) {
 		printk(KERN_ERR "SRAT: Too many proximity domains %x\n", pxm);
 		bad_srat();
 		return;
@@ -93,14 +93,14 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 		apic_id = pa->apic_id;
 
 	if (apic_id >= MAX_LOCAL_APIC) {
-		printk(KERN_INFO "SRAT: PXM %u -> APIC 0x%02x -> Node %u skipped apicid that is too big\n", pxm, apic_id, node);
+		printk(KERN_INFO "SRAT: PXM %u -> APIC 0x%02x -> Node %u skipped apicid that is too big\n", pxm, apic_id, yesde);
 		return;
 	}
 
-	set_apicid_to_node(apic_id, node);
-	node_set(node, numa_nodes_parsed);
+	set_apicid_to_yesde(apic_id, yesde);
+	yesde_set(yesde, numa_yesdes_parsed);
 	printk(KERN_INFO "SRAT: PXM %u -> APIC 0x%02x -> Node %u\n",
-	       pxm, apic_id, node);
+	       pxm, apic_id, yesde);
 }
 
 int __init x86_acpi_numa_init(void)

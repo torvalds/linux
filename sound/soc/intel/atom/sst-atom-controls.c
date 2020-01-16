@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2013-14 Intel Corp
  *  Author: Omair Mohammed Abdullah <omair.m.abdullah@intel.com>
- *	Vinod Koul <vinod.koul@intel.com>
+ *	Viyesd Koul <viyesd.koul@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  *  In the dpcm driver modelling when a particular FE/BE/Mixer/Pipe is active
@@ -154,13 +154,13 @@ static int sst_slot_get(struct snd_kcontrol *kcontrol,
 	struct sst_enum *e = (void *)kcontrol->private_value;
 	struct snd_soc_component *c = snd_kcontrol_chip(kcontrol);
 	struct sst_data *drv = snd_soc_component_get_drvdata(c);
-	unsigned int ctl_no = e->reg;
+	unsigned int ctl_yes = e->reg;
 	unsigned int is_tx = e->tx;
 	unsigned int val, mux;
 	u8 *map = is_tx ? sst_ssp_rx_map : sst_ssp_tx_map;
 
 	mutex_lock(&drv->lock);
-	val = 1 << ctl_no;
+	val = 1 << ctl_yes;
 	/* search which slot/channel has this bit set - there should be only one */
 	for (mux = e->max; mux > 0;  mux--)
 		if (map[mux - 1] & val)
@@ -204,7 +204,7 @@ static int sst_check_and_send_slot_map(struct sst_data *drv, struct snd_kcontrol
  * slot/channel since there is only one control for each slot/channel.
  *
  * This means that whenever an enum is set, we need to clear the bit
- * for that kcontrol_no for all the interleaver OR deinterleaver registers
+ * for that kcontrol_yes for all the interleaver OR deinterleaver registers
  */
 static int sst_slot_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
@@ -213,15 +213,15 @@ static int sst_slot_put(struct snd_kcontrol *kcontrol,
 	struct sst_data *drv = snd_soc_component_get_drvdata(c);
 	struct sst_enum *e = (void *)kcontrol->private_value;
 	int i, ret = 0;
-	unsigned int ctl_no = e->reg;
+	unsigned int ctl_yes = e->reg;
 	unsigned int is_tx = e->tx;
-	unsigned int slot_channel_no;
+	unsigned int slot_channel_yes;
 	unsigned int val, mux;
 	u8 *map;
 
 	map = is_tx ? sst_ssp_rx_map : sst_ssp_tx_map;
 
-	val = 1 << ctl_no;
+	val = 1 << ctl_yes;
 	mux = ucontrol->value.enumerated.item[0];
 	if (mux > e->max - 1)
 		return -EINVAL;
@@ -232,7 +232,7 @@ static int sst_slot_put(struct snd_kcontrol *kcontrol,
 		map[i] &= ~val;
 
 	if (mux == 0) {
-		/* kctl set to 'none' and we reset the bits so send IPC */
+		/* kctl set to 'yesne' and we reset the bits so send IPC */
 		ret = sst_check_and_send_slot_map(drv, kcontrol);
 
 		mutex_unlock(&drv->lock);
@@ -240,12 +240,12 @@ static int sst_slot_put(struct snd_kcontrol *kcontrol,
 	}
 
 	/* offset by one to take "None" into account */
-	slot_channel_no = mux - 1;
-	map[slot_channel_no] |= val;
+	slot_channel_yes = mux - 1;
+	map[slot_channel_yes] |= val;
 
 	dev_dbg(c->dev, "%s %s map = %#x\n",
 			is_tx ? "tx channel" : "rx slot",
-			e->texts[mux], map[slot_channel_no]);
+			e->texts[mux], map[slot_channel_yes]);
 
 	ret = sst_check_and_send_slot_map(drv, kcontrol);
 
@@ -292,7 +292,7 @@ static int sst_find_and_send_pipe_algo(struct sst_data *drv,
 
 	dev_dbg(&drv->pdev->dev, "Enter: widget=%s\n", pipe);
 
-	list_for_each_entry(algo, &ids->algo_list, node) {
+	list_for_each_entry(algo, &ids->algo_list, yesde) {
 		bc = (void *)algo->kctl->private_value;
 
 		dev_dbg(&drv->pdev->dev, "Found algo control name=%s pipe=%s\n",
@@ -586,7 +586,7 @@ static int sst_set_pipe_gain(struct sst_ids *ids,
 	struct sst_gain_value *gv;
 	struct sst_module *gain = NULL;
 
-	list_for_each_entry(gain, &ids->gain_list, node) {
+	list_for_each_entry(gain, &ids->gain_list, yesde) {
 		struct snd_kcontrol *kctl = gain->kctl;
 
 		dev_dbg(&drv->pdev->dev, "control name=%s\n", kctl->id.name);
@@ -934,7 +934,7 @@ int send_ssp_cmd(struct snd_soc_dai *dai, const char *id, bool enable)
 	else if (strcmp(id, "ssp2-port") == 0)
 		ssp_id = SSP_CODEC;
 	else {
-		dev_dbg(dai->dev, "port %s is not supported\n", id);
+		dev_dbg(dai->dev, "port %s is yest supported\n", id);
 		return -1;
 	}
 
@@ -1034,7 +1034,7 @@ static int sst_set_media_loop(struct snd_soc_dapm_widget *w,
 				 - sizeof(struct sst_dsp_header);
 	cmd.param.part.cfg.rate = 2; /* 48khz */
 
-	cmd.param.part.cfg.format = ids->format; /* stereo/Mono */
+	cmd.param.part.cfg.format = ids->format; /* stereo/Moyes */
 	cmd.param.part.cfg.s_length = 1; /* 24bit left justified */
 	cmd.map = 0; /* Algo sequence: Gain - DRP - FIR - IIR */
 
@@ -1058,7 +1058,7 @@ static const struct snd_soc_dapm_widget sst_dapm_widgets[] = {
 	SST_AIF_OUT("codec_out1", sst_set_be_modules),
 
 	/* Media Paths */
-	/* MediaX IN paths are set via ALLOC, so no SET_MEDIA_PATH command */
+	/* MediaX IN paths are set via ALLOC, so yes SET_MEDIA_PATH command */
 	SST_PATH_INPUT("media0_in", SST_TASK_MMX, SST_SWM_IN_MEDIA0, sst_generic_modules_event),
 	SST_PATH_INPUT("media1_in", SST_TASK_MMX, SST_SWM_IN_MEDIA1, NULL),
 	SST_PATH_INPUT("media2_in", SST_TASK_MMX, SST_SWM_IN_MEDIA2, sst_set_media_path),
@@ -1162,23 +1162,23 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 };
 static const char * const slot_names[] = {
-	"none",
+	"yesne",
 	"slot 0", "slot 1", "slot 2", "slot 3",
-	"slot 4", "slot 5", "slot 6", "slot 7", /* not supported by FW */
+	"slot 4", "slot 5", "slot 6", "slot 7", /* yest supported by FW */
 };
 
 static const char * const channel_names[] = {
-	"none",
+	"yesne",
 	"codec_out0_0", "codec_out0_1", "codec_out1_0", "codec_out1_1",
-	"codec_out2_0", "codec_out2_1", "codec_out3_0", "codec_out3_1", /* not supported by FW */
+	"codec_out2_0", "codec_out2_1", "codec_out3_0", "codec_out3_1", /* yest supported by FW */
 };
 
-#define SST_INTERLEAVER(xpname, slot_name, slotno) \
-	SST_SSP_SLOT_CTL(xpname, "tx interleaver", slot_name, slotno, true, \
+#define SST_INTERLEAVER(xpname, slot_name, slotyes) \
+	SST_SSP_SLOT_CTL(xpname, "tx interleaver", slot_name, slotyes, true, \
 			 channel_names, sst_slot_get, sst_slot_put)
 
-#define SST_DEINTERLEAVER(xpname, channel_name, channel_no) \
-	SST_SSP_SLOT_CTL(xpname, "rx deinterleaver", channel_name, channel_no, false, \
+#define SST_DEINTERLEAVER(xpname, channel_name, channel_yes) \
+	SST_SSP_SLOT_CTL(xpname, "rx deinterleaver", channel_name, channel_yes, false, \
 			 slot_names, sst_slot_get, sst_slot_put)
 
 static const struct snd_kcontrol_new sst_slot_controls[] = {
@@ -1381,15 +1381,15 @@ static int sst_fill_module_list(struct snd_kcontrol *kctl,
 
 		mc->w = w;
 		module->kctl = kctl;
-		list_add_tail(&module->node, &ids->gain_list);
+		list_add_tail(&module->yesde, &ids->gain_list);
 	} else if (type == SST_MODULE_ALGO) {
 		struct sst_algo_control *bc = (void *)kctl->private_value;
 
 		bc->w = w;
 		module->kctl = kctl;
-		list_add_tail(&module->node, &ids->algo_list);
+		list_add_tail(&module->yesde, &ids->algo_list);
 	} else {
-		dev_err(c->dev, "invoked for unknown type %d module %s",
+		dev_err(c->dev, "invoked for unkyeswn type %d module %s",
 				type, kctl->id.name);
 		ret = -EINVAL;
 	}

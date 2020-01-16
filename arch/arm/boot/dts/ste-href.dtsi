@@ -143,7 +143,7 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <100000000>;
 			bus-width = <4>;
-			non-removable;
+			yesn-removable;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdi1_default_mode>;
 			pinctrl-1 = <&sdi1_sleep_mode>;
@@ -157,7 +157,7 @@
 			max-frequency = <100000000>;
 			bus-width = <8>;
 			cap-mmc-highspeed;
-			non-removable;
+			yesn-removable;
 			vmmc-supply = <&db8500_vsmps2_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdi2_default_mode>;
@@ -172,7 +172,7 @@
 		        max-frequency = <100000000>;
 			bus-width = <8>;
 			cap-mmc-highspeed;
-			non-removable;
+			yesn-removable;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdi4_default_mode>;

@@ -21,18 +21,18 @@ extern enum integrity_status evm_verifyxattr(struct dentry *dentry,
 					     void *xattr_value,
 					     size_t xattr_value_len,
 					     struct integrity_iint_cache *iint);
-extern int evm_inode_setattr(struct dentry *dentry, struct iattr *attr);
-extern void evm_inode_post_setattr(struct dentry *dentry, int ia_valid);
-extern int evm_inode_setxattr(struct dentry *dentry, const char *name,
+extern int evm_iyesde_setattr(struct dentry *dentry, struct iattr *attr);
+extern void evm_iyesde_post_setattr(struct dentry *dentry, int ia_valid);
+extern int evm_iyesde_setxattr(struct dentry *dentry, const char *name,
 			      const void *value, size_t size);
-extern void evm_inode_post_setxattr(struct dentry *dentry,
+extern void evm_iyesde_post_setxattr(struct dentry *dentry,
 				    const char *xattr_name,
 				    const void *xattr_value,
 				    size_t xattr_value_len);
-extern int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name);
-extern void evm_inode_post_removexattr(struct dentry *dentry,
+extern int evm_iyesde_removexattr(struct dentry *dentry, const char *xattr_name);
+extern void evm_iyesde_post_removexattr(struct dentry *dentry,
 				       const char *xattr_name);
-extern int evm_inode_init_security(struct inode *inode,
+extern int evm_iyesde_init_security(struct iyesde *iyesde,
 				   const struct xattr *xattr_array,
 				   struct xattr *evm);
 #ifdef CONFIG_FS_POSIX_ACL
@@ -61,23 +61,23 @@ static inline enum integrity_status evm_verifyxattr(struct dentry *dentry,
 }
 #endif
 
-static inline int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
+static inline int evm_iyesde_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	return 0;
 }
 
-static inline void evm_inode_post_setattr(struct dentry *dentry, int ia_valid)
+static inline void evm_iyesde_post_setattr(struct dentry *dentry, int ia_valid)
 {
 	return;
 }
 
-static inline int evm_inode_setxattr(struct dentry *dentry, const char *name,
+static inline int evm_iyesde_setxattr(struct dentry *dentry, const char *name,
 				     const void *value, size_t size)
 {
 	return 0;
 }
 
-static inline void evm_inode_post_setxattr(struct dentry *dentry,
+static inline void evm_iyesde_post_setxattr(struct dentry *dentry,
 					   const char *xattr_name,
 					   const void *xattr_value,
 					   size_t xattr_value_len)
@@ -85,19 +85,19 @@ static inline void evm_inode_post_setxattr(struct dentry *dentry,
 	return;
 }
 
-static inline int evm_inode_removexattr(struct dentry *dentry,
+static inline int evm_iyesde_removexattr(struct dentry *dentry,
 					const char *xattr_name)
 {
 	return 0;
 }
 
-static inline void evm_inode_post_removexattr(struct dentry *dentry,
+static inline void evm_iyesde_post_removexattr(struct dentry *dentry,
 					      const char *xattr_name)
 {
 	return;
 }
 
-static inline int evm_inode_init_security(struct inode *inode,
+static inline int evm_iyesde_init_security(struct iyesde *iyesde,
 					  const struct xattr *xattr_array,
 					  struct xattr *evm)
 {

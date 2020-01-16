@@ -5,7 +5,7 @@
  *  Copyright (C) 1995-2000 Russell King
  *
  * 16th March 2001 - John Ripley <jripley@sonicblue.com>
- *   Fixed so that "size" is an exclusive not an inclusive quantity.
+ *   Fixed so that "size" is an exclusive yest an inclusive quantity.
  *   All users of these functions expect exclusive sizes, and may
  *   also call with zero size.
  * Reworked by rmk.
@@ -27,11 +27,11 @@ ENTRY(_find_first_zero_bit_le)
  THUMB(		lsr	r3, r2, #3		)
  THUMB(		ldrb	r3, [r0, r3]		)
 		eors	r3, r3, #0xff		@ invert bits
-		bne	.L_found		@ any now set - found zero bit
+		bne	.L_found		@ any yesw set - found zero bit
 		add	r2, r2, #8		@ next bit pointer
 2:		cmp	r2, r1			@ any more?
 		blo	1b
-3:		mov	r0, r1			@ no free bits
+3:		mov	r0, r1			@ yes free bits
 		ret	lr
 ENDPROC(_find_first_zero_bit_le)
 
@@ -47,10 +47,10 @@ ENTRY(_find_next_zero_bit_le)
  ARM(		ldrb	r3, [r0, r2, lsr #3]	)
  THUMB(		lsr	r3, r2, #3		)
  THUMB(		ldrb	r3, [r0, r3]		)
-		eor	r3, r3, #0xff		@ now looking for a 1 bit
+		eor	r3, r3, #0xff		@ yesw looking for a 1 bit
 		movs	r3, r3, lsr ip		@ shift off unused bits
 		bne	.L_found
-		orr	r2, r2, #7		@ if zero, then no bits here
+		orr	r2, r2, #7		@ if zero, then yes bits here
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 ENDPROC(_find_next_zero_bit_le)
@@ -68,11 +68,11 @@ ENTRY(_find_first_bit_le)
  THUMB(		lsr	r3, r2, #3		)
  THUMB(		ldrb	r3, [r0, r3]		)
 		movs	r3, r3
-		bne	.L_found		@ any now set - found zero bit
+		bne	.L_found		@ any yesw set - found zero bit
 		add	r2, r2, #8		@ next bit pointer
 2:		cmp	r2, r1			@ any more?
 		blo	1b
-3:		mov	r0, r1			@ no free bits
+3:		mov	r0, r1			@ yes free bits
 		ret	lr
 ENDPROC(_find_first_bit_le)
 
@@ -90,7 +90,7 @@ ENTRY(_find_next_bit_le)
  THUMB(		ldrb	r3, [r0, r3]		)
 		movs	r3, r3, lsr ip		@ shift off unused bits
 		bne	.L_found
-		orr	r2, r2, #7		@ if zero, then no bits here
+		orr	r2, r2, #7		@ if zero, then yes bits here
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 ENDPROC(_find_next_bit_le)
@@ -106,11 +106,11 @@ ENTRY(_find_first_zero_bit_be)
  THUMB(		lsr	r3, #3			)
  THUMB(		ldrb	r3, [r0, r3]		)
 		eors	r3, r3, #0xff		@ invert bits
-		bne	.L_found		@ any now set - found zero bit
+		bne	.L_found		@ any yesw set - found zero bit
 		add	r2, r2, #8		@ next bit pointer
 2:		cmp	r2, r1			@ any more?
 		blo	1b
-3:		mov	r0, r1			@ no free bits
+3:		mov	r0, r1			@ yes free bits
 		ret	lr
 ENDPROC(_find_first_zero_bit_be)
 
@@ -123,10 +123,10 @@ ENTRY(_find_next_zero_bit_be)
  ARM(		ldrb	r3, [r0, r3, lsr #3]	)
  THUMB(		lsr	r3, #3			)
  THUMB(		ldrb	r3, [r0, r3]		)
-		eor	r3, r3, #0xff		@ now looking for a 1 bit
+		eor	r3, r3, #0xff		@ yesw looking for a 1 bit
 		movs	r3, r3, lsr ip		@ shift off unused bits
 		bne	.L_found
-		orr	r2, r2, #7		@ if zero, then no bits here
+		orr	r2, r2, #7		@ if zero, then yes bits here
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 ENDPROC(_find_next_zero_bit_be)
@@ -140,11 +140,11 @@ ENTRY(_find_first_bit_be)
  THUMB(		lsr	r3, #3			)
  THUMB(		ldrb	r3, [r0, r3]		)
 		movs	r3, r3
-		bne	.L_found		@ any now set - found zero bit
+		bne	.L_found		@ any yesw set - found zero bit
 		add	r2, r2, #8		@ next bit pointer
 2:		cmp	r2, r1			@ any more?
 		blo	1b
-3:		mov	r0, r1			@ no free bits
+3:		mov	r0, r1			@ yes free bits
 		ret	lr
 ENDPROC(_find_first_bit_be)
 
@@ -159,7 +159,7 @@ ENTRY(_find_next_bit_be)
  THUMB(		ldrb	r3, [r0, r3]		)
 		movs	r3, r3, lsr ip		@ shift off unused bits
 		bne	.L_found
-		orr	r2, r2, #7		@ if zero, then no bits here
+		orr	r2, r2, #7		@ if zero, then yes bits here
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 ENDPROC(_find_next_bit_be)

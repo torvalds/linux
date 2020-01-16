@@ -112,7 +112,7 @@ static void ddb_irq_msi(struct ddb *dev, int nr)
 			dev_info(dev->dev, "using %d MSI interrupt(s)\n",
 				 dev->msi);
 		} else {
-			dev_info(dev->dev, "MSI not available.\n");
+			dev_info(dev->dev, "MSI yest available.\n");
 		}
 	}
 }
@@ -211,12 +211,12 @@ static int ddb_probe(struct pci_dev *pdev,
 			    pci_resource_len(dev->pdev, 0));
 
 	if (!dev->regs) {
-		dev_err(&pdev->dev, "not enough memory for register map\n");
+		dev_err(&pdev->dev, "yest eyesugh memory for register map\n");
 		stat = -ENOMEM;
 		goto fail;
 	}
 	if (ddbreadl(dev, 0) == 0xffffffff) {
-		dev_err(&pdev->dev, "cannot read registers\n");
+		dev_err(&pdev->dev, "canyest read registers\n");
 		stat = -ENODEV;
 		goto fail;
 	}

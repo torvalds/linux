@@ -1,10 +1,10 @@
 // SPDX-License-Identifier:  GPL-2.0
-// (C) 2017-2018 Synopsys, Inc. (www.synopsys.com)
+// (C) 2017-2018 Syyespsys, Inc. (www.syyespsys.com)
 
 /*
- * Synopsys DesignWare AXI DMA Controller driver.
+ * Syyespsys DesignWare AXI DMA Controller driver.
  *
- * Author: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+ * Author: Eugeniy Paltsev <Eugeniy.Paltsev@syyespsys.com>
  */
 
 #ifndef _AXI_DMA_PLATFORM_H
@@ -260,7 +260,7 @@ enum {
 /**
  * DW AXI DMA channel interrupts
  *
- * @DWAXIDMAC_IRQ_NONE: Bitmask of no one interrupt
+ * @DWAXIDMAC_IRQ_NONE: Bitmask of yes one interrupt
  * @DWAXIDMAC_IRQ_BLOCK_TRF: Block transfer complete
  * @DWAXIDMAC_IRQ_DMA_TRF: Dma transfer complete
  * @DWAXIDMAC_IRQ_SRC_TRAN: Source transaction complete

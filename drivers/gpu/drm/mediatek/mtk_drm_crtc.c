@@ -148,7 +148,7 @@ static bool mtk_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-static void mtk_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void mtk_drm_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	struct mtk_crtc_state *state = to_mtk_crtc_state(crtc->state);
 
@@ -532,7 +532,7 @@ static const struct drm_crtc_funcs mtk_crtc_funcs = {
 
 static const struct drm_crtc_helper_funcs mtk_crtc_helper_funcs = {
 	.mode_fixup	= mtk_drm_crtc_mode_fixup,
-	.mode_set_nofb	= mtk_drm_crtc_mode_set_nofb,
+	.mode_set_yesfb	= mtk_drm_crtc_mode_set_yesfb,
 	.atomic_begin	= mtk_drm_crtc_atomic_begin,
 	.atomic_flush	= mtk_drm_crtc_atomic_flush,
 	.atomic_enable	= mtk_drm_crtc_atomic_enable,
@@ -639,10 +639,10 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 
 	for (i = 0; i < path_len; i++) {
 		enum mtk_ddp_comp_id comp_id = path[i];
-		struct device_node *node;
+		struct device_yesde *yesde;
 
-		node = priv->comp_node[comp_id];
-		if (!node) {
+		yesde = priv->comp_yesde[comp_id];
+		if (!yesde) {
 			dev_info(dev,
 				 "Not creating crtc %d because component %d is disabled or missing\n",
 				 pipe, comp_id);
@@ -672,12 +672,12 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++) {
 		enum mtk_ddp_comp_id comp_id = path[i];
 		struct mtk_ddp_comp *comp;
-		struct device_node *node;
+		struct device_yesde *yesde;
 
-		node = priv->comp_node[comp_id];
+		yesde = priv->comp_yesde[comp_id];
 		comp = priv->ddp_comp[comp_id];
 		if (!comp) {
-			dev_err(dev, "Component %pOF not initialized\n", node);
+			dev_err(dev, "Component %pOF yest initialized\n", yesde);
 			ret = -ENODEV;
 			return ret;
 		}

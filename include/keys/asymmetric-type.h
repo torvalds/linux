@@ -42,7 +42,7 @@ enum asymmetric_payload_bits {
  *
  * We could also support an PGP key identifier, which is just a SHA1 sum of the
  * public key and certain parameters, but since we don't support PGP keys at
- * the moment, we shall ignore those.
+ * the moment, we shall igyesre those.
  *
  * What we actually do is provide a place where binary identifiers can be
  * stashed and then compare against them when checking for an id match.

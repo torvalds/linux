@@ -5,7 +5,7 @@
   IEEE 802.11g PHY driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005-2007 Stefayes Brivio <stefayes.brivio@polimi.it>
   Copyright (c) 2005-2008 Michael Buesch <m@bues.ch>
   Copyright (c) 2005, 2006 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005, 2006 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -168,7 +168,7 @@ static void b43_synth_pu_workaround(struct b43_wldev *dev, u8 channel)
 	might_sleep();
 
 	if (phy->radio_ver != 0x2050 || phy->radio_rev >= 6) {
-		/* We do not need the workaround. */
+		/* We do yest need the workaround. */
 		return;
 	}
 
@@ -1540,7 +1540,7 @@ static void b43_phy_initb5(struct b43_wldev *dev)
 		b43_write16(dev, 0x03E4, 0x3000);
 
 	old_channel = phy->channel;
-	/* Force to channel 7, even if not supported. */
+	/* Force to channel 7, even if yest supported. */
 	b43_gphy_channel_switch(dev, 7, 0);
 
 	if (phy->radio_ver != 0x2050) {
@@ -2091,7 +2091,7 @@ static void b43_phy_initg(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_EXTG(0x05), 0x3230);
 	b43_phy_init_pctl(dev);
 	/* FIXME: The spec says in the following if, the 0 should be replaced
-	   'if OFDM may not be used in the current locale'
+	   'if OFDM may yest be used in the current locale'
 	   but OFDM is legal everywhere */
 	if ((dev->dev->chip_id == 0x4306
 	     && dev->dev->chip_pkg == 2) || 0) {
@@ -2360,14 +2360,14 @@ u8 *b43_generate_dyn_tssi2dbm_tab(struct b43_wldev *dev,
 
 	tab = kmalloc(64, GFP_KERNEL);
 	if (!tab) {
-		b43err(dev->wl, "Could not allocate memory "
+		b43err(dev->wl, "Could yest allocate memory "
 		       "for tssi2dbm table\n");
 		return NULL;
 	}
 	for (i = 0; i < 64; i++) {
 		err = b43_tssi2dbm_entry(tab, i, pab0, pab1, pab2);
 		if (err) {
-			b43err(dev->wl, "Could not generate "
+			b43err(dev->wl, "Could yest generate "
 			       "tssi2dBm table\n");
 			kfree(tab);
 			return NULL;
@@ -2408,7 +2408,7 @@ static int b43_gphy_init_tssi2dbm_table(struct b43_wldev *dev)
 			return -ENOMEM;
 		gphy->dyn_tssi_tbl = true;
 	} else {
-		/* pabX values not set in SPROM. */
+		/* pabX values yest set in SPROM. */
 		gphy->tgt_idle_tssi = 52;
 		gphy->tssi2dbm = b43_tssi2dbm_g_table;
 	}
@@ -2532,7 +2532,7 @@ static int b43_gphy_op_prepare_hardware(struct b43_wldev *dev)
 
 	if (phy->rev == 1) {
 		/* Workaround: Temporarly disable gmode through the early init
-		 * phase, as the gmode stuff is not needed for phy rev 1 */
+		 * phase, as the gmode stuff is yest needed for phy rev 1 */
 		phy->gmode = false;
 		b43_wireless_core_reset(dev, 0);
 		b43_phy_initg(dev);
@@ -2780,13 +2780,13 @@ static void b43_put_attenuation_into_ranges(struct b43_wldev *dev,
 
 	while (1) {
 		if (rfatt > rf_max && bbatt > bb_max - 4)
-			break;	/* Can not get it into ranges */
+			break;	/* Can yest get it into ranges */
 		if (rfatt < rf_min && bbatt < bb_min + 4)
-			break;	/* Can not get it into ranges */
+			break;	/* Can yest get it into ranges */
 		if (bbatt > bb_max && rfatt > rf_max - 1)
-			break;	/* Can not get it into ranges */
+			break;	/* Can yest get it into ranges */
 		if (bbatt < bb_min && rfatt < rf_min + 1)
-			break;	/* Can not get it into ranges */
+			break;	/* Can yest get it into ranges */
 
 		if (bbatt > bb_max) {
 			bbatt -= 4;
@@ -2878,7 +2878,7 @@ static void b43_gphy_op_adjust_txpower(struct b43_wldev *dev)
 }
 
 static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
-							bool ignore_tssi)
+							bool igyesre_tssi)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
@@ -2893,8 +2893,8 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 	ofdm_result = b43_phy_shm_tssi_read(dev, B43_SHM_SH_TSSI_OFDM_G);
 	if ((cck_result < 0) && (ofdm_result < 0)) {
 		/* No TSSI information available */
-		if (!ignore_tssi)
-			goto no_adjustment_needed;
+		if (!igyesre_tssi)
+			goto yes_adjustment_needed;
 		cck_result = 0;
 		ofdm_result = 0;
 	}
@@ -2944,7 +2944,7 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 	/* Calculate the adjustment delta. */
 	pwr_adjust = desired_pwr - estimated_pwr;
 	if (pwr_adjust == 0)
-		goto no_adjustment_needed;
+		goto yes_adjustment_needed;
 
 	/* RF attenuation delta. */
 	rfatt_delta = ((pwr_adjust + 7) / 8);
@@ -2972,7 +2972,7 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 
 	/* So do we finally need to adjust something in hardware? */
 	if ((rfatt_delta == 0) && (bbatt_delta == 0))
-		goto no_adjustment_needed;
+		goto yes_adjustment_needed;
 
 	/* Save the deltas for later when we adjust the power. */
 	gphy->bbatt_delta = bbatt_delta;
@@ -2981,7 +2981,7 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 	/* We need to adjust the TX power on the device. */
 	return B43_TXPWR_RES_NEED_ADJUST;
 
-no_adjustment_needed:
+yes_adjustment_needed:
 	return B43_TXPWR_RES_DONE;
 }
 
@@ -2993,7 +2993,7 @@ static void b43_gphy_op_pwork_15sec(struct b43_wldev *dev)
 	b43_mac_suspend(dev);
 	//TODO: update_aci_moving_average
 	if (gphy->aci_enable && gphy->aci_wlan_automatic) {
-		if (!gphy->aci_enable && 1 /*TODO: not scanning? */ ) {
+		if (!gphy->aci_enable && 1 /*TODO: yest scanning? */ ) {
 			if (0 /*TODO: bunch of conditions */ ) {
 				phy->ops->interf_mitigation(dev,
 					B43_INTERFMODE_MANUALWLAN);

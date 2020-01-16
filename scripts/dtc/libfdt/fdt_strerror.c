@@ -47,7 +47,7 @@ const char *fdt_strerror(int errval)
 	if (errval > 0)
 		return "<valid offset/length>";
 	else if (errval == 0)
-		return "<no error>";
+		return "<yes error>";
 	else if (errval > -FDT_ERRTABSIZE) {
 		const char *s = fdt_errtable[-errval].str;
 
@@ -55,5 +55,5 @@ const char *fdt_strerror(int errval)
 			return s;
 	}
 
-	return "<unknown error>";
+	return "<unkyeswn error>";
 }

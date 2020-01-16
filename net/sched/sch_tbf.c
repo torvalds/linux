@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
@@ -31,7 +31,7 @@
 
 	A data flow obeys TBF with rate R and depth B, if for any
 	time interval t_i...t_f the number of transmitted bits
-	does not exceed B + R*(t_f-t_i).
+	does yest exceed B + R*(t_f-t_i).
 
 	Packetized version of this definition:
 	The sequence of packets of sizes s_i served at moments t_i
@@ -55,7 +55,7 @@
 
 
 	Actually, QoS requires two TBF to be applied to a data stream.
-	One of them controls steady state burst size, another
+	One of them controls steady state burst size, ayesther
 	one with rate P (peak rate) and depth M (equal to link MTU)
 	limits bursts at a smaller time scale.
 
@@ -73,8 +73,8 @@
 	If TBF throttles, it starts a watchdog timer, which will wake it up
 	when it is ready to transmit.
 	Note that the minimal timer resolution is 1/HZ.
-	If no new packets arrive during this period,
-	or if the device is not awaken by EOI for some previous packet,
+	If yes new packets arrive during this period,
+	or if the device is yest awaken by EOI for some previous packet,
 	TBF can stop its activity for 1/HZ.
 
 
@@ -90,7 +90,7 @@
 
 	With classful TBF, limit is just kept for backwards compatibility.
 	It is passed to the default bfifo qdisc - if the inner qdisc is
-	changed the limit is not effective anymore.
+	changed the limit is yest effective anymore.
 */
 
 struct tbf_sched_data {
@@ -157,7 +157,7 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch,
 	nb = 0;
 	while (segs) {
 		nskb = segs->next;
-		skb_mark_not_on_list(segs);
+		skb_mark_yest_on_list(segs);
 		qdisc_skb_cb(segs)->pkt_len = segs->len;
 		len += segs->len;
 		ret = qdisc_enqueue(segs, q->qdisc, to_free);
@@ -214,13 +214,13 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 	skb = q->qdisc->ops->peek(q->qdisc);
 
 	if (skb) {
-		s64 now;
+		s64 yesw;
 		s64 toks;
 		s64 ptoks = 0;
 		unsigned int len = qdisc_pkt_len(skb);
 
-		now = ktime_get_ns();
-		toks = min_t(s64, now - q->t_c, q->buffer);
+		yesw = ktime_get_ns();
+		toks = min_t(s64, yesw - q->t_c, q->buffer);
 
 		if (tbf_peak_present(q)) {
 			ptoks = toks + q->ptokens;
@@ -238,7 +238,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 			if (unlikely(!skb))
 				return NULL;
 
-			q->t_c = now;
+			q->t_c = yesw;
 			q->tokens = toks;
 			q->ptokens = ptoks;
 			qdisc_qstats_backlog_dec(sch, skb);
@@ -248,10 +248,10 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 		}
 
 		qdisc_watchdog_schedule_ns(&q->watchdog,
-					   now + max_t(long, -toks, -ptoks));
+					   yesw + max_t(long, -toks, -ptoks));
 
 		/* Maybe we have a shorter packet in the queue,
-		   which can be sent now. It sounds cool,
+		   which can be sent yesw. It sounds cool,
 		   but, however, this is wrong in principle.
 		   We MUST NOT reorder packets under these circumstances.
 
@@ -369,7 +369,7 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt,
 		goto done;
 	}
 
-	if (q->qdisc != &noop_qdisc) {
+	if (q->qdisc != &yesop_qdisc) {
 		err = fifo_set_limit(q->qdisc, qopt->limit);
 		if (err)
 			goto done;
@@ -381,7 +381,7 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt,
 			goto done;
 		}
 
-		/* child is fifo, no need to check for noop_qdisc */
+		/* child is fifo, yes need to check for yesop_qdisc */
 		qdisc_hash_add(child, true);
 	}
 
@@ -419,7 +419,7 @@ static int tbf_init(struct Qdisc *sch, struct nlattr *opt,
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
 	qdisc_watchdog_init(&q->watchdog, sch);
-	q->qdisc = &noop_qdisc;
+	q->qdisc = &yesop_qdisc;
 
 	if (!opt)
 		return -EINVAL;
@@ -444,7 +444,7 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_tbf_qopt opt;
 
 	sch->qstats.backlog = q->qdisc->qstats.backlog;
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -492,7 +492,7 @@ static int tbf_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
 	if (new == NULL)
-		new = &noop_qdisc;
+		new = &yesop_qdisc;
 
 	*old = qdisc_replace(sch, new, &q->qdisc);
 	return 0;

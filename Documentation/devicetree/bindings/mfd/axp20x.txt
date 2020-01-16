@@ -11,7 +11,7 @@ axp806 (X-Powers)
 axp809 (X-Powers)
 axp813 (X-Powers)
 
-The AXP813 is 2 chips packaged into 1. The 2 chips do not share anything
+The AXP813 is 2 chips packaged into 1. The 2 chips do yest share anything
 other than the packaging. Pins are routed separately. As such they should
 be treated as separate entities. The other half is an AC100 RTC/codec
 combo chip. Please see ./ac100.txt for its bindings.
@@ -51,7 +51,7 @@ Optional properties:
 			  used as an output pin to control an external
 			  regulator to drive the OTG VBus, rather then
 			  as an input pin which signals whether the
-			  board is driving OTG VBus or not.
+			  board is driving OTG VBus or yest.
 			  (axp221 / axp223 / axp803/ axp813 only)
 
 - x-powers,self-working-mode and
@@ -60,12 +60,12 @@ Optional properties:
 			If neither is set then slave mode is assumed.
 			This corresponds to how the MODESET pin is wired.
 
-- <input>-supply: a phandle to the regulator supply node. May be omitted if
+- <input>-supply: a phandle to the regulator supply yesde. May be omitted if
 		  inputs are unregulated, such as using the IPSOUT output
 		  from the PMIC.
 
-- regulators: A node that houses a sub-node for each regulator. Regulators
-	      not used but preferred to be managed by the OS should be
+- regulators: A yesde that houses a sub-yesde for each regulator. Regulators
+	      yest used but preferred to be managed by the OS should be
 	      listed as well.
 	      See Documentation/devicetree/bindings/regulator/regulator.txt
 	      for more information on standard regulator bindings.
@@ -76,7 +76,7 @@ Optional properties for DCDC regulators:
 			  The DCDC regulators work in a mixed PWM/PFM mode,
 			  using PFM under light loads and switching to PWM
 			  for heavier loads. Forcing PWM mode trades efficiency
-			  under light loads for lower output noise. This
+			  under light loads for lower output yesise. This
 			  probably makes sense for HiFi audio related
 			  applications that aren't battery constrained.
 

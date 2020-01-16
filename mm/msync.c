@@ -18,15 +18,15 @@
 /*
  * MS_SYNC syncs the entire file - including mappings.
  *
- * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
+ * MS_ASYNC does yest start I/O (it used to, up to 2.5.67).
  * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
  * Now it doesn't do anything, since dirty pages are properly tracked.
  *
- * The application may now run fsync() to
+ * The application may yesw run fsync() to
  * write out the dirty pages and wait on the writeout and check the result.
  * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
  * async writeout immediately.
- * So by _not_ starting I/O in MS_ASYNC we provide complete flexibility to
+ * So by _yest_ starting I/O in MS_ASYNC we provide complete flexibility to
  * applications.
  */
 SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
@@ -55,7 +55,7 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
 		goto out;
 	/*
 	 * If the interval [start,end) covers some unmapped address ranges,
-	 * just ignore them, but return -ENOMEM at the end.
+	 * just igyesre them, but return -ENOMEM at the end.
 	 */
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, start);

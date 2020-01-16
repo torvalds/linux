@@ -236,8 +236,8 @@ struct stm32_spi;
  * @irq_handler_thread: thread of interrupt handler for SPI controller
  * @baud_rate_div_min: minimum baud rate divisor
  * @baud_rate_div_max: maximum baud rate divisor
- * @has_fifo: boolean to know if fifo is used for driver
- * @has_startbit: boolean to know if start bit is used to start transfer
+ * @has_fifo: boolean to kyesw if fifo is used for driver
+ * @has_startbit: boolean to kyesw if start bit is used to start transfer
  */
 struct stm32_spi_cfg {
 	const struct stm32_spi_regspec *regs;
@@ -278,7 +278,7 @@ struct stm32_spi_cfg {
  * @cur_fthlv: fifo threshold level (data frames in a single data packet)
  * @cur_comm: SPI communication mode
  * @cur_xferlen: current transfer length in bytes
- * @cur_usedma: boolean to know if dma is used in current transfer
+ * @cur_usedma: boolean to kyesw if dma is used in current transfer
  * @tx_buf: data to be written, or NULL
  * @rx_buf: data to be read, or NULL
  * @tx_len: number of data to be written in bytes
@@ -448,7 +448,7 @@ static int stm32_spi_prepare_mbr(struct stm32_spi *spi, u32 speed_hz,
 	 * SPI framework set xfer->speed_hz to master->max_speed_hz if
 	 * xfer->speed_hz is greater than master->max_speed_hz, and it returns
 	 * an error when xfer->speed_hz is lower than master->min_speed_hz, so
-	 * no need to check it there.
+	 * yes need to check it there.
 	 * However, we need to ensure the following calculations.
 	 */
 	if ((div < min_div) || (div > max_div))
@@ -473,7 +473,7 @@ static u32 stm32h7_spi_prepare_fthlv(struct stm32_spi *spi)
 {
 	u32 fthlv, half_fifo;
 
-	/* data packet should not exceed 1/2 of fifo space */
+	/* data packet should yest exceed 1/2 of fifo space */
 	half_fifo = (spi->fifo_size / 2);
 
 	if (spi->cur_bpw <= 8)
@@ -699,7 +699,7 @@ static void stm32f4_spi_disable(struct stm32_spi *spi)
  * loss, use stm32h7_spi_read_rxfifo(flush) to read the remaining bytes in
  * RX-Fifo.
  * Normally, if TSIZE has been configured, we should relax the hardware at the
- * reception of the EOT interrupt. But in case of error, EOT will not be
+ * reception of the EOT interrupt. But in case of error, EOT will yest be
  * raised. So the subsystem unprepare_message call allows us to properly
  * complete the transfer from an hardware point of view.
  */
@@ -796,7 +796,7 @@ static irqreturn_t stm32f4_spi_irq_event(int irq, void *dev_id)
 
 	sr = readl_relaxed(spi->base + STM32F4_SPI_SR);
 	/*
-	 * BSY flag is not handled in interrupt but it is normal behavior when
+	 * BSY flag is yest handled in interrupt but it is yesrmal behavior when
 	 * this flag is set.
 	 */
 	sr &= ~STM32F4_SPI_SR_BSY;
@@ -853,7 +853,7 @@ static irqreturn_t stm32f4_spi_irq_event(int irq, void *dev_id)
 
 end_irq:
 	if (end) {
-		/* Immediately disable interrupts to do not generate new one */
+		/* Immediately disable interrupts to do yest generate new one */
 		stm32_spi_clr_bits(spi, STM32F4_SPI_CR2,
 					STM32F4_SPI_CR2_TXEIE |
 					STM32F4_SPI_CR2_RXNEIE |
@@ -905,7 +905,7 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 	mask |= STM32H7_SPI_SR_SUSP;
 	/*
 	 * When TXTF is set, DXPIE and TXPIE are cleared. So in case of
-	 * Full-Duplex, need to poll RXP event to know if there are remaining
+	 * Full-Duplex, need to poll RXP event to kyesw if there are remaining
 	 * data, before disabling SPI.
 	 */
 	if (spi->rx_buf && !spi->cur_usedma)
@@ -981,7 +981,7 @@ static int stm32_spi_setup(struct spi_device *spi_dev)
 	int ret = 0;
 
 	if (!gpio_is_valid(spi_dev->cs_gpio)) {
-		dev_err(&spi_dev->dev, "%d is not a valid gpio\n",
+		dev_err(&spi_dev->dev, "%d is yest a valid gpio\n",
 			spi_dev->cs_gpio);
 		return -EINVAL;
 	}
@@ -1004,7 +1004,7 @@ static int stm32_spi_prepare_msg(struct spi_master *master,
 {
 	struct stm32_spi *spi = spi_master_get_devdata(master);
 	struct spi_device *spi_dev = msg->spi;
-	struct device_node *np = spi_dev->dev.of_node;
+	struct device_yesde *np = spi_dev->dev.of_yesde;
 	unsigned long flags;
 	u32 clrb = 0, setb = 0;
 
@@ -1890,7 +1890,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->auto_runtime_pm = true;
 	master->bus_num = pdev->id;
 	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LSB_FIRST |
@@ -1929,14 +1929,14 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	}
 
 	if (!master->cs_gpios) {
-		dev_err(&pdev->dev, "no CS gpios available\n");
+		dev_err(&pdev->dev, "yes CS gpios available\n");
 		ret = -EINVAL;
 		goto err_dma_release;
 	}
 
 	for (i = 0; i < master->num_chipselect; i++) {
 		if (!gpio_is_valid(master->cs_gpios[i])) {
-			dev_err(&pdev->dev, "%i is not a valid gpio\n",
+			dev_err(&pdev->dev, "%i is yest a valid gpio\n",
 				master->cs_gpios[i]);
 			ret = -EINVAL;
 			goto err_dma_release;

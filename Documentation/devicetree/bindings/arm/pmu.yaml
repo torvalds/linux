@@ -43,18 +43,18 @@ properties:
           - qcom,krait-pmu
 
   interrupts:
-    # Don't know how many CPUs, so no constraints to specify
+    # Don't kyesw how many CPUs, so yes constraints to specify
     description: 1 per-cpu interrupt (PPI) or 1 interrupt per core.
 
   interrupt-affinity:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description:
       When using SPIs, specifies a list of phandles to CPU
-      nodes corresponding directly to the affinity of
+      yesdes corresponding directly to the affinity of
       the SPIs listed in the interrupts property.
 
       When using a PPI, specifies a list of phandles to CPU
-      nodes corresponding to the set of CPUs which have
+      yesdes corresponding to the set of CPUs which have
       a PMU of this type signalling the PPI listed in the
       interrupts property, unless this is already specified
       by the PPI interrupt specifier itself (in which case
@@ -63,7 +63,7 @@ properties:
       This property should be present when there is more than
       a single SPI.
 
-  qcom,no-pc-write:
+  qcom,yes-pc-write:
     type: boolean
     description:
       Indicates that this PMU doesn't support the 0xc and 0xd events.
@@ -74,11 +74,11 @@ properties:
       Indicates that the ARMv7 Secure Debug Enable Register
       (SDER) is accessible. This will cause the driver to do
       any setup required that is only possible in ARMv7 secure
-      state. If not present the ARMv7 SDER will not be touched,
+      state. If yest present the ARMv7 SDER will yest be touched,
       which means the PMU may fail to operate unless external
       code (bootloader or security monitor) has performed the
       appropriate initialisation. Note that this property is
-      not valid for non-ARMv7 CPUs or ARMv7 CPUs booting Linux
+      yest valid for yesn-ARMv7 CPUs or ARMv7 CPUs booting Linux
       in Non-secure state.
 
 required:

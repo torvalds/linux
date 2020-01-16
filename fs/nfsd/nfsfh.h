@@ -13,14 +13,14 @@
 #include <uapi/linux/nfsd/nfsfh.h>
 #include <linux/iversion.h>
 
-static inline __u32 ino_t_to_u32(ino_t ino)
+static inline __u32 iyes_t_to_u32(iyes_t iyes)
 {
-	return (__u32) ino;
+	return (__u32) iyes;
 }
 
-static inline ino_t u32_to_ino_t(__u32 uino)
+static inline iyes_t u32_to_iyes_t(__u32 uiyes)
 {
-	return (ino_t) uino;
+	return (iyes_t) uiyes;
 }
 
 /*
@@ -33,7 +33,7 @@ typedef struct svc_fh {
 	struct dentry *		fh_dentry;	/* validated dentry */
 	struct svc_export *	fh_export;	/* export pointer */
 
-	bool			fh_locked;	/* inode locked by us */
+	bool			fh_locked;	/* iyesde locked by us */
 	bool			fh_want_write;	/* remount protection taken */
 
 #ifdef CONFIG_NFSD_V3
@@ -45,7 +45,7 @@ typedef struct svc_fh {
 	struct timespec		fh_pre_mtime;	/* mtime before oper */
 	struct timespec		fh_pre_ctime;	/* ctime before oper */
 	/*
-	 * pre-op nfsv4 change attr: note must check IS_I_VERSION(inode)
+	 * pre-op nfsv4 change attr: yeste must check IS_I_VERSION(iyesde)
 	 *  to find out if it is valid.
 	 */
 	u64			fh_pre_change;
@@ -82,11 +82,11 @@ extern enum fsid_source fsid_source(struct svc_fh *fhp);
  *
  * In some cases the values are considered to be host endian and in
  * others, net endian. fsidv is always considered to be u32 as the
- * callers don't know which it will be. So we must use __force to keep
+ * callers don't kyesw which it will be. So we must use __force to keep
  * sparse from complaining. Since these values are opaque to the
  * client, that shouldn't be a problem.
  */
-static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
+static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, iyes_t iyes,
 			   u32 fsid, unsigned char *uuid)
 {
 	u32 *up;
@@ -94,7 +94,7 @@ static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
 	case FSID_DEV:
 		fsidv[0] = (__force __u32)htonl((MAJOR(dev)<<16) |
 				 MINOR(dev));
-		fsidv[1] = ino_t_to_u32(ino);
+		fsidv[1] = iyes_t_to_u32(iyes);
 		break;
 	case FSID_NUM:
 		fsidv[0] = fsid;
@@ -102,18 +102,18 @@ static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
 	case FSID_MAJOR_MINOR:
 		fsidv[0] = (__force __u32)htonl(MAJOR(dev));
 		fsidv[1] = (__force __u32)htonl(MINOR(dev));
-		fsidv[2] = ino_t_to_u32(ino);
+		fsidv[2] = iyes_t_to_u32(iyes);
 		break;
 
 	case FSID_ENCODE_DEV:
 		fsidv[0] = new_encode_dev(dev);
-		fsidv[1] = ino_t_to_u32(ino);
+		fsidv[1] = iyes_t_to_u32(iyes);
 		break;
 
 	case FSID_UUID4_INUM:
-		/* 4 byte fsid and inode number */
+		/* 4 byte fsid and iyesde number */
 		up = (u32*)uuid;
-		fsidv[0] = ino_t_to_u32(ino);
+		fsidv[0] = iyes_t_to_u32(iyes);
 		fsidv[1] = up[0] ^ up[1] ^ up[2] ^ up[3];
 		break;
 
@@ -130,8 +130,8 @@ static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
 		break;
 
 	case FSID_UUID16_INUM:
-		/* 8 byte inode and 16 byte fsid */
-		*(u64*)fsidv = (u64)ino;
+		/* 8 byte iyesde and 16 byte fsid */
+		*(u64*)fsidv = (u64)iyes;
 		memcpy(fsidv+2, uuid, 16);
 		break;
 	default: BUG();
@@ -248,34 +248,34 @@ fh_clear_wcc(struct svc_fh *fhp)
  * necessarily cause a problem, but if i_version goes backwards and then
  * is incremented again it could reuse a value that was previously used
  * before boot, and a client who queried the two values might
- * incorrectly assume nothing changed.
+ * incorrectly assume yesthing changed.
  *
  * By using both ctime and the i_version counter we guarantee that as
  * long as time doesn't go backwards we never reuse an old value.
  */
 static inline u64 nfsd4_change_attribute(struct kstat *stat,
-					 struct inode *inode)
+					 struct iyesde *iyesde)
 {
 	u64 chattr;
 
 	chattr =  stat->ctime.tv_sec;
 	chattr <<= 30;
 	chattr += stat->ctime.tv_nsec;
-	chattr += inode_query_iversion(inode);
+	chattr += iyesde_query_iversion(iyesde);
 	return chattr;
 }
 
 extern void fill_pre_wcc(struct svc_fh *fhp);
 extern void fill_post_wcc(struct svc_fh *fhp);
 #else
-#define fh_clear_wcc(ignored)
-#define fill_pre_wcc(ignored)
-#define fill_post_wcc(notused)
+#define fh_clear_wcc(igyesred)
+#define fill_pre_wcc(igyesred)
+#define fill_post_wcc(yestused)
 #endif /* CONFIG_NFSD_V3 */
 
 
 /*
- * Lock a file handle/inode
+ * Lock a file handle/iyesde
  * NOTE: both fh_lock and fh_unlock are done "by hand" in
  * vfs.c:nfsd_rename as it needs to grab 2 i_mutex's at once
  * so, any changes here should be reflected there.
@@ -285,7 +285,7 @@ static inline void
 fh_lock_nested(struct svc_fh *fhp, unsigned int subclass)
 {
 	struct dentry	*dentry = fhp->fh_dentry;
-	struct inode	*inode;
+	struct iyesde	*iyesde;
 
 	BUG_ON(!dentry);
 
@@ -295,8 +295,8 @@ fh_lock_nested(struct svc_fh *fhp, unsigned int subclass)
 		return;
 	}
 
-	inode = d_inode(dentry);
-	inode_lock_nested(inode, subclass);
+	iyesde = d_iyesde(dentry);
+	iyesde_lock_nested(iyesde, subclass);
 	fill_pre_wcc(fhp);
 	fhp->fh_locked = true;
 }
@@ -308,14 +308,14 @@ fh_lock(struct svc_fh *fhp)
 }
 
 /*
- * Unlock a file handle/inode
+ * Unlock a file handle/iyesde
  */
 static inline void
 fh_unlock(struct svc_fh *fhp)
 {
 	if (fhp->fh_locked) {
 		fill_post_wcc(fhp);
-		inode_unlock(d_inode(fhp->fh_dentry));
+		iyesde_unlock(d_iyesde(fhp->fh_dentry));
 		fhp->fh_locked = false;
 	}
 }

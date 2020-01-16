@@ -6,7 +6,7 @@
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
 #include "bpf-event.h"
-#include <errno.h>
+#include <erryes.h>
 #include <sys/utsname.h>
 #include <bpf/libbpf.h>
 #include <stdlib.h>
@@ -15,22 +15,22 @@
 struct perf_env perf_env;
 
 void perf_env__insert_bpf_prog_info(struct perf_env *env,
-				    struct bpf_prog_info_node *info_node)
+				    struct bpf_prog_info_yesde *info_yesde)
 {
-	__u32 prog_id = info_node->info_linear->info.id;
-	struct bpf_prog_info_node *node;
-	struct rb_node *parent = NULL;
-	struct rb_node **p;
+	__u32 prog_id = info_yesde->info_linear->info.id;
+	struct bpf_prog_info_yesde *yesde;
+	struct rb_yesde *parent = NULL;
+	struct rb_yesde **p;
 
 	down_write(&env->bpf_progs.lock);
-	p = &env->bpf_progs.infos.rb_node;
+	p = &env->bpf_progs.infos.rb_yesde;
 
 	while (*p != NULL) {
 		parent = *p;
-		node = rb_entry(parent, struct bpf_prog_info_node, rb_node);
-		if (prog_id < node->info_linear->info.id) {
+		yesde = rb_entry(parent, struct bpf_prog_info_yesde, rb_yesde);
+		if (prog_id < yesde->info_linear->info.id) {
 			p = &(*p)->rb_left;
-		} else if (prog_id > node->info_linear->info.id) {
+		} else if (prog_id > yesde->info_linear->info.id) {
 			p = &(*p)->rb_right;
 		} else {
 			pr_debug("duplicated bpf prog info %u\n", prog_id);
@@ -38,54 +38,54 @@ void perf_env__insert_bpf_prog_info(struct perf_env *env,
 		}
 	}
 
-	rb_link_node(&info_node->rb_node, parent, p);
-	rb_insert_color(&info_node->rb_node, &env->bpf_progs.infos);
+	rb_link_yesde(&info_yesde->rb_yesde, parent, p);
+	rb_insert_color(&info_yesde->rb_yesde, &env->bpf_progs.infos);
 	env->bpf_progs.infos_cnt++;
 out:
 	up_write(&env->bpf_progs.lock);
 }
 
-struct bpf_prog_info_node *perf_env__find_bpf_prog_info(struct perf_env *env,
+struct bpf_prog_info_yesde *perf_env__find_bpf_prog_info(struct perf_env *env,
 							__u32 prog_id)
 {
-	struct bpf_prog_info_node *node = NULL;
-	struct rb_node *n;
+	struct bpf_prog_info_yesde *yesde = NULL;
+	struct rb_yesde *n;
 
 	down_read(&env->bpf_progs.lock);
-	n = env->bpf_progs.infos.rb_node;
+	n = env->bpf_progs.infos.rb_yesde;
 
 	while (n) {
-		node = rb_entry(n, struct bpf_prog_info_node, rb_node);
-		if (prog_id < node->info_linear->info.id)
+		yesde = rb_entry(n, struct bpf_prog_info_yesde, rb_yesde);
+		if (prog_id < yesde->info_linear->info.id)
 			n = n->rb_left;
-		else if (prog_id > node->info_linear->info.id)
+		else if (prog_id > yesde->info_linear->info.id)
 			n = n->rb_right;
 		else
 			goto out;
 	}
-	node = NULL;
+	yesde = NULL;
 
 out:
 	up_read(&env->bpf_progs.lock);
-	return node;
+	return yesde;
 }
 
-void perf_env__insert_btf(struct perf_env *env, struct btf_node *btf_node)
+void perf_env__insert_btf(struct perf_env *env, struct btf_yesde *btf_yesde)
 {
-	struct rb_node *parent = NULL;
-	__u32 btf_id = btf_node->id;
-	struct btf_node *node;
-	struct rb_node **p;
+	struct rb_yesde *parent = NULL;
+	__u32 btf_id = btf_yesde->id;
+	struct btf_yesde *yesde;
+	struct rb_yesde **p;
 
 	down_write(&env->bpf_progs.lock);
-	p = &env->bpf_progs.btfs.rb_node;
+	p = &env->bpf_progs.btfs.rb_yesde;
 
 	while (*p != NULL) {
 		parent = *p;
-		node = rb_entry(parent, struct btf_node, rb_node);
-		if (btf_id < node->id) {
+		yesde = rb_entry(parent, struct btf_yesde, rb_yesde);
+		if (btf_id < yesde->id) {
 			p = &(*p)->rb_left;
-		} else if (btf_id > node->id) {
+		} else if (btf_id > yesde->id) {
 			p = &(*p)->rb_right;
 		} else {
 			pr_debug("duplicated btf %u\n", btf_id);
@@ -93,42 +93,42 @@ void perf_env__insert_btf(struct perf_env *env, struct btf_node *btf_node)
 		}
 	}
 
-	rb_link_node(&btf_node->rb_node, parent, p);
-	rb_insert_color(&btf_node->rb_node, &env->bpf_progs.btfs);
+	rb_link_yesde(&btf_yesde->rb_yesde, parent, p);
+	rb_insert_color(&btf_yesde->rb_yesde, &env->bpf_progs.btfs);
 	env->bpf_progs.btfs_cnt++;
 out:
 	up_write(&env->bpf_progs.lock);
 }
 
-struct btf_node *perf_env__find_btf(struct perf_env *env, __u32 btf_id)
+struct btf_yesde *perf_env__find_btf(struct perf_env *env, __u32 btf_id)
 {
-	struct btf_node *node = NULL;
-	struct rb_node *n;
+	struct btf_yesde *yesde = NULL;
+	struct rb_yesde *n;
 
 	down_read(&env->bpf_progs.lock);
-	n = env->bpf_progs.btfs.rb_node;
+	n = env->bpf_progs.btfs.rb_yesde;
 
 	while (n) {
-		node = rb_entry(n, struct btf_node, rb_node);
-		if (btf_id < node->id)
+		yesde = rb_entry(n, struct btf_yesde, rb_yesde);
+		if (btf_id < yesde->id)
 			n = n->rb_left;
-		else if (btf_id > node->id)
+		else if (btf_id > yesde->id)
 			n = n->rb_right;
 		else
 			goto out;
 	}
-	node = NULL;
+	yesde = NULL;
 
 out:
 	up_read(&env->bpf_progs.lock);
-	return node;
+	return yesde;
 }
 
 /* purge data in bpf_progs.infos tree */
 static void perf_env__purge_bpf(struct perf_env *env)
 {
 	struct rb_root *root;
-	struct rb_node *next;
+	struct rb_yesde *next;
 
 	down_write(&env->bpf_progs.lock);
 
@@ -136,12 +136,12 @@ static void perf_env__purge_bpf(struct perf_env *env)
 	next = rb_first(root);
 
 	while (next) {
-		struct bpf_prog_info_node *node;
+		struct bpf_prog_info_yesde *yesde;
 
-		node = rb_entry(next, struct bpf_prog_info_node, rb_node);
-		next = rb_next(&node->rb_node);
-		rb_erase(&node->rb_node, root);
-		free(node);
+		yesde = rb_entry(next, struct bpf_prog_info_yesde, rb_yesde);
+		next = rb_next(&yesde->rb_yesde);
+		rb_erase(&yesde->rb_yesde, root);
+		free(yesde);
 	}
 
 	env->bpf_progs.infos_cnt = 0;
@@ -150,12 +150,12 @@ static void perf_env__purge_bpf(struct perf_env *env)
 	next = rb_first(root);
 
 	while (next) {
-		struct btf_node *node;
+		struct btf_yesde *yesde;
 
-		node = rb_entry(next, struct btf_node, rb_node);
-		next = rb_next(&node->rb_node);
-		rb_erase(&node->rb_node, root);
-		free(node);
+		yesde = rb_entry(next, struct btf_yesde, rb_yesde);
+		next = rb_next(&yesde->rb_yesde);
+		rb_erase(&yesde->rb_yesde, root);
+		free(yesde);
 	}
 
 	env->bpf_progs.btfs_cnt = 0;
@@ -182,17 +182,17 @@ void perf_env__exit(struct perf_env *env)
 	zfree(&env->cpu);
 	zfree(&env->numa_map);
 
-	for (i = 0; i < env->nr_numa_nodes; i++)
-		perf_cpu_map__put(env->numa_nodes[i].map);
-	zfree(&env->numa_nodes);
+	for (i = 0; i < env->nr_numa_yesdes; i++)
+		perf_cpu_map__put(env->numa_yesdes[i].map);
+	zfree(&env->numa_yesdes);
 
 	for (i = 0; i < env->caches_cnt; i++)
 		cpu_cache_level__free(&env->caches[i]);
 	zfree(&env->caches);
 
-	for (i = 0; i < env->nr_memory_nodes; i++)
-		zfree(&env->memory_nodes[i].set);
-	zfree(&env->memory_nodes);
+	for (i = 0; i < env->nr_memory_yesdes; i++)
+		zfree(&env->memory_yesdes[i].set);
+	zfree(&env->memory_yesdes);
 }
 
 void perf_env__init(struct perf_env *env)
@@ -206,10 +206,10 @@ int perf_env__set_cmdline(struct perf_env *env, int argc, const char *argv[])
 {
 	int i;
 
-	/* do not include NULL termination */
+	/* do yest include NULL termination */
 	env->cmdline_argv = calloc(argc, sizeof(char *));
 	if (env->cmdline_argv == NULL)
-		goto out_enomem;
+		goto out_eyesmem;
 
 	/*
 	 * Must copy argv contents because it gets moved around during option
@@ -226,7 +226,7 @@ int perf_env__set_cmdline(struct perf_env *env, int argc, const char *argv[])
 	return 0;
 out_free:
 	zfree(&env->cmdline_argv);
-out_enomem:
+out_eyesmem:
 	return -ENOMEM;
 }
 
@@ -296,7 +296,7 @@ static int perf_env__read_nr_cpus_avail(struct perf_env *env)
 
 const char *perf_env__raw_arch(struct perf_env *env)
 {
-	return env && !perf_env__read_arch(env) ? env->arch : "unknown";
+	return env && !perf_env__read_arch(env) ? env->arch : "unkyeswn";
 }
 
 int perf_env__nr_cpus_avail(struct perf_env *env)
@@ -312,10 +312,10 @@ void cpu_cache_level__free(struct cpu_cache_level *cache)
 }
 
 /*
- * Return architecture name in a normalized form.
+ * Return architecture name in a yesrmalized form.
  * The conversion logic comes from the Makefile.
  */
-static const char *normalize_arch(char *arch)
+static const char *yesrmalize_arch(char *arch)
 {
 	if (!strcmp(arch, "x86_64"))
 		return "x86";
@@ -353,18 +353,18 @@ const char *perf_env__arch(struct perf_env *env)
 	} else
 		arch_name = env->arch;
 
-	return normalize_arch(arch_name);
+	return yesrmalize_arch(arch_name);
 }
 
 
-int perf_env__numa_node(struct perf_env *env, int cpu)
+int perf_env__numa_yesde(struct perf_env *env, int cpu)
 {
 	if (!env->nr_numa_map) {
-		struct numa_node *nn;
+		struct numa_yesde *nn;
 		int i, nr = 0;
 
-		for (i = 0; i < env->nr_numa_nodes; i++) {
-			nn = &env->numa_nodes[i];
+		for (i = 0; i < env->nr_numa_yesdes; i++) {
+			nn = &env->numa_yesdes[i];
 			nr = max(nr, perf_cpu_map__max(nn->map));
 		}
 
@@ -372,7 +372,7 @@ int perf_env__numa_node(struct perf_env *env, int cpu)
 
 		/*
 		 * We initialize the numa_map array to prepare
-		 * it for missing cpus, which return node -1
+		 * it for missing cpus, which return yesde -1
 		 */
 		env->numa_map = malloc(nr * sizeof(int));
 		if (!env->numa_map)
@@ -383,10 +383,10 @@ int perf_env__numa_node(struct perf_env *env, int cpu)
 
 		env->nr_numa_map = nr;
 
-		for (i = 0; i < env->nr_numa_nodes; i++) {
+		for (i = 0; i < env->nr_numa_yesdes; i++) {
 			int tmp, j;
 
-			nn = &env->numa_nodes[i];
+			nn = &env->numa_yesdes[i];
 			perf_cpu_map__for_each_cpu(j, tmp, nn->map)
 				env->numa_map[j] = i;
 		}

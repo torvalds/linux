@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -105,8 +105,8 @@ static void iwl_read_radio_regs(struct iwl_fw_runtime *fwrt,
 		u32 rd_cmd = RADIO_RSP_RD_CMD;
 
 		rd_cmd |= i << RADIO_RSP_ADDR_POS;
-		iwl_write_prph_no_grab(fwrt->trans, RSP_RADIO_CMD, rd_cmd);
-		*pos = (u8)iwl_read_prph_no_grab(fwrt->trans, RSP_RADIO_RDDAT);
+		iwl_write_prph_yes_grab(fwrt->trans, RSP_RADIO_CMD, rd_cmd);
+		*pos = (u8)iwl_read_prph_yes_grab(fwrt->trans, RSP_RADIO_RDDAT);
 
 		pos++;
 	}
@@ -272,7 +272,7 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_TXF)) {
 		/* Pull TXF data from LMAC1 */
 		for (i = 0; i < fwrt->smem_cfg.num_txfifo_entries; i++) {
-			/* Mark the number of TXF we're pulling now */
+			/* Mark the number of TXF we're pulling yesw */
 			iwl_trans_write_prph(fwrt->trans, TXF_LARC_NUM, i);
 			iwl_fwrt_dump_txf(fwrt, dump_data,
 					  cfg->lmac[0].txfifo_size[i], 0, i);
@@ -282,7 +282,7 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 		if (fwrt->smem_cfg.num_lmacs > 1) {
 			for (i = 0; i < fwrt->smem_cfg.num_txfifo_entries;
 			     i++) {
-				/* Mark the number of TXF we're pulling now */
+				/* Mark the number of TXF we're pulling yesw */
 				iwl_trans_write_prph(fwrt->trans,
 						     TXF_LARC_NUM +
 						     LMAC2_PRPH_OFFSET, i);
@@ -317,7 +317,7 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 
 			fifo_hdr->fifo_num = cpu_to_le32(i);
 
-			/* Mark the number of TXF we're pulling now */
+			/* Mark the number of TXF we're pulling yesw */
 			iwl_trans_write_prph(fwrt->trans, TXF_CPU2_NUM, i +
 				fwrt->smem_cfg.num_txfifo_entries);
 
@@ -573,7 +573,7 @@ static void iwl_read_prph_block(struct iwl_trans *trans, u32 start,
 	u32 i;
 
 	for (i = 0; i < len_bytes; i += 4)
-		*data++ = cpu_to_le32(iwl_read_prph_no_grab(trans, start + i));
+		*data++ = cpu_to_le32(iwl_read_prph_yes_grab(trans, start + i));
 }
 
 static void iwl_dump_prph(struct iwl_fw_runtime *fwrt,
@@ -834,7 +834,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 				0 : fwrt->trans->cfg->dccm2_len;
 	int i;
 
-	/* SRAM - include stack CCM if driver knows the values for it */
+	/* SRAM - include stack CCM if driver kyesws the values for it */
 	if (!fwrt->trans->cfg->dccm_offset || !fwrt->trans->cfg->dccm_len) {
 		const struct fw_img *img;
 
@@ -875,7 +875,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 		size_t hdr_len = sizeof(*dump_data) +
 				 sizeof(struct iwl_fw_error_dump_mem);
 
-		/* Dump SRAM only if no mem_tlvs */
+		/* Dump SRAM only if yes mem_tlvs */
 		if (!fwrt->fw->dbg.n_mem_tlv)
 			ADD_LEN(file_len, sram_len, hdr_len);
 
@@ -1279,7 +1279,7 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 	range->fifo_hdr.num_of_registers = cpu_to_le32(registers_num);
 	range->range_data_size = cpu_to_le32(iter->fifo_size + registers_size);
 
-	iwl_write_prph_no_grab(fwrt->trans, TXF_LARC_NUM + offs, iter->fifo);
+	iwl_write_prph_yes_grab(fwrt->trans, TXF_LARC_NUM + offs, iter->fifo);
 
 	/*
 	 * read txf registers. for each register, write to the dump the
@@ -1289,7 +1289,7 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 		addr = le32_to_cpu(reg->addrs[i]) + offs;
 
 		reg_dump->addr = cpu_to_le32(addr);
-		reg_dump->data = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans,
+		reg_dump->data = cpu_to_le32(iwl_read_prph_yes_grab(fwrt->trans,
 								   addr));
 
 		reg_dump++;
@@ -1301,17 +1301,17 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* Set the TXF_READ_MODIFY_ADDR to TXF_WR_PTR */
-	iwl_write_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_ADDR + offs,
+	iwl_write_prph_yes_grab(fwrt->trans, TXF_READ_MODIFY_ADDR + offs,
 			       TXF_WR_PTR + offs);
 
 	/* Dummy-read to advance the read pointer to the head */
-	iwl_read_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_DATA + offs);
+	iwl_read_prph_yes_grab(fwrt->trans, TXF_READ_MODIFY_DATA + offs);
 
 	/* Read FIFO */
 	addr = TXF_READ_MODIFY_DATA + offs;
 	data = (void *)reg_dump;
 	for (i = 0; i < iter->fifo_size; i += sizeof(*data))
-		*data++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
+		*data++ = cpu_to_le32(iwl_read_prph_yes_grab(fwrt->trans, addr));
 
 out:
 	iwl_trans_release_nic_access(fwrt->trans, &flags);
@@ -1396,7 +1396,7 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 		addr = le32_to_cpu(reg->addrs[i]) + offs;
 
 		reg_dump->addr = cpu_to_le32(addr);
-		reg_dump->data = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans,
+		reg_dump->data = cpu_to_le32(iwl_read_prph_yes_grab(fwrt->trans,
 								   addr));
 
 		reg_dump++;
@@ -1414,18 +1414,18 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 	offs += rxf_data.offset;
 
 	/* Lock fence */
-	iwl_write_prph_no_grab(fwrt->trans, RXF_SET_FENCE_MODE + offs, 0x1);
+	iwl_write_prph_yes_grab(fwrt->trans, RXF_SET_FENCE_MODE + offs, 0x1);
 	/* Set fence pointer to the same place like WR pointer */
-	iwl_write_prph_no_grab(fwrt->trans, RXF_LD_WR2FENCE + offs, 0x1);
+	iwl_write_prph_yes_grab(fwrt->trans, RXF_LD_WR2FENCE + offs, 0x1);
 	/* Set fence offset */
-	iwl_write_prph_no_grab(fwrt->trans, RXF_LD_FENCE_OFFSET_ADDR + offs,
+	iwl_write_prph_yes_grab(fwrt->trans, RXF_LD_FENCE_OFFSET_ADDR + offs,
 			       0x0);
 
 	/* Read FIFO */
 	addr =  RXF_FIFO_RD_FENCE_INC + offs;
 	data = (void *)reg_dump;
 	for (i = 0; i < rxf_data.size; i += sizeof(*data))
-		*data++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
+		*data++ = cpu_to_le32(iwl_read_prph_yes_grab(fwrt->trans, addr));
 
 out:
 	iwl_trans_release_nic_access(fwrt->trans, &flags);
@@ -1486,14 +1486,14 @@ iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
 }
 
 /**
- * mask_apply_and_normalize - applies mask on val and normalize the result
+ * mask_apply_and_yesrmalize - applies mask on val and yesrmalize the result
  *
- * The normalization is based on the first set bit in the mask
+ * The yesrmalization is based on the first set bit in the mask
  *
  * @val: value
- * @mask: mask to apply and to normalize with
+ * @mask: mask to apply and to yesrmalize with
  */
-static u32 mask_apply_and_normalize(u32 val, u32 mask)
+static u32 mask_apply_and_yesrmalize(u32 val, u32 mask)
 {
 	return (val & mask) >> (ffs(mask) - 1);
 }
@@ -1511,9 +1511,9 @@ static __le32 iwl_get_mon_reg(struct iwl_fw_runtime *fwrt, u32 alloc_id,
 	if (!reg_info || !reg_info->addr || !reg_info->mask)
 		return 0;
 
-	val = iwl_read_prph_no_grab(fwrt->trans, reg_info->addr + offs);
+	val = iwl_read_prph_yes_grab(fwrt->trans, reg_info->addr + offs);
 
-	return cpu_to_le32(mask_apply_and_normalize(val, reg_info->mask));
+	return cpu_to_le32(mask_apply_and_yesrmalize(val, reg_info->mask));
 }
 
 static void *
@@ -1905,12 +1905,12 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_dump_entry *entry;
 	struct iwl_fw_error_dump_data *tlv;
 	struct iwl_fw_ini_dump_info *dump;
-	struct iwl_dbg_tlv_node *node;
+	struct iwl_dbg_tlv_yesde *yesde;
 	struct iwl_fw_ini_dump_cfg_name *cfg_name;
 	u32 size = sizeof(*tlv) + sizeof(*dump);
 	u32 num_of_cfg_names = 0;
 
-	list_for_each_entry(node, &fwrt->trans->dbg.debug_info_tlv_list, list) {
+	list_for_each_entry(yesde, &fwrt->trans->dbg.debug_info_tlv_list, list) {
 		size += sizeof(*cfg_name);
 		num_of_cfg_names++;
 	}
@@ -1946,9 +1946,9 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	dump->rf_id_type = cpu_to_le32(CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id));
 
 	dump->lmac_major = cpu_to_le32(fwrt->dump.fw_ver.lmac_major);
-	dump->lmac_minor = cpu_to_le32(fwrt->dump.fw_ver.lmac_minor);
+	dump->lmac_miyesr = cpu_to_le32(fwrt->dump.fw_ver.lmac_miyesr);
 	dump->umac_major = cpu_to_le32(fwrt->dump.fw_ver.umac_major);
-	dump->umac_minor = cpu_to_le32(fwrt->dump.fw_ver.umac_minor);
+	dump->umac_miyesr = cpu_to_le32(fwrt->dump.fw_ver.umac_miyesr);
 
 	dump->fw_mon_mode = cpu_to_le32(fwrt->trans->dbg.ini_dest);
 	dump->regions_mask = trigger->regions_mask;
@@ -1959,9 +1959,9 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 
 	cfg_name = dump->cfg_names;
 	dump->num_of_cfg_names = cpu_to_le32(num_of_cfg_names);
-	list_for_each_entry(node, &fwrt->trans->dbg.debug_info_tlv_list, list) {
+	list_for_each_entry(yesde, &fwrt->trans->dbg.debug_info_tlv_list, list) {
 		struct iwl_fw_ini_debug_info_tlv *debug_info =
-			(void *)node->tlv.data;
+			(void *)yesde->tlv.data;
 
 		cfg_name->image_type = debug_info->image_type;
 		cfg_name->cfg_name_len =
@@ -2098,12 +2098,12 @@ static bool iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
 				  struct iwl_fw_ini_trigger_tlv *trig)
 {
 	enum iwl_fw_ini_time_point tp_id = le32_to_cpu(trig->time_point);
-	u32 usec = le32_to_cpu(trig->ignore_consec);
+	u32 usec = le32_to_cpu(trig->igyesre_consec);
 
 	if (!iwl_trans_dbg_ini_valid(fwrt->trans) ||
 	    tp_id == IWL_FW_INI_TIME_POINT_INVALID ||
 	    tp_id >= IWL_FW_INI_TIME_POINT_NUM ||
-	    iwl_fw_dbg_no_trig_window(fwrt, tp_id, usec))
+	    iwl_fw_dbg_yes_trig_window(fwrt, tp_id, usec))
 		return false;
 
 	return true;
@@ -2254,7 +2254,7 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 		return 0;
 	}
 
-	/* use wks[0] since dump flow prior to ini does not need to support
+	/* use wks[0] since dump flow prior to ini does yest need to support
 	 * consecutive triggers collection
 	 */
 	if (test_and_set_bit(fwrt->dump.wks[0].idx, &fwrt->dump.active_wks))
@@ -2355,7 +2355,7 @@ int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 		return -EBUSY;
 
 	if (!iwl_fw_ini_trigger_on(fwrt, trig)) {
-		IWL_WARN(fwrt, "WRT: Trigger %d is not active, aborting dump\n",
+		IWL_WARN(fwrt, "WRT: Trigger %d is yest active, aborting dump\n",
 			 tp_id);
 		return -EINVAL;
 	}
@@ -2368,7 +2368,7 @@ int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 	trig->occurrences = cpu_to_le32(--occur);
 
 	/* Check there is an available worker.
-	 * ffz return value is undefined if no zero exists,
+	 * ffz return value is undefined if yes zero exists,
 	 * so check against ~0UL first.
 	 */
 	if (fwrt->dump.active_wks == ~0UL)
@@ -2484,12 +2484,12 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 
 	if (fwrt->ops && fwrt->ops->fw_running &&
 	    !fwrt->ops->fw_running(fwrt->ops_ctx)) {
-		IWL_ERR(fwrt, "Firmware not running - cannot dump error\n");
+		IWL_ERR(fwrt, "Firmware yest running - canyest dump error\n");
 		iwl_fw_free_dump_desc(fwrt);
 		goto out;
 	}
 
-	/* there's no point in fw dump if the bus is dead */
+	/* there's yes point in fw dump if the bus is dead */
 	if (test_bit(STATUS_TRANS_DEAD, &fwrt->trans->status)) {
 		IWL_ERR(fwrt, "Skip fw error dump since bus is dead\n");
 		goto out;
@@ -2601,7 +2601,7 @@ void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt)
 
 	for (i = 0; i < ARRAY_SIZE(fseq_regs); i++)
 		IWL_ERR(fwrt, "0x%08X | %s\n",
-			iwl_read_prph_no_grab(trans, fseq_regs[i].addr),
+			iwl_read_prph_yes_grab(trans, fseq_regs[i].addr),
 			fseq_regs[i].str);
 
 	iwl_trans_release_nic_access(trans, &flags);
@@ -2669,8 +2669,8 @@ int iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
 {
 	int ret = 0;
 
-	/* if the FW crashed or not debug monitor cfg was given, there is
-	 * no point in changing the recording state
+	/* if the FW crashed or yest debug monitor cfg was given, there is
+	 * yes point in changing the recording state
 	 */
 	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status) ||
 	    (!fwrt->trans->dbg.dest_tlv &&

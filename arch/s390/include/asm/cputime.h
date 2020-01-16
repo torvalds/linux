@@ -27,7 +27,7 @@ static inline u64 cputime_to_usecs(const u64 cputime)
 }
 
 /*
- * Convert cputime to nanoseconds.
+ * Convert cputime to nayesseconds.
  */
 #define cputime_to_nsecs(cputime) tod_to_ns(cputime)
 

@@ -19,9 +19,9 @@
  * every file in the kernel includes autoconf.h.
  *
  * If the user re-runs make *config, autoconf.h will be
- * regenerated.  make notices that and will rebuild every file which
+ * regenerated.  make yestices that and will rebuild every file which
  * includes autoconf.h, i.e. basically all files. This is extremely
- * annoying if the user just changed CONFIG_HIS_DRIVER from n to m.
+ * anyesying if the user just changed CONFIG_HIS_DRIVER from n to m.
  *
  * So we play the same trick that "mkdep" played before. We replace
  * the dependency on autoconf.h by a dependency on every config
@@ -46,11 +46,11 @@
  *
  * The former is handled by using the -MD output, the later by saving
  * the command line used to compile the old object and comparing it
- * to the one we would now use.
+ * to the one we would yesw use.
  *
  * Again, also this idea is pretty old and has been discussed on
  * kbuild-devel a long time ago. I don't have a sensibly working
- * internet connection right now, so I rather don't mention names
+ * internet connection right yesw, so I rather don't mention names
  * without double checking.
  *
  * This code here has been based partially based on mkdep.c, which
@@ -84,10 +84,10 @@
  *
  * We don't even try to really parse the header files, but
  * merely grep, i.e. if CONFIG_FOO is mentioned in a comment, it will
- * be picked up as well. It's not a problem with respect to
+ * be picked up as well. It's yest a problem with respect to
  * correctness, since that can only give too many dependencies, thus
- * we cannot miss a rebuild. Since people tend to not mention totally
- * unrelated CONFIG_ options all over the place, it's not an
+ * we canyest miss a rebuild. Since people tend to yest mention totally
+ * unrelated CONFIG_ options all over the place, it's yest an
  * efficiency problem either.
  *
  * (Note: it'd be easy to port over the complete mkdep state machine,
@@ -295,8 +295,8 @@ static void *read_file(const char *filename)
 	return buf;
 }
 
-/* Ignore certain dependencies */
-static int is_ignored_file(const char *s, int len)
+/* Igyesre certain dependencies */
+static int is_igyesred_file(const char *s, int len)
 {
 	return str_ends_with(s, len, "include/generated/autoconf.h") ||
 	       str_ends_with(s, len, "include/generated/autoksyms.h") ||
@@ -305,7 +305,7 @@ static int is_ignored_file(const char *s, int len)
 
 /*
  * Important: The below generated source_foo.o and deps_foo.o variable
- * assignments are parsed not only by make, but also by the rather simple
+ * assignments are parsed yest only by make, but also by the rather simple
  * parser in scripts/mod/sumversion.c.
  */
 static void parse_dep_file(char *m, const char *target)
@@ -335,12 +335,12 @@ static void parse_dep_file(char *m, const char *target)
 		if (is_target) {
 			/* The /next/ file is the first dependency */
 			is_first_dep = 1;
-		} else if (!is_ignored_file(m, p - m)) {
+		} else if (!is_igyesred_file(m, p - m)) {
 			*p = '\0';
 
 			/*
-			 * Do not list the source file as dependency, so that
-			 * kbuild is not confused if a .c file is rewritten
+			 * Do yest list the source file as dependency, so that
+			 * kbuild is yest confused if a .c file is rewritten
 			 * into .S or vice versa. Storing it in source_* is
 			 * needed for modpost to compute srcversions.
 			 */
@@ -349,7 +349,7 @@ static void parse_dep_file(char *m, const char *target)
 				 * If processing the concatenation of multiple
 				 * dependency files, only process the first
 				 * target name, which will be the original
-				 * source name, and ignore any other target
+				 * source name, and igyesre any other target
 				 * names, which will be intermediate temporary
 				 * files.
 				 */
@@ -380,7 +380,7 @@ static void parse_dep_file(char *m, const char *target)
 	}
 
 	if (!saw_any_target) {
-		fprintf(stderr, "fixdep: parse error; no targets found\n");
+		fprintf(stderr, "fixdep: parse error; yes targets found\n");
 		exit(1);
 	}
 

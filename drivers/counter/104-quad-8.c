@@ -8,7 +8,7 @@
 #include <linux/bitops.h>
 #include <linux/counter.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/types.h>
 #include <linux/io.h>
@@ -37,7 +37,7 @@ MODULE_PARM_DESC(base, "ACCES 104-QUAD-8 base addresses");
  * @quadrature_scale:	array of quadrature mode scale configurations
  * @ab_enable:		array of A and B inputs enable configurations
  * @preset_enable:	array of set_to_preset_on_index attribute configurations
- * @synchronous_mode:	array of index function synchronous mode configurations
+ * @synchroyesus_mode:	array of index function synchroyesus mode configurations
  * @index_polarity:	array of index function polarity configurations
  * @base:		base port address of the IIO device
  */
@@ -49,7 +49,7 @@ struct quad8_iio {
 	unsigned int quadrature_scale[QUAD8_NUM_COUNTERS];
 	unsigned int ab_enable[QUAD8_NUM_COUNTERS];
 	unsigned int preset_enable[QUAD8_NUM_COUNTERS];
-	unsigned int synchronous_mode[QUAD8_NUM_COUNTERS];
+	unsigned int synchroyesus_mode[QUAD8_NUM_COUNTERS];
 	unsigned int index_polarity[QUAD8_NUM_COUNTERS];
 	unsigned int base;
 };
@@ -297,12 +297,12 @@ static ssize_t quad8_write_set_to_preset_on_index(struct iio_dev *indio_dev,
 	return len;
 }
 
-static const char *const quad8_noise_error_states[] = {
-	"No excessive noise is present at the count inputs",
-	"Excessive noise is present at the count inputs"
+static const char *const quad8_yesise_error_states[] = {
+	"No excessive yesise is present at the count inputs",
+	"Excessive yesise is present at the count inputs"
 };
 
-static int quad8_get_noise_error(struct iio_dev *indio_dev,
+static int quad8_get_yesise_error(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan)
 {
 	struct quad8_iio *const priv = iio_priv(indio_dev);
@@ -311,10 +311,10 @@ static int quad8_get_noise_error(struct iio_dev *indio_dev,
 	return !!(inb(base_offset) & QUAD8_FLAG_E);
 }
 
-static const struct iio_enum quad8_noise_error_enum = {
-	.items = quad8_noise_error_states,
-	.num_items = ARRAY_SIZE(quad8_noise_error_states),
-	.get = quad8_get_noise_error
+static const struct iio_enum quad8_yesise_error_enum = {
+	.items = quad8_yesise_error_states,
+	.num_items = ARRAY_SIZE(quad8_yesise_error_states),
+	.get = quad8_get_yesise_error
 };
 
 static const char *const quad8_count_direction_states[] = {
@@ -338,9 +338,9 @@ static const struct iio_enum quad8_count_direction_enum = {
 };
 
 static const char *const quad8_count_modes[] = {
-	"normal",
+	"yesrmal",
 	"range limit",
-	"non-recycle",
+	"yesn-recycle",
 	"modulo-n"
 };
 
@@ -378,24 +378,24 @@ static const struct iio_enum quad8_count_mode_enum = {
 	.get = quad8_get_count_mode
 };
 
-static const char *const quad8_synchronous_modes[] = {
-	"non-synchronous",
-	"synchronous"
+static const char *const quad8_synchroyesus_modes[] = {
+	"yesn-synchroyesus",
+	"synchroyesus"
 };
 
-static int quad8_set_synchronous_mode(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan, unsigned int synchronous_mode)
+static int quad8_set_synchroyesus_mode(struct iio_dev *indio_dev,
+	const struct iio_chan_spec *chan, unsigned int synchroyesus_mode)
 {
 	struct quad8_iio *const priv = iio_priv(indio_dev);
-	const unsigned int idr_cfg = synchronous_mode |
+	const unsigned int idr_cfg = synchroyesus_mode |
 		priv->index_polarity[chan->channel] << 1;
 	const int base_offset = priv->base + 2 * chan->channel + 1;
 
-	/* Index function must be non-synchronous in non-quadrature mode */
-	if (synchronous_mode && !priv->quadrature_mode[chan->channel])
+	/* Index function must be yesn-synchroyesus in yesn-quadrature mode */
+	if (synchroyesus_mode && !priv->quadrature_mode[chan->channel])
 		return -EINVAL;
 
-	priv->synchronous_mode[chan->channel] = synchronous_mode;
+	priv->synchroyesus_mode[chan->channel] = synchroyesus_mode;
 
 	/* Load Index Control configuration to Index Control Register */
 	outb(QUAD8_CTR_IDR | idr_cfg, base_offset);
@@ -403,23 +403,23 @@ static int quad8_set_synchronous_mode(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static int quad8_get_synchronous_mode(struct iio_dev *indio_dev,
+static int quad8_get_synchroyesus_mode(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan)
 {
 	const struct quad8_iio *const priv = iio_priv(indio_dev);
 
-	return priv->synchronous_mode[chan->channel];
+	return priv->synchroyesus_mode[chan->channel];
 }
 
-static const struct iio_enum quad8_synchronous_mode_enum = {
-	.items = quad8_synchronous_modes,
-	.num_items = ARRAY_SIZE(quad8_synchronous_modes),
-	.set = quad8_set_synchronous_mode,
-	.get = quad8_get_synchronous_mode
+static const struct iio_enum quad8_synchroyesus_mode_enum = {
+	.items = quad8_synchroyesus_modes,
+	.num_items = ARRAY_SIZE(quad8_synchroyesus_modes),
+	.set = quad8_set_synchroyesus_mode,
+	.get = quad8_get_synchroyesus_mode
 };
 
 static const char *const quad8_quadrature_modes[] = {
-	"non-quadrature",
+	"yesn-quadrature",
 	"quadrature"
 };
 
@@ -436,9 +436,9 @@ static int quad8_set_quadrature_mode(struct iio_dev *indio_dev,
 		/* Quadrature scaling only available in quadrature mode */
 		priv->quadrature_scale[chan->channel] = 0;
 
-		/* Synchronous function not supported in non-quadrature mode */
-		if (priv->synchronous_mode[chan->channel])
-			quad8_set_synchronous_mode(indio_dev, chan, 0);
+		/* Synchroyesus function yest supported in yesn-quadrature mode */
+		if (priv->synchroyesus_mode[chan->channel])
+			quad8_set_synchroyesus_mode(indio_dev, chan, 0);
 	}
 
 	priv->quadrature_mode[chan->channel] = quadrature_mode;
@@ -473,7 +473,7 @@ static int quad8_set_index_polarity(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, unsigned int index_polarity)
 {
 	struct quad8_iio *const priv = iio_priv(indio_dev);
-	const unsigned int idr_cfg = priv->synchronous_mode[chan->channel] |
+	const unsigned int idr_cfg = priv->synchroyesus_mode[chan->channel] |
 		index_polarity << 1;
 	const int base_offset = priv->base + 2 * chan->channel + 1;
 
@@ -513,8 +513,8 @@ static const struct iio_chan_spec_ext_info quad8_count_ext_info[] = {
 		.read = quad8_read_set_to_preset_on_index,
 		.write = quad8_write_set_to_preset_on_index
 	},
-	IIO_ENUM("noise_error", IIO_SEPARATE, &quad8_noise_error_enum),
-	IIO_ENUM_AVAILABLE("noise_error", &quad8_noise_error_enum),
+	IIO_ENUM("yesise_error", IIO_SEPARATE, &quad8_yesise_error_enum),
+	IIO_ENUM_AVAILABLE("yesise_error", &quad8_yesise_error_enum),
 	IIO_ENUM("count_direction", IIO_SEPARATE, &quad8_count_direction_enum),
 	IIO_ENUM_AVAILABLE("count_direction", &quad8_count_direction_enum),
 	IIO_ENUM("count_mode", IIO_SEPARATE, &quad8_count_mode_enum),
@@ -525,9 +525,9 @@ static const struct iio_chan_spec_ext_info quad8_count_ext_info[] = {
 };
 
 static const struct iio_chan_spec_ext_info quad8_index_ext_info[] = {
-	IIO_ENUM("synchronous_mode", IIO_SEPARATE,
-		&quad8_synchronous_mode_enum),
-	IIO_ENUM_AVAILABLE("synchronous_mode", &quad8_synchronous_mode_enum),
+	IIO_ENUM("synchroyesus_mode", IIO_SEPARATE,
+		&quad8_synchroyesus_mode_enum),
+	IIO_ENUM_AVAILABLE("synchroyesus_mode", &quad8_synchroyesus_mode_enum),
 	IIO_ENUM("index_polarity", IIO_SEPARATE, &quad8_index_polarity_enum),
 	IIO_ENUM_AVAILABLE("index_polarity", &quad8_index_polarity_enum),
 	{}
@@ -691,7 +691,7 @@ static int quad8_function_set(struct counter_device *counter,
 	unsigned int *const quadrature_mode = priv->quadrature_mode + id;
 	unsigned int *const scale = priv->quadrature_scale + id;
 	unsigned int mode_cfg = priv->count_mode[id] << 1;
-	unsigned int *const synchronous_mode = priv->synchronous_mode + id;
+	unsigned int *const synchroyesus_mode = priv->synchroyesus_mode + id;
 	const unsigned int idr_cfg = priv->index_polarity[id] << 1;
 	const int base_offset = priv->base + 2 * id + 1;
 
@@ -701,10 +701,10 @@ static int quad8_function_set(struct counter_device *counter,
 		/* Quadrature scaling only available in quadrature mode */
 		*scale = 0;
 
-		/* Synchronous function not supported in non-quadrature mode */
-		if (*synchronous_mode) {
-			*synchronous_mode = 0;
-			/* Disable synchronous function mode */
+		/* Synchroyesus function yest supported in yesn-quadrature mode */
+		if (*synchroyesus_mode) {
+			*synchroyesus_mode = 0;
+			/* Disable synchroyesus function mode */
 			outb(QUAD8_CTR_IDR | idr_cfg, base_offset);
 		}
 	} else {
@@ -739,7 +739,7 @@ static void quad8_direction_get(struct counter_device *counter,
 	unsigned int ud_flag;
 	const unsigned int flag_addr = priv->base + 2 * count->id + 1;
 
-	/* U/D flag: nonzero = up, zero = down */
+	/* U/D flag: yesnzero = up, zero = down */
 	ud_flag = inb(flag_addr) & QUAD8_FLAG_UD;
 
 	*direction = (ud_flag) ? COUNTER_COUNT_DIRECTION_FORWARD :
@@ -845,7 +845,7 @@ static int quad8_index_polarity_set(struct counter_device *counter,
 {
 	struct quad8_iio *const priv = counter->priv;
 	const size_t channel_id = signal->id - 16;
-	const unsigned int idr_cfg = priv->synchronous_mode[channel_id] |
+	const unsigned int idr_cfg = priv->synchroyesus_mode[channel_id] |
 		index_polarity << 1;
 	const int base_offset = priv->base + 2 * channel_id + 1;
 
@@ -864,31 +864,31 @@ static struct counter_signal_enum_ext quad8_index_pol_enum = {
 	.set = quad8_index_polarity_set
 };
 
-static int quad8_synchronous_mode_get(struct counter_device *counter,
-	struct counter_signal *signal, size_t *synchronous_mode)
+static int quad8_synchroyesus_mode_get(struct counter_device *counter,
+	struct counter_signal *signal, size_t *synchroyesus_mode)
 {
 	const struct quad8_iio *const priv = counter->priv;
 	const size_t channel_id = signal->id - 16;
 
-	*synchronous_mode = priv->synchronous_mode[channel_id];
+	*synchroyesus_mode = priv->synchroyesus_mode[channel_id];
 
 	return 0;
 }
 
-static int quad8_synchronous_mode_set(struct counter_device *counter,
-	struct counter_signal *signal, size_t synchronous_mode)
+static int quad8_synchroyesus_mode_set(struct counter_device *counter,
+	struct counter_signal *signal, size_t synchroyesus_mode)
 {
 	struct quad8_iio *const priv = counter->priv;
 	const size_t channel_id = signal->id - 16;
-	const unsigned int idr_cfg = synchronous_mode |
+	const unsigned int idr_cfg = synchroyesus_mode |
 		priv->index_polarity[channel_id] << 1;
 	const int base_offset = priv->base + 2 * channel_id + 1;
 
-	/* Index function must be non-synchronous in non-quadrature mode */
-	if (synchronous_mode && !priv->quadrature_mode[channel_id])
+	/* Index function must be yesn-synchroyesus in yesn-quadrature mode */
+	if (synchroyesus_mode && !priv->quadrature_mode[channel_id])
 		return -EINVAL;
 
-	priv->synchronous_mode[channel_id] = synchronous_mode;
+	priv->synchroyesus_mode[channel_id] = synchroyesus_mode;
 
 	/* Load Index Control configuration to Index Control Register */
 	outb(QUAD8_CTR_IDR | idr_cfg, base_offset);
@@ -897,10 +897,10 @@ static int quad8_synchronous_mode_set(struct counter_device *counter,
 }
 
 static struct counter_signal_enum_ext quad8_syn_mode_enum = {
-	.items = quad8_synchronous_modes,
-	.num_items = ARRAY_SIZE(quad8_synchronous_modes),
-	.get = quad8_synchronous_mode_get,
-	.set = quad8_synchronous_mode_set
+	.items = quad8_synchroyesus_modes,
+	.num_items = ARRAY_SIZE(quad8_synchroyesus_modes),
+	.get = quad8_synchroyesus_mode_get,
+	.set = quad8_synchroyesus_mode_set
 };
 
 static ssize_t quad8_count_floor_read(struct counter_device *counter,
@@ -1020,21 +1020,21 @@ static ssize_t quad8_count_enable_write(struct counter_device *counter,
 	return len;
 }
 
-static int quad8_error_noise_get(struct counter_device *counter,
-	struct counter_count *count, size_t *noise_error)
+static int quad8_error_yesise_get(struct counter_device *counter,
+	struct counter_count *count, size_t *yesise_error)
 {
 	const struct quad8_iio *const priv = counter->priv;
 	const int base_offset = priv->base + 2 * count->id + 1;
 
-	*noise_error = !!(inb(base_offset) & QUAD8_FLAG_E);
+	*yesise_error = !!(inb(base_offset) & QUAD8_FLAG_E);
 
 	return 0;
 }
 
-static struct counter_count_enum_ext quad8_error_noise_enum = {
-	.items = quad8_noise_error_states,
-	.num_items = ARRAY_SIZE(quad8_noise_error_states),
-	.get = quad8_error_noise_get
+static struct counter_count_enum_ext quad8_error_yesise_enum = {
+	.items = quad8_yesise_error_states,
+	.num_items = ARRAY_SIZE(quad8_yesise_error_states),
+	.get = quad8_error_yesise_get
 };
 
 static ssize_t quad8_count_preset_read(struct counter_device *counter,
@@ -1143,8 +1143,8 @@ static ssize_t quad8_count_preset_enable_write(struct counter_device *counter,
 static const struct counter_signal_ext quad8_index_ext[] = {
 	COUNTER_SIGNAL_ENUM("index_polarity", &quad8_index_pol_enum),
 	COUNTER_SIGNAL_ENUM_AVAILABLE("index_polarity",	&quad8_index_pol_enum),
-	COUNTER_SIGNAL_ENUM("synchronous_mode", &quad8_syn_mode_enum),
-	COUNTER_SIGNAL_ENUM_AVAILABLE("synchronous_mode", &quad8_syn_mode_enum)
+	COUNTER_SIGNAL_ENUM("synchroyesus_mode", &quad8_syn_mode_enum),
+	COUNTER_SIGNAL_ENUM_AVAILABLE("synchroyesus_mode", &quad8_syn_mode_enum)
 };
 
 #define	QUAD8_QUAD_SIGNAL(_id, _name) {	\
@@ -1232,8 +1232,8 @@ static const struct counter_count_ext quad8_count_ext[] = {
 		.read = quad8_count_enable_read,
 		.write = quad8_count_enable_write
 	},
-	COUNTER_COUNT_ENUM("error_noise", &quad8_error_noise_enum),
-	COUNTER_COUNT_ENUM_AVAILABLE("error_noise", &quad8_error_noise_enum),
+	COUNTER_COUNT_ENUM("error_yesise", &quad8_error_yesise_enum),
+	COUNTER_COUNT_ENUM_AVAILABLE("error_yesise", &quad8_error_yesise_enum),
 	{
 		.name = "preset",
 		.read = quad8_count_preset_read,
@@ -1321,7 +1321,7 @@ static int quad8_probe(struct device *dev, unsigned int id)
 		outb(QUAD8_CTR_RLD | QUAD8_RLD_RESET_FLAGS, base_offset + 1);
 		/* Reset Error flag */
 		outb(QUAD8_CTR_RLD | QUAD8_RLD_RESET_E, base_offset + 1);
-		/* Binary encoding; Normal count; non-quadrature mode */
+		/* Binary encoding; Normal count; yesn-quadrature mode */
 		outb(QUAD8_CTR_CMR, base_offset + 1);
 		/* Disable A and B inputs; preset on index; FLG1 as Carry */
 		outb(QUAD8_CTR_IOR, base_offset + 1);

@@ -49,24 +49,24 @@ Below is a simplified diagram of a real-world SoC interconnect bus topology.
        | Modem |
        +-------+
 
-Terminology
+Termiyeslogy
 -----------
 
 Interconnect provider is the software definition of the interconnect hardware.
 The interconnect providers on the above diagram are M NoC, S NoC, C NoC, P NoC
 and Mem NoC.
 
-Interconnect node is the software definition of the interconnect hardware
-port. Each interconnect provider consists of multiple interconnect nodes,
+Interconnect yesde is the software definition of the interconnect hardware
+port. Each interconnect provider consists of multiple interconnect yesdes,
 which are connected to other SoC components including other interconnect
 providers. The point on the diagram where the CPUs connect to the memory is
-called an interconnect node, which belongs to the Mem NoC interconnect provider.
+called an interconnect yesde, which belongs to the Mem NoC interconnect provider.
 
 Interconnect endpoints are the first or the last element of the path. Every
-endpoint is a node, but not every node is an endpoint.
+endpoint is a yesde, but yest every yesde is an endpoint.
 
-Interconnect path is everything between two endpoints including all the nodes
-that have to be traversed to reach from a source to destination node. It may
+Interconnect path is everything between two endpoints including all the yesdes
+that have to be traversed to reach from a source to destination yesde. It may
 include multiple master-slave pairs across several interconnect providers.
 
 Interconnect consumers are the entities which make use of the data paths exposed
@@ -89,5 +89,5 @@ Interconnect consumers
 
 Interconnect consumers are the clients which use the interconnect APIs to
 get paths between endpoints and set their bandwidth/latency/QoS requirements
-for these interconnect paths.  These interfaces are not currently
+for these interconnect paths.  These interfaces are yest currently
 documented.

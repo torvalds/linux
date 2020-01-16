@@ -169,11 +169,11 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 		rtllib_stop_protocol(ieee, true);
 
 	/* just to avoid to give inconsistent infos in the
-	 * get wx method. not really needed otherwise
+	 * get wx method. yest really needed otherwise
 	 */
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	ieee->cannot_notify = false;
+	ieee->canyest_yestify = false;
 	ether_addr_copy(ieee->current_network.bssid, temp->sa_data);
 	ieee->wap_set = !is_zero_ether_addr(temp->sa_data);
 
@@ -272,7 +272,7 @@ int rtllib_wx_get_rts(struct rtllib_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	wrqu->rts.value = ieee->rts;
-	wrqu->rts.fixed = 0;	/* no auto select */
+	wrqu->rts.fixed = 0;	/* yes auto select */
 	wrqu->rts.disabled = (wrqu->rts.value == DEFAULT_RTS_THRESHOLD);
 	return 0;
 }
@@ -342,7 +342,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 
 	if (ieee->LeisurePSLeave)
 		ieee->LeisurePSLeave(ieee->dev);
-	/* notify AP to be in PS mode */
+	/* yestify AP to be in PS mode */
 	rtllib_sta_ps_send_null_frame(ieee, 1);
 	rtllib_sta_ps_send_null_frame(ieee, 1);
 
@@ -470,14 +470,14 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 
 
 	/* this is just to be sure that the GET wx callback
-	 * has consistent infos. not needed otherwise
+	 * has consistent infos. yest needed otherwise
 	 */
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	if (wrqu->essid.flags && wrqu->essid.length) {
 		strncpy(ieee->current_network.ssid, extra, len);
 		ieee->current_network.ssid_len = len;
-		ieee->cannot_notify = false;
+		ieee->canyest_yestify = false;
 		ieee->ssid_set = 1;
 	} else {
 		ieee->ssid_set = 0;

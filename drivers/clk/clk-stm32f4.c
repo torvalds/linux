@@ -18,7 +18,7 @@
 #include <linux/mfd/syscon.h>
 
 /*
- * Include list of clocks wich are not derived from system clock (SYSCLOCK)
+ * Include list of clocks wich are yest derived from system clock (SYSCLOCK)
  * The index of these clocks is the secondary index of DT bindings
  *
  */
@@ -404,7 +404,7 @@ static int stm32fx_end_primary_clk;
 /*
  * "Multiplier" device for APBx clocks.
  *
- * The APBx dividers are power-of-two dividers and, if *not* running in 1:1
+ * The APBx dividers are power-of-two dividers and, if *yest* running in 1:1
  * mode, they also tap out the one of the low order state bits to run the
  * timers. ST datasheets represent this feature as a (conditional) clock
  * multiplier.
@@ -451,7 +451,7 @@ static int clk_apb_mul_set_rate(struct clk_hw *hw, unsigned long rate,
 	/*
 	 * We must report success but we can do so unconditionally because
 	 * clk_apb_mul_round_rate returns values that ensure this call is a
-	 * nop.
+	 * yesp.
 	 */
 
 	return 0;
@@ -1117,7 +1117,7 @@ static const struct clk_div_table apb_div_table[] = {
 };
 
 static const char *rtc_parents[4] = {
-	"no-clock", "lse", "lsi", "hse-rtc"
+	"yes-clock", "lse", "lsi", "hse-rtc"
 };
 
 static const char *pll_src = "pll-src";
@@ -1131,7 +1131,7 @@ static const char *lcd_parent[1] = { "pllsai-r-div" };
 static const char *i2s_parents[2] = { "plli2s-r", NULL };
 
 static const char *sai_parents[4] = { "pllsai-q-div", "plli2s-q-div", NULL,
-	"no-clock" };
+	"yes-clock" };
 
 static const char *pll48_parents[2] = { "pll-q", "pllsai-p" };
 
@@ -1146,7 +1146,7 @@ static const char *lptim_parent[4] = { "apb1_mul", "lsi", "hsi", "lse" };
 static const char *uart_parents1[4] = { "apb2_div", "sys", "hsi", "lse" };
 static const char *uart_parents2[4] = { "apb1_div", "sys", "hsi", "lse" };
 
-static const char *i2c_parents[4] = { "apb1_div", "sys", "hsi", "no-clock" };
+static const char *i2c_parents[4] = { "apb1_div", "sys", "hsi", "yes-clock" };
 
 static const char * const dfsdm1_src[] = { "apb2_div", "sys" };
 static const char * const adsfdm1_parent[] = { "sai1_clk", "sai2_clk" };
@@ -1685,7 +1685,7 @@ fail:
 	return hw;
 }
 
-static void __init stm32f4_rcc_init(struct device_node *np)
+static void __init stm32f4_rcc_init(struct device_yesde *np)
 {
 	const char *hse_clk, *i2s_in_clk;
 	int n;
@@ -1706,7 +1706,7 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 		pr_warn("%s: Unable to get syscfg\n", __func__);
 	}
 
-	match = of_match_node(stm32f4_of_match, np);
+	match = of_match_yesde(stm32f4_of_match, np);
 	if (WARN_ON(!match))
 		return;
 

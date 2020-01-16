@@ -73,7 +73,7 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 	if (pdev->is_virtfn) {
 		struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
-		edev->pe_config_addr =  (pdn->busno << 16) | (pdn->devfn << 8);
+		edev->pe_config_addr =  (pdn->busyes << 16) | (pdn->devfn << 8);
 		eeh_rmv_from_parent_pe(edev); /* Remove as it is adding to bus pe */
 		eeh_add_to_parent_pe(edev);   /* Add as VF PE type */
 	}
@@ -83,7 +83,7 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 
 /*
  * Buffer for reporting slot-error-detail rtas calls. Its here
- * in BSS, and not dynamically alloced, so that it ends up in
+ * in BSS, and yest dynamically alloced, so that it ends up in
  * RMO where RTAS can access it.
  */
 static unsigned char slot_errbuf[RTAS_ERROR_LOG_MAX];
@@ -126,7 +126,7 @@ static int pseries_eeh_init(void)
 	     ibm_read_slot_reset_state == RTAS_UNKNOWN_SERVICE)	||
 	    ibm_slot_error_detail == RTAS_UNKNOWN_SERVICE	||
 	    ibm_configure_pe == RTAS_UNKNOWN_SERVICE) {
-		pr_info("EEH functionality not supported\n");
+		pr_info("EEH functionality yest supported\n");
 		return -EINVAL;
 	}
 
@@ -134,7 +134,7 @@ static int pseries_eeh_init(void)
 	spin_lock_init(&slot_errbuf_lock);
 	eeh_error_buf_size = rtas_token("rtas-error-log-max");
 	if (eeh_error_buf_size == RTAS_UNKNOWN_SERVICE) {
-		pr_info("%s: unknown EEH error log size\n",
+		pr_info("%s: unkyeswn EEH error log size\n",
 			__func__);
 		eeh_error_buf_size = 1024;
 	} else if (eeh_error_buf_size > RTAS_ERROR_LOG_MAX) {
@@ -223,7 +223,7 @@ static int pseries_eeh_find_ecap(struct pci_dn *pdn, int cap)
 
 /**
  * pseries_eeh_probe - EEH probe on the given device
- * @pdn: PCI device node
+ * @pdn: PCI device yesde
  * @data: Unused
  *
  * When EEH module is installed during system boot, all PCI devices
@@ -238,7 +238,7 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 	int enable = 0;
 	int ret;
 
-	/* Retrieve OF node and eeh device */
+	/* Retrieve OF yesde and eeh device */
 	edev = pdn_to_eeh_dev(pdn);
 	if (!edev || edev->pe)
 		return NULL;
@@ -279,7 +279,7 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 	/* Initialize the fake PE */
 	memset(&pe, 0, sizeof(struct eeh_pe));
 	pe.phb = pdn->phb;
-	pe.config_addr = (pdn->busno << 16) | (pdn->devfn << 8);
+	pe.config_addr = (pdn->busyes << 16) | (pdn->devfn << 8);
 
 	/* Enable EEH on the device */
 	eeh_edev_dbg(edev, "Enabling EEH on device\n");
@@ -292,7 +292,7 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 		pe.addr = edev->pe_config_addr;
 
 		/* Some older systems (Power4) allow the ibm,set-eeh-option
-		 * call to succeed even on nodes where EEH is not supported.
+		 * call to succeed even on yesdes where EEH is yest supported.
 		 * Verify support explicitly.
 		 */
 		ret = eeh_ops->get_state(&pe, NULL);
@@ -338,7 +338,7 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 	 * When we're enabling or disabling EEH functioality on
 	 * the particular PE, the PE config address is possibly
 	 * unavailable. Therefore, we have to figure it out from
-	 * the FDT node.
+	 * the FDT yesde.
 	 */
 	switch (option) {
 	case EEH_OPT_DISABLE:
@@ -373,9 +373,9 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
  * function calls dedicated for the purpose. We need implement
  * it through the new function and then the old one. Besides,
  * you should make sure the config address is figured out from
- * FDT node before calling the function.
+ * FDT yesde before calling the function.
  *
- * It's notable that zero'ed return value means invalid PE config
+ * It's yestable that zero'ed return value means invalid PE config
  * address.
  */
 static int pseries_eeh_get_pe_addr(struct eeh_pe *pe)
@@ -431,7 +431,7 @@ static int pseries_eeh_get_pe_addr(struct eeh_pe *pe)
  *
  * Retrieve the state of the specified PE. On RTAS compliant
  * pseries platform, there already has one dedicated RTAS function
- * for the purpose. It's notable that the associated PE config address
+ * for the purpose. It's yestable that the associated PE config address
  * might be ready when calling the function. Therefore, endeavour to
  * use the PE config address if possible. Further more, there're 2
  * RTAS calls for the purpose, we need to try the new one and back
@@ -524,7 +524,7 @@ static int pseries_eeh_reset(struct eeh_pe *pe, int option)
 			config_addr, BUID_HI(pe->phb->buid),
 			BUID_LO(pe->phb->buid), option);
 
-	/* If fundamental-reset not supported, try hot-reset */
+	/* If fundamental-reset yest supported, try hot-reset */
 	if (option == EEH_RESET_FUNDAMENTAL &&
 	    ret == -8) {
 		option = EEH_RESET_HOT;
@@ -632,7 +632,7 @@ static int pseries_eeh_configure_bridge(struct eeh_pe *pe)
 
 /**
  * pseries_eeh_read_config - Read PCI config space
- * @pdn: PCI device node
+ * @pdn: PCI device yesde
  * @where: PCI address
  * @size: size to read
  * @val: return value
@@ -646,7 +646,7 @@ static int pseries_eeh_read_config(struct pci_dn *pdn, int where, int size, u32 
 
 /**
  * pseries_eeh_write_config - Write PCI config space
- * @pdn: PCI device node
+ * @pdn: PCI device yesde
  * @where: PCI address
  * @size: size to write
  * @val: value to be written
@@ -690,7 +690,7 @@ int pseries_send_allow_unfreeze(struct pci_dn *pdn,
 	int ibm_allow_unfreeze = rtas_token("ibm,open-sriov-allow-unfreeze");
 	unsigned long buid, addr;
 
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	addr = rtas_config_addr(pdn->busyes, pdn->devfn, 0);
 	buid = pdn->phb->buid;
 	spin_lock(&rtas_data_buf_lock);
 	memcpy(rtas_data_buf, vf_pe_array, RTAS_DATA_BUF_SIZE);
@@ -735,7 +735,7 @@ static int pseries_call_allow_unfreeze(struct eeh_dev *edev)
 								 vf_index);
 					devfn = pci_iov_virtfn_devfn(edev->pdev,
 								     vf_index);
-					if (pdn->busno != bus ||
+					if (pdn->busyes != bus ||
 					    pdn->devfn != devfn)
 						continue;
 					pdn->last_allow_rc = rc;
@@ -755,7 +755,7 @@ static int pseries_call_allow_unfreeze(struct eeh_dev *edev)
 	return rc;
 }
 
-static int pseries_notify_resume(struct pci_dn *pdn)
+static int pseries_yestify_resume(struct pci_dn *pdn)
 {
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
@@ -789,7 +789,7 @@ static struct eeh_ops pseries_eeh_ops = {
 	.next_error		= NULL,
 	.restore_config		= pseries_eeh_restore_config,
 #ifdef CONFIG_PCI_IOV
-	.notify_resume		= pseries_notify_resume
+	.yestify_resume		= pseries_yestify_resume
 #endif
 };
 

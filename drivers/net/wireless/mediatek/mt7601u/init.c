@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002-2010, Ralink Techyeslogy, Inc.
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  */
@@ -18,7 +18,7 @@ mt7601u_set_wlan_state(struct mt7601u_dev *dev, u32 val, bool enable)
 	int i;
 
 	/* Note: we don't turn off WLAN_CLK because that makes the device
-	 *	 not respond properly on the probe path.
+	 *	 yest respond properly on the probe path.
 	 *	 In case anyone (PSM?) wants to use this function we can
 	 *	 bring the clock stuff back and fixup the probe path.
 	 */
@@ -56,7 +56,7 @@ mt7601u_set_wlan_state(struct mt7601u_dev *dev, u32 val, bool enable)
 		dev_err(dev->dev, "Error: PLL and XTAL check failed!\n");
 }
 
-static void mt7601u_chip_onoff(struct mt7601u_dev *dev, bool enable, bool reset)
+static void mt7601u_chip_oyesff(struct mt7601u_dev *dev, bool enable, bool reset)
 {
 	u32 val;
 
@@ -266,7 +266,7 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 		   MT_BEACON_TIME_CFG_BEACON_TX);
 
 	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_TX_BUSY, 0, 1000))
-		dev_warn(dev->dev, "Warning: TX DMA did not stop!\n");
+		dev_warn(dev->dev, "Warning: TX DMA did yest stop!\n");
 
 	/* Page count on TxQ */
 	i = 200;
@@ -276,7 +276,7 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 		msleep(10);
 
 	if (!mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_TX, 0, 1000))
-		dev_warn(dev->dev, "Warning: MAC TX did not stop!\n");
+		dev_warn(dev->dev, "Warning: MAC TX did yest stop!\n");
 
 	mt76_clear(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_RX |
 					 MT_MAC_SYS_CTRL_ENABLE_TX);
@@ -296,10 +296,10 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 	}
 
 	if (!mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_RX, 0, 1000))
-		dev_warn(dev->dev, "Warning: MAC RX did not stop!\n");
+		dev_warn(dev->dev, "Warning: MAC RX did yest stop!\n");
 
 	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_RX_BUSY, 0, 1000))
-		dev_warn(dev->dev, "Warning: RX DMA did not stop!\n");
+		dev_warn(dev->dev, "Warning: RX DMA did yest stop!\n");
 }
 
 void mt7601u_mac_stop(struct mt7601u_dev *dev)
@@ -311,7 +311,7 @@ void mt7601u_mac_stop(struct mt7601u_dev *dev)
 
 static void mt7601u_stop_hardware(struct mt7601u_dev *dev)
 {
-	mt7601u_chip_onoff(dev, false, false);
+	mt7601u_chip_oyesff(dev, false, false);
 }
 
 int mt7601u_init_hardware(struct mt7601u_dev *dev)
@@ -327,7 +327,7 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 
 	dev->beacon_offsets = beacon_offsets;
 
-	mt7601u_chip_onoff(dev, true, false);
+	mt7601u_chip_oyesff(dev, true, false);
 
 	ret = mt7601u_wait_asic_ready(dev);
 	if (ret)
@@ -415,7 +415,7 @@ err_rx:
 err_mcu:
 	mt7601u_mcu_cmd_deinit(dev);
 err:
-	mt7601u_chip_onoff(dev, false, false);
+	mt7601u_chip_oyesff(dev, false, false);
 	return ret;
 }
 
@@ -578,7 +578,7 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 	int ret;
 
 	/* Reserve WCID 0 for mcast - thanks to this APs WCID will go to
-	 * entry no. 1 like it does in the vendor driver.
+	 * entry yes. 1 like it does in the vendor driver.
 	 */
 	dev->wcid_mask[0] |= 1;
 

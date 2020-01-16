@@ -57,13 +57,13 @@ static const struct regmap_range axp152_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp152_writeable_table = {
-	.yes_ranges	= axp152_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp152_writeable_ranges),
+	.no_ranges	= axp152_writeable_ranges,
+	.n_no_ranges	= ARRAY_SIZE(axp152_writeable_ranges),
 };
 
 static const struct regmap_access_table axp152_volatile_table = {
-	.yes_ranges	= axp152_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp152_volatile_ranges),
+	.no_ranges	= axp152_volatile_ranges,
+	.n_no_ranges	= ARRAY_SIZE(axp152_volatile_ranges),
 };
 
 static const struct regmap_range axp20x_writeable_ranges[] = {
@@ -83,13 +83,13 @@ static const struct regmap_range axp20x_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp20x_writeable_table = {
-	.yes_ranges	= axp20x_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp20x_writeable_ranges),
+	.no_ranges	= axp20x_writeable_ranges,
+	.n_no_ranges	= ARRAY_SIZE(axp20x_writeable_ranges),
 };
 
 static const struct regmap_access_table axp20x_volatile_table = {
-	.yes_ranges	= axp20x_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp20x_volatile_ranges),
+	.no_ranges	= axp20x_volatile_ranges,
+	.n_no_ranges	= ARRAY_SIZE(axp20x_volatile_ranges),
 };
 
 /* AXP22x ranges are shared with the AXP809, as they cover the same range */
@@ -108,13 +108,13 @@ static const struct regmap_range axp22x_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp22x_writeable_table = {
-	.yes_ranges	= axp22x_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp22x_writeable_ranges),
+	.no_ranges	= axp22x_writeable_ranges,
+	.n_no_ranges	= ARRAY_SIZE(axp22x_writeable_ranges),
 };
 
 static const struct regmap_access_table axp22x_volatile_table = {
-	.yes_ranges	= axp22x_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp22x_volatile_ranges),
+	.no_ranges	= axp22x_volatile_ranges,
+	.n_no_ranges	= ARRAY_SIZE(axp22x_volatile_ranges),
 };
 
 /* AXP288 ranges are shared with the AXP803, as they cover the same range */
@@ -136,13 +136,13 @@ static const struct regmap_range axp288_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp288_writeable_table = {
-	.yes_ranges	= axp288_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp288_writeable_ranges),
+	.no_ranges	= axp288_writeable_ranges,
+	.n_no_ranges	= ARRAY_SIZE(axp288_writeable_ranges),
 };
 
 static const struct regmap_access_table axp288_volatile_table = {
-	.yes_ranges	= axp288_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp288_volatile_ranges),
+	.no_ranges	= axp288_volatile_ranges,
+	.n_no_ranges	= ARRAY_SIZE(axp288_volatile_ranges),
 };
 
 static const struct regmap_range axp806_writeable_ranges[] = {
@@ -158,13 +158,13 @@ static const struct regmap_range axp806_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp806_writeable_table = {
-	.yes_ranges	= axp806_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp806_writeable_ranges),
+	.no_ranges	= axp806_writeable_ranges,
+	.n_no_ranges	= ARRAY_SIZE(axp806_writeable_ranges),
 };
 
 static const struct regmap_access_table axp806_volatile_table = {
-	.yes_ranges	= axp806_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp806_volatile_ranges),
+	.no_ranges	= axp806_volatile_ranges,
+	.n_no_ranges	= ARRAY_SIZE(axp806_volatile_ranges),
 };
 
 static const struct resource axp152_pek_resources[] = {
@@ -828,7 +828,7 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 	const struct acpi_device_id *acpi_id;
 	const struct of_device_id *of_id;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		of_id = of_match_device(dev->driver->of_match_table, dev);
 		if (!of_id) {
 			dev_err(dev, "Unable to match OF ID\n");
@@ -884,7 +884,7 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 		axp20x->regmap_irq_chip = &axp803_regmap_irq_chip;
 		break;
 	case AXP806_ID:
-		if (of_property_read_bool(axp20x->dev->of_node,
+		if (of_property_read_bool(axp20x->dev->of_yesde,
 					  "x-powers,self-working-mode")) {
 			axp20x->nr_cells = ARRAY_SIZE(axp806_self_working_cells);
 			axp20x->cells = axp806_self_working_cells;
@@ -948,9 +948,9 @@ int axp20x_device_probe(struct axp20x_dev *axp20x)
 	 * property "x-powers,master-mode" to override the default.
 	 */
 	if (axp20x->variant == AXP806_ID) {
-		if (of_property_read_bool(axp20x->dev->of_node,
+		if (of_property_read_bool(axp20x->dev->of_yesde,
 					  "x-powers,master-mode") ||
-		    of_property_read_bool(axp20x->dev->of_node,
+		    of_property_read_bool(axp20x->dev->of_yesde,
 					  "x-powers,self-working-mode"))
 			regmap_write(axp20x->regmap, AXP806_REG_ADDR_EXT,
 				     AXP806_REG_ADDR_EXT_ADDR_MASTER_MODE);

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -181,8 +181,8 @@ static int vcn_v2_5_sw_init(void *handle)
 		adev->vcn.inst[j].external.data1 = SOC15_REG_OFFSET(UVD, j, mmUVD_GPCOM_VCPU_DATA1);
 		adev->vcn.internal.cmd = mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET;
 		adev->vcn.inst[j].external.cmd = SOC15_REG_OFFSET(UVD, j, mmUVD_GPCOM_VCPU_CMD);
-		adev->vcn.internal.nop = mmUVD_NO_OP_INTERNAL_OFFSET;
-		adev->vcn.inst[j].external.nop = SOC15_REG_OFFSET(UVD, j, mmUVD_NO_OP);
+		adev->vcn.internal.yesp = mmUVD_NO_OP_INTERNAL_OFFSET;
+		adev->vcn.inst[j].external.yesp = SOC15_REG_OFFSET(UVD, j, mmUVD_NO_OP);
 
 		adev->vcn.internal.jpeg_pitch = mmUVD_JPEG_PITCH_INTERNAL_OFFSET;
 		adev->vcn.inst[j].external.jpeg_pitch = SOC15_REG_OFFSET(UVD, j, mmUVD_JPEG_PITCH);
@@ -287,7 +287,7 @@ done:
  *
  * @handle: amdgpu_device pointer
  *
- * Stop the VCN block, mark ring as not ready any more
+ * Stop the VCN block, mark ring as yest ready any more
  */
 static int vcn_v2_5_hw_fini(void *handle)
 {
@@ -364,7 +364,7 @@ static int vcn_v2_5_resume(void *handle)
  *
  * @adev: amdgpu_device pointer
  *
- * Let the VCN memory controller know it's offsets
+ * Let the VCN memory controller kyesw it's offsets
  */
 static void vcn_v2_5_mc_resume(struct amdgpu_device *adev)
 {
@@ -810,7 +810,7 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 			if (status & 2)
 				break;
 
-			DRM_ERROR("VCN decode not responding, trying to reset the VCPU!!!\n");
+			DRM_ERROR("VCN decode yest responding, trying to reset the VCPU!!!\n");
 			WREG32_P(SOC15_REG_OFFSET(UVD, i, mmUVD_VCPU_CNTL),
 				UVD_VCPU_CNTL__BLK_RST_MASK,
 				~UVD_VCPU_CNTL__BLK_RST_MASK);
@@ -823,7 +823,7 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 		}
 
 		if (r) {
-			DRM_ERROR("VCN decode not responding, giving up!!!\n");
+			DRM_ERROR("VCN decode yest responding, giving up!!!\n");
 			return r;
 		}
 
@@ -1015,7 +1015,7 @@ static const struct amdgpu_ring_funcs vcn_v2_5_dec_ring_vm_funcs = {
 	.emit_vm_flush = vcn_v2_0_dec_ring_emit_vm_flush,
 	.test_ring = amdgpu_vcn_dec_ring_test_ring,
 	.test_ib = amdgpu_vcn_dec_ring_test_ib,
-	.insert_nop = vcn_v2_0_dec_ring_insert_nop,
+	.insert_yesp = vcn_v2_0_dec_ring_insert_yesp,
 	.insert_start = vcn_v2_0_dec_ring_insert_start,
 	.insert_end = vcn_v2_0_dec_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
@@ -1098,7 +1098,7 @@ static void vcn_v2_5_enc_ring_set_wptr(struct amdgpu_ring *ring)
 static const struct amdgpu_ring_funcs vcn_v2_5_enc_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_ENC,
 	.align_mask = 0x3f,
-	.nop = VCN_ENC_CMD_NO_OP,
+	.yesp = VCN_ENC_CMD_NO_OP,
 	.vmhub = AMDGPU_MMHUB_1,
 	.get_rptr = vcn_v2_5_enc_ring_get_rptr,
 	.get_wptr = vcn_v2_5_enc_ring_get_wptr,
@@ -1115,7 +1115,7 @@ static const struct amdgpu_ring_funcs vcn_v2_5_enc_ring_vm_funcs = {
 	.emit_vm_flush = vcn_v2_0_enc_ring_emit_vm_flush,
 	.test_ring = amdgpu_vcn_enc_ring_test_ring,
 	.test_ib = amdgpu_vcn_enc_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_yesp = amdgpu_ring_insert_yesp,
 	.insert_end = vcn_v2_0_enc_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vcn_ring_begin_use,
@@ -1194,7 +1194,7 @@ static const struct amdgpu_ring_funcs vcn_v2_5_jpeg_ring_vm_funcs = {
 	.emit_vm_flush = vcn_v2_0_jpeg_ring_emit_vm_flush,
 	.test_ring = amdgpu_vcn_jpeg_ring_test_ring,
 	.test_ib = amdgpu_vcn_jpeg_ring_test_ib,
-	.insert_nop = vcn_v2_0_jpeg_ring_nop,
+	.insert_yesp = vcn_v2_0_jpeg_ring_yesp,
 	.insert_start = vcn_v2_0_jpeg_ring_insert_start,
 	.insert_end = vcn_v2_0_jpeg_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
@@ -1405,7 +1405,7 @@ const struct amdgpu_ip_block_version vcn_v2_5_ip_block =
 {
 		.type = AMD_IP_BLOCK_TYPE_VCN,
 		.major = 2,
-		.minor = 5,
+		.miyesr = 5,
 		.rev = 0,
 		.funcs = &vcn_v2_5_ip_funcs,
 };

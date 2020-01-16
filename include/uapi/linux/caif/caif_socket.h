@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /* linux/caif_socket.h
  * CAIF Definitions for CAIF socket and network layer
  * Copyright (C) ST-Ericsson AB 2010
@@ -40,7 +40,7 @@ enum caif_link_selector {
  * Priority can be set on CAIF Channels in order to
  * prioritize between traffic on different CAIF Channels.
  * These priority levels are recommended, but the priority value
- * is not restricted to the values defined in this enum, any value
+ * is yest restricted to the values defined in this enum, any value
  * between CAIF_PRIO_MIN and CAIF_PRIO_MAX could be used.
  */
 enum caif_channel_priority {

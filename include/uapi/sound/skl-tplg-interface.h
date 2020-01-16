@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * skl-tplg-interface.h - Intel DSP FW private data interface
  *
@@ -25,7 +25,7 @@
 
 #define SKL_UUID_STR_SZ 40
 /* Event types goes here */
-/* Reserve event type 0 for no event handlers */
+/* Reserve event type 0 for yes event handlers */
 enum skl_event_types {
 	SKL_EVENT_NONE = 0,
 	SKL_MIXER_EVENT,

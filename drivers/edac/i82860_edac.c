@@ -69,7 +69,7 @@ static void i82860_get_error_info(struct mem_ctl_info *mci,
 	pdev = to_pci_dev(mci->pdev);
 
 	/*
-	 * This is a mess because there is no atomic way to read all the
+	 * This is a mess because there is yes atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
@@ -82,7 +82,7 @@ static void i82860_get_error_info(struct mem_ctl_info *mci,
 
 	/*
 	 * If the error is the same for both reads then the first set of reads
-	 * is valid.  If there is a change then there is a CE no info and the
+	 * is valid.  If there is a change then there is a CE yes info and the
 	 * second set of reads is valid and should be UE info.
 	 */
 	if (!(info->errsts2 & 0x0003))
@@ -143,7 +143,7 @@ static void i82860_check(struct mem_ctl_info *mci)
 static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
 {
 	unsigned long last_cumul_size;
-	u16 mchcfg_ddim;	/* DRAM Data Integrity Mode 0=none, 2=edac */
+	u16 mchcfg_ddim;	/* DRAM Data Integrity Mode 0=yesne, 2=edac */
 	u16 value;
 	u32 cumul_size;
 	struct csrow_info *csrow;
@@ -169,7 +169,7 @@ static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
 		edac_dbg(3, "(%d) cumul_size 0x%x\n", index, cumul_size);
 
 		if (cumul_size == last_cumul_size)
-			continue;	/* not populated */
+			continue;	/* yest populated */
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
@@ -193,7 +193,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	 * According with the datasheet, there are 2 Rambus channels, supporting
 	 * up to 16 direct RDRAM devices.
 	 * The device groups from the GRA registers seem to map reasonably
-	 * well onto the notion of a chip select row.
+	 * well onto the yestion of a chip select row.
 	 * There are 16 GRA registers and since the name is associated with
 	 * the channel and the GRA registers map to physical devices so we are
 	 * going to make 1 channel for group.
@@ -212,7 +212,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
-	/* I"m not sure about this but I think that all RDRAM is SECDED */
+	/* I"m yest sure about this but I think that all RDRAM is SECDED */
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
 	mci->ctl_name = i82860_devs[dev_idx].ctl_name;
@@ -237,7 +237,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC yest setup\n",
 			__func__);
 	}
 

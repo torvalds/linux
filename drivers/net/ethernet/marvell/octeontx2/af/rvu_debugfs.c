@@ -116,9 +116,9 @@ static char *cgx_tx_stats_fields[] = {
 #define rvu_dbg_open_NULL NULL
 
 #define RVU_DEBUG_SEQ_FOPS(name, read_op, write_op)	\
-static int rvu_dbg_open_##name(struct inode *inode, struct file *file) \
+static int rvu_dbg_open_##name(struct iyesde *iyesde, struct file *file) \
 { \
-	return single_open(file, rvu_dbg_##read_op, inode->i_private); \
+	return single_open(file, rvu_dbg_##read_op, iyesde->i_private); \
 } \
 static const struct file_operations rvu_dbg_##name##_fops = { \
 	.owner		= THIS_MODULE, \
@@ -148,7 +148,7 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 	struct rvu *rvu = filp->private_data;
 	int lf, pf, vf, pcifunc;
 	struct rvu_block block;
-	int bytes_not_copied;
+	int bytes_yest_copied;
 	int buf_size = 2048;
 	char *buf;
 
@@ -212,10 +212,10 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 		}
 	}
 
-	bytes_not_copied = copy_to_user(buffer, buf, off);
+	bytes_yest_copied = copy_to_user(buffer, buf, off);
 	kfree(buf);
 
-	if (bytes_not_copied)
+	if (bytes_yest_copied)
 		return -EFAULT;
 
 	*ppos = off;
@@ -249,7 +249,7 @@ static bool rvu_dbg_is_valid_lf(struct rvu *rvu, int blktype, int lf,
 	*pcifunc = block->fn_map[lf];
 	if (!*pcifunc) {
 		dev_warn(rvu->dev,
-			 "This LF is not attached to any RVU PFFUNC\n");
+			 "This LF is yest attached to any RVU PFFUNC\n");
 		return false;
 	}
 	return true;
@@ -264,7 +264,7 @@ static void print_npa_qsize(struct seq_file *m, struct rvu_pfvf *pfvf)
 		return;
 
 	if (!pfvf->aura_ctx) {
-		seq_puts(m, "Aura context is not initialized\n");
+		seq_puts(m, "Aura context is yest initialized\n");
 	} else {
 		bitmap_print_to_pagebuf(false, buf, pfvf->aura_bmap,
 					pfvf->aura_ctx->qsize);
@@ -273,7 +273,7 @@ static void print_npa_qsize(struct seq_file *m, struct rvu_pfvf *pfvf)
 	}
 
 	if (!pfvf->pool_ctx) {
-		seq_puts(m, "Pool context is not initialized\n");
+		seq_puts(m, "Pool context is yest initialized\n");
 	} else {
 		bitmap_print_to_pagebuf(false, buf, pfvf->pool_bmap,
 					pfvf->pool_ctx->qsize);
@@ -503,10 +503,10 @@ static int rvu_dbg_npa_ctx_display(struct seq_file *m, void *unused, int ctype)
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	if (ctype == NPA_AQ_CTYPE_AURA && !pfvf->aura_ctx) {
-		seq_puts(m, "Aura context is not initialized\n");
+		seq_puts(m, "Aura context is yest initialized\n");
 		return -EINVAL;
 	} else if (ctype == NPA_AQ_CTYPE_POOL && !pfvf->pool_ctx) {
-		seq_puts(m, "Pool context is not initialized\n");
+		seq_puts(m, "Pool context is yest initialized\n");
 		return -EINVAL;
 	}
 
@@ -563,13 +563,13 @@ static int write_npa_ctx(struct rvu *rvu, bool all,
 
 	if (ctype == NPA_AQ_CTYPE_AURA) {
 		if (!pfvf->aura_ctx) {
-			dev_warn(rvu->dev, "Aura context is not initialized\n");
+			dev_warn(rvu->dev, "Aura context is yest initialized\n");
 			return -EINVAL;
 		}
 		max_id = pfvf->aura_ctx->qsize;
 	} else if (ctype == NPA_AQ_CTYPE_POOL) {
 		if (!pfvf->pool_ctx) {
-			dev_warn(rvu->dev, "Pool context is not initialized\n");
+			dev_warn(rvu->dev, "Pool context is yest initialized\n");
 			return -EINVAL;
 		}
 		max_id = pfvf->pool_ctx->qsize;
@@ -604,13 +604,13 @@ static int parse_cmd_buffer_ctx(char *cmd_buf, size_t *count,
 				const char __user *buffer, int *npalf,
 				int *id, bool *all)
 {
-	int bytes_not_copied;
+	int bytes_yest_copied;
 	char *cmd_buf_tmp;
 	char *subtoken;
 	int ret;
 
-	bytes_not_copied = copy_from_user(cmd_buf, buffer, *count);
-	if (bytes_not_copied)
+	bytes_yest_copied = copy_from_user(cmd_buf, buffer, *count);
+	if (bytes_yest_copied)
 		return -EFAULT;
 
 	cmd_buf[*count] = '\0';
@@ -1006,13 +1006,13 @@ static int rvu_dbg_nix_queue_ctx_display(struct seq_file *filp,
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	if (ctype == NIX_AQ_CTYPE_SQ && !pfvf->sq_ctx) {
-		seq_puts(filp, "SQ context is not initialized\n");
+		seq_puts(filp, "SQ context is yest initialized\n");
 		return -EINVAL;
 	} else if (ctype == NIX_AQ_CTYPE_RQ && !pfvf->rq_ctx) {
-		seq_puts(filp, "RQ context is not initialized\n");
+		seq_puts(filp, "RQ context is yest initialized\n");
 		return -EINVAL;
 	} else if (ctype == NIX_AQ_CTYPE_CQ && !pfvf->cq_ctx) {
-		seq_puts(filp, "CQ context is not initialized\n");
+		seq_puts(filp, "CQ context is yest initialized\n");
 		return -EINVAL;
 	}
 
@@ -1066,19 +1066,19 @@ static int write_nix_queue_ctx(struct rvu *rvu, bool all, int nixlf,
 
 	if (ctype == NIX_AQ_CTYPE_SQ) {
 		if (!pfvf->sq_ctx) {
-			dev_warn(rvu->dev, "SQ context is not initialized\n");
+			dev_warn(rvu->dev, "SQ context is yest initialized\n");
 			return -EINVAL;
 		}
 		max_id = pfvf->sq_ctx->qsize;
 	} else if (ctype == NIX_AQ_CTYPE_RQ) {
 		if (!pfvf->rq_ctx) {
-			dev_warn(rvu->dev, "RQ context is not initialized\n");
+			dev_warn(rvu->dev, "RQ context is yest initialized\n");
 			return -EINVAL;
 		}
 		max_id = pfvf->rq_ctx->qsize;
 	} else if (ctype == NIX_AQ_CTYPE_CQ) {
 		if (!pfvf->cq_ctx) {
-			dev_warn(rvu->dev, "CQ context is not initialized\n");
+			dev_warn(rvu->dev, "CQ context is yest initialized\n");
 			return -EINVAL;
 		}
 		max_id = pfvf->cq_ctx->qsize;
@@ -1226,19 +1226,19 @@ static void print_nix_qctx_qsize(struct seq_file *filp, int qsize,
 static void print_nix_qsize(struct seq_file *filp, struct rvu_pfvf *pfvf)
 {
 	if (!pfvf->cq_ctx)
-		seq_puts(filp, "cq context is not initialized\n");
+		seq_puts(filp, "cq context is yest initialized\n");
 	else
 		print_nix_qctx_qsize(filp, pfvf->cq_ctx->qsize, pfvf->cq_bmap,
 				     "cq");
 
 	if (!pfvf->rq_ctx)
-		seq_puts(filp, "rq context is not initialized\n");
+		seq_puts(filp, "rq context is yest initialized\n");
 	else
 		print_nix_qctx_qsize(filp, pfvf->rq_ctx->qsize, pfvf->rq_bmap,
 				     "rq");
 
 	if (!pfvf->sq_ctx)
-		seq_puts(filp, "sq context is not initialized\n");
+		seq_puts(filp, "sq context is yest initialized\n");
 	else
 		print_nix_qctx_qsize(filp, pfvf->sq_ctx->qsize, pfvf->sq_bmap,
 				     "sq");

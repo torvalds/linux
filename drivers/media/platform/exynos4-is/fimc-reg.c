@@ -10,7 +10,7 @@
 #include <linux/io.h>
 #include <linux/regmap.h>
 
-#include <media/drv-intf/exynos-fimc.h>
+#include <media/drv-intf/exyyess-fimc.h>
 #include "media-dev.h"
 
 #include "fimc-reg.h"
@@ -78,7 +78,7 @@ void fimc_hw_set_rotation(struct fimc_ctx *ctx)
 		 FIMC_REG_CITRGFMT_FLIP_180);
 
 	/*
-	 * The input and output rotator cannot work simultaneously.
+	 * The input and output rotator canyest work simultaneously.
 	 * Use the output rotator in output DMA mode or the input rotator
 	 * in direct fifo output mode.
 	 */
@@ -616,7 +616,7 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 
 		if (i == ARRAY_SIZE(pix_desc)) {
 			v4l2_err(&vc->ve.vdev,
-				 "Camera color format not supported: %d\n",
+				 "Camera color format yest supported: %d\n",
 				 vc->ci_fmt.code);
 			return -EINVAL;
 		}
@@ -715,7 +715,7 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 		if (fimc->variant->has_isp_wb)
 			cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
 		else
-			WARN_ONCE(1, "ISP Writeback input is not supported\n");
+			WARN_ONCE(1, "ISP Writeback input is yest supported\n");
 		break;
 	default:
 		v4l2_err(&vid_cap->ve.vdev,
@@ -811,7 +811,7 @@ int fimc_hw_camblk_cfg_writeback(struct fimc_dev *fimc)
 	if (ret < 0 || ((camblk_cfg & 0x00700000) >> 20 != 0x3))
 		return ret;
 
-	if (!WARN(fimc->id >= 3, "not supported id: %d\n", fimc->id))
+	if (!WARN(fimc->id >= 3, "yest supported id: %d\n", fimc->id))
 		val = 0x1 << (fimc->id + 20);
 	else
 		val = 0;

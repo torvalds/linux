@@ -57,7 +57,7 @@ typedef elf_vrregset_t elf_fpxregset_t;
 
 /* ELF_HWCAP yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,
-   but it's not easy, and we've already done it here.  */
+   but it's yest easy, and we've already done it here.  */
 # define ELF_HWCAP	(cur_cpu_spec->cpu_user_features)
 # define ELF_HWCAP2	(cur_cpu_spec->cpu_user_features2)
 
@@ -68,7 +68,7 @@ typedef elf_vrregset_t elf_fpxregset_t;
 #define ELF_PLATFORM	(cur_cpu_spec->platform)
 
 /* While ELF_PLATFORM indicates the ISA supported by the platform, it
- * may not accurately reflect the underlying behavior of the hardware
+ * may yest accurately reflect the underlying behavior of the hardware
  * (as in the case of running in Power5+ compatibility mode on a
  * Power6 machine).  ELF_BASE_PLATFORM allows ld.so to load libraries
  * that are tuned for the real hardware.

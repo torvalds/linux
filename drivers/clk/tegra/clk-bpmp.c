@@ -68,7 +68,7 @@ static int tegra_bpmp_clk_transfer(struct tegra_bpmp *bpmp,
 	request.cmd_and_id = (clk->cmd << 24) | clk->id;
 
 	/*
-	 * The mrq_clk_request structure has an anonymous union at offset 4
+	 * The mrq_clk_request structure has an ayesnymous union at offset 4
 	 * that contains all possible sub-command structures. Copy the data
 	 * to that union. Ideally we'd be able to refer to it by name, but
 	 * doing so would require changing the ABI header and increase the
@@ -429,7 +429,7 @@ static int tegra_bpmp_probe_clocks(struct tegra_bpmp *bpmp,
 			continue;
 		}
 
-		/* clock not exposed by BPMP */
+		/* clock yest exposed by BPMP */
 		if (info->name[0] == '\0') {
 			holes++;
 			continue;
@@ -519,7 +519,7 @@ tegra_bpmp_clk_register(struct tegra_bpmp *bpmp,
 		parent = tegra_bpmp_clk_find(clocks, num_clocks,
 					     info->parents[i]);
 		if (!parent) {
-			dev_err(bpmp->dev, "no parent %u found for %u\n",
+			dev_err(bpmp->dev, "yes parent %u found for %u\n",
 				info->parents[i], info->id);
 			continue;
 		}
@@ -614,7 +614,7 @@ int tegra_bpmp_init_clocks(struct tegra_bpmp *bpmp)
 	if (err < 0)
 		goto free;
 
-	err = of_clk_add_hw_provider(bpmp->dev->of_node,
+	err = of_clk_add_hw_provider(bpmp->dev->of_yesde,
 				     tegra_bpmp_clk_of_xlate,
 				     bpmp);
 	if (err < 0) {

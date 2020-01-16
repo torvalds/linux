@@ -85,7 +85,7 @@ static char *show_dram_attr(u32 attr)
 		case 2:
 			return "NXM";
 		default:
-			return "unknown";
+			return "unkyeswn";
 	}
 }
 
@@ -325,7 +325,7 @@ struct sbridge_info {
 	const u32	*interleave_list;
 	const struct interleave_pkg *interleave_pkg;
 	u8		max_sad;
-	u8		(*get_node_id)(struct sbridge_pvt *pvt);
+	u8		(*get_yesde_id)(struct sbridge_pvt *pvt);
 	u8		(*get_ha)(u8 bank);
 	enum mem_type	(*get_memory_type)(struct sbridge_pvt *pvt);
 	enum dev_type	(*get_width)(struct sbridge_pvt *pvt, u32 mtr);
@@ -355,7 +355,7 @@ struct sbridge_dev {
 	struct list_head	list;
 	int			seg;
 	u8			bus, mc;
-	u8			node_id, source_id;
+	u8			yesde_id, source_id;
 	struct pci_dev		**pdev;
 	enum domain		dom;
 	int			n_devs;
@@ -933,7 +933,7 @@ static enum dev_type knl_get_width(struct sbridge_pvt *pvt, u32 mtr)
 
 static enum dev_type sbridge_get_width(struct sbridge_pvt *pvt, u32 mtr)
 {
-	/* there's no way to figure out */
+	/* there's yes way to figure out */
 	return DEV_UNKNOWN;
 }
 
@@ -980,14 +980,14 @@ static enum mem_type knl_get_memory_type(struct sbridge_pvt *pvt)
 	return MEM_RDDR4;
 }
 
-static u8 get_node_id(struct sbridge_pvt *pvt)
+static u8 get_yesde_id(struct sbridge_pvt *pvt)
 {
 	u32 reg;
 	pci_read_config_dword(pvt->pci_br0, SAD_CONTROL, &reg);
 	return GET_BITFIELD(reg, 0, 2);
 }
 
-static u8 haswell_get_node_id(struct sbridge_pvt *pvt)
+static u8 haswell_get_yesde_id(struct sbridge_pvt *pvt)
 {
 	u32 reg;
 
@@ -995,7 +995,7 @@ static u8 haswell_get_node_id(struct sbridge_pvt *pvt)
 	return GET_BITFIELD(reg, 0, 3);
 }
 
-static u8 knl_get_node_id(struct sbridge_pvt *pvt)
+static u8 knl_get_yesde_id(struct sbridge_pvt *pvt)
 {
 	u32 reg;
 
@@ -1005,7 +1005,7 @@ static u8 knl_get_node_id(struct sbridge_pvt *pvt)
 
 /*
  * Use the reporting bank number to determine which memory
- * controller (also known as "ha" for "home agent"). Sandy
+ * controller (also kyeswn as "ha" for "home agent"). Sandy
  * Bridge only has one memory controller per socket, so the
  * answer is always zero.
  */
@@ -1085,7 +1085,7 @@ static u64 haswell_rir_limit(u32 reg)
 
 static inline u8 sad_pkg_socket(u8 pkg)
 {
-	/* on Ivy Bridge, nodeID is SASS, where A is HA and S is node id */
+	/* on Ivy Bridge, yesdeID is SASS, where A is HA and S is yesde id */
 	return ((pkg >> 3) << 2) | (pkg & 0x3);
 }
 
@@ -1322,20 +1322,20 @@ static void knl_show_mc_route(u32 reg, char *s)
  * SAD rules can have holes in them (e.g. the 3G-4G hole), so we have to
  * inspect the TAD rules to figure out how large the SAD regions really are.
  *
- * When we know the real size of a SAD region and how many ways it's
- * interleaved, we know the individual contribution of each channel to
+ * When we kyesw the real size of a SAD region and how many ways it's
+ * interleaved, we kyesw the individual contribution of each channel to
  * TAD is size/ways.
  *
  * Finally, we have to check whether each channel participates in each SAD
  * region.
  *
- * Fortunately, KNL only supports one DIMM per channel, so once we know how
- * much memory the channel uses, we know the DIMM is at least that large.
- * (The BIOS might possibly choose not to map all available memory, in which
+ * Fortunately, KNL only supports one DIMM per channel, so once we kyesw how
+ * much memory the channel uses, we kyesw the DIMM is at least that large.
+ * (The BIOS might possibly choose yest to map all available memory, in which
  * case we will underreport the size of the DIMM.)
  *
  * In theory, we could try to determine the EDC sizes as well, but that would
- * only work in flat mode, not in cache mode.
+ * only work in flat mode, yest in cache mode.
  *
  * @mc_sizes: Output sizes of channels (must have space for KNL_MAX_CHANNELS
  *            elements)
@@ -1445,7 +1445,7 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 
 			if ((pkg & 0x8) == 0) {
 				/*
-				 * 0 bit means memory is non-local,
+				 * 0 bit means memory is yesn-local,
 				 * which KNL doesn't support
 				 */
 				edac_dbg(0, "Unexpected interleave target %d\n",
@@ -1475,7 +1475,7 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 		 * Livespace is the memory that's mapped in this TAD table,
 		 * deadspace is the holes (this could be the MMIO hole, or it
 		 * could be memory that's mapped by the other TAD table but
-		 * not this one).
+		 * yest this one).
 		 */
 		for (mc = 0; mc < 2; mc++) {
 			sad_actual_size[mc] = 0;
@@ -1520,7 +1520,7 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 				mc, sad_actual_size[mc], sad_actual_size[mc]);
 		}
 
-		/* Ignore EDRAM rule */
+		/* Igyesre EDRAM rule */
 		if (edram_only)
 			continue;
 
@@ -1596,7 +1596,7 @@ static int __populate_dimms(struct mem_ctl_info *mci,
 	if (mtype == MEM_RDDR3 || mtype == MEM_RDDR4)
 		edac_dbg(0, "Memory is registered\n");
 	else if (mtype == MEM_UNKNOWN)
-		edac_dbg(0, "Cannot determine memory type\n");
+		edac_dbg(0, "Canyest determine memory type\n");
 	else
 		edac_dbg(0, "Memory is unregistered\n");
 
@@ -1681,10 +1681,10 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	enum edac_type mode;
 	u32 reg;
 
-	pvt->sbridge_dev->node_id = pvt->info.get_node_id(pvt);
+	pvt->sbridge_dev->yesde_id = pvt->info.get_yesde_id(pvt);
 	edac_dbg(0, "mc#%d: Node ID: %d, source ID: %d\n",
 		 pvt->sbridge_dev->mc,
-		 pvt->sbridge_dev->node_id,
+		 pvt->sbridge_dev->yesde_id,
 		 pvt->sbridge_dev->source_id);
 
 	/* KNL doesn't support mirroring or lockstep,
@@ -1914,12 +1914,12 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	}
 }
 
-static struct mem_ctl_info *get_mci_for_node_id(u8 node_id, u8 ha)
+static struct mem_ctl_info *get_mci_for_yesde_id(u8 yesde_id, u8 ha)
 {
 	struct sbridge_dev *sbridge_dev;
 
 	list_for_each_entry(sbridge_dev, &sbridge_edac_list, list) {
-		if (sbridge_dev->node_id == node_id && sbridge_dev->dom == ha)
+		if (sbridge_dev->yesde_id == yesde_id && sbridge_dev->dom == ha)
 			return sbridge_dev->mci;
 	}
 	return NULL;
@@ -1949,8 +1949,8 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 
 	/*
 	 * Step 0) Check if the address is at special memory ranges
-	 * The check bellow is probably enough to fill all cases where
-	 * the error is not inside a memory, except for the legacy
+	 * The check bellow is probably eyesugh to fill all cases where
+	 * the error is yest inside a memory, except for the legacy
 	 * range (e. g. VGA addresses). It is unlikely, however, that the
 	 * memory controller would generate an error on that range.
 	 */
@@ -2075,10 +2075,10 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	*ha = sad_ha;
 
 	/*
-	 * Move to the proper node structure, in order to access the
+	 * Move to the proper yesde structure, in order to access the
 	 * right PCI registers
 	 */
-	new_mci = get_mci_for_node_id(*socket, sad_ha);
+	new_mci = get_mci_for_yesde_id(*socket, sad_ha);
 	if (!new_mci) {
 		sprintf(msg, "Struct for socket #%u wasn't initialized",
 			*socket);
@@ -2267,7 +2267,7 @@ static int get_memory_error_data_from_mce(struct mem_ctl_info *mci,
 	}
 
 	*socket = m->socketid;
-	new_mci = get_mci_for_node_id(*socket, *ha);
+	new_mci = get_mci_for_yesde_id(*socket, *ha);
 	if (!new_mci) {
 		strcpy(msg, "mci socket got corrupted!");
 		return -EINVAL;
@@ -2330,11 +2330,11 @@ static void sbridge_put_all_devices(void)
 static int sbridge_get_onedevice(struct pci_dev **prev,
 				 u8 *num_mc,
 				 const struct pci_id_table *table,
-				 const unsigned devno,
+				 const unsigned devyes,
 				 const int multi_bus)
 {
 	struct sbridge_dev *sbridge_dev = NULL;
-	const struct pci_id_descr *dev_descr = &table->descr[devno];
+	const struct pci_id_descr *dev_descr = &table->descr[devyes];
 	struct pci_dev *pdev = NULL;
 	int seg = 0;
 	u8 bus = 0;
@@ -2357,11 +2357,11 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 			return 0;
 
 		/* if the HA wasn't found */
-		if (devno == 0)
+		if (devyes == 0)
 			return -ENODEV;
 
 		sbridge_printk(KERN_INFO,
-			"Device not found: %04x:%04x\n",
+			"Device yest found: %04x:%04x\n",
 			PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 
 		/* End of list, leave */
@@ -2375,7 +2375,7 @@ next_imc:
 				      multi_bus, sbridge_dev);
 	if (!sbridge_dev) {
 		/* If the HA1 wasn't found, don't create EDAC second memory controller */
-		if (dev_descr->dom == IMC1 && devno != 1) {
+		if (dev_descr->dom == IMC1 && devyes != 1) {
 			edac_dbg(0, "Skip IMC1: %04x:%04x (since HA1 was absent)\n",
 				 PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 			pci_dev_put(pdev);
@@ -2424,7 +2424,7 @@ out_imc:
 
 	/*
 	 * As stated on drivers/pci/search.c, the reference count for
-	 * @from is always decremented if it is not %NULL. So, as we need
+	 * @from is always decremented if it is yest %NULL. So, as we need
 	 * to get all devices up to null, we need to do a get for the device
 	 */
 	pci_dev_get(pdev);
@@ -2544,13 +2544,13 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 	/* Check if everything were registered */
 	if (!pvt->pci_sad0 || !pvt->pci_sad1 || !pvt->pci_ha ||
 	    !pvt->pci_ras || !pvt->pci_ta)
-		goto enodev;
+		goto eyesdev;
 
 	if (saw_chan_mask != 0x0f)
-		goto enodev;
+		goto eyesdev;
 	return 0;
 
-enodev:
+eyesdev:
 	sbridge_printk(KERN_ERR, "Some needed devices are missing\n");
 	return -ENODEV;
 
@@ -2628,14 +2628,14 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 	/* Check if everything were registered */
 	if (!pvt->pci_sad0 || !pvt->pci_ha || !pvt->pci_br0 ||
 	    !pvt->pci_br1 || !pvt->pci_ras || !pvt->pci_ta)
-		goto enodev;
+		goto eyesdev;
 
 	if (saw_chan_mask != 0x0f && /* -EN/-EX */
 	    saw_chan_mask != 0x03)   /* -EP */
-		goto enodev;
+		goto eyesdev;
 	return 0;
 
-enodev:
+eyesdev:
 	sbridge_printk(KERN_ERR, "Some needed devices are missing\n");
 	return -ENODEV;
 
@@ -2654,7 +2654,7 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 	u8 saw_chan_mask = 0;
 	int i;
 
-	/* there's only one device per system; not tied to any bus */
+	/* there's only one device per system; yest tied to any bus */
 	if (pvt->info.pci_vtd == NULL)
 		/* result will be checked later */
 		pvt->info.pci_vtd = pci_get_device(PCI_VENDOR_ID_INTEL,
@@ -2719,14 +2719,14 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 	/* Check if everything were registered */
 	if (!pvt->pci_sad0 || !pvt->pci_ha || !pvt->pci_sad1 ||
 	    !pvt->pci_ras  || !pvt->pci_ta || !pvt->info.pci_vtd)
-		goto enodev;
+		goto eyesdev;
 
 	if (saw_chan_mask != 0x0f && /* -EN/-EX */
 	    saw_chan_mask != 0x03)   /* -EP */
-		goto enodev;
+		goto eyesdev;
 	return 0;
 
-enodev:
+eyesdev:
 	sbridge_printk(KERN_ERR, "Some needed devices are missing\n");
 	return -ENODEV;
 }
@@ -2739,7 +2739,7 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 	u8 saw_chan_mask = 0;
 	int i;
 
-	/* there's only one device per system; not tied to any bus */
+	/* there's only one device per system; yest tied to any bus */
 	if (pvt->info.pci_vtd == NULL)
 		/* result will be checked later */
 		pvt->info.pci_vtd = pci_get_device(PCI_VENDOR_ID_INTEL,
@@ -2800,14 +2800,14 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 	/* Check if everything were registered */
 	if (!pvt->pci_sad0 || !pvt->pci_ha || !pvt->pci_sad1 ||
 	    !pvt->pci_ras  || !pvt->pci_ta || !pvt->info.pci_vtd)
-		goto enodev;
+		goto eyesdev;
 
 	if (saw_chan_mask != 0x0f && /* -EN/-EX */
 	    saw_chan_mask != 0x03)   /* -EP */
-		goto enodev;
+		goto eyesdev;
 	return 0;
 
-enodev:
+eyesdev:
 	sbridge_printk(KERN_ERR, "Some needed devices are missing\n");
 	return -ENODEV;
 }
@@ -2913,26 +2913,26 @@ static int knl_mci_bind_devs(struct mem_ctl_info *mci,
 	if (!pvt->knl.pci_mc0  || !pvt->knl.pci_mc1 ||
 	    !pvt->pci_sad0     || !pvt->pci_sad1    ||
 	    !pvt->pci_ta) {
-		goto enodev;
+		goto eyesdev;
 	}
 
 	for (i = 0; i < KNL_MAX_CHANNELS; i++) {
 		if (!pvt->knl.pci_channel[i]) {
 			sbridge_printk(KERN_ERR, "Missing channel %d\n", i);
-			goto enodev;
+			goto eyesdev;
 		}
 	}
 
 	for (i = 0; i < KNL_MAX_CHAS; i++) {
 		if (!pvt->knl.pci_cha[i]) {
 			sbridge_printk(KERN_ERR, "Missing CHA %d\n", i);
-			goto enodev;
+			goto eyesdev;
 		}
 	}
 
 	return 0;
 
-enodev:
+eyesdev:
 	sbridge_printk(KERN_ERR, "Some needed devices are missing\n");
 	return -ENODEV;
 }
@@ -2943,8 +2943,8 @@ enodev:
 
 /*
  * While Sandy Bridge has error count registers, SMI BIOS read values from
- * and resets the counters. So, they are not reliable for the OS to read
- * from them. So, we have no option but to just trust on whatever MCE is
+ * and resets the counters. So, they are yest reliable for the OS to read
+ * from them. So, we have yes option but to just trust on whatever MCE is
  * telling us about the errors.
  */
 static void sbridge_mce_output_error(struct mem_ctl_info *mci,
@@ -3065,7 +3065,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 
 	if (rc < 0)
 		goto err_parsing;
-	new_mci = get_mci_for_node_id(socket, ha);
+	new_mci = get_mci_for_yesde_id(socket, ha);
 	if (!new_mci) {
 		strcpy(msg, "Error: socket got corrupted!");
 		goto err_parsing;
@@ -3127,7 +3127,7 @@ err_parsing:
  * Check that logging is enabled and that this is the right type
  * of error for us to handle.
  */
-static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
+static int sbridge_mce_check_error(struct yestifier_block *nb, unsigned long val,
 				   void *data)
 {
 	struct mce *mce = (struct mce *)data;
@@ -3158,7 +3158,7 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if (GET_BITFIELD(mce->misc, 6, 8) != 2)
 		return NOTIFY_DONE;
 
-	mci = get_mci_for_node_id(mce->socketid, IMC0);
+	mci = get_mci_for_yesde_id(mce->socketid, IMC0);
 	if (!mci)
 		return NOTIFY_DONE;
 
@@ -3186,8 +3186,8 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	return NOTIFY_STOP;
 }
 
-static struct notifier_block sbridge_mce_dec = {
-	.notifier_call	= sbridge_mce_check_error,
+static struct yestifier_block sbridge_mce_dec = {
+	.yestifier_call	= sbridge_mce_check_error,
 	.priority	= MCE_PRIO_EDAC,
 };
 
@@ -3209,7 +3209,7 @@ static void sbridge_unregister_mci(struct sbridge_dev *sbridge_dev)
 	edac_dbg(0, "MC: mci = %p, dev = %p\n",
 		 mci, &sbridge_dev->pdev[0]->dev);
 
-	/* Remove MC sysfs nodes */
+	/* Remove MC sysfs yesdes */
 	edac_mc_del_mc(mci->pdev);
 
 	edac_dbg(1, "%s: free mci struct\n", mci->ctl_name);
@@ -3266,7 +3266,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_tohm = ibridge_get_tohm;
 		pvt->info.dram_rule = ibridge_dram_rule;
 		pvt->info.get_memory_type = get_memory_type;
-		pvt->info.get_node_id = get_node_id;
+		pvt->info.get_yesde_id = get_yesde_id;
 		pvt->info.get_ha = ibridge_get_ha;
 		pvt->info.rir_limit = rir_limit;
 		pvt->info.sad_limit = sad_limit;
@@ -3291,7 +3291,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_tohm = sbridge_get_tohm;
 		pvt->info.dram_rule = sbridge_dram_rule;
 		pvt->info.get_memory_type = get_memory_type;
-		pvt->info.get_node_id = get_node_id;
+		pvt->info.get_yesde_id = get_yesde_id;
 		pvt->info.get_ha = sbridge_get_ha;
 		pvt->info.rir_limit = rir_limit;
 		pvt->info.sad_limit = sad_limit;
@@ -3316,7 +3316,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_tohm = haswell_get_tohm;
 		pvt->info.dram_rule = ibridge_dram_rule;
 		pvt->info.get_memory_type = haswell_get_memory_type;
-		pvt->info.get_node_id = haswell_get_node_id;
+		pvt->info.get_yesde_id = haswell_get_yesde_id;
 		pvt->info.get_ha = ibridge_get_ha;
 		pvt->info.rir_limit = haswell_rir_limit;
 		pvt->info.sad_limit = sad_limit;
@@ -3341,7 +3341,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_tohm = haswell_get_tohm;
 		pvt->info.dram_rule = ibridge_dram_rule;
 		pvt->info.get_memory_type = haswell_get_memory_type;
-		pvt->info.get_node_id = haswell_get_node_id;
+		pvt->info.get_yesde_id = haswell_get_yesde_id;
 		pvt->info.get_ha = ibridge_get_ha;
 		pvt->info.rir_limit = haswell_rir_limit;
 		pvt->info.sad_limit = sad_limit;
@@ -3366,7 +3366,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_tohm = knl_get_tohm;
 		pvt->info.dram_rule = knl_dram_rule;
 		pvt->info.get_memory_type = knl_get_memory_type;
-		pvt->info.get_node_id = knl_get_node_id;
+		pvt->info.get_yesde_id = knl_get_yesde_id;
 		pvt->info.get_ha = knl_get_ha;
 		pvt->info.rir_limit = NULL;
 		pvt->info.sad_limit = knl_sad_limit;

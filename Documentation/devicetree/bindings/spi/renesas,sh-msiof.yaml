@@ -99,7 +99,7 @@ properties:
     allOf:
       - $ref: /schemas/types.yaml#/definitions/uint32
       - enum:
-          - 0    # no bit delay
+          - 0    # yes bit delay
           - 50   # 0.5-clock-cycle delay
           - 100  # 1-clock-cycle delay
           - 150  # 1.5-clock-cycle delay
@@ -110,7 +110,7 @@ properties:
     allOf:
       - $ref: /schemas/types.yaml#/definitions/uint32
       - enum:
-          - 0    # no bit delay
+          - 0    # yes bit delay
           - 50   # 0.5-clock-cycle delay
           - 100  # 1-clock-cycle delay
           - 150  # 1.5-clock-cycle delay
@@ -120,7 +120,7 @@ properties:
   renesas,tx-fifo-size:
     # deprecated for soctype-specific bindings
     description: |
-      Override the default TX fifo size.  Unit is words.  Ignored if 0.
+      Override the default TX fifo size.  Unit is words.  Igyesred if 0.
     allOf:
       - $ref: /schemas/types.yaml#/definitions/uint32
       - maxItems: 1
@@ -129,7 +129,7 @@ properties:
   renesas,rx-fifo-size:
     # deprecated for soctype-specific bindings
     description: |
-      Override the default RX fifo size.  Unit is words.  Ignored if 0.
+      Override the default RX fifo size.  Unit is words.  Igyesred if 0.
     allOf:
       - $ref: /schemas/types.yaml#/definitions/uint32
       - maxItems: 1

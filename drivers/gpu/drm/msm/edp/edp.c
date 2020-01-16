@@ -36,7 +36,7 @@ static struct msm_edp *edp_init(struct platform_device *pdev)
 	int ret;
 
 	if (!pdev) {
-		pr_err("no eDP device\n");
+		pr_err("yes eDP device\n");
 		ret = -ENXIO;
 		goto fail;
 	}
@@ -162,7 +162,7 @@ int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 		goto fail;
 	}
 
-	edp->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	edp->irq = irq_of_parse_and_map(pdev->dev.of_yesde, 0);
 	if (edp->irq < 0) {
 		ret = edp->irq;
 		DRM_DEV_ERROR(dev->dev, "failed to get IRQ: %d\n", ret);
@@ -188,7 +188,7 @@ int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 	return 0;
 
 fail:
-	/* bridge/connector are normally destroyed by drm */
+	/* bridge/connector are yesrmally destroyed by drm */
 	if (edp->bridge) {
 		edp_bridge_destroy(edp->bridge);
 		edp->bridge = NULL;

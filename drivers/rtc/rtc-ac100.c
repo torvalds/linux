@@ -59,7 +59,7 @@
 
 /*
  * The year parameter passed to the driver is usually an offset relative to
- * the year 1900. This macro is used to convert this offset to another one
+ * the year 1900. This macro is used to convert this offset to ayesther one
  * relative to the minimum year allowed by the hardware.
  *
  * The year range is 1970 - 2069. This range is selected to match Allwinner's
@@ -182,13 +182,13 @@ static int ac100_clkout_determine_rate(struct clk_hw *hw,
 		 * internally registered by the ac100 driver. The other parent
 		 * is a clock from the codec side of the chip, which we
 		 * properly declare and reference in the devicetree and is
-		 * not implemented in any driver right now.
+		 * yest implemented in any driver right yesw.
 		 * If the clock core looks for the parent of that second
 		 * missing clock, it can't find one that is registered and
 		 * returns NULL.
 		 * So we end up in a situation where clk_hw_get_num_parents
 		 * returns the amount of clocks we can be parented to, but
-		 * clk_hw_get_parent_by_index will not return the orphan
+		 * clk_hw_get_parent_by_index will yest return the orphan
 		 * clocks.
 		 * Thus we need to check if the parent exists before
 		 * we get the parent rate, so we could use the RTC
@@ -305,7 +305,7 @@ static const struct clk_ops ac100_clkout_ops = {
 
 static int ac100_rtc_register_clks(struct ac100_rtc_dev *chip)
 {
-	struct device_node *np = chip->dev->of_node;
+	struct device_yesde *np = chip->dev->of_yesde;
 	const char *parents[2] = {AC100_RTC_32K_NAME};
 	int i, ret;
 
@@ -374,7 +374,7 @@ err_unregister_rtc_32k:
 
 static void ac100_rtc_unregister_clks(struct ac100_rtc_dev *chip)
 {
-	of_clk_del_provider(chip->dev->of_node);
+	of_clk_del_provider(chip->dev->of_yesde);
 	clk_unregister_fixed_rate(chip->rtc_32k_clk->clk);
 }
 
@@ -503,7 +503,7 @@ static int ac100_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 			AC100_ALM_ENABLE_FLAG;
 	reg[2] = (bin2bcd(alrm_tm->tm_hour) & AC100_ALM_HOU_MASK) |
 			AC100_ALM_ENABLE_FLAG;
-	/* Do not enable weekday alarm */
+	/* Do yest enable weekday alarm */
 	reg[3] = bin2bcd(alrm_tm->tm_wday) & AC100_ALM_WEE_MASK;
 	reg[4] = (bin2bcd(alrm_tm->tm_mday) & AC100_ALM_DAY_MASK) |
 			AC100_ALM_ENABLE_FLAG;
@@ -592,7 +592,7 @@ static int ac100_rtc_probe(struct platform_device *pdev)
 					IRQF_SHARED | IRQF_ONESHOT,
 					dev_name(&pdev->dev), chip);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request IRQ\n");
+		dev_err(&pdev->dev, "Could yest request IRQ\n");
 		return ret;
 	}
 

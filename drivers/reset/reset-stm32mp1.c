@@ -99,7 +99,7 @@ static int stm32_reset_probe(struct platform_device *pdev)
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = resource_size(res) * BITS_PER_BYTE;
 	data->rcdev.ops = &stm32_reset_ops;
-	data->rcdev.of_node = dev->of_node;
+	data->rcdev.of_yesde = dev->of_yesde;
 
 	return devm_reset_controller_register(dev, &data->rcdev);
 }

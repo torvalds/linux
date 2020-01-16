@@ -177,18 +177,18 @@ static void stsi_1_2_2(struct seq_file *m, struct sysinfo_1_2_2 *info)
 	/*
 	 * Sigh 2. According to the specification the alternate
 	 * capability field is a 32 bit floating point number
-	 * if the higher order 8 bits are not zero. Printing
-	 * a floating point number in the kernel is a no-no,
+	 * if the higher order 8 bits are yest zero. Printing
+	 * a floating point number in the kernel is a yes-yes,
 	 * always print the number as 32 bit unsigned integer.
-	 * The user-space needs to know about the strange
+	 * The user-space needs to kyesw about the strange
 	 * encoding of the alternate cpu capability.
 	 */
 	seq_printf(m, "Capability:           %u", info->capability);
 	if (info->format == 1)
 		seq_printf(m, " %u", ext->alt_capability);
 	seq_putc(m, '\n');
-	if (info->nominal_cap)
-		seq_printf(m, "Nominal Capability:   %d\n", info->nominal_cap);
+	if (info->yesminal_cap)
+		seq_printf(m, "Nominal Capability:   %d\n", info->yesminal_cap);
 	if (info->secondary_cap)
 		seq_printf(m, "Secondary Capability: %d\n", info->secondary_cap);
 	for (i = 2; i <= info->cpus_total; i++) {
@@ -474,7 +474,7 @@ void calibrate_delay(void)
 #ifdef CONFIG_DEBUG_FS
 
 #define STSI_FILE(fc, s1, s2)						       \
-static int stsi_open_##fc##_##s1##_##s2(struct inode *inode, struct file *file)\
+static int stsi_open_##fc##_##s1##_##s2(struct iyesde *iyesde, struct file *file)\
 {									       \
 	file->private_data = (void *) get_zeroed_page(GFP_KERNEL);	       \
 	if (!file->private_data)					       \
@@ -484,17 +484,17 @@ static int stsi_open_##fc##_##s1##_##s2(struct inode *inode, struct file *file)\
 		file->private_data = NULL;				       \
 		return -EACCES;						       \
 	}								       \
-	return nonseekable_open(inode, file);				       \
+	return yesnseekable_open(iyesde, file);				       \
 }									       \
 									       \
 static const struct file_operations stsi_##fc##_##s1##_##s2##_fs_ops = {       \
 	.open		= stsi_open_##fc##_##s1##_##s2,			       \
 	.release	= stsi_release,					       \
 	.read		= stsi_read,					       \
-	.llseek		= no_llseek,					       \
+	.llseek		= yes_llseek,					       \
 };
 
-static int stsi_release(struct inode *inode, struct file *file)
+static int stsi_release(struct iyesde *iyesde, struct file *file)
 {
 	free_page((unsigned long)file->private_data);
 	return 0;

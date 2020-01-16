@@ -287,7 +287,7 @@
 #define AUX_CTRL_FORCE_PCIE_CLK		FIELD32(0x00000400)
 
 /*
- * OPT_14: Unknown register used by rt3xxx devices.
+ * OPT_14: Unkyeswn register used by rt3xxx devices.
  */
 #define OPT_14_CSR			0x0114
 #define OPT_14_CSR_BIT0			FIELD32(0x00000001)
@@ -775,7 +775,7 @@
  *     2: 4-BSSID mode (BSS index: byte5, bit 0 - 1)
  *     3: 8-BSSID mode (BSS index: byte5, bit 0 - 2)
  * This mask is used to mask off bits 0, 1 and 2 of byte 5 of the
- * BSSID. This will make sure that those bits will be ignored
+ * BSSID. This will make sure that those bits will be igyesred
  * when determining the MY_BSS of RX frames.
  */
 #define MAC_BSSID_DW1			0x1014
@@ -1360,7 +1360,7 @@
  * REMOTE_MFB_LIFETIME: remote MFB life time. unit: 32us
  * MFB_ENABLE: TX apply remote MFB 1:enable
  * REMOTE_UMFS_ENABLE: remote unsolicit  MFB enable
- *                     0: not apply remote remote unsolicit (MFS=7)
+ *                     0: yest apply remote remote unsolicit (MFS=7)
  * TX_MRQ_EN: MCS request TX enable
  * TX_RDG_EN: RDG TX enable
  * TX_CF_ACK_EN: Piggyback CF-ACK enable
@@ -1429,7 +1429,7 @@
  * CCK_PROT_CFG: CCK Protection
  * PROTECT_RATE: Protection control frame rate for CCK TX(RTS/CTS/CFEnd)
  * PROTECT_CTRL: Protection control frame type for CCK TX
- *               0:none, 1:RTS/CTS, 2:CTS-to-self
+ *               0:yesne, 1:RTS/CTS, 2:CTS-to-self
  * PROTECT_NAV_SHORT: TXOP protection type for CCK TX with short NAV
  * PROTECT_NAV_LONG: TXOP protection type for CCK TX with long NAV
  * TX_OP_ALLOW_CCK: CCK TXOP allowance, 0:disallow
@@ -1889,11 +1889,11 @@
  *
  * This register is implemented as FIFO with 16 entries in the HW. Each
  * register read fetches the next tx result. If the FIFO is full because
- * it wasn't read fast enough after the according interrupt (TX_FIFO_STATUS)
+ * it wasn't read fast eyesugh after the according interrupt (TX_FIFO_STATUS)
  * triggered, the hw seems to simply drop further tx results.
  *
  * VALID: 1: this tx result is valid
- *        0: no valid tx result -> driver should stop reading
+ *        0: yes valid tx result -> driver should stop reading
  * PID_TYPE: The PID latched from the PID field in the TXWI, can be used
  *           to match a frame with its tx result (even though the PID is
  *           only 4 bits wide).
@@ -1901,11 +1901,11 @@
  * PID_ENTRY: Part of PID_TYPE, this is the queue entry index number (1-3)
  *            This identification number is calculated by ((idx % 3) + 1).
  * TX_SUCCESS: Indicates tx success (1) or failure (0)
- * TX_AGGRE: Indicates if the frame was part of an aggregate (1) or not (0)
- * TX_ACK_REQUIRED: Indicates if the frame needed to get ack'ed (1) or not (0)
+ * TX_AGGRE: Indicates if the frame was part of an aggregate (1) or yest (0)
+ * TX_ACK_REQUIRED: Indicates if the frame needed to get ack'ed (1) or yest (0)
  * WCID: The wireless client ID.
  * MCS: The tx rate used during the last transmission of this frame, be it
- *      successful or not.
+ *      successful or yest.
  * PHYMODE: The phymode used for the transmission.
  */
 #define TX_STA_FIFO			0x1718
@@ -2198,7 +2198,7 @@ struct mac_iveiv_entry {
 /*
  * BBP 1: TX Antenna & Power Control
  * POWER_CTRL:
- * 0 - normal,
+ * 0 - yesrmal,
  * 1 - drop tx power by 6dBm,
  * 2 - drop tx power by 12dBm,
  * 3 - increase tx power by 6dBm
@@ -2263,7 +2263,7 @@ struct mac_iveiv_entry {
 
 
 /*
- * BBP 138: Unknown
+ * BBP 138: Unkyeswn
  */
 #define BBP138_RX_ADC1			FIELD8(0x02)
 #define BBP138_RX_ADC2			FIELD8(0x04)
@@ -2276,7 +2276,7 @@ struct mac_iveiv_entry {
 #define BBP152_RX_DEFAULT_ANT		FIELD8(0x80)
 
 /*
- * BBP 254: unknown
+ * BBP 254: unkyeswn
  */
 #define BBP254_BIT7			FIELD8(0x80)
 
@@ -2759,7 +2759,7 @@ enum rt2800_eeprom_word {
 #define EEPROM_RSSI_BG2_LNA_A1		FIELD16(0xff00)
 
 /*
- * EEPROM TXMIXER GAIN BG offset (note overlaps with EEPROM RSSI BG2).
+ * EEPROM TXMIXER GAIN BG offset (yeste overlaps with EEPROM RSSI BG2).
  */
 #define EEPROM_TXMIXER_GAIN_BG_VAL	FIELD16(0x0007)
 
@@ -2776,7 +2776,7 @@ enum rt2800_eeprom_word {
 #define EEPROM_RSSI_A2_LNA_A2		FIELD16(0xff00)
 
 /*
- * EEPROM TXMIXER GAIN A offset (note overlaps with EEPROM RSSI A2).
+ * EEPROM TXMIXER GAIN A offset (yeste overlaps with EEPROM RSSI A2).
  */
 #define EEPROM_TXMIXER_GAIN_A_VAL	FIELD16(0x0007)
 
@@ -2829,7 +2829,7 @@ enum rt2800_eeprom_word {
 
 /*
  * EEPROM temperature compensation boundaries 802.11BG
- * REF: Reference TSSI value, no tx power changes needed
+ * REF: Reference TSSI value, yes tx power changes needed
  * PLUS1: If the actual TSSI is above this boundary, tx power needs to be
  *        increased by (agc_step * 1)
  */
@@ -2888,7 +2888,7 @@ enum rt2800_eeprom_word {
 
 /*
  * EEPROM temperature compensation boundaries 802.11A
- * REF: Reference TSSI value, no tx power changes needed
+ * REF: Reference TSSI value, yes tx power changes needed
  * PLUS1: If the actual TSSI is above this boundary, tx power needs to be
  *        increased by (agc_step * 1)
  */
@@ -3052,7 +3052,7 @@ enum rt2800_eeprom_word {
  *        a frame A with the same RA and QoS TID but AMPDU=0 is queued
  *        directly after a frame B with AMPDU=1, frame A might still
  *        get aggregated into the AMPDU started by frame B. So, setting
- *        AMPDU to 0 does _not_ necessarily mean the frame is sent as
+ *        AMPDU to 0 does _yest_ necessarily mean the frame is sent as
  *        MPDU, it can still end up in an AMPDU if the previous frame
  *        was tagged as AMPDU.
  */

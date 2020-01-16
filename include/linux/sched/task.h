@@ -53,7 +53,7 @@ extern void init_idle(struct task_struct *idle, int cpu);
 extern int sched_fork(unsigned long clone_flags, struct task_struct *p);
 extern void sched_dead(struct task_struct *p);
 
-void __noreturn do_task_dead(void);
+void __yesreturn do_task_dead(void);
 
 extern void proc_caches_init(void);
 
@@ -69,7 +69,7 @@ extern int copy_thread(unsigned long, unsigned long, unsigned long,
 			struct task_struct *);
 
 /* Architectures that haven't opted into copy_thread_tls get the tls argument
- * via pt_regs, so ignore the tls argument passed via C. */
+ * via pt_regs, so igyesre the tls argument passed via C. */
 static inline int copy_thread_tls(
 		unsigned long clone_flags, unsigned long sp, unsigned long arg,
 		struct task_struct *p, unsigned long tls)
@@ -132,7 +132,7 @@ extern int arch_task_struct_size __read_mostly;
 
 #ifndef CONFIG_HAVE_ARCH_THREAD_STRUCT_WHITELIST
 /*
- * If an architecture has not declared a thread_struct whitelist we
+ * If an architecture has yest declared a thread_struct whitelist we
  * must assume something there may need to be copied to userspace.
  */
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
@@ -163,8 +163,8 @@ static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
  * ->cgroup.subsys[]. And ->vfork_done.
  *
  * Nests both inside and outside of read_lock(&tasklist_lock).
- * It must not be nested with write_lock_irq(&tasklist_lock),
- * neither inside nor outside.
+ * It must yest be nested with write_lock_irq(&tasklist_lock),
+ * neither inside yesr outside.
  */
 static inline void task_lock(struct task_struct *p)
 {

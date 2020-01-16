@@ -196,7 +196,7 @@ static int qedi_alloc_sget(struct qedi_ctx *qedi, struct iscsi_session *session,
 					 &io->sge_tbl_dma, GFP_KERNEL);
 	if (!io->sge_tbl) {
 		iscsi_session_printk(KERN_ERR, session,
-				     "Could not allocate BD table.\n");
+				     "Could yest allocate BD table.\n");
 		return -ENOMEM;
 	}
 
@@ -345,7 +345,7 @@ static int qedi_bind_conn_to_iscsi_cid(struct qedi_ctx *qedi,
 
 	if (qedi->cid_que.conn_cid_tbl[iscsi_cid]) {
 		iscsi_conn_printk(KERN_ALERT, qedi_conn->cls_conn->dd_data,
-				  "conn bind - entry #%d not free\n",
+				  "conn bind - entry #%d yest free\n",
 				  iscsi_cid);
 		return -EBUSY;
 	}
@@ -450,7 +450,7 @@ static int qedi_iscsi_update_conn(struct qedi_ctx *qedi,
 				     conn_info);
 	if (rval) {
 		rval = -ENXIO;
-		QEDI_ERR(&qedi->dbg_ctx, "Could not update connection\n");
+		QEDI_ERR(&qedi->dbg_ctx, "Could yest update connection\n");
 	}
 
 	kfree(conn_info);
@@ -647,7 +647,7 @@ static int qedi_host_get_param(struct Scsi_Host *shost,
 		len = sysfs_format_mac(buf, qedi->mac, 6);
 		break;
 	case ISCSI_HOST_PARAM_NETDEV_NAME:
-		len = sprintf(buf, "host%d\n", shost->host_no);
+		len = sprintf(buf, "host%d\n", shost->host_yes);
 		break;
 	case ISCSI_HOST_PARAM_IPADDRESS:
 		if (qedi->ip_type == TCP_IPV4)
@@ -731,10 +731,10 @@ static int qedi_iscsi_send_generic_request(struct iscsi_task *task)
 		data_len = qedi_conn->gen_pdu.req_buf_size;
 		buf = qedi_conn->gen_pdu.req_buf;
 		if (data_len)
-			rc = qedi_send_iscsi_nopout(qedi_conn, task,
+			rc = qedi_send_iscsi_yespout(qedi_conn, task,
 						    buf, data_len, 1);
 		else
-			rc = qedi_send_iscsi_nopout(qedi_conn, task,
+			rc = qedi_send_iscsi_yespout(qedi_conn, task,
 						    NULL, 0, 1);
 		break;
 	case ISCSI_OP_LOGOUT:
@@ -799,7 +799,7 @@ static int qedi_task_xmit(struct iscsi_task *task)
 
 static struct iscsi_endpoint *
 qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
-		int non_blocking)
+		int yesn_blocking)
 {
 	struct qedi_ctx *qedi;
 	struct iscsi_endpoint *ep;
@@ -819,7 +819,7 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 		return ERR_PTR(ret);
 	}
 
-	if (qedi_do_not_recover) {
+	if (qedi_do_yest_recover) {
 		ret = -ENOMEM;
 		return ERR_PTR(ret);
 	}
@@ -880,7 +880,7 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 				     &qedi_ep->fw_cid, &qedi_ep->p_doorbell);
 
 	if (ret) {
-		QEDI_ERR(&qedi->dbg_ctx, "Could not acquire connection\n");
+		QEDI_ERR(&qedi->dbg_ctx, "Could yest acquire connection\n");
 		ret = -ENXIO;
 		goto ep_free_sq;
 	}
@@ -941,7 +941,7 @@ static int qedi_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 	struct qedi_endpoint *qedi_ep;
 	int ret = 0;
 
-	if (qedi_do_not_recover)
+	if (qedi_do_yest_recover)
 		return 1;
 
 	qedi_ep = ep->dd_data;
@@ -1014,9 +1014,9 @@ static void qedi_ep_disconnect(struct iscsi_endpoint *ep)
 		}
 
 		if (test_bit(QEDI_IN_RECOVERY, &qedi->flags)) {
-			if (qedi_do_not_recover) {
+			if (qedi_do_yest_recover) {
 				QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
-					  "Do not recover cid=0x%x\n",
+					  "Do yest recover cid=0x%x\n",
 					  qedi_ep->iscsi_cid);
 				goto ep_exit_recover;
 			}
@@ -1028,7 +1028,7 @@ static void qedi_ep_disconnect(struct iscsi_endpoint *ep)
 		}
 	}
 
-	if (qedi_do_not_recover)
+	if (qedi_do_yest_recover)
 		goto ep_exit_recover;
 
 	switch (qedi_ep->state) {
@@ -1236,7 +1236,7 @@ static int qedi_set_path(struct Scsi_Host *shost, struct iscsi_path *path_data)
 	if (path_data->pmtu < DEF_PATH_MTU) {
 		qedi_ep->pmtu = qedi->ll2_mtu;
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
-			  "MTU cannot be %u, using default MTU %u\n",
+			  "MTU canyest be %u, using default MTU %u\n",
 			   path_data->pmtu, qedi_ep->pmtu);
 	}
 
@@ -1429,7 +1429,7 @@ static const struct {
 	char *err_string;
 } qedi_iscsi_error[] = {
 	{ ISCSI_STATUS_NONE,
-	  "tcp_error none"
+	  "tcp_error yesne"
 	},
 	{ ISCSI_CONN_ERROR_TASK_CID_MISMATCH,
 	  "task cid mismatch"
@@ -1480,7 +1480,7 @@ static const struct {
 	  "unexpected opcode"
 	},
 	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_R2T_CARRIES_NO_DATA,
-	  "r2t carries no data"
+	  "r2t carries yes data"
 	},
 	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_DATA_SN,
 	  "data sn error"
@@ -1519,7 +1519,7 @@ static const struct {
 	  "exp stat sn error"
 	},
 	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_DSL_NOT_ZERO,
-	  "dsl not zero error"
+	  "dsl yest zero error"
 	},
 	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_INVALID_DSL,
 	  "invalid dsl"
@@ -1554,9 +1554,9 @@ void qedi_process_iscsi_error(struct qedi_endpoint *ep,
 {
 	struct qedi_conn *qedi_conn;
 	struct qedi_ctx *qedi;
-	char warn_notice[] = "iscsi_warning";
-	char error_notice[] = "iscsi_error";
-	char unknown_msg[] = "Unknown error";
+	char warn_yestice[] = "iscsi_warning";
+	char error_yestice[] = "iscsi_error";
+	char unkyeswn_msg[] = "Unkyeswn error";
 	char *message;
 	int need_recovery = 0;
 	u32 err_mask = 0;
@@ -1576,16 +1576,16 @@ void qedi_process_iscsi_error(struct qedi_endpoint *ep,
 
 	if (err_mask) {
 		need_recovery = 0;
-		message = warn_notice;
+		message = warn_yestice;
 	} else {
 		need_recovery = 1;
-		message = error_notice;
+		message = error_yestice;
 	}
 
 	msg = qedi_get_iscsi_error(data->error_code);
 	if (!msg) {
 		need_recovery = 0;
-		msg = unknown_msg;
+		msg = unkyeswn_msg;
 	}
 
 	iscsi_conn_printk(KERN_ALERT,

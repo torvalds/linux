@@ -23,7 +23,7 @@
    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
    solely responsible for determining the appropriateness of using and
    distributing the Program and assumes all risks associated with its
-   exercise of rights under this Agreement, including but not limited to
+   exercise of rights under this Agreement, including but yest limited to
    the risks and costs of program errors, damage to or loss of data,
    programs or equipment, and unavailability or interruption of operations.
 
@@ -37,13 +37,13 @@
    HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
    Bugs/Comments/Suggestions should be mailed to:
    aradford@gmail.com
 
-   Note: This version of the driver does not contain a bundled firmware
+   Note: This version of the driver does yest contain a bundled firmware
          image.
 
    History
@@ -83,7 +83,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
@@ -123,7 +123,7 @@ static int twa_aen_read_queue(TW_Device_Extension *tw_dev, int request_id);
 static char *twa_aen_severity_lookup(unsigned char severity_code);
 static void twa_aen_sync_time(TW_Device_Extension *tw_dev, int request_id);
 static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-static int twa_chrdev_open(struct inode *inode, struct file *file);
+static int twa_chrdev_open(struct iyesde *iyesde, struct file *file);
 static int twa_fill_sense(TW_Device_Extension *tw_dev, int request_id, int copy_sense, int print_host);
 static void twa_free_request_id(TW_Device_Extension *tw_dev,int request_id);
 static void twa_get_request_id(TW_Device_Extension *tw_dev, int *request_id);
@@ -208,7 +208,7 @@ static const struct file_operations twa_fops = {
 	.unlocked_ioctl	= twa_chrdev_ioctl,
 	.open		= twa_chrdev_open,
 	.release	= NULL,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 /*
@@ -277,7 +277,7 @@ out:
 } /* End twa_aen_complete() */
 
 /* This function will drain aen queue */
-static int twa_aen_drain_queue(TW_Device_Extension *tw_dev, int no_check_reset)
+static int twa_aen_drain_queue(TW_Device_Extension *tw_dev, int yes_check_reset)
 {
 	int request_id = 0;
 	unsigned char cdb[TW_MAX_CDB_LEN];
@@ -288,7 +288,7 @@ static int twa_aen_drain_queue(TW_Device_Extension *tw_dev, int no_check_reset)
 	unsigned short aen;
 	int first_reset = 0, queue = 0, retval = 1;
 
-	if (no_check_reset)
+	if (yes_check_reset)
 		first_reset = 0;
 	else
 		first_reset = 1;
@@ -384,7 +384,7 @@ static void twa_aen_queue_event(TW_Device_Extension *tw_dev, TW_Command_Apache_H
 	/* Check for clobber */
 	host[0] = '\0';
 	if (tw_dev->host) {
-		sprintf(host, " scsi%d:", tw_dev->host->host_no);
+		sprintf(host, " scsi%d:", tw_dev->host->host_yes);
 		if (event->retrieved == TW_AEN_NOT_RETRIEVED)
 			tw_dev->aen_clobber = 1;
 	}
@@ -636,7 +636,7 @@ out:
 /* This function handles ioctl for the character device */
 static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	long timeout;
 	unsigned long *cpu_addr, data_buffer_length_adjusted = 0, flags = 0;
 	dma_addr_t dma_handle;
@@ -650,7 +650,7 @@ static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	TW_Compatibility_Info *tw_compat_info;
 	TW_Event *event;
 	ktime_t current_time;
-	TW_Device_Extension *tw_dev = twa_device_extension_list[iminor(inode)];
+	TW_Device_Extension *tw_dev = twa_device_extension_list[imiyesr(iyesde)];
 	int retval = TW_IOCTL_ERROR_OS_EFAULT;
 	void __user *argp = (void __user *)arg;
 
@@ -720,7 +720,7 @@ static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 		if (tw_dev->chrdev_request_id != TW_IOCTL_CHRDEV_FREE) {
 			/* Now we need to reset the board */
 			printk(KERN_WARNING "3w-9xxx: scsi%d: WARNING: (0x%02X:0x%04X): Character ioctl (0x%x) timed out, resetting card.\n",
-			       tw_dev->host->host_no, TW_DRIVER, 0x37,
+			       tw_dev->host->host_yes, TW_DRIVER, 0x37,
 			       cmd);
 			retval = TW_IOCTL_ERROR_OS_EIO;
 			twa_reset_device_extension(tw_dev);
@@ -881,9 +881,9 @@ out:
 
 /* This function handles open for the character device */
 /* NOTE that this function will race with remove. */
-static int twa_chrdev_open(struct inode *inode, struct file *file)
+static int twa_chrdev_open(struct iyesde *iyesde, struct file *file)
 {
-	unsigned int minor_number;
+	unsigned int miyesr_number;
 	int retval = TW_IOCTL_ERROR_OS_ENODEV;
 
 	if (!capable(CAP_SYS_ADMIN)) {
@@ -891,8 +891,8 @@ static int twa_chrdev_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	minor_number = iminor(inode);
-	if (minor_number >= twa_device_extension_count)
+	miyesr_number = imiyesr(iyesde);
+	if (miyesr_number >= twa_device_extension_count)
 		goto out;
 	retval = 0;
 out:
@@ -994,12 +994,12 @@ static int twa_fill_sense(TW_Device_Extension *tw_dev, int request_id, int copy_
 	/* Check for embedded error string */
 	error_str = &(full_command_packet->header.err_specific_desc[strlen(full_command_packet->header.err_specific_desc) + 1]);
 
-	/* Don't print error for Logical unit not supported during rollcall */
+	/* Don't print error for Logical unit yest supported during rollcall */
 	error = le16_to_cpu(full_command_packet->header.status_block.error);
 	if ((error != TW_ERROR_LOGICAL_UNIT_NOT_SUPPORTED) && (error != TW_ERROR_UNIT_OFFLINE)) {
 		if (print_host)
 			printk(KERN_WARNING "3w-9xxx: scsi%d: ERROR: (0x%02X:0x%04X): %s:%s.\n",
-			       tw_dev->host->host_no,
+			       tw_dev->host->host_yes,
 			       TW_MESSAGE_SOURCE_CONTROLLER_ERROR,
 			       full_command_packet->header.status_block.error,
 			       error_str[0] == '\0' ?
@@ -1334,7 +1334,7 @@ static irqreturn_t twa_interrupt(int irq, void *dev_instance)
 				cmd = tw_dev->srb[request_id];
 
 				twa_scsiop_execute_scsi_complete(tw_dev, request_id);
-				/* If no error command was a success */
+				/* If yes error command was a success */
 				if (error == 0) {
 					cmd->result = (DID_OK << 16);
 				}
@@ -1649,7 +1649,7 @@ static int twa_reset_sequence(TW_Device_Extension *tw_dev, int soft_reset)
 
 		/* Make sure controller is in a good state */
 		if (twa_poll_status(tw_dev, TW_STATUS_MICROCONTROLLER_READY | (do_soft_reset == 1 ? TW_STATUS_ATTENTION_INTERRUPT : 0), 60)) {
-			TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1f, "Microcontroller not ready during reset sequence");
+			TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1f, "Microcontroller yest ready during reset sequence");
 			do_soft_reset = 1;
 			tries++;
 			continue;
@@ -1733,7 +1733,7 @@ static int twa_scsi_eh_reset(struct scsi_cmnd *SCpnt)
 		"WARNING: (0x%02X:0x%04X): Command (0x%x) timed out, resetting card.\n",
 		TW_DRIVER, 0x2c, SCpnt->cmnd[0]);
 
-	/* Make sure we are not issuing an ioctl or resetting from ioctl */
+	/* Make sure we are yest issuing an ioctl or resetting from ioctl */
 	mutex_lock(&tw_dev->ioctl_lock);
 
 	/* Now reset the card and some of the device extension data */
@@ -1943,7 +1943,7 @@ static void __twa_shutdown(TW_Device_Extension *tw_dev)
 	/* Free up the IRQ */
 	free_irq(tw_dev->tw_pci_dev->irq, tw_dev);
 
-	printk(KERN_WARNING "3w-9xxx: Shutting down host %d.\n", tw_dev->host->host_no);
+	printk(KERN_WARNING "3w-9xxx: Shutting down host %d.\n", tw_dev->host->host_yes);
 
 	/* Tell the card we are shutting down */
 	if (twa_initconnection(tw_dev, 1, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL)) {
@@ -2000,7 +2000,7 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun		= TW_MAX_CMDS_PER_LUN,
 	.shost_attrs		= twa_host_attrs,
 	.emulated		= 1,
-	.no_write_same		= 1,
+	.yes_write_same		= 1,
 };
 
 /* This function will probe and initialize a card */
@@ -2102,9 +2102,9 @@ static int twa_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	pci_set_drvdata(pdev, host);
 
 	printk(KERN_WARNING "3w-9xxx: scsi%d: Found a 3ware 9000 Storage Controller at 0x%lx, IRQ: %d.\n",
-	       host->host_no, mem_addr, pdev->irq);
+	       host->host_yes, mem_addr, pdev->irq);
 	printk(KERN_WARNING "3w-9xxx: scsi%d: Firmware %s, BIOS %s, Ports: %d.\n",
-	       host->host_no,
+	       host->host_yes,
 	       (char *)twa_get_param(tw_dev, 0, TW_VERSION_TABLE,
 				     TW_PARAM_FWVER, TW_PARAM_FWVER_LENGTH),
 	       (char *)twa_get_param(tw_dev, 1, TW_VERSION_TABLE,
@@ -2198,7 +2198,7 @@ static int twa_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 
-	printk(KERN_WARNING "3w-9xxx: Suspending host %d.\n", tw_dev->host->host_no);
+	printk(KERN_WARNING "3w-9xxx: Suspending host %d.\n", tw_dev->host->host_yes);
 
 	TW_DISABLE_INTERRUPTS(tw_dev);
 	free_irq(tw_dev->tw_pci_dev->irq, tw_dev);
@@ -2228,7 +2228,7 @@ static int twa_resume(struct pci_dev *pdev)
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 
-	printk(KERN_WARNING "3w-9xxx: Resuming host %d.\n", tw_dev->host->host_no);
+	printk(KERN_WARNING "3w-9xxx: Resuming host %d.\n", tw_dev->host->host_yes);
 	pci_set_power_state(pdev, PCI_D0);
 	pci_enable_wake(pdev, PCI_D0, 0);
 	pci_restore_state(pdev);

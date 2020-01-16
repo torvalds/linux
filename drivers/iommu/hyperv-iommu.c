@@ -94,8 +94,8 @@ static int hyperv_irq_remapping_alloc(struct irq_domain *domain,
 	 * affinity only needs to change IRTE of IOMMU. But Hyper-V doesn't
 	 * support interrupt remapping function, setting irq affinity of IO-APIC
 	 * interrupts still needs to change IO-APIC registers. But ioapic_
-	 * configure_entry() will ignore value of cfg->vector and cfg->
-	 * dest_apicid when IO-APIC's parent irq domain is not the vector
+	 * configure_entry() will igyesre value of cfg->vector and cfg->
+	 * dest_apicid when IO-APIC's parent irq domain is yest the vector
 	 * domain.(See ioapic_configure_entry()) In order to setting vector
 	 * and dest_apicid to IO-APIC register, IO-APIC entry pointer is saved
 	 * in the chip_data and hyperv_irq_remapping_activate()/hyperv_ir_set_
@@ -105,7 +105,7 @@ static int hyperv_irq_remapping_alloc(struct irq_domain *domain,
 
 	/*
 	 * Hypver-V IO APIC irq affinity should be in the scope of
-	 * ioapic_max_cpumask because no irq remapping support.
+	 * ioapic_max_cpumask because yes irq remapping support.
 	 */
 	desc = irq_data_to_desc(irq_data);
 	cpumask_copy(desc->irq_common_data.affinity, &ioapic_max_cpumask);
@@ -139,14 +139,14 @@ static struct irq_domain_ops hyperv_ir_domain_ops = {
 
 static int __init hyperv_prepare_irq_remapping(void)
 {
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 	int i;
 
 	if (!hypervisor_is_type(X86_HYPER_MS_HYPERV) ||
 	    !x2apic_supported())
 		return -ENODEV;
 
-	fn = irq_domain_alloc_named_id_fwnode("HYPERV-IR", 0);
+	fn = irq_domain_alloc_named_id_fwyesde("HYPERV-IR", 0);
 	if (!fn)
 		return -ENOMEM;
 
@@ -155,15 +155,15 @@ static int __init hyperv_prepare_irq_remapping(void)
 				0, IOAPIC_REMAPPING_ENTRY, fn,
 				&hyperv_ir_domain_ops, NULL);
 
-	irq_domain_free_fwnode(fn);
+	irq_domain_free_fwyesde(fn);
 
 	/*
 	 * Hyper-V doesn't provide irq remapping function for
 	 * IO-APIC and so IO-APIC only accepts 8-bit APIC ID.
 	 * Cpu's APIC ID is read from ACPI MADT table and APIC IDs
-	 * in the MADT table on Hyper-v are sorted monotonic increasingly.
+	 * in the MADT table on Hyper-v are sorted moyestonic increasingly.
 	 * APIC ID reflects cpu topology. There maybe some APIC ID
-	 * gaps when cpu number in a socket is not power of two. Prepare
+	 * gaps when cpu number in a socket is yest power of two. Prepare
 	 * max cpu affinity for IOAPIC irqs. Scan cpu 0-255 and set cpu
 	 * into ioapic_max_cpumask if its APIC ID is less than 256.
 	 */

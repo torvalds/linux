@@ -25,7 +25,7 @@ menuconfig PWM
 	  with the legacy framework so that existing client drivers
 	  continue to work as expected.
 
-	  If unsure, say no.
+	  If unsure, say yes.
 
 if PWM
 
@@ -181,13 +181,13 @@ config PWM_HIBVT
 	  will be called pwm-hibvt.
 
 config PWM_IMG
-	tristate "Imagination Technologies PWM driver"
+	tristate "Imagination Techyeslogies PWM driver"
 	depends on HAS_IOMEM
 	depends on MFD_SYSCON
 	depends on COMMON_CLK
 	depends on MIPS || COMPILE_TEST
 	help
-	  Generic PWM framework driver for Imagination Technologies
+	  Generic PWM framework driver for Imagination Techyeslogies
 	  PWM block which supports 4 channels.
 
 	  To compile this driver as a module, choose M here: the module

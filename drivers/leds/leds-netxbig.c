@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 LaCie
  *
- * Author: Simon Guinot <sguinot@lacie.com>
+ * Author: Simon Guiyest <sguiyest@lacie.com>
  */
 
 #include <linux/module.h>
@@ -320,7 +320,7 @@ static int create_netxbig_led(struct platform_device *pdev,
 	led_dat->cdev.brightness_set = netxbig_led_set;
 	/*
 	 * Because the GPIO extension bus don't allow to read registers
-	 * value, there is no way to probe the LED initial state.
+	 * value, there is yes way to probe the LED initial state.
 	 * So, the initial sysfs LED value for the "brightness" and "sata"
 	 * attributes are inconsistent.
 	 *
@@ -347,7 +347,7 @@ static int create_netxbig_led(struct platform_device *pdev,
 	return devm_led_classdev_register(&pdev->dev, &led_dat->cdev);
 }
 
-static int gpio_ext_get_of_pdata(struct device *dev, struct device_node *np,
+static int gpio_ext_get_of_pdata(struct device *dev, struct device_yesde *np,
 				 struct netxbig_gpio_ext *gpio_ext)
 {
 	int *addr, *data;
@@ -409,9 +409,9 @@ static int gpio_ext_get_of_pdata(struct device *dev, struct device_node *np,
 static int netxbig_leds_get_of_pdata(struct device *dev,
 				     struct netxbig_led_platform_data *pdata)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *gpio_ext_np;
-	struct device_node *child;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *gpio_ext_np;
+	struct device_yesde *child;
 	struct netxbig_gpio_ext *gpio_ext;
 	struct netxbig_led_timer *timers;
 	struct netxbig_led *leds, *led;
@@ -429,11 +429,11 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 
 	gpio_ext = devm_kzalloc(dev, sizeof(*gpio_ext), GFP_KERNEL);
 	if (!gpio_ext) {
-		of_node_put(gpio_ext_np);
+		of_yesde_put(gpio_ext_np);
 		return -ENOMEM;
 	}
 	ret = gpio_ext_get_of_pdata(dev, gpio_ext_np, gpio_ext);
-	of_node_put(gpio_ext_np);
+	of_yesde_put(gpio_ext_np);
 	if (ret)
 		return ret;
 	pdata->gpio_ext = gpio_ext;
@@ -469,7 +469,7 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 	/* LEDs */
 	num_leds = of_get_child_count(np);
 	if (!num_leds) {
-		dev_err(dev, "No LED subnodes found in DT\n");
+		dev_err(dev, "No LED subyesdes found in DT\n");
 		return -ENODEV;
 	}
 
@@ -478,7 +478,7 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 		return -ENOMEM;
 
 	led = leds;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		const char *string;
 		int *mode_val;
 		int num_modes;
@@ -486,17 +486,17 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 		ret = of_property_read_u32(child, "mode-addr",
 					   &led->mode_addr);
 		if (ret)
-			goto err_node_put;
+			goto err_yesde_put;
 
 		ret = of_property_read_u32(child, "bright-addr",
 					   &led->bright_addr);
 		if (ret)
-			goto err_node_put;
+			goto err_yesde_put;
 
 		ret = of_property_read_u32(child, "max-brightness",
 					   &led->bright_max);
 		if (ret)
-			goto err_node_put;
+			goto err_yesde_put;
 
 		mode_val =
 			devm_kcalloc(dev,
@@ -504,7 +504,7 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 				     GFP_KERNEL);
 		if (!mode_val) {
 			ret = -ENOMEM;
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
 		for (i = 0; i < NETXBIG_LED_MODE_NUM; i++)
@@ -513,12 +513,12 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 		ret = of_property_count_u32_elems(child, "mode-val");
 		if (ret < 0 || ret % 2) {
 			ret = -EINVAL;
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 		num_modes = ret / 2;
 		if (num_modes > NETXBIG_LED_MODE_NUM) {
 			ret = -EINVAL;
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
 		for (i = 0; i < num_modes; i++) {
@@ -531,7 +531,7 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 						   "mode-val", 2 * i + 1, &val);
 			if (mode >= NETXBIG_LED_MODE_NUM) {
 				ret = -EINVAL;
-				goto err_node_put;
+				goto err_yesde_put;
 			}
 			mode_val[mode] = val;
 		}
@@ -554,8 +554,8 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 
 	return 0;
 
-err_node_put:
-	of_node_put(child);
+err_yesde_put:
+	of_yesde_put(child);
 	return ret;
 }
 
@@ -609,7 +609,7 @@ static struct platform_driver netxbig_led_driver = {
 
 module_platform_driver(netxbig_led_driver);
 
-MODULE_AUTHOR("Simon Guinot <sguinot@lacie.com>");
+MODULE_AUTHOR("Simon Guiyest <sguiyest@lacie.com>");
 MODULE_DESCRIPTION("LED driver for LaCie xBig Network boards");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:leds-netxbig");

@@ -15,7 +15,7 @@
 
 /*
  * test is a specific CAN netdev
- * is online (ie. up 'n running, not sleeping, not busoff
+ * is online (ie. up 'n running, yest sleeping, yest busoff
  */
 static inline int canif_is_active(struct net_device *netdev)
 {
@@ -91,7 +91,7 @@ static netdev_tx_t softing_netdev_start_xmit(struct sk_buff *skb,
 		*ptr++ = (cf->can_id >> 16);
 		*ptr++ = (cf->can_id >> 24);
 	} else {
-		/* increment 1, not 2 as you might think */
+		/* increment 1, yest 2 as you might think */
 		ptr += 1;
 	}
 	if (!(cf->can_id & CAN_RTR_FLAG))
@@ -170,7 +170,7 @@ static int softing_handle_1(struct softing *card)
 		msg.can_dlc = CAN_ERR_DLC;
 		msg.data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 		/*
-		 * service to all busses, we don't know which it was applicable
+		 * service to all busses, we don't kyesw which it was applicable
 		 * but only service busses that are online
 		 */
 		for (j = 0; j < ARRAY_SIZE(card->net); ++j) {
@@ -178,7 +178,7 @@ static int softing_handle_1(struct softing *card)
 			if (!netdev)
 				continue;
 			if (!canif_is_active(netdev))
-				/* a dead bus has no overflows */
+				/* a dead bus has yes overflows */
 				continue;
 			++netdev->stats.rx_over_errors;
 			softing_netdev_rx(netdev, &msg, 0);
@@ -205,7 +205,7 @@ static int softing_handle_1(struct softing *card)
 	ptr = buf;
 	cmd = *ptr++;
 	if (cmd == 0xff)
-		/* not quite useful, probably the card has got out */
+		/* yest quite useful, probably the card has got out */
 		return 0;
 	netdev = card->net[0];
 	if (cmd & CMD_BUS2)
@@ -279,7 +279,7 @@ static int softing_handle_1(struct softing *card)
 		ptr += 8;
 		/* update socket */
 		if (cmd & CMD_ACK) {
-			/* acknowledge, was tx msg */
+			/* ackyeswledge, was tx msg */
 			struct sk_buff *skb;
 			skb = priv->can.echo_skb[priv->tx.echo_get];
 			if (skb)
@@ -339,7 +339,7 @@ static irqreturn_t softing_irq_thread(int irq, void *dev_id)
 			continue;
 		priv = netdev_priv(netdev);
 		if (!canif_is_active(netdev))
-			/* it makes no sense to wake dead busses */
+			/* it makes yes sense to wake dead busses */
 			continue;
 		if (priv->tx.pending >= TX_ECHO_SKB_MAX)
 			continue;
@@ -496,7 +496,7 @@ static int softing_card_boot(struct softing *card)
 
 		if (!memcmp(back, stream, sizeof(stream)))
 			continue;
-		/* memory is not equal */
+		/* memory is yest equal */
 		dev_alert(&card->pdev->dev, "dpram failed at 0x%04x\n", j);
 		ret = -EIO;
 		goto failed;
@@ -754,7 +754,7 @@ static int softing_pdev_probe(struct platform_device *pdev)
 	int j;
 
 	if (!pdat) {
-		dev_warn(&pdev->dev, "no platform data\n");
+		dev_warn(&pdev->dev, "yes platform data\n");
 		return -EINVAL;
 	}
 	if (pdat->nbus > ARRAY_SIZE(card->net)) {
@@ -777,7 +777,7 @@ static int softing_pdev_probe(struct platform_device *pdev)
 		goto platform_resource_failed;
 	card->dpram_phys = pres->start;
 	card->dpram_size = resource_size(pres);
-	card->dpram = ioremap_nocache(card->dpram_phys, card->dpram_size);
+	card->dpram = ioremap_yescache(card->dpram_phys, card->dpram_size);
 	if (!card->dpram) {
 		dev_alert(&card->pdev->dev, "dpram ioremap failed\n");
 		goto ioremap_failed;
@@ -794,7 +794,7 @@ static int softing_pdev_probe(struct platform_device *pdev)
 		goto boot_failed;
 	}
 
-	/* only now, the chip's are known */
+	/* only yesw, the chip's are kyeswn */
 	card->id.freq = card->pdat->freq;
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &softing_pdev_group);

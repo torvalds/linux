@@ -1,22 +1,22 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0+
 #
-# Create an initrd directory if one does not already exist.
+# Create an initrd directory if one does yest already exist.
 #
 # Copyright (C) IBM Corporation, 2013
 #
-# Author: Connor Shu <Connor.Shu@ibm.com>
+# Author: Conyesr Shu <Conyesr.Shu@ibm.com>
 
 D=tools/testing/selftests/rcutorture
 
 # Prerequisite checks
 [ -z "$D" ] && echo >&2 "No argument supplied" && exit 1
 if [ ! -d "$D" ]; then
-    echo >&2 "$D does not exist: Malformed kernel source tree?"
+    echo >&2 "$D does yest exist: Malformed kernel source tree?"
     exit 1
 fi
 if [ -s "$D/initrd/init" ]; then
-    echo "$D/initrd/init already exists, no need to create it"
+    echo "$D/initrd/init already exists, yes need to create it"
     exit 0
 fi
 
@@ -33,8 +33,8 @@ cat > $T/init << '__EOF___'
 # couple of milliseconds up to perhaps 100 milliseconds, which is an
 # acceptable range.
 #
-# Why not calibrate an exact delay?  Because within this initrd, we
-# are restricted to Bourne-shell builtins, which as far as I know do not
+# Why yest calibrate an exact delay?  Because within this initrd, we
+# are restricted to Bourne-shell builtins, which as far as I kyesw do yest
 # provide any means of obtaining a fine-grained timestamp.
 
 a4="a a a a"
@@ -57,7 +57,7 @@ if command -v dracut >/dev/null 2>&1
 then
 	echo Creating $D/initrd using dracut.
 	# Filesystem creation
-	dracut --force --no-hostonly --no-hostonly-cmdline --module "base" $T/initramfs.img
+	dracut --force --yes-hostonly --yes-hostonly-cmdline --module "base" $T/initramfs.img
 	cd $D
 	mkdir -p initrd
 	cd initrd
@@ -71,7 +71,7 @@ fi
 # No dracut, so create a C-language initrd/init program and statically
 # link it.  This results in a very small initrd, but might be a bit less
 # future-proof than dracut.
-echo "Could not find dracut, attempting C initrd"
+echo "Could yest find dracut, attempting C initrd"
 cd $D
 mkdir -p initrd
 cd initrd
@@ -110,15 +110,15 @@ int main(int argc, int argv[])
 }
 ___EOF___
 
-# build using nolibc on supported archs (smaller executable) and fall
+# build using yeslibc on supported archs (smaller executable) and fall
 # back to regular glibc on other ones.
 if echo -e "#if __x86_64__||__i386__||__i486__||__i586__||__i686__" \
-           "||__ARM_EABI__||__aarch64__\nyes\n#endif" \
-   | ${CROSS_COMPILE}gcc -E -nostdlib -xc - \
-   | grep -q '^yes'; then
-	# architecture supported by nolibc
-        ${CROSS_COMPILE}gcc -fno-asynchronous-unwind-tables -fno-ident \
-		-nostdlib -include ../../../../include/nolibc/nolibc.h \
+           "||__ARM_EABI__||__aarch64__\nno\n#endif" \
+   | ${CROSS_COMPILE}gcc -E -yesstdlib -xc - \
+   | grep -q '^no'; then
+	# architecture supported by yeslibc
+        ${CROSS_COMPILE}gcc -fyes-asynchroyesus-unwind-tables -fyes-ident \
+		-yesstdlib -include ../../../../include/yeslibc/yeslibc.h \
 		-lgcc -s -static -Os -o init init.c
 else
 	${CROSS_COMPILE}gcc -s -static -Os -o init init.c

@@ -98,7 +98,7 @@ void acpi_os_release_lock(acpi_spinlock handle, acpi_cpu_flags flags);
 #endif
 
 /*
- * RAW spinlock primitives. If the OS does not provide them, fallback to
+ * RAW spinlock primitives. If the OS does yest provide them, fallback to
  * spinlock primitives
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_raw_lock
@@ -361,8 +361,8 @@ void acpi_os_terminate_debugger(void);
 acpi_status acpi_os_wait_command_ready(void);
 #endif
 
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_notify_command_complete
-acpi_status acpi_os_notify_command_complete(void);
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_yestify_command_complete
+acpi_status acpi_os_yestify_command_complete(void);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_trace_point

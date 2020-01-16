@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -182,14 +182,14 @@ static bool tfp410_init(struct intel_dvo_device *dvo,
 	tfp->quiet = true;
 
 	if ((id = tfp410_getid(dvo, TFP410_VID_LO)) != TFP410_VID) {
-		DRM_DEBUG_KMS("tfp410 not detected got VID %X: from %s "
+		DRM_DEBUG_KMS("tfp410 yest detected got VID %X: from %s "
 				"Slave %d.\n",
 			  id, adapter->name, dvo->slave_addr);
 		goto out;
 	}
 
 	if ((id = tfp410_getid(dvo, TFP410_DID_LO)) != TFP410_DID) {
-		DRM_DEBUG_KMS("tfp410 not detected got DID %X: from %s "
+		DRM_DEBUG_KMS("tfp410 yest detected got DID %X: from %s "
 				"Slave %d.\n",
 			  id, adapter->name, dvo->slave_addr);
 		goto out;

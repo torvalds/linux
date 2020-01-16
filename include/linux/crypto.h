@@ -6,7 +6,7 @@
  * Copyright (c) 2002 David S. Miller (davem@redhat.com)
  * Copyright (c) 2005 Herbert Xu <herbert@gondor.apana.org.au>
  *
- * Portions derived from Cryptoapi, by Alexander Kjeldaas <astor@fast.no>
+ * Portions derived from Cryptoapi, by Alexander Kjeldaas <astor@fast.yes>
  * and Nettle, by Niels Möller.
  */
 #ifndef _LINUX_CRYPTO_H
@@ -61,14 +61,14 @@
 #define CRYPTO_ALG_ASYNC		0x00000080
 
 /*
- * Set this bit if and only if the algorithm requires another algorithm of
+ * Set this bit if and only if the algorithm requires ayesther algorithm of
  * the same type to handle corner cases.
  */
 #define CRYPTO_ALG_NEED_FALLBACK	0x00000100
 
 /*
  * Set if the algorithm has passed automated run-time testing.  Note that
- * if there is no run-time testing for a given algorithm it is considered
+ * if there is yes run-time testing for a given algorithm it is considered
  * to have passed.
  */
 
@@ -80,13 +80,13 @@
 #define CRYPTO_ALG_INSTANCE		0x00000800
 
 /* Set this bit if the algorithm provided is hardware accelerated but
- * not available to userspace via instruction set or so.
+ * yest available to userspace via instruction set or so.
  */
 #define CRYPTO_ALG_KERN_DRIVER_ONLY	0x00001000
 
 /*
- * Mark a cipher as a service implementation only usable by another
- * cipher and never by a normal user of the kernel crypto API
+ * Mark a cipher as a service implementation only usable by ayesther
+ * cipher and never by a yesrmal user of the kernel crypto API
  */
 #define CRYPTO_ALG_INTERNAL		0x00002000
 
@@ -126,7 +126,7 @@
 /*
  * The macro CRYPTO_MINALIGN_ATTR (along with the void * type in the actual
  * declaration) is used to ensure that the crypto_tfm context structure is
- * aligned correctly for the given architecture so that there are no alignment
+ * aligned correctly for the given architecture so that there are yes alignment
  * faults for C data types.  In particular, this is required on platforms such
  * as arm where pointers are 32-bit aligned but there are data types such as
  * u64 which require 64-bit alignment.
@@ -170,13 +170,13 @@ struct crypto_async_request {
  * @cia_min_keysize: Minimum key size supported by the transformation. This is
  *		     the smallest key length supported by this transformation
  *		     algorithm. This must be set to one of the pre-defined
- *		     values as this is not hardware specific. Possible values
+ *		     values as this is yest hardware specific. Possible values
  *		     for this field can be found via git grep "_MIN_KEY_SIZE"
  *		     include/crypto/
  * @cia_max_keysize: Maximum key size supported by the transformation. This is
  *		    the largest key length supported by this transformation
  *		    algorithm. This must be set to one of the pre-defined values
- *		    as this is not hardware specific. Possible values for this
+ *		    as this is yest hardware specific. Possible values for this
  *		    field can be found via git grep "_MAX_KEY_SIZE"
  *		    include/crypto/
  * @cia_setkey: Set key for the transformation. This function is used to either
@@ -189,12 +189,12 @@ struct crypto_async_request {
  *	        responsible for checking the key length for validity.
  * @cia_encrypt: Encrypt a single block. This function is used to encrypt a
  *		 single block of data, which must be @cra_blocksize big. This
- *		 always operates on a full @cra_blocksize and it is not possible
+ *		 always operates on a full @cra_blocksize and it is yest possible
  *		 to encrypt a block of smaller size. The supplied buffers must
  *		 therefore also be at least of @cra_blocksize size. Both the
  *		 input and output buffers are always aligned to @cra_alignmask.
  *		 In case either of the input or output buffer supplied by user
- *		 of the crypto API is not aligned to @cra_alignmask, the crypto
+ *		 of the crypto API is yest aligned to @cra_alignmask, the crypto
  *		 API will re-align the buffers. The re-alignment means that a
  *		 new buffer will be allocated, the data will be copied into the
  *		 new buffer, then the processing will happen on the new buffer,
@@ -204,7 +204,7 @@ struct crypto_async_request {
  *		 might need to use the fallback if the algorithm doesn't support
  *		 all of the key sizes. In case the key was stored in
  *		 transformation context, the key might need to be re-programmed
- *		 into the hardware in this function. This function shall not
+ *		 into the hardware in this function. This function shall yest
  *		 modify the transformation context, as this function may be
  *		 called in parallel with the same transformation object.
  * @cia_decrypt: Decrypt a single block. This is a reverse counterpart to
@@ -380,7 +380,7 @@ struct crypto_istat_rng {
  *		   buffer; ahash -- For output hash destination buf; shash --
  *		   For output hash destination buf.
  *		   This is needed on hardware which is flawed by design and
- *		   cannot pick data from arbitrary addresses.
+ *		   canyest pick data from arbitrary addresses.
  * @cra_priority: Priority of this transformation implementation. In case
  *		  multiple transformations with same @cra_name are available to
  *		  the Crypto API, the kernel will use the one with highest
@@ -398,7 +398,7 @@ struct crypto_istat_rng {
  *	      struct crypto_type, which implements callbacks common for all
  *	      transformation types. There are multiple options, such as
  *	      &crypto_skcipher_type, &crypto_ahash_type, &crypto_rng_type.
- *	      This field might be empty. In that case, there are no common
+ *	      This field might be empty. In that case, there are yes common
  *	      callbacks. This is the case for: cipher, compress, shash.
  * @cra_u: Callbacks implementing the transformation. This is a union of
  *	   multiple structures. Depending on the type of transformation selected
@@ -436,7 +436,7 @@ struct crypto_istat_rng {
  * @stats.kpp:		statistics for KPP algorithm
  *
  * The struct crypto_alg describes a generic Crypto API algorithm and is common
- * for all of the transformations. Any variable not documented here shall not
+ * for all of the transformations. Any variable yest documented here shall yest
  * be used by a cipher implementation as it is internal to the Crypto API.
  */
 struct crypto_alg {
@@ -738,7 +738,7 @@ static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm)
 static inline unsigned int crypto_tfm_ctx_alignment(void)
 {
 	struct crypto_tfm *tfm;
-	return __alignof__(tfm->__crt_ctx);
+	return __aligyesf__(tfm->__crt_ctx);
 }
 
 /**
@@ -814,7 +814,7 @@ static inline void crypto_free_cipher(struct crypto_cipher *tfm)
  * @type: specifies the type of the cipher
  * @mask: specifies the mask for the cipher
  *
- * Return: true when the single block cipher is known to the kernel crypto API;
+ * Return: true when the single block cipher is kyeswn to the kernel crypto API;
  *	   false otherwise
  */
 static inline int crypto_has_cipher(const char *alg_name, u32 type, u32 mask)

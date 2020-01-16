@@ -7,7 +7,7 @@
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
 			   & Marcus Metzler (mocm@thp.uni-koeln.de)
-    (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
+    (c) 1999-2003 Gerd Kyesrr <kraxel@bytesex.org>
 
     (c) 2005 Mauro Carvalho Chehab <mchehab@kernel.org>
 	- Multituner support and i2c address binding
@@ -269,7 +269,7 @@ int bttv_I2CRead(struct bttv *btv, unsigned char addr, char *probe_for)
 	if (1 != i2c_master_recv(&btv->i2c_client, &buffer, 1)) {
 		if (NULL != probe_for) {
 			if (bttv_verbose)
-				pr_cont("not found\n");
+				pr_cont("yest found\n");
 		} else
 			pr_warn("%d: i2c read 0x%x: error\n",
 				btv->c.nr, addr);

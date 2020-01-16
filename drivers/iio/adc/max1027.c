@@ -272,7 +272,7 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 	}
 
 	/*
-	 * For an unknown reason, when we use the mode "10" (write
+	 * For an unkyeswn reason, when we use the mode "10" (write
 	 * conversion register), the interrupt doesn't occur every time.
 	 * So we just wait 1 ms.
 	 */
@@ -401,7 +401,7 @@ static irqreturn_t max1027_trigger_handler(int irq, void *private)
 
 	iio_push_to_buffers(indio_dev, st->buffer);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -441,7 +441,7 @@ static int max1027_probe(struct spi_device *spi)
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->info = &max1027_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->info->channels;

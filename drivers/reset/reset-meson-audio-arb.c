@@ -166,7 +166,7 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 	arb->reset_bits = data->reset_bits;
 	arb->rstc.nr_resets = data->reset_num;
 	arb->rstc.ops = &meson_audio_arb_rstc_ops;
-	arb->rstc.of_node = dev->of_node;
+	arb->rstc.of_yesde = dev->of_yesde;
 	arb->rstc.owner = THIS_MODULE;
 
 	/*

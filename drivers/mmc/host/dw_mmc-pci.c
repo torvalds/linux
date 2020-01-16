@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare Multimedia Card PCI Interface driver
+ * Syyespsys DesignWare Multimedia Card PCI Interface driver
  *
  * Copyright (C) 2012 Vayavya Labs Pvt. Ltd.
  */

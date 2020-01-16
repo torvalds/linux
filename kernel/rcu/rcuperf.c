@@ -26,7 +26,7 @@
 #include <linux/completion.h>
 #include <linux/moduleparam.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/freezer.h>
 #include <linux/cpu.h>
@@ -76,7 +76,7 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
 # define RCUPERF_SHUTDOWN 1
 #endif
 
-torture_param(bool, gp_async, false, "Use asynchronous GP wait primitives");
+torture_param(bool, gp_async, false, "Use asynchroyesus GP wait primitives");
 torture_param(int, gp_async_max, 1000, "Max # outstanding waits per reader");
 torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(int, holdoff, 10, "Holdoff time before test start (s)");
@@ -149,7 +149,7 @@ static void rcu_perf_read_unlock(int idx) __releases(RCU)
 	rcu_read_unlock();
 }
 
-static unsigned long __maybe_unused rcu_no_completed(void)
+static unsigned long __maybe_unused rcu_yes_completed(void)
 {
 	return 0;
 }
@@ -277,7 +277,7 @@ static struct rcu_perf_ops tasks_ops = {
 	.init		= rcu_sync_perf_init,
 	.readlock	= tasks_perf_read_lock,
 	.readunlock	= tasks_perf_read_unlock,
-	.get_gp_seq	= rcu_no_completed,
+	.get_gp_seq	= rcu_yes_completed,
 	.gp_diff	= rcu_seq_diff,
 	.async		= call_rcu_tasks,
 	.gp_barrier	= rcu_barrier_tasks,
@@ -333,7 +333,7 @@ rcu_perf_reader(void *arg)
 }
 
 /*
- * Callback function for asynchronous grace periods from rcu_perf_writer().
+ * Callback function for asynchroyesus grace periods from rcu_perf_writer().
  */
 static void rcu_perf_async_cb(struct rcu_head *rhp)
 {
@@ -361,20 +361,20 @@ rcu_perf_writer(void *arg)
 	WARN_ON(!wdpp);
 	set_cpus_allowed_ptr(current, cpumask_of(me % nr_cpu_ids));
 	sp.sched_priority = 1;
-	sched_setscheduler_nocheck(current, SCHED_FIFO, &sp);
+	sched_setscheduler_yescheck(current, SCHED_FIFO, &sp);
 
 	if (holdoff)
 		schedule_timeout_uninterruptible(holdoff * HZ);
 
 	/*
-	 * Wait until rcu_end_inkernel_boot() is called for normal GP tests
-	 * so that RCU is not always expedited for normal GP tests.
+	 * Wait until rcu_end_inkernel_boot() is called for yesrmal GP tests
+	 * so that RCU is yest always expedited for yesrmal GP tests.
 	 * The system_state test is approximate, but works well in practice.
 	 */
 	while (!gp_exp && system_state != SYSTEM_RUNNING)
 		schedule_timeout_uninterruptible(1);
 
-	t = ktime_get_mono_fast_ns();
+	t = ktime_get_moyes_fast_ns();
 	if (atomic_inc_return(&n_rcu_perf_writer_started) >= nrealwriters) {
 		t_rcu_perf_writer_started = t;
 		if (gp_exp) {
@@ -389,7 +389,7 @@ rcu_perf_writer(void *arg)
 		if (writer_holdoff)
 			udelay(writer_holdoff);
 		wdp = &wdpp[i];
-		*wdp = ktime_get_mono_fast_ns();
+		*wdp = ktime_get_moyes_fast_ns();
 		if (gp_async) {
 retry:
 			if (!rhp)
@@ -409,7 +409,7 @@ retry:
 		} else {
 			cur_ops->sync();
 		}
-		t = ktime_get_mono_fast_ns();
+		t = ktime_get_moyes_fast_ns();
 		*wdp = t - *wdp;
 		i_max = i;
 		if (!started &&
@@ -418,7 +418,7 @@ retry:
 		if (!done && i >= MIN_MEAS) {
 			done = true;
 			sp.sched_priority = 0;
-			sched_setscheduler_nocheck(current,
+			sched_setscheduler_yescheck(current,
 						   SCHED_NORMAL, &sp);
 			pr_alert("%s%s rcu_perf_writer %ld has %d measurements\n",
 				 perf_type, PERF_FLAG, me, MIN_MEAS);
@@ -477,10 +477,10 @@ rcu_perf_cleanup(void)
 	 * Would like warning at start, but everything is expedited
 	 * during the mid-boot phase, so have to wait till the end.
 	 */
-	if (rcu_gp_is_expedited() && !rcu_gp_is_normal() && !gp_exp)
-		VERBOSE_PERFOUT_ERRSTRING("All grace periods expedited, no normal ones to measure!");
-	if (rcu_gp_is_normal() && gp_exp)
-		VERBOSE_PERFOUT_ERRSTRING("All grace periods normal, no expedited ones to measure!");
+	if (rcu_gp_is_expedited() && !rcu_gp_is_yesrmal() && !gp_exp)
+		VERBOSE_PERFOUT_ERRSTRING("All grace periods expedited, yes yesrmal ones to measure!");
+	if (rcu_gp_is_yesrmal() && gp_exp)
+		VERBOSE_PERFOUT_ERRSTRING("All grace periods yesrmal, yes expedited ones to measure!");
 	if (gp_exp && gp_async)
 		VERBOSE_PERFOUT_ERRSTRING("No expedited async GPs, so went with async!");
 
@@ -548,7 +548,7 @@ rcu_perf_cleanup(void)
 }
 
 /*
- * Return the number if non-negative.  If -1, the number of CPUs.
+ * Return the number if yesn-negative.  If -1, the number of CPUs.
  * If less than -1, that much less than the number of CPUs, but
  * at least one.
  */

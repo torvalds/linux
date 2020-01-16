@@ -7,7 +7,7 @@
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1994, 1995, 1996, by Andreas Busse
  * Copyright (C) 1999 Silicon Graphics, Inc.
- * Copyright (C) 2000 MIPS Technologies, Inc.
+ * Copyright (C) 2000 MIPS Techyeslogies, Inc.
  *    written by Carsten Langgaard, carstenl@mips.com
  */
 #include <asm/asm.h>
@@ -26,7 +26,7 @@
 	.set arch=octeon
 	mfc0	t1, CP0_STATUS
 	LONG_S	t1, THREAD_STATUS(a0)
-	cpu_save_nonscratch a0
+	cpu_save_yesnscratch a0
 	LONG_S	ra, THREAD_REG31(a0)
 
 #if CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
@@ -43,7 +43,7 @@
 	LONG_ADDI t2, a0, THREAD_CVMSEG /* Where to store CVMSEG to */
 	synciobdma
 2:
-	.set noreorder
+	.set yesreorder
 	LONG_L	t8, 0(t1)	/* Load from CVMSEG */
 	subu	t0, 1		/* Decrement loop var */
 	LONG_L	t9, LONGSIZE(t1)/* Load from CVMSEG */
@@ -72,7 +72,7 @@
 	 * updating $28, $29 and kernelsp without disabling ints.
 	 */
 	move	$28, a2
-	cpu_restore_nonscratch a1
+	cpu_restore_yesnscratch a1
 
 	PTR_ADDU	t0, $28, _THREAD_SIZE - 32
 	set_saved_sp	t0, t1, t2
@@ -81,7 +81,7 @@
 	li	a3, 0xff01
 	and	t1, a3
 	LONG_L	a2, THREAD_STATUS(a1)
-	nor	a3, $0, a3
+	yesr	a3, $0, a3
 	and	a2, a3
 	or	a2, t1
 	mtc0	a2, CP0_STATUS
@@ -94,7 +94,7 @@
  */
 	.align	7
 	.set push
-	.set noreorder
+	.set yesreorder
 	LEAF(octeon_cop2_save)
 
 	dmfc0	t9, $9,7	/* CvmCtl register. */
@@ -154,7 +154,7 @@
 	beq	v0, v1, 2f
 	 sd	t2, OCTEON_CP2_AES_RESULT+8(a0)
 
-	/* the non-pass1 state when !CvmCtl[NOCRYPTO] */
+	/* the yesn-pass1 state when !CvmCtl[NOCRYPTO] */
 	dmfc2	t1, 0x0240
 	dmfc2	t2, 0x0241
 	ori	v1, v1, 0x9500 /* lowest OCTEON III PrId*/
@@ -221,7 +221,7 @@
 	sd	t1, OCTEON_CP2_SHA3+8(a0)
 4:
 	jr	ra
-	 nop
+	 yesp
 
 2:	/* pass 1 special stuff when !CvmCtl[NOCRYPTO] */
 	dmfc2	t3, 0x0040
@@ -247,7 +247,7 @@
 
 3:	/* pass 1 or CvmCtl[NOCRYPTO] set */
 	jr	ra
-	 nop
+	 yesp
 	END(octeon_cop2_save)
 	.set pop
 
@@ -256,7 +256,7 @@
  */
 	.align	7
 	.set push
-	.set noreorder
+	.set yesreorder
 	LEAF(octeon_cop2_restore)
 	/* First cache line was prefetched before the call */
 	pref	4,  128(a0)
@@ -282,7 +282,7 @@
 
 2:
 	bbit1	t9, 26, done_restore	/* done if CvmCtl[NOCRYPTO] set */
-	 nop
+	 yesp
 
 	/* Restore the COP2 crypto state common to pass 1 and pass 2 */
 	ld	t0, OCTEON_CP2_3DES_IV(a0)
@@ -316,7 +316,7 @@
 	dmtc2	t0, 0x0110
 	li	v0, 0x000d0000	/* This is the processor ID of Octeon Pass1 */
 	dmtc2	t1, 0x0100
-	bne	v0, t3, 3f	/* Skip the next stuff for non-pass1 */
+	bne	v0, t3, 3f	/* Skip the next stuff for yesn-pass1 */
 	 dmtc2	t2, 0x0101
 
 	/* this code is specific for pass 1 */
@@ -409,7 +409,7 @@
 	dmtc2	t1, 0x0050
 done_restore:
 	jr	ra
-	 nop
+	 yesp
 	END(octeon_cop2_restore)
 	.set pop
 
@@ -423,10 +423,10 @@ done_restore:
  */
 	.p2align 7
 	.set push
-	.set noreorder
+	.set yesreorder
 	LEAF(octeon_mult_save)
 	jr	ra
-	 nop
+	 yesp
 	.space 30 * 4, 0
 octeon_mult_save_end:
 	EXPORT(octeon_mult_save_end)
@@ -493,10 +493,10 @@ octeon_mult_save3_end:
  */
 	.p2align 7
 	.set push
-	.set noreorder
+	.set yesreorder
 	LEAF(octeon_mult_restore)
 	jr	ra
-	 nop
+	 yesp
 	.space 30 * 4, 0
 octeon_mult_restore_end:
 	EXPORT(octeon_mult_restore_end)

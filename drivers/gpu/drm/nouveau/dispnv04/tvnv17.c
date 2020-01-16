@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -26,26 +26,26 @@
 
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_probe_helper.h>
-#include "nouveau_drv.h"
-#include "nouveau_reg.h"
-#include "nouveau_encoder.h"
-#include "nouveau_connector.h"
-#include "nouveau_crtc.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_reg.h"
+#include "yesuveau_encoder.h"
+#include "yesuveau_connector.h"
+#include "yesuveau_crtc.h"
 #include "hw.h"
 #include "tvnv17.h"
 
-MODULE_PARM_DESC(tv_norm, "Default TV norm.\n"
+MODULE_PARM_DESC(tv_yesrm, "Default TV yesrm.\n"
 		 "\t\tSupported: PAL, PAL-M, PAL-N, PAL-Nc, NTSC-M, NTSC-J,\n"
 		 "\t\t\thd480i, hd480p, hd576i, hd576p, hd720p, hd1080i.\n"
 		 "\t\tDefault: PAL\n"
-		 "\t\t*NOTE* Ignored for cards with external TV encoders.");
-static char *nouveau_tv_norm;
-module_param_named(tv_norm, nouveau_tv_norm, charp, 0400);
+		 "\t\t*NOTE* Igyesred for cards with external TV encoders.");
+static char *yesuveau_tv_yesrm;
+module_param_named(tv_yesrm, yesuveau_tv_yesrm, charp, 0400);
 
 static uint32_t nv42_tv_sample_load(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_gpio *gpio = nvxx_gpio(&drm->client.device);
 	uint32_t testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t gpio0, gpio1, fp_htotal, fp_hsync_start, fp_hsync_end,
@@ -129,7 +129,7 @@ static uint32_t nv42_tv_sample_load(struct drm_encoder *encoder)
 static bool
 get_tv_detect_quirks(struct drm_device *dev, uint32_t *pin_mask)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 
 	if (device->quirk && device->quirk->tv_pin_mask) {
@@ -144,7 +144,7 @@ static enum drm_connector_status
 nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct drm_mode_config *conf = &dev->mode_config;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
 	struct dcb_output *dcb = tv_enc->base.dcb;
@@ -178,7 +178,7 @@ nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 			tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_SCART;
 		break;
 	default:
-		tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_Unknown;
+		tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_Unkyeswn;
 		break;
 	}
 
@@ -187,7 +187,7 @@ nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 					 tv_enc->subconnector);
 
 	if (!reliable) {
-		return connector_status_unknown;
+		return connector_status_unkyeswn;
 	} else if (tv_enc->subconnector) {
 		NV_INFO(drm, "Load detected on output %c\n",
 			'@' + ffs(dcb->or));
@@ -200,7 +200,7 @@ nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 static int nv17_tv_get_ld_modes(struct drm_encoder *encoder,
 				struct drm_connector *connector)
 {
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_yesrm_params *tv_yesrm = get_tv_yesrm(encoder);
 	const struct drm_display_mode *tv_mode;
 	int n = 0;
 
@@ -209,15 +209,15 @@ static int nv17_tv_get_ld_modes(struct drm_encoder *encoder,
 
 		mode = drm_mode_duplicate(encoder->dev, tv_mode);
 
-		mode->clock = tv_norm->tv_enc_mode.vrefresh *
+		mode->clock = tv_yesrm->tv_enc_mode.vrefresh *
 			mode->htotal / 1000 *
 			mode->vtotal / 1000;
 
 		if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 			mode->clock *= 2;
 
-		if (mode->hdisplay == tv_norm->tv_enc_mode.hdisplay &&
-		    mode->vdisplay == tv_norm->tv_enc_mode.vdisplay)
+		if (mode->hdisplay == tv_yesrm->tv_enc_mode.hdisplay &&
+		    mode->vdisplay == tv_yesrm->tv_enc_mode.vdisplay)
 			mode->type |= DRM_MODE_TYPE_PREFERRED;
 
 		drm_mode_probed_add(connector, mode);
@@ -230,8 +230,8 @@ static int nv17_tv_get_ld_modes(struct drm_encoder *encoder,
 static int nv17_tv_get_hd_modes(struct drm_encoder *encoder,
 				struct drm_connector *connector)
 {
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
-	struct drm_display_mode *output_mode = &tv_norm->ctv_enc_mode.mode;
+	struct nv17_tv_yesrm_params *tv_yesrm = get_tv_yesrm(encoder);
+	struct drm_display_mode *output_mode = &tv_yesrm->ctv_enc_mode.mode;
 	struct drm_display_mode *mode;
 	const struct {
 		int hdisplay;
@@ -292,9 +292,9 @@ static int nv17_tv_get_hd_modes(struct drm_encoder *encoder,
 static int nv17_tv_get_modes(struct drm_encoder *encoder,
 			     struct drm_connector *connector)
 {
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_yesrm_params *tv_yesrm = get_tv_yesrm(encoder);
 
-	if (tv_norm->kind == CTV_ENC_MODE)
+	if (tv_yesrm->kind == CTV_ENC_MODE)
 		return nv17_tv_get_hd_modes(encoder, connector);
 	else
 		return nv17_tv_get_ld_modes(encoder, connector);
@@ -303,11 +303,11 @@ static int nv17_tv_get_modes(struct drm_encoder *encoder,
 static int nv17_tv_mode_valid(struct drm_encoder *encoder,
 			      struct drm_display_mode *mode)
 {
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_yesrm_params *tv_yesrm = get_tv_yesrm(encoder);
 
-	if (tv_norm->kind == CTV_ENC_MODE) {
+	if (tv_yesrm->kind == CTV_ENC_MODE) {
 		struct drm_display_mode *output_mode =
-						&tv_norm->ctv_enc_mode.mode;
+						&tv_yesrm->ctv_enc_mode.mode;
 
 		if (mode->clock > 400000)
 			return MODE_CLOCK_HIGH;
@@ -330,7 +330,7 @@ static int nv17_tv_mode_valid(struct drm_encoder *encoder,
 			return MODE_CLOCK_HIGH;
 
 		if (abs(drm_mode_vrefresh(mode) * 1000 -
-			tv_norm->tv_enc_mode.vrefresh) > vsync_tolerance)
+			tv_yesrm->tv_enc_mode.vrefresh) > vsync_tolerance)
 			return MODE_VSYNC;
 
 		/* The encoder takes care of the actual interlacing */
@@ -345,13 +345,13 @@ static bool nv17_tv_mode_fixup(struct drm_encoder *encoder,
 			       const struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
 {
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_yesrm_params *tv_yesrm = get_tv_yesrm(encoder);
 
 	if (nv04_dac_in_use(encoder))
 		return false;
 
-	if (tv_norm->kind == CTV_ENC_MODE)
-		adjusted_mode->clock = tv_norm->ctv_enc_mode.mode.clock;
+	if (tv_yesrm->kind == CTV_ENC_MODE)
+		adjusted_mode->clock = tv_yesrm->ctv_enc_mode.mode.clock;
 	else
 		adjusted_mode->clock = 90000;
 
@@ -361,21 +361,21 @@ static bool nv17_tv_mode_fixup(struct drm_encoder *encoder,
 static void  nv17_tv_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_gpio *gpio = nvxx_gpio(&drm->client.device);
 	struct nv17_tv_state *regs = &to_tv_enc(encoder)->state;
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_yesrm_params *tv_yesrm = get_tv_yesrm(encoder);
 
-	if (nouveau_encoder(encoder)->last_dpms == mode)
+	if (yesuveau_encoder(encoder)->last_dpms == mode)
 		return;
-	nouveau_encoder(encoder)->last_dpms = mode;
+	yesuveau_encoder(encoder)->last_dpms = mode;
 
 	NV_INFO(drm, "Setting dpms mode %d on TV encoder (output %d)\n",
-		 mode, nouveau_encoder(encoder)->dcb->index);
+		 mode, yesuveau_encoder(encoder)->dcb->index);
 
 	regs->ptv_200 &= ~1;
 
-	if (tv_norm->kind == CTV_ENC_MODE) {
+	if (tv_yesrm->kind == CTV_ENC_MODE) {
 		nv04_dfp_update_fp_control(encoder, mode);
 
 	} else {
@@ -396,10 +396,10 @@ static void  nv17_tv_dpms(struct drm_encoder *encoder, int mode)
 static void nv17_tv_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
-	int head = nouveau_crtc(encoder->crtc)->index;
+	struct nv17_tv_yesrm_params *tv_yesrm = get_tv_yesrm(encoder);
+	int head = yesuveau_crtc(encoder->crtc)->index;
 	uint8_t *cr_lcd = &nv04_display(dev)->mode_reg.crtc_reg[head].CRTC[
 							NV_CIO_CRE_LCD__INDEX];
 	uint32_t dacclk_off = NV_PRAMDAC_DACCLK +
@@ -412,11 +412,11 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 
 	/* Unbind any FP encoders from this head if we need the FP
 	 * stuff enabled. */
-	if (tv_norm->kind == CTV_ENC_MODE) {
+	if (tv_yesrm->kind == CTV_ENC_MODE) {
 		struct drm_encoder *enc;
 
 		list_for_each_entry(enc, &dev->mode_config.encoder_list, head) {
-			struct dcb_output *dcb = nouveau_encoder(enc)->dcb;
+			struct dcb_output *dcb = yesuveau_encoder(enc)->dcb;
 
 			if ((dcb->type == DCB_OUTPUT_TMDS ||
 			     dcb->type == DCB_OUTPUT_LVDS) &&
@@ -429,7 +429,7 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 
 	}
 
-	if (tv_norm->kind == CTV_ENC_MODE)
+	if (tv_yesrm->kind == CTV_ENC_MODE)
 		*cr_lcd |= 0x1 | (head ? 0x0 : 0x8);
 
 	/* Set the DACCLK register */
@@ -438,7 +438,7 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_CURIE)
 		dacclk |= 0x1a << 16;
 
-	if (tv_norm->kind == CTV_ENC_MODE) {
+	if (tv_yesrm->kind == CTV_ENC_MODE) {
 		dacclk |=  0x20;
 
 		if (head)
@@ -459,11 +459,11 @@ static void nv17_tv_mode_set(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	int head = nouveau_crtc(encoder->crtc)->index;
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
+	int head = yesuveau_crtc(encoder->crtc)->index;
 	struct nv04_crtc_reg *regs = &nv04_display(dev)->mode_reg.crtc_reg[head];
 	struct nv17_tv_state *tv_regs = &to_tv_enc(encoder)->state;
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_yesrm_params *tv_yesrm = get_tv_yesrm(encoder);
 	int i;
 
 	regs->CRTC[NV_CIO_CRE_53] = 0x40; /* FP_HTIMING */
@@ -472,7 +472,7 @@ static void nv17_tv_mode_set(struct drm_encoder *encoder,
 	regs->tv_setup = 1;
 	regs->ramdac_8c0 = 0x0;
 
-	if (tv_norm->kind == TV_ENC_MODE) {
+	if (tv_yesrm->kind == TV_ENC_MODE) {
 		tv_regs->ptv_200 = 0x13111100;
 		if (head)
 			tv_regs->ptv_200 |= 0x10;
@@ -483,11 +483,11 @@ static void nv17_tv_mode_set(struct drm_encoder *encoder,
 		tv_regs->ptv_60c = 0x0;
 		tv_regs->ptv_610 = 0x1e00000;
 
-		if (tv_norm->tv_enc_mode.vdisplay == 576) {
+		if (tv_yesrm->tv_enc_mode.vdisplay == 576) {
 			tv_regs->ptv_508 = 0x1200000;
 			tv_regs->ptv_614 = 0x33;
 
-		} else if (tv_norm->tv_enc_mode.vdisplay == 480) {
+		} else if (tv_yesrm->tv_enc_mode.vdisplay == 480) {
 			tv_regs->ptv_508 = 0xf00000;
 			tv_regs->ptv_614 = 0x13;
 		}
@@ -498,13 +498,13 @@ static void nv17_tv_mode_set(struct drm_encoder *encoder,
 			tv_regs->ptv_604 = 0x0;
 			tv_regs->ptv_608 = 0x0;
 		} else {
-			if (tv_norm->tv_enc_mode.vdisplay == 576) {
+			if (tv_yesrm->tv_enc_mode.vdisplay == 576) {
 				tv_regs->ptv_604 = 0x20;
 				tv_regs->ptv_608 = 0x10;
 				tv_regs->ptv_500 = 0x19710;
 				tv_regs->ptv_504 = 0x68f0;
 
-			} else if (tv_norm->tv_enc_mode.vdisplay == 480) {
+			} else if (tv_yesrm->tv_enc_mode.vdisplay == 480) {
 				tv_regs->ptv_604 = 0x10;
 				tv_regs->ptv_608 = 0x20;
 				tv_regs->ptv_500 = 0x4b90;
@@ -513,22 +513,22 @@ static void nv17_tv_mode_set(struct drm_encoder *encoder,
 		}
 
 		for (i = 0; i < 0x40; i++)
-			tv_regs->tv_enc[i] = tv_norm->tv_enc_mode.tv_enc[i];
+			tv_regs->tv_enc[i] = tv_yesrm->tv_enc_mode.tv_enc[i];
 
 	} else {
 		struct drm_display_mode *output_mode =
-						&tv_norm->ctv_enc_mode.mode;
+						&tv_yesrm->ctv_enc_mode.mode;
 
 		/* The registers in PRAMDAC+0xc00 control some timings and CSC
 		 * parameters for the CTV encoder (It's only used for "HD" TV
-		 * modes, I don't think I have enough working to guess what
+		 * modes, I don't think I have eyesugh working to guess what
 		 * they exactly mean...), it's probably connected at the
 		 * output of the FP encoder, but it also needs the analog
 		 * encoder in its OR enabled and routed to the head it's
 		 * using. It's enabled with the DACCLK register, bits [5:4].
 		 */
 		for (i = 0; i < 38; i++)
-			regs->ctv_regs[i] = tv_norm->ctv_enc_mode.ctv_regs[i];
+			regs->ctv_regs[i] = tv_yesrm->ctv_enc_mode.ctv_regs[i];
 
 		regs->fp_horiz_regs[FP_DISPLAY_END] = output_mode->hdisplay - 1;
 		regs->fp_horiz_regs[FP_TOTAL] = output_mode->htotal - 1;
@@ -572,12 +572,12 @@ static void nv17_tv_mode_set(struct drm_encoder *encoder,
 static void nv17_tv_commit(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(encoder->crtc);
+	struct yesuveau_encoder *nv_encoder = yesuveau_encoder(encoder);
 	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
-	if (get_tv_norm(encoder)->kind == TV_ENC_MODE) {
+	if (get_tv_yesrm(encoder)->kind == TV_ENC_MODE) {
 		nv17_tv_update_rescaler(encoder);
 		nv17_tv_update_properties(encoder);
 	} else {
@@ -599,7 +599,7 @@ static void nv17_tv_commit(struct drm_encoder *encoder)
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
 	NV_INFO(drm, "Output %s is running on CRTC %d using output %c\n",
-		nouveau_encoder_connector_get(nv_encoder)->base.name,
+		yesuveau_encoder_connector_get(nv_encoder)->base.name,
 		nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
 }
 
@@ -608,7 +608,7 @@ static void nv17_tv_save(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
 
-	nouveau_encoder(encoder)->restore.output =
+	yesuveau_encoder(encoder)->restore.output =
 					NVReadRAMDAC(dev, 0,
 					NV_PRAMDAC_DACCLK +
 					nv04_dac_output_offset(encoder));
@@ -624,39 +624,39 @@ static void nv17_tv_restore(struct drm_encoder *encoder)
 
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_DACCLK +
 				nv04_dac_output_offset(encoder),
-				nouveau_encoder(encoder)->restore.output);
+				yesuveau_encoder(encoder)->restore.output);
 
 	nv17_tv_state_load(dev, &to_tv_enc(encoder)->saved_state);
 
-	nouveau_encoder(encoder)->last_dpms = NV_DPMS_CLEARED;
+	yesuveau_encoder(encoder)->last_dpms = NV_DPMS_CLEARED;
 }
 
 static int nv17_tv_create_resources(struct drm_encoder *encoder,
 				    struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct drm_mode_config *conf = &dev->mode_config;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
-	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
-	int num_tv_norms = dcb->tvconf.has_component_output ? NUM_TV_NORMS :
+	struct dcb_output *dcb = yesuveau_encoder(encoder)->dcb;
+	int num_tv_yesrms = dcb->tvconf.has_component_output ? NUM_TV_NORMS :
 							NUM_LD_TV_NORMS;
 	int i;
 
-	if (nouveau_tv_norm) {
-		for (i = 0; i < num_tv_norms; i++) {
-			if (!strcmp(nv17_tv_norm_names[i], nouveau_tv_norm)) {
-				tv_enc->tv_norm = i;
+	if (yesuveau_tv_yesrm) {
+		for (i = 0; i < num_tv_yesrms; i++) {
+			if (!strcmp(nv17_tv_yesrm_names[i], yesuveau_tv_yesrm)) {
+				tv_enc->tv_yesrm = i;
 				break;
 			}
 		}
 
-		if (i == num_tv_norms)
-			NV_WARN(drm, "Invalid TV norm setting \"%s\"\n",
-				nouveau_tv_norm);
+		if (i == num_tv_yesrms)
+			NV_WARN(drm, "Invalid TV yesrm setting \"%s\"\n",
+				yesuveau_tv_yesrm);
 	}
 
-	drm_mode_create_tv_properties(dev, num_tv_norms, nv17_tv_norm_names);
+	drm_mode_create_tv_properties(dev, num_tv_yesrms, nv17_tv_yesrm_names);
 
 	drm_object_attach_property(&connector->base,
 					conf->tv_select_subconnector_property,
@@ -666,7 +666,7 @@ static int nv17_tv_create_resources(struct drm_encoder *encoder,
 					tv_enc->subconnector);
 	drm_object_attach_property(&connector->base,
 					conf->tv_mode_property,
-					tv_enc->tv_norm);
+					tv_enc->tv_yesrm);
 	drm_object_attach_property(&connector->base,
 					conf->tv_flicker_reduction_property,
 					tv_enc->flicker);
@@ -691,34 +691,34 @@ static int nv17_tv_set_property(struct drm_encoder *encoder,
 	struct drm_mode_config *conf = &encoder->dev->mode_config;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_yesrm_params *tv_yesrm = get_tv_yesrm(encoder);
 	bool modes_changed = false;
 
 	if (property == conf->tv_overscan_property) {
 		tv_enc->overscan = val;
 		if (encoder->crtc) {
-			if (tv_norm->kind == CTV_ENC_MODE)
+			if (tv_yesrm->kind == CTV_ENC_MODE)
 				nv17_ctv_update_rescaler(encoder);
 			else
 				nv17_tv_update_rescaler(encoder);
 		}
 
 	} else if (property == conf->tv_saturation_property) {
-		if (tv_norm->kind != TV_ENC_MODE)
+		if (tv_yesrm->kind != TV_ENC_MODE)
 			return -EINVAL;
 
 		tv_enc->saturation = val;
 		nv17_tv_update_properties(encoder);
 
 	} else if (property == conf->tv_hue_property) {
-		if (tv_norm->kind != TV_ENC_MODE)
+		if (tv_yesrm->kind != TV_ENC_MODE)
 			return -EINVAL;
 
 		tv_enc->hue = val;
 		nv17_tv_update_properties(encoder);
 
 	} else if (property == conf->tv_flicker_reduction_property) {
-		if (tv_norm->kind != TV_ENC_MODE)
+		if (tv_yesrm->kind != TV_ENC_MODE)
 			return -EINVAL;
 
 		tv_enc->flicker = val;
@@ -729,12 +729,12 @@ static int nv17_tv_set_property(struct drm_encoder *encoder,
 		if (connector->dpms != DRM_MODE_DPMS_OFF)
 			return -EINVAL;
 
-		tv_enc->tv_norm = val;
+		tv_enc->tv_yesrm = val;
 
 		modes_changed = true;
 
 	} else if (property == conf->tv_select_subconnector_property) {
-		if (tv_norm->kind != TV_ENC_MODE)
+		if (tv_yesrm->kind != TV_ENC_MODE)
 			return -EINVAL;
 
 		tv_enc->select_subconnector = val;
@@ -801,8 +801,8 @@ nv17_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	tv_enc->flicker = 50;
 	tv_enc->saturation = 50;
 	tv_enc->hue = 0;
-	tv_enc->tv_norm = TV_NORM_PAL;
-	tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_Unknown;
+	tv_enc->tv_yesrm = TV_NORM_PAL;
+	tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_Unkyeswn;
 	tv_enc->select_subconnector = DRM_MODE_SUBCONNECTOR_Automatic;
 	tv_enc->pin_mask = 0;
 

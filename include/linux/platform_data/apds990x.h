@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
  *
- * Contact: Samu Onkalo <samu.p.onkalo@nokia.com>
+ * Contact: Samu Onkalo <samu.p.onkalo@yeskia.com>
  */
 
 #ifndef __APDS990X_H__

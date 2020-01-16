@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -38,7 +38,7 @@ static bool cik_event_interrupt_isr(struct kfd_dev *dev,
 	bool ret;
 
 	/* This workaround is due to HW/FW limitation on Hawaii that
-	 * VMID and PASID are not written into ih_ring_entry
+	 * VMID and PASID are yest written into ih_ring_entry
 	 */
 	if ((ihre->source_id == CIK_INTSRC_GFX_PAGE_INV_FAULT ||
 		ihre->source_id == CIK_INTSRC_GFX_MEM_PROT_FAULT) &&
@@ -67,7 +67,7 @@ static bool cik_event_interrupt_isr(struct kfd_dev *dev,
 	    vmid > dev->vm_info.last_vmid_kfd)
 		return 0;
 
-	/* If there is no valid PASID, it's likely a firmware bug */
+	/* If there is yes valid PASID, it's likely a firmware bug */
 	pasid = (ihre->ring_id & 0xffff0000) >> 16;
 	if (WARN_ONCE(pasid == 0, "FW bug: No PASID in KFD interrupt"))
 		return 0;

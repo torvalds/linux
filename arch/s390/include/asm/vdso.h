@@ -14,8 +14,8 @@
  * Note about the vdso_data and vdso_per_cpu_data structures:
  *
  * NEVER USE THEM IN USERSPACE CODE DIRECTLY. The layout of the
- * structure is supposed to be known only to the function in the vdso
- * itself and may change without notice.
+ * structure is supposed to be kyeswn only to the function in the vdso
+ * itself and may change without yestice.
  */
 
 struct vdso_data {
@@ -25,9 +25,9 @@ struct vdso_data {
 	__u64 xtime_clock_nsec;		/*				0x18 */
 	__u64 xtime_coarse_sec;		/* Coarse kernel time		0x20 */
 	__u64 xtime_coarse_nsec;	/*				0x28 */
-	__u64 wtom_clock_sec;		/* Wall to monotonic clock	0x30 */
+	__u64 wtom_clock_sec;		/* Wall to moyestonic clock	0x30 */
 	__u64 wtom_clock_nsec;		/*				0x38 */
-	__u64 wtom_coarse_sec;		/* Coarse wall to monotonic	0x40 */
+	__u64 wtom_coarse_sec;		/* Coarse wall to moyestonic	0x40 */
 	__u64 wtom_coarse_nsec;		/*				0x48 */
 	__u32 tz_minuteswest;		/* Minutes west of Greenwich	0x50 */
 	__u32 tz_dsttime;		/* Type of dst correction	0x54 */
@@ -42,13 +42,13 @@ struct vdso_per_cpu_data {
 	__u64 ectg_timer_base;
 	__u64 ectg_user_time;
 	/*
-	 * Note: node_id and cpu_nr must be at adjacent memory locations.
+	 * Note: yesde_id and cpu_nr must be at adjacent memory locations.
 	 * VDSO userspace must read both values with a single instruction.
 	 */
 	union {
 		__u64 getcpu_val;
 		struct {
-			__u32 node_id;
+			__u32 yesde_id;
 			__u32 cpu_nr;
 		};
 	};

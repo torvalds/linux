@@ -5,7 +5,7 @@
 #include <stdint.h>
 #endif
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <limits.h>
 #include "modpost.h"
@@ -263,13 +263,13 @@ static int parse_file(const char *fname, struct md4_ctx *md)
 		return 0;
 
 	for (i = 0; i < len; i++) {
-		/* Collapse and ignore \ and CR. */
+		/* Collapse and igyesre \ and CR. */
 		if (file[i] == '\\' && (i+1 < len) && file[i+1] == '\n') {
 			i++;
 			continue;
 		}
 
-		/* Ignore whitespace */
+		/* Igyesre whitespace */
 		if (isspace(file[i]))
 			continue;
 
@@ -279,7 +279,7 @@ static int parse_file(const char *fname, struct md4_ctx *md)
 			continue;
 		}
 
-		/* Comments: ignore */
+		/* Comments: igyesre */
 		if (file[i] == '/' && file[i+1] == '*') {
 			i += parse_comment(file+i, len - i);
 			continue;
@@ -290,7 +290,7 @@ static int parse_file(const char *fname, struct md4_ctx *md)
 	release_file(file, len);
 	return 1;
 }
-/* Check whether the file is a static library or not */
+/* Check whether the file is a static library or yest */
 static int is_static_library(const char *objfile)
 {
 	int len = strlen(objfile);
@@ -326,7 +326,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 
 	file = grab_file(cmd, &flen);
 	if (!file) {
-		warn("could not find %s for %s\n", cmd, objfile);
+		warn("could yest find %s for %s\n", cmd, objfile);
 		goto out;
 	}
 
@@ -342,8 +342,8 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 			}
 			p++;
 			if (!parse_file(p, md)) {
-				warn("could not open %s: %s\n",
-				     p, strerror(errno));
+				warn("could yest open %s: %s\n",
+				     p, strerror(erryes));
 				goto out_file;
 			}
 			continue;
@@ -355,7 +355,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 		if (!check_files)
 			continue;
 
-		/* Continue until line does not end with '\' */
+		/* Continue until line does yest end with '\' */
 		if ( *(p + strlen(p)-1) != '\\')
 			break;
 		/* Terminate line at first space, to get rid of final ' \' */
@@ -370,8 +370,8 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 		/* Check if this file is in same dir as objfile */
 		if ((strstr(line, dir)+strlen(dir)-1) == strrchr(line, '/')) {
 			if (!parse_file(line, md)) {
-				warn("could not open %s: %s\n",
-				     line, strerror(errno));
+				warn("could yest open %s: %s\n",
+				     line, strerror(erryes));
 				goto out_file;
 			}
 
@@ -404,7 +404,7 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen)
 
 	file = grab_file(filelist, &len);
 	if (!file)
-		/* not a module or .mod file missing - ignore */
+		/* yest a module or .mod file missing - igyesre */
 		return;
 
 	sources = file;
@@ -438,19 +438,19 @@ static void write_version(const char *filename, const char *sum,
 	fd = open(filename, O_RDWR);
 	if (fd < 0) {
 		warn("changing sum in %s failed: %s\n",
-			filename, strerror(errno));
+			filename, strerror(erryes));
 		return;
 	}
 
 	if (lseek(fd, offset, SEEK_SET) == (off_t)-1) {
 		warn("changing sum in %s:%lu failed: %s\n",
-			filename, offset, strerror(errno));
+			filename, offset, strerror(erryes));
 		goto out;
 	}
 
 	if (write(fd, sum, strlen(sum)+1) != strlen(sum)+1) {
 		warn("writing sum in %s failed: %s\n",
-			filename, strerror(errno));
+			filename, strerror(erryes));
 		goto out;
 	}
 out:

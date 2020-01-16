@@ -1421,7 +1421,7 @@ static void rt5663_enable_push_button_irq(struct snd_soc_component *component,
 				RT5663_EN_IRQ_INLINE_NOR);
 			break;
 		default:
-			dev_err(component->dev, "Unknown CODEC Version\n");
+			dev_err(component->dev, "Unkyeswn CODEC Version\n");
 		}
 	} else {
 		switch (rt5663->codec_ver) {
@@ -1436,7 +1436,7 @@ static void rt5663_enable_push_button_irq(struct snd_soc_component *component,
 				RT5663_EN_IRQ_INLINE_BYP);
 			break;
 		default:
-			dev_err(component->dev, "Unknown CODEC Version\n");
+			dev_err(component->dev, "Unkyeswn CODEC Version\n");
 		}
 		snd_soc_component_update_bits(component, RT5663_IL_CMD_6,
 			RT5663_EN_4BTN_INL_MASK, RT5663_EN_4BTN_INL_DIS);
@@ -1453,9 +1453,9 @@ static void rt5663_enable_push_button_irq(struct snd_soc_component *component,
 /**
  * rt5663_v2_jack_detect - Detect headset.
  * @component: SoC audio component device.
- * @jack_insert: Jack insert or not.
+ * @jack_insert: Jack insert or yest.
  *
- * Detect whether is headset or not when jack inserted.
+ * Detect whether is headset or yest when jack inserted.
  *
  * Returns detect status.
  */
@@ -1526,9 +1526,9 @@ static int rt5663_v2_jack_detect(struct snd_soc_component *component, int jack_i
 /**
  * rt5663_jack_detect - Detect headset.
  * @component: SoC audio component device.
- * @jack_insert: Jack insert or not.
+ * @jack_insert: Jack insert or yest.
  *
- * Detect whether is headset or not when jack inserted.
+ * Detect whether is headset or yest when jack inserted.
  *
  * Returns detect status.
  */
@@ -1890,7 +1890,7 @@ static bool rt5663_check_jd_status(struct snd_soc_component *component)
 	case CODEC_VER_0:
 		return !(val & 0x1000);
 	default:
-		dev_err(component->dev, "Unknown CODEC Version\n");
+		dev_err(component->dev, "Unkyeswn CODEC Version\n");
 	}
 
 	return false;
@@ -1921,10 +1921,10 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 					rt5663_impedance_sensing(rt5663->component);
 				break;
 			default:
-				dev_err(component->dev, "Unknown CODEC Version\n");
+				dev_err(component->dev, "Unkyeswn CODEC Version\n");
 			}
 
-			/* Delay the jack insert report to avoid pop noise */
+			/* Delay the jack insert report to avoid pop yesise */
 			msleep(30);
 		} else {
 			/* jack is already in, report button event */
@@ -1988,7 +1988,7 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 			report = rt5663_jack_detect(rt5663->component, 0);
 			break;
 		default:
-			dev_err(component->dev, "Unknown CODEC Version\n");
+			dev_err(component->dev, "Unkyeswn CODEC Version\n");
 		}
 	}
 	dev_dbg(component->dev, "%s jack report: 0x%04x\n", __func__, report);
@@ -2016,7 +2016,7 @@ static void rt5663_jd_unplug_work(struct work_struct *work)
 			rt5663_jack_detect(rt5663->component, 0);
 			break;
 		default:
-			dev_err(component->dev, "Unknown CODEC Version\n");
+			dev_err(component->dev, "Unkyeswn CODEC Version\n");
 		}
 
 		snd_soc_jack_report(rt5663->hs_jack, 0, SND_JACK_HEADSET |
@@ -2142,7 +2142,7 @@ static int rt5663_i2s_use_asrc(struct snd_soc_dapm_widget *source,
 			RT5663_AD_STO1_TRACK_MASK) ? 1 : 0;
 		break;
 	default:
-		dev_err(component->dev, "Unknown CODEC Version\n");
+		dev_err(component->dev, "Unkyeswn CODEC Version\n");
 		return 1;
 	}
 
@@ -2161,7 +2161,7 @@ static int rt5663_i2s_use_asrc(struct snd_soc_dapm_widget *source,
  * @filter_mask: mask of filters.
  * @clk_src: clock source
  *
- * The ASRC function is for asynchronous MCLK and LRCK. Also, since RT5663 can
+ * The ASRC function is for asynchroyesus MCLK and LRCK. Also, since RT5663 can
  * only support standard 32fs or 64fs i2s format, ASRC should be enabled to
  * support special i2s clock format such as Intel's 100fs(100 * sampling rate).
  * ASRC function will track i2s clock and generate a corresponding system clock
@@ -2203,7 +2203,7 @@ int rt5663_sel_asrc_clk_src(struct snd_soc_component *component,
 			asrc2_value |= clk_src << RT5663_AD_STO1_TRACK_SHIFT;
 			break;
 		default:
-			dev_err(component->dev, "Unknown CODEC Version\n");
+			dev_err(component->dev, "Unkyeswn CODEC Version\n");
 		}
 	}
 
@@ -2922,7 +2922,7 @@ static int rt5663_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		shift = RT5663_PLL1_SRC_SHIFT;
 		break;
 	default:
-		dev_err(component->dev, "Unknown CODEC Version\n");
+		dev_err(component->dev, "Unkyeswn CODEC Version\n");
 		return -EINVAL;
 	}
 
@@ -2934,7 +2934,7 @@ static int rt5663_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		val = 0x1;
 		break;
 	default:
-		dev_err(component->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unkyeswn PLL source %d\n", source);
 		return -EINVAL;
 	}
 	snd_soc_component_update_bits(component, RT5663_GLB_CLK, mask, (val << shift));
@@ -3018,7 +3018,7 @@ static int rt5663_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		reg = RT5663_TDM_1;
 		break;
 	default:
-		dev_err(component->dev, "Unknown CODEC Version\n");
+		dev_err(component->dev, "Unkyeswn CODEC Version\n");
 		return -EINVAL;
 	}
 
@@ -3258,7 +3258,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt5663 = {
 	.set_jack		= rt5663_set_jack_detect,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5663_v2_regmap = {
@@ -3288,7 +3288,7 @@ static const struct regmap_config rt5663_regmap = {
 };
 
 static const struct regmap_config temp_regmap = {
-	.name = "nocache",
+	.name = "yescache",
 	.reg_bits = 16,
 	.val_bits = 16,
 	.use_single_read = true,
@@ -3550,7 +3550,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 	ret = regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
 	if (ret || (val != RT5663_DEVICE_ID_2 && val != RT5663_DEVICE_ID_1)) {
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt5663, retry one time.\n",
+			"Device with ID register %#x is yest rt5663, retry one time.\n",
 			val);
 		msleep(100);
 		regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
@@ -3567,7 +3567,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		break;
 	default:
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt5663\n",
+			"Device with ID register %#x is yest rt5663\n",
 			val);
 		ret = -ENODEV;
 		goto err_enable;
@@ -3591,7 +3591,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		rt5663_calibrate(rt5663);
 		break;
 	default:
-		dev_err(&i2c->dev, "%s:Unknown codec type\n", __func__);
+		dev_err(&i2c->dev, "%s:Unkyeswn codec type\n", __func__);
 	}
 	regcache_cache_bypass(rt5663->regmap, false);
 	regmap_write(rt5663->regmap, RT5663_RESET, 0);
@@ -3608,7 +3608,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 				"Failed to apply regmap patch: %d\n", ret);
 		break;
 	default:
-		dev_err(&i2c->dev, "%s:Unknown codec type\n", __func__);
+		dev_err(&i2c->dev, "%s:Unkyeswn codec type\n", __func__);
 	}
 
 	/* GPIO1 as IRQ */
@@ -3665,7 +3665,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 			RT5663_DATA_SWAP_ADCDAT1_LL);
 		break;
 	default:
-		dev_err(&i2c->dev, "%s:Unknown codec type\n", __func__);
+		dev_err(&i2c->dev, "%s:Unkyeswn codec type\n", __func__);
 	}
 
 	INIT_DELAYED_WORK(&rt5663->jack_detect_work, rt5663_jack_detect_work);

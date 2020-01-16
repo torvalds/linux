@@ -399,7 +399,7 @@ static int zx_hdmi_audio_hw_params(struct device *dev,
 	union hdmi_infoframe frame;
 	int n;
 
-	/* We only support spdif for now */
+	/* We only support spdif for yesw */
 	if (daifmt->fmt != HDMI_SPDIF) {
 		DRM_DEV_ERROR(hdmi->dev, "invalid daifmt %d\n", daifmt->fmt);
 		return -EINVAL;

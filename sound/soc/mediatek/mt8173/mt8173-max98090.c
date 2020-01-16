@@ -119,7 +119,7 @@ static struct snd_soc_dai_link mt8173_max98090_dais[] = {
 	/* Back End DAI links */
 	{
 		.name = "Codec",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.init = mt8173_max98090_init,
 		.ops = &mt8173_max98090_ops,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
@@ -146,25 +146,25 @@ static struct snd_soc_card mt8173_max98090_card = {
 static int mt8173_max98090_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt8173_max98090_card;
-	struct device_node *codec_node, *platform_node;
+	struct device_yesde *codec_yesde, *platform_yesde;
 	struct snd_soc_dai_link *dai_link;
 	int ret, i;
 
-	platform_node = of_parse_phandle(pdev->dev.of_node,
+	platform_yesde = of_parse_phandle(pdev->dev.of_yesde,
 					 "mediatek,platform", 0);
-	if (!platform_node) {
+	if (!platform_yesde) {
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->platforms->name)
 			continue;
-		dai_link->platforms->of_node = platform_node;
+		dai_link->platforms->of_yesde = platform_yesde;
 	}
 
-	codec_node = of_parse_phandle(pdev->dev.of_node,
+	codec_yesde = of_parse_phandle(pdev->dev.of_yesde,
 				      "mediatek,audio-codec", 0);
-	if (!codec_node) {
+	if (!codec_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
@@ -172,7 +172,7 @@ static int mt8173_max98090_dev_probe(struct platform_device *pdev)
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->codecs->name)
 			continue;
-		dai_link->codecs->of_node = codec_node;
+		dai_link->codecs->of_yesde = codec_yesde;
 	}
 	card->dev = &pdev->dev;
 

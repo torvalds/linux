@@ -19,7 +19,7 @@
  *
  *   . Lock protecting the event list has to be an spinlock and locked
  *     with IRQSAVE because it might be called from an interrupt
- *     context (ie: when events arrive and the notification drops
+ *     context (ie: when events arrive and the yestification drops
  *     down from the ISR).
  *
  *   . UWB radio controller drivers queue events to the daemon using
@@ -44,15 +44,15 @@
  *
  * Devices are created when a bunch of beacons have been received and
  * it is stablished that the device has stable radio presence. CREATED
- * only, not configured. Devices are ONLY configured when an
+ * only, yest configured. Devices are ONLY configured when an
  * Application-Specific IE Probe is receieved, in which the device
  * declares which Protocol ID it groks. Then the device is CONFIGURED
  * (and the driver->probe() stuff of the device model is invoked).
  *
  * Devices are considered disconnected when a certain number of
- * beacons are not received in an amount of time.
+ * beacons are yest received in an amount of time.
  *
- * Handler functions are called normally uwbd_evt_handle_*().
+ * Handler functions are called yesrmally uwbd_evt_handle_*().
  */
 #include <linux/kthread.h>
 #include <linux/slab.h>
@@ -64,7 +64,7 @@
 /*
  * UWBD Event handler function signature
  *
- * Return !0 if the event needs not to be freed (ie the handler
+ * Return !0 if the event needs yest to be freed (ie the handler
  * takes/took care of it). 0 means the daemon code will free the
  * event.
  *
@@ -150,7 +150,7 @@ static const struct uwbd_event uwbd_message_handlers[] = {
  * @evt: the event to handle
  * @returns: 0 if the event can be kfreed, !0 on the contrary
  *           (somebody else took ownership) [coincidentally, returning
- *           a <0 errno code will free it :)].
+ *           a <0 erryes code will free it :)].
  *
  * Looks up the two indirection tables (one for the type, one for the
  * subtype) to decide which function handles it and then calls the
@@ -159,7 +159,7 @@ static const struct uwbd_event uwbd_message_handlers[] = {
  * The event structure passed to the event handler has the radio
  * controller in @evt->rc referenced. The reference will be dropped
  * once the handler returns, so if it needs it for longer (async),
- * it'll need to take another one.
+ * it'll need to take ayesther one.
  */
 static
 int uwbd_event_handle_urc(struct uwb_event *evt)
@@ -170,9 +170,9 @@ int uwbd_event_handle_urc(struct uwb_event *evt)
 	u8 type, context;
 	u16 event;
 
-	type = evt->notif.rceb->bEventType;
-	event = le16_to_cpu(evt->notif.rceb->wEvent);
-	context = evt->notif.rceb->bEventContext;
+	type = evt->yestif.rceb->bEventType;
+	event = le16_to_cpu(evt->yestif.rceb->wEvent);
+	context = evt->yestif.rceb->bEventContext;
 
 	if (type >= ARRAY_SIZE(uwbd_urc_evt_type_handlers))
 		goto out;
@@ -224,7 +224,7 @@ static void uwbd_event_handle(struct uwb_event *evt)
 		case UWB_EVT_TYPE_NOTIF:
 			should_keep = uwbd_event_handle_urc(evt);
 			if (should_keep <= 0)
-				kfree(evt->notif.rceb);
+				kfree(evt->yestif.rceb);
 			break;
 		case UWB_EVT_TYPE_MSG:
 			uwbd_event_handle_message(evt);
@@ -235,13 +235,13 @@ static void uwbd_event_handle(struct uwb_event *evt)
 		}
 	}
 
-	__uwb_rc_put(rc);	/* for the __uwb_rc_get() in uwb_rc_notif_cb() */
+	__uwb_rc_put(rc);	/* for the __uwb_rc_get() in uwb_rc_yestif_cb() */
 }
 
 /**
  * UWB Daemon
  *
- * Listens to all UWB notifications and takes care to track the state
+ * Listens to all UWB yestifications and takes care to track the state
  * of the UWB neighbourhood for the kernel. When we do a run, we
  * spinlock, move the list to a private copy and release the
  * lock. Hold it as little as possible. Not a conflict: it is
@@ -268,8 +268,8 @@ static int uwbd(void *param)
 
 		spin_lock_irqsave(&rc->uwbd.event_list_lock, flags);
 		if (!list_empty(&rc->uwbd.event_list)) {
-			evt = list_first_entry(&rc->uwbd.event_list, struct uwb_event, list_node);
-			list_del(&evt->list_node);
+			evt = list_first_entry(&rc->uwbd.event_list, struct uwb_event, list_yesde);
+			list_del(&evt->list_yesde);
 		} else
 			evt = NULL;
 		spin_unlock_irqrestore(&rc->uwbd.event_list_lock, flags);
@@ -291,7 +291,7 @@ void uwbd_start(struct uwb_rc *rc)
 	struct task_struct *task = kthread_run(uwbd, rc, "uwbd");
 	if (IS_ERR(task)) {
 		rc->uwbd.task = NULL;
-		printk(KERN_ERR "UWB: Cannot start management daemon; "
+		printk(KERN_ERR "UWB: Canyest start management daemon; "
 		       "UWB won't work\n");
 	} else {
 		rc->uwbd.task = task;
@@ -317,7 +317,7 @@ void uwbd_stop(struct uwb_rc *rc)
  * does. It will uwb_event_free() it when done, so make sure you
  * uwb_event_alloc()ed it or bad things will happen.
  *
- * If the daemon is not running, we just free the event.
+ * If the daemon is yest running, we just free the event.
  */
 void uwbd_event_queue(struct uwb_event *evt)
 {
@@ -326,12 +326,12 @@ void uwbd_event_queue(struct uwb_event *evt)
 
 	spin_lock_irqsave(&rc->uwbd.event_list_lock, flags);
 	if (rc->uwbd.pid != 0) {
-		list_add(&evt->list_node, &rc->uwbd.event_list);
+		list_add(&evt->list_yesde, &rc->uwbd.event_list);
 		wake_up_all(&rc->uwbd.wq);
 	} else {
 		__uwb_rc_put(evt->rc);
 		if (evt->type == UWB_EVT_TYPE_NOTIF)
-			kfree(evt->notif.rceb);
+			kfree(evt->yestif.rceb);
 		kfree(evt);
 	}
 	spin_unlock_irqrestore(&rc->uwbd.event_list_lock, flags);
@@ -343,12 +343,12 @@ void uwbd_flush(struct uwb_rc *rc)
 	struct uwb_event *evt, *nxt;
 
 	spin_lock_irq(&rc->uwbd.event_list_lock);
-	list_for_each_entry_safe(evt, nxt, &rc->uwbd.event_list, list_node) {
+	list_for_each_entry_safe(evt, nxt, &rc->uwbd.event_list, list_yesde) {
 		if (evt->rc == rc) {
 			__uwb_rc_put(rc);
-			list_del(&evt->list_node);
+			list_del(&evt->list_yesde);
 			if (evt->type == UWB_EVT_TYPE_NOTIF)
-				kfree(evt->notif.rceb);
+				kfree(evt->yestif.rceb);
 			kfree(evt);
 		}
 	}

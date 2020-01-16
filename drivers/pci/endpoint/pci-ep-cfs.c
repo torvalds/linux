@@ -89,19 +89,19 @@ static int pci_epc_epf_link(struct config_item *epc_item,
 			    struct config_item *epf_item)
 {
 	int ret;
-	u32 func_no = 0;
+	u32 func_yes = 0;
 	struct pci_epf_group *epf_group = to_pci_epf_group(epf_item);
 	struct pci_epc_group *epc_group = to_pci_epc_group(epc_item);
 	struct pci_epc *epc = epc_group->epc;
 	struct pci_epf *epf = epf_group->epf;
 
-	func_no = find_first_zero_bit(&epc_group->function_num_map,
+	func_yes = find_first_zero_bit(&epc_group->function_num_map,
 				      BITS_PER_LONG);
-	if (func_no >= BITS_PER_LONG)
+	if (func_yes >= BITS_PER_LONG)
 		return -EINVAL;
 
-	set_bit(func_no, &epc_group->function_num_map);
-	epf->func_no = func_no;
+	set_bit(func_yes, &epc_group->function_num_map);
+	epf->func_yes = func_yes;
 
 	ret = pci_epc_add_epf(epc, epf);
 	if (ret)
@@ -117,7 +117,7 @@ err_epf_bind:
 	pci_epc_remove_epf(epc, epf);
 
 err_add_epf:
-	clear_bit(func_no, &epc_group->function_num_map);
+	clear_bit(func_yes, &epc_group->function_num_map);
 
 	return ret;
 }
@@ -134,7 +134,7 @@ static void pci_epc_epf_unlink(struct config_item *epc_item,
 
 	epc = epc_group->epc;
 	epf = epf_group->epf;
-	clear_bit(epf->func_no, &epc_group->function_num_map);
+	clear_bit(epf->func_yes, &epc_group->function_num_map);
 	pci_epf_unbind(epf);
 	pci_epc_remove_epf(epc, epf);
 }

@@ -9,7 +9,7 @@
 struct rx_header {
 	ushort pad;		/* Pad. */
 	ushort rx_count;
-	ushort rx_status;	/* Unknown bit assignments :-<.  */
+	ushort rx_status;	/* Unkyeswn bit assignments :-<.  */
 	ushort cur_addr;	/* Apparently the current buffer address(?) */
 };
 

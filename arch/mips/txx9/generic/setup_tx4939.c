@@ -14,7 +14,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/device.h>
 #include <linux/ethtool.h>
 #include <linux/param.h>
@@ -56,7 +56,7 @@ static void tx4939_machine_restart(char *command)
 		 "external" : "internal");
 	/* clear watchdog status */
 	tx4939_ccfg_set(TX4939_CCFG_WDRST);	/* W1C */
-	txx9_wdt_now(TX4939_TMR_REG(2) & 0xfffffffffULL);
+	txx9_wdt_yesw(TX4939_TMR_REG(2) & 0xfffffffffULL);
 	while (!(____raw_readq(&tx4939_ccfgptr->ccfg) & TX4939_CCFG_WDRST))
 		;
 	mdelay(10);
@@ -328,11 +328,11 @@ static u32 tx4939_get_eth_speed(struct net_device *dev)
 	return cmd.base.speed;
 }
 
-static int tx4939_netdev_event(struct notifier_block *this,
+static int tx4939_netdev_event(struct yestifier_block *this,
 			       unsigned long event,
 			       void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (event == NETDEV_CHANGE && netif_carrier_ok(dev)) {
 		__u64 bit = 0;
@@ -350,8 +350,8 @@ static int tx4939_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block tx4939_netdev_notifier = {
-	.notifier_call = tx4939_netdev_event,
+static struct yestifier_block tx4939_netdev_yestifier = {
+	.yestifier_call = tx4939_netdev_event,
 	.priority = 1,
 };
 
@@ -363,7 +363,7 @@ void __init tx4939_ethaddr_init(unsigned char *addr0, unsigned char *addr1)
 		txx9_ethaddr_init(TXX9_IRQ_BASE + TX4939_IR_ETH(0), addr0);
 	if (addr1 && (pcfg & TX4939_PCFG_ET1MODE))
 		txx9_ethaddr_init(TXX9_IRQ_BASE + TX4939_IR_ETH(1), addr1);
-	register_netdevice_notifier(&tx4939_netdev_notifier);
+	register_netdevice_yestifier(&tx4939_netdev_yestifier);
 }
 #else
 void __init tx4939_ethaddr_init(unsigned char *addr0, unsigned char *addr1)

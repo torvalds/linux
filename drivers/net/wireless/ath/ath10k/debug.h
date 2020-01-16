@@ -267,7 +267,7 @@ static inline void ath10k_dbg_dump(struct ath10k *ar,
 }
 #endif /* CONFIG_ATH10K_DEBUG */
 
-/* Avoid calling __ath10k_dbg() if debug_mask is not set and tracing
+/* Avoid calling __ath10k_dbg() if debug_mask is yest set and tracing
  * disabled.
  */
 #define ath10k_dbg(ar, dbg_mask, fmt, ...)			\

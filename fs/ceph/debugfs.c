@@ -51,22 +51,22 @@ static int mdsc_show(struct seq_file *s, void *p)
 	struct ceph_fs_client *fsc = s->private;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
-	struct rb_node *rp;
+	struct rb_yesde *rp;
 	int pathlen = 0;
 	u64 pathbase;
 	char *path;
 
 	mutex_lock(&mdsc->mutex);
 	for (rp = rb_first(&mdsc->request_tree); rp; rp = rb_next(rp)) {
-		req = rb_entry(rp, struct ceph_mds_request, r_node);
+		req = rb_entry(rp, struct ceph_mds_request, r_yesde);
 
 		if (req->r_request && req->r_session)
 			seq_printf(s, "%lld\tmds%d\t", req->r_tid,
 				   req->r_session->s_mds);
 		else if (!req->r_request)
-			seq_printf(s, "%lld\t(no request)\t", req->r_tid);
+			seq_printf(s, "%lld\t(yes request)\t", req->r_tid);
 		else
-			seq_printf(s, "%lld\t(no session)\t", req->r_tid);
+			seq_printf(s, "%lld\t(yes session)\t", req->r_tid);
 
 		seq_printf(s, "%s", ceph_mds_op_name(req->r_op));
 
@@ -75,8 +75,8 @@ static int mdsc_show(struct seq_file *s, void *p)
 		else
 			seq_puts(s, "\t");
 
-		if (req->r_inode) {
-			seq_printf(s, " #%llx", ceph_ino(req->r_inode));
+		if (req->r_iyesde) {
+			seq_printf(s, " #%llx", ceph_iyes(req->r_iyesde));
 		} else if (req->r_dentry) {
 			path = ceph_mdsc_build_path(req->r_dentry, &pathlen,
 						    &pathbase, 0);
@@ -84,16 +84,16 @@ static int mdsc_show(struct seq_file *s, void *p)
 				path = NULL;
 			spin_lock(&req->r_dentry->d_lock);
 			seq_printf(s, " #%llx/%pd (%s)",
-				   ceph_ino(d_inode(req->r_dentry->d_parent)),
+				   ceph_iyes(d_iyesde(req->r_dentry->d_parent)),
 				   req->r_dentry,
 				   path ? path : "");
 			spin_unlock(&req->r_dentry->d_lock);
 			ceph_mdsc_free_path(path, pathlen);
 		} else if (req->r_path1) {
-			seq_printf(s, " #%llx/%s", req->r_ino1.ino,
+			seq_printf(s, " #%llx/%s", req->r_iyes1.iyes,
 				   req->r_path1);
 		} else {
-			seq_printf(s, " #%llx", req->r_ino1.ino);
+			seq_printf(s, " #%llx", req->r_iyes1.iyes);
 		}
 
 		if (req->r_old_dentry) {
@@ -104,14 +104,14 @@ static int mdsc_show(struct seq_file *s, void *p)
 			spin_lock(&req->r_old_dentry->d_lock);
 			seq_printf(s, " #%llx/%pd (%s)",
 				   req->r_old_dentry_dir ?
-				   ceph_ino(req->r_old_dentry_dir) : 0,
+				   ceph_iyes(req->r_old_dentry_dir) : 0,
 				   req->r_old_dentry,
 				   path ? path : "");
 			spin_unlock(&req->r_old_dentry->d_lock);
 			ceph_mdsc_free_path(path, pathlen);
 		} else if (req->r_path2 && req->r_op != CEPH_MDS_OP_SYMLINK) {
-			if (req->r_ino2.ino)
-				seq_printf(s, " #%llx/%s", req->r_ino2.ino,
+			if (req->r_iyes2.iyes)
+				seq_printf(s, " #%llx/%s", req->r_iyes2.iyes,
 					   req->r_path2);
 			else
 				seq_printf(s, " %s", req->r_path2);
@@ -124,11 +124,11 @@ static int mdsc_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int caps_show_cb(struct inode *inode, struct ceph_cap *cap, void *p)
+static int caps_show_cb(struct iyesde *iyesde, struct ceph_cap *cap, void *p)
 {
 	struct seq_file *s = p;
 
-	seq_printf(s, "0x%-17lx%-17s%-17s\n", inode->i_ino,
+	seq_printf(s, "0x%-17lx%-17s%-17s\n", iyesde->i_iyes,
 		   ceph_cap_string(cap->issued),
 		   ceph_cap_string(cap->implemented));
 	return 0;
@@ -148,7 +148,7 @@ static int caps_show(struct seq_file *s, void *p)
 		   "reserved\t%d\n"
 		   "min\t\t%d\n\n",
 		   total, avail, used, reserved, min);
-	seq_printf(s, "ino                issued           implemented\n");
+	seq_printf(s, "iyes                issued           implemented\n");
 	seq_printf(s, "-----------------------------------------------\n");
 
 	mutex_lock(&mdsc->mutex);
@@ -168,12 +168,12 @@ static int caps_show(struct seq_file *s, void *p)
 	mutex_unlock(&mdsc->mutex);
 
 	seq_printf(s, "\n\nWaiters:\n--------\n");
-	seq_printf(s, "tgid         ino                need             want\n");
+	seq_printf(s, "tgid         iyes                need             want\n");
 	seq_printf(s, "-----------------------------------------------------\n");
 
 	spin_lock(&mdsc->caps_list_lock);
 	list_for_each_entry(cw, &mdsc->cap_wait_list, list) {
-		seq_printf(s, "%-13d0x%-17lx%-17s%-17s\n", cw->tgid, cw->ino,
+		seq_printf(s, "%-13d0x%-17lx%-17s%-17s\n", cw->tgid, cw->iyes,
 				ceph_cap_string(cw->need),
 				ceph_cap_string(cw->want));
 	}

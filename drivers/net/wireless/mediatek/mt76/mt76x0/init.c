@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002-2010, Ralink Techyeslogy, Inc.
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  * Copyright (C) 2018 Stanislaw Gruszka <stf_xl@wp.pl>
@@ -36,7 +36,7 @@ mt76x0_set_wlan_state(struct mt76x02_dev *dev, u32 val, bool enable)
 	u32 mask = MT_CMB_CTRL_XTAL_RDY | MT_CMB_CTRL_PLL_LD;
 
 	/* Note: we don't turn off WLAN_CLK because that makes the device
-	 *	 not respond properly on the probe path.
+	 *	 yest respond properly on the probe path.
 	 *	 In case anyone (PSM?) wants to use this function we can
 	 *	 bring the clock stuff back and fixup the probe path.
 	 */
@@ -58,7 +58,7 @@ mt76x0_set_wlan_state(struct mt76x02_dev *dev, u32 val, bool enable)
 		dev_err(dev->mt76.dev, "PLL and XTAL check failed\n");
 }
 
-void mt76x0_chip_onoff(struct mt76x02_dev *dev, bool enable, bool reset)
+void mt76x0_chip_oyesff(struct mt76x02_dev *dev, bool enable, bool reset)
 {
 	u32 val;
 
@@ -84,7 +84,7 @@ void mt76x0_chip_onoff(struct mt76x02_dev *dev, bool enable, bool reset)
 
 	mt76x0_set_wlan_state(dev, val, enable);
 }
-EXPORT_SYMBOL_GPL(mt76x0_chip_onoff);
+EXPORT_SYMBOL_GPL(mt76x0_chip_oyesff);
 
 static void mt76x0_reset_csr_bbp(struct mt76x02_dev *dev)
 {
@@ -163,7 +163,7 @@ void mt76x0_mac_stop(struct mt76x02_dev *dev)
 		msleep(10);
 
 	if (!mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_TX, 0, 1000))
-		dev_warn(dev->mt76.dev, "Warning: MAC TX did not stop!\n");
+		dev_warn(dev->mt76.dev, "Warning: MAC TX did yest stop!\n");
 
 	mt76_clear(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_RX |
 					 MT_MAC_SYS_CTRL_ENABLE_TX);
@@ -181,7 +181,7 @@ void mt76x0_mac_stop(struct mt76x02_dev *dev)
 	}
 
 	if (!mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_RX, 0, 1000))
-		dev_warn(dev->mt76.dev, "Warning: MAC RX did not stop!\n");
+		dev_warn(dev->mt76.dev, "Warning: MAC RX did yest stop!\n");
 }
 EXPORT_SYMBOL_GPL(mt76x0_mac_stop);
 

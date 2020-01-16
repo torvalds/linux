@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -170,9 +170,9 @@ static int wr_log_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int wr_log_open(struct inode *inode, struct file *file)
+static int wr_log_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, wr_log_show, inode->i_private);
+	return single_open(file, wr_log_show, iyesde->i_private);
 }
 
 static ssize_t wr_log_clear(struct file *file, const char __user *buf,
@@ -311,7 +311,7 @@ static int dump_qp(unsigned long id, struct c4iw_qp *qp,
 	return 0;
 }
 
-static int qp_release(struct inode *inode, struct file *file)
+static int qp_release(struct iyesde *iyesde, struct file *file)
 {
 	struct c4iw_debugfs_data *qpd = file->private_data;
 	if (!qpd) {
@@ -323,7 +323,7 @@ static int qp_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int qp_open(struct inode *inode, struct file *file)
+static int qp_open(struct iyesde *iyesde, struct file *file)
 {
 	struct c4iw_qp *qp;
 	struct c4iw_debugfs_data *qpd;
@@ -334,7 +334,7 @@ static int qp_open(struct inode *inode, struct file *file)
 	if (!qpd)
 		return -ENOMEM;
 
-	qpd->devp = inode->i_private;
+	qpd->devp = iyesde->i_private;
 	qpd->pos = 0;
 
 	/*
@@ -404,7 +404,7 @@ static int dump_stag(unsigned long id, struct c4iw_debugfs_data *stagd)
 	return 0;
 }
 
-static int stag_release(struct inode *inode, struct file *file)
+static int stag_release(struct iyesde *iyesde, struct file *file)
 {
 	struct c4iw_debugfs_data *stagd = file->private_data;
 	if (!stagd) {
@@ -416,7 +416,7 @@ static int stag_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int stag_open(struct inode *inode, struct file *file)
+static int stag_open(struct iyesde *iyesde, struct file *file)
 {
 	struct c4iw_debugfs_data *stagd;
 	void *p;
@@ -429,7 +429,7 @@ static int stag_open(struct inode *inode, struct file *file)
 		ret = -ENOMEM;
 		goto out;
 	}
-	stagd->devp = inode->i_private;
+	stagd->devp = iyesde->i_private;
 	stagd->pos = 0;
 
 	xa_for_each(&stagd->devp->mrs, index, p)
@@ -510,9 +510,9 @@ static int stats_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int stats_open(struct inode *inode, struct file *file)
+static int stats_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, stats_show, inode->i_private);
+	return single_open(file, stats_show, iyesde->i_private);
 }
 
 static ssize_t stats_clear(struct file *file, const char __user *buf,
@@ -654,7 +654,7 @@ int dump_listen_ep(struct c4iw_listen_ep *ep, struct c4iw_debugfs_data *epd)
 	return 0;
 }
 
-static int ep_release(struct inode *inode, struct file *file)
+static int ep_release(struct iyesde *iyesde, struct file *file)
 {
 	struct c4iw_debugfs_data *epd = file->private_data;
 	if (!epd) {
@@ -666,7 +666,7 @@ static int ep_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ep_open(struct inode *inode, struct file *file)
+static int ep_open(struct iyesde *iyesde, struct file *file)
 {
 	struct c4iw_ep *ep;
 	struct c4iw_listen_ep *lep;
@@ -680,7 +680,7 @@ static int ep_open(struct inode *inode, struct file *file)
 		ret = -ENOMEM;
 		goto out;
 	}
-	epd->devp = inode->i_private;
+	epd->devp = iyesde->i_private;
 	epd->pos = 0;
 
 	xa_for_each(&epd->devp->hwtids, index, ep)
@@ -790,8 +790,8 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 
 	/*
 	 * This implementation assumes udb_density == ucq_density!  Eventually
-	 * we might need to support this but for now fail the open. Also the
-	 * cqid and qpid range must match for now.
+	 * we might need to support this but for yesw fail the open. Also the
+	 * cqid and qpid range must match for yesw.
 	 */
 	if (rdev->lldi.udb_density != rdev->lldi.ucq_density) {
 		pr_err("%s: unsupported udb/ucq densities %u/%u\n",
@@ -970,17 +970,17 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	int ret;
 
 	if (!rdma_supported(infop)) {
-		pr_info("%s: RDMA not supported on this device\n",
+		pr_info("%s: RDMA yest supported on this device\n",
 			pci_name(infop->pdev));
 		return ERR_PTR(-ENOSYS);
 	}
 	if (!ocqp_supported(infop))
-		pr_info("%s: On-Chip Queues not supported on this device\n",
+		pr_info("%s: On-Chip Queues yest supported on this device\n",
 			pci_name(infop->pdev));
 
 	devp = ib_alloc_device(c4iw_dev, ibdev);
 	if (!devp) {
-		pr_err("Cannot allocate ib device\n");
+		pr_err("Canyest allocate ib device\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	devp->rdev.lldi = *infop;
@@ -1152,7 +1152,7 @@ static inline int recv_rx_pkt(struct c4iw_dev *dev, const struct pkt_gl *gl,
 		goto out;
 
 	if (c4iw_handlers[opcode] == NULL) {
-		pr_info("%s no handler opcode 0x%x...\n", __func__, opcode);
+		pr_info("%s yes handler opcode 0x%x...\n", __func__, opcode);
 		kfree_skb(skb);
 		goto out;
 	}
@@ -1176,7 +1176,7 @@ static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 
 		skb = alloc_skb(256, GFP_ATOMIC);
 		if (!skb)
-			goto nomem;
+			goto yesmem;
 		__skb_put(skb, len);
 		skb_copy_to_linear_data(skb, &rsp[1], len);
 	} else if (gl == CXGB4_MSG_AN) {
@@ -1199,19 +1199,19 @@ static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 	} else {
 		skb = cxgb4_pktgl_to_skb(gl, 128, 128);
 		if (unlikely(!skb))
-			goto nomem;
+			goto yesmem;
 	}
 
 	opcode = *(u8 *)rsp;
 	if (c4iw_handlers[opcode]) {
 		c4iw_handlers[opcode](dev, skb);
 	} else {
-		pr_info("%s no handler opcode 0x%x...\n", __func__, opcode);
+		pr_info("%s yes handler opcode 0x%x...\n", __func__, opcode);
 		kfree_skb(skb);
 	}
 
 	return 0;
-nomem:
+yesmem:
 	return -1;
 }
 
@@ -1453,7 +1453,7 @@ static void recover_queues(struct uld_ctx *ctx)
 
 	xa_unlock_irq(&ctx->dev->qps);
 
-	/* now traverse the list in a safe context to recover the db state*/
+	/* yesw traverse the list in a safe context to recover the db state*/
 	recover_lost_dbs(ctx, &qp_list);
 
 	/* we're almost done!  deref the qps and clean up */
@@ -1488,7 +1488,7 @@ static int c4iw_uld_control(void *handle, enum cxgb4_control control, ...)
 		mutex_unlock(&ctx->dev->rdev.stats.lock);
 		break;
 	default:
-		pr_warn("%s: unknown control cmd %u\n",
+		pr_warn("%s: unkyeswn control cmd %u\n",
 			pci_name(ctx->lldi.pdev), control);
 		break;
 	}

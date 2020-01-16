@@ -28,7 +28,7 @@ Description:
 
 		signature 	- ASCII table signature
 		length 		- length of table in bytes, including the header
-		revision 	- ACPI Specification minor version number
+		revision 	- ACPI Specification miyesr version number
 		oem_id 		- ASCII OEM identification
 		oem_table_id 	- ASCII OEM table identification
 		oem_revision 	- OEM revision number

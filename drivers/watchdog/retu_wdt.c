@@ -9,7 +9,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -27,7 +27,7 @@ struct retu_wdt_dev {
 };
 
 /*
- * Since Retu watchdog cannot be disabled in hardware, we must kick it
+ * Since Retu watchdog canyest be disabled in hardware, we must kick it
  * with a timer until userspace watchdog software takes over. If
  * CONFIG_WATCHDOG_NOWAYOUT is set, we never start the feeding.
  */
@@ -101,7 +101,7 @@ static const struct watchdog_ops retu_wdt_ops = {
 static int retu_wdt_probe(struct platform_device *pdev)
 {
 	struct retu_dev *rdev = dev_get_drvdata(pdev->dev.parent);
-	bool nowayout = WATCHDOG_NOWAYOUT;
+	bool yeswayout = WATCHDOG_NOWAYOUT;
 	struct watchdog_device *retu_wdt;
 	struct retu_wdt_dev *wdev;
 	int ret;
@@ -122,7 +122,7 @@ static int retu_wdt_probe(struct platform_device *pdev)
 	retu_wdt->parent	= &pdev->dev;
 
 	watchdog_set_drvdata(retu_wdt, wdev);
-	watchdog_set_nowayout(retu_wdt, nowayout);
+	watchdog_set_yeswayout(retu_wdt, yeswayout);
 
 	wdev->rdev		= rdev;
 	wdev->dev		= &pdev->dev;
@@ -133,7 +133,7 @@ static int retu_wdt_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	if (nowayout)
+	if (yeswayout)
 		retu_wdt_ping(retu_wdt);
 	else
 		retu_wdt_ping_enable(wdev);

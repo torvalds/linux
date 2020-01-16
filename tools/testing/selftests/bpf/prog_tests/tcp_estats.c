@@ -9,7 +9,7 @@ void test_tcp_estats(void)
 	__u32 duration = 0;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
-	CHECK(err, "", "err %d errno %d\n", err, errno);
+	CHECK(err, "", "err %d erryes %d\n", err, erryes);
 	if (err)
 		return;
 

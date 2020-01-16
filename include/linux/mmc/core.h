@@ -37,7 +37,7 @@ struct mmc_command {
 #define MMC_RSP_BUSY	(1 << 3)		/* card may send busy */
 #define MMC_RSP_OPCODE	(1 << 4)		/* response contains opcode */
 
-#define MMC_CMD_MASK	(3 << 5)		/* non-SPI command type */
+#define MMC_CMD_MASK	(3 << 5)		/* yesn-SPI command type */
 #define MMC_CMD_AC	(0 << 5)
 #define MMC_CMD_ADTC	(1 << 5)
 #define MMC_CMD_BC	(2 << 5)
@@ -93,14 +93,14 @@ struct mmc_command {
 	int			error;		/* command error */
 
 /*
- * Standard errno values are used for errors, but some have specific
+ * Standard erryes values are used for errors, but some have specific
  * meaning in the MMC layer:
  *
  * ETIMEDOUT    Card took too long to respond
  * EILSEQ       Basic format problem with the received or sent data
  *              (e.g. CRC check failed, incorrect opcode in response
  *              or bad end bit)
- * EINVAL       Request cannot be performed because of restrictions
+ * EINVAL       Request canyest be performed because of restrictions
  *              in hardware and/or the driver
  * ENOMEDIUM    Host can determine that the slot is empty and is
  *              actively failing requests
@@ -158,7 +158,7 @@ struct mmc_request {
 	 * due to an error associated with the mmc_request. Currently used only
 	 * by CQE.
 	 */
-	void			(*recovery_notifier)(struct mmc_request *);
+	void			(*recovery_yestifier)(struct mmc_request *);
 	struct mmc_host		*host;
 
 	/* Allow other commands during this ongoing data transfer or busy wait */

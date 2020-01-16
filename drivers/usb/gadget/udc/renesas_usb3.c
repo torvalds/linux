@@ -992,7 +992,7 @@ static void usb3_set_p0_con_for_ctrl_write_status(struct renesas_usb3 *usb3)
 				   P0_CON_IN_RES_FORCE_STALL);
 }
 
-static void usb3_set_p0_con_for_no_data(struct renesas_usb3 *usb3)
+static void usb3_set_p0_con_for_yes_data(struct renesas_usb3 *usb3)
 {
 	usb3_set_p0_con_update_res(usb3, P0_CON_ST_RES_NORMAL |
 				   P0_CON_OT_RES_FORCE_STALL |
@@ -1175,7 +1175,7 @@ static void usb3_set_status_stage(struct renesas_usb3_ep *usb3_ep,
 		usb3_set_p0_con_for_ctrl_read_status(usb3);
 	} else {
 		if (!usb3_req->req.length)
-			usb3_set_p0_con_for_no_data(usb3);
+			usb3_set_p0_con_for_yes_data(usb3);
 		else
 			usb3_set_p0_con_for_ctrl_write_status(usb3);
 	}
@@ -1563,7 +1563,7 @@ static bool usb3_std_req_set_address(struct renesas_usb3 *usb3,
 		return true;	/* stall */
 
 	usb3_set_device_address(usb3, le16_to_cpu(ctrl->wValue));
-	usb3_set_p0_con_for_no_data(usb3);
+	usb3_set_p0_con_for_yes_data(usb3);
 
 	return false;
 }
@@ -1759,7 +1759,7 @@ static bool usb3_std_req_feature(struct renesas_usb3 *usb3,
 	}
 
 	if (!stall)
-		usb3_set_p0_con_for_no_data(usb3);
+		usb3_set_p0_con_for_yes_data(usb3);
 
 	return stall;
 }
@@ -1832,7 +1832,7 @@ static bool usb3_handle_standard_request(struct renesas_usb3 *usb3,
 			ret = true;
 			break;
 		case USB_REQ_SET_ISOCH_DELAY:
-			/* This hardware doesn't support Isochronous xfer */
+			/* This hardware doesn't support Isochroyesus xfer */
 			stall = true;
 			ret = true;
 			break;
@@ -1862,7 +1862,7 @@ static void usb3_irq_epc_pipe0_setup(struct renesas_usb3 *usb3)
 	struct usb_ctrlrequest ctrl;
 	struct renesas_usb3_ep *usb3_ep = usb3_get_ep(usb3, 0);
 
-	/* Call giveback function if previous transfer is not completed */
+	/* Call giveback function if previous transfer is yest completed */
 	if (usb3_ep->started)
 		usb3_request_done(usb3_ep, usb3_get_request(usb3_ep),
 				  -ECONNRESET);
@@ -1949,7 +1949,7 @@ static void usb3_irq_epc_pipen_bfrdy(struct renesas_usb3 *usb3, int num)
 		goto out;
 
 	if (usb3_ep->dir_in) {
-		/* Do not stop the IN pipe here to detect LSTTR interrupt */
+		/* Do yest stop the IN pipe here to detect LSTTR interrupt */
 		if (!usb3_write_pipe(usb3_ep, usb3_req, USB3_PN_WRITE))
 			usb3_clear_bit(usb3, PN_INT_BFRDY, USB3_PN_INT_ENA);
 	} else {
@@ -2503,9 +2503,9 @@ static int renesas_usb3_b_device_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int renesas_usb3_b_device_open(struct inode *inode, struct file *file)
+static int renesas_usb3_b_device_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, renesas_usb3_b_device_show, inode->i_private);
+	return single_open(file, renesas_usb3_b_device_show, iyesde->i_private);
 }
 
 static ssize_t renesas_usb3_b_device_write(struct file *file,
@@ -2808,8 +2808,8 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 		goto err_alloc_prd;
 
 	/*
-	 * This is optional. So, if this driver cannot get a phy,
-	 * this driver will not handle a phy anymore.
+	 * This is optional. So, if this driver canyest get a phy,
+	 * this driver will yest handle a phy anymore.
 	 */
 	usb3->phy = devm_phy_optional_get(&pdev->dev, "usb");
 	if (IS_ERR(usb3->phy)) {
@@ -2828,7 +2828,7 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 
 	if (device_property_read_bool(&pdev->dev, "usb-role-switch")) {
 		usb3->role_sw_by_connector = true;
-		renesas_usb3_role_switch_desc.fwnode = dev_fwnode(&pdev->dev);
+		renesas_usb3_role_switch_desc.fwyesde = dev_fwyesde(&pdev->dev);
 	}
 
 	INIT_WORK(&usb3->role_work, renesas_usb3_role_work);
@@ -2837,7 +2837,7 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 	if (!IS_ERR(usb3->role_sw)) {
 		usb3->host_dev = usb_of_get_companion_dev(&pdev->dev);
 		if (!usb3->host_dev) {
-			/* If not found, this driver will not use a role sw */
+			/* If yest found, this driver will yest use a role sw */
 			usb_role_switch_unregister(usb3->role_sw);
 			usb3->role_sw = NULL;
 		}

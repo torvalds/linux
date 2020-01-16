@@ -19,7 +19,7 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/time64.h>
-#include <errno.h>
+#include <erryes.h>
 #include <internal/cpumap.h>
 #include <perf/cpumap.h>
 #include "bench.h"
@@ -48,7 +48,7 @@ static int futex_flag = 0;
 static const struct option options[] = {
 	OPT_UINTEGER('t', "threads",  &nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('q', "nrequeue", &nrequeue, "Specify amount of threads to requeue at once"),
-	OPT_BOOLEAN( 's', "silent",   &silent,   "Silent mode: do not display data/details"),
+	OPT_BOOLEAN( 's', "silent",   &silent,   "Silent mode: do yest display data/details"),
 	OPT_BOOLEAN( 'S', "shared",   &fshared,  "Use shared futexes instead of private ones"),
 	OPT_END()
 };
@@ -176,7 +176,7 @@ int bench_futex_requeue(int argc, const char **argv)
 		gettimeofday(&start, NULL);
 		while (nrequeued < nthreads) {
 			/*
-			 * Do not wakeup any tasks blocked on futex1, allowing
+			 * Do yest wakeup any tasks blocked on futex1, allowing
 			 * us to really measure futex_wait functionality.
 			 */
 			nrequeued += futex_cmp_requeue(&futex1, 0, &futex2, 0,

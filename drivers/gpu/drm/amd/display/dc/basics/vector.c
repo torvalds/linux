@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -37,7 +37,7 @@ bool dal_vector_construct(
 	vector->container = NULL;
 
 	if (!struct_size || !capacity) {
-		/* Container must be non-zero size*/
+		/* Container must be yesn-zero size*/
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -64,7 +64,7 @@ bool dal_vector_presized_costruct(
 	vector->container = NULL;
 
 	if (!struct_size || !count) {
-		/* Container must be non-zero size*/
+		/* Container must be yesn-zero size*/
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -260,11 +260,11 @@ struct vector *dal_vector_clone(
 	else
 		/* Call "presized create" version, independently of how the
 		 * original vector was created.
-		 * The owner of original vector must know how to treat the new
+		 * The owner of original vector must kyesw how to treat the new
 		 * vector - as "presized" or as "regular".
 		 * But from vector point of view it doesn't matter. */
 		vec_cloned = dal_vector_presized_create(vector->ctx, count,
-			NULL,/* no initial value */
+			NULL,/* yes initial value */
 			vector->struct_size);
 
 	if (NULL == vec_cloned) {

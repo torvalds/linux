@@ -454,7 +454,7 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 	ret = hclge_firmware_compat_config(hdev);
 	if (ret)
 		dev_warn(&hdev->pdev->dev,
-			 "Firmware compatible features not enabled(%d).\n",
+			 "Firmware compatible features yest enabled(%d).\n",
 			 ret);
 
 	return 0;

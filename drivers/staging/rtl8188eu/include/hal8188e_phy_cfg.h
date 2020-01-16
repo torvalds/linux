@@ -130,7 +130,7 @@ struct bb_reg_def {
 				 *	0xc2c~0xc2f [16 bytes]
 				 */
 	u32 rfRxAFE;		/* Rx IQ DC ofset and Rx digital filter,
-				 * Rx DC notch filter :
+				 * Rx DC yestch filter :
 				 */
 				/*	0xc10~0xc13,0xc18~0xc1b, 0xc20~0xc23,
 				 *	0xc28~0xc2b [16 bytes]

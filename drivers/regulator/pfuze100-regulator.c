@@ -133,7 +133,7 @@ static int pfuze100_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 
 	switch (pfuze100->chip_id) {
 	case PFUZE3001:
-		/* no dynamic voltage scaling for PF3001 */
+		/* yes dynamic voltage scaling for PF3001 */
 		reg_has_ramp_delay = false;
 		break;
 	case PFUZE3000:
@@ -497,10 +497,10 @@ static struct of_regulator_match *pfuze_matches;
 static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
 {
 	struct device *dev = chip->dev;
-	struct device_node *np, *parent;
+	struct device_yesde *np, *parent;
 	int ret;
 
-	np = of_node_get(dev->of_node);
+	np = of_yesde_get(dev->of_yesde);
 	if (!np)
 		return -EINVAL;
 
@@ -509,7 +509,7 @@ static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
 
 	parent = of_get_child_by_name(np, "regulators");
 	if (!parent) {
-		dev_err(dev, "regulators node not found\n");
+		dev_err(dev, "regulators yesde yest found\n");
 		return -EINVAL;
 	}
 
@@ -538,7 +538,7 @@ static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
 		break;
 	}
 
-	of_node_put(parent);
+	of_yesde_put(parent);
 	if (ret < 0) {
 		dev_err(dev, "Error parsing regulator init data: %d\n",
 			ret);
@@ -553,9 +553,9 @@ static inline struct regulator_init_data *match_init_data(int index)
 	return pfuze_matches[index].init_data;
 }
 
-static inline struct device_node *match_of_node(int index)
+static inline struct device_yesde *match_of_yesde(int index)
 {
-	return pfuze_matches[index].of_node;
+	return pfuze_matches[index].of_yesde;
 }
 #else
 static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
@@ -568,7 +568,7 @@ static inline struct regulator_init_data *match_init_data(int index)
 	return NULL;
 }
 
-static inline struct device_node *match_of_node(int index)
+static inline struct device_yesde *match_of_yesde(int index)
 {
 	return NULL;
 }
@@ -617,7 +617,7 @@ static void pfuze_power_off_prepare(void)
 static int pfuze_power_off_prepare_init(struct pfuze_chip *pfuze_chip)
 {
 	if (pfuze_chip->chip_id != PFUZE100) {
-		dev_warn(pfuze_chip->dev, "Requested pm_power_off_prepare handler for not supported chip\n");
+		dev_warn(pfuze_chip->dev, "Requested pm_power_off_prepare handler for yest supported chip\n");
 		return -ENODEV;
 	}
 
@@ -700,7 +700,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 	if (!pfuze_chip)
 		return -ENOMEM;
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		match = of_match_device(of_match_ptr(pfuze_dt_ids),
 				&client->dev);
 		if (!match) {
@@ -826,7 +826,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 		config.dev = &client->dev;
 		config.init_data = init_data;
 		config.driver_data = pfuze_chip;
-		config.of_node = match_of_node(i);
+		config.of_yesde = match_of_yesde(i);
 
 		pfuze_chip->regulators[i] =
 			devm_regulator_register(&client->dev, desc, &config);
@@ -837,7 +837,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 		}
 	}
 
-	if (of_property_read_bool(client->dev.of_node,
+	if (of_property_read_bool(client->dev.of_yesde,
 				  "fsl,pmic-stby-poweroff"))
 		return pfuze_power_off_prepare_init(pfuze_chip);
 

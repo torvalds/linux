@@ -38,7 +38,7 @@ tsunami_flush_page_for_dma:
 tsunami_flush_cache_out:
 tsunami_flush_page_to_ram:
 	retl
-	 nop
+	 yesp
 
 tsunami_flush_sig_insns:
 	flush	%o1
@@ -55,14 +55,14 @@ tsunami_flush_tlb_mm:
 tsunami_flush_tlb_all:
 	 mov	0x400, %o1
 	sta	%g0, [%o1] ASI_M_FLUSH_PROBE
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 tsunami_flush_tlb_out:
 	retl
-	 nop
+	 yesp
 
 	/* This one can be done in a fine grained manner... */
 tsunami_flush_tlb_page:
@@ -75,11 +75,11 @@ tsunami_flush_tlb_page:
 	 lda	[%g1] ASI_M_MMUREGS, %g5
 	sta	%o3, [%g1] ASI_M_MMUREGS
 	sta	%g0, [%o1] ASI_M_FLUSH_PROBE
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 tsunami_flush_tlb_page_out:
 	retl
 	 sta	%g5, [%g1] ASI_M_MMUREGS
@@ -129,4 +129,4 @@ tsunami_setup_blockops:
 	sta	%g0, [%g0] ASI_M_IC_FLCLEAR
 	sta	%g0, [%g0] ASI_M_DC_FLCLEAR
 	retl
-	 nop
+	 yesp

@@ -38,7 +38,7 @@
 #include "incore.h"
 #include "glock.h"
 #include "glops.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "lops.h"
 #include "meta_io.h"
 #include "quota.h"
@@ -73,7 +73,7 @@ static const struct rhashtable_params ht_parms = {
 	.nelem_hint = GFS2_GL_HASH_SIZE * 3 / 4,
 	.key_len = offsetofend(struct lm_lockname, ln_type),
 	.key_offset = offsetof(struct gfs2_glock, gl_name),
-	.head_offset = offsetof(struct gfs2_glock, gl_node),
+	.head_offset = offsetof(struct gfs2_glock, gl_yesde),
 };
 
 static struct rhashtable gl_hash_table;
@@ -138,7 +138,7 @@ void gfs2_glock_free(struct gfs2_glock *gl)
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
 	BUG_ON(atomic_read(&gl->gl_revokes));
-	rhashtable_remove_fast(&gl_hash_table, &gl->gl_node, ht_parms);
+	rhashtable_remove_fast(&gl_hash_table, &gl->gl_yesde, ht_parms);
 	smp_mb();
 	wake_up_glock(gl);
 	call_rcu(&gl->gl_rcu, gfs2_glock_dealloc);
@@ -221,7 +221,7 @@ static void __gfs2_glock_queue_work(struct gfs2_glock *gl, unsigned long delay) 
 		 * We are holding the lockref spinlock, and the work was still
 		 * queued above.  The queued work (glock_work_func) takes that
 		 * spinlock before dropping its glock reference(s), so it
-		 * cannot have dropped them in the meantime.
+		 * canyest have dropped them in the meantime.
 		 */
 		GLOCK_BUG_ON(gl, gl->gl_lockref.count < 2);
 		gl->gl_lockref.count--;
@@ -407,7 +407,7 @@ static inline struct gfs2_holder *find_first_waiter(const struct gfs2_glock *gl)
 }
 
 /**
- * state_change - record that the glock is now in a different state
+ * state_change - record that the glock is yesw in a different state
  * @gl: the glock
  * @new_state the new state
  *
@@ -559,7 +559,7 @@ __acquires(&gl->gl_lockref.lock)
 	if ((target == LM_ST_UNLOCKED || target == LM_ST_DEFERRED) &&
 	    glops->go_inval) {
 		/*
-		 * If another process is already doing the invalidate, let that
+		 * If ayesther process is already doing the invalidate, let that
 		 * finish first.  The glock state machine will get back to this
 		 * holder again later.
 		 */
@@ -595,7 +595,7 @@ __acquires(&gl->gl_lockref.lock)
 			fs_err(sdp, "lm_lock ret %d\n", ret);
 			GLOCK_BUG_ON(gl, !gfs2_withdrawn(sdp));
 		}
-	} else { /* lock_nolock */
+	} else { /* lock_yeslock */
 		finish_xmote(gl, target);
 		gfs2_glock_queue_work(gl, 0);
 	}
@@ -623,11 +623,11 @@ static inline struct gfs2_holder *find_first_holder(const struct gfs2_glock *gl)
 /**
  * run_queue - do all outstanding tasks related to a glock
  * @gl: The glock in question
- * @nonblock: True if we must not block in run_queue
+ * @yesnblock: True if we must yest block in run_queue
  *
  */
 
-static void run_queue(struct gfs2_glock *gl, const int nonblock)
+static void run_queue(struct gfs2_glock *gl, const int yesnblock)
 __releases(&gl->gl_lockref.lock)
 __acquires(&gl->gl_lockref.lock)
 {
@@ -643,7 +643,7 @@ __acquires(&gl->gl_lockref.lock)
 	    gl->gl_demote_state != gl->gl_state) {
 		if (find_first_holder(gl))
 			goto out_unlock;
-		if (nonblock)
+		if (yesnblock)
 			goto out_sched;
 		set_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
 		GLOCK_BUG_ON(gl, gl->gl_demote_state == LM_ST_EXCLUSIVE);
@@ -682,19 +682,19 @@ static void delete_work_func(struct work_struct *work)
 {
 	struct gfs2_glock *gl = container_of(work, struct gfs2_glock, gl_delete);
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct inode *inode;
-	u64 no_addr = gl->gl_name.ln_number;
+	struct iyesde *iyesde;
+	u64 yes_addr = gl->gl_name.ln_number;
 
-	/* If someone's using this glock to create a new dinode, the block must
-	   have been freed by another node, then re-used, in which case our
-	   iopen callback is too late after the fact. Ignore it. */
+	/* If someone's using this glock to create a new diyesde, the block must
+	   have been freed by ayesther yesde, then re-used, in which case our
+	   iopen callback is too late after the fact. Igyesre it. */
 	if (test_bit(GLF_INODE_CREATING, &gl->gl_flags))
 		goto out;
 
-	inode = gfs2_lookup_by_inum(sdp, no_addr, NULL, GFS2_BLKST_UNLINKED);
-	if (!IS_ERR_OR_NULL(inode)) {
-		d_prune_aliases(inode);
-		iput(inode);
+	iyesde = gfs2_lookup_by_inum(sdp, yes_addr, NULL, GFS2_BLKST_UNLINKED);
+	if (!IS_ERR_OR_NULL(iyesde)) {
+		d_prune_aliases(iyesde);
+		iput(iyesde);
 	}
 out:
 	gfs2_glock_put(gl);
@@ -714,11 +714,11 @@ static void glock_work_func(struct work_struct *work)
 	if (test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
 	    gl->gl_state != LM_ST_UNLOCKED &&
 	    gl->gl_demote_state != LM_ST_EXCLUSIVE) {
-		unsigned long holdtime, now = jiffies;
+		unsigned long holdtime, yesw = jiffies;
 
 		holdtime = gl->gl_tchange + gl->gl_hold_time;
-		if (time_before(now, holdtime))
-			delay = holdtime - now;
+		if (time_before(yesw, holdtime))
+			delay = holdtime - yesw;
 
 		if (!delay) {
 			clear_bit(GLF_PENDING_DEMOTE, &gl->gl_flags);
@@ -763,14 +763,14 @@ again:
 	rcu_read_lock();
 	if (new) {
 		gl = rhashtable_lookup_get_insert_fast(&gl_hash_table,
-			&new->gl_node, ht_parms);
+			&new->gl_yesde, ht_parms);
 		if (IS_ERR(gl))
 			goto out;
 	} else {
 		gl = rhashtable_lookup_fast(&gl_hash_table,
 			name, ht_parms);
 	}
-	if (gl && !lockref_get_not_dead(&gl->gl_lockref)) {
+	if (gl && !lockref_get_yest_dead(&gl->gl_lockref)) {
 		rcu_read_unlock();
 		schedule();
 		goto again;
@@ -789,9 +789,9 @@ out:
  * @create: If 0, don't create the glock if it doesn't exist
  * @glp: the glock is returned here
  *
- * This does not lock a glock, just finds/creates structures for one.
+ * This does yest lock a glock, just finds/creates structures for one.
  *
- * Returns: errno
+ * Returns: erryes
  */
 
 int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
@@ -834,7 +834,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	}
 
 	atomic_inc(&sdp->sd_glock_disposal);
-	gl->gl_node.next = NULL;
+	gl->gl_yesde.next = NULL;
 	gl->gl_flags = 0;
 	gl->gl_name = name;
 	gl->gl_lockref.count = 1;
@@ -858,7 +858,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	mapping = gfs2_glock2aspace(gl);
 	if (mapping) {
                 mapping->a_ops = &gfs2_meta_aops;
-		mapping->host = s->s_bdev->bd_inode;
+		mapping->host = s->s_bdev->bd_iyesde;
 		mapping->flags = 0;
 		mapping_set_gfp_mask(mapping, GFP_NOFS);
 		mapping->private_data = NULL;
@@ -981,7 +981,7 @@ static int glocks_pending(unsigned int num_gh, struct gfs2_holder *ghs)
 }
 
 /**
- * gfs2_glock_async_wait - wait on multiple asynchronous glock acquisitions
+ * gfs2_glock_async_wait - wait on multiple asynchroyesus glock acquisitions
  * @num_gh: the number of holders in the array
  * @ghs: the glock holder array
  *
@@ -1016,7 +1016,7 @@ wait_for_dlm:
 	 *
 	 * If our request timed out, we need to repeatedly release any held
 	 * glocks we acquired thus far to allow dlm to acquire the remaining
-	 * glocks without deadlocking.  We cannot currently cancel outstanding
+	 * glocks without deadlocking.  We canyest currently cancel outstanding
 	 * glock acquisitions.
 	 *
 	 * The HIF_WAIT bit tells us which requests still need a response from
@@ -1188,7 +1188,7 @@ trap_recursive:
  *
  * if (gh->gh_flags & GL_ASYNC), this never returns an error
  *
- * Returns: 0, GLR_TRYFAILED, or errno on failure
+ * Returns: 0, GLR_TRYFAILED, or erryes on failure
  */
 
 int gfs2_glock_nq(struct gfs2_holder *gh)
@@ -1308,7 +1308,7 @@ void gfs2_glock_dq_uninit(struct gfs2_holder *gh)
  * @flags: modifier flags for the acquisition
  * @gh: the struct gfs2_holder
  *
- * Returns: errno
+ * Returns: erryes
  */
 
 int gfs2_glock_nq_num(struct gfs2_sbd *sdp, u64 number,
@@ -1350,12 +1350,12 @@ static int glock_compare(const void *arg_a, const void *arg_b)
 }
 
 /**
- * nq_m_sync - synchonously acquire more than one glock in deadlock free order
+ * nq_m_sync - synchoyesusly acquire more than one glock in deadlock free order
  * @num_gh: the number of structures
  * @ghs: an array of struct gfs2_holder structures
  *
  * Returns: 0 on success (all glocks acquired),
- *          errno on failure (no glocks acquired)
+ *          erryes on failure (yes glocks acquired)
  */
 
 static int nq_m_sync(unsigned int num_gh, struct gfs2_holder *ghs,
@@ -1390,7 +1390,7 @@ static int nq_m_sync(unsigned int num_gh, struct gfs2_holder *ghs,
  *
  *
  * Returns: 0 on success (all glocks acquired),
- *          errno on failure (no glocks acquired)
+ *          erryes on failure (yes glocks acquired)
  */
 
 int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs)
@@ -1439,14 +1439,14 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 {
 	unsigned long delay = 0;
 	unsigned long holdtime;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 
 	gfs2_glock_hold(gl);
 	holdtime = gl->gl_tchange + gl->gl_hold_time;
 	if (test_bit(GLF_QUEUED, &gl->gl_flags) &&
 	    gl->gl_name.ln_type == LM_TYPE_INODE) {
-		if (time_before(now, holdtime))
-			delay = holdtime - now;
+		if (time_before(yesw, holdtime))
+			delay = holdtime - yesw;
 		if (test_bit(GLF_REPLY_PENDING, &gl->gl_flags))
 			delay = gl->gl_hold_time;
 	}
@@ -1461,9 +1461,9 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
  * gfs2_should_freeze - Figure out if glock should be frozen
  * @gl: The glock in question
  *
- * Glocks are not frozen if (a) the result of the dlm operation is
+ * Glocks are yest frozen if (a) the result of the dlm operation is
  * an error, (b) the locking operation was an unlock operation or
- * (c) if there is a "noexp" flagged request anywhere in the queue
+ * (c) if there is a "yesexp" flagged request anywhere in the queue
  *
  * Returns: 1 if freezing should occur, 0 otherwise
  */
@@ -1537,12 +1537,12 @@ static int glock_cmp(void *priv, struct list_head *a, struct list_head *b)
  * @list: The list to dispose of
  *
  * Disposing of glocks may involve disk accesses, so that here we sort
- * the glocks by number (i.e. disk location of the inodes) so that if
+ * the glocks by number (i.e. disk location of the iyesdes) so that if
  * there are any such accesses, they'll be sent in order (mostly).
  *
  * Must be called under the lru_lock, but may drop and retake this
  * lock. While the lru_lock is dropped, entries may vanish from the
- * list, but no new entries will appear on the list (since it is
+ * list, but yes new entries will appear on the list (since it is
  * private)
  */
 
@@ -1660,7 +1660,7 @@ static void glock_hash_walk(glock_examiner examiner, const struct gfs2_sbd *sdp)
 
 		while ((gl = rhashtable_walk_next(&iter)) && !IS_ERR(gl))
 			if (gl->gl_name.ln_sbd == sdp &&
-			    lockref_get_not_dead(&gl->gl_lockref))
+			    lockref_get_yest_dead(&gl->gl_lockref))
 				examiner(gl);
 
 		rhashtable_walk_stop(&iter);
@@ -1745,7 +1745,7 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 	glock_hash_walk(dump_glock_func, sdp);
 }
 
-void gfs2_glock_finish_truncate(struct gfs2_inode *ip)
+void gfs2_glock_finish_truncate(struct gfs2_iyesde *ip)
 {
 	struct gfs2_glock *gl = ip->i_gl;
 	int ret;
@@ -1875,7 +1875,7 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
  *
  * The file format is as follows:
  * One line per object, capital letters are used to indicate objects
- * G = glock, I = Inode, R = rgrp, H = holder. Glocks are not indented,
+ * G = glock, I = Iyesde, R = rgrp, H = holder. Glocks are yest indented,
  * other objects are indented by a single space and follow the glock to
  * which they are related. Fields are indicated by lower case letters
  * followed by a colon and the field value, except for strings which are in
@@ -1940,8 +1940,8 @@ static int gfs2_glstats_seq_show(struct seq_file *seq, void *iter_ptr)
 static const char *gfs2_gltype[] = {
 	"type",
 	"reserved",
-	"nondisk",
-	"inode",
+	"yesndisk",
+	"iyesde",
 	"rgrp",
 	"meta",
 	"iopen",
@@ -2043,7 +2043,7 @@ static void gfs2_glock_iter_next(struct gfs2_glock_iter *gi, loff_t n)
 	if (gl) {
 		if (n == 0)
 			return;
-		if (!lockref_put_not_zero(&gl->gl_lockref))
+		if (!lockref_put_yest_zero(&gl->gl_lockref))
 			gfs2_glock_queue_put(gl);
 	}
 	for (;;) {
@@ -2059,7 +2059,7 @@ static void gfs2_glock_iter_next(struct gfs2_glock_iter *gi, loff_t n)
 		if (gl->gl_name.ln_sbd != gi->sdp)
 			continue;
 		if (n <= 1) {
-			if (!lockref_get_not_dead(&gl->gl_lockref))
+			if (!lockref_get_yest_dead(&gl->gl_lockref))
 				continue;
 			break;
 		} else {
@@ -2166,7 +2166,7 @@ static const struct seq_operations gfs2_sbstats_seq_ops = {
 
 #define GFS2_SEQ_GOODSIZE min(PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER, 65536UL)
 
-static int __gfs2_glocks_open(struct inode *inode, struct file *file,
+static int __gfs2_glocks_open(struct iyesde *iyesde, struct file *file,
 			      const struct seq_operations *ops)
 {
 	int ret = seq_open_private(file, ops, sizeof(struct gfs2_glock_iter));
@@ -2174,7 +2174,7 @@ static int __gfs2_glocks_open(struct inode *inode, struct file *file,
 		struct seq_file *seq = file->private_data;
 		struct gfs2_glock_iter *gi = seq->private;
 
-		gi->sdp = inode->i_private;
+		gi->sdp = iyesde->i_private;
 		seq->buf = kmalloc(GFS2_SEQ_GOODSIZE, GFP_KERNEL | __GFP_NOWARN);
 		if (seq->buf)
 			seq->size = GFS2_SEQ_GOODSIZE;
@@ -2189,12 +2189,12 @@ static int __gfs2_glocks_open(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static int gfs2_glocks_open(struct inode *inode, struct file *file)
+static int gfs2_glocks_open(struct iyesde *iyesde, struct file *file)
 {
-	return __gfs2_glocks_open(inode, file, &gfs2_glock_seq_ops);
+	return __gfs2_glocks_open(iyesde, file, &gfs2_glock_seq_ops);
 }
 
-static int gfs2_glocks_release(struct inode *inode, struct file *file)
+static int gfs2_glocks_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	struct gfs2_glock_iter *gi = seq->private;
@@ -2202,20 +2202,20 @@ static int gfs2_glocks_release(struct inode *inode, struct file *file)
 	if (gi->gl)
 		gfs2_glock_put(gi->gl);
 	rhashtable_walk_exit(&gi->hti);
-	return seq_release_private(inode, file);
+	return seq_release_private(iyesde, file);
 }
 
-static int gfs2_glstats_open(struct inode *inode, struct file *file)
+static int gfs2_glstats_open(struct iyesde *iyesde, struct file *file)
 {
-	return __gfs2_glocks_open(inode, file, &gfs2_glstats_seq_ops);
+	return __gfs2_glocks_open(iyesde, file, &gfs2_glstats_seq_ops);
 }
 
-static int gfs2_sbstats_open(struct inode *inode, struct file *file)
+static int gfs2_sbstats_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret = seq_open(file, &gfs2_sbstats_seq_ops);
 	if (ret == 0) {
 		struct seq_file *seq = file->private_data;
-		seq->private = inode->i_private;  /* sdp */
+		seq->private = iyesde->i_private;  /* sdp */
 	}
 	return ret;
 }

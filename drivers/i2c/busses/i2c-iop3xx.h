@@ -38,7 +38,7 @@
  * I2C port 1 by clearing GPOD bits 7:6 and GPOD bits 5:4, respectively.
  */
 #define IOP3XX_ICR_SCLEN	0x0020	/* 1=SCL enable for master mode */
-#define IOP3XX_ICR_MABORT	0x0010	/* 1=Send a STOP with no data 
+#define IOP3XX_ICR_MABORT	0x0010	/* 1=Send a STOP with yes data 
 					 * NB TBYTE must be clear */
 #define IOP3XX_ICR_TBYTE	0x0008	/* 1=Send/Receive a byte. i2c clears */
 #define IOP3XX_ICR_NACK		0x0004	/* 1=reply with NACK */

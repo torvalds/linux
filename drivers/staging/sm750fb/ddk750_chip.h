@@ -84,7 +84,7 @@ struct initchip_param {
 	unsigned short set_all_eng_off;
 
 	/*
-	 * 0 = Do not reset the memory controller
+	 * 0 = Do yest reset the memory controller
 	 * 1 = Reset the memory controller
 	 */
 	unsigned char reset_memory;

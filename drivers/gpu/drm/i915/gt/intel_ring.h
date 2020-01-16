@@ -88,10 +88,10 @@ assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
 	 *	Gen3 BSpec "1c Memory Interface Functions" / 2.3.4.5
 	 *	Gen4+ BSpec "1c Memory Interface and Command Stream" / 5.3.4.5
 	 * "If the Ring Buffer Head Pointer and the Tail Pointer are on the
-	 * same cacheline, the Head Pointer must not be greater than the Tail
+	 * same cacheline, the Head Pointer must yest be greater than the Tail
 	 * Pointer."
 	 *
-	 * We use ring->head as the last known location of the actual RING_HEAD,
+	 * We use ring->head as the last kyeswn location of the actual RING_HEAD,
 	 * it may have advanced but in the worst case it is equally the same
 	 * as ring->head and so we should never program RING_TAIL to advance
 	 * into the same cacheline as ring->head.
@@ -105,7 +105,7 @@ assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
 static inline unsigned int
 intel_ring_set_tail(struct intel_ring *ring, unsigned int tail)
 {
-	/* Whilst writes to the tail are strictly order, there is no
+	/* Whilst writes to the tail are strictly order, there is yes
 	 * serialisation between readers and the writers. The tail may be
 	 * read by i915_request_retire() just as it is being updated
 	 * by execlists, as although the breadcrumb is complete, the context
@@ -121,7 +121,7 @@ __intel_ring_space(unsigned int head, unsigned int tail, unsigned int size)
 {
 	/*
 	 * "If the Ring Buffer Head Pointer and the Tail Pointer are on the
-	 * same cacheline, the Head Pointer must not be greater than the Tail
+	 * same cacheline, the Head Pointer must yest be greater than the Tail
 	 * Pointer."
 	 */
 	GEM_BUG_ON(!is_power_of_2(size));

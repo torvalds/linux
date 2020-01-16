@@ -1,5 +1,5 @@
 /*
- * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
+ * Copyright 2000 ATI Techyeslogies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
  * Copyright 2008 Red Hat Inc.
  *
@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -98,7 +98,7 @@ enum radeon_output_csc {
 /* radeon gpio-based i2c
  * 1. "mask" reg and bits
  *    grabs the gpio pins for software use
- *    0=not held  1=held
+ *    0=yest held  1=held
  * 2. "a" reg and bits
  *    output pin value
  *    0=low 1=high
@@ -684,7 +684,7 @@ struct atom_voltage_table
 	struct atom_voltage_table_entry entries[MAX_VOLTAGE_ENTRIES];
 };
 
-/* Driver internal use only flags of radeon_get_crtc_scanoutpos() */
+/* Driver internal use only flags of radeon_get_crtc_scayesutpos() */
 #define DRM_SCANOUTPOS_VALID        (1 << 0)
 #define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
 #define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
@@ -876,7 +876,7 @@ extern int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				   int x, int y);
 extern void radeon_cursor_reset(struct drm_crtc *crtc);
 
-extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
+extern int radeon_get_crtc_scayesutpos(struct drm_device *dev, unsigned int pipe,
 				      unsigned int flags, int *vpos, int *hpos,
 				      ktime_t *stime, ktime_t *etime,
 				      const struct drm_display_mode *mode);

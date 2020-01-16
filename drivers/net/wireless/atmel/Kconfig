@@ -23,7 +23,7 @@ config ATMEL
 	  A driver 802.11b wireless cards based on the Atmel fast-vnet
 	  chips. This driver supports standard Linux wireless extensions.
 
-	  Many  cards based on this chipset do not have flash memory
+	  Many  cards based on this chipset do yest have flash memory
 	  and need their firmware loaded at start-up. If yours is
 	  one of these, you will need to provide a firmware image
 	  to be loaded into the card by the driver. The Atmel

@@ -26,10 +26,10 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	int expected)
 
 {
-	struct inode *inode = target_page->mapping->host;
-	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
+	struct iyesde *iyesde = target_page->mapping->host;
+	struct squashfs_sb_info *msblk = iyesde->i_sb->s_fs_info;
 
-	int file_end = (i_size_read(inode) - 1) >> PAGE_SHIFT;
+	int file_end = (i_size_read(iyesde) - 1) >> PAGE_SHIFT;
 	int mask = (1 << (msblk->block_log - PAGE_SHIFT)) - 1;
 	int start_index = target_page->index & ~mask;
 	int end_index = start_index | mask;
@@ -58,7 +58,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	/* Try to grab all the pages covered by the Squashfs block */
 	for (missing_pages = 0, i = 0, n = start_index; i < pages; i++, n++) {
 		page[i] = (n == target_page->index) ? target_page :
-			grab_cache_page_nowait(target_page->mapping, n);
+			grab_cache_page_yeswait(target_page->mapping, n);
 
 		if (page[i] == NULL) {
 			missing_pages++;
@@ -77,7 +77,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 		/*
 		 * Couldn't get one or more pages, this page has either
 		 * been VM reclaimed, but others are still in the page cache
-		 * and uptodate, or we're racing with another thread in
+		 * and uptodate, or we're racing with ayesther thread in
 		 * squashfs_readpage also trying to grab them.  Fall back to
 		 * using an intermediate buffer.
 		 */
@@ -90,7 +90,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	}
 
 	/* Decompress directly into the page cache buffers */
-	res = squashfs_read_data(inode->i_sb, block, bsize, NULL, actor);
+	res = squashfs_read_data(iyesde->i_sb, block, bsize, NULL, actor);
 	if (res < 0)
 		goto mark_errored;
 
@@ -99,7 +99,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 		goto mark_errored;
 	}
 
-	/* Last page may have trailing bytes not filled */
+	/* Last page may have trailing bytes yest filled */
 	bytes = res % PAGE_SIZE;
 	if (bytes) {
 		pageaddr = kmap_atomic(page[pages - 1]);
@@ -144,7 +144,7 @@ out:
 static int squashfs_read_cache(struct page *target_page, u64 block, int bsize,
 	int pages, struct page **page, int bytes)
 {
-	struct inode *i = target_page->mapping->host;
+	struct iyesde *i = target_page->mapping->host;
 	struct squashfs_cache_entry *buffer = squashfs_get_datablock(i->i_sb,
 						 block, bsize);
 	int res = buffer->error, n, offset = 0;

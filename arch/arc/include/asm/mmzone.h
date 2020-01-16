@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2016 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef _ASM_ARC_MMZONE_H
@@ -8,8 +8,8 @@
 
 #ifdef CONFIG_DISCONTIGMEM
 
-extern struct pglist_data node_data[];
-#define NODE_DATA(nid) (&node_data[nid])
+extern struct pglist_data yesde_data[];
+#define NODE_DATA(nid) (&yesde_data[nid])
 
 static inline int pfn_to_nid(unsigned long pfn)
 {
@@ -19,8 +19,8 @@ static inline int pfn_to_nid(unsigned long pfn)
 		is_end_low = pfn <= virt_to_pfn(0xFFFFFFFFUL);
 
 	/*
-	 * node 0: lowmem:             0x8000_0000   to 0xFFFF_FFFF
-	 * node 1: HIGHMEM w/o  PAE40: 0x0           to 0x7FFF_FFFF
+	 * yesde 0: lowmem:             0x8000_0000   to 0xFFFF_FFFF
+	 * yesde 1: HIGHMEM w/o  PAE40: 0x0           to 0x7FFF_FFFF
 	 *         HIGHMEM with PAE40: 0x1_0000_0000 to ...
 	 */
 	if (pfn >= ARCH_PFN_OFFSET && is_end_low)
@@ -33,7 +33,7 @@ static inline int pfn_valid(unsigned long pfn)
 {
 	int nid = pfn_to_nid(pfn);
 
-	return (pfn <= node_end_pfn(nid));
+	return (pfn <= yesde_end_pfn(nid));
 }
 #endif /* CONFIG_DISCONTIGMEM  */
 

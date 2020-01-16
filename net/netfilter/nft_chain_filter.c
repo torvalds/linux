@@ -313,15 +313,15 @@ static void nft_netdev_event(unsigned long event, struct net_device *dev,
 	 *
 	 * Although nf_tables core releases all tables/chains, only this event
 	 * handler provides guarantee that hook->ops.dev is still accessible,
-	 * so we cannot skip exiting net namespaces.
+	 * so we canyest skip exiting net namespaces.
 	 */
 	__nft_release_basechain(ctx);
 }
 
-static int nf_tables_netdev_event(struct notifier_block *this,
+static int nf_tables_netdev_event(struct yestifier_block *this,
 				  unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct nft_table *table;
 	struct nft_chain *chain, *nr;
 	struct nft_ctx ctx = {
@@ -352,8 +352,8 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block nf_tables_netdev_notifier = {
-	.notifier_call	= nf_tables_netdev_event,
+static struct yestifier_block nf_tables_netdev_yestifier = {
+	.yestifier_call	= nf_tables_netdev_event,
 };
 
 static int nft_chain_filter_netdev_init(void)
@@ -362,13 +362,13 @@ static int nft_chain_filter_netdev_init(void)
 
 	nft_register_chain_type(&nft_chain_filter_netdev);
 
-	err = register_netdevice_notifier(&nf_tables_netdev_notifier);
+	err = register_netdevice_yestifier(&nf_tables_netdev_yestifier);
 	if (err)
-		goto err_register_netdevice_notifier;
+		goto err_register_netdevice_yestifier;
 
 	return 0;
 
-err_register_netdevice_notifier:
+err_register_netdevice_yestifier:
 	nft_unregister_chain_type(&nft_chain_filter_netdev);
 
 	return err;
@@ -377,7 +377,7 @@ err_register_netdevice_notifier:
 static void nft_chain_filter_netdev_fini(void)
 {
 	nft_unregister_chain_type(&nft_chain_filter_netdev);
-	unregister_netdevice_notifier(&nf_tables_netdev_notifier);
+	unregister_netdevice_yestifier(&nf_tables_netdev_yestifier);
 }
 #else
 static inline int nft_chain_filter_netdev_init(void) { return 0; }

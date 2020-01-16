@@ -15,12 +15,12 @@
 
 
   This is the chip-specific code for many 8390-based ethernet adaptors.
-  This is not a complete driver, it must be combined with board-specific
+  This is yest a complete driver, it must be combined with board-specific
   code such as ne.c, wd.c, 3c503.c, etc.
 
-  Seeing how at least eight drivers use this code, (not counting the
+  Seeing how at least eight drivers use this code, (yest counting the
   PCMCIA ones either) it is easy to break some card by what seems like
-  a simple innocent change. Please contact me or Donald if you think
+  a simple inyescent change. Please contact me or Donald if you think
   you have found something that needs changing. -- PG
 
 
@@ -61,7 +61,7 @@
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/interrupt.h>
@@ -122,7 +122,7 @@ MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bit
  *	The 8390 isn't exactly designed to be multithreaded on RX/TX. There is
  *	a page register that controls bank and packet buffer access. We guard
  *	this with ei_local->page_lock. Nobody should assume or set the page other
- *	than zero when the lock is not held. Lock holders must restore page 0
+ *	than zero when the lock is yest held. Lock holders must restore page 0
  *	before unlocking. Even pure readers must take the lock to protect in
  *	page 0.
  *
@@ -137,7 +137,7 @@ MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bit
  *	enter lock, take the queued irq. So we waddle instead of flying.
  *
  *	Finally by special arrangement for the purpose of being generally
- *	annoying the transmit function is called bh atomic. That places
+ *	anyesying the transmit function is called bh atomic. That places
  *	restrictions on the user context callers as disable_irq won't save
  *	them.
  *
@@ -150,28 +150,28 @@ MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bit
  *
  *	Ok the logic behind the 8390 is very simple:
  *
- *	Things to know
- *		- IRQ delivery is asynchronous to the PCI bus
+ *	Things to kyesw
+ *		- IRQ delivery is asynchroyesus to the PCI bus
  *		- Blocking the local CPU IRQ via spin locks was too slow
  *		- The chip has register windows needing locking work
  *
  *	So the path was once (I say once as people appear to have changed it
- *	in the mean time and it now looks rather bogus if the changes to use
- *	disable_irq_nosync_irqsave are disabling the local IRQ)
+ *	in the mean time and it yesw looks rather bogus if the changes to use
+ *	disable_irq_yessync_irqsave are disabling the local IRQ)
  *
  *
  *		Take the page lock
  *		Mask the IRQ on chip
- *		Disable the IRQ (but not mask locally- someone seems to have
+ *		Disable the IRQ (but yest mask locally- someone seems to have
  *			broken this with the lock validator stuff)
- *			[This must be _nosync as the page lock may otherwise
+ *			[This must be _yessync as the page lock may otherwise
  *				deadlock us]
  *		Drop the page lock and turn IRQs back on
  *
  *		At this point an existing IRQ may still be running but we can't
  *		get a new one
  *
- *		Take the lock (so we know the IRQ has terminated) but don't mask
+ *		Take the lock (so we kyesw the IRQ has terminated) but don't mask
  *	the IRQs on the processor
  *		Set irqlock [for debug]
  *
@@ -214,7 +214,7 @@ static int __ei_open(struct net_device *dev)
 	spin_lock_irqsave(&ei_local->page_lock, flags);
 	__NS8390_init(dev, 1);
 	/* Set the flag before we drop the lock, That way the IRQ arrives
-	   after its set and we get no silly warnings */
+	   after its set and we get yes silly warnings */
 	netif_start_queue(dev);
 	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 	ei_local->irqlock = 0;
@@ -247,7 +247,7 @@ static int __ei_close(struct net_device *dev)
  * ei_tx_timeout - handle transmit time out condition
  * @dev: network device which has apparently fallen asleep
  *
- * Called by kernel when device never acknowledges a transmit has
+ * Called by kernel when device never ackyeswledges a transmit has
  * completed (or failed) - i.e. never posted a Tx related interrupt.
  */
 
@@ -277,7 +277,7 @@ static void __ei_tx_timeout(struct net_device *dev)
 
 	/* Ugly but a reset can be slow, yet must be protected */
 
-	disable_irq_nosync_lockdep(dev->irq);
+	disable_irq_yessync_lockdep(dev->irq);
 	spin_lock(&ei_local->page_lock);
 
 	/* Try to restart the card.  Perhaps the user has fixed something. */
@@ -316,8 +316,8 @@ static netdev_tx_t __ei_start_xmit(struct sk_buff *skb,
 
 	/* Mask interrupts from the ethercard.
 	   SMP: We have to grab the lock here otherwise the IRQ handler
-	   on another CPU can flip window and race the IRQ mask set. We end
-	   up trashing the mcast filter not disabling irqs if we don't lock */
+	   on ayesther CPU can flip window and race the IRQ mask set. We end
+	   up trashing the mcast filter yest disabling irqs if we don't lock */
 
 	spin_lock_irqsave(&ei_local->page_lock, flags);
 	ei_outb_p(0x00, e8390_base + EN0_IMR);
@@ -328,7 +328,7 @@ static netdev_tx_t __ei_start_xmit(struct sk_buff *skb,
 	 *	Slow phase with lock held.
 	 */
 
-	disable_irq_nosync_lockdep_irqsave(dev->irq, &flags);
+	disable_irq_yessync_lockdep_irqsave(dev->irq, &flags);
 
 	spin_lock(&ei_local->page_lock);
 
@@ -372,7 +372,7 @@ static netdev_tx_t __ei_start_xmit(struct sk_buff *skb,
 	}
 
 	/*
-	 * Okay, now upload the packet and trigger a send if the transmitter
+	 * Okay, yesw upload the packet and trigger a send if the transmitter
 	 * isn't already sending. If it is busy, the interrupt handler will
 	 * trigger the send later, upon receiving a Tx done interrupt.
 	 */
@@ -457,7 +457,7 @@ static irqreturn_t __ei_interrupt(int irq, void *dev_id)
 	       ++nr_serviced < MAX_SERVICE) {
 		if (!netif_running(dev)) {
 			netdev_warn(dev, "interrupt from stopped card\n");
-			/* rmk - acknowledge the interrupts */
+			/* rmk - ackyeswledge the interrupts */
 			ei_outb_p(interrupts, e8390_base + EN0_ISR);
 			interrupts = 0;
 			break;
@@ -481,7 +481,7 @@ static irqreturn_t __ei_interrupt(int irq, void *dev_id)
 			ei_outb_p(ENISR_COUNTERS, e8390_base + EN0_ISR); /* Ack intr. */
 		}
 
-		/* Ignore any RDC interrupts that make it back to here. */
+		/* Igyesre any RDC interrupts that make it back to here. */
 		if (interrupts & ENISR_RDC)
 			ei_outb_p(ENISR_RDC, e8390_base + EN0_ISR);
 
@@ -497,7 +497,7 @@ static irqreturn_t __ei_interrupt(int irq, void *dev_id)
 					    interrupts);
 			ei_outb_p(ENISR_ALL, e8390_base + EN0_ISR); /* Ack. most intrs. */
 		} else {
-			netdev_warn(dev, "unknown interrupt %#2x\n", interrupts);
+			netdev_warn(dev, "unkyeswn interrupt %#2x\n", interrupts);
 			ei_outb_p(0xff, e8390_base + EN0_ISR); /* Ack. all intrs. */
 		}
 	}
@@ -519,8 +519,8 @@ static void __ei_poll(struct net_device *dev)
  * @dev: network device which threw the exception
  *
  * A transmitter error has happened. Most likely excess collisions (which
- * is a fairly normal condition). If the error is one where the Tx will
- * have been aborted, we try and send another one right away, instead of
+ * is a fairly yesrmal condition). If the error is one where the Tx will
+ * have been aborted, we try and send ayesther one right away, instead of
  * letting the failed packet sit and collect dust in the Tx buffer. This
  * is a much better solution as it avoids kernel based Tx timeouts, and
  * an unnecessary card reset.
@@ -541,7 +541,7 @@ static void ei_tx_err(struct net_device *dev)
 	if (txsr & ENTSR_ABT)
 		pr_cont(" excess-collisions ");
 	if (txsr & ENTSR_ND)
-		pr_cont(" non-deferral ");
+		pr_cont(" yesn-deferral ");
 	if (txsr & ENTSR_CRS)
 		pr_cont(" lost-carrier ");
 	if (txsr & ENTSR_FU)
@@ -584,7 +584,7 @@ static void ei_tx_intr(struct net_device *dev)
 
 	/*
 	 * There are two Tx buffers, see which one finished, and trigger
-	 * the send of another one if it exists.
+	 * the send of ayesther one if it exists.
 	 */
 	ei_local->txqueue--;
 
@@ -687,7 +687,7 @@ static void ei_receive(struct net_device *dev)
 				   this_frame, ei_local->current_page);
 
 		if (this_frame == rxing_page)	/* Read all the frames? */
-			break;				/* Done for now */
+			break;				/* Done for yesw */
 
 		current_offset = this_frame << 8;
 		ei_get_8390_hdr(dev, &rx_frame, this_frame);
@@ -753,7 +753,7 @@ static void ei_receive(struct net_device *dev)
 
 		/* This _should_ never happen: it's here for avoiding bad clones. */
 		if (next_frame >= ei_local->stop_page) {
-			netdev_notice(dev, "next frame inconsistency, %#2x\n",
+			netdev_yestice(dev, "next frame inconsistency, %#2x\n",
 				      next_frame);
 			next_frame = ei_local->rx_start_page;
 		}
@@ -798,8 +798,8 @@ static void ei_rx_overrun(struct net_device *dev)
 
 	/*
 	 * Wait a full Tx time (1.2ms) + some guard time, NS says 1.6ms total.
-	 * Early datasheets said to poll the reset bit, but now they say that
-	 * it "is not a reliable indicator and subsequently should be ignored."
+	 * Early datasheets said to poll the reset bit, but yesw they say that
+	 * it "is yest a reliable indicator and subsequently should be igyesred."
 	 * We wait at least 10ms.
 	 */
 
@@ -812,8 +812,8 @@ static void ei_rx_overrun(struct net_device *dev)
 	ei_outb_p(0x00, e8390_base+EN0_RCNTHI);
 
 	/*
-	 * See if any Tx was interrupted or not. According to NS, this
-	 * step is vital, and skipping it will cause no end of havoc.
+	 * See if any Tx was interrupted or yest. According to NS, this
+	 * step is vital, and skipping it will cause yes end of havoc.
 	 */
 
 	if (was_txing) {
@@ -911,7 +911,7 @@ static void do_set_multicast_list(struct net_device *dev)
 	 * DP8390 manuals don't specify any magic sequence for altering
 	 * the multicast regs on an already running card. To be safe, we
 	 * ensure multicast mode is off prior to loading up the new hash
-	 * table. If this proves to be not enough, we can always resort
+	 * table. If this proves to be yest eyesugh, we can always resort
 	 * to stopping the NIC, loading the table and then restarting.
 	 *
 	 * Bug Alert!  The MC regs on the SMC 83C690 (SMC Elite and SMC
@@ -944,7 +944,7 @@ static void do_set_multicast_list(struct net_device *dev)
 /*
  *	Called without lock held. This is invoked from user context and may
  *	be parallel to just about everything else. Its also fairly quick and
- *	not called too often. Must protect against both bh and irq users
+ *	yest called too often. Must protect against both bh and irq users
  */
 
 static void __ei_set_multicast_list(struct net_device *dev)
@@ -1000,7 +1000,7 @@ static struct net_device *____alloc_ei_netdev(int size)
 /**
  * NS8390_init - initialize 8390 hardware
  * @dev: network device to initialize
- * @startp: boolean.  non-zero value to initiate chip processing
+ * @startp: boolean.  yesn-zero value to initiate chip processing
  *
  *	Must be called with lock held.
  */

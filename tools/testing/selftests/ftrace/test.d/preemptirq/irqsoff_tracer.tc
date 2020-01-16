@@ -17,11 +17,11 @@ unsup() { #msg
     exit_unsupported
 }
 
-modprobe $MOD || unsup "$MOD module not available"
+modprobe $MOD || unsup "$MOD module yest available"
 rmmod $MOD
 
-grep -q "preemptoff" available_tracers || unsup "preemptoff tracer not enabled"
-grep -q "irqsoff" available_tracers || unsup "irqsoff tracer not enabled"
+grep -q "preemptoff" available_tracers || unsup "preemptoff tracer yest enabled"
+grep -q "irqsoff" available_tracers || unsup "irqsoff tracer yest enabled"
 
 reset_tracer
 

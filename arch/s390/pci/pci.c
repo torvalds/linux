@@ -568,7 +568,7 @@ int pcibios_add_device(struct pci_dev *pdev)
 	int i;
 
 	if (pdev->is_physfn)
-		pdev->no_vf_scan = 1;
+		pdev->yes_vf_scan = 1;
 
 	pdev->dev.groups = zpci_attr_groups;
 	pdev->dev.dma_ops = &s390_pci_dma_ops;
@@ -643,10 +643,10 @@ static int zpci_freeze(struct device *dev)
 }
 
 struct dev_pm_ops pcibios_pm_ops = {
-	.thaw_noirq = zpci_restore,
-	.freeze_noirq = zpci_freeze,
-	.restore_noirq = zpci_restore,
-	.poweroff_noirq = zpci_freeze,
+	.thaw_yesirq = zpci_restore,
+	.freeze_yesirq = zpci_freeze,
+	.restore_yesirq = zpci_restore,
+	.poweroff_yesirq = zpci_freeze,
 };
 #endif /* CONFIG_HIBERNATE_CALLBACKS */
 
@@ -824,11 +824,11 @@ EXPORT_SYMBOL(zpci_report_error);
 
 static int zpci_mem_init(void)
 {
-	BUILD_BUG_ON(!is_power_of_2(__alignof__(struct zpci_fmb)) ||
-		     __alignof__(struct zpci_fmb) < sizeof(struct zpci_fmb));
+	BUILD_BUG_ON(!is_power_of_2(__aligyesf__(struct zpci_fmb)) ||
+		     __aligyesf__(struct zpci_fmb) < sizeof(struct zpci_fmb));
 
 	zdev_fmb_cache = kmem_cache_create("PCI_FMB_cache", sizeof(struct zpci_fmb),
-					   __alignof__(struct zpci_fmb), 0, NULL);
+					   __aligyesf__(struct zpci_fmb), 0, NULL);
 	if (!zdev_fmb_cache)
 		goto error_fmb;
 
@@ -859,7 +859,7 @@ static void zpci_mem_exit(void)
 }
 
 static unsigned int s390_pci_probe __initdata = 1;
-static unsigned int s390_pci_no_mio __initdata;
+static unsigned int s390_pci_yes_mio __initdata;
 unsigned int s390_pci_force_floating __initdata;
 static unsigned int s390_pci_initialized;
 
@@ -869,8 +869,8 @@ char * __init pcibios_setup(char *str)
 		s390_pci_probe = 0;
 		return NULL;
 	}
-	if (!strcmp(str, "nomio")) {
-		s390_pci_no_mio = 1;
+	if (!strcmp(str, "yesmio")) {
+		s390_pci_yes_mio = 1;
 		return NULL;
 	}
 	if (!strcmp(str, "force_floating")) {
@@ -895,7 +895,7 @@ static int __init pci_base_init(void)
 	if (!test_facility(69) || !test_facility(71))
 		return 0;
 
-	if (test_facility(153) && !s390_pci_no_mio) {
+	if (test_facility(153) && !s390_pci_yes_mio) {
 		static_branch_enable(&have_mio);
 		ctl_set_bit(2, 5);
 	}

@@ -242,28 +242,28 @@ static int el15203000_pattern_clear(struct led_classdev *ldev)
 static int el15203000_probe_dt(struct el15203000 *priv)
 {
 	struct el15203000_led	*led = priv->leds;
-	struct fwnode_handle	*child;
+	struct fwyesde_handle	*child;
 	int			ret;
 
-	device_for_each_child_node(priv->dev, child) {
+	device_for_each_child_yesde(priv->dev, child) {
 		struct led_init_data init_data = {};
 
-		ret = fwnode_property_read_u32(child, "reg", &led->reg);
+		ret = fwyesde_property_read_u32(child, "reg", &led->reg);
 		if (ret) {
 			dev_err(priv->dev, "LED without ID number");
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 
 			break;
 		}
 
 		if (led->reg > U8_MAX) {
 			dev_err(priv->dev, "LED value %d is invalid", led->reg);
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 
 			return -EINVAL;
 		}
 
-		fwnode_property_read_string(child, "linux,default-trigger",
+		fwyesde_property_read_string(child, "linux,default-trigger",
 					    &led->ldev.default_trigger);
 
 		led->priv			  = priv;
@@ -278,14 +278,14 @@ static int el15203000_probe_dt(struct el15203000 *priv)
 			led->ldev.pattern_clear	= el15203000_pattern_clear;
 		}
 
-		init_data.fwnode = child;
+		init_data.fwyesde = child;
 		ret = devm_led_classdev_register_ext(priv->dev, &led->ldev,
 						     &init_data);
 		if (ret) {
 			dev_err(priv->dev,
 				"failed to register LED device %s, err %d",
 				led->ldev.name, ret);
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 
 			break;
 		}
@@ -301,9 +301,9 @@ static int el15203000_probe(struct spi_device *spi)
 	struct el15203000	*priv;
 	size_t			count;
 
-	count = device_get_child_node_count(&spi->dev);
+	count = device_get_child_yesde_count(&spi->dev);
 	if (!count) {
-		dev_err(&spi->dev, "LEDs are not defined in device tree!");
+		dev_err(&spi->dev, "LEDs are yest defined in device tree!");
 		return -ENODEV;
 	}
 

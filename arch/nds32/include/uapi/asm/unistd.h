@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYNC_FILE_RANGE2

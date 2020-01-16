@@ -46,7 +46,7 @@ osi_setup_entries[OSI_STRING_ENTRIES_MAX] __initdata = {
 	{"Processor Aggregator Device", true},
 	/*
 	 * Linux-Dell-Video is used by BIOS to disable RTD3 for NVidia graphics
-	 * cards as RTD3 is not supported by drivers now.  Systems with NVidia
+	 * cards as RTD3 is yest supported by drivers yesw.  Systems with NVidia
 	 * cards will hang without RTD3 disabled.
 	 *
 	 * Once NVidia drivers officially support RTD3, this _OSI strings can
@@ -54,13 +54,13 @@ osi_setup_entries[OSI_STRING_ENTRIES_MAX] __initdata = {
 	 */
 	{"Linux-Dell-Video", true},
 	/*
-	 * Linux-Lenovo-NV-HDMI-Audio is used by BIOS to power on NVidia's HDMI
+	 * Linux-Leyesvo-NV-HDMI-Audio is used by BIOS to power on NVidia's HDMI
 	 * audio device which is turned off for power-saving in Windows OS.
-	 * This power management feature observed on some Lenovo Thinkpad
-	 * systems which will not be able to output audio via HDMI without
+	 * This power management feature observed on some Leyesvo Thinkpad
+	 * systems which will yest be able to output audio via HDMI without
 	 * a BIOS workaround.
 	 */
-	{"Linux-Lenovo-NV-HDMI-Audio", true},
+	{"Linux-Leyesvo-NV-HDMI-Audio", true},
 	/*
 	 * Linux-HPI-Hybrid-Graphics is used by BIOS to enable dGPU to
 	 * output video directly to external monitors on HP Inc. mobile
@@ -73,16 +73,16 @@ osi_setup_entries[OSI_STRING_ENTRIES_MAX] __initdata = {
 static u32 acpi_osi_handler(acpi_string interface, u32 supported)
 {
 	if (!strcmp("Linux", interface)) {
-		pr_notice_once(FW_BUG
+		pr_yestice_once(FW_BUG
 			"BIOS _OSI(Linux) query %s%s\n",
-			osi_config.linux_enable ? "honored" : "ignored",
+			osi_config.linux_enable ? "hoyesred" : "igyesred",
 			osi_config.linux_cmdline ? " via cmdline" :
 			osi_config.linux_dmi ? " via DMI" : "");
 	}
 	if (!strcmp("Darwin", interface)) {
-		pr_notice_once(
+		pr_yestice_once(
 			"BIOS _OSI(Darwin) query %s%s\n",
-			osi_config.darwin_enable ? "honored" : "ignored",
+			osi_config.darwin_enable ? "hoyesred" : "igyesred",
 			osi_config.darwin_cmdline ? " via cmdline" :
 			osi_config.darwin_dmi ? " via DMI" : "");
 	}
@@ -108,7 +108,7 @@ void __init acpi_osi_setup(char *str)
 	if (*str == '!') {
 		str++;
 		if (*str == '\0') {
-			/* Do not override acpi_osi=!* */
+			/* Do yest override acpi_osi=!* */
 			if (!osi_config.default_disabling)
 				osi_config.default_disabling =
 					ACPI_DISABLE_ALL_VENDOR_STRINGS;
@@ -172,11 +172,11 @@ static void __init acpi_osi_setup_darwin(bool enable)
  * incompatibilities.
  *
  * For example, OSI(Linux) was used on resume to re-POST a video card on
- * one system, because Linux at that time could not do a speedy restore in
+ * one system, because Linux at that time could yest do a speedy restore in
  * its native driver. But then upon gaining quick native restore
- * capability, Linux has no way to tell the BIOS to skip the time-consuming
+ * capability, Linux has yes way to tell the BIOS to skip the time-consuming
  * POST -- putting Linux at a permanent performance disadvantage. On
- * another system, the BIOS writer used OSI(Linux) to infer native OS
+ * ayesther system, the BIOS writer used OSI(Linux) to infer native OS
  * support for IPMI!  On other systems, OSI(Linux) simply got in the way of
  * Linux claiming to be compatible with other operating systems, exposing
  * BIOS issues such as skipped device initialization.
@@ -271,7 +271,7 @@ EXPORT_SYMBOL(acpi_osi_is_win8);
 
 static void __init acpi_osi_dmi_darwin(void)
 {
-	pr_notice("DMI detected to setup _OSI(\"Darwin\"): Apple hardware\n");
+	pr_yestice("DMI detected to setup _OSI(\"Darwin\"): Apple hardware\n");
 	osi_config.darwin_dmi = 1;
 	__acpi_osi_setup_darwin(true);
 }
@@ -279,7 +279,7 @@ static void __init acpi_osi_dmi_darwin(void)
 static void __init acpi_osi_dmi_linux(bool enable,
 				      const struct dmi_system_id *d)
 {
-	pr_notice("DMI detected to setup _OSI(\"Linux\"): %s\n", d->ident);
+	pr_yestice("DMI detected to setup _OSI(\"Linux\"): %s\n", d->ident);
 	osi_config.linux_dmi = 1;
 	__acpi_osi_setup_linux(enable);
 }
@@ -293,7 +293,7 @@ static int __init dmi_enable_osi_linux(const struct dmi_system_id *d)
 
 static int __init dmi_disable_osi_vista(const struct dmi_system_id *d)
 {
-	pr_notice("DMI detected: %s\n", d->ident);
+	pr_yestice("DMI detected: %s\n", d->ident);
 	acpi_osi_setup("!Windows 2006");
 	acpi_osi_setup("!Windows 2006 SP1");
 	acpi_osi_setup("!Windows 2006 SP2");
@@ -303,7 +303,7 @@ static int __init dmi_disable_osi_vista(const struct dmi_system_id *d)
 
 static int __init dmi_disable_osi_win7(const struct dmi_system_id *d)
 {
-	pr_notice("DMI detected: %s\n", d->ident);
+	pr_yestice("DMI detected: %s\n", d->ident);
 	acpi_osi_setup("!Windows 2009");
 
 	return 0;
@@ -311,7 +311,7 @@ static int __init dmi_disable_osi_win7(const struct dmi_system_id *d)
 
 static int __init dmi_disable_osi_win8(const struct dmi_system_id *d)
 {
-	pr_notice("DMI detected: %s\n", d->ident);
+	pr_yestice("DMI detected: %s\n", d->ident);
 	acpi_osi_setup("!Windows 2012");
 
 	return 0;
@@ -335,12 +335,12 @@ static const struct dmi_system_id acpi_osi_dmi_table[] __initconst = {
 	{
 	/*
 	 * There have a NVIF method in MSI GX723 DSDT need call by Nvidia
-	 * driver (e.g. nouveau) when user press brightness hotkey.
-	 * Currently, nouveau driver didn't do the job and it causes there
+	 * driver (e.g. yesuveau) when user press brightness hotkey.
+	 * Currently, yesuveau driver didn't do the job and it causes there
 	 * have a infinite while loop in DSDT when user press hotkey.
 	 * We add MSI GX723's dmi information to this table for workaround
 	 * this issue.
-	 * Will remove MSI GX723 from the table after nouveau grows support.
+	 * Will remove MSI GX723 from the table after yesuveau grows support.
 	 */
 	.callback = dmi_disable_osi_vista,
 	.ident = "MSI GX723",
@@ -415,7 +415,7 @@ static const struct dmi_system_id acpi_osi_dmi_table[] __initconst = {
 	},
 
 	/*
-	 * The wireless hotkey does not work on those machines when
+	 * The wireless hotkey does yest work on those machines when
 	 * returning true for _OSI("Windows 2012")
 	 */
 	{
@@ -469,13 +469,13 @@ static const struct dmi_system_id acpi_osi_dmi_table[] __initconst = {
 
 	/*
 	 * BIOS invocation of _OSI(Linux) is almost always a BIOS bug.
-	 * Linux ignores it, except for the machines enumerated below.
+	 * Linux igyesres it, except for the machines enumerated below.
 	 */
 
 	/*
-	 * Without this EEEpc exports a non working WMI interface, with
+	 * Without this EEEpc exports a yesn working WMI interface, with
 	 * this it exports a working "good old" eeepc_laptop interface,
-	 * fixing both brightness control, and rfkill not working.
+	 * fixing both brightness control, and rfkill yest working.
 	 */
 	{
 	.callback = dmi_enable_osi_linux,

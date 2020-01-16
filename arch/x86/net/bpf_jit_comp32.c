@@ -14,7 +14,7 @@
 #include <linux/if_vlan.h>
 #include <asm/cacheflush.h>
 #include <asm/set_memory.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <linux/bpf.h>
 
 /*
@@ -346,7 +346,7 @@ static inline void emit_ia32_to_le_r64(const u8 dst[], s32 val,
 			EMIT2(0x33, add_2reg(0xC0, dreg_hi, dreg_hi));
 		break;
 	case 64:
-		/* nop */
+		/* yesp */
 		break;
 	}
 
@@ -1194,7 +1194,7 @@ struct jit_context {
 
 /*
  * Emit prologue code for BPF program and check it's size.
- * bpf_tail_call helper will skip it while jumping into another program.
+ * bpf_tail_call helper will skip it while jumping into ayesther program.
  */
 static void emit_prologue(u8 **pprog, u32 stack_depth)
 {
@@ -1617,7 +1617,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		case BPF_ALU64 | BPF_DIV | BPF_X:
 		case BPF_ALU64 | BPF_MOD | BPF_K:
 		case BPF_ALU64 | BPF_MOD | BPF_X:
-			goto notyet;
+			goto yestyet;
 		/* dst = dst >> imm */
 		/* dst = dst << imm */
 		case BPF_ALU | BPF_RSH | BPF_K:
@@ -1884,7 +1884,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			const u8 *r5 = bpf2ia32[BPF_REG_5];
 
 			if (insn->src_reg == BPF_PSEUDO_CALL)
-				goto notyet;
+				goto yestyet;
 
 			func = (u8 *) __bpf_call_base + imm32;
 			jmp_offset = func - (image + addrs[i]);
@@ -2213,7 +2213,7 @@ emit_cond_jmp_signed:	/* Check the condition for low 32-bit comparison */
 				jmp_offset = addrs[i + insn->off] - addrs[i];
 
 			if (!jmp_offset)
-				/* Optimize out nop jumps */
+				/* Optimize out yesp jumps */
 				break;
 emit_jmp:
 			if (is_imm8(jmp_offset)) {
@@ -2229,7 +2229,7 @@ emit_jmp:
 		case BPF_STX | BPF_XADD | BPF_W:
 		/* STX XADD: lock *(u64 *)(dst + off) += src */
 		case BPF_STX | BPF_XADD | BPF_DW:
-			goto notyet;
+			goto yestyet;
 		case BPF_JMP | BPF_EXIT:
 			if (seen_exit) {
 				jmp_offset = ctx->cleanup_addr - addrs[i];
@@ -2240,16 +2240,16 @@ emit_jmp:
 			ctx->cleanup_addr = proglen;
 			emit_epilogue(&prog, bpf_prog->aux->stack_depth);
 			break;
-notyet:
+yestyet:
 			pr_info_once("*** NOT YET: opcode %02x ***\n", code);
 			return -EFAULT;
 		default:
 			/*
 			 * This error will be seen if new instruction was added
-			 * to interpreter, but not to JIT or if there is junk in
+			 * to interpreter, but yest to JIT or if there is junk in
 			 * bpf_prog
 			 */
-			pr_err("bpf_jit: unknown opcode %02x\n", code);
+			pr_err("bpf_jit: unkyeswn opcode %02x\n", code);
 			return -EINVAL;
 		}
 

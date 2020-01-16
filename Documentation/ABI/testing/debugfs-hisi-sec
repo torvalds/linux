@@ -10,7 +10,7 @@ Contact:        linux-crypto@vger.kernel.org
 Description:    Enabling/disabling of clear action after reading
 		the SEC debug registers.
 		0: disable, 1: enable.
-		Only available for PF, and take no other effect on SEC.
+		Only available for PF, and take yes other effect on SEC.
 
 What:           /sys/kernel/debug/hisi_sec/<bdf>/current_qm
 Date:           Oct 2019
@@ -40,4 +40,4 @@ Contact:        linux-crypto@vger.kernel.org
 Description:    Enabling/disabling of clear action after reading
 		the SEC's QM debug registers.
 		0: disable, 1: enable.
-		Only available for PF, and take no other effect on SEC.
+		Only available for PF, and take yes other effect on SEC.

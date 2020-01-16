@@ -10,12 +10,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -43,13 +43,13 @@
  *
  * ARCHITECTURE
  *
- * This driver listens to notifications sent from the notification
- * endpoint (in usb-notif.c); when data is ready to read, the code in
+ * This driver listens to yestifications sent from the yestification
+ * endpoint (in usb-yestif.c); when data is ready to read, the code in
  * there schedules a read from the device (usb-rx.c) and then passes
  * the data to the generic RX code (rx.c).
  *
  * When the generic driver needs to send data (network or control), it
- * queues up in the TX FIFO (tx.c) and that will notify the driver
+ * queues up in the TX FIFO (tx.c) and that will yestify the driver
  * through the i2400m->bus_tx_kick() callback
  * (usb-tx.c:i2400mu_bus_tx_kick) which will send the items in the
  * FIFO queue.
@@ -90,7 +90,7 @@ struct edc {
 
 struct i2400m_endpoint_cfg {
 	unsigned char bulk_out;
-	unsigned char notification;
+	unsigned char yestification;
 	unsigned char reset_cold;
 	unsigned char bulk_in;
 };
@@ -111,8 +111,8 @@ static inline void edc_init(struct edc *edc)
  *     exceeded. 0 otherwise.
  *
  * This is way to determine if the number of acceptable errors per time
- * period has been exceeded. It is not accurate as there are cases in which
- * this scheme will not work, for example if there are periodic occurrences
+ * period has been exceeded. It is yest accurate as there are cases in which
+ * this scheme will yest work, for example if there are periodic occurrences
  * of errors that straddle updates to the start time. This scheme is
  * sufficient for our usage.
  *
@@ -123,20 +123,20 @@ static inline void edc_init(struct edc *edc)
  *        if (edc_inc(&my->edc, MAX_ERRORS, MAX_TIMEFRAME))
  * 	           Ops, hard error, do something about it
  *        else
- *                 Retry or ignore, depending on whatever
+ *                 Retry or igyesre, depending on whatever
  * }
  */
 static inline int edc_inc(struct edc *edc, u16 max_err, u16 timeframe)
 {
-	unsigned long now;
+	unsigned long yesw;
 
-	now = jiffies;
-	if (time_after(now, edc->timestart + timeframe)) {
+	yesw = jiffies;
+	if (time_after(yesw, edc->timestart + timeframe)) {
 		edc->errorcount = 1;
-		edc->timestart = now;
+		edc->timestart = yesw;
 	} else if (++edc->errorcount > max_err) {
 		edc->errorcount = 0;
-		edc->timestart = now;
+		edc->timestart = yesw;
 		return 1;
 	}
 	return 0;
@@ -170,17 +170,17 @@ enum {
  * @usb_iface: pointer to our USB interface
  *
  * @urb_edc: error density counter; used to keep a density-on-time tab
- *     on how many soft (retryable or ignorable) errors we get. If we
+ *     on how many soft (retryable or igyesrable) errors we get. If we
  *     go over the threshold, we consider the bus transport is failing
  *     too much and reset.
  *
- * @notif_urb: URB for receiving notifications from the device.
+ * @yestif_urb: URB for receiving yestifications from the device.
  *
  * @tx_kthread: thread we use for data TX. We use a thread because in
  *     order to do deep power saving and put the device to sleep, we
  *     need to call usb_autopm_*() [blocking functions].
  *
- * @tx_wq: waitqueue for the TX kthread to sleep when there is no data
+ * @tx_wq: waitqueue for the TX kthread to sleep when there is yes data
  *     to be sent; when more data is available, it is woken up by
  *     i2400mu_bus_tx_kick().
  *
@@ -188,12 +188,12 @@ enum {
  *     order to do deep power saving and put the device to sleep, we
  *     need to call usb_autopm_*() [blocking functions].
  *
- * @rx_wq: waitqueue for the RX kthread to sleep when there is no data
+ * @rx_wq: waitqueue for the RX kthread to sleep when there is yes data
  *     to receive. When data is available, it is woken up by
- *     usb-notif.c:i2400mu_notification_grok().
+ *     usb-yestif.c:i2400mu_yestification_grok().
  *
- * @rx_pending_count: number of rx-data-ready notifications that were
- *     still not handled by the RX kthread.
+ * @rx_pending_count: number of rx-data-ready yestifications that were
+ *     still yest handled by the RX kthread.
  *
  * @rx_size: current RX buffer size that is being used.
  *
@@ -211,7 +211,7 @@ enum {
  *     automatically based on the average size of the received
  *     transactions. This allows the receive code to allocate smaller
  *     chunks of memory and thus reduce pressure on the memory
- *     allocator by not wasting so much space. By default it is
+ *     allocator by yest wasting so much space. By default it is
  *     enabled.
  *
  * @debugfs_dentry: hookup for debugfs files.
@@ -227,7 +227,7 @@ struct i2400mu {
 	struct edc urb_edc;		/* Error density counter */
 	struct i2400m_endpoint_cfg endpoint_cfg;
 
-	struct urb *notif_urb;
+	struct urb *yestif_urb;
 	struct task_struct *tx_kthread;
 	wait_queue_head_t tx_wq;
 
@@ -256,8 +256,8 @@ void i2400mu_init(struct i2400mu *i2400mu)
 	i2400mu->rx_size_auto_shrink = 1;
 }
 
-int i2400mu_notification_setup(struct i2400mu *);
-void i2400mu_notification_release(struct i2400mu *);
+int i2400mu_yestification_setup(struct i2400mu *);
+void i2400mu_yestification_release(struct i2400mu *);
 
 int i2400mu_rx_setup(struct i2400mu *);
 void i2400mu_rx_release(struct i2400mu *);

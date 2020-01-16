@@ -26,7 +26,7 @@
 
 static unsigned long keystone_dma_pfn_offset __read_mostly;
 
-static int keystone_platform_notifier(struct notifier_block *nb,
+static int keystone_platform_yestifier(struct yestifier_block *nb,
 				      unsigned long event, void *data)
 {
 	struct device *dev = data;
@@ -37,7 +37,7 @@ static int keystone_platform_notifier(struct notifier_block *nb,
 	if (!dev)
 		return NOTIFY_BAD;
 
-	if (!dev->of_node) {
+	if (!dev->of_yesde) {
 		dev->dma_pfn_offset = keystone_dma_pfn_offset;
 		dev_err(dev, "set dma_pfn_offset%08lx\n",
 			dev->dma_pfn_offset);
@@ -45,8 +45,8 @@ static int keystone_platform_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block platform_nb = {
-	.notifier_call = keystone_platform_notifier,
+static struct yestifier_block platform_nb = {
+	.yestifier_call = keystone_platform_yestifier,
 };
 
 static void __init keystone_init(void)
@@ -54,7 +54,7 @@ static void __init keystone_init(void)
 	if (PHYS_OFFSET >= KEYSTONE_HIGH_PHYS_START) {
 		keystone_dma_pfn_offset = PFN_DOWN(KEYSTONE_HIGH_PHYS_START -
 						   KEYSTONE_LOW_PHYS_START);
-		bus_register_notifier(&platform_bus_type, &platform_nb);
+		bus_register_yestifier(&platform_bus_type, &platform_nb);
 	}
 	keystone_pm_runtime_init();
 }
@@ -67,7 +67,7 @@ static long long __init keystone_pv_fixup(void)
 	mem_start = memblock_start_of_DRAM();
 	mem_end = memblock_end_of_DRAM();
 
-	/* nothing to do if we are running out of the <32-bit space */
+	/* yesthing to do if we are running out of the <32-bit space */
 	if (mem_start >= KEYSTONE_LOW_PHYS_START &&
 	    mem_end   <= KEYSTONE_LOW_PHYS_END)
 		return 0;

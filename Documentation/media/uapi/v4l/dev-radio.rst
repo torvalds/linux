@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _radio:
 
@@ -18,7 +18,7 @@ transmitters.
 
 Conventionally V4L2 radio devices are accessed through character device
 special files named ``/dev/radio`` and ``/dev/radio0`` to
-``/dev/radio63`` with major number 81 and minor numbers 64 to 127.
+``/dev/radio63`` with major number 81 and miyesr numbers 64 to 127.
 
 
 Querying Capabilities
@@ -38,7 +38,7 @@ Supplemental Functions
 Radio devices can support :ref:`controls <control>`, and must support
 the :ref:`tuner or modulator <tuner>` ioctls.
 
-They do not support the video input or output, audio input or output,
+They do yest support the video input or output, audio input or output,
 video standard, cropping and scaling, compression and streaming
 parameter, or overlay ioctls. All other ioctls and I/O methods are
 reserved for future extensions.

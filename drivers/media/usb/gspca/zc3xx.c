@@ -116,7 +116,7 @@ static const struct v4l2_pix_format sif_mode[] = {
 
 /*
  * Bridge reg08 bits 1-2 -> JPEG quality conversion table. Note the highest
- * quality setting is not usable as USB 1 does not have enough bandwidth.
+ * quality setting is yest usable as USB 1 does yest have eyesugh bandwidth.
  */
 static u8 jpeg_qual[] = {50, 75, 87, /* 94 */};
 
@@ -3597,7 +3597,7 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 /* Gains */
 	{0xa0, 0xa0, ZC3XX_R1A8_DIGITALGAIN},
-/* Unknown */
+/* Unkyeswn */
 	{0xa0, 0x00, 0x01ad},
 /* Sharpness */
 	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
@@ -3713,7 +3713,7 @@ static const struct usb_action pas106b_Initial[] = {	/* 352x288 */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 /* Gains */
 	{0xa0, 0xa0, ZC3XX_R1A8_DIGITALGAIN},
-/* Unknown */
+/* Unkyeswn */
 	{0xa0, 0x00, 0x01ad},
 /* Sharpness */
 	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
@@ -5968,13 +5968,13 @@ static void transfer_update(struct work_struct *work)
 		if (change) {				/* overflow */
 			good = 0;
 
-			if (reg07 == 0) /* Bit Rate Control not enabled? */
+			if (reg07 == 0) /* Bit Rate Control yest enabled? */
 				reg07 = 0x32; /* Allow 98 bytes / unit */
 			else if (reg07 > 2)
 				reg07 -= 2; /* Decrease allowed bytes / unit */
 			else
 				change = 0;
-		} else {				/* no overflow */
+		} else {				/* yes overflow */
 			good++;
 			if (good >= 10) {
 				good = 0;
@@ -6000,7 +6000,7 @@ static void transfer_update(struct work_struct *work)
 	mutex_unlock(&gspca_dev->usb_lock);
 }
 
-static void send_unknown(struct gspca_dev *gspca_dev, int sensor)
+static void send_unkyeswn(struct gspca_dev *gspca_dev, int sensor)
 {
 	reg_w(gspca_dev, 0x01, 0x0000);		/* bridge reset */
 	switch (sensor) {
@@ -6053,7 +6053,7 @@ static int sif_probe(struct gspca_dev *gspca_dev)
 			| ((i2c_read(gspca_dev, 0x01) & 0xf0) >> 4);
 	gspca_dbg(gspca_dev, D_PROBE, "probe sif 0x%04x\n", checkword);
 	if (checkword == 0x0007) {
-		send_unknown(gspca_dev, SENSOR_PAS106);
+		send_unkyeswn(gspca_dev, SENSOR_PAS106);
 		return 0x0f;			/* PAS106 */
 	}
 	return -1;
@@ -6116,7 +6116,7 @@ static int vga_2wr_probe(struct gspca_dev *gspca_dev)
 	msleep(50);
 	retword = i2c_read(gspca_dev, 0x03);
 	if (retword != 0) {
-		send_unknown(gspca_dev, SENSOR_PAS202B);
+		send_unkyeswn(gspca_dev, SENSOR_PAS202B);
 		return 0x0e;			/* PAS202BCB */
 	}
 
@@ -6148,7 +6148,7 @@ ov_check:
 	case 0x7648:				/* OV7648 */
 		break;
 	default:
-		return -1;			/* not OmniVision */
+		return -1;			/* yest OmniVision */
 	}
 	return retword;
 }
@@ -6203,7 +6203,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	for (i = 0; i < ARRAY_SIZE(chipset_revision_sensor); i++) {
 		if (chipset_revision_sensor[i].revision == retword) {
 			sd->chip_revision = retword;
-			send_unknown(gspca_dev, SENSOR_PB0330);
+			send_unkyeswn(gspca_dev, SENSOR_PB0330);
 			return chipset_revision_sensor[i].internal_sensor_id;
 		}
 	}
@@ -6235,7 +6235,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 		if (retword == 0x0011)			/* gc0303 */
 			return 0x0303;
 		if (retword == 0x0029)			/* gc0305 */
-			send_unknown(gspca_dev, SENSOR_GC0305);
+			send_unkyeswn(gspca_dev, SENSOR_GC0305);
 		return retword;
 	}
 
@@ -6248,7 +6248,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x05, 0x0012);
 	if (i2c_read(gspca_dev, 0x1c) == 0x007f	/* OV7610 - manufacturer ID */
 	    && i2c_read(gspca_dev, 0x1d) == 0x00a2) {
-		send_unknown(gspca_dev, SENSOR_OV7620);
+		send_unkyeswn(gspca_dev, SENSOR_OV7620);
 		return 0x06;		/* OmniVision confirm ? */
 	}
 
@@ -6270,7 +6270,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 		gspca_dbg(gspca_dev, D_PROBE, "sensor PO2030 rev 0x%02x\n",
 			  retbyte);
 
-		send_unknown(gspca_dev, SENSOR_PO2030);
+		send_unkyeswn(gspca_dev, SENSOR_PO2030);
 		return retword;
 	}
 
@@ -6300,7 +6300,7 @@ static int zcxx_probeSensor(struct gspca_dev *gspca_dev)
 	case SENSOR_MC501CB:
 		return -1;		/* don't probe */
 	case SENSOR_GC0303:
-			/* may probe but with no write in reg 0x0010 */
+			/* may probe but with yes write in reg 0x0010 */
 		return -1;		/* don't probe */
 	case SENSOR_PAS106:
 		sensor =  sif_probe(gspca_dev);
@@ -6467,7 +6467,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			jpeg_qual[0], jpeg_qual[ARRAY_SIZE(jpeg_qual) - 1], 1,
 			jpeg_qual[REG08_DEF >> 1]);
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	v4l2_ctrl_cluster(3, &sd->gamma);
@@ -6522,7 +6522,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				gspca_dbg(gspca_dev, D_PROBE, "Sensor GC0303\n");
 				break;
 			default:
-				pr_warn("Unknown sensor - set to TAS5130C\n");
+				pr_warn("Unkyeswn sensor - set to TAS5130C\n");
 				sd->sensor = SENSOR_TAS5130C;
 			}
 			break;
@@ -6627,7 +6627,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			sd->sensor = SENSOR_OV7620;	/* same sensor (?) */
 			break;
 		default:
-			pr_err("Unknown sensor %04x\n", sensor);
+			pr_err("Unkyeswn sensor %04x\n", sensor);
 			return -EINVAL;
 		}
 	}
@@ -6773,7 +6773,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 	setsharpness(gspca_dev, v4l2_ctrl_g_ctrl(sd->sharpness));
 
-	/* set the gamma tables when not set */
+	/* set the gamma tables when yest set */
 	switch (sd->sensor) {
 	case SENSOR_CS2102K:		/* gamma set in xxx_Initial */
 	case SENSOR_HDCS2020:
@@ -6854,7 +6854,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	mutex_lock(&gspca_dev->usb_lock);
 	if (!gspca_dev->present)
 		return;
-	send_unknown(gspca_dev, sd->sensor);
+	send_unkyeswn(gspca_dev, sd->sensor);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,

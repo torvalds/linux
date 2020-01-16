@@ -36,7 +36,7 @@ at 0xfa00000 and the RPM message ram at 0xfc428000:
 
 		smem_region: smem@fa00000 {
 			reg = <0xfa00000 0x200000>;
-			no-map;
+			yes-map;
 		};
 	};
 

@@ -56,9 +56,9 @@ static int thunder_mmc_register_interrupts(struct cvm_mmc_host *host,
 static int thunder_mmc_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *id)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
-	struct device_node *child_node;
+	struct device_yesde *child_yesde;
 	struct cvm_mmc_host *host;
 	int ret, i = 0;
 
@@ -124,15 +124,15 @@ static int thunder_mmc_probe(struct pci_dev *pdev,
 	if (ret)
 		goto error;
 
-	for_each_child_of_node(node, child_node) {
+	for_each_child_of_yesde(yesde, child_yesde) {
 		/*
 		 * mmc_of_parse and devm* require one device per slot.
-		 * Create a dummy device per slot and set the node pointer to
+		 * Create a dummy device per slot and set the yesde pointer to
 		 * the slot. The easiest way to get this is using
 		 * of_platform_device_create.
 		 */
-		if (of_device_is_compatible(child_node, "mmc-slot")) {
-			host->slot_pdev[i] = of_platform_device_create(child_node, NULL,
+		if (of_device_is_compatible(child_yesde, "mmc-slot")) {
+			host->slot_pdev[i] = of_platform_device_create(child_yesde, NULL,
 								       &pdev->dev);
 			if (!host->slot_pdev[i])
 				continue;

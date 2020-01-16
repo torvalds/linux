@@ -55,7 +55,7 @@ static struct cx231xx_reg_seq RDE250_XCV_TUNER[] = {
  */
 struct cx231xx_board cx231xx_boards[] = {
 	[CX231XX_BOARD_UNKNOWN] = {
-		.name = "Unknown CX231xx video grabber",
+		.name = "Unkyeswn CX231xx video grabber",
 		.tuner_type = TUNER_ABSENT,
 		.input = {{
 				.type = CX231XX_VMUX_TELEVISION,
@@ -95,7 +95,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x02,
-		.norm = V4L2_STD_PAL,
+		.yesrm = V4L2_STD_PAL,
 
 		.input = {{
 				.type = CX231XX_VMUX_TELEVISION,
@@ -135,7 +135,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x32,
-		.norm = V4L2_STD_NTSC,
+		.yesrm = V4L2_STD_NTSC,
 
 		.input = {{
 				.type = CX231XX_VMUX_TELEVISION,
@@ -175,7 +175,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x02,
-		.norm = V4L2_STD_PAL,
+		.yesrm = V4L2_STD_PAL,
 
 		.input = {{
 				.type = CX231XX_VMUX_TELEVISION,
@@ -216,7 +216,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x02,
-		.norm = V4L2_STD_PAL,
+		.yesrm = V4L2_STD_PAL,
 
 		.input = {{
 				.type = CX231XX_VMUX_TELEVISION,
@@ -246,11 +246,11 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x1c,
 		.gpio_pin_status_mask = 0x4001000,
-		.norm = V4L2_STD_PAL,
-		.no_alt_vanc = 1,
+		.yesrm = V4L2_STD_PAL,
+		.yes_alt_vanc = 1,
 		.external_av = 1,
 		/* Actually, it has a 417, but it isn't working correctly.
-		 * So set to 0 for now until someone can manage to get this
+		 * So set to 0 for yesw until someone can manage to get this
 		 * to work reliably. */
 		.has_417 = 0,
 
@@ -287,7 +287,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x02,
-		.norm = V4L2_STD_PAL,
+		.yesrm = V4L2_STD_PAL,
 
 		.input = {{
 				.type = CX231XX_VMUX_TELEVISION,
@@ -315,7 +315,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x32,
-		.norm = V4L2_STD_NTSC,
+		.yesrm = V4L2_STD_NTSC,
 
 		.input = {{
 				.type = CX231XX_VMUX_TELEVISION,
@@ -343,7 +343,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_1_MUX_1,
 		.has_dvb = 1,
 		.demod_addr = 0x0e,
-		.norm = V4L2_STD_NTSC,
+		.yesrm = V4L2_STD_NTSC,
 
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
@@ -373,8 +373,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.norm = V4L2_STD_NTSC,
-		.no_alt_vanc = 1,
+		.yesrm = V4L2_STD_NTSC,
+		.yes_alt_vanc = 1,
 		.external_av = 1,
 		.input = {{
 			.type = CX231XX_VMUX_COMPOSITE1,
@@ -408,7 +408,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ir_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x10,
-		.norm = V4L2_STD_PAL_M,
+		.yesrm = V4L2_STD_PAL_M,
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
 			.vmux = CX231XX_VIN_3_1,
@@ -446,7 +446,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ir_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x10,
-		.norm = V4L2_STD_NTSC_M,
+		.yesrm = V4L2_STD_NTSC_M,
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
 			.vmux = CX231XX_VIN_3_1,
@@ -485,7 +485,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.rc_map_name = RC_MAP_PIXELVIEW_002T,
 		.has_dvb = 1,
 		.demod_addr = 0x10,
-		.norm = V4L2_STD_PAL_M,
+		.yesrm = V4L2_STD_PAL_M,
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
 			.vmux = CX231XX_VIN_3_1,
@@ -514,8 +514,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.norm = V4L2_STD_NTSC,
-		.no_alt_vanc = 1,
+		.yesrm = V4L2_STD_NTSC,
+		.yes_alt_vanc = 1,
 		.external_av = 1,
 
 		.input = {{
@@ -572,7 +572,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_3,
-		.norm = V4L2_STD_PAL,
+		.yesrm = V4L2_STD_PAL,
 
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
@@ -607,7 +607,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_3,
-		.norm = V4L2_STD_NTSC,
+		.yesrm = V4L2_STD_NTSC,
 
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
@@ -637,8 +637,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.norm = V4L2_STD_NTSC,
-		.no_alt_vanc = 1,
+		.yesrm = V4L2_STD_NTSC,
+		.yes_alt_vanc = 1,
 		.external_av = 1,
 		.input = {{
 			.type = CX231XX_VMUX_COMPOSITE1,
@@ -663,13 +663,13 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 			/* According with PV CxPlrCAP.inf file */
 		.gpio_pin_status_mask = 0x4001000,
-		.norm = V4L2_STD_NTSC,
-		.no_alt_vanc = 1,
+		.yesrm = V4L2_STD_NTSC,
+		.yes_alt_vanc = 1,
 		.external_av = 1,
 		/*.has_417 = 1, */
 		/* This board is believed to have a hardware encoding chip
-		 * supporting mpeg1/2/4, but as the 417 is apparently not
-		 * working for the reference board it is not here either. */
+		 * supporting mpeg1/2/4, but as the 417 is apparently yest
+		 * working for the reference board it is yest here either. */
 
 		.input = {{
 				.type = CX231XX_VMUX_COMPOSITE1,
@@ -704,7 +704,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
 		.demod_addr = 0x64, /* 0xc8 >> 1 */
-		.norm = V4L2_STD_PAL,
+		.yesrm = V4L2_STD_PAL,
 
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
@@ -743,7 +743,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
 		.demod_addr = 0x64, /* 0xc8 >> 1 */
-		.norm = V4L2_STD_PAL,
+		.yesrm = V4L2_STD_PAL,
 
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
@@ -782,7 +782,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
 		.demod_addr = 0x59, /* 0xb2 >> 1 */
-		.norm = V4L2_STD_NTSC,
+		.yesrm = V4L2_STD_NTSC,
 
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
@@ -812,8 +812,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.norm = V4L2_STD_PAL,
-		.no_alt_vanc = 1,
+		.yesrm = V4L2_STD_PAL,
+		.yes_alt_vanc = 1,
 		.external_av = 1,
 		.input = {{
 			.type = CX231XX_VMUX_COMPOSITE1,
@@ -836,7 +836,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
 		.decoder = CX231XX_AVDECODER,
-		.norm = V4L2_STD_PAL,
+		.yesrm = V4L2_STD_PAL,
 		.output_mode = OUT_MODE_VIP11,
 		.tuner_addr = 0x60, /* 0xc0 >> 1 */
 		.tuner_i2c_master = I2C_2,
@@ -867,7 +867,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_addr = 0x18, /* 0x30 >> 1 */
 		.demod_i2c_master = I2C_1_MUX_1,
 		.gpio_pin_status_mask = 0xa,
-		.norm = V4L2_STD_NTSC,
+		.yesrm = V4L2_STD_NTSC,
 		.tuner_addr = 0x3a, /* 0x74 >> 1 */
 		.tuner_i2c_master = I2C_1_MUX_3,
 		.tuner_scl_gpio = 0x1a,
@@ -893,8 +893,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.norm = V4L2_STD_PAL,
-		.no_alt_vanc = 1,
+		.yesrm = V4L2_STD_PAL,
+		.yes_alt_vanc = 1,
 		.external_av = 1,
 		.input = {{
 			.type = CX231XX_VMUX_COMPOSITE1,
@@ -928,7 +928,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
 		.demod_addr = 0x64, /* 0xc8 >> 1 */
-		.norm = V4L2_STD_PAL,
+		.yesrm = V4L2_STD_PAL,
 
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
@@ -968,7 +968,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.has_dvb = 1,
 		.demod_addr = 0x59, /* 0xb2 >> 1 */
 		.demod_addr2 = 0x64, /* 0xc8 >> 1 */
-		.norm = V4L2_STD_ALL,
+		.yesrm = V4L2_STD_ALL,
 
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
@@ -1372,7 +1372,7 @@ void cx231xx_release_resources(struct cx231xx *dev)
 	usb_put_dev(dev->udev);
 
 	/* Mark device as unused */
-	clear_bit(dev->devno, &cx231xx_devused);
+	clear_bit(dev->devyes, &cx231xx_devused);
 }
 
 static int cx231xx_media_device_init(struct cx231xx *dev,
@@ -1397,7 +1397,7 @@ static int cx231xx_media_device_init(struct cx231xx *dev,
  * allocates and inits the device structs, registers i2c bus and v4l device
  */
 static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
-			    int minor)
+			    int miyesr)
 {
 	int retval = -ENOMEM;
 	unsigned int maxh, maxw;
@@ -1445,8 +1445,8 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 		return -ENOMEM;
 	}
 
-	/* set default norm */
-	dev->norm = dev->board.norm;
+	/* set default yesrm */
+	dev->yesrm = dev->board.yesrm;
 
 	/* register i2c bus */
 	retval = cx231xx_dev_init(dev);
@@ -1463,8 +1463,8 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	/* configure the device */
 	cx231xx_config_i2c(dev);
 
-	maxw = norm_maxw(dev);
-	maxh = norm_maxh(dev);
+	maxw = yesrm_maxw(dev);
+	maxh = yesrm_maxh(dev);
 
 	/* set default image size */
 	dev->width = maxw;
@@ -1729,7 +1729,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	}
 
 	snprintf(dev->name, 29, "cx231xx #%d", nr);
-	dev->devno = nr;
+	dev->devyes = nr;
 	dev->model = id->driver_info;
 	dev->video_mode.alt = -1;
 	dev->dev = d;
@@ -1748,7 +1748,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	/* 0 - vbi ; 1 -sliced cc mode */
 	dev->vbi_or_sliced_cc_mode = 0;
 
-	/* get maximum no.of IAD interfaces */
+	/* get maximum yes.of IAD interfaces */
 	dev->max_iad_interface_count = udev->config->desc.bNumInterfaces;
 
 	/* init CIR module TBD */
@@ -1770,7 +1770,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		speed = "480";
 		break;
 	default:
-		speed = "unknown";
+		speed = "unkyeswn";
 	}
 
 	dev_info(d,
@@ -1786,7 +1786,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	dev->interface_count++;
 
 	/* get device number */
-	nr = dev->devno;
+	nr = dev->devyes;
 
 	assoc_desc = udev->actconfig->intf_assoc[0];
 	if (!assoc_desc || assoc_desc->bFirstInterface != ifnum) {
@@ -1951,7 +1951,7 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 	if (dev->users) {
 		dev_warn(dev->dev,
 			 "device %s is open! Deregistration and memory deallocation are deferred on close.\n",
-			 video_device_node_name(&dev->vdev));
+			 video_device_yesde_name(&dev->vdev));
 
 		/* Even having users, it is safe to remove the RC i2c driver */
 		cx231xx_ir_exit(dev);

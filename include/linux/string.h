@@ -32,7 +32,7 @@ size_t strlcpy(char *, const char *, size_t);
 ssize_t strscpy(char *, const char *, size_t);
 #endif
 
-/* Wraps calls to strscpy()/memset(), no arch specific code required */
+/* Wraps calls to strscpy()/memset(), yes arch specific code required */
 ssize_t strscpy_pad(char *dest, const char *src, size_t count);
 
 #ifndef __HAVE_ARCH_STRCAT
@@ -264,7 +264,7 @@ static inline const char *kbasename(const char *path)
 #define __FORTIFY_INLINE extern __always_inline __attribute__((gnu_inline))
 #define __RENAME(x) __asm__(#x)
 
-void fortify_panic(const char *name) __noreturn __cold;
+void fortify_panic(const char *name) __yesreturn __cold;
 void __read_overflow(void) __compiletime_error("detected read beyond size of object passed as 1st parameter");
 void __read_overflow2(void) __compiletime_error("detected read beyond size of object passed as 2nd parameter");
 void __read_overflow3(void) __compiletime_error("detected read beyond size of object passed as 3rd parameter");
@@ -467,7 +467,7 @@ __FORTIFY_INLINE char *strcpy(char *p, const char *q)
 #endif
 
 /**
- * memcpy_and_pad - Copy one buffer to another with padding
+ * memcpy_and_pad - Copy one buffer to ayesther with padding
  * @dest: Where to copy to
  * @dest_len: The destination buffer size
  * @src: Where to copy from
@@ -493,11 +493,11 @@ static inline void memcpy_and_pad(void *dest, size_t dest_len,
  *  strncmp(str, prefix, sizeof(prefix) - 1)
  *
  * But this can lead to bugs due to typos, or if prefix is a pointer
- * and not a constant. Instead use str_has_prefix().
+ * and yest a constant. Instead use str_has_prefix().
  *
  * Returns:
  * * strlen(@prefix) if @str starts with @prefix
- * * 0 if @str does not start with @prefix
+ * * 0 if @str does yest start with @prefix
  */
 static __always_inline size_t str_has_prefix(const char *str, const char *prefix)
 {

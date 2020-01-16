@@ -220,7 +220,7 @@ static u8 dm646x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 
 /* Four Transfer Controllers on DM646x */
 static s8 dm646x_queue_priority_mapping[][2] = {
-	/* {event queue no, Priority} */
+	/* {event queue yes, Priority} */
 	{0, 4},
 	{1, 0},
 	{2, 5},
@@ -284,7 +284,7 @@ static struct resource edma_resources[] = {
 		.start	= DAVINCI_INTC_IRQ(IRQ_CCERRINT),
 		.flags	= IORESOURCE_IRQ,
 	},
-	/* not using TC*_ERR */
+	/* yest using TC*_ERR */
 };
 
 static const struct platform_device_info dm646x_edma_device __initconst = {
@@ -328,7 +328,7 @@ static struct resource dm646x_mcasp0_resources[] = {
 	},
 };
 
-/* DIT mode only, rx is not supported */
+/* DIT mode only, rx is yest supported */
 static struct resource dm646x_mcasp1_resources[] = {
 	{
 		.name	= "mpu",
@@ -461,7 +461,7 @@ static struct resource dm646x_gpio_resources[] = {
 };
 
 static struct davinci_gpio_platform_data dm646x_gpio_platform_data = {
-	.no_auto_base	= true,
+	.yes_auto_base	= true,
 	.base		= 0,
 	.ngpio		= 43,
 };
@@ -487,14 +487,14 @@ static struct map_desc dm646x_io_desc[] = {
 static struct davinci_id dm646x_ids[] = {
 	{
 		.variant	= 0x0,
-		.part_no	= 0xb770,
+		.part_yes	= 0xb770,
 		.manufacturer	= 0x017,
 		.cpu_id		= DAVINCI_CPU_ID_DM6467,
 		.name		= "dm6467_rev1.x",
 	},
 	{
 		.variant	= 0x1,
-		.part_no	= 0xb770,
+		.part_yes	= 0xb770,
 		.manufacturer	= 0x017,
 		.cpu_id		= DAVINCI_CPU_ID_DM6467,
 		.name		= "dm6467_rev3.x",

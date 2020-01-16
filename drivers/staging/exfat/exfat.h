@@ -15,7 +15,7 @@
 	 *   - file systems typically #0~0x1F
 	 *   - embedded terminal devices #128~
 	 *   - exts for debugging purpose #99
-	 * number 100 and 101 is available now but has possible conflicts
+	 * number 100 and 101 is available yesw but has possible conflicts
 	 */
 #define EXFAT_IOC_GET_DEBUGFLAGS	_IOR('f', 100, long)
 #define EXFAT_IOC_SET_DEBUGFLAGS	_IOW('f', 101, long)
@@ -272,7 +272,7 @@ struct file_id_t {
 struct dir_entry_t {
 	char Name[MAX_NAME_LENGTH * MAX_CHARSET_SIZE];
 
-	/* used only for FAT12/16/32, not used for exFAT */
+	/* used only for FAT12/16/32, yest used for exFAT */
 	char ShortName[DOS_NAME_LENGTH + 2];
 
 	u32 Attr;
@@ -316,7 +316,7 @@ struct bpb16_t {
 	u8       num_hid_sectors[4];
 	u8       num_huge_sectors[4];
 
-	u8       phy_drv_no;
+	u8       phy_drv_yes;
 	u8       reserved;
 	u8       ext_signature;
 	u8       vol_serial[4];
@@ -346,7 +346,7 @@ struct bpb32_t {
 	u8       backup_sector[2];
 	u8       reserved[12];
 
-	u8       phy_drv_no;
+	u8       phy_drv_yes;
 	u8       ext_reserved;
 	u8       ext_signature;
 	u8       vol_serial[4];
@@ -370,7 +370,7 @@ struct bpbex_t {
 	u8       sector_size_bits;
 	u8       sectors_per_clu_bits;
 	u8       num_fats;
-	u8       phy_drv_no;
+	u8       phy_drv_yes;
 	u8       perc_in_use;
 	u8       reserved2[7];
 };
@@ -635,7 +635,7 @@ struct entry_set_cache_t {
 	void *__buf;
 };
 
-#define EXFAT_ERRORS_CONT	1	/* ignore error and continue */
+#define EXFAT_ERRORS_CONT	1	/* igyesre error and continue */
 #define EXFAT_ERRORS_PANIC	2	/* panic on error */
 #define EXFAT_ERRORS_RO		3	/* remount r/o on error */
 
@@ -681,7 +681,7 @@ struct bd_info_t {
 	/* total number of sectors in this block device */
 	s32 num_sectors;
 
-	/* opened or not */
+	/* opened or yest */
 	bool opened;
 };
 
@@ -696,35 +696,35 @@ struct exfat_sb_info {
 	struct nls_table *nls_disk; /* Codepage used on disk */
 	struct nls_table *nls_io;   /* Charset used for input and display */
 
-	struct inode *fat_inode;
+	struct iyesde *fat_iyesde;
 
-	spinlock_t inode_hash_lock;
-	struct hlist_head inode_hashtable[EXFAT_HASH_SIZE];
+	spinlock_t iyesde_hash_lock;
+	struct hlist_head iyesde_hashtable[EXFAT_HASH_SIZE];
 #ifdef CONFIG_EXFAT_KERNEL_DEBUG
 	long debug_flags;
 #endif /* CONFIG_EXFAT_KERNEL_DEBUG */
 };
 
 /*
- * EXFAT file system inode data in memory
+ * EXFAT file system iyesde data in memory
  */
-struct exfat_inode_info {
+struct exfat_iyesde_info {
 	struct file_id_t fid;
 	char  *target;
 	/* NOTE: mmu_private is 64bits, so must hold ->i_mutex to access */
 	loff_t mmu_private;	/* physically allocated size */
 	loff_t i_pos;		/* on-disk position of directory entry or 0 */
-	struct hlist_node i_hash_fat;	/* hash by i_location */
+	struct hlist_yesde i_hash_fat;	/* hash by i_location */
 	struct rw_semaphore truncate_lock;
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 	struct rw_semaphore i_alloc_sem; /* protect bmap against truncate */
 };
 
 #define EXFAT_SB(sb)		((struct exfat_sb_info *)((sb)->s_fs_info))
 
-static inline struct exfat_inode_info *EXFAT_I(struct inode *inode)
+static inline struct exfat_iyesde_info *EXFAT_I(struct iyesde *iyesde)
 {
-	return container_of(inode, struct exfat_inode_info, vfs_inode);
+	return container_of(iyesde, struct exfat_iyesde_info, vfs_iyesde);
 }
 
 /* NLS management function */
@@ -795,19 +795,19 @@ s32 get_num_entries_and_dos_name(struct super_block *sb, struct chain_t *p_dir,
 u16 calc_checksum_2byte(void *data, s32 len, u16 chksum, s32 type);
 
 /* name resolution functions */
-s32 resolve_path(struct inode *inode, char *path, struct chain_t *p_dir,
+s32 resolve_path(struct iyesde *iyesde, char *path, struct chain_t *p_dir,
 		 struct uni_name_t *p_uniname);
 
 /* file operation functions */
 s32 exfat_mount(struct super_block *sb, struct pbr_sector_t *p_pbr);
-s32 create_dir(struct inode *inode, struct chain_t *p_dir,
+s32 create_dir(struct iyesde *iyesde, struct chain_t *p_dir,
 	       struct uni_name_t *p_uniname, struct file_id_t *fid);
-s32 create_file(struct inode *inode, struct chain_t *p_dir,
+s32 create_file(struct iyesde *iyesde, struct chain_t *p_dir,
 		struct uni_name_t *p_uniname, u8 mode, struct file_id_t *fid);
-void remove_file(struct inode *inode, struct chain_t *p_dir, s32 entry);
-s32 exfat_rename_file(struct inode *inode, struct chain_t *p_dir, s32 old_entry,
+void remove_file(struct iyesde *iyesde, struct chain_t *p_dir, s32 entry);
+s32 exfat_rename_file(struct iyesde *iyesde, struct chain_t *p_dir, s32 old_entry,
 		      struct uni_name_t *p_uniname, struct file_id_t *fid);
-s32 move_file(struct inode *inode, struct chain_t *p_olddir, s32 oldentry,
+s32 move_file(struct iyesde *iyesde, struct chain_t *p_olddir, s32 oldentry,
 	      struct chain_t *p_newdir, struct uni_name_t *p_uniname,
 	      struct file_id_t *fid);
 
@@ -823,9 +823,9 @@ int multi_sector_write(struct super_block *sb, sector_t sec,
 
 void exfat_bdev_open(struct super_block *sb);
 void exfat_bdev_close(struct super_block *sb);
-int exfat_bdev_read(struct super_block *sb, sector_t secno,
+int exfat_bdev_read(struct super_block *sb, sector_t secyes,
 	      struct buffer_head **bh, u32 num_secs, bool read);
-int exfat_bdev_write(struct super_block *sb, sector_t secno,
+int exfat_bdev_write(struct super_block *sb, sector_t secyes,
 	       struct buffer_head *bh, u32 num_secs, bool sync);
 int exfat_bdev_sync(struct super_block *sb);
 

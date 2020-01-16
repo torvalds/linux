@@ -5,7 +5,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
+ * version 2.1 of the License (yest later!)
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not,  see <http://www.gnu.org/licenses>
+ * License along with this program; if yest,  see <http://www.gnu.org/licenses>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -72,7 +72,7 @@ static void add_child(struct func_stack *stack, const char *child, int pos)
 		ptr = realloc(stack->stack, sizeof(char *) *
 			      (stack->size + STK_BLK));
 		if (!ptr) {
-			warning("could not allocate plugin memory\n");
+			warning("could yest allocate plugin memory\n");
 			return;
 		}
 
@@ -98,7 +98,7 @@ static int add_and_get_index(const char *parent, const char *child, int cpu)
 
 		ptr = realloc(fstack, sizeof(*fstack) * (cpu + 1));
 		if (!ptr) {
-			warning("could not allocate plugin memory\n");
+			warning("could yest allocate plugin memory\n");
 			return 0;
 		}
 

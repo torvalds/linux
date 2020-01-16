@@ -28,7 +28,7 @@
  * must ensure the call is done inside a loop, confirming that the
  * wakeup condition has in fact occurred.
  *
- * NOTE that there is no guarantee the wakeup will happen any later than the
+ * NOTE that there is yes guarantee the wakeup will happen any later than the
  * wake_q_add() location. Therefore task must be ready to be woken at the
  * location of the wake_q_add().
  */
@@ -36,11 +36,11 @@
 #include <linux/sched.h>
 
 struct wake_q_head {
-	struct wake_q_node *first;
-	struct wake_q_node **lastp;
+	struct wake_q_yesde *first;
+	struct wake_q_yesde **lastp;
 };
 
-#define WAKE_Q_TAIL ((struct wake_q_node *) 0x01)
+#define WAKE_Q_TAIL ((struct wake_q_yesde *) 0x01)
 
 #define DEFINE_WAKE_Q(name)				\
 	struct wake_q_head name = { WAKE_Q_TAIL, &name.first }

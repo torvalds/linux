@@ -27,7 +27,7 @@ enum pdc_packet_bits {
 
 static inline unsigned int pdc_pkt_header(struct ata_taskfile *tf,
 					  dma_addr_t sg_table,
-					  unsigned int devno, u8 *buf)
+					  unsigned int devyes, u8 *buf)
 {
 	u8 dev_reg;
 	__le32 *buf32 = (__le32 *) buf;
@@ -53,9 +53,9 @@ static inline unsigned int pdc_pkt_header(struct ata_taskfile *tf,
 	}
 
 	buf32[1] = cpu_to_le32(sg_table);	/* S/G table addr */
-	buf32[2] = 0;				/* no next-packet */
+	buf32[2] = 0;				/* yes next-packet */
 
-	if (devno == 0)
+	if (devyes == 0)
 		dev_reg = ATA_DEVICE_OBS;
 	else
 		dev_reg = ATA_DEVICE_OBS | ATA_DEV1;

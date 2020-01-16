@@ -24,9 +24,9 @@ static inline const char *gobj_type(enum media_gobj_type type)
 	case MEDIA_GRAPH_LINK:
 		return "link";
 	case MEDIA_GRAPH_INTF_DEVNODE:
-		return "intf-devnode";
+		return "intf-devyesde";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -56,7 +56,7 @@ static inline const char *intf_type(struct media_interface *intf)
 	case MEDIA_INTF_T_V4L_TOUCH:
 		return "v4l-touch";
 	default:
-		return "unknown-intf";
+		return "unkyeswn-intf";
 	}
 };
 
@@ -129,13 +129,13 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 	case MEDIA_GRAPH_INTF_DEVNODE:
 	{
 		struct media_interface *intf = gobj_to_intf(gobj);
-		struct media_intf_devnode *devnode = intf_to_devnode(intf);
+		struct media_intf_devyesde *devyesde = intf_to_devyesde(intf);
 
 		dev_dbg(gobj->mdev->dev,
-			"%s id %u: intf_devnode %s - major: %d, minor: %d\n",
+			"%s id %u: intf_devyesde %s - major: %d, miyesr: %d\n",
 			event_name, media_id(gobj),
 			intf_type(intf),
-			devnode->major, devnode->minor);
+			devyesde->major, devyesde->miyesr);
 		break;
 	}
 	}
@@ -175,7 +175,7 @@ void media_gobj_create(struct media_device *mdev,
 
 void media_gobj_destroy(struct media_gobj *gobj)
 {
-	/* Do nothing if the object is not linked. */
+	/* Do yesthing if the object is yest linked. */
 	if (gobj->mdev == NULL)
 		return;
 
@@ -313,7 +313,7 @@ static void media_graph_walk_iter(struct media_graph *graph)
 
 	link = list_entry(link_top(graph), typeof(*link), list);
 
-	/* The link is not enabled so we do not follow. */
+	/* The link is yest enabled so we do yest follow. */
 	if (!(link->flags & MEDIA_LNK_FL_ENABLED)) {
 		link_top(graph) = link_top(graph)->next;
 		dev_dbg(entity->graph_obj.mdev->dev,
@@ -351,7 +351,7 @@ struct media_entity *media_graph_walk_next(struct media_graph *graph)
 
 	/*
 	 * Depth first search. Push entity to stack and continue from
-	 * top of the stack until no more entities on the level can be
+	 * top of the stack until yes more entities on the level can be
 	 * found.
 	 */
 	while (link_top(graph) != &stack_top(graph)->links)
@@ -365,15 +365,15 @@ struct media_entity *media_graph_walk_next(struct media_graph *graph)
 }
 EXPORT_SYMBOL_GPL(media_graph_walk_next);
 
-int media_entity_get_fwnode_pad(struct media_entity *entity,
-				struct fwnode_handle *fwnode,
+int media_entity_get_fwyesde_pad(struct media_entity *entity,
+				struct fwyesde_handle *fwyesde,
 				unsigned long direction_flags)
 {
-	struct fwnode_endpoint endpoint;
+	struct fwyesde_endpoint endpoint;
 	unsigned int i;
 	int ret;
 
-	if (!entity->ops || !entity->ops->get_fwnode_pad) {
+	if (!entity->ops || !entity->ops->get_fwyesde_pad) {
 		for (i = 0; i < entity->num_pads; i++) {
 			if (entity->pads[i].flags & direction_flags)
 				return i;
@@ -382,11 +382,11 @@ int media_entity_get_fwnode_pad(struct media_entity *entity,
 		return -ENXIO;
 	}
 
-	ret = fwnode_graph_parse_endpoint(fwnode, &endpoint);
+	ret = fwyesde_graph_parse_endpoint(fwyesde, &endpoint);
 	if (ret)
 		return ret;
 
-	ret = entity->ops->get_fwnode_pad(&endpoint);
+	ret = entity->ops->get_fwyesde_pad(&endpoint);
 	if (ret < 0)
 		return ret;
 
@@ -398,7 +398,7 @@ int media_entity_get_fwnode_pad(struct media_entity *entity,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(media_entity_get_fwnode_pad);
+EXPORT_SYMBOL_GPL(media_entity_get_fwyesde_pad);
 
 /* -----------------------------------------------------------------------------
  * Pipeline management
@@ -423,7 +423,7 @@ __must_check int __media_pipeline_start(struct media_entity *entity,
 
 	while ((entity = media_graph_walk_next(graph))) {
 		DECLARE_BITMAP(active, MEDIA_ENTITY_MAX_PADS);
-		DECLARE_BITMAP(has_no_links, MEDIA_ENTITY_MAX_PADS);
+		DECLARE_BITMAP(has_yes_links, MEDIA_ENTITY_MAX_PADS);
 
 		entity->stream_count++;
 
@@ -437,7 +437,7 @@ __must_check int __media_pipeline_start(struct media_entity *entity,
 
 		entity->pipe = pipe;
 
-		/* Already streaming --- no need to check. */
+		/* Already streaming --- yes need to check. */
 		if (entity->stream_count > 1)
 			continue;
 
@@ -445,17 +445,17 @@ __must_check int __media_pipeline_start(struct media_entity *entity,
 			continue;
 
 		bitmap_zero(active, entity->num_pads);
-		bitmap_fill(has_no_links, entity->num_pads);
+		bitmap_fill(has_yes_links, entity->num_pads);
 
 		list_for_each_entry(link, &entity->links, list) {
 			struct media_pad *pad = link->sink->entity == entity
 						? link->sink : link->source;
 
 			/* Mark that a pad is connected by a link. */
-			bitmap_clear(has_no_links, pad->index, 1);
+			bitmap_clear(has_yes_links, pad->index, 1);
 
 			/*
-			 * Pads that either do not need to connect or
+			 * Pads that either do yest need to connect or
 			 * are connected through an enabled link are
 			 * fine.
 			 */
@@ -482,8 +482,8 @@ __must_check int __media_pipeline_start(struct media_entity *entity,
 			}
 		}
 
-		/* Either no links or validated links are fine. */
-		bitmap_or(active, active, has_no_links, entity->num_pads);
+		/* Either yes links or validated links are fine. */
+		bitmap_or(active, active, has_yes_links, entity->num_pads);
 
 		if (!bitmap_full(active, entity->num_pads)) {
 			ret = -ENOLINK;
@@ -679,7 +679,7 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 			&link->graph_obj);
 
 	/* Create the backlink. Backlinks are used to help graph traversal and
-	 * are not reported to userspace.
+	 * are yest reported to userspace.
 	 */
 	backlink = media_add_link(&sink->links);
 	if (backlink == NULL) {
@@ -788,7 +788,7 @@ void media_entity_remove_links(struct media_entity *entity)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
 
-	/* Do nothing if the entity is not registered. */
+	/* Do yesthing if the entity is yest registered. */
 	if (mdev == NULL)
 		return;
 
@@ -798,7 +798,7 @@ void media_entity_remove_links(struct media_entity *entity)
 }
 EXPORT_SYMBOL_GPL(media_entity_remove_links);
 
-static int __media_entity_setup_link_notify(struct media_link *link, u32 flags)
+static int __media_entity_setup_link_yestify(struct media_link *link, u32 flags)
 {
 	int ret;
 
@@ -832,7 +832,7 @@ int __media_entity_setup_link(struct media_link *link, u32 flags)
 	if (link == NULL)
 		return -EINVAL;
 
-	/* The non-modifiable link flags must not be modified. */
+	/* The yesn-modifiable link flags must yest be modified. */
 	if ((link->flags & ~mask) != (flags & ~mask))
 		return -EINVAL;
 
@@ -851,17 +851,17 @@ int __media_entity_setup_link(struct media_link *link, u32 flags)
 
 	mdev = source->graph_obj.mdev;
 
-	if (mdev->ops && mdev->ops->link_notify) {
-		ret = mdev->ops->link_notify(link, flags,
+	if (mdev->ops && mdev->ops->link_yestify) {
+		ret = mdev->ops->link_yestify(link, flags,
 					     MEDIA_DEV_NOTIFY_PRE_LINK_CH);
 		if (ret < 0)
 			return ret;
 	}
 
-	ret = __media_entity_setup_link_notify(link, flags);
+	ret = __media_entity_setup_link_yestify(link, flags);
 
-	if (mdev->ops && mdev->ops->link_notify)
-		mdev->ops->link_notify(link, flags,
+	if (mdev->ops && mdev->ops->link_yestify)
+		mdev->ops->link_yestify(link, flags,
 				       MEDIA_DEV_NOTIFY_POST_LINK_CH);
 
 	return ret;
@@ -929,35 +929,35 @@ static void media_interface_init(struct media_device *mdev,
 	media_gobj_create(mdev, gobj_type, &intf->graph_obj);
 }
 
-/* Functions related to the media interface via device nodes */
+/* Functions related to the media interface via device yesdes */
 
-struct media_intf_devnode *media_devnode_create(struct media_device *mdev,
+struct media_intf_devyesde *media_devyesde_create(struct media_device *mdev,
 						u32 type, u32 flags,
-						u32 major, u32 minor)
+						u32 major, u32 miyesr)
 {
-	struct media_intf_devnode *devnode;
+	struct media_intf_devyesde *devyesde;
 
-	devnode = kzalloc(sizeof(*devnode), GFP_KERNEL);
-	if (!devnode)
+	devyesde = kzalloc(sizeof(*devyesde), GFP_KERNEL);
+	if (!devyesde)
 		return NULL;
 
-	devnode->major = major;
-	devnode->minor = minor;
+	devyesde->major = major;
+	devyesde->miyesr = miyesr;
 
-	media_interface_init(mdev, &devnode->intf, MEDIA_GRAPH_INTF_DEVNODE,
+	media_interface_init(mdev, &devyesde->intf, MEDIA_GRAPH_INTF_DEVNODE,
 			     type, flags);
 
-	return devnode;
+	return devyesde;
 }
-EXPORT_SYMBOL_GPL(media_devnode_create);
+EXPORT_SYMBOL_GPL(media_devyesde_create);
 
-void media_devnode_remove(struct media_intf_devnode *devnode)
+void media_devyesde_remove(struct media_intf_devyesde *devyesde)
 {
-	media_remove_intf_links(&devnode->intf);
-	media_gobj_destroy(&devnode->intf.graph_obj);
-	kfree(devnode);
+	media_remove_intf_links(&devyesde->intf);
+	media_gobj_destroy(&devyesde->intf.graph_obj);
+	kfree(devyesde);
 }
-EXPORT_SYMBOL_GPL(media_devnode_remove);
+EXPORT_SYMBOL_GPL(media_devyesde_remove);
 
 struct media_link *media_create_intf_link(struct media_entity *entity,
 					    struct media_interface *intf,
@@ -993,7 +993,7 @@ void media_remove_intf_link(struct media_link *link)
 {
 	struct media_device *mdev = link->graph_obj.mdev;
 
-	/* Do nothing if the intf is not registered. */
+	/* Do yesthing if the intf is yest registered. */
 	if (mdev == NULL)
 		return;
 
@@ -1017,7 +1017,7 @@ void media_remove_intf_links(struct media_interface *intf)
 {
 	struct media_device *mdev = intf->graph_obj.mdev;
 
-	/* Do nothing if the intf is not registered. */
+	/* Do yesthing if the intf is yest registered. */
 	if (mdev == NULL)
 		return;
 

@@ -23,8 +23,8 @@
 			((__ioc)->ioc_hwif->ioc_firmware_unlock(__ioc))
 #define bfa_ioc_reg_init(__ioc) ((__ioc)->ioc_hwif->ioc_reg_init(__ioc))
 #define bfa_ioc_map_port(__ioc) ((__ioc)->ioc_hwif->ioc_map_port(__ioc))
-#define bfa_ioc_notify_fail(__ioc)			\
-			((__ioc)->ioc_hwif->ioc_notify_fail(__ioc))
+#define bfa_ioc_yestify_fail(__ioc)			\
+			((__ioc)->ioc_hwif->ioc_yestify_fail(__ioc))
 #define bfa_ioc_sync_start(__ioc)               \
 			((__ioc)->ioc_hwif->ioc_sync_start(__ioc))
 #define bfa_ioc_sync_join(__ioc)			\
@@ -61,11 +61,11 @@ static void bfa_ioc_reset(struct bfa_ioc *ioc, bool force);
 static void bfa_ioc_mbox_poll(struct bfa_ioc *ioc);
 static void bfa_ioc_mbox_flush(struct bfa_ioc *ioc);
 static void bfa_ioc_recover(struct bfa_ioc *ioc);
-static void bfa_ioc_event_notify(struct bfa_ioc *, enum bfa_ioc_event);
+static void bfa_ioc_event_yestify(struct bfa_ioc *, enum bfa_ioc_event);
 static void bfa_ioc_disable_comp(struct bfa_ioc *ioc);
 static void bfa_ioc_lpu_stop(struct bfa_ioc *ioc);
 static void bfa_nw_ioc_debug_save_ftrc(struct bfa_ioc *ioc);
-static void bfa_ioc_fail_notify(struct bfa_ioc *ioc);
+static void bfa_ioc_fail_yestify(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_enabled(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_disabled(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_failed(struct bfa_ioc *ioc);
@@ -96,11 +96,11 @@ enum ioc_event {
 	IOC_E_ENABLED		= 5,	/*!< f/w enabled		*/
 	IOC_E_FWRSP_GETATTR	= 6,	/*!< IOC get attribute response	*/
 	IOC_E_DISABLED		= 7,	/*!< f/w disabled		*/
-	IOC_E_PFFAILED		= 8,	/*!< failure notice by iocpf sm	*/
+	IOC_E_PFFAILED		= 8,	/*!< failure yestice by iocpf sm	*/
 	IOC_E_HBFAIL		= 9,	/*!< heartbeat failure		*/
 	IOC_E_HWERROR		= 10,	/*!< hardware error interrupt	*/
 	IOC_E_TIMEOUT		= 11,	/*!< timeout			*/
-	IOC_E_HWFAILED		= 12,	/*!< PCI mapping failure notice	*/
+	IOC_E_HWFAILED		= 12,	/*!< PCI mapping failure yestice	*/
 };
 
 bfa_fsm_state_decl(bfa_ioc, uninit, struct bfa_ioc, enum ioc_event);
@@ -145,9 +145,9 @@ enum iocpf_event {
 	IOCPF_E_FWREADY		= 4,	/*!< f/w initialization done	*/
 	IOCPF_E_FWRSP_ENABLE	= 5,	/*!< enable f/w response	*/
 	IOCPF_E_FWRSP_DISABLE	= 6,	/*!< disable f/w response	*/
-	IOCPF_E_FAIL		= 7,	/*!< failure notice by ioc sm	*/
-	IOCPF_E_INITFAIL	= 8,	/*!< init fail notice by ioc sm	*/
-	IOCPF_E_GETATTRFAIL	= 9,	/*!< init fail notice by ioc sm	*/
+	IOCPF_E_FAIL		= 7,	/*!< failure yestice by ioc sm	*/
+	IOCPF_E_INITFAIL	= 8,	/*!< init fail yestice by ioc sm	*/
+	IOCPF_E_GETATTRFAIL	= 9,	/*!< init fail yestice by ioc sm	*/
 	IOCPF_E_SEMLOCKED	= 10,   /*!< h/w semaphore is locked	*/
 	IOCPF_E_TIMEOUT		= 11,   /*!< f/w response timeout	*/
 	IOCPF_E_SEM_ERROR	= 12,   /*!< h/w sem mapping error	*/
@@ -346,7 +346,7 @@ static void
 bfa_ioc_sm_op_entry(struct bfa_ioc *ioc)
 {
 	ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_OK);
-	bfa_ioc_event_notify(ioc, BFA_IOC_E_ENABLED);
+	bfa_ioc_event_yestify(ioc, BFA_IOC_E_ENABLED);
 	bfa_ioc_hb_monitor(ioc);
 }
 
@@ -372,7 +372,7 @@ bfa_ioc_sm_op(struct bfa_ioc *ioc, enum ioc_event event)
 		else
 			bfa_fsm_set_state(ioc, bfa_ioc_sm_fail);
 
-		bfa_ioc_fail_notify(ioc);
+		bfa_ioc_fail_yestify(ioc);
 
 		if (event != IOC_E_PFFAILED)
 			bfa_iocpf_fail(ioc);
@@ -517,7 +517,7 @@ bfa_ioc_sm_fail(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	case IOC_E_HWERROR:
-		/* HB failure notification, ignore. */
+		/* HB failure yestification, igyesre. */
 		break;
 
 	default:
@@ -559,7 +559,7 @@ bfa_ioc_sm_hwfail(struct bfa_ioc *ioc, enum ioc_event event)
 static void
 bfa_iocpf_sm_reset_entry(struct bfa_iocpf *iocpf)
 {
-	iocpf->fw_mismatch_notified = false;
+	iocpf->fw_mismatch_yestified = false;
 	iocpf->auto_recover = bfa_nw_auto_recover;
 }
 
@@ -638,10 +638,10 @@ static void
 bfa_iocpf_sm_mismatch_entry(struct bfa_iocpf *iocpf)
 {
 	/* Call only the first time sm enters fwmismatch state. */
-	if (!iocpf->fw_mismatch_notified)
+	if (!iocpf->fw_mismatch_yestified)
 		bfa_ioc_pf_fwmismatch(iocpf->ioc);
 
-	iocpf->fw_mismatch_notified = true;
+	iocpf->fw_mismatch_yestified = true;
 	mod_timer(&(iocpf->ioc)->iocpf_timer, jiffies +
 		msecs_to_jiffies(BFA_IOC_TOV));
 }
@@ -939,7 +939,7 @@ bfa_iocpf_sm_initfail_sync(struct bfa_iocpf *iocpf, enum iocpf_event event)
 
 	switch (event) {
 	case IOCPF_E_SEMLOCKED:
-		bfa_ioc_notify_fail(ioc);
+		bfa_ioc_yestify_fail(ioc);
 		bfa_ioc_sync_leave(ioc);
 		bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_FAIL);
 		bfa_nw_ioc_hw_sem_release(ioc);
@@ -1020,7 +1020,7 @@ bfa_iocpf_sm_fail_sync(struct bfa_iocpf *iocpf, enum iocpf_event event)
 	switch (event) {
 	case IOCPF_E_SEMLOCKED:
 		bfa_ioc_sync_ack(ioc);
-		bfa_ioc_notify_fail(ioc);
+		bfa_ioc_yestify_fail(ioc);
 		if (!iocpf->auto_recover) {
 			bfa_ioc_sync_leave(ioc);
 			bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_FAIL);
@@ -1075,21 +1075,21 @@ bfa_iocpf_sm_fail(struct bfa_iocpf *iocpf, enum iocpf_event event)
 
 /* BFA IOC private functions */
 
-/* Notify common modules registered for notification. */
+/* Notify common modules registered for yestification. */
 static void
-bfa_ioc_event_notify(struct bfa_ioc *ioc, enum bfa_ioc_event event)
+bfa_ioc_event_yestify(struct bfa_ioc *ioc, enum bfa_ioc_event event)
 {
-	struct bfa_ioc_notify *notify;
+	struct bfa_ioc_yestify *yestify;
 
-	list_for_each_entry(notify, &ioc->notify_q, qe)
-		notify->cbfn(notify->cbarg, event);
+	list_for_each_entry(yestify, &ioc->yestify_q, qe)
+		yestify->cbfn(yestify->cbarg, event);
 }
 
 static void
 bfa_ioc_disable_comp(struct bfa_ioc *ioc)
 {
 	ioc->cbfn->disable_cbfn(ioc->bfa);
-	bfa_ioc_event_notify(ioc, BFA_IOC_E_DISABLED);
+	bfa_ioc_event_yestify(ioc, BFA_IOC_E_DISABLED);
 }
 
 bool
@@ -1241,7 +1241,7 @@ bfa_ioc_lmem_init(struct bfa_ioc *ioc)
 	} while (!(pss_ctl & __PSS_LMEM_INIT_DONE) && (i < PSS_LMEM_INIT_TIME));
 
 	/**
-	 * If memory initialization is not successful, IOC timeout will catch
+	 * If memory initialization is yest successful, IOC timeout will catch
 	 * such failures.
 	 */
 	BUG_ON(!(pss_ctl & __PSS_LMEM_INIT_DONE));
@@ -1312,7 +1312,7 @@ bfa_ioc_fwver_md5_check(struct bfi_ioc_image_hdr *fwhdr_1,
 	return true;
 }
 
-/* Returns TRUE if major minor and maintenance are same.
+/* Returns TRUE if major miyesr and maintenance are same.
  * If patch version are same, check for MD5 Checksum to be same.
  */
 static bool
@@ -1323,7 +1323,7 @@ bfa_ioc_fw_ver_compatible(struct bfi_ioc_image_hdr *drv_fwhdr,
 		return false;
 	if (drv_fwhdr->fwver.major != fwhdr_to_cmp->fwver.major)
 		return false;
-	if (drv_fwhdr->fwver.minor != fwhdr_to_cmp->fwver.minor)
+	if (drv_fwhdr->fwver.miyesr != fwhdr_to_cmp->fwver.miyesr)
 		return false;
 	if (drv_fwhdr->fwver.maint != fwhdr_to_cmp->fwver.maint)
 		return false;
@@ -1368,7 +1368,7 @@ bfa_ioc_fw_ver_patch_cmp(struct bfi_ioc_image_hdr *base_fwhdr,
 		return BFI_IOC_IMG_VER_OLD;
 
 	/* GA takes priority over internal builds of the same patch stream.
-	 * At this point major minor maint and patch numbers are same.
+	 * At this point major miyesr maint and patch numbers are same.
 	 */
 	if (fwhdr_is_ga(base_fwhdr))
 		if (fwhdr_is_ga(fwhdr_to_cmp))
@@ -1421,8 +1421,8 @@ enum bfa_flash_cmd {
 
 /* hardware error definition */
 enum bfa_flash_err {
-	BFA_FLASH_NOT_PRESENT	= -1,	/*!< flash not present */
-	BFA_FLASH_UNINIT	= -2,	/*!< flash not initialized */
+	BFA_FLASH_NOT_PRESENT	= -1,	/*!< flash yest present */
+	BFA_FLASH_UNINIT	= -2,	/*!< flash yest initialized */
 	BFA_FLASH_BAD		= -3,	/*!< flash bad */
 	BFA_FLASH_BUSY		= -4,	/*!< flash busy */
 	BFA_FLASH_ERR_CMD_ACT	= -5,	/*!< command active never cleared */
@@ -1606,7 +1606,7 @@ bfa_flash_read_start(void __iomem *pci_bar, u32 offset, u32 len,
 {
 	int status;
 
-	/* len must be mutiple of 4 and not exceeding fifo size */
+	/* len must be mutiple of 4 and yest exceeding fifo size */
 	if (len == 0 || len > BFA_FLASH_FIFO_SIZE || (len & 0x03) != 0)
 		return BFA_FLASH_ERR_LEN;
 
@@ -1777,15 +1777,15 @@ bfa_nw_ioc_fwver_cmp(struct bfa_ioc *ioc, struct bfi_ioc_image_hdr *fwhdr)
 	drv_fwhdr = (struct bfi_ioc_image_hdr *)
 		bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), 0);
 
-	/* If smem is incompatible or old, driver should not work with it. */
+	/* If smem is incompatible or old, driver should yest work with it. */
 	drv_smem_cmp = bfa_ioc_fw_ver_patch_cmp(drv_fwhdr, fwhdr);
 	if (drv_smem_cmp == BFI_IOC_IMG_VER_INCOMP ||
 	    drv_smem_cmp == BFI_IOC_IMG_VER_OLD) {
 		return false;
 	}
 
-	/* IF Flash has a better F/W than smem do not work with smem.
-	 * If smem f/w == flash f/w, as smem f/w not old | incmp, work with it.
+	/* IF Flash has a better F/W than smem do yest work with smem.
+	 * If smem f/w == flash f/w, as smem f/w yest old | incmp, work with it.
 	 * If Flash is old or incomp work with smem iff smem f/w == drv f/w.
 	 */
 	smem_flash_cmp = bfa_ioc_flash_fwver_cmp(ioc, fwhdr);
@@ -1869,7 +1869,7 @@ bfa_ioc_hwinit(struct bfa_ioc *ioc, bool force)
 	if (ioc_fwstate == BFI_IOC_DISABLED || ioc_fwstate == BFI_IOC_OP) {
 		/**
 		 * When using MSI-X any pending firmware ready event should
-		 * be flushed. Otherwise MSI-X interrupts are not delivered.
+		 * be flushed. Otherwise MSI-X interrupts are yest delivered.
 		 */
 		bfa_ioc_msgflush(ioc);
 		bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_FWREADY);
@@ -1994,7 +1994,7 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 	u32 *fwimg;
 	u32 pgnum;
 	u32 loff = 0;
-	u32 chunkno = 0;
+	u32 chunkyes = 0;
 	u32 i;
 	u32 asicmode;
 	u32 fwimg_size;
@@ -2006,7 +2006,7 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 		fwimg_size = BFI_FLASH_IMAGE_SZ/sizeof(u32);
 
 		status = bfa_nw_ioc_flash_img_get_chnk(ioc,
-			BFA_IOC_FLASH_CHUNK_ADDR(chunkno), fwimg_buf);
+			BFA_IOC_FLASH_CHUNK_ADDR(chunkyes), fwimg_buf);
 		if (status != BFA_STATUS_OK)
 			return status;
 
@@ -2014,7 +2014,7 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 	} else {
 		fwimg_size = bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc));
 		fwimg = bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc),
-					BFA_IOC_FLASH_CHUNK_ADDR(chunkno));
+					BFA_IOC_FLASH_CHUNK_ADDR(chunkyes));
 	}
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
@@ -2022,12 +2022,12 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
 	for (i = 0; i < fwimg_size; i++) {
-		if (BFA_IOC_FLASH_CHUNK_NO(i) != chunkno) {
-			chunkno = BFA_IOC_FLASH_CHUNK_NO(i);
+		if (BFA_IOC_FLASH_CHUNK_NO(i) != chunkyes) {
+			chunkyes = BFA_IOC_FLASH_CHUNK_NO(i);
 			if (boot_env == BFI_FWBOOT_ENV_OS &&
 			    boot_type == BFI_FWBOOT_TYPE_FLASH) {
 				status = bfa_nw_ioc_flash_img_get_chnk(ioc,
-					BFA_IOC_FLASH_CHUNK_ADDR(chunkno),
+					BFA_IOC_FLASH_CHUNK_ADDR(chunkyes),
 					fwimg_buf);
 				if (status != BFA_STATUS_OK)
 					return status;
@@ -2036,7 +2036,7 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 			} else {
 				fwimg = bfa_cb_image_get_chunk(
 					bfa_ioc_asic_gen(ioc),
-					BFA_IOC_FLASH_CHUNK_ADDR(chunkno));
+					BFA_IOC_FLASH_CHUNK_ADDR(chunkyes));
 			}
 		}
 
@@ -2136,13 +2136,13 @@ bfa_ioc_mbox_poll(struct bfa_ioc *ioc)
 	u32 stat;
 
 	/**
-	 * If no command pending, do nothing
+	 * If yes command pending, do yesthing
 	 */
 	if (list_empty(&mod->cmd_q))
 		return;
 
 	/**
-	 * If previous command is not yet fetched by firmware, do nothing
+	 * If previous command is yest yet fetched by firmware, do yesthing
 	 */
 	stat = readl(ioc->ioc_regs.hfn_mbox_cmd);
 	if (stat)
@@ -2282,13 +2282,13 @@ bfa_nw_ioc_debug_fwsave(struct bfa_ioc *ioc, void *trcdata, int *trclen)
 }
 
 static void
-bfa_ioc_fail_notify(struct bfa_ioc *ioc)
+bfa_ioc_fail_yestify(struct bfa_ioc *ioc)
 {
 	/**
-	 * Notify driver and common modules registered for notification.
+	 * Notify driver and common modules registered for yestification.
 	 */
 	ioc->cbfn->hbfail_cbfn(ioc->bfa);
-	bfa_ioc_event_notify(ioc, BFA_IOC_E_FAILED);
+	bfa_ioc_event_yestify(ioc, BFA_IOC_E_FAILED);
 	bfa_nw_ioc_debug_save_ftrc(ioc);
 }
 
@@ -2321,7 +2321,7 @@ static void
 bfa_ioc_pf_fwmismatch(struct bfa_ioc *ioc)
 {
 	/**
-	 * Provide enable completion callback and AEN notification.
+	 * Provide enable completion callback and AEN yestification.
 	 */
 	ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
 }
@@ -2331,7 +2331,7 @@ static enum bfa_status
 bfa_ioc_pll_init(struct bfa_ioc *ioc)
 {
 	/*
-	 *  Hold semaphore so that nobody can access the chip during init.
+	 *  Hold semaphore so that yesbody can access the chip during init.
 	 */
 	bfa_nw_ioc_sem_get(ioc->ioc_regs.ioc_init_sem_reg);
 
@@ -2483,7 +2483,7 @@ bfa_nw_ioc_attach(struct bfa_ioc *ioc, void *bfa, struct bfa_ioc_cbfn *cbfn)
 	ioc->iocpf.ioc  = ioc;
 
 	bfa_ioc_mbox_attach(ioc);
-	INIT_LIST_HEAD(&ioc->notify_q);
+	INIT_LIST_HEAD(&ioc->yestify_q);
 
 	bfa_fsm_set_state(ioc, bfa_ioc_sm_uninit);
 	bfa_fsm_send_event(ioc, IOC_E_RESET);
@@ -2495,8 +2495,8 @@ bfa_nw_ioc_detach(struct bfa_ioc *ioc)
 {
 	bfa_fsm_send_event(ioc, IOC_E_DETACH);
 
-	/* Done with detach, empty the notify_q. */
-	INIT_LIST_HEAD(&ioc->notify_q);
+	/* Done with detach, empty the yestify_q. */
+	INIT_LIST_HEAD(&ioc->yestify_q);
 }
 
 /**
@@ -2731,14 +2731,14 @@ bfa_nw_ioc_is_operational(struct bfa_ioc *ioc)
 	return bfa_fsm_cmp_state(ioc, bfa_ioc_sm_op);
 }
 
-/* Add to IOC heartbeat failure notification queue. To be used by common
+/* Add to IOC heartbeat failure yestification queue. To be used by common
  * modules such as cee, port, diag.
  */
 void
-bfa_nw_ioc_notify_register(struct bfa_ioc *ioc,
-			struct bfa_ioc_notify *notify)
+bfa_nw_ioc_yestify_register(struct bfa_ioc *ioc,
+			struct bfa_ioc_yestify *yestify)
 {
-	list_add_tail(&notify->qe, &ioc->notify_q);
+	list_add_tail(&yestify->qe, &ioc->yestify_q);
 }
 
 #define BFA_MFG_NAME "QLogic"
@@ -2761,7 +2761,7 @@ bfa_ioc_get_adapter_attr(struct bfa_ioc *ioc,
 	ad_attr->max_speed = bfa_ioc_speed_sup(ioc);
 
 	bfa_ioc_get_adapter_model(ioc, ad_attr->model);
-	/* For now, model descr uses same model string */
+	/* For yesw, model descr uses same model string */
 	bfa_ioc_get_adapter_model(ioc, ad_attr->model_descr);
 
 	ad_attr->card_type = ioc_attr->card_type;
@@ -3016,7 +3016,7 @@ bfa_ioc_poll_fwinit(struct bfa_ioc *ioc)
  */
 
 /*
- * FLASH DMA buffer should be big enough to hold both MFG block and
+ * FLASH DMA buffer should be big eyesugh to hold both MFG block and
  * asic block(64k) at the same time and also should be 2k aligned to
  * avoid write segement to cross sector boundary.
  */
@@ -3033,7 +3033,7 @@ bfa_flash_cb(struct bfa_flash *flash)
 }
 
 static void
-bfa_flash_notify(void *cbarg, enum bfa_ioc_event event)
+bfa_flash_yestify(void *cbarg, enum bfa_ioc_event event)
 {
 	struct bfa_flash *flash = cbarg;
 
@@ -3219,8 +3219,8 @@ bfa_nw_flash_attach(struct bfa_flash *flash, struct bfa_ioc *ioc, void *dev)
 	flash->op_busy = 0;
 
 	bfa_nw_ioc_mbox_regisr(flash->ioc, BFI_MC_FLASH, bfa_flash_intr, flash);
-	bfa_ioc_notify_init(&flash->ioc_notify, bfa_flash_notify, flash);
-	list_add_tail(&flash->ioc_notify.qe, &flash->ioc->notify_q);
+	bfa_ioc_yestify_init(&flash->ioc_yestify, bfa_flash_yestify, flash);
+	list_add_tail(&flash->ioc_yestify.qe, &flash->ioc->yestify_q);
 }
 
 /**

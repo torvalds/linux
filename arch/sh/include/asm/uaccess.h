@@ -9,7 +9,7 @@
 	((unsigned long __force)(addr) < current_thread_info()->addr_limit.seg)
 
 /*
- * __access_ok: Check if address with size is OK or not.
+ * __access_ok: Check if address with size is OK or yest.
  *
  * Uhhuh, this needs 33-bit arithmetic. We have a carry..
  *
@@ -35,25 +35,25 @@
  * As SuperH uses the same address space for kernel and user data, we
  * can just do these as direct assignments.
  *
- * Careful to not
+ * Careful to yest
  * (a) re-use the arguments for side effects (sizeof is ok)
- * (b) require any knowledge of processes at this stage
+ * (b) require any kyeswledge of processes at this stage
  */
 #define put_user(x,ptr)		__put_user_check((x), (ptr), sizeof(*(ptr)))
 #define get_user(x,ptr)		__get_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
- * The "__xxx" versions do not do address space checking, useful when
+ * The "__xxx" versions do yest do address space checking, useful when
  * doing multiple accesses to the same area (the user has to do the
  * checks by hand with "access_ok()")
  */
-#define __put_user(x,ptr)	__put_user_nocheck((x), (ptr), sizeof(*(ptr)))
-#define __get_user(x,ptr)	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+#define __put_user(x,ptr)	__put_user_yescheck((x), (ptr), sizeof(*(ptr)))
+#define __get_user(x,ptr)	__get_user_yescheck((x), (ptr), sizeof(*(ptr)))
 
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) (*(struct __large_struct __user *)(x))
 
-#define __get_user_nocheck(x,ptr,size)				\
+#define __get_user_yescheck(x,ptr,size)				\
 ({								\
 	long __gu_err;						\
 	unsigned long __gu_val;					\
@@ -75,7 +75,7 @@ struct __large_struct { unsigned long buf[100]; };
 	__gu_err;							\
 })
 
-#define __put_user_nocheck(x,ptr,size)				\
+#define __put_user_yescheck(x,ptr,size)				\
 ({								\
 	long __pu_err;						\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\

@@ -6,7 +6,7 @@ Required properties:
 - reg: I2C slave address
 
 Optional properties:
-- system-power-controller: Telling whether or not this pmic is controlling
+- system-power-controller: Telling whether or yest this pmic is controlling
   the system power. See Documentation/devicetree/bindings/power/power-controller.txt .
 - active-semi,vsel-high: Indicates the VSEL pin is high.
   If this property is missing, assume the VSEL pin is low(0).
@@ -17,7 +17,7 @@ Optional input supply properties:
   - vp2-supply: The input supply for DCDC_REG2
   - vp3-supply: The input supply for DCDC_REG3
   - inl-supply: The input supply for LDO_REG5, LDO_REG6, LDO_REG7 and LDO_REG8
-  SUDCDC_REG4, LDO_REG9 and LDO_REG10 do not have separate supplies.
+  SUDCDC_REG4, LDO_REG9 and LDO_REG10 do yest have separate supplies.
 - for act8846:
   - vp1-supply: The input supply for REG1
   - vp2-supply: The input supply for REG2

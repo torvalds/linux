@@ -22,7 +22,7 @@
 
 static int gpio_reset = -2;
 module_param(gpio_reset, int, 0644);
-MODULE_PARM_DESC(gpio_reset, "gpio number for reset. -1 for none.");
+MODULE_PARM_DESC(gpio_reset, "gpio number for reset. -1 for yesne.");
 
 #define SET_WRITE 0x7FFF        /* usage: and operation */
 #define SET_READ 0x8000         /* usage: or operation */
@@ -154,7 +154,7 @@ static void wfx_spi_request_rx(struct work_struct *work)
 
 static size_t wfx_spi_align_size(void *priv, size_t size)
 {
-	// Most of SPI controllers avoid DMA if buffer size is not 32bit aligned
+	// Most of SPI controllers avoid DMA if buffer size is yest 32bit aligned
 	return ALIGN(size, 4);
 }
 
@@ -230,7 +230,7 @@ static int wfx_spi_disconnect(struct spi_device *func)
 
 	wfx_release(bus->core);
 	wfx_free_common(bus->core);
-	// A few IRQ will be sent during device release. Hopefully, no IRQ
+	// A few IRQ will be sent during device release. Hopefully, yes IRQ
 	// should happen after wdev/wvif are released.
 	devm_free_irq(&func->dev, func->irq, bus);
 	flush_work(&bus->request_rx);
@@ -238,8 +238,8 @@ static int wfx_spi_disconnect(struct spi_device *func)
 }
 
 /*
- * For dynamic driver binding, kernel does not use OF to match driver. It only
- * use modalias and modalias is a copy of 'compatible' DT node with vendor
+ * For dynamic driver binding, kernel does yest use OF to match driver. It only
+ * use modalias and modalias is a copy of 'compatible' DT yesde with vendor
  * stripped.
  */
 static const struct spi_device_id wfx_spi_id[] = {

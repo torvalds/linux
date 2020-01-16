@@ -37,7 +37,7 @@ int intel_dsi_get_modes(struct drm_connector *connector)
 	DRM_DEBUG_KMS("\n");
 
 	if (!intel_connector->panel.fixed_mode) {
-		DRM_DEBUG_KMS("no fixed mode\n");
+		DRM_DEBUG_KMS("yes fixed mode\n");
 		return 0;
 	}
 

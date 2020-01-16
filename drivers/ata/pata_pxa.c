@@ -121,7 +121,7 @@ static unsigned char pxa_bmdma_status(struct ata_port *ap)
 }
 
 /*
- * No IRQ register present so we do nothing.
+ * No IRQ register present so we do yesthing.
  */
 static void pxa_irq_clear(struct ata_port *ap)
 {

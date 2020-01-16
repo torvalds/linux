@@ -1,6 +1,6 @@
-/* orinoco.h
+/* oriyesco.h
  *
- * Common definitions to all pieces of the various orinoco
+ * Common definitions to all pieces of the various oriyesco
  * drivers
  */
 
@@ -29,7 +29,7 @@
 #define ORINOCO_MAX_KEY_SIZE	14
 #define ORINOCO_MAX_KEYS	4
 
-struct orinoco_key {
+struct oriyesco_key {
 	__le16 len;	/* always stored as little-endian */
 	char data[ORINOCO_MAX_KEY_SIZE];
 } __packed;
@@ -37,13 +37,13 @@ struct orinoco_key {
 #define TKIP_KEYLEN	16
 #define MIC_KEYLEN	8
 
-struct orinoco_tkip_key {
+struct oriyesco_tkip_key {
 	u8 tkip[TKIP_KEYLEN];
 	u8 tx_mic[MIC_KEYLEN];
 	u8 rx_mic[MIC_KEYLEN];
 };
 
-enum orinoco_alg {
+enum oriyesco_alg {
 	ORINOCO_ALG_NONE,
 	ORINOCO_ALG_WEP,
 	ORINOCO_ALG_TKIP
@@ -57,11 +57,11 @@ enum fwtype {
 
 struct firmware;
 
-struct orinoco_private {
+struct oriyesco_private {
 	void *card;	/* Pointer to card dependent structure */
 	struct device *dev;
-	int (*hard_reset)(struct orinoco_private *);
-	int (*stop_fw)(struct orinoco_private *, int);
+	int (*hard_reset)(struct oriyesco_private *);
+	int (*stop_fw)(struct oriyesco_private *, int);
 
 	struct ieee80211_supported_band band;
 	struct ieee80211_channel channels[14];
@@ -116,7 +116,7 @@ struct orinoco_private {
 
 	/* Configuration paramaters */
 	enum nl80211_iftype iw_mode;
-	enum orinoco_alg encode_alg;
+	enum oriyesco_alg encode_alg;
 	u16 wep_restrict, tx_key;
 	struct key_params keys[ORINOCO_MAX_KEYS];
 
@@ -164,13 +164,13 @@ struct orinoco_private {
 	const struct firmware *cached_fw;
 #endif
 
-	struct notifier_block pm_notifier;
+	struct yestifier_block pm_yestifier;
 };
 
 #ifdef ORINOCO_DEBUG
-extern int orinoco_debug;
+extern int oriyesco_debug;
 #define DEBUG(n, args...) do { \
-	if (orinoco_debug > (n)) \
+	if (oriyesco_debug > (n)) \
 		printk(KERN_DEBUG args); \
 } while (0)
 #else
@@ -181,44 +181,44 @@ extern int orinoco_debug;
 /* Exported prototypes                                              */
 /********************************************************************/
 
-struct orinoco_private *alloc_orinocodev(int sizeof_card, struct device *device,
-					 int (*hard_reset)(struct orinoco_private *),
-					 int (*stop_fw)(struct orinoco_private *, int));
-void free_orinocodev(struct orinoco_private *priv);
-int orinoco_init(struct orinoco_private *priv);
-int orinoco_if_add(struct orinoco_private *priv, unsigned long base_addr,
+struct oriyesco_private *alloc_oriyescodev(int sizeof_card, struct device *device,
+					 int (*hard_reset)(struct oriyesco_private *),
+					 int (*stop_fw)(struct oriyesco_private *, int));
+void free_oriyescodev(struct oriyesco_private *priv);
+int oriyesco_init(struct oriyesco_private *priv);
+int oriyesco_if_add(struct oriyesco_private *priv, unsigned long base_addr,
 		   unsigned int irq, const struct net_device_ops *ops);
-void orinoco_if_del(struct orinoco_private *priv);
-int orinoco_up(struct orinoco_private *priv);
-void orinoco_down(struct orinoco_private *priv);
-irqreturn_t orinoco_interrupt(int irq, void *dev_id);
+void oriyesco_if_del(struct oriyesco_private *priv);
+int oriyesco_up(struct oriyesco_private *priv);
+void oriyesco_down(struct oriyesco_private *priv);
+irqreturn_t oriyesco_interrupt(int irq, void *dev_id);
 
-void __orinoco_ev_info(struct net_device *dev, struct hermes *hw);
-void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw);
+void __oriyesco_ev_info(struct net_device *dev, struct hermes *hw);
+void __oriyesco_ev_rx(struct net_device *dev, struct hermes *hw);
 
-int orinoco_process_xmit_skb(struct sk_buff *skb,
+int oriyesco_process_xmit_skb(struct sk_buff *skb,
 			     struct net_device *dev,
-			     struct orinoco_private *priv,
+			     struct oriyesco_private *priv,
 			     int *tx_control,
 			     u8 *mic);
 
-/* Common ndo functions exported for reuse by orinoco_usb */
-int orinoco_open(struct net_device *dev);
-int orinoco_stop(struct net_device *dev);
-void orinoco_set_multicast_list(struct net_device *dev);
-int orinoco_change_mtu(struct net_device *dev, int new_mtu);
-void orinoco_tx_timeout(struct net_device *dev);
+/* Common ndo functions exported for reuse by oriyesco_usb */
+int oriyesco_open(struct net_device *dev);
+int oriyesco_stop(struct net_device *dev);
+void oriyesco_set_multicast_list(struct net_device *dev);
+int oriyesco_change_mtu(struct net_device *dev, int new_mtu);
+void oriyesco_tx_timeout(struct net_device *dev);
 
 /********************************************************************/
 /* Locking and synchronization functions                            */
 /********************************************************************/
 
-static inline int orinoco_lock(struct orinoco_private *priv,
+static inline int oriyesco_lock(struct oriyesco_private *priv,
 			       unsigned long *flags)
 {
 	priv->hw.ops->lock_irqsave(&priv->lock, flags);
 	if (priv->hw_unavailable) {
-		DEBUG(1, "orinoco_lock() called with hw_unavailable (dev=%p)\n",
+		DEBUG(1, "oriyesco_lock() called with hw_unavailable (dev=%p)\n",
 		       priv->ndev);
 		priv->hw.ops->unlock_irqrestore(&priv->lock, flags);
 		return -EBUSY;
@@ -226,24 +226,24 @@ static inline int orinoco_lock(struct orinoco_private *priv,
 	return 0;
 }
 
-static inline void orinoco_unlock(struct orinoco_private *priv,
+static inline void oriyesco_unlock(struct oriyesco_private *priv,
 				  unsigned long *flags)
 {
 	priv->hw.ops->unlock_irqrestore(&priv->lock, flags);
 }
 
-static inline void orinoco_lock_irq(struct orinoco_private *priv)
+static inline void oriyesco_lock_irq(struct oriyesco_private *priv)
 {
 	priv->hw.ops->lock_irq(&priv->lock);
 }
 
-static inline void orinoco_unlock_irq(struct orinoco_private *priv)
+static inline void oriyesco_unlock_irq(struct oriyesco_private *priv)
 {
 	priv->hw.ops->unlock_irq(&priv->lock);
 }
 
-/*** Navigate from net_device to orinoco_private ***/
-static inline struct orinoco_private *ndev_priv(struct net_device *dev)
+/*** Navigate from net_device to oriyesco_private ***/
+static inline struct oriyesco_private *ndev_priv(struct net_device *dev)
 {
 	struct wireless_dev *wdev = netdev_priv(dev);
 	return wdev_priv(wdev);

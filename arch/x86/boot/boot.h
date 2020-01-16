@@ -33,7 +33,7 @@
 extern struct setup_header hdr;
 extern struct boot_params boot_params;
 
-#define cpu_relax()	asm volatile("rep; nop")
+#define cpu_relax()	asm volatile("rep; yesp")
 
 /* Basic port I/O */
 static inline void outb(u8 v, u16 port)
@@ -172,7 +172,7 @@ static inline void wrgs32(u32 v, addr_t addr)
 	asm volatile("movl %1,%%gs:%0" : "+m" (*(u32 *)addr) : "ri" (v));
 }
 
-/* Note: these only return true/false, not a signed return value! */
+/* Note: these only return true/false, yest a signed return value! */
 static inline bool memcmp_fs(const void *s1, addr_t s2, size_t len)
 {
 	bool diff;
@@ -203,7 +203,7 @@ static inline char *__get_heap(size_t s, size_t a, size_t n)
 	return tmp;
 }
 #define GET_HEAP(type, n) \
-	((type *)__get_heap(sizeof(type),__alignof__(type),(n)))
+	((type *)__get_heap(sizeof(type),__aligyesf__(type),(n)))
 
 static inline bool heap_free(size_t n)
 {
@@ -264,7 +264,7 @@ struct biosregs {
 		};
 	};
 };
-void intcall(u8 int_no, const struct biosregs *ireg, struct biosregs *oreg);
+void intcall(u8 int_yes, const struct biosregs *ireg, struct biosregs *oreg);
 
 /* cmdline.c */
 int __cmdline_find_option(unsigned long cmdline_ptr, const char *option, char *buffer, int bufsize);
@@ -302,16 +302,16 @@ void console_init(void);
 void query_edd(void);
 
 /* header.S */
-void __attribute__((noreturn)) die(void);
+void __attribute__((yesreturn)) die(void);
 
 /* memory.c */
 void detect_memory(void);
 
 /* pm.c */
-void __attribute__((noreturn)) go_to_protected_mode(void);
+void __attribute__((yesreturn)) go_to_protected_mode(void);
 
 /* pmjump.S */
-void __attribute__((noreturn))
+void __attribute__((yesreturn))
 	protected_mode_jump(u32 entrypoint, u32 bootparams);
 
 /* printf.c */

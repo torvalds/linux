@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -195,7 +195,7 @@ static u32 get_reserved(struct intel_gmbus *bus)
 
 	/* On most chips, these bits must be preserved in software. */
 	if (!IS_I830(i915) && !IS_I845G(i915))
-		reserved = intel_uncore_read_notrace(uncore, bus->gpio_reg) &
+		reserved = intel_uncore_read_yestrace(uncore, bus->gpio_reg) &
 			   (GPIO_DATA_PULLUP_DISABLE |
 			    GPIO_CLOCK_PULLUP_DISABLE);
 
@@ -208,12 +208,12 @@ static int get_clock(void *data)
 	struct intel_uncore *uncore = &bus->dev_priv->uncore;
 	u32 reserved = get_reserved(bus);
 
-	intel_uncore_write_notrace(uncore,
+	intel_uncore_write_yestrace(uncore,
 				   bus->gpio_reg,
 				   reserved | GPIO_CLOCK_DIR_MASK);
-	intel_uncore_write_notrace(uncore, bus->gpio_reg, reserved);
+	intel_uncore_write_yestrace(uncore, bus->gpio_reg, reserved);
 
-	return (intel_uncore_read_notrace(uncore, bus->gpio_reg) &
+	return (intel_uncore_read_yestrace(uncore, bus->gpio_reg) &
 		GPIO_CLOCK_VAL_IN) != 0;
 }
 
@@ -223,12 +223,12 @@ static int get_data(void *data)
 	struct intel_uncore *uncore = &bus->dev_priv->uncore;
 	u32 reserved = get_reserved(bus);
 
-	intel_uncore_write_notrace(uncore,
+	intel_uncore_write_yestrace(uncore,
 				   bus->gpio_reg,
 				   reserved | GPIO_DATA_DIR_MASK);
-	intel_uncore_write_notrace(uncore, bus->gpio_reg, reserved);
+	intel_uncore_write_yestrace(uncore, bus->gpio_reg, reserved);
 
-	return (intel_uncore_read_notrace(uncore, bus->gpio_reg) &
+	return (intel_uncore_read_yestrace(uncore, bus->gpio_reg) &
 		GPIO_DATA_VAL_IN) != 0;
 }
 
@@ -245,7 +245,7 @@ static void set_clock(void *data, int state_high)
 		clock_bits = GPIO_CLOCK_DIR_OUT | GPIO_CLOCK_DIR_MASK |
 			     GPIO_CLOCK_VAL_MASK;
 
-	intel_uncore_write_notrace(uncore,
+	intel_uncore_write_yestrace(uncore,
 				   bus->gpio_reg,
 				   reserved | clock_bits);
 	intel_uncore_posting_read(uncore, bus->gpio_reg);
@@ -264,7 +264,7 @@ static void set_data(void *data, int state_high)
 		data_bits = GPIO_DATA_DIR_OUT | GPIO_DATA_DIR_MASK |
 			GPIO_DATA_VAL_MASK;
 
-	intel_uncore_write_notrace(uncore, bus->gpio_reg, reserved | data_bits);
+	intel_uncore_write_yestrace(uncore, bus->gpio_reg, reserved | data_bits);
 	intel_uncore_posting_read(uncore, bus->gpio_reg);
 }
 
@@ -397,7 +397,7 @@ gmbus_xfer_read_chunk(struct drm_i915_private *dev_priv,
 	if (burst_read) {
 		/*
 		 * As per HW Spec, for 512Bytes need to read extra Byte and
-		 * Ignore the extra byte read.
+		 * Igyesre the extra byte read.
 		 */
 		if (len == 512) {
 			extra_byte_added = true;
@@ -538,7 +538,7 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 }
 
 /*
- * The gmbus controller can combine a 1 or 2 byte write with another read/write
+ * The gmbus controller can combine a 1 or 2 byte write with ayesther read/write
  * that immediately follows it by using an "INDEX" cycle.
  */
 static bool
@@ -650,9 +650,9 @@ clear_err:
 	 * If we clear the NAK while bus is still active, then it will stay
 	 * active and the next transaction may fail.
 	 *
-	 * If no ACK is received during the address phase of a transaction, the
-	 * adapter must report -ENXIO. It is not clear what to return if no ACK
-	 * is received at other times. But we have to be careful to not return
+	 * If yes ACK is received during the address phase of a transaction, the
+	 * adapter must report -ENXIO. It is yest clear what to return if yes ACK
+	 * is received at other times. But we have to be careful to yest return
 	 * spurious -ENXIO because that will prevent i2c and drm edid functions
 	 * from retrying. So return -ENXIO only when gmbus properly quiescents -
 	 * timing out seems to happen when there _is_ a ddc chip present, but
@@ -697,7 +697,7 @@ timeout:
 	I915_WRITE_FW(GMBUS0, 0);
 
 	/*
-	 * Hardware may not support GMBUS over these pins? Try GPIO bitbanging
+	 * Hardware may yest support GMBUS over these pins? Try GPIO bitbanging
 	 * instead. Use EAGAIN to have i2c core retry.
 	 */
 	ret = -EAGAIN;
@@ -929,7 +929,7 @@ void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 	mutex_lock(&dev_priv->gmbus_mutex);
 
 	bus->force_bit += force_bit ? 1 : -1;
-	DRM_DEBUG_KMS("%sabling bit-banging on %s. force bit now %d\n",
+	DRM_DEBUG_KMS("%sabling bit-banging on %s. force bit yesw %d\n",
 		      force_bit ? "en" : "dis", adapter->name,
 		      bus->force_bit);
 

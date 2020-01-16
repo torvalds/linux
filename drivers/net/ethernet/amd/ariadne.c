@@ -41,7 +41,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -169,11 +169,11 @@ static int ariadne_rx(struct net_device *dev)
 		int status = lowb(priv->rx_ring[entry]->RMD1);
 
 		if (status != (RF_STP | RF_ENP)) {	/* There was an error */
-			/* There is a tricky error noted by
+			/* There is a tricky error yested by
 			 * John Murphy <murf@perftech.com> to Russ Nelson:
 			 * Even with full-sized buffers it's possible for a
 			 * jabber packet to use two buffers, with only the
-			 * last correctly noting the error
+			 * last correctly yesting the error
 			 */
 			/* Only count a general error at the end of a packet */
 			if (status & RF_ENP)
@@ -230,7 +230,7 @@ static int ariadne_rx(struct net_device *dev)
 	priv->cur_rx = priv->cur_rx % RX_RING_SIZE;
 
 	/* We should check that at least two ring entries are free.
-	 * If not, we should free one and mark stats->rx_dropped++
+	 * If yest, we should free one and mark stats->rx_dropped++
 	 */
 
 	return 0;
@@ -253,7 +253,7 @@ static irqreturn_t ariadne_interrupt(int irq, void *data)
 
 	boguscnt = 10;
 	while ((csr0 = lance->RDP) & (ERR | RINT | TINT) && --boguscnt >= 0) {
-		/* Acknowledge all of the current interrupt sources ASAP */
+		/* Ackyeswledge all of the current interrupt sources ASAP */
 		lance->RDP = csr0 & ~(INEA | TDMD | STOP | STRT | INIT);
 
 #ifdef DEBUG
@@ -352,7 +352,7 @@ static irqreturn_t ariadne_interrupt(int irq, void *data)
 
 			if (priv->tx_full && netif_queue_stopped(dev) &&
 			    dirty_tx > priv->cur_tx - TX_RING_SIZE + 2) {
-				/* The ring is no longer full */
+				/* The ring is yes longer full */
 				priv->tx_full = 0;
 				netif_wake_queue(dev);
 			}
@@ -557,7 +557,7 @@ static netdev_tx_t ariadne_start_xmit(struct sk_buff *skb,
 	}
 #endif
 
-	/* FIXME: is the 79C960 new enough to do its own padding right ? */
+	/* FIXME: is the 79C960 new eyesugh to do its own padding right ? */
 	if (skb->len < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
 			return NETDEV_TX_OK;
@@ -637,7 +637,7 @@ static struct net_device_stats *ariadne_get_stats(struct net_device *dev)
 /* Set or clear the multicast filter for this adaptor.
  * num_addrs == -1	Promiscuous mode, receive all packets
  * num_addrs == 0	Normal mode, clear multicast list
- * num_addrs > 0	Multicast mode, receive normal and MC packets,
+ * num_addrs > 0	Multicast mode, receive yesrmal and MC packets,
  * 			and do best-effort filtering.
  */
 static void set_multicast_list(struct net_device *dev)
@@ -676,7 +676,7 @@ static void set_multicast_list(struct net_device *dev)
 	}
 
 	lance->RAP = CSR0;		/* PCnet-ISA Controller Status */
-	lance->RDP = INEA | STRT | IDON;/* Resume normal operation */
+	lance->RDP = INEA | STRT | IDON;/* Resume yesrmal operation */
 
 	netif_wake_queue(dev);
 }

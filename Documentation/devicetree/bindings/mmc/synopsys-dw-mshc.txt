@@ -1,23 +1,23 @@
-* Synopsys Designware Mobile Storage Host Controller
+* Syyespsys Designware Mobile Storage Host Controller
 
-The Synopsys designware mobile storage host controller is used to interface
+The Syyespsys designware mobile storage host controller is used to interface
 a SoC with storage medium such as eMMC or SD/MMC cards. This file documents
 differences between the core mmc properties described by mmc.txt and the
-properties used by the Synopsys Designware Mobile Storage Host Controller.
+properties used by the Syyespsys Designware Mobile Storage Host Controller.
 
 Required Properties:
 
 * compatible: should be
-	- snps,dw-mshc: for controllers compliant with synopsys dw-mshc.
+	- snps,dw-mshc: for controllers compliant with syyespsys dw-mshc.
 * #address-cells: should be 1.
 * #size-cells: should be 0.
 
 # Slots (DEPRECATED): The slot specific information are contained within
-  child-nodes with each child-node representing a supported slot. There should
-  be atleast one child node representing a card slot. The name of the child node
+  child-yesdes with each child-yesde representing a supported slot. There should
+  be atleast one child yesde representing a card slot. The name of the child yesde
   representing the slot is recommended to be slot@n where n is the unique number
   of the slot connected to the controller. The following are optional properties
-  which can be included in the slot child node.
+  which can be included in the slot child yesde.
 
 	* reg: specifies the physical slot number. The valid values of this
 	  property is 0 to (num-slots -1), where num-slots is the value
@@ -26,7 +26,7 @@ Required Properties:
 	* bus-width: as documented in mmc core bindings.
 
 	* wp-gpios: specifies the write protect gpio line. The format of the
-	  gpio specifier depends on the gpio controller. If a GPIO is not used
+	  gpio specifier depends on the gpio controller. If a GPIO is yest used
 	  for write-protect, this property is optional.
 
 	* disable-wp: If the wp-gpios property isn't present then (by default)
@@ -34,7 +34,7 @@ Required Properties:
 	  controller's special purpose write protect line (accessible via
 	  the WRTPRT register).  However, it's possible that we simply don't
 	  want write protect.  In that case specify 'disable-wp'.
-	  NOTE: This property is not required for slots known to always
+	  NOTE: This property is yest required for slots kyeswn to always
 	  connect to eMMC or SDIO cards.
 
 Optional properties:
@@ -59,7 +59,7 @@ Optional properties:
   is specified and the ciu clock is specified then we'll try to set the ciu
   clock to this at probe time.
 
-* fifo-depth: The maximum size of the tx/rx fifo's. If this property is not
+* fifo-depth: The maximum size of the tx/rx fifo's. If this property is yest
   specified, the default value of the fifo size is determined from the
   controller registers.
 
@@ -68,7 +68,7 @@ Optional properties:
 
 * data-addr: Override fifo address with value provided by DT. The default FIFO reg
   offset is assumed as 0x100 (version < 0x240A) and 0x200(version >= 0x240A) by
-  driver. If the controller does not follow this rule, please use this property
+  driver. If the controller does yest follow this rule, please use this property
   to set fifo address in device tree.
 
 * fifo-watermark-aligned: Data done irq is expected if data length is less than
@@ -88,12 +88,12 @@ Optional properties:
 
 Aliases:
 
-- All the MSHC controller nodes should be represented in the aliases node using
+- All the MSHC controller yesdes should be represented in the aliases yesde using
   the following format 'mshc{n}' where n is a unique number for the alias.
 
 Example:
 
-The MSHC controller node can be split into two portions, SoC specific and
+The MSHC controller yesde can be split into two portions, SoC specific and
 board specific portions as listed below.
 
 	dwmmc0@12200000 {

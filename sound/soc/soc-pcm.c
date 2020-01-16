@@ -101,27 +101,27 @@ void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream)
 }
 
 /**
- * snd_soc_runtime_ignore_pmdown_time() - Check whether to ignore the power down delay
+ * snd_soc_runtime_igyesre_pmdown_time() - Check whether to igyesre the power down delay
  * @rtd: The ASoC PCM runtime that should be checked.
  *
- * This function checks whether the power down delay should be ignored for a
+ * This function checks whether the power down delay should be igyesred for a
  * specific PCM runtime. Returns true if the delay is 0, if it the DAI link has
- * been configured to ignore the delay, or if none of the components benefits
+ * been configured to igyesre the delay, or if yesne of the components benefits
  * from having the delay.
  */
-bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
+bool snd_soc_runtime_igyesre_pmdown_time(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_component *component;
-	bool ignore = true;
+	bool igyesre = true;
 
-	if (!rtd->pmdown_time || rtd->dai_link->ignore_pmdown_time)
+	if (!rtd->pmdown_time || rtd->dai_link->igyesre_pmdown_time)
 		return true;
 
 	for_each_rtd_components(rtd, rtdcom, component)
-		ignore &= !component->driver->use_pmdown_time;
+		igyesre &= !component->driver->use_pmdown_time;
 
-	return ignore;
+	return igyesre;
 }
 
 /**
@@ -375,10 +375,10 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_substream *substream)
 		/*
 		 * Skip CODECs which don't support the current stream type.
 		 * Otherwise, since the rate, channel, and format values will
-		 * zero in that case, we would have no usable settings left,
+		 * zero in that case, we would have yes usable settings left,
 		 * causing the resulting setup to fail.
 		 * At least one CODEC should match, otherwise we should have
-		 * bailed out on a higher level, since there would be no
+		 * bailed out on a higher level, since there would be yes
 		 * CODEC to support the transfer direction in that case.
 		 */
 		if (!snd_soc_dai_stream_valid(codec_dai,
@@ -393,13 +393,13 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_substream *substream)
 		chan_min = max(chan_min, codec_stream->channels_min);
 		chan_max = min(chan_max, codec_stream->channels_max);
 		rate_min = max(rate_min, codec_stream->rate_min);
-		rate_max = min_not_zero(rate_max, codec_stream->rate_max);
+		rate_max = min_yest_zero(rate_max, codec_stream->rate_max);
 		formats &= codec_stream->formats;
 		rates = snd_pcm_rate_mask_intersect(codec_stream->rates, rates);
 	}
 
 	/*
-	 * chan min/max cannot be enforced if there are multiple CODEC DAIs
+	 * chan min/max canyest be enforced if there are multiple CODEC DAIs
 	 * connected to a single CPU DAI, use CPU DAI's directly and let
 	 * channel allocation be fixed up later
 	 */
@@ -420,8 +420,8 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_substream *substream)
 
 	hw->rate_min = max(hw->rate_min, cpu_stream->rate_min);
 	hw->rate_min = max(hw->rate_min, rate_min);
-	hw->rate_max = min_not_zero(hw->rate_max, cpu_stream->rate_max);
-	hw->rate_max = min_not_zero(hw->rate_max, rate_max);
+	hw->rate_max = min_yest_zero(hw->rate_max, cpu_stream->rate_max);
+	hw->rate_max = min_yest_zero(hw->rate_max, rate_max);
 }
 
 static int soc_pcm_components_open(struct snd_pcm_substream *substream,
@@ -537,7 +537,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	}
 
 	/* Dynamic PCM DAI links compat checks use dynamic capabilities */
-	if (rtd->dai_link->dynamic || rtd->dai_link->no_pcm)
+	if (rtd->dai_link->dynamic || rtd->dai_link->yes_pcm)
 		goto dynamic;
 
 	/* Check that the codec and cpu DAIs are compatible */
@@ -634,7 +634,7 @@ out:
 
 /*
  * Power down the audio subsystem pmdown_time msecs after close is called.
- * This is to ensure there are no pops or clicks in between any music tracks
+ * This is to ensure there are yes pops or clicks in between any music tracks
  * due to DAPM power cycling.
  */
 static void close_delayed_work(struct snd_soc_pcm_runtime *rtd)
@@ -646,7 +646,7 @@ static void close_delayed_work(struct snd_soc_pcm_runtime *rtd)
 	dev_dbg(rtd->dev, "ASoC: pop wq checking: %s status: %s waiting: %s\n",
 		 codec_dai->driver->playback.stream_name,
 		 codec_dai->playback_active ? "active" : "inactive",
-		 rtd->pop_wait ? "yes" : "no");
+		 rtd->pop_wait ? "no" : "yes");
 
 	/* are we waiting on this codec DAI stream */
 	if (rtd->pop_wait == 1) {
@@ -661,8 +661,8 @@ static void close_delayed_work(struct snd_soc_pcm_runtime *rtd)
 static void codec2codec_close_delayed_work(struct snd_soc_pcm_runtime *rtd)
 {
 	/*
-	 * Currently nothing to do for c2c links
-	 * Since c2c links are internal nodes in the DAPM graph and
+	 * Currently yesthing to do for c2c links
+	 * Since c2c links are internal yesdes in the DAPM graph and
 	 * don't interface with the outside world or application layer
 	 * we don't have to do any special handling on close.
 	 */
@@ -708,8 +708,8 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	soc_pcm_components_close(substream, NULL);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (snd_soc_runtime_ignore_pmdown_time(rtd)) {
-			/* powered down playback stream now */
+		if (snd_soc_runtime_igyesre_pmdown_time(rtd)) {
+			/* powered down playback stream yesw */
 			snd_soc_dapm_stream_event(rtd,
 						  SNDRV_PCM_STREAM_PLAYBACK,
 						  SND_SOC_DAPM_STREAM_STOP);
@@ -721,7 +721,7 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 					   msecs_to_jiffies(rtd->pmdown_time));
 		}
 	} else {
-		/* capture streams can be powered down now */
+		/* capture streams can be powered down yesw */
 		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_CAPTURE,
 					  SND_SOC_DAPM_STREAM_STOP);
 	}
@@ -745,7 +745,7 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 
 /*
  * Called by ALSA when the PCM substream is prepared, can set format, sample
- * rate, etc.  This function is non atomic and can be called multiple times,
+ * rate, etc.  This function is yesn atomic and can be called multiple times,
  * it can refer to the runtime info.
  */
 static int soc_pcm_prepare(struct snd_pcm_substream *substream)
@@ -846,7 +846,7 @@ static int soc_pcm_components_hw_free(struct snd_pcm_substream *substream,
 /*
  * Called by ALSA when the hardware params are set by application. This
  * function can also be called multiple times and can allocate buffers
- * (using snd_pcm_lib_* ). It's non-atomic.
+ * (using snd_pcm_lib_* ). It's yesn-atomic.
  */
 static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
@@ -878,12 +878,12 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 
 		/*
 		 * Skip CODECs which don't support the current stream type,
-		 * the idea being that if a CODEC is not used for the currently
-		 * set up transfer direction, it should not need to be
+		 * the idea being that if a CODEC is yest used for the currently
+		 * set up transfer direction, it should yest need to be
 		 * configured, especially since the configuration used might
-		 * not even be supported by that CODEC. There may be cases
+		 * yest even be supported by that CODEC. There may be cases
 		 * however where a CODEC needs to be set up although it is
-		 * actually not being used for the transfer, e.g. if a
+		 * actually yest being used for the transfer, e.g. if a
 		 * capture-only CODEC is acting as an LRCLK and/or BCLK master
 		 * for the DAI link including a playback-only CODEC.
 		 * If this becomes necessary, we will have to augment the
@@ -1015,7 +1015,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	/* free any component resources */
 	soc_pcm_components_hw_free(substream, NULL);
 
-	/* now free hw params for the DAIs  */
+	/* yesw free hw params for the DAIs  */
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
 		if (!snd_soc_dai_stream_valid(codec_dai, substream->stream))
 			continue;
@@ -1223,7 +1223,7 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 	return 1;
 }
 
-/* reparent a BE onto another FE */
+/* reparent a BE onto ayesther FE */
 static void dpcm_be_reparent(struct snd_soc_pcm_runtime *fe,
 			struct snd_soc_pcm_runtime *be, int stream)
 {
@@ -1296,12 +1296,12 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		for_each_card_rtds(card, be) {
 
-			if (!be->dai_link->no_pcm)
+			if (!be->dai_link->yes_pcm)
 				continue;
 
 			dev_dbg(card->dev, "ASoC: try BE : %s\n",
 				be->cpu_dai->playback_widget ?
-				be->cpu_dai->playback_widget->name : "(not set)");
+				be->cpu_dai->playback_widget->name : "(yest set)");
 
 			if (be->cpu_dai->playback_widget == widget)
 				return be;
@@ -1315,12 +1315,12 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 
 		for_each_card_rtds(card, be) {
 
-			if (!be->dai_link->no_pcm)
+			if (!be->dai_link->yes_pcm)
 				continue;
 
 			dev_dbg(card->dev, "ASoC: try BE %s\n",
 				be->cpu_dai->capture_widget ?
-				be->cpu_dai->capture_widget->name : "(not set)");
+				be->cpu_dai->capture_widget->name : "(yest set)");
 
 			if (be->cpu_dai->capture_widget == widget)
 				return be;
@@ -1370,7 +1370,7 @@ static bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget,
 
 	if (dir == SND_SOC_DAPM_DIR_OUT) {
 		for_each_card_rtds(card, rtd) {
-			if (!rtd->dai_link->no_pcm)
+			if (!rtd->dai_link->yes_pcm)
 				continue;
 
 			if (rtd->cpu_dai->playback_widget == widget)
@@ -1383,7 +1383,7 @@ static bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget,
 		}
 	} else { /* SND_SOC_DAPM_DIR_IN */
 		for_each_card_rtds(card, rtd) {
-			if (!rtd->dai_link->no_pcm)
+			if (!rtd->dai_link->yes_pcm)
 				continue;
 
 			if (rtd->cpu_dai->capture_widget == widget)
@@ -1432,7 +1432,7 @@ static int dpcm_prune_paths(struct snd_soc_pcm_runtime *fe, int stream,
 		/* is there a valid CPU DAI widget for this BE */
 		widget = dai_get_widget(dpcm->be->cpu_dai, stream);
 
-		/* prune the BE if it's no longer in our active list */
+		/* prune the BE if it's yes longer in our active list */
 		if (widget && widget_in_list(list, widget))
 			continue;
 
@@ -1441,7 +1441,7 @@ static int dpcm_prune_paths(struct snd_soc_pcm_runtime *fe, int stream,
 		for_each_rtd_codec_dai(dpcm->be, i, dai) {
 			widget = dai_get_widget(dai, stream);
 
-			/* prune the BE if it's no longer in our active list */
+			/* prune the BE if it's yes longer in our active list */
 			if (widget && widget_in_list(list, widget))
 				do_prune = 0;
 		}
@@ -1487,16 +1487,16 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 		/* is there a valid BE rtd for this widget */
 		be = dpcm_get_be(card, list->widgets[i], stream);
 		if (!be) {
-			dev_err(fe->dev, "ASoC: no BE found for %s\n",
+			dev_err(fe->dev, "ASoC: yes BE found for %s\n",
 					list->widgets[i]->name);
 			continue;
 		}
 
 		/* make sure BE is a real BE */
-		if (!be->dai_link->no_pcm)
+		if (!be->dai_link->yes_pcm)
 			continue;
 
-		/* don't connect if FE is not running */
+		/* don't connect if FE is yest running */
 		if (!fe->dpcm[stream].runtime && !fe->fe_compr)
 			continue;
 
@@ -1548,7 +1548,7 @@ static void dpcm_be_dai_startup_unwind(struct snd_soc_pcm_runtime *fe,
 {
 	struct snd_soc_dpcm *dpcm;
 
-	/* disable any enabled and non active backends */
+	/* disable any enabled and yesn active backends */
 	for_each_dpcm_be(fe, stream, dpcm) {
 
 		struct snd_soc_pcm_runtime *be = dpcm->be;
@@ -1556,7 +1556,7 @@ static void dpcm_be_dai_startup_unwind(struct snd_soc_pcm_runtime *fe,
 			snd_soc_dpcm_get_substream(be, stream);
 
 		if (be->dpcm[stream].users == 0)
-			dev_err(be->dev, "ASoC: no users %s at close - state %d\n",
+			dev_err(be->dev, "ASoC: yes users %s at close - state %d\n",
 				stream ? "capture" : "playback",
 				be->dpcm[stream].state);
 
@@ -1585,7 +1585,7 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 			snd_soc_dpcm_get_substream(be, stream);
 
 		if (!be_substream) {
-			dev_err(be->dev, "ASoC: no backend %s stream\n",
+			dev_err(be->dev, "ASoC: yes backend %s stream\n",
 				stream ? "capture" : "playback");
 			continue;
 		}
@@ -1616,7 +1616,7 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 			dev_err(be->dev, "ASoC: BE open failed %d\n", err);
 			be->dpcm[stream].users--;
 			if (be->dpcm[stream].users < 0)
-				dev_err(be->dev, "ASoC: no users %s at unwind %d\n",
+				dev_err(be->dev, "ASoC: yes users %s at unwind %d\n",
 					stream ? "capture" : "playback",
 					be->dpcm[stream].state);
 
@@ -1631,7 +1631,7 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 	return count;
 
 unwind:
-	/* disable any enabled and non active backends */
+	/* disable any enabled and yesn active backends */
 	for_each_dpcm_be_rollback(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
 		struct snd_pcm_substream *be_substream =
@@ -1641,7 +1641,7 @@ unwind:
 			continue;
 
 		if (be->dpcm[stream].users == 0)
-			dev_err(be->dev, "ASoC: no users %s at close %d\n",
+			dev_err(be->dev, "ASoC: yes users %s at close %d\n",
 				stream ? "capture" : "playback",
 				be->dpcm[stream].state);
 
@@ -1663,7 +1663,7 @@ static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
 				 struct snd_soc_pcm_stream *stream)
 {
 	runtime->hw.rate_min = stream->rate_min;
-	runtime->hw.rate_max = min_not_zero(stream->rate_max, UINT_MAX);
+	runtime->hw.rate_max = min_yest_zero(stream->rate_max, UINT_MAX);
 	runtime->hw.channels_min = stream->channels_min;
 	runtime->hw.channels_max = stream->channels_max;
 	if (runtime->hw.formats)
@@ -1746,7 +1746,7 @@ static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
 		*channels_max = min(*channels_max, cpu_stream->channels_max);
 
 		/*
-		 * chan min/max cannot be enforced if there are multiple CODEC
+		 * chan min/max canyest be enforced if there are multiple CODEC
 		 * DAIs connected to a single CPU DAI, use CPU DAI's directly
 		 */
 		if (be->num_codecs == 1) {
@@ -1797,7 +1797,7 @@ static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
 			cpu_stream = &cpu_dai_drv->capture;
 
 		*rate_min = max(*rate_min, cpu_stream->rate_min);
-		*rate_max = min_not_zero(*rate_max, cpu_stream->rate_max);
+		*rate_max = min_yest_zero(*rate_max, cpu_stream->rate_max);
 		*rates = snd_pcm_rate_mask_intersect(*rates, cpu_stream->rates);
 
 		for_each_rtd_codec_dai(be, i, dai) {
@@ -1815,7 +1815,7 @@ static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
 				codec_stream = &codec_dai_drv->capture;
 
 			*rate_min = max(*rate_min, codec_stream->rate_min);
-			*rate_max = min_not_zero(*rate_max,
+			*rate_max = min_yest_zero(*rate_max,
 						 codec_stream->rate_max);
 			*rates = snd_pcm_rate_mask_intersect(*rates,
 						codec_stream->rates);
@@ -1893,7 +1893,7 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 		struct snd_soc_dai *codec_dai;
 		int i;
 
-		/* A backend may not have the requested substream */
+		/* A backend may yest have the requested substream */
 		if (!be_substream)
 			continue;
 
@@ -1986,7 +1986,7 @@ int dpcm_be_dai_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
 			continue;
 
 		if (be->dpcm[stream].users == 0)
-			dev_err(be->dev, "ASoC: no users %s at close - state %d\n",
+			dev_err(be->dev, "ASoC: yes users %s at close - state %d\n",
 				stream ? "capture" : "playback",
 				be->dpcm[stream].state);
 
@@ -2022,7 +2022,7 @@ static int dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
 
 	dev_dbg(fe->dev, "ASoC: close FE %s\n", fe->dai_link->name);
 
-	/* now shutdown the frontend */
+	/* yesw shutdown the frontend */
 	soc_pcm_close(substream);
 
 	/* run the stream event for each BE */
@@ -2049,11 +2049,11 @@ int dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream)
 		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
 			continue;
 
-		/* only free hw when no longer used - check all FEs */
+		/* only free hw when yes longer used - check all FEs */
 		if (!snd_soc_dpcm_can_be_free_stop(fe, be, stream))
 				continue;
 
-		/* do not free hw if this BE is used by other FE */
+		/* do yest free hw if this BE is used by other FE */
 		if (be->dpcm[stream].users > 1)
 			continue;
 
@@ -2138,7 +2138,7 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 		memcpy(&be->dpcm[stream].hw_params, &dpcm->hw_params,
 		       sizeof(struct snd_pcm_hw_params));
 
-		/* only allow hw_params() if no connected FEs are running */
+		/* only allow hw_params() if yes connected FEs are running */
 		if (!snd_soc_dpcm_can_be_params(fe, be, stream))
 			continue;
 
@@ -2162,7 +2162,7 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 	return 0;
 
 unwind:
-	/* disable any enabled and non active backends */
+	/* disable any enabled and yesn active backends */
 	for_each_dpcm_be_rollback(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
 		struct snd_pcm_substream *be_substream =
@@ -2171,7 +2171,7 @@ unwind:
 		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
 			continue;
 
-		/* only allow hw_free() if no connected FEs are running */
+		/* only allow hw_free() if yes connected FEs are running */
 		if (!snd_soc_dpcm_can_be_free_stop(fe, be, stream))
 			continue;
 
@@ -2512,9 +2512,9 @@ static int dpcm_fe_dai_prepare(struct snd_pcm_substream *substream)
 
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
 
-	/* there is no point preparing this FE if there are no BEs */
+	/* there is yes point preparing this FE if there are yes BEs */
 	if (list_empty(&fe->dpcm[stream].be_clients)) {
-		dev_err(fe->dev, "ASoC: no backend DAIs enabled for %s\n",
+		dev_err(fe->dev, "ASoC: yes backend DAIs enabled for %s\n",
 				fe->dai_link->name);
 		ret = -EINVAL;
 		goto out;
@@ -2660,7 +2660,7 @@ hw_free:
 close:
 	dpcm_be_dai_shutdown(fe, stream);
 disconnect:
-	/* disconnect any non started BEs */
+	/* disconnect any yesn started BEs */
 	spin_lock_irqsave(&fe->card->dpcm_lock, flags);
 	for_each_dpcm_be(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
@@ -2725,7 +2725,7 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 
 	paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_PLAYBACK, &list);
 	if (paths < 0) {
-		dev_warn(fe->dev, "ASoC: %s no valid %s path\n",
+		dev_warn(fe->dev, "ASoC: %s yes valid %s path\n",
 			 fe->dai_link->name,  "playback");
 		return paths;
 	}
@@ -2756,7 +2756,7 @@ capture:
 
 	paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_CAPTURE, &list);
 	if (paths < 0) {
-		dev_warn(fe->dev, "ASoC: %s no valid %s path\n",
+		dev_warn(fe->dev, "ASoC: %s yes valid %s path\n",
 			 fe->dai_link->name,  "capture");
 		return paths;
 	}
@@ -2815,7 +2815,7 @@ int soc_dpcm_be_digital_mute(struct snd_soc_pcm_runtime *fe, int mute)
 		struct snd_soc_pcm_runtime *be = dpcm->be;
 		int i;
 
-		if (be->dai_link->ignore_suspend)
+		if (be->dai_link->igyesre_suspend)
 			continue;
 
 		for_each_rtd_codec_dai(be, i, dai) {
@@ -2849,7 +2849,7 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 		mutex_unlock(&fe->card->mutex);
 		return ret;
 	} else if (ret == 0) {
-		dev_dbg(fe->dev, "ASoC: %s no valid %s route\n",
+		dev_dbg(fe->dev, "ASoC: %s yes valid %s route\n",
 			fe->dai_link->name, stream ? "capture" : "playback");
 	}
 
@@ -2904,7 +2904,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	int ret = 0, playback = 0, capture = 0;
 	int i;
 
-	if (rtd->dai_link->dynamic || rtd->dai_link->no_pcm) {
+	if (rtd->dai_link->dynamic || rtd->dai_link->yes_pcm) {
 		playback = rtd->dai_link->dpcm_playback;
 		capture = rtd->dai_link->dpcm_capture;
 	} else {
@@ -2944,7 +2944,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 
 		ret = snd_pcm_new_internal(rtd->card->snd_card, new_name, num,
 					   playback, capture, &pcm);
-	} else if (rtd->dai_link->no_pcm) {
+	} else if (rtd->dai_link->yes_pcm) {
 		snprintf(new_name, sizeof(new_name), "(%s)",
 			rtd->dai_link->stream_name);
 
@@ -2976,11 +2976,11 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	else
 		rtd->close_delayed_work_func = close_delayed_work;
 
-	pcm->nonatomic = rtd->dai_link->nonatomic;
+	pcm->yesnatomic = rtd->dai_link->yesnatomic;
 	rtd->pcm = pcm;
 	pcm->private_data = rtd;
 
-	if (rtd->dai_link->no_pcm || rtd->dai_link->params) {
+	if (rtd->dai_link->yes_pcm || rtd->dai_link->params) {
 		if (playback)
 			pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream->private_data = rtd;
 		if (capture)
@@ -3034,7 +3034,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		return ret;
 	}
 
-	pcm->no_device_suspend = true;
+	pcm->yes_device_suspend = true;
 out:
 	dev_info(rtd->card->dev, "%s <-> %s mapping ok\n",
 		 (rtd->num_codecs > 1) ? "multicodec" : rtd->codec_dai->name,
@@ -3089,7 +3089,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dpcm_be_set_state);
 
 /*
  * We can only hw_free, stop, pause or suspend a BE DAI if any of it's FE
- * are not running, paused or suspended for the specified stream direction.
+ * are yest running, paused or suspended for the specified stream direction.
  */
 int snd_soc_dpcm_can_be_free_stop(struct snd_soc_pcm_runtime *fe,
 		struct snd_soc_pcm_runtime *be, int stream)
@@ -3121,7 +3121,7 @@ int snd_soc_dpcm_can_be_free_stop(struct snd_soc_pcm_runtime *fe,
 EXPORT_SYMBOL_GPL(snd_soc_dpcm_can_be_free_stop);
 
 /*
- * We can only change hw params a BE DAI if any of it's FE are not prepared,
+ * We can only change hw params a BE DAI if any of it's FE are yest prepared,
  * running, paused or suspended for the specified stream direction.
  */
 int snd_soc_dpcm_can_be_params(struct snd_soc_pcm_runtime *fe,
@@ -3180,7 +3180,7 @@ static const char *dpcm_state_string(enum snd_soc_dpcm_state state)
 		return "close";
 	}
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 static ssize_t dpcm_show_state(struct snd_soc_pcm_runtime *fe,

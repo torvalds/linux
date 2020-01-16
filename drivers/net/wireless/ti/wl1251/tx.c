@@ -194,7 +194,7 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 			sizeof(*tx_hdr) + hdrlen);
 	}
 
-	/* Revisit. This is a workaround for getting non-aligned packets.
+	/* Revisit. This is a workaround for getting yesn-aligned packets.
 	   This happens at least with EAPOL packets from the user space.
 	   Our DMA requires packets to be aligned on a 4-byte boundary.
 	*/
@@ -491,7 +491,7 @@ void wl1251_tx_complete(struct wl1251 *wl)
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
 
-	/* Every completed frame needs to be acknowledged */
+	/* Every completed frame needs to be ackyeswledged */
 	if (num_complete) {
 		/*
 		 * If we've wrapped, we have to clear

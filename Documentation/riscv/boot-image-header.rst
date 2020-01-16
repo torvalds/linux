@@ -40,7 +40,7 @@ Notes
 - version field indicate header version number
 
 	==========  =============
-	Bits 0:15   Minor version
+	Bits 0:15   Miyesr version
 	Bits 16:31  Major version
 	==========  =============
 
@@ -49,7 +49,7 @@ Notes
 
 - The "magic" field is deprecated as of version 0.2.  In a future
   release, it may be removed.  This originally should have matched up
-  with the ARM64 header "magic" field, but unfortunately does not.
+  with the ARM64 header "magic" field, but unfortunately does yest.
   The "magic2" field replaces it, matching up with the ARM64 header.
 
 - In current header, the flags field has only one field.

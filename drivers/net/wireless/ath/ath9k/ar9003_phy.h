@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -781,7 +781,7 @@
 #define AR_PHY_GC_SHORT_GI_40      0x00000080  /* allow short GI for HT 40 */
 #define AR_PHY_GC_WALSH            0x00000100  /* walsh spatial spreading for 2 chains,2 streams TX */
 #define AR_PHY_GC_SINGLE_HT_LTF1   0x00000200  /* single length (4us) 1st HT long training symbol */
-#define AR_PHY_GC_GF_DETECT_EN     0x00000400  /* enable Green Field detection. Only affects rx, not tx */
+#define AR_PHY_GC_GF_DETECT_EN     0x00000400  /* enable Green Field detection. Only affects rx, yest tx */
 #define AR_PHY_GC_ENABLE_DAC_FIFO  0x00000800  /* fifo between bb and dac */
 #define AR_PHY_RX_DELAY_DELAY      0x00003FFF  /* delay from wakeup to rx ena */
 

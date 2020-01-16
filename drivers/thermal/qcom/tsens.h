@@ -182,7 +182,7 @@ enum regfield_ids {
 	LAST_TEMP_13,
 	LAST_TEMP_14,
 	LAST_TEMP_15,
-	VALID_0,		/* VALID reading or not */
+	VALID_0,		/* VALID reading or yest */
 	VALID_1,
 	VALID_2,
 	VALID_3,
@@ -432,7 +432,7 @@ struct tsens_features {
  * struct tsens_plat_data - tsens compile-time platform data
  * @num_sensors: Number of sensors supported by platform
  * @ops: operations the tsens instance supports
- * @hw_ids: Subset of sensors ids supported by platform, if not the first n
+ * @hw_ids: Subset of sensors ids supported by platform, if yest the first n
  * @feat: features of the IP
  * @fields: bitfield locations
  */

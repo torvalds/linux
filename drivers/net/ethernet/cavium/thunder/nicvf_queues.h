@@ -64,7 +64,7 @@
 #define MAX_SND_QUEUE_LEN	(1ULL << (SND_QUEUE_SIZE6 + 10))
 #define SND_QUEUE_THRESH	2ULL
 #define MIN_SQ_DESC_PER_PKT_XMIT	2
-/* Since timestamp not enabled, otherwise 2 */
+/* Since timestamp yest enabled, otherwise 2 */
 #define MAX_CQE_PER_PKT_XMIT		1
 
 /* Keep CQ and SQ sizes same, if timestamping

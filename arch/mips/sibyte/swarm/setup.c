@@ -96,9 +96,9 @@ void read_persistent_clock64(struct timespec64 *ts)
 	ts->tv_nsec = 0;
 }
 
-int update_persistent_clock64(struct timespec64 now)
+int update_persistent_clock64(struct timespec64 yesw)
 {
-	time64_t sec = now.tv_sec;
+	time64_t sec = yesw.tv_sec;
 
 	switch (swarm_rtc_type) {
 	case RTC_XICOR:

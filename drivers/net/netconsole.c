@@ -14,7 +14,7 @@
  * 2003-08-11    2.6 port by Matt Mackall
  *               simplified options
  *               generic card hooks
- *               works non-modular
+ *               works yesn-modular
  * 2003-09-07    rewritten with netpoll api
  */
 
@@ -64,7 +64,7 @@ __setup("netconsole=", option_setup);
 /* Linked list of all configured targets */
 static LIST_HEAD(target_list);
 
-/* This needs to be a spinlock because write_msg() cannot sleep */
+/* This needs to be a spinlock because write_msg() canyest sleep */
 static DEFINE_SPINLOCK(target_list_lock);
 
 /*
@@ -77,7 +77,7 @@ static struct console netconsole_ext;
  * struct netconsole_target - Represents a configured netconsole target.
  * @list:	Links this target into the target_list.
  * @item:	Links us into the configfs subsystem hierarchy.
- * @enabled:	On / off knob to enable / disable target.
+ * @enabled:	On / off kyesb to enable / disable target.
  *		Visible from userspace (read-write).
  *		We maintain a strict 1:1 correspondence between this and
  *		whether the corresponding netpoll is active or inactive.
@@ -122,8 +122,8 @@ static void __exit dynamic_netconsole_exit(void)
 
 /*
  * Targets that were created by parsing the boot/module option string
- * do not exist in the configfs hierarchy (and have NULL names) and will
- * never go away, so make these a no-op for them.
+ * do yest exist in the configfs hierarchy (and have NULL names) and will
+ * never go away, so make these a yes-op for them.
  */
 static void netconsole_target_get(struct netconsole_target *nt)
 {
@@ -303,7 +303,7 @@ static ssize_t remote_mac_show(struct config_item *item, char *buf)
 
 /*
  * This one is special -- targets created through the configfs interface
- * are not enabled (and the corresponding netpoll activated) by default.
+ * are yest enabled (and the corresponding netpoll activated) by default.
  * The user is expected to set the desired parameters first (which
  * would enable him to dynamically add new netpoll targets for new
  * network interfaces as and when they come up).
@@ -687,13 +687,13 @@ static struct configfs_subsystem netconsole_subsys = {
 
 #endif	/* CONFIG_NETCONSOLE_DYNAMIC */
 
-/* Handle network interface device notifications */
-static int netconsole_netdev_event(struct notifier_block *this,
+/* Handle network interface device yestifications */
+static int netconsole_netdev_event(struct yestifier_block *this,
 				   unsigned long event, void *ptr)
 {
 	unsigned long flags;
 	struct netconsole_target *nt;
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	bool stopped = false;
 
 	if (!(event == NETDEV_CHANGENAME || event == NETDEV_UNREGISTER ||
@@ -752,8 +752,8 @@ done:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block netconsole_netdev_notifier = {
-	.notifier_call  = netconsole_netdev_event,
+static struct yestifier_block netconsole_netdev_yestifier = {
+	.yestifier_call  = netconsole_netdev_event,
 };
 
 /**
@@ -906,13 +906,13 @@ static int __init init_netconsole(void)
 		}
 	}
 
-	err = register_netdevice_notifier(&netconsole_netdev_notifier);
+	err = register_netdevice_yestifier(&netconsole_netdev_yestifier);
 	if (err)
 		goto fail;
 
 	err = dynamic_netconsole_init();
 	if (err)
-		goto undonotifier;
+		goto undoyestifier;
 
 	if (netconsole_ext.flags & CON_ENABLED)
 		register_console(&netconsole_ext);
@@ -921,8 +921,8 @@ static int __init init_netconsole(void)
 
 	return err;
 
-undonotifier:
-	unregister_netdevice_notifier(&netconsole_netdev_notifier);
+undoyestifier:
+	unregister_netdevice_yestifier(&netconsole_netdev_yestifier);
 
 fail:
 	pr_err("cleaning up\n");
@@ -947,7 +947,7 @@ static void __exit cleanup_netconsole(void)
 	unregister_console(&netconsole_ext);
 	unregister_console(&netconsole);
 	dynamic_netconsole_exit();
-	unregister_netdevice_notifier(&netconsole_netdev_notifier);
+	unregister_netdevice_yestifier(&netconsole_netdev_yestifier);
 
 	/*
 	 * Targets created via configfs pin references on our module

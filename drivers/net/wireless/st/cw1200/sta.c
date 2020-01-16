@@ -3,7 +3,7 @@
  * Mac80211 STA API for ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.yes>
  */
 
 #include <linux/vmalloc.h>
@@ -33,9 +33,9 @@ static int cw1200_start_ap(struct cw1200_common *priv);
 static int cw1200_update_beaconing(struct cw1200_common *priv);
 static int cw1200_enable_beaconing(struct cw1200_common *priv,
 				   bool enable);
-static void __cw1200_sta_notify(struct ieee80211_hw *dev,
+static void __cw1200_sta_yestify(struct ieee80211_hw *dev,
 				struct ieee80211_vif *vif,
-				enum sta_notify_cmd notify_cmd,
+				enum sta_yestify_cmd yestify_cmd,
 				int link_id);
 static int __cw1200_flush(struct cw1200_common *priv, bool drop);
 
@@ -379,7 +379,7 @@ int cw1200_config(struct ieee80211_hw *dev, u32 changed)
 
 		/* Firmware requires that value for this 1-byte field must
 		 * be specified in units of 500us. Values above the 128ms
-		 * threshold are not supported.
+		 * threshold are yest supported.
 		 */
 		if (conf->dynamic_ps_timeout >= 0x80)
 			priv->powersave_mode.fast_psm_idle_period = 0xFF;
@@ -396,7 +396,7 @@ int cw1200_config(struct ieee80211_hw *dev, u32 changed)
 		/* TBD: It looks like it's transparent
 		 * there's a monitor interface present -- use this
 		 * to determine for example whether to calculate
-		 * timestamps for packets or not, do not use instead
+		 * timestamps for packets or yest, do yest use instead
 		 * of filter flags!
 		 */
 	}
@@ -1016,7 +1016,7 @@ void cw1200_event_handler(struct work_struct *work)
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW :
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
 			pr_debug("[CQM] RSSI event: %d.\n", rcpi_rssi);
-			ieee80211_cqm_rssi_notify(priv->vif, cqm_evt, rcpi_rssi,
+			ieee80211_cqm_rssi_yestify(priv->vif, cqm_evt, rcpi_rssi,
 						  GFP_KERNEL);
 			break;
 		}
@@ -1081,7 +1081,7 @@ static int cw1200_parse_sdd_file(struct cw1200_common *priv)
 				break;
 			}
 			v = le16_to_cpu(*((__le16 *)(p + 2)));
-			if (!v)  /* non-zero means this is enabled */
+			if (!v)  /* yesn-zero means this is enabled */
 				break;
 
 			v = le16_to_cpu(*((__le16 *)(p + 4)));
@@ -1116,10 +1116,10 @@ int cw1200_setup_mac(struct cw1200_common *priv)
 
 	/* NOTE: There is a bug in FW: it reports signal
 	 * as RSSI if RSSI subscription is enabled.
-	 * It's not enough to set WSM_RCPI_RSSI_USE_RSSI.
+	 * It's yest eyesugh to set WSM_RCPI_RSSI_USE_RSSI.
 	 *
 	 * NOTE2: RSSI based reports have been switched to RCPI, since
-	 * FW has a bug and RSSI reported values are not stable,
+	 * FW has a bug and RSSI reported values are yest stable,
 	 * what can lead to signal level oscilations in user-end applications
 	 */
 	struct wsm_rcpi_rssi_threshold threshold = {
@@ -1301,7 +1301,7 @@ static void cw1200_do_join(struct cw1200_common *priv)
 			cw1200_rate_mask_to_wsm(priv, 0xFF0);
 	}
 
-	/* Enable asynchronous join calls */
+	/* Enable asynchroyesus join calls */
 	if (!conf->ibss_joined) {
 		join.flags |= WSM_JOIN_FLAGS_FORCE;
 		join.flags |= WSM_JOIN_FLAGS_FORCE_WITH_COMPLETE_IND;
@@ -1349,7 +1349,7 @@ static void cw1200_do_join(struct cw1200_common *priv)
 		cw1200_upload_keys(priv);
 
 		/* Due to beacon filtering it is possible that the
-		 * AP's beacon is not known for the mac80211 stack.
+		 * AP's beacon is yest kyeswn for the mac80211 stack.
 		 * Disable filtering temporary to make sure the stack
 		 * receives at least one
 		 */
@@ -1519,7 +1519,7 @@ int cw1200_set_uapsd_param(struct cw1200_common *priv,
 	if (arg->uapsd_enable[3])
 		uapsd_flags |= 1;
 
-	/* Currently pseudo U-APSD operation is not supported, so setting
+	/* Currently pseudo U-APSD operation is yest supported, so setting
 	 * MinAutoTriggerInterval, MaxAutoTriggerInterval and
 	 * AutoTriggerStep to 0
 	 */
@@ -1590,9 +1590,9 @@ int cw1200_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static void __cw1200_sta_notify(struct ieee80211_hw *dev,
+static void __cw1200_sta_yestify(struct ieee80211_hw *dev,
 				struct ieee80211_vif *vif,
-				enum sta_notify_cmd notify_cmd,
+				enum sta_yestify_cmd yestify_cmd,
 				int link_id)
 {
 	struct cw1200_common *priv = dev->priv;
@@ -1601,13 +1601,13 @@ static void __cw1200_sta_notify(struct ieee80211_hw *dev,
 	/* Zero link id means "for all link IDs" */
 	if (link_id)
 		bit = BIT(link_id);
-	else if (WARN_ON_ONCE(notify_cmd != STA_NOTIFY_AWAKE))
+	else if (WARN_ON_ONCE(yestify_cmd != STA_NOTIFY_AWAKE))
 		bit = 0;
 	else
 		bit = priv->link_id_map;
 	prev = priv->sta_asleep_mask & bit;
 
-	switch (notify_cmd) {
+	switch (yestify_cmd) {
 	case STA_NOTIFY_SLEEP:
 		if (!prev) {
 			if (priv->buffered_multicasts &&
@@ -1631,9 +1631,9 @@ static void __cw1200_sta_notify(struct ieee80211_hw *dev,
 	}
 }
 
-void cw1200_sta_notify(struct ieee80211_hw *dev,
+void cw1200_sta_yestify(struct ieee80211_hw *dev,
 		       struct ieee80211_vif *vif,
-		       enum sta_notify_cmd notify_cmd,
+		       enum sta_yestify_cmd yestify_cmd,
 		       struct ieee80211_sta *sta)
 {
 	struct cw1200_common *priv = dev->priv;
@@ -1641,11 +1641,11 @@ void cw1200_sta_notify(struct ieee80211_hw *dev,
 		(struct cw1200_sta_priv *)&sta->drv_priv;
 
 	spin_lock_bh(&priv->ps_state_lock);
-	__cw1200_sta_notify(dev, vif, notify_cmd, sta_priv->link_id);
+	__cw1200_sta_yestify(dev, vif, yestify_cmd, sta_priv->link_id);
 	spin_unlock_bh(&priv->ps_state_lock);
 }
 
-static void cw1200_ps_notify(struct cw1200_common *priv,
+static void cw1200_ps_yestify(struct cw1200_common *priv,
 		      int link_id, bool ps)
 {
 	if (link_id > CW1200_MAX_STA_IN_AP_MODE)
@@ -1655,7 +1655,7 @@ static void cw1200_ps_notify(struct cw1200_common *priv,
 		 ps ? "Stop" : "Start",
 		 link_id, priv->sta_asleep_mask);
 
-	__cw1200_sta_notify(priv->hw, priv->vif,
+	__cw1200_sta_yestify(priv->hw, priv->vif,
 			    ps ? STA_NOTIFY_SLEEP : STA_NOTIFY_AWAKE, link_id);
 }
 
@@ -1679,7 +1679,7 @@ static int cw1200_set_tim_impl(struct cw1200_common *priv, bool aid0_bit_set)
 	}
 
 	if (tim_offset && tim_length >= 6) {
-		/* Ignore DTIM count from mac80211:
+		/* Igyesre DTIM count from mac80211:
 		 * firmware handles DTIM internally.
 		 */
 		skb->data[tim_offset + 2] = 0;
@@ -1771,21 +1771,21 @@ static int cw1200_set_btcoexinfo(struct cw1200_common *priv)
 			arg.internalTxRate = (__ffs(
 			priv->bss_params.operational_rate_set & ~0xF));
 		} else {
-			pr_debug("[STA] STA has non ERP rates\n");
+			pr_debug("[STA] STA has yesn ERP rates\n");
 			/* B only mode */
 			arg.internalTxRate = (__ffs(le32_to_cpu(priv->association_mode.basic_rate_set)));
 		}
-		arg.nonErpInternalTxRate = (__ffs(le32_to_cpu(priv->association_mode.basic_rate_set)));
+		arg.yesnErpInternalTxRate = (__ffs(le32_to_cpu(priv->association_mode.basic_rate_set)));
 	} else {
 		/* P2P mode */
 		arg.internalTxRate = (__ffs(priv->bss_params.operational_rate_set & ~0xF));
-		arg.nonErpInternalTxRate = (__ffs(priv->bss_params.operational_rate_set & ~0xF));
+		arg.yesnErpInternalTxRate = (__ffs(priv->bss_params.operational_rate_set & ~0xF));
 	}
 
-	pr_debug("[STA] BTCOEX_INFO MODE %d, internalTxRate : %x, nonErpInternalTxRate: %x\n",
+	pr_debug("[STA] BTCOEX_INFO MODE %d, internalTxRate : %x, yesnErpInternalTxRate: %x\n",
 		 priv->mode,
 		 arg.internalTxRate,
-		 arg.nonErpInternalTxRate);
+		 arg.yesnErpInternalTxRate);
 
 	ret = wsm_write_mib(priv, WSM_MIB_ID_OVERRIDE_INTERNAL_TX_RATE,
 			    &arg, sizeof(arg));
@@ -2036,7 +2036,7 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 
 		if (info->cqm_rssi_thold || info->cqm_rssi_hyst) {
 			/* RSSI subscription enabled */
-			/* TODO: It's not a correct way of setting threshold.
+			/* TODO: It's yest a correct way of setting threshold.
 			 * Upper and lower must be set equal here and adjusted
 			 * in callback. However current implementation is much
 			 * more relaible and stable.
@@ -2128,7 +2128,7 @@ int cw1200_ampdu_action(struct ieee80211_hw *hw,
 			struct ieee80211_ampdu_params *params)
 {
 	/* Aggregation is implemented fully in firmware,
-	 * including block ack negotiation. Do not allow
+	 * including block ack negotiation. Do yest allow
 	 * mac80211 stack to do anything: it interferes with
 	 * the firmware.
 	 */
@@ -2153,7 +2153,7 @@ void cw1200_suspend_resume(struct cw1200_common *priv,
 			priv->tx_multicast = false;
 		} else {
 			/* Firmware sends this indication every DTIM if there
-			 * is a STA in powersave connected. There is no reason
+			 * is a STA in powersave connected. There is yes reason
 			 * to suspend, following wakeup will consume much more
 			 * power than it could be saved.
 			 */
@@ -2172,7 +2172,7 @@ void cw1200_suspend_resume(struct cw1200_common *priv,
 			del_timer_sync(&priv->mcast_timeout);
 	} else {
 		spin_lock_bh(&priv->ps_state_lock);
-		cw1200_ps_notify(priv, arg->link_id, arg->stop);
+		cw1200_ps_yestify(priv, arg->link_id, arg->stop);
 		spin_unlock_bh(&priv->ps_state_lock);
 		if (!arg->stop)
 			cw1200_bh_wakeup(priv);

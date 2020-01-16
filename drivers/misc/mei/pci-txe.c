@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -137,13 +137,13 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * TXE maps runtime suspend/resume to own power gating states,
 	 * hence we need to go around native PCI runtime service which
 	 * eventually brings the device into D3cold/hot state.
-	 * But the TXE device cannot wake up from D3 unlike from own
+	 * But the TXE device canyest wake up from D3 unlike from own
 	 * power gating. To get around PCI device native runtime pm,
 	 * TXE uses runtime pm domain handlers which take precedence.
 	 */
 	mei_txe_set_pm_domain(dev);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	return 0;
 
@@ -163,7 +163,7 @@ end:
  *
  * @pdev: PCI device structure
  *
- *  mei_txe_shutdown is called from the reboot notifier
+ *  mei_txe_shutdown is called from the reboot yestifier
  *  it's a simplified version of remove so we go down
  *  faster.
  */
@@ -202,7 +202,7 @@ static void mei_txe_remove(struct pci_dev *pdev)
 		return;
 	}
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 
 	mei_stop(dev);
 

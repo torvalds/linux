@@ -41,19 +41,19 @@
  * Configuration options:
  *   None.
  *
- * Manual attachment of PCI cards with the comedi_config utility is not
+ * Manual attachment of PCI cards with the comedi_config utility is yest
  * supported by this driver; they are attached automatically.
  *
  * These boards may be autocalibrated with the comedi_calibrate utility.
  *
  * To select the bnc trigger input on the 4020 (instead of the dio input),
- * specify a nonzero channel in the chanspec.  If you wish to use an external
+ * specify a yesnzero channel in the chanspec.  If you wish to use an external
  * master clock on the 4020, you may do so by setting the scan_begin_src
  * to TRIG_OTHER, and using an INSN_CONFIG_TIMER_1 configuration insn
  * to configure the divisor to use for the external clock.
  *
- * Some devices are not identified because the PCI device IDs are not yet
- * known. If you have such a board, please let the maintainers know.
+ * Some devices are yest identified because the PCI device IDs are yest yet
+ * kyeswn. If you have such a board, please let the maintainers kyesw.
  */
 
 /*
@@ -61,10 +61,10 @@
  * make it return error if user attempts an ai command that uses the
  * external queue, and an ao command simultaneously user counter subdevice
  * there are a number of boards this driver will support when they are
- * fully released, but does not yet since the pci device id numbers
- * are not yet available.
+ * fully released, but does yest yet since the pci device id numbers
+ * are yest yet available.
  *
- * support prescaled 100khz clock for slow pacing (not available on 6000
+ * support prescaled 100khz clock for slow pacing (yest available on 6000
  * series?)
  *
  * make ao fifo size adjustable like ai fifo
@@ -206,10 +206,10 @@ enum hw_config_contents {
 	BNC_CLOCK_4020_BITS = 0x2,	/* use BNC input for master clock */
 	EXT_CLOCK_4020_BITS = 0x3,	/* use dio input for master clock */
 	EXT_QUEUE_BIT = 0x200,		/* use external channel/gain queue */
-	/* use 225 nanosec strobe when loading dac instead of 50 nanosec */
+	/* use 225 nayessec strobe when loading dac instead of 50 nayessec */
 	SLOW_DAC_BIT = 0x400,
 	/*
-	 * bit with unknown function yet given as default value in pci-das64
+	 * bit with unkyeswn function yet given as default value in pci-das64
 	 * manual
 	 */
 	HW_CONFIG_DUMMY_BITS = 0x2000,
@@ -261,7 +261,7 @@ enum adc_control1_contents {
 	CONVERT_POLARITY_BIT = 0x10,
 	EOC_POLARITY_BIT = 0x20,
 	ADC_SW_GATE_BIT = 0x40,		/* software gate of adc */
-	ADC_DITHER_BIT = 0x200,		/* turn on extra noise for dithering */
+	ADC_DITHER_BIT = 0x200,		/* turn on extra yesise for dithering */
 	RETRIGGER_BIT = 0x800,
 	ADC_LO_CHANNEL_4020_MASK = 0x300,
 	ADC_HI_CHANNEL_4020_MASK = 0xc00,
@@ -322,7 +322,7 @@ static inline u16 adc_convert_chan_4020_bits(unsigned int channel)
 enum adc_queue_load_contents {
 	UNIP_BIT = 0x800,		/* unipolar/bipolar bit */
 	ADC_SE_DIFF_BIT = 0x1000,	/* single-ended/ differential bit */
-	/* non-referenced single-ended (common-mode input) */
+	/* yesn-referenced single-ended (common-mode input) */
 	ADC_COMMON_BIT = 0x2000,
 	QUEUE_EOSEQ_BIT = 0x4000,	/* queue end of sequence */
 	QUEUE_EOSCAN_BIT = 0x8000,	/* queue end of scan */
@@ -990,7 +990,7 @@ static const struct pcidas64_board pcidas64_boards[] = {
 		.ai_speed	= 50,
 		.ao_bits	= 12,
 		.ao_nchan	= 2,
-		.ao_scan_speed	= 0,	/* no hardware pacing on ao */
+		.ao_scan_speed	= 0,	/* yes hardware pacing on ao */
 		.layout		= LAYOUT_4020,
 		.ai_range_table	= &ai_ranges_4020,
 		.ao_range_table	= &ao_ranges_4020,
@@ -999,7 +999,7 @@ static const struct pcidas64_board pcidas64_boards[] = {
 		.has_8255	= 1,
 	},
 #if 0
-	/* The device id for these boards is unknown */
+	/* The device id for these boards is unkyeswn */
 
 	[BOARD_PCIDAS6402_16_JR] = {
 		.name		= "pci-das6402/16/jr",
@@ -1303,9 +1303,9 @@ static void init_plx9080(struct comedi_device *dev)
 
 	/* configure dma0 mode */
 	bits = 0;
-	/* enable ready input, not sure if this is necessary */
+	/* enable ready input, yest sure if this is necessary */
 	bits |= PLX_DMAMODE_READYIEN;
-	/* enable bterm, not sure if this is necessary */
+	/* enable bterm, yest sure if this is necessary */
 	bits |= PLX_DMAMODE_BTERMIEN;
 	/* enable dma chaining */
 	bits |= PLX_DMAMODE_CHAINEN;
@@ -1596,7 +1596,7 @@ static void cb_pcidas64_free_dma(struct comedi_device *dev)
 static inline void warn_external_queue(struct comedi_device *dev)
 {
 	dev_err(dev->class_dev,
-		"AO command and AI external channel queue cannot be used simultaneously\n");
+		"AO command and AI external channel queue canyest be used simultaneously\n");
 	dev_err(dev->class_dev,
 		"Use internal AI channel queue (channels must be consecutive and use same range/aref)\n");
 }
@@ -1667,7 +1667,7 @@ static int i2c_read_ack(struct comedi_device *dev)
 	i2c_set_sda(dev, 1);
 	i2c_set_scl(dev, 1);
 
-	return 0;		/* return fake acknowledge bit */
+	return 0;		/* return fake ackyeswledge bit */
 }
 
 /* send start bit */
@@ -1710,9 +1710,9 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	bitstream = (address << 1) & ~read_bit;
 	i2c_write_byte(dev, bitstream);
 
-	/* get acknowledge */
+	/* get ackyeswledge */
 	if (i2c_read_ack(dev) != 0) {
-		dev_err(dev->class_dev, "failed: no acknowledge\n");
+		dev_err(dev->class_dev, "failed: yes ackyeswledge\n");
 		i2c_stop(dev);
 		return;
 	}
@@ -1720,7 +1720,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	for (i = 0; i < length; i++) {
 		i2c_write_byte(dev, data[i]);
 		if (i2c_read_ack(dev) != 0) {
-			dev_err(dev->class_dev, "failed: no acknowledge\n");
+			dev_err(dev->class_dev, "failed: yes ackyeswledge\n");
 			i2c_stop(dev);
 			return;
 		}
@@ -1985,7 +1985,7 @@ static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 /*
- * Gets nearest achievable timing given master clock speed, does not
+ * Gets nearest achievable timing given master clock speed, does yest
  * take into account possible minimum/maximum divisor values.  Used
  * by other timing checking functions.
  */
@@ -2092,7 +2092,7 @@ static int cb_pcidas64_ai_check_chanlist(struct comedi_device *dev,
 		}
 		if (cmd->chanlist_len == 3) {
 			dev_dbg(dev->class_dev,
-				"chanlist cannot be 3 channels long, use 1, 2, or 4 channels\n");
+				"chanlist canyest be 3 channels long, use 1, 2, or 4 channels\n");
 			return -EINVAL;
 		}
 	}
@@ -2228,7 +2228,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int use_hw_sample_counter(struct comedi_cmd *cmd)
 {
-/* disable for now until I work out a race */
+/* disable for yesw until I work out a race */
 	return 0;
 
 	if (cmd->stop_src == TRIG_COUNT && cmd->stop_arg <= max_counter_value)
@@ -2488,7 +2488,7 @@ static int setup_channel_queue(struct comedi_device *dev,
 				       ADC_QUEUE_FIFO_REG);
 			}
 			/*
-			 * doing a queue clear is not specified in board docs,
+			 * doing a queue clear is yest specified in board docs,
 			 * but required for reliable operation
 			 */
 			writew(0, devpriv->main_iobase + ADC_QUEUE_CLEAR_REG);
@@ -2700,7 +2700,7 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 		prepost_bits = readw(devpriv->main_iobase + PREPOST_REG);
 
 		/*
-		 * if read and write pointers are not on the same fifo segment,
+		 * if read and write pointers are yest on the same fifo segment,
 		 * read to the end of the read segment
 		 */
 		read_segment = adc_upper_read_ptr_code(prepost_bits);
@@ -2828,7 +2828,7 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 		dev_err(dev->class_dev, "fifo overrun\n");
 		async->events |= COMEDI_CB_ERROR;
 	}
-	/* spin lock makes sure no one else changes plx dma control reg */
+	/* spin lock makes sure yes one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma1_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR1);
 	if (plx_status & PLX_INTCSR_DMA1IA) {	/* dma chan 1 interrupt */
@@ -2956,7 +2956,7 @@ static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 	next_bits |= PLX_DMADPR_CHAINEND;
 	devpriv->ao_dma_desc[buffer_index].next = cpu_to_le32(next_bits);
 	/*
-	 * clear end of chain bit on previous buffer now that we have set it
+	 * clear end of chain bit on previous buffer yesw that we have set it
 	 * for the last buffer
 	 */
 	next_bits = le32_to_cpu(devpriv->ao_dma_desc[prev_buffer_index].next);
@@ -3000,13 +3000,13 @@ static void handle_ao_interrupt(struct comedi_device *dev,
 	u8 dma0_status;
 	unsigned long flags;
 
-	/* board might not support ao, in which case write_subdev is NULL */
+	/* board might yest support ao, in which case write_subdev is NULL */
 	if (!s)
 		return;
 	async = s->async;
 	cmd = &async->cmd;
 
-	/* spin lock makes sure no one else changes plx dma control reg */
+	/* spin lock makes sure yes one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR0);
 	if (plx_status & PLX_INTCSR_DMA0IA) {	/*  dma chan 0 interrupt */
@@ -3803,7 +3803,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->subdev_flags |= SDF_COMMON | SDF_DIFF;
 	else if (board->layout == LAYOUT_64XX)
 		s->subdev_flags |= SDF_DIFF;
-	/* XXX Number of inputs in differential mode is ignored */
+	/* XXX Number of inputs in differential mode is igyesred */
 	s->n_chan = board->ai_se_chans;
 	s->len_chanlist = 0x2000;
 	s->maxdata = (1 << board->ai_bits) - 1;
@@ -3817,7 +3817,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		u8 data;
 		/*
 		 * set adc to read from inputs
-		 * (not internal calibration sources)
+		 * (yest internal calibration sources)
 		 */
 		devpriv->i2c_cal_range_bits = adc_src_4020_bits(4);
 		/* set channels to +-5 volt input ranges */

@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -243,7 +243,7 @@ bool ar9003_hw_rtt_restore(struct ath_hw *ah, struct ath9k_channel *chan)
 		ar9003_hw_rtt_set_mask(ah, 0x10);
 
 	if (!ath9k_hw_rfbus_req(ah)) {
-		ath_err(ath9k_hw_common(ah), "Could not stop baseband\n");
+		ath_err(ath9k_hw_common(ah), "Could yest stop baseband\n");
 		restore = false;
 		goto fail;
 	}

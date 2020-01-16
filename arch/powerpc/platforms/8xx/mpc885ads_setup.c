@@ -128,23 +128,23 @@ static void __init init_ioports(void)
 
 static void __init mpc885ads_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	cpm_reset();
 	init_ioports();
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc885ads-bcsr");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc885ads-bcsr");
 	if (!np) {
-		printk(KERN_CRIT "Could not find fsl,mpc885ads-bcsr node\n");
+		printk(KERN_CRIT "Could yest find fsl,mpc885ads-bcsr yesde\n");
 		return;
 	}
 
 	bcsr = of_iomap(np, 0);
 	bcsr5 = of_iomap(np, 1);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (!bcsr || !bcsr5) {
-		printk(KERN_CRIT "Could not remap BCSR\n");
+		printk(KERN_CRIT "Could yest remap BCSR\n");
 		return;
 	}
 
@@ -176,9 +176,9 @@ static void __init mpc885ads_setup_arch(void)
 
 	setbits32(&bcsr[1], BCSR1_ETHEN);
 
-	np = of_find_node_by_path("/soc@ff000000/cpm@9c0/serial@a80");
+	np = of_find_yesde_by_path("/soc@ff000000/cpm@9c0/serial@a80");
 #else
-	np = of_find_node_by_path("/soc@ff000000/cpm@9c0/ethernet@a40");
+	np = of_find_yesde_by_path("/soc@ff000000/cpm@9c0/ethernet@a40");
 #endif
 
 	/* The SCC3 enet registers overlap the SMC1 registers, so
@@ -186,8 +186,8 @@ static void __init mpc885ads_setup_arch(void)
 	 */
 
 	if (np) {
-		of_detach_node(np);
-		of_node_put(np);
+		of_detach_yesde(np);
+		of_yesde_put(np);
 	}
 }
 

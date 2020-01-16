@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __ALPHA_MMAN_H__
 #define __ALPHA_MMAN_H__
 
@@ -6,7 +6,7 @@
 #define PROT_WRITE	0x2		/* page can be written */
 #define PROT_EXEC	0x4		/* page can be executed */
 #define PROT_SEM	0x8		/* page may be used for atomic ops */
-#define PROT_NONE	0x0		/* page can not be accessed */
+#define PROT_NONE	0x0		/* page can yest be accessed */
 #define PROT_GROWSDOWN	0x01000000	/* mprotect flag: extend change to start of growsdown vma */
 #define PROT_GROWSUP	0x02000000	/* mprotect flag: extend change to end of growsup vma */
 
@@ -15,7 +15,7 @@
 #define MAP_FIXED	0x100		/* Interpret addr exactly */
 #define MAP_ANONYMOUS	0x10		/* don't use a file */
 
-/* not used by linux, but here to make sure we don't clash with OSF/1 defines */
+/* yest used by linux, but here to make sure we don't clash with OSF/1 defines */
 #define _MAP_HASSEMAPHORE 0x0200
 #define _MAP_INHERIT	0x0400
 #define _MAP_UNALIGNED	0x0800
@@ -27,22 +27,22 @@
 #define MAP_LOCKED	0x08000		/* lock the mapping */
 #define MAP_NORESERVE	0x10000		/* don't check for reservations */
 #define MAP_POPULATE	0x20000		/* populate (prefault) pagetables */
-#define MAP_NONBLOCK	0x40000		/* do not block on IO */
+#define MAP_NONBLOCK	0x40000		/* do yest block on IO */
 #define MAP_STACK	0x80000		/* give out an address that is best suited for process/thread stacks */
 #define MAP_HUGETLB	0x100000	/* create a huge page mapping */
 #define MAP_FIXED_NOREPLACE	0x200000/* MAP_FIXED which doesn't unmap underlying mapping */
 
-#define MS_ASYNC	1		/* sync memory asynchronously */
-#define MS_SYNC		2		/* synchronous memory sync */
+#define MS_ASYNC	1		/* sync memory asynchroyesusly */
+#define MS_SYNC		2		/* synchroyesus memory sync */
 #define MS_INVALIDATE	4		/* invalidate the caches */
 
 #define MCL_CURRENT	 8192		/* lock all currently mapped pages */
 #define MCL_FUTURE	16384		/* lock all additions to address space */
 #define MCL_ONFAULT	32768		/* lock all pages that are faulted in */
 
-#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do not prefault */
+#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do yest prefault */
 
-#define MADV_NORMAL	0		/* no further special treatment */
+#define MADV_NORMAL	0		/* yes further special treatment */
 #define MADV_RANDOM	1		/* expect random page references */
 #define MADV_SEQUENTIAL	2		/* expect sequential page references */
 #define MADV_WILLNEED	3		/* will need these pages */
@@ -56,7 +56,7 @@
 #define MADV_DOFORK	11		/* do inherit across fork */
 
 #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
-#define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+#define MADV_UNMERGEABLE 13		/* KSM may yest merge identical pages */
 
 #define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
 #define MADV_NOHUGEPAGE	15		/* Not worth backing with hugepages */

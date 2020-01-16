@@ -14,7 +14,7 @@
  * (E.g. they may depend on boot-time hardware detection or be
  * deliberately randomized.)
  *
- * They are also not intended to be secure against collisions caused by
+ * They are also yest intended to be secure against collisions caused by
  * malicious inputs; much slower hash functions are required for that.
  *
  * They are optimized for pathname components, meaning short strings.
@@ -61,7 +61,7 @@ static inline unsigned int end_name_hash(unsigned long hash)
  * exists, which describes major Linux platforms like x86 and ARM), then
  * this computes a different hash function much faster.
  *
- * If not set, this falls back to a wrapper around the preceding.
+ * If yest set, this falls back to a wrapper around the preceding.
  */
 extern unsigned int __pure full_name_hash(const void *salt, const char *, unsigned int);
 

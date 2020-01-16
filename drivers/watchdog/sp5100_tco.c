@@ -64,9 +64,9 @@ module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (default="
 		 __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started."
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started."
 		" (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
@@ -392,7 +392,7 @@ static int sp5100_tco_probe(struct platform_device *pdev)
 	wdd->max_timeout = 0xffff;
 
 	watchdog_init_timeout(wdd, heartbeat, NULL);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_yeswayout(wdd, yeswayout);
 	watchdog_stop_on_reboot(wdd);
 	watchdog_stop_on_unregister(wdd);
 	watchdog_set_drvdata(wdd, tco);
@@ -406,8 +406,8 @@ static int sp5100_tco_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Show module parameters */
-	dev_info(dev, "initialized. heartbeat=%d sec (nowayout=%d)\n",
-		 wdd->timeout, nowayout);
+	dev_info(dev, "initialized. heartbeat=%d sec (yeswayout=%d)\n",
+		 wdd->timeout, yeswayout);
 
 	return 0;
 }
@@ -423,9 +423,9 @@ static struct platform_driver sp5100_tco_driver = {
  * Data for PCI driver interface
  *
  * This data only exists for exporting the supported
- * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
+ * PCI ids via MODULE_DEVICE_TABLE.  We do yest actually
  * register a pci_driver, because someone else might
- * want to register another driver on the same PCI id.
+ * want to register ayesther driver on the same PCI id.
  */
 static const struct pci_device_id sp5100_tco_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS, PCI_ANY_ID,

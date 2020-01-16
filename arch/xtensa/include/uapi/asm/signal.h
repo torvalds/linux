@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * include/asm-xtensa/signal.h
  *
@@ -68,7 +68,7 @@ typedef struct {
 #define SIGSYS		31
 #define	SIGUNUSED	31
 
-/* These should not be considered constants from userland.  */
+/* These should yest be considered constants from userland.  */
 #define SIGRTMIN	32
 #define SIGRTMAX	(_NSIG-1)
 
@@ -86,7 +86,7 @@ typedef struct {
  * Unix names RESETHAND and NODEFER respectively.
  */
 #define SA_NOCLDSTOP	0x00000001
-#define SA_NOCLDWAIT	0x00000002 /* not supported yet */
+#define SA_NOCLDWAIT	0x00000002 /* yest supported yet */
 #define SA_SIGINFO	0x00000004
 #define SA_ONSTACK	0x08000000
 #define SA_RESTART	0x10000000

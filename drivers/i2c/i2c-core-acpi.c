@@ -96,10 +96,10 @@ static int i2c_acpi_fill_info(struct acpi_resource *ares, void *data)
 	return 1;
 }
 
-static const struct acpi_device_id i2c_acpi_ignored_device_ids[] = {
+static const struct acpi_device_id i2c_acpi_igyesred_device_ids[] = {
 	/*
 	 * ACPI video acpi_devices, which are handled by the acpi-video driver
-	 * sometimes contain a SERIAL_TYPE_I2C ACPI resource, ignore these.
+	 * sometimes contain a SERIAL_TYPE_I2C ACPI resource, igyesre these.
 	 */
 	{ ACPI_VIDEO_HID, 0 },
 	{}
@@ -115,7 +115,7 @@ static int i2c_acpi_do_lookup(struct acpi_device *adev,
 	if (acpi_bus_get_status(adev) || !adev->status.present)
 		return -EINVAL;
 
-	if (acpi_match_device_ids(adev, i2c_acpi_ignored_device_ids) == 0)
+	if (acpi_match_device_ids(adev, i2c_acpi_igyesred_device_ids) == 0)
 		return -ENODEV;
 
 	memset(info, 0, sizeof(*info));
@@ -208,7 +208,7 @@ static int i2c_acpi_get_info(struct acpi_device *adev,
 			return -ENODEV;
 	}
 
-	info->fwnode = acpi_fwnode_handle(adev);
+	info->fwyesde = acpi_fwyesde_handle(adev);
 	if (adapter_handle)
 		*adapter_handle = lookup.adapter_handle;
 
@@ -222,11 +222,11 @@ static void i2c_acpi_register_device(struct i2c_adapter *adapter,
 				     struct acpi_device *adev,
 				     struct i2c_board_info *info)
 {
-	adev->power.flags.ignore_parent = true;
+	adev->power.flags.igyesre_parent = true;
 	acpi_device_set_enumerated(adev);
 
 	if (!i2c_new_device(adapter, info)) {
-		adev->power.flags.ignore_parent = false;
+		adev->power.flags.igyesre_parent = false;
 		dev_err(&adapter->dev,
 			"failed to add I2C device %s from ACPI\n",
 			dev_name(&adev->dev));
@@ -289,8 +289,8 @@ i2c_acpi_match_device(const struct acpi_device_id *matches,
 static const struct acpi_device_id i2c_acpi_force_400khz_device_ids[] = {
 	/*
 	 * These Silead touchscreen controllers only work at 400KHz, for
-	 * some reason they do not work at 100KHz. On some devices the ACPI
-	 * tables list another device at their bus as only being capable
+	 * some reason they do yest work at 100KHz. On some devices the ACPI
+	 * tables list ayesther device at their bus as only being capable
 	 * of 100KHz, testing has shown that these other devices work fine
 	 * at 400KHz (as can be expected of any recent i2c hw) so we force
 	 * the speed of the bus to 400 KHz if a Silead device is present.
@@ -359,7 +359,7 @@ u32 i2c_acpi_find_bus_speed(struct device *dev)
 
 	if (lookup.force_speed) {
 		if (lookup.force_speed != lookup.min_speed)
-			dev_warn(dev, FW_BUG "DSDT uses known not-working I2C bus speed %d, forcing it to %d\n",
+			dev_warn(dev, FW_BUG "DSDT uses kyeswn yest-working I2C bus speed %d, forcing it to %d\n",
 				 lookup.min_speed, lookup.force_speed);
 		return lookup.force_speed;
 	} else if (lookup.min_speed != UINT_MAX) {
@@ -399,7 +399,7 @@ static struct i2c_client *i2c_acpi_find_client_by_adev(struct acpi_device *adev)
 	return dev ? i2c_verify_client(dev) : NULL;
 }
 
-static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
+static int i2c_acpi_yestify(struct yestifier_block *nb, unsigned long value,
 			   void *arg)
 {
 	struct acpi_device *adev = arg;
@@ -435,15 +435,15 @@ static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
 	return NOTIFY_OK;
 }
 
-struct notifier_block i2c_acpi_notifier = {
-	.notifier_call = i2c_acpi_notify,
+struct yestifier_block i2c_acpi_yestifier = {
+	.yestifier_call = i2c_acpi_yestify,
 };
 
 /**
  * i2c_acpi_new_device - Create i2c-client for the Nth I2cSerialBus resource
  * @dev:     Device owning the ACPI resources to get the client from
  * @index:   Index of ACPI resource to get
- * @info:    describes the I2C device; note this is modified (addr gets set)
+ * @info:    describes the I2C device; yeste this is modified (addr gets set)
  * Context: can sleep
  *
  * By default the i2c subsys creates an i2c-client for the first I2cSerialBus
@@ -454,7 +454,7 @@ struct notifier_block i2c_acpi_notifier = {
  * Also see i2c_new_device, which this function calls to create the i2c-client.
  *
  * Returns a pointer to the new i2c-client, or error pointer in case of failure.
- * Specifically, -EPROBE_DEFER is returned if the adapter is not found.
+ * Specifically, -EPROBE_DEFER is returned if the adapter is yest found.
  */
 struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
 				       struct i2c_board_info *info)
@@ -522,7 +522,7 @@ static int acpi_gsb_i2c_read_bytes(struct i2c_client *client,
 
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 	if (ret < 0) {
-		/* Getting a NACK is unfortunately normal with some DSTDs */
+		/* Getting a NACK is unfortunately yesrmal with some DSTDs */
 		if (ret == -EREMOTEIO)
 			dev_dbg(&client->adapter->dev, "i2c read %d bytes from client@%#x starting at reg %#x failed, error: %d\n",
 				data_len, client->addr, cmd, ret);
@@ -676,7 +676,7 @@ i2c_acpi_space_handler(u32 function, acpi_physical_address command,
 		break;
 
 	default:
-		dev_warn(&adapter->dev, "protocol 0x%02x not supported for client 0x%02x\n",
+		dev_warn(&adapter->dev, "protocol 0x%02x yest supported for client 0x%02x\n",
 			 accessor_type, client->addr);
 		ret = AE_BAD_PARAMETER;
 		goto err;

@@ -11,7 +11,7 @@
 #include <media/media-device.h>
 
 /* does the complete input transfer handling */
-static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
+static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int oyesff)
 {
 	struct dvb_usb_adapter *adap = dvbdmxfeed->demux->priv;
 	int newfeedcount, ret;
@@ -24,9 +24,9 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		return -EINVAL;
 	}
 
-	newfeedcount = adap->feedcount + (onoff ? 1 : -1);
+	newfeedcount = adap->feedcount + (oyesff ? 1 : -1);
 
-	/* stop feed before setting a new pid if there will be no pid anymore */
+	/* stop feed before setting a new pid if there will be yes pid anymore */
 	if (newfeedcount == 0) {
 		deb_ts("stop feeding\n");
 		usb_urb_kill(&adap->fe_adap[adap->active_fe].stream);
@@ -45,17 +45,17 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	/* activate the pid on the device specific pid_filter */
 	deb_ts("setting pid (%s): %5d %04x at index %d '%s'\n",
 		adap->fe_adap[adap->active_fe].pid_filtering ?
-		"yes" : "no", dvbdmxfeed->pid, dvbdmxfeed->pid,
-		dvbdmxfeed->index, onoff ? "on" : "off");
+		"no" : "yes", dvbdmxfeed->pid, dvbdmxfeed->pid,
+		dvbdmxfeed->index, oyesff ? "on" : "off");
 	if (adap->props.fe[adap->active_fe].caps & DVB_USB_ADAP_HAS_PID_FILTER &&
 		adap->fe_adap[adap->active_fe].pid_filtering &&
 		adap->props.fe[adap->active_fe].pid_filter != NULL)
-		adap->props.fe[adap->active_fe].pid_filter(adap, dvbdmxfeed->index, dvbdmxfeed->pid, onoff);
+		adap->props.fe[adap->active_fe].pid_filter(adap, dvbdmxfeed->index, dvbdmxfeed->pid, oyesff);
 
 	/* start the feed if this was the first feed and there is still a feed
 	 * for reception.
 	 */
-	if (adap->feedcount == onoff && adap->feedcount > 0) {
+	if (adap->feedcount == oyesff && adap->feedcount > 0) {
 		deb_ts("controlling pid parser\n");
 		if (adap->props.fe[adap->active_fe].caps & DVB_USB_ADAP_HAS_PID_FILTER &&
 			adap->props.fe[adap->active_fe].caps &
@@ -64,7 +64,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			ret = adap->props.fe[adap->active_fe].pid_filter_ctrl(adap,
 				adap->fe_adap[adap->active_fe].pid_filtering);
 			if (ret < 0) {
-				err("could not handle pid_parser");
+				err("could yest handle pid_parser");
 				return ret;
 			}
 		}
@@ -230,18 +230,18 @@ int dvb_usb_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int dvb_usb_set_active_fe(struct dvb_frontend *fe, int onoff)
+static int dvb_usb_set_active_fe(struct dvb_frontend *fe, int oyesff)
 {
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 
 	int ret = (adap->props.frontend_ctrl) ?
-		adap->props.frontend_ctrl(fe, onoff) : 0;
+		adap->props.frontend_ctrl(fe, oyesff) : 0;
 
 	if (ret < 0) {
 		err("frontend_ctrl request failed");
 		return ret;
 	}
-	if (onoff)
+	if (oyesff)
 		adap->active_fe = fe->id;
 
 	return 0;
@@ -289,9 +289,9 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 
 		ret = adap->props.fe[i].frontend_attach(adap);
 		if (ret || adap->fe_adap[i].fe == NULL) {
-			/* only print error when there is no FE at all */
+			/* only print error when there is yes FE at all */
 			if (i == 0)
-				err("no frontend was attached by '%s'",
+				err("yes frontend was attached by '%s'",
 					adap->dev->desc->name);
 
 			return 0;
@@ -309,7 +309,7 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 			err("Frontend %d registration failed.", i);
 			dvb_frontend_detach(adap->fe_adap[i].fe);
 			adap->fe_adap[i].fe = NULL;
-			/* In error case, do not try register more FEs,
+			/* In error case, do yest try register more FEs,
 			 * still leaving already registered FEs alive. */
 			if (i == 0)
 				return -ENODEV;

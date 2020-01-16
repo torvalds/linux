@@ -29,25 +29,25 @@ static inline u16 adfs_filetype(u32 loadaddr)
 #include "dir_f.h"
 
 /*
- * adfs file system inode data in memory
+ * adfs file system iyesde data in memory
  */
-struct adfs_inode_info {
+struct adfs_iyesde_info {
 	loff_t		mmu_private;
 	__u32		parent_id;	/* parent indirect disc address	*/
 	__u32		loadaddr;	/* RISC OS load address		*/
 	__u32		execaddr;	/* RISC OS exec address		*/
 	unsigned int	attr;		/* RISC OS permissions		*/
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 };
 
-static inline struct adfs_inode_info *ADFS_I(struct inode *inode)
+static inline struct adfs_iyesde_info *ADFS_I(struct iyesde *iyesde)
 {
-	return container_of(inode, struct adfs_inode_info, vfs_inode);
+	return container_of(iyesde, struct adfs_iyesde_info, vfs_iyesde);
 }
 
-static inline bool adfs_inode_is_stamped(struct inode *inode)
+static inline bool adfs_iyesde_is_stamped(struct iyesde *iyesde)
 {
-	return (ADFS_I(inode)->loadaddr & 0xfff00000) == 0xfff00000;
+	return (ADFS_I(iyesde)->loadaddr & 0xfff00000) == 0xfff00000;
 }
 
 /*
@@ -72,7 +72,7 @@ struct adfs_sb_info {
 	umode_t		s_other_mask;	/* ADFS other perm -> unix perm	*/
 	int		s_ftsuffix;	/* ,xyz hex filetype suffix option */
 
-	__u32		s_ids_per_zone;	/* max. no ids in one zone */
+	__u32		s_ids_per_zone;	/* max. yes ids in one zone */
 	__u32		s_idlen;	/* length of ID in map */
 	__u32		s_map_size;	/* sector size of a map	*/
 	signed int	s_map2blk;	/* shift left by this for map->sector*/
@@ -138,10 +138,10 @@ struct adfs_discmap {
 	unsigned int		dm_endbit;
 };
 
-/* Inode stuff */
-struct inode *adfs_iget(struct super_block *sb, struct object_info *obj);
-int adfs_write_inode(struct inode *inode, struct writeback_control *wbc);
-int adfs_notify_change(struct dentry *dentry, struct iattr *attr);
+/* Iyesde stuff */
+struct iyesde *adfs_iget(struct super_block *sb, struct object_info *obj);
+int adfs_write_iyesde(struct iyesde *iyesde, struct writeback_control *wbc);
+int adfs_yestify_change(struct dentry *dentry, struct iattr *attr);
 
 /* map.c */
 int adfs_map_lookup(struct super_block *sb, u32 frag_id, unsigned int offset);
@@ -157,11 +157,11 @@ void adfs_msg(struct super_block *sb, const char *pfx, const char *fmt, ...);
 /* super.c */
 
 /*
- * Inodes and file operations
+ * Iyesdes and file operations
  */
 
 /* dir_*.c */
-extern const struct inode_operations adfs_dir_inode_operations;
+extern const struct iyesde_operations adfs_dir_iyesde_operations;
 extern const struct file_operations adfs_dir_operations;
 extern const struct dentry_operations adfs_dentry_operations;
 extern const struct adfs_dir_ops adfs_f_dir_ops;
@@ -172,7 +172,7 @@ extern int adfs_dir_update(struct super_block *sb, struct object_info *obj,
 			   int wait);
 
 /* file.c */
-extern const struct inode_operations adfs_file_inode_operations;
+extern const struct iyesde_operations adfs_file_iyesde_operations;
 extern const struct file_operations adfs_file_operations;
 
 static inline __u32 signed_asl(__u32 val, signed int shift)

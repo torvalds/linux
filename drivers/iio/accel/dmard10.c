@@ -3,7 +3,7 @@
  * IIO driver for the 3-axis accelerometer Domintech ARD10.
  *
  * Copyright (c) 2016 Hans de Goede <hdegoede@redhat.com>
- * Copyright (c) 2012 Domintech Technology Co., Ltd
+ * Copyright (c) 2012 Domintech Techyeslogy Co., Ltd
  */
 
 #include <linux/module.h>
@@ -25,7 +25,7 @@
 #define DMARD10_MODE_READ_OTP			0x12
 #define DMARD10_MODE_RESET_DATA_PATH		0x82
 
-/* AFEN set 1, ATM[2:0]=b'000 (normal), EN_Z/Y/X/T=1 */
+/* AFEN set 1, ATM[2:0]=b'000 (yesrmal), EN_Z/Y/X/T=1 */
 #define DMARD10_VALUE_AFEM_AFEN_NORMAL		0x8f
 /* ODR[3:0]=b'0111 (100Hz), CCK[3:0]=b'0100 (204.8kHZ) */
 #define DMARD10_VALUE_CKSEL_ODR_100_204		0x74
@@ -96,7 +96,7 @@ static int dmard10_reset(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	/* 3. OSCA_EN = 1, TSTO = b'000 (INT1 = normal, TEST0 = normal) */
+	/* 3. OSCA_EN = 1, TSTO = b'000 (INT1 = yesrmal, TEST0 = yesrmal) */
 	ret = i2c_smbus_write_byte_data(client, DMARD10_REG_MISC2,
 						DMARD10_VALUE_MISC2_OSCA_EN);
 	if (ret < 0)
@@ -108,7 +108,7 @@ static int dmard10_reset(struct i2c_client *client)
 	buffer[2] = DMARD10_VALUE_CKSEL_ODR_100_204;
 	buffer[3] = DMARD10_VALUE_INTC;
 	buffer[4] = DMARD10_VALUE_TAPNS_AVE_2;
-	buffer[5] = 0x00; /* DLYC, no delay timing */
+	buffer[5] = 0x00; /* DLYC, yes delay timing */
 	buffer[6] = 0x07; /* INTD=1 push-pull, INTA=1 active high, AUTOT=1 */
 	ret = i2c_master_send(client, buffer, 7);
 	if (ret < 0)

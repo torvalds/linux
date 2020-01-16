@@ -10,7 +10,7 @@ static int am335x_child_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	ret = of_platform_populate(pdev->dev.of_yesde, NULL, NULL, &pdev->dev);
 	if (ret)
 		goto err;
 

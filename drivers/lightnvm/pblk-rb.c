@@ -254,7 +254,7 @@ static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int to_update)
 		else if (flags & PBLK_IOTYPE_GC)
 			gc_io++;
 		else
-			WARN(1, "pblk: unknown IO type\n");
+			WARN(1, "pblk: unkyeswn IO type\n");
 
 		pblk_update_map_dev(pblk, w_ctx->lba, w_ctx->ppa,
 							entry->cacheline);
@@ -299,7 +299,7 @@ out:
 
 /*
  * Update the l2p entry for all sectors stored on the write buffer. This means
- * that all future lookups to the l2p table will point to a device address, not
+ * that all future lookups to the l2p table will point to a device address, yest
  * to the cacheline in the write buffer.
  */
 void pblk_rb_sync_l2p(struct pblk_rb *rb)
@@ -319,9 +319,9 @@ void pblk_rb_sync_l2p(struct pblk_rb *rb)
 }
 
 /*
- * Write @nr_entries to ring buffer from @data buffer if there is enough space.
+ * Write @nr_entries to ring buffer from @data buffer if there is eyesugh space.
  * Typically, 4KB data chunks coming from a bio will be copied to the ring
- * buffer, thus the write will fail if not all incoming data can be copied.
+ * buffer, thus the write will fail if yest all incoming data can be copied.
  *
  */
 static void __pblk_rb_write_entry(struct pblk_rb *rb, void *data,
@@ -488,7 +488,7 @@ static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
 
 /*
  * Atomically check that (i) there is space on the write buffer for the
- * incoming I/O, and (ii) the current I/O type has enough budget in the write
+ * incoming I/O, and (ii) the current I/O type has eyesugh budget in the write
  * buffer (rate-limiter).
  */
 int pblk_rb_may_write_user(struct pblk_rb *rb, struct bio *bio,
@@ -588,7 +588,7 @@ try:
 
 		page = virt_to_page(entry->data);
 		if (!page) {
-			pblk_err(pblk, "could not allocate write bio page\n");
+			pblk_err(pblk, "could yest allocate write bio page\n");
 			flags &= ~PBLK_WRITTEN_DATA;
 			flags |= PBLK_SUBMITTED_ENTRY;
 			/* Release flags on context. Protect from writes */
@@ -598,7 +598,7 @@ try:
 
 		if (bio_add_pc_page(q, bio, page, rb->seg_size, 0) !=
 								rb->seg_size) {
-			pblk_err(pblk, "could not add page to write bio\n");
+			pblk_err(pblk, "could yest add page to write bio\n");
 			flags &= ~PBLK_WRITTEN_DATA;
 			flags |= PBLK_SUBMITTED_ENTRY;
 			/* Release flags on context. Protect from writes */
@@ -617,7 +617,7 @@ try:
 
 	if (pad) {
 		if (pblk_bio_add_pages(pblk, bio, GFP_KERNEL, pad)) {
-			pblk_err(pblk, "could not pad page in write bio\n");
+			pblk_err(pblk, "could yest pad page in write bio\n");
 			return NVM_IO_ERR;
 		}
 
@@ -655,7 +655,7 @@ int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
 
 
 #ifdef CONFIG_NVM_PBLK_DEBUG
-	/* Caller must ensure that the access will not cause an overflow */
+	/* Caller must ensure that the access will yest cause an overflow */
 	BUG_ON(pos >= rb->nr_entries);
 #endif
 	entry = &rb->entries[pos];

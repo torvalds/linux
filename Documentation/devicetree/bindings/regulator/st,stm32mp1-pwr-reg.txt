@@ -8,12 +8,12 @@ Available Regulators in STM32MP1 PWR block are:
 
 Required properties:
 - compatible: Must be "st,stm32mp1,pwr-reg"
-- list of child nodes that specify the regulator reg11, reg18 or usb33
+- list of child yesdes that specify the regulator reg11, reg18 or usb33
   initialization data for defined regulators. The definition for each of
-  these nodes is defined using the standard binding for regulators found at
+  these yesdes is defined using the standard binding for regulators found at
   Documentation/devicetree/bindings/regulator/regulator.txt.
-- vdd-supply: phandle to the parent supply/regulator node for vdd input
-- vdd_3v3_usbfs-supply: phandle to the parent supply/regulator node for usb33
+- vdd-supply: phandle to the parent supply/regulator yesde for vdd input
+- vdd_3v3_usbfs-supply: phandle to the parent supply/regulator yesde for usb33
 
 Example:
 

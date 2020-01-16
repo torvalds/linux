@@ -2,7 +2,7 @@
 /*
  * budget-ci.c: driver for the SAA7146 based Budget DVB cards
  *
- * Compiled from various sources by Michael Hunold <michael@mihu.de>
+ * Compiled from various sources by Michael Huyesld <michael@mihu.de>
  *
  *     msp430 IR support contributed by Jack Thomasson <jkt@Helius.COM>
  *     partially based on the Siemens DVB driver by Ralph+Marcus Metzler
@@ -13,7 +13,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
@@ -114,7 +114,7 @@ static void msp430_ir_interrupt(unsigned long data)
 	 * Each signal from the remote control can generate one or more command
 	 * bytes and one or more device bytes. For the repeated bytes, the
 	 * highest bit (X) is set. The first command byte is always generated
-	 * before the first device byte. Other than that, no specific order
+	 * before the first device byte. Other than that, yes specific order
 	 * seems to apply. To make life interesting, bytes can also be lost.
 	 *
 	 * Only when we have a command and device byte, a keypress is
@@ -209,11 +209,11 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1019:
 	case 0x101a:
 	case 0x101b:
-		/* for the Technotrend 1500 bundled remote */
+		/* for the Techyestrend 1500 bundled remote */
 		dev->map_name = RC_MAP_TT_1500;
 		break;
 	default:
-		/* unknown remote */
+		/* unkyeswn remote */
 		dev->map_name = RC_MAP_BUDGET_CI_OLD;
 		break;
 	}
@@ -222,7 +222,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 
 	error = rc_register_device(dev);
 	if (error) {
-		printk(KERN_ERR "budget_ci: could not init driver for IR device (code %d)\n", error);
+		printk(KERN_ERR "budget_ci: could yest init driver for IR device (code %d)\n", error);
 		rc_free_device(dev);
 		return error;
 	}
@@ -302,7 +302,7 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 		return -EINVAL;
 
 	if (budget_ci->ci_irq) {
-		// trigger on RISING edge during reset so we know when READY is re-asserted
+		// trigger on RISING edge during reset so we kyesw when READY is re-asserted
 		saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQHI);
 	}
 	budget_ci->slot_status = SLOTSTATUS_RESET;
@@ -382,9 +382,9 @@ static void ciintf_interrupt(unsigned long data)
 		}
 	} else {
 
-		// trigger on rising edge if a CAM is not present - when a CAM is inserted, we
+		// trigger on rising edge if a CAM is yest present - when a CAM is inserted, we
 		// only want to get the IRQ when it sets READY. If we trigger on the falling edge,
-		// the CAM might not actually be ready yet.
+		// the CAM might yest actually be ready yet.
 		saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQHI);
 
 		// generate a CAM removal IRQ if we haven't already
@@ -454,7 +454,7 @@ static int ciintf_init(struct budget_ci *budget_ci)
 		goto error;
 	}
 
-	// determine whether a CAM is present or not
+	// determine whether a CAM is present or yest
 	flags = ttpci_budget_debiread(&budget_ci->budget, DEBICICTL, DEBIADDR_CICONTROL, 1, 1, 0);
 	budget_ci->slot_status = SLOTSTATUS_NONE;
 	if (flags & CICONTROL_CAMDETECT)
@@ -710,7 +710,7 @@ static int philips_tdm1316l_tuner_init(struct dvb_frontend *fe)
 		return -EIO;
 	msleep(1);
 
-	// disable the mc44BC374c (do not check for errors)
+	// disable the mc44BC374c (do yest check for errors)
 	tuner_msg.addr = 0x65;
 	tuner_msg.buf = disable_mc44BC374c;
 	tuner_msg.len = sizeof(disable_mc44BC374c);
@@ -1269,8 +1269,8 @@ static struct stb0899_config tt3200_config = {
 	.lo_clk			= 76500000,
 	.hi_clk			= 99000000,
 
-	.esno_ave		= STB0899_DVBS2_ESNO_AVE,
-	.esno_quant		= STB0899_DVBS2_ESNO_QUANT,
+	.esyes_ave		= STB0899_DVBS2_ESNO_AVE,
+	.esyes_quant		= STB0899_DVBS2_ESNO_QUANT,
 	.avframes_coarse	= STB0899_DVBS2_AVFRAMES_COARSE,
 	.avframes_fine		= STB0899_DVBS2_AVFRAMES_FINE,
 	.miss_threshold		= STB0899_DVBS2_MISS_THRESHOLD,
@@ -1397,7 +1397,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 		/*
 		 * NOTE! on some STB0899 versions, the internal PLL takes a longer time
 		 * to settle, aka LOCK. On the older revisions of the chip, we don't see
-		 * this, as a result on the newer chips the entire clock tree, will not
+		 * this, as a result on the newer chips the entire clock tree, will yest
 		 * be stable after a freshly POWER 'ed up situation.
 		 * In this case, we should RESET the STB0899 (Active LOW) and wait for
 		 * PLL stabilization.
@@ -1414,7 +1414,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 		/* Wait for PLL to stabilize */
 		msleep(250);
 		/*
-		 * PLL state should be stable now. Ideally, we should check
+		 * PLL state should be stable yesw. Ideally, we should check
 		 * for PLL LOCK status. But well, never mind!
 		 */
 		budget_ci->budget.dvb_frontend = dvb_attach(stb0899_attach, &tt3200_config, &budget_ci->budget.i2c_adap);
@@ -1435,7 +1435,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 	}
 
 	if (budget_ci->budget.dvb_frontend == NULL) {
-		printk("budget-ci: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		printk("budget-ci: A frontend driver was yest found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       budget_ci->budget.dev->pci->vendor,
 		       budget_ci->budget.dev->pci->device,
 		       budget_ci->budget.dev->pci->subsystem_vendor,
@@ -1569,5 +1569,5 @@ module_init(budget_ci_init);
 module_exit(budget_ci_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Michael Hunold, Jack Thomasson, Andrew de Quincey, others");
-MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB cards w/ CI-module produced by Siemens, Technotrend, Hauppauge");
+MODULE_AUTHOR("Michael Huyesld, Jack Thomasson, Andrew de Quincey, others");
+MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB cards w/ CI-module produced by Siemens, Techyestrend, Hauppauge");

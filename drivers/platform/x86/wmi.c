@@ -43,7 +43,7 @@ struct guid_block {
 	union {
 		char object_id[2];
 		struct {
-			unsigned char notify_id;
+			unsigned char yestify_id;
 			unsigned char reserved;
 		};
 	};
@@ -58,11 +58,11 @@ struct wmi_block {
 	struct miscdevice char_dev;
 	struct mutex char_mutex;
 	struct acpi_device *acpi_device;
-	wmi_notify_handler handler;
+	wmi_yestify_handler handler;
 	void *handler_data;
 	u64 req_buf_size;
 
-	bool read_takes_no_args;
+	bool read_takes_yes_args;
 };
 
 
@@ -185,7 +185,7 @@ static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
 	block = &wblock->gblock;
 	handle = wblock->acpi_device->handle;
 
-	snprintf(method, 5, "WE%02X", block->notify_id);
+	snprintf(method, 5, "WE%02X", block->yestify_id);
 	status = acpi_execute_simple_method(handle, method, enable);
 
 	if (status != AE_OK && status != AE_NOT_FOUND)
@@ -325,7 +325,7 @@ static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
 	wq_params[0].type = ACPI_TYPE_INTEGER;
 	wq_params[0].integer.value = instance;
 
-	if (instance == 0 && wblock->read_takes_no_args)
+	if (instance == 0 && wblock->read_takes_yes_args)
 		input.count = 0;
 
 	/*
@@ -337,8 +337,8 @@ static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
 
 		/*
 		 * Some GUIDs break the specification by declaring themselves
-		 * expensive, but have no corresponding WCxx method. So we
-		 * should not fail if this happens.
+		 * expensive, but have yes corresponding WCxx method. So we
+		 * should yest fail if this happens.
 		 */
 		wc_status = acpi_execute_simple_method(handle, wc_method, 1);
 	}
@@ -451,7 +451,7 @@ static void wmi_dump_wdg(const struct guid_block *g)
 {
 	pr_info("%pUL:\n", g->guid);
 	if (g->flags & ACPI_WMI_EVENT)
-		pr_info("\tnotify_id: 0x%02X\n", g->notify_id);
+		pr_info("\tyestify_id: 0x%02X\n", g->yestify_id);
 	else
 		pr_info("\tobject_id: %2pE\n", g->object_id);
 	pr_info("\tinstance_count: %d\n", g->instance_count);
@@ -470,7 +470,7 @@ static void wmi_dump_wdg(const struct guid_block *g)
 
 }
 
-static void wmi_notify_debug(u32 value, void *context)
+static void wmi_yestify_debug(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
@@ -508,14 +508,14 @@ static void wmi_notify_debug(u32 value, void *context)
 }
 
 /**
- * wmi_install_notify_handler - Register handler for WMI events
- * @handler: Function to handle notifications
+ * wmi_install_yestify_handler - Register handler for WMI events
+ * @handler: Function to handle yestifications
  * @data: Data to be returned to handler when event is fired
  *
  * Register a handler for events sent to the ACPI-WMI mapper device.
  */
-acpi_status wmi_install_notify_handler(const char *guid,
-wmi_notify_handler handler, void *data)
+acpi_status wmi_install_yestify_handler(const char *guid,
+wmi_yestify_handler handler, void *data)
 {
 	struct wmi_block *block;
 	acpi_status status = AE_NOT_EXIST;
@@ -532,7 +532,7 @@ wmi_notify_handler handler, void *data)
 
 		if (memcmp(block->gblock.guid, &guid_input, 16) == 0) {
 			if (block->handler &&
-			    block->handler != wmi_notify_debug)
+			    block->handler != wmi_yestify_debug)
 				return AE_ALREADY_ACQUIRED;
 
 			block->handler = handler;
@@ -547,14 +547,14 @@ wmi_notify_handler handler, void *data)
 
 	return status;
 }
-EXPORT_SYMBOL_GPL(wmi_install_notify_handler);
+EXPORT_SYMBOL_GPL(wmi_install_yestify_handler);
 
 /**
- * wmi_uninstall_notify_handler - Unregister handler for WMI events
+ * wmi_uninstall_yestify_handler - Unregister handler for WMI events
  *
  * Unregister handler for events sent to the ACPI-WMI mapper device.
  */
-acpi_status wmi_remove_notify_handler(const char *guid)
+acpi_status wmi_remove_yestify_handler(const char *guid)
 {
 	struct wmi_block *block;
 	acpi_status status = AE_NOT_EXIST;
@@ -571,11 +571,11 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 
 		if (memcmp(block->gblock.guid, &guid_input, 16) == 0) {
 			if (!block->handler ||
-			    block->handler == wmi_notify_debug)
+			    block->handler == wmi_yestify_debug)
 				return AE_NULL_ENTRY;
 
 			if (debug_event) {
-				block->handler = wmi_notify_debug;
+				block->handler = wmi_yestify_debug;
 				status = AE_OK;
 			} else {
 				wmi_status = wmi_method_enable(block, 0);
@@ -591,7 +591,7 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 
 	return status;
 }
-EXPORT_SYMBOL_GPL(wmi_remove_notify_handler);
+EXPORT_SYMBOL_GPL(wmi_remove_yestify_handler);
 
 /**
  * wmi_get_event_data - Get WMI data associated with an event
@@ -617,7 +617,7 @@ acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out)
 		gblock = &wblock->gblock;
 
 		if ((gblock->flags & ACPI_WMI_EVENT) &&
-			(gblock->notify_id == event))
+			(gblock->yestify_id == event))
 			return acpi_evaluate_object(wblock->acpi_device->handle,
 				"_WED", &input, out);
 	}
@@ -644,7 +644,7 @@ EXPORT_SYMBOL_GPL(wmi_has_guid);
  *
  * Find the _UID of ACPI device associated with this WMI GUID.
  *
- * Return: The ACPI _UID field value or NULL if the WMI GUID was not found
+ * Return: The ACPI _UID field value or NULL if the WMI GUID was yest found
  */
 char *wmi_get_acpi_device_uid(const char *guid_string)
 {
@@ -716,17 +716,17 @@ static struct attribute *wmi_attrs[] = {
 };
 ATTRIBUTE_GROUPS(wmi);
 
-static ssize_t notify_id_show(struct device *dev, struct device_attribute *attr,
+static ssize_t yestify_id_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 
-	return sprintf(buf, "%02X\n", (unsigned int)wblock->gblock.notify_id);
+	return sprintf(buf, "%02X\n", (unsigned int)wblock->gblock.yestify_id);
 }
-static DEVICE_ATTR_RO(notify_id);
+static DEVICE_ATTR_RO(yestify_id);
 
 static struct attribute *wmi_event_attrs[] = {
-	&dev_attr_notify_id.attr,
+	&dev_attr_yestify_id.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(wmi_event);
@@ -806,7 +806,7 @@ static int wmi_dev_match(struct device *dev, struct device_driver *driver)
 
 	return 0;
 }
-static int wmi_char_open(struct inode *inode, struct file *filp)
+static int wmi_char_open(struct iyesde *iyesde, struct file *filp)
 {
 	const char *driver_name = filp->f_path.dentry->d_iname;
 	struct wmi_block *wblock = NULL;
@@ -824,7 +824,7 @@ static int wmi_char_open(struct inode *inode, struct file *filp)
 	if (!filp->private_data)
 		return -ENODEV;
 
-	return nonseekable_open(inode, filp);
+	return yesnseekable_open(iyesde, filp);
 }
 
 static ssize_t wmi_char_read(struct file *filp, char __user *buffer,
@@ -849,7 +849,7 @@ static long wmi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (_IOC_TYPE(cmd) != WMI_IOC)
 		return -ENOTTY;
 
-	/* make sure we're not calling a higher instance than exists*/
+	/* make sure we're yest calling a higher instance than exists*/
 	if (_IOC_NR(cmd) >= wblock->gblock.instance_count)
 		return -EINVAL;
 
@@ -937,7 +937,7 @@ static int wmi_dev_probe(struct device *dev)
 		/* check that required buffer size declared by driver or MOF */
 		if (!wblock->req_buf_size) {
 			dev_err(&wblock->dev.dev,
-				"Required buffer size not set\n");
+				"Required buffer size yest set\n");
 			ret = -EINVAL;
 			goto probe_failure;
 		}
@@ -954,7 +954,7 @@ static int wmi_dev_probe(struct device *dev)
 			ret = -ENOMEM;
 			goto probe_string_failure;
 		}
-		wblock->char_dev.minor = MISC_DYNAMIC_MINOR;
+		wblock->char_dev.miyesr = MISC_DYNAMIC_MINOR;
 		wblock->char_dev.name = buf;
 		wblock->char_dev.fops = &wmi_fops;
 		wblock->char_dev.mode = 0444;
@@ -1053,8 +1053,8 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 
 	/*
 	 * Data Block Query Control Method (WQxx by convention) is
-	 * required per the WMI documentation. If it is not present,
-	 * we ignore this data block.
+	 * required per the WMI documentation. If it is yest present,
+	 * we igyesre this data block.
 	 */
 	strcpy(method, "WQ");
 	strncat(method, wblock->gblock.object_id, 2);
@@ -1062,7 +1062,7 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 
 	if (result) {
 		dev_warn(wmi_bus_dev,
-			 "%s data block query control method not found\n",
+			 "%s data block query control method yest found\n",
 			 method);
 		return result;
 	}
@@ -1073,14 +1073,14 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	 * The Microsoft documentation specifically states:
 	 *
 	 *   Data blocks registered with only a single instance
-	 *   can ignore the parameter.
+	 *   can igyesre the parameter.
 	 *
 	 * ACPICA will get mad at us if we call the method with the wrong number
 	 * of arguments, so check what our method expects.  (On some Dell
-	 * laptops, WQxx may not be a method at all.)
+	 * laptops, WQxx may yest be a method at all.)
 	 */
 	if (info->type != ACPI_TYPE_METHOD || info->param_count == 0)
-		wblock->read_takes_no_args = true;
+		wblock->read_takes_yes_args = true;
 
 	kfree(info);
 
@@ -1124,9 +1124,9 @@ static bool guid_already_parsed(struct acpi_device *device,
 		if (memcmp(wblock->gblock.guid, guid, 16) == 0) {
 			/*
 			 * Because we historically didn't track the relationship
-			 * between GUIDs and ACPI nodes, we don't know whether
+			 * between GUIDs and ACPI yesdes, we don't kyesw whether
 			 * we need to suppress GUIDs that are unique on a
-			 * given node but duplicated across nodes.
+			 * given yesde but duplicated across yesdes.
 			 */
 			dev_warn(&device->dev, "duplicate WMI GUID %pUL (first instance was on %s)\n",
 				 guid, dev_name(&wblock->acpi_device->dev));
@@ -1172,8 +1172,8 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 
 		/*
 		 * Some WMI devices, like those for nVidia hooks, have a
-		 * duplicate GUID. It's not clear what we should do in this
-		 * case yet, so for now, we'll just ignore the duplicate
+		 * duplicate GUID. It's yest clear what we should do in this
+		 * case yet, so for yesw, we'll just igyesre the duplicate
 		 * for device creation.
 		 */
 		if (guid_already_parsed(device, gblock[i].guid))
@@ -1197,7 +1197,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 		list_add_tail(&wblock->list, &wmi_block_list);
 
 		if (debug_event) {
-			wblock->handler = wmi_notify_debug;
+			wblock->handler = wmi_yestify_debug;
 			wmi_method_enable(wblock, 1);
 		}
 	}
@@ -1270,7 +1270,7 @@ acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
 	}
 }
 
-static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
+static void acpi_wmi_yestify_handler(acpi_handle handle, u32 event,
 				    void *context)
 {
 	struct guid_block *block;
@@ -1282,7 +1282,7 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 
 		if (wblock->acpi_device->handle == handle &&
 		    (block->flags & ACPI_WMI_EVENT) &&
-		    (block->notify_id == event))
+		    (block->yestify_id == event))
 		{
 			found_it = true;
 			break;
@@ -1292,7 +1292,7 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 	if (!found_it)
 		return;
 
-	/* If a driver is bound, then notify the driver. */
+	/* If a driver is bound, then yestify the driver. */
 	if (wblock->dev.dev.driver) {
 		struct wmi_driver *driver;
 		struct acpi_object_list input;
@@ -1316,8 +1316,8 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 			return;
 		}
 
-		if (driver->notify)
-			driver->notify(&wblock->dev,
+		if (driver->yestify)
+			driver->yestify(&wblock->dev,
 				       (union acpi_object *)evdata.pointer);
 
 		kfree(evdata.pointer);
@@ -1342,8 +1342,8 @@ static int acpi_wmi_remove(struct platform_device *device)
 {
 	struct acpi_device *acpi_device = ACPI_COMPANION(&device->dev);
 
-	acpi_remove_notify_handler(acpi_device->handle, ACPI_DEVICE_NOTIFY,
-				   acpi_wmi_notify_handler);
+	acpi_remove_yestify_handler(acpi_device->handle, ACPI_DEVICE_NOTIFY,
+				   acpi_wmi_yestify_handler);
 	acpi_remove_address_space_handler(acpi_device->handle,
 				ACPI_ADR_SPACE_EC, &acpi_wmi_ec_space_handler);
 	wmi_free_devices(acpi_device);
@@ -1374,12 +1374,12 @@ static int acpi_wmi_probe(struct platform_device *device)
 		return -ENODEV;
 	}
 
-	status = acpi_install_notify_handler(acpi_device->handle,
+	status = acpi_install_yestify_handler(acpi_device->handle,
 					     ACPI_DEVICE_NOTIFY,
-					     acpi_wmi_notify_handler,
+					     acpi_wmi_yestify_handler,
 					     NULL);
 	if (ACPI_FAILURE(status)) {
-		dev_err(&device->dev, "Error installing notify handler\n");
+		dev_err(&device->dev, "Error installing yestify handler\n");
 		error = -ENODEV;
 		goto err_remove_ec_handler;
 	}
@@ -1388,7 +1388,7 @@ static int acpi_wmi_probe(struct platform_device *device)
 				    NULL, "wmi_bus-%s", dev_name(&device->dev));
 	if (IS_ERR(wmi_bus_dev)) {
 		error = PTR_ERR(wmi_bus_dev);
-		goto err_remove_notify_handler;
+		goto err_remove_yestify_handler;
 	}
 	dev_set_drvdata(&device->dev, wmi_bus_dev);
 
@@ -1403,9 +1403,9 @@ static int acpi_wmi_probe(struct platform_device *device)
 err_remove_busdev:
 	device_destroy(&wmi_bus_class, MKDEV(0, 0));
 
-err_remove_notify_handler:
-	acpi_remove_notify_handler(acpi_device->handle, ACPI_DEVICE_NOTIFY,
-				   acpi_wmi_notify_handler);
+err_remove_yestify_handler:
+	acpi_remove_yestify_handler(acpi_device->handle, ACPI_DEVICE_NOTIFY,
+				   acpi_wmi_yestify_handler);
 
 err_remove_ec_handler:
 	acpi_remove_address_space_handler(acpi_device->handle,

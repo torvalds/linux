@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 
 /*
- * Generic non-thread safe hash map implementation.
+ * Generic yesn-thread safe hash map implementation.
  *
  * Copyright (c) 2019 Facebook
  */
@@ -70,7 +70,7 @@ size_t hashmap__capacity(const struct hashmap *map);
  * - HASHMAP_SET - add key/value pair if key doesn't exist yet; otherwise,
  *   update value;
  * - HASHMAP_UPDATE - update value, if key already exists; otherwise, do
- *   nothing and return -ENOENT;
+ *   yesthing and return -ENOENT;
  * - HASHMAP_APPEND - always add key/value pair, even if key already exists.
  *   This turns hashmap into a multimap by allowing multiple values to be
  *   associated with the same key. Most useful read API for such hashmap is

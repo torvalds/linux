@@ -243,7 +243,7 @@ int lochnagar_update_config(struct lochnagar *lochnagar)
 
 	/*
 	 * Toggle the ANALOGUE_PATH_UPDATE bit and wait for the device to
-	 * acknowledge that any outstanding changes to the analogue
+	 * ackyeswledge that any outstanding changes to the analogue
 	 * configuration have been applied.
 	 */
 	ret = regmap_write(regmap, LOCHNAGAR2_ANALOGUE_PATH_CTRL1, 0);
@@ -335,7 +335,7 @@ static int lochnagar_i2c_probe(struct i2c_client *i2c)
 
 	if (devid != config->id) {
 		dev_err(dev,
-			"ID does not match %s (expected 0x%x got 0x%x)\n",
+			"ID does yest match %s (expected 0x%x got 0x%x)\n",
 			config->name, config->id, devid);
 		return -ENODEV;
 	}
@@ -369,7 +369,7 @@ static int lochnagar_i2c_probe(struct i2c_client *i2c)
 
 	ret = devm_of_platform_populate(dev);
 	if (ret < 0) {
-		dev_err(dev, "Failed to populate child nodes: %d\n", ret);
+		dev_err(dev, "Failed to populate child yesdes: %d\n", ret);
 		return ret;
 	}
 

@@ -17,7 +17,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/crc32.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
@@ -93,11 +93,11 @@ static int do_pd_setup(struct fs_enet_private *fep)
 {
 	struct platform_device *ofdev = to_platform_device(fep->dev);
 
-	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_yesde, 0);
 	if (!fep->interrupt)
 		return -EINVAL;
 
-	fep->fec.fecp = of_iomap(ofdev->dev.of_node, 0);
+	fep->fec.fecp = of_iomap(ofdev->dev.of_yesde, 0);
 	if (!fep->fcc.fccp)
 		return -EINVAL;
 
@@ -155,7 +155,7 @@ static void free_bd(struct net_device *dev)
 
 static void cleanup_data(struct net_device *dev)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 static void set_promiscuous_mode(struct net_device *dev)
@@ -304,7 +304,7 @@ static void restart(struct net_device *dev)
 	FW(fecp, r_cntrl, FEC_RCNTRL_MII_MODE);	/* MII enable */
 #else
 	/*
-	 * Only set MII/RMII mode - do not touch maximum frame length
+	 * Only set MII/RMII mode - do yest touch maximum frame length
 	 * configured before.
 	 */
 	FS(fecp, r_cntrl, fpi->use_rmii ?
@@ -458,7 +458,7 @@ static int get_regs_len(struct net_device *dev)
 
 static void tx_restart(struct net_device *dev)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 /*************************************************************************/

@@ -502,7 +502,7 @@ static void pm860x_init_battery(struct pm860x_battery_info *info)
 	bat_remove = data & BAT_WU_LOG;
 
 	dev_dbg(info->dev, "battery wake up? %s\n",
-		bat_remove != 0 ? "yes" : "no");
+		bat_remove != 0 ? "no" : "yes");
 
 	/* restore SOC from RTC domain register */
 	if (bat_remove == 0) {
@@ -820,7 +820,7 @@ static int pm860x_batt_get_prop(struct power_supply *psy,
 			data = 0;
 		else if (data > 100)
 			data = 100;
-		/* return 100 if battery is not attached */
+		/* return 100 if battery is yest attached */
 		if (!info->present)
 			data = 100;
 		val->intval = data;
@@ -836,7 +836,7 @@ static int pm860x_batt_get_prop(struct power_supply *psy,
 		val->intval = data * 1000;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
-		/* return Open Circuit Voltage (not measured voltage) */
+		/* return Open Circuit Voltage (yest measured voltage) */
 		ret = calc_ocv(info, &data);
 		if (ret)
 			return ret;

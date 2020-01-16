@@ -52,13 +52,13 @@ enum {
 #endif
 
 	/*
-	 * The last color is no color used for works which don't
+	 * The last color is yes color used for works which don't
 	 * participate in workqueue flushing.
 	 */
 	WORK_NR_COLORS		= (1 << WORK_STRUCT_COLOR_BITS) - 1,
 	WORK_NO_COLOR		= WORK_NR_COLORS,
 
-	/* not bound to any CPU, prefer the local CPU */
+	/* yest bound to any CPU, prefer the local CPU */
 	WORK_CPU_UNBOUND	= NR_CPUS,
 
 	/*
@@ -78,7 +78,7 @@ enum {
 	/*
 	 * When a work item is off queue, its high bits point to the last
 	 * pool it was on.  Cap at 31 bits and use the highest number to
-	 * indicate that no pool is associated.
+	 * indicate that yes pool is associated.
 	 */
 	WORK_OFFQ_FLAG_BITS	= 1,
 	WORK_OFFQ_POOL_SHIFT	= WORK_OFFQ_FLAG_BASE + WORK_OFFQ_FLAG_BITS,
@@ -146,13 +146,13 @@ struct workqueue_attrs {
 	cpumask_var_t cpumask;
 
 	/**
-	 * @no_numa: disable NUMA affinity
+	 * @yes_numa: disable NUMA affinity
 	 *
-	 * Unlike other fields, ``no_numa`` isn't a property of a worker_pool. It
+	 * Unlike other fields, ``yes_numa`` isn't a property of a worker_pool. It
 	 * only modifies how :c:func:`apply_workqueue_attrs` select pools and thus
 	 * doesn't participate in pool hash calculations or equality comparisons.
 	 */
-	bool no_numa;
+	bool yes_numa;
 };
 
 static inline struct delayed_work *to_delayed_work(struct work_struct *work)
@@ -306,7 +306,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
  * Documentation/core-api/workqueue.rst.
  */
 enum {
-	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
+	WQ_UNBOUND		= 1 << 1, /* yest bound to any cpu */
 	WQ_FREEZABLE		= 1 << 2, /* freeze during suspend */
 	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */
 	WQ_HIGHPRI		= 1 << 4, /* high priority */
@@ -333,7 +333,7 @@ enum {
 	 * specified.  Per-cpu workqueues which are identified to
 	 * contribute significantly to power-consumption are identified and
 	 * marked with this flag and enabling the power_efficient mode
-	 * leads to noticeable power saving at the cost of small
+	 * leads to yesticeable power saving at the cost of small
 	 * performance disadvantage.
 	 *
 	 * http://thread.gmane.org/gmane.linux.kernel/1480396
@@ -368,9 +368,9 @@ enum {
  * system_long_wq is similar to system_wq but may host long running
  * works.  Queue flushing might take relatively long.
  *
- * system_unbound_wq is unbound workqueue.  Workers are not bound to
- * any specific CPU, not concurrency managed, and all queued works are
- * executed immediately as long as max_active limit is not reached and
+ * system_unbound_wq is unbound workqueue.  Workers are yest bound to
+ * any specific CPU, yest concurrency managed, and all queued works are
+ * executed immediately as long as max_active limit is yest reached and
  * resources are available.
  *
  * system_freezable_wq is equivalent to system_wq except that it's
@@ -378,7 +378,7 @@ enum {
  *
  * *_power_efficient_wq are inclined towards saving power and converted
  * into WQ_UNBOUND variants if 'wq_power_efficient' is enabled; otherwise,
- * they are same as their non-power-efficient counterparts - e.g.
+ * they are same as their yesn-power-efficient counterparts - e.g.
  * system_power_efficient_wq is identical to system_wq if
  * 'wq_power_efficient' is disabled.  See WQ_POWER_EFFICIENT for more info.
  */
@@ -443,7 +443,7 @@ int workqueue_set_unbound_cpumask(cpumask_var_t cpumask);
 
 extern bool queue_work_on(int cpu, struct workqueue_struct *wq,
 			struct work_struct *work);
-extern bool queue_work_node(int node, struct workqueue_struct *wq,
+extern bool queue_work_yesde(int yesde, struct workqueue_struct *wq,
 			    struct work_struct *work);
 extern bool queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 			struct delayed_work *work, unsigned long delay);
@@ -486,7 +486,7 @@ extern void wq_worker_comm(char *buf, size_t size, struct task_struct *task);
  * Returns %false if @work was already on a queue, %true otherwise.
  *
  * We queue the work to the CPU on which it was submitted, but if the CPU dies
- * it can be processed by another CPU.
+ * it can be processed by ayesther CPU.
  */
 static inline bool queue_work(struct workqueue_struct *wq,
 			      struct work_struct *work)
@@ -543,7 +543,7 @@ static inline bool schedule_work_on(int cpu, struct work_struct *work)
  * Returns %false if @work was already on the kernel-global workqueue and
  * %true otherwise.
  *
- * This puts a job in the kernel-global workqueue if it was not already
+ * This puts a job in the kernel-global workqueue if it was yest already
  * queued and leaves it in the same position on the kernel-global
  * workqueue otherwise.
  */
@@ -567,12 +567,12 @@ static inline bool schedule_work(struct work_struct *work)
  *
  *	Your code is running in the context of a work routine.
  *
- * They will be detected by lockdep when they occur, but the first might not
+ * They will be detected by lockdep when they occur, but the first might yest
  * occur very often.  It depends on what work items are on the workqueue and
- * what locks they need, which you have no control over.
+ * what locks they need, which you have yes control over.
  *
  * In most situations flushing the entire workqueue is overkill; you merely
- * need to know that a particular work item isn't queued and isn't running.
+ * need to kyesw that a particular work item isn't queued and isn't running.
  * In such cases you should use cancel_delayed_work_sync() or
  * cancel_work_sync() instead.
  */

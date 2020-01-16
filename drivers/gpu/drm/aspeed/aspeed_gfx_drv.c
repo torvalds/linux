@@ -165,7 +165,7 @@ static int aspeed_gfx_load(struct drm_device *drm)
 
 	ret = aspeed_gfx_create_pipe(drm);
 	if (ret < 0) {
-		dev_err(drm->dev, "Cannot setup simple display pipe\n");
+		dev_err(drm->dev, "Canyest setup simple display pipe\n");
 		return ret;
 	}
 
@@ -206,7 +206,7 @@ static struct drm_driver aspeed_gfx_driver = {
 	.desc = "ASPEED GFX DRM",
 	.date = "20180319",
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 };
 
 static const struct of_device_id aspeed_gfx_match[] = {

@@ -21,12 +21,12 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       yestice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of AMD Corporation nor the names of its
+ *     * Neither the name of AMD Corporation yesr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
@@ -209,7 +209,7 @@ static int amd_link_is_up(struct amd_ntb_dev *ndev)
 	 * started a timer to check link status of hardware.
 	 * So here just clear status bit. And if peer_sta is
 	 * D3 or PME_TO, D0/reset event will be happened when
-	 * system wakeup/poweron, so do nothing here.
+	 * system wakeup/poweron, so do yesthing here.
 	 */
 	if (ndev->peer_sta & AMD_PEER_RESET_EVENT)
 		ndev->peer_sta &= ~AMD_PEER_RESET_EVENT;
@@ -583,22 +583,22 @@ static int ndev_init_isr(struct amd_ntb_dev *ndev,
 			 int msix_min, int msix_max)
 {
 	struct pci_dev *pdev;
-	int rc, i, msix_count, node;
+	int rc, i, msix_count, yesde;
 
 	pdev = ndev->ntb.pdev;
 
-	node = dev_to_node(&pdev->dev);
+	yesde = dev_to_yesde(&pdev->dev);
 
 	ndev->db_mask = ndev->db_valid_mask;
 
 	/* Try to set up msix irq */
-	ndev->vec = kcalloc_node(msix_max, sizeof(*ndev->vec),
-				 GFP_KERNEL, node);
+	ndev->vec = kcalloc_yesde(msix_max, sizeof(*ndev->vec),
+				 GFP_KERNEL, yesde);
 	if (!ndev->vec)
 		goto err_msix_vec_alloc;
 
-	ndev->msix = kcalloc_node(msix_max, sizeof(*ndev->msix),
-				  GFP_KERNEL, node);
+	ndev->msix = kcalloc_yesde(msix_max, sizeof(*ndev->msix),
+				  GFP_KERNEL, yesde);
 	if (!ndev->msix)
 		goto err_msix_alloc;
 
@@ -931,7 +931,7 @@ static int amd_init_ntb(struct amd_ntb_dev *ndev)
 		break;
 	default:
 		dev_err(&ndev->ntb.pdev->dev,
-			"AMD NTB does not support B2B mode.\n");
+			"AMD NTB does yest support B2B mode.\n");
 		return -EINVAL;
 	}
 
@@ -1010,7 +1010,7 @@ static int amd_ntb_init_pci(struct amd_ntb_dev *ndev,
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc)
 			goto err_dma_mask;
-		dev_warn(&pdev->dev, "Cannot DMA highmem\n");
+		dev_warn(&pdev->dev, "Canyest DMA highmem\n");
 	}
 
 	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
@@ -1018,7 +1018,7 @@ static int amd_ntb_init_pci(struct amd_ntb_dev *ndev,
 		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc)
 			goto err_dma_mask;
-		dev_warn(&pdev->dev, "Cannot DMA consistent highmem\n");
+		dev_warn(&pdev->dev, "Canyest DMA consistent highmem\n");
 	}
 	rc = dma_coerce_mask_and_coherent(&ndev->ntb.dev,
 					  dma_get_mask(&pdev->dev));
@@ -1059,11 +1059,11 @@ static int amd_ntb_pci_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *id)
 {
 	struct amd_ntb_dev *ndev;
-	int rc, node;
+	int rc, yesde;
 
-	node = dev_to_node(&pdev->dev);
+	yesde = dev_to_yesde(&pdev->dev);
 
-	ndev = kzalloc_node(sizeof(*ndev), GFP_KERNEL, node);
+	ndev = kzalloc_yesde(sizeof(*ndev), GFP_KERNEL, yesde);
 	if (!ndev) {
 		rc = -ENOMEM;
 		goto err_ndev;

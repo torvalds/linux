@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause)
 /*
  * proc.c - procfs support for Protocol family CAN core module
  *
@@ -9,21 +9,21 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this yestice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are yest restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -307,14 +307,14 @@ static inline void can_rcvlist_proc_show_one(struct seq_file *m, int idx,
 		can_print_recv_banner(m);
 		can_print_rcvlist(m, &dev_rcv_lists->rx[idx], dev);
 	} else
-		seq_printf(m, "  (%s: no entry)\n", DNAME(dev));
+		seq_printf(m, "  (%s: yes entry)\n", DNAME(dev));
 
 }
 
 static int can_rcvlist_proc_show(struct seq_file *m, void *v)
 {
 	/* double cast to prevent GCC warning */
-	int idx = (int)(long)PDE_DATA(m->file->f_inode);
+	int idx = (int)(long)PDE_DATA(m->file->f_iyesde);
 	struct net_device *dev;
 	struct can_dev_rcv_lists *dev_rcv_lists;
 	struct net *net = m->private;
@@ -347,7 +347,7 @@ static inline void can_rcvlist_proc_show_array(struct seq_file *m,
 	unsigned int i;
 	int all_empty = 1;
 
-	/* check whether at least one list is non-empty */
+	/* check whether at least one list is yesn-empty */
 	for (i = 0; i < rcv_array_sz; i++)
 		if (!hlist_empty(&rcv_array[i])) {
 			all_empty = 0;
@@ -361,7 +361,7 @@ static inline void can_rcvlist_proc_show_array(struct seq_file *m,
 				can_print_rcvlist(m, &rcv_array[i], dev);
 		}
 	} else
-		seq_printf(m, "  (%s: no entry)\n", DNAME(dev));
+		seq_printf(m, "  (%s: yes entry)\n", DNAME(dev));
 }
 
 static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)

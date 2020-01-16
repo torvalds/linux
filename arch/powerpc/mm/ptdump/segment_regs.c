@@ -41,7 +41,7 @@ static int sr_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int sr_open(struct inode *inode, struct file *file)
+static int sr_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, sr_show, NULL);
 }

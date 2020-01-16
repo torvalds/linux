@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -71,15 +71,15 @@ static int ath_set_channel(struct ath_softc *sc)
 	if (r)
 		return r;
 
-	/* The most recent snapshot of channel->noisefloor for the old
+	/* The most recent snapshot of channel->yesisefloor for the old
 	 * channel is only available after the hardware reset. Copy it to
-	 * the survey stats now.
+	 * the survey stats yesw.
 	 */
 	if (old_pos >= 0)
 		ath_update_survey_nf(sc, old_pos);
 
 	/* Enable radar pulse detection if on a DFS channel. Spectral
-	 * scanning and radar detection can not be used concurrently.
+	 * scanning and radar detection can yest be used concurrently.
 	 */
 	if (hw->conf.radar_enabled) {
 		u32 rxfilter;
@@ -195,7 +195,7 @@ static const char *offchannel_state_string(enum ath_offchannel_state state)
 		case_rtn_string(ATH_OFFCHANNEL_ROC_WAIT);
 		case_rtn_string(ATH_OFFCHANNEL_ROC_DONE);
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -213,7 +213,7 @@ static const char *chanctx_event_string(enum ath_chanctx_event ev)
 		case_rtn_string(ATH_CHANCTX_EVENT_CHANGE);
 		case_rtn_string(ATH_CHANCTX_EVENT_ENABLE_MULTICHANNEL);
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -226,7 +226,7 @@ static const char *chanctx_state_string(enum ath_chanctx_state state)
 		case_rtn_string(ATH_CHANCTX_STATE_SWITCH);
 		case_rtn_string(ATH_CHANCTX_STATE_FORCE_ACTIVE);
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -268,7 +268,7 @@ void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
 		spin_unlock_bh(&sc->chan_lock);
 
 		/*
-		 * There is no need to iterate over the
+		 * There is yes need to iterate over the
 		 * active/assigned channel contexts if
 		 * the current context is offchannel.
 		 */
@@ -358,7 +358,7 @@ static void ath_chanctx_adjust_tbtt_delta(struct ath_softc *sc)
 	 */
 	offset = cur_tsf - prev_tsf;
 
-	/* Ignore stale data or spurious timestamps */
+	/* Igyesre stale data or spurious timestamps */
 	if (offset < 0 || offset > 3 * beacon_int)
 		return;
 
@@ -393,11 +393,11 @@ static void ath_chanctx_handle_bmiss(struct ath_softc *sc,
 	/*
 	 * Clear the extend_absence flag if it had been
 	 * set during the previous beacon transmission,
-	 * since we need to revert to the normal NoA
+	 * since we need to revert to the yesrmal NoA
 	 * schedule.
 	 */
 	if (ctx->active && sc->sched.extend_absence) {
-		avp->noa_duration = 0;
+		avp->yesa_duration = 0;
 		sc->sched.extend_absence = false;
 	}
 
@@ -406,38 +406,38 @@ static void ath_chanctx_handle_bmiss(struct ath_softc *sc,
 	 * to resync the timer properly.
 	 */
 	if (ctx->active && sc->sched.beacon_miss >= 2) {
-		avp->noa_duration = 0;
+		avp->yesa_duration = 0;
 		sc->sched.extend_absence = true;
 	}
 }
 
-static void ath_chanctx_offchannel_noa(struct ath_softc *sc,
+static void ath_chanctx_offchannel_yesa(struct ath_softc *sc,
 				       struct ath_chanctx *ctx,
 				       struct ath_vif *avp,
 				       u32 tsf_time)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
-	avp->noa_index++;
+	avp->yesa_index++;
 	avp->offchannel_start = tsf_time;
 	avp->offchannel_duration = sc->sched.offchannel_duration;
 
 	ath_dbg(common, CHAN_CTX,
-		"offchannel noa_duration: %d, noa_start: %u, noa_index: %d\n",
+		"offchannel yesa_duration: %d, yesa_start: %u, yesa_index: %d\n",
 		avp->offchannel_duration,
 		avp->offchannel_start,
-		avp->noa_index);
+		avp->yesa_index);
 
 	/*
 	 * When multiple contexts are active, the NoA
 	 * has to be recalculated and advertised after
 	 * an offchannel operation.
 	 */
-	if (ctx->active && avp->noa_duration)
-		avp->noa_duration = 0;
+	if (ctx->active && avp->yesa_duration)
+		avp->yesa_duration = 0;
 }
 
-static void ath_chanctx_set_periodic_noa(struct ath_softc *sc,
+static void ath_chanctx_set_periodic_yesa(struct ath_softc *sc,
 					 struct ath_vif *avp,
 					 struct ath_beacon_config *cur_conf,
 					 u32 tsf_time,
@@ -445,50 +445,50 @@ static void ath_chanctx_set_periodic_noa(struct ath_softc *sc,
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
-	avp->noa_index++;
-	avp->noa_start = tsf_time;
+	avp->yesa_index++;
+	avp->yesa_start = tsf_time;
 
 	if (sc->sched.extend_absence)
-		avp->noa_duration = (3 * beacon_int / 2) +
+		avp->yesa_duration = (3 * beacon_int / 2) +
 			sc->sched.channel_switch_time;
 	else
-		avp->noa_duration =
+		avp->yesa_duration =
 			TU_TO_USEC(cur_conf->beacon_interval) / 2 +
 			sc->sched.channel_switch_time;
 
 	if (test_bit(ATH_OP_SCANNING, &common->op_flags) ||
 	    sc->sched.extend_absence)
-		avp->periodic_noa = false;
+		avp->periodic_yesa = false;
 	else
-		avp->periodic_noa = true;
+		avp->periodic_yesa = true;
 
 	ath_dbg(common, CHAN_CTX,
-		"noa_duration: %d, noa_start: %u, noa_index: %d, periodic: %d\n",
-		avp->noa_duration,
-		avp->noa_start,
-		avp->noa_index,
-		avp->periodic_noa);
+		"yesa_duration: %d, yesa_start: %u, yesa_index: %d, periodic: %d\n",
+		avp->yesa_duration,
+		avp->yesa_start,
+		avp->yesa_index,
+		avp->periodic_yesa);
 }
 
-static void ath_chanctx_set_oneshot_noa(struct ath_softc *sc,
+static void ath_chanctx_set_oneshot_yesa(struct ath_softc *sc,
 					struct ath_vif *avp,
 					u32 tsf_time,
 					u32 duration)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
-	avp->noa_index++;
-	avp->noa_start = tsf_time;
-	avp->periodic_noa = false;
-	avp->oneshot_noa = true;
-	avp->noa_duration = duration + sc->sched.channel_switch_time;
+	avp->yesa_index++;
+	avp->yesa_start = tsf_time;
+	avp->periodic_yesa = false;
+	avp->oneshot_yesa = true;
+	avp->yesa_duration = duration + sc->sched.channel_switch_time;
 
 	ath_dbg(common, CHAN_CTX,
-		"oneshot noa_duration: %d, noa_start: %u, noa_index: %d, periodic: %d\n",
-		avp->noa_duration,
-		avp->noa_start,
-		avp->noa_index,
-		avp->periodic_noa);
+		"oneshot yesa_duration: %d, yesa_start: %u, yesa_index: %d, periodic: %d\n",
+		avp->yesa_duration,
+		avp->yesa_start,
+		avp->yesa_index,
+		avp->periodic_yesa);
 }
 
 void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
@@ -518,9 +518,9 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		if (avp->offchannel_duration)
 			avp->offchannel_duration = 0;
 
-		if (avp->oneshot_noa) {
-			avp->noa_duration = 0;
-			avp->oneshot_noa = false;
+		if (avp->oneshot_yesa) {
+			avp->yesa_duration = 0;
+			avp->oneshot_yesa = false;
 
 			ath_dbg(common, CHAN_CTX,
 				"Clearing oneshot NoA\n");
@@ -528,7 +528,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 
 		if (avp->chanctx != sc->cur_chan) {
 			ath_dbg(common, CHAN_CTX,
-				"Contexts differ, not preparing beacon\n");
+				"Contexts differ, yest preparing beacon\n");
 			break;
 		}
 
@@ -564,10 +564,10 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		 * attribute needs to be removed from subsequent
 		 * beacons.
 		 */
-		if (!ctx->active && avp->noa_duration &&
+		if (!ctx->active && avp->yesa_duration &&
 		    sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_BEACON) {
-			avp->noa_duration = 0;
-			avp->periodic_noa = false;
+			avp->yesa_duration = 0;
+			avp->periodic_yesa = false;
 
 			ath_dbg(common, CHAN_CTX,
 				"Clearing NoA schedule\n");
@@ -595,7 +595,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		 * values and increment the index.
 		 */
 		if (sc->next_chan == &sc->offchannel.chan) {
-			ath_chanctx_offchannel_noa(sc, ctx, avp, tsf_time);
+			ath_chanctx_offchannel_yesa(sc, ctx, avp, tsf_time);
 			break;
 		}
 
@@ -608,27 +608,27 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		 * cases, a new NoA schedule has to be advertised.
 		 */
 		if (sc->sched.mgd_prepare_tx) {
-			ath_chanctx_set_oneshot_noa(sc, avp, tsf_time,
+			ath_chanctx_set_oneshot_yesa(sc, avp, tsf_time,
 						    jiffies_to_usecs(HZ / 5));
 			break;
 		}
 
 		/* Prevent wrap-around issues */
-		if (avp->noa_duration && tsf_time - avp->noa_start > BIT(30))
-			avp->noa_duration = 0;
+		if (avp->yesa_duration && tsf_time - avp->yesa_start > BIT(30))
+			avp->yesa_duration = 0;
 
 		/*
 		 * If multiple contexts are active, start periodic
 		 * NoA and increment the index for the first
-		 * announcement.
+		 * anyesuncement.
 		 */
 		if (ctx->active &&
-		    (!avp->noa_duration || sc->sched.force_noa_update))
-			ath_chanctx_set_periodic_noa(sc, avp, cur_conf,
+		    (!avp->yesa_duration || sc->sched.force_yesa_update))
+			ath_chanctx_set_periodic_yesa(sc, avp, cur_conf,
 						     tsf_time, beacon_int);
 
-		if (ctx->active && sc->sched.force_noa_update)
-			sc->sched.force_noa_update = false;
+		if (ctx->active && sc->sched.force_yesa_update)
+			sc->sched.force_yesa_update = false;
 
 		break;
 	case ATH_CHANCTX_EVENT_BEACON_SENT:
@@ -980,7 +980,7 @@ void ath_scan_complete(struct ath_softc *sc, bool abort)
 	clear_bit(ATH_OP_SCANNING, &common->op_flags);
 	spin_lock_bh(&sc->chan_lock);
 	if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
-		sc->sched.force_noa_update = true;
+		sc->sched.force_yesa_update = true;
 	spin_unlock_bh(&sc->chan_lock);
 	ath_offchannel_next(sc);
 	ath9k_ps_restore(sc);
@@ -1002,7 +1002,7 @@ static void ath_scan_send_probe(struct ath_softc *sc,
 		return;
 
 	info = IEEE80211_SKB_CB(skb);
-	if (req->no_cck)
+	if (req->yes_cck)
 		info->flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 
 	if (req->ie_len)
@@ -1306,7 +1306,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 				ath9k_hw_get_tsf_offset(&ts, NULL);
 		/*
 		 * A reset will ensure that all queues are woken up,
-		 * so there is no need to awaken them again.
+		 * so there is yes need to awaken them again.
 		 */
 		goto out;
 	}
@@ -1429,15 +1429,15 @@ static void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
 	struct ath_hw *ah = sc->sc_ah;
 	u32 tsf, target_tsf;
 
-	if (!avp || !avp->noa.has_next_tsf)
+	if (!avp || !avp->yesa.has_next_tsf)
 		return;
 
 	ath9k_hw_gen_timer_stop(ah, sc->p2p_ps_timer);
 
 	tsf = ath9k_hw_gettsf32(sc->sc_ah);
 
-	target_tsf = avp->noa.next_tsf;
-	if (!avp->noa.absent)
+	target_tsf = avp->yesa.next_tsf;
+	if (!avp->yesa.absent)
 		target_tsf -= ATH_P2P_PS_STOP_TIME;
 	else
 		target_tsf += ATH_P2P_PS_STOP_TIME;
@@ -1446,7 +1446,7 @@ static void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
 		target_tsf = tsf + ATH_P2P_PS_STOP_TIME;
 
 	ath_dbg(common, CHAN_CTX, "%s absent %d tsf 0x%08X next_tsf 0x%08X (%dms)\n",
-		__func__, avp->noa.absent, tsf, target_tsf,
+		__func__, avp->yesa.absent, tsf, target_tsf,
 		(target_tsf - tsf) / 1000);
 
 	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, target_tsf, 1000000);
@@ -1469,7 +1469,7 @@ static void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif)
 		return;
 
 	tsf = ath9k_hw_gettsf32(sc->sc_ah);
-	ieee80211_parse_p2p_noa(&vif->bss_conf.p2p_noa_attr, &avp->noa, tsf);
+	ieee80211_parse_p2p_yesa(&vif->bss_conf.p2p_yesa_attr, &avp->yesa, tsf);
 	ath9k_update_p2p_ps_timer(sc, avp);
 }
 
@@ -1487,7 +1487,7 @@ static u8 ath9k_get_ctwin(struct ath_softc *sc, struct ath_vif *avp)
 	 */
 	switch_time = cur_conf->beacon_interval / 4;
 
-	ctwin = avp->vif->bss_conf.p2p_noa_attr.oppps_ctwindow;
+	ctwin = avp->vif->bss_conf.p2p_yesa_attr.oppps_ctwindow;
 	if (ctwin && (ctwin < switch_time))
 		return ctwin;
 
@@ -1497,10 +1497,10 @@ static u8 ath9k_get_ctwin(struct ath_softc *sc, struct ath_vif *avp)
 	return P2P_DEFAULT_CTWIN;
 }
 
-void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
+void ath9k_beacon_add_yesa(struct ath_softc *sc, struct ath_vif *avp,
 			  struct sk_buff *skb)
 {
-	static const u8 noa_ie_hdr[] = {
+	static const u8 yesa_ie_hdr[] = {
 		WLAN_EID_VENDOR_SPECIFIC,	/* type */
 		0,				/* length */
 		0x50, 0x6f, 0x9a,		/* WFA OUI */
@@ -1510,45 +1510,45 @@ void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 		0x00,				/* MSB of little-endian len */
 	};
 
-	struct ieee80211_p2p_noa_attr *noa;
-	int noa_len, noa_desc, i = 0;
+	struct ieee80211_p2p_yesa_attr *yesa;
+	int yesa_len, yesa_desc, i = 0;
 	u8 *hdr;
 
-	if (!avp->offchannel_duration && !avp->noa_duration)
+	if (!avp->offchannel_duration && !avp->yesa_duration)
 		return;
 
-	noa_desc = !!avp->offchannel_duration + !!avp->noa_duration;
-	noa_len = 2 + sizeof(struct ieee80211_p2p_noa_desc) * noa_desc;
+	yesa_desc = !!avp->offchannel_duration + !!avp->yesa_duration;
+	yesa_len = 2 + sizeof(struct ieee80211_p2p_yesa_desc) * yesa_desc;
 
-	hdr = skb_put_data(skb, noa_ie_hdr, sizeof(noa_ie_hdr));
-	hdr[1] = sizeof(noa_ie_hdr) + noa_len - 2;
-	hdr[7] = noa_len;
+	hdr = skb_put_data(skb, yesa_ie_hdr, sizeof(yesa_ie_hdr));
+	hdr[1] = sizeof(yesa_ie_hdr) + yesa_len - 2;
+	hdr[7] = yesa_len;
 
-	noa = skb_put_zero(skb, noa_len);
+	yesa = skb_put_zero(skb, yesa_len);
 
-	noa->index = avp->noa_index;
-	noa->oppps_ctwindow = ath9k_get_ctwin(sc, avp);
-	if (noa->oppps_ctwindow)
-		noa->oppps_ctwindow |= BIT(7);
+	yesa->index = avp->yesa_index;
+	yesa->oppps_ctwindow = ath9k_get_ctwin(sc, avp);
+	if (yesa->oppps_ctwindow)
+		yesa->oppps_ctwindow |= BIT(7);
 
-	if (avp->noa_duration) {
-		if (avp->periodic_noa) {
+	if (avp->yesa_duration) {
+		if (avp->periodic_yesa) {
 			u32 interval = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
-			noa->desc[i].count = 255;
-			noa->desc[i].interval = cpu_to_le32(interval);
+			yesa->desc[i].count = 255;
+			yesa->desc[i].interval = cpu_to_le32(interval);
 		} else {
-			noa->desc[i].count = 1;
+			yesa->desc[i].count = 1;
 		}
 
-		noa->desc[i].start_time = cpu_to_le32(avp->noa_start);
-		noa->desc[i].duration = cpu_to_le32(avp->noa_duration);
+		yesa->desc[i].start_time = cpu_to_le32(avp->yesa_start);
+		yesa->desc[i].duration = cpu_to_le32(avp->yesa_duration);
 		i++;
 	}
 
 	if (avp->offchannel_duration) {
-		noa->desc[i].count = 1;
-		noa->desc[i].start_time = cpu_to_le32(avp->offchannel_start);
-		noa->desc[i].duration = cpu_to_le32(avp->offchannel_duration);
+		yesa->desc[i].count = 1;
+		yesa->desc[i].start_time = cpu_to_le32(avp->offchannel_start);
+		yesa->desc[i].duration = cpu_to_le32(avp->offchannel_duration);
 	}
 }
 
@@ -1558,7 +1558,7 @@ void ath9k_p2p_ps_timer(void *priv)
 	struct ath_vif *avp = sc->p2p_ps_vif;
 	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
-	struct ath_node *an;
+	struct ath_yesde *an;
 	u32 tsf;
 
 	del_timer_sync(&sc->sched.timer);
@@ -1569,14 +1569,14 @@ void ath9k_p2p_ps_timer(void *priv)
 		return;
 
 	tsf = ath9k_hw_gettsf32(sc->sc_ah);
-	if (!avp->noa.absent)
+	if (!avp->yesa.absent)
 		tsf += ATH_P2P_PS_STOP_TIME;
 	else
 		tsf -= ATH_P2P_PS_STOP_TIME;
 
-	if (!avp->noa.has_next_tsf ||
-	    avp->noa.next_tsf - tsf > BIT(31))
-		ieee80211_update_p2p_noa(&avp->noa, tsf);
+	if (!avp->yesa.has_next_tsf ||
+	    avp->yesa.next_tsf - tsf > BIT(31))
+		ieee80211_update_p2p_yesa(&avp->yesa, tsf);
 
 	ath9k_update_p2p_ps_timer(sc, avp);
 
@@ -1588,10 +1588,10 @@ void ath9k_p2p_ps_timer(void *priv)
 		goto out;
 
 	an = (void *) sta->drv_priv;
-	if (an->sleeping == !!avp->noa.absent)
+	if (an->sleeping == !!avp->yesa.absent)
 		goto out;
 
-	an->sleeping = avp->noa.absent;
+	an->sleeping = avp->yesa.absent;
 	if (an->sleeping)
 		ath_tx_aggr_sleep(sta, sc, an);
 	else

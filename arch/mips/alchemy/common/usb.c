@@ -34,7 +34,7 @@
 /* Au1200 USB config bits */
 #define USBCFG_PFEN	(1 << 31)		/* prefetch enable (undoc) */
 #define USBCFG_RDCOMB	(1 << 30)		/* read combining (undoc) */
-#define USBCFG_UNKNOWN	(5 << 20)		/* unknown, leave this way */
+#define USBCFG_UNKNOWN	(5 << 20)		/* unkyeswn, leave this way */
 #define USBCFG_SSD	(1 << 23)		/* serial short detect en */
 #define USBCFG_PPE	(1 << 19)		/* HS PHY PLL */
 #define USBCFG_UCE	(1 << 18)		/* UDC clock enable */
@@ -112,7 +112,7 @@ static inline void __au1300_usb_phyctl(void __iomem *base, int enable)
 		__raw_writel(r, base + USB_DWC_CTRL2);
 		wmb();
 	} else if (!s) {
-		/* no USB block active, do disable all PHYs */
+		/* yes USB block active, do disable all PHYs */
 		r &= ~(USB_DWC_CTRL2_PHY1RS | USB_DWC_CTRL2_PHY0RS |
 		       USB_DWC_CTRL2_PHYRS);
 		__raw_writel(r, base + USB_DWC_CTRL2);
@@ -336,7 +336,7 @@ static inline void __au1200_ehci_control(void __iomem *base, int enable)
 		udelay(1000);
 	} else {
 		if (!(r & USBCFG_UCE))		/* UDC also off? */
-			r &= ~USBCFG_PPE;	/* yes: disable HS PHY PLL */
+			r &= ~USBCFG_PPE;	/* no: disable HS PHY PLL */
 		__raw_writel(r & ~USBCFG_ECE, base + AU1200_USBCFG);
 		wmb();
 		udelay(1000);
@@ -351,7 +351,7 @@ static inline void __au1200_udc_control(void __iomem *base, int enable)
 		wmb();
 	} else {
 		if (!(r & USBCFG_ECE))		/* EHCI also off? */
-			r &= ~USBCFG_PPE;	/* yes: disable HS PHY PLL */
+			r &= ~USBCFG_PPE;	/* no: disable HS PHY PLL */
 		__raw_writel(r & ~USBCFG_UCE, base + AU1200_USBCFG);
 		wmb();
 	}
@@ -379,7 +379,7 @@ static inline int au1200_usb_control(int block, int enable)
 }
 
 
-/* initialize USB block(s) to a known working state */
+/* initialize USB block(s) to a kyeswn working state */
 static inline void au1200_usb_init(void)
 {
 	void __iomem *base =
@@ -395,7 +395,7 @@ static inline int au1000_usb_init(unsigned long rb, int reg)
 	unsigned long r = __raw_readl(base);
 	struct clk *c;
 
-	/* 48MHz check. Don't init if no one can provide it */
+	/* 48MHz check. Don't init if yes one can provide it */
 	c = clk_get(NULL, "usbh_clk");
 	if (IS_ERR(c))
 		return -ENODEV;

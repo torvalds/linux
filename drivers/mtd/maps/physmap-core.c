@@ -166,12 +166,12 @@ static void physmap_addr_gpios_copy_from(struct map_info *map, void *buf,
 	info = platform_get_drvdata(pdev);
 
 	while (len) {
-		unsigned int winofs = ofs & win_mask(info->win_order);
+		unsigned int wiyesfs = ofs & win_mask(info->win_order);
 		unsigned int chunklen = min_t(unsigned int, len,
-					      BIT(info->win_order) - winofs);
+					      BIT(info->win_order) - wiyesfs);
 
 		physmap_set_addr_gpios(info, ofs);
-		memcpy_fromio(buf, map->virt + winofs, chunklen);
+		memcpy_fromio(buf, map->virt + wiyesfs, chunklen);
 		len -= chunklen;
 		buf += chunklen;
 		ofs += chunklen;
@@ -203,12 +203,12 @@ static void physmap_addr_gpios_copy_to(struct map_info *map, unsigned long ofs,
 	info = platform_get_drvdata(pdev);
 
 	while (len) {
-		unsigned int winofs = ofs & win_mask(info->win_order);
+		unsigned int wiyesfs = ofs & win_mask(info->win_order);
 		unsigned int chunklen = min_t(unsigned int, len,
-					      BIT(info->win_order) - winofs);
+					      BIT(info->win_order) - wiyesfs);
 
 		physmap_set_addr_gpios(info, ofs);
-		memcpy_toio(map->virt + winofs, buf, chunklen);
+		memcpy_toio(map->virt + wiyesfs, buf, chunklen);
 		len -= chunklen;
 		buf += chunklen;
 		ofs += chunklen;
@@ -245,7 +245,7 @@ static const struct of_device_id of_flash_match[] = {
 		 * practice most of the time.  We should use the
 		 * vendor and device ids specified by the binding to
 		 * bypass the heuristic probe code, but the mtd layer
-		 * provides, at present, no interface for doing so
+		 * provides, at present, yes interface for doing so
 		 * :(.
 		 */
 		.compatible = "jedec-flash",
@@ -273,7 +273,7 @@ static const char * const of_default_part_probes[] = {
 
 static const char * const *of_get_part_probes(struct platform_device *dev)
 {
-	struct device_node *dp = dev->dev.of_node;
+	struct device_yesde *dp = dev->dev.of_yesde;
 	const char **res;
 	int count;
 
@@ -295,7 +295,7 @@ static const char * const *of_get_part_probes(struct platform_device *dev)
 
 static const char *of_select_probe_type(struct platform_device *dev)
 {
-	struct device_node *dp = dev->dev.of_node;
+	struct device_yesde *dp = dev->dev.of_yesde;
 	const struct of_device_id *match;
 	const char *probe_type;
 
@@ -319,7 +319,7 @@ static const char *of_select_probe_type(struct platform_device *dev)
 		probe_type = "map_rom";
 	} else {
 		dev_warn(&dev->dev,
-			 "obsolete_probe: don't know probe type '%s', mapping as rom\n",
+			 "obsolete_probe: don't kyesw probe type '%s', mapping as rom\n",
 			 probe_type);
 		probe_type = "map_rom";
 	}
@@ -330,7 +330,7 @@ static const char *of_select_probe_type(struct platform_device *dev)
 static int physmap_flash_of_init(struct platform_device *dev)
 {
 	struct physmap_flash_info *info = platform_get_drvdata(dev);
-	struct device_node *dp = dev->dev.of_node;
+	struct device_yesde *dp = dev->dev.of_yesde;
 	const char *mtd_name = NULL;
 	int err, swap = 0;
 	bool map_indirect;
@@ -348,7 +348,7 @@ static int physmap_flash_of_init(struct platform_device *dev)
 
 	of_property_read_string(dp, "linux,mtd-name", &mtd_name);
 
-	map_indirect = of_property_read_bool(dp, "no-unaligned-direct-access");
+	map_indirect = of_property_read_bool(dp, "yes-unaligned-direct-access");
 
 	err = of_property_read_u32(dp, "bank-width", &bankwidth);
 	if (err) {
@@ -365,7 +365,7 @@ static int physmap_flash_of_init(struct platform_device *dev)
 		info->maps[i].name = mtd_name;
 		info->maps[i].swap = swap;
 		info->maps[i].bankwidth = bankwidth;
-		info->maps[i].device_node = dp;
+		info->maps[i].device_yesde = dp;
 
 		err = of_flash_probe_gemini(dev, dp, &info->maps[i]);
 		if (err)
@@ -384,7 +384,7 @@ static int physmap_flash_of_init(struct platform_device *dev)
 		 * may cause problems with JFFS2 usage, as the local bus (LPB)
 		 * doesn't support unaligned accesses as implemented in the
 		 * JFFS2 code via memcpy(). By setting NO_XIP, the
-		 * flash will not be exposed directly to the MTD users
+		 * flash will yest be exposed directly to the MTD users
 		 * (e.g. JFFS2) any more.
 		 */
 		if (map_indirect)
@@ -447,7 +447,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 	int err = 0;
 	int i;
 
-	if (!dev->dev.of_node && !dev_get_platdata(&dev->dev))
+	if (!dev->dev.of_yesde && !dev_get_platdata(&dev->dev))
 		return -EINVAL;
 
 	info = devm_kzalloc(&dev->dev, sizeof(*info), GFP_KERNEL);
@@ -484,7 +484,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 		return -EINVAL;
 	}
 
-	if (dev->dev.of_node)
+	if (dev->dev.of_yesde)
 		err = physmap_flash_of_init(dev);
 	else
 		err = physmap_flash_pdata_init(dev);
@@ -502,7 +502,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 			goto err_out;
 		}
 
-		dev_notice(&dev->dev, "physmap platform flash device: %pR\n",
+		dev_yestice(&dev->dev, "physmap platform flash device: %pR\n",
 			   res);
 
 		info->maps[i].name = dev_name(&dev->dev);
@@ -525,9 +525,9 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 #ifdef CONFIG_MTD_COMPLEX_MAPPINGS
 		/*
-		 * Only use the simple_map implementation if map hooks are not
+		 * Only use the simple_map implementation if map hooks are yest
 		 * implemented. Since map->read() is mandatory checking for its
-		 * presence is enough.
+		 * presence is eyesugh.
 		 */
 		if (!info->maps[i].read)
 			simple_map_init(&info->maps[i]);
@@ -573,7 +573,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 	spin_lock_init(&info->vpp_lock);
 
-	mtd_set_of_node(info->cmtd, dev->dev.of_node);
+	mtd_set_of_yesde(info->cmtd, dev->dev.of_yesde);
 	err = mtd_device_parse_register(info->cmtd, info->part_types, NULL,
 					info->parts, info->nparts);
 	if (err)

@@ -40,13 +40,13 @@ bl_free_device(struct pnfs_block_dev *dev)
 }
 
 void
-bl_free_deviceid_node(struct nfs4_deviceid_node *d)
+bl_free_deviceid_yesde(struct nfs4_deviceid_yesde *d)
 {
 	struct pnfs_block_dev *dev =
-		container_of(d, struct pnfs_block_dev, node);
+		container_of(d, struct pnfs_block_dev, yesde);
 
 	bl_free_device(dev);
-	kfree_rcu(dev, node.rcu);
+	kfree_rcu(dev, yesde.rcu);
 }
 
 static int
@@ -156,7 +156,7 @@ nfs4_block_decode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 		p = xdr_decode_hyper(p, &b->scsi.pr_key);
 		break;
 	default:
-		dprintk("unknown volume type!\n");
+		dprintk("unkyeswn volume type!\n");
 		return -EIO;
 	}
 
@@ -207,7 +207,7 @@ static bool bl_map_stripe(struct pnfs_block_dev *dev, u64 offset,
 	if (chunk_idx >= dev->nr_children) {
 		dprintk("%s: invalid chunk idx %d (%lld/%lld)\n",
 			__func__, chunk_idx, offset, dev->chunk_size);
-		/* error, should not happen */
+		/* error, should yest happen */
 		return false;
 	}
 
@@ -252,7 +252,7 @@ bl_parse_simple(struct nfs_server *server, struct pnfs_block_dev *d,
 	d->bdev = bdev;
 
 
-	d->len = i_size_read(d->bdev->bd_inode);
+	d->len = i_size_read(d->bdev->bd_iyesde);
 	d->map = bl_map_simple;
 
 	printk(KERN_INFO "pNFS: using block device %s\n",
@@ -367,7 +367,7 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 		return PTR_ERR(bdev);
 	d->bdev = bdev;
 
-	d->len = i_size_read(d->bdev->bd_inode);
+	d->len = i_size_read(d->bdev->bd_iyesde);
 	d->map = bl_map_simple;
 	d->pr_key = v->scsi.pr_key;
 
@@ -376,7 +376,7 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 
 	ops = d->bdev->bd_disk->fops->pr_ops;
 	if (!ops) {
-		pr_err("pNFS: block device %s does not support reservations.",
+		pr_err("pNFS: block device %s does yest support reservations.",
 				d->bdev->bd_disk->disk_name);
 		error = -EINVAL;
 		goto out_blkdev_put;
@@ -492,11 +492,11 @@ bl_parse_deviceid(struct nfs_server *server, struct pnfs_block_dev *d,
 	}
 }
 
-struct nfs4_deviceid_node *
-bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
+struct nfs4_deviceid_yesde *
+bl_alloc_deviceid_yesde(struct nfs_server *server, struct pnfs_device *pdev,
 		gfp_t gfp_mask)
 {
-	struct nfs4_deviceid_node *node = NULL;
+	struct nfs4_deviceid_yesde *yesde = NULL;
 	struct pnfs_block_volume *volumes;
 	struct pnfs_block_dev *top;
 	struct xdr_stream xdr;
@@ -534,15 +534,15 @@ bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 
 	ret = bl_parse_deviceid(server, top, volumes, nr_volumes - 1, gfp_mask);
 
-	node = &top->node;
-	nfs4_init_deviceid_node(node, server, &pdev->dev_id);
+	yesde = &top->yesde;
+	nfs4_init_deviceid_yesde(yesde, server, &pdev->dev_id);
 	if (ret)
-		nfs4_mark_deviceid_unavailable(node);
+		nfs4_mark_deviceid_unavailable(yesde);
 
 out_free_volumes:
 	kfree(volumes);
 out_free_scratch:
 	__free_page(scratch);
 out:
-	return node;
+	return yesde;
 }

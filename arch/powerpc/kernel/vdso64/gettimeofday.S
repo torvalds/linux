@@ -72,17 +72,17 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
   .cfi_register lr,r12
 	mr	r11,r4			/* r11 saves tp */
 	bl	V_LOCAL_FUNC(__get_datapage)	/* get data page */
-	lis	r7,NSEC_PER_SEC@h	/* want nanoseconds */
+	lis	r7,NSEC_PER_SEC@h	/* want nayesseconds */
 	ori	r7,r7,NSEC_PER_SEC@l
 	beq	cr5,70f
 50:	bl	V_LOCAL_FUNC(__do_get_tspec)	/* get time from tb & kernel */
-	bne	cr1,80f			/* if not monotonic, all done */
+	bne	cr1,80f			/* if yest moyestonic, all done */
 
 	/*
 	 * CLOCK_MONOTONIC
 	 */
 
-	/* now we must fixup using wall to monotonic. We need to snapshot
+	/* yesw we must fixup using wall to moyestonic. We need to snapshot
 	 * that value and do the counter trick again. Fortunately, we still
 	 * have the counter value in r8 that was returned by __do_get_tspec.
 	 * At this point, r4,r5 contain our sec/nsec values.
@@ -91,7 +91,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	ld	r6,WTOM_CLOCK_SEC(r3)
 	lwa	r9,WTOM_CLOCK_NSEC(r3)
 
-	/* We now have our result in r6,r9. We create a fake dependency
+	/* We yesw have our result in r6,r9. We create a fake dependency
 	 * on that result and re-check the counter
 	 */
 	or	r0,r6,r9
@@ -134,13 +134,13 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	cmpld   cr0,r0,r8               /* check if updated */
 	bne-    70b
 
-	/* Counter has not updated, so continue calculating proper values for
-	 * sec and nsec if monotonic coarse, or just return with the proper
+	/* Counter has yest updated, so continue calculating proper values for
+	 * sec and nsec if moyestonic coarse, or just return with the proper
 	 * values for realtime.
 	 */
 	bne     cr6,80f
 
-	/* Add wall->monotonic offset and check for overflow or underflow */
+	/* Add wall->moyestonic offset and check for overflow or underflow */
 78:	add     r4,r4,r6
 	add     r5,r5,r9
 	cmpd    cr0,r5,r7
@@ -240,11 +240,11 @@ V_FUNCTION_END(__kernel_time)
  * This is the core of clock_gettime() and gettimeofday(),
  * it returns the current time in r4 (seconds) and r5.
  * On entry, r7 gives the resolution of r5, either USEC_PER_SEC
- * or NSEC_PER_SEC, giving r5 in microseconds or nanoseconds.
+ * or NSEC_PER_SEC, giving r5 in microseconds or nayesseconds.
  * It expects the datapage ptr in r3 and doesn't clobber it.
  * It clobbers r0, r6 and r9.
  * On return, r8 contains the counter value that can be reused.
- * This clobbers cr0 but not any other cr field.
+ * This clobbers cr0 but yest any other cr field.
  */
 V_FUNCTION_BEGIN(__do_get_tspec)
   .cfi_startproc
@@ -278,9 +278,9 @@ V_FUNCTION_BEGIN(__do_get_tspec)
 	cmpld   r0,r8			/* check if updated */
 	bne-	1b			/* reload if so */
 
-	/* convert to seconds & nanoseconds and add to stamp */
+	/* convert to seconds & nayesseconds and add to stamp */
 	add	r6,r6,r5		/* add on fractional seconds of xtime */
-	mulhwu	r5,r6,r7		/* compute micro or nanoseconds and */
+	mulhwu	r5,r6,r7		/* compute micro or nayesseconds and */
 	srdi	r6,r6,32		/* seconds since stamp_xtime */
 	clrldi	r5,r5,32
 	add	r4,r4,r6

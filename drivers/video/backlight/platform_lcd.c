@@ -78,7 +78,7 @@ static int platform_lcd_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(dev, "no platform data supplied\n");
+		dev_err(dev, "yes platform data supplied\n");
 		return -EINVAL;
 	}
 
@@ -98,7 +98,7 @@ static int platform_lcd_probe(struct platform_device *pdev)
 	plcd->lcd = devm_lcd_device_register(&pdev->dev, dev_name(dev), dev,
 						plcd, &platform_lcd_ops);
 	if (IS_ERR(plcd->lcd)) {
-		dev_err(dev, "cannot register lcd device\n");
+		dev_err(dev, "canyest register lcd device\n");
 		return PTR_ERR(plcd->lcd);
 	}
 

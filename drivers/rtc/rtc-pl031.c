@@ -117,12 +117,12 @@ static int pl031_stv2_tm_to_time(struct device *dev,
 	int year = tm->tm_year + 1900;
 	int wday = tm->tm_wday;
 
-	/* wday masking is not working in hardware so wday must be valid */
+	/* wday masking is yest working in hardware so wday must be valid */
 	if (wday < -1 || wday > 6) {
 		dev_err(dev, "invalid wday value %d\n", tm->tm_wday);
 		return -EINVAL;
 	} else if (wday == -1) {
-		/* wday is not provided, calculate it here */
+		/* wday is yest provided, calculate it here */
 		unsigned long time;
 		struct rtc_time calc_tm;
 
@@ -210,7 +210,7 @@ static int pl031_stv2_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	unsigned long bcd_year;
 	int ret;
 
-	/* At the moment, we can only deal with non-wildcarded alarm times. */
+	/* At the moment, we can only deal with yesn-wildcarded alarm times. */
 	ret = rtc_valid_tm(&alarm->time);
 	if (ret == 0) {
 		ret = pl031_stv2_tm_to_time(dev, &alarm->time,
@@ -285,7 +285,7 @@ static int pl031_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	unsigned long time;
 	int ret;
 
-	/* At the moment, we can only deal with non-wildcarded alarm times. */
+	/* At the moment, we can only deal with yesn-wildcarded alarm times. */
 	ret = rtc_valid_tm(&alarm->time);
 	if (ret == 0) {
 		ret = rtc_tm_to_time(&alarm->time, &time);
@@ -354,7 +354,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	writel(data, ldata->base + RTC_CR);
 
 	/*
-	 * On ST PL031 variants, the RTC reset value does not provide correct
+	 * On ST PL031 variants, the RTC reset value does yest provide correct
 	 * weekday for 2000-01-01. Correct the erroneous sunday to saturday.
 	 */
 	if (vendor->st_weekday) {
@@ -371,7 +371,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	if (!adev->irq[0]) {
-		/* When there's no interrupt, no point in exposing the alarm */
+		/* When there's yes interrupt, yes point in exposing the alarm */
 		ops->read_alarm = NULL;
 		ops->set_alarm = NULL;
 		ops->alarm_irq_enable = NULL;
@@ -440,7 +440,7 @@ static struct pl031_vendor_data stv2_pl031 = {
 	.clockwatch = true,
 	.st_weekday = true,
 	/*
-	 * This variant shares the IRQ with another block and must not
+	 * This variant shares the IRQ with ayesther block and must yest
 	 * suspend that IRQ line.
 	 * TODO check if it shares with IRQF_NO_SUSPEND user, else we can
 	 * remove IRQF_COND_SUSPEND

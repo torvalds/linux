@@ -275,7 +275,7 @@ static int max98373_dai_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = MAX98373_PCM_SR_SET1_SR_96000;
 		break;
 	default:
-		dev_err(component->dev, "rate %d not supported\n",
+		dev_err(component->dev, "rate %d yest supported\n",
 			params_rate(params));
 		goto err;
 	}
@@ -327,7 +327,7 @@ static int max98373_dai_tdm_slot(struct snd_soc_dai *dai,
 	/* BCLK configuration */
 	bsel = max98373_get_bclk_sel(slots * slot_width);
 	if (bsel == 0) {
-		dev_err(component->dev, "BCLK %d not supported\n",
+		dev_err(component->dev, "BCLK %d yest supported\n",
 			slots * slot_width);
 		return -EINVAL;
 	}
@@ -644,7 +644,7 @@ SOC_SINGLE("ADC PVDD FLT Coeff", MAX98373_R2052_MEAS_ADC_PVDD_FLT_CFG,
 SOC_SINGLE("ADC TEMP FLT Coeff", MAX98373_R2053_MEAS_ADC_THERM_FLT_CFG,
 	0, 0x3, 0),
 SOC_ENUM("ADC SampleRate", max98373_adc_samplerate_enum),
-/* Brownout Detection Engine */
+/* Browyesut Detection Engine */
 SOC_SINGLE("BDE Switch", MAX98373_R20B5_BDE_EN, MAX98373_BDE_EN_SHIFT, 1, 0),
 SOC_SINGLE("BDE LVL4 Mute Switch", MAX98373_R20B2_BDE_L4_CFG_2,
 	MAX98373_LVL4_MUTE_EN_SHIFT, 1, 0),
@@ -872,7 +872,7 @@ static const struct snd_soc_component_driver soc_codec_dev_max98373 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98373_regmap = {
@@ -892,21 +892,21 @@ static void max98373_slot_config(struct i2c_client *i2c,
 	int value;
 	struct device *dev = &i2c->dev;
 
-	if (!device_property_read_u32(dev, "maxim,vmon-slot-no", &value))
+	if (!device_property_read_u32(dev, "maxim,vmon-slot-yes", &value))
 		max98373->v_slot = value & 0xF;
 	else
 		max98373->v_slot = 0;
 
-	if (!device_property_read_u32(dev, "maxim,imon-slot-no", &value))
+	if (!device_property_read_u32(dev, "maxim,imon-slot-yes", &value))
 		max98373->i_slot = value & 0xF;
 	else
 		max98373->i_slot = 1;
-	if (dev->of_node) {
-		max98373->reset_gpio = of_get_named_gpio(dev->of_node,
+	if (dev->of_yesde) {
+		max98373->reset_gpio = of_get_named_gpio(dev->of_yesde,
 						"maxim,reset-gpio", 0);
 		if (!gpio_is_valid(max98373->reset_gpio)) {
-			dev_err(dev, "Looking up %s property in node %s failed %d\n",
-				"maxim,reset-gpio", dev->of_node->full_name,
+			dev_err(dev, "Looking up %s property in yesde %s failed %d\n",
+				"maxim,reset-gpio", dev->of_yesde->full_name,
 				max98373->reset_gpio);
 		} else {
 			dev_dbg(dev, "maxim,reset-gpio=%d",
@@ -917,7 +917,7 @@ static void max98373_slot_config(struct i2c_client *i2c,
 		max98373->reset_gpio = -1;
 	}
 
-	if (!device_property_read_u32(dev, "maxim,spkfb-slot-no", &value))
+	if (!device_property_read_u32(dev, "maxim,spkfb-slot-yes", &value))
 		max98373->spkfb_slot = value & 0xF;
 	else
 		max98373->spkfb_slot = 2;

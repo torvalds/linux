@@ -3,7 +3,7 @@
  * Cipher algorithms supported by the CESA: DES, 3DES and AES.
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- * Author: Arnaud Ebalard <arno@natisbad.org>
+ * Author: Arnaud Ebalard <aryes@natisbad.org>
  *
  * This work is based on an initial version written by
  * Sebastian Andrzej Siewior < sebastian at breakpoint dot cc >

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -53,7 +53,7 @@ int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		   struct ib_udata *udata);
 int qedr_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
 void qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
-int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_yestify_flags flags);
 struct ib_qp *qedr_create_qp(struct ib_pd *, struct ib_qp_init_attr *attrs,
 			     struct ib_udata *);
 int qedr_modify_qp(struct ib_qp *, struct ib_qp_attr *attr,

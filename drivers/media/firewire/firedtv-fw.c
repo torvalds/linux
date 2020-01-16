@@ -4,7 +4,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/kernel.h>
@@ -26,23 +26,23 @@
 
 #include "firedtv.h"
 
-static LIST_HEAD(node_list);
-static DEFINE_SPINLOCK(node_list_lock);
+static LIST_HEAD(yesde_list);
+static DEFINE_SPINLOCK(yesde_list_lock);
 
 static inline struct fw_device *device_of(struct firedtv *fdtv)
 {
 	return fw_device(fdtv->device->parent);
 }
 
-static int node_req(struct firedtv *fdtv, u64 addr, void *data, size_t len,
+static int yesde_req(struct firedtv *fdtv, u64 addr, void *data, size_t len,
 		    int tcode)
 {
 	struct fw_device *device = device_of(fdtv);
 	int rcode, generation = device->generation;
 
-	smp_rmb(); /* node_id vs. generation */
+	smp_rmb(); /* yesde_id vs. generation */
 
-	rcode = fw_run_transaction(device->card, tcode, device->node_id,
+	rcode = fw_run_transaction(device->card, tcode, device->yesde_id,
 			generation, device->max_speed, addr, data, len);
 
 	return rcode != RCODE_COMPLETE ? -EIO : 0;
@@ -50,17 +50,17 @@ static int node_req(struct firedtv *fdtv, u64 addr, void *data, size_t len,
 
 int fdtv_lock(struct firedtv *fdtv, u64 addr, void *data)
 {
-	return node_req(fdtv, addr, data, 8, TCODE_LOCK_COMPARE_SWAP);
+	return yesde_req(fdtv, addr, data, 8, TCODE_LOCK_COMPARE_SWAP);
 }
 
 int fdtv_read(struct firedtv *fdtv, u64 addr, void *data)
 {
-	return node_req(fdtv, addr, data, 4, TCODE_READ_QUADLET_REQUEST);
+	return yesde_req(fdtv, addr, data, 4, TCODE_READ_QUADLET_REQUEST);
 }
 
 int fdtv_write(struct firedtv *fdtv, u64 addr, void *data, size_t len)
 {
-	return node_req(fdtv, addr, data, len, TCODE_WRITE_BLOCK_REQUEST);
+	return yesde_req(fdtv, addr, data, len, TCODE_WRITE_BLOCK_REQUEST);
 }
 
 #define ISO_HEADER_SIZE			4
@@ -207,22 +207,22 @@ static void handle_fcp(struct fw_card *card, struct fw_request *request,
 
 	su = ((u8 *)payload)[1] & 0x7;
 
-	spin_lock_irqsave(&node_list_lock, flags);
-	list_for_each_entry(f, &node_list, list) {
+	spin_lock_irqsave(&yesde_list_lock, flags);
+	list_for_each_entry(f, &yesde_list, list) {
 		device = device_of(f);
 		if (device->generation != generation)
 			continue;
 
-		smp_rmb(); /* node_id vs. generation */
+		smp_rmb(); /* yesde_id vs. generation */
 
 		if (device->card == card &&
-		    device->node_id == source &&
+		    device->yesde_id == source &&
 		    (f->subunit == su || (f->subunit == 0 && su == 0x7))) {
 			fdtv = f;
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&node_list_lock, flags);
+	spin_unlock_irqrestore(&yesde_list_lock, flags);
 
 	if (fdtv)
 		avc_recv(fdtv, payload, length);
@@ -239,7 +239,7 @@ static const struct fw_address_region fcp_region = {
 };
 
 static const char * const model_names[] = {
-	[FIREDTV_UNKNOWN] = "unknown type",
+	[FIREDTV_UNKNOWN] = "unkyeswn type",
 	[FIREDTV_DVB_S]   = "FireDTV S/CI",
 	[FIREDTV_DVB_C]   = "FireDTV C/CI",
 	[FIREDTV_DVB_T]   = "FireDTV T/CI",
@@ -249,7 +249,7 @@ static const char * const model_names[] = {
 /* Adjust the template string if models with longer names appear. */
 #define MAX_MODEL_NAME_LEN sizeof("FireDTV ????")
 
-static int node_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
+static int yesde_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 {
 	struct firedtv *fdtv;
 	char name[MAX_MODEL_NAME_LEN];
@@ -282,9 +282,9 @@ static int node_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	if (err)
 		goto fail_free;
 
-	spin_lock_irq(&node_list_lock);
-	list_add_tail(&fdtv->list, &node_list);
-	spin_unlock_irq(&node_list_lock);
+	spin_lock_irq(&yesde_list_lock);
+	list_add_tail(&fdtv->list, &yesde_list);
+	spin_unlock_irq(&yesde_list_lock);
 
 	err = avc_identify_subunit(fdtv);
 	if (err)
@@ -298,9 +298,9 @@ static int node_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 
 	return 0;
 fail:
-	spin_lock_irq(&node_list_lock);
+	spin_lock_irq(&yesde_list_lock);
 	list_del(&fdtv->list);
-	spin_unlock_irq(&node_list_lock);
+	spin_unlock_irq(&yesde_list_lock);
 	fdtv_unregister_rc(fdtv);
 fail_free:
 	kfree(fdtv);
@@ -308,22 +308,22 @@ fail_free:
 	return err;
 }
 
-static void node_remove(struct fw_unit *unit)
+static void yesde_remove(struct fw_unit *unit)
 {
 	struct firedtv *fdtv = dev_get_drvdata(&unit->device);
 
 	fdtv_dvb_unregister(fdtv);
 
-	spin_lock_irq(&node_list_lock);
+	spin_lock_irq(&yesde_list_lock);
 	list_del(&fdtv->list);
-	spin_unlock_irq(&node_list_lock);
+	spin_unlock_irq(&yesde_list_lock);
 
 	fdtv_unregister_rc(fdtv);
 
 	kfree(fdtv);
 }
 
-static void node_update(struct fw_unit *unit)
+static void yesde_update(struct fw_unit *unit)
 {
 	struct firedtv *fdtv = dev_get_drvdata(&unit->device);
 
@@ -392,9 +392,9 @@ static struct fw_driver fdtv_driver = {
 		.name   = "firedtv",
 		.bus    = &fw_bus_type,
 	},
-	.probe    = node_probe,
-	.update   = node_update,
-	.remove   = node_remove,
+	.probe    = yesde_probe,
+	.update   = yesde_update,
+	.remove   = yesde_remove,
 	.id_table = fdtv_id_table,
 };
 

@@ -8,7 +8,7 @@ Required properties:
 
 PCI based devices uses compatible string "qcom,ath10k" and takes calibration
 data along with board specific data via "qcom,ath10k-calibration-data".
-Rest of the properties are not applicable for PCI based devices.
+Rest of the properties are yest applicable for PCI based devices.
 
 AHB based devices (i.e. ipq4019) uses compatible string "qcom,ipq4019-wifi"
 and also uses most of the properties defined in this doc (except
@@ -63,7 +63,7 @@ Optional properties:
 				 hw versions.
 - qcom,ath10k-pre-calibration-data : pre calibration data as an array,
 				     the length can vary between hw versions.
-- <supply-name>-supply: handle to the regulator device tree node
+- <supply-name>-supply: handle to the regulator device tree yesde
 			   optional "supply-name" are "vdd-0.8-cx-mx",
 			   "vdd-1.8-xo", "vdd-1.3-rfa" and "vdd-3.3-ch0".
 - memory-region:
@@ -81,7 +81,7 @@ Optional properties:
 	Definition: Name of external front end module used. Some valid FEM names
 		    for example: "microsemi-lx5586", "sky85703-11"
 		    and "sky85803" etc.
-- qcom,snoc-host-cap-8bit-quirk:
+- qcom,syesc-host-cap-8bit-quirk:
 	Usage: Optional
 	Value type: <empty>
 	Definition: Quirk specifying that the firmware expects the 8bit version
@@ -90,7 +90,7 @@ Optional properties:
 
 Example (to supply PCI based wifi block details):
 
-In this example, the node is defined as child node of the PCI controller.
+In this example, the yesde is defined as child yesde of the PCI controller.
 
 pci {
 	pcie@0 {

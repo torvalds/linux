@@ -313,7 +313,7 @@ static int rtw_resume(struct usb_interface *pusb_intf)
 /*
  * drv_init() - a device potentially for us
  *
- * notes: drv_init() is called when the bus driver has located
+ * yestes: drv_init() is called when the bus driver has located
  * a card for us to support.
  *        We accept the new device by returning 0.
  */

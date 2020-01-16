@@ -40,7 +40,7 @@
 /*
  * retrieve the ctrl registers
  * the ctrl register has a size of 20 but a fw bug split it into 16 + 4,
- * and there is no way to know if the first 20 bytes are here or not.
+ * and there is yes way to kyesw if the first 20 bytes are here or yest.
  * We use only the first 12 bytes, so get only them.
  */
 #define RMI_F11_CTRL_REG_COUNT		12
@@ -116,7 +116,7 @@ static int rmi_write_report(struct hid_device *hdev, u8 *report, int len);
  *
  * The page_mutex lock must be held when this function is entered.
  *
- * Returns zero on success, non-zero on failure.
+ * Returns zero on success, yesn-zero on failure.
  */
 static int rmi_set_page(struct hid_device *hdev, u8 page)
 {
@@ -344,7 +344,7 @@ static int rmi_read_data_event(struct hid_device *hdev, u8 *data, int size)
 	struct rmi_data *hdata = hid_get_drvdata(hdev);
 
 	if (!test_bit(RMI_READ_REQUEST_PENDING, &hdata->flags)) {
-		hid_dbg(hdev, "no read request pending\n");
+		hid_dbg(hdev, "yes read request pending\n");
 		return 0;
 	}
 
@@ -362,7 +362,7 @@ static int rmi_check_sanity(struct hid_device *hdev, u8 *data, int size)
 	/*
 	 * On the Dell XPS 13 9333, the bus sometimes get confused and fills
 	 * the report with a sentinel value "ff". Synaptics told us that such
-	 * behavior does not comes from the touchpad itself, so we filter out
+	 * behavior does yest comes from the touchpad itself, so we filter out
 	 * such reports here.
 	 */
 
@@ -547,7 +547,7 @@ static int rmi_input_mapping(struct hid_device *hdev,
 	struct rmi_data *data = hid_get_drvdata(hdev);
 
 	/*
-	 * we want to make HID ignore the advertised HID collection
+	 * we want to make HID igyesre the advertised HID collection
 	 * for RMI deivces
 	 */
 	if (data->device_flags & RMI_DEVICE) {
@@ -625,7 +625,7 @@ static int rmi_setup_irq_domain(struct hid_device *hdev)
 	struct rmi_data *hdata = hid_get_drvdata(hdev);
 	int ret;
 
-	hdata->domain = irq_domain_create_linear(hdev->dev.fwnode, 1,
+	hdata->domain = irq_domain_create_linear(hdev->dev.fwyesde, 1,
 						 &rmi_irq_ops, hdata);
 	if (!hdata->domain)
 		return -ENOMEM;
@@ -679,13 +679,13 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	 */
 	if (!rmi_check_valid_report_id(hdev, HID_FEATURE_REPORT,
 	    RMI_SET_RMI_MODE_REPORT_ID, &feature_report)) {
-		hid_dbg(hdev, "device does not have set mode feature report\n");
+		hid_dbg(hdev, "device does yest have set mode feature report\n");
 		goto start;
 	}
 
 	if (!rmi_check_valid_report_id(hdev, HID_INPUT_REPORT,
 	    RMI_ATTN_REPORT_ID, &input_report)) {
-		hid_dbg(hdev, "device does not have attention input report\n");
+		hid_dbg(hdev, "device does yest have attention input report\n");
 		goto start;
 	}
 
@@ -694,7 +694,7 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (!rmi_check_valid_report_id(hdev, HID_OUTPUT_REPORT,
 	    RMI_WRITE_REPORT_ID, &output_report)) {
 		hid_dbg(hdev,
-			"device does not have rmi write output report\n");
+			"device does yest have rmi write output report\n");
 		goto start;
 	}
 

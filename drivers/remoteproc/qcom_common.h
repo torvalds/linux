@@ -12,7 +12,7 @@ struct qcom_rproc_glink {
 	struct rproc_subdev subdev;
 
 	struct device *dev;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct qcom_glink *edge;
 };
 
@@ -20,7 +20,7 @@ struct qcom_rproc_subdev {
 	struct rproc_subdev subdev;
 
 	struct device *dev;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct qcom_smd_edge *edge;
 };
 

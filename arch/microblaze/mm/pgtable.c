@@ -61,7 +61,7 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 	size = PAGE_ALIGN(addr + size) - p;
 
 	/*
-	 * Don't allow anybody to remap normal RAM that we're using.
+	 * Don't allow anybody to remap yesrmal RAM that we're using.
 	 * mem_init() sets high_memory so only do the check after that.
 	 *
 	 * However, allow remap of rootfs: TBD
@@ -173,7 +173,7 @@ void __init mapin_ram(void)
 		if ((char *) v < _stext || (char *) v >= _etext)
 			f |= _PAGE_WRENABLE;
 		else
-			/* On the MicroBlaze, no user access
+			/* On the MicroBlaze, yes user access
 			   forces R/W kernel access */
 			f |= _PAGE_USER;
 		map_page(v, p, f);
@@ -188,7 +188,7 @@ void __init mapin_ram(void)
 /* Scan the real Linux page tables and return a PTE pointer for
  * a virtual address in a context.
  * Returns true (1) if PTE was found, zero otherwise.  The pointer to
- * the PTE pointer is unmodified if PTE is not found.
+ * the PTE pointer is unmodified if PTE is yest found.
  */
 static int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep)
 {

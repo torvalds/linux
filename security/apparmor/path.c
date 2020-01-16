@@ -5,7 +5,7 @@
  * This file contains AppArmor function for pathnames
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  */
 
 #include <linux/magic.h>
@@ -34,7 +34,7 @@ static int prepend(char **buffer, int buflen, const char *str, int namelen)
 
 #define CHROOT_NSCONNECT (PATH_CHROOT_REL | PATH_CHROOT_NSCONNECT)
 
-/* If the path is not connected to the expected root,
+/* If the path is yest connected to the expected root,
  * check if it is a sysctl and handle specially else remove any
  * leading / that __d_path may have returned.
  * Unless
@@ -82,7 +82,7 @@ static int disconnect(const struct path *path, char *buf, char **name,
  * Handle path name lookup.
  *
  * Returns: %0 else error code if path lookup fails
- *          When no error the path name is returned in @name which points to
+ *          When yes error the path name is returned in @name which points to
  *          to a position in @buf
  */
 static int d_namespace_path(const struct path *path, char *buf, char **name,
@@ -95,7 +95,7 @@ static int d_namespace_path(const struct path *path, char *buf, char **name,
 	int buflen = aa_g_path_max - isdir;
 
 	if (path->mnt->mnt_flags & MNT_INTERNAL) {
-		/* it's not mounted anywhere */
+		/* it's yest mounted anywhere */
 		res = dentry_path(path->dentry, buf, buflen);
 		*name = res;
 		if (IS_ERR(res)) {
@@ -152,9 +152,9 @@ static int d_namespace_path(const struct path *path, char *buf, char **name,
 		error = disconnect(path, buf, name, flags, disconnected);
 
 	/* Handle two cases:
-	 * 1. A deleted dentry && profile is not allowing mediation of deleted
+	 * 1. A deleted dentry && profile is yest allowing mediation of deleted
 	 * 2. On some filesystems, newly allocated dentries appear to the
-	 *    security_path hooks as a deleted dentry except without an inode
+	 *    security_path hooks as a deleted dentry except without an iyesde
 	 *    allocated.
 	 */
 	if (d_unlinked(path->dentry) && d_is_positive(path->dentry) &&
@@ -186,10 +186,10 @@ out:
  * @name is a pointer to the beginning of the pathname (which usually differs
  * from the beginning of the buffer), or NULL.  If there is an error @name
  * may contain a partial or invalid name that can be used for audit purposes,
- * but it can not be used for mediation.
+ * but it can yest be used for mediation.
  *
- * We need PATH_IS_DIR to indicate whether the file is a directory or not
- * because the file may not yet exist, and so we cannot check the inode's
+ * We need PATH_IS_DIR to indicate whether the file is a directory or yest
+ * because the file may yest yet exist, and so we canyest check the iyesde's
  * file type.
  *
  * Returns: %0 else error code if could retrieve name

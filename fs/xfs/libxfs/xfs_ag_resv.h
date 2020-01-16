@@ -26,13 +26,13 @@ void xfs_ag_resv_free_extent(struct xfs_perag *pag, enum xfs_ag_resv_type type,
 static inline void
 xfs_ag_resv_rmapbt_alloc(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
+	xfs_agnumber_t		agyes)
 {
 	struct xfs_alloc_arg	args = { NULL };
 	struct xfs_perag	*pag;
 
 	args.len = 1;
-	pag = xfs_perag_get(mp, agno);
+	pag = xfs_perag_get(mp, agyes);
 	xfs_ag_resv_alloc_extent(pag, XFS_AG_RESV_RMAPBT, &args);
 	xfs_perag_put(pag);
 }
@@ -40,11 +40,11 @@ xfs_ag_resv_rmapbt_alloc(
 static inline void
 xfs_ag_resv_rmapbt_free(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
+	xfs_agnumber_t		agyes)
 {
 	struct xfs_perag	*pag;
 
-	pag = xfs_perag_get(mp, agno);
+	pag = xfs_perag_get(mp, agyes);
 	xfs_ag_resv_free_extent(pag, XFS_AG_RESV_RMAPBT, NULL, 1);
 	xfs_perag_put(pag);
 }

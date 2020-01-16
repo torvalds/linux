@@ -7,7 +7,7 @@
 
 /*
  * This file handles the generic file mmap semantics used by
- * most "normal" filesystems (but you don't /have/ to use this:
+ * most "yesrmal" filesystems (but you don't /have/ to use this:
  * the NFS filesystem used to do this differently, for example)
  */
 #include <linux/export.h>
@@ -47,17 +47,17 @@
 #include <trace/events/filemap.h>
 
 /*
- * FIXME: remove all knowledge of the buffer layer from the core VM
+ * FIXME: remove all kyeswledge of the buffer layer from the core VM
  */
 #include <linux/buffer_head.h> /* for try_to_free_buffers */
 
 #include <asm/mman.h>
 
 /*
- * Shared mappings implemented 30.11.1994. It's not fully working yet,
+ * Shared mappings implemented 30.11.1994. It's yest fully working yet,
  * though.
  *
- * Shared mappings now work. 15.8.1995  Bruno.
+ * Shared mappings yesw work. 15.8.1995  Bruyes.
  *
  * finished 'unifying' the page and buffer cache and SMP-threaded the
  * page-cache, 21.05.1999, Ingo Molnar <mingo@redhat.com>
@@ -89,13 +89,13 @@
  *
  *  bdi->wb.list_lock
  *    sb_lock			(fs/fs-writeback.c)
- *    ->i_pages lock		(__sync_single_inode)
+ *    ->i_pages lock		(__sync_single_iyesde)
  *
  *  ->i_mmap_rwsem
- *    ->anon_vma.lock		(vma_adjust)
+ *    ->ayesn_vma.lock		(vma_adjust)
  *
- *  ->anon_vma.lock
- *    ->page_table_lock or pte_lock	(anon_vma_prepare and various)
+ *  ->ayesn_vma.lock
+ *    ->page_table_lock or pte_lock	(ayesn_vma_prepare and various)
  *
  *  ->page_table_lock or pte_lock
  *    ->swap_lock		(try_to_unmap_one)
@@ -106,10 +106,10 @@
  *    ->private_lock		(page_remove_rmap->set_page_dirty)
  *    ->i_pages lock		(page_remove_rmap->set_page_dirty)
  *    bdi.wb->list_lock		(page_remove_rmap->set_page_dirty)
- *    ->inode->i_lock		(page_remove_rmap->set_page_dirty)
+ *    ->iyesde->i_lock		(page_remove_rmap->set_page_dirty)
  *    ->memcg->move_lock	(page_remove_rmap->lock_page_memcg)
  *    bdi.wb->list_lock		(zap_pte_range->set_page_dirty)
- *    ->inode->i_lock		(zap_pte_range->set_page_dirty)
+ *    ->iyesde->i_lock		(zap_pte_range->set_page_dirty)
  *    ->private_lock		(zap_pte_range->__set_page_dirty_buffers)
  *
  * ->i_mmap_rwsem
@@ -145,7 +145,7 @@ static void page_cache_delete(struct address_space *mapping,
 		/*
 		 * Make sure the nrexceptional update is committed before
 		 * the nrpages update so that final truncate racing
-		 * with reclaim does not see both counters 0 at the
+		 * with reclaim does yest see both counters 0 at the
 		 * same time and miss a shadow entry.
 		 */
 		smp_wmb();
@@ -185,7 +185,7 @@ static void unaccount_page_cache_page(struct address_space *mapping,
 			/*
 			 * All vmas have already been torn down, so it's
 			 * a good bet that actually the page is unmapped,
-			 * and we'd prefer not to leak it: if we're wrong,
+			 * and we'd prefer yest to leak it: if we're wrong,
 			 * some other bad page check should catch it later.
 			 */
 			page_mapcount_reset(page);
@@ -193,19 +193,19 @@ static void unaccount_page_cache_page(struct address_space *mapping,
 		}
 	}
 
-	/* hugetlb pages do not participate in page cache accounting. */
+	/* hugetlb pages do yest participate in page cache accounting. */
 	if (PageHuge(page))
 		return;
 
 	nr = hpage_nr_pages(page);
 
-	__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
+	__mod_yesde_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
 	if (PageSwapBacked(page)) {
-		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
+		__mod_yesde_page_state(page_pgdat(page), NR_SHMEM, -nr);
 		if (PageTransHuge(page))
-			__dec_node_page_state(page, NR_SHMEM_THPS);
+			__dec_yesde_page_state(page, NR_SHMEM_THPS);
 	} else if (PageTransHuge(page)) {
-		__dec_node_page_state(page, NR_FILE_THPS);
+		__dec_yesde_page_state(page, NR_FILE_THPS);
 		filemap_nr_thps_dec(mapping);
 	}
 
@@ -215,17 +215,17 @@ static void unaccount_page_cache_page(struct address_space *mapping,
 	 * unwritten data.
 	 *
 	 * This fixes dirty accounting after removing the page entirely
-	 * but leaves PageDirty set: it has no effect for truncated
+	 * but leaves PageDirty set: it has yes effect for truncated
 	 * page and anyway will be cleared before returning page into
 	 * buddy allocator.
 	 */
 	if (WARN_ON_ONCE(PageDirty(page)))
-		account_page_cleaned(page, mapping, inode_to_wb(mapping->host));
+		account_page_cleaned(page, mapping, iyesde_to_wb(mapping->host));
 }
 
 /*
  * Delete a page from the page cache and free it. Caller has to make
- * sure the page is locked and that nobody else uses it - or that usage
+ * sure the page is locked and that yesbody else uses it - or that usage
  * is safe.  The caller must hold the i_pages lock.
  */
 void __delete_from_page_cache(struct page *page, void *shadow)
@@ -285,7 +285,7 @@ EXPORT_SYMBOL(delete_from_page_cache);
  * The function walks over mapping->i_pages and removes pages passed in @pvec
  * from the mapping. The function expects @pvec to be sorted by page index
  * and is optimised for it to be dense.
- * It tolerates holes in @pvec (mapping entries at those indices are not
+ * It tolerates holes in @pvec (mapping entries at those indices are yest
  * modified). The function expects only THP head pages to be present in the
  * @pvec.
  *
@@ -390,7 +390,7 @@ static int filemap_check_and_keep_errors(struct address_space *mapping)
  * @mapping:	address space structure to write
  * @start:	offset in bytes where the range starts
  * @end:	offset in bytes where the range ends (inclusive)
- * @sync_mode:	enable synchronous operation
+ * @sync_mode:	enable synchroyesus operation
  *
  * Start writeback against all of a mapping's dirty pages that lie
  * within the byte offsets <start, end> inclusive.
@@ -398,7 +398,7 @@ static int filemap_check_and_keep_errors(struct address_space *mapping)
  * If sync_mode is WB_SYNC_ALL then this is a "data integrity" operation, as
  * opposed to a regular memory cleansing writeback.  The difference between
  * these two operations is that if a dirty page/buffer is encountered, it must
- * be waited upon, and not just skipped over.
+ * be waited upon, and yest just skipped over.
  *
  * Return: %0 on success, negative error code otherwise.
  */
@@ -417,9 +417,9 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 	    !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
 		return 0;
 
-	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
+	wbc_attach_fdatawrite_iyesde(&wbc, mapping->host);
 	ret = do_writepages(mapping, &wbc);
-	wbc_detach_inode(&wbc);
+	wbc_detach_iyesde(&wbc);
 	return ret;
 }
 
@@ -443,11 +443,11 @@ int filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 EXPORT_SYMBOL(filemap_fdatawrite_range);
 
 /**
- * filemap_flush - mostly a non-blocking flush
+ * filemap_flush - mostly a yesn-blocking flush
  * @mapping:	target address_space
  *
- * This is a mostly non-blocking flush.  Not suitable for data-integrity
- * purposes - I/O may not be started against all dirty pages.
+ * This is a mostly yesn-blocking flush.  Not suitable for data-integrity
+ * purposes - I/O may yest be started against all dirty pages.
  *
  * Return: %0 on success, negative error code otherwise.
  */
@@ -489,7 +489,7 @@ bool filemap_range_has_page(struct address_space *mapping,
 			continue;
 		/*
 		 * We don't need to try to pin this page; we're about to
-		 * release the RCU lock anyway.  It is enough to know that
+		 * release the RCU lock anyway.  It is eyesugh to kyesw that
 		 * there was a page here recently.
 		 */
 		break;
@@ -563,7 +563,7 @@ EXPORT_SYMBOL(filemap_fdatawait_range);
  *
  * Walk the list of under-writeback pages of the given address space in the
  * given range and wait for all of them.  Unlike filemap_fdatawait_range(),
- * this function does not clear error status of the address space.
+ * this function does yest clear error status of the address space.
  *
  * Use this function if callers don't handle errors themselves.  Expected
  * call sites are system-wide / filesystem-wide data flushers: e.g. sync(2),
@@ -608,7 +608,7 @@ EXPORT_SYMBOL(file_fdatawait_range);
  *
  * Walk the list of under-writeback pages of the given address space
  * and wait for all of them.  Unlike filemap_fdatawait(), this function
- * does not clear error status of the address space.
+ * does yest clear error status of the address space.
  *
  * Use this function if callers don't handle errors themselves.  Expected
  * call sites are system-wide / filesystem-wide data flushers: e.g. sync(2),
@@ -718,7 +718,7 @@ EXPORT_SYMBOL(__filemap_set_wb_err);
  * then just quickly return 0. The file is all caught up.
  *
  * If it doesn't match, then take the mapping value, set the "seen" flag in
- * it and try to swap it into place. If it works, or another task beat us
+ * it and try to swap it into place. If it works, or ayesther task beat us
  * to it with the new value, then update the f_wb_err and return the error
  * portion. The error at this point must be reported via proper channels
  * (a'la fsync, or NFS COMMIT operation, etc.).
@@ -735,7 +735,7 @@ int file_check_and_advance_wb_err(struct file *file)
 	errseq_t old = READ_ONCE(file->f_wb_err);
 	struct address_space *mapping = file->f_mapping;
 
-	/* Locklessly handle the common case where nothing has changed */
+	/* Locklessly handle the common case where yesthing has changed */
 	if (errseq_check(&mapping->wb_err, old)) {
 		/* Something changed, must use slow path */
 		spin_lock(&file->f_lock);
@@ -801,10 +801,10 @@ EXPORT_SYMBOL(file_write_and_wait_range);
  * This function replaces a page in the pagecache with a new one.  On
  * success it acquires the pagecache reference for the new page and
  * drops it for the old page.  Both the old and new pages must be
- * locked.  This function does not add the new page to the LRU, the
+ * locked.  This function does yest add the new page to the LRU, the
  * caller must do that.
  *
- * The remove + add is atomic.  This function cannot fail.
+ * The remove + add is atomic.  This function canyest fail.
  *
  * Return: %0
  */
@@ -828,15 +828,15 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
 	xas_store(&xas, new);
 
 	old->mapping = NULL;
-	/* hugetlb pages do not participate in page cache accounting. */
+	/* hugetlb pages do yest participate in page cache accounting. */
 	if (!PageHuge(old))
-		__dec_node_page_state(new, NR_FILE_PAGES);
+		__dec_yesde_page_state(new, NR_FILE_PAGES);
 	if (!PageHuge(new))
-		__inc_node_page_state(new, NR_FILE_PAGES);
+		__inc_yesde_page_state(new, NR_FILE_PAGES);
 	if (PageSwapBacked(old))
-		__dec_node_page_state(new, NR_SHMEM);
+		__dec_yesde_page_state(new, NR_SHMEM);
 	if (PageSwapBacked(new))
-		__inc_node_page_state(new, NR_SHMEM);
+		__inc_yesde_page_state(new, NR_SHMEM);
 	xas_unlock_irqrestore(&xas, flags);
 	mem_cgroup_migrate(old, new);
 	if (freepage)
@@ -889,12 +889,12 @@ static int __add_to_page_cache_locked(struct page *page,
 		}
 		mapping->nrpages++;
 
-		/* hugetlb pages do not participate in page cache accounting */
+		/* hugetlb pages do yest participate in page cache accounting */
 		if (!huge)
-			__inc_node_page_state(page, NR_FILE_PAGES);
+			__inc_yesde_page_state(page, NR_FILE_PAGES);
 unlock:
 		xas_unlock_irq(&xas);
-	} while (xas_nomem(&xas, gfp_mask & GFP_RECLAIM_MASK));
+	} while (xas_yesmem(&xas, gfp_mask & GFP_RECLAIM_MASK));
 
 	if (xas_error(&xas))
 		goto error;
@@ -921,7 +921,7 @@ ALLOW_ERROR_INJECTION(__add_to_page_cache_locked, ERRNO);
  * @gfp_mask:	page allocation mode
  *
  * This function is used to add a page to the pagecache. It must be locked.
- * This function does not add the page to the LRU.  The caller must do that.
+ * This function does yest add the page to the LRU.  The caller must do that.
  *
  * Return: %0 on success, negative error code otherwise.
  */
@@ -972,8 +972,8 @@ struct page *__page_cache_alloc(gfp_t gfp)
 		unsigned int cpuset_mems_cookie;
 		do {
 			cpuset_mems_cookie = read_mems_allowed_begin();
-			n = cpuset_mem_spread_node();
-			page = __alloc_pages_node(n, gfp, 0);
+			n = cpuset_mem_spread_yesde();
+			page = __alloc_pages_yesde(n, gfp, 0);
 		} while (!page && read_mems_allowed_retry(cpuset_mems_cookie));
 
 		return page;
@@ -990,7 +990,7 @@ EXPORT_SYMBOL(__page_cache_alloc);
  * waiters on the same queue and wake all when any of the pages
  * become available, and for the woken contexts to check to be
  * sure the appropriate page became available, this saves space
- * at a cost of "thundering herd" phenomena during rare hash
+ * at a cost of "thundering herd" pheyesmena during rare hash
  * collisions.
  */
 #define PAGE_WAIT_TABLE_BITS 8
@@ -1042,8 +1042,8 @@ static int wake_page_function(wait_queue_entry_t *wait, unsigned mode, int sync,
 	 * Stop walking if it's locked.
 	 * Is this safe if put_and_wait_on_page_locked() is in use?
 	 * Yes: the waker must hold a reference to this page, and if PG_locked
-	 * has now already been set by another task, that task must also hold
-	 * a reference to the *same usage* of this page; so there is no need
+	 * has yesw already been set by ayesther task, that task must also hold
+	 * a reference to the *same usage* of this page; so there is yes need
 	 * to walk on to wake even the put_and_wait_on_page_locked() callers.
 	 */
 	if (test_bit(key->bit_nr, &key->page->flags))
@@ -1074,7 +1074,7 @@ static void wake_up_page_bit(struct page *page, int bit_nr)
 	while (bookmark.flags & WQ_FLAG_BOOKMARK) {
 		/*
 		 * Take a breather from holding the lock,
-		 * allow pages that finish wake up asynchronously
+		 * allow pages that finish wake up asynchroyesusly
 		 * to acquire the lock and remove themselves
 		 * from wait queue
 		 */
@@ -1123,7 +1123,7 @@ enum behavior {
 	SHARED,		/* Hold ref to page and check the bit when woken, like
 			 * wait_on_page_writeback() waiting on PG_writeback.
 			 */
-	DROP,		/* Drop ref to page before wait, no check when woken,
+	DROP,		/* Drop ref to page before wait, yes check when woken,
 			 * like put_and_wait_on_page_locked() on PG_locked.
 			 */
 };
@@ -1189,8 +1189,8 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 
 		if (behavior == DROP) {
 			/*
-			 * We can no longer safely access page->flags:
-			 * even if CONFIG_MEMORY_HOTREMOVE is not enabled,
+			 * We can yes longer safely access page->flags:
+			 * even if CONFIG_MEMORY_HOTREMOVE is yest enabled,
 			 * there is a risk of waiting forever on a page reused
 			 * for something that keeps it locked indefinitely.
 			 * But best check for -EINTR above before breaking.
@@ -1237,9 +1237,9 @@ EXPORT_SYMBOL(wait_on_page_bit_killable);
  * @page: The page to wait for.
  *
  * The caller should hold a reference on @page.  They expect the page to
- * become unlocked relatively soon, but do not wish to hold up migration
+ * become unlocked relatively soon, but do yest wish to hold up migration
  * (for example) by holding the reference while waiting for the page to
- * come unlocked.  After this function returns, the caller should not
+ * come unlocked.  After this function returns, the caller should yest
  * dereference @page.
  */
 void put_and_wait_on_page_locked(struct page *page)
@@ -1256,7 +1256,7 @@ void put_and_wait_on_page_locked(struct page *page)
  * @page: Page defining the wait queue of interest
  * @waiter: Waiter to add to the queue
  *
- * Add an arbitrary @waiter to the wait queue for the nominated @page.
+ * Add an arbitrary @waiter to the wait queue for the yesminated @page.
  */
 void add_page_wait_queue(struct page *page, wait_queue_entry_t *waiter)
 {
@@ -1277,7 +1277,7 @@ EXPORT_SYMBOL_GPL(add_page_wait_queue);
  *
  * On x86 (and on many other architectures), we can clear PG_lock and
  * test the sign bit at the same time. But if the architecture does
- * not support that special operation, we just do this all by hand
+ * yest support that special operation, we just do this all by hand
  * instead.
  *
  * The read of PG_waiters has to be after (or concurrently with) PG_locked
@@ -1397,12 +1397,12 @@ EXPORT_SYMBOL_GPL(__lock_page_killable);
 /*
  * Return values:
  * 1 - page is locked; mmap_sem is still held.
- * 0 - page is not locked.
+ * 0 - page is yest locked.
  *     mmap_sem has been released (up_read()), unless flags had both
  *     FAULT_FLAG_ALLOW_RETRY and FAULT_FLAG_RETRY_NOWAIT set, in
  *     which case mmap_sem is still held.
  *
- * If neither ALLOW_RETRY nor KILLABLE are set, will always return 1
+ * If neither ALLOW_RETRY yesr KILLABLE are set, will always return 1
  * with the page locked and the mmap_sem unperturbed.
  */
 int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
@@ -1410,7 +1410,7 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
 {
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
 		/*
-		 * CAUTION! In this case, mmap_sem is not released
+		 * CAUTION! In this case, mmap_sem is yest released
 		 * even though return 0.
 		 */
 		if (flags & FAULT_FLAG_RETRY_NOWAIT)
@@ -1447,7 +1447,7 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
  * gap with the lowest index.
  *
  * This function may be called under the rcu_read_lock.  However, this will
- * not atomically search a snapshot of the cache at a single point in time.
+ * yest atomically search a snapshot of the cache at a single point in time.
  * For example, if a gap is created at index 5, then subsequently a gap is
  * created at index 10, page_cache_next_miss covering both indices may
  * return 10 if called under the rcu_read_lock.
@@ -1483,7 +1483,7 @@ EXPORT_SYMBOL(page_cache_next_miss);
  * gap with the highest index.
  *
  * This function may be called under the rcu_read_lock.  However, this will
- * not atomically search a snapshot of the cache at a single point in time.
+ * yest atomically search a snapshot of the cache at a single point in time.
  * For example, if a gap is created at index 10, then subsequently a gap is
  * created at index 5, page_cache_prev_miss() covering both indices may
  * return 5 if called under the rcu_read_lock.
@@ -1520,7 +1520,7 @@ EXPORT_SYMBOL(page_cache_prev_miss);
  * If the slot holds a shadow entry of a previously evicted page, or a
  * swap entry from shmem/tmpfs, it is returned.
  *
- * Return: the found page or shadow entry, %NULL if nothing is found.
+ * Return: the found page or shadow entry, %NULL if yesthing is found.
  */
 struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
 {
@@ -1574,7 +1574,7 @@ EXPORT_SYMBOL(find_get_entry);
  *
  * find_lock_entry() may sleep.
  *
- * Return: the found page or shadow entry, %NULL if nothing is found.
+ * Return: the found page or shadow entry, %NULL if yesthing is found.
  */
 struct page *find_lock_entry(struct address_space *mapping, pgoff_t offset)
 {
@@ -1611,7 +1611,7 @@ EXPORT_SYMBOL(find_lock_entry);
  *
  * - FGP_ACCESSED: the page will be marked accessed
  * - FGP_LOCK: Page is return locked
- * - FGP_CREAT: If page is not present then a new page is allocated using
+ * - FGP_CREAT: If page is yest present then a new page is allocated using
  *   @gfp_mask and added to the page cache and the VM's LRU
  *   list. The page is returned locked and with an increased
  *   refcount.
@@ -1636,7 +1636,7 @@ repeat:
 	if (xa_is_value(page))
 		page = NULL;
 	if (!page)
-		goto no_page;
+		goto yes_page;
 
 	if (fgp_flags & FGP_LOCK) {
 		if (fgp_flags & FGP_NOWAIT) {
@@ -1660,7 +1660,7 @@ repeat:
 	if (fgp_flags & FGP_ACCESSED)
 		mark_page_accessed(page);
 
-no_page:
+yes_page:
 	if (!page && (fgp_flags & FGP_CREAT)) {
 		int err;
 		if ((fgp_flags & FGP_WRITE) && mapping_cap_account_dirty(mapping))
@@ -1714,7 +1714,7 @@ EXPORT_SYMBOL(pagecache_get_page);
  *
  * The search returns a group of mapping-contiguous page cache entries
  * with ascending indexes.  There may be holes in the indices due to
- * not-present pages.
+ * yest-present pages.
  *
  * Any shadow entries of evicted pages, or swap entries from
  * shmem/tmpfs, are included in the returned array.
@@ -1781,7 +1781,7 @@ retry:
  * a reference against the returned pages.
  *
  * The search returns a group of mapping-contiguous pages with ascending
- * indexes.  There may be holes in the indices due to not-present pages.
+ * indexes.  There may be holes in the indices due to yest-present pages.
  * We also update @start to index the next page for the traversal.
  *
  * Return: the number of pages which were found. If this number is
@@ -1827,7 +1827,7 @@ retry:
 	}
 
 	/*
-	 * We come here when there is no page beyond @end. We take care to not
+	 * We come here when there is yes page beyond @end. We take care to yest
 	 * overflow the index @start as it confuses some of the callers. This
 	 * breaks the iteration when there is a page at index -1 but that is
 	 * already broken anyway.
@@ -1953,7 +1953,7 @@ retry:
 	}
 
 	/*
-	 * We come here when we got to @end. We take care to not overflow the
+	 * We come here when we got to @end. We take care to yest overflow the
 	 * index @index as it confuses some of the callers. This breaks the
 	 * iteration when there is a page at index -1 but that is already
 	 * broken anyway.
@@ -2004,14 +2004,14 @@ static void shrink_readahead_size_eio(struct file *filp,
  *
  * Return:
  * * total number of bytes copied, including those the were already @written
- * * negative error code if nothing was copied
+ * * negative error code if yesthing was copied
  */
 static ssize_t generic_file_buffered_read(struct kiocb *iocb,
 		struct iov_iter *iter, ssize_t written)
 {
 	struct file *filp = iocb->ki_filp;
 	struct address_space *mapping = filp->f_mapping;
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	struct file_ra_state *ra = &filp->f_ra;
 	loff_t *ppos = &iocb->ki_pos;
 	pgoff_t index;
@@ -2021,9 +2021,9 @@ static ssize_t generic_file_buffered_read(struct kiocb *iocb,
 	unsigned int prev_offset;
 	int error = 0;
 
-	if (unlikely(*ppos >= inode->i_sb->s_maxbytes))
+	if (unlikely(*ppos >= iyesde->i_sb->s_maxbytes))
 		return 0;
-	iov_iter_truncate(iter, inode->i_sb->s_maxbytes);
+	iov_iter_truncate(iter, iyesde->i_sb->s_maxbytes);
 
 	index = *ppos >> PAGE_SHIFT;
 	prev_index = ra->prev_pos >> PAGE_SHIFT;
@@ -2053,7 +2053,7 @@ find_page:
 					index, last_index - index);
 			page = find_get_page(mapping, index);
 			if (unlikely(page == NULL))
-				goto no_cached_page;
+				goto yes_cached_page;
 		}
 		if (PageReadahead(page)) {
 			page_cache_async_readahead(mapping,
@@ -2077,33 +2077,33 @@ find_page:
 			if (PageUptodate(page))
 				goto page_ok;
 
-			if (inode->i_blkbits == PAGE_SHIFT ||
+			if (iyesde->i_blkbits == PAGE_SHIFT ||
 					!mapping->a_ops->is_partially_uptodate)
-				goto page_not_up_to_date;
+				goto page_yest_up_to_date;
 			/* pipes can't handle partially uptodate pages */
 			if (unlikely(iov_iter_is_pipe(iter)))
-				goto page_not_up_to_date;
+				goto page_yest_up_to_date;
 			if (!trylock_page(page))
-				goto page_not_up_to_date;
+				goto page_yest_up_to_date;
 			/* Did it get truncated before we got the lock? */
 			if (!page->mapping)
-				goto page_not_up_to_date_locked;
+				goto page_yest_up_to_date_locked;
 			if (!mapping->a_ops->is_partially_uptodate(page,
 							offset, iter->count))
-				goto page_not_up_to_date_locked;
+				goto page_yest_up_to_date_locked;
 			unlock_page(page);
 		}
 page_ok:
 		/*
-		 * i_size must be checked after we know the page is Uptodate.
+		 * i_size must be checked after we kyesw the page is Uptodate.
 		 *
 		 * Checking i_size after the check allows us to calculate
 		 * the correct value for "nr", which means the zero-filled
-		 * part of the page is not copied back to userspace (unless
-		 * another truncate extends the file - this is desired though).
+		 * part of the page is yest copied back to userspace (unless
+		 * ayesther truncate extends the file - this is desired though).
 		 */
 
-		isize = i_size_read(inode);
+		isize = i_size_read(iyesde);
 		end_index = (isize - 1) >> PAGE_SHIFT;
 		if (unlikely(!isize || index > end_index)) {
 			put_page(page);
@@ -2138,7 +2138,7 @@ page_ok:
 
 		/*
 		 * Ok, we have the page, and it's up-to-date, so
-		 * now we can copy it to user space...
+		 * yesw we can copy it to user space...
 		 */
 
 		ret = copy_page_to_iter(page, offset, nr, iter);
@@ -2157,13 +2157,13 @@ page_ok:
 		}
 		continue;
 
-page_not_up_to_date:
+page_yest_up_to_date:
 		/* Get exclusive access to the page ... */
 		error = lock_page_killable(page);
 		if (unlikely(error))
 			goto readpage_error;
 
-page_not_up_to_date_locked:
+page_yest_up_to_date_locked:
 		/* Did it get truncated before we got the lock? */
 		if (!page->mapping) {
 			unlock_page(page);
@@ -2220,11 +2220,11 @@ readpage:
 		goto page_ok;
 
 readpage_error:
-		/* UHHUH! A synchronous read error occurred. Report it */
+		/* UHHUH! A synchroyesus read error occurred. Report it */
 		put_page(page);
 		goto out;
 
-no_cached_page:
+yes_cached_page:
 		/*
 		 * Ok, it wasn't cached, so we need to create a new
 		 * page..
@@ -2268,7 +2268,7 @@ out:
  * that can use the page cache directly.
  * Return:
  * * number of bytes copied, even for partial reads
- * * negative error code if nothing was read
+ * * negative error code if yesthing was read
  */
 ssize_t
 generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
@@ -2282,10 +2282,10 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct file *file = iocb->ki_filp;
 		struct address_space *mapping = file->f_mapping;
-		struct inode *inode = mapping->host;
+		struct iyesde *iyesde = mapping->host;
 		loff_t size;
 
-		size = i_size_read(inode);
+		size = i_size_read(iyesde);
 		if (iocb->ki_flags & IOCB_NOWAIT) {
 			if (filemap_range_has_page(mapping, iocb->ki_pos,
 						   iocb->ki_pos + count - 1))
@@ -2313,11 +2313,11 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		 * we've already read everything we wanted to, or if
 		 * there was a short read because we hit EOF, go ahead
 		 * and return.  Otherwise fallthrough to buffered io for
-		 * the rest of the read.  Buffered reads will not work for
+		 * the rest of the read.  Buffered reads will yest work for
 		 * DAX files, so don't bother trying.
 		 */
 		if (retval < 0 || !count || iocb->ki_pos >= size ||
-		    IS_DAX(inode))
+		    IS_DAX(iyesde))
 			goto out;
 	}
 
@@ -2374,7 +2374,7 @@ static int lock_page_maybe_drop_mmap(struct vm_fault *vmf, struct page *page,
 
 
 /*
- * Synchronous readahead happens when we don't even find a page in the page
+ * Synchroyesus readahead happens when we don't even find a page in the page
  * cache at all.  We don't want to perform IO under the mmap sem, so if we have
  * to drop the mmap sem we return the file that was pinned in order for us to do
  * that.  If we didn't pin a file then we return NULL.  The file that is
@@ -2401,7 +2401,7 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 		return fpin;
 	}
 
-	/* Avoid banging the cache line if not needed */
+	/* Avoid banging the cache line if yest needed */
 	if (ra->mmap_miss < MMAP_LOTSAMISS * 10)
 		ra->mmap_miss++;
 
@@ -2424,7 +2424,7 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 }
 
 /*
- * Asynchronous readahead happens when we find the page and PG_readahead,
+ * Asynchroyesus readahead happens when we find the page and PG_readahead,
  * so we want to possibly extend the readahead further.  We return the file that
  * was pinned if we have to drop the mmap_sem in order to do IO.
  */
@@ -2457,7 +2457,7 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
  * filemap_fault() is invoked via the vma operations vector for a
  * mapped memory region to read in file data during a page fault.
  *
- * The goto's are kind of ugly, but this streamlines the normal case of having
+ * The goto's are kind of ugly, but this streamlines the yesrmal case of having
  * it in the page cache, and handles the special cases reasonably without
  * having a lot of duplicated code.
  *
@@ -2466,8 +2466,8 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
  * If our return value has VM_FAULT_RETRY set, it's because the mmap_sem
  * may be dropped before doing I/O or by lock_page_maybe_drop_mmap().
  *
- * If our return value does not have VM_FAULT_RETRY set, the mmap_sem
- * has not been released.
+ * If our return value does yest have VM_FAULT_RETRY set, the mmap_sem
+ * has yest been released.
  *
  * We never return with VM_FAULT_RETRY and a bit from VM_FAULT_ERROR set.
  *
@@ -2480,13 +2480,13 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
 	struct file *fpin = NULL;
 	struct address_space *mapping = file->f_mapping;
 	struct file_ra_state *ra = &file->f_ra;
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	pgoff_t offset = vmf->pgoff;
 	pgoff_t max_off;
 	struct page *page;
 	vm_fault_t ret = 0;
 
-	max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+	max_off = DIV_ROUND_UP(i_size_read(iyesde), PAGE_SIZE);
 	if (unlikely(offset >= max_off))
 		return VM_FAULT_SIGBUS;
 
@@ -2529,14 +2529,14 @@ retry_find:
 	VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
 
 	/*
-	 * We have a locked page in the page cache, now we need to check
-	 * that it's up-to-date. If not, it is going to be due to an error.
+	 * We have a locked page in the page cache, yesw we need to check
+	 * that it's up-to-date. If yest, it is going to be due to an error.
 	 */
 	if (unlikely(!PageUptodate(page)))
-		goto page_not_uptodate;
+		goto page_yest_uptodate;
 
 	/*
-	 * We've made it this far and we had to drop our mmap_sem, now is the
+	 * We've made it this far and we had to drop our mmap_sem, yesw is the
 	 * time to return to the upper layer and have it re-find the vma and
 	 * redo the fault.
 	 */
@@ -2549,7 +2549,7 @@ retry_find:
 	 * Found the page and have a reference on it.
 	 * We must recheck i_size under page lock.
 	 */
-	max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+	max_off = DIV_ROUND_UP(i_size_read(iyesde), PAGE_SIZE);
 	if (unlikely(offset >= max_off)) {
 		unlock_page(page);
 		put_page(page);
@@ -2559,10 +2559,10 @@ retry_find:
 	vmf->page = page;
 	return ret | VM_FAULT_LOCKED;
 
-page_not_uptodate:
+page_yest_uptodate:
 	/*
 	 * Umm, take care of errors if the page isn't up-to-date.
-	 * Try to re-read it _once_. We do this synchronously,
+	 * Try to re-read it _once_. We do this synchroyesusly,
 	 * because there really aren't any performance issues here
 	 * and we need to check for errors.
 	 */
@@ -2671,13 +2671,13 @@ EXPORT_SYMBOL(filemap_map_pages);
 vm_fault_t filemap_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = file_inode(vmf->vma->vm_file);
+	struct iyesde *iyesde = file_iyesde(vmf->vma->vm_file);
 	vm_fault_t ret = VM_FAULT_LOCKED;
 
-	sb_start_pagefault(inode->i_sb);
+	sb_start_pagefault(iyesde->i_sb);
 	file_update_time(vmf->vma->vm_file);
 	lock_page(page);
-	if (page->mapping != inode->i_mapping) {
+	if (page->mapping != iyesde->i_mapping) {
 		unlock_page(page);
 		ret = VM_FAULT_NOPAGE;
 		goto out;
@@ -2690,7 +2690,7 @@ vm_fault_t filemap_page_mkwrite(struct vm_fault *vmf)
 	set_page_dirty(page);
 	wait_for_stable_page(page);
 out:
-	sb_end_pagefault(inode->i_sb);
+	sb_end_pagefault(iyesde->i_sb);
 	return ret;
 }
 
@@ -2714,7 +2714,7 @@ int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
 }
 
 /*
- * This is for filesystems which do not implement ->writepage.
+ * This is for filesystems which do yest implement ->writepage.
  */
 int generic_file_readonly_mmap(struct file *file, struct vm_area_struct *vma)
 {
@@ -2772,7 +2772,7 @@ repeat:
 			put_page(page);
 			if (err == -EEXIST)
 				goto repeat;
-			/* Presumably ENOMEM for xarray node */
+			/* Presumably ENOMEM for xarray yesde */
 			return ERR_PTR(err);
 		}
 
@@ -2796,30 +2796,30 @@ filler:
 		goto out;
 
 	/*
-	 * Page is not up to date and may be locked due one of the following
+	 * Page is yest up to date and may be locked due one of the following
 	 * case a: Page is being filled and the page lock is held
 	 * case b: Read/write error clearing the page uptodate status
 	 * case c: Truncation in progress (page locked)
 	 * case d: Reclaim in progress
 	 *
 	 * Case a, the page will be up to date when the page is unlocked.
-	 *    There is no need to serialise on the page lock here as the page
-	 *    is pinned so the lock gives no additional protection. Even if the
+	 *    There is yes need to serialise on the page lock here as the page
+	 *    is pinned so the lock gives yes additional protection. Even if the
 	 *    the page is truncated, the data is still valid if PageUptodate as
 	 *    it's a race vs truncate race.
-	 * Case b, the page will not be up to date
+	 * Case b, the page will yest be up to date
 	 * Case c, the page may be truncated but in itself, the data may still
 	 *    be valid after IO completes as it's a read vs truncate race. The
-	 *    operation must restart if the page is not uptodate on unlock but
+	 *    operation must restart if the page is yest uptodate on unlock but
 	 *    otherwise serialising on page lock to stabilise the mapping gives
-	 *    no additional guarantees to the caller as the page lock is
+	 *    yes additional guarantees to the caller as the page lock is
 	 *    released before return.
 	 * Case d, similar to truncation. If reclaim holds the page lock, it
 	 *    will be a race with remove_mapping that determines if the mapping
 	 *    is valid on unlock but otherwise the data is valid and there is
-	 *    no need to serialise with page lock.
+	 *    yes need to serialise with page lock.
 	 *
-	 * As the page lock gives no additional guarantee, we optimistically
+	 * As the page lock gives yes additional guarantee, we optimistically
 	 * wait on the page to be unlocked and check if it's up to date and
 	 * use the page if it is. Otherwise, the page lock is required to
 	 * distinguish between the different cases. The motivation is that we
@@ -2860,9 +2860,9 @@ out:
  * @data:	first arg to filler(data, page) function, often left as NULL
  *
  * Read into the page cache. If a page already exists, and PageUptodate() is
- * not set, try to fill the page and wait for it to become unlocked.
+ * yest set, try to fill the page and wait for it to become unlocked.
  *
- * If the page does not get brought uptodate, return -EIO.
+ * If the page does yest get brought uptodate, return -EIO.
  *
  * Return: up to date page on success, ERR_PTR() on failure.
  */
@@ -2885,7 +2885,7 @@ EXPORT_SYMBOL(read_cache_page);
  * This is the same as "read_mapping_page(mapping, index, NULL)", but with
  * any new page allocations done using the specified allocation flags.
  *
- * If the page does not get brought uptodate, return -EIO.
+ * If the page does yest get brought uptodate, return -EIO.
  *
  * Return: up to date page on success, ERR_PTR() on failure.
  */
@@ -2905,8 +2905,8 @@ EXPORT_SYMBOL(read_cache_page_gfp);
 static int generic_write_check_limits(struct file *file, loff_t pos,
 				      loff_t *count)
 {
-	struct inode *inode = file->f_mapping->host;
-	loff_t max_size = inode->i_sb->s_maxbytes;
+	struct iyesde *iyesde = file->f_mapping->host;
+	loff_t max_size = iyesde->i_sb->s_maxbytes;
 	loff_t limit = rlimit(RLIMIT_FSIZE);
 
 	if (limit != RLIM_INFINITY) {
@@ -2938,11 +2938,11 @@ static int generic_write_check_limits(struct file *file, loff_t pos,
 inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 	loff_t count;
 	int ret;
 
-	if (IS_SWAPFILE(inode))
+	if (IS_SWAPFILE(iyesde))
 		return -ETXTBSY;
 
 	if (!iov_iter_count(from))
@@ -2950,7 +2950,7 @@ inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
 
 	/* FIXME: this is for backwards compatibility with 2.4 */
 	if (iocb->ki_flags & IOCB_APPEND)
-		iocb->ki_pos = i_size_read(inode);
+		iocb->ki_pos = i_size_read(iyesde);
 
 	if ((iocb->ki_flags & IOCB_NOWAIT) && !(iocb->ki_flags & IOCB_DIRECT))
 		return -EINVAL;
@@ -2976,12 +2976,12 @@ int generic_remap_checks(struct file *file_in, loff_t pos_in,
 			 struct file *file_out, loff_t pos_out,
 			 loff_t *req_count, unsigned int remap_flags)
 {
-	struct inode *inode_in = file_in->f_mapping->host;
-	struct inode *inode_out = file_out->f_mapping->host;
+	struct iyesde *iyesde_in = file_in->f_mapping->host;
+	struct iyesde *iyesde_out = file_out->f_mapping->host;
 	uint64_t count = *req_count;
 	uint64_t bcount;
 	loff_t size_in, size_out;
-	loff_t bs = inode_out->i_sb->s_blocksize;
+	loff_t bs = iyesde_out->i_sb->s_blocksize;
 	int ret;
 
 	/* The start of both ranges must be aligned to an fs block. */
@@ -2992,8 +2992,8 @@ int generic_remap_checks(struct file *file_in, loff_t pos_in,
 	if (pos_in + count < pos_in || pos_out + count < pos_out)
 		return -EINVAL;
 
-	size_in = i_size_read(inode_in);
-	size_out = i_size_read(inode_out);
+	size_in = i_size_read(iyesde_in);
+	size_out = i_size_read(iyesde_out);
 
 	/* Dedupe requires both ranges to be within EOF. */
 	if ((remap_flags & REMAP_FILE_DEDUP) &&
@@ -3026,7 +3026,7 @@ int generic_remap_checks(struct file *file_in, loff_t pos_in,
 	}
 
 	/* Don't allow overlapped cloning within the same file. */
-	if (inode_in == inode_out &&
+	if (iyesde_in == iyesde_out &&
 	    pos_out + bcount > pos_in &&
 	    pos_out < pos_in + bcount)
 		return -EINVAL;
@@ -3049,13 +3049,13 @@ int generic_remap_checks(struct file *file_in, loff_t pos_in,
  */
 int generic_file_rw_checks(struct file *file_in, struct file *file_out)
 {
-	struct inode *inode_in = file_inode(file_in);
-	struct inode *inode_out = file_inode(file_out);
+	struct iyesde *iyesde_in = file_iyesde(file_in);
+	struct iyesde *iyesde_out = file_iyesde(file_out);
 
 	/* Don't copy dirs, pipes, sockets... */
-	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
+	if (S_ISDIR(iyesde_in->i_mode) || S_ISDIR(iyesde_out->i_mode))
 		return -EISDIR;
-	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
+	if (!S_ISREG(iyesde_in->i_mode) || !S_ISREG(iyesde_out->i_mode))
 		return -EINVAL;
 
 	if (!(file_in->f_mode & FMODE_READ) ||
@@ -3077,8 +3077,8 @@ int generic_copy_file_checks(struct file *file_in, loff_t pos_in,
 			     struct file *file_out, loff_t pos_out,
 			     size_t *req_count, unsigned int flags)
 {
-	struct inode *inode_in = file_inode(file_in);
-	struct inode *inode_out = file_inode(file_out);
+	struct iyesde *iyesde_in = file_iyesde(file_in);
+	struct iyesde *iyesde_out = file_iyesde(file_out);
 	uint64_t count = *req_count;
 	loff_t size_in;
 	int ret;
@@ -3087,11 +3087,11 @@ int generic_copy_file_checks(struct file *file_in, loff_t pos_in,
 	if (ret)
 		return ret;
 
-	/* Don't touch certain kinds of inodes */
-	if (IS_IMMUTABLE(inode_out))
+	/* Don't touch certain kinds of iyesdes */
+	if (IS_IMMUTABLE(iyesde_out))
 		return -EPERM;
 
-	if (IS_SWAPFILE(inode_in) || IS_SWAPFILE(inode_out))
+	if (IS_SWAPFILE(iyesde_in) || IS_SWAPFILE(iyesde_out))
 		return -ETXTBSY;
 
 	/* Ensure offsets don't wrap. */
@@ -3099,7 +3099,7 @@ int generic_copy_file_checks(struct file *file_in, loff_t pos_in,
 		return -EOVERFLOW;
 
 	/* Shorten the copy to EOF */
-	size_in = i_size_read(inode_in);
+	size_in = i_size_read(iyesde_in);
 	if (pos_in >= size_in)
 		count = 0;
 	else
@@ -3110,7 +3110,7 @@ int generic_copy_file_checks(struct file *file_in, loff_t pos_in,
 		return ret;
 
 	/* Don't allow overlapped copying within the same file. */
-	if (inode_in == inode_out &&
+	if (iyesde_in == iyesde_out &&
 	    pos_out + count > pos_in &&
 	    pos_out < pos_in + count)
 		return -EINVAL;
@@ -3147,14 +3147,14 @@ void dio_warn_stale_pagecache(struct file *filp)
 {
 	static DEFINE_RATELIMIT_STATE(_rs, 86400 * HZ, DEFAULT_RATELIMIT_BURST);
 	char pathname[128];
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 	char *path;
 
-	errseq_set(&inode->i_mapping->wb_err, -EIO);
+	errseq_set(&iyesde->i_mapping->wb_err, -EIO);
 	if (__ratelimit(&_rs)) {
 		path = file_path(filp, pathname, sizeof(pathname));
 		if (IS_ERR(path))
-			path = "(unknown)";
+			path = "(unkyeswn)";
 		pr_crit("Page cache invalidation failure on direct I/O.  Possible data corruption due to collision with buffered I/O!\n");
 		pr_crit("File: %s PID: %d Comm: %.20s\n", path, current->pid,
 			current->comm);
@@ -3166,7 +3166,7 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file	*file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	struct inode	*inode = mapping->host;
+	struct iyesde	*iyesde = mapping->host;
 	loff_t		pos = iocb->ki_pos;
 	ssize_t		written;
 	size_t		write_len;
@@ -3177,7 +3177,7 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
 		/* If there are pages to writeback, return */
-		if (filemap_range_has_page(inode->i_mapping, pos,
+		if (filemap_range_has_page(iyesde->i_mapping, pos,
 					   pos + write_len - 1))
 			return -EAGAIN;
 	} else {
@@ -3193,10 +3193,10 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	 * about to write.  We do this *before* the write so that we can return
 	 * without clobbering -EIOCBQUEUED from ->direct_IO().
 	 */
-	written = invalidate_inode_pages2_range(mapping,
+	written = invalidate_iyesde_pages2_range(mapping,
 					pos >> PAGE_SHIFT, end);
 	/*
-	 * If a page can not be invalidated, return 0 to fall back
+	 * If a page can yest be invalidated, return 0 to fall back
 	 * to buffered write.
 	 */
 	if (written) {
@@ -3209,31 +3209,31 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 
 	/*
 	 * Finally, try again to invalidate clean pages which might have been
-	 * cached by non-direct readahead, or faulted in by get_user_pages()
+	 * cached by yesn-direct readahead, or faulted in by get_user_pages()
 	 * if the source of the write was an mmap'ed region of the file
 	 * we're writing.  Either one is a pretty crazy thing to do,
 	 * so we don't support it 100%.  If this invalidation
 	 * fails, tough, the write still worked...
 	 *
-	 * Most of the time we do not need this since dio_complete() will do
+	 * Most of the time we do yest need this since dio_complete() will do
 	 * the invalidation for us. However there are some file systems that
-	 * do not end up with dio_complete() being called, so let's not break
+	 * do yest end up with dio_complete() being called, so let's yest break
 	 * them by removing it completely.
 	 *
 	 * Noticeable example is a blkdev_direct_IO().
 	 *
-	 * Skip invalidation for async writes or if mapping has no pages.
+	 * Skip invalidation for async writes or if mapping has yes pages.
 	 */
 	if (written > 0 && mapping->nrpages &&
-	    invalidate_inode_pages2_range(mapping, pos >> PAGE_SHIFT, end))
+	    invalidate_iyesde_pages2_range(mapping, pos >> PAGE_SHIFT, end))
 		dio_warn_stale_pagecache(file);
 
 	if (written > 0) {
 		pos += written;
 		write_len -= written;
-		if (pos > i_size_read(inode) && !S_ISBLK(inode->i_mode)) {
-			i_size_write(inode, pos);
-			mark_inode_dirty(inode);
+		if (pos > i_size_read(iyesde) && !S_ISBLK(iyesde->i_mode)) {
+			i_size_write(iyesde, pos);
+			mark_iyesde_dirty(iyesde);
 		}
 		iocb->ki_pos = pos;
 	}
@@ -3332,7 +3332,7 @@ again:
 			 * fall back to a single segment length write.
 			 *
 			 * If we didn't fallback here, we could livelock
-			 * because not all segments in the iov can be copied at
+			 * because yest all segments in the iov can be copied at
 			 * once without a pagefault.
 			 */
 			bytes = min_t(unsigned long, PAGE_SIZE - offset,
@@ -3360,27 +3360,27 @@ EXPORT_SYMBOL(generic_perform_write);
  * do direct IO or a standard buffered write.
  *
  * It expects i_mutex to be grabbed unless we work on a block device or similar
- * object which does not need locking at all.
+ * object which does yest need locking at all.
  *
- * This function does *not* take care of syncing data in case of O_SYNC write.
+ * This function does *yest* take care of syncing data in case of O_SYNC write.
  * A caller has to handle it. This is mainly due to the fact that we want to
  * avoid syncing under i_mutex.
  *
  * Return:
  * * number of bytes written, even for truncated writes
- * * negative error code if no data has been written at all
+ * * negative error code if yes data has been written at all
  */
 ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space * mapping = file->f_mapping;
-	struct inode 	*inode = mapping->host;
+	struct iyesde 	*iyesde = mapping->host;
 	ssize_t		written = 0;
 	ssize_t		err;
 	ssize_t		status;
 
 	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = inode_to_bdi(inode);
+	current->backing_dev_info = iyesde_to_bdi(iyesde);
 	err = file_remove_privs(file);
 	if (err)
 		goto out;
@@ -3397,18 +3397,18 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		 * If the write stopped short of completing, fall back to
 		 * buffered writes.  Some filesystems do this for writes to
 		 * holes, for example.  For DAX files, a buffered write will
-		 * not succeed (even if it did, DAX does not handle dirty
+		 * yest succeed (even if it did, DAX does yest handle dirty
 		 * page-cache pages correctly).
 		 */
-		if (written < 0 || !iov_iter_count(from) || IS_DAX(inode))
+		if (written < 0 || !iov_iter_count(from) || IS_DAX(iyesde))
 			goto out;
 
 		status = generic_perform_write(file, from, pos = iocb->ki_pos);
 		/*
-		 * If generic_perform_write() returned a synchronous error
+		 * If generic_perform_write() returned a synchroyesus error
 		 * then we want to return the number of bytes which were
 		 * direct-written, or the error code if that was zero.  Note
-		 * that this differs from normal direct-io semantics, which
+		 * that this differs from yesrmal direct-io semantics, which
 		 * will return -EFOO even if some bytes were written.
 		 */
 		if (unlikely(status < 0)) {
@@ -3430,7 +3430,7 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 						 endbyte >> PAGE_SHIFT);
 		} else {
 			/*
-			 * We don't know how much we wrote, so just return
+			 * We don't kyesw how much we wrote, so just return
 			 * the number of bytes which were direct-written
 			 */
 		}
@@ -3454,21 +3454,21 @@ EXPORT_SYMBOL(__generic_file_write_iter);
  * filesystems. It takes care of syncing the file in case of O_SYNC file
  * and acquires i_mutex as needed.
  * Return:
- * * negative error code if no data has been written at all of
- *   vfs_fsync_range() failed for a synchronous write
+ * * negative error code if yes data has been written at all of
+ *   vfs_fsync_range() failed for a synchroyesus write
  * * number of bytes written, even for truncated writes
  */
 ssize_t generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 	ssize_t ret;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 	ret = generic_write_checks(iocb, from);
 	if (ret > 0)
 		ret = __generic_file_write_iter(iocb, from);
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
@@ -3486,7 +3486,7 @@ EXPORT_SYMBOL(generic_file_write_iter);
  * (presumably at page->private).
  *
  * This may also be called if PG_fscache is set on a page, indicating that the
- * page is known to the local caching routines.
+ * page is kyeswn to the local caching routines.
  *
  * The @gfp_mask argument specifies whether I/O may be performed to release
  * this page (__GFP_IO), and whether the call may block (__GFP_RECLAIM & __GFP_FS).

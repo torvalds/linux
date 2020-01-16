@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Nano River Technologies viperboard IIO ADC driver
+ *  Nayes River Techyeslogies viperboard IIO ADC driver
  *
  *  (C) 2012 by Lemonage GmbH
  *  Author: Lars Poeschel <poeschel@lemonage.de>
@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -129,7 +129,7 @@ static int vprbrd_adc_probe(struct platform_device *pdev)
 
 	ret = devm_iio_device_register(&pdev->dev, indio_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register iio (adc)");
+		dev_err(&pdev->dev, "could yest register iio (adc)");
 		return ret;
 	}
 
@@ -146,6 +146,6 @@ static struct platform_driver vprbrd_adc_driver = {
 module_platform_driver(vprbrd_adc_driver);
 
 MODULE_AUTHOR("Lars Poeschel <poeschel@lemonage.de>");
-MODULE_DESCRIPTION("IIO ADC driver for Nano River Techs Viperboard");
+MODULE_DESCRIPTION("IIO ADC driver for Nayes River Techs Viperboard");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:viperboard-adc");

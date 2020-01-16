@@ -122,7 +122,7 @@ static bool peri_clk_data_offsets_valid(struct kona_clk *bcm_clk)
 			}
 		}
 	} else if (hyst_exists(hyst)) {
-		pr_err("%s: hysteresis but no gate for %s\n", __func__, name);
+		pr_err("%s: hysteresis but yes gate for %s\n", __func__, name);
 		return false;
 	}
 
@@ -194,7 +194,7 @@ static bool bit_posn_valid(u32 bit_posn, const char *field_name,
  * high-order bits must lie within a 32-bit register.  We require
  * fields to be less than 32 bits wide, mainly because we use
  * shifting to produce field masks, and shifting a full word width
- * is not well-defined by the C standard.
+ * is yest well-defined by the C standard.
  */
 static bool bitfield_valid(u32 shift, u32 width, const char *field_name,
 			const char *clock_name)
@@ -316,7 +316,7 @@ static bool sel_valid(struct bcm_clk_sel *sel, const char *field_name,
 			return false;
 		}
 	} else {
-		pr_warn("%s: ignoring selector for %s (no parents)\n",
+		pr_warn("%s: igyesring selector for %s (yes parents)\n",
 			__func__, clock_name);
 		selector_clear_exists(sel);
 		kfree(sel->parent_sel);
@@ -327,9 +327,9 @@ static bool sel_valid(struct bcm_clk_sel *sel, const char *field_name,
 }
 
 /*
- * A fixed divider just needs to be non-zero.  A variable divider
+ * A fixed divider just needs to be yesn-zero.  A variable divider
  * has to have a valid divider bitfield, and if it has a fraction,
- * the width of the fraction must not be no more than the width of
+ * the width of the fraction must yest be yes more than the width of
  * the divider as a whole.
  */
 static bool div_valid(struct bcm_clk_div *div, const char *field_name,
@@ -440,7 +440,7 @@ peri_clk_data_valid(struct kona_clk *bcm_clk)
 			return false;
 
 	} else if (sel->parent_count > 1) {
-		pr_err("%s: multiple parents but no selector for %s\n",
+		pr_err("%s: multiple parents but yes selector for %s\n",
 			__func__, name);
 
 		return false;
@@ -456,7 +456,7 @@ peri_clk_data_valid(struct kona_clk *bcm_clk)
 			if (!div_valid(pre_div, "pre-divider", name))
 				return false;
 	} else if (divider_exists(pre_div)) {
-		pr_err("%s: pre-divider but no divider for %s\n", __func__,
+		pr_err("%s: pre-divider but yes divider for %s\n", __func__,
 			name);
 		return false;
 	}
@@ -472,12 +472,12 @@ peri_clk_data_valid(struct kona_clk *bcm_clk)
 			}
 		}
 		if (!clk_requires_trigger(bcm_clk)) {
-			pr_warn("%s: ignoring trigger for %s (not needed)\n",
+			pr_warn("%s: igyesring trigger for %s (yest needed)\n",
 				__func__, name);
 			trigger_clear_exists(trig);
 		}
 	} else if (trigger_exists(&peri->pre_trig)) {
-		pr_err("%s: pre-trigger but no trigger for %s\n", __func__,
+		pr_err("%s: pre-trigger but yes trigger for %s\n", __func__,
 			name);
 		return false;
 	} else if (clk_requires_trigger(bcm_clk)) {
@@ -507,28 +507,28 @@ static bool kona_clk_valid(struct kona_clk *bcm_clk)
 /*
  * Scan an array of parent clock names to determine whether there
  * are any entries containing BAD_CLK_NAME.  Such entries are
- * placeholders for non-supported clocks.  Keep track of the
+ * placeholders for yesn-supported clocks.  Keep track of the
  * position of each clock name in the original array.
  *
  * Allocates an array of pointers to to hold the names of all
- * non-null entries in the original array, and returns a pointer to
+ * yesn-null entries in the original array, and returns a pointer to
  * that array in *names.  This will be used for registering the
  * clock with the common clock code.  On successful return,
  * *count indicates how many entries are in that names array.
  *
  * If there is more than one entry in the resulting names array,
- * another array is allocated to record the parent selector value
+ * ayesther array is allocated to record the parent selector value
  * for each (defined) parent clock.  This is the value that
  * represents this parent clock in the clock's source selector
  * register.  The position of the clock in the original parent array
  * defines that selector value.  The number of entries in this array
  * is the same as the number of entries in the parent names array.
  *
- * The array of selector values is returned.  If the clock has no
- * parents, no selector is required and a null pointer is returned.
+ * The array of selector values is returned.  If the clock has yes
+ * parents, yes selector is required and a null pointer is returned.
  *
  * Returns a null pointer if the clock names array supplied was
- * null.  (This is not an error.)
+ * null.  (This is yest an error.)
  *
  * Returns a pointer-coded error if an error occurs.
  */
@@ -559,7 +559,7 @@ static u32 *parent_process(const char *clocks[],
 	orig_count = (u32)(clock - clocks);
 	parent_count = orig_count - bad_count;
 
-	/* If all clocks are unsupported, we treat it as no clock */
+	/* If all clocks are unsupported, we treat it as yes clock */
 	if (!parent_count)
 		return NULL;
 
@@ -574,7 +574,7 @@ static u32 *parent_process(const char *clocks[],
 	 * There is one parent name for each defined parent clock.
 	 * We also maintain an array containing the selector value
 	 * for each defined clock.  If there's only one clock, the
-	 * selector is not required, but we allocate space for the
+	 * selector is yest required, but we allocate space for the
 	 * array anyway to keep things simple.
 	 */
 	parent_names = kmalloc_array(parent_count, sizeof(*parent_names),
@@ -688,7 +688,7 @@ static void bcm_clk_teardown(struct kona_clk *bcm_clk)
 		break;
 	}
 	bcm_clk->u.data = NULL;
-	bcm_clk->type = bcm_clk_none;
+	bcm_clk->type = bcm_clk_yesne;
 }
 
 static void kona_clk_teardown(struct clk_hw *hw)
@@ -757,10 +757,10 @@ static void kona_ccu_teardown(struct ccu_data *ccu)
 	if (!ccu->base)
 		return;
 
-	of_clk_del_provider(ccu->node);	/* safe if never added */
+	of_clk_del_provider(ccu->yesde);	/* safe if never added */
 	ccu_clks_teardown(ccu);
-	of_node_put(ccu->node);
-	ccu->node = NULL;
+	of_yesde_put(ccu->yesde);
+	ccu->yesde = NULL;
 	iounmap(ccu->base);
 	ccu->base = NULL;
 }
@@ -799,41 +799,41 @@ of_clk_kona_onecell_get(struct of_phandle_args *clkspec, void *data)
  * initialize the array of clocks provided by the CCU.
  */
 void __init kona_dt_ccu_setup(struct ccu_data *ccu,
-			struct device_node *node)
+			struct device_yesde *yesde)
 {
 	struct resource res = { 0 };
 	resource_size_t range;
 	unsigned int i;
 	int ret;
 
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(yesde, 0, &res);
 	if (ret) {
-		pr_err("%s: no valid CCU registers found for %pOFn\n", __func__,
-			node);
+		pr_err("%s: yes valid CCU registers found for %pOFn\n", __func__,
+			yesde);
 		goto out_err;
 	}
 
 	range = resource_size(&res);
 	if (range > (resource_size_t)U32_MAX) {
 		pr_err("%s: address range too large for %pOFn\n", __func__,
-			node);
+			yesde);
 		goto out_err;
 	}
 
 	ccu->range = (u32)range;
 
 	if (!ccu_data_valid(ccu)) {
-		pr_err("%s: ccu data not valid for %pOFn\n", __func__, node);
+		pr_err("%s: ccu data yest valid for %pOFn\n", __func__, yesde);
 		goto out_err;
 	}
 
 	ccu->base = ioremap(res.start, ccu->range);
 	if (!ccu->base) {
 		pr_err("%s: unable to map CCU registers for %pOFn\n", __func__,
-			node);
+			yesde);
 		goto out_err;
 	}
-	ccu->node = of_node_get(node);
+	ccu->yesde = of_yesde_get(yesde);
 
 	/*
 	 * Set up each defined kona clock and save the result in
@@ -846,18 +846,18 @@ void __init kona_dt_ccu_setup(struct ccu_data *ccu,
 		kona_clk_setup(&ccu->kona_clks[i]);
 	}
 
-	ret = of_clk_add_hw_provider(node, of_clk_kona_onecell_get, ccu);
+	ret = of_clk_add_hw_provider(yesde, of_clk_kona_onecell_get, ccu);
 	if (ret) {
 		pr_err("%s: error adding ccu %pOFn as provider (%d)\n", __func__,
-				node, ret);
+				yesde, ret);
 		goto out_err;
 	}
 
 	if (!kona_ccu_init(ccu))
-		pr_err("Broadcom %pOFn initialization had errors\n", node);
+		pr_err("Broadcom %pOFn initialization had errors\n", yesde);
 
 	return;
 out_err:
 	kona_ccu_teardown(ccu);
-	pr_err("Broadcom %pOFn setup aborted\n", node);
+	pr_err("Broadcom %pOFn setup aborted\n", yesde);
 }

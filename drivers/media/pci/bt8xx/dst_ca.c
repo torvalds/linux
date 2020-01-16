@@ -43,7 +43,7 @@
 static DEFINE_MUTEX(dst_ca_mutex);
 static unsigned int verbose = 5;
 module_param(verbose, int, 0644);
-MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (yes)");
+MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (no)");
 
 static void put_command_and_length(u8 *data, int command, int length)
 {
@@ -70,7 +70,7 @@ static int dst_ci_command(struct dst_state* state, u8 * data, u8 *ca_string, u8 
 	msleep(65);
 
 	if (write_dst(state, data, len)) {
-		dprintk(verbose, DST_CA_INFO, 1, " Write not successful, trying to recover");
+		dprintk(verbose, DST_CA_INFO, 1, " Write yest successful, trying to recover");
 		dst_error_recovery(state);
 		goto error;
 	}
@@ -79,17 +79,17 @@ static int dst_ci_command(struct dst_state* state, u8 * data, u8 *ca_string, u8 
 		goto error;
 	}
 	if (read_dst(state, &reply, GET_ACK) < 0) {
-		dprintk(verbose, DST_CA_INFO, 1, " Read not successful, trying to recover");
+		dprintk(verbose, DST_CA_INFO, 1, " Read yest successful, trying to recover");
 		dst_error_recovery(state);
 		goto error;
 	}
 	if (read) {
 		if (! dst_wait_dst_ready(state, LONG_DELAY)) {
-			dprintk(verbose, DST_CA_NOTICE, 1, " 8820 not ready");
+			dprintk(verbose, DST_CA_NOTICE, 1, " 8820 yest ready");
 			goto error;
 		}
 		if (read_dst(state, ca_string, 128) < 0) {	/*	Try to make this dynamic	*/
-			dprintk(verbose, DST_CA_INFO, 1, " Read not successful, trying to recover");
+			dprintk(verbose, DST_CA_INFO, 1, " Read yest successful, trying to recover");
 			dst_error_recovery(state);
 			goto error;
 		}
@@ -340,7 +340,7 @@ static int handle_dst_tag(struct dst_state *state, struct ca_msg *p_ca_message, 
 
 		/*
 		 *	Need to compute length for EN50221 section 8.3.2, for the time being
-		 *	assuming 8.3.2 is not applicable
+		 *	assuming 8.3.2 is yest applicable
 		 */
 		memcpy(&hw_buffer->msg[7], &p_ca_message->msg[4], length);
 	}
@@ -434,7 +434,7 @@ static int dst_check_ca_pmt(struct dst_state *state, struct ca_msg *p_ca_message
 	/*	will implement soon		*/
 		dprintk(verbose, DST_CA_ERROR, 1, " Not there yet");
 	}
-	/*	CA PMT Reply not capable	*/
+	/*	CA PMT Reply yest capable	*/
 	if (!ca_pmt_reply_test) {
 		if ((ca_set_pmt(state, p_ca_message, hw_buffer, 0, NO_REPLY)) < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " ca_set_pmt.. failed !");
@@ -543,7 +543,7 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 		goto free_mem_and_exit;
 	}
 
-	/*	We have now only the standard ioctl's, the driver is upposed to handle internals.	*/
+	/*	We have yesw only the standard ioctl's, the driver is upposed to handle internals.	*/
 	switch (cmd) {
 	case CA_SEND_MSG:
 		dprintk(verbose, DST_CA_INFO, 1, " Sending message");
@@ -608,14 +608,14 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 	return result;
 }
 
-static int dst_ca_open(struct inode *inode, struct file *file)
+static int dst_ca_open(struct iyesde *iyesde, struct file *file)
 {
 	dprintk(verbose, DST_CA_DEBUG, 1, " Device opened [%p] ", file);
 
 	return 0;
 }
 
-static int dst_ca_release(struct inode *inode, struct file *file)
+static int dst_ca_release(struct iyesde *iyesde, struct file *file)
 {
 	dprintk(verbose, DST_CA_DEBUG, 1, " Device closed.");
 
@@ -643,7 +643,7 @@ static const struct file_operations dst_ca_fops = {
 	.release = dst_ca_release,
 	.read = dst_ca_read,
 	.write = dst_ca_write,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct dvb_device dvbdev_ca = {

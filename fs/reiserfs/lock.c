@@ -13,7 +13,7 @@
  * recursive property to avoid big changes in the code structure.
  * We use our own lock_owner here because the owner field on a mutex
  * is only available in SMP or mutex debugging, also we only need this field
- * for this mutex, no need for a system wide mutex facility.
+ * for this mutex, yes need for a system wide mutex facility.
  *
  * Also this lock is often released before a call that could block because
  * reiserfs performances were partially based on the release while schedule()

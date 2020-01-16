@@ -213,7 +213,7 @@ static int sh_mtu2_enable(struct sh_mtu2_channel *ch)
 	/* enable clock */
 	ret = clk_enable(ch->mtu->clk);
 	if (ret) {
-		dev_err(&ch->mtu->pdev->dev, "ch%u: cannot enable clock\n",
+		dev_err(&ch->mtu->pdev->dev, "ch%u: canyest enable clock\n",
 			ch->index);
 		return ret;
 	}
@@ -258,11 +258,11 @@ static irqreturn_t sh_mtu2_interrupt(int irq, void *dev_id)
 {
 	struct sh_mtu2_channel *ch = dev_id;
 
-	/* acknowledge interrupt */
+	/* ackyeswledge interrupt */
 	sh_mtu2_read(ch, TSR);
 	sh_mtu2_write(ch, TSR, ~TSR_TGFA);
 
-	/* notify clockevent layer */
+	/* yestify clockevent layer */
 	ch->ced.event_handler(&ch->ced);
 	return IRQ_HANDLED;
 }
@@ -348,7 +348,7 @@ static int sh_mtu2_setup_channel(struct sh_mtu2_channel *ch, unsigned int index,
 	sprintf(name, "tgi%ua", index);
 	irq = platform_get_irq_byname(mtu->pdev, name);
 	if (irq < 0) {
-		/* Skip channels with no declared interrupt. */
+		/* Skip channels with yes declared interrupt. */
 		return 0;
 	}
 
@@ -377,7 +377,7 @@ static int sh_mtu2_map_memory(struct sh_mtu2_device *mtu)
 		return -ENXIO;
 	}
 
-	mtu->mapbase = ioremap_nocache(res->start, resource_size(res));
+	mtu->mapbase = ioremap_yescache(res->start, resource_size(res));
 	if (mtu->mapbase == NULL)
 		return -ENXIO;
 
@@ -397,7 +397,7 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 	/* Get hold of clock. */
 	mtu->clk = clk_get(&mtu->pdev->dev, "fck");
 	if (IS_ERR(mtu->clk)) {
-		dev_err(&mtu->pdev->dev, "cannot get clock\n");
+		dev_err(&mtu->pdev->dev, "canyest get clock\n");
 		return PTR_ERR(mtu->clk);
 	}
 
@@ -486,7 +486,7 @@ static int sh_mtu2_probe(struct platform_device *pdev)
 
 static int sh_mtu2_remove(struct platform_device *pdev)
 {
-	return -EBUSY; /* cannot unregister clockevent */
+	return -EBUSY; /* canyest unregister clockevent */
 }
 
 static const struct platform_device_id sh_mtu2_id_table[] = {

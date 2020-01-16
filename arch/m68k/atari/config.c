@@ -10,7 +10,7 @@
  *    gettod() for TT
  *
  *  5/15/94 Roman Hodek:
- *    hard_reset_now() for Atari (and others?)
+ *    hard_reset_yesw() for Atari (and others?)
  *
  *  94/12/30 Andreas Schwab:
  *    atari_sched_init fixed to get precise clock.
@@ -126,7 +126,7 @@ static int __init scc_test(volatile char *ctla)
 
 int __init atari_parse_bootinfo(const struct bi_record *record)
 {
-	int unknown = 0;
+	int unkyeswn = 0;
 	const void *data = record->data;
 
 	switch (be16_to_cpu(record->tag)) {
@@ -137,10 +137,10 @@ int __init atari_parse_bootinfo(const struct bi_record *record)
 		atari_mch_type = be32_to_cpup(data);
 		break;
 	default:
-		unknown = 1;
+		unkyeswn = 1;
 		break;
 	}
-	return unknown;
+	return unkyeswn;
 }
 
 
@@ -231,8 +231,8 @@ void __init config_atari(void)
 
 	pr_info("Atari hardware found:");
 	if (MACH_IS_MEDUSA) {
-		/* There's no Atari video hardware on the Medusa, but all the
-		 * addresses below generate a DTACK so no bus error occurs! */
+		/* There's yes Atari video hardware on the Medusa, but all the
+		 * addresses below generate a DTACK so yes bus error occurs! */
 	} else if (hwreg_present(f030_xreg)) {
 		ATARIHW_SET(VIDEL_SHIFTER);
 		pr_cont(" VIDEL");
@@ -303,7 +303,7 @@ void __init config_atari(void)
 	}
 	if (hwreg_present(&tt_scc_dma.dma_ctrl) &&
 #if 0
-	    /* This test sucks! Who knows some better? */
+	    /* This test sucks! Who kyesws some better? */
 	    (tt_scc_dma.dma_ctrl = 0x01, (tt_scc_dma.dma_ctrl & 1) == 1) &&
 	    (tt_scc_dma.dma_ctrl = 0x00, (tt_scc_dma.dma_ctrl & 1) == 0)
 #else
@@ -376,7 +376,7 @@ void __init config_atari(void)
 
 	if (CPU_IS_040_OR_060)
 		/* Now it seems to be safe to turn of the tt0 transparent
-		 * translation (the one that must not be turned off in
+		 * translation (the one that must yest be turned off in
 		 * head.S...)
 		 */
 		asm volatile ("\n"
@@ -385,8 +385,8 @@ void __init config_atari(void)
 			"	movec	%%d0,%%itt0\n"
 			"	movec	%%d0,%%dtt0\n"
 			"	.chip	68k"
-			: /* no outputs */
-			: /* no inputs */
+			: /* yes outputs */
+			: /* yes inputs */
 			: "d0");
 
 	/* allocator for memory that must reside in st-ram */
@@ -421,16 +421,16 @@ void __init config_atari(void)
 			"	.chip	68k"
 			:
 			: "d" (0xfe00a040));	/* Translate 0xfexxxxxx, enable,
-						 * supervisor only, non-cacheable/
+						 * supervisor only, yesn-cacheable/
 						 * serialized, writable */
 
 	}
 
 	/* Fetch tos version at Physical 2 */
 	/*
-	 * We my not be able to access this address if the kernel is
+	 * We my yest be able to access this address if the kernel is
 	 * loaded to st ram, since the first page is unmapped.  On the
-	 * Medusa this is always the case and there is nothing we can do
+	 * Medusa this is always the case and there is yesthing we can do
 	 * about this, so we just assume the smaller offset.  For the TT
 	 * we use the fact that in head.S we have set up a mapping
 	 * 0xFFxxxxxx -> 0x00xxxxxx, so that the first 16MB is accessible
@@ -466,28 +466,28 @@ static void atari_heartbeat(int on)
  * after a reset at physical addresses 0 and 4. This works pretty well
  * for Atari machines, since the lowest 8 bytes of physical memory are
  * really ROM (mapped by hardware). For other 680x0 machines: don't
- * know if it works...
+ * kyesw if it works...
  *
  * To get the values at addresses 0 and 4, the MMU better is turned
  * off first. After that, we have to jump into physical address space
  * (the PC before the pmove statement points to the virtual address of
- * the code). Getting that physical address is not hard, but the code
+ * the code). Getting that physical address is yest hard, but the code
  * becomes a bit complex since I've tried to ensure that the jump
  * statement after the pmove is in the cache already (otherwise the
  * processor can't fetch it!). For that, the code first jumps to the
  * jump statement with the (virtual) address of the pmove section in
  * an address register . The jump statement is surely in the cache
- * now. After that, that physical address of the reset code is loaded
+ * yesw. After that, that physical address of the reset code is loaded
  * into the same address register, pmove is done and the same jump
- * statements goes to the reset code. Since there are not many
+ * statements goes to the reset code. Since there are yest many
  * statements between the two jumps, I hope it stays in the cache.
  *
  * The C code makes heavy use of the GCC features that you can get the
- * address of a C label. No hope to compile this with another compiler
+ * address of a C label. No hope to compile this with ayesther compiler
  * than GCC!
  */
 
-/* ++andreas: no need for complicated code, just depend on prefetch */
+/* ++andreas: yes need for complicated code, just depend on prefetch */
 
 static void atari_reset(void)
 {
@@ -495,8 +495,8 @@ static void atari_reset(void)
 	long reset_addr;
 
 	/*
-	 * On the Medusa, phys. 0x4 may contain garbage because it's no
-	 * ROM.  See above for explanation why we cannot use PTOV(4).
+	 * On the Medusa, phys. 0x4 may contain garbage because it's yes
+	 * ROM.  See above for explanation why we canyest use PTOV(4).
 	 */
 	reset_addr = MACH_IS_MEDUSA || MACH_IS_AB40 ? 0xe00030 :
 		     *(unsigned long *) 0xff000004;
@@ -540,14 +540,14 @@ static void atari_reset(void)
 	jmp_addr_label040:
 		asm volatile ("\n"
 			"	moveq	#0,%%d0\n"
-			"	nop\n"
+			"	yesp\n"
 			"	.chip	68040\n"
 			"	cinva	%%bc\n"
-			"	nop\n"
+			"	yesp\n"
 			"	pflusha\n"
-			"	nop\n"
+			"	yesp\n"
 			"	movec	%%d0,%%tc\n"
-			"	nop\n"
+			"	yesp\n"
 			/* the following setup of transparent translations is needed on the
 			 * Afterburner040 to successfully reboot. Other machines shouldn't
 			 * care about a different tt regs setup, they also didn't care in
@@ -555,19 +555,19 @@ static void atari_reset(void)
 			"	move.l	#0xffc000,%%d0\n" /* whole insn space cacheable */
 			"	movec	%%d0,%%itt0\n"
 			"	movec	%%d0,%%itt1\n"
-			"	or.w	#0x40,%/d0\n" /* whole data space non-cacheable/ser. */
+			"	or.w	#0x40,%/d0\n" /* whole data space yesn-cacheable/ser. */
 			"	movec	%%d0,%%dtt0\n"
 			"	movec	%%d0,%%dtt1\n"
 			"	.chip	68k\n"
 			"	jmp	%0@"
-			: /* no outputs */
+			: /* yes outputs */
 			: "a" (reset_addr)
 			: "d0");
 	} else
 		asm volatile ("\n"
 			"	pmove	%0,%%tc\n"
 			"	jmp	%1@"
-			: /* no outputs */
+			: /* yes outputs */
 			: "m" (tc_val), "a" (reset_addr));
 }
 
@@ -601,7 +601,7 @@ static void atari_get_model(char *model)
 			strcat(model, " (with Afterburner040)");
 		break;
 	default:
-		sprintf(model + strlen(model), "(unknown mach cookie 0x%lx)",
+		sprintf(model + strlen(model), "(unkyeswn mach cookie 0x%lx)",
 			atari_mch_cookie);
 		break;
 	}

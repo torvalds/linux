@@ -17,7 +17,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
@@ -343,7 +343,7 @@ static int capture_g_selection(struct file *file, void *fh,
 	case V4L2_SEL_TGT_COMPOSE_PADDED:
 		/*
 		 * The hardware writes with a configurable but fixed DMA burst
-		 * size. If the source format width is not burst size aligned,
+		 * size. If the source format width is yest burst size aligned,
 		 * the written frame contains padding to the right.
 		 */
 		s->r.left = 0;
@@ -506,7 +506,7 @@ static int capture_buf_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < pix->sizeimage) {
 		v4l2_err(priv->src_sd,
-			 "data will not fit into plane (%lu < %lu)\n",
+			 "data will yest fit into plane (%lu < %lu)\n",
 			 vb2_plane_size(vb, 0), (long)pix->sizeimage);
 		return -EINVAL;
 	}
@@ -565,7 +565,7 @@ static int capture_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	ret = capture_validate_fmt(priv);
 	if (ret) {
-		v4l2_err(priv->src_sd, "capture format not valid\n");
+		v4l2_err(priv->src_sd, "capture format yest valid\n");
 		goto return_bufs;
 	}
 
@@ -683,10 +683,10 @@ static const struct v4l2_file_operations capture_fops = {
 static struct video_device capture_videodev = {
 	.fops		= &capture_fops,
 	.ioctl_ops	= &capture_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= video_device_release,
 	.vfl_dir	= VFL_DIR_RX,
-	.tvnorms	= V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
+	.tvyesrms	= V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
 	.device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING,
 };
 
@@ -767,11 +767,11 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 
 	INIT_LIST_HEAD(&priv->ready_q);
 
-	/* create the link from the src_sd devnode pad to device node */
+	/* create the link from the src_sd devyesde pad to device yesde */
 	ret = media_create_pad_link(&sd->entity, priv->src_sd_pad,
 				    &vfd->entity, 0, 0);
 	if (ret) {
-		v4l2_err(sd, "failed to create link to device node\n");
+		v4l2_err(sd, "failed to create link to device yesde\n");
 		goto unreg;
 	}
 
@@ -793,7 +793,7 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 					 CS_SEL_ANY, false);
 
 	v4l2_info(sd, "Registered %s as /dev/%s\n", vfd->name,
-		  video_device_node_name(vfd));
+		  video_device_yesde_name(vfd));
 
 	vfd->ctrl_handler = &priv->ctrl_hdlr;
 

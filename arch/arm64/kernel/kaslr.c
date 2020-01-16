@@ -32,15 +32,15 @@ u16 __initdata memstart_offset_seed;
 
 static __init u64 get_kaslr_seed(void *fdt)
 {
-	int node, len;
+	int yesde, len;
 	fdt64_t *prop;
 	u64 ret;
 
-	node = fdt_path_offset(fdt, "/chosen");
-	if (node < 0)
+	yesde = fdt_path_offset(fdt, "/chosen");
+	if (yesde < 0)
 		return 0;
 
-	prop = fdt_getprop_w(fdt, node, "kaslr-seed", &len);
+	prop = fdt_getprop_w(fdt, yesde, "kaslr-seed", &len);
 	if (!prop || len != sizeof(u64))
 		return 0;
 
@@ -54,14 +54,14 @@ static __init const u8 *kaslr_get_cmdline(void *fdt)
 	static __initconst const u8 default_cmdline[] = CONFIG_CMDLINE;
 
 	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE)) {
-		int node;
+		int yesde;
 		const u8 *prop;
 
-		node = fdt_path_offset(fdt, "/chosen");
-		if (node < 0)
+		yesde = fdt_path_offset(fdt, "/chosen");
+		if (yesde < 0)
 			goto out;
 
-		prop = fdt_getprop(fdt, node, "bootargs", NULL);
+		prop = fdt_getprop(fdt, yesde, "bootargs", NULL);
 		if (!prop)
 			goto out;
 		return prop;
@@ -94,7 +94,7 @@ u64 __init kaslr_early_init(u64 dt_phys)
 
 	/*
 	 * Try to map the FDT early. If this fails, we simply bail,
-	 * and proceed with KASLR disabled. We will make another
+	 * and proceed with KASLR disabled. We will make ayesther
 	 * attempt at mapping the FDT in setup_machine()
 	 */
 	early_fixmap_init();
@@ -110,11 +110,11 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	seed = get_kaslr_seed(fdt);
 
 	/*
-	 * Check if 'nokaslr' appears on the command line, and
+	 * Check if 'yeskaslr' appears on the command line, and
 	 * return 0 if that is the case.
 	 */
 	cmdline = kaslr_get_cmdline(fdt);
-	str = strstr(cmdline, "nokaslr");
+	str = strstr(cmdline, "yeskaslr");
 	if (str == cmdline || (str > cmdline && *(str - 1) == ' ')) {
 		kaslr_status = KASLR_DISABLED_CMDLINE;
 		return 0;
@@ -143,7 +143,7 @@ u64 __init kaslr_early_init(u64 dt_phys)
 
 	if (IS_ENABLED(CONFIG_KASAN))
 		/*
-		 * KASAN does not expect the module region to intersect the
+		 * KASAN does yest expect the module region to intersect the
 		 * vmalloc region, since shadow memory is allocated for each
 		 * module at load time, whereas the vmalloc region is shadowed
 		 * by KASAN zero pages. So keep modules out of the vmalloc
@@ -159,7 +159,7 @@ u64 __init kaslr_early_init(u64 dt_phys)
 		 * about the address of the kernel itself, but results in
 		 * branches between modules and the core kernel that are
 		 * resolved via PLTs. (Branches between modules will be
-		 * resolved normally.)
+		 * resolved yesrmally.)
 		 */
 		module_range = SZ_2G - (u64)(_end - _stext);
 		module_alloc_base = max((u64)_end + offset - SZ_2G,

@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -79,8 +79,8 @@ struct iwl_cfg;
  * DOC: Operational mode - what is it ?
  *
  * The operational mode (a.k.a. op_mode) is the layer that implements
- * mac80211's handlers. It knows two APIs: mac80211's and the fw's. It uses
- * the transport API to access the HW. The op_mode doesn't need to know how the
+ * mac80211's handlers. It kyesws two APIs: mac80211's and the fw's. It uses
+ * the transport API to access the HW. The op_mode doesn't need to kyesw how the
  * underlying HW works, since the transport layer takes care of that.
  *
  * There can be several op_mode: i.e. different fw APIs will require two
@@ -114,26 +114,26 @@ struct iwl_cfg;
  *	May sleep
  * @stop: stop the op_mode. Must free all the memory allocated.
  *	May sleep
- * @rx: Rx notification to the op_mode. rxb is the Rx buffer itself. Cmd is the
+ * @rx: Rx yestification to the op_mode. rxb is the Rx buffer itself. Cmd is the
  *	HCMD this Rx responds to. Can't sleep.
- * @rx_rss: data queue RX notification to the op_mode, for (data) notifications
+ * @rx_rss: data queue RX yestification to the op_mode, for (data) yestifications
  *	received on the RSS queue(s). The queue parameter indicates which of the
- *	RSS queues received this frame; it will always be non-zero.
- *	This method must not sleep.
+ *	RSS queues received this frame; it will always be yesn-zero.
+ *	This method must yest sleep.
  * @async_cb: called when an ASYNC command with CMD_WANT_ASYNC_CALLBACK set
  *	completes. Must be atomic.
- * @queue_full: notifies that a HW queue is full.
+ * @queue_full: yestifies that a HW queue is full.
  *	Must be atomic and called with BH disabled.
- * @queue_not_full: notifies that a HW queue is not full any more.
+ * @queue_yest_full: yestifies that a HW queue is yest full any more.
  *	Must be atomic and called with BH disabled.
- * @hw_rf_kill:notifies of a change in the HW rf kill switch. True means that
+ * @hw_rf_kill:yestifies of a change in the HW rf kill switch. True means that
  *	the radio is killed. Return %true if the device should be stopped by
  *	the transport immediately after the call. May sleep.
  * @free_skb: allows the transport layer to free skbs that haven't been
  *	reclaimed by the op_mode. This can happen when the driver is freed and
  *	there are Tx packets pending in the transport layer.
  *	Must be atomic
- * @nic_error: error notification. Must be atomic and must be called with BH
+ * @nic_error: error yestification. Must be atomic and must be called with BH
  *	disabled.
  * @cmd_queue_full: Called when the command queue gets full. Must be atomic and
  *	called with BH disabled.
@@ -154,7 +154,7 @@ struct iwl_op_mode_ops {
 	void (*async_cb)(struct iwl_op_mode *op_mode,
 			 const struct iwl_device_cmd *cmd);
 	void (*queue_full)(struct iwl_op_mode *op_mode, int queue);
-	void (*queue_not_full)(struct iwl_op_mode *op_mode, int queue);
+	void (*queue_yest_full)(struct iwl_op_mode *op_mode, int queue);
 	bool (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 	void (*nic_error)(struct iwl_op_mode *op_mode);
@@ -212,10 +212,10 @@ static inline void iwl_op_mode_queue_full(struct iwl_op_mode *op_mode,
 	op_mode->ops->queue_full(op_mode, queue);
 }
 
-static inline void iwl_op_mode_queue_not_full(struct iwl_op_mode *op_mode,
+static inline void iwl_op_mode_queue_yest_full(struct iwl_op_mode *op_mode,
 					      int queue)
 {
-	op_mode->ops->queue_not_full(op_mode, queue);
+	op_mode->ops->queue_yest_full(op_mode, queue);
 }
 
 static inline bool __must_check

@@ -47,7 +47,7 @@
 
 /*
  * Maximum buffer size: maximum number of random, cache-aligned bytes that
- * will be generated and moved to seq out ptr (extlen not allowed)
+ * will be generated and moved to seq out ptr (extlen yest allowed)
  */
 #define RN_BUF_SIZE			(0xffff / L1_CACHE_BYTES * \
 					 L1_CACHE_BYTES)
@@ -64,7 +64,7 @@ struct buf_data {
 	u32 hw_desc[DESC_JOB_O_LEN];
 #define BUF_NOT_EMPTY 0
 #define BUF_EMPTY 1
-#define BUF_PENDING 2  /* Empty, but with job pending --don't submit another */
+#define BUF_PENDING 2  /* Empty, but with job pending --don't submit ayesther */
 	atomic_t empty;
 };
 
@@ -136,7 +136,7 @@ static inline int submit_job(struct caam_rng_ctx *ctx, int to_current)
 	if (err)
 		complete(&bd->filled); /* don't wait on failed job*/
 	else
-		atomic_inc(&bd->empty); /* note if pending */
+		atomic_inc(&bd->empty); /* yeste if pending */
 
 	return err;
 }
@@ -156,7 +156,7 @@ static int caam_read(struct hwrng *rng, void *data, size_t max, bool wait)
 			if (err)
 				return 0;
 		}
-		/* no immediate data, so exit if not waiting */
+		/* yes immediate data, so exit if yest waiting */
 		if (!wait)
 			return 0;
 
@@ -169,7 +169,7 @@ static int caam_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	dev_dbg(ctx->jrdev, "%s: start reading at buffer %d, idx %d\n",
 		 __func__, ctx->current_buf, ctx->cur_buf_idx);
 
-	/* if enough data in current buffer */
+	/* if eyesugh data in current buffer */
 	if (next_buf_idx < RN_BUF_SIZE) {
 		memcpy(data, bd->buf + ctx->cur_buf_idx, max);
 		ctx->cur_buf_idx = next_buf_idx;

@@ -22,10 +22,10 @@ format is as follow::
 
         <section flags strings># :=
         [primary][, containment warning][, reset][, threshold exceeded]\
-        [, resource not accessible][, latent error]
+        [, resource yest accessible][, latent error]
 
         <section type string> := generic processor error | memory error | \
-        PCIe error | unknown, <uuid string>
+        PCIe error | unkyeswn, <uuid string>
 
         <section data> :=
         <generic processor section data> | <memory section data> | \
@@ -54,7 +54,7 @@ format is as follow::
         <processor error type strings># :=
         [cache error][, TLB error][, bus error][, micro-architectural error]
 
-        <proc operation string>* := unknown or generic | data read | data write | \
+        <proc operation string>* := unkyeswn or generic | data read | data write | \
         instruction execution
 
         <proc flags strings># :=
@@ -64,7 +64,7 @@ format is as follow::
         [error_status: <integer>]
         [physical_address: <integer>]
         [physical_address_mask: <integer>]
-        [node: <integer>]
+        [yesde: <integer>]
         [card: <integer>]
         [module: <integer>]
         [bank: <integer>]
@@ -78,7 +78,7 @@ format is as follow::
         [error_type: <integer>, <mem error type string>]
 
         <mem error type string>* :=
-        unknown | no error | single-bit ECC | multi-bit ECC | \
+        unkyeswn | yes error | single-bit ECC | multi-bit ECC | \
         single-symbol chipkill ECC | multi-symbol chipkill ECC | master abort | \
         target abort | parity error | watchdog timeout | invalid address | \
         mirror Broken | memory sparing | scrub corrected error | \
@@ -102,22 +102,22 @@ format is as follow::
         aer_tlp_header: <integer> <integer> <integer> <integer>]
 
         <pcie port type string>* := PCIe end point | legacy PCI end point | \
-        unknown | unknown | root port | upstream switch port | \
+        unkyeswn | unkyeswn | root port | upstream switch port | \
         downstream switch port | PCIe to PCI/PCI-X bridge | \
         PCI/PCI-X to PCIe bridge | root complex integrated endpoint device | \
         root complex event collector
 
         if section severity is fatal or recoverable
         <aer status string># :=
-        unknown | unknown | unknown | unknown | Data Link Protocol | \
-        unknown | unknown | unknown | unknown | unknown | unknown | unknown | \
+        unkyeswn | unkyeswn | unkyeswn | unkyeswn | Data Link Protocol | \
+        unkyeswn | unkyeswn | unkyeswn | unkyeswn | unkyeswn | unkyeswn | unkyeswn | \
         Poisoned TLP | Flow Control Protocol | Completion Timeout | \
         Completer Abort | Unexpected Completion | Receiver Overflow | \
         Malformed TLP | ECRC | Unsupported Request
         else
         <aer status string># :=
-        Receiver Error | unknown | unknown | unknown | unknown | unknown | \
-        Bad TLP | Bad DLLP | RELAY_NUM Rollover | unknown | unknown | unknown | \
+        Receiver Error | unkyeswn | unkyeswn | unkyeswn | unkyeswn | unkyeswn | \
+        Bad TLP | Bad DLLP | RELAY_NUM Rollover | unkyeswn | unkyeswn | unkyeswn | \
         Replay Timer Timeout | Advisory Non-Fatal
         fi
 
@@ -134,7 +134,7 @@ All <field string> description with * has the following format::
         field: <integer>, <field string>
 
 Where value of <integer> should be the position of "string" in <field
-string> description. Otherwise, <field string> will be "unknown".
+string> description. Otherwise, <field string> will be "unkyeswn".
 
 All <field strings> description with # has the following format::
 

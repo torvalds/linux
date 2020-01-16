@@ -89,7 +89,7 @@ struct nx_gcm_rctx {
 
 struct nx_gcm_priv {
 	u8 iauth_tag[16];
-	u8 nonce[NX_GCM4106_NONCE_LEN];
+	u8 yesnce[NX_GCM4106_NONCE_LEN];
 };
 
 #define NX_CCM_AES_KEY_LEN		(16)
@@ -103,7 +103,7 @@ struct nx_ccm_priv {
 	u8 b0[16];
 	u8 iauth_tag[16];
 	u8 oauth_tag[16];
-	u8 nonce[NX_CCM4309_NONCE_LEN];
+	u8 yesnce[NX_CCM4309_NONCE_LEN];
 };
 
 struct nx_xcbc_priv {
@@ -111,7 +111,7 @@ struct nx_xcbc_priv {
 };
 
 struct nx_ctr_priv {
-	u8 nonce[CTR_RFC3686_NONCE_SIZE];
+	u8 yesnce[CTR_RFC3686_NONCE_SIZE];
 };
 
 struct nx_crypto_ctx {

@@ -9,7 +9,7 @@
  * derived from:
  *	e-mail between David and Eddie.
  *
- * Returns 0 if successful, otherwise count of bytes not copied yet
+ * Returns 0 if successful, otherwise count of bytes yest copied yet
  */
 
 #include <asm/ptrace.h>
@@ -61,7 +61,7 @@
 	.text;					\
 	.align	4
 
-/* Please do not change following macros unless you change logic used
+/* Please do yest change following macros unless you change logic used
  * in .fixup at the end of this file as well
  */
 
@@ -153,7 +153,7 @@ __copy_user:	/* %o0=dst %o1=src %o2=len */
 1:
 	andcc	%o4, 3, %o5
 2:
-	bne	cannot_optimize
+	bne	canyest_optimize
 	 cmp	%o2, 15
 
 	bleu	short_aligned_end
@@ -237,7 +237,7 @@ copy_user_last7:
 	add	%o0, 2, %o0
 1:
 	be	1f
-	 nop
+	 yesp
 
 	EX(ldub	[%o1], %g2, add %g0, 1)
 	EX(stb	%g2, [%o0], add %g0, 1)
@@ -269,7 +269,7 @@ ldd_std:
 	jmpl	%o5 + %lo(copy_user_table_end), %g0
 	 add	%o0, %g7, %o0
 
-cannot_optimize:
+canyest_optimize:
 	bleu	short_end
 	 cmp	%o5, 2
 
@@ -278,7 +278,7 @@ cannot_optimize:
 	 
 	andcc	%o1, 1, %g0
 	be	10f
-	 nop
+	 yesp
 
 	EXO2(ldub [%o1], %g2)
 	add	%o1, 1, %o1
@@ -336,7 +336,7 @@ short_end:
 short_table_end:
 	EXT(84b, short_table_end, 55f)
 	be	1f
-	 nop
+	 yesp
 	EX(ldub	[%o1], %g2, add %g0, 1)
 	EX(stb	%g2, [%o0], add %g0, 1)
 1:
@@ -383,7 +383,7 @@ fixupretl:
 	bcs	2f
 	 cmp	%g2, 36
 	bcs	3f
-	 nop
+	 yesp
 	sub	%g2, 12, %g2
 	sub	%g7, 32, %g7
 3:	sub	%g2, 12, %g2

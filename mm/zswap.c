@@ -44,8 +44,8 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
 static atomic_t zswap_same_filled_pages = ATOMIC_INIT(0);
 
 /*
- * The statistics below are not protected from concurrent access for
- * performance reasons so they may not be a 100% accurate.  However,
+ * The statistics below are yest protected from concurrent access for
+ * performance reasons so they may yest be a 100% accurate.  However,
  * they do provide useful information on roughly how many times a
  * certain event is occurring.
 */
@@ -58,9 +58,9 @@ static u64 zswap_written_back_pages;
 static u64 zswap_reject_reclaim_fail;
 /* Compressed page was too big for the allocator to (optimally) store */
 static u64 zswap_reject_compress_poor;
-/* Store failed because underlying allocator could not get memory */
+/* Store failed because underlying allocator could yest get memory */
 static u64 zswap_reject_alloc_fail;
-/* Store failed because the entry metadata could not be allocated (rare) */
+/* Store failed because the entry metadata could yest be allocated (rare) */
 static u64 zswap_reject_kmemcache_fail;
 /* Duplicate store was encountered (rare) */
 static u64 zswap_duplicate_entry;
@@ -124,7 +124,7 @@ struct zswap_pool {
 	struct kref kref;
 	struct list_head list;
 	struct work_struct work;
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 	char tfm_name[CRYPTO_MAX_ALG_NAME];
 };
 
@@ -134,14 +134,14 @@ struct zswap_pool {
  * This structure contains the metadata for tracking a single compressed
  * page within zswap.
  *
- * rbnode - links the entry into red-black tree for the appropriate swap type
+ * rbyesde - links the entry into red-black tree for the appropriate swap type
  * offset - the swap offset for the entry.  Index into the red-black tree.
  * refcount - the number of outstanding reference to the entry. This is needed
  *            to protect against premature freeing of the entry by code
  *            concurrent calls to load, invalidate, and writeback.  The lock
  *            for the zswap_tree structure that contains the entry must
  *            be held while changing the refcount.  Since the lock must
- *            be held, there is no reason to also make refcount atomic.
+ *            be held, there is yes reason to also make refcount atomic.
  * length - the length in bytes of the compressed page data.  Needed during
  *          decompression. For a same value filled page length is 0.
  * pool - the zswap_pool the entry's data is in
@@ -149,7 +149,7 @@ struct zswap_pool {
  * value - value of the same-value filled pages which have same content
  */
 struct zswap_entry {
-	struct rb_node rbnode;
+	struct rb_yesde rbyesde;
 	pgoff_t offset;
 	int refcount;
 	unsigned int length;
@@ -252,7 +252,7 @@ static struct zswap_entry *zswap_entry_cache_alloc(gfp_t gfp)
 	if (!entry)
 		return NULL;
 	entry->refcount = 1;
-	RB_CLEAR_NODE(&entry->rbnode);
+	RB_CLEAR_NODE(&entry->rbyesde);
 	return entry;
 }
 
@@ -266,15 +266,15 @@ static void zswap_entry_cache_free(struct zswap_entry *entry)
 **********************************/
 static struct zswap_entry *zswap_rb_search(struct rb_root *root, pgoff_t offset)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_yesde *yesde = root->rb_yesde;
 	struct zswap_entry *entry;
 
-	while (node) {
-		entry = rb_entry(node, struct zswap_entry, rbnode);
+	while (yesde) {
+		entry = rb_entry(yesde, struct zswap_entry, rbyesde);
 		if (entry->offset > offset)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (entry->offset < offset)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return entry;
 	}
@@ -288,12 +288,12 @@ static struct zswap_entry *zswap_rb_search(struct rb_root *root, pgoff_t offset)
 static int zswap_rb_insert(struct rb_root *root, struct zswap_entry *entry,
 			struct zswap_entry **dupentry)
 {
-	struct rb_node **link = &root->rb_node, *parent = NULL;
+	struct rb_yesde **link = &root->rb_yesde, *parent = NULL;
 	struct zswap_entry *myentry;
 
 	while (*link) {
 		parent = *link;
-		myentry = rb_entry(parent, struct zswap_entry, rbnode);
+		myentry = rb_entry(parent, struct zswap_entry, rbyesde);
 		if (myentry->offset > entry->offset)
 			link = &(*link)->rb_left;
 		else if (myentry->offset < entry->offset)
@@ -303,16 +303,16 @@ static int zswap_rb_insert(struct rb_root *root, struct zswap_entry *entry,
 			return -EEXIST;
 		}
 	}
-	rb_link_node(&entry->rbnode, parent, link);
-	rb_insert_color(&entry->rbnode, root);
+	rb_link_yesde(&entry->rbyesde, parent, link);
+	rb_insert_color(&entry->rbyesde, root);
 	return 0;
 }
 
 static void zswap_rb_erase(struct rb_root *root, struct zswap_entry *entry)
 {
-	if (!RB_EMPTY_NODE(&entry->rbnode)) {
-		rb_erase(&entry->rbnode, root);
-		RB_CLEAR_NODE(&entry->rbnode);
+	if (!RB_EMPTY_NODE(&entry->rbyesde)) {
+		rb_erase(&entry->rbyesde, root);
+		RB_CLEAR_NODE(&entry->rbyesde);
 	}
 }
 
@@ -340,7 +340,7 @@ static void zswap_entry_get(struct zswap_entry *entry)
 }
 
 /* caller must hold the tree lock
-* remove from the tree and free it, if nobody reference the entry
+* remove from the tree and free it, if yesbody reference the entry
 */
 static void zswap_entry_put(struct zswap_tree *tree,
 			struct zswap_entry *entry)
@@ -376,7 +376,7 @@ static int zswap_dstmem_prepare(unsigned int cpu)
 {
 	u8 *dst;
 
-	dst = kmalloc_node(PAGE_SIZE * 2, GFP_KERNEL, cpu_to_node(cpu));
+	dst = kmalloc_yesde(PAGE_SIZE * 2, GFP_KERNEL, cpu_to_yesde(cpu));
 	if (!dst)
 		return -ENOMEM;
 
@@ -395,9 +395,9 @@ static int zswap_dstmem_dead(unsigned int cpu)
 	return 0;
 }
 
-static int zswap_cpu_comp_prepare(unsigned int cpu, struct hlist_node *node)
+static int zswap_cpu_comp_prepare(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct zswap_pool *pool = hlist_entry(node, struct zswap_pool, node);
+	struct zswap_pool *pool = hlist_entry(yesde, struct zswap_pool, yesde);
 	struct crypto_comp *tfm;
 
 	if (WARN_ON(*per_cpu_ptr(pool->tfm, cpu)))
@@ -405,7 +405,7 @@ static int zswap_cpu_comp_prepare(unsigned int cpu, struct hlist_node *node)
 
 	tfm = crypto_alloc_comp(pool->tfm_name, 0, 0);
 	if (IS_ERR_OR_NULL(tfm)) {
-		pr_err("could not alloc crypto comp %s : %ld\n",
+		pr_err("could yest alloc crypto comp %s : %ld\n",
 		       pool->tfm_name, PTR_ERR(tfm));
 		return -ENOMEM;
 	}
@@ -413,9 +413,9 @@ static int zswap_cpu_comp_prepare(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int zswap_cpu_comp_dead(unsigned int cpu, struct hlist_node *node)
+static int zswap_cpu_comp_dead(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct zswap_pool *pool = hlist_entry(node, struct zswap_pool, node);
+	struct zswap_pool *pool = hlist_entry(yesde, struct zswap_pool, yesde);
 	struct crypto_comp *tfm;
 
 	tfm = *per_cpu_ptr(pool->tfm, cpu);
@@ -435,7 +435,7 @@ static struct zswap_pool *__zswap_pool_current(void)
 
 	pool = list_first_or_null_rcu(&zswap_pools, typeof(*pool), list);
 	WARN_ONCE(!pool && zswap_has_pool,
-		  "%s: no page storage pool!\n", __func__);
+		  "%s: yes page storage pool!\n", __func__);
 
 	return pool;
 }
@@ -471,7 +471,7 @@ static struct zswap_pool *zswap_pool_last_get(void)
 	list_for_each_entry_rcu(pool, &zswap_pools, list)
 		last = pool;
 	WARN_ONCE(!last && zswap_has_pool,
-		  "%s: no page storage pool!\n", __func__);
+		  "%s: yes page storage pool!\n", __func__);
 	if (!zswap_pool_get(last))
 		last = NULL;
 
@@ -528,7 +528,7 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 
 	pool->zpool = zpool_create_pool(type, name, gfp, &zswap_zpool_ops);
 	if (!pool->zpool) {
-		pr_err("%s zpool not available\n", type);
+		pr_err("%s zpool yest available\n", type);
 		goto error;
 	}
 	pr_debug("using %s zpool\n", zpool_get_type(pool->zpool));
@@ -541,7 +541,7 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 	}
 
 	ret = cpuhp_state_add_instance(CPUHP_MM_ZSWP_POOL_PREPARE,
-				       &pool->node);
+				       &pool->yesde);
 	if (ret)
 		goto error;
 	pr_debug("using %s compressor\n", pool->tfm_name);
@@ -570,14 +570,14 @@ static __init struct zswap_pool *__zswap_pool_create_fallback(void)
 
 	has_comp = crypto_has_comp(zswap_compressor, 0, 0);
 	if (!has_comp && strcmp(zswap_compressor, ZSWAP_COMPRESSOR_DEFAULT)) {
-		pr_err("compressor %s not available, using default %s\n",
+		pr_err("compressor %s yest available, using default %s\n",
 		       zswap_compressor, ZSWAP_COMPRESSOR_DEFAULT);
 		param_free_charp(&zswap_compressor);
 		zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
 		has_comp = crypto_has_comp(zswap_compressor, 0, 0);
 	}
 	if (!has_comp) {
-		pr_err("default compressor %s not available\n",
+		pr_err("default compressor %s yest available\n",
 		       zswap_compressor);
 		param_free_charp(&zswap_compressor);
 		zswap_compressor = ZSWAP_PARAM_UNSET;
@@ -585,14 +585,14 @@ static __init struct zswap_pool *__zswap_pool_create_fallback(void)
 
 	has_zpool = zpool_has_pool(zswap_zpool_type);
 	if (!has_zpool && strcmp(zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT)) {
-		pr_err("zpool %s not available, using default %s\n",
+		pr_err("zpool %s yest available, using default %s\n",
 		       zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT);
 		param_free_charp(&zswap_zpool_type);
 		zswap_zpool_type = ZSWAP_ZPOOL_DEFAULT;
 		has_zpool = zpool_has_pool(zswap_zpool_type);
 	}
 	if (!has_zpool) {
-		pr_err("default zpool %s not available\n",
+		pr_err("default zpool %s yest available\n",
 		       zswap_zpool_type);
 		param_free_charp(&zswap_zpool_type);
 		zswap_zpool_type = ZSWAP_PARAM_UNSET;
@@ -608,7 +608,7 @@ static void zswap_pool_destroy(struct zswap_pool *pool)
 {
 	zswap_pool_debug("destroying", pool);
 
-	cpuhp_state_remove_instance(CPUHP_MM_ZSWP_POOL_PREPARE, &pool->node);
+	cpuhp_state_remove_instance(CPUHP_MM_ZSWP_POOL_PREPARE, &pool->yesde);
 	free_percpu(pool->tfm);
 	zpool_destroy_pool(pool->zpool);
 	kfree(pool);
@@ -628,10 +628,10 @@ static void __zswap_pool_release(struct work_struct *work)
 
 	synchronize_rcu();
 
-	/* nobody should have been able to get a kref... */
+	/* yesbody should have been able to get a kref... */
 	WARN_ON(kref_get_unless_zero(&pool->kref));
 
-	/* pool is now off zswap_pools list and has no references. */
+	/* pool is yesw off zswap_pools list and has yes references. */
 	zswap_pool_destroy(pool);
 }
 
@@ -675,7 +675,7 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 		return -ENODEV;
 	}
 
-	/* no change required */
+	/* yes change required */
 	if (!strcmp(s, *(char **)kp->arg) && zswap_has_pool)
 		return 0;
 
@@ -687,13 +687,13 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 
 	if (!type) {
 		if (!zpool_has_pool(s)) {
-			pr_err("zpool %s not available\n", s);
+			pr_err("zpool %s yest available\n", s);
 			return -ENOENT;
 		}
 		type = s;
 	} else if (!compressor) {
 		if (!crypto_has_comp(s, 0, 0)) {
-			pr_err("compressor %s not available\n", s);
+			pr_err("compressor %s yest available\n", s);
 			return -ENOENT;
 		}
 		compressor = s;
@@ -778,7 +778,7 @@ static int zswap_enabled_param_set(const char *val,
 		return -ENODEV;
 	}
 	if (!zswap_has_pool && zswap_init_started) {
-		pr_err("can't enable, no pool configured\n");
+		pr_err("can't enable, yes pool configured\n");
 		return -ENODEV;
 	}
 
@@ -873,12 +873,12 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
 
 	/* try to allocate swap cache page */
 	switch (zswap_get_swap_cache_page(swpentry, &page)) {
-	case ZSWAP_SWAPCACHE_FAIL: /* no memory or invalidate happened */
+	case ZSWAP_SWAPCACHE_FAIL: /* yes memory or invalidate happened */
 		ret = -ENOMEM;
 		goto fail;
 
 	case ZSWAP_SWAPCACHE_EXIST:
-		/* page is already in the swap cache, ignore for now */
+		/* page is already in the swap cache, igyesre for yesw */
 		put_page(page);
 		ret = -EEXIST;
 		goto fail;
@@ -914,8 +914,8 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
 
 	/*
 	* There are two possible situations for entry here:
-	* (1) refcount is 1(normal case),  entry is valid and on the tree
-	* (2) refcount is 0, entry is freed and not on the tree
+	* (1) refcount is 1(yesrmal case),  entry is valid and on the tree
+	* (2) refcount is 0, entry is freed and yest on the tree
 	*     because invalidate happened during writeback
 	*  search the tree and free the entry if find entry
 	*/
@@ -928,7 +928,7 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
 	/*
 	* if we get here due to ZSWAP_SWAPCACHE_EXIST
 	* a load may happening concurrently
-	* it is safe and okay to not free the entry
+	* it is safe and okay to yest free the entry
 	* if we free the entry in the following put
 	* it it either okay to return !0
 	*/
@@ -1019,7 +1019,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 		}
 
 		/* A second zswap_is_full() check after
-		 * zswap_shrink() to make sure it's now
+		 * zswap_shrink() to make sure it's yesw
 		 * under the max_pool_percent
 		 */
 		if (zswap_is_full()) {
@@ -1124,7 +1124,7 @@ reject:
 
 /*
  * returns 0 if the page was successfully decompressed
- * return -1 on entry not found or error
+ * return -1 on entry yest found or error
 */
 static int zswap_frontswap_load(unsigned type, pgoff_t offset,
 				struct page *page)
@@ -1209,7 +1209,7 @@ static void zswap_frontswap_invalidate_area(unsigned type)
 
 	/* walk the tree and free everything */
 	spin_lock(&tree->lock);
-	rbtree_postorder_for_each_entry_safe(entry, n, &tree->rbroot, rbnode)
+	rbtree_postorder_for_each_entry_safe(entry, n, &tree->rbroot, rbyesde)
 		zswap_free_entry(entry);
 	tree->rbroot = RB_ROOT;
 	spin_unlock(&tree->lock);

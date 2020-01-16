@@ -117,7 +117,7 @@ static int ep93xx_dma_slave_config_write(struct dma_chan *chan,
  * @complete: this descriptor is completed
  * @txd: dmaengine API descriptor
  * @tx_list: list of linked descriptors
- * @node: link used for putting this into a channel queue
+ * @yesde: link used for putting this into a channel queue
  */
 struct ep93xx_dma_desc {
 	u32				src_addr;
@@ -126,7 +126,7 @@ struct ep93xx_dma_desc {
 	bool				complete;
 	struct dma_async_tx_descriptor	txd;
 	struct list_head		tx_list;
-	struct list_head		node;
+	struct list_head		yesde;
 };
 
 /**
@@ -196,7 +196,7 @@ struct ep93xx_dma_chan {
  * There is one instance of this struct for the M2P channels and one for the
  * M2M channels. hw_xxx() methods are used to perform operations which are
  * different on M2M and M2P channels. These methods are called with channel
- * lock held and interrupts disabled so they cannot sleep.
+ * lock held and interrupts disabled so they canyest sleep.
  */
 struct ep93xx_dma_engine {
 	struct dma_device	dma_dev;
@@ -240,12 +240,12 @@ static void ep93xx_dma_set_active(struct ep93xx_dma_chan *edmac,
 {
 	BUG_ON(!list_empty(&edmac->active));
 
-	list_add_tail(&desc->node, &edmac->active);
+	list_add_tail(&desc->yesde, &edmac->active);
 
 	/* Flatten the @desc->tx_list chain into @edmac->active list */
 	while (!list_empty(&desc->tx_list)) {
 		struct ep93xx_dma_desc *d = list_first_entry(&desc->tx_list,
-			struct ep93xx_dma_desc, node);
+			struct ep93xx_dma_desc, yesde);
 
 		/*
 		 * We copy the callback parameters from the first descriptor
@@ -256,7 +256,7 @@ static void ep93xx_dma_set_active(struct ep93xx_dma_chan *edmac,
 		d->txd.callback = desc->txd.callback;
 		d->txd.callback_param = desc->txd.callback_param;
 
-		list_move_tail(&d->node, &edmac->active);
+		list_move_tail(&d->yesde, &edmac->active);
 	}
 }
 
@@ -265,7 +265,7 @@ static struct ep93xx_dma_desc *
 ep93xx_dma_get_active(struct ep93xx_dma_chan *edmac)
 {
 	return list_first_entry_or_null(&edmac->active,
-					struct ep93xx_dma_desc, node);
+					struct ep93xx_dma_desc, yesde);
 }
 
 /**
@@ -412,7 +412,7 @@ static int m2p_hw_interrupt(struct ep93xx_dma_chan *edmac)
 		writel(1, edmac->regs + M2P_INTERRUPT);
 
 		/*
-		 * It seems that there is no easy way of reporting errors back
+		 * It seems that there is yes easy way of reporting errors back
 		 * to client so we just report the error here and continue as
 		 * usual.
 		 *
@@ -460,7 +460,7 @@ static int m2m_hw_setup(struct ep93xx_dma_chan *edmac)
 	u32 control = 0;
 
 	if (!data) {
-		/* This is memcpy channel, nothing to configure */
+		/* This is memcpy channel, yesthing to configure */
 		writel(control, edmac->regs + M2M_CONTROL);
 		return 0;
 	}
@@ -489,7 +489,7 @@ static int m2m_hw_setup(struct ep93xx_dma_chan *edmac)
 	case EP93XX_DMA_IDE:
 		/*
 		 * This IDE part is totally untested. Values below are taken
-		 * from the EP93xx Users's Guide and might not be correct.
+		 * from the EP93xx Users's Guide and might yest be correct.
 		 */
 		if (data->direction == DMA_MEM_TO_DEV) {
 			/* Worst case from the UG */
@@ -584,7 +584,7 @@ static void m2m_hw_submit(struct ep93xx_dma_chan *edmac)
 
 /*
  * According to EP93xx User's Guide, we should receive DONE interrupt when all
- * M2M DMA controller transactions complete normally. This is not always the
+ * M2M DMA controller transactions complete yesrmally. This is yest always the
  * case - sometimes EP93xx M2M DMA asserts DONE interrupt when the DMA channel
  * is still running (channel Buffer FSM in DMA_BUF_ON state, and channel
  * Control FSM in DMA_MEM_RD state, observed at least in IDE-DMA operation).
@@ -612,7 +612,7 @@ static int m2m_hw_interrupt(struct ep93xx_dma_chan *edmac)
 	}
 
 	/*
-	 * Check whether we are done with descriptors or not. This, together
+	 * Check whether we are done with descriptors or yest. This, together
 	 * with DMA channel state, determines action to take in interrupt.
 	 */
 	desc = ep93xx_dma_get_active(edmac);
@@ -621,7 +621,7 @@ static int m2m_hw_interrupt(struct ep93xx_dma_chan *edmac)
 	/*
 	 * Use M2M DMA Buffer FSM and Control FSM to check current state of
 	 * DMA channel. Using DONE and NFB bits from channel status register
-	 * or bits from channel interrupt register is not reliable.
+	 * or bits from channel interrupt register is yest reliable.
 	 */
 	if (!last_done &&
 	    (buf_fsm == M2M_STATUS_BUF_NO ||
@@ -679,9 +679,9 @@ ep93xx_dma_desc_get(struct ep93xx_dma_chan *edmac)
 	unsigned long flags;
 
 	spin_lock_irqsave(&edmac->lock, flags);
-	list_for_each_entry_safe(desc, _desc, &edmac->free_list, node) {
+	list_for_each_entry_safe(desc, _desc, &edmac->free_list, yesde) {
 		if (async_tx_test_ack(&desc->txd)) {
-			list_del_init(&desc->node);
+			list_del_init(&desc->yesde);
 
 			/* Re-initialize the descriptor */
 			desc->src_addr = 0;
@@ -708,7 +708,7 @@ static void ep93xx_dma_desc_put(struct ep93xx_dma_chan *edmac,
 
 		spin_lock_irqsave(&edmac->lock, flags);
 		list_splice_init(&desc->tx_list, &edmac->free_list);
-		list_add(&desc->node, &edmac->free_list);
+		list_add(&desc->yesde, &edmac->free_list);
 		spin_unlock_irqrestore(&edmac->lock, flags);
 	}
 }
@@ -733,8 +733,8 @@ static void ep93xx_dma_advance_work(struct ep93xx_dma_chan *edmac)
 	}
 
 	/* Take the next descriptor from the pending queue */
-	new = list_first_entry(&edmac->queue, struct ep93xx_dma_desc, node);
-	list_del_init(&new->node);
+	new = list_first_entry(&edmac->queue, struct ep93xx_dma_desc, yesde);
+	list_del_init(&new->yesde);
 
 	ep93xx_dma_set_active(edmac, new);
 
@@ -760,7 +760,7 @@ static void ep93xx_dma_tasklet(unsigned long data)
 	desc = ep93xx_dma_get_active(edmac);
 	if (desc) {
 		if (desc->complete) {
-			/* mark descriptor complete for non cyclic case only */
+			/* mark descriptor complete for yesn cyclic case only */
 			if (!test_bit(EP93XX_DMA_IS_CYCLIC, &edmac->flags))
 				dma_cookie_complete(&desc->txd);
 			list_splice_init(&edmac->active, &list);
@@ -773,7 +773,7 @@ static void ep93xx_dma_tasklet(unsigned long data)
 	ep93xx_dma_advance_work(edmac);
 
 	/* Now we can release all the chained descriptors */
-	list_for_each_entry_safe(desc, d, &list, node) {
+	list_for_each_entry_safe(desc, d, &list, yesde) {
 		dma_descriptor_unmap(&desc->txd);
 		ep93xx_dma_desc_put(edmac, desc);
 	}
@@ -809,7 +809,7 @@ static irqreturn_t ep93xx_dma_interrupt(int irq, void *dev_id)
 		break;
 
 	default:
-		dev_warn(chan2dev(edmac), "unknown interrupt!\n");
+		dev_warn(chan2dev(edmac), "unkyeswn interrupt!\n");
 		ret = IRQ_NONE;
 		break;
 	}
@@ -839,7 +839,7 @@ static dma_cookie_t ep93xx_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	desc = container_of(tx, struct ep93xx_dma_desc, txd);
 
 	/*
-	 * If nothing is currently prosessed, we push this descriptor
+	 * If yesthing is currently prosessed, we push this descriptor
 	 * directly to the hardware. Otherwise we put the descriptor
 	 * to the pending queue.
 	 */
@@ -847,7 +847,7 @@ static dma_cookie_t ep93xx_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 		ep93xx_dma_set_active(edmac, desc);
 		edmac->edma->hw_submit(edmac);
 	} else {
-		list_add_tail(&desc->node, &edmac->queue);
+		list_add_tail(&desc->yesde, &edmac->queue);
 	}
 
 	spin_unlock_irqrestore(&edmac->lock, flags);
@@ -859,7 +859,7 @@ static dma_cookie_t ep93xx_dma_tx_submit(struct dma_async_tx_descriptor *tx)
  * @chan: channel to allocate resources
  *
  * Function allocates necessary resources for the given DMA channel and
- * returns number of allocated descriptors for the channel. Negative errno
+ * returns number of allocated descriptors for the channel. Negative erryes
  * is returned in case of failure.
  */
 static int ep93xx_dma_alloc_chan_resources(struct dma_chan *chan)
@@ -916,7 +916,7 @@ static int ep93xx_dma_alloc_chan_resources(struct dma_chan *chan)
 
 		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 		if (!desc) {
-			dev_warn(chan2dev(edmac), "not enough descriptors\n");
+			dev_warn(chan2dev(edmac), "yest eyesugh descriptors\n");
 			break;
 		}
 
@@ -964,7 +964,7 @@ static void ep93xx_dma_free_chan_resources(struct dma_chan *chan)
 	list_splice_init(&edmac->free_list, &list);
 	spin_unlock_irqrestore(&edmac->lock, flags);
 
-	list_for_each_entry_safe(desc, d, &list, node)
+	list_for_each_entry_safe(desc, d, &list, yesde)
 		kfree(desc);
 
 	clk_disable(edmac->clk);
@@ -1006,7 +1006,7 @@ ep93xx_dma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest,
 		if (!first)
 			first = desc;
 		else
-			list_add_tail(&desc->node, &first->tx_list);
+			list_add_tail(&desc->yesde, &first->tx_list);
 	}
 
 	first->txd.cookie = -EBUSY;
@@ -1025,7 +1025,7 @@ fail:
  * @sg_len: number of entries in @sgl
  * @dir: direction of tha DMA transfer
  * @flags: flags for the descriptor
- * @context: operation context (ignored)
+ * @context: operation context (igyesred)
  *
  * Returns a valid DMA descriptor or %NULL in case of failure.
  */
@@ -1081,7 +1081,7 @@ ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		if (!first)
 			first = desc;
 		else
-			list_add_tail(&desc->node, &first->tx_list);
+			list_add_tail(&desc->yesde, &first->tx_list);
 	}
 
 	first->txd.cookie = -EBUSY;
@@ -1162,7 +1162,7 @@ ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 		if (!first)
 			first = desc;
 		else
-			list_add_tail(&desc->node, &first->tx_list);
+			list_add_tail(&desc->yesde, &first->tx_list);
 	}
 
 	first->txd.cookie = -EBUSY;
@@ -1199,7 +1199,7 @@ static void ep93xx_dma_synchronize(struct dma_chan *chan)
  * @chan: channel
  *
  * Stops all DMA transactions. All descriptors are put back to the
- * @edmac->free_list and callbacks are _not_ called.
+ * @edmac->free_list and callbacks are _yest_ called.
  */
 static int ep93xx_dma_terminate_all(struct dma_chan *chan)
 {
@@ -1221,7 +1221,7 @@ static int ep93xx_dma_terminate_all(struct dma_chan *chan)
 	edmac->edma->hw_setup(edmac);
 	spin_unlock_irqrestore(&edmac->lock, flags);
 
-	list_for_each_entry_safe(desc, _d, &list, node)
+	list_for_each_entry_safe(desc, _d, &list, yesde)
 		ep93xx_dma_desc_put(edmac, desc);
 
 	return 0;
@@ -1354,7 +1354,7 @@ static int __init ep93xx_dma_probe(struct platform_device *pdev)
 		tasklet_init(&edmac->tasklet, ep93xx_dma_tasklet,
 			     (unsigned long)edmac);
 
-		list_add_tail(&edmac->chan.device_node,
+		list_add_tail(&edmac->chan.device_yesde,
 			      &dma_dev->channels);
 	}
 

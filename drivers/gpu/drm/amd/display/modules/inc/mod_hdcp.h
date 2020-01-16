@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -159,7 +159,7 @@ struct mod_hdcp_link_adjustment_hdcp1 {
 struct mod_hdcp_link_adjustment_hdcp2 {
 	uint8_t disable			: 1;
 	uint8_t disable_type1		: 1;
-	uint8_t force_no_stored_km	: 1;
+	uint8_t force_yes_stored_km	: 1;
 	uint8_t increase_h_prime_timeout: 1;
 	uint8_t reserved		: 4;
 };
@@ -187,7 +187,7 @@ enum mod_hdcp_encryption_status {
 	MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON
 };
 
-/* per link events dm has to notify to hdcp module */
+/* per link events dm has to yestify to hdcp module */
 enum mod_hdcp_event {
 	MOD_HDCP_EVENT_CALLBACK = 0,
 	MOD_HDCP_EVENT_WATCHDOG_TIMEOUT,

@@ -754,7 +754,7 @@ static void _plla1_set_defaults(struct tegra_clk_pll *pllcx)
 
 /*
  * PLLA
- * PLL with dynamic ramp and fractional SDM. Dynamic ramp is not used.
+ * PLL with dynamic ramp and fractional SDM. Dynamic ramp is yest used.
  * Fractional SDM is allowed to provide exact audio rates.
  */
 static void tegra210_plla_set_defaults(struct tegra_clk_pll *plla)
@@ -776,12 +776,12 @@ static void tegra210_plla_set_defaults(struct tegra_clk_pll *plla)
 
 		pr_warn("PLL_A already enabled. Postponing set full defaults\n");
 
-		val = PLLA_MISC0_DEFAULT_VALUE;	/* ignore lock enable */
+		val = PLLA_MISC0_DEFAULT_VALUE;	/* igyesre lock enable */
 		mask = PLLA_MISC0_LOCK_ENABLE | PLLA_MISC0_LOCK_OVERRIDE;
 		_pll_misc_chk_default(clk_base, plla->params, 0, val,
 				~mask & PLLA_MISC0_WRITE_MASK);
 
-		val = PLLA_MISC2_DEFAULT_VALUE; /* ignore all but control bit */
+		val = PLLA_MISC2_DEFAULT_VALUE; /* igyesre all but control bit */
 		_pll_misc_chk_default(clk_base, plla->params, 2, val,
 				PLLA_MISC2_EN_DYNRAMP);
 
@@ -827,7 +827,7 @@ static void tegra210_plld_set_defaults(struct tegra_clk_pll *plld)
 		_pll_misc_chk_default(clk_base, plld->params, 1,
 				val, PLLD_MISC1_WRITE_MASK);
 
-		/* ignore lock, DSI and SDM controls, make sure IDDQ not set */
+		/* igyesre lock, DSI and SDM controls, make sure IDDQ yest set */
 		val = PLLD_MISC0_DEFAULT_VALUE & (~PLLD_MISC0_IDDQ);
 		mask |= PLLD_MISC0_DSI_CLKENABLE | PLLD_MISC0_LOCK_ENABLE |
 			PLLD_MISC0_LOCK_OVERRIDE | PLLD_MISC0_EN_SDM;
@@ -881,7 +881,7 @@ static void plldss_defaults(const char *pll_name, struct tegra_clk_pll *plldss,
 			plldss->params->defaults_set = false;
 		}
 
-		/* ignore lock enable */
+		/* igyesre lock enable */
 		default_val = misc0_val;
 		_pll_misc_chk_default(clk_base, plldss->params, 0, default_val,
 				     PLLDSS_MISC0_WRITE_MASK &
@@ -889,7 +889,7 @@ static void plldss_defaults(const char *pll_name, struct tegra_clk_pll *plldss,
 
 		/*
 		 * If SSC is used, check all settings, otherwise just confirm
-		 * that SSC is not used on boot as well. Do nothing when using
+		 * that SSC is yest used on boot as well. Do yesthing when using
 		 * this function for PLLC4 that has only MISC0.
 		 */
 		if (plldss->params->ssc_ctrl_en_mask) {
@@ -970,7 +970,7 @@ static void tegra210_plldp_set_defaults(struct tegra_clk_pll *plldp)
 
 /*
  * PLLC4
- * Base and misc0 layout is the same as PLLD2/PLLDP, but no SDM/SSC support.
+ * Base and misc0 layout is the same as PLLD2/PLLDP, but yes SDM/SSC support.
  * VCO is exposed to the clock tree via fixed 1/3 and 1/5 dividers.
  */
 static void tegra210_pllc4_set_defaults(struct tegra_clk_pll *pllc4)
@@ -1003,7 +1003,7 @@ static void tegra210_pllre_set_defaults(struct tegra_clk_pll *pllre)
 			pllre->params->defaults_set = false;
 		}
 
-		/* Ignore lock enable */
+		/* Igyesre lock enable */
 		val = PLLRE_MISC0_DEFAULT_VALUE & (~PLLRE_MISC0_IDDQ);
 		mask = PLLRE_MISC0_LOCK_ENABLE | PLLRE_MISC0_LOCK_OVERRIDE;
 		_pll_misc_chk_default(clk_base, pllre->params, 0, val,
@@ -1074,7 +1074,7 @@ static void pllx_check_defaults(struct tegra_clk_pll *pll)
 	u32 default_val;
 
 	default_val = PLLX_MISC0_DEFAULT_VALUE;
-	/* ignore lock enable */
+	/* igyesre lock enable */
 	_pll_misc_chk_default(clk_base, pll->params, 0, default_val,
 			PLLX_MISC0_WRITE_MASK & (~PLLX_MISC0_LOCK_ENABLE));
 
@@ -1082,7 +1082,7 @@ static void pllx_check_defaults(struct tegra_clk_pll *pll)
 	_pll_misc_chk_default(clk_base, pll->params, 1, default_val,
 			PLLX_MISC1_WRITE_MASK);
 
-	/* ignore all but control bit */
+	/* igyesre all but control bit */
 	default_val = PLLX_MISC2_DEFAULT_VALUE;
 	_pll_misc_chk_default(clk_base, pll->params, 2,
 			default_val, PLLX_MISC2_EN_DYNRAMP);
@@ -1206,7 +1206,7 @@ static void pllp_check_defaults(struct tegra_clk_pll *pll, bool enabled)
 {
 	u32 val, mask;
 
-	/* Ignore lock enable (will be set), make sure not in IDDQ if enabled */
+	/* Igyesre lock enable (will be set), make sure yest in IDDQ if enabled */
 	val = PLLP_MISC0_DEFAULT_VALUE & (~PLLP_MISC0_IDDQ);
 	mask = PLLP_MISC0_LOCK_ENABLE | PLLP_MISC0_LOCK_OVERRIDE;
 	if (!enabled)
@@ -1214,7 +1214,7 @@ static void pllp_check_defaults(struct tegra_clk_pll *pll, bool enabled)
 	_pll_misc_chk_default(clk_base, pll->params, 0, val,
 			~mask & PLLP_MISC0_WRITE_MASK);
 
-	/* Ignore branch controls */
+	/* Igyesre branch controls */
 	val = PLLP_MISC1_DEFAULT_VALUE;
 	mask = PLLP_MISC1_HSIO_EN | PLLP_MISC1_XUSB_EN;
 	_pll_misc_chk_default(clk_base, pll->params, 1, val,
@@ -1273,7 +1273,7 @@ static void pllu_check_defaults(struct tegra_clk_pll_params *params,
 {
 	u32 val, mask;
 
-	/* Ignore lock enable (will be set) and IDDQ if under h/w control */
+	/* Igyesre lock enable (will be set) and IDDQ if under h/w control */
 	val = PLLU_MISC0_DEFAULT_VALUE & (~PLLU_MISC0_IDDQ);
 	mask = PLLU_MISC0_LOCK_ENABLE | (hw_control ? PLLU_MISC0_IDDQ : 0);
 	_pll_misc_chk_default(clk_base, params, 0, val,
@@ -2682,7 +2682,7 @@ int tegra210_clk_handle_mbist_war(unsigned int id)
 	struct tegra210_domain_mbist_war *mbist_war;
 
 	if (id >= ARRAY_SIZE(tegra210_pg_mbist_war)) {
-		WARN(1, "unknown domain id in MBIST WAR handler\n");
+		WARN(1, "unkyeswn domain id in MBIST WAR handler\n");
 		return -EINVAL;
 	}
 
@@ -2838,7 +2838,7 @@ static int tegra210_enable_pllu(void)
 	}
 
 	if (!fentry->input_rate) {
-		pr_err("Unknown PLL_U reference frequency %lu\n", pll_ref_freq);
+		pr_err("Unkyeswn PLL_U reference frequency %lu\n", pll_ref_freq);
 		return -EINVAL;
 	}
 
@@ -2918,7 +2918,7 @@ static int tegra210_init_pllu(void)
 		writel_relaxed(reg, clk_base + PLLU_BASE);
 	}
 
-	/* enable UTMIPLL hw control if not yet done by the bootloader */
+	/* enable UTMIPLL hw control if yest yet done by the bootloader */
 	reg = readl_relaxed(clk_base + UTMIPLL_HW_PWRDN_CFG0);
 	if (!(reg & UTMIPLL_HW_PWRDN_CFG0_SEQ_ENABLE))
 		tegra210_utmi_param_configure();
@@ -2964,7 +2964,7 @@ static const char * const sor1_out_parents[] = {
 	 * Bit 0 of the mux selects sor1_pad_clkout, irrespective of bit 1, so
 	 * the sor1_pad_clkout parent appears twice in the list below. This is
 	 * merely to support clk_get_parent() if firmware happened to set
-	 * these bits to 0b11. While not an invalid setting, code should
+	 * these bits to 0b11. While yest an invalid setting, code should
 	 * always set the bits to 0b01 to select sor1_pad_clkout.
 	 */
 	"sor_safe", "sor1_pad_clkout", "sor1_out", "sor1_pad_clkout",
@@ -3090,7 +3090,7 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 
 		clkp = tegra_lookup_dt_id(init->clk_id, tegra210_clks);
 		if (!clkp) {
-			pr_warn("clock %u not found\n", init->clk_id);
+			pr_warn("clock %u yest found\n", init->clk_id);
 			continue;
 		}
 
@@ -3327,7 +3327,7 @@ static void tegra210_wait_cpu_in_reset(u32 cpu)
 	do {
 		reg = readl(clk_base + CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
 		cpu_relax();
-	} while (!(reg & (1 << cpu)));  /* check CPU been reset or not */
+	} while (!(reg & (1 << cpu)));  /* check CPU been reset or yest */
 }
 
 static void tegra210_disable_cpu_clock(u32 cpu)
@@ -3624,16 +3624,16 @@ static void tegra210_mbist_clk_init(void)
 
 /**
  * tegra210_clock_init - Tegra210-specific clock initialization
- * @np: struct device_node * of the DT node for the SoC CAR IP block
+ * @np: struct device_yesde * of the DT yesde for the SoC CAR IP block
  *
  * Register most SoC clocks for the Tegra210 system-on-chip.  Intended
- * to be called by the OF init code when a DT node with the
+ * to be called by the OF init code when a DT yesde with the
  * "nvidia,tegra210-car" string is encountered, and declared with
  * CLK_OF_DECLARE.  No return value.
  */
-static void __init tegra210_clock_init(struct device_node *np)
+static void __init tegra210_clock_init(struct device_yesde *np)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	u32 value, clk_m_div;
 
 	clk_base = of_iomap(np, 0);
@@ -3642,14 +3642,14 @@ static void __init tegra210_clock_init(struct device_node *np)
 		return;
 	}
 
-	node = of_find_matching_node(NULL, pmc_match);
-	if (!node) {
-		pr_err("Failed to find pmc node\n");
+	yesde = of_find_matching_yesde(NULL, pmc_match);
+	if (!yesde) {
+		pr_err("Failed to find pmc yesde\n");
 		WARN_ON(1);
 		return;
 	}
 
-	pmc_base = of_iomap(node, 0);
+	pmc_base = of_iomap(yesde, 0);
 	if (!pmc_base) {
 		pr_err("Can't map pmc registers\n");
 		WARN_ON(1);

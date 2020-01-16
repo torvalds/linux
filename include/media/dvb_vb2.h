@@ -35,18 +35,18 @@ enum dvb_buf_type {
 /**
  * enum dvb_vb2_states - states to control VB2 state machine
  * @DVB_VB2_STATE_NONE:
- *	VB2 engine not initialized yet, init failed or VB2 was released.
+ *	VB2 engine yest initialized yet, init failed or VB2 was released.
  * @DVB_VB2_STATE_INIT:
  *	VB2 engine initialized.
  * @DVB_VB2_STATE_REQBUFS:
  *	Buffers were requested
  * @DVB_VB2_STATE_STREAMON:
- *	VB2 is streaming. Callers should not check it directly. Instead,
+ *	VB2 is streaming. Callers should yest check it directly. Instead,
  *	they should use dvb_vb2_is_streaming().
  *
  * Note:
  *
- * Callers should not touch at the state machine directly. This
+ * Callers should yest touch at the state machine directly. This
  * is handled inside dvb_vb2.c.
  */
 enum dvb_vb2_states {
@@ -75,19 +75,19 @@ struct dvb_buffer {
  * @mutex:	mutex to serialize vb2 operations. Used by
  *		vb2 core %wait_prepare and %wait_finish operations.
  * @slock:	spin lock used to protect buffer filling at dvb_vb2.c.
- * @dvb_q:	List of buffers that are not filled yet.
+ * @dvb_q:	List of buffers that are yest filled yet.
  * @buf:	Pointer to the buffer that are currently being filled.
  * @offset:	index to the next position at the @buf to be filled.
  * @remain:	How many bytes are left to be filled at @buf.
  * @state:	bitmask of buffer states as defined by &enum dvb_vb2_states.
  * @buf_siz:	size of each VB2 buffer.
  * @buf_cnt:	number of VB2 buffers.
- * @nonblocking:
- *		If different than zero, device is operating on non-blocking
+ * @yesnblocking:
+ *		If different than zero, device is operating on yesn-blocking
  *		mode.
  * @flags:	buffer flags as defined by &enum dmx_buffer_flags.
  *		Filled only at &DMX_DQBUF. &DMX_QBUF should zero this field.
- * @count:	monotonic counter for filled buffers. Helps to identify
+ * @count:	moyestonic counter for filled buffers. Helps to identify
  *		data stream loses. Filled only at &DMX_DQBUF. &DMX_QBUF should
  *		zero this field.
  *
@@ -105,7 +105,7 @@ struct dvb_vb2_ctx {
 	int	state;
 	int	buf_siz;
 	int	buf_cnt;
-	int	nonblocking;
+	int	yesnblocking;
 
 	enum dmx_buffer_flags flags;
 	u32	count;
@@ -115,7 +115,7 @@ struct dvb_vb2_ctx {
 
 #ifndef CONFIG_DVB_MMAP
 static inline int dvb_vb2_init(struct dvb_vb2_ctx *ctx,
-			       const char *name, int non_blocking)
+			       const char *name, int yesn_blocking)
 {
 	return 0;
 };
@@ -138,10 +138,10 @@ static inline __poll_t dvb_vb2_poll(struct dvb_vb2_ctx *ctx,
  *
  * @ctx:	control struct for VB2 handler
  * @name:	name for the VB2 handler
- * @non_blocking:
- *		if not zero, it means that the device is at non-blocking mode
+ * @yesn_blocking:
+ *		if yest zero, it means that the device is at yesn-blocking mode
  */
-int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int non_blocking);
+int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int yesn_blocking);
 
 /**
  * dvb_vb2_release - Releases the VB2 handler allocated resources and
@@ -154,7 +154,7 @@ int dvb_vb2_release(struct dvb_vb2_ctx *ctx);
  * dvb_vb2_is_streaming - checks if the VB2 handler is streaming
  * @ctx:	control struct for VB2 handler
  *
- * Return: 0 if not streaming, 1 otherwise.
+ * Return: 0 if yest streaming, 1 otherwise.
  */
 int dvb_vb2_is_streaming(struct dvb_vb2_ctx *ctx);
 

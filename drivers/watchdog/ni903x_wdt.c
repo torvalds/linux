@@ -47,10 +47,10 @@ MODULE_PARM_DESC(timeout,
 		 "Watchdog timeout in seconds. (default="
 		 __MODULE_STRING(NIWD_DEFAULT_TIMEOUT) ")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, S_IRUGO);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
+static int yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, int, S_IRUGO);
+MODULE_PARM_DESC(yeswayout,
+		 "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static void ni903x_start(struct ni903x_wdt *wdt)
@@ -158,7 +158,7 @@ static acpi_status ni903x_resources(struct acpi_resource *res, void *data)
 
 	case ACPI_RESOURCE_TYPE_END_TAG:
 	default:
-		/* Ignore unsupported resources, e.g. IRQ */
+		/* Igyesre unsupported resources, e.g. IRQ */
 		return AE_OK;
 	}
 }
@@ -207,7 +207,7 @@ static int ni903x_acpi_add(struct acpi_device *device)
 	wdd->timeout = NIWD_DEFAULT_TIMEOUT;
 	wdd->parent = dev;
 	watchdog_set_drvdata(wdd, wdt);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_yeswayout(wdd, yeswayout);
 	watchdog_init_timeout(wdd, timeout, dev);
 
 	ret = watchdog_register_device(wdd);
@@ -218,8 +218,8 @@ static int ni903x_acpi_add(struct acpi_device *device)
 	outb(NIWD_CONTROL_RESET | NIWD_CONTROL_MODE,
 	     wdt->io_base + NIWD_CONTROL);
 
-	dev_dbg(dev, "io_base=0x%04X, timeout=%d, nowayout=%d\n",
-		wdt->io_base, timeout, nowayout);
+	dev_dbg(dev, "io_base=0x%04X, timeout=%d, yeswayout=%d\n",
+		wdt->io_base, timeout, yeswayout);
 
 	return 0;
 }

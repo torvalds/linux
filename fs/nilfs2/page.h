@@ -24,7 +24,7 @@ enum {
 	BH_NILFS_Redirected,
 };
 
-BUFFER_FNS(NILFS_Node, nilfs_node)		/* nilfs node buffers */
+BUFFER_FNS(NILFS_Node, nilfs_yesde)		/* nilfs yesde buffers */
 BUFFER_FNS(NILFS_Volatile, nilfs_volatile)
 BUFFER_FNS(NILFS_Checked, nilfs_checked)	/* buffer is verified */
 BUFFER_FNS(NILFS_Redirected, nilfs_redirected)	/* redirected to a copy */
@@ -32,7 +32,7 @@ BUFFER_FNS(NILFS_Redirected, nilfs_redirected)	/* redirected to a copy */
 
 int __nilfs_clear_page_dirty(struct page *);
 
-struct buffer_head *nilfs_grab_buffer(struct inode *, struct address_space *,
+struct buffer_head *nilfs_grab_buffer(struct iyesde *, struct address_space *,
 				      unsigned long, unsigned long);
 void nilfs_forget_buffer(struct buffer_head *);
 void nilfs_copy_buffer(struct buffer_head *, struct buffer_head *);
@@ -43,10 +43,10 @@ int nilfs_copy_dirty_pages(struct address_space *, struct address_space *);
 void nilfs_copy_back_pages(struct address_space *, struct address_space *);
 void nilfs_clear_dirty_page(struct page *, bool);
 void nilfs_clear_dirty_pages(struct address_space *, bool);
-void nilfs_mapping_init(struct address_space *mapping, struct inode *inode);
+void nilfs_mapping_init(struct address_space *mapping, struct iyesde *iyesde);
 unsigned int nilfs_page_count_clean_buffers(struct page *, unsigned int,
 					    unsigned int);
-unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
+unsigned long nilfs_find_uncommitted_extent(struct iyesde *iyesde,
 					    sector_t start_blk,
 					    sector_t *blkoff);
 

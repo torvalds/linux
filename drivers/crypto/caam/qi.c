@@ -22,7 +22,7 @@
 
 /*
  * Use a reasonable backlog of frames (per CPU) as congestion threshold,
- * so that resources used by the in-flight buffers do not become a memory hog.
+ * so that resources used by the in-flight buffers do yest become a memory hog.
  */
 #define MAX_RSP_FQ_BACKLOG_PER_CPU	256
 
@@ -89,7 +89,7 @@ static u64 times_congested;
  * NOTE: A more elegant solution would be to have some headroom in the frames
  *       being processed. This could be added by the dpaa-ethernet driver.
  *       This would pose a problem for userspace application processing which
- *       cannot know of this limitation. So for now, this will work.
+ *       canyest kyesw of this limitation. So for yesw, this will work.
  * NOTE: The memcache is SMP-safe. No need to handle spinlocks in-here
  */
 static struct kmem_cache *qi_cache;
@@ -427,7 +427,7 @@ struct caam_drv_ctx *caam_drv_ctx_init(struct device *qidev,
 	}
 	drv_ctx->context_a = hwdesc;
 
-	/* If given CPU does not own the portal, choose another one that does */
+	/* If given CPU does yest own the portal, choose ayesther one that does */
 	if (!cpumask_test_cpu(*cpu, cpus)) {
 		int *pcpu = &get_cpu_var(last_cpu);
 
@@ -542,7 +542,7 @@ static void cgr_cb(struct qman_portal *qm, struct qman_cgr *cgr, int congested)
 static int caam_qi_napi_schedule(struct qman_portal *p, struct caam_napi *np)
 {
 	/*
-	 * In case of threaded ISR, for RT kernels in_irq() does not return
+	 * In case of threaded ISR, for RT kernels in_irq() does yest return
 	 * appropriate value, so use in_serving_softirq to distinguish between
 	 * softirq and irq contexts.
 	 */

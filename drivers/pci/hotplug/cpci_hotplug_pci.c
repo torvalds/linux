@@ -194,7 +194,7 @@ int cpci_led_on(struct slot *slot)
 					      slot->devfn,
 					      hs_cap + 2,
 					      hs_csr)) {
-			err("Could not set LOO for slot %s", slot_name(slot));
+			err("Could yest set LOO for slot %s", slot_name(slot));
 			return -ENODEV;
 		}
 	}
@@ -222,7 +222,7 @@ int cpci_led_off(struct slot *slot)
 					      slot->devfn,
 					      hs_cap + 2,
 					      hs_csr)) {
-			err("Could not clear LOO for slot %s", slot_name(slot));
+			err("Could yest clear LOO for slot %s", slot_name(slot));
 			return -ENODEV;
 		}
 	}
@@ -263,7 +263,7 @@ int cpci_configure_slot(struct slot *slot)
 		dbg("%s: pci_scan_slot returned %d", __func__, n);
 		slot->dev = pci_get_slot(slot->bus, slot->devfn);
 		if (slot->dev == NULL) {
-			err("Could not find PCI device for slot %02x", slot->number);
+			err("Could yest find PCI device for slot %02x", slot->number);
 			ret = -ENODEV;
 			goto out;
 		}

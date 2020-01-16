@@ -1,9 +1,9 @@
 * AHCI SATA Controller
 
-SATA nodes are defined to describe on-chip Serial ATA controllers.
-Each SATA controller should have its own node.
+SATA yesdes are defined to describe on-chip Serial ATA controllers.
+Each SATA controller should have its own yesde.
 
-It is possible, but not required, to represent each port as a sub-node.
+It is possible, but yest required, to represent each port as a sub-yesde.
 It allows to enable each port independently when dealing with multiple
 PHYs.
 
@@ -23,7 +23,7 @@ Required properties:
 - interrupts        : <interrupt mapping for SATA IRQ>
 - reg               : <registers mapping>
 
-Please note that when using "generic-ahci" you must also specify a SoC specific
+Please yeste that when using "generic-ahci" you must also specify a SoC specific
 compatible:
 	compatible = "manufacturer,soc-model-ahci", "generic-ahci";
 
@@ -33,24 +33,24 @@ Optional properties:
 - resets            : a list of phandle + reset specifier pairs
 - target-supply     : regulator for SATA target power
 - phy-supply        : regulator for PHY power
-- phys              : reference to the SATA PHY node
+- phys              : reference to the SATA PHY yesde
 - phy-names         : must be "sata-phy"
 - ahci-supply       : regulator for AHCI controller
 - ports-implemented : Mask that indicates which ports that the HBA supports
 		      are available for software to use. Useful if PORTS_IMPL
-		      is not programmed by the BIOS, which is true with
+		      is yest programmed by the BIOS, which is true with
 		      some embedded SOC's.
 
-Required properties when using sub-nodes:
+Required properties when using sub-yesdes:
 - #address-cells    : number of cells to encode an address
 - #size-cells       : number of cells representing the size of an address
 
 For allwinner,sun8i-r40-ahci, the reset property must be present.
 
-Sub-nodes required properties:
+Sub-yesdes required properties:
 - reg		    : the port number
 And at least one of the following properties:
-- phys		    : reference to the SATA PHY node
+- phys		    : reference to the SATA PHY yesde
 - target-supply     : regulator for SATA target power
 
 Examples:
@@ -68,7 +68,7 @@ Examples:
 		target-supply = <&reg_ahci_5v>;
 	};
 
-With sub-nodes:
+With sub-yesdes:
 	sata@f7e90000 {
 		compatible = "marvell,berlin2q-achi", "generic-ahci";
 		reg = <0xe90000 0x1000>;

@@ -213,7 +213,7 @@ static int sigma_fw_load_control(struct sigmadsp *sigmadsp,
 	if (name_len >= SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
 		name_len = SNDRV_CTL_ELEM_ID_NAME_MAXLEN - 1;
 
-	/* Make sure there are no non-displayable characaters in the string */
+	/* Make sure there are yes yesn-displayable characaters in the string */
 	if (!sigma_fw_validate_control_name(ctrl_chunk->name, name_len))
 		return -EINVAL;
 
@@ -338,7 +338,7 @@ static int sigmadsp_fw_load_v2(struct sigmadsp *sigmadsp,
 			ret = sigma_fw_load_samplerates(sigmadsp, chunk, length);
 			break;
 		default:
-			dev_warn(sigmadsp->dev, "Unknown chunk type: %d\n",
+			dev_warn(sigmadsp->dev, "Unkyeswn chunk type: %d\n",
 				chunk->tag);
 			ret = 0;
 			break;
@@ -348,7 +348,7 @@ static int sigmadsp_fw_load_v2(struct sigmadsp *sigmadsp,
 			return ret;
 
 		/*
-		 * This can not overflow since if length is larger than the
+		 * This can yest overflow since if length is larger than the
 		 * maximum firmware size (0x4000000) we'll error out earilier.
 		 */
 		pos += ALIGN(length, sizeof(__le32));
@@ -491,7 +491,7 @@ static int sigmadsp_firmware_load(struct sigmadsp *sigmadsp, const char *name)
 
 	/*
 	 * Reject too small or unreasonable large files. The upper limit has been
-	 * chosen a bit arbitrarily, but it should be enough for all practical
+	 * chosen a bit arbitrarily, but it should be eyesugh for all practical
 	 * purposes and having the limit makes it easier to avoid integer
 	 * overflows later in the loading process.
 	 */
@@ -686,7 +686,7 @@ static void sigmadsp_activate_ctrl(struct sigmadsp *sigmadsp,
 	}
 
 	if (changed)
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO, &id);
+		snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_INFO, &id);
 }
 
 /**
@@ -696,7 +696,7 @@ static void sigmadsp_activate_ctrl(struct sigmadsp *sigmadsp,
  *
  * Typically called in the components probe callback.
  *
- * Note, once this function has been called the firmware must not be released
+ * Note, once this function has been called the firmware must yest be released
  * until after the ALSA snd_card that the component belongs to has been
  * disconnected, even if sigmadsp_attach() returns an error.
  */
@@ -727,7 +727,7 @@ EXPORT_SYMBOL_GPL(sigmadsp_attach);
  * @sigmadsp: The sigmadsp instance to configure
  * @samplerate: The samplerate the DSP should be configured for
  *
- * Loads the appropriate firmware program and parameter memory (if not already
+ * Loads the appropriate firmware program and parameter memory (if yest already
  * loaded) and enables the controls for the specified samplerate. Any control
  * parameter changes that have been made previously will be restored.
  *

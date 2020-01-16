@@ -3,7 +3,7 @@
  * Dave DNET Ethernet Controller driver
  *
  * Copyright (C) 2008 Dave S.r.l. <www.dave.eu>
- * Copyright (C) 2009 Ilya Yanok, Emcraft Systems Ltd, <yanok@emcraft.com>
+ * Copyright (C) 2009 Ilya Yayesk, Emcraft Systems Ltd, <yayesk@emcraft.com>
  */
 #include <linux/io.h>
 #include <linux/module.h>
@@ -206,7 +206,7 @@ static void dnet_handle_link_change(struct net_device *dev)
 				break;
 			default:
 				printk(KERN_WARNING
-				       "%s: Ack!  Speed (%d) is not "
+				       "%s: Ack!  Speed (%d) is yest "
 				       "10/100/1000!\n", dev->name,
 				       phydev->speed);
 				break;
@@ -257,7 +257,7 @@ static int dnet_mii_probe(struct net_device *dev)
 	phydev = phy_find_first(bp->mii_bus);
 
 	if (!phydev) {
-		printk(KERN_ERR "%s: no PHY found\n", dev->name);
+		printk(KERN_ERR "%s: yes PHY found\n", dev->name);
 		return -ENODEV;
 	}
 
@@ -275,7 +275,7 @@ static int dnet_mii_probe(struct net_device *dev)
 	}
 
 	if (IS_ERR(phydev)) {
-		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
+		printk(KERN_ERR "%s: Could yest attach to PHY\n", dev->name);
 		return PTR_ERR(phydev);
 	}
 
@@ -373,7 +373,7 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 
 	while (npackets < budget) {
 		/*
-		 * break out of while loop if there are no more
+		 * break out of while loop if there are yes more
 		 * packets waiting
 		 */
 		if (!(dnet_readl(bp, RX_FIFO_WCNT) >> 16))
@@ -470,7 +470,7 @@ static irqreturn_t dnet_interrupt(int irq, void *dev_id)
 	if (int_current & DNET_INTR_SRC_RX_CMDFIFOAF) {
 		if (napi_schedule_prep(&bp->napi)) {
 			/*
-			 * There's no point taking any more interrupts
+			 * There's yes point taking any more interrupts
 			 * until we have processed the buffers
 			 */
 			/* Disable Rx interrupts and schedule NAPI poll */
@@ -531,7 +531,7 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wrsz >>= 2;
 	tx_cmd = ((((unsigned long)(skb->data)) & 0x03) << 16) | (u32) skb->len;
 
-	/* check if there is enough room for the current frame */
+	/* check if there is eyesugh room for the current frame */
 	if (wrsz < (DNET_FIFO_SIZE - dnet_readl(bp, TX_FIFO_WCNT))) {
 		for (i = 0; i < wrsz; i++)
 			dnet_writel(bp, *bufp++, TX_DATA_FIFO);
@@ -622,7 +622,7 @@ static int dnet_open(struct net_device *dev)
 {
 	struct dnet *bp = netdev_priv(dev);
 
-	/* if the phy is not yet register, retry later */
+	/* if the phy is yest yet register, retry later */
 	if (!dev->phydev)
 		return -EAGAIN;
 
@@ -701,7 +701,7 @@ static struct net_device_stats *dnet_get_stats(struct net_device *dev)
 	/* Convert HW stats into netdevice stats */
 	nstat->rx_errors = (hwstat->rx_len_chk_err +
 			    hwstat->rx_lng_frm + hwstat->rx_shrt_frm +
-			    /* ignore IGP violation error
+			    /* igyesre IGP violation error
 			    hwstat->rx_ipg_viol + */
 			    hwstat->rx_crc_err +
 			    hwstat->rx_pre_shrink +
@@ -823,7 +823,7 @@ static int dnet_probe(struct platform_device *pdev)
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot register net device, aborting.\n");
+		dev_err(&pdev->dev, "Canyest register net device, aborting.\n");
 		goto err_out_free_irq;
 	}
 
@@ -832,7 +832,7 @@ static int dnet_probe(struct platform_device *pdev)
 					 dnet_phy_marvell_fixup);
 	/* we can live without it, so just issue a warning */
 	if (err)
-		dev_warn(&pdev->dev, "Cannot register PHY board fixup.\n");
+		dev_warn(&pdev->dev, "Canyest register PHY board fixup.\n");
 
 	err = dnet_mii_init(bp);
 	if (err)
@@ -841,10 +841,10 @@ static int dnet_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Dave DNET at 0x%p (0x%08x) irq %d %pM\n",
 	       bp->regs, (unsigned int)res->start, dev->irq, dev->dev_addr);
 	dev_info(&pdev->dev, "has %smdio, %sirq, %sgigabit, %sdma\n",
-	       (bp->capabilities & DNET_HAS_MDIO) ? "" : "no ",
-	       (bp->capabilities & DNET_HAS_IRQ) ? "" : "no ",
-	       (bp->capabilities & DNET_HAS_GIGABIT) ? "" : "no ",
-	       (bp->capabilities & DNET_HAS_DMA) ? "" : "no ");
+	       (bp->capabilities & DNET_HAS_MDIO) ? "" : "yes ",
+	       (bp->capabilities & DNET_HAS_IRQ) ? "" : "yes ",
+	       (bp->capabilities & DNET_HAS_GIGABIT) ? "" : "yes ",
+	       (bp->capabilities & DNET_HAS_DMA) ? "" : "yes ");
 	phydev = dev->phydev;
 	phy_attached_info(phydev);
 
@@ -893,5 +893,5 @@ module_platform_driver(dnet_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Dave DNET Ethernet driver");
-MODULE_AUTHOR("Ilya Yanok <yanok@emcraft.com>, "
+MODULE_AUTHOR("Ilya Yayesk <yayesk@emcraft.com>, "
 	      "Matteo Vit <matteo.vit@dave.eu>");

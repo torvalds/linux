@@ -6,7 +6,7 @@
  * Copyright (C) 2016 Huawei Inc.
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <setjmp.h>

@@ -22,7 +22,7 @@
 #define VIDEO_MAJOR	81
 
 /**
- * enum vfl_devnode_type - type of V4L2 device node
+ * enum vfl_devyesde_type - type of V4L2 device yesde
  *
  * @VFL_TYPE_GRABBER:	for video input/output devices
  * @VFL_TYPE_VBI:	for vertical blank data (i.e. closed captions, teletext)
@@ -32,7 +32,7 @@
  * @VFL_TYPE_TOUCH:	for touch sensors
  * @VFL_TYPE_MAX:	number of VFL types, must always be last in the enum
  */
-enum vfl_devnode_type {
+enum vfl_devyesde_type {
 	VFL_TYPE_GRABBER	= 0,
 	VFL_TYPE_VBI,
 	VFL_TYPE_RADIO,
@@ -50,9 +50,9 @@ enum vfl_devnode_type {
  * @VFL_DIR_TX:		device is a transmitter.
  * @VFL_DIR_M2M:	device is a memory to memory device.
  *
- * Note: Ignored if &enum vfl_devnode_type is %VFL_TYPE_SUBDEV.
+ * Note: Igyesred if &enum vfl_devyesde_type is %VFL_TYPE_SUBDEV.
  */
-enum vfl_devnode_direction {
+enum vfl_devyesde_direction {
 	VFL_DIR_RX,
 	VFL_DIR_TX,
 	VFL_DIR_M2M,
@@ -97,7 +97,7 @@ enum v4l2_video_device_flags {
  * @prios: array with elements to store the array priorities
  *
  *
- * .. note::
+ * .. yeste::
  *    The size of @prios array matches the number of priority types defined
  *    by enum &v4l2_priority.
  */
@@ -115,11 +115,11 @@ void v4l2_prio_init(struct v4l2_prio_state *global);
 /**
  * v4l2_prio_change - changes the v4l2 file handler priority
  *
- * @global: pointer to the &struct v4l2_prio_state of the device node.
+ * @global: pointer to the &struct v4l2_prio_state of the device yesde.
  * @local: pointer to the desired priority, as defined by enum &v4l2_priority
  * @new: Priority type requested, as defined by enum &v4l2_priority.
  *
- * .. note::
+ * .. yeste::
  *	This function should be used only by the V4L2 core.
  */
 int v4l2_prio_change(struct v4l2_prio_state *global, enum v4l2_priority *local,
@@ -128,10 +128,10 @@ int v4l2_prio_change(struct v4l2_prio_state *global, enum v4l2_priority *local,
 /**
  * v4l2_prio_open - Implements the priority logic for a file handler open
  *
- * @global: pointer to the &struct v4l2_prio_state of the device node.
+ * @global: pointer to the &struct v4l2_prio_state of the device yesde.
  * @local: pointer to the desired priority, as defined by enum &v4l2_priority
  *
- * .. note::
+ * .. yeste::
  *	This function should be used only by the V4L2 core.
  */
 void v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local);
@@ -139,10 +139,10 @@ void v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local);
 /**
  * v4l2_prio_close - Implements the priority logic for a file handler close
  *
- * @global: pointer to the &struct v4l2_prio_state of the device node.
+ * @global: pointer to the &struct v4l2_prio_state of the device yesde.
  * @local: priority to be released, as defined by enum &v4l2_priority
  *
- * .. note::
+ * .. yeste::
  *	This function should be used only by the V4L2 core.
  */
 void v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority local);
@@ -150,9 +150,9 @@ void v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority local);
 /**
  * v4l2_prio_max - Return the maximum priority, as stored at the @global array.
  *
- * @global: pointer to the &struct v4l2_prio_state of the device node.
+ * @global: pointer to the &struct v4l2_prio_state of the device yesde.
  *
- * .. note::
+ * .. yeste::
  *	This function should be used only by the V4L2 core.
  */
 enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global);
@@ -160,10 +160,10 @@ enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global);
 /**
  * v4l2_prio_check - Implements the priority logic for a file handler close
  *
- * @global: pointer to the &struct v4l2_prio_state of the device node.
+ * @global: pointer to the &struct v4l2_prio_state of the device yesde.
  * @local: desired priority, as defined by enum &v4l2_priority local
  *
- * .. note::
+ * .. yeste::
  *	This function should be used only by the V4L2 core.
  */
 int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority local);
@@ -184,7 +184,7 @@ int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority local);
  * @open: operations needed to implement the open() syscall
  * @release: operations needed to implement the release() syscall
  *
- * .. note::
+ * .. yeste::
  *
  *	Those operations are used to implemente the fs struct file_operations
  *	at the V4L2 drivers. The V4L2 core overrides the fs ops with some
@@ -214,10 +214,10 @@ struct v4l2_file_operations {
 
 /**
  * struct video_device - Structure used to create and manage the V4L2 device
- *	nodes.
+ *	yesdes.
  *
  * @entity: &struct media_entity
- * @intf_devnode: pointer to &struct media_intf_devnode
+ * @intf_devyesde: pointer to &struct media_intf_devyesde
  * @pipe: &struct media_pipeline
  * @fops: pointer to &struct v4l2_file_operations for the video device
  * @device_caps: device capabilities as used in v4l2_capabilities
@@ -225,23 +225,23 @@ struct v4l2_file_operations {
  * @cdev: character device
  * @v4l2_dev: pointer to &struct v4l2_device parent
  * @dev_parent: pointer to &struct device parent
- * @ctrl_handler: Control handler associated with this device node.
+ * @ctrl_handler: Control handler associated with this device yesde.
  *	 May be NULL.
- * @queue: &struct vb2_queue associated with this device node. May be NULL.
+ * @queue: &struct vb2_queue associated with this device yesde. May be NULL.
  * @prio: pointer to &struct v4l2_prio_state with device's Priority state.
  *	 If NULL, then v4l2_dev->prio will be used.
  * @name: video device name
- * @vfl_type: V4L device type, as defined by &enum vfl_devnode_type
+ * @vfl_type: V4L device type, as defined by &enum vfl_devyesde_type
  * @vfl_dir: V4L receiver, transmitter or m2m
- * @minor: device node 'minor'. It is set to -1 if the registration failed
- * @num: number of the video device node
+ * @miyesr: device yesde 'miyesr'. It is set to -1 if the registration failed
+ * @num: number of the video device yesde
  * @flags: video device flags. Use bitops to set/clear/test flags.
  *	   Contains a set of &enum v4l2_video_device_flags.
  * @index: attribute to differentiate multiple indices on one physical device
  * @fh_lock: Lock for all v4l2_fhs
  * @fh_list: List of &struct v4l2_fh
- * @dev_debug: Internal device debug flags, not for use by drivers
- * @tvnorms: Supported tv norms
+ * @dev_debug: Internal device debug flags, yest for use by drivers
+ * @tvyesrms: Supported tv yesrms
  *
  * @release: video device release() callback
  * @ioctl_ops: pointer to &struct v4l2_ioctl_ops with ioctl callbacks
@@ -249,7 +249,7 @@ struct v4l2_file_operations {
  * @valid_ioctls: bitmap with the valid ioctls for this device
  * @lock: pointer to &struct mutex serialization lock
  *
- * .. note::
+ * .. yeste::
  *	Only set @dev_parent if that can't be deduced from @v4l2_dev.
  */
 
@@ -257,7 +257,7 @@ struct video_device
 {
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_entity entity;
-	struct media_intf_devnode *intf_devnode;
+	struct media_intf_devyesde *intf_devyesde;
 	struct media_pipeline pipe;
 #endif
 	const struct v4l2_file_operations *fops;
@@ -279,9 +279,9 @@ struct video_device
 
 	/* device info */
 	char name[32];
-	enum vfl_devnode_type vfl_type;
-	enum vfl_devnode_direction vfl_dir;
-	int minor;
+	enum vfl_devyesde_type vfl_type;
+	enum vfl_devyesde_direction vfl_dir;
+	int miyesr;
 	u16 num;
 	unsigned long flags;
 	int index;
@@ -292,7 +292,7 @@ struct video_device
 
 	int dev_debug;
 
-	v4l2_std_id tvnorms;
+	v4l2_std_id tvyesrms;
 
 	/* callbacks */
 	void (*release)(struct video_device *vdev);
@@ -323,33 +323,33 @@ struct video_device
  * __video_register_device - register video4linux devices
  *
  * @vdev: struct video_device to register
- * @type: type of device to register, as defined by &enum vfl_devnode_type
- * @nr:   which device node number is desired:
+ * @type: type of device to register, as defined by &enum vfl_devyesde_type
+ * @nr:   which device yesde number is desired:
  *	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
- * @warn_if_nr_in_use: warn if the desired device node number
- *        was already in use and another number was chosen instead.
- * @owner: module that owns the video device node
+ * @warn_if_nr_in_use: warn if the desired device yesde number
+ *        was already in use and ayesther number was chosen instead.
+ * @owner: module that owns the video device yesde
  *
- * The registration code assigns minor numbers and device node numbers
- * based on the requested type and registers the new device node with
+ * The registration code assigns miyesr numbers and device yesde numbers
+ * based on the requested type and registers the new device yesde with
  * the kernel.
  *
  * This function assumes that struct video_device was zeroed when it
- * was allocated and does not contain any stale date.
+ * was allocated and does yest contain any stale date.
  *
- * An error is returned if no free minor or device node number could be
- * found, or if the registration of the device node failed.
+ * An error is returned if yes free miyesr or device yesde number could be
+ * found, or if the registration of the device yesde failed.
  *
  * Returns 0 on success.
  *
- * .. note::
+ * .. yeste::
  *
  *	This function is meant to be used only inside the V4L2 core.
  *	Drivers should use video_register_device() or
- *	video_register_device_no_warn().
+ *	video_register_device_yes_warn().
  */
 int __must_check __video_register_device(struct video_device *vdev,
-					 enum vfl_devnode_type type,
+					 enum vfl_devyesde_type type,
 					 int nr, int warn_if_nr_in_use,
 					 struct module *owner);
 
@@ -357,49 +357,49 @@ int __must_check __video_register_device(struct video_device *vdev,
  *  video_register_device - register video4linux devices
  *
  * @vdev: struct video_device to register
- * @type: type of device to register, as defined by &enum vfl_devnode_type
- * @nr:   which device node number is desired:
+ * @type: type of device to register, as defined by &enum vfl_devyesde_type
+ * @nr:   which device yesde number is desired:
  *	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
  *
  * Internally, it calls __video_register_device(). Please see its
  * documentation for more details.
  *
- * .. note::
+ * .. yeste::
  *	if video_register_device fails, the release() callback of
- *	&struct video_device structure is *not* called, so the caller
+ *	&struct video_device structure is *yest* called, so the caller
  *	is responsible for freeing any data. Usually that means that
  *	you video_device_release() should be called on failure.
  */
 static inline int __must_check video_register_device(struct video_device *vdev,
-						     enum vfl_devnode_type type,
+						     enum vfl_devyesde_type type,
 						     int nr)
 {
 	return __video_register_device(vdev, type, nr, 1, vdev->fops->owner);
 }
 
 /**
- *  video_register_device_no_warn - register video4linux devices
+ *  video_register_device_yes_warn - register video4linux devices
  *
  * @vdev: struct video_device to register
- * @type: type of device to register, as defined by &enum vfl_devnode_type
- * @nr:   which device node number is desired:
+ * @type: type of device to register, as defined by &enum vfl_devyesde_type
+ * @nr:   which device yesde number is desired:
  *	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
  *
- * This function is identical to video_register_device() except that no
- * warning is issued if the desired device node number was already in use.
+ * This function is identical to video_register_device() except that yes
+ * warning is issued if the desired device yesde number was already in use.
  *
  * Internally, it calls __video_register_device(). Please see its
  * documentation for more details.
  *
- * .. note::
+ * .. yeste::
  *	if video_register_device fails, the release() callback of
- *	&struct video_device structure is *not* called, so the caller
+ *	&struct video_device structure is *yest* called, so the caller
  *	is responsible for freeing any data. Usually that means that
  *	you video_device_release() should be called on failure.
  */
 static inline int __must_check
-video_register_device_no_warn(struct video_device *vdev,
-			      enum vfl_devnode_type type, int nr)
+video_register_device_yes_warn(struct video_device *vdev,
+			      enum vfl_devyesde_type type, int nr)
 {
 	return __video_register_device(vdev, type, nr, 0, vdev->fops->owner);
 }
@@ -409,7 +409,7 @@ video_register_device_no_warn(struct video_device *vdev,
  *
  * @vdev: &struct video_device to register
  *
- * Does nothing if vdev == NULL or if video_is_registered() returns false.
+ * Does yesthing if vdev == NULL or if video_is_registered() returns false.
  */
 void video_unregister_device(struct video_device *vdev);
 
@@ -435,11 +435,11 @@ void video_device_release(struct video_device *vdev);
  *
  * @vdev: pointer to &struct video_device
  *
- * This release function does nothing.
+ * This release function does yesthing.
  *
  * It should be used when the video_device is a static global struct.
  *
- * .. note::
+ * .. yeste::
  *	Having a static video_device is a dubious construction at best.
  */
 void video_device_release_empty(struct video_device *vdev);
@@ -454,7 +454,7 @@ void video_device_release_empty(struct video_device *vdev);
  * This function allows drivers to provide just one v4l2_ioctl_ops struct, but
  * disable ioctls based on the specific card that is actually found.
  *
- * .. note::
+ * .. yeste::
  *
  *    This must be called before video_register_device.
  *    See also the comments for determine_valid_ioctls().
@@ -511,13 +511,13 @@ static inline void *video_drvdata(struct file *file)
 }
 
 /**
- * video_device_node_name - returns the video device name
+ * video_device_yesde_name - returns the video device name
  *
  * @vdev: pointer to &struct video_device
  *
  * Returns the device name string
  */
-static inline const char *video_device_node_name(struct video_device *vdev)
+static inline const char *video_device_yesde_name(struct video_device *vdev)
 {
 	return dev_name(&vdev->dev);
 }

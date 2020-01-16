@@ -29,7 +29,7 @@ static const struct mac_stats_string g_gmac_stats_string[] = {
 	{"gmac_rx_long_errors", MAC_STATS_FIELD_OFF(rx_oversize)},
 	{"gmac_rx_jabber_errors", MAC_STATS_FIELD_OFF(rx_jabber_err)},
 	{"gmac_rx_pause_maccontrol", MAC_STATS_FIELD_OFF(rx_pfc_tc0)},
-	{"gmac_rx_unknown_maccontrol", MAC_STATS_FIELD_OFF(rx_unknown_ctrl)},
+	{"gmac_rx_unkyeswn_maccontrol", MAC_STATS_FIELD_OFF(rx_unkyeswn_ctrl)},
 	{"gmac_rx_very_long_err", MAC_STATS_FIELD_OFF(rx_long_err)},
 	{"gmac_rx_runt_err", MAC_STATS_FIELD_OFF(rx_minto64)},
 	{"gmac_rx_short_err", MAC_STATS_FIELD_OFF(rx_under_min)},
@@ -330,7 +330,7 @@ static int hns_gmac_wait_fifo_clean(void *mac_drv)
 	wait_cnt = 0;
 	while (wait_cnt++ < HNS_MAX_WAIT_CNT) {
 		val = dsaf_read_dev(drv, GMAC_FIFO_STATE_REG);
-		/* bit5~bit0 is not send complete pkts */
+		/* bit5~bit0 is yest send complete pkts */
 		if ((val & 0x3f) == 0)
 			break;
 		usleep_range(100, 200);
@@ -338,7 +338,7 @@ static int hns_gmac_wait_fifo_clean(void *mac_drv)
 
 	if (wait_cnt >= HNS_MAX_WAIT_CNT) {
 		dev_err(drv->dev,
-			"hns ge %d fifo was not idle.\n", drv->mac_id);
+			"hns ge %d fifo was yest idle.\n", drv->mac_id);
 		return -EBUSY;
 	}
 
@@ -415,7 +415,7 @@ static void hns_gmac_update_stats(void *mac_drv)
 		+= dsaf_read_dev(drv, GMAC_RX_JABBER_ERRORS_REG);
 	hw_stats->rx_pfc_tc0
 		+= dsaf_read_dev(drv, GMAC_RX_PAUSE_MACCTRL_FRAM_REG);
-	hw_stats->rx_unknown_ctrl
+	hw_stats->rx_unkyeswn_ctrl
 		+= dsaf_read_dev(drv, GMAC_RX_UNKNOWN_MACCTRL_FRAM_REG);
 	hw_stats->rx_long_err
 		+= dsaf_read_dev(drv, GMAC_RX_VERY_LONG_ERR_CNT_REG);
@@ -742,7 +742,7 @@ void *hns_gmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->config_loopback = hns_gmac_config_loopback;
 	mac_drv->config_pad_and_crc = hns_gmac_config_pad_and_crc;
 	mac_drv->config_half_duplex = hns_gmac_set_duplex_type;
-	mac_drv->set_rx_ignore_pause_frames = hns_gmac_set_rx_auto_pause_frames;
+	mac_drv->set_rx_igyesre_pause_frames = hns_gmac_set_rx_auto_pause_frames;
 	mac_drv->get_info = hns_gmac_get_info;
 	mac_drv->autoneg_stat = hns_gmac_autoneg_stat;
 	mac_drv->get_pause_enable = hns_gmac_get_pausefrm_cfg;

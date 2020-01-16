@@ -37,10 +37,10 @@
  * interrupt signals on digital input channels 0 and 1. The PCI-7233
  * has dual-interrupt sources for change-of-state (COS) on any 16
  * digital input channels of LSB and for COS on any 16 digital input
- * lines of MSB. Interrupts are not currently supported by this
+ * lines of MSB. Interrupts are yest currently supported by this
  * driver.
  *
- * Configuration Options: not applicable, uses comedi PCI auto config
+ * Configuration Options: yest applicable, uses comedi PCI auto config
  */
 
 #include <linux/module.h>

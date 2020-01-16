@@ -66,7 +66,7 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 
 	/*
 	 * Build an {i,d}abort, depending on the level and the
-	 * instruction set. Report an external synchronous abort.
+	 * instruction set. Report an external synchroyesus abort.
 	 */
 	if (kvm_vcpu_trap_il_is32bit(vcpu))
 		esr |= ESR_ELx_IL;
@@ -98,7 +98,7 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
 	vcpu_write_spsr(vcpu, cpsr);
 
 	/*
-	 * Build an unknown exception, depending on the instruction
+	 * Build an unkyeswn exception, depending on the instruction
 	 * set.
 	 */
 	if (kvm_vcpu_trap_il_is32bit(vcpu))
@@ -113,7 +113,7 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
  * @addr: The address to report in the DFAR
  *
  * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
+ * VCPU therefore is yest currently executing guest code.
  */
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
 {
@@ -129,7 +129,7 @@ void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
  * @addr: The address to report in the DFAR
  *
  * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
+ * VCPU therefore is yest currently executing guest code.
  */
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
 {
@@ -143,7 +143,7 @@ void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
  * kvm_inject_undefined - inject an undefined instruction into the guest
  *
  * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
+ * VCPU therefore is yest currently executing guest code.
  */
 void kvm_inject_undefined(struct kvm_vcpu *vcpu)
 {
@@ -164,10 +164,10 @@ void kvm_set_sei_esr(struct kvm_vcpu *vcpu, u64 esr)
  * @vcpu: The VCPU to receive the exception
  *
  * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
+ * VCPU therefore is yest currently executing guest code.
  *
  * Systems with the RAS Extensions specify an imp-def ESR (ISV/IDS = 1) with
- * the remaining ISS all-zeros so that this error is not interpreted as an
+ * the remaining ISS all-zeros so that this error is yest interpreted as an
  * uncategorized RAS error. Without the RAS Extensions we can't specify an ESR
  * value, so the CPU generates an imp-def value.
  */

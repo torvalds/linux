@@ -14,7 +14,7 @@
  *					PWM.
  *
  * ACT8865_REGULATOR_MODE_NORMAL:	It is specific to LDO regulators and it
- *					specifies the usage of normal mode.
+ *					specifies the usage of yesrmal mode.
  *
  * ACT8865_REGULATOR_MODE_LOWPOWER:	For DCDC and LDO regulators; it specify
  *					the usage of proprietary power-saving

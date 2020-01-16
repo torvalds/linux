@@ -24,14 +24,14 @@ static const struct of_device_id brcmstb_machine_match[] = {
 bool soc_is_brcmstb(void)
 {
 	const struct of_device_id *match;
-	struct device_node *root;
+	struct device_yesde *root;
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (!root)
 		return false;
 
-	match = of_match_node(brcmstb_machine_match, root);
-	of_node_put(root);
+	match = of_match_yesde(brcmstb_machine_match, root);
+	of_yesde_put(root);
 
 	return match != NULL;
 }
@@ -64,14 +64,14 @@ static const struct of_device_id sun_top_ctrl_match[] = {
 
 static int __init brcmstb_soc_device_early_init(void)
 {
-	struct device_node *sun_top_ctrl;
+	struct device_yesde *sun_top_ctrl;
 	void __iomem *sun_top_ctrl_base;
 	int ret = 0;
 
 	/* We could be on a multi-platform kernel, don't make this fatal but
 	 * bail out early
 	 */
-	sun_top_ctrl = of_find_matching_node(NULL, sun_top_ctrl_match);
+	sun_top_ctrl = of_find_matching_yesde(NULL, sun_top_ctrl_match);
 	if (!sun_top_ctrl)
 		return ret;
 
@@ -85,7 +85,7 @@ static int __init brcmstb_soc_device_early_init(void)
 	product_id = readl(sun_top_ctrl_base + 0x4);
 	iounmap(sun_top_ctrl_base);
 out:
-	of_node_put(sun_top_ctrl);
+	of_yesde_put(sun_top_ctrl);
 	return ret;
 }
 early_initcall(brcmstb_soc_device_early_init);
@@ -93,14 +93,14 @@ early_initcall(brcmstb_soc_device_early_init);
 static int __init brcmstb_soc_device_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
-	struct device_node *sun_top_ctrl;
+	struct device_yesde *sun_top_ctrl;
 	struct soc_device *soc_dev;
 	int ret = 0;
 
 	/* We could be on a multi-platform kernel, don't make this fatal but
 	 * bail out early
 	 */
-	sun_top_ctrl = of_find_matching_node(NULL, sun_top_ctrl_match);
+	sun_top_ctrl = of_find_matching_yesde(NULL, sun_top_ctrl_match);
 	if (!sun_top_ctrl)
 		return ret;
 
@@ -129,7 +129,7 @@ static int __init brcmstb_soc_device_init(void)
 		ret = -ENOMEM;
 	}
 out:
-	of_node_put(sun_top_ctrl);
+	of_yesde_put(sun_top_ctrl);
 	return ret;
 }
 arch_initcall(brcmstb_soc_device_init);

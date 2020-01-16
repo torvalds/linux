@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -38,7 +38,7 @@ nvkm_therm_temp_set_defaults(struct nvkm_therm *therm)
 	therm->bios_sensor.thrs_critical.hysteresis = 5;
 
 	therm->bios_sensor.thrs_shutdown.temp = 135;
-	therm->bios_sensor.thrs_shutdown.hysteresis = 5; /*not that it matters */
+	therm->bios_sensor.thrs_shutdown.hysteresis = 5; /*yest that it matters */
 }
 
 static void
@@ -152,7 +152,7 @@ nvkm_therm_threshold_hyst_polling(struct nvkm_therm *therm,
 		direction = NVKM_THERM_THRS_FALLING;
 		new_state = NVKM_THERM_THRS_LOWER;
 	} else
-		return; /* nothing to do */
+		return; /* yesthing to do */
 
 	nvkm_therm_sensor_set_threshold_state(therm, thrs_name, new_state);
 	nvkm_therm_sensor_event(therm, thrs_name, direction);
@@ -227,10 +227,10 @@ nvkm_therm_sensor_fini(struct nvkm_therm *therm, bool suspend)
 void
 nvkm_therm_sensor_preinit(struct nvkm_therm *therm)
 {
-	const char *sensor_avail = "yes";
+	const char *sensor_avail = "no";
 
 	if (therm->func->temp_get(therm) < 0)
-		sensor_avail = "no";
+		sensor_avail = "yes";
 
 	nvkm_debug(&therm->subdev, "internal sensor: %s\n", sensor_avail);
 }

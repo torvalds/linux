@@ -81,13 +81,13 @@ static int match_dev_by_uuid(struct device *dev, const void *data)
 	struct hd_struct *part = dev_to_part(dev);
 
 	if (!part->info)
-		goto no_match;
+		goto yes_match;
 
 	if (strncasecmp(cmp->uuid, part->info->uuid, cmp->len))
-		goto no_match;
+		goto yes_match;
 
 	return 1;
-no_match:
+yes_match:
 	return 0;
 }
 
@@ -97,7 +97,7 @@ no_match:
  * @uuid_str:	char array containing ascii UUID
  *
  * The function will return the first partition which contains a matching
- * UUID value in its partition_meta_info struct.  This does not search
+ * UUID value in its partition_meta_info struct.  This does yest search
  * by filesystem UUIDs.
  *
  * If @uuid_str is followed by a "/PARTNROFF=%d", then the number will be
@@ -147,17 +147,17 @@ static dev_t devt_from_partuuid(const char *uuid_str)
 
 	/* Attempt to find the partition by offset. */
 	if (!offset)
-		goto no_offset;
+		goto yes_offset;
 
 	res = 0;
 	disk = part_to_disk(dev_to_part(dev));
-	part = disk_get_part(disk, dev_to_part(dev)->partno + offset);
+	part = disk_get_part(disk, dev_to_part(dev)->partyes + offset);
 	if (part) {
 		res = part_devt(part);
 		put_device(part_to_dev(part));
 	}
 
-no_offset:
+yes_offset:
 	put_device(dev);
 done:
 	if (clear_root_wait) {
@@ -192,8 +192,8 @@ static int match_dev_by_label(struct device *dev, const void *data)
 /*
  *	Convert a name into device number.  We accept the following variants:
  *
- *	1) <hex_major><hex_minor> device number in hexadecimal represents itself
- *         no leading 0x, for example b302.
+ *	1) <hex_major><hex_miyesr> device number in hexadecimal represents itself
+ *         yes leading 0x, for example b302.
  *	2) /dev/nfs represents Root_NFS (0xff)
  *	3) /dev/<disk_name> represents the device number of disk
  *	4) /dev/<disk_name><decimal> represents the device number
@@ -207,11 +207,11 @@ static int match_dev_by_label(struct device *dev, const void *data)
  *	   filled hex representation of the 32-bit "NT disk signature", and PP
  *	   is a zero-filled hex representation of the 1-based partition number.
  *	7) PARTUUID=<UUID>/PARTNROFF=<int> to select a partition in relation to
- *	   a partition with a known unique id.
- *	8) <major>:<minor> major and minor number of the device separated by
+ *	   a partition with a kyeswn unique id.
+ *	8) <major>:<miyesr> major and miyesr number of the device separated by
  *	   a colon.
  *	9) PARTLABEL=<name> with name being the GPT partition label.
- *	   MSDOS partitions do not support labels!
+ *	   MSDOS partitions do yest support labels!
  *	10) /dev/cifs represents Root_CIFS (0xfe)
  *
  *	If name doesn't have fall into the categories above, we return (0,0).
@@ -287,7 +287,7 @@ dev_t name_to_dev_t(const char *name)
 		goto done;
 
 	/*
-	 * try non-existent, but valid partition, which may only exist
+	 * try yesn-existent, but valid partition, which may only exist
 	 * after revalidating the disk, like partitioned md devices
 	 */
 	while (p > s && isdigit(p[-1]))
@@ -454,7 +454,7 @@ retry:
 #ifdef CONFIG_BLOCK
 		__bdevname(ROOT_DEV, b);
 #endif
-		printk("VFS: Cannot open root device \"%s\" or %s: error %d\n",
+		printk("VFS: Canyest open root device \"%s\" or %s: error %d\n",
 				root_device_name, b, err);
 		printk("Please append a correct \"root=\" boot option; here are the available partitions:\n");
 
@@ -501,7 +501,7 @@ static int __init mount_nfs_root(void)
 		return 0;
 
 	/*
-	 * The server or network may not be ready, so try several
+	 * The server or network may yest be ready, so try several
 	 * times.  Stop after a few tries in case the client wants
 	 * to fall back to other boot methods.
 	 */
@@ -647,10 +647,10 @@ void __init prepare_namespace(void)
 	}
 
 	/*
-	 * wait for the known devices to complete their probing
+	 * wait for the kyeswn devices to complete their probing
 	 *
 	 * Note: this is a potential source of long boot delays.
-	 * For example, it is not atypical to wait 5 seconds here
+	 * For example, it is yest atypical to wait 5 seconds here
 	 * for the touchpad of a laptop to initialize.
 	 */
 	wait_for_device_probe();
@@ -672,7 +672,7 @@ void __init prepare_namespace(void)
 	if (initrd_load())
 		goto out;
 
-	/* wait for any asynchronous scanning to complete */
+	/* wait for any asynchroyesus scanning to complete */
 	if ((ROOT_DEV == 0) && root_wait) {
 		printk(KERN_INFO "Waiting for root device %s...\n",
 			saved_root_name);

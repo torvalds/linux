@@ -15,7 +15,7 @@
 #include "hsr_framereg.h"
 #include "hsr_slave.h"
 
-static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
+static int hsr_netdev_yestify(struct yestifier_block *nb, unsigned long event,
 			     void *ptr)
 {
 	struct net_device *dev;
@@ -24,7 +24,7 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 	int mtu_max;
 	int res;
 
-	dev = netdev_notifier_info_to_dev(ptr);
+	dev = netdev_yestifier_info_to_dev(ptr);
 	port = hsr_port_get_rtnl(dev);
 	if (!port) {
 		if (!is_hsr_master(dev))
@@ -32,7 +32,7 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 		hsr = netdev_priv(dev);
 		port = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 		if (!port) {
-			/* Resend of notification concerning removed device? */
+			/* Resend of yestification concerning removed device? */
 			return NOTIFY_DONE;
 		}
 	} else {
@@ -51,8 +51,8 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 		break;
 	case NETDEV_CHANGEADDR:
 		if (port->type == HSR_PT_MASTER) {
-			/* This should not happen since there's no
-			 * ndo_set_mac_address() for HSR devices - i.e. not
+			/* This should yest happen since there's yes
+			 * ndo_set_mac_address() for HSR devices - i.e. yest
 			 * supported.
 			 */
 			break;
@@ -62,20 +62,20 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 
 		if (port->type == HSR_PT_SLAVE_A) {
 			ether_addr_copy(master->dev->dev_addr, dev->dev_addr);
-			call_netdevice_notifiers(NETDEV_CHANGEADDR,
+			call_netdevice_yestifiers(NETDEV_CHANGEADDR,
 						 master->dev);
 		}
 
 		/* Make sure we recognize frames from ourselves in hsr_rcv() */
 		port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
-		res = hsr_create_self_node(hsr,
+		res = hsr_create_self_yesde(hsr,
 					   master->dev->dev_addr,
 					   port ?
 						port->dev->dev_addr :
 						master->dev->dev_addr);
 		if (res)
 			netdev_warn(master->dev,
-				    "Could not update HSR node address.\n");
+				    "Could yest update HSR yesde address.\n");
 		break;
 	case NETDEV_CHANGEMTU:
 		if (port->type == HSR_PT_MASTER)
@@ -107,8 +107,8 @@ struct hsr_port *hsr_port_get_hsr(struct hsr_priv *hsr, enum hsr_port_type pt)
 	return NULL;
 }
 
-static struct notifier_block hsr_nb = {
-	.notifier_call = hsr_netdev_notify,	/* Slave event notifications */
+static struct yestifier_block hsr_nb = {
+	.yestifier_call = hsr_netdev_yestify,	/* Slave event yestifications */
 };
 
 static int __init hsr_init(void)
@@ -117,7 +117,7 @@ static int __init hsr_init(void)
 
 	BUILD_BUG_ON(sizeof(struct hsr_tag) != HSR_HLEN);
 
-	register_netdevice_notifier(&hsr_nb);
+	register_netdevice_yestifier(&hsr_nb);
 	res = hsr_netlink_init();
 
 	return res;
@@ -125,7 +125,7 @@ static int __init hsr_init(void)
 
 static void __exit hsr_exit(void)
 {
-	unregister_netdevice_notifier(&hsr_nb);
+	unregister_netdevice_yestifier(&hsr_nb);
 	hsr_netlink_exit();
 	hsr_debugfs_remove_root();
 }

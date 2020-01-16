@@ -26,7 +26,7 @@
  *
  * When the guest driver writes dword 0 to the VBE_DISPI_INDEX_VBOX_VIDEO
  * the host starts to process the info. The first element at the start of
- * the 4096 bytes region should be normally be a LINK that points to
+ * the 4096 bytes region should be yesrmally be a LINK that points to
  * actual information chain. That way the guest driver can have some
  * fixed layout of the information memory block and just rewrite
  * the link to point to relevant memory chain.
@@ -62,7 +62,7 @@ struct vbva_cmd_hdr {
 
 /*
  * The VBVA ring buffer is suitable for transferring large (< 2GB) amount of
- * data. For example big bitmaps which do not fit to the buffer.
+ * data. For example big bitmaps which do yest fit to the buffer.
  *
  * Guest starts writing to the buffer by initializing a record entry in the
  * records queue. VBVA_F_RECORD_PARTIAL indicates that the record is being
@@ -245,7 +245,7 @@ struct vbva_flush {
 #define VBVA_SCREEN_F_ACTIVE			0x0001
 /*
  * The virtual monitor has been disabled by the guest and should be removed
- * by the host and ignored for purposes of pointer position calculation.
+ * by the host and igyesred for purposes of pointer position calculation.
  */
 #define VBVA_SCREEN_F_DISABLED			0x0002
 /*
@@ -338,8 +338,8 @@ struct vbva_mouse_pointer_shape {
 	 * consists of (lsb)BGRA(msb) 32 bit values.
 	 *
 	 * Guest driver must create the AND mask for pointers with alpha chan.,
-	 * so if host does not support alpha, the pointer could be displayed as
-	 * a normal color pointer. The AND mask can be constructed from alpha
+	 * so if host does yest support alpha, the pointer could be displayed as
+	 * a yesrmal color pointer. The AND mask can be constructed from alpha
 	 * values. For example alpha value >= 0xf0 means bit 0 in the AND mask.
 	 *
 	 * The AND mask is 1 bpp bitmap with byte aligned scanlines. Size of AND
@@ -349,7 +349,7 @@ struct vbva_mouse_pointer_shape {
 	 * The XOR mask follows the AND mask on the next 4 bytes aligned offset:
 	 * u8 *xor = and + (and_len + 3) & ~3
 	 * Bytes in the gap between the AND and the XOR mask are undefined.
-	 * XOR mask scanlines have no gap between them and size of XOR mask is:
+	 * XOR mask scanlines have yes gap between them and size of XOR mask is:
 	 * xor_len = width * 4 * height.
 	 *
 	 * Preallocate 4 bytes for accessing actual data as p->data.
@@ -375,7 +375,7 @@ struct vbva_mouse_pointer_shape {
 #define VBVACAPS_VIDEO_MODE_HINTS		0x00000004
 /* The guest can switch to a software cursor on demand. */
 #define VBVACAPS_DISABLE_CURSOR_INTEGRATION	0x00000008
-/* The guest does not depend on host handling the VBE registers. */
+/* The guest does yest depend on host handling the VBE registers. */
 #define VBVACAPS_USE_VBVA_ONLY			0x00000010
 
 struct vbva_caps {

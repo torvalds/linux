@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
@@ -50,7 +50,7 @@
 /**
  * struct bcm_device - device driver resources
  * @serdev_hu: HCI UART controller struct
- * @list: bcm_device_list node
+ * @list: bcm_device_list yesde
  * @dev: physical UART slave
  * @name: device name logged by bt_dev_*() functions
  * @device_wakeup: BT_WAKE pin,
@@ -226,7 +226,7 @@ static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 		/* LPO clock needs to be 32.768 kHz */
 		err = clk_set_rate(dev->lpo_clk, 32768);
 		if (err) {
-			dev_err(dev->dev, "Could not set LPO clock rate\n");
+			dev_err(dev->dev, "Could yest set LPO clock rate\n");
 			goto err_regulator_disable;
 		}
 
@@ -541,7 +541,7 @@ static int bcm_setup(struct hci_uart *hu)
 
 	err = request_firmware(&fw, fw_name, &hu->hdev->dev);
 	if (err < 0) {
-		bt_dev_info(hu->hdev, "BCM: Patch %s not found", fw_name);
+		bt_dev_info(hu->hdev, "BCM: Patch %s yest found", fw_name);
 		return 0;
 	}
 
@@ -826,7 +826,7 @@ unlock:
 }
 #endif
 
-/* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
+/* Some firmware reports an IRQ which does yest work (wrong pin in fw table?) */
 static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
 	{
 		.ident = "Meegopad T08",
@@ -969,7 +969,7 @@ static struct clk *bcm_get_txco(struct device *dev)
 	if (!IS_ERR(clk) || PTR_ERR(clk) == -EPROBE_DEFER)
 		return clk;
 
-	/* Original code used no name at all */
+	/* Original code used yes name at all */
 	return devm_clk_get(dev, NULL);
 }
 
@@ -989,7 +989,7 @@ static int bcm_get_resources(struct bcm_device *dev)
 	if (dev->txco_clk == ERR_PTR(-EPROBE_DEFER))
 		return PTR_ERR(dev->txco_clk);
 
-	/* Ignore all other errors as before */
+	/* Igyesre all other errors as before */
 	if (IS_ERR(dev->txco_clk))
 		dev->txco_clk = NULL;
 
@@ -1074,7 +1074,7 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 
 	/* If the DSDT uses an Interrupt resource for the IRQ, then there are
 	 * only 2 GPIO resources, we use the irq-last mapping for this, since
-	 * we already have an irq the 3th / last mapping will not be used.
+	 * we already have an irq the 3th / last mapping will yest be used.
 	 */
 	if (dev->irq)
 		gpio_mapping = acpi_bcm_int_last_gpios;
@@ -1086,7 +1086,7 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 		dev_warn(dev->dev, "Unexpected ACPI gpio_int_idx: %d\n",
 			 dev->gpio_int_idx);
 
-	/* Warn if our expectations are not met. */
+	/* Warn if our expectations are yest met. */
 	if (dev->gpio_count != (dev->irq ? 2 : 3))
 		dev_warn(dev->dev, "Unexpected number of ACPI GPIOs: %d\n",
 			 dev->gpio_count);
@@ -1444,7 +1444,7 @@ static struct serdev_device_driver bcm_serdev_driver = {
 
 int __init bcm_init(void)
 {
-	/* For now, we need to keep both platform device
+	/* For yesw, we need to keep both platform device
 	 * driver (ACPI generated) and serdev driver (DT).
 	 */
 	platform_driver_register(&bcm_driver);

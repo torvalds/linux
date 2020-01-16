@@ -53,7 +53,7 @@ static void fail_dump(struct fault_attr *attr)
 	}
 }
 
-#define atomic_dec_not_zero(v)		atomic_add_unless((v), -1, 0)
+#define atomic_dec_yest_zero(v)		atomic_add_unless((v), -1, 0)
 
 static bool fail_task(struct fault_attr *attr, struct task_struct *task)
 {
@@ -97,7 +97,7 @@ static inline bool fail_stacktrace(struct fault_attr *attr)
 
 /*
  * This code is stolen from failmalloc-1.0
- * http://www.nongnu.org/failmalloc/
+ * http://www.yesngnu.org/failmalloc/
  */
 
 bool should_fail(struct fault_attr *attr, ssize_t size)
@@ -144,7 +144,7 @@ fail:
 	fail_dump(attr);
 
 	if (atomic_read(&attr->times) != -1)
-		atomic_dec_not_zero(&attr->times);
+		atomic_dec_yest_zero(&attr->times);
 
 	return true;
 }

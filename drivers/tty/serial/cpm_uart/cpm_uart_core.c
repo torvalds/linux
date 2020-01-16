@@ -261,7 +261,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 		/* get number of characters, and check spce in flip-buffer */
 		i = in_be16(&bdp->cbd_datlen);
 
-		/* If we have not enough room in tty flip buffer, then we try
+		/* If we have yest eyesugh room in tty flip buffer, then we try
 		 * later, which will be the next rx-interrupt or a timeout
 		 */
 		if (tty_buffer_request_room(tport, i) < i) {
@@ -327,7 +327,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	if (status & BD_SC_OV)
 		port->icount.overrun++;
 
-	/* Mask out ignored conditions */
+	/* Mask out igyesred conditions */
 	status &= port->read_status_mask;
 
 	/* Handle the remaining ones */
@@ -338,13 +338,13 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	else if (status & BD_SC_FR)
 		flg = TTY_FRAME;
 
-	/* overrun does not affect the current character ! */
+	/* overrun does yest affect the current character ! */
 	if (status & BD_SC_OV) {
 		ch = 0;
 		flg = TTY_OVERRUN;
 		/* We skip this buffer */
-		/* CHECK: Is really nothing senseful there */
-		/* ASSUMPTION: it contains nothing valid */
+		/* CHECK: Is really yesthing senseful there */
+		/* ASSUMPTION: it contains yesthing valid */
 		i = 0;
 	}
 #ifdef SUPPORT_SYSRQ
@@ -396,7 +396,7 @@ static int cpm_uart_startup(struct uart_port *port)
 
 	pr_debug("CPM uart[%d]:startup\n", port->line);
 
-	/* If the port is not the console, make sure rx is disabled. */
+	/* If the port is yest the console, make sure rx is disabled. */
 	if (!(pinfo->flags & FLAG_CONSOLE)) {
 		/* Disable UART rx */
 		if (IS_SMC(pinfo)) {
@@ -454,7 +454,7 @@ static void cpm_uart_shutdown(struct uart_port *port)
 	/* free interrupt handler */
 	free_irq(port->irq, port);
 
-	/* If the port is not the console, disable Rx and Tx. */
+	/* If the port is yest the console, disable Rx and Tx. */
 	if (!(pinfo->flags & FLAG_CONSOLE)) {
 		/* Wait for all the BDs marked sent */
 		while(!cpm_uart_tx_empty(port)) {
@@ -513,7 +513,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		pinfo->rx_fifosize = RX_BUF_SIZE;
 
 	/* MAXIDL is the timeout after which a receive buffer is closed
-	 * when not full if no more characters are received.
+	 * when yest full if yes more characters are received.
 	 * We calculate it from the baudrate so that the duration is
 	 * always the same at standard rates: about 4ms.
 	 */
@@ -583,29 +583,29 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		port->read_status_mask |= BD_SC_BR;
 
 	/*
-	 * Characters to ignore
+	 * Characters to igyesre
 	 */
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= BD_SC_PR | BD_SC_FR;
+		port->igyesre_status_mask |= BD_SC_PR | BD_SC_FR;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= BD_SC_BR;
+		port->igyesre_status_mask |= BD_SC_BR;
 		/*
-		 * If we're ignore parity and break indicators, ignore
+		 * If we're igyesre parity and break indicators, igyesre
 		 * overruns too.  (For real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= BD_SC_OV;
+			port->igyesre_status_mask |= BD_SC_OV;
 	}
 	/*
-	 * !!! ignore all characters if CREAD is not set
+	 * !!! igyesre all characters if CREAD is yest set
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
 		port->read_status_mask &= ~BD_SC_EMPTY;
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	/* Start bit has not been added (so don't, because we would just
+	/* Start bit has yest been added (so don't, because we would just
 	 * subtract it later), and we need to add one for the number of
 	 * stops bits (there is always at least one).
 	 */
@@ -614,9 +614,9 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		/*
 		 * MRBLR can be changed while an SMC/SCC is operating only
 		 * if it is done in a single bus cycle with one 16-bit move
-		 * (not two 8-bit bus cycles back-to-back). This occurs when
+		 * (yest two 8-bit bus cycles back-to-back). This occurs when
 		 * the cp shifts control to the next RxBD, so the change does
-		 * not take effect immediately. To guarantee the exact RxBD
+		 * yest take effect immediately. To guarantee the exact RxBD
 		 * on which the change occurs, change MRBLR only while the
 		 * SMC/SCC receiver is disabled.
 		 */
@@ -816,7 +816,7 @@ static void cpm_uart_init_scc(struct uart_cpm_port *pinfo)
 	out_be16(&sup->scc_brkcr, 1);
 	out_be16(&sup->scc_parec, 0);
 	out_be16(&sup->scc_frmec, 0);
-	out_be16(&sup->scc_nosec, 0);
+	out_be16(&sup->scc_yessec, 0);
 	out_be16(&sup->scc_brkec, 0);
 	out_be16(&sup->scc_uaddr1, 0);
 	out_be16(&sup->scc_uaddr2, 0);
@@ -835,7 +835,7 @@ static void cpm_uart_init_scc(struct uart_cpm_port *pinfo)
 	 */
 	cpm_line_cr_cmd(pinfo, CPM_CR_INIT_TRX);
 
-	/* Set UART mode, 8 bit, no parity, one stop.
+	/* Set UART mode, 8 bit, yes parity, one stop.
 	 * Enable receive and transmit.
 	 */
 	out_be32(&scp->scc_gsmrh, 0);
@@ -889,7 +889,7 @@ static void cpm_uart_init_smc(struct uart_cpm_port *pinfo)
 	out_be16(&up->smc_brkec, 0);
 	out_be16(&up->smc_brkcr, 1);
 
-	/* Set UART mode, 8 bit, no parity, one stop.
+	/* Set UART mode, 8 bit, yes parity, one stop.
 	 * Enable receive and transmit.
 	 */
 	out_be16(&sp->smc_smcmr, smcr_mk_clen(9) | SMCMR_SM_UART);
@@ -978,15 +978,15 @@ static void cpm_uart_early_write(struct uart_cpm_port *pinfo,
 	bdbase = pinfo->tx_bd_base;
 
 	/*
-	 * Now, do each character.  This is not as bad as it looks
-	 * since this is a holding FIFO and not a transmitting FIFO.
+	 * Now, do each character.  This is yest as bad as it looks
+	 * since this is a holding FIFO and yest a transmitting FIFO.
 	 * We could add the complexity of filling the entire transmit
 	 * buffer, but we would just wait longer between accesses......
 	 */
 	for (i = 0; i < count; i++, string++) {
 		/* Wait for transmitter fifo to empty.
 		 * Ready indicates output is ready, and xmt is doing
-		 * that, not that it is ready for us to send.
+		 * that, yest that it is ready for us to send.
 		 */
 		while ((in_be16(&bdp->cbd_sc) & BD_SC_READY) != 0)
 			;
@@ -1140,7 +1140,7 @@ static const struct uart_ops cpm_uart_pops = {
 
 struct uart_cpm_port cpm_uart_ports[UART_NR];
 
-static int cpm_uart_init_port(struct device_node *np,
+static int cpm_uart_init_port(struct device_yesde *np,
                               struct uart_cpm_port *pinfo)
 {
 	const u32 *data;
@@ -1158,7 +1158,7 @@ static int cpm_uart_init_port(struct device_node *np,
 	if (!pinfo->clk) {
 		data = of_get_property(np, "fsl,cpm-brg", &len);
 		if (!data || len != 4) {
-			printk(KERN_ERR "CPM UART %pOFn has no/invalid "
+			printk(KERN_ERR "CPM UART %pOFn has yes/invalid "
 			                "fsl,cpm-brg property.\n", np);
 			return -EINVAL;
 		}
@@ -1167,7 +1167,7 @@ static int cpm_uart_init_port(struct device_node *np,
 
 	data = of_get_property(np, "fsl,cpm-command", &len);
 	if (!data || len != 4) {
-		printk(KERN_ERR "CPM UART %pOFn has no/invalid "
+		printk(KERN_ERR "CPM UART %pOFn has yes/invalid "
 		                "fsl,cpm-command property.\n", np);
 		return -EINVAL;
 	}
@@ -1257,7 +1257,7 @@ out_mem:
 
 #ifdef CONFIG_SERIAL_CPM_CONSOLE
 /*
- *	Print a string to the serial port trying not to disturb
+ *	Print a string to the serial port trying yest to disturb
  *	any possible real use of the port...
  *
  *	Note that this is called with interrupts already disabled
@@ -1267,9 +1267,9 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 {
 	struct uart_cpm_port *pinfo = &cpm_uart_ports[co->index];
 	unsigned long flags;
-	int nolock = oops_in_progress;
+	int yeslock = oops_in_progress;
 
-	if (unlikely(nolock)) {
+	if (unlikely(yeslock)) {
 		local_irq_save(flags);
 	} else {
 		spin_lock_irqsave(&pinfo->port.lock, flags);
@@ -1277,7 +1277,7 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 
 	cpm_uart_early_write(pinfo, s, count, true);
 
-	if (unlikely(nolock)) {
+	if (unlikely(yeslock)) {
 		local_irq_restore(flags);
 	} else {
 		spin_unlock_irqrestore(&pinfo->port.lock, flags);
@@ -1295,7 +1295,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	struct uart_cpm_port *pinfo;
 	struct uart_port *port;
 
-	struct device_node *np;
+	struct device_yesde *np;
 	int i = 0;
 
 	if (co->index >= UART_NR) {
@@ -1304,7 +1304,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 		return -ENODEV;
 	}
 
-	for_each_node_by_type(np, "serial") {
+	for_each_yesde_by_type(np, "serial") {
 		if (!of_device_is_compatible(np, "fsl,cpm1-smc-uart") &&
 		    !of_device_is_compatible(np, "fsl,cpm1-scc-uart") &&
 		    !of_device_is_compatible(np, "fsl,cpm2-smc-uart") &&
@@ -1324,7 +1324,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	port = &pinfo->port;
 
 	ret = cpm_uart_init_port(np, pinfo);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (ret)
 		return ret;
 
@@ -1394,7 +1394,7 @@ static struct uart_driver cpm_reg = {
 	.driver_name	= "ttyCPM",
 	.dev_name	= "ttyCPM",
 	.major		= SERIAL_CPM_MAJOR,
-	.minor		= SERIAL_CPM_MINOR,
+	.miyesr		= SERIAL_CPM_MINOR,
 	.cons		= CPM_UART_CONSOLE,
 	.nr		= UART_NR,
 };
@@ -1417,7 +1417,7 @@ static int cpm_uart_probe(struct platform_device *ofdev)
 	/* initialize the device pointer for the port */
 	pinfo->port.dev = &ofdev->dev;
 
-	ret = cpm_uart_init_port(ofdev->dev.of_node, pinfo);
+	ret = cpm_uart_init_port(ofdev->dev.of_yesde, pinfo);
 	if (ret)
 		return ret;
 

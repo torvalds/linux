@@ -15,7 +15,7 @@
  * This handles the cases where the guest is in real suspend mode
  * and we want to get back to the guest without dooming the transaction.
  * The caller has checked that the guest is in real-suspend mode
- * (MSR[TS] = S and the fake-suspend flag is not set).
+ * (MSR[TS] = S and the fake-suspend flag is yest set).
  */
 int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 {
@@ -74,7 +74,7 @@ int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 		return 1;
 
 	case PPC_INST_TSR:
-		/* we know the MSR has the TS field = S (0b01) here */
+		/* we kyesw the MSR has the TS field = S (0b01) here */
 		msr = vcpu->arch.shregs.msr;
 		/* check for PR=1 and arch 2.06 bit set in PCR */
 		if ((msr & MSR_PR) && (vcpu->arch.vcore->pcr & PCR_ARCH_206))

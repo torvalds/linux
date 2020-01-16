@@ -19,43 +19,43 @@
 #include <asm/olpc.h>
 #include <asm/olpc_ofw.h>
 
-static phandle __init olpc_dt_getsibling(phandle node)
+static phandle __init olpc_dt_getsibling(phandle yesde)
 {
-	const void *args[] = { (void *)node };
-	void *res[] = { &node };
+	const void *args[] = { (void *)yesde };
+	void *res[] = { &yesde };
 
-	if ((s32)node == -1)
+	if ((s32)yesde == -1)
 		return 0;
 
-	if (olpc_ofw("peer", args, res) || (s32)node == -1)
+	if (olpc_ofw("peer", args, res) || (s32)yesde == -1)
 		return 0;
 
-	return node;
+	return yesde;
 }
 
-static phandle __init olpc_dt_getchild(phandle node)
+static phandle __init olpc_dt_getchild(phandle yesde)
 {
-	const void *args[] = { (void *)node };
-	void *res[] = { &node };
+	const void *args[] = { (void *)yesde };
+	void *res[] = { &yesde };
 
-	if ((s32)node == -1)
+	if ((s32)yesde == -1)
 		return 0;
 
-	if (olpc_ofw("child", args, res) || (s32)node == -1) {
+	if (olpc_ofw("child", args, res) || (s32)yesde == -1) {
 		pr_err("PROM: %s: fetching child failed!\n", __func__);
 		return 0;
 	}
 
-	return node;
+	return yesde;
 }
 
-static int __init olpc_dt_getproplen(phandle node, const char *prop)
+static int __init olpc_dt_getproplen(phandle yesde, const char *prop)
 {
-	const void *args[] = { (void *)node, prop };
+	const void *args[] = { (void *)yesde, prop };
 	int len;
 	void *res[] = { &len };
 
-	if ((s32)node == -1)
+	if ((s32)yesde == -1)
 		return -1;
 
 	if (olpc_ofw("getproplen", args, res)) {
@@ -66,16 +66,16 @@ static int __init olpc_dt_getproplen(phandle node, const char *prop)
 	return len;
 }
 
-static int __init olpc_dt_getproperty(phandle node, const char *prop,
+static int __init olpc_dt_getproperty(phandle yesde, const char *prop,
 		char *buf, int bufsize)
 {
 	int plen;
 
-	plen = olpc_dt_getproplen(node, prop);
+	plen = olpc_dt_getproplen(yesde, prop);
 	if (plen > bufsize || plen < 1) {
 		return -1;
 	} else {
-		const void *args[] = { (void *)node, prop, buf, (void *)plen };
+		const void *args[] = { (void *)yesde, prop, buf, (void *)plen };
 		void *res[] = { &plen };
 
 		if (olpc_ofw("getprop", args, res)) {
@@ -87,15 +87,15 @@ static int __init olpc_dt_getproperty(phandle node, const char *prop,
 	return plen;
 }
 
-static int __init olpc_dt_nextprop(phandle node, char *prev, char *buf)
+static int __init olpc_dt_nextprop(phandle yesde, char *prev, char *buf)
 {
-	const void *args[] = { (void *)node, prev, buf };
+	const void *args[] = { (void *)yesde, prev, buf };
 	int success;
 	void *res[] = { &success };
 
 	buf[0] = '\0';
 
-	if ((s32)node == -1)
+	if ((s32)yesde == -1)
 		return -1;
 
 	if (olpc_ofw("nextprop", args, res) || success != 1)
@@ -104,13 +104,13 @@ static int __init olpc_dt_nextprop(phandle node, char *prev, char *buf)
 	return 0;
 }
 
-static int __init olpc_dt_pkg2path(phandle node, char *buf,
+static int __init olpc_dt_pkg2path(phandle yesde, char *buf,
 		const int buflen, int *len)
 {
-	const void *args[] = { (void *)node, buf, (void *)buflen };
+	const void *args[] = { (void *)yesde, buf, (void *)buflen };
 	void *res[] = { len };
 
-	if ((s32)node == -1)
+	if ((s32)yesde == -1)
 		return -1;
 
 	if (olpc_ofw("package-to-path", args, res) || *len < 1)
@@ -133,7 +133,7 @@ void * __init prom_early_alloc(unsigned long size)
 		/*
 		 * To mimimize the number of allocations, grab at least
 		 * PAGE_SIZE of memory (that's an arbitrary choice that's
-		 * fast enough on the platforms we care about while minimizing
+		 * fast eyesugh on the platforms we care about while minimizing
 		 * wasted bootmem) and hand off chunks of it to callers.
 		 */
 		res = memblock_alloc(chunk_size, SMP_CACHE_BYTES);
@@ -165,19 +165,19 @@ static struct of_pdt_ops prom_olpc_ops __initdata = {
 
 static phandle __init olpc_dt_finddevice(const char *path)
 {
-	phandle node;
+	phandle yesde;
 	const void *args[] = { path };
-	void *res[] = { &node };
+	void *res[] = { &yesde };
 
 	if (olpc_ofw("finddevice", args, res)) {
 		pr_err("olpc_dt: finddevice failed!\n");
 		return 0;
 	}
 
-	if ((s32) node == -1)
+	if ((s32) yesde == -1)
 		return 0;
 
-	return node;
+	return yesde;
 }
 
 static int __init olpc_dt_interpret(const char *words)
@@ -200,15 +200,15 @@ static int __init olpc_dt_interpret(const char *words)
  */
 static u32 __init olpc_dt_get_board_revision(void)
 {
-	phandle node;
+	phandle yesde;
 	__be32 rev;
 	int r;
 
-	node = olpc_dt_finddevice("/");
-	if (!node)
+	yesde = olpc_dt_finddevice("/");
+	if (!yesde)
 		return 0;
 
-	r = olpc_dt_getproperty(node, "board-revision-int",
+	r = olpc_dt_getproperty(yesde, "board-revision-int",
 				(char *) &rev, sizeof(rev));
 	if (r < 0)
 		return 0;
@@ -216,12 +216,12 @@ static u32 __init olpc_dt_get_board_revision(void)
 	return be32_to_cpu(rev);
 }
 
-static int __init olpc_dt_compatible_match(phandle node, const char *compat)
+static int __init olpc_dt_compatible_match(phandle yesde, const char *compat)
 {
 	char buf[64], *p;
 	int plen, len;
 
-	plen = olpc_dt_getproperty(node, "compatible", buf, sizeof(buf));
+	plen = olpc_dt_getproperty(yesde, "compatible", buf, sizeof(buf));
 	if (plen <= 0)
 		return 0;
 
@@ -236,11 +236,11 @@ static int __init olpc_dt_compatible_match(phandle node, const char *compat)
 
 void __init olpc_dt_fixup(void)
 {
-	phandle node;
+	phandle yesde;
 	u32 board_rev;
 
-	node = olpc_dt_finddevice("/battery@0");
-	if (!node)
+	yesde = olpc_dt_finddevice("/battery@0");
+	if (!yesde)
 		return;
 
 	board_rev = olpc_dt_get_board_revision();
@@ -250,19 +250,19 @@ void __init olpc_dt_fixup(void)
 	if (board_rev >= olpc_board_pre(0xd0)) {
 		/* XO-1.5 */
 
-		if (olpc_dt_compatible_match(node, "olpc,xo1.5-battery"))
+		if (olpc_dt_compatible_match(yesde, "olpc,xo1.5-battery"))
 			return;
 
-		/* Add olpc,xo1.5-battery compatible marker to battery node */
+		/* Add olpc,xo1.5-battery compatible marker to battery yesde */
 		olpc_dt_interpret("\" /battery@0\" find-device");
 		olpc_dt_interpret("  \" olpc,xo1.5-battery\" +compatible");
 		olpc_dt_interpret("device-end");
 
-		if (olpc_dt_compatible_match(node, "olpc,xo1-battery")) {
+		if (olpc_dt_compatible_match(yesde, "olpc,xo1-battery")) {
 			/*
 			 * If we have a olpc,xo1-battery compatible, then we're
-			 * running a new enough firmware that already has
-			 * the dcon node.
+			 * running a new eyesugh firmware that already has
+			 * the dcon yesde.
 			 */
 			return;
 		}
@@ -277,11 +277,11 @@ void __init olpc_dt_fixup(void)
 	} else {
 		/* XO-1 */
 
-		if (olpc_dt_compatible_match(node, "olpc,xo1-battery")) {
+		if (olpc_dt_compatible_match(yesde, "olpc,xo1-battery")) {
 			/*
 			 * If we have a olpc,xo1-battery compatible, then we're
-			 * running a new enough firmware that already has
-			 * the dcon and RTC nodes.
+			 * running a new eyesugh firmware that already has
+			 * the dcon and RTC yesdes.
 			 */
 			return;
 		}
@@ -299,7 +299,7 @@ void __init olpc_dt_fixup(void)
 		olpc_dt_interpret("device-end");
 	}
 
-	/* Add olpc,xo1-battery compatible marker to battery node */
+	/* Add olpc,xo1-battery compatible marker to battery yesde */
 	olpc_dt_interpret("\" /battery@0\" find-device");
 	olpc_dt_interpret("  \" olpc,xo1-battery\" +compatible");
 	olpc_dt_interpret("device-end");
@@ -316,7 +316,7 @@ void __init olpc_dt_build_devicetree(void)
 
 	root = olpc_dt_getsibling(0);
 	if (!root) {
-		pr_err("PROM: unable to get root node from OFW!\n");
+		pr_err("PROM: unable to get root yesde from OFW!\n");
 		return;
 	}
 	of_pdt_build_devicetree(root, &prom_olpc_ops);

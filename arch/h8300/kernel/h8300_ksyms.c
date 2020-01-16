@@ -4,8 +4,8 @@
 
 /*
  * libgcc functions - functions that are used internally by the
- * compiler...  (prototypes are not correct though, but that
- * doesn't really matter since they're not versioned).
+ * compiler...  (prototypes are yest correct though, but that
+ * doesn't really matter since they're yest versioned).
  */
 asmlinkage long __ucmpdi2(long long, long long);
 asmlinkage long long __ashldi3(long long, int);

@@ -19,13 +19,13 @@
  * conditions that could arise if a program was reading device info
  * for devices that are being removed (unplugged).  (That is, the
  * program may find a directory for devnum_12 then try to open it,
- * but it was just unplugged, so the directory is now deleted.
+ * but it was just unplugged, so the directory is yesw deleted.
  * But programs would just have to be prepared for situations like
  * this in any plug-and-play environment.)
  *
  * 1999-12-16: Thomas Sailer <sailer@ife.ee.ethz.ch>
  *   Converted the whole proc stuff to real
- *   read methods. Now not the whole device list needs to fit
+ *   read methods. Now yest the whole device list needs to fit
  *   into one page, only the device list for one bus.
  *   Added a poll method to /sys/kernel/debug/usb/devices, to wake
  *   up an eventual usbd
@@ -33,7 +33,7 @@
  *   Turned into its own filesystem
  * 2000-07-05: Ashley Montanaro <ashley@compsoc.man.ac.uk>
  *   Converted file reading routine to dump to buffer once
- *   per device, not per bus
+ *   per device, yest per bus
  */
 
 #include <linux/fs.h>
@@ -223,7 +223,7 @@ static char *usb_dump_endpoint_descriptor(int speed, char *start, char *end,
 static char *usb_dump_interface_descriptor(char *start, char *end,
 					const struct usb_interface_cache *intfc,
 					const struct usb_interface *iface,
-					int setno)
+					int setyes)
 {
 	const struct usb_interface_descriptor *desc;
 	const char *driver_name = "";
@@ -231,11 +231,11 @@ static char *usb_dump_interface_descriptor(char *start, char *end,
 
 	if (start > end)
 		return start;
-	desc = &intfc->altsetting[setno].desc;
+	desc = &intfc->altsetting[setyes].desc;
 	if (iface) {
 		driver_name = (iface->dev.driver
 				? iface->dev.driver->name
-				: "(none)");
+				: "(yesne)");
 		active = (desc == &iface->cur_altsetting->desc);
 	}
 	start += sprintf(start, format_iface,
@@ -253,12 +253,12 @@ static char *usb_dump_interface_descriptor(char *start, char *end,
 
 static char *usb_dump_interface(int speed, char *start, char *end,
 				const struct usb_interface_cache *intfc,
-				const struct usb_interface *iface, int setno)
+				const struct usb_interface *iface, int setyes)
 {
-	const struct usb_host_interface *desc = &intfc->altsetting[setno];
+	const struct usb_host_interface *desc = &intfc->altsetting[setyes];
 	int i;
 
-	start = usb_dump_interface_descriptor(start, end, intfc, iface, setno);
+	start = usb_dump_interface_descriptor(start, end, intfc, iface, setyes);
 	for (i = 0; i < desc->desc.bNumEndpoints; i++) {
 		if (start > end)
 			return start;
@@ -320,7 +320,7 @@ static char *usb_dump_config(int speed, char *start, char *end,
 	if (start > end)
 		return start;
 	if (!config)
-		/* getting these some in 2.3.7; none in 2.3.6 */
+		/* getting these some in 2.3.7; yesne in 2.3.6 */
 		return start + sprintf(start, "(null Cfg. desc.)\n");
 	start = usb_dump_config_descriptor(start, end, &config->desc, active,
 			speed);
@@ -479,14 +479,14 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 	ssize_t total_written = 0;
 	struct usb_device *childdev = NULL;
 
-	/* don't bother with anything else if we're not writing any data */
+	/* don't bother with anything else if we're yest writing any data */
 	if (*nbytes <= 0)
 		return 0;
 
 	if (level > MAX_TOPO_LEVEL)
 		return 0;
 	/* allocate 2^1 pages = 8K (on i386);
-	 * should be more than enough for one device */
+	 * should be more than eyesugh for one device */
 	pages_start = (char *)__get_free_pages(GFP_NOIO, 1);
 	if (!pages_start)
 		return -ENOMEM;
@@ -503,7 +503,7 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 	case USB_SPEED_UNKNOWN:		/* usb 1.1 root hub code */
 	case USB_SPEED_FULL:
 		speed = "12"; break;
-	case USB_SPEED_WIRELESS:	/* Wireless has no real fixed speed */
+	case USB_SPEED_WIRELESS:	/* Wireless has yes real fixed speed */
 	case USB_SPEED_HIGH:
 		speed = "480"; break;
 	case USB_SPEED_SUPER:
@@ -639,7 +639,7 @@ static __poll_t usb_device_poll(struct file *file,
 }
 
 const struct file_operations usbfs_devices_fops = {
-	.llseek =	no_seek_end_llseek,
+	.llseek =	yes_seek_end_llseek,
 	.read =		usb_device_read,
 	.poll =		usb_device_poll,
 };

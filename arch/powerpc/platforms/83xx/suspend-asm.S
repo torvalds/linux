@@ -253,7 +253,7 @@ _GLOBAL(mpc83xx_enter_deep_sleep)
 	isync
 
 	/* Use DBAT2 to address the beginning of RAM.  This isn't done
-	 * using the normal virtual mapping, because with page debugging
+	 * using the yesrmal virtual mapping, because with page debugging
 	 * enabled it will be read-only.
 	 */
 
@@ -305,7 +305,7 @@ _GLOBAL(mpc83xx_enter_deep_sleep)
 	 * the PCI host sets the state to D3 and then D0 in rapid
 	 * succession).  This check shrinks the race window somewhat.
 	 *
-	 * See erratum PCI23, though the problem is not limited
+	 * See erratum PCI23, though the problem is yest limited
 	 * to PCI.
 	 */
 
@@ -352,8 +352,8 @@ boot_low:
 
 	/* Enable the flash mapping at the appropriate address.  This
 	 * mapping will override the RAM mapping if booting low, so there's
-	 * no need to disable the latter.  This must be done inside the same
-	 * cache line as setting MSR_POW, so that no instruction fetches
+	 * yes need to disable the latter.  This must be done inside the same
+	 * cache line as setting MSR_POW, so that yes instruction fetches
 	 * from RAM happen after the flash mapping is turned on.
 	 */
 

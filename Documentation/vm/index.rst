@@ -22,7 +22,7 @@ Kernel developers MM documentation
 ==================================
 
 The below documents describe MM internals with different level of
-details ranging from notes and mailing list responses to elaborate
+details ranging from yestes and mailing list responses to elaborate
 descriptions of data structures and algorithms.
 
 .. toctree::
@@ -38,7 +38,7 @@ descriptions of data structures and algorithms.
    hugetlbfs_reserv
    ksm
    memory-model
-   mmu_notifier
+   mmu_yestifier
    numa
    overcommit-accounting
    page_migration

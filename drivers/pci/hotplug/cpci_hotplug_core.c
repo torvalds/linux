@@ -94,7 +94,7 @@ disable_slot(struct hotplug_slot *hotplug_slot)
 	dbg("%s - unconfiguring slot %s", __func__, slot_name(slot));
 	retval = cpci_unconfigure_slot(slot);
 	if (retval) {
-		err("%s - could not unconfigure slot %s",
+		err("%s - could yest unconfigure slot %s",
 		    __func__, slot_name(slot));
 		goto disable_error;
 	}
@@ -102,7 +102,7 @@ disable_slot(struct hotplug_slot *hotplug_slot)
 
 	/* Clear EXT (by setting it) */
 	if (cpci_clear_ext(slot)) {
-		err("%s - could not clear EXT for slot %s",
+		err("%s - could yest clear EXT for slot %s",
 		    __func__, slot_name(slot));
 		retval = -ENODEV;
 		goto disable_error;
@@ -274,7 +274,7 @@ cpci_hp_intr(int irq, void *data)
 	/* Check to see if it was our interrupt */
 	if ((controller->irq_flags & IRQF_SHARED) &&
 	    !controller->ops->check_irq(controller->dev_id)) {
-		dbg("exited cpci_hp_intr, not our interrupt");
+		dbg("exited cpci_hp_intr, yest our interrupt");
 		return IRQ_NONE;
 	}
 
@@ -331,7 +331,7 @@ check_slots(void)
 	down_read(&list_rwsem);
 	if (!slots) {
 		up_read(&list_rwsem);
-		err("no slots registered, shutting down");
+		err("yes slots registered, shutting down");
 		return -1;
 	}
 	extracted = inserted = 0;
@@ -361,7 +361,7 @@ check_slots(void)
 			dbg("%s - configuring slot %s",
 			    __func__, slot_name(slot));
 			if (cpci_configure_slot(slot)) {
-				err("%s - could not configure slot %s",
+				err("%s - could yest configure slot %s",
 				    __func__, slot_name(slot));
 				continue;
 			}
@@ -405,7 +405,7 @@ check_slots(void)
 			if (hs_csr == 0xffff) {
 				/*
 				 * Hmmm, we're likely hosed at this point, should we
-				 * bother trying to tell the driver or not?
+				 * bother trying to tell the driver or yest?
 				 */
 				err("card in slot %s was improperly removed",
 				    slot_name(slot));
@@ -421,7 +421,7 @@ check_slots(void)
 	if (inserted || extracted)
 		return extracted;
 	else if (!atomic_read(&extracting)) {
-		err("cannot find ENUM# source, shutting down");
+		err("canyest find ENUM# source, shutting down");
 		return -1;
 	}
 	return 0;

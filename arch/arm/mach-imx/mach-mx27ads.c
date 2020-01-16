@@ -176,7 +176,7 @@ static struct resource mx27ads_flash_resource = {
 
 };
 
-static struct platform_device mx27ads_nor_mtd_device = {
+static struct platform_device mx27ads_yesr_mtd_device = {
 	.name = "physmap-flash",
 	.id = 0,
 	.dev = {
@@ -281,9 +281,9 @@ static const struct imx_fb_platform_data mx27ads_fb_data __initconst = {
 	/*
 	 * - HSYNC active high
 	 * - VSYNC active high
-	 * - clk notenabled while idle
+	 * - clk yestenabled while idle
 	 * - clock inverted
-	 * - data not inverted
+	 * - data yest inverted
 	 * - data enable low active
 	 * - enable sharp mode
 	 */
@@ -327,7 +327,7 @@ static const struct imxmmc_platform_data sdhc2_pdata __initconst = {
 };
 
 static struct platform_device *platform_devices[] __initdata = {
-	&mx27ads_nor_mtd_device,
+	&mx27ads_yesr_mtd_device,
 };
 
 static const struct imxuart_platform_data uart_pdata __initconst = {

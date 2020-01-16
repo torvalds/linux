@@ -8,9 +8,9 @@ Required properties:
   - vddlvds-supply: LVDS1/2 voltage supply, 3.3V
   - reset-gpios: a GPIO spec for the reset pin
 
-The device node can contain following 'port' child nodes,
+The device yesde can contain following 'port' child yesdes,
 according to the OF graph bindings defined in [1]:
-  0: DSI Input, not required, if the bridge is DSI controlled
+  0: DSI Input, yest required, if the bridge is DSI controlled
   1: LVDS Output, mandatory
 
 [1]: Documentation/devicetree/bindings/media/video-interfaces.txt

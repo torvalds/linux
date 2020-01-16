@@ -228,11 +228,11 @@ static bool pca953x_check_register(struct pca953x_chip *chip, unsigned int reg,
 		bank += 8;
 	}
 
-	/* Register is not in the matching bank. */
+	/* Register is yest in the matching bank. */
 	if (!(BIT(bank) & checkbank))
 		return false;
 
-	/* Register is not within allowed range of bank. */
+	/* Register is yest within allowed range of bank. */
 	if (offset >= NBANK(chip))
 		return false;
 
@@ -423,9 +423,9 @@ static int pca953x_gpio_get_value(struct gpio_chip *gc, unsigned off)
 	if (ret < 0) {
 		/*
 		 * NOTE:
-		 * diagnostic already emitted; that's all we should
+		 * diagyesstic already emitted; that's all we should
 		 * do unless gpio_*_value_cansleep() calls become different
-		 * from their nonsleeping siblings (and report faults).
+		 * from their yesnsleeping siblings (and report faults).
 		 */
 		return 0;
 	}
@@ -754,7 +754,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 		return ret;
 
 	/*
-	 * There is no way to know which GPIO line generated the
+	 * There is yes way to kyesw which GPIO line generated the
 	 * interrupt.  We have to rely on the previous read for
 	 * this purpose.
 	 */
@@ -787,7 +787,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 					  IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&client->dev,
-			"could not connect irqchip to gpiochip\n");
+			"could yest connect irqchip to gpiochip\n");
 		return ret;
 	}
 
@@ -803,7 +803,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 	struct i2c_client *client = chip->client;
 
 	if (client->irq && irq_base != -1 && (chip->driver_data & PCA_INT))
-		dev_warn(&client->dev, "interrupt support not compiled in\n");
+		dev_warn(&client->dev, "interrupt support yest compiled in\n");
 
 	return 0;
 }
@@ -886,7 +886,7 @@ static int pca953x_probe(struct i2c_client *client,
 		/*
 		 * See if we need to de-assert a reset pin.
 		 *
-		 * There is no known ACPI-enabled platforms that are
+		 * There is yes kyeswn ACPI-enabled platforms that are
 		 * using "reset" GPIO. Otherwise any of those platform
 		 * must use _DSD method with corresponding property.
 		 */
@@ -943,9 +943,9 @@ static int pca953x_probe(struct i2c_client *client,
 	 * i2c adapter nesting depth and use the retrieved value as lockdep
 	 * subclass for chip->i2c_lock.
 	 *
-	 * REVISIT: This solution is not complete. It protects us from lockdep
+	 * REVISIT: This solution is yest complete. It protects us from lockdep
 	 * false positives when the expander controlling the i2c-mux is on
-	 * a different level on the device tree, but not when it's on the same
+	 * a different level on the device tree, but yest when it's on the same
 	 * level on a different branch (in which case the subclass number
 	 * would be the same).
 	 *
@@ -957,7 +957,7 @@ static int pca953x_probe(struct i2c_client *client,
 			     i2c_adapter_depth(client->adapter));
 
 	/* initialize cached registers from their original values.
-	 * we can't share this chip with another i2c master.
+	 * we can't share this chip with ayesther i2c master.
 	 */
 	pca953x_setup_gpio(chip, chip->driver_data & PCA_GPIO_MASK);
 

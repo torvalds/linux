@@ -58,8 +58,8 @@ void __init mpc85xx_ds_pic_init(void)
 {
 	struct mpic *mpic;
 #ifdef CONFIG_PPC_I8259
-	struct device_node *np;
-	struct device_node *cascade_node = NULL;
+	struct device_yesde *np;
+	struct device_yesde *cascade_yesde = NULL;
 	int cascade_irq;
 #endif
 	if (of_machine_is_compatible("fsl,MPC8572DS-CAMP")) {
@@ -80,18 +80,18 @@ void __init mpc85xx_ds_pic_init(void)
 
 #ifdef CONFIG_PPC_I8259
 	/* Initialize the i8259 controller */
-	for_each_node_by_type(np, "interrupt-controller")
+	for_each_yesde_by_type(np, "interrupt-controller")
 	    if (of_device_is_compatible(np, "chrp,iic")) {
-		cascade_node = np;
+		cascade_yesde = np;
 		break;
 	}
 
-	if (cascade_node == NULL) {
-		printk(KERN_DEBUG "Could not find i8259 PIC\n");
+	if (cascade_yesde == NULL) {
+		printk(KERN_DEBUG "Could yest find i8259 PIC\n");
 		return;
 	}
 
-	cascade_irq = irq_of_parse_and_map(cascade_node, 0);
+	cascade_irq = irq_of_parse_and_map(cascade_yesde, 0);
 	if (!cascade_irq) {
 		printk(KERN_ERR "Failed to map cascade interrupt\n");
 		return;
@@ -99,8 +99,8 @@ void __init mpc85xx_ds_pic_init(void)
 
 	DBG("mpc85xxds: cascade mapped to irq %d\n", cascade_irq);
 
-	i8259_init(cascade_node, 0);
-	of_node_put(cascade_node);
+	i8259_init(cascade_yesde, 0);
+	of_yesde_put(cascade_yesde);
 
 	irq_set_chained_handler(cascade_irq, mpc85xx_8259_cascade);
 #endif	/* CONFIG_PPC_I8259 */
@@ -110,7 +110,7 @@ void __init mpc85xx_ds_pic_init(void)
 extern int uli_exclude_device(struct pci_controller *hose,
 				u_char bus, u_char devfn);
 
-static struct device_node *pci_with_uli;
+static struct device_yesde *pci_with_uli;
 
 static int mpc85xx_exclude_device(struct pci_controller *hose,
 				   u_char bus, u_char devfn)
@@ -125,14 +125,14 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 static void __init mpc85xx_ds_uli_init(void)
 {
 #ifdef CONFIG_PCI
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	/* See if we have a ULI under the primary */
 
-	node = of_find_node_by_name(NULL, "uli1575");
-	while ((pci_with_uli = of_get_parent(node))) {
-		of_node_put(node);
-		node = pci_with_uli;
+	yesde = of_find_yesde_by_name(NULL, "uli1575");
+	while ((pci_with_uli = of_get_parent(yesde))) {
+		of_yesde_put(yesde);
+		yesde = pci_with_uli;
 
 		if (pci_with_uli == fsl_pci_primary) {
 			ppc_md.pci_exclude_device = mpc85xx_exclude_device;

@@ -5,7 +5,7 @@
  *
  * Defines of the MIPS boards specific address-MAP, registers, etc.
  *
- * Copyright (C) 2000,2012 MIPS Technologies, Inc.
+ * Copyright (C) 2000,2012 MIPS Techyeslogies, Inc.
  * All rights reserved.
  * Authors: Carsten Langgaard <carstenl@mips.com>
  *          Steven J. Hill <sjhill@mips.com>

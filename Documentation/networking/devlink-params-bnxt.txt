@@ -1,7 +1,7 @@
 enable_sriov		[DEVICE, GENERIC]
 			Configuration mode: Permanent
 
-ignore_ari		[DEVICE, GENERIC]
+igyesre_ari		[DEVICE, GENERIC]
 			Configuration mode: Permanent
 
 msix_vec_per_pf_max	[DEVICE, GENERIC]

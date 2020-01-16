@@ -78,7 +78,7 @@
 #define NSRI_DOWNREASON_SHFT	28		/* 0=failed, 1=never came   */
 #define NSRI_DOWNREASON_MASK	(UINT64_CAST 0x1 << 28) /*    out of reset. */
 #define NSRI_MORENODES_SHFT	18
-#define NSRI_MORENODES_MASK	(UINT64_CAST 1 << 18)	/* Max. # of nodes  */
+#define NSRI_MORENODES_MASK	(UINT64_CAST 1 << 18)	/* Max. # of yesdes  */
 #define	 MORE_MEMORY		0
 #define	 MORE_NODES		1
 #define NSRI_REGIONSIZE_SHFT	17
@@ -93,8 +93,8 @@
 #define NSRI_CHIPID_MASK	(UINT64_CAST 0xf)	/* Chip type ID	    */
 
 /*
- * In fine mode, each node is a region.	 In coarse mode, there are
- * eight nodes per region.
+ * In fine mode, each yesde is a region.	 In coarse mode, there are
+ * eight yesdes per region.
  */
 #define NASID_TO_FINEREG_SHFT	0
 #define NASID_TO_COARSEREG_SHFT 3

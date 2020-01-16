@@ -12,7 +12,7 @@
  * hence multiple low power combinations of MPUSS are possible.
  *
  * The CPU0 and CPU1 can't support Closed switch Retention (CSWR)
- * because the mode is not supported by hw constraints of dormant
+ * because the mode is yest supported by hw constraints of dormant
  * mode. While waking up from the dormant mode, a reset  signal
  * to the Cortex-A9 processor must be asserted by the external
  * power controller.
@@ -35,7 +35,7 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/linkage.h>
 #include <linux/smp.h>
 
@@ -75,7 +75,7 @@ struct omap4_cpu_pm_info {
  * struct cpu_pm_ops - CPU pm operations
  * @finish_suspend:	CPU suspend finisher function pointer
  * @resume:		CPU resume function pointer
- * @scu_prepare:	CPU Snoop Control program function pointer
+ * @scu_prepare:	CPU Syesop Control program function pointer
  * @hotplug_restart:	CPU restart function pointer
  *
  * Structure holds functions pointer for CPU low power operations like
@@ -218,7 +218,7 @@ static void __init save_l2x0_context(void)
  *
  * MPUSS states for the context save:
  * save_state =
- *	0 - Nothing lost and no need to save: MPUSS INACTIVE
+ *	0 - Nothing lost and yes need to save: MPUSS INACTIVE
  *	1 - CPUx L1 and logic lost: MPUSS CSWR
  *	2 - CPUx L1 and logic lost + GIC lost: MPUSS OSWR
  *	3 - CPUx L1 and logic lost + GIC + L2 lost: DEVICE OFF
@@ -249,7 +249,7 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 		 * CPUx CSWR is invalid hardware state. Also CPUx OSWR
 		 * doesn't make much scense, since logic is lost and $L1
 		 * needs to be cleaned because of coherency. This makes
-		 * CPUx OSWR equivalent to CPUX OFF and hence not supported
+		 * CPUx OSWR equivalent to CPUX OFF and hence yest supported
 		 */
 		WARN_ON(1);
 		return -ENXIO;
@@ -325,7 +325,7 @@ int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 
 	/*
 	 * CPU never retuns back if targeted power state is OFF mode.
-	 * CPU ONLINE follows normal CPU ONLINE ptah via
+	 * CPU ONLINE follows yesrmal CPU ONLINE ptah via
 	 * omap4_secondary_startup().
 	 */
 	omap_pm_ops.finish_suspend(cpu_state);
@@ -358,7 +358,7 @@ int __init omap4_mpuss_init(void)
 	struct omap4_cpu_pm_info *pm_info;
 
 	if (omap_rev() == OMAP4430_REV_ES1_0) {
-		WARN(1, "Power Management not supported on OMAP4430 ES1.0\n");
+		WARN(1, "Power Management yest supported on OMAP4430 ES1.0\n");
 		return -ENODEV;
 	}
 

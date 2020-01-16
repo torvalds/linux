@@ -33,7 +33,7 @@ enum pci_mmap_api {
 	PCI_MMAP_SYSFS,	/* mmap on /sys/bus/pci/devices/<BDF>/resource<N> */
 	PCI_MMAP_PROCFS	/* mmap on /proc/bus/pci/<BDF> */
 };
-int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vmai,
+int pci_mmap_fits(struct pci_dev *pdev, int resyes, struct vm_area_struct *vmai,
 		  enum pci_mmap_api mmap_api);
 
 int pci_probe_reset_function(struct pci_dev *dev);
@@ -121,7 +121,7 @@ static inline bool pci_has_subordinate(struct pci_dev *pci_dev)
 static inline bool pci_power_manageable(struct pci_dev *pci_dev)
 {
 	/*
-	 * Currently we allow normal PCI devices and PCI bridges transition
+	 * Currently we allow yesrmal PCI devices and PCI bridges transition
 	 * into D3 if their bridge_d3 is set.
 	 */
 	return !pci_has_subordinate(pci_dev) || pci_dev->bridge_d3;
@@ -177,9 +177,9 @@ extern raw_spinlock_t pci_lock;
 extern unsigned int pci_pm_d3_delay;
 
 #ifdef CONFIG_PCI_MSI
-void pci_no_msi(void);
+void pci_yes_msi(void);
 #else
-static inline void pci_no_msi(void) { }
+static inline void pci_yes_msi(void) { }
 #endif
 
 static inline void pci_msi_set_enable(struct pci_dev *dev, int enable)
@@ -205,13 +205,13 @@ static inline void pci_msix_clear_and_set_ctrl(struct pci_dev *dev, u16 clear, u
 
 void pci_realloc_get_opt(char *);
 
-static inline int pci_no_d1d2(struct pci_dev *dev)
+static inline int pci_yes_d1d2(struct pci_dev *dev)
 {
 	unsigned int parent_dstates = 0;
 
 	if (dev->bus->self)
-		parent_dstates = dev->bus->self->no_d1d2;
-	return (dev->no_d1d2 || parent_dstates);
+		parent_dstates = dev->bus->self->yes_d1d2;
+	return (dev->yes_d1d2 || parent_dstates);
 
 }
 extern const struct attribute_group *pci_dev_groups[];
@@ -230,7 +230,7 @@ extern unsigned long pci_hotplug_bus_size;
  * @id: single PCI device id structure to match
  * @dev: the PCI device structure to match against
  *
- * Returns the matching pci_device_id structure or %NULL if there is no match.
+ * Returns the matching pci_device_id structure or %NULL if there is yes match.
  */
 static inline const struct pci_device_id *
 pci_match_one_device(const struct pci_device_id *id, const struct pci_dev *dev)
@@ -257,7 +257,7 @@ struct pci_slot_attribute {
 #define to_pci_slot_attr(s) container_of(s, struct pci_slot_attribute, attr)
 
 enum pci_bar_type {
-	pci_bar_unknown,	/* Standard PCI BAR probe */
+	pci_bar_unkyeswn,	/* Standard PCI BAR probe */
 	pci_bar_io,		/* An I/O port BAR */
 	pci_bar_mem32,		/* A 32-bit memory BAR */
 	pci_bar_mem64,		/* A 64-bit memory BAR */
@@ -295,7 +295,7 @@ void pci_bus_put(struct pci_bus *bus);
 	 (speed) == PCIE_SPEED_8_0GT ? "8 GT/s" : \
 	 (speed) == PCIE_SPEED_5_0GT ? "5 GT/s" : \
 	 (speed) == PCIE_SPEED_2_5GT ? "2.5 GT/s" : \
-	 "Unknown speed")
+	 "Unkyeswn speed")
 
 /* PCIe speed to Mb/s reduced by encoding overhead */
 #define PCIE_SPEED2MBS_ENC(speed) \
@@ -359,7 +359,7 @@ static inline bool pci_dev_set_io_state(struct pci_dev *dev,
 	case pci_channel_io_perm_failure:
 		switch (dev->error_state) {
 		case pci_channel_io_frozen:
-		case pci_channel_io_normal:
+		case pci_channel_io_yesrmal:
 		case pci_channel_io_perm_failure:
 			changed = true;
 			break;
@@ -368,15 +368,15 @@ static inline bool pci_dev_set_io_state(struct pci_dev *dev,
 	case pci_channel_io_frozen:
 		switch (dev->error_state) {
 		case pci_channel_io_frozen:
-		case pci_channel_io_normal:
+		case pci_channel_io_yesrmal:
 			changed = true;
 			break;
 		}
 		break;
-	case pci_channel_io_normal:
+	case pci_channel_io_yesrmal:
 		switch (dev->error_state) {
 		case pci_channel_io_frozen:
-		case pci_channel_io_normal:
+		case pci_channel_io_yesrmal:
 			changed = true;
 			break;
 		}
@@ -479,8 +479,8 @@ static inline void pci_restore_pasid_state(struct pci_dev *pdev) { }
 int pci_iov_init(struct pci_dev *dev);
 void pci_iov_release(struct pci_dev *dev);
 void pci_iov_remove(struct pci_dev *dev);
-void pci_iov_update_resource(struct pci_dev *dev, int resno);
-resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
+void pci_iov_update_resource(struct pci_dev *dev, int resyes);
+resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resyes);
 void pci_restore_iov_state(struct pci_dev *dev);
 int pci_iov_bus_range(struct pci_bus *bus);
 extern const struct attribute_group sriov_dev_attr_group;
@@ -512,10 +512,10 @@ static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 						     struct resource *res)
 {
 #ifdef CONFIG_PCI_IOV
-	int resno = res - dev->resource;
+	int resyes = res - dev->resource;
 
-	if (resno >= PCI_IOV_RESOURCES && resno <= PCI_IOV_RESOURCE_END)
-		return pci_sriov_resource_alignment(dev, resno);
+	if (resyes >= PCI_IOV_RESOURCES && resyes <= PCI_IOV_RESOURCE_END)
+		return pci_sriov_resource_alignment(dev, resyes);
 #endif
 	if (dev->class >> 8 == PCI_CLASS_BRIDGE_CARDBUS)
 		return pci_cardbus_resource_alignment(res);
@@ -605,51 +605,51 @@ static inline u64 pci_rebar_size_to_bytes(int size)
 	return 1ULL << (size + 20);
 }
 
-struct device_node;
+struct device_yesde;
 
 #ifdef CONFIG_OF
-int of_pci_parse_bus_range(struct device_node *node, struct resource *res);
-int of_get_pci_domain_nr(struct device_node *node);
-int of_pci_get_max_link_speed(struct device_node *node);
-void pci_set_of_node(struct pci_dev *dev);
-void pci_release_of_node(struct pci_dev *dev);
-void pci_set_bus_of_node(struct pci_bus *bus);
-void pci_release_bus_of_node(struct pci_bus *bus);
+int of_pci_parse_bus_range(struct device_yesde *yesde, struct resource *res);
+int of_get_pci_domain_nr(struct device_yesde *yesde);
+int of_pci_get_max_link_speed(struct device_yesde *yesde);
+void pci_set_of_yesde(struct pci_dev *dev);
+void pci_release_of_yesde(struct pci_dev *dev);
+void pci_set_bus_of_yesde(struct pci_bus *bus);
+void pci_release_bus_of_yesde(struct pci_bus *bus);
 
 #else
 static inline int
-of_pci_parse_bus_range(struct device_node *node, struct resource *res)
+of_pci_parse_bus_range(struct device_yesde *yesde, struct resource *res)
 {
 	return -EINVAL;
 }
 
 static inline int
-of_get_pci_domain_nr(struct device_node *node)
+of_get_pci_domain_nr(struct device_yesde *yesde)
 {
 	return -1;
 }
 
 static inline int
-of_pci_get_max_link_speed(struct device_node *node)
+of_pci_get_max_link_speed(struct device_yesde *yesde)
 {
 	return -EINVAL;
 }
 
-static inline void pci_set_of_node(struct pci_dev *dev) { }
-static inline void pci_release_of_node(struct pci_dev *dev) { }
-static inline void pci_set_bus_of_node(struct pci_bus *bus) { }
-static inline void pci_release_bus_of_node(struct pci_bus *bus) { }
+static inline void pci_set_of_yesde(struct pci_dev *dev) { }
+static inline void pci_release_of_yesde(struct pci_dev *dev) { }
+static inline void pci_set_bus_of_yesde(struct pci_bus *bus) { }
+static inline void pci_release_bus_of_yesde(struct pci_bus *bus) { }
 #endif /* CONFIG_OF */
 
 #ifdef CONFIG_PCIEAER
-void pci_no_aer(void);
+void pci_yes_aer(void);
 void pci_aer_init(struct pci_dev *dev);
 void pci_aer_exit(struct pci_dev *dev);
 extern const struct attribute_group aer_stats_attr_group;
 void pci_aer_clear_fatal_status(struct pci_dev *dev);
 void pci_aer_clear_device_status(struct pci_dev *dev);
 #else
-static inline void pci_no_aer(void) { }
+static inline void pci_yes_aer(void) { }
 static inline void pci_aer_init(struct pci_dev *d) { }
 static inline void pci_aer_exit(struct pci_dev *d) { }
 static inline void pci_aer_clear_fatal_status(struct pci_dev *dev) { }

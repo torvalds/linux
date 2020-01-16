@@ -59,7 +59,7 @@ int ieee754sp_tint(union ieee754sp x)
 			sticky = residue != 0;
 			xm = 0;
 		} else {
-			/* Shifting a u32 32 times does not work,
+			/* Shifting a u32 32 times does yest work,
 			* so we do it in two steps. Be aware that xe
 			* may be -1 */
 			residue = xm << (xe + 1);

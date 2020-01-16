@@ -9,7 +9,7 @@
 
 #include <linux/firmware.h>
 #include <linux/genalloc.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 /**
  * hl_fw_push_fw_to_device() - Push FW code to device.
@@ -17,7 +17,7 @@
  *
  * Copy fw code from firmware file to device memory.
  *
- * Return: 0 on success, non-zero for failure.
+ * Return: 0 on success, yesn-zero for failure.
  */
 int hl_fw_push_fw_to_device(struct hl_device *hdev, const char *fw_name,
 				void __iomem *dst)
@@ -29,7 +29,7 @@ int hl_fw_push_fw_to_device(struct hl_device *hdev, const char *fw_name,
 
 	rc = request_firmware(&fw, fw_name, hdev->dev);
 	if (rc) {
-		dev_err(hdev->dev, "Firmware file %s is not found!\n", fw_name);
+		dev_err(hdev->dev, "Firmware file %s is yest found!\n", fw_name);
 		goto out;
 	}
 
@@ -90,7 +90,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		goto out;
 	}
 
-	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, len, pkt_dma_addr);
+	rc = hl_hw_queue_send_cb_yes_cmpl(hdev, hw_queue_id, len, pkt_dma_addr);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to send CB on CPU PQ (%d)\n", rc);
 		goto out;

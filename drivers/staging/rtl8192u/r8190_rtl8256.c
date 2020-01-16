@@ -58,7 +58,7 @@ void phy_set_rf8256_bandwidth(struct net_device *dev, enum ht_channel_width Band
 						(enum rf90_radio_path_e)eRFPath,
 						0x14, bMask12Bits, 0x5ab);
 				} else {
-					RT_TRACE(COMP_ERR, "phy_set_rf8256_bandwidth(): unknown hardware version\n");
+					RT_TRACE(COMP_ERR, "phy_set_rf8256_bandwidth(): unkyeswn hardware version\n");
 					}
 				break;
 		case HT_CHANNEL_WIDTH_20_40:
@@ -73,11 +73,11 @@ void phy_set_rf8256_bandwidth(struct net_device *dev, enum ht_channel_width Band
 					else
 						rtl8192_phy_SetRFReg(dev, (enum rf90_radio_path_e)eRFPath, 0x14, bMask12Bits, 0x5ab);
 				} else {
-					RT_TRACE(COMP_ERR, "phy_set_rf8256_bandwidth(): unknown hardware version\n");
+					RT_TRACE(COMP_ERR, "phy_set_rf8256_bandwidth(): unkyeswn hardware version\n");
 					}
 				break;
 		default:
-				RT_TRACE(COMP_ERR, "phy_set_rf8256_bandwidth(): unknown Bandwidth: %#X\n", Bandwidth);
+				RT_TRACE(COMP_ERR, "phy_set_rf8256_bandwidth(): unkyeswn Bandwidth: %#X\n", Bandwidth);
 				break;
 		}
 	}

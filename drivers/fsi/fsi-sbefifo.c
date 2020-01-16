@@ -13,7 +13,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/fsi.h>
 #include <linux/fsi-sbefifo.h>
@@ -66,7 +66,7 @@
 #define SBEFIFO_EOT_RAISE	0x08		/* (Up only) Set End Of Transfer */
 #define SBEFIFO_REQ_RESET	0x0C		/* (Up only) Reset Request */
 #define SBEFIFO_PERFORM_RESET	0x10		/* (Down only) Perform Reset */
-#define SBEFIFO_EOT_ACK		0x14		/* (Down only) Acknowledge EOT */
+#define SBEFIFO_EOT_ACK		0x14		/* (Down only) Ackyeswledge EOT */
 #define SBEFIFO_DOWN_MAX	0x18		/* (Down only) Max transfer */
 
 /* CFAM GP Mailbox SelfBoot Message register */
@@ -80,7 +80,7 @@
 enum sbe_state
 {
 	SBE_STATE_UNKNOWN = 0x0, // Unkown, initial state
-	SBE_STATE_IPLING  = 0x1, // IPL'ing - autonomous mode (transient)
+	SBE_STATE_IPLING  = 0x1, // IPL'ing - autoyesmous mode (transient)
 	SBE_STATE_ISTEP   = 0x2, // ISTEP - Running IPL by steps (transient)
 	SBE_STATE_MPIPL   = 0x3, // MPIPL
 	SBE_STATE_RUNTIME = 0x4, // SBE Runtime
@@ -414,14 +414,14 @@ static int sbefifo_cleanup_hw(struct sbefifo *sbefifo)
 	if ((up_status | down_status) & SBEFIFO_STS_PARITY_ERR)
 		need_reset = true;
 
-	/* Either FIFO not empty ? */
+	/* Either FIFO yest empty ? */
 	if (!((up_status & down_status) & SBEFIFO_STS_EMPTY))
 		need_reset = true;
 
 	if (!need_reset)
 		return 0;
 
-	dev_info(dev, "Cleanup: FIFO not clean (up=0x%08x down=0x%08x)\n",
+	dev_info(dev, "Cleanup: FIFO yest clean (up=0x%08x down=0x%08x)\n",
 		 up_status, down_status);
 
  do_reset:
@@ -509,7 +509,7 @@ static int sbefifo_send_command(struct sbefifo *sbefifo,
 		vacant -= chunk;
 	}
 
-	/* If there's no room left, wait for some to write EOT */
+	/* If there's yes room left, wait for some to write EOT */
 	if (!vacant) {
 		rc = sbefifo_wait(sbefifo, true, &status, timeout);
 		if (rc)
@@ -559,7 +559,7 @@ static int sbefifo_read_response(struct sbefifo *sbefifo, struct iov_iter *respo
 			/* Was it an EOT ? */
 			if (eot_set & 0x80) {
 				/*
-				 * There should be nothing else in the FIFO,
+				 * There should be yesthing else in the FIFO,
 				 * if there is, mark broken, this will force
 				 * a reset on next use, but don't fail the
 				 * command.
@@ -577,7 +577,7 @@ static int sbefifo_read_response(struct sbefifo *sbefifo, struct iov_iter *respo
 
 				/*
 				 * If that write fail, still complete the request but mark
-				 * the fifo as broken for subsequent reset (not much else
+				 * the fifo as broken for subsequent reset (yest much else
 				 * we can do here).
 				 */
 				if (rc) {
@@ -692,7 +692,7 @@ static int __sbefifo_submit(struct sbefifo *sbefifo,
 	return rc;
  fail:
 	/*
-	 * On failure, attempt a reset. Ignore the result, it will mark
+	 * On failure, attempt a reset. Igyesre the result, it will mark
 	 * the fifo broken if the reset fails
 	 */
         sbefifo_request_reset(sbefifo);
@@ -762,9 +762,9 @@ static void sbefifo_release_command(struct sbefifo_user *user)
 	user->pending_len = 0;
 }
 
-static int sbefifo_user_open(struct inode *inode, struct file *file)
+static int sbefifo_user_open(struct iyesde *iyesde, struct file *file)
 {
-	struct sbefifo *sbefifo = container_of(inode->i_cdev, struct sbefifo, cdev);
+	struct sbefifo *sbefifo = container_of(iyesde->i_cdev, struct sbefifo, cdev);
 	struct sbefifo_user *user;
 
 	user = kzalloc(sizeof(struct sbefifo_user), GFP_KERNEL);
@@ -849,7 +849,7 @@ static ssize_t sbefifo_user_write(struct file *file, const char __user *buf,
 
 	mutex_lock(&user->file_lock);
 
-	/* Can we use the pre-allocate buffer ? If not, allocate */
+	/* Can we use the pre-allocate buffer ? If yest, allocate */
 	if (len <= PAGE_SIZE)
 		user->pending_cmd = user->cmd_page;
 	else
@@ -893,7 +893,7 @@ static ssize_t sbefifo_user_write(struct file *file, const char __user *buf,
 	return rc;
 }
 
-static int sbefifo_user_release(struct inode *inode, struct file *file)
+static int sbefifo_user_release(struct iyesde *iyesde, struct file *file)
 {
 	struct sbefifo_user *user = file->private_data;
 
@@ -931,7 +931,7 @@ static int sbefifo_probe(struct device *dev)
 {
 	struct fsi_device *fsi_dev = to_fsi_dev(dev);
 	struct sbefifo *sbefifo;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct platform_device *child;
 	char child_name[32];
 	int rc, didx, child_idx = 0;
@@ -967,8 +967,8 @@ static int sbefifo_probe(struct device *dev)
 	sbefifo->dev.release = sbefifo_free;
 	device_initialize(&sbefifo->dev);
 
-	/* Allocate a minor in the FSI space */
-	rc = fsi_get_new_minor(fsi_dev, fsi_dev_sbefifo, &sbefifo->dev.devt, &didx);
+	/* Allocate a miyesr in the FSI space */
+	rc = fsi_get_new_miyesr(fsi_dev, fsi_dev_sbefifo, &sbefifo->dev.devt, &didx);
 	if (rc)
 		goto err;
 
@@ -978,11 +978,11 @@ static int sbefifo_probe(struct device *dev)
 	if (rc) {
 		dev_err(dev, "Error %d creating char device %s\n",
 			rc, dev_name(&sbefifo->dev));
-		goto err_free_minor;
+		goto err_free_miyesr;
 	}
 
-	/* Create platform devs for dts child nodes (occ, etc) */
-	for_each_available_child_of_node(dev->of_node, np) {
+	/* Create platform devs for dts child yesdes (occ, etc) */
+	for_each_available_child_of_yesde(dev->of_yesde, np) {
 		snprintf(child_name, sizeof(child_name), "%s-dev%d",
 			 dev_name(&sbefifo->dev), child_idx++);
 		child = of_platform_device_create(np, child_name, dev);
@@ -992,8 +992,8 @@ static int sbefifo_probe(struct device *dev)
 	}
 
 	return 0;
- err_free_minor:
-	fsi_free_minor(sbefifo->dev.devt);
+ err_free_miyesr:
+	fsi_free_miyesr(sbefifo->dev.devt);
  err:
 	put_device(&sbefifo->dev);
 	return rc;
@@ -1004,8 +1004,8 @@ static int sbefifo_unregister_child(struct device *dev, void *data)
 	struct platform_device *child = to_platform_device(dev);
 
 	of_device_unregister(child);
-	if (dev->of_node)
-		of_node_clear_flag(dev->of_node, OF_POPULATED);
+	if (dev->of_yesde)
+		of_yesde_clear_flag(dev->of_yesde, OF_POPULATED);
 
 	return 0;
 }
@@ -1021,7 +1021,7 @@ static int sbefifo_remove(struct device *dev)
 	mutex_unlock(&sbefifo->lock);
 
 	cdev_device_del(&sbefifo->cdev, &sbefifo->dev);
-	fsi_free_minor(sbefifo->dev.devt);
+	fsi_free_miyesr(sbefifo->dev.devt);
 	device_for_each_child(dev, NULL, sbefifo_unregister_child);
 	put_device(&sbefifo->dev);
 

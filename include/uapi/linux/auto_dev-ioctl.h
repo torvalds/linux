@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * Copyright 2008 Red Hat, Inc. All rights reserved.
  * Copyright 2008 Ian Kent <raven@themaw.net>
@@ -88,7 +88,7 @@ struct args_ismountpoint {
 
 struct autofs_dev_ioctl {
 	__u32 ver_major;
-	__u32 ver_minor;
+	__u32 ver_miyesr;
 	__u32 size;		/* total size of data passed in
 				 * including this struct */
 	__s32 ioctlfd;		/* automount command fd */
@@ -116,7 +116,7 @@ static inline void init_autofs_dev_ioctl(struct autofs_dev_ioctl *in)
 {
 	memset(in, 0, AUTOFS_DEV_IOCTL_SIZE);
 	in->ver_major = AUTOFS_DEV_IOCTL_VERSION_MAJOR;
-	in->ver_minor = AUTOFS_DEV_IOCTL_VERSION_MINOR;
+	in->ver_miyesr = AUTOFS_DEV_IOCTL_VERSION_MINOR;
 	in->size = AUTOFS_DEV_IOCTL_SIZE;
 	in->ioctlfd = -1;
 }

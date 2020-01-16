@@ -40,7 +40,7 @@
 #define ATH10K_NUM_CHANS 41
 #define ATH10K_MAX_5G_CHAN 173
 
-/* Antenna noise floor */
+/* Antenna yesise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
 
 #define ATH10K_INVALID_RSSI 128
@@ -96,10 +96,10 @@ static inline const char *ath10k_bus_str(enum ath10k_bus bus)
 	case ATH10K_BUS_USB:
 		return "usb";
 	case ATH10K_BUS_SNOC:
-		return "snoc";
+		return "syesc";
 	}
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 enum ath10k_skb_flags {
@@ -123,7 +123,7 @@ struct ath10k_skb_cb {
 
 struct ath10k_skb_rxcb {
 	dma_addr_t paddr;
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 };
 
 static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)
@@ -214,7 +214,7 @@ struct ath10k_fw_stats_vdev {
 	u32 num_rts_success;
 	u32 num_rx_err;
 	u32 num_rx_discard;
-	u32 num_tx_not_acked;
+	u32 num_tx_yest_acked;
 	u32 tx_rate_history[10];
 	u32 beacon_rssi_history[10];
 };
@@ -224,9 +224,9 @@ struct ath10k_fw_stats_vdev_extd {
 
 	u32 vdev_id;
 	u32 ppdu_aggr_cnt;
-	u32 ppdu_noack;
+	u32 ppdu_yesack;
 	u32 mpdu_queued;
-	u32 ppdu_nonaggr_cnt;
+	u32 ppdu_yesnaggr_cnt;
 	u32 mpdu_sw_requeued;
 	u32 mpdu_suc_retry;
 	u32 mpdu_suc_multitry;
@@ -244,7 +244,7 @@ struct ath10k_fw_stats_pdev {
 	struct list_head list;
 
 	/* PDEV stats */
-	s32 ch_noise_floor;
+	s32 ch_yesise_floor;
 	u32 tx_frame_count; /* Cycles spent transmitting frames */
 	u32 rx_frame_count; /* Cycles spent receiving frames */
 	u32 rx_clear_count; /* Total channel busy time, evidently */
@@ -255,7 +255,7 @@ struct ath10k_fw_stats_pdev {
 	u32 rts_bad;
 	u32 rts_good;
 	u32 fcs_bad;
-	u32 no_beacons;
+	u32 yes_beacons;
 	u32 mib_int_count;
 
 	/* PDEV TX stats */
@@ -553,7 +553,7 @@ struct ath10k_vif {
 	struct ieee80211_key_conf *wep_keys[WMI_MAX_KEY_INDEX + 1];
 	s8 def_wep_key_idx;
 
-	u16 tx_seq_no;
+	u16 tx_seq_yes;
 
 	union {
 		struct {
@@ -567,13 +567,13 @@ struct ath10k_vif {
 			u8 ssid[IEEE80211_MAX_SSID_LEN];
 			bool hidden_ssid;
 			/* P2P_IE with NoA attribute for P2P_GO case */
-			u32 noa_len;
-			u8 *noa_data;
+			u32 yesa_len;
+			u8 *yesa_data;
 		} ap;
 	} u;
 
 	bool use_cts_prot;
-	bool nohwcrypt;
+	bool yeshwcrypt;
 	int num_legacy_stations;
 	int txpower;
 	bool ftm_responder;
@@ -694,7 +694,7 @@ enum ath10k_fw_features {
 	/* firmware support tx frame management over WMI, otherwise it's HTT */
 	ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX = 2,
 
-	/* Firmware does not support P2P */
+	/* Firmware does yest support P2P */
 	ATH10K_FW_FEATURE_NO_P2P = 3,
 
 	/* Firmware 10.2 feature bit. The ATH10K_FW_FEATURE_WMI_10X feature
@@ -711,7 +711,7 @@ enum ath10k_fw_features {
 
 	/* Some firmware revisions have an incomplete WoWLAN implementation
 	 * despite WMI service bit being advertised. This feature flag is used
-	 * to distinguish whether WoWLAN is really supported or not.
+	 * to distinguish whether WoWLAN is really supported or yest.
 	 */
 	ATH10K_FW_FEATURE_WOWLAN_SUPPORT = 6,
 
@@ -753,7 +753,7 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_BTCOEX_PARAM = 14,
 
-	/* Unused flag and proven to be not working, enable this if you want
+	/* Unused flag and proven to be yest working, enable this if you want
 	 * to experiment sending NULL func data frames in HTT TX
 	 */
 	ATH10K_FW_FEATURE_SKIP_NULL_FUNC_WAR = 15,
@@ -761,17 +761,17 @@ enum ath10k_fw_features {
 	/* Firmware allow other BSS mesh broadcast/multicast frames without
 	 * creating monitor interface. Appropriate rxfilters are programmed for
 	 * mesh vdev by firmware itself. This feature flags will be used for
-	 * not creating monitor vdev while configuring mesh node.
+	 * yest creating monitor vdev while configuring mesh yesde.
 	 */
 	ATH10K_FW_FEATURE_ALLOWS_MESH_BCAST = 16,
 
-	/* Firmware does not support power save in station mode. */
+	/* Firmware does yest support power save in station mode. */
 	ATH10K_FW_FEATURE_NO_PS = 17,
 
 	/* Firmware allows management tx by reference instead of by value. */
 	ATH10K_FW_FEATURE_MGMT_TX_BY_REF = 18,
 
-	/* Firmware load is done externally, not by bmi */
+	/* Firmware load is done externally, yest by bmi */
 	ATH10K_FW_FEATURE_NON_BMI = 19,
 
 	/* Firmware sends only one chan_info event per channel */
@@ -843,7 +843,7 @@ static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
 		return "eeprom";
 	}
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 enum ath10k_scan_state {
@@ -866,7 +866,7 @@ static inline const char *ath10k_scan_state_str(enum ath10k_scan_state state)
 		return "aborting";
 	}
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 enum ath10k_tx_pause_reason {
@@ -954,7 +954,7 @@ struct ath10k {
 	enum ath10k_dev_type dev_type;
 	u32 target_version;
 	u8 fw_version_major;
-	u32 fw_version_minor;
+	u32 fw_version_miyesr;
 	u16 fw_version_release;
 	u16 fw_version_build;
 	u32 fw_stats_req_mask;
@@ -1003,10 +1003,10 @@ struct ath10k {
 	struct ath10k_hw_params hw_params;
 
 	/* contains the firmware images used with ATH10K_FIRMWARE_MODE_NORMAL */
-	struct ath10k_fw_components normal_mode_fw;
+	struct ath10k_fw_components yesrmal_mode_fw;
 
 	/* READ-ONLY images of the running firmware, which can be either
-	 * normal or UTF. Do not modify, release etc!
+	 * yesrmal or UTF. Do yest modify, release etc!
 	 */
 	const struct ath10k_fw_components *running_fw;
 
@@ -1043,7 +1043,7 @@ struct ath10k {
 		bool is_roc;
 		int vdev_id;
 		int roc_freq;
-		bool roc_notify;
+		bool roc_yestify;
 	} scan;
 
 	struct {

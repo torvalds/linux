@@ -84,7 +84,7 @@ int __init skx_adxl_get(void)
 
 	return 0;
 err:
-	skx_printk(KERN_ERR, "'%s' is not matched from DSM parameters: ",
+	skx_printk(KERN_ERR, "'%s' is yest matched from DSM parameters: ",
 		   component_names[i]);
 	for (j = 0; names[j]; j++)
 		skx_printk(KERN_CONT, "%s ", names[j]);
@@ -170,12 +170,12 @@ int skx_get_src_id(struct skx_dev *d, int off, u8 *id)
 	return 0;
 }
 
-int skx_get_node_id(struct skx_dev *d, u8 *id)
+int skx_get_yesde_id(struct skx_dev *d, u8 *id)
 {
 	u32 reg;
 
 	if (pci_read_config_dword(d->util_all, 0xf4, &reg)) {
-		skx_printk(KERN_ERR, "Failed to read node id\n");
+		skx_printk(KERN_ERR, "Failed to read yesde id\n");
 		return -ENODEV;
 	}
 
@@ -305,7 +305,7 @@ static int skx_get_dimm_attr(u32 reg, int lobit, int hibit, int add,
 #define numcol(reg)	skx_get_dimm_attr(reg, 0, 1, 10, 0, 2, "cols")
 
 int skx_get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
-		      struct skx_imc *imc, int chan, int dimmno)
+		      struct skx_imc *imc, int chan, int dimmyes)
 {
 	int  banks = 16, ranks, rows, cols, npages;
 	u64 size;
@@ -321,14 +321,14 @@ int skx_get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
 	npages = MiB_TO_PAGES(size);
 
 	edac_dbg(0, "mc#%d: channel %d, dimm %d, %lld MiB (%d pages) bank: %d, rank: %d, row: 0x%x, col: 0x%x\n",
-		 imc->mc, chan, dimmno, size, npages,
+		 imc->mc, chan, dimmyes, size, npages,
 		 banks, 1 << ranks, rows, cols);
 
-	imc->chan[chan].dimms[dimmno].close_pg = GET_BITFIELD(mtr, 0, 0);
-	imc->chan[chan].dimms[dimmno].bank_xor_enable = GET_BITFIELD(mtr, 9, 9);
-	imc->chan[chan].dimms[dimmno].fine_grain_bank = GET_BITFIELD(amap, 0, 0);
-	imc->chan[chan].dimms[dimmno].rowbits = rows;
-	imc->chan[chan].dimms[dimmno].colbits = cols;
+	imc->chan[chan].dimms[dimmyes].close_pg = GET_BITFIELD(mtr, 0, 0);
+	imc->chan[chan].dimms[dimmyes].bank_xor_enable = GET_BITFIELD(mtr, 9, 9);
+	imc->chan[chan].dimms[dimmyes].fine_grain_bank = GET_BITFIELD(amap, 0, 0);
+	imc->chan[chan].dimms[dimmyes].rowbits = rows;
+	imc->chan[chan].dimms[dimmyes].colbits = cols;
 
 	dimm->nr_pages = npages;
 	dimm->grain = 32;
@@ -336,36 +336,36 @@ int skx_get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
 	dimm->mtype = MEM_DDR4;
 	dimm->edac_mode = EDAC_SECDED; /* likely better than this */
 	snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_MC#%u_Chan#%u_DIMM#%u",
-		 imc->src_id, imc->lmc, chan, dimmno);
+		 imc->src_id, imc->lmc, chan, dimmyes);
 
 	return 1;
 }
 
 int skx_get_nvdimm_info(struct dimm_info *dimm, struct skx_imc *imc,
-			int chan, int dimmno, const char *mod_str)
+			int chan, int dimmyes, const char *mod_str)
 {
 	int smbios_handle;
 	u32 dev_handle;
 	u16 flags;
 	u64 size = 0;
 
-	dev_handle = ACPI_NFIT_BUILD_DEVICE_HANDLE(dimmno, chan, imc->lmc,
+	dev_handle = ACPI_NFIT_BUILD_DEVICE_HANDLE(dimmyes, chan, imc->lmc,
 						   imc->src_id, 0);
 
 	smbios_handle = nfit_get_smbios_id(dev_handle, &flags);
 	if (smbios_handle == -EOPNOTSUPP) {
 		pr_warn_once("%s: Can't find size of NVDIMM. Try enabling CONFIG_ACPI_NFIT\n", mod_str);
-		goto unknown_size;
+		goto unkyeswn_size;
 	}
 
 	if (smbios_handle < 0) {
 		skx_printk(KERN_ERR, "Can't find handle for NVDIMM ADR=0x%x\n", dev_handle);
-		goto unknown_size;
+		goto unkyeswn_size;
 	}
 
 	if (flags & ACPI_NFIT_MEM_MAP_FAILED) {
-		skx_printk(KERN_ERR, "NVDIMM ADR=0x%x is not mapped\n", dev_handle);
-		goto unknown_size;
+		skx_printk(KERN_ERR, "NVDIMM ADR=0x%x is yest mapped\n", dev_handle);
+		goto unkyeswn_size;
 	}
 
 	size = dmi_memdev_size(smbios_handle);
@@ -373,7 +373,7 @@ int skx_get_nvdimm_info(struct dimm_info *dimm, struct skx_imc *imc,
 		skx_printk(KERN_ERR, "Can't find size for NVDIMM ADR=0x%x/SMBIOS=0x%x\n",
 			   dev_handle, smbios_handle);
 
-unknown_size:
+unkyeswn_size:
 	dimm->nr_pages = size >> PAGE_SHIFT;
 	dimm->grain = 32;
 	dimm->dtype = DEV_UNKNOWN;
@@ -381,10 +381,10 @@ unknown_size:
 	dimm->edac_mode = EDAC_SECDED; /* likely better than this */
 
 	edac_dbg(0, "mc#%d: channel %d, dimm %d, %llu MiB (%u pages)\n",
-		 imc->mc, chan, dimmno, size >> 20, dimm->nr_pages);
+		 imc->mc, chan, dimmyes, size >> 20, dimm->nr_pages);
 
 	snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_MC#%u_Chan#%u_DIMM#%u",
-		 imc->src_id, imc->lmc, chan, dimmno);
+		 imc->src_id, imc->lmc, chan, dimmyes);
 
 	return (size == 0 || size == ~0ull) ? 0 : 1;
 }
@@ -419,7 +419,7 @@ int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 	pvt->imc = imc;
 
 	mci->ctl_name = kasprintf(GFP_KERNEL, "%s#%d IMC#%d", ctl_name,
-				  imc->node_id, imc->lmc);
+				  imc->yesde_id, imc->lmc);
 	if (!mci->ctl_name) {
 		rc = -ENOMEM;
 		goto fail0;
@@ -465,7 +465,7 @@ static void skx_unregister_mci(struct skx_imc *imc)
 
 	edac_dbg(0, "MC%d: mci = %p\n", imc->mc, mci);
 
-	/* Remove MC sysfs nodes */
+	/* Remove MC sysfs yesdes */
 	edac_mc_del_mc(mci->pdev);
 
 	edac_dbg(1, "%s: free mci struct\n", mci->ctl_name);
@@ -516,7 +516,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 	 * If the mask doesn't match, report an error to the parsing logic
 	 */
 	if (!((errcode & 0xef80) == 0x80 || (errcode & 0xef80) == 0x280)) {
-		optype = "Can't parse: it is not a mem";
+		optype = "Can't parse: it is yest a mem";
 	} else {
 		switch (optypenum) {
 		case 0:
@@ -566,7 +566,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 			     optype, skx_msg);
 }
 
-int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
+int skx_mce_check_error(struct yestifier_block *nb, unsigned long val,
 			void *data)
 {
 	struct mce *mce = (struct mce *)data;
@@ -577,7 +577,7 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
 		return NOTIFY_DONE;
 
-	/* ignore unless this is memory related with an address */
+	/* igyesre unless this is memory related with an address */
 	if ((mce->status & 0xefff) >> 7 != 1 || !(mce->status & MCI_STATUS_ADDRV))
 		return NOTIFY_DONE;
 

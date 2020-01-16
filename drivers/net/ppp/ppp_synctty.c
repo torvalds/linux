@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * PPP synchronous tty channel driver for Linux.
+ * PPP synchroyesus tty channel driver for Linux.
  *
  * This is a ppp channel driver that can be used with tty device drivers
- * that are frame oriented, such as synchronous HDLC devices.
+ * that are frame oriented, such as synchroyesus HDLC devices.
  *
  * Complete PPP frames without encoding/decoding are exchanged between
  * the channel driver and the device driver.
  *
  * The async map IOCTL codes are implemented to keep the user mode
- * applications happy if they call them. Synchronous PPP does not use
+ * applications happy if they call them. Synchroyesus PPP does yest use
  * the async maps.
  *
  * Copyright 1999 Paul Mackerras.
@@ -115,19 +115,19 @@ ppp_print_buffer (const char *name, const __u8 *buf, int count)
 
 
 /*
- * Routines implementing the synchronous PPP line discipline.
+ * Routines implementing the synchroyesus PPP line discipline.
  */
 
 /*
  * We have a potential race on dereferencing tty->disc_data,
- * because the tty layer provides no locking at all - thus one
- * cpu could be running ppp_synctty_receive while another
+ * because the tty layer provides yes locking at all - thus one
+ * cpu could be running ppp_synctty_receive while ayesther
  * calls ppp_synctty_close, which zeroes tty->disc_data and
  * frees the memory that ppp_synctty_receive is using.  The best
- * way to fix this is to use a rwlock in the tty struct, but for now
+ * way to fix this is to use a rwlock in the tty struct, but for yesw
  * we use a single global rwlock for all ttys in ppp line discipline.
  *
- * FIXME: Fixed in tty_io nowadays.
+ * FIXME: Fixed in tty_io yeswadays.
  */
 static DEFINE_RWLOCK(disc_data_lock);
 
@@ -203,12 +203,12 @@ ppp_sync_open(struct tty_struct *tty)
 }
 
 /*
- * Called when the tty is put into another line discipline
+ * Called when the tty is put into ayesther line discipline
  * or it hangs up.  We have to wait for any cpu currently
  * executing in any of the other ppp_synctty_* routines to
  * finish before we can call ppp_unregister_channel and free
  * the syncppp struct.  This routine must be called from
- * process context, not interrupt or softirq context.
+ * process context, yest interrupt or softirq context.
  */
 static void
 ppp_sync_close(struct tty_struct *tty)
@@ -223,9 +223,9 @@ ppp_sync_close(struct tty_struct *tty)
 		return;
 
 	/*
-	 * We have now ensured that nobody can start using ap from now
+	 * We have yesw ensured that yesbody can start using ap from yesw
 	 * on, but we have to wait for all existing users to finish.
-	 * Note that ppp_unregister_channel ensures that no calls to
+	 * Note that ppp_unregister_channel ensures that yes calls to
 	 * our channel ops (i.e. ppp_sync_send/ioctl) are in progress
 	 * by the time it returns.
 	 */
@@ -252,7 +252,7 @@ static int ppp_sync_hangup(struct tty_struct *tty)
 }
 
 /*
- * Read does nothing - no data is ever available this way.
+ * Read does yesthing - yes data is ever available this way.
  * Pppd reads and writes packets via /dev/ppp instead.
  */
 static ssize_t
@@ -263,7 +263,7 @@ ppp_sync_read(struct tty_struct *tty, struct file *file,
 }
 
 /*
- * Write on the tty does nothing, the packets all come in
+ * Write on the tty does yesthing, the packets all come in
  * from the ppp generic stuff.
  */
 static ssize_t
@@ -478,7 +478,7 @@ ppp_sync_ioctl(struct ppp_channel *chan, unsigned int cmd, unsigned long arg)
 /*
  * This is called at softirq level to deliver received packets
  * to the ppp_generic code, and to tell the ppp_generic code
- * if we can accept more output now.
+ * if we can accept more output yesw.
  */
 static void ppp_sync_process(unsigned long arg)
 {
@@ -516,7 +516,7 @@ ppp_sync_txmunge(struct syncppp *ap, struct sk_buff *skb)
 	proto = get_unaligned_be16(data);
 
 	/* LCP packets with codes between 1 (configure-request)
-	 * and 7 (code-reject) must be sent as though no options
+	 * and 7 (code-reject) must be sent as though yes options
 	 * have been negotiated.
 	 */
 	islcp = proto == PPP_LCP && 1 <= data[2] && data[2] <= 7;
@@ -559,7 +559,7 @@ ppp_sync_txmunge(struct syncppp *ap, struct sk_buff *skb)
 /*
  * Send a packet to the peer over an sync tty line.
  * Returns 1 iff the packet was accepted.
- * If the packet was not accepted, we will call ppp_output_wakeup
+ * If the packet was yest accepted, we will call ppp_output_wakeup
  * at some later time.
  */
 static int
@@ -660,7 +660,7 @@ ppp_sync_flush_output(struct syncppp *ap)
 /* called when the tty driver has data for us.
  *
  * Data is frame oriented: each call to ppp_sync_input is considered
- * a whole frame. If the 1st flag byte is non-zero then the whole
+ * a whole frame. If the 1st flag byte is yesn-zero then the whole
  * frame is considered to be in error and is tossed.
  */
 static void
@@ -679,7 +679,7 @@ ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
 	/* stuff the chars in the skb */
 	skb = dev_alloc_skb(ap->mru + PPP_HDRLEN + 2);
 	if (!skb) {
-		printk(KERN_ERR "PPPsync: no memory (input pkt)\n");
+		printk(KERN_ERR "PPPsync: yes memory (input pkt)\n");
 		goto err;
 	}
 	/* Try to get the payload 4-byte aligned */
@@ -687,7 +687,7 @@ ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
 		skb_reserve(skb, 2 + (buf[0] & 1));
 
 	if (flags && *flags) {
-		/* error flag set, ignore frame */
+		/* error flag set, igyesre frame */
 		goto err;
 	} else if (count > skb_tailroom(skb)) {
 		/* packet overflowed MRU */
@@ -705,7 +705,7 @@ ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
 		p = skb_pull(skb, 2);
 	}
 
-	/* PPP packet length should be >= 2 bytes when protocol field is not
+	/* PPP packet length should be >= 2 bytes when protocol field is yest
 	 * compressed.
 	 */
 	if (!(p[0] & 0x01) && skb->len < 2)

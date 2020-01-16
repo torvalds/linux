@@ -119,7 +119,7 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 
 	/*
 	 * The existing code assumes virtual address is 48-bit or 57-bit in the
-	 * canonical address checks; exit if it is ever changed.
+	 * cayesnical address checks; exit if it is ever changed.
 	 */
 	best = kvm_find_cpuid_entry(vcpu, 0x80000008, 0);
 	if (best) {
@@ -185,11 +185,11 @@ int cpuid_query_maxphyaddr(struct kvm_vcpu *vcpu)
 
 	best = kvm_find_cpuid_entry(vcpu, 0x80000000, 0);
 	if (!best || best->eax < 0x80000008)
-		goto not_found;
+		goto yest_found;
 	best = kvm_find_cpuid_entry(vcpu, 0x80000008, 0);
 	if (best)
 		return best->eax & 0xff;
-not_found:
+yest_found:
 	return 36;
 }
 EXPORT_SYMBOL_GPL(cpuid_query_maxphyaddr);
@@ -392,7 +392,7 @@ static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry, int index)
 		/* Set LA57 based on hardware capability. */
 		entry->ecx |= f_la57;
 		entry->ecx |= f_umip;
-		/* PKU is not yet implemented for shadow paging. */
+		/* PKU is yest yet implemented for shadow paging. */
 		if (!tdp_enabled || !boot_cpu_has(X86_FEATURE_OSPKE))
 			entry->ecx &= ~F(PKU);
 
@@ -467,7 +467,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 	/* cpuid 1.ecx */
 	const u32 kvm_cpuid_1_ecx_x86_features =
 		/* NOTE: MONITOR (and MWAIT) are emulated as NOP,
-		 * but *not* advertised to guests via CPUID ! */
+		 * but *yest* advertised to guests via CPUID ! */
 		F(XMM3) | F(PCLMULQDQ) | 0 /* DTES64, MONITOR */ |
 		0 /* DS-CPL, VMX, SMX, EST */ |
 		0 /* TM2 */ | F(SSSE3) | 0 /* CNXT-ID */ | 0 /* Reserved */ |
@@ -521,13 +521,13 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		cpuid_mask(&entry->edx, CPUID_1_EDX);
 		entry->ecx &= kvm_cpuid_1_ecx_x86_features;
 		cpuid_mask(&entry->ecx, CPUID_1_ECX);
-		/* we support x2apic emulation even if host does not support
+		/* we support x2apic emulation even if host does yest support
 		 * it since we emulate x2apic in software */
 		entry->ecx |= F(X2APIC);
 		break;
 	/* function 2 entries are STATEFUL. That is, repeated cpuid commands
 	 * may return different values. This forces us to get_cpu() before
-	 * issuing the first command, and also to emulate this annoying behavior
+	 * issuing the first command, and also to emulate this anyesying behavior
 	 * in kvm_emulate_cpuid() using KVM_CPUID_FLAG_STATE_READ_NEXT */
 	case 2: {
 		int t, times = entry->eax & 0xff;
@@ -751,7 +751,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		cpuid_mask(&entry->ebx, CPUID_8000_0008_EBX);
 		/*
 		 * AMD has separate bits for each SPEC_CTRL bit.
-		 * arch/x86/kernel/cpu/bugs.c is kind enough to
+		 * arch/x86/kernel/cpu/bugs.c is kind eyesugh to
 		 * record that in cpufeatures so use them.
 		 */
 		if (boot_cpu_has(X86_FEATURE_IBPB))
@@ -787,7 +787,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		break;
 	/*Add support for Centaur's CPUID instruction*/
 	case 0xC0000000:
-		/*Just support up to 0xC0000004 now*/
+		/*Just support up to 0xC0000004 yesw*/
 		entry->eax = min(entry->eax, 0xC0000004);
 		break;
 	case 0xC0000001:
@@ -934,7 +934,7 @@ static int move_to_next_stateful_cpuid_entry(struct kvm_vcpu *vcpu, int i)
 	int nent = vcpu->arch.cpuid_nent;
 
 	e->flags &= ~KVM_CPUID_FLAG_STATE_READ_NEXT;
-	/* when no next entry is found, the current entry[i] is reselected */
+	/* when yes next entry is found, the current entry[i] is reselected */
 	do {
 		j = (j + 1) % nent;
 		ej = &vcpu->arch.cpuid_entries[j];
@@ -1008,7 +1008,7 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 	 * Intel CPUID semantics treats any query for an out-of-range
 	 * leaf as if the highest basic leaf (i.e. CPUID.0H:EAX) were
 	 * requested. AMD CPUID semantics returns all zeroes for any
-	 * undefined leaf, whether or not the leaf is in range.
+	 * undefined leaf, whether or yest the leaf is in range.
 	 */
 	if (!entry && check_limit && !guest_cpuid_is_amd(vcpu) &&
 	    !cpuid_function_in_range(vcpu, function)) {

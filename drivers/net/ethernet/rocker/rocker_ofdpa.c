@@ -3,7 +3,7 @@
  * drivers/net/ethernet/rocker/rocker_ofdpa.c - Rocker switch OF-DPA-like
  *					        implementation
  * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
- * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellayesx.com>
  */
 
 #include <linux/kernel.h>
@@ -90,7 +90,7 @@ struct ofdpa_flow_tbl_key {
 };
 
 struct ofdpa_flow_tbl_entry {
-	struct hlist_node entry;
+	struct hlist_yesde entry;
 	u32 cmd;
 	u64 cookie;
 	struct ofdpa_flow_tbl_key key;
@@ -100,7 +100,7 @@ struct ofdpa_flow_tbl_entry {
 };
 
 struct ofdpa_group_tbl_entry {
-	struct hlist_node entry;
+	struct hlist_yesde entry;
 	u32 cmd;
 	u32 group_id; /* key */
 	u16 group_count;
@@ -126,7 +126,7 @@ struct ofdpa_group_tbl_entry {
 };
 
 struct ofdpa_fdb_tbl_entry {
-	struct hlist_node entry;
+	struct hlist_yesde entry;
 	u32 key_crc32; /* key */
 	bool learned;
 	unsigned long touched;
@@ -138,14 +138,14 @@ struct ofdpa_fdb_tbl_entry {
 };
 
 struct ofdpa_internal_vlan_tbl_entry {
-	struct hlist_node entry;
+	struct hlist_yesde entry;
 	int ifindex; /* key */
 	u32 ref_count;
 	__be16 vlan_id;
 };
 
 struct ofdpa_neigh_tbl_entry {
-	struct hlist_node entry;
+	struct hlist_yesde entry;
 	__be32 ip_addr; /* key */
 	struct net_device *dev;
 	u32 ref_count;
@@ -292,7 +292,7 @@ static bool ofdpa_port_is_ovsed(const struct ofdpa_port *ofdpa_port)
 #define OFDPA_OP_FLAG_LEARNED		BIT(2)
 #define OFDPA_OP_FLAG_REFRESH		BIT(3)
 
-static bool ofdpa_flags_nowait(int flags)
+static bool ofdpa_flags_yeswait(int flags)
 {
 	return flags & OFDPA_OP_FLAG_NOWAIT;
 }
@@ -783,7 +783,7 @@ static int ofdpa_flow_tbl_add(struct ofdpa_port *ofdpa_port,
 	spin_unlock_irqrestore(&ofdpa->flow_tbl_lock, lock_flags);
 
 	return rocker_cmd_exec(ofdpa_port->rocker_port,
-			       ofdpa_flags_nowait(flags),
+			       ofdpa_flags_yeswait(flags),
 			       ofdpa_cmd_flow_tbl_add,
 			       found, NULL, NULL);
 }
@@ -814,7 +814,7 @@ static int ofdpa_flow_tbl_del(struct ofdpa_port *ofdpa_port,
 
 	if (found) {
 		err = rocker_cmd_exec(ofdpa_port->rocker_port,
-				      ofdpa_flags_nowait(flags),
+				      ofdpa_flags_yeswait(flags),
 				      ofdpa_cmd_flow_tbl_del,
 				      found, NULL, NULL);
 		kfree(found);
@@ -1098,7 +1098,7 @@ static int ofdpa_group_tbl_add(struct ofdpa_port *ofdpa_port, int flags,
 	spin_unlock_irqrestore(&ofdpa->group_tbl_lock, lock_flags);
 
 	return rocker_cmd_exec(ofdpa_port->rocker_port,
-			       ofdpa_flags_nowait(flags),
+			       ofdpa_flags_yeswait(flags),
 			       ofdpa_cmd_group_tbl_add,
 			       found, NULL, NULL);
 }
@@ -1126,7 +1126,7 @@ static int ofdpa_group_tbl_del(struct ofdpa_port *ofdpa_port, int flags,
 
 	if (found) {
 		err = rocker_cmd_exec(ofdpa_port->rocker_port,
-				      ofdpa_flags_nowait(flags),
+				      ofdpa_flags_yeswait(flags),
 				      ofdpa_cmd_group_tbl_del,
 				      found, NULL, NULL);
 		ofdpa_group_tbl_entry_free(found);
@@ -1473,16 +1473,16 @@ static int ofdpa_port_vlan_flood_group(struct ofdpa_port *ofdpa_port,
 		}
 	}
 
-	/* If there are no bridged ports in this VLAN, we're done */
+	/* If there are yes bridged ports in this VLAN, we're done */
 	if (group_count == 0)
-		goto no_ports_in_vlan;
+		goto yes_ports_in_vlan;
 
 	err = ofdpa_group_l2_flood(ofdpa_port, flags, vlan_id,
 				   group_count, group_ids, group_id);
 	if (err)
 		netdev_err(ofdpa_port->dev, "Error (%d) port VLAN l2 flood group\n", err);
 
-no_ports_in_vlan:
+yes_ports_in_vlan:
 	kfree(group_ids);
 	return err;
 }
@@ -1822,17 +1822,17 @@ static void ofdpa_port_fdb_learn_work(struct work_struct *work)
 		container_of(work, struct ofdpa_fdb_learn_work, work);
 	bool removing = (lw->flags & OFDPA_OP_FLAG_REMOVE);
 	bool learned = (lw->flags & OFDPA_OP_FLAG_LEARNED);
-	struct switchdev_notifier_fdb_info info;
+	struct switchdev_yestifier_fdb_info info;
 
 	info.addr = lw->addr;
 	info.vid = lw->vid;
 
 	rtnl_lock();
 	if (learned && removing)
-		call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
+		call_switchdev_yestifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
 					 lw->ofdpa_port->dev, &info.info, NULL);
 	else if (learned && !removing)
-		call_switchdev_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
+		call_switchdev_yestifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
 					 lw->ofdpa_port->dev, &info.info, NULL);
 	rtnl_unlock();
 
@@ -1948,7 +1948,7 @@ static int ofdpa_port_fdb_flush(struct ofdpa_port *ofdpa_port, int flags)
 	struct ofdpa *ofdpa = ofdpa_port->ofdpa;
 	struct ofdpa_fdb_tbl_entry *found;
 	unsigned long lock_flags;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	int bkt;
 	int err = 0;
 
@@ -1984,7 +1984,7 @@ static void ofdpa_fdb_cleanup(struct timer_list *t)
 	struct ofdpa *ofdpa = from_timer(ofdpa, t, fdb_cleanup_timer);
 	struct ofdpa_port *ofdpa_port;
 	struct ofdpa_fdb_tbl_entry *entry;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned long next_timer = jiffies + ofdpa->ageing_time;
 	unsigned long expires;
 	unsigned long lock_flags;
@@ -2058,7 +2058,7 @@ static int ofdpa_port_fwding(struct ofdpa_port *ofdpa_port, int flags)
 	 * or FORWARDING.  Traffic from CPU can still egress, regardless of
 	 * port STP state.  Use L2 interface group on port VLANs as a way
 	 * to toggle port forwarding: if forwarding is disabled, L2
-	 * interface group will not exist.
+	 * interface group will yest exist.
 	 */
 
 	if (ofdpa_port->stp_state != BR_STATE_LEARNING &&
@@ -2159,7 +2159,7 @@ static int ofdpa_port_fwd_enable(struct ofdpa_port *ofdpa_port, int flags)
 		/* bridge STP will enable port */
 		return 0;
 
-	/* port is not bridged, so simulate going to FORWARDING state */
+	/* port is yest bridged, so simulate going to FORWARDING state */
 	return ofdpa_port_stp_update(ofdpa_port, flags,
 				     BR_STATE_FORWARDING);
 }
@@ -2170,7 +2170,7 @@ static int ofdpa_port_fwd_disable(struct ofdpa_port *ofdpa_port, int flags)
 		/* bridge STP will disable port */
 		return 0;
 
-	/* port is not bridged, so simulate going to DISABLED state */
+	/* port is yest bridged, so simulate going to DISABLED state */
 	return ofdpa_port_stp_update(ofdpa_port, flags,
 				     BR_STATE_DISABLED);
 }
@@ -2323,9 +2323,9 @@ ofdpa_port_internal_vlan_id_put(const struct ofdpa_port *ofdpa_port,
 	found = ofdpa_internal_vlan_tbl_find(ofdpa, ifindex);
 	if (!found) {
 		netdev_err(ofdpa_port->dev,
-			   "ifindex (%d) not found in internal VLAN tbl\n",
+			   "ifindex (%d) yest found in internal VLAN tbl\n",
 			   ifindex);
-		goto not_found;
+		goto yest_found;
 	}
 
 	if (--found->ref_count <= 0) {
@@ -2335,7 +2335,7 @@ ofdpa_port_internal_vlan_id_put(const struct ofdpa_port *ofdpa_port,
 		kfree(found);
 	}
 
-not_found:
+yest_found:
 	spin_unlock_irqrestore(&ofdpa->internal_vlan_tbl_lock, lock_flags);
 }
 
@@ -2382,7 +2382,7 @@ static void ofdpa_fini(struct rocker *rocker)
 	struct ofdpa_fdb_tbl_entry *fdb_entry;
 	struct ofdpa_internal_vlan_tbl_entry *internal_vlan_entry;
 	struct ofdpa_neigh_tbl_entry *neigh_entry;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	int bkt;
 
 	del_timer_sync(&ofdpa->fdb_cleanup_timer);
@@ -2730,7 +2730,7 @@ static struct ofdpa_port *ofdpa_port_dev_lower_find(struct net_device *dev,
 }
 
 static int ofdpa_fib4_add(struct rocker *rocker,
-			  const struct fib_entry_notifier_info *fen_info)
+			  const struct fib_entry_yestifier_info *fen_info)
 {
 	struct ofdpa *ofdpa = rocker->wpriv;
 	struct ofdpa_port *ofdpa_port;
@@ -2753,7 +2753,7 @@ static int ofdpa_fib4_add(struct rocker *rocker,
 }
 
 static int ofdpa_fib4_del(struct rocker *rocker,
-			  const struct fib_entry_notifier_info *fen_info)
+			  const struct fib_entry_yestifier_info *fen_info)
 {
 	struct ofdpa *ofdpa = rocker->wpriv;
 	struct ofdpa_port *ofdpa_port;
@@ -2776,7 +2776,7 @@ static void ofdpa_fib4_abort(struct rocker *rocker)
 	struct ofdpa *ofdpa = rocker->wpriv;
 	struct ofdpa_port *ofdpa_port;
 	struct ofdpa_flow_tbl_entry *flow_entry;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned long flags;
 	int bkt;
 

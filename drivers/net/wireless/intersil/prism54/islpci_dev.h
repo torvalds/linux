@@ -20,13 +20,13 @@
 #include "isl_oid.h"
 #include "islpci_mgt.h"
 
-/* some states might not be superflous and may be removed when
+/* some states might yest be superflous and may be removed when
    design is finalized (hvr) */
 typedef enum {
 	PRV_STATE_OFF = 0,	/* this means hw_unavailable is != 0 */
 	PRV_STATE_PREBOOT,	/* we are in a pre-boot state (empty RAM) */
 	PRV_STATE_BOOT,		/* boot state (fw upload, run fw) */
-	PRV_STATE_POSTBOOT,	/* after boot state, need reset now */
+	PRV_STATE_POSTBOOT,	/* after boot state, need reset yesw */
 	PRV_STATE_PREINIT,	/* pre-init state */
 	PRV_STATE_INIT,		/* init state (restore MIB backup to device) */
 	PRV_STATE_READY,	/* driver&device are in operational state */
@@ -123,7 +123,7 @@ typedef struct {
 	 * rx queue, waiting for data (owned by device).  The driver
 	 * increments driver_curr_frag to indicate to the device that more
 	 * buffers are available.
-	 * If device_curr_frag == driver_curr_frag, no more rx buffers are
+	 * If device_curr_frag == driver_curr_frag, yes more rx buffers are
 	 * available, and the rx DMA engine of the device is halted.
 	 * For tx queues, [index, device_curr_frag) contains fragments
 	 * where tx is done; they need to be freed (owned by driver).
@@ -157,7 +157,7 @@ typedef struct {
 	/* state machine */
 	islpci_state_t state;
 	int state_off;		/* enumeration of off-state, if 0 then
-				 * we're not in any off-state */
+				 * we're yest in any off-state */
 
 	/* WPA stuff */
 	int wpa; /* WPA mode enabled */

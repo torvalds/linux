@@ -54,7 +54,7 @@ static void arizona_haptics_work(struct work_struct *work)
 			return;
 		}
 
-		/* This enable sequence will be a noop if already enabled */
+		/* This enable sequence will be a yesop if already enabled */
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_HAPTICS_CONTROL_1,
 					 ARIZONA_HAP_CTRL_MASK,
@@ -79,7 +79,7 @@ static void arizona_haptics_work(struct work_struct *work)
 			return;
 		}
 	} else {
-		/* This disable sequence will be a noop if already enabled */
+		/* This disable sequence will be a yesop if already enabled */
 		ret = snd_soc_component_disable_pin(component, "HAPTICS");
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to disable HAPTICS: %d\n",

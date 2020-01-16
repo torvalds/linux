@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -56,7 +56,7 @@ static const struct net_device_ops mlx5i_netdev_ops = {
 static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
 				   struct mlx5e_params *params)
 {
-	/* Override RQ params as IPoIB supports only LINKED LIST RQ for now */
+	/* Override RQ params as IPoIB supports only LINKED LIST RQ for yesw */
 	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_STRIDING_RQ, false);
 	mlx5e_set_rq_type(mdev, params);
 	mlx5e_init_rq_type_params(mdev, params);
@@ -430,7 +430,7 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.disable	   = NULL, /* mlx5i_disable */
 	.update_rx	   = mlx5e_update_nic_rx,
 	.update_stats	   = NULL, /* mlx5i_update_stats */
-	.update_carrier    = NULL, /* no HW update in IB link */
+	.update_carrier    = NULL, /* yes HW update in IB link */
 	.rx_handlers.handle_rx_cqe       = mlx5i_handle_rx_cqe,
 	.rx_handlers.handle_rx_cqe_mpwqe = NULL, /* Not supported */
 	.max_tc		   = MLX5I_MAX_NUM_TC,
@@ -647,7 +647,7 @@ static int mlx5i_check_required_hca_cap(struct mlx5_core_dev *mdev)
 		return -EOPNOTSUPP;
 
 	if (!MLX5_CAP_GEN(mdev, ipoib_enhanced_offloads)) {
-		mlx5_core_warn(mdev, "IPoIB enhanced offloads are not supported\n");
+		mlx5_core_warn(mdev, "IPoIB enhanced offloads are yest supported\n");
 		return -EOPNOTSUPP;
 	}
 

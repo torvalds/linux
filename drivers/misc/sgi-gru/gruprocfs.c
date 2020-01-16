@@ -45,7 +45,7 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, steal_user_context);
 	printstat(s, steal_kernel_context);
 	printstat(s, steal_context_failed);
-	printstat(s, nopfn);
+	printstat(s, yespfn);
 	printstat(s, asid_new);
 	printstat(s, asid_next);
 	printstat(s, asid_wrap);
@@ -65,13 +65,13 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, check_context_unload);
 	printstat(s, tlb_dropin);
 	printstat(s, tlb_preload_page);
-	printstat(s, tlb_dropin_fail_no_asid);
+	printstat(s, tlb_dropin_fail_yes_asid);
 	printstat(s, tlb_dropin_fail_upm);
 	printstat(s, tlb_dropin_fail_invalid);
 	printstat(s, tlb_dropin_fail_range_active);
 	printstat(s, tlb_dropin_fail_idle);
 	printstat(s, tlb_dropin_fail_fmm);
-	printstat(s, tlb_dropin_fail_no_exception);
+	printstat(s, tlb_dropin_fail_yes_exception);
 	printstat(s, tfh_stale_on_fault);
 	printstat(s, mmu_invalidate_range);
 	printstat(s, mmu_invalidate_page);
@@ -82,25 +82,25 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, copy_gpa);
 	printstat(s, read_gpa);
 	printstat(s, mesq_receive);
-	printstat(s, mesq_receive_none);
+	printstat(s, mesq_receive_yesne);
 	printstat(s, mesq_send);
 	printstat(s, mesq_send_failed);
-	printstat(s, mesq_noop);
+	printstat(s, mesq_yesop);
 	printstat(s, mesq_send_unexpected_error);
 	printstat(s, mesq_send_lb_overflow);
 	printstat(s, mesq_send_qlimit_reached);
 	printstat(s, mesq_send_amo_nacked);
 	printstat(s, mesq_send_put_nacked);
 	printstat(s, mesq_qf_locked);
-	printstat(s, mesq_qf_noop_not_full);
+	printstat(s, mesq_qf_yesop_yest_full);
 	printstat(s, mesq_qf_switch_head_failed);
 	printstat(s, mesq_qf_unexpected_error);
-	printstat(s, mesq_noop_unexpected_error);
-	printstat(s, mesq_noop_lb_overflow);
-	printstat(s, mesq_noop_qlimit_reached);
-	printstat(s, mesq_noop_amo_nacked);
-	printstat(s, mesq_noop_put_nacked);
-	printstat(s, mesq_noop_page_overflow);
+	printstat(s, mesq_yesop_unexpected_error);
+	printstat(s, mesq_yesop_lb_overflow);
+	printstat(s, mesq_yesop_qlimit_reached);
+	printstat(s, mesq_yesop_amo_nacked);
+	printstat(s, mesq_yesop_put_nacked);
+	printstat(s, mesq_yesop_page_overflow);
 	return 0;
 }
 
@@ -239,17 +239,17 @@ static const struct seq_operations gru_seq_ops = {
 	.show	= gru_seq_show
 };
 
-static int statistics_open(struct inode *inode, struct file *file)
+static int statistics_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, statistics_show, NULL);
 }
 
-static int mcs_statistics_open(struct inode *inode, struct file *file)
+static int mcs_statistics_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, mcs_statistics_show, NULL);
 }
 
-static int options_open(struct inode *inode, struct file *file)
+static int options_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, options_show, NULL);
 }

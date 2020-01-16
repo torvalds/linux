@@ -10,12 +10,12 @@
 
 struct xfs_buf;
 struct xfs_bmbt_rec;
-struct xfs_inode;
+struct xfs_iyesde;
 struct xfs_mount;
 
-typedef struct xfs_inode_log_item {
+typedef struct xfs_iyesde_log_item {
 	struct xfs_log_item	ili_item;	   /* common portion */
-	struct xfs_inode	*ili_inode;	   /* inode ptr */
+	struct xfs_iyesde	*ili_iyesde;	   /* iyesde ptr */
 	xfs_lsn_t		ili_flush_lsn;	   /* lsn at last flush */
 	xfs_lsn_t		ili_last_lsn;	   /* lsn at last transaction */
 	unsigned short		ili_lock_flags;	   /* lock flags */
@@ -23,20 +23,20 @@ typedef struct xfs_inode_log_item {
 	unsigned int		ili_last_fields;   /* fields when flushed */
 	unsigned int		ili_fields;	   /* fields to be logged */
 	unsigned int		ili_fsync_fields;  /* logged since last fsync */
-} xfs_inode_log_item_t;
+} xfs_iyesde_log_item_t;
 
-static inline int xfs_inode_clean(xfs_inode_t *ip)
+static inline int xfs_iyesde_clean(xfs_iyesde_t *ip)
 {
 	return !ip->i_itemp || !(ip->i_itemp->ili_fields & XFS_ILOG_ALL);
 }
 
-extern void xfs_inode_item_init(struct xfs_inode *, struct xfs_mount *);
-extern void xfs_inode_item_destroy(struct xfs_inode *);
+extern void xfs_iyesde_item_init(struct xfs_iyesde *, struct xfs_mount *);
+extern void xfs_iyesde_item_destroy(struct xfs_iyesde *);
 extern void xfs_iflush_done(struct xfs_buf *, struct xfs_log_item *);
 extern void xfs_istale_done(struct xfs_buf *, struct xfs_log_item *);
-extern void xfs_iflush_abort(struct xfs_inode *, bool);
-extern int xfs_inode_item_format_convert(xfs_log_iovec_t *,
-					 struct xfs_inode_log_format *);
+extern void xfs_iflush_abort(struct xfs_iyesde *, bool);
+extern int xfs_iyesde_item_format_convert(xfs_log_iovec_t *,
+					 struct xfs_iyesde_log_format *);
 
 extern struct kmem_zone	*xfs_ili_zone;
 

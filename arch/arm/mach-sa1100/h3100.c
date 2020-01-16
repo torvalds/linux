@@ -3,7 +3,7 @@
  * Support for Compaq iPAQ H3100 handheld computer
  *
  * Copyright (c) 2000,1 Compaq Computer Corporation. (Author: Jamey Hicks)
- * Copyright (c) 2009 Dmitry Artamonow <mad_soft@inbox.ru>
+ * Copyright (c) 2009 Dmitry Artamoyesw <mad_soft@inbox.ru>
  */
 
 #include <linux/init.h>
@@ -67,7 +67,7 @@ static struct sa1100fb_mach_info h3100_lcd_info = {
 	.cmap_greyscale	= 1,
 	.cmap_inverse	= 1,
 
-	.lccr0		= LCCR0_Mono | LCCR0_4PixMono | LCCR0_Sngl | LCCR0_Pas,
+	.lccr0		= LCCR0_Moyes | LCCR0_4PixMoyes | LCCR0_Sngl | LCCR0_Pas,
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
 
 	.lcd_power = h3100_lcd_power,

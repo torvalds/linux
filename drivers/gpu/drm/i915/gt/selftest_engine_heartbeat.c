@@ -104,7 +104,7 @@ static int __live_idle_pulse(struct intel_engine_cs *engine,
 	if (!i915_active_is_idle(&p->active)) {
 		struct drm_printer m = drm_err_printer("pulse");
 
-		pr_err("%s: heartbeat pulse did not flush idle tasks\n",
+		pr_err("%s: heartbeat pulse did yest flush idle tasks\n",
 		       engine->name);
 		i915_active_print(&p->active, &m);
 
@@ -192,10 +192,10 @@ static int __live_heartbeat_fast(struct intel_engine_cs *engine)
 			while (READ_ONCE(engine->heartbeat.systole))
 				flush_delayed_work(&engine->heartbeat.work);
 
-			engine->serial++; /* quick, pretend we are not idle! */
+			engine->serial++; /* quick, pretend we are yest idle! */
 			flush_delayed_work(&engine->heartbeat.work);
 			if (!delayed_work_pending(&engine->heartbeat.work)) {
-				pr_err("%s: heartbeat did not start\n",
+				pr_err("%s: heartbeat did yest start\n",
 				       engine->name);
 				err = -EINVAL;
 				goto err_pm;
@@ -270,7 +270,7 @@ static int __live_heartbeat_off(struct intel_engine_cs *engine)
 	engine->serial++;
 	flush_delayed_work(&engine->heartbeat.work);
 	if (!delayed_work_pending(&engine->heartbeat.work)) {
-		pr_err("%s: heartbeat not running\n",
+		pr_err("%s: heartbeat yest running\n",
 		       engine->name);
 		err = -EINVAL;
 		goto err_pm;
@@ -310,7 +310,7 @@ static int live_heartbeat_off(void *arg)
 	enum intel_engine_id id;
 	int err = 0;
 
-	/* Check that we can turn off heartbeat and not interrupt VIP */
+	/* Check that we can turn off heartbeat and yest interrupt VIP */
 	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
 		return 0;
 

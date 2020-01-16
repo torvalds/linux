@@ -15,7 +15,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  */
@@ -29,7 +29,7 @@
 
 static spinlock_t pmu_blink_lock;
 static struct adb_request pmu_blink_req;
-/* -1: no change, 0: request off, 1: request on */
+/* -1: yes change, 0: request off, 1: request on */
 static int requested_change;
 
 static void pmu_req_done(struct adb_request * req)
@@ -39,7 +39,7 @@ static void pmu_req_done(struct adb_request * req)
 	spin_lock_irqsave(&pmu_blink_lock, flags);
 	/* if someone requested a change in the meantime
 	 * (we only see the last one which is fine)
-	 * then apply it now */
+	 * then apply it yesw */
 	if (requested_change != -1 && !pmu_sys_suspended)
 		pmu_request(&pmu_blink_req, NULL, 4, 0xee, 4, 0, requested_change);
 	/* reset requested change */
@@ -81,33 +81,33 @@ static struct led_classdev pmu_led = {
 
 static int __init via_pmu_led_init(void)
 {
-	struct device_node *dt;
+	struct device_yesde *dt;
 	const char *model;
 
 	/* only do this on keylargo based models */
 	if (pmu_get_model() != PMU_KEYLARGO_BASED)
 		return -ENODEV;
 
-	dt = of_find_node_by_path("/");
+	dt = of_find_yesde_by_path("/");
 	if (dt == NULL)
 		return -ENODEV;
 	model = of_get_property(dt, "model", NULL);
 	if (model == NULL) {
-		of_node_put(dt);
+		of_yesde_put(dt);
 		return -ENODEV;
 	}
 	if (strncmp(model, "PowerBook", strlen("PowerBook")) != 0 &&
 	    strncmp(model, "iBook", strlen("iBook")) != 0 &&
 	    strcmp(model, "PowerMac7,2") != 0 &&
 	    strcmp(model, "PowerMac7,3") != 0) {
-		of_node_put(dt);
-		/* ignore */
+		of_yesde_put(dt);
+		/* igyesre */
 		return -ENODEV;
 	}
-	of_node_put(dt);
+	of_yesde_put(dt);
 
 	spin_lock_init(&pmu_blink_lock);
-	/* no outstanding req */
+	/* yes outstanding req */
 	pmu_blink_req.complete = 1;
 	pmu_blink_req.done = pmu_req_done;
 

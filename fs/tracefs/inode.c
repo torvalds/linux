@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  inode.c - part of tracefs, a pseudo file system for activating tracing
+ *  iyesde.c - part of tracefs, a pseudo file system for activating tracing
  *
  * Based on debugfs by: Greg Kroah-Hartman <greg@kroah.com>
  *
@@ -15,7 +15,7 @@
 #include <linux/kobject.h>
 #include <linux/namei.h>
 #include <linux/tracefs.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/security.h>
 #include <linux/seq_file.h>
 #include <linux/parser.h>
@@ -44,7 +44,7 @@ static const struct file_operations tracefs_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		simple_open,
-	.llseek =	noop_llseek,
+	.llseek =	yesop_llseek,
 };
 
 static struct tracefs_dir_ops {
@@ -67,7 +67,7 @@ static char *get_dname(struct dentry *dentry)
 	return name;
 }
 
-static int tracefs_syscall_mkdir(struct inode *inode, struct dentry *dentry, umode_t mode)
+static int tracefs_syscall_mkdir(struct iyesde *iyesde, struct dentry *dentry, umode_t mode)
 {
 	char *name;
 	int ret;
@@ -81,16 +81,16 @@ static int tracefs_syscall_mkdir(struct inode *inode, struct dentry *dentry, umo
 	 * the files within the tracefs system. It is up to the individual
 	 * mkdir routine to handle races.
 	 */
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	ret = tracefs_ops.mkdir(name);
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
 	kfree(name);
 
 	return ret;
 }
 
-static int tracefs_syscall_rmdir(struct inode *inode, struct dentry *dentry)
+static int tracefs_syscall_rmdir(struct iyesde *iyesde, struct dentry *dentry)
 {
 	char *name;
 	int ret;
@@ -103,36 +103,36 @@ static int tracefs_syscall_rmdir(struct inode *inode, struct dentry *dentry)
 	 * The rmdir call can call the generic functions that create
 	 * the files within the tracefs system. It is up to the individual
 	 * rmdir routine to handle races.
-	 * This time we need to unlock not only the parent (inode) but
+	 * This time we need to unlock yest only the parent (iyesde) but
 	 * also the directory that is being deleted.
 	 */
-	inode_unlock(inode);
-	inode_unlock(dentry->d_inode);
+	iyesde_unlock(iyesde);
+	iyesde_unlock(dentry->d_iyesde);
 
 	ret = tracefs_ops.rmdir(name);
 
-	inode_lock_nested(inode, I_MUTEX_PARENT);
-	inode_lock(dentry->d_inode);
+	iyesde_lock_nested(iyesde, I_MUTEX_PARENT);
+	iyesde_lock(dentry->d_iyesde);
 
 	kfree(name);
 
 	return ret;
 }
 
-static const struct inode_operations tracefs_dir_inode_operations = {
+static const struct iyesde_operations tracefs_dir_iyesde_operations = {
 	.lookup		= simple_lookup,
 	.mkdir		= tracefs_syscall_mkdir,
 	.rmdir		= tracefs_syscall_rmdir,
 };
 
-static struct inode *tracefs_get_inode(struct super_block *sb)
+static struct iyesde *tracefs_get_iyesde(struct super_block *sb)
 {
-	struct inode *inode = new_inode(sb);
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	struct iyesde *iyesde = new_iyesde(sb);
+	if (iyesde) {
+		iyesde->i_iyes = get_next_iyes();
+		iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
 	}
-	return inode;
+	return iyesde;
 }
 
 struct tracefs_mount_opts {
@@ -199,7 +199,7 @@ static int tracefs_parse_options(char *data, struct tracefs_mount_opts *opts)
 			break;
 		/*
 		 * We might like to report bad mount options here;
-		 * but traditionally tracefs has ignored all mount options
+		 * but traditionally tracefs has igyesred all mount options
 		 */
 		}
 	}
@@ -210,14 +210,14 @@ static int tracefs_parse_options(char *data, struct tracefs_mount_opts *opts)
 static int tracefs_apply_options(struct super_block *sb)
 {
 	struct tracefs_fs_info *fsi = sb->s_fs_info;
-	struct inode *inode = sb->s_root->d_inode;
+	struct iyesde *iyesde = sb->s_root->d_iyesde;
 	struct tracefs_mount_opts *opts = &fsi->mount_opts;
 
-	inode->i_mode &= ~S_IALLUGO;
-	inode->i_mode |= opts->mode;
+	iyesde->i_mode &= ~S_IALLUGO;
+	iyesde->i_mode |= opts->mode;
 
-	inode->i_uid = opts->uid;
-	inode->i_gid = opts->gid;
+	iyesde->i_uid = opts->uid;
+	iyesde->i_gid = opts->gid;
 
 	return 0;
 }
@@ -321,7 +321,7 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 	if (error)
 		return ERR_PTR(error);
 
-	/* If the parent is not specified, we create it in the root.
+	/* If the parent is yest specified, we create it in the root.
 	 * We need the root dentry to do this, which is in the super
 	 * block. A pointer to that is in the struct vfsmount that we
 	 * have around.
@@ -329,15 +329,15 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 	if (!parent)
 		parent = tracefs_mount->mnt_root;
 
-	inode_lock(parent->d_inode);
+	iyesde_lock(parent->d_iyesde);
 	dentry = lookup_one_len(name, parent, strlen(name));
-	if (!IS_ERR(dentry) && dentry->d_inode) {
+	if (!IS_ERR(dentry) && dentry->d_iyesde) {
 		dput(dentry);
 		dentry = ERR_PTR(-EEXIST);
 	}
 
 	if (IS_ERR(dentry)) {
-		inode_unlock(parent->d_inode);
+		iyesde_unlock(parent->d_iyesde);
 		simple_release_fs(&tracefs_mount, &tracefs_mount_count);
 	}
 
@@ -346,7 +346,7 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 
 static struct dentry *failed_creating(struct dentry *dentry)
 {
-	inode_unlock(dentry->d_parent->d_inode);
+	iyesde_unlock(dentry->d_parent->d_iyesde);
 	dput(dentry);
 	simple_release_fs(&tracefs_mount, &tracefs_mount_count);
 	return NULL;
@@ -354,7 +354,7 @@ static struct dentry *failed_creating(struct dentry *dentry)
 
 static struct dentry *end_creating(struct dentry *dentry)
 {
-	inode_unlock(dentry->d_parent->d_inode);
+	iyesde_unlock(dentry->d_parent->d_iyesde);
 	return dentry;
 }
 
@@ -366,7 +366,7 @@ static struct dentry *end_creating(struct dentry *dentry)
  *          directory dentry if set.  If this parameter is NULL, then the
  *          file will be created in the root of the tracefs filesystem.
  * @data: a pointer to something that the caller will want to get to later
- *        on.  The inode.i_private pointer will point to this value on
+ *        on.  The iyesde.i_private pointer will point to this value on
  *        the open() call.
  * @fops: a pointer to a struct file_operations that should be used for
  *        this file.
@@ -378,10 +378,10 @@ static struct dentry *end_creating(struct dentry *dentry)
  *
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the tracefs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
+ * to be removed (yes automatic cleanup happens if your module is unloaded,
  * you are responsible here.)  If an error occurs, %NULL will be returned.
  *
- * If tracefs is not enabled in the kernel, the value -%ENODEV will be
+ * If tracefs is yest enabled in the kernel, the value -%ENODEV will be
  * returned.
  */
 struct dentry *tracefs_create_file(const char *name, umode_t mode,
@@ -389,7 +389,7 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
 				   const struct file_operations *fops)
 {
 	struct dentry *dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	if (security_locked_down(LOCKDOWN_TRACEFS))
 		return NULL;
@@ -402,40 +402,40 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
 	if (IS_ERR(dentry))
 		return NULL;
 
-	inode = tracefs_get_inode(dentry->d_sb);
-	if (unlikely(!inode))
+	iyesde = tracefs_get_iyesde(dentry->d_sb);
+	if (unlikely(!iyesde))
 		return failed_creating(dentry);
 
-	inode->i_mode = mode;
-	inode->i_fop = fops ? fops : &tracefs_file_operations;
-	inode->i_private = data;
-	d_instantiate(dentry, inode);
-	fsnotify_create(dentry->d_parent->d_inode, dentry);
+	iyesde->i_mode = mode;
+	iyesde->i_fop = fops ? fops : &tracefs_file_operations;
+	iyesde->i_private = data;
+	d_instantiate(dentry, iyesde);
+	fsyestify_create(dentry->d_parent->d_iyesde, dentry);
 	return end_creating(dentry);
 }
 
 static struct dentry *__create_dir(const char *name, struct dentry *parent,
-				   const struct inode_operations *ops)
+				   const struct iyesde_operations *ops)
 {
 	struct dentry *dentry = start_creating(name, parent);
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	if (IS_ERR(dentry))
 		return NULL;
 
-	inode = tracefs_get_inode(dentry->d_sb);
-	if (unlikely(!inode))
+	iyesde = tracefs_get_iyesde(dentry->d_sb);
+	if (unlikely(!iyesde))
 		return failed_creating(dentry);
 
-	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
-	inode->i_op = ops;
-	inode->i_fop = &simple_dir_operations;
+	iyesde->i_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
+	iyesde->i_op = ops;
+	iyesde->i_fop = &simple_dir_operations;
 
-	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inc_nlink(inode);
-	d_instantiate(dentry, inode);
-	inc_nlink(dentry->d_parent->d_inode);
-	fsnotify_mkdir(dentry->d_parent->d_inode, dentry);
+	/* directory iyesdes start off with i_nlink == 2 (for "." entry) */
+	inc_nlink(iyesde);
+	d_instantiate(dentry, iyesde);
+	inc_nlink(dentry->d_parent->d_iyesde);
+	fsyestify_mkdir(dentry->d_parent->d_iyesde, dentry);
 	return end_creating(dentry);
 }
 
@@ -453,12 +453,12 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
  * pointer must be passed to the tracefs_remove() function when the file is
  * to be removed. If an error occurs, %NULL will be returned.
  *
- * If tracing is not enabled in the kernel, the value -%ENODEV will be
+ * If tracing is yest enabled in the kernel, the value -%ENODEV will be
  * returned.
  */
 struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
 {
-	return __create_dir(name, parent, &simple_dir_inode_operations);
+	return __create_dir(name, parent, &simple_dir_iyesde_operations);
 }
 
 /**
@@ -471,7 +471,7 @@ struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
  * Only one instances directory is allowed.
  *
  * The instances directory is special as it allows for mkdir and rmdir to
- * to be done by userspace. When a mkdir or rmdir is performed, the inode
+ * to be done by userspace. When a mkdir or rmdir is performed, the iyesde
  * locks are released and the methhods passed in (@mkdir and @rmdir) are
  * called without locks and with the name of the directory being created
  * within the instances directory.
@@ -489,7 +489,7 @@ __init struct dentry *tracefs_create_instance_dir(const char *name,
 	if (WARN_ON(tracefs_ops.mkdir || tracefs_ops.rmdir))
 		return NULL;
 
-	dentry = __create_dir(name, parent, &tracefs_dir_inode_operations);
+	dentry = __create_dir(name, parent, &tracefs_dir_iyesde_operations);
 	if (!dentry)
 		return NULL;
 
@@ -504,17 +504,17 @@ static int __tracefs_remove(struct dentry *dentry, struct dentry *parent)
 	int ret = 0;
 
 	if (simple_positive(dentry)) {
-		if (dentry->d_inode) {
+		if (dentry->d_iyesde) {
 			dget(dentry);
-			switch (dentry->d_inode->i_mode & S_IFMT) {
+			switch (dentry->d_iyesde->i_mode & S_IFMT) {
 			case S_IFDIR:
-				ret = simple_rmdir(parent->d_inode, dentry);
+				ret = simple_rmdir(parent->d_iyesde, dentry);
 				if (!ret)
-					fsnotify_rmdir(parent->d_inode, dentry);
+					fsyestify_rmdir(parent->d_iyesde, dentry);
 				break;
 			default:
-				simple_unlink(parent->d_inode, dentry);
-				fsnotify_unlink(parent->d_inode, dentry);
+				simple_unlink(parent->d_iyesde, dentry);
+				fsyestify_unlink(parent->d_iyesde, dentry);
 				break;
 			}
 			if (!ret)
@@ -531,7 +531,7 @@ static int __tracefs_remove(struct dentry *dentry, struct dentry *parent)
  *          removed.
  *
  * This function removes a file or directory in tracefs that was previously
- * created with a call to another tracefs function (like
+ * created with a call to ayesther tracefs function (like
  * tracefs_create_file() or variants thereof.)
  */
 void tracefs_remove(struct dentry *dentry)
@@ -543,9 +543,9 @@ void tracefs_remove(struct dentry *dentry)
 		return;
 
 	parent = dentry->d_parent;
-	inode_lock(parent->d_inode);
+	iyesde_lock(parent->d_iyesde);
 	ret = __tracefs_remove(dentry, parent);
-	inode_unlock(parent->d_inode);
+	iyesde_unlock(parent->d_iyesde);
 	if (!ret)
 		simple_release_fs(&tracefs_mount, &tracefs_mount_count);
 }
@@ -555,7 +555,7 @@ void tracefs_remove(struct dentry *dentry)
  * @dentry: a pointer to a the dentry of the directory to be removed.
  *
  * This function recursively removes a directory tree in tracefs that
- * was previously created with a call to another tracefs function
+ * was previously created with a call to ayesther tracefs function
  * (like tracefs_create_file() or variants thereof.)
  */
 void tracefs_remove_recursive(struct dentry *dentry)
@@ -567,7 +567,7 @@ void tracefs_remove_recursive(struct dentry *dentry)
 
 	parent = dentry;
  down:
-	inode_lock(parent->d_inode);
+	iyesde_lock(parent->d_iyesde);
  loop:
 	/*
 	 * The parent->d_subdirs is protected by the d_lock. Outside that
@@ -582,7 +582,7 @@ void tracefs_remove_recursive(struct dentry *dentry)
 		/* perhaps simple_empty(child) makes more sense */
 		if (!list_empty(&child->d_subdirs)) {
 			spin_unlock(&parent->d_lock);
-			inode_unlock(parent->d_inode);
+			iyesde_unlock(parent->d_iyesde);
 			parent = child;
 			goto down;
 		}
@@ -595,7 +595,7 @@ void tracefs_remove_recursive(struct dentry *dentry)
 		/*
 		 * The parent->d_lock protects agaist child from unlinking
 		 * from d_subdirs. When releasing the parent->d_lock we can
-		 * no longer trust that the next pointer is valid.
+		 * yes longer trust that the next pointer is valid.
 		 * Restart the loop. We'll skip this one with the
 		 * simple_positive() check.
 		 */
@@ -603,10 +603,10 @@ void tracefs_remove_recursive(struct dentry *dentry)
 	}
 	spin_unlock(&parent->d_lock);
 
-	inode_unlock(parent->d_inode);
+	iyesde_unlock(parent->d_iyesde);
 	child = parent;
 	parent = parent->d_parent;
-	inode_lock(parent->d_inode);
+	iyesde_lock(parent->d_iyesde);
 
 	if (child != dentry)
 		/* go up */
@@ -614,7 +614,7 @@ void tracefs_remove_recursive(struct dentry *dentry)
 
 	if (!__tracefs_remove(child, parent))
 		simple_release_fs(&tracefs_mount, &tracefs_mount_count);
-	inode_unlock(parent->d_inode);
+	iyesde_unlock(parent->d_iyesde);
 }
 
 /**

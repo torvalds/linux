@@ -13,7 +13,7 @@
  *
  * The idea is to use a very simple lookup. Using a netlink attribute
  * with (for example) the interface name implies a heavier search over
- * all the network devices; seemed kind of a waste given that we know
+ * all the network devices; seemed kind of a waste given that we kyesw
  * we are looking for a WiMAX device and that most systems will have
  * just a single WiMAX adapter.
  *
@@ -21,7 +21,7 @@
  * match the generic link family ID against the list.
  *
  * By using a linked list, the case of a single adapter in the system
- * becomes (almost) no overhead, while still working for many more. If
+ * becomes (almost) yes overhead, while still working for many more. If
  * it ever goes beyond two, I'll be surprised.
  */
 #include <linux/device.h>
@@ -46,14 +46,14 @@ static struct list_head wimax_id_table = LIST_HEAD_INIT(wimax_id_table);
  * @wimax_dev: WiMAX device descriptor to associate to the Generic
  *     Netlink family ID.
  *
- * Look for an empty spot in the ID table; if none found, double the
+ * Look for an empty spot in the ID table; if yesne found, double the
  * table's size and get the first spot.
  */
 void wimax_id_table_add(struct wimax_dev *wimax_dev)
 {
 	d_fnstart(3, NULL, "(wimax_dev %p)\n", wimax_dev);
 	spin_lock(&wimax_id_table_lock);
-	list_add(&wimax_dev->id_table_node, &wimax_id_table);
+	list_add(&wimax_dev->id_table_yesde, &wimax_id_table);
 	spin_unlock(&wimax_id_table_lock);
 	d_fnend(3, NULL, "(wimax_dev %p)\n", wimax_dev);
 }
@@ -76,14 +76,14 @@ struct wimax_dev *wimax_dev_get_by_genl_info(
 
 	d_fnstart(3, NULL, "(info %p ifindex %d)\n", info, ifindex);
 	spin_lock(&wimax_id_table_lock);
-	list_for_each_entry(wimax_dev, &wimax_id_table, id_table_node) {
+	list_for_each_entry(wimax_dev, &wimax_id_table, id_table_yesde) {
 		if (wimax_dev->net_dev->ifindex == ifindex) {
 			dev_hold(wimax_dev->net_dev);
 			goto found;
 		}
 	}
 	wimax_dev = NULL;
-	d_printf(1, NULL, "wimax: no devices found with ifindex %d\n",
+	d_printf(1, NULL, "wimax: yes devices found with ifindex %d\n",
 		 ifindex);
 found:
 	spin_unlock(&wimax_id_table_lock);
@@ -101,7 +101,7 @@ found:
 void wimax_id_table_rm(struct wimax_dev *wimax_dev)
 {
 	spin_lock(&wimax_id_table_lock);
-	list_del_init(&wimax_dev->id_table_node);
+	list_del_init(&wimax_dev->id_table_yesde);
 	spin_unlock(&wimax_id_table_lock);
 }
 
@@ -121,8 +121,8 @@ void wimax_id_table_release(void)
 	return;
 #endif
 	spin_lock(&wimax_id_table_lock);
-	list_for_each_entry(wimax_dev, &wimax_id_table, id_table_node) {
-		pr_err("BUG: %s wimax_dev %p ifindex %d not cleared\n",
+	list_for_each_entry(wimax_dev, &wimax_id_table, id_table_yesde) {
+		pr_err("BUG: %s wimax_dev %p ifindex %d yest cleared\n",
 		       __func__, wimax_dev, wimax_dev->net_dev->ifindex);
 		WARN_ON(1);
 	}

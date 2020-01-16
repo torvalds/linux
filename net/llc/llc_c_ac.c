@@ -7,7 +7,7 @@
  *   All functions have one connection and one event as input argument. All of
  *   them return 0 On success and 1 otherwise.
  *
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techyeslogy, Inc.
  * 		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -855,9 +855,9 @@ int llc_conn_ac_start_p_timer(struct sock *sk, struct sk_buff *skb)
  *	@sk: current connection structure
  *	@skb: current event
  *
- *	Checks number of received PDUs which have not been acknowledged, yet,
- *	If number of them reaches to "npta"(Number of PDUs To Acknowledge) then
- *	sends an RR response as acknowledgement for them.  Returns 0 for
+ *	Checks number of received PDUs which have yest been ackyeswledged, yet,
+ *	If number of them reaches to "npta"(Number of PDUs To Ackyeswledge) then
+ *	sends an RR response as ackyeswledgement for them.  Returns 0 for
  *	success, 1 otherwise.
  */
 int llc_conn_ac_send_ack_if_needed(struct sock *sk, struct sk_buff *skb)
@@ -888,7 +888,7 @@ int llc_conn_ac_send_ack_if_needed(struct sock *sk, struct sk_buff *skb)
  *	@skb: current event
  *
  *	This action resets ack_must_be_send flag of given connection, this flag
- *	indicates if there is any PDU which has not been acknowledged yet.
+ *	indicates if there is any PDU which has yest been ackyeswledged yet.
  *	Returns 0 for success, 1 otherwise.
  */
 int llc_conn_ac_rst_sendack_flag(struct sock *sk, struct sk_buff *skb)
@@ -898,12 +898,12 @@ int llc_conn_ac_rst_sendack_flag(struct sock *sk, struct sk_buff *skb)
 }
 
 /**
- *	llc_conn_ac_send_i_rsp_f_set_ackpf - acknowledge received PDUs
+ *	llc_conn_ac_send_i_rsp_f_set_ackpf - ackyeswledge received PDUs
  *	@sk: current connection structure
  *	@skb: current event
  *
- *	Sends an I response PDU with f-bit set to ack_pf flag as acknowledge to
- *	all received PDUs which have not been acknowledged, yet. ack_pf flag is
+ *	Sends an I response PDU with f-bit set to ack_pf flag as ackyeswledge to
+ *	all received PDUs which have yest been ackyeswledged, yet. ack_pf flag is
  *	set to one if one PDU with p-bit set to one is received.  Returns 0 for
  *	success, 1 otherwise.
  */
@@ -927,13 +927,13 @@ static int llc_conn_ac_send_i_rsp_f_set_ackpf(struct sock *sk,
 }
 
 /**
- *	llc_conn_ac_send_i_as_ack - sends an I-format PDU to acknowledge rx PDUs
+ *	llc_conn_ac_send_i_as_ack - sends an I-format PDU to ackyeswledge rx PDUs
  *	@sk: current connection structure.
  *	@skb: current event.
  *
- *	This action sends an I-format PDU as acknowledge to received PDUs which
- *	have not been acknowledged, yet, if there is any. By using of this
- *	action number of acknowledgements decreases, this technic is called
+ *	This action sends an I-format PDU as ackyeswledge to received PDUs which
+ *	have yest been ackyeswledged, yet, if there is any. By using of this
+ *	action number of ackyeswledgements decreases, this technic is called
  *	piggy backing. Returns 0 for success, 1 otherwise.
  */
 int llc_conn_ac_send_i_as_ack(struct sock *sk, struct sk_buff *skb)
@@ -953,12 +953,12 @@ int llc_conn_ac_send_i_as_ack(struct sock *sk, struct sk_buff *skb)
 }
 
 /**
- *	llc_conn_ac_send_rr_rsp_f_set_ackpf - ack all rx PDUs not yet acked
+ *	llc_conn_ac_send_rr_rsp_f_set_ackpf - ack all rx PDUs yest yet acked
  *	@sk: current connection structure.
  *	@skb: current event.
  *
  *	This action sends an RR response with f-bit set to ack_pf flag as
- *	acknowledge to all received PDUs which have not been acknowledged, yet,
+ *	ackyeswledge to all received PDUs which have yest been ackyeswledged, yet,
  *	if there is any. ack_pf flag indicates if a PDU has been received with
  *	p-bit set to one. Returns 0 for success, 1 otherwise.
  */
@@ -994,7 +994,7 @@ free:
  *
  *	After "inc_cntr" times calling of this action, "npta" increase by one.
  *	this action tries to make vale of "npta" greater as possible; number of
- *	acknowledgements decreases by increasing of "npta". Returns 0 for
+ *	ackyeswledgements decreases by increasing of "npta". Returns 0 for
  *	success, 1 otherwise.
  */
 static int llc_conn_ac_inc_npta_value(struct sock *sk, struct sk_buff *skb)
@@ -1136,7 +1136,7 @@ int llc_conn_ac_start_rej_timer(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-int llc_conn_ac_start_ack_tmr_if_not_running(struct sock *sk,
+int llc_conn_ac_start_ack_tmr_if_yest_running(struct sock *sk,
 					     struct sk_buff *skb)
 {
 	struct llc_sock *llc = llc_sk(sk);
@@ -1182,7 +1182,7 @@ int llc_conn_ac_upd_nr_received(struct sock *sk, struct sk_buff *skb)
 		llc->retry_count = 0;
 		del_timer(&llc->ack_timer.timer);
 		if (llc->failed_data_req) {
-			/* already, we did not accept data from upper layer
+			/* already, we did yest accept data from upper layer
 			 * (tx_window full or unacceptable state). Now, we
 			 * can send data and must inform to upper layer.
 			 */
@@ -1379,7 +1379,7 @@ int llc_conn_ac_upd_vs(struct sock *sk, struct sk_buff *skb)
 }
 
 /*
- * Non-standard actions; these not contained in IEEE specification; for
+ * Non-standard actions; these yest contained in IEEE specification; for
  * our own usage
  */
 /**
@@ -1407,12 +1407,12 @@ int llc_conn_reset(struct sock *sk, struct sk_buff *skb)
 }
 
 /**
- *	llc_circular_between - designates that b is between a and c or not
+ *	llc_circular_between - designates that b is between a and c or yest
  *	@a: lower bound
  *	@b: element to see if is between a and b
  *	@c: upper bound
  *
- *	This function designates that b is between a and c or not (for example,
+ *	This function designates that b is between a and c or yest (for example,
  *	0 is between 127 and 1). Returns 1 if b is between a and c, 0
  *	otherwise.
  */

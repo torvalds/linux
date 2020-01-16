@@ -45,13 +45,13 @@ enum cpio_fields {
  * @data:       Pointer to the the cpio archive or a header inside
  * @len:        Remaining length of the cpio based on data pointer
  * @nextoff:    When a matching file is found, this is the offset from the
- *              beginning of the cpio to the beginning of the next file, not the
+ *              beginning of the cpio to the beginning of the next file, yest the
  *              matching file itself. It can be used to iterate through the cpio
  *              to find all files inside of a directory path.
  *
  * @return:     struct cpio_data containing the address, length and
  *              filename (with the directory path cut off) of the found file.
- *              If you search for a filename and not for files in a directory,
+ *              If you search for a filename and yest for files in a directory,
  *              pass the absolute path of the filename in the cpio and make sure
  *              the match returned an empty filename string.
  */

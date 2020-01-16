@@ -46,7 +46,7 @@
  *	      Added INIT backtrace support.
  *
  * 2003-12-08 Keith Owens <kaos@sgi.com>
- *	      smp_call_function() must not be called from interrupt context
+ *	      smp_call_function() must yest be called from interrupt context
  *	      (can deadlock on tasklist_lock).
  *	      Use keventd to call smp_call_function().
  *
@@ -62,7 +62,7 @@
  *	      state.
  *
  * 2005-10-07 Keith Owens <kaos@sgi.com>
- *	      Add notify_die() hooks.
+ *	      Add yestify_die() hooks.
  *
  * 2006-09-15 Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
  *	      Add printing support for MCA/INIT.
@@ -113,14 +113,14 @@
 
 #define NOTIFY_INIT(event, regs, arg, spin)				\
 do {									\
-	if ((notify_die((event), "INIT", (regs), (arg), 0, 0)		\
+	if ((yestify_die((event), "INIT", (regs), (arg), 0, 0)		\
 			== NOTIFY_STOP) && ((spin) == 1))		\
 		ia64_mca_spin(__func__);				\
 } while (0)
 
 #define NOTIFY_MCA(event, regs, arg, spin)				\
 do {									\
-	if ((notify_die((event), "MCA", (regs), (arg), 0, 0)		\
+	if ((yestify_die((event), "MCA", (regs), (arg), 0, 0)		\
 			== NOTIFY_STOP) && ((spin) == 1))		\
 		ia64_mca_spin(__func__);				\
 } while (0)
@@ -179,7 +179,7 @@ static int mca_init __initdata;
 #define MLOGBUF_MSGMAX 256
 static char mlogbuf[MLOGBUF_SIZE];
 static DEFINE_SPINLOCK(mlogbuf_wlock);	/* mca context only */
-static DEFINE_SPINLOCK(mlogbuf_rlock);	/* normal context only */
+static DEFINE_SPINLOCK(mlogbuf_rlock);	/* yesrmal context only */
 static unsigned long mlogbuf_start;
 static unsigned long mlogbuf_end;
 static unsigned int mlogbuf_finished = 0;
@@ -201,7 +201,7 @@ static int loglevel_save = -1;
 	oops_in_progress = 0;
 
 /*
- * Push messages into buffer, print them later if not urgent.
+ * Push messages into buffer, print them later if yest urgent.
  */
 void ia64_mca_printk(const char *fmt, ...)
 {
@@ -238,7 +238,7 @@ EXPORT_SYMBOL(ia64_mca_printk);
 
 /*
  * Print buffered messages.
- *  NOTE: call this after returning normal context. (ex. from salinfod)
+ *  NOTE: call this after returning yesrmal context. (ex. from salinfod)
  */
 void ia64_mlogbuf_dump(void)
 {
@@ -322,7 +322,7 @@ static void ia64_mlogbuf_dump_from_init(void)
 		printk(KERN_ERR "INIT: mlogbuf_dump is interrupted by INIT. "
 			"Generated messages other than stack dump will be "
 			"buffered to mlogbuf and will be printed later.\n");
-		printk(KERN_ERR "INIT: If messages would not printed after "
+		printk(KERN_ERR "INIT: If messages would yest printed after "
 			"this INIT, wait 30sec and assert INIT again.\n");
 		if (!mlogbuf_timestamp)
 			mlogbuf_timestamp = jiffies;
@@ -337,7 +337,7 @@ ia64_mca_spin(const char *func)
 {
 	if (monarch_cpu == smp_processor_id())
 		ia64_mlogbuf_finish(0);
-	mprintk(KERN_EMERG "%s: spinning here, not returning to SAL\n", func);
+	mprintk(KERN_EMERG "%s: spinning here, yest returning to SAL\n", func);
 	while (1)
 		cpu_relax();
 }
@@ -479,7 +479,7 @@ ia64_mca_log_sal_error_record(int sal_info_type)
 			smp_processor_id(),
 			sal_info_type < ARRAY_SIZE(rec_name) ? rec_name[sal_info_type] : "UNKNOWN");
 
-	/* Clear logs from corrected errors in case there's no user-level logger */
+	/* Clear logs from corrected errors in case there's yes user-level logger */
 	rh = (sal_log_record_header_t *)buffer;
 	if (rh->severity == sal_log_severity_corrected)
 		ia64_sal_clear_state_info(sal_info_type);
@@ -496,7 +496,7 @@ ia64_mca_log_sal_error_record(int sal_info_type)
  *	ip	Instruction pointer, address we are looking for
  *
  * Return value:
- *      1 on Success (in the table)/ 0 on Failure (not in the  table)
+ *      1 on Success (in the table)/ 0 on Failure (yest in the  table)
  */
 int
 search_mca_table (const struct mca_table_entry *first,
@@ -548,11 +548,11 @@ ia64_mca_cpe_int_handler (int cpe_irq, void *arg)
 	spin_lock(&cpe_history_lock);
 	if (!cpe_poll_enabled && cpe_vector >= 0) {
 
-		int i, count = 1; /* we know 1 happened now */
-		unsigned long now = jiffies;
+		int i, count = 1; /* we kyesw 1 happened yesw */
+		unsigned long yesw = jiffies;
 
 		for (i = 0; i < CPE_HISTORY_LENGTH; i++) {
-			if (now - cpe_history[i] <= HZ)
+			if (yesw - cpe_history[i] <= HZ)
 				count++;
 		}
 
@@ -561,7 +561,7 @@ ia64_mca_cpe_int_handler (int cpe_irq, void *arg)
 
 			cpe_poll_enabled = 1;
 			spin_unlock(&cpe_history_lock);
-			disable_irq_nosync(local_vector_to_irq(IA64_CPE_VECTOR));
+			disable_irq_yessync(local_vector_to_irq(IA64_CPE_VECTOR));
 
 			/*
 			 * Corrected errors will still be corrected, but
@@ -572,10 +572,10 @@ ia64_mca_cpe_int_handler (int cpe_irq, void *arg)
 
 			mod_timer(&cpe_poll_timer, jiffies + MIN_CPE_POLL_INTERVAL);
 
-			/* lock already released, get out now */
+			/* lock already released, get out yesw */
 			goto out;
 		} else {
-			cpe_history[index++] = now;
+			cpe_history[index++] = yesw;
 			if (index == CPE_HISTORY_LENGTH)
 				index = 0;
 		}
@@ -703,7 +703,7 @@ ia64_mca_cmc_vector_enable (void *dummy)
 /*
  * ia64_mca_cmc_vector_disable_keventd
  *
- * Called via keventd (smp_call_function() is not safe in interrupt context) to
+ * Called via keventd (smp_call_function() is yest safe in interrupt context) to
  * disable the cmc interrupt vector.
  */
 static void
@@ -715,7 +715,7 @@ ia64_mca_cmc_vector_disable_keventd(struct work_struct *unused)
 /*
  * ia64_mca_cmc_vector_enable_keventd
  *
- * Called via keventd (smp_call_function() is not safe in interrupt context) to
+ * Called via keventd (smp_call_function() is yest safe in interrupt context) to
  * enable the cmc interrupt vector.
  */
 static void
@@ -777,7 +777,7 @@ ia64_mca_rendez_int_handler(int rendez_irq, void *arg)
 {
 	unsigned long flags;
 	int cpu = smp_processor_id();
-	struct ia64_mca_notify_die nd =
+	struct ia64_mca_yestify_die nd =
 		{ .sos = NULL, .monarch_cpu = &monarch_cpu };
 
 	/* Mask all interrupts */
@@ -812,7 +812,7 @@ ia64_mca_rendez_int_handler(int rendez_irq, void *arg)
  *	slave cpu which was spinning in the rendez loop.
  *	Since this spinning is done by turning off the interrupts and
  *	polling on the wakeup-interrupt bit in the IRR, there is
- *	nothing useful to be done in the handler.
+ *	yesthing useful to be done in the handler.
  *
  *  Inputs  :   wakeup_irq  (Wakeup-interrupt bit)
  *	arg		(Interrupt handler specific argument)
@@ -949,7 +949,7 @@ finish_pt_regs(struct pt_regs *regs, struct ia64_sal_os_state *sos,
 }
 
 /* On entry to this routine, we are running on the per cpu stack, see
- * mca_asm.h.  The original stack has not been touched by this event.  Some of
+ * mca_asm.h.  The original stack has yest been touched by this event.  Some of
  * the original stack's registers will be in the RBS on this stack.  This stack
  * also contains a partial pt_regs and switch_stack, the rest of the data is in
  * PAL minstate.
@@ -968,7 +968,7 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 {
 	char *p;
 	ia64_va va;
-	extern char ia64_leave_kernel[];	/* Need asm address, not function descriptor */
+	extern char ia64_leave_kernel[];	/* Need asm address, yest function descriptor */
 	const pal_min_state_area_t *ms = sos->pal_min_state;
 	struct task_struct *previous_current;
 	struct pt_regs *old_regs;
@@ -1019,12 +1019,12 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 		}
 	}
 
-	/* mca_asm.S ia64_old_stack() cannot assume that the dirty registers
+	/* mca_asm.S ia64_old_stack() canyest assume that the dirty registers
 	 * have been copied to the old stack, the old stack may fail the
 	 * validation tests below.  So ia64_old_stack() must restore the dirty
 	 * registers from the new stack.  The old and new bspstore probably
 	 * have different alignments, so loadrs calculated on the old bsp
-	 * cannot be used to restore from the new bsp.  Calculate a suitable
+	 * canyest be used to restore from the new bsp.  Calculate a suitable
 	 * loadrs for the new stack and save it in the new pt_regs, where
 	 * ia64_old_stack() can get it.
 	 */
@@ -1042,36 +1042,36 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 		 * in user space, so ...
 		 */
 		ia64_mca_modify_comm(previous_current);
-		goto no_mod;
+		goto yes_mod;
 	}
 
 	if (r13 != sos->prev_IA64_KR_CURRENT) {
 		msg = "inconsistent previous current and r13";
-		goto no_mod;
+		goto yes_mod;
 	}
 
 	if (!mca_recover_range(ms->pmsa_iip)) {
 		if ((r12 - r13) >= KERNEL_STACK_SIZE) {
 			msg = "inconsistent r12 and r13";
-			goto no_mod;
+			goto yes_mod;
 		}
 		if ((ar_bspstore - r13) >= KERNEL_STACK_SIZE) {
 			msg = "inconsistent ar.bspstore and r13";
-			goto no_mod;
+			goto yes_mod;
 		}
 		va.p = old_bspstore;
 		if (va.f.reg < 5) {
 			msg = "old_bspstore is in the wrong region";
-			goto no_mod;
+			goto yes_mod;
 		}
 		if ((ar_bsp - r13) >= KERNEL_STACK_SIZE) {
 			msg = "inconsistent ar.bsp and r13";
-			goto no_mod;
+			goto yes_mod;
 		}
 		size += (ia64_rse_skip_regs(old_bspstore, slots) - old_bspstore) * 8;
 		if (ar_bspstore + size > r12) {
-			msg = "no room for blocked state";
-			goto no_mod;
+			msg = "yes room for blocked state";
+			goto yes_mod;
 		}
 	}
 
@@ -1097,7 +1097,7 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 	 *
 	 * unwind.c::unw_unwind() does special processing for interrupt frames.
 	 * It checks if the PRED_NON_SYSCALL predicate is set, if the predicate
-	 * is clear then unw_unwind() does _not_ adjust bsp over pt_regs.  Not
+	 * is clear then unw_unwind() does _yest_ adjust bsp over pt_regs.  Not
 	 * that this is documented, of course.  Set PRED_NON_SYSCALL in the
 	 * switch_stack on the original stack so it will unwind correctly when
 	 * unwind.c reads pt_regs.
@@ -1153,8 +1153,8 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 	sos->prev_task = previous_current;
 	return previous_current;
 
-no_mod:
-	mprintk(KERN_INFO "cpu %d, %s %s, original stack not modified\n",
+yes_mod:
+	mprintk(KERN_INFO "cpu %d, %s %s, original stack yest modified\n",
 			smp_processor_id(), type, msg);
 	old_unat = regs->ar_unat;
 	finish_pt_regs(regs, sos, &old_unat);
@@ -1163,8 +1163,8 @@ no_mod:
 
 /* The monarch/slave interaction is based on monarch_cpu and requires that all
  * slaves have entered rendezvous before the monarch leaves.  If any cpu has
- * not entered rendezvous yet then wait a bit.  The assumption is that any
- * slave that has not rendezvoused after a reasonable time is never going to do
+ * yest entered rendezvous yet then wait a bit.  The assumption is that any
+ * slave that has yest rendezvoused after a reasonable time is never going to do
  * so.  In this context, slave includes cpus that respond to the MCA rendezvous
  * interrupt, as well as cpus that receive the INIT slave event.
  */
@@ -1197,7 +1197,7 @@ ia64_wait_for_slaves(int monarch, const char *type)
 	 * Maybe slave(s) dead. Print buffered messages immediately.
 	 */
 	ia64_mlogbuf_finish(0);
-	mprintk(KERN_INFO "OS %s slave did not rendezvous on cpu", type);
+	mprintk(KERN_INFO "OS %s slave did yest rendezvous on cpu", type);
 	for_each_online_cpu(c) {
 		if (c == monarch)
 			continue;
@@ -1264,7 +1264,7 @@ static void mca_insert_tr(u64 iord)
  *	This is uncorrectable machine check handler called from OS_MCA
  *	dispatch code which is in turn called from SAL_CHECK().
  *	This is the place where the core of OS MCA handling is done.
- *	Right now the logs are extracted and displayed in a well-defined
+ *	Right yesw the logs are extracted and displayed in a well-defined
  *	format. This handler code is supposed to be run only on the
  *	monarch processor. Once the monarch is done with MCA handling
  *	further MCA logging is enabled by clearing logs.
@@ -1284,7 +1284,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 {
 	int recover, cpu = smp_processor_id();
 	struct task_struct *previous_current;
-	struct ia64_mca_notify_die nd =
+	struct ia64_mca_yestify_die nd =
 		{ .sos = sos, .monarch_cpu = &monarch_cpu, .data = &recover };
 	static atomic_t mca_count;
 	static cpumask_t mca_cpu;
@@ -1312,7 +1312,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		 * with interrupts disabled until this monarch cpu leaves the
 		 * MCA handler.  That gets control back to the OS so we can
 		 * backtrace the other cpus, backtrace when spinning in SAL
-		 * does not work.
+		 * does yest work.
 		 */
 		ia64_mca_wakeup_all();
 	} else {
@@ -1379,7 +1379,7 @@ static DECLARE_WORK(cmc_enable_work, ia64_mca_cmc_vector_enable_keventd);
  * ia64_mca_cmc_int_handler
  *
  *  This is corrected machine check interrupt handler.
- *	Right now the logs are extracted and displayed in a well-defined
+ *	Right yesw the logs are extracted and displayed in a well-defined
  *	format.
  *
  * Inputs
@@ -1404,11 +1404,11 @@ ia64_mca_cmc_int_handler(int cmc_irq, void *arg)
 
 	spin_lock(&cmc_history_lock);
 	if (!cmc_polling_enabled) {
-		int i, count = 1; /* we know 1 happened now */
-		unsigned long now = jiffies;
+		int i, count = 1; /* we kyesw 1 happened yesw */
+		unsigned long yesw = jiffies;
 
 		for (i = 0; i < CMC_HISTORY_LENGTH; i++) {
-			if (now - cmc_history[i] <= HZ)
+			if (yesw - cmc_history[i] <= HZ)
 				count++;
 		}
 
@@ -1419,7 +1419,7 @@ ia64_mca_cmc_int_handler(int cmc_irq, void *arg)
 			spin_unlock(&cmc_history_lock);
 			/* If we're being hit with CMC interrupts, we won't
 			 * ever execute the schedule_work() below.  Need to
-			 * disable CMC interrupts on this processor now.
+			 * disable CMC interrupts on this processor yesw.
 			 */
 			ia64_mca_cmc_vector_disable(NULL);
 			schedule_work(&cmc_disable_work);
@@ -1433,10 +1433,10 @@ ia64_mca_cmc_int_handler(int cmc_irq, void *arg)
 
 			mod_timer(&cmc_poll_timer, jiffies + CMC_POLL_INTERVAL);
 
-			/* lock already released, get out now */
+			/* lock already released, get out yesw */
 			goto out;
 		} else {
-			cmc_history[index++] = now;
+			cmc_history[index++] = yesw;
 			if (index == CMC_HISTORY_LENGTH)
 				index = 0;
 		}
@@ -1483,7 +1483,7 @@ ia64_mca_cmc_int_caller(int cmc_irq, void *arg)
 	if (cpuid < nr_cpu_ids) {
 		ia64_send_ipi(cpuid, IA64_CMCP_VECTOR, IA64_IPI_DM_INT, 0);
 	} else {
-		/* If no log record, switch out of polling mode */
+		/* If yes log record, switch out of polling mode */
 		if (start_count == IA64_LOG_COUNT(SAL_INFO_TYPE_CMC)) {
 
 			printk(KERN_WARNING "Returning to interrupt driven CMC handler\n");
@@ -1594,7 +1594,7 @@ ia64_mca_cpe_poll (struct timer_list *unused)
 }
 
 static int
-default_monarch_init_process(struct notifier_block *self, unsigned long val, void *data)
+default_monarch_init_process(struct yestifier_block *self, unsigned long val, void *data)
 {
 	int c;
 	struct task_struct *g, *t;
@@ -1634,7 +1634,7 @@ default_monarch_init_process(struct notifier_block *self, unsigned long val, voi
 		} while_each_thread (g, t);
 		read_unlock(&tasklist_lock);
 	}
-	/* FIXME: This will not restore zapped printk locks. */
+	/* FIXME: This will yest restore zapped printk locks. */
 	RESTORE_LOGLEVEL(console_loglevel);
 	return NOTIFY_DONE;
 }
@@ -1664,7 +1664,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	static atomic_t monarchs;
 	struct task_struct *previous_current;
 	int cpu = smp_processor_id();
-	struct ia64_mca_notify_die nd =
+	struct ia64_mca_yestify_die nd =
 		{ .sos = sos, .monarch_cpu = &monarch_cpu };
 
 	NOTIFY_INIT(DIE_INIT_ENTER, regs, (long)&nd, 0);
@@ -1724,7 +1724,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 
 		NOTIFY_INIT(DIE_INIT_SLAVE_LEAVE, regs, (long)&nd, 1);
 
-		mprintk("Slave on cpu %d returning to normal service.\n", cpu);
+		mprintk("Slave on cpu %d returning to yesrmal service.\n", cpu);
 		ia64_set_curr_task(cpu, previous_current);
 		ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_NOTDONE;
 		atomic_dec(&slaves);
@@ -1743,14 +1743,14 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	mprintk("Delaying for 5 seconds...\n");
 	udelay(5*1000000);
 	ia64_wait_for_slaves(cpu, "INIT");
-	/* If nobody intercepts DIE_INIT_MONARCH_PROCESS then we drop through
+	/* If yesbody intercepts DIE_INIT_MONARCH_PROCESS then we drop through
 	 * to default_monarch_init_process() above and just print all the
 	 * tasks.
 	 */
 	NOTIFY_INIT(DIE_INIT_MONARCH_PROCESS, regs, (long)&nd, 1);
 	NOTIFY_INIT(DIE_INIT_MONARCH_LEAVE, regs, (long)&nd, 1);
 
-	mprintk("\nINIT dump complete.  Monarch on cpu %d returning to normal service.\n", cpu);
+	mprintk("\nINIT dump complete.  Monarch on cpu %d returning to yesrmal service.\n", cpu);
 	atomic_dec(&monarchs);
 	ia64_set_curr_task(cpu, previous_current);
 	monarch_cpu = -1;
@@ -1797,8 +1797,8 @@ static struct irqaction mca_cpep_irqaction = {
 };
 
 /* Minimal format of the MCA/INIT stacks.  The pseudo processes that run on
- * these stacks can never sleep, they cannot return from the kernel to user
- * space, they do not appear in a normal ps listing.  So there is no need to
+ * these stacks can never sleep, they canyest return from the kernel to user
+ * space, they do yest appear in a yesrmal ps listing.  So there is yes need to
  * format most of the fields.
  */
 
@@ -1854,7 +1854,7 @@ ia64_mca_cpu_init(void *cpu_data)
 			data = (void *)__get_free_pages(GFP_KERNEL,
 							get_order(sz));
 		if (!data)
-			panic("Could not allocate MCA memory for cpu %d\n",
+			panic("Could yest allocate MCA memory for cpu %d\n",
 					cpu);
 	}
 	format_mca_init_stack(data, offsetof(struct ia64_mca_cpu, mca_stack),
@@ -1924,9 +1924,9 @@ ia64_mca_init(void)
 	long rc;
 	struct ia64_sal_retval isrv;
 	unsigned long timeout = IA64_MCA_RENDEZ_TIMEOUT; /* platform specific */
-	static struct notifier_block default_init_monarch_nb = {
-		.notifier_call = default_monarch_init_process,
-		.priority = 0/* we need to notified last */
+	static struct yestifier_block default_init_monarch_nb = {
+		.yestifier_call = default_monarch_init_process,
+		.priority = 0/* we need to yestified last */
 	};
 
 	IA64_MCA_DEBUG("%s: begin\n", __func__);
@@ -2022,7 +2022,7 @@ ia64_mca_init(void)
 		       "(status %ld)\n", rc);
 		return;
 	}
-	if (register_die_notifier(&default_init_monarch_nb)) {
+	if (register_die_yestifier(&default_init_monarch_nb)) {
 		printk(KERN_ERR "Failed to register default monarch INIT process\n");
 		return;
 	}
@@ -2044,11 +2044,11 @@ ia64_mca_init(void)
 
 
 /*
- * These pieces cannot be done in ia64_mca_init() because it is called before
+ * These pieces canyest be done in ia64_mca_init() because it is called before
  * early_irq_init() which would wipe out our percpu irq registrations. But we
- * cannot leave them until ia64_mca_late_init() because by then all the other
+ * canyest leave them until ia64_mca_late_init() because by then all the other
  * processors have been brought online and have set their own CMC vectors to
- * point at a non-existant action. Called from arch_early_irq_init().
+ * point at a yesn-existant action. Called from arch_early_irq_init().
  */
 void __init ia64_mca_irq_init(void)
 {

@@ -25,7 +25,7 @@
  *     All rights reserved.
  *
  *     You should have received a copy of the GNU General Public License along
- *     with this program; if not, write to the Free Software Foundation, Inc.,
+ *     with this program; if yest, write to the Free Software Foundation, Inc.,
  *     675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *****************************************************************************/
@@ -268,7 +268,7 @@ int fifo_icap_set_configuration(struct hwicap_drvdata *drvdata,
 	dev_dbg(drvdata->dev, "done fifo_set_configuration\n");
 
 	/*
-	 * If the requested number of words have not been read from
+	 * If the requested number of words have yest been read from
 	 * the device then indicate failure.
 	 */
 	if (remaining_words != 0)

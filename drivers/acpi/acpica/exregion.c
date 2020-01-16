@@ -82,7 +82,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 
 #ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
 	/*
-	 * Hardware does not support non-aligned data transfers, we must verify
+	 * Hardware does yest support yesn-aligned data transfers, we must verify
 	 * the request.
 	 */
 	(void)acpi_ut_short_divide((u64) address, length, NULL, &remainder);
@@ -101,7 +101,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 					 mem_info->mapped_physical_address +
 					 mem_info->mapped_length))) {
 		/*
-		 * The request cannot be resolved by the current memory mapping;
+		 * The request canyest be resolved by the current memory mapping;
 		 * Delete the existing mapping and create a new one.
 		 */
 		if (mem_info->mapped_length) {
@@ -115,14 +115,14 @@ acpi_ex_system_memory_space_handler(u32 function,
 		/*
 		 * October 2009: Attempt to map from the requested address to the
 		 * end of the region. However, we will never map more than one
-		 * page, nor will we cross a page boundary.
+		 * page, yesr will we cross a page boundary.
 		 */
 		map_length = (acpi_size)
 		    ((mem_info->address + mem_info->length) - address);
 
 		/*
 		 * If mapping the entire remaining portion of the region will cross
-		 * a page boundary, just map up to the page boundary, do not cross.
+		 * a page boundary, just map up to the page boundary, do yest cross.
 		 * On some systems, crossing a page boundary while mapping regions
 		 * can cause warnings if the pages have different attributes
 		 * due to resource management.
@@ -147,7 +147,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 		    acpi_os_map_memory(address, map_length);
 		if (!mem_info->mapped_logical_address) {
 			ACPI_ERROR((AE_INFO,
-				    "Could not map memory at 0x%8.8X%8.8X, size %u",
+				    "Could yest map memory at 0x%8.8X%8.8X, size %u",
 				    ACPI_FORMAT_UINT64(address),
 				    (u32)map_length));
 			mem_info->mapped_length = 0;
@@ -174,8 +174,8 @@ acpi_ex_system_memory_space_handler(u32 function,
 	/*
 	 * Perform the memory read or write
 	 *
-	 * Note: For machines that do not support non-aligned transfers, the target
-	 * address was checked for alignment above. We do not attempt to break the
+	 * Note: For machines that do yest support yesn-aligned transfers, the target
+	 * address was checked for alignment above. We do yest attempt to break the
 	 * transfer up into smaller (byte-size) chunks because the AML specifically
 	 * asked for a transfer width that the hardware may require.
 	 */

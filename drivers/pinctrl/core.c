@@ -72,7 +72,7 @@ void pinctrl_provide_dummies(void)
 
 const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev)
 {
-	/* We're not allowed to register devices without name */
+	/* We're yest allowed to register devices without name */
 	return pctldev->desc->name;
 }
 EXPORT_SYMBOL_GPL(pinctrl_dev_get_name);
@@ -105,7 +105,7 @@ struct pinctrl_dev *get_pinctrl_dev_from_devname(const char *devname)
 
 	mutex_lock(&pinctrldev_list_mutex);
 
-	list_for_each_entry(pctldev, &pinctrldev_list, node) {
+	list_for_each_entry(pctldev, &pinctrldev_list, yesde) {
 		if (!strcmp(dev_name(pctldev->dev), devname)) {
 			/* Matched on device name */
 			mutex_unlock(&pinctrldev_list_mutex);
@@ -118,14 +118,14 @@ struct pinctrl_dev *get_pinctrl_dev_from_devname(const char *devname)
 	return NULL;
 }
 
-struct pinctrl_dev *get_pinctrl_dev_from_of_node(struct device_node *np)
+struct pinctrl_dev *get_pinctrl_dev_from_of_yesde(struct device_yesde *np)
 {
 	struct pinctrl_dev *pctldev;
 
 	mutex_lock(&pinctrldev_list_mutex);
 
-	list_for_each_entry(pctldev, &pinctrldev_list, node)
-		if (pctldev->dev->of_node == np) {
+	list_for_each_entry(pctldev, &pinctrldev_list, yesde)
+		if (pctldev->dev->of_yesde == np) {
 			mutex_unlock(&pinctrldev_list_mutex);
 			return pctldev;
 		}
@@ -292,7 +292,7 @@ pinctrl_match_gpio_range(struct pinctrl_dev *pctldev, unsigned gpio)
 
 	mutex_lock(&pctldev->mutex);
 	/* Loop over the ranges */
-	list_for_each_entry(range, &pctldev->gpio_ranges, node) {
+	list_for_each_entry(range, &pctldev->gpio_ranges, yesde) {
 		/* Check if we're in the valid range */
 		if (gpio >= range->base &&
 		    gpio < range->base + range->npins) {
@@ -311,11 +311,11 @@ pinctrl_match_gpio_range(struct pinctrl_dev *pctldev, unsigned gpio)
  *
  * This function is complement of pinctrl_match_gpio_range(). If the return
  * value of pinctrl_match_gpio_range() is NULL, this function could be used
- * to check whether pinctrl device is ready or not. Maybe some GPIO pins
+ * to check whether pinctrl device is ready or yest. Maybe some GPIO pins
  * of the same GPIO chip don't have back-end pinctrl interface.
  * If the return value is true, it means that pinctrl device is ready & the
  * certain GPIO pin doesn't have back-end pinctrl device. If the return value
- * is false, it means that pinctrl device may not be ready.
+ * is false, it means that pinctrl device may yest be ready.
  */
 #ifdef CONFIG_GPIOLIB
 static bool pinctrl_ready_for_gpio_range(unsigned gpio)
@@ -324,16 +324,16 @@ static bool pinctrl_ready_for_gpio_range(unsigned gpio)
 	struct pinctrl_gpio_range *range = NULL;
 	struct gpio_chip *chip = gpio_to_chip(gpio);
 
-	if (WARN(!chip, "no gpio_chip for gpio%i?", gpio))
+	if (WARN(!chip, "yes gpio_chip for gpio%i?", gpio))
 		return false;
 
 	mutex_lock(&pinctrldev_list_mutex);
 
 	/* Loop over the pin controllers */
-	list_for_each_entry(pctldev, &pinctrldev_list, node) {
+	list_for_each_entry(pctldev, &pinctrldev_list, yesde) {
 		/* Loop over the ranges */
 		mutex_lock(&pctldev->mutex);
-		list_for_each_entry(range, &pctldev->gpio_ranges, node) {
+		list_for_each_entry(range, &pctldev->gpio_ranges, yesde) {
 			/* Check if any gpio range overlapped with gpio chip */
 			if (range->base + range->npins - 1 < chip->base ||
 			    range->base > chip->base + chip->ngpio - 1)
@@ -361,8 +361,8 @@ static bool pinctrl_ready_for_gpio_range(unsigned gpio) { return true; }
  *
  * Find the pin controller handling a certain GPIO pin from the pinspace of
  * the GPIO subsystem, return the device and the matching GPIO range. Returns
- * -EPROBE_DEFER if the GPIO range could not be found in any device since it
- * may still have not been registered.
+ * -EPROBE_DEFER if the GPIO range could yest be found in any device since it
+ * may still have yest been registered.
  */
 static int pinctrl_get_device_gpio_range(unsigned gpio,
 					 struct pinctrl_dev **outdev,
@@ -373,7 +373,7 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 	mutex_lock(&pinctrldev_list_mutex);
 
 	/* Loop over the pin controllers */
-	list_for_each_entry(pctldev, &pinctrldev_list, node) {
+	list_for_each_entry(pctldev, &pinctrldev_list, yesde) {
 		struct pinctrl_gpio_range *range;
 
 		range = pinctrl_match_gpio_range(pctldev, gpio);
@@ -402,7 +402,7 @@ void pinctrl_add_gpio_range(struct pinctrl_dev *pctldev,
 			    struct pinctrl_gpio_range *range)
 {
 	mutex_lock(&pctldev->mutex);
-	list_add_tail(&range->node, &pctldev->gpio_ranges);
+	list_add_tail(&range->yesde, &pctldev->gpio_ranges);
 	mutex_unlock(&pctldev->mutex);
 }
 EXPORT_SYMBOL_GPL(pinctrl_add_gpio_range);
@@ -427,7 +427,7 @@ struct pinctrl_dev *pinctrl_find_and_add_gpio_range(const char *devname,
 
 	/*
 	 * If we can't find this device, let's assume that is because
-	 * it has not probed yet, so the driver trying to register this
+	 * it has yest probed yet, so the driver trying to register this
 	 * range need to defer probing.
 	 */
 	if (!pctldev) {
@@ -457,13 +457,13 @@ int pinctrl_get_group_pins(struct pinctrl_dev *pctldev, const char *pin_group,
 EXPORT_SYMBOL_GPL(pinctrl_get_group_pins);
 
 struct pinctrl_gpio_range *
-pinctrl_find_gpio_range_from_pin_nolock(struct pinctrl_dev *pctldev,
+pinctrl_find_gpio_range_from_pin_yeslock(struct pinctrl_dev *pctldev,
 					unsigned int pin)
 {
 	struct pinctrl_gpio_range *range;
 
 	/* Loop over the ranges */
-	list_for_each_entry(range, &pctldev->gpio_ranges, node) {
+	list_for_each_entry(range, &pctldev->gpio_ranges, yesde) {
 		/* Check if we're in the valid range */
 		if (range->pins) {
 			int a;
@@ -478,7 +478,7 @@ pinctrl_find_gpio_range_from_pin_nolock(struct pinctrl_dev *pctldev,
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(pinctrl_find_gpio_range_from_pin_nolock);
+EXPORT_SYMBOL_GPL(pinctrl_find_gpio_range_from_pin_yeslock);
 
 /**
  * pinctrl_find_gpio_range_from_pin() - locate the GPIO range for a pin
@@ -492,7 +492,7 @@ pinctrl_find_gpio_range_from_pin(struct pinctrl_dev *pctldev,
 	struct pinctrl_gpio_range *range;
 
 	mutex_lock(&pctldev->mutex);
-	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
+	range = pinctrl_find_gpio_range_from_pin_yeslock(pctldev, pin);
 	mutex_unlock(&pctldev->mutex);
 
 	return range;
@@ -508,7 +508,7 @@ void pinctrl_remove_gpio_range(struct pinctrl_dev *pctldev,
 			       struct pinctrl_gpio_range *range)
 {
 	mutex_lock(&pctldev->mutex);
-	list_del(&range->node);
+	list_del(&range->yesde);
 	mutex_unlock(&pctldev->mutex);
 }
 EXPORT_SYMBOL_GPL(pinctrl_remove_gpio_range);
@@ -561,7 +561,7 @@ int pinctrl_generic_get_group_pins(struct pinctrl_dev *pctldev,
 	group = radix_tree_lookup(&pctldev->pin_group_tree,
 				  selector);
 	if (!group) {
-		dev_err(pctldev->dev, "%s could not find pingroup%i\n",
+		dev_err(pctldev->dev, "%s could yest find pingroup%i\n",
 			__func__, selector);
 		return -EINVAL;
 	}
@@ -685,7 +685,7 @@ EXPORT_SYMBOL_GPL(pinctrl_generic_remove_group);
  * @pctldev: pin controller device
  *
  * Note that the caller must take care of locking. The pinctrl groups
- * are allocated with devm_kzalloc() so no need to free them here.
+ * are allocated with devm_kzalloc() so yes need to free them here.
  */
 static void pinctrl_generic_free_groups(struct pinctrl_dev *pctldev)
 {
@@ -730,7 +730,7 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 		group_selector++;
 	}
 
-	dev_err(pctldev->dev, "does not have pin group %s\n",
+	dev_err(pctldev->dev, "does yest have pin group %s\n",
 		pin_group);
 
 	return -EINVAL;
@@ -914,7 +914,7 @@ static struct pinctrl_state *find_state(struct pinctrl *p,
 {
 	struct pinctrl_state *state;
 
-	list_for_each_entry(state, &p->states, node)
+	list_for_each_entry(state, &p->states, yesde)
 		if (!strcmp(state->name, name))
 			return state;
 
@@ -933,7 +933,7 @@ static struct pinctrl_state *create_state(struct pinctrl *p,
 	state->name = name;
 	INIT_LIST_HEAD(&state->settings);
 
-	list_add_tail(&state->node, &p->states);
+	list_add_tail(&state->yesde, &p->states);
 
 	return state;
 }
@@ -967,14 +967,14 @@ static int add_setting(struct pinctrl *p, struct pinctrl_dev *pctldev,
 			get_pinctrl_dev_from_devname(map->ctrl_dev_name);
 	if (!setting->pctldev) {
 		kfree(setting);
-		/* Do not defer probing of hogs (circular loop) */
+		/* Do yest defer probing of hogs (circular loop) */
 		if (!strcmp(map->ctrl_dev_name, map->dev_name))
 			return -ENODEV;
 		/*
-		 * OK let us guess that the driver is not there yet, and
+		 * OK let us guess that the driver is yest there yet, and
 		 * let's defer obtaining this pinctrl handle to later...
 		 */
-		dev_info(p->dev, "unknown pinctrl device %s in map entry, deferring probe",
+		dev_info(p->dev, "unkyeswn pinctrl device %s in map entry, deferring probe",
 			map->ctrl_dev_name);
 		return -EPROBE_DEFER;
 	}
@@ -998,7 +998,7 @@ static int add_setting(struct pinctrl *p, struct pinctrl_dev *pctldev,
 		return ret;
 	}
 
-	list_add_tail(&setting->node, &state->settings);
+	list_add_tail(&setting->yesde, &state->settings);
 
 	return 0;
 }
@@ -1008,7 +1008,7 @@ static struct pinctrl *find_pinctrl(struct device *dev)
 	struct pinctrl *p;
 
 	mutex_lock(&pinctrl_list_mutex);
-	list_for_each_entry(p, &pinctrl_list, node)
+	list_for_each_entry(p, &pinctrl_list, yesde)
 		if (p->dev == dev) {
 			mutex_unlock(&pinctrl_list_mutex);
 			return p;
@@ -1025,7 +1025,7 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 {
 	struct pinctrl *p;
 	const char *devname;
-	struct pinctrl_maps *maps_node;
+	struct pinctrl_maps *maps_yesde;
 	int i;
 	const struct pinctrl_map *map;
 	int ret;
@@ -1052,12 +1052,12 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 
 	mutex_lock(&pinctrl_maps_mutex);
 	/* Iterate over the pin control maps to locate the right ones */
-	for_each_maps(maps_node, i, map) {
+	for_each_maps(maps_yesde, i, map) {
 		/* Map must be for this device */
 		if (strcmp(map->dev_name, devname))
 			continue;
 		/*
-		 * If pctldev is not null, we are claiming hog for it,
+		 * If pctldev is yest null, we are claiming hog for it,
 		 * that means, setting that is served by pctldev by itself.
 		 *
 		 * Thus we must skip map that is for this device but is served
@@ -1071,13 +1071,13 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 		/*
 		 * At this point the adding of a setting may:
 		 *
-		 * - Defer, if the pinctrl device is not yet available
-		 * - Fail, if the pinctrl device is not yet available,
-		 *   AND the setting is a hog. We cannot defer that, since
+		 * - Defer, if the pinctrl device is yest yet available
+		 * - Fail, if the pinctrl device is yest yet available,
+		 *   AND the setting is a hog. We canyest defer that, since
 		 *   the hog will kick in immediately after the device
 		 *   is registered.
 		 *
-		 * If the error returned was not -EPROBE_DEFER then we
+		 * If the error returned was yest -EPROBE_DEFER then we
 		 * accumulate the errors to see if we end up with
 		 * an -EPROBE_DEFER later, as that is the worst case.
 		 */
@@ -1099,7 +1099,7 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 
 	/* Add the pinctrl handle to the global list */
 	mutex_lock(&pinctrl_list_mutex);
-	list_add_tail(&p->node, &pinctrl_list);
+	list_add_tail(&p->yesde, &pinctrl_list);
 	mutex_unlock(&pinctrl_list_mutex);
 
 	return p;
@@ -1119,7 +1119,7 @@ struct pinctrl *pinctrl_get(struct device *dev)
 	/*
 	 * See if somebody else (such as the device core) has already
 	 * obtained a handle to the pinctrl for this device. In that case,
-	 * return another pointer to it.
+	 * return ayesther pointer to it.
 	 */
 	p = find_pinctrl(dev);
 	if (p) {
@@ -1156,20 +1156,20 @@ static void pinctrl_free(struct pinctrl *p, bool inlist)
 	struct pinctrl_setting *setting, *n2;
 
 	mutex_lock(&pinctrl_list_mutex);
-	list_for_each_entry_safe(state, n1, &p->states, node) {
-		list_for_each_entry_safe(setting, n2, &state->settings, node) {
+	list_for_each_entry_safe(state, n1, &p->states, yesde) {
+		list_for_each_entry_safe(setting, n2, &state->settings, yesde) {
 			pinctrl_free_setting(state == p->state, setting);
-			list_del(&setting->node);
+			list_del(&setting->yesde);
 			kfree(setting);
 		}
-		list_del(&state->node);
+		list_del(&state->yesde);
 		kfree(state);
 	}
 
 	pinctrl_dt_free_maps(p);
 
 	if (inlist)
-		list_del(&p->node);
+		list_del(&p->yesde);
 	kfree(p);
 	mutex_unlock(&pinctrl_list_mutex);
 }
@@ -1247,7 +1247,7 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
 		 * still owned by the new state will be re-acquired by the call
 		 * to pinmux_enable_setting() in the loop below.
 		 */
-		list_for_each_entry(setting, &p->state->settings, node) {
+		list_for_each_entry(setting, &p->state->settings, yesde) {
 			if (setting->type != PIN_MAP_TYPE_MUX_GROUP)
 				continue;
 			pinmux_disable_setting(setting);
@@ -1257,7 +1257,7 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
 	p->state = NULL;
 
 	/* Apply all the settings for the new state */
-	list_for_each_entry(setting, &state->settings, node) {
+	list_for_each_entry(setting, &state->settings, yesde) {
 		switch (setting->type) {
 		case PIN_MAP_TYPE_MUX_GROUP:
 			ret = pinmux_enable_setting(setting);
@@ -1275,7 +1275,7 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
 			goto unapply_new_state;
 		}
 
-		/* Do not link hogs (circular dependency) */
+		/* Do yest link hogs (circular dependency) */
 		if (p != setting->pctldev->p)
 			pinctrl_link_add(setting->pctldev, p->dev);
 	}
@@ -1287,21 +1287,21 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
 unapply_new_state:
 	dev_err(p->dev, "Error applying setting, reverse things back\n");
 
-	list_for_each_entry(setting2, &state->settings, node) {
-		if (&setting2->node == &setting->node)
+	list_for_each_entry(setting2, &state->settings, yesde) {
+		if (&setting2->yesde == &setting->yesde)
 			break;
 		/*
 		 * All we can do here is pinmux_disable_setting.
-		 * That means that some pins are muxed differently now
+		 * That means that some pins are muxed differently yesw
 		 * than they were before applying the setting (We can't
-		 * "unmux a pin"!), but it's not a big deal since the pins
-		 * are free to be muxed by another apply_setting.
+		 * "unmux a pin"!), but it's yest a big deal since the pins
+		 * are free to be muxed by ayesther apply_setting.
 		 */
 		if (setting2->type == PIN_MAP_TYPE_MUX_GROUP)
 			pinmux_disable_setting(setting2);
 	}
 
-	/* There's no infinite recursive loop here because p->state is NULL */
+	/* There's yes infinite recursive loop here because p->state is NULL */
 	if (old_state)
 		pinctrl_select_state(p, old_state);
 
@@ -1366,7 +1366,7 @@ static int devm_pinctrl_match(struct device *dev, void *res, void *data)
  * @p: the pinctrl handle to release
  *
  * Deallocate a struct pinctrl obtained via devm_pinctrl_get(). Normally
- * this function will not need to be called and the resource management
+ * this function will yest need to be called and the resource management
  * code will ensure that the resource is freed.
  */
 void devm_pinctrl_put(struct pinctrl *p)
@@ -1380,27 +1380,27 @@ int pinctrl_register_map(const struct pinctrl_map *maps, unsigned num_maps,
 			 bool dup)
 {
 	int i, ret;
-	struct pinctrl_maps *maps_node;
+	struct pinctrl_maps *maps_yesde;
 
 	pr_debug("add %u pinctrl maps\n", num_maps);
 
 	/* First sanity check the new mapping */
 	for (i = 0; i < num_maps; i++) {
 		if (!maps[i].dev_name) {
-			pr_err("failed to register map %s (%d): no device given\n",
+			pr_err("failed to register map %s (%d): yes device given\n",
 			       maps[i].name, i);
 			return -EINVAL;
 		}
 
 		if (!maps[i].name) {
-			pr_err("failed to register map %d: no map name given\n",
+			pr_err("failed to register map %d: yes map name given\n",
 			       i);
 			return -EINVAL;
 		}
 
 		if (maps[i].type != PIN_MAP_TYPE_DUMMY_STATE &&
 				!maps[i].ctrl_dev_name) {
-			pr_err("failed to register map %s (%d): no pin control device given\n",
+			pr_err("failed to register map %s (%d): yes pin control device given\n",
 			       maps[i].name, i);
 			return -EINVAL;
 		}
@@ -1426,24 +1426,24 @@ int pinctrl_register_map(const struct pinctrl_map *maps, unsigned num_maps,
 		}
 	}
 
-	maps_node = kzalloc(sizeof(*maps_node), GFP_KERNEL);
-	if (!maps_node)
+	maps_yesde = kzalloc(sizeof(*maps_yesde), GFP_KERNEL);
+	if (!maps_yesde)
 		return -ENOMEM;
 
-	maps_node->num_maps = num_maps;
+	maps_yesde->num_maps = num_maps;
 	if (dup) {
-		maps_node->maps = kmemdup(maps, sizeof(*maps) * num_maps,
+		maps_yesde->maps = kmemdup(maps, sizeof(*maps) * num_maps,
 					  GFP_KERNEL);
-		if (!maps_node->maps) {
-			kfree(maps_node);
+		if (!maps_yesde->maps) {
+			kfree(maps_yesde);
 			return -ENOMEM;
 		}
 	} else {
-		maps_node->maps = maps;
+		maps_yesde->maps = maps;
 	}
 
 	mutex_lock(&pinctrl_maps_mutex);
-	list_add_tail(&maps_node->node, &pinctrl_maps);
+	list_add_tail(&maps_yesde->yesde, &pinctrl_maps);
 	mutex_unlock(&pinctrl_maps_mutex);
 
 	return 0;
@@ -1465,13 +1465,13 @@ EXPORT_SYMBOL_GPL(pinctrl_register_mappings);
 
 void pinctrl_unregister_map(const struct pinctrl_map *map)
 {
-	struct pinctrl_maps *maps_node;
+	struct pinctrl_maps *maps_yesde;
 
 	mutex_lock(&pinctrl_maps_mutex);
-	list_for_each_entry(maps_node, &pinctrl_maps, node) {
-		if (maps_node->maps == map) {
-			list_del(&maps_node->node);
-			kfree(maps_node);
+	list_for_each_entry(maps_yesde, &pinctrl_maps, yesde) {
+		if (maps_yesde->maps == map) {
+			list_del(&maps_yesde->yesde);
+			kfree(maps_yesde);
 			mutex_unlock(&pinctrl_maps_mutex);
 			return;
 		}
@@ -1690,7 +1690,7 @@ static int pinctrl_gpioranges_show(struct seq_file *s, void *what)
 	mutex_lock(&pctldev->mutex);
 
 	/* Loop over the ranges */
-	list_for_each_entry(range, &pctldev->gpio_ranges, node) {
+	list_for_each_entry(range, &pctldev->gpio_ranges, yesde) {
 		if (range->pins) {
 			int a;
 			seq_printf(s, "%u: %s GPIOS [%u - %u] PINS {",
@@ -1722,16 +1722,16 @@ static int pinctrl_devices_show(struct seq_file *s, void *what)
 
 	mutex_lock(&pinctrldev_list_mutex);
 
-	list_for_each_entry(pctldev, &pinctrldev_list, node) {
+	list_for_each_entry(pctldev, &pinctrldev_list, yesde) {
 		seq_printf(s, "%s ", pctldev->desc->name);
 		if (pctldev->desc->pmxops)
-			seq_puts(s, "yes ");
-		else
 			seq_puts(s, "no ");
-		if (pctldev->desc->confops)
-			seq_puts(s, "yes");
 		else
+			seq_puts(s, "yes ");
+		if (pctldev->desc->confops)
 			seq_puts(s, "no");
+		else
+			seq_puts(s, "yes");
 		seq_puts(s, "\n");
 	}
 
@@ -1759,14 +1759,14 @@ static inline const char *map_type(enum pinctrl_map_type type)
 
 static int pinctrl_maps_show(struct seq_file *s, void *what)
 {
-	struct pinctrl_maps *maps_node;
+	struct pinctrl_maps *maps_yesde;
 	int i;
 	const struct pinctrl_map *map;
 
 	seq_puts(s, "Pinctrl maps:\n");
 
 	mutex_lock(&pinctrl_maps_mutex);
-	for_each_maps(maps_node, i, map) {
+	for_each_maps(maps_yesde, i, map) {
 		seq_printf(s, "device %s\nstate %s\ntype %s (%d)\n",
 			   map->dev_name, map->name, map_type(map->type),
 			   map->type);
@@ -1805,15 +1805,15 @@ static int pinctrl_show(struct seq_file *s, void *what)
 
 	mutex_lock(&pinctrl_list_mutex);
 
-	list_for_each_entry(p, &pinctrl_list, node) {
+	list_for_each_entry(p, &pinctrl_list, yesde) {
 		seq_printf(s, "device: %s current state: %s\n",
 			   dev_name(p->dev),
-			   p->state ? p->state->name : "none");
+			   p->state ? p->state->name : "yesne");
 
-		list_for_each_entry(state, &p->states, node) {
+		list_for_each_entry(state, &p->states, yesde) {
 			seq_printf(s, "  state: %s\n", state->name);
 
-			list_for_each_entry(setting, &state->settings, node) {
+			list_for_each_entry(setting, &state->settings, yesde) {
 				struct pinctrl_dev *pctldev = setting->pctldev;
 
 				seq_printf(s, "    type: %s controller %s ",
@@ -1966,7 +1966,7 @@ pinctrl_init_controller(struct pinctrl_desc *pctldesc, struct device *dev,
 	INIT_RADIX_TREE(&pctldev->pin_function_tree, GFP_KERNEL);
 #endif
 	INIT_LIST_HEAD(&pctldev->gpio_ranges);
-	INIT_LIST_HEAD(&pctldev->node);
+	INIT_LIST_HEAD(&pctldev->yesde);
 	pctldev->dev = dev;
 	mutex_init(&pctldev->mutex);
 
@@ -2013,7 +2013,7 @@ static int pinctrl_claim_hogs(struct pinctrl_dev *pctldev)
 {
 	pctldev->p = create_pinctrl(pctldev->dev, pctldev);
 	if (PTR_ERR(pctldev->p) == -ENODEV) {
-		dev_dbg(pctldev->dev, "no hogs found\n");
+		dev_dbg(pctldev->dev, "yes hogs found\n");
 
 		return 0;
 	}
@@ -2054,7 +2054,7 @@ int pinctrl_enable(struct pinctrl_dev *pctldev)
 
 	error = pinctrl_claim_hogs(pctldev);
 	if (error) {
-		dev_err(pctldev->dev, "could not claim hogs: %i\n",
+		dev_err(pctldev->dev, "could yest claim hogs: %i\n",
 			error);
 		mutex_destroy(&pctldev->mutex);
 		kfree(pctldev);
@@ -2063,7 +2063,7 @@ int pinctrl_enable(struct pinctrl_dev *pctldev)
 	}
 
 	mutex_lock(&pinctrldev_list_mutex);
-	list_add_tail(&pctldev->node, &pinctrldev_list);
+	list_add_tail(&pctldev->yesde, &pinctrldev_list);
 	mutex_unlock(&pinctrldev_list_mutex);
 
 	pinctrl_init_device_debugfs(pctldev);
@@ -2078,7 +2078,7 @@ EXPORT_SYMBOL_GPL(pinctrl_enable);
  * @dev: parent device for this pin controller
  * @driver_data: private pin controller data for this pin controller
  *
- * Note that pinctrl_register() is known to have problems as the pin
+ * Note that pinctrl_register() is kyeswn to have problems as the pin
  * controller driver functions are called before the driver has a
  * struct pinctrl_dev handle. To avoid issues later on, please use the
  * new pinctrl_register_and_init() below instead.
@@ -2124,7 +2124,7 @@ int pinctrl_register_and_init(struct pinctrl_desc *pctldesc,
 
 	/*
 	 * We have pinctrl_start() call functions in the pin controller
-	 * driver with create_pinctrl() for at least dt_node_to_map(). So
+	 * driver with create_pinctrl() for at least dt_yesde_to_map(). So
 	 * let's make sure pctldev is properly initialized for the
 	 * pin controller driver before we do anything.
 	 */
@@ -2156,16 +2156,16 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 
 	mutex_lock(&pinctrldev_list_mutex);
 	mutex_lock(&pctldev->mutex);
-	/* TODO: check that no pinmuxes are still active? */
-	list_del(&pctldev->node);
+	/* TODO: check that yes pinmuxes are still active? */
+	list_del(&pctldev->yesde);
 	pinmux_generic_free_functions(pctldev);
 	pinctrl_generic_free_groups(pctldev);
 	/* Destroy descriptor tree */
 	pinctrl_free_pindescs(pctldev, pctldev->desc->pins,
 			      pctldev->desc->npins);
 	/* remove gpio ranges map */
-	list_for_each_entry_safe(range, n, &pctldev->gpio_ranges, node)
-		list_del(&range->node);
+	list_for_each_entry_safe(range, n, &pctldev->gpio_ranges, yesde)
+		list_del(&range->yesde);
 
 	mutex_unlock(&pctldev->mutex);
 	mutex_destroy(&pctldev->mutex);

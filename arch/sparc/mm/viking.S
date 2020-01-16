@@ -85,7 +85,7 @@ viking_flush_page:
 	 clr	%o2
 
 9:	retl
-	 nop
+	 yesp
 
 viking_mxcc_flush_page:
 	sethi	%hi(PAGE_OFFSET), %g2
@@ -104,7 +104,7 @@ viking_mxcc_flush_page:
 	 sub	%g3, MXCC_STREAM_SIZE, %g3
 
 9:	retl
-	 nop
+	 yesp
 
 viking_flush_cache_page:
 viking_flush_cache_range:
@@ -116,14 +116,14 @@ viking_flush_cache_mm:
 	ld	[%o0 + AOFF_mm_context], %g1
 	cmp	%g1, -1
 	bne	viking_flush_cache_all
-	 nop
+	 yesp
 	b,a	viking_flush_cache_out
 #endif
 viking_flush_cache_all:
 	WINDOW_FLUSH(%g4, %g5)
 viking_flush_cache_out:
 	retl
-	 nop
+	 yesp
 
 viking_flush_tlb_all:
 	mov	0x400, %g1
@@ -145,7 +145,7 @@ viking_flush_tlb_mm:
 	 sta	%g5, [%g1] ASI_M_MMUREGS
 #ifndef CONFIG_SMP
 1:	retl
-	 nop
+	 yesp
 #endif
 
 viking_flush_tlb_range:
@@ -170,7 +170,7 @@ viking_flush_tlb_range:
 	 sta	%g5, [%g1] ASI_M_MMUREGS
 #ifndef CONFIG_SMP
 2:	retl
-	 nop
+	 yesp
 #endif
 
 viking_flush_tlb_page:
@@ -189,14 +189,14 @@ viking_flush_tlb_page:
 	 sta	%g5, [%g1] ASI_M_MMUREGS
 #ifndef CONFIG_SMP
 1:	retl
-	 nop
+	 yesp
 #endif
 
 viking_flush_page_to_ram:
 viking_flush_page_for_dma:
 viking_flush_sig_insns:
 	retl
-	 nop
+	 yesp
 
 #ifdef CONFIG_SMP
 	.globl	sun4dsmp_flush_tlb_all, sun4dsmp_flush_tlb_mm
@@ -279,5 +279,5 @@ sun4dsmp_flush_tlb_page:
 	bne,a	2b
 	 ldub	[%g3 + %lo(sun4dsmp_flush_tlb_spin)], %g5
 	b,a	1b
-	 nop
+	 yesp
 #endif

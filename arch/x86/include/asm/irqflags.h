@@ -6,7 +6,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 /* Provide __cpuidle; we can't safely include <linux/cpu.h> */
 #define __cpuidle __attribute__((__section__(".cpuidle.text")))
@@ -29,7 +29,7 @@ extern inline unsigned long native_save_fl(void)
 	asm volatile("# __raw_save_flags\n\t"
 		     "pushf ; pop %0"
 		     : "=rm" (flags)
-		     : /* no input */
+		     : /* yes input */
 		     : "memory");
 
 	return flags;
@@ -39,7 +39,7 @@ extern inline void native_restore_fl(unsigned long flags);
 extern inline void native_restore_fl(unsigned long flags)
 {
 	asm volatile("push %0 ; popf"
-		     : /* no output */
+		     : /* yes output */
 		     :"g" (flags)
 		     :"memory", "cc");
 }
@@ -74,22 +74,22 @@ static inline __cpuidle void native_halt(void)
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
 
-static inline notrace unsigned long arch_local_save_flags(void)
+static inline yestrace unsigned long arch_local_save_flags(void)
 {
 	return native_save_fl();
 }
 
-static inline notrace void arch_local_irq_restore(unsigned long flags)
+static inline yestrace void arch_local_irq_restore(unsigned long flags)
 {
 	native_restore_fl(flags);
 }
 
-static inline notrace void arch_local_irq_disable(void)
+static inline yestrace void arch_local_irq_disable(void)
 {
 	native_irq_disable();
 }
 
-static inline notrace void arch_local_irq_enable(void)
+static inline yestrace void arch_local_irq_enable(void)
 {
 	native_irq_enable();
 }
@@ -115,7 +115,7 @@ static inline __cpuidle void halt(void)
 /*
  * For spinlocks, etc:
  */
-static inline notrace unsigned long arch_local_irq_save(void)
+static inline yestrace unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags = arch_local_save_flags();
 	arch_local_irq_disable();

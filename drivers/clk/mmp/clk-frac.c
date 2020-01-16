@@ -19,7 +19,7 @@
  * It is M/N clock
  *
  * Fout from synthesizer can be given from two equations:
- * numerator/denominator = Fin / (Fout * factor)
+ * numerator/deyesminator = Fin / (Fout * factor)
  */
 
 #define to_clk_factor(hw) container_of(hw, struct mmp_clk_factor, hw)
@@ -60,7 +60,7 @@ static unsigned long clk_factor_recalc_rate(struct clk_hw *hw,
 	/* calculate numerator */
 	num = (val >> masks->num_shift) & masks->num_mask;
 
-	/* calculate denominator */
+	/* calculate deyesminator */
 	den = (val >> masks->den_shift) & masks->den_mask;
 
 	if (!den)
@@ -125,7 +125,7 @@ static void clk_factor_init(struct clk_hw *hw)
 	/* calculate numerator */
 	num = (val >> masks->num_shift) & masks->num_mask;
 
-	/* calculate denominator */
+	/* calculate deyesminator */
 	den = (val >> masks->den_shift) & masks->den_mask;
 
 	for (i = 0; i < factor->ftbl_cnt; i++)

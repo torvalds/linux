@@ -55,7 +55,7 @@ config XEN_512GB
 	help
 	  Limit paravirtualized user domains to 512GB of RAM.
 
-	  The Xen tools and crash dump analysis tools might not support
+	  The Xen tools and crash dump analysis tools might yest support
 	  pv-domains with more than 512 GB of RAM. This option controls the
 	  default setting of the kernel to use only up to 512 GB or more.
 	  It is always possible to change the default via specifying the

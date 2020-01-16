@@ -6,7 +6,7 @@
  */
 
 #include <linux/sys.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/suspend.h>
@@ -27,7 +27,7 @@ ENTRY(ms7724se_sdram_enter_start)
 	ED 0xFD000040, 0x00000001 /* DBRFPDN0 */
 
 	rts
-	 nop
+	 yesp
 
 ENTRY(ms7724se_sdram_enter_end)
 
@@ -48,7 +48,7 @@ ENTRY(ms7724se_sdram_leave_start)
 	ED 0xFD000040, 0x00010000 /* DBRFPDN0 */
 
 	rts
-	 nop
+	 yesp
 
 resume_rstandby:
 
@@ -117,7 +117,7 @@ WAIT_400NS_2:
 	ED 0xFD000040, 0x00010000 /* DBRFPDN0 */
 
 	rts
-	 nop
+	 yesp
 
 	.balign 4
 DUMMY:	.long	0xac400000

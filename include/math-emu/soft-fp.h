@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   yest, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef __MATH_EMU_SOFT_FP_H__
@@ -102,7 +102,7 @@
 #define FP_HANDLE_EXCEPTIONS do {} while (0)
 #endif
 
-/* By default we never flush denormal input operands to signed zero. */
+/* By default we never flush deyesrmal input operands to signed zero. */
 #ifndef FP_DENORM_ZERO
 #define FP_DENORM_ZERO 0
 #endif

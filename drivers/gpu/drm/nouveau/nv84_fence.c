@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,15 +22,15 @@
  * Authors: Ben Skeggs
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_fence.h"
-#include "nouveau_vmm.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_dma.h"
+#include "yesuveau_fence.h"
+#include "yesuveau_vmm.h"
 
 #include "nv50_display.h"
 
 static int
-nv84_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
+nv84_fence_emit32(struct yesuveau_channel *chan, u64 virtual, u32 sequence)
 {
 	int ret = RING_SPACE(chan, 8);
 	if (ret == 0) {
@@ -48,7 +48,7 @@ nv84_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 }
 
 static int
-nv84_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
+nv84_fence_sync32(struct yesuveau_channel *chan, u64 virtual, u32 sequence)
 {
 	int ret = RING_SPACE(chan, 7);
 	if (ret == 0) {
@@ -65,49 +65,49 @@ nv84_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 }
 
 static int
-nv84_fence_emit(struct nouveau_fence *fence)
+nv84_fence_emit(struct yesuveau_fence *fence)
 {
-	struct nouveau_channel *chan = fence->channel;
+	struct yesuveau_channel *chan = fence->channel;
 	struct nv84_fence_chan *fctx = chan->fence;
 	u64 addr = fctx->vma->addr + chan->chid * 16;
 
-	return fctx->base.emit32(chan, addr, fence->base.seqno);
+	return fctx->base.emit32(chan, addr, fence->base.seqyes);
 }
 
 static int
-nv84_fence_sync(struct nouveau_fence *fence,
-		struct nouveau_channel *prev, struct nouveau_channel *chan)
+nv84_fence_sync(struct yesuveau_fence *fence,
+		struct yesuveau_channel *prev, struct yesuveau_channel *chan)
 {
 	struct nv84_fence_chan *fctx = chan->fence;
 	u64 addr = fctx->vma->addr + prev->chid * 16;
 
-	return fctx->base.sync32(chan, addr, fence->base.seqno);
+	return fctx->base.sync32(chan, addr, fence->base.seqyes);
 }
 
 static u32
-nv84_fence_read(struct nouveau_channel *chan)
+nv84_fence_read(struct yesuveau_channel *chan)
 {
 	struct nv84_fence_priv *priv = chan->drm->fence;
-	return nouveau_bo_rd32(priv->bo, chan->chid * 16/4);
+	return yesuveau_bo_rd32(priv->bo, chan->chid * 16/4);
 }
 
 static void
-nv84_fence_context_del(struct nouveau_channel *chan)
+nv84_fence_context_del(struct yesuveau_channel *chan)
 {
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx = chan->fence;
 
-	nouveau_bo_wr32(priv->bo, chan->chid * 16 / 4, fctx->base.sequence);
+	yesuveau_bo_wr32(priv->bo, chan->chid * 16 / 4, fctx->base.sequence);
 	mutex_lock(&priv->mutex);
-	nouveau_vma_del(&fctx->vma);
+	yesuveau_vma_del(&fctx->vma);
 	mutex_unlock(&priv->mutex);
-	nouveau_fence_context_del(&fctx->base);
+	yesuveau_fence_context_del(&fctx->base);
 	chan->fence = NULL;
-	nouveau_fence_context_free(&fctx->base);
+	yesuveau_fence_context_free(&fctx->base);
 }
 
 int
-nv84_fence_context_new(struct nouveau_channel *chan)
+nv84_fence_context_new(struct yesuveau_channel *chan)
 {
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx;
@@ -117,7 +117,7 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	if (!fctx)
 		return -ENOMEM;
 
-	nouveau_fence_context_new(chan, &fctx->base);
+	yesuveau_fence_context_new(chan, &fctx->base);
 	fctx->base.emit = nv84_fence_emit;
 	fctx->base.sync = nv84_fence_sync;
 	fctx->base.read = nv84_fence_read;
@@ -126,7 +126,7 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.sequence = nv84_fence_read(chan);
 
 	mutex_lock(&priv->mutex);
-	ret = nouveau_vma_new(priv->bo, chan->vmm, &fctx->vma);
+	ret = yesuveau_vma_new(priv->bo, chan->vmm, &fctx->vma);
 	mutex_unlock(&priv->mutex);
 
 	if (ret)
@@ -135,7 +135,7 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 }
 
 static bool
-nv84_fence_suspend(struct nouveau_drm *drm)
+nv84_fence_suspend(struct yesuveau_drm *drm)
 {
 	struct nv84_fence_priv *priv = drm->fence;
 	int i;
@@ -143,40 +143,40 @@ nv84_fence_suspend(struct nouveau_drm *drm)
 	priv->suspend = vmalloc(array_size(sizeof(u32), drm->chan.nr));
 	if (priv->suspend) {
 		for (i = 0; i < drm->chan.nr; i++)
-			priv->suspend[i] = nouveau_bo_rd32(priv->bo, i*4);
+			priv->suspend[i] = yesuveau_bo_rd32(priv->bo, i*4);
 	}
 
 	return priv->suspend != NULL;
 }
 
 static void
-nv84_fence_resume(struct nouveau_drm *drm)
+nv84_fence_resume(struct yesuveau_drm *drm)
 {
 	struct nv84_fence_priv *priv = drm->fence;
 	int i;
 
 	if (priv->suspend) {
 		for (i = 0; i < drm->chan.nr; i++)
-			nouveau_bo_wr32(priv->bo, i*4, priv->suspend[i]);
+			yesuveau_bo_wr32(priv->bo, i*4, priv->suspend[i]);
 		vfree(priv->suspend);
 		priv->suspend = NULL;
 	}
 }
 
 static void
-nv84_fence_destroy(struct nouveau_drm *drm)
+nv84_fence_destroy(struct yesuveau_drm *drm)
 {
 	struct nv84_fence_priv *priv = drm->fence;
-	nouveau_bo_unmap(priv->bo);
+	yesuveau_bo_unmap(priv->bo);
 	if (priv->bo)
-		nouveau_bo_unpin(priv->bo);
-	nouveau_bo_ref(NULL, &priv->bo);
+		yesuveau_bo_unpin(priv->bo);
+	yesuveau_bo_ref(NULL, &priv->bo);
 	drm->fence = NULL;
 	kfree(priv);
 }
 
 int
-nv84_fence_create(struct nouveau_drm *drm)
+nv84_fence_create(struct yesuveau_drm *drm)
 {
 	struct nv84_fence_priv *priv;
 	u32 domain;
@@ -199,21 +199,21 @@ nv84_fence_create(struct nouveau_drm *drm)
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
 	domain = drm->client.device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :
 			 /*
-			  * fences created in sysmem must be non-cached or we
+			  * fences created in sysmem must be yesn-cached or we
 			  * will lose CPU/GPU coherency!
 			  */
 			 TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
-	ret = nouveau_bo_new(&drm->client, 16 * drm->chan.nr, 0,
+	ret = yesuveau_bo_new(&drm->client, 16 * drm->chan.nr, 0,
 			     domain, 0, 0, NULL, NULL, &priv->bo);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(priv->bo, domain, false);
+		ret = yesuveau_bo_pin(priv->bo, domain, false);
 		if (ret == 0) {
-			ret = nouveau_bo_map(priv->bo);
+			ret = yesuveau_bo_map(priv->bo);
 			if (ret)
-				nouveau_bo_unpin(priv->bo);
+				yesuveau_bo_unpin(priv->bo);
 		}
 		if (ret)
-			nouveau_bo_ref(NULL, &priv->bo);
+			yesuveau_bo_ref(NULL, &priv->bo);
 	}
 
 	if (ret)

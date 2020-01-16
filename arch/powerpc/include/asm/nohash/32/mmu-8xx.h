@@ -25,13 +25,13 @@
  * Ks = 0, Kp = 1.
  */
 #define SPRN_MI_AP	786
-#define MI_Ks		0x80000000	/* Should not be set */
+#define MI_Ks		0x80000000	/* Should yest be set */
 #define MI_Kp		0x40000000	/* Should always be set */
 
 /*
  * All pages' PP data bits are set to either 001 or 011 by copying _PAGE_EXEC
  * into bit 21 in the ITLBmiss handler (bit 21 is the middle bit), which means
- * respectively NA for All or X for Supervisor and no access for User.
+ * respectively NA for All or X for Supervisor and yes access for User.
  * Then we use the APG to say whether accesses are according to Page rules or
  * "all Supervisor" rules (Access to all)
  * Therefore, we define 2 APG groups. lsb is _PMD_USER
@@ -105,13 +105,13 @@
  * Ks = 0, Kp = 1.
  */
 #define SPRN_MD_AP	794
-#define MD_Ks		0x80000000	/* Should not be set */
+#define MD_Ks		0x80000000	/* Should yest be set */
 #define MD_Kp		0x40000000	/* Should always be set */
 
 /*
  * All pages' PP data bits are set to either 000 or 011 or 001, which means
- * respectively RW for Supervisor and no access for User, or RO for
- * Supervisor and no access for user and NA for ALL.
+ * respectively RW for Supervisor and yes access for User, or RO for
+ * Supervisor and yes access for user and NA for ALL.
  * Then we use the APG to say whether accesses are according to Page rules or
  * "all Supervisor" rules (Access to all)
  * Therefore, we define 2 APG groups. lsb is _PMD_USER
@@ -179,7 +179,7 @@
 #define SPRN_M_TW	799
 
 #ifdef CONFIG_PPC_MM_SLICES
-#include <asm/nohash/32/slice.h>
+#include <asm/yeshash/32/slice.h>
 #define SLICE_ARRAY_SIZE	(1 << (32 - SLICE_LOW_SHIFT - 1))
 #define LOW_SLICE_ARRAY_SZ	SLICE_ARRAY_SIZE
 #endif

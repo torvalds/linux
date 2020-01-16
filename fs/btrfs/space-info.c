@@ -225,7 +225,7 @@ again:
 
 		ticket = list_first_entry(head, struct reserve_ticket, list);
 
-		/* Check and see if our ticket can be satisified now. */
+		/* Check and see if our ticket can be satisified yesw. */
 		if ((used + ticket->bytes <= space_info->total_bytes) ||
 		    can_overcommit(fs_info, space_info, ticket->bytes, flush,
 				   false)) {
@@ -265,7 +265,7 @@ static void __btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
 	btrfs_info(fs_info, "space_info %llu has %llu free, is %sfull",
 		   info->flags,
 		   info->total_bytes - btrfs_space_info_used(info, true),
-		   info->full ? "" : "not ");
+		   info->full ? "" : "yest ");
 	btrfs_info(fs_info,
 		"space_info total=%llu, used=%llu, pinned=%llu, reserved=%llu, may_use=%llu, readonly=%llu",
 		info->total_bytes, info->bytes_used, info->bytes_pinned,
@@ -310,19 +310,19 @@ again:
 	up_read(&info->groups_sem);
 }
 
-static void btrfs_writeback_inodes_sb_nr(struct btrfs_fs_info *fs_info,
+static void btrfs_writeback_iyesdes_sb_nr(struct btrfs_fs_info *fs_info,
 					 unsigned long nr_pages, int nr_items)
 {
 	struct super_block *sb = fs_info->sb;
 
 	if (down_read_trylock(&sb->s_umount)) {
-		writeback_inodes_sb_nr(sb, nr_pages, WB_REASON_FS_FREE_SPACE);
+		writeback_iyesdes_sb_nr(sb, nr_pages, WB_REASON_FS_FREE_SPACE);
 		up_read(&sb->s_umount);
 	} else {
 		/*
 		 * We needn't worry the filesystem going from r/w to r/o though
 		 * we don't acquire ->s_umount mutex, because the filesystem
-		 * should guarantee the delalloc inodes list be empty after
+		 * should guarantee the delalloc iyesdes list be empty after
 		 * the filesystem is readonly(all dirty pages are written to
 		 * the disk).
 		 */
@@ -394,11 +394,11 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info, u64 to_reclaim,
 		nr_pages = min(delalloc_bytes, to_reclaim) >> PAGE_SHIFT;
 
 		/*
-		 * Triggers inode writeback for up to nr_pages. This will invoke
+		 * Triggers iyesde writeback for up to nr_pages. This will invoke
 		 * ->writepages callback and trigger delalloc filling
 		 *  (btrfs_run_delalloc_range()).
 		 */
-		btrfs_writeback_inodes_sb_nr(fs_info, nr_pages, items);
+		btrfs_writeback_iyesdes_sb_nr(fs_info, nr_pages, items);
 
 		/*
 		 * We need to wait for the compressed pages to start before
@@ -498,7 +498,7 @@ static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 		return PTR_ERR(trans);
 
 	/*
-	 * See if there is enough pinned space to make this reservation, or if
+	 * See if there is eyesugh pinned space to make this reservation, or if
 	 * we have block groups that are going to be freed, allowing us to
 	 * possibly do a chunk allocation the next loop through.
 	 */
@@ -513,7 +513,7 @@ static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 	 * this reservation.
 	 */
 	if (space_info != delayed_rsv->space_info)
-		goto enospc;
+		goto eyesspc;
 
 	spin_lock(&delayed_rsv->lock);
 	reclaim_bytes += delayed_rsv->reserved;
@@ -529,11 +529,11 @@ static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 	if (__percpu_counter_compare(&space_info->total_bytes_pinned,
 				   bytes_needed,
 				   BTRFS_TOTAL_BYTES_PINNED_BATCH) < 0)
-		goto enospc;
+		goto eyesspc;
 
 commit:
 	return btrfs_commit_transaction(trans);
-enospc:
+eyesspc:
 	btrfs_end_transaction(trans);
 	return -ENOSPC;
 }
@@ -704,7 +704,7 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 	u64 first_ticket_bytes = 0;
 
 	if (btrfs_test_opt(fs_info, ENOSPC_DEBUG)) {
-		btrfs_info(fs_info, "cannot satisfy tickets, dumping space info");
+		btrfs_info(fs_info, "canyest satisfy tickets, dumping space info");
 		__btrfs_dump_space_info(fs_info, space_info);
 	}
 
@@ -717,10 +717,10 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 		 * may_commit_transaction will avoid committing the transaction
 		 * if it doesn't feel like the space reclaimed by the commit
 		 * would result in the ticket succeeding.  However if we have a
-		 * smaller ticket in the queue it may be small enough to be
+		 * smaller ticket in the queue it may be small eyesugh to be
 		 * satisified by committing the transaction, so if any
 		 * subsequent ticket is smaller than the first ticket go ahead
-		 * and send us back for another loop through the enospc flushing
+		 * and send us back for ayesther loop through the eyesspc flushing
 		 * code.
 		 */
 		if (first_ticket_bytes == 0)
@@ -737,7 +737,7 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 		wake_up(&ticket->wait);
 
 		/*
-		 * We're just throwing tickets away, so more flushing may not
+		 * We're just throwing tickets away, so more flushing may yest
 		 * trip over btrfs_try_granting_tickets, so we need to call it
 		 * here to see if we can make progress with the next ticket in
 		 * the list.
@@ -748,7 +748,7 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * This is for normal flushers, we can wait all goddamned day if we want to.  We
+ * This is for yesrmal flushers, we can wait all goddamned day if we want to.  We
  * will loop and continuously try to flush as long as we are making progress.
  * We count progress as clearing off tickets each time we have to loop.
  */
@@ -803,7 +803,7 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 		 * to reclaim.  We would rather use that than possibly create a
 		 * underutilized metadata chunk.  So if this is our first run
 		 * through the flushing state machine skip ALLOC_CHUNK_FORCE and
-		 * commit the transaction.  If nothing has changed the next go
+		 * commit the transaction.  If yesthing has changed the next go
 		 * around then we can force a chunk allocation.
 		 */
 		if (flush_state == ALLOC_CHUNK_FORCE && !commit_cycles)
@@ -895,7 +895,7 @@ static void wait_reserve_ticket(struct btrfs_fs_info *fs_info,
 			 * Delete us from the list. After we unlock the space
 			 * info, we don't want the async reclaim job to reserve
 			 * space for this ticket. If that would happen, then the
-			 * ticket's task would not known that space was reserved
+			 * ticket's task would yest kyeswn that space was reserved
 			 * despite getting an error, resulting in a space leak
 			 * (bytes_may_use counter of our space_info).
 			 */
@@ -978,13 +978,13 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
  * @root - the root we're allocating for
  * @space_info - the space info we want to allocate from
  * @orig_bytes - the number of bytes we want
- * @flush - whether or not we can flush to make our reservation
+ * @flush - whether or yest we can flush to make our reservation
  *
  * This will reserve orig_bytes number of bytes from the space info associated
- * with the block_rsv.  If there is not enough space it will make an attempt to
+ * with the block_rsv.  If there is yest eyesugh space it will make an attempt to
  * flush out space to make room.  It will do this by flushing delalloc if
- * possible or committing the transaction.  If flush is 0 then no attempts to
- * regain reservations will be made and this will fail if there is not enough
+ * possible or committing the transaction.  If flush is 0 then yes attempts to
+ * regain reservations will be made and this will fail if there is yest eyesugh
  * space already.
  */
 static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
@@ -1008,7 +1008,7 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 		!list_empty(&space_info->priority_tickets);
 
 	/*
-	 * Carry on if we have enough space (short-circuit) OR call
+	 * Carry on if we have eyesugh space (short-circuit) OR call
 	 * can_overcommit() to ensure we can overcommit to continue.
 	 */
 	if (!pending_tickets &&
@@ -1022,7 +1022,7 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * If we couldn't make a reservation then setup our reservation ticket
-	 * and kick the async worker if it's not already running.
+	 * and kick the async worker if it's yest already running.
 	 *
 	 * If we are a priority flusher then we just need to add our ticket to
 	 * the list and we will do our own flushing further down.
@@ -1038,7 +1038,7 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 				trace_btrfs_trigger_flush(fs_info,
 							  space_info->flags,
 							  orig_bytes, flush,
-							  "enospc");
+							  "eyesspc");
 				queue_work(system_unbound_wq,
 					   &fs_info->async_reclaim_work);
 			}
@@ -1075,13 +1075,13 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
  * @root - the root we're allocating for
  * @block_rsv - the block_rsv we're allocating for
  * @orig_bytes - the number of bytes we want
- * @flush - whether or not we can flush to make our reservation
+ * @flush - whether or yest we can flush to make our reservation
  *
  * This will reserve orig_bytes number of bytes from the space info associated
- * with the block_rsv.  If there is not enough space it will make an attempt to
+ * with the block_rsv.  If there is yest eyesugh space it will make an attempt to
  * flush out space to make room.  It will do this by flushing delalloc if
- * possible or committing the transaction.  If flush is 0 then no attempts to
- * regain reservations will be made and this will fail if there is not enough
+ * possible or committing the transaction.  If flush is 0 then yes attempts to
+ * regain reservations will be made and this will fail if there is yest eyesugh
  * space already.
  */
 int btrfs_reserve_metadata_bytes(struct btrfs_root *root,
@@ -1103,7 +1103,7 @@ int btrfs_reserve_metadata_bytes(struct btrfs_root *root,
 			ret = 0;
 	}
 	if (ret == -ENOSPC) {
-		trace_btrfs_space_reservation(fs_info, "space_info:enospc",
+		trace_btrfs_space_reservation(fs_info, "space_info:eyesspc",
 					      block_rsv->space_info->flags,
 					      orig_bytes, 1);
 

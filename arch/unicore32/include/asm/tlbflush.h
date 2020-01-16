@@ -43,13 +43,13 @@ extern void __cpu_flush_kern_tlb_range(unsigned long, unsigned long);
  *		Invalidate a range of TLB entries in the specified
  *		address space.
  *		- mm	- mm_struct describing address space
- *		- start - start address (may not be aligned)
- *		- end	- end address (exclusive, may not be aligned)
+ *		- start - start address (may yest be aligned)
+ *		- end	- end address (exclusive, may yest be aligned)
  *
  *	flush_tlb_page(vaddr,vma)
  *
  *		Invalidate the specified page in the specified address range.
- *		- vaddr - virtual address (may not be aligned)
+ *		- vaddr - virtual address (may yest be aligned)
  *		- vma	- vma_struct describing address range
  *
  *	flush_kern_tlb_page(kaddr)
@@ -65,7 +65,7 @@ static inline void local_flush_tlb_all(void)
 	const int zero = 0;
 
 	/* TLB invalidate all */
-	asm("movc p0.c6, %0, #6; nop; nop; nop; nop; nop; nop; nop; nop"
+	asm("movc p0.c6, %0, #6; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp"
 		: : "r" (zero) : "cc");
 }
 
@@ -75,7 +75,7 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
 
 	if (cpumask_test_cpu(get_cpu(), mm_cpumask(mm))) {
 		/* TLB invalidate all */
-		asm("movc p0.c6, %0, #6; nop; nop; nop; nop; nop; nop; nop; nop"
+		asm("movc p0.c6, %0, #6; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp"
 			: : "r" (zero) : "cc");
 	}
 	put_cpu();
@@ -87,14 +87,14 @@ local_flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
 	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm))) {
 #ifndef CONFIG_CPU_TLB_SINGLE_ENTRY_DISABLE
 		/* iTLB invalidate page */
-		asm("movc p0.c6, %0, #5; nop; nop; nop; nop; nop; nop; nop; nop"
+		asm("movc p0.c6, %0, #5; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp"
 			: : "r" (uaddr & PAGE_MASK) : "cc");
 		/* dTLB invalidate page */
-		asm("movc p0.c6, %0, #3; nop; nop; nop; nop; nop; nop; nop; nop"
+		asm("movc p0.c6, %0, #3; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp"
 			: : "r" (uaddr & PAGE_MASK) : "cc");
 #else
 		/* TLB invalidate all */
-		asm("movc p0.c6, %0, #6; nop; nop; nop; nop; nop; nop; nop; nop"
+		asm("movc p0.c6, %0, #6; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp"
 			: : "r" (uaddr & PAGE_MASK) : "cc");
 #endif
 	}
@@ -104,14 +104,14 @@ static inline void local_flush_tlb_kernel_page(unsigned long kaddr)
 {
 #ifndef CONFIG_CPU_TLB_SINGLE_ENTRY_DISABLE
 	/* iTLB invalidate page */
-	asm("movc p0.c6, %0, #5; nop; nop; nop; nop; nop; nop; nop; nop"
+	asm("movc p0.c6, %0, #5; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp"
 		: : "r" (kaddr & PAGE_MASK) : "cc");
 	/* dTLB invalidate page */
-	asm("movc p0.c6, %0, #3; nop; nop; nop; nop; nop; nop; nop; nop"
+	asm("movc p0.c6, %0, #3; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp"
 		: : "r" (kaddr & PAGE_MASK) : "cc");
 #else
 	/* TLB invalidate all */
-	asm("movc p0.c6, %0, #6; nop; nop; nop; nop; nop; nop; nop; nop"
+	asm("movc p0.c6, %0, #6; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp"
 		: : "r" (kaddr & PAGE_MASK) : "cc");
 #endif
 }
@@ -143,7 +143,7 @@ static inline void flush_pmd_entry(pmd_t *pmd)
 		: : "r" (pmd) : "r1", "r2");
 #else
 	/* flush dcache all */
-	asm("movc p0.c5, %0, #14; nop; nop; nop; nop; nop; nop; nop; nop"
+	asm("movc p0.c5, %0, #14; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp"
 		: : "r" (pmd) : "cc");
 #endif
 }
@@ -152,11 +152,11 @@ static inline void clean_pmd_entry(pmd_t *pmd)
 {
 #ifndef CONFIG_CPU_DCACHE_LINE_DISABLE
 	/* clean dcache line */
-	asm("movc p0.c5, %0, #11; nop; nop; nop; nop; nop; nop; nop; nop"
+	asm("movc p0.c5, %0, #11; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp"
 		: : "r" (__pa(pmd) & ~(L1_CACHE_BYTES - 1)) : "cc");
 #else
 	/* clean dcache all */
-	asm("movc p0.c5, %0, #10; nop; nop; nop; nop; nop; nop; nop; nop"
+	asm("movc p0.c5, %0, #10; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp"
 		: : "r" (pmd) : "cc");
 #endif
 }
@@ -177,7 +177,7 @@ static inline void clean_pmd_entry(pmd_t *pmd)
 #define flush_tlb_kernel_range	local_flush_tlb_kernel_range
 
 /*
- * if PG_dcache_clean is not set for the page, we need to ensure that any
+ * if PG_dcache_clean is yest set for the page, we need to ensure that any
  * cache entries for the kernels virtual memory range are written
  * back to the page.
  */

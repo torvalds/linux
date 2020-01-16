@@ -48,7 +48,7 @@ struct s3c2416_dvfs {
 #define FREQ_DVS	132333
 
 /* frequency to sleep and reboot in
- * it's essential to leave dvs, as some boards do not reconfigure the
+ * it's essential to leave dvs, as some boards do yest reconfigure the
  * regulator on reboot
  */
 #define FREQ_SLEEP	133333
@@ -123,7 +123,7 @@ static int s3c2416_cpufreq_enter_dvs(struct s3c2416_data *s3c_freq, int idx)
 	int ret;
 
 	if (s3c_freq->is_dvs) {
-		pr_debug("cpufreq: already in dvs mode, nothing to do\n");
+		pr_debug("cpufreq: already in dvs mode, yesthing to do\n");
 		return 0;
 	}
 
@@ -146,7 +146,7 @@ static int s3c2416_cpufreq_enter_dvs(struct s3c2416_data *s3c_freq, int idx)
 					    dvfs->vddarm_min,
 					    dvfs->vddarm_max);
 
-		/* when lowering the voltage failed, there is nothing to do */
+		/* when lowering the voltage failed, there is yesthing to do */
 		if (ret != 0)
 			pr_err("cpufreq: Failed to set VDDARM: %d\n", ret);
 	}
@@ -165,7 +165,7 @@ static int s3c2416_cpufreq_leave_dvs(struct s3c2416_data *s3c_freq, int idx)
 	int ret;
 
 	if (!s3c_freq->is_dvs) {
-		pr_debug("cpufreq: not in dvs mode, so can't leave\n");
+		pr_debug("cpufreq: yest in dvs mode, so can't leave\n");
 		return 0;
 	}
 
@@ -227,9 +227,9 @@ static int s3c2416_cpufreq_set_target(struct cpufreq_policy *policy,
 	if (idx == SOURCE_HCLK)
 		to_dvs = 1;
 
-	/* switching to dvs when it's not allowed */
+	/* switching to dvs when it's yest allowed */
 	if (to_dvs && s3c_freq->disable_dvs) {
-		pr_debug("cpufreq: entering dvs mode not allowed\n");
+		pr_debug("cpufreq: entering dvs mode yest allowed\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -299,7 +299,7 @@ out:
 }
 #endif
 
-static int s3c2416_cpufreq_reboot_notifier_evt(struct notifier_block *this,
+static int s3c2416_cpufreq_reboot_yestifier_evt(struct yestifier_block *this,
 					       unsigned long event, void *ptr)
 {
 	struct s3c2416_data *s3c_freq = &s3c2416_cpufreq;
@@ -326,8 +326,8 @@ static int s3c2416_cpufreq_reboot_notifier_evt(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block s3c2416_cpufreq_reboot_notifier = {
-	.notifier_call = s3c2416_cpufreq_reboot_notifier_evt,
+static struct yestifier_block s3c2416_cpufreq_reboot_yestifier = {
+	.yestifier_call = s3c2416_cpufreq_reboot_yestifier_evt,
 };
 
 static int s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
@@ -349,7 +349,7 @@ static int s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 	}
 
 	/*
-	 * S3C2416 and S3C2450 share the same processor-ID and also provide no
+	 * S3C2416 and S3C2450 share the same processor-ID and also provide yes
 	 * other means to distinguish them other than through the rate of
 	 * msysclk. On S3C2416 msysclk runs at 800MHz and on S3C2450 at 533MHz.
 	 */
@@ -366,7 +366,7 @@ static int s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 		policy->cpuinfo.max_freq = 534000;
 	}
 
-	/* not needed anymore */
+	/* yest needed anymore */
 	clk_put(msysclk);
 
 	if (s3c_freq->freq_table == NULL) {
@@ -391,12 +391,12 @@ static int s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 		goto err_hclk;
 	}
 
-	/* chech hclk rate, we only support the common 133MHz for now
-	 * hclk could also run at 66MHz, but this not often used
+	/* chech hclk rate, we only support the common 133MHz for yesw
+	 * hclk could also run at 66MHz, but this yest often used
 	 */
 	rate = clk_get_rate(s3c_freq->hclk);
 	if (rate < 133 * 1000 * 1000) {
-		pr_err("cpufreq: HCLK not at 133MHz\n");
+		pr_err("cpufreq: HCLK yest at 133MHz\n");
 		ret = -EINVAL;
 		goto err_armclk;
 	}
@@ -449,7 +449,7 @@ static int s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 	 */
 	cpufreq_generic_init(policy, s3c_freq->freq_table,
 			(500 * 1000) + s3c_freq->regulator_latency);
-	register_reboot_notifier(&s3c2416_cpufreq_reboot_notifier);
+	register_reboot_yestifier(&s3c2416_cpufreq_reboot_yestifier);
 
 	return 0;
 

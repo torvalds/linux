@@ -32,7 +32,7 @@ struct svc_sock {
 	/* As we receive a record, this includes the length received so
 	 * far (including the fragment header): */
 	u32			sk_tcplen;
-	/* Total length of the data (not including fragment headers)
+	/* Total length of the data (yest including fragment headers)
 	 * received so far in the fragments making up this rpc: */
 	u32			sk_datalen;
 

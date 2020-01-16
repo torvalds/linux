@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -54,7 +54,7 @@ void drm_atomic_helper_commit_tail(struct drm_atomic_state *state);
 void drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *state);
 int drm_atomic_helper_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
-			     bool nonblock);
+			     bool yesnblock);
 int drm_atomic_helper_async_check(struct drm_device *dev,
 				  struct drm_atomic_state *state);
 void drm_atomic_helper_async_commit(struct drm_device *dev,
@@ -98,9 +98,9 @@ drm_atomic_helper_disable_planes_on_crtc(struct drm_crtc_state *old_crtc_state,
 int __must_check drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 					      bool stall);
 
-/* nonblocking commit helpers */
+/* yesnblocking commit helpers */
 int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
-				   bool nonblock);
+				   bool yesnblock);
 void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *state);
 void drm_atomic_helper_fake_vblank(struct drm_atomic_state *state);
 void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *state);
@@ -189,7 +189,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
  *
  * Compared to just drm_atomic_crtc_state_for_each_plane() this also fills in a
  * const plane_state. This is useful when a driver just wants to peek at other
- * active planes on this crtc, but does not need to change it.
+ * active planes on this crtc, but does yest need to change it.
  */
 #define drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state) \
 	drm_for_each_plane_mask(plane, (crtc_state)->state->dev, (crtc_state)->plane_mask) \
@@ -203,8 +203,8 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
  * @new_plane_state: new atomic plane state
  *
  * Checks the atomic state of a plane to determine whether it's being disabled
- * or not. This also WARNs if it detects an invalid state (both CRTC and FB
- * need to either both be NULL or both be non-NULL).
+ * or yest. This also WARNs if it detects an invalid state (both CRTC and FB
+ * need to either both be NULL or both be yesn-NULL).
  *
  * RETURNS:
  * True if the plane is being disabled, false otherwise.

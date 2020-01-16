@@ -17,7 +17,7 @@
  * Configuration options:
  *   None
  *
- * Manual configuration of comedi devices is not supported by this
+ * Manual configuration of comedi devices is yest supported by this
  * driver; supported PCI devices are configured as comedi devices
  * automatically.
  *
@@ -25,7 +25,7 @@
  * loaded by placing it in /lib/firmware/comedi.  The initialization
  * code should be somewhere on the media you got with your card.  One
  * version is available from http://www.comedi.org in the
- * comedi_nonfree_firmware tarball.  The file is called "jr3pci.idm".
+ * comedi_yesnfree_firmware tarball.  The file is called "jr3pci.idm".
  */
 
 #include <linux/kernel.h>
@@ -108,8 +108,8 @@ struct jr3_pci_subdev_private {
 	struct jr3_sensor __iomem *sensor;
 	unsigned long next_time_min;
 	enum jr3_pci_poll_state state;
-	int serial_no;
-	int model_no;
+	int serial_yes;
+	int model_yes;
 	union jr3_pci_single_range range[9];
 	const struct comedi_lrange *range_table_list[8 * 7 + 2];
 	unsigned int maxdata_list[8 * 7 + 2];
@@ -254,9 +254,9 @@ static unsigned int jr3_pci_ai_read_chan(struct comedi_device *dev,
 		}
 		val += 0x4000;
 	} else if (chan == 56) {
-		val = get_u16(&spriv->sensor->model_no);
+		val = get_u16(&spriv->sensor->model_yes);
 	} else if (chan == 57) {
-		val = get_u16(&spriv->sensor->serial_no);
+		val = get_u16(&spriv->sensor->serial_yes);
 	}
 
 	return val;
@@ -299,7 +299,7 @@ static int jr3_pci_open(struct comedi_device *dev)
 		s = &dev->subdevices[i];
 		spriv = s->private;
 		dev_dbg(dev->class_dev, "serial[%d]: %d\n", s->index,
-			spriv->serial_no);
+			spriv->serial_yes);
 	}
 	return 0;
 }
@@ -311,7 +311,7 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 	int value;
 
 	if (pos && val) {
-		/* Skip over non hex */
+		/* Skip over yesn hex */
 		for (; *pos < size && !isxdigit(data[*pos]); (*pos)++)
 			;
 		/* Collect value */
@@ -441,8 +441,8 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 	struct jr3_pci_subdev_private *spriv = s->private;
 	struct jr3_pci_poll_delay result = poll_delay_min_max(1000, 2000);
 	struct jr3_sensor __iomem *sensor;
-	u16 model_no;
-	u16 serial_no;
+	u16 model_yes;
+	u16 serial_yes;
 	int errors;
 	int i;
 
@@ -458,13 +458,13 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 
 	switch (spriv->state) {
 	case state_jr3_poll:
-		model_no = get_u16(&sensor->model_no);
-		serial_no = get_u16(&sensor->serial_no);
+		model_yes = get_u16(&sensor->model_yes);
+		serial_yes = get_u16(&sensor->serial_yes);
 
 		if ((errors & (watch_dog | watch_dog2)) ||
-		    model_no == 0 || serial_no == 0) {
+		    model_yes == 0 || serial_yes == 0) {
 			/*
-			 * Still no sensor, keep on polling.
+			 * Still yes sensor, keep on polling.
 			 * Since it takes up to 10 seconds for offsets to
 			 * stabilize, polling each second should suffice.
 			 */
@@ -483,8 +483,8 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 		} else {
 			struct jr3_pci_transform transf;
 
-			spriv->model_no = get_u16(&sensor->model_no);
-			spriv->serial_no = get_u16(&sensor->serial_no);
+			spriv->model_yes = get_u16(&sensor->model_yes);
+			spriv->serial_yes = get_u16(&sensor->serial_yes);
 
 			/* Transformation all zeros */
 			for (i = 0; i < ARRAY_SIZE(transf.link); i++) {
@@ -583,20 +583,20 @@ static void jr3_pci_poll_dev(struct timer_list *t)
 	struct jr3_pci_subdev_private *spriv;
 	struct comedi_subdevice *s;
 	unsigned long flags;
-	unsigned long now;
+	unsigned long yesw;
 	int delay;
 	int i;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	delay = 1000;
-	now = jiffies;
+	yesw = jiffies;
 
 	/* Poll all sensors that are ready to be polled */
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		spriv = s->private;
 
-		if (time_after_eq(now, spriv->next_time_min)) {
+		if (time_after_eq(yesw, spriv->next_time_min)) {
 			struct jr3_pci_poll_delay sub_delay;
 
 			sub_delay = jr3_pci_poll_subdevice(s);

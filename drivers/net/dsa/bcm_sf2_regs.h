@@ -417,7 +417,7 @@ enum bcm_sf2_reg_offs {
 /* IPv6 chained slices */
 #define CORE_UDF_0_D_0_11_PORT_0	0x28680
 
-/* Number of slices for IPv4, IPv6 and non-IP */
+/* Number of slices for IPv4, IPv6 and yesn-IP */
 #define UDF_NUM_SLICES			4
 #define UDFS_PER_SLICE			9
 

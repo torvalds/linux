@@ -7,7 +7,7 @@
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -1337,7 +1337,7 @@ static int stm32_fmc2_waitrdy(struct nand_chip *chip, unsigned long timeout_ms)
 	const struct nand_sdr_timings *timings;
 	u32 isr, sr;
 
-	/* Check if there is no pending requests to the NAND flash */
+	/* Check if there is yes pending requests to the NAND flash */
 	if (readl_relaxed_poll_timeout_atomic(fmc2->io_base + FMC2_SR, sr,
 					      sr & FMC2_SR_NWRF, 1,
 					      FMC2_TIMEOUT_US))
@@ -1613,7 +1613,7 @@ static int stm32_fmc2_dma_setup(struct stm32_fmc2_nfc *fmc2)
 	fmc2->dma_ecc_ch = dma_request_slave_channel(fmc2->dev, "ecc");
 
 	if (!fmc2->dma_tx_ch || !fmc2->dma_rx_ch || !fmc2->dma_ecc_ch) {
-		dev_warn(fmc2->dev, "DMAs not defined in the device tree, polling mode is used\n");
+		dev_warn(fmc2->dev, "DMAs yest defined in the device tree, polling mode is used\n");
 		return 0;
 	}
 
@@ -1748,19 +1748,19 @@ static int stm32_fmc2_attach_chip(struct nand_chip *chip)
 	 * ECC sector size = 512
 	 */
 	if (chip->ecc.mode != NAND_ECC_HW) {
-		dev_err(fmc2->dev, "nand_ecc_mode is not well defined in the DT\n");
+		dev_err(fmc2->dev, "nand_ecc_mode is yest well defined in the DT\n");
 		return -EINVAL;
 	}
 
 	ret = nand_ecc_choose_conf(chip, &stm32_fmc2_ecc_caps,
 				   mtd->oobsize - FMC2_BBM_LEN);
 	if (ret) {
-		dev_err(fmc2->dev, "no valid ECC settings set\n");
+		dev_err(fmc2->dev, "yes valid ECC settings set\n");
 		return ret;
 	}
 
 	if (mtd->writesize / chip->ecc.size > FMC2_MAX_SG) {
-		dev_err(fmc2->dev, "nand page size is not supported\n");
+		dev_err(fmc2->dev, "nand page size is yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1788,7 +1788,7 @@ static const struct nand_controller_ops stm32_fmc2_nand_controller_ops = {
 
 /* FMC2 probe */
 static int stm32_fmc2_parse_child(struct stm32_fmc2_nfc *fmc2,
-				  struct device_node *dn)
+				  struct device_yesde *dn)
 {
 	struct stm32_fmc2_nand *nand = &fmc2->nand;
 	u32 cs;
@@ -1806,7 +1806,7 @@ static int stm32_fmc2_parse_child(struct stm32_fmc2_nfc *fmc2,
 	for (i = 0; i < nand->ncs; i++) {
 		ret = of_property_read_u32_index(dn, "reg", i, &cs);
 		if (ret) {
-			dev_err(fmc2->dev, "could not retrieve reg property: %d\n",
+			dev_err(fmc2->dev, "could yest retrieve reg property: %d\n",
 				ret);
 			return ret;
 		}
@@ -1825,20 +1825,20 @@ static int stm32_fmc2_parse_child(struct stm32_fmc2_nfc *fmc2,
 		nand->cs_used[i] = cs;
 	}
 
-	nand_set_flash_node(&nand->chip, dn);
+	nand_set_flash_yesde(&nand->chip, dn);
 
 	return 0;
 }
 
 static int stm32_fmc2_parse_dt(struct stm32_fmc2_nfc *fmc2)
 {
-	struct device_node *dn = fmc2->dev->of_node;
-	struct device_node *child;
+	struct device_yesde *dn = fmc2->dev->of_yesde;
+	struct device_yesde *child;
 	int nchips = of_get_child_count(dn);
 	int ret = 0;
 
 	if (!nchips) {
-		dev_err(fmc2->dev, "NAND chip not defined\n");
+		dev_err(fmc2->dev, "NAND chip yest defined\n");
 		return -EINVAL;
 	}
 
@@ -1847,10 +1847,10 @@ static int stm32_fmc2_parse_dt(struct stm32_fmc2_nfc *fmc2)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(dn, child) {
+	for_each_child_of_yesde(dn, child) {
 		ret = stm32_fmc2_parse_child(fmc2, child);
 		if (ret < 0) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 	}
@@ -1932,7 +1932,7 @@ static int stm32_fmc2_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(fmc2->clk);
 	if (ret) {
-		dev_err(dev, "can not enable the clock\n");
+		dev_err(dev, "can yest enable the clock\n");
 		return ret;
 	}
 
@@ -2039,7 +2039,7 @@ static int __maybe_unused stm32_fmc2_resume(struct device *dev)
 
 	ret = clk_prepare_enable(fmc2->clk);
 	if (ret) {
-		dev_err(dev, "can not enable the clock\n");
+		dev_err(dev, "can yest enable the clock\n");
 		return ret;
 	}
 

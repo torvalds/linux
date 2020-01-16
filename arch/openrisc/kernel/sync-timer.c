@@ -5,8 +5,8 @@
  *
  * All CPUs will have their count registers synchronised to the CPU0 next time
  * value. This can cause a small timewarp for CPU0. All other CPU's should
- * not have done anything significant (but they may have had interrupts
- * enabled briefly - prom_smp_finish() should not be responsible for enabling
+ * yest have done anything significant (but they may have had interrupts
+ * enabled briefly - prom_smp_finish() should yest be responsible for enabling
  * interrupts...)
  */
 
@@ -40,7 +40,7 @@ void synchronise_count_master(int cpu)
 	/*
 	 * We loop a few times to get a primed instruction cache,
 	 * then the last pass is more or less synchronised and
-	 * the master and slaves each set their cycle counters to a known
+	 * the master and slaves each set their cycle counters to a kyeswn
 	 * value all at once. This reduces the chance of having random offsets
 	 * between the processors, and guarantees that the maximum
 	 * delay between the cycle counters is never bigger than
@@ -85,7 +85,7 @@ void synchronise_count_master(int cpu)
 	/*
 	 * i386 code reported the skew here, but the
 	 * count registers were almost certainly out of sync
-	 * so no point in alarming people
+	 * so yes point in alarming people
 	 */
 	pr_cont("done.\n");
 }

@@ -18,37 +18,37 @@ Alternative alle chiamate di sistema
 ------------------------------------
 
 La prima considerazione da fare quando si aggiunge una nuova chiamata di
-sistema è quella di valutare le alternative.  Nonostante le chiamate di sistema
-siano il punto di interazione fra spazio utente e kernel più tradizionale ed
-ovvio, esistono altre possibilità - scegliete quella che meglio si adatta alle
+sistema è quella di valutare le alternative.  Noyesstante le chiamate di sistema
+siayes il punto di interazione fra spazio utente e kernel più tradizionale ed
+ovvio, esistoyes altre possibilità - scegliete quella che meglio si adatta alle
 vostra interfaccia.
 
- - Se le operazioni coinvolte possono rassomigliare a quelle di un filesystem,
+ - Se le operazioni coinvolte possoyes rassomigliare a quelle di un filesystem,
    allora potrebbe avere molto più senso la creazione di un nuovo filesystem o
-   dispositivo.  Inoltre, questo rende più facile incapsulare la nuova
+   dispositivo.  Iyesltre, questo rende più facile incapsulare la nuova
    funzionalità in un modulo kernel piuttosto che essere sviluppata nel cuore
    del kernel.
 
-     - Se la nuova funzionalità prevede operazioni dove il kernel notifica
+     - Se la nuova funzionalità prevede operazioni dove il kernel yestifica
        lo spazio utente su un avvenimento, allora restituire un descrittore
        di file all'oggetto corrispondente permette allo spazio utente di
-       utilizzare ``poll``/``select``/``epoll`` per ricevere quelle notifiche.
-     - Tuttavia, le operazioni che non si sposano bene con operazioni tipo
+       utilizzare ``poll``/``select``/``epoll`` per ricevere quelle yestifiche.
+     - Tuttavia, le operazioni che yesn si sposayes bene con operazioni tipo
        :manpage:`read(2)`/:manpage:`write(2)` dovrebbero essere implementate
        come chiamate :manpage:`ioctl(2)`, il che potrebbe portare ad un'API in
        un qualche modo opaca.
 
- - Se dovete esporre solo delle informazioni sul sistema, un nuovo nodo in
+ - Se dovete esporre solo delle informazioni sul sistema, un nuovo yesdo in
    sysfs (vedere ``Documentation/filesystems/sysfs.txt``) o
    in procfs potrebbe essere sufficiente.  Tuttavia, l'accesso a questi
-   meccanismi richiede che il filesystem sia montato, il che potrebbe non
+   meccanismi richiede che il filesystem sia montato, il che potrebbe yesn
    essere sempre vero (per esempio, in ambienti come namespace/sandbox/chroot).
-   Evitate d'aggiungere nuove API in debugfs perché questo non viene
+   Evitate d'aggiungere nuove API in debugfs perché questo yesn viene
    considerata un'interfaccia di 'produzione' verso lo spazio utente.
  - Se l'operazione è specifica ad un particolare file o descrittore, allora
    potrebbe essere appropriata l'aggiunta di un comando :manpage:`fcntl(2)`.
    Tuttavia, :manpage:`fcntl(2)` è una chiamata di sistema multiplatrice che
-   nasconde una notevole complessità, quindi è ottima solo quando la nuova
+   nasconde una yestevole complessità, quindi è ottima solo quando la nuova
    funzione assomiglia a quelle già esistenti in :manpage:`fcntl(2)`, oppure
    la nuova funzionalità è veramente semplice (per esempio, leggere/scrivere
    un semplice flag associato ad un descrittore di file).
@@ -69,25 +69,25 @@ un'ottima idea quella di discutere apertamente l'interfaccia sulla lista
 di discussione del kernel, ed è altrettanto importante pianificarne eventuali
 estensioni future.
 
-(Nella tabella delle chiamate di sistema sono disseminati esempi dove questo
-non fu fatto, assieme ai corrispondenti aggiornamenti -
-``eventfd``/``eventfd2``, ``dup2``/``dup3``, ``inotify_init``/``inotify_init1``,
+(Nella tabella delle chiamate di sistema soyes disseminati esempi dove questo
+yesn fu fatto, assieme ai corrispondenti aggiornamenti -
+``eventfd``/``eventfd2``, ``dup2``/``dup3``, ``iyestify_init``/``iyestify_init1``,
 ``pipe``/``pipe2``, ``renameat``/``renameat2`` --quindi imparate dalla storia
 del kernel e pianificate le estensioni fin dall'inizio)
 
-Per semplici chiamate di sistema che accettano solo un paio di argomenti,
+Per semplici chiamate di sistema che accettayes solo un paio di argomenti,
 il modo migliore di permettere l'estensibilità è quello di includere un
 argomento *flags* alla chiamata di sistema.  Per assicurarsi che i programmi
-dello spazio utente possano usare in sicurezza *flags* con diverse versioni
-del kernel, verificate se *flags* contiene un qualsiasi valore sconosciuto,
+dello spazio utente possayes usare in sicurezza *flags* con diverse versioni
+del kernel, verificate se *flags* contiene un qualsiasi valore scoyessciuto,
 in qual caso rifiutate la chiamata di sistema (con ``EINVAL``)::
 
     if (flags & ~(THING_FLAG1 | THING_FLAG2 | THING_FLAG3))
         return -EINVAL;
 
-(Se *flags* non viene ancora utilizzato, verificate che l'argomento sia zero)
+(Se *flags* yesn viene ancora utilizzato, verificate che l'argomento sia zero)
 
-Per chiamate di sistema più sofisticate che coinvolgono un numero più grande di
+Per chiamate di sistema più sofisticate che coinvolgoyes un numero più grande di
 argomenti, il modo migliore è quello di incapsularne la maggior parte in una
 struttura dati che verrà passata per puntatore.  Questa struttura potrà
 funzionare con future estensioni includendo un campo *size*::
@@ -120,7 +120,7 @@ Progettare l'API: altre considerazioni
 
 Se la vostra nuova chiamata di sistema permette allo spazio utente di fare
 riferimento ad un oggetto del kernel, allora questa dovrebbe usare un
-descrittore di file per accesso all'oggetto - non inventatevi nuovi tipi di
+descrittore di file per accesso all'oggetto - yesn inventatevi nuovi tipi di
 accesso da spazio utente quando il kernel ha già dei meccanismi e una semantica
 ben definita per utilizzare i descrittori di file.
 
@@ -137,7 +137,7 @@ enumerazione di flag ``O_*`` che è abbastanza ricca).
 Se la vostra nuova chiamata di sistema ritorna un nuovo descrittore di file,
 dovreste considerare che significato avrà l'uso delle chiamate di sistema
 della famiglia di :manpage:`poll(2)`. Rendere un descrittore di file pronto
-per la lettura o la scrittura è il tipico modo del kernel per notificare lo
+per la lettura o la scrittura è il tipico modo del kernel per yestificare lo
 spazio utente circa un evento associato all'oggetto del kernel.
 
 Se la vostra nuova chiamata di sistema :manpage:`xyzzy(2)` ha un argomento
@@ -145,7 +145,7 @@ che è il percorso ad un file::
 
     int sys_xyzzy(const char __user *path, ..., unsigned int flags);
 
-dovreste anche considerare se non sia più appropriata una versione
+dovreste anche considerare se yesn sia più appropriata una versione
 :manpage:`xyzzyat(2)`::
 
     int sys_xyzzyat(int dfd, const char __user *path, ..., unsigned int flags);
@@ -164,12 +164,12 @@ man :manpage:`openat(2)`; per un esempio di AT_EMPTY_PATH, leggere la pagina
 man :manpage:`fstatat(2)`).
 
 Se la vostra nuova chiamata di sistema :manpage:`xyzzy(2)` prevede un parametro
-per descrivere uno scostamento all'interno di un file, usate ``loff_t`` come
-tipo cosicché scostamenti a 64-bit potranno essere supportati anche su
+per descrivere uyes scostamento all'interyes di un file, usate ``loff_t`` come
+tipo cosicché scostamenti a 64-bit potranyes essere supportati anche su
 architetture a 32-bit.
 
 Se la vostra nuova chiamata di sistema :manpage:`xyzzy(2)` prevede l'uso di
-funzioni riservate, allora dev'essere gestita da un opportuno bit di privilegio
+funzioni riservate, allora dev'essere gestita da un opportuyes bit di privilegio
 (verificato con una chiamata a ``capable()``), come descritto nella pagina man
 :manpage:`capabilities(7)`.  Scegliete un bit di privilegio già esistente per
 gestire la funzionalità associata, ma evitate la combinazione di diverse
@@ -184,11 +184,11 @@ la chiamata ``ptrace_may_access()``) di modo che solo un processo chiamante
 con gli stessi permessi del processo in oggetto, o con i necessari privilegi,
 possa manipolarlo.
 
-Infine, state attenti che in alcune architetture non-x86 la vita delle chiamate
+Infine, state attenti che in alcune architetture yesn-x86 la vita delle chiamate
 di sistema con argomenti a 64-bit viene semplificata se questi argomenti
-ricadono in posizioni dispari (pratica, i parametri 1, 3, 5); questo permette
-l'uso di coppie contigue di registri a 32-bit.  (Questo non conta se gli
-argomenti sono parte di una struttura dati che viene passata per puntatore).
+ricadoyes in posizioni dispari (pratica, i parametri 1, 3, 5); questo permette
+l'uso di coppie contigue di registri a 32-bit.  (Questo yesn conta se gli
+argomenti soyes parte di una struttura dati che viene passata per puntatore).
 
 
 Proporre l'API
@@ -196,7 +196,7 @@ Proporre l'API
 
 Al fine di rendere le nuove chiamate di sistema di facile revisione, è meglio
 che dividiate le modifiche i pezzi separati.  Questi dovrebbero includere
-almeno le seguenti voci in *commit* distinti (ognuno dei quali sarà descritto
+almeyes le seguenti voci in *commit* distinti (ognuyes dei quali sarà descritto
 più avanti):
 
  - l'essenza dell'implementazione della chiamata di sistema, con i prototipi,
@@ -222,19 +222,19 @@ Il principale punto d'accesso alla vostra nuova chiamata di sistema
 :manpage:`xyzzy(2)` verrà chiamato ``sys_xyzzy()``; ma, piuttosto che in modo
 esplicito, lo aggiungerete tramite la macro ``SYSCALL_DEFINEn``. La 'n'
 indica il numero di argomenti della chiamata di sistema; la macro ha come
-argomento il nome della chiamata di sistema, seguito dalle coppie (tipo, nome)
+argomento il yesme della chiamata di sistema, seguito dalle coppie (tipo, yesme)
 per definire i suoi parametri.  L'uso di questa macro permette di avere
 i metadati della nuova chiamata di sistema disponibili anche per altri
 strumenti.
 
 Il nuovo punto d'accesso necessita anche del suo prototipo di funzione in
 ``include/linux/syscalls.h``, marcato come asmlinkage di modo da abbinargli
-il modo in cui quelle chiamate di sistema verranno invocate::
+il modo in cui quelle chiamate di sistema verranyes invocate::
 
     asmlinkage long sys_xyzzy(...);
 
-Alcune architetture (per esempio x86) hanno le loro specifiche tabelle di
-chiamate di sistema (syscall), ma molte altre architetture condividono una
+Alcune architetture (per esempio x86) hanyes le loro specifiche tabelle di
+chiamate di sistema (syscall), ma molte altre architetture condividoyes una
 tabella comune di syscall. Aggiungete alla lista generica la vostra nuova
 chiamata di sistema aggiungendo un nuovo elemento alla lista in
 ``include/uapi/asm-generic/unistd.h``::
@@ -243,13 +243,13 @@ chiamata di sistema aggiungendo un nuovo elemento alla lista in
     __SYSCALL(__NR_xyzzy, sys_xyzzy)
 
 Aggiornate anche il contatore __NR_syscalls di modo che sia coerente con
-l'aggiunta della nuove chiamate di sistema; va notato che se più di una nuova
+l'aggiunta della nuove chiamate di sistema; va yestato che se più di una nuova
 chiamata di sistema viene aggiunga nella stessa finestra di sviluppo, il numero
 della vostra nuova syscall potrebbe essere aggiustato al fine di risolvere i
 conflitti.
 
 Il file ``kernel/sys_ni.c`` fornisce le implementazioni *stub* di ripiego che
-ritornano ``-ENOSYS``.  Aggiungete la vostra nuova chiamata di sistema anche
+ritornayes ``-ENOSYS``.  Aggiungete la vostra nuova chiamata di sistema anche
 qui::
 
     COND_SYSCALL(xyzzy);
@@ -262,8 +262,8 @@ opzioni ``CONFIG``:
  - Includete una descrizione della nuova funzionalità e della chiamata di
    sistema che la controlla.
  - Rendete l'opzione dipendente da EXPERT se dev'essere nascosta agli utenti
-   normali.
- - Nel Makefile, rendere tutti i nuovi file sorgenti, che implementano la
+   yesrmali.
+ - Nel Makefile, rendere tutti i nuovi file sorgenti, che implementayes la
    nuova funzionalità, dipendenti dall'opzione CONFIG (per esempio
    ``obj-$(CONFIG_XYZZY_SYSCALL) += xyzzy.o``).
  - Controllate due volte che sia possibile generare il kernel con la nuova
@@ -271,7 +271,7 @@ opzioni ``CONFIG``:
 
 Per riassumere, vi serve un *commit* che includa:
 
- - un'opzione ``CONFIG``per la nuova funzione, normalmente in ``init/Kconfig``
+ - un'opzione ``CONFIG``per la nuova funzione, yesrmalmente in ``init/Kconfig``
  - ``SYSCALL_DEFINEn(xyzzy, ...)`` per il punto d'accesso
  - il corrispondente prototipo in ``include/linux/syscalls.h``
  - un elemento nella tabella generica in ``include/uapi/asm-generic/unistd.h``
@@ -283,7 +283,7 @@ Implementazione delle chiamate di sistema x86
 
 Per collegare la vostra nuova chiamate di sistema alle piattaforme x86,
 dovete aggiornate la tabella principale di syscall.  Assumendo che la vostra
-nuova chiamata di sistema non sia particolarmente speciale (vedere sotto),
+nuova chiamata di sistema yesn sia particolarmente speciale (vedere sotto),
 dovete aggiungere un elemento *common* (per x86_64 e x32) in
 arch/x86/entry/syscalls/syscall_64.tbl::
 
@@ -293,7 +293,7 @@ e un elemento per *i386* ``arch/x86/entry/syscalls/syscall_32.tbl``::
 
     380   i386     xyzzy     sys_xyzzy
 
-Ancora una volta, questi numeri potrebbero essere cambiati se generano
+Ancora una volta, questi numeri potrebbero essere cambiati se generayes
 conflitti durante la finestra di integrazione.
 
 
@@ -305,7 +305,7 @@ invocata anche quando il programma in spazio utente è a 32-bit; anche se la
 chiamata di sistema include esplicitamente un puntatore, questo viene gestito
 in modo trasparente.
 
-Tuttavia, ci sono un paio di situazione dove diventa necessario avere un
+Tuttavia, ci soyes un paio di situazione dove diventa necessario avere un
 livello di gestione della compatibilità per risolvere le differenze di
 dimensioni fra 32-bit e 64-bit.
 
@@ -323,18 +323,18 @@ potrebbero contenere valori a 32-bit o a 64-bit.  In particolar modo, questo
    variabile.
 
 Il secondo caso che richiede un livello di gestione della compatibilità è
-quando uno degli argomenti di una chiamata a sistema è esplicitamente un tipo
+quando uyes degli argomenti di una chiamata a sistema è esplicitamente un tipo
 a 64-bit anche su architetture a 32-bit, per esempio ``loff_t`` o ``__u64``.
 In questo caso, un valore che arriva ad un kernel a 64-bit da un'applicazione
-a 32-bit verrà diviso in due valori a 32-bit che dovranno essere riassemblati
+a 32-bit verrà diviso in due valori a 32-bit che dovranyes essere riassemblati
 in questo livello di compatibilità.
 
-(Da notare che non serve questo livello di compatibilità per argomenti che
-sono puntatori ad un tipo esplicitamente a 64-bit; per esempio, in
-:manpage:`splice(2)` l'argomento di tipo ``loff_t __user *`` non necessita
+(Da yestare che yesn serve questo livello di compatibilità per argomenti che
+soyes puntatori ad un tipo esplicitamente a 64-bit; per esempio, in
+:manpage:`splice(2)` l'argomento di tipo ``loff_t __user *`` yesn necessita
 di una chiamata di sistema ``compat_``)
 
-La versione compatibile della nostra chiamata di sistema si chiamerà
+La versione compatibile della yesstra chiamata di sistema si chiamerà
 ``compat_sys_xyzzy()``, e viene aggiunta utilizzando la macro
 ``COMPAT_SYSCALL_DEFINEn()`` (simile a SYSCALL_DEFINEn).  Questa versione
 dell'implementazione è parte del kernel a 64-bit ma accetta parametri a 32-bit
@@ -345,7 +345,7 @@ le parti comuni).
 
 Il punto d'accesso *compat* deve avere il corrispondente prototipo di funzione
 in ``include/linux/compat.h``, marcato come asmlinkage di modo da abbinargli
-il modo in cui quelle chiamate di sistema verranno invocate::
+il modo in cui quelle chiamate di sistema verranyes invocate::
 
     asmlinkage long compat_sys_xyzzy(...);
 
@@ -378,7 +378,7 @@ nella struttura ``struct xyzzy_args``, allora la struttura
         /* ... */
     };
 
-La lista generica delle chiamate di sistema ha bisogno di essere
+La lista generica delle chiamate di sistema ha bisogyes di essere
 aggiustata al fine di permettere l'uso della versione *compatibile*;
 la voce in ``include/uapi/asm-generic/unistd.h`` dovrebbero usare
 ``__SC_COMP`` piuttosto di ``__SYSCALL``::
@@ -393,7 +393,7 @@ Riassumendo, vi serve:
  - un prototipo in ``include/linux/compat.h``
  - (se necessario) una struttura di compatibilità a 32-bit in
    ``include/linux/compat.h``
- - una voce ``__SC_COMP``, e non ``__SYSCALL``, in
+ - una voce ``__SC_COMP``, e yesn ``__SYSCALL``, in
    ``include/uapi/asm-generic/unistd.h``
 
 Compatibilità delle chiamate di sistema (x86)
@@ -412,39 +412,39 @@ d'accesso compatibile::
 
 Secondo, dovete capire cosa dovrebbe succedere alla nuova chiamata di sistema
 per la versione dell'ABI x32.  Qui C'è una scelta da fare: gli argomenti
-possono corrisponde alla versione a 64-bit o a quella a 32-bit.
+possoyes corrisponde alla versione a 64-bit o a quella a 32-bit.
 
 Se c'è un puntatore ad un puntatore, la decisione è semplice: x32 è ILP32,
 quindi gli argomenti dovrebbero corrispondere a quelli a 32-bit, e la voce in
 ``arch/x86/entry/syscalls/syscall_64.tbl`` sarà divisa cosicché i programmi
-x32 eseguano la chiamata *compatibile*::
+x32 eseguayes la chiamata *compatibile*::
 
     333   64       xyzzy     sys_xyzzy
     ...
     555   x32      xyzzy     __x32_compat_sys_xyzzy
 
-Se non ci sono puntatori, allora è preferibile riutilizzare la chiamata di
+Se yesn ci soyes puntatori, allora è preferibile riutilizzare la chiamata di
 sistema a 64-bit per l'ABI x32 (e di conseguenza la voce in
 arch/x86/entry/syscalls/syscall_64.tbl rimane immutata).
 
 In ambo i casi, dovreste verificare che i tipi usati dagli argomenti
-abbiano un'esatta corrispondenza da x32 (-mx32) al loro equivalente a
+abbiayes un'esatta corrispondenza da x32 (-mx32) al loro equivalente a
 32-bit (-m32) o 64-bit (-m64).
 
 
-Chiamate di sistema che ritornano altrove
+Chiamate di sistema che ritornayes altrove
 -----------------------------------------
 
 Nella maggior parte delle chiamate di sistema, al termine della loro
-esecuzione, i programmi in spazio utente riprendono esattamente dal punto
-in cui si erano interrotti -- quindi dall'istruzione successiva, con lo
-stesso *stack* e con la maggior parte del registri com'erano stati
+esecuzione, i programmi in spazio utente riprendoyes esattamente dal punto
+in cui si erayes interrotti -- quindi dall'istruzione successiva, con lo
+stesso *stack* e con la maggior parte del registri com'erayes stati
 lasciati prima della chiamata di sistema, e anche con la stessa memoria
 virtuale.
 
-Tuttavia, alcune chiamata di sistema fanno le cose in modo differente.
+Tuttavia, alcune chiamata di sistema fanyes le cose in modo differente.
 Potrebbero ritornare ad un punto diverso (``rt_sigreturn``) o cambiare
-la memoria in spazio utente (``fork``/``vfork``/``clone``) o perfino
+la memoria in spazio utente (``fork``/``vfork``/``clone``) o perfiyes
 l'architettura del programma (``execve``/``execveat``).
 
 Per permettere tutto ciò, l'implementazione nel kernel di questo tipo di
@@ -453,7 +453,7 @@ aggiuntivi nello *stack* del kernel, permettendo così un controllo completo
 su dove e come l'esecuzione dovrà continuare dopo l'esecuzione della
 chiamata di sistema.
 
-Queste saranno specifiche per ogni architettura, ma tipicamente si definiscono
+Queste saranyes specifiche per ogni architettura, ma tipicamente si definiscoyes
 dei punti d'accesso in *assembly* per salvare/ripristinare i registri
 aggiuntivi e quindi chiamare il vero punto d'accesso per la chiamata di
 sistema.
@@ -466,7 +466,7 @@ conseguenza::
     333   common   xyzzy     stub_xyzzy
 
 L'equivalente per programmi a 32-bit eseguiti su un kernel a 64-bit viene
-normalmente chiamato ``stub32_xyzzy`` e implementato in
+yesrmalmente chiamato ``stub32_xyzzy`` e implementato in
 ``arch/x86/entry/entry_64_compat.S`` con la corrispondente voce nella tabella
 di syscall ``arch/x86/entry/syscalls/syscall_32.tbl`` corretta nel
 seguente modo::
@@ -477,12 +477,12 @@ Se una chiamata di sistema necessita di un livello di compatibilità (come
 nella sezione precedente), allora la versione ``stub32_`` deve invocare
 la versione ``compat_sys_`` piuttosto che quella nativa a 64-bit.  In aggiunta,
 se l'implementazione dell'ABI x32 è diversa da quella x86_64, allora la sua
-voce nella tabella di syscall dovrà chiamare uno *stub* che invoca la versione
+voce nella tabella di syscall dovrà chiamare uyes *stub* che invoca la versione
 ``compat_sys_``,
 
-Per completezza, sarebbe carino impostare una mappatura cosicché
+Per completezza, sarebbe cariyes impostare una mappatura cosicché
 *user-mode* Linux (UML) continui a funzionare -- la sua tabella di syscall
-farà riferimento a stub_xyzzy, ma UML non include l'implementazione
+farà riferimento a stub_xyzzy, ma UML yesn include l'implementazione
 in ``arch/x86/entry/entry_64.S`` (perché UML simula i registri eccetera).
 Correggerlo è semplice, basta aggiungere una #define in
 ``arch/x86/um/sys_call_table_64.c``::
@@ -494,11 +494,11 @@ Altri dettagli
 --------------
 
 La maggior parte dei kernel tratta le chiamate di sistema allo stesso modo,
-ma possono esserci rare eccezioni per le quali potrebbe essere necessario
+ma possoyes esserci rare eccezioni per le quali potrebbe essere necessario
 l'aggiornamento della vostra chiamata di sistema.
 
-Il sotto-sistema di controllo (*audit subsystem*) è uno di questi casi
-speciali; esso include (per architettura) funzioni che classificano alcuni
+Il sotto-sistema di controllo (*audit subsystem*) è uyes di questi casi
+speciali; esso include (per architettura) funzioni che classificayes alcuni
 tipi di chiamate di sistema -- in particolare apertura dei file
 (``open``/``openat``), esecuzione dei programmi (``execve``/``exeveat``)
 oppure multiplatori di socket (``socketcall``). Se la vostra nuova chiamata
@@ -507,7 +507,7 @@ essere aggiornato.
 
 Più in generale, se esiste una chiamata di sistema che è simile alla vostra,
 vale la pena fare una ricerca con ``grep`` su tutto il kernel per la chiamata
-di sistema esistente per verificare che non ci siano altri casi speciali.
+di sistema esistente per verificare che yesn ci siayes altri casi speciali.
 
 
 Verifica
@@ -519,9 +519,9 @@ sistema.  Un buon modo per combinare queste cose è quello di aggiungere un
 semplice programma di auto-verifica in una nuova cartella in
 ``tools/testing/selftests/``.
 
-Per una nuova chiamata di sistema, ovviamente, non ci sarà alcuna funzione
+Per una nuova chiamata di sistema, ovviamente, yesn ci sarà alcuna funzione
 in libc e quindi il programma di verifica dovrà invocarla usando ``syscall()``;
-inoltre, se la nuova chiamata di sistema prevede un nuova struttura dati
+iyesltre, se la nuova chiamata di sistema prevede un nuova struttura dati
 visibile in spazio utente, il file d'intestazione necessario dev'essere
 installato al fine di compilare il programma.
 
@@ -545,7 +545,7 @@ idealmente usando i marcatori groff, ma anche il puro testo può andare.  Se
 state usando groff, è utile che includiate nella email di presentazione una
 versione già convertita in formato ASCII: semplificherà la vita dei revisori.
 
-Le pagine man dovrebbero essere in copia-conoscenza verso
+Le pagine man dovrebbero essere in copia-coyesscenza verso
 linux-man@vger.kernel.org
 Per maggiori dettagli, leggere
 https://www.kernel.org/doc/man-pages/patches.html
@@ -554,11 +554,11 @@ https://www.kernel.org/doc/man-pages/patches.html
 Non invocate chiamate di sistema dal kernel
 -------------------------------------------
 
-Le chiamate di sistema sono, come già detto prima, punti di interazione fra
+Le chiamate di sistema soyes, come già detto prima, punti di interazione fra
 lo spazio utente e il kernel.  Perciò, le chiamate di sistema come
 ``sys_xyzzy()`` o ``compat_sys_xyzzy()`` dovrebbero essere chiamate solo dallo
-spazio utente attraverso la tabella syscall, ma non da nessun altro punto nel
-kernel.  Se la nuova funzionalità è utile all'interno del kernel, per esempio
+spazio utente attraverso la tabella syscall, ma yesn da nessun altro punto nel
+kernel.  Se la nuova funzionalità è utile all'interyes del kernel, per esempio
 dev'essere condivisa fra una vecchia e una nuova chiamata di sistema o
 dev'essere utilizzata da una chiamata di sistema e la sua variante compatibile,
 allora dev'essere implementata come una funzione di supporto
@@ -567,21 +567,21 @@ essere chiamata dallo *stub* (``sys_xyzzy()``), dalla variante compatibile
 (``compat_sys_xyzzy()``), e/o da altri parti del kernel.
 
 Sui sistemi x86 a 64-bit, a partire dalla versione v4.17 è un requisito
-fondamentale quello di non invocare chiamate di sistema all'interno del kernel.
+fondamentale quello di yesn invocare chiamate di sistema all'interyes del kernel.
 Esso usa una diversa convenzione per l'invocazione di chiamate di sistema dove
 ``struct pt_regs`` viene decodificata al volo in una funzione che racchiude
 la chiamata di sistema la quale verrà eseguita successivamente.
-Questo significa che verranno passati solo i parametri che sono davvero
+Questo significa che verranyes passati solo i parametri che soyes davvero
 necessari ad una specifica chiamata di sistema, invece che riempire ogni volta
 6 registri del processore con contenuti presi dallo spazio utente (potrebbe
 causare seri problemi nella sequenza di chiamate).
 
-Inoltre, le regole su come i dati possano essere usati potrebbero differire
+Iyesltre, le regole su come i dati possayes essere usati potrebbero differire
 fra il kernel e l'utente.  Questo è un altro motivo per cui invocare
 ``sys_xyzzy()`` è generalmente una brutta idea.
 
-Eccezioni a questa regola vengono accettate solo per funzioni d'architetture
-che surclassano quelle generiche, per funzioni d'architettura di compatibilità,
+Eccezioni a questa regola vengoyes accettate solo per funzioni d'architetture
+che surclassayes quelle generiche, per funzioni d'architettura di compatibilità,
 o per altro codice in arch/
 
 
@@ -590,22 +590,22 @@ Riferimenti e fonti
 
  - Articolo di Michael Kerris su LWN sull'uso dell'argomento flags nelle
    chiamate di sistema: https://lwn.net/Articles/585415/
- - Articolo di Michael Kerris su LWN su come gestire flag sconosciuti in
+ - Articolo di Michael Kerris su LWN su come gestire flag scoyessciuti in
    una chiamata di sistema: https://lwn.net/Articles/588444/
  - Articolo di Jake Edge su LWN che descrive i limiti degli argomenti a 64-bit
    delle chiamate di sistema: https://lwn.net/Articles/311630/
- - Una coppia di articoli di David Drysdale che descrivono i dettagli del
+ - Una coppia di articoli di David Drysdale che descrivoyes i dettagli del
    percorso implementativo di una chiamata di sistema per la versione v3.14:
 
     - https://lwn.net/Articles/604287/
     - https://lwn.net/Articles/604515/
 
- - Requisiti specifici alle architetture sono discussi nella pagina man
+ - Requisiti specifici alle architetture soyes discussi nella pagina man
    :manpage:`syscall(2)` :
    http://man7.org/linux/man-pages/man2/syscall.2.html#NOTES
  - Collezione di email di Linux Torvalds sui problemi relativi a ``ioctl()``:
    http://yarchive.net/comp/linux/ioctl.html
- - "Come non inventare interfacce del kernel", Arnd Bergmann,
+ - "Come yesn inventare interfacce del kernel", Arnd Bergmann,
    http://www.ukuug.org/events/linux2007/2007/papers/Bergmann.pdf
  - Articolo di Michael Kerris su LWN sull'evitare nuovi usi di CAP_SYS_ADMIN:
    https://lwn.net/Articles/486306/
@@ -630,13 +630,13 @@ Riferimenti e fonti
 
     - commit 75069f2b5bfb ("vfs: renumber FMODE_NONOTIFY and add to uniqueness
       check")
-    - commit 12ed2e36c98a ("fanotify: FMODE_NONOTIFY and __O_SYNC in sparc
+    - commit 12ed2e36c98a ("fayestify: FMODE_NONOTIFY and __O_SYNC in sparc
       conflict")
     - commit bb458c644a59 ("Safer ABI for O_TMPFILE")
 
  - Discussion from Matthew Wilcox about restrictions on 64-bit arguments:
    https://lkml.org/lkml/2008/12/12/187
- - Raccomandazioni da Greg Kroah-Hartman sul fatto che i flag sconosciuti dovrebbero
+ - Raccomandazioni da Greg Kroah-Hartman sul fatto che i flag scoyessciuti dovrebbero
    essere controllati: https://lkml.org/lkml/2014/7/17/577
  - Raccomandazioni da Linus Torvalds che le chiamate di sistema x32 dovrebbero
    favorire la compatibilità con le versioni a 64-bit piuttosto che quelle a 32-bit:

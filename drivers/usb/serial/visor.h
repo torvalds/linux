@@ -77,13 +77,13 @@
 /****************************************************************************
  * VISOR_REQUEST_BYTES_AVAILABLE asks the visor for the number of bytes that
  * are available to be transferred to the host for the specified endpoint.
- * Currently this is not used, and always returns 0x0001
+ * Currently this is yest used, and always returns 0x0001
  ****************************************************************************/
 #define VISOR_REQUEST_BYTES_AVAILABLE		0x01
 
 /****************************************************************************
- * VISOR_CLOSE_NOTIFICATION is set to the device to notify it that the host
- * is now closing the pipe. An empty packet is sent in response.
+ * VISOR_CLOSE_NOTIFICATION is set to the device to yestify it that the host
+ * is yesw closing the pipe. An empty packet is sent in response.
  ****************************************************************************/
 #define VISOR_CLOSE_NOTIFICATION		0x02
 
@@ -120,7 +120,7 @@ struct visor_connection_info {
 
 /****************************************************************************
  * PALM_GET_SOME_UNKNOWN_INFORMATION is sent by the host during enumeration to
- * get some information from the M series devices, that is currently unknown.
+ * get some information from the M series devices, that is currently unkyeswn.
  ****************************************************************************/
 #define PALM_GET_EXT_CONNECTION_INFORMATION	0x04
 
@@ -129,7 +129,7 @@ struct visor_connection_info {
  * @num_ports: maximum number of functions/connections in use
  * @endpoint_numbers_different: will be 1 if in and out endpoints numbers are
  *	different, otherwise it is 0.  If value is 1, then
- *	connections.end_point_info is non-zero.  If value is 0, then
+ *	connections.end_point_info is yesn-zero.  If value is 0, then
  *	connections.port contains the endpoint number, which is the same for in
  *	and out.
  * @port_function_id: contains the creator id of the application that opened

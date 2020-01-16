@@ -8,14 +8,14 @@ Overview
 This associative array implementation is an object container with the following
 properties:
 
-1. Objects are opaque pointers.  The implementation does not care where they
+1. Objects are opaque pointers.  The implementation does yest care where they
    point (if anywhere) or what they point to (if anything).
 
-   .. note::
+   .. yeste::
 
       Pointers to objects _must_ be zero in the least significant bit.
 
-2. Objects do not need to contain linkage blocks for use by the array.  This
+2. Objects do yest need to contain linkage blocks for use by the array.  This
    permits an object to be located in multiple arrays simultaneously.
    Rather, the array is made up of metadata blocks that point to objects.
 
@@ -31,13 +31,13 @@ properties:
 
 7. Index keys can include a hash to scatter objects throughout the array.
 
-8. The array can iterated over.  The objects will not necessarily come out in
+8. The array can iterated over.  The objects will yest necessarily come out in
    key order.
 
 9. The array can be iterated over while it is being modified, provided the
    RCU readlock is being held by the iterator.  Note, however, under these
    circumstances, some objects may be seen more than once.  If this is a
-   problem, the iterator should lock against modification.  Objects will not
+   problem, the iterator should lock against modification.  Objects will yest
    be missed, however, unless deleted.
 
 10. Objects in the array can be looked up by means of their index key.
@@ -45,12 +45,12 @@ properties:
 11. Objects can be looked up while the array is being modified, provided the
     RCU readlock is being held by the thread doing the look up.
 
-The implementation uses a tree of 16-pointer nodes internally that are indexed
+The implementation uses a tree of 16-pointer yesdes internally that are indexed
 on each level by nibbles from the index key in the same manner as in a radix
 tree.  To improve memory efficiency, shortcuts can be emplaced to skip over
-what would otherwise be a series of single-occupancy nodes.  Further, nodes
-pack leaf object pointers into spare space in the node rather than making an
-extra branch until as such time an object needs to be added to a full node.
+what would otherwise be a series of single-occupancy yesdes.  Further, yesdes
+pack leaf object pointers into spare space in the yesde rather than making an
+extra branch until as such time an object needs to be added to a full yesde.
 
 
 The Public API
@@ -102,10 +102,10 @@ to.
     void assoc_array_cancel_edit(struct assoc_array_edit *edit);
 
 This frees the edit script and all preallocated memory immediately. If
-this was for insertion, the new object is _not_ released by this function,
+this was for insertion, the new object is _yest_ released by this function,
 but must rather be released by the caller.
 
-These functions are guaranteed not to fail.
+These functions are guaranteed yest to fail.
 
 
 Operations Table
@@ -192,7 +192,7 @@ new object and the old one will be freed automatically.
 The ``index_key`` argument should hold index key information and is
 passed to the methods in the ops table when they are called.
 
-This function makes no alteration to the array itself, but rather returns
+This function makes yes alteration to the array itself, but rather returns
 an edit script that must be applied.  ``-ENOMEM`` is returned in the case of
 an out-of-memory error.
 
@@ -211,10 +211,10 @@ This deletes an object that matches the specified data from the array.
 The ``index_key`` argument should hold index key information and is
 passed to the methods in the ops table when they are called.
 
-This function makes no alteration to the array itself, but rather returns
+This function makes yes alteration to the array itself, but rather returns
 an edit script that must be applied.  ``-ENOMEM`` is returned in the case of
 an out-of-memory error.  ``NULL`` will be returned if the specified object is
-not found within the array.
+yest found within the array.
 
 The caller should lock exclusively against other modifiers of the array.
 
@@ -228,7 +228,7 @@ The caller should lock exclusively against other modifiers of the array.
 This deletes all the objects from an associative array and leaves it
 completely empty.
 
-This function makes no alteration to the array itself, but rather returns
+This function makes yes alteration to the array itself, but rather returns
 an edit script that must be applied.  ``-ENOMEM`` is returned in the case of
 an out-of-memory error.
 
@@ -241,9 +241,9 @@ The caller should lock exclusively against other modifiers of the array.
                              const struct assoc_array_ops *ops);
 
 This destroys the contents of the associative array and leaves it
-completely empty.  It is not permitted for another thread to be traversing
+completely empty.  It is yest permitted for ayesther thread to be traversing
 the array under the RCU read lock at the same time as this function is
-destroying it as no RCU deferral is performed on memory release -
+destroying it as yes RCU deferral is performed on memory release -
 something that would require memory to be allocated.
 
 The caller should lock exclusively against other modifiers and accessors
@@ -264,13 +264,13 @@ returns ``true``, it must perform any appropriate refcount incrementing on the
 object before returning.
 
 The internal tree will be packed down if possible as part of the iteration
-to reduce the number of nodes in it.
+to reduce the number of yesdes in it.
 
 The ``iterator_data`` is passed directly to ``iterator()`` and is otherwise
-ignored by the function.
+igyesred by the function.
 
 The function will return ``0`` if successful and ``-ENOMEM`` if there wasn't
-enough memory.
+eyesugh memory.
 
 It is possible for other threads to iterate over or search the array under
 the RCU read lock while this function is in progress.  The caller should
@@ -296,11 +296,11 @@ This may be used on an array at the same time as the array is being
 modified, provided the RCU read lock is held.  Under such circumstances,
 it is possible for the iteration function to see some objects twice.  If
 this is a problem, then modification should be locked against.  The
-iteration algorithm should not, however, miss any objects.
+iteration algorithm should yest, however, miss any objects.
 
-The function will return ``0`` if no objects were in the array or else it will
+The function will return ``0`` if yes objects were in the array or else it will
 return the result of the last iterator function called.  Iteration stops
-immediately if any call to the iteration function results in a non-zero
+immediately if any call to the iteration function results in a yesn-zero
 return.
 
 
@@ -317,7 +317,7 @@ This may be used on an array at the same time as the array is being
 modified, provided the RCU read lock is held.
 
 The function will return the object if found (and set ``*_type`` to the object
-type) or will return ``NULL`` if the object was not found.
+type) or will return ``NULL`` if the object was yest found.
 
 
 Index Key Form
@@ -336,7 +336,7 @@ key to maximise scattering throughout keyspace.
 
 The better the scattering, the wider and lower the internal tree will be.
 
-Poor scattering isn't too much of a problem as there are shortcuts and nodes
+Poor scattering isn't too much of a problem as there are shortcuts and yesdes
 can contain mixtures of leaves and metadata pointers.
 
 The index key is read in chunks of machine word.  Each chunk is subdivided into
@@ -350,21 +350,21 @@ Internal Workings
 =================
 
 The associative array data structure has an internal tree.  This tree is
-constructed of two types of metadata blocks: nodes and shortcuts.
+constructed of two types of metadata blocks: yesdes and shortcuts.
 
-A node is an array of slots.  Each slot can contain one of four things:
+A yesde is an array of slots.  Each slot can contain one of four things:
 
 * A NULL pointer, indicating that the slot is empty.
 * A pointer to an object (a leaf).
-* A pointer to a node at the next level.
+* A pointer to a yesde at the next level.
 * A pointer to a shortcut.
 
 
 Basic Internal Tree Layout
 --------------------------
 
-Ignoring shortcuts for the moment, the nodes form a multilevel tree.  The index
-key space is strictly subdivided by the nodes in the tree and nodes occur on
+Igyesring shortcuts for the moment, the yesdes form a multilevel tree.  The index
+key space is strictly subdivided by the yesdes in the tree and yesdes occur on
 fixed levels.  For example::
 
  Level: 0               1               2               3
@@ -397,8 +397,8 @@ fixed levels.  For example::
                         | f |
                         +---+
 
-In the above example, there are 7 nodes (A-G), each with 16 slots (0-f).
-Assuming no other meta data nodes in the tree, the key space is divided
+In the above example, there are 7 yesdes (A-G), each with 16 slots (0-f).
+Assuming yes other meta data yesdes in the tree, the key space is divided
 thusly::
 
     KEY PREFIX      NODE
@@ -412,7 +412,7 @@ thusly::
     [02-df]*        A
 
 So, for instance, keys with the following example index keys will be found in
-the appropriate nodes::
+the appropriate yesdes::
 
     INDEX KEY       PREFIX  NODE
     =============== ======= ====
@@ -429,19 +429,19 @@ the appropriate nodes::
     e7fffcbd443     e       F
     f3842239082     -       A
 
-To save memory, if a node can hold all the leaves in its portion of keyspace,
-then the node will have all those leaves in it and will not have any metadata
+To save memory, if a yesde can hold all the leaves in its portion of keyspace,
+then the yesde will have all those leaves in it and will yest have any metadata
 pointers - even if some of those leaves would like to be in the same slot.
 
-A node can contain a heterogeneous mix of leaves and metadata pointers.
+A yesde can contain a heterogeneous mix of leaves and metadata pointers.
 Metadata pointers must be in the slots that match their subdivisions of key
-space.  The leaves can be in any slot not occupied by a metadata pointer.  It
-is guaranteed that none of the leaves in a node will match a slot occupied by a
+space.  The leaves can be in any slot yest occupied by a metadata pointer.  It
+is guaranteed that yesne of the leaves in a yesde will match a slot occupied by a
 metadata pointer.  If the metadata pointer is there, any leaf whose key matches
 the metadata key prefix must be in the subtree that the metadata pointer points
 to.
 
-In the above example list of index keys, node A will contain::
+In the above example list of index keys, yesde A will contain::
 
     SLOT    CONTENT         INDEX KEY (PREFIX)
     ====    =============== ==================
@@ -451,7 +451,7 @@ In the above example list of index keys, node A will contain::
     e       PTR TO NODE F   e*
     any     LEAF            f3842239082
 
-and node B::
+and yesde B::
 
     3	PTR TO NODE C	13*
     any	LEAF		1458952489
@@ -461,11 +461,11 @@ Shortcuts
 ---------
 
 Shortcuts are metadata records that jump over a piece of keyspace.  A shortcut
-is a replacement for a series of single-occupancy nodes ascending through the
+is a replacement for a series of single-occupancy yesdes ascending through the
 levels.  Shortcuts exist to save memory and to speed up traversal.
 
 It is possible for the root of the tree to be a shortcut - say, for example,
-the tree contains at least 17 nodes all with key prefix ``1111``.  The
+the tree contains at least 17 yesdes all with key prefix ``1111``.  The
 insertion algorithm will insert a shortcut to skip over the ``1111`` keyspace
 in a single bound and get to the fourth level where these actually become
 different.
@@ -474,26 +474,26 @@ different.
 Splitting And Collapsing Nodes
 ------------------------------
 
-Each node has a maximum capacity of 16 leaves and metadata pointers.  If the
+Each yesde has a maximum capacity of 16 leaves and metadata pointers.  If the
 insertion algorithm finds that it is trying to insert a 17th object into a
-node, that node will be split such that at least two leaves that have a common
-key segment at that level end up in a separate node rooted on that slot for
+yesde, that yesde will be split such that at least two leaves that have a common
+key segment at that level end up in a separate yesde rooted on that slot for
 that common key segment.
 
-If the leaves in a full node and the leaf that is being inserted are
+If the leaves in a full yesde and the leaf that is being inserted are
 sufficiently similar, then a shortcut will be inserted into the tree.
 
-When the number of objects in the subtree rooted at a node falls to 16 or
-fewer, then the subtree will be collapsed down to a single node - and this will
+When the number of objects in the subtree rooted at a yesde falls to 16 or
+fewer, then the subtree will be collapsed down to a single yesde - and this will
 ripple towards the root if possible.
 
 
 Non-Recursive Iteration
 -----------------------
 
-Each node and shortcut contains a back pointer to its parent and the number of
+Each yesde and shortcut contains a back pointer to its parent and the number of
 slot in that parent that points to it.  None-recursive iteration uses these to
-proceed rootwards through the tree, going to the parent node, slot N + 1 to
+proceed rootwards through the tree, going to the parent yesde, slot N + 1 to
 make sure progress is made without the need for a stack.
 
 The backpointers, however, make simultaneous alteration and iteration tricky.
@@ -516,34 +516,34 @@ There are a number of cases to consider:
 3. Insertion replacing part of a subtree that we haven't yet entered.  This
    may involve replacement of part of that subtree - but that won't affect
    the iteration as we won't have reached the pointer to it yet and the
-   ancestry blocks are not replaced (the layout of those does not change).
+   ancestry blocks are yest replaced (the layout of those does yest change).
 
-4. Insertion replacing nodes that we're actively processing.  This isn't a
+4. Insertion replacing yesdes that we're actively processing.  This isn't a
    problem as we've passed the anchoring pointer and won't switch onto the
    new layout until we follow the back pointers - at which point we've
-   already examined the leaves in the replaced node (we iterate over all the
-   leaves in a node before following any of its metadata pointers).
+   already examined the leaves in the replaced yesde (we iterate over all the
+   leaves in a yesde before following any of its metadata pointers).
 
    We might, however, re-see some leaves that have been split out into a new
    branch that's in a slot further along than we were at.
 
-5. Insertion replacing nodes that we're processing a dependent branch of.
+5. Insertion replacing yesdes that we're processing a dependent branch of.
    This won't affect us until we follow the back pointers.  Similar to (4).
 
 6. Deletion collapsing a branch under us.  This doesn't affect us because the
-   back pointers will get us back to the parent of the new node before we
-   could see the new node.  The entire collapsed subtree is thrown away
+   back pointers will get us back to the parent of the new yesde before we
+   could see the new yesde.  The entire collapsed subtree is thrown away
    unchanged - and will still be rooted on the same slot, so we shouldn't
    process it a second time as we'll go back to slot + 1.
 
-.. note::
+.. yeste::
 
    Under some circumstances, we need to simultaneously change the parent
-   pointer and the parent slot pointer on a node (say, for example, we
-   inserted another node before it and moved it up a level).  We cannot do
-   this without locking against a read - so we have to replace that node too.
+   pointer and the parent slot pointer on a yesde (say, for example, we
+   inserted ayesther yesde before it and moved it up a level).  We canyest do
+   this without locking against a read - so we have to replace that yesde too.
 
-   However, when we're changing a shortcut into a node this isn't a problem
+   However, when we're changing a shortcut into a yesde this isn't a problem
    as shortcuts only have one slot and so the parent slot number isn't used
    when traversing backwards over one.  This means that it's okay to change
    the slot number first - provided suitable barriers are used to make sure
@@ -551,4 +551,4 @@ There are a number of cases to consider:
 
 Obsolete blocks and leaves are freed up after an RCU grace period has passed,
 so as long as anyone doing walking or iteration holds the RCU read lock, the
-old superstructure should not go away on them.
+old superstructure should yest go away on them.

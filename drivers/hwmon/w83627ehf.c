@@ -669,7 +669,7 @@ static void w83627ehf_write_fan_div_common(struct device *dev,
 	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	if (sio_data->kind == nct6776)
-		; /* no dividers, do nothing */
+		; /* yes dividers, do yesthing */
 	else if (sio_data->kind == nct6775)
 		nct6775_write_fan_div(data, nr);
 	else
@@ -720,7 +720,7 @@ static void w83627ehf_update_fan_div_common(struct device *dev,
 	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	if (sio_data->kind == nct6776)
-		; /* no dividers, do nothing */
+		; /* yes dividers, do yesthing */
 	else if (sio_data->kind == nct6775)
 		nct6775_update_fan_div(data);
 	else
@@ -1077,7 +1077,7 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	if (!data->has_fan_div) {
 		/*
-		 * Only NCT6776F for now, so we know that this is a 13 bit
+		 * Only NCT6776F for yesw, so we kyesw that this is a 13 bit
 		 * register
 		 */
 		if (!val) {
@@ -1098,7 +1098,7 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 		dev_info(dev, "fan%u low limit and alarm disabled\n", nr + 1);
 	} else if ((reg = 1350000U / val) >= 128 * 255) {
 		/*
-		 * Speed below this value cannot possibly be represented,
+		 * Speed below this value canyest possibly be represented,
 		 * even with the highest divider (128)
 		 */
 		data->fan_min[nr] = 254;
@@ -1108,7 +1108,7 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 			 nr + 1, val, data->fan_from_reg_min(254, 7));
 	} else if (!reg) {
 		/*
-		 * Speed above this value cannot possibly be represented,
+		 * Speed above this value canyest possibly be represented,
 		 * even with the lowest divider (1)
 		 */
 		data->fan_min[nr] = 1;
@@ -1454,7 +1454,7 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 
 	if (!val || (val > 4 && val != data->pwm_enable_orig[nr]))
 		return -EINVAL;
-	/* SmartFan III mode is not supported on NCT6776F */
+	/* SmartFan III mode is yest supported on NCT6776F */
 	if (sio_data->kind == nct6776 && val == 4)
 		return -EINVAL;
 
@@ -1803,8 +1803,8 @@ static struct sensor_device_attribute_2 sda_caseopen[] = {
 static void w83627ehf_device_remove_files(struct device *dev)
 {
 	/*
-	 * some entries in the following arrays may not have been used in
-	 * device_create_file(), but device_remove_file() will ignore them
+	 * some entries in the following arrays may yest have been used in
+	 * device_create_file(), but device_remove_file() will igyesre them
 	 */
 	int i;
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
@@ -1956,7 +1956,7 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 {
 	int fan3pin, fan4pin, fan4min, fan5pin, regval;
 
-	/* The W83627UHG is simple, only two fan inputs, no config */
+	/* The W83627UHG is simple, only two fan inputs, yes config */
 	if (sio_data->kind == w83627uhg) {
 		data->has_fan = 0x03; /* fan1 and fan2 */
 		data->has_fan_min = 0x03;
@@ -2021,7 +2021,7 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 		 * as fan on/off switches, but fan5 control is write only :/
 		 * We assume that if the serial interface is disabled, designers
 		 * connected fan5 as input unless they are emitting log 1, which
-		 * is not the default.
+		 * is yest the default.
 		 */
 		regval = w83627ehf_read_value(data, W83627EHF_REG_FANDIV1);
 		if ((regval & (1 << 2)) && fan4pin) {
@@ -2181,7 +2181,7 @@ static int w83627ehf_probe(struct platform_device *pdev)
 		data->temp_src[2] = (reg >> 4) & 0x07;
 
 		/*
-		 * W83667HG-B has another temperature register at 0x7e.
+		 * W83667HG-B has ayesther temperature register at 0x7e.
 		 * The temperature source is selected with register 0x7d.
 		 * Support it if the source differs from already reported
 		 * sources.
@@ -2366,7 +2366,7 @@ static int w83627ehf_probe(struct platform_device *pdev)
 		if (superio_inb(sio_data->sioreg, SIO_REG_VID_CTRL) & 0x80) {
 			/*
 			 * Set VID input sensibility if needed. In theory the
-			 * BIOS should have set it, but in practice it's not
+			 * BIOS should have set it, but in practice it's yest
 			 * always the case. We only do it for the W83627EHF/EHG
 			 * because the W83627DHG is more complex in this
 			 * respect.
@@ -2402,7 +2402,7 @@ static int w83627ehf_probe(struct platform_device *pdev)
 			}
 		} else {
 			dev_info(dev,
-				 "VID pins in output mode, CPU VID not available\n");
+				 "VID pins in output mode, CPU VID yest available\n");
 		}
 	}
 
@@ -2764,7 +2764,7 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 		return -ENODEV;
 	}
 
-	/* We have a known chip, find the HWM I/O address */
+	/* We have a kyeswn chip, find the HWM I/O address */
 	superio_select(sioaddr, W83627EHF_LD_HWM);
 	val = (superio_inb(sioaddr, SIO_REG_ADDR) << 8)
 	    | superio_inb(sioaddr, SIO_REG_ADDR + 1);

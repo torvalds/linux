@@ -96,17 +96,17 @@ enum cppc_regs {
 /*
  * Categorization of registers as described
  * in the ACPI v.5.1 spec.
- * XXX: Only filling up ones which are used by governors
+ * XXX: Only filling up ones which are used by goveryesrs
  * today.
  */
 struct cppc_perf_caps {
 	u32 guaranteed_perf;
 	u32 highest_perf;
-	u32 nominal_perf;
+	u32 yesminal_perf;
 	u32 lowest_perf;
-	u32 lowest_nonlinear_perf;
+	u32 lowest_yesnlinear_perf;
 	u32 lowest_freq;
-	u32 nominal_freq;
+	u32 yesminal_freq;
 };
 
 struct cppc_perf_ctrls {

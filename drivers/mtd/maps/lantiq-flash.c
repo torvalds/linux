@@ -42,7 +42,7 @@ struct ltq_mtd {
 	struct map_info *map;
 };
 
-static const char ltq_map_name[] = "ltq_nor";
+static const char ltq_map_name[] = "ltq_yesr";
 
 static map_word
 ltq_read16(struct map_info *map, unsigned long adr)
@@ -72,9 +72,9 @@ ltq_write16(struct map_info *map, map_word d, unsigned long adr)
 
 /*
  * The following 2 functions copy data between iomem and a cached memory
- * section. As memcpy() makes use of pre-fetching we cannot use it here.
- * The normal alternative of using memcpy_{to,from}io also makes use of
- * memcpy() on MIPS so it is not applicable either. We are therefore stuck
+ * section. As memcpy() makes use of pre-fetching we canyest use it here.
+ * The yesrmal alternative of using memcpy_{to,from}io also makes use of
+ * memcpy() on MIPS so it is yest applicable either. We are therefore stuck
  * with having to use our own loop.
  */
 static void
@@ -152,7 +152,7 @@ ltq_mtd_probe(struct platform_device *pdev)
 	}
 
 	ltq_mtd->mtd->dev.parent = &pdev->dev;
-	mtd_set_of_node(ltq_mtd->mtd, pdev->dev.of_node);
+	mtd_set_of_yesde(ltq_mtd->mtd, pdev->dev.of_yesde);
 
 	cfi = ltq_mtd->map->fldrv_priv;
 	cfi->addr_unlock1 ^= 1;
@@ -184,7 +184,7 @@ ltq_mtd_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id ltq_mtd_match[] = {
-	{ .compatible = "lantiq,nor" },
+	{ .compatible = "lantiq,yesr" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ltq_mtd_match);
@@ -193,7 +193,7 @@ static struct platform_driver ltq_mtd_driver = {
 	.probe = ltq_mtd_probe,
 	.remove = ltq_mtd_remove,
 	.driver = {
-		.name = "ltq-nor",
+		.name = "ltq-yesr",
 		.of_match_table = ltq_mtd_match,
 	},
 };

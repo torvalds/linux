@@ -60,7 +60,7 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct ep_device *ep = to_ep_device(dev);
-	char *type = "unknown";
+	char *type = "unkyeswn";
 
 	switch (usb_endpoint_type(ep->desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:

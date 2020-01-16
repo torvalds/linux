@@ -12,7 +12,7 @@
 #include "super.h"
 #include "cache.h"
 
-struct ceph_aux_inode {
+struct ceph_aux_iyesde {
 	u64 	version;
 	u64	mtime_sec;
 	u64	mtime_nsec;
@@ -98,73 +98,73 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc, struct fs_context *fc)
 		kfree(ent);
 		errorf(fc, "ceph: unable to register fscache cookie for fsid %pU",
 		       fsid);
-		/* all other fs ignore this error */
+		/* all other fs igyesre this error */
 	}
 out_unlock:
 	mutex_unlock(&ceph_fscache_lock);
 	return err;
 }
 
-static enum fscache_checkaux ceph_fscache_inode_check_aux(
+static enum fscache_checkaux ceph_fscache_iyesde_check_aux(
 	void *cookie_netfs_data, const void *data, uint16_t dlen,
 	loff_t object_size)
 {
-	struct ceph_aux_inode aux;
-	struct ceph_inode_info* ci = cookie_netfs_data;
-	struct inode* inode = &ci->vfs_inode;
+	struct ceph_aux_iyesde aux;
+	struct ceph_iyesde_info* ci = cookie_netfs_data;
+	struct iyesde* iyesde = &ci->vfs_iyesde;
 
 	if (dlen != sizeof(aux) ||
-	    i_size_read(inode) != object_size)
+	    i_size_read(iyesde) != object_size)
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
 	memset(&aux, 0, sizeof(aux));
 	aux.version = ci->i_version;
-	aux.mtime_sec = inode->i_mtime.tv_sec;
-	aux.mtime_nsec = inode->i_mtime.tv_nsec;
+	aux.mtime_sec = iyesde->i_mtime.tv_sec;
+	aux.mtime_nsec = iyesde->i_mtime.tv_nsec;
 
 	if (memcmp(data, &aux, sizeof(aux)) != 0)
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
-	dout("ceph inode 0x%p cached okay\n", ci);
+	dout("ceph iyesde 0x%p cached okay\n", ci);
 	return FSCACHE_CHECKAUX_OKAY;
 }
 
-static const struct fscache_cookie_def ceph_fscache_inode_object_def = {
-	.name		= "CEPH.inode",
+static const struct fscache_cookie_def ceph_fscache_iyesde_object_def = {
+	.name		= "CEPH.iyesde",
 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-	.check_aux	= ceph_fscache_inode_check_aux,
+	.check_aux	= ceph_fscache_iyesde_check_aux,
 };
 
-void ceph_fscache_register_inode_cookie(struct inode *inode)
+void ceph_fscache_register_iyesde_cookie(struct iyesde *iyesde)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
-	struct ceph_aux_inode aux;
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
+	struct ceph_aux_iyesde aux;
 
 	/* No caching for filesystem */
 	if (!fsc->fscache)
 		return;
 
 	/* Only cache for regular files that are read only */
-	if (!S_ISREG(inode->i_mode))
+	if (!S_ISREG(iyesde->i_mode))
 		return;
 
-	inode_lock_nested(inode, I_MUTEX_CHILD);
+	iyesde_lock_nested(iyesde, I_MUTEX_CHILD);
 	if (!ci->fscache) {
 		memset(&aux, 0, sizeof(aux));
 		aux.version = ci->i_version;
-		aux.mtime_sec = inode->i_mtime.tv_sec;
-		aux.mtime_nsec = inode->i_mtime.tv_nsec;
+		aux.mtime_sec = iyesde->i_mtime.tv_sec;
+		aux.mtime_nsec = iyesde->i_mtime.tv_nsec;
 		ci->fscache = fscache_acquire_cookie(fsc->fscache,
-						     &ceph_fscache_inode_object_def,
-						     &ci->i_vino, sizeof(ci->i_vino),
+						     &ceph_fscache_iyesde_object_def,
+						     &ci->i_viyes, sizeof(ci->i_viyes),
 						     &aux, sizeof(aux),
-						     ci, i_size_read(inode), false);
+						     ci, i_size_read(iyesde), false);
 	}
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 }
 
-void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* ci)
+void ceph_fscache_unregister_iyesde_cookie(struct ceph_iyesde_info* ci)
 {
 	struct fscache_cookie* cookie;
 
@@ -173,34 +173,34 @@ void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* ci)
 
 	ci->fscache = NULL;
 
-	fscache_uncache_all_inode_pages(cookie, &ci->vfs_inode);
-	fscache_relinquish_cookie(cookie, &ci->i_vino, false);
+	fscache_uncache_all_iyesde_pages(cookie, &ci->vfs_iyesde);
+	fscache_relinquish_cookie(cookie, &ci->i_viyes, false);
 }
 
 static bool ceph_fscache_can_enable(void *data)
 {
-	struct inode *inode = data;
-	return !inode_is_open_for_write(inode);
+	struct iyesde *iyesde = data;
+	return !iyesde_is_open_for_write(iyesde);
 }
 
-void ceph_fscache_file_set_cookie(struct inode *inode, struct file *filp)
+void ceph_fscache_file_set_cookie(struct iyesde *iyesde, struct file *filp)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 
 	if (!fscache_cookie_valid(ci->fscache))
 		return;
 
-	if (inode_is_open_for_write(inode)) {
+	if (iyesde_is_open_for_write(iyesde)) {
 		dout("fscache_file_set_cookie %p %p disabling cache\n",
-		     inode, filp);
-		fscache_disable_cookie(ci->fscache, &ci->i_vino, false);
-		fscache_uncache_all_inode_pages(ci->fscache, inode);
+		     iyesde, filp);
+		fscache_disable_cookie(ci->fscache, &ci->i_viyes, false);
+		fscache_uncache_all_iyesde_pages(ci->fscache, iyesde);
 	} else {
-		fscache_enable_cookie(ci->fscache, &ci->i_vino, i_size_read(inode),
-				      ceph_fscache_can_enable, inode);
+		fscache_enable_cookie(ci->fscache, &ci->i_viyes, i_size_read(iyesde),
+				      ceph_fscache_can_enable, iyesde);
 		if (fscache_cookie_enabled(ci->fscache)) {
 			dout("fscache_file_set_cookie %p %p enabling cache\n",
-			     inode, filp);
+			     iyesde, filp);
 		}
 	}
 }
@@ -213,7 +213,7 @@ static void ceph_readpage_from_fscache_complete(struct page *page, void *data, i
 	unlock_page(page);
 }
 
-static inline bool cache_valid(struct ceph_inode_info *ci)
+static inline bool cache_valid(struct ceph_iyesde_info *ci)
 {
 	return ci->i_fscache_gen == ci->i_rdcache_gen;
 }
@@ -221,12 +221,12 @@ static inline bool cache_valid(struct ceph_inode_info *ci)
 
 /* Atempt to read from the fscache,
  *
- * This function is called from the readpage_nounlock context. DO NOT attempt to
+ * This function is called from the readpage_yesunlock context. DO NOT attempt to
  * unlock the page here (or in the callback).
  */
-int ceph_readpage_from_fscache(struct inode *inode, struct page *page)
+int ceph_readpage_from_fscache(struct iyesde *iyesde, struct page *page)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	int ret;
 
 	if (!cache_valid(ci))
@@ -240,22 +240,22 @@ int ceph_readpage_from_fscache(struct inode *inode, struct page *page)
 		case 0: /* Page found */
 			dout("page read submitted\n");
 			return 0;
-		case -ENOBUFS: /* Pages were not found, and can't be */
-		case -ENODATA: /* Pages were not found */
-			dout("page/inode not in cache\n");
+		case -ENOBUFS: /* Pages were yest found, and can't be */
+		case -ENODATA: /* Pages were yest found */
+			dout("page/iyesde yest in cache\n");
 			return ret;
 		default:
-			dout("%s: unknown error ret = %i\n", __func__, ret);
+			dout("%s: unkyeswn error ret = %i\n", __func__, ret);
 			return ret;
 	}
 }
 
-int ceph_readpages_from_fscache(struct inode *inode,
+int ceph_readpages_from_fscache(struct iyesde *iyesde,
 				  struct address_space *mapping,
 				  struct list_head *pages,
 				  unsigned *nr_pages)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	int ret;
 
 	if (!cache_valid(ci))
@@ -269,19 +269,19 @@ int ceph_readpages_from_fscache(struct inode *inode,
 		case 0: /* All pages found */
 			dout("all-page read submitted\n");
 			return 0;
-		case -ENOBUFS: /* Some pages were not found, and can't be */
-		case -ENODATA: /* some pages were not found */
-			dout("page/inode not in cache\n");
+		case -ENOBUFS: /* Some pages were yest found, and can't be */
+		case -ENODATA: /* some pages were yest found */
+			dout("page/iyesde yest in cache\n");
 			return ret;
 		default:
-			dout("%s: unknown error ret = %i\n", __func__, ret);
+			dout("%s: unkyeswn error ret = %i\n", __func__, ret);
 			return ret;
 	}
 }
 
-void ceph_readpage_to_fscache(struct inode *inode, struct page *page)
+void ceph_readpage_to_fscache(struct iyesde *iyesde, struct page *page)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	int ret;
 
 	if (!PageFsCache(page))
@@ -290,15 +290,15 @@ void ceph_readpage_to_fscache(struct inode *inode, struct page *page)
 	if (!cache_valid(ci))
 		return;
 
-	ret = fscache_write_page(ci->fscache, page, i_size_read(inode),
+	ret = fscache_write_page(ci->fscache, page, i_size_read(iyesde),
 				 GFP_KERNEL);
 	if (ret)
 		 fscache_uncache_page(ci->fscache, page);
 }
 
-void ceph_invalidate_fscache_page(struct inode* inode, struct page *page)
+void ceph_invalidate_fscache_page(struct iyesde* iyesde, struct page *page)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 
 	if (!PageFsCache(page))
 		return;
@@ -333,16 +333,16 @@ void ceph_fscache_unregister_fs(struct ceph_fs_client* fsc)
 /*
  * caller should hold CEPH_CAP_FILE_{RD,CACHE}
  */
-void ceph_fscache_revalidate_cookie(struct ceph_inode_info *ci)
+void ceph_fscache_revalidate_cookie(struct ceph_iyesde_info *ci)
 {
 	if (cache_valid(ci))
 		return;
 
-	/* resue i_truncate_mutex. There should be no pending
+	/* resue i_truncate_mutex. There should be yes pending
 	 * truncate while the caller holds CEPH_CAP_FILE_RD */
 	mutex_lock(&ci->i_truncate_mutex);
 	if (!cache_valid(ci)) {
-		if (fscache_check_consistency(ci->fscache, &ci->i_vino))
+		if (fscache_check_consistency(ci->fscache, &ci->i_viyes))
 			fscache_invalidate(ci->fscache);
 		spin_lock(&ci->i_ceph_lock);
 		ci->i_fscache_gen = ci->i_rdcache_gen;

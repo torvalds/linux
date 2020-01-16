@@ -121,7 +121,7 @@ EXPORT_SYMBOL_GPL(pci_epc_mem_exit);
 void __iomem *pci_epc_mem_alloc_addr(struct pci_epc *epc,
 				     phys_addr_t *phys_addr, size_t size)
 {
-	int pageno;
+	int pageyes;
 	void __iomem *virt_addr;
 	struct pci_epc_mem *mem = epc->mem;
 	unsigned int page_shift = ilog2(mem->page_size);
@@ -130,14 +130,14 @@ void __iomem *pci_epc_mem_alloc_addr(struct pci_epc *epc,
 	size = ALIGN(size, mem->page_size);
 	order = pci_epc_mem_get_order(mem, size);
 
-	pageno = bitmap_find_free_region(mem->bitmap, mem->pages, order);
-	if (pageno < 0)
+	pageyes = bitmap_find_free_region(mem->bitmap, mem->pages, order);
+	if (pageyes < 0)
 		return NULL;
 
-	*phys_addr = mem->phys_base + ((phys_addr_t)pageno << page_shift);
+	*phys_addr = mem->phys_base + ((phys_addr_t)pageyes << page_shift);
 	virt_addr = ioremap(*phys_addr, size);
 	if (!virt_addr)
-		bitmap_release_region(mem->bitmap, pageno, order);
+		bitmap_release_region(mem->bitmap, pageyes, order);
 
 	return virt_addr;
 }
@@ -155,16 +155,16 @@ EXPORT_SYMBOL_GPL(pci_epc_mem_alloc_addr);
 void pci_epc_mem_free_addr(struct pci_epc *epc, phys_addr_t phys_addr,
 			   void __iomem *virt_addr, size_t size)
 {
-	int pageno;
+	int pageyes;
 	struct pci_epc_mem *mem = epc->mem;
 	unsigned int page_shift = ilog2(mem->page_size);
 	int order;
 
 	iounmap(virt_addr);
-	pageno = (phys_addr - mem->phys_base) >> page_shift;
+	pageyes = (phys_addr - mem->phys_base) >> page_shift;
 	size = ALIGN(size, mem->page_size);
 	order = pci_epc_mem_get_order(mem, size);
-	bitmap_release_region(mem->bitmap, pageno, order);
+	bitmap_release_region(mem->bitmap, pageyes, order);
 }
 EXPORT_SYMBOL_GPL(pci_epc_mem_free_addr);
 

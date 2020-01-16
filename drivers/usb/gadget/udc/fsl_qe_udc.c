@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -202,7 +202,7 @@ static int qe_eprx_nack(struct qe_ep *ep)
 	return 0;
 }
 
-static int qe_eprx_normal(struct qe_ep *ep)
+static int qe_eprx_yesrmal(struct qe_ep *ep)
 {
 	struct qe_udc *udc = ep->udc;
 
@@ -771,7 +771,7 @@ static void ep_recycle_rxbds(struct qe_ep *ep)
 		out_be16(&udc->usb_regs->usb_usber, USB_E_BSY_MASK);
 
 	if (ep->has_data <= 0 && (!list_empty(&ep->queue)))
-		qe_eprx_normal(ep);
+		qe_eprx_yesrmal(ep);
 
 	ep->localnack = 0;
 }
@@ -816,7 +816,7 @@ static int qe_ep0_rx(struct qe_udc *udc)
 	pframe = ep->rxframe;
 
 	if (ep->dir == USB_DIR_IN) {
-		dev_err(udc->dev, "ep0 not a control endpoint\n");
+		dev_err(udc->dev, "ep0 yest a control endpoint\n");
 		return -EINVAL;
 	}
 
@@ -859,7 +859,7 @@ static int qe_ep0_rx(struct qe_udc *udc)
 			dev_err(udc->dev, "The receive frame with error!\n");
 		}
 
-		/* note: don't clear the rxbd's buffer address */
+		/* yeste: don't clear the rxbd's buffer address */
 		recycle_one_rxbd(ep);
 
 		/* Get next BD */
@@ -898,7 +898,7 @@ static int qe_ep_rxframe_handle(struct qe_ep *ep)
 
 	fsize = frame_get_length(pframe);
 	if (list_empty(&ep->queue)) {
-		dev_err(ep->udc->dev, "the %s have no requeue!\n", ep->name);
+		dev_err(ep->udc->dev, "the %s have yes requeue!\n", ep->name);
 	} else {
 		req = list_entry(ep->queue.next, struct qe_req, queue);
 
@@ -953,7 +953,7 @@ static void ep_rx_tasklet(unsigned long data)
 			if (list_empty(&ep->queue)) {
 				qe_eprx_nack(ep);
 				dev_dbg(udc->dev,
-					"The rxep have noreq %d\n",
+					"The rxep have yesreq %d\n",
 					ep->has_data);
 				break;
 			}
@@ -983,7 +983,7 @@ static void ep_rx_tasklet(unsigned long data)
 				dev_err(udc->dev,
 					"error in received frame\n");
 			}
-			/* note: don't clear the rxbd's buffer address */
+			/* yeste: don't clear the rxbd's buffer address */
 			/*clear the length */
 			out_be32((u32 __iomem *)bd, bdstatus & BD_STATUS_MASK);
 			ep->has_data--;
@@ -1045,7 +1045,7 @@ static int qe_ep_rx(struct qe_ep *ep)
 
 	if (list_empty(&ep->queue)) {
 		qe_eprx_nack(ep);
-		dev_vdbg(udc->dev, "The rxep have no req queued with %d BDs\n",
+		dev_vdbg(udc->dev, "The rxep have yes req queued with %d BDs\n",
 				ep->has_data);
 		return 0;
 	}
@@ -1056,7 +1056,7 @@ static int qe_ep_rx(struct qe_ep *ep)
 	return 0;
 }
 
-/* send data from a frame, no matter what tx_req */
+/* send data from a frame, yes matter what tx_req */
 static int qe_ep_tx(struct qe_ep *ep, struct qe_frame *frame)
 {
 	struct qe_udc *udc = ep->udc;
@@ -1122,13 +1122,13 @@ static int qe_ep_tx(struct qe_ep *ep, struct qe_frame *frame)
 		return 0;
 	} else {
 		out_be16(&udc->usb_regs->usb_usbmr, saveusbmr);
-		dev_vdbg(udc->dev, "The tx bd is not ready!\n");
+		dev_vdbg(udc->dev, "The tx bd is yest ready!\n");
 		return -EBUSY;
 	}
 }
 
 /* when a bd was transmitted, the function can
- * handle the tx_req, not include ep0           */
+ * handle the tx_req, yest include ep0           */
 static int txcomplete(struct qe_ep *ep, unsigned char restart)
 {
 	if (ep->tx_req != NULL) {
@@ -1326,7 +1326,7 @@ static int ep0_txcomplete(struct qe_ep *ep, unsigned char restart)
 			ep->sent = 0;
 		}
 	} else {
-		dev_vdbg(ep->udc->dev, "the ep0_controller have no req\n");
+		dev_vdbg(ep->udc->dev, "the ep0_controller have yes req\n");
 	}
 
 	return 0;
@@ -1528,7 +1528,7 @@ static int ep_req_rx(struct qe_ep *ep, struct qe_req *req)
 			dev_err(udc->dev, "The receive frame with error!\n");
 		}
 
-		/* note: don't clear the rxbd's buffer address *
+		/* yeste: don't clear the rxbd's buffer address *
 		 * only Clear the length */
 		out_be32((u32 __iomem *)bd, (bdstatus & BD_STATUS_MASK));
 		ep->has_data--;
@@ -1555,7 +1555,7 @@ static int ep_req_receive(struct qe_ep *ep, struct qe_req *req)
 	if (ep->state == EP_STATE_NACK) {
 		if (ep->has_data <= 0) {
 			/* Enable rx and unmask rx interrupt */
-			qe_eprx_normal(ep);
+			qe_eprx_yesrmal(ep);
 		} else {
 			/* Copy the exist BD data */
 			ep_req_rx(ep, req);
@@ -1614,7 +1614,7 @@ static int qe_ep_disable(struct usb_ep *_ep)
 	udc = ep->udc;
 
 	if (!_ep || !ep->ep.desc) {
-		dev_dbg(udc->dev, "%s not enabled\n", _ep ? ep->ep.name : NULL);
+		dev_dbg(udc->dev, "%s yest enabled\n", _ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
 
@@ -1797,7 +1797,7 @@ static int qe_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 /*-----------------------------------------------------------------
  * modify the endpoint halt feature
- * @ep: the non-isochronous endpoint being stalled
+ * @ep: the yesn-isochroyesus endpoint being stalled
  * @value: 1--set halt  0--clear halt
  * Returns zero, or a negative error code.
 *----------------------------------------------------------------*/
@@ -1992,11 +1992,11 @@ stall:
 	qe_ep0_stall(udc);
 }
 
-/* only handle the setup request, suppose the device in normal status */
+/* only handle the setup request, suppose the device in yesrmal status */
 static void setup_received_handle(struct qe_udc *udc,
 				struct usb_ctrlrequest *setup)
 {
-	/* Fix Endian (udc->local_setup_buff is cpu Endian now)*/
+	/* Fix Endian (udc->local_setup_buff is cpu Endian yesw)*/
 	u16 wValue = le16_to_cpu(setup->wValue);
 	u16 wIndex = le16_to_cpu(setup->wIndex);
 	u16 wLength = le16_to_cpu(setup->wLength);
@@ -2029,7 +2029,7 @@ static void setup_received_handle(struct qe_udc *udc,
 
 	case USB_REQ_CLEAR_FEATURE:
 	case USB_REQ_SET_FEATURE:
-		/* Requests with no data phase, status phase from udc */
+		/* Requests with yes data phase, status phase from udc */
 		if ((setup->bRequestType & USB_TYPE_MASK)
 					!= USB_TYPE_STANDARD)
 			break;
@@ -2093,7 +2093,7 @@ static void suspend_irq(struct qe_udc *udc)
 	udc->resume_state = udc->usb_state;
 	udc->usb_state = USB_STATE_SUSPENDED;
 
-	/* report suspend to the driver ,serial.c not support this*/
+	/* report suspend to the driver ,serial.c yest support this*/
 	if (udc->driver->suspend)
 		udc->driver->suspend(&udc->gadget);
 }
@@ -2103,7 +2103,7 @@ static void resume_irq(struct qe_udc *udc)
 	udc->usb_state = udc->resume_state;
 	udc->resume_state = 0;
 
-	/* report resume to the driver , serial.c not support this*/
+	/* report resume to the driver , serial.c yest support this*/
 	if (udc->driver->resume)
 		udc->driver->resume(&udc->gadget);
 }
@@ -2200,7 +2200,7 @@ static void rx_irq(struct qe_udc *udc)
 				if (ep->epnum == 0) {
 					qe_ep0_rx(udc);
 				} else {
-					/*non-setup package receive*/
+					/*yesn-setup package receive*/
 					qe_ep_rx(ep);
 				}
 			}
@@ -2219,7 +2219,7 @@ static irqreturn_t qe_udc_irq(int irq, void *_udc)
 
 	irq_src = in_be16(&udc->usb_regs->usb_usber) &
 		in_be16(&udc->usb_regs->usb_usbmr);
-	/* Clear notification bits */
+	/* Clear yestification bits */
 	out_be16(&udc->usb_regs->usb_usber, irq_src);
 	/* USB Interrupt */
 	if (irq_src & USB_E_IDLE_MASK) {
@@ -2273,7 +2273,7 @@ static int fsl_qe_start(struct usb_gadget *gadget,
 	unsigned long flags;
 
 	udc = container_of(gadget, struct qe_udc, gadget);
-	/* lock is needed but whether should use this lock or another */
+	/* lock is needed but whether should use this lock or ayesther */
 	spin_lock_irqsave(&udc->lock, flags);
 
 	driver->driver.bus = NULL;
@@ -2304,7 +2304,7 @@ static int fsl_qe_stop(struct usb_gadget *gadget)
 	/* stop usb controller, disable intr */
 	qe_usb_disable(udc);
 
-	/* in fact, no needed */
+	/* in fact, yes needed */
 	udc->usb_state = USB_STATE_ATTACHED;
 	udc->ep0_state = WAIT_FOR_SETUP;
 	udc->ep0_dir = 0;
@@ -2326,7 +2326,7 @@ static int fsl_qe_stop(struct usb_gadget *gadget)
 static struct qe_udc *qe_udc_config(struct platform_device *ofdev)
 {
 	struct qe_udc *udc;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	unsigned long tmp_addr = 0;
 	struct usb_device_para __iomem *usbpram;
 	unsigned int i;
@@ -2383,7 +2383,7 @@ static int qe_udc_reg_init(struct qe_udc *udc)
 
 	/* Spec says that we must enable the USB controller to change mode. */
 	out_8(&qe_usbregs->usb_usmod, 0x01);
-	/* Mode changed, now disable it, since muram isn't initialized yet. */
+	/* Mode changed, yesw disable it, since muram isn't initialized yet. */
 	out_8(&qe_usbregs->usb_usmod, 0x00);
 
 	/* Initialize the rest. */
@@ -2431,7 +2431,7 @@ static int qe_ep_config(struct qe_udc *udc, unsigned char pipe_num)
 	/* the queue lists any req for this ep */
 	INIT_LIST_HEAD(&ep->queue);
 
-	/* gagdet.ep_list used for ep_autoconfig so no ep0*/
+	/* gagdet.ep_list used for ep_autoconfig so yes ep0*/
 	if (pipe_num != 0)
 		list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
 
@@ -2462,7 +2462,7 @@ static int qe_udc_probe(struct platform_device *ofdev)
 {
 	struct qe_udc *udc;
 	const struct of_device_id *match;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct qe_ep *ep;
 	unsigned int ret = 0;
 	unsigned int i;
@@ -2559,13 +2559,13 @@ static int qe_udc_probe(struct platform_device *ofdev)
 	udc->usb_irq = irq_of_parse_and_map(np, 0);
 	if (!udc->usb_irq) {
 		ret = -EINVAL;
-		goto err_noirq;
+		goto err_yesirq;
 	}
 
 	ret = request_irq(udc->usb_irq, qe_udc_irq, 0,
 				driver_name, udc);
 	if (ret) {
-		dev_err(udc->dev, "cannot request irq %d err %d\n",
+		dev_err(udc->dev, "canyest request irq %d err %d\n",
 				udc->usb_irq, ret);
 		goto err4;
 	}
@@ -2585,7 +2585,7 @@ err5:
 	free_irq(udc->usb_irq, udc);
 err4:
 	irq_dispose_mapping(udc->usb_irq);
-err_noirq:
+err_yesirq:
 	if (udc->nullmap) {
 		dma_unmap_single(udc->gadget.dev.parent,
 			udc->nullp, 256,

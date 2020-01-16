@@ -122,7 +122,7 @@ static const struct pck at91sam9x35_periphck[] = {
 	{ /* sentinel */}
 };
 
-static void __init at91sam9x5_pmc_setup(struct device_node *np,
+static void __init at91sam9x5_pmc_setup(struct device_yesde *np,
 					const struct pck *extra_pcks,
 					bool has_lcdck)
 {
@@ -146,7 +146,7 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 		return;
 	mainxtal_name = of_clk_get_parent_name(np, i);
 
-	regmap = device_node_to_regmap(np);
+	regmap = device_yesde_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -281,35 +281,35 @@ err_free:
 	pmc_data_free(at91sam9x5_pmc);
 }
 
-static void __init at91sam9g15_pmc_setup(struct device_node *np)
+static void __init at91sam9g15_pmc_setup(struct device_yesde *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9g15_periphck, true);
 }
 CLK_OF_DECLARE_DRIVER(at91sam9g15_pmc, "atmel,at91sam9g15-pmc",
 		      at91sam9g15_pmc_setup);
 
-static void __init at91sam9g25_pmc_setup(struct device_node *np)
+static void __init at91sam9g25_pmc_setup(struct device_yesde *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9g25_periphck, false);
 }
 CLK_OF_DECLARE_DRIVER(at91sam9g25_pmc, "atmel,at91sam9g25-pmc",
 		      at91sam9g25_pmc_setup);
 
-static void __init at91sam9g35_pmc_setup(struct device_node *np)
+static void __init at91sam9g35_pmc_setup(struct device_yesde *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9g35_periphck, true);
 }
 CLK_OF_DECLARE_DRIVER(at91sam9g35_pmc, "atmel,at91sam9g35-pmc",
 		      at91sam9g35_pmc_setup);
 
-static void __init at91sam9x25_pmc_setup(struct device_node *np)
+static void __init at91sam9x25_pmc_setup(struct device_yesde *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9x25_periphck, false);
 }
 CLK_OF_DECLARE_DRIVER(at91sam9x25_pmc, "atmel,at91sam9x25-pmc",
 		      at91sam9x25_pmc_setup);
 
-static void __init at91sam9x35_pmc_setup(struct device_node *np)
+static void __init at91sam9x35_pmc_setup(struct device_yesde *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9x35_periphck, true);
 }

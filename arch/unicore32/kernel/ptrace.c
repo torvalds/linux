@@ -110,32 +110,32 @@ long arch_ptrace(struct task_struct *child, long request,
 	return ret;
 }
 
-asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
+asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scyes)
 {
 	unsigned long ip;
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return scno;
+		return scyes;
 	if (!(current->ptrace & PT_PTRACED))
-		return scno;
+		return scyes;
 
 	/*
-	 * Save IP.  IP is used to denote syscall entry/exit:
+	 * Save IP.  IP is used to deyeste syscall entry/exit:
 	 *  IP = 0 -> entry, = 1 -> exit
 	 */
 	ip = regs->UCreg_ip;
 	regs->UCreg_ip = why;
 
-	current_thread_info()->syscall = scno;
+	current_thread_info()->syscall = scyes;
 
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
+	ptrace_yestify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
 				 ? 0x80 : 0));
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
+	 * for yesrmal use.  strace only continues with a signal if the
+	 * stopping signal is yest SIGTRAP.  -brl
 	 */
 	if (current->exit_code) {
 		send_sig(current->exit_code, current, 1);

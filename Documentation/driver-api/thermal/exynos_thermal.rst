@@ -1,5 +1,5 @@
 ========================
-Kernel driver exynos_tmu
+Kernel driver exyyess_tmu
 ========================
 
 Supported chips:
@@ -56,35 +56,35 @@ The threshold levels are defined as follows::
 The threshold and each trigger_level are set
 through the corresponding registers.
 
-When an interrupt occurs, this driver notify kernel thermal framework
-with the function exynos_report_trigger.
+When an interrupt occurs, this driver yestify kernel thermal framework
+with the function exyyess_report_trigger.
 Although an interrupt condition for level_0 can be set,
 it can be used to synchronize the cooling action.
 
 TMU driver description:
 -----------------------
 
-The exynos thermal driver is structured as::
+The exyyess thermal driver is structured as::
 
 					Kernel Core thermal framework
 				(thermal_core.c, step_wise.c, cpu_cooling.c)
 								^
 								|
 								|
-  TMU configuration data -----> TMU Driver  <----> Exynos Core thermal wrapper
-  (exynos_tmu_data.c)	      (exynos_tmu.c)	   (exynos_thermal_common.c)
-  (exynos_tmu_data.h)	      (exynos_tmu.h)	   (exynos_thermal_common.h)
+  TMU configuration data -----> TMU Driver  <----> Exyyess Core thermal wrapper
+  (exyyess_tmu_data.c)	      (exyyess_tmu.c)	   (exyyess_thermal_common.c)
+  (exyyess_tmu_data.h)	      (exyyess_tmu.h)	   (exyyess_thermal_common.h)
 
 a) TMU configuration data:
 		This consist of TMU register offsets/bitfields
-		described through structure exynos_tmu_registers. Also several
-		other platform data (struct exynos_tmu_platform_data) members
+		described through structure exyyess_tmu_registers. Also several
+		other platform data (struct exyyess_tmu_platform_data) members
 		are used to configure the TMU.
 b) TMU driver:
 		This component initialises the TMU controller and sets different
 		thresholds. It invokes core thermal implementation with the call
-		exynos_report_trigger.
-c) Exynos Core thermal wrapper:
+		exyyess_report_trigger.
+c) Exyyess Core thermal wrapper:
 		This provides 3 wrapper function to use the
-		Kernel core thermal framework. They are exynos_unregister_thermal,
-		exynos_register_thermal and exynos_report_trigger.
+		Kernel core thermal framework. They are exyyess_unregister_thermal,
+		exyyess_register_thermal and exyyess_report_trigger.

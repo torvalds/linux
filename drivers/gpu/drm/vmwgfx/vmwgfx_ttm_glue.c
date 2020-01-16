@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -37,7 +37,7 @@ int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 		.close = ttm_bo_vm_close
 	};
 	struct drm_file *file_priv = filp->private_data;
-	struct vmw_private *dev_priv = vmw_priv(file_priv->minor->dev);
+	struct vmw_private *dev_priv = vmw_priv(file_priv->miyesr->dev);
 	int ret = ttm_bo_mmap(filp, vma, &dev_priv->bdev);
 
 	if (ret)
@@ -52,7 +52,7 @@ int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 static int vmw_vmt_reserve(struct vmw_validation_mem *m, size_t size)
 {
 	static struct ttm_operation_ctx ctx = {.interruptible = false,
-					       .no_wait_gpu = false};
+					       .yes_wait_gpu = false};
 	struct vmw_private *dev_priv = container_of(m, struct vmw_private, vvm);
 
 	return ttm_mem_global_alloc(vmw_mem_glob(dev_priv), size, &ctx);

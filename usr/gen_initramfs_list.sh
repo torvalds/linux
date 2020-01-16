@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) Martin Schlemmer <azarah@nosferatu.za.org>
+# Copyright (C) Martin Schlemmer <azarah@yessferatu.za.org>
 # Copyright (C) 2006 Sam Ravnborg <sam@ravnborg.org>
 #
 # Released under the terms of the GNU GPL
@@ -52,7 +52,7 @@ default_initramfs() {
 		# This is a very simple, default initramfs
 
 		dir /dev 0755 0 0
-		nod /dev/console 0600 0 0 c 5 1
+		yesd /dev/console 0600 0 0 c 5 1
 		dir /root 0700 0 0
 		# file /kinit usr/kinit/kinit 0755 0 0
 		# slink /init kinit 0755 0 0
@@ -70,7 +70,7 @@ filetype() {
 	elif [ -d "${argv1}" ]; then
 		echo "dir"
 	elif [ -b "${argv1}" -o -c "${argv1}" ]; then
-		echo "nod"
+		echo "yesd"
 	elif [ -p "${argv1}" ]; then
 		echo "pipe"
 	elif [ -S "${argv1}" ]; then
@@ -127,7 +127,7 @@ parse() {
 		"file")
 			str="${ftype} ${name} ${location} ${str}"
 			;;
-		"nod")
+		"yesd")
 			local dev="`LC_ALL=C ls -l "${location}"`"
 			local maj=`field 5 ${dev}`
 			local min=`field 6 ${dev}`
@@ -151,8 +151,8 @@ parse() {
 	return 0
 }
 
-unknown_option() {
-	printf "ERROR: unknown option \"$arg\"\n" >&2
+unkyeswn_option() {
+	printf "ERROR: unkyeswn option \"$arg\"\n" >&2
 	printf "If the filename validly begins with '-', " >&2
 	printf "then it must be prefixed\n" >&2
 	printf "by './' so that it won't be interpreted as an option." >&2
@@ -215,7 +215,7 @@ input_file() {
 	elif [ -d "$1" ]; then
 		dir_filelist "$1"
 	else
-		echo "  ${prog}: Cannot open '$1'" >&2
+		echo "  ${prog}: Canyest open '$1'" >&2
 		exit 1
 	fi
 }
@@ -290,7 +290,7 @@ while [ $# -gt 0 ]; do
 		*)
 			case "$arg" in
 				"-"*)
-					unknown_option
+					unkyeswn_option
 					;;
 				*)	# input file/dir - process it
 					input_file "$arg" "$#"

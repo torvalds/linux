@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -47,7 +47,7 @@ extern "C" {
 #define DRM_VC4_PERFMON_GET_VALUES                0x0e
 
 #define DRM_IOCTL_VC4_SUBMIT_CL           DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_SUBMIT_CL, struct drm_vc4_submit_cl)
-#define DRM_IOCTL_VC4_WAIT_SEQNO          DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_WAIT_SEQNO, struct drm_vc4_wait_seqno)
+#define DRM_IOCTL_VC4_WAIT_SEQNO          DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_WAIT_SEQNO, struct drm_vc4_wait_seqyes)
 #define DRM_IOCTL_VC4_WAIT_BO             DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_WAIT_BO, struct drm_vc4_wait_bo)
 #define DRM_IOCTL_VC4_CREATE_BO           DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_CREATE_BO, struct drm_vc4_create_bo)
 #define DRM_IOCTL_VC4_MMAP_BO             DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_MMAP_BO, struct drm_vc4_mmap_bo)
@@ -63,7 +63,7 @@ extern "C" {
 #define DRM_IOCTL_VC4_PERFMON_GET_VALUES  DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_PERFMON_GET_VALUES, struct drm_vc4_perfmon_get_values)
 
 struct drm_vc4_submit_rcl_surface {
-	__u32 hindex; /* Handle index, or ~0 if not present. */
+	__u32 hindex; /* Handle index, or ~0 if yest present. */
 	__u32 offset; /* Offset to start of buffer. */
 	/*
 	 * Bits for either render config (color_write) or load/store packet.
@@ -102,7 +102,7 @@ struct drm_vc4_submit_cl {
 	 *
 	 * Shader records are the structures read by the hardware that contain
 	 * pointers to uniforms, shaders, and vertex attributes.  The
-	 * reference to the shader record has enough information to determine
+	 * reference to the shader record has eyesugh information to determine
 	 * how many pointers are necessary (fixed number for shaders/uniforms,
 	 * and an attribute count), so those BO indices into bo_handles are
 	 * just stored as __u32s before each shader record passed in.
@@ -175,22 +175,22 @@ struct drm_vc4_submit_cl {
 #define VC4_SUBMIT_CL_RCL_ORDER_INCREASING_Y		(1 << 3)
 	__u32 flags;
 
-	/* Returned value of the seqno of this render job (for the
+	/* Returned value of the seqyes of this render job (for the
 	 * wait ioctl).
 	 */
-	__u64 seqno;
+	__u64 seqyes;
 
-	/* ID of the perfmon to attach to this job. 0 means no perfmon. */
+	/* ID of the perfmon to attach to this job. 0 means yes perfmon. */
 	__u32 perfmonid;
 
 	/* Syncobj handle to wait on. If set, processing of this render job
-	 * will not start until the syncobj is signaled. 0 means ignore.
+	 * will yest start until the syncobj is signaled. 0 means igyesre.
 	 */
 	__u32 in_sync;
 
 	/* Syncobj handle to export fence to. If set, the fence in the syncobj
 	 * will be replaced with a fence that signals upon completion of this
-	 * render job. 0 means ignore.
+	 * render job. 0 means igyesre.
 	 */
 	__u32 out_sync;
 
@@ -198,14 +198,14 @@ struct drm_vc4_submit_cl {
 };
 
 /**
- * struct drm_vc4_wait_seqno - ioctl argument for waiting for
- * DRM_VC4_SUBMIT_CL completion using its returned seqno.
+ * struct drm_vc4_wait_seqyes - ioctl argument for waiting for
+ * DRM_VC4_SUBMIT_CL completion using its returned seqyes.
  *
- * timeout_ns is the timeout in nanoseconds, where "0" means "don't
+ * timeout_ns is the timeout in nayesseconds, where "0" means "don't
  * block, just return the status."
  */
-struct drm_vc4_wait_seqno {
-	__u64 seqno;
+struct drm_vc4_wait_seqyes {
+	__u64 seqyes;
 	__u64 timeout_ns;
 };
 
@@ -226,7 +226,7 @@ struct drm_vc4_wait_bo {
 /**
  * struct drm_vc4_create_bo - ioctl argument for creating VC4 BOs.
  *
- * There are currently no values for the flags argument, but it may be
+ * There are currently yes values for the flags argument, but it may be
  * used in a future extension.
  */
 struct drm_vc4_create_bo {
@@ -241,18 +241,18 @@ struct drm_vc4_create_bo {
  * struct drm_vc4_mmap_bo - ioctl argument for mapping VC4 BOs.
  *
  * This doesn't actually perform an mmap.  Instead, it returns the
- * offset you need to use in an mmap on the DRM device node.  This
- * means that tools like valgrind end up knowing about the mapped
+ * offset you need to use in an mmap on the DRM device yesde.  This
+ * means that tools like valgrind end up kyeswing about the mapped
  * memory.
  *
- * There are currently no values for the flags argument, but it may be
+ * There are currently yes values for the flags argument, but it may be
  * used in a future extension.
  */
 struct drm_vc4_mmap_bo {
 	/** Handle for the object being mapped. */
 	__u32 handle;
 	__u32 flags;
-	/** offset into the drm node to use for subsequent mmap call. */
+	/** offset into the drm yesde to use for subsequent mmap call. */
 	__u64 offset;
 };
 
@@ -360,7 +360,7 @@ struct drm_vc4_label_bo {
 };
 
 /*
- * States prefixed with '__' are internal states and cannot be passed to the
+ * States prefixed with '__' are internal states and canyest be passed to the
  * DRM_IOCTL_VC4_GEM_MADVISE ioctl.
  */
 #define VC4_MADV_WILLNEED			0
@@ -427,7 +427,7 @@ struct drm_vc4_perfmon_destroy {
  *
  * No implicit synchronization is performed, so the user has to
  * guarantee that any jobs using this perfmon have already been
- * completed  (probably by blocking on the seqno returned by the
+ * completed  (probably by blocking on the seqyes returned by the
  * last exec that used the perfmon).
  */
 struct drm_vc4_perfmon_get_values {

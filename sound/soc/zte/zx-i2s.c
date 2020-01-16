@@ -193,7 +193,7 @@ static int zx_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		val |= (ZX_I2S_TIMING_I2S | ZX_I2S_TIMING_LSB_JUSTIF);
 		break;
 	default:
-		dev_err(cpu_dai->dev, "Unknown i2s timing\n");
+		dev_err(cpu_dai->dev, "Unkyeswn i2s timing\n");
 		return -EINVAL;
 	}
 
@@ -209,7 +209,7 @@ static int zx_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		val |= ZX_I2S_TIMING_MAST;
 		break;
 	default:
-		dev_err(cpu_dai->dev, "Unknown master/slave format\n");
+		dev_err(cpu_dai->dev, "Unkyeswn master/slave format\n");
 		return -EINVAL;
 	}
 
@@ -247,7 +247,7 @@ static int zx_i2s_hw_params(struct snd_pcm_substream *substream,
 		len = 32;
 		break;
 	default:
-		dev_err(socdai->dev, "Unknown data format\n");
+		dev_err(socdai->dev, "Unkyeswn data format\n");
 		return -EINVAL;
 	}
 	val |= ZX_I2S_TIMING_TS_WIDTH(ts_width) | ZX_I2S_TIMING_DATA_SIZE(len);

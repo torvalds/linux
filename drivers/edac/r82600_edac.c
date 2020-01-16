@@ -32,11 +32,11 @@
 
 /* Radisys say "The 82600 integrates a main memory SDRAM controller that
  * supports up to four banks of memory. The four banks can support a mix of
- * sizes of 64 bit wide (72 bits with ECC) Synchronous DRAM (SDRAM) DIMMs,
+ * sizes of 64 bit wide (72 bits with ECC) Synchroyesus DRAM (SDRAM) DIMMs,
  * each of which can be any size from 16MB to 512MB. Both registered (control
  * signals buffered) and unbuffered DIMM types are supported. Mixing of
- * registered and unbuffered DIMMs as well as mixing of ECC and non-ECC DIMMs
- * is not allowed. The 82600 SDRAM interface operates at the same frequency as
+ * registered and unbuffered DIMMs as well as mixing of ECC and yesn-ECC DIMMs
+ * is yest allowed. The 82600 SDRAM interface operates at the same frequency as
  * the CPU bus, 66MHz, 100MHz or 133MHz."
  */
 
@@ -52,7 +52,7 @@
 				 *
 				 * 7    SDRAM ISA Hole Enable
 				 * 6    Flash Page Mode Enable
-				 * 5    ECC Enable: 1=ECC 0=noECC
+				 * 5    ECC Enable: 1=ECC 0=yesECC
 				 * 4    DRAM DIMM Type: 1=
 				 * 3    BIOS Alias Disable
 				 * 2    SDRAM BIOS Flash Write Enable
@@ -102,18 +102,18 @@
 				 * 2     NMI on Single Bit Eror (RW)
 				 *        1=NMI triggered by SBE n.b. other
 				 *          prerequeists
-				 *        0=NMI not triggered
+				 *        0=NMI yest triggered
 				 *
 				 * 1     MBE (R/WC)
 				 *        read 1=MBE at EAP (see above)
-				 *        read 0=no MBE, or SBE occurred first
+				 *        read 0=yes MBE, or SBE occurred first
 				 *        write 1=Clear MBE status (must also
 				 *          clear SBE)
 				 *        write 0=NOP
 				 *
 				 * 1     SBE (R/WC)
 				 *        read 1=SBE at EAP (see above)
-				 *        read 0=no SBE, or MBE occurred first
+				 *        read 0=yes SBE, or MBE occurred first
 				 *        write 1=Clear SBE status (must also
 				 *          clear MBE)
 				 *        write 0=NOP
@@ -189,7 +189,7 @@ static int r82600_process_error_info(struct mem_ctl_info *mci,
 		error_found = 1;
 
 		if (handle_errors)
-			/* 82600 doesn't give enough info */
+			/* 82600 doesn't give eyesugh info */
 			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 					     page, 0, 0,
 					     edac_mc_find_csrow_by_page(mci, page),
@@ -257,7 +257,7 @@ static void r82600_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		 * 14 bits                                               */
 		dimm->grain = 1 << 14;
 		dimm->mtype = reg_sdram ? MEM_RDDR : MEM_DDR;
-		/* FIXME - check that this is unknowable with this chipset */
+		/* FIXME - check that this is unkyeswable with this chipset */
 		dimm->dtype = DEV_UNKNOWN;
 
 		/* Mode is global on 82600 */
@@ -303,7 +303,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 
 	/* On the R82600, the pins for memory bits 72:65 - i.e. the   *
 	 * EC bits are shared with the pins for COM2 (!), so if COM2  *
-	 * is enabled, we assume COM2 is wired up, and thus no EDAC   *
+	 * is enabled, we assume COM2 is wired up, and thus yes EDAC   *
 	 * is possible.                                               */
 	mci->edac_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 
@@ -344,7 +344,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC yest setup\n",
 			__func__);
 	}
 

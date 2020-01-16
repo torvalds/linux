@@ -43,7 +43,7 @@ config SAMSUNG_ATAGS
 	   Samsung platforms, including static platform devices, legacy
 	   clock, timer and interrupt initialization, etc.
 
-	   Platforms that support only DT based boot need not to select
+	   Platforms that support only DT based boot need yest to select
 	   this option.
 
 if SAMSUNG_ATAGS
@@ -54,7 +54,7 @@ config S3C_GPIO_SPACE
 	help
 	  Add a number of spare GPIO entries between each bank for debugging
 	  purposes. This allows any problems where an counter overflows from
-	  one bank to another to be caught, at the expense of using a little
+	  one bank to ayesther to be caught, at the expense of using a little
 	  more memory.
 
 config S3C_GPIO_TRACK
@@ -230,7 +230,7 @@ config SAMSUNG_PM_GPIO
 	bool
 	default y if GPIO_SAMSUNG && PM
 	help
-	  Include legacy GPIO power management code for platforms not using
+	  Include legacy GPIO power management code for platforms yest using
 	  pinctrl-samsung driver.
 endif
 
@@ -294,7 +294,7 @@ config SAMSUNG_WDT_RESET
 	bool
 	help
 	  Compile support for system restart by triggering watchdog reset.
-	  Used on SoCs that do not provide dedicated reset control.
+	  Used on SoCs that do yest provide dedicated reset control.
 
 config DEBUG_S3C_UART
 	depends on PLAT_SAMSUNG

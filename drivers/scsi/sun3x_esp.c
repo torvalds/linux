@@ -95,7 +95,7 @@ static void sun3x_esp_dma_drain(struct esp *esp)
 	lim = 1000;
 	while (dma_read32(DMA_CSR) & DMA_FIFO_ISDRAIN) {
 		if (--lim == 0) {
-			printk(KERN_ALERT PFX "esp%d: DMA will not drain!\n",
+			printk(KERN_ALERT PFX "esp%d: DMA will yest drain!\n",
 			       esp->host->unique_id);
 			break;
 		}
@@ -111,7 +111,7 @@ static void sun3x_esp_dma_invalidate(struct esp *esp)
 	lim = 1000;
 	while ((val = dma_read32(DMA_CSR)) & DMA_PEND_READ) {
 		if (--lim == 0) {
-			printk(KERN_ALERT PFX "esp%d: DMA will not "
+			printk(KERN_ALERT PFX "esp%d: DMA will yest "
 			       "invalidate!\n", esp->host->unique_id);
 			break;
 		}
@@ -190,7 +190,7 @@ static int esp_sun3x_probe(struct platform_device *dev)
 	if (!res || !res->start)
 		goto fail_unlink;
 
-	esp->regs = ioremap_nocache(res->start, 0x20);
+	esp->regs = ioremap_yescache(res->start, 0x20);
 	if (!esp->regs)
 		goto fail_unmap_regs;
 
@@ -198,7 +198,7 @@ static int esp_sun3x_probe(struct platform_device *dev)
 	if (!res || !res->start)
 		goto fail_unmap_regs;
 
-	esp->dma_regs = ioremap_nocache(res->start, 0x10);
+	esp->dma_regs = ioremap_yescache(res->start, 0x10);
 
 	esp->command_block = dma_alloc_coherent(esp->dev, 16,
 						&esp->command_block_dma,

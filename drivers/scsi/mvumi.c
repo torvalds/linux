@@ -140,7 +140,7 @@ static struct mvumi_res *mvumi_alloc_mem_resource(struct mvumi_hba *mhba,
 		break;
 
 	default:
-		dev_err(&mhba->pdev->dev, "unknown resource type %d.\n", type);
+		dev_err(&mhba->pdev->dev, "unkyeswn resource type %d.\n", type);
 		kfree(res);
 		return NULL;
 	}
@@ -168,7 +168,7 @@ static void mvumi_release_mem_resource(struct mvumi_hba *mhba)
 			break;
 		default:
 			dev_err(&mhba->pdev->dev,
-				"unknown resource type %d\n", res->type);
+				"unkyeswn resource type %d\n", res->type);
 			break;
 		}
 		list_del(&res->entry);
@@ -410,7 +410,7 @@ static unsigned int mvumi_check_ib_list_9143(struct mvumi_hba *mhba)
 			(mhba->ib_cur_slot & regs->cl_slot_num_mask)) &&
 			((ib_rp_reg & regs->cl_pointer_toggle)
 			 != (mhba->ib_cur_slot & regs->cl_pointer_toggle)))) {
-		dev_warn(&mhba->pdev->dev, "no free slot to use.\n");
+		dev_warn(&mhba->pdev->dev, "yes free slot to use.\n");
 		return 0;
 	}
 	if (atomic_read(&mhba->fw_outstanding) >= mhba->max_io) {
@@ -716,7 +716,7 @@ static int mvumi_issue_blocked_cmd(struct mvumi_hba *mhba,
 
 	if (atomic_read(&cmd->sync_cmd)) {
 		dev_err(&mhba->pdev->dev,
-			"last blocked cmd not finished, sync_cmd = %d\n",
+			"last blocked cmd yest finished, sync_cmd = %d\n",
 						atomic_read(&cmd->sync_cmd));
 		BUG_ON(1);
 		return -1;
@@ -845,7 +845,7 @@ static void mvumi_hs_build_page(struct mvumi_hba *mhba,
 		if (mhba->hba_capability & HS_CAPABILITY_SUPPORT_DYN_SRC)
 			hs_page2->host_cap = 0x08;/* host dynamic source mode */
 		hs_page2->host_ver.ver_major = VER_MAJOR;
-		hs_page2->host_ver.ver_minor = VER_MINOR;
+		hs_page2->host_ver.ver_miyesr = VER_MINOR;
 		hs_page2->host_ver.ver_oem = VER_OEM;
 		hs_page2->host_ver.ver_build = VER_BUILD;
 		hs_page2->system_io_bus = 0;
@@ -895,7 +895,7 @@ static void mvumi_hs_build_page(struct mvumi_hba *mhba,
 		break;
 
 	default:
-		dev_err(&mhba->pdev->dev, "cannot build page, code[0x%x]\n",
+		dev_err(&mhba->pdev->dev, "canyest build page, code[0x%x]\n",
 			hs_header->page_code);
 		break;
 	}
@@ -1052,7 +1052,7 @@ static int mvumi_hs_process_page(struct mvumi_hba *mhba,
 		hs_page1 = (struct mvumi_hs_page1 *) hs_header;
 
 		mhba->max_io = hs_page1->max_io_support;
-		mhba->list_num_io = hs_page1->cl_inout_list_depth;
+		mhba->list_num_io = hs_page1->cl_iyesut_list_depth;
 		mhba->max_transfer_size = hs_page1->max_transfer_size;
 		mhba->max_target_id = hs_page1->max_devices_support;
 		mhba->hba_capability = hs_page1->capability;
@@ -1070,7 +1070,7 @@ static int mvumi_hs_process_page(struct mvumi_hba *mhba,
 		else
 			mhba->eot_flag = 27;
 		if (mhba->hba_capability & HS_CAPABILITY_NEW_PAGE_IO_DEPTH_DEF)
-			mhba->list_num_io = 1 << hs_page1->cl_inout_list_depth;
+			mhba->list_num_io = 1 << hs_page1->cl_iyesut_list_depth;
 		break;
 	default:
 		dev_err(&mhba->pdev->dev, "handshake: page code error\n");
@@ -1200,7 +1200,7 @@ static int mvumi_handshake(struct mvumi_hba *mhba)
 
 		break;
 	default:
-		dev_err(&mhba->pdev->dev, "unknown handshake state [0x%x].\n",
+		dev_err(&mhba->pdev->dev, "unkyeswn handshake state [0x%x].\n",
 								hs_state);
 		return -1;
 	}
@@ -1221,7 +1221,7 @@ static unsigned char mvumi_handshake_event(struct mvumi_hba *mhba)
 			return 0;
 		if (time_after(jiffies, before + FW_MAX_DELAY * HZ)) {
 			dev_err(&mhba->pdev->dev,
-				"no handshake response at state 0x%x.\n",
+				"yes handshake response at state 0x%x.\n",
 				  mhba->fw_state);
 			dev_err(&mhba->pdev->dev,
 				"isr : global=0x%x,status=0x%x.\n",
@@ -1357,7 +1357,7 @@ static void mvumi_show_event(struct mvumi_hba *mhba,
 
 	dev_warn(&mhba->pdev->dev,
 		"Event[0x%x] id[0x%x] severity[0x%x] device id[0x%x]\n",
-		ptr->sequence_no, ptr->event_id, ptr->severity, ptr->device_id);
+		ptr->sequence_yes, ptr->event_id, ptr->severity, ptr->device_id);
 	if (ptr->param_count) {
 		printk(KERN_WARNING "Event param(len 0x%x): ",
 						ptr->param_count);
@@ -1390,7 +1390,7 @@ static int mvumi_handle_hotplug(struct mvumi_hba *mhba, u16 devid, int status)
 			scsi_device_put(sdev);
 			ret = 0;
 		} else
-			dev_err(&mhba->pdev->dev, " no disk[%d] to remove\n",
+			dev_err(&mhba->pdev->dev, " yes disk[%d] to remove\n",
 									devid);
 	} else if (status == DEVICE_ONLINE) {
 		sdev = scsi_device_lookup(mhba->shost, 0, devid, 0);
@@ -1565,7 +1565,7 @@ static int mvumi_probe_devices(struct mvumi_hba *mhba)
 	for (id = 0; id < maxid; id++) {
 		wwid = mvumi_inquiry(mhba, id, cmd);
 		if (!wwid) {
-			/* device no response, remove it */
+			/* device yes response, remove it */
 			mvumi_remove_devices(mhba, id);
 		} else {
 			/* device response, add it */
@@ -1674,7 +1674,7 @@ static void mvumi_proc_msg(struct mvumi_hba *mhba,
 	}
 }
 
-static void mvumi_notification(struct mvumi_hba *mhba, u8 msg, void *buffer)
+static void mvumi_yestification(struct mvumi_hba *mhba, u8 msg, void *buffer)
 {
 	if (msg == APICDB1_EVENT_GETEVENT) {
 		int i, count;
@@ -1722,7 +1722,7 @@ static int mvumi_get_event(struct mvumi_hba *mhba, unsigned char msg)
 		dev_err(&mhba->pdev->dev, "get event failed, status=0x%x.\n",
 							cmd->cmd_status);
 	else
-		mvumi_notification(mhba, cmd->frame->cdb[1], cmd->data_buf);
+		mvumi_yestification(mhba, cmd->frame->cdb[1], cmd->data_buf);
 
 	mvumi_delete_internal_cmd(mhba, cmd);
 	return 0;
@@ -1828,11 +1828,11 @@ static enum mvumi_qc_result mvumi_send_command(struct mvumi_hba *mhba,
 
 	ib_frame = cmd->frame;
 	if (unlikely(mhba->fw_state != FW_STATE_STARTED)) {
-		dev_dbg(&mhba->pdev->dev, "firmware not ready.\n");
+		dev_dbg(&mhba->pdev->dev, "firmware yest ready.\n");
 		return MV_QUEUE_COMMAND_RESULT_NO_RESOURCE;
 	}
 	if (tag_is_empty(&mhba->tag_pool)) {
-		dev_dbg(&mhba->pdev->dev, "no free tag.\n");
+		dev_dbg(&mhba->pdev->dev, "yes free tag.\n");
 		return MV_QUEUE_COMMAND_RESULT_NO_RESOURCE;
 	}
 	mvumi_get_ib_list_entry(mhba, &ib_entry);
@@ -2333,7 +2333,7 @@ static int mvumi_init_fw(struct mvumi_hba *mhba)
 		mhba->max_sge = MVUMI_MAX_SG_ENTRY;
 		break;
 	default:
-		dev_err(&mhba->pdev->dev, "device 0x%x not supported!\n",
+		dev_err(&mhba->pdev->dev, "device 0x%x yest supported!\n",
 							mhba->pdev->device);
 		mhba->instancet = NULL;
 		ret = -EINVAL;

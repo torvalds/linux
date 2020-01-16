@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -195,7 +195,7 @@ L_FETCH_2ND_TRAP:
 	s_load_dwordx2	[ttmp14, ttmp15], [ttmp14, ttmp15], 0x8 glc:1		// second-level TMA
 	s_waitcnt	lgkmcnt(0)
 	s_and_b64	[ttmp2, ttmp3], [ttmp2, ttmp3], [ttmp2, ttmp3]
-	s_cbranch_scc0	L_NO_NEXT_TRAP						// second-level trap handler not been set
+	s_cbranch_scc0	L_NO_NEXT_TRAP						// second-level trap handler yest been set
 	s_setpc_b64	[ttmp2, ttmp3]						// jump to second-level trap handler
 
 L_NO_NEXT_TRAP:
@@ -216,8 +216,8 @@ L_EXCP_CASE:
 	s_setreg_b32	hwreg(HW_REG_IB_STS), ttmp2
 
 	// Restore SQ_WAVE_STATUS.
-	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, not writable by s_setreg_b32
-	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, not writable by s_setreg_b32
+	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, yest writable by s_setreg_b32
+	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, yest writable by s_setreg_b32
 	s_setreg_b32	hwreg(HW_REG_STATUS), s_save_status
 
 	s_rfe_b64	[ttmp0, ttmp1]
@@ -262,8 +262,8 @@ L_NO_PC_REWIND:
 	s_sendmsg	sendmsg(MSG_SAVEWAVE)					//send SPI a message and wait for SPI's write to EXEC
 
 L_SLEEP:
-	// sleep 1 (64clk) is not enough for 8 waves per SIMD, which will cause
-	// SQ hang, since the 7,8th wave could not get arbit to exec inst, while
+	// sleep 1 (64clk) is yest eyesugh for 8 waves per SIMD, which will cause
+	// SQ hang, since the 7,8th wave could yest get arbit to exec inst, while
 	// other waves are stuck into the sleep-loop and waiting for wrexec!=0
 	s_sleep		0x2
 	s_cbranch_execz	L_SLEEP
@@ -272,7 +272,7 @@ L_SLEEP:
 	s_mov_b32	s_save_buf_rsrc0, s_save_spi_init_lo			//base_addr_lo
 	s_and_b32	s_save_buf_rsrc1, s_save_spi_init_hi, 0x0000FFFF	//base_addr_hi
 	s_or_b32	s_save_buf_rsrc1, s_save_buf_rsrc1, S_SAVE_BUF_RSRC_WORD1_STRIDE
-	s_mov_b32	s_save_buf_rsrc2, 0					//NUM_RECORDS initial value = 0 (in bytes) although not neccessarily inited
+	s_mov_b32	s_save_buf_rsrc2, 0					//NUM_RECORDS initial value = 0 (in bytes) although yest neccessarily inited
 	s_mov_b32	s_save_buf_rsrc3, S_SAVE_BUF_RSRC_WORD3_MISC
 	s_and_b32	s_save_tmp, s_save_spi_init_hi, S_SAVE_SPI_INIT_ATC_MASK
 	s_lshr_b32	s_save_tmp, s_save_tmp, (S_SAVE_SPI_INIT_ATC_SHIFT-SQ_BUF_RSRC_WORD1_ATC_SHIFT)
@@ -340,7 +340,7 @@ L_SAVE_HWREG:
 	s_addc_u32	s_save_buf_rsrc1, s_save_buf_rsrc1, 0
 
 	s_mov_b32	m0, 0x0							//SGPR initial index value =0
-	s_nop		0x0							//Manually inserted wait states
+	s_yesp		0x0							//Manually inserted wait states
 L_SAVE_SGPR_LOOP:
 	// SGPR is allocated in 16 SGPR granularity
 	s_movrels_b64	s0, s0							//s0 = s[0+m0], s1 = s[1+m0]
@@ -373,7 +373,7 @@ L_SAVE_SGPR_LOOP:
 	// each wave will alloc 4 vgprs at least...
 
 	s_mov_b32	s_save_mem_offset, 0
- 	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from now on
+ 	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from yesw on
 	s_lshr_b32	m0, s_wave_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
 	s_cmp_eq_u32	m0, 1
@@ -408,7 +408,7 @@ L_SAVE_4VGPR_WAVE64:
 
 L_SAVE_LDS:
 	// Change EXEC to all threads...
-	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from now on
+	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from yesw on
 	s_lshr_b32	m0, s_wave_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
 	s_cmp_eq_u32	m0, 1
@@ -420,7 +420,7 @@ L_ENABLE_SAVE_LDS_EXEC_HI:
 L_SAVE_LDS_NORMAL:
 	s_getreg_b32	s_save_alloc_size, hwreg(HW_REG_LDS_ALLOC,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE)
 	s_and_b32	s_save_alloc_size, s_save_alloc_size, 0xFFFFFFFF	//lds_size is zero?
-	s_cbranch_scc0	L_SAVE_LDS_DONE						//no lds used? jump to L_SAVE_DONE
+	s_cbranch_scc0	L_SAVE_LDS_DONE						//yes lds used? jump to L_SAVE_DONE
 
 	s_barrier								//LDS is used? wait for other waves in the same TG
 	s_and_b32	s_save_tmp, s_save_exec_hi, S_SAVE_SPI_INIT_FIRST_WAVE_MASK
@@ -455,9 +455,9 @@ L_SAVE_LDS_NORMAL:
 
 L_SAVE_LDS_W32:
 	s_mov_b32	s3, 128
-	s_nop		0
-	s_nop		0
-	s_nop		0
+	s_yesp		0
+	s_yesp		0
+	s_yesp		0
 L_SAVE_LDS_LOOP_W32:
 	ds_read_b32	v1, v0
 	s_waitcnt	0
@@ -473,9 +473,9 @@ L_SAVE_LDS_LOOP_W32:
 
 L_SAVE_LDS_W64:
 	s_mov_b32	s3, 256
-	s_nop		0
-	s_nop		0
-	s_nop		0
+	s_yesp		0
+	s_yesp		0
+	s_yesp		0
 L_SAVE_LDS_LOOP_W64:
 	ds_read_b32	v1, v0
 	s_waitcnt	0
@@ -491,7 +491,7 @@ L_SAVE_LDS_DONE:
 	/* save VGPRs  - set the Rest VGPRs */
 L_SAVE_VGPR:
 	// VGPR SR memory offset: 0
-	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from now on
+	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from yesw on
 	s_lshr_b32	m0, s_wave_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
 	s_cmp_eq_u32	m0, 1
@@ -505,7 +505,7 @@ L_ENABLE_SAVE_VGPR_EXEC_HI:
 L_SAVE_VGPR_NORMAL:
 	s_getreg_b32	s_save_alloc_size, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE)
 	s_add_u32	s_save_alloc_size, s_save_alloc_size, 1
-	s_lshl_b32	s_save_alloc_size, s_save_alloc_size, 2			//Number of VGPRs = (vgpr_size + 1) * 4    (non-zero value)
+	s_lshl_b32	s_save_alloc_size, s_save_alloc_size, 2			//Number of VGPRs = (vgpr_size + 1) * 4    (yesn-zero value)
 	//determine it is wave32 or wave64
 	s_lshr_b32	m0, s_wave_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
@@ -566,9 +566,9 @@ L_SAVE_VGPR_W64_LOOP:
 	//Below part will be the save shared vgpr part (new for gfx10)
 	s_getreg_b32	s_save_alloc_size, hwreg(HW_REG_LDS_ALLOC,SQ_WAVE_LDS_ALLOC_VGPR_SHARED_SIZE_SHIFT,SQ_WAVE_LDS_ALLOC_VGPR_SHARED_SIZE_SIZE)
 	s_and_b32	s_save_alloc_size, s_save_alloc_size, 0xFFFFFFFF	//shared_vgpr_size is zero?
-	s_cbranch_scc0	L_SAVE_VGPR_END						//no shared_vgpr used? jump to L_SAVE_LDS
-	s_lshl_b32	s_save_alloc_size, s_save_alloc_size, 3			//Number of SHARED_VGPRs = shared_vgpr_size * 8    (non-zero value)
-	//m0 now has the value of normal vgpr count, just add the m0 with shared_vgpr count to get the total count.
+	s_cbranch_scc0	L_SAVE_VGPR_END						//yes shared_vgpr used? jump to L_SAVE_LDS
+	s_lshl_b32	s_save_alloc_size, s_save_alloc_size, 3			//Number of SHARED_VGPRs = shared_vgpr_size * 8    (yesn-zero value)
+	//m0 yesw has the value of yesrmal vgpr count, just add the m0 with shared_vgpr count to get the total count.
 	//save shared_vgpr will start from the index of m0
 	s_add_u32	s_save_alloc_size, s_save_alloc_size, m0
 	s_mov_b32	exec_lo, 0xFFFFFFFF
@@ -607,7 +607,7 @@ L_RESTORE:
 
 	/* restore LDS */
 L_RESTORE_LDS:
-	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from now on
+	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from yesw on
 	s_lshr_b32	m0, s_restore_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
 	s_cmp_eq_u32	m0, 1
@@ -619,7 +619,7 @@ L_ENABLE_RESTORE_LDS_EXEC_HI:
 L_RESTORE_LDS_NORMAL:
 	s_getreg_b32	s_restore_alloc_size, hwreg(HW_REG_LDS_ALLOC,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE)
 	s_and_b32	s_restore_alloc_size, s_restore_alloc_size, 0xFFFFFFFF	//lds_size is zero?
-	s_cbranch_scc0	L_RESTORE_VGPR						//no lds used? jump to L_RESTORE_VGPR
+	s_cbranch_scc0	L_RESTORE_VGPR						//yes lds used? jump to L_RESTORE_VGPR
 	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 6		//LDS size in dwords = lds_size * 64dw
 	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 2		//LDS size in bytes
 	s_mov_b32	s_restore_buf_rsrc2, s_restore_alloc_size		//NUM_RECORDS in bytes
@@ -659,7 +659,7 @@ L_RESTORE_LDS_LOOP_W64:
 L_RESTORE_VGPR:
 	// VGPR SR memory offset : 0
 	s_mov_b32	s_restore_mem_offset, 0x0
- 	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from now on
+ 	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from yesw on
 	s_lshr_b32	m0, s_restore_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
 	s_cmp_eq_u32	m0, 1
@@ -671,7 +671,7 @@ L_ENABLE_RESTORE_VGPR_EXEC_HI:
 L_RESTORE_VGPR_NORMAL:
 	s_getreg_b32	s_restore_alloc_size, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE)
 	s_add_u32	s_restore_alloc_size, s_restore_alloc_size, 1
-	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 2		//Number of VGPRs = (vgpr_size + 1) * 4    (non-zero value)
+	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 2		//Number of VGPRs = (vgpr_size + 1) * 4    (yesn-zero value)
 	//determine it is wave32 or wave64
 	s_lshr_b32	m0, s_restore_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
@@ -734,9 +734,9 @@ L_RESTORE_VGPR_WAVE64_LOOP:
 	//Below part will be the restore shared vgpr part (new for gfx10)
 	s_getreg_b32	s_restore_alloc_size, hwreg(HW_REG_LDS_ALLOC,SQ_WAVE_LDS_ALLOC_VGPR_SHARED_SIZE_SHIFT,SQ_WAVE_LDS_ALLOC_VGPR_SHARED_SIZE_SIZE)	//shared_vgpr_size
 	s_and_b32	s_restore_alloc_size, s_restore_alloc_size, 0xFFFFFFFF	//shared_vgpr_size is zero?
-	s_cbranch_scc0	L_RESTORE_V0						//no shared_vgpr used?
-	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 3		//Number of SHARED_VGPRs = shared_vgpr_size * 8    (non-zero value)
-	//m0 now has the value of normal vgpr count, just add the m0 with shared_vgpr count to get the total count.
+	s_cbranch_scc0	L_RESTORE_V0						//yes shared_vgpr used?
+	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 3		//Number of SHARED_VGPRs = shared_vgpr_size * 8    (yesn-zero value)
+	//m0 yesw has the value of yesrmal vgpr count, just add the m0 with shared_vgpr count to get the total count.
 	//restore shared_vgpr will start from the index of m0
 	s_add_u32	s_restore_alloc_size, s_restore_alloc_size, m0
 	s_mov_b32	exec_lo, 0xFFFFFFFF
@@ -768,7 +768,7 @@ L_RESTORE_SGPR:
 	get_svgpr_size_bytes(s_restore_tmp)
 	s_add_u32	s_restore_mem_offset, s_restore_mem_offset, s_restore_tmp
 	s_add_u32	s_restore_mem_offset, s_restore_mem_offset, get_sgpr_size_bytes()
-	s_sub_u32	s_restore_mem_offset, s_restore_mem_offset, 20*4	//s108~s127 is not saved
+	s_sub_u32	s_restore_mem_offset, s_restore_mem_offset, 20*4	//s108~s127 is yest saved
 
 	s_mov_b32	s_restore_buf_rsrc2, 0x1000000				//NUM_RECORDS in bytes
 
@@ -778,7 +778,7 @@ L_RESTORE_SGPR:
 	s_waitcnt	lgkmcnt(0)
 
 	s_sub_u32	m0, m0, 4						// Restore from S[0] to S[104]
-	s_nop		0							// hazard SALU M0=> S_MOVREL
+	s_yesp		0							// hazard SALU M0=> S_MOVREL
 
 	s_movreld_b64	s0, s0							//s[0+m0] = s0
 	s_movreld_b64	s2, s2
@@ -787,7 +787,7 @@ L_RESTORE_SGPR:
 	s_waitcnt	lgkmcnt(0)
 
 	s_sub_u32	m0, m0, 8						// Restore from S[0] to S[96]
-	s_nop		0							// hazard SALU M0=> S_MOVREL
+	s_yesp		0							// hazard SALU M0=> S_MOVREL
 
 	s_movreld_b64	s0, s0							//s[0+m0] = s0
 	s_movreld_b64	s2, s2
@@ -799,7 +799,7 @@ L_RESTORE_SGPR:
 	s_waitcnt	lgkmcnt(0)
 
 	s_sub_u32	m0, m0, 16						// Restore from S[n] to S[0]
-	s_nop		0							// hazard SALU M0=> S_MOVREL
+	s_yesp		0							// hazard SALU M0=> S_MOVREL
 
 	s_movreld_b64	s0, s0							//s[0+m0] = s0
 	s_movreld_b64	s2, s2
@@ -838,12 +838,12 @@ L_RESTORE_HWREG:
 	s_setreg_b32	hwreg(HW_REG_SHADER_FLAT_SCRATCH_LO), s_restore_flat_scratch
 
 	read_hwreg_from_mem(s_restore_flat_scratch, s_restore_buf_rsrc0, s_restore_mem_offset)
-	s_waitcnt	lgkmcnt(0)						//from now on, it is safe to restore STATUS and IB_STS
+	s_waitcnt	lgkmcnt(0)						//from yesw on, it is safe to restore STATUS and IB_STS
 
 	s_setreg_b32	hwreg(HW_REG_SHADER_FLAT_SCRATCH_HI), s_restore_flat_scratch
 
 	s_mov_b32	s_restore_tmp, s_restore_pc_hi
-	s_and_b32	s_restore_pc_hi, s_restore_tmp, 0x0000ffff		//pc[47:32] //Do it here in order not to affect STATUS
+	s_and_b32	s_restore_pc_hi, s_restore_tmp, 0x0000ffff		//pc[47:32] //Do it here in order yest to affect STATUS
 
 	s_mov_b32	m0, s_restore_m0
 	s_mov_b32	exec_lo, s_restore_exec_lo
@@ -874,8 +874,8 @@ L_RESTORE_HWREG:
 	s_lshr_b32	s_restore_m0, s_restore_m0, SQ_WAVE_STATUS_INST_ATC_SHIFT
 	s_setreg_b32 	hwreg(HW_REG_IB_STS), s_restore_mode
 
-	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, not writable by s_setreg_b32
-	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, not writable by s_setreg_b32
+	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, yest writable by s_setreg_b32
+	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, yest writable by s_setreg_b32
 	s_setreg_b32	hwreg(HW_REG_STATUS), s_restore_status			// SCC is included, which is changed by previous salu
 
 	s_barrier								//barrier to ensure the readiness of LDS before access attemps from any other wave in the same TG
@@ -946,10 +946,10 @@ function get_vgpr_size_bytes(s_vgpr_size_byte, s_size)
 	s_and_b32	m0, m0, 1
 	s_cmp_eq_u32	m0, 1
 	s_cbranch_scc1	L_ENABLE_SHIFT_W64
-	s_lshl_b32	s_vgpr_size_byte, s_vgpr_size_byte, (2+7)		//Number of VGPRs = (vgpr_size + 1) * 4 * 32 * 4   (non-zero value)
+	s_lshl_b32	s_vgpr_size_byte, s_vgpr_size_byte, (2+7)		//Number of VGPRs = (vgpr_size + 1) * 4 * 32 * 4   (yesn-zero value)
 	s_branch	L_SHIFT_DONE
 L_ENABLE_SHIFT_W64:
-	s_lshl_b32	s_vgpr_size_byte, s_vgpr_size_byte, (2+8)		//Number of VGPRs = (vgpr_size + 1) * 4 * 64 * 4   (non-zero value)
+	s_lshl_b32	s_vgpr_size_byte, s_vgpr_size_byte, (2+8)		//Number of VGPRs = (vgpr_size + 1) * 4 * 64 * 4   (yesn-zero value)
 L_SHIFT_DONE:
 end
 

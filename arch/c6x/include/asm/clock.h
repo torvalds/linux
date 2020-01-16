@@ -77,7 +77,7 @@
 struct pll_data;
 
 struct clk {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct module		*owner;
 	const char		*name;
 	unsigned long		rate;
@@ -85,7 +85,7 @@ struct clk {
 	u32			flags;
 	struct clk		*parent;
 	struct list_head	children;	/* list of children */
-	struct list_head	childnode;	/* parent's child list node */
+	struct list_head	childyesde;	/* parent's child list yesde */
 	struct pll_data		*pll_data;
 	u32			div;
 	unsigned long (*recalc) (struct clk *);

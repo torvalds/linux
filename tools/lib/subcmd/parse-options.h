@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 #ifndef NORETURN
-#define NORETURN __attribute__((__noreturn__))
+#define NORETURN __attribute__((__yesreturn__))
 #endif
 
 enum parse_opt_type {
@@ -15,7 +15,7 @@ enum parse_opt_type {
 	OPTION_END,
 	OPTION_ARGUMENT,
 	OPTION_GROUP,
-	/* options with no arguments */
+	/* options with yes arguments */
 	OPTION_BIT,
 	OPTION_BOOLEAN,
 	OPTION_INCR,
@@ -61,10 +61,10 @@ typedef int parse_opt_cb(const struct option *, const char *arg, int unset);
  *   array.
  *
  * `short_name`::
- *   the character to use as a short option name, '\0' if none.
+ *   the character to use as a short option name, '\0' if yesne.
  *
  * `long_name`::
- *   the long option name, without the leading dashes, NULL if none.
+ *   the long option name, without the leading dashes, NULL if yesne.
  *
  * `value`::
  *   stores pointers to the values to be filled.
@@ -80,9 +80,9 @@ typedef int parse_opt_cb(const struct option *, const char *arg, int unset);
  *
  * `flags`::
  *   mask of parse_opt_option_flags.
- *   PARSE_OPT_OPTARG: says that the argument is optional (not for BOOLEANs)
- *   PARSE_OPT_NOARG: says that this option takes no argument, for CALLBACKs
- *   PARSE_OPT_NONEG: says that this option cannot be negated
+ *   PARSE_OPT_OPTARG: says that the argument is optional (yest for BOOLEANs)
+ *   PARSE_OPT_NOARG: says that this option takes yes argument, for CALLBACKs
+ *   PARSE_OPT_NONEG: says that this option canyest be negated
  *   PARSE_OPT_HIDDEN this option is skipped in the default usage, showed in
  *                    the long one.
  *
@@ -165,7 +165,7 @@ struct option {
 	  .flags = PARSE_OPT_OPTARG, .data = (d) }
 
 /* parse_options() will filter out the processed options and leave the
- * non-option argments in argv[].
+ * yesn-option argments in argv[].
  * Returns the number of arguments left in argv[].
  *
  * NOTE: parse_options() and parse_options_subcommand() may call exit() in the
@@ -199,7 +199,7 @@ enum {
 
 /*
  * It's okay for the caller to consume argv/argc in the usual way.
- * Other fields of that structure are private to parse-options and should not
+ * Other fields of that structure are private to parse-options and should yest
  * be modified in any way.
  */
 struct parse_opt_ctx_t {
@@ -238,7 +238,7 @@ extern int parse_opt_verbosity_cb(const struct option *, const char *, int);
 extern const char *parse_options_fix_filename(const char *prefix, const char *file);
 
 void set_option_flag(struct option *opts, int sopt, const char *lopt, int flag);
-void set_option_nobuild(struct option *opts, int shortopt, const char *longopt,
+void set_option_yesbuild(struct option *opts, int shortopt, const char *longopt,
 			const char *build_opt, bool can_skip);
 
 #endif /* __SUBCMD_PARSE_OPTIONS_H */

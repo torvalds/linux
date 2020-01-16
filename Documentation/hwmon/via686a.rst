@@ -25,17 +25,17 @@ Module Parameters
 ======================= =======================================================
 force_addr=0xaddr       Set the I/O base address. Useful for boards that
 			don't set the address in the BIOS. Look for a BIOS
-			upgrade before resorting to this. Does not do a
+			upgrade before resorting to this. Does yest do a
 			PCI force; the via686a must still be present in lspci.
 			Don't use this unless the driver complains that the
-			base address is not set.
+			base address is yest set.
 			Example: 'modprobe via686a force_addr=0x6000'
 ======================= =======================================================
 
 Description
 -----------
 
-The driver does not distinguish between the chips and reports
+The driver does yest distinguish between the chips and reports
 all as a 686A.
 
 The Via 686a southbridge has integrated hardware monitor functionality.
@@ -56,7 +56,7 @@ the readings more range or accuracy. Not all RPM values can accurately be
 represented, so some rounding is done. With a divider of 2, the lowest
 representable value is around 2600 RPM.
 
-Voltage sensors (also known as IN sensors) report their values in volts.
+Voltage sensors (also kyeswn as IN sensors) report their values in volts.
 An alarm is triggered if the voltage has crossed a programmable minimum
 or maximum limit. Voltages are internally scalled, so each voltage channel
 has a different resolution and range.
@@ -69,16 +69,16 @@ than 1.5 seconds since the last update). This means that you can easily
 miss once-only alarms.
 
 The driver only updates its values each 1.5 seconds; reading it more often
-will do no harm, but will return 'old' values.
+will do yes harm, but will return 'old' values.
 
-Known Issues
+Kyeswn Issues
 ------------
 
 This driver handles sensors integrated in some VIA south bridges. It is
 possible that a motherboard maker used a VT82C686A/B chip as part of a
-product design but was not interested in its hardware monitoring features,
-in which case the sensor inputs will not be wired. This is the case of
+product design but was yest interested in its hardware monitoring features,
+in which case the sensor inputs will yest be wired. This is the case of
 the Asus K7V, A7V and A7V133 motherboards, to name only a few of them.
 So, if you need the force_addr parameter, and end up with values which
 don't seem to make any sense, don't look any further: your chip is simply
-not wired for hardware monitoring.
+yest wired for hardware monitoring.

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -27,7 +27,7 @@
 
 #ifdef CONFIG_ACPI
 static int
-nvkm_acpi_ntfy(struct notifier_block *nb, unsigned long val, void *data)
+nvkm_acpi_ntfy(struct yestifier_block *nb, unsigned long val, void *data)
 {
 	struct nvkm_device *device =
 		container_of(nb, typeof(*device), acpi.nb);
@@ -44,7 +44,7 @@ void
 nvkm_acpi_fini(struct nvkm_device *device)
 {
 #ifdef CONFIG_ACPI
-	unregister_acpi_notifier(&device->acpi.nb);
+	unregister_acpi_yestifier(&device->acpi.nb);
 #endif
 }
 
@@ -52,7 +52,7 @@ void
 nvkm_acpi_init(struct nvkm_device *device)
 {
 #ifdef CONFIG_ACPI
-	device->acpi.nb.notifier_call = nvkm_acpi_ntfy;
-	register_acpi_notifier(&device->acpi.nb);
+	device->acpi.nb.yestifier_call = nvkm_acpi_ntfy;
+	register_acpi_yestifier(&device->acpi.nb);
 #endif
 }

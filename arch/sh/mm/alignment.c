@@ -23,10 +23,10 @@ static unsigned long se_half;
 static unsigned long se_word;
 static unsigned long se_dword;
 static unsigned long se_multi;
-/* bitfield: 1: warn 2: fixup 4: signal -> combinations 2|4 && 1|2|4 are not
+/* bitfield: 1: warn 2: fixup 4: signal -> combinations 2|4 && 1|2|4 are yest
    valid! */
 static int se_usermode = UM_WARN | UM_FIXUP;
-/* 0: no warning 1: print a warning message, disabled by default */
+/* 0: yes warning 1: print a warning message, disabled by default */
 static int se_kernmode_warn;
 
 core_param(alignment, se_usermode, int, 0600);
@@ -93,23 +93,23 @@ int set_unalign_ctl(struct task_struct *tsk, unsigned int val)
 	return 0;
 }
 
-void unaligned_fixups_notify(struct task_struct *tsk, insn_size_t insn,
+void unaligned_fixups_yestify(struct task_struct *tsk, insn_size_t insn,
 			     struct pt_regs *regs)
 {
 	if (user_mode(regs) && (se_usermode & UM_WARN))
-		pr_notice_ratelimited("Fixing up unaligned userspace access "
+		pr_yestice_ratelimited("Fixing up unaligned userspace access "
 			  "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
 			  tsk->comm, task_pid_nr(tsk),
 			  (void *)instruction_pointer(regs), insn);
 	else if (se_kernmode_warn)
-		pr_notice_ratelimited("Fixing up unaligned kernel access "
+		pr_yestice_ratelimited("Fixing up unaligned kernel access "
 			  "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
 			  tsk->comm, task_pid_nr(tsk),
 			  (void *)instruction_pointer(regs), insn);
 }
 
 static const char *se_usermode_action[] = {
-	"ignored",
+	"igyesred",
 	"warn",
 	"fixup",
 	"fixup+warn",
@@ -132,7 +132,7 @@ static int alignment_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int alignment_proc_open(struct inode *inode, struct file *file)
+static int alignment_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, alignment_proc_show, NULL);
 }
@@ -140,7 +140,7 @@ static int alignment_proc_open(struct inode *inode, struct file *file)
 static ssize_t alignment_proc_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *pos)
 {
-	int *data = PDE_DATA(file_inode(file));
+	int *data = PDE_DATA(file_iyesde(file));
 	char mode;
 
 	if (count > 0) {
@@ -165,7 +165,7 @@ static const struct file_operations alignment_proc_fops = {
  * This needs to be done after sysctl_init, otherwise sys/ will be
  * overwritten.  Actually, this shouldn't be in sys/ at all since
  * it isn't a sysctl, and it doesn't contain sysctl information.
- * We now locate it in /proc/cpu/alignment instead.
+ * We yesw locate it in /proc/cpu/alignment instead.
  */
 static int __init alignment_init(void)
 {

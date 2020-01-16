@@ -25,7 +25,7 @@
  * - If cmd->scan_begin_src=TRIG_EXT then trigger input is TGIN (pin 46).
  * - If cmd->convert_src=TRIG_EXT then trigger input is EXTTRG (pin 44).
  * - If cmd->start_src/stop_src=TRIG_EXT then trigger input is TGIN (pin 46).
- * - It is not necessary to have cmd.scan_end_arg=cmd.chanlist_len but
+ * - It is yest necessary to have cmd.scan_end_arg=cmd.chanlist_len but
  * cmd.scan_end_arg modulo cmd.chanlist_len must by 0.
  * - If return value of cmdtest is 5 then you've bad channel list
  * (it isn't possible mixture S.E. and DIFF inputs or bipolar and unipolar
@@ -46,17 +46,17 @@
  * Configuration options:
  * [0] - PCI bus of device (optional)
  * [1] - PCI slot of device (optional)
- *	 If bus/slot is not specified, then first available PCI
+ *	 If bus/slot is yest specified, then first available PCI
  *	 card will be used.
  * [2] - 0= standard 8 DIFF/16 SE channels configuration
  *	 n = external multiplexer connected, 1 <= n <= 256
- * [3] - ignored
+ * [3] - igyesred
  * [4] - sample&hold signal - card can generate signal for external S&H board
  *	 0 = use SSHO(pin 45) signal is generated in onboard hardware S&H logic
  *	 0 != use ADCHN7(pin 23) signal is generated from driver, number say how
  *		long delay is requested in ns and sign polarity of the hold
  *		(in this case external multiplexor can serve only 128 channels)
- * [5] - ignored
+ * [5] - igyesred
  */
 
 /*
@@ -192,7 +192,7 @@ struct pci9118_dmabuf {
 	unsigned short *virt;	/* virtual address of buffer */
 	dma_addr_t hw;		/* hardware (bus) address of buffer */
 	unsigned int size;	/* size of dma buffer in bytes */
-	unsigned int use_size;	/* which size we may now use for transfer */
+	unsigned int use_size;	/* which size we may yesw use for transfer */
 };
 
 struct pci9118_private {
@@ -205,7 +205,7 @@ struct pci9118_private {
 	unsigned char ai_ctrl;
 	unsigned char int_ctrl;
 	unsigned char ai_cfg;
-	unsigned int ai_do;		/* what do AI? 0=nothing, 1 to 4 mode */
+	unsigned int ai_do;		/* what do AI? 0=yesthing, 1 to 4 mode */
 	unsigned int ai_n_realscanlen;	/*
 					 * what we must transfer for one
 					 * outgoing scan include front/back adds
@@ -224,7 +224,7 @@ struct pci9118_private {
 					 * measure can start/stop
 					 * on external trigger
 					 */
-	unsigned int dma_actbuf;		/* which buffer is used now */
+	unsigned int dma_actbuf;		/* which buffer is used yesw */
 	struct pci9118_dmabuf dmabuf[2];
 	int softsshdelay;		/*
 					 * >0 use software S&H,
@@ -349,7 +349,7 @@ static void pci9118_set_chanlist(struct comedi_device *dev,
 		devpriv->ai_ctrl |= PCI9118_AI_CTRL_DIFF;
 	outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
 
-	/* gods know why this sequence! */
+	/* gods kyesw why this sequence! */
 	outl(2, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	outl(0, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
 	outl(1, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
@@ -419,7 +419,7 @@ static unsigned int pci9118_ai_samples_ready(struct comedi_device *dev,
 
 	/*
 	 * Not all samples are to be used.  Buffer contents consist of a
-	 * possibly non-whole number of spans and a region of each span
+	 * possibly yesn-whole number of spans and a region of each span
 	 * is to be used.
 	 *
 	 * Account for samples in whole number of spans.
@@ -478,7 +478,7 @@ static void pci9118_ai_dma_xfer(struct comedi_device *dev,
 	} else {
 		/*
 		 * Not all samples are to be copied.  Buffer contents consist
-		 * of a possibly non-whole number of spans and a region of
+		 * of a possibly yesn-whole number of spans and a region of
 		 * each span is to be copied.
 		 */
 		while (n_raw_samples) {
@@ -666,7 +666,7 @@ static void pci9118_ai_get_dma(struct comedi_device *dev,
 	if (s->async->events & COMEDI_CB_CANCEL_MASK)
 		more_dma = false;
 
-	/* restart DMA if not double buffering */
+	/* restart DMA if yest double buffering */
 	if (more_dma && !devpriv->dma_doublebuf) {
 		pci9118_amcc_setup_dma(dev, 0);
 		if (devpriv->ai_do == 4)
@@ -1005,7 +1005,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 							/* round up to 32 bit */
 		}
 	}
-	/* well, we now know what must be all added */
+	/* well, we yesw kyesw what must be all added */
 	scanlen = devpriv->ai_add_front + cmd->chanlist_len +
 		  devpriv->ai_add_back;
 	/*
@@ -1126,7 +1126,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		pci9118_amcc_int_ena(dev, true);
 	}
 
-	/* start async command now or wait for internal trigger */
+	/* start async command yesw or wait for internal trigger */
 	if (cmd->start_src == TRIG_NOW)
 		pci9118_ai_cmd_start(dev);
 	else if (cmd->start_src == TRIG_INT)
@@ -1452,7 +1452,7 @@ static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 		return pcidev;
 	}
 	dev_err(dev->class_dev,
-		"no supported board found! (req. bus/slot : %d/%d)\n",
+		"yes supported board found! (req. bus/slot : %d/%d)\n",
 		bus, slot);
 	return NULL;
 }
@@ -1681,7 +1681,7 @@ static int pci9118_auto_attach(struct comedi_device *dev,
 	 * (The 'put' also matches the implicit 'get' by pci9118_find_pci().)
 	 */
 	pci_dev_get(pcidev);
-	/* no external mux, no sample-hold delay */
+	/* yes external mux, yes sample-hold delay */
 	return pci9118_common_attach(dev, 0, 0);
 }
 

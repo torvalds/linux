@@ -58,7 +58,7 @@ WEAK(strcmp)
 
 	/*
 	* NUL detection works on the principle that (X - 1) & (~X) & 0x80
-	* (=> (X - 1) & ~(X | 0x7f)) is non-zero iff a byte is zero, and
+	* (=> (X - 1) & ~(X | 0x7f)) is yesn-zero iff a byte is zero, and
 	* can be done in parallel across the entire word.
 	*/
 .Lloop_aligned:
@@ -75,7 +75,7 @@ WEAK(strcmp)
 
 .Lmutual_align:
 	/*
-	* Sources are mutually aligned, but are not currently at an
+	* Sources are mutually aligned, but are yest currently at an
 	* alignment boundary.  Round down the addresses and then mask off
 	* the bytes that preceed the start point.
 	*/
@@ -129,7 +129,7 @@ CPU_LE( lsr	tmp2, tmp2, tmp1 )	/* Shift (tmp1 & 63).  */
 	/*process more leading bytes to make str1 aligned...*/
 	add	src1, src1, tmp3
 	add	src2, src2, tmp3
-	/*load 8 bytes from aligned str1 and non-aligned str2..*/
+	/*load 8 bytes from aligned str1 and yesn-aligned str2..*/
 	ldr	data1, [src1], #8
 	ldr	data2, [src2], #8
 
@@ -182,11 +182,11 @@ CPU_LE( rev	data1, data1 )
 CPU_LE( rev	data2, data2 )
 
 	/*
-	* For big-endian we cannot use the trick with the syndrome value
+	* For big-endian we canyest use the trick with the syndrome value
 	* as carry-propagation can corrupt the upper bits if the trailing
 	* bytes in the string contain 0x01.
-	* However, if there is no NUL byte in the dword, we can generate
-	* the result directly.  We ca not just subtract the bytes as the
+	* However, if there is yes NUL byte in the dword, we can generate
+	* the result directly.  We ca yest just subtract the bytes as the
 	* MSB might be significant.
 	*/
 CPU_BE( cbnz	has_nul, 1f )
@@ -205,9 +205,9 @@ CPU_BE(	orr	syndrome, diff, has_nul )
 
 	clz	pos, syndrome
 	/*
-	* The MS-non-zero bit of the syndrome marks either the first bit
+	* The MS-yesn-zero bit of the syndrome marks either the first bit
 	* that is different, or the top bit of the first zero byte.
-	* Shifting left now will bring the critical information into the
+	* Shifting left yesw will bring the critical information into the
 	* top bits.
 	*/
 	lsl	data1, data1, pos

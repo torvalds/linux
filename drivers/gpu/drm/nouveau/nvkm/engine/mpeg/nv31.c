@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -215,7 +215,7 @@ nv31_mpeg_intr(struct nvkm_engine *engine)
 		nvkm_error(subdev, "ch %d [%s] %08x %08x %08x %08x\n",
 			   mpeg->chan ? mpeg->chan->fifo->chid : -1,
 			   mpeg->chan ? mpeg->chan->object.client->name :
-			   "unknown", stat, type, mthd, data);
+			   "unkyeswn", stat, type, mthd, data);
 	}
 
 	spin_unlock_irqrestore(&mpeg->engine.lock, flags);

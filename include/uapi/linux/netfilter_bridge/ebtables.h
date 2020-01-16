@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *  ebtables
  *
@@ -30,7 +30,7 @@
 #define NUM_STANDARD_TARGETS   4
 /* ebtables target modules store the verdict inside an int. We can
  * reclaim a part of this int for backwards compatible extensions.
- * The 4 lsb are more than enough to store the verdict. */
+ * The 4 lsb are more than eyesugh to store the verdict. */
 #define EBT_VERDICT_BITS 0x0000000F
 
 struct xt_match;
@@ -87,7 +87,7 @@ struct ebt_entries {
 	/* nr. of entries */
 	unsigned int nentries;
 	/* entry list */
-	char data[0] __attribute__ ((aligned (__alignof__(struct ebt_replace))));
+	char data[0] __attribute__ ((aligned (__aligyesf__(struct ebt_replace))));
 };
 
 /* used for the bitmask of struct ebt_entry */
@@ -101,7 +101,7 @@ struct ebt_entries {
  * need a hack like this.
  */
 #define EBT_ENTRY_OR_ENTRIES 0x01
-/* these are the normal masks */
+/* these are the yesrmal masks */
 #define EBT_NOPROTO 0x02
 #define EBT_802_3 0x04
 #define EBT_SOURCEMAC 0x08
@@ -129,7 +129,7 @@ struct ebt_entry_match {
 	} u;
 	/* size of data */
 	unsigned int match_size;
-	unsigned char data[0] __attribute__ ((aligned (__alignof__(struct ebt_replace))));
+	unsigned char data[0] __attribute__ ((aligned (__aligyesf__(struct ebt_replace))));
 };
 
 struct ebt_entry_watcher {
@@ -142,7 +142,7 @@ struct ebt_entry_watcher {
 	} u;
 	/* size of data */
 	unsigned int watcher_size;
-	unsigned char data[0] __attribute__ ((aligned (__alignof__(struct ebt_replace))));
+	unsigned char data[0] __attribute__ ((aligned (__aligyesf__(struct ebt_replace))));
 };
 
 struct ebt_entry_target {
@@ -155,7 +155,7 @@ struct ebt_entry_target {
 	} u;
 	/* size of data */
 	unsigned int target_size;
-	unsigned char data[0] __attribute__ ((aligned (__alignof__(struct ebt_replace))));
+	unsigned char data[0] __attribute__ ((aligned (__aligyesf__(struct ebt_replace))));
 };
 
 #define EBT_STANDARD_TARGET "standard"
@@ -188,7 +188,7 @@ struct ebt_entry {
 	unsigned int target_offset;
 	/* sizeof ebt_entry + matches + watchers + target */
 	unsigned int next_offset;
-	unsigned char elems[0] __attribute__ ((aligned (__alignof__(struct ebt_replace))));
+	unsigned char elems[0] __attribute__ ((aligned (__aligyesf__(struct ebt_replace))));
 };
 
 static __inline__ struct ebt_entry_target *

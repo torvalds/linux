@@ -51,7 +51,7 @@ static int bd70528_get_direction(struct gpio_chip *chip, unsigned int offset)
 	/* Do we need to do something to IRQs here? */
 	ret = regmap_read(bdgpio->chip.regmap, GPIO_OUT_REG(offset), &val);
 	if (ret) {
-		dev_err(bdgpio->chip.dev, "Could not read gpio direction\n");
+		dev_err(bdgpio->chip.dev, "Could yest read gpio direction\n");
 		return ret;
 	}
 	if (val & BD70528_GPIO_OUT_EN_MASK)
@@ -108,7 +108,7 @@ static void bd70528_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	ret = regmap_update_bits(bdgpio->chip.regmap, GPIO_OUT_REG(offset),
 				 BD70528_GPIO_OUT_MASK, val);
 	if (ret)
-		dev_err(bdgpio->chip.dev, "Could not set gpio to %d\n", value);
+		dev_err(bdgpio->chip.dev, "Could yest set gpio to %d\n", value);
 }
 
 static int bd70528_direction_output(struct gpio_chip *chip, unsigned int offset,
@@ -162,10 +162,10 @@ static int bd70528_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	 * There is a race condition where someone might be changing the
 	 * GPIO direction after we get it but before we read the value. But
 	 * application design where GPIO direction may be changed just when
-	 * we read GPIO value would be pointless as reader could not know
+	 * we read GPIO value would be pointless as reader could yest kyesw
 	 * whether the returned high/low state is caused by input or output.
 	 * Or then there must be other ways to mitigate the issue. Thus
-	 * locking would make no sense.
+	 * locking would make yes sense.
 	 */
 	ret = bd70528_get_direction(chip, offset);
 	if (ret == GPIO_LINE_DIRECTION_OUT)
@@ -208,7 +208,7 @@ static int bd70528_probe(struct platform_device *pdev)
 	bdgpio->gpio.ngpio = 4;
 	bdgpio->gpio.base = -1;
 #ifdef CONFIG_OF_GPIO
-	bdgpio->gpio.of_node = pdev->dev.parent->of_node;
+	bdgpio->gpio.of_yesde = pdev->dev.parent->of_yesde;
 #endif
 	bdgpio->chip.regmap = bd70528->regmap;
 

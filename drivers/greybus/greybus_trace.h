@@ -100,7 +100,7 @@ DECLARE_EVENT_CLASS(gb_operation,
 		__field(unsigned long, flags)
 		__field(int, active)
 		__field(int, waiters)
-		__field(int, errno)
+		__field(int, erryes)
 	),
 
 	TP_fast_assign(
@@ -110,12 +110,12 @@ DECLARE_EVENT_CLASS(gb_operation,
 		__entry->flags = operation->flags;
 		__entry->active = operation->active;
 		__entry->waiters = atomic_read(&operation->waiters);
-		__entry->errno = operation->errno;
+		__entry->erryes = operation->erryes;
 	),
 
-	TP_printk("id=%04x type=0x%02x cport_id=%04x flags=0x%lx active=%d waiters=%d errno=%d",
+	TP_printk("id=%04x type=0x%02x cport_id=%04x flags=0x%lx active=%d waiters=%d erryes=%d",
 		  __entry->id, __entry->cport_id, __entry->type, __entry->flags,
-		  __entry->active, __entry->waiters, __entry->errno)
+		  __entry->active, __entry->waiters, __entry->erryes)
 );
 
 #define DEFINE_OPERATION_EVENT(name)					\
@@ -282,7 +282,7 @@ DEFINE_BUNDLE_EVENT(gb_bundle_release);
 DEFINE_BUNDLE_EVENT(gb_bundle_add);
 
 /*
- * Occurs when a registered bundle gets destroyed, normally at the
+ * Occurs when a registered bundle gets destroyed, yesrmally at the
  * time an interface is disabled.
  */
 DEFINE_BUNDLE_EVENT(gb_bundle_destroy);
@@ -494,7 +494,7 @@ DEFINE_HD_EVENT(gb_hd_in);
 #define TRACE_INCLUDE_PATH .
 
 /*
- * TRACE_INCLUDE_FILE is not needed if the filename and TRACE_SYSTEM are equal
+ * TRACE_INCLUDE_FILE is yest needed if the filename and TRACE_SYSTEM are equal
  */
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE greybus_trace

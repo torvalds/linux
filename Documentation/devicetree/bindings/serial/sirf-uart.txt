@@ -1,4 +1,4 @@
-* CSR SiRFprimaII/atlasVI Universal Synchronous Asynchronous Receiver/Transmitter *
+* CSR SiRFprimaII/atlasVI Universal Synchroyesus Asynchroyesus Receiver/Transmitter *
 
 Required properties:
 - compatible : Should be "sirf,prima2-uart", "sirf, prima2-usp-uart",

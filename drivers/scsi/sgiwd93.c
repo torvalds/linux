@@ -113,7 +113,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int datainp)
 	/*
 	 * wd33c93 shouldn't pass us bogus dma_setups, but it does:-(  The
 	 * other wd33c93 drivers deal with it the same way (which isn't that
-	 * obvious).  IMHO a better fix would be, not to do these dma setups
+	 * obvious).  IMHO a better fix would be, yest to do these dma setups
 	 * in the first place.
 	 */
 	if (cmd->SCp.ptr == NULL || cmd->SCp.this_residual == 0)
@@ -194,7 +194,7 @@ static inline void init_hpc_chain(struct ip22_hostdata *hdata)
 
 /*
  * Kludge alert - the SCSI code calls the abort and reset method with int
- * arguments not with pointers.  So this is going to blow up beautyfully
+ * arguments yest with pointers.  So this is going to blow up beautyfully
  * on 64-bit systems with memory outside the compat address spaces.
  */
 static struct scsi_host_template sgiwd93_template = {
@@ -237,7 +237,7 @@ static int sgiwd93_probe(struct platform_device *pdev)
 	hdata->cpu = dma_alloc_attrs(&pdev->dev, HPC_DMA_SIZE, &hdata->dma,
 				     GFP_KERNEL, DMA_ATTR_NON_CONSISTENT);
 	if (!hdata->cpu) {
-		printk(KERN_WARNING "sgiwd93: Could not allocate memory for "
+		printk(KERN_WARNING "sgiwd93: Could yest allocate memory for "
 		       "host %d buffer.\n", unit);
 		err = -ENOMEM;
 		goto out_put;
@@ -248,7 +248,7 @@ static int sgiwd93_probe(struct platform_device *pdev)
 	regs.SASR = wdregs + 3;
 	regs.SCMD = wdregs + 7;
 
-	hdata->wh.no_sync = 0;
+	hdata->wh.yes_sync = 0;
 	hdata->wh.fast = 1;
 	hdata->wh.dma_mode = CTRL_BURST;
 
@@ -256,7 +256,7 @@ static int sgiwd93_probe(struct platform_device *pdev)
 
 	err = request_irq(irq, sgiwd93_intr, 0, "SGI WD93", host);
 	if (err) {
-		printk(KERN_WARNING "sgiwd93: Could not register irq %d "
+		printk(KERN_WARNING "sgiwd93: Could yest register irq %d "
 		       "for host %d.\n", irq, unit);
 		goto out_free;
 	}

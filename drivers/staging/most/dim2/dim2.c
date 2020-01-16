@@ -2,7 +2,7 @@
 /*
  * dim2.c - MediaLB DIM2 Hardware Dependent Module
  *
- * Copyright (C) 2015-2016, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015-2016, Microchip Techyeslogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -35,7 +35,7 @@
 
 /*
  * The parameter representing the number of frames per sub-buffer for
- * synchronous channels.  Valid values: [0 .. 6].
+ * synchroyesus channels.  Valid values: [0 .. 6].
  *
  * The values 0, 1, 2, 3, 4, 5, 6 represent corresponding number of frames per
  * sub-buffer 1, 2, 4, 8, 16, 32, 64.
@@ -51,7 +51,7 @@ static DECLARE_TASKLET(dim2_tasklet, dim2_tasklet_fn, 0);
 
 /**
  * struct hdm_channel - private structure to keep channel specific data
- * @is_initialized: identifier to know whether the channel is initialized
+ * @is_initialized: identifier to kyesw whether the channel is initialized
  * @ch: HAL specific channel data
  * @pending_list: list to keep MBO's before starting transfer
  * @started_list: list to keep MBO's after starting transfer
@@ -225,7 +225,7 @@ static int deliver_netinfo_thread(void *data)
  * @dev: private data
  * @mbo: received MBO
  *
- * Parse the message in buffer and get node address, link state, MAC address.
+ * Parse the message in buffer and get yesde address, link state, MAC address.
  * Wake up a thread to deliver this status to mostcore
  */
 static void retrieve_netinfo(struct dim2_hdm *dev, struct mbo *mbo)
@@ -380,7 +380,7 @@ static void dim2_tasklet_fn(unsigned long data)
  * @irq: irq number
  * @_dev: private data
  *
- * Acknowledge the interrupt and schedule a tasklet to service channels.
+ * Ackyeswledge the interrupt and schedule a tasklet to service channels.
  * Return IRQ_HANDLED.
  */
 static irqreturn_t dim2_ahb_isr(int irq, void *_dev)
@@ -454,7 +454,7 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 	if (hdm_ch->is_initialized)
 		return -EPERM;
 
-	/* do not reset if the property was set by user, see poison_channel */
+	/* do yest reset if the property was set by user, see poison_channel */
 	hdm_ch->reset_dbr_size = ccfg->dbr_size ? NULL : &ccfg->dbr_size;
 
 	/* zero value is default dbr_size, see dim2 hal */
@@ -462,7 +462,7 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 
 	switch (ccfg->data_type) {
 	case MOST_CH_CONTROL:
-		new_size = dim_norm_ctrl_async_buffer_size(buf_size);
+		new_size = dim_yesrm_ctrl_async_buffer_size(buf_size);
 		if (new_size == 0) {
 			pr_err("%s: too small buffer size\n", hdm_ch->name);
 			return -EINVAL;
@@ -476,7 +476,7 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 					   is_tx ? new_size * 2 : new_size);
 		break;
 	case MOST_CH_ASYNC:
-		new_size = dim_norm_ctrl_async_buffer_size(buf_size);
+		new_size = dim_yesrm_ctrl_async_buffer_size(buf_size);
 		if (new_size == 0) {
 			pr_err("%s: too small buffer size\n", hdm_ch->name);
 			return -EINVAL;
@@ -490,7 +490,7 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 					 is_tx ? new_size * 2 : new_size);
 		break;
 	case MOST_CH_ISOC:
-		new_size = dim_norm_isoc_buffer_size(buf_size, sub_size);
+		new_size = dim_yesrm_isoc_buffer_size(buf_size, sub_size);
 		if (new_size == 0) {
 			pr_err("%s: invalid sub-buffer size or too small buffer size\n",
 			       hdm_ch->name);
@@ -504,7 +504,7 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 		hal_ret = dim_init_isoc(&hdm_ch->ch, is_tx, ch_addr, sub_size);
 		break;
 	case MOST_CH_SYNC:
-		new_size = dim_norm_sync_buffer_size(buf_size, sub_size);
+		new_size = dim_yesrm_sync_buffer_size(buf_size, sub_size);
 		if (new_size == 0) {
 			pr_err("%s: invalid sub-buffer size or too small buffer size\n",
 			       hdm_ch->name);
@@ -742,7 +742,7 @@ static int dim2_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 
-	ret = of_property_read_string(pdev->dev.of_node,
+	ret = of_property_read_string(pdev->dev.of_yesde,
 				      "microchip,clock-speed", &clock_speed);
 	if (ret) {
 		dev_err(&pdev->dev, "missing dt property clock-speed\n");
@@ -760,7 +760,7 @@ static int dim2_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->io_base))
 		return PTR_ERR(dev->io_base);
 
-	of_id = of_match_node(dim2_of_match, pdev->dev.of_node);
+	of_id = of_match_yesde(dim2_of_match, pdev->dev.of_yesde);
 	pdata = of_id->data;
 	ret = pdata && pdata->enable ? pdata->enable(pdev) : 0;
 	if (ret)
@@ -961,7 +961,7 @@ static int rcar_h2_enable(struct platform_device *pdev)
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "canyest get clock\n");
 		return PTR_ERR(dev->clk);
 	}
 
@@ -1007,7 +1007,7 @@ static int rcar_m3_enable(struct platform_device *pdev)
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "canyest get clock\n");
 		return PTR_ERR(dev->clk);
 	}
 

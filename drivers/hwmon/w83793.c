@@ -14,7 +14,7 @@
  * Supports following chips:
  *
  * Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
- * w83793	10	12	8	6	0x7b	0x5ca3	yes	no
+ * w83793	10	12	8	6	0x7b	0x5ca3	no	yes
  */
 
 #include <linux/module.h>
@@ -31,7 +31,7 @@
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
 #include <linux/kref.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/jiffies.h>
 
@@ -39,7 +39,7 @@
 #define WATCHDOG_TIMEOUT 2	/* 2 minute default timeout */
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
 /* Insmod parameters */
@@ -51,7 +51,7 @@ MODULE_PARM_DESC(force_subclients,
 
 static bool reset;
 module_param(reset, bool, 0);
-MODULE_PARM_DESC(reset, "Set to 1 to reset chip, not recommended");
+MODULE_PARM_DESC(reset, "Set to 1 to reset chip, yest recommended");
 
 static int timeout = WATCHDOG_TIMEOUT;	/* default timeout in minutes */
 module_param(timeout, int, 0);
@@ -59,10 +59,10 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in minutes. 2<= timeout <=255 (default="
 				__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
@@ -207,8 +207,8 @@ struct w83793_data {
 	struct mutex update_lock;
 	char valid;			/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
-	unsigned long last_nonvolatile;	/* In jiffies, last time we update the
-					 * nonvolatile registers
+	unsigned long last_yesnvolatile;	/* In jiffies, last time we update the
+					 * yesnvolatile registers
 					 */
 
 	u8 bank;
@@ -262,13 +262,13 @@ struct w83793_data {
 
 /*
  * Somewhat ugly :( global data pointer list with all devices, so that
- * we can find our device data as when using misc_register. There is no
+ * we can find our device data as when using misc_register. There is yes
  * other method to get to one's device data from the open file-op and
- * for usage in the reboot notifier callback.
+ * for usage in the reboot yestifier callback.
  */
 static LIST_HEAD(watchdog_data_list);
 
-/* Note this lock not only protect list access, but also data.kref access */
+/* Note this lock yest only protect list access, but also data.kref access */
 static DEFINE_MUTEX(watchdog_data_mutex);
 
 /*
@@ -289,7 +289,7 @@ static int w83793_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int w83793_remove(struct i2c_client *client);
 static void w83793_init_client(struct i2c_client *client);
-static void w83793_update_nonvolatile(struct device *dev);
+static void w83793_update_yesnvolatile(struct device *dev);
 static struct w83793_data *w83793_update_device(struct device *dev);
 
 static const struct i2c_device_id w83793_id[] = {
@@ -307,7 +307,7 @@ static struct i2c_driver w83793_driver = {
 	.remove		= w83793_remove,
 	.id_table	= w83793_id,
 	.detect		= w83793_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 static ssize_t
@@ -761,7 +761,7 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
  * It's possible two or more temp channels control the same fan, w83793
  * always prefers to pick the most critical request and applies it to
  * the related Fan.
- * It's possible one fan is not in any mapping of 6 temp channels, this
+ * It's possible one fan is yest in any mapping of 6 temp channels, this
  * means the fan is manual mode
  *
  * TEMP_PWM_ENABLE
@@ -1039,7 +1039,7 @@ store_in(struct device *dev, struct device_attribute *attr,
 #define SENSOR_ATTR_PWM(index)						\
 	SENSOR_ATTR_2(pwm##index, S_IWUSR | S_IRUGO, show_pwm,		\
 		store_pwm, PWM_DUTY, index - 1),			\
-	SENSOR_ATTR_2(pwm##index##_nonstop, S_IWUSR | S_IRUGO,		\
+	SENSOR_ATTR_2(pwm##index##_yesnstop, S_IWUSR | S_IRUGO,		\
 		show_pwm, store_pwm, PWM_NONSTOP, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_start, S_IWUSR | S_IRUGO,		\
 		show_pwm, store_pwm, PWM_START, index - 1),		\
@@ -1286,7 +1286,7 @@ leave:
 	return ret;
 }
 
-static int watchdog_open(struct inode *inode, struct file *filp)
+static int watchdog_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct w83793_data *pos, *data = NULL;
 	int watchdog_is_open;
@@ -1300,7 +1300,7 @@ static int watchdog_open(struct inode *inode, struct file *filp)
 	if (!mutex_trylock(&watchdog_data_mutex))
 		return -ERESTARTSYS;
 	list_for_each_entry(pos, &watchdog_data_list, list) {
-		if (pos->watchdog_miscdev.minor == iminor(inode)) {
+		if (pos->watchdog_miscdev.miyesr == imiyesr(iyesde)) {
 			data = pos;
 			break;
 		}
@@ -1310,8 +1310,8 @@ static int watchdog_open(struct inode *inode, struct file *filp)
 	watchdog_is_open = test_and_set_bit(0, &data->watchdog_is_open);
 
 	/*
-	 * Increase data reference counter (if not already done).
-	 * Note we can never not have found data, so we don't check for this
+	 * Increase data reference counter (if yest already done).
+	 * Note we can never yest have found data, so we don't check for this
 	 */
 	if (!watchdog_is_open)
 		kref_get(&data->kref);
@@ -1328,10 +1328,10 @@ static int watchdog_open(struct inode *inode, struct file *filp)
 	/* Store pointer to data into filp's private data */
 	filp->private_data = data;
 
-	return stream_open(inode, filp);
+	return stream_open(iyesde, filp);
 }
 
-static int watchdog_close(struct inode *inode, struct file *filp)
+static int watchdog_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct w83793_data *data = filp->private_data;
 
@@ -1341,7 +1341,7 @@ static int watchdog_close(struct inode *inode, struct file *filp)
 	} else {
 		watchdog_trigger(data);
 		dev_crit(&data->client->dev,
-			"unexpected close, not stopping watchdog!\n");
+			"unexpected close, yest stopping watchdog!\n");
 	}
 
 	clear_bit(0, &data->watchdog_is_open);
@@ -1361,7 +1361,7 @@ static ssize_t watchdog_write(struct file *filp, const char __user *buf,
 	struct w83793_data *data = filp->private_data;
 
 	if (count) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			/* Clear it in case it was set with a previous write */
@@ -1397,7 +1397,7 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		if (!nowayout)
+		if (!yeswayout)
 			ident.options |= WDIOF_MAGICCLOSE;
 		if (copy_to_user((void __user *)arg, &ident, sizeof(ident)))
 			ret = -EFAULT;
@@ -1453,7 +1453,7 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct file_operations watchdog_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.open = watchdog_open,
 	.release = watchdog_close,
 	.write = watchdog_write,
@@ -1465,7 +1465,7 @@ static const struct file_operations watchdog_fops = {
  *	Notifier for system down
  */
 
-static int watchdog_notify_sys(struct notifier_block *this, unsigned long code,
+static int watchdog_yestify_sys(struct yestifier_block *this, unsigned long code,
 			       void *unused)
 {
 	struct w83793_data *data = NULL;
@@ -1475,7 +1475,7 @@ static int watchdog_notify_sys(struct notifier_block *this, unsigned long code,
 		/* Disable each registered watchdog */
 		mutex_lock(&watchdog_data_mutex);
 		list_for_each_entry(data, &watchdog_data_list, list) {
-			if (data->watchdog_miscdev.minor)
+			if (data->watchdog_miscdev.miyesr)
 				watchdog_disable(data);
 		}
 		mutex_unlock(&watchdog_data_mutex);
@@ -1489,8 +1489,8 @@ static int watchdog_notify_sys(struct notifier_block *this, unsigned long code,
  *	turn the timebomb registers off.
  */
 
-static struct notifier_block watchdog_notifier = {
-	.notifier_call = watchdog_notify_sys,
+static struct yestifier_block watchdog_yestifier = {
+	.yestifier_call = watchdog_yestify_sys,
 };
 
 /*
@@ -1504,7 +1504,7 @@ static int w83793_remove(struct i2c_client *client)
 	int i, tmp;
 
 	/* Unregister the watchdog (if registered) */
-	if (data->watchdog_miscdev.minor) {
+	if (data->watchdog_miscdev.miyesr) {
 		misc_deregister(&data->watchdog_miscdev);
 
 		if (data->watchdog_is_open) {
@@ -1528,7 +1528,7 @@ static int w83793_remove(struct i2c_client *client)
 	tmp = w83793_read_value(client, W83793_REG_CONFIG);
 	w83793_write_value(client, W83793_REG_CONFIG, tmp & ~0x04);
 
-	unregister_reboot_notifier(&watchdog_notifier);
+	unregister_reboot_yestifier(&watchdog_yestifier);
 
 	hwmon_device_unregister(data->hwmon_dev);
 
@@ -1636,7 +1636,7 @@ static int w83793_detect(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	/* Determine the chip type now */
+	/* Determine the chip type yesw */
 	chip_id = i2c_smbus_read_byte_data(client, W83793_REG_CHIPID);
 	if (chip_id != 0x7b)
 		return -ENODEV;
@@ -1650,7 +1650,7 @@ static int w83793_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	static const int watchdog_minors[] = {
+	static const int watchdog_miyesrs[] = {
 		WATCHDOG_MINOR, 212, 213, 214, 215
 	};
 	struct w83793_data *data;
@@ -1749,7 +1749,7 @@ static int w83793_probe(struct i2c_client *client,
 		data->has_fan |= 0x800;
 	}
 
-	/* check the temp1-6 mode, ignore former AMDSI selected inputs */
+	/* check the temp1-6 mode, igyesre former AMDSI selected inputs */
 	tmp = w83793_read_value(client, W83793_REG_TEMP_MODE[0]);
 	if (tmp & 0x01)
 		data->has_temp |= 0x01;
@@ -1842,11 +1842,11 @@ static int w83793_probe(struct i2c_client *client,
 
 	/* Watchdog initialization */
 
-	/* Register boot notifier */
-	err = register_reboot_notifier(&watchdog_notifier);
+	/* Register boot yestifier */
+	err = register_reboot_yestifier(&watchdog_yestifier);
 	if (err != 0) {
 		dev_err(&client->dev,
-			"cannot register reboot notifier (err=%d)\n", err);
+			"canyest register reboot yestifier (err=%d)\n", err);
 		goto exit_devunreg;
 	}
 
@@ -1869,24 +1869,24 @@ static int w83793_probe(struct i2c_client *client,
 	watchdog_disable(data);
 
 	/*
-	 * We take the data_mutex lock early so that watchdog_open() cannot
-	 * run when misc_register() has completed, but we've not yet added
+	 * We take the data_mutex lock early so that watchdog_open() canyest
+	 * run when misc_register() has completed, but we've yest yet added
 	 * our data to the watchdog_data_list (and set the default timeout)
 	 */
 	mutex_lock(&watchdog_data_mutex);
-	for (i = 0; i < ARRAY_SIZE(watchdog_minors); i++) {
+	for (i = 0; i < ARRAY_SIZE(watchdog_miyesrs); i++) {
 		/* Register our watchdog part */
 		snprintf(data->watchdog_name, sizeof(data->watchdog_name),
 			"watchdog%c", (i == 0) ? '\0' : ('0' + i));
 		data->watchdog_miscdev.name = data->watchdog_name;
 		data->watchdog_miscdev.fops = &watchdog_fops;
-		data->watchdog_miscdev.minor = watchdog_minors[i];
+		data->watchdog_miscdev.miyesr = watchdog_miyesrs[i];
 
 		err = misc_register(&data->watchdog_miscdev);
 		if (err == -EBUSY)
 			continue;
 		if (err) {
-			data->watchdog_miscdev.minor = 0;
+			data->watchdog_miscdev.miyesr = 0;
 			dev_err(&client->dev,
 				"Registering watchdog chardev: %d\n", err);
 			break;
@@ -1895,14 +1895,14 @@ static int w83793_probe(struct i2c_client *client,
 		list_add(&data->list, &watchdog_data_list);
 
 		dev_info(&client->dev,
-			"Registered watchdog chardev major 10, minor: %d\n",
-			watchdog_minors[i]);
+			"Registered watchdog chardev major 10, miyesr: %d\n",
+			watchdog_miyesrs[i]);
 		break;
 	}
-	if (i == ARRAY_SIZE(watchdog_minors)) {
-		data->watchdog_miscdev.minor = 0;
+	if (i == ARRAY_SIZE(watchdog_miyesrs)) {
+		data->watchdog_miscdev.miyesr = 0;
 		dev_warn(&client->dev,
-			 "Couldn't register watchdog chardev (due to no free minor)\n");
+			 "Couldn't register watchdog chardev (due to yes free miyesr)\n");
 	}
 
 	mutex_unlock(&watchdog_data_mutex);
@@ -1941,17 +1941,17 @@ exit:
 	return err;
 }
 
-static void w83793_update_nonvolatile(struct device *dev)
+static void w83793_update_yesnvolatile(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct w83793_data *data = i2c_get_clientdata(client);
 	int i, j;
 	/*
 	 * They are somewhat "stable" registers, and to update them every time
-	 * takes so much time, it's just not worthy. Update them in a long
+	 * takes so much time, it's just yest worthy. Update them in a long
 	 * interval to avoid exception.
 	 */
-	if (!(time_after(jiffies, data->last_nonvolatile + HZ * 300)
+	if (!(time_after(jiffies, data->last_yesnvolatile + HZ * 300)
 	      || !data->valid))
 		return;
 	/* update voltage limits */
@@ -2025,7 +2025,7 @@ static void w83793_update_nonvolatile(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(data->beeps); i++)
 		data->beeps[i] = w83793_read_value(client, W83793_REG_BEEP(i));
 
-	data->last_nonvolatile = jiffies;
+	data->last_yesnvolatile = jiffies;
 }
 
 static struct w83793_data *w83793_update_device(struct device *dev)
@@ -2081,7 +2081,7 @@ static struct w83793_data *w83793_update_device(struct device *dev)
 		data->vid[0] = w83793_read_value(client, W83793_REG_VID_INA);
 	if (data->has_vid & 0x02)
 		data->vid[1] = w83793_read_value(client, W83793_REG_VID_INB);
-	w83793_update_nonvolatile(dev);
+	w83793_update_yesnvolatile(dev);
 	data->last_updated = jiffies;
 	data->valid = 1;
 
@@ -2091,7 +2091,7 @@ END:
 }
 
 /*
- * Ignore the possibility that somebody change bank outside the driver
+ * Igyesre the possibility that somebody change bank outside the driver
  * Must be called with data->update_lock held, except during initialization
  */
 static u8 w83793_read_value(struct i2c_client *client, u16 reg)

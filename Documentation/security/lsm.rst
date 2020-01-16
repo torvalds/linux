@@ -6,7 +6,7 @@ Linux Security Modules: General Security Hooks for Linux
 :Author: Timothy Fraser
 :Author: Chris Vance
 
-.. note::
+.. yeste::
 
    The APIs described in this book are outdated.
 
@@ -16,7 +16,7 @@ Introduction
 In March 2001, the National Security Agency (NSA) gave a presentation
 about Security-Enhanced Linux (SELinux) at the 2.5 Linux Kernel Summit.
 SELinux is an implementation of flexible and fine-grained
-nondiscretionary access controls in the Linux kernel, originally
+yesndiscretionary access controls in the Linux kernel, originally
 implemented as its own particular kernel patch. Several other security
 projects (e.g. RSBAC, Medusa) have also developed flexible access
 control architectures for the Linux kernel, and various projects have
@@ -51,7 +51,7 @@ The LSM kernel patch provides a general kernel framework to support
 security modules. In particular, the LSM framework is primarily focused
 on supporting access control modules, although future development is
 likely to address other security needs such as auditing. By itself, the
-framework does not provide any additional security; it merely provides
+framework does yest provide any additional security; it merely provides
 the infrastructure to support security modules. The LSM kernel patch
 also moves most of the capabilities logic into an optional security
 module, with the system defaulting to the traditional superuser logic.
@@ -71,8 +71,8 @@ program execution security information, security fields were added to
 :c:type:`struct linux_binprm <linux_binprm>`. For filesystem
 security information, a security field was added to :c:type:`struct
 super_block <super_block>`. For pipe, file, and socket security
-information, security fields were added to :c:type:`struct inode
-<inode>` and :c:type:`struct file <file>`. For packet and
+information, security fields were added to :c:type:`struct iyesde
+<iyesde>` and :c:type:`struct file <file>`. For packet and
 network device security information, security fields were added to
 :c:type:`struct sk_buff <sk_buff>` and :c:type:`struct
 net_device <net_device>`. For System V IPC security information,
@@ -90,7 +90,7 @@ This table is a :c:type:`struct security_operations
 ``include/linux/security.h``. Detailed documentation for each hook is
 included in this header file. At present, this structure consists of a
 collection of substructures that group related hooks based on the kernel
-object (e.g. task, inode, file, sk_buff, etc) as well as some top-level
+object (e.g. task, iyesde, file, sk_buff, etc) as well as some top-level
 hook function pointers for system operations. This structure is likely
 to be flattened in the future for performance. The placement of the hook
 calls in the kernel code is described by the "called:" lines in the
@@ -105,7 +105,7 @@ would have to deal with how to handle operations that involve multiple
 processes (e.g. kill), since each process might have its own hook for
 controlling the operation. This would require a general mechanism for
 composing hooks in the base framework. Additionally, LSM would still
-need global hooks for operations that have no process context (e.g.
+need global hooks for operations that have yes process context (e.g.
 network input operations). Consequently, LSM provides global security
 hooks, but a security module is free to implement per-process hooks
 (where that makes sense) by storing a security_ops table in each
@@ -134,7 +134,7 @@ after performing some sanity checking. A security module can call these
 functions in order to stack with other modules. However, the actual
 details of how this stacking is handled are deferred to the module,
 which can implement these hooks in any way it wishes (including always
-returning an error if it does not wish to support stacking). In this
+returning an error if it does yest wish to support stacking). In this
 manner, LSM again defers the problem of composition to the module.
 
 Although the LSM hooks are organized into substructures based on kernel
@@ -147,19 +147,19 @@ structure that has a security field. These hooks are used to allocate
 and free security structures for kernel objects. The first category of
 hooks also includes hooks that set information in the security field
 after allocation, such as the :c:func:`post_lookup()` hook in
-:c:type:`struct inode_security_ops <inode_security_ops>`.
-This hook is used to set security information for inodes after
+:c:type:`struct iyesde_security_ops <iyesde_security_ops>`.
+This hook is used to set security information for iyesdes after
 successful lookup operations. An example of the second category of hooks
 is the :c:func:`permission()` hook in :c:type:`struct
-inode_security_ops <inode_security_ops>`. This hook checks
-permission when accessing an inode.
+iyesde_security_ops <iyesde_security_ops>`. This hook checks
+permission when accessing an iyesde.
 
 LSM Capabilities Module
 =======================
 
 The LSM kernel patch moves most of the existing POSIX.1e capabilities
 logic into an optional security module stored in the file
-``security/capability.c``. This change allows users who do not want to
+``security/capability.c``. This change allows users who do yest want to
 use capabilities to omit this code entirely from their kernel, instead
 using the dummy module for traditional superuser logic or any other
 module that they desire. This change also allows the developers of the
@@ -188,7 +188,7 @@ where capability-related fields are directly examined or modified, but
 the current version of the LSM patch does allow a security module to
 completely replace the assignment and testing of capabilities. These few
 locations would need to be changed if the capability-related fields were
-moved into the security field. The following is a list of known
+moved into the security field. The following is a list of kyeswn
 locations that still perform such direct examination or modification of
 capability-related fields:
 

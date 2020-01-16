@@ -328,7 +328,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		 * (a) each page in a sector must be rewritten at least
 		 *     once every 10K sibling erase/program operations.
 		 * (b) for pages that are already erased, we could
-		 *     use WRITE+MWRITE not PROGRAM for ~30% speedup.
+		 *     use WRITE+MWRITE yest PROGRAM for ~30% speedup.
 		 * (c) WRITE to buffer could be done while waiting for
 		 *     a previous MWRITE/MWERASE to complete ...
 		 * (d) error handling here seems to be mostly missing.
@@ -470,7 +470,7 @@ static ssize_t otp_read(struct spi_device *spi, unsigned base,
 		return -ENOMEM;
 
 	/* OUT: OP_READ_SECURITY, 3 don't-care bytes, zeroes
-	 * IN:  ignore 4 bytes, data bytes 0..N (max 127)
+	 * IN:  igyesre 4 bytes, data bytes 0..N (max 127)
 	 */
 	scratch[0] = OP_READ_SECURITY;
 
@@ -539,7 +539,7 @@ static int dataflash_write_user_otp(struct mtd_info *mtd,
 	if (from >= 64) {
 		/*
 		 * Attempting to write beyond the end of OTP memory,
-		 * no data can be written.
+		 * yes data can be written.
 		 */
 		*retlen = 0;
 		return 0;
@@ -550,7 +550,7 @@ static int dataflash_write_user_otp(struct mtd_info *mtd,
 		len = 64 - from;
 
 	/* OUT: OP_WRITE_SECURITY, 3 zeroes, 64 data-or-zero bytes
-	 * IN:  ignore all
+	 * IN:  igyesre all
 	 */
 	scratch = kzalloc(l, GFP_KERNEL);
 	if (!scratch)
@@ -565,7 +565,7 @@ static int dataflash_write_user_otp(struct mtd_info *mtd,
 	t.len = l;
 	spi_message_add_tail(&t, &m);
 
-	/* Write the OTP bits, if they've not yet been written.
+	/* Write the OTP bits, if they've yest yet been written.
 	 * This modifies SRAM buffer1.
 	 */
 	mutex_lock(&priv->lock);
@@ -590,7 +590,7 @@ static char *otp_setup(struct mtd_info *device, char revision)
 	device->_read_user_prot_reg = dataflash_read_user_otp;
 
 	/* rev c parts (at45db321c and at45db1281 only!) use a
-	 * different write procedure; not (yet?) implemented.
+	 * different write procedure; yest (yet?) implemented.
 	 */
 	if (revision > 'c')
 		device->_write_user_prot_reg = dataflash_write_user_otp;
@@ -648,7 +648,7 @@ static int add_dataflash_otp(struct spi_device *spi, char *name, int nr_pages,
 	device->priv = priv;
 
 	device->dev.parent = &spi->dev;
-	mtd_set_of_node(device, spi->dev.of_node);
+	mtd_set_of_yesde(device, spi->dev.of_yesde);
 
 	if (revision >= 'c')
 		otp_tag = otp_setup(device, revision);
@@ -700,7 +700,7 @@ static struct flash_info dataflash_data[] = {
 	/*
 	 * NOTE:  chips with SUP_POW2PS (rev D and up) need two entries,
 	 * one with IS_POW2PS and the other without.  The entry with the
-	 * non-2^N byte page size can't name exact chip revisions without
+	 * yesn-2^N byte page size can't name exact chip revisions without
 	 * losing backwards compatibility for cmdlinepart.
 	 *
 	 * These newer chips also support 128-byte security registers (with
@@ -786,7 +786,7 @@ static struct flash_info *jedec_probe(struct spi_device *spi)
 	 * we use here.  Supporting some chips might require using it.
 	 *
 	 * If the vendor ID isn't Atmel's (0x1f), assume this call failed.
-	 * That's not an error; only rev C and newer chips handle it, and
+	 * That's yest an error; only rev C and newer chips handle it, and
 	 * only Atmel sells these chips.
 	 */
 	ret = spi_write_then_read(spi, &code, 1, id, id_size);
@@ -808,18 +808,18 @@ static struct flash_info *jedec_probe(struct spi_device *spi)
 	if (!IS_ERR(info))
 		return info;
 	/*
-	 * If that fails, make another pass using regular ID
+	 * If that fails, make ayesther pass using regular ID
 	 * information
 	 */
 	info = jedec_lookup(spi, jedec >> DATAFLASH_SHIFT_ID, false);
 	if (!IS_ERR(info))
 		return info;
 	/*
-	 * Treat other chips as errors ... we won't know the right page
+	 * Treat other chips as errors ... we won't kyesw the right page
 	 * size (it might be binary) even when we can tell which density
 	 * class is involved (legacy chip id scheme).
 	 */
-	dev_warn(&spi->dev, "JEDEC id %016llx not handled\n", jedec);
+	dev_warn(&spi->dev, "JEDEC id %016llx yest handled\n", jedec);
 	return ERR_PTR(-ENODEV);
 }
 
@@ -844,7 +844,7 @@ static int dataflash_probe(struct spi_device *spi)
 
 	/*
 	 * Try to detect dataflash by JEDEC ID.
-	 * If it succeeds we know we have either a C or D part.
+	 * If it succeeds we kyesw we have either a C or D part.
 	 * D will support power of 2 pagesize option.
 	 * Both support the security register, though with different
 	 * write procedures.
@@ -896,7 +896,7 @@ static int dataflash_probe(struct spi_device *spi)
 	case 0x3c:
 		status = add_dataflash(spi, "AT45DB642x", 8192, 1056, 11);
 		break;
-	/* obsolete AT45DB1282 not (yet?) supported */
+	/* obsolete AT45DB1282 yest (yet?) supported */
 	default:
 		dev_info(&spi->dev, "unsupported device (%x)\n",
 				status & 0x3c);

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -52,7 +52,7 @@
 #define HSA_CAP_MEM_EDCSUPPORTED		0x00100000
 #define HSA_CAP_RASEVENTNOTIFY			0x00200000
 
-struct kfd_node_properties {
+struct kfd_yesde_properties {
 	uint64_t hive_id;
 	uint32_t cpu_cores_count;
 	uint32_t simd_count;
@@ -78,7 +78,7 @@ struct kfd_node_properties {
 	uint32_t location_id;
 	uint32_t max_engine_clk_fcompute;
 	uint32_t max_engine_clk_ccompute;
-	int32_t  drm_render_minor;
+	int32_t  drm_render_miyesr;
 	uint32_t num_sdma_engines;
 	uint32_t num_sdma_xgmi_engines;
 	char name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE];
@@ -134,8 +134,8 @@ struct kfd_iolink_properties {
 	uint32_t		iolink_type;
 	uint32_t		ver_maj;
 	uint32_t		ver_min;
-	uint32_t		node_from;
-	uint32_t		node_to;
+	uint32_t		yesde_from;
+	uint32_t		yesde_to;
 	uint32_t		weight;
 	uint32_t		min_latency;
 	uint32_t		max_latency;
@@ -159,7 +159,7 @@ struct kfd_topology_device {
 	struct list_head		list;
 	uint32_t			gpu_id;
 	uint32_t			proximity_domain;
-	struct kfd_node_properties	node_props;
+	struct kfd_yesde_properties	yesde_props;
 	struct list_head		mem_props;
 	uint32_t			cache_count;
 	struct list_head		cache_props;
@@ -167,7 +167,7 @@ struct kfd_topology_device {
 	struct list_head		io_link_props;
 	struct list_head		perf_props;
 	struct kfd_dev			*gpu;
-	struct kobject			*kobj_node;
+	struct kobject			*kobj_yesde;
 	struct kobject			*kobj_mem;
 	struct kobject			*kobj_cache;
 	struct kobject			*kobj_iolink;
@@ -181,13 +181,13 @@ struct kfd_topology_device {
 };
 
 struct kfd_system_properties {
-	uint32_t		num_devices;     /* Number of H-NUMA nodes */
+	uint32_t		num_devices;     /* Number of H-NUMA yesdes */
 	uint32_t		generation_count;
 	uint64_t		platform_oem;
 	uint64_t		platform_id;
 	uint64_t		platform_rev;
 	struct kobject		*kobj_topology;
-	struct kobject		*kobj_nodes;
+	struct kobject		*kobj_yesdes;
 	struct attribute	attr_genid;
 	struct attribute	attr_props;
 };

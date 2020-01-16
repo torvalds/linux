@@ -218,7 +218,7 @@ out:
 
 struct tpm2_null_auth_area {
 	__be32  handle;
-	__be16  nonce_size;
+	__be16  yesnce_size;
 	u8  attributes;
 	__be16  auth_size;
 } __packed;
@@ -247,7 +247,7 @@ int tpm2_pcr_extend(struct tpm_chip *chip, u32 pcr_idx,
 	tpm_buf_append_u32(&buf, pcr_idx);
 
 	auth_area.handle = cpu_to_be32(TPM2_RS_PW);
-	auth_area.nonce_size = 0;
+	auth_area.yesnce_size = 0;
 	auth_area.attributes = 0;
 	auth_area.auth_size = 0;
 
@@ -283,7 +283,7 @@ struct tpm2_get_random_out {
  *
  * Return:
  *   size of the buffer on success,
- *   -errno otherwise (positive TPM return codes are masked to -EIO)
+ *   -erryes otherwise (positive TPM return codes are masked to -EIO)
  */
 int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 {
@@ -352,7 +352,7 @@ void tpm2_flush_context(struct tpm_chip *chip, u32 handle)
 
 	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_FLUSH_CONTEXT);
 	if (rc) {
-		dev_warn(&chip->dev, "0x%08x was not flushed, out of memory\n",
+		dev_warn(&chip->dev, "0x%08x was yest flushed, out of memory\n",
 			 handle);
 		return;
 	}
@@ -381,7 +381,7 @@ struct tpm2_get_cap_out {
  *
  * Return:
  *   0 on success,
- *   -errno or a TPM return code otherwise
+ *   -erryes or a TPM return code otherwise
  */
 ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,  u32 *value,
 			const char *desc)
@@ -411,7 +411,7 @@ EXPORT_SYMBOL_GPL(tpm2_get_tpm_pt);
  * tpm2_shutdown() - send a TPM shutdown command
  *
  * Sends a TPM shutdown command. The shutdown command is used in call
- * sites where the system is going down. If it fails, there is not much
+ * sites where the system is going down. If it fails, there is yest much
  * that can be done except print an error message.
  *
  * @chip:		a &tpm_chip instance
@@ -437,9 +437,9 @@ void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
  *
  * Return: Same as with tpm_transmit_cmd.
  *
- * The TPM can either run all self tests synchronously and then return
+ * The TPM can either run all self tests synchroyesusly and then return
  * RC_SUCCESS once all tests were successful. Or it can choose to run the tests
- * asynchronously and return RC_TESTING immediately while the self tests still
+ * asynchroyesusly and return RC_TESTING immediately while the self tests still
  * execute in the background. This function handles both cases and waits until
  * all tests have completed.
  */
@@ -478,7 +478,7 @@ static int tpm2_do_selftest(struct tpm_chip *chip)
  *
  * Return:
  *   0 on success,
- *   -errno otherwise
+ *   -erryes otherwise
  */
 int tpm2_probe(struct tpm_chip *chip)
 {
@@ -493,7 +493,7 @@ int tpm2_probe(struct tpm_chip *chip)
 	tpm_buf_append_u32(&buf, TPM_PT_TOTAL_COMMANDS);
 	tpm_buf_append_u32(&buf, 1);
 	rc = tpm_transmit_cmd(chip, &buf, 0, NULL);
-	/* We ignore TPM return codes on purpose. */
+	/* We igyesre TPM return codes on purpose. */
 	if (rc >=  0) {
 		out = (struct tpm_header *)buf.data;
 		if (be16_to_cpu(out->tag) == TPM2_ST_NO_SESSIONS)
@@ -685,7 +685,7 @@ out:
  * @chip: TPM chip to use
  *
  * Normally the firmware should start the TPM. This function is provided as a
- * workaround if this does not happen. A legal case for this could be for
+ * workaround if this does yest happen. A legal case for this could be for
  * example when a TPM emulator is used.
  *
  * Return: same as tpm_transmit_cmd()

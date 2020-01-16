@@ -144,7 +144,7 @@ static struct net_device *br2684_find_dev(const struct br2684_if_spec *s)
 	return NULL;
 }
 
-static int atm_dev_event(struct notifier_block *this, unsigned long event,
+static int atm_dev_event(struct yestifier_block *this, unsigned long event,
 		 void *arg)
 {
 	struct atm_dev *atm_dev = arg;
@@ -177,8 +177,8 @@ static int atm_dev_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block atm_dev_notifier = {
-	.notifier_call = atm_dev_event,
+static struct yestifier_block atm_dev_yestifier = {
+	.yestifier_call = atm_dev_event,
 };
 
 /* chained vcc->pop function.  Check if we should wake the netif_queue */
@@ -195,7 +195,7 @@ static void br2684_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 }
 
 /*
- * Send a packet out a particular vcc.  Not to useful right now, but paves
+ * Send a packet out a particular vcc.  Not to useful right yesw, but paves
  * the way for multiple vcc's per itf.  Returns true if we can send,
  * otherwise false
  */
@@ -285,7 +285,7 @@ static void br2684_release_cb(struct atm_vcc *atmvcc)
 static inline struct br2684_vcc *pick_outgoing_vcc(const struct sk_buff *skb,
 						   const struct br2684_dev *brdev)
 {
-	return list_empty(&brdev->brvccs) ? NULL : list_entry_brvcc(brdev->brvccs.next);	/* 1 vcc/dev right now */
+	return list_empty(&brdev->brvccs) ? NULL : list_entry_brvcc(brdev->brvccs.next);	/* 1 vcc/dev right yesw */
 }
 
 static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
@@ -300,7 +300,7 @@ static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
 	read_lock(&devs_lock);
 	brvcc = pick_outgoing_vcc(skb, brdev);
 	if (brvcc == NULL) {
-		pr_debug("no vcc attached to dev %s\n", dev->name);
+		pr_debug("yes vcc attached to dev %s\n", dev->name);
 		dev->stats.tx_errors++;
 		dev->stats.tx_carrier_errors++;
 		/* netif_stop_queue(dev); */
@@ -331,7 +331,7 @@ static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
 		 * involves added complication.  We need to walk before
 		 * we can run.
 		 *
-		 * Don't free here! this pointer might be no longer valid!
+		 * Don't free here! this pointer might be yes longer valid!
 		 */
 		dev->stats.tx_errors++;
 		dev->stats.tx_fifo_errors++;
@@ -391,7 +391,7 @@ static inline int
 packet_fails_filter(__be16 type, struct br2684_vcc *brvcc, struct sk_buff *skb)
 {
 	if (brvcc->filter.netmask == 0)
-		return 0;	/* no filter in place */
+		return 0;	/* yes filter in place */
 	if (type == htons(ETH_P_IP) &&
 	    (((struct iphdr *)(skb->data))->daddr & brvcc->filter.
 	     netmask) == brvcc->filter.prefix)
@@ -467,7 +467,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 		/*
 		 * Let us waste some time for checking the encapsulation.
 		 * Note, that only 7 char is checked so frames with a valid FCS
-		 * are also accepted (but FCS is not checked of course).
+		 * are also accepted (but FCS is yest checked of course).
 		 */
 		} else if ((skb->len >= sizeof(llc_oui_pid_pad)) &&
 			   (memcmp(skb->data, llc_oui_pid_pad, 7) == 0)) {
@@ -526,7 +526,7 @@ free_skb:
 
 /*
  * Assign a vcc to a dev
- * Note: we do not have explicit unassign, but look at _push()
+ * Note: we do yest have explicit unassign, but look at _push()
  */
 static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 {
@@ -551,7 +551,7 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	write_lock_irq(&devs_lock);
 	net_dev = br2684_find_dev(&be.ifspec);
 	if (net_dev == NULL) {
-		pr_err("tried to attach to non-existent device\n");
+		pr_err("tried to attach to yesn-existent device\n");
 		err = -ENXIO;
 		goto error;
 	}
@@ -561,7 +561,7 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 		goto error;
 	}
 	if (!list_empty(&brdev->brvccs)) {
-		/* Only 1 VCC/dev right now */
+		/* Only 1 VCC/dev right yesw */
 		err = -EEXIST;
 		goto error;
 	}
@@ -830,7 +830,7 @@ static int __init br2684_init(void)
 		return -ENOMEM;
 #endif
 	register_atm_ioctl(&br2684_ioctl_ops);
-	register_atmdevice_notifier(&atm_dev_notifier);
+	register_atmdevice_yestifier(&atm_dev_yestifier);
 	return 0;
 }
 
@@ -846,7 +846,7 @@ static void __exit br2684_exit(void)
 #endif
 
 
-	unregister_atmdevice_notifier(&atm_dev_notifier);
+	unregister_atmdevice_yestifier(&atm_dev_yestifier);
 
 	while (!list_empty(&br2684_devs)) {
 		net_dev = list_entry_brdev(br2684_devs.next);

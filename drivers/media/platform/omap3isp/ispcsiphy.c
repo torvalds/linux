@@ -31,7 +31,7 @@ static void csiphy_routing_cfg_3630(struct isp_csiphy *phy,
 
 	switch (iface) {
 	default:
-	/* Should not happen in practice, but let's keep the compiler happy. */
+	/* Should yest happen in practice, but let's keep the compiler happy. */
 	case ISP_INTERFACE_CCP2B_PHY1:
 		reg &= ~OMAP3630_CONTROL_CAMERA_PHY_CTRL_CSI1_RX_SEL_PHY2;
 		shift = OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_PHY1_SHIFT;
@@ -95,7 +95,7 @@ static void csiphy_routing_cfg_3430(struct isp_csiphy *phy, u32 iface, bool on,
  *
  * Note that the underlying routing configuration registers are part of the
  * control (SCM) register space and part of the CORE power domain on both 3430
- * and 3630, so they will not hold their contents in off-mode. This isn't an
+ * and 3630, so they will yest hold their contents in off-mode. This isn't an
  * issue since the MPU power domain is forced on whilst the ISP is in use.
  */
 static void csiphy_routing_cfg(struct isp_csiphy *phy,
@@ -199,7 +199,7 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 		return -EINVAL;
 
 	/*
-	 * The PHY configuration is lost in off mode, that's not an
+	 * The PHY configuration is lost in off mode, that's yest an
 	 * issue since the MPU power domain is forced on whilst the
 	 * ISP is in use.
 	 */
@@ -263,7 +263,7 @@ int omap3isp_csiphy_acquire(struct isp_csiphy *phy, struct media_entity *entity)
 
 	if (phy->vdd == NULL) {
 		dev_err(phy->isp->dev,
-			"Power regulator for CSI PHY not available\n");
+			"Power regulator for CSI PHY yest available\n");
 		return -ENODEV;
 	}
 

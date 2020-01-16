@@ -14,7 +14,7 @@
  * A special thanks goes to Realtek for their support !
  */
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
 #include <linux/in.h>
@@ -113,7 +113,7 @@ rtllib_frag_cache_get(struct rtllib_device *ieee,
 	}
 
 	if (frag == 0) {
-		/* Reserve enough space to fit maximum frame length */
+		/* Reserve eyesugh space to fit maximum frame length */
 		skb = dev_alloc_skb(ieee->dev->mtu +
 				    sizeof(struct rtllib_hdr_4addr) +
 				    8 /* LLC */ +
@@ -208,7 +208,7 @@ rtllib_rx_frame_mgmt(struct rtllib_device *ieee, struct sk_buff *skb,
 			u16 stype)
 {
 	/* On the struct stats definition there is written that
-	 * this is not mandatory.... but seems that the probe
+	 * this is yest mandatory.... but seems that the probe
 	 * response parser uses it
 	 */
 	struct rtllib_hdr_3addr *hdr = (struct rtllib_hdr_3addr *)skb->data;
@@ -519,7 +519,7 @@ void rtllib_indicate_packets(struct rtllib_device *ieee,
 				sub_skb->dev = ieee->dev;
 				sub_skb->dev->stats.rx_packets++;
 				sub_skb->dev->stats.rx_bytes += sub_skb->len;
-				/* 802.11 crc not sufficient */
+				/* 802.11 crc yest sufficient */
 				sub_skb->ip_summed = CHECKSUM_NONE;
 				ieee->last_rx_ps_time = jiffies;
 				netif_rx(sub_skb);
@@ -624,7 +624,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 
 	/* Indication process.
 	 * After Packet dropping and Sliding Window shifting as above, we can
-	 * now just indicate the packets with the SeqNum smaller than latest
+	 * yesw just indicate the packets with the SeqNum smaller than latest
 	 * WinStart and struct buffer other packets.
 	 *
 	 * For Rx Reorder condition:
@@ -673,13 +673,13 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 					   pTS->RxIndicateSeq, SeqNum);
 			}
 		} else {
-			/* Packets are dropped if there are not enough reorder
+			/* Packets are dropped if there are yest eyesugh reorder
 			 * entries. This part should be modified!! We can just
 			 * indicate all the packets in struct buffer and get
 			 * reorder entries.
 			 */
 			netdev_err(ieee->dev,
-				   "%s(): There is no reorder entry! Packet is dropped!\n",
+				   "%s(): There is yes reorder entry! Packet is dropped!\n",
 				   __func__);
 			{
 				int i;
@@ -799,7 +799,7 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 		 * The struct buffer size of the skb indicated to upper layer
 		 * must be less than 5000, or the defraged IP datagram
 		 * in the IP layer will exceed "ipfrag_high_tresh" and be
-		 * discarded. so there must not use the function
+		 * discarded. so there must yest use the function
 		 * "skb_copy" and "skb_clone" for "skb".
 		 */
 
@@ -823,7 +823,7 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 	memcpy(rxb->src, src, ETH_ALEN);
 	memcpy(rxb->dst, dst, ETH_ALEN);
 	while (skb->len > ETHERNET_HEADER_SIZE) {
-		/* Offset 12 denote 2 mac address */
+		/* Offset 12 deyeste 2 mac address */
 		nSubframe_Length = *((u16 *)(skb->data + 12));
 		nSubframe_Length = (nSubframe_Length >> 8) +
 				   (nSubframe_Length << 8);
@@ -851,7 +851,7 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 		 * The struct buffer size of the skb indicated to upper layer
 		 * must be less than 5000, or the defraged IP datagram
 		 * in the IP layer will exceed "ipfrag_high_tresh" and be
-		 * discarded. so there must not use the function
+		 * discarded. so there must yest use the function
 		 * "skb_copy" and "skb_clone" for "skb".
 		 */
 
@@ -1019,7 +1019,7 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 		    stype != RTLLIB_STYPE_QOS_DATA) {
 			if (stype != RTLLIB_STYPE_NULLFUNC)
 				netdev_dbg(ieee->dev,
-					   "RX: dropped data frame with no data (type=0x%02x, subtype=0x%02x)\n",
+					   "RX: dropped data frame with yes data (type=0x%02x, subtype=0x%02x)\n",
 					   type, stype);
 			return -1;
 		}
@@ -1066,7 +1066,7 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			 * these reports.
 			 */
 			netdev_dbg(ieee->dev,
-				   "Decryption failed (not set) (SA= %pM)\n",
+				   "Decryption failed (yest set) (SA= %pM)\n",
 				   hdr->addr2);
 			return -1;
 		}
@@ -1109,7 +1109,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 		if (!frag_skb) {
 			netdev_dbg(ieee->dev,
-				   "Rx cannot get skb from fragment cache (morefrag=%d seq=%u frag=%u)\n",
+				   "Rx canyest get skb from fragment cache (morefrag=%d seq=%u frag=%u)\n",
 				   (fc & RTLLIB_FCTL_MOREFRAGS) != 0,
 				   WLAN_GET_SEQ_SEQ(sc), frag);
 			return -1;
@@ -1120,7 +1120,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 		if (frag_skb->tail + flen > frag_skb->end) {
 			netdev_warn(ieee->dev,
-				    "%s: host decrypted and reassembled frame did not fit skb\n",
+				    "%s: host decrypted and reassembled frame did yest fit skb\n",
 				    __func__);
 			rtllib_frag_cache_invalidate(ieee, hdr);
 			return -1;
@@ -1142,7 +1142,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 		if (fc & RTLLIB_FCTL_MOREFRAGS) {
 			/* more fragments expected - leave the skb in fragment
-			 * cache for now; it will be delivered to upper layers
+			 * cache for yesw; it will be delivered to upper layers
 			 * after all fragments have been received
 			 */
 			return -2;
@@ -1180,7 +1180,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 				   eap_get_type(eap->type));
 		} else {
 			netdev_dbg(ieee->dev,
-				   "encryption configured, but RX frame not encrypted (SA= %pM)\n",
+				   "encryption configured, but RX frame yest encrypted (SA= %pM)\n",
 				   hdr->addr2);
 			return -1;
 		}
@@ -1282,7 +1282,7 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 			sub_skb->dev = dev;
 			sub_skb->dev->stats.rx_packets++;
 			sub_skb->dev->stats.rx_bytes += sub_skb->len;
-			/* 802.11 crc not sufficient */
+			/* 802.11 crc yest sufficient */
 			sub_skb->ip_summed = CHECKSUM_NONE;
 			netif_rx(sub_skb);
 		}
@@ -1313,7 +1313,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	stype = WLAN_FC_GET_STYPE(fc);
 	sc = le16_to_cpu(hdr->seq_ctl);
 
-	/*Filter pkt not to me*/
+	/*Filter pkt yest to me*/
 	multicast = is_multicast_ether_addr(hdr->addr1);
 	unicast = !multicast;
 	if (unicast && !ether_addr_equal(dev->dev_addr, hdr->addr1)) {
@@ -1406,7 +1406,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 		GetTs(ieee, (struct ts_common_info **) &pTS, hdr->addr2, TID,
 		      RX_DIR, true);
 		if (TID != 0 && TID != 3)
-			ieee->bis_any_nonbepkts = true;
+			ieee->bis_any_yesnbepkts = true;
 	}
 
 	/* Parse rx data frame (For AMSDU) */
@@ -1418,7 +1418,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* to parse amsdu packets */
 	/* qos data packets & reserved bit is 1 */
 	if (parse_subframe(ieee, skb, rx_stats, rxb, src, dst) == 0) {
-		/* only to free rxb, and not submit the packets
+		/* only to free rxb, and yest submit the packets
 		 * to upper layer
 		 */
 		for (i = 0; i < rxb->nr_subframes; i++)
@@ -1456,7 +1456,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
  rx_dropped:
 	ieee->stats.rx_dropped++;
 
-	/* Returning 0 indicates to caller that we have not handled the SKB--
+	/* Returning 0 indicates to caller that we have yest handled the SKB--
 	 * so it is still allocated and can be used again by underlying
 	 * hardware as a DMA target
 	 */
@@ -2061,7 +2061,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				   length, info_element->id);
 			/* We stop processing but don't return an error here
 			 * because some misbehaviour APs break this rule. ie.
-			 * Orinoco AP1000.
+			 * Oriyesco AP1000.
 			 */
 			break;
 		}
@@ -2144,11 +2144,11 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			break;
 
 		case MFIE_TYPE_FH_SET:
-			netdev_dbg(ieee->dev, "MFIE_TYPE_FH_SET: ignored\n");
+			netdev_dbg(ieee->dev, "MFIE_TYPE_FH_SET: igyesred\n");
 			break;
 
 		case MFIE_TYPE_CF_SET:
-			netdev_dbg(ieee->dev, "MFIE_TYPE_CF_SET: ignored\n");
+			netdev_dbg(ieee->dev, "MFIE_TYPE_CF_SET: igyesred\n");
 			break;
 
 		case MFIE_TYPE_TIM:
@@ -2197,7 +2197,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			break;
 
 		case MFIE_TYPE_CHALLENGE:
-			netdev_dbg(ieee->dev, "MFIE_TYPE_CHALLENGE: ignored\n");
+			netdev_dbg(ieee->dev, "MFIE_TYPE_CHALLENGE: igyesred\n");
 			break;
 
 		case MFIE_TYPE_GENERIC:
@@ -2291,9 +2291,9 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 	if (!network->atheros_cap_exist && !network->broadcom_cap_exist &&
 	    !network->cisco_cap_exist && !network->ralink_cap_exist &&
 	    !network->bssht.bdRT2RTAggregation)
-		network->unknown_cap_exist = true;
+		network->unkyeswn_cap_exist = true;
 	else
-		network->unknown_cap_exist = false;
+		network->unkyeswn_cap_exist = false;
 	return 0;
 }
 
@@ -2337,7 +2337,7 @@ static inline int rtllib_network_init(
 	network->ralink_cap_exist = false;
 	network->atheros_cap_exist = false;
 	network->cisco_cap_exist = false;
-	network->unknown_cap_exist = false;
+	network->unkyeswn_cap_exist = false;
 	network->realtek_cap_exit = false;
 	network->marvell_cap_exist = false;
 	network->airgo_cap_exist = false;
@@ -2390,7 +2390,7 @@ static inline int rtllib_network_init(
 	if (rtllib_is_empty_essid(network->ssid, network->ssid_len))
 		network->flags |= NETWORK_EMPTY_ESSID;
 	stats->signal = 30 + (stats->SignalStrength * 70) / 100;
-	stats->noise = rtllib_translate_todbm((u8)(100-stats->signal)) - 25;
+	stats->yesise = rtllib_translate_todbm((u8)(100-stats->signal)) - 25;
 
 	memcpy(&network->stats, stats, sizeof(network->stats));
 
@@ -2474,7 +2474,7 @@ static inline void update_network(struct rtllib_device *ieee,
 	dst->marvell_cap_exist = src->marvell_cap_exist;
 	dst->cisco_cap_exist = src->cisco_cap_exist;
 	dst->airgo_cap_exist = src->airgo_cap_exist;
-	dst->unknown_cap_exist = src->unknown_cap_exist;
+	dst->unkyeswn_cap_exist = src->unkyeswn_cap_exist;
 	memcpy(dst->wpa_ie, src->wpa_ie, src->wpa_ie_len);
 	dst->wpa_ie_len = src->wpa_ie_len;
 	memcpy(dst->rsn_ie, src->rsn_ie, src->rsn_ie_len);
@@ -2617,10 +2617,10 @@ static inline void rtllib_process_probe_response(
 		}
 	}
 
-	/* The network parsed correctly -- so now we scan our known networks
+	/* The network parsed correctly -- so yesw we scan our kyeswn networks
 	 * to see if we can find it in our list.
 	 *
-	 * NOTE:  This search is definitely not optimized.  Once its doing
+	 * NOTE:  This search is definitely yest optimized.  Once its doing
 	 *	the "right thing" we'll optimize it for efficiency if
 	 *	necessary
 	 */
@@ -2660,7 +2660,7 @@ static inline void rtllib_process_probe_response(
 	 */
 	if (&target->list == &ieee->network_list) {
 		if (list_empty(&ieee->network_free_list)) {
-			/* If there are no more slots, expire the oldest */
+			/* If there are yes more slots, expire the oldest */
 			list_del(&oldest->list);
 			target = oldest;
 			netdev_dbg(ieee->dev,

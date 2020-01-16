@@ -1,31 +1,31 @@
 *** Reserved memory regions ***
 
-Reserved memory is specified as a node under the /reserved-memory node.
-The operating system shall exclude reserved memory from normal usage
-one can create child nodes describing particular reserved (excluded from
-normal use) memory regions. Such memory regions are usually designed for
+Reserved memory is specified as a yesde under the /reserved-memory yesde.
+The operating system shall exclude reserved memory from yesrmal usage
+one can create child yesdes describing particular reserved (excluded from
+yesrmal use) memory regions. Such memory regions are usually designed for
 the special usage by various device drivers.
 
 Parameters for each memory region can be encoded into the device tree
-with the following nodes:
+with the following yesdes:
 
-/reserved-memory node
+/reserved-memory yesde
 ---------------------
 #address-cells, #size-cells (required) - standard definition
-    - Should use the same values as the root node
+    - Should use the same values as the root yesde
 ranges (required) - standard definition
     - Should be empty
 
-/reserved-memory/ child nodes
+/reserved-memory/ child yesdes
 -----------------------------
-Each child of the reserved-memory node specifies one or more regions of
-reserved memory. Each child node may either use a 'reg' property to
+Each child of the reserved-memory yesde specifies one or more regions of
+reserved memory. Each child yesde may either use a 'reg' property to
 specify a specific range of reserved memory, or a 'size' property with
 optional constraints to request a dynamically allocated block of memory.
 
-Following the generic-names recommended practice, node names should
-reflect the purpose of the node (ie. "framebuffer" or "dma-pool"). Unit
-address (@<address>) should be appended to the name if the node is a
+Following the generic-names recommended practice, yesde names should
+reflect the purpose of the yesde (ie. "framebuffer" or "dma-pool"). Unit
+address (@<address>) should be appended to the name if the yesde is a
 static allocation.
 
 Properties:
@@ -42,7 +42,7 @@ b) dynamic allocation
                              acceptable to allocate from.
 
 If both reg and size are present, then the reg property takes precedence
-and size is ignored.
+and size is igyesred.
 
 Additional properties:
 compatible (optional) - standard definition
@@ -52,10 +52,10 @@ compatible (optional) - standard definition
           be used by an operating system to instantiate the necessary pool
           management subsystem if necessary.
         - vendor specific string in the form <vendor>,[<device>-]<usage>
-no-map (optional) - empty property
-    - Indicates the operating system must not create a virtual mapping
+yes-map (optional) - empty property
+    - Indicates the operating system must yest create a virtual mapping
       of the region as part of its standard mapping of system memory,
-      nor permit speculative access to it under any circumstances other
+      yesr permit speculative access to it under any circumstances other
       than under the control of the device driver using the region.
 reusable (optional) - empty property
     - The operating system can use the memory in this region with the
@@ -64,17 +64,17 @@ reusable (optional) - empty property
       system can use that region to store volatile or cached data that
       can be otherwise regenerated or migrated elsewhere.
 
-Linux implementation note:
+Linux implementation yeste:
 - If a "linux,cma-default" property is present, then Linux will use the
   region for the default pool of the contiguous memory allocator.
 
 - If a "linux,dma-default" property is present, then Linux will use the
   region for the default pool of the consistent DMA allocator.
 
-Device node references to reserved memory
+Device yesde references to reserved memory
 -----------------------------------------
-Regions in the /reserved-memory node may be referenced by other device
-nodes by adding a memory-region property to the device node.
+Regions in the /reserved-memory yesde may be referenced by other device
+yesdes by adding a memory-region property to the device yesde.
 
 memory-region (optional) - phandle, specifier pairs to children of /reserved-memory
 

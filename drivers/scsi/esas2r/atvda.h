@@ -1,7 +1,7 @@
 /*  linux/drivers/scsi/esas2r/atvda.h
  *       ATTO VDA interface definitions
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -22,7 +22,7 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  *  solely responsible for determining the appropriateness of using and
  *  distributing the Program and assumes all risks associated with its
- *  exercise of rights under this Agreement, including but not limited to
+ *  exercise of rights under this Agreement, including but yest limited to
  *  the risks and costs of program errors, damage to or loss of data,
  *  programs or equipment, and unavailability or interruption of operations.
  *
@@ -36,7 +36,7 @@
  *  HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if yest, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -92,7 +92,7 @@ struct __packed atto_vda_sge {
 #define RS_SUCCESS          0x00        /*! successful completion            */
 #define RS_INV_FUNC         0x01        /*! invalid command function         */
 #define RS_BUSY             0x02        /*! insufficient resources           */
-#define RS_SEL              0x03        /*! no target at target_id           */
+#define RS_SEL              0x03        /*! yes target at target_id           */
 #define RS_NO_LUN           0x04        /*! invalid LUN                      */
 #define RS_TIMEOUT          0x05        /*! request timeout                  */
 #define RS_OVERRUN          0x06        /*! data overrun                     */
@@ -160,7 +160,7 @@ struct __packed atto_vda_sge {
 #define RS_DEGRADED         0xFB        /*! degraded mode                    */
 #define RS_CLI_INTERNAL     0xFC        /*! VDA CLI internal error           */
 #define RS_VDA_INTERNAL     0xFD        /*! catch-all                        */
-#define RS_PENDING          0xFE        /*! pending, not started             */
+#define RS_PENDING          0xFE        /*! pending, yest started             */
 #define RS_STARTED          0xFF        /*! started                          */
 
 
@@ -245,7 +245,7 @@ struct __packed atto_vda_devinfo {
 	u16 ses_dev_index;
 	#define VDASESDI_INVALID     0xFFFF
 
-	u8 serial_no[32];
+	u8 serial_yes[32];
 
 	union {
 		u16 target_id;
@@ -297,7 +297,7 @@ struct __packed atto_vda_devinfo2 {
 	u8 op_status;
 	u8 progress;
 	u16 ses_dev_index;
-	u8 serial_no[32];
+	u8 serial_yes[32];
 	union {
 		u16 target_id;
 		u16 features_mask;
@@ -436,7 +436,7 @@ struct __packed atto_vda_grp_info {
 
 	/*
 	 * for backward compatibility, a prefetch value of zero means the
-	 * setting is ignored/unsupported.  therefore, the firmware supported
+	 * setting is igyesred/unsupported.  therefore, the firmware supported
 	 * 0-6 values are incremented to 1-7.
 	 */
 
@@ -460,7 +460,7 @@ struct __packed atto_vda_grp_info {
 
 
 struct __packed atto_vdapart_info {
-	u8 part_no;
+	u8 part_yes;
 	#define VDA_MAX_PARTITIONS   128
 
 	char grp_name[15];
@@ -469,7 +469,7 @@ struct __packed atto_vdapart_info {
 	u32 block_size;
 	u16 target_id;
 	u8 LUN;
-	char serial_no[41];
+	char serial_yes[41];
 	u8 features;
 	#define VDAPI_FEAT_WRITE_CACHE   0x01
 

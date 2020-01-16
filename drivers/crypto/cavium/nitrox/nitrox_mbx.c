@@ -68,7 +68,7 @@ static void pf2vf_send_response(struct nitrox_device *ndev,
 		break;
 	case MSG_OP_CHIPID_VFID:
 		msg.id.chipid = ndev->idx;
-		msg.id.vfid = vfdev->vfno;
+		msg.id.vfid = vfdev->vfyes;
 		break;
 	case MSG_OP_VF_DOWN:
 		vfdev->nr_queues = 0;
@@ -123,15 +123,15 @@ void nitrox_pf2vf_mbox_handler(struct nitrox_device *ndev)
 	struct pf2vf_work *pfwork;
 	u64 value, reg_addr;
 	u32 i;
-	int vfno;
+	int vfyes;
 
 	/* loop for VF(0..63) */
 	reg_addr = NPS_PKT_MBOX_INT_LO;
 	value = nitrox_read_csr(ndev, reg_addr);
 	for_each_set_bit(i, (const unsigned long *)&value, BITS_PER_LONG) {
-		/* get the vfno from ring */
-		vfno = RING_TO_VFNO(i, ndev->iov.max_vf_queues);
-		vfdev = ndev->iov.vfdev + vfno;
+		/* get the vfyes from ring */
+		vfyes = RING_TO_VFNO(i, ndev->iov.max_vf_queues);
+		vfdev = ndev->iov.vfdev + vfyes;
 		vfdev->ring = i;
 		/* fill the vf mailbox data */
 		vfdev->msg.value = pf2vf_read_mbox(ndev, vfdev->ring);
@@ -151,9 +151,9 @@ void nitrox_pf2vf_mbox_handler(struct nitrox_device *ndev)
 	reg_addr = NPS_PKT_MBOX_INT_HI;
 	value = nitrox_read_csr(ndev, reg_addr);
 	for_each_set_bit(i, (const unsigned long *)&value, BITS_PER_LONG) {
-		/* get the vfno from ring */
-		vfno = RING_TO_VFNO(i + 64, ndev->iov.max_vf_queues);
-		vfdev = ndev->iov.vfdev + vfno;
+		/* get the vfyes from ring */
+		vfyes = RING_TO_VFNO(i + 64, ndev->iov.max_vf_queues);
+		vfdev = ndev->iov.vfdev + vfyes;
 		vfdev->ring = (i + 64);
 		/* fill the vf mailbox data */
 		vfdev->msg.value = pf2vf_read_mbox(ndev, vfdev->ring);
@@ -183,7 +183,7 @@ int nitrox_mbox_init(struct nitrox_device *ndev)
 
 	for (i = 0; i < ndev->iov.num_vfs; i++) {
 		vfdev = ndev->iov.vfdev + i;
-		vfdev->vfno = i;
+		vfdev->vfyes = i;
 	}
 
 	/* allocate pf2vf response workqueue */

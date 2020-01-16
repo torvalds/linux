@@ -1,6 +1,6 @@
-Faraday Technology FTWDT010 watchdog
+Faraday Techyeslogy FTWDT010 watchdog
 
-This is an IP part from Faraday Technology found in the Gemini
+This is an IP part from Faraday Techyeslogy found in the Gemini
 SoCs and others.
 
 Required properties:

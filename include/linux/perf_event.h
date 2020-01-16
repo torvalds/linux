@@ -206,7 +206,7 @@ struct hw_perf_event {
 	u64				last_period;
 
 	/*
-	 * However much is left of the current period; note that this is
+	 * However much is left of the current period; yeste that this is
 	 * a full 64bit value and allows for generation of periods longer
 	 * than hardware might allow.
 	 */
@@ -289,13 +289,13 @@ struct pmu {
 	 * Try and initialize the event for this PMU.
 	 *
 	 * Returns:
-	 *  -ENOENT	-- @event is not for this PMU
+	 *  -ENOENT	-- @event is yest for this PMU
 	 *
-	 *  -ENODEV	-- @event is for this PMU but PMU not present
+	 *  -ENODEV	-- @event is for this PMU but PMU yest present
 	 *  -EBUSY	-- @event is for this PMU but PMU temporarily unavailable
-	 *  -EINVAL	-- @event is for this PMU but @event is not valid
-	 *  -EOPNOTSUPP -- @event is for this PMU, @event is valid, but not supported
-	 *  -EACCES	-- @event is for this PMU, @event is valid, but no privileges
+	 *  -EINVAL	-- @event is for this PMU but @event is yest valid
+	 *  -EOPNOTSUPP -- @event is for this PMU, @event is valid, but yest supported
+	 *  -EACCES	-- @event is for this PMU, @event is valid, but yes privileges
 	 *
 	 *  0		-- @event is for this PMU and valid
 	 *
@@ -398,7 +398,7 @@ struct pmu {
 
 	/*
 	 * Will return the value for perf_event_mmap_page::index for this event,
-	 * if no implementation is provided it will default to: event->hw.idx + 1.
+	 * if yes implementation is provided it will default to: event->hw.idx + 1.
 	 */
 	int (*event_idx)		(struct perf_event *event); /*optional */
 
@@ -437,7 +437,7 @@ struct pmu {
 	/*
 	 * Take a snapshot of the AUX buffer without touching the event
 	 * state, so that preempting ->start()/->stop() callbacks does
-	 * not interfere with their logic. Called in PMI context.
+	 * yest interfere with their logic. Called in PMI context.
 	 *
 	 * Returns the size of AUX data copied to the output handle.
 	 *
@@ -450,9 +450,9 @@ struct pmu {
 	/*
 	 * Validate address range filters: make sure the HW supports the
 	 * requested configuration and number of filters; return 0 if the
-	 * supplied filters are valid, -errno otherwise.
+	 * supplied filters are valid, -erryes otherwise.
 	 *
-	 * Runs in the context of the ioctl()ing process and is not serialized
+	 * Runs in the context of the ioctl()ing process and is yest serialized
 	 * with the rest of the PMU callbacks.
 	 */
 	int (*addr_filters_validate)	(struct list_head *filters);
@@ -460,7 +460,7 @@ struct pmu {
 
 	/*
 	 * Synchronize address range filter configuration:
-	 * translate hw-agnostic filters into hardware configuration in
+	 * translate hw-agyesstic filters into hardware configuration in
 	 * event::hw::addr_filters.
 	 *
 	 * Runs as a part of filter sync sequence that is done in ->start()
@@ -476,8 +476,8 @@ struct pmu {
 	 * Check if event can be used for aux_output purposes for
 	 * events of this PMU.
 	 *
-	 * Runs from perf_event_open(). Should return 0 for "no match"
-	 * or non-zero for "match".
+	 * Runs from perf_event_open(). Should return 0 for "yes match"
+	 * or yesn-zero for "match".
 	 */
 	int (*aux_output_match)		(struct perf_event *event);
 					/* optional */
@@ -507,7 +507,7 @@ enum perf_addr_filter_action_t {
  * @size:	filter range size (size==0 means single address trigger)
  * @action:	filter/start/stop
  *
- * This is a hardware-agnostic filter configuration as specified by the user.
+ * This is a hardware-agyesstic filter configuration as specified by the user.
  */
 struct perf_addr_filter {
 	struct list_head	entry;
@@ -614,16 +614,16 @@ struct perf_event {
 	/*
 	 * Node on the pinned or flexible tree located at the event context;
 	 */
-	struct rb_node			group_node;
+	struct rb_yesde			group_yesde;
 	u64				group_index;
 	/*
 	 * We need storage to track the entries in perf_pmu_migrate_context; we
-	 * cannot use the event_entry because of RCU and we want to keep the
+	 * canyest use the event_entry because of RCU and we want to keep the
 	 * group in tact which avoids us using the other two entries.
 	 */
 	struct list_head		migrate_entry;
 
-	struct hlist_node		hlist_entry;
+	struct hlist_yesde		hlist_entry;
 	struct list_head		active_entry;
 	int				nr_siblings;
 
@@ -642,7 +642,7 @@ struct perf_event {
 	atomic64_t			child_count;
 
 	/*
-	 * These are the total time in nanoseconds that the event
+	 * These are the total time in nayesseconds that the event
 	 * has been enabled (i.e. eligible to run, and the task has
 	 * been scheduled in, if this is a per-task event)
 	 * and running (scheduled onto the CPU), respectively.
@@ -671,7 +671,7 @@ struct perf_event {
 	atomic_long_t			refcount;
 
 	/*
-	 * These accumulate total time (in nanoseconds) that children
+	 * These accumulate total time (in nayesseconds) that children
 	 * events have been enabled and running, respectively.
 	 */
 	atomic64_t			child_total_time_enabled;
@@ -793,7 +793,7 @@ struct perf_event_context {
 	int				nr_freq;
 	int				rotate_disable;
 	/*
-	 * Set when nr_events != nr_active, except tolerant to events not
+	 * Set when nr_events != nr_active, except tolerant to events yest
 	 * necessary to be active due to scheduling constraints, such as cgroups.
 	 */
 	int				rotate_necessary;
@@ -889,8 +889,8 @@ struct perf_cgroup {
 
 /*
  * Must ensure cgroup is pinned (css_get) before calling
- * this function. In other words, we cannot call this function
- * if there is no cgroup event for the current CPU context.
+ * this function. In other words, we canyest call this function
+ * if there is yes cgroup event for the current CPU context.
  */
 static inline struct perf_cgroup *
 perf_cgroup_from_task(struct task_struct *task, struct perf_event_context *ctx)
@@ -1141,8 +1141,8 @@ perf_sw_event(u32 event_id, u64 nr, struct pt_regs *regs, u64 addr)
 DECLARE_PER_CPU(struct pt_regs, __perf_regs[4]);
 
 /*
- * 'Special' version for the scheduler, it hard assumes no recursion,
- * which is guaranteed by us not actually scheduling inside other swevents
+ * 'Special' version for the scheduler, it hard assumes yes recursion,
+ * which is guaranteed by us yest actually scheduling inside other swevents
  * because those disable preemption.
  */
 static __always_inline void
@@ -1237,7 +1237,7 @@ static inline int perf_callchain_store_context(struct perf_callchain_entry_ctx *
 		return 0;
 	} else {
 		ctx->contexts_maxed = true;
-		return -1; /* no more room, stop walking the stack */
+		return -1; /* yes more room, stop walking the stack */
 	}
 }
 
@@ -1249,11 +1249,11 @@ static inline int perf_callchain_store(struct perf_callchain_entry_ctx *ctx, u64
 		++ctx->nr;
 		return 0;
 	} else {
-		return -1; /* no more room, stop walking the stack */
+		return -1; /* yes more room, stop walking the stack */
 	}
 }
 
-extern int sysctl_perf_event_paranoid;
+extern int sysctl_perf_event_parayesid;
 extern int sysctl_perf_event_mlock;
 extern int sysctl_perf_event_sample_rate;
 extern int sysctl_perf_cpu_time_max_percent;
@@ -1278,14 +1278,14 @@ int perf_event_max_stack_handler(struct ctl_table *table, int write,
 #define PERF_SECURITY_KERNEL		2
 #define PERF_SECURITY_TRACEPOINT	3
 
-static inline int perf_is_paranoid(void)
+static inline int perf_is_parayesid(void)
 {
-	return sysctl_perf_event_paranoid > -1;
+	return sysctl_perf_event_parayesid > -1;
 }
 
 static inline int perf_allow_kernel(struct perf_event_attr *attr)
 {
-	if (sysctl_perf_event_paranoid > 1 && !capable(CAP_SYS_ADMIN))
+	if (sysctl_perf_event_parayesid > 1 && !capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
 	return security_perf_event_open(attr, PERF_SECURITY_KERNEL);
@@ -1293,7 +1293,7 @@ static inline int perf_allow_kernel(struct perf_event_attr *attr)
 
 static inline int perf_allow_cpu(struct perf_event_attr *attr)
 {
-	if (sysctl_perf_event_paranoid > 0 && !capable(CAP_SYS_ADMIN))
+	if (sysctl_perf_event_parayesid > 0 && !capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
 	return security_perf_event_open(attr, PERF_SECURITY_CPU);
@@ -1301,7 +1301,7 @@ static inline int perf_allow_cpu(struct perf_event_attr *attr)
 
 static inline int perf_allow_tracepoint(struct perf_event_attr *attr)
 {
-	if (sysctl_perf_event_paranoid > -1 && !capable(CAP_SYS_ADMIN))
+	if (sysctl_perf_event_parayesid > -1 && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	return security_perf_event_open(attr, PERF_SECURITY_TRACEPOINT);
@@ -1504,7 +1504,7 @@ struct perf_pmu_events_ht_attr {
 	struct device_attribute			attr;
 	u64					id;
 	const char				*event_str_ht;
-	const char				*event_str_noht;
+	const char				*event_str_yesht;
 };
 
 ssize_t perf_event_sysfs_show(struct device *dev, struct device_attribute *attr,

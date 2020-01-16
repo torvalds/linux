@@ -174,7 +174,7 @@ static long hostaudio_ioctl(struct file *file,
 	return err;
 }
 
-static int hostaudio_open(struct inode *inode, struct file *file)
+static int hostaudio_open(struct iyesde *iyesde, struct file *file)
 {
 	struct hostaudio_state *state;
 	int r = 0, w = 0;
@@ -210,7 +210,7 @@ static int hostaudio_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int hostaudio_release(struct inode *inode, struct file *file)
+static int hostaudio_release(struct iyesde *iyesde, struct file *file)
 {
 	struct hostaudio_state *state = file->private_data;
 
@@ -237,7 +237,7 @@ static long hostmixer_ioctl_mixdev(struct file *file,
 	return os_ioctl_generic(state->fd, cmd, arg);
 }
 
-static int hostmixer_open_mixdev(struct inode *inode, struct file *file)
+static int hostmixer_open_mixdev(struct iyesde *iyesde, struct file *file)
 {
 	struct hostmixer_state *state;
 	int r = 0, w = 0;
@@ -275,7 +275,7 @@ static int hostmixer_open_mixdev(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int hostmixer_release(struct inode *inode, struct file *file)
+static int hostmixer_release(struct iyesde *iyesde, struct file *file)
 {
 	struct hostmixer_state *state = file->private_data;
 
@@ -293,7 +293,7 @@ static int hostmixer_release(struct inode *inode, struct file *file)
 
 static const struct file_operations hostaudio_fops = {
 	.owner          = THIS_MODULE,
-	.llseek         = no_llseek,
+	.llseek         = yes_llseek,
 	.read           = hostaudio_read,
 	.write          = hostaudio_write,
 	.poll           = hostaudio_poll,
@@ -306,7 +306,7 @@ static const struct file_operations hostaudio_fops = {
 
 static const struct file_operations hostmixer_fops = {
 	.owner          = THIS_MODULE,
-	.llseek         = no_llseek,
+	.llseek         = yes_llseek,
 	.unlocked_ioctl	= hostmixer_ioctl_mixdev,
 	.open           = hostmixer_open_mixdev,
 	.release        = hostmixer_release,

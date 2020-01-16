@@ -105,7 +105,7 @@ void qla24xx_handle_relogin_event(scsi_qla_host_t *vha,
 				  struct event_arg *ea);
 int qla24xx_async_gpdb(struct scsi_qla_host *, fc_port_t *, u8);
 int qla24xx_async_prli(struct scsi_qla_host *, fc_port_t *);
-int qla24xx_async_notify_ack(scsi_qla_host_t *, fc_port_t *,
+int qla24xx_async_yestify_ack(scsi_qla_host_t *, fc_port_t *,
 	struct imm_ntfy_from_isp *, int);
 int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *, u8*,
     void *, u8);
@@ -293,7 +293,7 @@ extern unsigned long qla2x00_get_async_timeout(struct scsi_qla_host *);
 extern void *qla2x00_alloc_iocbs(struct scsi_qla_host *, srb_t *);
 extern void *__qla2x00_alloc_iocbs(struct qla_qpair *, srb_t *);
 extern int qla2x00_issue_marker(scsi_qla_host_t *, int);
-extern int qla24xx_walk_and_build_sglist_no_difb(struct qla_hw_data *, srb_t *,
+extern int qla24xx_walk_and_build_sglist_yes_difb(struct qla_hw_data *, srb_t *,
 	struct dsd64 *, uint16_t, struct qla_tc_param *);
 extern int qla24xx_walk_and_build_sglist(struct qla_hw_data *, srb_t *,
 	struct dsd64 *, uint16_t, struct qla_tc_param *);
@@ -508,7 +508,7 @@ extern int
 qla2x00_dump_mctp_data(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);
 
 extern int
-qla26xx_dport_diagnostics(scsi_qla_host_t *, void *, uint, uint);
+qla26xx_dport_diagyesstics(scsi_qla_host_t *, void *, uint, uint);
 
 int qla24xx_send_mb_cmd(struct scsi_qla_host *, mbx_cmd_t *);
 int qla24xx_gpdb_wait(struct scsi_qla_host *, fc_port_t *, u8);
@@ -657,7 +657,7 @@ extern void *qla24xx_prep_ms_fdmi_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
 extern int qla2x00_fdmi_register(scsi_qla_host_t *);
 extern int qla2x00_gfpn_id(scsi_qla_host_t *, sw_info_t *);
 extern int qla2x00_gpsc(scsi_qla_host_t *, sw_info_t *);
-extern void qla2x00_get_sym_node_name(scsi_qla_host_t *, uint8_t *, size_t);
+extern void qla2x00_get_sym_yesde_name(scsi_qla_host_t *, uint8_t *, size_t);
 extern int qla2x00_chk_ms_status(scsi_qla_host_t *, ms_iocb_entry_t *,
 	struct ct_sns_rsp *, const char *);
 extern void qla2x00_async_iocb_timeout(void *data);
@@ -898,7 +898,7 @@ extern int qla_set_exchoffld_mem_cfg(scsi_qla_host_t *);
 extern void qlt_handle_abts_recv(struct scsi_qla_host *, struct rsp_que *,
 	response_t *);
 
-int qla24xx_async_notify_ack(scsi_qla_host_t *, fc_port_t *,
+int qla24xx_async_yestify_ack(scsi_qla_host_t *, fc_port_t *,
 	struct imm_ntfy_from_isp *, int);
 void qla24xx_do_nack_work(struct scsi_qla_host *, struct qla_work_evt *);
 void qlt_plogi_ack_link(struct scsi_qla_host *, struct qlt_plogi_ack_t *,
@@ -908,7 +908,7 @@ extern void qlt_schedule_sess_for_deletion(struct fc_port *);
 extern struct fc_port *qlt_find_sess_invalidate_other(scsi_qla_host_t *,
 	uint64_t wwn, port_id_t port_id, uint16_t loop_id, struct fc_port **);
 void qla24xx_delete_sess_fn(struct work_struct *);
-void qlt_unknown_atio_work_fn(struct work_struct *);
+void qlt_unkyeswn_atio_work_fn(struct work_struct *);
 void qlt_update_host_map(struct scsi_qla_host *, port_id_t);
 void qlt_remove_target_resources(struct qla_hw_data *);
 void qlt_clr_qp_table(struct scsi_qla_host *vha);

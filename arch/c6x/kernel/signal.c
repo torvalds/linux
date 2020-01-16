@@ -65,12 +65,12 @@ asmlinkage int do_rt_sigreturn(struct pt_regs *regs)
 	sigset_t set;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a dword boundary,
 	 * 'sp' should be dword aligned here.  If it's
-	 * not, then the user is trying to mess with us.
+	 * yest, then the user is trying to mess with us.
 	 */
 	if (regs->sp & 7)
 		goto badframe;
@@ -283,7 +283,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 
 	/* did we come from a system call? */
 	if (syscall) {
-		/* restart the system call - no handlers present */
+		/* restart the system call - yes handlers present */
 		switch (regs->a4) {
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
@@ -300,16 +300,16 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		}
 	}
 
-	/* if there's no signal to deliver, we just put the saved sigmask
+	/* if there's yes signal to deliver, we just put the saved sigmask
 	 * back */
 	restore_saved_sigmask();
 }
 
 /*
- * notification of userspace execution resumption
- * - triggered by current->work.notify_resume
+ * yestification of userspace execution resumption
+ * - triggered by current->work.yestify_resume
  */
-asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags,
+asmlinkage void do_yestify_resume(struct pt_regs *regs, u32 thread_info_flags,
 				 int syscall)
 {
 	/* deal with pending signal delivery */
@@ -318,6 +318,6 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags,
 
 	if (thread_info_flags & (1 << TIF_NOTIFY_RESUME)) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 	}
 }

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -51,18 +51,18 @@ struct dc_state;
 enum dcn_bw_defs {
 	dcn_bw_v_min0p65,
 	dcn_bw_v_mid0p72,
-	dcn_bw_v_nom0p8,
+	dcn_bw_v_yesm0p8,
 	dcn_bw_v_max0p9,
 	dcn_bw_v_max0p91,
-	dcn_bw_no_support = 5,
-	dcn_bw_yes,
+	dcn_bw_yes_support = 5,
+	dcn_bw_no,
 	dcn_bw_hor,
 	dcn_bw_vert,
 	dcn_bw_override,
 	dcn_bw_rgb_sub_64,
 	dcn_bw_rgb_sub_32,
 	dcn_bw_rgb_sub_16,
-	dcn_bw_no,
+	dcn_bw_yes,
 	dcn_bw_sw_linear,
 	dcn_bw_sw_4_kb_d,
 	dcn_bw_sw_4_kb_d_x,
@@ -87,7 +87,7 @@ enum dcn_bw_defs {
 	dcn_bw_yuv420_sub_10,
 	dcn_bw_supported_in_v_active,
 	dcn_bw_supported_in_v_blank,
-	dcn_bw_not_supported,
+	dcn_bw_yest_supported,
 	dcn_bw_na,
 	dcn_bw_encoder_8bpc,
 	dcn_bw_encoder_10bpc,
@@ -113,20 +113,20 @@ struct dcn_bw_internal_vars {
 	float write_back_latency;
 	float percent_of_ideal_drambw_received_after_urg_latency;
 	float dcfclkv_max0p9;
-	float dcfclkv_nom0p8;
+	float dcfclkv_yesm0p8;
 	float dcfclkv_mid0p72;
 	float dcfclkv_min0p65;
 	float max_dispclk_vmax0p9;
 	float max_dppclk_vmax0p9;
-	float max_dispclk_vnom0p8;
-	float max_dppclk_vnom0p8;
+	float max_dispclk_vyesm0p8;
+	float max_dppclk_vyesm0p8;
 	float max_dispclk_vmid0p72;
 	float max_dppclk_vmid0p72;
 	float max_dispclk_vmin0p65;
 	float max_dppclk_vmin0p65;
 	float socclk;
 	float fabric_and_dram_bandwidth_vmax0p9;
-	float fabric_and_dram_bandwidth_vnom0p8;
+	float fabric_and_dram_bandwidth_vyesm0p8;
 	float fabric_and_dram_bandwidth_vmid0p72;
 	float fabric_and_dram_bandwidth_vmin0p65;
 	float round_trip_ping_latency_cycles;
@@ -162,7 +162,7 @@ struct dcn_bw_internal_vars {
 	float max_vscl_taps;
 	float under_scan_factor;
 	float phyclkv_max0p9;
-	float phyclkv_nom0p8;
+	float phyclkv_yesm0p8;
 	float phyclkv_mid0p72;
 	float phyclkv_min0p65;
 	float pte_buffer_size_in_requests;
@@ -231,7 +231,7 @@ struct dcn_bw_internal_vars {
 	enum dcn_bw_defs allow_different_hratio_vratio;
 	float acceptable_quality_hta_ps;
 	float acceptable_quality_vta_ps;
-	float no_of_dpp[number_of_states_plus_one + 1][1 + 1][number_of_planes_minus_one + 1];
+	float yes_of_dpp[number_of_states_plus_one + 1][1 + 1][number_of_planes_minus_one + 1];
 	float swath_width_yper_state[number_of_states_plus_one + 1][1 + 1][number_of_planes_minus_one + 1];
 	float swath_height_yper_state[number_of_states_plus_one + 1][1 + 1][number_of_planes_minus_one + 1];
 	float swath_height_cper_state[number_of_states_plus_one + 1][1 + 1][number_of_planes_minus_one + 1];
@@ -456,7 +456,7 @@ struct dcn_bw_internal_vars {
 	float average_read_bandwidth_gbyte_per_second;
 	float part_of_burst_that_fits_in_rob;
 	float stutter_burst_time;
-	float stutter_efficiency_not_including_vblank;
+	float stutter_efficiency_yest_including_vblank;
 	float smallest_vblank;
 	float v_blank_time;
 	float stutter_efficiency;
@@ -468,7 +468,7 @@ struct dcn_bw_internal_vars {
 	float effective_det_plus_lb_lines_chroma;
 	float urgent_latency_support_us_chroma;
 	float min_urgent_latency_support_us;
-	float non_urgent_latency_tolerance;
+	float yesn_urgent_latency_tolerance;
 	float block_height256_bytes_y;
 	float block_height256_bytes_c;
 	float meta_request_width_y;
@@ -550,24 +550,24 @@ struct dcn_soc_bounding_box {
 	float percent_of_ideal_drambw_received_after_urg_latency; /*%*/
 	int max_request_size; /*bytes*/
 	float dcfclkv_max0p9; /*MHz*/
-	float dcfclkv_nom0p8; /*MHz*/
+	float dcfclkv_yesm0p8; /*MHz*/
 	float dcfclkv_mid0p72; /*MHz*/
 	float dcfclkv_min0p65; /*MHz*/
 	float max_dispclk_vmax0p9; /*MHz*/
 	float max_dispclk_vmid0p72; /*MHz*/
-	float max_dispclk_vnom0p8; /*MHz*/
+	float max_dispclk_vyesm0p8; /*MHz*/
 	float max_dispclk_vmin0p65; /*MHz*/
 	float max_dppclk_vmax0p9; /*MHz*/
-	float max_dppclk_vnom0p8; /*MHz*/
+	float max_dppclk_vyesm0p8; /*MHz*/
 	float max_dppclk_vmid0p72; /*MHz*/
 	float max_dppclk_vmin0p65; /*MHz*/
 	float socclk; /*MHz*/
 	float fabric_and_dram_bandwidth_vmax0p9; /*GB/s*/
-	float fabric_and_dram_bandwidth_vnom0p8; /*GB/s*/
+	float fabric_and_dram_bandwidth_vyesm0p8; /*GB/s*/
 	float fabric_and_dram_bandwidth_vmid0p72; /*GB/s*/
 	float fabric_and_dram_bandwidth_vmin0p65; /*GB/s*/
 	float phyclkv_max0p9; /*MHz*/
-	float phyclkv_nom0p8; /*MHz*/
+	float phyclkv_yesm0p8; /*MHz*/
 	float phyclkv_mid0p72; /*MHz*/
 	float phyclkv_min0p65; /*MHz*/
 	float downspreading; /*%*/
@@ -629,7 +629,7 @@ unsigned int dcn_find_dcfclk_suits_all(
 	struct dc_clocks *clocks);
 
 void dcn_bw_update_from_pplib(struct dc *dc);
-void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc);
+void dcn_bw_yestify_pplib_of_wm_ranges(struct dc *dc);
 void dcn_bw_sync_calcs_and_dml(struct dc *dc);
 
 enum source_macro_tile_size swizzle_mode_to_macro_tile_size(enum swizzle_mode_values sw_mode);

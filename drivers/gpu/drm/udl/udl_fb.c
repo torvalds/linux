@@ -216,7 +216,7 @@ static int udl_fb_open(struct fb_info *info, int user)
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (fb_defio && (info->fbdefio == NULL)) {
-		/* enable defio at last moment if not disabled by client */
+		/* enable defio at last moment if yest disabled by client */
 
 		struct fb_deferred_io *fbdefio;
 
@@ -233,7 +233,7 @@ static int udl_fb_open(struct fb_info *info, int user)
 #endif
 
 	pr_debug("open /dev/fb%d user=%d fb_info=%p count=%d\n",
-		  info->node, user, info, ufbdev->fb_count);
+		  info->yesde, user, info, ufbdev->fb_count);
 
 	return 0;
 }
@@ -258,7 +258,7 @@ static int udl_fb_release(struct fb_info *info, int user)
 #endif
 
 	pr_debug("released /dev/fb%d user=%d count=%d\n",
-		info->node, user, ufbdev->fb_count);
+		info->yesde, user, ufbdev->fb_count);
 
 	return 0;
 }
@@ -510,7 +510,7 @@ udl_fb_user_fb_create(struct drm_device *dev,
 	size = ALIGN(size, PAGE_SIZE);
 
 	if (size > obj->size) {
-		DRM_ERROR("object size not sufficient for fb %d %zu %d %d\n", size, obj->size, mode_cmd->pitches[0], mode_cmd->height);
+		DRM_ERROR("object size yest sufficient for fb %d %zu %d %d\n", size, obj->size, mode_cmd->pitches[0], mode_cmd->height);
 		return ERR_PTR(-ENOMEM);
 	}
 

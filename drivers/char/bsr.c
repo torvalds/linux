@@ -49,7 +49,7 @@ struct bsr_dev {
 	unsigned bsr_stride;   /* interval at which BSR repeats in the page */
 	unsigned bsr_type;     /* maps to enum below */
 	unsigned bsr_num;      /* bsr id number for its type */
-	int      bsr_minor;
+	int      bsr_miyesr;
 
 	struct list_head bsr_list;
 
@@ -115,7 +115,7 @@ static int bsr_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct bsr_dev *dev = filp->private_data;
 	int ret;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	/* check for the case of a small BSR device and map one 4k page for it*/
 	if (dev->bsr_len < PAGE_SIZE && size == PAGE_SIZE)
@@ -134,9 +134,9 @@ static int bsr_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int bsr_open(struct inode *inode, struct file *filp)
+static int bsr_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct cdev *cdev = inode->i_cdev;
+	struct cdev *cdev = iyesde->i_cdev;
 	struct bsr_dev *dev = container_of(cdev, struct bsr_dev, bsr_cdev);
 
 	filp->private_data = dev;
@@ -147,7 +147,7 @@ static const struct file_operations bsr_fops = {
 	.owner = THIS_MODULE,
 	.mmap  = bsr_mmap,
 	.open  = bsr_open,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static void bsr_cleanup_devs(void)
@@ -164,7 +164,7 @@ static void bsr_cleanup_devs(void)
 	}
 }
 
-static int bsr_add_node(struct device_node *bn)
+static int bsr_add_yesde(struct device_yesde *bn)
 {
 	int bsr_stride_len, bsr_bytes_len, num_bsr_devs;
 	const u32 *bsr_stride;
@@ -177,7 +177,7 @@ static int bsr_add_node(struct device_node *bn)
 
 	if (!bsr_stride || !bsr_bytes ||
 	    (bsr_stride_len != bsr_bytes_len)) {
-		printk(KERN_ERR "bsr of-node has missing/incorrect property\n");
+		printk(KERN_ERR "bsr of-yesde has missing/incorrect property\n");
 		return ret;
 	}
 
@@ -197,12 +197,12 @@ static int bsr_add_node(struct device_node *bn)
 
 		result = of_address_to_resource(bn, i, &res);
 		if (result < 0) {
-			printk(KERN_ERR "bsr of-node has invalid reg property, skipping\n");
+			printk(KERN_ERR "bsr of-yesde has invalid reg property, skipping\n");
 			kfree(cur);
 			continue;
 		}
 
-		cur->bsr_minor  = i + total_bsr_devs;
+		cur->bsr_miyesr  = i + total_bsr_devs;
 		cur->bsr_addr   = res.start;
 		cur->bsr_len    = resource_size(&res);
 		cur->bsr_bytes  = bsr_bytes[i];
@@ -269,28 +269,28 @@ static int bsr_add_node(struct device_node *bn)
 	return ret;
 }
 
-static int bsr_create_devs(struct device_node *bn)
+static int bsr_create_devs(struct device_yesde *bn)
 {
 	int ret;
 
 	while (bn) {
-		ret = bsr_add_node(bn);
+		ret = bsr_add_yesde(bn);
 		if (ret) {
-			of_node_put(bn);
+			of_yesde_put(bn);
 			return ret;
 		}
-		bn = of_find_compatible_node(bn, NULL, "ibm,bsr");
+		bn = of_find_compatible_yesde(bn, NULL, "ibm,bsr");
 	}
 	return 0;
 }
 
 static int __init bsr_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	dev_t bsr_dev;
 	int ret = -ENODEV;
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,bsr");
+	np = of_find_compatible_yesde(NULL, NULL, "ibm,bsr");
 	if (!np)
 		goto out_err;
 
@@ -324,7 +324,7 @@ static int __init bsr_init(void)
 	class_destroy(bsr_class);
 
  out_err_1:
-	of_node_put(np);
+	of_yesde_put(np);
 
  out_err:
 

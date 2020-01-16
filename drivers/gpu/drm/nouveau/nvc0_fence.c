@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,14 +22,14 @@
  * Authors: Ben Skeggs
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_fence.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_dma.h"
+#include "yesuveau_fence.h"
 
 #include "nv50_display.h"
 
 static int
-nvc0_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
+nvc0_fence_emit32(struct yesuveau_channel *chan, u64 virtual, u32 sequence)
 {
 	int ret = RING_SPACE(chan, 6);
 	if (ret == 0) {
@@ -45,7 +45,7 @@ nvc0_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 }
 
 static int
-nvc0_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
+nvc0_fence_sync32(struct yesuveau_channel *chan, u64 virtual, u32 sequence)
 {
 	int ret = RING_SPACE(chan, 5);
 	if (ret == 0) {
@@ -61,7 +61,7 @@ nvc0_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 }
 
 static int
-nvc0_fence_context_new(struct nouveau_channel *chan)
+nvc0_fence_context_new(struct yesuveau_channel *chan)
 {
 	int ret = nv84_fence_context_new(chan);
 	if (ret == 0) {
@@ -73,7 +73,7 @@ nvc0_fence_context_new(struct nouveau_channel *chan)
 }
 
 int
-nvc0_fence_create(struct nouveau_drm *drm)
+nvc0_fence_create(struct yesuveau_drm *drm)
 {
 	int ret = nv84_fence_create(drm);
 	if (ret == 0) {

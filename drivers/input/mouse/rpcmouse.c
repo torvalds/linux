@@ -10,7 +10,7 @@
  *
  * This handles the Acorn RiscPCs mouse.  We basically have a couple of
  * hardware registers that track the sensor count for the X-Y movement and
- * another register holding the button state.  On every VSYNC interrupt we read
+ * ayesther register holding the button state.  On every VSYNC interrupt we read
  * the complete state and then work out if something has changed.
  */
 

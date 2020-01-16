@@ -22,12 +22,12 @@
  *      - this port supports subscription. The received timer events are 
  *        broadcasted to all subscribed clients. The modified tempo
  *	  value is stored on data.queue.value.
- *	  The modifier client/port is not send.
+ *	  The modifier client/port is yest send.
  *
- * Port "Announce"
- *      - does not receive message
+ * Port "Anyesunce"
+ *      - does yest receive message
  *      - supports supscription. For each client or port attaching to or 
- *        detaching from the system an announcement is send to the subscribed
+ *        detaching from the system an anyesuncement is send to the subscribed
  *        clients.
  *
  * Idea: the subscription mechanism might also work handy for distributing 
@@ -37,7 +37,7 @@
  *
  * NOTE: the queue to be started, stopped, etc. must be specified
  *	 in data.queue.addr.queue field.  queue is used only for
- *	 scheduling, and no longer referred as affected queue.
+ *	 scheduling, and yes longer referred as affected queue.
  *	 They are used only for timer broadcast (see above).
  *							-- iwai
  */
@@ -47,14 +47,14 @@
 static int sysclient = -1;
 
 /* port id numbers for this client */
-static int announce_port = -1;
+static int anyesunce_port = -1;
 
 
 
 /* fill standard header data, source port & channel are filled in */
 static int setheader(struct snd_seq_event * ev, int client, int port)
 {
-	if (announce_port < 0)
+	if (anyesunce_port < 0)
 		return -ENODEV;
 
 	memset(ev, 0, sizeof(struct snd_seq_event));
@@ -63,7 +63,7 @@ static int setheader(struct snd_seq_event * ev, int client, int port)
 	ev->flags |= SNDRV_SEQ_EVENT_LENGTH_FIXED;
 
 	ev->source.client = sysclient;
-	ev->source.port = announce_port;
+	ev->source.port = anyesunce_port;
 	ev->dest.client = SNDRV_SEQ_ADDRESS_SUBSCRIBERS;
 
 	/* fill data */
@@ -87,11 +87,11 @@ void snd_seq_system_broadcast(int client, int port, int type)
 }
 
 /* entry points for broadcasting system events */
-int snd_seq_system_notify(int client, int port, struct snd_seq_event *ev)
+int snd_seq_system_yestify(int client, int port, struct snd_seq_event *ev)
 {
 	ev->flags = SNDRV_SEQ_EVENT_LENGTH_FIXED;
 	ev->source.client = sysclient;
-	ev->source.port = announce_port;
+	ev->source.port = anyesunce_port;
 	ev->dest.client = client;
 	ev->dest.port = port;
 	return snd_seq_kernel_client_dispatch(sysclient, ev, 0, 0);
@@ -139,8 +139,8 @@ int __init snd_seq_system_client_init(void)
 	if (err < 0)
 		goto error_port;
 
-	/* register announcement port */
-	strcpy(port->name, "Announce");
+	/* register anyesuncement port */
+	strcpy(port->name, "Anyesunce");
 	port->capability = SNDRV_SEQ_PORT_CAP_READ|SNDRV_SEQ_PORT_CAP_SUBS_READ; /* for broadcast only */
 	port->kernel = NULL;
 	port->type = 0;
@@ -151,7 +151,7 @@ int __init snd_seq_system_client_init(void)
 					port);
 	if (err < 0)
 		goto error_port;
-	announce_port = port->addr.port;
+	anyesunce_port = port->addr.port;
 
 	kfree(port);
 	return 0;
@@ -170,7 +170,7 @@ void snd_seq_system_client_done(void)
 
 	if (oldsysclient >= 0) {
 		sysclient = -1;
-		announce_port = -1;
+		anyesunce_port = -1;
 		snd_seq_delete_kernel_client(oldsysclient);
 	}
 }

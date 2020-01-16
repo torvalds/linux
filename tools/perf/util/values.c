@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/zalloc.h>
 
 #include "values.h"
@@ -122,7 +122,7 @@ static int perf_read_values__enlarge_counters(struct perf_read_values *values)
 
 	if (!counterrawid) {
 		pr_debug("failed to enlarge read_values rawid array");
-		goto out_enomem;
+		goto out_eyesmem;
 	}
 
 	countername = realloc(values->countername, counters_max * sizeof(*values->countername));
@@ -155,7 +155,7 @@ out_free_name:
 	free(countername);
 out_free_rawid:
 	free(counterrawid);
-out_enomem:
+out_eyesmem:
 	return -ENOMEM;
 }
 

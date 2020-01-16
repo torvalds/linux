@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <asm/page.h>
 
-int no_iommu __read_mostly;
+int yes_iommu __read_mostly;
 #ifdef CONFIG_IOMMU_DEBUG
 int force_iommu __read_mostly = 1;
 #else

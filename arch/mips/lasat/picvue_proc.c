@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -43,33 +43,33 @@ static DECLARE_TASKLET(pvc_display_tasklet, &pvc_display, 0);
 
 static int pvc_line_proc_show(struct seq_file *m, void *v)
 {
-	int lineno = *(int *)m->private;
+	int lineyes = *(int *)m->private;
 
-	if (lineno < 0 || lineno >= PVC_NLINES) {
-		printk(KERN_WARNING "proc_read_line: invalid lineno %d\n", lineno);
+	if (lineyes < 0 || lineyes >= PVC_NLINES) {
+		printk(KERN_WARNING "proc_read_line: invalid lineyes %d\n", lineyes);
 		return 0;
 	}
 
 	mutex_lock(&pvc_mutex);
-	seq_printf(m, "%s\n", pvc_lines[lineno]);
+	seq_printf(m, "%s\n", pvc_lines[lineyes]);
 	mutex_unlock(&pvc_mutex);
 
 	return 0;
 }
 
-static int pvc_line_proc_open(struct inode *inode, struct file *file)
+static int pvc_line_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, pvc_line_proc_show, PDE_DATA(inode));
+	return single_open(file, pvc_line_proc_show, PDE_DATA(iyesde));
 }
 
 static ssize_t pvc_line_proc_write(struct file *file, const char __user *buf,
 				   size_t count, loff_t *pos)
 {
-	int lineno = *(int *)PDE_DATA(file_inode(file));
+	int lineyes = *(int *)PDE_DATA(file_iyesde(file));
 	char kbuf[PVC_LINELEN];
 	size_t len;
 
-	BUG_ON(lineno < 0 || lineno >= PVC_NLINES);
+	BUG_ON(lineyes < 0 || lineyes >= PVC_NLINES);
 
 	len = min(count, sizeof(kbuf) - 1);
 	if (copy_from_user(kbuf, buf, len))
@@ -80,8 +80,8 @@ static ssize_t pvc_line_proc_write(struct file *file, const char __user *buf,
 		len--;
 
 	mutex_lock(&pvc_mutex);
-	strncpy(pvc_lines[lineno], kbuf, len);
-	pvc_lines[lineno][len] = '\0';
+	strncpy(pvc_lines[lineyes], kbuf, len);
+	pvc_lines[lineyes][len] = '\0';
 	mutex_unlock(&pvc_mutex);
 
 	tasklet_schedule(&pvc_display_tasklet);
@@ -143,7 +143,7 @@ static int pvc_scroll_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int pvc_scroll_proc_open(struct inode *inode, struct file *file)
+static int pvc_scroll_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, pvc_scroll_proc_show, NULL);
 }

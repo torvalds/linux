@@ -43,7 +43,7 @@ static acpi_execute_op acpi_gbl_op_type_dispatch[] = {
  * FUNCTION:    acpi_ds_get_predicate_value
  *
  * PARAMETERS:  walk_state      - Current state of the parse tree walk
- *              result_obj      - if non-zero, pop result from result stack
+ *              result_obj      - if yesn-zero, pop result from result stack
  *
  * RETURN:      Status
  *
@@ -67,7 +67,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 		status = acpi_ds_result_pop(&obj_desc, walk_state);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not get result from predicate evaluation"));
+					"Could yest get result from predicate evaluation"));
 
 			return_ACPI_STATUS(status);
 		}
@@ -107,7 +107,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 	if (local_obj_desc->common.type != ACPI_TYPE_INTEGER) {
 		ACPI_ERROR((AE_INFO,
-			    "Bad predicate (not an integer) ObjDesc=%p State=%p Type=0x%X",
+			    "Bad predicate (yest an integer) ObjDesc=%p State=%p Type=0x%X",
 			    obj_desc, walk_state, obj_desc->common.type));
 
 		status = AE_AML_OPERAND_TYPE;
@@ -149,7 +149,7 @@ cleanup:
 	acpi_db_display_result_object(local_obj_desc, walk_state);
 
 	/*
-	 * Delete the predicate result object (we know that
+	 * Delete the predicate result object (we kyesw that
 	 * we don't need it anymore)
 	 */
 	if (local_obj_desc != obj_desc) {
@@ -225,7 +225,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 	/*
 	 * If the previous opcode was a conditional, this opcode
 	 * must be the beginning of the associated predicate.
-	 * Save this knowledge in the current scope descriptor
+	 * Save this kyeswledge in the current scope descriptor
 	 */
 	if ((walk_state->control_state) &&
 	    (walk_state->control_state->common.state ==
@@ -269,7 +269,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 			 * the execution of this method.
 			 *
 			 * Note 10/2010: Except for the Scope() op. This opcode does
-			 * not actually create a new object, it refers to an existing
+			 * yest actually create a new object, it refers to an existing
 			 * object. However, for Scope(), we want to indeed open a
 			 * new scope.
 			 */
@@ -278,8 +278,8 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 				    acpi_ds_load2_begin_op(walk_state, NULL);
 			} else {
 				status =
-				    acpi_ds_scope_stack_push(op->named.node,
-							     op->named.node->
+				    acpi_ds_scope_stack_push(op->named.yesde,
+							     op->named.yesde->
 							     type, walk_state);
 				if (ACPI_FAILURE(status)) {
 					return_ACPI_STATUS(status);
@@ -317,7 +317,7 @@ error_exit:
  *
  * DESCRIPTION: Ascending callback used during the execution of control
  *              methods. The only thing we really need to do here is to
- *              notice the beginning of IF, ELSE, and WHILE blocks.
+ *              yestice the beginning of IF, ELSE, and WHILE blocks.
  *
  ****************************************************************************/
 
@@ -337,7 +337,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	op_class = walk_state->op_info->class;
 
 	if (op_class == AML_CLASS_UNKNOWN) {
-		ACPI_ERROR((AE_INFO, "Unknown opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn opcode 0x%X",
 			    op->common.aml_opcode));
 		return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
 	}
@@ -406,7 +406,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			    acpi_gbl_op_type_dispatch[op_type] (walk_state);
 		} else {
 			/*
-			 * Treat constructs of the form "Store(LocalX,LocalX)" as noops when the
+			 * Treat constructs of the form "Store(LocalX,LocalX)" as yesops when the
 			 * Local is uninitialized.
 			 */
 			if ((status == AE_AML_UNINITIALIZED_LOCAL) &&
@@ -457,7 +457,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		case AML_TYPE_METHOD_CALL:
 			/*
 			 * If the method is referenced from within a package
-			 * declaration, it is not a invocation of the method, just
+			 * declaration, it is yest a invocation of the method, just
 			 * a reference to it.
 			 */
 			if ((op->asl.parent) &&
@@ -468,10 +468,10 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 						  "Method Reference in a Package, Op=%p\n",
 						  op));
 
-				op->common.node = (struct acpi_namespace_node *)
-				    op->asl.value.arg->asl.node;
+				op->common.yesde = (struct acpi_namespace_yesde *)
+				    op->asl.value.arg->asl.yesde;
 				acpi_ut_add_reference(op->asl.value.arg->asl.
-						      node->object);
+						      yesde->object);
 				return_ACPI_STATUS(AE_OK);
 			}
 
@@ -499,7 +499,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			}
 
 			/*
-			 * Since the operands will be passed to another control method,
+			 * Since the operands will be passed to ayesther control method,
 			 * we must resolve all local references here (Local variables,
 			 * arguments to *this* method, etc.)
 			 */
@@ -519,7 +519,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			status = AE_CTRL_TRANSFER;
 
 			/*
-			 * Return now; we don't want to disturb anything,
+			 * Return yesw; we don't want to disturb anything,
 			 * especially the operand count!
 			 */
 			return_ACPI_STATUS(status);
@@ -554,12 +554,12 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				 * of this object)
 				 */
 				walk_state->operands[0] = (void *)
-				    op->common.parent->common.node;
+				    op->common.parent->common.yesde;
 				walk_state->num_operands = 1;
 
-				status = acpi_ds_create_node(walk_state,
+				status = acpi_ds_create_yesde(walk_state,
 							     op->common.parent->
-							     common.node,
+							     common.yesde,
 							     op->common.parent);
 				if (ACPI_FAILURE(status)) {
 					break;
@@ -575,7 +575,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				    (walk_state, op,
 				     acpi_ns_get_attached_object(op->common.
 								 parent->common.
-								 node));
+								 yesde));
 				break;
 
 			default:
@@ -701,10 +701,10 @@ cleanup:
 
 		/*
 		 * Delete the result op if and only if:
-		 * Parent will not use the result -- such as any
-		 * non-nested type2 op in a method (parent will be method)
+		 * Parent will yest use the result -- such as any
+		 * yesn-nested type2 op in a method (parent will be method)
 		 */
-		acpi_ds_delete_result_if_not_used(op, walk_state->result_obj,
+		acpi_ds_delete_result_if_yest_used(op, walk_state->result_obj,
 						  walk_state);
 	}
 #ifdef _UNDER_DEVELOPMENT

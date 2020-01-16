@@ -297,6 +297,6 @@ struct stm32_sai_data {
 	struct stm32_sai_conf conf;
 	int irq;
 	int (*set_sync)(struct stm32_sai_data *sai,
-			struct device_node *np_provider, int synco, int synci);
+			struct device_yesde *np_provider, int synco, int synci);
 	u32 gcr;
 };

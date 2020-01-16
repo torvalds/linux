@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
@@ -350,11 +350,11 @@ static void lpss_ssp_select_cs(struct spi_device *spi,
 	cs <<= config->cs_sel_shift;
 	if (cs != (value & config->cs_sel_mask)) {
 		/*
-		 * When switching another chip select output active the
+		 * When switching ayesther chip select output active the
 		 * output must be selected first and wait 2 ssp_clk cycles
 		 * before changing state to active. Otherwise a short
 		 * glitch will occur on the previous chip select since
-		 * output select is latched but state control is not.
+		 * output select is latched but state control is yest.
 		 */
 		value &= ~config->cs_sel_mask;
 		value |= cs;
@@ -653,7 +653,7 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 		sccr1_reg &= ~SSCR1_TIE;
 
 		/*
-		 * PXA25x_SSP has no timeout, set up rx threshould for the
+		 * PXA25x_SSP has yes timeout, set up rx threshould for the
 		 * remaining RX bytes.
 		 */
 		if (pxa25x_ssp_comp(drv_data)) {
@@ -707,16 +707,16 @@ static irqreturn_t ssp_int(int irq, void *dev_id)
 
 	/*
 	 * The IRQ might be shared with other peripherals so we must first
-	 * check that are we RPM suspended or not. If we are we assume that
-	 * the IRQ was not for us (we shouldn't be RPM suspended when the
+	 * check that are we RPM suspended or yest. If we are we assume that
+	 * the IRQ was yest for us (we shouldn't be RPM suspended when the
 	 * interrupt is enabled).
 	 */
 	if (pm_runtime_suspended(&drv_data->pdev->dev))
 		return IRQ_NONE;
 
 	/*
-	 * If the device is not yet in RPM suspended state and we get an
-	 * interrupt that is meant for another device, check if status bits
+	 * If the device is yest yet in RPM suspended state and we get an
+	 * interrupt that is meant for ayesther device, check if status bits
 	 * are all set to one. That means that the device is already
 	 * powered off.
 	 */
@@ -726,11 +726,11 @@ static irqreturn_t ssp_int(int irq, void *dev_id)
 
 	sccr1_reg = pxa2xx_spi_read(drv_data, SSCR1);
 
-	/* Ignore possible writes if we don't need to write */
+	/* Igyesre possible writes if we don't need to write */
 	if (!(sccr1_reg & SSCR1_TIE))
 		mask &= ~SSSR_TFS;
 
-	/* Ignore RX timeout interrupt if it is disabled */
+	/* Igyesre RX timeout interrupt if it is disabled */
 	if (!(sccr1_reg & SSCR1_TINTE))
 		mask &= ~SSSR_TINT;
 
@@ -844,7 +844,7 @@ static unsigned int quark_x1000_get_clk_div(int rate, u32 *dds)
 		mul = (1 << 24) * 2 / 5;
 	}
 
-	/* Check case 3 only if the divisor is big enough */
+	/* Check case 3 only if the divisor is big eyesugh */
 	if (fref / rate >= 80) {
 		u64 fssp;
 		u32 m;
@@ -1147,7 +1147,7 @@ static void pxa2xx_spi_handle_err(struct spi_controller *controller,
 
 	/*
 	 * Stop the DMA if running. Note DMA callback handler may have unset
-	 * the dma_running already, which is fine as stopping is not needed
+	 * the dma_running already, which is fine as stopping is yest needed
 	 * then but we shouldn't rely this flag for anything else than
 	 * stopping. For instance to differentiate between PIO and DMA
 	 * transfers.
@@ -1160,7 +1160,7 @@ static int pxa2xx_spi_unprepare_transfer(struct spi_controller *controller)
 {
 	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 
-	/* Disable the SSP now */
+	/* Disable the SSP yesw */
 	pxa2xx_spi_write(drv_data, SSCR0,
 			 pxa2xx_spi_read(drv_data, SSCR0) & ~SSCR0_SSE);
 
@@ -1200,7 +1200,7 @@ static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 		chip->gpiod_cs = NULL;
 	}
 
-	/* If (*cs_control) is provided, ignore GPIO chip select */
+	/* If (*cs_control) is provided, igyesre GPIO chip select */
 	if (chip_info->cs_control) {
 		chip->cs_control = chip_info->cs_control;
 		return 0;
@@ -1277,7 +1277,7 @@ static int setup(struct spi_device *spi)
 		if (drv_data->ssp_type == CE4100_SSP) {
 			if (spi->chip_select > 4) {
 				dev_err(&spi->dev,
-					"failed setup: cs number must not be > 4.\n");
+					"failed setup: cs number must yest be > 4.\n");
 				kfree(chip);
 				return -EINVAL;
 			}
@@ -1410,7 +1410,7 @@ MODULE_DEVICE_TABLE(acpi, pxa2xx_spi_acpi_match);
 
 /*
  * PCI IDs of compound devices that integrate both host controller and private
- * integrated DMA engine. Please note these are not used in module
+ * integrated DMA engine. Please yeste these are yest used in module
  * autoloading and probing in this module but matching the LPSS SSP type.
  */
 static const struct pci_device_id pxa2xx_spi_pci_compound_match[] = {
@@ -1646,7 +1646,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		controller = spi_alloc_master(dev, sizeof(struct driver_data));
 
 	if (!controller) {
-		dev_err(&pdev->dev, "cannot alloc spi_controller\n");
+		dev_err(&pdev->dev, "canyest alloc spi_controller\n");
 		pxa_ssp_free(ssp);
 		return -ENOMEM;
 	}
@@ -1656,7 +1656,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	drv_data->pdev = pdev;
 	drv_data->ssp = ssp;
 
-	controller->dev.of_node = pdev->dev.of_node;
+	controller->dev.of_yesde = pdev->dev.of_yesde;
 	/* the spi->mode bits understood by this driver: */
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
 
@@ -1703,7 +1703,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	status = request_irq(ssp->irq, ssp_int, IRQF_SHARED, dev_name(dev),
 			drv_data);
 	if (status < 0) {
-		dev_err(&pdev->dev, "cannot get IRQ %d\n", ssp->irq);
+		dev_err(&pdev->dev, "canyest get IRQ %d\n", ssp->irq);
 		goto out_error_controller_alloc;
 	}
 
@@ -1711,7 +1711,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	if (platform_info->enable_dma) {
 		status = pxa2xx_spi_dma_setup(drv_data);
 		if (status) {
-			dev_warn(dev, "no DMA channels available, using PIO\n");
+			dev_warn(dev, "yes DMA channels available, using PIO\n");
 			platform_info->enable_dma = false;
 		} else {
 			controller->can_dma = pxa2xx_spi_can_dma;
@@ -1856,7 +1856,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	return status;
 
 out_error_pm_runtime_enabled:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 out_error_clock_enabled:
@@ -1891,7 +1891,7 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 	if (drv_data->controller_info->enable_dma)
 		pxa2xx_spi_dma_release(drv_data);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	/* Release IRQ */

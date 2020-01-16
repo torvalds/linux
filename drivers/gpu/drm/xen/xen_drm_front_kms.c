@@ -160,7 +160,7 @@ void xen_drm_front_kms_on_frame_done(struct xen_drm_front_drm_pipeline *pipeline
 {
 	/*
 	 * This runs in interrupt context, e.g. under
-	 * drm_info->front_info->io_lock, so we cannot call _sync version
+	 * drm_info->front_info->io_lock, so we canyest call _sync version
 	 * to cancel the work
 	 */
 	cancel_delayed_work(&pipeline->pflip_to_worker);
@@ -188,11 +188,11 @@ static bool display_send_page_flip(struct drm_simple_display_pipe *pipe,
 						       &pipe->plane);
 
 	/*
-	 * If old_plane_state->fb is NULL and plane_state->fb is not,
+	 * If old_plane_state->fb is NULL and plane_state->fb is yest,
 	 * then this is an atomic commit which will enable display.
-	 * If old_plane_state->fb is not NULL and plane_state->fb is,
+	 * If old_plane_state->fb is yest NULL and plane_state->fb is,
 	 * then this is an atomic commit which will disable display.
-	 * Ignore these and do not send page flip as this framebuffer will be
+	 * Igyesre these and do yest send page flip as this framebuffer will be
 	 * sent to the backend as a part of display_set_config call.
 	 */
 	if (old_plane_state->fb && plane_state->fb) {
@@ -212,7 +212,7 @@ static bool display_send_page_flip(struct drm_simple_display_pipe *pipe,
 
 			pipeline->conn_connected = false;
 			/*
-			 * Report the flip not handled, so pending event is
+			 * Report the flip yest handled, so pending event is
 			 * sent, unblocking user-space.
 			 */
 			return false;
@@ -258,10 +258,10 @@ static void display_update(struct drm_simple_display_pipe *pipe,
 	/*
 	 * Send page flip request to the backend *after* we have event cached
 	 * above, so on page flip done event from the backend we can
-	 * deliver it and there is no race condition between this code and
+	 * deliver it and there is yes race condition between this code and
 	 * event from the backend.
-	 * If this is not a page flip, e.g. no flip done event from the backend
-	 * is expected, then send now.
+	 * If this is yest a page flip, e.g. yes flip done event from the backend
+	 * is expected, then send yesw.
 	 */
 	if (!display_send_page_flip(pipe, old_plane_state))
 		send_pending_event(pipeline);

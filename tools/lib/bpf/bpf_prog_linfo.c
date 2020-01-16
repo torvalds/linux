@@ -137,7 +137,7 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 	    info->nr_jited_func_lens != nr_jited_func ||
 	    !info->jited_ksyms ||
 	    !info->jited_func_lens)
-		/* Not enough info to provide jited_line_info */
+		/* Not eyesugh info to provide jited_line_info */
 		return prog_linfo;
 
 	/* Copy jited_line_info */

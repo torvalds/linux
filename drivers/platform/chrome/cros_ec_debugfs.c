@@ -52,8 +52,8 @@ struct cros_ec_debugfs {
 };
 
 /*
- * We need to make sure that the EC log buffer on the UART is large enough,
- * so that it is unlikely enough to overlow within LOG_POLL_SEC.
+ * We need to make sure that the EC log buffer on the UART is large eyesugh,
+ * so that it is unlikely eyesugh to overlow within LOG_POLL_SEC.
  */
 static void cros_ec_console_log_work(struct work_struct *__work)
 {
@@ -118,11 +118,11 @@ resched:
 			      msecs_to_jiffies(LOG_POLL_SEC * 1000));
 }
 
-static int cros_ec_console_log_open(struct inode *inode, struct file *file)
+static int cros_ec_console_log_open(struct iyesde *iyesde, struct file *file)
 {
-	file->private_data = inode->i_private;
+	file->private_data = iyesde->i_private;
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 static ssize_t cros_ec_console_log_read(struct file *file, char __user *buf,
@@ -186,7 +186,7 @@ static __poll_t cros_ec_console_log_poll(struct file *file,
 	return mask;
 }
 
-static int cros_ec_console_log_release(struct inode *inode, struct file *file)
+static int cros_ec_console_log_release(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
@@ -275,7 +275,7 @@ static const struct file_operations cros_ec_console_log_fops = {
 	.owner = THIS_MODULE,
 	.open = cros_ec_console_log_open,
 	.read = cros_ec_console_log_read,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.poll = cros_ec_console_log_poll,
 	.release = cros_ec_console_log_release,
 };
@@ -331,7 +331,7 @@ static int cros_ec_create_console_log(struct cros_ec_debugfs *debug_info)
 	int read_response_size;
 
 	/*
-	 * If the console log feature is not supported return silently and
+	 * If the console log feature is yest supported return silently and
 	 * don't create the console_log entry.
 	 */
 	if (!ec_read_version_supported(ec))

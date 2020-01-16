@@ -114,7 +114,7 @@ static irqreturn_t zevio_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init zevio_timer_add(struct device_node *node)
+static int __init zevio_timer_add(struct device_yesde *yesde)
 {
 	struct zevio_timer *timer;
 	struct resource res;
@@ -124,7 +124,7 @@ static int __init zevio_timer_add(struct device_node *node)
 	if (!timer)
 		return -ENOMEM;
 
-	timer->base = of_iomap(node, 0);
+	timer->base = of_iomap(yesde, 0);
 	if (!timer->base) {
 		ret = -EINVAL;
 		goto error_free;
@@ -132,24 +132,24 @@ static int __init zevio_timer_add(struct device_node *node)
 	timer->timer1 = timer->base + IO_TIMER1;
 	timer->timer2 = timer->base + IO_TIMER2;
 
-	timer->clk = of_clk_get(node, 0);
+	timer->clk = of_clk_get(yesde, 0);
 	if (IS_ERR(timer->clk)) {
 		ret = PTR_ERR(timer->clk);
-		pr_err("Timer clock not found! (error %d)\n", ret);
+		pr_err("Timer clock yest found! (error %d)\n", ret);
 		goto error_unmap;
 	}
 
-	timer->interrupt_regs = of_iomap(node, 1);
-	irqnr = irq_of_parse_and_map(node, 0);
+	timer->interrupt_regs = of_iomap(yesde, 1);
+	irqnr = irq_of_parse_and_map(yesde, 0);
 
-	of_address_to_resource(node, 0, &res);
+	of_address_to_resource(yesde, 0, &res);
 	scnprintf(timer->clocksource_name, sizeof(timer->clocksource_name),
 			"%llx.%pOFn_clocksource",
-			(unsigned long long)res.start, node);
+			(unsigned long long)res.start, yesde);
 
 	scnprintf(timer->clockevent_name, sizeof(timer->clockevent_name),
 			"%llx.%pOFn_clockevent",
-			(unsigned long long)res.start, node);
+			(unsigned long long)res.start, yesde);
 
 	if (timer->interrupt_regs && irqnr) {
 		timer->clkevt.name		= timer->clockevent_name;
@@ -206,9 +206,9 @@ error_free:
 	return ret;
 }
 
-static int __init zevio_timer_init(struct device_node *node)
+static int __init zevio_timer_init(struct device_yesde *yesde)
 {
-	return zevio_timer_add(node);
+	return zevio_timer_add(yesde);
 }
 
 TIMER_OF_DECLARE(zevio_timer, "lsi,zevio-timer", zevio_timer_init);

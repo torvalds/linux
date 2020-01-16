@@ -2,7 +2,7 @@ This document describes the generic device tree binding for IOMMUs and their
 master(s).
 
 
-IOMMU device node:
+IOMMU device yesde:
 ==================
 
 An IOMMU can provide the following services:
@@ -13,7 +13,7 @@ An IOMMU can provide the following services:
   Example: 32-bit DMA to 64-bit physical addresses
 
 * Implement scatter-gather at page level granularity so that the device does
-  not have to.
+  yest have to.
 
 * Provide system protection against "rogue" DMA by forcing all accesses to go
   through the IOMMU and faulting when encountering accesses to unmapped
@@ -23,14 +23,14 @@ An IOMMU can provide the following services:
 
   Example: Virtualization
 
-Device nodes compatible with this binding represent hardware with some of the
+Device yesdes compatible with this binding represent hardware with some of the
 above capabilities.
 
 IOMMUs can be single-master or multiple-master. Single-master IOMMU devices
 typically have a fixed association to the master device, whereas multiple-
 master IOMMU devices can translate accesses from more than one master.
 
-The device tree node of the IOMMU device's parent bus must contain a valid
+The device tree yesde of the IOMMU device's parent bus must contain a valid
 "dma-ranges" property that describes how the physical address space of the
 IOMMU maps to memory. An empty "dma-ranges" property means that there is a
 1:1 mapping from IOMMU to memory.
@@ -43,9 +43,9 @@ Required properties:
 The meaning of the IOMMU specifier is defined by the device tree binding of
 the specific IOMMU. Below are a few examples of typical use-cases:
 
-- #iommu-cells = <0>: Single master IOMMU devices are not configurable and
-  therefore no additional information needs to be encoded in the specifier.
-  This may also apply to multiple master IOMMU devices that do not allow the
+- #iommu-cells = <0>: Single master IOMMU devices are yest configurable and
+  therefore yes additional information needs to be encoded in the specifier.
+  This may also apply to multiple master IOMMU devices that do yest allow the
   association of masters to be configured. Note that an IOMMU can by design
   be multi-master yet only expose a single master in a given configuration.
   In such cases the number of cells will usually be 1 as in the next case.
@@ -64,7 +64,7 @@ definitions to represent their individual needs. Always refer to the specific
 IOMMU binding for the exact meaning of the cells that make up the specifier.
 
 
-IOMMU master node:
+IOMMU master yesde:
 ==================
 
 Devices that access memory through an IOMMU are called masters. A device can
@@ -76,14 +76,14 @@ Required properties:
   master interfaces of the device. One entry in the list describes one master
   interface of the device.
 
-When an "iommus" property is specified in a device tree node, the IOMMU will
+When an "iommus" property is specified in a device tree yesde, the IOMMU will
 be used for address translation. If a "dma-ranges" property exists in the
-device's parent node it will be ignored. An exception to this rule is if the
+device's parent yesde it will be igyesred. An exception to this rule is if the
 referenced IOMMU is disabled, in which case the "dma-ranges" property of the
-parent shall take effect. Note that merely disabling a device tree node does
-not guarantee that the IOMMU is really disabled since the hardware may not
+parent shall take effect. Note that merely disabling a device tree yesde does
+yest guarantee that the IOMMU is really disabled since the hardware may yest
 have a means to turn off translation. But it is invalid in such cases to
-disable the IOMMU's device tree node in the first place because it would
+disable the IOMMU's device tree yesde in the first place because it would
 prevent any driver from properly setting up the translations.
 
 
@@ -91,11 +91,11 @@ Notes:
 ======
 
 One possible extension to the above is to use an "iommus" property along with
-a "dma-ranges" property in a bus device node (such as PCI host bridges). This
+a "dma-ranges" property in a bus device yesde (such as PCI host bridges). This
 can be useful to describe how children on the bus relate to the IOMMU if they
-are not explicitly listed in the device tree (e.g. PCI devices). However, the
+are yest explicitly listed in the device tree (e.g. PCI devices). However, the
 requirements of that use-case haven't been fully determined yet. Implementing
-this is therefore not recommended without further discussion and extension of
+this is therefore yest recommended without further discussion and extension of
 this binding.
 
 
@@ -120,7 +120,7 @@ Multiple-master IOMMU with fixed associations:
 	iommu {
 		/*
 		 * Masters are statically associated with this IOMMU and share
-		 * the same address translations because the IOMMU does not
+		 * the same address translations because the IOMMU does yest
 		 * have sufficient information to distinguish between masters.
 		 *
 		 * Consequently address translation is always on or off for

@@ -6,7 +6,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -52,7 +52,7 @@ static void pxrc_usb_irq(struct urb *urb)
 			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(&pxrc->intf->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&pxrc->intf->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}
@@ -134,7 +134,7 @@ static int pxrc_probe(struct usb_interface *intf,
 	error = usb_find_common_endpoints(intf->cur_altsetting,
 					  NULL, NULL, &epirq, NULL);
 	if (error) {
-		dev_err(&intf->dev, "Could not find endpoint\n");
+		dev_err(&intf->dev, "Could yest find endpoint\n");
 		return error;
 	}
 

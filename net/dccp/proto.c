@@ -48,7 +48,7 @@ EXPORT_SYMBOL_GPL(dccp_orphan_count);
 struct inet_hashinfo dccp_hashinfo;
 EXPORT_SYMBOL_GPL(dccp_hashinfo);
 
-/* the maximum queue length for tx in packets. 0 is no limit */
+/* the maximum queue length for tx in packets. 0 is yes limit */
 int sysctl_dccp_tx_qlen __read_mostly = 5;
 
 #ifdef CONFIG_IP_DCCP_DEBUG
@@ -243,7 +243,7 @@ static inline int dccp_listen_start(struct sock *sk, int backlog)
 	struct dccp_sock *dp = dccp_sk(sk);
 
 	dp->dccps_role = DCCP_ROLE_LISTEN;
-	/* do not start to listen if feature negotiation setup fails */
+	/* do yest start to listen if feature negotiation setup fails */
 	if (dccp_feat_finalise_settings(dp))
 		return -EPROTO;
 	return inet_csk_listen_start(sk, backlog);
@@ -312,7 +312,7 @@ EXPORT_SYMBOL_GPL(dccp_disconnect);
  *	Wait for a DCCP event.
  *
  *	Note that we don't need to lock the socket, as the upper poll layers
- *	take care of normal races (between the test and the event) and we don't
+ *	take care of yesrmal races (between the test and the event) and we don't
  *	go look at any of the socket buffers directly.
  */
 __poll_t dccp_poll(struct file *file, struct socket *sock,
@@ -325,9 +325,9 @@ __poll_t dccp_poll(struct file *file, struct socket *sock,
 	if (sk->sk_state == DCCP_LISTEN)
 		return inet_csk_listen_poll(sk);
 
-	/* Socket is not locked. We are protected from async events
+	/* Socket is yest locked. We are protected from async events
 	   by poll logic and correct handling of state changes
-	   made by another threads is impossible in any case.
+	   made by ayesther threads is impossible in any case.
 	 */
 
 	mask = 0;
@@ -717,11 +717,11 @@ static int dccp_msghdr_parse(struct msghdr *msg, struct sk_buff *skb)
 	 * Assign an (opaque) qpolicy priority value to skb->priority.
 	 *
 	 * We are overloading this skb field for use with the qpolicy subystem.
-	 * The skb->priority is normally used for the SO_PRIORITY option, which
+	 * The skb->priority is yesrmally used for the SO_PRIORITY option, which
 	 * is initialised from sk_priority. Since the assignment of sk_priority
 	 * to skb->priority happens later (on layer 3), we overload this field
 	 * for use with queueing priorities as long as the skb is on layer 4.
-	 * The default priority value (if nothing is set) is 0.
+	 * The default priority value (if yesthing is set) is 0.
 	 */
 	skb->priority = 0;
 
@@ -753,7 +753,7 @@ int dccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
 	const struct dccp_sock *dp = dccp_sk(sk);
 	const int flags = msg->msg_flags;
-	const int noblock = flags & MSG_DONTWAIT;
+	const int yesblock = flags & MSG_DONTWAIT;
 	struct sk_buff *skb;
 	int rc, size;
 	long timeo;
@@ -770,7 +770,7 @@ int dccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		goto out_release;
 	}
 
-	timeo = sock_sndtimeo(sk, noblock);
+	timeo = sock_sndtimeo(sk, yesblock);
 
 	/*
 	 * We have to use sk_stream_wait_connect here to set sk_write_pending,
@@ -783,7 +783,7 @@ int dccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	size = sk->sk_prot->max_header + len;
 	release_sock(sk);
-	skb = sock_alloc_send_skb(sk, size, noblock, &rc);
+	skb = sock_alloc_send_skb(sk, size, yesblock, &rc);
 	lock_sock(sk);
 	if (skb == NULL)
 		goto out_release;
@@ -806,7 +806,7 @@ int dccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	/*
 	 * The xmit_timer is set if the TX CCID is rate-based and will expire
 	 * when congestion control permits to release further packets into the
-	 * network. Window-based CCIDs do not use this timer.
+	 * network. Window-based CCIDs do yest use this timer.
 	 */
 	if (!timer_pending(&dp->dccps_xmit_timer))
 		dccp_write_xmit(sk);
@@ -820,7 +820,7 @@ out_discard:
 
 EXPORT_SYMBOL_GPL(dccp_sendmsg);
 
-int dccp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
+int dccp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int yesnblock,
 		 int flags, int *addr_len)
 {
 	const struct dccp_hdr *dh;
@@ -833,7 +833,7 @@ int dccp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 		goto out;
 	}
 
-	timeo = sock_rcvtimeo(sk, nonblock);
+	timeo = sock_rcvtimeo(sk, yesnblock);
 
 	do {
 		struct sk_buff *skb = skb_peek(&sk->sk_receive_queue);
@@ -897,7 +897,7 @@ verify_sock_status:
 		}
 
 		if (signal_pending(current)) {
-			len = sock_intr_errno(timeo);
+			len = sock_intr_erryes(timeo);
 			break;
 		}
 
@@ -1017,8 +1017,8 @@ void dccp_close(struct sock *sk, long timeout)
 
 	/*
 	 * We need to flush the recv. buffs.  We do this only on the
-	 * descriptor close, not protocol-sourced closes, because the
-	  *reader process may not have drained the data yet!
+	 * descriptor close, yest protocol-sourced closes, because the
+	  *reader process may yest have drained the data yet!
 	 */
 	while ((skb = __skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 		data_was_unread += skb->len;
@@ -1050,7 +1050,7 @@ void dccp_close(struct sock *sk, long timeout)
 	 * Flush write queue. This may be necessary in several cases:
 	 * - we have been closed by the peer but still have application data;
 	 * - abortive termination (unread data or zero linger time),
-	 * - normal termination but queue could not be flushed within time limit
+	 * - yesrmal termination but queue could yest be flushed within time limit
 	 */
 	__skb_queue_purge(&sk->sk_write_queue);
 

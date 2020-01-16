@@ -17,7 +17,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -30,13 +30,13 @@
 /*
  * Note that, due to trying to use names similar to the protocol specifications,
  * there are many mixed case field names in the structures below.  Although
- * this does not match typical Linux kernel style, it is necessary to be
+ * this does yest match typical Linux kernel style, it is necessary to be
  * be able to match against the protocol specfication.
  *
  * SMB2 commands
  * Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
- * (ie no useful data other than the SMB error code itself) and are marked such.
- * Knowing this helps avoid response buffer allocations and copy in some cases.
+ * (ie yes useful data other than the SMB error code itself) and are marked such.
+ * Kyeswing this helps avoid response buffer allocations and copy in some cases.
  */
 
 /* List of commands in host endian */
@@ -114,8 +114,8 @@ struct smb2_sync_hdr {
 	__le32 NextCommand;
 	__le64 MessageId;
 	__le32 ProcessId;
-	__u32  TreeId;		/* opaque - so do not make little endian */
-	__u64  SessionId;	/* opaque - so do not make little endian */
+	__u32  TreeId;		/* opaque - so do yest make little endian */
+	__u64  SessionId;	/* opaque - so do yest make little endian */
 	__u8   Signature[16];
 } __packed;
 
@@ -228,11 +228,11 @@ struct smb2_negotiate_req {
 	__le32 NegotiateContextOffset; /* SMB3.1.1 only. MBZ earlier */
 	__le16 NegotiateContextCount;  /* SMB3.1.1 only. MBZ earlier */
 	__le16 Reserved2;
-	__le16 Dialects[1]; /* One dialect (vers=) at a time for now */
+	__le16 Dialects[1]; /* One dialect (vers=) at a time for yesw */
 } __packed;
 
 /* Dialects */
-#define SMB10_PROT_ID 0x0000 /* local only, not sent on wire w/CIFS negprot */
+#define SMB10_PROT_ID 0x0000 /* local only, yest sent on wire w/CIFS negprot */
 #define SMB20_PROT_ID 0x0202
 #define SMB21_PROT_ID 0x0210
 #define SMB30_PROT_ID 0x0300
@@ -352,7 +352,7 @@ struct smb2_negotiate_rsp {
 	__le64 ServerStartTime;
 	__le16 SecurityBufferOffset;
 	__le16 SecurityBufferLength;
-	__le32 NegotiateContextOffset;	/* Pre:SMB3.1.1 was reserved/ignored */
+	__le32 NegotiateContextOffset;	/* Pre:SMB3.1.1 was reserved/igyesred */
 	__u8   Buffer[1];	/* variable length GSS security buffer */
 } __packed;
 
@@ -869,7 +869,7 @@ struct crt_sd_ctxt {
 struct resume_key_req {
 	char ResumeKey[COPY_CHUNK_RES_KEY_SIZE];
 	__le32	ContextLength;	/* MBZ */
-	char	Context[0];	/* ignored, Windows sets to 4 bytes of zero */
+	char	Context[0];	/* igyesred, Windows sets to 4 bytes of zero */
 } __packed;
 
 /* this goes in the ioctl buffer when doing a copychunk request */
@@ -983,7 +983,7 @@ struct network_resiliency_req {
 	__le32 Timeout;
 	__le32 Reserved;
 } __packed;
-/* There is no buffer for the response ie no struct network_resiliency_rsp */
+/* There is yes buffer for the response ie yes struct network_resiliency_rsp */
 
 
 struct validate_negotiate_info_req {
@@ -1030,7 +1030,7 @@ struct iface_info_ipv6 {
 	__be32 ScopeId;
 } __packed;
 
-#define NO_FILE_ID 0xFFFFFFFFFFFFFFFFULL /* general ioctls to srv not to file */
+#define NO_FILE_ID 0xFFFFFFFFFFFFFFFFULL /* general ioctls to srv yest to file */
 
 struct compress_ioctl {
 	__le16 CompressionState; /* See cifspdu.h for possible flag values */
@@ -1199,10 +1199,10 @@ struct smb2_write_rsp {
 	__u8   Buffer[1];
 } __packed;
 
-/* notify flags */
+/* yestify flags */
 #define SMB2_WATCH_TREE			0x0001
 
-/* notify completion filter flags. See MS-FSCC 2.6 and MS-SMB2 2.2.35 */
+/* yestify completion filter flags. See MS-FSCC 2.6 and MS-SMB2 2.2.35 */
 #define FILE_NOTIFY_CHANGE_FILE_NAME		0x00000001
 #define FILE_NOTIFY_CHANGE_DIR_NAME		0x00000002
 #define FILE_NOTIFY_CHANGE_ATTRIBUTES		0x00000004
@@ -1216,7 +1216,7 @@ struct smb2_write_rsp {
 #define FILE_NOTIFY_CHANGE_STREAM_SIZE		0x00000400
 #define FILE_NOTIFY_CHANGE_STREAM_WRITE		0x00000800
 
-struct smb2_change_notify_req {
+struct smb2_change_yestify_req {
 	struct smb2_sync_hdr sync_hdr;
 	__le16	StructureSize;
 	__le16	Flags;
@@ -1227,12 +1227,12 @@ struct smb2_change_notify_req {
 	__u32	Reserved;
 } __packed;
 
-struct smb2_change_notify_rsp {
+struct smb2_change_yestify_rsp {
 	struct smb2_sync_hdr sync_hdr;
 	__le16	StructureSize;  /* Must be 9 */
 	__le16	OutputBufferOffset;
 	__le32	OutputBufferLength;
-	__u8	Buffer[1]; /* array of file notify structs */
+	__u8	Buffer[1]; /* array of file yestify structs */
 } __packed;
 
 #define SMB2_LOCKFLAG_SHARED_LOCK	0x0001
@@ -1500,7 +1500,7 @@ struct smb3_fs_vol_info {
 #define FILE_MAILSLOT_SET_INFORMATION	27
 #define FILE_COMPRESSION_INFORMATION	28
 #define FILE_OBJECT_ID_INFORMATION	29
-/* Number 30 not defined in documents */
+/* Number 30 yest defined in documents */
 #define FILE_MOVE_CLUSTER_INFORMATION	31
 #define FILE_QUOTA_INFORMATION		32
 #define FILE_REPARSE_POINT_INFORMATION	33

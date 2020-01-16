@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,12 +31,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -56,13 +56,13 @@
 #include "host.h"
 #include "isci.h"
 #include "remote_device.h"
-#include "remote_node_context.h"
+#include "remote_yesde_context.h"
 #include "scu_event_codes.h"
 #include "scu_task_context.h"
 
 #undef C
 #define C(a) (#a)
-const char *rnc_state_name(enum scis_sds_remote_node_context_states state)
+const char *rnc_state_name(enum scis_sds_remote_yesde_context_states state)
 {
 	static const char * const strings[] = RNC_STATES;
 
@@ -75,14 +75,14 @@ const char *rnc_state_name(enum scis_sds_remote_node_context_states state)
 
 /**
  *
- * @sci_rnc: The state of the remote node context object to check.
+ * @sci_rnc: The state of the remote yesde context object to check.
  *
- * This method will return true if the remote node context is in a READY state
- * otherwise it will return false bool true if the remote node context is in
- * the ready state. false if the remote node context is not in the ready state.
+ * This method will return true if the remote yesde context is in a READY state
+ * otherwise it will return false bool true if the remote yesde context is in
+ * the ready state. false if the remote yesde context is yest in the ready state.
  */
-bool sci_remote_node_context_is_ready(
-	struct sci_remote_node_context *sci_rnc)
+bool sci_remote_yesde_context_is_ready(
+	struct sci_remote_yesde_context *sci_rnc)
 {
 	u32 current_state = sci_rnc->sm.current_state_id;
 
@@ -93,7 +93,7 @@ bool sci_remote_node_context_is_ready(
 	return false;
 }
 
-bool sci_remote_node_context_is_suspended(struct sci_remote_node_context *sci_rnc)
+bool sci_remote_yesde_context_is_suspended(struct sci_remote_yesde_context *sci_rnc)
 {
 	u32 current_state = sci_rnc->sm.current_state_id;
 
@@ -102,32 +102,32 @@ bool sci_remote_node_context_is_suspended(struct sci_remote_node_context *sci_rn
 	return false;
 }
 
-static union scu_remote_node_context *sci_rnc_by_id(struct isci_host *ihost, u16 id)
+static union scu_remote_yesde_context *sci_rnc_by_id(struct isci_host *ihost, u16 id)
 {
-	if (id < ihost->remote_node_entries &&
+	if (id < ihost->remote_yesde_entries &&
 	    ihost->device_table[id])
-		return &ihost->remote_node_context_table[id];
+		return &ihost->remote_yesde_context_table[id];
 
 	return NULL;
 }
 
-static void sci_remote_node_context_construct_buffer(struct sci_remote_node_context *sci_rnc)
+static void sci_remote_yesde_context_construct_buffer(struct sci_remote_yesde_context *sci_rnc)
 {
 	struct isci_remote_device *idev = rnc_to_dev(sci_rnc);
 	struct domain_device *dev = idev->domain_dev;
-	int rni = sci_rnc->remote_node_index;
-	union scu_remote_node_context *rnc;
+	int rni = sci_rnc->remote_yesde_index;
+	union scu_remote_yesde_context *rnc;
 	struct isci_host *ihost;
 	__le64 sas_addr;
 
 	ihost = idev->owning_port->owning_controller;
 	rnc = sci_rnc_by_id(ihost, rni);
 
-	memset(rnc, 0, sizeof(union scu_remote_node_context)
-		* sci_remote_device_node_count(idev));
+	memset(rnc, 0, sizeof(union scu_remote_yesde_context)
+		* sci_remote_device_yesde_count(idev));
 
-	rnc->ssp.remote_node_index = rni;
-	rnc->ssp.remote_node_port_width = idev->device_port_width;
+	rnc->ssp.remote_yesde_index = rni;
+	rnc->ssp.remote_yesde_port_width = idev->device_port_width;
 	rnc->ssp.logical_port_index = idev->owning_port->physical_port_index;
 
 	/* sas address is __be64, context ram format is __le64 */
@@ -138,7 +138,7 @@ static void sci_remote_node_context_construct_buffer(struct sci_remote_node_cont
 	rnc->ssp.nexus_loss_timer_enable = true;
 	rnc->ssp.check_bit               = false;
 	rnc->ssp.is_valid                = false;
-	rnc->ssp.is_remote_node_context  = true;
+	rnc->ssp.is_remote_yesde_context  = true;
 	rnc->ssp.function_number         = 0;
 
 	rnc->ssp.arbitration_wait_time = 0;
@@ -169,15 +169,15 @@ static void sci_remote_node_context_construct_buffer(struct sci_remote_node_cont
  * @callback:
  * @callback_parameter:
  *
- * This method will setup the remote node context object so it will transition
- * to its ready state.  If the remote node context is already setup to
- * transition to its final state then this function does nothing. none
+ * This method will setup the remote yesde context object so it will transition
+ * to its ready state.  If the remote yesde context is already setup to
+ * transition to its final state then this function does yesthing. yesne
  */
-static void sci_remote_node_context_setup_to_resume(
-	struct sci_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
+static void sci_remote_yesde_context_setup_to_resume(
+	struct sci_remote_yesde_context *sci_rnc,
+	scics_sds_remote_yesde_context_callback callback,
 	void *callback_parameter,
-	enum sci_remote_node_context_destination_state dest_param)
+	enum sci_remote_yesde_context_destination_state dest_param)
 {
 	if (sci_rnc->destination_state != RNC_DEST_FINAL) {
 		sci_rnc->destination_state = dest_param;
@@ -188,9 +188,9 @@ static void sci_remote_node_context_setup_to_resume(
 	}
 }
 
-static void sci_remote_node_context_setup_to_destroy(
-	struct sci_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
+static void sci_remote_yesde_context_setup_to_destroy(
+	struct sci_remote_yesde_context *sci_rnc,
+	scics_sds_remote_yesde_context_callback callback,
 	void *callback_parameter)
 {
 	struct isci_host *ihost = idev_to_ihost(rnc_to_dev(sci_rnc));
@@ -208,8 +208,8 @@ static void sci_remote_node_context_setup_to_destroy(
  * This method just calls the user callback function and then resets the
  * callback.
  */
-static void sci_remote_node_context_notify_user(
-	struct sci_remote_node_context *rnc)
+static void sci_remote_yesde_context_yestify_user(
+	struct sci_remote_yesde_context *rnc)
 {
 	if (rnc->user_callback != NULL) {
 		(*rnc->user_callback)(rnc->user_cookie);
@@ -219,7 +219,7 @@ static void sci_remote_node_context_notify_user(
 	}
 }
 
-static void sci_remote_node_context_continue_state_transitions(struct sci_remote_node_context *rnc)
+static void sci_remote_yesde_context_continue_state_transitions(struct sci_remote_yesde_context *rnc)
 {
 	switch (rnc->destination_state) {
 	case RNC_DEST_READY:
@@ -227,7 +227,7 @@ static void sci_remote_node_context_continue_state_transitions(struct sci_remote
 		rnc->destination_state = RNC_DEST_READY;
 		/* Fall through... */
 	case RNC_DEST_FINAL:
-		sci_remote_node_context_resume(rnc, rnc->user_callback,
+		sci_remote_yesde_context_resume(rnc, rnc->user_callback,
 					       rnc->user_cookie);
 		break;
 	default:
@@ -236,14 +236,14 @@ static void sci_remote_node_context_continue_state_transitions(struct sci_remote
 	}
 }
 
-static void sci_remote_node_context_validate_context_buffer(struct sci_remote_node_context *sci_rnc)
+static void sci_remote_yesde_context_validate_context_buffer(struct sci_remote_yesde_context *sci_rnc)
 {
-	union scu_remote_node_context *rnc_buffer;
+	union scu_remote_yesde_context *rnc_buffer;
 	struct isci_remote_device *idev = rnc_to_dev(sci_rnc);
 	struct domain_device *dev = idev->domain_dev;
 	struct isci_host *ihost = idev->owning_port->owning_controller;
 
-	rnc_buffer = sci_rnc_by_id(ihost, sci_rnc->remote_node_index);
+	rnc_buffer = sci_rnc_by_id(ihost, sci_rnc->remote_yesde_index);
 
 	rnc_buffer->ssp.is_valid = true;
 
@@ -254,17 +254,17 @@ static void sci_remote_node_context_validate_context_buffer(struct sci_remote_no
 
 		if (!dev->parent)
 			sci_port_setup_transports(idev->owning_port,
-						  sci_rnc->remote_node_index);
+						  sci_rnc->remote_yesde_index);
 	}
 }
 
-static void sci_remote_node_context_invalidate_context_buffer(struct sci_remote_node_context *sci_rnc)
+static void sci_remote_yesde_context_invalidate_context_buffer(struct sci_remote_yesde_context *sci_rnc)
 {
-	union scu_remote_node_context *rnc_buffer;
+	union scu_remote_yesde_context *rnc_buffer;
 	struct isci_remote_device *idev = rnc_to_dev(sci_rnc);
 	struct isci_host *ihost = idev->owning_port->owning_controller;
 
-	rnc_buffer = sci_rnc_by_id(ihost, sci_rnc->remote_node_index);
+	rnc_buffer = sci_rnc_by_id(ihost, sci_rnc->remote_yesde_index);
 
 	rnc_buffer->ssp.is_valid = false;
 
@@ -272,43 +272,43 @@ static void sci_remote_node_context_invalidate_context_buffer(struct sci_remote_
 				       SCU_CONTEXT_COMMAND_POST_RNC_INVALIDATE);
 }
 
-static void sci_remote_node_context_initial_state_enter(struct sci_base_state_machine *sm)
+static void sci_remote_yesde_context_initial_state_enter(struct sci_base_state_machine *sm)
 {
-	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
+	struct sci_remote_yesde_context *rnc = container_of(sm, typeof(*rnc), sm);
 	struct isci_remote_device *idev = rnc_to_dev(rnc);
 	struct isci_host *ihost = idev->owning_port->owning_controller;
 
 	/* Check to see if we have gotten back to the initial state because
-	 * someone requested to destroy the remote node context object.
+	 * someone requested to destroy the remote yesde context object.
 	 */
 	if (sm->previous_state_id == SCI_RNC_INVALIDATING) {
 		rnc->destination_state = RNC_DEST_UNSPECIFIED;
-		sci_remote_node_context_notify_user(rnc);
+		sci_remote_yesde_context_yestify_user(rnc);
 
 		smp_wmb();
 		wake_up(&ihost->eventq);
 	}
 }
 
-static void sci_remote_node_context_posting_state_enter(struct sci_base_state_machine *sm)
+static void sci_remote_yesde_context_posting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct sci_remote_node_context *sci_rnc = container_of(sm, typeof(*sci_rnc), sm);
+	struct sci_remote_yesde_context *sci_rnc = container_of(sm, typeof(*sci_rnc), sm);
 
-	sci_remote_node_context_validate_context_buffer(sci_rnc);
+	sci_remote_yesde_context_validate_context_buffer(sci_rnc);
 }
 
-static void sci_remote_node_context_invalidating_state_enter(struct sci_base_state_machine *sm)
+static void sci_remote_yesde_context_invalidating_state_enter(struct sci_base_state_machine *sm)
 {
-	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
+	struct sci_remote_yesde_context *rnc = container_of(sm, typeof(*rnc), sm);
 
 	/* Terminate all outstanding requests. */
 	sci_remote_device_terminate_requests(rnc_to_dev(rnc));
-	sci_remote_node_context_invalidate_context_buffer(rnc);
+	sci_remote_yesde_context_invalidate_context_buffer(rnc);
 }
 
-static void sci_remote_node_context_resuming_state_enter(struct sci_base_state_machine *sm)
+static void sci_remote_yesde_context_resuming_state_enter(struct sci_base_state_machine *sm)
 {
-	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
+	struct sci_remote_yesde_context *rnc = container_of(sm, typeof(*rnc), sm);
 	struct isci_remote_device *idev;
 	struct domain_device *dev;
 
@@ -322,15 +322,15 @@ static void sci_remote_node_context_resuming_state_enter(struct sci_base_state_m
 	 * the STPTLDARNI register with the RNi of the device
 	 */
 	if (dev_is_sata(dev) && !dev->parent)
-		sci_port_setup_transports(idev->owning_port, rnc->remote_node_index);
+		sci_port_setup_transports(idev->owning_port, rnc->remote_yesde_index);
 
 	sci_remote_device_post_request(idev, SCU_CONTEXT_COMMAND_POST_RNC_RESUME);
 }
 
-static void sci_remote_node_context_ready_state_enter(struct sci_base_state_machine *sm)
+static void sci_remote_yesde_context_ready_state_enter(struct sci_base_state_machine *sm)
 {
-	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
-	enum sci_remote_node_context_destination_state dest_select;
+	struct sci_remote_yesde_context *rnc = container_of(sm, typeof(*rnc), sm);
+	enum sci_remote_yesde_context_destination_state dest_select;
 	int tell_user = 1;
 
 	dest_select = rnc->destination_state;
@@ -338,7 +338,7 @@ static void sci_remote_node_context_ready_state_enter(struct sci_base_state_mach
 
 	if ((dest_select == RNC_DEST_SUSPENDED) ||
 	    (dest_select == RNC_DEST_SUSPENDED_RESUME)) {
-		sci_remote_node_context_suspend(
+		sci_remote_yesde_context_suspend(
 			rnc, rnc->suspend_reason,
 			SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT);
 
@@ -346,19 +346,19 @@ static void sci_remote_node_context_ready_state_enter(struct sci_base_state_mach
 			tell_user = 0;  /* Wait until ready again. */
 	}
 	if (tell_user)
-		sci_remote_node_context_notify_user(rnc);
+		sci_remote_yesde_context_yestify_user(rnc);
 }
 
-static void sci_remote_node_context_tx_suspended_state_enter(struct sci_base_state_machine *sm)
+static void sci_remote_yesde_context_tx_suspended_state_enter(struct sci_base_state_machine *sm)
 {
-	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
+	struct sci_remote_yesde_context *rnc = container_of(sm, typeof(*rnc), sm);
 
-	sci_remote_node_context_continue_state_transitions(rnc);
+	sci_remote_yesde_context_continue_state_transitions(rnc);
 }
 
-static void sci_remote_node_context_tx_rx_suspended_state_enter(struct sci_base_state_machine *sm)
+static void sci_remote_yesde_context_tx_rx_suspended_state_enter(struct sci_base_state_machine *sm)
 {
-	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
+	struct sci_remote_yesde_context *rnc = container_of(sm, typeof(*rnc), sm);
 	struct isci_remote_device *idev = rnc_to_dev(rnc);
 	struct isci_host *ihost = idev->owning_port->owning_controller;
 	u32 new_count = rnc->suspend_count + 1;
@@ -373,13 +373,13 @@ static void sci_remote_node_context_tx_rx_suspended_state_enter(struct sci_base_
 	sci_remote_device_abort_requests_pending_abort(idev);
 
 	wake_up(&ihost->eventq);
-	sci_remote_node_context_continue_state_transitions(rnc);
+	sci_remote_yesde_context_continue_state_transitions(rnc);
 }
 
-static void sci_remote_node_context_await_suspend_state_exit(
+static void sci_remote_yesde_context_await_suspend_state_exit(
 	struct sci_base_state_machine *sm)
 {
-	struct sci_remote_node_context *rnc
+	struct sci_remote_yesde_context *rnc
 		= container_of(sm, typeof(*rnc), sm);
 	struct isci_remote_device *idev = rnc_to_dev(rnc);
 
@@ -387,48 +387,48 @@ static void sci_remote_node_context_await_suspend_state_exit(
 		isci_dev_set_hang_detection_timeout(idev, 0);
 }
 
-static const struct sci_base_state sci_remote_node_context_state_table[] = {
+static const struct sci_base_state sci_remote_yesde_context_state_table[] = {
 	[SCI_RNC_INITIAL] = {
-		.enter_state = sci_remote_node_context_initial_state_enter,
+		.enter_state = sci_remote_yesde_context_initial_state_enter,
 	},
 	[SCI_RNC_POSTING] = {
-		.enter_state = sci_remote_node_context_posting_state_enter,
+		.enter_state = sci_remote_yesde_context_posting_state_enter,
 	},
 	[SCI_RNC_INVALIDATING] = {
-		.enter_state = sci_remote_node_context_invalidating_state_enter,
+		.enter_state = sci_remote_yesde_context_invalidating_state_enter,
 	},
 	[SCI_RNC_RESUMING] = {
-		.enter_state = sci_remote_node_context_resuming_state_enter,
+		.enter_state = sci_remote_yesde_context_resuming_state_enter,
 	},
 	[SCI_RNC_READY] = {
-		.enter_state = sci_remote_node_context_ready_state_enter,
+		.enter_state = sci_remote_yesde_context_ready_state_enter,
 	},
 	[SCI_RNC_TX_SUSPENDED] = {
-		.enter_state = sci_remote_node_context_tx_suspended_state_enter,
+		.enter_state = sci_remote_yesde_context_tx_suspended_state_enter,
 	},
 	[SCI_RNC_TX_RX_SUSPENDED] = {
-		.enter_state = sci_remote_node_context_tx_rx_suspended_state_enter,
+		.enter_state = sci_remote_yesde_context_tx_rx_suspended_state_enter,
 	},
 	[SCI_RNC_AWAIT_SUSPENSION] = {
-		.exit_state = sci_remote_node_context_await_suspend_state_exit,
+		.exit_state = sci_remote_yesde_context_await_suspend_state_exit,
 	},
 };
 
-void sci_remote_node_context_construct(struct sci_remote_node_context *rnc,
-					    u16 remote_node_index)
+void sci_remote_yesde_context_construct(struct sci_remote_yesde_context *rnc,
+					    u16 remote_yesde_index)
 {
-	memset(rnc, 0, sizeof(struct sci_remote_node_context));
+	memset(rnc, 0, sizeof(struct sci_remote_yesde_context));
 
-	rnc->remote_node_index = remote_node_index;
+	rnc->remote_yesde_index = remote_yesde_index;
 	rnc->destination_state = RNC_DEST_UNSPECIFIED;
 
-	sci_init_sm(&rnc->sm, sci_remote_node_context_state_table, SCI_RNC_INITIAL);
+	sci_init_sm(&rnc->sm, sci_remote_yesde_context_state_table, SCI_RNC_INITIAL);
 }
 
-enum sci_status sci_remote_node_context_event_handler(struct sci_remote_node_context *sci_rnc,
+enum sci_status sci_remote_yesde_context_event_handler(struct sci_remote_yesde_context *sci_rnc,
 							   u32 event_code)
 {
-	enum scis_sds_remote_node_context_states state;
+	enum scis_sds_remote_yesde_context_states state;
 	u32 next_state;
 
 	state = sci_rnc->sm.current_state_id;
@@ -528,34 +528,34 @@ enum sci_status sci_remote_node_context_event_handler(struct sci_remote_node_con
 
 }
 
-enum sci_status sci_remote_node_context_destruct(struct sci_remote_node_context *sci_rnc,
-						      scics_sds_remote_node_context_callback cb_fn,
+enum sci_status sci_remote_yesde_context_destruct(struct sci_remote_yesde_context *sci_rnc,
+						      scics_sds_remote_yesde_context_callback cb_fn,
 						      void *cb_p)
 {
-	enum scis_sds_remote_node_context_states state;
+	enum scis_sds_remote_yesde_context_states state;
 
 	state = sci_rnc->sm.current_state_id;
 	switch (state) {
 	case SCI_RNC_INVALIDATING:
-		sci_remote_node_context_setup_to_destroy(sci_rnc, cb_fn, cb_p);
+		sci_remote_yesde_context_setup_to_destroy(sci_rnc, cb_fn, cb_p);
 		return SCI_SUCCESS;
 	case SCI_RNC_POSTING:
 	case SCI_RNC_RESUMING:
 	case SCI_RNC_READY:
 	case SCI_RNC_TX_SUSPENDED:
 	case SCI_RNC_TX_RX_SUSPENDED:
-		sci_remote_node_context_setup_to_destroy(sci_rnc, cb_fn, cb_p);
+		sci_remote_yesde_context_setup_to_destroy(sci_rnc, cb_fn, cb_p);
 		sci_change_state(&sci_rnc->sm, SCI_RNC_INVALIDATING);
 		return SCI_SUCCESS;
 	case SCI_RNC_AWAIT_SUSPENSION:
-		sci_remote_node_context_setup_to_destroy(sci_rnc, cb_fn, cb_p);
+		sci_remote_yesde_context_setup_to_destroy(sci_rnc, cb_fn, cb_p);
 		return SCI_SUCCESS;
 	case SCI_RNC_INITIAL:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 			 "%s: invalid state: %s\n", __func__,
 			 rnc_state_name(state));
-		/* We have decided that the destruct request on the remote node context
-		 * can not fail since it is either in the initial/destroyed state or is
+		/* We have decided that the destruct request on the remote yesde context
+		 * can yest fail since it is either in the initial/destroyed state or is
 		 * can be destroyed.
 		 */
 		return SCI_SUCCESS;
@@ -567,16 +567,16 @@ enum sci_status sci_remote_node_context_destruct(struct sci_remote_node_context 
 	}
 }
 
-enum sci_status sci_remote_node_context_suspend(
-			struct sci_remote_node_context *sci_rnc,
-			enum sci_remote_node_suspension_reasons suspend_reason,
+enum sci_status sci_remote_yesde_context_suspend(
+			struct sci_remote_yesde_context *sci_rnc,
+			enum sci_remote_yesde_suspension_reasons suspend_reason,
 			u32 suspend_type)
 {
-	enum scis_sds_remote_node_context_states state
+	enum scis_sds_remote_yesde_context_states state
 		= sci_rnc->sm.current_state_id;
 	struct isci_remote_device *idev = rnc_to_dev(sci_rnc);
 	enum sci_status status = SCI_FAILURE_INVALID_STATE;
-	enum sci_remote_node_context_destination_state dest_param =
+	enum sci_remote_yesde_context_destination_state dest_param =
 		RNC_DEST_UNSPECIFIED;
 
 	dev_dbg(scirdev_to_dev(idev),
@@ -659,11 +659,11 @@ enum sci_status sci_remote_node_context_suspend(
 	return SCI_SUCCESS;
 }
 
-enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *sci_rnc,
-						    scics_sds_remote_node_context_callback cb_fn,
+enum sci_status sci_remote_yesde_context_resume(struct sci_remote_yesde_context *sci_rnc,
+						    scics_sds_remote_yesde_context_callback cb_fn,
 						    void *cb_p)
 {
-	enum scis_sds_remote_node_context_states state;
+	enum scis_sds_remote_yesde_context_states state;
 	struct isci_remote_device *idev = rnc_to_dev(sci_rnc);
 
 	state = sci_rnc->sm.current_state_id;
@@ -673,17 +673,17 @@ enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *s
 		__func__, rnc_state_name(state), cb_fn, cb_p,
 		sci_rnc->destination_state,
 		test_bit(IDEV_ABORT_PATH_ACTIVE, &idev->flags)
-			? "<abort active>" : "<normal>");
+			? "<abort active>" : "<yesrmal>");
 
 	switch (state) {
 	case SCI_RNC_INITIAL:
-		if (sci_rnc->remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
+		if (sci_rnc->remote_yesde_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
 			return SCI_FAILURE_INVALID_STATE;
 
-		sci_remote_node_context_setup_to_resume(sci_rnc, cb_fn,	cb_p,
+		sci_remote_yesde_context_setup_to_resume(sci_rnc, cb_fn,	cb_p,
 							RNC_DEST_READY);
 		if (!test_bit(IDEV_ABORT_PATH_ACTIVE, &idev->flags)) {
-			sci_remote_node_context_construct_buffer(sci_rnc);
+			sci_remote_yesde_context_construct_buffer(sci_rnc);
 			sci_change_state(&sci_rnc->sm, SCI_RNC_POSTING);
 		}
 		return SCI_SUCCESS;
@@ -700,12 +700,12 @@ enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *s
 			/* Previously waiting to suspend after posting.
 			 * Now continue onto resumption.
 			 */
-			sci_remote_node_context_setup_to_resume(
+			sci_remote_yesde_context_setup_to_resume(
 				sci_rnc, cb_fn, cb_p,
 				RNC_DEST_SUSPENDED_RESUME);
 			break;
 		default:
-			sci_remote_node_context_setup_to_resume(
+			sci_remote_yesde_context_setup_to_resume(
 				sci_rnc, cb_fn, cb_p,
 				RNC_DEST_READY);
 			break;
@@ -721,7 +721,7 @@ enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *s
 			 * way to clear the TCi to NCQ tag mapping table for
 			 * the RNi. All other device types we can just resume.
 			 */
-			sci_remote_node_context_setup_to_resume(
+			sci_remote_yesde_context_setup_to_resume(
 				sci_rnc, cb_fn, cb_p, RNC_DEST_READY);
 
 			if (!test_bit(IDEV_ABORT_PATH_ACTIVE, &idev->flags)) {
@@ -737,7 +737,7 @@ enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *s
 		return SCI_SUCCESS;
 
 	case SCI_RNC_AWAIT_SUSPENSION:
-		sci_remote_node_context_setup_to_resume(
+		sci_remote_yesde_context_setup_to_resume(
 			sci_rnc, cb_fn, cb_p, RNC_DEST_SUSPENDED_RESUME);
 		return SCI_SUCCESS;
 	default:
@@ -748,10 +748,10 @@ enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *s
 	}
 }
 
-enum sci_status sci_remote_node_context_start_io(struct sci_remote_node_context *sci_rnc,
+enum sci_status sci_remote_yesde_context_start_io(struct sci_remote_yesde_context *sci_rnc,
 							     struct isci_request *ireq)
 {
-	enum scis_sds_remote_node_context_states state;
+	enum scis_sds_remote_yesde_context_states state;
 
 	state = sci_rnc->sm.current_state_id;
 
@@ -773,13 +773,13 @@ enum sci_status sci_remote_node_context_start_io(struct sci_remote_node_context 
 	}
 }
 
-enum sci_status sci_remote_node_context_start_task(
-	struct sci_remote_node_context *sci_rnc,
+enum sci_status sci_remote_yesde_context_start_task(
+	struct sci_remote_yesde_context *sci_rnc,
 	struct isci_request *ireq,
-	scics_sds_remote_node_context_callback cb_fn,
+	scics_sds_remote_yesde_context_callback cb_fn,
 	void *cb_p)
 {
-	enum sci_status status = sci_remote_node_context_resume(sci_rnc,
+	enum sci_status status = sci_remote_yesde_context_resume(sci_rnc,
 								cb_fn, cb_p);
 	if (status != SCI_SUCCESS)
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
@@ -787,10 +787,10 @@ enum sci_status sci_remote_node_context_start_task(
 	return status;
 }
 
-int sci_remote_node_context_is_safe_to_abort(
-	struct sci_remote_node_context *sci_rnc)
+int sci_remote_yesde_context_is_safe_to_abort(
+	struct sci_remote_yesde_context *sci_rnc)
 {
-	enum scis_sds_remote_node_context_states state;
+	enum scis_sds_remote_yesde_context_states state;
 
 	state = sci_rnc->sm.current_state_id;
 	switch (state) {

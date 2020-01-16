@@ -7,12 +7,12 @@ endif
 
 CFLAGS	+= -std=gnu99 -Wall -Wextra -g \
 	    -D_GNU_SOURCE \
-	    -Wno-unused-parameter \
+	    -Wyes-unused-parameter \
 	    -Wmaybe-uninitialized \
 	    -Wredundant-decls \
 	    -Wcast-align \
 	    -Wsign-compare \
-	    -Wno-missing-field-initializers
+	    -Wyes-missing-field-initializers
 
 CC	:= $(CROSS_COMPILE)gcc
 

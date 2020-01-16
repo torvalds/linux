@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 /* Prototype: int __arch_clear_user(void *addr, size_t sz)
  * Purpose  : clear some user memory

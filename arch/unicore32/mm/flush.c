@@ -32,7 +32,7 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr,
 static void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 			 unsigned long uaddr, void *kaddr, unsigned long len)
 {
-	/* VIPT non-aliasing D-cache */
+	/* VIPT yesn-aliasing D-cache */
 	if (vma->vm_flags & VM_EXEC) {
 		unsigned long addr = (unsigned long)kaddr;
 

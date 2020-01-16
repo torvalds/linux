@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -226,7 +226,7 @@ int intel_vgpu_reg_master_irq_handler(struct intel_vgpu *vgpu,
 int intel_vgpu_reg_imr_handler(struct intel_vgpu *vgpu,
 	unsigned int reg, void *p_data, unsigned int bytes);
 
-int gvt_ring_id_to_pipe_control_notify_event(int ring_id);
+int gvt_ring_id_to_pipe_control_yestify_event(int ring_id);
 int gvt_ring_id_to_mi_flush_dw_event(int ring_id);
 int gvt_ring_id_to_mi_user_interrupt_event(int ring_id);
 

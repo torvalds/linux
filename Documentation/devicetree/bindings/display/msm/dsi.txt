@@ -1,4 +1,4 @@
-Qualcomm Technologies Inc. adreno/snapdragon DSI output
+Qualcomm Techyeslogies Inc. adreyes/snapdragon DSI output
 
 DSI Controller:
 Required properties:
@@ -25,14 +25,14 @@ Required properties:
 - assigned-clocks: Parents of "byte" and "pixel" for the given platform.
 - assigned-clock-parents: The Byte clock and Pixel clock PLL outputs provided
   by a DSI PHY block. See [1] for details on clock bindings.
-- vdd-supply: phandle to vdd regulator device node
-- vddio-supply: phandle to vdd-io regulator device node
-- vdda-supply: phandle to vdda regulator device node
-- phys: phandle to DSI PHY device node
+- vdd-supply: phandle to vdd regulator device yesde
+- vddio-supply: phandle to vdd-io regulator device yesde
+- vdda-supply: phandle to vdda regulator device yesde
+- phys: phandle to DSI PHY device yesde
 - phy-names: the name of the corresponding PHY device
-- syscon-sfpb: A phandle to mmss_sfpb syscon node (only for DSIv2)
-- ports: Contains 2 DSI controller ports as child nodes. Each port contains
-  an endpoint subnode as defined in [2] and [3].
+- syscon-sfpb: A phandle to mmss_sfpb syscon yesde (only for DSIv2)
+- ports: Contains 2 DSI controller ports as child yesdes. Each port contains
+  an endpoint subyesde as defined in [2] and [3].
 
 Optional properties:
 - panel@0: Node of panel connected to this DSI controller.
@@ -47,7 +47,7 @@ Optional properties:
 - pinctrl-0: the default pinctrl state (active)
 - pinctrl-n: the "sleep" pinctrl state
 - ports: contains DSI controller input and output ports as children, each
-  containing one endpoint subnode.
+  containing one endpoint subyesde.
 
   DSI Endpoint properties:
   - remote-endpoint: For port@0, set to phandle of the connected panel/bridge's
@@ -109,14 +109,14 @@ Required properties:
   * "iface"
   * "ref" (only required for new DTS files/entries)
   For 28nm HPM/LP, 28nm 8960 PHYs:
-- vddio-supply: phandle to vdd-io regulator device node
+- vddio-supply: phandle to vdd-io regulator device yesde
   For 20nm PHY:
-- vddio-supply: phandle to vdd-io regulator device node
-- vcca-supply: phandle to vcca regulator device node
+- vddio-supply: phandle to vdd-io regulator device yesde
+- vcca-supply: phandle to vcca regulator device yesde
   For 14nm PHY:
-- vcca-supply: phandle to vcca regulator device node
+- vcca-supply: phandle to vcca regulator device yesde
   For 10nm PHY:
-- vdds-supply: phandle to vdds regulator device node
+- vdds-supply: phandle to vdds regulator device yesde
 
 Optional properties:
 - qcom,dsi-phy-regulator-ldo-mode: Boolean value indicating if the LDO mode PHY
@@ -128,13 +128,13 @@ Optional properties:
 					and can result in slower performance.
 					Decreasing this value can speed up the mdp processing,
 					but this can also impact power consumption.
-					As a rule this time should not be higher than the time
+					As a rule this time should yest be higher than the time
 					that would be expected with the processing at the
 					dsi link rate since anyways this would be the maximum
 					transfer time that could be achieved.
-					If ping pong split is enabled, this time should not be higher
+					If ping pong split is enabled, this time should yest be higher
 					than two times the dsi link rate time.
-					If the property is not specified, then the default value is 14000 us.
+					If the property is yest specified, then the default value is 14000 us.
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Documentation/devicetree/bindings/graph.txt

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 #ifndef __SOUND_HDSP_H
 #define __SOUND_HDSP_H
 
@@ -16,7 +16,7 @@
  *   GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
+ *   along with this program; if yest, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -55,7 +55,7 @@ struct hdsp_config_info {
 	unsigned char spdif_out;
 	unsigned char spdif_professional;
 	unsigned char spdif_emphasis;
-	unsigned char spdif_nonaudio;
+	unsigned char spdif_yesnaudio;
 	unsigned int spdif_sample_rate;
 	unsigned int system_sample_rate;
 	unsigned int autosync_sample_rate;

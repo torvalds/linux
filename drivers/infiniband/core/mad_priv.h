@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -110,11 +110,11 @@ struct ib_mad_agent_private {
 	};
 };
 
-struct ib_mad_snoop_private {
+struct ib_mad_syesop_private {
 	struct ib_mad_agent agent;
 	struct ib_mad_qp_info *qp_info;
-	int snoop_index;
-	int mad_snoop_flags;
+	int syesop_index;
+	int mad_syesop_flags;
 	atomic_t refcount;
 	struct completion comp;
 };
@@ -190,10 +190,10 @@ struct ib_mad_qp_info {
 	struct ib_mad_queue send_queue;
 	struct ib_mad_queue recv_queue;
 	struct list_head overflow_list;
-	spinlock_t snoop_lock;
-	struct ib_mad_snoop_private **snoop_table;
-	int snoop_table_size;
-	atomic_t snoop_count;
+	spinlock_t syesop_lock;
+	struct ib_mad_syesop_private **syesop_table;
+	int syesop_table_size;
+	atomic_t syesop_count;
 };
 
 struct ib_mad_port_private {

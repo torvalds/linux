@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ8795 switch driver
  *
- * Copyright (C) 2017 Microchip Technology Inc.
+ * Copyright (C) 2017 Microchip Techyeslogy Inc.
  *	Tristram Ha <Tristram.Ha@microchip.com>
  */
 
@@ -218,14 +218,14 @@ static void ksz8795_port_init_cnt(struct ksz_device *dev, int port)
 
 	mib->cnt_ptr = 0;
 
-	/* Some ports may not have MIB counters before SWITCH_COUNTER_NUM. */
+	/* Some ports may yest have MIB counters before SWITCH_COUNTER_NUM. */
 	while (mib->cnt_ptr < dev->reg_mib_cnt) {
 		dev->dev_ops->r_mib_cnt(dev, port, mib->cnt_ptr,
 					&mib->counters[mib->cnt_ptr]);
 		++mib->cnt_ptr;
 	}
 
-	/* Some ports may not have MIB counters after SWITCH_COUNTER_NUM. */
+	/* Some ports may yest have MIB counters after SWITCH_COUNTER_NUM. */
 	while (mib->cnt_ptr < dev->mib_cnt) {
 		dev->dev_ops->r_mib_pkt(dev, port, mib->cnt_ptr,
 					NULL, &mib->counters[mib->cnt_ptr]);
@@ -270,14 +270,14 @@ static int ksz8795_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 		timeout--;
 	} while ((*data & DYNAMIC_MAC_TABLE_NOT_READY) && timeout);
 
-	/* Entry is not ready for accessing. */
+	/* Entry is yest ready for accessing. */
 	if (*data & DYNAMIC_MAC_TABLE_NOT_READY) {
 		return -EAGAIN;
 	/* Entry is ready for accessing. */
 	} else {
 		ksz_read8(dev, REG_IND_DATA_8, data);
 
-		/* There is no valid entry in the table. */
+		/* There is yes valid entry in the table. */
 		if (*data & DYNAMIC_MAC_TABLE_MAC_EMPTY)
 			return -ENXIO;
 	}
@@ -554,7 +554,7 @@ static void ksz8795_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 	switch (reg) {
 	case PHY_REG_CTRL:
 
-		/* Do not support PHY reset function. */
+		/* Do yest support PHY reset function. */
 		if (val & PHY_RESET)
 			break;
 		ksz_pread8(dev, p, P_SPEED_STATUS, &speed);
@@ -572,7 +572,7 @@ static void ksz8795_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 		else
 			data &= ~PORT_AUTO_NEG_DISABLE;
 
-		/* Fiber port does not support auto-negotiation. */
+		/* Fiber port does yest support auto-negotiation. */
 		if (dev->ports[p].fiber)
 			data |= PORT_AUTO_NEG_DISABLE;
 		if (val & PHY_SPEED_100MBIT)
@@ -856,7 +856,7 @@ static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 
 		member &= ~BIT(port);
 
-		/* Invalidate the entry if no more member. */
+		/* Invalidate the entry if yes more member. */
 		if (!member) {
 			fid = 0;
 			valid = 0;
@@ -1011,7 +1011,7 @@ static void ksz8795_config_cpu_port(struct dsa_switch *ds)
 	for (i = 0; i < SWITCH_PORT_NUM; i++) {
 		p = &dev->ports[i];
 
-		/* Initialize to non-zero so that ksz_cfg_port_member() will
+		/* Initialize to yesn-zero so that ksz_cfg_port_member() will
 		 * be called.
 		 */
 		p->vid_member = BIT(i);
@@ -1068,7 +1068,7 @@ static int ksz8795_setup(struct dsa_switch *ds)
 
 	/*
 	 * Make sure unicast VLAN boundary is set as default and
-	 * enable no excessive collision drop.
+	 * enable yes excessive collision drop.
 	 */
 	regmap_update_bits(dev->regmap[0], REG_SW_CTRL_2,
 			   UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP,
@@ -1241,7 +1241,7 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 		}
 	}
 
-	/* no switch found */
+	/* yes switch found */
 	if (!dev->cpu_ports)
 		return -ENODEV;
 

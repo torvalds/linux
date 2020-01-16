@@ -33,7 +33,7 @@
  * pins must asserted in that order and with specific delays in between.
  * The delays used in the driver were provided by TI and have been
  * confirmed to work with this driver.  There is a bug with the current
- * version of the trf7970a that requires that EN2 remain low no matter
+ * version of the trf7970a that requires that EN2 remain low yes matter
  * what.  If it goes high, it will generate an RF field even when in
  * passive target mode.  TI has indicated that the chip will work okay
  * when EN2 is left low.  The 'en2-rf-quirk' device tree property
@@ -41,17 +41,17 @@
  * that EN2 must be kept low.
  *
  * Timeouts are implemented using the delayed workqueue kernel facility.
- * Timeouts are required so things don't hang when there is no response
+ * Timeouts are required so things don't hang when there is yes response
  * from the trf7970a (or tag).  Using this mechanism creates a race with
  * interrupts, however.  That is, an interrupt and a timeout could occur
- * closely enough together that one is blocked by the mutex while the other
+ * closely eyesugh together that one is blocked by the mutex while the other
  * executes.  When the timeout handler executes first and blocks the
  * interrupt handler, it will eventually set the state to IDLE so the
- * interrupt handler will check the state and exit with no harm done.
+ * interrupt handler will check the state and exit with yes harm done.
  * When the interrupt handler executes first and blocks the timeout handler,
- * the cancel_delayed_work() call will know that it didn't cancel the
+ * the cancel_delayed_work() call will kyesw that it didn't cancel the
  * work item (i.e., timeout) and will return zero.  That return code is
- * used by the timer handler to indicate that it should ignore the timeout
+ * used by the timer handler to indicate that it should igyesre the timeout
  * once its unblocked.
  *
  * Aborting an active command isn't as simple as it seems because the only
@@ -61,7 +61,7 @@
  * support that.  So, if an abort is received before trf7970a_send_cmd()
  * has sent the command to the tag, it simply returns -ECANCELED.  If the
  * command has already been sent to the tag, then the driver continues
- * normally and recieves the response data (or error) but just before
+ * yesrmally and recieves the response data (or error) but just before
  * sending the data upstream, it frees the rx_skb and sends -ECANCELED
  * upstream instead.  If the command failed, that error will be sent
  * upstream.
@@ -69,12 +69,12 @@
  * When recieving data from a tag and the interrupt status register has
  * only the SRX bit set, it means that all of the data has been received
  * (once what's in the fifo has been read).  However, depending on timing
- * an interrupt status with only the SRX bit set may not be recived.  In
+ * an interrupt status with only the SRX bit set may yest be recived.  In
  * those cases, the timeout mechanism is used to wait 20 ms in case more
  * data arrives.  After 20 ms, it is assumed that all of the data has been
  * received and the accumulated rx data is sent upstream.  The
  * 'TRF7970A_ST_WAIT_FOR_RX_DATA_CONT' state is used for this purpose
- * (i.e., it indicates that some data has been received but we're not sure
+ * (i.e., it indicates that some data has been received but we're yest sure
  * if there is more coming so a timeout in this state means all data has
  * been received and there isn't an error).  The delay is 20 ms since delays
  * of ~16 ms have been observed during testing.
@@ -87,11 +87,11 @@
  * to ~14.35 ms so 20 ms is used for the timeout.
  *
  * Type 2 write and sector select commands respond with a 4-bit ACK or NACK.
- * Having only 4 bits in the FIFO won't normally generate an interrupt so
+ * Having only 4 bits in the FIFO won't yesrmally generate an interrupt so
  * driver enables the '4_bit_RX' bit of the Special Functions register 1
  * to cause an interrupt in that case.  Leaving that bit for a read command
  * messes up the data returned so it is only enabled when the framing is
- * 'NFC_DIGITAL_FRAMING_NFCA_T2T' and the command is not a read command.
+ * 'NFC_DIGITAL_FRAMING_NFCA_T2T' and the command is yest a read command.
  * Unfortunately, that means that the driver has to peek into tx frames
  * when the framing is 'NFC_DIGITAL_FRAMING_NFCA_T2T'.  This is done by
  * the trf7970a_per_cmd_config() routine.
@@ -107,10 +107,10 @@
  * It is unclear how long to wait before sending the EOF.  According to the
  * Note under Table 1-1 in section 1.6 of
  * http://www.ti.com/lit/ug/scbu011/scbu011.pdf, that wait should be at least
- * 10 ms for TI Tag-it HF-I tags; however testing has shown that is not long
- * enough so 20 ms is used.  So the timer is set to 40 ms - 20 ms to drain
- * up to 127 bytes in the FIFO at the lowest bit rate plus another 20 ms to
- * ensure the wait is long enough before sending the EOF.  This seems to work
+ * 10 ms for TI Tag-it HF-I tags; however testing has shown that is yest long
+ * eyesugh so 20 ms is used.  So the timer is set to 40 ms - 20 ms to drain
+ * up to 127 bytes in the FIFO at the lowest bit rate plus ayesther 20 ms to
+ * ensure the wait is long eyesugh before sending the EOF.  This seems to work
  * reliably.
  */
 
@@ -135,7 +135,7 @@
 #define TRF7970A_WAIT_FOR_FIFO_DRAIN_TIMEOUT	20
 #define TRF7970A_WAIT_TO_ISSUE_ISO15693_EOF	40
 
-/* Guard times for various RF technologies (in us) */
+/* Guard times for various RF techyeslogies (in us) */
 #define TRF7970A_GUARD_TIME_NFCA		5000
 #define TRF7970A_GUARD_TIME_NFCB		5000
 #define TRF7970A_GUARD_TIME_NFCF		20000
@@ -168,7 +168,7 @@
 #define TRF7970A_CMD_RX_GAIN_ADJUST		0x1a
 
 /* Bits determining whether its a direct command or register R/W,
- * whether to use a continuous SPI transaction or not, and the actual
+ * whether to use a continuous SPI transaction or yest, and the actual
  * direct cmd opcode or regster address.
  */
 #define TRF7970A_CMD_BIT_CTRL			BIT(7)
@@ -440,7 +440,7 @@ struct trf7970a {
 	u8				special_fcn_reg1;
 	u8				io_ctrl;
 	unsigned int			guard_time;
-	int				technology;
+	int				techyeslogy;
 	int				framing;
 	u8				md_rf_tech;
 	u8				tx_cmd;
@@ -449,7 +449,7 @@ struct trf7970a {
 	struct gpio_desc		*en2_gpiod;
 	struct mutex			lock;
 	unsigned int			timeout;
-	bool				ignore_timeout;
+	bool				igyesre_timeout;
 	struct delayed_work		timeout_work;
 };
 
@@ -630,14 +630,14 @@ static void trf7970a_send_upstream(struct trf7970a *trf)
 	trf->rx_skb = NULL;
 }
 
-static void trf7970a_send_err_upstream(struct trf7970a *trf, int errno)
+static void trf7970a_send_err_upstream(struct trf7970a *trf, int erryes)
 {
-	dev_dbg(trf->dev, "Error - state: %d, errno: %d\n", trf->state, errno);
+	dev_dbg(trf->dev, "Error - state: %d, erryes: %d\n", trf->state, erryes);
 
 	cancel_delayed_work(&trf->timeout_work);
 
 	kfree_skb(trf->rx_skb);
-	trf->rx_skb = ERR_PTR(errno);
+	trf->rx_skb = ERR_PTR(erryes);
 
 	trf7970a_send_upstream(trf);
 }
@@ -757,7 +757,7 @@ static void trf7970a_drain_fifo(struct trf7970a *trf, u8 status)
 	fifo_bytes &= ~TRF7970A_FIFO_STATUS_OVERFLOW;
 
 	if (!fifo_bytes)
-		goto no_rx_data;
+		goto yes_rx_data;
 
 	if (fifo_bytes > skb_tailroom(skb)) {
 		skb = skb_copy_expand(skb, skb_headroom(skb),
@@ -798,13 +798,13 @@ static void trf7970a_drain_fifo(struct trf7970a *trf, u8 status)
 
 		/* If there are bytes in the FIFO, set status to '0' so
 		 * the if stmt below doesn't fire and the driver will wait
-		 * for the trf7970a to generate another RX interrupt.
+		 * for the trf7970a to generate ayesther RX interrupt.
 		 */
 		if (fifo_bytes)
 			status = 0;
 	}
 
-no_rx_data:
+yes_rx_data:
 	if (status == TRF7970A_IRQ_STATUS_SRX) {	/* Receive complete */
 		trf7970a_send_upstream(trf);
 		return;
@@ -847,7 +847,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 	switch (trf->state) {
 	case TRF7970A_ST_IDLE:
 	case TRF7970A_ST_IDLE_RX_BLOCKED:
-		/* If initiator and getting interrupts caused by RF noise,
+		/* If initiator and getting interrupts caused by RF yesise,
 		 * turn off the receiver to avoid unnecessary interrupts.
 		 * It will be turned back on in trf7970a_send_cmd() when
 		 * the next command is issued.
@@ -861,7 +861,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 		break;
 	case TRF7970A_ST_WAIT_FOR_TX_FIFO:
 		if (status & TRF7970A_IRQ_STATUS_TX) {
-			trf->ignore_timeout =
+			trf->igyesre_timeout =
 			    !cancel_delayed_work(&trf->timeout_work);
 			trf7970a_fill_fifo(trf);
 		} else {
@@ -871,7 +871,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 	case TRF7970A_ST_WAIT_FOR_RX_DATA:
 	case TRF7970A_ST_WAIT_FOR_RX_DATA_CONT:
 		if (status & TRF7970A_IRQ_STATUS_SRX) {
-			trf->ignore_timeout =
+			trf->igyesre_timeout =
 			    !cancel_delayed_work(&trf->timeout_work);
 			trf7970a_drain_fifo(trf, status);
 		} else if (status & TRF7970A_IRQ_STATUS_FIFO) {
@@ -891,7 +891,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 			trf7970a_cmd(trf, TRF7970A_CMD_FIFO_RESET);
 
 			if (!trf->timeout) {
-				trf->ignore_timeout =
+				trf->igyesre_timeout =
 				    !cancel_delayed_work(&trf->timeout_work);
 				trf->rx_skb = ERR_PTR(0);
 				trf7970a_send_upstream(trf);
@@ -946,7 +946,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 		break;
 	case TRF7970A_ST_LISTENING:
 		if (status & TRF7970A_IRQ_STATUS_SRX) {
-			trf->ignore_timeout =
+			trf->igyesre_timeout =
 			    !cancel_delayed_work(&trf->timeout_work);
 			trf7970a_drain_fifo(trf, status);
 		} else if (!(status & TRF7970A_IRQ_STATUS_NFC_RF)) {
@@ -955,7 +955,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 		break;
 	case TRF7970A_ST_LISTENING_MD:
 		if (status & TRF7970A_IRQ_STATUS_SRX) {
-			trf->ignore_timeout =
+			trf->igyesre_timeout =
 			    !cancel_delayed_work(&trf->timeout_work);
 
 			ret = trf7970a_mode_detect(trf, &trf->md_rf_tech);
@@ -1007,13 +1007,13 @@ static void trf7970a_timeout_work_handler(struct work_struct *work)
 	struct trf7970a *trf = container_of(work, struct trf7970a,
 					    timeout_work.work);
 
-	dev_dbg(trf->dev, "Timeout - state: %d, ignore_timeout: %d\n",
-		trf->state, trf->ignore_timeout);
+	dev_dbg(trf->dev, "Timeout - state: %d, igyesre_timeout: %d\n",
+		trf->state, trf->igyesre_timeout);
 
 	mutex_lock(&trf->lock);
 
-	if (trf->ignore_timeout)
-		trf->ignore_timeout = false;
+	if (trf->igyesre_timeout)
+		trf->igyesre_timeout = false;
 	else if (trf->state == TRF7970A_ST_WAIT_FOR_RX_DATA_CONT)
 		trf7970a_drain_fifo(trf, TRF7970A_IRQ_STATUS_SRX);
 	else if (trf->state == TRF7970A_ST_WAIT_TO_ISSUE_EOF)
@@ -1170,7 +1170,7 @@ static int trf7970a_in_config_rf_tech(struct trf7970a *trf, int tech)
 {
 	int ret = 0;
 
-	dev_dbg(trf->dev, "rf technology: %d\n", tech);
+	dev_dbg(trf->dev, "rf techyeslogy: %d\n", tech);
 
 	switch (tech) {
 	case NFC_DIGITAL_RF_TECH_106A:
@@ -1209,13 +1209,13 @@ static int trf7970a_in_config_rf_tech(struct trf7970a *trf, int tech)
 		trf->guard_time = TRF7970A_GUARD_TIME_15693;
 		break;
 	default:
-		dev_dbg(trf->dev, "Unsupported rf technology: %d\n", tech);
+		dev_dbg(trf->dev, "Unsupported rf techyeslogy: %d\n", tech);
 		return -EINVAL;
 	}
 
-	trf->technology = tech;
+	trf->techyeslogy = tech;
 
-	/* If in initiator mode and not changing the RF tech due to a
+	/* If in initiator mode and yest changing the RF tech due to a
 	 * PSL sequence (indicated by 'trf->iso_ctrl == 0xff' from
 	 * trf7970a_init()), clear the NFC Target Detection Level register
 	 * due to erratum.
@@ -1362,7 +1362,7 @@ static int trf7970a_in_configure_hw(struct nfc_digital_dev *ddev, int type,
 		ret = trf7970a_in_config_framing(trf, param);
 		break;
 	default:
-		dev_dbg(trf->dev, "Unknown type: %d\n", type);
+		dev_dbg(trf->dev, "Unkyeswn type: %d\n", type);
 		ret = -EINVAL;
 	}
 
@@ -1402,10 +1402,10 @@ static int trf7970a_per_cmd_config(struct trf7970a *trf, struct sk_buff *skb)
 	 *
 	 * When issuing an ISO 15693 command, inspect the flags byte to see
 	 * what speed to use.  Also, remember if the OPTION flag is set on
-	 * a Type 5 write or lock command so the driver will know that it
+	 * a Type 5 write or lock command so the driver will kyesw that it
 	 * has to send an EOF in order to get a response.
 	 */
-	if ((trf->technology == NFC_DIGITAL_RF_TECH_106A) &&
+	if ((trf->techyeslogy == NFC_DIGITAL_RF_TECH_106A) &&
 	    (trf->framing == NFC_DIGITAL_FRAMING_NFCA_T2T)) {
 		if (req[0] == NFC_T2T_CMD_READ)
 			special_fcn_reg1 = 0;
@@ -1420,7 +1420,7 @@ static int trf7970a_per_cmd_config(struct trf7970a *trf, struct sk_buff *skb)
 
 			trf->special_fcn_reg1 = special_fcn_reg1;
 		}
-	} else if (trf->technology == NFC_DIGITAL_RF_TECH_ISO15693) {
+	} else if (trf->techyeslogy == NFC_DIGITAL_RF_TECH_ISO15693) {
 		iso_ctrl = trf->iso_ctrl & ~TRF7970A_ISO_CTRL_RFID_SPEED_MASK;
 
 		switch (req[0] & ISO15693_REQ_FLAG_SPEED_MASK) {
@@ -1518,7 +1518,7 @@ static int trf7970a_send_cmd(struct nfc_digital_dev *ddev,
 	trf->cb = cb;
 	trf->cb_arg = arg;
 	trf->timeout = timeout;
-	trf->ignore_timeout = false;
+	trf->igyesre_timeout = false;
 
 	len = skb->len;
 
@@ -1564,7 +1564,7 @@ static int trf7970a_tg_config_rf_tech(struct trf7970a *trf, int tech)
 {
 	int ret = 0;
 
-	dev_dbg(trf->dev, "rf technology: %d\n", tech);
+	dev_dbg(trf->dev, "rf techyeslogy: %d\n", tech);
 
 	switch (tech) {
 	case NFC_DIGITAL_RF_TECH_106A:
@@ -1589,11 +1589,11 @@ static int trf7970a_tg_config_rf_tech(struct trf7970a *trf, int tech)
 		    TRF7970A_MODULATOR_DEPTH_ASK10;
 		break;
 	default:
-		dev_dbg(trf->dev, "Unsupported rf technology: %d\n", tech);
+		dev_dbg(trf->dev, "Unsupported rf techyeslogy: %d\n", tech);
 		return -EINVAL;
 	}
 
-	trf->technology = tech;
+	trf->techyeslogy = tech;
 
 	/* Normally we write the ISO_CTRL register in
 	 * trf7970a_tg_config_framing() because the framing can change
@@ -1705,7 +1705,7 @@ static int trf7970a_tg_configure_hw(struct nfc_digital_dev *ddev, int type,
 		ret = trf7970a_tg_config_framing(trf, param);
 		break;
 	default:
-		dev_dbg(trf->dev, "Unknown type: %d\n", type);
+		dev_dbg(trf->dev, "Unkyeswn type: %d\n", type);
 		ret = -EINVAL;
 	}
 
@@ -1773,7 +1773,7 @@ static int _trf7970a_tg_listen(struct nfc_digital_dev *ddev, u16 timeout,
 	trf->cb = cb;
 	trf->cb_arg = arg;
 	trf->timeout = timeout;
-	trf->ignore_timeout = false;
+	trf->igyesre_timeout = false;
 
 	ret = trf7970a_cmd(trf, TRF7970A_CMD_ENABLE_RX);
 	if (ret)
@@ -1851,7 +1851,7 @@ static void trf7970a_abort_cmd(struct nfc_digital_dev *ddev)
 		trf->aborting = true;
 		break;
 	case TRF7970A_ST_LISTENING:
-		trf->ignore_timeout = !cancel_delayed_work(&trf->timeout_work);
+		trf->igyesre_timeout = !cancel_delayed_work(&trf->timeout_work);
 		trf7970a_send_err_upstream(trf, -ECANCELED);
 		dev_dbg(trf->dev, "Abort process complete\n");
 		break;
@@ -1916,7 +1916,7 @@ static int trf7970a_power_down(struct trf7970a *trf)
 		return 0;
 
 	if (trf->state != TRF7970A_ST_RF_OFF) {
-		dev_dbg(trf->dev, "Can't power down - not RF_OFF state (%d)\n",
+		dev_dbg(trf->dev, "Can't power down - yest RF_OFF state (%d)\n",
 			trf->state);
 		return -EBUSY;
 	}
@@ -1975,7 +1975,7 @@ static void trf7970a_shutdown(struct trf7970a *trf)
 	trf7970a_power_down(trf);
 }
 
-static int trf7970a_get_autosuspend_delay(struct device_node *np)
+static int trf7970a_get_autosuspend_delay(struct device_yesde *np)
 {
 	int autosuspend_delay, ret;
 
@@ -1988,7 +1988,7 @@ static int trf7970a_get_autosuspend_delay(struct device_node *np)
 
 static int trf7970a_probe(struct spi_device *spi)
 {
-	struct device_node *np = spi->dev.of_node;
+	struct device_yesde *np = spi->dev.of_yesde;
 	struct trf7970a *trf;
 	int uvolts, autosuspend_delay, ret;
 	u32 clk_freq = TRF7970A_13MHZ_CLOCK_FREQUENCY;

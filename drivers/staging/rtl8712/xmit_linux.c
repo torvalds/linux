@@ -122,7 +122,7 @@ int r8712_xmit_resource_alloc(struct _adapter *padapter,
 			netdev_err(padapter->pnetdev, "pxmitbuf->pxmit_urb[i] == NULL\n");
 			return -ENOMEM;
 		}
-		kmemleak_not_leak(pxmitbuf->pxmit_urb[i]);
+		kmemleak_yest_leak(pxmitbuf->pxmit_urb[i]);
 	}
 	return 0;
 }

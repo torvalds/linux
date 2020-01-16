@@ -51,7 +51,7 @@ static struct drm_driver zx_drm_driver = {
 	.desc = "ZTE VOU Controller DRM",
 	.date = "20160811",
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 };
 
 static int zx_drm_bind(struct device *dev)
@@ -132,14 +132,14 @@ static const struct component_master_ops zx_drm_master_ops = {
 
 static int compare_of(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_yesde == data;
 }
 
 static int zx_drm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *parent = dev->of_node;
-	struct device_node *child;
+	struct device_yesde *parent = dev->of_yesde;
+	struct device_yesde *child;
 	struct component_match *match = NULL;
 	int ret;
 
@@ -147,7 +147,7 @@ static int zx_drm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	for_each_available_child_of_node(parent, child)
+	for_each_available_child_of_yesde(parent, child)
 		component_match_add(dev, &match, compare_of, child);
 
 	return component_master_add_with_match(dev, &zx_drm_master_ops, match);

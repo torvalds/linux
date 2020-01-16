@@ -93,7 +93,7 @@ static ssize_t encoding_show(struct f2fs_attr *a,
 			(sbi->s_encoding->version >> 8) & 0xff,
 			sbi->s_encoding->version & 0xff);
 #endif
-	return snprintf(buf, PAGE_SIZE, "(none)");
+	return snprintf(buf, PAGE_SIZE, "(yesne)");
 }
 
 static ssize_t lifetime_write_kbytes_show(struct f2fs_attr *a,
@@ -130,18 +130,18 @@ static ssize_t features_show(struct f2fs_attr *a,
 	if (f2fs_sb_has_project_quota(sbi))
 		len += snprintf(buf + len, PAGE_SIZE - len, "%s%s",
 				len ? ", " : "", "projquota");
-	if (f2fs_sb_has_inode_chksum(sbi))
+	if (f2fs_sb_has_iyesde_chksum(sbi))
 		len += snprintf(buf + len, PAGE_SIZE - len, "%s%s",
-				len ? ", " : "", "inode_checksum");
+				len ? ", " : "", "iyesde_checksum");
 	if (f2fs_sb_has_flexible_inline_xattr(sbi))
 		len += snprintf(buf + len, PAGE_SIZE - len, "%s%s",
 				len ? ", " : "", "flexible_inline_xattr");
-	if (f2fs_sb_has_quota_ino(sbi))
+	if (f2fs_sb_has_quota_iyes(sbi))
 		len += snprintf(buf + len, PAGE_SIZE - len, "%s%s",
-				len ? ", " : "", "quota_ino");
-	if (f2fs_sb_has_inode_crtime(sbi))
+				len ? ", " : "", "quota_iyes");
+	if (f2fs_sb_has_iyesde_crtime(sbi))
 		len += snprintf(buf + len, PAGE_SIZE - len, "%s%s",
-				len ? ", " : "", "inode_crtime");
+				len ? ", " : "", "iyesde_crtime");
 	if (f2fs_sb_has_lost_found(sbi))
 		len += snprintf(buf + len, PAGE_SIZE - len, "%s%s",
 				len ? ", " : "", "lost_found");
@@ -441,7 +441,7 @@ F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_urgent_sleep_time,
 							urgent_sleep_time);
 F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_min_sleep_time, min_sleep_time);
 F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_max_sleep_time, max_sleep_time);
-F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_no_gc_sleep_time, no_gc_sleep_time);
+F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_yes_gc_sleep_time, yes_gc_sleep_time);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, gc_idle, gc_mode);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, gc_urgent, gc_mode);
 F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, reclaim_segments, rec_prefree_segments);
@@ -493,10 +493,10 @@ F2FS_FEATURE_RO_ATTR(block_zoned, FEAT_BLKZONED);
 F2FS_FEATURE_RO_ATTR(atomic_write, FEAT_ATOMIC_WRITE);
 F2FS_FEATURE_RO_ATTR(extra_attr, FEAT_EXTRA_ATTR);
 F2FS_FEATURE_RO_ATTR(project_quota, FEAT_PROJECT_QUOTA);
-F2FS_FEATURE_RO_ATTR(inode_checksum, FEAT_INODE_CHECKSUM);
+F2FS_FEATURE_RO_ATTR(iyesde_checksum, FEAT_INODE_CHECKSUM);
 F2FS_FEATURE_RO_ATTR(flexible_inline_xattr, FEAT_FLEXIBLE_INLINE_XATTR);
-F2FS_FEATURE_RO_ATTR(quota_ino, FEAT_QUOTA_INO);
-F2FS_FEATURE_RO_ATTR(inode_crtime, FEAT_INODE_CRTIME);
+F2FS_FEATURE_RO_ATTR(quota_iyes, FEAT_QUOTA_INO);
+F2FS_FEATURE_RO_ATTR(iyesde_crtime, FEAT_INODE_CRTIME);
 F2FS_FEATURE_RO_ATTR(lost_found, FEAT_LOST_FOUND);
 #ifdef CONFIG_FS_VERITY
 F2FS_FEATURE_RO_ATTR(verity, FEAT_VERITY);
@@ -509,7 +509,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(gc_urgent_sleep_time),
 	ATTR_LIST(gc_min_sleep_time),
 	ATTR_LIST(gc_max_sleep_time),
-	ATTR_LIST(gc_no_gc_sleep_time),
+	ATTR_LIST(gc_yes_gc_sleep_time),
 	ATTR_LIST(gc_idle),
 	ATTR_LIST(gc_urgent),
 	ATTR_LIST(reclaim_segments),
@@ -563,10 +563,10 @@ static struct attribute *f2fs_feat_attrs[] = {
 	ATTR_LIST(atomic_write),
 	ATTR_LIST(extra_attr),
 	ATTR_LIST(project_quota),
-	ATTR_LIST(inode_checksum),
+	ATTR_LIST(iyesde_checksum),
 	ATTR_LIST(flexible_inline_xattr),
-	ATTR_LIST(quota_ino),
-	ATTR_LIST(inode_crtime),
+	ATTR_LIST(quota_iyes),
+	ATTR_LIST(iyesde_crtime),
 	ATTR_LIST(lost_found),
 #ifdef CONFIG_FS_VERITY
 	ATTR_LIST(verity),
@@ -661,12 +661,12 @@ static int __maybe_unused iostat_info_seq_show(struct seq_file *seq,
 {
 	struct super_block *sb = seq->private;
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
-	time64_t now = ktime_get_real_seconds();
+	time64_t yesw = ktime_get_real_seconds();
 
 	if (!sbi->iostat_enable)
 		return 0;
 
-	seq_printf(seq, "time:		%-16llu\n", now);
+	seq_printf(seq, "time:		%-16llu\n", yesw);
 
 	/* print app IOs */
 	seq_printf(seq, "app buffered:	%-16llu\n",
@@ -679,17 +679,17 @@ static int __maybe_unused iostat_info_seq_show(struct seq_file *seq,
 	/* print fs IOs */
 	seq_printf(seq, "fs data:	%-16llu\n",
 				sbi->write_iostat[FS_DATA_IO]);
-	seq_printf(seq, "fs node:	%-16llu\n",
+	seq_printf(seq, "fs yesde:	%-16llu\n",
 				sbi->write_iostat[FS_NODE_IO]);
 	seq_printf(seq, "fs meta:	%-16llu\n",
 				sbi->write_iostat[FS_META_IO]);
 	seq_printf(seq, "fs gc data:	%-16llu\n",
 				sbi->write_iostat[FS_GC_DATA_IO]);
-	seq_printf(seq, "fs gc node:	%-16llu\n",
+	seq_printf(seq, "fs gc yesde:	%-16llu\n",
 				sbi->write_iostat[FS_GC_NODE_IO]);
 	seq_printf(seq, "fs cp data:	%-16llu\n",
 				sbi->write_iostat[FS_CP_DATA_IO]);
-	seq_printf(seq, "fs cp node:	%-16llu\n",
+	seq_printf(seq, "fs cp yesde:	%-16llu\n",
 				sbi->write_iostat[FS_CP_NODE_IO]);
 	seq_printf(seq, "fs cp meta:	%-16llu\n",
 				sbi->write_iostat[FS_CP_META_IO]);

@@ -418,13 +418,13 @@ void hns_ppe_update_stats(struct hns_ppe_cb *ppe_cb)
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_SW_PKT_CNT_REG);
 	hw_stats->rx_pkts
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_WR_BD_OK_PKT_CNT_REG);
-	hw_stats->rx_drop_no_bd
+	hw_stats->rx_drop_yes_bd
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_PKT_NO_BUF_CNT_REG);
 	hw_stats->rx_alloc_buf_fail
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_APP_BUF_FAIL_CNT_REG);
 	hw_stats->rx_alloc_buf_wait
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_APP_BUF_WAIT_CNT_REG);
-	hw_stats->rx_drop_no_buf
+	hw_stats->rx_drop_yes_buf
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_PKT_DROP_FUL_CNT_REG);
 	hw_stats->rx_err_fifo_full
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_PKT_DROP_PRT_CNT_REG);
@@ -468,13 +468,13 @@ void hns_ppe_get_strings(struct hns_ppe_cb *ppe_cb, int stringset, u8 *data)
 	buff = buff + ETH_GSTRING_LEN;
 	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_pkt_ok", index);
 	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_drop_pkt_no_bd", index);
+	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_drop_pkt_yes_bd", index);
 	buff = buff + ETH_GSTRING_LEN;
 	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_alloc_buf_fail", index);
 	buff = buff + ETH_GSTRING_LEN;
 	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_alloc_buf_wait", index);
 	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_pkt_drop_no_buf", index);
+	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_pkt_drop_yes_buf", index);
 	buff = buff + ETH_GSTRING_LEN;
 	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_pkt_err_fifo_full", index);
 	buff = buff + ETH_GSTRING_LEN;
@@ -497,10 +497,10 @@ void hns_ppe_get_stats(struct hns_ppe_cb *ppe_cb, u64 *data)
 
 	regs_buff[0] = hw_stats->rx_pkts_from_sw;
 	regs_buff[1] = hw_stats->rx_pkts;
-	regs_buff[2] = hw_stats->rx_drop_no_bd;
+	regs_buff[2] = hw_stats->rx_drop_yes_bd;
 	regs_buff[3] = hw_stats->rx_alloc_buf_fail;
 	regs_buff[4] = hw_stats->rx_alloc_buf_wait;
-	regs_buff[5] = hw_stats->rx_drop_no_buf;
+	regs_buff[5] = hw_stats->rx_drop_yes_buf;
 	regs_buff[6] = hw_stats->rx_err_fifo_full;
 
 	regs_buff[7] = hw_stats->tx_bd_form_rcb;

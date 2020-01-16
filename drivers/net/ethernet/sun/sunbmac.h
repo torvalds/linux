@@ -102,7 +102,7 @@
 #define BMAC_TXPMIN	0x234UL	/* Transmit min pkt size              */
 #define BMAC_PATTEMPT	0x238UL	/* Count of transmit peak attempts    */
 #define BMAC_DTCTR	0x23cUL	/* Transmit defer timer               */
-#define BMAC_NCCTR	0x240UL	/* Transmit normal-collision counter  */
+#define BMAC_NCCTR	0x240UL	/* Transmit yesrmal-collision counter  */
 #define BMAC_FCCTR	0x244UL	/* Transmit first-collision counter   */
 #define BMAC_EXCTR	0x248UL	/* Transmit excess-collision counter  */
 #define BMAC_LTCTR	0x24cUL	/* Transmit late-collision counter    */
@@ -177,8 +177,8 @@
 #define BIGMAC_TXCFG_ENABLE    0x00000001 /* Enable the transmitter                   */
 #define BIGMAC_TXCFG_FIFO      0x00000010 /* Default tx fthresh...                    */
 #define BIGMAC_TXCFG_SMODE     0x00000020 /* Enable slow transmit mode                */
-#define BIGMAC_TXCFG_CIGN      0x00000040 /* Ignore transmit collisions               */
-#define BIGMAC_TXCFG_FCSOFF    0x00000080 /* Do not emit FCS                          */
+#define BIGMAC_TXCFG_CIGN      0x00000040 /* Igyesre transmit collisions               */
+#define BIGMAC_TXCFG_FCSOFF    0x00000080 /* Do yest emit FCS                          */
 #define BIGMAC_TXCFG_DBACKOFF  0x00000100 /* Disable backoff                          */
 #define BIGMAC_TXCFG_FULLDPLX  0x00000200 /* Enable full-duplex                       */
 
@@ -277,7 +277,7 @@ struct bmac_init_block {
 enum bigmac_transceiver {
 	external = 0,
 	internal = 1,
-	none     = 2,
+	yesne     = 2,
 };
 
 /* Timer state engine. */

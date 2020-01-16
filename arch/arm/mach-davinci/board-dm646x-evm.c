@@ -790,7 +790,7 @@ static void __init dm6467t_evm_init_time(void)
 
 #define DM646X_EVM_PHY_ID		"davinci_mdio-0:01"
 /*
- * The following EDMA channels/slots are not being used by drivers (for
+ * The following EDMA channels/slots are yest being used by drivers (for
  * example: Timer, GPIO, UART events etc) on dm646x, hence they are being
  * reserved for codecs on the DSP side.
  */
@@ -847,7 +847,7 @@ static __init void evm_init(void)
 		davinci_nand_data.timing = &dm6467tevm_nandflash_timing;
 
 	if (platform_device_register(&davinci_aemif_device))
-		pr_warn("%s: Cannot register AEMIF device.\n", __func__);
+		pr_warn("%s: Canyest register AEMIF device.\n", __func__);
 
 	dm646x_init_edma(dm646x_edma_rsv);
 

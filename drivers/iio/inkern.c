@@ -90,9 +90,9 @@ static const struct iio_chan_spec
 
 #ifdef CONFIG_OF
 
-static int iio_dev_node_match(struct device *dev, const void *data)
+static int iio_dev_yesde_match(struct device *dev, const void *data)
 {
-	return dev->of_node == data && dev->type == &iio_device_type;
+	return dev->of_yesde == data && dev->type == &iio_device_type;
 }
 
 /**
@@ -121,7 +121,7 @@ static int __of_iio_simple_xlate(struct iio_dev *indio_dev,
 }
 
 static int __of_iio_channel_get(struct iio_channel *channel,
-				struct device_node *np, int index)
+				struct device_yesde *np, int index)
 {
 	struct device *idev;
 	struct iio_dev *indio_dev;
@@ -135,8 +135,8 @@ static int __of_iio_channel_get(struct iio_channel *channel,
 		return err;
 
 	idev = bus_find_device(&iio_bus_type, NULL, iiospec.np,
-			       iio_dev_node_match);
-	of_node_put(iiospec.np);
+			       iio_dev_yesde_match);
+	of_yesde_put(iiospec.np);
 	if (idev == NULL)
 		return -EPROBE_DEFER;
 
@@ -157,7 +157,7 @@ err_put:
 	return index;
 }
 
-static struct iio_channel *of_iio_channel_get(struct device_node *np, int index)
+static struct iio_channel *of_iio_channel_get(struct device_yesde *np, int index)
 {
 	struct iio_channel *channel;
 	int err;
@@ -180,7 +180,7 @@ err_free_channel:
 	return ERR_PTR(err);
 }
 
-static struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
+static struct iio_channel *of_iio_channel_get_by_name(struct device_yesde *np,
 						      const char *name)
 {
 	struct iio_channel *chan = NULL;
@@ -191,7 +191,7 @@ static struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
 
 		/*
 		 * For named iio channels, first look up the name in the
-		 * "io-channel-names" property.  If it cannot be found, the
+		 * "io-channel-names" property.  If it canyest be found, the
 		 * index will be an error code, and of_iio_channel_get()
 		 * will fail.
 		 */
@@ -202,14 +202,14 @@ static struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
 		if (!IS_ERR(chan) || PTR_ERR(chan) == -EPROBE_DEFER)
 			break;
 		else if (name && index >= 0) {
-			pr_err("ERROR: could not get IIO channel %pOF:%s(%i)\n",
+			pr_err("ERROR: could yest get IIO channel %pOF:%s(%i)\n",
 				np, name ? name : "", index);
 			return NULL;
 		}
 
 		/*
-		 * No matching IIO channel found on this node.
-		 * If the parent node has a "io-channel-ranges" property,
+		 * No matching IIO channel found on this yesde.
+		 * If the parent yesde has a "io-channel-ranges" property,
 		 * then we can try one of its channels.
 		 */
 		np = np->parent;
@@ -227,7 +227,7 @@ static struct iio_channel *of_iio_channel_get_all(struct device *dev)
 	int ret;
 
 	do {
-		ret = of_parse_phandle_with_args(dev->of_node,
+		ret = of_parse_phandle_with_args(dev->of_yesde,
 						 "io-channels",
 						 "#io-channel-cells",
 						 nummaps, NULL);
@@ -235,7 +235,7 @@ static struct iio_channel *of_iio_channel_get_all(struct device *dev)
 			break;
 	} while (++nummaps);
 
-	if (nummaps == 0)	/* no error, return NULL to search map table */
+	if (nummaps == 0)	/* yes error, return NULL to search map table */
 		return NULL;
 
 	/* NULL terminated array to save passing size */
@@ -245,7 +245,7 @@ static struct iio_channel *of_iio_channel_get_all(struct device *dev)
 
 	/* Search for OF matches */
 	for (mapind = 0; mapind < nummaps; mapind++) {
-		ret = __of_iio_channel_get(&chans[mapind], dev->of_node,
+		ret = __of_iio_channel_get(&chans[mapind], dev->of_yesde,
 					   mapind);
 		if (ret)
 			goto error_free_chans;
@@ -262,7 +262,7 @@ error_free_chans:
 #else /* CONFIG_OF */
 
 static inline struct iio_channel *
-of_iio_channel_get_by_name(struct device_node *np, const char *name)
+of_iio_channel_get_by_name(struct device_yesde *np, const char *name)
 {
 	return NULL;
 }
@@ -302,7 +302,7 @@ static struct iio_channel *iio_channel_get_sys(const char *name,
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
 	if (channel == NULL) {
 		err = -ENOMEM;
-		goto error_no_mem;
+		goto error_yes_mem;
 	}
 
 	channel->indio_dev = c->indio_dev;
@@ -314,15 +314,15 @@ static struct iio_channel *iio_channel_get_sys(const char *name,
 
 		if (channel->channel == NULL) {
 			err = -EINVAL;
-			goto error_no_chan;
+			goto error_yes_chan;
 		}
 	}
 
 	return channel;
 
-error_no_chan:
+error_yes_chan:
 	kfree(channel);
-error_no_mem:
+error_yes_mem:
 	iio_device_put(c->indio_dev);
 	return ERR_PTR(err);
 }
@@ -334,7 +334,7 @@ struct iio_channel *iio_channel_get(struct device *dev,
 	struct iio_channel *channel;
 
 	if (dev) {
-		channel = of_iio_channel_get_by_name(dev->of_node,
+		channel = of_iio_channel_get_by_name(dev->of_yesde,
 						     channel_name);
 		if (channel != NULL)
 			return channel;
@@ -600,7 +600,7 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 					IIO_CHAN_INFO_SCALE);
 	if (scale_type < 0) {
 		/*
-		 * Just pass raw values as processed if no scaling is
+		 * Just pass raw values as processed if yes scaling is
 		 * available.
 		 */
 		*processed = raw;
@@ -836,7 +836,7 @@ EXPORT_SYMBOL_GPL(iio_read_max_channel_raw);
 int iio_get_channel_type(struct iio_channel *chan, enum iio_chan_type *type)
 {
 	int ret = 0;
-	/* Need to verify underlying driver has not gone away */
+	/* Need to verify underlying driver has yest gone away */
 
 	mutex_lock(&chan->indio_dev->info_exist_lock);
 	if (chan->indio_dev->info == NULL) {

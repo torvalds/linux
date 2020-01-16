@@ -14,7 +14,7 @@
 #include <linux/leds.h>
 #include <linux/leds-lp3952.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/reboot.h>
@@ -85,7 +85,7 @@ static int lp3952_set_brightness(struct led_classdev *cdev,
 		shift_val = led->channel * 2;
 	}
 
-	/* Enable the LED in case it is not enabled already */
+	/* Enable the LED in case it is yest enabled already */
 	lp3952_on_off(priv, led->channel, true);
 
 	return regmap_update_bits(priv->regmap, reg, 3 << shift_val,
@@ -240,7 +240,7 @@ static int lp3952_probe(struct i2c_client *client,
 
 	status = lp3952_configure(priv);
 	if (status) {
-		dev_err(&client->dev, "Probe failed. Device not found (%d)\n",
+		dev_err(&client->dev, "Probe failed. Device yest found (%d)\n",
 			status);
 		return status;
 	}

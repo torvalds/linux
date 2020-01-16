@@ -18,7 +18,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 {
 	struct drm_i915_private *i915 = ce->vm->i915;
 	const u32 block_size = SZ_8M; /* ~1ms at 8GiB/s preemption delay */
-	struct intel_engine_pool_node *pool;
+	struct intel_engine_pool_yesde *pool;
 	struct i915_vma *batch;
 	u64 offset;
 	u64 count;
@@ -46,7 +46,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 	}
 
 	rem = vma->size;
-	offset = vma->node.start;
+	offset = vma->yesde.start;
 
 	do {
 		u32 size = min_t(u64, rem, block_size);
@@ -182,7 +182,7 @@ int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
 		goto out_request;
 
 	err = ce->engine->emit_bb_start(rq,
-					batch->node.start, batch->node.size,
+					batch->yesde.start, batch->yesde.size,
 					0);
 out_request:
 	if (unlikely(err))
@@ -202,7 +202,7 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 {
 	struct drm_i915_private *i915 = ce->vm->i915;
 	const u32 block_size = SZ_8M; /* ~1ms at 8GiB/s preemption delay */
-	struct intel_engine_pool_node *pool;
+	struct intel_engine_pool_yesde *pool;
 	struct i915_vma *batch;
 	u64 src_offset, dst_offset;
 	u64 count, rem;
@@ -230,8 +230,8 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	}
 
 	rem = src->size;
-	src_offset = src->node.start;
-	dst_offset = dst->node.start;
+	src_offset = src->yesde.start;
+	dst_offset = dst->yesde.start;
 
 	do {
 		size = min_t(u64, rem, block_size);
@@ -379,7 +379,7 @@ int i915_gem_object_copy_blt(struct drm_i915_gem_object *src,
 	}
 
 	err = rq->engine->emit_bb_start(rq,
-					batch->node.start, batch->node.size,
+					batch->yesde.start, batch->yesde.size,
 					0);
 out_unlock:
 	drm_gem_unlock_reservations(objs, ARRAY_SIZE(objs), &acquire);

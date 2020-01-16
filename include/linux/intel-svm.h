@@ -23,12 +23,12 @@ struct svm_dev_ops {
 
 
 /*
- * The SVM_FLAG_PRIVATE_PASID flag requests a PASID which is *not* the "main"
+ * The SVM_FLAG_PRIVATE_PASID flag requests a PASID which is *yest* the "main"
  * PASID for the current process. Even if a PASID already exists, a new one
  * will be allocated. And the PASID allocated with SVM_FLAG_PRIVATE_PASID
- * will not be given to subsequent callers. This facility allows a driver to
+ * will yest be given to subsequent callers. This facility allows a driver to
  * disambiguate between multiple device contexts which access the same MM,
- * if there is no other way to do so. It should be used sparingly, if at all.
+ * if there is yes other way to do so. It should be used sparingly, if at all.
  */
 #define SVM_FLAG_PRIVATE_PASID		(1<<0)
 
@@ -36,7 +36,7 @@ struct svm_dev_ops {
  * The SVM_FLAG_SUPERVISOR_MODE flag requests a PASID which can be used only
  * for access to kernel addresses. No IOTLB flushes are automatically done
  * for kernel mappings; it is valid only for access to the kernel's static
- * 1:1 mapping of physical memory — not to vmalloc or even module mappings.
+ * 1:1 mapping of physical memory — yest to vmalloc or even module mappings.
  * A future API addition may permit the use of such ranges, by means of an
  * explicit IOTLB flush call (akin to the DMA API's unmap method).
  *
@@ -55,7 +55,7 @@ struct svm_dev_ops {
  * @ops:	Callbacks to device driver
  *
  * This function attempts to enable PASID support for the given device.
- * If the @pasid argument is non-%NULL, a PASID is allocated for access
+ * If the @pasid argument is yesn-%NULL, a PASID is allocated for access
  * to the MM of the current process.
  *
  * By using a %NULL value for the @pasid argument, this function can
@@ -64,8 +64,8 @@ struct svm_dev_ops {
  * requisite support, and is enabled.
  *
  * Page faults are handled transparently by the IOMMU code, and there
- * should be no need for the device driver to be involved. If a page
- * fault cannot be handled (i.e. is an invalid address rather than
+ * should be yes need for the device driver to be involved. If a page
+ * fault canyest be handled (i.e. is an invalid address rather than
  * just needs paging in), then the page request will be completed by
  * the core IOMMU code with appropriate status, and the device itself
  * can then report the resulting fault to its driver via whatever
@@ -82,13 +82,13 @@ extern int intel_svm_bind_mm(struct device *dev, int *pasid, int flags,
  * @dev:	Device for which PASID was allocated
  * @pasid:	PASID value to be unbound
  *
- * This function allows a PASID to be retired when the device no
+ * This function allows a PASID to be retired when the device yes
  * longer requires access to the address space of a given process.
  *
  * If the use count for the PASID in question reaches zero, the
- * PASID is revoked and may no longer be used by hardware.
+ * PASID is revoked and may yes longer be used by hardware.
  *
- * Device drivers are required to ensure that no access (including
+ * Device drivers are required to ensure that yes access (including
  * page requests) is currently outstanding for the PASID in question,
  * before calling this function.
  */
@@ -102,7 +102,7 @@ extern int intel_svm_unbind_mm(struct device *dev, int pasid);
  * This function checks if the specified pasid is still valid. A
  * valid pasid means the backing mm is still having a valid user.
  * For kernel callers init_mm is always valid. for other mm, if mm->mm_users
- * is non-zero, it is valid.
+ * is yesn-zero, it is valid.
  *
  * returns -EINVAL if invalid pasid, 0 if pasid ref count is invalid
  * 1 if pasid is valid.

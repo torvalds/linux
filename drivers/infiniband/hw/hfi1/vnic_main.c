@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -107,7 +107,7 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 	if (dd->flags & HFI1_FROZEN)
 		return -EIO;
 
-	ret = hfi1_create_ctxtdata(dd->pport, dd->node, &uctxt);
+	ret = hfi1_create_ctxtdata(dd->pport, dd->yesde, &uctxt);
 	if (ret < 0) {
 		dd_dev_err(dd, "Unable to create ctxtdata, failing open\n");
 		return -ENOMEM;
@@ -207,7 +207,7 @@ static void hfi1_vnic_update_stats(struct hfi1_vnic_vport_info *vinfo,
 		struct rtnl_link_stats64 *qnstats = &vinfo->stats[i].netstats;
 
 		stats->netstats.rx_fifo_errors += qnstats->rx_fifo_errors;
-		stats->netstats.rx_nohandler += qnstats->rx_nohandler;
+		stats->netstats.rx_yeshandler += qnstats->rx_yeshandler;
 		stats->rx_drop_state += qstats->rx_drop_state;
 		stats->rx_oversize += qstats->rx_oversize;
 		stats->rx_runt += qstats->rx_runt;
@@ -223,7 +223,7 @@ static void hfi1_vnic_update_stats(struct hfi1_vnic_vport_info *vinfo,
 	stats->netstats.tx_dropped = stats->netstats.tx_errors;
 
 	stats->netstats.rx_errors = stats->netstats.rx_fifo_errors +
-				    stats->netstats.rx_nohandler +
+				    stats->netstats.rx_yeshandler +
 				    stats->rx_drop_state + stats->rx_oversize +
 				    stats->rx_runt;
 	stats->netstats.rx_dropped = stats->netstats.rx_errors;
@@ -388,7 +388,7 @@ static netdev_tx_t hfi1_netdev_start_xmit(struct sk_buff *skb,
 
 	/*
 	 * pkt_len is how much data we have to write, includes header and data.
-	 * total_len is length of the packet in Dwords plus the PBC should not
+	 * total_len is length of the packet in Dwords plus the PBC should yest
 	 * include the CRC.
 	 */
 	pkt_len = (skb->len + pad_len) >> 2;
@@ -495,7 +495,7 @@ static void hfi1_vnic_handle_rx(struct hfi1_vnic_rx_queue *rxq,
 			continue;
 		}
 
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 		skb->protocol = eth_type_trans(skb, rxq->netdev);
 
 		napi_gro_receive(&rxq->napi, skb);
@@ -547,7 +547,7 @@ void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet)
 					XA_PRESENT);
 			if (vinfo_tmp) {
 				spin_lock(&vport_cntr_lock);
-				vinfo_tmp->stats[0].netstats.rx_nohandler++;
+				vinfo_tmp->stats[0].netstats.rx_yeshandler++;
 				spin_unlock(&vport_cntr_lock);
 			}
 		}
@@ -703,7 +703,7 @@ static int hfi1_vnic_init(struct hfi1_vnic_vport_info *vinfo)
 
 	if (i < vinfo->num_rx_q) {
 		/*
-		 * If required amount of contexts is not
+		 * If required amount of contexts is yest
 		 * allocated successfully then remaining contexts
 		 * are released.
 		 */

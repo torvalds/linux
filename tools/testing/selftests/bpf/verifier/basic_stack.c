@@ -44,7 +44,7 @@
 	.result = REJECT,
 },
 {
-	"non-invalid fp arithmetic",
+	"yesn-invalid fp arithmetic",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, -8),

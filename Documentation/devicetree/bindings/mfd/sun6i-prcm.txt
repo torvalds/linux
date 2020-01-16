@@ -7,7 +7,7 @@ Required properties:
  - compatible: "allwinner,sun6i-a31-prcm" or "allwinner,sun8i-a23-prcm"
  - reg: The PRCM registers range
 
-The prcm node may contain several subdevices definitions:
+The prcm yesde may contain several subdevices definitions:
  - see Documentation/devicetree/bindings/clock/sunxi.txt for clock devices
  - see Documentation/devicetree/bindings/reset/allwinner,sunxi-clock-reset.txt for reset
    controller devices

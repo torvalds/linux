@@ -208,7 +208,7 @@ static int micron_nand_on_die_ecc_status_4(struct nand_chip *chip, u8 status,
 	 * its content to the corrected version to extract the actual number of
 	 * bitflips.
 	 * But before we do that, we must make sure we have all OOB bytes read
-	 * in non-raw mode, even if the user did not request those bytes.
+	 * in yesn-raw mode, even if the user did yest request those bytes.
 	 */
 	if (!oob_required) {
 		ret = nand_read_data_op(chip, chip->oob_poi, mtd->oobsize,
@@ -257,7 +257,7 @@ static int micron_nand_on_die_ecc_status_8(struct nand_chip *chip, u8 status)
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
 	/*
-	 * With 8/512 we have more information but still don't know precisely
+	 * With 8/512 we have more information but still don't kyesw precisely
 	 * how many bit-flips were seen.
 	 */
 	switch (status & NAND_ECC_STATUS_MASK) {
@@ -349,7 +349,7 @@ enum {
 	MICRON_ON_DIE_SUPPORTED,
 
 	/*
-	 * The NAND flash supports on-die ECC, and it cannot be
+	 * The NAND flash supports on-die ECC, and it canyest be
 	 * disabled.
 	 */
 	MICRON_ON_DIE_MANDATORY,
@@ -361,9 +361,9 @@ enum {
 /*
  * Try to detect if the NAND support on-die ECC. To do this, we enable
  * the feature, and read back if it has been enabled as expected. We
- * also check if it can be disabled, because some Micron NANDs do not
+ * also check if it can be disabled, because some Micron NANDs do yest
  * allow disabling the on-die ECC and we don't support such NANDs for
- * now.
+ * yesw.
  *
  * This function also has the side effect of disabling on-die ECC if
  * it had been left enabled by the firmware/bootloader.
@@ -391,7 +391,7 @@ static int micron_supports_on_die_ecc(struct nand_chip *chip)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
 	/*
-	 * It seems that there are devices which do not support ECC officially.
+	 * It seems that there are devices which do yest support ECC officially.
 	 * At least the MT29F2G08ABAGA / MT29F2G08ABBGA devices supports
 	 * enabling the ECC feature but don't reflect that to the READ_ID table.
 	 * So we have to guarantee that we disable the ECC feature directly
@@ -455,14 +455,14 @@ static int micron_nand_init(struct nand_chip *chip)
 
 	if (ondie == MICRON_ON_DIE_MANDATORY &&
 	    chip->ecc.mode != NAND_ECC_ON_DIE) {
-		pr_err("On-die ECC forcefully enabled, not supported\n");
+		pr_err("On-die ECC forcefully enabled, yest supported\n");
 		ret = -EINVAL;
 		goto err_free_manuf_data;
 	}
 
 	if (chip->ecc.mode == NAND_ECC_ON_DIE) {
 		if (ondie == MICRON_ON_DIE_UNSUPPORTED) {
-			pr_err("On-die ECC selected but not supported\n");
+			pr_err("On-die ECC selected but yest supported\n");
 			ret = -EINVAL;
 			goto err_free_manuf_data;
 		}
@@ -477,7 +477,7 @@ static int micron_nand_init(struct nand_chip *chip)
 		 * page dumped in raw mode so that we can compare its content
 		 * to the same page after ECC correction happened and extract
 		 * the real number of bitflips from this comparison.
-		 * That's not needed for 8-bit ECC, because the status expose
+		 * That's yest needed for 8-bit ECC, because the status expose
 		 * a better approximation of the number of bitflips in a page.
 		 */
 		if (chip->base.eccreq.strength == 4) {
@@ -505,8 +505,8 @@ static int micron_nand_init(struct nand_chip *chip)
 		chip->ecc.write_page = micron_nand_write_page_on_die_ecc;
 
 		if (ondie == MICRON_ON_DIE_MANDATORY) {
-			chip->ecc.read_page_raw = nand_read_page_raw_notsupp;
-			chip->ecc.write_page_raw = nand_write_page_raw_notsupp;
+			chip->ecc.read_page_raw = nand_read_page_raw_yestsupp;
+			chip->ecc.write_page_raw = nand_write_page_raw_yestsupp;
 		} else {
 			chip->ecc.read_page_raw = nand_read_page_raw;
 			chip->ecc.write_page_raw = nand_write_page_raw;

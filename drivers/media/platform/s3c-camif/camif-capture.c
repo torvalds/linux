@@ -13,7 +13,7 @@
 #include <linux/bug.h>
 #include <linux/clk.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -629,7 +629,7 @@ static const struct v4l2_file_operations s3c_camif_fops = {
 };
 
 /*
- * Video node IOCTLs
+ * Video yesde IOCTLs
  */
 
 static int s3c_camif_vidioc_querycap(struct file *file, void *priv,
@@ -1063,7 +1063,7 @@ static const struct v4l2_ioctl_ops s3c_camif_ioctl_ops = {
 };
 
 /*
- * Video node controls
+ * Video yesde controls
  */
 static int s3c_camif_video_s_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1091,12 +1091,12 @@ static int s3c_camif_video_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-/* Codec and preview video node control ops */
+/* Codec and preview video yesde control ops */
 static const struct v4l2_ctrl_ops s3c_camif_video_ctrl_ops = {
 	.s_ctrl = s3c_camif_video_s_ctrl,
 };
 
-int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
+int s3c_camif_register_video_yesde(struct camif_dev *camif, int idx)
 {
 	struct camif_vp *vp = &camif->vp[idx];
 	struct vb2_queue *q = &vp->vb_queue;
@@ -1111,7 +1111,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 	vfd->fops = &s3c_camif_fops;
 	vfd->ioctl_ops = &s3c_camif_ioctl_ops;
 	vfd->v4l2_dev = &camif->v4l2_dev;
-	vfd->minor = -1;
+	vfd->miyesr = -1;
 	vfd->release = video_device_release_empty;
 	vfd->lock = &camif->lock;
 	vp->reqbufs_count = 0;
@@ -1163,7 +1163,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 		goto err_ctrlh_free;
 
 	v4l2_info(&camif->v4l2_dev, "registered %s as /dev/%s\n",
-		  vfd->name, video_device_node_name(vfd));
+		  vfd->name, video_device_yesde_name(vfd));
 	return 0;
 
 err_ctrlh_free:
@@ -1175,7 +1175,7 @@ err_vd_rel:
 	return ret;
 }
 
-void s3c_camif_unregister_video_node(struct camif_dev *camif, int idx)
+void s3c_camif_unregister_video_yesde(struct camif_dev *camif, int idx)
 {
 	struct video_device *vfd = &camif->vp[idx].vdev;
 
@@ -1411,7 +1411,7 @@ static void __camif_try_crop(struct camif_dev *camif, struct v4l2_rect *r)
 	/*
 	 * Make sure we either downscale or upscale both the pixel
 	 * width and height. Just return current crop rectangle if
-	 * this scaler constraint is not met.
+	 * this scaler constraint is yest met.
 	 */
 	if (camif->variant->ip_revision == S3C244X_CAMIF_IP_REV &&
 	    camif_is_streaming(camif)) {
@@ -1594,7 +1594,7 @@ void s3c_camif_unregister_subdev(struct camif_dev *camif)
 {
 	struct v4l2_subdev *sd = &camif->subdev;
 
-	/* Return if not registered */
+	/* Return if yest registered */
 	if (v4l2_get_subdevdata(sd) == NULL)
 		return;
 

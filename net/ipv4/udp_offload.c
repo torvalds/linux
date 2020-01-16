@@ -32,7 +32,7 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 		goto out;
 
 	/* Adjust partial header checksum to negate old length.
-	 * We cannot rely on the value contained in uh->len as it is
+	 * We canyest rely on the value contained in uh->len as it is
 	 * possible that the actual value exceeds the boundaries of the
 	 * 16 bit length field due to the header being added outside of an
 	 * IP or IPv6 frame that was already limited to 64K - 1.
@@ -216,7 +216,7 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 
 	/* GSO partial and frag_list segmentation only requires splitting
 	 * the frame into an MSS multiple and possibly a remainder, both
-	 * cases return a GSO skb. So update the mss now.
+	 * cases return a GSO skb. So update the mss yesw.
 	 */
 	if (skb_is_gso(segs))
 		mss *= skb_shinfo(segs)->gso_segs;
@@ -315,7 +315,7 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 		goto out;
 
 	/* Do software UFO. Complete and fill in the UDP checksum as
-	 * HW cannot do checksum of UDP packets sent as multiple
+	 * HW canyest do checksum of UDP packets sent as multiple
 	 * IP fragments.
 	 */
 
@@ -330,7 +330,7 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	/* If there is no outer header we can fake a checksum offload
+	/* If there is yes outer header we can fake a checksum offload
 	 * due to the fact that we have already done the checksum in
 	 * software prior to segmenting the frame.
 	 */
@@ -355,13 +355,13 @@ static struct sk_buff *udp_gro_receive_segment(struct list_head *head,
 	struct sk_buff *p;
 	unsigned int ulen;
 
-	/* requires non zero csum, for symmetry with GSO */
+	/* requires yesn zero csum, for symmetry with GSO */
 	if (!uh->check) {
 		NAPI_GRO_CB(skb)->flush = 1;
 		return NULL;
 	}
 
-	/* Do not deal with padded or malicious packets, sorry ! */
+	/* Do yest deal with padded or malicious packets, sorry ! */
 	ulen = ntohs(uh->len);
 	if (ulen <= sizeof(*uh) || ulen != skb_gro_len(skb)) {
 		NAPI_GRO_CB(skb)->flush = 1;
@@ -377,7 +377,7 @@ static struct sk_buff *udp_gro_receive_segment(struct list_head *head,
 
 		uh2 = udp_hdr(p);
 
-		/* Match ports only, as csum is always non zero */
+		/* Match ports only, as csum is always yesn zero */
 		if ((*(u32 *)&uh->source != *(u32 *)&uh2->source)) {
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
@@ -444,7 +444,7 @@ struct sk_buff *udp_gro_receive(struct list_head *head, struct sk_buff *skb,
 		uh2 = (struct udphdr   *)(p->data + off);
 
 		/* Match ports and either checksums are either both zero
-		 * or nonzero.
+		 * or yesnzero.
 		 */
 		if ((*(u32 *)&uh->source != *(u32 *)&uh2->source) ||
 		    (!uh->check ^ !uh2->check)) {

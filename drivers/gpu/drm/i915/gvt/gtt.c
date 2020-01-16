@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -160,7 +160,7 @@ int intel_gvt_ggtt_h2g_index(struct intel_vgpu *vgpu, unsigned long h_index,
  * If the given type doesn't have such a kind of information,
  * e.g. give a l4 root entry type, then request to get its PSE type,
  * give a PTE page table type, then request to get its next level page
- * table type, as we know l4 root entry doesn't have a PSE bit,
+ * table type, as we kyesw l4 root entry doesn't have a PSE bit,
  * and a PTE page table doesn't have a next level page table type,
  * GTT_TYPE_INVALID will be returned. This is useful when traversing a
  * page table.
@@ -1052,7 +1052,7 @@ static bool vgpu_ips_enabled(struct intel_vgpu *vgpu)
 
 		return ips == GAMW_ECO_ENABLE_64K_IPS_FIELD;
 	} else if (INTEL_GEN(dev_priv) >= 11) {
-		/* 64K paging only controlled by IPS bit in PTE now. */
+		/* 64K paging only controlled by IPS bit in PTE yesw. */
 		return true;
 	} else
 		return false;
@@ -1724,11 +1724,11 @@ static int ppgtt_handle_guest_write_page_table_bytes(
 	/*
 	 * For page table which has 64K gtt entry, only PTE#0, PTE#16,
 	 * PTE#32, ... PTE#496 are used. Unused PTEs update should be
-	 * ignored.
+	 * igyesred.
 	 */
 	if (we.type == GTT_TYPE_PPGTT_PTE_64K_ENTRY &&
 	    (index % GTT_64K_PTE_STRIDE)) {
-		gvt_vdbg_mm("Ignore write to unused PTE entry, index %lu\n",
+		gvt_vdbg_mm("Igyesre write to unused PTE entry, index %lu\n",
 			    index);
 		return 0;
 	}
@@ -2118,7 +2118,7 @@ unsigned long intel_vgpu_gma_to_gpa(struct intel_vgpu_mm *mm, unsigned long gma)
 				goto err;
 
 			if (!pte_ops->test_present(&e)) {
-				gvt_dbg_core("GMA 0x%lx is not present\n", gma);
+				gvt_dbg_core("GMA 0x%lx is yest present\n", gma);
 				goto err;
 			}
 		}
@@ -2280,7 +2280,7 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 		m.type = e.type;
 
 		/* one PTE update may be issued in multiple writes and the
-		 * first write may not construct a valid gfn
+		 * first write may yest construct a valid gfn
 		 */
 		if (!intel_gvt_hypervisor_is_valid_gfn(vgpu, gfn)) {
 			ops->set_pfn(&m, gvt->gtt.scratch_mfn);
@@ -2484,10 +2484,10 @@ static void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu)
 	}
 
 	if (GEM_WARN_ON(!list_empty(&vgpu->gtt.ppgtt_mm_list_head)))
-		gvt_err("vgpu ppgtt mm is not fully destroyed\n");
+		gvt_err("vgpu ppgtt mm is yest fully destroyed\n");
 
 	if (GEM_WARN_ON(!radix_tree_empty(&vgpu->gtt.spt_tree))) {
-		gvt_err("Why we still has spt not freed?\n");
+		gvt_err("Why we still has spt yest freed?\n");
 		ppgtt_free_all_spt(vgpu);
 	}
 }
@@ -2818,7 +2818,7 @@ void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu, bool invalidate_old)
  */
 void intel_vgpu_reset_gtt(struct intel_vgpu *vgpu)
 {
-	/* Shadow pages are only created when there is no page
+	/* Shadow pages are only created when there is yes page
 	 * table tracking data, so remove page tracking data after
 	 * removing the shadow pages.
 	 */

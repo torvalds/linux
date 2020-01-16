@@ -10,13 +10,13 @@
 
 #define div_mask(width)	((1 << (width)) - 1)
 
-static bool _is_best_half_div(unsigned long rate, unsigned long now,
+static bool _is_best_half_div(unsigned long rate, unsigned long yesw,
 			      unsigned long best, unsigned long flags)
 {
 	if (flags & CLK_DIVIDER_ROUND_CLOSEST)
-		return abs(rate - now) < abs(rate - best);
+		return abs(rate - yesw) < abs(rate - best);
 
-	return now <= rate && now > best;
+	return yesw <= rate && yesw > best;
 }
 
 static unsigned long clk_half_divider_recalc_rate(struct clk_hw *hw,
@@ -37,7 +37,7 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 				    unsigned long flags)
 {
 	unsigned int i, bestdiv = 0;
-	unsigned long parent_rate, best = 0, now, maxdiv;
+	unsigned long parent_rate, best = 0, yesw, maxdiv;
 	unsigned long parent_rate_saved = *best_parent_rate;
 
 	if (!rate)
@@ -74,12 +74,12 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 		}
 		parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw),
 						((u64)rate * (i * 2 + 3)) / 2);
-		now = DIV_ROUND_UP_ULL(((u64)parent_rate * 2),
+		yesw = DIV_ROUND_UP_ULL(((u64)parent_rate * 2),
 				       (i * 2 + 3));
 
-		if (_is_best_half_div(rate, now, best, flags)) {
+		if (_is_best_half_div(rate, yesw, best, flags)) {
 			bestdiv = i;
-			best = now;
+			best = yesw;
 			*best_parent_rate = parent_rate;
 		}
 	}

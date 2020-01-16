@@ -39,8 +39,8 @@ void radix__flush_hugetlb_tlb_range(struct vm_area_struct *vma, unsigned long st
 
 /*
  * A vairant of hugetlb_get_unmapped_area doing topdown search
- * FIXME!! should we do as x86 does or non hugetlb area does ?
- * ie, use topdown or not based on mmap_is_legacy check ?
+ * FIXME!! should we do as x86 does or yesn hugetlb area does ?
+ * ie, use topdown or yest based on mmap_is_legacy check ?
  */
 unsigned long
 radix__hugetlb_get_unmapped_area(struct file *file, unsigned long addr,

@@ -170,7 +170,7 @@ static int ti_lmu_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	lmu->en_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(lmu->en_gpio)) {
 		ret = PTR_ERR(lmu->en_gpio);
-		dev_err(dev, "Can not request enable GPIO: %d\n", ret);
+		dev_err(dev, "Can yest request enable GPIO: %d\n", ret);
 		return ret;
 	}
 
@@ -185,9 +185,9 @@ static int ti_lmu_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	/*
 	 * Fault circuit(open/short) can be detected by ti-lmu-fault-monitor.
 	 * After fault detection is done, some devices should re-initialize
-	 * configuration. The notifier enables such kind of handling.
+	 * configuration. The yestifier enables such kind of handling.
 	 */
-	BLOCKING_INIT_NOTIFIER_HEAD(&lmu->notifier);
+	BLOCKING_INIT_NOTIFIER_HEAD(&lmu->yestifier);
 
 	i2c_set_clientdata(cl, lmu);
 

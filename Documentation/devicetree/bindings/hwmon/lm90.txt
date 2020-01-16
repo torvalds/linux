@@ -1,6 +1,6 @@
 * LM90 series thermometer.
 
-Required node properties:
+Required yesde properties:
 - compatible: manufacturer and chip name, one of
 		"adi,adm1032"
 		"adi,adt7461"
@@ -39,7 +39,7 @@ Optional properties:
 	      definition of the local, remote and 2nd remote sensor index
 	      constants.
 
-Example LM90 node:
+Example LM90 yesde:
 
 temp-sensor {
 	compatible = "onnn,nct1008";

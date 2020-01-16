@@ -27,7 +27,7 @@ void rodata_test(void)
 	/* test 2: write to the variable; this should fault */
 	if (!probe_kernel_write((void *)&rodata_test_data,
 				(void *)&zero, sizeof(zero))) {
-		pr_err("test data was not read only\n");
+		pr_err("test data was yest read only\n");
 		return;
 	}
 
@@ -41,11 +41,11 @@ void rodata_test(void)
 	start = (unsigned long)__start_rodata;
 	end = (unsigned long)__end_rodata;
 	if (start & (PAGE_SIZE - 1)) {
-		pr_err("start of .rodata is not page size aligned\n");
+		pr_err("start of .rodata is yest page size aligned\n");
 		return;
 	}
 	if (end & (PAGE_SIZE - 1)) {
-		pr_err("end of .rodata is not page size aligned\n");
+		pr_err("end of .rodata is yest page size aligned\n");
 		return;
 	}
 

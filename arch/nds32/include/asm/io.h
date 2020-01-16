@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef __ASM_NDS32_IO_H
 #define __ASM_NDS32_IO_H
@@ -56,7 +56,7 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
 
 /*
  * {read,write}{b,w,l,q}_relaxed() are like the regular version, but
- * are not guaranteed to provide ordering against spinlocks or memory
+ * are yest guaranteed to provide ordering against spinlocks or memory
  * accesses.
  */
 

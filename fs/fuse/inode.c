@@ -28,7 +28,7 @@ MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
 MODULE_DESCRIPTION("Filesystem in Userspace");
 MODULE_LICENSE("GPL");
 
-static struct kmem_cache *fuse_inode_cachep;
+static struct kmem_cache *fuse_iyesde_cachep;
 struct list_head fuse_conn_list;
 DEFINE_MUTEX(fuse_mutex);
 
@@ -69,53 +69,53 @@ struct fuse_forget_link *fuse_alloc_forget(void)
 	return kzalloc(sizeof(struct fuse_forget_link), GFP_KERNEL_ACCOUNT);
 }
 
-static struct inode *fuse_alloc_inode(struct super_block *sb)
+static struct iyesde *fuse_alloc_iyesde(struct super_block *sb)
 {
-	struct fuse_inode *fi;
+	struct fuse_iyesde *fi;
 
-	fi = kmem_cache_alloc(fuse_inode_cachep, GFP_KERNEL);
+	fi = kmem_cache_alloc(fuse_iyesde_cachep, GFP_KERNEL);
 	if (!fi)
 		return NULL;
 
 	fi->i_time = 0;
 	fi->inval_mask = 0;
-	fi->nodeid = 0;
+	fi->yesdeid = 0;
 	fi->nlookup = 0;
 	fi->attr_version = 0;
-	fi->orig_ino = 0;
+	fi->orig_iyes = 0;
 	fi->state = 0;
 	mutex_init(&fi->mutex);
 	spin_lock_init(&fi->lock);
 	fi->forget = fuse_alloc_forget();
 	if (!fi->forget) {
-		kmem_cache_free(fuse_inode_cachep, fi);
+		kmem_cache_free(fuse_iyesde_cachep, fi);
 		return NULL;
 	}
 
-	return &fi->inode;
+	return &fi->iyesde;
 }
 
-static void fuse_free_inode(struct inode *inode)
+static void fuse_free_iyesde(struct iyesde *iyesde)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_iyesde *fi = get_fuse_iyesde(iyesde);
 
 	mutex_destroy(&fi->mutex);
 	kfree(fi->forget);
-	kmem_cache_free(fuse_inode_cachep, fi);
+	kmem_cache_free(fuse_iyesde_cachep, fi);
 }
 
-static void fuse_evict_inode(struct inode *inode)
+static void fuse_evict_iyesde(struct iyesde *iyesde)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_iyesde *fi = get_fuse_iyesde(iyesde);
 
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
-	if (inode->i_sb->s_flags & SB_ACTIVE) {
-		struct fuse_conn *fc = get_fuse_conn(inode);
-		fuse_queue_forget(fc, fi->forget, fi->nodeid, fi->nlookup);
+	truncate_iyesde_pages_final(&iyesde->i_data);
+	clear_iyesde(iyesde);
+	if (iyesde->i_sb->s_flags & SB_ACTIVE) {
+		struct fuse_conn *fc = get_fuse_conn(iyesde);
+		fuse_queue_forget(fc, fi->forget, fi->yesdeid, fi->nlookup);
 		fi->forget = NULL;
 	}
-	if (S_ISREG(inode->i_mode) && !is_bad_inode(inode)) {
+	if (S_ISREG(iyesde->i_mode) && !is_bad_iyesde(iyesde)) {
 		WARN_ON(!list_empty(&fi->write_files));
 		WARN_ON(!list_empty(&fi->queued_writes));
 	}
@@ -131,22 +131,22 @@ static int fuse_remount_fs(struct super_block *sb, int *flags, char *data)
 }
 
 /*
- * ino_t is 32-bits on 32-bit arch. We have to squash the 64-bit value down
+ * iyes_t is 32-bits on 32-bit arch. We have to squash the 64-bit value down
  * so that it will fit.
  */
-static ino_t fuse_squash_ino(u64 ino64)
+static iyes_t fuse_squash_iyes(u64 iyes64)
 {
-	ino_t ino = (ino_t) ino64;
-	if (sizeof(ino_t) < sizeof(u64))
-		ino ^= ino64 >> (sizeof(u64) - sizeof(ino_t)) * 8;
-	return ino;
+	iyes_t iyes = (iyes_t) iyes64;
+	if (sizeof(iyes_t) < sizeof(u64))
+		iyes ^= iyes64 >> (sizeof(u64) - sizeof(iyes_t)) * 8;
+	return iyes;
 }
 
-void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
+void fuse_change_attributes_common(struct iyesde *iyesde, struct fuse_attr *attr,
 				   u64 attr_valid)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_conn *fc = get_fuse_conn(iyesde);
+	struct fuse_iyesde *fi = get_fuse_iyesde(iyesde);
 
 	lockdep_assert_held(&fi->lock);
 
@@ -154,44 +154,44 @@ void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 	fi->i_time = attr_valid;
 	WRITE_ONCE(fi->inval_mask, 0);
 
-	inode->i_ino     = fuse_squash_ino(attr->ino);
-	inode->i_mode    = (inode->i_mode & S_IFMT) | (attr->mode & 07777);
-	set_nlink(inode, attr->nlink);
-	inode->i_uid     = make_kuid(fc->user_ns, attr->uid);
-	inode->i_gid     = make_kgid(fc->user_ns, attr->gid);
-	inode->i_blocks  = attr->blocks;
-	inode->i_atime.tv_sec   = attr->atime;
-	inode->i_atime.tv_nsec  = attr->atimensec;
+	iyesde->i_iyes     = fuse_squash_iyes(attr->iyes);
+	iyesde->i_mode    = (iyesde->i_mode & S_IFMT) | (attr->mode & 07777);
+	set_nlink(iyesde, attr->nlink);
+	iyesde->i_uid     = make_kuid(fc->user_ns, attr->uid);
+	iyesde->i_gid     = make_kgid(fc->user_ns, attr->gid);
+	iyesde->i_blocks  = attr->blocks;
+	iyesde->i_atime.tv_sec   = attr->atime;
+	iyesde->i_atime.tv_nsec  = attr->atimensec;
 	/* mtime from server may be stale due to local buffered write */
-	if (!fc->writeback_cache || !S_ISREG(inode->i_mode)) {
-		inode->i_mtime.tv_sec   = attr->mtime;
-		inode->i_mtime.tv_nsec  = attr->mtimensec;
-		inode->i_ctime.tv_sec   = attr->ctime;
-		inode->i_ctime.tv_nsec  = attr->ctimensec;
+	if (!fc->writeback_cache || !S_ISREG(iyesde->i_mode)) {
+		iyesde->i_mtime.tv_sec   = attr->mtime;
+		iyesde->i_mtime.tv_nsec  = attr->mtimensec;
+		iyesde->i_ctime.tv_sec   = attr->ctime;
+		iyesde->i_ctime.tv_nsec  = attr->ctimensec;
 	}
 
 	if (attr->blksize != 0)
-		inode->i_blkbits = ilog2(attr->blksize);
+		iyesde->i_blkbits = ilog2(attr->blksize);
 	else
-		inode->i_blkbits = inode->i_sb->s_blocksize_bits;
+		iyesde->i_blkbits = iyesde->i_sb->s_blocksize_bits;
 
 	/*
 	 * Don't set the sticky bit in i_mode, unless we want the VFS
 	 * to check permissions.  This prevents failures due to the
 	 * check in may_delete().
 	 */
-	fi->orig_i_mode = inode->i_mode;
+	fi->orig_i_mode = iyesde->i_mode;
 	if (!fc->default_permissions)
-		inode->i_mode &= ~S_ISVTX;
+		iyesde->i_mode &= ~S_ISVTX;
 
-	fi->orig_ino = attr->ino;
+	fi->orig_iyes = attr->iyes;
 }
 
-void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
+void fuse_change_attributes(struct iyesde *iyesde, struct fuse_attr *attr,
 			    u64 attr_valid, u64 attr_version)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_conn *fc = get_fuse_conn(iyesde);
+	struct fuse_iyesde *fi = get_fuse_iyesde(iyesde);
 	bool is_wb = fc->writeback_cache;
 	loff_t oldsize;
 	struct timespec64 old_mtime;
@@ -203,24 +203,24 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 		return;
 	}
 
-	old_mtime = inode->i_mtime;
-	fuse_change_attributes_common(inode, attr, attr_valid);
+	old_mtime = iyesde->i_mtime;
+	fuse_change_attributes_common(iyesde, attr, attr_valid);
 
-	oldsize = inode->i_size;
+	oldsize = iyesde->i_size;
 	/*
 	 * In case of writeback_cache enabled, the cached writes beyond EOF
 	 * extend local i_size without keeping userspace server in sync. So,
-	 * attr->size coming from server can be stale. We cannot trust it.
+	 * attr->size coming from server can be stale. We canyest trust it.
 	 */
-	if (!is_wb || !S_ISREG(inode->i_mode))
-		i_size_write(inode, attr->size);
+	if (!is_wb || !S_ISREG(iyesde->i_mode))
+		i_size_write(iyesde, attr->size);
 	spin_unlock(&fi->lock);
 
-	if (!is_wb && S_ISREG(inode->i_mode)) {
+	if (!is_wb && S_ISREG(iyesde->i_mode)) {
 		bool inval = false;
 
 		if (oldsize != attr->size) {
-			truncate_pagecache(inode, attr->size);
+			truncate_pagecache(iyesde, attr->size);
 			if (!fc->explicit_inval_data)
 				inval = true;
 		} else if (fc->auto_inval_data) {
@@ -238,135 +238,135 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 		}
 
 		if (inval)
-			invalidate_inode_pages2(inode->i_mapping);
+			invalidate_iyesde_pages2(iyesde->i_mapping);
 	}
 }
 
-static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
+static void fuse_init_iyesde(struct iyesde *iyesde, struct fuse_attr *attr)
 {
-	inode->i_mode = attr->mode & S_IFMT;
-	inode->i_size = attr->size;
-	inode->i_mtime.tv_sec  = attr->mtime;
-	inode->i_mtime.tv_nsec = attr->mtimensec;
-	inode->i_ctime.tv_sec  = attr->ctime;
-	inode->i_ctime.tv_nsec = attr->ctimensec;
-	if (S_ISREG(inode->i_mode)) {
-		fuse_init_common(inode);
-		fuse_init_file_inode(inode);
-	} else if (S_ISDIR(inode->i_mode))
-		fuse_init_dir(inode);
-	else if (S_ISLNK(inode->i_mode))
-		fuse_init_symlink(inode);
-	else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode) ||
-		 S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
-		fuse_init_common(inode);
-		init_special_inode(inode, inode->i_mode,
+	iyesde->i_mode = attr->mode & S_IFMT;
+	iyesde->i_size = attr->size;
+	iyesde->i_mtime.tv_sec  = attr->mtime;
+	iyesde->i_mtime.tv_nsec = attr->mtimensec;
+	iyesde->i_ctime.tv_sec  = attr->ctime;
+	iyesde->i_ctime.tv_nsec = attr->ctimensec;
+	if (S_ISREG(iyesde->i_mode)) {
+		fuse_init_common(iyesde);
+		fuse_init_file_iyesde(iyesde);
+	} else if (S_ISDIR(iyesde->i_mode))
+		fuse_init_dir(iyesde);
+	else if (S_ISLNK(iyesde->i_mode))
+		fuse_init_symlink(iyesde);
+	else if (S_ISCHR(iyesde->i_mode) || S_ISBLK(iyesde->i_mode) ||
+		 S_ISFIFO(iyesde->i_mode) || S_ISSOCK(iyesde->i_mode)) {
+		fuse_init_common(iyesde);
+		init_special_iyesde(iyesde, iyesde->i_mode,
 				   new_decode_dev(attr->rdev));
 	} else
 		BUG();
 }
 
-int fuse_inode_eq(struct inode *inode, void *_nodeidp)
+int fuse_iyesde_eq(struct iyesde *iyesde, void *_yesdeidp)
 {
-	u64 nodeid = *(u64 *) _nodeidp;
-	if (get_node_id(inode) == nodeid)
+	u64 yesdeid = *(u64 *) _yesdeidp;
+	if (get_yesde_id(iyesde) == yesdeid)
 		return 1;
 	else
 		return 0;
 }
 
-static int fuse_inode_set(struct inode *inode, void *_nodeidp)
+static int fuse_iyesde_set(struct iyesde *iyesde, void *_yesdeidp)
 {
-	u64 nodeid = *(u64 *) _nodeidp;
-	get_fuse_inode(inode)->nodeid = nodeid;
+	u64 yesdeid = *(u64 *) _yesdeidp;
+	get_fuse_iyesde(iyesde)->yesdeid = yesdeid;
 	return 0;
 }
 
-struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
+struct iyesde *fuse_iget(struct super_block *sb, u64 yesdeid,
 			int generation, struct fuse_attr *attr,
 			u64 attr_valid, u64 attr_version)
 {
-	struct inode *inode;
-	struct fuse_inode *fi;
+	struct iyesde *iyesde;
+	struct fuse_iyesde *fi;
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
  retry:
-	inode = iget5_locked(sb, nodeid, fuse_inode_eq, fuse_inode_set, &nodeid);
-	if (!inode)
+	iyesde = iget5_locked(sb, yesdeid, fuse_iyesde_eq, fuse_iyesde_set, &yesdeid);
+	if (!iyesde)
 		return NULL;
 
-	if ((inode->i_state & I_NEW)) {
-		inode->i_flags |= S_NOATIME;
+	if ((iyesde->i_state & I_NEW)) {
+		iyesde->i_flags |= S_NOATIME;
 		if (!fc->writeback_cache || !S_ISREG(attr->mode))
-			inode->i_flags |= S_NOCMTIME;
-		inode->i_generation = generation;
-		fuse_init_inode(inode, attr);
-		unlock_new_inode(inode);
-	} else if ((inode->i_mode ^ attr->mode) & S_IFMT) {
-		/* Inode has changed type, any I/O on the old should fail */
-		make_bad_inode(inode);
-		iput(inode);
+			iyesde->i_flags |= S_NOCMTIME;
+		iyesde->i_generation = generation;
+		fuse_init_iyesde(iyesde, attr);
+		unlock_new_iyesde(iyesde);
+	} else if ((iyesde->i_mode ^ attr->mode) & S_IFMT) {
+		/* Iyesde has changed type, any I/O on the old should fail */
+		make_bad_iyesde(iyesde);
+		iput(iyesde);
 		goto retry;
 	}
 
-	fi = get_fuse_inode(inode);
+	fi = get_fuse_iyesde(iyesde);
 	spin_lock(&fi->lock);
 	fi->nlookup++;
 	spin_unlock(&fi->lock);
-	fuse_change_attributes(inode, attr, attr_valid, attr_version);
+	fuse_change_attributes(iyesde, attr, attr_valid, attr_version);
 
-	return inode;
+	return iyesde;
 }
 
-int fuse_reverse_inval_inode(struct super_block *sb, u64 nodeid,
+int fuse_reverse_inval_iyesde(struct super_block *sb, u64 yesdeid,
 			     loff_t offset, loff_t len)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	pgoff_t pg_start;
 	pgoff_t pg_end;
 
-	inode = ilookup5(sb, nodeid, fuse_inode_eq, &nodeid);
-	if (!inode)
+	iyesde = ilookup5(sb, yesdeid, fuse_iyesde_eq, &yesdeid);
+	if (!iyesde)
 		return -ENOENT;
 
-	fuse_invalidate_attr(inode);
-	forget_all_cached_acls(inode);
+	fuse_invalidate_attr(iyesde);
+	forget_all_cached_acls(iyesde);
 	if (offset >= 0) {
 		pg_start = offset >> PAGE_SHIFT;
 		if (len <= 0)
 			pg_end = -1;
 		else
 			pg_end = (offset + len - 1) >> PAGE_SHIFT;
-		invalidate_inode_pages2_range(inode->i_mapping,
+		invalidate_iyesde_pages2_range(iyesde->i_mapping,
 					      pg_start, pg_end);
 	}
-	iput(inode);
+	iput(iyesde);
 	return 0;
 }
 
-bool fuse_lock_inode(struct inode *inode)
+bool fuse_lock_iyesde(struct iyesde *iyesde)
 {
 	bool locked = false;
 
-	if (!get_fuse_conn(inode)->parallel_dirops) {
-		mutex_lock(&get_fuse_inode(inode)->mutex);
+	if (!get_fuse_conn(iyesde)->parallel_dirops) {
+		mutex_lock(&get_fuse_iyesde(iyesde)->mutex);
 		locked = true;
 	}
 
 	return locked;
 }
 
-void fuse_unlock_inode(struct inode *inode, bool locked)
+void fuse_unlock_iyesde(struct iyesde *iyesde, bool locked)
 {
 	if (locked)
-		mutex_unlock(&get_fuse_inode(inode)->mutex);
+		mutex_unlock(&get_fuse_iyesde(iyesde)->mutex);
 }
 
 static void fuse_umount_begin(struct super_block *sb)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
-	if (!fc->no_force_umount)
+	if (!fc->yes_force_umount)
 		fuse_abort_conn(fc);
 }
 
@@ -377,7 +377,7 @@ static void fuse_send_destroy(struct fuse_conn *fc)
 
 		args.opcode = FUSE_DESTROY;
 		args.force = true;
-		args.nocreds = true;
+		args.yescreds = true;
 		fuse_simple_request(fc, &args);
 	}
 }
@@ -424,7 +424,7 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 	memset(&outarg, 0, sizeof(outarg));
 	args.in_numargs = 0;
 	args.opcode = FUSE_STATFS;
-	args.nodeid = get_node_id(d_inode(dentry));
+	args.yesdeid = get_yesde_id(d_iyesde(dentry));
 	args.out_numargs = 1;
 	args.out_args[0].size = sizeof(outarg);
 	args.out_args[0].value = &outarg;
@@ -558,7 +558,7 @@ static int fuse_show_options(struct seq_file *m, struct dentry *root)
 	struct super_block *sb = root->d_sb;
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
-	if (fc->no_mount_options)
+	if (fc->yes_mount_options)
 		return 0;
 
 	seq_printf(m, ",user_id=%u", from_kuid_munged(fc->user_ns, fc->user_id));
@@ -651,74 +651,74 @@ struct fuse_conn *fuse_conn_get(struct fuse_conn *fc)
 }
 EXPORT_SYMBOL_GPL(fuse_conn_get);
 
-static struct inode *fuse_get_root_inode(struct super_block *sb, unsigned mode)
+static struct iyesde *fuse_get_root_iyesde(struct super_block *sb, unsigned mode)
 {
 	struct fuse_attr attr;
 	memset(&attr, 0, sizeof(attr));
 
 	attr.mode = mode;
-	attr.ino = FUSE_ROOT_ID;
+	attr.iyes = FUSE_ROOT_ID;
 	attr.nlink = 1;
 	return fuse_iget(sb, 1, 0, &attr, 0, 0);
 }
 
-struct fuse_inode_handle {
-	u64 nodeid;
+struct fuse_iyesde_handle {
+	u64 yesdeid;
 	u32 generation;
 };
 
 static struct dentry *fuse_get_dentry(struct super_block *sb,
-				      struct fuse_inode_handle *handle)
+				      struct fuse_iyesde_handle *handle)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct dentry *entry;
 	int err = -ESTALE;
 
-	if (handle->nodeid == 0)
+	if (handle->yesdeid == 0)
 		goto out_err;
 
-	inode = ilookup5(sb, handle->nodeid, fuse_inode_eq, &handle->nodeid);
-	if (!inode) {
+	iyesde = ilookup5(sb, handle->yesdeid, fuse_iyesde_eq, &handle->yesdeid);
+	if (!iyesde) {
 		struct fuse_entry_out outarg;
 		const struct qstr name = QSTR_INIT(".", 1);
 
 		if (!fc->export_support)
 			goto out_err;
 
-		err = fuse_lookup_name(sb, handle->nodeid, &name, &outarg,
-				       &inode);
+		err = fuse_lookup_name(sb, handle->yesdeid, &name, &outarg,
+				       &iyesde);
 		if (err && err != -ENOENT)
 			goto out_err;
-		if (err || !inode) {
+		if (err || !iyesde) {
 			err = -ESTALE;
 			goto out_err;
 		}
 		err = -EIO;
-		if (get_node_id(inode) != handle->nodeid)
+		if (get_yesde_id(iyesde) != handle->yesdeid)
 			goto out_iput;
 	}
 	err = -ESTALE;
-	if (inode->i_generation != handle->generation)
+	if (iyesde->i_generation != handle->generation)
 		goto out_iput;
 
-	entry = d_obtain_alias(inode);
-	if (!IS_ERR(entry) && get_node_id(inode) != FUSE_ROOT_ID)
+	entry = d_obtain_alias(iyesde);
+	if (!IS_ERR(entry) && get_yesde_id(iyesde) != FUSE_ROOT_ID)
 		fuse_invalidate_entry_cache(entry);
 
 	return entry;
 
  out_iput:
-	iput(inode);
+	iput(iyesde);
  out_err:
 	return ERR_PTR(err);
 }
 
-static int fuse_encode_fh(struct inode *inode, u32 *fh, int *max_len,
-			   struct inode *parent)
+static int fuse_encode_fh(struct iyesde *iyesde, u32 *fh, int *max_len,
+			   struct iyesde *parent)
 {
 	int len = parent ? 6 : 3;
-	u64 nodeid;
+	u64 yesdeid;
 	u32 generation;
 
 	if (*max_len < len) {
@@ -726,19 +726,19 @@ static int fuse_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 		return  FILEID_INVALID;
 	}
 
-	nodeid = get_fuse_inode(inode)->nodeid;
-	generation = inode->i_generation;
+	yesdeid = get_fuse_iyesde(iyesde)->yesdeid;
+	generation = iyesde->i_generation;
 
-	fh[0] = (u32)(nodeid >> 32);
-	fh[1] = (u32)(nodeid & 0xffffffff);
+	fh[0] = (u32)(yesdeid >> 32);
+	fh[1] = (u32)(yesdeid & 0xffffffff);
 	fh[2] = generation;
 
 	if (parent) {
-		nodeid = get_fuse_inode(parent)->nodeid;
+		yesdeid = get_fuse_iyesde(parent)->yesdeid;
 		generation = parent->i_generation;
 
-		fh[3] = (u32)(nodeid >> 32);
-		fh[4] = (u32)(nodeid & 0xffffffff);
+		fh[3] = (u32)(yesdeid >> 32);
+		fh[4] = (u32)(yesdeid & 0xffffffff);
 		fh[5] = generation;
 	}
 
@@ -749,13 +749,13 @@ static int fuse_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 static struct dentry *fuse_fh_to_dentry(struct super_block *sb,
 		struct fid *fid, int fh_len, int fh_type)
 {
-	struct fuse_inode_handle handle;
+	struct fuse_iyesde_handle handle;
 
 	if ((fh_type != 0x81 && fh_type != 0x82) || fh_len < 3)
 		return NULL;
 
-	handle.nodeid = (u64) fid->raw[0] << 32;
-	handle.nodeid |= (u64) fid->raw[1];
+	handle.yesdeid = (u64) fid->raw[0] << 32;
+	handle.yesdeid |= (u64) fid->raw[1];
 	handle.generation = fid->raw[2];
 	return fuse_get_dentry(sb, &handle);
 }
@@ -763,22 +763,22 @@ static struct dentry *fuse_fh_to_dentry(struct super_block *sb,
 static struct dentry *fuse_fh_to_parent(struct super_block *sb,
 		struct fid *fid, int fh_len, int fh_type)
 {
-	struct fuse_inode_handle parent;
+	struct fuse_iyesde_handle parent;
 
 	if (fh_type != 0x82 || fh_len < 6)
 		return NULL;
 
-	parent.nodeid = (u64) fid->raw[3] << 32;
-	parent.nodeid |= (u64) fid->raw[4];
+	parent.yesdeid = (u64) fid->raw[3] << 32;
+	parent.yesdeid |= (u64) fid->raw[4];
 	parent.generation = fid->raw[5];
 	return fuse_get_dentry(sb, &parent);
 }
 
 static struct dentry *fuse_get_parent(struct dentry *child)
 {
-	struct inode *child_inode = d_inode(child);
-	struct fuse_conn *fc = get_fuse_conn(child_inode);
-	struct inode *inode;
+	struct iyesde *child_iyesde = d_iyesde(child);
+	struct fuse_conn *fc = get_fuse_conn(child_iyesde);
+	struct iyesde *iyesde;
 	struct dentry *parent;
 	struct fuse_entry_out outarg;
 	const struct qstr name = QSTR_INIT("..", 2);
@@ -787,16 +787,16 @@ static struct dentry *fuse_get_parent(struct dentry *child)
 	if (!fc->export_support)
 		return ERR_PTR(-ESTALE);
 
-	err = fuse_lookup_name(child_inode->i_sb, get_node_id(child_inode),
-			       &name, &outarg, &inode);
+	err = fuse_lookup_name(child_iyesde->i_sb, get_yesde_id(child_iyesde),
+			       &name, &outarg, &iyesde);
 	if (err) {
 		if (err == -ENOENT)
 			return ERR_PTR(-ESTALE);
 		return ERR_PTR(err);
 	}
 
-	parent = d_obtain_alias(inode);
-	if (!IS_ERR(parent) && get_node_id(inode) != FUSE_ROOT_ID)
+	parent = d_obtain_alias(iyesde);
+	if (!IS_ERR(parent) && get_yesde_id(iyesde) != FUSE_ROOT_ID)
 		fuse_invalidate_entry_cache(parent);
 
 	return parent;
@@ -810,11 +810,11 @@ static const struct export_operations fuse_export_operations = {
 };
 
 static const struct super_operations fuse_super_operations = {
-	.alloc_inode    = fuse_alloc_inode,
-	.free_inode     = fuse_free_inode,
-	.evict_inode	= fuse_evict_inode,
-	.write_inode	= fuse_write_inode,
-	.drop_inode	= generic_delete_inode,
+	.alloc_iyesde    = fuse_alloc_iyesde,
+	.free_iyesde     = fuse_free_iyesde,
+	.evict_iyesde	= fuse_evict_iyesde,
+	.write_iyesde	= fuse_write_iyesde,
+	.drop_iyesde	= generic_delete_iyesde,
 	.remount_fs	= fuse_remount_fs,
 	.put_super	= fuse_put_super,
 	.umount_begin	= fuse_umount_begin,
@@ -852,7 +852,7 @@ static void process_init_limits(struct fuse_conn *fc, struct fuse_init_out *arg)
 {
 	int cap_sys_admin = capable(CAP_SYS_ADMIN);
 
-	if (arg->minor < 13)
+	if (arg->miyesr < 13)
 		return;
 
 	sanitize_global_limit(&max_user_bgreq);
@@ -894,22 +894,22 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_args *args,
 
 		process_init_limits(fc, arg);
 
-		if (arg->minor >= 6) {
+		if (arg->miyesr >= 6) {
 			ra_pages = arg->max_readahead / PAGE_SIZE;
 			if (arg->flags & FUSE_ASYNC_READ)
 				fc->async_read = 1;
 			if (!(arg->flags & FUSE_POSIX_LOCKS))
-				fc->no_lock = 1;
-			if (arg->minor >= 17) {
+				fc->yes_lock = 1;
+			if (arg->miyesr >= 17) {
 				if (!(arg->flags & FUSE_FLOCK_LOCKS))
-					fc->no_flock = 1;
+					fc->yes_flock = 1;
 			} else {
 				if (!(arg->flags & FUSE_POSIX_LOCKS))
-					fc->no_flock = 1;
+					fc->yes_flock = 1;
 			}
 			if (arg->flags & FUSE_ATOMIC_O_TRUNC)
 				fc->atomic_o_trunc = 1;
-			if (arg->minor >= 9) {
+			if (arg->miyesr >= 9) {
 				/* LOOKUP has dependency on proto version */
 				if (arg->flags & FUSE_EXPORT_SUPPORT)
 					fc->export_support = 1;
@@ -953,14 +953,14 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_args *args,
 			}
 		} else {
 			ra_pages = fc->max_read / PAGE_SIZE;
-			fc->no_lock = 1;
-			fc->no_flock = 1;
+			fc->yes_lock = 1;
+			fc->yes_flock = 1;
 		}
 
 		fc->sb->s_bdi->ra_pages =
 				min(fc->sb->s_bdi->ra_pages, ra_pages);
-		fc->minor = arg->minor;
-		fc->max_write = arg->minor < 5 ? 4096 : arg->max_write;
+		fc->miyesr = arg->miyesr;
+		fc->max_write = arg->miyesr < 5 ? 4096 : arg->max_write;
 		fc->max_write = max_t(unsigned, 4096, fc->max_write);
 		fc->conn_init = 1;
 	}
@@ -977,7 +977,7 @@ void fuse_send_init(struct fuse_conn *fc)
 	ia = kzalloc(sizeof(*ia), GFP_KERNEL | __GFP_NOFAIL);
 
 	ia->in.major = FUSE_KERNEL_VERSION;
-	ia->in.minor = FUSE_KERNEL_MINOR_VERSION;
+	ia->in.miyesr = FUSE_KERNEL_MINOR_VERSION;
 	ia->in.max_readahead = fc->sb->s_bdi->ra_pages * PAGE_SIZE;
 	ia->in.flags |=
 		FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_ATOMIC_O_TRUNC |
@@ -996,12 +996,12 @@ void fuse_send_init(struct fuse_conn *fc)
 	ia->args.out_numargs = 1;
 	/* Variable length argument used for backward compatibility
 	   with interface version < 7.5.  Rest of init_out is zeroed
-	   by do_get_request(), so a short reply is not a problem */
+	   by do_get_request(), so a short reply is yest a problem */
 	ia->args.out_argvar = 1;
 	ia->args.out_args[0].size = sizeof(ia->out);
 	ia->args.out_args[0].value = &ia->out;
 	ia->args.force = true;
-	ia->args.nocreds = true;
+	ia->args.yescreds = true;
 	ia->args.end = process_init_reply;
 
 	if (fuse_simple_background(fc, &ia->args, GFP_KERNEL) != 0)
@@ -1028,7 +1028,7 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 		 * it to our private bdi...
 		 */
 		bdi_put(sb->s_bdi);
-		sb->s_bdi = &noop_backing_dev_info;
+		sb->s_bdi = &yesop_backing_dev_info;
 	}
 	err = super_setup_bdi_name(sb, "%u:%u%s", MAJOR(fc->dev),
 				   MINOR(fc->dev), suffix);
@@ -1045,7 +1045,7 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 	 *
 	 * This gives about 1M of write buffer for memory maps on a
 	 * machine with 1G and 10% dirty_ratio, which should be more
-	 * than enough.
+	 * than eyesugh.
 	 *
 	 * Privileged users can raise it by writing to
 	 *
@@ -1120,7 +1120,7 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 {
 	struct fuse_dev *fud;
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
-	struct inode *root;
+	struct iyesde *root;
 	struct dentry *root_dentry;
 	int err;
 
@@ -1154,11 +1154,11 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 		sb->s_iflags |= SB_I_UNTRUSTED_MOUNTER;
 
 	/*
-	 * If we are not in the initial user namespace posix
+	 * If we are yest in the initial user namespace posix
 	 * acls must be translated.
 	 */
 	if (sb->s_user_ns != &init_user_ns)
-		sb->s_xattr = fuse_no_acl_xattr_handlers;
+		sb->s_xattr = fuse_yes_acl_xattr_handlers;
 
 	fud = fuse_dev_alloc_install(fc);
 	if (!fud)
@@ -1181,12 +1181,12 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	fc->group_id = ctx->group_id;
 	fc->max_read = max_t(unsigned, 4096, ctx->max_read);
 	fc->destroy = ctx->destroy;
-	fc->no_control = ctx->no_control;
-	fc->no_force_umount = ctx->no_force_umount;
-	fc->no_mount_options = ctx->no_mount_options;
+	fc->yes_control = ctx->yes_control;
+	fc->yes_force_umount = ctx->yes_force_umount;
+	fc->yes_mount_options = ctx->yes_mount_options;
 
 	err = -ENOMEM;
-	root = fuse_get_root_inode(sb, ctx->rootmode);
+	root = fuse_get_root_iyesde(sb, ctx->rootmode);
 	sb->s_d_op = &fuse_root_dentry_operations;
 	root_dentry = d_make_root(root);
 	if (!root_dentry)
@@ -1283,7 +1283,7 @@ static int fuse_get_tree(struct fs_context *fc)
 		return get_tree_bdev(fc, fuse_fill_super);
 #endif
 
-	return get_tree_nodev(fc, fuse_fill_super);
+	return get_tree_yesdev(fc, fuse_fill_super);
 }
 
 static const struct fs_context_operations fuse_context_ops = {
@@ -1335,12 +1335,12 @@ static void fuse_sb_destroy(struct super_block *sb)
 	}
 }
 
-void fuse_kill_sb_anon(struct super_block *sb)
+void fuse_kill_sb_ayesn(struct super_block *sb)
 {
 	fuse_sb_destroy(sb);
-	kill_anon_super(sb);
+	kill_ayesn_super(sb);
 }
-EXPORT_SYMBOL_GPL(fuse_kill_sb_anon);
+EXPORT_SYMBOL_GPL(fuse_kill_sb_ayesn);
 
 static struct file_system_type fuse_fs_type = {
 	.owner		= THIS_MODULE,
@@ -1348,7 +1348,7 @@ static struct file_system_type fuse_fs_type = {
 	.fs_flags	= FS_HAS_SUBTYPE | FS_USERNS_MOUNT,
 	.init_fs_context = fuse_init_fs_context,
 	.parameters	= &fuse_fs_parameters,
-	.kill_sb	= fuse_kill_sb_anon,
+	.kill_sb	= fuse_kill_sb_ayesn,
 };
 MODULE_ALIAS_FS("fuse");
 
@@ -1389,23 +1389,23 @@ static inline void unregister_fuseblk(void)
 }
 #endif
 
-static void fuse_inode_init_once(void *foo)
+static void fuse_iyesde_init_once(void *foo)
 {
-	struct inode *inode = foo;
+	struct iyesde *iyesde = foo;
 
-	inode_init_once(inode);
+	iyesde_init_once(iyesde);
 }
 
 static int __init fuse_fs_init(void)
 {
 	int err;
 
-	fuse_inode_cachep = kmem_cache_create("fuse_inode",
-			sizeof(struct fuse_inode), 0,
+	fuse_iyesde_cachep = kmem_cache_create("fuse_iyesde",
+			sizeof(struct fuse_iyesde), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT|SLAB_RECLAIM_ACCOUNT,
-			fuse_inode_init_once);
+			fuse_iyesde_init_once);
 	err = -ENOMEM;
-	if (!fuse_inode_cachep)
+	if (!fuse_iyesde_cachep)
 		goto out;
 
 	err = register_fuseblk();
@@ -1421,7 +1421,7 @@ static int __init fuse_fs_init(void)
  out3:
 	unregister_fuseblk();
  out2:
-	kmem_cache_destroy(fuse_inode_cachep);
+	kmem_cache_destroy(fuse_iyesde_cachep);
  out:
 	return err;
 }
@@ -1432,11 +1432,11 @@ static void fuse_fs_cleanup(void)
 	unregister_fuseblk();
 
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(fuse_inode_cachep);
+	kmem_cache_destroy(fuse_iyesde_cachep);
 }
 
 static struct kobject *fuse_kobj;

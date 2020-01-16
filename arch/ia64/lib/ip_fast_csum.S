@@ -17,12 +17,12 @@
 #include <asm/export.h>
 
 /*
- * Since we know that most likely this function is called with buf aligned
+ * Since we kyesw that most likely this function is called with buf aligned
  * on 4-byte boundary and 20 bytes in length, we can execution rather quickly
  * versus calling generic version of do_csum, which has lots of overhead in
  * handling various alignments and sizes.  However, due to lack of constrains
- * put on the function input argument, cases with alignment not on 4-byte or
- * size not equal to 20 bytes will be handled by the generic do_csum function.
+ * put on the function input argument, cases with alignment yest on 4-byte or
+ * size yest equal to 20 bytes will be handled by the generic do_csum function.
  */
 
 #define in0	r32
@@ -56,7 +56,7 @@ GLOBAL_ENTRY(ip_fast_csum)
 	;;
 	add	r20=r20,r24
 	;;
-	shr.u	ret0=r20,16	// now need to add the carry
+	shr.u	ret0=r20,16	// yesw need to add the carry
 	zxt2	r20=r20
 	;;
 	add	r20=ret0,r20
@@ -126,7 +126,7 @@ GLOBAL_ENTRY(csum_ipv6_magic)
 	;;
 	add	r8=r8,r15
 	;;
-	shr.u	r10=r8,32	// now fold sum into short
+	shr.u	r10=r8,32	// yesw fold sum into short
 	zxt4	r11=r8
 	;;
 	add	r8=r10,r11

@@ -138,7 +138,7 @@ static unsigned char direct_marked_event[8] = {
 
 /*
  * Returns 1 if event counts things relating to marked instructions
- * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
+ * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if yest.
  */
 static int p970_marked_instr_event(u64 event)
 {
@@ -429,7 +429,7 @@ static int ppc970_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means yest supported, -1 means yesnsensical, other values
  * are event codes.
  */
 static int ppc970_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {

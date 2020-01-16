@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
@@ -194,10 +194,10 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt,
 	sch_tree_lock(sch);
 	q->bands = qopt->bands;
 	for (i = q->bands; i < q->max_bands; i++) {
-		if (q->queues[i] != &noop_qdisc) {
+		if (q->queues[i] != &yesop_qdisc) {
 			struct Qdisc *child = q->queues[i];
 
-			q->queues[i] = &noop_qdisc;
+			q->queues[i] = &yesop_qdisc;
 			qdisc_purge_queue(child);
 			removed[n_removed++] = child;
 		}
@@ -210,7 +210,7 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt,
 	kfree(removed);
 
 	for (i = 0; i < q->bands; i++) {
-		if (q->queues[i] == &noop_qdisc) {
+		if (q->queues[i] == &yesop_qdisc) {
 			struct Qdisc *child, *old;
 			child = qdisc_create_dflt(sch->dev_queue,
 						  &pfifo_qdisc_ops,
@@ -220,10 +220,10 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt,
 				sch_tree_lock(sch);
 				old = q->queues[i];
 				q->queues[i] = child;
-				if (child != &noop_qdisc)
+				if (child != &yesop_qdisc)
 					qdisc_hash_add(child, true);
 
-				if (old != &noop_qdisc)
+				if (old != &yesop_qdisc)
 					qdisc_purge_queue(old);
 				sch_tree_unlock(sch);
 				qdisc_put(old);
@@ -254,7 +254,7 @@ static int multiq_init(struct Qdisc *sch, struct nlattr *opt,
 	if (!q->queues)
 		return -ENOBUFS;
 	for (i = 0; i < q->max_bands; i++)
-		q->queues[i] = &noop_qdisc;
+		q->queues[i] = &yesop_qdisc;
 
 	return multiq_tune(sch, opt, extack);
 }
@@ -285,7 +285,7 @@ static int multiq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	unsigned long band = arg - 1;
 
 	if (new == NULL)
-		new = &noop_qdisc;
+		new = &yesop_qdisc;
 
 	*old = qdisc_replace(sch, new, &q->queues[band]);
 	return 0;

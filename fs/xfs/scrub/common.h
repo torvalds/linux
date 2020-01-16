@@ -7,9 +7,9 @@
 #define __XFS_SCRUB_COMMON_H__
 
 /*
- * We /could/ terminate a scrub/repair operation early.  If we're not
+ * We /could/ terminate a scrub/repair operation early.  If we're yest
  * in a good place to continue (fatal signal, etc.) then bail out.
- * Note that we're careful not to make any judgements about *error.
+ * Note that we're careful yest to make any judgements about *error.
  */
 static inline bool
 xchk_should_terminate(
@@ -32,35 +32,35 @@ xchk_should_terminate(
 }
 
 int xchk_trans_alloc(struct xfs_scrub *sc, uint resblks);
-bool xchk_process_error(struct xfs_scrub *sc, xfs_agnumber_t agno,
-		xfs_agblock_t bno, int *error);
+bool xchk_process_error(struct xfs_scrub *sc, xfs_agnumber_t agyes,
+		xfs_agblock_t byes, int *error);
 bool xchk_fblock_process_error(struct xfs_scrub *sc, int whichfork,
 		xfs_fileoff_t offset, int *error);
 
 bool xchk_xref_process_error(struct xfs_scrub *sc,
-		xfs_agnumber_t agno, xfs_agblock_t bno, int *error);
+		xfs_agnumber_t agyes, xfs_agblock_t byes, int *error);
 bool xchk_fblock_xref_process_error(struct xfs_scrub *sc,
 		int whichfork, xfs_fileoff_t offset, int *error);
 
 void xchk_block_set_preen(struct xfs_scrub *sc,
 		struct xfs_buf *bp);
-void xchk_ino_set_preen(struct xfs_scrub *sc, xfs_ino_t ino);
+void xchk_iyes_set_preen(struct xfs_scrub *sc, xfs_iyes_t iyes);
 
 void xchk_set_corrupt(struct xfs_scrub *sc);
 void xchk_block_set_corrupt(struct xfs_scrub *sc,
 		struct xfs_buf *bp);
-void xchk_ino_set_corrupt(struct xfs_scrub *sc, xfs_ino_t ino);
+void xchk_iyes_set_corrupt(struct xfs_scrub *sc, xfs_iyes_t iyes);
 void xchk_fblock_set_corrupt(struct xfs_scrub *sc, int whichfork,
 		xfs_fileoff_t offset);
 
 void xchk_block_xref_set_corrupt(struct xfs_scrub *sc,
 		struct xfs_buf *bp);
-void xchk_ino_xref_set_corrupt(struct xfs_scrub *sc,
-		xfs_ino_t ino);
+void xchk_iyes_xref_set_corrupt(struct xfs_scrub *sc,
+		xfs_iyes_t iyes);
 void xchk_fblock_xref_set_corrupt(struct xfs_scrub *sc,
 		int whichfork, xfs_fileoff_t offset);
 
-void xchk_ino_set_warning(struct xfs_scrub *sc, xfs_ino_t ino);
+void xchk_iyes_set_warning(struct xfs_scrub *sc, xfs_iyes_t iyes);
 void xchk_fblock_set_warning(struct xfs_scrub *sc, int whichfork,
 		xfs_fileoff_t offset);
 
@@ -72,54 +72,54 @@ bool xchk_should_check_xref(struct xfs_scrub *sc, int *error,
 			   struct xfs_btree_cur **curpp);
 
 /* Setup functions */
-int xchk_setup_fs(struct xfs_scrub *sc, struct xfs_inode *ip);
+int xchk_setup_fs(struct xfs_scrub *sc, struct xfs_iyesde *ip);
 int xchk_setup_ag_allocbt(struct xfs_scrub *sc,
-			       struct xfs_inode *ip);
+			       struct xfs_iyesde *ip);
 int xchk_setup_ag_iallocbt(struct xfs_scrub *sc,
-				struct xfs_inode *ip);
+				struct xfs_iyesde *ip);
 int xchk_setup_ag_rmapbt(struct xfs_scrub *sc,
-			      struct xfs_inode *ip);
+			      struct xfs_iyesde *ip);
 int xchk_setup_ag_refcountbt(struct xfs_scrub *sc,
-				  struct xfs_inode *ip);
-int xchk_setup_inode(struct xfs_scrub *sc,
-			  struct xfs_inode *ip);
-int xchk_setup_inode_bmap(struct xfs_scrub *sc,
-			       struct xfs_inode *ip);
-int xchk_setup_inode_bmap_data(struct xfs_scrub *sc,
-				    struct xfs_inode *ip);
+				  struct xfs_iyesde *ip);
+int xchk_setup_iyesde(struct xfs_scrub *sc,
+			  struct xfs_iyesde *ip);
+int xchk_setup_iyesde_bmap(struct xfs_scrub *sc,
+			       struct xfs_iyesde *ip);
+int xchk_setup_iyesde_bmap_data(struct xfs_scrub *sc,
+				    struct xfs_iyesde *ip);
 int xchk_setup_directory(struct xfs_scrub *sc,
-			      struct xfs_inode *ip);
+			      struct xfs_iyesde *ip);
 int xchk_setup_xattr(struct xfs_scrub *sc,
-			  struct xfs_inode *ip);
+			  struct xfs_iyesde *ip);
 int xchk_setup_symlink(struct xfs_scrub *sc,
-			    struct xfs_inode *ip);
+			    struct xfs_iyesde *ip);
 int xchk_setup_parent(struct xfs_scrub *sc,
-			   struct xfs_inode *ip);
+			   struct xfs_iyesde *ip);
 #ifdef CONFIG_XFS_RT
-int xchk_setup_rt(struct xfs_scrub *sc, struct xfs_inode *ip);
+int xchk_setup_rt(struct xfs_scrub *sc, struct xfs_iyesde *ip);
 #else
 static inline int
-xchk_setup_rt(struct xfs_scrub *sc, struct xfs_inode *ip)
+xchk_setup_rt(struct xfs_scrub *sc, struct xfs_iyesde *ip)
 {
 	return -ENOENT;
 }
 #endif
 #ifdef CONFIG_XFS_QUOTA
-int xchk_setup_quota(struct xfs_scrub *sc, struct xfs_inode *ip);
+int xchk_setup_quota(struct xfs_scrub *sc, struct xfs_iyesde *ip);
 #else
 static inline int
-xchk_setup_quota(struct xfs_scrub *sc, struct xfs_inode *ip)
+xchk_setup_quota(struct xfs_scrub *sc, struct xfs_iyesde *ip)
 {
 	return -ENOENT;
 }
 #endif
-int xchk_setup_fscounters(struct xfs_scrub *sc, struct xfs_inode *ip);
+int xchk_setup_fscounters(struct xfs_scrub *sc, struct xfs_iyesde *ip);
 
 void xchk_ag_free(struct xfs_scrub *sc, struct xchk_ag *sa);
-int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agno,
+int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agyes,
 		struct xchk_ag *sa);
 void xchk_perag_get(struct xfs_mount *mp, struct xchk_ag *sa);
-int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t agno,
+int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t agyes,
 		struct xfs_buf **agi, struct xfs_buf **agf,
 		struct xfs_buf **agfl);
 void xchk_ag_btcur_free(struct xchk_ag *sa);
@@ -127,10 +127,10 @@ int xchk_ag_btcur_init(struct xfs_scrub *sc, struct xchk_ag *sa);
 int xchk_count_rmap_ownedby_ag(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		const struct xfs_owner_info *oinfo, xfs_filblks_t *blocks);
 
-int xchk_setup_ag_btree(struct xfs_scrub *sc, struct xfs_inode *ip,
+int xchk_setup_ag_btree(struct xfs_scrub *sc, struct xfs_iyesde *ip,
 		bool force_log);
-int xchk_get_inode(struct xfs_scrub *sc, struct xfs_inode *ip_in);
-int xchk_setup_inode_contents(struct xfs_scrub *sc, struct xfs_inode *ip,
+int xchk_get_iyesde(struct xfs_scrub *sc, struct xfs_iyesde *ip_in);
+int xchk_setup_iyesde_contents(struct xfs_scrub *sc, struct xfs_iyesde *ip,
 		unsigned int resblks);
 void xchk_buffer_recheck(struct xfs_scrub *sc, struct xfs_buf *bp);
 
@@ -144,8 +144,8 @@ static inline bool xchk_skip_xref(struct xfs_scrub_metadata *sm)
 			       XFS_SCRUB_OFLAG_XCORRUPT);
 }
 
-int xchk_metadata_inode_forks(struct xfs_scrub *sc);
-int xchk_ilock_inverted(struct xfs_inode *ip, uint lock_mode);
+int xchk_metadata_iyesde_forks(struct xfs_scrub *sc);
+int xchk_ilock_inverted(struct xfs_iyesde *ip, uint lock_mode);
 void xchk_stop_reaping(struct xfs_scrub *sc);
 void xchk_start_reaping(struct xfs_scrub *sc);
 

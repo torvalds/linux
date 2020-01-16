@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for most of the non-PCI devices in PA-RISC machines
+# Makefile for most of the yesn-PCI devices in PA-RISC machines
 #
 
 # I/O SAPIC is also on IA64 platforms.
@@ -13,7 +13,7 @@ obj-$(CONFIG_IOMMU_CCIO)	+= ccio-dma.o
 obj-$(CONFIG_GSC)		+= gsc.o
 
 obj-$(CONFIG_HPPB)		+= hppb.o
-obj-$(CONFIG_GSC_DINO)		+= dino.o
+obj-$(CONFIG_GSC_DINO)		+= diyes.o
 obj-$(CONFIG_GSC_LASI)		+= lasi.o asp.o
 obj-$(CONFIG_GSC_WAX)		+= wax.o
 obj-$(CONFIG_EISA)		+= eisa.o eisa_enumerator.o eisa_eeprom.o

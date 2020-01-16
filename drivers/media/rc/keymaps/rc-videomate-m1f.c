@@ -3,7 +3,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Pavel Osnova <pvosnova@gmail.com>
+ * Copyright (c) 2010 by Pavel Osyesva <pvosyesva@gmail.com>
  */
 
 #include <media/rc-map.h>
@@ -86,4 +86,4 @@ module_init(init_rc_map_videomate_k100)
 module_exit(exit_rc_map_videomate_k100)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Pavel Osnova <pvosnova@gmail.com>");
+MODULE_AUTHOR("Pavel Osyesva <pvosyesva@gmail.com>");

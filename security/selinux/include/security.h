@@ -19,7 +19,7 @@
 
 #define SECSID_NULL			0x00000000 /* unspecified SID */
 #define SECSID_WILD			0xffffffff /* wildcard SID */
-#define SECCLASS_NULL			0x0000 /* no class */
+#define SECCLASS_NULL			0x0000 /* yes class */
 
 /* Identify specific policy version changes */
 #define POLICYDB_VERSION_BASE		15
@@ -171,7 +171,7 @@ static inline bool selinux_policycap_cgroupseclabel(void)
 	return state->policycap[POLICYDB_CAPABILITY_CGROUPSECLABEL];
 }
 
-static inline bool selinux_policycap_nnp_nosuid_transition(void)
+static inline bool selinux_policycap_nnp_yessuid_transition(void)
 {
 	struct selinux_state *state = &selinux_state;
 
@@ -193,7 +193,7 @@ struct av_decision {
 	u32 allowed;
 	u32 auditallow;
 	u32 auditdeny;
-	u32 seqno;
+	u32 seqyes;
 	u32 flags;
 };
 
@@ -291,7 +291,7 @@ int security_ib_endport_sid(struct selinux_state *state,
 int security_netif_sid(struct selinux_state *state,
 		       char *name, u32 *if_sid);
 
-int security_node_sid(struct selinux_state *state,
+int security_yesde_sid(struct selinux_state *state,
 		      u16 domain, void *addr, u32 addrlen,
 		      u32 *out_sid);
 
@@ -318,14 +318,14 @@ int security_get_classes(struct selinux_state *state,
 			 char ***classes, int *nclasses);
 int security_get_permissions(struct selinux_state *state,
 			     char *class, char ***perms, int *nperms);
-int security_get_reject_unknown(struct selinux_state *state);
-int security_get_allow_unknown(struct selinux_state *state);
+int security_get_reject_unkyeswn(struct selinux_state *state);
+int security_get_allow_unkyeswn(struct selinux_state *state);
 
 #define SECURITY_FS_USE_XATTR		1 /* use xattr */
 #define SECURITY_FS_USE_TRANS		2 /* use transition SIDs, e.g. devpts/tmpfs */
 #define SECURITY_FS_USE_TASK		3 /* use task SIDs, e.g. pipefs/sockfs */
 #define SECURITY_FS_USE_GENFS		4 /* use the genfs support */
-#define SECURITY_FS_USE_NONE		5 /* no labeling support */
+#define SECURITY_FS_USE_NONE		5 /* yes labeling support */
 #define SECURITY_FS_USE_MNTPOINT	6 /* use mountpoint labeling */
 #define SECURITY_FS_USE_NATIVE		7 /* use native label support */
 #define SECURITY_FS_USE_MAX		7 /* Highest SECURITY_FS_USE_XXX */
@@ -363,7 +363,7 @@ static inline int security_netlbl_sid_to_secattr(struct selinux_state *state,
 const char *security_get_initial_sid_context(u32 sid);
 
 /*
- * status notifier using mmap interface
+ * status yestifier using mmap interface
  */
 extern struct page *selinux_kernel_status_page(struct selinux_state *state);
 
@@ -373,7 +373,7 @@ struct selinux_kernel_status {
 	u32	sequence;	/* sequence number of seqlock logic */
 	u32	enforcing;	/* current setting of enforcing mode */
 	u32	policyload;	/* times of policy reloaded */
-	u32	deny_unknown;	/* current setting of deny_unknown */
+	u32	deny_unkyeswn;	/* current setting of deny_unkyeswn */
 	/*
 	 * The version > 0 supports above members.
 	 */
@@ -382,14 +382,14 @@ struct selinux_kernel_status {
 extern void selinux_status_update_setenforce(struct selinux_state *state,
 					     int enforcing);
 extern void selinux_status_update_policyload(struct selinux_state *state,
-					     int seqno);
+					     int seqyes);
 extern void selinux_complete_init(void);
 extern int selinux_disable(struct selinux_state *state);
 extern void exit_sel_fs(void);
 extern struct path selinux_null;
 extern struct vfsmount *selinuxfs_mount;
-extern void selnl_notify_setenforce(int val);
-extern void selnl_notify_policyload(u32 seqno);
+extern void selnl_yestify_setenforce(int val);
+extern void selnl_yestify_policyload(u32 seqyes);
 extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 
 extern void avtab_cache_init(void);

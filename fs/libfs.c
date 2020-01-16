@@ -27,9 +27,9 @@
 int simple_getattr(const struct path *path, struct kstat *stat,
 		   u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
-	generic_fillattr(inode, stat);
-	stat->blocks = inode->i_mapping->nrpages << (PAGE_SHIFT - 9);
+	struct iyesde *iyesde = d_iyesde(path->dentry);
+	generic_fillattr(iyesde, stat);
+	stat->blocks = iyesde->i_mapping->nrpages << (PAGE_SHIFT - 9);
 	return 0;
 }
 EXPORT_SYMBOL(simple_getattr);
@@ -60,9 +60,9 @@ EXPORT_SYMBOL(simple_dentry_operations);
 
 /*
  * Lookup the data. This is trivial - if the dentry didn't already
- * exist, we know it is negative.  Set d_op to delete negative dentries.
+ * exist, we kyesw it is negative.  Set d_op to delete negative dentries.
  */
-struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+struct dentry *simple_lookup(struct iyesde *dir, struct dentry *dentry, unsigned int flags)
 {
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -73,7 +73,7 @@ struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, unsigned 
 }
 EXPORT_SYMBOL(simple_lookup);
 
-int dcache_dir_open(struct inode *inode, struct file *file)
+int dcache_dir_open(struct iyesde *iyesde, struct file *file)
 {
 	file->private_data = d_alloc_cursor(file->f_path.dentry);
 
@@ -81,7 +81,7 @@ int dcache_dir_open(struct inode *inode, struct file *file)
 }
 EXPORT_SYMBOL(dcache_dir_open);
 
-int dcache_dir_close(struct inode *inode, struct file *file)
+int dcache_dir_close(struct iyesde *iyesde, struct file *file)
 {
 	dput(file->private_data);
 	return 0;
@@ -93,7 +93,7 @@ EXPORT_SYMBOL(dcache_dir_close);
  * Returns an element of siblings' list.
  * We are looking for <count>th positive after <p>; if
  * found, dentry is grabbed and returned to caller.
- * If no such element exists, NULL is returned.
+ * If yes such element exists, NULL is returned.
  */
 static struct dentry *scan_positives(struct dentry *cursor,
 					struct list_head *p,
@@ -148,7 +148,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 		struct dentry *cursor = file->private_data;
 		struct dentry *to = NULL;
 
-		inode_lock_shared(dentry->d_inode);
+		iyesde_lock_shared(dentry->d_iyesde);
 
 		if (offset > 2)
 			to = scan_positives(cursor, &dentry->d_subdirs,
@@ -163,16 +163,16 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 
 		file->f_pos = offset;
 
-		inode_unlock_shared(dentry->d_inode);
+		iyesde_unlock_shared(dentry->d_iyesde);
 	}
 	return offset;
 }
 EXPORT_SYMBOL(dcache_dir_lseek);
 
 /* Relationship between i_mode and the DT_xxx types */
-static inline unsigned char dt_type(struct inode *inode)
+static inline unsigned char dt_type(struct iyesde *iyesde)
 {
-	return (inode->i_mode >> 12) & 15;
+	return (iyesde->i_mode >> 12) & 15;
 }
 
 /*
@@ -201,7 +201,7 @@ int dcache_readdir(struct file *file, struct dir_context *ctx)
 
 	while ((next = scan_positives(cursor, p, 1, next)) != NULL) {
 		if (!dir_emit(ctx, next->d_name.name, next->d_name.len,
-			      d_inode(next)->i_ino, dt_type(d_inode(next))))
+			      d_iyesde(next)->i_iyes, dt_type(d_iyesde(next))))
 			break;
 		ctx->pos++;
 		p = &next->d_child;
@@ -230,14 +230,14 @@ const struct file_operations simple_dir_operations = {
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
 	.iterate_shared	= dcache_readdir,
-	.fsync		= noop_fsync,
+	.fsync		= yesop_fsync,
 };
 EXPORT_SYMBOL(simple_dir_operations);
 
-const struct inode_operations simple_dir_inode_operations = {
+const struct iyesde_operations simple_dir_iyesde_operations = {
 	.lookup		= simple_lookup,
 };
-EXPORT_SYMBOL(simple_dir_inode_operations);
+EXPORT_SYMBOL(simple_dir_iyesde_operations);
 
 static const struct super_operations simple_super_operations = {
 	.statfs		= simple_statfs,
@@ -246,7 +246,7 @@ static const struct super_operations simple_super_operations = {
 static int pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
 {
 	struct pseudo_fs_context *ctx = fc->fs_private;
-	struct inode *root;
+	struct iyesde *root;
 
 	s->s_maxbytes = MAX_LFS_FILESIZE;
 	s->s_blocksize = PAGE_SIZE;
@@ -255,16 +255,16 @@ static int pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
 	s->s_op = ctx->ops ?: &simple_super_operations;
 	s->s_xattr = ctx->xattr;
 	s->s_time_gran = 1;
-	root = new_inode(s);
+	root = new_iyesde(s);
 	if (!root)
 		return -ENOMEM;
 
 	/*
-	 * since this is the first inode, make it number 1. New inodes created
-	 * after this must take care not to collide with it (by passing
+	 * since this is the first iyesde, make it number 1. New iyesdes created
+	 * after this must take care yest to collide with it (by passing
 	 * max_reserved of 1 to iunique).
 	 */
-	root->i_ino = 1;
+	root->i_iyes = 1;
 	root->i_mode = S_IFDIR | S_IRUSR | S_IWUSR;
 	root->i_atime = root->i_mtime = root->i_ctime = current_time(root);
 	s->s_root = d_make_root(root);
@@ -276,7 +276,7 @@ static int pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
 
 static int pseudo_fs_get_tree(struct fs_context *fc)
 {
-	return get_tree_nodev(fc, pseudo_fs_fill_super);
+	return get_tree_yesdev(fc, pseudo_fs_fill_super);
 }
 
 static void pseudo_fs_free(struct fs_context *fc)
@@ -310,23 +310,23 @@ struct pseudo_fs_context *init_pseudo(struct fs_context *fc,
 }
 EXPORT_SYMBOL(init_pseudo);
 
-int simple_open(struct inode *inode, struct file *file)
+int simple_open(struct iyesde *iyesde, struct file *file)
 {
-	if (inode->i_private)
-		file->private_data = inode->i_private;
+	if (iyesde->i_private)
+		file->private_data = iyesde->i_private;
 	return 0;
 }
 EXPORT_SYMBOL(simple_open);
 
-int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
+int simple_link(struct dentry *old_dentry, struct iyesde *dir, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(old_dentry);
+	struct iyesde *iyesde = d_iyesde(old_dentry);
 
-	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
-	inc_nlink(inode);
-	ihold(inode);
+	iyesde->i_ctime = dir->i_ctime = dir->i_mtime = current_time(iyesde);
+	inc_nlink(iyesde);
+	ihold(iyesde);
 	dget(dentry);
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 	return 0;
 }
 EXPORT_SYMBOL(simple_link);
@@ -352,34 +352,34 @@ out:
 }
 EXPORT_SYMBOL(simple_empty);
 
-int simple_unlink(struct inode *dir, struct dentry *dentry)
+int simple_unlink(struct iyesde *dir, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 
-	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
-	drop_nlink(inode);
+	iyesde->i_ctime = dir->i_ctime = dir->i_mtime = current_time(iyesde);
+	drop_nlink(iyesde);
 	dput(dentry);
 	return 0;
 }
 EXPORT_SYMBOL(simple_unlink);
 
-int simple_rmdir(struct inode *dir, struct dentry *dentry)
+int simple_rmdir(struct iyesde *dir, struct dentry *dentry)
 {
 	if (!simple_empty(dentry))
 		return -ENOTEMPTY;
 
-	drop_nlink(d_inode(dentry));
+	drop_nlink(d_iyesde(dentry));
 	simple_unlink(dir, dentry);
 	drop_nlink(dir);
 	return 0;
 }
 EXPORT_SYMBOL(simple_rmdir);
 
-int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
-		  struct inode *new_dir, struct dentry *new_dentry,
+int simple_rename(struct iyesde *old_dir, struct dentry *old_dentry,
+		  struct iyesde *new_dir, struct dentry *new_dentry,
 		  unsigned int flags)
 {
-	struct inode *inode = d_inode(old_dentry);
+	struct iyesde *iyesde = d_iyesde(old_dentry);
 	int they_are_dirs = d_is_dir(old_dentry);
 
 	if (flags & ~RENAME_NOREPLACE)
@@ -391,7 +391,7 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (d_really_is_positive(new_dentry)) {
 		simple_unlink(new_dir, new_dentry);
 		if (they_are_dirs) {
-			drop_nlink(d_inode(new_dentry));
+			drop_nlink(d_iyesde(new_dentry));
 			drop_nlink(old_dir);
 		}
 	} else if (they_are_dirs) {
@@ -400,7 +400,7 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 
 	old_dir->i_ctime = old_dir->i_mtime = new_dir->i_ctime =
-		new_dir->i_mtime = inode->i_ctime = current_time(old_dir);
+		new_dir->i_mtime = iyesde->i_ctime = current_time(old_dir);
 
 	return 0;
 }
@@ -422,7 +422,7 @@ EXPORT_SYMBOL(simple_rename);
  */
 int simple_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 	int error;
 
 	error = setattr_prepare(dentry, iattr);
@@ -430,9 +430,9 @@ int simple_setattr(struct dentry *dentry, struct iattr *iattr)
 		return error;
 
 	if (iattr->ia_valid & ATTR_SIZE)
-		truncate_setsize(inode, iattr->ia_size);
-	setattr_copy(inode, iattr);
-	mark_inode_dirty(inode);
+		truncate_setsize(iyesde, iattr->ia_size);
+	setattr_copy(iyesde, iattr);
+	mark_iyesde_dirty(iyesde);
 	return 0;
 }
 EXPORT_SYMBOL(simple_setattr);
@@ -472,7 +472,7 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 EXPORT_SYMBOL(simple_write_begin);
 
 /**
- * simple_write_end - .write_end helper for non-block-device FSes
+ * simple_write_end - .write_end helper for yesn-block-device FSes
  * @file: See .write_end of address_space_operations
  * @mapping: 		"
  * @pos: 		"
@@ -486,9 +486,9 @@ EXPORT_SYMBOL(simple_write_begin);
  * address_space_operations vector. So it can just be set onto .write_end for
  * FSes that don't need any other processing. i_mutex is assumed to be held.
  * Block based filesystems should use generic_write_end().
- * NOTE: Even though i_size might get updated by this function, mark_inode_dirty
- * is not called, so a filesystem that actually does store data in .write_inode
- * should extend on what's done here with a call to mark_inode_dirty() in the
+ * NOTE: Even though i_size might get updated by this function, mark_iyesde_dirty
+ * is yest called, so a filesystem that actually does store data in .write_iyesde
+ * should extend on what's done here with a call to mark_iyesde_dirty() in the
  * case that i_size has changed.
  *
  * Use *ONLY* with simple_readpage()
@@ -497,7 +497,7 @@ int simple_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	loff_t last_pos = pos + copied;
 
 	/* zero the stale part of the page if we did a short copy */
@@ -511,10 +511,10 @@ int simple_write_end(struct file *file, struct address_space *mapping,
 	}
 	/*
 	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold the i_mutex.
+	 * canyest change under us because we hold the i_mutex.
 	 */
-	if (last_pos > inode->i_size)
-		i_size_write(inode, last_pos);
+	if (last_pos > iyesde->i_size)
+		i_size_write(iyesde, last_pos);
 
 	set_page_dirty(page);
 	unlock_page(page);
@@ -525,14 +525,14 @@ int simple_write_end(struct file *file, struct address_space *mapping,
 EXPORT_SYMBOL(simple_write_end);
 
 /*
- * the inodes created here are not hashed. If you use iunique to generate
- * unique inode values later for this filesystem, then you must take care
+ * the iyesdes created here are yest hashed. If you use iunique to generate
+ * unique iyesde values later for this filesystem, then you must take care
  * to pass it an appropriate max_reserved value to avoid collisions.
  */
 int simple_fill_super(struct super_block *s, unsigned long magic,
 		      const struct tree_descr *files)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct dentry *root;
 	struct dentry *dentry;
 	int i;
@@ -543,27 +543,27 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	s->s_op = &simple_super_operations;
 	s->s_time_gran = 1;
 
-	inode = new_inode(s);
-	if (!inode)
+	iyesde = new_iyesde(s);
+	if (!iyesde)
 		return -ENOMEM;
 	/*
-	 * because the root inode is 1, the files array must not contain an
+	 * because the root iyesde is 1, the files array must yest contain an
 	 * entry at index 1
 	 */
-	inode->i_ino = 1;
-	inode->i_mode = S_IFDIR | 0755;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
-	set_nlink(inode, 2);
-	root = d_make_root(inode);
+	iyesde->i_iyes = 1;
+	iyesde->i_mode = S_IFDIR | 0755;
+	iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
+	iyesde->i_op = &simple_dir_iyesde_operations;
+	iyesde->i_fop = &simple_dir_operations;
+	set_nlink(iyesde, 2);
+	root = d_make_root(iyesde);
 	if (!root)
 		return -ENOMEM;
 	for (i = 0; !files->name || files->name[0]; i++, files++) {
 		if (!files->name)
 			continue;
 
-		/* warn if it tries to conflict with the root inode */
+		/* warn if it tries to conflict with the root iyesde */
 		if (unlikely(i == 1))
 			printk(KERN_WARNING "%s: %s passed in a files array"
 				"with an index of 1!\n", __func__,
@@ -572,21 +572,21 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 		dentry = d_alloc_name(root, files->name);
 		if (!dentry)
 			goto out;
-		inode = new_inode(s);
-		if (!inode) {
+		iyesde = new_iyesde(s);
+		if (!iyesde) {
 			dput(dentry);
 			goto out;
 		}
-		inode->i_mode = S_IFREG | files->mode;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
-		inode->i_fop = files->ops;
-		inode->i_ino = i;
-		d_add(dentry, inode);
+		iyesde->i_mode = S_IFREG | files->mode;
+		iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
+		iyesde->i_fop = files->ops;
+		iyesde->i_iyes = i;
+		d_add(dentry, iyesde);
 	}
 	s->s_root = root;
 	return 0;
 out:
-	d_genocide(root);
+	d_geyescide(root);
 	shrink_dcache_parent(root);
 	dput(root);
 	return -ENOMEM;
@@ -794,7 +794,7 @@ ssize_t simple_transaction_read(struct file *file, char __user *buf, size_t size
 }
 EXPORT_SYMBOL(simple_transaction_read);
 
-int simple_transaction_release(struct inode *inode, struct file *file)
+int simple_transaction_release(struct iyesde *iyesde, struct file *file)
 {
 	free_page((unsigned long)file->private_data);
 	return 0;
@@ -806,7 +806,7 @@ EXPORT_SYMBOL(simple_transaction_release);
 struct simple_attr {
 	int (*get)(void *, u64 *);
 	int (*set)(void *, u64);
-	char get_buf[24];	/* enough to store a u64 and "\n\0" */
+	char get_buf[24];	/* eyesugh to store a u64 and "\n\0" */
 	char set_buf[24];
 	void *data;
 	const char *fmt;	/* format for read operation */
@@ -815,7 +815,7 @@ struct simple_attr {
 
 /* simple_attr_open is called by an actual attribute open file operation
  * to set the attribute specific access operations. */
-int simple_attr_open(struct inode *inode, struct file *file,
+int simple_attr_open(struct iyesde *iyesde, struct file *file,
 		     int (*get)(void *, u64 *), int (*set)(void *, u64),
 		     const char *fmt)
 {
@@ -827,17 +827,17 @@ int simple_attr_open(struct inode *inode, struct file *file,
 
 	attr->get = get;
 	attr->set = set;
-	attr->data = inode->i_private;
+	attr->data = iyesde->i_private;
 	attr->fmt = fmt;
 	mutex_init(&attr->mutex);
 
 	file->private_data = attr;
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 EXPORT_SYMBOL_GPL(simple_attr_open);
 
-int simple_attr_release(struct inode *inode, struct file *file)
+int simple_attr_release(struct iyesde *iyesde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -919,17 +919,17 @@ EXPORT_SYMBOL_GPL(simple_attr_write);
  * @fid:	file handle to convert
  * @fh_len:	length of the file handle in bytes
  * @fh_type:	type of file handle
- * @get_inode:	filesystem callback to retrieve inode
+ * @get_iyesde:	filesystem callback to retrieve iyesde
  *
- * This function decodes @fid as long as it has one of the well-known
- * Linux filehandle types and calls @get_inode on it to retrieve the
- * inode for the object specified in the file handle.
+ * This function decodes @fid as long as it has one of the well-kyeswn
+ * Linux filehandle types and calls @get_iyesde on it to retrieve the
+ * iyesde for the object specified in the file handle.
  */
 struct dentry *generic_fh_to_dentry(struct super_block *sb, struct fid *fid,
-		int fh_len, int fh_type, struct inode *(*get_inode)
-			(struct super_block *sb, u64 ino, u32 gen))
+		int fh_len, int fh_type, struct iyesde *(*get_iyesde)
+			(struct super_block *sb, u64 iyes, u32 gen))
 {
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 
 	if (fh_len < 2)
 		return NULL;
@@ -937,11 +937,11 @@ struct dentry *generic_fh_to_dentry(struct super_block *sb, struct fid *fid,
 	switch (fh_type) {
 	case FILEID_INO32_GEN:
 	case FILEID_INO32_GEN_PARENT:
-		inode = get_inode(sb, fid->i32.ino, fid->i32.gen);
+		iyesde = get_iyesde(sb, fid->i32.iyes, fid->i32.gen);
 		break;
 	}
 
-	return d_obtain_alias(inode);
+	return d_obtain_alias(iyesde);
 }
 EXPORT_SYMBOL_GPL(generic_fh_to_dentry);
 
@@ -951,30 +951,30 @@ EXPORT_SYMBOL_GPL(generic_fh_to_dentry);
  * @fid:	file handle to convert
  * @fh_len:	length of the file handle in bytes
  * @fh_type:	type of file handle
- * @get_inode:	filesystem callback to retrieve inode
+ * @get_iyesde:	filesystem callback to retrieve iyesde
  *
- * This function decodes @fid as long as it has one of the well-known
- * Linux filehandle types and calls @get_inode on it to retrieve the
- * inode for the _parent_ object specified in the file handle if it
+ * This function decodes @fid as long as it has one of the well-kyeswn
+ * Linux filehandle types and calls @get_iyesde on it to retrieve the
+ * iyesde for the _parent_ object specified in the file handle if it
  * is specified in the file handle, or NULL otherwise.
  */
 struct dentry *generic_fh_to_parent(struct super_block *sb, struct fid *fid,
-		int fh_len, int fh_type, struct inode *(*get_inode)
-			(struct super_block *sb, u64 ino, u32 gen))
+		int fh_len, int fh_type, struct iyesde *(*get_iyesde)
+			(struct super_block *sb, u64 iyes, u32 gen))
 {
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 
 	if (fh_len <= 2)
 		return NULL;
 
 	switch (fh_type) {
 	case FILEID_INO32_GEN_PARENT:
-		inode = get_inode(sb, fid->i32.parent_ino,
+		iyesde = get_iyesde(sb, fid->i32.parent_iyes,
 				  (fh_len > 3 ? fid->i32.parent_gen : 0));
 		break;
 	}
 
-	return d_obtain_alias(inode);
+	return d_obtain_alias(iyesde);
 }
 EXPORT_SYMBOL_GPL(generic_fh_to_parent);
 
@@ -987,13 +987,13 @@ EXPORT_SYMBOL_GPL(generic_fh_to_parent);
  * @datasync:	only synchronize essential metadata if true
  *
  * This is a generic implementation of the fsync method for simple
- * filesystems which track all non-inode metadata in the buffers list
+ * filesystems which track all yesn-iyesde metadata in the buffers list
  * hanging off the address_space structure.
  */
 int __generic_file_fsync(struct file *file, loff_t start, loff_t end,
 				 int datasync)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 	int err;
 	int ret;
 
@@ -1001,19 +1001,19 @@ int __generic_file_fsync(struct file *file, loff_t start, loff_t end,
 	if (err)
 		return err;
 
-	inode_lock(inode);
-	ret = sync_mapping_buffers(inode->i_mapping);
-	if (!(inode->i_state & I_DIRTY_ALL))
+	iyesde_lock(iyesde);
+	ret = sync_mapping_buffers(iyesde->i_mapping);
+	if (!(iyesde->i_state & I_DIRTY_ALL))
 		goto out;
-	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
+	if (datasync && !(iyesde->i_state & I_DIRTY_DATASYNC))
 		goto out;
 
-	err = sync_inode_metadata(inode, 1);
+	err = sync_iyesde_metadata(iyesde, 1);
 	if (ret == 0)
 		ret = err;
 
 out:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	/* check and advance again to catch errors after syncing out buffers */
 	err = file_check_and_advance_wb_err(file);
 	if (ret == 0)
@@ -1035,13 +1035,13 @@ EXPORT_SYMBOL(__generic_file_fsync);
 int generic_file_fsync(struct file *file, loff_t start, loff_t end,
 		       int datasync)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 	int err;
 
 	err = __generic_file_fsync(file, start, end, datasync);
 	if (err)
 		return err;
-	return blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+	return blkdev_issue_flush(iyesde->i_sb->s_bdev, GFP_KERNEL, NULL);
 }
 EXPORT_SYMBOL(generic_file_fsync);
 
@@ -1077,50 +1077,50 @@ EXPORT_SYMBOL(generic_check_addressable);
 /*
  * No-op implementation of ->fsync for in-memory filesystems.
  */
-int noop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+int yesop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	return 0;
 }
-EXPORT_SYMBOL(noop_fsync);
+EXPORT_SYMBOL(yesop_fsync);
 
-int noop_set_page_dirty(struct page *page)
+int yesop_set_page_dirty(struct page *page)
 {
 	/*
-	 * Unlike __set_page_dirty_no_writeback that handles dirty page
+	 * Unlike __set_page_dirty_yes_writeback that handles dirty page
 	 * tracking in the page object, dax does all dirty tracking in
-	 * the inode address_space in response to mkwrite faults. In the
+	 * the iyesde address_space in response to mkwrite faults. In the
 	 * dax case we only need to worry about potentially dirty CPU
-	 * caches, not dirty page cache pages to write back.
+	 * caches, yest dirty page cache pages to write back.
 	 *
 	 * This callback is defined to prevent fallback to
 	 * __set_page_dirty_buffers() in set_page_dirty().
 	 */
 	return 0;
 }
-EXPORT_SYMBOL_GPL(noop_set_page_dirty);
+EXPORT_SYMBOL_GPL(yesop_set_page_dirty);
 
-void noop_invalidatepage(struct page *page, unsigned int offset,
+void yesop_invalidatepage(struct page *page, unsigned int offset,
 		unsigned int length)
 {
 	/*
-	 * There is no page cache to invalidate in the dax case, however
+	 * There is yes page cache to invalidate in the dax case, however
 	 * we need this callback defined to prevent falling back to
 	 * block_invalidatepage() in do_invalidatepage().
 	 */
 }
-EXPORT_SYMBOL_GPL(noop_invalidatepage);
+EXPORT_SYMBOL_GPL(yesop_invalidatepage);
 
-ssize_t noop_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
+ssize_t yesop_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	/*
 	 * iomap based filesystems support direct I/O without need for
 	 * this callback. However, it still needs to be set in
-	 * inode->a_ops so that open/fcntl know that direct I/O is
+	 * iyesde->a_ops so that open/fcntl kyesw that direct I/O is
 	 * generally supported.
 	 */
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(noop_direct_IO);
+EXPORT_SYMBOL_GPL(yesop_direct_IO);
 
 /* Because kfree isn't assignment-compatible with void(void*) ;-/ */
 void kfree_link(void *p)
@@ -1130,96 +1130,96 @@ void kfree_link(void *p)
 EXPORT_SYMBOL(kfree_link);
 
 /*
- * nop .set_page_dirty method so that people can use .page_mkwrite on
- * anon inodes.
+ * yesp .set_page_dirty method so that people can use .page_mkwrite on
+ * ayesn iyesdes.
  */
-static int anon_set_page_dirty(struct page *page)
+static int ayesn_set_page_dirty(struct page *page)
 {
 	return 0;
 };
 
 /*
- * A single inode exists for all anon_inode files. Contrary to pipes,
- * anon_inode inodes have no associated per-instance data, so we need
+ * A single iyesde exists for all ayesn_iyesde files. Contrary to pipes,
+ * ayesn_iyesde iyesdes have yes associated per-instance data, so we need
  * only allocate one of them.
  */
-struct inode *alloc_anon_inode(struct super_block *s)
+struct iyesde *alloc_ayesn_iyesde(struct super_block *s)
 {
-	static const struct address_space_operations anon_aops = {
-		.set_page_dirty = anon_set_page_dirty,
+	static const struct address_space_operations ayesn_aops = {
+		.set_page_dirty = ayesn_set_page_dirty,
 	};
-	struct inode *inode = new_inode_pseudo(s);
+	struct iyesde *iyesde = new_iyesde_pseudo(s);
 
-	if (!inode)
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
 
-	inode->i_ino = get_next_ino();
-	inode->i_mapping->a_ops = &anon_aops;
+	iyesde->i_iyes = get_next_iyes();
+	iyesde->i_mapping->a_ops = &ayesn_aops;
 
 	/*
-	 * Mark the inode dirty from the very beginning,
+	 * Mark the iyesde dirty from the very beginning,
 	 * that way it will never be moved to the dirty
-	 * list because mark_inode_dirty() will think
+	 * list because mark_iyesde_dirty() will think
 	 * that it already _is_ on the dirty list.
 	 */
-	inode->i_state = I_DIRTY;
-	inode->i_mode = S_IRUSR | S_IWUSR;
-	inode->i_uid = current_fsuid();
-	inode->i_gid = current_fsgid();
-	inode->i_flags |= S_PRIVATE;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
-	return inode;
+	iyesde->i_state = I_DIRTY;
+	iyesde->i_mode = S_IRUSR | S_IWUSR;
+	iyesde->i_uid = current_fsuid();
+	iyesde->i_gid = current_fsgid();
+	iyesde->i_flags |= S_PRIVATE;
+	iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
+	return iyesde;
 }
-EXPORT_SYMBOL(alloc_anon_inode);
+EXPORT_SYMBOL(alloc_ayesn_iyesde);
 
 /**
- * simple_nosetlease - generic helper for prohibiting leases
+ * simple_yessetlease - generic helper for prohibiting leases
  * @filp: file pointer
  * @arg: type of lease to obtain
  * @flp: new lease supplied for insertion
  * @priv: private data for lm_setup operation
  *
- * Generic helper for filesystems that do not wish to allow leases to be set.
- * All arguments are ignored and it just returns -EINVAL.
+ * Generic helper for filesystems that do yest wish to allow leases to be set.
+ * All arguments are igyesred and it just returns -EINVAL.
  */
 int
-simple_nosetlease(struct file *filp, long arg, struct file_lock **flp,
+simple_yessetlease(struct file *filp, long arg, struct file_lock **flp,
 		  void **priv)
 {
 	return -EINVAL;
 }
-EXPORT_SYMBOL(simple_nosetlease);
+EXPORT_SYMBOL(simple_yessetlease);
 
 /**
  * simple_get_link - generic helper to get the target of "fast" symlinks
- * @dentry: not used here
- * @inode: the symlink inode
- * @done: not used here
+ * @dentry: yest used here
+ * @iyesde: the symlink iyesde
+ * @done: yest used here
  *
- * Generic helper for filesystems to use for symlink inodes where a pointer to
- * the symlink target is stored in ->i_link.  NOTE: this isn't normally called,
- * since as an optimization the path lookup code uses any non-NULL ->i_link
+ * Generic helper for filesystems to use for symlink iyesdes where a pointer to
+ * the symlink target is stored in ->i_link.  NOTE: this isn't yesrmally called,
+ * since as an optimization the path lookup code uses any yesn-NULL ->i_link
  * directly, without calling ->get_link().  But ->get_link() still must be set,
- * to mark the inode_operations as being for a symlink.
+ * to mark the iyesde_operations as being for a symlink.
  *
  * Return: the symlink target
  */
-const char *simple_get_link(struct dentry *dentry, struct inode *inode,
+const char *simple_get_link(struct dentry *dentry, struct iyesde *iyesde,
 			    struct delayed_call *done)
 {
-	return inode->i_link;
+	return iyesde->i_link;
 }
 EXPORT_SYMBOL(simple_get_link);
 
-const struct inode_operations simple_symlink_inode_operations = {
+const struct iyesde_operations simple_symlink_iyesde_operations = {
 	.get_link = simple_get_link,
 };
-EXPORT_SYMBOL(simple_symlink_inode_operations);
+EXPORT_SYMBOL(simple_symlink_iyesde_operations);
 
 /*
  * Operations for a permanently empty directory.
  */
-static struct dentry *empty_dir_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+static struct dentry *empty_dir_lookup(struct iyesde *dir, struct dentry *dentry, unsigned int flags)
 {
 	return ERR_PTR(-ENOENT);
 }
@@ -1227,8 +1227,8 @@ static struct dentry *empty_dir_lookup(struct inode *dir, struct dentry *dentry,
 static int empty_dir_getattr(const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
-	generic_fillattr(inode, stat);
+	struct iyesde *iyesde = d_iyesde(path->dentry);
+	generic_fillattr(iyesde, stat);
 	return 0;
 }
 
@@ -1242,7 +1242,7 @@ static ssize_t empty_dir_listxattr(struct dentry *dentry, char *list, size_t siz
 	return -EOPNOTSUPP;
 }
 
-static const struct inode_operations empty_dir_inode_operations = {
+static const struct iyesde_operations empty_dir_iyesde_operations = {
 	.lookup		= empty_dir_lookup,
 	.permission	= generic_permission,
 	.setattr	= empty_dir_setattr,
@@ -1266,28 +1266,28 @@ static const struct file_operations empty_dir_operations = {
 	.llseek		= empty_dir_llseek,
 	.read		= generic_read_dir,
 	.iterate_shared	= empty_dir_readdir,
-	.fsync		= noop_fsync,
+	.fsync		= yesop_fsync,
 };
 
 
-void make_empty_dir_inode(struct inode *inode)
+void make_empty_dir_iyesde(struct iyesde *iyesde)
 {
-	set_nlink(inode, 2);
-	inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
-	inode->i_uid = GLOBAL_ROOT_UID;
-	inode->i_gid = GLOBAL_ROOT_GID;
-	inode->i_rdev = 0;
-	inode->i_size = 0;
-	inode->i_blkbits = PAGE_SHIFT;
-	inode->i_blocks = 0;
+	set_nlink(iyesde, 2);
+	iyesde->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	iyesde->i_uid = GLOBAL_ROOT_UID;
+	iyesde->i_gid = GLOBAL_ROOT_GID;
+	iyesde->i_rdev = 0;
+	iyesde->i_size = 0;
+	iyesde->i_blkbits = PAGE_SHIFT;
+	iyesde->i_blocks = 0;
 
-	inode->i_op = &empty_dir_inode_operations;
-	inode->i_opflags &= ~IOP_XATTR;
-	inode->i_fop = &empty_dir_operations;
+	iyesde->i_op = &empty_dir_iyesde_operations;
+	iyesde->i_opflags &= ~IOP_XATTR;
+	iyesde->i_fop = &empty_dir_operations;
 }
 
-bool is_empty_dir_inode(struct inode *inode)
+bool is_empty_dir_iyesde(struct iyesde *iyesde)
 {
-	return (inode->i_fop == &empty_dir_operations) &&
-		(inode->i_op == &empty_dir_inode_operations);
+	return (iyesde->i_fop == &empty_dir_operations) &&
+		(iyesde->i_op == &empty_dir_iyesde_operations);
 }

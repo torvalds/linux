@@ -28,10 +28,10 @@
 #include "fimc-is-param.h"
 #include "fimc-is-regs.h"
 
-#define FIMC_IS_DRV_NAME		"exynos4-fimc-is"
+#define FIMC_IS_DRV_NAME		"exyyess4-fimc-is"
 
-#define FIMC_IS_FW_FILENAME		"exynos4_fimc_is_fw.bin"
-#define FIMC_IS_SETFILE_6A3		"exynos4_s5k6a3_setfile.bin"
+#define FIMC_IS_FW_FILENAME		"exyyess4_fimc_is_fw.bin"
+#define FIMC_IS_SETFILE_6A3		"exyyess4_s5k6a3_setfile.bin"
 
 #define FIMC_IS_FW_LOAD_TIMEOUT		1000 /* ms */
 #define FIMC_IS_POWER_ON_TIMEOUT	1000 /* us */

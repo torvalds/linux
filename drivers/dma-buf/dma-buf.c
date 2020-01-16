@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-fence.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/export.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
@@ -74,10 +74,10 @@ static int dma_buf_fs_init_context(struct fs_context *fc)
 static struct file_system_type dma_buf_fs_type = {
 	.name = "dmabuf",
 	.init_fs_context = dma_buf_fs_init_context,
-	.kill_sb = kill_anon_super,
+	.kill_sb = kill_ayesn_super,
 };
 
-static int dma_buf_release(struct inode *inode, struct file *file)
+static int dma_buf_release(struct iyesde *iyesde, struct file *file)
 {
 	struct dma_buf *dmabuf;
 
@@ -101,7 +101,7 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 	dmabuf->ops->release(dmabuf);
 
 	mutex_lock(&db_list.lock);
-	list_del(&dmabuf->list_node);
+	list_del(&dmabuf->list_yesde);
 	mutex_unlock(&db_list.lock);
 
 	if (dmabuf->resv == (struct dma_resv *)&dmabuf[1])
@@ -267,7 +267,7 @@ retry:
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_shared;
 		int i;
 
-		/* Only queue a new callback if no event has fired yet */
+		/* Only queue a new callback if yes event has fired yet */
 		spin_lock_irq(&dmabuf->poll.lock);
 		if (dcb->active)
 			events &= ~EPOLLOUT;
@@ -313,7 +313,7 @@ out:
 
 /**
  * dma_buf_set_name - Set a name to a specific dma_buf to track the usage.
- * The name of the dma-buf buffer can only be set when the dma-buf is not
+ * The name of the dma-buf buffer can only be set when the dma-buf is yest
  * attached to any devices. It could theoritically support changing the
  * name of the dma-buf if the same piece of memory is used for multiple
  * purpose between different devices.
@@ -430,15 +430,15 @@ static inline int is_dma_buf_file(struct file *file)
 static struct file *dma_buf_getfile(struct dma_buf *dmabuf, int flags)
 {
 	struct file *file;
-	struct inode *inode = alloc_anon_inode(dma_buf_mnt->mnt_sb);
+	struct iyesde *iyesde = alloc_ayesn_iyesde(dma_buf_mnt->mnt_sb);
 
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
+	if (IS_ERR(iyesde))
+		return ERR_CAST(iyesde);
 
-	inode->i_size = dmabuf->size;
-	inode_set_bytes(inode, dmabuf->size);
+	iyesde->i_size = dmabuf->size;
+	iyesde_set_bytes(iyesde, dmabuf->size);
 
-	file = alloc_file_pseudo(inode, dma_buf_mnt, "dmabuf",
+	file = alloc_file_pseudo(iyesde, dma_buf_mnt, "dmabuf",
 				 flags, &dma_buf_fops);
 	if (IS_ERR(file))
 		goto err_alloc_file;
@@ -449,7 +449,7 @@ static struct file *dma_buf_getfile(struct dma_buf *dmabuf, int flags)
 	return file;
 
 err_alloc_file:
-	iput(inode);
+	iput(iyesde);
 	return file;
 }
 
@@ -485,7 +485,7 @@ err_alloc_file:
  */
 
 /**
- * dma_buf_export - Creates a new dma_buf, and associates an anon file
+ * dma_buf_export - Creates a new dma_buf, and associates an ayesn file
  * with this buffer, so it can be exported.
  * Also connect the allocator specific data and ops to the buffer.
  * Additionally, provide a name string for exporter; useful in debugging.
@@ -564,7 +564,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	INIT_LIST_HEAD(&dmabuf->attachments);
 
 	mutex_lock(&db_list.lock);
-	list_add(&dmabuf->list_node, &db_list.head);
+	list_add(&dmabuf->list_yesde, &db_list.head);
 	mutex_unlock(&db_list.lock);
 
 	return dmabuf;
@@ -661,8 +661,8 @@ EXPORT_SYMBOL_GPL(dma_buf_put);
  * A pointer to newly created &dma_buf_attachment on success, or a negative
  * error code wrapped into a pointer on failure.
  *
- * Note that this can fail if the backing storage of @dmabuf is in a place not
- * accessible to @dev, and cannot be moved to a more suitable place. This is
+ * Note that this can fail if the backing storage of @dmabuf is in a place yest
+ * accessible to @dev, and canyest be moved to a more suitable place. This is
  * indicated with the error code -EBUSY.
  */
 struct dma_buf_attachment *
@@ -689,7 +689,7 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 			goto err_attach;
 	}
 	dma_resv_lock(dmabuf->resv, NULL);
-	list_add(&attach->node, &dmabuf->attachments);
+	list_add(&attach->yesde, &dmabuf->attachments);
 	dma_resv_unlock(dmabuf->resv);
 
 	/* When either the importer or the exporter can't handle dynamic
@@ -770,7 +770,7 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 	}
 
 	dma_resv_lock(dmabuf->resv, NULL);
-	list_del(&attach->node);
+	list_del(&attach->yesde);
 	dma_resv_unlock(dmabuf->resv);
 	if (dmabuf->ops->detach)
 		dmabuf->ops->detach(dmabuf, attach);
@@ -791,7 +791,7 @@ EXPORT_SYMBOL_GPL(dma_buf_detach);
  *
  * A mapping must be unmapped by using dma_buf_unmap_attachment(). Note that
  * the underlying backing storage is pinned for as long as a mapping exists,
- * therefore users/importers should not hold onto a mapping for undue amounts of
+ * therefore users/importers should yest hold onto a mapping for undue amounts of
  * time.
  */
 struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
@@ -810,7 +810,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 	if (attach->sgt) {
 		/*
 		 * Two mappings with different directions for the same
-		 * attachment are not allowed.
+		 * attachment are yest allowed.
 		 */
 		if (attach->dir != direction &&
 		    attach->dir != DMA_BIDIRECTIONAL)
@@ -882,8 +882,8 @@ EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
  *   using an api similar to kmap. Accessing a dma_buf is done in aligned chunks
  *   of PAGE_SIZE size. Before accessing a chunk it needs to be mapped, which
  *   returns a pointer in kernel virtual address space. Afterwards the chunk
- *   needs to be unmapped again. There is no limit on how often a given chunk
- *   can be mapped and unmapped, i.e. the importer does not need to call
+ *   needs to be unmapped again. There is yes limit on how often a given chunk
+ *   can be mapped and unmapped, i.e. the importer does yest need to call
  *   begin_cpu_access again before mapping the same chunk again.
  *
  *   Interfaces::
@@ -894,7 +894,7 @@ EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
  *   the restrictions of using kmap apply.
  *
  *   dma_buf kmap calls outside of the range specified in begin_cpu_access are
- *   undefined. If the range is not PAGE_SIZE aligned, kmap needs to succeed on
+ *   undefined. If the range is yest PAGE_SIZE aligned, kmap needs to succeed on
  *   the partial chunks at the beginning and end but may return stale or bogus
  *   data outside of the range (in these partial chunks).
  *
@@ -906,10 +906,10 @@ EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
  *      void \*dma_buf_vmap(struct dma_buf \*dmabuf)
  *      void dma_buf_vunmap(struct dma_buf \*dmabuf, void \*vaddr)
  *
- *   The vmap call can fail if there is no vmap support in the exporter, or if
+ *   The vmap call can fail if there is yes vmap support in the exporter, or if
  *   it runs out of vmalloc space. Fallback to kmap should be implemented. Note
  *   that the dma-buf layer keeps a reference count for all vmap access and
- *   calls down into the exporter's vmap function only when no vmapping exists,
+ *   calls down into the exporter's vmap function only when yes vmapping exists,
  *   and only unmaps it once. Protection against concurrent vmap/vunmap calls is
  *   provided by taking the dma_buf->lock mutex.
  *
@@ -920,7 +920,7 @@ EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
  *   framework already supported this and for DMA buffer file descriptors to
  *   replace ION buffers mmap support was needed.
  *
- *   There is no special interfaces, userspace simply calls mmap on the dma-buf
+ *   There is yes special interfaces, userspace simply calls mmap on the dma-buf
  *   fd. But like for CPU access there's a need to braket the actual access,
  *   which is handled by the ioctl (DMA_BUF_IOCTL_SYNC). Note that
  *   DMA_BUF_IOCTL_SYNC can fail with -EAGAIN or -EINTR, in which case it must
@@ -936,13 +936,13 @@ EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
  *     - mmap dma-buf fd
  *     - for each drawing/upload cycle in CPU 1. SYNC_START ioctl, 2. read/write
  *       to mmap area 3. SYNC_END ioctl. This can be repeated as often as you
- *       want (with the new data being consumed by say the GPU or the scanout
+ *       want (with the new data being consumed by say the GPU or the scayesut
  *       device)
  *     - munmap once you don't need the buffer any more
  *
  *    For correctness and optimal performance, it is always required to use
  *    SYNC_START and SYNC_END before and after, respectively, when accessing the
- *    mapped address. Userspace cannot rely on coherent access, even when there
+ *    mapped address. Userspace canyest rely on coherent access, even when there
  *    are systems where it just works without calling these ioctls.
  *
  * - And as a CPU fallback in userspace processing pipelines.
@@ -956,10 +956,10 @@ EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
  *
  *   The assumption in the current dma-buf interfaces is that redirecting the
  *   initial mmap is all that's needed. A survey of some of the existing
- *   subsystems shows that no driver seems to do any nefarious thing like
- *   syncing up with outstanding asynchronous processing on the device or
+ *   subsystems shows that yes driver seems to do any nefarious thing like
+ *   syncing up with outstanding asynchroyesus processing on the device or
  *   allocating special resources at fault time. So hopefully this is good
- *   enough, since adding interfaces to intercept pagefaults and allow pte
+ *   eyesugh, since adding interfaces to intercept pagefaults and allow pte
  *   shootdowns would increase the complexity quite a bit.
  *
  *   Interface::
@@ -1015,7 +1015,7 @@ int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 
 	/* Ensure that all fences are waited upon - but we first allow
 	 * the native handler the chance to do so more efficiently if it
-	 * chooses. A double invocation here will be reasonably cheap no-op.
+	 * chooses. A double invocation here will be reasonably cheap yes-op.
 	 */
 	if (ret == 0)
 		ret = __dma_buf_begin_cpu_access(dmabuf, direction);
@@ -1235,9 +1235,9 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 
 	seq_puts(s, "\nDma-buf Objects:\n");
 	seq_printf(s, "%-8s\t%-8s\t%-8s\t%-8s\texp_name\t%-8s\n",
-		   "size", "flags", "mode", "count", "ino");
+		   "size", "flags", "mode", "count", "iyes");
 
-	list_for_each_entry(buf_obj, &db_list.head, list_node) {
+	list_for_each_entry(buf_obj, &db_list.head, list_yesde) {
 
 		ret = dma_resv_lock_interruptible(buf_obj->resv, NULL);
 		if (ret)
@@ -1248,7 +1248,7 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 				buf_obj->file->f_flags, buf_obj->file->f_mode,
 				file_count(buf_obj->file),
 				buf_obj->exp_name,
-				file_inode(buf_obj->file)->i_ino,
+				file_iyesde(buf_obj->file)->i_iyes,
 				buf_obj->name ?: "");
 
 		robj = buf_obj->resv;
@@ -1283,7 +1283,7 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 		seq_puts(s, "\tAttached Devices:\n");
 		attach_count = 0;
 
-		list_for_each_entry(attach_obj, &buf_obj->attachments, node) {
+		list_for_each_entry(attach_obj, &buf_obj->attachments, yesde) {
 			seq_printf(s, "\t%s\n", dev_name(attach_obj->dev));
 			attach_count++;
 		}
@@ -1324,7 +1324,7 @@ static int dma_buf_init_debugfs(void)
 	d = debugfs_create_file("bufinfo", S_IRUGO, dma_buf_debugfs_dir,
 				NULL, &dma_buf_debug_fops);
 	if (IS_ERR(d)) {
-		pr_debug("dma_buf: debugfs: failed to create node bufinfo\n");
+		pr_debug("dma_buf: debugfs: failed to create yesde bufinfo\n");
 		debugfs_remove_recursive(dma_buf_debugfs_dir);
 		dma_buf_debugfs_dir = NULL;
 		err = PTR_ERR(d);

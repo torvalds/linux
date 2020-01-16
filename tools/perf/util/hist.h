@@ -81,9 +81,9 @@ struct hists {
 	struct rb_root_cached	entries;
 	struct rb_root_cached	entries_collapsed;
 	u64			nr_entries;
-	u64			nr_non_filtered_entries;
+	u64			nr_yesn_filtered_entries;
 	u64			callchain_period;
-	u64			callchain_non_filtered_period;
+	u64			callchain_yesn_filtered_period;
 	struct thread		*thread_filter;
 	const struct dso	*dso_filter;
 	const char		*uid_filter_str;
@@ -96,7 +96,7 @@ struct hists {
 	int			socket_filter;
 	struct perf_hpp_list	*hpp_list;
 	struct list_head	hpp_formats;
-	int			nr_hpp_node;
+	int			nr_hpp_yesde;
 };
 
 #define hists__has(__h, __f) (__h)->hpp_list->__f
@@ -129,7 +129,7 @@ struct hist_entry_iter {
 			    struct addr_location *al, bool single, void *arg);
 };
 
-extern const struct hist_iter_ops hist_iter_normal;
+extern const struct hist_iter_ops hist_iter_yesrmal;
 extern const struct hist_iter_ops hist_iter_branch;
 extern const struct hist_iter_ops hist_iter_mem;
 extern const struct hist_iter_ops hist_iter_cumulative;
@@ -194,7 +194,7 @@ void hists__inc_nr_samples(struct hists *hists, bool filtered);
 
 size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp,
-		      bool ignore_callchains);
+		      bool igyesre_callchains);
 size_t perf_evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp);
 
 void hists__filter_by_dso(struct hists *hists);
@@ -297,7 +297,7 @@ struct perf_hpp_list {
 
 extern struct perf_hpp_list perf_hpp_list;
 
-struct perf_hpp_list_node {
+struct perf_hpp_list_yesde {
 	struct list_head	list;
 	struct perf_hpp_list	hpp;
 	int			level;
@@ -440,7 +440,7 @@ struct hist_browser_timer {
 	int refresh;
 };
 
-struct annotation_options;
+struct anyestation_options;
 struct res_sample;
 
 enum rstype {
@@ -455,20 +455,20 @@ struct block_hist;
 #include "../ui/keysyms.h"
 void attr_to_script(char *buf, struct perf_event_attr *attr);
 
-int map_symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
+int map_symbol__tui_anyestate(struct map_symbol *ms, struct evsel *evsel,
 			     struct hist_browser_timer *hbt,
-			     struct annotation_options *annotation_opts);
+			     struct anyestation_options *anyestation_opts);
 
-int hist_entry__tui_annotate(struct hist_entry *he, struct evsel *evsel,
+int hist_entry__tui_anyestate(struct hist_entry *he, struct evsel *evsel,
 			     struct hist_browser_timer *hbt,
-			     struct annotation_options *annotation_opts);
+			     struct anyestation_options *anyestation_opts);
 
 int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
 				  struct hist_browser_timer *hbt,
 				  float min_pcnt,
 				  struct perf_env *env,
 				  bool warn_lost_event,
-				  struct annotation_options *annotation_options);
+				  struct anyestation_options *anyestation_options);
 
 int script_browse(const char *script_opt, struct evsel *evsel);
 
@@ -479,7 +479,7 @@ void res_sample_init(void);
 
 int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 			   float min_percent, struct perf_env *env,
-			   struct annotation_options *annotation_opts);
+			   struct anyestation_options *anyestation_opts);
 #else
 static inline
 int perf_evlist__tui_browse_hists(struct evlist *evlist __maybe_unused,
@@ -488,22 +488,22 @@ int perf_evlist__tui_browse_hists(struct evlist *evlist __maybe_unused,
 				  float min_pcnt __maybe_unused,
 				  struct perf_env *env __maybe_unused,
 				  bool warn_lost_event __maybe_unused,
-				  struct annotation_options *annotation_options __maybe_unused)
+				  struct anyestation_options *anyestation_options __maybe_unused)
 {
 	return 0;
 }
-static inline int map_symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
+static inline int map_symbol__tui_anyestate(struct map_symbol *ms __maybe_unused,
 					   struct evsel *evsel __maybe_unused,
 					   struct hist_browser_timer *hbt __maybe_unused,
-					   struct annotation_options *annotation_options __maybe_unused)
+					   struct anyestation_options *anyestation_options __maybe_unused)
 {
 	return 0;
 }
 
-static inline int hist_entry__tui_annotate(struct hist_entry *he __maybe_unused,
+static inline int hist_entry__tui_anyestate(struct hist_entry *he __maybe_unused,
 					   struct evsel *evsel __maybe_unused,
 					   struct hist_browser_timer *hbt __maybe_unused,
-					   struct annotation_options *annotation_opts __maybe_unused)
+					   struct anyestation_options *anyestation_opts __maybe_unused)
 {
 	return 0;
 }
@@ -528,7 +528,7 @@ static inline int block_hists_tui_browse(struct block_hist *bh __maybe_unused,
 					 struct evsel *evsel __maybe_unused,
 					 float min_percent __maybe_unused,
 					 struct perf_env *env __maybe_unused,
-					 struct annotation_options *annotation_opts __maybe_unused)
+					 struct anyestation_options *anyestation_opts __maybe_unused)
 {
 	return 0;
 }
@@ -542,7 +542,7 @@ unsigned int hists__sort_list_width(struct hists *hists);
 unsigned int hists__overhead_width(struct hists *hists);
 
 void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
-			  struct perf_sample *sample, bool nonany_branch_mode,
+			  struct perf_sample *sample, bool yesnany_branch_mode,
 			  u64 *total_cycles);
 
 struct option;
@@ -557,14 +557,14 @@ enum hierarchy_move_dir {
 	HMD_FORCE_CHILD,
 };
 
-struct rb_node *rb_hierarchy_last(struct rb_node *node);
-struct rb_node *__rb_hierarchy_next(struct rb_node *node,
+struct rb_yesde *rb_hierarchy_last(struct rb_yesde *yesde);
+struct rb_yesde *__rb_hierarchy_next(struct rb_yesde *yesde,
 				    enum hierarchy_move_dir hmd);
-struct rb_node *rb_hierarchy_prev(struct rb_node *node);
+struct rb_yesde *rb_hierarchy_prev(struct rb_yesde *yesde);
 
-static inline struct rb_node *rb_hierarchy_next(struct rb_node *node)
+static inline struct rb_yesde *rb_hierarchy_next(struct rb_yesde *yesde)
 {
-	return __rb_hierarchy_next(node, HMD_NORMAL);
+	return __rb_hierarchy_next(yesde, HMD_NORMAL);
 }
 
 #define HIERARCHY_INDENT  3

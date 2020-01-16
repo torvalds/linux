@@ -45,7 +45,7 @@ struct mii_phy
 	/* 1: autoneg enabled, 0: disabled */
 	int			autoneg;
 
-	/* forced speed & duplex (no autoneg)
+	/* forced speed & duplex (yes autoneg)
 	 * partner speed & duplex & pause (autoneg)
 	 */
 	int			speed;

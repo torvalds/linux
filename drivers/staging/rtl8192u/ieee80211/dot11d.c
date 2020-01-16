@@ -63,14 +63,14 @@ void dot11d_update_country_ie(struct ieee80211_device *dev, u8 *pTaddr,
 	pTriple = (struct chnl_txpower_triple *)(pCoutryIe + 3);
 	for (i = 0; i < NumTriples; i++) {
 		if (MaxChnlNum >= pTriple->first_channel) {
-			/* It is not in a monotonically increasing order, so
+			/* It is yest in a moyestonically increasing order, so
 			 * stop processing.
 			 */
 			netdev_err(dev->dev, "dot11d_update_country_ie(): Invalid country IE, skip it........1\n");
 			return;
 		}
 		if (MAX_CHANNEL_NUMBER < (pTriple->first_channel + pTriple->num_channels)) {
-			/* It is not a valid set of channel id, so stop
+			/* It is yest a valid set of channel id, so stop
 			 * processing.
 			 */
 			netdev_err(dev->dev, "dot11d_update_country_ie(): Invalid country IE, skip it........2\n");

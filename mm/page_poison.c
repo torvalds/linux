@@ -21,7 +21,7 @@ early_param("page_poison", early_page_poison_param);
 /**
  * page_poisoning_enabled - check if page poisoning is enabled
  *
- * Return true if page poisoning is enabled, or false if not.
+ * Return true if page poisoning is enabled, or false if yest.
  */
 bool page_poisoning_enabled(void)
 {
@@ -100,7 +100,7 @@ static void unpoison_page(struct page *page)
 	addr = kmap_atomic(page);
 	/*
 	 * Page poisoning when enabled poisons each and every page
-	 * that is freed to buddy. Thus no extra check is done to
+	 * that is freed to buddy. Thus yes extra check is done to
 	 * see if a page was poisoned.
 	 */
 	check_poison_mem(addr, PAGE_SIZE);
@@ -129,6 +129,6 @@ void kernel_poison_pages(struct page *page, int numpages, int enable)
 #ifndef CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
-	/* This function does nothing, all work is done via poison pages */
+	/* This function does yesthing, all work is done via poison pages */
 }
 #endif

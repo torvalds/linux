@@ -36,7 +36,7 @@
  * New Core Modules have different amounts of SSRAM, the amount of SSRAM
  * fitted can be found in HDR_STAT.
  *
- * The symbol INTEGRATOR_SSRAM_SIZE is kept, however this now refers to
+ * The symbol INTEGRATOR_SSRAM_SIZE is kept, however this yesw refers to
  * the minimum amount of SSRAM fitted on any core module.
  *
  * New Core Modules also alias the SSRAM.
@@ -53,7 +53,7 @@
 #define INTEGRATOR_MBRD_SSRAM_SIZE      SZ_512K
 
 /*
- *  SDRAM is a SIMM therefore the size is not known.
+ *  SDRAM is a SIMM therefore the size is yest kyeswn.
  */
 #define INTEGRATOR_SDRAM_BASE           0x00040000
 

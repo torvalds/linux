@@ -585,7 +585,7 @@ static int cdns_dsi_adjust_phy_config(struct cdns_dsi *dsi,
 	dpi_hz = (mode_valid_check ? mode->clock : mode->crtc_clock) * 1000;
 	dlane_bps = (unsigned long long)dpi_hz * adj_dsi_htotal;
 
-	/* data rate in bytes/sec is not an integer, refuse the mode. */
+	/* data rate in bytes/sec is yest an integer, refuse the mode. */
 	dpi_htotal = mode_valid_check ? mode->htotal : mode->crtc_htotal;
 	if (do_div(dlane_bps, lanes * dpi_htotal))
 		return -EINVAL;
@@ -928,43 +928,43 @@ static int cdns_dsi_attach(struct mipi_dsi_host *host,
 	struct cdns_dsi_input *input = &dsi->input;
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	/*
-	 * We currently do not support connecting several DSI devices to the
+	 * We currently do yest support connecting several DSI devices to the
 	 * same host. In order to support that we'd need the DRM bridge
 	 * framework to allow dynamic reconfiguration of the bridge chain.
 	 */
 	if (output->dev)
 		return -EBUSY;
 
-	/* We do not support burst mode yet. */
+	/* We do yest support burst mode yet. */
 	if (dev->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
 		return -ENOTSUPP;
 
 	/*
 	 * The host <-> device link might be described using an OF-graph
-	 * representation, in this case we extract the device of_node from
-	 * this representation, otherwise we use dsidev->dev.of_node which
+	 * representation, in this case we extract the device of_yesde from
+	 * this representation, otherwise we use dsidev->dev.of_yesde which
 	 * should have been filled by the core.
 	 */
-	np = of_graph_get_remote_node(dsi->base.dev->of_node, DSI_OUTPUT_PORT,
+	np = of_graph_get_remote_yesde(dsi->base.dev->of_yesde, DSI_OUTPUT_PORT,
 				      dev->channel);
 	if (!np)
-		np = of_node_get(dev->dev.of_node);
+		np = of_yesde_get(dev->dev.of_yesde);
 
 	panel = of_drm_find_panel(np);
 	if (!IS_ERR(panel)) {
 		bridge = drm_panel_bridge_add_typed(panel,
 						    DRM_MODE_CONNECTOR_DSI);
 	} else {
-		bridge = of_drm_find_bridge(dev->dev.of_node);
+		bridge = of_drm_find_bridge(dev->dev.of_yesde);
 		if (!bridge)
 			bridge = ERR_PTR(-EINVAL);
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (IS_ERR(bridge)) {
 		ret = PTR_ERR(bridge);
@@ -978,7 +978,7 @@ static int cdns_dsi_attach(struct mipi_dsi_host *host,
 	output->panel = panel;
 
 	/*
-	 * The DSI output has been properly configured, we can now safely
+	 * The DSI output has been properly configured, we can yesw safely
 	 * register the input to the bridge framework so that it can take place
 	 * in a display pipeline.
 	 */
@@ -1109,7 +1109,7 @@ static ssize_t cdns_dsi_transfer(struct mipi_dsi_host *host,
 	writel(readl(dsi->regs + MCTL_MAIN_DATA_CTL) & ~ctl,
 	       dsi->regs + MCTL_MAIN_DATA_CTL);
 
-	/* We did not receive the events we were waiting for. */
+	/* We did yest receive the events we were waiting for. */
 	if (!(sts & wait)) {
 		ret = -ETIMEDOUT;
 		goto out;
@@ -1234,7 +1234,7 @@ static int cdns_dsi_drm_probe(struct platform_device *pdev)
 	 */
 	input->id = CDNS_DPI_INPUT;
 	input->bridge.funcs = &cdns_dsi_bridge_funcs;
-	input->bridge.of_node = pdev->dev.of_node;
+	input->bridge.of_yesde = pdev->dev.of_yesde;
 
 	/* Mask all interrupts before registering the IRQ handler. */
 	writel(0, dsi->regs + MCTL_MAIN_STS_CTL);

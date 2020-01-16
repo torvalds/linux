@@ -10,11 +10,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice,
+ * 1. Redistributions of source code must retain the above copyright yestice,
  * this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
+ * yestice, this list of conditions and the following disclaimer in the
  * documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -33,7 +33,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -219,7 +219,7 @@ static struct msrmap *lookup_msr(char *map, jsmntok_t *val)
 			return &msrmap[i];
 	if (!warned) {
 		warned = true;
-		pr_err("%s: Unknown MSR in event file %.*s\n", prog,
+		pr_err("%s: Unkyeswn MSR in event file %.*s\n", prog,
 			json_len(val), map + val->start);
 	}
 	return NULL;
@@ -299,7 +299,7 @@ static int add_topic(char *bname)
 	topic = strdup(bname);
 	if (!topic) {
 		pr_info("%s: strdup() error %s for file %s\n", prog,
-				strerror(errno), bname);
+				strerror(erryes), bname);
 		return -ENOMEM;
 	}
 	return 0;
@@ -503,7 +503,7 @@ try_fixup(const char *fn, char *arch_std, char **event, char **desc,
 		}
 	}
 
-	pr_err("%s: could not find matching %s for %s\n",
+	pr_err("%s: could yest find matching %s for %s\n",
 					prog, arch_std, fn);
 	return -1;
 }
@@ -638,7 +638,7 @@ int json_events(const char *fn,
 				for (s = arch_std; *s; s++)
 					*s = tolower(*s);
 			}
-			/* ignore unknown fields */
+			/* igyesre unkyeswn fields */
 		}
 		if (precise && desc && !strstr(desc, "(Precise Event)")) {
 			if (json_streq(map, precise, "2"))
@@ -719,7 +719,7 @@ static char *file_name_to_table_name(char *fname)
 	n = asprintf(&tblname, "pme_%s", fname);
 	if (n < 0) {
 		pr_info("%s: asprintf() error %s for file %s\n", prog,
-				strerror(errno), fname);
+				strerror(erryes), fname);
 		return NULL;
 	}
 
@@ -782,7 +782,7 @@ static int process_mapfile(FILE *outfp, char *fpath)
 
 	mapfp = fopen(fpath, "r");
 	if (!mapfp) {
-		pr_info("%s: Error %s opening %s\n", prog, strerror(errno),
+		pr_info("%s: Error %s opening %s\n", prog, strerror(erryes),
 				fpath);
 		free(line);
 		return -1;
@@ -831,10 +831,10 @@ static int process_mapfile(FILE *outfp, char *fpath)
 		 * CHECK: We can't use the type (eg "core") field in the
 		 * table name. For us to do that, we need to somehow tweak
 		 * the other caller of file_name_to_table(), process_json()
-		 * to determine the type. process_json() file has no way
-		 * of knowing these are "core" events unless file name has
+		 * to determine the type. process_json() file has yes way
+		 * of kyeswing these are "core" events unless file name has
 		 * core in it. If filename has core in it, we can safely
-		 * ignore the type field here also.
+		 * igyesre the type field here also.
 		 */
 		fprintf(outfp, "\t.table = %s\n", tblname);
 		fprintf(outfp, "},\n");
@@ -1008,7 +1008,7 @@ static int process_one_file(const char *fpath, const struct stat *sb,
 	}
 
 	/*
-	 * Save the mapfile name for now. We will process mapfile
+	 * Save the mapfile name for yesw. We will process mapfile
 	 * after processing all JSON files (so we can write out the
 	 * mapping table after all PMU events tables).
 	 *
@@ -1019,17 +1019,17 @@ static int process_one_file(const char *fpath, const struct stat *sb,
 			return 0;
 		}
 
-		pr_info("%s: Ignoring file %s\n", prog, fpath);
+		pr_info("%s: Igyesring file %s\n", prog, fpath);
 		return 0;
 	}
 
 	/*
-	 * If the file name does not have a .json extension,
-	 * ignore it. It could be a readme.txt for instance.
+	 * If the file name does yest have a .json extension,
+	 * igyesre it. It could be a readme.txt for instance.
 	 */
 	if (is_file) {
 		if (!is_json_file(bname)) {
-			pr_info("%s: Ignoring file without .json suffix %s\n", prog,
+			pr_info("%s: Igyesring file without .json suffix %s\n", prog,
 				fpath);
 			return 0;
 		}
@@ -1044,10 +1044,10 @@ static int process_one_file(const char *fpath, const struct stat *sb,
 	 * If mapfile refers to 'power7_core.json', we create a table
 	 * named 'power7_core'. Any inconsistencies between the mapfile
 	 * and directory tree could result in build failure due to table
-	 * names not being found.
+	 * names yest being found.
 	 *
-	 * Atleast for now, be strict with processing JSON file names.
-	 * i.e. if JSON file name cannot be mapped to C-style table name,
+	 * Atleast for yesw, be strict with processing JSON file names.
+	 * i.e. if JSON file name canyest be mapped to C-style table name,
 	 * fail.
 	 */
 	if (is_file) {
@@ -1107,15 +1107,15 @@ int main(int argc, char *argv[])
 	eventsfp = fopen(output_file, "w");
 	if (!eventsfp) {
 		pr_err("%s Unable to create required file %s (%s)\n",
-				prog, output_file, strerror(errno));
+				prog, output_file, strerror(erryes));
 		return 2;
 	}
 
 	sprintf(ldirname, "%s/%s", start_dirname, arch);
 
-	/* If architecture does not have any event lists, bail out */
+	/* If architecture does yest have any event lists, bail out */
 	if (stat(ldirname, &stbuf) < 0) {
-		pr_info("%s: Arch %s has no PMU event lists\n", prog, arch);
+		pr_info("%s: Arch %s has yes PMU event lists\n", prog, arch);
 		goto empty_map;
 	}
 
@@ -1124,10 +1124,10 @@ int main(int argc, char *argv[])
 
 	/*
 	 * The mapfile allows multiple CPUids to point to the same JSON file,
-	 * so, not sure if there is a need for symlinks within the pmu-events
+	 * so, yest sure if there is a need for symlinks within the pmu-events
 	 * directory.
 	 *
-	 * For now, treat symlinks of JSON files as regular files and create
+	 * For yesw, treat symlinks of JSON files as regular files and create
 	 * separate tables for each symlink (presumably, each symlink refers
 	 * to specific version of the CPU).
 	 */

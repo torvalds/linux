@@ -41,7 +41,7 @@ struct wm5102_priv {
 static DECLARE_TLV_DB_SCALE(ana_tlv, 0, 100, 0);
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
-static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
+static DECLARE_TLV_DB_SCALE(yesise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
 static const struct wm_adsp_region wm5102_dsp1_regions[] = {
@@ -873,7 +873,7 @@ ARIZONA_MIXER_CONTROLS("Mic", ARIZONA_MICMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("Noise", ARIZONA_NOISEMIX_INPUT_1_SOURCE),
 
 SOC_SINGLE_TLV("Noise Generator Volume", ARIZONA_COMFORT_NOISE_GENERATOR,
-	       ARIZONA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, noise_tlv),
+	       ARIZONA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, yesise_tlv),
 
 ARIZONA_MIXER_CONTROLS("HPOUT1L", ARIZONA_OUT1LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("HPOUT1R", ARIZONA_OUT1RMIX_INPUT_1_SOURCE),
@@ -2017,7 +2017,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm5102 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm5102_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int wm5102_probe(struct platform_device *pdev)

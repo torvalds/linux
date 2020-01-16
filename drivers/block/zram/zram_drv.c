@@ -253,7 +253,7 @@ static ssize_t mem_limit_store(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 
 	limit = memparse(buf, &tmp);
-	if (buf == tmp) /* no chars parsed, invalid input */
+	if (buf == tmp) /* yes chars parsed, invalid input */
 		return -EINVAL;
 
 	down_write(&zram->init_lock);
@@ -302,7 +302,7 @@ static ssize_t idle_store(struct device *dev,
 
 	for (index = 0; index < nr_pages; index++) {
 		/*
-		 * Do not mark ZRAM_UNDER_WB slot as ZRAM_IDLE to close race.
+		 * Do yest mark ZRAM_UNDER_WB slot as ZRAM_IDLE to close race.
 		 * See the comment in writeback_store.
 		 */
 		zram_slot_lock(zram, index);
@@ -421,7 +421,7 @@ static ssize_t backing_dev_show(struct device *dev,
 	down_read(&zram->init_lock);
 	file = zram->backing_dev;
 	if (!file) {
-		memcpy(buf, "none\n", 5);
+		memcpy(buf, "yesne\n", 5);
 		up_read(&zram->init_lock);
 		return 5;
 	}
@@ -446,7 +446,7 @@ static ssize_t backing_dev_store(struct device *dev,
 	char *file_name;
 	size_t sz;
 	struct file *backing_dev = NULL;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct address_space *mapping;
 	unsigned int bitmap_sz, old_block_size = 0;
 	unsigned long nr_pages, *bitmap = NULL;
@@ -466,7 +466,7 @@ static ssize_t backing_dev_store(struct device *dev,
 	}
 
 	strlcpy(file_name, buf, PATH_MAX);
-	/* ignore trailing newline */
+	/* igyesre trailing newline */
 	sz = strlen(file_name);
 	if (sz > 0 && file_name[sz - 1] == '\n')
 		file_name[sz - 1] = 0x00;
@@ -479,22 +479,22 @@ static ssize_t backing_dev_store(struct device *dev,
 	}
 
 	mapping = backing_dev->f_mapping;
-	inode = mapping->host;
+	iyesde = mapping->host;
 
 	/* Support only block device in this moment */
-	if (!S_ISBLK(inode->i_mode)) {
+	if (!S_ISBLK(iyesde->i_mode)) {
 		err = -ENOTBLK;
 		goto out;
 	}
 
-	bdev = bdgrab(I_BDEV(inode));
+	bdev = bdgrab(I_BDEV(iyesde));
 	err = blkdev_get(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL, zram);
 	if (err < 0) {
 		bdev = NULL;
 		goto out;
 	}
 
-	nr_pages = i_size_read(inode) >> PAGE_SHIFT;
+	nr_pages = i_size_read(iyesde) >> PAGE_SHIFT;
 	bitmap_sz = BITS_TO_LONGS(nr_pages) * sizeof(long);
 	bitmap = kvzalloc(bitmap_sz, GFP_KERNEL);
 	if (!bitmap) {
@@ -515,8 +515,8 @@ static ssize_t backing_dev_store(struct device *dev,
 	zram->bitmap = bitmap;
 	zram->nr_pages = nr_pages;
 	/*
-	 * With writeback feature, zram does asynchronous IO so it's no longer
-	 * synchronous device so let's remove synchronous io flag. Othewise,
+	 * With writeback feature, zram does asynchroyesus IO so it's yes longer
+	 * synchroyesus device so let's remove synchroyesus io flag. Othewise,
 	 * upper layer(e.g., swap) could wait IO completion rather than
 	 * (submit and return), which will cause system sluggish.
 	 * Furthermore, when the IO function returns(e.g., swap_readpage),
@@ -579,7 +579,7 @@ static void zram_page_end_io(struct bio *bio)
 	struct page *page = bio_first_page_all(bio);
 
 	page_endio(page, op_is_write(bio_op(bio)),
-			blk_status_to_errno(bio->bi_status));
+			blk_status_to_erryes(bio->bi_status));
 	bio_put(bio);
 }
 
@@ -717,7 +717,7 @@ static ssize_t writeback_store(struct device *dev,
 				bvec.bv_offset);
 		/*
 		 * XXX: A single page IO would be inefficient for write
-		 * but it would be not bad as starter.
+		 * but it would be yest bad as starter.
 		 */
 		ret = submit_bio_wait(&bio);
 		if (ret) {
@@ -949,7 +949,7 @@ static void zram_debugfs_unregister(struct zram *zram) {};
 #endif
 
 /*
- * We switched to per-cpu streams and this attr is not needed anymore.
+ * We switched to per-cpu streams and this attr is yest needed anymore.
  * However, we will keep it around for some time, because:
  * a) we may revert per-cpu streams in the future
  * b) it's visible to user space and we need to follow our 2 years
@@ -990,7 +990,7 @@ static ssize_t comp_algorithm_store(struct device *dev,
 	size_t sz;
 
 	strlcpy(compressor, buf, sizeof(compressor));
-	/* ignore trailing newline */
+	/* igyesre trailing newline */
 	sz = strlen(compressor);
 	if (sz > 0 && compressor[sz - 1] == '\n')
 		compressor[sz - 1] = 0x00;
@@ -1039,7 +1039,7 @@ static ssize_t io_stat_show(struct device *dev,
 			(u64)atomic64_read(&zram->stats.failed_reads),
 			(u64)atomic64_read(&zram->stats.failed_writes),
 			(u64)atomic64_read(&zram->stats.invalid_io),
-			(u64)atomic64_read(&zram->stats.notify_free));
+			(u64)atomic64_read(&zram->stats.yestify_free));
 	up_read(&zram->init_lock);
 
 	return ret;
@@ -1320,7 +1320,7 @@ static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
 	mem = kmap_atomic(page);
 	if (page_same_filled(mem, &element)) {
 		kunmap_atomic(mem);
-		/* Free memory associated with this sector now. */
+		/* Free memory associated with this sector yesw. */
 		flags = ZRAM_SAME;
 		atomic64_inc(&zram->stats.same_pages);
 		goto out;
@@ -1352,7 +1352,7 @@ compress_again:
 	 *  put per-cpu compression stream and, thus, to re-do
 	 *  the compression once handle is allocated.
 	 *
-	 * if we have a 'non-null' handle here then we are coming
+	 * if we have a 'yesn-null' handle here then we are coming
 	 * from the slow path and handle has already been allocated.
 	 */
 	if (!handle)
@@ -1493,15 +1493,15 @@ static void zram_bio_discard(struct zram *zram, u32 index,
 		zram_slot_lock(zram, index);
 		zram_free_page(zram, index);
 		zram_slot_unlock(zram, index);
-		atomic64_inc(&zram->stats.notify_free);
+		atomic64_inc(&zram->stats.yestify_free);
 		index++;
 		n -= PAGE_SIZE;
 	}
 }
 
 /*
- * Returns errno if it has some problem. Otherwise return 0 or 1.
- * Returns 0 if IO request was done synchronously
+ * Returns erryes if it has some problem. Otherwise return 0 or 1.
+ * Returns 0 if IO request was done synchroyesusly
  * Returns 1 if IO request was successfully submitted.
  */
 static int zram_bvec_rw(struct zram *zram, struct bio_vec *bvec, u32 index,
@@ -1606,14 +1606,14 @@ error:
 	return BLK_QC_T_NONE;
 }
 
-static void zram_slot_free_notify(struct block_device *bdev,
+static void zram_slot_free_yestify(struct block_device *bdev,
 				unsigned long index)
 {
 	struct zram *zram;
 
 	zram = bdev->bd_disk->private_data;
 
-	atomic64_inc(&zram->stats.notify_free);
+	atomic64_inc(&zram->stats.yestify_free);
 	if (!zram_slot_trylock(zram, index)) {
 		atomic64_inc(&zram->stats.miss_free);
 		return;
@@ -1651,7 +1651,7 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
 	ret = zram_bvec_rw(zram, &bv, index, offset, op, NULL);
 out:
 	/*
-	 * If I/O fails, just return error(ie, non-zero) without
+	 * If I/O fails, just return error(ie, yesn-zero) without
 	 * calling page_endio.
 	 * It causes resubmit the I/O with bio request by upper functions
 	 * of rw_page(e.g., swap_readpage, __swap_writepage) and
@@ -1717,7 +1717,7 @@ static ssize_t disksize_store(struct device *dev,
 
 	down_write(&zram->init_lock);
 	if (init_done(zram)) {
-		pr_info("Cannot change disksize for initialized device\n");
+		pr_info("Canyest change disksize for initialized device\n");
 		err = -EBUSY;
 		goto out_unlock;
 	}
@@ -1730,7 +1730,7 @@ static ssize_t disksize_store(struct device *dev,
 
 	comp = zcomp_create(zram->compressor);
 	if (IS_ERR(comp)) {
-		pr_err("Cannot initialise %s compressing backend\n",
+		pr_err("Canyest initialise %s compressing backend\n",
 				zram->compressor);
 		err = PTR_ERR(comp);
 		goto out_free_meta;
@@ -1773,14 +1773,14 @@ static ssize_t reset_store(struct device *dev,
 		return -ENOMEM;
 
 	mutex_lock(&bdev->bd_mutex);
-	/* Do not reset an active device or claimed device */
+	/* Do yest reset an active device or claimed device */
 	if (bdev->bd_openers || zram->claim) {
 		mutex_unlock(&bdev->bd_mutex);
 		bdput(bdev);
 		return -EBUSY;
 	}
 
-	/* From now on, anyone can't open /dev/zram[0-9] */
+	/* From yesw on, anyone can't open /dev/zram[0-9] */
 	zram->claim = true;
 	mutex_unlock(&bdev->bd_mutex);
 
@@ -1814,7 +1814,7 @@ static int zram_open(struct block_device *bdev, fmode_t mode)
 
 static const struct block_device_operations zram_devops = {
 	.open = zram_open,
-	.swap_slot_free_notify = zram_slot_free_notify,
+	.swap_slot_free_yestify = zram_slot_free_yestify,
 	.rw_page = zram_rw_page,
 	.owner = THIS_MODULE
 };
@@ -1912,7 +1912,7 @@ static int zram_add(void)
 	}
 
 	zram->disk->major = zram_major;
-	zram->disk->first_minor = device_id;
+	zram->disk->first_miyesr = device_id;
 	zram->disk->fops = &zram_devops;
 	zram->disk->queue = queue;
 	zram->disk->queue->queuedata = zram;
@@ -1921,7 +1921,7 @@ static int zram_add(void)
 
 	/* Actual capacity set using syfs (/sys/block/zram<id>/disksize */
 	set_capacity(zram->disk, 0);
-	/* zram devices sort of resembles non-rotational disks */
+	/* zram devices sort of resembles yesn-rotational disks */
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, zram->disk->queue);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, zram->disk->queue);
 
@@ -2005,7 +2005,7 @@ static int zram_remove(struct zram *zram)
 /* zram-control sysfs attributes */
 
 /*
- * NOTE: hot_add attribute is not the usual read-only sysfs attribute. In a
+ * NOTE: hot_add attribute is yest the usual read-only sysfs attribute. In a
  * sense that reading from this file does alter the state of your system -- it
  * creates a new un-initialized zram device and returns back this device's
  * device_id (or an error code if it fails to create a new device).
@@ -2034,7 +2034,7 @@ static ssize_t hot_remove_store(struct class *class,
 	struct zram *zram;
 	int ret, dev_id;
 
-	/* dev_id is gendisk->first_minor, which is `int' */
+	/* dev_id is gendisk->first_miyesr, which is `int' */
 	ret = kstrtoint(buf, 10, &dev_id);
 	if (ret)
 		return ret;

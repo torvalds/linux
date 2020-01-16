@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -284,7 +284,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	if (ret) {
 		DRM_ERROR("Failed to copy clip rects from userspace.\n");
 		ret = -EFAULT;
-		goto out_no_copy;
+		goto out_yes_copy;
 	}
 
 	drm_modeset_lock_all(dev);
@@ -293,19 +293,19 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	if (!fb) {
 		VMW_DEBUG_USER("Invalid framebuffer id.\n");
 		ret = -ENOENT;
-		goto out_no_fb;
+		goto out_yes_fb;
 	}
 	vfb = vmw_framebuffer_to_vfb(fb);
 
 	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
-		goto out_no_ttm_lock;
+		goto out_yes_ttm_lock;
 
 	ret = vmw_user_resource_lookup_handle(dev_priv, tfile, arg->sid,
 					      user_surface_converter,
 					      &res);
 	if (ret)
-		goto out_no_surface;
+		goto out_yes_surface;
 
 	surface = vmw_res_to_srf(res);
 	ret = vmw_kms_present(dev_priv, file_priv,
@@ -316,13 +316,13 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	/* vmw_user_surface_lookup takes one ref so does new_fb */
 	vmw_surface_unreference(&surface);
 
-out_no_surface:
+out_yes_surface:
 	ttm_read_unlock(&dev_priv->reservation_sem);
-out_no_ttm_lock:
+out_yes_ttm_lock:
 	drm_framebuffer_put(fb);
-out_no_fb:
+out_yes_fb:
 	drm_modeset_unlock_all(dev);
-out_no_copy:
+out_yes_copy:
 	kfree(clips);
 out_clips:
 	return ret;
@@ -367,7 +367,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	if (ret) {
 		DRM_ERROR("Failed to copy clip rects from userspace.\n");
 		ret = -EFAULT;
-		goto out_no_copy;
+		goto out_yes_copy;
 	}
 
 	drm_modeset_lock_all(dev);
@@ -376,30 +376,30 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	if (!fb) {
 		VMW_DEBUG_USER("Invalid framebuffer id.\n");
 		ret = -ENOENT;
-		goto out_no_fb;
+		goto out_yes_fb;
 	}
 
 	vfb = vmw_framebuffer_to_vfb(fb);
 	if (!vfb->bo) {
-		VMW_DEBUG_USER("Framebuffer not buffer backed.\n");
+		VMW_DEBUG_USER("Framebuffer yest buffer backed.\n");
 		ret = -EINVAL;
-		goto out_no_ttm_lock;
+		goto out_yes_ttm_lock;
 	}
 
 	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
-		goto out_no_ttm_lock;
+		goto out_yes_ttm_lock;
 
 	ret = vmw_kms_readback(dev_priv, file_priv,
 			       vfb, user_fence_rep,
 			       clips, num_clips);
 
 	ttm_read_unlock(&dev_priv->reservation_sem);
-out_no_ttm_lock:
+out_yes_ttm_lock:
 	drm_framebuffer_put(fb);
-out_no_fb:
+out_yes_fb:
 	drm_modeset_unlock_all(dev);
-out_no_copy:
+out_yes_copy:
 	kfree(clips);
 out_clips:
 	return ret;
@@ -419,7 +419,7 @@ __poll_t vmw_fops_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct vmw_private *dev_priv =
-		vmw_priv(file_priv->minor->dev);
+		vmw_priv(file_priv->miyesr->dev);
 
 	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 	return drm_poll(filp, wait);
@@ -442,7 +442,7 @@ ssize_t vmw_fops_read(struct file *filp, char __user *buffer,
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct vmw_private *dev_priv =
-		vmw_priv(file_priv->minor->dev);
+		vmw_priv(file_priv->miyesr->dev);
 
 	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 	return drm_read(filp, buffer, count, offset);

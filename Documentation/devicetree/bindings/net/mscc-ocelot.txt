@@ -21,7 +21,7 @@ Required properties:
   frame injection and PTP ready.
 - interrupt-names: should contain the interrupt names: "xtr", "inj". Can contain
   "ptp_rdy" which is optional due to backward compatibility.
-- ethernet-ports: A container for child nodes representing switch ports.
+- ethernet-ports: A container for child yesdes representing switch ports.
 
 The ethernet-ports container has the following properties
 
@@ -30,10 +30,10 @@ Required properties:
 - #address-cells: Must be 1
 - #size-cells: Must be 0
 
-Each port node must have the following mandatory properties:
+Each port yesde must have the following mandatory properties:
 - reg: Describes the port address in the switch
 
-Port nodes may also contain the following optional standardised
+Port yesdes may also contain the following optional standardised
 properties, described in binding documents:
 
 - phy-handle: Phandle to a PHY on an MDIO bus. See

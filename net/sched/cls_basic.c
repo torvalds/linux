@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include <linux/idr.h>
@@ -284,7 +284,7 @@ static int basic_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = f->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

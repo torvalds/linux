@@ -93,7 +93,7 @@ static int mic_msi_irq_info_show(struct seq_file *s, void *pos)
 			seq_puts(s, "\n\n");
 		}
 	} else {
-		seq_puts(s, "MSI/MSIx interrupts not enabled\n");
+		seq_puts(s, "MSI/MSIx interrupts yest enabled\n");
 	}
 
 	return 0;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -13,7 +13,7 @@
  *		Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Florian La Roche,
- *		Jonathan Layes <layes@loran.com>
+ *		Jonathan Lano <lano@loran.com>
  *		Arnaldo Carvalho de Melo <acme@conectiva.com.br> ARPHRD_HWX25
  *
  *		This program is free software; you can redistribute it and/or
@@ -43,7 +43,7 @@
 #define ARPHRD_EUI64	27		/* EUI-64                       */
 #define ARPHRD_INFINIBAND 32		/* InfiniBand			*/
 
-/* Dummy types for non ARP hardware */
+/* Dummy types for yesn ARP hardware */
 #define ARPHRD_SLIP	256
 #define ARPHRD_CSLIP	257
 #define ARPHRD_SLIP6	258
@@ -99,7 +99,7 @@
 #define ARPHRD_6LOWPAN	825		/* IPv6 over LoWPAN             */
 #define ARPHRD_VSOCKMON	826		/* Vsock monitor header		*/
 
-#define ARPHRD_VOID	  0xFFFF	/* Void type, nothing is known */
+#define ARPHRD_VOID	  0xFFFF	/* Void type, yesthing is kyeswn */
 #define ARPHRD_NONE	  0xFFFE	/* zero header length */
 
 /* ARP protocol opcodes. */

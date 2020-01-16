@@ -90,7 +90,7 @@ static int xtfpga_spi_probe(struct platform_device *pdev)
 	master->flags = SPI_MASTER_NO_RX;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
 	master->bus_num = pdev->dev.id;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 
 	xspi = spi_master_get_devdata(master);
 	xspi->bitbang.master = master;

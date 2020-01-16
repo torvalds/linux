@@ -36,7 +36,7 @@
 /* Amount of time in seconds for waiting FCF rediscovery to complete */
 #define LPFC_FCF_REDISCOVER_WAIT_TMO		2000 /* msec */
 
-/* Number of SGL entries can be posted in a 4KB nonembedded mbox command */
+/* Number of SGL entries can be posted in a 4KB yesnembedded mbox command */
 #define LPFC_NEMBED_MBOX_SGL_CNT		254
 
 /* Multi-queue arrangement for FCP EQ/CQ/WQ tuples */
@@ -56,7 +56,7 @@
 
 /*
  * Provide the default FCF Record attributes used by the driver
- * when nonFIP mode is configured and there is no other default
+ * when yesnFIP mode is configured and there is yes other default
  * FCF Record attributes.
  */
 #define LPFC_FCOE_FCF_DEF_INDEX	0
@@ -166,11 +166,11 @@ struct lpfc_queue {
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
 	uint32_t entry_cnt_per_pg;
-	uint32_t notify_interval; /* Queue Notification Interval
+	uint32_t yestify_interval; /* Queue Notification Interval
 				   * For chip->host queues (EQ, CQ, RQ):
 				   *  specifies the interval (number of
 				   *  entries) where the doorbell is rung to
-				   *  notify the chip of entry consumption.
+				   *  yestify the chip of entry consumption.
 				   * For host->chip queues (WQ):
 				   *  specifies the interval (number of
 				   *  entries) where consumption CQE is
@@ -201,7 +201,7 @@ struct lpfc_queue {
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
 	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
 	uint32_t host_index;	/* The host's index for putting or getting */
-	uint32_t hba_index;	/* The last known hba index for get or put */
+	uint32_t hba_index;	/* The last kyeswn hba index for get or put */
 	uint32_t q_mode;
 
 	struct lpfc_sli_ring *pring; /* ptr to io ring associated with q */
@@ -235,7 +235,7 @@ struct lpfc_queue {
 	uint64_t q_cnt_4;
 /* defines for EQ stats */
 #define	EQ_max_eqe		q_cnt_1
-#define	EQ_no_entry		q_cnt_2
+#define	EQ_yes_entry		q_cnt_2
 #define	EQ_cqe_cnt		q_cnt_3
 #define	EQ_processed		q_cnt_4
 
@@ -251,8 +251,8 @@ struct lpfc_queue {
 #define	WQ_posted		q_cnt_4
 
 /* defines for RQ stats */
-#define	RQ_no_posted_buf	q_cnt_1
-#define	RQ_no_buf_found		q_cnt_2
+#define	RQ_yes_posted_buf	q_cnt_1
+#define	RQ_yes_buf_found		q_cnt_2
 #define	RQ_buf_posted		q_cnt_3
 #define	RQ_rcv_buf		q_cnt_4
 
@@ -306,7 +306,7 @@ struct lpfc_fcf_pri {
 
 /*
  * Maximum FCF table index, it is for driver internal book keeping, it
- * just needs to be no less than the supported HBA's FCF table size.
+ * just needs to be yes less than the supported HBA's FCF table size.
  */
 #define LPFC_SLI4_FCF_TBL_INDX_MAX	32
 
@@ -379,13 +379,13 @@ struct lpfc_fcf_conn_rec {
 	uint16_t flags;
 #define	FCFCNCT_VALID		0x0001
 #define	FCFCNCT_BOOT		0x0002
-#define	FCFCNCT_PRIMARY		0x0004   /* if not set, Secondary */
+#define	FCFCNCT_PRIMARY		0x0004   /* if yest set, Secondary */
 #define	FCFCNCT_FBNM_VALID	0x0008
 #define	FCFCNCT_SWNM_VALID	0x0010
 #define	FCFCNCT_VLAN_VALID	0x0020
 #define	FCFCNCT_AM_VALID	0x0040
-#define	FCFCNCT_AM_PREFERRED	0x0080   /* if not set, AM Required */
-#define	FCFCNCT_AM_SPMA		0x0100	 /* if not set, FPMA */
+#define	FCFCNCT_AM_PREFERRED	0x0080   /* if yest set, AM Required */
+#define	FCFCNCT_AM_SPMA		0x0100	 /* if yest set, FPMA */
 
 	uint16_t vlan_tag;
 	uint8_t fabric_name[8];
@@ -565,7 +565,7 @@ struct lpfc_sli4_lnk_info {
 #define LPFC_LNK_GE		0x0 /* FCoE */
 #define LPFC_LNK_FC		0x1 /* FC */
 #define LPFC_LNK_FC_TRUNKED	0x2 /* FC_Trunked */
-	uint8_t lnk_no;
+	uint8_t lnk_yes;
 	uint8_t optic_state;
 };
 
@@ -783,7 +783,7 @@ struct lpfc_sli4_hba {
 	/* IF type 0, BAR1 and if type 2, Bar 0 CSR register memory map */
 	void __iomem *PSMPHRregaddr;
 
-	/* Well-known SLI INTF register memory map. */
+	/* Well-kyeswn SLI INTF register memory map. */
 	void __iomem *SLIINTFregaddr;
 
 	/* IF type 0, BAR 1 function CSR register memory map */
@@ -966,7 +966,7 @@ struct lpfc_sglq {
 	struct list_head clist;
 	enum lpfc_sge_type buff_type; /* is this a scsi sgl */
 	enum lpfc_sgl_state state;
-	struct lpfc_nodelist *ndlp; /* ndlp associated with IO */
+	struct lpfc_yesdelist *ndlp; /* ndlp associated with IO */
 	uint16_t iotag;         /* pre-assigned IO tag */
 	uint16_t sli4_lxritag;  /* logical pre-assigned xri. */
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
@@ -992,7 +992,7 @@ struct lpfc_rsrc_blks {
 };
 
 struct lpfc_rdp_context {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	uint16_t ox_id;
 	uint16_t rx_id;
 	READ_LNK_VAR link_stat;
@@ -1009,7 +1009,7 @@ struct lpfc_lcb_context {
 	uint16_t  duration;
 	uint16_t ox_id;
 	uint16_t rx_id;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 };
 
 
@@ -1078,7 +1078,7 @@ void lpfc_sli4_free_rpi(struct lpfc_hba *, int);
 void lpfc_sli4_remove_rpis(struct lpfc_hba *);
 void lpfc_sli4_async_event_proc(struct lpfc_hba *);
 void lpfc_sli4_fcf_redisc_event_proc(struct lpfc_hba *);
-int lpfc_sli4_resume_rpi(struct lpfc_nodelist *,
+int lpfc_sli4_resume_rpi(struct lpfc_yesdelist *,
 			void (*)(struct lpfc_hba *, LPFC_MBOXQ_t *), void *);
 void lpfc_sli4_fcp_xri_abort_event_proc(struct lpfc_hba *);
 void lpfc_sli4_els_xri_abort_event_proc(struct lpfc_hba *);

@@ -131,8 +131,8 @@ static u32 gamma_table[] = {
 /*
  * Noise Filter Threshold table
  */
-static u32 noise_filter_table[] = {
-#include "noise_filter_table.h"
+static u32 yesise_filter_table[] = {
+#include "yesise_filter_table.h"
 };
 
 /*
@@ -228,7 +228,7 @@ static void preview_enable_hmed(struct isp_prev_device *prev, bool enable)
  * The CFA table is organised in four blocks, one per Bayer component. The
  * hardware expects blocks to follow the Bayer order of the input data, while
  * the driver stores the table in GRBG order in memory. The blocks need to be
- * reordered to support non-GRBG Bayer patterns.
+ * reordered to support yesn-GRBG Bayer patterns.
  */
 static void preview_config_cfa(struct isp_prev_device *prev,
 			       const struct prev_params *params)
@@ -509,10 +509,10 @@ static void preview_enable_drkframe(struct isp_prev_device *prev, bool enable)
 }
 
 /*
- * preview_config_noisefilter - Configure the Noise Filter
+ * preview_config_yesisefilter - Configure the Noise Filter
  */
 static void
-preview_config_noisefilter(struct isp_prev_device *prev,
+preview_config_yesisefilter(struct isp_prev_device *prev,
 			   const struct prev_params *params)
 {
 	struct isp_device *isp = to_isp_device(prev);
@@ -529,10 +529,10 @@ preview_config_noisefilter(struct isp_prev_device *prev,
 }
 
 /*
- * preview_enable_noisefilter - Enable/disable the Noise Filter
+ * preview_enable_yesisefilter - Enable/disable the Noise Filter
  */
 static void
-preview_enable_noisefilter(struct isp_prev_device *prev, bool enable)
+preview_enable_yesisefilter(struct isp_prev_device *prev, bool enable)
 {
 	struct isp_device *isp = to_isp_device(prev);
 
@@ -718,7 +718,7 @@ static void preview_params_switch(struct isp_prev_device *prev)
 	u32 to_switch;
 
 	/* Switch active parameters with updated shadow parameters when the
-	 * shadow parameter has been updated and neither the active not the
+	 * shadow parameter has been updated and neither the active yest the
 	 * shadow parameter is busy.
 	 */
 	to_switch = (prev->params.params[0].update & ~prev->params.active)
@@ -812,7 +812,7 @@ static const struct preview_update update_attrs[] = {
 		offsetof(struct prev_params, dcor),
 		sizeof_field(struct prev_params, dcor),
 		offsetof(struct omap3isp_prev_update_config, dcor),
-	}, /* Previously OMAP3ISP_PREV_GAMMABYPASS, not used anymore */ {
+	}, /* Previously OMAP3ISP_PREV_GAMMABYPASS, yest used anymore */ {
 		NULL,
 		NULL,
 	}, /* OMAP3ISP_PREV_DRK_FRM_CAPTURE */ {
@@ -825,8 +825,8 @@ static const struct preview_update update_attrs[] = {
 		NULL,
 		preview_enable_drkframe,
 	}, /* OMAP3ISP_PREV_NF */ {
-		preview_config_noisefilter,
-		preview_enable_noisefilter,
+		preview_config_yesisefilter,
+		preview_enable_yesisefilter,
 		offsetof(struct prev_params, nf),
 		sizeof_field(struct prev_params, nf),
 		offsetof(struct omap3isp_prev_update_config, nf),
@@ -920,7 +920,7 @@ static int preview_config(struct isp_prev_device *prev,
  * @update: Bitmask of parameters to setup
  * @active: Bitmask of parameters active in set 0
  * Note: can be called from interrupt context
- * Return none
+ * Return yesne
  */
 static void preview_setup_hw(struct isp_prev_device *prev, u32 update,
 			     u32 active)
@@ -1003,7 +1003,7 @@ static void preview_config_averager(struct isp_prev_device *prev, u8 average)
  * The CFA table is organised in four blocks, one per Bayer component. The
  * hardware expects blocks to follow the Bayer order of the input data, while
  * the driver stores the table in GRBG order in memory. The blocks need to be
- * reordered to support non-GRBG Bayer patterns.
+ * reordered to support yesn-GRBG Bayer patterns.
  */
 static void preview_config_input_format(struct isp_prev_device *prev,
 					const struct isp_format_info *info)
@@ -1032,7 +1032,7 @@ static void preview_config_input_format(struct isp_prev_device *prev,
 		prev->params.cfa_order = 3;
 		break;
 	default:
-		/* Disable CFA for non-Bayer formats. */
+		/* Disable CFA for yesn-Bayer formats. */
 		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
 			    ISPPRV_PCR_CFAEN);
 		return;
@@ -1054,7 +1054,7 @@ static void preview_config_input_format(struct isp_prev_device *prev,
  * The preview engine crops several rows and columns internally depending on
  * which processing blocks are enabled. The driver assumes all those blocks are
  * enabled when reporting source pad formats to userspace. If this assumption is
- * not true, rows and columns must be manually cropped at the preview engine
+ * yest true, rows and columns must be manually cropped at the preview engine
  * input to avoid overflows at the end of lines and frames.
  *
  * See the explanation at the PREV_MARGIN_* definitions for more details.
@@ -1196,7 +1196,7 @@ static void preview_adjust_bandwidth(struct isp_prev_device *prev)
 
 	requests_per_frame = DIV_ROUND_UP(ifmt->width * 2, 256) * ifmt->height;
 	cycles_per_frame = div_u64((u64)l3_ick * timeperframe->numerator,
-				   timeperframe->denominator);
+				   timeperframe->deyesminator);
 	cycles_per_request = cycles_per_frame / requests_per_frame;
 
 	maximum = cycles_per_request / 32;
@@ -1323,7 +1323,7 @@ static void preview_init_params(struct isp_prev_device *prev)
 	memcpy(params->luma.table, luma_enhance_table,
 	       sizeof(params->luma.table));
 	params->nf.spread = FLR_NF_STRGTH;
-	memcpy(params->nf.table, noise_filter_table, sizeof(params->nf.table));
+	memcpy(params->nf.table, yesise_filter_table, sizeof(params->nf.table));
 	params->dcor.couplet_mode_en = 1;
 	for (i = 0; i < OMAP3ISP_PREV_DETECT_CORRECT_CHANNELS; i++)
 		params->dcor.detect_correct[i] = DEF_DETECT_CORRECT_VAL;
@@ -1460,7 +1460,7 @@ void omap3isp_preview_isr_frame_sync(struct isp_prev_device *prev)
 {
 	/*
 	 * If ISP_VIDEO_DMAQUEUE_QUEUED is set, DMA queue had an underrun
-	 * condition, the module was paused and now we have a buffer queued
+	 * condition, the module was paused and yesw we have a buffer queued
 	 * on the output again. Restart the pipeline if running in continuous
 	 * mode.
 	 */
@@ -1745,7 +1745,7 @@ static void preview_try_format(struct isp_prev_device *prev,
 		 *
 		 * When reading data from memory, clamp the requested width and
 		 * height. The TRM doesn't specify a minimum input height, make
-		 * sure we got enough lines to enable the noise filter and color
+		 * sure we got eyesugh lines to enable the yesise filter and color
 		 * filter array interpolation.
 		 */
 		if (prev->input == PREVIEW_INPUT_MEMORY) {
@@ -1763,7 +1763,7 @@ static void preview_try_format(struct isp_prev_device *prev,
 				break;
 		}
 
-		/* If not found, use SGRBG10 as default */
+		/* If yest found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(preview_input_fmts))
 			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 		break;
@@ -1785,7 +1785,7 @@ static void preview_try_format(struct isp_prev_device *prev,
 
 		/* The preview module output size is configurable through the
 		 * averager (horizontal scaling by 1/1, 1/2, 1/4 or 1/8). This
-		 * is not supported yet, hardcode the output size to the crop
+		 * is yest supported yet, hardcode the output size to the crop
 		 * rectangle size.
 		 */
 		crop = __preview_get_crop(prev, cfg, which);
@@ -1822,7 +1822,7 @@ static void preview_try_crop(struct isp_prev_device *prev,
 
 	/* When processing data on-the-fly from the CCDC, at least 2 pixels must
 	 * be cropped from the left and right sides of the image. As we don't
-	 * know which filters will be enabled, increase the left and right
+	 * kyesw which filters will be enabled, increase the left and right
 	 * margins by two.
 	 */
 	if (prev->input == PREVIEW_INPUT_CCDC) {
@@ -1831,7 +1831,7 @@ static void preview_try_crop(struct isp_prev_device *prev,
 	}
 
 	/* The CFA filter crops 4 lines and 4 columns in Bayer mode, and 2 lines
-	 * and no columns in other modes. Increase the margins based on the sink
+	 * and yes columns in other modes. Increase the margins based on the sink
 	 * format.
 	 */
 	if (sink->code != MEDIA_BUS_FMT_Y8_1X8 &&
@@ -2071,7 +2071,7 @@ static int preview_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_con
  * @sd: ISP preview V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If fh is yest NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
@@ -2174,7 +2174,7 @@ static int preview_link_setup(struct media_entity *entity,
 
 	/*
 	 * The ISP core doesn't support pipelines with multiple video outputs.
-	 * Revisit this when it will be implemented, and return -EBUSY for now.
+	 * Revisit this when it will be implemented, and return -EBUSY for yesw.
 	 */
 
 	case PREV_PAD_SOURCE:
@@ -2224,7 +2224,7 @@ int omap3isp_preview_register_entities(struct isp_prev_device *prev,
 {
 	int ret;
 
-	/* Register the subdev and video nodes. */
+	/* Register the subdev and video yesdes. */
 	prev->subdev.dev = vdev->mdev->dev;
 	ret = v4l2_device_register_subdev(vdev, &prev->subdev);
 	if (ret < 0)

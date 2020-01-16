@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -27,13 +27,13 @@
 
 /**
  * struct acr_r361_flcn_bl_desc - DMEM bootloader descriptor
- * @signature:		16B signature for secure code. 0s if no secure code
+ * @signature:		16B signature for secure code. 0s if yes secure code
  * @ctx_dma:		DMA context to be used by BL while loading code/data
  * @code_dma_base:	256B-aligned Physical FB Address where code is located
  *			(falcon's $xcbase register)
- * @non_sec_code_off:	offset from code_dma_base where the non-secure code is
+ * @yesn_sec_code_off:	offset from code_dma_base where the yesn-secure code is
  *                      located. The offset must be multiple of 256 to help perf
- * @non_sec_code_size:	the size of the nonSecure code part.
+ * @yesn_sec_code_size:	the size of the yesnSecure code part.
  * @sec_code_off:	offset from code_dma_base where the secure code is
  *                      located. The offset must be multiple of 256 to help perf
  * @sec_code_size:	offset from code_dma_base where the secure code is
@@ -53,8 +53,8 @@ struct acr_r361_flcn_bl_desc {
 	u32 signature[4];
 	u32 ctx_dma;
 	struct flcn_u64 code_dma_base;
-	u32 non_sec_code_off;
-	u32 non_sec_code_size;
+	u32 yesn_sec_code_off;
+	u32 yesn_sec_code_size;
 	u32 sec_code_off;
 	u32 sec_code_size;
 	u32 code_entry_point;

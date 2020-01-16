@@ -60,7 +60,7 @@ enum lm75_type {		/* keep sorted in alphabetical order */
  * @default_resolution:	Default number of bits to represent the temperature
  *			value.
  * @resolution_limits:	Limit register resolution. Optional. Should be set if
- *			the resolution of limit registers does not match the
+ *			the resolution of limit registers does yest match the
  *			resolution of the temperature register.
  * @resolutions:	List of resolutions associated with sample times.
  *			Optional. Should be set if num_sample_times is larger
@@ -87,7 +87,7 @@ struct lm75_params {
 };
 
 /* Addresses scanned */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
+static const unsigned short yesrmal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 /* The LM75 registers */
@@ -121,7 +121,7 @@ static const u8 lm75_sample_set_masks[] = { 0 << 5, 1 << 5, 2 << 5, 3 << 5 };
  */
 static const struct lm75_params device_params[] = {
 	[adt75] = {
-		.clr_mask = 1 << 5,	/* not one-shot mode */
+		.clr_mask = 1 << 5,	/* yest one-shot mode */
 		.default_resolution = 12,
 		.default_sample_time = MSEC_PER_SEC / 10,
 	},
@@ -208,7 +208,7 @@ static const struct lm75_params device_params[] = {
 	},
 	[mcp980x] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
-		.clr_mask = 1 << 7,	/* not one-shot mode */
+		.clr_mask = 1 << 7,	/* yest one-shot mode */
 		.default_resolution = 12,
 		.resolution_limits = 9,
 		.default_sample_time = 240,
@@ -218,7 +218,7 @@ static const struct lm75_params device_params[] = {
 	},
 	[tmp100] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
-		.clr_mask = 1 << 7,	/* not one-shot mode */
+		.clr_mask = 1 << 7,	/* yest one-shot mode */
 		.default_resolution = 12,
 		.default_sample_time = 320,
 		.num_sample_times = 4,
@@ -227,7 +227,7 @@ static const struct lm75_params device_params[] = {
 	},
 	[tmp101] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
-		.clr_mask = 1 << 7,	/* not one-shot mode */
+		.clr_mask = 1 << 7,	/* yest one-shot mode */
 		.default_resolution = 12,
 		.default_sample_time = 320,
 		.num_sample_times = 4,
@@ -236,7 +236,7 @@ static const struct lm75_params device_params[] = {
 	},
 	[tmp105] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
-		.clr_mask = 1 << 7,	/* not one-shot mode*/
+		.clr_mask = 1 << 7,	/* yest one-shot mode*/
 		.default_resolution = 12,
 		.default_sample_time = 220,
 		.num_sample_times = 4,
@@ -245,7 +245,7 @@ static const struct lm75_params device_params[] = {
 	},
 	[tmp112] = {
 		.set_mask = 3 << 5,	/* 8 samples / second */
-		.clr_mask = 1 << 7,	/* no one-shot mode*/
+		.clr_mask = 1 << 7,	/* yes one-shot mode*/
 		.default_resolution = 12,
 		.default_sample_time = 125,
 		.num_sample_times = 4,
@@ -253,7 +253,7 @@ static const struct lm75_params device_params[] = {
 	},
 	[tmp175] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
-		.clr_mask = 1 << 7,	/* not one-shot mode*/
+		.clr_mask = 1 << 7,	/* yest one-shot mode*/
 		.default_resolution = 12,
 		.default_sample_time = 220,
 		.num_sample_times = 4,
@@ -262,7 +262,7 @@ static const struct lm75_params device_params[] = {
 	},
 	[tmp275] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
-		.clr_mask = 1 << 7,	/* not one-shot mode*/
+		.clr_mask = 1 << 7,	/* yest one-shot mode*/
 		.default_resolution = 12,
 		.default_sample_time = 220,
 		.num_sample_times = 4,
@@ -271,14 +271,14 @@ static const struct lm75_params device_params[] = {
 	},
 	[tmp75] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
-		.clr_mask = 1 << 7,	/* not one-shot mode*/
+		.clr_mask = 1 << 7,	/* yest one-shot mode*/
 		.default_resolution = 12,
 		.default_sample_time = 220,
 		.num_sample_times = 4,
 		.sample_times = (unsigned int []){ 28, 55, 110, 220 },
 		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
-	[tmp75b] = { /* not one-shot mode, Conversion rate 37Hz */
+	[tmp75b] = { /* yest one-shot mode, Conversion rate 37Hz */
 		.clr_mask = 1 << 7 | 3 << 5,
 		.default_resolution = 12,
 		.default_sample_time = MSEC_PER_SEC / 37,
@@ -288,7 +288,7 @@ static const struct lm75_params device_params[] = {
 		.num_sample_times = 4,
 	},
 	[tmp75c] = {
-		.clr_mask = 1 << 5,	/*not one-shot mode*/
+		.clr_mask = 1 << 5,	/*yest one-shot mode*/
 		.default_resolution = 12,
 		.default_sample_time = MSEC_PER_SEC / 12,
 	}
@@ -551,7 +551,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int status, err;
 	enum lm75_type kind;
 
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		kind = (enum lm75_type)of_device_get_match_data(&client->dev);
 	else
 		kind = id->driver_data;
@@ -766,11 +766,11 @@ static int lm75_detect(struct i2c_client *new_client,
 		return -ENODEV;
 
 	/*
-	 * Now, we do the remaining detection. There is no identification-
+	 * Now, we do the remaining detection. There is yes identification-
 	 * dedicated register so we have to rely on several tricks:
 	 * unused bits, registers cycling over 8-address boundaries,
 	 * addresses 0x04-0x07 returning the last read value.
-	 * The cycling+unused addresses combination is not tested,
+	 * The cycling+unused addresses combination is yest tested,
 	 * since it would significantly slow the detection down and would
 	 * hardly add any value.
 	 *
@@ -784,7 +784,7 @@ static int lm75_detect(struct i2c_client *new_client,
 	 * Semiconductor LM75 and the LM75A. Clones from other vendors
 	 * aren't detected, on purpose, because they are typically never
 	 * found on PC hardware. They are found on embedded designs where
-	 * they can be instantiated explicitly so detection is not needed.
+	 * they can be instantiated explicitly so detection is yest needed.
 	 * The absence of identification registers on all these clones
 	 * would make their exhaustive detection very difficult and weak,
 	 * and odds are that the driver would bind to unsupported devices.
@@ -892,7 +892,7 @@ static struct i2c_driver lm75_driver = {
 	.probe		= lm75_probe,
 	.id_table	= lm75_ids,
 	.detect		= lm75_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm75_driver);

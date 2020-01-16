@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <sys/sysmacros.h>
 #include <sys/types.h>
-#include <errno.h>
+#include <erryes.h>
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,7 +55,7 @@ struct jit_buf_desc {
 
 struct debug_line_info {
 	unsigned long vma;
-	unsigned int lineno;
+	unsigned int lineyes;
 	/* The filename format is unspecified, absolute path, relative etc. */
 	char const filename[0];
 };
@@ -89,7 +89,7 @@ jit_emit_elf(char *filename,
 
 	fd = open(filename, O_CREAT|O_TRUNC|O_WRONLY, 0644);
 	if (fd == -1) {
-		pr_warning("cannot create jit ELF %s: %s\n", filename, strerror(errno));
+		pr_warning("canyest create jit ELF %s: %s\n", filename, strerror(erryes));
 		return -1;
 	}
 
@@ -198,7 +198,7 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 	}
 
 	if (jd->use_arch_timestamp && !jd->session->time_conv.time_mult) {
-		pr_err("jitdump file uses arch timestamps but there is no timestamp conversion\n");
+		pr_err("jitdump file uses arch timestamps but there is yes timestamp conversion\n");
 		goto error;
 	}
 
@@ -218,7 +218,7 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 			goto error;
 		bsz = bs;
 		buf = n;
-		/* read extra we do not know about */
+		/* read extra we do yest kyesw about */
 		ret = fread(buf, bs - bsz, 1, jd->in);
 		if (ret != 1)
 			goto error;
@@ -282,7 +282,7 @@ jit_get_next_entry(struct jit_buf_desc *jd)
 		return NULL;
 
 	if (id >= JIT_CODE_MAX) {
-		pr_warning("next_entry: unknown record type %d, skipping\n", id);
+		pr_warning("next_entry: unkyeswn record type %d, skipping\n", id);
 	}
 	if (bs > jd->bufsize) {
 		void *n;
@@ -309,7 +309,7 @@ jit_get_next_entry(struct jit_buf_desc *jd)
 			jr->info.nr_entry  = bswap_64(jr->info.nr_entry);
 			for (n = 0 ; n < jr->info.nr_entry; n++) {
 				jr->info.entries[n].addr    = bswap_64(jr->info.entries[n].addr);
-				jr->info.entries[n].lineno  = bswap_32(jr->info.entries[n].lineno);
+				jr->info.entries[n].lineyes  = bswap_32(jr->info.entries[n].lineyes);
 				jr->info.entries[n].discrim = bswap_32(jr->info.entries[n].discrim);
 			}
 		}
@@ -347,7 +347,7 @@ jit_get_next_entry(struct jit_buf_desc *jd)
 		break;
 	case JIT_CODE_MAX:
 	default:
-		/* skip unknown record (we have read them) */
+		/* skip unkyeswn record (we have read them) */
 		break;
 	}
 	return jr;
@@ -459,12 +459,12 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 	event->mmap2.len   = usize ? ALIGN_8(csize) + usize : csize;
 	event->mmap2.pid   = pid;
 	event->mmap2.tid   = tid;
-	event->mmap2.ino   = st.st_ino;
+	event->mmap2.iyes   = st.st_iyes;
 	event->mmap2.maj   = major(st.st_dev);
-	event->mmap2.min   = minor(st.st_dev);
+	event->mmap2.min   = miyesr(st.st_dev);
 	event->mmap2.prot  = st.st_mode;
 	event->mmap2.flags = MAP_SHARED;
-	event->mmap2.ino_generation = 1;
+	event->mmap2.iyes_generation = 1;
 
 	id = (void *)((unsigned long)event + event->mmap.header.size - idr_size);
 	if (jd->sample_type & PERF_SAMPLE_TID) {
@@ -551,12 +551,12 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 				   : jr->move.code_size;
 	event->mmap2.pid   = pid;
 	event->mmap2.tid   = tid;
-	event->mmap2.ino   = st.st_ino;
+	event->mmap2.iyes   = st.st_iyes;
 	event->mmap2.maj   = major(st.st_dev);
-	event->mmap2.min   = minor(st.st_dev);
+	event->mmap2.min   = miyesr(st.st_dev);
 	event->mmap2.prot  = st.st_mode;
 	event->mmap2.flags = MAP_SHARED;
-	event->mmap2.ino_generation = 1;
+	event->mmap2.iyes_generation = 1;
 
 	id = (void *)((unsigned long)event + event->mmap.header.size - idr_size);
 	if (jd->sample_type & PERF_SAMPLE_TID) {
@@ -607,7 +607,7 @@ static int jit_repipe_debug_info(struct jit_buf_desc *jd, union jr_entry *jr)
 
 	/*
 	 * we must use nr_entry instead of size here because
-	 * we cannot distinguish actual entry from padding otherwise
+	 * we canyest distinguish actual entry from padding otherwise
 	 */
 	jd->nr_debug_entries = jr->info.nr_entry;
 
@@ -732,7 +732,7 @@ jit_detect(char *mmap_name, pid_t pid)
 		return -1;
 
 	/*
-	 * pid does not match mmap pid
+	 * pid does yest match mmap pid
 	 * pid==0 in system-wide mode (synthesized)
 	 */
 	if (pid && pid2 != pid)
@@ -775,7 +775,7 @@ jit_process(struct perf_session *session,
 
 	/*
 	 * track sample_type to compute id_all layout
-	 * perf sets the same sample type to all events as of now
+	 * perf sets the same sample type to all events as of yesw
 	 */
 	first = evlist__first(session->evlist);
 	jd.sample_type = first->core.attr.sample_type;

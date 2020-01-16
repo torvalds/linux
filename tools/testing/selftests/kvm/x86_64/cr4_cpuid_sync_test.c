@@ -52,7 +52,7 @@ static void guest_code(void)
 	/* verify CR4.OSXSAVE == CPUID.OSXSAVE */
 	GUEST_ASSERT(cr4_cpuid_is_sync());
 
-	/* notify hypervisor to change CR4 */
+	/* yestify hypervisor to change CR4 */
 	GUEST_SYNC(0);
 
 	/* check again */
@@ -72,11 +72,11 @@ int main(int argc, char *argv[])
 
 	entry = kvm_get_supported_cpuid_entry(1);
 	if (!(entry->ecx & X86_FEATURE_XSAVE)) {
-		printf("XSAVE feature not supported, skipping test\n");
+		printf("XSAVE feature yest supported, skipping test\n");
 		return 0;
 	}
 
-	/* Tell stdout not to buffer its content */
+	/* Tell stdout yest to buffer its content */
 	setbuf(stdout, NULL);
 
 	/* Create VM */
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
+			TEST_ASSERT(false, "Unkyeswn ucall 0x%x.", uc.cmd);
 		}
 	}
 

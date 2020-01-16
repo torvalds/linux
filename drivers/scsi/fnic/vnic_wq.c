@@ -16,7 +16,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>

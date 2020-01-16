@@ -24,19 +24,19 @@ struct etnaviv_chip_identity {
 	/* Supported feature fields. */
 	u32 features;
 
-	/* Supported minor feature fields. */
-	u32 minor_features0;
-	u32 minor_features1;
-	u32 minor_features2;
-	u32 minor_features3;
-	u32 minor_features4;
-	u32 minor_features5;
-	u32 minor_features6;
-	u32 minor_features7;
-	u32 minor_features8;
-	u32 minor_features9;
-	u32 minor_features10;
-	u32 minor_features11;
+	/* Supported miyesr feature fields. */
+	u32 miyesr_features0;
+	u32 miyesr_features1;
+	u32 miyesr_features2;
+	u32 miyesr_features3;
+	u32 miyesr_features4;
+	u32 miyesr_features5;
+	u32 miyesr_features6;
+	u32 miyesr_features7;
+	u32 miyesr_features8;
+	u32 miyesr_features9;
+	u32 miyesr_features10;
+	u32 miyesr_features11;
 
 	/* Number of streams supported. */
 	u32 stream_count;

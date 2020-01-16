@@ -22,8 +22,8 @@ Optional Properties:
 - flash-leds: See ../video-interfaces.txt
 - lens-focus: See ../video-interfaces.txt
 
-The imx214 device node shall contain one 'port' child node with
-an 'endpoint' subnode. For further reading on port node refer to
+The imx214 device yesde shall contain one 'port' child yesde with
+an 'endpoint' subyesde. For further reading on port yesde refer to
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 
 Required Properties on endpoint:

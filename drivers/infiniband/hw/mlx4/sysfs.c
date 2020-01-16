@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Mellanox Technologies.  All rights reserved.
+ * Copyright (c) 2012 Mellayesx Techyeslogies.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -354,7 +354,7 @@ err:
 static void get_name(struct mlx4_ib_dev *dev, char *name, int i, int max)
 {
 	/* pci_name format is: bus:dev:func -> xxxx:yy:zz.n
-	 * with no ARI only 3 last bits are used so when the fn is higher than 8
+	 * with yes ARI only 3 last bits are used so when the fn is higher than 8
 	 * need to add it to the dev num, so count in the last number will be
 	 * modulo 8 */
 	snprintf(name, max, "%.8s%.2d.%d", pci_name(dev->dev->persist->pdev),
@@ -445,7 +445,7 @@ static ssize_t show_port_pkey(struct mlx4_port *p, struct port_attribute *attr,
 
 	if (p->dev->pkeys.virt2phys_pkey[p->slave][p->port_num - 1][tab_attr->index] >=
 	    (p->dev->dev->caps.pkey_table_len[p->port_num]))
-		ret = sprintf(buf, "none\n");
+		ret = sprintf(buf, "yesne\n");
 	else
 		ret = sprintf(buf, "%d\n",
 			      p->dev->pkeys.virt2phys_pkey[p->slave]
@@ -461,11 +461,11 @@ static ssize_t store_port_pkey(struct mlx4_port *p, struct port_attribute *attr,
 	int idx;
 	int err;
 
-	/* do not allow remapping Dom0 virtual pkey table */
+	/* do yest allow remapping Dom0 virtual pkey table */
 	if (p->slave == mlx4_master_func_num(p->dev->dev))
 		return -EINVAL;
 
-	if (!strncasecmp(buf, "no", 2))
+	if (!strncasecmp(buf, "yes", 2))
 		idx = p->dev->dev->phys_caps.pkey_phys_table_len[p->port_num] - 1;
 	else if (sscanf(buf, "%i", &idx) != 1 ||
 		 idx >= p->dev->dev->caps.pkey_table_len[p->port_num] ||
@@ -591,7 +591,7 @@ static int add_vf_smi_entries(struct mlx4_port *p)
 			IB_LINK_LAYER_ETHERNET;
 	int ret;
 
-	/* do not display entries if eth transport, or if master */
+	/* do yest display entries if eth transport, or if master */
 	if (is_eth || p->slave == mlx4_master_func_num(p->dev->dev))
 		return 0;
 

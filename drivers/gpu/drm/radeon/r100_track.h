@@ -37,7 +37,7 @@ struct r100_cs_cube_info {
 
 struct r100_cs_track_texture {
 	struct radeon_bo	*robj;
-	struct r100_cs_cube_info cube_info[5]; /* info for 5 non-primary faces */
+	struct r100_cs_cube_info cube_info[5]; /* info for 5 yesn-primary faces */
 	unsigned		pitch;
 	unsigned		width;
 	unsigned		height;

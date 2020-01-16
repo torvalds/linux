@@ -96,40 +96,40 @@ static const struct block_device_operations ps3vram_fops = {
 };
 
 
-#define DMA_NOTIFIER_HANDLE_BASE 0x66604200 /* first DMA notifier handle */
-#define DMA_NOTIFIER_OFFSET_BASE 0x1000     /* first DMA notifier offset */
+#define DMA_NOTIFIER_HANDLE_BASE 0x66604200 /* first DMA yestifier handle */
+#define DMA_NOTIFIER_OFFSET_BASE 0x1000     /* first DMA yestifier offset */
 #define DMA_NOTIFIER_SIZE        0x40
-#define NOTIFIER 7	/* notifier used for completion report */
+#define NOTIFIER 7	/* yestifier used for completion report */
 
 static char *size = "256M";
 module_param(size, charp, 0);
 MODULE_PARM_DESC(size, "memory size");
 
-static u32 __iomem *ps3vram_get_notifier(void __iomem *reports, int notifier)
+static u32 __iomem *ps3vram_get_yestifier(void __iomem *reports, int yestifier)
 {
 	return reports + DMA_NOTIFIER_OFFSET_BASE +
-	       DMA_NOTIFIER_SIZE * notifier;
+	       DMA_NOTIFIER_SIZE * yestifier;
 }
 
-static void ps3vram_notifier_reset(struct ps3_system_bus_device *dev)
+static void ps3vram_yestifier_reset(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
-	u32 __iomem *notify = ps3vram_get_notifier(priv->reports, NOTIFIER);
+	u32 __iomem *yestify = ps3vram_get_yestifier(priv->reports, NOTIFIER);
 	int i;
 
 	for (i = 0; i < 4; i++)
-		iowrite32be(0xffffffff, notify + i);
+		iowrite32be(0xffffffff, yestify + i);
 }
 
-static int ps3vram_notifier_wait(struct ps3_system_bus_device *dev,
+static int ps3vram_yestifier_wait(struct ps3_system_bus_device *dev,
 				 unsigned int timeout_ms)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
-	u32 __iomem *notify = ps3vram_get_notifier(priv->reports, NOTIFIER);
+	u32 __iomem *yestify = ps3vram_get_yestifier(priv->reports, NOTIFIER);
 	unsigned long timeout;
 
 	for (timeout = 20; timeout; timeout--) {
-		if (!ioread32be(notify + 3))
+		if (!ioread32be(yestify + 3))
 			return 0;
 		udelay(10);
 	}
@@ -137,7 +137,7 @@ static int ps3vram_notifier_wait(struct ps3_system_bus_device *dev,
 	timeout = jiffies + msecs_to_jiffies(timeout_ms);
 
 	do {
-		if (!ioread32be(notify + 3))
+		if (!ioread32be(yestify + 3))
 			return 0;
 		msleep(1);
 	} while (time_before(jiffies, timeout));
@@ -265,14 +265,14 @@ static int ps3vram_upload(struct ps3_system_bus_device *dev,
 	ps3vram_out_ring(priv, (1 << 8) | 1);
 	ps3vram_out_ring(priv, 0);
 
-	ps3vram_notifier_reset(dev);
+	ps3vram_yestifier_reset(dev);
 	ps3vram_begin_ring(priv, UPLOAD_SUBCH,
 			   NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
 	ps3vram_out_ring(priv, 0);
 	ps3vram_begin_ring(priv, UPLOAD_SUBCH, 0x100, 1);
 	ps3vram_out_ring(priv, 0);
 	ps3vram_fire_ring(dev);
-	if (ps3vram_notifier_wait(dev, 200) < 0) {
+	if (ps3vram_yestifier_wait(dev, 200) < 0) {
 		dev_warn(&dev->core, "%s: Notifier timeout\n", __func__);
 		return -1;
 	}
@@ -297,14 +297,14 @@ static int ps3vram_download(struct ps3_system_bus_device *dev,
 	ps3vram_out_ring(priv, (1 << 8) | 1);
 	ps3vram_out_ring(priv, 0);
 
-	ps3vram_notifier_reset(dev);
+	ps3vram_yestifier_reset(dev);
 	ps3vram_begin_ring(priv, DOWNLOAD_SUBCH,
 			   NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
 	ps3vram_out_ring(priv, 0);
 	ps3vram_begin_ring(priv, DOWNLOAD_SUBCH, 0x100, 1);
 	ps3vram_out_ring(priv, 0);
 	ps3vram_fire_ring(dev);
-	if (ps3vram_notifier_wait(dev, 200) < 0) {
+	if (ps3vram_yestifier_wait(dev, 200) < 0) {
 		dev_warn(&dev->core, "%s: Notifier timeout\n", __func__);
 		return -1;
 	}
@@ -634,7 +634,7 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 	priv->xdr_buf = (void *)__get_free_pages(GFP_KERNEL,
 		get_order(XDR_BUF_SIZE));
 	if (priv->xdr_buf == NULL) {
-		dev_err(&dev->core, "Could not allocate XDR buffer\n");
+		dev_err(&dev->core, "Could yest allocate XDR buffer\n");
 		error = -ENOMEM;
 		goto fail_free_priv;
 	}
@@ -760,7 +760,7 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 
 	priv->gendisk = gendisk;
 	gendisk->major = ps3vram_major;
-	gendisk->first_minor = 0;
+	gendisk->first_miyesr = 0;
 	gendisk->fops = &ps3vram_fops;
 	gendisk->queue = queue;
 	gendisk->private_data = dev;

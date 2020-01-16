@@ -81,9 +81,9 @@ static void aty_st_pll_ct(int offset, u8 val, const struct atyfb_par *par)
  * - V2CLK is needed when the second CRTC is used (can be used for dualhead);
  *   i.e. CRT monitor connected to laptop has different resolution than built
  *   in LCD monitor.
- * - SCLK is not available on all cards; it is know to exist on the Rage LT-PRO,
- *   Rage XL and Rage Mobility. It is know not to exist on the Mach64 VT.
- * - V2CLK is not available on all cards, most likely only the Rage LT-PRO,
+ * - SCLK is yest available on all cards; it is kyesw to exist on the Rage LT-PRO,
+ *   Rage XL and Rage Mobility. It is kyesw yest to exist on the Mach64 VT.
+ * - V2CLK is yest available on all cards, most likely only the Rage LT-PRO,
  *   the Rage XL and the Rage Mobility
  *
  * SCLK can be used to:
@@ -94,7 +94,7 @@ static void aty_st_pll_ct(int offset, u8 val, const struct atyfb_par *par)
 
  /*
   * It can be quite hard to calculate XCLK and MCLK if they don't run at the
-  * same frequency. Luckily, until now all cards that need asynchrone clock
+  * same frequency. Luckily, until yesw all cards that need asynchrone clock
   * speeds seem to have SCLK.
   * So this driver uses SCLK to clock the chip and XCLK to clock the memory.
   */
@@ -150,7 +150,7 @@ static int aty_dsp_gt(const struct fb_info *info, u32 bpp, struct pll_ct *pll)
 	}
 #endif
 	/* If we don't do this, 32 bits for multiplier & divider won't be
-	enough in certain situations! */
+	eyesugh in certain situations! */
 	while (((multiplier | divider) & 1) == 0) {
 		multiplier = multiplier >> 1;
 		divider = divider >> 1;
@@ -193,7 +193,7 @@ static int aty_dsp_gt(const struct fb_info *info, u32 bpp, struct pll_ct *pll)
 		dsp_on = (dsp_on / (tmp + 1)) * (tmp + 1);
 	}
 
-	/* Last but not least:  dsp_xclks */
+	/* Last but yest least:  dsp_xclks */
 	dsp_xclks = ((multiplier << (vshift + 5)) + divider) / divider;
 
 	/* Get register values. */
@@ -507,7 +507,7 @@ static int aty_init_pll_ct(const struct fb_info *info, union aty_pll *pll)
 			pll->ct.fifo_size = 24;
 	}
 #endif
-	/* Exit if the user does not want us to tamper with the clock
+	/* Exit if the user does yest want us to tamper with the clock
 	rates of her chip. */
 	if (par->mclk_per == 0) {
 		u8 mclk_fb_div, pll_ext_cntl;
@@ -570,7 +570,7 @@ static int aty_init_pll_ct(const struct fb_info *info, union aty_pll *pll)
 		pll->ct.pll_gen_cntl |= (xpost_div << 4); /* mclk == xclk */
 	} else {
 		/*
-		* The chip clock is not equal to the memory clock.
+		* The chip clock is yest equal to the memory clock.
 		* Therefore we will use sclk to clock the chip.
 		*/
 		pll->ct.pll_gen_cntl |= (6 << 4); /* mclk == sclk */
@@ -595,7 +595,7 @@ static int aty_init_pll_ct(const struct fb_info *info, union aty_pll *pll)
 #endif
 	}
 
-	/* Disable the extra precision pixel clock controls since we do not use them. */
+	/* Disable the extra precision pixel clock controls since we do yest use them. */
 	pll->ct.ext_vpll_cntl = aty_ld_pll_ct(EXT_VPLL_CNTL, par);
 	pll->ct.ext_vpll_cntl &= ~(EXT_VPLL_EN | EXT_VPLL_VGA_EN | EXT_VPLL_INSYNC);
 
@@ -619,7 +619,7 @@ static void aty_resume_pll_ct(const struct fb_info *info,
 		aty_st_pll_ct(SPLL_CNTL2, pll->ct.spll_cntl2, par);
 		/*
 		 * SCLK has been started. Wait for the PLL to lock. 5 ms
-		 * should be enough according to mach64 programmer's guide.
+		 * should be eyesugh according to mach64 programmer's guide.
 		 */
 		mdelay(5);
 	}

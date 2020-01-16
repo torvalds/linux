@@ -81,7 +81,7 @@ static int pxa310_ulpi_read(struct usb_phy *otg, u32 reg)
 	int err;
 
 	if (pxa310_ulpi_get_phymode() != SYNCH) {
-		pr_warn("%s: PHY is not in SYNCH mode!\n", __func__);
+		pr_warn("%s: PHY is yest in SYNCH mode!\n", __func__);
 		return -EBUSY;
 	}
 
@@ -98,7 +98,7 @@ static int pxa310_ulpi_read(struct usb_phy *otg, u32 reg)
 static int pxa310_ulpi_write(struct usb_phy *otg, u32 val, u32 reg)
 {
 	if (pxa310_ulpi_get_phymode() != SYNCH) {
-		pr_warn("%s: PHY is not in SYNCH mode!\n", __func__);
+		pr_warn("%s: PHY is yest in SYNCH mode!\n", __func__);
 		return -EBUSY;
 	}
 
@@ -249,7 +249,7 @@ int pxa3xx_u2d_start_hc(struct usb_bus *host)
 {
 	int err = 0;
 
-	/* In case the PXA3xx ULPI isn't used, do nothing. */
+	/* In case the PXA3xx ULPI isn't used, do yesthing. */
 	if (!u2d)
 		return 0;
 
@@ -266,7 +266,7 @@ EXPORT_SYMBOL_GPL(pxa3xx_u2d_start_hc);
 
 void pxa3xx_u2d_stop_hc(struct usb_bus *host)
 {
-	/* In case the PXA3xx ULPI isn't used, do nothing. */
+	/* In case the PXA3xx ULPI isn't used, do yesthing. */
 	if (!u2d)
 		return;
 
@@ -296,7 +296,7 @@ static int pxa3xx_u2d_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "no IO memory resource defined\n");
+		dev_err(&pdev->dev, "yes IO memory resource defined\n");
 		err = -ENODEV;
 		goto err_put_clk;
 	}

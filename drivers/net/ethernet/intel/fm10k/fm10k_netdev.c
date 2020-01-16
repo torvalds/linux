@@ -47,7 +47,7 @@ err:
  * @interface: board private structure
  *
  * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
+ * more of the rings is populated (while the rest are yest).  It is the
  * callers duty to clean those orphaned rings.
  *
  * Return 0 on success, negative on failure
@@ -114,7 +114,7 @@ err:
  * @interface: board private structure
  *
  * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
+ * more of the rings is populated (while the rest are yest).  It is the
  * callers duty to clean those orphaned rings.
  *
  * Return 0 on success, negative on failure
@@ -172,7 +172,7 @@ static void fm10k_clean_tx_ring(struct fm10k_ring *tx_ring)
 	unsigned long size;
 	u16 i;
 
-	/* ring already cleared, nothing to do */
+	/* ring already cleared, yesthing to do */
 	if (!tx_ring->tx_buffer)
 		return;
 
@@ -206,7 +206,7 @@ void fm10k_free_tx_resources(struct fm10k_ring *tx_ring)
 	vfree(tx_ring->tx_buffer);
 	tx_ring->tx_buffer = NULL;
 
-	/* if not set, then don't free */
+	/* if yest set, then don't free */
 	if (!tx_ring->desc)
 		return;
 
@@ -294,7 +294,7 @@ void fm10k_free_rx_resources(struct fm10k_ring *rx_ring)
 	vfree(rx_ring->rx_buffer);
 	rx_ring->rx_buffer = NULL;
 
-	/* if not set, then don't free */
+	/* if yest set, then don't free */
 	if (!rx_ring->desc)
 		return;
 
@@ -345,7 +345,7 @@ static void fm10k_request_glort_range(struct fm10k_intfc *interface)
 	interface->glort = hw->mac.dglort_map & FM10K_DGLORTMAP_NONE;
 	interface->glort_count = 0;
 
-	/* nothing we can do until mask is allocated */
+	/* yesthing we can do until mask is allocated */
 	if (hw->mac.dglort_map == FM10K_DGLORTMAP_NONE)
 		return;
 
@@ -544,7 +544,7 @@ static void fm10k_udp_tunnel_del(struct net_device *dev,
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is yestified that the interface is ready.
  **/
 int fm10k_open(struct net_device *netdev)
 {
@@ -600,7 +600,7 @@ err_setup_tx:
  * fm10k_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is yest allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -641,16 +641,16 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		struct vlan_hdr *vhdr;
 		__be16 proto;
 
-		/* make sure skb is not shared */
+		/* make sure skb is yest shared */
 		skb = skb_share_check(skb, GFP_ATOMIC);
 		if (!skb)
 			return NETDEV_TX_OK;
 
-		/* make sure there is enough room to move the ethernet header */
+		/* make sure there is eyesugh room to move the ethernet header */
 		if (unlikely(!pskb_may_pull(skb, VLAN_ETH_HLEN)))
 			return NETDEV_TX_OK;
 
-		/* verify the skb head is not shared */
+		/* verify the skb head is yest shared */
 		err = skb_cow_head(skb, 0);
 		if (err) {
 			dev_kfree_skb(skb);
@@ -730,7 +730,7 @@ static void fm10k_tx_timeout(struct net_device *netdev)
  *
  * This function checks if the PF interface's mailbox is ready before queueing
  * mailbox messages for transmission. This will prevent filling the TX mailbox
- * queue when the receiver is not ready. VF interfaces are exempt from this
+ * queue when the receiver is yest ready. VF interfaces are exempt from this
  * check since it will block all PF-VF mailbox messages from being sent from
  * the VF to the PF at initialization.
  **/
@@ -828,7 +828,7 @@ int fm10k_queue_mac_request(struct fm10k_intfc *interface, u16 glort,
  * fm10k_clear_macvlan_queue - Cancel pending updates for a given glort
  * @interface: the fm10k interface structure
  * @glort: the target glort to clear
- * @vlans: true to clear VLAN messages, false to ignore them
+ * @vlans: true to clear VLAN messages, false to igyesre them
  *
  * Cancel any outstanding MAC/VLAN requests for a given glort. This is
  * expected to be called when a logical port goes down.
@@ -879,7 +879,7 @@ static int fm10k_uc_vlan_unsync(struct net_device *netdev,
 	if (err)
 		return err;
 
-	/* return non-zero value as we are only doing a partial sync/unsync */
+	/* return yesn-zero value as we are only doing a partial sync/unsync */
 	return 1;
 }
 
@@ -899,7 +899,7 @@ static int fm10k_mc_vlan_unsync(struct net_device *netdev,
 	if (err)
 		return err;
 
-	/* return non-zero value as we are only doing a partial sync/unsync */
+	/* return yesn-zero value as we are only doing a partial sync/unsync */
 	return 1;
 }
 
@@ -912,7 +912,7 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	s32 err;
 	int i;
 
-	/* updates do not apply to VLAN 0 */
+	/* updates do yest apply to VLAN 0 */
 	if (!vid)
 		return 0;
 
@@ -943,19 +943,19 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 			rx_ring->vid &= ~FM10K_VLAN_CLEAR;
 	}
 
-	/* If our VLAN has been overridden, there is no reason to send VLAN
-	 * removal requests as they will be silently ignored.
+	/* If our VLAN has been overridden, there is yes reason to send VLAN
+	 * removal requests as they will be silently igyesred.
 	 */
 	if (hw->mac.vlan_override)
 		return 0;
 
-	/* Do not remove default VLAN ID related entries from VLAN and MAC
+	/* Do yest remove default VLAN ID related entries from VLAN and MAC
 	 * tables
 	 */
 	if (!set && vid == hw->mac.default_vid)
 		return 0;
 
-	/* Do not throw an error if the interface is down. We will sync once
+	/* Do yest throw an error if the interface is down. We will sync once
 	 * we come up
 	 */
 	if (test_bit(__FM10K_DOWN, interface->state))
@@ -963,7 +963,7 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 
 	fm10k_mbx_lock(interface);
 
-	/* only need to update the VLAN if not in promiscuous mode */
+	/* only need to update the VLAN if yest in promiscuous mode */
 	if (!(netdev->flags & IFF_PROMISC)) {
 		err = fm10k_queue_vlan_request(interface, vid, 0, set);
 		if (err)
@@ -1152,7 +1152,7 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 	struct fm10k_hw *hw = &interface->hw;
 	int xcast_mode;
 
-	/* no need to update the harwdare if we are not running */
+	/* yes need to update the harwdare if we are yest running */
 	if (!(dev->flags & IFF_UP))
 		return;
 
@@ -1387,8 +1387,8 @@ int fm10k_setup_tc(struct net_device *dev, u8 tc)
 		return -EINVAL;
 
 	/* Hardware has to reinitialize queues to match packet
-	 * buffer alignment. Unfortunately, the hardware is not
-	 * flexible enough to do this dynamically.
+	 * buffer alignment. Unfortunately, the hardware is yest
+	 * flexible eyesugh to do this dynamically.
 	 */
 	if (netif_running(dev))
 		fm10k_close(dev);
@@ -1472,9 +1472,9 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 	if (!macvlan_supports_dest_filter(sdev))
 		return ERR_PTR(-EMEDIUMTYPE);
 
-	/* allocate l2 accel structure if it is not available */
+	/* allocate l2 accel structure if it is yest available */
 	if (!l2_accel) {
-		/* verify there is enough free GLORTs to support l2_accel */
+		/* verify there is eyesugh free GLORTs to support l2_accel */
 		if (interface->glort_count < 7)
 			return ERR_PTR(-EBUSY);
 
@@ -1488,7 +1488,7 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 
 		/* update pointers */
 		fm10k_assign_l2_accel(interface, l2_accel);
-	/* do not expand if we are at our limit */
+	/* do yest expand if we are at our limit */
 	} else if ((l2_accel->count == FM10K_MAX_STATIONS) ||
 		   (l2_accel->count == (interface->glort_count - 1))) {
 		return ERR_PTR(-EBUSY);
@@ -1573,7 +1573,7 @@ static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 			break;
 	}
 
-	/* exit if macvlan not found */
+	/* exit if macvlan yest found */
 	if (i == l2_accel->size)
 		return;
 
@@ -1703,9 +1703,9 @@ struct net_device *fm10k_alloc_netdev(const struct fm10k_info *info)
 	/* configure VLAN features */
 	dev->vlan_features |= dev->features;
 
-	/* we want to leave these both on as we cannot disable VLAN tag
+	/* we want to leave these both on as we canyest disable VLAN tag
 	 * insertion or stripping on the hardware since it is contained
-	 * in the FTAG and not in the frame itself.
+	 * in the FTAG and yest in the frame itself.
 	 */
 	dev->features |= NETIF_F_HW_VLAN_CTAG_TX |
 			 NETIF_F_HW_VLAN_CTAG_RX |

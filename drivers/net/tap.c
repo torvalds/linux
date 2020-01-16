@@ -106,8 +106,8 @@ static LIST_HEAD(major_list);
 struct major_info {
 	struct rcu_head rcu;
 	dev_t major;
-	struct idr minor_idr;
-	spinlock_t minor_lock;
+	struct idr miyesr_idr;
+	spinlock_t miyesr_lock;
 	const char *device_name;
 	struct list_head next;
 };
@@ -244,7 +244,7 @@ static void tap_put_queue(struct tap_queue *q)
 
 /*
  * Select a queue based on the rxq of the device on which this packet
- * arrived. If the incoming device is not mq, calculate a flow hash
+ * arrived. If the incoming device is yest mq, calculate a flow hash
  * to select a queue. If all fails, find the first available queue.
  * Cache vlan->numvtaps since it can become zero during the execution
  * of this function.
@@ -367,7 +367,7 @@ rx_handler_result_t tap_handle_frame(struct sk_buff **pskb)
 		/* If we receive a partial checksum and the tap side
 		 * doesn't support checksum offload, compute the checksum.
 		 * Note: it doesn't matter which checksum feature to
-		 *	  check, we either support them all or none.
+		 *	  check, we either support them all or yesne.
 		 */
 		if (skb->ip_summed == CHECKSUM_PARTIAL &&
 		    !(features & NETIF_F_CSUM_MASK) &&
@@ -402,7 +402,7 @@ static struct major_info *tap_get_major(int major)
 	return NULL;
 }
 
-int tap_get_minor(dev_t major, struct tap_dev *tap)
+int tap_get_miyesr(dev_t major, struct tap_dev *tap)
 {
 	int retval = -ENOMEM;
 	struct major_info *tap_major;
@@ -414,23 +414,23 @@ int tap_get_minor(dev_t major, struct tap_dev *tap)
 		goto unlock;
 	}
 
-	spin_lock(&tap_major->minor_lock);
-	retval = idr_alloc(&tap_major->minor_idr, tap, 1, TAP_NUM_DEVS, GFP_ATOMIC);
+	spin_lock(&tap_major->miyesr_lock);
+	retval = idr_alloc(&tap_major->miyesr_idr, tap, 1, TAP_NUM_DEVS, GFP_ATOMIC);
 	if (retval >= 0) {
-		tap->minor = retval;
+		tap->miyesr = retval;
 	} else if (retval == -ENOSPC) {
 		netdev_err(tap->dev, "Too many tap devices\n");
 		retval = -EINVAL;
 	}
-	spin_unlock(&tap_major->minor_lock);
+	spin_unlock(&tap_major->miyesr_lock);
 
 unlock:
 	rcu_read_unlock();
 	return retval < 0 ? retval : 0;
 }
-EXPORT_SYMBOL_GPL(tap_get_minor);
+EXPORT_SYMBOL_GPL(tap_get_miyesr);
 
-void tap_free_minor(dev_t major, struct tap_dev *tap)
+void tap_free_miyesr(dev_t major, struct tap_dev *tap)
 {
 	struct major_info *tap_major;
 
@@ -440,19 +440,19 @@ void tap_free_minor(dev_t major, struct tap_dev *tap)
 		goto unlock;
 	}
 
-	spin_lock(&tap_major->minor_lock);
-	if (tap->minor) {
-		idr_remove(&tap_major->minor_idr, tap->minor);
-		tap->minor = 0;
+	spin_lock(&tap_major->miyesr_lock);
+	if (tap->miyesr) {
+		idr_remove(&tap_major->miyesr_idr, tap->miyesr);
+		tap->miyesr = 0;
 	}
-	spin_unlock(&tap_major->minor_lock);
+	spin_unlock(&tap_major->miyesr_lock);
 
 unlock:
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL_GPL(tap_free_minor);
+EXPORT_SYMBOL_GPL(tap_free_miyesr);
 
-static struct tap_dev *dev_get_by_tap_file(int major, int minor)
+static struct tap_dev *dev_get_by_tap_file(int major, int miyesr)
 {
 	struct net_device *dev = NULL;
 	struct tap_dev *tap;
@@ -465,13 +465,13 @@ static struct tap_dev *dev_get_by_tap_file(int major, int minor)
 		goto unlock;
 	}
 
-	spin_lock(&tap_major->minor_lock);
-	tap = idr_find(&tap_major->minor_idr, minor);
+	spin_lock(&tap_major->miyesr_lock);
+	tap = idr_find(&tap_major->miyesr_idr, miyesr);
 	if (tap) {
 		dev = tap->dev;
 		dev_hold(dev);
 	}
-	spin_unlock(&tap_major->minor_lock);
+	spin_unlock(&tap_major->miyesr_lock);
 
 unlock:
 	rcu_read_unlock();
@@ -498,7 +498,7 @@ static void tap_sock_destruct(struct sock *sk)
 	ptr_ring_cleanup(&q->ring, __skb_array_destroy_skb);
 }
 
-static int tap_open(struct inode *inode, struct file *file)
+static int tap_open(struct iyesde *iyesde, struct file *file)
 {
 	struct net *net = current->nsproxy->net_ns;
 	struct tap_dev *tap;
@@ -506,7 +506,7 @@ static int tap_open(struct inode *inode, struct file *file)
 	int err = -ENODEV;
 
 	rtnl_lock();
-	tap = dev_get_by_tap_file(imajor(inode), iminor(inode));
+	tap = dev_get_by_tap_file(imajor(iyesde), imiyesr(iyesde));
 	if (!tap)
 		goto err;
 
@@ -562,7 +562,7 @@ err:
 	return err;
 }
 
-static int tap_release(struct inode *inode, struct file *file)
+static int tap_release(struct iyesde *iyesde, struct file *file)
 {
 	struct tap_queue *q = file->private_data;
 	tap_put_queue(q);
@@ -594,7 +594,7 @@ out:
 
 static inline struct sk_buff *tap_alloc_skb(struct sock *sk, size_t prepad,
 					    size_t len, size_t linear,
-						int noblock, int *err)
+						int yesblock, int *err)
 {
 	struct sk_buff *skb;
 
@@ -602,7 +602,7 @@ static inline struct sk_buff *tap_alloc_skb(struct sock *sk, size_t prepad,
 	if (prepad + len < PAGE_SIZE || !linear)
 		linear = len;
 
-	skb = sock_alloc_send_pskb(sk, prepad + linear, len - linear, noblock,
+	skb = sock_alloc_send_pskb(sk, prepad + linear, len - linear, yesblock,
 				   err, 0);
 	if (!skb)
 		return NULL;
@@ -620,7 +620,7 @@ static inline struct sk_buff *tap_alloc_skb(struct sock *sk, size_t prepad,
 
 /* Get packet from user space buffer */
 static ssize_t tap_get_user(struct tap_queue *q, void *msg_control,
-			    struct iov_iter *from, int noblock)
+			    struct iov_iter *from, int yesblock)
 {
 	int good_linear = SKB_MAX_HEAD(TAP_RESERVE);
 	struct sk_buff *skb;
@@ -689,7 +689,7 @@ static ssize_t tap_get_user(struct tap_queue *q, void *msg_control,
 	}
 
 	skb = tap_alloc_skb(&q->sk, TAP_RESERVE, copylen,
-			    linear, noblock, &err);
+			    linear, yesblock, &err);
 	if (!skb)
 		goto err;
 
@@ -722,7 +722,7 @@ static ssize_t tap_get_user(struct tap_queue *q, void *msg_control,
 
 	rcu_read_lock();
 	tap = rcu_dereference(q->tap);
-	/* copy skb_ubuf_info for callback when skb has no error */
+	/* copy skb_ubuf_info for callback when skb has yes error */
 	if (zerocopy) {
 		skb_shinfo(skb)->destructor_arg = msg_control;
 		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
@@ -824,7 +824,7 @@ done:
 
 static ssize_t tap_do_read(struct tap_queue *q,
 			   struct iov_iter *to,
-			   int noblock, struct sk_buff *skb)
+			   int yesblock, struct sk_buff *skb)
 {
 	DEFINE_WAIT(wait);
 	ssize_t ret = 0;
@@ -838,7 +838,7 @@ static ssize_t tap_do_read(struct tap_queue *q,
 		goto put;
 
 	while (1) {
-		if (!noblock)
+		if (!yesblock)
 			prepare_to_wait(sk_sleep(&q->sk), &wait,
 					TASK_INTERRUPTIBLE);
 
@@ -846,7 +846,7 @@ static ssize_t tap_do_read(struct tap_queue *q,
 		skb = ptr_ring_consume(&q->ring);
 		if (skb)
 			break;
-		if (noblock) {
+		if (yesblock) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -857,7 +857,7 @@ static ssize_t tap_do_read(struct tap_queue *q,
 		/* Nothing to read, let's sleep */
 		schedule();
 	}
-	if (!noblock)
+	if (!yesblock)
 		finish_wait(sk_sleep(&q->sk), &wait);
 
 put:
@@ -950,10 +950,10 @@ static int set_offload(struct tap_queue *q, unsigned long arg)
 	/* tun/tap driver inverts the usage for TSO offloads, where
 	 * setting the TSO bit means that the userspace wants to
 	 * accept TSO frames and turning it off means that user space
-	 * does not support TSO.
+	 * does yest support TSO.
 	 * For tap, we have to invert it to mean the same thing.
 	 * When user space turns off TSO, we turn off GSO/LRO so that
-	 * user-space will not receive TSO frames.
+	 * user-space will yest receive TSO frames.
 	 */
 	if (feature_mask & (NETIF_F_TSO | NETIF_F_TSO6))
 		features |= RX_OFFLOADS;
@@ -989,7 +989,7 @@ static long tap_ioctl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case TUNSETIFF:
-		/* ignore the name, just look at flags */
+		/* igyesre the name, just look at flags */
 		if (get_user(u, &ifr->ifr_flags))
 			return -EFAULT;
 
@@ -1130,7 +1130,7 @@ static const struct file_operations tap_fops = {
 	.read_iter	= tap_read_iter,
 	.write_iter	= tap_write_iter,
 	.poll		= tap_poll,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.unlocked_ioctl	= tap_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 };
@@ -1312,8 +1312,8 @@ static int tap_list_add(dev_t major, const char *device_name)
 
 	tap_major->major = MAJOR(major);
 
-	idr_init(&tap_major->minor_idr);
-	spin_lock_init(&tap_major->minor_lock);
+	idr_init(&tap_major->miyesr_idr);
+	spin_lock_init(&tap_major->miyesr_lock);
 
 	tap_major->device_name = device_name;
 
@@ -1359,7 +1359,7 @@ void tap_destroy_cdev(dev_t major, struct cdev *tap_cdev)
 	unregister_chrdev_region(major, TAP_NUM_DEVS);
 	list_for_each_entry_safe(tap_major, tmp, &major_list, next) {
 		if (tap_major->major == MAJOR(major)) {
-			idr_destroy(&tap_major->minor_idr);
+			idr_destroy(&tap_major->miyesr_idr);
 			list_del_rcu(&tap_major->next);
 			kfree_rcu(tap_major, rcu);
 		}

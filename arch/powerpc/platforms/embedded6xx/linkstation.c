@@ -34,7 +34,7 @@ static int __init declare_of_platform_devices(void)
 }
 machine_device_initcall(linkstation, declare_of_platform_devices);
 
-static int __init linkstation_add_bridge(struct device_node *dev)
+static int __init linkstation_add_bridge(struct device_yesde *dev)
 {
 #ifdef CONFIG_PCI
 	int len;
@@ -51,8 +51,8 @@ static int __init linkstation_add_bridge(struct device_node *dev)
 	hose = pcibios_alloc_controller(dev);
 	if (hose == NULL)
 		return -ENOMEM;
-	hose->first_busno = bus_range ? bus_range[0] : 0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busyes = bus_range ? bus_range[0] : 0;
+	hose->last_busyes = bus_range ? bus_range[1] : 0xff;
 	setup_indirect_pci(hose, 0xfec00000, 0xfee00000, 0);
 
 	/* Interpret the "ranges" property */
@@ -64,10 +64,10 @@ static int __init linkstation_add_bridge(struct device_node *dev)
 
 static void __init linkstation_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	/* Lookup PCI host bridges */
-	for_each_compatible_node(np, "pci", "mpc10x-pci")
+	for_each_compatible_yesde(np, "pci", "mpc10x-pci")
 		linkstation_add_bridge(np);
 
 	printk(KERN_INFO "BUFFALO Network Attached Storage Series\n");
@@ -100,7 +100,7 @@ static void __init linkstation_init_IRQ(void)
 extern void avr_uart_configure(void);
 extern void avr_uart_send(const char);
 
-static void __noreturn linkstation_restart(char *cmd)
+static void __yesreturn linkstation_restart(char *cmd)
 {
 	local_irq_disable();
 
@@ -113,7 +113,7 @@ static void __noreturn linkstation_restart(char *cmd)
 		avr_uart_send('G');	/* "kick" */
 }
 
-static void __noreturn linkstation_power_off(void)
+static void __yesreturn linkstation_power_off(void)
 {
 	local_irq_disable();
 
@@ -127,7 +127,7 @@ static void __noreturn linkstation_power_off(void)
 	/* NOTREACHED */
 }
 
-static void __noreturn linkstation_halt(void)
+static void __yesreturn linkstation_halt(void)
 {
 	linkstation_power_off();
 	/* NOTREACHED */
@@ -135,7 +135,7 @@ static void __noreturn linkstation_halt(void)
 
 static void linkstation_show_cpuinfo(struct seq_file *m)
 {
-	seq_printf(m, "vendor\t\t: Buffalo Technology\n");
+	seq_printf(m, "vendor\t\t: Buffalo Techyeslogy\n");
 	seq_printf(m, "machine\t\t: Linkstation I/Kurobox(HG)\n");
 }
 

@@ -7,7 +7,7 @@
  * with a lot of changes to make this thing work for R3000s
  * Tx39XX R4k style caches added. HK
  * Copyright (C) 1998, 1999, 2000 Harald Koerfgen
- * Copyright (C) 1998 Gleb Raiko & Vladimir Roganov
+ * Copyright (C) 1998 Gleb Raiko & Vladimir Rogayesv
  * Copyright (C) 2002  Ralf Baechle
  * Copyright (C) 2002  Maciej W. Rozycki
  */
@@ -33,8 +33,8 @@ extern void build_tlb_refill_handler(void);
 #define BARRIER				\
 	__asm__ __volatile__(		\
 		".set	push\n\t"	\
-		".set	noreorder\n\t"	\
-		"nop\n\t"		\
+		".set	yesreorder\n\t"	\
+		"yesp\n\t"		\
 		".set	pop\n\t")
 
 int r3k_have_wired_reg;			/* Should be in cpu_data? */

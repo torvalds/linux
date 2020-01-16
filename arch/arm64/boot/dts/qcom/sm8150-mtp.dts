@@ -13,7 +13,7 @@
 #include "pm8150l.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8150 MTP";
+	model = "Qualcomm Techyeslogies, Inc. SM8150 MTP";
 	compatible = "qcom,sm8150-mtp";
 
 	aliases {
@@ -32,7 +32,7 @@
 	};
 
 	/*
-	 * Apparently RPMh does not provide support for PM8150 S4 because it
+	 * Apparently RPMh does yest provide support for PM8150 S4 because it
 	 * is always-on; model it as a fixed regulator.
 	 */
 	vreg_s4a_1p8: pm8150-s4 {

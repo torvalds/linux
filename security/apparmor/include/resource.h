@@ -5,7 +5,7 @@
  * This file contains AppArmor resource limits function definitions.
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  */
 
 #ifndef __AA_RESOURCE_H

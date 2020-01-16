@@ -84,7 +84,7 @@ struct bq25890_device {
 	struct power_supply *charger;
 
 	struct usb_phy *usb_phy;
-	struct notifier_block usb_nb;
+	struct yestifier_block usb_nb;
 	struct work_struct usb_work;
 	unsigned long usb_event;
 
@@ -104,8 +104,8 @@ static const struct regmap_range bq25890_readonly_reg_ranges[] = {
 };
 
 static const struct regmap_access_table bq25890_writeable_regs = {
-	.no_ranges = bq25890_readonly_reg_ranges,
-	.n_no_ranges = ARRAY_SIZE(bq25890_readonly_reg_ranges),
+	.yes_ranges = bq25890_readonly_reg_ranges,
+	.n_yes_ranges = ARRAY_SIZE(bq25890_readonly_reg_ranges),
 };
 
 static const struct regmap_range bq25890_volatile_reg_ranges[] = {
@@ -116,8 +116,8 @@ static const struct regmap_range bq25890_volatile_reg_ranges[] = {
 };
 
 static const struct regmap_access_table bq25890_volatile_regs = {
-	.yes_ranges = bq25890_volatile_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(bq25890_volatile_reg_ranges),
+	.no_ranges = bq25890_volatile_reg_ranges,
+	.n_no_ranges = ARRAY_SIZE(bq25890_volatile_reg_ranges),
 };
 
 static const struct regmap_config bq25890_regmap_config = {
@@ -640,7 +640,7 @@ static int bq25890_hw_init(struct bq25890_device *bq)
 		}
 	}
 
-	/* Configure ADC for continuous conversions. This does not enable it. */
+	/* Configure ADC for continuous conversions. This does yest enable it. */
 	ret = bq25890_field_write(bq, F_CONV_RATE, 1);
 	if (ret < 0) {
 		dev_dbg(bq->dev, "Config ADC failed %d\n", ret);
@@ -729,7 +729,7 @@ error:
 	dev_err(bq->dev, "Error switching to boost/charger mode.\n");
 }
 
-static int bq25890_usb_notifier(struct notifier_block *nb, unsigned long val,
+static int bq25890_usb_yestifier(struct yestifier_block *nb, unsigned long val,
 				void *priv)
 {
 	struct bq25890_device *bq =
@@ -747,7 +747,7 @@ static int bq25890_irq_probe(struct bq25890_device *bq)
 
 	irq = devm_gpiod_get(bq->dev, BQ25890_IRQ_PIN, GPIOD_IN);
 	if (IS_ERR(irq)) {
-		dev_err(bq->dev, "Could not probe irq pin.\n");
+		dev_err(bq->dev, "Could yest probe irq pin.\n");
 		return PTR_ERR(irq);
 	}
 
@@ -852,7 +852,7 @@ static int bq25890_probe(struct i2c_client *client,
 		bq->rmap_fields[i] = devm_regmap_field_alloc(dev, bq->rmap,
 							     reg_fields[i]);
 		if (IS_ERR(bq->rmap_fields[i])) {
-			dev_err(dev, "cannot allocate regmap field\n");
+			dev_err(dev, "canyest allocate regmap field\n");
 			return PTR_ERR(bq->rmap_fields[i]);
 		}
 	}
@@ -861,20 +861,20 @@ static int bq25890_probe(struct i2c_client *client,
 
 	bq->chip_id = bq25890_field_read(bq, F_PN);
 	if (bq->chip_id < 0) {
-		dev_err(dev, "Cannot read chip ID.\n");
+		dev_err(dev, "Canyest read chip ID.\n");
 		return bq->chip_id;
 	}
 
 	if ((bq->chip_id != BQ25890_ID) && (bq->chip_id != BQ25895_ID)
 			&& (bq->chip_id != BQ25896_ID)) {
-		dev_err(dev, "Chip with ID=%d, not supported!\n", bq->chip_id);
+		dev_err(dev, "Chip with ID=%d, yest supported!\n", bq->chip_id);
 		return -ENODEV;
 	}
 
 	if (!dev->platform_data) {
 		ret = bq25890_fw_probe(bq);
 		if (ret < 0) {
-			dev_err(dev, "Cannot read device properties.\n");
+			dev_err(dev, "Canyest read device properties.\n");
 			return ret;
 		}
 	} else {
@@ -883,7 +883,7 @@ static int bq25890_probe(struct i2c_client *client,
 
 	ret = bq25890_hw_init(bq);
 	if (ret < 0) {
-		dev_err(dev, "Cannot initialize the chip.\n");
+		dev_err(dev, "Canyest initialize the chip.\n");
 		return ret;
 	}
 
@@ -899,8 +899,8 @@ static int bq25890_probe(struct i2c_client *client,
 	bq->usb_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 	if (!IS_ERR_OR_NULL(bq->usb_phy)) {
 		INIT_WORK(&bq->usb_work, bq25890_usb_work);
-		bq->usb_nb.notifier_call = bq25890_usb_notifier;
-		usb_register_notifier(bq->usb_phy, &bq->usb_nb);
+		bq->usb_nb.yestifier_call = bq25890_usb_yestifier;
+		usb_register_yestifier(bq->usb_phy, &bq->usb_nb);
 	}
 
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
@@ -920,7 +920,7 @@ static int bq25890_probe(struct i2c_client *client,
 
 irq_fail:
 	if (!IS_ERR_OR_NULL(bq->usb_phy))
-		usb_unregister_notifier(bq->usb_phy, &bq->usb_nb);
+		usb_unregister_yestifier(bq->usb_phy, &bq->usb_nb);
 
 	return ret;
 }
@@ -932,7 +932,7 @@ static int bq25890_remove(struct i2c_client *client)
 	power_supply_unregister(bq->charger);
 
 	if (!IS_ERR_OR_NULL(bq->usb_phy))
-		usb_unregister_notifier(bq->usb_phy, &bq->usb_nb);
+		usb_unregister_yestifier(bq->usb_phy, &bq->usb_nb);
 
 	/* reset all registers to default values */
 	bq25890_chip_reset(bq);

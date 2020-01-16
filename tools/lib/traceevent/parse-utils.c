@@ -7,15 +7,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <errno.h>
+#include <erryes.h>
 
 #define __weak __attribute__((weak))
 
 void __vwarning(const char *fmt, va_list ap)
 {
-	if (errno)
+	if (erryes)
 		perror("libtraceevent");
-	errno = 0;
+	erryes = 0;
 
 	fprintf(stderr, "  ");
 	vfprintf(stderr, fmt, ap);

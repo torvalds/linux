@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -309,7 +309,7 @@ int r420_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Make sur GART are not working */
+	/* Make sur GART are yest working */
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
 	if (rdev->flags & RADEON_IS_PCI)
@@ -322,7 +322,7 @@ int r420_resume(struct radeon_device *rdev)
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
 	}
-	/* check if cards are posted or not */
+	/* check if cards are posted or yest */
 	if (rdev->is_atom_bios) {
 		atom_asic_init(rdev->mode_info.atom_context);
 	} else {
@@ -413,7 +413,7 @@ int r420_init(struct radeon_device *rdev)
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
 	}
-	/* check if cards are posted or not */
+	/* check if cards are posted or yest */
 	if (radeon_boot_test_post_card(rdev) == false)
 		return -EINVAL;
 
@@ -482,8 +482,8 @@ int r420_init(struct radeon_device *rdev)
 #if defined(CONFIG_DEBUG_FS)
 static int r420_debugfs_pipes_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t tmp;
 

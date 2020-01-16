@@ -63,7 +63,7 @@ struct host1x_waitlist {
  * @waiter waiter structure - assumes ownership
  * @ref must be passed if cancellation is possible, else NULL
  *
- * This is a non-blocking api.
+ * This is a yesn-blocking api.
  */
 int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
 			   u32 thresh, enum host1x_intr_action action,
@@ -72,7 +72,7 @@ int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
 
 /*
  * Unreference an action submitted to host1x_intr_add_action().
- * You must call this if you passed non-NULL as ref.
+ * You must call this if you passed yesn-NULL as ref.
  * @ref the ref returned from host1x_intr_add_action()
  */
 void host1x_intr_put_ref(struct host1x *host, unsigned int id, void *ref);

@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
  * Copyright (C) 2006 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 #ifndef MIPI_DISPLAY_H
 #define MIPI_DISPLAY_H

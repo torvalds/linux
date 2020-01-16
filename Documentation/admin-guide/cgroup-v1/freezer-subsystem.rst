@@ -13,17 +13,17 @@ a means to start and stop the tasks composing the job.
 The cgroup freezer will also be useful for checkpointing running groups
 of tasks. The freezer allows the checkpoint code to obtain a consistent
 image of the tasks by attempting to force the tasks in a cgroup into a
-quiescent state. Once the tasks are quiescent another task can
+quiescent state. Once the tasks are quiescent ayesther task can
 walk /proc or invoke a kernel interface to gather information about the
 quiesced tasks. Checkpointed tasks can be restarted later should a
 recoverable error occur. This also allows the checkpointed tasks to be
-migrated between nodes in a cluster by copying the gathered information
-to another node and restarting the tasks there.
+migrated between yesdes in a cluster by copying the gathered information
+to ayesther yesde and restarting the tasks there.
 
-Sequences of SIGSTOP and SIGCONT are not always sufficient for stopping
+Sequences of SIGSTOP and SIGCONT are yest always sufficient for stopping
 and resuming tasks in userspace. Both of these signals are observable
-from within the tasks we wish to freeze. While SIGSTOP cannot be caught,
-blocked, or ignored it can be seen by waiting or ptracing parent tasks.
+from within the tasks we wish to freeze. While SIGSTOP canyest be caught,
+blocked, or igyesred it can be seen by waiting or ptracing parent tasks.
 SIGCONT is especially unsuitable since it can be caught by the task. Any
 programs designed to watch for SIGSTOP and SIGCONT could be broken by
 attempting to use SIGSTOP and SIGCONT to stop and resume tasks. We can
@@ -44,7 +44,7 @@ demonstrate this problem using nested bash shells::
 This happens because bash can observe both signals and choose how it
 responds to them.
 
-Another example of a program which catches and responds to these
+Ayesther example of a program which catches and responds to these
 signals is gdb. In fact any program designed to use ptrace is likely to
 have a problem with this method of stopping and resuming tasks.
 
@@ -75,11 +75,11 @@ The following cgroupfs files are created by cgroup freezer.
 
   When written, sets the self-state of the cgroup. Two values are
   allowed - "FROZEN" and "THAWED". If FROZEN is written, the cgroup,
-  if not already freezing, enters FREEZING state along with all its
+  if yest already freezing, enters FREEZING state along with all its
   descendant cgroups.
 
   If THAWED is written, the self-state of the cgroup is changed to
-  THAWED.  Note that the effective state may not change to THAWED if
+  THAWED.  Note that the effective state may yest change to THAWED if
   the parent-state is still freezing. If a cgroup's effective state
   becomes THAWED, all its descendants which are freezing because of
   the cgroup also leave the freezing state.
@@ -91,10 +91,10 @@ The following cgroupfs files are created by cgroup freezer.
 
 * freezer.parent_freezing: Read only.
 
-  Shows the parent-state.  0 if none of the cgroup's ancestors is
+  Shows the parent-state.  0 if yesne of the cgroup's ancestors is
   frozen; otherwise, 1.
 
-The root cgroup is non-freezable and the above interface files don't
+The root cgroup is yesn-freezable and the above interface files don't
 exist.
 
 * Examples of usage::

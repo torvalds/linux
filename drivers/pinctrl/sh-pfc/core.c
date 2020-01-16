@@ -12,7 +12,7 @@
 
 #include <linux/bitops.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -298,7 +298,7 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, u16 mark, int pos,
 		}
 	}
 
-	dev_err(pfc->dev, "cannot locate data/mark enum_id for mark %d\n",
+	dev_err(pfc->dev, "canyest locate data/mark enum_id for mark %d\n",
 		mark);
 	return -EINVAL;
 }
@@ -343,7 +343,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 			break;
 
 		/* Check if the configuration field selects a function. If it
-		 * doesn't, skip the field if it's not applicable to the
+		 * doesn't, skip the field if it's yest applicable to the
 		 * requested pinmux type.
 		 */
 		in_range = sh_pfc_enum_in_range(enum_id, &pfc->info->function);
@@ -398,7 +398,7 @@ sh_pfc_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
 		}
 	}
 
-	WARN_ONCE(1, "Pin %u is not in bias info list\n", pin);
+	WARN_ONCE(1, "Pin %u is yest in bias info list\n", pin);
 
 	return NULL;
 }
@@ -410,7 +410,7 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 	unsigned int i;
 
 	if (pfc->info->pins[0].pin == (u16)-1) {
-		/* Pin number -1 denotes that the SoC doesn't report pin numbers
+		/* Pin number -1 deyestes that the SoC doesn't report pin numbers
 		 * in its pin arrays yet. Consider the pin numbers range as
 		 * continuous and allocate a single range.
 		 */
@@ -575,7 +575,7 @@ static const struct of_device_id sh_pfc_of_table[] = {
 	},
 #ifdef DEBUG
 	{
-		/* For sanity checks only (nothing matches against this) */
+		/* For sanity checks only (yesthing matches against this) */
 		.compatible = "renesas,pfc-r8a77950",	/* R-Car H3 ES1.0 */
 		.data = &r8a7795es1_pinmux_info,
 	},
@@ -634,7 +634,7 @@ static const struct of_device_id sh_pfc_of_table[] = {
 #endif
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM_PSCI_FW)
-static void sh_pfc_nop_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
+static void sh_pfc_yesp_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
 {
 }
 
@@ -683,7 +683,7 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc)
 	if (!psci_ops.cpu_suspend)
 		return 0;
 
-	n = sh_pfc_walk_regs(pfc, sh_pfc_nop_reg);
+	n = sh_pfc_walk_regs(pfc, sh_pfc_yesp_reg);
 	if (!n)
 		return 0;
 
@@ -697,7 +697,7 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc)
 	return 0;
 }
 
-static int sh_pfc_suspend_noirq(struct device *dev)
+static int sh_pfc_suspend_yesirq(struct device *dev)
 {
 	struct sh_pfc *pfc = dev_get_drvdata(dev);
 
@@ -706,7 +706,7 @@ static int sh_pfc_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int sh_pfc_resume_noirq(struct device *dev)
+static int sh_pfc_resume_yesirq(struct device *dev)
 {
 	struct sh_pfc *pfc = dev_get_drvdata(dev);
 
@@ -716,7 +716,7 @@ static int sh_pfc_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops sh_pfc_pm  = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_pfc_suspend_noirq, sh_pfc_resume_noirq)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_pfc_suspend_yesirq, sh_pfc_resume_yesirq)
 };
 #define DEV_PM_OPS	&sh_pfc_pm
 #else
@@ -833,7 +833,7 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 			}
 
 			if (k == info->nr_groups) {
-				pr_err("%s: function %s: group %s not found\n",
+				pr_err("%s: function %s: group %s yest found\n",
 				       drvname, func->name, func->groups[j]);
 				sh_pfc_errors++;
 			}
@@ -889,7 +889,7 @@ static inline void sh_pfc_check_driver(struct platform_driver *pdrv) {}
 static int sh_pfc_probe(struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 #endif
 	const struct sh_pfc_soc_info *info;
 	struct sh_pfc *pfc;
@@ -954,7 +954,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 		 * PFC state as it is, given that there are already
 		 * extant users of it that have succeeded by this point.
 		 */
-		dev_notice(pfc->dev, "failed to init GPIO chip, ignoring...\n");
+		dev_yestice(pfc->dev, "failed to init GPIO chip, igyesring...\n");
 	}
 #endif
 

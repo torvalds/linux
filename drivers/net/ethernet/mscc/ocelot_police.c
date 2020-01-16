@@ -32,9 +32,9 @@ enum mscc_qos_rate_mode {
 struct qos_policer_conf {
 	enum mscc_qos_rate_mode mode;
 	bool dlb; /* Enable DLB (dual leaky bucket mode */
-	bool cf;  /* Coupling flag (ignored in SLB mode) */
-	u32  cir; /* CIR in kbps/fps (ignored in SLB mode) */
-	u32  cbs; /* CBS in bytes/frames (ignored in SLB mode) */
+	bool cf;  /* Coupling flag (igyesred in SLB mode) */
+	u32  cir; /* CIR in kbps/fps (igyesred in SLB mode) */
+	u32  cbs; /* CBS in bytes/frames (igyesred in SLB mode) */
 	u32  pir; /* PIR in kbps/fps */
 	u32  pbs; /* PBS in bytes/frames */
 	u8   ipg; /* Size of IPG when MSCC_QOS_RATE_MODE_LINE is chosen */

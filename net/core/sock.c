@@ -15,16 +15,16 @@
  * Fixes:
  *		Alan Cox	: 	Numerous verify_area() problems
  *		Alan Cox	:	Connecting on a connecting socket
- *					now returns an error for tcp.
+ *					yesw returns an error for tcp.
  *		Alan Cox	:	sock->protocol is set correctly.
- *					and is not sometimes left as 0.
+ *					and is yest sometimes left as 0.
  *		Alan Cox	:	connect handles icmp errors on a
  *					connect properly. Unfortunately there
  *					is a restart syscall nasty there. I
  *					can't match BSD without hacking the C
  *					library. Ideas urgently sought!
  *		Alan Cox	:	Disallow bind() to addresses that are
- *					not ours - especially broadcast ones!!
+ *					yest ours - especially broadcast ones!!
  *		Alan Cox	:	Socket 1024 _IS_ ok for users. (fencepost)
  *		Alan Cox	:	sock_wfree/sock_rfree don't destroy sockets,
  *					instead they leave that for the DESTROY timer.
@@ -38,9 +38,9 @@
  *					and fixed timer/inet_bh race.
  *		Alan Cox	:	Added zapped flag for TCP
  *		Alan Cox	:	Move kfree_skb into skbuff.c and tidied up surplus code
- *		Alan Cox	:	for new sk_buff allocations wmalloc/rmalloc now call alloc_skb
- *		Alan Cox	:	kfree_s calls now are kfree_skbmem so we can track skb resources
- *		Alan Cox	:	Supports socket option broadcast now as does udp. Packet and raw need fixing.
+ *		Alan Cox	:	for new sk_buff allocations wmalloc/rmalloc yesw call alloc_skb
+ *		Alan Cox	:	kfree_s calls yesw are kfree_skbmem so we can track skb resources
+ *		Alan Cox	:	Supports socket option broadcast yesw as does udp. Packet and raw need fixing.
  *		Alan Cox	:	Added RCVBUF,SNDBUF size setting. It suddenly occurred to me how easy it was so...
  *		Rick Sladkey	:	Relaxed UDP rules for matching packets.
  *		C.E.Hawkins	:	IFF_PROMISC/SIOCGHWADDR support
@@ -48,7 +48,7 @@
  *		Alan Cox	:	Fixed connect() taking signals I think.
  *		Alan Cox	:	SO_LINGER supported
  *		Alan Cox	:	Error reporting fixes
- *		Anonymous	:	inet_create tidied up (sk->reuse setting)
+ *		Ayesnymous	:	inet_create tidied up (sk->reuse setting)
  *		Alan Cox	:	inet sockets don't set sk->type!
  *		Alan Cox	:	Split socket option code
  *		Alan Cox	:	Callbacks
@@ -68,7 +68,7 @@
  *		Alan Cox	:	Allow NULL arguments on some SO_ opts
  *		Alan Cox	: 	Generic socket allocation to make hooks
  *					easier (suggested by Craig Metz).
- *		Michael Pall	:	SO_ERROR returns positive errno again
+ *		Michael Pall	:	SO_ERROR returns positive erryes again
  *              Steve Whitehouse:       Added default destructor to free
  *                                      protocol private data.
  *              Steve Whitehouse:       Added various other default routines
@@ -87,7 +87,7 @@
 
 #include <asm/unaligned.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/errqueue.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -304,7 +304,7 @@ void sk_clear_memalloc(struct sock *sk)
 	static_branch_dec(&memalloc_socks_key);
 
 	/*
-	 * SOCK_MEMALLOC is allowed to ignore rmem limits to ensure forward
+	 * SOCK_MEMALLOC is allowed to igyesre rmem limits to ensure forward
 	 * progress of swapping. SOCK_MEMALLOC may be cleared while
 	 * it has rmem allocations due to the last swapfile being deactivated
 	 * but there is a risk that the socket is unusable due to exceeding
@@ -317,14 +317,14 @@ EXPORT_SYMBOL_GPL(sk_clear_memalloc);
 int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	int ret;
-	unsigned int noreclaim_flag;
+	unsigned int yesreclaim_flag;
 
 	/* these should have been dropped before queueing */
 	BUG_ON(!sock_flag(sk, SOCK_MEMALLOC));
 
-	noreclaim_flag = memalloc_noreclaim_save();
+	yesreclaim_flag = memalloc_yesreclaim_save();
 	ret = sk->sk_backlog_rcv(sk, skb);
-	memalloc_noreclaim_restore(noreclaim_flag);
+	memalloc_yesreclaim_restore(yesreclaim_flag);
 
 	return ret;
 }
@@ -465,7 +465,7 @@ int __sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	skb_set_owner_r(skb, sk);
 
 	/* we escape from rcu protected region, make sure we dont leak
-	 * a norefcounted dst
+	 * a yesrefcounted dst
 	 */
 	skb_dst_force(skb);
 
@@ -610,7 +610,7 @@ static int sock_setbindtodevice(struct sock *sk, char __user *optval,
 	/* Bind this socket to a particular device like "eth0",
 	 * as specified in the passed interface name. If the
 	 * name is "" or the option length is zero the socket
-	 * is not bound.
+	 * is yest bound.
 	 */
 	if (optlen > IFNAMSIZ - 1)
 		optlen = IFNAMSIZ - 1;
@@ -858,7 +858,7 @@ set_rcvbuf:
 		break;
 
 	case SO_NO_CHECK:
-		sk->sk_no_check_tx = valbool;
+		sk->sk_yes_check_tx = valbool;
 		break;
 
 	case SO_PRIORITY:
@@ -878,7 +878,7 @@ set_rcvbuf:
 			ret = -EFAULT;
 			break;
 		}
-		if (!ling.l_onoff)
+		if (!ling.l_oyesff)
 			sock_reset_flag(sk, SOCK_LINGER);
 		else {
 #if (BITS_PER_LONG == 32)
@@ -1292,7 +1292,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case SO_NO_CHECK:
-		v.val = sk->sk_no_check_tx;
+		v.val = sk->sk_yes_check_tx;
 		break;
 
 	case SO_PRIORITY:
@@ -1301,7 +1301,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	case SO_LINGER:
 		lv		= sizeof(v.ling);
-		v.ling.l_onoff	= sock_flag(sk, SOCK_LINGER);
+		v.ling.l_oyesff	= sock_flag(sk, SOCK_LINGER);
 		v.ling.l_linger	= sk->sk_lingertime / HZ;
 		break;
 
@@ -1361,7 +1361,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		cred_to_ucred(sk->sk_peer_pid, sk->sk_peer_cred, &peercred);
 		if (copy_to_user(optval, &peercred, len))
 			return -EFAULT;
-		goto lenout;
+		goto leyesut;
 	}
 
 	case SO_PEERGROUPS:
@@ -1382,7 +1382,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 				     sk->sk_peer_cred->group_info);
 		if (ret)
 			return ret;
-		goto lenout;
+		goto leyesut;
 	}
 
 	case SO_PEERNAME:
@@ -1396,10 +1396,10 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 			return -EINVAL;
 		if (copy_to_user(optval, address, len))
 			return -EFAULT;
-		goto lenout;
+		goto leyesut;
 	}
 
-	/* Dubious BSD thing... Probably nobody even uses it, but
+	/* Dubious BSD thing... Probably yesbody even uses it, but
 	 * the UNIX standard wants it for whatever reason... -DaveM
 	 */
 	case SO_ACCEPTCONN:
@@ -1443,7 +1443,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		if (len < 0)
 			return len;
 
-		goto lenout;
+		goto leyesut;
 
 	case SO_LOCK_FILTER:
 		v.val = sock_flag(sk, SOCK_FILTER_LOCKED);
@@ -1487,14 +1487,14 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		if (copy_to_user(optval, &meminfo, len))
 			return -EFAULT;
 
-		goto lenout;
+		goto leyesut;
 	}
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	case SO_INCOMING_NAPI_ID:
 		v.val = READ_ONCE(sk->sk_napi_id);
 
-		/* aggregate non-NAPI IDs down to 0 */
+		/* aggregate yesn-NAPI IDs down to 0 */
 		if (v.val < MIN_NAPI_ID)
 			v.val = 0;
 
@@ -1526,7 +1526,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	default:
-		/* We implement the SO_SNDLOWAT etc to not be settable
+		/* We implement the SO_SNDLOWAT etc to yest be settable
 		 * (1003.1g 7).
 		 */
 		return -ENOPROTOOPT;
@@ -1536,7 +1536,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		len = lv;
 	if (copy_to_user(optval, &v, len))
 		return -EFAULT;
-lenout:
+leyesut:
 	if (put_user(len, optlen))
 		return -EFAULT;
 	return 0;
@@ -1566,9 +1566,9 @@ static inline void sock_lock_init(struct sock *sk)
 }
 
 /*
- * Copy all fields from osk to nsk but nsk->sk_refcnt must not change yet,
- * even temporarly, because of RCU lookups. sk_node should also be left as is.
- * We must not copy fields between sk_dontcopy_begin and sk_dontcopy_end
+ * Copy all fields from osk to nsk but nsk->sk_refcnt must yest change yet,
+ * even temporarly, because of RCU lookups. sk_yesde should also be left as is.
+ * We must yest copy fields between sk_dontcopy_begin and sk_dontcopy_end
  */
 static void sock_copy(struct sock *nsk, const struct sock *osk)
 {
@@ -1753,9 +1753,9 @@ static void __sk_free(struct sock *sk)
 void sk_free(struct sock *sk)
 {
 	/*
-	 * We subtract one from sk_wmem_alloc and can know if
+	 * We subtract one from sk_wmem_alloc and can kyesw if
 	 * some packets are still in some tx queue.
-	 * If not null, sock_wfree() will call __sk_free(sk) later
+	 * If yest null, sock_wfree() will call __sk_free(sk) later
 	 */
 	if (refcount_dec_and_test(&sk->sk_wmem_alloc))
 		__sk_free(sk);
@@ -1806,7 +1806,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		/* SANITY */
 		if (likely(newsk->sk_net_refcnt))
 			get_net(sock_net(newsk));
-		sk_node_init(&newsk->sk_node);
+		sk_yesde_init(&newsk->sk_yesde);
 		sock_lock_init(newsk);
 		bh_lock_sock(newsk);
 		newsk->sk_backlog.head	= newsk->sk_backlog.tail = NULL;
@@ -1922,7 +1922,7 @@ void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 	sk->sk_route_caps = dst->dev->features | sk->sk_route_forced_caps;
 	if (sk->sk_route_caps & NETIF_F_GSO)
 		sk->sk_route_caps |= NETIF_F_GSO_SOFTWARE;
-	sk->sk_route_caps &= ~sk->sk_route_nocaps;
+	sk->sk_route_caps &= ~sk->sk_route_yescaps;
 	if (sk_can_gso(sk)) {
 		if (dst->header_len && !xfrm_dst_offload_ok(dst)) {
 			sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
@@ -1960,7 +1960,7 @@ void sock_wfree(struct sk_buff *skb)
 	}
 	/*
 	 * if sk_wmem_alloc reaches 0, we must finish what sk_free()
-	 * could not do because of in-flight packets
+	 * could yest do because of in-flight packets
 	 */
 	if (refcount_sub_and_test(len, &sk->sk_wmem_alloc))
 		__sk_free(sk);
@@ -1993,7 +1993,7 @@ void skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
 	skb_set_hash_from_sk(skb, sk);
 	/*
 	 * We used to take a refcount on sk, but following operation
-	 * is enough to guarantee sk_free() wont free this sock until
+	 * is eyesugh to guarantee sk_free() wont free this sock until
 	 * all in-flight packets are completed
 	 */
 	refcount_add(skb->truesize, &sk->sk_wmem_alloc);
@@ -2027,7 +2027,7 @@ void skb_orphan_partial(struct sk_buff *skb)
 	if (can_skb_orphan_partial(skb)) {
 		struct sock *sk = skb->sk;
 
-		if (refcount_inc_not_zero(&sk->sk_refcnt)) {
+		if (refcount_inc_yest_zero(&sk->sk_refcnt)) {
 			WARN_ON(refcount_sub_and_test(skb->truesize, &sk->sk_wmem_alloc));
 			skb->destructor = sock_efree;
 		}
@@ -2051,7 +2051,7 @@ void sock_rfree(struct sk_buff *skb)
 EXPORT_SYMBOL(sock_rfree);
 
 /*
- * Buffer destructor for skbs that are not used directly in read or write
+ * Buffer destructor for skbs that are yest used directly in read or write
  * path, e.g. for error handler skbs. Automatically called from kfree_skb.
  */
 void sock_efree(struct sk_buff *skb)
@@ -2071,16 +2071,16 @@ kuid_t sock_i_uid(struct sock *sk)
 }
 EXPORT_SYMBOL(sock_i_uid);
 
-unsigned long sock_i_ino(struct sock *sk)
+unsigned long sock_i_iyes(struct sock *sk)
 {
-	unsigned long ino;
+	unsigned long iyes;
 
 	read_lock_bh(&sk->sk_callback_lock);
-	ino = sk->sk_socket ? SOCK_INODE(sk->sk_socket)->i_ino : 0;
+	iyes = sk->sk_socket ? SOCK_INODE(sk->sk_socket)->i_iyes : 0;
 	read_unlock_bh(&sk->sk_callback_lock);
-	return ino;
+	return iyes;
 }
-EXPORT_SYMBOL(sock_i_ino);
+EXPORT_SYMBOL(sock_i_iyes);
 
 /*
  * Allocate a skb from the socket's send buffer.
@@ -2210,14 +2210,14 @@ static long sock_wait_for_wmem(struct sock *sk, long timeo)
  */
 
 struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
-				     unsigned long data_len, int noblock,
+				     unsigned long data_len, int yesblock,
 				     int *errcode, int max_page_order)
 {
 	struct sk_buff *skb;
 	long timeo;
 	int err;
 
-	timeo = sock_sndtimeo(sk, noblock);
+	timeo = sock_sndtimeo(sk, yesblock);
 	for (;;) {
 		err = sock_error(sk);
 		if (err != 0)
@@ -2246,7 +2246,7 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 	return skb;
 
 interrupted:
-	err = sock_intr_errno(timeo);
+	err = sock_intr_erryes(timeo);
 failure:
 	*errcode = err;
 	return NULL;
@@ -2254,9 +2254,9 @@ failure:
 EXPORT_SYMBOL(sock_alloc_send_pskb);
 
 struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
-				    int noblock, int *errcode)
+				    int yesblock, int *errcode)
 {
-	return sock_alloc_send_pskb(sk, size, 0, noblock, errcode, 0);
+	return sock_alloc_send_pskb(sk, size, 0, yesblock, errcode, 0);
 }
 EXPORT_SYMBOL(sock_alloc_send_skb);
 
@@ -2346,13 +2346,13 @@ static void sk_leave_memory_pressure(struct sock *sk)
 DEFINE_STATIC_KEY_FALSE(net_high_order_alloc_disable_key);
 
 /**
- * skb_page_frag_refill - check that a page_frag contains enough room
+ * skb_page_frag_refill - check that a page_frag contains eyesugh room
  * @sz: minimum size of the fragment we want to get
  * @pfrag: pointer to page_frag
  * @gfp: priority for memory allocation
  *
  * Note: While this allocator tries to use high order pages, there is
- * no guarantee that allocations succeed. Therefore, @sz MUST be
+ * yes guarantee that allocations succeed. Therefore, @sz MUST be
  * less or equal than PAGE_SIZE.
  */
 bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t gfp)
@@ -2432,8 +2432,8 @@ void __release_sock(struct sock *sk)
 		do {
 			next = skb->next;
 			prefetch(next);
-			WARN_ON_ONCE(skb_dst_is_noref(skb));
-			skb_mark_not_on_list(skb);
+			WARN_ON_ONCE(skb_dst_is_yesref(skb));
+			skb_mark_yest_on_list(skb);
 			sk_backlog_rcv(sk, skb);
 
 			cond_resched();
@@ -2445,7 +2445,7 @@ void __release_sock(struct sock *sk)
 	}
 
 	/*
-	 * Doing the zeroing here guarantee we can not loop forever
+	 * Doing the zeroing here guarantee we can yest loop forever
 	 * while a wild producer attempts to flood us.
 	 */
 	sk->sk_backlog.len = 0;
@@ -2490,7 +2490,7 @@ EXPORT_SYMBOL(sk_wait_data);
  *	@amt: pages to allocate
  *	@kind: allocation type
  *
- *	Similar to __sk_mem_schedule(), but does not update sk_forward_alloc
+ *	Similar to __sk_mem_schedule(), but does yest update sk_forward_alloc
  */
 int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
 {
@@ -2551,7 +2551,7 @@ suppress_allocation:
 		sk_stream_moderate_sndbuf(sk);
 
 		/* Fail only if socket is _under_ its sndbuf.
-		 * In this case we cannot block, so that we have to fail.
+		 * In this case we canyest block, so that we have to fail.
 		 */
 		if (sk->sk_wmem_queued + size >= sk->sk_sndbuf)
 			return 1;
@@ -2596,7 +2596,7 @@ EXPORT_SYMBOL(__sk_mem_schedule);
  *	@sk: socket
  *	@amount: number of quanta
  *
- *	Similar to __sk_mem_reclaim(), but does not update sk_forward_alloc
+ *	Similar to __sk_mem_reclaim(), but does yest update sk_forward_alloc
  */
 void __sk_mem_reduce_allocated(struct sock *sk, int amount)
 {
@@ -2633,103 +2633,103 @@ EXPORT_SYMBOL_GPL(sk_set_peek_off);
 
 /*
  * Set of default routines for initialising struct proto_ops when
- * the protocol does not support a particular function. In certain
- * cases where it makes no sense for a protocol to have a "do nothing"
+ * the protocol does yest support a particular function. In certain
+ * cases where it makes yes sense for a protocol to have a "do yesthing"
  * function, some default processing is provided.
  */
 
-int sock_no_bind(struct socket *sock, struct sockaddr *saddr, int len)
+int sock_yes_bind(struct socket *sock, struct sockaddr *saddr, int len)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_bind);
+EXPORT_SYMBOL(sock_yes_bind);
 
-int sock_no_connect(struct socket *sock, struct sockaddr *saddr,
+int sock_yes_connect(struct socket *sock, struct sockaddr *saddr,
 		    int len, int flags)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_connect);
+EXPORT_SYMBOL(sock_yes_connect);
 
-int sock_no_socketpair(struct socket *sock1, struct socket *sock2)
+int sock_yes_socketpair(struct socket *sock1, struct socket *sock2)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_socketpair);
+EXPORT_SYMBOL(sock_yes_socketpair);
 
-int sock_no_accept(struct socket *sock, struct socket *newsock, int flags,
+int sock_yes_accept(struct socket *sock, struct socket *newsock, int flags,
 		   bool kern)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_accept);
+EXPORT_SYMBOL(sock_yes_accept);
 
-int sock_no_getname(struct socket *sock, struct sockaddr *saddr,
+int sock_yes_getname(struct socket *sock, struct sockaddr *saddr,
 		    int peer)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_getname);
+EXPORT_SYMBOL(sock_yes_getname);
 
-int sock_no_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+int sock_yes_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_ioctl);
+EXPORT_SYMBOL(sock_yes_ioctl);
 
-int sock_no_listen(struct socket *sock, int backlog)
+int sock_yes_listen(struct socket *sock, int backlog)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_listen);
+EXPORT_SYMBOL(sock_yes_listen);
 
-int sock_no_shutdown(struct socket *sock, int how)
+int sock_yes_shutdown(struct socket *sock, int how)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_shutdown);
+EXPORT_SYMBOL(sock_yes_shutdown);
 
-int sock_no_setsockopt(struct socket *sock, int level, int optname,
+int sock_yes_setsockopt(struct socket *sock, int level, int optname,
 		    char __user *optval, unsigned int optlen)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_setsockopt);
+EXPORT_SYMBOL(sock_yes_setsockopt);
 
-int sock_no_getsockopt(struct socket *sock, int level, int optname,
+int sock_yes_getsockopt(struct socket *sock, int level, int optname,
 		    char __user *optval, int __user *optlen)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_getsockopt);
+EXPORT_SYMBOL(sock_yes_getsockopt);
 
-int sock_no_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
+int sock_yes_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_sendmsg);
+EXPORT_SYMBOL(sock_yes_sendmsg);
 
-int sock_no_sendmsg_locked(struct sock *sk, struct msghdr *m, size_t len)
+int sock_yes_sendmsg_locked(struct sock *sk, struct msghdr *m, size_t len)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_sendmsg_locked);
+EXPORT_SYMBOL(sock_yes_sendmsg_locked);
 
-int sock_no_recvmsg(struct socket *sock, struct msghdr *m, size_t len,
+int sock_yes_recvmsg(struct socket *sock, struct msghdr *m, size_t len,
 		    int flags)
 {
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(sock_no_recvmsg);
+EXPORT_SYMBOL(sock_yes_recvmsg);
 
-int sock_no_mmap(struct file *file, struct socket *sock, struct vm_area_struct *vma)
+int sock_yes_mmap(struct file *file, struct socket *sock, struct vm_area_struct *vma)
 {
 	/* Mirror missing mmap method error code */
 	return -ENODEV;
 }
-EXPORT_SYMBOL(sock_no_mmap);
+EXPORT_SYMBOL(sock_yes_mmap);
 
-ssize_t sock_no_sendpage(struct socket *sock, struct page *page, int offset, size_t size, int flags)
+ssize_t sock_yes_sendpage(struct socket *sock, struct page *page, int offset, size_t size, int flags)
 {
 	ssize_t res;
 	struct msghdr msg = {.msg_flags = flags};
@@ -2741,9 +2741,9 @@ ssize_t sock_no_sendpage(struct socket *sock, struct page *page, int offset, siz
 	kunmap(page);
 	return res;
 }
-EXPORT_SYMBOL(sock_no_sendpage);
+EXPORT_SYMBOL(sock_yes_sendpage);
 
-ssize_t sock_no_sendpage_locked(struct sock *sk, struct page *page,
+ssize_t sock_yes_sendpage_locked(struct sock *sk, struct page *page,
 				int offset, size_t size, int flags)
 {
 	ssize_t res;
@@ -2757,7 +2757,7 @@ ssize_t sock_no_sendpage_locked(struct sock *sk, struct page *page,
 	kunmap(page);
 	return res;
 }
-EXPORT_SYMBOL(sock_no_sendpage_locked);
+EXPORT_SYMBOL(sock_yes_sendpage_locked);
 
 /*
  *	Default Socket Callbacks
@@ -2805,7 +2805,7 @@ static void sock_def_write_space(struct sock *sk)
 
 	rcu_read_lock();
 
-	/* Do not wake up a writer until he can make "significant"
+	/* Do yest wake up a writer until he can make "significant"
 	 * progress.  --DaveM
 	 */
 	if ((refcount_read(&sk->sk_wmem_alloc) << 1) <= READ_ONCE(sk->sk_sndbuf)) {
@@ -3097,7 +3097,7 @@ EXPORT_SYMBOL(sock_recv_errqueue);
  *	Get a socket option on an socket.
  *
  *	FIX: POSIX 1003.1g is very ambiguous here. It states that
- *	asynchronous errors should be reported by getsockopt. We assume
+ *	asynchroyesus errors should be reported by getsockopt. We assume
  *	this means if you specify SO_ERROR (otherwise whats the point of it).
  */
 int sock_common_getsockopt(struct socket *sock, int level, int optname,
@@ -3171,7 +3171,7 @@ void sk_common_release(struct sock *sk)
 
 	/*
 	 * Observation: when sock_common_release is called, processes have
-	 * no access to socket. But net still has.
+	 * yes access to socket. But net still has.
 	 * Step one, detach it from networking:
 	 *
 	 * A. Remove from hash tables.
@@ -3180,7 +3180,7 @@ void sk_common_release(struct sock *sk)
 	sk->sk_prot->unhash(sk);
 
 	/*
-	 * In this point socket cannot receive new packets, but it is possible
+	 * In this point socket canyest receive new packets, but it is possible
 	 * that some packets are in flight because some CPU runs receiver and
 	 * did hash table lookup before we unhashed socket. They will achieve
 	 * receive queue and will be purged by socket destructor.
@@ -3217,7 +3217,7 @@ void sk_get_meminfo(const struct sock *sk, u32 *mem)
 }
 
 #ifdef CONFIG_PROC_FS
-#define PROTO_INUSE_NR	64	/* should be enough for the first time */
+#define PROTO_INUSE_NR	64	/* should be eyesugh for the first time */
 struct prot_inuse {
 	int val[PROTO_INUSE_NR];
 };
@@ -3290,7 +3290,7 @@ static struct pernet_operations net_inuse_ops = {
 static __init int net_inuse_init(void)
 {
 	if (register_pernet_subsys(&net_inuse_ops))
-		panic("Cannot initialize net inuse counters");
+		panic("Canyest initialize net inuse counters");
 
 	return 0;
 }
@@ -3410,7 +3410,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 		mutex_unlock(&proto_list_mutex);
 		goto out_free_timewait_sock_slab_name;
 	}
-	list_add(&prot->node, &proto_list);
+	list_add(&prot->yesde, &proto_list);
 	mutex_unlock(&proto_list_mutex);
 	return ret;
 
@@ -3433,7 +3433,7 @@ void proto_unregister(struct proto *prot)
 {
 	mutex_lock(&proto_list_mutex);
 	release_proto_idx(prot);
-	list_del(&prot->node);
+	list_del(&prot->yesde);
 	mutex_unlock(&proto_list_mutex);
 
 	kmem_cache_destroy(prot->slab);
@@ -3502,7 +3502,7 @@ static long sock_prot_memory_allocated(struct proto *proto)
 static const char *sock_prot_memory_pressure(struct proto *proto)
 {
 	return proto->memory_pressure != NULL ?
-	proto_memory_pressure(proto) ? "yes" : "no" : "NI";
+	proto_memory_pressure(proto) ? "no" : "yes" : "NI";
 }
 
 static void proto_seq_printf(struct seq_file *seq, struct proto *proto)
@@ -3516,7 +3516,7 @@ static void proto_seq_printf(struct seq_file *seq, struct proto *proto)
 		   sock_prot_memory_allocated(proto),
 		   sock_prot_memory_pressure(proto),
 		   proto->max_header,
-		   proto->slab == NULL ? "no" : "yes",
+		   proto->slab == NULL ? "yes" : "no",
 		   module_name(proto->owner),
 		   proto_method_implemented(proto->close),
 		   proto_method_implemented(proto->connect),
@@ -3553,7 +3553,7 @@ static int proto_seq_show(struct seq_file *seq, void *v)
 			   "module",
 			   "cl co di ac io in de sh ss gs se re sp bi br ha uh gp em\n");
 	else
-		proto_seq_printf(seq, list_entry(v, struct proto, node));
+		proto_seq_printf(seq, list_entry(v, struct proto, yesde));
 	return 0;
 }
 

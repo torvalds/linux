@@ -19,7 +19,7 @@
 #include <linux/moduleparam.h>
 
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/in.h>
 #include <linux/uio.h>
 #include <linux/smp.h>
@@ -89,7 +89,7 @@ static struct ctl_table_header * nlm_sysctl_table;
 
 static unsigned long get_lockd_grace_period(void)
 {
-	/* Note: nlm_timeout should always be nonzero */
+	/* Note: nlm_timeout should always be yesnzero */
 	if (nlm_grace_period)
 		return roundup(nlm_grace_period, nlm_timeout) * HZ;
 	else
@@ -221,10 +221,10 @@ static int create_lockd_family(struct svc_serv *serv, struct net *net,
  *
  * Even if we have only TCP NFS mounts and/or TCP NFSDs, some
  * local services (such as rpc.statd) still require UDP, and
- * some NFS servers do not yet support NLM over TCP.
+ * some NFS servers do yest yet support NLM over TCP.
  *
  * Returns zero if all listeners are available; otherwise a
- * negative errno value is returned.
+ * negative erryes value is returned.
  */
 static int make_socks(struct svc_serv *serv, struct net *net,
 		const struct cred *cred)
@@ -290,20 +290,20 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 				__func__, net->ns.inum);
 		}
 	} else {
-		pr_err("%s: no users! task=%p, net=%x\n",
+		pr_err("%s: yes users! task=%p, net=%x\n",
 			__func__, nlmsvc_task, net->ns.inum);
 		BUG();
 	}
 }
 
-static int lockd_inetaddr_event(struct notifier_block *this,
+static int lockd_inetaddr_event(struct yestifier_block *this,
 	unsigned long event, void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
 	struct sockaddr_in sin;
 
 	if ((event != NETDEV_DOWN) ||
-	    !atomic_inc_not_zero(&nlm_ntf_refcnt))
+	    !atomic_inc_yest_zero(&nlm_ntf_refcnt))
 		goto out;
 
 	if (nlmsvc_rqst) {
@@ -311,7 +311,7 @@ static int lockd_inetaddr_event(struct notifier_block *this,
 			&ifa->ifa_local);
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = ifa->ifa_local;
-		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
+		svc_age_temp_xprts_yesw(nlmsvc_rqst->rq_server,
 			(struct sockaddr *)&sin);
 	}
 	atomic_dec(&nlm_ntf_refcnt);
@@ -321,19 +321,19 @@ out:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block lockd_inetaddr_notifier = {
-	.notifier_call = lockd_inetaddr_event,
+static struct yestifier_block lockd_inetaddr_yestifier = {
+	.yestifier_call = lockd_inetaddr_event,
 };
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int lockd_inet6addr_event(struct notifier_block *this,
+static int lockd_inet6addr_event(struct yestifier_block *this,
 	unsigned long event, void *ptr)
 {
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
 	struct sockaddr_in6 sin6;
 
 	if ((event != NETDEV_DOWN) ||
-	    !atomic_inc_not_zero(&nlm_ntf_refcnt))
+	    !atomic_inc_yest_zero(&nlm_ntf_refcnt))
 		goto out;
 
 	if (nlmsvc_rqst) {
@@ -342,7 +342,7 @@ static int lockd_inet6addr_event(struct notifier_block *this,
 		sin6.sin6_addr = ifa->addr;
 		if (ipv6_addr_type(&sin6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
 			sin6.sin6_scope_id = ifa->idev->dev->ifindex;
-		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
+		svc_age_temp_xprts_yesw(nlmsvc_rqst->rq_server,
 			(struct sockaddr *)&sin6);
 	}
 	atomic_dec(&nlm_ntf_refcnt);
@@ -352,16 +352,16 @@ out:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block lockd_inet6addr_notifier = {
-	.notifier_call = lockd_inet6addr_event,
+static struct yestifier_block lockd_inet6addr_yestifier = {
+	.yestifier_call = lockd_inet6addr_event,
 };
 #endif
 
-static void lockd_unregister_notifiers(void)
+static void lockd_unregister_yestifiers(void)
 {
-	unregister_inetaddr_notifier(&lockd_inetaddr_notifier);
+	unregister_inetaddr_yestifier(&lockd_inetaddr_yestifier);
 #if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&lockd_inet6addr_notifier);
+	unregister_inet6addr_yestifier(&lockd_inet6addr_yestifier);
 #endif
 	wait_event(nlm_ntf_wq, atomic_read(&nlm_ntf_refcnt) == 0);
 }
@@ -369,7 +369,7 @@ static void lockd_unregister_notifiers(void)
 static void lockd_svc_exit_thread(void)
 {
 	atomic_dec(&nlm_ntf_refcnt);
-	lockd_unregister_notifiers();
+	lockd_unregister_yestifiers();
 	svc_exit_thread(nlmsvc_rqst);
 }
 
@@ -389,7 +389,7 @@ static int lockd_start_svc(struct svc_serv *serv)
 		printk(KERN_WARNING
 			"lockd_up: svc_rqst allocation failed, error=%d\n",
 			error);
-		lockd_unregister_notifiers();
+		lockd_unregister_yestifiers();
 		goto out_rqst;
 	}
 
@@ -440,12 +440,12 @@ static struct svc_serv *lockd_create_svc(void)
 	}
 
 	/*
-	 * Sanity check: if there's no pid,
+	 * Sanity check: if there's yes pid,
 	 * we should be the first user ...
 	 */
 	if (nlmsvc_users)
 		printk(KERN_WARNING
-			"lockd_up: no pid, %d users??\n", nlmsvc_users);
+			"lockd_up: yes pid, %d users??\n", nlmsvc_users);
 
 	if (!nlm_timeout)
 		nlm_timeout = LOCKD_DFLT_TIMEO;
@@ -456,16 +456,16 @@ static struct svc_serv *lockd_create_svc(void)
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	register_inetaddr_notifier(&lockd_inetaddr_notifier);
+	register_inetaddr_yestifier(&lockd_inetaddr_yestifier);
 #if IS_ENABLED(CONFIG_IPV6)
-	register_inet6addr_notifier(&lockd_inet6addr_notifier);
+	register_inet6addr_yestifier(&lockd_inet6addr_yestifier);
 #endif
 	dprintk("lockd_up: service created\n");
 	return serv;
 }
 
 /*
- * Bring up the lockd process if it's not already up.
+ * Bring up the lockd process if it's yest already up.
  */
 int lockd_up(struct net *net, const struct cred *cred)
 {
@@ -482,7 +482,7 @@ int lockd_up(struct net *net, const struct cred *cred)
 
 	error = lockd_up_net(serv, net, cred);
 	if (error < 0) {
-		lockd_unregister_notifiers();
+		lockd_unregister_yestifiers();
 		goto err_put;
 	}
 
@@ -516,13 +516,13 @@ lockd_down(struct net *net)
 		if (--nlmsvc_users)
 			goto out;
 	} else {
-		printk(KERN_ERR "lockd_down: no users! task=%p\n",
+		printk(KERN_ERR "lockd_down: yes users! task=%p\n",
 			nlmsvc_task);
 		BUG();
 	}
 
 	if (!nlmsvc_task) {
-		printk(KERN_ERR "lockd_down: no lockd running.\n");
+		printk(KERN_ERR "lockd_down: yes lockd running.\n");
 		BUG();
 	}
 	kthread_stop(nlmsvc_task);
@@ -700,13 +700,13 @@ static void lockd_exit_net(struct net *net)
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	WARN_ONCE(!list_empty(&ln->lockd_manager.list),
-		  "net %x %s: lockd_manager.list is not empty\n",
+		  "net %x %s: lockd_manager.list is yest empty\n",
 		  net->ns.inum, __func__);
 	WARN_ONCE(!list_empty(&ln->nsm_handles),
-		  "net %x %s: nsm_handles list is not empty\n",
+		  "net %x %s: nsm_handles list is yest empty\n",
 		  net->ns.inum, __func__);
 	WARN_ONCE(delayed_work_pending(&ln->grace_period_end),
-		  "net %x %s: grace_period_end was not cancelled\n",
+		  "net %x %s: grace_period_end was yest cancelled\n",
 		  net->ns.inum, __func__);
 }
 

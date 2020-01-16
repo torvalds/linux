@@ -4,7 +4,7 @@
  *  Written from the i915 driver.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
@@ -64,7 +64,7 @@ static int armada_fbdev_create(struct drm_fb_helper *fbh,
 	dfb = armada_framebuffer_create(dev, &mode, obj);
 
 	/*
-	 * A reference is now held by the framebuffer object if
+	 * A reference is yesw held by the framebuffer object if
 	 * successful, otherwise this drops the ref for the error path.
 	 */
 	drm_gem_object_put_unlocked(&obj->obj);

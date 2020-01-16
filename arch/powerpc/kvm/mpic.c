@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -26,9 +26,9 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/kvm_host.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/uaccess.h>
 #include <asm/mpic.h>
 #include <asm/kvm_para.h>
@@ -132,7 +132,7 @@ static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
 enum irq_type {
 	IRQ_TYPE_NORMAL = 0,
 	IRQ_TYPE_FSLINT,	/* FSL internal interrupt -- level only */
-	IRQ_TYPE_FSLSPECIAL,	/* FSL timer/IPI interrupt, edge, no polarity */
+	IRQ_TYPE_FSLSPECIAL,	/* FSL timer/IPI interrupt, edge, yes polarity */
 };
 
 struct irq_queue {
@@ -153,7 +153,7 @@ struct irq_source {
 	int pending;		/* TRUE if IRQ is pending */
 	enum irq_type type;
 	bool level:1;		/* level-triggered */
-	bool nomask:1;	/* critical interrupts ignore mask on some FSL MPICs */
+	bool yesmask:1;	/* critical interrupts igyesre mask on some FSL MPICs */
 };
 
 #define IVPR_MASK_SHIFT       31
@@ -182,7 +182,7 @@ struct irq_dest {
 	struct irq_queue raised;
 	struct irq_queue servicing;
 
-	/* Count of IRQ sources asserting on non-INT outputs */
+	/* Count of IRQ sources asserting on yesn-INT outputs */
 	uint32_t outputs_active[NUM_OUTPUTS];
 };
 
@@ -247,7 +247,7 @@ static void mpic_irq_raise(struct openpic *opp, struct irq_dest *dst,
 	};
 
 	if (!dst->vcpu) {
-		pr_debug("%s: destination cpu %d does not exist\n",
+		pr_debug("%s: destination cpu %d does yest exist\n",
 			 __func__, (int)(dst - &opp->dst[0]));
 		return;
 	}
@@ -265,7 +265,7 @@ static void mpic_irq_lower(struct openpic *opp, struct irq_dest *dst,
 			   int output)
 {
 	if (!dst->vcpu) {
-		pr_debug("%s: destination cpu %d does not exist\n",
+		pr_debug("%s: destination cpu %d does yest exist\n",
 			 __func__, (int)(dst - &opp->dst[0]));
 		return;
 	}
@@ -339,8 +339,8 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 			__func__, src->output, n_IRQ, active, was_active,
 			dst->outputs_active[src->output]);
 
-		/* On Freescale MPIC, critical interrupts ignore priority,
-		 * IACK, EOI, etc.  Before MPIC v4.1 they also ignore
+		/* On Freescale MPIC, critical interrupts igyesre priority,
+		 * IACK, EOI, etc.  Before MPIC v4.1 they also igyesre
 		 * masking.
 		 */
 		if (active) {
@@ -364,7 +364,7 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 
 	priority = IVPR_PRIORITY(src->ivpr);
 
-	/* Even if the interrupt doesn't have enough priority,
+	/* Even if the interrupt doesn't have eyesugh priority,
 	 * it is still raised, in case ctpr is lowered later.
 	 */
 	if (active)
@@ -418,7 +418,7 @@ static void openpic_update_irq(struct openpic *opp, int n_IRQ)
 	src = &opp->src[n_IRQ];
 	active = src->pending;
 
-	if ((src->ivpr & IVPR_MASK_MASK) && !src->nomask) {
+	if ((src->ivpr & IVPR_MASK_MASK) && !src->yesmask) {
 		/* Interrupt source is disabled */
 		pr_debug("%s: IRQ %d is disabled\n", __func__, n_IRQ);
 		active = false;
@@ -442,7 +442,7 @@ static void openpic_update_irq(struct openpic *opp, int n_IRQ)
 
 	if (src->destmask == 0) {
 		/* No target */
-		pr_debug("%s: IRQ %d has no target\n", __func__, n_IRQ);
+		pr_debug("%s: IRQ %d has yes target\n", __func__, n_IRQ);
 		return;
 	}
 
@@ -499,7 +499,7 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
 
 		if (src->output != ILR_INTTGT_INT) {
 			/* Edge-triggered interrupts shouldn't be used
-			 * with non-INT delivery, but just in case,
+			 * with yesn-INT delivery, but just in case,
 			 * try to make it do something sane rather than
 			 * cause an interrupt storm.  This is close to
 			 * what you'd probably see happen in real hardware.
@@ -581,9 +581,9 @@ static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
 				    uint32_t val)
 {
 	struct irq_source *src = &opp->src[n_IRQ];
-	uint32_t normal_mask = (1UL << opp->nb_cpus) - 1;
+	uint32_t yesrmal_mask = (1UL << opp->nb_cpus) - 1;
 	uint32_t crit_mask = 0;
-	uint32_t mask = normal_mask;
+	uint32_t mask = yesrmal_mask;
 	int crit_shift = IDR_EP_SHIFT - opp->nb_cpus;
 	int i;
 
@@ -597,13 +597,13 @@ static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
 
 	if (opp->flags & OPENPIC_FLAG_IDR_CRIT) {
 		if (src->idr & crit_mask) {
-			if (src->idr & normal_mask) {
+			if (src->idr & yesrmal_mask) {
 				pr_debug("%s: IRQ configured for multiple output types, using critical\n",
 					__func__);
 			}
 
 			src->output = ILR_INTTGT_CINT;
-			src->nomask = true;
+			src->yesmask = true;
 			src->destmask = 0;
 
 			for (i = 0; i < opp->nb_cpus; i++) {
@@ -614,8 +614,8 @@ static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
 			}
 		} else {
 			src->output = ILR_INTTGT_INT;
-			src->nomask = false;
-			src->destmask = src->idr & normal_mask;
+			src->yesmask = false;
+			src->destmask = src->idr & yesrmal_mask;
 		}
 	} else {
 		src->destmask = src->idr;
@@ -632,7 +632,7 @@ static inline void write_IRQreg_ilr(struct openpic *opp, int n_IRQ,
 		pr_debug("Set ILR %d to 0x%08x, output %d\n", n_IRQ, src->idr,
 			src->output);
 
-		/* TODO: on MPIC v4.0 only, set nomask for non-INT */
+		/* TODO: on MPIC v4.0 only, set yesmask for yesn-INT */
 	}
 }
 
@@ -653,7 +653,7 @@ static inline void write_IRQreg_ivpr(struct openpic *opp, int n_IRQ,
 
 	/* For FSL internal interrupts, The sense bit is reserved and zero,
 	 * and the interrupt is always level-triggered.  Timers and IPIs
-	 * have no sense or polarity bits, and are edge-triggered.
+	 * have yes sense or polarity bits, and are edge-triggered.
 	 */
 	switch (opp->src[n_IRQ].type) {
 	case IRQ_TYPE_NORMAL:
@@ -957,7 +957,7 @@ static int openpic_msi_write(void *opaque, gpa_t addr, u32 val)
 		openpic_set_irq(opp, idx, 1);
 		break;
 	default:
-		/* most registers are read-only, thus ignored */
+		/* most registers are read-only, thus igyesred */
 		break;
 	}
 
@@ -1076,20 +1076,20 @@ static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
 		/* Read-only register */
 		break;
 	case 0xB0: {		/* EOI */
-		int notify_eoi;
+		int yestify_eoi;
 
 		pr_debug("EOI\n");
 		s_IRQ = IRQ_get_next(opp, &dst->servicing);
 
 		if (s_IRQ < 0) {
-			pr_debug("%s: EOI with no interrupt in service\n",
+			pr_debug("%s: EOI with yes interrupt in service\n",
 				__func__);
 			break;
 		}
 
 		IRQ_resetbit(&dst->servicing, s_IRQ);
 		/* Notify listeners that the IRQ is over */
-		notify_eoi = s_IRQ;
+		yestify_eoi = s_IRQ;
 		/* Set up next servicing IRQ */
 		s_IRQ = IRQ_get_next(opp, &dst->servicing);
 		/* Check queued interrupts. */
@@ -1104,7 +1104,7 @@ static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
 		}
 
 		spin_unlock(&opp->lock);
-		kvm_notify_acked_irq(opp->kvm, 0, notify_eoi);
+		kvm_yestify_acked_irq(opp->kvm, 0, yestify_eoi);
 		spin_lock(&opp->lock);
 
 		break;
@@ -1163,7 +1163,7 @@ static uint32_t openpic_iack(struct openpic *opp, struct irq_dest *dst,
 	if ((irq >= opp->irq_ipi0) && (irq < (opp->irq_ipi0 + MAX_IPI))) {
 		src->destmask &= ~(1 << cpu);
 		if (src->destmask && !src->level) {
-			/* trigger on CPUs that didn't know about it yet */
+			/* trigger on CPUs that didn't kyesw about it yet */
 			openpic_set_irq(opp, irq, 1);
 			openpic_set_irq(opp, irq, 0);
 			/* if all CPUs knew about it, set active bit again */
@@ -1393,7 +1393,7 @@ static int kvm_mpic_read(struct kvm_vcpu *vcpu,
 	/*
 	 * Technically only 32-bit accesses are allowed, but be nice to
 	 * people dumping registers a byte at a time -- it works in real
-	 * hardware (reads only, not writes).
+	 * hardware (reads only, yest writes).
 	 */
 	if (len == 4) {
 		*(u32 *)ptr = u.val;
@@ -1465,7 +1465,7 @@ static int set_base_addr(struct openpic *opp, struct kvm_device_attr *attr)
 		return -EFAULT;
 
 	if (base & 0x3ffff) {
-		pr_debug("kvm mpic %s: KVM_DEV_MPIC_BASE_ADDR %08llx not aligned\n",
+		pr_debug("kvm mpic %s: KVM_DEV_MPIC_BASE_ADDR %08llx yest aligned\n",
 			 __func__, base);
 		return -EINVAL;
 	}
@@ -1642,7 +1642,7 @@ static int mpic_set_default_irq_routing(struct openpic *opp)
 {
 	struct kvm_irq_routing_entry *routing;
 
-	/* Create a nop default map, so that dereferencing it still works */
+	/* Create a yesp default map, so that dereferencing it still works */
 	routing = kzalloc((sizeof(*routing)), GFP_KERNEL);
 	if (!routing)
 		return -ENOMEM;
@@ -1658,7 +1658,7 @@ static int mpic_create(struct kvm_device *dev, u32 type)
 	struct openpic *opp;
 	int ret;
 
-	/* We only support one MPIC at a time for now */
+	/* We only support one MPIC at a time for yesw */
 	if (dev->kvm->arch.mpic)
 		return -EINVAL;
 
@@ -1784,7 +1784,7 @@ void kvmppc_mpic_disconnect_vcpu(struct openpic *opp, struct kvm_vcpu *vcpu)
 
 /*
  * Return value:
- *  < 0   Interrupt was ignored (masked or not delivered for other reasons)
+ *  < 0   Interrupt was igyesred (masked or yest delivered for other reasons)
  *  = 0   Interrupt was coalesced (previous irq is still pending)
  *  > 0   Number of CPUs interrupt was delivered to
  */
@@ -1813,7 +1813,7 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	spin_lock_irqsave(&opp->lock, flags);
 
 	/*
-	 * XXX We ignore the target address for now, as we only support
+	 * XXX We igyesre the target address for yesw, as we only support
 	 *     a single MSI bank.
 	 */
 	openpic_msi_write(kvm->arch.mpic, MSIIR_OFFSET, e->msi.data);

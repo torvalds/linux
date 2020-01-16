@@ -34,9 +34,9 @@ static int bpf_cgroup_storage_key_cmp(
 	const struct bpf_cgroup_storage_key *key1,
 	const struct bpf_cgroup_storage_key *key2)
 {
-	if (key1->cgroup_inode_id < key2->cgroup_inode_id)
+	if (key1->cgroup_iyesde_id < key2->cgroup_iyesde_id)
 		return -1;
-	else if (key1->cgroup_inode_id > key2->cgroup_inode_id)
+	else if (key1->cgroup_iyesde_id > key2->cgroup_iyesde_id)
 		return 1;
 	else if (key1->attach_type < key2->attach_type)
 		return -1;
@@ -50,23 +50,23 @@ static struct bpf_cgroup_storage *cgroup_storage_lookup(
 	bool locked)
 {
 	struct rb_root *root = &map->root;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	if (!locked)
 		spin_lock_bh(&map->lock);
 
-	node = root->rb_node;
-	while (node) {
+	yesde = root->rb_yesde;
+	while (yesde) {
 		struct bpf_cgroup_storage *storage;
 
-		storage = container_of(node, struct bpf_cgroup_storage, node);
+		storage = container_of(yesde, struct bpf_cgroup_storage, yesde);
 
 		switch (bpf_cgroup_storage_key_cmp(key, &storage->key)) {
 		case -1:
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 			break;
 		case 1:
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 			break;
 		default:
 			if (!locked)
@@ -85,12 +85,12 @@ static int cgroup_storage_insert(struct bpf_cgroup_storage_map *map,
 				 struct bpf_cgroup_storage *storage)
 {
 	struct rb_root *root = &map->root;
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct rb_yesde **new = &(root->rb_yesde), *parent = NULL;
 
 	while (*new) {
 		struct bpf_cgroup_storage *this;
 
-		this = container_of(*new, struct bpf_cgroup_storage, node);
+		this = container_of(*new, struct bpf_cgroup_storage, yesde);
 
 		parent = *new;
 		switch (bpf_cgroup_storage_key_cmp(&storage->key, &this->key)) {
@@ -105,8 +105,8 @@ static int cgroup_storage_insert(struct bpf_cgroup_storage_map *map,
 		}
 	}
 
-	rb_link_node(&storage->node, parent, new);
-	rb_insert_color(&storage->node, root);
+	rb_link_yesde(&storage->yesde, parent, new);
+	rb_insert_color(&storage->yesde, root);
 
 	return 0;
 }
@@ -151,10 +151,10 @@ static int cgroup_storage_update_elem(struct bpf_map *map, void *_key,
 		return 0;
 	}
 
-	new = kmalloc_node(sizeof(struct bpf_storage_buffer) +
+	new = kmalloc_yesde(sizeof(struct bpf_storage_buffer) +
 			   map->value_size,
 			   __GFP_ZERO | GFP_ATOMIC | __GFP_NOWARN,
-			   map->numa_node);
+			   map->numa_yesde);
 	if (!new)
 		return -ENOMEM;
 
@@ -185,7 +185,7 @@ int bpf_percpu_cgroup_storage_copy(struct bpf_map *_map, void *_key,
 
 	/* per_cpu areas are zero-filled and bpf programs can only
 	 * access 'value_size' of them, so copying rounded areas
-	 * will not leak any kernel data
+	 * will yest leak any kernel data
 	 */
 	size = round_up(_map->value_size, 8);
 	for_each_possible_cpu(cpu) {
@@ -220,7 +220,7 @@ int bpf_percpu_cgroup_storage_update(struct bpf_map *_map, void *_key,
 	 * will be copied into per-cpu area. bpf programs can only access
 	 * value_size of it. During lookup the same extra bytes will be
 	 * returned or zeros which were zero-filled by percpu_alloc,
-	 * so no kernel data leaks possible
+	 * so yes kernel data leaks possible
 	 */
 	size = round_up(_map->value_size, 8);
 	for_each_possible_cpu(cpu) {
@@ -243,16 +243,16 @@ static int cgroup_storage_get_next_key(struct bpf_map *_map, void *_key,
 	spin_lock_bh(&map->lock);
 
 	if (list_empty(&map->list))
-		goto enoent;
+		goto eyesent;
 
 	if (key) {
 		storage = cgroup_storage_lookup(map, key, true);
 		if (!storage)
-			goto enoent;
+			goto eyesent;
 
 		storage = list_next_entry(storage, list);
 		if (!storage)
-			goto enoent;
+			goto eyesent;
 	} else {
 		storage = list_first_entry(&map->list,
 					 struct bpf_cgroup_storage, list);
@@ -260,17 +260,17 @@ static int cgroup_storage_get_next_key(struct bpf_map *_map, void *_key,
 
 	spin_unlock_bh(&map->lock);
 	next->attach_type = storage->key.attach_type;
-	next->cgroup_inode_id = storage->key.cgroup_inode_id;
+	next->cgroup_iyesde_id = storage->key.cgroup_iyesde_id;
 	return 0;
 
-enoent:
+eyesent:
 	spin_unlock_bh(&map->lock);
 	return -ENOENT;
 }
 
 static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 {
-	int numa_node = bpf_map_attr_numa_node(attr);
+	int numa_yesde = bpf_map_attr_numa_yesde(attr);
 	struct bpf_cgroup_storage_map *map;
 	struct bpf_map_memory mem;
 	int ret;
@@ -289,15 +289,15 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 		return ERR_PTR(-EINVAL);
 
 	if (attr->max_entries)
-		/* max_entries is not used and enforced to be 0 */
+		/* max_entries is yest used and enforced to be 0 */
 		return ERR_PTR(-EINVAL);
 
 	ret = bpf_map_charge_init(&mem, sizeof(struct bpf_cgroup_storage_map));
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	map = kmalloc_node(sizeof(struct bpf_cgroup_storage_map),
-			   __GFP_ZERO | GFP_USER, numa_node);
+	map = kmalloc_yesde(sizeof(struct bpf_cgroup_storage_map),
+			   __GFP_ZERO | GFP_USER, numa_yesde);
 	if (!map) {
 		bpf_map_charge_finish(&mem);
 		return ERR_PTR(-ENOMEM);
@@ -341,7 +341,7 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
 	/* Key is expected to be of struct bpf_cgroup_storage_key type,
 	 * which is:
 	 * struct bpf_cgroup_storage_key {
-	 *	__u64	cgroup_inode_id;
+	 *	__u64	cgroup_iyesde_id;
 	 *	__u32	attach_type;
 	 * };
 	 */
@@ -357,7 +357,7 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
 	 * The first field must be a 64 bit integer at 0 offset.
 	 */
 	m = (struct btf_member *)(key_type + 1);
-	size = sizeof_field(struct bpf_cgroup_storage_key, cgroup_inode_id);
+	size = sizeof_field(struct bpf_cgroup_storage_key, cgroup_iyesde_id);
 	if (!btf_member_is_reg_int(btf, key_type, m, 0, size))
 		return -EINVAL;
 
@@ -492,29 +492,29 @@ struct bpf_cgroup_storage *bpf_cgroup_storage_alloc(struct bpf_prog *prog,
 	if (bpf_map_charge_memlock(map, pages))
 		return ERR_PTR(-EPERM);
 
-	storage = kmalloc_node(sizeof(struct bpf_cgroup_storage),
-			       __GFP_ZERO | GFP_USER, map->numa_node);
+	storage = kmalloc_yesde(sizeof(struct bpf_cgroup_storage),
+			       __GFP_ZERO | GFP_USER, map->numa_yesde);
 	if (!storage)
-		goto enomem;
+		goto eyesmem;
 
 	flags = __GFP_ZERO | GFP_USER;
 
 	if (stype == BPF_CGROUP_STORAGE_SHARED) {
-		storage->buf = kmalloc_node(size, flags, map->numa_node);
+		storage->buf = kmalloc_yesde(size, flags, map->numa_yesde);
 		if (!storage->buf)
-			goto enomem;
+			goto eyesmem;
 		check_and_init_map_lock(map, storage->buf->data);
 	} else {
 		storage->percpu_buf = __alloc_percpu_gfp(size, 8, flags);
 		if (!storage->percpu_buf)
-			goto enomem;
+			goto eyesmem;
 	}
 
 	storage->map = (struct bpf_cgroup_storage_map *)map;
 
 	return storage;
 
-enomem:
+eyesmem:
 	bpf_map_uncharge_memlock(map, pages);
 	kfree(storage);
 	return ERR_PTR(-ENOMEM);
@@ -569,7 +569,7 @@ void bpf_cgroup_storage_link(struct bpf_cgroup_storage *storage,
 		return;
 
 	storage->key.attach_type = type;
-	storage->key.cgroup_inode_id = cgroup_id(cgroup);
+	storage->key.cgroup_iyesde_id = cgroup_id(cgroup);
 
 	map = storage->map;
 
@@ -591,7 +591,7 @@ void bpf_cgroup_storage_unlink(struct bpf_cgroup_storage *storage)
 
 	spin_lock_bh(&map->lock);
 	root = &map->root;
-	rb_erase(&storage->node, root);
+	rb_erase(&storage->yesde, root);
 
 	list_del(&storage->list);
 	spin_unlock_bh(&map->lock);

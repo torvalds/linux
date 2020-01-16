@@ -15,11 +15,11 @@
  * Returns true if found and updates @lastoff to the offset in file.
  */
 static bool
-page_seek_hole_data(struct inode *inode, struct page *page, loff_t *lastoff,
+page_seek_hole_data(struct iyesde *iyesde, struct page *page, loff_t *lastoff,
 		int whence)
 {
-	const struct address_space_operations *ops = inode->i_mapping->a_ops;
-	unsigned int bsize = i_blocksize(inode), off;
+	const struct address_space_operations *ops = iyesde->i_mapping->a_ops;
+	unsigned int bsize = i_blocksize(iyesde), off;
 	bool seek_data = whence == SEEK_DATA;
 	loff_t poff = page_offset(page);
 
@@ -43,8 +43,8 @@ page_seek_hole_data(struct inode *inode, struct page *page, loff_t *lastoff,
 		return PageUptodate(page) == seek_data;
 
 	lock_page(page);
-	if (unlikely(page->mapping != inode->i_mapping))
-		goto out_unlock_not_found;
+	if (unlikely(page->mapping != iyesde->i_mapping))
+		goto out_unlock_yest_found;
 
 	for (off = 0; off < PAGE_SIZE; off += bsize) {
 		if (offset_in_page(*lastoff) >= off + bsize)
@@ -56,7 +56,7 @@ page_seek_hole_data(struct inode *inode, struct page *page, loff_t *lastoff,
 		*lastoff = poff + off + bsize;
 	}
 
-out_unlock_not_found:
+out_unlock_yest_found:
 	unlock_page(page);
 	return false;
 }
@@ -71,7 +71,7 @@ out_unlock_not_found:
  * Returns the resulting offset on successs, and -ENOENT otherwise.
  */
 static loff_t
-page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
+page_cache_seek_hole_data(struct iyesde *iyesde, loff_t offset, loff_t length,
 		int whence)
 {
 	pgoff_t index = offset >> PAGE_SHIFT;
@@ -87,7 +87,7 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
 	do {
 		unsigned nr_pages, i;
 
-		nr_pages = pagevec_lookup_range(&pvec, inode->i_mapping, &index,
+		nr_pages = pagevec_lookup_range(&pvec, iyesde->i_mapping, &index,
 						end - 1);
 		if (nr_pages == 0)
 			break;
@@ -95,21 +95,21 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
 
-			if (page_seek_hole_data(inode, page, &lastoff, whence))
+			if (page_seek_hole_data(iyesde, page, &lastoff, whence))
 				goto check_range;
 			lastoff = page_offset(page) + PAGE_SIZE;
 		}
 		pagevec_release(&pvec);
 	} while (index < end);
 
-	/* When no page at lastoff and we are not done, we found a hole. */
+	/* When yes page at lastoff and we are yest done, we found a hole. */
 	if (whence != SEEK_HOLE)
-		goto not_found;
+		goto yest_found;
 
 check_range:
 	if (lastoff < offset + length)
 		goto out;
-not_found:
+yest_found:
 	lastoff = -ENOENT;
 out:
 	pagevec_release(&pvec);
@@ -118,12 +118,12 @@ out:
 
 
 static loff_t
-iomap_seek_hole_actor(struct inode *inode, loff_t offset, loff_t length,
+iomap_seek_hole_actor(struct iyesde *iyesde, loff_t offset, loff_t length,
 		      void *data, struct iomap *iomap, struct iomap *srcmap)
 {
 	switch (iomap->type) {
 	case IOMAP_UNWRITTEN:
-		offset = page_cache_seek_hole_data(inode, offset, length,
+		offset = page_cache_seek_hole_data(iyesde, offset, length,
 						   SEEK_HOLE);
 		if (offset < 0)
 			return length;
@@ -137,9 +137,9 @@ iomap_seek_hole_actor(struct inode *inode, loff_t offset, loff_t length,
 }
 
 loff_t
-iomap_seek_hole(struct inode *inode, loff_t offset, const struct iomap_ops *ops)
+iomap_seek_hole(struct iyesde *iyesde, loff_t offset, const struct iomap_ops *ops)
 {
-	loff_t size = i_size_read(inode);
+	loff_t size = i_size_read(iyesde);
 	loff_t length = size - offset;
 	loff_t ret;
 
@@ -148,7 +148,7 @@ iomap_seek_hole(struct inode *inode, loff_t offset, const struct iomap_ops *ops)
 		return -ENXIO;
 
 	while (length > 0) {
-		ret = iomap_apply(inode, offset, length, IOMAP_REPORT, ops,
+		ret = iomap_apply(iyesde, offset, length, IOMAP_REPORT, ops,
 				  &offset, iomap_seek_hole_actor);
 		if (ret < 0)
 			return ret;
@@ -164,14 +164,14 @@ iomap_seek_hole(struct inode *inode, loff_t offset, const struct iomap_ops *ops)
 EXPORT_SYMBOL_GPL(iomap_seek_hole);
 
 static loff_t
-iomap_seek_data_actor(struct inode *inode, loff_t offset, loff_t length,
+iomap_seek_data_actor(struct iyesde *iyesde, loff_t offset, loff_t length,
 		      void *data, struct iomap *iomap, struct iomap *srcmap)
 {
 	switch (iomap->type) {
 	case IOMAP_HOLE:
 		return length;
 	case IOMAP_UNWRITTEN:
-		offset = page_cache_seek_hole_data(inode, offset, length,
+		offset = page_cache_seek_hole_data(iyesde, offset, length,
 						   SEEK_DATA);
 		if (offset < 0)
 			return length;
@@ -183,9 +183,9 @@ iomap_seek_data_actor(struct inode *inode, loff_t offset, loff_t length,
 }
 
 loff_t
-iomap_seek_data(struct inode *inode, loff_t offset, const struct iomap_ops *ops)
+iomap_seek_data(struct iyesde *iyesde, loff_t offset, const struct iomap_ops *ops)
 {
-	loff_t size = i_size_read(inode);
+	loff_t size = i_size_read(iyesde);
 	loff_t length = size - offset;
 	loff_t ret;
 
@@ -194,7 +194,7 @@ iomap_seek_data(struct inode *inode, loff_t offset, const struct iomap_ops *ops)
 		return -ENXIO;
 
 	while (length > 0) {
-		ret = iomap_apply(inode, offset, length, IOMAP_REPORT, ops,
+		ret = iomap_apply(iyesde, offset, length, IOMAP_REPORT, ops,
 				  &offset, iomap_seek_data_actor);
 		if (ret < 0)
 			return ret;

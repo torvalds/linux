@@ -29,15 +29,15 @@
  * events, though. You need to manually write the EV_LED/LED_XY/1 activation
  * input event to the evdev device to see it being sent to this device.
  *
- * If uhid is not available as /dev/uhid, then you can pass a different path as
+ * If uhid is yest available as /dev/uhid, then you can pass a different path as
  * first argument.
- * If <linux/uhid.h> is not installed in /usr, then compile this with:
+ * If <linux/uhid.h> is yest installed in /usr, then compile this with:
  *   gcc -o ./uhid_test -Wall -I./include ./samples/uhid/uhid-example.c
- * And ignore the warning about kernel headers. However, it is recommended to
+ * And igyesre the warning about kernel headers. However, it is recommended to
  * use the installed uhid.h if available.
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdbool.h>
@@ -162,8 +162,8 @@ static int uhid_write(int fd, const struct uhid_event *ev)
 
 	ret = write(fd, ev, sizeof(*ev));
 	if (ret < 0) {
-		fprintf(stderr, "Cannot write to uhid: %m\n");
-		return -errno;
+		fprintf(stderr, "Canyest write to uhid: %m\n");
+		return -erryes;
 	} else if (ret != sizeof(*ev)) {
 		fprintf(stderr, "Wrong size written to uhid: %ld != %lu\n",
 			ret, sizeof(ev));
@@ -201,13 +201,13 @@ static void destroy(int fd)
 	uhid_write(fd, &ev);
 }
 
-/* This parses raw output reports sent by the kernel to the device. A normal
+/* This parses raw output reports sent by the kernel to the device. A yesrmal
  * uhid program shouldn't do this but instead just forward the raw report.
  * However, for ducomentational purposes, we try to detect LED events here and
  * print debug messages for it. */
 static void handle_output(struct uhid_event *ev)
 {
-	/* LED messages are adverised via OUTPUT reports; ignore the rest */
+	/* LED messages are adverised via OUTPUT reports; igyesre the rest */
 	if (ev->u.output.rtype != UHID_OUTPUT_REPORT)
 		return;
 	/* LED reports have length 2 bytes */
@@ -233,8 +233,8 @@ static int event(int fd)
 		fprintf(stderr, "Read HUP on uhid-cdev\n");
 		return -EFAULT;
 	} else if (ret < 0) {
-		fprintf(stderr, "Cannot read uhid-cdev: %m\n");
-		return -errno;
+		fprintf(stderr, "Canyest read uhid-cdev: %m\n");
+		return -erryes;
 	} else if (ret != sizeof(ev)) {
 		fprintf(stderr, "Invalid size read from uhid-dev: %ld != %lu\n",
 			ret, sizeof(ev));
@@ -308,8 +308,8 @@ static int keyboard(int fd)
 		fprintf(stderr, "Read HUP on stdin\n");
 		return -EFAULT;
 	} else if (ret < 0) {
-		fprintf(stderr, "Cannot read stdin: %m\n");
-		return -errno;
+		fprintf(stderr, "Canyest read stdin: %m\n");
+		return -erryes;
 	}
 
 	for (i = 0; i < ret; ++i) {
@@ -394,13 +394,13 @@ int main(int argc, char **argv)
 
 	ret = tcgetattr(STDIN_FILENO, &state);
 	if (ret) {
-		fprintf(stderr, "Cannot get tty state\n");
+		fprintf(stderr, "Canyest get tty state\n");
 	} else {
 		state.c_lflag &= ~ICANON;
 		state.c_cc[VMIN] = 1;
 		ret = tcsetattr(STDIN_FILENO, TCSANOW, &state);
 		if (ret)
-			fprintf(stderr, "Cannot set tty state\n");
+			fprintf(stderr, "Canyest set tty state\n");
 	}
 
 	if (argc >= 2) {
@@ -415,7 +415,7 @@ int main(int argc, char **argv)
 	fprintf(stderr, "Open uhid-cdev %s\n", path);
 	fd = open(path, O_RDWR | O_CLOEXEC);
 	if (fd < 0) {
-		fprintf(stderr, "Cannot open uhid-cdev %s: %m\n", path);
+		fprintf(stderr, "Canyest open uhid-cdev %s: %m\n", path);
 		return EXIT_FAILURE;
 	}
 
@@ -435,7 +435,7 @@ int main(int argc, char **argv)
 	while (1) {
 		ret = poll(pfds, 2, -1);
 		if (ret < 0) {
-			fprintf(stderr, "Cannot poll for fds: %m\n");
+			fprintf(stderr, "Canyest poll for fds: %m\n");
 			break;
 		}
 		if (pfds[0].revents & POLLHUP) {

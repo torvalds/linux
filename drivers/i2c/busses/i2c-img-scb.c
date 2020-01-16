@@ -2,7 +2,7 @@
 /*
  * I2C adapter for the IMG Serial Control Bus (SCB) IP block.
  *
- * Copyright (C) 2009, 2010, 2012, 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2009, 2010, 2012, 2014 Imagination Techyeslogies Ltd.
  *
  * There are three ways that this I2C controller can be driven:
  *
@@ -37,11 +37,11 @@
  *
  *   Use of automatic mode and the FIFO can make much more efficient use
  *   of the bus compared to individual atomic commands, with potentially
- *   no wasted time between I2C symbols or I2C messages.
+ *   yes wasted time between I2C symbols or I2C messages.
  *
  * In most cases MODE_AUTOMATIC is used, however if any of the messages in
  * a transaction are zero byte writes (e.g. used by i2cdetect for probing
- * the bus), MODE_ATOMIC must be used since automatic mode is normally
+ * the bus), MODE_ATOMIC must be used since automatic mode is yesrmally
  * started by the writing of data into the FIFO.
  *
  * The other modes are used in specific circumstances where MODE_ATOMIC and
@@ -55,14 +55,14 @@
  *
  * The driver would get a slave event and transaction done interrupts for
  * each atomic mode command that gets completed. However, these events are
- * not needed in automatic mode, becase those atomic mode commands are
+ * yest needed in automatic mode, becase those atomic mode commands are
  * managed automatically by the hardware.
  *
- * In practice, normal I2C transactions will be complete well before you
+ * In practice, yesrmal I2C transactions will be complete well before you
  * get the timer interrupt, as the timer is re-scheduled during FIFO
  * maintenance and disabled after the transaction is complete.
  *
- * In this way normal automatic mode operation isn't impacted by
+ * In this way yesrmal automatic mode operation isn't impacted by
  * unnecessary interrupts, but the exceptional abort condition can still be
  * detected (with a slight delay).
  */
@@ -274,7 +274,7 @@
 #define ISR_COMPLETE_M		BIT(31)
 #define ISR_FATAL_M		BIT(30)
 #define ISR_WAITSTOP		BIT(29)
-#define ISR_STATUS_M		0x0000ffff	/* contains +ve errno */
+#define ISR_STATUS_M		0x0000ffff	/* contains +ve erryes */
 #define ISR_COMPLETE(err)	(ISR_COMPLETE_M | (ISR_STATUS_M & (err)))
 #define ISR_FATAL(err)		(ISR_COMPLETE(err) | ISR_FATAL_M)
 
@@ -424,13 +424,13 @@ static u32 img_i2c_readl(struct img_i2c *i2c, u32 offset)
 /*
  * The code to read from the master read fifo, and write to the master
  * write fifo, checks a bit in an SCB register before every byte to
- * ensure that the fifo is not full (write fifo) or empty (read fifo).
+ * ensure that the fifo is yest full (write fifo) or empty (read fifo).
  * Due to clock domain crossing inside the SCB block the updated value
  * of this bit is only visible after 2 cycles.
  *
  * The scb_wr_rd_fence() function does 2 dummy writes (to the read-only
  * revision register), and it's called after reading from or writing to the
- * fifos to ensure that subsequent reads of the fifo status bits do not read
+ * fifos to ensure that subsequent reads of the fifo status bits do yest read
  * stale values.
  */
 static void img_i2c_wr_rd_fence(struct img_i2c *i2c)
@@ -523,7 +523,7 @@ static void img_i2c_soft_reset(struct img_i2c *i2c)
  * every transfer but before the stop bit.
  * Due to this behaviour we have to be careful that every time we
  * release the transaction halt we have to re-enable it straight away
- * so that we only process a single byte, not doing so will result in
+ * so that we only process a single byte, yest doing so will result in
  * all remaining bytes been processed and a stop bit being issued,
  * which will prevent us having a repeated start.
  */
@@ -579,7 +579,7 @@ static void img_i2c_write_fifo(struct img_i2c *i2c)
 		i2c->msg.buf++;
 	}
 
-	/* Disable fifo emptying interrupt if nothing more to write */
+	/* Disable fifo emptying interrupt if yesthing more to write */
 	if (!i2c->msg.len)
 		i2c->int_enable &= ~INT_FIFO_EMPTYING;
 }
@@ -617,7 +617,7 @@ static void img_i2c_write(struct img_i2c *i2c)
 
 /*
  * Indicate that the transaction is complete. This is called from the
- * ISR to wake up the waiting thread, after which the ISR must not
+ * ISR to wake up the waiting thread, after which the ISR must yest
  * access any more SCB registers.
  */
 static void img_i2c_complete_transaction(struct img_i2c *i2c, int status)
@@ -671,7 +671,7 @@ static unsigned int img_i2c_sequence(struct img_i2c *i2c, u32 int_status)
 	if (!i2c->at_slave_event || !i2c->at_t_done)
 		return 0;
 
-	/* wait if no continue bits are set */
+	/* wait if yes continue bits are set */
 	if (i2c->at_cur_cmd >= 0 &&
 	    i2c->at_cur_cmd < ARRAY_SIZE(continue_bits)) {
 		unsigned int cont_bits = continue_bits[i2c->at_cur_cmd];
@@ -872,7 +872,7 @@ static unsigned int img_i2c_auto(struct img_i2c *i2c,
 	/* Enable transaction halt on start bit */
 	if (!i2c->last_msg && line_status & LINESTAT_START_BIT_DET) {
 		img_i2c_transaction_halt(i2c, !i2c->last_msg);
-		/* we're no longer interested in the slave event */
+		/* we're yes longer interested in the slave event */
 		i2c->int_enable &= ~INT_SLAVE_EVENT;
 	}
 
@@ -925,7 +925,7 @@ static irqreturn_t img_i2c_isr(int irq, void *dev_id)
 
 	/*
 	 * Read line status and clear it until it actually is clear.  We have
-	 * to be careful not to lose any line status bits that get latched.
+	 * to be careful yest to lose any line status bits that get latched.
 	 */
 	line_status = img_i2c_readl(i2c, SCB_STATUS_REG);
 	if (line_status & LINESTAT_LATCHED) {
@@ -942,7 +942,7 @@ static irqreturn_t img_i2c_isr(int irq, void *dev_id)
 	i2c->line_status |= line_status;
 
 	/*
-	 * Certain interrupts indicate that sclk low timeout is not
+	 * Certain interrupts indicate that sclk low timeout is yest
 	 * a problem. If any of these are set, just continue.
 	 */
 	if ((int_status & INT_SCLK_LOW_TIMEOUT) &&
@@ -986,7 +986,7 @@ out:
 			img_i2c_switch_mode(i2c, MODE_WAITSTOP);
 	}
 
-	/* now we've finished using regs, handle transaction completion */
+	/* yesw we've finished using regs, handle transaction completion */
 	if (hret & ISR_COMPLETE_M) {
 		int status = -(hret & ISR_STATUS_M);
 
@@ -1039,14 +1039,14 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 	for (i = 0; i < num; i++) {
 		/*
-		 * 0 byte reads are not possible because the slave could try
+		 * 0 byte reads are yest possible because the slave could try
 		 * and pull the data line low, preventing a stop bit.
 		 */
 		if (!msgs[i].len && msgs[i].flags & I2C_M_RD)
 			return -EIO;
 		/*
 		 * 0 byte writes are possible and used for probing, but we
-		 * cannot do them in automatic mode, so use atomic mode
+		 * canyest do them in automatic mode, so use atomic mode
 		 * instead.
 		 *
 		 * Also, the I2C_M_IGNORE_NAK mode can only be implemented
@@ -1078,7 +1078,7 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		 * After the last message we must have waited for a stop bit.
 		 * Not waiting can cause problems when the clock is disabled
 		 * before the stop bit is sent, and the linux I2C interface
-		 * requires separate transfers not to joined with repeated
+		 * requires separate transfers yest to joined with repeated
 		 * start.
 		 */
 		i2c->last_msg = (i == num - 1);
@@ -1097,7 +1097,7 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			img_i2c_atomic_start(i2c);
 		} else {
 			/*
-			 * Enable transaction halt if not the last message in
+			 * Enable transaction halt if yest the last message in
 			 * the queue so that we can control repeated starts.
 			 */
 			img_i2c_transaction_halt(i2c, !i2c->last_msg);
@@ -1165,7 +1165,7 @@ static int img_i2c_init(struct img_i2c *i2c)
 	rev = img_i2c_readl(i2c, SCB_CORE_REV_REG);
 	if ((rev & 0x00ffffff) < 0x00020200) {
 		dev_info(i2c->adap.dev.parent,
-			 "Unknown hardware revision (%d.%d.%d.%d)\n",
+			 "Unkyeswn hardware revision (%d.%d.%d.%d)\n",
 			 (rev >> 24) & 0xff, (rev >> 16) & 0xff,
 			 (rev >> 8) & 0xff, rev & 0xff);
 		pm_runtime_mark_last_busy(i2c->adap.dev.parent);
@@ -1207,9 +1207,9 @@ static int img_i2c_init(struct img_i2c *i2c)
 	/*
 	 * The clock generation logic allows to filter glitches on the bus.
 	 * This filter is able to remove bus glitches shorter than 50ns.
-	 * If the clock enable rate is greater than 20 MHz, no filtering
+	 * If the clock enable rate is greater than 20 MHz, yes filtering
 	 * is required, so we need to disable it.
-	 * If it's between the 20-40 MHz range, there's no need to divide
+	 * If it's between the 20-40 MHz range, there's yes need to divide
 	 * the clock to get a filter.
 	 */
 	if (clk_khz < 20000) {
@@ -1317,7 +1317,7 @@ static int img_i2c_init(struct img_i2c *i2c)
 	/* Enable interrupts */
 	img_i2c_writel(i2c, SCB_INT_MASK_REG, i2c->int_enable);
 
-	/* Perform a synchronous sequence to reset the bus */
+	/* Perform a synchroyesus sequence to reset the bus */
 	ret = img_i2c_reset_bus(i2c);
 
 	pm_runtime_mark_last_busy(i2c->adap.dev.parent);
@@ -1328,7 +1328,7 @@ static int img_i2c_init(struct img_i2c *i2c)
 
 static int img_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct img_i2c *i2c;
 	struct resource *res;
 	int irq, ret;
@@ -1372,12 +1372,12 @@ static int img_i2c_probe(struct platform_device *pdev)
 	timer_setup(&i2c->check_timer, img_i2c_check_timer, 0);
 
 	i2c->bitrate = timings[0].max_bitrate;
-	if (!of_property_read_u32(node, "clock-frequency", &val))
+	if (!of_property_read_u32(yesde, "clock-frequency", &val))
 		i2c->bitrate = val;
 
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = node;
+	i2c->adap.dev.of_yesde = yesde;
 	i2c->adap.owner = THIS_MODULE;
 	i2c->adap.algo = &img_i2c_algo;
 	i2c->adap.retries = 5;

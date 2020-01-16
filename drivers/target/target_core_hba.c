@@ -135,7 +135,7 @@ core_alloc_hba(const char *plugin_name, u32 plugin_dep_id, u32 hba_flags)
 
 	spin_lock(&hba_lock);
 	hba->hba_id = hba_id_counter++;
-	list_add_tail(&hba->hba_node, &hba_list);
+	list_add_tail(&hba->hba_yesde, &hba_list);
 	spin_unlock(&hba_lock);
 
 	pr_debug("CORE_HBA[%d] - Attached HBA to Generic Target"
@@ -159,7 +159,7 @@ core_delete_hba(struct se_hba *hba)
 	hba->backend->ops->detach_hba(hba);
 
 	spin_lock(&hba_lock);
-	list_del(&hba->hba_node);
+	list_del(&hba->hba_yesde);
 	spin_unlock(&hba_lock);
 
 	pr_debug("CORE_HBA[%d] - Detached HBA from Generic Target"

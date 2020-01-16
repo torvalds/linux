@@ -16,12 +16,12 @@
 #define PING_HTABLE_SIZE 	64
 #define PING_HTABLE_MASK 	(PING_HTABLE_SIZE-1)
 
-#define ping_portaddr_for_each_entry(__sk, node, list) \
-	hlist_nulls_for_each_entry(__sk, node, list, sk_nulls_node)
+#define ping_portaddr_for_each_entry(__sk, yesde, list) \
+	hlist_nulls_for_each_entry(__sk, yesde, list, sk_nulls_yesde)
 
 /*
  * gid_t is either uint or ushort.  We want to pass it to
- * proc_dointvec_minmax(), so it must not be larger than MAX_INT
+ * proc_dointvec_minmax(), so it must yest be larger than MAX_INT
  */
 #define GID_T_MAX (((gid_t)~0U) >> 1)
 
@@ -71,7 +71,7 @@ void ping_err(struct sk_buff *skb, int offset, u32 info);
 int  ping_getfrag(void *from, char *to, int offset, int fraglen, int odd,
 		  struct sk_buff *);
 
-int  ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int noblock,
+int  ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int yesblock,
 		  int flags, int *addr_len);
 int  ping_common_sendmsg(int family, struct msghdr *msg, size_t len,
 			 void *user_icmph, size_t icmph_len);

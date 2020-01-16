@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2013 - 2014 Texas Instruments, Inc.
  *
- * Benoit Parrot <bparrot@ti.com>
+ * Beyesit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
  *
  * This program is free software; you may redistribute it and/or modify

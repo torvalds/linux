@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016-2017, Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2016-2017, Dave Watson <davejwatson@fb.com>. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -45,7 +45,7 @@
 #include <net/tls.h>
 #include <net/tls_toe.h>
 
-MODULE_AUTHOR("Mellanox Technologies");
+MODULE_AUTHOR("Mellayesx Techyeslogies");
 MODULE_DESCRIPTION("Transport Layer Security Support");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS_TCP_ULP("tls");
@@ -85,7 +85,7 @@ int wait_on_pending_writer(struct sock *sk, long *timeo)
 		}
 
 		if (signal_pending(current)) {
-			rc = sock_intr_errno(*timeo);
+			rc = sock_intr_erryes(*timeo);
 			break;
 		}
 
@@ -249,7 +249,7 @@ static void tls_write_space(struct sock *sk)
  * @ctx: TLS context structure
  *
  * Free TLS context. If @sk is %NULL caller guarantees that the socket
- * to which @ctx was attached has no outstanding references.
+ * to which @ctx was attached has yes outstanding references.
  */
 void tls_ctx_free(struct sock *sk, struct tls_context *ctx)
 {
@@ -750,7 +750,7 @@ static int tls_get_info(const struct sock *sk, struct sk_buff *skb)
 	struct nlattr *start;
 	int err;
 
-	start = nla_nest_start_noflag(skb, INET_ULP_INFO_TLS);
+	start = nla_nest_start_yesflag(skb, INET_ULP_INFO_TLS);
 	if (!start)
 		return -EMSGSIZE;
 

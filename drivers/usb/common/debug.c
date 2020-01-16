@@ -154,7 +154,7 @@ static void usb_decode_get_set_descriptor(__u8 bRequestType, __u8 bRequest,
 		s = "SS Endpoint Companion";
 		break;
 	case USB_DT_SSP_ISOC_ENDPOINT_COMP:
-		s = "SSP Isochronous Endpoint Companion";
+		s = "SSP Isochroyesus Endpoint Companion";
 		break;
 	default:
 		s = "UNKNOWN";
@@ -204,7 +204,7 @@ static void usb_decode_set_sel(__u16 wLength, char *str, size_t size)
 
 static void usb_decode_set_isoch_delay(__u8 wValue, char *str, size_t size)
 {
-	snprintf(str, size, "Set Isochronous Delay(Delay = %d ns)", wValue);
+	snprintf(str, size, "Set Isochroyesus Delay(Delay = %d ns)", wValue);
 }
 
 /**

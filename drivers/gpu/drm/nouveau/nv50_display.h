@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -27,8 +27,8 @@
 #ifndef __NV50_DISPLAY_H__
 #define __NV50_DISPLAY_H__
 
-#include "nouveau_display.h"
-#include "nouveau_reg.h"
+#include "yesuveau_display.h"
+#include "yesuveau_reg.h"
 
 int  nv50_display_create(struct drm_device *);
 void nv50_display_destroy(struct drm_device *);

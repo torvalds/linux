@@ -40,7 +40,7 @@ static int bus_on[MAXBOARDS] = { -1, -1, -1, -1 }; /* power-on default: 11us */
 module_param_array(bus_on, int, NULL, 0);
 MODULE_PARM_DESC(bus_on, "bus on time [us] (2-15, default=-1 [HW default: 11])");
 
-/* time AHA spends off the bus (not to monopolize it) during data transfer  */
+/* time AHA spends off the bus (yest to moyespolize it) during data transfer  */
 static int bus_off[MAXBOARDS] = { -1, -1, -1, -1 }; /* power-on default: 4us */
 module_param_array(bus_off, int, NULL, 0);
 MODULE_PARM_DESC(bus_off, "bus off time [us] (1-64, default=-1 [HW default: 4])");
@@ -75,7 +75,7 @@ static inline void aha1542_intr_reset(u16 base)
 	outb(IRST, CONTROL(base));
 }
 
-static inline bool wait_mask(u16 port, u8 mask, u8 allof, u8 noneof, int timeout)
+static inline bool wait_mask(u16 port, u8 mask, u8 allof, u8 yesneof, int timeout)
 {
 	bool delayed = true;
 
@@ -86,7 +86,7 @@ static inline bool wait_mask(u16 port, u8 mask, u8 allof, u8 noneof, int timeout
 
 	while (1) {
 		u8 bits = inb(port) & mask;
-		if ((bits & allof) == allof && ((bits & noneof) == 0))
+		if ((bits & allof) == allof && ((bits & yesneof) == 0))
 			break;
 		if (delayed)
 			mdelay(1);
@@ -119,7 +119,7 @@ static int aha1542_out(unsigned int base, u8 *buf, int len)
 	return 0;
 }
 
-/* Only used at boot time, so we do not need to worry about latency as much
+/* Only used at boot time, so we do yest need to worry about latency as much
    here */
 
 static int aha1542_in(unsigned int base, u8 *buf, int len, int timeout)
@@ -136,13 +136,13 @@ static int makecode(unsigned hosterr, unsigned scsierr)
 {
 	switch (hosterr) {
 	case 0x0:
-	case 0xa:		/* Linked command complete without error and linked normally */
+	case 0xa:		/* Linked command complete without error and linked yesrmally */
 	case 0xb:		/* Linked command complete without error, interrupt generated */
 		hosterr = 0;
 		break;
 
 	case 0x11:		/* Selection time out-The initiator selection or target
-				   reselection was not complete within the SCSI Time out period */
+				   reselection was yest complete within the SCSI Time out period */
 		hosterr = DID_TIME_OUT;
 		break;
 
@@ -152,14 +152,14 @@ static int makecode(unsigned hosterr, unsigned scsierr)
 
 	case 0x13:		/* Unexpected bus free-The target dropped the SCSI BSY at an unexpected time. */
 
-	case 0x15:		/* MBO command was not 00, 01 or 02-The first byte of the CB was
+	case 0x15:		/* MBO command was yest 00, 01 or 02-The first byte of the CB was
 				   invalid. This usually indicates a software failure. */
 
 	case 0x16:		/* Invalid CCB Operation Code-The first byte of the CCB was invalid.
 				   This usually indicates a software failure. */
 
-	case 0x17:		/* Linked CCB does not have the same LUN-A subsequent CCB of a set
-				   of linked CCB's does not specify the same logical unit number as
+	case 0x17:		/* Linked CCB does yest have the same LUN-A subsequent CCB of a set
+				   of linked CCB's does yest specify the same logical unit number as
 				   the first. */
 	case 0x18:		/* Invalid Target Direction received from Host-The direction of a
 				   Target Mode CCB was invalid. */
@@ -179,12 +179,12 @@ static int makecode(unsigned hosterr, unsigned scsierr)
 
 	case 0x14:		/* Target bus phase sequence failure-An invalid bus phase or bus
 				   phase sequence was requested by the target. The host adapter
-				   will generate a SCSI Reset Condition, notifying the host with
+				   will generate a SCSI Reset Condition, yestifying the host with
 				   a SCRD interrupt */
 		hosterr = DID_RESET;
 		break;
 	default:
-		printk(KERN_ERR "aha1542: makecode: unknown hoststatus %x\n", hosterr);
+		printk(KERN_ERR "aha1542: makecode: unkyeswn hoststatus %x\n", hosterr);
 		break;
 	}
 	return scsierr | (hosterr << 16);
@@ -199,7 +199,7 @@ static int aha1542_test_port(struct Scsi_Host *sh)
 	if (inb(STATUS(sh->io_port)) == 0xff)
 		return 0;
 
-	/* Reset the adapter. I ought to make a hard reset, but it's not really necessary */
+	/* Reset the adapter. I ought to make a hard reset, but it's yest really necessary */
 
 	/* In case some other card was probing here, reset interrupts */
 	aha1542_intr_reset(sh->io_port);	/* reset interrupts, so they don't block */
@@ -216,7 +216,7 @@ static int aha1542_test_port(struct Scsi_Host *sh)
 	if (inb(INTRFLAGS(sh->io_port)) & INTRMASK)
 		return 0;
 
-	/* Perform a host adapter inquiry instead so we do not need to set
+	/* Perform a host adapter inquiry instead so we do yest need to set
 	   up the mailboxes ahead of time */
 
 	aha1542_outb(sh->io_port, CMD_INQUIRY);
@@ -274,7 +274,7 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 		flag = inb(INTRFLAGS(sh->io_port));
 		shost_printk(KERN_DEBUG, sh, "aha1542_intr_handle: ");
 		if (!(flag & ANYINTR))
-			printk("no interrupt?");
+			printk("yes interrupt?");
 		if (flag & MBIF)
 			printk("MBIF ");
 		if (flag & MBOA)
@@ -293,7 +293,7 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 		flag = inb(INTRFLAGS(sh->io_port));
 
 		/* Check for unusual interrupts.  If any of these happen, we should
-		   probably do something special, but for now just printing a message
+		   probably do something special, but for yesw just printing a message
 		   is sufficient.  A SCSI reset detected is something that we really
 		   need to deal with in some way. */
 		if (flag & ~MBIF) {
@@ -320,9 +320,9 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 
 		if (mb[mbi].status == 0) {
 			spin_unlock_irqrestore(sh->host_lock, flags);
-			/* Hmm, no mail.  Must have read it the last time around */
+			/* Hmm, yes mail.  Must have read it the last time around */
 			if (!number_serviced)
-				shost_printk(KERN_WARNING, sh, "interrupt received, but no mail.\n");
+				shost_printk(KERN_WARNING, sh, "interrupt received, but yes mail.\n");
 			return IRQ_HANDLED;
 		};
 
@@ -338,7 +338,7 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 #endif
 
 		if (mbistatus == 3)
-			continue;	/* Aborted command not found */
+			continue;	/* Aborted command yest found */
 
 #ifdef DEBUG
 		shost_printk(KERN_DEBUG, sh, "...done %d %d\n", mbo, mbi);
@@ -356,7 +356,7 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 		my_done = tmp_cmd->scsi_done;
 		aha1542_free_cmd(tmp_cmd);
 		/* Fetch the sense data, and tuck it away, in the required slot.  The
-		   Adaptec automatically fetches it, and there is no guarantee that
+		   Adaptec automatically fetches it, and there is yes guarantee that
 		   we will still have it in the cdb when we come back */
 		if (ccb[mbo].tarstat == 2)
 			memcpy(tmp_cmd->sense_buffer, &ccb[mbo].cdb[ccb[mbo].cdblen],
@@ -367,7 +367,7 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 
 		/* more error checking left out here */
 		if (mbistatus != 1)
-			/* This is surely wrong, but I don't know what's right */
+			/* This is surely wrong, but I don't kyesw what's right */
 			errstatus = makecode(ccb[mbo].hastat, ccb[mbo].tarstat);
 		else
 			errstatus = 0;
@@ -503,7 +503,7 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 
 #ifdef DEBUG
 	print_hex_dump_bytes("sending: ", DUMP_PREFIX_NONE, &ccb[mbo], sizeof(ccb[mbo]) - 10);
-	printk("aha1542_queuecommand: now waiting for interrupt ");
+	printk("aha1542_queuecommand: yesw waiting for interrupt ");
 #endif
 	mb[mbo].status = 1;
 	aha1542_outb(cmd->device->host->io_port, CMD_START_SCSI);
@@ -655,19 +655,19 @@ static int aha1542_query(struct Scsi_Host *sh)
 
 	aha1542->bios_translation = BIOS_TRANSLATION_6432;	/* Default case */
 
-	/* For an AHA1740 series board, we ignore the board since there is a
+	/* For an AHA1740 series board, we igyesre the board since there is a
 	   hardware bug which can lead to wrong blocks being returned if the board
 	   is operating in the 1542 emulation mode.  Since there is an extended mode
-	   driver, we simply ignore the board and let the 1740 driver pick it up.
+	   driver, we simply igyesre the board and let the 1740 driver pick it up.
 	 */
 
 	if (inquiry_result[0] == 0x43) {
-		shost_printk(KERN_INFO, sh, "Emulation mode not supported for AHA-1740 hardware, use aha1740 driver instead.\n");
+		shost_printk(KERN_INFO, sh, "Emulation mode yest supported for AHA-1740 hardware, use aha1740 driver instead.\n");
 		return 1;
 	};
 
-	/* Always call this - boards that do not support extended bios translation
-	   will ignore the command, and we will set the proper default */
+	/* Always call this - boards that do yest support extended bios translation
+	   will igyesre the command, and we will set the proper default */
 
 	aha1542->bios_translation = aha1542_mbenable(sh);
 
@@ -692,7 +692,7 @@ static u8 dma_speed_hw(int dma_speed)
 	return 0xff;	/* invalid */
 }
 
-/* Set the Bus on/off-times as not to ruin floppy performance */
+/* Set the Bus on/off-times as yest to ruin floppy performance */
 static void aha1542_set_bus_times(struct Scsi_Host *sh, int bus_on, int bus_off, int dma_speed)
 {
 	if (bus_on > 0) {
@@ -725,13 +725,13 @@ fail:
 	aha1542_intr_reset(sh->io_port);
 }
 
-/* return non-zero on detection */
+/* return yesn-zero on detection */
 static struct Scsi_Host *aha1542_hw_init(struct scsi_host_template *tpnt, struct device *pdev, int indx)
 {
 	unsigned int base_io = io[indx];
 	struct Scsi_Host *sh;
 	struct aha1542_hostdata *aha1542;
-	char dma_info[] = "no DMA";
+	char dma_info[] = "yes DMA";
 
 	if (base_io == 0)
 		return NULL;
@@ -939,10 +939,10 @@ static int aha1542_reset(struct scsi_cmnd *cmd, u8 reset_cmd)
 	/*
 	 * Now try to pick up the pieces.  For all pending commands,
 	 * free any internal data structures, and basically clear things
-	 * out.  We do not try and restart any commands or anything - 
+	 * out.  We do yest try and restart any commands or anything - 
 	 * the strategy handler takes care of that crap.
 	 */
-	shost_printk(KERN_WARNING, cmd->device->host, "Sent BUS RESET to scsi host %d\n", cmd->device->host->host_no);
+	shost_printk(KERN_WARNING, cmd->device->host, "Sent BUS RESET to scsi host %d\n", cmd->device->host->host_yes);
 
 	for (i = 0; i < AHA1542_MAILBOXES; i++) {
 		if (aha1542->int_cmds[i] != NULL) {
@@ -1064,7 +1064,7 @@ static int aha1542_pnp_probe(struct pnp_dev *pdev, const struct pnp_device_id *i
 		io[indx] = pnp_port_start(pdev, 0);
 
 		/* The card can be queried for its DMA, we have
-		   the DMA set up that is enough */
+		   the DMA set up that is eyesugh */
 
 		dev_info(&pdev->dev, "ISAPnP found an AHA1535 at I/O 0x%03X", io[indx]);
 	}

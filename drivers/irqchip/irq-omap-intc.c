@@ -4,7 +4,7 @@
  * Interrupt handler for OMAP2 boards.
  *
  * Copyright (C) 2005 Nokia Corporation
- * Author: Paul Mundt <paul.mundt@nokia.com>
+ * Author: Paul Mundt <paul.mundt@yeskia.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -240,15 +240,15 @@ static void __init omap_alloc_gc_legacy(void __iomem *base,
 			IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
-static int __init omap_init_irq_of(struct device_node *node)
+static int __init omap_init_irq_of(struct device_yesde *yesde)
 {
 	int ret;
 
-	omap_irq_base = of_iomap(node, 0);
+	omap_irq_base = of_iomap(yesde, 0);
 	if (WARN_ON(!omap_irq_base))
 		return -ENOMEM;
 
-	domain = irq_domain_add_linear(node, omap_nr_irqs,
+	domain = irq_domain_add_linear(yesde, omap_nr_irqs,
 			&irq_generic_chip_ops, NULL);
 
 	omap_irq_soft_reset();
@@ -260,7 +260,7 @@ static int __init omap_init_irq_of(struct device_node *node)
 	return ret;
 }
 
-static int __init omap_init_irq_legacy(u32 base, struct device_node *node)
+static int __init omap_init_irq_legacy(u32 base, struct device_yesde *yesde)
 {
 	int j, irq_base;
 
@@ -274,7 +274,7 @@ static int __init omap_init_irq_legacy(u32 base, struct device_node *node)
 		irq_base = 0;
 	}
 
-	domain = irq_domain_add_legacy(node, omap_nr_irqs, irq_base, 0,
+	domain = irq_domain_add_legacy(yesde, omap_nr_irqs, irq_base, 0,
 			&irq_domain_simple_ops, NULL);
 
 	omap_irq_soft_reset();
@@ -294,27 +294,27 @@ static void __init omap_irq_enable_protection(void)
 	intc_writel(INTC_PROTECTION, reg);
 }
 
-static int __init omap_init_irq(u32 base, struct device_node *node)
+static int __init omap_init_irq(u32 base, struct device_yesde *yesde)
 {
 	int ret;
 
 	/*
 	 * FIXME legacy OMAP DMA driver sitting under arch/arm/plat-omap/dma.c
-	 * depends is still not ready for linear IRQ domains; because of that
+	 * depends is still yest ready for linear IRQ domains; because of that
 	 * we need to temporarily "blacklist" OMAP2 and OMAP3 devices from using
 	 * linear IRQ Domain until that driver is finally fixed.
 	 */
-	if (of_device_is_compatible(node, "ti,omap2-intc") ||
-			of_device_is_compatible(node, "ti,omap3-intc")) {
+	if (of_device_is_compatible(yesde, "ti,omap2-intc") ||
+			of_device_is_compatible(yesde, "ti,omap3-intc")) {
 		struct resource res;
 
-		if (of_address_to_resource(node, 0, &res))
+		if (of_address_to_resource(yesde, 0, &res))
 			return -ENOMEM;
 
 		base = res.start;
-		ret = omap_init_irq_legacy(base, node);
-	} else if (node) {
-		ret = omap_init_irq_of(node);
+		ret = omap_init_irq_legacy(base, yesde);
+	} else if (yesde) {
+		ret = omap_init_irq_of(yesde);
 	} else {
 		ret = omap_init_irq_legacy(base, NULL);
 	}
@@ -335,10 +335,10 @@ omap_intc_handle_irq(struct pt_regs *regs)
 
 	/*
 	 * A spurious IRQ can result if interrupt that triggered the
-	 * sorting is no longer active during the sorting (10 INTC
+	 * sorting is yes longer active during the sorting (10 INTC
 	 * functional clock cycles after interrupt assertion). Or a
 	 * change in interrupt mask affected the result during sorting
-	 * time. There is no special handling required except ignoring
+	 * time. There is yes special handling required except igyesring
 	 * the SIR register value just read and retrying.
 	 * See section 6.2.5 of AM335x TRM Literature Number: SPRUH73K
 	 *
@@ -360,25 +360,25 @@ omap_intc_handle_irq(struct pt_regs *regs)
 	handle_domain_irq(domain, irqnr, regs);
 }
 
-static int __init intc_of_init(struct device_node *node,
-			     struct device_node *parent)
+static int __init intc_of_init(struct device_yesde *yesde,
+			     struct device_yesde *parent)
 {
 	int ret;
 
 	omap_nr_pending = 3;
 	omap_nr_irqs = 96;
 
-	if (WARN_ON(!node))
+	if (WARN_ON(!yesde))
 		return -ENODEV;
 
-	if (of_device_is_compatible(node, "ti,dm814-intc") ||
-	    of_device_is_compatible(node, "ti,dm816-intc") ||
-	    of_device_is_compatible(node, "ti,am33xx-intc")) {
+	if (of_device_is_compatible(yesde, "ti,dm814-intc") ||
+	    of_device_is_compatible(yesde, "ti,dm816-intc") ||
+	    of_device_is_compatible(yesde, "ti,am33xx-intc")) {
 		omap_nr_irqs = 128;
 		omap_nr_pending = 4;
 	}
 
-	ret = omap_init_irq(-1, of_node_get(node));
+	ret = omap_init_irq(-1, of_yesde_get(yesde));
 	if (ret < 0)
 		return ret;
 

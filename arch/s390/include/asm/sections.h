@@ -29,7 +29,7 @@ static inline int arch_is_kernel_initmem_freed(unsigned long addr)
 #define __bootdata(var) __section(.boot.data.var) var
 
 /*
- * .boot.preserved.data is similar to .boot.data, but it is not part of the
+ * .boot.preserved.data is similar to .boot.data, but it is yest part of the
  * .init section and thus will be preserved for later use in the decompressed
  * kernel.
  */

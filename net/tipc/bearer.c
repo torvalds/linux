@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -125,7 +125,7 @@ int tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
 /**
  * bearer_name_validate - validate & (optionally) deconstruct bearer name
  * @name: ptr to bearer name string
- * @name_parts: ptr to area for bearer name components (or NULL if not needed)
+ * @name_parts: ptr to area for bearer name components (or NULL if yest needed)
  *
  * Returns 1 if bearer name is valid, otherwise 0.
  */
@@ -140,7 +140,7 @@ static int bearer_name_validate(const char *name,
 
 	/* copy bearer name & ensure length is OK */
 	name_copy[TIPC_MAX_BEARER_NAME - 1] = 0;
-	/* need above in case non-Posix strncpy() doesn't pad with nulls */
+	/* need above in case yesn-Posix strncpy() doesn't pad with nulls */
 	strncpy(name_copy, name, TIPC_MAX_BEARER_NAME);
 	if (name_copy[TIPC_MAX_BEARER_NAME - 1] != 0)
 		return 0;
@@ -258,7 +258,7 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 
 	m = tipc_media_find(b_names.media_name);
 	if (!m) {
-		errstr = "media not registered";
+		errstr = "media yest registered";
 		goto rejected;
 	}
 
@@ -282,7 +282,7 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 		pr_warn("Bearer <%s>: already 2 bearers with priority %u\n",
 			name, prio);
 		if (prio == TIPC_MIN_LINK_PRI) {
-			errstr = "cannot adjust to lower";
+			errstr = "canyest adjust to lower";
 			goto rejected;
 		}
 		pr_warn("Bearer <%s>: trying with adjusted priority\n", name);
@@ -348,14 +348,14 @@ rejected:
 static int tipc_reset_bearer(struct net *net, struct tipc_bearer *b)
 {
 	pr_info("Resetting bearer <%s>\n", b->name);
-	tipc_node_delete_links(net, b->identity);
+	tipc_yesde_delete_links(net, b->identity);
 	tipc_disc_reset(net, b);
 	return 0;
 }
 
 bool tipc_bearer_hold(struct tipc_bearer *b)
 {
-	return (b && refcount_inc_not_zero(&b->refcnt));
+	return (b && refcount_inc_yest_zero(&b->refcnt));
 }
 
 void tipc_bearer_put(struct tipc_bearer *b)
@@ -376,7 +376,7 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b)
 
 	pr_info("Disabling bearer <%s>\n", b->name);
 	clear_bit_unlock(0, &b->up);
-	tipc_node_delete_links(net, bearer_id);
+	tipc_yesde_delete_links(net, bearer_id);
 	b->media->disable_media(b);
 	RCU_INIT_POINTER(b->media_ptr, NULL);
 	if (b->disc)
@@ -391,7 +391,7 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 {
 	char *dev_name = strchr((const char *)b->name, ':') + 1;
 	int hwaddr_len = b->media->hwaddr_len;
-	u8 node_id[NODE_ID_LEN] = {0,};
+	u8 yesde_id[NODE_ID_LEN] = {0,};
 	struct net_device *dev;
 
 	/* Find device with specified name */
@@ -404,18 +404,18 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 	}
 	if (dev == net->loopback_dev) {
 		dev_put(dev);
-		pr_info("Enabling <%s> not permitted\n", b->name);
+		pr_info("Enabling <%s> yest permitted\n", b->name);
 		return -EINVAL;
 	}
 
-	/* Autoconfigure own node identity if needed */
+	/* Autoconfigure own yesde identity if needed */
 	if (!tipc_own_id(net) && hwaddr_len <= NODE_ID_LEN) {
-		memcpy(node_id, dev->dev_addr, hwaddr_len);
-		tipc_net_init(net, node_id, 0);
+		memcpy(yesde_id, dev->dev_addr, hwaddr_len);
+		tipc_net_init(net, yesde_id, 0);
 	}
 	if (!tipc_own_id(net)) {
 		dev_put(dev);
-		pr_warn("Failed to obtain node identity\n");
+		pr_warn("Failed to obtain yesde identity\n");
 		return -EINVAL;
 	}
 
@@ -534,7 +534,7 @@ void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
 void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		      struct sk_buff_head *xmitq,
 		      struct tipc_media_addr *dst,
-		      struct tipc_node *__dnode)
+		      struct tipc_yesde *__dyesde)
 {
 	struct tipc_bearer *b;
 	struct sk_buff *skb, *tmp;
@@ -550,7 +550,7 @@ void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		__skb_dequeue(xmitq);
 		if (likely(test_bit(0, &b->up) || msg_is_reset(buf_msg(skb)))) {
 #ifdef CONFIG_TIPC_CRYPTO
-			tipc_crypto_xmit(net, &skb, b, dst, __dnode);
+			tipc_crypto_xmit(net, &skb, b, dst, __dyesde);
 			if (skb)
 #endif
 				b->media->send_msg(net, skb, b, dst);
@@ -579,7 +579,7 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 		__skb_queue_purge(xmitq);
 	skb_queue_walk_safe(xmitq, skb, tmp) {
 		hdr = buf_msg(skb);
-		msg_set_non_seq(hdr, 1);
+		msg_set_yesn_seq(hdr, 1);
 		msg_set_mc_netid(hdr, net_id);
 		__skb_dequeue(xmitq);
 		dst = &b->bcast_addr;
@@ -599,9 +599,9 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
  * @pt: the packet_type structure which was used to register this handler
  * @orig_dev: the original receive net device in case the device is a bond
  *
- * Accept only packets explicitly sent to this node, or broadcast packets;
- * ignores packets sent using interface multicast, and traffic sent to other
- * nodes (which can happen if interface is running in promiscuous mode).
+ * Accept only packets explicitly sent to this yesde, or broadcast packets;
+ * igyesres packets sent using interface multicast, and traffic sent to other
+ * yesdes (which can happen if interface is running in promiscuous mode).
  */
 static int tipc_l2_rcv_msg(struct sk_buff *skb, struct net_device *dev,
 			   struct packet_type *pt, struct net_device *orig_dev)
@@ -613,7 +613,7 @@ static int tipc_l2_rcv_msg(struct sk_buff *skb, struct net_device *dev,
 		rcu_dereference(orig_dev->tipc_ptr);
 	if (likely(b && test_bit(0, &b->up) &&
 		   (skb->pkt_type <= PACKET_MULTICAST))) {
-		skb_mark_not_on_list(skb);
+		skb_mark_yest_on_list(skb);
 		TIPC_SKB_CB(skb)->flags = 0;
 		tipc_rcv(dev_net(b->pt.dev), skb, b);
 		rcu_read_unlock();
@@ -626,17 +626,17 @@ static int tipc_l2_rcv_msg(struct sk_buff *skb, struct net_device *dev,
 
 /**
  * tipc_l2_device_event - handle device events from network device
- * @nb: the context of the notification
+ * @nb: the context of the yestification
  * @evt: the type of event
  * @ptr: the net device that the event was on
  *
  * This function is called by the Ethernet driver in case of link
  * change event.
  */
-static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
+static int tipc_l2_device_event(struct yestifier_block *nb, unsigned long evt,
 				void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct tipc_bearer *b;
 
@@ -680,19 +680,19 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block notifier = {
-	.notifier_call  = tipc_l2_device_event,
+static struct yestifier_block yestifier = {
+	.yestifier_call  = tipc_l2_device_event,
 	.priority	= 0,
 };
 
 int tipc_bearer_setup(void)
 {
-	return register_netdevice_notifier(&notifier);
+	return register_netdevice_yestifier(&yestifier);
 }
 
 void tipc_bearer_cleanup(void)
 {
-	unregister_netdevice_notifier(&notifier);
+	unregister_netdevice_yestifier(&yestifier);
 }
 
 void tipc_bearer_stop(struct net *net)
@@ -782,14 +782,14 @@ static int __tipc_nl_add_bearer(struct tipc_nl_msg *msg,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_BEARER);
+	attrs = nla_nest_start_yesflag(msg->skb, TIPC_NLA_BEARER);
 	if (!attrs)
 		goto msg_full;
 
 	if (nla_put_string(msg->skb, TIPC_NLA_BEARER_NAME, bearer->name))
 		goto attr_msg_full;
 
-	prop = nla_nest_start_noflag(msg->skb, TIPC_NLA_BEARER_PROP);
+	prop = nla_nest_start_yesflag(msg->skb, TIPC_NLA_BEARER_PROP);
 	if (!prop)
 		goto prop_msg_full;
 	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_PRIO, bearer->priority))
@@ -1083,7 +1083,7 @@ int __tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 
 		if (props[TIPC_NLA_PROP_TOL]) {
 			b->tolerance = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
-			tipc_node_apply_property(net, b, TIPC_NLA_PROP_TOL);
+			tipc_yesde_apply_property(net, b, TIPC_NLA_PROP_TOL);
 		}
 		if (props[TIPC_NLA_PROP_PRIO])
 			b->priority = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
@@ -1097,7 +1097,7 @@ int __tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 					     (props[TIPC_NLA_PROP_MTU])))
 				return -EINVAL;
 			b->mtu = nla_get_u32(props[TIPC_NLA_PROP_MTU]);
-			tipc_node_apply_property(net, b, TIPC_NLA_PROP_MTU);
+			tipc_yesde_apply_property(net, b, TIPC_NLA_PROP_MTU);
 #endif
 		}
 	}
@@ -1128,14 +1128,14 @@ static int __tipc_nl_add_media(struct tipc_nl_msg *msg,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_MEDIA);
+	attrs = nla_nest_start_yesflag(msg->skb, TIPC_NLA_MEDIA);
 	if (!attrs)
 		goto msg_full;
 
 	if (nla_put_string(msg->skb, TIPC_NLA_MEDIA_NAME, media->name))
 		goto attr_msg_full;
 
-	prop = nla_nest_start_noflag(msg->skb, TIPC_NLA_MEDIA_PROP);
+	prop = nla_nest_start_yesflag(msg->skb, TIPC_NLA_MEDIA_PROP);
 	if (!prop)
 		goto prop_msg_full;
 	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_PRIO, media->priority))

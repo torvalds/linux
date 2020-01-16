@@ -780,7 +780,7 @@ static int wm8776_input_mux_put(struct snd_kcontrol *ctl,
 				other_ctl = data->line_adcmux_control;
 			else
 				other_ctl = data->mic_adcmux_control;
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &other_ctl->id);
 		}
 	} else
@@ -878,7 +878,7 @@ static void activate_control(struct oxygen *chip,
 		access = SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	if ((ctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_INACTIVE) != access) {
 		ctl->vd[0].access ^= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_INFO, &ctl->id);
+		snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_INFO, &ctl->id);
 	}
 }
 
@@ -968,7 +968,7 @@ static int hpf_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 #define WM8776_BIT_SWITCH(xname, reg, bit, invert, flags) { \
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	.name = xname, \
-	.info = snd_ctl_boolean_mono_info, \
+	.info = snd_ctl_boolean_moyes_info, \
 	.get = wm8776_bit_switch_get, \
 	.put = wm8776_bit_switch_put, \
 	.private_value = ((reg) << 16) | (bit) | ((invert) << 24) | (flags), \
@@ -1029,7 +1029,7 @@ static const struct snd_kcontrol_new ds_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Line Capture Switch",
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moyes_info,
 		.get = wm8776_input_mux_get,
 		.put = wm8776_input_mux_put,
 		.private_value = 1 << 0,
@@ -1037,7 +1037,7 @@ static const struct snd_kcontrol_new ds_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Mic Capture Switch",
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moyes_info,
 		.get = wm8776_input_mux_get,
 		.put = wm8776_input_mux_put,
 		.private_value = 1 << 1,
@@ -1066,7 +1066,7 @@ static const struct snd_kcontrol_new hdav_slim_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "HDMI Playback Switch",
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moyes_info,
 		.get = xonar_gpio_bit_switch_get,
 		.put = xonar_gpio_bit_switch_put,
 		.private_value = GPIO_SLIM_HDMI_DISABLE | XONAR_GPIO_BIT_INVERT,

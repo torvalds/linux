@@ -120,7 +120,7 @@ static struct clk_regmap meson8b_fixed_pll = {
 		.num_parents = 1,
 		/*
 		 * This clock won't ever change at runtime so
-		 * CLK_SET_RATE_PARENT is not required
+		 * CLK_SET_RATE_PARENT is yest required
 		 */
 	},
 };
@@ -288,9 +288,9 @@ static struct clk_regmap meson8b_fclk_div2 = {
 		},
 		.num_parents = 1,
 		/*
-		 * FIXME: Ethernet with a RGMII PHYs is not working if
+		 * FIXME: Ethernet with a RGMII PHYs is yest working if
 		 * fclk_div2 is disabled. it is currently unclear why this
-		 * is. keep it enabled until the Ethernet driver knows how
+		 * is. keep it enabled until the Ethernet driver kyesws how
 		 * to manage this clock.
 		 */
 		.flags = CLK_IS_CRITICAL,
@@ -757,7 +757,7 @@ static struct clk_regmap meson8b_nand_clk_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "nand_clk_sel",
 		.ops = &clk_regmap_mux_ops,
-		/* FIXME all other parents are unknown: */
+		/* FIXME all other parents are unkyeswn: */
 		.parent_hws = (const struct clk_hw *[]) {
 			&meson8b_fclk_div4.hw,
 			&meson8b_fclk_div3.hw,
@@ -1066,7 +1066,7 @@ static struct clk_regmap meson8b_vid_pll_in_sel = {
 		.ops = &clk_regmap_mux_ro_ops,
 		/*
 		 * TODO: depending on the SoC there is also a second parent:
-		 * Meson8: unknown
+		 * Meson8: unkyeswn
 		 * Meson8b: hdmi_pll_dco
 		 * Meson8m2: vid2_pll
 		 */
@@ -1720,7 +1720,7 @@ static struct clk_regmap meson8b_hdmi_sys_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "hdmi_sys_sel",
 		.ops = &clk_regmap_mux_ro_ops,
-		/* FIXME: all other parents are unknown */
+		/* FIXME: all other parents are unkyeswn */
 		.parent_hws = (const struct clk_hw *[]) {
 			&meson8b_xtal.hw
 		},
@@ -1765,7 +1765,7 @@ static struct clk_regmap meson8b_hdmi_sys = {
 /*
  * The MALI IP is clocked by two identical clocks (mali_0 and mali_1)
  * muxed by a glitch-free switch on Meson8b and Meson8m2. Meson8 only
- * has mali_0 and no glitch-free mux.
+ * has mali_0 and yes glitch-free mux.
  */
 static const struct clk_hw *meson8b_mali_0_1_parent_hws[] = {
 	&meson8b_xtal.hw,
@@ -2415,7 +2415,7 @@ static struct clk_regmap meson8b_vdec_hevc = {
 	.hw.init = &(struct clk_init_data){
 		.name = "vdec_hevc",
 		.ops = &clk_regmap_mux_ops,
-		/* TODO: The second parent is currently unknown */
+		/* TODO: The second parent is currently unkyeswn */
 		.parent_hws = (const struct clk_hw *[]) {
 			&meson8b_vdec_hevc_en.hw
 		},
@@ -3584,11 +3584,11 @@ static const struct reset_control_ops meson8b_clk_reset_ops = {
 };
 
 struct meson8b_nb_data {
-	struct notifier_block nb;
+	struct yestifier_block nb;
 	struct clk_hw_onecell_data *onecell_data;
 };
 
-static int meson8b_cpu_clk_notifier_cb(struct notifier_block *nb,
+static int meson8b_cpu_clk_yestifier_cb(struct yestifier_block *nb,
 				       unsigned long event, void *data)
 {
 	struct meson8b_nb_data *nb_data =
@@ -3618,7 +3618,7 @@ static int meson8b_cpu_clk_notifier_cb(struct notifier_block *nb,
 
 	ret = clk_set_parent(cpu_clk, parent_clk);
 	if (ret)
-		return notifier_from_errno(ret);
+		return yestifier_from_erryes(ret);
 
 	udelay(100);
 
@@ -3626,7 +3626,7 @@ static int meson8b_cpu_clk_notifier_cb(struct notifier_block *nb,
 }
 
 static struct meson8b_nb_data meson8b_cpu_nb_data = {
-	.nb.notifier_call = meson8b_cpu_clk_notifier_cb,
+	.nb.yestifier_call = meson8b_cpu_clk_yestifier_cb,
 };
 
 static const struct regmap_config clkc_regmap_config = {
@@ -3635,17 +3635,17 @@ static const struct regmap_config clkc_regmap_config = {
 	.reg_stride     = 4,
 };
 
-static void __init meson8b_clkc_init_common(struct device_node *np,
+static void __init meson8b_clkc_init_common(struct device_yesde *np,
 			struct clk_hw_onecell_data *clk_hw_onecell_data)
 {
 	struct meson8b_clk_reset *rstc;
-	const char *notifier_clk_name;
-	struct clk *notifier_clk;
+	const char *yestifier_clk_name;
+	struct clk *yestifier_clk;
 	void __iomem *clk_base;
 	struct regmap *map;
 	int i, ret;
 
-	map = syscon_node_to_regmap(of_get_parent(np));
+	map = syscon_yesde_to_regmap(of_get_parent(np));
 	if (IS_ERR(map)) {
 		pr_info("failed to get HHI regmap - Trying obsolete regs\n");
 
@@ -3669,7 +3669,7 @@ static void __init meson8b_clkc_init_common(struct device_node *np,
 	rstc->regmap = map;
 	rstc->reset.ops = &meson8b_clk_reset_ops;
 	rstc->reset.nr_resets = ARRAY_SIZE(meson8b_clk_reset_bits);
-	rstc->reset.of_node = np;
+	rstc->reset.of_yesde = np;
 	ret = reset_controller_register(&rstc->reset);
 	if (ret) {
 		pr_err("%s: Failed to register clkc reset controller: %d\n",
@@ -3698,15 +3698,15 @@ static void __init meson8b_clkc_init_common(struct device_node *np,
 	meson8b_cpu_nb_data.onecell_data = clk_hw_onecell_data;
 
 	/*
-	 * FIXME we shouldn't program the muxes in notifier handlers. The
+	 * FIXME we shouldn't program the muxes in yestifier handlers. The
 	 * tricky programming sequence will be handled by the forthcoming
 	 * coordinated clock rates mechanism once that feature is released.
 	 */
-	notifier_clk_name = clk_hw_get_name(&meson8b_cpu_scale_out_sel.hw);
-	notifier_clk = __clk_lookup(notifier_clk_name);
-	ret = clk_notifier_register(notifier_clk, &meson8b_cpu_nb_data.nb);
+	yestifier_clk_name = clk_hw_get_name(&meson8b_cpu_scale_out_sel.hw);
+	yestifier_clk = __clk_lookup(yestifier_clk_name);
+	ret = clk_yestifier_register(yestifier_clk, &meson8b_cpu_nb_data.nb);
 	if (ret) {
-		pr_err("%s: failed to register the CPU clock notifier\n",
+		pr_err("%s: failed to register the CPU clock yestifier\n",
 		       __func__);
 		return;
 	}
@@ -3717,17 +3717,17 @@ static void __init meson8b_clkc_init_common(struct device_node *np,
 		pr_err("%s: failed to register clock provider\n", __func__);
 }
 
-static void __init meson8_clkc_init(struct device_node *np)
+static void __init meson8_clkc_init(struct device_yesde *np)
 {
 	return meson8b_clkc_init_common(np, &meson8_hw_onecell_data);
 }
 
-static void __init meson8b_clkc_init(struct device_node *np)
+static void __init meson8b_clkc_init(struct device_yesde *np)
 {
 	return meson8b_clkc_init_common(np, &meson8b_hw_onecell_data);
 }
 
-static void __init meson8m2_clkc_init(struct device_node *np)
+static void __init meson8m2_clkc_init(struct device_yesde *np)
 {
 	return meson8b_clkc_init_common(np, &meson8m2_hw_onecell_data);
 }

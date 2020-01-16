@@ -5,7 +5,7 @@
  * Copyright 2009 Alberto Panizzo <maramaopercheseimorto@gmail.com>
  * updates in http://alberdroid.blogspot.com/
  *
- * Based on Atmark Techno, Inc. armadillo 500 BSP 2008
+ * Based on Atmark Techyes, Inc. armadillo 500 BSP 2008
  * Based on mx31ads.c and pcm037.c Great Work!
  */
 
@@ -282,34 +282,34 @@ armadillo5x0_nand_board_info __initconst = {
 /*
  * MTD NOR Flash
  */
-static struct mtd_partition armadillo5x0_nor_flash_partitions[] = {
+static struct mtd_partition armadillo5x0_yesr_flash_partitions[] = {
 	{
-		.name		= "nor.bootloader",
+		.name		= "yesr.bootloader",
 		.offset		= 0x00000000,
 		.size		= 4*32*1024,
 	}, {
-		.name		= "nor.kernel",
+		.name		= "yesr.kernel",
 		.offset		= MTDPART_OFS_APPEND,
 		.size		= 16*128*1024,
 	}, {
-		.name		= "nor.userland",
+		.name		= "yesr.userland",
 		.offset		= MTDPART_OFS_APPEND,
 		.size		= 110*128*1024,
 	}, {
-		.name		= "nor.config",
+		.name		= "yesr.config",
 		.offset		= MTDPART_OFS_APPEND,
 		.size		= 1*128*1024,
 	},
 };
 
 static const struct physmap_flash_data
-		armadillo5x0_nor_flash_pdata __initconst = {
+		armadillo5x0_yesr_flash_pdata __initconst = {
 	.width		= 2,
-	.parts		= armadillo5x0_nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(armadillo5x0_nor_flash_partitions),
+	.parts		= armadillo5x0_yesr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(armadillo5x0_yesr_flash_partitions),
 };
 
-static const struct resource armadillo5x0_nor_flash_resource __initconst = {
+static const struct resource armadillo5x0_yesr_flash_resource __initconst = {
 	.flags		= IORESOURCE_MEM,
 	.start		= MX31_CS0_BASE_ADDR,
 	.end		= MX31_CS0_BASE_ADDR + SZ_64M - 1,
@@ -491,14 +491,14 @@ static void __init armadillo5x0_init(void)
 
 	/* Register NOR Flash */
 	platform_device_register_resndata(NULL, "physmap-flash", -1,
-			&armadillo5x0_nor_flash_resource, 1,
-			&armadillo5x0_nor_flash_pdata,
-			sizeof(armadillo5x0_nor_flash_pdata));
+			&armadillo5x0_yesr_flash_resource, 1,
+			&armadillo5x0_yesr_flash_pdata,
+			sizeof(armadillo5x0_yesr_flash_pdata));
 
 	/* Register NAND Flash */
 	imx31_add_mxc_nand(&armadillo5x0_nand_board_info);
 
-	/* set NAND page size to 2k if not configured via boot mode pins */
+	/* set NAND page size to 2k if yest configured via boot mode pins */
 	imx_writel(imx_readl(mx3_ccm_base + MXC_CCM_RCSR) | (1 << 30),
 		   mx3_ccm_base + MXC_CCM_RCSR);
 }

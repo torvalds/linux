@@ -28,24 +28,24 @@ for each cpu X::
   -r--r--r-- 1 root root 65536 Mar  5 19:38 feedback_ctrs
   -r--r--r-- 1 root root 65536 Mar  5 19:38 highest_perf
   -r--r--r-- 1 root root 65536 Mar  5 19:38 lowest_freq
-  -r--r--r-- 1 root root 65536 Mar  5 19:38 lowest_nonlinear_perf
+  -r--r--r-- 1 root root 65536 Mar  5 19:38 lowest_yesnlinear_perf
   -r--r--r-- 1 root root 65536 Mar  5 19:38 lowest_perf
-  -r--r--r-- 1 root root 65536 Mar  5 19:38 nominal_freq
-  -r--r--r-- 1 root root 65536 Mar  5 19:38 nominal_perf
+  -r--r--r-- 1 root root 65536 Mar  5 19:38 yesminal_freq
+  -r--r--r-- 1 root root 65536 Mar  5 19:38 yesminal_perf
   -r--r--r-- 1 root root 65536 Mar  5 19:38 reference_perf
   -r--r--r-- 1 root root 65536 Mar  5 19:38 wraparound_time
 
 * highest_perf : Highest performance of this processor (abstract scale).
-* nominal_perf : Highest sustained performance of this processor
+* yesminal_perf : Highest sustained performance of this processor
   (abstract scale).
-* lowest_nonlinear_perf : Lowest performance of this processor with nonlinear
+* lowest_yesnlinear_perf : Lowest performance of this processor with yesnlinear
   power savings (abstract scale).
 * lowest_perf : Lowest performance of this processor (abstract scale).
 
 * lowest_freq : CPU frequency corresponding to lowest_perf (in MHz).
-* nominal_freq : CPU frequency corresponding to nominal_perf (in MHz).
+* yesminal_freq : CPU frequency corresponding to yesminal_perf (in MHz).
   The above frequencies should only be used to report processor performance in
-  freqency instead of abstract scale. These values should not be used for any
+  freqency instead of abstract scale. These values should yest be used for any
   functional decisions.
 
 * feedback_ctrs : Includes both Reference and delivered performance counter.

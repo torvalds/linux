@@ -27,7 +27,7 @@
  *      - make the LCD a part of a virtual screen of Vx*Vy
  *	- make the inputs list smp-safe
  *      - change the keyboard to a double mapping : signals -> key_id -> values
- *        so that applications can change values without knowing signals
+ *        so that applications can change values without kyeswing signals
  *
  */
 
@@ -36,7 +36,7 @@
 #include <linux/module.h>
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
@@ -120,7 +120,7 @@
 #define w_ctr(x, y)     (parport_write_control((x)->port, (y)))
 #define w_dtr(x, y)     (parport_write_data((x)->port, (y)))
 
-/* this defines which bits are to be used and which ones to be ignored */
+/* this defines which bits are to be used and which ones to be igyesred */
 /* logical or of the output bits involved in the scan matrix */
 static __u8 scan_mask_o;
 /* logical or of the input bits involved in the scan matrix */
@@ -155,9 +155,9 @@ struct logical_input {
 			int release_data;
 		} std;
 		struct {	/* valid when type == INPUT_TYPE_KBD */
-			char press_str[sizeof(void *) + sizeof(int)] __nonstring;
-			char repeat_str[sizeof(void *) + sizeof(int)] __nonstring;
-			char release_str[sizeof(void *) + sizeof(int)] __nonstring;
+			char press_str[sizeof(void *) + sizeof(int)] __yesnstring;
+			char repeat_str[sizeof(void *) + sizeof(int)] __yesnstring;
+			char release_str[sizeof(void *) + sizeof(int)] __yesnstring;
 		} kbd;
 	} u;
 };
@@ -422,12 +422,12 @@ MODULE_PARM_DESC(profile,
 static int keypad_type = NOT_SET;
 module_param(keypad_type, int, 0000);
 MODULE_PARM_DESC(keypad_type,
-		 "Keypad type: 0=none, 1=old 6 keys, 2=new 6+1 keys, 3=nexcom 4 keys");
+		 "Keypad type: 0=yesne, 1=old 6 keys, 2=new 6+1 keys, 3=nexcom 4 keys");
 
 static int lcd_type = NOT_SET;
 module_param(lcd_type, int, 0000);
 MODULE_PARM_DESC(lcd_type,
-		 "LCD type: 0=none, 1=compiled-in, 2=old, 3=serial ks0074, 4=hantronix, 5=nexcom");
+		 "LCD type: 0=yesne, 1=compiled-in, 2=old, 3=serial ks0074, 4=hantronix, 5=nexcom");
 
 static int lcd_height = NOT_SET;
 module_param(lcd_height, int, 0000);
@@ -456,11 +456,11 @@ MODULE_PARM_DESC(lcd_proto,
 
 /*
  * These are the parallel port pins the LCD control signals are connected to.
- * Set this to 0 if the signal is not used. Set it to its opposite value
+ * Set this to 0 if the signal is yest used. Set it to its opposite value
  * (negative) if the signal is negated. -MAXINT is used to indicate that the
- * pin has not been explicitly specified.
+ * pin has yest been explicitly specified.
  *
- * WARNING! no check will be performed about collisions with keypad !
+ * WARNING! yes check will be performed about collisions with keypad !
  */
 
 static int lcd_e_pin  = PIN_NOT_SET;
@@ -493,7 +493,7 @@ module_param(lcd_bl_pin, int, 0000);
 MODULE_PARM_DESC(lcd_bl_pin,
 		 "# of the // port pin connected to LCD backlight, with polarity (-17..17)");
 
-/* Deprecated module parameters - consider not using them anymore */
+/* Deprecated module parameters - consider yest using them anymore */
 
 static int lcd_enabled = NOT_SET;
 module_param(lcd_enabled, int, 0000);
@@ -666,7 +666,7 @@ static void pin_to_bits(int pin, unsigned char *d_val, unsigned char *c_val)
 		c_bit = PNL_PSELECP;
 		inv = !inv;
 		break;
-	default:		/* unknown pin, ignore */
+	default:		/* unkyeswn pin, igyesre */
 		break;
 	}
 
@@ -904,7 +904,7 @@ static void lcd_init(void)
 
 	/*
 	 * Init lcd struct with load-time values to preserve exact
-	 * current functionality (at least for now).
+	 * current functionality (at least for yesw).
 	 */
 	charlcd->height = lcd_height;
 	charlcd->width = lcd_width;
@@ -1098,7 +1098,7 @@ static ssize_t keypad_read(struct file *file,
 	return tmp - buf;
 }
 
-static int keypad_open(struct inode *inode, struct file *file)
+static int keypad_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 
@@ -1117,7 +1117,7 @@ static int keypad_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static int keypad_release(struct inode *inode, struct file *file)
+static int keypad_release(struct iyesde *iyesde, struct file *file)
 {
 	atomic_inc(&keypad_available);
 	return 0;
@@ -1131,7 +1131,7 @@ static const struct file_operations keypad_fops = {
 };
 
 static struct miscdevice keypad_dev = {
-	.minor	= KEYPAD_MINOR,
+	.miyesr	= KEYPAD_MINOR,
 	.name	= "keypad",
 	.fops	= &keypad_fops,
 };
@@ -1179,7 +1179,7 @@ static void phys_scan_contacts(void)
 	/* disable all matrix signals */
 	w_dtr(pprt, oldval);
 
-	/* now that all outputs are cleared, the only active input bits are
+	/* yesw that all outputs are cleared, the only active input bits are
 	 * directly connected to the ground
 	 */
 
@@ -1191,7 +1191,7 @@ static void phys_scan_contacts(void)
 
 	if (bitmask != gndmask) {
 		/*
-		 * since clearing the outputs changed some inputs, we know
+		 * since clearing the outputs changed some inputs, we kyesw
 		 * that some input signals are currently tied to some outputs.
 		 * So we'll scan them.
 		 */
@@ -1231,7 +1231,7 @@ static inline int input_state_high(struct logical_input *input)
 	/* try to catch dangerous transitions cases :
 	 * someone adds a bit, so this signal was a false
 	 * positive resulting from a transition. We should
-	 * invalidate the signal immediately and not call the
+	 * invalidate the signal immediately and yest call the
 	 * release function.
 	 * eg: 0 -(press A)-> A -(press B)-> AB : don't match A's release.
 	 */
@@ -1358,7 +1358,7 @@ static void panel_process_inputs(void)
 				break;
 			/* if all needed ones were already set previously,
 			 * this means that this logical signal has been
-			 * activated by the releasing of another combined
+			 * activated by the releasing of ayesther combined
 			 * signal, so we don't want to match.
 			 * eg: AB -(release B)-> A -(release A)-> 0 :
 			 *     don't match A.
@@ -1397,7 +1397,7 @@ static void panel_scan_timer(struct timer_list *unused)
 		if (spin_trylock_irq(&pprt_lock)) {
 			phys_scan_contacts();
 
-			/* no need for the parport anymore */
+			/* yes need for the parport anymore */
 			spin_unlock_irq(&pprt_lock);
 		}
 
@@ -1422,9 +1422,9 @@ static void init_scan_timer(void)
 }
 
 /* converts a name of the form "({BbAaPpSsEe}{01234567-})*" to a series of bits.
- * if <omask> or <imask> are non-null, they will be or'ed with the bits
+ * if <omask> or <imask> are yesn-null, they will be or'ed with the bits
  * corresponding to out and in bits respectively.
- * returns 1 if ok, 0 if error (in which case, nothing is written).
+ * returns 1 if ok, 0 if error (in which case, yesthing is written).
  */
 static u8 input_name2mask(const char *name, __u64 *mask, __u64 *value,
 			  u8 *imask, u8 *omask)
@@ -1443,7 +1443,7 @@ static u8 input_name2mask(const char *name, __u64 *mask, __u64 *value,
 
 		idx = strchr(sigtab, *name);
 		if (!idx)
-			return 0;	/* input name not found */
+			return 0;	/* input name yest found */
 
 		in = idx - sigtab;
 		neg = (in & 1);	/* odd (lower) names are negated */
@@ -1457,7 +1457,7 @@ static u8 input_name2mask(const char *name, __u64 *mask, __u64 *value,
 		} else if (*name == '-') {
 			out = 8;
 		} else {
-			return 0;	/* unknown bit name */
+			return 0;	/* unkyeswn bit name */
 		}
 
 		bit = (out * 5) + in;
@@ -1478,7 +1478,7 @@ static u8 input_name2mask(const char *name, __u64 *mask, __u64 *value,
 
 /* tries to bind a key to the signal name <name>. The key will send the
  * strings <press>, <repeat>, <release> for these respective events.
- * Returns the pointer to the new key if ok, NULL if the key could not be bound.
+ * Returns the pointer to the new key if ok, NULL if the key could yest be bound.
  */
 static struct logical_input *panel_bind_key(const char *name, const char *press,
 					    const char *repeat,
@@ -1513,7 +1513,7 @@ static struct logical_input *panel_bind_key(const char *name, const char *press,
 /* tries to bind a callback function to the signal name <name>. The function
  * <press_fct> will be called with the <press_data> arg when the signal is
  * activated, and so on for <release_fct>/<release_data>
- * Returns the pointer to the new signal if ok, NULL if the signal could not
+ * Returns the pointer to the new signal if ok, NULL if the signal could yest
  * be bound.
  */
 static struct logical_input *panel_bind_callback(char *name,
@@ -1551,9 +1551,9 @@ static void keypad_init(void)
 	int keynum;
 
 	init_waitqueue_head(&keypad_read_wait);
-	keypad_buflen = 0;	/* flushes any eventual noisy keystroke */
+	keypad_buflen = 0;	/* flushes any eventual yesisy keystroke */
 
-	/* Let's create all known keys */
+	/* Let's create all kyeswn keys */
 
 	for (keynum = 0; keypad_profile[keynum][0][0]; keynum++) {
 		panel_bind_key(keypad_profile[keynum][0],
@@ -1595,7 +1595,7 @@ static void panel_attach(struct parport *port)
 	}
 
 	if (parport_claim(pprt)) {
-		pr_err("could not claim access to parport%d. Aborting.\n",
+		pr_err("could yest claim access to parport%d. Aborting.\n",
 		       parport);
 		goto err_unreg_device;
 	}
@@ -1634,7 +1634,7 @@ static void panel_detach(struct parport *port)
 		return;
 
 	if (!pprt) {
-		pr_err("%s: port->number=%d parport=%d, nothing to unregister.\n",
+		pr_err("%s: port->number=%d parport=%d, yesthing to unregister.\n",
 		       __func__, port->number, parport);
 		return;
 	}
@@ -1695,7 +1695,7 @@ static int __init panel_init_module(void)
 		selected_lcd_type = LCD_TYPE_KS0074;
 		break;
 	case PANEL_PROFILE_HANTRONIX:
-		/* 8 bits, 2*16 hantronix-like, no keypad */
+		/* 8 bits, 2*16 hantronix-like, yes keypad */
 		selected_keypad_type = KEYPAD_TYPE_NONE;
 		selected_lcd_type = LCD_TYPE_HANTRONIX;
 		break;
@@ -1732,7 +1732,7 @@ static int __init panel_init_module(void)
 	if (lcd.enabled) {
 		/*
 		 * Init lcd struct with load-time values to preserve exact
-		 * current functionality (at least for now).
+		 * current functionality (at least for yesw).
 		 */
 		lcd.charset = lcd_charset;
 		lcd.proto = lcd_proto;
@@ -1760,14 +1760,14 @@ static int __init panel_init_module(void)
 	}
 
 	if (!lcd.enabled && !keypad.enabled) {
-		/* no device enabled, let's exit */
+		/* yes device enabled, let's exit */
 		pr_err("panel driver disabled.\n");
 		return -ENODEV;
 	}
 
 	err = parport_register_driver(&panel_driver);
 	if (err) {
-		pr_err("could not register with parport. Aborting.\n");
+		pr_err("could yest register with parport. Aborting.\n");
 		return err;
 	}
 
@@ -1775,7 +1775,7 @@ static int __init panel_init_module(void)
 		pr_info("panel driver registered on parport%d (io=0x%lx).\n",
 			parport, pprt->port->base);
 	else
-		pr_info("panel driver not yet registered\n");
+		pr_info("panel driver yest yet registered\n");
 	return 0;
 }
 

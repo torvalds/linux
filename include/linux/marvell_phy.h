@@ -5,7 +5,7 @@
 /* Mask used for ID comparisons */
 #define MARVELL_PHY_ID_MASK		0xfffffff0
 
-/* Known PHY IDs */
+/* Kyeswn PHY IDs */
 #define MARVELL_PHY_ID_88E1101		0x01410c60
 #define MARVELL_PHY_ID_88E1112		0x01410c90
 #define MARVELL_PHY_ID_88E1111		0x01410cc0
@@ -24,7 +24,7 @@
 #define MARVELL_PHY_ID_88E2110		0x002b09b0
 
 /* The MV88e6390 Ethernet switch contains embedded PHYs. These PHYs do
- * not have a model ID. So the switch driver traps reads to the ID2
+ * yest have a model ID. So the switch driver traps reads to the ID2
  * register and returns the switch family ID
  */
 #define MARVELL_PHY_ID_88E6390		0x01410f90

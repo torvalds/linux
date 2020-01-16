@@ -70,7 +70,7 @@
 
 #define	OMAP_UHH_DEBUG_CSR				(0x44)
 
-/* Values of UHH_REVISION - Note: these are not given in the TRM */
+/* Values of UHH_REVISION - Note: these are yest given in the TRM */
 #define OMAP_USBHS_REV1		0x00000010	/* OMAP3 */
 #define OMAP_USBHS_REV2		0x50700100	/* OMAP4 */
 
@@ -398,7 +398,7 @@ static unsigned omap_usbhs_rev1_hostconfig(struct usbhs_hcd_omap *omap,
 	}
 
 	if (pdata->single_ulpi_bypass) {
-		/* bypass ULPI only if none of the ports use PHY mode */
+		/* bypass ULPI only if yesne of the ports use PHY mode */
 		reg |= OMAP_UHH_HOSTCONFIG_ULPI_BYPASS;
 
 		for (i = 0; i < omap->nports; i++) {
@@ -473,9 +473,9 @@ static int usbhs_omap_get_dt_pdata(struct device *dev,
 					struct usbhs_omap_platform_data *pdata)
 {
 	int ret, i;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 
-	ret = of_property_read_u32(node, "num-ports", &pdata->nports);
+	ret = of_property_read_u32(yesde, "num-ports", &pdata->nports);
 	if (ret)
 		pdata->nports = 0;
 
@@ -493,7 +493,7 @@ static int usbhs_omap_get_dt_pdata(struct device *dev,
 		pdata->port_mode[i] = OMAP_USBHS_PORT_MODE_UNUSED;
 
 		snprintf(prop, sizeof(prop), "port%d-mode", i + 1);
-		ret = of_property_read_string(node, prop, &mode);
+		ret = of_property_read_string(yesde, prop, &mode);
 		if (ret < 0)
 			continue;
 
@@ -510,7 +510,7 @@ static int usbhs_omap_get_dt_pdata(struct device *dev,
 	}
 
 	/* get flags */
-	pdata->single_ulpi_bypass = of_property_read_bool(node,
+	pdata->single_ulpi_bypass = of_property_read_bool(yesde,
 						"single-ulpi-bypass");
 
 	return 0;
@@ -537,8 +537,8 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 	int				i;
 	bool				need_logic_fck;
 
-	if (dev->of_node) {
-		/* For DT boot we populate platform data from OF node */
+	if (dev->of_yesde) {
+		/* For DT boot we populate platform data from OF yesde */
 		pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
@@ -606,7 +606,7 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 		default:
 			omap->nports = OMAP3_HS_USB_PORTS;
 			dev_dbg(dev,
-			 "USB HOST Rev:0x%x not recognized, assuming %d ports\n",
+			 "USB HOST Rev:0x%x yest recognized, assuming %d ports\n",
 			 omap->usbhs_rev, omap->nports);
 			break;
 		}
@@ -705,7 +705,7 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 		snprintf(clkname, sizeof(clkname),
 				"usb_host_hs_utmi_p%d_clk", i + 1);
 
-		/* If a clock is not found we won't bail out as not all
+		/* If a clock is yest found we won't bail out as yest all
 		 * platforms have all clocks and we can function without
 		 * them
 		 */
@@ -777,8 +777,8 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 initialize:
 	omap_usbhs_init(dev);
 
-	if (dev->of_node) {
-		ret = of_platform_populate(dev->of_node,
+	if (dev->of_yesde) {
+		ret = of_platform_populate(dev->of_yesde,
 				usbhs_child_match_table, NULL, dev);
 
 		if (ret) {

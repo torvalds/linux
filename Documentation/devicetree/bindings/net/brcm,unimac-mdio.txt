@@ -23,8 +23,8 @@ Optional properties:
 - clock-frequency: the MDIO bus clock that must be output by the MDIO bus
   hardware, if absent, the default hardware values are used
 
-Child nodes of this MDIO bus controller node are standard Ethernet PHY device
-nodes as described in Documentation/devicetree/bindings/net/phy.txt
+Child yesdes of this MDIO bus controller yesde are standard Ethernet PHY device
+yesdes as described in Documentation/devicetree/bindings/net/phy.txt
 
 Example:
 

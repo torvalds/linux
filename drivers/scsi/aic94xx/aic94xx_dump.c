@@ -725,28 +725,28 @@ static void asd_dump_lseq_state(struct asd_ha_struct *asd_ha, int lseq)
 /**
  * asd_dump_ddb_site -- dump a CSEQ DDB site
  * @asd_ha: pointer to host adapter structure
- * @site_no: site number of interest
+ * @site_yes: site number of interest
  */
-void asd_dump_target_ddb(struct asd_ha_struct *asd_ha, u16 site_no)
+void asd_dump_target_ddb(struct asd_ha_struct *asd_ha, u16 site_yes)
 {
-	if (site_no >= asd_ha->hw_prof.max_ddbs)
+	if (site_yes >= asd_ha->hw_prof.max_ddbs)
 		return;
 
 #define DDB_FIELDB(__name)                                        \
-	asd_ddbsite_read_byte(asd_ha, site_no,                    \
+	asd_ddbsite_read_byte(asd_ha, site_yes,                    \
 			      offsetof(struct asd_ddb_ssp_smp_target_port, __name))
 #define DDB2_FIELDB(__name)                                       \
-	asd_ddbsite_read_byte(asd_ha, site_no,                    \
+	asd_ddbsite_read_byte(asd_ha, site_yes,                    \
 			      offsetof(struct asd_ddb_stp_sata_target_port, __name))
 #define DDB_FIELDW(__name)                                        \
-	asd_ddbsite_read_word(asd_ha, site_no,                    \
+	asd_ddbsite_read_word(asd_ha, site_yes,                    \
 			      offsetof(struct asd_ddb_ssp_smp_target_port, __name))
 
 #define DDB_FIELDD(__name)                                         \
-	asd_ddbsite_read_dword(asd_ha, site_no,                    \
+	asd_ddbsite_read_dword(asd_ha, site_yes,                    \
 			       offsetof(struct asd_ddb_ssp_smp_target_port, __name))
 
-	asd_printk("DDB: 0x%02x\n", site_no);
+	asd_printk("DDB: 0x%02x\n", site_yes);
 	asd_printk("conn_type: 0x%02x\n", DDB_FIELDB(conn_type));
 	asd_printk("conn_rate: 0x%02x\n", DDB_FIELDB(conn_rate));
 	asd_printk("init_conn_tag: 0x%04x\n", be16_to_cpu(DDB_FIELDW(init_conn_tag)));
@@ -801,7 +801,7 @@ void asd_dump_ddb_0(struct asd_ha_struct *asd_ha)
 	asd_printk("est_nexus_buf_cnt:%04x\n", DDB0_FIELDW(est_nexus_buf_cnt));
 	asd_printk("est_nexus_buf_thresh:%04x\n",
 		   DDB0_FIELDW(est_nexus_buf_thresh));
-	asd_printk("conn_not_active:%02x\n", DDB0_FIELDB(conn_not_active));
+	asd_printk("conn_yest_active:%02x\n", DDB0_FIELDB(conn_yest_active));
 	asd_printk("phy_is_up:%02x\n",       DDB0_FIELDB(phy_is_up));
 	asd_printk("port_map_by_links:%02x %02x %02x %02x "
 		   "%02x %02x %02x %02x\n",
@@ -815,17 +815,17 @@ void asd_dump_ddb_0(struct asd_ha_struct *asd_ha)
 		   DDB0_FIELDA(port_map_by_links, 7));
 }
 
-static void asd_dump_scb_site(struct asd_ha_struct *asd_ha, u16 site_no)
+static void asd_dump_scb_site(struct asd_ha_struct *asd_ha, u16 site_yes)
 {
 
 #define SCB_FIELDB(__name)                                                 \
-	asd_scbsite_read_byte(asd_ha, site_no, sizeof(struct scb_header)   \
+	asd_scbsite_read_byte(asd_ha, site_yes, sizeof(struct scb_header)   \
 			      + offsetof(struct initiate_ssp_task, __name))
 #define SCB_FIELDW(__name)                                                 \
-	asd_scbsite_read_word(asd_ha, site_no, sizeof(struct scb_header)   \
+	asd_scbsite_read_word(asd_ha, site_yes, sizeof(struct scb_header)   \
 			      + offsetof(struct initiate_ssp_task, __name))
 #define SCB_FIELDD(__name)                                                 \
-	asd_scbsite_read_dword(asd_ha, site_no, sizeof(struct scb_header)  \
+	asd_scbsite_read_dword(asd_ha, site_yes, sizeof(struct scb_header)  \
 			       + offsetof(struct initiate_ssp_task, __name))
 
 	asd_printk("Total Xfer Len: 0x%08x.\n", SCB_FIELDD(total_xfer_len));
@@ -843,24 +843,24 @@ static void asd_dump_scb_site(struct asd_ha_struct *asd_ha, u16 site_no)
  */
 void asd_dump_scb_sites(struct asd_ha_struct *asd_ha)
 {
-	u16	site_no;
+	u16	site_yes;
 
-	for (site_no = 0; site_no < asd_ha->hw_prof.max_scbs; site_no++) {
+	for (site_yes = 0; site_yes < asd_ha->hw_prof.max_scbs; site_yes++) {
 		u8 opcode;
 
-		if (!SCB_SITE_VALID(site_no))
+		if (!SCB_SITE_VALID(site_yes))
 			continue;
 
 		/* We are only interested in SCB sites currently used.
 		 */
-		opcode = asd_scbsite_read_byte(asd_ha, site_no,
+		opcode = asd_scbsite_read_byte(asd_ha, site_yes,
 					       offsetof(struct scb_header,
 							opcode));
 		if (opcode == 0xFF)
 			continue;
 
-		asd_printk("\nSCB: 0x%x\n", site_no);
-		asd_dump_scb_site(asd_ha, site_no);
+		asd_printk("\nSCB: 0x%x\n", site_yes);
+		asd_dump_scb_site(asd_ha, site_yes);
 	}
 }
 

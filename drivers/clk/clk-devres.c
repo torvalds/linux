@@ -137,7 +137,7 @@ void devm_clk_put(struct device *dev, struct clk *clk)
 EXPORT_SYMBOL(devm_clk_put);
 
 struct clk *devm_get_clk_from_child(struct device *dev,
-				    struct device_node *np, const char *con_id)
+				    struct device_yesde *np, const char *con_id)
 {
 	struct clk **ptr, *clk;
 

@@ -29,7 +29,7 @@ volatile int prima2_pen_release = -1;
 static void sirfsoc_secondary_init(unsigned int cpu)
 {
 	/*
-	 * let the primary processor know we're out of the
+	 * let the primary processor kyesw we're out of the
 	 * pen, then head off into the C entry point
 	 */
 	prima2_pen_release = -1;
@@ -50,9 +50,9 @@ static const struct of_device_id clk_ids[]  = {
 static int sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_matching_node(NULL, clk_ids);
+	np = of_find_matching_yesde(NULL, clk_ids);
 	if (!np)
 		return -ENODEV;
 
@@ -106,7 +106,7 @@ static int sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	}
 
 	/*
-	 * now the secondary core is starting up let it run its
+	 * yesw the secondary core is starting up let it run its
 	 * calibrations, then wait for it to finish
 	 */
 	spin_unlock(&boot_lock);

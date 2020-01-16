@@ -157,11 +157,11 @@ extern u32 		GLBtcDbgType[];
 }
 
 #else
-#define BTC_PRINT(dbgtype, dbgflag, printstr)		 no_printk printstr
-#define BTC_PRINT_F(dbgtype, dbgflag, printstr)		 no_printk printstr
-#define BTC_PRINT_ADDR(dbgtype, dbgflag, printstr, _Ptr) no_printk printstr
+#define BTC_PRINT(dbgtype, dbgflag, printstr)		 yes_printk printstr
+#define BTC_PRINT_F(dbgtype, dbgflag, printstr)		 yes_printk printstr
+#define BTC_PRINT_ADDR(dbgtype, dbgflag, printstr, _Ptr) yes_printk printstr
 #define BTC_PRINT_DATA(dbgtype, dbgflag, _TitleString, _HexData, _HexDataLen) \
-			no_printk("%s %p %zu", _TitleString, _HexData, _HexDataLen)
+			yes_printk("%s %p %zu", _TitleString, _HexData, _HexDataLen)
 #endif
 
 typedef struct _BTC_BOARD_INFO {
@@ -448,7 +448,7 @@ typedef struct _BTC_STACK_INFO {
 	bool bHidExist;
 	u8 numOfHid;
 	bool bPanExist;
-	bool bUnknownAclExist;
+	bool bUnkyeswnAclExist;
 	s8 minBtRssi;
 } BTC_STACK_INFO, *PBTC_STACK_INFO;
 
@@ -488,7 +488,7 @@ typedef struct _BTC_COEXIST {
 	bool bBinded;		/*  make sure only one adapter can bind the data context */
 	void *Adapter;		/*  default adapter */
 	BTC_BOARD_INFO boardInfo;
-	BTC_BT_INFO btInfo;		/*  some bt info referenced by non-bt module */
+	BTC_BT_INFO btInfo;		/*  some bt info referenced by yesn-bt module */
 	BTC_STACK_INFO stackInfo;
 	BTC_BT_LINK_INFO btLinkInfo;
 	BTC_CHIP_INTERFACE chipInterface;
@@ -522,7 +522,7 @@ typedef struct _BTC_COEXIST {
 	BFP_BTC_FILL_H2C fBtcFillH2c;
 	/*  other */
 	BFP_BTC_DISP_DBG_MSG fBtcDispDbgMsg;
-	/*  normal get/set related */
+	/*  yesrmal get/set related */
 	BFP_BTC_GET fBtcGet;
 	BFP_BTC_SET fBtcSet;
 

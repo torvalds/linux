@@ -13,7 +13,7 @@ static struct kmem_cache *b_cache;
 
 /*
  * This tries to stay within the next largest power-of-2 kmalloc cache
- * to avoid actually overwriting anything important if it's not detected
+ * to avoid actually overwriting anything important if it's yest detected
  * correctly.
  */
 void lkdtm_OVERWRITE_ALLOCATION(void)
@@ -46,7 +46,7 @@ void lkdtm_WRITE_AFTER_FREE(void)
 		&base[offset]);
 	kfree(base);
 	base[offset] = 0x0abcdef0;
-	/* Attempt to notice the overwrite. */
+	/* Attempt to yestice the overwrite. */
 	again = kmalloc(len, GFP_KERNEL);
 	kfree(again);
 	if (again != base)
@@ -90,7 +90,7 @@ void lkdtm_READ_AFTER_FREE(void)
 		pr_info("Memory correctly poisoned (%x)\n", saw);
 		BUG();
 	}
-	pr_info("Memory was not poisoned\n");
+	pr_info("Memory was yest poisoned\n");
 
 	kfree(val);
 }
@@ -109,7 +109,7 @@ void lkdtm_WRITE_BUDDY_AFTER_FREE(void)
 	schedule();
 	pr_info("Attempting bad write to the buddy page after free\n");
 	memset((void *)p, 0x78, PAGE_SIZE);
-	/* Attempt to notice the overwrite. */
+	/* Attempt to yestice the overwrite. */
 	p = __get_free_page(GFP_KERNEL);
 	free_page(p);
 	schedule();
@@ -146,7 +146,7 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void)
 		pr_info("Memory correctly poisoned (%x)\n", saw);
 		BUG();
 	}
-	pr_info("Buddy page was not poisoned\n");
+	pr_info("Buddy page was yest poisoned\n");
 
 	kfree(val);
 }
@@ -188,14 +188,14 @@ void lkdtm_SLAB_FREE_PAGE(void)
 {
 	unsigned long p = __get_free_page(GFP_KERNEL);
 
-	pr_info("Attempting non-Slab slab free ...\n");
+	pr_info("Attempting yesn-Slab slab free ...\n");
 	kmem_cache_free(NULL, (void *)p);
 	free_page(p);
 }
 
 /*
  * We have constructors to keep the caches distinctly separated without
- * needing to boot with "slab_nomerge".
+ * needing to boot with "slab_yesmerge".
  */
 static void ctor_double_free(void *region)
 { }

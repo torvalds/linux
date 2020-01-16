@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 ****************************
 Defining Colorspaces in V4L2
@@ -16,12 +16,12 @@ colorspace identifier (enum :c:type:`v4l2_colorspace`)
 which defines the chromaticities, the default transfer function, the
 default Y'CbCr encoding and the default quantization method. The second
 is the transfer function identifier (enum
-:c:type:`v4l2_xfer_func`) to specify non-standard
+:c:type:`v4l2_xfer_func`) to specify yesn-standard
 transfer functions. The third is the Y'CbCr encoding identifier (enum
 :c:type:`v4l2_ycbcr_encoding`) to specify
-non-standard Y'CbCr encodings and the fourth is the quantization
+yesn-standard Y'CbCr encodings and the fourth is the quantization
 identifier (enum :c:type:`v4l2_quantization`) to
-specify non-standard quantization methods. Most of the time only the
+specify yesn-standard quantization methods. Most of the time only the
 colorspace field of struct :c:type:`v4l2_pix_format`
 or struct :c:type:`v4l2_pix_format_mplane`
 needs to be filled in.
@@ -35,7 +35,7 @@ two basic ways to do it: Divide the angular value by 2 (0-179), or use the
 whole range, 0-255, dividing the angular value by 1.41. The enum
 :c:type:`v4l2_hsv_encoding` specifies which encoding is used.
 
-.. note:: The default R'G'B' quantization is full range for all
+.. yeste:: The default R'G'B' quantization is full range for all
    colorspaces except for BT.2020 which uses limited range R'G'B'
    quantization.
 
@@ -76,7 +76,7 @@ whole range, 0-255, dividing the angular value by 1.41. The enum
       - The raw colorspace. This is used for raw image capture where the
 	image is minimally processed and is using the internal colorspace
 	of the device. The software that processes an image using this
-	'colorspace' will have to know the internals of the capture
+	'colorspace' will have to kyesw the internals of the capture
 	device.
 
 
@@ -102,7 +102,7 @@ whole range, 0-255, dividing the angular value by 1.41. The enum
     * - ``V4L2_XFER_FUNC_SMPTE240M``
       - Use the SMPTE 240M transfer function.
     * - ``V4L2_XFER_FUNC_NONE``
-      - Do not use a transfer function (i.e. use linear RGB values).
+      - Do yest use a transfer function (i.e. use linear RGB values).
     * - ``V4L2_XFER_FUNC_DCI_P3``
       - Use the DCI-P3 transfer function.
     * - ``V4L2_XFER_FUNC_SMPTE2084``
@@ -131,7 +131,7 @@ whole range, 0-255, dividing the angular value by 1.41. The enum
     * - ``V4L2_YCBCR_ENC_XV709``
       - Use the extended gamut xvYCC Rec. 709 encoding.
     * - ``V4L2_YCBCR_ENC_BT2020``
-      - Use the default non-constant luminance BT.2020 Y'CbCr encoding.
+      - Use the default yesn-constant luminance BT.2020 Y'CbCr encoding.
     * - ``V4L2_YCBCR_ENC_BT2020_CONST_LUM``
       - Use the constant luminance BT.2020 Yc'CbcCrc encoding.
     * - ``V4L2_YCBCR_ENC_SMPTE_240M``

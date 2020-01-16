@@ -41,7 +41,7 @@ static int alloc_urb_from_cmd(struct urb **urbp,
 		goto free_buffer;
 
 	/*
-	 * FIXME - we only setup pipe enough for usbip functions
+	 * FIXME - we only setup pipe eyesugh for usbip functions
 	 * to behave nicely
 	 */
 	urb->pipe |= pdu->base.direction == USBIP_DIR_IN ?
@@ -75,7 +75,7 @@ static int v_recv_cmd_unlink(struct vudc *udc,
 		spin_unlock_irqrestore(&udc->lock, flags);
 		return 0;
 	}
-	/* Not found, completed / not queued */
+	/* Not found, completed / yest queued */
 	spin_lock(&udc->lock_tx);
 	v_enqueue_ret_unlink(udc, pdu->base.seqnum, 0);
 	wake_up(&udc->tx_waitq);
@@ -107,8 +107,8 @@ static int v_recv_cmd_submit(struct vudc *udc,
 	spin_lock_irq(&udc->lock);
 	urb_p->ep = vudc_find_endpoint(udc, address);
 	if (!urb_p->ep) {
-		/* we don't know the type, there may be isoc data! */
-		dev_err(&udc->pdev->dev, "request to nonexistent endpoint");
+		/* we don't kyesw the type, there may be isoc data! */
+		dev_err(&udc->pdev->dev, "request to yesnexistent endpoint");
 		spin_unlock_irq(&udc->lock);
 		usbip_event_add(&udc->ud, VUDC_EVENT_ERROR_TCP);
 		ret = -EPIPE;
@@ -217,7 +217,7 @@ static int v_rx_pdu(struct usbip_device *ud)
 		break;
 	default:
 		ret = -EPIPE;
-		pr_err("rx: unknown command");
+		pr_err("rx: unkyeswn command");
 		break;
 	}
 	return ret;

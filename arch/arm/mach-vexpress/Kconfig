@@ -36,7 +36,7 @@ menuconfig ARCH_VEXPRESS
 	  - Versatile Express RTSMs (Models)
 
 	  You must boot using a Flattened Device Tree in order to use these
-	  platforms. The traditional (ATAGs) boot method is not usable on
+	  platforms. The traditional (ATAGs) boot method is yest usable on
 	  these boards with this option.
 
 if ARCH_VEXPRESS

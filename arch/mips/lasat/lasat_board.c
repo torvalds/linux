@@ -100,7 +100,7 @@ int lasat_init_board_info(void)
 
 	if (crc != lasat_board_info.li_eeprom_info.crc32) {
 		printk(KERN_WARNING "WARNING...\nWARNING...\nEEPROM CRC does "
-		       "not match calculated, attempting to soldier on...\n");
+		       "yest match calculated, attempting to soldier on...\n");
 	}
 
 	if (lasat_board_info.li_eeprom_info.version != LASAT_EEPROM_VERSION) {
@@ -235,8 +235,8 @@ int lasat_init_board_info(void)
 	/* Product ID dependent values */
 	c = lasat_board_info.li_prid;
 	if (c >= i_n_prids) {
-		strcpy(lasat_board_info.li_namestr, "Unknown Model");
-		strcpy(lasat_board_info.li_typestr, "Unknown Type");
+		strcpy(lasat_board_info.li_namestr, "Unkyeswn Model");
+		strcpy(lasat_board_info.li_typestr, "Unkyeswn Type");
 	} else {
 		ppi = &vendor_info_table[0].vi_product_info[c];
 		strcpy(lasat_board_info.li_namestr, ppi->pi_name);

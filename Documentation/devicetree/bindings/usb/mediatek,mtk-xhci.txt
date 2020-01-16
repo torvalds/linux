@@ -1,6 +1,6 @@
 MT8173 xHCI
 
-The device node for Mediatek SOC USB3.0 host controller
+The device yesde for Mediatek SOC USB3.0 host controller
 
 There are two scenarios: the first one only supports xHCI driver;
 the second one supports dual-role mode, and the host is based on xHCI
@@ -19,14 +19,14 @@ Required properties:
  - reg : specifies physical base address and size of the registers
  - reg-names: should be "mac" for xHCI MAC and "ippc" for IP port control
  - interrupts : interrupt used by the controller
- - power-domains : a phandle to USB power domain node to control USB's
+ - power-domains : a phandle to USB power domain yesde to control USB's
 	mtcmos
  - vusb33-supply : regulator of USB avdd3.3v
 
  - clocks : a list of phandle + clock-specifier pairs, one for each
 	entry in clock-names
  - clock-names : must contain
-	"sys_ck": controller clock used by normal mode,
+	"sys_ck": controller clock used by yesrmal mode,
 	the following ones are optional:
 	"ref_ck": reference clock used by low power mode etc,
 	"mcu_ck": mcu_bus clock for register access,
@@ -81,7 +81,7 @@ usb30: usb@11270000 {
 2nd: dual-role mode with xHCI driver
 ------------------------------------------------------------------------
 
-In the case, xhci is added as subnode to mtu3. An example and the DT binding
+In the case, xhci is added as subyesde to mtu3. An example and the DT binding
 details of mtu3 can be found in:
 Documentation/devicetree/bindings/usb/mediatek,mtu3.txt
 
@@ -94,7 +94,7 @@ Required properties:
  - reg : specifies physical base address and size of the registers
  - reg-names: should be "mac" for xHCI MAC
  - interrupts : interrupt used by the host controller
- - power-domains : a phandle to USB power domain node to control USB's
+ - power-domains : a phandle to USB power domain yesde to control USB's
 	mtcmos
  - vusb33-supply : regulator of USB avdd3.3v
 

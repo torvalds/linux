@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -300,7 +300,7 @@ struct gpio *dal_gpio_create(
 	case GPIO_ID_HPD:
 		gpio->service->factory.funcs->init_hpd(&gpio->hw_container.hpd, service->ctx, id, en);
 		break;
-	// TODO: currently gpio for sync and gsl does not get created, might need it later
+	// TODO: currently gpio for sync and gsl does yest get created, might need it later
 	case GPIO_ID_SYNC:
 		break;
 	case GPIO_ID_GSL:
@@ -339,7 +339,7 @@ void dal_gpio_destroy(
 		kfree((*gpio)->hw_container.hpd);
 		(*gpio)->hw_container.hpd = NULL;
 		break;
-	// TODO: currently gpio for sync and gsl does not get created, might need it later
+	// TODO: currently gpio for sync and gsl does yest get created, might need it later
 	case GPIO_ID_SYNC:
 		break;
 	case GPIO_ID_GSL:

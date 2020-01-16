@@ -20,7 +20,7 @@ struct int3402_thermal_data {
 	struct int34x_thermal_zone *int340x_zone;
 };
 
-static void int3402_notify(acpi_handle handle, u32 event, void *data)
+static void int3402_yestify(acpi_handle handle, u32 event, void *data)
 {
 	struct int3402_thermal_data *priv = data;
 
@@ -56,9 +56,9 @@ static int int3402_thermal_probe(struct platform_device *pdev)
 	if (IS_ERR(d->int340x_zone))
 		return PTR_ERR(d->int340x_zone);
 
-	ret = acpi_install_notify_handler(adev->handle,
+	ret = acpi_install_yestify_handler(adev->handle,
 					  ACPI_DEVICE_NOTIFY,
-					  int3402_notify,
+					  int3402_yestify,
 					  d);
 	if (ret) {
 		int340x_thermal_zone_remove(d->int340x_zone);
@@ -75,8 +75,8 @@ static int int3402_thermal_remove(struct platform_device *pdev)
 {
 	struct int3402_thermal_data *d = platform_get_drvdata(pdev);
 
-	acpi_remove_notify_handler(d->handle,
-				   ACPI_DEVICE_NOTIFY, int3402_notify);
+	acpi_remove_yestify_handler(d->handle,
+				   ACPI_DEVICE_NOTIFY, int3402_yestify);
 	int340x_thermal_zone_remove(d->int340x_zone);
 
 	return 0;

@@ -46,29 +46,29 @@ extern asmlinkage unsigned int arm_check_condition(u32 opcode, u32 psr);
 /*
  * Opcode byteswap helpers
  *
- * These macros help with converting instructions between a canonical integer
- * format and in-memory representation, in an endianness-agnostic manner.
+ * These macros help with converting instructions between a cayesnical integer
+ * format and in-memory representation, in an endianness-agyesstic manner.
  *
- * __mem_to_opcode_*() convert from in-memory representation to canonical form.
- * __opcode_to_mem_*() convert from canonical form to in-memory representation.
+ * __mem_to_opcode_*() convert from in-memory representation to cayesnical form.
+ * __opcode_to_mem_*() convert from cayesnical form to in-memory representation.
  *
  *
- * Canonical instruction representation:
+ * Cayesnical instruction representation:
  *
  *	ARM:		0xKKLLMMNN
  *	Thumb 16-bit:	0x0000KKLL, where KK < 0xE8
  *	Thumb 32-bit:	0xKKLLMMNN, where KK >= 0xE8
  *
- * There is no way to distinguish an ARM instruction in canonical representation
- * from a Thumb instruction (just as these cannot be distinguished in memory).
+ * There is yes way to distinguish an ARM instruction in cayesnical representation
+ * from a Thumb instruction (just as these canyest be distinguished in memory).
  * Where this distinction is important, it needs to be tracked separately.
  *
- * Note that values in the range 0x0000E800..0xE7FFFFFF intentionally do not
+ * Note that values in the range 0x0000E800..0xE7FFFFFF intentionally do yest
  * represent any valid Thumb-2 instruction.  For this range,
  * __opcode_is_thumb32() and __opcode_is_thumb16() will both be false.
  *
  * The ___asm variants are intended only for use by this header, in situations
- * involving inline assembler.  For .S files, the normal __opcode_*() macros
+ * involving inline assembler.  For .S files, the yesrmal __opcode_*() macros
  * should do the right thing.
  */
 #ifdef __ASSEMBLY__
@@ -112,9 +112,9 @@ extern asmlinkage unsigned int arm_check_condition(u32 opcode, u32 psr);
 #define ___asm_opcode_to_mem_thumb16(x) ___asm_opcode_identity16(x)
 #ifndef CONFIG_CPU_ENDIAN_BE32
 /*
- * On BE32 systems, using 32-bit accesses to store Thumb instructions will not
- * work in all cases, due to alignment constraints.  For now, a correct
- * version is not provided for BE32.
+ * On BE32 systems, using 32-bit accesses to store Thumb instructions will yest
+ * work in all cases, due to alignment constraints.  For yesw, a correct
+ * version is yest provided for BE32.
  */
 #define __opcode_to_mem_thumb32(x) ___opcode_swahw32(x)
 #define ___asm_opcode_to_mem_thumb32(x) ___asm_opcode_swahw32(x)
@@ -158,7 +158,7 @@ extern asmlinkage unsigned int arm_check_condition(u32 opcode, u32 psr);
  * Opcode injection helpers
  *
  * In rare cases it is necessary to assemble an opcode which the
- * assembler does not support directly, or which would normally be
+ * assembler does yest support directly, or which would yesrmally be
  * rejected because of the CFLAGS or AFLAGS used to build the affected
  * file.
  *
@@ -167,7 +167,7 @@ extern asmlinkage unsigned int arm_check_condition(u32 opcode, u32 psr);
  * makes sense to support old assembler versions when building that
  * particular kernel feature.
  *
- * The macros defined here should only be used where there is no viable
+ * The macros defined here should only be used where there is yes viable
  * alternative.
  *
  *

@@ -4,7 +4,7 @@
  *
  * On some platforms, the device tree can be manipulated at runtime.
  * The routines in this section support adding, removing and changing
- * device tree nodes.
+ * device tree yesdes.
  */
 
 #define pr_fmt(fmt)	"OF: " fmt
@@ -17,51 +17,51 @@
 
 #include "of_private.h"
 
-static struct device_node *kobj_to_device_node(struct kobject *kobj)
+static struct device_yesde *kobj_to_device_yesde(struct kobject *kobj)
 {
-	return container_of(kobj, struct device_node, kobj);
+	return container_of(kobj, struct device_yesde, kobj);
 }
 
 /**
- * of_node_get() - Increment refcount of a node
- * @node:	Node to inc refcount, NULL is supported to simplify writing of
+ * of_yesde_get() - Increment refcount of a yesde
+ * @yesde:	Node to inc refcount, NULL is supported to simplify writing of
  *		callers
  *
- * Returns node.
+ * Returns yesde.
  */
-struct device_node *of_node_get(struct device_node *node)
+struct device_yesde *of_yesde_get(struct device_yesde *yesde)
 {
-	if (node)
-		kobject_get(&node->kobj);
-	return node;
+	if (yesde)
+		kobject_get(&yesde->kobj);
+	return yesde;
 }
-EXPORT_SYMBOL(of_node_get);
+EXPORT_SYMBOL(of_yesde_get);
 
 /**
- * of_node_put() - Decrement refcount of a node
- * @node:	Node to dec refcount, NULL is supported to simplify writing of
+ * of_yesde_put() - Decrement refcount of a yesde
+ * @yesde:	Node to dec refcount, NULL is supported to simplify writing of
  *		callers
  */
-void of_node_put(struct device_node *node)
+void of_yesde_put(struct device_yesde *yesde)
 {
-	if (node)
-		kobject_put(&node->kobj);
+	if (yesde)
+		kobject_put(&yesde->kobj);
 }
-EXPORT_SYMBOL(of_node_put);
+EXPORT_SYMBOL(of_yesde_put);
 
 static BLOCKING_NOTIFIER_HEAD(of_reconfig_chain);
 
-int of_reconfig_notifier_register(struct notifier_block *nb)
+int of_reconfig_yestifier_register(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&of_reconfig_chain, nb);
+	return blocking_yestifier_chain_register(&of_reconfig_chain, nb);
 }
-EXPORT_SYMBOL_GPL(of_reconfig_notifier_register);
+EXPORT_SYMBOL_GPL(of_reconfig_yestifier_register);
 
-int of_reconfig_notifier_unregister(struct notifier_block *nb)
+int of_reconfig_yestifier_unregister(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&of_reconfig_chain, nb);
+	return blocking_yestifier_chain_unregister(&of_reconfig_chain, nb);
 }
-EXPORT_SYMBOL_GPL(of_reconfig_notifier_unregister);
+EXPORT_SYMBOL_GPL(of_reconfig_yestifier_unregister);
 
 #ifdef DEBUG
 const char *action_names[] = {
@@ -73,7 +73,7 @@ const char *action_names[] = {
 };
 #endif
 
-int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
+int of_reconfig_yestify(unsigned long action, struct of_reconfig_data *p)
 {
 	int rc;
 #ifdef DEBUG
@@ -82,30 +82,30 @@ int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:
-		pr_debug("notify %-15s %pOF\n", action_names[action],
+		pr_debug("yestify %-15s %pOF\n", action_names[action],
 			pr->dn);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr_debug("notify %-15s %pOF:%s\n", action_names[action],
+		pr_debug("yestify %-15s %pOF:%s\n", action_names[action],
 			pr->dn, pr->prop->name);
 		break;
 
 	}
 #endif
-	rc = blocking_notifier_call_chain(&of_reconfig_chain, action, p);
-	return notifier_to_errno(rc);
+	rc = blocking_yestifier_call_chain(&of_reconfig_chain, action, p);
+	return yestifier_to_erryes(rc);
 }
 
 /*
  * of_reconfig_get_state_change()	- Returns new state of device
- * @action	- action of the of notifier
- * @arg		- argument of the of notifier
+ * @action	- action of the of yestifier
+ * @arg		- argument of the of yestifier
  *
- * Returns the new state of a device based on the notifier used.
+ * Returns the new state of a device based on the yestifier used.
  * Returns 0 on device going from enabled to disabled, 1 on device
- * going from disabled to enabled and -1 on no change.
+ * going from disabled to enabled and -1 on yes change.
  */
 int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *pr)
 {
@@ -158,7 +158,7 @@ int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 		if (is_status) {
-			/* no status property -> enabled (legacy) */
+			/* yes status property -> enabled (legacy) */
 			prev_state = 1;
 			new_state = status_state;
 		}
@@ -166,7 +166,7 @@ int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *
 	case OF_RECONFIG_REMOVE_PROPERTY:
 		if (is_status) {
 			prev_state = status_state;
-			/* no status property -> enabled (legacy) */
+			/* yes status property -> enabled (legacy) */
 			new_state = 1;
 		}
 		break;
@@ -185,27 +185,27 @@ int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *
 }
 EXPORT_SYMBOL_GPL(of_reconfig_get_state_change);
 
-int of_property_notify(int action, struct device_node *np,
+int of_property_yestify(int action, struct device_yesde *np,
 		       struct property *prop, struct property *oldprop)
 {
 	struct of_reconfig_data pr;
 
-	/* only call notifiers if the node is attached */
-	if (!of_node_is_attached(np))
+	/* only call yestifiers if the yesde is attached */
+	if (!of_yesde_is_attached(np))
 		return 0;
 
 	pr.dn = np;
 	pr.prop = prop;
 	pr.old_prop = oldprop;
-	return of_reconfig_notify(action, &pr);
+	return of_reconfig_yestify(action, &pr);
 }
 
-static void __of_attach_node(struct device_node *np)
+static void __of_attach_yesde(struct device_yesde *np)
 {
 	const __be32 *phandle;
 	int sz;
 
-	if (!of_node_check_flag(np, OF_OVERLAY)) {
+	if (!of_yesde_check_flag(np, OF_OVERLAY)) {
 		np->name = __of_get_property(np, "name", NULL);
 		if (!np->name)
 			np->name = "<NULL>";
@@ -224,13 +224,13 @@ static void __of_attach_node(struct device_node *np)
 	np->child = NULL;
 	np->sibling = np->parent->child;
 	np->parent->child = np;
-	of_node_clear_flag(np, OF_DETACHED);
+	of_yesde_clear_flag(np, OF_DETACHED);
 }
 
 /**
- * of_attach_node() - Plug a device node into the tree and global list.
+ * of_attach_yesde() - Plug a device yesde into the tree and global list.
  */
-int of_attach_node(struct device_node *np)
+int of_attach_yesde(struct device_yesde *np)
 {
 	struct of_reconfig_data rd;
 	unsigned long flags;
@@ -240,22 +240,22 @@ int of_attach_node(struct device_node *np)
 
 	mutex_lock(&of_mutex);
 	raw_spin_lock_irqsave(&devtree_lock, flags);
-	__of_attach_node(np);
+	__of_attach_yesde(np);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
-	__of_attach_node_sysfs(np);
+	__of_attach_yesde_sysfs(np);
 	mutex_unlock(&of_mutex);
 
-	of_reconfig_notify(OF_RECONFIG_ATTACH_NODE, &rd);
+	of_reconfig_yestify(OF_RECONFIG_ATTACH_NODE, &rd);
 
 	return 0;
 }
 
-void __of_detach_node(struct device_node *np)
+void __of_detach_yesde(struct device_yesde *np)
 {
-	struct device_node *parent;
+	struct device_yesde *parent;
 
-	if (WARN_ON(of_node_check_flag(np, OF_DETACHED)))
+	if (WARN_ON(of_yesde_check_flag(np, OF_DETACHED)))
 		return;
 
 	parent = np->parent;
@@ -265,7 +265,7 @@ void __of_detach_node(struct device_node *np)
 	if (parent->child == np)
 		parent->child = np->sibling;
 	else {
-		struct device_node *prevsib;
+		struct device_yesde *prevsib;
 		for (prevsib = np->parent->child;
 		     prevsib->sibling != np;
 		     prevsib = prevsib->sibling)
@@ -273,16 +273,16 @@ void __of_detach_node(struct device_node *np)
 		prevsib->sibling = np->sibling;
 	}
 
-	of_node_set_flag(np, OF_DETACHED);
+	of_yesde_set_flag(np, OF_DETACHED);
 
-	/* race with of_find_node_by_phandle() prevented by devtree_lock */
+	/* race with of_find_yesde_by_phandle() prevented by devtree_lock */
 	__of_free_phandle_cache_entry(np->phandle);
 }
 
 /**
- * of_detach_node() - "Unplug" a node from the device tree.
+ * of_detach_yesde() - "Unplug" a yesde from the device tree.
  */
-int of_detach_node(struct device_node *np)
+int of_detach_yesde(struct device_yesde *np)
 {
 	struct of_reconfig_data rd;
 	unsigned long flags;
@@ -293,17 +293,17 @@ int of_detach_node(struct device_node *np)
 
 	mutex_lock(&of_mutex);
 	raw_spin_lock_irqsave(&devtree_lock, flags);
-	__of_detach_node(np);
+	__of_detach_yesde(np);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
-	__of_detach_node_sysfs(np);
+	__of_detach_yesde_sysfs(np);
 	mutex_unlock(&of_mutex);
 
-	of_reconfig_notify(OF_RECONFIG_DETACH_NODE, &rd);
+	of_reconfig_yestify(OF_RECONFIG_DETACH_NODE, &rd);
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(of_detach_node);
+EXPORT_SYMBOL_GPL(of_detach_yesde);
 
 static void property_list_free(struct property *prop_list)
 {
@@ -318,49 +318,49 @@ static void property_list_free(struct property *prop_list)
 }
 
 /**
- * of_node_release() - release a dynamically allocated node
- * @kref: kref element of the node to be released
+ * of_yesde_release() - release a dynamically allocated yesde
+ * @kref: kref element of the yesde to be released
  *
- * In of_node_put() this function is passed to kref_put() as the destructor.
+ * In of_yesde_put() this function is passed to kref_put() as the destructor.
  */
-void of_node_release(struct kobject *kobj)
+void of_yesde_release(struct kobject *kobj)
 {
-	struct device_node *node = kobj_to_device_node(kobj);
+	struct device_yesde *yesde = kobj_to_device_yesde(kobj);
 
-	/* We should never be releasing nodes that haven't been detached. */
-	if (!of_node_check_flag(node, OF_DETACHED)) {
-		pr_err("ERROR: Bad of_node_put() on %pOF\n", node);
+	/* We should never be releasing yesdes that haven't been detached. */
+	if (!of_yesde_check_flag(yesde, OF_DETACHED)) {
+		pr_err("ERROR: Bad of_yesde_put() on %pOF\n", yesde);
 		dump_stack();
 		return;
 	}
-	if (!of_node_check_flag(node, OF_DYNAMIC))
+	if (!of_yesde_check_flag(yesde, OF_DYNAMIC))
 		return;
 
-	if (of_node_check_flag(node, OF_OVERLAY)) {
+	if (of_yesde_check_flag(yesde, OF_OVERLAY)) {
 
-		if (!of_node_check_flag(node, OF_OVERLAY_FREE_CSET)) {
-			/* premature refcount of zero, do not free memory */
+		if (!of_yesde_check_flag(yesde, OF_OVERLAY_FREE_CSET)) {
+			/* premature refcount of zero, do yest free memory */
 			pr_err("ERROR: memory leak before free overlay changeset,  %pOF\n",
-			       node);
+			       yesde);
 			return;
 		}
 
 		/*
-		 * If node->properties non-empty then properties were added
-		 * to this node either by different overlay that has not
-		 * yet been removed, or by a non-overlay mechanism.
+		 * If yesde->properties yesn-empty then properties were added
+		 * to this yesde either by different overlay that has yest
+		 * yet been removed, or by a yesn-overlay mechanism.
 		 */
-		if (node->properties)
+		if (yesde->properties)
 			pr_err("ERROR: %s(), unexpected properties in %pOF\n",
-			       __func__, node);
+			       __func__, yesde);
 	}
 
-	property_list_free(node->properties);
-	property_list_free(node->deadprops);
+	property_list_free(yesde->properties);
+	property_list_free(yesde->deadprops);
 
-	kfree(node->full_name);
-	kfree(node->data);
-	kfree(node);
+	kfree(yesde->full_name);
+	kfree(yesde->data);
+	kfree(yesde);
 }
 
 /**
@@ -371,7 +371,7 @@ void of_node_release(struct kobject *kobj)
  * Copy a property by dynamically allocating the memory of both the
  * property structure and the property name & contents. The property's
  * flags have the OF_DYNAMIC bit set so that we can differentiate between
- * dynamically allocated properties and not.
+ * dynamically allocated properties and yest.
  * Returns the newly allocated property or NULL on out of memory error.
  */
 struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
@@ -383,7 +383,7 @@ struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
 		return NULL;
 
 	/*
-	 * NOTE: There is no check for zero length value.
+	 * NOTE: There is yes check for zero length value.
 	 * In case of a boolean property, this will allocate a value
 	 * of zero bytes. We do this to work around the use
 	 * of of_get_property() calls on boolean values.
@@ -407,42 +407,42 @@ struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
 }
 
 /**
- * __of_node_dup() - Duplicate or create an empty device node dynamically.
- * @np:		if not NULL, contains properties to be duplicated in new node
- * @full_name:	string value to be duplicated into new node's full_name field
+ * __of_yesde_dup() - Duplicate or create an empty device yesde dynamically.
+ * @np:		if yest NULL, contains properties to be duplicated in new yesde
+ * @full_name:	string value to be duplicated into new yesde's full_name field
  *
- * Create a device tree node, optionally duplicating the properties of
- * another node.  The node data are dynamically allocated and all the node
+ * Create a device tree yesde, optionally duplicating the properties of
+ * ayesther yesde.  The yesde data are dynamically allocated and all the yesde
  * flags have the OF_DYNAMIC & OF_DETACHED bits set.
  *
- * Returns the newly allocated node or NULL on out of memory error.
+ * Returns the newly allocated yesde or NULL on out of memory error.
  */
-struct device_node *__of_node_dup(const struct device_node *np,
+struct device_yesde *__of_yesde_dup(const struct device_yesde *np,
 				  const char *full_name)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+	if (!yesde)
 		return NULL;
-	node->full_name = kstrdup(full_name, GFP_KERNEL);
-	if (!node->full_name) {
-		kfree(node);
+	yesde->full_name = kstrdup(full_name, GFP_KERNEL);
+	if (!yesde->full_name) {
+		kfree(yesde);
 		return NULL;
 	}
 
-	of_node_set_flag(node, OF_DYNAMIC);
-	of_node_set_flag(node, OF_DETACHED);
-	of_node_init(node);
+	of_yesde_set_flag(yesde, OF_DYNAMIC);
+	of_yesde_set_flag(yesde, OF_DETACHED);
+	of_yesde_init(yesde);
 
 	/* Iterate over and duplicate all properties */
 	if (np) {
 		struct property *pp, *new_pp;
-		for_each_property_of_node(np, pp) {
+		for_each_property_of_yesde(np, pp) {
 			new_pp = __of_prop_dup(pp, GFP_KERNEL);
 			if (!new_pp)
 				goto err_prop;
-			if (__of_add_property(node, new_pp)) {
+			if (__of_add_property(yesde, new_pp)) {
 				kfree(new_pp->name);
 				kfree(new_pp->value);
 				kfree(new_pp);
@@ -450,27 +450,27 @@ struct device_node *__of_node_dup(const struct device_node *np,
 			}
 		}
 	}
-	return node;
+	return yesde;
 
  err_prop:
-	of_node_put(node); /* Frees the node and properties */
+	of_yesde_put(yesde); /* Frees the yesde and properties */
 	return NULL;
 }
 
 static void __of_changeset_entry_destroy(struct of_changeset_entry *ce)
 {
 	if (ce->action == OF_RECONFIG_ATTACH_NODE &&
-	    of_node_check_flag(ce->np, OF_OVERLAY)) {
+	    of_yesde_check_flag(ce->np, OF_OVERLAY)) {
 		if (kref_read(&ce->np->kobj.kref) > 1) {
-			pr_err("ERROR: memory leak, expected refcount 1 instead of %d, of_node_get()/of_node_put() unbalanced - destroy cset entry: attach overlay node %pOF\n",
+			pr_err("ERROR: memory leak, expected refcount 1 instead of %d, of_yesde_get()/of_yesde_put() unbalanced - destroy cset entry: attach overlay yesde %pOF\n",
 			       kref_read(&ce->np->kobj.kref), ce->np);
 		} else {
-			of_node_set_flag(ce->np, OF_OVERLAY_FREE_CSET);
+			of_yesde_set_flag(ce->np, OF_OVERLAY_FREE_CSET);
 		}
 	}
 
-	of_node_put(ce->np);
-	list_del(&ce->node);
+	of_yesde_put(ce->np);
+	list_del(&ce->yesde);
 	kfree(ce);
 }
 
@@ -519,7 +519,7 @@ static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
 	case OF_RECONFIG_UPDATE_PROPERTY:
 		rce->old_prop = ce->prop;
 		rce->prop = ce->old_prop;
-		/* update was used but original property did not exist */
+		/* update was used but original property did yest exist */
 		if (!rce->prop) {
 			rce->action = OF_RECONFIG_REMOVE_PROPERTY;
 			rce->prop = ce->prop;
@@ -528,7 +528,7 @@ static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
 	}
 }
 
-static int __of_changeset_entry_notify(struct of_changeset_entry *ce,
+static int __of_changeset_entry_yestify(struct of_changeset_entry *ce,
 		bool revert)
 {
 	struct of_reconfig_data rd;
@@ -545,12 +545,12 @@ static int __of_changeset_entry_notify(struct of_changeset_entry *ce,
 	case OF_RECONFIG_DETACH_NODE:
 		memset(&rd, 0, sizeof(rd));
 		rd.dn = ce->np;
-		ret = of_reconfig_notify(ce->action, &rd);
+		ret = of_reconfig_yestify(ce->action, &rd);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		ret = of_property_notify(ce->action, ce->np, ce->prop, ce->old_prop);
+		ret = of_property_yestify(ce->action, ce->np, ce->prop, ce->old_prop);
 		break;
 	default:
 		pr_err("invalid devicetree changeset action: %i\n",
@@ -559,7 +559,7 @@ static int __of_changeset_entry_notify(struct of_changeset_entry *ce,
 	}
 
 	if (ret)
-		pr_err("changeset notifier error @%pOF\n", ce->np);
+		pr_err("changeset yestifier error @%pOF\n", ce->np);
 	return ret;
 }
 
@@ -574,10 +574,10 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	switch (ce->action) {
 	case OF_RECONFIG_ATTACH_NODE:
-		__of_attach_node(ce->np);
+		__of_attach_yesde(ce->np);
 		break;
 	case OF_RECONFIG_DETACH_NODE:
-		__of_detach_node(ce->np);
+		__of_detach_yesde(ce->np);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 		/* If the property is in deadprops then it must be removed */
@@ -635,13 +635,13 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 
 	switch (ce->action) {
 	case OF_RECONFIG_ATTACH_NODE:
-		__of_attach_node_sysfs(ce->np);
+		__of_attach_yesde_sysfs(ce->np);
 		break;
 	case OF_RECONFIG_DETACH_NODE:
-		__of_detach_node_sysfs(ce->np);
+		__of_detach_yesde_sysfs(ce->np);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
-		/* ignore duplicate names */
+		/* igyesre duplicate names */
 		__of_add_property_sysfs(ce->np, ce->prop);
 		break;
 	case OF_RECONFIG_REMOVE_PROPERTY:
@@ -683,13 +683,13 @@ EXPORT_SYMBOL_GPL(of_changeset_init);
  * @ocs:	changeset pointer
  *
  * Destroys a changeset. Note that if a changeset is applied,
- * its changes to the tree cannot be reverted.
+ * its changes to the tree canyest be reverted.
  */
 void of_changeset_destroy(struct of_changeset *ocs)
 {
 	struct of_changeset_entry *ce, *cen;
 
-	list_for_each_entry_safe_reverse(ce, cen, &ocs->entries, node)
+	list_for_each_entry_safe_reverse(ce, cen, &ocs->entries, yesde)
 		__of_changeset_entry_destroy(ce);
 }
 EXPORT_SYMBOL_GPL(of_changeset_destroy);
@@ -710,12 +710,12 @@ int __of_changeset_apply_entries(struct of_changeset *ocs, int *ret_revert)
 	int ret, ret_tmp;
 
 	pr_debug("changeset: applying...\n");
-	list_for_each_entry(ce, &ocs->entries, node) {
+	list_for_each_entry(ce, &ocs->entries, yesde) {
 		ret = __of_changeset_entry_apply(ce);
 		if (ret) {
 			pr_err("Error applying changeset (%d)\n", ret);
 			list_for_each_entry_continue_reverse(ce, &ocs->entries,
-							     node) {
+							     yesde) {
 				ret_tmp = __of_changeset_entry_revert(ce);
 				if (ret_tmp)
 					*ret_revert = ret_tmp;
@@ -730,25 +730,25 @@ int __of_changeset_apply_entries(struct of_changeset *ocs, int *ret_revert)
 /*
  * Returns 0 on success, a negative error value in case of an error.
  *
- * If multiple changeset entry notification errors occur then only the
- * final notification error is reported.
+ * If multiple changeset entry yestification errors occur then only the
+ * final yestification error is reported.
  */
-int __of_changeset_apply_notify(struct of_changeset *ocs)
+int __of_changeset_apply_yestify(struct of_changeset *ocs)
 {
 	struct of_changeset_entry *ce;
 	int ret = 0, ret_tmp;
 
-	pr_debug("changeset: emitting notifiers.\n");
+	pr_debug("changeset: emitting yestifiers.\n");
 
-	/* drop the global lock while emitting notifiers */
+	/* drop the global lock while emitting yestifiers */
 	mutex_unlock(&of_mutex);
-	list_for_each_entry(ce, &ocs->entries, node) {
-		ret_tmp = __of_changeset_entry_notify(ce, 0);
+	list_for_each_entry(ce, &ocs->entries, yesde) {
+		ret_tmp = __of_changeset_entry_yestify(ce, 0);
 		if (ret_tmp)
 			ret = ret_tmp;
 	}
 	mutex_lock(&of_mutex);
-	pr_debug("changeset: notifiers sent.\n");
+	pr_debug("changeset: yestifiers sent.\n");
 
 	return ret;
 }
@@ -758,8 +758,8 @@ int __of_changeset_apply_notify(struct of_changeset *ocs)
  *
  * If a changeset entry apply fails, an attempt is made to revert any
  * previous entries in the changeset.  If any of the reverts fails,
- * that failure is not reported.  Thus the state of the device tree
- * is unknown if an apply error occurs.
+ * that failure is yest reported.  Thus the state of the device tree
+ * is unkyeswn if an apply error occurs.
  */
 static int __of_changeset_apply(struct of_changeset *ocs)
 {
@@ -767,7 +767,7 @@ static int __of_changeset_apply(struct of_changeset *ocs)
 
 	ret = __of_changeset_apply_entries(ocs, &ret_revert);
 	if (!ret)
-		ret = __of_changeset_apply_notify(ocs);
+		ret = __of_changeset_apply_yestify(ocs);
 
 	return ret;
 }
@@ -813,11 +813,11 @@ int __of_changeset_revert_entries(struct of_changeset *ocs, int *ret_apply)
 	int ret, ret_tmp;
 
 	pr_debug("changeset: reverting...\n");
-	list_for_each_entry_reverse(ce, &ocs->entries, node) {
+	list_for_each_entry_reverse(ce, &ocs->entries, yesde) {
 		ret = __of_changeset_entry_revert(ce);
 		if (ret) {
 			pr_err("Error reverting changeset (%d)\n", ret);
-			list_for_each_entry_continue(ce, &ocs->entries, node) {
+			list_for_each_entry_continue(ce, &ocs->entries, yesde) {
 				ret_tmp = __of_changeset_entry_apply(ce);
 				if (ret_tmp)
 					*ret_apply = ret_tmp;
@@ -830,25 +830,25 @@ int __of_changeset_revert_entries(struct of_changeset *ocs, int *ret_apply)
 }
 
 /*
- * If multiple changeset entry notification errors occur then only the
- * final notification error is reported.
+ * If multiple changeset entry yestification errors occur then only the
+ * final yestification error is reported.
  */
-int __of_changeset_revert_notify(struct of_changeset *ocs)
+int __of_changeset_revert_yestify(struct of_changeset *ocs)
 {
 	struct of_changeset_entry *ce;
 	int ret = 0, ret_tmp;
 
-	pr_debug("changeset: emitting notifiers.\n");
+	pr_debug("changeset: emitting yestifiers.\n");
 
-	/* drop the global lock while emitting notifiers */
+	/* drop the global lock while emitting yestifiers */
 	mutex_unlock(&of_mutex);
-	list_for_each_entry_reverse(ce, &ocs->entries, node) {
-		ret_tmp = __of_changeset_entry_notify(ce, 1);
+	list_for_each_entry_reverse(ce, &ocs->entries, yesde) {
+		ret_tmp = __of_changeset_entry_yestify(ce, 1);
 		if (ret_tmp)
 			ret = ret_tmp;
 	}
 	mutex_lock(&of_mutex);
-	pr_debug("changeset: notifiers sent.\n");
+	pr_debug("changeset: yestifiers sent.\n");
 
 	return ret;
 }
@@ -861,7 +861,7 @@ static int __of_changeset_revert(struct of_changeset *ocs)
 	ret = __of_changeset_revert_entries(ocs, &ret_reply);
 
 	if (!ret)
-		ret = __of_changeset_revert_notify(ocs);
+		ret = __of_changeset_revert_yestify(ocs);
 
 	return ret;
 }
@@ -894,7 +894,7 @@ EXPORT_SYMBOL_GPL(of_changeset_revert);
  *
  * @ocs:	changeset pointer
  * @action:	action to perform
- * @np:		Pointer to device node
+ * @np:		Pointer to device yesde
  * @prop:	Pointer to property
  *
  * On action being one of:
@@ -906,7 +906,7 @@ EXPORT_SYMBOL_GPL(of_changeset_revert);
  * Returns 0 on success, a negative error value in case of an error.
  */
 int of_changeset_action(struct of_changeset *ocs, unsigned long action,
-		struct device_node *np, struct property *prop)
+		struct device_yesde *np, struct property *prop)
 {
 	struct of_changeset_entry *ce;
 
@@ -914,16 +914,16 @@ int of_changeset_action(struct of_changeset *ocs, unsigned long action,
 	if (!ce)
 		return -ENOMEM;
 
-	/* get a reference to the node */
+	/* get a reference to the yesde */
 	ce->action = action;
-	ce->np = of_node_get(np);
+	ce->np = of_yesde_get(np);
 	ce->prop = prop;
 
 	if (action == OF_RECONFIG_UPDATE_PROPERTY && prop)
 		ce->old_prop = of_find_property(np, prop->name, NULL);
 
 	/* add it to the list */
-	list_add_tail(&ce->node, &ocs->entries);
+	list_add_tail(&ce->yesde, &ocs->entries);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_changeset_action);

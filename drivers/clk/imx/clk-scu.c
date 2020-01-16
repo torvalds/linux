@@ -136,7 +136,7 @@ int imx_clk_scu_init(void)
 /*
  * clk_scu_recalc_rate - Get clock rate for a SCU clock
  * @hw: clock to get rate for
- * @parent_rate: parent rate provided by common clock framework, not used
+ * @parent_rate: parent rate provided by common clock framework, yest used
  *
  * Gets the current clock rate of a SCU clock. Returns the current
  * clock rate, or zero in failure.
@@ -171,7 +171,7 @@ static unsigned long clk_scu_recalc_rate(struct clk_hw *hw,
  * clk_scu_round_rate - Round clock rate for a SCU clock
  * @hw: clock to round rate for
  * @rate: rate to round
- * @parent_rate: parent rate provided by common clock framework, not used
+ * @parent_rate: parent rate provided by common clock framework, yest used
  *
  * Returns the current clock rate, or zero in failure.
  */
@@ -208,7 +208,7 @@ static int clk_scu_atf_set_cpu_rate(struct clk_hw *hw, unsigned long rate,
  * clk_scu_set_rate - Set rate for a SCU clock
  * @hw: clock to change rate for
  * @rate: target rate for the clock
- * @parent_rate: rate of the clock parent, not used for SCU clocks
+ * @parent_rate: rate of the clock parent, yest used for SCU clocks
  *
  * Sets a clock frequency for a SCU clock. Returns the SCU
  * protocol status.

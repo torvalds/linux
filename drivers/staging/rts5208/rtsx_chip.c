@@ -99,7 +99,7 @@ static int rtsx_pre_handle_sdio_old(struct rtsx_chip *chip)
 {
 	int retval;
 
-	if (chip->ignore_sd && CHK_SDIO_EXIST(chip)) {
+	if (chip->igyesre_sd && CHK_SDIO_EXIST(chip)) {
 		if (chip->asic_code) {
 			retval = rtsx_write_register(chip, CARD_PULL_CTL5,
 						     0xFF,
@@ -427,7 +427,7 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 	 *    bit[1]    u_cd_rst_core_en	rst_value = 0
 	 *    bit[2]    u_force_rst_core_en	rst_value = 0
 	 *    bit[5]    u_mac_phy_rst_n_dbg	rst_value = 1
-	 *    bit[4]	u_non_sticky_rst_n_dbg	rst_value = 0
+	 *    bit[4]	u_yesn_sticky_rst_n_dbg	rst_value = 0
 	 */
 	retval = rtsx_write_register(chip, CHANGE_LINK_STATE, 0x16, 0x10);
 	if (retval)
@@ -987,7 +987,7 @@ static void rtsx_manage_sd_lock(struct rtsx_chip *chip)
 		rtsx_read_register(chip, 0xFD30, &val);
 		if (val & 0x02) {
 			sd_card->sd_erase_status = SD_NOT_ERASE;
-			sd_card->sd_lock_notify = 1;
+			sd_card->sd_lock_yestify = 1;
 			chip->need_reinit |= SD_CARD;
 		}
 	} else {
@@ -1345,7 +1345,7 @@ int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data)
 	return STATUS_SUCCESS;
 }
 
-int rtsx_write_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 mask,
+int rtsx_write_cfg_dw(struct rtsx_chip *chip, u8 func_yes, u16 addr, u32 mask,
 		      u32 val)
 {
 	int retval;
@@ -1376,7 +1376,7 @@ int rtsx_write_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 mask,
 
 		retval = rtsx_write_register(chip, CFGRWCTL, 0xFF,
 					     0x80 | mode |
-					     ((func_no & 0x03) << 4));
+					     ((func_yes & 0x03) << 4));
 		if (retval)
 			return retval;
 
@@ -1392,7 +1392,7 @@ int rtsx_write_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 mask,
 	return STATUS_SUCCESS;
 }
 
-int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 *val)
+int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_yes, u16 addr, u32 *val)
 {
 	int retval;
 	int i;
@@ -1406,7 +1406,7 @@ int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 *val)
 	if (retval)
 		return retval;
 	retval = rtsx_write_register(chip, CFGRWCTL, 0xFF,
-				     0x80 | ((func_no & 0x03) << 4));
+				     0x80 | ((func_yes & 0x03) << 4));
 	if (retval)
 		return retval;
 
@@ -1732,17 +1732,17 @@ static void rtsx_handle_pm_dstate(struct rtsx_chip *chip, u8 dstate)
 		chip->product_id, dstate);
 
 	if (CHK_SDIO_EXIST(chip)) {
-		u8 func_no;
+		u8 func_yes;
 
 		if (CHECK_PID(chip, 0x5288))
-			func_no = 2;
+			func_yes = 2;
 		else
-			func_no = 1;
+			func_yes = 1;
 
-		rtsx_read_cfg_dw(chip, func_no, 0x84, &ultmp);
+		rtsx_read_cfg_dw(chip, func_yes, 0x84, &ultmp);
 		dev_dbg(rtsx_dev(chip), "pm_dstate of function %d: 0x%x\n",
-			(int)func_no, ultmp);
-		rtsx_write_cfg_dw(chip, func_no, 0x84, 0xFF, dstate);
+			(int)func_yes, ultmp);
+		rtsx_write_cfg_dw(chip, func_yes, 0x84, 0xFF, dstate);
 	}
 
 	rtsx_write_config_byte(chip, 0x44, dstate);
@@ -1860,7 +1860,7 @@ int rtsx_pre_handle_interrupt(struct rtsx_chip *chip)
 			/*
 			 * If multi-luns, it's possible that
 			 * when plugging/unplugging one card
-			 * there is another card which still
+			 * there is ayesther card which still
 			 * exists in the slot. In this case,
 			 * all existed cards should be reset.
 			 */

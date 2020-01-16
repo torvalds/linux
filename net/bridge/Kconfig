@@ -35,7 +35,7 @@ config BRIDGE
 	  If unsure, say N.
 
 config BRIDGE_IGMP_SNOOPING
-	bool "IGMP/MLD snooping"
+	bool "IGMP/MLD syesoping"
 	depends on BRIDGE
 	depends on INET
 	default y

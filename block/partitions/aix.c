@@ -78,9 +78,9 @@ struct pvd {
  */
 static u64 last_lba(struct block_device *bdev)
 {
-	if (!bdev || !bdev->bd_inode)
+	if (!bdev || !bdev->bd_iyesde)
 		return 0;
-	return (bdev->bd_inode->i_size >> 9) - 1ULL;
+	return (bdev->bd_iyesde->i_size >> 9) - 1ULL;
 }
 
 /**
@@ -288,7 +288,7 @@ int aix_partition(struct parsed_partitions *state)
 
 				snprintf(tmp, sizeof(tmp), "%s", n[i].name);
 				pr_warn("partition %s (%u pp's found) is "
-					"not contiguous\n",
+					"yest contiguous\n",
 					tmp, lvip[i].pps_found);
 			}
 		kfree(pvd);

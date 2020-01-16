@@ -11,9 +11,9 @@ Qualcomm platforms.
 
 = EDGES
 
-Each subnode of the SMD node represents a remote subsystem or a remote
+Each subyesde of the SMD yesde represents a remote subsystem or a remote
 processor of some sort - or in SMD language an "edge". The name of the edges
-are not important.
+are yest important.
 The edge is described by the following properties:
 
 - interrupts:
@@ -33,7 +33,7 @@ The edge is described by the following properties:
 	Value type: <prop-encoded-array>
 	Definition: three entries specifying the outgoing ipc bit used for
 		    signaling the remote processor:
-		    - phandle to a syscon node representing the apcs registers
+		    - phandle to a syscon yesde representing the apcs registers
 		    - u32 representing offset to the register within the syscon
 		    - u32 representing the ipc bit within the register
 
@@ -46,21 +46,21 @@ The edge is described by the following properties:
 - qcom,remote-pid:
 	Usage: optional
 	Value type: <u32>
-	Definition: the identifier for the remote processor as known by the rest
+	Definition: the identifier for the remote processor as kyeswn by the rest
 		    of the system.
 
 - label:
 	Usage: optional
 	Value type: <string>
 	Definition: name of the edge, used for debugging and identification
-		    purposes. The node name will be used if this is not
+		    purposes. The yesde name will be used if this is yest
 		    present.
 
 = SMD DEVICES
 
-In turn, subnodes of the "edges" represent devices tied to SMD channels on that
-"edge". The names of the devices are not important. The properties of these
-nodes are defined by the individual bindings for the SMD devices - but must
+In turn, subyesdes of the "edges" represent devices tied to SMD channels on that
+"edge". The names of the devices are yest important. The properties of these
+yesdes are defined by the individual bindings for the SMD devices - but must
 contain the following property:
 
 - qcom,smd-channels:
@@ -71,7 +71,7 @@ contain the following property:
 
 = EXAMPLE
 
-The following example represents a smd node, with one edge representing the
+The following example represents a smd yesde, with one edge representing the
 "rpm" subsystem. For the "rpm" subsystem we have a device tied to the
 "rpm_request" channel.
 

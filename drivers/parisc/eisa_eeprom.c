@@ -49,7 +49,7 @@ static ssize_t eisa_eeprom_read(struct file * file,
 	return ret;
 }
 
-static int eisa_eeprom_open(struct inode *inode, struct file *file)
+static int eisa_eeprom_open(struct iyesde *iyesde, struct file *file)
 {
 	if (file->f_mode & FMODE_WRITE)
 		return -EINVAL;
@@ -57,7 +57,7 @@ static int eisa_eeprom_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int eisa_eeprom_release(struct inode *inode, struct file *file)
+static int eisa_eeprom_release(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
@@ -88,7 +88,7 @@ static int __init eisa_eeprom_init(void)
 
 	retval = misc_register(&eisa_eeprom_dev);
 	if (retval < 0) {
-		printk(KERN_ERR "EISA EEPROM: cannot register misc device.\n");
+		printk(KERN_ERR "EISA EEPROM: canyest register misc device.\n");
 		return retval;
 	}
 

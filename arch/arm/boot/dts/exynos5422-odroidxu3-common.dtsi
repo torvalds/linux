@@ -10,7 +10,7 @@
  */
 
 #include <dt-bindings/input/input.h>
-#include "exynos5422-odroid-core.dtsi"
+#include "exyyess5422-odroid-core.dtsi"
 
 / {
 	gpio_keys {
@@ -75,7 +75,7 @@
 					type = "critical";
 				};
 				/*
-				 * Exynos542x supports only 4 trip-points
+				 * Exyyess542x supports only 4 trip-points
 				 * so for these polling mode is required.
 				 * Start polling at temperature level of last
 				 * interrupt-driven trip: cpu0_alert2
@@ -106,7 +106,7 @@
 				};
 				/*
 				 * When reaching cpu0_alert3, reduce CPU
-				 * by 2 steps. On Exynos5422/5800 that would
+				 * by 2 steps. On Exyyess5422/5800 that would
 				 * be: 1600 MHz and 1100 MHz.
 				 */
 				map3 {

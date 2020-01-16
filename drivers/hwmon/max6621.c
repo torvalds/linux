@@ -2,8 +2,8 @@
 /*
  * Hardware monitoring driver for Maxim MAX6621
  *
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Vadim Pasternak <vadimp@mellanox.com>
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
+ * Copyright (c) 2017 Vadim Pasternak <vadimp@mellayesx.com>
  */
 
 #include <linux/bitops.h>
@@ -73,21 +73,21 @@
 					 * socket/domain.
 					 */
 #define MAX6621_POOL_UNCOMPLETE	0x8102	/*
-					 * First poll not yet completed for
+					 * First poll yest yet completed for
 					 * requested socket/domain (on
 					 * startup).
 					 */
 #define MAX6621_SD_DIS		0x8103	/*
 					 * Read maximum temperature requested,
-					 * but no sockets/domains enabled or
+					 * but yes sockets/domains enabled or
 					 * all enabled sockets/domains have
 					 * errors; or read maximum temperature
 					 * address requested, but read maximum
-					 * temperature was not called.
+					 * temperature was yest called.
 					 */
 #define MAX6621_ALERT_DIS	0x8104	/*
 					 * Get alert socket/domain requested,
-					 * but no alert active.
+					 * but yes alert active.
 					 */
 #define MAX6621_PECI_ERR_MIN	0x8000	/* Intel spec PECI error min value. */
 #define MAX6621_PECI_ERR_MAX	0x80ff	/* Intel spec PECI error max value. */
@@ -139,7 +139,7 @@ static umode_t
 max6621_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
 		   int channel)
 {
-	/* Skip channels which are not physically conncted. */
+	/* Skip channels which are yest physically conncted. */
 	if (((struct max6621_data *)data)->input_chan2reg[channel] < 0)
 		return 0;
 
@@ -183,7 +183,7 @@ static int max6621_verify_reg_data(struct device *dev, int regval)
 		dev_dbg(dev, "Polling disabled - err 0x%04x.\n", regval);
 		return -EOPNOTSUPP;
 	case MAX6621_POOL_UNCOMPLETE:
-		dev_dbg(dev, "First poll not completed on startup - err 0x%04x.\n",
+		dev_dbg(dev, "First poll yest completed on startup - err 0x%04x.\n",
 			regval);
 		return -EIO;
 	case MAX6621_SD_DIS:
@@ -273,7 +273,7 @@ max6621_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 
 			ret = max6621_verify_reg_data(dev, regval);
 			if (ret) {
-				/* Do not report error if alert is disabled. */
+				/* Do yest report error if alert is disabled. */
 				if (regval == MAX6621_ALERT_DIS)
 					return 0;
 				else
@@ -561,6 +561,6 @@ static struct i2c_driver max6621_driver = {
 
 module_i2c_driver(max6621_driver);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellayesx.com>");
 MODULE_DESCRIPTION("Driver for Maxim MAX6621");
 MODULE_LICENSE("GPL");

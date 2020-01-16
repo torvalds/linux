@@ -29,7 +29,7 @@ Management of tep handler data structure and access of its members:
 	int *tep_get_header_page_size*(struct tep_handle pass:[*]_tep_);
 	int *tep_get_header_timestamp_size*(struct tep_handle pass:[*]_tep_);
 	bool *tep_is_old_format*(struct tep_handle pass:[*]_tep_);
-	int *tep_strerror*(struct tep_handle pass:[*]_tep_, enum tep_errno _errnum_, char pass:[*]_buf_, size_t _buflen_);
+	int *tep_strerror*(struct tep_handle pass:[*]_tep_, enum tep_erryes _errnum_, char pass:[*]_buf_, size_t _buflen_);
 
 Register / unregister APIs:
 	int *tep_register_function*(struct tep_handle pass:[*]_tep_, char pass:[*]_name_, unsigned long long _addr_, char pass:[*]_mod_);
@@ -63,8 +63,8 @@ Event finding:
 
 Parsing of event files:
 	int *tep_parse_header_page*(struct tep_handle pass:[*]_tep_, char pass:[*]_buf_, unsigned long _size_, int _long_size_);
-	enum tep_errno *tep_parse_event*(struct tep_handle pass:[*]_tep_, const char pass:[*]_buf_, unsigned long _size_, const char pass:[*]_sys_);
-	enum tep_errno *tep_parse_format*(struct tep_handle pass:[*]_tep_, struct tep_event pass:[*]pass:[*]_eventp_, const char pass:[*]_buf_, unsigned long _size_, const char pass:[*]_sys_);
+	enum tep_erryes *tep_parse_event*(struct tep_handle pass:[*]_tep_, const char pass:[*]_buf_, unsigned long _size_, const char pass:[*]_sys_);
+	enum tep_erryes *tep_parse_format*(struct tep_handle pass:[*]_tep_, struct tep_event pass:[*]pass:[*]_eventp_, const char pass:[*]_buf_, unsigned long _size_, const char pass:[*]_sys_);
 
 APIs related to fields from event's format files:
 	struct tep_format_field pass:[*]pass:[*]*tep_event_common_fields*(struct tep_event pass:[*]_event_);
@@ -94,9 +94,9 @@ Functions resolver:
 
 Filter management:
 	struct tep_event_filter pass:[*]*tep_filter_alloc*(struct tep_handle pass:[*]_tep_);
-	enum tep_errno *tep_filter_add_filter_str*(struct tep_event_filter pass:[*]_filter_, const char pass:[*]_filter_str_);
-	enum tep_errno *tep_filter_match*(struct tep_event_filter pass:[*]_filter_, struct tep_record pass:[*]_record_);
-	int *tep_filter_strerror*(struct tep_event_filter pass:[*]_filter_, enum tep_errno _err_, char pass:[*]buf, size_t _buflen_);
+	enum tep_erryes *tep_filter_add_filter_str*(struct tep_event_filter pass:[*]_filter_, const char pass:[*]_filter_str_);
+	enum tep_erryes *tep_filter_match*(struct tep_event_filter pass:[*]_filter_, struct tep_record pass:[*]_record_);
+	int *tep_filter_strerror*(struct tep_event_filter pass:[*]_filter_, enum tep_erryes _err_, char pass:[*]buf, size_t _buflen_);
 	int *tep_event_filtered*(struct tep_event_filter pass:[*]_filter_, int _event_id_);
 	void *tep_filter_reset*(struct tep_event_filter pass:[*]_filter_);
 	void *tep_filter_free*(struct tep_event_filter pass:[*]_filter_);
@@ -177,7 +177,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

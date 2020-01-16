@@ -92,7 +92,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 
 	/*
 	 * dar and dsisr get passed from the registers
-	 * to the spu_context, to this function, but not
+	 * to the spu_context, to this function, but yest
 	 * back to the spu if it gets scheduled again.
 	 *
 	 * if we don't handle the fault for a saved context
@@ -114,7 +114,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 	if (ctx->state == SPU_STATE_RUNNABLE)
 		ctx->spu->stats.hash_flt++;
 
-	/* we must not hold the lock when entering copro_handle_mm_fault */
+	/* we must yest hold the lock when entering copro_handle_mm_fault */
 	spu_release(ctx);
 
 	access = (_PAGE_PRESENT | _PAGE_READ);
@@ -135,7 +135,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 
 	/*
 	 * Clear dsisr under ctxt lock after handling the fault, so that
-	 * time slicing will not preempt the context while the page fault
+	 * time slicing will yest preempt the context while the page fault
 	 * handler is running. Context switch code removes mappings.
 	 */
 	ctx->csa.class_1_dar = ctx->csa.class_1_dsisr = 0;

@@ -23,10 +23,10 @@ struct vvar_data {
 	/* open coded 'struct timespec' */
 	u64		wall_time_sec;
 	u64		wall_time_snsec;
-	u64		monotonic_time_snsec;
-	u64		monotonic_time_sec;
-	u64		monotonic_time_coarse_sec;
-	u64		monotonic_time_coarse_nsec;
+	u64		moyestonic_time_snsec;
+	u64		moyestonic_time_sec;
+	u64		moyestonic_time_coarse_sec;
+	u64		moyestonic_time_coarse_nsec;
 	u64		wall_time_coarse_sec;
 	u64		wall_time_coarse_nsec;
 

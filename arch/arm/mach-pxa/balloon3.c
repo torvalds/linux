@@ -123,7 +123,7 @@ static inline void balloon3_cf_init(void) {}
  * NOR Flash
  ******************************************************************************/
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
-static struct mtd_partition balloon3_nor_partitions[] = {
+static struct mtd_partition balloon3_yesr_partitions[] = {
 	{
 		.name		= "Flash",
 		.offset		= 0x00000000,
@@ -134,8 +134,8 @@ static struct mtd_partition balloon3_nor_partitions[] = {
 static struct physmap_flash_data balloon3_flash_data[] = {
 	{
 		.width		= 2,	/* bankwidth in bytes */
-		.parts		= balloon3_nor_partitions,
-		.nr_parts	= ARRAY_SIZE(balloon3_nor_partitions)
+		.parts		= balloon3_yesr_partitions,
+		.nr_parts	= ARRAY_SIZE(balloon3_yesr_partitions)
 	}
 };
 
@@ -154,12 +154,12 @@ static struct platform_device balloon3_flash = {
 		.platform_data = balloon3_flash_data,
 	},
 };
-static void __init balloon3_nor_init(void)
+static void __init balloon3_yesr_init(void)
 {
 	platform_device_register(&balloon3_flash);
 }
 #else
-static inline void balloon3_nor_init(void) {}
+static inline void balloon3_yesr_init(void) {}
 #endif
 
 /******************************************************************************
@@ -499,7 +499,7 @@ static void balloon3_irq_handler(struct irq_desc *desc)
 		struct irq_chip *chip = irq_desc_get_chip(desc);
 		unsigned int irq;
 
-		/* clear useless edge notification */
+		/* clear useless edge yestification */
 		if (chip->irq_ack)
 			chip->irq_ack(d);
 
@@ -785,7 +785,7 @@ static void __init balloon3_init(void)
 	balloon3_leds_init();
 	balloon3_mmc_init();
 	balloon3_nand_init();
-	balloon3_nor_init();
+	balloon3_yesr_init();
 	balloon3_pmic_init();
 	balloon3_ts_init();
 	balloon3_udc_init();

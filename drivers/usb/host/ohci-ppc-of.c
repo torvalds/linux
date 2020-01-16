@@ -86,7 +86,7 @@ static const struct hc_driver ohci_ppc_of_hc_driver = {
 
 static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 {
-	struct device_node *dn = op->dev.of_node;
+	struct device_yesde *dn = op->dev.of_yesde;
 	struct usb_hcd *hcd;
 	struct ohci_hcd	*ohci;
 	struct resource res;
@@ -94,7 +94,7 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 
 	int rv;
 	int is_bigendian;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -147,16 +147,16 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 		return 0;
 	}
 
-	/* by now, 440epx is known to show usb_23 erratum */
-	np = of_find_compatible_node(NULL, NULL, "ibm,usb-ehci-440epx");
+	/* by yesw, 440epx is kyeswn to show usb_23 erratum */
+	np = of_find_compatible_yesde(NULL, NULL, "ibm,usb-ehci-440epx");
 
 	/* Work around - At this point ohci_run has executed, the
 	* controller is running, everything, the root ports, etc., is
 	* set up.  If the ehci driver is loaded, put the ohci core in
 	* the suspended state.  The ehci driver will bring it out of
-	* suspended state when / if a non-high speed USB device is
-	* attached to the USB Host port.  If the ehci driver is not
-	* loaded, do nothing. request_mem_region is used to test if
+	* suspended state when / if a yesn-high speed USB device is
+	* attached to the USB Host port.  If the ehci driver is yest
+	* loaded, do yesthing. request_mem_region is used to test if
 	* the ehci driver is loaded.
 	*/
 	if (np !=  NULL) {
@@ -168,7 +168,7 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 			} else
 				release_mem_region(res.start, 0x4);
 		} else
-			pr_debug("%s: cannot get ehci offset from fdt\n", __FILE__);
+			pr_debug("%s: canyest get ehci offset from fdt\n", __FILE__);
 	}
 
 	irq_dispose_mapping(irq);

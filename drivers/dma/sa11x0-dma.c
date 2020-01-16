@@ -91,7 +91,7 @@ struct sa11x0_dma_chan {
 	enum dma_status		status;
 
 	/* protected by d->lock */
-	struct list_head	node;
+	struct list_head	yesde;
 
 	u32			ddar;
 	const char		*name;
@@ -147,7 +147,7 @@ static void sa11x0_dma_free_desc(struct virt_dma_desc *vd)
 
 static void sa11x0_dma_start_desc(struct sa11x0_dma_phy *p, struct sa11x0_dma_desc *txd)
 {
-	list_del(&txd->vd.node);
+	list_del(&txd->vd.yesde);
 	p->txd_load = txd;
 	p->sg_load = 0;
 
@@ -155,7 +155,7 @@ static void sa11x0_dma_start_desc(struct sa11x0_dma_phy *p, struct sa11x0_dma_de
 		p->num, &txd->vd, txd->vd.tx.cookie, txd->ddar);
 }
 
-static void noinline sa11x0_dma_start_sg(struct sa11x0_dma_phy *p,
+static void yesinline sa11x0_dma_start_sg(struct sa11x0_dma_phy *p,
 	struct sa11x0_dma_chan *c)
 {
 	struct sa11x0_dma_desc *txd = p->txd_load;
@@ -219,7 +219,7 @@ static void noinline sa11x0_dma_start_sg(struct sa11x0_dma_phy *p,
 		'A' + (dbtx == DMA_DBTB), sg->len);
 }
 
-static void noinline sa11x0_dma_complete(struct sa11x0_dma_phy *p,
+static void yesinline sa11x0_dma_complete(struct sa11x0_dma_phy *p,
 	struct sa11x0_dma_chan *c)
 {
 	struct sa11x0_dma_desc *txd = p->txd_done;
@@ -300,7 +300,7 @@ static void sa11x0_dma_start_txd(struct sa11x0_dma_chan *c)
 {
 	struct sa11x0_dma_desc *txd = sa11x0_dma_next_desc(c);
 
-	/* If the issued list is empty, we have no further txds to process */
+	/* If the issued list is empty, we have yes further txds to process */
 	if (txd) {
 		struct sa11x0_dma_phy *p = c->phy;
 
@@ -308,7 +308,7 @@ static void sa11x0_dma_start_txd(struct sa11x0_dma_chan *c)
 		p->txd_done = txd;
 		p->sg_done = 0;
 
-		/* The channel should not have any transfers started */
+		/* The channel should yest have any transfers started */
 		WARN_ON(readl_relaxed(p->base + DMA_DCSR_R) &
 				      (DCSR_STRTA | DCSR_STRTB));
 
@@ -332,7 +332,7 @@ static void sa11x0_dma_tasklet(unsigned long arg)
 
 	dev_dbg(d->slave.dev, "tasklet enter\n");
 
-	list_for_each_entry(c, &d->slave.channels, vc.chan.device_node) {
+	list_for_each_entry(c, &d->slave.channels, vc.chan.device_yesde) {
 		spin_lock_irq(&c->vc.lock);
 		p = c->phy;
 		if (p && !p->txd_done) {
@@ -355,8 +355,8 @@ static void sa11x0_dma_tasklet(unsigned long arg)
 
 		if (p->vchan == NULL && !list_empty(&d->chan_pending)) {
 			c = list_first_entry(&d->chan_pending,
-				struct sa11x0_dma_chan, node);
-			list_del_init(&c->node);
+				struct sa11x0_dma_chan, yesde);
+			list_del_init(&c->yesde);
 
 			pch_alloc |= 1 << pch;
 
@@ -392,7 +392,7 @@ static void sa11x0_dma_free_chan_resources(struct dma_chan *chan)
 	unsigned long flags;
 
 	spin_lock_irqsave(&d->lock, flags);
-	list_del_init(&c->node);
+	list_del_init(&c->yesde);
 	spin_unlock_irqrestore(&d->lock, flags);
 
 	vchan_free_chan_resources(&c->vc);
@@ -494,7 +494,7 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 
 /*
  * Move pending txds to the issued list, and re-init pending list.
- * If not already pending, add this channel to the list of pending
+ * If yest already pending, add this channel to the list of pending
  * channels and trigger the tasklet to run.
  */
 static void sa11x0_dma_issue_pending(struct dma_chan *chan)
@@ -507,15 +507,15 @@ static void sa11x0_dma_issue_pending(struct dma_chan *chan)
 	if (vchan_issue_pending(&c->vc)) {
 		if (!c->phy) {
 			spin_lock(&d->lock);
-			if (list_empty(&c->node)) {
-				list_add_tail(&c->node, &d->chan_pending);
+			if (list_empty(&c->yesde)) {
+				list_add_tail(&c->yesde, &d->chan_pending);
 				tasklet_schedule(&d->task);
 				dev_dbg(d->slave.dev, "vchan %p: issued\n", &c->vc);
 			}
 			spin_unlock(&d->lock);
 		}
 	} else
-		dev_dbg(d->slave.dev, "vchan %p: nothing to issue\n", &c->vc);
+		dev_dbg(d->slave.dev, "vchan %p: yesthing to issue\n", &c->vc);
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 }
 
@@ -536,7 +536,7 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 		return NULL;
 	}
 
-	/* Do not allow zero-sized txds */
+	/* Do yest allow zero-sized txds */
 	if (sglen == 0)
 		return NULL;
 
@@ -570,7 +570,7 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 			unsigned tlen = len;
 
 			/*
-			 * Check whether the transfer will fit.  If not, try
+			 * Check whether the transfer will fit.  If yest, try
 			 * to split the transfer up such that we end up with
 			 * equal chunks - but make sure that we preserve the
 			 * alignment.  This avoids small segments.
@@ -619,7 +619,7 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_dma_cyclic(
 	sgperiod = DIV_ROUND_UP(period, DMA_MAX_SIZE & ~DMA_ALIGN);
 	sglen = size * sgperiod / period;
 
-	/* Do not allow zero-sized txds */
+	/* Do yest allow zero-sized txds */
 	if (sglen == 0)
 		return NULL;
 
@@ -714,7 +714,7 @@ static int sa11x0_dma_device_pause(struct dma_chan *chan)
 			writel(DCSR_RUN | DCSR_IE, p->base + DMA_DCSR_C);
 		} else {
 			spin_lock(&d->lock);
-			list_del_init(&c->node);
+			list_del_init(&c->yesde);
 			spin_unlock(&d->lock);
 		}
 	}
@@ -740,7 +740,7 @@ static int sa11x0_dma_device_resume(struct dma_chan *chan)
 			writel(DCSR_RUN | DCSR_IE, p->base + DMA_DCSR_S);
 		} else if (!list_empty(&c->vc.desc_issued)) {
 			spin_lock(&d->lock);
-			list_add_tail(&c->node, &d->chan_pending);
+			list_add_tail(&c->yesde, &d->chan_pending);
 			spin_unlock(&d->lock);
 		}
 	}
@@ -773,11 +773,11 @@ static int sa11x0_dma_device_terminate_all(struct dma_chan *chan)
 
 		if (p->txd_load) {
 			if (p->txd_load != p->txd_done)
-				list_add_tail(&p->txd_load->vd.node, &head);
+				list_add_tail(&p->txd_load->vd.yesde, &head);
 			p->txd_load = NULL;
 		}
 		if (p->txd_done) {
-			list_add_tail(&p->txd_done->vd.node, &head);
+			list_add_tail(&p->txd_done->vd.yesde, &head);
 			p->txd_done = NULL;
 		}
 		c->phy = NULL;
@@ -852,14 +852,14 @@ static int sa11x0_dma_init_dmadev(struct dma_device *dmadev,
 
 		c = kzalloc(sizeof(*c), GFP_KERNEL);
 		if (!c) {
-			dev_err(dev, "no memory for channel %u\n", i);
+			dev_err(dev, "yes memory for channel %u\n", i);
 			return -ENOMEM;
 		}
 
 		c->status = DMA_IN_PROGRESS;
 		c->ddar = chan_desc[i].ddar;
 		c->name = chan_desc[i].name;
-		INIT_LIST_HEAD(&c->node);
+		INIT_LIST_HEAD(&c->yesde);
 
 		c->vc.desc_free = sa11x0_dma_free_desc;
 		vchan_init(&c->vc, dmadev);
@@ -891,8 +891,8 @@ static void sa11x0_dma_free_channels(struct dma_device *dmadev)
 {
 	struct sa11x0_dma_chan *c, *cn;
 
-	list_for_each_entry_safe(c, cn, &dmadev->channels, vc.chan.device_node) {
-		list_del(&c->vc.chan.device_node);
+	list_for_each_entry_safe(c, cn, &dmadev->channels, vc.chan.device_yesde) {
+		list_del(&c->vc.chan.device_yesde);
 		tasklet_kill(&c->vc.task);
 		kfree(c);
 	}
@@ -1072,12 +1072,12 @@ static int sa11x0_dma_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops sa11x0_dma_pm_ops = {
-	.suspend_noirq = sa11x0_dma_suspend,
-	.resume_noirq = sa11x0_dma_resume,
-	.freeze_noirq = sa11x0_dma_suspend,
-	.thaw_noirq = sa11x0_dma_resume,
-	.poweroff_noirq = sa11x0_dma_suspend,
-	.restore_noirq = sa11x0_dma_resume,
+	.suspend_yesirq = sa11x0_dma_suspend,
+	.resume_yesirq = sa11x0_dma_resume,
+	.freeze_yesirq = sa11x0_dma_suspend,
+	.thaw_yesirq = sa11x0_dma_resume,
+	.poweroff_yesirq = sa11x0_dma_suspend,
+	.restore_yesirq = sa11x0_dma_resume,
 };
 
 static struct platform_driver sa11x0_dma_driver = {

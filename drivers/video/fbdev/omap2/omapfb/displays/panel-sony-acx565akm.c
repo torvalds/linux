@@ -4,9 +4,9 @@
  *
  * Copyright (C) 2010 Nokia Corporation
  *
- * Original Driver Author: Imre Deak <imre.deak@nokia.com>
- * Based on panel-generic.c by Tomi Valkeinen <tomi.valkeinen@nokia.com>
- * Adapted to new DSS2 framework: Roger Quadros <roger.quadros@nokia.com>
+ * Original Driver Author: Imre Deak <imre.deak@yeskia.com>
+ * Based on panel-generic.c by Tomi Valkeinen <tomi.valkeinen@yeskia.com>
+ * Adapted to new DSS2 framework: Roger Quadros <roger.quadros@yeskia.com>
  */
 
 #include <linux/kernel.h>
@@ -220,7 +220,7 @@ static int panel_enabled(struct panel_drv_data *ddata)
 	enabled = (disp_status & (1 << 17)) && (disp_status & (1 << 10));
 	dev_dbg(&ddata->spi->dev,
 		"LCD panel %senabled by bootloader (status 0x%04x)\n",
-		enabled ? "" : "not ", disp_status);
+		enabled ? "" : "yest ", disp_status);
 	return enabled;
 }
 
@@ -252,7 +252,7 @@ static int panel_detect(struct panel_drv_data *ddata)
 		ddata->name = "ls041y3";
 		break;
 	default:
-		ddata->name = "unknown";
+		ddata->name = "unkyeswn";
 		dev_err(&ddata->spi->dev, "invalid display ID\n");
 		return -ENODEV;
 	}
@@ -407,7 +407,7 @@ static const struct backlight_ops acx565akm_bl_ops = {
 /*--------------------Auto Brightness control via Sysfs---------------------*/
 
 static const char * const cabc_modes[] = {
-	"off",		/* always used when CABC is not supported */
+	"off",		/* always used when CABC is yest supported */
 	"ui",
 	"still-image",
 	"moving-image",
@@ -426,7 +426,7 @@ static ssize_t show_cabc_mode(struct device *dev,
 		mode = 0;
 	else
 		mode = get_cabc_mode(ddata);
-	mode_str = "unknown";
+	mode_str = "unkyeswn";
 	if (mode >= 0 && mode < ARRAY_SIZE(cabc_modes))
 		mode_str = cabc_modes[mode];
 	len = snprintf(buf, PAGE_SIZE, "%s\n", mode_str);
@@ -722,7 +722,7 @@ static int acx565akm_probe_pdata(struct spi_device *spi)
 static int acx565akm_probe_of(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
-	struct device_node *np = spi->dev.of_node;
+	struct device_yesde *np = spi->dev.of_yesde;
 
 	ddata->reset_gpio = of_get_named_gpio(np, "reset-gpios", 0);
 
@@ -762,7 +762,7 @@ static int acx565akm_probe(struct spi_device *spi)
 		r = acx565akm_probe_pdata(spi);
 		if (r)
 			return r;
-	} else if (spi->dev.of_node) {
+	} else if (spi->dev.of_yesde) {
 		r = acx565akm_probe_of(spi);
 		if (r)
 			return r;

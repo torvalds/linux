@@ -517,7 +517,7 @@ static int pxa_ssp_configure_dai_fmt(struct ssp_priv *priv)
 
 	/* Since we are configuring the timings for the format by hand
 	 * we have to defer some things until hw_params() where we
-	 * know parameters like the sample size.
+	 * kyesw parameters like the sample size.
 	 */
 	priv->configured_dai_fmt = priv->dai_fmt;
 
@@ -571,7 +571,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 		((chn == 2) && (ttsa != 1)) || (width == 32),
 		substream->stream == SNDRV_PCM_STREAM_PLAYBACK, dma_data);
 
-	/* we can only change the settings if the port is not in use */
+	/* we can only change the settings if the port is yest in use */
 	if (pxa_ssp_read_reg(ssp, SSCR0) & SSCR0_SSE)
 		return 0;
 
@@ -638,7 +638,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	} else if (sscr0 & SSCR0_ECS) {
 		/*
 		 * For setups with external clocking, the PLL and its diviers
-		 * are not active. Instead, the SCR bits in SSCR0 can be used
+		 * are yest active. Instead, the SCR bits in SSCR0 can be used
 		 * to divide the clock.
 		 */
 		pxa_ssp_set_scr(ssp, bclk / rate);
@@ -650,7 +650,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 
 		if (((priv->sysclk / bclk) == 64) && (width == 16)) {
 			/* This is a special case where the bitclk is 64fs
-			 * and we're not dealing with 2*32 bits of audio
+			 * and we're yest dealing with 2*32 bits of audio
 			 * samples.
 			 *
 			 * The SSP values used for that are all found out by
@@ -684,7 +684,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* When we use a network mode, we always require TDM slots
-	 * - complain loudly and fail if they've not been set up yet.
+	 * - complain loudly and fail if they've yest been set up yet.
 	 */
 	if ((sscr0 & SSCR0_MOD) && !ttsa) {
 		dev_err(ssp->dev, "No TDM timeslot configured\n");
@@ -777,10 +777,10 @@ static int pxa_ssp_probe(struct snd_soc_dai *dai)
 	if (!priv)
 		return -ENOMEM;
 
-	if (dev->of_node) {
-		struct device_node *ssp_handle;
+	if (dev->of_yesde) {
+		struct device_yesde *ssp_handle;
 
-		ssp_handle = of_parse_phandle(dev->of_node, "port", 0);
+		ssp_handle = of_parse_phandle(dev->of_yesde, "port", 0);
 		if (!ssp_handle) {
 			dev_err(dev, "unable to get 'port' phandle\n");
 			ret = -ENODEV;

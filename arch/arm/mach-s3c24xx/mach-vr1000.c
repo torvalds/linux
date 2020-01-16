@@ -117,7 +117,7 @@ static struct s3c2410_uartcfg vr1000_uartcfgs[] __initdata = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 	},
-	/* port 2 is not actually used */
+	/* port 2 is yest actually used */
 	[2] = {
 		.hwport	     = 2,
 		.flags	     = 0,
@@ -322,7 +322,7 @@ static void __init vr1000_init(void)
 	i2c_register_board_info(0, vr1000_i2c_devs,
 				ARRAY_SIZE(vr1000_i2c_devs));
 
-	nor_simtec_init();
+	yesr_simtec_init();
 	simtec_audio_add(NULL, true, NULL);
 
 	WARN_ON(gpio_request(S3C2410_GPB(9), "power off"));

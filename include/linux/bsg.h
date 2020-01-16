@@ -17,7 +17,7 @@ struct bsg_ops {
 
 struct bsg_class_device {
 	struct device *class_dev;
-	int minor;
+	int miyesr;
 	struct request_queue *queue;
 	const struct bsg_ops *ops;
 };

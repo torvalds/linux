@@ -5,7 +5,7 @@
 #ifdef CONFIG_PPC64
 
 extern void isa_bridge_find_early(struct pci_controller *hose);
-extern void isa_bridge_init_non_pci(struct device_node *np);
+extern void isa_bridge_init_yesn_pci(struct device_yesde *np);
 
 static inline int isa_vaddr_is_ioport(void __iomem *address)
 {

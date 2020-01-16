@@ -25,7 +25,7 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 		return RX_HANDLER_PASS;
 	}
 
-	rcu_read_lock(); /* hsr->node_db, hsr->ports */
+	rcu_read_lock(); /* hsr->yesde_db, hsr->ports */
 	port = hsr_port_get_rcu(skb->dev);
 
 	if (hsr_addr_is_self(port->hsr, eth_hdr(skb)->h_source)) {
@@ -43,11 +43,11 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 	hsr_forward_skb(skb, port);
 
 finish_consume:
-	rcu_read_unlock(); /* hsr->node_db, hsr->ports */
+	rcu_read_unlock(); /* hsr->yesde_db, hsr->ports */
 	return RX_HANDLER_CONSUMED;
 
 finish_pass:
-	rcu_read_unlock(); /* hsr->node_db, hsr->ports */
+	rcu_read_unlock(); /* hsr->yesde_db, hsr->ports */
 	return RX_HANDLER_PASS;
 }
 
@@ -58,16 +58,16 @@ bool hsr_port_exists(const struct net_device *dev)
 
 static int hsr_check_dev_ok(struct net_device *dev)
 {
-	/* Don't allow HSR on non-ethernet like devices */
+	/* Don't allow HSR on yesn-ethernet like devices */
 	if ((dev->flags & IFF_LOOPBACK) || dev->type != ARPHRD_ETHER ||
 	    dev->addr_len != ETH_ALEN) {
-		netdev_info(dev, "Cannot use loopback or non-ethernet device as HSR slave.\n");
+		netdev_info(dev, "Canyest use loopback or yesn-ethernet device as HSR slave.\n");
 		return -EINVAL;
 	}
 
 	/* Don't allow enslaving hsr devices */
 	if (is_hsr_master(dev)) {
-		netdev_info(dev, "Cannot create trees of HSR devices.\n");
+		netdev_info(dev, "Canyest create trees of HSR devices.\n");
 		return -EINVAL;
 	}
 
@@ -77,16 +77,16 @@ static int hsr_check_dev_ok(struct net_device *dev)
 	}
 
 	if (is_vlan_dev(dev)) {
-		netdev_info(dev, "HSR on top of VLAN is not yet supported in this driver.\n");
+		netdev_info(dev, "HSR on top of VLAN is yest yet supported in this driver.\n");
 		return -EINVAL;
 	}
 
 	if (dev->priv_flags & IFF_DONT_BRIDGE) {
-		netdev_info(dev, "This device does not support bridging.\n");
+		netdev_info(dev, "This device does yest support bridging.\n");
 		return -EOPNOTSUPP;
 	}
 
-	/* HSR over bonded devices has not been tested, but I'm not sure it
+	/* HSR over bonded devices has yest been tested, but I'm yest sure it
 	 * won't work...
 	 */
 

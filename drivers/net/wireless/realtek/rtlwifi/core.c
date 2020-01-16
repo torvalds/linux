@@ -89,7 +89,7 @@ static void rtl_fw_do_work(const struct firmware *firmware, void *context,
 			if (!err)
 				goto found_alt;
 		}
-		pr_err("Selected firmware is not available\n");
+		pr_err("Selected firmware is yest available\n");
 		rtlpriv->max_fw_size = 0;
 		return;
 	}
@@ -286,7 +286,7 @@ static int rtl_op_add_interface(struct ieee80211_hw *hw,
 		retry_limit = 0x07;
 		break;
 	default:
-		pr_err("operation mode %d is not supported!\n",
+		pr_err("operation mode %d is yest supported!\n",
 		       vif->type);
 		err = -EOPNOTSUPP;
 		goto out;
@@ -500,7 +500,7 @@ static void _rtl_add_wowlan_patterns(struct ieee80211_hw *hw,
 		}
 
 		/* To get the wake up pattern from the mask.
-		 * We do not count first 12 bits which means
+		 * We do yest count first 12 bits which means
 		 * DA[6] and SA[6] in the pattern to match HW design.
 		 */
 		len = 0;
@@ -535,7 +535,7 @@ static int rtl_op_suspend(struct ieee80211_hw *hw,
 	if (WARN_ON(!wow))
 		return -EINVAL;
 
-	/* to resolve s4 can not wake up*/
+	/* to resolve s4 can yest wake up*/
 	rtlhal->last_suspend_sec = ktime_get_real_seconds();
 
 	if ((ppsc->wo_wlan_mode & WAKE_ON_PATTERN_MATCH) && wow->n_patterns)
@@ -555,16 +555,16 @@ static int rtl_op_resume(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	time64_t now;
+	time64_t yesw;
 
 	RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG, "\n");
 	rtlhal->driver_is_goingto_unload = false;
 	rtlhal->enter_pnp_sleep = false;
 	rtlhal->wake_from_pnp_sleep = true;
 
-	/* to resovle s4 can not wake up*/
-	now = ktime_get_real_seconds();
-	if (now - rtlhal->last_suspend_sec < 5)
+	/* to resovle s4 can yest wake up*/
+	yesw = ktime_get_real_seconds();
+	if (yesw - rtlhal->last_suspend_sec < 5)
 		return -1;
 
 	rtl_op_start(hw);
@@ -600,7 +600,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 			rtl_ips_nic_on(hw);
 	} else {
 		/*
-		 *although rfoff may not cause by ips, but we will
+		 *although rfoff may yest cause by ips, but we will
 		 *check the reason in set_rf_power_state function
 		 */
 		if (unlikely(ppsc->rfpwr_state == ERFOFF))
@@ -617,7 +617,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 			/* sleep here is must, or we may recv the beacon and
 			 * cause mac80211 into wrong ps state, this will cause
 			 * power save nullfunc send fail, and further cause
-			 * pkt loss, So sleep must quickly but not immediatly
+			 * pkt loss, So sleep must quickly but yest immediatly
 			 * because that will cause nullfunc send by mac80211
 			 * fail, and cause pkt loss, we have tested that 5mA
 			 * is worked very well */
@@ -758,7 +758,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 			default:
 					mac->bw_40 = false;
 					mac->bw_80 = false;
-					pr_err("switch case %#x not processed\n",
+					pr_err("switch case %#x yest processed\n",
 					       channel_type);
 					break;
 			}
@@ -804,7 +804,7 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 	if (0 == changed_flags)
 		return;
 
-	/*TODO: we disable broadcase now, so enable here */
+	/*TODO: we disable broadcase yesw, so enable here */
 	if (changed_flags & FIF_ALLMULTI) {
 		if (*new_flags & FIF_ALLMULTI) {
 			mac->rx_conf |= rtlpriv->cfg->maps[MAC_RCR_AM] |
@@ -834,9 +834,9 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 			update_rcr = true;
 	}
 
-	/* if ssid not set to hw don't check bssid
+	/* if ssid yest set to hw don't check bssid
 	 * here just used for linked scanning, & linked
-	 * and nolink check bssid is set in set network_type
+	 * and yeslink check bssid is set in set network_type
 	 */
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC &&
 	    mac->link_state >= MAC80211_LINKED) {
@@ -1079,7 +1079,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			mstatus = RT_MEDIA_CONNECT;
 			/* we should reset all sec info & cam
-			 * before set cam after linked, we should not
+			 * before set cam after linked, we should yest
 			 * reset in disassoc, that will cause tkip->wep
 			 * fail because some flag will be wrong */
 			/* reset sec info */
@@ -1193,7 +1193,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				      true : false;
 
 		if (rtlpriv->cfg->ops->get_btc_status())
-			rtlpriv->btcoexist.btc_ops->btc_mediastatus_notify(
+			rtlpriv->btcoexist.btc_ops->btc_mediastatus_yestify(
 							rtlpriv, mstatus);
 	}
 
@@ -1322,7 +1322,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 		if (changed & BSS_CHANGED_BASIC_RATES) {
 			/* for 5G must << RATE_6M_INDEX = 4,
-			 * because 5G have no cck rate*/
+			 * because 5G have yes cck rate*/
 			if (rtlhal->current_bandtype == BAND_ON_5G)
 				basic_rates = sta->supp_rates[1] << 4;
 			else
@@ -1366,9 +1366,9 @@ static void rtl_op_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_DUAL_TSF_RST, (u8 *)(&tmp));
 }
 
-static void rtl_op_sta_notify(struct ieee80211_hw *hw,
+static void rtl_op_sta_yestify(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
-			      enum sta_notify_cmd cmd,
+			      enum sta_yestify_cmd cmd,
 			      struct ieee80211_sta *sta)
 {
 	switch (cmd) {
@@ -1437,9 +1437,9 @@ static void rtl_op_sw_scan_start(struct ieee80211_hw *hw,
 	}
 
 	if (rtlpriv->cfg->ops->get_btc_status())
-		rtlpriv->btcoexist.btc_ops->btc_scan_notify(rtlpriv, 1);
+		rtlpriv->btcoexist.btc_ops->btc_scan_yestify(rtlpriv, 1);
 	else if (rtlpriv->btcoexist.btc_ops)
-		rtlpriv->btcoexist.btc_ops->btc_scan_notify_wifi_only(rtlpriv,
+		rtlpriv->btcoexist.btc_ops->btc_scan_yestify_wifi_only(rtlpriv,
 								      1);
 
 	if (rtlpriv->dm.supp_phymode_switch) {
@@ -1495,9 +1495,9 @@ static void rtl_op_sw_scan_complete(struct ieee80211_hw *hw,
 
 	rtlpriv->cfg->ops->scan_operation_backup(hw, SCAN_OPT_RESTORE);
 	if (rtlpriv->cfg->ops->get_btc_status())
-		rtlpriv->btcoexist.btc_ops->btc_scan_notify(rtlpriv, 0);
+		rtlpriv->btcoexist.btc_ops->btc_scan_yestify(rtlpriv, 0);
 	else if (rtlpriv->btcoexist.btc_ops)
-		rtlpriv->btcoexist.btc_ops->btc_scan_notify_wifi_only(rtlpriv,
+		rtlpriv->btcoexist.btc_ops->btc_scan_yestify_wifi_only(rtlpriv,
 								      0);
 }
 
@@ -1518,7 +1518,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "not open hw encryption\n");
+			 "yest open hw encryption\n");
 		return -ENOSPC;	/*User disabled HW-crypto */
 	}
 	/* To support IBSS, use sw-crypto for GTK */
@@ -1584,7 +1584,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * will be true & enable_hw_sec will be set when wep
 	 * ke setting.
 	 * 2) wep(group) + AES(pairwise): some AP like cisco
-	 * may use it, in this condition enable_hw_sec will not
+	 * may use it, in this condition enable_hw_sec will yest
 	 * be set when wep key setting */
 	/* we must reset sec_info after lingked before set key,
 	 * or some flag will be wrong*/
@@ -1659,7 +1659,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 					   group_key, key_type, wep_only,
 					   false);
 		/* <5> tell mac80211 do something: */
-		/*must use sw generate IV, or can not work !!!!. */
+		/*must use sw generate IV, or can yest work !!!!. */
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 		key->hw_key_idx = key_idx;
 		if (key_type == TKIP_ENCRYPTION)
@@ -1712,7 +1712,7 @@ static void rtl_op_rfkill_poll(struct ieee80211_hw *hw)
 	mutex_lock(&rtlpriv->locks.conf_mutex);
 
 	/*if Radio On return true here */
-	radio_state = rtlpriv->cfg->ops->radio_onoff_checking(hw, &valid);
+	radio_state = rtlpriv->cfg->ops->radio_oyesff_checking(hw, &valid);
 
 	if (valid) {
 		if (unlikely(radio_state != rtlpriv->rfkill.rfkill_state)) {
@@ -1832,7 +1832,7 @@ bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 				return true;
 			default:
 				WARN_ONCE(true,
-					  "rtlwifi: rtl_hal_pwrseqcmdparsing(): Unknown CMD!!\n");
+					  "rtlwifi: rtl_hal_pwrseqcmdparsing(): Unkyeswn CMD!!\n");
 				break;
 			}
 		}
@@ -1892,7 +1892,7 @@ const struct ieee80211_ops rtl_ops = {
 	.get_tsf = rtl_op_get_tsf,
 	.set_tsf = rtl_op_set_tsf,
 	.reset_tsf = rtl_op_reset_tsf,
-	.sta_notify = rtl_op_sta_notify,
+	.sta_yestify = rtl_op_sta_yestify,
 	.ampdu_action = rtl_op_ampdu_action,
 	.sw_scan_start = rtl_op_sw_scan_start,
 	.sw_scan_complete = rtl_op_sw_scan_complete,

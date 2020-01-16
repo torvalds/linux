@@ -43,7 +43,7 @@ Example:
 			 <0x1 0x0 0x5 0x04000000 0x4000000>; /* CS1 - 64MB */
 		mux-controls = <&hbmc_mux 0>;
 
-		/* Slave flash node */
+		/* Slave flash yesde */
 		flash@0,0 {
 			compatible = "cypress,hyperflash", "cfi-flash";
 			reg = <0x0 0x0 0x4000000>;

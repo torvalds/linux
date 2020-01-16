@@ -50,7 +50,7 @@ static ssize_t mbox_test_signal_write(struct file *filp,
 	struct mbox_test_device *tdev = filp->private_data;
 
 	if (!tdev->tx_channel) {
-		dev_err(tdev->dev, "Channel cannot do Tx\n");
+		dev_err(tdev->dev, "Channel canyest do Tx\n");
 		return -EINVAL;
 	}
 
@@ -99,7 +99,7 @@ static ssize_t mbox_test_message_write(struct file *filp,
 	int ret;
 
 	if (!tdev->tx_channel) {
-		dev_err(tdev->dev, "Channel cannot do Tx\n");
+		dev_err(tdev->dev, "Channel canyest do Tx\n");
 		return -EINVAL;
 	}
 
@@ -313,7 +313,7 @@ static void mbox_test_message_sent(struct mbox_client *client,
 {
 	if (r)
 		dev_warn(client->dev,
-			 "Client: Message could not be sent: %d\n", r);
+			 "Client: Message could yest be sent: %d\n", r);
 	else
 		dev_info(client->dev,
 			 "Client: Message sent\n");
@@ -334,7 +334,7 @@ mbox_test_request_channel(struct platform_device *pdev, const char *name)
 	client->tx_prepare	= mbox_test_prepare_message;
 	client->tx_done		= mbox_test_message_sent;
 	client->tx_block	= true;
-	client->knows_txdone	= false;
+	client->kyesws_txdone	= false;
 	client->tx_tout		= 500;
 
 	channel = mbox_request_channel_byname(client, name);
@@ -384,7 +384,7 @@ static int mbox_test_probe(struct platform_device *pdev)
 	if (!tdev->tx_channel && !tdev->rx_channel)
 		return -EPROBE_DEFER;
 
-	/* If Rx is not specified but has Rx MMIO, then Rx = Tx */
+	/* If Rx is yest specified but has Rx MMIO, then Rx = Tx */
 	if (!tdev->rx_channel && (tdev->rx_mmio != tdev->tx_mmio))
 		tdev->rx_channel = tdev->tx_channel;
 

@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_main.c
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
@@ -36,7 +36,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -44,7 +44,7 @@
 #include "esas2r.h"
 
 MODULE_DESCRIPTION(ESAS2R_DRVR_NAME ": " ESAS2R_LONGNAME " driver");
-MODULE_AUTHOR("ATTO Technology, Inc.");
+MODULE_AUTHOR("ATTO Techyeslogy, Inc.");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ESAS2R_VERSION_STR);
 
@@ -282,7 +282,7 @@ MODULE_PARM_DESC(num_requests,
 int num_ae_requests = 4;
 module_param(num_ae_requests, int, 0);
 MODULE_PARM_DESC(num_ae_requests,
-		 "Number of VDA asynchronous event requests.  Default 4.");
+		 "Number of VDA asynchroyesus event requests.  Default 4.");
 
 int cmd_per_lun = ESAS2R_DEFAULT_CMD_PER_LUN;
 module_param(cmd_per_lun, int, 0);
@@ -545,7 +545,7 @@ static int __init esas2r_init(void)
 		can_queue = 1;
 	} else if (can_queue > 2048) {
 		esas2r_log(ESAS2R_LOG_WARN,
-			   "warning: can_queue must be no larger than 2048, "
+			   "warning: can_queue must be yes larger than 2048, "
 			   "value forced.");
 		can_queue = 2048;
 	}
@@ -557,7 +557,7 @@ static int __init esas2r_init(void)
 		cmd_per_lun = 1;
 	} else if (cmd_per_lun > 2048) {
 		esas2r_log(ESAS2R_LOG_WARN,
-			   "warning: cmd_per_lun must be no larger than "
+			   "warning: cmd_per_lun must be yes larger than "
 			   "2048, value forced.");
 		cmd_per_lun = 2048;
 	}
@@ -576,7 +576,7 @@ static int __init esas2r_init(void)
 		esas2r_max_sectors = 1;
 	} else if (esas2r_max_sectors > 0xffff) {
 		esas2r_log(ESAS2R_LOG_WARN,
-			   "warning: esas2r_max_sectors must be no larger "
+			   "warning: esas2r_max_sectors must be yes larger "
 			   "than 0xffff, value forced.");
 		esas2r_max_sectors = 0xffff;
 	}
@@ -611,7 +611,7 @@ static int __init esas2r_init(void)
 	return pci_register_driver(&esas2r_pci_driver);
 }
 
-/* Handle ioctl calls to "/proc/scsi/esas2r/ATTOnode" */
+/* Handle ioctl calls to "/proc/scsi/esas2r/ATTOyesde" */
 static const struct file_operations esas2r_proc_fops = {
 	.compat_ioctl	= compat_ptr_ioctl,
 	.unlocked_ioctl = esas2r_proc_ioctl,
@@ -652,7 +652,7 @@ int esas2r_show_info(struct seq_file *m, struct Scsi_Host *sh)
 	struct esas2r_target *t;
 	int dev_count = 0;
 
-	esas2r_log(ESAS2R_LOG_DEBG, "esas2r_show_info (%p,%d)", m, sh->host_no);
+	esas2r_log(ESAS2R_LOG_DEBG, "esas2r_show_info (%p,%d)", m, sh->host_yes);
 
 	seq_printf(m, ESAS2R_LONGNAME "\n"
 		   "Driver version: "ESAS2R_VERSION_STR "\n"
@@ -662,7 +662,7 @@ int esas2r_show_info(struct seq_file *m, struct Scsi_Host *sh)
 		   "http://www.attotech.com\n"
 		   "\n",
 		   a->flash_rev,
-		   a->fw_rev[0] ? a->fw_rev : "(none)");
+		   a->fw_rev[0] ? a->fw_rev : "(yesne)");
 
 
 	seq_printf(m, "Adapter information:\n"
@@ -693,7 +693,7 @@ int esas2r_show_info(struct seq_file *m, struct Scsi_Host *sh)
 		}
 
 	if (dev_count == 0)
-		seq_puts(m, "none\n");
+		seq_puts(m, "yesne\n");
 
 	seq_putc(m, '\n');
 	return 0;
@@ -710,7 +710,7 @@ const char *esas2r_info(struct Scsi_Host *sh)
 
 	/*
 	 * if we haven't done so already, register as a char driver
-	 * and stick a node under "/proc/scsi/esas2r/ATTOnode"
+	 * and stick a yesde under "/proc/scsi/esas2r/ATTOyesde"
 	 */
 
 	if (esas2r_proc_major <= 0) {
@@ -744,7 +744,7 @@ const char *esas2r_info(struct Scsi_Host *sh)
 		" driver version: "ESAS2R_VERSION_STR "  firmware version: "
 		"%s\n",
 		a->pcid->bus->number, a->pcid->devfn, a->pcid->irq,
-		a->fw_rev[0] ? a->fw_rev : "(none)");
+		a->fw_rev[0] ? a->fw_rev : "(yesne)");
 
 	return esas2r_info_str;
 }
@@ -756,7 +756,7 @@ static u32 get_physaddr_from_sgc(struct esas2r_sg_context *sgc, u64 *addr)
 
 	if (likely(sgc->cur_offset == sgc->exp_offset)) {
 		/*
-		 * the normal case: caller used all bytes from previous call, so
+		 * the yesrmal case: caller used all bytes from previous call, so
 		 * expected offset is the same as the current offset.
 		 */
 
@@ -780,7 +780,7 @@ static u32 get_physaddr_from_sgc(struct esas2r_sg_context *sgc, u64 *addr)
 		}
 	} else if (sgc->cur_offset < sgc->exp_offset) {
 		/*
-		 * caller did not use all bytes from previous call. need to
+		 * caller did yest use all bytes from previous call. need to
 		 * compute the address based on current segment.
 		 */
 
@@ -895,7 +895,7 @@ static void complete_task_management_request(struct esas2r_adapter *a,
  * @param [in] abort_request
  * @param [in] cmd
  * t
- * @return 0 on failure, 1 if command was not found, 2 if command was found
+ * @return 0 on failure, 1 if command was yest found, 2 if command was found
  */
 static int esas2r_check_active_queue(struct esas2r_adapter *a,
 				     struct esas2r_request **abort_request,
@@ -948,8 +948,8 @@ static int esas2r_check_active_queue(struct esas2r_adapter *a,
 					rq->vrq->scsi.handle;
 			} else {
 				/*
-				 * The request is pending but not active on
-				 * the firmware.  Just free it now and we'll
+				 * The request is pending but yest active on
+				 * the firmware.  Just free it yesw and we'll
 				 * report the successful abort below.
 				 */
 				list_del_init(&rq->req_list);
@@ -1690,13 +1690,13 @@ static void esas2r_remove_device(struct esas2r_adapter *a, u16 target_id)
 		esas2r_log_dev(
 			ESAS2R_LOG_WARN,
 			&(a->host->shost_gendev),
-			"no target found at id %d",
+			"yes target found at id %d",
 			target_id);
 	}
 }
 
 /*
- * Sends a firmware asynchronous event to anyone who happens to be
+ * Sends a firmware asynchroyesus event to anyone who happens to be
  * listening on the defined ATTO VDA event ports.
  */
 static void esas2r_send_ae_event(struct esas2r_fw_event_work *fw_event)
@@ -1766,7 +1766,7 @@ static void esas2r_send_ae_event(struct esas2r_fw_event_work *fw_event)
 		break;
 
 	default:
-		type = "Unknown";
+		type = "Unkyeswn";
 		break;
 	}
 
@@ -1793,7 +1793,7 @@ esas2r_firmware_event_work(struct work_struct *work)
 
 	switch (fw_event->type) {
 	case fw_event_null:
-		break; /* do nothing */
+		break; /* do yesthing */
 
 	case fw_event_lun_change:
 		esas2r_remove_device(a, target_id);
@@ -1804,7 +1804,7 @@ esas2r_firmware_event_work(struct work_struct *work)
 		esas2r_add_device(a, target_id);
 		break;
 
-	case fw_event_not_present:
+	case fw_event_yest_present:
 		esas2r_remove_device(a, target_id);
 		break;
 
@@ -1866,7 +1866,7 @@ void esas2r_target_state_changed(struct esas2r_adapter *a, u16 targ_id,
 		esas2r_queue_fw_event(a, fw_event_present, &targ_id,
 				      sizeof(targ_id));
 	else if (state == TS_NOT_PRESENT)
-		esas2r_queue_fw_event(a, fw_event_not_present, &targ_id,
+		esas2r_queue_fw_event(a, fw_event_yest_present, &targ_id,
 				      sizeof(targ_id));
 }
 

@@ -26,7 +26,7 @@
 
 
 enum sctp_verb {
-	SCTP_CMD_NOP = 0,	/* Do nothing. */
+	SCTP_CMD_NOP = 0,	/* Do yesthing. */
 	SCTP_CMD_NEW_ASOC,	/* Register a new association.  */
 	SCTP_CMD_DELETE_TCB,	/* Delete the current association. */
 	SCTP_CMD_NEW_STATE,	/* Enter a new state.  */
@@ -37,7 +37,7 @@ enum sctp_verb {
 	SCTP_CMD_PEER_INIT,	/* Process a INIT from the peer.  */
 	SCTP_CMD_GEN_COOKIE_ECHO, /* Generate a COOKIE ECHO chunk. */
 	SCTP_CMD_CHUNK_ULP,	/* Send a chunk to the sockets layer.  */
-	SCTP_CMD_EVENT_ULP,	/* Send a notification to the sockets layer. */
+	SCTP_CMD_EVENT_ULP,	/* Send a yestification to the sockets layer. */
 	SCTP_CMD_REPLY,		/* Send a chunk to our peer.  */
 	SCTP_CMD_SEND_PKT,	/* Send a full packet to our peer.  */
 	SCTP_CMD_RETRAN,	/* Mark a transport for retransmission.  */
@@ -79,7 +79,7 @@ enum sctp_verb {
 	SCTP_CMD_REPORT_FWDTSN,	 /* Report new cumulative TSN Ack. */
 	SCTP_CMD_PROCESS_FWDTSN, /* Skips were reported, so process further. */
 	SCTP_CMD_CLEAR_INIT_TAG, /* Clears association peer's inittag. */
-	SCTP_CMD_DEL_NON_PRIMARY, /* Removes non-primary peer transports. */
+	SCTP_CMD_DEL_NON_PRIMARY, /* Removes yesn-primary peer transports. */
 	SCTP_CMD_T3_RTX_TIMERS_STOP, /* Stops T3-rtx pending timers */
 	SCTP_CMD_FORCE_PRIM_RETRAN,  /* Forces retrans. over primary path. */
 	SCTP_CMD_SET_SK_ERR,	 /* Set sk_err */

@@ -37,12 +37,12 @@ static struct fscache_object *cachefiles_alloc_object(
 
 	lookup_data = kmalloc(sizeof(*lookup_data), cachefiles_gfp);
 	if (!lookup_data)
-		goto nomem_lookup_data;
+		goto yesmem_lookup_data;
 
 	/* create a new object record and a temporary leaf image */
 	object = kmem_cache_alloc(cachefiles_object_jar, cachefiles_gfp);
 	if (!object)
-		goto nomem_object;
+		goto yesmem_object;
 
 	ASSERTCMP(object->backer, ==, NULL);
 
@@ -59,7 +59,7 @@ static struct fscache_object *cachefiles_alloc_object(
 	 */
 	buffer = kmalloc((2 + 512) + 3, cachefiles_gfp);
 	if (!buffer)
-		goto nomem_buffer;
+		goto yesmem_buffer;
 
 	keylen = cookie->key_len;
 	if (keylen <= sizeof(cookie->inline_key))
@@ -76,7 +76,7 @@ static struct fscache_object *cachefiles_alloc_object(
 	/* turn the raw key into something that can work with as a filename */
 	key = cachefiles_cook_key(buffer, keylen + 2, object->type);
 	if (!key)
-		goto nomem_key;
+		goto yesmem_key;
 
 	/* get hold of the auxiliary data and prepend the object type */
 	auxdata = buffer;
@@ -99,21 +99,21 @@ static struct fscache_object *cachefiles_alloc_object(
 	_leave(" = %p [%p]", &object->fscache, lookup_data);
 	return &object->fscache;
 
-nomem_key:
+yesmem_key:
 	kfree(buffer);
-nomem_buffer:
+yesmem_buffer:
 	BUG_ON(test_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags));
 	kmem_cache_free(cachefiles_object_jar, object);
 	fscache_object_destroyed(&cache->cache);
-nomem_object:
+yesmem_object:
 	kfree(lookup_data);
-nomem_lookup_data:
+yesmem_lookup_data:
 	_leave(" = -ENOMEM");
 	return ERR_PTR(-ENOMEM);
 }
 
 /*
- * attempt to look up the nominated node in this cache
+ * attempt to look up the yesminated yesde in this cache
  * - return -ETIMEDOUT to be scheduled again
  */
 static int cachefiles_lookup_object(struct fscache_object *_object)
@@ -141,7 +141,7 @@ static int cachefiles_lookup_object(struct fscache_object *_object)
 					lookup_data->auxdata);
 	cachefiles_end_secure(cache, saved_cred);
 
-	/* polish off by setting the attributes of non-index files */
+	/* polish off by setting the attributes of yesn-index files */
 	if (ret == 0 &&
 	    object->fscache.cookie->def->type != FSCACHE_COOKIE_TYPE_INDEX)
 		cachefiles_attr_changed(&object->fscache);
@@ -176,7 +176,7 @@ static void cachefiles_lookup_complete(struct fscache_object *_object)
 }
 
 /*
- * increment the usage count on an inode object (may fail if unmounting)
+ * increment the usage count on an iyesde object (may fail if unmounting)
  */
 static
 struct fscache_object *cachefiles_grab_object(struct fscache_object *_object,
@@ -227,14 +227,14 @@ static void cachefiles_update_object(struct fscache_object *_object)
 
 	if (!auxlen) {
 		fscache_unuse_cookie(_object);
-		_leave(" [no aux]");
+		_leave(" [yes aux]");
 		return;
 	}
 
 	auxdata = kmalloc(2 + auxlen + 3, cachefiles_gfp);
 	if (!auxdata) {
 		fscache_unuse_cookie(_object);
-		_leave(" [nomem]");
+		_leave(" [yesmem]");
 		return;
 	}
 
@@ -263,7 +263,7 @@ static void cachefiles_drop_object(struct fscache_object *_object)
 	struct cachefiles_object *object;
 	struct cachefiles_cache *cache;
 	const struct cred *saved_cred;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	blkcnt_t i_blocks = 0;
 
 	ASSERT(_object);
@@ -291,9 +291,9 @@ static void cachefiles_drop_object(struct fscache_object *_object)
 		    _object != cache->cache.fsdef
 		    ) {
 			_debug("- retire object OBJ%x", object->fscache.debug_id);
-			inode = d_backing_inode(object->dentry);
-			if (inode)
-				i_blocks = inode->i_blocks;
+			iyesde = d_backing_iyesde(object->dentry);
+			if (iyesde)
+				i_blocks = iyesde->i_blocks;
 
 			cachefiles_begin_secure(cache, &saved_cred);
 			cachefiles_delete_object(cache, object);
@@ -306,7 +306,7 @@ static void cachefiles_drop_object(struct fscache_object *_object)
 		object->backer = NULL;
 	}
 
-	/* note that the object is now inactive */
+	/* yeste that the object is yesw inactive */
 	if (test_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags))
 		cachefiles_mark_object_inactive(cache, object, i_blocks);
 
@@ -424,7 +424,7 @@ static int cachefiles_check_consistency(struct fscache_operation *op)
 }
 
 /*
- * notification the attributes on an object have changed
+ * yestification the attributes on an object have changed
  * - called with reads/writes excluded by FS-Cache
  */
 static int cachefiles_attr_changed(struct fscache_object *_object)
@@ -456,12 +456,12 @@ static int cachefiles_attr_changed(struct fscache_object *_object)
 
 	fscache_set_store_limit(&object->fscache, ni_size);
 
-	oi_size = i_size_read(d_backing_inode(object->backer));
+	oi_size = i_size_read(d_backing_iyesde(object->backer));
 	if (oi_size == ni_size)
 		return 0;
 
 	cachefiles_begin_secure(cache, &saved_cred);
-	inode_lock(d_inode(object->backer));
+	iyesde_lock(d_iyesde(object->backer));
 
 	/* if there's an extension to a partial page at the end of the backing
 	 * file, we need to discard the partial page so that we pick up new
@@ -470,17 +470,17 @@ static int cachefiles_attr_changed(struct fscache_object *_object)
 		_debug("discard tail %llx", oi_size);
 		newattrs.ia_valid = ATTR_SIZE;
 		newattrs.ia_size = oi_size & PAGE_MASK;
-		ret = notify_change(object->backer, &newattrs, NULL);
+		ret = yestify_change(object->backer, &newattrs, NULL);
 		if (ret < 0)
 			goto truncate_failed;
 	}
 
 	newattrs.ia_valid = ATTR_SIZE;
 	newattrs.ia_size = ni_size;
-	ret = notify_change(object->backer, &newattrs, NULL);
+	ret = yestify_change(object->backer, &newattrs, NULL);
 
 truncate_failed:
-	inode_unlock(d_inode(object->backer));
+	iyesde_unlock(d_iyesde(object->backer));
 	cachefiles_end_secure(cache, saved_cred);
 
 	if (ret == -EIO) {

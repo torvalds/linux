@@ -24,7 +24,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 
 #include "tvp7002_reg.h"
 
@@ -437,7 +437,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
  * @addr: TVP7002 register address
  * @dst: pointer to 8-bit destination
  *
- * Returns value read if successful, or non-zero (-1) otherwise.
+ * Returns value read if successful, or yesn-zero (-1) otherwise.
  */
 static int tvp7002_read(struct v4l2_subdev *sd, u8 addr, u8 *dst)
 {
@@ -483,7 +483,7 @@ static inline void tvp7002_read_err(struct v4l2_subdev *sd, u8 reg,
  * @value: value to be written to the register
  *
  * Write a value to a register in an TVP7002 decoder device.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or yesn-zero otherwise.
  */
 static int tvp7002_write(struct v4l2_subdev *sd, u8 addr, u8 value)
 {
@@ -602,7 +602,7 @@ static int tvp7002_s_ctrl(struct v4l2_ctrl *ctrl)
  * @sd: pointer to standard V4L2 sub-device structure
  * @index: index into the tvp7002_timings array
  *
- * Returns the current DV timings detected by TVP7002. If no active input is
+ * Returns the current DV timings detected by TVP7002. If yes active input is
  * detected, returns -EINVAL
  */
 static int tvp7002_query_dv(struct v4l2_subdev *sd, int *index)
@@ -617,7 +617,7 @@ static int tvp7002_query_dv(struct v4l2_subdev *sd, int *index)
 	u8 cpl_lsb;
 	u8 cpl_msb;
 
-	/* Return invalid index if no active input is detected */
+	/* Return invalid index if yes active input is detected */
 	*index = NUM_TIMINGS;
 
 	/* Read standards from device registers */
@@ -760,7 +760,7 @@ static int tvp7002_log_status(struct v4l2_subdev *sd)
 				bt->width, bt->height);
 	}
 	v4l2_info(sd, "Streaming enabled: %s\n",
-					device->streaming ? "yes" : "no");
+					device->streaming ? "no" : "yes");
 
 	/* Print the current value of the gain control */
 	v4l2_ctrl_handler_log_status(&device->hdl, sd->name);
@@ -880,19 +880,19 @@ static const struct v4l2_subdev_ops tvp7002_ops = {
 static struct tvp7002_config *
 tvp7002_get_pdata(struct i2c_client *client)
 {
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
+	struct v4l2_fwyesde_endpoint bus_cfg = { .bus_type = 0 };
 	struct tvp7002_config *pdata = NULL;
-	struct device_node *endpoint;
+	struct device_yesde *endpoint;
 	unsigned int flags;
 
-	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_yesde)
 		return client->dev.platform_data;
 
-	endpoint = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(client->dev.of_yesde, NULL);
 	if (!endpoint)
 		return NULL;
 
-	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), &bus_cfg))
+	if (v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(endpoint), &bus_cfg))
 		goto done;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
@@ -917,7 +917,7 @@ tvp7002_get_pdata(struct i2c_client *client)
 		pdata->sog_polarity = 1;
 
 done:
-	of_node_put(endpoint);
+	of_yesde_put(endpoint);
 	return pdata;
 }
 
@@ -928,7 +928,7 @@ done:
  *
  * Initialize the TVP7002 device
  * Returns zero when successful, -EINVAL if register read fails or
- * -EIO if i2c access is not available.
+ * -EIO if i2c access is yest available.
  */
 static int tvp7002_probe(struct i2c_client *c)
 {
@@ -972,7 +972,7 @@ static int tvp7002_probe(struct i2c_client *c)
 	/* Get revision number */
 	v4l2_info(sd, "Rev. %02x detected.\n", revision);
 	if (revision != 0x02)
-		v4l2_info(sd, "Unknown revision detected.\n");
+		v4l2_info(sd, "Unkyeswn revision detected.\n");
 
 	/* Initializes TVP7002 to its default values */
 	error = tvp7002_write_inittab(sd, tvp7002_init_default);

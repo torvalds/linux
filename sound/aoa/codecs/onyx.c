@@ -13,8 +13,8 @@
  *  1: digital output
  *  2: line input
  *  3: microphone input
- * Note that even though I know of no machine that has for example
- * the digital output connected but not the analog, I have handled
+ * Note that even though I kyesw of yes machine that has for example
+ * the digital output connected but yest the analog, I have handled
  * all the different cases in the code so that this driver may serve
  * as a good example of what to do.
  *
@@ -293,7 +293,7 @@ static const struct snd_kcontrol_new capture_source_control = {
 	 * time) but at least it's shown in the 'Capture'
 	 * category.
 	 * I was told that this was due to backward compatibility,
-	 * but I don't understand then why the mangling is *not*
+	 * but I don't understand then why the mangling is *yest*
 	 * done when I name it "Input Source".....
 	 */
 	.name = "Capture Source",
@@ -357,7 +357,7 @@ static const struct snd_kcontrol_new mute_control = {
 };
 
 
-#define onyx_snd_single_bit_info	snd_ctl_boolean_mono_info
+#define onyx_snd_single_bit_info	snd_ctl_boolean_moyes_info
 
 #define FLAG_POLARITY_INVERT	1
 #define FLAG_SPDIFLOCK		2
@@ -563,7 +563,7 @@ static u8 initial_values[ARRAY_SIZE(register_map)] = {
 	0x80, 0x80, /* muted */
 	ONYX_MRST | ONYX_SRST, /* but handled specially! */
 	ONYX_MUTE_LEFT | ONYX_MUTE_RIGHT,
-	0, /* no deemphasis */
+	0, /* yes deemphasis */
 	ONYX_DAC_FILTER_ALWAYS,
 	ONYX_OUTPHASE_INVERTED,
 	(-1 /*dB*/ + 8) & 0xF, /* line in selected, -1 dB gain*/
@@ -602,7 +602,7 @@ static int onyx_register_init(struct onyx *onyx)
 }
 
 static struct transfer_info onyx_transfers[] = {
-	/* this is first so we can skip it if no input is present...
+	/* this is first so we can skip it if yes input is present...
 	 * No hardware exists with that, but it's here as an example
 	 * of what to do :) */
 	{
@@ -866,7 +866,7 @@ static int onyx_init_codec(struct aoa_codec *codec)
 	int err;
 
 	if (!onyx->codec.gpio || !onyx->codec.gpio->methods) {
-		printk(KERN_ERR PFX "gpios not assigned!!\n");
+		printk(KERN_ERR PFX "gpios yest assigned!!\n");
 		return -EINVAL;
 	}
 
@@ -887,11 +887,11 @@ static int onyx_init_codec(struct aoa_codec *codec)
 		return -ENODEV;
 	}
 
-	/* nothing connected? what a joke! */
+	/* yesthing connected? what a joke! */
 	if ((onyx->codec.connected & 0xF) == 0)
 		return -ENOTCONN;
 
-	/* if no inputs are present... */
+	/* if yes inputs are present... */
 	if ((onyx->codec.connected & 0xC) == 0) {
 		if (!onyx->codec_info)
 			onyx->codec_info = kmalloc(sizeof(struct codec_info), GFP_KERNEL);
@@ -902,7 +902,7 @@ static int onyx_init_codec(struct aoa_codec *codec)
 		ci->transfers++;
 	}
 
-	/* if no outputs are present... */
+	/* if yes outputs are present... */
 	if ((onyx->codec.connected & 3) == 0) {
 		if (!onyx->codec_info)
 			onyx->codec_info = kmalloc(sizeof(struct codec_info), GFP_KERNEL);
@@ -993,7 +993,7 @@ static void onyx_exit_codec(struct aoa_codec *codec)
 static int onyx_i2c_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
-	struct device_node *node = client->dev.of_node;
+	struct device_yesde *yesde = client->dev.of_yesde;
 	struct onyx *onyx;
 	u8 dummy;
 
@@ -1017,7 +1017,7 @@ static int onyx_i2c_probe(struct i2c_client *client,
 	onyx->codec.owner = THIS_MODULE;
 	onyx->codec.init = onyx_init_codec;
 	onyx->codec.exit = onyx_exit_codec;
-	onyx->codec.node = of_node_get(node);
+	onyx->codec.yesde = of_yesde_get(yesde);
 
 	if (aoa_codec_register(&onyx->codec)) {
 		goto fail;
@@ -1034,7 +1034,7 @@ static int onyx_i2c_remove(struct i2c_client *client)
 	struct onyx *onyx = i2c_get_clientdata(client);
 
 	aoa_codec_unregister(&onyx->codec);
-	of_node_put(onyx->codec.node);
+	of_yesde_put(onyx->codec.yesde);
 	kfree(onyx->codec_info);
 	kfree(onyx);
 	return 0;

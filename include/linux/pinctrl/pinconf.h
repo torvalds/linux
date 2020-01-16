@@ -22,7 +22,7 @@ struct seq_file;
  * @is_generic: for pin controllers that want to use the generic interface,
  *	this flag tells the framework that it's generic.
  * @pin_config_get: get the config of a certain pin, if the requested config
- *	is not available on this controller this should return -ENOTSUPP
+ *	is yest available on this controller this should return -ENOTSUPP
  *	and if it is available but disabled it should return -EINVAL
  * @pin_config_set: configure an individual pin
  * @pin_config_group_get: get configurations for an entire pin group; should

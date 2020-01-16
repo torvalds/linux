@@ -246,7 +246,7 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 		return -EADDRNOTAVAIL;
 
 	/* dev_set_mac_addr() can be called by a master device on bridge's
-	 * NETDEV_UNREGISTER, but since it's being destroyed do nothing
+	 * NETDEV_UNREGISTER, but since it's being destroyed do yesthing
 	 */
 	if (dev->reg_state != NETREG_REGISTERED)
 		return -EBUSY;

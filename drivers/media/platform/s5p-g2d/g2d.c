@@ -605,7 +605,7 @@ static const struct video_device g2d_videodev = {
 	.name		= G2D_NAME,
 	.fops		= &g2d_fops,
 	.ioctl_ops	= &g2d_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= video_device_release,
 	.vfl_dir	= VFL_DIR_M2M,
 };
@@ -614,7 +614,7 @@ static const struct v4l2_m2m_ops g2d_m2m_ops = {
 	.device_run	= device_run,
 };
 
-static const struct of_device_id exynos_g2d_match[];
+static const struct of_device_id exyyess_g2d_match[];
 
 static int g2d_probe(struct platform_device *pdev)
 {
@@ -714,7 +714,7 @@ static int g2d_probe(struct platform_device *pdev)
 
 	def_frame.stride = (def_frame.width * def_frame.fmt->depth) >> 3;
 
-	of_id = of_match_node(exynos_g2d_match, pdev->dev.of_node);
+	of_id = of_match_yesde(exyyess_g2d_match, pdev->dev.of_yesde);
 	if (!of_id) {
 		ret = -ENODEV;
 		goto unreg_video_dev;
@@ -758,31 +758,31 @@ static int g2d_remove(struct platform_device *pdev)
 }
 
 static struct g2d_variant g2d_drvdata_v3x = {
-	.hw_rev = TYPE_G2D_3X, /* Revision 3.0 for S5PV210 and Exynos4210 */
+	.hw_rev = TYPE_G2D_3X, /* Revision 3.0 for S5PV210 and Exyyess4210 */
 };
 
 static struct g2d_variant g2d_drvdata_v4x = {
-	.hw_rev = TYPE_G2D_4X, /* Revision 4.1 for Exynos4X12 and Exynos5 */
+	.hw_rev = TYPE_G2D_4X, /* Revision 4.1 for Exyyess4X12 and Exyyess5 */
 };
 
-static const struct of_device_id exynos_g2d_match[] = {
+static const struct of_device_id exyyess_g2d_match[] = {
 	{
 		.compatible = "samsung,s5pv210-g2d",
 		.data = &g2d_drvdata_v3x,
 	}, {
-		.compatible = "samsung,exynos4212-g2d",
+		.compatible = "samsung,exyyess4212-g2d",
 		.data = &g2d_drvdata_v4x,
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_g2d_match);
+MODULE_DEVICE_TABLE(of, exyyess_g2d_match);
 
 static struct platform_driver g2d_pdrv = {
 	.probe		= g2d_probe,
 	.remove		= g2d_remove,
 	.driver		= {
 		.name = G2D_NAME,
-		.of_match_table = exynos_g2d_match,
+		.of_match_table = exyyess_g2d_match,
 	},
 };
 

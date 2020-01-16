@@ -45,9 +45,9 @@ static void __confirm_options(struct intel_uc *uc)
 	DRM_DEV_DEBUG_DRIVER(i915->drm.dev,
 			     "enable_guc=%d (guc:%s submission:%s huc:%s)\n",
 			     i915_modparams.enable_guc,
-			     yesno(intel_uc_uses_guc(uc)),
-			     yesno(intel_uc_uses_guc_submission(uc)),
-			     yesno(intel_uc_uses_huc(uc)));
+			     noyes(intel_uc_uses_guc(uc)),
+			     noyes(intel_uc_uses_guc_submission(uc)),
+			     noyes(intel_uc_uses_huc(uc)));
 
 	if (i915_modparams.enable_guc == -1)
 		return;
@@ -62,13 +62,13 @@ static void __confirm_options(struct intel_uc *uc)
 	if (!intel_uc_supports_guc(uc))
 		dev_info(i915->drm.dev,
 			 "Incompatible option enable_guc=%d - %s\n",
-			 i915_modparams.enable_guc, "GuC is not supported!");
+			 i915_modparams.enable_guc, "GuC is yest supported!");
 
 	if (i915_modparams.enable_guc & ENABLE_GUC_LOAD_HUC &&
 	    !intel_uc_supports_huc(uc))
 		dev_info(i915->drm.dev,
 			 "Incompatible option enable_guc=%d - %s\n",
-			 i915_modparams.enable_guc, "HuC is not supported!");
+			 i915_modparams.enable_guc, "HuC is yest supported!");
 
 	if (i915_modparams.enable_guc & ENABLE_GUC_SUBMISSION &&
 	    !intel_uc_supports_guc_submission(uc))
@@ -144,7 +144,7 @@ static void guc_get_mmio_msg(struct intel_guc *guc)
 	guc->mmio_msg |= val & guc->msg_enabled_mask;
 
 	/*
-	 * clear all events, including the ones we're not currently servicing,
+	 * clear all events, including the ones we're yest currently servicing,
 	 * to make sure we don't try to process a stale message if we enable
 	 * handling of more events later.
 	 */
@@ -158,7 +158,7 @@ static void guc_handle_mmio_msg(struct intel_guc *guc)
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 
 	/* we need communication to be enabled to reply to GuC */
-	GEM_BUG_ON(guc->handler == intel_guc_to_host_event_handler_nop);
+	GEM_BUG_ON(guc->handler == intel_guc_to_host_event_handler_yesp);
 
 	if (!guc->mmio_msg)
 		return;
@@ -187,7 +187,7 @@ static void guc_disable_interrupts(struct intel_guc *guc)
 
 static inline bool guc_communication_enabled(struct intel_guc *guc)
 {
-	return guc->send != intel_guc_send_nop;
+	return guc->send != intel_guc_send_yesp;
 }
 
 static int guc_enable_communication(struct intel_guc *guc)
@@ -235,8 +235,8 @@ static void __guc_stop_communication(struct intel_guc *guc)
 
 	guc_disable_interrupts(guc);
 
-	guc->send = intel_guc_send_nop;
-	guc->handler = intel_guc_to_host_event_handler_nop;
+	guc->send = intel_guc_send_yesp;
+	guc->handler = intel_guc_to_host_event_handler_yesp;
 }
 
 static void guc_stop_communication(struct intel_guc *guc)
@@ -255,7 +255,7 @@ static void guc_disable_communication(struct intel_guc *guc)
 	intel_guc_ct_disable(&guc->ct);
 
 	/*
-	 * Check for messages received during/after the CT disable. We do not
+	 * Check for messages received during/after the CT disable. We do yest
 	 * expect any messages to have arrived via CT between the interrupt
 	 * disable and the CT disable because GuC should've been idle until we
 	 * triggered the CT disable protocol.
@@ -301,7 +301,7 @@ void intel_uc_init(struct intel_uc *uc)
 	if (!intel_uc_uses_guc(uc))
 		return;
 
-	/* XXX: GuC submission is unavailable for now */
+	/* XXX: GuC submission is unavailable for yesw */
 	GEM_BUG_ON(intel_uc_supports_guc_submission(uc));
 
 	ret = intel_guc_init(guc);
@@ -494,7 +494,7 @@ int intel_uc_init_hw(struct intel_uc *uc)
 
 	dev_info(i915->drm.dev, "%s firmware %s version %u.%u %s:%s\n",
 		 intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_GUC), guc->fw.path,
-		 guc->fw.major_ver_found, guc->fw.minor_ver_found,
+		 guc->fw.major_ver_found, guc->fw.miyesr_ver_found,
 		 "submission",
 		 enableddisabled(intel_uc_supports_guc_submission(uc)));
 
@@ -502,9 +502,9 @@ int intel_uc_init_hw(struct intel_uc *uc)
 		dev_info(i915->drm.dev, "%s firmware %s version %u.%u %s:%s\n",
 			 intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
 			 huc->fw.path,
-			 huc->fw.major_ver_found, huc->fw.minor_ver_found,
+			 huc->fw.major_ver_found, huc->fw.miyesr_ver_found,
 			 "authenticated",
-			 yesno(intel_huc_is_authenticated(huc)));
+			 noyes(intel_huc_is_authenticated(huc)));
 	}
 
 	return 0;
@@ -520,7 +520,7 @@ err_out:
 	__uc_sanitize(uc);
 
 	if (!ret) {
-		dev_notice(i915->drm.dev, "GuC is uninitialized\n");
+		dev_yestice(i915->drm.dev, "GuC is uninitialized\n");
 		/* We want to run without GuC submission */
 		return 0;
 	}

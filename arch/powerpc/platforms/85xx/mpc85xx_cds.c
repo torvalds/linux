@@ -10,7 +10,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/reboot.h>
 #include <linux/pci.h>
 #include <linux/kdev_t.h>
@@ -70,7 +70,7 @@ static struct cadmus_reg *cadmus;
 static int mpc85xx_exclude_device(struct pci_controller *hose,
 				  u_char bus, u_char devfn)
 {
-	/* We explicitly do not go past the Tundra 320 Bridge */
+	/* We explicitly do yest go past the Tundra 320 Bridge */
 	if ((bus == 1) && (PCI_SLOT(devfn) == ARCADIA_2ND_BRIDGE_IDSEL))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	if ((bus == 0) && (PCI_SLOT(devfn) == ARCADIA_2ND_BRIDGE_IDSEL))
@@ -79,7 +79,7 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 		return PCIBIOS_SUCCESSFUL;
 }
 
-static int mpc85xx_cds_restart(struct notifier_block *this,
+static int mpc85xx_cds_restart(struct yestifier_block *this,
 			       unsigned long mode, void *cmd)
 {
 	struct pci_dev *dev;
@@ -114,9 +114,9 @@ static int mpc85xx_cds_restart(struct notifier_block *this,
 
 static int mpc85xx_cds_restart_register(void)
 {
-	static struct notifier_block restart_handler;
+	static struct yestifier_block restart_handler;
 
-	restart_handler.notifier_call = mpc85xx_cds_restart;
+	restart_handler.yestifier_call = mpc85xx_cds_restart;
 	restart_handler.priority = 192;
 
 	return register_restart_handler(&restart_handler);
@@ -131,7 +131,7 @@ static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
 		switch (dev->device) {
 		case PCI_DEVICE_ID_VIA_82C586_1:
 			/*
-			 * U-Boot does not set the enable bits
+			 * U-Boot does yest set the enable bits
 			 * for the IDE device. Force them on here.
 			 */
 			pci_read_config_byte(dev, 0x40, &c);
@@ -240,34 +240,34 @@ static void __init mpc85xx_cds_pic_init(void)
 static int mpc85xx_cds_8259_attach(void)
 {
 	int ret;
-	struct device_node *np = NULL;
-	struct device_node *cascade_node = NULL;
+	struct device_yesde *np = NULL;
+	struct device_yesde *cascade_yesde = NULL;
 	int cascade_irq;
 
 	/* Initialize the i8259 controller */
-	for_each_node_by_type(np, "interrupt-controller")
+	for_each_yesde_by_type(np, "interrupt-controller")
 		if (of_device_is_compatible(np, "chrp,iic")) {
-			cascade_node = np;
+			cascade_yesde = np;
 			break;
 		}
 
-	if (cascade_node == NULL) {
-		printk(KERN_DEBUG "Could not find i8259 PIC\n");
+	if (cascade_yesde == NULL) {
+		printk(KERN_DEBUG "Could yest find i8259 PIC\n");
 		return -ENODEV;
 	}
 
-	cascade_irq = irq_of_parse_and_map(cascade_node, 0);
+	cascade_irq = irq_of_parse_and_map(cascade_yesde, 0);
 	if (!cascade_irq) {
 		printk(KERN_ERR "Failed to map cascade interrupt\n");
 		return -ENXIO;
 	}
 
-	i8259_init(cascade_node, 0);
-	of_node_put(cascade_node);
+	i8259_init(cascade_yesde, 0);
+	of_yesde_put(cascade_yesde);
 
 	/*
 	 *  Hook the interrupt to make sure desc->action is never NULL.
-	 *  This is required to ensure that the interrupt does not get
+	 *  This is required to ensure that the interrupt does yest get
 	 *  disabled when the last user of the shared IRQ line frees their
 	 *  interrupt.
 	 */
@@ -288,20 +288,20 @@ machine_device_initcall(mpc85xx_cds, mpc85xx_cds_8259_attach);
 static void mpc85xx_cds_pci_assign_primary(void)
 {
 #ifdef CONFIG_PCI
-	struct device_node *np;
+	struct device_yesde *np;
 
 	if (fsl_pci_primary)
 		return;
 
 	/*
-	 * MPC85xx_CDS has ISA bridge but unfortunately there is no
-	 * isa node in device tree. We now looking for i8259 node as
+	 * MPC85xx_CDS has ISA bridge but unfortunately there is yes
+	 * isa yesde in device tree. We yesw looking for i8259 yesde as
 	 * a workaround for such a broken device tree. This routine
 	 * is for complying to all device trees.
 	 */
-	np = of_find_node_by_name(NULL, "i8259");
+	np = of_find_yesde_by_name(NULL, "i8259");
 	while ((fsl_pci_primary = of_get_parent(np))) {
-		of_node_put(np);
+		of_yesde_put(np);
 		np = fsl_pci_primary;
 
 		if ((of_device_is_compatible(np, "fsl,mpc8540-pci") ||
@@ -317,20 +317,20 @@ static void mpc85xx_cds_pci_assign_primary(void)
  */
 static void __init mpc85xx_cds_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int cds_pci_slot;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_cds_setup_arch()", 0);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc8548cds-fpga");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc8548cds-fpga");
 	if (!np) {
-		pr_err("Could not find FPGA node.\n");
+		pr_err("Could yest find FPGA yesde.\n");
 		return;
 	}
 
 	cadmus = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!cadmus) {
 		pr_err("Fail to map FPGA area.\n");
 		return;

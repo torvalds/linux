@@ -6,7 +6,7 @@
  *
  *  This driver is based on experimentation.  Hence, it may have made
  *  assumptions about the particular card that I have available, and
- *  may not be reliable!
+ *  may yest be reliable!
  *
  *  Changelog:
  *   01-10-1997	RMK		Created, READONLY version
@@ -382,7 +382,7 @@ const char *eesoxscsi_info(struct Scsi_Host *host)
 	static char string[150];
 
 	sprintf(string, "%s (%s) in slot %d v%s terminators o%s",
-		host->hostt->name, info->info.scsi.type, info->ec->slot_no,
+		host->hostt->name, info->info.scsi.type, info->ec->slot_yes,
 		VERSION, info->control & EESOX_TERM_ENABLE ? "n" : "ff");
 
 	return string;
@@ -516,7 +516,7 @@ static int eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	info->ec	= ec;
 	info->base	= base;
 	info->ctl_port	= base + EESOX_CONTROL;
-	info->control	= term[ec->slot_no] ? EESOX_TERM_ENABLE : 0;
+	info->control	= term[ec->slot_yes] ? EESOX_TERM_ENABLE : 0;
 	writeb(info->control, info->ctl_port);
 
 	info->info.scsi.io_base		= base + EESOX_FAS216_OFFSET;
@@ -548,15 +548,15 @@ static int eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	ret = request_irq(ec->irq, eesoxscsi_intr, 0, "eesoxscsi", info);
 	if (ret) {
-		printk("scsi%d: IRQ%d not free: %d\n",
-		       host->host_no, ec->irq, ret);
+		printk("scsi%d: IRQ%d yest free: %d\n",
+		       host->host_yes, ec->irq, ret);
 		goto out_remove;
 	}
 
 	if (info->info.scsi.dma != NO_DMA) {
 		if (request_dma(info->info.scsi.dma, "eesox")) {
-			printk("scsi%d: DMA%d not free, DMA disabled\n",
-			       host->host_no, info->info.scsi.dma);
+			printk("scsi%d: DMA%d yest free, DMA disabled\n",
+			       host->host_yes, info->info.scsi.dma);
 			info->info.scsi.dma = NO_DMA;
 		} else {
 			set_dma_speed(info->info.scsi.dma, 180);

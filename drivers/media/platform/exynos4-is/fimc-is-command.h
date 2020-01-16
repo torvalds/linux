@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Samsung Exynos4x12 FIMC-IS (Imaging Subsystem) driver
+ * Samsung Exyyess4x12 FIMC-IS (Imaging Subsystem) driver
  *
  * FIMC-IS command set definitions
  *

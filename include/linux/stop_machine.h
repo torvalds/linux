@@ -9,9 +9,9 @@
 
 /*
  * stop_cpu[s]() is simplistic per-cpu maximum priority cpu
- * monopolization mechanism.  The caller can specify a non-sleeping
+ * moyespolization mechanism.  The caller can specify a yesn-sleeping
  * function to be executed on a single or multiple cpus preempting all
- * other processes and monopolizing those cpus until it finishes.
+ * other processes and moyespolizing those cpus until it finishes.
  *
  * Resources for this mechanism are preallocated when a cpu is brought
  * up and requests are guaranteed to be served as long as the target
@@ -30,7 +30,7 @@ struct cpu_stop_work {
 
 int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg);
 int stop_two_cpus(unsigned int cpu1, unsigned int cpu2, cpu_stop_fn_t fn, void *arg);
-bool stop_one_cpu_nowait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
+bool stop_one_cpu_yeswait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
 			 struct cpu_stop_work *work_buf);
 int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg);
 int try_stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg);
@@ -58,7 +58,7 @@ static inline int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg)
 	return ret;
 }
 
-static void stop_one_cpu_nowait_workfn(struct work_struct *work)
+static void stop_one_cpu_yeswait_workfn(struct work_struct *work)
 {
 	struct cpu_stop_work *stwork =
 		container_of(work, struct cpu_stop_work, work);
@@ -67,12 +67,12 @@ static void stop_one_cpu_nowait_workfn(struct work_struct *work)
 	preempt_enable();
 }
 
-static inline bool stop_one_cpu_nowait(unsigned int cpu,
+static inline bool stop_one_cpu_yeswait(unsigned int cpu,
 				       cpu_stop_fn_t fn, void *arg,
 				       struct cpu_stop_work *work_buf)
 {
 	if (cpu == smp_processor_id()) {
-		INIT_WORK(&work_buf->work, stop_one_cpu_nowait_workfn);
+		INIT_WORK(&work_buf->work, stop_one_cpu_yeswait_workfn);
 		work_buf->fn = fn;
 		work_buf->arg = arg;
 		schedule_work(&work_buf->work);
@@ -113,7 +113,7 @@ static inline int try_stop_cpus(const struct cpumask *cpumask,
  * @cpus: the cpus to run the @fn() on (NULL = any online cpu)
  *
  * Description: This causes a thread to be scheduled on every cpu,
- * each of which disables interrupts.  The result is that no one is
+ * each of which disables interrupts.  The result is that yes one is
  * holding a spinlock or inside any other preempt-disabled region when
  * @fn() runs.
  *

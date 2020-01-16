@@ -23,7 +23,7 @@
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-subdev.h>
 
@@ -36,7 +36,7 @@
  * output. This driver currently supports only YUYV format permutations.
  *
  * The driver allows manual frame rate control through s_frame_interval subdev
- * operation or V4L2_CID_V/HBLANK controls, but it is known that the
+ * operation or V4L2_CID_V/HBLANK controls, but it is kyeswn that the
  * auto-exposure algorithm might modify the programmed frame rate. While the
  * driver initially programs the sensor with auto-exposure and
  * auto-white-balancing enabled, it is possible to disable them and more
@@ -44,7 +44,7 @@
  *
  * While it seems possible to instruct the auto-exposure control algorithm to
  * respect a programmed frame rate when adjusting the pixel integration time,
- * registers controlling this feature are not documented in the public
+ * registers controlling this feature are yest documented in the public
  * available sensor manual used to develop this driver (09005aef80e90084,
  * MT9V111_1.fm - Rev. G 1/05 EN).
  */
@@ -143,7 +143,7 @@ struct mt9v111_dev {
 	struct mutex stream_mutex;
 	bool streaming;
 
-	/* Flags to mark HW settings as not yet applied. */
+	/* Flags to mark HW settings as yest yet applied. */
 	bool pending;
 
 	/* Clock provider and system clock frequency. */
@@ -164,7 +164,7 @@ struct mt9v111_dev {
  * in the pixel array sizes range.
  *
  * The desired frame interval, in the supported frame interval range, is
- * obtained by configuring blanking as the sensor does not have a PLL but
+ * obtained by configuring blanking as the sensor does yest have a PLL but
  * only a fixed clock divider that generates the output pixel clock.
  */
 static struct mt9v111_mbus_fmt {
@@ -449,8 +449,8 @@ static int mt9v111_calc_frame_rate(struct mt9v111_dev *mt9v111,
 				   struct v4l2_fract *tpf)
 {
 	unsigned int fps = tpf->numerator ?
-			   tpf->denominator / tpf->numerator :
-			   tpf->denominator;
+			   tpf->deyesminator / tpf->numerator :
+			   tpf->deyesminator;
 	unsigned int best_diff;
 	unsigned int frm_cols;
 	unsigned int row_pclk;
@@ -475,7 +475,7 @@ static int mt9v111_calc_frame_rate(struct mt9v111_dev *mt9v111,
 	fps = mt9v111_frame_intervals[idx];
 
 	/*
-	 * The sensor does not provide a PLL circuitry and pixel clock is
+	 * The sensor does yest provide a PLL circuitry and pixel clock is
 	 * generated dividing the master clock source by two.
 	 *
 	 * Trow = (W + Hblank + 114) * 2 * (1 / SYSCLK)
@@ -526,7 +526,7 @@ static int mt9v111_calc_frame_rate(struct mt9v111_dev *mt9v111,
 		return ret;
 
 	tpf->numerator = 1;
-	tpf->denominator = best_fps;
+	tpf->deyesminator = best_fps;
 
 	return 0;
 }
@@ -585,13 +585,13 @@ static int mt9v111_hw_config(struct mt9v111_dev *mt9v111)
 		return ret;
 
 	/*
-	 * Do not change default sensor's core configuration:
+	 * Do yest change default sensor's core configuration:
 	 * output the whole 640x480 pixel array, skip 18 columns and 6 rows.
 	 *
 	 * Instead, control the output image size through IFP block.
 	 *
 	 * TODO: No zoom&pan support. Currently we control the output image
-	 *	 size only through decimation, with no zoom support.
+	 *	 size only through decimation, with yes zoom support.
 	 */
 	ret = mt9v111_write(c, MT9V111_R01_IFP, MT9V111_IFP_RA5_HPAN,
 			    MT9V111_IFP_DECIMATION_FREEZE);
@@ -727,8 +727,8 @@ static int mt9v111_s_frame_interval(struct v4l2_subdev *sd,
 	struct mt9v111_dev *mt9v111 = sd_to_mt9v111(sd);
 	struct v4l2_fract *tpf = &ival->interval;
 	unsigned int fps = tpf->numerator ?
-			   tpf->denominator / tpf->numerator :
-			   tpf->denominator;
+			   tpf->deyesminator / tpf->numerator :
+			   tpf->deyesminator;
 	unsigned int max_fps;
 
 	if (!tpf->numerator)
@@ -782,7 +782,7 @@ static int mt9v111_g_frame_interval(struct v4l2_subdev *sd,
 	mutex_lock(&mt9v111->stream_mutex);
 
 	tpf->numerator = 1;
-	tpf->denominator = mt9v111->fps;
+	tpf->deyesminator = mt9v111->fps;
 
 	mutex_unlock(&mt9v111->stream_mutex);
 
@@ -839,7 +839,7 @@ static int mt9v111_enum_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	fie->interval.numerator = 1;
-	fie->interval.denominator = mt9v111_frame_intervals[fie->index];
+	fie->interval.deyesminator = mt9v111_frame_intervals[fie->index];
 
 	return 0;
 }
@@ -1003,7 +1003,7 @@ static int mt9v111_s_ctrl(struct v4l2_ctrl *ctrl)
 	mutex_lock(&mt9v111->pwr_mutex);
 	/*
 	 * If sensor is powered down, just cache new control values,
-	 * no actual register access.
+	 * yes actual register access.
 	 */
 	if (!mt9v111->pwr_count) {
 		mt9v111->pending = true;
@@ -1193,7 +1193,7 @@ static int mt9v111_probe(struct i2c_client *client)
 	/* Re-calculate blankings for 640x480@15fps. */
 	mt9v111->fps		= 15;
 	tpf.numerator		= 1;
-	tpf.denominator		= mt9v111->fps;
+	tpf.deyesminator		= mt9v111->fps;
 	mt9v111_calc_frame_rate(mt9v111, &tpf);
 
 	mt9v111->pwr_count	= 0;

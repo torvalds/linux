@@ -13,7 +13,7 @@
  * and then read/write in chunks of 8 bytes.  A larger size means multiple
  * reads or writes of the same register.
  *
- * This driver uses /dev/cpu/%d/msr where %d is the minor number, and on
+ * This driver uses /dev/cpu/%d/msr where %d is the miyesr number, and on
  * an SMP box will direct the access to CPU %d.
  */
 
@@ -22,7 +22,7 @@
 #include <linux/module.h>
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -31,7 +31,7 @@
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/uaccess.h>
 #include <linux/gfp.h>
 #include <linux/security.h>
@@ -48,7 +48,7 @@ static ssize_t msr_read(struct file *file, char __user *buf,
 	u32 __user *tmp = (u32 __user *) buf;
 	u32 data[2];
 	u32 reg = *ppos;
-	int cpu = iminor(file_inode(file));
+	int cpu = imiyesr(file_iyesde(file));
 	int err = 0;
 	ssize_t bytes = 0;
 
@@ -76,7 +76,7 @@ static ssize_t msr_write(struct file *file, const char __user *buf,
 	const u32 __user *tmp = (const u32 __user *)buf;
 	u32 data[2];
 	u32 reg = *ppos;
-	int cpu = iminor(file_inode(file));
+	int cpu = imiyesr(file_iyesde(file));
 	int err = 0;
 	ssize_t bytes = 0;
 
@@ -106,7 +106,7 @@ static long msr_ioctl(struct file *file, unsigned int ioc, unsigned long arg)
 {
 	u32 __user *uregs = (u32 __user *)arg;
 	u32 regs[8];
-	int cpu = iminor(file_inode(file));
+	int cpu = imiyesr(file_iyesde(file));
 	int err;
 
 	switch (ioc) {
@@ -153,9 +153,9 @@ static long msr_ioctl(struct file *file, unsigned int ioc, unsigned long arg)
 	return err;
 }
 
-static int msr_open(struct inode *inode, struct file *file)
+static int msr_open(struct iyesde *iyesde, struct file *file)
 {
-	unsigned int cpu = iminor(file_inode(file));
+	unsigned int cpu = imiyesr(file_iyesde(file));
 	struct cpuinfo_x86 *c;
 
 	if (!capable(CAP_SYS_RAWIO))
@@ -166,7 +166,7 @@ static int msr_open(struct inode *inode, struct file *file)
 
 	c = &cpu_data(cpu);
 	if (!cpu_has(c, X86_FEATURE_MSR))
-		return -EIO;	/* MSR not supported */
+		return -EIO;	/* MSR yest supported */
 
 	return 0;
 }
@@ -176,7 +176,7 @@ static int msr_open(struct inode *inode, struct file *file)
  */
 static const struct file_operations msr_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_seek_end_llseek,
+	.llseek = yes_seek_end_llseek,
 	.read = msr_read,
 	.write = msr_write,
 	.open = msr_open,
@@ -199,7 +199,7 @@ static int msr_device_destroy(unsigned int cpu)
 	return 0;
 }
 
-static char *msr_devnode(struct device *dev, umode_t *mode)
+static char *msr_devyesde(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "cpu/%u/msr", MINOR(dev->devt));
 }
@@ -217,7 +217,7 @@ static int __init msr_init(void)
 		err = PTR_ERR(msr_class);
 		goto out_chrdev;
 	}
-	msr_class->devnode = msr_devnode;
+	msr_class->devyesde = msr_devyesde;
 
 	err  = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/msr:online",
 				 msr_device_create, msr_device_destroy);

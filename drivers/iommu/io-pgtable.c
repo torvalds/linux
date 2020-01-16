@@ -54,7 +54,7 @@ EXPORT_SYMBOL_GPL(alloc_io_pgtable_ops);
 
 /*
  * It is the IOMMU driver's responsibility to ensure that the page table
- * is no longer accessible to the walker by this point.
+ * is yes longer accessible to the walker by this point.
  */
 void free_io_pgtable_ops(struct io_pgtable_ops *ops)
 {

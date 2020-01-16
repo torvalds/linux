@@ -64,7 +64,7 @@ static void orion_nand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 	buf64 = (uint64_t *)buf;
 	while (i < len/8) {
 		/*
-		 * Since GCC has no proper constraint (PR 43518)
+		 * Since GCC has yes proper constraint (PR 43518)
 		 * force x variable to r2/r3 registers as ldrd instruction
 		 * requires first register to be even.
 		 */
@@ -107,25 +107,25 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		board = devm_kzalloc(&pdev->dev, sizeof(struct orion_nand_data),
 					GFP_KERNEL);
 		if (!board)
 			return -ENOMEM;
-		if (!of_property_read_u32(pdev->dev.of_node, "cle", &val))
+		if (!of_property_read_u32(pdev->dev.of_yesde, "cle", &val))
 			board->cle = (u8)val;
 		else
 			board->cle = 0;
-		if (!of_property_read_u32(pdev->dev.of_node, "ale", &val))
+		if (!of_property_read_u32(pdev->dev.of_yesde, "ale", &val))
 			board->ale = (u8)val;
 		else
 			board->ale = 1;
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_yesde,
 						"bank-width", &val))
 			board->width = (u8)val * 8;
 		else
 			board->width = 8;
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_yesde,
 						"chip-delay", &val))
 			board->chip_delay = (u8)val;
 	} else {
@@ -135,7 +135,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	mtd->dev.parent = &pdev->dev;
 
 	nand_set_controller_data(nc, board);
-	nand_set_flash_node(nc, pdev->dev.of_node);
+	nand_set_flash_yesde(nc, pdev->dev.of_yesde);
 	nc->legacy.IO_ADDR_R = nc->legacy.IO_ADDR_W = io_base;
 	nc->legacy.cmd_ctrl = orion_nand_cmd_ctrl;
 	nc->legacy.read_buf = orion_nand_read_buf;
@@ -154,8 +154,8 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	/* Not all platforms can gate the clock, so it is not
-	   an error if the clock does not exists. */
+	/* Not all platforms can gate the clock, so it is yest
+	   an error if the clock does yest exists. */
 	info->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(info->clk)) {
 		ret = PTR_ERR(info->clk);
@@ -175,18 +175,18 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	ret = nand_scan(nc, 1);
 	if (ret)
-		goto no_dev;
+		goto yes_dev;
 
 	mtd->name = "orion_nand";
 	ret = mtd_device_register(mtd, board->parts, board->nr_parts);
 	if (ret) {
 		nand_release(nc);
-		goto no_dev;
+		goto yes_dev;
 	}
 
 	return 0;
 
-no_dev:
+yes_dev:
 	clk_disable_unprepare(info->clk);
 	return ret;
 }

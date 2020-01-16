@@ -52,7 +52,7 @@ struct vmci_qp_set_va_info {
  * VMCIqueue_pairPageFileInfo before host support end-points was added.
  * Note that the current version of that structure requires VMX to
  * pass down the VA of the mapped file.  Before host support was added
- * there was nothing of the sort.  So, when the driver sees the ioctl
+ * there was yesthing of the sort.  So, when the driver sees the ioctl
  * with a parameter that is the sizeof
  * VMCIqueue_pairPageFileInfo_NoHostQP then it can infer that the version
  * of VMX running can't attach to host end points because it doesn't

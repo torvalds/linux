@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/mtd/partitions.h>
 
-static bool node_has_compatible(struct device_node *pp)
+static bool yesde_has_compatible(struct device_yesde *pp)
 {
 	return of_get_property(pp, "compatible", NULL);
 }
@@ -26,39 +26,39 @@ static int parse_fixed_partitions(struct mtd_info *master,
 				  struct mtd_part_parser_data *data)
 {
 	struct mtd_partition *parts;
-	struct device_node *mtd_node;
-	struct device_node *ofpart_node;
+	struct device_yesde *mtd_yesde;
+	struct device_yesde *ofpart_yesde;
 	const char *partname;
-	struct device_node *pp;
+	struct device_yesde *pp;
 	int nr_parts, i, ret = 0;
 	bool dedicated = true;
 
 
-	/* Pull of_node from the master device node */
-	mtd_node = mtd_get_of_node(master);
-	if (!mtd_node)
+	/* Pull of_yesde from the master device yesde */
+	mtd_yesde = mtd_get_of_yesde(master);
+	if (!mtd_yesde)
 		return 0;
 
-	ofpart_node = of_get_child_by_name(mtd_node, "partitions");
-	if (!ofpart_node) {
+	ofpart_yesde = of_get_child_by_name(mtd_yesde, "partitions");
+	if (!ofpart_yesde) {
 		/*
 		 * We might get here even when ofpart isn't used at all (e.g.,
-		 * when using another parser), so don't be louder than
+		 * when using ayesther parser), so don't be louder than
 		 * KERN_DEBUG
 		 */
-		pr_debug("%s: 'partitions' subnode not found on %pOF. Trying to parse direct subnodes as partitions.\n",
-			 master->name, mtd_node);
-		ofpart_node = mtd_node;
+		pr_debug("%s: 'partitions' subyesde yest found on %pOF. Trying to parse direct subyesdes as partitions.\n",
+			 master->name, mtd_yesde);
+		ofpart_yesde = mtd_yesde;
 		dedicated = false;
-	} else if (!of_device_is_compatible(ofpart_node, "fixed-partitions")) {
-		/* The 'partitions' subnode might be used by another parser */
+	} else if (!of_device_is_compatible(ofpart_yesde, "fixed-partitions")) {
+		/* The 'partitions' subyesde might be used by ayesther parser */
 		return 0;
 	}
 
-	/* First count the subnodes */
+	/* First count the subyesdes */
 	nr_parts = 0;
-	for_each_child_of_node(ofpart_node,  pp) {
-		if (!dedicated && node_has_compatible(pp))
+	for_each_child_of_yesde(ofpart_yesde,  pp) {
+		if (!dedicated && yesde_has_compatible(pp))
 			continue;
 
 		nr_parts++;
@@ -72,12 +72,12 @@ static int parse_fixed_partitions(struct mtd_info *master,
 		return -ENOMEM;
 
 	i = 0;
-	for_each_child_of_node(ofpart_node,  pp) {
+	for_each_child_of_yesde(ofpart_yesde,  pp) {
 		const __be32 *reg;
 		int len;
 		int a_cells, s_cells;
 
-		if (!dedicated && node_has_compatible(pp))
+		if (!dedicated && yesde_has_compatible(pp))
 			continue;
 
 		reg = of_get_property(pp, "reg", &len);
@@ -85,7 +85,7 @@ static int parse_fixed_partitions(struct mtd_info *master,
 			if (dedicated) {
 				pr_debug("%s: ofpart partition %pOF (%pOF) missing reg property.\n",
 					 master->name, pp,
-					 mtd_node);
+					 mtd_yesde);
 				goto ofpart_fail;
 			} else {
 				nr_parts--;
@@ -98,13 +98,13 @@ static int parse_fixed_partitions(struct mtd_info *master,
 		if (len / 4 != a_cells + s_cells) {
 			pr_debug("%s: ofpart partition %pOF (%pOF) error parsing reg property.\n",
 				 master->name, pp,
-				 mtd_node);
+				 mtd_yesde);
 			goto ofpart_fail;
 		}
 
 		parts[i].offset = of_read_number(reg, a_cells);
 		parts[i].size = of_read_number(reg + a_cells, s_cells);
-		parts[i].of_node = pp;
+		parts[i].of_yesde = pp;
 
 		partname = of_get_property(pp, "label", &len);
 		if (!partname)
@@ -121,17 +121,17 @@ static int parse_fixed_partitions(struct mtd_info *master,
 	}
 
 	if (!nr_parts)
-		goto ofpart_none;
+		goto ofpart_yesne;
 
 	*pparts = parts;
 	return nr_parts;
 
 ofpart_fail:
 	pr_err("%s: error parsing ofpart partition %pOF (%pOF)\n",
-	       master->name, pp, mtd_node);
+	       master->name, pp, mtd_yesde);
 	ret = -EINVAL;
-ofpart_none:
-	of_node_put(pp);
+ofpart_yesne:
+	of_yesde_put(pp);
 	kfree(parts);
 	return ret;
 }
@@ -153,15 +153,15 @@ static int parse_ofoldpart_partitions(struct mtd_info *master,
 				      struct mtd_part_parser_data *data)
 {
 	struct mtd_partition *parts;
-	struct device_node *dp;
+	struct device_yesde *dp;
 	int i, plen, nr_parts;
 	const struct {
 		__be32 offset, len;
 	} *part;
 	const char *names;
 
-	/* Pull of_node from the master device node */
-	dp = mtd_get_of_node(master);
+	/* Pull of_yesde from the master device yesde */
+	dp = mtd_get_of_yesde(master);
 	if (!dp)
 		return 0;
 
@@ -228,7 +228,7 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Parser for MTD partitioning information in device tree");
 MODULE_AUTHOR("Vitaly Wool, David Gibson");
 /*
- * When MTD core cannot find the requested parser, it tries to load the module
+ * When MTD core canyest find the requested parser, it tries to load the module
  * with the same name. Since we provide the ofoldpart parser, we should have
  * the corresponding alias.
  */

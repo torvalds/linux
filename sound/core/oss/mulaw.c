@@ -16,7 +16,7 @@
  *   GNU Library General Public License for more details.
  *
  *   You should have received a copy of the GNU Library General Public
- *   License along with this library; if not, write to the Free Software
+ *   License along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
@@ -72,7 +72,7 @@ static inline int val_seg(int val)
  * Each biased linear code has a leading 1 which identifies the segment
  * number. The value of the segment number is equal to 7 minus the number
  * of leading 0's. The quantization interval is directly available as the
- * four bits wxyz.  * The trailing bits (a - h) are ignored.
+ * four bits wxyz.  * The trailing bits (a - h) are igyesred.
  *
  * Ordinarily the complement of the resulting code word is used for
  * transmission, and so the code word is complemented before it is returned.
@@ -121,7 +121,7 @@ static int ulaw2linear(unsigned char u_val)
 {
 	int t;
 
-	/* Complement to obtain normal u-law value. */
+	/* Complement to obtain yesrmal u-law value. */
 	u_val = ~u_val;
 
 	/*

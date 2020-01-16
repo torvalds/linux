@@ -22,7 +22,7 @@
 extern "C" {
 #endif
 
-/* Do not access these members directly. Use the functions below. */
+/* Do yest access these members directly. Use the functions below. */
 #define DEFINE_XSK_RING(name) \
 struct name { \
 	__u32 cached_prod; \
@@ -141,7 +141,7 @@ static inline size_t xsk_ring_cons__peek(struct xsk_ring_cons *cons,
 	size_t entries = xsk_cons_nb_avail(cons, nb);
 
 	if (entries > 0) {
-		/* Make sure we do not speculatively read the data before
+		/* Make sure we do yest speculatively read the data before
 		 * we have received the packet buffers from the ring.
 		 */
 		libbpf_smp_rmb();

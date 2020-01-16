@@ -105,7 +105,7 @@ struct vadc_channel_prop {
  * @iio_chans: array of IIO channels specification.
  * @are_ref_measured: are reference points measured.
  * @poll_eoc: use polling instead of interrupt.
- * @complete: VADC result notification after interrupt is received.
+ * @complete: VADC result yestification after interrupt is received.
  * @graph: store parameters for calibration.
  * @lock: ADC lock for access to the peripheral.
  */
@@ -293,7 +293,7 @@ static struct vadc_channel_prop *vadc_get_channel(struct vadc_priv *vadc,
 		if (vadc->chan_props[i].channel == num)
 			return &vadc->chan_props[i];
 
-	dev_dbg(vadc->dev, "no such channel %02x\n", num);
+	dev_dbg(vadc->dev, "yes such channel %02x\n", num);
 
 	return NULL;
 }
@@ -650,13 +650,13 @@ static const struct vadc_channels vadc_chans[] = {
 
 static int vadc_get_dt_channel_data(struct device *dev,
 				    struct vadc_channel_prop *prop,
-				    struct device_node *node)
+				    struct device_yesde *yesde)
 {
-	const char *name = node->name;
+	const char *name = yesde->name;
 	u32 chan, value, varr[2];
 	int ret;
 
-	ret = of_property_read_u32(node, "reg", &chan);
+	ret = of_property_read_u32(yesde, "reg", &chan);
 	if (ret) {
 		dev_err(dev, "invalid channel number %s\n", name);
 		return ret;
@@ -670,7 +670,7 @@ static int vadc_get_dt_channel_data(struct device *dev,
 	/* the channel has DT description */
 	prop->channel = chan;
 
-	ret = of_property_read_u32(node, "qcom,decimation", &value);
+	ret = of_property_read_u32(yesde, "qcom,decimation", &value);
 	if (!ret) {
 		ret = qcom_vadc_decimation_from_dt(value);
 		if (ret < 0) {
@@ -683,7 +683,7 @@ static int vadc_get_dt_channel_data(struct device *dev,
 		prop->decimation = VADC_DEF_DECIMATION;
 	}
 
-	ret = of_property_read_u32_array(node, "qcom,pre-scaling", varr, 2);
+	ret = of_property_read_u32_array(yesde, "qcom,pre-scaling", varr, 2);
 	if (!ret) {
 		ret = vadc_prescaling_from_dt(varr[0], varr[1]);
 		if (ret < 0) {
@@ -696,7 +696,7 @@ static int vadc_get_dt_channel_data(struct device *dev,
 		prop->prescale = vadc_chans[prop->channel].prescale_index;
 	}
 
-	ret = of_property_read_u32(node, "qcom,hw-settle-time", &value);
+	ret = of_property_read_u32(yesde, "qcom,hw-settle-time", &value);
 	if (!ret) {
 		ret = vadc_hw_settle_time_from_dt(value);
 		if (ret < 0) {
@@ -709,7 +709,7 @@ static int vadc_get_dt_channel_data(struct device *dev,
 		prop->hw_settle_time = VADC_DEF_HW_SETTLE_TIME;
 	}
 
-	ret = of_property_read_u32(node, "qcom,avg-samples", &value);
+	ret = of_property_read_u32(yesde, "qcom,avg-samples", &value);
 	if (!ret) {
 		ret = vadc_avg_samples_from_dt(value);
 		if (ret < 0) {
@@ -722,7 +722,7 @@ static int vadc_get_dt_channel_data(struct device *dev,
 		prop->avg_samples = VADC_DEF_AVG_SAMPLES;
 	}
 
-	if (of_property_read_bool(node, "qcom,ratiometric"))
+	if (of_property_read_bool(yesde, "qcom,ratiometric"))
 		prop->calibration = VADC_CALIB_RATIOMETRIC;
 	else
 		prop->calibration = VADC_CALIB_ABSOLUTE;
@@ -732,16 +732,16 @@ static int vadc_get_dt_channel_data(struct device *dev,
 	return 0;
 }
 
-static int vadc_get_dt_data(struct vadc_priv *vadc, struct device_node *node)
+static int vadc_get_dt_data(struct vadc_priv *vadc, struct device_yesde *yesde)
 {
 	const struct vadc_channels *vadc_chan;
 	struct iio_chan_spec *iio_chan;
 	struct vadc_channel_prop prop;
-	struct device_node *child;
+	struct device_yesde *child;
 	unsigned int index = 0;
 	int ret;
 
-	vadc->nchannels = of_get_available_child_count(node);
+	vadc->nchannels = of_get_available_child_count(yesde);
 	if (!vadc->nchannels)
 		return -EINVAL;
 
@@ -757,10 +757,10 @@ static int vadc_get_dt_data(struct vadc_priv *vadc, struct device_node *node)
 
 	iio_chan = vadc->iio_chans;
 
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_yesde(yesde, child) {
 		ret = vadc_get_dt_channel_data(vadc->dev, &prop, child);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 
@@ -822,7 +822,7 @@ static int vadc_check_revision(struct vadc_priv *vadc)
 		return ret;
 
 	if (val < VADC_PERPH_TYPE_ADC) {
-		dev_err(vadc->dev, "%d is not ADC\n", val);
+		dev_err(vadc->dev, "%d is yest ADC\n", val);
 		return -ENODEV;
 	}
 
@@ -831,7 +831,7 @@ static int vadc_check_revision(struct vadc_priv *vadc)
 		return ret;
 
 	if (val < VADC_PERPH_SUBTYPE_VADC) {
-		dev_err(vadc->dev, "%d is not VADC\n", val);
+		dev_err(vadc->dev, "%d is yest VADC\n", val);
 		return -ENODEV;
 	}
 
@@ -840,7 +840,7 @@ static int vadc_check_revision(struct vadc_priv *vadc)
 		return ret;
 
 	if (val < VADC_REVISION2_SUPPORTED_VADC) {
-		dev_err(vadc->dev, "revision %d not supported\n", val);
+		dev_err(vadc->dev, "revision %d yest supported\n", val);
 		return -ENODEV;
 	}
 
@@ -849,7 +849,7 @@ static int vadc_check_revision(struct vadc_priv *vadc)
 
 static int vadc_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	struct iio_dev *indio_dev;
 	struct vadc_priv *vadc;
@@ -861,7 +861,7 @@ static int vadc_probe(struct platform_device *pdev)
 	if (!regmap)
 		return -ENODEV;
 
-	ret = of_property_read_u32(node, "reg", &reg);
+	ret = of_property_read_u32(yesde, "reg", &reg);
 	if (ret < 0)
 		return ret;
 
@@ -881,7 +881,7 @@ static int vadc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = vadc_get_dt_data(vadc, node);
+	ret = vadc_get_dt_data(vadc, yesde);
 	if (ret)
 		return ret;
 
@@ -908,7 +908,7 @@ static int vadc_probe(struct platform_device *pdev)
 		return ret;
 
 	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = node;
+	indio_dev->dev.of_yesde = yesde;
 	indio_dev->name = pdev->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &vadc_info;
@@ -936,5 +936,5 @@ module_platform_driver(vadc_driver);
 MODULE_ALIAS("platform:qcom-spmi-vadc");
 MODULE_DESCRIPTION("Qualcomm SPMI PMIC voltage ADC driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Stanimir Varbanov <svarbanov@mm-sol.com>");
-MODULE_AUTHOR("Ivan T. Ivanov <iivanov@mm-sol.com>");
+MODULE_AUTHOR("Stanimir Varbayesv <svarbayesv@mm-sol.com>");
+MODULE_AUTHOR("Ivan T. Ivayesv <iivayesv@mm-sol.com>");

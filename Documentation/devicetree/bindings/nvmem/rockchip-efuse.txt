@@ -23,7 +23,7 @@ Deprecated properties:
   efuses
 
 = Data cells =
-Are child nodes of eFuse, bindings of which as described in
+Are child yesdes of eFuse, bindings of which as described in
 bindings/nvmem/nvmem.txt
 
 Example:
@@ -43,7 +43,7 @@ Example:
 	};
 
 = Data consumers =
-Are device nodes which consume nvmem data cells.
+Are device yesdes which consume nvmem data cells.
 
 Example:
 

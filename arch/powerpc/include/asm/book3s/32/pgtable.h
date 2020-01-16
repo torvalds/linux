@@ -3,7 +3,7 @@
 #define _ASM_POWERPC_BOOK3S_32_PGTABLE_H
 
 #define __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 
 #include <asm/book3s/32/hash.h>
 
@@ -50,7 +50,7 @@ static inline bool pte_user(pte_t pte)
 
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
- * cacheable kernel and user pages) and one for non cacheable
+ * cacheable kernel and user pages) and one for yesn cacheable
  * pages. We always set _PAGE_COHERENT when SMP is enabled or
  * the processor might need it for DMA coherency.
  */
@@ -62,7 +62,7 @@ static inline bool pte_user(pte_t pte)
  *
  * Note:__pgprot is defined in arch/powerpc/include/asm/page.h
  *
- * Write permissions imply read permissions for now.
+ * Write permissions imply read permissions for yesw.
  */
 #define PAGE_NONE	__pgprot(_PAGE_BASE)
 #define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW)
@@ -119,7 +119,7 @@ static inline bool pte_user(pte_t pte)
 #define PTRS_PER_PGD	(1 << PGD_INDEX_SIZE)
 
 /*
- * The normal case is that PTEs are 32-bits and we have a 1-page
+ * The yesrmal case is that PTEs are 32-bits and we have a 1-page
  * 1024-entry pgdir pointing to 1-page 1024-entry PTE pages.  -- paulus
  *
  * For any >32-bit physical address platform, we can use the following
@@ -143,7 +143,7 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
- * value (for now) on others, from where we can start layout kernel
+ * value (for yesw) on others, from where we can start layout kernel
  * virtual space that goes below PKMAP and FIXMAP
  */
 #include <asm/fixmap.h>
@@ -171,7 +171,7 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
  *
- * We no longer map larger than phys RAM with the BATs so we don't have
+ * We yes longer map larger than phys RAM with the BATs so we don't have
  * to worry about the VMALLOC_OFFSET causing problems.  We do have to worry
  * about clashes between our early calls to ioremap() that start growing down
  * from ioremap_base being run into the VM area allocations (growing upwards
@@ -184,8 +184,8 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 
 /*
  * With CONFIG_STRICT_KERNEL_RWX, kernel segments are set NX. But when modules
- * are used, NX cannot be set on VMALLOC space. So vmalloc VM space and linear
- * memory shall not share segments.
+ * are used, NX canyest be set on VMALLOC space. So vmalloc VM space and linear
+ * memory shall yest share segments.
  */
 #if defined(CONFIG_STRICT_KERNEL_RWX) && defined(CONFIG_MODULES)
 #define VMALLOC_START ((_ALIGN((long)high_memory, 256L << 20) + VMALLOC_OFFSET) & \
@@ -215,7 +215,7 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 #define pte_clear(mm, addr, ptep) \
 	do { pte_update(ptep, ~_PAGE_HASHPTE, 0); } while (0)
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_yesne(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
 #define	pmd_present(pmd)	(pmd_val(pmd) & _PMD_PRESENT_MASK)
 static inline void pmd_clear(pmd_t *pmdp)
@@ -241,8 +241,8 @@ extern void flush_hash_entry(struct mm_struct *mm, pte_t *ptep,
 
 /*
  * PTE updates. This function is called whenever an existing
- * valid PTE is updated. This does -not- include set_pte_at()
- * which nowadays only sets a new PTE.
+ * valid PTE is updated. This does -yest- include set_pte_at()
+ * which yeswadays only sets a new PTE.
  *
  * Depending on the type of MMU, we may need to use atomic updates
  * and the PTE may be either 32 or 64 bit wide. In the later case,
@@ -369,7 +369,7 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 /*
  * Encode and decode a swap entry.
  * Note that the bits we use in a PTE for representing a swap entry
- * must not include the _PAGE_PRESENT bit or the _PAGE_HASHPTE bit (if used).
+ * must yest include the _PAGE_PRESENT bit or the _PAGE_HASHPTE bit (if used).
  *   -- paulus
  */
 #define __swp_type(entry)		((entry).val & 0x1f)
@@ -384,7 +384,7 @@ static inline int pte_read(pte_t pte)		{ return 1; }
 static inline int pte_dirty(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DIRTY); }
 static inline int pte_young(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_ACCESSED); }
 static inline int pte_special(pte_t pte)	{ return !!(pte_val(pte) & _PAGE_SPECIAL); }
-static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
+static inline int pte_yesne(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
 static inline bool pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_EXEC; }
 
 static inline int pte_present(pte_t pte)
@@ -409,7 +409,7 @@ static inline bool pte_ci(pte_t pte)
 
 /*
  * We only find page table entry in the last level
- * Hence no need for other accessors
+ * Hence yes need for other accessors
  */
 #define pte_access_permitted pte_access_permitted
 static inline bool pte_access_permitted(pte_t pte, bool write)
@@ -431,7 +431,7 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
  * and a page entry and page directory to the page they refer to.
  *
  * Even if PTEs can be unsigned long long, a PFN is always an unsigned
- * long for now.
+ * long for yesw.
  */
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 {
@@ -519,7 +519,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 /* This low level function performs the actual PTE insertion
  * Setting the PTE depends on the MMU type and other factors. It's
- * an horrible mess that I'm not going to try to clean up now but
+ * an horrible mess that I'm yest going to try to clean up yesw but
  * I'm keeping it in one place rather than spread around
  */
 static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
@@ -530,7 +530,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * helper pte_update() which does an atomic update. We need to do that
 	 * because a concurrent invalidation can clear _PAGE_HASHPTE. If it's a
 	 * per-CPU PTE such as a kmap_atomic, we do a simple update preserving
-	 * the hash bits instead (ie, same as the non-SMP case)
+	 * the hash bits instead (ie, same as the yesn-SMP case)
 	 */
 	if (percpu)
 		*ptep = __pte((pte_val(*ptep) & _PAGE_HASHPTE)
@@ -563,7 +563,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 
 #else
 	/* Third case is 32-bit hash table in UP mode, we need to preserve
-	 * the _PAGE_HASHPTE bit since we may not have invalidated the previous
+	 * the _PAGE_HASHPTE bit since we may yest have invalidated the previous
 	 * translation in the hash yet (done in a subsequent flush_tlb_xxx())
 	 * and see we need to keep track that this PTE needs invalidating
 	 */
@@ -579,15 +579,15 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 #define _PAGE_CACHE_CTL	(_PAGE_COHERENT | _PAGE_GUARDED | _PAGE_NO_CACHE | \
 			 _PAGE_WRITETHRU)
 
-#define pgprot_noncached pgprot_noncached
-static inline pgprot_t pgprot_noncached(pgprot_t prot)
+#define pgprot_yesncached pgprot_yesncached
+static inline pgprot_t pgprot_yesncached(pgprot_t prot)
 {
 	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
 			_PAGE_NO_CACHE | _PAGE_GUARDED);
 }
 
-#define pgprot_noncached_wc pgprot_noncached_wc
-static inline pgprot_t pgprot_noncached_wc(pgprot_t prot)
+#define pgprot_yesncached_wc pgprot_yesncached_wc
+static inline pgprot_t pgprot_yesncached_wc(pgprot_t prot)
 {
 	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
 			_PAGE_NO_CACHE);
@@ -607,8 +607,8 @@ static inline pgprot_t pgprot_cached_wthru(pgprot_t prot)
 			_PAGE_COHERENT | _PAGE_WRITETHRU);
 }
 
-#define pgprot_cached_noncoherent pgprot_cached_noncoherent
-static inline pgprot_t pgprot_cached_noncoherent(pgprot_t prot)
+#define pgprot_cached_yesncoherent pgprot_cached_yesncoherent
+static inline pgprot_t pgprot_cached_yesncoherent(pgprot_t prot)
 {
 	return __pgprot(pgprot_val(prot) & ~_PAGE_CACHE_CTL);
 }
@@ -616,7 +616,7 @@ static inline pgprot_t pgprot_cached_noncoherent(pgprot_t prot)
 #define pgprot_writecombine pgprot_writecombine
 static inline pgprot_t pgprot_writecombine(pgprot_t prot)
 {
-	return pgprot_noncached_wc(prot);
+	return pgprot_yesncached_wc(prot);
 }
 
 #endif /* !__ASSEMBLY__ */

@@ -85,9 +85,9 @@ static int alt_dma;
 module_param(alt_dma, int, 0444);
 MODULE_PARM_DESC(alt_dma, "use alternative DMA buffer handling");
 
-static int no_init;
-module_param(no_init, int, 0444);
-MODULE_PARM_DESC(no_init, "do not initialize most devices");
+static int yes_init;
+module_param(yes_init, int, 0444);
+MODULE_PARM_DESC(yes_init, "do yest initialize most devices");
 
 static int stv0910_single;
 module_param(stv0910_single, int, 0444);
@@ -788,7 +788,7 @@ static __poll_t ts_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-static int ts_release(struct inode *inode, struct file *file)
+static int ts_release(struct iyesde *iyesde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct ddb_output *output = NULL;
@@ -808,10 +808,10 @@ static int ts_release(struct inode *inode, struct file *file)
 			return -EINVAL;
 		ddb_output_stop(output);
 	}
-	return dvb_generic_release(inode, file);
+	return dvb_generic_release(iyesde, file);
 }
 
-static int ts_open(struct inode *inode, struct file *file)
+static int ts_open(struct iyesde *iyesde, struct file *file)
 {
 	int err;
 	struct dvb_device *dvbdev = file->private_data;
@@ -835,7 +835,7 @@ static int ts_open(struct inode *inode, struct file *file)
 		return -EINVAL;
 	}
 
-	err = dvb_generic_open(inode, file);
+	err = dvb_generic_open(iyesde, file);
 	if (err < 0)
 		return err;
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
@@ -1053,7 +1053,7 @@ static int tuner_attach_tda18212(struct ddb_input *input, u32 porttype)
 	dvb->i2c_client[0] = client;
 	return 0;
 err:
-	dev_err(dev, "TDA18212 tuner not found. Device is not fully operational.\n");
+	dev_err(dev, "TDA18212 tuner yest found. Device is yest fully operational.\n");
 	return -ENODEV;
 }
 
@@ -1936,7 +1936,7 @@ static void ddb_port_probe(struct ddb_port *port)
 		}
 		id >>= 2;
 		if (id > 5) {
-			port->name = "unknown XO2 DuoFlex";
+			port->name = "unkyeswn XO2 DuoFlex";
 			port->type_name = "UNKNOWN";
 		} else {
 			port->name = xo2names[id];
@@ -2142,7 +2142,7 @@ static void input_write_dvb(struct ddb_input *input,
 	dma = input->dma;
 	dma2 = input->dma;
 	/*
-	 * if there also is an output connected, do not ACK.
+	 * if there also is an output connected, do yest ACK.
 	 * input_write_output will ACK.
 	 */
 	if (input->redo) {
@@ -2689,7 +2689,7 @@ static u32 ddb_num;
 static int ddb_major;
 static DEFINE_MUTEX(ddb_mutex);
 
-static int ddb_release(struct inode *inode, struct file *file)
+static int ddb_release(struct iyesde *iyesde, struct file *file)
 {
 	struct ddb *dev = file->private_data;
 
@@ -2697,9 +2697,9 @@ static int ddb_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ddb_open(struct inode *inode, struct file *file)
+static int ddb_open(struct iyesde *iyesde, struct file *file)
 {
-	struct ddb *dev = ddbs[iminor(inode)];
+	struct ddb *dev = ddbs[imiyesr(iyesde)];
 
 	if (dev->ddb_dev_users)
 		return -EBUSY;
@@ -2724,7 +2724,7 @@ static const struct file_operations ddb_fops = {
 	.release        = ddb_release,
 };
 
-static char *ddb_devnode(struct device *device, umode_t *mode)
+static char *ddb_devyesde(struct device *device, umode_t *mode)
 {
 	struct ddb *dev = dev_get_drvdata(device);
 
@@ -2810,7 +2810,7 @@ static ssize_t temp_show(struct device *device,
 	u8 tmp[2];
 
 	if (!link->info->temp_num)
-		return sprintf(buf, "no sensor\n");
+		return sprintf(buf, "yes sensor\n");
 	adap = &dev->i2c[link->info->temp_bus].adap;
 	if (i2c_read_regs(adap, 0x48, 0, tmp, 2) < 0)
 		return sprintf(buf, "read_error\n");
@@ -2840,7 +2840,7 @@ static ssize_t ctemp_show(struct device *device,
 		return 0;
 	if (i2c_read_regs(adap, 0x49, 0, tmp, 2) < 0)
 		if (i2c_read_regs(adap, 0x4d, 0, tmp, 2) < 0)
-			return sprintf(buf, "no sensor\n");
+			return sprintf(buf, "yes sensor\n");
 	temp = tmp[0] * 1000;
 	return sprintf(buf, "%d\n", temp);
 }
@@ -2923,7 +2923,7 @@ static ssize_t snr_show(struct device *device,
 			if (i2c_read_regs16(&dev->i2c[num].adap,
 					    0x50, 0x100, snr, 32) < 0)
 				return sprintf(buf, "NO SNR\n");
-		snr[31] = 0; /* in case it is not terminated on EEPROM */
+		snr[31] = 0; /* in case it is yest terminated on EEPROM */
 	}
 	return sprintf(buf, "%s\n", snr);
 }
@@ -2935,7 +2935,7 @@ static ssize_t bsnr_show(struct device *device,
 	char snr[16];
 
 	ddbridge_flashread(dev, 0, snr, 0x10, 15);
-	snr[15] = 0; /* in case it is not terminated on EEPROM */
+	snr[15] = 0; /* in case it is yest terminated on EEPROM */
 	return sprintf(buf, "%s\n", snr);
 }
 
@@ -2952,7 +2952,7 @@ static ssize_t bpsnr_show(struct device *device,
 			    0x50, 0x0000, snr, 32) < 0 ||
 	    snr[0] == 0xff)
 		return sprintf(buf, "NO SNR\n");
-	snr[31] = 0; /* in case it is not terminated on EEPROM */
+	snr[31] = 0; /* in case it is yest terminated on EEPROM */
 	return sprintf(buf, "%s\n", snr);
 }
 
@@ -3126,7 +3126,7 @@ static struct device_attribute ddb_attrs_fanspeed[] = {
 static struct class ddb_class = {
 	.name		= "ddbridge",
 	.owner          = THIS_MODULE,
-	.devnode        = ddb_devnode,
+	.devyesde        = ddb_devyesde,
 };
 
 static int ddb_class_create(void)
@@ -3214,7 +3214,7 @@ int ddb_device_create(struct ddb *dev)
 				     dev, "ddbridge%d", dev->nr);
 	if (IS_ERR(dev->ddb_dev)) {
 		res = PTR_ERR(dev->ddb_dev);
-		dev_info(dev->dev, "Could not create ddbridge%d\n", dev->nr);
+		dev_info(dev->dev, "Could yest create ddbridge%d\n", dev->nr);
 		goto fail;
 	}
 	res = ddb_device_attrs_add(dev);
@@ -3366,7 +3366,7 @@ int ddb_init(struct ddb *dev)
 {
 	mutex_init(&dev->link[0].lnb.lock);
 	mutex_init(&dev->link[0].flash_mutex);
-	if (no_init) {
+	if (yes_init) {
 		ddb_device_create(dev);
 		return 0;
 	}
@@ -3377,7 +3377,7 @@ int ddb_init(struct ddb *dev)
 		goto fail1;
 	ddb_ports_init(dev);
 	if (ddb_buffers_alloc(dev) < 0) {
-		dev_info(dev->dev, "Could not allocate buffer memory\n");
+		dev_info(dev->dev, "Could yest allocate buffer memory\n");
 		goto fail2;
 	}
 	if (ddb_ports_attach(dev) < 0)

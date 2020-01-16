@@ -13,16 +13,16 @@
  * by this processor have been performed (with respect to all other
  * mechanisms that access memory).  The eieio instruction is a barrier
  * providing an ordering (separately) for (a) cacheable stores and (b)
- * loads and stores to non-cacheable memory (e.g. I/O devices).
+ * loads and stores to yesn-cacheable memory (e.g. I/O devices).
  *
  * mb() prevents loads and stores being reordered across this point.
  * rmb() prevents loads being reordered across this point.
  * wmb() prevents stores being reordered across this point.
  * read_barrier_depends() prevents data-dependent loads being reordered
- *	across this point (nop on PPC).
+ *	across this point (yesp on PPC).
  *
  * *mb() variants without smp_ prefix must order all types of memory
- * operations with one another. sync is the only instruction sufficient
+ * operations with one ayesther. sync is the only instruction sufficient
  * to do this.
  *
  * For the smp_ barriers, ordering is for cacheable memory operations
@@ -56,7 +56,7 @@
 
 /*
  * This is a barrier which prevents following instructions from being
- * started until the value of the argument x is known.  For example, if
+ * started until the value of the argument x is kyeswn.  For example, if
  * x is a variable loaded from memory, this prevents following
  * instructions from being executed until the load has been performed.
  */
@@ -79,24 +79,24 @@ do {									\
 })
 
 #ifdef CONFIG_PPC_BOOK3S_64
-#define NOSPEC_BARRIER_SLOT   nop
+#define NOSPEC_BARRIER_SLOT   yesp
 #elif defined(CONFIG_PPC_FSL_BOOK3E)
-#define NOSPEC_BARRIER_SLOT   nop; nop
+#define NOSPEC_BARRIER_SLOT   yesp; yesp
 #endif
 
 #ifdef CONFIG_PPC_BARRIER_NOSPEC
 /*
  * Prevent execution of subsequent instructions until preceding branches have
- * been fully resolved and are no longer executing speculatively.
+ * been fully resolved and are yes longer executing speculatively.
  */
-#define barrier_nospec_asm NOSPEC_BARRIER_FIXUP_SECTION; NOSPEC_BARRIER_SLOT
+#define barrier_yesspec_asm NOSPEC_BARRIER_FIXUP_SECTION; NOSPEC_BARRIER_SLOT
 
 // This also acts as a compiler barrier due to the memory clobber.
-#define barrier_nospec() asm (stringify_in_c(barrier_nospec_asm) ::: "memory")
+#define barrier_yesspec() asm (stringify_in_c(barrier_yesspec_asm) ::: "memory")
 
 #else /* !CONFIG_PPC_BARRIER_NOSPEC */
-#define barrier_nospec_asm
-#define barrier_nospec()
+#define barrier_yesspec_asm
+#define barrier_yesspec()
 #endif /* CONFIG_PPC_BARRIER_NOSPEC */
 
 #include <asm-generic/barrier.h>

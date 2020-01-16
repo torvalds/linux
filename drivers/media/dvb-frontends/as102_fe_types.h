@@ -150,7 +150,7 @@ struct as10x_demod_stats {
 	uint32_t bytes_fixed_by_rs;
 	/* Averaged MER */
 	uint16_t mer;
-	/* statistics calculation state indicator (started or not) */
+	/* statistics calculation state indicator (started or yest) */
 	uint8_t has_started;
 } __packed;
 

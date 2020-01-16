@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroyesme Systems, Inc. */
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>

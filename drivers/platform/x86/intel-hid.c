@@ -2,7 +2,7 @@
 /*
  *  Intel HID event & 5 button array driver
  *
- *  Copyright (C) 2015 Alex Hung <alex.hung@canonical.com>
+ *  Copyright (C) 2015 Alex Hung <alex.hung@cayesnical.com>
  *  Copyright (C) 2015 Andrew Lutomirski <luto@kernel.org>
  */
 
@@ -35,7 +35,7 @@ static const struct key_entry intel_hid_keymap[] = {
 	{ KE_KEY, 8, { KEY_RFKILL } },
 	{ KE_KEY, 9, { KEY_POWER } },
 	{ KE_KEY, 11, { KEY_SLEEP } },
-	/* 13 has two different meanings in the spec -- ignore it. */
+	/* 13 has two different meanings in the spec -- igyesre it. */
 	{ KE_KEY, 14, { KEY_STOPCD } },
 	{ KE_KEY, 15, { KEY_PLAYPAUSE } },
 	{ KE_KEY, 16, { KEY_MUTE } },
@@ -47,7 +47,7 @@ static const struct key_entry intel_hid_keymap[] = {
 	{ KE_END },
 };
 
-/* 5 button array notification value. */
+/* 5 button array yestification value. */
 static const struct key_entry intel_array_keymap[] = {
 	{ KE_KEY,    0xC2, { KEY_LEFTMETA } },                /* Press */
 	{ KE_IGNORE, 0xC3, { KEY_LEFTMETA } },                /* Release */
@@ -272,7 +272,7 @@ static int intel_hid_pl_suspend_handler(struct device *device)
 {
 	intel_button_array_enable(device, false);
 
-	if (!pm_suspend_no_platform())
+	if (!pm_suspend_yes_platform())
 		intel_hid_set_enable(device, false);
 
 	return 0;
@@ -282,7 +282,7 @@ static int intel_hid_pl_resume_handler(struct device *device)
 {
 	intel_hid_pm_complete(device);
 
-	if (!pm_suspend_no_platform())
+	if (!pm_suspend_yes_platform())
 		intel_hid_set_enable(device, true);
 
 	intel_button_array_enable(device, true);
@@ -338,7 +338,7 @@ static int intel_button_array_input_setup(struct platform_device *device)
 	return input_register_device(priv->array);
 }
 
-static void notify_handler(acpi_handle handle, u32 event, void *context)
+static void yestify_handler(acpi_handle handle, u32 event, void *context)
 {
 	struct platform_device *device = context;
 	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
@@ -348,7 +348,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 		/*
 		 * Needed for wakeup from suspend-to-idle to work on some
 		 * platforms that don't expose the 5-button array, but still
-		 * send notifies with the power button event code to this
+		 * send yestifies with the power button event code to this
 		 * device object on power button actions while suspended.
 		 */
 		if (event == 0xce)
@@ -359,7 +359,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 			return;
 
 		if (!sparse_keymap_entry_from_scancode(priv->array, event)) {
-			dev_info(&device->dev, "unknown event 0x%x\n", event);
+			dev_info(&device->dev, "unkyeswn event 0x%x\n", event);
 			return;
 		}
 
@@ -370,7 +370,7 @@ wakeup:
 
 	/*
 	 * Needed for suspend to work on some platforms that don't expose
-	 * the 5-button array, but still send notifies with power button
+	 * the 5-button array, but still send yestifies with power button
 	 * event code to this device object on power button actions.
 	 *
 	 * Report the power button press and release.
@@ -393,7 +393,7 @@ wakeup:
 	if (event != 0xc0) {
 		if (!priv->array ||
 		    !sparse_keymap_report_event(priv->array, event, 1, true))
-			dev_dbg(&device->dev, "unknown event 0x%x\n", event);
+			dev_dbg(&device->dev, "unkyeswn event 0x%x\n", event);
 		return;
 	}
 
@@ -404,7 +404,7 @@ wakeup:
 	}
 
 	if (!sparse_keymap_report_event(priv->input_dev, ev_index, 1, true))
-		dev_dbg(&device->dev, "unknown event index 0x%llx\n",
+		dev_dbg(&device->dev, "unkyeswn event index 0x%llx\n",
 			 ev_index);
 }
 
@@ -450,10 +450,10 @@ static int intel_hid_probe(struct platform_device *device)
 	if (mode != 0) {
 		/*
 		 * This driver only implements "simple" mode.  There appear
-		 * to be no other modes, but we should be paranoid and check
+		 * to be yes other modes, but we should be parayesid and check
 		 * for compatibility.
 		 */
-		dev_info(&device->dev, "platform is not in simple mode\n");
+		dev_info(&device->dev, "platform is yest in simple mode\n");
 		return -ENODEV;
 	}
 
@@ -476,16 +476,16 @@ static int intel_hid_probe(struct platform_device *device)
 			pr_err("Failed to setup Intel 5 button array hotkeys\n");
 	}
 
-	status = acpi_install_notify_handler(handle,
+	status = acpi_install_yestify_handler(handle,
 					     ACPI_DEVICE_NOTIFY,
-					     notify_handler,
+					     yestify_handler,
 					     device);
 	if (ACPI_FAILURE(status))
 		return -EBUSY;
 
 	err = intel_hid_set_enable(&device->dev, true);
 	if (err)
-		goto err_remove_notify;
+		goto err_remove_yestify;
 
 	if (priv->array) {
 		unsigned long long dummy;
@@ -504,13 +504,13 @@ static int intel_hid_probe(struct platform_device *device)
 	/*
 	 * In order for system wakeup to work, the EC GPE has to be marked as
 	 * a wakeup one, so do that here (this setting will persist, but it has
-	 * no effect until the wakeup mask is set for the EC GPE).
+	 * yes effect until the wakeup mask is set for the EC GPE).
 	 */
 	acpi_ec_mark_gpe_for_wake();
 	return 0;
 
-err_remove_notify:
-	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
+err_remove_yestify:
+	acpi_remove_yestify_handler(handle, ACPI_DEVICE_NOTIFY, yestify_handler);
 
 	return err;
 }
@@ -520,7 +520,7 @@ static int intel_hid_remove(struct platform_device *device)
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
 	device_init_wakeup(&device->dev, false);
-	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
+	acpi_remove_yestify_handler(handle, ACPI_DEVICE_NOTIFY, yestify_handler);
 	intel_hid_set_enable(&device->dev, false);
 	intel_button_array_enable(&device->dev, false);
 
@@ -545,13 +545,13 @@ MODULE_DEVICE_TABLE(acpi, intel_hid_ids);
 /*
  * Unfortunately, some laptops provide a _HID="INT33D5" device with
  * _CID="PNP0C02".  This causes the pnpacpi scan driver to claim the
- * ACPI node, so no platform device will be created.  The pnpacpi
- * driver rejects this device in subsequent processing, so no physical
- * node is created at all.
+ * ACPI yesde, so yes platform device will be created.  The pnpacpi
+ * driver rejects this device in subsequent processing, so yes physical
+ * yesde is created at all.
  *
  * As a workaround until the ACPI core figures out how to handle
  * this corner case, manually ask the ACPI platform device code to
- * claim the ACPI node.
+ * claim the ACPI yesde.
  */
 static acpi_status __init
 check_acpi_dev(acpi_handle handle, u32 lvl, void *context, void **rv)

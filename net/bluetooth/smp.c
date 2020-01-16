@@ -48,13 +48,13 @@
 #define SMP_DBG(fmt, ...) printk(KERN_DEBUG "%s: " fmt, __func__, \
 				 ##__VA_ARGS__)
 #else
-#define SMP_DBG(fmt, ...) no_printk(KERN_DEBUG "%s: " fmt, __func__, \
+#define SMP_DBG(fmt, ...) yes_printk(KERN_DEBUG "%s: " fmt, __func__, \
 				    ##__VA_ARGS__)
 #endif
 
 #define SMP_ALLOW_CMD(smp, code)	set_bit(code, &smp->allow_cmd)
 
-/* Keys which are not distributed with Secure Connections */
+/* Keys which are yest distributed with Secure Connections */
 #define SMP_SC_NO_DIST (SMP_DIST_ENC_KEY | SMP_DIST_LINK_KEY);
 
 #define SMP_TIMEOUT	msecs_to_jiffies(30000)
@@ -834,7 +834,7 @@ static const u8 sc_method[5][5] = {
 
 static u8 get_auth_method(struct smp_chan *smp, u8 local_io, u8 remote_io)
 {
-	/* If either side has unknown io_caps, use JUST_CFM (which gets
+	/* If either side has unkyeswn io_caps, use JUST_CFM (which gets
 	 * converted later to JUST_WORKS if we're initiators.
 	 */
 	if (local_io > SMP_IO_KEYBOARD_DISPLAY ||
@@ -878,7 +878,7 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 						&smp->flags))
 		smp->method = JUST_WORKS;
 
-	/* Don't bother user space with no IO capabilities */
+	/* Don't bother user space with yes IO capabilities */
 	if (smp->method == JUST_CFM &&
 	    hcon->io_capability == HCI_IO_NO_INPUT_OUTPUT)
 		smp->method = JUST_WORKS;
@@ -930,7 +930,7 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 						hcon->type, hcon->dst_type,
 						passkey, 1);
 	else
-		ret = mgmt_user_passkey_notify(hcon->hdev, &hcon->dst,
+		ret = mgmt_user_passkey_yestify(hcon->hdev, &hcon->dst,
 						hcon->type, hcon->dst_type,
 						passkey, 0);
 
@@ -1013,7 +1013,7 @@ static u8 smp_random(struct smp_chan *smp)
 		else
 			auth = 0;
 
-		/* Even though there's no _SLAVE suffix this is the
+		/* Even though there's yes _SLAVE suffix this is the
 		 * slave STK we're adding for later lookup (the master
 		 * STK never needs to be stored).
 		 */
@@ -1024,7 +1024,7 @@ static u8 smp_random(struct smp_chan *smp)
 	return 0;
 }
 
-static void smp_notify_keys(struct l2cap_conn *conn)
+static void smp_yestify_keys(struct l2cap_conn *conn)
 {
 	struct l2cap_chan *chan = conn->smp;
 	struct smp_chan *smp = chan->data;
@@ -1052,9 +1052,9 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 	if (smp->remote_irk) {
 		mgmt_new_irk(hdev, smp->remote_irk, persistent);
 
-		/* Now that user space can be considered to know the
+		/* Now that user space can be considered to kyesw the
 		 * identity address track the connection based on it
-		 * from now on (assuming this is an LE link).
+		 * from yesw on (assuming this is an LE link).
 		 */
 		if (hcon->type == LE_LINK) {
 			bacpy(&hcon->dst, &smp->remote_irk->bdaddr);
@@ -1104,7 +1104,7 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 			mgmt_new_link_key(hdev, key, persistent);
 
 			/* Don't keep debug keys around if the relevant
-			 * flag is not set.
+			 * flag is yest set.
 			 */
 			if (!hci_dev_test_flag(hdev, HCI_KEEP_DEBUG_KEYS) &&
 			    key->type == HCI_LK_DEBUG_COMBINATION) {
@@ -1195,7 +1195,7 @@ static void sc_generate_ltk(struct smp_chan *smp)
 
 	key = hci_find_link_key(hdev, &hcon->dst);
 	if (!key) {
-		bt_dev_err(hdev, "no Link Key found to generate LTK");
+		bt_dev_err(hdev, "yes Link Key found to generate LTK");
 		return;
 	}
 
@@ -1256,7 +1256,7 @@ static void smp_distribute_keys(struct smp_chan *smp)
 		if (hcon->type == ACL_LINK && (*keydist & SMP_DIST_ENC_KEY))
 			sc_generate_ltk(smp);
 
-		/* Clear the keys which are generated but not distributed */
+		/* Clear the keys which are generated but yest distributed */
 		*keydist &= ~SMP_SC_NO_DIST;
 	}
 
@@ -1349,7 +1349,7 @@ static void smp_distribute_keys(struct smp_chan *smp)
 	}
 
 	set_bit(SMP_FLAG_COMPLETE, &smp->flags);
-	smp_notify_keys(conn);
+	smp_yestify_keys(conn);
 
 	smp_chan_destroy(conn);
 }
@@ -1450,7 +1450,7 @@ static void sc_dhkey_check(struct smp_chan *smp)
 	memset(r, 0, sizeof(r));
 
 	if (smp->method == REQ_PASSKEY || smp->method == DSP_PASSKEY)
-		put_unaligned_le32(hcon->passkey_notify, r);
+		put_unaligned_le32(hcon->passkey_yestify, r);
 
 	if (smp->method == REQ_OOB)
 		memcpy(r, smp->rr, 16);
@@ -1468,7 +1468,7 @@ static u8 sc_passkey_send_confirm(struct smp_chan *smp)
 	struct smp_cmd_pairing_confirm cfm;
 	u8 r;
 
-	r = ((hcon->passkey_notify >> smp->passkey_round) & 0x01);
+	r = ((hcon->passkey_yestify >> smp->passkey_round) & 0x01);
 	r |= 0x80;
 
 	get_random_bytes(smp->prnd, sizeof(smp->prnd));
@@ -1489,13 +1489,13 @@ static u8 sc_passkey_round(struct smp_chan *smp, u8 smp_op)
 	struct hci_dev *hdev = hcon->hdev;
 	u8 cfm[16], r;
 
-	/* Ignore the PDU if we've already done 20 rounds (0 - 19) */
+	/* Igyesre the PDU if we've already done 20 rounds (0 - 19) */
 	if (smp->passkey_round >= 20)
 		return 0;
 
 	switch (smp_op) {
 	case SMP_CMD_PAIRING_RANDOM:
-		r = ((hcon->passkey_notify >> smp->passkey_round) & 0x01);
+		r = ((hcon->passkey_yestify >> smp->passkey_round) & 0x01);
 		r |= 0x80;
 
 		if (smp_f4(smp->tfm_cmac, smp->remote_pk, smp->local_pk,
@@ -1585,7 +1585,7 @@ static int sc_user_reply(struct smp_chan *smp, u16 mgmt_op, __le32 passkey)
 		smp_failure(smp->conn, SMP_NUMERIC_COMP_FAILED);
 		return 0;
 	case MGMT_OP_USER_PASSKEY_REPLY:
-		hcon->passkey_notify = le32_to_cpu(passkey);
+		hcon->passkey_yestify = le32_to_cpu(passkey);
 		smp->passkey_round = 0;
 
 		if (test_and_clear_bit(SMP_FLAG_CFM_PENDING, &smp->flags))
@@ -1664,7 +1664,7 @@ int smp_user_confirm_reply(struct hci_conn *hcon, u16 mgmt_op, __le32 passkey)
 
 	err = 0;
 
-	/* If it is our turn to send Pairing Confirm, do so now */
+	/* If it is our turn to send Pairing Confirm, do so yesw */
 	if (test_bit(SMP_FLAG_CFM_PENDING, &smp->flags)) {
 		u8 rsp = smp_confirm(smp);
 		if (rsp)
@@ -1782,7 +1782,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 		if (check_enc_key_size(conn, key_size))
 			return SMP_ENC_KEY_SIZE;
 
-		/* Clear bits which are generated but not distributed */
+		/* Clear bits which are generated but yest distributed */
 		smp->remote_key_dist &= ~SMP_SC_NO_DIST;
 
 		smp->prsp[0] = SMP_CMD_PAIRING_RSP;
@@ -1842,7 +1842,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (test_bit(SMP_FLAG_SC, &smp->flags)) {
 		SMP_ALLOW_CMD(smp, SMP_CMD_PUBLIC_KEY);
-		/* Clear bits which are generated but not distributed */
+		/* Clear bits which are generated but yest distributed */
 		smp->remote_key_dist &= ~SMP_SC_NO_DIST;
 		/* Wait for Public Key from Initiating Device */
 		return 0;
@@ -1959,7 +1959,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	/* For BR/EDR this means we're done and can start phase 3 */
 	if (conn->hcon->type == ACL_LINK) {
-		/* Clear bits which are generated but not distributed */
+		/* Clear bits which are generated but yest distributed */
 		smp->remote_key_dist &= ~SMP_SC_NO_DIST;
 		smp_distribute_keys(smp);
 		return 0;
@@ -1988,7 +1988,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	smp->remote_key_dist &= rsp->resp_key_dist;
 
 	if (test_bit(SMP_FLAG_SC, &smp->flags)) {
-		/* Clear bits which are generated but not distributed */
+		/* Clear bits which are generated but yest distributed */
 		smp->remote_key_dist &= ~SMP_SC_NO_DIST;
 		SMP_ALLOW_CMD(smp, SMP_CMD_PUBLIC_KEY);
 		return sc_send_public_key(smp);
@@ -2338,13 +2338,13 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 
 	chan = conn->smp;
 	if (!chan) {
-		bt_dev_err(hcon->hdev, "security requested but not available");
+		bt_dev_err(hcon->hdev, "security requested but yest available");
 		return 1;
 	}
 
 	l2cap_chan_lock(chan);
 
-	/* If SMP is already in progress ignore this request */
+	/* If SMP is already in progress igyesre this request */
 	if (chan->data) {
 		ret = 0;
 		goto unlock;
@@ -2423,7 +2423,7 @@ int smp_cancel_and_remove_pairing(struct hci_dev *hdev, bdaddr_t *bdaddr,
 
 	smp = chan->data;
 	if (smp) {
-		/* Set keys to NULL to make sure smp_failure() does not try to
+		/* Set keys to NULL to make sure smp_failure() does yest try to
 		 * remove and free already invalidated rcu list entries. */
 		smp->ltk = NULL;
 		smp->slave_ltk = NULL;
@@ -2543,7 +2543,7 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	/* Strictly speaking the Core Specification (4.1) allows sending
 	 * an empty address which would force us to rely on just the IRK
 	 * as "identity information". However, since such
-	 * implementations are not known of and in order to not over
+	 * implementations are yest kyeswn of and in order to yest over
 	 * complicate our implementation, simply pretend that we never
 	 * received an IRK for such a device.
 	 *
@@ -2552,20 +2552,20 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	 */
 	if (!bacmp(&info->bdaddr, BDADDR_ANY) ||
 	    !hci_is_identity_address(&info->bdaddr, info->addr_type)) {
-		bt_dev_err(hcon->hdev, "ignoring IRK with no identity address");
+		bt_dev_err(hcon->hdev, "igyesring IRK with yes identity address");
 		goto distribute;
 	}
 
 	/* Drop IRK if peer is using identity address during pairing but is
 	 * providing different address as identity information.
 	 *
-	 * Microsoft Surface Precision Mouse is known to have this bug.
+	 * Microsoft Surface Precision Mouse is kyeswn to have this bug.
 	 */
 	if (hci_is_identity_address(&hcon->dst, hcon->dst_type) &&
 	    (bacmp(&info->bdaddr, &hcon->dst) ||
 	     info->addr_type != hcon->dst_type)) {
 		bt_dev_err(hcon->hdev,
-			   "ignoring IRK with invalid identity address");
+			   "igyesring IRK with invalid identity address");
 		goto distribute;
 	}
 
@@ -2741,14 +2741,14 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 		set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
 
 	if (smp->method == DSP_PASSKEY) {
-		get_random_bytes(&hcon->passkey_notify,
-				 sizeof(hcon->passkey_notify));
-		hcon->passkey_notify %= 1000000;
+		get_random_bytes(&hcon->passkey_yestify,
+				 sizeof(hcon->passkey_yestify));
+		hcon->passkey_yestify %= 1000000;
 		hcon->passkey_entered = 0;
 		smp->passkey_round = 0;
-		if (mgmt_user_passkey_notify(hdev, &hcon->dst, hcon->type,
+		if (mgmt_user_passkey_yestify(hdev, &hcon->dst, hcon->type,
 					     hcon->dst_type,
-					     hcon->passkey_notify,
+					     hcon->passkey_yestify,
 					     hcon->passkey_entered))
 			return SMP_UNSPECIFIED;
 		SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_CONFIRM);
@@ -2777,7 +2777,7 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 		return 0;
 	}
 
-	/* The Initiating device waits for the non-initiating device to
+	/* The Initiating device waits for the yesn-initiating device to
 	 * send the confirm value.
 	 */
 	if (conn->hcon->out)
@@ -2827,7 +2827,7 @@ static int smp_cmd_dhkey_check(struct l2cap_conn *conn, struct sk_buff *skb)
 	memset(r, 0, sizeof(r));
 
 	if (smp->method == REQ_PASSKEY || smp->method == DSP_PASSKEY)
-		put_unaligned_le32(hcon->passkey_notify, r);
+		put_unaligned_le32(hcon->passkey_yestify, r);
 	else if (smp->method == REQ_OOB)
 		memcpy(r, smp->lr, 16);
 
@@ -2859,10 +2859,10 @@ static int smp_cmd_dhkey_check(struct l2cap_conn *conn, struct sk_buff *skb)
 	return 0;
 }
 
-static int smp_cmd_keypress_notify(struct l2cap_conn *conn,
+static int smp_cmd_keypress_yestify(struct l2cap_conn *conn,
 				   struct sk_buff *skb)
 {
-	struct smp_cmd_keypress_notify *kp = (void *) skb->data;
+	struct smp_cmd_keypress_yestify *kp = (void *) skb->data;
 
 	BT_DBG("value 0x%02x", kp->value);
 
@@ -2957,11 +2957,11 @@ static int smp_sig_channel(struct l2cap_chan *chan, struct sk_buff *skb)
 		break;
 
 	case SMP_CMD_KEYPRESS_NOTIFY:
-		reason = smp_cmd_keypress_notify(conn, skb);
+		reason = smp_cmd_keypress_yestify(conn, skb);
 		break;
 
 	default:
-		BT_DBG("Unknown command code 0x%2.2x", code);
+		BT_DBG("Unkyeswn command code 0x%2.2x", code);
 		reason = SMP_CMD_NOTSUPP;
 		goto done;
 	}
@@ -3009,7 +3009,7 @@ static void bredr_pairing(struct l2cap_chan *chan)
 	if (!test_bit(HCI_CONN_NEW_LINK_KEY, &hcon->flags))
 		return;
 
-	/* Don't bother if we're not encrypted */
+	/* Don't bother if we're yest encrypted */
 	if (!test_bit(HCI_CONN_ENCRYPT, &hcon->flags))
 		return;
 
@@ -3026,11 +3026,11 @@ static void bredr_pairing(struct l2cap_chan *chan)
 	    !hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP))
 		return;
 
-	/* If our LE support is not enabled don't do anything */
+	/* If our LE support is yest enabled don't do anything */
 	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return;
 
-	/* Don't bother if remote LE support is not enabled */
+	/* Don't bother if remote LE support is yest enabled */
 	if (!lmp_host_le_capable(hcon))
 		return;
 
@@ -3096,7 +3096,7 @@ static void smp_ready_cb(struct l2cap_chan *chan)
 	/* No need to call l2cap_chan_hold() here since we already own
 	 * the reference taken in smp_new_conn_cb(). This is just the
 	 * first time that we tie it to a specific pointer. The code in
-	 * l2cap_core.c ensures that there's no risk this function wont
+	 * l2cap_core.c ensures that there's yes risk this function wont
 	 * get called if smp_new_conn_cb was previously called.
 	 */
 	conn->smp = chan;
@@ -3148,13 +3148,13 @@ static const struct l2cap_ops smp_chan_ops = {
 	.teardown		= smp_teardown_cb,
 	.resume			= smp_resume_cb,
 
-	.new_connection		= l2cap_chan_no_new_connection,
-	.state_change		= l2cap_chan_no_state_change,
-	.close			= l2cap_chan_no_close,
-	.defer			= l2cap_chan_no_defer,
-	.suspend		= l2cap_chan_no_suspend,
-	.set_shutdown		= l2cap_chan_no_set_shutdown,
-	.get_sndtimeo		= l2cap_chan_no_get_sndtimeo,
+	.new_connection		= l2cap_chan_yes_new_connection,
+	.state_change		= l2cap_chan_yes_state_change,
+	.close			= l2cap_chan_yes_close,
+	.defer			= l2cap_chan_yes_defer,
+	.suspend		= l2cap_chan_yes_suspend,
+	.set_shutdown		= l2cap_chan_yes_set_shutdown,
+	.get_sndtimeo		= l2cap_chan_yes_get_sndtimeo,
 };
 
 static inline struct l2cap_chan *smp_new_conn_cb(struct l2cap_chan *pchan)
@@ -3192,17 +3192,17 @@ static const struct l2cap_ops smp_root_chan_ops = {
 	.new_connection		= smp_new_conn_cb,
 
 	/* None of these are implemented for the root channel */
-	.close			= l2cap_chan_no_close,
-	.alloc_skb		= l2cap_chan_no_alloc_skb,
-	.recv			= l2cap_chan_no_recv,
-	.state_change		= l2cap_chan_no_state_change,
-	.teardown		= l2cap_chan_no_teardown,
-	.ready			= l2cap_chan_no_ready,
-	.defer			= l2cap_chan_no_defer,
-	.suspend		= l2cap_chan_no_suspend,
-	.resume			= l2cap_chan_no_resume,
-	.set_shutdown		= l2cap_chan_no_set_shutdown,
-	.get_sndtimeo		= l2cap_chan_no_get_sndtimeo,
+	.close			= l2cap_chan_yes_close,
+	.alloc_skb		= l2cap_chan_yes_alloc_skb,
+	.recv			= l2cap_chan_yes_recv,
+	.state_change		= l2cap_chan_yes_state_change,
+	.teardown		= l2cap_chan_yes_teardown,
+	.ready			= l2cap_chan_yes_ready,
+	.defer			= l2cap_chan_yes_defer,
+	.suspend		= l2cap_chan_yes_suspend,
+	.resume			= l2cap_chan_yes_resume,
+	.set_shutdown		= l2cap_chan_yes_set_shutdown,
+	.get_sndtimeo		= l2cap_chan_yes_get_sndtimeo,
 };
 
 static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
@@ -3449,8 +3449,8 @@ int smp_register(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	/* If the controller does not support Low Energy operation, then
-	 * there is also no need to register any SMP channel.
+	/* If the controller does yest support Low Energy operation, then
+	 * there is also yes need to register any SMP channel.
 	 */
 	if (!lmp_le_capable(hdev))
 		return 0;
@@ -3472,12 +3472,12 @@ int smp_register(struct hci_dev *hdev)
 	debugfs_create_file("le_max_key_size", 0644, hdev->debugfs, hdev,
 			    &le_max_key_size_fops);
 
-	/* If the controller does not support BR/EDR Secure Connections
-	 * feature, then the BR/EDR SMP channel shall not be present.
+	/* If the controller does yest support BR/EDR Secure Connections
+	 * feature, then the BR/EDR SMP channel shall yest be present.
 	 *
 	 * To test this with Bluetooth 4.0 controllers, create a debugfs
 	 * switch that allows forcing BR/EDR SMP support and accepting
-	 * cross-transport pairing on non-AES encrypted connections.
+	 * cross-transport pairing on yesn-AES encrypted connections.
 	 */
 	if (!lmp_sc_capable(hdev)) {
 		debugfs_create_file("force_bredr_smp", 0644, hdev->debugfs,

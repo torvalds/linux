@@ -13,7 +13,7 @@ struct lima_bo_va {
 	struct list_head list;
 	unsigned int ref_count;
 
-	struct drm_mm_node node;
+	struct drm_mm_yesde yesde;
 
 	struct lima_vm *vm;
 };
@@ -103,7 +103,7 @@ int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 		return 0;
 	}
 
-	/* should not create new bo_va if not asked by caller */
+	/* should yest create new bo_va if yest asked by caller */
 	if (!create) {
 		mutex_unlock(&bo->lock);
 		return -ENOENT;
@@ -120,13 +120,13 @@ int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 
 	mutex_lock(&vm->lock);
 
-	err = drm_mm_insert_node(&vm->mm, &bo_va->node, lima_bo_size(bo));
+	err = drm_mm_insert_yesde(&vm->mm, &bo_va->yesde, lima_bo_size(bo));
 	if (err)
 		goto err_out1;
 
 	for_each_sg_dma_page(bo->base.sgt->sgl, &sg_iter, bo->base.sgt->nents, 0) {
 		err = lima_vm_map_page(vm, sg_page_iter_dma_address(&sg_iter),
-				       bo_va->node.start + offset);
+				       bo_va->yesde.start + offset);
 		if (err)
 			goto err_out2;
 
@@ -142,8 +142,8 @@ int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 
 err_out2:
 	if (offset)
-		lima_vm_unmap_range(vm, bo_va->node.start, bo_va->node.start + offset - 1);
-	drm_mm_remove_node(&bo_va->node);
+		lima_vm_unmap_range(vm, bo_va->yesde.start, bo_va->yesde.start + offset - 1);
+	drm_mm_remove_yesde(&bo_va->yesde);
 err_out1:
 	mutex_unlock(&vm->lock);
 	kfree(bo_va);
@@ -166,10 +166,10 @@ void lima_vm_bo_del(struct lima_vm *vm, struct lima_bo *bo)
 
 	mutex_lock(&vm->lock);
 
-	lima_vm_unmap_range(vm, bo_va->node.start,
-			    bo_va->node.start + bo_va->node.size - 1);
+	lima_vm_unmap_range(vm, bo_va->yesde.start,
+			    bo_va->yesde.start + bo_va->yesde.size - 1);
 
-	drm_mm_remove_node(&bo_va->node);
+	drm_mm_remove_yesde(&bo_va->yesde);
 
 	mutex_unlock(&vm->lock);
 
@@ -188,7 +188,7 @@ u32 lima_vm_get_va(struct lima_vm *vm, struct lima_bo *bo)
 	mutex_lock(&bo->lock);
 
 	bo_va = lima_vm_bo_find(vm, bo);
-	ret = bo_va->node.start;
+	ret = bo_va->yesde.start;
 
 	mutex_unlock(&bo->lock);
 

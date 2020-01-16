@@ -151,19 +151,19 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 
 static void qcom_get_related_cpus(int index, struct cpumask *m)
 {
-	struct device_node *cpu_np;
+	struct device_yesde *cpu_np;
 	struct of_phandle_args args;
 	int cpu, ret;
 
 	for_each_possible_cpu(cpu) {
-		cpu_np = of_cpu_device_node_get(cpu);
+		cpu_np = of_cpu_device_yesde_get(cpu);
 		if (!cpu_np)
 			continue;
 
 		ret = of_parse_phandle_with_args(cpu_np, "qcom,freq-domain",
 						 "#freq-domain-cells", 0,
 						 &args);
-		of_node_put(cpu_np);
+		of_yesde_put(cpu_np);
 		if (ret < 0)
 			continue;
 
@@ -176,7 +176,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 {
 	struct device *dev = &global_pdev->dev;
 	struct of_phandle_args args;
-	struct device_node *cpu_np;
+	struct device_yesde *cpu_np;
 	struct device *cpu_dev;
 	struct resource *res;
 	void __iomem *base;
@@ -189,13 +189,13 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 		return -ENODEV;
 	}
 
-	cpu_np = of_cpu_device_node_get(policy->cpu);
+	cpu_np = of_cpu_device_yesde_get(policy->cpu);
 	if (!cpu_np)
 		return -EINVAL;
 
 	ret = of_parse_phandle_with_args(cpu_np, "qcom,freq-domain",
 					 "#freq-domain-cells", 0, &args);
-	of_node_put(cpu_np);
+	of_yesde_put(cpu_np);
 	if (ret)
 		return ret;
 
@@ -211,7 +211,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 
 	/* HW should be in enabled state to proceed */
 	if (!(readl_relaxed(base + REG_ENABLE) & 0x1)) {
-		dev_err(dev, "Domain-%d cpufreq hardware not enabled\n", index);
+		dev_err(dev, "Domain-%d cpufreq hardware yest enabled\n", index);
 		ret = -ENODEV;
 		goto error;
 	}

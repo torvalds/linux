@@ -44,7 +44,7 @@ static char range_abbr[RANGE_MAX] = { 'T', 'C', 'P', 'M', };
 
 static void print_wrong_arg_exit(void)
 {
-	printf(_("invalid or unknown argument\n"));
+	printf(_("invalid or unkyeswn argument\n"));
 	exit(EXIT_FAILURE);
 }
 
@@ -143,7 +143,7 @@ void print_results(int topology_depth, int cpu)
 	unsigned long long result;
 	cstate_t s;
 
-	/* Be careful CPUs may got resorted for pkg value do not just use cpu */
+	/* Be careful CPUs may got resorted for pkg value do yest just use cpu */
 	if (!bitmask_isbitset(cpus_chosen, cpu_top.core_info[cpu].cpu))
 		return;
 	if (!cpu_top.core_info[cpu].is_online &&
@@ -184,7 +184,7 @@ void print_results(int topology_depth, int cpu)
 				else
 					printf("%6llu", result);
 			} else {
-				printf(_("Monitor %s, Counter %s has no count "
+				printf(_("Monitor %s, Counter %s has yes count "
 					 "function. Implementation error\n"),
 				       monitors[mon]->name, s.name);
 				exit(EXIT_FAILURE);
@@ -360,7 +360,7 @@ static void cmdline(int argc, char *argv[])
 			mode = list;
 			break;
 		case 'i':
-			/* only allow -i with -m or no option */
+			/* only allow -i with -m or yes option */
 			if (mode && mode != show)
 				print_wrong_arg_exit();
 			interval = atoi(optarg);
@@ -391,7 +391,7 @@ int cmd_monitor(int argc, char **argv)
 	cmdline(argc, argv);
 	cpu_count = get_cpu_topology(&cpu_top);
 	if (cpu_count < 0) {
-		printf(_("Cannot read number of available processors\n"));
+		printf(_("Canyest read number of available processors\n"));
 		return EXIT_FAILURE;
 	}
 

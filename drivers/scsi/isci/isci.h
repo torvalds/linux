@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,12 +31,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -75,12 +75,12 @@
 
 #define SCI_MAX_PHYS  (4UL)
 #define SCI_MAX_PORTS SCI_MAX_PHYS
-#define SCI_MAX_SMP_PHYS  (384) /* not silicon constrained */
+#define SCI_MAX_SMP_PHYS  (384) /* yest silicon constrained */
 #define SCI_MAX_REMOTE_DEVICES (256UL)
 #define SCI_MAX_IO_REQUESTS (256UL)
 #define SCI_MAX_SEQ (16)
 #define SCI_MAX_MSIX_MESSAGES  (2)
-#define SCI_MAX_SCATTER_GATHER_ELEMENTS 130 /* not silicon constrained */
+#define SCI_MAX_SCATTER_GATHER_ELEMENTS 130 /* yest silicon constrained */
 #define SCI_MAX_CONTROLLERS 2
 #define SCI_MAX_DOMAINS  SCI_MAX_PORTS
 
@@ -115,8 +115,8 @@ static inline void check_sizes(void)
 }
 
 /**
- * enum sci_status - This is the general return status enumeration for non-IO,
- *    non-task management related SCI interface methods.
+ * enum sci_status - This is the general return status enumeration for yesn-IO,
+ *    yesn-task management related SCI interface methods.
  *
  *
  */
@@ -130,7 +130,7 @@ enum sci_status {
 	 * This value indicates that the calling method completed successfully,
 	 * but that the IO may have completed before having it's start method
 	 * invoked.  This occurs during SAT translation for requests that do
-	 * not require an IO to the target or for any other requests that may
+	 * yest require an IO to the target or for any other requests that may
 	 * be completed without having to submit IO.
 	 */
 	SCI_SUCCESS_IO_COMPLETE_BEFORE_START,
@@ -157,7 +157,7 @@ enum sci_status {
 	SCI_WARNING_TIMER_CONFLICT,
 
 	/**
-	 * This field indicates a sequence of action is not completed yet. Mostly,
+	 * This field indicates a sequence of action is yest completed yet. Mostly,
 	 * this status is used when multiple ATA commands are needed in a SATI translation.
 	 */
 	SCI_WARNING_SEQUENCE_INCOMPLETE,
@@ -194,7 +194,7 @@ enum sci_status {
 
 	/**
 	 * This member indicates the calling function failed, because the
-	 * discovered controller type is not supported by the library.
+	 * discovered controller type is yest supported by the library.
 	 */
 	SCI_FAILURE_UNSUPPORTED_CONTROLLER_TYPE,
 
@@ -206,20 +206,20 @@ enum sci_status {
 
 	/**
 	 * This member indicates the calling function failed, because the
-	 * requested configuration of SAS Phys into SAS Ports is not supported.
+	 * requested configuration of SAS Phys into SAS Ports is yest supported.
 	 */
 	SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION,
 
 	/**
 	 * This member indicates the calling function failed, because the
-	 * requested protocol is not supported by the remote device, port,
+	 * requested protocol is yest supported by the remote device, port,
 	 * or controller.
 	 */
 	SCI_FAILURE_UNSUPPORTED_PROTOCOL,
 
 	/**
 	 * This member indicates the calling function failed, because the
-	 * requested information type is not supported by the SCI implementation.
+	 * requested information type is yest supported by the SCI implementation.
 	 */
 	SCI_FAILURE_UNSUPPORTED_INFORMATION_TYPE,
 
@@ -231,49 +231,49 @@ enum sci_status {
 
 	/**
 	 * This member indicates the calling function failed, because adding
-	 * a phy to the object is not possible.
+	 * a phy to the object is yest possible.
 	 */
 	SCI_FAILURE_ADDING_PHY_UNSUPPORTED,
 
 	/**
 	 * This member indicates the calling function failed, because the
-	 * requested information type is not supported by the SCI implementation.
+	 * requested information type is yest supported by the SCI implementation.
 	 */
 	SCI_FAILURE_UNSUPPORTED_INFORMATION_FIELD,
 
 	/**
 	 * This member indicates the calling function failed, because the SCI
-	 * implementation does not support the supplied time limit.
+	 * implementation does yest support the supplied time limit.
 	 */
 	SCI_FAILURE_UNSUPPORTED_TIME_LIMIT,
 
 	/**
 	 * This member indicates the calling method failed, because the SCI
-	 * implementation does not contain the specified Phy.
+	 * implementation does yest contain the specified Phy.
 	 */
 	SCI_FAILURE_INVALID_PHY,
 
 	/**
 	 * This member indicates the calling method failed, because the SCI
-	 * implementation does not contain the specified Port.
+	 * implementation does yest contain the specified Port.
 	 */
 	SCI_FAILURE_INVALID_PORT,
 
 	/**
 	 * This member indicates the calling method was partly successful
-	 * The port was reset but not all phys in port are operational
+	 * The port was reset but yest all phys in port are operational
 	 */
 	SCI_FAILURE_RESET_PORT_PARTIAL_SUCCESS,
 
 	/**
 	 * This member indicates that calling method failed
-	 * The port reset did not complete because none of the phys are operational
+	 * The port reset did yest complete because yesne of the phys are operational
 	 */
 	SCI_FAILURE_RESET_PORT_FAILURE,
 
 	/**
 	 * This member indicates the calling method failed, because the SCI
-	 * implementation does not contain the specified remote device.
+	 * implementation does yest contain the specified remote device.
 	 */
 	SCI_FAILURE_INVALID_REMOTE_DEVICE,
 
@@ -285,7 +285,7 @@ enum sci_status {
 
 	/**
 	 * This member indicates the calling method failed, because the SCI
-	 * implementation does not contain or support the specified IO tag.
+	 * implementation does yest contain or support the specified IO tag.
 	 */
 	SCI_FAILURE_INVALID_IO_TAG,
 
@@ -298,7 +298,7 @@ enum sci_status {
 	/**
 	 * This member indicates that the operation failed, the failure is
 	 * controller implementation specific, and the response data associated
-	 * with the request is not valid.  You can query for the controller
+	 * with the request is yest valid.  You can query for the controller
 	 * specific error information via sci_controller_get_request_status()
 	 */
 	SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR,
@@ -317,13 +317,13 @@ enum sci_status {
 
 	/**
 	 * This member indicates that the operation failed because the supplied
-	 * device could not be located.
+	 * device could yest be located.
 	 */
 	SCI_FAILURE_DEVICE_NOT_FOUND,
 
 	/**
 	 * This member indicates that the operation failed because the
-	 * objects association is required and is not correctly set.
+	 * objects association is required and is yest correctly set.
 	 */
 	SCI_FAILURE_INVALID_ASSOCIATION,
 
@@ -335,13 +335,13 @@ enum sci_status {
 
 	/**
 	 * This member indicates that the operation failed, because the user
-	 * specified a value that is either invalid or not supported.
+	 * specified a value that is either invalid or yest supported.
 	 */
 	SCI_FAILURE_INVALID_PARAMETER_VALUE,
 
 	/**
 	 * This value indicates that the operation failed, because the number
-	 * of messages (MSI-X) is not supported.
+	 * of messages (MSI-X) is yest supported.
 	 */
 	SCI_FAILURE_UNSUPPORTED_MESSAGE_COUNT,
 
@@ -473,7 +473,7 @@ static inline void sci_swab32_cpy(void *_dest, void *_src, ssize_t word_cnt)
 		dest[word_cnt] = swab32(src[word_cnt]);
 }
 
-extern unsigned char no_outbound_task_to;
+extern unsigned char yes_outbound_task_to;
 extern u16 ssp_max_occ_to;
 extern u16 stp_max_occ_to;
 extern u16 ssp_inactive_to;
@@ -489,7 +489,7 @@ irqreturn_t isci_error_isr(int vec, void *data);
 /*
  * Each timer is associated with a cancellation flag that is set when
  * del_timer() is called and checked in the timer callback function. This
- * is needed since del_timer_sync() cannot be called with sci_lock held.
+ * is needed since del_timer_sync() canyest be called with sci_lock held.
  * For deinit however, del_timer_sync() is used without holding the lock.
  */
 struct sci_timer {

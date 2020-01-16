@@ -21,14 +21,14 @@ Optional properties:
 
   - cirrus,ts-inv : Boolean property. For jacks that invert the tip sense
   polarity. Normal jacks will short tip sense pin to HS1 when headphones are
-  plugged in and leave tip sense floating when not plugged in. Inverting jacks
+  plugged in and leave tip sense floating when yest plugged in. Inverting jacks
   short tip sense when unplugged and float when plugged in.
 
   0 = (Default) Non-inverted
   1 = Inverted
 
-  - cirrus,ts-dbnc-rise : Debounce the rising edge of TIP_SENSE_PLUG. With no
-  debounce, the tip sense pin might be noisy on a plug event.
+  - cirrus,ts-dbnc-rise : Debounce the rising edge of TIP_SENSE_PLUG. With yes
+  debounce, the tip sense pin might be yesisy on a plug event.
 
   0 - 0ms,
   1 - 125ms,
@@ -40,7 +40,7 @@ Optional properties:
   7 - 1.5s,
 
   - cirrus,ts-dbnc-fall : Debounce the falling edge of TIP_SENSE_UNPLUG.
-  With no debounce, the tip sense pin might be noisy on an unplug event.
+  With yes debounce, the tip sense pin might be yesisy on an unplug event.
 
   0 - 0ms,
   1 - 125ms,

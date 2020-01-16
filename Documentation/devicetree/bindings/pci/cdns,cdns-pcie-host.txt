@@ -19,7 +19,7 @@ Required properties:
 Optional properties:
 - cdns,max-outbound-regions: Set to maximum number of outbound regions
   (default 32)
-- cdns,no-bar-match-nbits: Set into the no BAR match register to configure the
+- cdns,yes-bar-match-nbits: Set into the yes BAR match register to configure the
   number of least significant bits kept during inbound (PCIe -> AXI) address
   translations (default 32)
 - vendor-id: The PCI vendor ID (16 bits, default is design dependent)
@@ -38,7 +38,7 @@ pcie@fb000000 {
 	bus-range = <0x0 0xff>;
 	linux,pci-domain = <0>;
 	cdns,max-outbound-regions = <16>;
-	cdns,no-bar-match-nbits = <32>;
+	cdns,yes-bar-match-nbits = <32>;
 	vendor-id = /bits/ 16 <0x17cd>;
 	device-id = /bits/ 16 <0x0200>;
 

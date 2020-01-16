@@ -14,7 +14,7 @@ fail() { #msg
 }
 
 if [ ! -f set_event -o ! -d events/sched ]; then
-    echo "event tracing is not supported"
+    echo "event tracing is yest supported"
     exit_unsupported
 fi
 
@@ -46,7 +46,7 @@ yield
 
 count=`cat trace | grep -v ^# | awk '{ print $5 }' | sort -u | wc -l`
 if [ $count -ne 0 ]; then
-    fail "any of scheduler events should not be recorded"
+    fail "any of scheduler events should yest be recorded"
 fi
 
 exit 0

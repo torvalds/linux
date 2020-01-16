@@ -10,12 +10,12 @@
 
 /dts-v1/;
 #include <dt-bindings/sound/samsung-i2s.h>
-#include "exynos5422-odroidxu3-common.dtsi"
+#include "exyyess5422-odroidxu3-common.dtsi"
 
 / {
 	model = "Hardkernel Odroid XU4";
-	compatible = "hardkernel,odroid-xu4", "samsung,exynos5800", \
-		     "samsung,exynos5";
+	compatible = "hardkernel,odroid-xu4", "samsung,exyyess5800", \
+		     "samsung,exyyess5";
 
 	pwmleds {
 		compatible = "pwm-leds";

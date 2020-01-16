@@ -26,6 +26,6 @@ struct tca6416_keys_platform_data {
 	uint16_t pinmask;
 	uint16_t invert;
 	int irq_is_gpio;
-	int use_polling;	/* use polling if Interrupt is not connected*/
+	int use_polling;	/* use polling if Interrupt is yest connected*/
 };
 #endif

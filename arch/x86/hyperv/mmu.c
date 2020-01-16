@@ -128,7 +128,7 @@ static void hyperv_flush_tlb_others(const struct cpumask *cpus,
 	}
 
 	/*
-	 * We can flush not more than max_gvas with one hypercall. Flush the
+	 * We can flush yest more than max_gvas with one hypercall. Flush the
 	 * whole address space if we were asked to do more.
 	 */
 	max_gvas = (PAGE_SIZE - sizeof(*flush)) / sizeof(flush->gva_list[0]);
@@ -198,7 +198,7 @@ static u64 hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 		return U64_MAX;
 
 	/*
-	 * We can flush not more than max_gvas with one hypercall. Flush the
+	 * We can flush yest more than max_gvas with one hypercall. Flush the
 	 * whole address space if we were asked to do more.
 	 */
 	max_gvas =

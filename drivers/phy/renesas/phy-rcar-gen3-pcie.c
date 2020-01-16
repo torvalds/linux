@@ -80,7 +80,7 @@ static int rcar_gen3_phy_pcie_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int error;
 
-	if (!dev->of_node) {
+	if (!dev->of_yesde) {
 		dev_err(dev,
 			"This driver must only be instantiated from the device tree\n");
 		return -EINVAL;

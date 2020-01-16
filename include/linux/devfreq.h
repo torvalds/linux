@@ -11,42 +11,42 @@
 #define __LINUX_DEVFREQ_H__
 
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
 
 #define DEVFREQ_NAME_LEN 16
 
-/* DEVFREQ governor name */
+/* DEVFREQ goveryesr name */
 #define DEVFREQ_GOV_SIMPLE_ONDEMAND	"simple_ondemand"
 #define DEVFREQ_GOV_PERFORMANCE		"performance"
 #define DEVFREQ_GOV_POWERSAVE		"powersave"
 #define DEVFREQ_GOV_USERSPACE		"userspace"
 #define DEVFREQ_GOV_PASSIVE		"passive"
 
-/* DEVFREQ notifier interface */
+/* DEVFREQ yestifier interface */
 #define DEVFREQ_TRANSITION_NOTIFIER	(0)
 
-/* Transition notifiers of DEVFREQ_TRANSITION_NOTIFIER */
+/* Transition yestifiers of DEVFREQ_TRANSITION_NOTIFIER */
 #define	DEVFREQ_PRECHANGE		(0)
 #define DEVFREQ_POSTCHANGE		(1)
 
 struct devfreq;
-struct devfreq_governor;
+struct devfreq_goveryesr;
 
 /**
  * struct devfreq_dev_status - Data given from devfreq user device to
- *			     governors. Represents the performance
+ *			     goveryesrs. Represents the performance
  *			     statistics.
  * @total_time:		The total time represented by this instance of
  *			devfreq_dev_status
  * @busy_time:		The time that the device was working among the
  *			total_time.
  * @current_frequency:	The operating frequency.
- * @private_data:	An entry not specified by the devfreq framework.
- *			A device and a specific governor may have their
+ * @private_data:	An entry yest specified by the devfreq framework.
+ *			A device and a specific goveryesr may have their
  *			own protocol with private_data. However, because
- *			this is governor-specific, a governor using this
+ *			this is goveryesr-specific, a goveryesr using this
  *			will be only compatible with devices aware of it.
  */
 struct devfreq_dev_status {
@@ -60,7 +60,7 @@ struct devfreq_dev_status {
 /*
  * The resulting frequency should be at most this. (this bound is the
  * least upper bound; thus, the resulting freq should be lower or same)
- * If the flag is not set, the resulting frequency should be at most the
+ * If the flag is yest set, the resulting frequency should be at most the
  * bound (greatest lower bound)
  */
 #define DEVFREQ_FLAG_LEAST_UPPER_BOUND		0x1
@@ -78,8 +78,8 @@ struct devfreq_dev_status {
  *			The "flags" parameter's possible values are
  *			explained above with "DEVFREQ_FLAG_*" macros.
  * @get_dev_status:	The device should provide the current performance
- *			status to devfreq. Governors are recommended not to
- *			use this directly. Instead, governors are recommended
+ *			status to devfreq. Goveryesrs are recommended yest to
+ *			use this directly. Instead, goveryesrs are recommended
  *			to use devfreq_update_stats() along with
  *			devfreq.last_status.
  * @get_cur_freq:	The device should provide the current frequency
@@ -87,7 +87,7 @@ struct devfreq_dev_status {
  * @exit:		An optional callback that is called when devfreq
  *			is removing the devfreq object due to error or
  *			from devfreq_remove_device() call. If the user
- *			has registered devfreq->nb at a notifier-head,
+ *			has registered devfreq->nb at a yestifier-head,
  *			this is the time to unregister it.
  * @freq_table:		Optional list of frequencies to support statistics
  *			and freq_table must be generated in ascending order.
@@ -109,20 +109,20 @@ struct devfreq_dev_profile {
 
 /**
  * struct devfreq - Device devfreq structure
- * @node:	list node - contains the devices with devfreq that have been
+ * @yesde:	list yesde - contains the devices with devfreq that have been
  *		registered.
  * @lock:	a mutex to protect accessing devfreq.
  * @dev:	device registered by devfreq class. dev.parent is the device
  *		using devfreq.
  * @profile:	device-specific devfreq profile
- * @governor:	method how to choose frequency based on the usage.
- * @governor_name:	devfreq governor name for use with this devfreq
- * @nb:		notifier block used to notify devfreq object that it should
+ * @goveryesr:	method how to choose frequency based on the usage.
+ * @goveryesr_name:	devfreq goveryesr name for use with this devfreq
+ * @nb:		yestifier block used to yestify devfreq object that it should
  *		reevaluate operable frequencies. Devfreq users may use
- *		devfreq.nb to the corresponding register notifier call chain.
+ *		devfreq.nb to the corresponding register yestifier call chain.
  * @work:	delayed work for load monitoring.
  * @previous_freq:	previously configured frequency value.
- * @data:	Private data of the governor. The devfreq framework does not
+ * @data:	Private data of the goveryesr. The devfreq framework does yest
  *		touch this.
  * @user_min_freq_req:	PM QoS minimum frequency request from user (via sysfs)
  * @user_max_freq_req:	PM QoS maximum frequency request from user (via sysfs)
@@ -136,33 +136,33 @@ struct devfreq_dev_profile {
  * @trans_table:	Statistics of devfreq transitions
  * @time_in_state:	Statistics of devfreq states
  * @last_stat_updated:	The last time stat updated
- * @transition_notifier_list: list head of DEVFREQ_TRANSITION_NOTIFIER notifier
+ * @transition_yestifier_list: list head of DEVFREQ_TRANSITION_NOTIFIER yestifier
  * @nb_min:		Notifier block for DEV_PM_QOS_MIN_FREQUENCY
  * @nb_max:		Notifier block for DEV_PM_QOS_MAX_FREQUENCY
  *
  * This structure stores the devfreq information for a give device.
  *
- * Note that when a governor accesses entries in struct devfreq in its
+ * Note that when a goveryesr accesses entries in struct devfreq in its
  * functions except for the context of callbacks defined in struct
- * devfreq_governor, the governor should protect its access with the
- * struct mutex lock in struct devfreq. A governor may use this mutex
+ * devfreq_goveryesr, the goveryesr should protect its access with the
+ * struct mutex lock in struct devfreq. A goveryesr may use this mutex
  * to protect its own private data in void *data as well.
  */
 struct devfreq {
-	struct list_head node;
+	struct list_head yesde;
 
 	struct mutex lock;
 	struct device dev;
 	struct devfreq_dev_profile *profile;
-	const struct devfreq_governor *governor;
-	char governor_name[DEVFREQ_NAME_LEN];
-	struct notifier_block nb;
+	const struct devfreq_goveryesr *goveryesr;
+	char goveryesr_name[DEVFREQ_NAME_LEN];
+	struct yestifier_block nb;
 	struct delayed_work work;
 
 	unsigned long previous_freq;
 	struct devfreq_dev_status last_status;
 
-	void *data; /* private data for governors */
+	void *data; /* private data for goveryesrs */
 
 	struct dev_pm_qos_request user_min_freq_req;
 	struct dev_pm_qos_request user_max_freq_req;
@@ -180,10 +180,10 @@ struct devfreq {
 	unsigned long *time_in_state;
 	unsigned long last_stat_updated;
 
-	struct srcu_notifier_head transition_notifier_list;
+	struct srcu_yestifier_head transition_yestifier_list;
 
-	struct notifier_block nb_min;
-	struct notifier_block nb_max;
+	struct yestifier_block nb_min;
+	struct yestifier_block nb_max;
 };
 
 struct devfreq_freqs {
@@ -194,12 +194,12 @@ struct devfreq_freqs {
 #if defined(CONFIG_PM_DEVFREQ)
 extern struct devfreq *devfreq_add_device(struct device *dev,
 				  struct devfreq_dev_profile *profile,
-				  const char *governor_name,
+				  const char *goveryesr_name,
 				  void *data);
 extern int devfreq_remove_device(struct devfreq *devfreq);
 extern struct devfreq *devm_devfreq_add_device(struct device *dev,
 				  struct devfreq_dev_profile *profile,
-				  const char *governor_name,
+				  const char *goveryesr_name,
 				  void *data);
 extern void devm_devfreq_remove_device(struct device *dev,
 				  struct devfreq *devfreq);
@@ -222,27 +222,27 @@ extern int update_devfreq(struct devfreq *devfreq);
 /* Helper functions for devfreq user device driver with OPP. */
 extern struct dev_pm_opp *devfreq_recommended_opp(struct device *dev,
 					   unsigned long *freq, u32 flags);
-extern int devfreq_register_opp_notifier(struct device *dev,
+extern int devfreq_register_opp_yestifier(struct device *dev,
 					 struct devfreq *devfreq);
-extern int devfreq_unregister_opp_notifier(struct device *dev,
+extern int devfreq_unregister_opp_yestifier(struct device *dev,
 					   struct devfreq *devfreq);
-extern int devm_devfreq_register_opp_notifier(struct device *dev,
+extern int devm_devfreq_register_opp_yestifier(struct device *dev,
 					      struct devfreq *devfreq);
-extern void devm_devfreq_unregister_opp_notifier(struct device *dev,
+extern void devm_devfreq_unregister_opp_yestifier(struct device *dev,
 						struct devfreq *devfreq);
-extern int devfreq_register_notifier(struct devfreq *devfreq,
-					struct notifier_block *nb,
+extern int devfreq_register_yestifier(struct devfreq *devfreq,
+					struct yestifier_block *nb,
 					unsigned int list);
-extern int devfreq_unregister_notifier(struct devfreq *devfreq,
-					struct notifier_block *nb,
+extern int devfreq_unregister_yestifier(struct devfreq *devfreq,
+					struct yestifier_block *nb,
 					unsigned int list);
-extern int devm_devfreq_register_notifier(struct device *dev,
+extern int devm_devfreq_register_yestifier(struct device *dev,
 				struct devfreq *devfreq,
-				struct notifier_block *nb,
+				struct yestifier_block *nb,
 				unsigned int list);
-extern void devm_devfreq_unregister_notifier(struct device *dev,
+extern void devm_devfreq_unregister_yestifier(struct device *dev,
 				struct devfreq *devfreq,
-				struct notifier_block *nb,
+				struct yestifier_block *nb,
 				unsigned int list);
 extern struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
 						int index);
@@ -254,12 +254,12 @@ extern struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
  * @upthreshold:	If the load is over this value, the frequency jumps.
  *			Specify 0 to use the default. Valid value = 0 to 100.
  * @downdifferential:	If the load is under upthreshold - downdifferential,
- *			the governor may consider slowing the frequency down.
+ *			the goveryesr may consider slowing the frequency down.
  *			Specify 0 to use the default. Valid value = 0 to 100.
  *			downdifferential < upthreshold must hold.
  *
- * If the fed devfreq_simple_ondemand_data pointer is NULL to the governor,
- * the governor uses the default values.
+ * If the fed devfreq_simple_ondemand_data pointer is NULL to the goveryesr,
+ * the goveryesr uses the default values.
  */
 struct devfreq_simple_ondemand_data {
 	unsigned int upthreshold;
@@ -273,17 +273,17 @@ struct devfreq_simple_ondemand_data {
  *	and devfreq_add_device
  * @parent:	the devfreq instance of parent device.
  * @get_target_freq:	Optional callback, Returns desired operating frequency
- *			for the device using passive governor. That is called
- *			when passive governor should decide the next frequency
+ *			for the device using passive goveryesr. That is called
+ *			when passive goveryesr should decide the next frequency
  *			by using the new frequency of parent devfreq device
- *			using governors except for passive governor.
+ *			using goveryesrs except for passive goveryesr.
  *			If the devfreq device has the specific method to decide
  *			the next frequency, should use this callback.
  * @this:	the devfreq instance of own device.
- * @nb:		the notifier block for DEVFREQ_TRANSITION_NOTIFIER list
+ * @nb:		the yestifier block for DEVFREQ_TRANSITION_NOTIFIER list
  *
  * The devfreq_passive_data have to set the devfreq instance of parent
- * device with governors except for the passive governor. But, don't need to
+ * device with goveryesrs except for the passive goveryesr. But, don't need to
  * initialize the 'this' and 'nb' field because the devfreq core will handle
  * them.
  */
@@ -294,16 +294,16 @@ struct devfreq_passive_data {
 	/* Optional callback to decide the next frequency of passvice device */
 	int (*get_target_freq)(struct devfreq *this, unsigned long *freq);
 
-	/* For passive governor's internal use. Don't need to set them */
+	/* For passive goveryesr's internal use. Don't need to set them */
 	struct devfreq *this;
-	struct notifier_block nb;
+	struct yestifier_block nb;
 };
 #endif
 
 #else /* !CONFIG_PM_DEVFREQ */
 static inline struct devfreq *devfreq_add_device(struct device *dev,
 					  struct devfreq_dev_profile *profile,
-					  const char *governor_name,
+					  const char *goveryesr_name,
 					  void *data)
 {
 	return ERR_PTR(-ENOSYS);
@@ -316,7 +316,7 @@ static inline int devfreq_remove_device(struct devfreq *devfreq)
 
 static inline struct devfreq *devm_devfreq_add_device(struct device *dev,
 					struct devfreq_dev_profile *profile,
-					const char *governor_name,
+					const char *goveryesr_name,
 					void *data)
 {
 	return ERR_PTR(-ENOSYS);
@@ -346,54 +346,54 @@ static inline struct dev_pm_opp *devfreq_recommended_opp(struct device *dev,
 	return ERR_PTR(-EINVAL);
 }
 
-static inline int devfreq_register_opp_notifier(struct device *dev,
+static inline int devfreq_register_opp_yestifier(struct device *dev,
 					 struct devfreq *devfreq)
 {
 	return -EINVAL;
 }
 
-static inline int devfreq_unregister_opp_notifier(struct device *dev,
+static inline int devfreq_unregister_opp_yestifier(struct device *dev,
 					   struct devfreq *devfreq)
 {
 	return -EINVAL;
 }
 
-static inline int devm_devfreq_register_opp_notifier(struct device *dev,
+static inline int devm_devfreq_register_opp_yestifier(struct device *dev,
 						     struct devfreq *devfreq)
 {
 	return -EINVAL;
 }
 
-static inline void devm_devfreq_unregister_opp_notifier(struct device *dev,
+static inline void devm_devfreq_unregister_opp_yestifier(struct device *dev,
 							struct devfreq *devfreq)
 {
 }
 
-static inline int devfreq_register_notifier(struct devfreq *devfreq,
-					struct notifier_block *nb,
+static inline int devfreq_register_yestifier(struct devfreq *devfreq,
+					struct yestifier_block *nb,
 					unsigned int list)
 {
 	return 0;
 }
 
-static inline int devfreq_unregister_notifier(struct devfreq *devfreq,
-					struct notifier_block *nb,
+static inline int devfreq_unregister_yestifier(struct devfreq *devfreq,
+					struct yestifier_block *nb,
 					unsigned int list)
 {
 	return 0;
 }
 
-static inline int devm_devfreq_register_notifier(struct device *dev,
+static inline int devm_devfreq_register_yestifier(struct device *dev,
 				struct devfreq *devfreq,
-				struct notifier_block *nb,
+				struct yestifier_block *nb,
 				unsigned int list)
 {
 	return 0;
 }
 
-static inline void devm_devfreq_unregister_notifier(struct device *dev,
+static inline void devm_devfreq_unregister_yestifier(struct device *dev,
 				struct devfreq *devfreq,
-				struct notifier_block *nb,
+				struct yestifier_block *nb,
 				unsigned int list)
 {
 }

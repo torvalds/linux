@@ -286,7 +286,7 @@ static void nvme_rdma_exit_request(struct blk_mq_tag_set *set,
 
 static int nvme_rdma_init_request(struct blk_mq_tag_set *set,
 		struct request *rq, unsigned int hctx_idx,
-		unsigned int numa_node)
+		unsigned int numa_yesde)
 {
 	struct nvme_rdma_ctrl *ctrl = set->driver_data;
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
@@ -357,7 +357,7 @@ nvme_rdma_find_get_device(struct rdma_cm_id *cm_id)
 
 	mutex_lock(&device_list_mutex);
 	list_for_each_entry(ndev, &device_list, entry) {
-		if (ndev->dev->node_guid == cm_id->device->node_guid &&
+		if (ndev->dev->yesde_guid == cm_id->device->yesde_guid &&
 		    nvme_rdma_dev_get(ndev))
 			goto out_unlock;
 	}
@@ -377,7 +377,7 @@ nvme_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	if (!(ndev->dev->attrs.device_cap_flags &
 	      IB_DEVICE_MEM_MGT_EXTENSIONS)) {
 		dev_err(&ndev->dev->dev,
-			"Memory registrations not supported.\n");
+			"Memory registrations yest supported.\n");
 		goto out_free_pd;
 	}
 
@@ -442,7 +442,7 @@ static int nvme_rdma_create_queue_ib(struct nvme_rdma_queue *queue)
 	queue->device = nvme_rdma_find_get_device(queue->cm_id);
 	if (!queue->device) {
 		dev_err(queue->cm_id->device->dev.parent,
-			"no client data found!\n");
+			"yes client data found!\n");
 		return -ECONNREFUSED;
 	}
 	ibdev = queue->device->dev;
@@ -686,7 +686,7 @@ static int nvme_rdma_alloc_io_queues(struct nvme_rdma_ctrl *ctrl)
 	} else {
 		/*
 		 * shared read/write queues
-		 * either no write queues were requested, or we don't have
+		 * either yes write queues were requested, or we don't have
 		 * sufficient queue count to have dedicated default queues.
 		 */
 		ctrl->io_queues[HCTX_TYPE_DEFAULT] =
@@ -729,7 +729,7 @@ static struct blk_mq_tag_set *nvme_rdma_alloc_tagset(struct nvme_ctrl *nctrl,
 		set->ops = &nvme_rdma_admin_mq_ops;
 		set->queue_depth = NVME_AQ_MQ_TAG_DEPTH;
 		set->reserved_tags = 2; /* connect + keep-alive */
-		set->numa_node = nctrl->numa_node;
+		set->numa_yesde = nctrl->numa_yesde;
 		set->cmd_size = sizeof(struct nvme_rdma_request) +
 			NVME_INLINE_SG_CNT * sizeof(struct scatterlist);
 		set->driver_data = ctrl;
@@ -742,7 +742,7 @@ static struct blk_mq_tag_set *nvme_rdma_alloc_tagset(struct nvme_ctrl *nctrl,
 		set->ops = &nvme_rdma_mq_ops;
 		set->queue_depth = nctrl->sqsize + 1;
 		set->reserved_tags = 1; /* fabric connect */
-		set->numa_node = nctrl->numa_node;
+		set->numa_yesde = nctrl->numa_yesde;
 		set->flags = BLK_MQ_F_SHOULD_MERGE;
 		set->cmd_size = sizeof(struct nvme_rdma_request) +
 			NVME_INLINE_SG_CNT * sizeof(struct scatterlist);
@@ -785,7 +785,7 @@ static int nvme_rdma_configure_admin_queue(struct nvme_rdma_ctrl *ctrl,
 		return error;
 
 	ctrl->device = ctrl->queues[0].device;
-	ctrl->ctrl.numa_node = dev_to_node(ctrl->device->dev->dma_device);
+	ctrl->ctrl.numa_yesde = dev_to_yesde(ctrl->device->dev->dma_device);
 
 	ctrl->max_fr_pages = nvme_rdma_get_max_fr_pages(ctrl->device->dev);
 
@@ -961,7 +961,7 @@ free_ctrl:
 
 static void nvme_rdma_reconnect_or_remove(struct nvme_rdma_ctrl *ctrl)
 {
-	/* If we are resetting/deleting then do nothing */
+	/* If we are resetting/deleting then do yesthing */
 	if (ctrl->ctrl.state != NVME_CTRL_CONNECTING) {
 		WARN_ON_ONCE(ctrl->ctrl.state == NVME_CTRL_NEW ||
 			ctrl->ctrl.state == NVME_CTRL_LIVE);
@@ -988,13 +988,13 @@ static int nvme_rdma_setup_ctrl(struct nvme_rdma_ctrl *ctrl, bool new)
 		return ret;
 
 	if (ctrl->ctrl.icdoff) {
-		dev_err(ctrl->ctrl.device, "icdoff is not supported!\n");
+		dev_err(ctrl->ctrl.device, "icdoff is yest supported!\n");
 		goto destroy_admin;
 	}
 
 	if (!(ctrl->ctrl.sgls & (1 << 2))) {
 		dev_err(ctrl->ctrl.device,
-			"Mandatory keyed sgls are not supported!\n");
+			"Mandatory keyed sgls are yest supported!\n");
 		goto destroy_admin;
 	}
 
@@ -1443,7 +1443,7 @@ static void nvme_rdma_process_nvme_rsp(struct nvme_rdma_queue *queue,
 	rq = blk_mq_tag_to_rq(nvme_rdma_tagset(queue), cqe->command_id);
 	if (!rq) {
 		dev_err(queue->ctrl->ctrl.device,
-			"tag 0x%x on QP %#x not found\n",
+			"tag 0x%x on QP %#x yest found\n",
 			cqe->command_id, queue->qp->qp_num);
 		nvme_rdma_error_recovery(queue->ctrl);
 		return;
@@ -1742,7 +1742,7 @@ static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 	WARN_ON_ONCE(rq->tag < 0);
 
 	if (!nvmf_check_ready(&queue->ctrl->ctrl, rq, queue_ready))
-		return nvmf_fail_nonready_command(&queue->ctrl->ctrl, rq);
+		return nvmf_fail_yesnready_command(&queue->ctrl->ctrl, rq);
 
 	dev = queue->device->dev;
 
@@ -1942,8 +1942,8 @@ static const struct nvme_ctrl_ops nvme_rdma_ctrl_ops = {
  * (association) with the same tuple:
  * <Host NQN, Host ID, local address, remote address, remote port, SUBSYS NQN>
  *
- * if local address is not specified in the request, it will match an
- * existing controller with all the other parameters the same and no
+ * if local address is yest specified in the request, it will match an
+ * existing controller with all the other parameters the same and yes
  * local port address specified as well.
  *
  * The ports don't need to be compared as they are intrinsically
@@ -2029,7 +2029,7 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 		goto out_free_ctrl;
 
 	ret = nvme_init_ctrl(&ctrl->ctrl, dev, &nvme_rdma_ctrl_ops,
-				0 /* no quirks, we're perfect! */);
+				0 /* yes quirks, we're perfect! */);
 	if (ret)
 		goto out_kfree_queues;
 

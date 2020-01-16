@@ -54,7 +54,7 @@ static int __igt_client_fill(struct intel_engine_cs *engine)
 		 * CPU cache first to check that we do the required clflush
 		 * before scheduling the blt for !llc platforms. This matches
 		 * some version of reality where at get_pages the pages
-		 * themselves may not yet be coherent with the GPU(swap-in). If
+		 * themselves may yest yet be coherent with the GPU(swap-in). If
 		 * we are missing the flush then we should see the stale cache
 		 * values after we do the set_to_cpu_domain and pick it up as a
 		 * test failure.

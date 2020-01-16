@@ -159,7 +159,7 @@ static __inline__ void enable_fpu(void)
 			     : "r" (~SR_FD));
 }
 
-/* Double presision, NANS as NANS, rounding to nearest, no exceptions */
+/* Double presision, NANS as NANS, rounding to nearest, yes exceptions */
 #define FPSCR_INIT  0x00080000
 
 #define	FPSCR_CAUSE_MASK	0x0001f000	/* Cause bits */

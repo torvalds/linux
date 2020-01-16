@@ -35,13 +35,13 @@ static const u8 acpi_gbl_argument_count[] =
 const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode)
 {
 #ifdef ACPI_DEBUG_OUTPUT
-	const char *opcode_name = "Unknown AML opcode";
+	const char *opcode_name = "Unkyeswn AML opcode";
 #endif
 
 	ACPI_FUNCTION_NAME(ps_get_opcode_info);
 
 	/*
-	 * Detect normal 8-bit opcode or extended 16-bit opcode
+	 * Detect yesrmal 8-bit opcode or extended 16-bit opcode
 	 */
 	if (!(opcode & 0xFF00)) {
 
@@ -104,7 +104,7 @@ const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode)
 	}
 #endif
 
-	/* Unknown AML opcode */
+	/* Unkyeswn AML opcode */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%4.4X]\n", opcode_name, opcode));
 

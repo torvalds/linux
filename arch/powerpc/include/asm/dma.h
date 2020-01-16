@@ -16,7 +16,7 @@
  * Modified by Cort Dougan <cort@cs.nmt.edu>
  *
  * None of this really applies for Power Macintoshes.  There is
- * basically just enough here to get kernel/dma.c to compile.
+ * basically just eyesugh here to get kernel/dma.c to compile.
  */
 
 #include <asm/io.h>
@@ -45,10 +45,10 @@
  *  controller 2: channels 4-7, word operations, ports C0-DF
  *
  *  - ALL registers are 8 bits only, regardless of transfer size
- *  - channel 4 is not used - cascades 1 into 2.
+ *  - channel 4 is yest used - cascades 1 into 2.
  *  - channels 0-3 are byte - addresses/counts are for physical bytes
  *  - channels 5-7 are word - addresses/counts are for physical words
- *  - transfers must not cross physical 64K (0-3) or 128K (5-7) boundaries
+ *  - transfers must yest cross physical 64K (0-3) or 128K (5-7) boundaries
  *  - transfer count loaded to registers is 1 less than actual count
  *  - controller 2 offsets are all even (2x offsets for controller 1)
  *  - page registers for 5-7 don't use data bit 0, represent 128K pages
@@ -56,7 +56,7 @@
  *
  * On CHRP, the W83C553F (and VLSI Tollgate?) support full 32 bit addressing.
  * Note that addresses loaded into registers must be _physical_ addresses,
- * not logical addresses (which may differ if paging is active).
+ * yest logical addresses (which may differ if paging is active).
  *
  *  Address mapping for channels 0-3:
  *
@@ -71,16 +71,16 @@
  *
  *   A23 ... A17 A16 A15 ... A9 A8 A7 ... A1 A0    (Physical addresses)
  *    |  ...  |   \   \   ... \  \  \  ... \  \
- *    |  ...  |    \   \   ... \  \  \  ... \  (not used)
+ *    |  ...  |    \   \   ... \  \  \  ... \  (yest used)
  *    |  ...  |     \   \   ... \  \  \  ... \
  *   P7  ...  P1 (0) A7 A6  ... A0 A7 A6 ... A0
  * |      Page      |  Addr MSB   |  Addr LSB  |   (DMA registers)
  *
  * Again, channels 5-7 transfer _physical_ words (16 bits), so addresses
- * and counts _must_ be word-aligned (the lowest address bit is _ignored_ at
+ * and counts _must_ be word-aligned (the lowest address bit is _igyesred_ at
  * the hardware level, so odd-byte transfers aren't possible).
  *
- * Transfer count (_not # bytes_) is limited to 64K, represented as actual
+ * Transfer count (_yest # bytes_) is limited to 64K, represented as actual
  * count - 1 : 64K => 0xFFFF, 1 => 0x0000.  Thus, count is always 1 or more,
  * and up to 128K bytes may be transferred on channels 5-7 in one operation.
  *
@@ -156,8 +156,8 @@
     extern unsigned int DMA_MODE_READ;
     extern unsigned long ISA_DMA_THRESHOLD;
 #else
-    #define DMA_MODE_READ	0x44	/* I/O to memory, no autoinit, increment, single mode */
-    #define DMA_MODE_WRITE	0x48	/* memory to I/O, no autoinit, increment, single mode */
+    #define DMA_MODE_READ	0x44	/* I/O to memory, yes autoinit, increment, single mode */
+    #define DMA_MODE_WRITE	0x48	/* memory to I/O, yes autoinit, increment, single mode */
 #endif
 
 #define DMA_MODE_CASCADE	0xC0	/* pass thru DREQ->HRQ, DACK<-HLDA only */
@@ -184,7 +184,7 @@ static __inline__ void enable_dma(unsigned int dmanr)
 	unsigned char ucDmaCmd = 0x00;
 
 	if (dmanr != 4) {
-		dma_outb(0, DMA2_MASK_REG);	/* This may not be enabled */
+		dma_outb(0, DMA2_MASK_REG);	/* This may yest be enabled */
 		dma_outb(ucDmaCmd, DMA2_CMD_REG);	/* Enable group */
 	}
 	if (dmanr <= 3) {
@@ -205,7 +205,7 @@ static __inline__ void disable_dma(unsigned int dmanr)
 
 /* Clear the 'DMA Pointer Flip Flop'.
  * Write 0 for LSB/MSB, 1 for MSB/LSB access.
- * Use this once to initialize the FF to a known state.
+ * Use this once to initialize the FF to a kyeswn state.
  * After that, keep track of it. :-)
  * --- In order to do that, the DMA routines below should ---
  * --- only be used while interrupts are disabled! ---
@@ -228,7 +228,7 @@ static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
 }
 
 /* Set only the page register bits of the transfer address.
- * This is used for successive transfers when we know the contents of
+ * This is used for successive transfers when we kyesw the contents of
  * the lower 16 bits of the DMA current address register, but a 64k boundary
  * may have been crossed.
  */

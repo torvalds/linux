@@ -21,7 +21,7 @@
 			"%s:"fmt, (_vq)->vq.name, ##args);	\
 		BUG();						\
 	} while (0)
-/* Caller is supposed to guarantee no reentry. */
+/* Caller is supposed to guarantee yes reentry. */
 #define START_USE(_vq)						\
 	do {							\
 		if ((_vq)->in_use)				\
@@ -33,13 +33,13 @@
 	do { BUG_ON(!(_vq)->in_use); (_vq)->in_use = 0; } while(0)
 #define LAST_ADD_TIME_UPDATE(_vq)				\
 	do {							\
-		ktime_t now = ktime_get();			\
+		ktime_t yesw = ktime_get();			\
 								\
 		/* No kick or get, with .1 second between?  Warn. */ \
 		if ((_vq)->last_add_time_valid)			\
-			WARN_ON(ktime_to_ms(ktime_sub(now,	\
+			WARN_ON(ktime_to_ms(ktime_sub(yesw,	\
 				(_vq)->last_add_time)) > 100);	\
-		(_vq)->last_add_time = now;			\
+		(_vq)->last_add_time = yesw;			\
 		(_vq)->last_add_time_valid = true;		\
 	} while (0)
 #define LAST_ADD_TIME_CHECK(_vq)				\
@@ -177,8 +177,8 @@ struct vring_virtqueue {
 		} packed;
 	};
 
-	/* How to notify other side. FIXME: commonalize hcalls! */
-	bool (*notify)(struct virtqueue *vq);
+	/* How to yestify other side. FIXME: commonalize hcalls! */
+	bool (*yestify)(struct virtqueue *vq);
 
 	/* DMA, allocation, and size information */
 	bool we_own_ring;
@@ -214,7 +214,7 @@ static inline bool virtqueue_use_indirect(struct virtqueue *_vq,
 
 /*
  * Modern virtio devices have feature bits to specify whether they need a
- * quirk and bypass the IOMMU. If not there, just use the DMA API.
+ * quirk and bypass the IOMMU. If yest there, just use the DMA API.
  *
  * If there, the interaction between virtio and DMA API is messy.
  *
@@ -227,7 +227,7 @@ static inline bool virtqueue_use_indirect(struct virtqueue *_vq,
  *
  * On other systems, including SPARC and PPC64, virtio-pci devices are
  * enumerated as though they are behind an IOMMU, but the virtio host
- * ignores the IOMMU, so we must either pretend that the IOMMU isn't
+ * igyesres the IOMMU, so we must either pretend that the IOMMU isn't
  * there or somehow map everything as the identity.
  *
  * For the time being, we preserve historic behavior and bypass the DMA
@@ -248,7 +248,7 @@ static bool vring_use_dma_api(struct virtio_device *vdev)
 	 * In theory, it's possible to have a buggy QEMU-supposed
 	 * emulated Q35 IOMMU and Xen enabled at the same time.  On
 	 * such a configuration, virtio has never worked and will
-	 * not work without an even larger kludge.  Instead, enable
+	 * yest work without an even larger kludge.  Instead, enable
 	 * the DMA API if we're a Xen guest, which at least allows
 	 * all of the sensible Xen configurations to work correctly.
 	 */
@@ -286,7 +286,7 @@ static void *vring_alloc_queue(struct virtio_device *vdev, size_t size,
 			 * Sanity check: make sure we dind't truncate
 			 * the address.  The only arches I can find that
 			 * have 64-bit phys_addr_t but 32-bit dma_addr_t
-			 * are certain non-highmem MIPS and x86
+			 * are certain yesn-highmem MIPS and x86
 			 * configurations, but these configurations
 			 * should never allocate physical pages above 32
 			 * bits, so this is fine.  Just in case, throw a
@@ -312,9 +312,9 @@ static void vring_free_queue(struct virtio_device *vdev, size_t size,
 }
 
 /*
- * The DMA ops on various arches are rather gnarly right now, and
+ * The DMA ops on various arches are rather gnarly right yesw, and
  * making all of the arch DMA ops work on the vring device itself
- * is a mess.  For now, we use the parent device for DMA ops.
+ * is a mess.  For yesw, we use the parent device for DMA ops.
  */
 static inline struct device *vring_dma_dev(const struct vring_virtqueue *vq)
 {
@@ -467,11 +467,11 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 	if (vq->vq.num_free < descs_used) {
 		pr_debug("Can't add buf len %i - avail = %i\n",
 			 descs_used, vq->vq.num_free);
-		/* FIXME: for historical reasons, we force a notify here if
+		/* FIXME: for historical reasons, we force a yestify here if
 		 * there are outgoing parts to the buffer.  Presumably the
 		 * host should service the ring ASAP. */
 		if (out_sgs)
-			vq->notify(&vq->vq);
+			vq->yestify(&vq->vq);
 		if (indirect)
 			kfree(desc);
 		END_USE(vq);
@@ -648,7 +648,7 @@ static void detach_buf_split(struct vring_virtqueue *vq, unsigned int head,
 				vq->split.desc_state[head].indir_desc;
 		u32 len;
 
-		/* Free the indirect table, if any, now that it's unmapped. */
+		/* Free the indirect table, if any, yesw that it's unmapped. */
 		if (!indir_desc)
 			return;
 
@@ -711,11 +711,11 @@ static void *virtqueue_get_buf_ctx_split(struct virtqueue *_vq,
 		return NULL;
 	}
 	if (unlikely(!vq->split.desc_state[i].data)) {
-		BAD_RING(vq, "id %u is not a head!\n", i);
+		BAD_RING(vq, "id %u is yest a head!\n", i);
 		return NULL;
 	}
 
-	/* detach_buf_split clears data, so grab it now. */
+	/* detach_buf_split clears data, so grab it yesw. */
 	ret = vq->split.desc_state[i].data;
 	detach_buf_split(vq, i, ctx);
 	vq->last_used_idx++;
@@ -826,7 +826,7 @@ static void *virtqueue_detach_unused_buf_split(struct virtqueue *_vq)
 	for (i = 0; i < vq->split.vring.num; i++) {
 		if (!vq->split.desc_state[i].data)
 			continue;
-		/* detach_buf_split clears data, so grab it now. */
+		/* detach_buf_split clears data, so grab it yesw. */
 		buf = vq->split.desc_state[i].data;
 		detach_buf_split(vq, i, NULL);
 		vq->split.avail_idx_shadow--;
@@ -850,7 +850,7 @@ static struct virtqueue *vring_create_virtqueue_split(
 	bool weak_barriers,
 	bool may_reduce_num,
 	bool context,
-	bool (*notify)(struct virtqueue *),
+	bool (*yestify)(struct virtqueue *),
 	void (*callback)(struct virtqueue *),
 	const char *name)
 {
@@ -892,7 +892,7 @@ static struct virtqueue *vring_create_virtqueue_split(
 	vring_init(&vring, num, queue, vring_align);
 
 	vq = __vring_new_virtqueue(index, vring, vdev, weak_barriers, context,
-				   notify, callback, name);
+				   yestify, callback, name);
 	if (!vq) {
 		vring_free_queue(vdev, queue_size_in_bytes, queue,
 				 dma_addr);
@@ -1245,7 +1245,7 @@ static bool virtqueue_kick_prepare_packed(struct virtqueue *_vq)
 	START_USE(vq);
 
 	/*
-	 * We need to expose the new flags value before checking notification
+	 * We need to expose the new flags value before checking yestification
 	 * suppressions.
 	 */
 	virtio_mb(vq->weak_barriers);
@@ -1306,7 +1306,7 @@ static void detach_buf_packed(struct vring_virtqueue *vq,
 	if (vq->indirect) {
 		u32 len;
 
-		/* Free the indirect table, if any, now that it's unmapped. */
+		/* Free the indirect table, if any, yesw that it's unmapped. */
 		desc = state->indir_desc;
 		if (!desc)
 			return;
@@ -1376,11 +1376,11 @@ static void *virtqueue_get_buf_ctx_packed(struct virtqueue *_vq,
 		return NULL;
 	}
 	if (unlikely(!vq->packed.desc_state[id].data)) {
-		BAD_RING(vq, "id %u is not a head!\n", id);
+		BAD_RING(vq, "id %u is yest a head!\n", id);
 		return NULL;
 	}
 
-	/* detach_buf_packed clears data, so grab it now. */
+	/* detach_buf_packed clears data, so grab it yesw. */
 	ret = vq->packed.desc_state[id].data;
 	detach_buf_packed(vq, id, ctx);
 
@@ -1537,7 +1537,7 @@ static void *virtqueue_detach_unused_buf_packed(struct virtqueue *_vq)
 	for (i = 0; i < vq->packed.vring.num; i++) {
 		if (!vq->packed.desc_state[i].data)
 			continue;
-		/* detach_buf clears data, so grab it now. */
+		/* detach_buf clears data, so grab it yesw. */
 		buf = vq->packed.desc_state[i].data;
 		detach_buf_packed(vq, i, NULL);
 		END_USE(vq);
@@ -1558,7 +1558,7 @@ static struct virtqueue *vring_create_virtqueue_packed(
 	bool weak_barriers,
 	bool may_reduce_num,
 	bool context,
-	bool (*notify)(struct virtqueue *),
+	bool (*yestify)(struct virtqueue *),
 	void (*callback)(struct virtqueue *),
 	const char *name)
 {
@@ -1601,7 +1601,7 @@ static struct virtqueue *vring_create_virtqueue_packed(
 	vq->vq.num_free = num;
 	vq->vq.index = index;
 	vq->we_own_ring = true;
-	vq->notify = notify;
+	vq->yestify = yestify;
 	vq->weak_barriers = weak_barriers;
 	vq->broken = false;
 	vq->last_used_idx = 0;
@@ -1662,7 +1662,7 @@ static struct virtqueue *vring_create_virtqueue_packed(
 	memset(vq->packed.desc_extra, 0,
 		num * sizeof(struct vring_desc_extra_packed));
 
-	/* No callback?  Tell other side not to bother us. */
+	/* No callback?  Tell other side yest to bother us. */
 	if (!callback) {
 		vq->packed.event_flags_shadow = VRING_PACKED_EVENT_FLAG_DISABLE;
 		vq->packed.vring.driver->flags =
@@ -1717,7 +1717,7 @@ static inline int virtqueue_add(struct virtqueue *_vq,
  * @gfp: how to do memory allocations (if necessary).
  *
  * Caller must ensure we don't call this with other virtqueue operations
- * at the same time (except where noted).
+ * at the same time (except where yested).
  *
  * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
  */
@@ -1751,7 +1751,7 @@ EXPORT_SYMBOL_GPL(virtqueue_add_sgs);
  * @gfp: how to do memory allocations (if necessary).
  *
  * Caller must ensure we don't call this with other virtqueue operations
- * at the same time (except where noted).
+ * at the same time (except where yested).
  *
  * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
  */
@@ -1773,7 +1773,7 @@ EXPORT_SYMBOL_GPL(virtqueue_add_outbuf);
  * @gfp: how to do memory allocations (if necessary).
  *
  * Caller must ensure we don't call this with other virtqueue operations
- * at the same time (except where noted).
+ * at the same time (except where yested).
  *
  * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
  */
@@ -1796,7 +1796,7 @@ EXPORT_SYMBOL_GPL(virtqueue_add_inbuf);
  * @gfp: how to do memory allocations (if necessary).
  *
  * Caller must ensure we don't call this with other virtqueue operations
- * at the same time (except where noted).
+ * at the same time (except where yested).
  *
  * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
  */
@@ -1816,10 +1816,10 @@ EXPORT_SYMBOL_GPL(virtqueue_add_inbuf_ctx);
  *
  * Instead of virtqueue_kick(), you can do:
  *	if (virtqueue_kick_prepare(vq))
- *		virtqueue_notify(vq);
+ *		virtqueue_yestify(vq);
  *
  * This is sometimes useful because the virtqueue_kick_prepare() needs
- * to be serialized, but the actual virtqueue_notify() call does not.
+ * to be serialized, but the actual virtqueue_yestify() call does yest.
  */
 bool virtqueue_kick_prepare(struct virtqueue *_vq)
 {
@@ -1831,14 +1831,14 @@ bool virtqueue_kick_prepare(struct virtqueue *_vq)
 EXPORT_SYMBOL_GPL(virtqueue_kick_prepare);
 
 /**
- * virtqueue_notify - second half of split virtqueue_kick call.
+ * virtqueue_yestify - second half of split virtqueue_kick call.
  * @_vq: the struct virtqueue
  *
- * This does not need to be serialized.
+ * This does yest need to be serialized.
  *
- * Returns false if host notify failed or queue is broken, otherwise true.
+ * Returns false if host yestify failed or queue is broken, otherwise true.
  */
-bool virtqueue_notify(struct virtqueue *_vq)
+bool virtqueue_yestify(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
@@ -1846,13 +1846,13 @@ bool virtqueue_notify(struct virtqueue *_vq)
 		return false;
 
 	/* Prod other side to tell it about changes. */
-	if (!vq->notify(_vq)) {
+	if (!vq->yestify(_vq)) {
 		vq->broken = true;
 		return false;
 	}
 	return true;
 }
-EXPORT_SYMBOL_GPL(virtqueue_notify);
+EXPORT_SYMBOL_GPL(virtqueue_yestify);
 
 /**
  * virtqueue_kick - update after add_buf
@@ -1862,14 +1862,14 @@ EXPORT_SYMBOL_GPL(virtqueue_notify);
  * the other side.
  *
  * Caller must ensure we don't call this with other virtqueue
- * operations at the same time (except where noted).
+ * operations at the same time (except where yested).
  *
  * Returns false if kick failed, otherwise true.
  */
 bool virtqueue_kick(struct virtqueue *vq)
 {
 	if (virtqueue_kick_prepare(vq))
-		return virtqueue_notify(vq);
+		return virtqueue_yestify(vq);
 	return true;
 }
 EXPORT_SYMBOL_GPL(virtqueue_kick);
@@ -1882,13 +1882,13 @@ EXPORT_SYMBOL_GPL(virtqueue_kick);
  *
  * If the device wrote data into the buffer, @len will be set to the
  * amount written.  This means you don't need to clear the buffer
- * beforehand to ensure there's no data leakage in the case of short
+ * beforehand to ensure there's yes data leakage in the case of short
  * writes.
  *
  * Caller must ensure we don't call this with other virtqueue
- * operations at the same time (except where noted).
+ * operations at the same time (except where yested).
  *
- * Returns NULL if there are no used buffers, or the "data" token
+ * Returns NULL if there are yes used buffers, or the "data" token
  * handed to virtqueue_add_*().
  */
 void *virtqueue_get_buf_ctx(struct virtqueue *_vq, unsigned int *len,
@@ -1910,10 +1910,10 @@ EXPORT_SYMBOL_GPL(virtqueue_get_buf);
  * virtqueue_disable_cb - disable callbacks
  * @_vq: the struct virtqueue we're talking about.
  *
- * Note that this is not necessarily synchronous, hence unreliable and only
+ * Note that this is yest necessarily synchroyesus, hence unreliable and only
  * useful as an optimization.
  *
- * Unlike other operations, this need not be serialized.
+ * Unlike other operations, this need yest be serialized.
  */
 void virtqueue_disable_cb(struct virtqueue *_vq)
 {
@@ -1936,7 +1936,7 @@ EXPORT_SYMBOL_GPL(virtqueue_disable_cb);
  * more work, and enabling callbacks.
  *
  * Caller must ensure we don't call this with other virtqueue
- * operations at the same time (except where noted).
+ * operations at the same time (except where yested).
  */
 unsigned virtqueue_enable_cb_prepare(struct virtqueue *_vq)
 {
@@ -1954,7 +1954,7 @@ EXPORT_SYMBOL_GPL(virtqueue_enable_cb_prepare);
  *
  * Returns "true" if there are pending used buffers in the queue.
  *
- * This does not need to be serialized.
+ * This does yest need to be serialized.
  */
 bool virtqueue_poll(struct virtqueue *_vq, unsigned last_used_idx)
 {
@@ -1975,7 +1975,7 @@ EXPORT_SYMBOL_GPL(virtqueue_poll);
  * checking for more work, and enabling callbacks.
  *
  * Caller must ensure we don't call this with other virtqueue
- * operations at the same time (except where noted).
+ * operations at the same time (except where yested).
  */
 bool virtqueue_enable_cb(struct virtqueue *_vq)
 {
@@ -1996,7 +1996,7 @@ EXPORT_SYMBOL_GPL(virtqueue_enable_cb);
  * and enabling callbacks.
  *
  * Caller must ensure we don't call this with other virtqueue
- * operations at the same time (except where noted).
+ * operations at the same time (except where yested).
  */
 bool virtqueue_enable_cb_delayed(struct virtqueue *_vq)
 {
@@ -2012,7 +2012,7 @@ EXPORT_SYMBOL_GPL(virtqueue_enable_cb_delayed);
  * @_vq: the struct virtqueue we're talking about.
  *
  * Returns NULL or the "data" token handed to virtqueue_add_*().
- * This is not valid on an active queue; it is useful only for device
+ * This is yest valid on an active queue; it is useful only for device
  * shutdown.
  */
 void *virtqueue_detach_unused_buf(struct virtqueue *_vq)
@@ -2034,7 +2034,7 @@ irqreturn_t vring_interrupt(int irq, void *_vq)
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
 	if (!more_used(vq)) {
-		pr_debug("virtqueue interrupt with no work for %p\n", vq);
+		pr_debug("virtqueue interrupt with yes work for %p\n", vq);
 		return IRQ_NONE;
 	}
 
@@ -2055,7 +2055,7 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 					struct virtio_device *vdev,
 					bool weak_barriers,
 					bool context,
-					bool (*notify)(struct virtqueue *),
+					bool (*yestify)(struct virtqueue *),
 					void (*callback)(struct virtqueue *),
 					const char *name)
 {
@@ -2076,7 +2076,7 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 	vq->vq.num_free = vring.num;
 	vq->vq.index = index;
 	vq->we_own_ring = false;
-	vq->notify = notify;
+	vq->yestify = yestify;
 	vq->weak_barriers = weak_barriers;
 	vq->broken = false;
 	vq->last_used_idx = 0;
@@ -2102,7 +2102,7 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 	vq->split.avail_flags_shadow = 0;
 	vq->split.avail_idx_shadow = 0;
 
-	/* No callback?  Tell other side not to bother us. */
+	/* No callback?  Tell other side yest to bother us. */
 	if (!callback) {
 		vq->split.avail_flags_shadow |= VRING_AVAIL_F_NO_INTERRUPT;
 		if (!vq->event)
@@ -2136,7 +2136,7 @@ struct virtqueue *vring_create_virtqueue(
 	bool weak_barriers,
 	bool may_reduce_num,
 	bool context,
-	bool (*notify)(struct virtqueue *),
+	bool (*yestify)(struct virtqueue *),
 	void (*callback)(struct virtqueue *),
 	const char *name)
 {
@@ -2144,11 +2144,11 @@ struct virtqueue *vring_create_virtqueue(
 	if (virtio_has_feature(vdev, VIRTIO_F_RING_PACKED))
 		return vring_create_virtqueue_packed(index, num, vring_align,
 				vdev, weak_barriers, may_reduce_num,
-				context, notify, callback, name);
+				context, yestify, callback, name);
 
 	return vring_create_virtqueue_split(index, num, vring_align,
 			vdev, weak_barriers, may_reduce_num,
-			context, notify, callback, name);
+			context, yestify, callback, name);
 }
 EXPORT_SYMBOL_GPL(vring_create_virtqueue);
 
@@ -2160,7 +2160,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      bool weak_barriers,
 				      bool context,
 				      void *pages,
-				      bool (*notify)(struct virtqueue *vq),
+				      bool (*yestify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),
 				      const char *name)
 {
@@ -2171,7 +2171,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 
 	vring_init(&vring, num, pages, vring_align);
 	return __vring_new_virtqueue(index, vring, vdev, weak_barriers, context,
-				     notify, callback, name);
+				     yestify, callback, name);
 }
 EXPORT_SYMBOL_GPL(vring_new_virtqueue);
 
@@ -2244,7 +2244,7 @@ EXPORT_SYMBOL_GPL(vring_transport_features);
  * @_vq: the struct virtqueue containing the vring of interest.
  *
  * Returns the size of the vring.  This is mainly used for boasting to
- * userspace.  Unlike other operations, this need not be serialized.
+ * userspace.  Unlike other operations, this need yest be serialized.
  */
 unsigned int virtqueue_get_vring_size(struct virtqueue *_vq)
 {

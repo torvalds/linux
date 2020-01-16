@@ -33,16 +33,16 @@ struct sama5d4_wdt {
 };
 
 static int wdt_timeout;
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 
 module_param(wdt_timeout, int, 0);
 MODULE_PARM_DESC(wdt_timeout,
 	"Watchdog timeout in seconds. (default = "
 	__MODULE_STRING(WDT_DEFAULT_TIMEOUT) ")");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 #define wdt_enabled (!(wdt->mr & AT91_WDT_WDDIS))
@@ -56,7 +56,7 @@ MODULE_PARM_DESC(nowayout,
 static void wdt_write(struct sama5d4_wdt *wdt, u32 field, u32 val)
 {
 	/*
-	 * WDT_CR and WDT_MR must not be modified within three slow clock
+	 * WDT_CR and WDT_MR must yest be modified within three slow clock
 	 * periods following a restart of the watchdog performed by a write
 	 * access in WDT_CR.
 	 */
@@ -66,7 +66,7 @@ static void wdt_write(struct sama5d4_wdt *wdt, u32 field, u32 val)
 	wdt->last_ping = jiffies;
 }
 
-static void wdt_write_nosleep(struct sama5d4_wdt *wdt, u32 field, u32 val)
+static void wdt_write_yessleep(struct sama5d4_wdt *wdt, u32 field, u32 val)
 {
 	if (time_before(jiffies, wdt->last_ping + WDT_DELAY))
 		udelay(123);
@@ -115,7 +115,7 @@ static int sama5d4_wdt_set_timeout(struct watchdog_device *wdd,
 	/*
 	 * WDDIS has to be 0 when updating WDD/WDV. The datasheet states: When
 	 * setting the WDDIS bit, and while it is set, the fields WDV and WDD
-	 * must not be modified.
+	 * must yest be modified.
 	 * If the watchdog is enabled, then the timeout can be updated. Else,
 	 * wait that the user enables it.
 	 */
@@ -153,7 +153,7 @@ static irqreturn_t sama5d4_wdt_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int of_sama5d4_wdt_init(struct device_node *np, struct sama5d4_wdt *wdt)
+static int of_sama5d4_wdt_init(struct device_yesde *np, struct sama5d4_wdt *wdt)
 {
 	const char *tmp;
 
@@ -184,11 +184,11 @@ static int sama5d4_wdt_init(struct sama5d4_wdt *wdt)
 	 * Else, we have to disable it properly.
 	 */
 	if (wdt_enabled) {
-		wdt_write_nosleep(wdt, AT91_WDT_MR, wdt->mr);
+		wdt_write_yessleep(wdt, AT91_WDT_MR, wdt->mr);
 	} else {
 		reg = wdt_read(wdt, AT91_WDT_MR);
 		if (!(reg & AT91_WDT_WDDIS))
-			wdt_write_nosleep(wdt, AT91_WDT_MR,
+			wdt_write_yessleep(wdt, AT91_WDT_MR,
 					  reg | AT91_WDT_WDDIS);
 	}
 	return 0;
@@ -224,11 +224,11 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 
 	wdt->reg_base = regs;
 
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_yesde, 0);
 	if (!irq)
 		dev_warn(dev, "failed to get IRQ from DT\n");
 
-	ret = of_sama5d4_wdt_init(dev->of_node, wdt);
+	ret = of_sama5d4_wdt_init(dev->of_yesde, wdt);
 	if (ret)
 		return ret;
 
@@ -237,7 +237,7 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 				       IRQF_SHARED | IRQF_IRQPOLL |
 				       IRQF_NO_SUSPEND, pdev->name, pdev);
 		if (ret) {
-			dev_err(dev, "cannot register interrupt handler\n");
+			dev_err(dev, "canyest register interrupt handler\n");
 			return ret;
 		}
 	}
@@ -253,7 +253,7 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_yeswayout(wdd, yeswayout);
 
 	watchdog_stop_on_unregister(wdd);
 	ret = devm_watchdog_register_device(dev, wdd);
@@ -262,8 +262,8 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 
-	dev_info(dev, "initialized (timeout = %d sec, nowayout = %d)\n",
-		 wdd->timeout, nowayout);
+	dev_info(dev, "initialized (timeout = %d sec, yeswayout = %d)\n",
+		 wdd->timeout, yeswayout);
 
 	return 0;
 }
@@ -290,9 +290,9 @@ static int sama5d4_wdt_resume_early(struct device *dev)
 	struct sama5d4_wdt *wdt = dev_get_drvdata(dev);
 
 	/*
-	 * FIXME: writing MR also pings the watchdog which may not be desired.
+	 * FIXME: writing MR also pings the watchdog which may yest be desired.
 	 * This should only be done when the registers are lost on suspend but
-	 * there is no way to get this information right now.
+	 * there is yes way to get this information right yesw.
 	 */
 	sama5d4_wdt_init(wdt);
 

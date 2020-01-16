@@ -3,7 +3,7 @@
  *      High performance SCSI + LAN / Fibre Channel device drivers.
  *      For use with PCI chip/adapter(s):
  *          LSIFC9xx/LSI409xx Fibre Channel
- *      running LSI MPT (Message Passing Technology) firmware.
+ *      running LSI MPT (Message Passing Techyeslogy) firmware.
  *
  *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -27,7 +27,7 @@
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but yest limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
@@ -41,7 +41,7 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if yest, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 

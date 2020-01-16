@@ -11,7 +11,7 @@
 struct file_operations;
 
 /* declared over in file.c */
-extern const struct file_operations debugfs_noop_file_operations;
+extern const struct file_operations debugfs_yesop_file_operations;
 extern const struct file_operations debugfs_open_proxy_file_operations;
 extern const struct file_operations debugfs_full_proxy_file_operations;
 

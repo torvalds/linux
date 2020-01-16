@@ -320,7 +320,7 @@ static int recvframe_chkmic(struct adapter *adapter,
 					 prxattrib->ra[3], prxattrib->ra[4], prxattrib->ra[5], psecuritypriv->binstallGrpkey));
 
 				/*  double check key_index for some timing issue , */
-				/*  cannot compare with psecuritypriv->dot118021XGrpKeyid also cause timing issue */
+				/*  canyest compare with psecuritypriv->dot118021XGrpKeyid also cause timing issue */
 				if (is_multicast_ether_addr(prxattrib->ra) && prxattrib->key_index != pmlmeinfo->key_index)
 					brpt_micerror = false;
 
@@ -474,9 +474,9 @@ static struct recv_frame *portctrl(struct adapter *adapter,
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("%s:prxstat->decrypted=%x\n", __func__, pattrib->bdecrypted));
 
 			prtnframe = precv_frame;
-			/* check is the EAPOL frame or not (Rekey) */
+			/* check is the EAPOL frame or yest (Rekey) */
 			if (ether_type == eapol_type) {
-				RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("########%s:ether_type==0x888e\n", __func__));
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_yestice_, ("########%s:ether_type==0x888e\n", __func__));
 				/* check Rekey */
 
 				prtnframe = precv_frame;
@@ -500,14 +500,14 @@ static int recv_decache(struct recv_frame *precv_frame, u8 bretry,
 		(precv_frame->attrib.frag_num & 0xf);
 
 	if (tid > 15) {
-		RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("%s, (tid>15)! seq_ctrl=0x%x, tid=0x%x\n", __func__, seq_ctrl, tid));
+		RT_TRACE(_module_rtl871x_recv_c_, _drv_yestice_, ("%s, (tid>15)! seq_ctrl=0x%x, tid=0x%x\n", __func__, seq_ctrl, tid));
 
 		return _FAIL;
 	}
 
 	if (1) {/* if (bretry) */
 		if (seq_ctrl == prxcache->tid_rxseq[tid]) {
-			RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("%s, seq_ctrl=0x%x, tid=0x%x, tid_rxseq=0x%x\n", __func__, seq_ctrl, tid, prxcache->tid_rxseq[tid]));
+			RT_TRACE(_module_rtl871x_recv_c_, _drv_yestice_, ("%s, seq_ctrl=0x%x, tid=0x%x, tid_rxseq=0x%x\n", __func__, seq_ctrl, tid, prxcache->tid_rxseq[tid]));
 
 			return _FAIL;
 		}
@@ -682,8 +682,8 @@ static int sta2sta_data_frame(struct adapter *adapter,
 					ret = _FAIL;
 					goto exit;
 			}
-		} else { /*  not mc-frame */
-			/*  For AP mode, if DA is non-MCAST, then it must be BSSID, and bssid == BSSID */
+		} else { /*  yest mc-frame */
+			/*  For AP mode, if DA is yesn-MCAST, then it must be BSSID, and bssid == BSSID */
 			if (memcmp(pattrib->bssid, pattrib->dst, ETH_ALEN)) {
 				ret = _FAIL;
 				goto exit;
@@ -751,7 +751,7 @@ static int ap2sta_data_frame(
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("mybssid=%pM\n", (mybssid)));
 
 			if (!mcast) {
-				DBG_88E("issue_deauth to the nonassociated ap=%pM for the reason(7)\n", (pattrib->bssid));
+				DBG_88E("issue_deauth to the yesnassociated ap=%pM for the reason(7)\n", (pattrib->bssid));
 				issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
 			}
 
@@ -774,7 +774,7 @@ static int ap2sta_data_frame(
 		/*  */
 
 		if (GetFrameSubType(ptr) & BIT(6)) {
-			/* No data, will not indicate to upper layer, temporily count it here */
+			/* No data, will yest indicate to upper layer, temporily count it here */
 			count_rx_stats(adapter, precv_frame, *psta);
 			ret = RTW_RX_HANDLED;
 			goto exit;
@@ -836,7 +836,7 @@ static int sta2ap_data_frame(struct adapter *adapter,
 			process_wmmps_data(adapter, precv_frame);
 
 		if (GetFrameSubType(ptr) & BIT(6)) {
-			/* No data, will not indicate to upper layer, temporily count it here */
+			/* No data, will yest indicate to upper layer, temporily count it here */
 			count_rx_stats(adapter, precv_frame, *psta);
 			ret = RTW_RX_HANDLED;
 			goto exit;
@@ -958,9 +958,9 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 			} else {
 				if (pstapriv->tim_bitmap&BIT(psta->aid)) {
 					if (psta->sleepq_len == 0) {
-						DBG_88E("no buffered packets to xmit\n");
+						DBG_88E("yes buffered packets to xmit\n");
 
-						/* issue nulldata with More data bit = 0 to indicate we have no buffered packets */
+						/* issue nulldata with More data bit = 0 to indicate we have yes buffered packets */
 						issue_nulldata(padapter, psta->hwaddr, 0, 0, 0);
 					} else {
 						DBG_88E("error!psta->sleepq_len=%d\n", psta->sleepq_len);
@@ -996,7 +996,7 @@ static int validate_recv_mgnt_frame(struct adapter *padapter,
 
 	precv_frame = recvframe_chk_defrag(padapter, precv_frame);
 	if (!precv_frame) {
-		RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_,
+		RT_TRACE(_module_rtl871x_recv_c_, _drv_yestice_,
 			 ("%s: fragment packet\n", __func__));
 		return _SUCCESS;
 	}
@@ -1241,10 +1241,10 @@ static int validate_recv_frame(struct adapter *adapter,
 
 	/*
 	 * This is the last moment before management and control frames get
-	 * discarded. So we need to forward them to the monitor now or never.
+	 * discarded. So we need to forward them to the monitor yesw or never.
 	 *
 	 * At the same time data frames can still be encrypted if software
-	 * decryption is in use. However, decryption can occur not until later
+	 * decryption is in use. However, decryption can occur yest until later
 	 * (see recv_func()).
 	 *
 	 * Hence forward the frame to the monitor anyway to preserve the order
@@ -1511,7 +1511,7 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 	pdata = prframe->pkt->data;
 
 	while (a_len > ETH_HLEN) {
-		/* Offset 12 denote 2 mac address */
+		/* Offset 12 deyeste 2 mac address */
 		nSubframe_Length = get_unaligned_be16(pdata + 12);
 
 		if (a_len < (ETHERNET_HEADER_SIZE + nSubframe_Length)) {
@@ -1690,7 +1690,7 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 		pattrib = &prframe->attrib;
 
 		if (!SN_LESS(preorder_ctrl->indicate_seq, pattrib->seq_num)) {
-			RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_,
+			RT_TRACE(_module_rtl871x_recv_c_, _drv_yestice_,
 				 ("%s: indicate=%d seq=%d amsdu=%d\n",
 				  __func__, preorder_ctrl->indicate_seq, pattrib->seq_num, pattrib->amsdu));
 			plist = plist->next;
@@ -1739,7 +1739,7 @@ static int recv_indicatepkt_reorder(struct adapter *padapter,
 		    (pattrib->ack_policy != 0)) {
 			if ((!padapter->bDriverStopped) &&
 			    (!padapter->bSurpriseRemoved)) {
-				RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("@@@@  %s -recv_func recv_indicatepkt\n", __func__));
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_yestice_, ("@@@@  %s -recv_func recv_indicatepkt\n", __func__));
 
 				rtw_recv_indicatepkt(padapter, prframe);
 				return _SUCCESS;
@@ -1770,7 +1770,7 @@ static int recv_indicatepkt_reorder(struct adapter *padapter,
 
 	spin_lock_bh(&ppending_recvframe_queue->lock);
 
-	RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_,
+	RT_TRACE(_module_rtl871x_recv_c_, _drv_yestice_,
 		 ("%s: indicate=%d seq=%d\n", __func__,
 		  preorder_ctrl->indicate_seq, pattrib->seq_num));
 
@@ -1789,7 +1789,7 @@ static int recv_indicatepkt_reorder(struct adapter *padapter,
 
 	/* s4. */
 	/*  Indication process. */
-	/*  After Packet dropping and Sliding Window shifting as above, we can now just indicate the packets */
+	/*  After Packet dropping and Sliding Window shifting as above, we can yesw just indicate the packets */
 	/*  with the SeqNum smaller than latest WinStart and buffer other packets. */
 	/*  */
 	/*  For Rx Reorder condition: */
@@ -1862,12 +1862,12 @@ static int process_recv_indicatepkts(struct adapter *padapter,
 		if ((!padapter->bDriverStopped) &&
 		    (!padapter->bSurpriseRemoved)) {
 			/* indicate this recv_frame */
-			RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("@@@@ %s- recv_func recv_indicatepkt\n", __func__));
+			RT_TRACE(_module_rtl871x_recv_c_, _drv_yestice_, ("@@@@ %s- recv_func recv_indicatepkt\n", __func__));
 			rtw_recv_indicatepkt(padapter, prframe);
 		} else {
-			RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("@@@@ %s- recv_func free_indicatepkt\n", __func__));
+			RT_TRACE(_module_rtl871x_recv_c_, _drv_yestice_, ("@@@@ %s- recv_func free_indicatepkt\n", __func__));
 
-			RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("recv_func:bDriverStopped(%d) OR bSurpriseRemoved(%d)", padapter->bDriverStopped, padapter->bSurpriseRemoved));
+			RT_TRACE(_module_rtl871x_recv_c_, _drv_yestice_, ("recv_func:bDriverStopped(%d) OR bSurpriseRemoved(%d)", padapter->bDriverStopped, padapter->bSurpriseRemoved));
 			return _FAIL;
 		}
 	}
@@ -1967,7 +1967,7 @@ static int recv_func(struct adapter *padapter, struct recv_frame *rframe)
 		    !is_wep_enc(psecuritypriv->dot11PrivacyAlgrthm) &&
 		    !psecuritypriv->busetkipkey) {
 			rtw_enqueue_recvframe(rframe, &padapter->recvpriv.uc_swdec_pending_queue);
-			DBG_88E("%s: no key, enqueue uc_swdec_pending_queue\n", __func__);
+			DBG_88E("%s: yes key, enqueue uc_swdec_pending_queue\n", __func__);
 			goto exit;
 		}
 

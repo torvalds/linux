@@ -12,7 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if yest, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -20,7 +20,7 @@
 #define __LINUX_USB_OTG_FSM_H
 
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #define PROTO_UNDEF	(0)
 #define PROTO_HOST	(1)
@@ -98,7 +98,7 @@ enum otg_fsm_timer {
  * @b_bus_req:	TRUE during the time that the Application running on the
  *		B-device wants to use the bus
  *
- *	Auxilary inputs (OTG v1.3 only. Obsolete now.)
+ *	Auxilary inputs (OTG v1.3 only. Obsolete yesw.)
  * @a_sess_vld:	TRUE if the A-device detects that VBUS is above VA_SESS_VLD
  * @b_bus_suspend: TRUE when the A-device detects that the B-device has put
  *		the bus into suspend
@@ -172,7 +172,7 @@ struct otg_fsm {
 	int b_hnp_enable;
 	int a_clr_err;
 
-	/* Informative variables. All unused as of now */
+	/* Informative variables. All unused as of yesw */
 	int a_bus_drop_inf;
 	int a_bus_req_inf;
 	int a_clr_err_inf;

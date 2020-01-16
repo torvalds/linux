@@ -88,7 +88,7 @@ set_match_v0_checkentry(const struct xt_mtchk_param *par)
 	index = ip_set_nfnl_get_byindex(par->net, info->match_set.index);
 
 	if (index == IPSET_INVALID_ID) {
-		pr_info_ratelimited("Cannot find set identified by id %u to match\n",
+		pr_info_ratelimited("Canyest find set identified by id %u to match\n",
 				    info->match_set.index);
 		return -ENOENT;
 	}
@@ -139,7 +139,7 @@ set_match_v1_checkentry(const struct xt_mtchk_param *par)
 	index = ip_set_nfnl_get_byindex(par->net, info->match_set.index);
 
 	if (index == IPSET_INVALID_ID) {
-		pr_info_ratelimited("Cannot find set identified by id %u to match\n",
+		pr_info_ratelimited("Canyest find set identified by id %u to match\n",
 				    info->match_set.index);
 		return -ENOENT;
 	}
@@ -237,7 +237,7 @@ set_target_v0_checkentry(const struct xt_tgchk_param *par)
 	if (info->add_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->add_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find add_set index %u as target\n",
+			pr_info_ratelimited("Canyest find add_set index %u as target\n",
 					    info->add_set.index);
 			return -ENOENT;
 		}
@@ -246,7 +246,7 @@ set_target_v0_checkentry(const struct xt_tgchk_param *par)
 	if (info->del_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->del_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find del_set index %u as target\n",
+			pr_info_ratelimited("Canyest find del_set index %u as target\n",
 					    info->del_set.index);
 			if (info->add_set.index != IPSET_INVALID_ID)
 				ip_set_nfnl_put(par->net, info->add_set.index);
@@ -312,7 +312,7 @@ set_target_v1_checkentry(const struct xt_tgchk_param *par)
 	if (info->add_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->add_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find add_set index %u as target\n",
+			pr_info_ratelimited("Canyest find add_set index %u as target\n",
 					    info->add_set.index);
 			return -ENOENT;
 		}
@@ -321,7 +321,7 @@ set_target_v1_checkentry(const struct xt_tgchk_param *par)
 	if (info->del_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->del_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find del_set index %u as target\n",
+			pr_info_ratelimited("Canyest find del_set index %u as target\n",
 					    info->del_set.index);
 			if (info->add_set.index != IPSET_INVALID_ID)
 				ip_set_nfnl_put(par->net, info->add_set.index);
@@ -441,7 +441,7 @@ set_target_v3_checkentry(const struct xt_tgchk_param *par)
 		index = ip_set_nfnl_get_byindex(par->net,
 						info->add_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find add_set index %u as target\n",
+			pr_info_ratelimited("Canyest find add_set index %u as target\n",
 					    info->add_set.index);
 			return -ENOENT;
 		}
@@ -451,7 +451,7 @@ set_target_v3_checkentry(const struct xt_tgchk_param *par)
 		index = ip_set_nfnl_get_byindex(par->net,
 						info->del_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find del_set index %u as target\n",
+			pr_info_ratelimited("Canyest find del_set index %u as target\n",
 					    info->del_set.index);
 			ret = -ENOENT;
 			goto cleanup_add;
@@ -476,7 +476,7 @@ set_target_v3_checkentry(const struct xt_tgchk_param *par)
 		index = ip_set_nfnl_get_byindex(par->net,
 						info->map_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find map_set index %u as target\n",
+			pr_info_ratelimited("Canyest find map_set index %u as target\n",
 					    info->map_set.index);
 			ret = -ENOENT;
 			goto cleanup_del;
@@ -548,7 +548,7 @@ static struct xt_match set_matches[] __read_mostly = {
 		.destroy	= set_match_v1_destroy,
 		.me		= THIS_MODULE
 	},
-	/* --return-nomatch flag support */
+	/* --return-yesmatch flag support */
 	{
 		.name		= "set",
 		.family		= NFPROTO_IPV4,

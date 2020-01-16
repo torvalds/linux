@@ -8,7 +8,7 @@ Introduction
 ------------
 
   The EB2410ITX is a S3C2410 based development board with a variety of
-  peripherals and expansion connectors. This board is also known by
+  peripherals and expansion connectors. This board is also kyeswn by
   the shortened name of Bast.
 
 
@@ -46,7 +46,7 @@ MTD
 IDE
 ---
 
-  Both onboard IDE ports are supported, however there is no support for
+  Both onboard IDE ports are supported, however there is yes support for
   changing speed of devices, PIO Mode 4 capable drives should be used.
 
 

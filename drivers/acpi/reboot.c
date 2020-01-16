@@ -26,7 +26,7 @@ static void acpi_pci_reboot(struct acpi_generic_address *rr, u8 reset_value)
 static inline void acpi_pci_reboot(struct acpi_generic_address *rr,
 				   u8 reset_value)
 {
-	pr_warn_once("PCI configuration space access is not supported\n");
+	pr_warn_once("PCI configuration space access is yest supported\n");
 }
 #endif
 
@@ -46,7 +46,7 @@ void acpi_reboot(void)
 		return;
 
 	/* Is the reset register supported? The spec says we should be
-	 * checking the bit width and bit offset, but Windows ignores
+	 * checking the bit width and bit offset, but Windows igyesres
 	 * these fields */
 	if (!(acpi_gbl_FADT.flags & ACPI_FADT_RESET_REGISTER))
 		return;

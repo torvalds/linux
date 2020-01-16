@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -275,7 +275,7 @@ void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr)
 	} else {
 #define GVT_GEN8_MMIO_RESET_OFFSET		(0x44200)
 		/* only reset the engine related, so starting with 0x44200
-		 * interrupt include DE,display mmio related will not be
+		 * interrupt include DE,display mmio related will yest be
 		 * touched
 		 */
 		memcpy(vgpu->mmio.vreg, mmio, GVT_GEN8_MMIO_RESET_OFFSET);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2005 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2005 Sam Leffler, Erryes Consulting
  * Copyright (c) 2004-2005 Atheros Communications, Inc.
  * Copyright (c) 2006 Devicescape Software, Inc.
  * Copyright (c) 2007 Jiri Slaby <jirislaby@gmail.com>
@@ -11,13 +11,13 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer,
+ *    yestice, this list of conditions and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
  *    redistribution must be conditioned upon including a substantially
  *    similar Disclaimer requirement for further binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -72,18 +72,18 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-bool ath5k_modparam_nohwcrypt;
-module_param_named(nohwcrypt, ath5k_modparam_nohwcrypt, bool, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+bool ath5k_modparam_yeshwcrypt;
+module_param_named(yeshwcrypt, ath5k_modparam_yeshwcrypt, bool, 0444);
+MODULE_PARM_DESC(yeshwcrypt, "Disable hardware encryption.");
 
 static bool modparam_fastchanswitch;
 module_param_named(fastchanswitch, modparam_fastchanswitch, bool, 0444);
 MODULE_PARM_DESC(fastchanswitch, "Enable fast channel switching for AR2413/AR5413 radios.");
 
-static bool ath5k_modparam_no_hw_rfkill_switch;
-module_param_named(no_hw_rfkill_switch, ath5k_modparam_no_hw_rfkill_switch,
+static bool ath5k_modparam_yes_hw_rfkill_switch;
+module_param_named(yes_hw_rfkill_switch, ath5k_modparam_yes_hw_rfkill_switch,
 		   bool, 0444);
-MODULE_PARM_DESC(no_hw_rfkill_switch, "Ignore the GPIO RFKill switch state");
+MODULE_PARM_DESC(yes_hw_rfkill_switch, "Igyesre the GPIO RFKill switch state");
 
 
 /* Module info */
@@ -97,7 +97,7 @@ static int ath5k_init(struct ieee80211_hw *hw);
 static int ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 								bool skip_pcu);
 
-/* Known SREVs */
+/* Kyeswn SREVs */
 static const struct ath5k_srev_name srev_names[] = {
 #ifdef CONFIG_ATH5K_AHB
 	{ "5312",	AR5K_VERSION_MAC,	AR5K_SREV_AR5312_R2 },
@@ -250,14 +250,14 @@ static const struct ath_ops ath5k_common_ops = {
 * Driver Initialization *
 \***********************/
 
-static void ath5k_reg_notifier(struct wiphy *wiphy,
+static void ath5k_reg_yestifier(struct wiphy *wiphy,
 			       struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath5k_hw *ah = hw->priv;
 	struct ath_regulatory *regulatory = ath5k_hw_regulatory(ah);
 
-	ath_reg_notifier_apply(wiphy, request, regulatory);
+	ath_reg_yestifier_apply(wiphy, request, regulatory);
 }
 
 /********************\
@@ -311,7 +311,7 @@ ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
 		band = NL80211_BAND_2GHZ;
 		break;
 	default:
-		ATH5K_WARN(ah, "bad mode, not copying channels\n");
+		ATH5K_WARN(ah, "bad mode, yest copying channels\n");
 		return 0;
 	}
 
@@ -319,7 +319,7 @@ ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
 	for (ch = 1; ch <= size && count < max; ch++) {
 		freq = ieee80211_channel_to_frequency(ch, band);
 
-		if (freq == 0) /* mapping failed - not a standard channel */
+		if (freq == 0) /* mapping failed - yest a standard channel */
 			continue;
 
 		/* Write channel info, needed for ath5k_channel_ok() */
@@ -391,7 +391,7 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
 		sband->n_bitrates = 4;
 
 		/* 5211 only supports B rates and uses 4bit rate codes
-		 * (e.g normally we have 0x1B for 1M, but on 5211 we have 0x0B)
+		 * (e.g yesrmally we have 0x1B for 1M, but on 5211 we have 0x0B)
 		 * fix them up here:
 		 */
 		if (ah->ah_version == AR5K_AR5211) {
@@ -468,7 +468,7 @@ ath5k_chan_set(struct ath5k_hw *ah, struct cfg80211_chan_def *chandef)
 
 	/*
 	 * To switch channels clear any pending DMA operations;
-	 * wait long enough for the RX fifo to drain, reset the
+	 * wait long eyesugh for the RX fifo to drain, reset the
 	 * hardware at the new frequency, and then re-enable
 	 * the relevant bits of the h/w.
 	 */
@@ -561,7 +561,7 @@ ath5k_update_bssid_mask_and_opmode(struct ath5k_hw *ah,
 	/* Set up RX Filter */
 	if (iter_data.n_stas > 1) {
 		/* If you have multiple STA interfaces connected to
-		 * different APs, ARPs are not received (most of the time?)
+		 * different APs, ARPs are yest received (most of the time?)
 		 * Enabling PROMISC appears to fix that problem.
 		 */
 		ah->filter_flags |= AR5K_RX_FILTER_PROM;
@@ -642,7 +642,7 @@ ath5k_rxbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf)
 	/*
 	 * Setup descriptors.  For receive we always terminate
 	 * the descriptor list with a self-linked entry so we'll
-	 * not get overrun under high load (as can happen with a
+	 * yest get overrun under high load (as can happen with a
 	 * 5212 when ANI processing enables PHY error frames).
 	 *
 	 * To ensure the last descriptor is self-linked we create
@@ -659,7 +659,7 @@ ath5k_rxbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf)
 	ds->ds_data = bf->skbaddr;
 	ret = ath5k_hw_setup_rx_desc(ah, ds, ah->common.rx_bufsize, 0);
 	if (ret) {
-		ATH5K_ERR(ah, "%s: could not setup RX desc\n", __func__);
+		ATH5K_ERR(ah, "%s: could yest setup RX desc\n", __func__);
 		return ret;
 	}
 
@@ -832,7 +832,7 @@ ath5k_txbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf,
 	txq->txq_len++;
 	if (txq->link == NULL) /* is this first packet? */
 		ath5k_hw_set_txdp(ah, txq->qnum, bf->daddr);
-	else /* no, so only link it */
+	else /* yes, so only link it */
 		*txq->link = bf->daddr;
 
 	txq->link = &ds->ds_link;
@@ -977,7 +977,7 @@ ath5k_txq_setup(struct ath5k_hw *ah,
 	struct ath5k_txq *txq;
 	struct ath5k_txq_info qi = {
 		.tqi_subtype = subtype,
-		/* XXX: default values not correct for B and XR channels,
+		/* XXX: default values yest correct for B and XR channels,
 		 * but who cares? */
 		.tqi_aifs = AR5K_TUNE_AIFS,
 		.tqi_cw_min = AR5K_TUNE_CWMIN,
@@ -1003,7 +1003,7 @@ ath5k_txq_setup(struct ath5k_hw *ah,
 	if (qnum < 0) {
 		/*
 		 * NB: don't print a message, this happens
-		 * normally on parts with too few tx queues
+		 * yesrmally on parts with too few tx queues
 		 */
 		return ERR_PTR(qnum);
 	}
@@ -1026,7 +1026,7 @@ static int
 ath5k_beaconq_setup(struct ath5k_hw *ah)
 {
 	struct ath5k_txq_info qi = {
-		/* XXX: default values not correct for B and XR channels,
+		/* XXX: default values yest correct for B and XR channels,
 		 * but who cares? */
 		.tqi_aifs = AR5K_TUNE_AIFS,
 		.tqi_cw_min = AR5K_TUNE_CWMIN,
@@ -1104,7 +1104,7 @@ err:
  * of a reset or during shutdown.
  *
  * NB:	this assumes output has been stopped and
- *	we do not need to block ath5k_tx_tasklet
+ *	we do yest need to block ath5k_tx_tasklet
  */
 static void
 ath5k_drain_tx_buffs(struct ath5k_hw *ah)
@@ -1220,7 +1220,7 @@ ath5k_rx_decrypted(struct ath5k_hw *ah, struct sk_buff *skb,
 		return RX_FLAG_DECRYPTED;
 
 	/* Apparently when a default key is used to decrypt the packet
-	   the hw does not set the index used to decrypt.  In such cases
+	   the hw does yest set the index used to decrypt.  In such cases
 	   get the index from the packet. */
 	hlen = ieee80211_hdrlen(hdr->frame_control);
 	if (ieee80211_has_protected(hdr->frame_control) &&
@@ -1255,7 +1255,7 @@ ath5k_check_ibss_tsf(struct ath5k_hw *ah, struct sk_buff *skb,
 		hw_tu = TSF_TO_TU(tsf);
 
 		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_BEACON,
-			"beacon %llx mactime %llx (diff %lld) tsf now %llx\n",
+			"beacon %llx mactime %llx (diff %lld) tsf yesw %llx\n",
 			(unsigned long long)bc_tstamp,
 			(unsigned long long)rxs->mactime,
 			(unsigned long long)(rxs->mactime - bc_tstamp),
@@ -1266,11 +1266,11 @@ ath5k_check_ibss_tsf(struct ath5k_hw *ah, struct sk_buff *skb,
 		 * status, causing the timestamp extension to go wrong.
 		 * (This seems to happen especially with beacon frames bigger
 		 * than 78 byte (incl. FCS))
-		 * But we know that the receive timestamp must be later than the
+		 * But we kyesw that the receive timestamp must be later than the
 		 * timestamp of the beacon since HW must have synced to that.
 		 *
 		 * NOTE: here we assume mactime to be after the frame was
-		 * received, not like mac80211 which defines it at the start.
+		 * received, yest like mac80211 which defines it at the start.
 		 */
 		if (bc_tstamp > rxs->mactime) {
 			ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_BEACON,
@@ -1320,7 +1320,7 @@ static int ath5k_common_padpos(struct sk_buff *skb)
 
 /*
  * This function expects an 802.11 frame and returns the number of
- * bytes added, or -1 if we don't have enough header room.
+ * bytes added, or -1 if we don't have eyesugh header room.
  */
 static int ath5k_add_padding(struct sk_buff *skb)
 {
@@ -1342,12 +1342,12 @@ static int ath5k_add_padding(struct sk_buff *skb)
 
 /*
  * The MAC header is padded to have 32-bit boundary if the
- * packet payload is non-zero. The general calculation for
+ * packet payload is yesn-zero. The general calculation for
  * padsize would take into account odd header lengths:
  * padsize = 4 - (hdrlen & 3); however, since only
  * even-length headers are used, padding can only be 0 or 2
- * bytes and we can optimize this a bit.  We must not try to
- * remove padding from short control frames that do not have a
+ * bytes and we can optimize this a bit.  We must yest try to
+ * remove padding from short control frames that do yest have a
  * payload.
  *
  * This function expects an 802.11 frame and returns the number of
@@ -1400,7 +1400,7 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 	rxs->freq = ah->curchan->center_freq;
 	rxs->band = ah->curchan->band;
 
-	rxs->signal = ah->ah_noise_floor + rs->rs_rssi;
+	rxs->signal = ah->ah_yesise_floor + rs->rs_rssi;
 
 	rxs->antenna = rs->rs_antenna;
 
@@ -1439,10 +1439,10 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 	ieee80211_rx(ah->hw, skb);
 }
 
-/** ath5k_frame_receive_ok() - Do we want to receive this frame or not?
+/** ath5k_frame_receive_ok() - Do we want to receive this frame or yest?
  *
- * Check if we want to further process this frame or not. Also update
- * statistics. Return true if we want this frame, false if not.
+ * Check if we want to further process this frame or yest. Also update
+ * statistics. Return true if we want this frame, false if yest.
  */
 static bool
 ath5k_receive_frame_ok(struct ath5k_hw *ah, struct ath5k_rx_status *rs)
@@ -1479,10 +1479,10 @@ ath5k_receive_frame_ok(struct ath5k_hw *ah, struct ath5k_rx_status *rs)
 		if (rs->rs_status & AR5K_RXERR_DECRYPT) {
 			/*
 			 * Decrypt error.  If the error occurred
-			 * because there was no hardware key, then
+			 * because there was yes hardware key, then
 			 * let the frame through so the upper layers
 			 * can process it.  This is necessary for 5210
-			 * parts which have no way to setup a ``clear''
+			 * parts which have yes way to setup a ``clear''
 			 * key cache entry.
 			 *
 			 * XXX do key cache faulting
@@ -1498,7 +1498,7 @@ ath5k_receive_frame_ok(struct ath5k_hw *ah, struct ath5k_rx_status *rs)
 		}
 
 		/*
-		 * Reject any frames with non-crypto errors, and take into account the
+		 * Reject any frames with yesn-crypto errors, and take into account the
 		 * current FIF_* filters.
 		 */
 		filters = AR5K_RXERR_DECRYPT;
@@ -1619,11 +1619,11 @@ ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	/*
 	 * The hardware expects the header padded to 4 byte boundaries.
-	 * If this is not the case, we add the padding after the header.
+	 * If this is yest the case, we add the padding after the header.
 	 */
 	padsize = ath5k_add_padding(skb);
 	if (padsize < 0) {
-		ATH5K_ERR(ah, "tx hdrlen not %%4: not enough"
+		ATH5K_ERR(ah, "tx hdrlen yest %%4: yest eyesugh"
 			  " headroom to pad");
 		goto drop_packet;
 	}
@@ -1634,7 +1634,7 @@ ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	spin_lock_irqsave(&ah->txbuflock, flags);
 	if (list_empty(&ah->txbuf)) {
-		ATH5K_ERR(ah, "no further txbuf available, dropping packet\n");
+		ATH5K_ERR(ah, "yes further txbuf available, dropping packet\n");
 		spin_unlock_irqrestore(&ah->txbuflock, flags);
 		ieee80211_stop_queues(hw);
 		goto drop_packet;
@@ -1937,9 +1937,9 @@ ath5k_beacon_send(struct ath5k_hw *ah)
 
 	/*
 	 * Check if the previous beacon has gone out.  If
-	 * not, don't don't try to post another: skip this
+	 * yest, don't don't try to post ayesther: skip this
 	 * period and wait for the next.  Missed beacons
-	 * indicate a problem and should not occur.  If we
+	 * indicate a problem and should yest occur.  If we
 	 * miss too many consecutive beacons reset the device.
 	 */
 	if (unlikely(ath5k_hw_num_tx_pending(ah, ah->bhalq) != 0)) {
@@ -1984,7 +1984,7 @@ ath5k_beacon_send(struct ath5k_hw *ah)
 
 	/*
 	 * Stop any current dma and put the new frame on the queue.
-	 * This should never fail since we check above that no frames
+	 * This should never fail since we check above that yes frames
 	 * are still pending on the queue.
 	 */
 	if (unlikely(ath5k_hw_stop_beacon_queue(ah, ah->bhalq))) {
@@ -2039,7 +2039,7 @@ ath5k_beacon_send(struct ath5k_hw *ah)
  *
  * This is called in a variety of situations, e.g. when a beacon is received,
  * when a TSF update has been detected, but also when an new IBSS is created or
- * when we otherwise know we have to update the timers, but we keep it in this
+ * when we otherwise kyesw we have to update the timers, but we keep it in this
  * function to have it all together in one place.
  */
 void
@@ -2073,21 +2073,21 @@ ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf)
 
 	if (bc_tsf == -1) {
 		/*
-		 * no beacons received, called internally.
+		 * yes beacons received, called internally.
 		 * just need to refresh timers based on HW TSF.
 		 */
 		nexttbtt = roundup(hw_tu + FUDGE, intval);
 	} else if (bc_tsf == 0) {
 		/*
-		 * no beacon received, probably called by ath5k_reset_tsf().
+		 * yes beacon received, probably called by ath5k_reset_tsf().
 		 * reset TSF to start with 0.
 		 */
 		nexttbtt = intval;
 		intval |= AR5K_BEACON_RESET_TSF;
 	} else if (bc_tsf > hw_tsf) {
 		/*
-		 * beacon received, SW merge happened but HW TSF not yet updated.
-		 * not possible to reconfigure timers yet, but next time we
+		 * beacon received, SW merge happened but HW TSF yest yet updated.
+		 * yest possible to reconfigure timers yet, but next time we
 		 * receive a beacon with the same BSSID, the hardware will
 		 * automatically update the TSF and then we need to reconfigure
 		 * the timers.
@@ -2217,7 +2217,7 @@ ath5k_intr_calibration_poll(struct ath5k_hw *ah)
 	   !(ah->ah_cal_mask & AR5K_CALIBRATION_FULL) &&
 	   !(ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)) {
 
-		/* Run ANI only when calibration is not active */
+		/* Run ANI only when calibration is yest active */
 
 		ah->ah_cal_next_ani = jiffies +
 			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_ANI);
@@ -2227,8 +2227,8 @@ ath5k_intr_calibration_poll(struct ath5k_hw *ah)
 		!(ah->ah_cal_mask & AR5K_CALIBRATION_FULL) &&
 		!(ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)) {
 
-		/* Run calibration only when another calibration
-		 * is not running.
+		/* Run calibration only when ayesther calibration
+		 * is yest running.
 		 *
 		 * Note: This is for both full/short calibration,
 		 * if it's time for a full one, ath5k_calibrate_work will deal
@@ -2238,7 +2238,7 @@ ath5k_intr_calibration_poll(struct ath5k_hw *ah)
 			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_SHORT);
 		ieee80211_queue_work(ah->hw, &ah->calib_work);
 	}
-	/* we could use SWI to generate enough interrupts to meet our
+	/* we could use SWI to generate eyesugh interrupts to meet our
 	 * calibration interval requirements, if necessary:
 	 * AR5K_REG_ENABLE_BITS(ah, AR5K_CR, AR5K_CR_SWI); */
 }
@@ -2266,13 +2266,13 @@ ath5k_intr(int irq, void *dev_id)
 
 
 	/*
-	 * If hw is not ready (or detached) and we get an
-	 * interrupt, or if we have no interrupts pending
-	 * (that means it's not for us) skip it.
+	 * If hw is yest ready (or detached) and we get an
+	 * interrupt, or if we have yes interrupts pending
+	 * (that means it's yest for us) skip it.
 	 *
-	 * NOTE: Group 0/1 PCI interface registers are not
+	 * NOTE: Group 0/1 PCI interface registers are yest
 	 * supported on WiSOCs, so we can't check for pending
-	 * interrupts (ISR belongs to another register group
+	 * interrupts (ISR belongs to ayesther register group
 	 * so we are ok).
 	 */
 	if (unlikely(test_bit(ATH_STAT_INVALID, ah->status) ||
@@ -2304,7 +2304,7 @@ ath5k_intr(int irq, void *dev_id)
 		 * RX Overrun -> Count and reset if needed
 		 *
 		 * Receive buffers are full. Either the bus is busy or
-		 * the CPU is not fast enough to process all received
+		 * the CPU is yest fast eyesugh to process all received
 		 * frames.
 		 */
 		} else if (unlikely(status & AR5K_INT_RXORN)) {
@@ -2312,7 +2312,7 @@ ath5k_intr(int irq, void *dev_id)
 			/*
 			 * Older chipsets need a reset to come out of this
 			 * condition, but we treat it as RX for newer chips.
-			 * We don't know exactly which versions need a reset
+			 * We don't kyesw exactly which versions need a reset
 			 * this guess is copied from the HAL.
 			 */
 			ah->stats.rxorn_intr++;
@@ -2360,7 +2360,7 @@ ath5k_intr(int irq, void *dev_id)
 			if (status & AR5K_INT_BMISS)
 			*/
 
-			/* MIB event -> Update counters and notify ANI */
+			/* MIB event -> Update counters and yestify ANI */
 			if (status & AR5K_INT_MIB) {
 				ah->stats.mib_intr++;
 				ath5k_hw_update_mib_counters(ah);
@@ -2388,7 +2388,7 @@ ath5k_intr(int irq, void *dev_id)
 		ath5k_set_current_imask(ah);
 
 	if (unlikely(!counter))
-		ATH5K_WARN(ah, "too many interrupts, giving up for now\n");
+		ATH5K_WARN(ah, "too many interrupts, giving up for yesw\n");
 
 	/* Fire up calibration poll */
 	ath5k_intr_calibration_poll(ah);
@@ -2702,7 +2702,7 @@ ath5k_stop_locked(struct ath5k_hw *ah)
 	 *    reclaim beacon resources
 	 *    power down hardware
 	 *
-	 * Note that some of this work is not possible if the
+	 * Note that some of this work is yest possible if the
 	 * hardware is gone (invalid).
 	 */
 	ieee80211_stop_queues(ah->hw);
@@ -2732,13 +2732,13 @@ int ath5k_start(struct ieee80211_hw *hw)
 
 	/*
 	 * Stop anything previously setup.  This is safe
-	 * no matter this is the first time through or not.
+	 * yes matter this is the first time through or yest.
 	 */
 	ath5k_stop_locked(ah);
 
 	/*
 	 * The basic interface to setting the hardware in a good
-	 * state is ``reset''.  On return the hardware is known to
+	 * state is ``reset''.  On return the hardware is kyeswn to
 	 * be powered up and with interrupts disabled.  This must
 	 * be followed by initialization of the appropriate bits
 	 * and then setup of the interrupt mask.
@@ -2758,11 +2758,11 @@ int ath5k_start(struct ieee80211_hw *hw)
 	if (ret)
 		goto done;
 
-	if (!ath5k_modparam_no_hw_rfkill_switch)
+	if (!ath5k_modparam_yes_hw_rfkill_switch)
 		ath5k_rfkill_hw_start(ah);
 
 	/*
-	 * Reset the key cache since some parts do not reset the
+	 * Reset the key cache since some parts do yest reset the
 	 * contents on initial power up or resume from suspend.
 	 */
 	for (i = 0; i < common->keymax; i++)
@@ -2799,7 +2799,7 @@ static void ath5k_stop_tasklets(struct ath5k_hw *ah)
 /*
  * Stop the device, grabbing the top-level lock to protect
  * against concurrent entry through ath5k_init (which can happen
- * if another thread does a system call and the thread doing the
+ * if ayesther thread does a system call and the thread doing the
  * stop is preempted).
  */
 void ath5k_stop(struct ieee80211_hw *hw)
@@ -2843,12 +2843,12 @@ void ath5k_stop(struct ieee80211_hw *hw)
 	clear_bit(ATH_STAT_STARTED, ah->status);
 	cancel_delayed_work_sync(&ah->tx_complete_work);
 
-	if (!ath5k_modparam_no_hw_rfkill_switch)
+	if (!ath5k_modparam_yes_hw_rfkill_switch)
 		ath5k_rfkill_hw_stop(ah);
 }
 
 /*
- * Reset the hardware.  If chan is not NULL, then also pause rx/tx
+ * Reset the hardware.  If chan is yest NULL, then also pause rx/tx
  * and change to the given channel.
  *
  * This should be called with ah->lock.
@@ -2895,7 +2895,7 @@ ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 	 */
 	if (ret && fast) {
 		ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
-			  "DMA didn't stop, falling back to normal reset\n");
+			  "DMA didn't stop, falling back to yesrmal reset\n");
 		fast = false;
 	}
 
@@ -3089,7 +3089,7 @@ ath5k_init(struct ieee80211_hw *hw)
 	ath5k_update_bssid_mask_and_opmode(ah, NULL);
 
 	regulatory->current_rd = ah->ah_capabilities.cap_eeprom.ee_regdomain;
-	ret = ath_regd_init(regulatory, hw->wiphy, ath5k_reg_notifier);
+	ret = ath_regd_init(regulatory, hw->wiphy, ath5k_reg_yestifier);
 	if (ret) {
 		ATH5K_ERR(ah, "can't initialize regulatory system\n");
 		goto err_queues;
@@ -3131,7 +3131,7 @@ ath5k_deinit_ah(struct ath5k_hw *ah)
 	 *   key cache entries can be handled
 	 * o reclaim the tx queue data structures after calling
 	 *   the 802.11 layer as we'll get called back to reclaim
-	 *   node state and potentially want to use them
+	 *   yesde state and potentially want to use them
 	 * o to cleanup the tx queues the hal is called, so detach
 	 *   it last
 	 * XXX: ??? detach ath5k_hw ???
@@ -3146,7 +3146,7 @@ ath5k_deinit_ah(struct ath5k_hw *ah)
 	ath5k_sysfs_unregister(ah);
 	/*
 	 * NB: can't reclaim these until after ieee80211_ifdetach
-	 * returns because we'll get called back to reclaim node
+	 * returns because we'll get called back to reclaim yesde
 	 * state and potentially want to use them.
 	 */
 	ath5k_hw_deinit(ah);

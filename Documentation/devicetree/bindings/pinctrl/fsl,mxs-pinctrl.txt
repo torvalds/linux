@@ -13,32 +13,32 @@ Required properties:
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices.
 
-The node of mxs pin controller acts as a container for an arbitrary number of
-subnodes.  Each of these subnodes represents some desired configuration for
+The yesde of mxs pin controller acts as a container for an arbitrary number of
+subyesdes.  Each of these subyesdes represents some desired configuration for
 a group of pins, and only affects those parameters that are explicitly listed.
-In other words, a subnode that describes a drive strength parameter implies no
+In other words, a subyesde that describes a drive strength parameter implies yes
 information about pull-up. For this reason, even seemingly boolean values are
 actually tristates in this binding: unspecified, off, or on. Unspecified is
 represented as an absent property, and off/on are represented as integer
 values 0 and 1.
 
-Those subnodes under mxs pin controller node will fall into two categories.
+Those subyesdes under mxs pin controller yesde will fall into two categories.
 One is to set up a group of pins for a function, both mux selection and pin
-configurations, and it's called group node in the binding document.   The other
+configurations, and it's called group yesde in the binding document.   The other
 one is to adjust the pin configuration for some particular pins that need a
-different configuration than what is defined in group node.  The binding
-document calls this type of node config node.
+different configuration than what is defined in group yesde.  The binding
+document calls this type of yesde config yesde.
 
-On mxs, there is no hardware pin group. The pin group in this binding only
+On mxs, there is yes hardware pin group. The pin group in this binding only
 means a group of pins put together for particular peripheral to work in
 particular function, like SSP0 functioning as mmc0-8bit.  That said, the
-group node should include all the pins needed for one function rather than
-having these pins defined in several group nodes.  It also means each of
-"pinctrl-*" phandle in client device node should only have one group node
-pointed in there, while the phandle can have multiple config node referenced
+group yesde should include all the pins needed for one function rather than
+having these pins defined in several group yesdes.  It also means each of
+"pinctrl-*" phandle in client device yesde should only have one group yesde
+pointed in there, while the phandle can have multiple config yesde referenced
 there to adjust configurations for some pins in the group.
 
-Required subnode-properties:
+Required subyesde-properties:
 - fsl,pinmux-ids: An integer array.  Each integer in the array specify a pin
   with given mux function, with bank, pin and mux packed as below.
 
@@ -47,17 +47,17 @@ Required subnode-properties:
     [3..0]   : mux selection
 
   This integer with mux selection packed is used as an entity by both group
-  and config nodes to identify a pin.  The mux selection in the integer takes
-  effects only on group node, and will get ignored by driver with config node,
-  since config node is only meant to set up pin configurations.
+  and config yesdes to identify a pin.  The mux selection in the integer takes
+  effects only on group yesde, and will get igyesred by driver with config yesde,
+  since config yesde is only meant to set up pin configurations.
 
   Valid values for these integers are listed below.
 
-- reg: Should be the index of the group nodes for same function.  This property
-  is required only for group nodes, and should not be present in any config
-  nodes.
+- reg: Should be the index of the group yesdes for same function.  This property
+  is required only for group yesdes, and should yest be present in any config
+  yesdes.
 
-Optional subnode-properties:
+Optional subyesde-properties:
 - fsl,drive-strength: Integer.
     0: MXS_DRIVE_4mA
     1: MXS_DRIVE_8mA
@@ -114,12 +114,12 @@ pinctrl@80018000 {
 	};
 };
 
-In this example, group node mmc0-8bit defines a group of pins for mxs SSP0
+In this example, group yesde mmc0-8bit defines a group of pins for mxs SSP0
 to function as a 8-bit mmc device, with 8mA, 3.3V and pull-up configurations
-applied on all these pins.  And config nodes mmc-cd-cfg and mmc-sck-cfg are
+applied on all these pins.  And config yesdes mmc-cd-cfg and mmc-sck-cfg are
 adjusting the configuration for pins card-detection and clock from what group
-node mmc0-8bit defines.  Only the configuration properties to be adjusted need
-to be listed in the config nodes.
+yesde mmc0-8bit defines.  Only the configuration properties to be adjusted need
+to be listed in the config yesdes.
 
 Valid values for i.MX28/i.MX23 pinmux-id are defined in
 arch/arm/boot/dts/imx28-pinfunc.h and arch/arm/boot/dts/imx23-pinfunc.h.

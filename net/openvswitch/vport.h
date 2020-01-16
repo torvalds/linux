@@ -60,9 +60,9 @@ struct vport_portids {
  * @dev: Pointer to net_device.
  * @dp: Datapath to which this port belongs.
  * @upcall_portids: RCU protected 'struct vport_portids'.
- * @port_no: Index into @dp's @ports array.
- * @hash_node: Element in @dev_table hash table in vport.c.
- * @dp_hash_node: Element in @datapath->ports hash table in datapath.c.
+ * @port_yes: Index into @dp's @ports array.
+ * @hash_yesde: Element in @dev_table hash table in vport.c.
+ * @dp_hash_yesde: Element in @datapath->ports hash table in datapath.c.
  * @ops: Class structure.
  * @detach_list: list used for detaching vport in net-exit call.
  * @rcu: RCU callback head for deferred destruction.
@@ -71,10 +71,10 @@ struct vport {
 	struct net_device *dev;
 	struct datapath	*dp;
 	struct vport_portids __rcu *upcall_portids;
-	u16 port_no;
+	u16 port_yes;
 
-	struct hlist_node hash_node;
-	struct hlist_node dp_hash_node;
+	struct hlist_yesde hash_yesde;
+	struct hlist_yesde dp_hash_yesde;
 	const struct vport_ops *ops;
 
 	struct list_head detach_list;
@@ -87,9 +87,9 @@ struct vport {
  * @name: New vport's name.
  * @type: New vport's type.
  * @options: %OVS_VPORT_ATTR_OPTIONS attribute from Netlink message, %NULL if
- * none was supplied.
+ * yesne was supplied.
  * @dp: New vport's datapath.
- * @port_no: New vport's port number.
+ * @port_yes: New vport's port number.
  */
 struct vport_parms {
 	const char *name;
@@ -98,7 +98,7 @@ struct vport_parms {
 
 	/* For ovs_vport_alloc(). */
 	struct datapath *dp;
-	u16 port_no;
+	u16 port_yes;
 	struct nlattr *upcall_portids;
 };
 
@@ -108,12 +108,12 @@ struct vport_parms {
  * @type: %OVS_VPORT_TYPE_* value for this type of virtual port.
  * @create: Create a new vport configured as specified.  On success returns
  * a new vport allocated with ovs_vport_alloc(), otherwise an ERR_PTR() value.
- * @destroy: Destroys a vport.  Must call vport_free() on the vport but not
+ * @destroy: Destroys a vport.  Must call vport_free() on the vport but yest
  * before an RCU grace period has elapsed.
  * @set_options: Modify the configuration of an existing vport.  May be %NULL
- * if modification is not supported.
+ * if modification is yest supported.
  * @get_options: Appends vport-specific attributes for the configuration of an
- * existing vport to a &struct sk_buff.  May be %NULL for a vport that does not
+ * existing vport to a &struct sk_buff.  May be %NULL for a vport that does yest
  * have any configuration.
  * @send: Send a packet on the device.
  * zero for dropped packets or negative for error.
@@ -144,7 +144,7 @@ void ovs_vport_free(struct vport *);
  *
  * @vport: vport to access
  *
- * If a nonzero size was passed in priv_size of vport_alloc() a private data
+ * If a yesnzero size was passed in priv_size of vport_alloc() a private data
  * area was allocated on creation.  This allows that area to be accessed and
  * used for any purpose needed by the vport implementer.
  */

@@ -331,7 +331,7 @@ static irqreturn_t sf_pdma_done_isr(int irq, void *dev_id)
 	residue = readq(regs->residue);
 
 	if (!residue) {
-		list_del(&chan->desc->vdesc.node);
+		list_del(&chan->desc->vdesc.yesde);
 		vchan_cookie_complete(&chan->desc->vdesc);
 	} else {
 		/* submit next trascatioin if possible */
@@ -372,7 +372,7 @@ static irqreturn_t sf_pdma_err_isr(int irq, void *dev_id)
  * @pdma: pointer of PDMA engine. Caller should check NULL
  *
  * Initialize DONE and ERROR interrupt handler for 4 channels. Caller should
- * make sure the pointer passed in are non-NULL. This function should be called
+ * make sure the pointer passed in are yesn-NULL. This function should be called
  * only one time during the device probe.
  *
  * Context: Any context.
@@ -428,12 +428,12 @@ static int sf_pdma_irq_init(struct platform_device *pdev, struct sf_pdma *pdma)
  * @pdma: pointer of PDMA engine. Caller should check NULL
  *
  * Initialize all data structure and register base. Caller should make sure
- * the pointer passed in are non-NULL. This function should be called only
+ * the pointer passed in are yesn-NULL. This function should be called only
  * one time during the device probe.
  *
  * Context: Any context.
  *
- * Return: none
+ * Return: yesne
  */
 static void sf_pdma_setup_chans(struct sf_pdma *pdma)
 {
@@ -575,7 +575,7 @@ static int sf_pdma_remove(struct platform_device *pdev)
 
 		devm_free_irq(&pdev->dev, ch->txirq, ch);
 		devm_free_irq(&pdev->dev, ch->errirq, ch);
-		list_del(&ch->vchan.chan.device_node);
+		list_del(&ch->vchan.chan.device_yesde);
 		tasklet_kill(&ch->vchan.task);
 		tasklet_kill(&ch->done_tasklet);
 		tasklet_kill(&ch->err_tasklet);

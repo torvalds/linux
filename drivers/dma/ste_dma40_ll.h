@@ -370,7 +370,7 @@ struct d40_phy_lli_bidir {
  * @lcsp13: Either maps to register lcsp1 if src or lcsp3 if dst.
  *
  * This struct must be 8 bytes aligned since it will be accessed directy by
- * the DMA. Never add any none hw mapped registers to this struct.
+ * the DMA. Never add any yesne hw mapped registers to this struct.
  */
 
 struct d40_log_lli {

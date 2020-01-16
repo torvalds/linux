@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_ELFCORE_H
 #define _UAPI_LINUX_ELFCORE_H
 
@@ -11,9 +11,9 @@
 
 struct elf_siginfo
 {
-	int	si_signo;			/* signal number */
+	int	si_sigyes;			/* signal number */
 	int	si_code;			/* extra code */
-	int	si_errno;			/* errno */
+	int	si_erryes;			/* erryes */
 };
 
 
@@ -31,8 +31,8 @@ typedef elf_fpxregset_t fpxregset_t;
  * tacked on the front to prevent clashes with linux definitions,
  * and the typedef forms have been avoided.  This is mostly like
  * the SVR4 structure, but more Linuxy, with things that Linux does
- * not support and which gdb doesn't really use excluded.
- * Fields present but not used are marked with "XXX".
+ * yest support and which gdb doesn't really use excluded.
+ * Fields present but yest used are marked with "XXX".
  */
 struct elf_prstatus
 {

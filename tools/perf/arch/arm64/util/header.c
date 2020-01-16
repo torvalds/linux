@@ -47,7 +47,7 @@ char *get_cpuid_str(struct perf_pmu *pmu)
 		}
 		fclose(file);
 
-		/* Ignore/clear Variant[23:20] and
+		/* Igyesre/clear Variant[23:20] and
 		 * Revision[3:0] of MIDR
 		 */
 		midr = strtoul(buf, NULL, 16);

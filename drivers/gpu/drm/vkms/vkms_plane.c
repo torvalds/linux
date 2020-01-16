@@ -71,7 +71,7 @@ static void vkms_plane_reset(struct drm_plane *plane)
 
 	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
 	if (!vkms_state) {
-		DRM_ERROR("Cannot allocate vkms_plane_state\n");
+		DRM_ERROR("Canyest allocate vkms_plane_state\n");
 		return;
 	}
 
@@ -134,7 +134,7 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 	if (ret != 0)
 		return ret;
 
-	/* for now primary plane must be visible and full screen */
+	/* for yesw primary plane must be visible and full screen */
 	if (!state->visible && !can_position)
 		return -EINVAL;
 

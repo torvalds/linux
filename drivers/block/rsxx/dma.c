@@ -308,7 +308,7 @@ static void rsxx_handle_dma_error(struct rsxx_dma_ctrl *ctrl,
 		break;
 	case HW_CMD_BLK_RECON_READ:
 		if (hw_st & (HW_STATUS_CRC | HW_STATUS_HARD_ERR)) {
-			/* Data could not be reconstructed. */
+			/* Data could yest be reconstructed. */
 			status |= DMA_HW_FAULT;
 			ctrl->stats.reads_failed++;
 		}
@@ -326,7 +326,7 @@ static void rsxx_handle_dma_error(struct rsxx_dma_ctrl *ctrl,
 		break;
 	default:
 		dev_err(CARD_TO_DEV(ctrl->card),
-			"Unknown command in DMA!(cmd: x%02x "
+			"Unkyeswn command in DMA!(cmd: x%02x "
 			   "laddr x%08x st: x%02x\n",
 			   dma->cmd, dma->laddr, hw_st);
 		status |= DMA_SW_ERR;
@@ -476,7 +476,7 @@ static void rsxx_issue_dmas(struct rsxx_dma_ctrl *ctrl)
 			ctrl->stats.reads_issued++;
 	}
 
-	/* Let HW know we've queued commands. */
+	/* Let HW kyesw we've queued commands. */
 	if (cmds_pending) {
 		atomic_add(cmds_pending, &ctrl->stats.hw_q_depth);
 		mod_timer(&ctrl->activity_timer,

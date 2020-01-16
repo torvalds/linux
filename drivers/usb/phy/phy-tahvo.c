@@ -84,7 +84,7 @@ static void check_vbus_state(struct tahvo_usb *tu)
 			break;
 		case OTG_STATE_A_IDLE:
 			/*
-			 * Session is now valid assuming the USB hub is driving
+			 * Session is yesw valid assuming the USB hub is driving
 			 * Vbus.
 			 */
 			tu->phy.otg->state = OTG_STATE_A_HOST;
@@ -114,7 +114,7 @@ static void check_vbus_state(struct tahvo_usb *tu)
 	tu->vbus_state = reg & TAHVO_STAT_VBUS;
 	if (prev_state != tu->vbus_state) {
 		extcon_set_state_sync(tu->extcon, EXTCON_USB, tu->vbus_state);
-		sysfs_notify(&tu->pt_dev->dev.kobj, NULL, "vbus_state");
+		sysfs_yestify(&tu->pt_dev->dev.kobj, NULL, "vbus_state");
 	}
 }
 
@@ -287,7 +287,7 @@ static ssize_t otg_mode_store(struct device *device,
 			dev_info(device, "HOST mode: host controller present\n");
 			tahvo_usb_become_host(tu);
 		} else {
-			dev_info(device, "HOST mode: no host controller, powering off\n");
+			dev_info(device, "HOST mode: yes host controller, powering off\n");
 			tahvo_usb_power_off(tu);
 		}
 		r = strlen(buf);
@@ -299,7 +299,7 @@ static ssize_t otg_mode_store(struct device *device,
 			dev_info(device, "PERIPHERAL mode: gadget driver present\n");
 			tahvo_usb_become_peripheral(tu);
 		} else {
-			dev_info(device, "PERIPHERAL mode: no gadget driver, powering off\n");
+			dev_info(device, "PERIPHERAL mode: yes gadget driver, powering off\n");
 			tahvo_usb_power_off(tu);
 		}
 		r = strlen(buf);
@@ -363,7 +363,7 @@ static int tahvo_usb_probe(struct platform_device *pdev)
 
 	ret = devm_extcon_dev_register(&pdev->dev, tu->extcon);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register extcon device: %d\n",
+		dev_err(&pdev->dev, "could yest register extcon device: %d\n",
 			ret);
 		goto err_disable_clk;
 	}
@@ -386,7 +386,7 @@ static int tahvo_usb_probe(struct platform_device *pdev)
 
 	ret = usb_add_phy(&tu->phy, USB_PHY_TYPE_USB2);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot register USB transceiver: %d\n",
+		dev_err(&pdev->dev, "canyest register USB transceiver: %d\n",
 			ret);
 		goto err_disable_clk;
 	}
@@ -398,7 +398,7 @@ static int tahvo_usb_probe(struct platform_device *pdev)
 				   IRQF_ONESHOT,
 				   "tahvo-vbus", tu);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register tahvo-vbus irq: %d\n",
+		dev_err(&pdev->dev, "could yest register tahvo-vbus irq: %d\n",
 			ret);
 		goto err_remove_phy;
 	}

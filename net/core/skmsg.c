@@ -195,11 +195,11 @@ static int __sk_msg_free(struct sock *sk, struct sk_msg *msg, u32 i,
 	return freed;
 }
 
-int sk_msg_free_nocharge(struct sock *sk, struct sk_msg *msg)
+int sk_msg_free_yescharge(struct sock *sk, struct sk_msg *msg)
 {
 	return __sk_msg_free(sk, msg, msg->sg.start, false);
 }
-EXPORT_SYMBOL_GPL(sk_msg_free_nocharge);
+EXPORT_SYMBOL_GPL(sk_msg_free_yescharge);
 
 int sk_msg_free(struct sock *sk, struct sk_msg *msg)
 {
@@ -241,7 +241,7 @@ void sk_msg_free_partial(struct sock *sk, struct sk_msg *msg, u32 bytes)
 }
 EXPORT_SYMBOL_GPL(sk_msg_free_partial);
 
-void sk_msg_free_partial_nocharge(struct sock *sk, struct sk_msg *msg,
+void sk_msg_free_partial_yescharge(struct sock *sk, struct sk_msg *msg,
 				  u32 bytes)
 {
 	__sk_msg_free_partial(sk, msg, bytes, false);
@@ -280,8 +280,8 @@ out:
 	/* If we trim data a full sg elem before curr pointer update
 	 * copybreak and current so that any future copy operations
 	 * start at new copy location.
-	 * However trimed data that has not yet been used in a copy op
-	 * does not require an update.
+	 * However trimed data that has yest yet been used in a copy op
+	 * does yest require an update.
 	 */
 	if (!msg->sg.size) {
 		msg->sg.curr = msg->sg.start;
@@ -377,7 +377,7 @@ int sk_msg_memcopy_from_iter(struct sock *sk, struct iov_iter *from,
 		to = sg_virt(sge) + msg->sg.copybreak;
 		msg->sg.copybreak += copy;
 		if (sk->sk_route_caps & NETIF_F_NOCACHE_COPY)
-			ret = copy_from_iter_nocache(to, copy, from);
+			ret = copy_from_iter_yescache(to, copy, from);
 		else
 			ret = copy_from_iter(to, copy, from);
 		if (ret != copy) {
@@ -491,11 +491,11 @@ end:
 	release_sock(psock->sk);
 }
 
-struct sk_psock *sk_psock_init(struct sock *sk, int node)
+struct sk_psock *sk_psock_init(struct sock *sk, int yesde)
 {
-	struct sk_psock *psock = kzalloc_node(sizeof(*psock),
+	struct sk_psock *psock = kzalloc_yesde(sizeof(*psock),
 					      GFP_ATOMIC | __GFP_NOWARN,
-					      node);
+					      yesde);
 	if (!psock)
 		return NULL;
 
@@ -671,7 +671,7 @@ static int sk_psock_bpf_run(struct sk_psock *psock, struct bpf_prog *prog,
 	/* strparser clones the skb before handing it to a upper layer,
 	 * meaning skb_orphan has been called. We NULL sk on the way out
 	 * to ensure we don't trigger a BUG_ON() in skb/sk operations
-	 * later and because we are not charging the memory of this skb
+	 * later and because we are yest charging the memory of this skb
 	 * to any socket yet.
 	 */
 	skb->sk = NULL;

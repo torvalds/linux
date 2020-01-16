@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -283,7 +283,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_0_soc = {
 				.dscclk_mhz = 428.0,
 				.dram_speed_mts = 16000.0,
 			},
-			/*Extra state, no dispclk ramping*/
+			/*Extra state, yes dispclk ramping*/
 			{
 				.state = 5,
 				.dcfclk_mhz = 1200.0,
@@ -309,8 +309,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_0_soc = {
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 40.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 40.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 40.0,
-	.max_avg_sdp_bw_use_normal_percent = 40.0,
-	.max_avg_dram_bw_use_normal_percent = 40.0,
+	.max_avg_sdp_bw_use_yesrmal_percent = 40.0,
+	.max_avg_dram_bw_use_yesrmal_percent = 40.0,
 	.writeback_latency_us = 12.0,
 	.ideal_dram_bw_after_urgent_percent = 40.0,
 	.max_request_size_bytes = 256,
@@ -1977,7 +1977,7 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].dout.output_type = dm_hdmi;
 			break;
 		default:
-			/* In case there is no signal, set dp with 4 lanes to allow max config */
+			/* In case there is yes signal, set dp with 4 lanes to allow max config */
 			pipes[pipe_cnt].dout.output_type = dm_dp;
 			pipes[pipe_cnt].dout.dp_lanes = 4;
 		}
@@ -2041,7 +2041,7 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].dout.output_bpp = res_ctx->pipe_ctx[i].stream->timing.dsc_cfg.bits_per_pixel / 16.0;
 #endif
 
-		/* todo: default max for now, until there is logic reflecting this in dc*/
+		/* todo: default max for yesw, until there is logic reflecting this in dc*/
 		pipes[pipe_cnt].dout.output_bpc = 12;
 		/*
 		 * Use max cursor settings for calculations to minimize
@@ -2312,7 +2312,7 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 		 * if this primary pipe has a bottom pipe in prev. state
 		 * and if the bottom pipe is still available (which it should be),
 		 * pick that pipe as secondary
-		 * Same logic applies for ODM pipes. Since mpo is not allowed with odm
+		 * Same logic applies for ODM pipes. Since mpo is yest allowed with odm
 		 * check in else case.
 		 */
 		if (dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe) {
@@ -2330,10 +2330,10 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 		}
 
 		/*
-		 * if this primary pipe does not have a bottom pipe in prev. state
-		 * start backward and find a pipe that did not used to be a bottom pipe in
+		 * if this primary pipe does yest have a bottom pipe in prev. state
+		 * start backward and find a pipe that did yest used to be a bottom pipe in
 		 * prev. dc state. This way we make sure we keep the same assignment as
-		 * last state and will not have to reprogram every pipe
+		 * last state and will yest have to reprogram every pipe
 		 */
 		if (secondary_pipe == NULL) {
 			for (j = dc->res_pool->pipe_count - 1; j >= 0; j--) {
@@ -2485,7 +2485,7 @@ int dcn20_validate_apply_pipe_split_flags(
 			for (vlevel_split = vlevel; vlevel <= context->bw_ctx.dml.soc.num_states; vlevel++)
 				if (context->bw_ctx.dml.vba.NoOfDPP[vlevel][0][pipe_idx] == 1)
 					break;
-			/* Impossible to not split this pipe */
+			/* Impossible to yest split this pipe */
 			if (vlevel > context->bw_ctx.dml.soc.num_states)
 				vlevel = vlevel_split;
 			pipe_idx++;
@@ -2517,7 +2517,7 @@ int dcn20_validate_apply_pipe_split_flags(
 		}
 		context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx] =
 			context->bw_ctx.dml.vba.ODMCombineEnablePerState[vlevel][pipe_idx];
-		/* Adjust dppclk when split is forced, do not bother with dispclk */
+		/* Adjust dppclk when split is forced, do yest bother with dispclk */
 		if (split[i] && context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] == 1)
 			context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] /= 2;
 		pipe_idx++;
@@ -2590,14 +2590,14 @@ bool dcn20_fast_validate_bw(
 		if (pipe->top_pipe && pipe->plane_state == pipe->top_pipe->plane_state)
 			continue;
 
-		/* We do not support mpo + odm at the moment */
+		/* We do yest support mpo + odm at the moment */
 		if (hsplit_pipe && hsplit_pipe->plane_state != pipe->plane_state
 				&& context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx])
 			goto validate_fail;
 
 		if (split[i]) {
 			if (!hsplit_pipe || hsplit_pipe->plane_state != pipe->plane_state) {
-				/* pipe not split previously needs split */
+				/* pipe yest split previously needs split */
 				hsplit_pipe = dcn20_find_secondary_pipe(dc, &context->res_ctx, dc->res_pool, pipe);
 				ASSERT(hsplit_pipe);
 				if (!hsplit_pipe) {
@@ -2716,7 +2716,7 @@ static void dcn20_calculate_wm(
 	context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.b.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
-	context->bw_ctx.bw.dcn.watermarks.b.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	context->bw_ctx.bw.dcn.watermarks.b.frac_urg_bw_yesm = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.b.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.b.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 #endif
@@ -2732,7 +2732,7 @@ static void dcn20_calculate_wm(
 	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
-	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_yesm = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 #endif
 
@@ -2747,7 +2747,7 @@ static void dcn20_calculate_wm(
 	context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.d.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
-	context->bw_ctx.bw.dcn.watermarks.d.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	context->bw_ctx.bw.dcn.watermarks.d.frac_urg_bw_yesm = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.d.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 #endif
 
@@ -2760,7 +2760,7 @@ static void dcn20_calculate_wm(
 	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.a.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
-	context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_yesm = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 #endif
 }
@@ -3319,7 +3319,7 @@ static bool init_soc_bounding_box(struct dc *dc,
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (!bb && !SOC_BOUNDING_BOX_VALID) {
-		DC_LOG_ERROR("%s: not valid soc bounding box/n", __func__);
+		DC_LOG_ERROR("%s: yest valid soc bounding box/n", __func__);
 		return false;
 	}
 
@@ -3350,10 +3350,10 @@ static bool init_soc_bounding_box(struct dc *dc,
 				fixed16_to_double_to_cpu(bb->pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm);
 		dcn2_0_nv12_soc.pct_ideal_dram_sdp_bw_after_urgent_vm_only =
 				fixed16_to_double_to_cpu(bb->pct_ideal_dram_sdp_bw_after_urgent_vm_only);
-		dcn2_0_nv12_soc.max_avg_sdp_bw_use_normal_percent =
-				fixed16_to_double_to_cpu(bb->max_avg_sdp_bw_use_normal_percent);
-		dcn2_0_nv12_soc.max_avg_dram_bw_use_normal_percent =
-				fixed16_to_double_to_cpu(bb->max_avg_dram_bw_use_normal_percent);
+		dcn2_0_nv12_soc.max_avg_sdp_bw_use_yesrmal_percent =
+				fixed16_to_double_to_cpu(bb->max_avg_sdp_bw_use_yesrmal_percent);
+		dcn2_0_nv12_soc.max_avg_dram_bw_use_yesrmal_percent =
+				fixed16_to_double_to_cpu(bb->max_avg_dram_bw_use_yesrmal_percent);
 		dcn2_0_nv12_soc.writeback_latency_us =
 				fixed16_to_double_to_cpu(bb->writeback_latency_us);
 		dcn2_0_nv12_soc.ideal_dram_bw_after_urgent_percent =
@@ -3445,7 +3445,7 @@ static bool init_soc_bounding_box(struct dc *dc,
 		if (pool->base.pp_smu->nv_funcs.get_maximum_sustainable_clocks) {
 			status = (*pool->base.pp_smu->nv_funcs.get_maximum_sustainable_clocks)
 					(&pool->base.pp_smu->nv_funcs.pp_smu, &max_clocks);
-			/* SMU cannot set DCF clock to anything equal to or higher than SOC clock
+			/* SMU canyest set DCF clock to anything equal to or higher than SOC clock
 			 */
 			if (max_clocks.dcfClockInKhz >= max_clocks.socClockInKhz)
 				max_clocks.dcfClockInKhz = max_clocks.socClockInKhz - 1000;
@@ -3553,7 +3553,7 @@ static bool construct(
 				CLOCK_SOURCE_COMBO_PHY_PLL5,
 				&clk_src_regs[5], false);
 	pool->base.clk_src_count = DCN20_CLK_SRC_TOTAL;
-	/* todo: not reuse phy_pll registers */
+	/* todo: yest reuse phy_pll registers */
 	pool->base.dp_clock_source =
 			dcn20_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,

@@ -25,8 +25,8 @@
 #define INTEL_I460_GATT_COHERENT	(1UL << 25)
 
 /*
- * The i460 can operate with large (4MB) pages, but there is no sane way to support this
- * within the current kernel/DRM environment, so we disable the relevant code for now.
+ * The i460 can operate with large (4MB) pages, but there is yes sane way to support this
+ * within the current kernel/DRM environment, so we disable the relevant code for yesw.
  * See also comments in ia64_alloc_page()...
  */
 #define I460_LARGE_IO_PAGES		0
@@ -125,10 +125,10 @@ static int i460_fetch_size (void)
 
 	pci_read_config_byte(agp_bridge->dev, INTEL_I460_AGPSIZ, &temp);
 
-	/* Exit now if the IO drivers for the GART SRAMS are turned off */
+	/* Exit yesw if the IO drivers for the GART SRAMS are turned off */
 	if (temp & I460_SRAM_IO_DISABLE) {
 		printk(KERN_ERR PFX "GART SRAMS disabled on 460GX chipset\n");
-		printk(KERN_ERR PFX "AGPGART operation not possible\n");
+		printk(KERN_ERR PFX "AGPGART operation yest possible\n");
 		return 0;
 	}
 
@@ -147,7 +147,7 @@ static int i460_fetch_size (void)
 	for (i = 0; i < agp_bridge->driver->num_aperture_sizes; i++) {
 		/*
 		 * Dynamically calculate the proper num_entries and page_order values for
-		 * the define aperture sizes. Take care not to shift off the end of
+		 * the define aperture sizes. Take care yest to shift off the end of
 		 * values[i].size.
 		 */
 		values[i].num_entries = (values[i].size << 8) >> (I460_IO_PAGE_SHIFT - 12);
@@ -166,7 +166,7 @@ static int i460_fetch_size (void)
 	return 0;
 }
 
-/* There isn't anything to do here since 460 has no GART TLB. */
+/* There isn't anything to do here since 460 has yes GART TLB. */
 static void i460_tlb_flush (struct agp_memory *mem)
 {
 	return;
@@ -257,7 +257,7 @@ static int i460_create_gatt_table (struct agp_bridge_data *bridge)
 		return -ENOMEM;
 	}
 
-	/* These are no good, the should be removed from the agp_bridge strucure... */
+	/* These are yes good, the should be removed from the agp_bridge strucure... */
 	agp_bridge->gatt_table_real = NULL;
 	agp_bridge->gatt_table = NULL;
 	agp_bridge->gatt_bus_addr = 0;
@@ -517,10 +517,10 @@ static int i460_remove_memory (struct agp_memory *mem,
 
 /*
  * If the I/O (GART) page size is bigger than the kernel page size, we don't want to
- * allocate memory until we know where it is to be bound in the aperture (a
+ * allocate memory until we kyesw where it is to be bound in the aperture (a
  * multi-kernel-page alloc might fit inside of an already allocated GART page).
  *
- * Let's just hope nobody counts on the allocated AGP memory being there before bind time
+ * Let's just hope yesbody counts on the allocated AGP memory being there before bind time
  * (I don't think current drivers do)...
  */
 static struct page *i460_alloc_page (struct agp_bridge_data *bridge)

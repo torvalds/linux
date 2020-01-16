@@ -7,7 +7,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/module.h>
 #include <sound/core.h>
@@ -20,7 +20,7 @@ MODULE_DESCRIPTION("MIDI byte <-> sequencer event coder");
 MODULE_LICENSE("GPL");
 
 /* event type, index into status_event[] */
-/* from 0 to 6 are normal commands (note off, on, etc.) for 0x9?-0xe? */
+/* from 0 to 6 are yesrmal commands (yeste off, on, etc.) for 0x9?-0xe? */
 #define ST_INVALID	7
 #define ST_SPECIAL	8
 #define ST_SYSEX	ST_SPECIAL
@@ -30,13 +30,13 @@ MODULE_LICENSE("GPL");
 /*
  * prototypes
  */
-static void note_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
+static void yeste_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
 static void one_param_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
 static void pitchbend_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
 static void two_param_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
 static void one_param_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
 static void songpos_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
-static void note_decode(struct snd_seq_event *ev, unsigned char *buf);
+static void yeste_decode(struct snd_seq_event *ev, unsigned char *buf);
 static void one_param_decode(struct snd_seq_event *ev, unsigned char *buf);
 static void pitchbend_decode(struct snd_seq_event *ev, unsigned char *buf);
 static void two_param_decode(struct snd_seq_event *ev, unsigned char *buf);
@@ -52,9 +52,9 @@ static struct status_event_list {
 	void (*decode)(struct snd_seq_event *ev, unsigned char *buf);
 } status_event[] = {
 	/* 0x80 - 0xef */
-	{SNDRV_SEQ_EVENT_NOTEOFF,	 2, note_event, note_decode},
-	{SNDRV_SEQ_EVENT_NOTEON,	 2, note_event, note_decode},
-	{SNDRV_SEQ_EVENT_KEYPRESS,	 2, note_event, note_decode},
+	{SNDRV_SEQ_EVENT_NOTEOFF,	 2, yeste_event, yeste_decode},
+	{SNDRV_SEQ_EVENT_NOTEON,	 2, yeste_event, yeste_decode},
+	{SNDRV_SEQ_EVENT_KEYPRESS,	 2, yeste_event, yeste_decode},
 	{SNDRV_SEQ_EVENT_CONTROLLER,	 2, two_param_ctrl_event, two_param_decode},
 	{SNDRV_SEQ_EVENT_PGMCHANGE,	 1, one_param_ctrl_event, one_param_decode},
 	{SNDRV_SEQ_EVENT_CHANPRESS,	 1, one_param_ctrl_event, one_param_decode},
@@ -162,16 +162,16 @@ void snd_midi_event_reset_decode(struct snd_midi_event *dev)
 }
 EXPORT_SYMBOL(snd_midi_event_reset_decode);
 
-void snd_midi_event_no_status(struct snd_midi_event *dev, int on)
+void snd_midi_event_yes_status(struct snd_midi_event *dev, int on)
 {
-	dev->nostat = on ? 1 : 0;
+	dev->yesstat = on ? 1 : 0;
 }
-EXPORT_SYMBOL(snd_midi_event_no_status);
+EXPORT_SYMBOL(snd_midi_event_yes_status);
 
 /*
  *  read one byte and encode to sequencer event:
  *  return true if MIDI bytes are encoded to an event
- *         false data is not finished
+ *         false data is yest finished
  */
 bool snd_midi_event_encode_byte(struct snd_midi_event *dev, unsigned char c,
 				struct snd_seq_event *ev)
@@ -241,12 +241,12 @@ bool snd_midi_event_encode_byte(struct snd_midi_event *dev, unsigned char c,
 }
 EXPORT_SYMBOL(snd_midi_event_encode_byte);
 
-/* encode note event */
-static void note_event(struct snd_midi_event *dev, struct snd_seq_event *ev)
+/* encode yeste event */
+static void yeste_event(struct snd_midi_event *dev, struct snd_seq_event *ev)
 {
-	ev->data.note.channel = dev->buf[0] & 0x0f;
-	ev->data.note.note = dev->buf[1];
-	ev->data.note.velocity = dev->buf[2];
+	ev->data.yeste.channel = dev->buf[0] & 0x0f;
+	ev->data.yeste.yeste = dev->buf[1];
+	ev->data.yeste.velocity = dev->buf[2];
 }
 
 /* encode one parameter controls */
@@ -309,8 +309,8 @@ long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long 
 	if (type >= ST_SPECIAL)
 		cmd = 0xf0 + (type - ST_SPECIAL);
 	else
-		/* data.note.channel and data.control.channel is identical */
-		cmd = 0x80 | (type << 4) | (ev->data.note.channel & 0x0f);
+		/* data.yeste.channel and data.control.channel is identical */
+		cmd = 0x80 | (type << 4) | (ev->data.yeste.channel & 0x0f);
 
 
 	if (cmd == MIDI_CMD_COMMON_SYSEX) {
@@ -322,7 +322,7 @@ long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long 
 		unsigned long flags;
 
 		spin_lock_irqsave(&dev->lock, flags);
-		if ((cmd & 0xf0) == 0xf0 || dev->lastcmd != cmd || dev->nostat) {
+		if ((cmd & 0xf0) == 0xf0 || dev->lastcmd != cmd || dev->yesstat) {
 			dev->lastcmd = cmd;
 			spin_unlock_irqrestore(&dev->lock, flags);
 			xbuf[0] = cmd;
@@ -344,11 +344,11 @@ long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long 
 EXPORT_SYMBOL(snd_midi_event_decode);
 
 
-/* decode note event */
-static void note_decode(struct snd_seq_event *ev, unsigned char *buf)
+/* decode yeste event */
+static void yeste_decode(struct snd_seq_event *ev, unsigned char *buf)
 {
-	buf[0] = ev->data.note.note & 0x7f;
-	buf[1] = ev->data.note.velocity & 0x7f;
+	buf[0] = ev->data.yeste.yeste & 0x7f;
+	buf[1] = ev->data.yeste.velocity & 0x7f;
 }
 
 /* decode one parameter controls */
@@ -390,23 +390,23 @@ static int extra_decode_ctrl14(struct snd_midi_event *dev, unsigned char *buf,
 	if (ev->data.control.param < 0x20) {
 		if (count < 4)
 			return -ENOMEM;
-		if (dev->nostat && count < 6)
+		if (dev->yesstat && count < 6)
 			return -ENOMEM;
-		if (cmd != dev->lastcmd || dev->nostat) {
+		if (cmd != dev->lastcmd || dev->yesstat) {
 			if (count < 5)
 				return -ENOMEM;
 			buf[idx++] = dev->lastcmd = cmd;
 		}
 		buf[idx++] = ev->data.control.param;
 		buf[idx++] = (ev->data.control.value >> 7) & 0x7f;
-		if (dev->nostat)
+		if (dev->yesstat)
 			buf[idx++] = cmd;
 		buf[idx++] = ev->data.control.param + 0x20;
 		buf[idx++] = ev->data.control.value & 0x7f;
 	} else {
 		if (count < 2)
 			return -ENOMEM;
-		if (cmd != dev->lastcmd || dev->nostat) {
+		if (cmd != dev->lastcmd || dev->yesstat) {
 			if (count < 3)
 				return -ENOMEM;
 			buf[idx++] = dev->lastcmd = cmd;
@@ -417,7 +417,7 @@ static int extra_decode_ctrl14(struct snd_midi_event *dev, unsigned char *buf,
 	return idx;
 }
 
-/* decode reg/nonreg param */
+/* decode reg/yesnreg param */
 static int extra_decode_xrpn(struct snd_midi_event *dev, unsigned char *buf,
 			     int count, struct snd_seq_event *ev)
 {
@@ -436,21 +436,21 @@ static int extra_decode_xrpn(struct snd_midi_event *dev, unsigned char *buf,
 
 	if (count < 8)
 		return -ENOMEM;
-	if (dev->nostat && count < 12)
+	if (dev->yesstat && count < 12)
 		return -ENOMEM;
 	cmd = MIDI_CMD_CONTROL|(ev->data.control.channel & 0x0f);
 	bytes[0] = (ev->data.control.param & 0x3f80) >> 7;
 	bytes[1] = ev->data.control.param & 0x007f;
 	bytes[2] = (ev->data.control.value & 0x3f80) >> 7;
 	bytes[3] = ev->data.control.value & 0x007f;
-	if (cmd != dev->lastcmd && !dev->nostat) {
+	if (cmd != dev->lastcmd && !dev->yesstat) {
 		if (count < 9)
 			return -ENOMEM;
 		buf[idx++] = dev->lastcmd = cmd;
 	}
 	cbytes = ev->type == SNDRV_SEQ_EVENT_NONREGPARAM ? cbytes_nrpn : cbytes_rpn;
 	for (i = 0; i < 4; i++) {
-		if (dev->nostat)
+		if (dev->yesstat)
 			buf[idx++] = dev->lastcmd = cmd;
 		buf[idx++] = cbytes[i];
 		buf[idx++] = bytes[i];

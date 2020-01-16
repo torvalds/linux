@@ -280,7 +280,7 @@ static bool tegra_sdhci_is_pad_and_regulator_valid(struct sdhci_host *host)
 	 * The SoCs which have NVQUIRK_NEEDS_PAD_CONTROL require software pad
 	 * voltage configuration in order to perform voltage switching. This
 	 * means that valid pinctrl info is required on SDHCI instances capable
-	 * of performing voltage switching. Whether or not an SDHCI instance is
+	 * of performing voltage switching. Whether or yest an SDHCI instance is
 	 * capable of voltage switching is determined based on the regulator.
 	 */
 
@@ -299,7 +299,7 @@ static bool tegra_sdhci_is_pad_and_regulator_valid(struct sdhci_host *host)
 	if (has_1v8 == 1 && has_3v3 == 1)
 		return tegra_host->pad_control_available;
 
-	/* Fixed voltage, no pad control required. */
+	/* Fixed voltage, yes pad control required. */
 	return true;
 }
 
@@ -868,7 +868,7 @@ static void tegra_sdhci_tap_correction(struct sdhci_host *host, u8 thd_up,
 	}
 
 	if (!first_fail) {
-		WARN(1, "no edge detected, continue with hw tuned delay.\n");
+		WARN(1, "yes edge detected, continue with hw tuned delay.\n");
 	} else if (first_pass) {
 		/* set tap location at fixed tap relative to the first edge */
 		edge1 = first_fail_tap + (first_pass_tap - first_fail_tap) / 2;
@@ -890,7 +890,7 @@ static void tegra_sdhci_post_tuning(struct sdhci_host *host)
 	u8 num_iter;
 	u32 clk_rate_mhz, period_ps, bestcase, worstcase;
 
-	/* retain HW tuned tap to use incase if no correction is needed */
+	/* retain HW tuned tap to use incase if yes correction is needed */
 	val = sdhci_readl(host, SDHCI_TEGRA_VENDOR_CLOCK_CTRL);
 	tegra_host->tuned_tap_delay = (val & SDHCI_CLOCK_CTRL_TAP_MASK) >>
 				      SDHCI_CLOCK_CTRL_TAP_SHIFT;
@@ -1289,9 +1289,9 @@ static const struct sdhci_pltfm_data sdhci_tegra30_pdata = {
 		   SDHCI_QUIRK2_BROKEN_HS200 |
 		   /*
 		    * Auto-CMD23 leads to "Got command interrupt 0x00010000 even
-		    * though no command operation was in progress."
+		    * though yes command operation was in progress."
 		    *
-		    * The exact reason is unknown, as the same hardware seems
+		    * The exact reason is unkyeswn, as the same hardware seems
 		    * to support Auto CMD23 on a downstream 3.1 kernel.
 		    */
 		   SDHCI_QUIRK2_ACMD23_BROKEN,

@@ -128,7 +128,7 @@ static int can_modify_feature(struct btrfs_feature_attr *fa)
 		clear = BTRFS_FEATURE_INCOMPAT_SAFE_CLEAR;
 		break;
 	default:
-		pr_warn("btrfs: sysfs: unknown feature set %d\n",
+		pr_warn("btrfs: sysfs: unkyeswn feature set %d\n",
 				fa->feature_set);
 		return 0;
 	}
@@ -199,7 +199,7 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	if ((val && !(set & fa->feature_bit)) ||
 	    (!val && !(clear & fa->feature_bit))) {
 		btrfs_info(fs_info,
-			"%sabling feature %s on mounted fs is not supported.",
+			"%sabling feature %s on mounted fs is yest supported.",
 			val ? "En" : "Dis", fa->kobj_attr.attr.name);
 		return -EPERM;
 	}
@@ -256,7 +256,7 @@ BTRFS_FEAT_ATTR_INCOMPAT(big_metadata, BIG_METADATA);
 BTRFS_FEAT_ATTR_INCOMPAT(extended_iref, EXTENDED_IREF);
 BTRFS_FEAT_ATTR_INCOMPAT(raid56, RAID56);
 BTRFS_FEAT_ATTR_INCOMPAT(skinny_metadata, SKINNY_METADATA);
-BTRFS_FEAT_ATTR_INCOMPAT(no_holes, NO_HOLES);
+BTRFS_FEAT_ATTR_INCOMPAT(yes_holes, NO_HOLES);
 BTRFS_FEAT_ATTR_INCOMPAT(metadata_uuid, METADATA_UUID);
 BTRFS_FEAT_ATTR_COMPAT_RO(free_space_tree, FREE_SPACE_TREE);
 BTRFS_FEAT_ATTR_INCOMPAT(raid1c34, RAID1C34);
@@ -271,7 +271,7 @@ static struct attribute *btrfs_supported_feature_attrs[] = {
 	BTRFS_FEAT_ATTR_PTR(extended_iref),
 	BTRFS_FEAT_ATTR_PTR(raid56),
 	BTRFS_FEAT_ATTR_PTR(skinny_metadata),
-	BTRFS_FEAT_ATTR_PTR(no_holes),
+	BTRFS_FEAT_ATTR_PTR(yes_holes),
 	BTRFS_FEAT_ATTR_PTR(metadata_uuid),
 	BTRFS_FEAT_ATTR_PTR(free_space_tree),
 	BTRFS_FEAT_ATTR_PTR(raid1c34),
@@ -307,7 +307,7 @@ static ssize_t supported_checksums_show(struct kobject *kobj,
 	for (i = 0; i < btrfs_get_num_csums(); i++) {
 		/*
 		 * This "trick" only works as long as 'enum btrfs_csum_type' has
-		 * no holes in it
+		 * yes holes in it
 		 */
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s%s",
 				(i == 0 ? "" : " "), btrfs_super_csum_name(i));
@@ -546,15 +546,15 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 }
 BTRFS_ATTR_RW(, label, btrfs_label_show, btrfs_label_store);
 
-static ssize_t btrfs_nodesize_show(struct kobject *kobj,
+static ssize_t btrfs_yesdesize_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->nodesize);
+	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->yesdesize);
 }
 
-BTRFS_ATTR(, nodesize, btrfs_nodesize_show);
+BTRFS_ATTR(, yesdesize, btrfs_yesdesize_show);
 
 static ssize_t btrfs_sectorsize_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
@@ -593,7 +593,7 @@ static ssize_t quota_override_store(struct kobject *kobj,
 				    const char *buf, size_t len)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
-	unsigned long knob;
+	unsigned long kyesb;
 	int err;
 
 	if (!fs_info)
@@ -602,13 +602,13 @@ static ssize_t quota_override_store(struct kobject *kobj,
 	if (!capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 
-	err = kstrtoul(buf, 10, &knob);
+	err = kstrtoul(buf, 10, &kyesb);
 	if (err)
 		return err;
-	if (knob > 1)
+	if (kyesb > 1)
 		return -EINVAL;
 
-	if (knob)
+	if (kyesb)
 		set_bit(BTRFS_FS_QUOTA_OVERRIDE, &fs_info->flags);
 	else
 		clear_bit(BTRFS_FS_QUOTA_OVERRIDE, &fs_info->flags);
@@ -644,7 +644,7 @@ BTRFS_ATTR(, checksum, btrfs_checksum_show);
 
 static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, label),
-	BTRFS_ATTR_PTR(, nodesize),
+	BTRFS_ATTR_PTR(, yesdesize),
 	BTRFS_ATTR_PTR(, sectorsize),
 	BTRFS_ATTR_PTR(, clone_alignment),
 	BTRFS_ATTR_PTR(, quota_override),
@@ -682,7 +682,7 @@ static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
 
 #define NUM_FEATURE_BITS 64
 #define BTRFS_FEATURE_NAME_MAX 13
-static char btrfs_unknown_feature_names[FEAT_MAX][NUM_FEATURE_BITS][BTRFS_FEATURE_NAME_MAX];
+static char btrfs_unkyeswn_feature_names[FEAT_MAX][NUM_FEATURE_BITS][BTRFS_FEATURE_NAME_MAX];
 static struct btrfs_feature_attr btrfs_feature_attrs[FEAT_MAX][NUM_FEATURE_BITS];
 
 static const u64 supported_feature_masks[FEAT_MAX] = {
@@ -691,7 +691,7 @@ static const u64 supported_feature_masks[FEAT_MAX] = {
 	[FEAT_INCOMPAT]  = BTRFS_FEATURE_INCOMPAT_SUPP,
 };
 
-static int addrm_unknown_feature_attrs(struct btrfs_fs_info *fs_info, bool add)
+static int addrm_unkyeswn_feature_attrs(struct btrfs_fs_info *fs_info, bool add)
 {
 	int set;
 
@@ -771,7 +771,7 @@ void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 		kobject_del(fs_info->space_info_kobj);
 		kobject_put(fs_info->space_info_kobj);
 	}
-	addrm_unknown_feature_attrs(fs_info, false);
+	addrm_unkyeswn_feature_attrs(fs_info, false);
 	sysfs_remove_group(&fs_info->fs_devices->fsid_kobj, &btrfs_feature_attr_group);
 	sysfs_remove_files(&fs_info->fs_devices->fsid_kobj, btrfs_attrs);
 	btrfs_sysfs_rm_device_link(fs_info->fs_devices, NULL);
@@ -818,14 +818,14 @@ static void init_feature_attrs(void)
 	struct btrfs_feature_attr *fa;
 	int set, i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(btrfs_unknown_feature_names) !=
+	BUILD_BUG_ON(ARRAY_SIZE(btrfs_unkyeswn_feature_names) !=
 		     ARRAY_SIZE(btrfs_feature_attrs));
-	BUILD_BUG_ON(ARRAY_SIZE(btrfs_unknown_feature_names[0]) !=
+	BUILD_BUG_ON(ARRAY_SIZE(btrfs_unkyeswn_feature_names[0]) !=
 		     ARRAY_SIZE(btrfs_feature_attrs[0]));
 
 	memset(btrfs_feature_attrs, 0, sizeof(btrfs_feature_attrs));
-	memset(btrfs_unknown_feature_names, 0,
-	       sizeof(btrfs_unknown_feature_names));
+	memset(btrfs_unkyeswn_feature_names, 0,
+	       sizeof(btrfs_unkyeswn_feature_names));
 
 	for (i = 0; btrfs_supported_feature_attrs[i]; i++) {
 		struct btrfs_feature_attr *sfa;
@@ -840,7 +840,7 @@ static void init_feature_attrs(void)
 
 	for (set = 0; set < FEAT_MAX; set++) {
 		for (i = 0; i < ARRAY_SIZE(btrfs_feature_attrs[set]); i++) {
-			char *name = btrfs_unknown_feature_names[set][i];
+			char *name = btrfs_unkyeswn_feature_names[set][i];
 			fa = &btrfs_feature_attrs[set][i];
 
 			if (fa->kobj_attr.attr.name)
@@ -867,7 +867,7 @@ void btrfs_sysfs_add_block_group_type(struct btrfs_block_group *cache)
 	struct btrfs_space_info *space_info = cache->space_info;
 	struct raid_kobject *rkobj;
 	const int index = btrfs_bg_flags_to_raid_index(cache->flags);
-	unsigned int nofs_flag;
+	unsigned int yesfs_flag;
 	int ret;
 
 	/*
@@ -877,11 +877,11 @@ void btrfs_sysfs_add_block_group_type(struct btrfs_block_group *cache)
 	 * a transaction handle or some lock required for a transaction
 	 * commit).
 	 */
-	nofs_flag = memalloc_nofs_save();
+	yesfs_flag = memalloc_yesfs_save();
 
 	rkobj = kzalloc(sizeof(*rkobj), GFP_NOFS);
 	if (!rkobj) {
-		memalloc_nofs_restore(nofs_flag);
+		memalloc_yesfs_restore(yesfs_flag);
 		btrfs_warn(cache->fs_info,
 				"couldn't alloc memory for raid level kobject");
 		return;
@@ -891,11 +891,11 @@ void btrfs_sysfs_add_block_group_type(struct btrfs_block_group *cache)
 	kobject_init(&rkobj->kobj, &btrfs_raid_ktype);
 	ret = kobject_add(&rkobj->kobj, &space_info->kobj, "%s",
 			  btrfs_bg_type_to_raid_name(rkobj->flags));
-	memalloc_nofs_restore(nofs_flag);
+	memalloc_yesfs_restore(yesfs_flag);
 	if (ret) {
 		kobject_put(&rkobj->kobj);
 		btrfs_warn(fs_info,
-			"failed to add kobject for block cache, ignoring");
+			"failed to add kobject for block cache, igyesring");
 		return;
 	}
 
@@ -1117,7 +1117,7 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 		goto failure;
 #endif
 
-	error = addrm_unknown_feature_attrs(fs_info, true);
+	error = addrm_unkyeswn_feature_attrs(fs_info, true);
 	if (error)
 		goto failure;
 

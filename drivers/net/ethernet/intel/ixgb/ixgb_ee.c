@@ -274,7 +274,7 @@ ixgb_wait_eeprom_command(struct ixgb_hw *hw)
 
 	/* Now read DO repeatedly until is high (equal to '1').  The EEPROM will
 	 * signal that the command has been completed by raising the DO signal.
-	 * If DO does not go high in 10 milliseconds, then error out.
+	 * If DO does yest go high in 10 milliseconds, then error out.
 	 */
 	for (i = 0; i < 200; i++) {
 		eecd_reg = IXGB_READ_REG(hw, EECD);
@@ -299,7 +299,7 @@ ixgb_wait_eeprom_command(struct ixgb_hw *hw)
  *
  * Returns:
  *  true: Checksum is valid
- *  false: Checksum is not valid.
+ *  false: Checksum is yest valid.
  *****************************************************************************/
 bool
 ixgb_validate_eeprom_checksum(struct ixgb_hw *hw)
@@ -345,7 +345,7 @@ ixgb_update_eeprom_checksum(struct ixgb_hw *hw)
  * reg - offset within the EEPROM to be written to
  * data - 16 bit word to be written to the EEPROM
  *
- * If ixgb_update_eeprom_checksum is not called after this function, the
+ * If ixgb_update_eeprom_checksum is yest called after this function, the
  * EEPROM will most likely contain an invalid checksum.
  *
  *****************************************************************************/

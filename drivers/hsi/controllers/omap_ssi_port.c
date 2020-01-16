@@ -4,7 +4,7 @@
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
  * Copyright (C) 2014 Sebastian Reichel <sre@kernel.org>
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@yeskia.com>
  */
 
 #include <linux/mod_devicetable.h>
@@ -433,14 +433,14 @@ static u32 ssi_calculate_div(struct hsi_controller *ssi)
 
 static void ssi_flush_queue(struct list_head *queue, struct hsi_client *cl)
 {
-	struct list_head *node, *tmp;
+	struct list_head *yesde, *tmp;
 	struct hsi_msg *msg;
 
-	list_for_each_safe(node, tmp, queue) {
-		msg = list_entry(node, struct hsi_msg, link);
+	list_for_each_safe(yesde, tmp, queue) {
+		msg = list_entry(yesde, struct hsi_msg, link);
 		if ((cl) && (cl != msg->cl))
 			continue;
-		list_del(node);
+		list_del(yesde);
 		pr_debug("flush queue: ch %d, msg %p len %d type %d ctxt %p\n",
 			msg->channel, msg, msg->sgt.sgl->length,
 					msg->ttype, msg->context);
@@ -817,7 +817,7 @@ static void ssi_error(struct hsi_port *port)
 	err = readl(omap_port->ssr_base + SSI_SSR_ERROR_REG);
 	dev_err(&port->device, "SSI error: 0x%02x\n", err);
 	if (!err) {
-		dev_dbg(&port->device, "spurious SSI error ignored!\n");
+		dev_dbg(&port->device, "spurious SSI error igyesred!\n");
 		return;
 	}
 	spin_lock(&omap_ssi->lock);
@@ -1124,7 +1124,7 @@ static int ssi_port_get_iomem(struct platform_device *pd,
 
 static int ssi_port_probe(struct platform_device *pd)
 {
-	struct device_node *np = pd->dev.of_node;
+	struct device_yesde *np = pd->dev.of_yesde;
 	struct hsi_port *port;
 	struct omap_ssi_port *omap_port;
 	struct hsi_controller *ssi = dev_get_drvdata(pd->dev.parent);
@@ -1136,7 +1136,7 @@ static int ssi_port_probe(struct platform_device *pd)
 	dev_dbg(&pd->dev, "init ssi port...\n");
 
 	if (!ssi->port || !omap_ssi->port) {
-		dev_err(&pd->dev, "ssi controller not initialized!\n");
+		dev_err(&pd->dev, "ssi controller yest initialized!\n");
 		err = -ENODEV;
 		goto error;
 	}

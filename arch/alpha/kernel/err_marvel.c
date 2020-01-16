@@ -148,8 +148,8 @@ marvel_print_po7_uncrr_sym(u64 uncrr_sym, u64 valid_mask)
 	};
 	static char *port_names[] = { "Port 0", 	"Port 1", 
 				      "Port 2", 	"Port 3",
-				      "Unknown Port",	"Unknown Port",
-				      "Unknown Port",	"Port 7" };
+				      "Unkyeswn Port",	"Unkyeswn Port",
+				      "Unkyeswn Port",	"Port 7" };
 	int scratch, i;
 
 #define IO7__PO7_UNCRR_SYM__SYN__S	    (0)
@@ -408,7 +408,7 @@ marvel_print_po7_err_sum(struct ev7_pal_io_subpacket *io)
 	/*
 	 * Since ERR_VALID is set, VICTIM_SP in uncrr_sym is valid.
 	 * For bits [29:0] to also be valid, the following bits must
-	 * not be set:
+	 * yest be set:
 	 *	CR_PIO_WBYTE	CR_CSR_NXM	CR_RSP_NXM
 	 *	CR_ERR_RESP	MAF_TO
 	 */
@@ -423,7 +423,7 @@ marvel_print_po7_err_sum(struct ev7_pal_io_subpacket *io)
 	if (io->po7_error_sum & IO7__PO7_ERRSUM__CR_PIO_WBYTE)
 		printk("%s    Write byte into IO7 CSR\n", err_print_prefix);
 	if (io->po7_error_sum & IO7__PO7_ERRSUM__CR_CSR_NXM)
-		printk("%s    PIO to non-existent CSR\n", err_print_prefix);
+		printk("%s    PIO to yesn-existent CSR\n", err_print_prefix);
 	if (io->po7_error_sum & IO7__PO7_ERRSUM__CR_RPID_ACV)
 		printk("%s    Bus Requester PID (Access Violation)\n",
 		       err_print_prefix);
@@ -502,7 +502,7 @@ marvel_print_pox_tlb_err(u64 tlb_err)
 		"No Error",
 		"North Port Signaled Error fetching TLB entry",
 		"PTE invalid or UCC or GBG error on this entry",
-		"Address did not hit any DMA window"
+		"Address did yest hit any DMA window"
 	};
 
 #define IO7__POX_TLBERR__ERR_VALID		(1UL << 63)
@@ -591,7 +591,7 @@ static void
 marvel_print_pox_trans_sum(u64 trans_sum)
 {
 	static const char * const pcix_cmd[] = {
-		"Interrupt Acknowledge",
+		"Interrupt Ackyeswledge",
 		"Special Cycle",
 		"I/O Read",
 		"I/O Write",
@@ -743,10 +743,10 @@ marvel_print_pox_err(u64 err_sum, struct ev7_pal_io_one_port *port)
 			"MSI read (MSI window is write only",
 			"TLB - Invalid WR transaction",
 			"TLB - Invalid RD transaction",
-			"DMA - WR error (see north port)",
-			"DMA - RD error (see north port)",
-			"PPR - WR error (see north port)",
-			"PPR - RD error (see north port)"
+			"DMA - WR error (see yesrth port)",
+			"DMA - RD error (see yesrth port)",
+			"PPR - WR error (see yesrth port)",
+			"PPR - RD error (see yesrth port)"
 		};
 
 		printk("%s    UPE Error:\n", err_print_prefix);
@@ -920,8 +920,8 @@ marvel_process_io_error(struct ev7_lf_subpackets *lf_subpackets, int print)
 	 *	1) a uniprocessor kernel
 	 *	2) an mp kernel before the local secondary has called in
 	 * error interrupts are all directed to the primary processor.
-	 * In that case, we may not have an IO subpacket at all and, event
-	 * if we do, it may not be the right now. 
+	 * In that case, we may yest have an IO subpacket at all and, event
+	 * if we do, it may yest be the right yesw. 
 	 *
 	 * If the RBOX indicates an I/O error interrupt, make sure we have
 	 * the correct IO7 information. If we don't have an IO subpacket
@@ -937,7 +937,7 @@ marvel_process_io_error(struct ev7_lf_subpackets *lf_subpackets, int print)
 	      lf_subpackets->io->ports[2].pox_err_sum |
 	      lf_subpackets->io->ports[3].pox_err_sum) & (1UL << 63))) {
 		/*
-		 * Either we have no IO subpacket or no error is
+		 * Either we have yes IO subpacket or yes error is
 		 * indicated in the one we do have. Try find the
 		 * one with the error.
 		 */
@@ -1025,7 +1025,7 @@ marvel_process_logout_frame(struct ev7_lf_subpackets *lf_subpackets, int print)
 	 * Marvel when the probe is handled by the bridge as a split
 	 * completion transaction. The symptom is an ERROR_RESPONSE 
 	 * to a CONFIG address. Since these errors will happen in
-	 * normal operation, dismiss them.
+	 * yesrmal operation, dismiss them.
 	 *
 	 * Dismiss if:
 	 *	C_STAT		= 0x14 		(Error Response)
@@ -1078,7 +1078,7 @@ marvel_machine_check(unsigned long vector, unsigned long la_ptr)
 		break;
 
 	default:
-		/* Don't know it - pass it up.  */
+		/* Don't kyesw it - pass it up.  */
 		ev7_machine_check(vector, la_ptr);
 		return;
 	}	
@@ -1101,7 +1101,7 @@ marvel_machine_check(unsigned long vector, unsigned long la_ptr)
 						    &subpacket_collection);
 	if (process_frame && lf_subpackets && lf_subpackets->logout) {
 		/*
-		 * We might not have the correct (or any) I/O subpacket.
+		 * We might yest have the correct (or any) I/O subpacket.
 		 * [ See marvel_process_io_error() for explanation. ]
 		 * If we don't have one, point the io subpacket in
 		 * lf_subpackets at scratch_io_packet so that 
@@ -1138,7 +1138,7 @@ marvel_machine_check(unsigned long vector, unsigned long la_ptr)
 		break;
 
 	default:
-		/* Unknown - dump the annotated subpackets. */
+		/* Unkyeswn - dump the anyestated subpackets. */
 		printk("%s*%s (Vector 0x%x) reported on CPU %d\n",
 		       err_print_prefix, error_type,
 		       (unsigned int)vector, (int)smp_processor_id());

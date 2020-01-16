@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef _ARC_KPROBES_H
@@ -32,7 +32,7 @@ struct kprobe;
 
 void arch_remove_kprobe(struct kprobe *p);
 
-int kprobe_exceptions_notify(struct notifier_block *self,
+int kprobe_exceptions_yestify(struct yestifier_block *self,
 			     unsigned long val, void *data);
 
 struct prev_kprobe {

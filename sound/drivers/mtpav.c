@@ -14,7 +14,7 @@
  *      Video Sync In (BNC), Word Sync Out (BNC), 
  *      ADAT Sync Out (DB9)
  *      SMPTE in/out (1/4")
- *      2 programmable pedal/footswitch inputs and 4 programmable MIDI controller knobs.
+ *      2 programmable pedal/footswitch inputs and 4 programmable MIDI controller kyesbs.
  *      Macintosh RS422 serial port
  *      RS422 "network" port for ganging multiple MTP's
  *      PC Parallel Port ( which this driver currently uses )
@@ -82,7 +82,7 @@ static struct platform_device *device;
 /*
  *      defines
  */
-//#define USE_FAKE_MTP //       don't actually read/write to MTP device (for debugging without an actual unit) (does not work yet)
+//#define USE_FAKE_MTP //       don't actually read/write to MTP device (for debugging without an actual unit) (does yest work yet)
 
 // parallel port usage masks
 #define SIGS_BYTE 0x08

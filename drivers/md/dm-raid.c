@@ -40,7 +40,7 @@ static bool devices_handle_discard_safely = false;
 struct raid_dev {
 	/*
 	 * Two DM devices, one to hold metadata and one to hold the
-	 * actual data/parity.	The reason for this is to not confuse
+	 * actual data/parity.	The reason for this is to yest confuse
 	 * ti->len and give more flexibility in altering size and
 	 * characteristics.
 	 *
@@ -58,7 +58,7 @@ struct raid_dev {
 /*
  * Bits for establishing rs->ctr_flags
  *
- * 1 = no flag value
+ * 1 = yes flag value
  * 2 = flag with value
  */
 #define __CTR_FLAG_SYNC			0  /* 1 */ /* Not with raid0! */
@@ -113,7 +113,7 @@ struct raid_dev {
 /* Define all any sync flags */
 #define	CTR_FLAGS_ANY_SYNC		(CTR_FLAG_SYNC | CTR_FLAG_NOSYNC)
 
-/* Define flags for options without argument (e.g. 'nosync') */
+/* Define flags for options without argument (e.g. 'yessync') */
 #define	CTR_FLAG_OPTIONS_NO_ARGS	(CTR_FLAGS_ANY_SYNC | \
 					 CTR_FLAG_RAID10_USE_NEAR_SETS)
 
@@ -136,7 +136,7 @@ struct raid_dev {
 /* "raid0" does only accept data offset */
 #define RAID0_VALID_FLAGS	(CTR_FLAG_DATA_OFFSET)
 
-/* "raid1" does not accept stripe cache, data offset, delta_disks or any raid10 options */
+/* "raid1" does yest accept stripe cache, data offset, delta_disks or any raid10 options */
 #define RAID1_VALID_FLAGS	(CTR_FLAGS_ANY_SYNC | \
 				 CTR_FLAG_REBUILD | \
 				 CTR_FLAG_WRITE_MOSTLY | \
@@ -148,7 +148,7 @@ struct raid_dev {
 				 CTR_FLAG_DELTA_DISKS | \
 				 CTR_FLAG_DATA_OFFSET)
 
-/* "raid10" does not accept any raid1 or stripe cache options */
+/* "raid10" does yest accept any raid1 or stripe cache options */
 #define RAID10_VALID_FLAGS	(CTR_FLAGS_ANY_SYNC | \
 				 CTR_FLAG_REBUILD | \
 				 CTR_FLAG_DAEMON_SLEEP | \
@@ -162,9 +162,9 @@ struct raid_dev {
 				 CTR_FLAG_RAID10_USE_NEAR_SETS)
 
 /*
- * "raid4/5/6" do not accept any raid1 or raid10 specific options
+ * "raid4/5/6" do yest accept any raid1 or raid10 specific options
  *
- * "raid6" does not accept "nosync", because it is not guaranteed
+ * "raid6" does yest accept "yessync", because it is yest guaranteed
  * that both parity and q-syndrome are being written properly with
  * any writes
  */
@@ -198,7 +198,7 @@ struct raid_dev {
  * (RT_FLAG prefix meaning "runtime flag")
  *
  * These are all internal and used to define runtime state,
- * e.g. to prevent another resume from preresume processing
+ * e.g. to prevent ayesther resume from preresume processing
  * the raid set all over again.
  */
 #define RT_FLAG_RS_PRERESUMED		0
@@ -322,7 +322,7 @@ static struct arg_name_flag {
 	const char *name;
 } __arg_name_flags[] = {
 	{ CTR_FLAG_SYNC, "sync"},
-	{ CTR_FLAG_NOSYNC, "nosync"},
+	{ CTR_FLAG_NOSYNC, "yessync"},
 	{ CTR_FLAG_REBUILD, "rebuild"},
 	{ CTR_FLAG_DAEMON_SLEEP, "daemon_sleep"},
 	{ CTR_FLAG_MIN_RECOVERY_RATE, "min_recovery_rate"},
@@ -386,7 +386,7 @@ static const char *md_journal_mode_to_dm_raid(const int mode)
 		if (mode == _raid456_journal_mode[m].mode)
 			return _raid456_journal_mode[m].param;
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 /*
@@ -571,7 +571,7 @@ static const char *raid10_md_layout_to_format(int layout)
 	if (__raid10_far_copies(layout) > 1)
 		return "far";
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 /* Return md raid10 algorithm for @name */
@@ -606,7 +606,7 @@ static int raid10_format_to_md_layout(struct raid_set *rs,
 	 * enabling use_far_sets for far/offset formats causes copies
 	 * to be colocated on the same devs together with their origins!
 	 *
-	 * -> disable it for now in the definition above
+	 * -> disable it for yesw in the definition above
 	 */
 	if (algorithm == ALGORITHM_RAID10_DEFAULT ||
 	    algorithm == ALGORITHM_RAID10_NEAR)
@@ -744,7 +744,7 @@ static struct raid_set *raid_set_alloc(struct dm_target *ti, struct raid_type *r
 
 	rs = kzalloc(struct_size(rs, dev, raid_devs), GFP_KERNEL);
 	if (!rs) {
-		ti->error = "Cannot allocate raid context";
+		ti->error = "Canyest allocate raid context";
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -810,7 +810,7 @@ static void raid_set_free(struct raid_set *rs)
  *    - <data_dev>
  *    <meta_dev> <data_dev>
  *
- * The following is not allowed:
+ * The following is yest allowed:
  *    <meta_dev> -
  *
  * This code parses those words.  If there is a failure,
@@ -836,7 +836,7 @@ static int parse_dev_params(struct raid_set *rs, struct dm_arg_set *as)
 		rs->dev[i].data_dev = NULL;
 
 		/*
-		 * There are no offsets initially.
+		 * There are yes offsets initially.
 		 * Out of place reshape will set them accordingly.
 		 */
 		rs->dev[i].rdev.data_offset = 0;
@@ -869,7 +869,7 @@ static int parse_dev_params(struct raid_set *rs, struct dm_arg_set *as)
 		if (!strcmp(arg, "-")) {
 			if (!test_bit(In_sync, &rs->dev[i].rdev.flags) &&
 			    (!rs->dev[i].rdev.recovery_offset)) {
-				rs->ti->error = "Drive designated for rebuild not specified";
+				rs->ti->error = "Drive designated for rebuild yest specified";
 				return -EINVAL;
 			}
 
@@ -907,17 +907,17 @@ static int parse_dev_params(struct raid_set *rs, struct dm_arg_set *as)
 		rs->md.major_version = 2;
 	} else if (rebuild && !rs->md.recovery_cp) {
 		/*
-		 * Without metadata, we will not be able to tell if the array
-		 * is in-sync or not - we must assume it is not.  Therefore,
+		 * Without metadata, we will yest be able to tell if the array
+		 * is in-sync or yest - we must assume it is yest.  Therefore,
 		 * it is impossible to rebuild a drive.
 		 *
 		 * Even if there is metadata, the on-disk information may
-		 * indicate that the array is not in-sync and it will then
+		 * indicate that the array is yest in-sync and it will then
 		 * fail at that time.
 		 *
-		 * User could specify 'nosync' option if desperate.
+		 * User could specify 'yessync' option if desperate.
 		 */
-		rs->ti->error = "Unable to rebuild drive while array is not in-sync";
+		rs->ti->error = "Unable to rebuild drive while array is yest in-sync";
 		return -EINVAL;
 	}
 
@@ -946,7 +946,7 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
 		 * Choose a reasonable default.	 All figures in sectors.
 		 */
 		if (min_region_size > (1 << 13)) {
-			/* If not a power of 2, make it the next power of 2 */
+			/* If yest a power of 2, make it the next power of 2 */
 			region_size = roundup_pow_of_two(min_region_size);
 			DMINFO("Choosing default region size of %lu sectors",
 			       region_size);
@@ -971,7 +971,7 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
 		}
 
 		if (!is_power_of_2(region_size)) {
-			rs->ti->error = "Region size is not a power of 2";
+			rs->ti->error = "Region size is yest a power of 2";
 			return -EINVAL;
 		}
 
@@ -993,7 +993,7 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
  * validate_raid_redundancy
  * @rs
  *
- * Determine if there are enough devices in the array that haven't
+ * Determine if there are eyesugh devices in the array that haven't
  * failed (or are being rebuilt) to form a usable array.
  *
  * Returns: 0 on success, -EINVAL on failure.
@@ -1037,11 +1037,11 @@ static int validate_raid_redundancy(struct raid_set *rs)
 		 * as long as the failed devices occur in different mirror
 		 * groups (i.e. different stripes).
 		 *
-		 * When checking "near" format, make sure no adjacent devices
+		 * When checking "near" format, make sure yes adjacent devices
 		 * have failed beyond what can be handled.  In addition to the
 		 * simple case where the number of devices is a multiple of the
 		 * number of copies, we must also handle cases where the number
-		 * of devices is not a multiple of the number of copies.
+		 * of devices is yest a multiple of the number of copies.
 		 * E.g.	   dev1 dev2 dev3 dev4 dev5
 		 *	    A	 A    B	   B	C
 		 *	    C	 D    D	   E	E
@@ -1060,13 +1060,13 @@ static int validate_raid_redundancy(struct raid_set *rs)
 
 		/*
 		 * When checking "far" and "offset" formats, we need to ensure
-		 * that the device that holds its copy is not also dead or
+		 * that the device that holds its copy is yest also dead or
 		 * being rebuilt.  (Note that "far" and "offset" formats only
-		 * support two copies right now.  These formats also only ever
+		 * support two copies right yesw.  These formats also only ever
 		 * use the 'use_far_sets' variant.)
 		 *
 		 * This check is somewhat complicated by the need to account
-		 * for arrays that are not a multiple of (far) copies.	This
+		 * for arrays that are yest a multiple of (far) copies.	This
 		 * results in the need to treat the last (potentially larger)
 		 * set differently.
 		 */
@@ -1100,7 +1100,7 @@ too_many:
  * Argument definitions
  *    <chunk_size>			The number of sectors per disk that
  *					will form the "stripe"
- *    [[no]sync]			Force or prevent recovery of the
+ *    [[yes]sync]			Force or prevent recovery of the
  *					entire array
  *    [rebuild <idx>]			Rebuild the drive indicated by the index
  *    [daemon_sleep <ms>]		Time between bitmap daemon work to
@@ -1144,7 +1144,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 	 */
 	if (rt_is_raid1(rt)) {
 		if (value)
-			DMERR("Ignoring chunk size parameter for RAID 1");
+			DMERR("Igyesring chunk size parameter for RAID 1");
 		value = 0;
 	} else if (!is_power_of_2(value)) {
 		rs->ti->error = "Chunk size must be a power of 2";
@@ -1166,12 +1166,12 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 	 *   2) A new device is supplied.
 	 *	- No matching superblock found, resets device.
 	 *   3) Device failure was transient and returns on reload.
-	 *	- Failure noticed, resets device for bitmap replay.
+	 *	- Failure yesticed, resets device for bitmap replay.
 	 *   4) Device hadn't completed recovery after previous failure.
 	 *	- Superblock is read and overrides recovery_offset.
 	 *
 	 * What is found in the superblocks of the devices is always
-	 * authoritative, unless 'rebuild' or '[no]sync' was specified.
+	 * authoritative, unless 'rebuild' or '[yes]sync' was specified.
 	 */
 	for (i = 0; i < rs->raid_disks; i++) {
 		set_bit(In_sync, &rs->dev[i].rdev.flags);
@@ -1179,18 +1179,18 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 	}
 
 	/*
-	 * Second, parse the unordered optional arguments
+	 * Second, parse the uyesrdered optional arguments
 	 */
 	for (i = 0; i < num_raid_params; i++) {
 		key = dm_shift_arg(as);
 		if (!key) {
-			rs->ti->error = "Not enough raid parameters given";
+			rs->ti->error = "Not eyesugh raid parameters given";
 			return -EINVAL;
 		}
 
 		if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_NOSYNC))) {
 			if (test_and_set_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags)) {
-				rs->ti->error = "Only one 'nosync' argument allowed";
+				rs->ti->error = "Only one 'yessync' argument allowed";
 				return -EINVAL;
 			}
 			continue;
@@ -1261,7 +1261,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			md_rdev_init(jdev);
 			jdev->mddev = &rs->md;
 			jdev->bdev = rs->journal_dev.dev->bdev;
-			jdev->sectors = to_sector(i_size_read(jdev->bdev->bd_inode));
+			jdev->sectors = to_sector(i_size_read(jdev->bdev->bd_iyesde));
 			if (jdev->sectors < MIN_RAID456_JOURNAL_SPACE) {
 				rs->ti->error = "No space for raid4/5/6 journal";
 				return -ENOSPC;
@@ -1459,14 +1459,14 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 
 	if (test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags) &&
 	    test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags)) {
-		rs->ti->error = "sync and nosync are mutually exclusive";
+		rs->ti->error = "sync and yessync are mutually exclusive";
 		return -EINVAL;
 	}
 
 	if (test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags) &&
 	    (test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags) ||
 	     test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags))) {
-		rs->ti->error = "sync/nosync and rebuild are mutually exclusive";
+		rs->ti->error = "sync/yessync and rebuild are mutually exclusive";
 		return -EINVAL;
 	}
 
@@ -1494,7 +1494,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 
 	if (rt_is_raid10(rt)) {
 		if (raid10_copies > rs->md.raid_disks) {
-			rs->ti->error = "Not enough devices to satisfy specification";
+			rs->ti->error = "Not eyesugh devices to satisfy specification";
 			return -EINVAL;
 		}
 
@@ -1520,7 +1520,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 
 	rs->raid10_copies = raid10_copies;
 
-	/* Assume there are no metadata devices until the drives are parsed */
+	/* Assume there are yes metadata devices until the drives are parsed */
 	rs->md.persistent = 0;
 	rs->md.external = 1;
 
@@ -1538,7 +1538,7 @@ static int rs_set_raid456_stripe_cache(struct raid_set *rs)
 	uint32_t nr_stripes = rs->stripe_cache_entries;
 
 	if (!rt_is_raid456(rs->raid_type)) {
-		rs->ti->error = "Inappropriate raid level; cannot change stripe_cache size";
+		rs->ti->error = "Inappropriate raid level; canyest change stripe_cache size";
 		return -EINVAL;
 	}
 
@@ -1550,7 +1550,7 @@ static int rs_set_raid456_stripe_cache(struct raid_set *rs)
 
 	conf = mddev->private;
 	if (!conf) {
-		rs->ti->error = "Cannot change stripe_cache size on inactive RAID set";
+		rs->ti->error = "Canyest change stripe_cache size on inactive RAID set";
 		return -EINVAL;
 	}
 
@@ -1607,7 +1607,7 @@ static int _check_data_dev_sectors(struct raid_set *rs)
 
 	rdev_for_each(rdev, &rs->md)
 		if (!test_bit(Journal, &rdev->flags) && rdev->bdev) {
-			ds = min(ds, to_sector(i_size_read(rdev->bdev->bd_inode)));
+			ds = min(ds, to_sector(i_size_read(rdev->bdev->bd_iyesde)));
 			if (ds < rs->md.dev_sectors) {
 				rs->ti->error = "Component device(s) too small";
 				return -EINVAL;
@@ -1664,14 +1664,14 @@ static int rs_set_dev_and_array_sectors(struct raid_set *rs, sector_t sectors, b
 
 	return _check_data_dev_sectors(rs);
 bad:
-	rs->ti->error = "Target length not divisible by number of data devices";
+	rs->ti->error = "Target length yest divisible by number of data devices";
 	return -EINVAL;
 }
 
 /* Setup recovery on @rs */
 static void rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
 {
-	/* raid0 does not recover */
+	/* raid0 does yest recover */
 	if (rs_is_raid0(rs))
 		rs->md.recovery_cp = MaxSector;
 	/*
@@ -1683,7 +1683,7 @@ static void rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
 		rs->md.recovery_cp = dev_sectors;
 	/*
 	 * Other raid set types may skip recovery
-	 * depending on the 'nosync' flag.
+	 * depending on the 'yessync' flag.
 	 */
 	else
 		rs->md.recovery_cp = test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags)
@@ -1713,7 +1713,7 @@ static int raid_is_congested(struct dm_target_callbacks *cb, int bits)
 /*
  * Make sure a valid takover (level switch) is being requested on @rs
  *
- * Conversions of raid sets from one MD personality to another
+ * Conversions of raid sets from one MD personality to ayesther
  * have to conform to restrictions which are enforced here.
  */
 static int rs_check_takeover(struct raid_set *rs)
@@ -1865,7 +1865,7 @@ static int rs_check_takeover(struct raid_set *rs)
 		break;
 	}
 
-	rs->ti->error = "takeover not possible";
+	rs->ti->error = "takeover yest possible";
 	return -EINVAL;
 }
 
@@ -1977,7 +1977,7 @@ struct dm_raid_superblock {
 	/*
 	 * Sector offsets to data on devices (reshaping).
 	 * Needed to support out of place reshaping, thus
-	 * not writing over any stripes whilst converting
+	 * yest writing over any stripes whilst converting
 	 * them from old to new layout
 	 */
 	__le64 data_offset;
@@ -1999,12 +1999,12 @@ struct dm_raid_superblock {
 /*
  * Check for reshape constraints on raid set @rs:
  *
- * - reshape function non-existent
+ * - reshape function yesn-existent
  * - degraded set
  * - ongoing recovery
  * - ongoing reshape
  *
- * Returns 0 if none or -EPERM if given constraint
+ * Returns 0 if yesne or -EPERM if given constraint
  * and error message reference in @errmsg
  */
 static int rs_check_reshape(struct raid_set *rs)
@@ -2012,7 +2012,7 @@ static int rs_check_reshape(struct raid_set *rs)
 	struct mddev *mddev = &rs->md;
 
 	if (!mddev->pers || !mddev->pers->check_reshape)
-		rs->ti->error = "Reshape not supported";
+		rs->ti->error = "Reshape yest supported";
 	else if (mddev->degraded)
 		rs->ti->error = "Can't reshape degraded raid set";
 	else if (rs_is_recovering(rs))
@@ -2084,7 +2084,7 @@ static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 	struct dm_raid_superblock *sb;
 	struct raid_set *rs = container_of(mddev, struct raid_set, md);
 
-	/* No metadata device, no superblock */
+	/* No metadata device, yes superblock */
 	if (!rdev->meta_bdev)
 		return;
 
@@ -2155,7 +2155,7 @@ static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 /*
  * super_load
  *
- * This function creates a superblock if one is not found on the device
+ * This function creates a superblock if one is yest found on the device
  * and will decide which superblock to use if there's a choice.
  *
  * Return: 1 if use rdev, 0 if use refdev, -Exxx otherwise
@@ -2175,7 +2175,7 @@ static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 
 	/*
 	 * Two cases that we want to write new superblocks and rebuild:
-	 * 1) New device (no matching magic number)
+	 * 1) New device (yes matching magic number)
 	 * 2) Device specified for rebuild (!In_sync w/ offset == 0)
 	 */
 	if ((sb->magic != cpu_to_le32(DM_RAID_MAGIC)) ||
@@ -2188,7 +2188,7 @@ static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 		/* Force writing of superblocks to disk */
 		set_bit(MD_SB_CHANGE_DEVS, &rdev->mddev->sb_flags);
 
-		/* Any superblock is better than none, choose that if given */
+		/* Any superblock is better than yesne, choose that if given */
 		return refdev ? 0 : 1;
 	}
 
@@ -2268,13 +2268,13 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 
 		if (rs_takeover_requested(rs)) {
 			if (rt_cur && rt_new)
-				DMERR("Takeover raid sets from %s to %s not yet supported by metadata. (raid level change)",
+				DMERR("Takeover raid sets from %s to %s yest yet supported by metadata. (raid level change)",
 				      rt_cur->name, rt_new->name);
 			else
-				DMERR("Takeover raid sets not yet supported by metadata. (raid level change)");
+				DMERR("Takeover raid sets yest yet supported by metadata. (raid level change)");
 			return -EINVAL;
 		} else if (rs_reshape_requested(rs)) {
-			DMERR("Reshaping raid sets not yet supported by metadata. (raid layout change keeping level)");
+			DMERR("Reshaping raid sets yest yet supported by metadata. (raid layout change keeping level)");
 			if (mddev->layout != mddev->new_layout) {
 				if (rt_cur && rt_new)
 					DMERR("	 current layout %s vs new layout %s",
@@ -2308,13 +2308,13 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 
 	/*
 	 * During load, we set FirstUse if a new superblock was written.
-	 * There are two reasons we might not have a superblock:
+	 * There are two reasons we might yest have a superblock:
 	 * 1) The raid set is brand new - in which case, all of the
 	 *    devices must have their In_sync bit set.	Also,
 	 *    recovery_cp must be 0, unless forced.
 	 * 2) This is a new device being added to an old raid set
 	 *    and the new device needs to be rebuilt - in which
-	 *    case the In_sync bit will /not/ be set and
+	 *    case the In_sync bit will /yest/ be set and
 	 *    recovery_cp must be MaxSector.
 	 * 3) This is/are a new device(s) being added to an old
 	 *    raid set during takeover to a higher raid level
@@ -2355,7 +2355,7 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 			return -EINVAL;
 		}
 	} else if (new_devs && new_devs != rebuilds) {
-		DMERR("%u 'rebuild' devices cannot be injected into"
+		DMERR("%u 'rebuild' devices canyest be injected into"
 		      " a raid set with %u other first-time devices",
 		      rebuilds, new_devs);
 		return -EINVAL;
@@ -2365,7 +2365,7 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 			      new_devs > 1 ? "s" : "");
 			return -EINVAL;
 		} else if (!test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags) && rs_is_recovering(rs)) {
-			DMERR("'rebuild' specified while raid set is not in-sync (recovery_cp=%llu)",
+			DMERR("'rebuild' specified while raid set is yest in-sync (recovery_cp=%llu)",
 			      (unsigned long long) mddev->recovery_cp);
 			return -EINVAL;
 		} else if (rs_is_reshaping(rs)) {
@@ -2401,7 +2401,7 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 					if (mddev->raid_disks % __raid10_near_copies(mddev->layout) ||
 					    rs->raid_disks % rs->raid10_copies) {
 						rs->ti->error =
-							"Cannot change raid10 near set to odd # of devices!";
+							"Canyest change raid10 near set to odd # of devices!";
 						return -EINVAL;
 					}
 
@@ -2410,11 +2410,11 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 				} else if (!(rs_is_raid10(rs) && rt_is_raid0(rs->raid_type)) &&
 					   !(rs_is_raid0(rs) && rt_is_raid10(rs->raid_type)) &&
 					   !rt_is_raid1(rs->raid_type)) {
-					rs->ti->error = "Cannot change device positions in raid set";
+					rs->ti->error = "Canyest change device positions in raid set";
 					return -EINVAL;
 				}
 
-				DMINFO("raid device #%d now at position #%d", role, r->raid_disk);
+				DMINFO("raid device #%d yesw at position #%d", role, r->raid_disk);
 			}
 
 			/*
@@ -2440,7 +2440,7 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 	sb = page_address(rdev->sb_page);
 
 	/*
-	 * If mddev->events is not set, we know we have not yet initialized
+	 * If mddev->events is yest set, we kyesw we have yest yet initialized
 	 * the array.
 	 */
 	if (!mddev->events && super_init_validation(rs, rdev))
@@ -2448,7 +2448,7 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 
 	if (le32_to_cpu(sb->compat_features) &&
 	    le32_to_cpu(sb->compat_features) != FEATURE_FLAG_SUPPORTS_V190) {
-		rs->ti->error = "Unable to assemble array: Unknown flag(s) in compatible feature flags";
+		rs->ti->error = "Unable to assemble array: Unkyeswn flag(s) in compatible feature flags";
 		return -EINVAL;
 	}
 
@@ -2457,7 +2457,7 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 		return -EINVAL;
 	}
 
-	/* Enable bitmap creation on @rs unless no metadevs or raid0 or journaled raid4/5/6 set. */
+	/* Enable bitmap creation on @rs unless yes metadevs or raid0 or journaled raid4/5/6 set. */
 	mddev->bitmap_info.offset = (rt_is_raid0(rs->raid_type) || rs->journal_dev.dev) ? 0 : to_sector(4096);
 	mddev->bitmap_info.default_offset = mddev->bitmap_info.offset;
 
@@ -2465,7 +2465,7 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 		/*
 		 * Retrieve rdev size stored in superblock to be prepared for shrink.
 		 * Check extended superblock members are present otherwise the size
-		 * will not be set!
+		 * will yest be set!
 		 */
 		if (le32_to_cpu(sb->compat_features) & FEATURE_FLAG_SUPPORTS_V190)
 			rdev->sectors = le64_to_cpu(sb->sectors);
@@ -2474,7 +2474,7 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 		if (rdev->recovery_offset == MaxSector)
 			set_bit(In_sync, &rdev->flags);
 		/*
-		 * If no reshape in progress -> we're recovering single
+		 * If yes reshape in progress -> we're recovering single
 		 * disk(s) and have to set the device(s) to out-of-sync
 		 */
 		else if (!rs_is_reshaping(rs))
@@ -2482,7 +2482,7 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 	}
 
 	/*
-	 * If a device comes back, set it as not In_sync and no longer faulty.
+	 * If a device comes back, set it as yest In_sync and yes longer faulty.
 	 */
 	if (test_and_clear_bit(Faulty, &rdev->flags)) {
 		rdev->recovery_offset = 0;
@@ -2518,7 +2518,7 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 		rdev->sb_start = 0;
 		rdev->sb_size = bdev_logical_block_size(rdev->meta_bdev);
 		if (rdev->sb_size < sizeof(struct dm_raid_superblock) || rdev->sb_size > PAGE_SIZE) {
-			DMERR("superblock size of a logical block is no longer valid");
+			DMERR("superblock size of a logical block is yes longer valid");
 			return -EINVAL;
 		}
 
@@ -2601,7 +2601,7 @@ static int rs_adjust_data_offsets(struct raid_set *rs)
 	sector_t data_offset = 0, new_data_offset = 0;
 	struct md_rdev *rdev;
 
-	/* Constructor did not request data offset change */
+	/* Constructor did yest request data offset change */
 	if (!test_bit(__CTR_FLAG_DATA_OFFSET, &rs->ctr_flags)) {
 		if (!rs_is_reshapable(rs))
 			goto out;
@@ -2664,7 +2664,7 @@ static int rs_adjust_data_offsets(struct raid_set *rs)
 	 * Make sure we got a minimum amount of free sectors per device
 	 */
 	if (rs->data_offset &&
-	    to_sector(i_size_read(rdev->bdev->bd_inode)) - rs->md.dev_sectors < MIN_FREE_RESHAPE_SPACE) {
+	    to_sector(i_size_read(rdev->bdev->bd_iyesde)) - rs->md.dev_sectors < MIN_FREE_RESHAPE_SPACE) {
 		rs->ti->error = data_offset ? "No space for forward reshape" :
 					      "No space for backward reshape";
 		return -ENOSPC;
@@ -2763,7 +2763,7 @@ static int rs_prepare_reshape(struct raid_set *rs)
 			/*
 			 * raid disk have to be multiple of data copies to allow this conversion,
 			 *
-			 * This is actually not a reshape it is a
+			 * This is actually yest a reshape it is a
 			 * rebuild of any additional mirrors per group
 			 */
 			if (rs->raid_disks % rs->raid10_copies) {
@@ -2843,10 +2843,10 @@ static int rs_setup_reshape(struct raid_set *rs)
 	mddev->delta_disks = rs->delta_disks;
 	cur_raid_devs = mddev->raid_disks;
 
-	/* Ignore impossible layout change whilst adding/removing disks */
+	/* Igyesre impossible layout change whilst adding/removing disks */
 	if (mddev->delta_disks &&
 	    mddev->layout != mddev->new_layout) {
-		DMINFO("Ignoring invalid layout change with delta_disks=%d", rs->delta_disks);
+		DMINFO("Igyesring invalid layout change with delta_disks=%d", rs->delta_disks);
 		mddev->new_layout = mddev->layout;
 	}
 
@@ -2997,8 +2997,8 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	struct rs_layout rs_layout;
 	struct dm_arg_set as = { argc, argv }, as_nrd;
 	struct dm_arg _args[] = {
-		{ 0, as.argc, "Cannot understand number of raid parameters" },
-		{ 1, 254, "Cannot understand number of raid devices parameters" }
+		{ 0, as.argc, "Canyest understand number of raid parameters" },
+		{ 1, 254, "Canyest understand number of raid devices parameters" }
 	};
 
 	/* Must have <raid_type> */
@@ -3069,7 +3069,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto bad;
 
-	/* All in-core metadata now as of current superblocks after calling analyse_superblocks() */
+	/* All in-core metadata yesw as of current superblocks after calling analyse_superblocks() */
 	sb_array_sectors = rs->md.array_sectors;
 	rdev_sectors = __rdev_sectors(rs);
 	if (!rdev_sectors) {
@@ -3103,7 +3103,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		/* A new raid6 set has to be recovered to ensure proper parity and Q-Syndrome */
 		if (rs_is_raid6(rs) &&
 		    test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags)) {
-			ti->error = "'nosync' not allowed for new raid6 set";
+			ti->error = "'yessync' yest allowed for new raid6 set";
 			r = -EINVAL;
 			goto bad;
 		}
@@ -3156,7 +3156,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		rs_setup_recovery(rs, MaxSector);
 		rs_set_new(rs);
 	} else if (rs_reshape_requested(rs)) {
-		/* Only request grow on raid set size extensions, not on reshapes. */
+		/* Only request grow on raid set size extensions, yest on reshapes. */
 		clear_bit(RT_FLAG_RS_GROW, &rs->runtime_flags);
 
 		/*
@@ -3190,7 +3190,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		rs_set_cur(rs);
 	} else {
 size_check:
-		/* May not set recovery when a device rebuild is requested */
+		/* May yest set recovery when a device rebuild is requested */
 		if (test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags)) {
 			clear_bit(RT_FLAG_RS_GROW, &rs->runtime_flags);
 			set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
@@ -3206,7 +3206,7 @@ size_check:
 
 			rs_setup_recovery(rs, rs->md.recovery_cp < rs->md.dev_sectors ? rs->md.recovery_cp : rs->md.dev_sectors);
 		} else {
-			/* This is no size change or it is shrinking, update size and record in superblocks */
+			/* This is yes size change or it is shrinking, update size and record in superblocks */
 			r = rs_set_dev_and_array_sectors(rs, rs->ti->len, false);
 			if (r)
 				goto bad;
@@ -3230,7 +3230,7 @@ size_check:
 	set_bit(MD_RECOVERY_FROZEN, &rs->md.recovery);
 
 	/* Has to be held on running the array */
-	mddev_lock_nointr(&rs->md);
+	mddev_lock_yesintr(&rs->md);
 	r = md_run(&rs->md);
 	rs->md.in_sync = 0; /* Assume already marked dirty */
 	if (r) {
@@ -3390,7 +3390,7 @@ static enum sync_state decipher_sync_action(struct mddev *mddev, unsigned long r
  * Status characters:
  *
  *  'D' = Dead/Failed raid set component or raid4/5/6 journal device
- *  'a' = Alive but not in-sync raid set component _or_ alive raid4/5/6 'write_back' journal device
+ *  'a' = Alive but yest in-sync raid set component _or_ alive raid4/5/6 'write_back' journal device
  *  'A' = Alive and in-sync raid set component _or_ alive raid4/5/6 'write_through' journal device
  *  '-' = Non-existing device (i.e. uspace passed '- -' into the ctr)
  */
@@ -3440,7 +3440,7 @@ static sector_t rs_get_progress(struct raid_set *rs, unsigned long recovery,
 
 		} else if (state == st_recover)
 			/*
-			 * In case we are recovering, the array is not in sync
+			 * In case we are recovering, the array is yest in sync
 			 * and health chars should show the recovering legs.
 			 *
 			 * Already retrieved recovery offset from curr_resync_completed above.
@@ -3459,7 +3459,7 @@ static sector_t rs_get_progress(struct raid_set *rs, unsigned long recovery,
 			/*
 			 * If "check" or "repair" is occurring, the raid set has
 			 * undergone an initial sync and the health characters
-			 * should not be 'a' anymore.
+			 * should yest be 'a' anymore.
 			 */
 			set_bit(RT_FLAG_RS_IN_SYNC, &rs->runtime_flags);
 
@@ -3525,7 +3525,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 
 		/* Access most recent mddev properties for status output */
 		smp_rmb();
-		/* Get sensible max sectors even if raid set not yet started */
+		/* Get sensible max sectors even if raid set yest yet started */
 		resync_max_sectors = test_bit(RT_FLAG_RS_PRERESUMED, &rs->runtime_flags) ?
 				      mddev->resync_max_sectors : mddev->dev_sectors;
 		recovery = rs->md.recovery;
@@ -3534,7 +3534,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		resync_mismatches = (mddev->last_sync_action && !strcasecmp(mddev->last_sync_action, "check")) ?
 				    atomic64_read(&mddev->resync_mismatches) : 0;
 
-		/* HM FIXME: do we want another state char for raid0? It shows 'D'/'A'/'-' now */
+		/* HM FIXME: do we want ayesther state char for raid0? It shows 'D'/'A'/'-' yesw */
 		for (i = 0; i < rs->raid_disks; i++)
 			DMEMIT(__raid_dev_status(rs, &rs->dev[i].rdev));
 
@@ -3702,7 +3702,7 @@ static int raid_message(struct dm_target *ti, unsigned int argc, char **argv,
 			return -EINVAL;
 	}
 	if (mddev->ro == 2) {
-		/* A write to sync_action is enough to justify
+		/* A write to sync_action is eyesugh to justify
 		 * canceling read-auto mode
 		 */
 		mddev->ro = 0;
@@ -3761,7 +3761,7 @@ static void raid_postsuspend(struct dm_target *ti)
 		if (!test_bit(MD_RECOVERY_FROZEN, &rs->md.recovery))
 			md_stop_writes(&rs->md);
 
-		mddev_lock_nointr(&rs->md);
+		mddev_lock_yesintr(&rs->md);
 		mddev_suspend(&rs->md);
 		mddev_unlock(&rs->md);
 	}
@@ -3854,7 +3854,7 @@ static int __load_dirty_region_bitmap(struct raid_set *rs)
 {
 	int r = 0;
 
-	/* Try loading the bitmap unless "raid0", which does not have one */
+	/* Try loading the bitmap unless "raid0", which does yest have one */
 	if (!rs_is_raid0(rs) &&
 	    !test_and_set_bit(RT_FLAG_RS_BITMAP_LOADED, &rs->runtime_flags)) {
 		r = md_bitmap_load(&rs->md);
@@ -3882,7 +3882,7 @@ static void rs_update_sbs(struct raid_set *rs)
  * (e.g. raid6_zr -> raid6_nc), changes stripe size, adds/removes
  * disks from a raid set thus growing/shrinking it or resizes the set
  *
- * Call mddev_lock_nointr() before!
+ * Call mddev_lock_yesintr() before!
  */
 static int rs_start_reshape(struct raid_set *rs)
 {
@@ -3909,7 +3909,7 @@ static int rs_start_reshape(struct raid_set *rs)
 	}
 
 	/*
-	 * Personality may not provide start reshape method in which
+	 * Personality may yest provide start reshape method in which
 	 * case check_reshape above has already covered everything
 	 */
 	if (pers->start_reshape) {
@@ -3988,7 +3988,7 @@ static int raid_preresume(struct dm_target *ti)
 	if (test_bit(RT_FLAG_RESHAPE_RS, &rs->runtime_flags)) {
 		/* Initiate a reshape. */
 		rs_set_rdev_sectors(rs);
-		mddev_lock_nointr(mddev);
+		mddev_lock_yesintr(mddev);
 		r = rs_start_reshape(rs);
 		mddev_unlock(mddev);
 		if (r)
@@ -4018,7 +4018,7 @@ static void raid_resume(struct dm_target *ti)
 		if (mddev->delta_disks < 0)
 			rs_set_capacity(rs);
 
-		mddev_lock_nointr(mddev);
+		mddev_lock_yesintr(mddev);
 		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		mddev->ro = 0;
 		mddev->in_sync = 0;

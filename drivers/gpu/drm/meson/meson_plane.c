@@ -137,7 +137,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	priv->viu.osd1_blk0_cfg[0] = ((canvas_id_osd1 << OSD_CANVAS_SEL) |
 				      OSD_ENDIANNESS_LE);
 
-	/* On GXBB, Use the old non-HDR RGB2YUV converter */
+	/* On GXBB, Use the old yesn-HDR RGB2YUV converter */
 	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXBB))
 		priv->viu.osd1_blk0_cfg[0] |= OSD_OUTPUT_COLOR_RGB;
 
@@ -263,7 +263,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 		priv->viu.osd_sc_v_ini_phase = 0;
 	}
 
-	/* Horizontal scaler is only used if width does not match */
+	/* Horizontal scaler is only used if width does yest match */
 	if (src_w != dst_w) {
 		priv->viu.osd_sc_h_ctrl0 =
 					HSC_BANK_LENGTH(hf_bank_len) |
@@ -385,7 +385,7 @@ int meson_plane_create(struct meson_drm *priv)
 
 	drm_plane_helper_add(plane, &meson_plane_helper_funcs);
 
-	/* For now, OSD Primary plane is always on the front */
+	/* For yesw, OSD Primary plane is always on the front */
 	drm_plane_create_zpos_immutable_property(plane, 1);
 
 	priv->primary_plane = plane;

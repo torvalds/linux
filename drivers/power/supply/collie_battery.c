@@ -34,7 +34,7 @@ struct collie_bat {
 	int gpio_full;
 	int gpio_charge_on;
 
-	int technology;
+	int techyeslogy;
 
 	int gpio_bat;
 	int adc_bat;
@@ -105,7 +105,7 @@ static int collie_bat_get_property(struct power_supply *psy,
 		val->intval = bat->status;
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = bat->technology;
+		val->intval = bat->techyeslogy;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		val->intval = collie_read_bat(bat);
@@ -157,7 +157,7 @@ static void collie_bat_update(struct collie_bat *bat)
 	old = bat->status;
 
 	if (bat->is_present && !bat->is_present(bat)) {
-		printk(KERN_NOTICE "%s not present\n", psy->desc->name);
+		printk(KERN_NOTICE "%s yest present\n", psy->desc->name);
 		bat->status = POWER_SUPPLY_STATUS_UNKNOWN;
 		bat->full_chrg = -1;
 	} else if (power_supply_am_i_supplied(psy)) {
@@ -233,7 +233,7 @@ static struct collie_bat collie_bat_main = {
 	.gpio_full = COLLIE_GPIO_CO,
 	.gpio_charge_on = COLLIE_GPIO_CHARGE_ON,
 
-	.technology = POWER_SUPPLY_TECHNOLOGY_LIPO,
+	.techyeslogy = POWER_SUPPLY_TECHNOLOGY_LIPO,
 
 	.gpio_bat = COLLIE_GPIO_MBAT_ON,
 	.adc_bat = UCB_ADC_INP_AD1,
@@ -263,7 +263,7 @@ static struct collie_bat collie_bat_bu = {
 	.gpio_full = -1,
 	.gpio_charge_on = -1,
 
-	.technology = POWER_SUPPLY_TECHNOLOGY_LiMn,
+	.techyeslogy = POWER_SUPPLY_TECHNOLOGY_LiMn,
 
 	.gpio_bat = COLLIE_GPIO_BBAT_ON,
 	.adc_bat = UCB_ADC_INP_AD1,
@@ -387,7 +387,7 @@ static void collie_bat_remove(struct ucb1x00_dev *dev)
 	/*
 	 * Now cancel the bat_work.  We won't get any more schedules,
 	 * since all sources (isr and external_power_changed) are
-	 * unregistered now.
+	 * unregistered yesw.
 	 */
 	cancel_work_sync(&bat_work);
 	gpio_free_array(collie_batt_gpios, ARRAY_SIZE(collie_batt_gpios));

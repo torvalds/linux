@@ -11,7 +11,7 @@
  * display bridge of the GE B850v3. There are two physical bridges on the video
  * signal pipeline: a STDP4028(LVDS to DP) and a STDP2690(DP to DP++). The
  * physical bridges are automatically configured by the input video signal, and
- * the driver has no access to the video processing pipeline. The driver is
+ * the driver has yes access to the video processing pipeline. The driver is
  * only needed to read EDID from the STDP2690 and to handle HPD events from the
  * STDP4028. The driver communicates with both bridges over i2c. The video
  * signal pipeline is as follows:
@@ -107,7 +107,7 @@ static u8 *stdp2690_get_edid(struct i2c_client *client)
 		if (!block)
 			return NULL;
 
-		/* Yes, read the entire buffer, and do not skip the first
+		/* Yes, read the entire buffer, and do yest skip the first
 		 * EDID_LENGTH bytes.
 		 */
 		start = 0x00;
@@ -179,7 +179,7 @@ static enum drm_connector_status ge_b850v3_lvds_detect(
 	if (link_state == 0)
 		return connector_status_disconnected;
 
-	return connector_status_unknown;
+	return connector_status_unkyeswn;
 }
 
 static const struct drm_connector_funcs ge_b850v3_lvds_connector_funcs = {
@@ -214,7 +214,7 @@ static int ge_b850v3_lvds_attach(struct drm_bridge *bridge)
 	int ret;
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
+		DRM_ERROR("Parent encoder object yest found");
 		return -ENODEV;
 	}
 
@@ -304,7 +304,7 @@ static int stdp4028_ge_b850v3_fw_probe(struct i2c_client *stdp4028_i2c,
 
 	/* drm bridge initialization */
 	ge_b850v3_lvds_ptr->bridge.funcs = &ge_b850v3_lvds_funcs;
-	ge_b850v3_lvds_ptr->bridge.of_node = dev->of_node;
+	ge_b850v3_lvds_ptr->bridge.of_yesde = dev->of_yesde;
 	drm_bridge_add(&ge_b850v3_lvds_ptr->bridge);
 
 	/* Clear pending interrupts since power up. */

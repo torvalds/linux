@@ -12,7 +12,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_iwalk.h"
 #include "xfs_itable.h"
 #include "xfs_fsops.h"
@@ -84,18 +84,18 @@ xfs_fsinumbers_fmt_compat(
 	struct xfs_ibulk		*breq,
 	const struct xfs_inumbers	*ig)
 {
-	struct compat_xfs_inogrp __user	*p32 = breq->ubuffer;
-	struct xfs_inogrp		ig1;
-	struct xfs_inogrp		*igrp = &ig1;
+	struct compat_xfs_iyesgrp __user	*p32 = breq->ubuffer;
+	struct xfs_iyesgrp		ig1;
+	struct xfs_iyesgrp		*igrp = &ig1;
 
-	xfs_inumbers_to_inogrp(&ig1, ig);
+	xfs_inumbers_to_iyesgrp(&ig1, ig);
 
-	if (put_user(igrp->xi_startino,   &p32->xi_startino) ||
+	if (put_user(igrp->xi_startiyes,   &p32->xi_startiyes) ||
 	    put_user(igrp->xi_alloccount, &p32->xi_alloccount) ||
 	    put_user(igrp->xi_allocmask,  &p32->xi_allocmask))
 		return -EFAULT;
 
-	return xfs_ibulk_advance(breq, sizeof(struct compat_xfs_inogrp));
+	return xfs_ibulk_advance(breq, sizeof(struct compat_xfs_iyesgrp));
 }
 
 #else
@@ -125,7 +125,7 @@ xfs_ioctl32_bstat_copyin(
 	struct xfs_bstat		*bstat,
 	struct compat_xfs_bstat	__user	*bstat32)
 {
-	if (get_user(bstat->bs_ino,	&bstat32->bs_ino)	||
+	if (get_user(bstat->bs_iyes,	&bstat32->bs_iyes)	||
 	    get_user(bstat->bs_mode,	&bstat32->bs_mode)	||
 	    get_user(bstat->bs_nlink,	&bstat32->bs_nlink)	||
 	    get_user(bstat->bs_uid,	&bstat32->bs_uid)	||
@@ -179,7 +179,7 @@ xfs_fsbulkstat_one_fmt_compat(
 
 	xfs_bulkstat_to_bstat(breq->mp, &bs1, bstat);
 
-	if (put_user(buffer->bs_ino,	  &p32->bs_ino)		||
+	if (put_user(buffer->bs_iyes,	  &p32->bs_iyes)		||
 	    put_user(buffer->bs_mode,	  &p32->bs_mode)	||
 	    put_user(buffer->bs_nlink,	  &p32->bs_nlink)	||
 	    put_user(buffer->bs_uid,	  &p32->bs_uid)		||
@@ -219,12 +219,12 @@ xfs_compat_ioc_fsbulkstat(
 		.mp		= mp,
 		.ocount		= 0,
 	};
-	xfs_ino_t		lastino;
+	xfs_iyes_t		lastiyes;
 	int			error;
 
 	/*
 	 * Output structure handling functions.  Depending on the command,
-	 * either the xfs_bstat and xfs_inogrp structures are written out
+	 * either the xfs_bstat and xfs_iyesgrp structures are written out
 	 * to userpace memory via bulkreq.ubuffer.  Normally the compat
 	 * functions and structure size are the correct ones to use ...
 	 */
@@ -236,9 +236,9 @@ xfs_compat_ioc_fsbulkstat(
 		/*
 		 * ... but on x32 the input xfs_fsop_bulkreq has pointers
 		 * which must be handled in the "compat" (32-bit) way, while
-		 * the xfs_bstat and xfs_inogrp structures follow native 64-
+		 * the xfs_bstat and xfs_iyesgrp structures follow native 64-
 		 * bit layout convention.  So adjust accordingly, otherwise
-		 * the data written out in compat layout will not match what
+		 * the data written out in compat layout will yest match what
 		 * x32 userspace expects.
 		 */
 		inumbers_func = xfs_fsinumbers_fmt;
@@ -266,7 +266,7 @@ xfs_compat_ioc_fsbulkstat(
 		return -EFAULT;
 	bulkreq.ocount = compat_ptr(addr);
 
-	if (copy_from_user(&lastino, bulkreq.lastip, sizeof(__s64)))
+	if (copy_from_user(&lastiyes, bulkreq.lastip, sizeof(__s64)))
 		return -EFAULT;
 
 	if (bulkreq.icount <= 0)
@@ -279,29 +279,29 @@ xfs_compat_ioc_fsbulkstat(
 	breq.icount = bulkreq.icount;
 
 	/*
-	 * FSBULKSTAT_SINGLE expects that *lastip contains the inode number
+	 * FSBULKSTAT_SINGLE expects that *lastip contains the iyesde number
 	 * that we want to stat.  However, FSINUMBERS and FSBULKSTAT expect
-	 * that *lastip contains either zero or the number of the last inode to
+	 * that *lastip contains either zero or the number of the last iyesde to
 	 * be examined by the previous call and return results starting with
-	 * the next inode after that.  The new bulk request back end functions
-	 * take the inode to start with, so we have to compute the startino
-	 * parameter from lastino to maintain correct function.  lastino == 0
-	 * is a special case because it has traditionally meant "first inode
+	 * the next iyesde after that.  The new bulk request back end functions
+	 * take the iyesde to start with, so we have to compute the startiyes
+	 * parameter from lastiyes to maintain correct function.  lastiyes == 0
+	 * is a special case because it has traditionally meant "first iyesde
 	 * in filesystem".
 	 */
 	if (cmd == XFS_IOC_FSINUMBERS_32) {
-		breq.startino = lastino ? lastino + 1 : 0;
+		breq.startiyes = lastiyes ? lastiyes + 1 : 0;
 		error = xfs_inumbers(&breq, inumbers_func);
-		lastino = breq.startino - 1;
+		lastiyes = breq.startiyes - 1;
 	} else if (cmd == XFS_IOC_FSBULKSTAT_SINGLE_32) {
-		breq.startino = lastino;
+		breq.startiyes = lastiyes;
 		breq.icount = 1;
 		error = xfs_bulkstat_one(&breq, bs_one_func);
-		lastino = breq.startino;
+		lastiyes = breq.startiyes;
 	} else if (cmd == XFS_IOC_FSBULKSTAT_32) {
-		breq.startino = lastino ? lastino + 1 : 0;
+		breq.startiyes = lastiyes ? lastiyes + 1 : 0;
 		error = xfs_bulkstat(&breq, bs_one_func);
-		lastino = breq.startino - 1;
+		lastiyes = breq.startiyes - 1;
 	} else {
 		error = -EINVAL;
 	}
@@ -309,7 +309,7 @@ xfs_compat_ioc_fsbulkstat(
 		return error;
 
 	if (bulkreq.lastip != NULL &&
-	    copy_to_user(bulkreq.lastip, &lastino, sizeof(xfs_ino_t)))
+	    copy_to_user(bulkreq.lastip, &lastiyes, sizeof(xfs_iyes_t)))
 		return -EFAULT;
 
 	if (bulkreq.ocount != NULL &&
@@ -386,7 +386,7 @@ xfs_compat_attrlist_by_handle(
 		goto out_dput;
 
 	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
-	error = xfs_attr_list(XFS_I(d_inode(dentry)), kbuf, al_hreq.buflen,
+	error = xfs_attr_list(XFS_I(d_iyesde(dentry)), kbuf, al_hreq.buflen,
 					al_hreq.flags, cursor);
 	if (error)
 		goto out_kfree;
@@ -461,7 +461,7 @@ xfs_compat_attrmulti_by_handle(
 		switch (ops[i].am_opcode) {
 		case ATTR_OP_GET:
 			ops[i].am_error = xfs_attrmulti_attr_get(
-					d_inode(dentry), attr_name,
+					d_iyesde(dentry), attr_name,
 					compat_ptr(ops[i].am_attrvalue),
 					&ops[i].am_length, ops[i].am_flags);
 			break;
@@ -470,7 +470,7 @@ xfs_compat_attrmulti_by_handle(
 			if (ops[i].am_error)
 				break;
 			ops[i].am_error = xfs_attrmulti_attr_set(
-					d_inode(dentry), attr_name,
+					d_iyesde(dentry), attr_name,
 					compat_ptr(ops[i].am_attrvalue),
 					ops[i].am_length, ops[i].am_flags);
 			mnt_drop_write_file(parfilp);
@@ -480,7 +480,7 @@ xfs_compat_attrmulti_by_handle(
 			if (ops[i].am_error)
 				break;
 			ops[i].am_error = xfs_attrmulti_attr_remove(
-					d_inode(dentry), attr_name,
+					d_iyesde(dentry), attr_name,
 					ops[i].am_flags);
 			mnt_drop_write_file(parfilp);
 			break;
@@ -506,8 +506,8 @@ xfs_file_compat_ioctl(
 	unsigned		cmd,
 	unsigned long		p)
 {
-	struct inode		*inode = file_inode(filp);
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct iyesde		*iyesde = file_iyesde(filp);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	struct xfs_mount	*mp = ip->i_mount;
 	void			__user *arg = compat_ptr(p);
 	int			error;

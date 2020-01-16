@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * vineetg: June 2010
  *    -__clear_user( ) called multiple times during elf load was byte loop
@@ -15,7 +15,7 @@
  *    -kernel shrunk by 200K even at -O3 (gcc 4.2.1)
  *    -Enabled when doing -Os
  *
- * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
+ * Amit Bhor, Sameer Dhavale: Codito Techyeslogies 2004
  */
 
 #ifndef _ASM_ARC_UACCESS_H
@@ -36,7 +36,7 @@
  *	(len <= TASK_SIZE) && (start+len < TASK_SIZE)
  *
  * Because it essentially checks if buffer end is within limit and @len is
- * non-ngeative, which implies that buffer start will be within limit too.
+ * yesn-ngeative, which implies that buffer start will be within limit too.
  *
  * The reason for rewriting being, for majority of cases, @len is generally
  * compile time constant, causing first sub-expression to be compile time
@@ -67,7 +67,7 @@
 })
 
 /*
- * Returns 0 on success, -EFAULT if not.
+ * Returns 0 on success, -EFAULT if yest.
  * @ret already contains 0 - given that errors will be less likely
  * (hence +r asm constraint below).
  * In case of error, fixup code will make it -EFAULT
@@ -75,7 +75,7 @@
 #define __arc_get_user_one(dst, src, op, ret)	\
 	__asm__ __volatile__(                   \
 	"1:	"op"    %1,[%2]\n"		\
-	"2:	;nop\n"				\
+	"2:	;yesp\n"				\
 	"	.section .fixup, \"ax\"\n"	\
 	"	.align 4\n"			\
 	"3:	# return -EFAULT\n"		\
@@ -96,7 +96,7 @@
 	__asm__ __volatile__(                   \
 	"1:	ld   %1,[%2]\n"			\
 	"4:	ld  %R1,[%2, 4]\n"		\
-	"2:	;nop\n"				\
+	"2:	;yesp\n"				\
 	"	.section .fixup, \"ax\"\n"	\
 	"	.align 4\n"			\
 	"3:	# return -EFAULT\n"		\
@@ -130,7 +130,7 @@
 #define __arc_put_user_one(src, dst, op, ret)	\
 	__asm__ __volatile__(                   \
 	"1:	"op"    %1,[%2]\n"		\
-	"2:	;nop\n"				\
+	"2:	;yesp\n"				\
 	"	.section .fixup, \"ax\"\n"	\
 	"	.align 4\n"			\
 	"3:	mov %0, %3\n"			\
@@ -148,7 +148,7 @@
 	__asm__ __volatile__(                   \
 	"1:	st   %1,[%2]\n"			\
 	"4:	st  %R1,[%2, 4]\n"		\
-	"2:	;nop\n"				\
+	"2:	;yesp\n"				\
 	"	.section .fixup, \"ax\"\n"	\
 	"	.align 4\n"			\
 	"3:	mov %0, %3\n"			\
@@ -186,7 +186,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 		"1:	ldb.ab  %1, [%3, 1]		\n"
 		"	stb.ab  %1, [%2, 1]		\n"
 		"	sub     %0,%0,1			\n"
-		"2:	;nop				\n"
+		"2:	;yesp				\n"
 		"	.section .fixup, \"ax\"		\n"
 		"	.align 4			\n"
 		"3:	j   2b				\n"
@@ -199,7 +199,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 		: "+r" (n),
 		/*
 		 * Note as an '&' earlyclobber operand to make sure the
-		 * temporary register inside the loop is not the same as
+		 * temporary register inside the loop is yest the same as
 		 *  FROM or TO.
 		*/
 		  "=&r" (tmp), "+r" (to), "+r" (from)
@@ -231,7 +231,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 			"	st.ab   %5, [%1, 4]		\n"
 			"	st.ab   %6, [%1, 4]		\n"
 			"	sub     %0,%0,16		\n"
-			"3:	;nop				\n"
+			"3:	;yesp				\n"
 			"	.section .fixup, \"ax\"		\n"
 			"	.align 4			\n"
 			"4:	j   3b				\n"
@@ -257,7 +257,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 			"	st.ab   %3, [%1,4]		\n"
 			"	st.ab   %4, [%1,4]		\n"
 			"	sub     %0,%0,8			\n"
-			"31:	;nop				\n"
+			"31:	;yesp				\n"
 			"	.section .fixup, \"ax\"		\n"
 			"	.align 4			\n"
 			"4:	j   31b				\n"
@@ -279,7 +279,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 			"16:	ld.ab   %3, [%2,4]		\n"
 			"	st.ab   %3, [%1,4]		\n"
 			"	sub     %0,%0,4			\n"
-			"32:	;nop				\n"
+			"32:	;yesp				\n"
 			"	.section .fixup, \"ax\"		\n"
 			"	.align 4			\n"
 			"4:	j   32b				\n"
@@ -299,7 +299,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 			"17:	ldw.ab   %3, [%2,2]		\n"
 			"	stw.ab   %3, [%1,2]		\n"
 			"	sub      %0,%0,2		\n"
-			"33:	;nop				\n"
+			"33:	;yesp				\n"
 			"	.section .fixup, \"ax\"		\n"
 			"	.align 4			\n"
 			"4:	j   33b				\n"
@@ -317,7 +317,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 			"18:	ldb.ab   %3, [%2,2]		\n"
 			"	stb.ab   %3, [%1,2]		\n"
 			"	sub      %0,%0,1		\n"
-			"34:	; nop				\n"
+			"34:	; yesp				\n"
 			"	.section .fixup, \"ax\"		\n"
 			"	.align 4			\n"
 			"4:	j   34b				\n"
@@ -365,7 +365,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 		"18:	ldb.ab  %5, [%2,1]		\n"  /* 1 byte left */
 		"	stb.ab  %5, [%1,1]		\n"
 		"	sub.f   %0,%0,1			\n"
-		"34:	;nop				\n"
+		"34:	;yesp				\n"
 		"	.section .fixup, \"ax\"		\n"
 		"	.align 4			\n"
 		"4:	j   34b				\n"
@@ -413,7 +413,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 		"	ldb.ab  %1, [%3, 1]		\n"
 		"1:	stb.ab  %1, [%2, 1]		\n"
 		"	sub     %0, %0, 1		\n"
-		"3:	;nop				\n"
+		"3:	;yesp				\n"
 		"	.section .fixup, \"ax\"		\n"
 		"	.align 4			\n"
 		"4:	j   3b				\n"
@@ -425,7 +425,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 
 		: "+r" (n),
 		/* Note as an '&' earlyclobber operand to make sure the
-		 * temporary register inside the loop is not the same as
+		 * temporary register inside the loop is yest the same as
 		 * FROM or TO.
 		 */
 		  "=&r" (tmp), "+r" (to), "+r" (from)
@@ -453,7 +453,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 			"12:	st.ab %5, [%1, 4]		\n"
 			"13:	st.ab %6, [%1, 4]		\n"
 			"	sub   %0, %0, 16		\n"
-			"3:;nop					\n"
+			"3:;yesp					\n"
 			"	.section .fixup, \"ax\"		\n"
 			"	.align 4			\n"
 			"4:	j   3b				\n"
@@ -479,7 +479,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 			"14:	st.ab   %3, [%1,4]		\n"
 			"15:	st.ab   %4, [%1,4]		\n"
 			"	sub     %0, %0, 8		\n"
-			"31:;nop				\n"
+			"31:;yesp				\n"
 			"	.section .fixup, \"ax\"		\n"
 			"	.align 4			\n"
 			"4:	j   31b				\n"
@@ -501,7 +501,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 			"	ld.ab   %3, [%2,4]		\n"
 			"16:	st.ab   %3, [%1,4]		\n"
 			"	sub     %0, %0, 4		\n"
-			"32:;nop				\n"
+			"32:;yesp				\n"
 			"	.section .fixup, \"ax\"		\n"
 			"	.align 4			\n"
 			"4:	j   32b				\n"
@@ -521,7 +521,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 			"	ldw.ab    %3, [%2,2]		\n"
 			"17:	stw.ab    %3, [%1,2]		\n"
 			"	sub       %0, %0, 2		\n"
-			"33:;nop				\n"
+			"33:;yesp				\n"
 			"	.section .fixup, \"ax\"		\n"
 			"	.align 4			\n"
 			"4:	j   33b				\n"
@@ -539,7 +539,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 			"	ldb.ab  %3, [%2,1]		\n"
 			"18:	stb.ab  %3, [%1,1]		\n"
 			"	sub     %0, %0, 1		\n"
-			"34:	;nop				\n"
+			"34:	;yesp				\n"
 			"	.section .fixup, \"ax\"		\n"
 			"	.align 4			\n"
 			"4:	j   34b				\n"
@@ -587,7 +587,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 		"	ldb.ab    %5, [%2,1]		\n"  /* 1 byte left */
 		"18:	stb.ab  %5, [%1,1]		\n"
 		"	sub.f %0, %0, 1			\n"
-		"34:	;nop				\n"
+		"34:	;yesp				\n"
 		"	.section .fixup, \"ax\"		\n"
 		"	.align 4			\n"
 		"4:	j   34b				\n"
@@ -701,7 +701,7 @@ static inline long __arc_strnlen_user(const char __user *s, long n)
 	"	bnz 1b				\n"
 	"	sub %2, %2, 1			\n"
 	"2:	sub %0, %1, %2			\n"
-	"3:	;nop				\n"
+	"3:	;yesp				\n"
 	"	.section .fixup, \"ax\"		\n"
 	"	.align 4			\n"
 	"4:	mov %0, 0			\n"
@@ -727,15 +727,15 @@ static inline long __arc_strnlen_user(const char __user *s, long n)
 #define __strncpy_from_user(d, s, n)	__arc_strncpy_from_user(d, s, n)
 #define __strnlen_user(s, n)		__arc_strnlen_user(s, n)
 #else
-extern unsigned long arc_clear_user_noinline(void __user *to,
+extern unsigned long arc_clear_user_yesinline(void __user *to,
 		unsigned long n);
-extern long arc_strncpy_from_user_noinline (char *dst, const char __user *src,
+extern long arc_strncpy_from_user_yesinline (char *dst, const char __user *src,
 		long count);
-extern long arc_strnlen_user_noinline(const char __user *src, long n);
+extern long arc_strnlen_user_yesinline(const char __user *src, long n);
 
-#define __clear_user(d, n)		arc_clear_user_noinline(d, n)
-#define __strncpy_from_user(d, s, n)	arc_strncpy_from_user_noinline(d, s, n)
-#define __strnlen_user(s, n)		arc_strnlen_user_noinline(s, n)
+#define __clear_user(d, n)		arc_clear_user_yesinline(d, n)
+#define __strncpy_from_user(d, s, n)	arc_strncpy_from_user_yesinline(d, s, n)
+#define __strnlen_user(s, n)		arc_strnlen_user_yesinline(s, n)
 
 #endif
 

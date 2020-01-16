@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  */
@@ -152,7 +152,7 @@ struct rdac_controller {
 	u8			array_id[UNIQUE_ID_LEN];
 	int			use_ms10;
 	struct kref		kref;
-	struct list_head	node; /* list of all controllers */
+	struct list_head	yesde; /* list of all controllers */
 	union			{
 		struct rdac_pg_legacy legacy;
 		struct rdac_pg_expanded expanded;
@@ -182,7 +182,7 @@ struct c2_inquiry {
 };
 
 struct rdac_dh_data {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct rdac_controller	*ctlr;
 	struct scsi_device	*sdev;
 #define UNINITIALIZED_LUN	(1 << 8)
@@ -220,7 +220,7 @@ static const char *mode[] = {
 };
 static const char *lun_state[] =
 {
-	"unowned",
+	"uyeswned",
 	"owned",
 };
 
@@ -238,7 +238,7 @@ static void send_mode_select(struct work_struct *work);
 
 /*
  * module parameter to enable rdac debug logging.
- * 2 bits for each type of logging, only two types defined for now
+ * 2 bits for each type of logging, only two types defined for yesw
  * Can be enhanced if required at later point
  */
 static int rdac_logging = 1;
@@ -319,7 +319,7 @@ static void release_controller(struct kref *kref)
 	struct rdac_controller *ctlr;
 	ctlr = container_of(kref, struct rdac_controller, kref);
 
-	list_del(&ctlr->node);
+	list_del(&ctlr->yesde);
 	kfree(ctlr);
 }
 
@@ -328,7 +328,7 @@ static struct rdac_controller *get_controller(int index, char *array_name,
 {
 	struct rdac_controller *ctlr, *tmp;
 
-	list_for_each_entry(tmp, &ctlr_list, node) {
+	list_for_each_entry(tmp, &ctlr_list, yesde) {
 		if ((memcmp(tmp->array_id, array_id, UNIQUE_ID_LEN) == 0) &&
 			  (tmp->index == index) &&
 			  (tmp->host == sdev->host)) {
@@ -353,7 +353,7 @@ static struct rdac_controller *get_controller(int index, char *array_name,
 	spin_lock_init(&ctlr->ms_lock);
 	INIT_WORK(&ctlr->ms_work, send_mode_select);
 	INIT_LIST_HEAD(&ctlr->ms_head);
-	list_add(&ctlr->node, &ctlr_list);
+	list_add(&ctlr->yesde, &ctlr_list);
 	INIT_LIST_HEAD(&ctlr->dh_list);
 
 	return ctlr;
@@ -422,7 +422,7 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 		} else
 			h->preferred = RDAC_NON_PREFERRED;
 		rcu_read_lock();
-		list_for_each_entry_rcu(tmp, &h->ctlr->dh_list, node) {
+		list_for_each_entry_rcu(tmp, &h->ctlr->dh_list, yesde) {
 			/* h->sdev should always be valid */
 			BUG_ON(!tmp->sdev);
 			tmp->sdev->access_state = access_state;
@@ -453,7 +453,7 @@ static int initialize_controller(struct scsi_device *sdev,
 		if (!h->ctlr)
 			err = SCSI_DH_RES_TEMP_UNAVAIL;
 		else {
-			list_add_rcu(&h->node, &h->ctlr->dh_list);
+			list_add_rcu(&h->yesde, &h->ctlr->dh_list);
 			h->sdev = sdev;
 		}
 		spin_unlock(&list_lock);
@@ -697,7 +697,7 @@ static int rdac_check_sense(struct scsi_device *sdev,
 	case ILLEGAL_REQUEST:
 		if (sense_hdr->asc == 0x94 && sense_hdr->ascq == 0x01) {
 			/* Invalid Request - Current Logical Unit Ownership.
-			 * Controller is not the current owner of the LUN,
+			 * Controller is yest the current owner of the LUN,
 			 * Fail the path, so that the other path be used.
 			 */
 			h->state = RDAC_STATE_PASSIVE;
@@ -717,7 +717,7 @@ static int rdac_check_sense(struct scsi_device *sdev,
 			return ADD_TO_MLQUEUE;
 		break;
 	}
-	/* success just means we do not care what scsi-ml does */
+	/* success just means we do yest care what scsi-ml does */
 	return SCSI_RETURN_NOT_HANDLED;
 }
 
@@ -777,7 +777,7 @@ static void rdac_bus_detach( struct scsi_device *sdev )
 
 	spin_lock(&list_lock);
 	if (h->ctlr) {
-		list_del_rcu(&h->node);
+		list_del_rcu(&h->yesde);
 		h->sdev = NULL;
 		kref_put(&h->ctlr->kref, release_controller);
 	}

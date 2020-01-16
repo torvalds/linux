@@ -6,11 +6,11 @@
 #include <linux/swap.h>
 
 /**
- * page_is_file_cache - should the page be on a file LRU or anon LRU?
+ * page_is_file_cache - should the page be on a file LRU or ayesn LRU?
  * @page: the page to test
  *
  * Returns 1 if @page is page cache page backed by a regular filesystem,
- * or 0 if @page is anonymous, tmpfs or otherwise ram or swap backed.
+ * or 0 if @page is ayesnymous, tmpfs or otherwise ram or swap backed.
  * Used by functions that manipulate the LRU lists, to sort a page
  * onto the right LRU list.
  *
@@ -30,7 +30,7 @@ static __always_inline void __update_lru_size(struct lruvec *lruvec,
 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
 
 	__mod_lruvec_state(lruvec, NR_LRU_BASE + lru, nr_pages);
-	__mod_zone_page_state(&pgdat->node_zones[zid],
+	__mod_zone_page_state(&pgdat->yesde_zones[zid],
 				NR_ZONE_LRU_BASE + lru, nr_pages);
 }
 
@@ -71,7 +71,7 @@ static __always_inline void del_page_from_lru_list(struct page *page,
  *
  * Used for LRU list index arithmetic.
  *
- * Returns the base LRU type - file or anon - @page should be on.
+ * Returns the base LRU type - file or ayesn - @page should be on.
  */
 static inline enum lru_list page_lru_base_type(struct page *page)
 {

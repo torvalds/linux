@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -115,7 +115,7 @@ static int pm_runlist_v9(struct packet_manager *pm, uint32_t *buffer,
 	struct kfd_dev *kfd = pm->dqm->dev;
 
 	/* Determine the number of processes to map together to HW:
-	 * it can not exceed the number of VMIDs available to the
+	 * it can yest exceed the number of VMIDs available to the
 	 * scheduler, and it is determined by the smaller of the number
 	 * of processes in the runlist and kfd module parameter
 	 * hws_max_conc_proc.
@@ -193,13 +193,13 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 	packet->bitfields2.extended_engine_sel =
 		extended_engine_sel__mes_map_queues__legacy_engine_sel;
 	packet->bitfields2.queue_type =
-		queue_type__mes_map_queues__normal_compute_vi;
+		queue_type__mes_map_queues__yesrmal_compute_vi;
 
 	switch (q->properties.type) {
 	case KFD_QUEUE_TYPE_COMPUTE:
 		if (use_static)
 			packet->bitfields2.queue_type =
-		queue_type__mes_map_queues__normal_latency_static_queue_vi;
+		queue_type__mes_map_queues__yesrmal_latency_static_queue_vi;
 		break;
 	case KFD_QUEUE_TYPE_DIQ:
 		packet->bitfields2.queue_type =
@@ -207,7 +207,7 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 		break;
 	case KFD_QUEUE_TYPE_SDMA:
 	case KFD_QUEUE_TYPE_SDMA_XGMI:
-		use_static = false; /* no static queues under SDMA */
+		use_static = false; /* yes static queues under SDMA */
 		if (q->properties.sdma_engine_id < 2)
 			packet->bitfields2.engine_sel = q->properties.sdma_engine_id +
 				engine_sel__mes_map_queues__sdma0_vi;
@@ -302,9 +302,9 @@ static int pm_unmap_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 			queue_sel__mes_unmap_queues__unmap_all_queues;
 		break;
 	case KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES:
-		/* in this case, we do not preempt static queues */
+		/* in this case, we do yest preempt static queues */
 		packet->bitfields2.queue_sel =
-			queue_sel__mes_unmap_queues__unmap_all_non_static_queues;
+			queue_sel__mes_unmap_queues__unmap_all_yesn_static_queues;
 		break;
 	default:
 		WARN(1, "filter %d", filter);

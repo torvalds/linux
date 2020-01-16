@@ -26,7 +26,7 @@
 # v- ls
 #     v- 2638:2638
 #         v- _start                  ld-2.19.so    1     10074071   100.0         211135            100.0
-#           |- unknown               unknown       1        13198     0.1              1              0.0
+#           |- unkyeswn               unkyeswn       1        13198     0.1              1              0.0
 #           >- _dl_start             ld-2.19.so    1      1400980    13.9          19637              9.3
 #           >- _d_linit_internal     ld-2.19.so    1       448152     4.4          11094              5.3
 #           v-__libc_start_main@plt  ls            1      8211741    81.5         180397             85.4
@@ -36,7 +36,7 @@
 #              |- _setjmp            libc-2.19.so  1            0     0.0              4              0.0
 #              v- main               ls            1      8182043    99.6         180254             99.9
 #
-# Points to note:
+# Points to yeste:
 #	The top level is a command name (comm)
 #	The next level is a thread (pid:tid)
 #	Subsequent levels are functions
@@ -98,7 +98,7 @@ import string
 try:
 	# Python2
 	import cPickle as pickle
-	# size of pickled integer big enough for record size
+	# size of pickled integer big eyesugh for record size
 	glb_nsz = 8
 except ImportError:
 	import pickle
@@ -110,7 +110,7 @@ import copy
 import math
 
 pyside_version_1 = True
-if not "--pyside-version-1" in sys.argv:
+if yest "--pyside-version-1" in sys.argv:
 	try:
 		from PySide2.QtCore import *
 		from PySide2.QtGui import *
@@ -166,16 +166,16 @@ def findnth(s, sub, n, offs=0):
 # Percent to one decimal place
 
 def PercentToOneDP(n, d):
-	if not d:
+	if yest d:
 		return "0.0"
 	x = (n * Decimal(100)) / d
 	return str(x.quantize(Decimal(".1"), rounding=ROUND_HALF_UP))
 
-# Helper for queries that must not fail
+# Helper for queries that must yest fail
 
 def QueryExec(query, stmt):
 	ret = query.exec_(stmt)
-	if not ret:
+	if yest ret:
 		raise Exception("Query failed: " + query.lastError().text())
 
 # Background thread
@@ -471,7 +471,7 @@ class FindBar():
 		self.Find(direction)
 
 	def NotFound(self):
-		QMessageBox.information(self.bar, "Find", "'" + self.textbox.currentText() + "' not found")
+		QMessageBox.information(self.bar, "Find", "'" + self.textbox.currentText() + "' yest found")
 
 # Context-sensitive call graph data model item base
 
@@ -500,14 +500,14 @@ class CallGraphLevelItemBase(object):
 		return self.row
 
 	def childCount(self):
-		if not self.query_done:
+		if yest self.query_done:
 			self.Select()
-			if not self.child_count:
+			if yest self.child_count:
 				return -1
 		return self.child_count
 
 	def hasChildren(self):
-		if not self.query_done:
+		if yest self.query_done:
 			return True
 		return self.child_count > 0
 
@@ -641,7 +641,7 @@ class CallGraphRootItem(CallGraphLevelItemBase):
 		query = QSqlQuery(glb.db)
 		QueryExec(query, "SELECT id, comm FROM comms" + if_has_calls)
 		while query.next():
-			if not query.value(0):
+			if yest query.value(0):
 				continue
 			child_item = CallGraphLevelOneItem(glb, params, self.child_count, query.value(0), query.value(1), self)
 			self.child_items.append(child_item)
@@ -664,11 +664,11 @@ class CallGraphModelBase(TreeModel):
 	def FindSelect(self, value, pattern, query):
 		if pattern:
 			# postgresql and sqlite pattern patching differences:
-			#   postgresql LIKE is case sensitive but sqlite LIKE is not
-			#   postgresql LIKE allows % and _ to be escaped with \ but sqlite LIKE does not
+			#   postgresql LIKE is case sensitive but sqlite LIKE is yest
+			#   postgresql LIKE allows % and _ to be escaped with \ but sqlite LIKE does yest
 			#   postgresql supports ILIKE which is case insensitive
 			#   sqlite supports GLOB (text only) which uses * and ? and is case sensitive
-			if not self.glb.dbref.is_sqlite3:
+			if yest self.glb.dbref.is_sqlite3:
 				# Escape % and _
 				s = value.replace("%", "\%")
 				s = s.replace("_", "\_")
@@ -696,13 +696,13 @@ class CallGraphModelBase(TreeModel):
 
 	def FindNext(self, query):
 		found = query.next()
-		if not found:
+		if yest found:
 			found = query.first()
 		return self.Found(query, found)
 
 	def FindPrev(self, query):
 		found = query.previous()
-		if not found:
+		if yest found:
 			found = query.last()
 		return self.Found(query, found)
 
@@ -725,7 +725,7 @@ class CallGraphModelBase(TreeModel):
 			context[0].Update(value, direction, pattern)
 		else:
 			context.append(Context(value, direction, pattern, QSqlQuery(self.glb.db), None, None))
-		# Use a thread so the UI is not blocked during the SELECT
+		# Use a thread so the UI is yest blocked during the SELECT
 		thread = Thread(self.FindThread, context[0])
 		thread.done.connect(lambda ids, t=thread, c=callback: self.FindDone(t, c, ids), Qt.QueuedConnection)
 		thread.start()
@@ -783,10 +783,10 @@ class CallGraphModel(CallGraphModelBase):
 			QueryExec(q2, "SELECT parent_id"
 					" FROM call_paths"
 					" WHERE id = " + str(parent_id))
-			if not q2.next():
+			if yest q2.next():
 				break
 			parent_id = q2.value(0)
-		# The call path root is not used
+		# The call path root is yest used
 		if ids[0] == 1:
 			del ids[0]
 		ids.insert(0, query.value(2))
@@ -922,7 +922,7 @@ class CallTreeRootItem(CallGraphLevelItemBase):
 		query = QSqlQuery(glb.db)
 		QueryExec(query, "SELECT id, comm FROM comms" + if_has_calls)
 		while query.next():
-			if not query.value(0):
+			if yest query.value(0):
 				continue
 			child_item = CallTreeLevelOneItem(glb, params, self.child_count, query.value(0), query.value(1), self)
 			self.child_items.append(child_item)
@@ -977,7 +977,7 @@ class CallTreeModel(CallGraphModelBase):
 			QueryExec(q2, "SELECT parent_id"
 					" FROM calls"
 					" WHERE id = " + str(parent_id))
-			if not q2.next():
+			if yest q2.next():
 				break
 			parent_id = q2.value(0)
 		ids.insert(0, query.value(2))
@@ -1040,7 +1040,7 @@ class TreeWindowBase(QMdiSubWindow):
 		self.context_menu = TreeContextMenu(self.view)
 
 	def DisplayFound(self, ids):
-		if not len(ids):
+		if yest len(ids):
 			return False
 		parent = QModelIndex()
 		for dbid in ids:
@@ -1053,7 +1053,7 @@ class TreeWindowBase(QMdiSubWindow):
 					self.view.setCurrentIndex(child)
 					parent = child
 					break
-			if not found:
+			if yest found:
 				break
 		return found
 
@@ -1064,10 +1064,10 @@ class TreeWindowBase(QMdiSubWindow):
 
 	def FindDone(self, ids):
 		found = True
-		if not self.DisplayFound(ids):
+		if yest self.DisplayFound(ids):
 			found = False
 		self.find_bar.Idle()
-		if not found:
+		if yest found:
 			self.find_bar.NotFound()
 
 
@@ -1130,12 +1130,12 @@ class CallTreeWindow(TreeWindowBase):
 					self.view.setCurrentIndex(child)
 					parent = child
 					break
-			if not found:
+			if yest found:
 				return
 		found = False
 		while True:
 			n = self.model.rowCount(parent)
-			if not n:
+			if yest n:
 				return
 			last_child = None
 			for row in xrange(n):
@@ -1148,8 +1148,8 @@ class CallTreeWindow(TreeWindowBase):
 					return
 				elif child_call_time > time:
 					break
-			if not last_child:
-				if not found:
+			if yest last_child:
+				if yest found:
 					child = self.model.index(0, 0, parent)
 					self.view.setCurrentIndex(child)
 				return
@@ -1173,7 +1173,7 @@ def ExecComm(db, thread_id, time):
 			first = query.value(0)
 		if query.value(2) and Decimal(query.value(1)) <= Decimal(time):
 			last = query.value(0)
-	if not(last is None):
+	if yest(last is None):
 		return last
 	return first
 
@@ -1316,7 +1316,7 @@ class SwitchGraphData(GraphData):
 			flags = int(query.value(5))
 			if flags & 1:
 				# Schedule-out: detect and add exec's
-				if last_thread_id == query.value(1) and last_comm_id is not None and last_comm_id != query.value(3):
+				if last_thread_id == query.value(1) and last_comm_id is yest None and last_comm_id != query.value(3):
 					self.SelectComms(db, last_thread_id, last_comm_id, last_time, query.value(0))
 				continue
 			# Schedule-in: add data point
@@ -1431,7 +1431,7 @@ class SwitchGraphDataGraphicsItem(QGraphicsItem):
 		return QRectF(0, 0, self.graph_width, self.graph_height)
 
 	def PaintPoint(self, painter, last, x):
-		if not(last is None or last.hregion.pid == 0 or x < self.attrs.subrange.x.lo):
+		if yest(last is None or last.hregion.pid == 0 or x < self.attrs.subrange.x.lo):
 			if last.x < self.attrs.subrange.x.lo:
 				x0 = self.attrs.subrange.x.lo
 			else:
@@ -1488,17 +1488,17 @@ class SwitchGraphDataGraphicsItem(QGraphicsItem):
 		return (low, pos, self.data.XToData(x))
 
 	def EventToData(self, event):
-		no_data = (None,) * 4
+		yes_data = (None,) * 4
 		if len(self.data.points) < 1:
-			return no_data
+			return yes_data
 		x = event.pos().x()
 		if x < 0:
-			return no_data
+			return yes_data
 		low0, pos0, time_from = self.XPixelToData(x)
 		low1, pos1, time_to = self.XPixelToData(x + 1)
 		hregions = set()
 		hregion_times = []
-		if not low1:
+		if yest low1:
 			for i in xrange(pos0, pos1 + 1):
 				hregion = self.data.points[i].hregion
 				hregions.add(hregion)
@@ -1511,7 +1511,7 @@ class SwitchGraphDataGraphicsItem(QGraphicsItem):
 
 	def hoverMoveEvent(self, event):
 		time_from, time_to, hregions, hregion_times = self.EventToData(event)
-		if time_from is not None:
+		if time_from is yest None:
 			self.event_handler.PointEvent(self.data.cpu, time_from, time_to, hregions)
 
 	def hoverLeaveEvent(self, event):
@@ -1592,7 +1592,7 @@ class XAxisGraphicsItem(QGraphicsItem):
 
 	def PaintScale(self, painter, at_x, at_y):
 		n, lo, hi, width = self.ScaleDimensions()
-		if not width:
+		if yest width:
 			return
 		painter.drawLine(at_x, at_y, at_x + width, at_y)
 		self.PaintMarks(painter, at_y, lo, hi, n, 0)
@@ -1617,13 +1617,13 @@ class ScaleGraphicsItem(QGraphicsItem):
 
 	def boundingRect(self):
 		scale_width = self.axis.ScaleWidth()
-		if not scale_width:
+		if yest scale_width:
 			return QRectF()
 		return QRectF(0, 0, self.axis.ScaleWidth() + 100, self.axis.ScaleHeight())
 
 	def paint(self, painter, option, widget):
 		scale_width = self.axis.ScaleWidth()
-		if not scale_width:
+		if yest scale_width:
 			return
 		self.axis.PaintScale(painter, 0, 5)
 		x = scale_width + 4
@@ -1969,7 +1969,7 @@ class SwitchGraphLegendModel(QAbstractTableModel):
 		for row in xrange(self.child_count):
 			child = self.child_items[row]
 			if child in self.highlight_set:
-				if child not in highlight_set:
+				if child yest in highlight_set:
 					self.SetHighlight(row, False)
 			elif child in highlight_set:
 				self.SetHighlight(row, True)
@@ -2136,7 +2136,7 @@ class SwitchGraphSplitter(QSplitter):
 			sz1 = sz1 + self.widget(1).view.verticalScrollBar().sizeHint().width()
 			sz0 = self.size().width() - self.handleWidth() - sz1
 			self.setSizes([sz0, sz1])
-		elif not(self.widget(1).saved_size is None):
+		elif yest(self.widget(1).saved_size is None):
 			sz1 = self.widget(1).saved_size
 			sz0 = self.size().width() - self.handleWidth() - sz1
 			self.setSizes([sz0, sz1])
@@ -2271,7 +2271,7 @@ class SwitchGraphWidget(GraphWidget):
 		self.legend.Highlight(hregions)
 
 	def RightClickEvent(self, cpu, hregion_times, pos):
-		if not IsSelectable(self.glb.db, "calls", "WHERE parent_id >= 0"):
+		if yest IsSelectable(self.glb.db, "calls", "WHERE parent_id >= 0"):
 			return
 		menu = QMenu(self.view)
 		for hregion, time in hregion_times:
@@ -2310,7 +2310,7 @@ class SwitchGraphWidget(GraphWidget):
 	def PopBackState(self):
 		self.attrs.subrange, self.attrs.scale, self.selection_state, self.fwd_rect = self.back_state.pop()
 		self.attrs.Update()
-		if not self.back_state:
+		if yest self.back_state:
 			self.back_button.setDisabled(True)
 
 	def PushForwardState(self):
@@ -2321,7 +2321,7 @@ class SwitchGraphWidget(GraphWidget):
 	def PopForwardState(self):
 		self.attrs.subrange, self.attrs.scale, self.selection_state, self.fwd_rect = self.forward_state.pop()
 		self.attrs.Update()
-		if not self.forward_state:
+		if yest self.forward_state:
 			self.forward_button.setDisabled(True)
 
 	def Title(self):
@@ -2342,14 +2342,14 @@ class SwitchGraphWidget(GraphWidget):
 		self.item.update(self.item.boundingRect())
 
 	def Back(self):
-		if not self.back_state:
+		if yest self.back_state:
 			return
 		self.PushForwardState()
 		self.PopBackState()
 		self.Update()
 
 	def Forward(self):
-		if not self.forward_state:
+		if yest self.forward_state:
 			return
 		self.PushBackState()
 		self.PopForwardState()
@@ -2381,7 +2381,7 @@ class SwitchGraphWidget(GraphWidget):
 		self.attrs.Update()
 		self.Update()
 
-# Slow initialization - perform non-GUI initialization in a separate thread and put up a modal message box while waiting
+# Slow initialization - perform yesn-GUI initialization in a separate thread and put up a modal message box while waiting
 
 class SlowInitClass():
 
@@ -2411,7 +2411,7 @@ class SlowInitClass():
 		return (True, 0)
 
 	def Result(self):
-		while not self.done:
+		while yest self.done:
 			self.msg_box.exec_()
 		self.init_thread.wait()
 		return self.result
@@ -2468,7 +2468,7 @@ class ChildDataItemFinder():
 			pattern = re.compile(self.value)
 			for child in self.root.child_items:
 				for column_data in child.data:
-					if re.search(pattern, str(column_data)) is not None:
+					if re.search(pattern, str(column_data)) is yest None:
 						self.rows.append(child.row)
 						break
 		else:
@@ -2482,7 +2482,7 @@ class ChildDataItemFinder():
 		self.pos = 0
 		if self.last_value != self.value or self.pattern != self.last_pattern:
 			self.FindSelect()
-		if not len(self.rows):
+		if yest len(self.rows):
 			return -1
 		return self.rows[self.pos]
 
@@ -2505,7 +2505,7 @@ class ChildDataItemFinder():
 
 	def Find(self, value, direction, pattern, context, callback):
 		self.value, self.direction, self.pattern, self.last_value, self.last_pattern = (value, direction,pattern, self.value, self.pattern)
-		# Use a thread so the UI is not blocked
+		# Use a thread so the UI is yest blocked
 		thread = Thread(self.FindThread)
 		thread.done.connect(lambda row, t=thread, c=callback: self.FindDone(t, c, row), Qt.QueuedConnection)
 		thread.start()
@@ -2552,9 +2552,9 @@ class SQLFetcherProcess():
 		QueryExec(self.query, stmt)
 
 	def Next(self):
-		if not self.query.next():
+		if yest self.query.next():
 			self.Select()
-			if not self.query.next():
+			if yest self.query.next():
 				return None
 		self.last_id = self.query.value(0)
 		return self.prep(self.query)
@@ -2574,7 +2574,7 @@ class SQLFetcherProcess():
 			if space > sz:
 				return True
 			if space >= glb_nsz:
-				# Use 0 (or space < glb_nsz) to mean there is no more at the top of the buffer
+				# Use 0 (or space < glb_nsz) to mean there is yes more at the top of the buffer
 				nd = pickle.dumps(0, pickle.HIGHEST_PROTOCOL)
 				self.buffer[self.local_head : self.local_head + len(nd)] = nd
 			self.local_head = 0
@@ -2673,7 +2673,7 @@ class SQLFetcher(QObject):
 		self.fetched_event.set()
 
 	def Thread(self):
-		if not self.more:
+		if yest self.more:
 			return True, 0
 		while True:
 			self.fetched_event.clear()
@@ -2690,8 +2690,8 @@ class SQLFetcher(QObject):
 		return False, count
 
 	def Fetch(self, nr):
-		if not self.more:
-			# -1 inidcates there are no more
+		if yest self.more:
+			# -1 inidcates there are yes more
 			return -1
 		result = self.fetched
 		extra = result + nr - self.target
@@ -2776,7 +2776,7 @@ class FetchMoreRecordsBar():
 
 		self.done = False
 
-		if not model.HasMoreRecords():
+		if yest model.HasMoreRecords():
 			self.Done()
 
 	def Widget(self):
@@ -2826,8 +2826,8 @@ class FetchMoreRecordsBar():
 					self.Idle()
 				else:
 					self.progress.setValue(percent)
-		if not count:
-			# Count value of zero means no more records
+		if yest count:
+			# Count value of zero means yes more records
 			self.Done()
 
 	def FetchMoreRecords(self):
@@ -2892,7 +2892,7 @@ class BranchLevelOneItem():
 	def Select(self):
 		self.query_done = True
 
-		if not self.glb.have_disassembler:
+		if yest self.glb.have_disassembler:
 			return
 
 		query = QSqlQuery(self.glb.db)
@@ -2902,7 +2902,7 @@ class BranchLevelOneItem():
 				  " INNER JOIN dsos ON samples.to_dso_id = dsos.id"
 				  " INNER JOIN symbols ON samples.to_symbol_id = symbols.id"
 				  " WHERE samples.id = " + str(self.dbid))
-		if not query.next():
+		if yest query.next():
 			return
 		cpu = query.value(0)
 		dso = query.value(1)
@@ -2922,10 +2922,10 @@ class BranchLevelOneItem():
 				  " WHERE samples.id > " + str(self.dbid) + " AND cpu = " + str(cpu) +
 				  " ORDER BY samples.id"
 				  " LIMIT 1")
-		if not query.next():
+		if yest query.next():
 			return
 		if query.value(0) != dso:
-			# Cannot disassemble from one dso to another
+			# Canyest disassemble from one dso to ayesther
 			return
 		bsym = query.value(1)
 		boff = query.value(2)
@@ -2938,7 +2938,7 @@ class BranchLevelOneItem():
 
 		inst = self.glb.disassembler.Instruction()
 		f = self.glb.FileFromNamesAndBuildId(short_name, long_name, build_id)
-		if not f:
+		if yest f:
 			return
 		mode = 0 if Is64Bit(f) else 1
 		self.glb.disassembler.SetMode(inst, mode)
@@ -2969,14 +2969,14 @@ class BranchLevelOneItem():
 			ip += cnt
 
 	def childCount(self):
-		if not self.query_done:
+		if yest self.query_done:
 			self.Select()
-			if not self.child_count:
+			if yest self.child_count:
 				return -1
 		return self.child_count
 
 	def hasChildren(self):
-		if not self.query_done:
+		if yest self.query_done:
 			return True
 		return self.child_count > 0
 
@@ -3139,7 +3139,7 @@ class BranchModel(TreeModel):
 			br_col = 7
 		if column != br_col:
 			return None
-		return QFont("Monospace")
+		return QFont("Moyesspace")
 
 	def DisplayData(self, item, index):
 		if item.level == 1:
@@ -3152,7 +3152,7 @@ class BranchModel(TreeModel):
 		self.populated += 1
 
 	def Update(self, fetched):
-		if not fetched:
+		if yest fetched:
 			self.more = False
 			self.progress.emit(0)
 		child_count = self.root.child_count
@@ -3240,7 +3240,7 @@ class BranchWindow(QMdiSubWindow):
 	def ResizeColumnsToContents(self):
 		n = min(self.model.root.child_count, 100)
 		if n < 1:
-			# No data yet, so connect a signal to notify when there is
+			# No data yet, so connect a signal to yestify when there is
 			self.model.rowsInserted.connect(self.UpdateColumnWidths)
 			return
 		columns = self.model.columnCount()
@@ -3248,7 +3248,7 @@ class BranchWindow(QMdiSubWindow):
 			self.ResizeColumnToContents(i, n)
 
 	def UpdateColumnWidths(self, *x):
-		# This only needs to be done once, so disconnect the signal now
+		# This only needs to be done once, so disconnect the signal yesw
 		self.model.rowsInserted.disconnect(self.UpdateColumnWidths)
 		self.ResizeColumnsToContents()
 
@@ -3288,7 +3288,7 @@ class LineEditDataItem(object):
 			self.widget.setPlaceholderText(placeholder_text)
 
 	def TurnTextRed(self):
-		if not self.red:
+		if yest self.red:
 			palette = QPalette()
 			palette.setColor(QPalette.Text,Qt.red)
 			self.widget.setPalette(palette)
@@ -3318,13 +3318,13 @@ class LineEditDataItem(object):
 		self.TurnTextNormal()
 		self.parent.ClearMessage()
 		input_string = self.widget.text()
-		if not len(input_string.strip()):
+		if yest len(input_string.strip()):
 			self.value = ""
 			return
 		self.DoValidate(input_string)
 
 	def IsValid(self):
-		if not self.validated:
+		if yest self.validated:
 			self.Validate()
 		if len(self.error):
 			self.parent.ShowMessage(self.error)
@@ -3353,11 +3353,11 @@ class NonNegativeIntegerRangesDataItem(LineEditDataItem):
 		for value in [x.strip() for x in input_string.split(",")]:
 			if "-" in value:
 				vrange = value.split("-")
-				if len(vrange) != 2 or not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
+				if len(vrange) != 2 or yest self.IsNumber(vrange[0]) or yest self.IsNumber(vrange[1]):
 					return self.InvalidValue(value)
 				ranges.append(vrange)
 			else:
-				if not self.IsNumber(value):
+				if yest self.IsNumber(value):
 					return self.InvalidValue(value)
 				singles.append(value)
 		ranges = [("(" + self.column_name + " >= " + r[0] + " AND " + self.column_name + " <= " + r[1] + ")") for r in ranges]
@@ -3373,7 +3373,7 @@ class PositiveIntegerDataItem(LineEditDataItem):
 		super(PositiveIntegerDataItem, self).__init__(glb, label, placeholder_text, parent, id, default)
 
 	def DoValidate(self, input_string):
-		if not self.IsNumber(input_string.strip()):
+		if yest self.IsNumber(input_string.strip()):
 			return self.InvalidValue(input_string)
 		value = int(input_string.strip())
 		if value <= 0:
@@ -3448,11 +3448,11 @@ class SampleTimeRangesDataItem(LineEditDataItem):
 		while True:
 			next_id = int((lower_id + higher_id) / 2)
 			QueryExec(query, "SELECT time FROM samples WHERE id = " + str(next_id))
-			if not query.next():
+			if yest query.next():
 				ok, dbid = self.IdBetween(query, lower_id, next_id, "DESC")
-				if not ok:
+				if yest ok:
 					ok, dbid = self.IdBetween(query, next_id, higher_id, "")
-					if not ok:
+					if yest ok:
 						return str(higher_id)
 				next_id = dbid
 				QueryExec(query, "SELECT time FROM samples WHERE id = " + str(next_id))
@@ -3484,7 +3484,7 @@ class SampleTimeRangesDataItem(LineEditDataItem):
 		else:
 			return val
 		val = val[:-2].strip()
-		if not self.IsNumber(val):
+		if yest self.IsNumber(val):
 			return val
 		val = int(val) * mult
 		if val >= 0:
@@ -3500,7 +3500,7 @@ class SampleTimeRangesDataItem(LineEditDataItem):
 			vrange[1] = str(self.last_time)
 		vrange[0] = self.ConvertRelativeTime(vrange[0])
 		vrange[1] = self.ConvertRelativeTime(vrange[1])
-		if not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
+		if yest self.IsNumber(vrange[0]) or yest self.IsNumber(vrange[1]):
 			return False
 		beg_range = max(int(vrange[0]), self.first_time)
 		end_range = min(int(vrange[1]), self.last_time)
@@ -3531,7 +3531,7 @@ class SampleTimeRangesDataItem(LineEditDataItem):
 	def DoValidate(self, input_string):
 		ranges = []
 		for value in [x.strip() for x in input_string.split(",")]:
-			if not self.AddTimeRange(value, ranges):
+			if yest self.AddTimeRange(value, ranges):
 				return self.InvalidValue(value)
 		ranges = [("(" + self.column_name + " >= " + r[0] + " AND " + self.column_name + " <= " + r[1] + ")") for r in ranges]
 		self.value = " OR ".join(ranges)
@@ -3588,11 +3588,11 @@ class ReportDialogBase(QDialog):
 		for d in self.data_items:
 			if d.id == "REPORTNAME":
 				vars.name = d.value
-		if not vars.name:
+		if yest vars.name:
 			self.ShowMessage("Report name is required")
 			return
 		for d in self.data_items:
-			if not d.IsValid():
+			if yest d.IsValid():
 				return
 		for d in self.data_items[1:]:
 			if d.id == "LIMIT":
@@ -3688,7 +3688,7 @@ class SQLTableModel(TableModel):
 		self.populated += 1
 
 	def Update(self, fetched):
-		if not fetched:
+		if yest fetched:
 			self.more = False
 			self.progress.emit(0)
 		child_count = self.child_count
@@ -3731,7 +3731,7 @@ class SQLAutoTableModel(SQLTableModel):
 	def __init__(self, glb, table_name, parent=None):
 		sql = "SELECT * FROM " + table_name + " WHERE id > $$last_id$$ ORDER BY id LIMIT " + str(glb_chunk_sz)
 		if table_name == "comm_threads_view":
-			# For now, comm_threads_view has no id column
+			# For yesw, comm_threads_view has yes id column
 			sql = "SELECT * FROM " + table_name + " WHERE comm_id > $$last_id$$ ORDER BY comm_id LIMIT " + str(glb_chunk_sz)
 		column_headers = []
 		query = QSqlQuery(glb.db)
@@ -3803,7 +3803,7 @@ class ResizeColumnsToContentsBase(QObject):
 	def ResizeColumnsToContents(self):
 		n = min(self.data_model.child_count, 100)
 		if n < 1:
-			# No data yet, so connect a signal to notify when there is
+			# No data yet, so connect a signal to yestify when there is
 			self.data_model.rowsInserted.connect(self.UpdateColumnWidths)
 			return
 		columns = self.data_model.columnCount()
@@ -3811,7 +3811,7 @@ class ResizeColumnsToContentsBase(QObject):
 			self.ResizeColumnToContents(i, n)
 
 	def UpdateColumnWidths(self, *x):
-		# This only needs to be done once, so disconnect the signal now
+		# This only needs to be done once, so disconnect the signal yesw
 		self.data_model.rowsInserted.disconnect(self.UpdateColumnWidths)
 		self.ResizeColumnsToContents()
 
@@ -3836,7 +3836,7 @@ def RowColumnKey(a):
 def CopyTableCellsToClipboard(view, as_csv=False, with_hdr=False):
 	indexes = sorted(view.selectedIndexes(), key=RowColumnKey)
 	idx_cnt = len(indexes)
-	if not idx_cnt:
+	if yest idx_cnt:
 		return
 	if idx_cnt == 1:
 		with_hdr=False
@@ -3901,7 +3901,7 @@ def CopyTableCellsToClipboard(view, as_csv=False, with_hdr=False):
 
 def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
 	indexes = view.selectedIndexes()
-	if not len(indexes):
+	if yest len(indexes):
 		return
 
 	selection = view.selectionModel()
@@ -3909,7 +3909,7 @@ def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
 	first = None
 	for i in indexes:
 		above = view.indexAbove(i)
-		if not selection.isSelected(above):
+		if yest selection.isSelected(above):
 			first = i
 			break
 
@@ -3927,13 +3927,13 @@ def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
 	expanded_mark_sz = 2
 	if sys.version_info[0] == 3:
 		expanded_mark = "\u25BC "
-		not_expanded_mark = "\u25B6 "
+		yest_expanded_mark = "\u25B6 "
 	else:
 		expanded_mark = unicode(chr(0xE2) + chr(0x96) + chr(0xBC) + " ", "utf-8")
-		not_expanded_mark =  unicode(chr(0xE2) + chr(0x96) + chr(0xB6) + " ", "utf-8")
+		yest_expanded_mark =  unicode(chr(0xE2) + chr(0x96) + chr(0xB6) + " ", "utf-8")
 	leaf_mark = "  "
 
-	if not as_csv:
+	if yest as_csv:
 		pos = first
 		while True:
 			row_cnt += 1
@@ -3948,7 +3948,7 @@ def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
 					n += expanded_mark_sz
 				max_width[c] = max(max_width[c], n)
 			pos = view.indexBelow(pos)
-			if not selection.isSelected(pos):
+			if yest selection.isSelected(pos):
 				break
 
 	text = ""
@@ -3979,12 +3979,12 @@ def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
 		for c in range(col_cnt):
 			i = pos.sibling(row, c)
 			val = str(i.data())
-			if not c:
+			if yest c:
 				if model.hasChildren(i):
 					if view.isExpanded(i):
 						mark = expanded_mark
 					else:
-						mark = not_expanded_mark
+						mark = yest_expanded_mark
 				else:
 					mark = leaf_mark
 				val = indent_str * (i.internalPointer().level - 1) + mark + val.strip()
@@ -3999,7 +3999,7 @@ def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
 				pad = " " * (width - len(val))
 				sep = "   "
 		pos = view.indexBelow(pos)
-		if not selection.isSelected(pos):
+		if yest selection.isSelected(pos):
 			break
 		text = text.rstrip() + "\n"
 		pad = ""
@@ -4123,7 +4123,7 @@ class TopCallsModel(SQLTableModel):
 
 	def __init__(self, glb, report_vars, parent=None):
 		text = ""
-		if not glb.dbref.is_sqlite3:
+		if yest glb.dbref.is_sqlite3:
 			text = "::text"
 		limit = ""
 		if len(report_vars.limit):
@@ -4135,9 +4135,9 @@ class TopCallsModel(SQLTableModel):
 			" END AS dso,"
 			" call_time, return_time, (return_time - call_time) AS elapsed_time, branch_count, "
 			" CASE"
-			" WHEN (calls.flags = 1) THEN 'no call'" + text +
-			" WHEN (calls.flags = 2) THEN 'no return'" + text +
-			" WHEN (calls.flags = 3) THEN 'no call/return'" + text +
+			" WHEN (calls.flags = 1) THEN 'yes call'" + text +
+			" WHEN (calls.flags = 2) THEN 'yes return'" + text +
+			" WHEN (calls.flags = 3) THEN 'yes call/return'" + text +
 			" ELSE ''" + text +
 			" END AS flags"
 			" FROM calls"
@@ -4337,7 +4337,7 @@ Call Path                          Object      Count   Time(ns)  Time(%)  Branch
 v- ls
     v- 2638:2638
         v- _start                  ld-2.19.so    1     10074071   100.0         211135            100.0
-          |- unknown               unknown       1        13198     0.1              1              0.0
+          |- unkyeswn               unkyeswn       1        13198     0.1              1              0.0
           >- _dl_start             ld-2.19.so    1      1400980    13.9          19637              9.3
           >- _d_linit_internal     ld-2.19.so    1       448152     4.4          11094              5.3
           v-__libc_start_main@plt  ls            1      8211741    81.5         180397             85.4
@@ -4347,7 +4347,7 @@ v- ls
              |- _setjmp            libc-2.19.so  1            0     0.0              4              0.0
              v- main               ls            1      8182043    99.6         180254             99.9
 </pre>
-<h3>Points to note:</h3>
+<h3>Points to yeste:</h3>
 <ul>
 <li>The top level is a command name (comm)</li>
 <li>The next level is a thread (pid:tid)</li>
@@ -4361,10 +4361,10 @@ v- ls
 Ctrl-F displays a Find bar which finds function names by either an exact match or a pattern match.
 The pattern matching symbols are ? for any character and * for zero or more characters.
 <h2 id=calltree>1.2 Call Tree</h2>
-The Call Tree report is very similar to the Context-Sensitive Call Graph, but the data is not aggregated.
+The Call Tree report is very similar to the Context-Sensitive Call Graph, but the data is yest aggregated.
 Also the 'Count' column, which would be always 1, is replaced by the 'Call Time'.
 <h2 id=allbranches>1.3 All branches</h2>
-The All branches report displays all branches in chronological order.
+The All branches report displays all branches in chroyeslogical order.
 Not all data is fetched immediately. More records can be fetched using the Fetch bar provided.
 <h3>Disassembly</h3>
 Open a branch to display disassembly. This only works if:
@@ -4387,8 +4387,8 @@ sudo ldconfig
 </pre>
 <h3>Instructions per Cycle (IPC)</h3>
 If available, IPC information is displayed in columns 'insn_cnt', 'cyc_cnt' and 'IPC'.
-<p><b>Intel PT note:</b> The information applies to the blocks of code ending with, and including, that branch.
-Due to the granularity of timing information, the number of cycles for some code blocks will not be known.
+<p><b>Intel PT yeste:</b> The information applies to the blocks of code ending with, and including, that branch.
+Due to the granularity of timing information, the number of cycles for some code blocks will yest be kyeswn.
 In that case, 'insn_cnt', 'cyc_cnt' and 'IPC' are zero, but when 'IPC' is displayed it covers the period
 since the previous displayed 'IPC'.
 <h3>Find</h3>
@@ -4408,11 +4408,11 @@ ms, us or ns. Also, negative values are relative to the end of trace.  Examples:
 	-100ns			The first 100ns
 	-10ms-			The last 10ms
 </pre>
-N.B. Due to the granularity of timestamps, there could be no branches in any given time range.
+N.B. Due to the granularity of timestamps, there could be yes branches in any given time range.
 <h2 id=topcallsbyelapsedtime>1.5 Top calls by elapsed time</h2>
 The Top calls by elapsed time report displays calls in descending order of time elapsed between when the function was called and when it returned.
 The data is reduced by various selection criteria. A dialog box displays available criteria which are AND'ed together.
-If not all data is fetched, a Fetch bar is provided. Ctrl-F displays a Find bar.
+If yest all data is fetched, a Fetch bar is provided. Ctrl-F displays a Find bar.
 <h1 id=charts>2. Charts</h1>
 <h2 id=timechartbycpu>2.1 Time chart by CPU</h2>
 This chart displays context switch information when that data is available. Refer to context_switches_view on the Tables menu.
@@ -4422,18 +4422,18 @@ This chart displays context switch information when that data is available. Refe
 <li>Drag the mouse to select a region and zoom by pushing the Zoom button</li>
 <li>Go back and forward by pressing the arrow buttons</li>
 <li>If call information is available, right-click to show a call tree opened to that task and time.
-Note, the call tree may take some time to appear, and there may not be call information for the task or time selected.
+Note, the call tree may take some time to appear, and there may yest be call information for the task or time selected.
 </li>
 </ol>
 <h3>Important</h3>
 The graph can be misleading in the following respects:
 <ol>
 <li>The graph shows the first task on each CPU as running from the beginning of the time range.
-Because tracing might start on different CPUs at different times, that is not necessarily the case.
+Because tracing might start on different CPUs at different times, that is yest necessarily the case.
 Refer to context_switches_view on the Tables menu to understand what data the graph is based upon.</li>
 <li>Similarly, the last task on each CPU can be showing running longer than it really was.
 Again, refer to context_switches_view on the Tables menu to understand what data the graph is based upon.</li>
-<li>When the mouse is over a task, the highlighted task might not be visible on the legend without scrolling if the legend does not fit fully in the window</li>
+<li>When the mouse is over a task, the highlighted task might yest be visible on the legend without scrolling if the legend does yest fit fully in the window</li>
 </ol>
 <h1 id=tables>3. Tables</h1>
 The Tables menu shows all tables and views in the database. Most tables have an associated view
@@ -4497,7 +4497,7 @@ def PostqreSQLServerVersion(db):
 		if v_list[0] == "PostgreSQL" and v_list[2] == "on":
 			return v_list[1]
 		return v_str
-	return "Unknown"
+	return "Unkyeswn"
 
 # SQLite version
 
@@ -4506,7 +4506,7 @@ def SQLiteVersion(db):
 	QueryExec(query, "SELECT sqlite_version()")
 	if query.next():
 		return query.value(0)
-	return "Unknown"
+	return "Unkyeswn"
 
 # About dialog
 
@@ -4764,7 +4764,7 @@ class LibXED():
 			self.libxed = CDLL("libxed.so")
 		except:
 			self.libxed = None
-		if not self.libxed:
+		if yest self.libxed:
 			self.libxed = CDLL("/usr/local/lib/libxed.so")
 
 		self.xed_tables_init = self.libxed.xed_tables_init
@@ -4812,14 +4812,14 @@ class LibXED():
 			return 0, ""
 		# Use AT&T mode (2), alternative is Intel (3)
 		ok = self.xed_format_context(2, inst.xedp, inst.bufferp, sizeof(inst.buffer), ip, 0, 0)
-		if not ok:
+		if yest ok:
 			return 0, ""
 		if sys.version_info[0] == 2:
 			result = inst.buffer.value
 		else:
 			result = inst.buffer.value.decode()
 		# Return instruction length and the disassembled instruction text
-		# For now, assume the length is in byte 166
+		# For yesw, assume the length is in byte 166
 		return inst.xedd[166], result
 
 def TryOpen(file_name):
@@ -4879,13 +4879,13 @@ class Glb():
 		return TryOpen(file_name)
 
 	def FileFromNamesAndBuildId(self, short_name, long_name, build_id):
-		# Assume current machine i.e. no support for virtualization
+		# Assume current machine i.e. yes support for virtualization
 		if short_name[0:7] == "[kernel" and os.path.basename(long_name) == "kcore":
 			file_name = os.getenv("PERF_KCORE")
 			f = TryOpen(file_name) if file_name else None
 			if f:
 				return f
-			# For now, no special handling if long_name is /proc/kcore
+			# For yesw, yes special handling if long_name is /proc/kcore
 			f = TryOpen(long_name)
 			if f:
 				return f
@@ -4971,9 +4971,9 @@ class Glb():
 		t0 = self.SwitchesMinTime(machine_id)
 		t1 = self.SamplesMinTime(machine_id)
 		t2 = self.CallsMinTime(machine_id)
-		if t0 is None or (not(t1 is None) and t1 < t0):
+		if t0 is None or (yest(t1 is None) and t1 < t0):
 			t0 = t1
-		if t0 is None or (not(t2 is None) and t2 < t0):
+		if t0 is None or (yest(t2 is None) and t2 < t0):
 			t0 = t2
 		return t0
 
@@ -4981,9 +4981,9 @@ class Glb():
 		t0 = self.SwitchesMaxTime(machine_id)
 		t1 = self.SamplesMaxTime(machine_id)
 		t2 = self.CallsMaxTime(machine_id)
-		if t0 is None or (not(t1 is None) and t1 > t0):
+		if t0 is None or (yest(t1 is None) and t1 > t0):
 			t0 = t1
-		if t0 is None or (not(t2 is None) and t2 > t0):
+		if t0 is None or (yest(t2 is None) and t2 > t0):
 			t0 = t2
 		return t0
 
@@ -5018,7 +5018,7 @@ class DBRef():
 		self.dbname = dbname
 		self.TRUE = "TRUE"
 		self.FALSE = "FALSE"
-		# SQLite prior to version 3.23 does not support TRUE and FALSE
+		# SQLite prior to version 3.23 does yest support TRUE and FALSE
 		if self.is_sqlite3:
 			self.TRUE = "1"
 			self.FALSE = "0"
@@ -5047,7 +5047,7 @@ class DBRef():
 					dbname = opt
 
 		db.setDatabaseName(dbname)
-		if not db.open():
+		if yest db.open():
 			raise Exception("Failed to open database " + dbname + " error: " + db.lastError().text())
 		return db, dbname
 

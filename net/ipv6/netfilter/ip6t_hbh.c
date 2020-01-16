@@ -24,10 +24,10 @@ MODULE_ALIAS("ip6t_dst");
 
 /*
  *  (Type & 0xC0) >> 6
- *	0	-> ignorable
+ *	0	-> igyesrable
  *	1	-> must drop the packet
  *	2	-> send ICMP PARM PROB regardless and drop packet
- *	3	-> Send ICMP if not a multicast address and drop packet
+ *	3	-> Send ICMP if yest a multicast address and drop packet
  *  (Type & 0x20) >> 5
  *	0	-> invariant
  *	1	-> can change the routing
@@ -166,12 +166,12 @@ static int hbh_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_opts *optsinfo = par->matchinfo;
 
 	if (optsinfo->invflags & ~IP6T_OPTS_INV_MASK) {
-		pr_debug("unknown flags %X\n", optsinfo->invflags);
+		pr_debug("unkyeswn flags %X\n", optsinfo->invflags);
 		return -EINVAL;
 	}
 
 	if (optsinfo->flags & IP6T_OPTS_NSTRICT) {
-		pr_debug("Not strict - not implemented");
+		pr_debug("Not strict - yest implemented");
 		return -EINVAL;
 	}
 

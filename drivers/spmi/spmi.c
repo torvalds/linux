@@ -3,7 +3,7 @@
  * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -326,7 +326,7 @@ static int spmi_drv_probe(struct device *dev)
 	struct spmi_device *sdev = to_spmi_device(dev);
 	int err;
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -339,7 +339,7 @@ static int spmi_drv_probe(struct device *dev)
 fail_probe:
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	return err;
 }
 
@@ -349,11 +349,11 @@ static int spmi_drv_remove(struct device *dev)
 
 	pm_runtime_get_sync(dev);
 	sdrv->remove(to_spmi_device(dev));
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	return 0;
 }
 
@@ -427,7 +427,7 @@ struct spmi_controller *spmi_controller_alloc(struct device *parent,
 	ctrl->dev.type = &spmi_ctrl_type;
 	ctrl->dev.bus = &spmi_bus_type;
 	ctrl->dev.parent = parent;
-	ctrl->dev.of_node = parent->of_node;
+	ctrl->dev.of_yesde = parent->of_yesde;
 	spmi_controller_set_drvdata(ctrl, &ctrl[1]);
 
 	id = ida_simple_get(&ctrl_ida, 0, 0, GFP_KERNEL);
@@ -448,35 +448,35 @@ EXPORT_SYMBOL_GPL(spmi_controller_alloc);
 
 static void of_spmi_register_devices(struct spmi_controller *ctrl)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int err;
 
-	if (!ctrl->dev.of_node)
+	if (!ctrl->dev.of_yesde)
 		return;
 
-	for_each_available_child_of_node(ctrl->dev.of_node, node) {
+	for_each_available_child_of_yesde(ctrl->dev.of_yesde, yesde) {
 		struct spmi_device *sdev;
 		u32 reg[2];
 
-		dev_dbg(&ctrl->dev, "adding child %pOF\n", node);
+		dev_dbg(&ctrl->dev, "adding child %pOF\n", yesde);
 
-		err = of_property_read_u32_array(node, "reg", reg, 2);
+		err = of_property_read_u32_array(yesde, "reg", reg, 2);
 		if (err) {
 			dev_err(&ctrl->dev,
-				"node %pOF err (%d) does not have 'reg' property\n",
-				node, err);
+				"yesde %pOF err (%d) does yest have 'reg' property\n",
+				yesde, err);
 			continue;
 		}
 
 		if (reg[1] != SPMI_USID) {
 			dev_err(&ctrl->dev,
-				"node %pOF contains unsupported 'reg' entry\n",
-				node);
+				"yesde %pOF contains unsupported 'reg' entry\n",
+				yesde);
 			continue;
 		}
 
 		if (reg[0] >= SPMI_MAX_SLAVE_ID) {
-			dev_err(&ctrl->dev, "invalid usid on node %pOF\n", node);
+			dev_err(&ctrl->dev, "invalid usid on yesde %pOF\n", yesde);
 			continue;
 		}
 
@@ -486,7 +486,7 @@ static void of_spmi_register_devices(struct spmi_controller *ctrl)
 		if (!sdev)
 			continue;
 
-		sdev->dev.of_node = node;
+		sdev->dev.of_yesde = yesde;
 		sdev->usid = (u8) reg[0];
 
 		err = spmi_device_add(sdev);

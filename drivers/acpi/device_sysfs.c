@@ -32,61 +32,61 @@ static ssize_t acpi_object_path(acpi_handle handle, char *buf)
 	return result;
 }
 
-struct acpi_data_node_attr {
+struct acpi_data_yesde_attr {
 	struct attribute attr;
-	ssize_t (*show)(struct acpi_data_node *, char *);
-	ssize_t (*store)(struct acpi_data_node *, const char *, size_t count);
+	ssize_t (*show)(struct acpi_data_yesde *, char *);
+	ssize_t (*store)(struct acpi_data_yesde *, const char *, size_t count);
 };
 
 #define DATA_NODE_ATTR(_name)			\
-	static struct acpi_data_node_attr data_node_##_name =	\
-		__ATTR(_name, 0444, data_node_show_##_name, NULL)
+	static struct acpi_data_yesde_attr data_yesde_##_name =	\
+		__ATTR(_name, 0444, data_yesde_show_##_name, NULL)
 
-static ssize_t data_node_show_path(struct acpi_data_node *dn, char *buf)
+static ssize_t data_yesde_show_path(struct acpi_data_yesde *dn, char *buf)
 {
 	return dn->handle ? acpi_object_path(dn->handle, buf) : 0;
 }
 
 DATA_NODE_ATTR(path);
 
-static struct attribute *acpi_data_node_default_attrs[] = {
-	&data_node_path.attr,
+static struct attribute *acpi_data_yesde_default_attrs[] = {
+	&data_yesde_path.attr,
 	NULL
 };
 
-#define to_data_node(k) container_of(k, struct acpi_data_node, kobj)
-#define to_attr(a) container_of(a, struct acpi_data_node_attr, attr)
+#define to_data_yesde(k) container_of(k, struct acpi_data_yesde, kobj)
+#define to_attr(a) container_of(a, struct acpi_data_yesde_attr, attr)
 
-static ssize_t acpi_data_node_attr_show(struct kobject *kobj,
+static ssize_t acpi_data_yesde_attr_show(struct kobject *kobj,
 					struct attribute *attr, char *buf)
 {
-	struct acpi_data_node *dn = to_data_node(kobj);
-	struct acpi_data_node_attr *dn_attr = to_attr(attr);
+	struct acpi_data_yesde *dn = to_data_yesde(kobj);
+	struct acpi_data_yesde_attr *dn_attr = to_attr(attr);
 
 	return dn_attr->show ? dn_attr->show(dn, buf) : -ENXIO;
 }
 
-static const struct sysfs_ops acpi_data_node_sysfs_ops = {
-	.show	= acpi_data_node_attr_show,
+static const struct sysfs_ops acpi_data_yesde_sysfs_ops = {
+	.show	= acpi_data_yesde_attr_show,
 };
 
-static void acpi_data_node_release(struct kobject *kobj)
+static void acpi_data_yesde_release(struct kobject *kobj)
 {
-	struct acpi_data_node *dn = to_data_node(kobj);
+	struct acpi_data_yesde *dn = to_data_yesde(kobj);
 	complete(&dn->kobj_done);
 }
 
-static struct kobj_type acpi_data_node_ktype = {
-	.sysfs_ops = &acpi_data_node_sysfs_ops,
-	.default_attrs = acpi_data_node_default_attrs,
-	.release = acpi_data_node_release,
+static struct kobj_type acpi_data_yesde_ktype = {
+	.sysfs_ops = &acpi_data_yesde_sysfs_ops,
+	.default_attrs = acpi_data_yesde_default_attrs,
+	.release = acpi_data_yesde_release,
 };
 
-static void acpi_expose_nondev_subnodes(struct kobject *kobj,
+static void acpi_expose_yesndev_subyesdes(struct kobject *kobj,
 					struct acpi_device_data *data)
 {
-	struct list_head *list = &data->subnodes;
-	struct acpi_data_node *dn;
+	struct list_head *list = &data->subyesdes;
+	struct acpi_data_yesde *dn;
 
 	if (list_empty(list))
 		return;
@@ -95,25 +95,25 @@ static void acpi_expose_nondev_subnodes(struct kobject *kobj,
 		int ret;
 
 		init_completion(&dn->kobj_done);
-		ret = kobject_init_and_add(&dn->kobj, &acpi_data_node_ktype,
+		ret = kobject_init_and_add(&dn->kobj, &acpi_data_yesde_ktype,
 					   kobj, "%s", dn->name);
 		if (!ret)
-			acpi_expose_nondev_subnodes(&dn->kobj, &dn->data);
+			acpi_expose_yesndev_subyesdes(&dn->kobj, &dn->data);
 		else if (dn->handle)
 			acpi_handle_err(dn->handle, "Failed to expose (%d)\n", ret);
 	}
 }
 
-static void acpi_hide_nondev_subnodes(struct acpi_device_data *data)
+static void acpi_hide_yesndev_subyesdes(struct acpi_device_data *data)
 {
-	struct list_head *list = &data->subnodes;
-	struct acpi_data_node *dn;
+	struct list_head *list = &data->subyesdes;
+	struct acpi_data_yesde *dn;
 
 	if (list_empty(list))
 		return;
 
 	list_for_each_entry_reverse(dn, list, sibling) {
-		acpi_hide_nondev_subnodes(&dn->data);
+		acpi_hide_yesndev_subyesdes(&dn->data);
 		kobject_put(&dn->kobj);
 	}
 }
@@ -127,7 +127,7 @@ static void acpi_hide_nondev_subnodes(struct acpi_device_data *data)
  * Creates hid/cid(s) string needed for modalias and uevent
  * e.g. on a device with hid:IBM0001 and cid:ACPI0001 you get:
  * char *modalias: "acpi:IBM0001:ACPI0001"
- * Return: 0: no _HID and no _CID
+ * Return: 0: yes _HID and yes _CID
  *         -EINVAL: output error
  *         -ENOMEM: output is truncated
 */
@@ -138,7 +138,7 @@ static int create_pnp_modalias(struct acpi_device *acpi_dev, char *modalias,
 	int count;
 	struct acpi_hardware_id *id;
 
-	/* Avoid unnecessarily loading modules for non present devices. */
+	/* Avoid unnecessarily loading modules for yesn present devices. */
 	if (!acpi_device_is_present(acpi_dev))
 		return 0;
 
@@ -278,7 +278,7 @@ int __acpi_device_uevent_modalias(struct acpi_device *adev,
  *
  * Create the uevent modalias field for ACPI-enumerated devices.
  *
- * Because other buses do not support ACPI HIDs & CIDs, e.g. for a device with
+ * Because other buses do yest support ACPI HIDs & CIDs, e.g. for a device with
  * hid:IBM0001 and cid:ACPI0001 you get: "acpi:IBM0001:ACPI0001".
  */
 int acpi_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env)
@@ -323,7 +323,7 @@ static int __acpi_device_modalias(struct acpi_device *adev, char *buf, int size)
  *
  * Create the modalias sysfs attribute for ACPI-enumerated devices.
  *
- * Because other buses do not support ACPI HIDs & CIDs, e.g. for a device with
+ * Because other buses do yest support ACPI HIDs & CIDs, e.g. for a device with
  * hid:IBM0001 and cid:ACPI0001 you get: "acpi:IBM0001:ACPI0001".
  */
 int acpi_device_modalias(struct device *dev, char *buf, int size)
@@ -370,7 +370,7 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct acpi_device *acpi_device = to_acpi_device(d);
-	acpi_object_type not_used;
+	acpi_object_type yest_used;
 	acpi_status status;
 
 	if (!count || buf[0] != '1')
@@ -380,7 +380,7 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	    && !acpi_device->driver)
 		return -ENODEV;
 
-	status = acpi_get_type(acpi_device->handle, &not_used);
+	status = acpi_get_type(acpi_device->handle, &yest_used);
 	if (ACPI_FAILURE(status) || !acpi_device->flags.ejectable)
 		return -ENODEV;
 
@@ -592,7 +592,7 @@ int acpi_device_setup_files(struct acpi_device *dev)
 						    &dev_attr_real_power_state);
 	}
 
-	acpi_expose_nondev_subnodes(&dev->dev.kobj, &dev->data);
+	acpi_expose_yesndev_subyesdes(&dev->dev.kobj, &dev->data);
 
 end:
 	return result;
@@ -604,7 +604,7 @@ end:
  */
 void acpi_device_remove_files(struct acpi_device *dev)
 {
-	acpi_hide_nondev_subnodes(&dev->data);
+	acpi_hide_yesndev_subyesdes(&dev->data);
 
 	if (dev->flags.power_manageable) {
 		device_remove_file(&dev->dev, &dev_attr_power_state);

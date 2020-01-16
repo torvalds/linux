@@ -82,7 +82,7 @@ static int probe_maple_mouse(struct device *dev)
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		error = -ENOMEM;
-		goto fail_nomem;
+		goto fail_yesmem;
 	}
 
 	mse->dev = input_dev;
@@ -108,7 +108,7 @@ static int probe_maple_mouse(struct device *dev)
 
 fail_register:
 	input_free_device(input_dev);
-fail_nomem:
+fail_yesmem:
 	kfree(mse);
 fail:
 	return error;

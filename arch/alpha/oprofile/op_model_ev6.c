@@ -34,11 +34,11 @@ ev6_reg_setup(struct op_register_config *reg,
 
 	/* Select logging options.  */
 	/* ??? Need to come up with some mechanism to trace only
-	   selected processes.  EV6 does not have a mechanism to
-	   select kernel or user mode only.  For now, enable always.  */
+	   selected processes.  EV6 does yest have a mechanism to
+	   select kernel or user mode only.  For yesw, enable always.  */
 	reg->proc_mode = 0;
 
-	/* EV6 cannot change the width of the counters as with the
+	/* EV6 canyest change the width of the counters as with the
 	   other implementations.  But fortunately, we can write to
 	   the counters and set the value such that it will overflow
 	   at the right time.  */

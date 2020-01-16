@@ -260,7 +260,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	/*
 	 * There are times we can optimize out this status read, but it
-	 * doesn't hurt us to always do it now.
+	 * doesn't hurt us to always do it yesw.
 	 */
 	result = usb_stor_bulk_transfer_buf (us, ipipe, fst,
 			FCM_STATUS_PACKET_LENGTH, &partial);
@@ -277,7 +277,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 	 * without having to send a new ATAPI command to the device.
 	 *
 	 * NOTE: There is some indication that a data transfer after a timeout
-	 * may not work, but that is a condition that should never happen.
+	 * may yest work, but that is a condition that should never happen.
 	 */
 	while (fst->Status & FCM_STATUS_BUSY) {
 		usb_stor_dbg(us, "20 second USB/ATAPI bridge TIMEOUT occurred!\n");
@@ -322,7 +322,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	/*
-	 * The device might not have as much data available as we
+	 * The device might yest have as much data available as we
 	 * requested.  If you ask for more than the device has, this reads
 	 * and such will hang.
 	 */
@@ -350,7 +350,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	/*
-	 * What we do now depends on what direction the data is supposed to
+	 * What we do yesw depends on what direction the data is supposed to
 	 * move in.
 	 */
 
@@ -422,7 +422,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 
 	case DMA_NONE:
-		/* Easy, do nothing. */
+		/* Easy, do yesthing. */
 		break;
 
 	default:
@@ -573,7 +573,7 @@ static struct usb_driver freecom_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	freecom_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 };
 
 module_usb_stor_driver(freecom_driver, freecom_host_template, DRV_NAME);

@@ -18,7 +18,7 @@
 
 /* Be sure that virtual mapping is defined right */
 #ifndef __ASM_ARCH_HARDWARE_H
-#error You must include hardware.h not SA-1100.h
+#error You must include hardware.h yest SA-1100.h
 #endif
 
 #include "bitfield.h"
@@ -189,73 +189,73 @@
 
 
 /*
- * Universal Asynchronous Receiver/Transmitter (UART) control registers
+ * Universal Asynchroyesus Receiver/Transmitter (UART) control registers
  *
  * Registers
- *    Ser1UTCR0 	Serial port 1 Universal Asynchronous
+ *    Ser1UTCR0 	Serial port 1 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 0
  *              	(read/write).
- *    Ser1UTCR1 	Serial port 1 Universal Asynchronous
+ *    Ser1UTCR1 	Serial port 1 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 1
  *              	(read/write).
- *    Ser1UTCR2 	Serial port 1 Universal Asynchronous
+ *    Ser1UTCR2 	Serial port 1 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 2
  *              	(read/write).
- *    Ser1UTCR3 	Serial port 1 Universal Asynchronous
+ *    Ser1UTCR3 	Serial port 1 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 3
  *              	(read/write).
- *    Ser1UTDR  	Serial port 1 Universal Asynchronous
+ *    Ser1UTDR  	Serial port 1 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Data Register
  *              	(read/write).
- *    Ser1UTSR0 	Serial port 1 Universal Asynchronous
+ *    Ser1UTSR0 	Serial port 1 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Status Register 0
  *              	(read/write).
- *    Ser1UTSR1 	Serial port 1 Universal Asynchronous
+ *    Ser1UTSR1 	Serial port 1 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Status Register 1 (read).
  *
- *    Ser2UTCR0 	Serial port 2 Universal Asynchronous
+ *    Ser2UTCR0 	Serial port 2 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 0
  *              	(read/write).
- *    Ser2UTCR1 	Serial port 2 Universal Asynchronous
+ *    Ser2UTCR1 	Serial port 2 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 1
  *              	(read/write).
- *    Ser2UTCR2 	Serial port 2 Universal Asynchronous
+ *    Ser2UTCR2 	Serial port 2 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 2
  *              	(read/write).
- *    Ser2UTCR3 	Serial port 2 Universal Asynchronous
+ *    Ser2UTCR3 	Serial port 2 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 3
  *              	(read/write).
- *    Ser2UTCR4 	Serial port 2 Universal Asynchronous
+ *    Ser2UTCR4 	Serial port 2 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 4
  *              	(read/write).
- *    Ser2UTDR  	Serial port 2 Universal Asynchronous
+ *    Ser2UTDR  	Serial port 2 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Data Register
  *              	(read/write).
- *    Ser2UTSR0 	Serial port 2 Universal Asynchronous
+ *    Ser2UTSR0 	Serial port 2 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Status Register 0
  *              	(read/write).
- *    Ser2UTSR1 	Serial port 2 Universal Asynchronous
+ *    Ser2UTSR1 	Serial port 2 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Status Register 1 (read).
  *
- *    Ser3UTCR0 	Serial port 3 Universal Asynchronous
+ *    Ser3UTCR0 	Serial port 3 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 0
  *              	(read/write).
- *    Ser3UTCR1 	Serial port 3 Universal Asynchronous
+ *    Ser3UTCR1 	Serial port 3 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 1
  *              	(read/write).
- *    Ser3UTCR2 	Serial port 3 Universal Asynchronous
+ *    Ser3UTCR2 	Serial port 3 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 2
  *              	(read/write).
- *    Ser3UTCR3 	Serial port 3 Universal Asynchronous
+ *    Ser3UTCR3 	Serial port 3 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Control Register 3
  *              	(read/write).
- *    Ser3UTDR  	Serial port 3 Universal Asynchronous
+ *    Ser3UTDR  	Serial port 3 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Data Register
  *              	(read/write).
- *    Ser3UTSR0 	Serial port 3 Universal Asynchronous
+ *    Ser3UTSR0 	Serial port 3 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Status Register 0
  *              	(read/write).
- *    Ser3UTSR1 	Serial port 3 Universal Asynchronous
+ *    Ser3UTSR1 	Serial port 3 Universal Asynchroyesus
  *              	Receiver/Transmitter (UART) Status Register 1 (read).
  *
  * Clocks
@@ -400,24 +400,24 @@
 
 
 /*
- * Synchronous Data Link Controller (SDLC) control registers
+ * Synchroyesus Data Link Controller (SDLC) control registers
  *
  * Registers
- *    Ser1SDCR0 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDCR0 	Serial port 1 Synchroyesus Data Link Controller (SDLC)
  *              	Control Register 0 (read/write).
- *    Ser1SDCR1 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDCR1 	Serial port 1 Synchroyesus Data Link Controller (SDLC)
  *              	Control Register 1 (read/write).
- *    Ser1SDCR2 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDCR2 	Serial port 1 Synchroyesus Data Link Controller (SDLC)
  *              	Control Register 2 (read/write).
- *    Ser1SDCR3 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDCR3 	Serial port 1 Synchroyesus Data Link Controller (SDLC)
  *              	Control Register 3 (read/write).
- *    Ser1SDCR4 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDCR4 	Serial port 1 Synchroyesus Data Link Controller (SDLC)
  *              	Control Register 4 (read/write).
- *    Ser1SDDR  	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDDR  	Serial port 1 Synchroyesus Data Link Controller (SDLC)
  *              	Data Register (read/write).
- *    Ser1SDSR0 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDSR0 	Serial port 1 Synchroyesus Data Link Controller (SDLC)
  *              	Status Register 0 (read/write).
- *    Ser1SDSR1 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDSR1 	Serial port 1 Synchroyesus Data Link Controller (SDLC)
  *              	Status Register 1 (read/write).
  *
  * Clocks
@@ -592,12 +592,12 @@
 #define HSCR2_TrDataL	(HSCR2_TXP*0)	/*  Transmit Data active Low       */
                 	        	/*  (inverted)                     */
 #define HSCR2_TrDataH	(HSCR2_TXP*1)	/*  Transmit Data active High      */
-                	        	/*  (non-inverted)                 */
+                	        	/*  (yesn-inverted)                 */
 #define HSCR2_RXP	0x00080000	/* Receive data Polarity (RXD_2)   */
 #define HSCR2_RcDataL	(HSCR2_RXP*0)	/*  Receive Data active Low        */
                 	        	/*  (inverted)                     */
 #define HSCR2_RcDataH	(HSCR2_RXP*1)	/*  Receive Data active High       */
-                	        	/*  (non-inverted)                 */
+                	        	/*  (yesn-inverted)                 */
 
 
 /*
@@ -730,18 +730,18 @@
 
 
 /*
- * Synchronous Serial Port (SSP) control registers
+ * Synchroyesus Serial Port (SSP) control registers
  *
  * Registers
- *    Ser4SSCR0 	Serial port 4 Synchronous Serial Port (SSP) Control
+ *    Ser4SSCR0 	Serial port 4 Synchroyesus Serial Port (SSP) Control
  *              	Register 0 (read/write).
- *    Ser4SSCR1 	Serial port 4 Synchronous Serial Port (SSP) Control
+ *    Ser4SSCR1 	Serial port 4 Synchroyesus Serial Port (SSP) Control
  *              	Register 1 (read/write).
  *              	[Bits SPO and SP are only implemented in versions 2.0
  *              	(rev. = 8) and higher of the StrongARM SA-1100.]
- *    Ser4SSDR  	Serial port 4 Synchronous Serial Port (SSP) Data
+ *    Ser4SSDR  	Serial port 4 Synchroyesus Serial Port (SSP) Data
  *              	Register (read/write).
- *    Ser4SSSR  	Serial port 4 Synchronous Serial Port (SSP) Status
+ *    Ser4SSSR  	Serial port 4 Synchroyesus Serial Port (SSP) Status
  *              	Register (read/write).
  *
  * Clocks
@@ -762,7 +762,7 @@
 #define SSCR0_Motorola	        	/*  Motorola Serial Peripheral     */ \
                 	        	/*  Interface (SPI) format         */ \
                 	(0 << FShft (SSCR0_FRF))
-#define SSCR0_TI	        	/*  Texas Instruments Synchronous  */ \
+#define SSCR0_TI	        	/*  Texas Instruments Synchroyesus  */ \
                 	        	/*  Serial format                  */ \
                 	(1 << FShft (SSCR0_FRF))
 #define SSCR0_National	        	/*  National Microwire format      */ \
@@ -1173,7 +1173,7 @@
                 	        	/* ser. port 4:                    */
 #define GPIO_MCP_CLK	GPIO_GPIO (21)	/*  MCP CLocK (I)                  */
                 	        	/* test controller:                */
-#define GPIO_TIC_ACK	GPIO_GPIO (21)	/*  TIC ACKnowledge (O)            */
+#define GPIO_TIC_ACK	GPIO_GPIO (21)	/*  TIC ACKyeswledge (O)            */
 #define GPIO_MBGNT	GPIO_GPIO (21)	/*  Memory Bus GraNT (O)           */
 #define GPIO_TREQA	GPIO_GPIO (22)	/*  TIC REQuest A (I)              */
 #define GPIO_MBREQ	GPIO_GPIO (22)	/*  Memory Bus REQuest (I)         */
@@ -1203,7 +1203,7 @@
  *    ICPR      	Interrupt Controller (IC) Pending Register (read).
  *              	[The ICPR register is active low (inverted) in
  *              	versions 1.0 (rev. = 1) and 1.1 (rev. = 2) of the
- *              	StrongARM SA-1100, it is active high (non-inverted) in
+ *              	StrongARM SA-1100, it is active high (yesn-inverted) in
  *              	versions 2.0 (rev. = 8) and higher.]
  */
 
@@ -1259,8 +1259,8 @@
 #define ICCR_DIM	0x00000001	/* Disable Idle-mode interrupt     */
                 	        	/* Mask                            */
 #define ICCR_IdleAllInt	(ICCR_DIM*0)	/*  Idle-mode All Interrupt enable */
-                	        	/*  (ICMR ignored)                 */
-#define ICCR_IdleMskInt	(ICCR_DIM*1)	/*  Idle-mode non-Masked Interrupt */
+                	        	/*  (ICMR igyesred)                 */
+#define ICCR_IdleMskInt	(ICCR_DIM*1)	/*  Idle-mode yesn-Masked Interrupt */
                 	        	/*  enable (ICMR used)             */
 
 
@@ -1442,7 +1442,7 @@
 
 #define MSC0		__REG(0xa0000010)  /* Static memory Control reg. 0 */
 #define MSC1		__REG(0xa0000014)  /* Static memory Control reg. 1 */
-#define MSC2		__REG(0xa000002c)  /* Static memory Control reg. 2, not contiguous   */
+#define MSC2		__REG(0xa000002c)  /* Static memory Control reg. 2, yest contiguous   */
 
 #define MSC_Bnk(Nb)	        	/* static memory Bank [0..3]       */ \
                 	Fld (16, ((Nb) Modulo 2)*16)
@@ -1470,7 +1470,7 @@
                 	((((Tcpu) - 3)/2) << FShft (MSC_RDF))
 #define MSC_Ceil1stRdAcc(Tcpu)  	/*  Ceil. of 1stRdAcc [3..65 Tcpu] */ \
                 	((((Tcpu) - 2)/2) << FShft (MSC_RDF))
-#define MSC_RdAcc(Tcpu)	        	/*  Read Access time (non-burst    */ \
+#define MSC_RdAcc(Tcpu)	        	/*  Read Access time (yesn-burst    */ \
                 	        	/*  static memory) [2..64 Tcpu]    */ \
                 	((((Tcpu) - 2)/2) << FShft (MSC_RDF))
 #define MSC_CeilRdAcc(Tcpu)     	/*  Ceil. of RdAcc [2..64 Tcpu]    */ \
@@ -1482,7 +1482,7 @@
                 	((((Tcpu) - 2)/2) << FShft (MSC_RDN))
 #define MSC_CeilNxtRdAcc(Tcpu)  	/*  Ceil. of NxtRdAcc [2..64 Tcpu] */ \
                 	((((Tcpu) - 1)/2) << FShft (MSC_RDN))
-#define MSC_WrAcc(Tcpu)	        	/*  Write Access time (non-burst   */ \
+#define MSC_WrAcc(Tcpu)	        	/*  Write Access time (yesn-burst   */ \
                 	        	/*  static memory) [2..64 Tcpu]    */ \
                 	((((Tcpu) - 2)/2) << FShft (MSC_RDN))
 #define MSC_CeilWrAcc(Tcpu)     	/*  Ceil. of WrAcc [2..64 Tcpu]    */ \
@@ -1656,9 +1656,9 @@
                 	        	/* (Alternative)                   */
 
 #define LCCR0_LEN	0x00000001	/* LCD ENable                      */
-#define LCCR0_CMS	0x00000002	/* Color/Monochrome display Select */
+#define LCCR0_CMS	0x00000002	/* Color/Moyeschrome display Select */
 #define LCCR0_Color	(LCCR0_CMS*0)	/*  Color display                  */
-#define LCCR0_Mono	(LCCR0_CMS*1)	/*  Monochrome display             */
+#define LCCR0_Moyes	(LCCR0_CMS*1)	/*  Moyeschrome display             */
 #define LCCR0_SDS	0x00000004	/* Single/Dual panel display       */
                 	        	/* Select                          */
 #define LCCR0_Sngl	(LCCR0_SDS*0)	/*  Single panel display           */
@@ -1676,11 +1676,11 @@
 #define LCCR0_BLE	0x00000100	/* Big/Little Endian select        */
 #define LCCR0_LtlEnd	(LCCR0_BLE*0)	/*  Little Endian frame buffer     */
 #define LCCR0_BigEnd	(LCCR0_BLE*1)	/*  Big Endian frame buffer        */
-#define LCCR0_DPD	0x00000200	/* Double Pixel Data (monochrome   */
+#define LCCR0_DPD	0x00000200	/* Double Pixel Data (moyeschrome   */
                 	        	/* display mode)                   */
-#define LCCR0_4PixMono	(LCCR0_DPD*0)	/*  4-Pixel/clock Monochrome       */
+#define LCCR0_4PixMoyes	(LCCR0_DPD*0)	/*  4-Pixel/clock Moyeschrome       */
                 	        	/*  display                        */
-#define LCCR0_8PixMono	(LCCR0_DPD*1)	/*  8-Pixel/clock Monochrome       */
+#define LCCR0_8PixMoyes	(LCCR0_DPD*1)	/*  8-Pixel/clock Moyeschrome       */
                 	        	/*  display                        */
 #define LCCR0_PDD	Fld (8, 12)	/* Palette DMA request Delay       */
                 	        	/* [Tmem]                          */

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #ifndef _MLXSW_CMD_H
 #define _MLXSW_CMD_H
@@ -48,7 +48,7 @@ static inline int mlxsw_cmd_exec_out(struct mlxsw_core *mlxsw_core, u16 opcode,
 			      out_mbox, out_mbox_size);
 }
 
-static inline int mlxsw_cmd_exec_none(struct mlxsw_core *mlxsw_core, u16 opcode,
+static inline int mlxsw_cmd_exec_yesne(struct mlxsw_core *mlxsw_core, u16 opcode,
 				      u8 opcode_mod, u32 in_mod)
 {
 	return mlxsw_cmd_exec(mlxsw_core, opcode, opcode_mod, in_mod, false,
@@ -125,11 +125,11 @@ enum mlxsw_cmd_status {
 	MLXSW_CMD_STATUS_OK		= 0x00,
 	/* Internal error (e.g. bus error) occurred while processing command. */
 	MLXSW_CMD_STATUS_INTERNAL_ERR	= 0x01,
-	/* Operation/command not supported or opcode modifier not supported. */
+	/* Operation/command yest supported or opcode modifier yest supported. */
 	MLXSW_CMD_STATUS_BAD_OP		= 0x02,
-	/* Parameter not supported, parameter out of range. */
+	/* Parameter yest supported, parameter out of range. */
 	MLXSW_CMD_STATUS_BAD_PARAM	= 0x03,
-	/* System was not enabled or bad system state. */
+	/* System was yest enabled or bad system state. */
 	MLXSW_CMD_STATUS_BAD_SYS_STATE	= 0x04,
 	/* Attempt to access reserved or unallocated resource, or resource in
 	 * inappropriate ownership.
@@ -139,7 +139,7 @@ enum mlxsw_cmd_status {
 	MLXSW_CMD_STATUS_RESOURCE_BUSY	= 0x06,
 	/* Required capability exceeds device limits. */
 	MLXSW_CMD_STATUS_EXCEED_LIM	= 0x08,
-	/* Resource is not in the appropriate state or ownership. */
+	/* Resource is yest in the appropriate state or ownership. */
 	MLXSW_CMD_STATUS_BAD_RES_STATE	= 0x09,
 	/* Index out of range (might be beyond table size or attempt to
 	 * access a reserved resource).
@@ -213,15 +213,15 @@ MLXSW_ITEM32(cmd_mbox, query_fw, fw_pages, 0x00, 16, 16);
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, fw_rev_major, 0x00, 0, 16);
 
-/* cmd_mbox_query_fw_fw_rev_subminor
- * Firmware Sub-minor version (Patch level)
+/* cmd_mbox_query_fw_fw_rev_submiyesr
+ * Firmware Sub-miyesr version (Patch level)
  */
-MLXSW_ITEM32(cmd_mbox, query_fw, fw_rev_subminor, 0x04, 16, 16);
+MLXSW_ITEM32(cmd_mbox, query_fw, fw_rev_submiyesr, 0x04, 16, 16);
 
-/* cmd_mbox_query_fw_fw_rev_minor
- * Firmware Revision - Minor
+/* cmd_mbox_query_fw_fw_rev_miyesr
+ * Firmware Revision - Miyesr
  */
-MLXSW_ITEM32(cmd_mbox, query_fw, fw_rev_minor, 0x04, 0, 16);
+MLXSW_ITEM32(cmd_mbox, query_fw, fw_rev_miyesr, 0x04, 0, 16);
 
 /* cmd_mbox_query_fw_core_clk
  * Internal Clock Frequency (in MHz)
@@ -230,7 +230,7 @@ MLXSW_ITEM32(cmd_mbox, query_fw, core_clk, 0x08, 16, 16);
 
 /* cmd_mbox_query_fw_cmd_interface_rev
  * Command Interface Interpreter Revision ID. This number is bumped up
- * every time a non-backward-compatible change is done for the command
+ * every time a yesn-backward-compatible change is done for the command
  * interface. The current cmd_interface_rev is 1.
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, cmd_interface_rev, 0x08, 0, 16);
@@ -345,7 +345,7 @@ static inline int mlxsw_cmd_boardinfo(struct mlxsw_core *mlxsw_core,
 
 /* cmd_mbox_boardinfo_intapin
  * When PCIe interrupt messages are being used, this value is used for clearing
- * an interrupt. When using MSI-X, this register is not used.
+ * an interrupt. When using MSI-X, this register is yest used.
  */
 MLXSW_ITEM32(cmd_mbox, boardinfo, intapin, 0x10, 24, 8);
 
@@ -367,16 +367,16 @@ MLXSW_ITEM_BUF(cmd_mbox, boardinfo, vsd, 0x20, MLXSW_CMD_BOARDINFO_VSD_LEN);
 /* cmd_mbox_boardinfo_psid
  * The PSID field is a 16-ascii (byte) character string which acts as
  * the board ID. The PSID format is used in conjunction with
- * Mellanox vsd_vendor_id (15B3h).
+ * Mellayesx vsd_vendor_id (15B3h).
  */
 #define MLXSW_CMD_BOARDINFO_PSID_LEN 16
 MLXSW_ITEM_BUF(cmd_mbox, boardinfo, psid, 0xF0, MLXSW_CMD_BOARDINFO_PSID_LEN);
 
-/* QUERY_AQ_CAP - Query Asynchronous Queues Capabilities
+/* QUERY_AQ_CAP - Query Asynchroyesus Queues Capabilities
  * -----------------------------------------------------
  * OpMod == 0 (N/A), INMmod == 0 (N/A)
  * -----------------------------------
- * The QUERY_AQ_CAP command returns the device asynchronous queues
+ * The QUERY_AQ_CAP command returns the device asynchroyesus queues
  * capabilities supported.
  */
 
@@ -433,13 +433,13 @@ MLXSW_ITEM32(cmd_mbox, query_aq_cap, log_max_eq_sz, 0x0C, 24, 8);
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_num_eqs, 0x0C, 0, 8);
 
 /* cmd_mbox_query_aq_cap_max_sg_sq
- * The maximum S/G list elements in an DSQ. DSQ must not contain
+ * The maximum S/G list elements in an DSQ. DSQ must yest contain
  * more S/G entries than indicated here.
  */
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_sg_sq, 0x10, 8, 8);
 
 /* cmd_mbox_query_aq_cap_
- * The maximum S/G list elements in an DRQ. DRQ must not contain
+ * The maximum S/G list elements in an DRQ. DRQ must yest contain
  * more S/G entries than indicated here.
  */
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_sg_rq, 0x10, 0, 8);
@@ -482,14 +482,14 @@ MLXSW_ITEM32_INDEXED(cmd_mbox, map_fa, log2size, 0x00, 0, 5, 0x08, 0x04, false);
  * OpMod == 0 (N/A), INMmod == 0 (N/A)
  * -----------------------------------
  * The UNMAP_FA command unload the firmware and unmaps all the
- * firmware area. After this command is completed the device will not access
+ * firmware area. After this command is completed the device will yest access
  * the pages that were mapped to the firmware area. After executing UNMAP_FA
  * command, software reset must be done prior to execution of MAP_FW command.
  */
 
 static inline int mlxsw_cmd_unmap_fa(struct mlxsw_core *mlxsw_core)
 {
-	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_UNMAP_FA, 0, 0);
+	return mlxsw_cmd_exec_yesne(mlxsw_core, MLXSW_CMD_OPCODE_UNMAP_FA, 0, 0);
 }
 
 /* QUERY_RESOURCES - Query chip resources
@@ -499,7 +499,7 @@ static inline int mlxsw_cmd_unmap_fa(struct mlxsw_core *mlxsw_core)
  * The QUERY_RESOURCES command retrieves information related to chip resources
  * by resource ID. Every command returns 32 entries. INmod is being use as base.
  * for example, index 1 will return entries 32-63. When the tables end and there
- * are no more sources in the table, will return resource id 0xFFF to indicate
+ * are yes more sources in the table, will return resource id 0xFFF to indicate
  * it.
  */
 
@@ -533,7 +533,7 @@ MLXSW_ITEM64_INDEXED(cmd_mbox, query_resource, data,
  * The CONFIG_PROFILE command sets the switch profile. The command can be
  * executed on the device only once at startup in order to allocate and
  * configure all switch resources and prepare it for operational mode.
- * It is not possible to change the device profile after the chip is
+ * It is yest possible to change the device profile after the chip is
  * in operational mode.
  * Failure of the CONFIG_PROFILE command leaves the hardware in an indeterminate
  * state therefore it is required to perform software reset to the device
@@ -821,7 +821,7 @@ MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_mask,
 
 /* cmd_mbox_config_profile_swid_config_type
  * Switch Partition type.
- * 0000 - disabled (Switch Partition does not exist)
+ * 0000 - disabled (Switch Partition does yest exist)
  * 0001 - InfiniBand
  * 0010 - Ethernet
  * 1000 - router port (SwitchX-2 only)
@@ -928,13 +928,13 @@ MLXSW_ITEM64_INDEXED(cmd_mbox, sw2hw_dq, pa, 0x10, 12, 52, 0x08, 0x00, true);
  * ----------------------------------------------
  * The HW2SW_DQ command transitions a descriptor queue from hardware to
  * software ownership. Incoming packets on the DQ are silently discarded,
- * SW should not post descriptors on nonoperational DQs.
+ * SW should yest post descriptors on yesyesperational DQs.
  */
 
 static inline int __mlxsw_cmd_hw2sw_dq(struct mlxsw_core *mlxsw_core,
 				       u32 dq_number, u8 opcode_mod)
 {
-	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_DQ,
+	return mlxsw_cmd_exec_yesne(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_DQ,
 				   opcode_mod, dq_number);
 }
 
@@ -969,7 +969,7 @@ static inline int mlxsw_cmd_hw2sw_rdq(struct mlxsw_core *mlxsw_core,
 static inline int __mlxsw_cmd_2err_dq(struct mlxsw_core *mlxsw_core,
 				      u32 dq_number, u8 opcode_mod)
 {
-	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_2ERR_DQ,
+	return mlxsw_cmd_exec_yesne(mlxsw_core, MLXSW_CMD_OPCODE_2ERR_DQ,
 				   opcode_mod, dq_number);
 }
 
@@ -1087,7 +1087,7 @@ MLXSW_ITEM64_INDEXED(cmd_mbox, sw2hw_cq, pa, 0x10, 11, 53, 0x08, 0x00, true);
 static inline int mlxsw_cmd_hw2sw_cq(struct mlxsw_core *mlxsw_core,
 				     u32 cq_number)
 {
-	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_CQ,
+	return mlxsw_cmd_exec_yesne(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_CQ,
 				   0, cq_number);
 }
 
@@ -1097,7 +1097,7 @@ static inline int mlxsw_cmd_hw2sw_cq(struct mlxsw_core *mlxsw_core,
  * -------------------------------------
  * The QUERY_CQ command retrieves a snapshot of the current CQ context entry.
  * The command stores the snapshot in the output mailbox in the software format.
- * Note that the CQ context state and values are not affected by the QUERY_CQ
+ * Note that the CQ context state and values are yest affected by the QUERY_CQ
  * command. The QUERY_CQ command is for debug purposes only.
  *
  * Note: Output mailbox has the same format as SW2HW_CQ.
@@ -1169,7 +1169,7 @@ MLXSW_ITEM64_INDEXED(cmd_mbox, sw2hw_eq, pa, 0x10, 11, 53, 0x08, 0x00, true);
 static inline int mlxsw_cmd_hw2sw_eq(struct mlxsw_core *mlxsw_core,
 				     u32 eq_number)
 {
-	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_EQ,
+	return mlxsw_cmd_exec_yesne(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_EQ,
 				   0, eq_number);
 }
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
    md_p.h : physical layout of Linux RAID devices
           Copyright (C) 1996-98 Ingo Molnar, Gadi Oxman
@@ -9,7 +9,7 @@
    any later version.
    
    You should have received a copy of the GNU General Public License
-   (for example /usr/src/linux/COPYING); if not, write to the Free
+   (for example /usr/src/linux/COPYING); if yest, write to the Free
    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
 */
 
@@ -104,7 +104,7 @@
 typedef struct mdp_device_descriptor_s {
 	__u32 number;		/* 0 Device number in the entire set	      */
 	__u32 major;		/* 1 Device major number		      */
-	__u32 minor;		/* 2 Device minor number		      */
+	__u32 miyesr;		/* 2 Device miyesr number		      */
 	__u32 raid_disk;	/* 3 The role of the device in the raid set   */
 	__u32 state;		/* 4 Operational state			      */
 	__u32 reserved[MD_SB_DESCRIPTOR_WORDS - 5];
@@ -138,7 +138,7 @@ typedef struct mdp_superblock_s {
 	 */
 	__u32 md_magic;		/*  0 MD identifier 			      */
 	__u32 major_version;	/*  1 major version to which the set conforms */
-	__u32 minor_version;	/*  2 minor version ...			      */
+	__u32 miyesr_version;	/*  2 miyesr version ...			      */
 	__u32 patch_version;	/*  3 patchlevel version ...		      */
 	__u32 gvalid_words;	/*  4 Number of used words in this section    */
 	__u32 set_uuid0;	/*  5 Raid set identifier		      */
@@ -147,8 +147,8 @@ typedef struct mdp_superblock_s {
 	__u32 size;		/*  8 Apparent size of each individual disk   */
 	__u32 nr_disks;		/*  9 total disks in the raid set	      */
 	__u32 raid_disks;	/* 10 disks in a fully functional raid set    */
-	__u32 md_minor;		/* 11 preferred MD minor device number	      */
-	__u32 not_persistent;	/* 12 does it have a persistent superblock    */
+	__u32 md_miyesr;		/* 11 preferred MD miyesr device number	      */
+	__u32 yest_persistent;	/* 12 does it have a persistent superblock    */
 	__u32 set_uuid1;	/* 13 Raid set identifier #2		      */
 	__u32 set_uuid2;	/* 14 Raid set identifier #3		      */
 	__u32 set_uuid3;	/* 15 Raid set identifier #4		      */
@@ -178,7 +178,7 @@ typedef struct mdp_superblock_s {
 #error unspecified endianness
 #endif
 	__u32 recovery_cp;	/* 11 recovery checkpoint sector count	      */
-	/* There are only valid for minor_version > 90 */
+	/* There are only valid for miyesr_version > 90 */
 	__u64 reshape_position;	/* 12,13 next address in array-space for reshape */
 	__u32 new_level;	/* 14 new level we are reshaping to	      */
 	__u32 delta_disks;	/* 15 change in number of raid_disks	      */
@@ -263,7 +263,7 @@ struct mdp_superblock_1 {
 	__le32	new_layout;	/* new layout					*/
 	__le32	new_chunk;	/* new chunk size (512byte sectors)		*/
 	__le32  new_offset;	/* signed number to add to data_offset in new
-				 * layout.  0 == no-change.  This can be
+				 * layout.  0 == yes-change.  This can be
 				 * different on each device in the array.
 				 */
 
@@ -275,31 +275,31 @@ struct mdp_superblock_1 {
 		__le64	recovery_offset;/* sectors before this offset (from data_offset) have been recovered */
 		__le64	journal_tail;/* journal tail of journal device (from data_offset) */
 	};
-	__le32	dev_number;	/* permanent identifier of this  device - not role in raid */
+	__le32	dev_number;	/* permanent identifier of this  device - yest role in raid */
 	__le32	cnt_corrected_read; /* number of read errors that were corrected by re-writing */
-	__u8	device_uuid[16]; /* user-space setable, ignored by kernel */
+	__u8	device_uuid[16]; /* user-space setable, igyesred by kernel */
 	__u8	devflags;	/* per-device flags.  Only two defined...*/
 #define	WriteMostly1	1	/* mask for writemostly flag in above */
 #define	FailFast1	2	/* Should avoid retries and fixups and just fail */
 	/* Bad block log.  If there are any bad blocks the feature flag is set.
-	 * If offset and size are non-zero, that space is reserved and available
+	 * If offset and size are yesn-zero, that space is reserved and available
 	 */
 	__u8	bblog_shift;	/* shift from sectors to block size */
 	__le16	bblog_size;	/* number of sectors reserved for list */
 	__le32	bblog_offset;	/* sector offset from superblock to bblog,
-				 * signed - not unsigned */
+				 * signed - yest unsigned */
 
 	/* array state information - 64 bytes */
 	__le64	utime;		/* 40 bits second, 24 bits microseconds */
 	__le64	events;		/* incremented when superblock updated */
-	__le64	resync_offset;	/* data before this offset (from data_offset) known to be in sync */
+	__le64	resync_offset;	/* data before this offset (from data_offset) kyeswn to be in sync */
 	__le32	sb_csum;	/* checksum up to devs[max_dev] */
 	__le32	max_dev;	/* size of devs[] array to consider */
 	__u8	pad3[64-32];	/* set to 0 when writing */
 
 	/* device state information. Indexed by dev_number.
 	 * 2 bytes per device
-	 * Note there are no per-device state flags. State information is rolled
+	 * Note there are yes per-device state flags. State information is rolled
 	 * into the 'roles' value.  If a device is spare or faulty, then it doesn't
 	 * have a meaningful role.
 	 */
@@ -309,10 +309,10 @@ struct mdp_superblock_1 {
 /* feature_map bits */
 #define MD_FEATURE_BITMAP_OFFSET	1
 #define	MD_FEATURE_RECOVERY_OFFSET	2 /* recovery_offset is present and
-					   * must be honoured
+					   * must be hoyesured
 					   */
 #define	MD_FEATURE_RESHAPE_ACTIVE	4
-#define	MD_FEATURE_BAD_BLOCKS		8 /* badblock list is not empty */
+#define	MD_FEATURE_BAD_BLOCKS		8 /* badblock list is yest empty */
 #define	MD_FEATURE_REPLACEMENT		16 /* This device is replacing an
 					    * active device with same 'role'.
 					    * 'recovery_offset' is also set.
@@ -321,7 +321,7 @@ struct mdp_superblock_1 {
 					    * of devices, but is going
 					    * backwards anyway.
 					    */
-#define	MD_FEATURE_NEW_OFFSET		64 /* new_offset must be honoured */
+#define	MD_FEATURE_NEW_OFFSET		64 /* new_offset must be hoyesured */
 #define	MD_FEATURE_RECOVERY_BITMAP	128 /* recovery that is happening
 					     * is guided by bitmap.
 					     */

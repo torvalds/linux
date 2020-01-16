@@ -36,14 +36,14 @@ extern void yyerror(const char *str);
 %option align
 %option ecs
 
-%option nounput
-%option noreject
-%option noinput
-%option noyywrap
+%option yesunput
+%option yesreject
+%option yesinput
+%option yesyywrap
 
 %option 8bit
 %option caseless
-%option yylineno
+%option yylineyes
 
 %%
 
@@ -191,8 +191,8 @@ extern void yyerror(const char *str);
 [ \n]+				{ /* NOP */ }
 
 .		{
-			printf("unknown character \'%s\'", yytext);
-			yyerror("lex unknown character");
+			printf("unkyeswn character \'%s\'", yytext);
+			yyerror("lex unkyeswn character");
 		}
 
 %%

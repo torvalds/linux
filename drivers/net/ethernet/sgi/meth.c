@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 
@@ -166,7 +166,7 @@ static int mdio_probe(struct meth_private *priv)
 	if(priv->phy_addr<32) {
 		return 0;
 	}
-	DPRINTK("Oopsie! PHY is not known!\n");
+	DPRINTK("Oopsie! PHY is yest kyeswn!\n");
 	priv->phy_addr=-1;
 	return -ENODEV;
 }
@@ -288,7 +288,7 @@ int meth_reset(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	/* Initial mode: 10 | Half-duplex | Accept normal packets */
+	/* Initial mode: 10 | Half-duplex | Accept yesrmal packets */
 	priv->mac_ctrl = METH_ACCEPT_MCAST | METH_DEFAULT_IPG;
 	if (dev->flags & IFF_PROMISC)
 		priv->mac_ctrl |= METH_PROMISC;
@@ -315,7 +315,7 @@ static int meth_open(struct net_device *dev)
 	struct meth_private *priv = netdev_priv(dev);
 	int ret;
 
-	priv->phy_addr = -1;    /* No PHY is known yet... */
+	priv->phy_addr = -1;    /* No PHY is kyeswn yet... */
 
 	/* Initialize the hardware */
 	ret = meth_reset(dev);
@@ -482,7 +482,7 @@ static void meth_tx_cleanup(struct net_device* dev, unsigned long int_status)
 
 	spin_lock_irqsave(&priv->meth_lock, flags);
 
-	/* Stop DMA notification */
+	/* Stop DMA yestification */
 	priv->dma_ctrl &= ~(METH_DMA_TX_INT_EN);
 	mace->eth.dma_ctrl = priv->dma_ctrl;
 
@@ -517,7 +517,7 @@ static void meth_tx_cleanup(struct net_device* dev, unsigned long int_status)
 #endif
 			}
 		} else {
-			DPRINTK("RPTR points us here, but packet not done?\n");
+			DPRINTK("RPTR points us here, but packet yest done?\n");
 			break;
 		}
 		dev_consume_skb_irq(skb);
@@ -702,7 +702,7 @@ static netdev_tx_t meth_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->meth_lock, flags);
-	/* Stop DMA notification */
+	/* Stop DMA yestification */
 	priv->dma_ctrl &= ~(METH_DMA_TX_INT_EN);
 	mace->eth.dma_ctrl = priv->dma_ctrl;
 
@@ -715,7 +715,7 @@ static netdev_tx_t meth_tx(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	}
 
-	/* Restart DMA notification */
+	/* Restart DMA yestification */
 	priv->dma_ctrl |= METH_DMA_TX_INT_EN;
 	mace->eth.dma_ctrl = priv->dma_ctrl;
 

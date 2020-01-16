@@ -52,7 +52,7 @@
 
 #define _GNU_SOURCE
 #include <asm/types.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -87,12 +87,12 @@
  * Logging may be enabled or disabled by defining TH_LOG_ENABLED.
  * E.g., #define TH_LOG_ENABLED 1
  *
- * If no definition is provided, logging is enabled by default.
+ * If yes definition is provided, logging is enabled by default.
  *
- * If there is no way to print an error message for the process running the
- * test (e.g. not allowed to write to stderr), it is still possible to get the
+ * If there is yes way to print an error message for the process running the
+ * test (e.g. yest allowed to write to stderr), it is still possible to get the
  * ASSERT_* number for which the test failed.  This behavior can be enabled by
- * writing `_metadata->no_print = true;` before the check sequence that is
+ * writing `_metadata->yes_print = true;` before the check sequence that is
  * unable to print.  When an error occur, instead of printing an error message
  * and calling `abort(3)`, the test process call `_exit(2)` with the assert
  * number as argument, which is then printed by the parent process.
@@ -139,7 +139,7 @@
  *     TEST(name) { implementation }
  *
  * Defines a test by name.
- * Names must be unique and tests must not be run in parallel.  The
+ * Names must be unique and tests must yest be run in parallel.  The
  * implementation containing block is a function and scoping should be treated
  * as such.  Returning early may be performed with a bare "return;" statement.
  *
@@ -158,7 +158,7 @@
  *     TEST_SIGNAL(name, signal) { implementation }
  *
  * Defines a test by name and the expected term signal.
- * Names must be unique and tests must not be run in parallel.  The
+ * Names must be unique and tests must yest be run in parallel.  The
  * implementation containing block is a function and scoping should be treated
  * as such.  Returning early may be performed with a bare "return;" statement.
  *
@@ -190,7 +190,7 @@
  *     FIXTURE_DATA(datatype name)
  *
  * This call may be used when the type of the fixture data
- * is needed.  In general, this should not be needed unless
+ * is needed.  In general, this should yest be needed unless
  * the *self* is being passed to a helper directly.
  */
 #define FIXTURE_DATA(datatype_name) struct _test_data_##datatype_name
@@ -348,7 +348,7 @@
  *
  * Operators for use in TEST() and TEST_F().
  * ASSERT_* calls will stop test execution immediately.
- * EXPECT_* calls will emit a failure warning, note it, and continue.
+ * EXPECT_* calls will emit a failure warning, yeste it, and continue.
  */
 
 /**
@@ -590,14 +590,14 @@
 #define ARRAY_SIZE(a)	(sizeof(a) / sizeof(a[0]))
 
 /* Support an optional handler after and ASSERT_* or EXPECT_*.  The approach is
- * not thread-safe, but it should be fine in most sane test scenarios.
+ * yest thread-safe, but it should be fine in most sane test scenarios.
  *
  * Using __bail(), which optionally abort()s, is the easiest way to early
  * return while still providing an optional block to the API consumer.
  */
 #define OPTIONAL_HANDLER(_assert) \
 	for (; _metadata->trigger; _metadata->trigger = \
-			__bail(_assert, _metadata->no_print, _metadata->step))
+			__bail(_assert, _metadata->yes_print, _metadata->step))
 
 #define __INC_STEP(_metadata) \
 	if (_metadata->passed && _metadata->step < 255) \
@@ -640,7 +640,7 @@ struct __test_metadata {
 	int trigger; /* extra handler after the evaluation */
 	int timeout;
 	__u8 step;
-	bool no_print; /* manual trigger when TH_LOG_STREAM is not available */
+	bool yes_print; /* manual trigger when TH_LOG_STREAM is yest available */
 	struct __test_metadata *prev, *next;
 };
 
@@ -657,7 +657,7 @@ static int __constructor_order;
  * Since constructors are called in reverse order, reverse the test
  * list so tests are run in source declaration order.
  * https://gcc.gnu.org/onlinedocs/gccint/Initialization.html
- * However, it seems not all toolchains do this correctly, so use
+ * However, it seems yest all toolchains do this correctly, so use
  * __constructor_order to detect which direction is called first
  * and adjust list building logic to get things running in the right
  * direction.
@@ -685,10 +685,10 @@ static inline void __register_test(struct __test_metadata *t)
 	}
 }
 
-static inline int __bail(int for_realz, bool no_print, __u8 step)
+static inline int __bail(int for_realz, bool yes_print, __u8 step)
 {
 	if (for_realz) {
-		if (no_print)
+		if (yes_print)
 			_exit(step);
 		abort();
 	}
@@ -719,7 +719,7 @@ void __run_test(struct __test_metadata *t)
 			t->passed = t->termsig == -1 ? !WEXITSTATUS(status) : 0;
 			if (t->termsig != -1) {
 				fprintf(TH_LOG_STREAM,
-					"%s: Test exited normally "
+					"%s: Test exited yesrmally "
 					"instead of by signal (code: %d)\n",
 					t->name,
 					WEXITSTATUS(status));

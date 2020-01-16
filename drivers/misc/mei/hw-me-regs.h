@@ -74,10 +74,10 @@
 #define MEI_DEV_ID_KBP        0xA2BA  /* Kaby Point */
 #define MEI_DEV_ID_KBP_2      0xA2BB  /* Kaby Point 2 */
 
-#define MEI_DEV_ID_CNP_LP     0x9DE0  /* Cannon Point LP */
-#define MEI_DEV_ID_CNP_LP_4   0x9DE4  /* Cannon Point LP 4 (iTouch) */
-#define MEI_DEV_ID_CNP_H      0xA360  /* Cannon Point H */
-#define MEI_DEV_ID_CNP_H_4    0xA364  /* Cannon Point H 4 (iTouch) */
+#define MEI_DEV_ID_CNP_LP     0x9DE0  /* Canyesn Point LP */
+#define MEI_DEV_ID_CNP_LP_4   0x9DE4  /* Canyesn Point LP 4 (iTouch) */
+#define MEI_DEV_ID_CNP_H      0xA360  /* Canyesn Point H */
+#define MEI_DEV_ID_CNP_H_4    0xA364  /* Canyesn Point H 4 (iTouch) */
 
 #define MEI_DEV_ID_CMP_LP     0x02e0  /* Comet Point LP */
 #define MEI_DEV_ID_CMP_LP_3   0x02e4  /* Comet Point LP 3 (iTouch) */

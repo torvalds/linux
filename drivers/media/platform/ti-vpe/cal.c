@@ -3,7 +3,7 @@
  * TI CAL camera interface driver
  *
  * Copyright (c) 2015 Texas Instruments Inc.
- * Benoit Parrot, <bparrot@ti.com>
+ * Beyesit Parrot, <bparrot@ti.com>
  */
 
 #include <linux/interrupt.h>
@@ -18,7 +18,7 @@
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
@@ -38,7 +38,7 @@
 #define CAL_VERSION "0.1.0"
 
 MODULE_DESCRIPTION("TI CAL driver");
-MODULE_AUTHOR("Benoit Parrot, <bparrot@ti.com>");
+MODULE_AUTHOR("Beyesit Parrot, <bparrot@ti.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(CAL_VERSION);
 
@@ -52,7 +52,7 @@ MODULE_PARM_DESC(debug, "activates debug info");
 
 /* timeperframe: min/max and default */
 static const struct v4l2_fract
-	tpf_default = {.numerator = 1001,	.denominator = 30000};
+	tpf_default = {.numerator = 1001,	.deyesminator = 30000};
 
 #define cal_dbg(level, caldev, fmt, arg...)	\
 		v4l2_dbg(level, debug, &caldev->v4l2_dev, fmt, ##arg)
@@ -262,9 +262,9 @@ struct cal_ctx {
 	struct v4l2_device	v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct video_device	vdev;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_yestifier yestifier;
 	struct v4l2_subdev	*sensor;
-	struct v4l2_fwnode_endpoint	endpoint;
+	struct v4l2_fwyesde_endpoint	endpoint;
 
 	struct v4l2_async_subdev asd;
 
@@ -340,9 +340,9 @@ static const struct cal_fmt *find_format_by_code(struct cal_ctx *ctx,
 	return NULL;
 }
 
-static inline struct cal_ctx *notifier_to_ctx(struct v4l2_async_notifier *n)
+static inline struct cal_ctx *yestifier_to_ctx(struct v4l2_async_yestifier *n)
 {
-	return container_of(n, struct cal_ctx, notifier);
+	return container_of(n, struct cal_ctx, yestifier);
 }
 
 static inline int get_field(u32 value, u32 mask)
@@ -390,7 +390,7 @@ static void camerarx_phy_enable(struct cal_ctx *ctx)
 	u32 val;
 
 	if (!ctx->dev->cm->base) {
-		ctx_err(ctx, "cm not mapped\n");
+		ctx_err(ctx, "cm yest mapped\n");
 		return;
 	}
 
@@ -416,7 +416,7 @@ static void camerarx_phy_disable(struct cal_ctx *ctx)
 	u32 val;
 
 	if (!ctx->dev->cm->base) {
-		ctx_err(ctx, "cm not mapped\n");
+		ctx_err(ctx, "cm yest mapped\n");
 		return;
 	}
 
@@ -601,7 +601,7 @@ static void csi2_lane_config(struct cal_ctx *ctx)
 	u32 val = reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port));
 	u32 lane_mask = CAL_CSI2_COMPLEXIO_CFG_CLOCK_POSITION_MASK;
 	u32 polarity_mask = CAL_CSI2_COMPLEXIO_CFG_CLOCK_POL_MASK;
-	struct v4l2_fwnode_bus_mipi_csi2 *mipi_csi2 =
+	struct v4l2_fwyesde_bus_mipi_csi2 *mipi_csi2 =
 		&ctx->endpoint.bus.mipi_csi2;
 	int lane;
 
@@ -698,8 +698,8 @@ static void cal_wr_dma_config(struct cal_ctx *ctx,
 		reg_read(ctx->dev, CAL_WR_DMA_CTRL(ctx->csi2_port)));
 
 	/*
-	 * width/16 not sure but giving it a whirl.
-	 * zero does not work right
+	 * width/16 yest sure but giving it a whirl.
+	 * zero does yest work right
 	 */
 	reg_write_field(ctx->dev,
 			CAL_WR_DMA_OFST(ctx->csi2_port),
@@ -709,7 +709,7 @@ static void cal_wr_dma_config(struct cal_ctx *ctx,
 		reg_read(ctx->dev, CAL_WR_DMA_OFST(ctx->csi2_port)));
 
 	val = reg_read(ctx->dev, CAL_WR_DMA_XSIZE(ctx->csi2_port));
-	/* 64 bit word means no skipping */
+	/* 64 bit word means yes skipping */
 	set_field(&val, 0, CAL_WR_DMA_XSIZE_XSKIP_MASK);
 	/*
 	 * (width*8)/64 this should be size of an entire line
@@ -798,7 +798,7 @@ static int cal_get_external_info(struct cal_ctx *ctx)
 
 	ctrl = v4l2_ctrl_find(ctx->sensor->ctrl_handler, V4L2_CID_PIXEL_RATE);
 	if (!ctrl) {
-		ctx_err(ctx, "no pixel rate control in subdev: %s\n",
+		ctx_err(ctx, "yes pixel rate control in subdev: %s\n",
 			ctx->sensor->name);
 		return -EPIPE;
 	}
@@ -1019,7 +1019,7 @@ static int cal_try_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = find_format_by_pix(ctx, f->fmt.pix.pixelformat);
 	if (!fmt) {
-		ctx_dbg(3, ctx, "Fourcc format (0x%08x) not found.\n",
+		ctx_dbg(3, ctx, "Fourcc format (0x%08x) yest found.\n",
 			f->fmt.pix.pixelformat);
 
 		/* Just get the first one enumerated */
@@ -1061,7 +1061,7 @@ static int cal_try_fmt_vid_cap(struct file *file, void *priv,
 	}
 
 	/*
-	 * Use current colorspace for now, it will get
+	 * Use current colorspace for yesw, it will get
 	 * updated properly during s_fmt
 	 */
 	f->fmt.pix.colorspace = ctx->v_fmt.fmt.pix.colorspace;
@@ -1094,10 +1094,10 @@ static int cal_s_fmt_vid_cap(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	/* Just double check nothing has gone wrong */
+	/* Just double check yesthing has gone wrong */
 	if (mbus_fmt.code != fmt->code) {
 		ctx_dbg(3, ctx,
-			"%s subdev changed format on us, this should not happen\n",
+			"%s subdev changed format on us, this should yest happen\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1247,7 +1247,7 @@ static int cal_buffer_prepare(struct vb2_buffer *vb)
 	size = ctx->v_fmt.fmt.pix.sizeimage;
 	if (vb2_plane_size(vb, 0) < size) {
 		ctx_err(ctx,
-			"data will not fit into plane (%lu < %lu)\n",
+			"data will yest fit into plane (%lu < %lu)\n",
 			vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -1414,7 +1414,7 @@ static const struct video_device cal_videodev = {
 	.name		= CAL_MODULE_NAME,
 	.fops		= &cal_fops,
 	.ioctl_ops	= &cal_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= video_device_release_empty,
 	.device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 			  V4L2_CAP_READWRITE,
@@ -1426,11 +1426,11 @@ static const struct video_device cal_videodev = {
  */
 static int cal_complete_ctx(struct cal_ctx *ctx);
 
-static int cal_async_bound(struct v4l2_async_notifier *notifier,
+static int cal_async_bound(struct v4l2_async_yestifier *yestifier,
 			   struct v4l2_subdev *subdev,
 			   struct v4l2_async_subdev *asd)
 {
-	struct cal_ctx *ctx = notifier_to_ctx(notifier);
+	struct cal_ctx *ctx = yestifier_to_ctx(yestifier);
 	struct v4l2_subdev_mbus_code_enum mbus_code;
 	int ret = 0;
 	int i, j, k;
@@ -1485,9 +1485,9 @@ static int cal_async_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static int cal_async_complete(struct v4l2_async_notifier *notifier)
+static int cal_async_complete(struct v4l2_async_yestifier *yestifier)
 {
-	struct cal_ctx *ctx = notifier_to_ctx(notifier);
+	struct cal_ctx *ctx = yestifier_to_ctx(yestifier);
 	const struct cal_fmt *fmt;
 	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret;
@@ -1498,7 +1498,7 @@ static int cal_async_complete(struct v4l2_async_notifier *notifier)
 
 	fmt = find_format_by_code(ctx, mbus_fmt.code);
 	if (!fmt) {
-		ctx_dbg(3, ctx, "mbus code format (0x%08x) not found.\n",
+		ctx_dbg(3, ctx, "mbus code format (0x%08x) yest found.\n",
 			mbus_fmt.code);
 		return -EINVAL;
 	}
@@ -1514,7 +1514,7 @@ static int cal_async_complete(struct v4l2_async_notifier *notifier)
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations cal_async_ops = {
+static const struct v4l2_async_yestifier_operations cal_async_ops = {
 	.bound = cal_async_bound,
 	.complete = cal_async_complete,
 };
@@ -1569,25 +1569,25 @@ static int cal_complete_ctx(struct cal_ctx *ctx)
 		return ret;
 
 	v4l2_info(&ctx->v4l2_dev, "V4L2 device registered as %s\n",
-		  video_device_node_name(vfd));
+		  video_device_yesde_name(vfd));
 
 	return 0;
 }
 
-static struct device_node *
-of_get_next_port(const struct device_node *parent,
-		 struct device_node *prev)
+static struct device_yesde *
+of_get_next_port(const struct device_yesde *parent,
+		 struct device_yesde *prev)
 {
-	struct device_node *port = NULL;
+	struct device_yesde *port = NULL;
 
 	if (!parent)
 		return NULL;
 
 	if (!prev) {
-		struct device_node *ports;
+		struct device_yesde *ports;
 		/*
-		 * It's the first call, we have to find a port subnode
-		 * within this node or within an optional 'ports' node.
+		 * It's the first call, we have to find a port subyesde
+		 * within this yesde or within an optional 'ports' yesde.
 		 */
 		ports = of_get_child_by_name(parent, "ports");
 		if (ports)
@@ -1595,10 +1595,10 @@ of_get_next_port(const struct device_node *parent,
 
 		port = of_get_child_by_name(parent, "port");
 
-		/* release the 'ports' node */
-		of_node_put(ports);
+		/* release the 'ports' yesde */
+		of_yesde_put(ports);
 	} else {
-		struct device_node *ports;
+		struct device_yesde *ports;
 
 		ports = of_get_parent(prev);
 		if (!ports)
@@ -1607,22 +1607,22 @@ of_get_next_port(const struct device_node *parent,
 		do {
 			port = of_get_next_child(ports, prev);
 			if (!port) {
-				of_node_put(ports);
+				of_yesde_put(ports);
 				return NULL;
 			}
 			prev = port;
-		} while (!of_node_name_eq(port, "port"));
-		of_node_put(ports);
+		} while (!of_yesde_name_eq(port, "port"));
+		of_yesde_put(ports);
 	}
 
 	return port;
 }
 
-static struct device_node *
-of_get_next_endpoint(const struct device_node *parent,
-		     struct device_node *prev)
+static struct device_yesde *
+of_get_next_endpoint(const struct device_yesde *parent,
+		     struct device_yesde *prev)
 {
-	struct device_node *ep = NULL;
+	struct device_yesde *ep = NULL;
 
 	if (!parent)
 		return NULL;
@@ -1632,7 +1632,7 @@ of_get_next_endpoint(const struct device_node *parent,
 		if (!ep)
 			return NULL;
 		prev = ep;
-	} while (!of_node_name_eq(ep, "endpoint"));
+	} while (!of_yesde_name_eq(ep, "endpoint"));
 
 	return ep;
 }
@@ -1640,27 +1640,27 @@ of_get_next_endpoint(const struct device_node *parent,
 static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 {
 	struct platform_device *pdev = ctx->dev->pdev;
-	struct device_node *ep_node, *port, *sensor_node, *parent;
-	struct v4l2_fwnode_endpoint *endpoint;
+	struct device_yesde *ep_yesde, *port, *sensor_yesde, *parent;
+	struct v4l2_fwyesde_endpoint *endpoint;
 	struct v4l2_async_subdev *asd;
 	u32 regval = 0;
 	int ret, index, found_port = 0, lane;
 
-	parent = pdev->dev.of_node;
+	parent = pdev->dev.of_yesde;
 
 	asd = &ctx->asd;
 	endpoint = &ctx->endpoint;
 
-	ep_node = NULL;
+	ep_yesde = NULL;
 	port = NULL;
-	sensor_node = NULL;
+	sensor_yesde = NULL;
 	ret = -EINVAL;
 
-	ctx_dbg(3, ctx, "Scanning Port node for csi2 port: %d\n", inst);
+	ctx_dbg(3, ctx, "Scanning Port yesde for csi2 port: %d\n", inst);
 	for (index = 0; index < CAL_NUM_CSI2_PORTS; index++) {
 		port = of_get_next_port(parent, port);
 		if (!port) {
-			ctx_dbg(1, ctx, "No port node found for csi2 port:%d\n",
+			ctx_dbg(1, ctx, "No port yesde found for csi2 port:%d\n",
 				index);
 			goto cleanup_exit;
 		}
@@ -1676,7 +1676,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	}
 
 	if (!found_port) {
-		ctx_dbg(1, ctx, "No port node matches csi2 port:%d\n",
+		ctx_dbg(1, ctx, "No port yesde matches csi2 port:%d\n",
 			inst);
 		goto cleanup_exit;
 	}
@@ -1684,25 +1684,25 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	ctx_dbg(3, ctx, "Scanning sub-device for csi2 port: %d\n",
 		inst);
 
-	ep_node = of_get_next_endpoint(port, ep_node);
-	if (!ep_node) {
+	ep_yesde = of_get_next_endpoint(port, ep_yesde);
+	if (!ep_yesde) {
 		ctx_dbg(3, ctx, "can't get next endpoint\n");
 		goto cleanup_exit;
 	}
 
-	sensor_node = of_graph_get_remote_port_parent(ep_node);
-	if (!sensor_node) {
+	sensor_yesde = of_graph_get_remote_port_parent(ep_yesde);
+	if (!sensor_yesde) {
 		ctx_dbg(3, ctx, "can't get remote parent\n");
 		goto cleanup_exit;
 	}
 	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-	asd->match.fwnode = of_fwnode_handle(sensor_node);
+	asd->match.fwyesde = of_fwyesde_handle(sensor_yesde);
 
-	v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep_node), endpoint);
+	v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(ep_yesde), endpoint);
 
 	if (endpoint->bus_type != V4L2_MBUS_CSI2_DPHY) {
-		ctx_err(ctx, "Port:%d sub-device %pOFn is not a CSI2 device\n",
-			inst, sensor_node);
+		ctx_err(ctx, "Port:%d sub-device %pOFn is yest a CSI2 device\n",
+			inst, sensor_yesde);
 		goto cleanup_exit;
 	}
 
@@ -1722,36 +1722,36 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	ctx_dbg(3, ctx, "\t>\n");
 
 	ctx_dbg(1, ctx, "Port: %d found sub-device %pOFn\n",
-		inst, sensor_node);
+		inst, sensor_yesde);
 
-	v4l2_async_notifier_init(&ctx->notifier);
+	v4l2_async_yestifier_init(&ctx->yestifier);
 
-	ret = v4l2_async_notifier_add_subdev(&ctx->notifier, asd);
+	ret = v4l2_async_yestifier_add_subdev(&ctx->yestifier, asd);
 	if (ret) {
 		ctx_err(ctx, "Error adding asd\n");
 		goto cleanup_exit;
 	}
 
-	ctx->notifier.ops = &cal_async_ops;
-	ret = v4l2_async_notifier_register(&ctx->v4l2_dev,
-					   &ctx->notifier);
+	ctx->yestifier.ops = &cal_async_ops;
+	ret = v4l2_async_yestifier_register(&ctx->v4l2_dev,
+					   &ctx->yestifier);
 	if (ret) {
-		ctx_err(ctx, "Error registering async notifier\n");
-		v4l2_async_notifier_cleanup(&ctx->notifier);
+		ctx_err(ctx, "Error registering async yestifier\n");
+		v4l2_async_yestifier_cleanup(&ctx->yestifier);
 		ret = -EINVAL;
 	}
 
 	/*
-	 * On success we need to keep reference on sensor_node, or
-	 * if notifier_cleanup was called above, sensor_node was
+	 * On success we need to keep reference on sensor_yesde, or
+	 * if yestifier_cleanup was called above, sensor_yesde was
 	 * already put.
 	 */
-	sensor_node = NULL;
+	sensor_yesde = NULL;
 
 cleanup_exit:
-	of_node_put(sensor_node);
-	of_node_put(ep_node);
-	of_node_put(port);
+	of_yesde_put(sensor_yesde);
+	of_yesde_put(ep_yesde);
+	of_yesde_put(port);
 
 	return ret;
 }
@@ -1859,7 +1859,7 @@ static int cal_probe(struct platform_device *pdev)
 	dev->ctx[0] = cal_create_instance(dev, 0);
 	dev->ctx[1] = cal_create_instance(dev, 1);
 	if (!dev->ctx[0] && !dev->ctx[1]) {
-		cal_err(dev, "Neither port is configured, no point in staying up\n");
+		cal_err(dev, "Neither port is configured, yes point in staying up\n");
 		return -ENODEV;
 	}
 
@@ -1881,8 +1881,8 @@ runtime_disable:
 	for (i = 0; i < CAL_NUM_CONTEXT; i++) {
 		ctx = dev->ctx[i];
 		if (ctx) {
-			v4l2_async_notifier_unregister(&ctx->notifier);
-			v4l2_async_notifier_cleanup(&ctx->notifier);
+			v4l2_async_yestifier_unregister(&ctx->yestifier);
+			v4l2_async_yestifier_cleanup(&ctx->yestifier);
 			v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 			v4l2_device_unregister(&ctx->v4l2_dev);
 		}
@@ -1906,10 +1906,10 @@ static int cal_remove(struct platform_device *pdev)
 		ctx = dev->ctx[i];
 		if (ctx) {
 			ctx_dbg(1, ctx, "unregistering %s\n",
-				video_device_node_name(&ctx->vdev));
+				video_device_yesde_name(&ctx->vdev));
 			camerarx_phy_disable(ctx);
-			v4l2_async_notifier_unregister(&ctx->notifier);
-			v4l2_async_notifier_cleanup(&ctx->notifier);
+			v4l2_async_yestifier_unregister(&ctx->yestifier);
+			v4l2_async_yestifier_cleanup(&ctx->yestifier);
 			v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 			v4l2_device_unregister(&ctx->v4l2_dev);
 			video_unregister_device(&ctx->vdev);

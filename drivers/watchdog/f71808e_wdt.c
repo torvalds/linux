@@ -16,7 +16,7 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <linux/watchdog.h>
@@ -101,9 +101,9 @@ MODULE_PARM_DESC(f71862fg_pin,
 	"Watchdog f71862fg reset output pin configuration. Choose pin 56 or 63"
 			" (default=" __MODULE_STRING(WATCHDOG_F71862FG_PIN)")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0444);
-MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0444);
+MODULE_PARM_DESC(yeswayout, "Disable watchdog shutdown on close");
 
 static unsigned int start_withtimeout;
 module_param(start_withtimeout, uint, 0);
@@ -308,7 +308,7 @@ exit_unlock:
 
 static int f71862fg_pin_configure(unsigned short ioaddr)
 {
-	/* When ioaddr is non-zero the calling function has to take care of
+	/* When ioaddr is yesn-zero the calling function has to take care of
 	   mutex handling and superio preparation! */
 
 	if (f71862fg_pin == 63) {
@@ -508,7 +508,7 @@ exit_unlock:
 
 /* /dev/watchdog api */
 
-static int watchdog_open(struct inode *inode, struct file *file)
+static int watchdog_open(struct iyesde *iyesde, struct file *file)
 {
 	int err;
 
@@ -522,21 +522,21 @@ static int watchdog_open(struct inode *inode, struct file *file)
 		return err;
 	}
 
-	if (nowayout)
+	if (yeswayout)
 		__module_get(THIS_MODULE);
 
 	watchdog.expect_close = 0;
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int watchdog_release(struct inode *inode, struct file *file)
+static int watchdog_release(struct iyesde *iyesde, struct file *file)
 {
 	clear_bit(0, &watchdog.opened);
 
 	if (!watchdog.expect_close) {
 		watchdog_keepalive();
-		pr_crit("Unexpected close, not stopping watchdog!\n");
-	} else if (!nowayout) {
+		pr_crit("Unexpected close, yest stopping watchdog!\n");
+	} else if (!yeswayout) {
 		watchdog_stop();
 	}
 	return 0;
@@ -557,7 +557,7 @@ static ssize_t watchdog_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *ppos)
 {
 	if (count) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			/* In case it was set long ago */
@@ -585,7 +585,7 @@ static ssize_t watchdog_write(struct file *file, const char __user *buf,
 
 /*
  *      watchdog_ioctl:
- *      @inode: inode of the device
+ *      @iyesde: iyesde of the device
  *      @file: file handle to the device
  *      @cmd: watchdog command
  *      @arg: argument pointer
@@ -654,7 +654,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
-static int watchdog_notify_sys(struct notifier_block *this, unsigned long code,
+static int watchdog_yestify_sys(struct yestifier_block *this, unsigned long code,
 	void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
@@ -664,7 +664,7 @@ static int watchdog_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations watchdog_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.open		= watchdog_open,
 	.release	= watchdog_release,
 	.write		= watchdog_write,
@@ -673,20 +673,20 @@ static const struct file_operations watchdog_fops = {
 };
 
 static struct miscdevice watchdog_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.miyesr		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &watchdog_fops,
 };
 
-static struct notifier_block watchdog_notifier = {
-	.notifier_call = watchdog_notify_sys,
+static struct yestifier_block watchdog_yestifier = {
+	.yestifier_call = watchdog_yestify_sys,
 };
 
 static int __init watchdog_init(int sioaddr)
 {
 	int wdt_conf, err = 0;
 
-	/* No need to lock watchdog.lock here because no entry points
+	/* No need to lock watchdog.lock here because yes entry points
 	 * into the module have been registered yet.
 	 */
 	watchdog.sioaddr = sioaddr;
@@ -715,14 +715,14 @@ static int __init watchdog_init(int sioaddr)
 	if (err)
 		return err;
 
-	err = register_reboot_notifier(&watchdog_notifier);
+	err = register_reboot_yestifier(&watchdog_yestifier);
 	if (err)
 		return err;
 
 	err = misc_register(&watchdog_miscdev);
 	if (err) {
-		pr_err("cannot register miscdev on minor=%d\n",
-		       watchdog_miscdev.minor);
+		pr_err("canyest register miscdev on miyesr=%d\n",
+		       watchdog_miscdev.miyesr);
 		goto exit_reboot;
 	}
 
@@ -736,7 +736,7 @@ static int __init watchdog_init(int sioaddr)
 
 		err = watchdog_start();
 		if (err) {
-			pr_err("cannot start watchdog timer\n");
+			pr_err("canyest start watchdog timer\n");
 			goto exit_miscdev;
 		}
 
@@ -763,7 +763,7 @@ static int __init watchdog_init(int sioaddr)
 		superio_exit(sioaddr);
 		mutex_unlock(&watchdog.lock);
 
-		if (nowayout)
+		if (yeswayout)
 			__module_get(THIS_MODULE);
 
 		pr_info("watchdog started with initial timeout of %u sec\n",
@@ -777,7 +777,7 @@ exit_unlock:
 exit_miscdev:
 	misc_deregister(&watchdog_miscdev);
 exit_reboot:
-	unregister_reboot_notifier(&watchdog_notifier);
+	unregister_reboot_yestifier(&watchdog_yestifier);
 
 	return err;
 }
@@ -819,7 +819,7 @@ static int __init f71808e_find(int sioaddr)
 		watchdog.type = f71889fg;
 		break;
 	case SIO_F71858_ID:
-		/* Confirmed (by datasheet) not to have a watchdog. */
+		/* Confirmed (by datasheet) yest to have a watchdog. */
 		err = -ENODEV;
 		goto exit;
 	case SIO_F81803_ID:
@@ -870,7 +870,7 @@ static void __exit f71808e_exit(void)
 		watchdog_stop();
 	}
 	misc_deregister(&watchdog_miscdev);
-	unregister_reboot_notifier(&watchdog_notifier);
+	unregister_reboot_yestifier(&watchdog_yestifier);
 }
 
 MODULE_DESCRIPTION("F71808E Watchdog Driver");

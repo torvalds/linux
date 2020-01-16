@@ -11,7 +11,7 @@
  */
 
 /* TODO:
- * This driver does not provide support for the hardwares capability of sending
+ * This driver does yest provide support for the hardwares capability of sending
  * an interrupt at a programmable threshold.
  *
  * This driver currently can only support 1 watchdog - there are 2 in the
@@ -67,9 +67,9 @@ static unsigned int bus_clk;
 static char expect_close;
 static DEFINE_SPINLOCK(gef_wdt_spinlock);
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 
@@ -109,7 +109,7 @@ static void gef_wdt_handler_enable(void)
 	if (gef_wdt_toggle_wdc(GEF_WDC_ENABLED_FALSE,
 				   GEF_WDC_ENABLE_SHIFT)) {
 		gef_wdt_service();
-		pr_notice("watchdog activated\n");
+		pr_yestice("watchdog activated\n");
 	}
 }
 
@@ -117,7 +117,7 @@ static void gef_wdt_handler_disable(void)
 {
 	if (gef_wdt_toggle_wdc(GEF_WDC_ENABLED_TRUE,
 				   GEF_WDC_ENABLE_SHIFT))
-		pr_notice("watchdog deactivated\n");
+		pr_yestice("watchdog deactivated\n");
 }
 
 static void gef_wdt_set_timeout(unsigned int timeout)
@@ -136,7 +136,7 @@ static ssize_t gef_wdt_write(struct file *file, const char __user *data,
 				 size_t len, loff_t *ppos)
 {
 	if (len) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			expect_close = 0;
@@ -215,25 +215,25 @@ static long gef_wdt_ioctl(struct file *file, unsigned int cmd,
 	return 0;
 }
 
-static int gef_wdt_open(struct inode *inode, struct file *file)
+static int gef_wdt_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(GEF_WDOG_FLAG_OPENED, &wdt_flags))
 		return -EBUSY;
 
-	if (nowayout)
+	if (yeswayout)
 		__module_get(THIS_MODULE);
 
 	gef_wdt_handler_enable();
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int gef_wdt_release(struct inode *inode, struct file *file)
+static int gef_wdt_release(struct iyesde *iyesde, struct file *file)
 {
 	if (expect_close == 42)
 		gef_wdt_handler_disable();
 	else {
-		pr_crit("unexpected close, not stopping timer!\n");
+		pr_crit("unexpected close, yest stopping timer!\n");
 		gef_wdt_service();
 	}
 	expect_close = 0;
@@ -245,7 +245,7 @@ static int gef_wdt_release(struct inode *inode, struct file *file)
 
 static const struct file_operations gef_wdt_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.write = gef_wdt_write,
 	.unlocked_ioctl = gef_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -254,7 +254,7 @@ static const struct file_operations gef_wdt_fops = {
 };
 
 static struct miscdevice gef_wdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
+	.miyesr = WATCHDOG_MINOR,
 	.name = "watchdog",
 	.fops = &gef_wdt_fops,
 };
@@ -272,7 +272,7 @@ static int gef_wdt_probe(struct platform_device *dev)
 		bus_clk = freq;
 
 	/* Map devices registers into memory */
-	gef_wdt_regs = of_iomap(dev->dev.of_node, 0);
+	gef_wdt_regs = of_iomap(dev->dev.of_yesde, 0);
 	if (gef_wdt_regs == NULL)
 		return -ENOMEM;
 

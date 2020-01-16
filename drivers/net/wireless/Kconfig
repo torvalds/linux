@@ -26,7 +26,7 @@ config WIRELESS_WDS
 	  a much better feature set (HT, VHT, ...)
 
 	  We plan to remove this option and code, so if you find
-	  that you have to enable it, please let us know on the
+	  that you have to enable it, please let us kyesw on the
 	  linux-wireless@vger.kernel.org mailing list, so we can
 	  help you migrate to 4-addr AP/client (or, if it's really
 	  necessary, give up on our plan of removing it).
@@ -78,8 +78,8 @@ config MAC80211_HWSIM
 	depends on MAC80211
 	---help---
 	  This driver is a developer testing tool that can be used to test
-	  IEEE 802.11 networking stack (mac80211) functionality. This is not
-	  needed for normal wireless LAN usage and is only for testing. See
+	  IEEE 802.11 networking stack (mac80211) functionality. This is yest
+	  needed for yesrmal wireless LAN usage and is only for testing. See
 	  Documentation/networking/mac80211_hwsim for more information on how
 	  to use this tool.
 
@@ -111,7 +111,7 @@ config USB_NET_RNDIS_WLAN
 	  BUFFALO WLI-USB-G54
 
 	  All of these devices are based on Broadcom 4320 chip which is the
-	  only wireless RNDIS chip known to date.
+	  only wireless RNDIS chip kyeswn to date.
 
 	  If you choose to build a module, it'll be called rndis_wlan.
 

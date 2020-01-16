@@ -47,7 +47,7 @@ static u32 cpg_mode_rates __initdata;
 static u32 cpg_mode_divs __initdata;
 
 static struct clk * __init
-r8a7778_cpg_register_clock(struct device_node *np, struct r8a7778_cpg *cpg,
+r8a7778_cpg_register_clock(struct device_yesde *np, struct r8a7778_cpg *cpg,
 			     const char *name)
 {
 	if (!strcmp(name, "plla")) {
@@ -75,7 +75,7 @@ r8a7778_cpg_register_clock(struct device_node *np, struct r8a7778_cpg *cpg,
 }
 
 
-static void __init r8a7778_cpg_clocks_init(struct device_node *np)
+static void __init r8a7778_cpg_clocks_init(struct device_yesde *np)
 {
 	struct r8a7778_cpg *cpg;
 	struct clk **clks;
@@ -103,7 +103,7 @@ static void __init r8a7778_cpg_clocks_init(struct device_node *np)
 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
 	clks = kcalloc(num_clks, sizeof(*clks), GFP_KERNEL);
 	if (cpg == NULL || clks == NULL) {
-		/* We're leaking memory on purpose, there's no point in cleaning
+		/* We're leaking memory on purpose, there's yes point in cleaning
 		 * up as the system won't boot anyway.
 		 */
 		return;

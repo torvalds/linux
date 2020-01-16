@@ -282,7 +282,7 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int ret;
 
 	if (!pci_is_pcie(pdev)) {
-		pr_err("device %s is not PCI Express\n", pci_name(pdev));
+		pr_err("device %s is yest PCI Express\n", pci_name(pdev));
 		return -EIO;
 	}
 

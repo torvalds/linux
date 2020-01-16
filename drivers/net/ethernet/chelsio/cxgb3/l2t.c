@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -47,15 +47,15 @@
 #define VLAN_NONE 0xfff
 
 /*
- * Module locking notes:  There is a RW lock protecting the L2 table as a
+ * Module locking yestes:  There is a RW lock protecting the L2 table as a
  * whole plus a spinlock per L2T entry.  Entry lookups and allocations happen
  * under the protection of the table lock, individual entry changes happen
  * while holding that entry's spinlock.  The table lock nests outside the
  * entry locks.  Allocations of new entries take the table lock as writers so
- * no other lookups can happen while allocating new entries.  Entry updates
+ * yes other lookups can happen while allocating new entries.  Entry updates
  * take the table lock as readers so multiple entries can be updated in
  * parallel.  An L2T entry can be dropped by decrementing its reference count
- * and therefore can happen in parallel with entry allocation but no entry
+ * and therefore can happen in parallel with entry allocation but yes entry
  * can change state or increment its ref count during allocation as both of
  * these perform lookups.
  */
@@ -155,7 +155,7 @@ again:
 		 * we allow each packet added to the arpq to retry resolution
 		 * as a way of recovering from transient memory exhaustion.
 		 * A better way would be to use a work request to retry L2T
-		 * entries when there's no memory.
+		 * entries when there's yes memory.
 		 */
 		if (!neigh_event_send(e->neigh, NULL)) {
 			skb = alloc_skb(sizeof(struct cpl_l2t_write_req),
@@ -205,7 +205,7 @@ again:
 		 * we allow each packet added to the arpq to retry resolution
 		 * as a way of recovering from transient memory exhaustion.
 		 * A better way would be to use a work request to retry L2T
-		 * entries when there's no memory.
+		 * entries when there's yes memory.
 		 */
 		neigh_event_send(e->neigh, NULL);
 	}
@@ -251,7 +251,7 @@ found:
 }
 
 /*
- * Called when an L2T entry has no more users.  The entry is left in the hash
+ * Called when an L2T entry has yes more users.  The entry is left in the hash
  * table since it is likely to be reused but we also bump nfree to indicate
  * that the entry can be reallocated for a different neighbor.  We also drop
  * the existing neighbor reference in case the neighbor is going away and is
@@ -450,7 +450,7 @@ struct l2t_data *t3_init_l2t(unsigned int l2t_capacity)
 		return NULL;
 
 	d->nentries = l2t_capacity;
-	d->rover = &d->l2tab[1];	/* entry 0 is not used */
+	d->rover = &d->l2tab[1];	/* entry 0 is yest used */
 	atomic_set(&d->nfree, l2t_capacity - 1);
 	rwlock_init(&d->lock);
 

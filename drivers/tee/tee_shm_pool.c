@@ -172,7 +172,7 @@ EXPORT_SYMBOL_GPL(tee_shm_pool_alloc);
  * tee_shm_pool_free() - Free a shared memory pool
  * @pool:	The shared memory pool to free
  *
- * There must be no remaining shared memory allocated from this pool when
+ * There must be yes remaining shared memory allocated from this pool when
  * this function is called.
  */
 void tee_shm_pool_free(struct tee_shm_pool *pool)

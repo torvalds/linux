@@ -6,7 +6,7 @@
  */
 
 #include <linux/intel-iommu.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
@@ -51,7 +51,7 @@ int intel_svm_enable_prq(struct intel_iommu *iommu)
 	}
 	iommu->prq = page_address(pages);
 
-	irq = dmar_alloc_hwirq(DMAR_UNITS_SUPPORTED + iommu->seq_id, iommu->node, iommu);
+	irq = dmar_alloc_hwirq(DMAR_UNITS_SUPPORTED + iommu->seq_id, iommu->yesde, iommu);
 	if (irq <= 0) {
 		pr_err("IOMMU: %s: Failed to create IRQ vector for page request queue\n",
 		       iommu->name);
@@ -163,24 +163,24 @@ static void intel_flush_svm_range(struct intel_svm *svm, unsigned long address,
 }
 
 /* Pages have been freed at this point */
-static void intel_invalidate_range(struct mmu_notifier *mn,
+static void intel_invalidate_range(struct mmu_yestifier *mn,
 				   struct mm_struct *mm,
 				   unsigned long start, unsigned long end)
 {
-	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
+	struct intel_svm *svm = container_of(mn, struct intel_svm, yestifier);
 
 	intel_flush_svm_range(svm, start,
 			      (end - start + PAGE_SIZE - 1) >> VTD_PAGE_SHIFT, 0);
 }
 
-static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+static void intel_mm_release(struct mmu_yestifier *mn, struct mm_struct *mm)
 {
-	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
+	struct intel_svm *svm = container_of(mn, struct intel_svm, yestifier);
 	struct intel_svm_dev *sdev;
 
 	/* This might end up being called from exit_mmap(), *before* the page
-	 * tables are cleared. And __mmu_notifier_release() will delete us from
-	 * the list of notifiers so that our invalidate_range() callback doesn't
+	 * tables are cleared. And __mmu_yestifier_release() will delete us from
+	 * the list of yestifiers so that our invalidate_range() callback doesn't
 	 * get called when the page tables are cleared. So we need to protect
 	 * against hardware accessing those page tables.
 	 *
@@ -199,7 +199,7 @@ static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 
 }
 
-static const struct mmu_notifier_ops intel_mmuops = {
+static const struct mmu_yestifier_ops intel_mmuops = {
 	.release = intel_mm_release,
 	.invalidate_range = intel_invalidate_range,
 };
@@ -246,7 +246,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 			svm = t;
 			if (svm->pasid >= pasid_max) {
 				dev_warn(dev,
-					 "Limited PASID width. Cannot use existing PASID %d\n",
+					 "Limited PASID width. Canyest use existing PASID %d\n",
 					 svm->pasid);
 				ret = -ENOSPC;
 				goto out;
@@ -297,7 +297,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 			sdev->qdep = 0;
 	}
 
-	/* Finish the setup now we know we're keeping it */
+	/* Finish the setup yesw we kyesw we're keeping it */
 	sdev->users = 1;
 	sdev->ops = ops;
 	init_rcu_head(&sdev->rcu);
@@ -314,7 +314,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 		if (pasid_max > intel_pasid_max_id)
 			pasid_max = intel_pasid_max_id;
 
-		/* Do not use PASID 0 in caching mode (virtualised IOMMU) */
+		/* Do yest use PASID 0 in caching mode (virtualised IOMMU) */
 		ret = intel_pasid_alloc_id(svm,
 					   !!cap_caching_mode(iommu->cap),
 					   pasid_max - 1, GFP_KERNEL);
@@ -324,14 +324,14 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 			goto out;
 		}
 		svm->pasid = ret;
-		svm->notifier.ops = &intel_mmuops;
+		svm->yestifier.ops = &intel_mmuops;
 		svm->mm = mm;
 		svm->flags = flags;
 		INIT_LIST_HEAD_RCU(&svm->devs);
 		INIT_LIST_HEAD(&svm->list);
 		ret = -ENOMEM;
 		if (mm) {
-			ret = mmu_notifier_register(&svm->notifier, mm);
+			ret = mmu_yestifier_register(&svm->yestifier, mm);
 			if (ret) {
 				intel_pasid_free_id(svm->pasid);
 				kfree(svm);
@@ -348,7 +348,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 		spin_unlock(&iommu->lock);
 		if (ret) {
 			if (mm)
-				mmu_notifier_unregister(&svm->notifier, mm);
+				mmu_yestifier_unregister(&svm->yestifier, mm);
 			intel_pasid_free_id(svm->pasid);
 			kfree(svm);
 			kfree(sdev);
@@ -408,9 +408,9 @@ int intel_svm_unbind_mm(struct device *dev, int pasid)
 			if (!sdev->users) {
 				list_del_rcu(&sdev->list);
 				/* Flush the PASID cache and IOTLB for this device.
-				 * Note that we do depend on the hardware *not* using
+				 * Note that we do depend on the hardware *yest* using
 				 * the PASID any more. Just as we depend on other
-				 * devices never using PASIDs that they have no right
+				 * devices never using PASIDs that they have yes right
 				 * to use. We have a *shared* PASID table, because it's
 				 * large and has to be physically contiguous. So it's
 				 * hard to be as defensive as we might like. */
@@ -421,13 +421,13 @@ int intel_svm_unbind_mm(struct device *dev, int pasid)
 				if (list_empty(&svm->devs)) {
 					intel_pasid_free_id(svm->pasid);
 					if (svm->mm)
-						mmu_notifier_unregister(&svm->notifier, svm->mm);
+						mmu_yestifier_unregister(&svm->yestifier, svm->mm);
 
 					list_del(&svm->list);
 
-					/* We mandate that no page faults may be outstanding
+					/* We mandate that yes page faults may be outstanding
 					 * for the PASID when intel_svm_unbind_mm() is called.
-					 * If that is not obeyed, subtle errors will happen.
+					 * If that is yest obeyed, subtle errors will happen.
 					 * Let's make them less subtle... */
 					memset(svm, 0x6b, sizeof(*svm));
 					kfree(svm);
@@ -520,7 +520,7 @@ static bool access_error(struct vm_area_struct *vma, struct page_req_dsc *req)
 	return (requested & ~vma->vm_flags) != 0;
 }
 
-static bool is_canonical_address(u64 addr)
+static bool is_cayesnical_address(u64 addr)
 {
 	int shift = 64 - (__VIRTUAL_MASK_SHIFT + 1);
 	long saddr = (long) addr;
@@ -559,13 +559,13 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 			pr_err("%s: Page request without PASID: %08llx %08llx\n",
 			       iommu->name, ((unsigned long long *)req)[0],
 			       ((unsigned long long *)req)[1]);
-			goto no_pasid;
+			goto yes_pasid;
 		}
 
 		if (!svm || svm->pasid != req->pasid) {
 			rcu_read_lock();
 			svm = intel_pasid_lookup_id(req->pasid);
-			/* It *can't* go away, because the driver is not permitted
+			/* It *can't* go away, because the driver is yest permitted
 			 * to unbind the mm while any page faults are outstanding.
 			 * So we only need RCU to protect the internal idr code. */
 			rcu_read_unlock();
@@ -574,7 +574,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 				pr_err("%s: Page request for invalid PASID %d: %08llx %08llx\n",
 				       iommu->name, req->pasid, ((unsigned long long *)req)[0],
 				       ((unsigned long long *)req)[1]);
-				goto no_pasid;
+				goto yes_pasid;
 			}
 		}
 
@@ -584,11 +584,11 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 		if (!svm->mm)
 			goto bad_req;
 		/* If the mm is already defunct, don't handle faults. */
-		if (!mmget_not_zero(svm->mm))
+		if (!mmget_yest_zero(svm->mm))
 			goto bad_req;
 
-		/* If address is not canonical, return invalid response */
-		if (!is_canonical_address(address))
+		/* If address is yest cayesnical, return invalid response */
+		if (!is_cayesnical_address(address))
 			goto bad_req;
 
 		down_read(&svm->mm->mmap_sem);
@@ -609,15 +609,15 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 		up_read(&svm->mm->mmap_sem);
 		mmput(svm->mm);
 	bad_req:
-		/* Accounting for major/minor faults? */
+		/* Accounting for major/miyesr faults? */
 		rcu_read_lock();
 		list_for_each_entry_rcu(sdev, &svm->devs, list) {
 			if (sdev->sid == req->rid)
 				break;
 		}
-		/* Other devices can go away, but the drivers are not permitted
+		/* Other devices can go away, but the drivers are yest permitted
 		 * to unbind while any page faults might be in flight. So it's
-		 * OK to drop the 'lock' here now we have it. */
+		 * OK to drop the 'lock' here yesw we have it. */
 		rcu_read_unlock();
 
 		if (WARN_ON(&sdev->list == &svm->devs))
@@ -630,10 +630,10 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 					    req->priv_data, rwxp, result);
 		}
 		/* We get here in the error case where the PASID lookup failed,
-		   and these can be NULL. Do not use them below this point! */
+		   and these can be NULL. Do yest use them below this point! */
 		sdev = NULL;
 		svm = NULL;
-	no_pasid:
+	yes_pasid:
 		if (req->lpig || req->priv_data_present) {
 			/*
 			 * Per VT-d spec. v3.0 ch7.7, system software must

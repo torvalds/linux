@@ -21,5 +21,5 @@ ENTRY(__c6xabi_llshl)
 || [A2]  or	.d1	A5,A0,A5
 || [!A2] mvk	.l1	0,A4
    [A2]	 shl	.s1	A4,A1,A4
-	 bnop	.s2	B3,5
+	 byesp	.s2	B3,5
 ENDPROC(__c6xabi_llshl)

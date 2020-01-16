@@ -463,7 +463,7 @@ il_dbgfs_nvm_read(struct file *file, char __user *user_buf, size_t count,
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
-		IL_ERR("NVM size is not multiple of 16.\n");
+		IL_ERR("NVM size is yest multiple of 16.\n");
 		return -ENODATA;
 	}
 
@@ -476,7 +476,7 @@ il_dbgfs_nvm_read(struct file *file, char __user *user_buf, size_t count,
 	/* 4 characters for byte 0xYY */
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
+		IL_ERR("Can yest allocate Buffer\n");
 		return -ENOMEM;
 	}
 	eeprom_ver = il_eeprom_query16(il, EEPROM_VERSION);
@@ -509,7 +509,7 @@ il_dbgfs_channels_read(struct file *file, char __user *user_buf, size_t count,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
+		IL_ERR("Can yest allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -647,7 +647,7 @@ il_dbgfs_interrupt_read(struct file *file, char __user *user_buf, size_t count,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
+		IL_ERR("Can yest allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -777,7 +777,7 @@ il_dbgfs_disable_ht40_write(struct file *file, const char __user *user_buf,
 		il->disable_ht40 = ht40 ? true : false;
 	else {
 		IL_ERR("Sta associated with AP - "
-		       "Change to 40MHz channel support is not allowed\n");
+		       "Change to 40MHz channel support is yest allowed\n");
 		return -EINVAL;
 	}
 
@@ -824,7 +824,7 @@ il_dbgfs_tx_queue_read(struct file *file, char __user *user_buf, size_t count,
 	    sizeof(char) * 64 * il->cfg->num_of_queues;
 
 	if (!il->txq) {
-		IL_ERR("txq not ready\n");
+		IL_ERR("txq yest ready\n");
 		return -EAGAIN;
 	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -927,7 +927,7 @@ il_dbgfs_sensitivity_read(struct file *file, char __user *user_buf,
 	data = &il->sensitivity_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
+		IL_ERR("Can yest allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -999,8 +999,8 @@ il_dbgfs_sensitivity_read(struct file *file, char __user *user_buf,
 		      "nrg_auto_corr_silence_diff:\t %u\n",
 		      data->nrg_auto_corr_silence_diff);
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, "num_in_cck_no_fa:\t\t %u\n",
-		      data->num_in_cck_no_fa);
+	    scnprintf(buf + pos, bufsz - pos, "num_in_cck_yes_fa:\t\t %u\n",
+		      data->num_in_cck_yes_fa);
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "nrg_th_ofdm:\t\t\t %u\n",
 		      data->nrg_th_ofdm);
@@ -1011,7 +1011,7 @@ il_dbgfs_sensitivity_read(struct file *file, char __user *user_buf,
 }
 
 static ssize_t
-il_dbgfs_chain_noise_read(struct file *file, char __user *user_buf,
+il_dbgfs_chain_yesise_read(struct file *file, char __user *user_buf,
 			  size_t count, loff_t *ppos)
 {
 
@@ -1019,14 +1019,14 @@ il_dbgfs_chain_noise_read(struct file *file, char __user *user_buf,
 	int pos = 0;
 	int cnt = 0;
 	char *buf;
-	int bufsz = sizeof(struct il_chain_noise_data) * 4 + 100;
+	int bufsz = sizeof(struct il_chain_yesise_data) * 4 + 100;
 	ssize_t ret;
-	struct il_chain_noise_data *data;
+	struct il_chain_yesise_data *data;
 
-	data = &il->chain_noise_data;
+	data = &il->chain_yesise_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
+		IL_ERR("Can yest allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -1034,14 +1034,14 @@ il_dbgfs_chain_noise_read(struct file *file, char __user *user_buf,
 	    scnprintf(buf + pos, bufsz - pos, "active_chains:\t\t\t %u\n",
 		      data->active_chains);
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, "chain_noise_a:\t\t\t %u\n",
-		      data->chain_noise_a);
+	    scnprintf(buf + pos, bufsz - pos, "chain_yesise_a:\t\t\t %u\n",
+		      data->chain_yesise_a);
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, "chain_noise_b:\t\t\t %u\n",
-		      data->chain_noise_b);
+	    scnprintf(buf + pos, bufsz - pos, "chain_yesise_b:\t\t\t %u\n",
+		      data->chain_yesise_b);
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, "chain_noise_c:\t\t\t %u\n",
-		      data->chain_noise_c);
+	    scnprintf(buf + pos, bufsz - pos, "chain_yesise_c:\t\t\t %u\n",
+		      data->chain_yesise_c);
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "chain_signal_a:\t\t\t %u\n",
 		      data->chain_signal_a);
@@ -1097,7 +1097,7 @@ il_dbgfs_power_save_status_read(struct file *file, char __user *user_buf,
 	pos += scnprintf(buf + pos, bufsz - pos, "Power Save Status: ");
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "%s\n",
-		      (pwrsave_status == CSR_GP_REG_NO_POWER_SAVE) ? "none" :
+		      (pwrsave_status == CSR_GP_REG_NO_POWER_SAVE) ? "yesne" :
 		      (pwrsave_status == CSR_GP_REG_MAC_POWER_SAVE) ? "MAC" :
 		      (pwrsave_status == CSR_GP_REG_PHY_POWER_SAVE) ? "PHY" :
 		      "error");
@@ -1297,7 +1297,7 @@ DEBUGFS_READ_FILE_OPS(ucode_rx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_tx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_general_stats);
 DEBUGFS_READ_FILE_OPS(sensitivity);
-DEBUGFS_READ_FILE_OPS(chain_noise);
+DEBUGFS_READ_FILE_OPS(chain_yesise);
 DEBUGFS_READ_FILE_OPS(power_save_status);
 DEBUGFS_WRITE_FILE_OPS(clear_ucode_stats);
 DEBUGFS_WRITE_FILE_OPS(clear_traffic_stats);
@@ -1349,17 +1349,17 @@ il_dbgfs_register(struct il_priv *il, const char *name)
 
 	if (il->cfg->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_FILE(sensitivity, dir_debug, 0400);
-	if (il->cfg->chain_noise_calib_by_driver)
-		DEBUGFS_ADD_FILE(chain_noise, dir_debug, 0400);
+	if (il->cfg->chain_yesise_calib_by_driver)
+		DEBUGFS_ADD_FILE(chain_yesise, dir_debug, 0400);
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, 0200);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, 0200);
 	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, 0200);
 	if (il->cfg->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
 				 &il->disable_sens_cal);
-	if (il->cfg->chain_noise_calib_by_driver)
-		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
-				 &il->disable_chain_noise_cal);
+	if (il->cfg->chain_yesise_calib_by_driver)
+		DEBUGFS_ADD_BOOL(disable_chain_yesise, dir_rf,
+				 &il->disable_chain_yesise_cal);
 	DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf, &il->disable_tx_power_cal);
 }
 EXPORT_SYMBOL(il_dbgfs_register);

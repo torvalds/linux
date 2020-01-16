@@ -6,7 +6,7 @@
  *
  *  Jun 2006 - namespaces support
  *             OpenVZ, SWsoft Inc.
- *             Pavel Emelianov <xemul@openvz.org>
+ *             Pavel Emeliayesv <xemul@openvz.org>
  */
 
 #include <linux/slab.h>
@@ -54,7 +54,7 @@ static inline struct nsproxy *create_nsproxy(void)
 
 /*
  * Create new nsproxy and all of its the associated namespaces.
- * Return the newly created nsproxy.  Do not attach this to the task,
+ * Return the newly created nsproxy.  Do yest attach this to the task,
  * leave it to the caller to do proper locking and attach it to task.
  */
 static struct nsproxy *create_new_namespaces(unsigned long flags,
@@ -128,7 +128,7 @@ out_ns:
 }
 
 /*
- * called from clone.  This now handles copy for nsproxy and all
+ * called from clone.  This yesw handles copy for nsproxy and all
  * namespaces therein.
  */
 int copy_namespaces(unsigned long flags, struct task_struct *tsk)
@@ -243,7 +243,7 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 		return PTR_ERR(file);
 
 	err = -EINVAL;
-	ns = get_proc_ns(file_inode(file));
+	ns = get_proc_ns(file_iyesde(file));
 	if (nstype && (ns->ops->type != nstype))
 		goto out;
 

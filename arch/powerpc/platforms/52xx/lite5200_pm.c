@@ -44,7 +44,7 @@ static int lite5200_pm_begin(suspend_state_t state)
 
 static int lite5200_pm_prepare(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id immr_ids[] = {
 		{ .compatible = "fsl,mpc5200-immr", },
 		{ .compatible = "fsl,mpc5200b-immr", },
@@ -63,11 +63,11 @@ static int lite5200_pm_prepare(void)
 		return -EINVAL;
 
 	/* map registers */
-	np = of_find_matching_node(NULL, immr_ids);
+	np = of_find_matching_yesde(NULL, immr_ids);
 	regaddr_p = of_get_address(np, 0, NULL, NULL);
 	if (regaddr_p)
 		regaddr64 = of_translate_address(np, regaddr_p);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	mbar = ioremap((u32) regaddr64, 0xC000);
 	if (!mbar) {
@@ -87,7 +87,7 @@ static int lite5200_pm_prepare(void)
 	return 0;
 }
 
-/* save and restore registers not bound to any real devices */
+/* save and restore registers yest bound to any real devices */
 static struct mpc52xx_cdm scdm;
 static struct mpc52xx_intr spic;
 static struct mpc52xx_sdma sbes;
@@ -126,7 +126,7 @@ static void lite5200_restore_regs(void)
 
 
 	/* XLB Arbitrer */
-	out_be32(&xlb->snoop_window, sxlb.snoop_window);
+	out_be32(&xlb->syesop_window, sxlb.syesop_window);
 	out_be32(&xlb->master_priority, sxlb.master_priority);
 	out_be32(&xlb->master_pri_enable, sxlb.master_pri_enable);
 

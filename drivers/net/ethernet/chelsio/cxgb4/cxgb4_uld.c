@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -37,7 +37,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/debugfs.h>
 #include <linux/export.h>
@@ -92,7 +92,7 @@ static int uldrx_handler(struct sge_rspq *q, const __be64 *rsp,
 				rsp, gl);
 
 	if (ret) {
-		rxq->stats.nomem++;
+		rxq->stats.yesmem++;
 		return -1;
 	}
 
@@ -631,7 +631,7 @@ static void uld_init(struct adapter *adap, struct cxgb4_lld_info *lld)
 	lld->max_ordird_qp = adap->params.max_ordird_qp;
 	lld->max_ird_adapter = adap->params.max_ird_adapter;
 	lld->ulptx_memwrite_dsgl = adap->params.ulptx_memwrite_dsgl;
-	lld->nodeid = dev_to_node(adap->pdev_dev);
+	lld->yesdeid = dev_to_yesde(adap->pdev_dev);
 	lld->fr_nsmr_tpte_wr_support = adap->params.fr_nsmr_tpte_wr_support;
 	lld->write_w_imm_support = adap->params.write_w_imm_support;
 	lld->write_cmpl_support = adap->params.write_cmpl_support;
@@ -648,13 +648,13 @@ static int uld_attach(struct adapter *adap, unsigned int uld)
 	handle = adap->uld[uld].add(&lli);
 	if (IS_ERR(handle)) {
 		dev_warn(adap->pdev_dev,
-			 "could not attach to the %s driver, error %ld\n",
+			 "could yest attach to the %s driver, error %ld\n",
 			 adap->uld[uld].name, PTR_ERR(handle));
 		return PTR_ERR(handle);
 	}
 
 	adap->uld[uld].handle = handle;
-	t4_register_netevent_notifier();
+	t4_register_netevent_yestifier();
 
 	if (adap->flags & CXGB4_FULL_INIT_DONE)
 		adap->uld[uld].state_change(handle, CXGB4_STATE_UP);
@@ -666,7 +666,7 @@ static int uld_attach(struct adapter *adap, unsigned int uld)
  * @type: the ULD type
  * @p: the ULD methods
  *
- * Registers an upper-layer driver with this driver and notifies the ULD
+ * Registers an upper-layer driver with this driver and yestifies the ULD
  * about any presently available devices that support its type.
  */
 void cxgb4_register_uld(enum cxgb4_uld type,
@@ -679,7 +679,7 @@ void cxgb4_register_uld(enum cxgb4_uld type,
 		return;
 
 	mutex_lock(&uld_mutex);
-	list_for_each_entry(adap, &adapter_list, list_node) {
+	list_for_each_entry(adap, &adapter_list, list_yesde) {
 		if ((type == CXGB4_ULD_CRYPTO && !is_pci_uld(adap)) ||
 		    (type != CXGB4_ULD_CRYPTO && !is_offload(adap)))
 			continue;
@@ -742,7 +742,7 @@ int cxgb4_unregister_uld(enum cxgb4_uld type)
 		return -EINVAL;
 
 	mutex_lock(&uld_mutex);
-	list_for_each_entry(adap, &adapter_list, list_node) {
+	list_for_each_entry(adap, &adapter_list, list_yesde) {
 		if ((type == CXGB4_ULD_CRYPTO && !is_pci_uld(adap)) ||
 		    (type != CXGB4_ULD_CRYPTO && !is_offload(adap)))
 			continue;

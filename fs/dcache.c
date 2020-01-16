@@ -11,7 +11,7 @@
  * Notes on the allocation strategy:
  *
  * The dcache is a master of the icache - whenever a dcache entry
- * exists, the inode will always exist. "iput()" is done either when
+ * exists, the iyesde will always exist. "iput()" is done either when
  * the dcache entry is deleted or garbage collected.
  */
 
@@ -20,7 +20,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/fscrypt.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/hash.h>
@@ -37,8 +37,8 @@
 
 /*
  * Usage:
- * dcache->d_inode->i_lock protects:
- *   - i_dentry, d_u.d_alias, d_inode of aliases
+ * dcache->d_iyesde->i_lock protects:
+ *   - i_dentry, d_u.d_alias, d_iyesde of aliases
  * dcache_hash_bucket lock protects:
  *   - the dcache hash table
  * s_roots bl list spinlock protects:
@@ -53,10 +53,10 @@
  *   - d_unhashed()
  *   - d_parent and d_subdirs
  *   - childrens' d_child and d_parent
- *   - d_u.d_alias, d_inode
+ *   - d_u.d_alias, d_iyesde
  *
  * Ordering:
- * dentry->d_inode->i_lock
+ * dentry->d_iyesde->i_lock
  *   dentry->d_lock
  *     dentry->d_sb->s_dentry_lru_lock
  *     dcache_hash_bucket lock
@@ -68,7 +68,7 @@
  *     dentry->d_parent->d_lock
  *       dentry->d_lock
  *
- * If no ancestor relationship:
+ * If yes ancestor relationship:
  * arbitrary, since it's serialized on rename_lock
  */
 int sysctl_vfs_cache_pressure __read_mostly = 100;
@@ -127,10 +127,10 @@ static DEFINE_PER_CPU(long, nr_dentry_negative);
 
 /*
  * Here we resort to our own counters instead of using generic per-cpu counters
- * for consistency with what the vfs inode code does. We are expected to harvest
+ * for consistency with what the vfs iyesde code does. We are expected to harvest
  * better code and performance by having our own specialized counters.
  *
- * Please note that the loop is done over all possible CPUs, not over all online
+ * Please yeste that the loop is done over all possible CPUs, yest over all online
  * CPUs. The reason for this is that we don't want to play games with CPUs going
  * on and off. If one of them goes off, we will just keep their counters.
  *
@@ -176,8 +176,8 @@ int proc_nr_dentry(struct ctl_table *table, int write, void __user *buffer,
 #endif
 
 /*
- * Compare 2 name strings, return 0 if they match, otherwise non-zero.
- * The strings are both count bytes long, and count is non-zero.
+ * Compare 2 name strings, return 0 if they match, otherwise yesn-zero.
+ * The strings are both count bytes long, and count is yesn-zero.
  */
 #ifdef CONFIG_DCACHE_WORD_ACCESS
 
@@ -235,7 +235,7 @@ static inline int dentry_cmp(const struct dentry *dentry, const unsigned char *c
 	 * use 'READ_ONCE' to fetch the name pointer.
 	 *
 	 * NOTE! Even if a rename will mean that the length
-	 * was not loaded atomically, we don't care. The
+	 * was yest loaded atomically, we don't care. The
 	 * RCU walk will check the sequence count eventually,
 	 * and catch it. And we won't overrun the buffer,
 	 * because we're reading the name pointer atomically,
@@ -243,8 +243,8 @@ static inline int dentry_cmp(const struct dentry *dentry, const unsigned char *c
 	 * terminated with a NUL byte.
 	 *
 	 * End result: even if 'len' is wrong, we'll exit
-	 * early because the data cannot match (there can
-	 * be no NUL in the ct/tcount data)
+	 * early because the data canyest match (there can
+	 * be yes NUL in the ct/tcount data)
 	 */
 	const unsigned char *cs = READ_ONCE(dentry->d_name.name);
 
@@ -309,26 +309,26 @@ void release_dentry_name_snapshot(struct name_snapshot *name)
 }
 EXPORT_SYMBOL(release_dentry_name_snapshot);
 
-static inline void __d_set_inode_and_type(struct dentry *dentry,
-					  struct inode *inode,
+static inline void __d_set_iyesde_and_type(struct dentry *dentry,
+					  struct iyesde *iyesde,
 					  unsigned type_flags)
 {
 	unsigned flags;
 
-	dentry->d_inode = inode;
+	dentry->d_iyesde = iyesde;
 	flags = READ_ONCE(dentry->d_flags);
 	flags &= ~(DCACHE_ENTRY_TYPE | DCACHE_FALLTHRU);
 	flags |= type_flags;
 	smp_store_release(&dentry->d_flags, flags);
 }
 
-static inline void __d_clear_type_and_inode(struct dentry *dentry)
+static inline void __d_clear_type_and_iyesde(struct dentry *dentry)
 {
 	unsigned flags = READ_ONCE(dentry->d_flags);
 
 	flags &= ~(DCACHE_ENTRY_TYPE | DCACHE_FALLTHRU);
 	WRITE_ONCE(dentry->d_flags, flags);
-	dentry->d_inode = NULL;
+	dentry->d_iyesde = NULL;
 	if (dentry->d_flags & DCACHE_LRU_LIST)
 		this_cpu_inc(nr_dentry_negative);
 }
@@ -351,27 +351,27 @@ static void dentry_free(struct dentry *dentry)
 }
 
 /*
- * Release the dentry's inode, using the filesystem
+ * Release the dentry's iyesde, using the filesystem
  * d_iput() operation if defined.
  */
-static void dentry_unlink_inode(struct dentry * dentry)
+static void dentry_unlink_iyesde(struct dentry * dentry)
 	__releases(dentry->d_lock)
-	__releases(dentry->d_inode->i_lock)
+	__releases(dentry->d_iyesde->i_lock)
 {
-	struct inode *inode = dentry->d_inode;
+	struct iyesde *iyesde = dentry->d_iyesde;
 
 	raw_write_seqcount_begin(&dentry->d_seq);
-	__d_clear_type_and_inode(dentry);
+	__d_clear_type_and_iyesde(dentry);
 	hlist_del_init(&dentry->d_u.d_alias);
 	raw_write_seqcount_end(&dentry->d_seq);
 	spin_unlock(&dentry->d_lock);
-	spin_unlock(&inode->i_lock);
-	if (!inode->i_nlink)
-		fsnotify_inoderemove(inode);
+	spin_unlock(&iyesde->i_lock);
+	if (!iyesde->i_nlink)
+		fsyestify_iyesderemove(iyesde);
 	if (dentry->d_op && dentry->d_op->d_iput)
-		dentry->d_op->d_iput(dentry, inode);
+		dentry->d_op->d_iput(dentry, iyesde);
 	else
-		iput(inode);
+		iput(iyesde);
 }
 
 /*
@@ -380,13 +380,13 @@ static void dentry_unlink_inode(struct dentry * dentry)
  * LRU list _and_ the DCACHE_SHRINK_LIST use.
  *
  * The DCACHE_SHRINK_LIST bit is set whenever the dentry is
- * on the shrink list (ie not on the superblock LRU list).
+ * on the shrink list (ie yest on the superblock LRU list).
  *
  * The per-cpu "nr_dentry_unused" counters are updated with
  * the DCACHE_LRU_LIST bit.
  *
  * The per-cpu "nr_dentry_negative" counters are only updated
- * when deleted from or added to the per-superblock LRU list, not
+ * when deleted from or added to the per-superblock LRU list, yest
  * from/to the shrink list. That is to avoid an unneeded dec/inc
  * pair when moving from LRU to shrink list in select_collect().
  *
@@ -471,13 +471,13 @@ static void d_lru_shrink_move(struct list_lru_one *lru, struct dentry *dentry,
  *
  * __d_drop requires dentry->d_lock
  * ___d_drop doesn't mark dentry as "unhashed"
- *   (dentry->d_hash.pprev will be LIST_POISON2, not NULL).
+ *   (dentry->d_hash.pprev will be LIST_POISON2, yest NULL).
  */
 static void ___d_drop(struct dentry *dentry)
 {
 	struct hlist_bl_head *b;
 	/*
-	 * Hashed dentries are normally on the dentry hashtable,
+	 * Hashed dentries are yesrmally on the dentry hashtable,
 	 * with the exception of those newly allocated by
 	 * d_obtain_root, which are always IS_ROOT:
 	 */
@@ -513,7 +513,7 @@ static inline void dentry_unlist(struct dentry *dentry, struct dentry *parent)
 {
 	struct dentry *next;
 	/*
-	 * Inform d_walk() and shrink_dentry_list() that we are no longer
+	 * Inform d_walk() and shrink_dentry_list() that we are yes longer
 	 * attached to the dentry tree
 	 */
 	dentry->d_flags |= DCACHE_DENTRY_KILLED;
@@ -522,11 +522,11 @@ static inline void dentry_unlist(struct dentry *dentry, struct dentry *parent)
 	__list_del_entry(&dentry->d_child);
 	/*
 	 * Cursors can move around the list of children.  While we'd been
-	 * a normal list member, it didn't matter - ->d_child.next would've
-	 * been updated.  However, from now on it won't be and for the
+	 * a yesrmal list member, it didn't matter - ->d_child.next would've
+	 * been updated.  However, from yesw on it won't be and for the
 	 * things like d_walk() it might end up with a nasty surprise.
 	 * Normally d_walk() doesn't care about cursors moving around -
-	 * ->d_lock on parent prevents that and since a cursor has no children
+	 * ->d_lock on parent prevents that and since a cursor has yes children
 	 * of its own, we get through it without ever unlocking the parent.
 	 * There is one exception, though - if we ascend from a child that
 	 * gets killed as soon as we unlock it, the next sibling is found
@@ -555,7 +555,7 @@ static void __dentry_kill(struct dentry *dentry)
 		parent = dentry->d_parent;
 
 	/*
-	 * The dentry is now unrecoverably dead to the world.
+	 * The dentry is yesw unrecoverably dead to the world.
 	 */
 	lockref_mark_dead(&dentry->d_lockref);
 
@@ -575,8 +575,8 @@ static void __dentry_kill(struct dentry *dentry)
 	dentry_unlist(dentry, parent);
 	if (parent)
 		spin_unlock(&parent->d_lock);
-	if (dentry->d_inode)
-		dentry_unlink_inode(dentry);
+	if (dentry->d_iyesde)
+		dentry_unlink_iyesde(dentry);
 	else
 		spin_unlock(&dentry->d_lock);
 	this_cpu_dec(nr_dentry);
@@ -607,7 +607,7 @@ again:
 	 * that we won't violate the locking order.
 	 * Any changes of dentry->d_parent must have
 	 * been done with parent->d_lock held, so
-	 * spin_lock() above is enough of a barrier
+	 * spin_lock() above is eyesugh of a barrier
 	 * for checking if it's still our child.
 	 */
 	if (unlikely(parent != dentry->d_parent)) {
@@ -664,22 +664,22 @@ static inline bool retain_dentry(struct dentry *dentry)
 static struct dentry *dentry_kill(struct dentry *dentry)
 	__releases(dentry->d_lock)
 {
-	struct inode *inode = dentry->d_inode;
+	struct iyesde *iyesde = dentry->d_iyesde;
 	struct dentry *parent = NULL;
 
-	if (inode && unlikely(!spin_trylock(&inode->i_lock)))
+	if (iyesde && unlikely(!spin_trylock(&iyesde->i_lock)))
 		goto slow_positive;
 
 	if (!IS_ROOT(dentry)) {
 		parent = dentry->d_parent;
 		if (unlikely(!spin_trylock(&parent->d_lock))) {
 			parent = __lock_parent(dentry);
-			if (likely(inode || !dentry->d_inode))
+			if (likely(iyesde || !dentry->d_iyesde))
 				goto got_locks;
 			/* negative that became positive */
 			if (parent)
 				spin_unlock(&parent->d_lock);
-			inode = dentry->d_inode;
+			iyesde = dentry->d_iyesde;
 			goto slow_positive;
 		}
 	}
@@ -688,7 +688,7 @@ static struct dentry *dentry_kill(struct dentry *dentry)
 
 slow_positive:
 	spin_unlock(&dentry->d_lock);
-	spin_lock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
 	spin_lock(&dentry->d_lock);
 	parent = lock_parent(dentry);
 got_locks:
@@ -699,8 +699,8 @@ got_locks:
 		return parent;
 	}
 	/* we are keeping it, after all */
-	if (inode)
-		spin_unlock(&inode->i_lock);
+	if (iyesde)
+		spin_unlock(&iyesde->i_lock);
 	if (parent)
 		spin_unlock(&parent->d_lock);
 	spin_unlock(&dentry->d_lock);
@@ -721,7 +721,7 @@ static inline bool fast_dput(struct dentry *dentry)
 	unsigned int d_flags;
 
 	/*
-	 * If we have a d_op->d_delete() operation, we sould not
+	 * If we have a d_op->d_delete() operation, we sould yest
 	 * let the dentry count go to zero, so use "put_or_lock".
 	 */
 	if (unlikely(dentry->d_flags & DCACHE_OP_DELETE))
@@ -757,17 +757,17 @@ static inline bool fast_dput(struct dentry *dentry)
 	/*
 	 * Careful, careful. The reference count went down
 	 * to zero, but we don't hold the dentry lock, so
-	 * somebody else could get it again, and do another
-	 * dput(), and we need to not race with that.
+	 * somebody else could get it again, and do ayesther
+	 * dput(), and we need to yest race with that.
 	 *
 	 * However, there is a very special and common case
-	 * where we don't care, because there is nothing to
-	 * do: the dentry is still hashed, it does not have
+	 * where we don't care, because there is yesthing to
+	 * do: the dentry is still hashed, it does yest have
 	 * a 'delete' op, and it's referenced and already on
 	 * the LRU list.
 	 *
 	 * NOTE! Since we aren't locked, these values are
-	 * not "stable". However, it is sufficient that at
+	 * yest "stable". However, it is sufficient that at
 	 * some point after we dropped the reference the
 	 * dentry was hashed and the flags had the proper
 	 * value. Other dentry users may have re-gotten
@@ -784,7 +784,7 @@ static inline bool fast_dput(struct dentry *dentry)
 		return true;
 
 	/*
-	 * Not the fast normal case? Get the lock. We've already decremented
+	 * Not the fast yesrmal case? Get the lock. We've already decremented
 	 * the refcount, but we'll need to re-check the situation after
 	 * getting the lock.
 	 */
@@ -792,7 +792,7 @@ static inline bool fast_dput(struct dentry *dentry)
 
 	/*
 	 * Did somebody else grab a reference to it in the meantime, and
-	 * we're no longer the last user after all? Alternatively, somebody
+	 * we're yes longer the last user after all? Alternatively, somebody
 	 * else could have killed it and marked it dead. Either way, we
 	 * don't need to do anything else.
 	 */
@@ -814,12 +814,12 @@ static inline bool fast_dput(struct dentry *dentry)
 /* 
  * This is dput
  *
- * This is complicated by the fact that we do not want to put
- * dentries that are no longer on any hash chain on the unused
+ * This is complicated by the fact that we do yest want to put
+ * dentries that are yes longer on any hash chain on the unused
  * list: we'd much rather just get rid of them immediately.
  *
  * However, that implies that we have to traverse the dentry
- * tree upwards to the parents which might _also_ now be
+ * tree upwards to the parents which might _also_ yesw be
  * scheduled for deletion (it may have been only waiting for
  * its last child to go away).
  *
@@ -835,7 +835,7 @@ static inline bool fast_dput(struct dentry *dentry)
  * Release a dentry. This will drop the usage count and if appropriate
  * call the dentry unlink method as well as removing it from the queues and
  * releasing its resources. If the parent dentries were scheduled for release
- * they too may now get deleted.
+ * they too may yesw get deleted.
  */
 void dput(struct dentry *dentry)
 {
@@ -848,7 +848,7 @@ void dput(struct dentry *dentry)
 			return;
 		}
 
-		/* Slow case: now with the dentry lock held */
+		/* Slow case: yesw with the dentry lock held */
 		rcu_read_unlock();
 
 		if (likely(retain_dentry(dentry))) {
@@ -912,7 +912,7 @@ struct dentry *dget_parent(struct dentry *dentry)
 	rcu_read_lock();
 	seq = raw_seqcount_begin(&dentry->d_seq);
 	ret = READ_ONCE(dentry->d_parent);
-	gotref = lockref_get_not_zero(&ret->d_lockref);
+	gotref = lockref_get_yest_zero(&ret->d_lockref);
 	rcu_read_unlock();
 	if (likely(gotref)) {
 		if (!read_seqcount_retry(&dentry->d_seq, seq))
@@ -941,57 +941,57 @@ repeat:
 }
 EXPORT_SYMBOL(dget_parent);
 
-static struct dentry * __d_find_any_alias(struct inode *inode)
+static struct dentry * __d_find_any_alias(struct iyesde *iyesde)
 {
 	struct dentry *alias;
 
-	if (hlist_empty(&inode->i_dentry))
+	if (hlist_empty(&iyesde->i_dentry))
 		return NULL;
-	alias = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
+	alias = hlist_entry(iyesde->i_dentry.first, struct dentry, d_u.d_alias);
 	__dget(alias);
 	return alias;
 }
 
 /**
- * d_find_any_alias - find any alias for a given inode
- * @inode: inode to find an alias for
+ * d_find_any_alias - find any alias for a given iyesde
+ * @iyesde: iyesde to find an alias for
  *
- * If any aliases exist for the given inode, take and return a
- * reference for one of them.  If no aliases exist, return %NULL.
+ * If any aliases exist for the given iyesde, take and return a
+ * reference for one of them.  If yes aliases exist, return %NULL.
  */
-struct dentry *d_find_any_alias(struct inode *inode)
+struct dentry *d_find_any_alias(struct iyesde *iyesde)
 {
 	struct dentry *de;
 
-	spin_lock(&inode->i_lock);
-	de = __d_find_any_alias(inode);
-	spin_unlock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
+	de = __d_find_any_alias(iyesde);
+	spin_unlock(&iyesde->i_lock);
 	return de;
 }
 EXPORT_SYMBOL(d_find_any_alias);
 
 /**
- * d_find_alias - grab a hashed alias of inode
- * @inode: inode in question
+ * d_find_alias - grab a hashed alias of iyesde
+ * @iyesde: iyesde in question
  *
- * If inode has a hashed alias, or is a directory and has any alias,
+ * If iyesde has a hashed alias, or is a directory and has any alias,
  * acquire the reference to alias and return it. Otherwise return NULL.
- * Notice that if inode is a directory there can be only one alias and
- * it can be unhashed only if it has no children, or if it is the root
+ * Notice that if iyesde is a directory there can be only one alias and
+ * it can be unhashed only if it has yes children, or if it is the root
  * of a filesystem, or if the directory was renamed and d_revalidate
- * was the first vfs operation to notice.
+ * was the first vfs operation to yestice.
  *
- * If the inode has an IS_ROOT, DCACHE_DISCONNECTED alias, then prefer
+ * If the iyesde has an IS_ROOT, DCACHE_DISCONNECTED alias, then prefer
  * any other hashed alias over that one.
  */
-static struct dentry *__d_find_alias(struct inode *inode)
+static struct dentry *__d_find_alias(struct iyesde *iyesde)
 {
 	struct dentry *alias;
 
-	if (S_ISDIR(inode->i_mode))
-		return __d_find_any_alias(inode);
+	if (S_ISDIR(iyesde->i_mode))
+		return __d_find_any_alias(iyesde);
 
-	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
+	hlist_for_each_entry(alias, &iyesde->i_dentry, d_u.d_alias) {
 		spin_lock(&alias->d_lock);
  		if (!d_unhashed(alias)) {
 			__dget_dlock(alias);
@@ -1003,29 +1003,29 @@ static struct dentry *__d_find_alias(struct inode *inode)
 	return NULL;
 }
 
-struct dentry *d_find_alias(struct inode *inode)
+struct dentry *d_find_alias(struct iyesde *iyesde)
 {
 	struct dentry *de = NULL;
 
-	if (!hlist_empty(&inode->i_dentry)) {
-		spin_lock(&inode->i_lock);
-		de = __d_find_alias(inode);
-		spin_unlock(&inode->i_lock);
+	if (!hlist_empty(&iyesde->i_dentry)) {
+		spin_lock(&iyesde->i_lock);
+		de = __d_find_alias(iyesde);
+		spin_unlock(&iyesde->i_lock);
 	}
 	return de;
 }
 EXPORT_SYMBOL(d_find_alias);
 
 /*
- *	Try to kill dentries associated with this inode.
- * WARNING: you must own a reference to inode.
+ *	Try to kill dentries associated with this iyesde.
+ * WARNING: you must own a reference to iyesde.
  */
-void d_prune_aliases(struct inode *inode)
+void d_prune_aliases(struct iyesde *iyesde)
 {
 	struct dentry *dentry;
 restart:
-	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
+	spin_lock(&iyesde->i_lock);
+	hlist_for_each_entry(dentry, &iyesde->i_dentry, d_u.d_alias) {
 		spin_lock(&dentry->d_lock);
 		if (!dentry->d_lockref.count) {
 			struct dentry *parent = lock_parent(dentry);
@@ -1039,38 +1039,38 @@ restart:
 		}
 		spin_unlock(&dentry->d_lock);
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 }
 EXPORT_SYMBOL(d_prune_aliases);
 
 /*
  * Lock a dentry from shrink list.
  * Called under rcu_read_lock() and dentry->d_lock; the former
- * guarantees that nothing we access will be freed under us.
- * Note that dentry is *not* protected from concurrent dentry_kill(),
+ * guarantees that yesthing we access will be freed under us.
+ * Note that dentry is *yest* protected from concurrent dentry_kill(),
  * d_delete(), etc.
  *
  * Return false if dentry has been disrupted or grabbed, leaving
  * the caller to kick it off-list.  Otherwise, return true and have
- * that dentry's inode and parent both locked.
+ * that dentry's iyesde and parent both locked.
  */
 static bool shrink_lock_dentry(struct dentry *dentry)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct dentry *parent;
 
 	if (dentry->d_lockref.count)
 		return false;
 
-	inode = dentry->d_inode;
-	if (inode && unlikely(!spin_trylock(&inode->i_lock))) {
+	iyesde = dentry->d_iyesde;
+	if (iyesde && unlikely(!spin_trylock(&iyesde->i_lock))) {
 		spin_unlock(&dentry->d_lock);
-		spin_lock(&inode->i_lock);
+		spin_lock(&iyesde->i_lock);
 		spin_lock(&dentry->d_lock);
 		if (unlikely(dentry->d_lockref.count))
 			goto out;
-		/* changed inode means that somebody had grabbed it */
-		if (unlikely(inode != dentry->d_inode))
+		/* changed iyesde means that somebody had grabbed it */
+		if (unlikely(iyesde != dentry->d_iyesde))
 			goto out;
 	}
 
@@ -1090,8 +1090,8 @@ static bool shrink_lock_dentry(struct dentry *dentry)
 		return true;
 	spin_unlock(&parent->d_lock);
 out:
-	if (inode)
-		spin_unlock(&inode->i_lock);
+	if (iyesde)
+		spin_unlock(&iyesde->i_lock);
 	return false;
 }
 
@@ -1141,7 +1141,7 @@ static enum lru_status dentry_lru_isolate(struct list_head *item,
 	/*
 	 * Referenced dentries are still in use. If they have active
 	 * counts, just remove them from the LRU. Otherwise give them
-	 * another pass through the LRU.
+	 * ayesther pass through the LRU.
 	 */
 	if (dentry->d_lockref.count) {
 		d_lru_isolate(lru, dentry);
@@ -1451,12 +1451,12 @@ out:
  * Search the dentry child list of the specified parent,
  * and move any unused dentries to the end of the unused
  * list for prune_dcache(). We descend to the next level
- * whenever the d_subdirs list is non-empty and continue
+ * whenever the d_subdirs list is yesn-empty and continue
  * searching.
  *
- * It returns zero iff there are no unused children,
+ * It returns zero iff there are yes unused children,
  * otherwise  it returns the number of children moved to
- * the end of the unused list. This may not be the total
+ * the end of the unused list. This may yest be the total
  * number of unused children, because select_parent can
  * drop the lock and return early due to latency
  * constraints.
@@ -1588,8 +1588,8 @@ static enum d_walk_ret umount_check(void *_data, struct dentry *dentry)
 	printk(KERN_ERR "BUG: Dentry %p{i=%lx,n=%pd} "
 			" still in use (%d) [unmount of %s %s]\n",
 		       dentry,
-		       dentry->d_inode ?
-		       dentry->d_inode->i_ino : 0UL,
+		       dentry->d_iyesde ?
+		       dentry->d_iyesde->i_iyes : 0UL,
 		       dentry,
 		       dentry->d_lockref.count,
 		       dentry->d_sb->s_type->name,
@@ -1652,7 +1652,7 @@ void d_invalidate(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 
 	/* Negative dentries can be dropped without further checks */
-	if (!dentry->d_inode)
+	if (!dentry->d_iyesde)
 		return;
 
 	shrink_dcache_parent(dentry);
@@ -1728,7 +1728,7 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	dentry->d_flags = 0;
 	spin_lock_init(&dentry->d_lock);
 	seqcount_init(&dentry->d_seq);
-	dentry->d_inode = NULL;
+	dentry->d_iyesde = NULL;
 	dentry->d_parent = dentry;
 	dentry->d_sb = sb;
 	dentry->d_op = NULL;
@@ -1771,7 +1771,7 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 		return NULL;
 	spin_lock(&parent->d_lock);
 	/*
-	 * don't need child lock because it is not subject
+	 * don't need child lock because it is yest subject
 	 * to concurrency here
 	 */
 	__dget_dlock(parent);
@@ -1783,15 +1783,15 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 }
 EXPORT_SYMBOL(d_alloc);
 
-struct dentry *d_alloc_anon(struct super_block *sb)
+struct dentry *d_alloc_ayesn(struct super_block *sb)
 {
 	return __d_alloc(sb, NULL);
 }
-EXPORT_SYMBOL(d_alloc_anon);
+EXPORT_SYMBOL(d_alloc_ayesn);
 
 struct dentry *d_alloc_cursor(struct dentry * parent)
 {
-	struct dentry *dentry = d_alloc_anon(parent->d_sb);
+	struct dentry *dentry = d_alloc_ayesn(parent->d_sb);
 	if (dentry) {
 		dentry->d_flags |= DCACHE_DENTRY_CURSOR;
 		dentry->d_parent = dget(parent);
@@ -1808,7 +1808,7 @@ struct dentry *d_alloc_cursor(struct dentry * parent)
  * performs lookups at all, return an unhashed IS_ROOT dentry.
  * This is used for pipes, sockets et.al. - the stuff that should
  * never be anyone's children or parents.  Unlike all other
- * dentries, these will not have RCU delay between dropping the
+ * dentries, these will yest have RCU delay between dropping the
  * last reference and freeing them.
  *
  * The only user is alloc_file_pseudo() and that's what should
@@ -1878,44 +1878,44 @@ void d_set_fallthru(struct dentry *dentry)
 }
 EXPORT_SYMBOL(d_set_fallthru);
 
-static unsigned d_flags_for_inode(struct inode *inode)
+static unsigned d_flags_for_iyesde(struct iyesde *iyesde)
 {
 	unsigned add_flags = DCACHE_REGULAR_TYPE;
 
-	if (!inode)
+	if (!iyesde)
 		return DCACHE_MISS_TYPE;
 
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(iyesde->i_mode)) {
 		add_flags = DCACHE_DIRECTORY_TYPE;
-		if (unlikely(!(inode->i_opflags & IOP_LOOKUP))) {
-			if (unlikely(!inode->i_op->lookup))
+		if (unlikely(!(iyesde->i_opflags & IOP_LOOKUP))) {
+			if (unlikely(!iyesde->i_op->lookup))
 				add_flags = DCACHE_AUTODIR_TYPE;
 			else
-				inode->i_opflags |= IOP_LOOKUP;
+				iyesde->i_opflags |= IOP_LOOKUP;
 		}
 		goto type_determined;
 	}
 
-	if (unlikely(!(inode->i_opflags & IOP_NOFOLLOW))) {
-		if (unlikely(inode->i_op->get_link)) {
+	if (unlikely(!(iyesde->i_opflags & IOP_NOFOLLOW))) {
+		if (unlikely(iyesde->i_op->get_link)) {
 			add_flags = DCACHE_SYMLINK_TYPE;
 			goto type_determined;
 		}
-		inode->i_opflags |= IOP_NOFOLLOW;
+		iyesde->i_opflags |= IOP_NOFOLLOW;
 	}
 
-	if (unlikely(!S_ISREG(inode->i_mode)))
+	if (unlikely(!S_ISREG(iyesde->i_mode)))
 		add_flags = DCACHE_SPECIAL_TYPE;
 
 type_determined:
-	if (unlikely(IS_AUTOMOUNT(inode)))
+	if (unlikely(IS_AUTOMOUNT(iyesde)))
 		add_flags |= DCACHE_NEED_AUTOMOUNT;
 	return add_flags;
 }
 
-static void __d_instantiate(struct dentry *dentry, struct inode *inode)
+static void __d_instantiate(struct dentry *dentry, struct iyesde *iyesde)
 {
-	unsigned add_flags = d_flags_for_inode(inode);
+	unsigned add_flags = d_flags_for_iyesde(iyesde);
 	WARN_ON(d_in_lookup(dentry));
 
 	spin_lock(&dentry->d_lock);
@@ -1924,241 +1924,241 @@ static void __d_instantiate(struct dentry *dentry, struct inode *inode)
 	 */
 	if (dentry->d_flags & DCACHE_LRU_LIST)
 		this_cpu_dec(nr_dentry_negative);
-	hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
+	hlist_add_head(&dentry->d_u.d_alias, &iyesde->i_dentry);
 	raw_write_seqcount_begin(&dentry->d_seq);
-	__d_set_inode_and_type(dentry, inode, add_flags);
+	__d_set_iyesde_and_type(dentry, iyesde, add_flags);
 	raw_write_seqcount_end(&dentry->d_seq);
-	fsnotify_update_flags(dentry);
+	fsyestify_update_flags(dentry);
 	spin_unlock(&dentry->d_lock);
 }
 
 /**
- * d_instantiate - fill in inode information for a dentry
+ * d_instantiate - fill in iyesde information for a dentry
  * @entry: dentry to complete
- * @inode: inode to attach to this dentry
+ * @iyesde: iyesde to attach to this dentry
  *
- * Fill in inode information in the entry.
+ * Fill in iyesde information in the entry.
  *
  * This turns negative dentries into productive full members
  * of society.
  *
- * NOTE! This assumes that the inode count has been incremented
- * (or otherwise set) by the caller to indicate that it is now
+ * NOTE! This assumes that the iyesde count has been incremented
+ * (or otherwise set) by the caller to indicate that it is yesw
  * in use by the dcache.
  */
  
-void d_instantiate(struct dentry *entry, struct inode * inode)
+void d_instantiate(struct dentry *entry, struct iyesde * iyesde)
 {
 	BUG_ON(!hlist_unhashed(&entry->d_u.d_alias));
-	if (inode) {
-		security_d_instantiate(entry, inode);
-		spin_lock(&inode->i_lock);
-		__d_instantiate(entry, inode);
-		spin_unlock(&inode->i_lock);
+	if (iyesde) {
+		security_d_instantiate(entry, iyesde);
+		spin_lock(&iyesde->i_lock);
+		__d_instantiate(entry, iyesde);
+		spin_unlock(&iyesde->i_lock);
 	}
 }
 EXPORT_SYMBOL(d_instantiate);
 
 /*
- * This should be equivalent to d_instantiate() + unlock_new_inode(),
- * with lockdep-related part of unlock_new_inode() done before
+ * This should be equivalent to d_instantiate() + unlock_new_iyesde(),
+ * with lockdep-related part of unlock_new_iyesde() done before
  * anything else.  Use that instead of open-coding d_instantiate()/
- * unlock_new_inode() combinations.
+ * unlock_new_iyesde() combinations.
  */
-void d_instantiate_new(struct dentry *entry, struct inode *inode)
+void d_instantiate_new(struct dentry *entry, struct iyesde *iyesde)
 {
 	BUG_ON(!hlist_unhashed(&entry->d_u.d_alias));
-	BUG_ON(!inode);
-	lockdep_annotate_inode_mutex_key(inode);
-	security_d_instantiate(entry, inode);
-	spin_lock(&inode->i_lock);
-	__d_instantiate(entry, inode);
-	WARN_ON(!(inode->i_state & I_NEW));
-	inode->i_state &= ~I_NEW & ~I_CREATING;
+	BUG_ON(!iyesde);
+	lockdep_anyestate_iyesde_mutex_key(iyesde);
+	security_d_instantiate(entry, iyesde);
+	spin_lock(&iyesde->i_lock);
+	__d_instantiate(entry, iyesde);
+	WARN_ON(!(iyesde->i_state & I_NEW));
+	iyesde->i_state &= ~I_NEW & ~I_CREATING;
 	smp_mb();
-	wake_up_bit(&inode->i_state, __I_NEW);
-	spin_unlock(&inode->i_lock);
+	wake_up_bit(&iyesde->i_state, __I_NEW);
+	spin_unlock(&iyesde->i_lock);
 }
 EXPORT_SYMBOL(d_instantiate_new);
 
-struct dentry *d_make_root(struct inode *root_inode)
+struct dentry *d_make_root(struct iyesde *root_iyesde)
 {
 	struct dentry *res = NULL;
 
-	if (root_inode) {
-		res = d_alloc_anon(root_inode->i_sb);
+	if (root_iyesde) {
+		res = d_alloc_ayesn(root_iyesde->i_sb);
 		if (res)
-			d_instantiate(res, root_inode);
+			d_instantiate(res, root_iyesde);
 		else
-			iput(root_inode);
+			iput(root_iyesde);
 	}
 	return res;
 }
 EXPORT_SYMBOL(d_make_root);
 
-static struct dentry *__d_instantiate_anon(struct dentry *dentry,
-					   struct inode *inode,
+static struct dentry *__d_instantiate_ayesn(struct dentry *dentry,
+					   struct iyesde *iyesde,
 					   bool disconnected)
 {
 	struct dentry *res;
 	unsigned add_flags;
 
-	security_d_instantiate(dentry, inode);
-	spin_lock(&inode->i_lock);
-	res = __d_find_any_alias(inode);
+	security_d_instantiate(dentry, iyesde);
+	spin_lock(&iyesde->i_lock);
+	res = __d_find_any_alias(iyesde);
 	if (res) {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		dput(dentry);
 		goto out_iput;
 	}
 
 	/* attach a disconnected dentry */
-	add_flags = d_flags_for_inode(inode);
+	add_flags = d_flags_for_iyesde(iyesde);
 
 	if (disconnected)
 		add_flags |= DCACHE_DISCONNECTED;
 
 	spin_lock(&dentry->d_lock);
-	__d_set_inode_and_type(dentry, inode, add_flags);
-	hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
+	__d_set_iyesde_and_type(dentry, iyesde, add_flags);
+	hlist_add_head(&dentry->d_u.d_alias, &iyesde->i_dentry);
 	if (!disconnected) {
 		hlist_bl_lock(&dentry->d_sb->s_roots);
 		hlist_bl_add_head(&dentry->d_hash, &dentry->d_sb->s_roots);
 		hlist_bl_unlock(&dentry->d_sb->s_roots);
 	}
 	spin_unlock(&dentry->d_lock);
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 
 	return dentry;
 
  out_iput:
-	iput(inode);
+	iput(iyesde);
 	return res;
 }
 
-struct dentry *d_instantiate_anon(struct dentry *dentry, struct inode *inode)
+struct dentry *d_instantiate_ayesn(struct dentry *dentry, struct iyesde *iyesde)
 {
-	return __d_instantiate_anon(dentry, inode, true);
+	return __d_instantiate_ayesn(dentry, iyesde, true);
 }
-EXPORT_SYMBOL(d_instantiate_anon);
+EXPORT_SYMBOL(d_instantiate_ayesn);
 
-static struct dentry *__d_obtain_alias(struct inode *inode, bool disconnected)
+static struct dentry *__d_obtain_alias(struct iyesde *iyesde, bool disconnected)
 {
 	struct dentry *tmp;
 	struct dentry *res;
 
-	if (!inode)
+	if (!iyesde)
 		return ERR_PTR(-ESTALE);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
+	if (IS_ERR(iyesde))
+		return ERR_CAST(iyesde);
 
-	res = d_find_any_alias(inode);
+	res = d_find_any_alias(iyesde);
 	if (res)
 		goto out_iput;
 
-	tmp = d_alloc_anon(inode->i_sb);
+	tmp = d_alloc_ayesn(iyesde->i_sb);
 	if (!tmp) {
 		res = ERR_PTR(-ENOMEM);
 		goto out_iput;
 	}
 
-	return __d_instantiate_anon(tmp, inode, disconnected);
+	return __d_instantiate_ayesn(tmp, iyesde, disconnected);
 
 out_iput:
-	iput(inode);
+	iput(iyesde);
 	return res;
 }
 
 /**
- * d_obtain_alias - find or allocate a DISCONNECTED dentry for a given inode
- * @inode: inode to allocate the dentry for
+ * d_obtain_alias - find or allocate a DISCONNECTED dentry for a given iyesde
+ * @iyesde: iyesde to allocate the dentry for
  *
- * Obtain a dentry for an inode resulting from NFS filehandle conversion or
- * similar open by handle operations.  The returned dentry may be anonymous,
- * or may have a full name (if the inode was already in the cache).
+ * Obtain a dentry for an iyesde resulting from NFS filehandle conversion or
+ * similar open by handle operations.  The returned dentry may be ayesnymous,
+ * or may have a full name (if the iyesde was already in the cache).
  *
- * When called on a directory inode, we must ensure that the inode only ever
+ * When called on a directory iyesde, we must ensure that the iyesde only ever
  * has one dentry.  If a dentry is found, that is returned instead of
  * allocating a new one.
  *
- * On successful return, the reference to the inode has been transferred
- * to the dentry.  In case of an error the reference on the inode is released.
- * To make it easier to use in export operations a %NULL or IS_ERR inode may
+ * On successful return, the reference to the iyesde has been transferred
+ * to the dentry.  In case of an error the reference on the iyesde is released.
+ * To make it easier to use in export operations a %NULL or IS_ERR iyesde may
  * be passed in and the error will be propagated to the return value,
- * with a %NULL @inode replaced by ERR_PTR(-ESTALE).
+ * with a %NULL @iyesde replaced by ERR_PTR(-ESTALE).
  */
-struct dentry *d_obtain_alias(struct inode *inode)
+struct dentry *d_obtain_alias(struct iyesde *iyesde)
 {
-	return __d_obtain_alias(inode, true);
+	return __d_obtain_alias(iyesde, true);
 }
 EXPORT_SYMBOL(d_obtain_alias);
 
 /**
- * d_obtain_root - find or allocate a dentry for a given inode
- * @inode: inode to allocate the dentry for
+ * d_obtain_root - find or allocate a dentry for a given iyesde
+ * @iyesde: iyesde to allocate the dentry for
  *
  * Obtain an IS_ROOT dentry for the root of a filesystem.
  *
- * We must ensure that directory inodes only ever have one dentry.  If a
+ * We must ensure that directory iyesdes only ever have one dentry.  If a
  * dentry is found, that is returned instead of allocating a new one.
  *
- * On successful return, the reference to the inode has been transferred
- * to the dentry.  In case of an error the reference on the inode is
- * released.  A %NULL or IS_ERR inode may be passed in and will be the
- * error will be propagate to the return value, with a %NULL @inode
+ * On successful return, the reference to the iyesde has been transferred
+ * to the dentry.  In case of an error the reference on the iyesde is
+ * released.  A %NULL or IS_ERR iyesde may be passed in and will be the
+ * error will be propagate to the return value, with a %NULL @iyesde
  * replaced by ERR_PTR(-ESTALE).
  */
-struct dentry *d_obtain_root(struct inode *inode)
+struct dentry *d_obtain_root(struct iyesde *iyesde)
 {
-	return __d_obtain_alias(inode, false);
+	return __d_obtain_alias(iyesde, false);
 }
 EXPORT_SYMBOL(d_obtain_root);
 
 /**
  * d_add_ci - lookup or allocate new dentry with case-exact name
- * @inode:  the inode case-insensitive lookup has found
+ * @iyesde:  the iyesde case-insensitive lookup has found
  * @dentry: the negative dentry that was passed to the parent's lookup func
  * @name:   the case-exact name to be associated with the returned dentry
  *
  * This is to avoid filling the dcache with case-insensitive names to the
- * same inode, only the actual correct case is stored in the dcache for
+ * same iyesde, only the actual correct case is stored in the dcache for
  * case-insensitive filesystems.
  *
  * For a case-insensitive lookup match and if the the case-exact dentry
  * already exists in in the dcache, use it and return it.
  *
- * If no entry exists with the exact case name, allocate new dentry with
+ * If yes entry exists with the exact case name, allocate new dentry with
  * the exact case, and return the spliced entry.
  */
-struct dentry *d_add_ci(struct dentry *dentry, struct inode *inode,
+struct dentry *d_add_ci(struct dentry *dentry, struct iyesde *iyesde,
 			struct qstr *name)
 {
 	struct dentry *found, *res;
 
 	/*
 	 * First check if a dentry matching the name already exists,
-	 * if not go ahead and create it now.
+	 * if yest go ahead and create it yesw.
 	 */
 	found = d_hash_and_lookup(dentry->d_parent, name);
 	if (found) {
-		iput(inode);
+		iput(iyesde);
 		return found;
 	}
 	if (d_in_lookup(dentry)) {
 		found = d_alloc_parallel(dentry->d_parent, name,
 					dentry->d_wait);
 		if (IS_ERR(found) || !d_in_lookup(found)) {
-			iput(inode);
+			iput(iyesde);
 			return found;
 		}
 	} else {
 		found = d_alloc(dentry->d_parent, name);
 		if (!found) {
-			iput(inode);
+			iput(iyesde);
 			return ERR_PTR(-ENOMEM);
 		} 
 	}
-	res = d_splice_alias(inode, found);
+	res = d_splice_alias(iyesde, found);
 	if (res) {
 		dput(found);
 		return res;
@@ -2193,10 +2193,10 @@ static inline bool d_same_name(const struct dentry *dentry,
  * resolution (store-free path walking) design described in
  * Documentation/filesystems/path-lookup.txt.
  *
- * This is not to be used outside core vfs.
+ * This is yest to be used outside core vfs.
  *
  * __d_lookup_rcu must only be used in rcu-walk mode, ie. with vfsmount lock
- * held, and rcu_read_lock held. The returned dentry must not be stored into
+ * held, and rcu_read_lock held. The returned dentry must yest be stored into
  * without taking d_lock and checking d_seq sequence count against @seq
  * returned here.
  *
@@ -2218,7 +2218,7 @@ struct dentry *__d_lookup_rcu(const struct dentry *parent,
 	u64 hashlen = name->hash_len;
 	const unsigned char *str = name->name;
 	struct hlist_bl_head *b = d_hash(hashlen_hash(hashlen));
-	struct hlist_bl_node *node;
+	struct hlist_bl_yesde *yesde;
 	struct dentry *dentry;
 
 	/*
@@ -2241,7 +2241,7 @@ struct dentry *__d_lookup_rcu(const struct dentry *parent,
 	 *
 	 * See Documentation/filesystems/path-lookup.txt for more details.
 	 */
-	hlist_bl_for_each_entry_rcu(dentry, node, b, d_hash) {
+	hlist_bl_for_each_entry_rcu(dentry, yesde, b, d_hash) {
 		unsigned seq;
 
 seqretry:
@@ -2304,7 +2304,7 @@ seqretry:
  * d_lookup searches the children of the parent dentry for the name in
  * question. If the dentry is found its reference count is incremented and the
  * dentry is returned. The caller must use dput to free the entry when it has
- * finished using it. %NULL is returned if the dentry does not exist.
+ * finished using it. %NULL is returned if the dentry does yest exist.
  */
 struct dentry *d_lookup(const struct dentry *parent, const struct qstr *name)
 {
@@ -2340,7 +2340,7 @@ struct dentry *__d_lookup(const struct dentry *parent, const struct qstr *name)
 {
 	unsigned int hash = name->hash;
 	struct hlist_bl_head *b = d_hash(hash);
-	struct hlist_bl_node *node;
+	struct hlist_bl_yesde *yesde;
 	struct dentry *found = NULL;
 	struct dentry *dentry;
 
@@ -2366,7 +2366,7 @@ struct dentry *__d_lookup(const struct dentry *parent, const struct qstr *name)
 	 */
 	rcu_read_lock();
 	
-	hlist_bl_for_each_entry_rcu(dentry, node, b, d_hash) {
+	hlist_bl_for_each_entry_rcu(dentry, yesde, b, d_hash) {
 
 		if (dentry->d_name.hash != hash)
 			continue;
@@ -2423,10 +2423,10 @@ EXPORT_SYMBOL(d_hash_and_lookup);
  *
  * Usually, we want to just turn this into
  * a negative dentry, but if anybody else is
- * currently using the dentry or the inode
+ * currently using the dentry or the iyesde
  * we can't do that and we fall back on removing
  * it from the hash queues and waiting for
- * it to be deleted later when it has no users
+ * it to be deleted later when it has yes users
  */
  
 /**
@@ -2439,20 +2439,20 @@ EXPORT_SYMBOL(d_hash_and_lookup);
  
 void d_delete(struct dentry * dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct iyesde *iyesde = dentry->d_iyesde;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
 	spin_lock(&dentry->d_lock);
 	/*
 	 * Are we the only user?
 	 */
 	if (dentry->d_lockref.count == 1) {
 		dentry->d_flags &= ~DCACHE_CANT_MOUNT;
-		dentry_unlink_inode(dentry);
+		dentry_unlink_iyesde(dentry);
 	} else {
 		__d_drop(dentry);
 		spin_unlock(&dentry->d_lock);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 	}
 }
 EXPORT_SYMBOL(d_delete);
@@ -2481,7 +2481,7 @@ void d_rehash(struct dentry * entry)
 }
 EXPORT_SYMBOL(d_rehash);
 
-static inline unsigned start_dir_add(struct inode *dir)
+static inline unsigned start_dir_add(struct iyesde *dir)
 {
 
 	for (;;) {
@@ -2492,7 +2492,7 @@ static inline unsigned start_dir_add(struct inode *dir)
 	}
 }
 
-static inline void end_dir_add(struct inode *dir, unsigned n)
+static inline void end_dir_add(struct iyesde *dir, unsigned n)
 {
 	smp_store_release(&dir->i_dir_seq, n + 2);
 }
@@ -2517,7 +2517,7 @@ struct dentry *d_alloc_parallel(struct dentry *parent,
 {
 	unsigned int hash = name->hash;
 	struct hlist_bl_head *b = in_lookup_hash(parent, hash);
-	struct hlist_bl_node *node;
+	struct hlist_bl_yesde *yesde;
 	struct dentry *new = d_alloc(parent, name);
 	struct dentry *dentry;
 	unsigned seq, r_seq, d_seq;
@@ -2527,11 +2527,11 @@ struct dentry *d_alloc_parallel(struct dentry *parent,
 
 retry:
 	rcu_read_lock();
-	seq = smp_load_acquire(&parent->d_inode->i_dir_seq);
+	seq = smp_load_acquire(&parent->d_iyesde->i_dir_seq);
 	r_seq = read_seqbegin(&rename_lock);
 	dentry = __d_lookup_rcu(parent, name, &d_seq);
 	if (unlikely(dentry)) {
-		if (!lockref_get_not_dead(&dentry->d_lockref)) {
+		if (!lockref_get_yest_dead(&dentry->d_lockref)) {
 			rcu_read_unlock();
 			goto retry;
 		}
@@ -2555,7 +2555,7 @@ retry:
 	}
 
 	hlist_bl_lock(b);
-	if (unlikely(READ_ONCE(parent->d_inode->i_dir_seq) != seq)) {
+	if (unlikely(READ_ONCE(parent->d_iyesde->i_dir_seq) != seq)) {
 		hlist_bl_unlock(b);
 		rcu_read_unlock();
 		goto retry;
@@ -2567,7 +2567,7 @@ retry:
 	 * we unlock the chain.  All fields are stable in everything
 	 * we encounter.
 	 */
-	hlist_bl_for_each_entry(dentry, node, b, d_u.d_in_lookup_hash) {
+	hlist_bl_for_each_entry(dentry, yesde, b, d_u.d_in_lookup_hash) {
 		if (dentry->d_name.hash != hash)
 			continue;
 		if (dentry->d_parent != parent)
@@ -2575,8 +2575,8 @@ retry:
 		if (!d_same_name(dentry, parent, name))
 			continue;
 		hlist_bl_unlock(b);
-		/* now we can try to grab a reference */
-		if (!lockref_get_not_dead(&dentry->d_lockref)) {
+		/* yesw we can try to grab a reference */
+		if (!lockref_get_yest_dead(&dentry->d_lockref)) {
 			rcu_read_unlock();
 			goto retry;
 		}
@@ -2589,7 +2589,7 @@ retry:
 		spin_lock(&dentry->d_lock);
 		d_wait_lookup(dentry);
 		/*
-		 * it's not in-lookup anymore; in principle we should repeat
+		 * it's yest in-lookup anymore; in principle we should repeat
 		 * everything from dcache lookup, but it's likely to be what
 		 * d_lookup() would've found anyway.  If it is, just return it;
 		 * otherwise we really have to repeat the whole thing.
@@ -2636,75 +2636,75 @@ void __d_lookup_done(struct dentry *dentry)
 }
 EXPORT_SYMBOL(__d_lookup_done);
 
-/* inode->i_lock held if inode is non-NULL */
+/* iyesde->i_lock held if iyesde is yesn-NULL */
 
-static inline void __d_add(struct dentry *dentry, struct inode *inode)
+static inline void __d_add(struct dentry *dentry, struct iyesde *iyesde)
 {
-	struct inode *dir = NULL;
+	struct iyesde *dir = NULL;
 	unsigned n;
 	spin_lock(&dentry->d_lock);
 	if (unlikely(d_in_lookup(dentry))) {
-		dir = dentry->d_parent->d_inode;
+		dir = dentry->d_parent->d_iyesde;
 		n = start_dir_add(dir);
 		__d_lookup_done(dentry);
 	}
-	if (inode) {
-		unsigned add_flags = d_flags_for_inode(inode);
-		hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
+	if (iyesde) {
+		unsigned add_flags = d_flags_for_iyesde(iyesde);
+		hlist_add_head(&dentry->d_u.d_alias, &iyesde->i_dentry);
 		raw_write_seqcount_begin(&dentry->d_seq);
-		__d_set_inode_and_type(dentry, inode, add_flags);
+		__d_set_iyesde_and_type(dentry, iyesde, add_flags);
 		raw_write_seqcount_end(&dentry->d_seq);
-		fsnotify_update_flags(dentry);
+		fsyestify_update_flags(dentry);
 	}
 	__d_rehash(dentry);
 	if (dir)
 		end_dir_add(dir, n);
 	spin_unlock(&dentry->d_lock);
-	if (inode)
-		spin_unlock(&inode->i_lock);
+	if (iyesde)
+		spin_unlock(&iyesde->i_lock);
 }
 
 /**
  * d_add - add dentry to hash queues
  * @entry: dentry to add
- * @inode: The inode to attach to this dentry
+ * @iyesde: The iyesde to attach to this dentry
  *
- * This adds the entry to the hash queues and initializes @inode.
+ * This adds the entry to the hash queues and initializes @iyesde.
  * The entry was actually filled in earlier during d_alloc().
  */
 
-void d_add(struct dentry *entry, struct inode *inode)
+void d_add(struct dentry *entry, struct iyesde *iyesde)
 {
-	if (inode) {
-		security_d_instantiate(entry, inode);
-		spin_lock(&inode->i_lock);
+	if (iyesde) {
+		security_d_instantiate(entry, iyesde);
+		spin_lock(&iyesde->i_lock);
 	}
-	__d_add(entry, inode);
+	__d_add(entry, iyesde);
 }
 EXPORT_SYMBOL(d_add);
 
 /**
  * d_exact_alias - find and hash an exact unhashed alias
  * @entry: dentry to add
- * @inode: The inode to go with this dentry
+ * @iyesde: The iyesde to go with this dentry
  *
  * If an unhashed dentry with the same name/parent and desired
- * inode already exists, hash and return it.  Otherwise, return
+ * iyesde already exists, hash and return it.  Otherwise, return
  * NULL.
  *
  * Parent directory should be locked.
  */
-struct dentry *d_exact_alias(struct dentry *entry, struct inode *inode)
+struct dentry *d_exact_alias(struct dentry *entry, struct iyesde *iyesde)
 {
 	struct dentry *alias;
 	unsigned int hash = entry->d_name.hash;
 
-	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
+	spin_lock(&iyesde->i_lock);
+	hlist_for_each_entry(alias, &iyesde->i_dentry, d_u.d_alias) {
 		/*
 		 * Don't need alias->d_lock here, because aliases with
-		 * d_parent == entry->d_parent are not subject to name or
-		 * parent changes, because the parent inode i_mutex is held.
+		 * d_parent == entry->d_parent are yest subject to name or
+		 * parent changes, because the parent iyesde i_mutex is held.
 		 */
 		if (alias->d_name.hash != hash)
 			continue;
@@ -2721,10 +2721,10 @@ struct dentry *d_exact_alias(struct dentry *entry, struct inode *inode)
 			__d_rehash(alias);
 			spin_unlock(&alias->d_lock);
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		return alias;
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 	return NULL;
 }
 EXPORT_SYMBOL(d_exact_alias);
@@ -2797,7 +2797,7 @@ static void copy_name(struct dentry *dentry, struct dentry *target)
  * @exchange: exchange the two dentries
  *
  * Update the dcache to reflect the move of a file name. Negative
- * dcache entries should not be moved in this way. Caller must hold
+ * dcache entries should yest be moved in this way. Caller must hold
  * rename_lock, the i_mutex of the source and target directories,
  * and the sb->s_vfs_rename_mutex if they differ. See lock_rename().
  */
@@ -2805,10 +2805,10 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 		     bool exchange)
 {
 	struct dentry *old_parent, *p;
-	struct inode *dir = NULL;
+	struct iyesde *dir = NULL;
 	unsigned n;
 
-	WARN_ON(!dentry->d_inode);
+	WARN_ON(!dentry->d_iyesde);
 	if (WARN_ON(dentry == target))
 		return;
 
@@ -2819,7 +2819,7 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 		BUG_ON(p);
 		spin_lock(&target->d_parent->d_lock);
 	} else if (!p) {
-		/* target is not a descendent of dentry->d_parent */
+		/* target is yest a descendent of dentry->d_parent */
 		spin_lock(&target->d_parent->d_lock);
 		spin_lock_nested(&old_parent->d_lock, DENTRY_D_LOCK_NESTED);
 	} else {
@@ -2833,7 +2833,7 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	spin_lock_nested(&target->d_lock, 3);
 
 	if (unlikely(d_in_lookup(target))) {
-		dir = target->d_parent->d_inode;
+		dir = target->d_parent->d_iyesde;
 		n = start_dir_add(dir);
 		__d_lookup_done(target);
 	}
@@ -2860,11 +2860,11 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 		swap_names(dentry, target);
 		list_move(&target->d_child, &target->d_parent->d_subdirs);
 		__d_rehash(target);
-		fsnotify_update_flags(target);
+		fsyestify_update_flags(target);
 	}
 	list_move(&dentry->d_child, &dentry->d_parent->d_subdirs);
 	__d_rehash(dentry);
-	fsnotify_update_flags(dentry);
+	fsyestify_update_flags(dentry);
 	fscrypt_handle_d_move(dentry);
 
 	write_seqcount_end(&target->d_seq);
@@ -2887,7 +2887,7 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
  * @target: new dentry
  *
  * Update the dcache to reflect the move of a file name. Negative
- * dcache entries should not be moved in this way. See the locking
+ * dcache entries should yest be moved in this way. See the locking
  * requirements for __d_move.
  */
 void d_move(struct dentry *dentry, struct dentry *target)
@@ -2907,8 +2907,8 @@ void d_exchange(struct dentry *dentry1, struct dentry *dentry2)
 {
 	write_seqlock(&rename_lock);
 
-	WARN_ON(!dentry1->d_inode);
-	WARN_ON(!dentry2->d_inode);
+	WARN_ON(!dentry1->d_iyesde);
+	WARN_ON(!dentry2->d_iyesde);
 	WARN_ON(IS_ROOT(dentry1));
 	WARN_ON(IS_ROOT(dentry2));
 
@@ -2940,19 +2940,19 @@ struct dentry *d_ancestor(struct dentry *p1, struct dentry *p2)
  * This helper attempts to cope with remotely renamed directories
  *
  * It assumes that the caller is already holding
- * dentry->d_parent->d_inode->i_mutex, and rename_lock
+ * dentry->d_parent->d_iyesde->i_mutex, and rename_lock
  *
  * Note: If ever the locking in lock_rename() changes, then please
  * remember to update this too...
  */
-static int __d_unalias(struct inode *inode,
+static int __d_unalias(struct iyesde *iyesde,
 		struct dentry *dentry, struct dentry *alias)
 {
 	struct mutex *m1 = NULL;
 	struct rw_semaphore *m2 = NULL;
 	int ret = -ESTALE;
 
-	/* If alias and dentry share a parent, then no extra locks required */
+	/* If alias and dentry share a parent, then yes extra locks required */
 	if (alias->d_parent == dentry->d_parent)
 		goto out_unalias;
 
@@ -2960,9 +2960,9 @@ static int __d_unalias(struct inode *inode,
 	if (!mutex_trylock(&dentry->d_sb->s_vfs_rename_mutex))
 		goto out_err;
 	m1 = &dentry->d_sb->s_vfs_rename_mutex;
-	if (!inode_trylock_shared(alias->d_parent->d_inode))
+	if (!iyesde_trylock_shared(alias->d_parent->d_iyesde))
 		goto out_err;
-	m2 = &alias->d_parent->d_inode->i_rwsem;
+	m2 = &alias->d_parent->d_iyesde->i_rwsem;
 out_unalias:
 	__d_move(alias, dentry, false);
 	ret = 0;
@@ -2976,14 +2976,14 @@ out_err:
 
 /**
  * d_splice_alias - splice a disconnected dentry into the tree if one exists
- * @inode:  the inode which may have a disconnected dentry
- * @dentry: a negative dentry which we want to point to the inode.
+ * @iyesde:  the iyesde which may have a disconnected dentry
+ * @dentry: a negative dentry which we want to point to the iyesde.
  *
- * If inode is a directory and has an IS_ROOT alias, then d_move that in
- * place of the given dentry and return it, else simply d_add the inode
+ * If iyesde is a directory and has an IS_ROOT alias, then d_move that in
+ * place of the given dentry and return it, else simply d_add the iyesde
  * to the dentry and return NULL.
  *
- * If a non-IS_ROOT directory is found, the filesystem is corrupt, and
+ * If a yesn-IS_ROOT directory is found, the filesystem is corrupt, and
  * we should error out: directories can't have multiple aliases.
  *
  * This is needed in the lookup routine of any filesystem that is exportable
@@ -2993,27 +2993,27 @@ out_err:
  * is returned.  This matches the expected return value of ->lookup.
  *
  * Cluster filesystems may call this function with a negative, hashed dentry.
- * In that case, we know that the inode will be a regular file, and also this
+ * In that case, we kyesw that the iyesde will be a regular file, and also this
  * will only occur during atomic_open. So we need to check for the dentry
  * being already hashed only in the final case.
  */
-struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
+struct dentry *d_splice_alias(struct iyesde *iyesde, struct dentry *dentry)
 {
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
+	if (IS_ERR(iyesde))
+		return ERR_CAST(iyesde);
 
 	BUG_ON(!d_unhashed(dentry));
 
-	if (!inode)
+	if (!iyesde)
 		goto out;
 
-	security_d_instantiate(dentry, inode);
-	spin_lock(&inode->i_lock);
-	if (S_ISDIR(inode->i_mode)) {
-		struct dentry *new = __d_find_any_alias(inode);
+	security_d_instantiate(dentry, iyesde);
+	spin_lock(&iyesde->i_lock);
+	if (S_ISDIR(iyesde->i_mode)) {
+		struct dentry *new = __d_find_any_alias(iyesde);
 		if (unlikely(new)) {
 			/* The reference to new ensures it remains an alias */
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&iyesde->i_lock);
 			write_seqlock(&rename_lock);
 			if (unlikely(d_ancestor(new, dentry))) {
 				write_sequnlock(&rename_lock);
@@ -3023,11 +3023,11 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 					"VFS: Lookup of '%s' in %s %s"
 					" would have caused loop\n",
 					dentry->d_name.name,
-					inode->i_sb->s_type->name,
-					inode->i_sb->s_id);
+					iyesde->i_sb->s_type->name,
+					iyesde->i_sb->s_id);
 			} else if (!IS_ROOT(new)) {
 				struct dentry *old_parent = dget(new->d_parent);
-				int err = __d_unalias(inode, dentry, new);
+				int err = __d_unalias(iyesde, dentry, new);
 				write_sequnlock(&rename_lock);
 				if (err) {
 					dput(new);
@@ -3038,12 +3038,12 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 				__d_move(new, dentry, false);
 				write_sequnlock(&rename_lock);
 			}
-			iput(inode);
+			iput(iyesde);
 			return new;
 		}
 	}
 out:
-	__d_add(dentry, inode);
+	__d_add(dentry, iyesde);
 	return NULL;
 }
 EXPORT_SYMBOL(d_splice_alias);
@@ -3091,11 +3091,11 @@ bool is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 }
 EXPORT_SYMBOL(is_subdir);
 
-static enum d_walk_ret d_genocide_kill(void *data, struct dentry *dentry)
+static enum d_walk_ret d_geyescide_kill(void *data, struct dentry *dentry)
 {
 	struct dentry *root = data;
 	if (dentry != root) {
-		if (d_unhashed(dentry) || !dentry->d_inode)
+		if (d_unhashed(dentry) || !dentry->d_iyesde)
 			return D_WALK_SKIP;
 
 		if (!(dentry->d_flags & DCACHE_GENOCIDE)) {
@@ -3106,26 +3106,26 @@ static enum d_walk_ret d_genocide_kill(void *data, struct dentry *dentry)
 	return D_WALK_CONTINUE;
 }
 
-void d_genocide(struct dentry *parent)
+void d_geyescide(struct dentry *parent)
 {
-	d_walk(parent, parent, d_genocide_kill);
+	d_walk(parent, parent, d_geyescide_kill);
 }
 
-EXPORT_SYMBOL(d_genocide);
+EXPORT_SYMBOL(d_geyescide);
 
-void d_tmpfile(struct dentry *dentry, struct inode *inode)
+void d_tmpfile(struct dentry *dentry, struct iyesde *iyesde)
 {
-	inode_dec_link_count(inode);
+	iyesde_dec_link_count(iyesde);
 	BUG_ON(dentry->d_name.name != dentry->d_iname ||
 		!hlist_unhashed(&dentry->d_u.d_alias) ||
 		!d_unlinked(dentry));
 	spin_lock(&dentry->d_parent->d_lock);
 	spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 	dentry->d_name.len = sprintf(dentry->d_iname, "#%llu",
-				(unsigned long long)inode->i_ino);
+				(unsigned long long)iyesde->i_iyes);
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dentry->d_parent->d_lock);
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 }
 EXPORT_SYMBOL(d_tmpfile);
 
@@ -3141,7 +3141,7 @@ __setup("dhash_entries=", set_dhash_entries);
 
 static void __init dcache_init_early(void)
 {
-	/* If hashes are distributed across NUMA nodes, defer
+	/* If hashes are distributed across NUMA yesdes, defer
 	 * hash allocation until vmalloc space is available.
 	 */
 	if (hashdist)
@@ -3164,7 +3164,7 @@ static void __init dcache_init(void)
 {
 	/*
 	 * A constructor could be added for stable state like the lists,
-	 * but it is probably not worth it because of the cache nature
+	 * but it is probably yest worth it because of the cache nature
 	 * of the dcache.
 	 */
 	dentry_cache = KMEM_CACHE_USERCOPY(dentry,
@@ -3200,7 +3200,7 @@ void __init vfs_caches_init_early(void)
 		INIT_HLIST_BL_HEAD(&in_lookup_hashtable[i]);
 
 	dcache_init_early();
-	inode_init_early();
+	iyesde_init_early();
 }
 
 void __init vfs_caches_init(void)
@@ -3209,7 +3209,7 @@ void __init vfs_caches_init(void)
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, 0, PATH_MAX, NULL);
 
 	dcache_init();
-	inode_init();
+	iyesde_init();
 	files_init();
 	files_maxfiles_init();
 	mnt_init();

@@ -42,7 +42,7 @@ static int allocate_ftrace_ops(struct trace_array *tr)
 	if (!ops)
 		return -ENOMEM;
 
-	/* Currently only the non stack verision is supported */
+	/* Currently only the yesn stack verision is supported */
 	ops->func = function_trace_call;
 	ops->flags = FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_PID;
 
@@ -136,7 +136,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip,
 		return;
 
 	pc = preempt_count();
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 
 	bit = trace_test_and_set_recursion(TRACE_FTRACE_START, TRACE_FTRACE_MAX);
 	if (bit < 0)
@@ -151,7 +151,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip,
 	trace_clear_recursion(bit);
 
  out:
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 }
 
 #ifdef CONFIG_UNWINDER_ORC
@@ -237,11 +237,11 @@ func_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 	switch (bit) {
 	case TRACE_FUNC_OPT_STACK:
-		/* do nothing if already set */
+		/* do yesthing if already set */
 		if (!!set == !!(func_flags.val & TRACE_FUNC_OPT_STACK))
 			break;
 
-		/* We can change this flag when not running. */
+		/* We can change this flag when yest running. */
 		if (tr->current_trace != &function_trace)
 			break;
 
@@ -295,24 +295,24 @@ static void update_traceon_count(struct ftrace_probe_ops *ops,
 	 * state of the tracer is already disabled (or enabled).
 	 * What needs to be synchronized in this case is that the count
 	 * only gets decremented once, even if the tracer is disabled
-	 * (or enabled) twice, as the second one is really a nop.
+	 * (or enabled) twice, as the second one is really a yesp.
 	 *
 	 * The memory barriers guarantee that we only decrement the
 	 * counter once. First the count is read to a local variable
 	 * and a read barrier is used to make sure that it is loaded
 	 * before checking if the tracer is in the state we want.
-	 * If the tracer is not in the state we want, then the count
+	 * If the tracer is yest in the state we want, then the count
 	 * is guaranteed to be the old count.
 	 *
 	 * Next the tracer is set to the state we want (disabled or enabled)
 	 * then a write memory barrier is used to make sure that
 	 * the new state is visible before changing the counter by
-	 * one minus the old counter. This guarantees that another CPU
+	 * one minus the old counter. This guarantees that ayesther CPU
 	 * executing this code will see the new state before seeing
-	 * the new counter value, and would not do anything if the new
+	 * the new counter value, and would yest do anything if the new
 	 * counter is seen.
 	 *
-	 * Note, there is no synchronization between this and a user
+	 * Note, there is yes synchronization between this and a user
 	 * setting the tracing_on file. But we currently don't care
 	 * about that.
 	 */
@@ -673,7 +673,7 @@ ftrace_trace_probe_callback(struct trace_array *tr,
 }
 
 static int
-ftrace_trace_onoff_callback(struct trace_array *tr, struct ftrace_hash *hash,
+ftrace_trace_oyesff_callback(struct trace_array *tr, struct ftrace_hash *hash,
 			    char *glob, char *cmd, char *param, int enable)
 {
 	struct ftrace_probe_ops *ops;
@@ -740,12 +740,12 @@ ftrace_cpudump_callback(struct trace_array *tr, struct ftrace_hash *hash,
 
 static struct ftrace_func_command ftrace_traceon_cmd = {
 	.name			= "traceon",
-	.func			= ftrace_trace_onoff_callback,
+	.func			= ftrace_trace_oyesff_callback,
 };
 
 static struct ftrace_func_command ftrace_traceoff_cmd = {
 	.name			= "traceoff",
-	.func			= ftrace_trace_onoff_callback,
+	.func			= ftrace_trace_oyesff_callback,
 };
 
 static struct ftrace_func_command ftrace_stacktrace_cmd = {

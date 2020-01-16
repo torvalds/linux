@@ -545,7 +545,7 @@ static int isl29501_reset_registers(struct isl29501_private *isl29501)
 					ISL29501_RESET_ALL_REGISTERS);
 	if (ret < 0) {
 		dev_err(&isl29501->client->dev,
-			"cannot reset registers %d\n", ret);
+			"canyest reset registers %d\n", ret);
 		return ret;
 	}
 
@@ -554,7 +554,7 @@ static int isl29501_reset_registers(struct isl29501_private *isl29501)
 					ISL29501_RESET_INT_SM);
 	if (ret < 0)
 		dev_err(&isl29501->client->dev,
-			"cannot reset state machine %d\n", ret);
+			"canyest reset state machine %d\n", ret);
 
 	return ret;
 }
@@ -568,7 +568,7 @@ static int isl29501_begin_acquisition(struct isl29501_private *isl29501)
 					ISL29501_EMUL_SAMPLE_START_PIN);
 	if (ret < 0)
 		dev_err(&isl29501->client->dev,
-			"cannot begin acquisition %d\n", ret);
+			"canyest begin acquisition %d\n", ret);
 
 	return ret;
 }
@@ -944,7 +944,7 @@ static irqreturn_t isl29501_trigger_handler(int irq, void *p)
 		isl29501_register_read(isl29501, REG_DISTANCE, buffer);
 
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer, pf->timestamp);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

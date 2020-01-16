@@ -80,14 +80,14 @@ config TABLET_USB_PEGASUS
 	select USB
 	help
 	  Say Y here if you want to use the Pegasus Mobile Notetaker,
-	  also known as:
-	  Genie e-note The Notetaker,
+	  also kyeswn as:
+	  Genie e-yeste The Notetaker,
 	  Staedtler Digital ballpoint pen 990 01,
-	  IRISnotes Express or
+	  IRISyestes Express or
 	  NEWLink Digital Note Taker.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called pegasus_notetaker.
+	  module will be called pegasus_yestetaker.
 
 config TABLET_SERIAL_WACOM4
 	tristate "Wacom protocol 4 serial tablet support"

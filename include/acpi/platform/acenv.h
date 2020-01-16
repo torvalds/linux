@@ -128,7 +128,7 @@
 #endif
 
 
-/*! [Begin] no source code translation */
+/*! [Begin] yes source code translation */
 
 /******************************************************************************
  *
@@ -194,7 +194,7 @@
 #include "acqnx.h"
 
 /*
- * EFI applications can be built with -nostdlib, in this case, it must be
+ * EFI applications can be built with -yesstdlib, in this case, it must be
  * included after including all other host environmental definitions, in
  * order to override the definitions.
  */
@@ -203,16 +203,16 @@
 
 #else
 
-/* Unknown environment */
+/* Unkyeswn environment */
 
-#error Unknown target environment
+#error Unkyeswn target environment
 #endif
 
-/*! [End] no source code translation !*/
+/*! [End] yes source code translation !*/
 
 /******************************************************************************
  *
- * Setup defaults for the required symbols that were not defined in one of
+ * Setup defaults for the required symbols that were yest defined in one of
  * the host/compiler files above.
  *
  *****************************************************************************/
@@ -248,7 +248,7 @@
 #define ACPI_FLUSH_CPU_CACHE()
 #endif
 
-/* "inline" keywords - configurable since inline is not standardized */
+/* "inline" keywords - configurable since inline is yest standardized */
 
 #ifndef ACPI_INLINE
 #define ACPI_INLINE
@@ -289,7 +289,7 @@
  * Use multiple threaded when the subsystem is running in the kernel.
  *
  * By default the model is single threaded if ACPI_APPLICATION is set,
- * multi-threaded if ACPI_APPLICATION is not set.
+ * multi-threaded if ACPI_APPLICATION is yest set.
  */
 #ifndef DEBUGGER_THREADING
 #if !defined (ACPI_APPLICATION) || defined (ACPI_EXEC_APP)
@@ -313,7 +313,7 @@
  *      the standard header files may be used. Defining this implies that
  *      ACPI_USE_SYSTEM_CLIBRARY has been defined.
  *
- * The ACPICA subsystem only uses low level C library functions that do not
+ * The ACPICA subsystem only uses low level C library functions that do yest
  * call operating system services and may therefore be inlined in the code.
  *
  * It may be necessary to tailor these include files to the target
@@ -332,7 +332,7 @@
 #if defined (ACPI_APPLICATION) || defined(ACPI_LIBRARY)
 #include <stdio.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erryes.h>
 #include <time.h>
 #include <signal.h>
 #endif

@@ -16,7 +16,7 @@ check_error 'r^1a111 vfs_read'		# BAD_MAXACT
 check_error 'r^100000 vfs_read'		# MAXACT_TOO_BIG
 fi
 
-check_error 'p ^non_exist_func'		# BAD_PROBE_ADDR (enoent)
+check_error 'p ^yesn_exist_func'		# BAD_PROBE_ADDR (eyesent)
 check_error 'p ^hoge-fuga'		# BAD_PROBE_ADDR (bad syntax)
 check_error 'p ^hoge+1000-1000'		# BAD_PROBE_ADDR (bad syntax)
 check_error 'r ^vfs_read+10'		# BAD_RETPROBE
@@ -35,9 +35,9 @@ if grep -q '$arg<N>' README; then
 check_error 'p vfs_read ^$arg10000'	# BAD_ARG_NUM
 fi
 
-check_error 'p vfs_read ^$none_var'	# BAD_VAR
+check_error 'p vfs_read ^$yesne_var'	# BAD_VAR
 
-check_error 'p vfs_read ^%none_reg'	# BAD_REG_NAME
+check_error 'p vfs_read ^%yesne_reg'	# BAD_REG_NAME
 check_error 'p vfs_read ^@12345678abcde'	# BAD_MEM_ADDR
 check_error 'p vfs_read ^@+10'		# FILE_ON_KPROBE
 
@@ -66,7 +66,7 @@ check_error 'p vfs_read +0(@11):u8[^10a]'	# BAD_ARRAY_NUM
 check_error 'p vfs_read +0(@11):u8[^256]'	# ARRAY_TOO_BIG
 fi
 
-check_error 'p vfs_read @11:^unknown_type'	# BAD_TYPE
+check_error 'p vfs_read @11:^unkyeswn_type'	# BAD_TYPE
 check_error 'p vfs_read $stack0:^string'	# BAD_STRING
 check_error 'p vfs_read @11:^b10@a/16'		# BAD_BITFIELD
 

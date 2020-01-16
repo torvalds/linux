@@ -16,7 +16,7 @@
  *  PC87365     11      3       3       2       0xE5
  *  PC87366     11      3       3       3-4     0xE9
  *
- *  This driver assumes that no more than one chip is present, and one of
+ *  This driver assumes that yes more than one chip is present, and one of
  *  the standard Super-I/O addresses is used (0x2E/0x2F or 0x4E/0x4F).
  */
 
@@ -522,7 +522,7 @@ static struct sensor_device_attribute in_max[] = {
 
 /*
  * show_in_min/max_alarm() reads data from the per-channel status
- * register (sec 11.5.12), not the vin event status registers (sec
+ * register (sec 11.5.12), yest the vin event status registers (sec
  * 11.5.2) that (legacy) show_in_alarm() resds (via data->in_alarms)
  */
 
@@ -982,7 +982,7 @@ static DEVICE_ATTR_RO(alarms_temp);
 
 /*
  * show_temp_min/max_alarm() reads data from the per-channel status
- * register (sec 12.3.7), not the temp event status registers (sec
+ * register (sec 12.3.7), yest the temp event status registers (sec
  * 12.3.2) that show_temp_alarm() reads (via data->temp_alarms)
  */
 
@@ -1121,14 +1121,14 @@ static int __init pc87360_find(int sioaddr, u8 *devid,
 
 		val = superio_inb(sioaddr, ACT);
 		if (!(val & 0x01)) {
-			pr_info("Device 0x%02x not activated\n", logdev[i]);
+			pr_info("Device 0x%02x yest activated\n", logdev[i]);
 			continue;
 		}
 
 		val = (superio_inb(sioaddr, BASE) << 8)
 		    | superio_inb(sioaddr, BASE + 1);
 		if (!val) {
-			pr_info("Base address not set for device 0x%02x\n",
+			pr_info("Base address yest set for device 0x%02x\n",
 				logdev[i]);
 			continue;
 		}
@@ -1152,7 +1152,7 @@ static int __init pc87360_find(int sioaddr, u8 *devid,
 			/* Are we using thermistors? */
 			if (*devid == 0xE9) { /* PC87366 */
 				/*
-				 * These registers are not logical-device
+				 * These registers are yest logical-device
 				 * specific, just that we won't need them if
 				 * we don't use the VLM device
 				 */
@@ -1286,7 +1286,7 @@ static int pc87360_probe(struct platform_device *pdev)
 		pc87360_init_device(pdev, use_thermistors);
 	}
 
-	/* Register all-or-nothing sysfs groups */
+	/* Register all-or-yesthing sysfs groups */
 
 	if (data->innr) {
 		err = sysfs_create_group(&dev->kobj, &pc8736x_vin_group);
@@ -1521,7 +1521,7 @@ static void pc87360_init_device(struct platform_device *pdev,
 			/*
 			 * We voluntarily omit the bank here, in case the
 			 * sequence itself matters. It shouldn't be a problem,
-			 * since nobody else is supposed to access the
+			 * since yesbody else is supposed to access the
 			 * device at that point.
 			 */
 			pc87360_write_value(data, LD_TEMP, NO_BANK, 0xB, 0x04);
@@ -1737,7 +1737,7 @@ static int __init pc87360_init(void)
 
 	if (pc87360_find(0x2e, &devid, extra_isa)
 	 && pc87360_find(0x4e, &devid, extra_isa)) {
-		pr_warn("PC8736x not detected, module not inserted\n");
+		pr_warn("PC8736x yest detected, module yest inserted\n");
 		return -ENODEV;
 	}
 
@@ -1750,7 +1750,7 @@ static int __init pc87360_init(void)
 	}
 
 	if (address == 0x0000) {
-		pr_warn("No active logical device, module not inserted\n");
+		pr_warn("No active logical device, module yest inserted\n");
 		return -ENODEV;
 	}
 

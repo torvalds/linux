@@ -83,7 +83,7 @@ config PCIE_DW_PLAT_EP
 	  selected.
 
 config PCI_EXYNOS
-	bool "Samsung Exynos PCIe controller"
+	bool "Samsung Exyyess PCIe controller"
 	depends on SOC_EXYNOS5440 || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST

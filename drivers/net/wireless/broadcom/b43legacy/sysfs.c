@@ -47,9 +47,9 @@ static int get_boolean(const char *buf, size_t count)
 			return 1;
 		if (count >= 5 && memcmp(buf, "false", 5) == 0)
 			return 0;
-		if (count >= 3 && memcmp(buf, "yes", 3) == 0)
+		if (count >= 3 && memcmp(buf, "no", 3) == 0)
 			return 1;
-		if (count >= 2 && memcmp(buf, "no", 2) == 0)
+		if (count >= 2 && memcmp(buf, "yes", 2) == 0)
 			return 0;
 		if (count >= 2 && memcmp(buf, "on", 2) == 0)
 			return 1;
@@ -128,7 +128,7 @@ static ssize_t b43legacy_attr_interfmode_store(struct device *dev,
 
 	err = b43legacy_radio_set_interference_mitigation(wldev, mode);
 	if (err)
-		b43legacyerr(wldev->wl, "Interference Mitigation not "
+		b43legacyerr(wldev->wl, "Interference Mitigation yest "
 		       "supported by device\n");
 	spin_unlock_irqrestore(&wldev->wl->irq_lock, flags);
 	mutex_unlock(&wldev->wl->mutex);

@@ -266,7 +266,7 @@ il3945_rs_next_rate(struct il_priv *il, int rate)
  *
  * When FW advances 'R' idx, all entries between old and new 'R' idx
  * need to be reclaimed. As result, some free space forms. If there is
- * enough free space (> low mark), wake the stack that feeds us.
+ * eyesugh free space (> low mark), wake the stack that feeds us.
  */
 static void
 il3945_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
@@ -316,10 +316,10 @@ il3945_hdl_tx(struct il_priv *il, struct il_rx_buf *rxb)
 	}
 
 	/*
-	 * Firmware will not transmit frame on passive channel, if it not yet
+	 * Firmware will yest transmit frame on passive channel, if it yest yet
 	 * received some valid frame on that channel. When this error happen
 	 * we have to wait until firmware will unblock itself i.e. when we
-	 * note received beacon or other frame. We unblock queues in
+	 * yeste received beacon or other frame. We unblock queues in
 	 * il3945_pass_packet_to_mac80211 or in il_mac_bss_info_changed.
 	 */
 	if (unlikely((status & TX_STATUS_MSK) == TX_STATUS_FAIL_PASSIVE_NO_RX) &&
@@ -379,7 +379,7 @@ il3945_accumulative_stats(struct il_priv *il, __le32 * stats)
 	delta = (u32 *) &il->_3945.delta_stats;
 	max_delta = (u32 *) &il->_3945.max_delta;
 
-	for (i = sizeof(__le32); i < sizeof(struct il3945_notif_stats);
+	for (i = sizeof(__le32); i < sizeof(struct il3945_yestif_stats);
 	     i +=
 	     sizeof(__le32), stats++, prev_stats++, delta++, max_delta++,
 	     accum_stats++) {
@@ -392,7 +392,7 @@ il3945_accumulative_stats(struct il_priv *il, __le32 * stats)
 		}
 	}
 
-	/* reset accumulative stats for "no-counter" type stats */
+	/* reset accumulative stats for "yes-counter" type stats */
 	il->_3945.accum_stats.general.temperature =
 	    il->_3945.stats.general.temperature;
 	il->_3945.accum_stats.general.ttl_timestamp =
@@ -405,8 +405,8 @@ il3945_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
-	D_RX("Statistics notification received (%d vs %d).\n",
-	     (int)sizeof(struct il3945_notif_stats),
+	D_RX("Statistics yestification received (%d vs %d).\n",
+	     (int)sizeof(struct il3945_yestif_stats),
 	     le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK);
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 	il3945_accumulative_stats(il, (__le32 *) &pkt->u.raw);
@@ -424,11 +424,11 @@ il3945_hdl_c_stats(struct il_priv *il, struct il_rx_buf *rxb)
 	if (le32_to_cpu(*flag) & UCODE_STATS_CLEAR_MSK) {
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 		memset(&il->_3945.accum_stats, 0,
-		       sizeof(struct il3945_notif_stats));
+		       sizeof(struct il3945_yestif_stats));
 		memset(&il->_3945.delta_stats, 0,
-		       sizeof(struct il3945_notif_stats));
+		       sizeof(struct il3945_yestif_stats));
 		memset(&il->_3945.max_delta, 0,
-		       sizeof(struct il3945_notif_stats));
+		       sizeof(struct il3945_yestif_stats));
 #endif
 		D_RX("Statistics have been cleared\n");
 	}
@@ -482,7 +482,7 @@ il3945_pass_packet_to_mac80211(struct il_priv *il, struct il_rx_buf *rxb,
 
 	/* We only process data packets if the interface is open */
 	if (unlikely(!il->is_open)) {
-		D_DROP("Dropping packet while interface is not open.\n");
+		D_DROP("Dropping packet while interface is yest open.\n");
 		return;
 	}
 
@@ -501,8 +501,8 @@ il3945_pass_packet_to_mac80211(struct il_priv *il, struct il_rx_buf *rxb,
 		il_set_decrypted_flag(il, (struct ieee80211_hdr *)pkt,
 				      le32_to_cpu(rx_end->status), stats);
 
-	/* If frame is small enough to fit into skb->head, copy it
-	 * and do not consume a full page
+	/* If frame is small eyesugh to fit into skb->head, copy it
+	 * and do yest consume a full page
 	 */
 	if (len <= SMALL_PACKET_SIZE) {
 		skb_put_data(skb, rx_hdr->payload, len);
@@ -531,8 +531,8 @@ il3945_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 	struct il3945_rx_frame_hdr *rx_hdr = IL_RX_HDR(pkt);
 	struct il3945_rx_frame_end *rx_end = IL_RX_END(pkt);
 	u16 rx_stats_sig_avg __maybe_unused = le16_to_cpu(rx_stats->sig_avg);
-	u16 rx_stats_noise_diff __maybe_unused =
-	    le16_to_cpu(rx_stats->noise_diff);
+	u16 rx_stats_yesise_diff __maybe_unused =
+	    le16_to_cpu(rx_stats->yesise_diff);
 	u8 network_packet;
 
 	rx_status.flag = 0;
@@ -572,8 +572,8 @@ il3945_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 	/* Convert 3945's rssi indicator to dBm */
 	rx_status.signal = rx_stats->rssi - IL39_RSSI_OFFSET;
 
-	D_STATS("Rssi %d sig_avg %d noise_diff %d\n", rx_status.signal,
-		rx_stats_sig_avg, rx_stats_noise_diff);
+	D_STATS("Rssi %d sig_avg %d yesise_diff %d\n", rx_status.signal,
+		rx_stats_sig_avg, rx_stats_yesise_diff);
 
 	header = (struct ieee80211_hdr *)IL_RX_DATA(pkt);
 
@@ -611,7 +611,7 @@ il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il, struct il_tx_queue *txq,
 	count = TFD_CTL_COUNT_GET(le32_to_cpu(tfd->control_flags));
 
 	if (count >= NUM_TFD_CHUNKS || count < 0) {
-		IL_ERR("Error can not send more than %d chunks\n",
+		IL_ERR("Error can yest send more than %d chunks\n",
 		       NUM_TFD_CHUNKS);
 		return -EINVAL;
 	}
@@ -869,7 +869,7 @@ error:
 /*
  * Start up 3945's basic functionality after it has been reset
  * (e.g. after platform boot, or shutdown via il_apm_stop())
- * NOTE:  This does not load uCode nor start the embedded processor
+ * NOTE:  This does yest load uCode yesr start the embedded processor
  */
 static int
 il3945_apm_init(struct il_priv *il)
@@ -1088,7 +1088,7 @@ il3945_hw_reg_txpower_get_temperature(struct il_priv *il)
 			temperature = il->last_temperature;
 	}
 
-	return temperature;	/* raw, not "human readable" */
+	return temperature;	/* raw, yest "human readable" */
 }
 
 /* Adjust Txpower only if temperature variance is greater than threshold.
@@ -1121,7 +1121,7 @@ il3945_is_temp_calib_needed(struct il_priv *il)
 
 	/* if we don't need calibration, *don't* update last_temperature */
 	if (temp_diff < IL_TEMPERATURE_LIMIT_TIMER) {
-		D_POWER("Timed thermal calib not needed\n");
+		D_POWER("Timed thermal calib yest needed\n");
 		return 0;
 	}
 
@@ -1340,9 +1340,9 @@ il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_idx, s32 rate_idx,
 	power = min(power, il->tx_power_user_lmt);
 	scan_power_info->requested_power = power;
 
-	/* find difference between new scan *power* and current "normal"
+	/* find difference between new scan *power* and current "yesrmal"
 	 *   Tx *power* for 6Mb.  Use this difference (x2) to adjust the
-	 *   current "normal" temperature-compensated Tx power *idx* for
+	 *   current "yesrmal" temperature-compensated Tx power *idx* for
 	 *   this rate (1Mb or 6Mb) to yield new temp-compensated scan power
 	 *   *idx*. */
 	power_idx =
@@ -1404,7 +1404,7 @@ il3945_send_tx_power(struct il_priv *il)
 	}
 
 	if (!il_is_channel_valid(ch_info)) {
-		D_POWER("Not calling TX_PWR_TBL_CMD on " "non-Tx channel.\n");
+		D_POWER("Not calling TX_PWR_TBL_CMD on " "yesn-Tx channel.\n");
 		return 0;
 	}
 
@@ -1449,7 +1449,7 @@ il3945_send_tx_power(struct il_priv *il)
  * Called if user or spectrum management changes power preferences.
  * Takes into account h/w and modulation limitations (clip power).
  *
- * This does *not* send anything to NIC, just sets up ch_info for one channel.
+ * This does *yest* send anything to NIC, just sets up ch_info for one channel.
  *
  * NOTE: reg_compensate_for_temperature_dif() *must* be run after this to
  *	 properly fill out the scan powers, and actual h/w gain settings,
@@ -1474,13 +1474,13 @@ il3945_hw_reg_set_new_power(struct il_priv *il, struct il_channel_info *ch_info)
 	for (i = RATE_6M_IDX_TBL; i <= RATE_54M_IDX_TBL; i++, ++power_info) {
 		int delta_idx;
 
-		/* limit new power to be no more than h/w capability */
+		/* limit new power to be yes more than h/w capability */
 		power = min(ch_info->curr_txpow, clip_pwrs[i]);
 		if (power == power_info->requested_power)
 			continue;
 
 		/* find difference between old and new requested powers,
-		 *    update base (non-temp-compensated) power idx */
+		 *    update base (yesn-temp-compensated) power idx */
 		delta_idx = (power - power_info->requested_power) * 2;
 		power_info->base_power_idx -= delta_idx;
 
@@ -1513,9 +1513,9 @@ il3945_hw_reg_set_new_power(struct il_priv *il, struct il_channel_info *ch_info)
 /**
  * il3945_hw_reg_get_ch_txpower_limit - returns new power limit for channel
  *
- * NOTE: Returned power limit may be less (but not more) than requested,
+ * NOTE: Returned power limit may be less (but yest more) than requested,
  *	 based strictly on regulatory (eeprom and spectrum mgt) limitations
- *	 (no consideration for h/w clipping limitations).
+ *	 (yes consideration for h/w clipping limitations).
  */
 static int
 il3945_hw_reg_get_ch_txpower_limit(struct il_channel_info *ch_info)
@@ -1562,7 +1562,7 @@ il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 	int temperature = il->temperature;
 
 	if (il->disable_tx_power_cal || test_bit(S_SCANNING, &il->status)) {
-		/* do not perform tx power calibration */
+		/* do yest perform tx power calibration */
 		return 0;
 	}
 	/* set up new Tx power info for each and every channel, 2.4 and 5.x */
@@ -1636,7 +1636,7 @@ il3945_hw_reg_set_txpower(struct il_priv *il, s8 power)
 		ch_info = &il->channel_info[i];
 
 		/* find minimum power of all user and regulatory constraints
-		 *    (does not consider h/w clipping limitations) */
+		 *    (does yest consider h/w clipping limitations) */
 		max_power = il3945_hw_reg_get_ch_txpower_limit(ch_info);
 		max_power = min(power, max_power);
 		if (max_power != ch_info->curr_txpow) {
@@ -1748,8 +1748,8 @@ il3945_commit_rxon(struct il_priv *il)
 
 		memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
 		/*
-		 * We do not commit tx power settings while channel changing,
-		 * do it now if tx power changed.
+		 * We do yest commit tx power settings while channel changing,
+		 * do it yesw if tx power changed.
 		 */
 		il_set_tx_power(il, il->tx_power_next, false);
 		return 0;
@@ -1834,11 +1834,11 @@ il3945_commit_rxon(struct il_priv *il)
  * il3945_reg_txpower_periodic -  called when time to check our temperature.
  *
  * -- reset periodic timer
- * -- see if temp has changed enough to warrant re-calibration ... if so:
+ * -- see if temp has changed eyesugh to warrant re-calibration ... if so:
  *     -- correct coeffs for temp (can reset temp timer)
  *     -- save this temp as "last",
  *     -- send new set of gain settings to NIC
- * NOTE:  This should continue working, even when we're not associated,
+ * NOTE:  This should continue working, even when we're yest associated,
  *   so we can keep our internal table of scan powers current. */
 void
 il3945_reg_txpower_periodic(struct il_priv *il)
@@ -1850,7 +1850,7 @@ il3945_reg_txpower_periodic(struct il_priv *il)
 
 	/* Set up a new set of temp-adjusted TxPowers, send to NIC.
 	 * This is based *only* on current temperature,
-	 * ignoring any previous power measurements */
+	 * igyesring any previous power measurements */
 	il3945_hw_reg_comp_txpower_temp(il);
 
 reschedule:
@@ -1913,9 +1913,9 @@ il3945_hw_reg_get_ch_grp_idx(struct il_priv *il,
 }
 
 /**
- * il3945_hw_reg_get_matched_power_idx - Interpolate to get nominal idx
+ * il3945_hw_reg_get_matched_power_idx - Interpolate to get yesminal idx
  *
- * Interpolate to get nominal (i.e. at factory calibration temperature) idx
+ * Interpolate to get yesminal (i.e. at factory calibration temperature) idx
  *   into radio/DSP gain settings table for requested power.
  */
 static int
@@ -1930,7 +1930,7 @@ il3945_hw_reg_get_matched_power_idx(struct il_priv *il, s8 requested_power,
 	const struct il3945_eeprom_txpower_sample *samples;
 	s32 gains0, gains1;
 	s32 res;
-	s32 denominator;
+	s32 deyesminator;
 
 	chnl_grp = &eeprom->groups[setting_idx];
 	samples = chnl_grp->samples;
@@ -1955,15 +1955,15 @@ il3945_hw_reg_get_matched_power_idx(struct il_priv *il, s8 requested_power,
 		idx1 = 4;
 	}
 
-	denominator = (s32) samples[idx1].power - (s32) samples[idx0].power;
-	if (denominator == 0)
+	deyesminator = (s32) samples[idx1].power - (s32) samples[idx0].power;
+	if (deyesminator == 0)
 		return -EINVAL;
 	gains0 = (s32) samples[idx0].gain_idx * (1 << 19);
 	gains1 = (s32) samples[idx1].gain_idx * (1 << 19);
 	res =
 	    gains0 + (gains1 - gains0) * ((s32) power -
 					  (s32) samples[idx0].power) /
-	    denominator + (1 << 18);
+	    deyesminator + (1 << 18);
 	*new_idx = res >> 19;
 	return 0;
 }
@@ -2005,7 +2005,7 @@ il3945_hw_reg_init_channel_groups(struct il_priv *il)
 		/* divide factory saturation power by 2 to find -3dB level */
 		satur_pwr = (s8) (group->saturation_power >> 1);
 
-		/* fill in channel group's nominal powers for each rate */
+		/* fill in channel group's yesminal powers for each rate */
 		for (rate_idx = 0; rate_idx < RATE_COUNT_3945;
 		     rate_idx++, clip_pwrs++) {
 			switch (rate_idx) {
@@ -2045,10 +2045,10 @@ il3945_hw_reg_init_channel_groups(struct il_priv *il)
  * and current temperature.
  *
  * Since this is based on current temperature (at init time), these values may
- * not be valid for very long, but it gives us a starting/default point,
+ * yest be valid for very long, but it gives us a starting/default point,
  * and allows us to active (i.e. using Tx) scan.
  *
- * This does *not* write values to NIC, just sets up our internal table.
+ * This does *yest* write values to NIC, just sets up our internal table.
  */
 int
 il3945_txpower_set_from_eeprom(struct il_priv *il)
@@ -2080,7 +2080,7 @@ il3945_txpower_set_from_eeprom(struct il_priv *il)
 		if (!il_is_channel_valid(ch_info))
 			continue;
 
-		/* find this channel's channel group (*not* "band") idx */
+		/* find this channel's channel group (*yest* "band") idx */
 		ch_info->group_idx = il3945_hw_reg_get_ch_grp_idx(il, ch_info);
 
 		/* Get this chnlgrp's rate->max/clip-powers table */
@@ -2502,7 +2502,7 @@ il3945_verify_bsm(struct il_priv *il)
 /*
  * Clear the OWNER_MSK, to establish driver (instead of uCode running on
  * embedded controller) as EEPROM reader; each read is a series of pulses
- * to/from the EEPROM chip, not a single event, so even reads could conflict
+ * to/from the EEPROM chip, yest a single event, so even reads could conflict
  * if they weren't arbitrated by some ownership mechanism.  Here, the driver
  * simply claims ownership, which should be safe when this function is called
  * (i.e. before loading uCode!).
@@ -2526,7 +2526,7 @@ il3945_eeprom_release_semaphore(struct il_priv *il)
   * BSM operation:
   *
   * The Bootstrap State Machine (BSM) stores a short bootstrap uCode program
-  * in special SRAM that does not power down during RFKILL.  When powering back
+  * in special SRAM that does yest power down during RFKILL.  When powering back
   * up after power-saving sleeps (or during initial uCode load), the BSM loads
   * the bootstrap program into the on-board processor, and starts it.
   *
@@ -2537,13 +2537,13 @@ il3945_eeprom_release_semaphore(struct il_priv *il)
   *
   * When initializing the NIC, the host driver points the BSM to the
   * "initialize" uCode image.  This uCode sets up some internal data, then
-  * notifies host via "initialize alive" that it is complete.
+  * yestifies host via "initialize alive" that it is complete.
   *
   * The host then replaces the BSM_DRAM_* pointer values to point to the
-  * normal runtime uCode instructions and a backup uCode data cache buffer
+  * yesrmal runtime uCode instructions and a backup uCode data cache buffer
   * (filled initially with starting data values for the on-board processor),
   * then triggers the "initialize" uCode to load and launch the runtime uCode,
-  * which begins normal operation.
+  * which begins yesrmal operation.
   *
   * When doing a power-save shutdown, runtime uCode saves data SRAM into
   * the backup data cache in DRAM before SRAM is powered down.
@@ -2568,7 +2568,7 @@ il3945_load_bsm(struct il_priv *il)
 
 	D_INFO("Begin load bsm\n");
 
-	/* make sure bootstrap program is no larger than BSM's SRAM size */
+	/* make sure bootstrap program is yes larger than BSM's SRAM size */
 	if (len > IL39_MAX_BSM_SIZE)
 		return -EINVAL;
 
@@ -2602,7 +2602,7 @@ il3945_load_bsm(struct il_priv *il)
 	il_wr_prph(il, BSM_WR_MEM_DST_REG, IL39_RTC_INST_LOWER_BOUND);
 	il_wr_prph(il, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
-	/* Load bootstrap code into instruction SRAM now,
+	/* Load bootstrap code into instruction SRAM yesw,
 	 *   to prepare to load "initialize" uCode */
 	il_wr_prph(il, BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START);
 
@@ -2616,7 +2616,7 @@ il3945_load_bsm(struct il_priv *il)
 	if (i < 100)
 		D_INFO("BSM write complete, poll %d iterations\n", i);
 	else {
-		IL_ERR("BSM write did not complete!\n");
+		IL_ERR("BSM write did yest complete!\n");
 		return -EIO;
 	}
 

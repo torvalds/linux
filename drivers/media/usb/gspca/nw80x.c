@@ -1742,8 +1742,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	/*
 	 * Autodetect sequence inspired from some log.
-	 * We try to detect what registers exist or not.
-	 * If 0x0500 does not exist => NW802
+	 * We try to detect what registers exist or yest.
+	 * If 0x0500 does yest exist => NW802
 	 * If it does, test 0x109b. If it doesn't exist,
 	 * then it's a NW801. Else, a NW800
 	 * If a et31x110 (nw800 and 06a5:d800)
@@ -2031,7 +2031,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	}
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	if (gspca_dev->autogain)

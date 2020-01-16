@@ -16,7 +16,7 @@
  *
  * This function gets called during call to hid_add_device
  *
- * Return: 0 on success and non zero on error
+ * Return: 0 on success and yesn zero on error
  */
 static int ishtp_hid_parse(struct hid_device *hid)
 {
@@ -140,7 +140,7 @@ static void ishtp_hid_request(struct hid_device *hid, struct hid_report *rep,
  *
  * This function is used to wait after get feaure/input report.
  *
- * Return: 0 on success and non zero on error
+ * Return: 0 on success and yesn zero on error
  */
 static int ishtp_wait_for_response(struct hid_device *hid)
 {
@@ -201,7 +201,7 @@ static struct hid_ll_driver ishtp_hid_ll_driver = {
  *
  * This function is used to allocate and add HID device.
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, yesn zero on error
  */
 int ishtp_hid_probe(unsigned int cur_hid_dev,
 		    struct ishtp_cl_data *client_data)

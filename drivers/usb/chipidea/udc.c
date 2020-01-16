@@ -2,7 +2,7 @@
 /*
  * udc.c - ChipIdea UDC driver
  *
- * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (C) 2008 Chipidea - MIPS Techyeslogies, Inc. All rights reserved.
  *
  * Author: David Lopo
  */
@@ -294,7 +294,7 @@ static int hw_test_and_set_setup_guard(struct ci_hdrc *ci)
  * @value: new USB address
  *
  * This function explicitly sets the address, without the "USBADRA" (advance)
- * feature, which is not supported by older versions of the controller.
+ * feature, which is yest supported by older versions of the controller.
  */
 static void hw_usb_set_address(struct ci_hdrc *ci, u8 value)
 {
@@ -323,12 +323,12 @@ static int hw_usb_reset(struct ci_hdrc *ci)
 
 	/* wait until all bits cleared */
 	while (hw_read(ci, OP_ENDPTPRIME, ~0))
-		udelay(10);             /* not RTOS friendly */
+		udelay(10);             /* yest RTOS friendly */
 
 	/* reset all endpoints ? */
 
 	/* reset internal status and wait for further instructions
-	   no need to verify the port reset status (ESS does it) */
+	   yes need to verify the port reset status (ESS does it) */
 
 	return 0;
 }
@@ -342,37 +342,37 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 {
 	int i;
 	u32 temp;
-	struct td_node *lastnode, *node = kzalloc(sizeof(struct td_node),
+	struct td_yesde *lastyesde, *yesde = kzalloc(sizeof(struct td_yesde),
 						  GFP_ATOMIC);
 
-	if (node == NULL)
+	if (yesde == NULL)
 		return -ENOMEM;
 
-	node->ptr = dma_pool_zalloc(hwep->td_pool, GFP_ATOMIC, &node->dma);
-	if (node->ptr == NULL) {
-		kfree(node);
+	yesde->ptr = dma_pool_zalloc(hwep->td_pool, GFP_ATOMIC, &yesde->dma);
+	if (yesde->ptr == NULL) {
+		kfree(yesde);
 		return -ENOMEM;
 	}
 
-	node->ptr->token = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
-	node->ptr->token &= cpu_to_le32(TD_TOTAL_BYTES);
-	node->ptr->token |= cpu_to_le32(TD_STATUS_ACTIVE);
+	yesde->ptr->token = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
+	yesde->ptr->token &= cpu_to_le32(TD_TOTAL_BYTES);
+	yesde->ptr->token |= cpu_to_le32(TD_STATUS_ACTIVE);
 	if (hwep->type == USB_ENDPOINT_XFER_ISOC && hwep->dir == TX) {
 		u32 mul = hwreq->req.length / hwep->ep.maxpacket;
 
 		if (hwreq->req.length == 0
 				|| hwreq->req.length % hwep->ep.maxpacket)
 			mul++;
-		node->ptr->token |= cpu_to_le32(mul << __ffs(TD_MULTO));
+		yesde->ptr->token |= cpu_to_le32(mul << __ffs(TD_MULTO));
 	}
 
 	temp = (u32) (hwreq->req.dma + hwreq->req.actual);
 	if (length) {
-		node->ptr->page[0] = cpu_to_le32(temp);
+		yesde->ptr->page[0] = cpu_to_le32(temp);
 		for (i = 1; i < TD_PAGE_COUNT; i++) {
 			u32 page = temp + i * CI_HDRC_PAGE_SIZE;
 			page &= ~TD_RESERVED_MASK;
-			node->ptr->page[i] = cpu_to_le32(page);
+			yesde->ptr->page[i] = cpu_to_le32(page);
 		}
 	}
 
@@ -380,13 +380,13 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 
 	if (!list_empty(&hwreq->tds)) {
 		/* get the last entry */
-		lastnode = list_entry(hwreq->tds.prev,
-				struct td_node, td);
-		lastnode->ptr->next = cpu_to_le32(node->dma);
+		lastyesde = list_entry(hwreq->tds.prev,
+				struct td_yesde, td);
+		lastyesde->ptr->next = cpu_to_le32(yesde->dma);
 	}
 
-	INIT_LIST_HEAD(&node->td);
-	list_add_tail(&node->td, &hwreq->tds);
+	INIT_LIST_HEAD(&yesde->td);
+	list_add_tail(&yesde->td, &hwreq->tds);
 
 	return 0;
 }
@@ -413,7 +413,7 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	int ret = 0;
 	unsigned rest = hwreq->req.length;
 	int pages = TD_PAGE_COUNT;
-	struct td_node *firstnode, *lastnode;
+	struct td_yesde *firstyesde, *lastyesde;
 
 	/* don't queue twice */
 	if (hwreq->req.status == -EALREADY)
@@ -427,7 +427,7 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 		return ret;
 
 	/*
-	 * The first buffer could be not page aligned.
+	 * The first buffer could be yest page aligned.
 	 * In that case we have to span into one extra td.
 	 */
 	if (hwreq->req.dma % PAGE_SIZE)
@@ -456,14 +456,14 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 			goto done;
 	}
 
-	firstnode = list_first_entry(&hwreq->tds, struct td_node, td);
+	firstyesde = list_first_entry(&hwreq->tds, struct td_yesde, td);
 
-	lastnode = list_entry(hwreq->tds.prev,
-		struct td_node, td);
+	lastyesde = list_entry(hwreq->tds.prev,
+		struct td_yesde, td);
 
-	lastnode->ptr->next = cpu_to_le32(TD_TERMINATE);
-	if (!hwreq->req.no_interrupt)
-		lastnode->ptr->token |= cpu_to_le32(TD_IOC);
+	lastyesde->ptr->next = cpu_to_le32(TD_TERMINATE);
+	if (!hwreq->req.yes_interrupt)
+		lastyesde->ptr->token |= cpu_to_le32(TD_IOC);
 	wmb();
 
 	hwreq->req.actual = 0;
@@ -471,15 +471,15 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 		struct ci_hw_req *hwreqprev;
 		int n = hw_ep_bit(hwep->num, hwep->dir);
 		int tmp_stat;
-		struct td_node *prevlastnode;
-		u32 next = firstnode->dma & TD_ADDR_MASK;
+		struct td_yesde *prevlastyesde;
+		u32 next = firstyesde->dma & TD_ADDR_MASK;
 
 		hwreqprev = list_entry(hwep->qh.queue.prev,
 				struct ci_hw_req, queue);
-		prevlastnode = list_entry(hwreqprev->tds.prev,
-				struct td_node, td);
+		prevlastyesde = list_entry(hwreqprev->tds.prev,
+				struct td_yesde, td);
 
-		prevlastnode->ptr->next = cpu_to_le32(next);
+		prevlastyesde->ptr->next = cpu_to_le32(next);
 		wmb();
 		if (hw_read(ci, OP_ENDPTPRIME, BIT(n)))
 			goto done;
@@ -493,7 +493,7 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	}
 
 	/*  QH configuration */
-	hwep->qh.ptr->td.next = cpu_to_le32(firstnode->dma);
+	hwep->qh.ptr->td.next = cpu_to_le32(firstyesde->dma);
 	hwep->qh.ptr->td.token &=
 		cpu_to_le32(~(TD_STATUS_HALTED|TD_STATUS_ACTIVE));
 
@@ -518,7 +518,7 @@ done:
  */
 static void free_pending_td(struct ci_hw_ep *hwep)
 {
-	struct td_node *pending = hwep->pending_td;
+	struct td_yesde *pending = hwep->pending_td;
 
 	dma_pool_free(hwep->td_pool, pending->ptr, pending->dma);
 	hwep->pending_td = NULL;
@@ -526,9 +526,9 @@ static void free_pending_td(struct ci_hw_ep *hwep)
 }
 
 static int reprime_dtd(struct ci_hdrc *ci, struct ci_hw_ep *hwep,
-					   struct td_node *node)
+					   struct td_yesde *yesde)
 {
-	hwep->qh.ptr->td.next = cpu_to_le32(node->dma);
+	hwep->qh.ptr->td.next = cpu_to_le32(yesde->dma);
 	hwep->qh.ptr->td.token &=
 		cpu_to_le32(~(TD_STATUS_HALTED | TD_STATUS_ACTIVE));
 
@@ -546,7 +546,7 @@ static int reprime_dtd(struct ci_hdrc *ci, struct ci_hw_ep *hwep,
 static int _hardware_dequeue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 {
 	u32 tmptoken;
-	struct td_node *node, *tmpnode;
+	struct td_yesde *yesde, *tmpyesde;
 	unsigned remaining_length;
 	unsigned actual = hwreq->req.length;
 	struct ci_hdrc *ci = hwep->ci;
@@ -556,14 +556,14 @@ static int _hardware_dequeue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 
 	hwreq->req.status = 0;
 
-	list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
-		tmptoken = le32_to_cpu(node->ptr->token);
+	list_for_each_entry_safe(yesde, tmpyesde, &hwreq->tds, td) {
+		tmptoken = le32_to_cpu(yesde->ptr->token);
 		if ((TD_STATUS_ACTIVE & tmptoken) != 0) {
 			int n = hw_ep_bit(hwep->num, hwep->dir);
 
 			if (ci->rev == CI_REVISION_24)
 				if (!hw_read(ci, OP_ENDPTSTAT, BIT(n)))
-					reprime_dtd(ci, hwep, node);
+					reprime_dtd(ci, hwep, yesde);
 			hwreq->req.status = -EALREADY;
 			return -EBUSY;
 		}
@@ -598,8 +598,8 @@ static int _hardware_dequeue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 		if (hwep->pending_td)
 			free_pending_td(hwep);
 
-		hwep->pending_td = node;
-		list_del_init(&node->td);
+		hwep->pending_td = yesde;
+		list_del_init(&yesde->td);
 	}
 
 	usb_gadget_unmap_request_by_dev(hwep->ci->dev->parent,
@@ -624,7 +624,7 @@ static int _ep_nuke(struct ci_hw_ep *hwep)
 __releases(hwep->lock)
 __acquires(hwep->lock)
 {
-	struct td_node *node, *tmpnode;
+	struct td_yesde *yesde, *tmpyesde;
 	if (hwep == NULL)
 		return -EINVAL;
 
@@ -636,11 +636,11 @@ __acquires(hwep->lock)
 		struct ci_hw_req *hwreq = list_entry(hwep->qh.queue.next,
 						     struct ci_hw_req, queue);
 
-		list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
-			dma_pool_free(hwep->td_pool, node->ptr, node->dma);
-			list_del_init(&node->td);
-			node->ptr = NULL;
-			kfree(node);
+		list_for_each_entry_safe(yesde, tmpyesde, &hwreq->tds, td) {
+			dma_pool_free(hwep->td_pool, yesde->ptr, yesde->dma);
+			list_del_init(&yesde->td);
+			yesde->ptr = NULL;
+			kfree(yesde);
 		}
 
 		list_del_init(&hwreq->queue);
@@ -793,7 +793,7 @@ static void isr_get_status_complete(struct usb_ep *ep, struct usb_request *req)
  * _ep_queue: queues (submits) an I/O request to an endpoint
  * @ep:        endpoint
  * @req:       request
- * @gfp_flags: GFP flags (not used)
+ * @gfp_flags: GFP flags (yest used)
  *
  * Caller must hold lock
  * This function returns an error code
@@ -822,11 +822,11 @@ static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
 
 	if (usb_endpoint_xfer_isoc(hwep->ep.desc) &&
 	    hwreq->req.length > hwep->ep.mult * hwep->ep.maxpacket) {
-		dev_err(hwep->ci->dev, "request length too big for isochronous\n");
+		dev_err(hwep->ci->dev, "request length too big for isochroyesus\n");
 		return -EMSGSIZE;
 	}
 
-	/* first nuke then test link, e.g. previous status has not sent */
+	/* first nuke then test link, e.g. previous status has yest sent */
 	if (!list_empty(&hwreq->queue)) {
 		dev_err(hwep->ci->dev, "request already in queue\n");
 		return -EBUSY;
@@ -890,7 +890,7 @@ __acquires(hwep->lock)
 		num =  le16_to_cpu(setup->wIndex) & USB_ENDPOINT_NUMBER_MASK;
 		*(u16 *)req->buf = hw_ep_get_halt(ci, num, dir);
 	}
-	/* else do nothing; reserved for future use */
+	/* else do yesthing; reserved for future use */
 
 	retval = _ep_queue(&hwep->ep, req, gfp_flags);
 	if (retval)
@@ -1157,7 +1157,7 @@ __acquires(ci->lock)
 		break;
 	default:
 delegate:
-		if (req.wLength == 0)   /* no data phase */
+		if (req.wLength == 0)   /* yes data phase */
 			ci->ep0_dir = TX;
 
 		spin_unlock(&ci->lock);
@@ -1191,7 +1191,7 @@ __acquires(ci->lock)
 		struct ci_hw_ep *hwep  = &ci->ci_hw_ep[i];
 
 		if (hwep->ep.desc == NULL)
-			continue;   /* not configured */
+			continue;   /* yest configured */
 
 		if (hw_test_and_clear_complete(ci, i)) {
 			err = isr_tr_complete_low(hwep);
@@ -1239,7 +1239,7 @@ static int ep_enable(struct usb_ep *ep,
 	/* only internal SW should enable ctrl endpts */
 
 	if (!list_empty(&hwep->qh.queue)) {
-		dev_warn(hwep->ci->dev, "enabling a non-empty endpoint!\n");
+		dev_warn(hwep->ci->dev, "enabling a yesn-empty endpoint!\n");
 		spin_unlock_irqrestore(hwep->lock, flags);
 		return -EBUSY;
 	}
@@ -1270,7 +1270,7 @@ static int ep_enable(struct usb_ep *ep,
 	hwep->qh.ptr->td.next |= cpu_to_le32(TD_TERMINATE);   /* needed? */
 
 	if (hwep->num != 0 && hwep->type == USB_ENDPOINT_XFER_CONTROL) {
-		dev_err(hwep->ci->dev, "Set control xfer at non-ep0\n");
+		dev_err(hwep->ci->dev, "Set control xfer at yesn-ep0\n");
 		retval = -EINVAL;
 	}
 
@@ -1287,7 +1287,7 @@ static int ep_enable(struct usb_ep *ep,
 }
 
 /**
- * ep_disable: endpoint is no longer usable
+ * ep_disable: endpoint is yes longer usable
  *
  * Check usb_ep_disable() at "usb_gadget.h" for details
  */
@@ -1356,7 +1356,7 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 {
 	struct ci_hw_ep  *hwep  = container_of(ep,  struct ci_hw_ep, ep);
 	struct ci_hw_req *hwreq = container_of(req, struct ci_hw_req, req);
-	struct td_node *node, *tmpnode;
+	struct td_yesde *yesde, *tmpyesde;
 	unsigned long flags;
 
 	if (ep == NULL || req == NULL) {
@@ -1368,11 +1368,11 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 
 	spin_lock_irqsave(hwep->lock, flags);
 
-	list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
-		dma_pool_free(hwep->td_pool, node->ptr, node->dma);
-		list_del_init(&node->td);
-		node->ptr = NULL;
-		kfree(node);
+	list_for_each_entry_safe(yesde, tmpyesde, &hwreq->tds, td) {
+		dma_pool_free(hwep->td_pool, yesde->ptr, yesde->dma);
+		list_del_init(&yesde->td);
+		yesde->ptr = NULL;
+		kfree(yesde);
 	}
 
 	kfree(hwreq);
@@ -1415,7 +1415,7 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	struct ci_hw_ep  *hwep  = container_of(ep,  struct ci_hw_ep, ep);
 	struct ci_hw_req *hwreq = container_of(req, struct ci_hw_req, req);
 	unsigned long flags;
-	struct td_node *node, *tmpnode;
+	struct td_yesde *yesde, *tmpyesde;
 
 	if (ep == NULL || req == NULL || hwreq->req.status != -EALREADY ||
 		hwep->ep.desc == NULL || list_empty(&hwreq->queue) ||
@@ -1426,10 +1426,10 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	if (hwep->ci->gadget.speed != USB_SPEED_UNKNOWN)
 		hw_ep_flush(hwep->ci, hwep->num, hwep->dir);
 
-	list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
-		dma_pool_free(hwep->td_pool, node->ptr, node->dma);
-		list_del(&node->td);
-		kfree(node);
+	list_for_each_entry_safe(yesde, tmpyesde, &hwreq->tds, td) {
+		dma_pool_free(hwep->td_pool, yesde->ptr, yesde->dma);
+		list_del(&yesde->td);
+		kfree(yesde);
 	}
 
 	/* pop request */
@@ -1460,7 +1460,7 @@ static int ep_set_halt(struct usb_ep *ep, int value)
 }
 
 /**
- * ep_set_wedge: sets the halt feature and ignores clear requests
+ * ep_set_wedge: sets the halt feature and igyesres clear requests
  *
  * Check usb_ep_set_wedge() at "usb_gadget.h" for details
  */
@@ -1547,8 +1547,8 @@ static void ci_hdrc_gadget_connect(struct usb_gadget *_gadget, int is_active)
 		if (ci->driver)
 			ci->driver->disconnect(&ci->gadget);
 		hw_device_state(ci, 0);
-		if (ci->platdata->notify_event)
-			ci->platdata->notify_event(ci,
+		if (ci->platdata->yestify_event)
+			ci->platdata->yestify_event(ci,
 			CI_HDRC_CONTROLLER_STOPPED_EVENT);
 		_gadget_stop_activity(&ci->gadget);
 		pm_runtime_put_sync(&_gadget->dev);
@@ -1834,8 +1834,8 @@ static int ci_udc_stop(struct usb_gadget *gadget)
 	if (ci->vbus_active) {
 		hw_device_state(ci, 0);
 		spin_unlock_irqrestore(&ci->lock, flags);
-		if (ci->platdata->notify_event)
-			ci->platdata->notify_event(ci,
+		if (ci->platdata->yestify_event)
+			ci->platdata->yestify_event(ci,
 			CI_HDRC_CONTROLLER_STOPPED_EVENT);
 		_gadget_stop_activity(&ci->gadget);
 		spin_lock_irqsave(&ci->lock, flags);
@@ -1970,7 +1970,7 @@ static int udc_start(struct ci_hdrc *ci)
 	if (retval)
 		goto destroy_eps;
 
-	pm_runtime_no_callbacks(&ci->gadget.dev);
+	pm_runtime_yes_callbacks(&ci->gadget.dev);
 	pm_runtime_enable(&ci->gadget.dev);
 
 	return retval;

@@ -124,7 +124,7 @@ static void put_whole_buffer(struct net_device *dev, unsigned offset,
 #endif
 }
 
-/* We cannot probe for an IO mapped card either, although we can check that
+/* We canyest probe for an IO mapped card either, although we can check that
  * it's where we were told it was, and even autoirq
  */
 static int __init com90io_probe(struct net_device *dev)
@@ -166,7 +166,7 @@ static int __init com90io_probe(struct net_device *dev)
 	arcnet_outb(CFLAGScmd | RESETclear | CONFIGclear,
 		    ioaddr, COM9026_REG_W_COMMAND);
 
-	arc_printk(D_INIT_REASONS, dev, "Status after reset acknowledged: %X\n",
+	arc_printk(D_INIT_REASONS, dev, "Status after reset ackyeswledged: %X\n",
 		   status);
 
 	status = arcnet_inb(ioaddr, COM9026_REG_R_STATUS);
@@ -186,7 +186,7 @@ static int __init com90io_probe(struct net_device *dev)
 
 	status = arcnet_inb(ioaddr, COM9026_REG_RW_MEMDATA);
 	if (status != 0xd1) {
-		arc_printk(D_INIT_REASONS, dev, "Signature byte not found (%Xh instead).\n",
+		arc_printk(D_INIT_REASONS, dev, "Signature byte yest found (%Xh instead).\n",
 			   status);
 		goto err_out;
 	}
@@ -299,7 +299,7 @@ static int com90io_reset(struct net_device *dev, int really_reset)
 
 	/* verify that the ARCnet signature byte is present */
 	if (get_buffer_byte(dev, 0) != TESTvalue) {
-		arc_printk(D_NORMAL, dev, "reset failed: TESTvalue not present.\n");
+		arc_printk(D_NORMAL, dev, "reset failed: TESTvalue yest present.\n");
 		return 1;
 	}
 	/* enable extended (512-byte) packets */

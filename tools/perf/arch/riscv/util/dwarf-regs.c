@@ -5,7 +5,7 @@
  */
 
 #include <stddef.h>
-#include <errno.h> /* for EINVAL */
+#include <erryes.h> /* for EINVAL */
 #include <string.h> /* for strcmp */
 #include <dwarf-regs.h>
 

@@ -6,7 +6,7 @@
  * tools/ copied this from include/asm-generic/bitops.h, bit by bit as it needed
  * some functions.
  *
- * For the benefit of those who are trying to port Linux to another
+ * For the benefit of those who are trying to port Linux to ayesther
  * architecture, here are some C-language equivalents.  You should
  * recode these in the native assembly language, if at all possible.
  *
@@ -27,6 +27,6 @@
 #include <asm-generic/bitops/hweight.h>
 
 #include <asm-generic/bitops/atomic.h>
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/yesn-atomic.h>
 
 #endif /* __TOOLS_ASM_GENERIC_BITOPS_H */

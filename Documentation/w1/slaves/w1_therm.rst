@@ -35,7 +35,7 @@ displays the retained values along with a temperature in millidegrees
 Centigrade after t=.
 
 Parasite powered devices are limited to one slave performing a
-temperature conversion at a time.  If none of the devices are parasite
+temperature conversion at a time.  If yesne of the devices are parasite
 powered it would be possible to convert all the devices at the same
 time and then go back to read individual sensors.  That isn't
 currently supported.  The driver also doesn't support reduced
@@ -62,13 +62,13 @@ If the strong pullup is enabled, the master's strong pullup will be
 driven when the conversion is taking place, provided the master driver
 does support the strong pullup (or it falls back to a pullup
 resistor).  The DS18b20 temperature sensor specification lists a
-maximum current draw of 1.5mA and that a 5k pullup resistor is not
+maximum current draw of 1.5mA and that a 5k pullup resistor is yest
 sufficient.  The strong pullup is designed to provide the additional
 current required.
 
 The DS28EA00 provides an additional two pins for implementing a sequence
 detection algorithm.  This feature allows you to determine the physical
 location of the chip in the 1-wire bus without needing pre-existing
-knowledge of the bus ordering.  Support is provided through the sysfs
+kyeswledge of the bus ordering.  Support is provided through the sysfs
 w1_seq file.  The file will contain a single line with an integer value
 representing the device index in the bus starting at 0.

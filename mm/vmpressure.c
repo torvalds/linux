@@ -24,10 +24,10 @@
 /*
  * The window size (vmpressure_win) is the number of scanned pages before
  * we try to analyze scanned/reclaimed ratio. So the window is used as a
- * rate-limit tunable for the "low" level notification, and also for
+ * rate-limit tunable for the "low" level yestification, and also for
  * averaging the ratio for medium/critical levels. Using small window
  * sizes can cause lot of false positives, but too big window size will
- * delay the notifications.
+ * delay the yestifications.
  *
  * As the vmscan reclaimer logic works with chunks which are multiple of
  * SWAP_CLUSTER_MAX, it makes sense to use it for the window size as well.
@@ -126,7 +126,7 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
 
 	/*
 	 * reclaimed can be greater than scanned for things such as reclaimed
-	 * slab pages. shrink_node() just adds reclaimed pages without a
+	 * slab pages. shrink_yesde() just adds reclaimed pages without a
 	 * related increment to scanned pages.
 	 */
 	if (reclaimed >= scanned)
@@ -152,7 +152,7 @@ struct vmpressure_event {
 	struct eventfd_ctx *efd;
 	enum vmpressure_levels level;
 	enum vmpressure_modes mode;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static bool vmpressure_event(struct vmpressure *vmpr,
@@ -163,7 +163,7 @@ static bool vmpressure_event(struct vmpressure *vmpr,
 	bool ret = false;
 
 	mutex_lock(&vmpr->events_lock);
-	list_for_each_entry(ev, &vmpr->events, node) {
+	list_for_each_entry(ev, &vmpr->events, yesde) {
 		if (ancestor && ev->mode == VMPRESSURE_LOCAL)
 			continue;
 		if (signalled && ev->mode == VMPRESSURE_NO_PASSTHROUGH)
@@ -230,12 +230,12 @@ static void vmpressure_work_fn(struct work_struct *work)
  *
  * If @tree is set, vmpressure is in traditional userspace reporting
  * mode: @memcg is considered the pressure root and userspace is
- * notified of the entire subtree's reclaim efficiency.
+ * yestified of the entire subtree's reclaim efficiency.
  *
- * If @tree is not set, reclaim efficiency is recorded for @memcg, and
- * only in-kernel users are notified.
+ * If @tree is yest set, reclaim efficiency is recorded for @memcg, and
+ * only in-kernel users are yestified.
  *
- * This function does not return any value.
+ * This function does yest return any value.
  */
 void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
 		unsigned long scanned, unsigned long reclaimed)
@@ -245,7 +245,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
 	/*
 	 * Here we only want to account pressure that userland is able to
 	 * help us with. For example, suppose that DMA zone is under
-	 * pressure; if we notify userland about that kind of pressure,
+	 * pressure; if we yestify userland about that kind of pressure,
 	 * then it will be mostly a waste as it will trigger unnecessary
 	 * freeing of memory by userland (since userland is more likely to
 	 * have HIGHMEM/MOVABLE pages instead of the DMA fallback). That
@@ -257,11 +257,11 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
 		return;
 
 	/*
-	 * If we got here with no pages scanned, then that is an indicator
+	 * If we got here with yes pages scanned, then that is an indicator
 	 * that reclaimer was unable to find any shrinkable LRUs at the
-	 * current scanning depth. But it does not mean that we should
+	 * current scanning depth. But it does yest mean that we should
 	 * report the critical pressure, yet. If the scanning priority
-	 * (scanning depth) goes too high (deep), we will be notified
+	 * (scanning depth) goes too high (deep), we will be yestified
 	 * through vmpressure_prio(). But so far, keep calm.
 	 */
 	if (!scanned)
@@ -279,7 +279,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
 	} else {
 		enum vmpressure_levels level;
 
-		/* For now, no users for root-level efficiency */
+		/* For yesw, yes users for root-level efficiency */
 		if (!memcg || memcg == root_mem_cgroup)
 			return;
 
@@ -297,7 +297,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
 
 		if (level > VMPRESSURE_LOW) {
 			/*
-			 * Let the socket buffer allocator know that
+			 * Let the socket buffer allocator kyesw that
 			 * we are having trouble reclaiming LRU pages.
 			 *
 			 * For hysteresis keep the pressure state
@@ -318,7 +318,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
  * This function should be called from the reclaim path every time when
  * the vmscan's reclaiming priority (scanning depth) changes.
  *
- * This function does not return any value.
+ * This function does yest return any value.
  */
 void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
 {
@@ -342,14 +342,14 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
 #define MAX_VMPRESSURE_ARGS_LEN	(strlen("critical") + strlen("hierarchy") + 2)
 
 /**
- * vmpressure_register_event() - Bind vmpressure notifications to an eventfd
- * @memcg:	memcg that is interested in vmpressure notifications
- * @eventfd:	eventfd context to link notifications with
+ * vmpressure_register_event() - Bind vmpressure yestifications to an eventfd
+ * @memcg:	memcg that is interested in vmpressure yestifications
+ * @eventfd:	eventfd context to link yestifications with
  * @args:	event arguments (pressure level threshold, optional mode)
  *
  * This function associates eventfd context with the vmpressure
- * infrastructure, so that the notifications will be delivered to the
- * @eventfd. The @args parameter is a comma-delimited string that denotes a
+ * infrastructure, so that the yestifications will be delivered to the
+ * @eventfd. The @args parameter is a comma-delimited string that deyestes a
  * pressure level threshold (one of vmpressure_str_levels, i.e. "low", "medium",
  * or "critical") and an optional mode (one of vmpressure_str_modes, i.e.
  * "hierarchy" or "local").
@@ -357,7 +357,7 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
  * To be used as memcg event method.
  *
  * Return: 0 on success, -ENOMEM on memory failure or -EINVAL if @args could
- * not be parsed.
+ * yest be parsed.
  */
 int vmpressure_register_event(struct mem_cgroup *memcg,
 			      struct eventfd_ctx *eventfd, const char *args)
@@ -403,7 +403,7 @@ int vmpressure_register_event(struct mem_cgroup *memcg,
 	ev->mode = mode;
 
 	mutex_lock(&vmpr->events_lock);
-	list_add(&ev->node, &vmpr->events);
+	list_add(&ev->yesde, &vmpr->events);
 	mutex_unlock(&vmpr->events_lock);
 	ret = 0;
 out:
@@ -417,8 +417,8 @@ out:
  * @eventfd:	eventfd context that was used to link vmpressure with the @cg
  *
  * This function does internal manipulations to detach the @eventfd from
- * the vmpressure notifications, and then frees internal resources
- * associated with the @eventfd (but the @eventfd itself is not freed).
+ * the vmpressure yestifications, and then frees internal resources
+ * associated with the @eventfd (but the @eventfd itself is yest freed).
  *
  * To be used as memcg event method.
  */
@@ -429,10 +429,10 @@ void vmpressure_unregister_event(struct mem_cgroup *memcg,
 	struct vmpressure_event *ev;
 
 	mutex_lock(&vmpr->events_lock);
-	list_for_each_entry(ev, &vmpr->events, node) {
+	list_for_each_entry(ev, &vmpr->events, yesde) {
 		if (ev->efd != eventfd)
 			continue;
-		list_del(&ev->node);
+		list_del(&ev->yesde);
 		kfree(ev);
 		break;
 	}
@@ -464,7 +464,7 @@ void vmpressure_init(struct vmpressure *vmpr)
 void vmpressure_cleanup(struct vmpressure *vmpr)
 {
 	/*
-	 * Make sure there is no pending work before eventfd infrastructure
+	 * Make sure there is yes pending work before eventfd infrastructure
 	 * goes away.
 	 */
 	flush_work(&vmpr->work);

@@ -3,13 +3,13 @@
  * arch/alpha/lib/dbg_stackcheck.S
  * Contributed by Richard Henderson (rth@tamu.edu)
  *
- * Verify that we have not overflowed the stack.  Oops if we have.
+ * Verify that we have yest overflowed the stack.  Oops if we have.
  */
 
 #include <asm/asm-offsets.h>
 
 	.text
-	.set noat
+	.set yesat
 
 	.align 3
 	.globl _mcount

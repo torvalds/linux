@@ -41,7 +41,7 @@ OPTIONS
 
 	--interval=value, --space=value, --verbose=value, --task-filter=value,
 	--stacktrace-depth=value, --require-start=value, --require-end=value,
-	--reject-start=value, --reject-end=value, --ignore-gfp-wait=value
+	--reject-start=value, --reject-end=value, --igyesre-gfp-wait=value
 		See Documentation/fault-injection/fault-injection.rst for more
 		information
 
@@ -49,7 +49,7 @@ OPTIONS
 	--cache-filter=value
 
 	fail_page_alloc options:
-	--ignore-gfp-highmem=value, --min-order=value
+	--igyesre-gfp-highmem=value, --min-order=value
 
 ENVIRONMENT
 	FAILCMD_TYPE
@@ -60,7 +60,7 @@ ENVIRONMENT
 		fail_page_alloc
 			inject page allocation failures
 
-		If FAILCMD_TYPE is not defined, then failslab is used.
+		If FAILCMD_TYPE is yest defined, then failslab is used.
 EOF
 }
 
@@ -72,7 +72,7 @@ fi
 DEBUGFS=`mount -t debugfs | head -1 | awk '{ print $3}'`
 
 if [ ! -d "$DEBUGFS" ]; then
-	echo debugfs is not mounted >&2
+	echo debugfs is yest mounted >&2
 	exit 1
 fi
 
@@ -80,7 +80,7 @@ FAILCMD_TYPE=${FAILCMD_TYPE:-failslab}
 FAULTATTR=$DEBUGFS/$FAILCMD_TYPE
 
 if [ ! -d $FAULTATTR ]; then
-	echo $FAILCMD_TYPE is not available >&2
+	echo $FAILCMD_TYPE is yest available >&2
 	exit 1
 fi
 
@@ -89,9 +89,9 @@ LONGOPTS=$LONGOPTS,stacktrace-depth:,require-start:,require-end:
 LONGOPTS=$LONGOPTS,reject-start:,reject-end:,oom-kill-allocating-task:,help
 
 if [ $FAILCMD_TYPE = failslab ]; then
-	LONGOPTS=$LONGOPTS,ignore-gfp-wait:,cache-filter:
+	LONGOPTS=$LONGOPTS,igyesre-gfp-wait:,cache-filter:
 elif [ $FAILCMD_TYPE = fail_page_alloc ]; then
-	LONGOPTS=$LONGOPTS,ignore-gfp-wait:,ignore-gfp-highmem:,min-order:
+	LONGOPTS=$LONGOPTS,igyesre-gfp-wait:,igyesre-gfp-highmem:,min-order:
 fi
 
 TEMP=`getopt -o p:i:t:s:v:h --long $LONGOPTS -n 'failcmd.sh' -- "$@"`
@@ -179,16 +179,16 @@ while true; do
 		oom_kill_allocating_task=$2
 		shift 2
 		;;
-	--ignore-gfp-wait)
-		echo $2 > $FAULTATTR/ignore-gfp-wait
+	--igyesre-gfp-wait)
+		echo $2 > $FAULTATTR/igyesre-gfp-wait
 		shift 2
 		;;
 	--cache-filter)
 		echo $2 > $FAULTATTR/cache_filter
 		shift 2
 		;;
-	--ignore-gfp-highmem)
-		echo $2 > $FAULTATTR/ignore-gfp-highmem
+	--igyesre-gfp-highmem)
+		echo $2 > $FAULTATTR/igyesre-gfp-highmem
 		shift 2
 		;;
 	--min-order)

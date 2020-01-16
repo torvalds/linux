@@ -8,7 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -73,7 +73,7 @@ static struct fb_var_screeninfo hpfb_defined = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
-static int hpfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int hpfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			  unsigned blue, unsigned transp,
 			  struct fb_info *info)
 {
@@ -81,16 +81,16 @@ static int hpfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	unsigned char _red  =red>>8;
 	unsigned char _green=green>>8;
 	unsigned char _blue =blue>>8;
-	unsigned char _regno=regno;
+	unsigned char _regyes=regyes;
 
 	/*
 	 *  Set a single color register. The values supplied are
 	 *  already rounded down to the hardware's capabilities
 	 *  (according to the entries in the `var' structure). Return
-	 *  != 0 for invalid regno.
+	 *  != 0 for invalid regyes.
 	 */
 
-	if (regno >= info->cmap.len)
+	if (regyes >= info->cmap.len)
 		return 1;
 	
 	while (in_be16(fb_regs + 0x6002) & 0x4) udelay(1);
@@ -100,7 +100,7 @@ static int hpfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	out_be16(fb_regs + 0x60b2, _red);
 	out_be16(fb_regs + 0x60b4, _green);
 	out_be16(fb_regs + 0x60b6, _blue);
-	out_be16(fb_regs + 0x60b8, ~_regno);
+	out_be16(fb_regs + 0x60b8, ~_regyes);
 	out_be16(fb_regs + 0x60f0, 0xff);
 
 	udelay(100);
@@ -114,7 +114,7 @@ static int hpfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
-/* 0 unblank, 1 blank, 2 no vsync, 3 no hsync, 4 off */
+/* 0 unblank, 1 blank, 2 yes vsync, 3 yes hsync, 4 off */
 
 static int hpfb_blank(int blank, struct fb_info *info)
 {
@@ -387,7 +387,7 @@ int __init hpfb_init(void)
 	 * So we merge the two detection routines.
 	 *
 	 * Perhaps this #define should be in a global header file:
-	 * I believe it's common to all internal fbs, not just topcat.
+	 * I believe it's common to all internal fbs, yest just topcat.
 	 */
 #define INTFBVADDR 0xf0560000
 #define INTFBPADDR 0x560000

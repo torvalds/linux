@@ -4175,7 +4175,7 @@ static void wlc_lcnphy_glacial_timer_based_cal(struct brcms_phy *pi)
 	if (!suspend)
 		wlapi_suspend_mac_and_wait(pi->sh->physhim);
 	wlc_lcnphy_deaf_mode(pi, true);
-	pi->phy_lastcal = pi->sh->now;
+	pi->phy_lastcal = pi->sh->yesw;
 	pi->phy_forcecal = false;
 	index = pi_lcn->lcnphy_current_index;
 
@@ -4201,7 +4201,7 @@ static void wlc_lcnphy_periodic_cal(struct brcms_phy *pi)
 	s32 tssi, pwr, mintargetpwr;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
-	pi->phy_lastcal = pi->sh->now;
+	pi->phy_lastcal = pi->sh->yesw;
 	pi->phy_forcecal = false;
 	full_cal =
 		(pi_lcn->lcnphy_full_cal_channel !=
@@ -4855,7 +4855,7 @@ void wlc_phy_init_lcnphy(struct brcms_phy *pi)
 	mod_phy_reg(pi, 0x448, (0x1 << 14), (0) << 14);
 
 	wlc_lcnphy_set_tx_pwr_ctrl(pi, LCNPHY_TX_PWR_CTRL_HW);
-	pi_lcn->lcnphy_noise_samples = LCNPHY_NOISE_SAMPLES_DEFAULT;
+	pi_lcn->lcnphy_yesise_samples = LCNPHY_NOISE_SAMPLES_DEFAULT;
 	wlc_lcnphy_calib_modes(pi, PHY_PERICAL_PHYINIT);
 }
 
@@ -5135,7 +5135,7 @@ static u32 wlc_lcnphy_get_receive_power(struct brcms_phy *pi, s32 *gain_index)
 				wlc_lcnphy_measure_digital_power(
 					pi,
 					pi_lcn->
-					lcnphy_noise_samples);
+					lcnphy_yesise_samples);
 			(*gain_index)++;
 		}
 		(*gain_index)--;
@@ -5144,7 +5144,7 @@ static u32 wlc_lcnphy_get_receive_power(struct brcms_phy *pi, s32 *gain_index)
 		received_power =
 			wlc_lcnphy_measure_digital_power(pi,
 							 pi_lcn->
-							 lcnphy_noise_samples);
+							 lcnphy_yesise_samples);
 	}
 
 	return received_power;
@@ -5153,7 +5153,7 @@ static u32 wlc_lcnphy_get_receive_power(struct brcms_phy *pi, s32 *gain_index)
 s32 wlc_lcnphy_rx_signal_power(struct brcms_phy *pi, s32 gain_index)
 {
 	s32 gain = 0;
-	s32 nominal_power_db;
+	s32 yesminal_power_db;
 	s32 log_val, gain_mismatch, desired_gain, input_power_offset_db,
 	    input_power_db;
 	s32 received_power, temperature;
@@ -5166,7 +5166,7 @@ s32 wlc_lcnphy_rx_signal_power(struct brcms_phy *pi, s32 gain_index)
 
 	gain = lcnphy_gain_table[gain_index];
 
-	nominal_power_db = read_phy_reg(pi, 0x425) >> 8;
+	yesminal_power_db = read_phy_reg(pi, 0x425) >> 8;
 
 	power = (received_power * 16);
 	msb1 = ffs(power) - 1;
@@ -5182,7 +5182,7 @@ s32 wlc_lcnphy_rx_signal_power(struct brcms_phy *pi, s32 gain_index)
 
 	log_val = log_val * 3;
 
-	gain_mismatch = (nominal_power_db / 2) - (log_val);
+	gain_mismatch = (yesminal_power_db / 2) - (log_val);
 
 	desired_gain = gain + gain_mismatch;
 

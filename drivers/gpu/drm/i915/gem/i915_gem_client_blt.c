@@ -146,7 +146,7 @@ static void clear_pages_dma_fence_cb(struct dma_fence *fence,
 		dma_fence_set_error(&w->dma, fence->error);
 
 	/*
-	 * Push the signalling of the fence into yet another worker to avoid
+	 * Push the signalling of the fence into yet ayesther worker to avoid
 	 * the nightmare locking around the fence spinlock.
 	 */
 	irq_work_queue(&w->irq_work);
@@ -188,7 +188,7 @@ static void clear_pages_worker(struct work_struct *work)
 		goto out_batch;
 	}
 
-	/* There's no way the fence has signalled */
+	/* There's yes way the fence has signalled */
 	if (dma_fence_add_callback(&rq->fence, &w->cb,
 				   clear_pages_dma_fence_cb))
 		GEM_BUG_ON(1);
@@ -213,7 +213,7 @@ static void clear_pages_worker(struct work_struct *work)
 		goto out_request;
 
 	err = w->ce->engine->emit_bb_start(rq,
-					   batch->node.start, batch->node.size,
+					   batch->yesde.start, batch->yesde.size,
 					   0);
 out_request:
 	if (unlikely(err)) {
@@ -235,8 +235,8 @@ out_signal:
 }
 
 static int __i915_sw_fence_call
-clear_pages_work_notify(struct i915_sw_fence *fence,
-			enum i915_sw_fence_notify state)
+clear_pages_work_yestify(struct i915_sw_fence *fence,
+			enum i915_sw_fence_yestify state)
 {
 	struct clear_pages_work *w = container_of(fence, typeof(*w), wait);
 
@@ -285,7 +285,7 @@ int i915_gem_schedule_fill_pages_blt(struct drm_i915_gem_object *obj,
 	init_irq_work(&work->irq_work, clear_pages_signal_irq_worker);
 
 	dma_fence_init(&work->dma, &clear_pages_work_ops, &fence_lock, 0, 0);
-	i915_sw_fence_init(&work->wait, clear_pages_work_notify);
+	i915_sw_fence_init(&work->wait, clear_pages_work_yestify);
 
 	i915_gem_object_lock(obj);
 	err = i915_sw_fence_await_reservation(&work->wait,

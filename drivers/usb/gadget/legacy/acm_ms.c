@@ -22,7 +22,7 @@
 
 /*
  * DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+ * Instead:  allocate your own, using yesrmal USB-IF procedures.
  */
 #define ACM_MS_VENDOR_NUM	0x1d6b	/* Linux Foundation */
 #define ACM_MS_PRODUCT_NUM	0x0106	/* Composite Gadget: ACM + MS*/
@@ -85,13 +85,13 @@ static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
 
 /*
  * Number of buffers we will use.
- * 2 is usually enough for good buffering pipeline
+ * 2 is usually eyesugh for good buffering pipeline
  */
 #define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
 
 #endif /* CONFIG_USB_GADGET_DEBUG_FILES */
 
-FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
+FSG_MODULE_PARAMETERS(/* yes prefix */, fsg_mod_data);
 
 /*-------------------------------------------------------------------------*/
 static struct usb_function *f_acm;
@@ -170,7 +170,7 @@ static int acm_ms_bind(struct usb_composite_dev *cdev)
 	fsg_config_from_params(&config, &fsg_mod_data, fsg_num_buffers);
 	opts = fsg_opts_from_func_inst(fi_msg);
 
-	opts->no_configfs = true;
+	opts->yes_configfs = true;
 	status = fsg_common_set_num_buffers(opts->common, fsg_num_buffers);
 	if (status)
 		goto fail;
@@ -187,7 +187,7 @@ static int acm_ms_bind(struct usb_composite_dev *cdev)
 	fsg_common_set_inquiry_string(opts->common, config.vendor_name,
 				      config.product_name);
 	/*
-	 * Allocate string descriptor numbers ... note that string
+	 * Allocate string descriptor numbers ... yeste that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 	status = usb_string_ids_tab(cdev, strings_dev);

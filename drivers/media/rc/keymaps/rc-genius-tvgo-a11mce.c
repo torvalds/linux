@@ -41,7 +41,7 @@ static struct rc_map_table genius_tvgo_a11mce[] = {
 	/* small arrows above numbers */
 	{ 0x1a, KEY_NEXT },		/* also Fast Forward */
 	{ 0x0e, KEY_PREVIOUS },		/* also Rewind */
-	/* these are in a rather non standard layout and have
+	/* these are in a rather yesn standard layout and have
 	an alternate name written */
 	{ 0x1e, KEY_UP },		/* Video Setting */
 	{ 0x0a, KEY_DOWN },		/* Video Default */

@@ -4,7 +4,7 @@
 #include <core/subdev.h>
 #include <core/mm.h>
 
-/* memory type/access flags, do not match hardware values */
+/* memory type/access flags, do yest match hardware values */
 #define NV_MEM_ACCESS_RO  1
 #define NV_MEM_ACCESS_WO  2
 #define NV_MEM_ACCESS_RW (NV_MEM_ACCESS_RO | NV_MEM_ACCESS_WO)
@@ -22,7 +22,7 @@
 #define NV_MEM_COMP_VM 0x03
 
 struct nvkm_fb_tile {
-	struct nvkm_mm_node *tag;
+	struct nvkm_mm_yesde *tag;
 	u32 addr;
 	u32 limit;
 	u32 pitch;

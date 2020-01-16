@@ -18,18 +18,18 @@ struct udf_ext_cache {
 /*
  * The i_data_sem and i_mutex serve for protection of allocation information
  * of a regular files and symlinks. This includes all extents belonging to
- * the file/symlink, a fact whether data are in-inode or in external data
+ * the file/symlink, a fact whether data are in-iyesde or in external data
  * blocks, preallocation, goal block information... When extents are read,
- * i_mutex or i_data_sem must be held (for reading is enough in case of
+ * i_mutex or i_data_sem must be held (for reading is eyesugh in case of
  * i_data_sem). When extents are changed, i_data_sem must be held for writing
  * and also i_mutex must be held.
  *
  * For directories i_mutex is used for all the necessary protection.
  */
 
-struct udf_inode_info {
+struct udf_iyesde_info {
 	struct timespec64	i_crtime;
-	/* Physical address of inode */
+	/* Physical address of iyesde */
 	struct kernel_lb_addr		i_location;
 	__u64			i_unique;
 	__u32			i_lenEAttr;
@@ -56,12 +56,12 @@ struct udf_inode_info {
 	struct udf_ext_cache cached_extent;
 	/* Spinlock for protecting extent cache */
 	spinlock_t i_extent_cache_lock;
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 };
 
-static inline struct udf_inode_info *UDF_I(struct inode *inode)
+static inline struct udf_iyesde_info *UDF_I(struct iyesde *iyesde)
 {
-	return container_of(inode, struct udf_inode_info, vfs_inode);
+	return container_of(iyesde, struct udf_iyesde_info, vfs_iyesde);
 }
 
 #endif /* _UDF_I_H) */

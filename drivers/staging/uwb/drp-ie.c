@@ -106,7 +106,7 @@ int uwb_rsv_companion_status(struct uwb_rsv *rsv)
  * Allocate a DRP IE.
  *
  * To save having to free/allocate a DRP IE when its MAS changes,
- * enough memory is allocated for the maxiumum number of DRP
+ * eyesugh memory is allocated for the maxiumum number of DRP
  * allocation fields.  This gives an overhead per reservation of up to
  * (UWB_NUM_ZONES - 1) * 4 = 60 octets.
  */
@@ -248,7 +248,7 @@ int uwb_drp_ie_update(struct uwb_rsv *rsv)
  *
  * We are given a zone id and the MAS bitmap of bits that need to be set in
  * this zone. Note that this zone may already have bits set and this only
- * adds settings - we cannot simply assign the MAS bitmap contents to the
+ * adds settings - we canyest simply assign the MAS bitmap contents to the
  * zone contents. We iterate over the the bits (MAS) in the zone and set the
  * bits that are set in the given MAS bitmap.
  */
@@ -276,7 +276,7 @@ void uwb_drp_ie_single_zone_to_bm(struct uwb_mas_bm *bm, u8 zone, u16 mas_bm)
  * 16.8.6. The output is a full 256 bit MAS bitmap.
  *
  * We go over all the allocation fields, for each allocation field we
- * know which zones are impacted. We iterate over all the zones
+ * kyesw which zones are impacted. We iterate over all the zones
  * impacted and call a function that will set the correct MAS bits in
  * each zone.
  */

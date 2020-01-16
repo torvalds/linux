@@ -19,7 +19,7 @@
 #define __BPF_MAP_12(i, m, v, t, a, ...) m(t, a, ctx[i]), __BPF_MAP_11(i+1, m, v, __VA_ARGS__)
 #define __BPF_MAP(n, ...) __BPF_MAP_##n(0, __VA_ARGS__)
 
-/* BPF sizeof(void *) is always 8, so no need to cast to long first
+/* BPF sizeof(void *) is always 8, so yes need to cast to long first
  * for ptr to avoid compiler warning.
  */
 #define __BPF_CAST(t, a, ctx) (t) ctx

@@ -326,7 +326,7 @@
 		status = "disabled";
 	};
 
-	/* SDHI1 and SDHI2 have no CD pins, no need for CD IRQ */
+	/* SDHI1 and SDHI2 have yes CD pins, yes need for CD IRQ */
 	sdhi1: sd@ee120000 {
 		compatible = "renesas,sdhi-sh73a0";
 		reg = <0xee120000 0x100>;

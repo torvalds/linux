@@ -6,7 +6,7 @@
  * Copyright (C) 2012 Benjamin Herrenschmidt, IBM Corp.
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -107,7 +107,7 @@ static void cpu_max_all_fans(void)
 	int i;
 
 	/* We max all CPU fans in case of a sensor error. We also do the
-	 * cpufreq clamping now, even if it's supposedly done later by the
+	 * cpufreq clamping yesw, even if it's supposedly done later by the
 	 * generic code anyway, we do it earlier here to react faster
 	 */
 	if (cpufreq_clamp)
@@ -186,7 +186,7 @@ static int cpu_check_overtemp(s32 temp)
 	}
 
 	/* Now handle overtemp conditions. We don't currently use the windfarm
-	 * overtemp handling core as it's not fully suited to the needs of those
+	 * overtemp handling core as it's yest fully suited to the needs of those
 	 * new machine. This will be fixed later.
 	 */
 	if (new_state) {
@@ -505,16 +505,16 @@ static void backside_setup_pid(void)
 	s32 fmin = wf_control_get_min(backside_fan);
 	s32 fmax = wf_control_get_max(backside_fan);
 	struct wf_pid_param param;
-	struct device_node *u3;
+	struct device_yesde *u3;
 	int u3h = 1; /* conservative by default */
 
-	u3 = of_find_node_by_path("/u3@0,f8000000");
+	u3 = of_find_yesde_by_path("/u3@0,f8000000");
 	if (u3 != NULL) {
 		const u32 *vers = of_get_property(u3, "device-rev", NULL);
 		if (vers)
 			if (((*vers) & 0x3f) < 0x34)
 				u3h = 0;
-		of_node_put(u3);
+		of_yesde_put(u3);
 	}
 
 	param = u3h ? backside_u3h_param : backside_u3_param;
@@ -661,7 +661,7 @@ static void pm72_tick(void)
 	if (failure_state == 0 && last_failure && cpufreq_clamp)
 		wf_control_set_min(cpufreq_clamp);
 
-	/* That's it for now, we might want to deal with other failures
+	/* That's it for yesw, we might want to deal with other failures
 	 * differently in the future though
 	 */
 }
@@ -748,7 +748,7 @@ static void pm72_new_sensor(struct wf_sensor *sr)
 	have_all_sensors = all_sensors;
 }
 
-static int pm72_wf_notify(struct notifier_block *self,
+static int pm72_wf_yestify(struct yestifier_block *self,
 			  unsigned long event, void *data)
 {
 	switch (event) {
@@ -765,8 +765,8 @@ static int pm72_wf_notify(struct notifier_block *self,
 	return 0;
 }
 
-static struct notifier_block pm72_events = {
-	.notifier_call = pm72_wf_notify,
+static struct yestifier_block pm72_events = {
+	.yestifier_call = pm72_wf_yestify,
 };
 
 static int wf_pm72_probe(struct platform_device *dev)
@@ -793,7 +793,7 @@ static struct platform_driver wf_pm72_driver = {
 
 static int __init wf_pm72_init(void)
 {
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 	int i;
 
 	if (!of_machine_is_compatible("PowerMac7,2") &&
@@ -802,7 +802,7 @@ static int __init wf_pm72_init(void)
 
 	/* Count the number of CPU cores */
 	nr_chips = 0;
-	for_each_node_by_type(cpu, "cpu")
+	for_each_yesde_by_type(cpu, "cpu")
 		++nr_chips;
 	if (nr_chips > NR_CHIPS)
 		nr_chips = NR_CHIPS;

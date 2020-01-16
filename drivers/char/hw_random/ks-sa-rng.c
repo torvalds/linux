@@ -5,7 +5,7 @@
  * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com
  *
  * Authors:	Sandeep Nair
- *		Vitaly Andrianov
+ *		Vitaly Andriayesv
  */
 
 #include <linux/hw_random.h>
@@ -181,15 +181,15 @@ static int ks_sa_rng_data_present(struct hwrng *rng, int wait)
 {
 	struct device *dev = (struct device *)rng->priv;
 	struct ks_sa_rng *ks_sa_rng = dev_get_drvdata(dev);
-	u64 now = ktime_get_ns();
+	u64 yesw = ktime_get_ns();
 
 	u32	ready;
 	int	j;
 
-	if (wait && now < ks_sa_rng->ready_ts) {
+	if (wait && yesw < ks_sa_rng->ready_ts) {
 		/* Max delay expected here is 81920000 ns */
 		unsigned long min_delay =
-			DIV_ROUND_UP((u32)(ks_sa_rng->ready_ts - now), 1000);
+			DIV_ROUND_UP((u32)(ks_sa_rng->ready_ts - yesw), 1000);
 
 		usleep_range(min_delay, min_delay + SA_RNG_DATA_RETRY_DELAY);
 	}
@@ -232,11 +232,11 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 		return PTR_ERR(ks_sa_rng->reg_rng);
 
 	ks_sa_rng->regmap_cfg =
-		syscon_regmap_lookup_by_phandle(dev->of_node,
+		syscon_regmap_lookup_by_phandle(dev->of_yesde,
 						"ti,syscon-sa-cfg");
 
 	if (IS_ERR(ks_sa_rng->regmap_cfg)) {
-		dev_err(dev, "syscon_node_to_regmap failed\n");
+		dev_err(dev, "syscon_yesde_to_regmap failed\n");
 		return -EINVAL;
 	}
 
@@ -281,5 +281,5 @@ static struct platform_driver ks_sa_rng_driver = {
 module_platform_driver(ks_sa_rng_driver);
 
 MODULE_DESCRIPTION("Keystone NETCP SA H/W Random Number Generator driver");
-MODULE_AUTHOR("Vitaly Andrianov <vitalya@ti.com>");
+MODULE_AUTHOR("Vitaly Andriayesv <vitalya@ti.com>");
 MODULE_LICENSE("GPL");

@@ -84,7 +84,7 @@ Required properties:
     - "renesas,hscif" for generic HSCIF compatible UART.
     - "renesas,sci" for generic SCI compatible UART.
 
-    When compatible with the generic version, nodes must list the
+    When compatible with the generic version, yesdes must list the
     SoC-specific version corresponding to the platform first, followed by the
     family-specific and/or generic versions.
 
@@ -121,7 +121,7 @@ Required properties:
 	divider (SCIF_CLK).
 
 Note: Each enabled SCIx UART may have an optional "serialN" alias in the
-"aliases" node.
+"aliases" yesde.
 
 Optional properties:
   - dmas: Must contain a list of two references to DMA specifiers, one for

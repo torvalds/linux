@@ -57,7 +57,7 @@ int oncpu(struct random_urandom_args *args)
 
 	value_p = bpf_map_lookup_elem(&control_map, &key);
 	if (value_p && *value_p)
-		return 0; /* skip if non-zero *value_p */
+		return 0; /* skip if yesn-zero *value_p */
 
 	/* The size of stackmap and stackid_hmap should be the same */
 	key = bpf_get_stackid(args, &stackmap, BPF_F_USER_STACK);
@@ -73,4 +73,4 @@ int oncpu(struct random_urandom_args *args)
 }
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1; /* ignored by tracepoints, required by libbpf.a */
+__u32 _version SEC("version") = 1; /* igyesred by tracepoints, required by libbpf.a */

@@ -380,7 +380,7 @@ static void gb_power_supply_state_change(struct gb_power_supply *gbpsy,
 			ret = gb_pm_runtime_put_autosuspend(connection->bundle);
 			if (ret)
 				dev_err(&connection->bundle->dev,
-					"Fail to set wake unlock for none charging\n");
+					"Fail to set wake unlock for yesne charging\n");
 			else
 				gbpsy->pm_acquired = false;
 		}
@@ -539,7 +539,7 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 		ret = get_psp_from_gb_prop(resp->props[i].property, &psp);
 		if (ret < 0) {
 			dev_warn(&connection->bundle->dev,
-				 "greybus property %u it is not supported by this kernel, dropped\n",
+				 "greybus property %u it is yest supported by this kernel, dropped\n",
 				 resp->props[i].property);
 			gbpsy->properties_count--;
 		}
@@ -559,7 +559,7 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 		goto out_put_operation;
 	}
 
-	/* Store available properties, skip the ones we do not support */
+	/* Store available properties, skip the ones we do yest support */
 	for (i = 0; i < props_count; i++) {
 		ret = get_psp_from_gb_prop(resp->props[i].property, &psp);
 		if (ret < 0) {
@@ -574,7 +574,7 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 	}
 
 	/*
-	 * now append the properties that we already got information in the
+	 * yesw append the properties that we already got information in the
 	 * get_description operation. (char * ones)
 	 */
 	_gb_power_supply_append_props(gbpsy);
@@ -678,7 +678,7 @@ static int _gb_power_supply_property_get(struct gb_power_supply *gbpsy,
 
 static int is_cache_valid(struct gb_power_supply *gbpsy)
 {
-	/* check if cache is good enough or it has expired */
+	/* check if cache is good eyesugh or it has expired */
 	if (gbpsy->cache_invalid) {
 		gbpsy->cache_invalid = 0;
 		return 0;
@@ -739,7 +739,7 @@ static void gb_power_supply_work(struct work_struct *work)
 						     work.work);
 
 	/*
-	 * if the poll interval is not set, disable polling, this is helpful
+	 * if the poll interval is yest set, disable polling, this is helpful
 	 * specially at unregister time.
 	 */
 	if (!gbpsy->update_interval)
@@ -924,7 +924,7 @@ static int gb_power_supply_enable(struct gb_power_supply *gbpsy)
 	INIT_DELAYED_WORK(&gbpsy->work, gb_power_supply_work);
 	schedule_delayed_work(&gbpsy->work, 0);
 
-	/* everything went fine, mark it for release code to know */
+	/* everything went fine, mark it for release code to kyesw */
 	gbpsy->registered = true;
 
 	return 0;
@@ -1036,7 +1036,7 @@ static int gb_supplies_request_handler(struct gb_operation *op)
 
 	if (event & GB_POWER_SUPPLY_UPDATE) {
 		/*
-		 * we need to make sure we invalidate cache, if not no new
+		 * we need to make sure we invalidate cache, if yest yes new
 		 * values for the properties will be fetch and the all propose
 		 * of this event is missed
 		 */
@@ -1091,7 +1091,7 @@ static int gb_power_supply_probe(struct gb_bundle *bundle,
 	if (ret < 0)
 		goto error_connection_disable;
 
-	/* We are ready to receive an incoming request now, enable RX as well */
+	/* We are ready to receive an incoming request yesw, enable RX as well */
 	ret = gb_connection_enable(connection);
 	if (ret)
 		goto error_connection_disable;

@@ -1,5 +1,5 @@
 {
-	"map access: known scalar += value_ptr from different maps",
+	"map access: kyeswn scalar += value_ptr from different maps",
 	.insns = {
 	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, len)),
@@ -26,7 +26,7 @@
 	.retval = 1,
 },
 {
-	"map access: value_ptr -= known scalar from different maps",
+	"map access: value_ptr -= kyeswn scalar from different maps",
 	.insns = {
 	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, len)),
@@ -54,7 +54,7 @@
 	.retval = 1,
 },
 {
-	"map access: known scalar += value_ptr from different maps, but same value properties",
+	"map access: kyeswn scalar += value_ptr from different maps, but same value properties",
 	.insns = {
 	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, len)),
@@ -241,7 +241,7 @@
 	.retval = -EINVAL * 2,
 },
 {
-	"map access: value_ptr += known scalar, upper oob arith, test 1",
+	"map access: value_ptr += kyeswn scalar, upper oob arith, test 1",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -263,7 +263,7 @@
 	.retval = 1,
 },
 {
-	"map access: value_ptr += known scalar, upper oob arith, test 2",
+	"map access: value_ptr += kyeswn scalar, upper oob arith, test 2",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -285,7 +285,7 @@
 	.retval = 1,
 },
 {
-	"map access: value_ptr += known scalar, upper oob arith, test 3",
+	"map access: value_ptr += kyeswn scalar, upper oob arith, test 3",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -307,7 +307,7 @@
 	.retval = 1,
 },
 {
-	"map access: value_ptr -= known scalar, lower oob arith, test 1",
+	"map access: value_ptr -= kyeswn scalar, lower oob arith, test 1",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -330,7 +330,7 @@
 	.errstr_unpriv = "R0 pointer arithmetic of map value goes out of range",
 },
 {
-	"map access: value_ptr -= known scalar, lower oob arith, test 2",
+	"map access: value_ptr -= kyeswn scalar, lower oob arith, test 2",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -355,7 +355,7 @@
 	.retval = 1,
 },
 {
-	"map access: value_ptr -= known scalar, lower oob arith, test 3",
+	"map access: value_ptr -= kyeswn scalar, lower oob arith, test 3",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -378,7 +378,7 @@
 	.retval = 1,
 },
 {
-	"map access: known scalar += value_ptr",
+	"map access: kyeswn scalar += value_ptr",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -397,7 +397,7 @@
 	.retval = 1,
 },
 {
-	"map access: value_ptr += known scalar, 1",
+	"map access: value_ptr += kyeswn scalar, 1",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -416,7 +416,7 @@
 	.retval = 1,
 },
 {
-	"map access: value_ptr += known scalar, 2",
+	"map access: value_ptr += kyeswn scalar, 2",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -435,7 +435,7 @@
 	.errstr = "invalid access to map value",
 },
 {
-	"map access: value_ptr += known scalar, 3",
+	"map access: value_ptr += kyeswn scalar, 3",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -454,7 +454,7 @@
 	.errstr = "invalid access to map value",
 },
 {
-	"map access: value_ptr += known scalar, 4",
+	"map access: value_ptr += kyeswn scalar, 4",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -479,7 +479,7 @@
 	.retval = 1,
 },
 {
-	"map access: value_ptr += known scalar, 5",
+	"map access: value_ptr += kyeswn scalar, 5",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -497,7 +497,7 @@
 	.retval = 0xabcdef12,
 },
 {
-	"map access: value_ptr += known scalar, 6",
+	"map access: value_ptr += kyeswn scalar, 6",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -517,7 +517,7 @@
 	.retval = 0xabcdef12,
 },
 {
-	"map access: unknown scalar += value_ptr, 1",
+	"map access: unkyeswn scalar += value_ptr, 1",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -537,7 +537,7 @@
 	.retval = 1,
 },
 {
-	"map access: unknown scalar += value_ptr, 2",
+	"map access: unkyeswn scalar += value_ptr, 2",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -557,7 +557,7 @@
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"map access: unknown scalar += value_ptr, 3",
+	"map access: unkyeswn scalar += value_ptr, 3",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -583,7 +583,7 @@
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"map access: unknown scalar += value_ptr, 4",
+	"map access: unkyeswn scalar += value_ptr, 4",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -606,7 +606,7 @@
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"map access: value_ptr += unknown scalar, 1",
+	"map access: value_ptr += unkyeswn scalar, 1",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -626,7 +626,7 @@
 	.retval = 1,
 },
 {
-	"map access: value_ptr += unknown scalar, 2",
+	"map access: value_ptr += unkyeswn scalar, 2",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -646,7 +646,7 @@
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"map access: value_ptr += unknown scalar, 3",
+	"map access: value_ptr += unkyeswn scalar, 3",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -691,7 +691,7 @@
 	.errstr = "R0 pointer += pointer prohibited",
 },
 {
-	"map access: known scalar -= value_ptr",
+	"map access: kyeswn scalar -= value_ptr",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -710,7 +710,7 @@
 	.errstr = "R1 tried to subtract pointer from scalar",
 },
 {
-	"map access: value_ptr -= known scalar",
+	"map access: value_ptr -= kyeswn scalar",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -729,7 +729,7 @@
 	.errstr = "R0 min value is outside of the array range",
 },
 {
-	"map access: value_ptr -= known scalar, 2",
+	"map access: value_ptr -= kyeswn scalar, 2",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -752,7 +752,7 @@
 	.retval = 1,
 },
 {
-	"map access: unknown scalar -= value_ptr",
+	"map access: unkyeswn scalar -= value_ptr",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -772,7 +772,7 @@
 	.errstr = "R1 tried to subtract pointer from scalar",
 },
 {
-	"map access: value_ptr -= unknown scalar",
+	"map access: value_ptr -= unkyeswn scalar",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -792,7 +792,7 @@
 	.errstr = "R0 min value is negative",
 },
 {
-	"map access: value_ptr -= unknown scalar, 2",
+	"map access: value_ptr -= unkyeswn scalar, 2",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),

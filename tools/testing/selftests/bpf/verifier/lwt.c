@@ -12,7 +12,7 @@
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "cannot write into packet",
+	.errstr = "canyest write into packet",
 	.result = REJECT,
 	.prog_type = BPF_PROG_TYPE_LWT_IN,
 },
@@ -30,7 +30,7 @@
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "cannot write into packet",
+	.errstr = "canyest write into packet",
 	.result = REJECT,
 	.prog_type = BPF_PROG_TYPE_LWT_OUT,
 },
@@ -171,7 +171,7 @@
 	.errstr = "invalid bpf_context access",
 },
 {
-	"check skb->tc_classid half load not permitted for lwt prog",
+	"check skb->tc_classid half load yest permitted for lwt prog",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 #if __BYTE_ORDER == __LITTLE_ENDIAN

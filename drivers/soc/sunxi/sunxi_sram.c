@@ -109,7 +109,7 @@ static void __iomem *base;
 
 static int sunxi_sram_show(struct seq_file *s, void *data)
 {
-	struct device_node *sram_node, *section_node;
+	struct device_yesde *sram_yesde, *section_yesde;
 	const struct sunxi_sram_data *sram_data;
 	const struct of_device_id *match;
 	struct sunxi_sram_func *func;
@@ -119,19 +119,19 @@ static int sunxi_sram_show(struct seq_file *s, void *data)
 	seq_puts(s, "Allwinner sunXi SRAM\n");
 	seq_puts(s, "--------------------\n\n");
 
-	for_each_child_of_node(sram_dev->of_node, sram_node) {
-		sram_addr_p = of_get_address(sram_node, 0, NULL, NULL);
+	for_each_child_of_yesde(sram_dev->of_yesde, sram_yesde) {
+		sram_addr_p = of_get_address(sram_yesde, 0, NULL, NULL);
 
 		seq_printf(s, "sram@%08x\n",
 			   be32_to_cpu(*sram_addr_p));
 
-		for_each_child_of_node(sram_node, section_node) {
-			match = of_match_node(sunxi_sram_dt_ids, section_node);
+		for_each_child_of_yesde(sram_yesde, section_yesde) {
+			match = of_match_yesde(sunxi_sram_dt_ids, section_yesde);
 			if (!match)
 				continue;
 			sram_data = match->data;
 
-			section_addr_p = of_get_address(section_node, 0,
+			section_addr_p = of_get_address(section_yesde, 0,
 							NULL, NULL);
 
 			seq_printf(s, "\tsection@%04x\t(%s)\n",
@@ -162,7 +162,7 @@ static inline struct sunxi_sram_desc *to_sram_desc(const struct sunxi_sram_data 
 	return container_of(data, struct sunxi_sram_desc, data);
 }
 
-static const struct sunxi_sram_data *sunxi_sram_of_parse(struct device_node *node,
+static const struct sunxi_sram_data *sunxi_sram_of_parse(struct device_yesde *yesde,
 							 unsigned int *reg_value)
 {
 	const struct of_device_id *match;
@@ -172,7 +172,7 @@ static const struct sunxi_sram_data *sunxi_sram_of_parse(struct device_node *nod
 	u8 val;
 	int ret;
 
-	ret = of_parse_phandle_with_fixed_args(node, "allwinner,sram", 1, 0,
+	ret = of_parse_phandle_with_fixed_args(yesde, "allwinner,sram", 1, 0,
 					       &args);
 	if (ret)
 		return ERR_PTR(ret);
@@ -184,7 +184,7 @@ static const struct sunxi_sram_data *sunxi_sram_of_parse(struct device_node *nod
 
 	val = args.args[0];
 
-	match = of_match_node(sunxi_sram_dt_ids, args.np);
+	match = of_match_yesde(sunxi_sram_dt_ids, args.np);
 	if (!match) {
 		ret = -EINVAL;
 		goto err;
@@ -210,11 +210,11 @@ static const struct sunxi_sram_data *sunxi_sram_of_parse(struct device_node *nod
 		goto err;
 	}
 
-	of_node_put(args.np);
+	of_yesde_put(args.np);
 	return match->data;
 
 err:
-	of_node_put(args.np);
+	of_yesde_put(args.np);
 	return ERR_PTR(ret);
 }
 
@@ -231,10 +231,10 @@ int sunxi_sram_claim(struct device *dev)
 	if (!base)
 		return -EPROBE_DEFER;
 
-	if (!dev || !dev->of_node)
+	if (!dev || !dev->of_yesde)
 		return -EINVAL;
 
-	sram_data = sunxi_sram_of_parse(dev->of_node, &device);
+	sram_data = sunxi_sram_of_parse(dev->of_yesde, &device);
 	if (IS_ERR(sram_data))
 		return PTR_ERR(sram_data);
 
@@ -265,10 +265,10 @@ int sunxi_sram_release(struct device *dev)
 	const struct sunxi_sram_data *sram_data;
 	struct sunxi_sram_desc *sram_desc;
 
-	if (!dev || !dev->of_node)
+	if (!dev || !dev->of_yesde)
 		return -EINVAL;
 
-	sram_data = sunxi_sram_of_parse(dev->of_node, NULL);
+	sram_data = sunxi_sram_of_parse(dev->of_yesde, NULL);
 	if (IS_ERR(sram_data))
 		return -EINVAL;
 
@@ -313,7 +313,7 @@ static struct regmap_config sunxi_sram_emac_clock_regmap = {
 	.reg_stride     = 4,
 	/* last defined register */
 	.max_register   = SUNXI_SRAM_EMAC_CLOCK_REG,
-	/* other devices have no business accessing other registers */
+	/* other devices have yes business accessing other registers */
 	.readable_reg	= sunxi_sram_regmap_accessible_reg,
 	.writeable_reg	= sunxi_sram_regmap_accessible_reg,
 };
@@ -336,7 +336,7 @@ static int sunxi_sram_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	of_platform_populate(pdev->dev.of_yesde, NULL, NULL, &pdev->dev);
 
 	d = debugfs_create_file("sram", S_IRUGO, NULL, NULL,
 				&sunxi_sram_fops);

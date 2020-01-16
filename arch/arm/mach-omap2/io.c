@@ -8,7 +8,7 @@
  * Copyright (C) 2007-2009 Texas Instruments
  *
  * Author:
- *	Juha Yrjola <juha.yrjola@nokia.com>
+ *	Juha Yrjola <juha.yrjola@yeskia.com>
  *	Syed Khasim <x0khasim@ti.com>
  *
  * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
@@ -374,7 +374,7 @@ void __init dra7xx_map_io(void)
  * currently.  This has the effect of setting the SDRC SDRAM AC timing
  * registers to the values currently defined by the kernel.  Currently
  * only defined for OMAP3; will return 0 if called on OMAP2.  Returns
- * -EINVAL if the dpll3_m2_ck cannot be found, 0 if called on OMAP2,
+ * -EINVAL if the dpll3_m2_ck canyest be found, 0 if called on OMAP2,
  * or passes along the return value of clk_set_rate().
  */
 static int __init _omap2_init_reprogram_sdrc(void)
@@ -514,7 +514,7 @@ void __init omap3_init_late(void)
 
 void __init ti81xx_init_late(void)
 {
-	omap_pm_soc_init = omap_pm_nop_init;
+	omap_pm_soc_init = omap_pm_yesp_init;
 }
 #endif
 

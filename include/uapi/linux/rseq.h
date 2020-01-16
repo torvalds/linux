@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_RSEQ_H
 #define _UAPI_LINUX_RSEQ_H
 
@@ -7,7 +7,7 @@
  *
  * Restartable sequences system call API
  *
- * Copyright (c) 2015-2018 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * Copyright (c) 2015-2018 Mathieu Desyesyers <mathieu.desyesyers@efficios.com>
  */
 
 #include <linux/types.h>
@@ -66,7 +66,7 @@ struct rseq {
 	 * semantics. This field should only be read by the thread which
 	 * registered this data structure. Aligned on 32-bit. Always
 	 * contains a value in the range of possible CPUs, although the
-	 * value may not be the actual current CPU (e.g. if rseq is not
+	 * value may yest be the actual current CPU (e.g. if rseq is yest
 	 * initialized). This CPU number value should always be compared
 	 * against the value of the cpu_id field before performing a rseq
 	 * commit or returning a value read from a data structure indexed
@@ -91,7 +91,7 @@ struct rseq {
 	/*
 	 * Restartable sequences rseq_cs field.
 	 *
-	 * Contains NULL when no critical section is active for the current
+	 * Contains NULL when yes critical section is active for the current
 	 * thread, or holds a pointer to the currently active struct rseq_cs.
 	 *
 	 * Updated by user-space, which sets the address of the currently

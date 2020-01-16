@@ -90,8 +90,8 @@ config CRYPTO_AES_ARM_BS
 
 	  Bit sliced AES gives around 45% speedup on Cortex-A15 for CTR mode
 	  and for XTS mode encryption, CBC and XTS mode decryption speedup is
-	  around 25%. (CBC encryption speed is not affected by this driver.)
-	  This implementation does not rely on any lookup tables so it is
+	  around 25%. (CBC encryption speed is yest affected by this driver.)
+	  This implementation does yest rely on any lookup tables so it is
 	  believed to be invulnerable to cache timing attacks.
 
 config CRYPTO_AES_ARM_CE
@@ -112,7 +112,7 @@ config CRYPTO_GHASH_ARM_CE
 	select CRYPTO_GF128MUL
 	help
 	  Use an implementation of GHASH (used by the GCM AEAD chaining mode)
-	  that uses the 64x64 to 128 bit polynomial multiplication (vmull.p64)
+	  that uses the 64x64 to 128 bit polyyesmial multiplication (vmull.p64)
 	  that is part of the ARMv8 Crypto Extensions, or a slower variant that
 	  uses the vmull.p8 instruction that is part of the basic NEON ISA.
 

@@ -7,7 +7,7 @@
 
 #include <asm/pal.h>
 
-	.set noreorder
+	.set yesreorder
 	.globl	__start
 	.ent	__start
 __start:

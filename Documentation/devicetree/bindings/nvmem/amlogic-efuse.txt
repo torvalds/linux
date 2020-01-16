@@ -4,10 +4,10 @@ Required properties:
 - compatible: should be "amlogic,meson-gxbb-efuse"
 - clocks: phandle to the efuse peripheral clock provided by the
 	  clock controller.
-- secure-monitor: phandle to the secure-monitor node
+- secure-monitor: phandle to the secure-monitor yesde
 
 = Data cells =
-Are child nodes of eFuse, bindings of which as described in
+Are child yesdes of eFuse, bindings of which as described in
 bindings/nvmem/nvmem.txt
 
 Example:
@@ -37,7 +37,7 @@ Example:
 	};
 
 = Data consumers =
-Are device nodes which consume nvmem data cells.
+Are device yesdes which consume nvmem data cells.
 
 For example:
 

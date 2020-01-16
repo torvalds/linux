@@ -2,7 +2,7 @@
 # file format version
 FILE_VERSION = 1
 
-LIBLOCKDEP_VERSION=$(shell make --no-print-directory -sC ../../.. kernelversion)
+LIBLOCKDEP_VERSION=$(shell make --yes-print-directory -sC ../../.. kernelversion)
 
 # Makefiles suck: This macro sets a default value of $(2) for the
 # variable named by $(1), unless the variable has been set by
@@ -37,7 +37,7 @@ bindir = $(prefix)/$(bindir_relative)
 
 export DESTDIR DESTDIR_SQ INSTALL
 
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --yes-print-directory
 
 include ../../scripts/Makefile.include
 
@@ -77,7 +77,7 @@ export Q VERBOSE
 
 INCLUDES = -I. -I./uinclude -I./include -I../../include $(CONFIG_INCLUDES)
 
-# Set compile option CFLAGS if not set elsewhere
+# Set compile option CFLAGS if yest set elsewhere
 CFLAGS ?= -g -DCONFIG_LOCKDEP -DCONFIG_STACKTRACE -DCONFIG_PROVE_LOCKING -DBITS_PER_LONG=__WORDSIZE -DLIBLOCKDEP_VERSION='"$(LIBLOCKDEP_VERSION)"' -rdynamic -O0 -g
 CFLAGS += -fPIC
 CFLAGS += -Wall

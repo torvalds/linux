@@ -20,7 +20,7 @@ struct mdio_mux_multiplexer_state {
  *                                  layer when it thinks the mdio bus
  *                                  multiplexer needs to switch.
  * @current_child:  current value of the mux register.
- * @desired_child: value of the 'reg' property of the target child MDIO node.
+ * @desired_child: value of the 'reg' property of the target child MDIO yesde.
  * @data: Private data used by this switch_fn passed to mdio_mux_init function
  *        via mdio_mux_init(.., .., .., .., data, ..).
  *
@@ -81,7 +81,7 @@ static int mdio_mux_multiplexer_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, s);
 
-	ret = mdio_mux_init(&pdev->dev, pdev->dev.of_node,
+	ret = mdio_mux_init(&pdev->dev, pdev->dev.of_yesde,
 			    mdio_mux_multiplexer_switch_fn, &s->mux_handle,
 			    pdev, NULL);
 

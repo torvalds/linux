@@ -34,7 +34,7 @@ struct blk_stat_callback {
 
 	/**
 	 * @bucket_fn: Given a request, returns which statistics bucket it
-	 * should be accounted under. Return -1 for no bucket for this
+	 * should be accounted under. Return -1 for yes bucket for this
 	 * request.
 	 */
 	int (*bucket_fn)(const struct request *);
@@ -65,9 +65,9 @@ struct blk_stat_callback {
 struct blk_queue_stats *blk_alloc_queue_stats(void);
 void blk_free_queue_stats(struct blk_queue_stats *);
 
-void blk_stat_add(struct request *rq, u64 now);
+void blk_stat_add(struct request *rq, u64 yesw);
 
-/* record time/size info in request but not add a callback */
+/* record time/size info in request but yest add a callback */
 void blk_stat_enable_accounting(struct request_queue *q);
 
 /**
@@ -104,7 +104,7 @@ void blk_stat_add_callback(struct request_queue *q,
  * @q: The request queue.
  * @cb: The callback.
  *
- * When this returns, the callback is not running on any CPUs and will not be
+ * When this returns, the callback is yest running on any CPUs and will yest be
  * called again unless readded.
  */
 void blk_stat_remove_callback(struct request_queue *q,
@@ -114,8 +114,8 @@ void blk_stat_remove_callback(struct request_queue *q,
  * blk_stat_free_callback() - Free a block statistics callback.
  * @cb: The callback.
  *
- * @cb may be NULL, in which case this does nothing. If it is not NULL, @cb must
- * not be associated with a request queue. I.e., if it was previously added with
+ * @cb may be NULL, in which case this does yesthing. If it is yest NULL, @cb must
+ * yest be associated with a request queue. I.e., if it was previously added with
  * blk_stat_add_callback(), it must also have been removed since then with
  * blk_stat_remove_callback().
  */
@@ -133,9 +133,9 @@ static inline bool blk_stat_is_active(struct blk_stat_callback *cb)
 
 /**
  * blk_stat_activate_nsecs() - Gather block statistics during a time window in
- * nanoseconds.
+ * nayesseconds.
  * @cb: The callback.
- * @nsecs: Number of nanoseconds to gather statistics for.
+ * @nsecs: Number of nayesseconds to gather statistics for.
  *
  * The timer callback will be called when the window expires.
  */

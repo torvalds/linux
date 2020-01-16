@@ -3,13 +3,13 @@
  *
  * This driver supports ATM cards based on the Efficient "Lanai"
  * chipset such as the Speedstream 3010 and the ENI-25p.  The
- * Speedstream 3060 is currently not supported since we don't
+ * Speedstream 3060 is currently yest supported since we don't
  * have the code to drive the on-board Alcatel DSL chipset (yet).
  *
  * Thanks to Efficient for supporting this project with hardware,
  * documentation, and by answering my questions.
  *
- * Things not working yet:
+ * Things yest working yet:
  *
  * o  We don't support the Speedstream 3060 yet - this card has
  *    an on-board DSL modem chip by Alcatel and the driver will
@@ -68,7 +68,7 @@
 /*
  * Maximum number of VCIs per card.  Setting it lower could theoretically
  * save some memory, but since we allocate our vcc list with get_free_pages,
- * it's not really likely for most architectures
+ * it's yest really likely for most architectures
  */
 #define NUM_VCI			(1024)
 
@@ -79,7 +79,7 @@
 /*
  * Debug _all_ register operations with card, except the memory test.
  * Also disables the timed poll to prevent extra chattiness.  This
- * isn't for normal use
+ * isn't for yesrmal use
  */
 #undef DEBUG_RW
 
@@ -98,8 +98,8 @@
 /* TODO: make above a module load-time option */
 
 /*
- * We normally read the onboard EEPROM in order to discover our MAC
- * address.  Undefine to _not_ do this
+ * We yesrmally read the onboard EEPROM in order to discover our MAC
+ * address.  Undefine to _yest_ do this
  */
 /* #define READ_EEPROM */ /* ***DONT ENABLE YET*** */
 /* TODO: make above a module load-time option (also) */
@@ -123,7 +123,7 @@
 
 /*
  * When allocating an AAL5 receiving buffer, try to make it at least
- * large enough to hold this many max_sdu sized PDUs
+ * large eyesugh to hold this many max_sdu sized PDUs
  */
 #define AAL5_RX_MULTIPLIER	(3)
 /* TODO: make above a module load-time option */
@@ -150,7 +150,7 @@
 /* TODO: make above a module load-time option */
 
 /*
- * Should we use Lanai's "powerdown" feature when no vcc's are bound?
+ * Should we use Lanai's "powerdown" feature when yes vcc's are bound?
  */
 /* #define USE_POWERDOWN */
 /* TODO: make above a module load-time option (also) */
@@ -200,7 +200,7 @@ struct lanai_buffer {
 };
 
 struct lanai_vcc_stats {
-	unsigned rx_nomem;
+	unsigned rx_yesmem;
 	union {
 		struct {
 			unsigned rx_badlen;
@@ -257,9 +257,9 @@ struct lanai_dev_stats {
 	unsigned pcierr_m_target_abort;
 	unsigned pcierr_s_target_abort;
 	unsigned pcierr_master_parity;
-	unsigned service_notx;
-	unsigned service_norx;
-	unsigned service_rxnotaal5;
+	unsigned service_yestx;
+	unsigned service_yesrx;
+	unsigned service_rxyestaal5;
 	unsigned dma_reenable;
 	unsigned card_reset;
 };
@@ -275,7 +275,7 @@ struct lanai_dev {
 	enum lanai_type type;
 	vci_t num_vci;			/* Currently just NUM_VCI */
 	u8 eeprom[LANAI_EEPROM_SIZE];
-	u32 serialno, magicno;
+	u32 serialyes, magicyes;
 	struct pci_dev *pci;
 	DECLARE_BITMAP(backlog_vccs, NUM_VCI);   /* VCCs with tx backlog */
 	DECLARE_BITMAP(transmit_ready, NUM_VCI); /* VCCs with transmit space */
@@ -290,7 +290,7 @@ struct lanai_dev {
 	int number;
 	int board_rev;
 /* TODO - look at race conditions with maintence of conf1/conf2 */
-/* TODO - transmit locking: should we use _irq not _irqsave? */
+/* TODO - transmit locking: should we use _irq yest _irqsave? */
 /* TODO - organize above in some rational fashion (see <asm/cache.h>) */
 };
 
@@ -320,7 +320,7 @@ static void vci_bitfield_iterate(struct lanai_dev *lanai,
 
 /*
  * Allocate a buffer in host RAM for service list, RX, or TX
- * Returns buf->start==NULL if no memory
+ * Returns buf->start==NULL if yes memory
  * Note that the size will be rounded up 2^n bytes, and
  * if we can't allocate that we'll settle for something smaller
  * until minbytes
@@ -338,7 +338,7 @@ static void lanai_buf_allocate(struct lanai_buffer *buf,
 		minbytes = LANAI_PAGE_SIZE;
 	do {
 		/*
-		 * Technically we could use non-consistent mappings for
+		 * Technically we could use yesn-consistent mappings for
 		 * everything, but the way the lanai uses DMA memory would
 		 * make that a terrific pain.  This is much simpler.
 		 */
@@ -397,8 +397,8 @@ enum lanai_register {
 	Endian_Reg		= 0x04,	/* Endian setting */
 	IntStatus_Reg		= 0x08,	/* Interrupt status */
 	IntStatusMasked_Reg	= 0x0C,	/* Interrupt status (masked) */
-	IntAck_Reg		= 0x10,	/* Interrupt acknowledge */
-	IntAckMasked_Reg	= 0x14,	/* Interrupt acknowledge (masked) */
+	IntAck_Reg		= 0x10,	/* Interrupt ackyeswledge */
+	IntAckMasked_Reg	= 0x14,	/* Interrupt ackyeswledge (masked) */
 	IntStatusSet_Reg	= 0x18,	/* Get status + enable/disable */
 	IntStatusSetMasked_Reg	= 0x1C,	/* Get status + en/di (masked) */
 	IntControlEna_Reg	= 0x20,	/* Interrupt control enable */
@@ -421,7 +421,7 @@ enum lanai_register {
 #define   CONFIG1_DMA_ENABLE	 (0x00000010)	/* Turn on DMA */
 #define   CONFIG1_POWERDOWN	 (0x00000020)	/* Turn off clocks */
 #define   CONFIG1_SET_LOOPMODE(x) ((x)*0x080)	/* Clock&loop mode; values: */
-#define     LOOPMODE_NORMAL	    (0)		/*   Normal - no loop */
+#define     LOOPMODE_NORMAL	    (0)		/*   Normal - yes loop */
 #define     LOOPMODE_TIME	    (1)
 #define     LOOPMODE_DIAG	    (2)
 #define     LOOPMODE_LINE	    (3)
@@ -439,10 +439,10 @@ enum lanai_register {
 #define   CONFIG1_GPOUT3	 (0x00004000)	/* Loopback lanai */
 	Config2_Reg		= 0x30,	/* Config word 2; bits: */
 #define   CONFIG2_HOWMANY	 (0x00000001)	/* >512 VCIs? */
-#define   CONFIG2_PTI7_MODE	 (0x00000002)	/* Make PTI=7 RM, not OAM */
-#define   CONFIG2_VPI_CHK_DIS	 (0x00000004)	/* Ignore RX VPI value */
+#define   CONFIG2_PTI7_MODE	 (0x00000002)	/* Make PTI=7 RM, yest OAM */
+#define   CONFIG2_VPI_CHK_DIS	 (0x00000004)	/* Igyesre RX VPI value */
 #define   CONFIG2_HEC_DROP	 (0x00000008)	/* Drop cells w/ HEC errors */
-#define   CONFIG2_VCI0_NORMAL	 (0x00000010)	/* Treat VCI=0 normally */
+#define   CONFIG2_VCI0_NORMAL	 (0x00000010)	/* Treat VCI=0 yesrmally */
 #define   CONFIG2_CBR_ENABLE	 (0x00000020)	/* Deal with CBR traffic */
 #define   CONFIG2_TRASH_ALL	 (0x00000040)	/* Trashing incoming cells */
 #define   CONFIG2_TX_DISABLE	 (0x00000080)	/* Trashing outgoing cells */
@@ -450,7 +450,7 @@ enum lanai_register {
 	Statistics_Reg		= 0x34,	/* Statistics; bits: */
 #define   STATS_GET_FIFO_OVFL(x)    (((x)>> 0)&0xFF)	/* FIFO overflowed */
 #define   STATS_GET_HEC_ERR(x)      (((x)>> 8)&0xFF)	/* HEC was bad */
-#define   STATS_GET_BAD_VCI(x)      (((x)>>16)&0xFF)	/* VCI not open */
+#define   STATS_GET_BAD_VCI(x)      (((x)>>16)&0xFF)	/* VCI yest open */
 #define   STATS_GET_BUF_OVFL(x)     (((x)>>24)&0xFF)	/* VCC buffer full */
 	ServiceStuff_Reg	= 0x38,	/* Service stuff; bits: */
 #define   SSTUFF_SET_SIZE(x) ((x)*0x20000000)	/* size of service buffer */
@@ -524,7 +524,7 @@ static inline void reset_board(const struct lanai_dev *lanai)
 
 /* -------------------- CARD SRAM UTILITIES: */
 
-/* The SRAM is mapped into normal PCI memory space - the only catch is
+/* The SRAM is mapped into yesrmal PCI memory space - the only catch is
  * that it is only 16-bits wide but must be accessed as 32-bit.  The
  * 16 high bits will be zero.  We don't hide this, since they get
  * programmed mostly like discrete registers anyway
@@ -595,11 +595,11 @@ enum lanai_vcc_offset {
 #define     RMMODE_TRASH	  (0)		/*   discard */
 #define     RMMODE_PRESERVE	  (1)		/*   input as AAL0 */
 #define     RMMODE_PIPE		  (2)		/*   pipe to coscheduler */
-#define     RMMODE_PIPEALL	  (3)		/*   pipe non-RM too */
+#define     RMMODE_PIPEALL	  (3)		/*   pipe yesn-RM too */
 #define   RXADDR1_OAM_PRESERVE	 (0x00002000)	/* Input OAM cells as AAL0 */
 #define   RXADDR1_SET_MODE(x) ((x)*0x0004000)	/* Reassembly mode */
 #define     RXMODE_TRASH	  (0)		/*   discard */
-#define     RXMODE_AAL0		  (1)		/*   non-AAL5 mode */
+#define     RXMODE_AAL0		  (1)		/*   yesn-AAL5 mode */
 #define     RXMODE_AAL5		  (2)		/*   AAL5, intr. each PDU */
 #define     RXMODE_AAL5_STREAM	  (3)		/*   AAL5 w/o per-PDU intr */
 	vcc_rxaddr2		= 0x04,	/* Location2 */
@@ -704,7 +704,7 @@ static void host_vcc_start_rx(const struct lanai_vcc *lvcc)
 		addr1 = ((dmaaddr >> 8) & 0xFF) |
 		    RXADDR1_SET_SIZE(lanai_buf_size_cardorder(&lvcc->rx.buf))|
 		    RXADDR1_SET_RMMODE(RMMODE_TRASH) |	/* ??? */
-		 /* RXADDR1_OAM_PRESERVE |	--- no OAM support yet */
+		 /* RXADDR1_OAM_PRESERVE |	--- yes OAM support yet */
 		    RXADDR1_SET_MODE(RXMODE_AAL5);
 	} else
 		addr1 = RXADDR1_SET_RMMODE(RMMODE_PRESERVE) | /* ??? */
@@ -858,8 +858,8 @@ static int eeprom_read(struct lanai_dev *lanai)
 
 static int eeprom_validate(struct lanai_dev *lanai)
 {
-	lanai->serialno = 0;
-	lanai->magicno = EEPROM_MAGIC_VALUE;
+	lanai->serialyes = 0;
+	lanai->magicyes = EEPROM_MAGIC_VALUE;
 	return 0;
 }
 
@@ -957,7 +957,7 @@ static int eeprom_validate(struct lanai_dev *lanai)
 		DPRINTK("eeprom: copyright = \"%s\"\n",
 		    (char *) &e[EEPROM_COPYRIGHT]);
 	else
-		DPRINTK("eeprom: copyright not found\n");
+		DPRINTK("eeprom: copyright yest found\n");
 #endif
 	/* Validate checksum */
 	for (i = s = 0; i < EEPROM_CHECKSUM; i++)
@@ -988,29 +988,29 @@ static int eeprom_validate(struct lanai_dev *lanai)
 		}
 	DPRINTK("eeprom: MAC address = %pM\n", &e[EEPROM_MAC]);
 	/* Verify serial number */
-	lanai->serialno = eeprom_be4(lanai, EEPROM_SERIAL);
+	lanai->serialyes = eeprom_be4(lanai, EEPROM_SERIAL);
 	v = eeprom_be4(lanai, EEPROM_SERIAL_REV);
-	if ((lanai->serialno ^ v) != 0xFFFFFFFF) {
+	if ((lanai->serialyes ^ v) != 0xFFFFFFFF) {
 		printk(KERN_ERR DEV_LABEL "(itf %d): EEPROM serial numbers "
 		    "don't match (0x%08X, inverse 0x%08X)\n", lanai->number,
-		    (unsigned int) lanai->serialno, (unsigned int) v);
+		    (unsigned int) lanai->serialyes, (unsigned int) v);
 		return -EIO;
 	}
-	DPRINTK("eeprom: Serial number = %d\n", (unsigned int) lanai->serialno);
+	DPRINTK("eeprom: Serial number = %d\n", (unsigned int) lanai->serialyes);
 	/* Verify magic number */
-	lanai->magicno = eeprom_be4(lanai, EEPROM_MAGIC);
+	lanai->magicyes = eeprom_be4(lanai, EEPROM_MAGIC);
 	v = eeprom_be4(lanai, EEPROM_MAGIC_REV);
-	if ((lanai->magicno ^ v) != 0xFFFFFFFF) {
+	if ((lanai->magicyes ^ v) != 0xFFFFFFFF) {
 		printk(KERN_ERR DEV_LABEL "(itf %d): EEPROM magic numbers "
 		    "don't match (0x%08X, inverse 0x%08X)\n", lanai->number,
-		    lanai->magicno, v);
+		    lanai->magicyes, v);
 		return -EIO;
 	}
-	DPRINTK("eeprom: Magic number = 0x%08X\n", lanai->magicno);
-	if (lanai->magicno != EEPROM_MAGIC_VALUE)
+	DPRINTK("eeprom: Magic number = 0x%08X\n", lanai->magicyes);
+	if (lanai->magicyes != EEPROM_MAGIC_VALUE)
 		printk(KERN_WARNING DEV_LABEL "(itf %d): warning - EEPROM "
-		    "magic not what expected (got 0x%08X, not 0x%08X)\n",
-		    lanai->number, (unsigned int) lanai->magicno,
+		    "magic yest what expected (got 0x%08X, yest 0x%08X)\n",
+		    lanai->number, (unsigned int) lanai->magicyes,
 		    (unsigned int) EEPROM_MAGIC_VALUE);
 	return 0;
 }
@@ -1068,9 +1068,9 @@ static inline void intr_disable(const struct lanai_dev *lanai, u32 i)
 
 static void status_message(int itf, const char *name, int status)
 {
-	static const char *onoff[2] = { "off to on", "on to off" };
+	static const char *oyesff[2] = { "off to on", "on to off" };
 	printk(KERN_INFO DEV_LABEL "(itf %d): %s changed from %s\n",
-	    itf, name, onoff[!status]);
+	    itf, name, oyesff[!status]);
 }
 
 static void lanai_check_status(struct lanai_dev *lanai)
@@ -1243,7 +1243,7 @@ static inline void lanai_endtx(struct lanai_dev *lanai,
 	/*
 	 * Since the "butt register" is a shared resounce on the card we
 	 * serialize all accesses to it through this spinlock.  This is
-	 * mostly just paranoia since the register is rarely "busy" anyway
+	 * mostly just parayesia since the register is rarely "busy" anyway
 	 * but is needed for correctness.
 	 */
 	spin_lock(&lanai->endtxlock);
@@ -1307,7 +1307,7 @@ static void vcc_tx_unqueue_aal5(struct lanai_dev *lanai,
 	while (space >= 64) {
 		skb = skb_dequeue(&lvcc->tx.backlog);
 		if (skb == NULL)
-			goto no_backlog;
+			goto yes_backlog;
 		n = aal5_size(skb->len);
 		if (n + 16 > space) {
 			/* No room for this packet - put it back on queue */
@@ -1318,12 +1318,12 @@ static void vcc_tx_unqueue_aal5(struct lanai_dev *lanai,
 		space -= n + 16;
 	}
 	if (!vcc_is_backlogged(lvcc)) {
-	    no_backlog:
+	    yes_backlog:
 		__clear_bit(lvcc->vci, lanai->backlog_vccs);
 	}
 }
 
-/* Given an skb that we want to transmit either send it now or queue */
+/* Given an skb that we want to transmit either send it yesw or queue */
 static void vcc_tx_aal5(struct lanai_dev *lanai, struct lanai_vcc *lvcc,
 	struct sk_buff *skb)
 {
@@ -1347,13 +1347,13 @@ static void vcc_tx_unqueue_aal0(struct lanai_dev *lanai,
 	struct lanai_vcc *lvcc, int endptr)
 {
 	printk(KERN_INFO DEV_LABEL
-	    ": vcc_tx_unqueue_aal0: not implemented\n");
+	    ": vcc_tx_unqueue_aal0: yest implemented\n");
 }
 
 static void vcc_tx_aal0(struct lanai_dev *lanai, struct lanai_vcc *lvcc,
 	struct sk_buff *skb)
 {
-	printk(KERN_INFO DEV_LABEL ": vcc_tx_aal0: not implemented\n");
+	printk(KERN_INFO DEV_LABEL ": vcc_tx_aal0: yest implemented\n");
 	/* Remember to increment lvcc->tx.atmvcc->stats->tx */
 	lanai_free_skb(lvcc->tx.atmvcc, skb);
 }
@@ -1406,7 +1406,7 @@ static void vcc_rx_aal5(struct lanai_vcc *lvcc, int endptr)
 	}
 	skb = atm_alloc_charge(lvcc->rx.atmvcc, size, GFP_ATOMIC);
 	if (unlikely(skb == NULL)) {
-		lvcc->stats.rx_nomem++;
+		lvcc->stats.rx_yesmem++;
 		goto out;
 	}
 	skb_put(skb, size);
@@ -1422,7 +1422,7 @@ static void vcc_rx_aal5(struct lanai_vcc *lvcc, int endptr)
 
 static void vcc_rx_aal0(struct lanai_dev *lanai)
 {
-	printk(KERN_INFO DEV_LABEL ": vcc_rx_aal0: not implemented\n");
+	printk(KERN_INFO DEV_LABEL ": vcc_rx_aal0: yest implemented\n");
 	/* Remember to get read_lock(&vcc_sklist_lock) while looking up VC */
 	/* Remember to increment lvcc->rx.atmvcc->stats->rx */
 }
@@ -1560,7 +1560,7 @@ static inline void host_vcc_unbind(struct lanai_dev *lanai,
 
 static void lanai_reset(struct lanai_dev *lanai)
 {
-	printk(KERN_CRIT DEV_LABEL "(itf %d): *NOT* resetting - not "
+	printk(KERN_CRIT DEV_LABEL "(itf %d): *NOT* resetting - yest "
 	    "implemented\n", lanai->number);
 	/* TODO */
 	/* The following is just a hack until we write the real
@@ -1622,20 +1622,20 @@ static int handle_service(struct lanai_dev *lanai, u32 s)
 	lvcc = lanai->vccs[vci];
 	if (unlikely(lvcc == NULL)) {
 		read_unlock(&vcc_sklist_lock);
-		DPRINTK("(itf %d) got service entry 0x%X for nonexistent "
+		DPRINTK("(itf %d) got service entry 0x%X for yesnexistent "
 		    "vcc %d\n", lanai->number, (unsigned int) s, vci);
 		if (s & SERVICE_TX)
-			lanai->stats.service_notx++;
+			lanai->stats.service_yestx++;
 		else
-			lanai->stats.service_norx++;
+			lanai->stats.service_yesrx++;
 		return 0;
 	}
 	if (s & SERVICE_TX) {			/* segmentation interrupt */
 		if (unlikely(lvcc->tx.atmvcc == NULL)) {
 			read_unlock(&vcc_sklist_lock);
-			DPRINTK("(itf %d) got service entry 0x%X for non-TX "
+			DPRINTK("(itf %d) got service entry 0x%X for yesn-TX "
 			    "vcc %d\n", lanai->number, (unsigned int) s, vci);
-			lanai->stats.service_notx++;
+			lanai->stats.service_yestx++;
 			return 0;
 		}
 		__set_bit(vci, lanai->transmit_ready);
@@ -1645,16 +1645,16 @@ static int handle_service(struct lanai_dev *lanai, u32 s)
 	}
 	if (unlikely(lvcc->rx.atmvcc == NULL)) {
 		read_unlock(&vcc_sklist_lock);
-		DPRINTK("(itf %d) got service entry 0x%X for non-RX "
+		DPRINTK("(itf %d) got service entry 0x%X for yesn-RX "
 		    "vcc %d\n", lanai->number, (unsigned int) s, vci);
-		lanai->stats.service_norx++;
+		lanai->stats.service_yesrx++;
 		return 0;
 	}
 	if (unlikely(lvcc->rx.atmvcc->qos.aal != ATM_AAL5)) {
 		read_unlock(&vcc_sklist_lock);
-		DPRINTK("(itf %d) got RX service entry 0x%X for non-AAL5 "
+		DPRINTK("(itf %d) got RX service entry 0x%X for yesn-AAL5 "
 		    "vcc %d\n", lanai->number, (unsigned int) s, vci);
-		lanai->stats.service_rxnotaal5++;
+		lanai->stats.service_rxyestaal5++;
 		atomic_inc(&lvcc->rx.atmvcc->stats->rx_err);
 		return 0;
 	}
@@ -1773,7 +1773,7 @@ static void lanai_timed_poll(struct timer_list *t)
 		spin_unlock(&lanai->servicelock);
 	}
 	/* ...and see if any backlogged VCs can make progress */
-	/* unfortunately linux has no read_trylock() currently */
+	/* unfortunately linux has yes read_trylock() currently */
 	read_lock(&vcc_sklist_lock);
 	vci_bitfield_iterate(lanai, lanai->backlog_vccs, iter_dequeue);
 	read_unlock(&vcc_sklist_lock);
@@ -1917,7 +1917,7 @@ static int check_board_id_and_rev(const char *name, u32 val, int *revp)
 		(int) RESET_GET_BOARD_ID(val),
 		(int) RESET_GET_BOARD_REV(val));
 	if (RESET_GET_BOARD_ID(val) != BOARD_ID_LANAI256) {
-		printk(KERN_ERR DEV_LABEL ": Found %s board-id %d -- not a "
+		printk(KERN_ERR DEV_LABEL ": Found %s board-id %d -- yest a "
 		    "Lanai 25.6\n", name, (int) RESET_GET_BOARD_ID(val));
 		return -ENODEV;
 	}
@@ -1962,8 +1962,8 @@ static int lanai_pci_start(struct lanai_dev *lanai)
 /* -------------------- VPI/VCI ALLOCATION: */
 
 /*
- * We _can_ use VCI==0 for normal traffic, but only for UBR (or we'll
- * get a CBRZERO interrupt), and we can use it only if no one is receiving
+ * We _can_ use VCI==0 for yesrmal traffic, but only for UBR (or we'll
+ * get a CBRZERO interrupt), and we can use it only if yes one is receiving
  * AAL0 traffic (since they will use the same queue) - according to the
  * docs we shouldn't even use it for AAL0 traffic
  */
@@ -2013,7 +2013,7 @@ static int vci_is_ok(struct lanai_dev *lanai, vci_t vci,
 	return 1;
 }
 
-static int lanai_normalize_ci(struct lanai_dev *lanai,
+static int lanai_yesrmalize_ci(struct lanai_dev *lanai,
 	const struct atm_vcc *atmvcc, short *vpip, vci_t *vcip)
 {
 	switch (*vpip) {
@@ -2153,7 +2153,7 @@ static int lanai_dev_open(struct atm_dev *atmdev)
 	/*
 	 * 3.4: Turn on endian mode for big-endian hardware
 	 *   We don't actually want to do this - the actual bit fields
-	 *   in the endian register are not documented anywhere.
+	 *   in the endian register are yest documented anywhere.
 	 *   Instead we do the bit-flipping ourselves on big-endian
 	 *   hardware.
 	 *
@@ -2193,7 +2193,7 @@ static int lanai_dev_open(struct atm_dev *atmdev)
 	    CONFIG2_HEC_DROP |	/* ??? */ CONFIG2_PTI7_MODE;
 	conf2_write(lanai);
 	reg_write(lanai, TX_FIFO_DEPTH, TxDepth_Reg);
-	reg_write(lanai, 0, CBR_ICG_Reg);	/* CBR defaults to no limit */
+	reg_write(lanai, 0, CBR_ICG_Reg);	/* CBR defaults to yes limit */
 	if ((result = request_irq(lanai->pci->irq, lanai_int, IRQF_SHARED,
 	    DEV_LABEL, lanai)) != 0) {
 		printk(KERN_ERR DEV_LABEL ": can't allocate interrupt\n");
@@ -2207,7 +2207,7 @@ static int lanai_dev_open(struct atm_dev *atmdev)
 	    CONFIG1_GPOUT2 | CONFIG1_GPOUT3;
 	conf1_write(lanai);
 	lanai->status = reg_read(lanai, Status_Reg);
-	/* We're now done initializing this card */
+	/* We're yesw done initializing this card */
 #ifdef USE_POWERDOWN
 	lanai->conf1 |= CONFIG1_POWERDOWN;
 	conf1_write(lanai);
@@ -2217,10 +2217,10 @@ static int lanai_dev_open(struct atm_dev *atmdev)
 	printk(KERN_NOTICE DEV_LABEL "(itf %d): rev.%d, base=%p, irq=%u "
 		"(%pMF)\n", lanai->number, (int) lanai->pci->revision,
 		lanai->base, lanai->pci->irq, atmdev->esi);
-	printk(KERN_NOTICE DEV_LABEL "(itf %d): LANAI%s, serialno=%u(0x%X), "
+	printk(KERN_NOTICE DEV_LABEL "(itf %d): LANAI%s, serialyes=%u(0x%X), "
 	    "board_rev=%d\n", lanai->number,
-	    lanai->type==lanai2 ? "2" : "HB", (unsigned int) lanai->serialno,
-	    (unsigned int) lanai->serialno, lanai->board_rev);
+	    lanai->type==lanai2 ? "2" : "HB", (unsigned int) lanai->serialyes,
+	    (unsigned int) lanai->serialyes, lanai->board_rev);
 	return 0;
 
     error_vcctable:
@@ -2311,12 +2311,12 @@ static int lanai_open(struct atm_vcc *atmvcc)
 	int result = 0;
 	int vci = atmvcc->vci;
 	short vpi = atmvcc->vpi;
-	/* we don't support partial open - it's not really useful anyway */
+	/* we don't support partial open - it's yest really useful anyway */
 	if ((test_bit(ATM_VF_PARTIAL, &atmvcc->flags)) ||
 	    (vpi == ATM_VPI_UNSPEC) || (vci == ATM_VCI_UNSPEC))
 		return -EINVAL;
 	lanai = (struct lanai_dev *) atmvcc->dev->dev_data;
-	result = lanai_normalize_ci(lanai, atmvcc, &vpi, &vci);
+	result = lanai_yesrmalize_ci(lanai, atmvcc, &vpi, &vci);
 	if (unlikely(result != 0))
 		goto out;
 	set_bit(ATM_VF_ADDR, &atmvcc->flags);
@@ -2344,7 +2344,7 @@ static int lanai_open(struct atm_vcc *atmvcc)
 		if (unlikely(result != 0))
 			goto out_free;
 		lvcc->rx.atmvcc = atmvcc;
-		lvcc->stats.rx_nomem = 0;
+		lvcc->stats.rx_yesmem = 0;
 		lvcc->stats.x.aal5.rx_badlen = 0;
 		lvcc->stats.x.aal5.service_trash = 0;
 		lvcc->stats.x.aal5.service_stream = 0;
@@ -2446,8 +2446,8 @@ static int lanai_proc_read(struct atm_dev *atmdev, loff_t *pos, char *page)
 		return sprintf(page, DEV_LABEL "(itf %d): chip=LANAI%s, "
 		    "serial=%u, magic=0x%08X, num_vci=%d\n",
 		    atmdev->number, lanai->type==lanai2 ? "2" : "HB",
-		    (unsigned int) lanai->serialno,
-		    (unsigned int) lanai->magicno, lanai->num_vci);
+		    (unsigned int) lanai->serialyes,
+		    (unsigned int) lanai->magicyes, lanai->num_vci);
 	if (left-- == 0)
 		return sprintf(page, "revision: board=%d, pci_if=%d\n",
 		    lanai->board_rev, (int) lanai->pci->revision);
@@ -2482,10 +2482,10 @@ static int lanai_proc_read(struct atm_dev *atmdev, loff_t *pos, char *page)
 		    "master_parity=%u\n", lanai->stats.pcierr_s_target_abort,
 		    lanai->stats.pcierr_master_parity);
 	if (left-- == 0)
-		return sprintf(page, "                     no_tx=%u, "
-		    "no_rx=%u, bad_rx_aal=%u\n", lanai->stats.service_norx,
-		    lanai->stats.service_notx,
-		    lanai->stats.service_rxnotaal5);
+		return sprintf(page, "                     yes_tx=%u, "
+		    "yes_rx=%u, bad_rx_aal=%u\n", lanai->stats.service_yesrx,
+		    lanai->stats.service_yestx,
+		    lanai->stats.service_rxyestaal5);
 	if (left-- == 0)
 		return sprintf(page, "resets: dma=%u, card=%u\n",
 		    lanai->stats.dma_reenable, lanai->stats.card_reset);
@@ -2501,8 +2501,8 @@ static int lanai_proc_read(struct atm_dev *atmdev, loff_t *pos, char *page)
 		(*pos)++;
 	}
 	/* Note that we re-use "left" here since we're done with it */
-	left = sprintf(page, "VCI %4d: nref=%d, rx_nomem=%u",  (vci_t) left,
-	    lvcc->nref, lvcc->stats.rx_nomem);
+	left = sprintf(page, "VCI %4d: nref=%d, rx_yesmem=%u",  (vci_t) left,
+	    lvcc->nref, lvcc->stats.rx_yesmem);
 	if (lvcc->rx.atmvcc != NULL) {
 		left += sprintf(&page[left], ",\n          rx_AAL=%d",
 		    lvcc->rx.atmvcc->qos.aal == ATM_AAL5 ? 5 : 0);

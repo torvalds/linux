@@ -74,12 +74,12 @@ module_param_named(workaround_interval, modparam_workaround_interval,
 MODULE_PARM_DESC(workaround_interval,
 	"set stall workaround interval in msecs (0=disabled) (default: 0)");
 
-/* Typical noise/maximum signal level values taken from ndiswrapper iw_ndis.h */
-#define	WL_NOISE	-96	/* typical noise level in dBm */
+/* Typical yesise/maximum signal level values taken from ndiswrapper iw_ndis.h */
+#define	WL_NOISE	-96	/* typical yesise level in dBm */
 #define	WL_SIGMAX	-32	/* typical maximum signal level in dBm */
 
 
-/* Assume that Broadcom 4320 (only chipset at time of writing known to be
+/* Assume that Broadcom 4320 (only chipset at time of writing kyeswn to be
  * based on wireless rndis) has default txpower of 13dBm.
  * This value is from Linksys WUSB54GSC User Guide, Appendix F: Specifications.
  *  100% : 20 mW ~ 13dBm
@@ -92,7 +92,7 @@ MODULE_PARM_DESC(workaround_interval,
 #define BCM4320_DEFAULT_TXPOWER_DBM_50  10
 #define BCM4320_DEFAULT_TXPOWER_DBM_25  7
 
-/* Known device types */
+/* Kyeswn device types */
 #define RNDIS_UNKNOWN	0
 #define RNDIS_BCM4320A	1
 #define RNDIS_BCM4320B	2
@@ -746,7 +746,7 @@ static int rndis_query_oid(struct usbnet *dev, u32 oid, void *data, int *len)
 
 		if ((resplen + respoffs) > buflen) {
 			/* Device would have returned more data if buffer would
-			 * have been big enough. Copy just the bits that we got.
+			 * have been big eyesugh. Copy just the bits that we got.
 			 */
 			copylen = buflen - respoffs;
 		} else {
@@ -1274,7 +1274,7 @@ static int set_channel(struct usbnet *usbdev, int channel)
 
 	netdev_dbg(usbdev->net, "%s(%d)\n", __func__, channel);
 
-	/* this OID is valid only when not associated */
+	/* this OID is valid only when yest associated */
 	if (is_associated(usbdev))
 		return 0;
 
@@ -1762,9 +1762,9 @@ static struct ndis_80211_pmkid *remove_pmkid(struct usbnet *usbdev,
 				     pmksa->bssid))
 			break;
 
-	/* pmkid not found */
+	/* pmkid yest found */
 	if (i == count) {
-		netdev_dbg(usbdev->net, "%s(): bssid not found (%pM)\n",
+		netdev_dbg(usbdev->net, "%s(): bssid yest found (%pM)\n",
 					__func__, pmksa->bssid);
 		err = -ENOENT;
 		goto error;
@@ -2093,7 +2093,7 @@ resize_buf:
 	bssid_len = 0;
 	bssid = next_bssid_list_item(bssid_list->bssid, &bssid_len, buf, len);
 
-	/* Device returns incorrect 'num_items'. Workaround by ignoring the
+	/* Device returns incorrect 'num_items'. Workaround by igyesring the
 	 * received 'num_items' and walking through full bssid buffer instead.
 	 */
 	while (check_bssid_list_item(bssid, bssid_len, buf, len)) {
@@ -2289,7 +2289,7 @@ static int rndis_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	/* TODO: How to handle ad-hoc encryption?
 	 * connect() has *key, join_ibss() doesn't. RNDIS requires key to be
 	 * pre-shared for encryption (open/shared/wpa), is key set before
-	 * join_ibss? Which auth_type to use (not in params)? What about WPA?
+	 * join_ibss? Which auth_type to use (yest in params)? What about WPA?
 	 */
 	if (params->privacy) {
 		auth_type = NL80211_AUTHTYPE_SHARED_KEY;
@@ -2529,7 +2529,7 @@ static int rndis_set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 
 	pmkids = update_pmkid(usbdev, pmkids, pmksa, wiphy->max_num_pmkids);
 	if (IS_ERR(pmkids)) {
-		/* not found, list full, etc */
+		/* yest found, list full, etc */
 		return PTR_ERR(pmkids);
 	}
 
@@ -2557,7 +2557,7 @@ static int rndis_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 
 	pmkids = remove_pmkid(usbdev, pmkids, pmksa, wiphy->max_num_pmkids);
 	if (IS_ERR(pmkids)) {
-		/* not found, etc */
+		/* yest found, etc */
 		return PTR_ERR(pmkids);
 	}
 
@@ -2645,7 +2645,7 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	u8 ie_buf[34];
 	int len, ret, ie_len;
 
-	/* Get signal quality, in case of error use rssi=0 and ignore error. */
+	/* Get signal quality, in case of error use rssi=0 and igyesre error. */
 	len = sizeof(rssi);
 	rssi = 0;
 	ret = rndis_query_oid(usbdev, RNDIS_OID_802_11_RSSI,
@@ -2668,12 +2668,12 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	/* Get channel and beacon interval */
 	channel = get_current_channel(usbdev, &beacon_period);
 	if (!channel) {
-		netdev_warn(usbdev->net, "%s(): could not get channel.\n",
+		netdev_warn(usbdev->net, "%s(): could yest get channel.\n",
 					__func__);
 		return;
 	}
 
-	/* Get SSID, in case of error, use zero length SSID and ignore error. */
+	/* Get SSID, in case of error, use zero length SSID and igyesre error. */
 	len = sizeof(ssid);
 	memset(&ssid, 0, sizeof(ssid));
 	ret = rndis_query_oid(usbdev, RNDIS_OID_802_11_SSID,
@@ -2691,7 +2691,7 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 
 	ie_len = le32_to_cpu(ssid.length) + 2;
 
-	/* no tsf */
+	/* yes tsf */
 	timestamp = 0;
 
 	netdev_dbg(usbdev->net, "%s(): channel:%d(freq), bssid:[%pM], tsf:%d, "
@@ -2779,7 +2779,7 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 		} else {
 			/* Since rndis_wlan_craft_connected_bss() might use info
 			 * later and expects info to contain valid data if
-			 * non-null, free info and set NULL here.
+			 * yesn-null, free info and set NULL here.
 			 */
 			kfree(info);
 			info = NULL;
@@ -2799,11 +2799,11 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 	 * rndis_check_bssid_list().
 	 *
 	 * NDIS spec says: "If the device is associated, but the associated
-	 *  BSSID is not in its BSSID scan list, then the driver must add an
+	 *  BSSID is yest in its BSSID scan list, then the driver must add an
 	 *  entry for the BSSID at the end of the data that it returns in
 	 *  response to query of RNDIS_OID_802_11_BSSID_LIST."
 	 *
-	 * NOTE: Seems to be true for BCM4320b variant, but not BCM4320a.
+	 * NOTE: Seems to be true for BCM4320b variant, but yest BCM4320a.
 	 */
 	match_bss = false;
 	rndis_check_bssid_list(usbdev, bssid, &match_bss);
@@ -2916,7 +2916,7 @@ static void rndis_wlan_auth_indication(struct usbnet *usbdev,
 		auth_req = (void *)buf;
 		if (buflen < le32_to_cpu(auth_req->length))
 			return;
-		type = "unknown";
+		type = "unkyeswn";
 		flags = le32_to_cpu(auth_req->flags);
 		pairwise_error = false;
 		group_error = false;
@@ -3004,7 +3004,7 @@ static void rndis_wlan_pmkid_cand_list_indication(struct usbnet *usbdev,
 		netdev_dbg(usbdev->net, "cand[%i]: flags: 0x%08x, preauth: %d, bssid: %pM\n",
 			   i, le32_to_cpu(cand->flags), preauth, cand->bssid);
 
-		cfg80211_pmksa_candidate_notify(usbdev->net, i, cand->bssid,
+		cfg80211_pmksa_candidate_yestify(usbdev->net, i, cand->bssid,
 						preauth, GFP_ATOMIC);
 	}
 }
@@ -3020,7 +3020,7 @@ static void rndis_wlan_media_specific_indication(struct usbnet *usbdev,
 	len = le32_to_cpu(msg->length);
 
 	if (len < 8) {
-		netdev_info(usbdev->net, "media specific indication, ignore too short message (%i < 8)\n",
+		netdev_info(usbdev->net, "media specific indication, igyesre too short message (%i < 8)\n",
 			    len);
 		return;
 	}
@@ -3053,7 +3053,7 @@ static void rndis_wlan_media_specific_indication(struct usbnet *usbdev,
 		return;
 
 	default:
-		netdev_info(usbdev->net, "media specific indication: unknown status type 0x%08x\n",
+		netdev_info(usbdev->net, "media specific indication: unkyeswn status type 0x%08x\n",
 			    le32_to_cpu(indication->status_type));
 	}
 }
@@ -3071,7 +3071,7 @@ static void rndis_wlan_indication(struct usbnet *usbdev, void *ind, int buflen)
 			 * and userspace to think that device is
 			 * roaming/reassociating when it isn't.
 			 */
-			netdev_dbg(usbdev->net, "ignored RNDIS_OID_802_11_ADD_KEY triggered 'media connect'\n");
+			netdev_dbg(usbdev->net, "igyesred RNDIS_OID_802_11_ADD_KEY triggered 'media connect'\n");
 			return;
 		}
 
@@ -3182,7 +3182,7 @@ static void rndis_do_cqm(struct usbnet *usbdev, s32 rssi)
 		return;
 
 	priv->last_cqm_event_rssi = rssi;
-	cfg80211_cqm_rssi_notify(usbdev->net, event, rssi, GFP_KERNEL);
+	cfg80211_cqm_rssi_yestify(usbdev->net, event, rssi, GFP_KERNEL);
 }
 
 #define DEVICE_POLLER_JIFFIES (HZ)
@@ -3203,7 +3203,7 @@ static void rndis_device_poller(struct work_struct *work)
 	 */
 	if (!is_associated(usbdev)) {
 		/* Workaround bad scanning in BCM4320a devices with active
-		 * background scanning when not associated.
+		 * background scanning when yest associated.
 		 */
 		if (priv->device_type == RNDIS_BCM4320A && priv->radio_on &&
 		    !priv->scan_request) {
@@ -3229,12 +3229,12 @@ static void rndis_device_poller(struct work_struct *work)
 		   ret, le32_to_cpu(rssi), level_to_qual(le32_to_cpu(rssi)));
 
 	/* Workaround transfer stalls on poor quality links.
-	 * TODO: find right way to fix these stalls (as stalls do not happen
+	 * TODO: find right way to fix these stalls (as stalls do yest happen
 	 * with ndiswrapper/windows driver). */
 	if (priv->param_workaround_interval > 0 && priv->last_qual <= 25) {
 		/* Decrease stats worker interval to catch stalls.
 		 * faster. Faster than 400-500ms causes packet loss,
-		 * Slower doesn't catch stalls fast enough.
+		 * Slower doesn't catch stalls fast eyesugh.
 		 */
 		j = msecs_to_jiffies(priv->param_workaround_interval);
 		if (j > DEVICE_POLLER_JIFFIES)
@@ -3326,14 +3326,14 @@ static void rndis_copy_module_params(struct usbnet *usbdev, int device_type)
 		priv->param_workaround_interval = modparam_workaround_interval;
 }
 
-static int unknown_early_init(struct usbnet *usbdev)
+static int unkyeswn_early_init(struct usbnet *usbdev)
 {
-	/* copy module parameters for unknown so that iwconfig reports txpower
+	/* copy module parameters for unkyeswn so that iwconfig reports txpower
 	 * and workaround parameter is copied to private structure correctly.
 	 */
 	rndis_copy_module_params(usbdev, RNDIS_UNKNOWN);
 
-	/* This is unknown device, so do not try set configuration parameters.
+	/* This is unkyeswn device, so do yest try set configuration parameters.
 	 */
 
 	return 0;
@@ -3402,7 +3402,7 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 
 	/* allocate wiphy and rndis private data
 	 * NOTE: We only support a single virtual interface, so wiphy
-	 * and wireless_dev are somewhat synonymous for this device.
+	 * and wireless_dev are somewhat syyesnymous for this device.
 	 */
 	wiphy = wiphy_new(&rndis_config_ops, sizeof(struct rndis_wlan_private));
 	if (!wiphy)
@@ -3634,7 +3634,7 @@ static const struct driver_info rndis_wlan_info = {
 	.tx_fixup =	rndis_tx_fixup,
 	.reset =	rndis_wlan_reset,
 	.stop =		rndis_wlan_stop,
-	.early_init =	unknown_early_init,
+	.early_init =	unkyeswn_early_init,
 	.indication =	rndis_wlan_indication,
 };
 
@@ -3713,9 +3713,9 @@ static const struct usb_device_id products [] = {
 	RNDIS_MASTER_INTERFACE,
 	.driver_info		= (unsigned long) &bcm4320b_info,
 },
-/* These devices have DriverVer < 4.xx.xx.xx and do not have any custom
+/* These devices have DriverVer < 4.xx.xx.xx and do yest have any custom
  * parameters available, hardware probably contain older firmware version with
- * no way of updating. Chipset marked as 'BCM4320????' in NDISwrapper-wiki.
+ * yes way of updating. Chipset marked as 'BCM4320????' in NDISwrapper-wiki.
  */
 {
 	.match_flags	=   USB_DEVICE_ID_MATCH_INT_INFO

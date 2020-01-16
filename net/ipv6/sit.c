@@ -17,7 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -318,8 +318,8 @@ static int ipip6_tunnel_get_prl(struct ip_tunnel *t,
 
 	if (!kp) {
 		/* We don't try hard to allocate much memory for
-		 * non-root users.
-		 * For root users, retry allocating enough memory for
+		 * yesn-root users.
+		 * For root users, retry allocating eyesugh memory for
 		 * the answer.
 		 */
 		kp = kcalloc(ca, sizeof(*kp), GFP_ATOMIC);
@@ -451,16 +451,16 @@ isatap_chksrc(struct sk_buff *skb, const struct iphdr *iph, struct ip_tunnel *t)
 	p = __ipip6_tunnel_locate_prl(t, iph->saddr);
 	if (p) {
 		if (p->flags & PRL_DEFAULT)
-			skb->ndisc_nodetype = NDISC_NODETYPE_DEFAULT;
+			skb->ndisc_yesdetype = NDISC_NODETYPE_DEFAULT;
 		else
-			skb->ndisc_nodetype = NDISC_NODETYPE_NODEFAULT;
+			skb->ndisc_yesdetype = NDISC_NODETYPE_NODEFAULT;
 	} else {
 		const struct in6_addr *addr6 = &ipv6_hdr(skb)->saddr;
 
 		if (ipv6_addr_is_isatap(addr6) &&
 		    (addr6->s6_addr32[3] == iph->saddr) &&
 		    ipv6_chk_prefix(addr6, t->dev))
-			skb->ndisc_nodetype = NDISC_NODETYPE_HOST;
+			skb->ndisc_yesdetype = NDISC_NODETYPE_HOST;
 		else
 			ok = 0;
 	}
@@ -666,13 +666,13 @@ static int ipip6_rcv(struct sk_buff *skb)
 			goto out;
 
 		/* skb can be uncloned in iptunnel_pull_header, so
-		 * old iph is no longer valid
+		 * old iph is yes longer valid
 		 */
 		iph = (const struct iphdr *)skb_mac_header(skb);
 		err = IP_ECN_decapsulate(iph, skb);
 		if (unlikely(err)) {
 			if (log_ecn_error)
-				net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
+				net_info_ratelimited("yesn-ECT from %pI4 with TOS=%#x\n",
 						     &iph->saddr, iph->tos);
 			if (err > 1) {
 				++tunnel->dev->stats.rx_frame_errors;
@@ -692,7 +692,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 		return 0;
 	}
 
-	/* no tunnel matched,  let upstream know, ipsec may handle it */
+	/* yes tunnel matched,  let upstream kyesw, ipsec may handle it */
 	return 1;
 out:
 	kfree_skb(skb);
@@ -700,13 +700,13 @@ out:
 }
 
 static const struct tnl_ptk_info ipip_tpi = {
-	/* no tunnel info required for ipip. */
+	/* yes tunnel info required for ipip. */
 	.proto = htons(ETH_P_IP),
 };
 
 #if IS_ENABLED(CONFIG_MPLS)
 static const struct tnl_ptk_info mplsip_tpi = {
-	/* no tunnel info required for mplsip. */
+	/* yes tunnel info required for mplsip. */
 	.proto = htons(ETH_P_MPLS_UC),
 };
 #endif
@@ -944,7 +944,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		}
 
 		if (tunnel->parms.iph.daddr)
-			skb_dst_update_pmtu_no_confirm(skb, mtu);
+			skb_dst_update_pmtu_yes_confirm(skb, mtu);
 
 		if (skb->len > mtu && !skb_is_gso(skb)) {
 			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
@@ -963,7 +963,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	}
 
 	/*
-	 * Okay, now see if we can stuff it in the buffer as-is.
+	 * Okay, yesw see if we can stuff it in the buffer as-is.
 	 */
 	max_headroom = LL_RESERVED_SPACE(tdev) + t_hlen;
 
@@ -1861,7 +1861,7 @@ static int __net_init sit_init_net(struct net *net)
 	dev_net_set(sitn->fb_tunnel_dev, net);
 	sitn->fb_tunnel_dev->rtnl_link_ops = &sit_link_ops;
 	/* FB netdevice is special: we have one, and only one per netns.
-	 * Allowing to move it to another netns is clearly unsafe.
+	 * Allowing to move it to ayesther netns is clearly unsafe.
 	 */
 	sitn->fb_tunnel_dev->features |= NETIF_F_NETNS_LOCAL;
 

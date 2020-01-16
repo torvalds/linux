@@ -40,13 +40,13 @@
 /*
  * To support pagetables in highmem, Linux introduces APIs which
  * return struct page* and generally manipulate page tables when
- * they are not mapped into kernel space. Our hardware page tables
+ * they are yest mapped into kernel space. Our hardware page tables
  * are smaller than pages. We lump hardware tabes into big, page sized
  * software tables.
  *
  * PMD_SHIFT determines the size of the area a second-level page table entry
- * can map, and our pmd_t is 16 times larger than normal.  The values which
- * were once defined here are now generic for 4c and srmmu, so they're
+ * can map, and our pmd_t is 16 times larger than yesrmal.  The values which
+ * were once defined here are yesw generic for 4c and srmmu, so they're
  * found in pgtable.h.
  */
 #define SRMMU_PTRS_PER_PMD	4
@@ -63,7 +63,7 @@
 #define SRMMU_PTD_PMASK    0xfffffff0
 #define SRMMU_PTE_PMASK    0xffffff00
 
-/* The pte non-page bits.  Some notes:
+/* The pte yesn-page bits.  Some yestes:
  * 1) cache, dirty, valid, and ref are frobbable
  *    for both supervisor and user pages.
  * 2) exec and write will only give the desired effect
@@ -102,7 +102,7 @@
 /* Some day I will implement true fine grained access bits for
  * user pages because the SRMMU gives us the capabilities to
  * enforce all the protection levels that vma's can have.
- * XXX But for now...
+ * XXX But for yesw...
  */
 #define SRMMU_PAGE_NONE    __pgprot(SRMMU_CACHE | \
 				    SRMMU_PRIV | SRMMU_REF)
@@ -140,10 +140,10 @@ extern unsigned long last_valid_pfn;
 
 /* This makes sense. Honest it does - Anton */
 /* XXX Yes but it's ugly as sin.  FIXME. -KMW */
-extern void *srmmu_nocache_pool;
-#define __nocache_pa(VADDR) (((unsigned long)VADDR) - SRMMU_NOCACHE_VADDR + __pa((unsigned long)srmmu_nocache_pool))
-#define __nocache_va(PADDR) (__va((unsigned long)PADDR) - (unsigned long)srmmu_nocache_pool + SRMMU_NOCACHE_VADDR)
-#define __nocache_fix(VADDR) __va(__nocache_pa(VADDR))
+extern void *srmmu_yescache_pool;
+#define __yescache_pa(VADDR) (((unsigned long)VADDR) - SRMMU_NOCACHE_VADDR + __pa((unsigned long)srmmu_yescache_pool))
+#define __yescache_va(PADDR) (__va((unsigned long)PADDR) - (unsigned long)srmmu_yescache_pool + SRMMU_NOCACHE_VADDR)
+#define __yescache_fix(VADDR) __va(__yescache_pa(VADDR))
 
 /* Accessing the MMU control register. */
 unsigned int srmmu_get_mmureg(void);

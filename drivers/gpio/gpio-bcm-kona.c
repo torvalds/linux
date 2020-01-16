@@ -271,7 +271,7 @@ static int bcm_kona_gpio_set_debounce(struct gpio_chip *chip, unsigned gpio,
 	reg_base = kona_gpio->reg_base;
 	/* debounce must be 1-128ms (or 0) */
 	if ((debounce > 0 && debounce < 1000) || debounce > 128000) {
-		dev_err(chip->parent, "Debounce value %u not in range\n",
+		dev_err(chip->parent, "Debounce value %u yest in range\n",
 			debounce);
 		return -EINVAL;
 	}
@@ -530,7 +530,7 @@ static int bcm_kona_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 		return ret;
 	irq_set_lockdep_class(irq, &gpio_lock_class, &gpio_request_class);
 	irq_set_chip_and_handler(irq, &bcm_gpio_irq_chip, handle_simple_irq);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 
 	return 0;
 }
@@ -586,7 +586,7 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 
 	kona_gpio->gpio_chip = template_chip;
 	chip = &kona_gpio->gpio_chip;
-	kona_gpio->num_bank = of_irq_count(dev->of_node);
+	kona_gpio->num_bank = of_irq_count(dev->of_yesde);
 	if (kona_gpio->num_bank == 0) {
 		dev_err(dev, "Couldn't determine # GPIO banks\n");
 		return -ENOENT;
@@ -605,10 +605,10 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 
 	kona_gpio->pdev = pdev;
 	platform_set_drvdata(pdev, kona_gpio);
-	chip->of_node = dev->of_node;
+	chip->of_yesde = dev->of_yesde;
 	chip->ngpio = kona_gpio->num_bank * GPIO_PER_BANK;
 
-	kona_gpio->irq_domain = irq_domain_add_linear(dev->of_node,
+	kona_gpio->irq_domain = irq_domain_add_linear(dev->of_yesde,
 						      chip->ngpio,
 						      &bcm_kona_irq_ops,
 						      kona_gpio);

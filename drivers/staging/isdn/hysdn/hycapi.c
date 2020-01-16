@@ -46,15 +46,15 @@ static hycapi_appl hycapi_applications[CAPI_MAXAPPL];
 
 static u16 hycapi_send_message(struct capi_ctr *ctrl, struct sk_buff *skb);
 
-static inline int _hycapi_appCheck(int app_id, int ctrl_no)
+static inline int _hycapi_appCheck(int app_id, int ctrl_yes)
 {
-	if ((ctrl_no <= 0) || (ctrl_no > CAPI_MAXCONTR) || (app_id <= 0) ||
+	if ((ctrl_yes <= 0) || (ctrl_yes > CAPI_MAXCONTR) || (app_id <= 0) ||
 	   (app_id > CAPI_MAXAPPL))
 	{
-		printk(KERN_ERR "HYCAPI: Invalid request app_id %d for controller %d", app_id, ctrl_no);
+		printk(KERN_ERR "HYCAPI: Invalid request app_id %d for controller %d", app_id, ctrl_yes);
 		return -1;
 	}
-	return ((hycapi_applications[app_id - 1].ctrl_mask & (1 << (ctrl_no-1))) != 0);
+	return ((hycapi_applications[app_id - 1].ctrl_mask & (1 << (ctrl_yes-1))) != 0);
 }
 
 /******************************
@@ -364,7 +364,7 @@ Messages are parsed for their Command/Subcommand-type, and appropriate
 action's are performed.
 
 Note that we have to muck around with a 64Bit-DATA_REQ as there are
-firmware-releases that do not check the MsgLen-Indication!
+firmware-releases that do yest check the MsgLen-Indication!
 
 ***************************************************************/
 
@@ -569,11 +569,11 @@ hycapi_rx_capipkt(hysdn_card *card, unsigned char *buf, unsigned short len)
 
 			break;
 		case 0x0001:
-			printk(KERN_ERR "HYSDN Card%d: NCPI not supported by current "
-			       "protocol. NCPI ignored.\n", card->myid);
+			printk(KERN_ERR "HYSDN Card%d: NCPI yest supported by current "
+			       "protocol. NCPI igyesred.\n", card->myid);
 			break;
 		case 0x2001:
-			printk(KERN_ERR "HYSDN Card%d: Message not supported in"
+			printk(KERN_ERR "HYSDN Card%d: Message yest supported in"
 			       " current state\n", card->myid);
 			break;
 		case 0x2002:
@@ -583,7 +583,7 @@ hycapi_rx_capipkt(hysdn_card *card, unsigned char *buf, unsigned short len)
 			printk(KERN_ERR "HYSDN Card%d: out of NCCI\n", card->myid);
 			break;
 		case 0x3008:
-			printk(KERN_ERR "HYSDN Card%d: NCPI not supported\n",
+			printk(KERN_ERR "HYSDN Card%d: NCPI yest supported\n",
 			       card->myid);
 			break;
 		default:
@@ -611,7 +611,7 @@ hycapi_rx_capipkt(hysdn_card *card, unsigned char *buf, unsigned short len)
 /******************************************************************
 hycapi_tx_capiack
 
-Internally acknowledge a msg sent. This will remove the msg from the
+Internally ackyeswledge a msg sent. This will remove the msg from the
 internal queue.
 
 *******************************************************************/
@@ -651,7 +651,7 @@ hycapi_tx_capiget(hysdn_card *card)
 		return (struct sk_buff *)NULL;
 	}
 	if (!cinfo->sk_count)
-		return (struct sk_buff *)NULL;	/* nothing available */
+		return (struct sk_buff *)NULL;	/* yesthing available */
 
 	return (cinfo->skbs[cinfo->out_idx]);		/* next packet to send */
 }
@@ -700,9 +700,9 @@ static void hycapi_fill_profile(hysdn_card *card)
 	ctrl = &cinfo->capi_ctrl;
 	strcpy(ctrl->manu, "Hypercope");
 	ctrl->version.majorversion = 2;
-	ctrl->version.minorversion = 0;
+	ctrl->version.miyesrversion = 0;
 	ctrl->version.majormanuversion = 3;
-	ctrl->version.minormanuversion = 2;
+	ctrl->version.miyesrmanuversion = 2;
 	ctrl->profile.ncontroller = card->myid;
 	ctrl->profile.nbchannel = card->bchans;
 	ctrl->profile.goptions = GLOBAL_OPTION_INTERNAL_CONTROLLER |
@@ -735,7 +735,7 @@ hycapi_capi_create(hysdn_card *card)
 	if (!card->hyctrlinfo) {
 		cinfo = kzalloc(sizeof(hycapictrl_info), GFP_ATOMIC);
 		if (!cinfo) {
-			printk(KERN_WARNING "HYSDN: no memory for capi-ctrl.\n");
+			printk(KERN_WARNING "HYSDN: yes memory for capi-ctrl.\n");
 			return -ENOMEM;
 		}
 		card->hyctrlinfo = cinfo;

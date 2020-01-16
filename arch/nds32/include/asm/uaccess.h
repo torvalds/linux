@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef _ASMANDES_UACCESS_H
 #define _ASMANDES_UACCESS_H
@@ -8,7 +8,7 @@
  * User space memory access functions
  */
 #include <linux/sched.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/memory.h>
 #include <asm/types.h>
 #include <linux/mm.h>
@@ -24,7 +24,7 @@
  *
  * All the routines below use bits of fixup code that are out of line
  * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
+ * we don't even have to jump over them.  Further, they do yest intrude
  * on our cache or tlb entries.
  */
 
@@ -54,15 +54,15 @@ static inline void set_fs(mm_segment_t fs)
 /*
  * Single-value transfer routines.  They automatically use the right
  * size if we just have the right pointer type.  Note that the functions
- * which read from user space (*get_*) need to take care not to leak
+ * which read from user space (*get_*) need to take care yest to leak
  * kernel data even if the calling code is buggy and fails to check
  * the return value.  This means zeroing out the destination variable
  * or buffer on error.  Normally this is done out of line by the
  * fixup code, but there are a few places where it intrudes on the
- * main code path.  When we only write to user space, there is no
+ * main code path.  When we only write to user space, there is yes
  * problem.
  *
- * The "__xxx" versions of the user access functions do not verify the
+ * The "__xxx" versions of the user access functions do yest verify the
  * address space - it must have been done previously with a separate
  * "access_ok()" call.
  *

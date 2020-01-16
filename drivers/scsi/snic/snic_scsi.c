@@ -16,7 +16,7 @@
  */
 
 #include <linux/mempool.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/workqueue.h>
 #include <linux/pci.h>
@@ -83,7 +83,7 @@ const char *
 snic_state_to_str(unsigned int state)
 {
 	if (state >= ARRAY_SIZE(snic_state_str) || !snic_state_str[state])
-		return "Unknown";
+		return "Unkyeswn";
 
 	return snic_state_str[state];
 }
@@ -93,7 +93,7 @@ snic_io_status_to_str(unsigned int state)
 {
 	if ((state >= ARRAY_SIZE(snic_io_status_str)) ||
 	     (!snic_io_status_str[state]))
-		return "Unknown";
+		return "Unkyeswn";
 
 	return snic_io_status_str[state];
 }
@@ -103,7 +103,7 @@ snic_ioreq_state_to_str(unsigned int state)
 {
 	if (state >= ARRAY_SIZE(snic_req_state_str) ||
 			!snic_req_state_str[state])
-		return "Unknown";
+		return "Unkyeswn";
 
 	return snic_req_state_str[state];
 }
@@ -130,7 +130,7 @@ snic_release_req_buf(struct snic *snic,
 {
 	struct snic_host_req *req = rqi_to_req(rqi);
 
-	/* Freeing cmd without marking completion, not okay */
+	/* Freeing cmd without marking completion, yest okay */
 	SNIC_BUG_ON(!((CMD_STATE(sc) == SNIC_IOREQ_COMPLETE) ||
 		      (CMD_STATE(sc) == SNIC_IOREQ_ABTS_COMPLETE) ||
 		      (CMD_FLAGS(sc) & SNIC_DEV_RST_NOTSUP) ||
@@ -253,7 +253,7 @@ snic_issue_scsi_req(struct snic *snic,
 	CMD_FLAGS(sc) = SNIC_NO_FLAGS;
 	sg_cnt = scsi_dma_map(sc);
 	if (sg_cnt < 0) {
-		SNIC_TRC((u16)snic->shost->host_no, tag, (ulong) sc, 0,
+		SNIC_TRC((u16)snic->shost->host_yes, tag, (ulong) sc, 0,
 			 sc->cmnd[0], sg_cnt, CMD_STATE(sc));
 
 		SNIC_HOST_ERR(snic->shost, "issue_sc:Failed to map SG List.\n");
@@ -297,7 +297,7 @@ snic_issue_scsi_req(struct snic *snic,
 		if (rqi)
 			snic_release_req_buf(snic, rqi, sc);
 
-		SNIC_TRC(snic->shost->host_no, tag, (ulong) sc, 0, 0, 0,
+		SNIC_TRC(snic->shost->host_yes, tag, (ulong) sc, 0, 0, 0,
 			 SNIC_TRC_CMD_STATE_FLAGS(sc));
 	} else {
 		u32 io_sz = scsi_bufflen(sc) >> 9;
@@ -314,7 +314,7 @@ snic_issue_scsi_req(struct snic *snic,
 			      "issue_sc:sc %p, tag %d queued to WQ.\n",
 			      sc, tag);
 
-		SNIC_TRC(snic->shost->host_no, tag, (ulong) sc, (ulong) rqi,
+		SNIC_TRC(snic->shost->host_yes, tag, (ulong) sc, (ulong) rqi,
 			 sg_cnt, cmd_trc, cmd_st_flags);
 	}
 
@@ -340,7 +340,7 @@ snic_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc)
 	ret = snic_tgt_chkready(tgt);
 	if (ret) {
 		SNIC_HOST_ERR(shost, "Tgt %p id %d Not Ready.\n", tgt, tgt->id);
-		atomic64_inc(&snic->s_stats.misc.tgt_not_rdy);
+		atomic64_inc(&snic->s_stats.misc.tgt_yest_rdy);
 		sc->result = ret;
 		sc->scsi_done(sc);
 
@@ -435,8 +435,8 @@ snic_process_io_failed_state(struct snic *snic,
 		res = DID_REQUEUE;
 		break;
 
-	case SNIC_STAT_IO_NOT_FOUND:	/* Requested I/O was not found */
-		atomic64_inc(&snic->s_stats.io.io_not_found);
+	case SNIC_STAT_IO_NOT_FOUND:	/* Requested I/O was yest found */
+		atomic64_inc(&snic->s_stats.io.io_yest_found);
 		res = DID_ERROR;
 		break;
 
@@ -461,12 +461,12 @@ snic_process_io_failed_state(struct snic *snic,
 
 	case SNIC_STAT_INVALID_HDR:	/* Hdr contains invalid data */
 	case SNIC_STAT_INVALID_PARM:	/* Some param in req is invalid */
-	case SNIC_STAT_REQ_NOT_SUP:	/* Req type is not supported */
+	case SNIC_STAT_REQ_NOT_SUP:	/* Req type is yest supported */
 	case SNIC_STAT_CMND_REJECT:	/* Req rejected */
 	case SNIC_STAT_FATAL_ERROR:	/* XPT Error */
 	default:
 		SNIC_SCSI_DBG(snic->shost,
-			      "Invalid Hdr/Param or Req Not Supported or Cmnd Rejected or Device Offline. or Unknown\n");
+			      "Invalid Hdr/Param or Req Not Supported or Cmnd Rejected or Device Offline. or Unkyeswn\n");
 		res = DID_ERROR;
 		break;
 	}
@@ -581,7 +581,7 @@ snic_icmnd_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 			      cmnd_id,
 			      fwreq);
 
-		SNIC_TRC(snic->shost->host_no, cmnd_id, 0,
+		SNIC_TRC(snic->shost->host_yes, cmnd_id, 0,
 			 ((u64)hdr_stat << 16 |
 			  (u64)sc_stat << 8 | (u64)icmnd_cmpl->flags),
 			 (ulong) fwreq, le32_to_cpu(icmnd_cmpl->resid), ctx);
@@ -626,7 +626,7 @@ snic_icmnd_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 
 	/*
 	 * if SCSI-ML has already issued abort on this command,
-	 * ignore completion of the IO. The abts path will clean it up
+	 * igyesre completion of the IO. The abts path will clean it up
 	 */
 	if (unlikely(snic_tmreq_pending(sc))) {
 		snic_proc_tmreq_pending_state(snic, sc, hdr_stat);
@@ -645,7 +645,7 @@ snic_icmnd_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 			      sc, sc_stat, le32_to_cpu(icmnd_cmpl->resid),
 			      CMD_FLAGS(sc));
 
-		SNIC_TRC(snic->shost->host_no, cmnd_id, (ulong) sc,
+		SNIC_TRC(snic->shost->host_yes, cmnd_id, (ulong) sc,
 			 jiffies_to_msecs(jiffies - start_time), (ulong) fwreq,
 			 SNIC_TRC_CMD(sc), SNIC_TRC_CMD_STATE_FLAGS(sc));
 
@@ -666,12 +666,12 @@ snic_icmnd_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 
 	spin_unlock_irqrestore(io_lock, flags);
 
-	/* For now, consider only successful IO. */
+	/* For yesw, consider only successful IO. */
 	snic_calc_io_process_time(snic, rqi);
 
 	snic_release_req_buf(snic, rqi, sc);
 
-	SNIC_TRC(snic->shost->host_no, cmnd_id, (ulong) sc,
+	SNIC_TRC(snic->shost->host_yes, cmnd_id, (ulong) sc,
 		 jiffies_to_msecs(jiffies - start_time), (ulong) fwreq,
 		 SNIC_TRC_CMD(sc), SNIC_TRC_CMD_STATE_FLAGS(sc));
 
@@ -700,7 +700,7 @@ snic_proc_dr_cmpl_locked(struct snic *snic,
 	if (CMD_STATE(sc) == SNIC_IOREQ_ABTS_PENDING) {
 		CMD_FLAGS(sc) |= SNIC_DEV_RST_ABTS_PENDING;
 
-		SNIC_TRC(snic->shost->host_no, cmnd_id, (ulong) sc,
+		SNIC_TRC(snic->shost->host_yes, cmnd_id, (ulong) sc,
 			 jiffies_to_msecs(jiffies - start_time),
 			 (ulong) fwreq, 0, SNIC_TRC_CMD_STATE_FLAGS(sc));
 
@@ -715,7 +715,7 @@ snic_proc_dr_cmpl_locked(struct snic *snic,
 
 
 	if (CMD_FLAGS(sc) & SNIC_DEV_RST_TIMEDOUT) {
-		SNIC_TRC(snic->shost->host_no, cmnd_id, (ulong) sc,
+		SNIC_TRC(snic->shost->host_yes, cmnd_id, (ulong) sc,
 			 jiffies_to_msecs(jiffies - start_time),
 			 (ulong) fwreq, 0, SNIC_TRC_CMD_STATE_FLAGS(sc));
 
@@ -760,7 +760,7 @@ snic_update_abort_stats(struct snic *snic, u8 cmpl_stat)
 		break;
 
 	case SNIC_STAT_IO_NOT_FOUND:
-		atomic64_inc(&abt_stats->io_not_found);
+		atomic64_inc(&abt_stats->io_yest_found);
 		break;
 
 	default:
@@ -817,7 +817,7 @@ snic_process_itmf_cmpl(struct snic *snic,
 		snic_update_abort_stats(snic, cmpl_stat);
 
 		if (CMD_STATE(sc) != SNIC_IOREQ_ABTS_PENDING) {
-			/* This is a late completion. Ignore it. */
+			/* This is a late completion. Igyesre it. */
 			ret = -1;
 			spin_unlock_irqrestore(io_lock, flags);
 			break;
@@ -856,7 +856,7 @@ snic_process_itmf_cmpl(struct snic *snic,
 		snic_release_req_buf(snic, rqi, sc);
 
 		if (sc->scsi_done) {
-			SNIC_TRC(snic->shost->host_no, cmnd_id, (ulong) sc,
+			SNIC_TRC(snic->shost->host_yes, cmnd_id, (ulong) sc,
 				 jiffies_to_msecs(jiffies - start_time),
 				 (ulong) fwreq, SNIC_TRC_CMD(sc),
 				 SNIC_TRC_CMD_STATE_FLAGS(sc));
@@ -896,7 +896,7 @@ snic_process_itmf_cmpl(struct snic *snic,
 	default:
 		spin_unlock_irqrestore(io_lock, flags);
 		SNIC_HOST_ERR(snic->shost,
-			      "itmf_cmpl: Unknown TM tag bit 0x%x\n", tm_tags);
+			      "itmf_cmpl: Unkyeswn TM tag bit 0x%x\n", tm_tags);
 
 		SNIC_HOST_ERR(snic->shost,
 			      "itmf_cmpl:Unexpected itmf io stat %s Tag = 0x%x flags 0x%llx\n",
@@ -1132,7 +1132,7 @@ snic_aen_handler(struct snic *snic, struct snic_fw_req *fwreq)
 	u8 typ, hdr_stat;
 	u32 cmnd_id, hid;
 	ulong ctx;
-	struct snic_async_evnotify *aen = &fwreq->u.async_ev;
+	struct snic_async_evyestify *aen = &fwreq->u.async_ev;
 	u32 event_id = 0;
 
 	snic_io_hdr_dec(&fwreq->hdr, &typ, &hdr_stat, &cmnd_id, &hid, &ctx);
@@ -1184,7 +1184,7 @@ snic_aen_handler(struct snic *snic, struct snic_fw_req *fwreq)
 		break;
 
 	default:
-		SNIC_HOST_INFO(snic->shost, "aen:Unknown Event Recvd.\n");
+		SNIC_HOST_INFO(snic->shost, "aen:Unkyeswn Event Recvd.\n");
 		SNIC_BUG_ON(1);
 		break;
 	}
@@ -1259,7 +1259,7 @@ snic_io_cmpl_handler(struct vnic_dev *vdev,
 	default:
 		SNIC_BUG_ON(1);
 		SNIC_SCSI_DBG(snic->shost,
-			      "Unknown Firmware completion request type %d\n",
+			      "Unkyeswn Firmware completion request type %d\n",
 			      fwreq->hdr.type);
 		break;
 	}
@@ -1275,7 +1275,7 @@ snic_io_cmpl_handler(struct vnic_dev *vdev,
 /*
  * snic_fwcq_cmpl_handler
  * Routine to process fwCQ
- * This CQ is independent, and not associated with wq/rq/wq_copy queues
+ * This CQ is independent, and yest associated with wq/rq/wq_copy queues
  */
 int
 snic_fwcq_cmpl_handler(struct snic *snic, int io_cmpl_work)
@@ -1465,7 +1465,7 @@ snic_abort_finish(struct snic *snic, struct scsi_cmnd *sc)
 		SNIC_SCSI_DBG(snic->shost,
 			      "abt_fini:sc %p Tag %x Driver Timeout.flags 0x%llx\n",
 			      sc, snic_cmd_tag(sc), CMD_FLAGS(sc));
-		/* do not release snic request in timedout case */
+		/* do yest release snic request in timedout case */
 		rqi = NULL;
 
 		goto abort_fail;
@@ -1537,7 +1537,7 @@ snic_send_abort_and_wait(struct snic *snic, struct scsi_cmnd *sc)
 	 * happend, the completion wont actually complete the command
 	 * and it will be considered as an aborted command
 	 *
-	 * The CMD_SP will not be cleared except while holding io_lock
+	 * The CMD_SP will yest be cleared except while holding io_lock
 	 */
 	spin_lock_irqsave(io_lock, flags);
 	rqi = (struct snic_req_info *) CMD_SP(sc);
@@ -1644,7 +1644,7 @@ snic_abort_cmd(struct scsi_cmnd *sc)
 
 	if (unlikely(snic_get_state(snic) != SNIC_ONLINE)) {
 		SNIC_HOST_ERR(snic->shost,
-			      "abt_cmd: tag %x Parent Devs are not rdy\n",
+			      "abt_cmd: tag %x Parent Devs are yest rdy\n",
 			      tag);
 		ret = FAST_IO_FAIL;
 
@@ -1659,7 +1659,7 @@ snic_abort_cmd(struct scsi_cmnd *sc)
 	ret = snic_abort_finish(snic, sc);
 
 abort_end:
-	SNIC_TRC(snic->shost->host_no, tag, (ulong) sc,
+	SNIC_TRC(snic->shost->host_yes, tag, (ulong) sc,
 		 jiffies_to_msecs(jiffies - start_time), 0,
 		 SNIC_TRC_CMD(sc), SNIC_TRC_CMD_STATE_FLAGS(sc));
 
@@ -1743,7 +1743,7 @@ snic_dr_clean_single_req(struct snic *snic,
 	spin_lock_irqsave(io_lock, flags);
 	sc = scsi_host_find_tag(snic->shost, tag);
 
-	/* Ignore Cmd that don't belong to Lun Reset device */
+	/* Igyesre Cmd that don't belong to Lun Reset device */
 	if (!sc || sc->device != lr_sdev)
 		goto skip_clean;
 
@@ -1761,7 +1761,7 @@ snic_dr_clean_single_req(struct snic *snic,
 			(!(CMD_FLAGS(sc) & SNIC_DEV_RST_ISSUED))) {
 
 		SNIC_SCSI_DBG(snic->shost,
-			      "clean_single_req: devrst is not pending sc 0x%p\n",
+			      "clean_single_req: devrst is yest pending sc 0x%p\n",
 			      sc);
 
 		goto skip_clean;
@@ -1776,7 +1776,7 @@ snic_dr_clean_single_req(struct snic *snic,
 
 	/*
 	 * Any pending IO issued prior to reset is expected to be
-	 * in abts pending state, if not we need to set SNIC_IOREQ_ABTS_PENDING
+	 * in abts pending state, if yest we need to set SNIC_IOREQ_ABTS_PENDING
 	 * to indicate the IO is abort pending.
 	 * When IO is completed, the IO will be handed over and handled
 	 * in this function.
@@ -1831,7 +1831,7 @@ snic_dr_clean_single_req(struct snic *snic,
 
 	wait_for_completion_timeout(&tm_done, SNIC_ABTS_TIMEOUT);
 
-	/* Recheck cmd state to check if it now aborted. */
+	/* Recheck cmd state to check if it yesw aborted. */
 	spin_lock_irqsave(io_lock, flags);
 	rqi = (struct snic_req_info *) CMD_SP(sc);
 	if (!rqi) {
@@ -1973,7 +1973,7 @@ snic_dr_finish(struct snic *snic, struct scsi_cmnd *sc)
 	spin_unlock_irqrestore(io_lock, flags);
 
 	/*
-	 * Cleanup any IOs on this LUN that have still not completed.
+	 * Cleanup any IOs on this LUN that have still yest completed.
 	 * If any of these fail, then LUN Reset fails.
 	 * Cleanup cleans all commands on this LUN except
 	 * the lun reset command. If all cmds get cleaned, the LUN Reset
@@ -1984,7 +1984,7 @@ snic_dr_finish(struct snic *snic, struct scsi_cmnd *sc)
 	if (ret) {
 		spin_lock_irqsave(io_lock, flags);
 		SNIC_SCSI_DBG(snic->shost,
-			      "dr_fini: Device Reset Failed since could not abort all IOs. Tag = %x.\n",
+			      "dr_fini: Device Reset Failed since could yest abort all IOs. Tag = %x.\n",
 			      snic_cmd_tag(sc));
 		rqi = (struct snic_req_info *) CMD_SP(sc);
 
@@ -2098,7 +2098,7 @@ send_dr_end:
 }
 
 /*
- * auxillary funciton to check lun reset op is supported or not
+ * auxillary funciton to check lun reset op is supported or yest
  * Not supported if returns 0
  */
 static int
@@ -2134,7 +2134,7 @@ snic_unlink_and_release_req(struct snic *snic, struct scsi_cmnd *sc, int flag)
 	if (rqi)
 		snic_release_req_buf(snic, rqi, sc);
 
-	SNIC_TRC(snic->shost->host_no, snic_cmd_tag(sc), (ulong) sc,
+	SNIC_TRC(snic->shost->host_yes, snic_cmd_tag(sc), (ulong) sc,
 		 jiffies_to_msecs(jiffies - start_time), (ulong) rqi,
 		 SNIC_TRC_CMD(sc), SNIC_TRC_CMD_STATE_FLAGS(sc));
 }
@@ -2160,8 +2160,8 @@ snic_device_reset(struct scsi_cmnd *sc)
 		      snic_cmd_tag(sc));
 	dr_supp = snic_dev_reset_supported(sc->device);
 	if (!dr_supp) {
-		/* device reset op is not supported */
-		SNIC_HOST_INFO(shost, "LUN Reset Op not supported.\n");
+		/* device reset op is yest supported */
+		SNIC_HOST_INFO(shost, "LUN Reset Op yest supported.\n");
 		snic_unlink_and_release_req(snic, sc, SNIC_DEV_RST_NOTSUP);
 
 		goto dev_rst_end;
@@ -2169,12 +2169,12 @@ snic_device_reset(struct scsi_cmnd *sc)
 
 	if (unlikely(snic_get_state(snic) != SNIC_ONLINE)) {
 		snic_unlink_and_release_req(snic, sc, 0);
-		SNIC_HOST_ERR(shost, "Devrst: Parent Devs are not online.\n");
+		SNIC_HOST_ERR(shost, "Devrst: Parent Devs are yest online.\n");
 
 		goto dev_rst_end;
 	}
 
-	/* There is no tag when lun reset is issue through ioctl. */
+	/* There is yes tag when lun reset is issue through ioctl. */
 	if (unlikely(tag <= SNIC_NO_TAG)) {
 		SNIC_HOST_INFO(snic->shost,
 			       "Devrst: LUN Reset Recvd thru IOCTL.\n");
@@ -2207,7 +2207,7 @@ snic_device_reset(struct scsi_cmnd *sc)
 	ret = snic_dr_finish(snic, sc);
 
 dev_rst_end:
-	SNIC_TRC(snic->shost->host_no, tag, (ulong) sc,
+	SNIC_TRC(snic->shost->host_yes, tag, (ulong) sc,
 		 jiffies_to_msecs(jiffies - start_time),
 		 0, SNIC_TRC_CMD(sc), SNIC_TRC_CMD_STATE_FLAGS(sc));
 
@@ -2396,7 +2396,7 @@ snic_host_reset(struct scsi_cmnd *sc)
 
 	ret = snic_reset(shost, sc);
 
-	SNIC_TRC(shost->host_no, snic_cmd_tag(sc), (ulong) sc,
+	SNIC_TRC(shost->host_yes, snic_cmd_tag(sc), (ulong) sc,
 		 jiffies_to_msecs(jiffies - start_time),
 		 0, SNIC_TRC_CMD(sc), SNIC_TRC_CMD_STATE_FLAGS(sc));
 
@@ -2505,7 +2505,7 @@ cleanup:
 		snic_stats_update_io_cmpl(&snic->s_stats);
 
 		if (sc->scsi_done) {
-			SNIC_TRC(snic->shost->host_no, tag, (ulong) sc,
+			SNIC_TRC(snic->shost->host_yes, tag, (ulong) sc,
 				 jiffies_to_msecs(jiffies - st_time), 0,
 				 SNIC_TRC_CMD(sc),
 				 SNIC_TRC_CMD_STATE_FLAGS(sc));
@@ -2549,7 +2549,7 @@ snic_internal_abort_io(struct snic *snic, struct scsi_cmnd *sc, int tmf)
 		(!(CMD_FLAGS(sc) & SNIC_DEV_RST_ISSUED))) {
 
 		SNIC_SCSI_DBG(snic->shost,
-			      "internal_abts: dev rst not pending sc 0x%p\n",
+			      "internal_abts: dev rst yest pending sc 0x%p\n",
 			      sc);
 
 		goto skip_internal_abts;
@@ -2558,7 +2558,7 @@ snic_internal_abort_io(struct snic *snic, struct scsi_cmnd *sc, int tmf)
 
 	if (!(CMD_FLAGS(sc) & SNIC_IO_ISSUED)) {
 		SNIC_SCSI_DBG(snic->shost,
-			"internal_abts: IO not yet issued sc 0x%p tag 0x%x flags 0x%llx state %d\n",
+			"internal_abts: IO yest yet issued sc 0x%p tag 0x%x flags 0x%llx state %d\n",
 			sc, snic_cmd_tag(sc), CMD_FLAGS(sc), CMD_STATE(sc));
 
 		goto skip_internal_abts;

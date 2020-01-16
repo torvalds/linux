@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -44,7 +44,7 @@ pwm_info(struct nvkm_therm *therm, int *line, int *ctrl, int *indx)
 		*line = 0;
 		*indx = 0;
 	} else {
-		nvkm_error(subdev, "unknown pwm ctrl for gpio %d\n", *line);
+		nvkm_error(subdev, "unkyeswn pwm ctrl for gpio %d\n", *line);
 		return -ENODEV;
 	}
 
@@ -134,7 +134,7 @@ nv50_temp_get(struct nvkm_therm *therm)
 
 	core_temp = nvkm_rd32(device, 0x20014) & 0x3fff;
 
-	/* if the slope or the offset is unset, do no use the sensor */
+	/* if the slope or the offset is unset, do yes use the sensor */
 	if (!sensor->slope_div || !sensor->slope_mult ||
 	    !sensor->offset_num || !sensor->offset_den)
 	    return -ENODEV;

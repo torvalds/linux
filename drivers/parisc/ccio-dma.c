@@ -15,7 +15,7 @@
 **  the I/O MMU - basically what x86 does.
 **
 **  Philipp Rumpf has a "Real Mode" driver for PCX-W machines at:
-**      CVSROOT=:pserver:anonymous@198.186.203.37:/cvsroot/linux-parisc
+**      CVSROOT=:pserver:ayesnymous@198.186.203.37:/cvsroot/linux-parisc
 **      cvs -z3 co linux/arch/parisc/kernel/dma-rm.c
 **
 **  I've rewritten his code to work under TPG's tree. See ccio-rm-dma.c.
@@ -154,10 +154,10 @@ struct ioa_registers {
 **       Peek            3          Map matching addresses.
 **
 **       + "Off" mode: Runway transactions which match the I/O range
-**         specified by the IO_IO_LOW/IO_IO_HIGH registers will be ignored.
+**         specified by the IO_IO_LOW/IO_IO_HIGH registers will be igyesred.
 **       + "Include" mode: all addresses within the I/O range specified
 **         by the IO_IO_LOW and IO_IO_HIGH registers are transparently
-**         forwarded. This is the I/O Adapter's normal operating mode.
+**         forwarded. This is the I/O Adapter's yesrmal operating mode.
 **       + "Peek" mode: used during system configuration to initialize the
 **         GSC+ bus. Runway Write_Shorts in the address range specified by
 **         IO_IO_LOW and IO_IO_HIGH are forwarded through the I/O Adapter
@@ -199,7 +199,7 @@ struct ioa_registers {
 **	Runway Address [8:11]   must be equal to IO_IO_LOW(_HV)[16:19]
 ** 	Runway Address [12:23]  must be greater than or equal to
 **	           IO_IO_LOW(_HV)[20:31] and less than IO_IO_HIGH(_HV)[20:31].
-**	Runway Address [24:39]  is not used in the comparison.
+**	Runway Address [24:39]  is yest used in the comparison.
 **
 ** When the Runway transaction is forwarded to GSC+, the GSC+ address is
 ** as follows:
@@ -211,7 +211,7 @@ struct ioa_registers {
 ** is interrogated and address space is defined. The operating system will
 ** modify the architectural IO_IO_LOW and IO_IO_HIGH registers following
 ** the PDC initialization.  However, the hardware version dependent IO_IO_LOW
-** and IO_IO_HIGH registers should not be subsequently altered by the OS.
+** and IO_IO_HIGH registers should yest be subsequently altered by the OS.
 ** 
 ** Writes to both sets of registers will take effect immediately, bypassing
 ** the queues, which ensures that subsequent Runway transactions are checked
@@ -252,7 +252,7 @@ struct ioc {
 	struct ioc *next;		/* Linked list of discovered iocs */
 	const char *name;		/* device name from firmware */
 	unsigned int hw_path;           /* the hardware path this ioc is associatd with */
-	struct pci_dev *fake_pci_dev;   /* the fake pci_dev for non-pci devs */
+	struct pci_dev *fake_pci_dev;   /* the fake pci_dev for yesn-pci devs */
 	struct resource mmio_region[2]; /* The "routed" MMIO regions */
 };
 
@@ -353,7 +353,7 @@ ccio_alloc_range(struct ioc *ioc, struct device *dev, size_t size)
 
 	/*
 	** "seek and ye shall find"...praying never hurts either...
-	** ggg sacrifices another 710 to the computer gods.
+	** ggg sacrifices ayesther 710 to the computer gods.
 	*/
 
 	boundary_size = ALIGN((unsigned long long)dma_get_seg_boundary(dev) + 1,
@@ -361,13 +361,13 @@ ccio_alloc_range(struct ioc *ioc, struct device *dev, size_t size)
 
 	if (pages_needed <= 8) {
 		/*
-		 * LAN traffic will not thrash the TLB IFF the same NIC
+		 * LAN traffic will yest thrash the TLB IFF the same NIC
 		 * uses 8 adjacent pages to map separate payload data.
 		 * ie the same byte in the resource bit map.
 		 */
 #if 0
 		/* FIXME: bit search should shift it's way through
-		 * an unsigned long - not byte at a time. As it is now,
+		 * an unsigned long - yest byte at a time. As it is yesw,
 		 * we effectively allocate this byte to this mapping.
 		 */
 		unsigned long mask = ~(~0UL >> pages_needed);
@@ -488,17 +488,17 @@ typedef unsigned long space_t;
 **   Using CONFIG_ISA is hack. Only the IOA with EISA under it needs
 **   to use this hint iff the EISA devices needs this feature.
 **   According to the U2 ERS, STOP_MOST enabled pages hurt performance.
-** o PREFETCH should *not* be set for cases like Multiple PCI devices
-**   behind GSCtoPCI (dino) bus converter. Only one cacheline per GSC
+** o PREFETCH should *yest* be set for cases like Multiple PCI devices
+**   behind GSCtoPCI (diyes) bus converter. Only one cacheline per GSC
 **   device can be fetched and multiply DMA streams will thrash the
 **   prefetch buffer and burn memory bandwidth. See 6.7.3 "Prefetch Rules
 **   and Invalidation of Prefetch Entries".
 **
-** FIXME: the default hints need to be per GSC device - not global.
+** FIXME: the default hints need to be per GSC device - yest global.
 ** 
 ** HP-UX dorks: linux device driver programming model is totally different
 **    than HP-UX's. HP-UX always sets HINT_PREFETCH since it's drivers
-**    do special things to work on non-coherent platforms...linux has to
+**    do special things to work on yesn-coherent platforms...linux has to
 **    be much more careful with this.
 */
 #define IOPDIR_VALID    0x01UL
@@ -508,8 +508,8 @@ typedef unsigned long space_t;
 #else
 #define HINT_STOP_MOST  0x00UL	/* only needed for "some EISA devices" */
 #endif
-#define HINT_UDPATE_ENB 0x08UL  /* not used/supported by U2 */
-#define HINT_PREFETCH   0x10UL	/* for outbound pages which are not SAFE */
+#define HINT_UDPATE_ENB 0x08UL  /* yest used/supported by U2 */
+#define HINT_PREFETCH   0x10UL	/* for outbound pages which are yest SAFE */
 
 
 /*
@@ -601,7 +601,7 @@ ccio_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 
 	/* FIXME: PCX_W platforms don't need FDC/SYNC. (eg C360)
 	**        PCX-U/U+ do. (eg C200/C240)
-	**        PCX-T'? Don't know. (eg C110 or similar K-class)
+	**        PCX-T'? Don't kyesw. (eg C110 or similar K-class)
 	**
 	** See PDC_MODEL/option 0/SW_CAP word for "Non-coherent IO-PDIR bit".
 	**
@@ -702,7 +702,7 @@ static int
 ccio_dma_supported(struct device *dev, u64 mask)
 {
 	if(dev == NULL) {
-		printk(KERN_ERR MODULE_NAME ": EISA/ISA/et al not supported\n");
+		printk(KERN_ERR MODULE_NAME ": EISA/ISA/et al yest supported\n");
 		BUG();
 		return 0;
 	}
@@ -759,7 +759,7 @@ ccio_map_single(struct device *dev, void *addr, size_t size,
 	DBG_RUN("%s() 0x%p -> 0x%lx size: %0x%x\n",
 		__func__, addr, (long)iovp | offset, size);
 
-	/* If not cacheline aligned, force SAFE_DMA on the whole mess */
+	/* If yest cacheline aligned, force SAFE_DMA on the whole mess */
 	if((size % L1_CACHE_BYTES) || ((unsigned long)addr % L1_CACHE_BYTES))
 		hint |= HINT_SAFE_DMA;
 
@@ -837,7 +837,7 @@ ccio_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
  * ccio_alloc - Allocate a consistent DMA mapping.
  * @dev: The PCI device.
  * @size: The length of the DMA region.
- * @dma_handle: The DMA address handed back to the device (not the cpu).
+ * @dma_handle: The DMA address handed back to the device (yest the cpu).
  *
  * This function implements the pci_alloc_consistent function.
  */
@@ -847,7 +847,7 @@ ccio_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flag,
 {
       void *ret;
 #if 0
-/* GRANT Need to establish hierarchy for non-PCI devs as well
+/* GRANT Need to establish hierarchy for yesn-PCI devs as well
 ** and then provide matching gsc_map_xxx() functions for them as well.
 */
 	if(!hwdev) {
@@ -885,7 +885,7 @@ ccio_free(struct device *dev, size_t size, void *cpu_addr,
 
 /*
 ** Since 0 is a valid pdir_base index value, can't use that
-** to determine if a value is valid or not. Use a flag to indicate
+** to determine if a value is valid or yest. Use a flag to indicate
 ** the SG list entry contains a valid pdir index.
 */
 #define PIDE_FLAG 0x80000000UL
@@ -1042,7 +1042,7 @@ static int ccio_proc_info(struct seq_file *m, void *p)
 		seq_printf(m, "%s\n", ioc->name);
 		
 		seq_printf(m, "Cujo 2.0 bug    : %s\n",
-			   (ioc->cujo20_bug ? "yes" : "no"));
+			   (ioc->cujo20_bug ? "no" : "yes"));
 		
 		seq_printf(m, "IO PDIR size    : %d bytes (%d entries)\n",
 			   total_pages * 8, total_pages);
@@ -1153,7 +1153,7 @@ void * ccio_get_iommu(const struct parisc_device *dev)
 
 /* Cujo 2.0 has a bug which will silently corrupt data being transferred
  * to/from certain pages.  To avoid this happening, we mark these pages
- * as `used', and ensure that nothing will try to allocate from them.
+ * as `used', and ensure that yesthing will try to allocate from them.
  */
 void __init ccio_cujo20_fixup(struct parisc_device *cujo, u32 iovp)
 {
@@ -1173,12 +1173,12 @@ void __init ccio_cujo20_fixup(struct parisc_device *cujo, u32 iovp)
 }
 
 #if 0
-/* GRANT -  is this needed for U2 or not? */
+/* GRANT -  is this needed for U2 or yest? */
 
 /*
 ** Get the size of the I/O TLB for this I/O MMU.
 **
-** If spa_shift is non-zero (ie probably U2),
+** If spa_shift is yesn-zero (ie probably U2),
 ** then calculate the I/O TLB size using spa_shift.
 **
 ** Otherwise we are supposed to get the IODC entry point ENTRY TLB
@@ -1268,7 +1268,7 @@ ccio_ioc_init(struct ioc *ioc)
 
 	iov_order = get_order(iova_space_size << PAGE_SHIFT);
 
-	/* iova_space_size is now bytes, not pages */
+	/* iova_space_size is yesw bytes, yest pages */
 	iova_space_size = 1 << (iov_order + PAGE_SHIFT);
 
 	ioc->pdir_size = (iova_space_size / IOVP_SIZE) * sizeof(u64);
@@ -1287,7 +1287,7 @@ ccio_ioc_init(struct ioc *ioc)
 	ioc->pdir_base = (u64 *)__get_free_pages(GFP_KERNEL, 
 						 get_order(ioc->pdir_size));
 	if(NULL == ioc->pdir_base) {
-		panic("%s() could not allocate I/O Page Table\n", __func__);
+		panic("%s() could yest allocate I/O Page Table\n", __func__);
 	}
 	memset(ioc->pdir_base, 0, ioc->pdir_size);
 
@@ -1301,7 +1301,7 @@ ccio_ioc_init(struct ioc *ioc)
 	ioc->res_map = (u8 *)__get_free_pages(GFP_KERNEL, 
 					      get_order(ioc->res_size));
 	if(NULL == ioc->res_map) {
-		panic("%s() could not allocate resource map\n", __func__);
+		panic("%s() could yest allocate resource map\n", __func__);
 	}
 	memset(ioc->res_map, 0, ioc->res_size);
 
@@ -1433,9 +1433,9 @@ static int expand_ioc_area(struct resource *res, unsigned long size,
 }
 
 /*
- * Dino calls this function.  Beware that we may get called on systems
- * which have no IOC (725, B180, C160L, etc) but do have a Dino.
- * So it's legal to find no parent IOC.
+ * Diyes calls this function.  Beware that we may get called on systems
+ * which have yes IOC (725, B180, C160L, etc) but do have a Diyes.
+ * So it's legal to find yes parent IOC.
  *
  * Some other issues: one of the resources in the ioc may be unassigned.
  */
@@ -1507,7 +1507,7 @@ int ccio_request_resource(const struct parisc_device *dev,
  * ccio_probe - Determine if ccio should claim this device.
  * @dev: The device which has been found
  *
- * Determine if ccio should claim this chip (return 0) or not (return 1).
+ * Determine if ccio should claim this chip (return 0) or yest (return 1).
  * If so, initialize the chip and tell other partners in crime they
  * have work to do.
  */
@@ -1534,7 +1534,7 @@ static int __init ccio_probe(struct parisc_device *dev)
 	*ioc_p = ioc;
 
 	ioc->hw_path = dev->hw_path;
-	ioc->ioc_regs = ioremap_nocache(dev->hpa.start, 4096);
+	ioc->ioc_regs = ioremap_yescache(dev->hpa.start, 4096);
 	if (!ioc->ioc_regs) {
 		kfree(ioc);
 		return -ENOMEM;
@@ -1544,7 +1544,7 @@ static int __init ccio_probe(struct parisc_device *dev)
 	hppa_dma_ops = &ccio_ops;
 
 	hba = kzalloc(sizeof(*hba), GFP_KERNEL);
-	/* if this fails, no I/O cards will work, so may as well bug */
+	/* if this fails, yes I/O cards will work, so may as well bug */
 	BUG_ON(hba == NULL);
 
 	hba->iommu = ioc;

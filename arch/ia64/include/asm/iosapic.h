@@ -99,7 +99,7 @@ extern int __init iosapic_register_platform_intr (u32 int_type,
 					   unsigned long trigger);
 
 #ifdef CONFIG_NUMA
-extern void map_iosapic_to_node (unsigned int, int);
+extern void map_iosapic_to_yesde (unsigned int, int);
 #endif
 
 # endif /* !__ASSEMBLY__ */

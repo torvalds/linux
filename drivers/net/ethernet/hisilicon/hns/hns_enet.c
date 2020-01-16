@@ -186,7 +186,7 @@ static void fill_desc(struct hnae_ring *ring, void *priv,
 				flag_ipoffset |= 1 << HNS_TXD_L4CS_B;
 
 			} else if (skb->protocol == htons(ETH_P_IPV6)) {
-				/* ipv6 has not l3 cs, check for L4 header */
+				/* ipv6 has yest l3 cs, check for L4 header */
 				flag_ipoffset |= 1 << HNS_TXD_L4CS_B;
 			}
 
@@ -214,7 +214,7 @@ static int hns_nic_maybe_stop_tx(
 	struct sk_buff *new_skb = NULL;
 	int buf_num;
 
-	/* no. of segments (plus a header) */
+	/* yes. of segments (plus a header) */
 	buf_num = skb_shinfo(skb)->nr_frags + 1;
 
 	if (unlikely(buf_num > ring->max_desc_num_per_pkt)) {
@@ -322,13 +322,13 @@ netdev_tx_t hns_nic_net_xmit_hw(struct net_device *ndev,
 		goto out_net_tx_busy;
 	case -ENOMEM:
 		ring->stats.sw_err_cnt++;
-		netdev_err(ndev, "no memory to xmit!\n");
+		netdev_err(ndev, "yes memory to xmit!\n");
 		goto out_err_tx_ok;
 	default:
 		break;
 	}
 
-	/* no. of segments (plus a header) */
+	/* yes. of segments (plus a header) */
 	seg_num = skb_shinfo(skb)->nr_frags + 1;
 	next_to_use = ring->next_to_use;
 
@@ -432,7 +432,7 @@ static void hns_nic_reuse_page(struct sk_buff *skb, int i,
 			size - pull_len, truesize);
 
 	 /* avoid re-using remote pages,flag default unreuse */
-	if (unlikely(page_to_nid(desc_cb->priv) != numa_node_id()))
+	if (unlikely(page_to_nid(desc_cb->priv) != numa_yesde_id()))
 		return;
 
 	if (twobufs) {
@@ -498,11 +498,11 @@ static void hns_nic_rx_checksum(struct hns_nic_ring_data *ring_data,
 	 * Software workaround:
 	 * We do get info within the RX descriptor about the kind of L3/L4
 	 * protocol coming in the packet and the error status. These errors
-	 * might not just be checksum errors but could be related to version,
+	 * might yest just be checksum errors but could be related to version,
 	 * length of IPv4, UDP, TCP etc.
-	 * Because there is no-way of knowing if it is a L3/L4 error due to bad
-	 * checksum or any other L3/L4 error, we will not (cannot) convey
-	 * checksum status for such cases to upper stack and will not maintain
+	 * Because there is yes-way of kyeswing if it is a L3/L4 error due to bad
+	 * checksum or any other L3/L4 error, we will yest (canyest) convey
+	 * checksum status for such cases to upper stack and will yest maintain
 	 * the RX L3/L4 checksum counters as well.
 	 */
 
@@ -513,11 +513,11 @@ static void hns_nic_rx_checksum(struct hns_nic_ring_data *ring_data,
 	if ((l3id != HNS_RX_FLAG_L3ID_IPV4) && (l3id != HNS_RX_FLAG_L3ID_IPV6))
 		return;
 
-	/* check for any(not just checksum)flagged L3 protocol errors */
+	/* check for any(yest just checksum)flagged L3 protocol errors */
 	if (unlikely(hnae_get_bit(flag, HNS_RXD_L3E_B)))
 		return;
 
-	/* we do not support checksum of fragmented packets */
+	/* we do yest support checksum of fragmented packets */
 	if (unlikely(hnae_get_bit(flag, HNS_RXD_FRAG_B)))
 		return;
 
@@ -527,11 +527,11 @@ static void hns_nic_rx_checksum(struct hns_nic_ring_data *ring_data,
 	    (l4id != HNS_RX_FLAG_L4ID_SCTP))
 		return;
 
-	/* check for any(not just checksum)flagged L4 protocol errors */
+	/* check for any(yest just checksum)flagged L4 protocol errors */
 	if (unlikely(hnae_get_bit(flag, HNS_RXD_L4E_B)))
 		return;
 
-	/* now, this has to be a packet with valid RX checksum */
+	/* yesw, this has to be a packet with valid RX checksum */
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
@@ -580,9 +580,9 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 		memcpy(__skb_put(skb, length), va, ALIGN(length, sizeof(long)));
 
 		/* we can reuse buffer as-is, just make sure it is local */
-		if (likely(page_to_nid(desc_cb->priv) == numa_node_id()))
+		if (likely(page_to_nid(desc_cb->priv) == numa_yesde_id()))
 			desc_cb->reuse_flag = 1;
-		else /* this page cannot be reused so discard it */
+		else /* this page canyest be reused so discard it */
 			put_page(desc_cb->priv);
 
 		ring_ptr_move_fw(ring, next_to_clean);
@@ -617,7 +617,7 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 	/* check except process, free skb and jump the desc */
 	if (unlikely((!bnum) || (bnum > ring->max_desc_num_per_pkt))) {
 out_bnum_err:
-		*out_bnum = *out_bnum ? *out_bnum : 1; /* ntc moved,cannot 0*/
+		*out_bnum = *out_bnum ? *out_bnum : 1; /* ntc moved,canyest 0*/
 		netdev_err(ndev, "invalid bnum(%d,%d,%d,%d),%016llx,%016llx\n",
 			   bnum, ring->max_desc_num_per_pkt,
 			   length, (int)MAX_SKB_FRAGS,
@@ -630,9 +630,9 @@ out_bnum_err:
 	bnum_flag = le32_to_cpu(desc->rx.ipoff_bnum_pid_flag);
 
 	if (unlikely(!hnae_get_bit(bnum_flag, HNS_RXD_VLD_B))) {
-		netdev_err(ndev, "no valid bd,%016llx,%016llx\n",
+		netdev_err(ndev, "yes valid bd,%016llx,%016llx\n",
 			   ((u64 *)desc)[0], ((u64 *)desc)[1]);
-		ring->stats.non_vld_descs++;
+		ring->stats.yesn_vld_descs++;
 		dev_kfree_skb_any(skb);
 		return -EINVAL;
 	}
@@ -796,7 +796,7 @@ static void hns_nic_adpt_coalesce(struct hns_nic_ring_data *ring_data)
 
 	/**
 	 * Because all ring in one port has one coalesce param, when one ring
-	 * calculate its own coalesce param, it cannot write to hardware at
+	 * calculate its own coalesce param, it canyest write to hardware at
 	 * once. There are three conditions as follows:
 	 *       1. current ring's coalesce param is larger than the hardware.
 	 *       2. or ring which adapt last time can change again.
@@ -845,7 +845,7 @@ static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 
 		/* poll one pkt */
 		err = hns_nic_poll_rx_skb(ring_data, &skb, &bnum);
-		if (unlikely(!skb)) /* this fault cannot be repaired */
+		if (unlikely(!skb)) /* this fault canyest be repaired */
 			goto out;
 
 		recv_bds += bnum;
@@ -960,7 +960,7 @@ static int hns_nic_tx_poll_one(struct hns_nic_ring_data *ring_data,
 	rmb(); /* make sure head is ready before touch any data */
 
 	if (is_ring_empty(ring) || head == ring->next_to_clean)
-		return 0; /* no data to poll */
+		return 0; /* yes data to poll */
 
 	if (!is_valid_clean_head(ring, head)) {
 		netdev_err(ndev, "wrong head (%d, %d-%d)\n", head,
@@ -1094,9 +1094,9 @@ static void hns_nic_adjust_link(struct net_device *ndev)
 	struct hnae_handle *h = priv->ae_handle;
 	int state = 1;
 
-	/* If there is no phy, do not need adjust link */
+	/* If there is yes phy, do yest need adjust link */
 	if (ndev->phydev) {
-		/* When phy link down, do nothing */
+		/* When phy link down, do yesthing */
 		if (ndev->phydev->link == 0)
 			return;
 
@@ -1104,7 +1104,7 @@ static void hns_nic_adjust_link(struct net_device *ndev)
 						  ndev->phydev->duplex)) {
 			/* because Hi161X chip don't support to change gmac
 			 * speed and duplex with traffic. Delay 200ms to
-			 * make sure there is no more data in chip FIFO.
+			 * make sure there is yes more data in chip FIFO.
 			 */
 			netif_carrier_off(ndev);
 			msleep(200);
@@ -1603,7 +1603,7 @@ static void hns_disable_serdes_lb(struct net_device *ndev)
 /**
  *hns_nic_clear_all_rx_fetch - clear the chip fetched descriptions. The
  *function as follows:
- *    1. if one rx ring has found the page_offset is not equal 0 between head
+ *    1. if one rx ring has found the page_offset is yest equal 0 between head
  *       and tail, it means that the chip fetched the wrong descs for the ring
  *       which buffer size is 4096.
  *    2. we set the chip serdes loopback and set rss indirection to the ring.
@@ -1730,7 +1730,7 @@ static int hns_nic_change_mtu(struct net_device *ndev, int new_mtu)
 	if (new_mtu < 68)
 		return -EINVAL;
 
-	/* MTU no change */
+	/* MTU yes change */
 	if (new_mtu == ndev->mtu)
 		return 0;
 
@@ -1789,7 +1789,7 @@ static int hns_nic_set_features(struct net_device *netdev,
 	switch (priv->enet_ver) {
 	case AE_VERSION_1:
 		if (features & (NETIF_F_TSO | NETIF_F_TSO6))
-			netdev_info(netdev, "enet v1 do not support tso!\n");
+			netdev_info(netdev, "enet v1 do yest support tso!\n");
 		break;
 	default:
 		if (features & (NETIF_F_TSO | NETIF_F_TSO6)) {
@@ -2202,10 +2202,10 @@ static int hns_nic_try_get_ae(struct net_device *ndev)
 	int ret;
 
 	h = hnae_get_handle(&priv->netdev->dev,
-			    priv->fwnode, priv->port_id, NULL);
+			    priv->fwyesde, priv->port_id, NULL);
 	if (IS_ERR_OR_NULL(h)) {
 		ret = -ENODEV;
-		dev_dbg(priv->dev, "has not handle, register notifier!\n");
+		dev_dbg(priv->dev, "has yest handle, register yestifier!\n");
 		goto out;
 	}
 	priv->ae_handle = h;
@@ -2242,17 +2242,17 @@ out:
 	return ret;
 }
 
-static int hns_nic_notifier_action(struct notifier_block *nb,
+static int hns_nic_yestifier_action(struct yestifier_block *nb,
 				   unsigned long action, void *data)
 {
 	struct hns_nic_priv *priv =
-		container_of(nb, struct hns_nic_priv, notifier_block);
+		container_of(nb, struct hns_nic_priv, yestifier_block);
 
 	assert(action == HNAE_AE_REGISTER);
 
 	if (!hns_nic_try_get_ae(priv->netdev)) {
-		hnae_unregister_notifier(&priv->notifier_block);
-		priv->notifier_block.notifier_call = NULL;
+		hnae_unregister_yestifier(&priv->yestifier_block);
+		priv->yestifier_block.yestifier_call = NULL;
 	}
 	return 0;
 }
@@ -2275,24 +2275,24 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->netdev = ndev;
 
-	if (dev_of_node(dev)) {
-		struct device_node *ae_node;
+	if (dev_of_yesde(dev)) {
+		struct device_yesde *ae_yesde;
 
-		if (of_device_is_compatible(dev->of_node,
+		if (of_device_is_compatible(dev->of_yesde,
 					    "hisilicon,hns-nic-v1"))
 			priv->enet_ver = AE_VERSION_1;
 		else
 			priv->enet_ver = AE_VERSION_2;
 
-		ae_node = of_parse_phandle(dev->of_node, "ae-handle", 0);
-		if (!ae_node) {
+		ae_yesde = of_parse_phandle(dev->of_yesde, "ae-handle", 0);
+		if (!ae_yesde) {
 			ret = -ENODEV;
-			dev_err(dev, "not find ae-handle\n");
+			dev_err(dev, "yest find ae-handle\n");
 			goto out_read_prop_fail;
 		}
-		priv->fwnode = &ae_node->fwnode;
-	} else if (is_acpi_node(dev->fwnode)) {
-		struct fwnode_reference_args args;
+		priv->fwyesde = &ae_yesde->fwyesde;
+	} else if (is_acpi_yesde(dev->fwyesde)) {
+		struct fwyesde_reference_args args;
 
 		if (acpi_dev_found(hns_enet_acpi_match[0].id))
 			priv->enet_ver = AE_VERSION_1;
@@ -2302,19 +2302,19 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 			return -ENXIO;
 
 		/* try to find port-idx-in-ae first */
-		ret = acpi_node_get_property_reference(dev->fwnode,
+		ret = acpi_yesde_get_property_reference(dev->fwyesde,
 						       "ae-handle", 0, &args);
 		if (ret) {
-			dev_err(dev, "not find ae-handle\n");
+			dev_err(dev, "yest find ae-handle\n");
 			goto out_read_prop_fail;
 		}
-		if (!is_acpi_device_node(args.fwnode)) {
+		if (!is_acpi_device_yesde(args.fwyesde)) {
 			ret = -EINVAL;
 			goto out_read_prop_fail;
 		}
-		priv->fwnode = args.fwnode;
+		priv->fwyesde = args.fwyesde;
 	} else {
-		dev_err(dev, "cannot read cfg data from OF or acpi\n");
+		dev_err(dev, "canyest read cfg data from OF or acpi\n");
 		return -ENXIO;
 	}
 
@@ -2380,22 +2380,22 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	set_bit(NIC_STATE_DOWN, &priv->state);
 
 	if (hns_nic_try_get_ae(priv->netdev)) {
-		priv->notifier_block.notifier_call = hns_nic_notifier_action;
-		ret = hnae_register_notifier(&priv->notifier_block);
+		priv->yestifier_block.yestifier_call = hns_nic_yestifier_action;
+		ret = hnae_register_yestifier(&priv->yestifier_block);
 		if (ret) {
-			dev_err(dev, "register notifier fail!\n");
-			goto out_notify_fail;
+			dev_err(dev, "register yestifier fail!\n");
+			goto out_yestify_fail;
 		}
-		dev_dbg(dev, "has not handle, register notifier!\n");
+		dev_dbg(dev, "has yest handle, register yestifier!\n");
 	}
 
 	return 0;
 
-out_notify_fail:
+out_yestify_fail:
 	(void)cancel_work_sync(&priv->service_task);
 out_read_prop_fail:
 	/* safe for ACPI FW */
-	of_node_put(to_of_node(priv->fwnode));
+	of_yesde_put(to_of_yesde(priv->fwyesde));
 	free_netdev(ndev);
 	return ret;
 }
@@ -2418,15 +2418,15 @@ static int hns_nic_dev_remove(struct platform_device *pdev)
 	if (!IS_ERR_OR_NULL(priv->ae_handle))
 		hnae_put_handle(priv->ae_handle);
 	priv->ae_handle = NULL;
-	if (priv->notifier_block.notifier_call)
-		hnae_unregister_notifier(&priv->notifier_block);
-	priv->notifier_block.notifier_call = NULL;
+	if (priv->yestifier_block.yestifier_call)
+		hnae_unregister_yestifier(&priv->yestifier_block);
+	priv->yestifier_block.yestifier_call = NULL;
 
 	set_bit(NIC_STATE_REMOVING, &priv->state);
 	(void)cancel_work_sync(&priv->service_task);
 
 	/* safe for ACPI FW */
-	of_node_put(to_of_node(priv->fwnode));
+	of_yesde_put(to_of_yesde(priv->fwyesde));
 
 	free_netdev(ndev);
 	return 0;

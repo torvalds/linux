@@ -7,7 +7,7 @@
  */
 
 #include <linux/crash_dump.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/memblock.h>
 #include <linux/uaccess.h>

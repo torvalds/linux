@@ -75,7 +75,7 @@ config HVC_UDBG
 	select HVC_DRIVER
 	help
 	  This is meant to be used during HW bring up or debugging when
-	  no other console mechanism exist but udbg, to get you a quick
+	  yes other console mechanism exist but udbg, to get you a quick
 	  console for userspace. Do NOT enable in production kernels.
 
 config HVC_DCC
@@ -93,9 +93,9 @@ config HVC_RISCV_SBI
 	select HVC_DRIVER
 	help
 	  This enables support for console output via RISC-V SBI calls, which
-	  is normally used only during boot to output printk.
+	  is yesrmally used only during boot to output printk.
 
-	  If you don't know what do to here, say Y.
+	  If you don't kyesw what do to here, say Y.
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
@@ -103,7 +103,7 @@ config HVCS
 	help
 	  Partitionable IBM Power5 ppc64 machines allow hosting of
 	  firmware virtual consoles from one Linux partition by
-	  another Linux partition.  This driver allows console data
+	  ayesther Linux partition.  This driver allows console data
 	  from Linux partitions to be accessed through TTY device
 	  interfaces in the device tree of a Linux partition running
 	  this driver.

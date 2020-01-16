@@ -33,8 +33,8 @@ config POWER_AVS_OMAP
 	  V2 is the update for the 45nm version of the IP used in OMAP3630
 	  and OMAP4430
 
-	  Please note, that by default SmartReflex is only
-	  initialized and not enabled. To enable the automatic voltage
+	  Please yeste, that by default SmartReflex is only
+	  initialized and yest enabled. To enable the automatic voltage
 	  compensation for vdd mpu and vdd core from user space,
 	  user must write 1 to
 		/debug/smartreflex/sr_<X>/autocomp,
@@ -58,10 +58,10 @@ config OMAP_RESET_CLOCKS
 	help
 	  Say Y if you want to reset unused clocks during boot.
 	  This option saves power, but assumes all drivers are
-	  using the clock framework. Broken drivers that do not
-	  yet use clock framework may not work with this option.
-	  If you are booting from another operating system, you
-	  probably do not want this option enabled until your
+	  using the clock framework. Broken drivers that do yest
+	  yet use clock framework may yest work with this option.
+	  If you are booting from ayesther operating system, you
+	  probably do yest want this option enabled until your
 	  device drivers work properly.
 
 config OMAP_MPU_TIMER
@@ -79,7 +79,7 @@ config OMAP_32K_TIMER
 	help
 	  Select this option if you want to enable the OMAP 32KHz timer.
 	  This timer saves power compared to the OMAP_MPU_TIMER, and has
-	  support for no tick during idle. The 32KHz timer provides less
+	  support for yes tick during idle. The 32KHz timer provides less
 	  intra-tick resolution than OMAP_MPU_TIMER. The 32KHz timer is
 	  currently only available for OMAP16XX, 24XX, 34XX, OMAP4/5 and DRA7XX.
 
@@ -96,7 +96,7 @@ config OMAP3_L2_AUX_SECURE_SAVE_RESTORE
 	  Without this option, L2 Auxiliary control register contents are
 	  lost during off-mode entry on HS/EMU devices. This feature
 	  requires support from PPA / boot-loader in HS/EMU devices, which
-	  currently does not exist by default.
+	  currently does yest exist by default.
 
 config OMAP3_L2_AUX_SECURE_SERVICE_SET_ID
 	int "Service ID for the support routine to set L2 AUX control"

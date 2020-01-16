@@ -7,7 +7,7 @@ Required properties:
 - reg: should contain the register location and length
 
 = Data cells =
-Are child nodes of efuse, bindings of which as described in
+Are child yesdes of efuse, bindings of which as described in
 bindings/nvmem/nvmem.txt
 
 Example:
@@ -38,7 +38,7 @@ Example:
 	};
 
 = Data consumers =
-Are device nodes which consume nvmem data cells.
+Are device yesdes which consume nvmem data cells.
 
 Example:
 

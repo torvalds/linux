@@ -11,13 +11,13 @@
  * by &struct drm_vram_mm (VRAM MM).
  *
  * With the GEM interface userspace applications create, manage and destroy
- * graphics buffers, such as an on-screen framebuffer. GEM does not provide
+ * graphics buffers, such as an on-screen framebuffer. GEM does yest provide
  * an implementation of these interfaces. It's up to the DRM driver to
  * provide an implementation that suits the hardware. If the hardware device
  * contains dedicated video memory, the DRM driver can use the VRAM helper
  * library. Each active buffer object is stored in video RAM. Active
  * buffer are used for drawing the current frame, typically something like
- * the frame's scanout buffer or the cursor image. If there's no more space
+ * the frame's scayesut buffer or the cursor image. If there's yes more space
  * left in VRAM, inactive GEM objects can be moved to system memory.
  *
  * The easiest way to use the VRAM helper library is to call
@@ -73,14 +73,14 @@
  *		drm_vram_helper_release_mm(dev);
  *	}
  *
- * For drawing or scanout operations, buffer object have to be pinned in video
+ * For drawing or scayesut operations, buffer object have to be pinned in video
  * RAM. Call drm_gem_vram_pin() with &DRM_GEM_VRAM_PL_FLAG_VRAM or
  * &DRM_GEM_VRAM_PL_FLAG_SYSTEM to pin a buffer object in video RAM or system
  * memory. Call drm_gem_vram_unpin() to release the pinned object afterwards.
  *
  * A buffer object that is pinned in video RAM has a fixed address within that
  * memory region. Call drm_gem_vram_offset() to retrieve this value. Typically
- * it's used to program the hardware's scanout engine for framebuffers, set
+ * it's used to program the hardware's scayesut engine for framebuffers, set
  * the cursor overlay's image for a mouse cursor, or use it as input to the
  * hardware's draing engine.
  *

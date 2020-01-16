@@ -2,7 +2,7 @@
 /*
  * Driver for BCM6328 memory-mapped LEDs, based on leds-syscon.c
  *
- * Copyright 2015 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright 2015 Álvaro Fernández Rojas <yesltari@gmail.com>
  * Copyright 2015 Jonas Gorski <jogo@openwrt.org>
  */
 #include <linux/io.h>
@@ -201,7 +201,7 @@ static int bcm6328_blink_set(struct led_classdev *led_cdev,
 	return rc;
 }
 
-static int bcm6328_hwled(struct device *dev, struct device_node *nc, u32 reg,
+static int bcm6328_hwled(struct device *dev, struct device_yesde *nc, u32 reg,
 			 void __iomem *mem, spinlock_t *lock)
 {
 	int i, cnt;
@@ -273,7 +273,7 @@ static int bcm6328_hwled(struct device *dev, struct device_node *nc, u32 reg,
 	return 0;
 }
 
-static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
+static int bcm6328_led(struct device *dev, struct device_yesde *nc, u32 reg,
 		       void __iomem *mem, spinlock_t *lock,
 		       unsigned long *blink_leds, unsigned long *blink_delay)
 {
@@ -344,8 +344,8 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 static int bcm6328_leds_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *child;
 	void __iomem *mem;
 	spinlock_t *lock; /* memory lock */
 	unsigned long val, *blink_leds, *blink_delay;
@@ -386,7 +386,7 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 		val |= BCM6328_SERIAL_LED_SHIFT_DIR;
 	bcm6328_led_write(mem + BCM6328_REG_INIT, val);
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		int rc;
 		u32 reg;
 
@@ -406,7 +406,7 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 					 blink_leds, blink_delay);
 
 		if (rc < 0) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return rc;
 		}
 	}
@@ -430,7 +430,7 @@ static struct platform_driver bcm6328_leds_driver = {
 
 module_platform_driver(bcm6328_leds_driver);
 
-MODULE_AUTHOR("Álvaro Fernández Rojas <noltari@gmail.com>");
+MODULE_AUTHOR("Álvaro Fernández Rojas <yesltari@gmail.com>");
 MODULE_AUTHOR("Jonas Gorski <jogo@openwrt.org>");
 MODULE_DESCRIPTION("LED driver for BCM6328 controllers");
 MODULE_LICENSE("GPL v2");

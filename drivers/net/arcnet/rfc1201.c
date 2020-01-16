@@ -101,11 +101,11 @@ static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 	if (pkt->hard.dest == 0) {
 		skb->pkt_type = PACKET_BROADCAST;
 	} else if (dev->flags & IFF_PROMISC) {
-		/* if we're not sending to ourselves :) */
+		/* if we're yest sending to ourselves :) */
 		if (pkt->hard.dest != dev->dev_addr[0])
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
-	/* now return the protocol number */
+	/* yesw return the protocol number */
 	switch (soft->proto) {
 	case ARC_P_IP:
 		return htons(ETH_P_IP);
@@ -162,8 +162,8 @@ static void rx(struct net_device *dev, int bufnum,
 		lp->hw.copy_from_card(dev, bufnum, 512 - length,
 				      soft, sizeof(pkt->soft));
 	}
-	if (!soft->split_flag) {	/* not split */
-		arc_printk(D_RX, dev, "incoming is not split (splitflag=%d)\n",
+	if (!soft->split_flag) {	/* yest split */
+		arc_printk(D_RX, dev, "incoming is yest split (splitflag=%d)\n",
 			   soft->split_flag);
 
 		if (in->skb) {	/* already assembling one! */
@@ -243,12 +243,12 @@ static void rx(struct net_device *dev, int bufnum,
 		 *
 		 * The RFC also mentions "it is possible for successfully
 		 * received packets to be retransmitted." As of 0.40 all
-		 * previously received packets are allowed, not just the
+		 * previously received packets are allowed, yest just the
 		 * most recent one.
 		 *
 		 * We allow multiple assembly processes, one for each
 		 * ARCnet card possible on the network.
-		 * Seems rather like a waste of memory, but there's no
+		 * Seems rather like a waste of memory, but there's yes
 		 * other way to be reliable.
 		 */
 
@@ -304,10 +304,10 @@ static void rx(struct net_device *dev, int bufnum,
 			skb_put(skb, ARC_HDR_SIZE + RFC1201_HDR_SIZE);
 
 			soft->split_flag = 0;	/* end result won't be split */
-		} else {	/* not first packet */
+		} else {	/* yest first packet */
 			int packetnum = ((unsigned)soft->split_flag >> 1) + 1;
 
-			/* if we're not assembling, there's no point trying to
+			/* if we're yest assembling, there's yes point trying to
 			 * continue.
 			 */
 			if (!in->skb) {
@@ -322,11 +322,11 @@ static void rx(struct net_device *dev, int bufnum,
 				return;
 			}
 			in->lastpacket++;
-			/* if not the right flag */
+			/* if yest the right flag */
 			if (packetnum != in->lastpacket) {
-				/* harmless duplicate? ignore. */
+				/* harmless duplicate? igyesre. */
 				if (packetnum <= in->lastpacket - 1) {
-					arc_printk(D_EXTRA, dev, "duplicate splitpacket ignored! (splitflag=%d)\n",
+					arc_printk(D_EXTRA, dev, "duplicate splitpacket igyesred! (splitflag=%d)\n",
 						   soft->split_flag);
 					dev->stats.rx_errors++;
 					dev->stats.rx_frame_errors++;
@@ -415,7 +415,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 	/* Set the source hardware address.
 	 *
 	 * This is pretty pointless for most purposes, but it can help in
-	 * debugging.  ARCnet does not allow us to change the source address
+	 * debugging.  ARCnet does yest allow us to change the source address
 	 * in the actual packet sent.
 	 */
 	pkt->hard.source = *dev->dev_addr;
@@ -427,8 +427,8 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
 		/* FIXME: fill in the last byte of the dest ipaddr here
-		 * to better comply with RFC1051 in "noarp" mode.
-		 * For now, always broadcasting will probably at least get
+		 * to better comply with RFC1051 in "yesarp" mode.
+		 * For yesw, always broadcasting will probably at least get
 		 * packets sent out :)
 		 */
 		pkt->hard.dest = 0;
@@ -445,7 +445,7 @@ static void load_pkt(struct net_device *dev, struct arc_hardware *hard,
 	struct arcnet_local *lp = netdev_priv(dev);
 	int ofs;
 
-	/* assume length <= XMTU: someone should have handled that by now. */
+	/* assume length <= XMTU: someone should have handled that by yesw. */
 
 	if (softlen > MinTU) {
 		hard->offset[0] = 0;
@@ -482,7 +482,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	arc_printk(D_DURING, dev, "prepare_tx: txbufs=%d/%d/%d\n",
 		   lp->next_tx, lp->cur_tx, bufnum);
 
-	/* hard header is not included in packet length */
+	/* hard header is yest included in packet length */
 	length -= ARC_HDR_SIZE;
 	pkt->soft.rfc1201.split_flag = 0;
 
@@ -499,7 +499,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 			   out->numsegs, out->length,
 			   pkt->soft.rfc1201.sequence);
 
-		return 0;	/* not done */
+		return 0;	/* yest done */
 	}
 	/* just load the packet into the buffers and send it off */
 	load_pkt(dev, &pkt->hard, &pkt->soft.rfc1201, length, bufnum);

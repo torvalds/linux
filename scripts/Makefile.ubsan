@@ -15,5 +15,5 @@ endif
 
       # -fsanitize=* options makes GCC less smart than usual and
       # increase number of 'maybe-uninitialized false-positives
-      CFLAGS_UBSAN += $(call cc-option, -Wno-maybe-uninitialized)
+      CFLAGS_UBSAN += $(call cc-option, -Wyes-maybe-uninitialized)
 endif

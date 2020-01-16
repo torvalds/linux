@@ -77,14 +77,14 @@ static const struct seq_operations hcall_inst_seq_ops = {
         .show  = hc_show
 };
 
-static int hcall_inst_seq_open(struct inode *inode, struct file *file)
+static int hcall_inst_seq_open(struct iyesde *iyesde, struct file *file)
 {
 	int rc;
 	struct seq_file *seq;
 
 	rc = seq_open(file, &hcall_inst_seq_ops);
 	seq = file->private_data;
-	seq->private = file_inode(file)->i_private;
+	seq->private = file_iyesde(file)->i_private;
 
 	return rc;
 }
@@ -100,7 +100,7 @@ static const struct file_operations hcall_inst_seq_fops = {
 #define CPU_NAME_BUF_SIZE	32
 
 
-static void probe_hcall_entry(void *ignored, unsigned long opcode, unsigned long *args)
+static void probe_hcall_entry(void *igyesred, unsigned long opcode, unsigned long *args)
 {
 	struct hcall_stats *h;
 
@@ -112,7 +112,7 @@ static void probe_hcall_entry(void *ignored, unsigned long opcode, unsigned long
 	h->purr_start = mfspr(SPRN_PURR);
 }
 
-static void probe_hcall_exit(void *ignored, unsigned long opcode, long retval,
+static void probe_hcall_exit(void *igyesred, unsigned long opcode, long retval,
 			     unsigned long *retbuf)
 {
 	struct hcall_stats *h;

@@ -33,13 +33,13 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 		actual_pgd += PTRS_PER_PGD;
 		/* Populate first pmd with allocated memory.  We mark it
 		 * with PxD_FLAG_ATTACHED as a signal to the system that this
-		 * pmd entry may not be cleared. */
+		 * pmd entry may yest be cleared. */
 		set_pgd(actual_pgd, __pgd((PxD_FLAG_PRESENT |
 				        PxD_FLAG_VALID |
 					PxD_FLAG_ATTACHED)
 			+ (__u32)(__pa((unsigned long)pgd) >> PxD_VALUE_SHIFT)));
 		/* The first pmd entry also is marked with PxD_FLAG_ATTACHED as
-		 * a signal that this pmd may not be freed */
+		 * a signal that this pmd may yest be freed */
 		set_pgd(pgd, __pgd(PxD_FLAG_ATTACHED));
 #endif
 	}
@@ -78,7 +78,7 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 	if (pmd_flag(*pmd) & PxD_FLAG_ATTACHED) {
 		/*
 		 * This is the permanent pmd attached to the pgd;
-		 * cannot free it.
+		 * canyest free it.
 		 * Increment the counter to compensate for the decrement
 		 * done by generic mm code.
 		 */

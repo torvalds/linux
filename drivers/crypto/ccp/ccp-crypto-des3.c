@@ -44,7 +44,7 @@ static int ccp_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	if (err)
 		return err;
 
-	/* It's not clear that there is any support for a keysize of 112.
+	/* It's yest clear that there is any support for a keysize of 112.
 	 * If needed, the caller should make K1 == K3
 	 */
 	ctx->u.des3.type = CCP_DES3_TYPE_168;

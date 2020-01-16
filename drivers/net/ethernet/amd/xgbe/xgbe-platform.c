@@ -19,26 +19,26 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -62,11 +62,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -82,23 +82,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -222,16 +222,16 @@ static int xgbe_of_support(struct xgbe_prv_data *pdata)
 static struct platform_device *xgbe_of_get_phy_pdev(struct xgbe_prv_data *pdata)
 {
 	struct device *dev = pdata->dev;
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 	struct platform_device *phy_pdev;
 
-	phy_node = of_parse_phandle(dev->of_node, "phy-handle", 0);
-	if (phy_node) {
+	phy_yesde = of_parse_phandle(dev->of_yesde, "phy-handle", 0);
+	if (phy_yesde) {
 		/* Old style device tree:
 		 *   The XGBE and PHY resources are separate
 		 */
-		phy_pdev = of_find_device_by_node(phy_node);
-		of_node_put(phy_node);
+		phy_pdev = of_find_device_by_yesde(phy_yesde);
+		of_yesde_put(phy_yesde);
 	} else {
 		/* New style device tree:
 		 *   The XGBE and PHY resources are grouped together with
@@ -318,7 +318,7 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pdata);
 
 	/* Check if we should use ACPI or DT */
-	pdata->use_acpi = dev->of_node ? 0 : 1;
+	pdata->use_acpi = dev->of_yesde ? 0 : 1;
 
 	/* Get the version data */
 	pdata->vdata = xgbe_get_vdata(pdata);
@@ -439,7 +439,7 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	/* Set the DMA coherency values */
 	attr = device_get_dma_attr(dev);
 	if (attr == DEV_DMA_NOT_SUPPORTED) {
-		dev_err(dev, "DMA is not supported");
+		dev_err(dev, "DMA is yest supported");
 		ret = -ENODEV;
 		goto err_io;
 	}
@@ -496,7 +496,7 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_io;
 
-	netdev_notice(pdata->netdev, "net device enabled\n");
+	netdev_yestice(pdata->netdev, "net device enabled\n");
 
 	return 0;
 
@@ -507,7 +507,7 @@ err_phydev:
 	xgbe_free_pdata(pdata);
 
 err_alloc:
-	dev_notice(dev, "net device not enabled\n");
+	dev_yestice(dev, "net device yest enabled\n");
 
 	return ret;
 }

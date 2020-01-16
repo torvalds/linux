@@ -12,7 +12,7 @@
 #include <dt-bindings/input/input.h>
 
 /*
- * This is commented-out for now.
+ * This is commented-out for yesw.
  * Until a later patch is merged, the kernel can use only the first
  * contiguous RAM range and will BUG() if the memreserve is outside
  * that range.
@@ -201,7 +201,7 @@
 			        gpios = <&GPIO 15 0
 			                 &GPIO 14 0>;
 			        clock-frequency = <250000>;
-				no-clock-stretching;
+				yes-clock-stretching;
 			        scl-is-open-drain;
 			        sda-is-open-drain;
 			        sda-enforce-dir;

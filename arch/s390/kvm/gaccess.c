@@ -477,7 +477,7 @@ struct trans_exc_code_bits {
 };
 
 enum {
-	FSI_UNKNOWN = 0, /* Unknown wether fetch or store */
+	FSI_UNKNOWN = 0, /* Unkyeswn wether fetch or store */
 	FSI_STORE   = 1, /* Exception was due to store operation */
 	FSI_FETCH   = 2  /* Exception was due to fetch operation */
 };
@@ -542,7 +542,7 @@ static int trans_exc(struct kvm_vcpu *vcpu, int code, unsigned long gva,
 	case PGM_EXTENDED_AUTHORITY:
 		/*
 		 * We can always store exc_access_id, as it is
-		 * undefined for non-ar cases. It is undefined for
+		 * undefined for yesn-ar cases. It is undefined for
 		 * most DAT protection exceptions.
 		 */
 		pgm->exc_access_id = ar;
@@ -601,8 +601,8 @@ static int deref_table(struct kvm *kvm, unsigned long gpa, unsigned long *val)
  *
  * Translate a guest virtual address into a guest absolute address by means
  * of dynamic address translation as specified by the architecture.
- * If the resulting absolute address is not available in the configuration
- * an addressing exception is indicated and @gpa will not be changed.
+ * If the resulting absolute address is yest available in the configuration
+ * an addressing exception is indicated and @gpa will yest be changed.
  *
  * Returns: - zero on success; @gpa contains the resulting absolute address
  *	    - a negative value if guest access failed due to e.g. broken
@@ -896,9 +896,9 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * guest_translate_address - translate guest logical into guest absolute address
  *
  * Parameter semantics are the same as the ones from guest_translate.
- * The memory contents at the guest address are not changed.
+ * The memory contents at the guest address are yest changed.
  *
- * Note: The IPTE lock is not taken during this function, so the caller
+ * Note: The IPTE lock is yest taken during this function, so the caller
  * has to take care of this.
  */
 int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
@@ -961,7 +961,7 @@ int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
  * Checks whether an address is subject to low-address protection and set
  * up vcpu->arch.pgm accordingly if necessary.
  *
- * Return: 0 if no protection exception, or PGM_PROTECTION if protected.
+ * Return: 0 if yes protection exception, or PGM_PROTECTION if protected.
  */
 int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra)
 {
@@ -977,7 +977,7 @@ int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra)
  * @sg: pointer to the shadow guest address space structure
  * @saddr: faulting address in the shadow gmap
  * @pgt: pointer to the page table address result
- * @fake: pgt references contiguous guest memory block, not a pgtable
+ * @fake: pgt references contiguous guest memory block, yest a pgtable
  */
 static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 				  unsigned long *pgt, int *dat_protection,

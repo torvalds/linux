@@ -5,7 +5,7 @@
 #include "atom.h"
 #include "lut.h"
 
-#include <nvif/notify.h>
+#include <nvif/yestify.h>
 
 struct nv50_wndw_ctxdma {
 	struct list_head head;
@@ -30,7 +30,7 @@ struct nv50_wndw {
 	struct nv50_dmac wndw;
 	struct nv50_dmac wimm;
 
-	struct nvif_notify notify;
+	struct nvif_yestify yestify;
 	u16 ntfy;
 	u16 sema;
 	u32 data;
@@ -59,10 +59,10 @@ struct nv50_wndw_func {
 
 	void (*sema_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*sema_clr)(struct nv50_wndw *);
-	void (*ntfy_reset)(struct nouveau_bo *, u32 offset);
+	void (*ntfy_reset)(struct yesuveau_bo *, u32 offset);
 	void (*ntfy_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*ntfy_clr)(struct nv50_wndw *);
-	int (*ntfy_wait_begun)(struct nouveau_bo *, u32 offset,
+	int (*ntfy_wait_begun)(struct yesuveau_bo *, u32 offset,
 			       struct nvif_device *);
 	void (*ilut)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*csc)(struct nv50_wndw *, struct nv50_wndw_atom *,
@@ -83,8 +83,8 @@ struct nv50_wndw_func {
 
 extern const struct drm_plane_funcs nv50_wndw;
 
-void base507c_ntfy_reset(struct nouveau_bo *, u32);
-int base507c_ntfy_wait_begun(struct nouveau_bo *, u32, struct nvif_device *);
+void base507c_ntfy_reset(struct yesuveau_bo *, u32);
+int base507c_ntfy_wait_begun(struct yesuveau_bo *, u32, struct nvif_device *);
 
 void base907c_csc(struct nv50_wndw *, struct nv50_wndw_atom *,
 		  const struct drm_color_ctm *);
@@ -97,9 +97,9 @@ struct nv50_wimm_func {
 
 extern const struct nv50_wimm_func curs507a;
 
-int wndwc37e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
+int wndwc37e_new(struct yesuveau_drm *, enum drm_plane_type, int, s32,
 		 struct nv50_wndw **);
-int wndwc37e_new_(const struct nv50_wndw_func *, struct nouveau_drm *,
+int wndwc37e_new_(const struct nv50_wndw_func *, struct yesuveau_drm *,
 		  enum drm_plane_type type, int index, s32 oclass, u32 heads,
 		  struct nv50_wndw **);
 int wndwc37e_acquire(struct nv50_wndw *, struct nv50_wndw_atom *,
@@ -114,9 +114,9 @@ void wndwc37e_image_clr(struct nv50_wndw *);
 void wndwc37e_blend_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void wndwc37e_update(struct nv50_wndw *, u32 *);
 
-int wndwc57e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
+int wndwc57e_new(struct yesuveau_drm *, enum drm_plane_type, int, s32,
 		 struct nv50_wndw **);
 
-int nv50_wndw_new(struct nouveau_drm *, enum drm_plane_type, int index,
+int nv50_wndw_new(struct yesuveau_drm *, enum drm_plane_type, int index,
 		  struct nv50_wndw **);
 #endif

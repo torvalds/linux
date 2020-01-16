@@ -33,7 +33,7 @@ static struct regmap *ap_syscon_map;
  * is the (PA >> 12).
  *
  * Setup a VA for the Integrator interrupt controller (for header #0,
- * just for now).
+ * just for yesw).
  */
 #define VA_IC_BASE	__io_address(INTEGRATOR_IC_BASE)
 
@@ -175,18 +175,18 @@ static const struct of_device_id ap_syscon_match[] = {
 static void __init ap_init_of(void)
 {
 	u32 sc_dec;
-	struct device_node *syscon;
+	struct device_yesde *syscon;
 	int ret;
 	int i;
 
 	of_platform_default_populate(NULL, ap_auxdata_lookup, NULL);
 
-	syscon = of_find_matching_node(NULL, ap_syscon_match);
+	syscon = of_find_matching_yesde(NULL, ap_syscon_match);
 	if (!syscon)
 		return;
-	ap_syscon_map = syscon_node_to_regmap(syscon);
+	ap_syscon_map = syscon_yesde_to_regmap(syscon);
 	if (IS_ERR(ap_syscon_map)) {
-		pr_crit("could not find Integrator/AP system controller\n");
+		pr_crit("could yest find Integrator/AP system controller\n");
 		return;
 	}
 
@@ -194,7 +194,7 @@ static void __init ap_init_of(void)
 			  INTEGRATOR_SC_DEC_OFFSET,
 			  &sc_dec);
 	if (ret) {
-		pr_crit("could not read from Integrator/AP syscon\n");
+		pr_crit("could yest read from Integrator/AP syscon\n");
 		return;
 	}
 

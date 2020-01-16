@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2014-2018 Nuvoton Technology corporation.
+// Copyright (c) 2014-2018 Nuvoton Techyeslogy corporation.
 
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -280,7 +280,7 @@ static inline void npcm7xx_fan_start_capture(struct npcm7xx_pwm_fan_data *data,
 		reg_int = ioread8(NPCM7XX_FAN_REG_TIEN(data->fan_base, fan));
 
 		/*
-		 * the interrupt enable bits do not need to be cleared before
+		 * the interrupt enable bits do yest need to be cleared before
 		 * it sets, the interrupt enable bits are cleared only on reset.
 		 * the clock unit control register is behaving in the same
 		 * manner that the interrupt enable register behave.
@@ -385,7 +385,7 @@ static inline void npcm7xx_fan_compute(struct npcm7xx_pwm_fan_data *data,
 		data->fan_dev[fan_id].fan_cnt_tmp = 0;
 	} else if (data->fan_dev[fan_id].fan_st_flg < FAN_ENOUGH_SAMPLE) {
 		/*
-		 * collect the enough sample,
+		 * collect the eyesugh sample,
 		 * (ex: 2 pulse fan need to get 2 sample)
 		 */
 		data->fan_dev[fan_id].fan_cnt_tmp +=
@@ -393,7 +393,7 @@ static inline void npcm7xx_fan_compute(struct npcm7xx_pwm_fan_data *data,
 
 		data->fan_dev[fan_id].fan_st_flg++;
 	} else {
-		/* get enough sample or fan disable */
+		/* get eyesugh sample or fan disable */
 		if (data->fan_dev[fan_id].fan_st_flg == FAN_ENOUGH_SAMPLE) {
 			data->fan_dev[fan_id].fan_cnt_tmp +=
 				(NPCM7XX_FAN_TCNT - fan_cap);
@@ -820,7 +820,7 @@ static const struct thermal_cooling_device_ops npcm7xx_pwm_cool_ops = {
 };
 
 static int npcm7xx_create_pwm_cooling(struct device *dev,
-				      struct device_node *child,
+				      struct device_yesde *child,
 				      struct npcm7xx_pwm_fan_data *data,
 				      u32 pwm_port, u8 num_levels)
 {
@@ -840,7 +840,7 @@ static int npcm7xx_create_pwm_cooling(struct device *dev,
 					cdev->cooling_levels,
 					num_levels);
 	if (ret) {
-		dev_err(dev, "Property 'cooling-levels' cannot be read.\n");
+		dev_err(dev, "Property 'cooling-levels' canyest be read.\n");
 		return ret;
 	}
 	snprintf(cdev->name, THERMAL_NAME_LENGTH, "%pOFn%d", child,
@@ -860,7 +860,7 @@ static int npcm7xx_create_pwm_cooling(struct device *dev,
 }
 
 static int npcm7xx_en_pwm_fan(struct device *dev,
-			      struct device_node *child,
+			      struct device_yesde *child,
 			      struct npcm7xx_pwm_fan_data *data)
 {
 	u8 *fan_ch;
@@ -908,7 +908,7 @@ static int npcm7xx_en_pwm_fan(struct device *dev,
 static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np, *child;
+	struct device_yesde *np, *child;
 	struct npcm7xx_pwm_fan_data *data;
 	struct resource *res;
 	struct device *hwmon;
@@ -917,7 +917,7 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 	u32 output_freq;
 	u32 i;
 
-	np = dev->of_node;
+	np = dev->of_yesde;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -925,7 +925,7 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pwm");
 	if (!res) {
-		dev_err(dev, "pwm resource not found\n");
+		dev_err(dev, "pwm resource yest found\n");
 		return -ENODEV;
 	}
 
@@ -942,7 +942,7 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fan");
 	if (!res) {
-		dev_err(dev, "fan resource not found\n");
+		dev_err(dev, "fan resource yest found\n");
 		return -ENODEV;
 	}
 
@@ -979,11 +979,11 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 		}
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		ret = npcm7xx_en_pwm_fan(dev, child, data);
 		if (ret) {
 			dev_err(dev, "enable pwm and fan failed\n");
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 	}

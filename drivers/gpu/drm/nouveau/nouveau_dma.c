@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -24,14 +24,14 @@
  *
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_vmm.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_dma.h"
+#include "yesuveau_vmm.h"
 
 #include <nvif/user.h>
 
 void
-OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords)
+OUT_RINGp(struct yesuveau_channel *chan, const void *data, unsigned nr_dwords)
 {
 	bool is_iomem;
 	u32 *mem = ttm_kmap_obj_virtual(&chan->push.buffer->kmap, &is_iomem);
@@ -51,7 +51,7 @@ OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords)
  *  -EBUSY if timeout exceeded
  */
 static inline int
-READ_GET(struct nouveau_channel *chan, uint64_t *prev_get, int *timeout)
+READ_GET(struct yesuveau_channel *chan, uint64_t *prev_get, int *timeout)
 {
 	uint64_t val;
 
@@ -82,22 +82,22 @@ READ_GET(struct nouveau_channel *chan, uint64_t *prev_get, int *timeout)
 }
 
 void
-nv50_dma_push(struct nouveau_channel *chan, u64 offset, int length)
+nv50_dma_push(struct yesuveau_channel *chan, u64 offset, int length)
 {
 	struct nvif_user *user = &chan->drm->client.device.user;
-	struct nouveau_bo *pb = chan->push.buffer;
+	struct yesuveau_bo *pb = chan->push.buffer;
 	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
 
 	BUG_ON(chan->dma.ib_free < 1);
 
-	nouveau_bo_wr32(pb, ip++, lower_32_bits(offset));
-	nouveau_bo_wr32(pb, ip++, upper_32_bits(offset) | length << 8);
+	yesuveau_bo_wr32(pb, ip++, lower_32_bits(offset));
+	yesuveau_bo_wr32(pb, ip++, upper_32_bits(offset) | length << 8);
 
 	chan->dma.ib_put = (chan->dma.ib_put + 1) & chan->dma.ib_max;
 
 	mb();
 	/* Flush writes. */
-	nouveau_bo_rd32(pb, 0);
+	yesuveau_bo_rd32(pb, 0);
 
 	nvif_wr32(&chan->user, 0x8c, chan->dma.ib_put);
 	if (user->func && user->func->doorbell)
@@ -106,7 +106,7 @@ nv50_dma_push(struct nouveau_channel *chan, u64 offset, int length)
 }
 
 static int
-nv50_dma_push_wait(struct nouveau_channel *chan, int count)
+nv50_dma_push_wait(struct yesuveau_channel *chan, int count)
 {
 	uint32_t cnt = 0, prev_get = 0;
 
@@ -132,7 +132,7 @@ nv50_dma_push_wait(struct nouveau_channel *chan, int count)
 }
 
 static int
-nv50_dma_wait(struct nouveau_channel *chan, int slots, int count)
+nv50_dma_wait(struct yesuveau_channel *chan, int slots, int count)
 {
 	uint64_t prev_get = 0;
 	int ret, cnt = 0;
@@ -175,7 +175,7 @@ nv50_dma_wait(struct nouveau_channel *chan, int slots, int count)
 }
 
 int
-nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
+yesuveau_dma_wait(struct yesuveau_channel *chan, int slots, int size)
 {
 	uint64_t prev_get = 0;
 	int cnt = 0, get;
@@ -218,7 +218,7 @@ nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
 			if (chan->dma.free >= size)
 				break;
 
-			/* not enough space left at the end of the push buffer,
+			/* yest eyesugh space left at the end of the push buffer,
 			 * instruct the GPU to jump back to the start right
 			 * after processing the currently pending commands.
 			 */
@@ -227,7 +227,7 @@ nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
 			/* wait for GET to depart from the skips area.
 			 * prevents writing GET==PUT and causing a race
 			 * condition that causes us to think the GPU is
-			 * idle when it's not.
+			 * idle when it's yest.
 			 */
 			do {
 				get = READ_GET(chan, &prev_get, &cnt);
@@ -238,7 +238,7 @@ nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
 			} while (get <= NOUVEAU_DMA_SKIPS);
 			WRITE_PUT(NOUVEAU_DMA_SKIPS);
 
-			/* we're now submitting commands at the start of
+			/* we're yesw submitting commands at the start of
 			 * the push buffer.
 			 */
 			chan->dma.cur  =

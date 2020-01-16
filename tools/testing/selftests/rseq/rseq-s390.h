@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 
 /*
- * RSEQ_SIG uses the trap4 instruction. As Linux does not make use of the
- * access-register mode nor the linkage stack this instruction will always
+ * RSEQ_SIG uses the trap4 instruction. As Linux does yest make use of the
+ * access-register mode yesr the linkage stack this instruction will always
  * cause a special-operation exception (the trap-enabled bit in the DUCT
  * is and will stay 0). The instruction pattern is
  *	b2 ff 0f ff	trap4	4095(%r0)
@@ -57,9 +57,9 @@ do {									\
 /*
  * Exit points of a rseq critical section consist of all instructions outside
  * of the critical section where a critical section can either branch to or
- * reach through the normal course of its execution. The abort IP and the
- * post-commit IP are already part of the __rseq_cs section and should not be
- * explicitly defined as additional exit points. Knowing all exit points is
+ * reach through the yesrmal course of its execution. The abort IP and the
+ * post-commit IP are already part of the __rseq_cs section and should yest be
+ * explicitly defined as additional exit points. Kyeswing all exit points is
  * useful to assist debuggers stepping over the critical section.
  */
 #define RSEQ_ASM_DEFINE_EXIT_POINT(start_ip, exit_ip)			\
@@ -84,9 +84,9 @@ do {									\
 /*
  * Exit points of a rseq critical section consist of all instructions outside
  * of the critical section where a critical section can either branch to or
- * reach through the normal course of its execution. The abort IP and the
- * post-commit IP are already part of the __rseq_cs section and should not be
- * explicitly defined as additional exit points. Knowing all exit points is
+ * reach through the yesrmal course of its execution. The abort IP and the
+ * post-commit IP are already part of the __rseq_cs section and should yest be
+ * explicitly defined as additional exit points. Kyeswing all exit points is
  * useful to assist debuggers stepping over the critical section.
  */
 #define RSEQ_ASM_DEFINE_EXIT_POINT(start_ip, exit_ip)			\
@@ -163,7 +163,7 @@ int rseq_cmpeqv_storev(intptr_t *v, intptr_t expect, intptr_t newv, int cpu)
 		"2:\n\t"
 		RSEQ_INJECT_ASM(5)
 		RSEQ_ASM_DEFINE_ABORT(4, "", abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -193,11 +193,11 @@ error2:
 }
 
 /*
- * Compare @v against @expectnot. When it does _not_ match, load @v
+ * Compare @v against @expectyest. When it does _yest_ match, load @v
  * into @load, and store the content of *@v + voffp into @v.
  */
 static inline __attribute__((always_inline))
-int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
+int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectyest,
 			       off_t voffp, intptr_t *load, int cpu)
 {
 	RSEQ_INJECT_C(9)
@@ -214,13 +214,13 @@ int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
 		LONG_L " %%r1, %[v]\n\t"
-		LONG_CMP_R " %%r1, %[expectnot]\n\t"
+		LONG_CMP_R " %%r1, %[expectyest]\n\t"
 		"je %l[cmpfail]\n\t"
 		RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, %l[error1])
 		LONG_L " %%r1, %[v]\n\t"
-		LONG_CMP_R " %%r1, %[expectnot]\n\t"
+		LONG_CMP_R " %%r1, %[expectyest]\n\t"
 		"je %l[error2]\n\t"
 #endif
 		LONG_S " %%r1, %[load]\n\t"
@@ -231,13 +231,13 @@ int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
 		"2:\n\t"
 		RSEQ_INJECT_ASM(5)
 		RSEQ_ASM_DEFINE_ABORT(4, "", abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
 		  /* final store input */
 		  [v]			"m" (*v),
-		  [expectnot]		"r" (expectnot),
+		  [expectyest]		"r" (expectyest),
 		  [voffp]		"r" (voffp),
 		  [load]		"m" (*load)
 		  RSEQ_INJECT_INPUT
@@ -286,7 +286,7 @@ int rseq_addv(intptr_t *v, intptr_t count, int cpu)
 		"2:\n\t"
 		RSEQ_INJECT_ASM(4)
 		RSEQ_ASM_DEFINE_ABORT(4, "", abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -345,7 +345,7 @@ int rseq_cmpeqv_trystorev_storev(intptr_t *v, intptr_t expect,
 		"2:\n\t"
 		RSEQ_INJECT_ASM(6)
 		RSEQ_ASM_DEFINE_ABORT(4, "", abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -424,7 +424,7 @@ int rseq_cmpeqv_cmpeqv_storev(intptr_t *v, intptr_t expect,
 		"2:\n\t"
 		RSEQ_INJECT_ASM(6)
 		RSEQ_ASM_DEFINE_ABORT(4, "", abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -532,7 +532,7 @@ int rseq_cmpeqv_trymemcpy_storev(intptr_t *v, intptr_t expect,
 			LONG_L " %[src], %[rseq_scratch0]\n\t",
 			error2)
 #endif
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),

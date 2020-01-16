@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -80,7 +80,7 @@ static const struct kfd_device_info kaveri_device_info = {
 	.asic_name = "kaveri",
 	.max_pasid_bits = 16,
 	/* max num of queues for KV.TODO should be a dynamic value */
-	.max_no_of_hqd	= 24,
+	.max_yes_of_hqd	= 24,
 	.doorbell_size  = 4,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
@@ -99,7 +99,7 @@ static const struct kfd_device_info carrizo_device_info = {
 	.asic_name = "carrizo",
 	.max_pasid_bits = 16,
 	/* max num of queues for CZ.TODO should be a dynamic value */
-	.max_no_of_hqd	= 24,
+	.max_yes_of_hqd	= 24,
 	.doorbell_size  = 4,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
@@ -117,7 +117,7 @@ static const struct kfd_device_info raven_device_info = {
 	.asic_family = CHIP_RAVEN,
 	.asic_name = "raven",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 8,
 	.ih_ring_entry_size = 8 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_v9,
@@ -137,7 +137,7 @@ static const struct kfd_device_info hawaii_device_info = {
 	.asic_name = "hawaii",
 	.max_pasid_bits = 16,
 	/* max num of queues for KV.TODO should be a dynamic value */
-	.max_no_of_hqd	= 24,
+	.max_yes_of_hqd	= 24,
 	.doorbell_size  = 4,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
@@ -155,7 +155,7 @@ static const struct kfd_device_info tonga_device_info = {
 	.asic_family = CHIP_TONGA,
 	.asic_name = "tonga",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 4,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
@@ -173,7 +173,7 @@ static const struct kfd_device_info fiji_device_info = {
 	.asic_family = CHIP_FIJI,
 	.asic_name = "fiji",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 4,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
@@ -191,7 +191,7 @@ static const struct kfd_device_info fiji_vf_device_info = {
 	.asic_family = CHIP_FIJI,
 	.asic_name = "fiji",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 4,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
@@ -210,7 +210,7 @@ static const struct kfd_device_info polaris10_device_info = {
 	.asic_family = CHIP_POLARIS10,
 	.asic_name = "polaris10",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 4,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
@@ -228,7 +228,7 @@ static const struct kfd_device_info polaris10_vf_device_info = {
 	.asic_family = CHIP_POLARIS10,
 	.asic_name = "polaris10",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 4,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
@@ -246,7 +246,7 @@ static const struct kfd_device_info polaris11_device_info = {
 	.asic_family = CHIP_POLARIS11,
 	.asic_name = "polaris11",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 4,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
@@ -264,7 +264,7 @@ static const struct kfd_device_info polaris12_device_info = {
 	.asic_family = CHIP_POLARIS12,
 	.asic_name = "polaris12",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 4,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
@@ -282,7 +282,7 @@ static const struct kfd_device_info vegam_device_info = {
 	.asic_family = CHIP_VEGAM,
 	.asic_name = "vegam",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 4,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
@@ -300,7 +300,7 @@ static const struct kfd_device_info vega10_device_info = {
 	.asic_family = CHIP_VEGA10,
 	.asic_name = "vega10",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 8,
 	.ih_ring_entry_size = 8 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_v9,
@@ -318,7 +318,7 @@ static const struct kfd_device_info vega10_vf_device_info = {
 	.asic_family = CHIP_VEGA10,
 	.asic_name = "vega10",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 8,
 	.ih_ring_entry_size = 8 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_v9,
@@ -336,7 +336,7 @@ static const struct kfd_device_info vega12_device_info = {
 	.asic_family = CHIP_VEGA12,
 	.asic_name = "vega12",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 8,
 	.ih_ring_entry_size = 8 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_v9,
@@ -354,7 +354,7 @@ static const struct kfd_device_info vega20_device_info = {
 	.asic_family = CHIP_VEGA20,
 	.asic_name = "vega20",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd	= 24,
+	.max_yes_of_hqd	= 24,
 	.doorbell_size	= 8,
 	.ih_ring_entry_size = 8 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_v9,
@@ -372,7 +372,7 @@ static const struct kfd_device_info arcturus_device_info = {
 	.asic_family = CHIP_ARCTURUS,
 	.asic_name = "arcturus",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd	= 24,
+	.max_yes_of_hqd	= 24,
 	.doorbell_size	= 8,
 	.ih_ring_entry_size = 8 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_v9,
@@ -386,11 +386,11 @@ static const struct kfd_device_info arcturus_device_info = {
 	.num_sdma_queues_per_engine = 8,
 };
 
-static const struct kfd_device_info renoir_device_info = {
+static const struct kfd_device_info reyesir_device_info = {
 	.asic_family = CHIP_RENOIR,
-	.asic_name = "renoir",
+	.asic_name = "reyesir",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 8,
 	.ih_ring_entry_size = 8 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_v9,
@@ -408,7 +408,7 @@ static const struct kfd_device_info navi10_device_info = {
 	.asic_family = CHIP_NAVI10,
 	.asic_name = "navi10",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 8,
 	.ih_ring_entry_size = 8 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_v9,
@@ -426,7 +426,7 @@ static const struct kfd_device_info navi12_device_info = {
 	.asic_family = CHIP_NAVI12,
 	.asic_name = "navi12",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 8,
 	.ih_ring_entry_size = 8 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_v9,
@@ -444,7 +444,7 @@ static const struct kfd_device_info navi14_device_info = {
 	.asic_family = CHIP_NAVI14,
 	.asic_name = "navi14",
 	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
+	.max_yes_of_hqd  = 24,
 	.doorbell_size  = 8,
 	.ih_ring_entry_size = 8 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_v9,
@@ -475,7 +475,7 @@ static const struct kfd_device_info *kfd_supported_devices[][2] = {
 	[CHIP_VEGA10] = {&vega10_device_info, &vega10_vf_device_info},
 	[CHIP_VEGA12] = {&vega12_device_info, NULL},
 	[CHIP_VEGA20] = {&vega20_device_info, NULL},
-	[CHIP_RENOIR] = {&renoir_device_info, NULL},
+	[CHIP_RENOIR] = {&reyesir_device_info, NULL},
 	[CHIP_ARCTURUS] = {&arcturus_device_info, &arcturus_device_info},
 	[CHIP_NAVI10] = {&navi10_device_info, NULL},
 	[CHIP_NAVI12] = {&navi12_device_info, &navi12_device_info},
@@ -505,7 +505,7 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	f2g = kfd2kgd_funcs[asic_type];
 
 	if (!device_info || !f2g) {
-		dev_err(kfd_device, "%s %s not supported in kfd\n",
+		dev_err(kfd_device, "%s %s yest supported in kfd\n",
 			amdgpu_asic_name[asic_type], vf ? "VF" : "");
 		return NULL;
 	}
@@ -601,7 +601,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	/* Allocate global GWS that is shared by all KFD processes */
 	if (hws_gws_support && amdgpu_amdkfd_alloc_gws(kfd->kgd,
 			amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws)) {
-		dev_err(kfd_device, "Could not allocate %d gws\n",
+		dev_err(kfd_device, "Could yest allocate %d gws\n",
 			amdgpu_amdkfd_get_num_gws(kfd->kgd));
 		goto out;
 	}
@@ -620,14 +620,14 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	/* Add size of HIQ & DIQ */
 	size += KFD_KERNEL_QUEUE_SIZE * 2;
 
-	/* add another 512KB for all other allocations on gart (HPD, fences) */
+	/* add ayesther 512KB for all other allocations on gart (HPD, fences) */
 	size += 512 * 1024;
 
 	if (amdgpu_amdkfd_alloc_gtt_mem(
 			kfd->kgd, size, &kfd->gtt_mem,
 			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr,
 			false)) {
-		dev_err(kfd_device, "Could not allocate %d bytes\n", size);
+		dev_err(kfd_device, "Could yest allocate %d bytes\n", size);
 		goto alloc_gtt_mem_failure;
 	}
 
@@ -735,7 +735,7 @@ int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 }
 
 /*
- * Fix me. KFD won't be able to resume existing process for now.
+ * Fix me. KFD won't be able to resume existing process for yesw.
  * We will keep all existing process in a evicted state and
  * wait the process to be terminated.
  */
@@ -912,10 +912,10 @@ int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
 	if (!p)
 		return -ENODEV;
 
-	if (fence->seqno == p->last_eviction_seqno)
+	if (fence->seqyes == p->last_eviction_seqyes)
 		goto out;
 
-	p->last_eviction_seqno = fence->seqno;
+	p->last_eviction_seqyes = fence->seqyes;
 
 	/* Avoid KFD process starvation. Wait for at least
 	 * PROCESS_ACTIVE_TIME_MS before evicting the process again
@@ -1018,7 +1018,7 @@ kfd_gtt_restart_search:
 
 	/* If there wasn't any free chunk, bail out */
 	if (found == kfd->gtt_sa_num_of_chunks)
-		goto kfd_gtt_no_free_chunk;
+		goto kfd_gtt_yes_free_chunk;
 
 	/* Update fields of mem_obj */
 	(*mem_obj)->range_start = found;
@@ -1042,14 +1042,14 @@ kfd_gtt_restart_search:
 		goto kfd_gtt_out;
 	}
 
-	/* Otherwise, try to see if we have enough contiguous chunks */
+	/* Otherwise, try to see if we have eyesugh contiguous chunks */
 	cur_size = size - kfd->gtt_sa_chunk_size;
 	do {
 		(*mem_obj)->range_end =
 			find_next_zero_bit(kfd->gtt_sa_bitmap,
 					kfd->gtt_sa_num_of_chunks, ++found);
 		/*
-		 * If next free chunk is not contiguous than we need to
+		 * If next free chunk is yest contiguous than we need to
 		 * restart our search from the last free chunk we found (which
 		 * wasn't contiguous to the previous ones
 		 */
@@ -1062,9 +1062,9 @@ kfd_gtt_restart_search:
 		 * If we reached end of buffer, bail out with error
 		 */
 		if (found == kfd->gtt_sa_num_of_chunks)
-			goto kfd_gtt_no_free_chunk;
+			goto kfd_gtt_yes_free_chunk;
 
-		/* Check if we don't need another chunk */
+		/* Check if we don't need ayesther chunk */
 		if (cur_size <= kfd->gtt_sa_chunk_size)
 			cur_size = 0;
 		else
@@ -1085,7 +1085,7 @@ kfd_gtt_out:
 	mutex_unlock(&kfd->gtt_sa_lock);
 	return 0;
 
-kfd_gtt_no_free_chunk:
+kfd_gtt_yes_free_chunk:
 	pr_debug("Allocation failed with mem_obj = %p\n", mem_obj);
 	mutex_unlock(&kfd->gtt_sa_lock);
 	kfree(mem_obj);
@@ -1141,14 +1141,14 @@ void kfd_dec_compute_active(struct kfd_dev *kfd)
 #if defined(CONFIG_DEBUG_FS)
 
 /* This function will send a package to HIQ to hang the HWS
- * which will trigger a GPU reset and bring the HWS back to normal state
+ * which will trigger a GPU reset and bring the HWS back to yesrmal state
  */
 int kfd_debugfs_hang_hws(struct kfd_dev *dev)
 {
 	int r = 0;
 
 	if (dev->dqm->sched_policy != KFD_SCHED_POLICY_HWS) {
-		pr_err("HWS is not enabled");
+		pr_err("HWS is yest enabled");
 		return -EINVAL;
 	}
 

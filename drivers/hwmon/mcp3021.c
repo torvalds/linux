@@ -105,7 +105,7 @@ static int mcp3021_probe(struct i2c_client *client,
 {
 	int err;
 	struct mcp3021_data *data = NULL;
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;

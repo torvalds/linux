@@ -60,7 +60,7 @@ static int slim_clk_get(struct st_slim_rproc *slim_rproc, struct device *dev)
 	int clk, err;
 
 	for (clk = 0; clk < ST_SLIM_MAX_CLK; clk++) {
-		slim_rproc->clks[clk] = of_clk_get(dev->of_node, clk);
+		slim_rproc->clks[clk] = of_clk_get(dev->of_yesde, clk);
 		if (IS_ERR(slim_rproc->clks[clk])) {
 			err = PTR_ERR(slim_rproc->clks[clk]);
 			if (err == -EPROBE_DEFER)
@@ -224,7 +224,7 @@ struct st_slim_rproc *st_slim_rproc_alloc(struct platform_device *pdev,
 {
 	struct device *dev = &pdev->dev;
 	struct st_slim_rproc *slim_rproc;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct rproc *rproc;
 	struct resource *res;
 	int err, i;

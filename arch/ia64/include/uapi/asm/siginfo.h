@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Based on <asm-i386/siginfo.h>.
  *
@@ -15,7 +15,7 @@
 #define si_flags	_sifields._sigfault._flags
 /*
  * si_isr is valid for SIGILL, SIGFPE, SIGSEGV, SIGBUS, and SIGTRAP provided that
- * si_code is non-zero and __ISR_VALID is set in si_flags.
+ * si_code is yesn-zero and __ISR_VALID is set in si_flags.
  */
 #define si_isr		_sifields._sigfault._isr
 

@@ -647,7 +647,7 @@ static u16 nvmet_rdma_map_sgl_inline(struct nvmet_rdma_rsp *rsp)
 		return NVME_SC_SGL_INVALID_OFFSET | NVME_SC_DNR;
 	}
 
-	/* no data command? */
+	/* yes data command? */
 	if (!len)
 		return 0;
 
@@ -667,7 +667,7 @@ static u16 nvmet_rdma_map_sgl_keyed(struct nvmet_rdma_rsp *rsp,
 
 	rsp->req.transfer_len = get_unaligned_le24(sgl->length);
 
-	/* no data command? */
+	/* yes data command? */
 	if (!rsp->req.transfer_len)
 		return 0;
 
@@ -865,10 +865,10 @@ static int nvmet_rdma_init_srq(struct nvmet_rdma_device *ndev)
 	srq = ib_create_srq(ndev->pd, &srq_attr);
 	if (IS_ERR(srq)) {
 		/*
-		 * If SRQs aren't supported we just go ahead and use normal
-		 * non-shared receive queues.
+		 * If SRQs aren't supported we just go ahead and use yesrmal
+		 * yesn-shared receive queues.
 		 */
-		pr_info("SRQ requested but not supported.\n");
+		pr_info("SRQ requested but yest supported.\n");
 		return 0;
 	}
 
@@ -922,7 +922,7 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 
 	mutex_lock(&device_list_mutex);
 	list_for_each_entry(ndev, &device_list, entry) {
-		if (ndev->device->node_guid == cm_id->device->node_guid &&
+		if (ndev->device->yesde_guid == cm_id->device->yesde_guid &&
 		    kref_get_unless_zero(&ndev->ref))
 			goto out_unlock;
 	}
@@ -935,7 +935,7 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	inline_sge_count = max(cm_id->device->attrs.max_sge_rd,
 				cm_id->device->attrs.max_recv_sge) - 1;
 	if (inline_page_count > inline_sge_count) {
-		pr_warn("inline_data_size %d cannot be supported by device %s. Reducing to %lu.\n",
+		pr_warn("inline_data_size %d canyest be supported by device %s. Reducing to %lu.\n",
 			port->inline_data_size, cm_id->device->name,
 			inline_sge_count * PAGE_SIZE);
 		port->inline_data_size = inline_sge_count * PAGE_SIZE;
@@ -1231,7 +1231,7 @@ static void nvmet_rdma_qp_event(struct ib_event *event, void *priv)
 
 	switch (event->event) {
 	case IB_EVENT_COMM_EST:
-		rdma_notify(queue->cm_id, event->event);
+		rdma_yestify(queue->cm_id, event->event);
 		break;
 	default:
 		pr_err("received IB QP event: %s (%d)\n",
@@ -1292,7 +1292,7 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 	ret = nvmet_rdma_cm_accept(cm_id, queue, &event->param.conn);
 	if (ret) {
 		schedule_work(&queue->release_work);
-		/* Destroying rdma_cm id is not needed here */
+		/* Destroying rdma_cm id is yest needed here */
 		return 0;
 	}
 
@@ -1394,15 +1394,15 @@ static void nvmet_rdma_queue_connect_fail(struct rdma_cm_id *cm_id,
  * @cm_id:	rdma_cm id, used for nvmet port
  * @queue:      nvmet rdma queue (cm id qp_context)
  *
- * DEVICE_REMOVAL event notifies us that the RDMA device is about
- * to unplug. Note that this event can be generated on a normal
+ * DEVICE_REMOVAL event yestifies us that the RDMA device is about
+ * to unplug. Note that this event can be generated on a yesrmal
  * queue cm_id and/or a device bound listener cm_id (where in this
  * case queue will be null).
  *
  * We registered an ib_client to handle device removal for queues,
  * so we only need to handle the listening port cm_ids. In this case
  * we nullify the priv to prevent double cm_id destruction and destroying
- * the cm_id implicitely by returning a non-zero rc to the callout.
+ * the cm_id implicitely by returning a yesn-zero rc to the callout.
  */
 static int nvmet_rdma_device_removal(struct rdma_cm_id *cm_id,
 		struct nvmet_rdma_queue *queue)
@@ -1514,7 +1514,7 @@ static int nvmet_rdma_add_port(struct nvmet_port *port)
 		af = AF_INET6;
 		break;
 	default:
-		pr_err("address family %d not supported\n",
+		pr_err("address family %d yest supported\n",
 				port->disc_addr.adrfam);
 		return -EINVAL;
 	}

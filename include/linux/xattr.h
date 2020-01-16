@@ -17,13 +17,13 @@
 #include <linux/spinlock.h>
 #include <uapi/linux/xattr.h>
 
-struct inode;
+struct iyesde;
 struct dentry;
 
 /*
  * struct xattr_handler: When @name is set, match attributes with exactly that
  * name.  When @prefix is set instead, match attributes with that prefix and
- * with a non-empty suffix.
+ * with a yesn-empty suffix.
  */
 struct xattr_handler {
 	const char *name;
@@ -31,10 +31,10 @@ struct xattr_handler {
 	int flags;      /* fs private flags */
 	bool (*list)(struct dentry *dentry);
 	int (*get)(const struct xattr_handler *, struct dentry *dentry,
-		   struct inode *inode, const char *name, void *buffer,
+		   struct iyesde *iyesde, const char *name, void *buffer,
 		   size_t size);
 	int (*set)(const struct xattr_handler *, struct dentry *dentry,
-		   struct inode *inode, const char *name, const void *buffer,
+		   struct iyesde *iyesde, const char *name, const void *buffer,
 		   size_t size, int flags);
 };
 
@@ -46,11 +46,11 @@ struct xattr {
 	size_t value_len;
 };
 
-ssize_t __vfs_getxattr(struct dentry *, struct inode *, const char *, void *, size_t);
+ssize_t __vfs_getxattr(struct dentry *, struct iyesde *, const char *, void *, size_t);
 ssize_t vfs_getxattr(struct dentry *, const char *, void *, size_t);
 ssize_t vfs_listxattr(struct dentry *d, char *list, size_t size);
-int __vfs_setxattr(struct dentry *, struct inode *, const char *, const void *, size_t, int);
-int __vfs_setxattr_noperm(struct dentry *, const char *, const void *, size_t, int);
+int __vfs_setxattr(struct dentry *, struct iyesde *, const char *, const void *, size_t, int);
+int __vfs_setxattr_yesperm(struct dentry *, const char *, const void *, size_t, int);
 int vfs_setxattr(struct dentry *, const char *, const void *, size_t, int);
 int __vfs_removexattr(struct dentry *, const char *);
 int vfs_removexattr(struct dentry *, const char *);
@@ -90,9 +90,9 @@ static inline void simple_xattrs_init(struct simple_xattrs *xattrs)
  */
 static inline void simple_xattrs_free(struct simple_xattrs *xattrs)
 {
-	struct simple_xattr *xattr, *node;
+	struct simple_xattr *xattr, *yesde;
 
-	list_for_each_entry_safe(xattr, node, &xattrs->head, list) {
+	list_for_each_entry_safe(xattr, yesde, &xattrs->head, list) {
 		kfree(xattr->name);
 		kfree(xattr);
 	}
@@ -103,7 +103,7 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 		     void *buffer, size_t size);
 int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
 		     const void *value, size_t size, int flags);
-ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs, char *buffer,
+ssize_t simple_xattr_list(struct iyesde *iyesde, struct simple_xattrs *xattrs, char *buffer,
 			  size_t size);
 void simple_xattr_list_add(struct simple_xattrs *xattrs,
 			   struct simple_xattr *new_xattr);

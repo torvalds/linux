@@ -13,7 +13,7 @@ also called "timers", which can be misleading since usually timers are
 independent of each other ... these share a counter, complicating resets.
 
 HPET devices can support two interrupt routing modes.  In one mode, the
-comparators are additional interrupt sources with no particular system
+comparators are additional interrupt sources with yes particular system
 role.  Many x86 BIOS writers don't route HPET interrupts at all, which
 prevents use of that mode.  They support the other "legacy replacement"
 mode where the first two comparators block interrupts from 8254 timers

@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _func-open:
 
@@ -19,7 +19,7 @@ Name
 v4l2-open - Open a V4L2 device
 
 
-Synopsis
+Syyespsis
 ========
 
 .. code-block:: c
@@ -43,19 +43,19 @@ Arguments
 
     When the ``O_NONBLOCK`` flag is given, the :ref:`read() <func-read>`
     function and the :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will
-    return the ``EAGAIN`` error code when no data is available or no
+    return the ``EAGAIN`` error code when yes data is available or yes
     buffer is in the driver outgoing queue, otherwise these functions
     block until data becomes available. All V4L2 drivers exchanging data
     with applications must support the ``O_NONBLOCK`` flag.
 
-    Other flags have no effect.
+    Other flags have yes effect.
 
 
 Description
 ===========
 
 To open a V4L2 device applications call :ref:`open() <func-open>` with the
-desired device name. This function has no side effects; all data format
+desired device name. This function has yes side effects; all data format
 parameters, current input or output, control values or other properties
 remain unchanged. At the first :ref:`open() <func-open>` call after loading the
 driver they will be reset to default values, drivers are never in an
@@ -66,21 +66,21 @@ Return Value
 ============
 
 On success :ref:`open() <func-open>` returns the new file descriptor. On error
--1 is returned, and the ``errno`` variable is set appropriately.
+-1 is returned, and the ``erryes`` variable is set appropriately.
 Possible error codes are:
 
 EACCES
-    The caller has no permission to access the device.
+    The caller has yes permission to access the device.
 
 EBUSY
-    The driver does not support multiple opens and the device is already
+    The driver does yest support multiple opens and the device is already
     in use.
 
 ENXIO
     No device corresponding to this device special file exists.
 
 ENOMEM
-    Not enough kernel memory was available to complete the request.
+    Not eyesugh kernel memory was available to complete the request.
 
 EMFILE
     The process already has the maximum number of files open.

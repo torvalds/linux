@@ -85,7 +85,7 @@ static irqreturn_t sprd_wdt_isr(int irq, void *dev_id)
 	sprd_wdt_unlock(wdt->base);
 	writel_relaxed(SPRD_WDT_INT_CLEAR_BIT, wdt->base + SPRD_WDT_INT_CLR);
 	sprd_wdt_lock(wdt->base);
-	watchdog_notify_pretimeout(&wdt->wdd);
+	watchdog_yestify_pretimeout(&wdt->wdd);
 	return IRQ_HANDLED;
 }
 
@@ -312,7 +312,7 @@ static int sprd_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	watchdog_set_nowayout(&wdt->wdd, WATCHDOG_NOWAYOUT);
+	watchdog_set_yeswayout(&wdt->wdd, WATCHDOG_NOWAYOUT);
 	watchdog_init_timeout(&wdt->wdd, 0, dev);
 
 	ret = devm_watchdog_register_device(dev, &wdt->wdd);

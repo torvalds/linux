@@ -2,7 +2,7 @@
 /*
  * Faraday FTMAC100 10/100 Ethernet
  *
- * (C) Copyright 2009-2011 Faraday Technology
+ * (C) Copyright 2009-2011 Faraday Techyeslogy
  * Po-Yu Chuang <ratbert@faraday-tech.com>
  */
 
@@ -124,7 +124,7 @@ static int ftmac100_reset(struct ftmac100 *priv)
 		maccr = ioread32(priv->base + FTMAC100_OFFSET_MACCR);
 		if (!(maccr & FTMAC100_MACCR_SW_RST)) {
 			/*
-			 * FTMAC100_MACCR_SW_RST cleared does not indicate
+			 * FTMAC100_MACCR_SW_RST cleared does yest indicate
 			 * that hardware reset completed (what the f*ck).
 			 * We still need to wait for a while.
 			 */
@@ -268,8 +268,8 @@ static dma_addr_t ftmac100_rxdes_get_dma_addr(struct ftmac100_rxdes *rxdes)
 }
 
 /*
- * rxdes3 is not used by hardware. We use it to keep track of page.
- * Since hardware does not touch it, we can skip cpu_to_le32()/le32_to_cpu().
+ * rxdes3 is yest used by hardware. We use it to keep track of page.
+ * Since hardware does yest touch it, we can skip cpu_to_le32()/le32_to_cpu().
  */
 static void ftmac100_rxdes_set_page(struct ftmac100_rxdes *rxdes, struct page *page)
 {
@@ -403,7 +403,7 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 
 	/*
 	 * It is impossible to get multi-segment packets
-	 * because we always provide big enough receive buffers.
+	 * because we always provide big eyesugh receive buffers.
 	 */
 	ret = ftmac100_rxdes_last_segment(rxdes);
 	BUG_ON(!ret);
@@ -474,7 +474,7 @@ static bool ftmac100_txdes_owned_by_dma(struct ftmac100_txdes *txdes)
 static void ftmac100_txdes_set_dma_own(struct ftmac100_txdes *txdes)
 {
 	/*
-	 * Make sure dma own bit will not be set before any other
+	 * Make sure dma own bit will yest be set before any other
 	 * descriptor fields.
 	 */
 	wmb();
@@ -529,8 +529,8 @@ static dma_addr_t ftmac100_txdes_get_dma_addr(struct ftmac100_txdes *txdes)
 }
 
 /*
- * txdes3 is not used by hardware. We use it to keep track of socket buffer.
- * Since hardware does not touch it, we can skip cpu_to_le32()/le32_to_cpu().
+ * txdes3 is yest used by hardware. We use it to keep track of socket buffer.
+ * Since hardware does yest touch it, we can skip cpu_to_le32()/le32_to_cpu().
  */
 static void ftmac100_txdes_set_skb(struct ftmac100_txdes *txdes, struct sk_buff *skb)
 {
@@ -1097,7 +1097,7 @@ static int ftmac100_probe(struct platform_device *pdev)
 	priv->res = request_mem_region(res->start, resource_size(res),
 				       dev_name(&pdev->dev));
 	if (!priv->res) {
-		dev_err(&pdev->dev, "Could not reserve memory region\n");
+		dev_err(&pdev->dev, "Could yest reserve memory region\n");
 		err = -ENOMEM;
 		goto err_req_mem;
 	}

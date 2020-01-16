@@ -15,7 +15,7 @@ Contents
 - Command Line Parameters
 - Improving Performance
 - Additional Configurations
-- Known Issues/Troubleshooting
+- Kyeswn Issues/Troubleshooting
 - Support
 
 
@@ -39,7 +39,7 @@ The following features are available in this kernel:
 Channel Bonding documentation can be found in the Linux kernel source:
 /Documentation/networking/bonding.txt
 
-The driver information previously displayed in the /proc filesystem is not
+The driver information previously displayed in the /proc filesystem is yest
 supported in this release.  Alternatively, you can use ethtool (version 1.6
 or later), lspci, and iproute2 to obtain the same information.
 
@@ -84,7 +84,7 @@ loads the ixgb driver with 80 TX resources for the first adapter and 128 TX
 resources for the second adapter.
 
 The default value for each parameter is generally the recommended setting,
-unless otherwise noted.
+unless otherwise yested.
 
 Copybreak
 ---------
@@ -96,7 +96,7 @@ Copybreak
 
 Debug
 -----
-:Valid Range: 0-16 (0=none,...,16=all)
+:Valid Range: 0-16 (0=yesne,...,16=all)
 :Default Value: 0
 
     This parameter adjusts the level of debug messages displayed in the
@@ -104,8 +104,8 @@ Debug
 
 FlowControl
 -----------
-:Valid Range: 0-3 (0=none, 1=Rx only, 2=Tx only, 3=Rx&Tx)
-:Default Value: 1 if no EEPROM, otherwise read from EEPROM
+:Valid Range: 0-3 (0=yesne, 1=Rx only, 2=Tx only, 3=Rx&Tx)
+:Default Value: 1 if yes EEPROM, otherwise read from EEPROM
 
     This parameter controls the automatic generation(Tx) and response(Rx) to
     Ethernet PAUSE frames.  There are hardware bugs associated with enabling
@@ -292,8 +292,8 @@ NOTE:
 
 Resolving Slow UDP Traffic
 --------------------------
-If your server does not seem to be able to receive UDP traffic as fast as it
-can receive TCP traffic, it could be because Linux, by default, does not set
+If your server does yest seem to be able to receive UDP traffic as fast as it
+can receive TCP traffic, it could be because Linux, by default, does yest set
 the network stack buffers as large as they need to be to support high UDP
 transfer rates.  One way to alleviate this problem is to allow more memory to
 be used by the IP stack to store incoming data.
@@ -329,13 +329,13 @@ Adapters is ixgb.
 
 Viewing Link Messages
 ---------------------
-Link messages will not be displayed to the console if the distribution is
+Link messages will yest be displayed to the console if the distribution is
 restricting system messages. In order to see network driver link messages on
 your console, set dmesg to eight by entering the following::
 
     dmesg -n 8
 
-NOTE: This setting is not saved across reboots.
+NOTE: This setting is yest saved across reboots.
 
 Jumbo Frames
 ------------
@@ -352,7 +352,7 @@ with the maximum Jumbo Frames size of 16128.
 Ethtool
 -------
 The driver utilizes the ethtool interface for driver configuration and
-diagnostics, as well as displaying statistical information.  The ethtool
+diagyesstics, as well as displaying statistical information.  The ethtool
 version 1.6 or later is required for this functionality.
 
 The latest release of ethtool can be found from
@@ -371,11 +371,11 @@ See https://wiki.linuxfoundation.org/networking/napi for more information on
 NAPI.
 
 
-Known Issues/Troubleshooting
+Kyeswn Issues/Troubleshooting
 ============================
 
 NOTE:
-  After installing the driver, if your Intel Network Connection is not
+  After installing the driver, if your Intel Network Connection is yest
   working, verify in the "In This Release" section of the readme that you have
   installed the correct driver.
 
@@ -425,9 +425,9 @@ increasing /proc/sys/vm/min_free_kbytes.
 
 Multiple Interfaces on Same Ethernet Broadcast Network
 ------------------------------------------------------
-Due to the default ARP behavior on Linux, it is not possible to have
+Due to the default ARP behavior on Linux, it is yest possible to have
 one system on two IP networks in the same Ethernet broadcast domain
-(non-partitioned switch) behave as expected.  All Ethernet interfaces
+(yesn-partitioned switch) behave as expected.  All Ethernet interfaces
 will respond to IP traffic for any IP address assigned to the system.
 This results in unbalanced receive traffic.
 

@@ -204,13 +204,13 @@ static struct clk_regmap ao_cts_cec = {
 		.name = "ao_cts_cec",
 		.ops = &clk_regmap_mux_ops,
 		/*
-		 * FIXME: The 'fixme' parent obviously does not exist.
+		 * FIXME: The 'fixme' parent obviously does yest exist.
 		 *
 		 * ATM, CCF won't call get_parent() if num_parents is 1. It
-		 * does not allow NULL as a parent name either.
+		 * does yest allow NULL as a parent name either.
 		 *
-		 * On this particular mux, we only know the input #1 parent
-		 * but, on boot, unknown input #0 is set, so it is critical
+		 * On this particular mux, we only kyesw the input #1 parent
+		 * but, on boot, unkyeswn input #0 is set, so it is critical
 		 * to call .get_parent() on it
 		 *
 		 * Until CCF gets fixed, adding this fake parent that won't

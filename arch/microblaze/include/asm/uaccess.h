@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -25,12 +25,12 @@
  * address space.
  *
  * The fs value determines whether argument validity checking should be
- * performed or not. If get_fs() == USER_DS, checking is performed, with
+ * performed or yest. If get_fs() == USER_DS, checking is performed, with
  * get_fs() == KERNEL_DS, checking is bypassed.
  *
  * For historical reasons, these macros are grossly misnamed.
  *
- * For non-MMU arch like Microblaze, KERNEL_DS and USER_DS is equal.
+ * For yesn-MMU arch like Microblaze, KERNEL_DS and USER_DS is equal.
  */
 # define MAKE_MM_SEG(s)       ((mm_segment_t) { (s) })
 
@@ -94,11 +94,11 @@ ok:
 extern unsigned long __copy_tofrom_user(void __user *to,
 		const void __user *from, unsigned long size);
 
-/* Return: number of not copied bytes, i.e. 0 if OK or non-zero if fail. */
+/* Return: number of yest copied bytes, i.e. 0 if OK or yesn-zero if fail. */
 static inline unsigned long __must_check __clear_user(void __user *to,
 							unsigned long n)
 {
-	/* normal memset with two words to __ex_table */
+	/* yesrmal memset with two words to __ex_table */
 	__asm__ __volatile__ (				\
 			"1:	sb	r0, %1, r0;"	\
 			"	addik	%0, %0, -1;"	\
@@ -154,7 +154,7 @@ extern long __user_bad(void);
  *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -243,7 +243,7 @@ extern long __user_bad(void);
  *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable

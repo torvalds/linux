@@ -222,7 +222,7 @@ setuserscan
        matches with the new scan data:
             echo "type=1 keep=1" > setuserscan
 
-    All entries in the scan table (not just the new scan data when keep=1)
+    All entries in the scan table (yest just the new scan data when keep=1)
     will be displayed upon completion by use of the getscantable ioctl.
 
 hostsleep

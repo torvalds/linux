@@ -176,7 +176,7 @@ TRACE_EVENT(kvm_cpuid,
 	TP_printk("func %x rax %lx rbx %lx rcx %lx rdx %lx, cpuid entry %s",
 		  __entry->function, __entry->rax,
 		  __entry->rbx, __entry->rcx, __entry->rdx,
-		  __entry->found ? "found" : "not found")
+		  __entry->found ? "found" : "yest found")
 );
 
 #define AREG(x) { APIC_##x, "APIC_" #x }
@@ -298,7 +298,7 @@ TRACE_EVENT(kvm_inj_exception,
 
 	TP_printk("%s (0x%x)",
 		  __print_symbolic(__entry->exception, kvm_trace_sym_exc),
-		  /* FIXME: don't print error_code if not present */
+		  /* FIXME: don't print error_code if yest present */
 		  __entry->has_error ? __entry->error_code : 0)
 );
 
@@ -815,7 +815,7 @@ TRACE_EVENT(kvm_write_tsc_offset,
 #ifdef CONFIG_X86_64
 
 #define host_clocks					\
-	{VCLOCK_NONE, "none"},				\
+	{VCLOCK_NONE, "yesne"},				\
 	{VCLOCK_TSC,  "tsc"}				\
 
 TRACE_EVENT(kvm_update_master_clock,
@@ -1027,9 +1027,9 @@ TRACE_EVENT(kvm_pi_irte_update,
 );
 
 /*
- * Tracepoint for kvm_hv_notify_acked_sint.
+ * Tracepoint for kvm_hv_yestify_acked_sint.
  */
-TRACE_EVENT(kvm_hv_notify_acked_sint,
+TRACE_EVENT(kvm_hv_yestify_acked_sint,
 	TP_PROTO(int vcpu_id, u32 sint),
 	TP_ARGS(vcpu_id, sint),
 
@@ -1175,25 +1175,25 @@ TRACE_EVENT(kvm_hv_stimer_set_count,
  * Tracepoint for stimer_start(periodic timer case).
  */
 TRACE_EVENT(kvm_hv_stimer_start_periodic,
-	TP_PROTO(int vcpu_id, int timer_index, u64 time_now, u64 exp_time),
-	TP_ARGS(vcpu_id, timer_index, time_now, exp_time),
+	TP_PROTO(int vcpu_id, int timer_index, u64 time_yesw, u64 exp_time),
+	TP_ARGS(vcpu_id, timer_index, time_yesw, exp_time),
 
 	TP_STRUCT__entry(
 		__field(int, vcpu_id)
 		__field(int, timer_index)
-		__field(u64, time_now)
+		__field(u64, time_yesw)
 		__field(u64, exp_time)
 	),
 
 	TP_fast_assign(
 		__entry->vcpu_id = vcpu_id;
 		__entry->timer_index = timer_index;
-		__entry->time_now = time_now;
+		__entry->time_yesw = time_yesw;
 		__entry->exp_time = exp_time;
 	),
 
-	TP_printk("vcpu_id %d timer %d time_now %llu exp_time %llu",
-		  __entry->vcpu_id, __entry->timer_index, __entry->time_now,
+	TP_printk("vcpu_id %d timer %d time_yesw %llu exp_time %llu",
+		  __entry->vcpu_id, __entry->timer_index, __entry->time_yesw,
 		  __entry->exp_time)
 );
 
@@ -1201,25 +1201,25 @@ TRACE_EVENT(kvm_hv_stimer_start_periodic,
  * Tracepoint for stimer_start(one-shot timer case).
  */
 TRACE_EVENT(kvm_hv_stimer_start_one_shot,
-	TP_PROTO(int vcpu_id, int timer_index, u64 time_now, u64 count),
-	TP_ARGS(vcpu_id, timer_index, time_now, count),
+	TP_PROTO(int vcpu_id, int timer_index, u64 time_yesw, u64 count),
+	TP_ARGS(vcpu_id, timer_index, time_yesw, count),
 
 	TP_STRUCT__entry(
 		__field(int, vcpu_id)
 		__field(int, timer_index)
-		__field(u64, time_now)
+		__field(u64, time_yesw)
 		__field(u64, count)
 	),
 
 	TP_fast_assign(
 		__entry->vcpu_id = vcpu_id;
 		__entry->timer_index = timer_index;
-		__entry->time_now = time_now;
+		__entry->time_yesw = time_yesw;
 		__entry->count = count;
 	),
 
-	TP_printk("vcpu_id %d timer %d time_now %llu count %llu",
-		  __entry->vcpu_id, __entry->timer_index, __entry->time_now,
+	TP_printk("vcpu_id %d timer %d time_yesw %llu count %llu",
+		  __entry->vcpu_id, __entry->timer_index, __entry->time_yesw,
 		  __entry->count)
 );
 

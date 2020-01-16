@@ -173,7 +173,7 @@ enum mvpp2_prs_flow {
 	MVPP2_FL_IP6_UDP_FRAG_UNTAG,
 	MVPP2_FL_IP6_TCP_FRAG_TAG,
 	MVPP2_FL_IP6_UDP_FRAG_TAG,
-	MVPP2_FL_IP4_UNTAG, /* non-TCP, non-UDP, same for below */
+	MVPP2_FL_IP4_UNTAG, /* yesn-TCP, yesn-UDP, same for below */
 	MVPP2_FL_IP4_TAG,
 	MVPP2_FL_IP6_UNTAG,
 	MVPP2_FL_IP6_TAG,

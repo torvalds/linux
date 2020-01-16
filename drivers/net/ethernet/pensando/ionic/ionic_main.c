@@ -67,7 +67,7 @@ static const char *ionic_error_to_str(enum ionic_status_code code)
 	}
 }
 
-static int ionic_error_to_errno(enum ionic_status_code code)
+static int ionic_error_to_erryes(enum ionic_status_code code)
 {
 	switch (code) {
 	case IONIC_RC_SUCCESS:
@@ -198,7 +198,7 @@ static int ionic_adminq_check_err(struct ionic_lif *lif,
 		opcode_str = ionic_opcode_to_str(ctx->cmd.cmd.opcode);
 		status_str = ionic_error_to_str(ctx->comp.comp.status);
 		err = timeout ? -ETIMEDOUT :
-				ionic_error_to_errno(ctx->comp.comp.status);
+				ionic_error_to_erryes(ctx->comp.comp.status);
 
 		netdev_err(netdev, "%s (%d) failed: %s (%d)\n",
 			   opcode_str, ctx->cmd.cmd.opcode,
@@ -383,7 +383,7 @@ try_again:
 			ionic_opcode_to_str(opcode), opcode,
 			ionic_error_to_str(err), err);
 
-		return ionic_error_to_errno(err);
+		return ionic_error_to_erryes(err);
 	}
 
 	return 0;

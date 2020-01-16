@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
- * Name: actbl2.h - ACPI Table Definitions (tables not in ACPI spec)
+ * Name: actbl2.h - ACPI Table Definitions (tables yest in ACPI spec)
  *
  * Copyright (C) 2000 - 2019, Intel Corp.
  *
@@ -14,7 +14,7 @@
  *
  * Additional ACPI Tables (2)
  *
- * These tables are not consumed directly by the ACPICA subsystem, but are
+ * These tables are yest consumed directly by the ACPICA subsystem, but are
  * included here to support device drivers and the AML disassembler.
  *
  ******************************************************************************/
@@ -51,10 +51,10 @@
 #pragma pack(1)
 
 /*
- * Note: C bitfields are not used for this reason:
+ * Note: C bitfields are yest used for this reason:
  *
  * "Bitfields are great and easy to read, but unfortunately the C language
- * does not specify the layout of bitfields in memory, which means they are
+ * does yest specify the layout of bitfields in memory, which means they are
  * essentially useless for dealing with packed data in on-disk formats or
  * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
  * this decision was a design error in C. Ritchie could have picked an order
@@ -73,27 +73,27 @@
 
 struct acpi_table_iort {
 	struct acpi_table_header header;
-	u32 node_count;
-	u32 node_offset;
+	u32 yesde_count;
+	u32 yesde_offset;
 	u32 reserved;
 };
 
 /*
  * IORT subtables
  */
-struct acpi_iort_node {
+struct acpi_iort_yesde {
 	u8 type;
 	u16 length;
 	u8 revision;
 	u32 reserved;
 	u32 mapping_count;
 	u32 mapping_offset;
-	char node_data[1];
+	char yesde_data[1];
 };
 
 /* Values for subtable Type above */
 
-enum acpi_iort_node_type {
+enum acpi_iort_yesde_type {
 	ACPI_IORT_NODE_ITS_GROUP = 0x00,
 	ACPI_IORT_NODE_NAMED_COMPONENT = 0x01,
 	ACPI_IORT_NODE_PCI_ROOT_COMPLEX = 0x02,
@@ -106,7 +106,7 @@ struct acpi_iort_id_mapping {
 	u32 input_base;		/* Lowest value in input range */
 	u32 id_count;		/* Number of IDs */
 	u32 output_base;	/* Lowest value in output range */
-	u32 output_reference;	/* A reference to the output node */
+	u32 output_reference;	/* A reference to the output yesde */
 	u32 flags;
 };
 
@@ -123,8 +123,8 @@ struct acpi_iort_memory_access {
 
 /* Values for cache_coherency field above */
 
-#define ACPI_IORT_NODE_COHERENT         0x00000001	/* The device node is fully coherent */
-#define ACPI_IORT_NODE_NOT_COHERENT     0x00000000	/* The device node is not coherent */
+#define ACPI_IORT_NODE_COHERENT         0x00000001	/* The device yesde is fully coherent */
+#define ACPI_IORT_NODE_NOT_COHERENT     0x00000000	/* The device yesde is yest coherent */
 
 /* Masks for Hints field above */
 
@@ -139,7 +139,7 @@ struct acpi_iort_memory_access {
 #define ACPI_IORT_MF_ATTRIBUTES         (1<<1)
 
 /*
- * IORT node specific subtables
+ * IORT yesde specific subtables
  */
 struct acpi_iort_its_group {
 	u32 its_count;
@@ -147,7 +147,7 @@ struct acpi_iort_its_group {
 };
 
 struct acpi_iort_named_component {
-	u32 node_flags;
+	u32 yesde_flags;
 	u64 memory_properties;	/* Memory access properties */
 	u8 memory_address_limit;	/* Memory address size limit */
 	char device_name[1];	/* Path of namespace object */
@@ -236,7 +236,7 @@ struct acpi_iort_smmu_v3 {
 struct acpi_iort_pmcg {
 	u64 page0_base_address;
 	u32 overflow_gsiv;
-	u32 node_reference;
+	u32 yesde_reference;
 	u64 page1_base_address;
 };
 
@@ -245,7 +245,7 @@ struct acpi_iort_pmcg {
  * IVRS - I/O Virtualization Reporting Structure
  *        Version 1
  *
- * Conforms to "AMD I/O Virtualization Technology (IOMMU) Specification",
+ * Conforms to "AMD I/O Virtualization Techyeslogy (IOMMU) Specification",
  * Revision 1.26, February 2009.
  *
  ******************************************************************************/
@@ -319,7 +319,7 @@ struct acpi_ivrs_hardware {
  * Device Entries for IVHD subtable, appear after struct acpi_ivrs_hardware structure.
  * Upper two bits of the Type field are the (encoded) length of the structure.
  * Currently, only 4 and 8 byte entries are defined. 16 and 32 byte entries
- * are reserved for future use but not defined.
+ * are reserved for future use but yest defined.
  */
 struct acpi_ivrs_de_header {
 	u8 type;
@@ -794,7 +794,7 @@ struct acpi_table_mchi {
 #define ACPI_MPST_CHANNEL_INFO \
 	u8                              channel_id; \
 	u8                              reserved1[3]; \
-	u16                             power_node_count; \
+	u16                             power_yesde_count; \
 	u16                             reserved2;
 
 /* Main table */
@@ -812,10 +812,10 @@ struct acpi_mpst_channel {
 
 /* Memory Power Node Structure */
 
-struct acpi_mpst_power_node {
+struct acpi_mpst_power_yesde {
 	u8 flags;
 	u8 reserved1;
-	u16 node_id;
+	u16 yesde_id;
 	u32 length;
 	u64 range_address;
 	u64 range_length;
@@ -865,7 +865,7 @@ struct acpi_mpst_power_data {
 #define ACPI_MPST_AUTOENTRY             2
 #define ACPI_MPST_AUTOEXIT              4
 
-/* Shared Memory Region (not part of an ACPI table) */
+/* Shared Memory Region (yest part of an ACPI table) */
 
 struct acpi_mpst_shared {
 	u32 signature;
@@ -874,7 +874,7 @@ struct acpi_mpst_shared {
 	u32 command_register;
 	u32 status_register;
 	u32 power_state_id;
-	u32 power_node_id;
+	u32 power_yesde_id;
 	u64 energy_consumed;
 	u64 average_power;
 };
@@ -1024,7 +1024,7 @@ struct acpi_nfit_memory_map {
 #define ACPI_NFIT_MEM_SAVE_FAILED       (1)	/* 00: Last SAVE to Memory Device failed */
 #define ACPI_NFIT_MEM_RESTORE_FAILED    (1<<1)	/* 01: Last RESTORE from Memory Device failed */
 #define ACPI_NFIT_MEM_FLUSH_FAILED      (1<<2)	/* 02: Platform flush failed */
-#define ACPI_NFIT_MEM_NOT_ARMED         (1<<3)	/* 03: Memory Device is not armed */
+#define ACPI_NFIT_MEM_NOT_ARMED         (1<<3)	/* 03: Memory Device is yest armed */
 #define ACPI_NFIT_MEM_HEALTH_OBSERVED   (1<<4)	/* 04: Memory Device observed SMART/health events */
 #define ACPI_NFIT_MEM_HEALTH_ENABLED    (1<<5)	/* 05: SMART/health events enabled */
 #define ACPI_NFIT_MEM_MAP_FAILED        (1<<6)	/* 06: Mapping to SPA failed */
@@ -1144,12 +1144,12 @@ struct nfit_device_handle {
 
 /* Macro to construct a NFIT/NVDIMM device handle */
 
-#define ACPI_NFIT_BUILD_DEVICE_HANDLE(dimm, channel, memory, socket, node) \
+#define ACPI_NFIT_BUILD_DEVICE_HANDLE(dimm, channel, memory, socket, yesde) \
 	((dimm)                                         | \
 	((channel) << ACPI_NFIT_CHANNEL_NUMBER_OFFSET)  | \
 	((memory)  << ACPI_NFIT_MEMORY_ID_OFFSET)       | \
 	((socket)  << ACPI_NFIT_SOCKET_ID_OFFSET)       | \
-	((node)    << ACPI_NFIT_NODE_ID_OFFSET))
+	((yesde)    << ACPI_NFIT_NODE_ID_OFFSET))
 
 /* Macros to extract individual fields from a NFIT/NVDIMM device handle */
 
@@ -1314,7 +1314,7 @@ struct acpi_pcct_ext_pcc_slave {
 #define ACPI_PCCT_INTERRUPT_MODE        (1<<1)
 
 /*
- * PCC memory structures (not part of the ACPI table)
+ * PCC memory structures (yest part of the ACPI table)
  */
 
 /* Shared Memory Region */
@@ -1533,7 +1533,7 @@ struct acpi_pptt_id {
 	u64 level1_id;
 	u64 level2_id;
 	u16 major_rev;
-	u16 minor_rev;
+	u16 miyesr_rev;
 	u16 spin_rev;
 };
 

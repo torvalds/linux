@@ -14,7 +14,7 @@
 
 /*
  * The fs value determines whether argument validity checking should be
- * performed or not.  If get_fs() == USER_DS, checking is performed, with
+ * performed or yest.  If get_fs() == USER_DS, checking is performed, with
  * get_fs() == KERNEL_DS, checking is bypassed.
  *
  * For historical reasons, these macros are grossly misnamed.
@@ -38,16 +38,16 @@ static inline void set_fs(mm_segment_t fs)
 
 /*
  * Test whether a block of memory is a valid user space address.
- * Returns 0 if the range is valid, nonzero otherwise.
+ * Returns 0 if the range is valid, yesnzero otherwise.
  */
-static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, unsigned long limit)
+static inline bool __chk_range_yest_ok(unsigned long addr, unsigned long size, unsigned long limit)
 {
 	/*
 	 * If we have used "sizeof()" for the size,
-	 * we know it won't overflow the limit (but
+	 * we kyesw it won't overflow the limit (but
 	 * it might overflow the 'addr', so it's
 	 * important to subtract the size from the
-	 * limit, not add it to the address).
+	 * limit, yest add it to the address).
 	 */
 	if (__builtin_constant_p(size))
 		return unlikely(addr > limit - size);
@@ -59,10 +59,10 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
 	return unlikely(addr > limit);
 }
 
-#define __range_not_ok(addr, size, limit)				\
+#define __range_yest_ok(addr, size, limit)				\
 ({									\
 	__chk_user_ptr(addr);						\
-	__chk_range_not_ok((unsigned long __force)(addr), size, limit); \
+	__chk_range_yest_ok((unsigned long __force)(addr), size, limit); \
 })
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
@@ -87,13 +87,13 @@ static inline bool pagefault_disabled(void);
  * checks that the pointer is in the user space range - after calling
  * this function, memory access functions may still return -EFAULT.
  *
- * Return: true (nonzero) if the memory block may be valid, false (zero)
+ * Return: true (yesnzero) if the memory block may be valid, false (zero)
  * if it is definitely invalid.
  */
 #define access_ok(addr, size)					\
 ({									\
 	WARN_ON_IN_IRQ();						\
-	likely(!__range_not_ok(addr, size, user_addr_max()));		\
+	likely(!__range_yest_ok(addr, size, user_addr_max()));		\
 })
 
 /*
@@ -106,7 +106,7 @@ static inline bool pagefault_disabled(void);
  * and hide all the ugliness from the user.
  *
  * The "__xxx" versions of the user access functions are versions that
- * do not verify the address space, that must have been done previously
+ * do yest verify the address space, that must have been done previously
  * with a separate "access_ok()" call (this is used when we do multiple
  * accesses to the same area of user memory).
  */
@@ -119,10 +119,10 @@ extern int __get_user_bad(void);
 
 #define __uaccess_begin() stac()
 #define __uaccess_end()   clac()
-#define __uaccess_begin_nospec()	\
+#define __uaccess_begin_yesspec()	\
 ({					\
 	stac();				\
-	barrier_nospec();		\
+	barrier_yesspec();		\
 })
 
 /*
@@ -141,7 +141,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
  *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -156,7 +156,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
  *
  * The use of _ASM_DX as the register specifier is a bit of a
  * simplification, as gcc only cares about it as the starting point
- * and not size: for a 64-bit value it will use %ecx:%edx on 32 bits
+ * and yest size: for a 64-bit value it will use %ecx:%edx on 32 bits
  * (%ecx being the next register in gcc's x86 register sequence), and
  * %rdx on 64 bits.
  *
@@ -233,7 +233,7 @@ extern void __put_user_8(void);
  *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -378,7 +378,7 @@ do {									\
 		     : "=r" (err), ltype(x)				\
 		     : "m" (__m(addr)), "i" (errret), "0" (err))
 
-#define __get_user_asm_nozero(x, addr, err, itype, rtype, ltype, errret)	\
+#define __get_user_asm_yeszero(x, addr, err, itype, rtype, ltype, errret)	\
 	asm volatile("\n"						\
 		     "1:	mov"itype" %2,%"rtype"1\n"		\
 		     "2:\n"						\
@@ -425,7 +425,7 @@ do {									\
 		     _ASM_EXTABLE_EX(1b, 3b)				\
 		     : ltype(x) : "m" (__m(addr)))
 
-#define __put_user_nocheck(x, ptr, size)			\
+#define __put_user_yescheck(x, ptr, size)			\
 ({								\
 	__label__ __pu_label;					\
 	int __pu_err = -EFAULT;					\
@@ -440,13 +440,13 @@ __pu_label:							\
 	__builtin_expect(__pu_err, 0);				\
 })
 
-#define __get_user_nocheck(x, ptr, size)				\
+#define __get_user_yescheck(x, ptr, size)				\
 ({									\
 	int __gu_err;							\
 	__inttype(*(ptr)) __gu_val;					\
 	__typeof__(ptr) __gu_ptr = (ptr);				\
 	__typeof__(size) __gu_size = (size);				\
-	__uaccess_begin_nospec();					\
+	__uaccess_begin_yesspec();					\
 	__get_user_size(__gu_val, __gu_ptr, __gu_size, __gu_err, -EFAULT);	\
 	__uaccess_end();						\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
@@ -459,7 +459,7 @@ struct __large_struct { unsigned long buf[100]; };
 
 /*
  * Tell gcc we read from memory instead of writing: this is because
- * we do not write to any memory gcc knows about, so there are no
+ * we do yest write to any memory gcc kyesws about, so there are yes
  * aliasing issues.
  */
 #define __put_user_goto(x, addr, itype, rtype, ltype, label)	\
@@ -494,9 +494,9 @@ struct __large_struct { unsigned long buf[100]; };
 	__uaccess_begin();						\
 	barrier();
 
-#define uaccess_try_nospec do {						\
+#define uaccess_try_yesspec do {						\
 	current->thread.uaccess_err = 0;				\
-	__uaccess_begin_nospec();					\
+	__uaccess_begin_yesspec();					\
 
 #define uaccess_catch(err)						\
 	__uaccess_end();						\
@@ -512,7 +512,7 @@ struct __large_struct { unsigned long buf[100]; };
  *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -526,7 +526,7 @@ struct __large_struct { unsigned long buf[100]; };
  */
 
 #define __get_user(x, ptr)						\
-	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+	__get_user_yescheck((x), (ptr), sizeof(*(ptr)))
 
 /**
  * __put_user - Write a simple value into user space, with less checking.
@@ -537,7 +537,7 @@ struct __large_struct { unsigned long buf[100]; };
  *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -550,7 +550,7 @@ struct __large_struct { unsigned long buf[100]; };
  */
 
 #define __put_user(x, ptr)						\
-	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+	__put_user_yescheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
 /*
  * {get|put}_user_try and catch
@@ -559,7 +559,7 @@ struct __large_struct { unsigned long buf[100]; };
  *	get_user_ex(...);
  * } get_user_catch(err)
  */
-#define get_user_try		uaccess_try_nospec
+#define get_user_try		uaccess_try_yesspec
 #define get_user_catch(err)	uaccess_catch(err)
 
 #define get_user_ex(x, ptr)	do {					\
@@ -592,7 +592,7 @@ extern void __cmpxchg_wrong_size(void)
 	int __ret = 0;							\
 	__typeof__(*(ptr)) __old = (old);				\
 	__typeof__(*(ptr)) __new = (new);				\
-	__uaccess_begin_nospec();					\
+	__uaccess_begin_yesspec();					\
 	switch (size) {							\
 	case 1:								\
 	{								\
@@ -678,7 +678,7 @@ extern void __cmpxchg_wrong_size(void)
 })
 
 /*
- * movsl can be slow when source and dest are not both 8-byte aligned
+ * movsl can be slow when source and dest are yest both 8-byte aligned
  */
 #ifdef CONFIG_X86_INTEL_USERCOPY
 extern struct movsl_mask {
@@ -705,7 +705,7 @@ extern struct movsl_mask {
 
 /*
  * The "unsafe" user accesses aren't really "unsafe", but the naming
- * is a big fat warning: you have to not only do the access_ok()
+ * is a big fat warning: you have to yest only do the access_ok()
  * checking before using them, but you have to surround them with the
  * user_access_begin/end() pair.
  */
@@ -713,7 +713,7 @@ static __must_check __always_inline bool user_access_begin(const void __user *pt
 {
 	if (unlikely(!access_ok(ptr,len)))
 		return 0;
-	__uaccess_begin_nospec();
+	__uaccess_begin_yesspec();
 	return 1;
 }
 #define user_access_begin(a,b)	user_access_begin(a,b)

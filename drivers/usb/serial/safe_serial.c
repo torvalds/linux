@@ -15,7 +15,7 @@
  * hardware.
  *
  * While the USB protocol has a CRC over the data while in transit, i.e. while
- * being carried over the bus, there is no end to end protection. If the
+ * being carried over the bus, there is yes end to end protection. If the
  * hardware has any problems getting the data into or out of the USB transmit
  * and receive FIFO's then data can be lost.
  *
@@ -24,7 +24,7 @@
  * to verify that the entire USB packet was received without error.
  *
  * Because in this case the sender and receiver are the class and function
- * drivers there is now end to end protection.
+ * drivers there is yesw end to end protection.
  *
  * There is an additional option that can be used to force all transmitted
  * packets to be padded to the maximum packet size. This provides a work
@@ -61,7 +61,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>

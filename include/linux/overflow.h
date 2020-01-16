@@ -17,13 +17,13 @@
  *
  * Unfortunately, the middle expressions, strictly speaking, have
  * undefined behaviour, and at least some versions of gcc warn about
- * the type_max expression (but not if -fsanitize=undefined is in
+ * the type_max expression (but yest if -fsanitize=undefined is in
  * effect; in that case, the warning is deferred to runtime...).
  *
  * The slightly excessive casting in type_min is to make sure the
  * macros also produce sensible values for the exotic type _Bool. [The
  * overflow checkers only almost work for _Bool, but that's
- * a-feature-not-a-bug, since people shouldn't be doing arithmetic on
+ * a-feature-yest-a-bug, since people shouldn't be doing arithmetic on
  * _Bools. Besides, the gcc builtins don't allow _Bool* as third
  * argument.]
  *
@@ -40,8 +40,8 @@
  * Avoids triggering -Wtype-limits compilation warning,
  * while using unsigned data types to check a < 0.
  */
-#define is_non_negative(a) ((a) > 0 || (a) == 0)
-#define is_negative(a) (!(is_non_negative(a)))
+#define is_yesn_negative(a) ((a) > 0 || (a) == 0)
+#define is_negative(a) (!(is_yesn_negative(a)))
 
 #ifdef COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW
 /*
@@ -123,7 +123,7 @@
  * result promised by gcc's builtins, which is simply the possibly
  * wrapped-around value. Fortunately, we can just formally do the
  * operations in the widest relevant unsigned type (u64) and then
- * truncate the result - gcc is smart enough to generate the same code
+ * truncate the result - gcc is smart eyesugh to generate the same code
  * with and without the (u64) casts.
  */
 
@@ -144,7 +144,7 @@
 })
 
 /*
- * Subtraction is similar, except that overflow can now happen only
+ * Subtraction is similar, except that overflow can yesw happen only
  * when the signs are opposite. In this case, overflow has happened if
  * the result has the opposite sign of a.
  */
@@ -168,7 +168,7 @@
  * (a < -1 && (b > MIN/a || b < MAX/a) ||
  * (a == -1 && b == MIN)
  *
- * The redundant casts of -1 are to silence an annoying -Wtype-limits
+ * The redundant casts of -1 are to silence an anyesying -Wtype-limits
  * (included in -Wextra) warning: When the type is u8 or u16, the
  * __b_c_e in check_mul_overflow obviously selects
  * __unsigned_mul_overflow, but unfortunately gcc still parses this
@@ -216,7 +216,7 @@
  *
  * Computes *@d = (@a << @s)
  *
- * Returns true if '*d' cannot hold the result or when 'a << s' doesn't
+ * Returns true if '*d' canyest hold the result or when 'a << s' doesn't
  * make sense. Example conditions:
  * - 'a << s' causes bits to be lost when stored in *d.
  * - 's' is garbage (e.g. negative) or so large that the result of
@@ -224,7 +224,7 @@
  * - 'a' is negative.
  * - 'a << s' sets the sign bit, if any, in '*d'.
  *
- * '*d' will hold the results of the attempted shift, but is not
+ * '*d' will hold the results of the attempted shift, but is yest
  * considered "safe for use" if false is returned.
  */
 #define check_shl_overflow(a, s, d) ({					\
@@ -233,7 +233,7 @@
 	typeof(d) _d = d;						\
 	u64 _a_full = _a;						\
 	unsigned int _to_shift =					\
-		is_non_negative(_s) && _s < 8 * sizeof(*d) ? _s : 0;	\
+		is_yesn_negative(_s) && _s < 8 * sizeof(*d) ? _s : 0;	\
 	*_d = (_a_full << _to_shift);					\
 	(_to_shift != _s || is_negative(*_d) || is_negative(_a) ||	\
 	(*_d >> _to_shift) != _a);					\

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
- * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
+ * Amit Bhor, Sameer Dhavale: Codito Techyeslogies 2004
 
  */
 

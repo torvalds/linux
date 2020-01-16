@@ -2,7 +2,7 @@
 /*
  * ARC PGU DRM driver.
  *
- * Copyright (C) 2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2016 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <drm/drm_bridge.h>
@@ -16,7 +16,7 @@ static struct drm_encoder_funcs arcpgu_drm_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-int arcpgu_drm_hdmi_init(struct drm_device *drm, struct device_node *np)
+int arcpgu_drm_hdmi_init(struct drm_device *drm, struct device_yesde *np)
 {
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
@@ -27,7 +27,7 @@ int arcpgu_drm_hdmi_init(struct drm_device *drm, struct device_node *np)
 	if (encoder == NULL)
 		return -ENOMEM;
 
-	/* Locate drm bridge from the hdmi encoder DT node */
+	/* Locate drm bridge from the hdmi encoder DT yesde */
 	bridge = of_drm_find_bridge(np);
 	if (!bridge)
 		return -EPROBE_DEFER;

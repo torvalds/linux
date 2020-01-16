@@ -28,7 +28,7 @@ union acpi_parse_object *acpi_ps_get_child(union acpi_parse_object *op);
  * PARAMETERS:  op              - Get an argument for this op
  *              argn            - Nth argument to get
  *
- * RETURN:      The argument (as an Op object). NULL if argument does not exist
+ * RETURN:      The argument (as an Op object). NULL if argument does yest exist
  *
  * DESCRIPTION: Get the specified op's argument.
  *
@@ -61,7 +61,7 @@ union acpi_parse_object *acpi_ps_get_arg(union acpi_parse_object *op, u32 argn)
 
 	if (!(op_info->flags & AML_HAS_ARGS)) {
 
-		/* Has no linked argument objects */
+		/* Has yes linked argument objects */
 
 		return (NULL);
 	}
@@ -118,7 +118,7 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 
 	if (!(op_info->flags & AML_HAS_ARGS)) {
 
-		/* Has no linked argument objects */
+		/* Has yes linked argument objects */
 
 		return_VOID;
 	}
@@ -237,9 +237,9 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
  *
  * PARAMETERS:  op              - Get the child of this Op
  *
- * RETURN:      Child Op, Null if none is found.
+ * RETURN:      Child Op, Null if yesne is found.
  *
- * DESCRIPTION: Get op's children or NULL if none
+ * DESCRIPTION: Get op's children or NULL if yesne
  *
  ******************************************************************************/
 
@@ -284,7 +284,7 @@ union acpi_parse_object *acpi_ps_get_child(union acpi_parse_object *op)
 
 	default:
 
-		/* All others have no children */
+		/* All others have yes children */
 
 		break;
 	}

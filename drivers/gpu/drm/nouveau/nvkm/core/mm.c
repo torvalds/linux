@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,35 +23,35 @@
  */
 #include <core/mm.h>
 
-#define node(root, dir) ((root)->nl_entry.dir == &mm->nodes) ? NULL :          \
-	list_entry((root)->nl_entry.dir, struct nvkm_mm_node, nl_entry)
+#define yesde(root, dir) ((root)->nl_entry.dir == &mm->yesdes) ? NULL :          \
+	list_entry((root)->nl_entry.dir, struct nvkm_mm_yesde, nl_entry)
 
 void
 nvkm_mm_dump(struct nvkm_mm *mm, const char *header)
 {
-	struct nvkm_mm_node *node;
+	struct nvkm_mm_yesde *yesde;
 
 	pr_err("nvkm: %s\n", header);
-	pr_err("nvkm: node list:\n");
-	list_for_each_entry(node, &mm->nodes, nl_entry) {
+	pr_err("nvkm: yesde list:\n");
+	list_for_each_entry(yesde, &mm->yesdes, nl_entry) {
 		pr_err("nvkm: \t%08x %08x %d\n",
-		       node->offset, node->length, node->type);
+		       yesde->offset, yesde->length, yesde->type);
 	}
 	pr_err("nvkm: free list:\n");
-	list_for_each_entry(node, &mm->free, fl_entry) {
+	list_for_each_entry(yesde, &mm->free, fl_entry) {
 		pr_err("nvkm: \t%08x %08x %d\n",
-		       node->offset, node->length, node->type);
+		       yesde->offset, yesde->length, yesde->type);
 	}
 }
 
 void
-nvkm_mm_free(struct nvkm_mm *mm, struct nvkm_mm_node **pthis)
+nvkm_mm_free(struct nvkm_mm *mm, struct nvkm_mm_yesde **pthis)
 {
-	struct nvkm_mm_node *this = *pthis;
+	struct nvkm_mm_yesde *this = *pthis;
 
 	if (this) {
-		struct nvkm_mm_node *prev = node(this, prev);
-		struct nvkm_mm_node *next = node(this, next);
+		struct nvkm_mm_yesde *prev = yesde(this, prev);
+		struct nvkm_mm_yesde *next = yesde(this, next);
 
 		if (prev && prev->type == NVKM_MM_TYPE_NONE) {
 			prev->length += this->length;
@@ -82,10 +82,10 @@ nvkm_mm_free(struct nvkm_mm *mm, struct nvkm_mm_node **pthis)
 	*pthis = NULL;
 }
 
-static struct nvkm_mm_node *
-region_head(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
+static struct nvkm_mm_yesde *
+region_head(struct nvkm_mm *mm, struct nvkm_mm_yesde *a, u32 size)
 {
-	struct nvkm_mm_node *b;
+	struct nvkm_mm_yesde *b;
 
 	if (a->length == size)
 		return a;
@@ -109,9 +109,9 @@ region_head(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
 
 int
 nvkm_mm_head(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
-	     u32 align, struct nvkm_mm_node **pnode)
+	     u32 align, struct nvkm_mm_yesde **pyesde)
 {
-	struct nvkm_mm_node *prev, *this, *next;
+	struct nvkm_mm_yesde *prev, *this, *next;
 	u32 mask = align - 1;
 	u32 splitoff;
 	u32 s, e;
@@ -126,11 +126,11 @@ nvkm_mm_head(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 		e = this->offset + this->length;
 		s = this->offset;
 
-		prev = node(this, prev);
+		prev = yesde(this, prev);
 		if (prev && prev->type != type)
 			s = roundup(s, mm->block_size);
 
-		next = node(this, next);
+		next = yesde(this, next);
 		if (next && next->type != type)
 			e = rounddown(e, mm->block_size);
 
@@ -150,17 +150,17 @@ nvkm_mm_head(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 		this->next = NULL;
 		this->type = type;
 		list_del(&this->fl_entry);
-		*pnode = this;
+		*pyesde = this;
 		return 0;
 	}
 
 	return -ENOSPC;
 }
 
-static struct nvkm_mm_node *
-region_tail(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
+static struct nvkm_mm_yesde *
+region_tail(struct nvkm_mm *mm, struct nvkm_mm_yesde *a, u32 size)
 {
-	struct nvkm_mm_node *b;
+	struct nvkm_mm_yesde *b;
 
 	if (a->length == size)
 		return a;
@@ -184,9 +184,9 @@ region_tail(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
 
 int
 nvkm_mm_tail(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
-	     u32 align, struct nvkm_mm_node **pnode)
+	     u32 align, struct nvkm_mm_yesde **pyesde)
 {
-	struct nvkm_mm_node *prev, *this, *next;
+	struct nvkm_mm_yesde *prev, *this, *next;
 	u32 mask = align - 1;
 
 	BUG_ON(type == NVKM_MM_TYPE_NONE || type == NVKM_MM_TYPE_HOLE);
@@ -200,11 +200,11 @@ nvkm_mm_tail(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 				continue;
 		}
 
-		prev = node(this, prev);
+		prev = yesde(this, prev);
 		if (prev && prev->type != type)
 			s = roundup(s, mm->block_size);
 
-		next = node(this, next);
+		next = yesde(this, next);
 		if (next && next->type != type) {
 			e = rounddown(e, mm->block_size);
 			c = next->offset - e;
@@ -229,7 +229,7 @@ nvkm_mm_tail(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 		this->next = NULL;
 		this->type = type;
 		list_del(&this->fl_entry);
-		*pnode = this;
+		*pyesde = this;
 		return 0;
 	}
 
@@ -239,69 +239,69 @@ nvkm_mm_tail(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 int
 nvkm_mm_init(struct nvkm_mm *mm, u8 heap, u32 offset, u32 length, u32 block)
 {
-	struct nvkm_mm_node *node, *prev;
+	struct nvkm_mm_yesde *yesde, *prev;
 	u32 next;
 
 	if (nvkm_mm_initialised(mm)) {
-		prev = list_last_entry(&mm->nodes, typeof(*node), nl_entry);
+		prev = list_last_entry(&mm->yesdes, typeof(*yesde), nl_entry);
 		next = prev->offset + prev->length;
 		if (next != offset) {
 			BUG_ON(next > offset);
-			if (!(node = kzalloc(sizeof(*node), GFP_KERNEL)))
+			if (!(yesde = kzalloc(sizeof(*yesde), GFP_KERNEL)))
 				return -ENOMEM;
-			node->type   = NVKM_MM_TYPE_HOLE;
-			node->offset = next;
-			node->length = offset - next;
-			list_add_tail(&node->nl_entry, &mm->nodes);
+			yesde->type   = NVKM_MM_TYPE_HOLE;
+			yesde->offset = next;
+			yesde->length = offset - next;
+			list_add_tail(&yesde->nl_entry, &mm->yesdes);
 		}
 		BUG_ON(block != mm->block_size);
 	} else {
-		INIT_LIST_HEAD(&mm->nodes);
+		INIT_LIST_HEAD(&mm->yesdes);
 		INIT_LIST_HEAD(&mm->free);
 		mm->block_size = block;
-		mm->heap_nodes = 0;
+		mm->heap_yesdes = 0;
 	}
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+	if (!yesde)
 		return -ENOMEM;
 
 	if (length) {
-		node->offset  = roundup(offset, mm->block_size);
-		node->length  = rounddown(offset + length, mm->block_size);
-		node->length -= node->offset;
+		yesde->offset  = roundup(offset, mm->block_size);
+		yesde->length  = rounddown(offset + length, mm->block_size);
+		yesde->length -= yesde->offset;
 	}
 
-	list_add_tail(&node->nl_entry, &mm->nodes);
-	list_add_tail(&node->fl_entry, &mm->free);
-	node->heap = heap;
-	mm->heap_nodes++;
+	list_add_tail(&yesde->nl_entry, &mm->yesdes);
+	list_add_tail(&yesde->fl_entry, &mm->free);
+	yesde->heap = heap;
+	mm->heap_yesdes++;
 	return 0;
 }
 
 int
 nvkm_mm_fini(struct nvkm_mm *mm)
 {
-	struct nvkm_mm_node *node, *temp;
-	int nodes = 0;
+	struct nvkm_mm_yesde *yesde, *temp;
+	int yesdes = 0;
 
 	if (!nvkm_mm_initialised(mm))
 		return 0;
 
-	list_for_each_entry(node, &mm->nodes, nl_entry) {
-		if (node->type != NVKM_MM_TYPE_HOLE) {
-			if (++nodes > mm->heap_nodes) {
-				nvkm_mm_dump(mm, "mm not clean!");
+	list_for_each_entry(yesde, &mm->yesdes, nl_entry) {
+		if (yesde->type != NVKM_MM_TYPE_HOLE) {
+			if (++yesdes > mm->heap_yesdes) {
+				nvkm_mm_dump(mm, "mm yest clean!");
 				return -EBUSY;
 			}
 		}
 	}
 
-	list_for_each_entry_safe(node, temp, &mm->nodes, nl_entry) {
-		list_del(&node->nl_entry);
-		kfree(node);
+	list_for_each_entry_safe(yesde, temp, &mm->yesdes, nl_entry) {
+		list_del(&yesde->nl_entry);
+		kfree(yesde);
 	}
 
-	mm->heap_nodes = 0;
+	mm->heap_yesdes = 0;
 	return 0;
 }

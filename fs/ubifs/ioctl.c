@@ -22,34 +22,34 @@
 	 FS_IMMUTABLE_FL | FS_DIRSYNC_FL)
 
 /**
- * ubifs_set_inode_flags - set VFS inode flags.
- * @inode: VFS inode to set flags for
+ * ubifs_set_iyesde_flags - set VFS iyesde flags.
+ * @iyesde: VFS iyesde to set flags for
  *
- * This function propagates flags from UBIFS inode object to VFS inode object.
+ * This function propagates flags from UBIFS iyesde object to VFS iyesde object.
  */
-void ubifs_set_inode_flags(struct inode *inode)
+void ubifs_set_iyesde_flags(struct iyesde *iyesde)
 {
-	unsigned int flags = ubifs_inode(inode)->flags;
+	unsigned int flags = ubifs_iyesde(iyesde)->flags;
 
-	inode->i_flags &= ~(S_SYNC | S_APPEND | S_IMMUTABLE | S_DIRSYNC |
+	iyesde->i_flags &= ~(S_SYNC | S_APPEND | S_IMMUTABLE | S_DIRSYNC |
 			    S_ENCRYPTED);
 	if (flags & UBIFS_SYNC_FL)
-		inode->i_flags |= S_SYNC;
+		iyesde->i_flags |= S_SYNC;
 	if (flags & UBIFS_APPEND_FL)
-		inode->i_flags |= S_APPEND;
+		iyesde->i_flags |= S_APPEND;
 	if (flags & UBIFS_IMMUTABLE_FL)
-		inode->i_flags |= S_IMMUTABLE;
+		iyesde->i_flags |= S_IMMUTABLE;
 	if (flags & UBIFS_DIRSYNC_FL)
-		inode->i_flags |= S_DIRSYNC;
+		iyesde->i_flags |= S_DIRSYNC;
 	if (flags & UBIFS_CRYPT_FL)
-		inode->i_flags |= S_ENCRYPTED;
+		iyesde->i_flags |= S_ENCRYPTED;
 }
 
 /*
- * ioctl2ubifs - convert ioctl inode flags to UBIFS inode flags.
+ * ioctl2ubifs - convert ioctl iyesde flags to UBIFS iyesde flags.
  * @ioctl_flags: flags to convert
  *
- * This function converts ioctl flags (@FS_COMPR_FL, etc) to UBIFS inode flags
+ * This function converts ioctl flags (@FS_COMPR_FL, etc) to UBIFS iyesde flags
  * (@UBIFS_COMPR_FL, etc).
  */
 static int ioctl2ubifs(int ioctl_flags)
@@ -71,10 +71,10 @@ static int ioctl2ubifs(int ioctl_flags)
 }
 
 /*
- * ubifs2ioctl - convert UBIFS inode flags to ioctl inode flags.
+ * ubifs2ioctl - convert UBIFS iyesde flags to ioctl iyesde flags.
  * @ubifs_flags: flags to convert
  *
- * This function converts UBIFS inode flags (@UBIFS_COMPR_FL, etc) to ioctl
+ * This function converts UBIFS iyesde flags (@UBIFS_COMPR_FL, etc) to ioctl
  * flags (@FS_COMPR_FL, etc).
  */
 static int ubifs2ioctl(int ubifs_flags)
@@ -95,13 +95,13 @@ static int ubifs2ioctl(int ubifs_flags)
 	return ioctl_flags;
 }
 
-static int setflags(struct inode *inode, int flags)
+static int setflags(struct iyesde *iyesde, int flags)
 {
 	int oldflags, err, release;
-	struct ubifs_inode *ui = ubifs_inode(inode);
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
-	struct ubifs_budget_req req = { .dirtied_ino = 1,
-					.dirtied_ino_d = ui->data_len };
+	struct ubifs_iyesde *ui = ubifs_iyesde(iyesde);
+	struct ubifs_info *c = iyesde->i_sb->s_fs_info;
+	struct ubifs_budget_req req = { .dirtied_iyes = 1,
+					.dirtied_iyes_d = ui->data_len };
 
 	err = ubifs_budget_space(c, &req);
 	if (err)
@@ -109,25 +109,25 @@ static int setflags(struct inode *inode, int flags)
 
 	mutex_lock(&ui->ui_mutex);
 	oldflags = ubifs2ioctl(ui->flags);
-	err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
+	err = vfs_ioc_setflags_prepare(iyesde, oldflags, flags);
 	if (err)
 		goto out_unlock;
 
 	ui->flags = ioctl2ubifs(flags);
-	ubifs_set_inode_flags(inode);
-	inode->i_ctime = current_time(inode);
+	ubifs_set_iyesde_flags(iyesde);
+	iyesde->i_ctime = current_time(iyesde);
 	release = ui->dirty;
-	mark_inode_dirty_sync(inode);
+	mark_iyesde_dirty_sync(iyesde);
 	mutex_unlock(&ui->ui_mutex);
 
 	if (release)
 		ubifs_release_budget(c, &req);
-	if (IS_SYNC(inode))
-		err = write_inode_now(inode, 1);
+	if (IS_SYNC(iyesde))
+		err = write_iyesde_yesw(iyesde, 1);
 	return err;
 
 out_unlock:
-	ubifs_err(c, "can't modify inode %lu attributes", inode->i_ino);
+	ubifs_err(c, "can't modify iyesde %lu attributes", iyesde->i_iyes);
 	mutex_unlock(&ui->ui_mutex);
 	ubifs_release_budget(c, &req);
 	return err;
@@ -136,20 +136,20 @@ out_unlock:
 long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int flags, err;
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 
 	switch (cmd) {
 	case FS_IOC_GETFLAGS:
-		flags = ubifs2ioctl(ubifs_inode(inode)->flags);
+		flags = ubifs2ioctl(ubifs_iyesde(iyesde)->flags);
 
-		dbg_gen("get flags: %#x, i_flags %#x", flags, inode->i_flags);
+		dbg_gen("get flags: %#x, i_flags %#x", flags, iyesde->i_flags);
 		return put_user(flags, (int __user *) arg);
 
 	case FS_IOC_SETFLAGS: {
-		if (IS_RDONLY(inode))
+		if (IS_RDONLY(iyesde))
 			return -EROFS;
 
-		if (!inode_owner_or_capable(inode))
+		if (!iyesde_owner_or_capable(iyesde))
 			return -EACCES;
 
 		if (get_user(flags, (int __user *) arg))
@@ -158,23 +158,23 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (flags & ~UBIFS_SUPPORTED_IOCTL_FLAGS)
 			return -EOPNOTSUPP;
 
-		if (!S_ISDIR(inode->i_mode))
+		if (!S_ISDIR(iyesde->i_mode))
 			flags &= ~FS_DIRSYNC_FL;
 
 		/*
 		 * Make sure the file-system is read-write and make sure it
-		 * will not become read-only while we are changing the flags.
+		 * will yest become read-only while we are changing the flags.
 		 */
 		err = mnt_want_write_file(file);
 		if (err)
 			return err;
-		dbg_gen("set flags: %#x, i_flags %#x", flags, inode->i_flags);
-		err = setflags(inode, flags);
+		dbg_gen("set flags: %#x, i_flags %#x", flags, iyesde->i_flags);
+		err = setflags(iyesde, flags);
 		mnt_drop_write_file(file);
 		return err;
 	}
 	case FS_IOC_SET_ENCRYPTION_POLICY: {
-		struct ubifs_info *c = inode->i_sb->s_fs_info;
+		struct ubifs_info *c = iyesde->i_sb->s_fs_info;
 
 		err = ubifs_enable_encryption(c);
 		if (err)

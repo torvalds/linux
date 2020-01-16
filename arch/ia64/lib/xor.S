@@ -37,7 +37,7 @@ GLOBAL_ENTRY(xor_ia64_2)
 (p[0])	ld8.nta s2[0] = [r17], 8
 (p[6])	xor d[0] = s1[6], s2[6]
 (p[6+1])st8.nta [r8] = d[1], 8
-	nop.f 0
+	yesp.f 0
 	br.ctop.dptk.few 0b
 	;;
 	mov ar.lc = r30
@@ -171,7 +171,7 @@ GLOBAL_ENTRY(xor_ia64_5)
 (p[6])	xor d[0] = d[0], r21
 	;;
 (p[6])	  xor d[0] = d[0], s5[6]
-	nop.f 0
+	yesp.f 0
 	br.ctop.dptk.few 0b
 	;;
 	mov ar.lc = r30

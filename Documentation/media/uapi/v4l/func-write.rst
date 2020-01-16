@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _func-write:
 
@@ -19,7 +19,7 @@ Name
 v4l2-write - Write to a V4L2 device
 
 
-Synopsis
+Syyespsis
 ========
 
 .. code-block:: c
@@ -47,13 +47,13 @@ Description
 
 :ref:`write() <func-write>` writes up to ``count`` bytes to the device
 referenced by the file descriptor ``fd`` from the buffer starting at
-``buf``. When the hardware outputs are not active yet, this function
+``buf``. When the hardware outputs are yest active yet, this function
 enables them. When ``count`` is zero, :ref:`write() <func-write>` returns 0
 without any other effect.
 
-When the application does not provide more data in time, the previous
+When the application does yest provide more data in time, the previous
 video frame, raw VBI image, sliced VPS or WSS data is displayed again.
-Sliced Teletext or Closed Caption data is not repeated, the driver
+Sliced Teletext or Closed Caption data is yest repeated, the driver
 inserts a blank line instead.
 
 
@@ -61,20 +61,20 @@ Return Value
 ============
 
 On success, the number of bytes written are returned. Zero indicates
-nothing was written. On error, -1 is returned, and the ``errno``
+yesthing was written. On error, -1 is returned, and the ``erryes``
 variable is set appropriately. In this case the next write will start at
 the beginning of a new frame. Possible error codes are:
 
 EAGAIN
     Non-blocking I/O has been selected using the
-    :ref:`O_NONBLOCK <func-open>` flag and no buffer space was
+    :ref:`O_NONBLOCK <func-open>` flag and yes buffer space was
     available to write the data immediately.
 
 EBADF
-    ``fd`` is not a valid file descriptor or is not open for writing.
+    ``fd`` is yest a valid file descriptor or is yest open for writing.
 
 EBUSY
-    The driver does not support multiple write streams and the device is
+    The driver does yest support multiple write streams and the device is
     already in use.
 
 EFAULT
@@ -87,5 +87,5 @@ EIO
     I/O error. This indicates some hardware problem.
 
 EINVAL
-    The :ref:`write() <func-write>` function is not supported by this driver,
-    not on this device, or generally not on this type of device.
+    The :ref:`write() <func-write>` function is yest supported by this driver,
+    yest on this device, or generally yest on this type of device.

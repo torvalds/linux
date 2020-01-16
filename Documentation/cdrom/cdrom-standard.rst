@@ -16,7 +16,7 @@ the widest variety of hardware devices. The reasons for this are
 presumably
 
 - The large list of hardware devices available for the many platforms
-  that Linux now supports (i.e., i386-PCs, Sparc Suns, etc.)
+  that Linux yesw supports (i.e., i386-PCs, Sparc Suns, etc.)
 - The open design of the operating system, such that anybody can write a
   driver for Linux.
 - There is plenty of source code around as examples of how to write a driver.
@@ -25,13 +25,13 @@ The openness of Linux, and the many different types of available
 hardware has allowed Linux to support many different hardware devices.
 Unfortunately, the very openness that has allowed Linux to support
 all these different devices has also allowed the behavior of each
-device driver to differ significantly from one device to another.
+device driver to differ significantly from one device to ayesther.
 This divergence of behavior has been very significant for CD-ROM
 devices; the way a particular drive reacts to a `standard` *ioctl()*
-call varies greatly from one device driver to another. To avoid making
+call varies greatly from one device driver to ayesther. To avoid making
 their drivers totally inconsistent, the writers of Linux CD-ROM
 drivers generally created new device drivers by understanding, copying,
-and then changing an existing one. Unfortunately, this practice did not
+and then changing an existing one. Unfortunately, this practice did yest
 maintain uniform behavior across all the Linux CD-ROM drivers.
 
 This document describes an effort to establish Uniform behavior across
@@ -39,10 +39,10 @@ all the different CD-ROM device drivers for Linux. This document also
 defines the various *ioctl()'s*, and how the low-level CD-ROM device
 drivers should implement them. Currently (as of the Linux 2.1.\ *x*
 development kernels) several low-level CD-ROM device drivers, including
-both IDE/ATAPI and SCSI, now use this Uniform interface.
+both IDE/ATAPI and SCSI, yesw use this Uniform interface.
 
 When the CD-ROM was developed, the interface between the CD-ROM drive
-and the computer was not specified in the standards. As a result, many
+and the computer was yest specified in the standards. As a result, many
 different CD-ROM interfaces were developed. Some of them had their
 own proprietary design (Sony, Mitsumi, Panasonic, Philips), other
 manufacturers adopted an existing electrical interface and changed
@@ -66,14 +66,14 @@ capabilities of a particular drive, in an *ad hoc* manner. More
 importantly, it appeared that the behavior of the `standard` commands
 was different for most of the different drivers: e. g., some drivers
 close the tray if an *open()* call occurs when the tray is open, while
-others do not. Some drivers lock the door upon opening the device, to
+others do yest. Some drivers lock the door upon opening the device, to
 prevent an incoherent file system, but others don't, to allow software
 ejection. Undoubtedly, the capabilities of the different drives vary,
 but even when two drives have the same capability their drivers'
 behavior was usually different.
 
 .. [#f1]
-   I cannot recollect what kernel version I looked at, then,
+   I canyest recollect what kernel version I looked at, then,
    presumably 1.2.13 and 1.3.34 --- the latest kernel that I was
    indirectly involved in.
 
@@ -88,8 +88,8 @@ By adding this additional layer, it is possible to have all the different
 CD-ROM devices behave **exactly** the same (insofar as the underlying
 hardware will allow).
 
-The goal of the Uniform CD-ROM Driver is **not** to alienate driver developers
-whohave not yet taken steps to support this effort. The goal of Uniform CD-ROM
+The goal of the Uniform CD-ROM Driver is **yest** to alienate driver developers
+whohave yest yet taken steps to support this effort. The goal of Uniform CD-ROM
 Driver is simply to give people writing application programs for CD-ROM drives
 **one** Linux CD-ROM interface with consistent behavior for all
 CD-ROM devices. In addition, this also provides a consistent interface
@@ -113,7 +113,7 @@ standard. At the time of the last update to this document (November
 
 .. _cdrom_api:
 
-Standardizing through another software level
+Standardizing through ayesther software level
 ============================================
 
 At the time this document was conceived, all drivers directly
@@ -125,7 +125,7 @@ been discussed.
 
 For this reason, the Uniform CD-ROM Driver was created to enforce consistent
 CD-ROM drive behavior, and to provide a common set of services to the various
-low-level CD-ROM device drivers. The Uniform CD-ROM Driver now provides another
+low-level CD-ROM device drivers. The Uniform CD-ROM Driver yesw provides ayesther
 software-level, that separates the *ioctl()* and *open()* implementation
 from the actual hardware implementation. Note that this effort has
 made few changes which will affect a user's application programs. The
@@ -134,7 +134,7 @@ CD-ROM drivers\' header files to the kernel's cdrom directory. This was
 done to help ensure that the user is only presented with only one cdrom
 interface, the interface defined in `cdrom.h`.
 
-CD-ROM drives are specific enough (i. e., different from other
+CD-ROM drives are specific eyesugh (i. e., different from other
 block-devices such as floppy or hard disc drives), to define a set
 of common **CD-ROM device operations**, *<cdrom-device>_dops*.
 These operations are different from the classical block-device file
@@ -170,8 +170,8 @@ drivers. These routines simply implement certain **capabilities**
 that are common to all CD-ROM (and really, all removable-media
 devices).
 
-Registration of a low-level CD-ROM device driver is now done through
-the general routines in `cdrom.c`, not through the Virtual File System
+Registration of a low-level CD-ROM device driver is yesw done through
+the general routines in `cdrom.c`, yest through the Virtual File System
 (VFS) any more. The interface implemented in `cdrom.c` is carried out
 through two general structures that contain information about the
 capabilities of the driver, and the specific drives on which the
@@ -186,7 +186,7 @@ cdrom_device_ops
 cdrom_device_info
   This structure contains information about a particular CD-ROM drive,
   such as its device name, speed, etc. This structure is conceptually
-  connected to the minor number of the device.
+  connected to the miyesr number of the device.
 
 Registering a particular CD-ROM drive with the Uniform CD-ROM Driver
 is done by the low-level device driver though a call to::
@@ -202,11 +202,11 @@ low-level driver.
 The device operations structure, *cdrom_device_ops*, contains a list
 of pointers to the functions which are implemented in the low-level
 device driver. When `cdrom.c` accesses a CD-ROM device, it does it
-through the functions in this structure. It is impossible to know all
+through the functions in this structure. It is impossible to kyesw all
 the capabilities of future CD-ROM drives, so it is expected that this
-list may need to be expanded from time to time as new technologies are
+list may need to be expanded from time to time as new techyeslogies are
 developed. For example, CD-R and CD-R/W drives are beginning to become
-popular, and support will soon need to be added for them. For now, the
+popular, and support will soon need to be added for them. For yesw, the
 current *struct* is::
 
 	struct cdrom_device_ops {
@@ -233,21 +233,21 @@ current *struct* is::
 
 When a low-level device driver implements one of these capabilities,
 it should add a function pointer to this *struct*. When a particular
-function is not implemented, however, this *struct* should contain a
+function is yest implemented, however, this *struct* should contain a
 NULL instead. The *capability* flags specify the capabilities of the
 CD-ROM hardware and/or low-level CD-ROM driver when a CD-ROM drive
 is registered with the Uniform CD-ROM Driver.
 
 Note that most functions have fewer parameters than their
 *blkdev_fops* counterparts. This is because very little of the
-information in the structures *inode* and *file* is used. For most
+information in the structures *iyesde* and *file* is used. For most
 drivers, the main parameter is the *struct* *cdrom_device_info*, from
-which the major and minor number can be extracted. (Most low-level
-CD-ROM drivers don't even look at the major and minor number though,
+which the major and miyesr number can be extracted. (Most low-level
+CD-ROM drivers don't even look at the major and miyesr number though,
 since many of them only support one device.) This will be available
 through *dev* in *cdrom_device_info* described below.
 
-The drive-specific, minor-like information that is registered with
+The drive-specific, miyesr-like information that is registered with
 `cdrom.c`, currently contains the following fields::
 
   struct cdrom_device_info {
@@ -269,17 +269,17 @@ The drive-specific, minor-like information that is registered with
 
 	__u8 sanyo_slot : 2;			/*  Sanyo 3-CD changer support */
 	__u8 keeplocked : 1;			/*  CDROM_LOCKDOOR status */
-	__u8 reserved : 5;			/*  not used yet */
+	__u8 reserved : 5;			/*  yest used yet */
 	int cdda_method;			/*  see CDDA_* flags */
 	__u8 last_sense;			/*  saves last sense key */
 	__u8 media_written;			/*  dirty flag, DVD+RW bookkeeping */
 	unsigned short mmc3_profile;		/*  current MMC3 profile */
-	int for_data;				/*  unknown:TBD */
-	int (*exit)(struct cdrom_device_info *);/*  unknown:TBD */
+	int for_data;				/*  unkyeswn:TBD */
+	int (*exit)(struct cdrom_device_info *);/*  unkyeswn:TBD */
 	int mrw_mode_page;			/*  which MRW mode page is in use */
   };
 
-Using this *struct*, a linked list of the registered minor devices is
+Using this *struct*, a linked list of the registered miyesr devices is
 built, using the *next* field. The device number, the device operations
 struct and specifications of properties of the drive are stored in this
 structure.
@@ -287,21 +287,21 @@ structure.
 The *mask* flags can be used to mask out some of the capabilities listed
 in *ops->capability*, if a specific drive doesn't support a feature
 of the driver. The value *speed* specifies the maximum head-rate of the
-drive, measured in units of normal audio speed (176kB/sec raw data or
+drive, measured in units of yesrmal audio speed (176kB/sec raw data or
 150kB/sec file system data). The parameters are declared *const*
 because they describe properties of the drive, which don't change after
 registration.
 
 A few registers contain variables local to the CD-ROM drive. The
 flags *options* are used to specify how the general CD-ROM routines
-should behave. These various flags registers should provide enough
-flexibility to adapt to the different users' wishes (and **not** the
+should behave. These various flags registers should provide eyesugh
+flexibility to adapt to the different users' wishes (and **yest** the
 `arbitrary` wishes of the author of the low-level device driver, as is
 the case in the old scheme). The register *mc_flags* is used to buffer
 the information from *media_changed()* to two separate queues. Other
-data that is specific to a minor drive, can be accessed through *handle*,
+data that is specific to a miyesr drive, can be accessed through *handle*,
 which can point to a data structure specific to the low-level driver.
-The fields *use_count*, *next*, *options* and *mc_flags* need not be
+The fields *use_count*, *next*, *options* and *mc_flags* need yest be
 initialized.
 
 The intermediate software layer that `cdrom.c` forms will perform some
@@ -321,7 +321,7 @@ following sections. Two functions **must** be implemented, namely
 corresponding capability flags will be cleared upon registration.
 Generally, a function returns zero on success and negative on error. A
 function call should return only after the command has completed, but of
-course waiting for the device should not use processor time.
+course waiting for the device should yest use processor time.
 
 ::
 
@@ -355,13 +355,13 @@ This is the only function returning type *void*.
 	int drive_status(struct cdrom_device_info *cdi, int slot_nr)
 
 The function *drive_status*, if implemented, should provide
-information on the status of the drive (not the status of the disc,
-which may or may not be in the drive). If the drive is not a changer,
-*slot_nr* should be ignored. In `cdrom.h` the possibilities are listed::
+information on the status of the drive (yest the status of the disc,
+which may or may yest be in the drive). If the drive is yest a changer,
+*slot_nr* should be igyesred. In `cdrom.h` the possibilities are listed::
 
 
-	CDS_NO_INFO		/* no information available */
-	CDS_NO_DISC		/* no disc is inserted, tray is closed */
+	CDS_NO_INFO		/* yes information available */
+	CDS_NO_DISC		/* yes disc is inserted, tray is closed */
 	CDS_TRAY_OPEN		/* tray is opened */
 	CDS_DRIVE_NOT_READY	/* something is wrong, tray is moving? */
 	CDS_DISC_OK		/* a disc is loaded and everything is fine */
@@ -374,7 +374,7 @@ This function is very similar to the original function in $struct
 file_operations*. It returns 1 if the medium of the device *cdi->dev*
 has changed since the last call, and 0 otherwise. The parameter
 *disc_nr* identifies a specific slot in a juke-box, it should be
-ignored for single-disc drives. Note that by `re-routing` this
+igyesred for single-disc drives. Note that by `re-routing` this
 function through *cdrom_media_changed()*, we can implement separate
 queues for the VFS and a new *ioctl()* function that can report device
 changes to software (e. g., an auto-mounting daemon).
@@ -390,23 +390,23 @@ the desired direction of movement:
 - 0 Close tray
 - 1 Open tray
 
-This function returns 0 upon success, and a non-zero value upon
-error. Note that if the tray is already in the desired position, no
+This function returns 0 upon success, and a yesn-zero value upon
+error. Note that if the tray is already in the desired position, yes
 action need be taken, and the return value should be 0.
 
 ::
 
 	int lock_door(struct cdrom_device_info *cdi, int lock)
 
-This function (and no other code) controls locking of the door, if the
+This function (and yes other code) controls locking of the door, if the
 drive allows this. The value of *lock* controls the desired locking
 state:
 
 - 0 Unlock door, manual opening is allowed
-- 1 Lock door, tray cannot be ejected manually
+- 1 Lock door, tray canyest be ejected manually
 
-This function returns 0 upon success, and a non-zero value upon
-error. Note that if the door is already in the requested state, no
+This function returns 0 upon success, and a yesn-zero value upon
+error. Note that if the door is already in the requested state, yes
 action need be taken, and the return value should be 0.
 
 ::
@@ -420,7 +420,7 @@ CD-ROM drives can obtain very high head rates (up to *24x* is
 common). It has been reported that these drives can make reading
 errors at these high speeds, reducing the speed can prevent data loss
 in these circumstances. Finally, some of these drives can
-make an annoyingly loud noise, which a lower speed may reduce.
+make an anyesyingly loud yesise, which a lower speed may reduce.
 
 This function specifies the speed at which data is read or audio is
 played back. The value of *speed* specifies the head-speed of the
@@ -477,9 +477,9 @@ expected as a 13-character string, terminated by a null-character.
 	int reset(struct cdrom_device_info *cdi)
 
 This call should perform a hard-reset on the drive (although in
-circumstances that a hard-reset is necessary, a drive may very well not
+circumstances that a hard-reset is necessary, a drive may very well yest
 listen to commands anymore). Preferably, control is returned to the
-caller only after the drive has finished resetting. If the drive is no
+caller only after the drive has finished resetting. If the drive is yes
 longer listening, it may be wise for the underlying low-level cdrom
 driver to time out.
 
@@ -504,7 +504,7 @@ old driver scheme. For example, you may look up the function
 this documentation.
 
 An unimplemented ioctl should return *-ENOSYS*, but a harmless request
-(e. g., *CDROMSTART*) may be ignored by returning 0 (success). Other
+(e. g., *CDROMSTART*) may be igyesred by returning 0 (success). Other
 errors should be according to the standards, whatever they are. When
 an error is returned by the low-level driver, the Uniform CD-ROM Driver
 tries whenever possible to return the error code to the calling program.
@@ -522,22 +522,22 @@ fact, there are 6 different *ioctl()'s* for reading data, either in some
 particular kind of format, or audio data. Not many drives support
 reading audio tracks as data, I believe this is because of protection
 of copyrights of artists. Moreover, I think that if audio-tracks are
-supported, it should be done through the VFS and not via *ioctl()'s*. A
+supported, it should be done through the VFS and yest via *ioctl()'s*. A
 problem here could be the fact that audio-frames are 2352 bytes long,
 so either the audio-file-system should ask for 75264 bytes at once
 (the least common multiple of 512 and 2352), or the drivers should
 bend their backs to cope with this incoherence (to which I would be
 opposed). Furthermore, it is very difficult for the hardware to find
-the exact frame boundaries, since there are no synchronization headers
+the exact frame boundaries, since there are yes synchronization headers
 in audio frames. Once these issues are resolved, this code should be
 standardized in `cdrom.c`.
 
 Because there are so many *ioctl()'s* that seem to be introduced to
-satisfy certain drivers [#f2]_, any non-standard *ioctl()*\ s
+satisfy certain drivers [#f2]_, any yesn-standard *ioctl()*\ s
 are routed through the call *dev_ioctl()*. In principle, `private`
-*ioctl()*\ 's should be numbered after the device's major number, and not
+*ioctl()*\ 's should be numbered after the device's major number, and yest
 the general CD-ROM *ioctl* number, `0x53`. Currently the
-non-supported *ioctl()'s* are:
+yesn-supported *ioctl()'s* are:
 
 	CDROMREADMODE1, CDROMREADMODE2, CDROMREADAUDIO, CDROMREADRAW,
 	CDROMREADCOOKED, CDROMSEEK, CDROMPLAY-BLK and CDROM-READALL
@@ -567,13 +567,13 @@ phase. Currently, the capabilities are any of::
 	CDC_MEDIA_CHANGED	/* can report if disc has changed */
 	CDC_PLAY_AUDIO		/* can perform audio-functions (play, pause, etc) */
 	CDC_RESET		/* hard reset device */
-	CDC_IOCTLS		/* driver has non-standard ioctls */
+	CDC_IOCTLS		/* driver has yesn-standard ioctls */
 	CDC_DRIVE_STATUS	/* driver implements drive status */
 
 The capability flag is declared *const*, to prevent drivers from
 accidentally tampering with the contents. The capability fags actually
 inform `cdrom.c` of what the driver can do. If the drive found
-by the driver does not have the capability, is can be masked out by
+by the driver does yest have the capability, is can be masked out by
 the *cdrom_device_info* variable *mask*. For instance, the SCSI CD-ROM
 driver has implemented the code for loading and ejecting CD-ROM's, and
 hence its corresponding flags in *capability* will be set. But a SCSI
@@ -585,7 +585,7 @@ In the file `cdrom.c` you will encounter many constructions of the type::
 
 	if (cdo->capability & ∼cdi->mask & CDC _⟨capability⟩) ...
 
-There is no *ioctl* to set the mask... The reason is that
+There is yes *ioctl* to set the mask... The reason is that
 I think it is better to control the **behavior** rather than the
 **capabilities**.
 
@@ -620,7 +620,7 @@ A software package `setcd`, available from the Debian distribution
 and `sunsite.unc.edu`, allows user level control of these flags.
 
 
-The need to know the purpose of opening the CD-ROM device
+The need to kyesw the purpose of opening the CD-ROM device
 =========================================================
 
 Traditionally, Unix devices can be used in two different `modes`,
@@ -631,7 +631,7 @@ two entirely different purposes. One is to mount removable
 file systems, CD-ROM's, the other is to play audio CD's. Audio commands
 are implemented entirely through *ioctl()\'s*, presumably because the
 first implementation (SUN?) has been such. In principle there is
-nothing wrong with this, but a good control of the `CD player` demands
+yesthing wrong with this, but a good control of the `CD player` demands
 that the device can **always** be opened in order to give the
 *ioctl* commands, regardless of the state the drive is in.
 
@@ -640,8 +640,8 @@ original purpose of CD-ROM s is) we would like to make sure that the
 disc drive is ready for operation upon opening the device. In the old
 scheme, some CD-ROM drivers don't do any integrity checking, resulting
 in a number of i/o errors reported by the VFS to the kernel when an
-attempt for mounting a CD-ROM on an empty drive occurs. This is not a
-particularly elegant way to find out that there is no CD-ROM inserted;
+attempt for mounting a CD-ROM on an empty drive occurs. This is yest a
+particularly elegant way to find out that there is yes CD-ROM inserted;
 it more-or-less looks like the old IBM-PC trying to read an empty floppy
 drive for a couple of seconds, after which the system complains it
 can't read from it. Nowadays we can **sense** the existence of a
@@ -659,10 +659,10 @@ reliable data transfer. The only way user programs can indicate what
 their *purpose* of opening the device is, is through the *flags*
 parameter (see `open(2)`). For CD-ROM devices, these flags aren't
 implemented (some drivers implement checking for write-related flags,
-but this is not strictly necessary if the device file has correct
+but this is yest strictly necessary if the device file has correct
 permission flags). Most option flags simply don't make sense to
 CD-ROM devices: *O_CREAT*, *O_NOCTTY*, *O_TRUNC*, *O_APPEND*, and
-*O_SYNC* have no meaning to a CD-ROM.
+*O_SYNC* have yes meaning to a CD-ROM.
 
 We therefore propose to use the flag *O_NONBLOCK* to indicate
 that the device is opened just for issuing *ioctl*
@@ -672,23 +672,23 @@ wait. We could interpret this as don't wait until someone has
 inserted some valid data-CD-ROM. Thus, our proposal of the
 implementation for the *open()* call for CD-ROM s is:
 
-- If no other flags are set than *O_RDONLY*, the device is opened
+- If yes other flags are set than *O_RDONLY*, the device is opened
   for data transfer, and the return value will be 0 only upon successful
   initialization of the transfer. The call may even induce some actions
   on the CD-ROM, such as closing the tray.
 - If the option flag *O_NONBLOCK* is set, opening will always be
   successful, unless the whole device doesn't exist. The drive will take
-  no actions whatsoever.
+  yes actions whatsoever.
 
 And what about standards?
 -------------------------
 
 You might hesitate to accept this proposal as it comes from the
-Linux community, and not from some standardizing institute. What
+Linux community, and yest from some standardizing institute. What
 about SUN, SGI, HP and all those other Unix and hardware vendors?
 Well, these companies are in the lucky position that they generally
 control both the hardware and software of their supported products,
-and are large enough to set their own standard. They do not have to
+and are large eyesugh to set their own standard. They do yest have to
 deal with a dozen or more different, competing hardware
 configurations\ [#f3]_.
 
@@ -700,7 +700,7 @@ configurations\ [#f3]_.
 
    In my opinion they should have pushed this
    further and have **every** CD-ROM on the local area network be
-   mounted at the similar location, i. e., no matter in which particular
+   mounted at the similar location, i. e., yes matter in which particular
    machine you insert a CD-ROM, it will always appear at the same
    position in the directory tree, on every system. When I wanted to
    implement such a user-program for Linux, I came across the
@@ -711,7 +711,7 @@ We believe that using *O_NONBLOCK* to indicate that a device is being opened
 for *ioctl* commands only can be easily introduced in the Linux
 community. All the CD-player authors will have to be informed, we can
 even send in our own patches to the programs. The use of *O_NONBLOCK*
-has most likely no influence on the behavior of the CD-players on
+has most likely yes influence on the behavior of the CD-players on
 other operating systems than Linux. Finally, a user can always revert
 to old behavior by a call to
 *ioctl(file_descriptor, CDROM_CLEAR_OPTIONS, CDO_USE_FFLAGS)*.
@@ -726,18 +726,18 @@ modes of operation can be set:
 
 `CDO_AUTO_CLOSE | CDO_USE_FFLAGS | CDO_LOCK`
    This is the default setting. (With *CDO_CHECK_TYPE* it will be better, in
-   the future.) If the device is not yet opened by any other process, and if
-   the device is being opened for data (*O_NONBLOCK* is not set) and the
+   the future.) If the device is yest yet opened by any other process, and if
+   the device is being opened for data (*O_NONBLOCK* is yest set) and the
    tray is found to be open, an attempt to close the tray is made. Then,
    it is verified that a disc is in the drive and, if *CDO_CHECK_TYPE* is
    set, that it contains tracks of type `data mode 1`. Only if all tests
    are passed is the return value zero. The door is locked to prevent file
    system corruption. If the drive is opened for audio (*O_NONBLOCK* is
-   set), no actions are taken and a value of 0 will be returned.
+   set), yes actions are taken and a value of 0 will be returned.
 
 `CDO_AUTO_CLOSE | CDO_AUTO_EJECT | CDO_LOCK`
    This mimics the behavior of the current sbpcd-driver. The option flags are
-   ignored, the tray is closed on the first open, if necessary. Similarly,
+   igyesred, the tray is closed on the first open, if necessary. Similarly,
    the tray is opened on the last release, i. e., if a CD-ROM is unmounted,
    it is automatically ejected, such that the user can replace it.
 
@@ -752,7 +752,7 @@ Only a few routines in `cdrom.c` are exported to the drivers. In this
 new section we will discuss these, as well as the functions that `take
 over' the CD-ROM interface to the kernel. The header file belonging
 to `cdrom.c` is called `cdrom.h`. Formerly, some of the contents of this
-file were placed in the file `ucdrom.h`, but this file has now been
+file were placed in the file `ucdrom.h`, but this file has yesw been
 merged back into `cdrom.h`.
 
 ::
@@ -775,7 +775,7 @@ Uniform CD-ROM Driver::
 	register_cdrom(&<device>_info);
 
 
-This function returns zero upon success, and non-zero upon
+This function returns zero upon success, and yesn-zero upon
 failure. The structure *<device>_info* should have a pointer to the
 driver's *<device>_dops*, as in::
 
@@ -785,7 +785,7 @@ driver's *<device>_dops*, as in::
 	}
 
 Note that a driver must have one static structure, *<device>_dops*, while
-it may have as many structures *<device>_info* as there are minor devices
+it may have as many structures *<device>_info* as there are miyesr devices
 active. *Register_cdrom()* builds a linked list from these.
 
 
@@ -793,17 +793,17 @@ active. *Register_cdrom()* builds a linked list from these.
 
 	void unregister_cdrom(struct cdrom_device_info *cdi)
 
-Unregistering device *cdi* with minor number *MINOR(cdi->dev)* removes
-the minor device from the list. If it was the last registered minor for
+Unregistering device *cdi* with miyesr number *MINOR(cdi->dev)* removes
+the miyesr device from the list. If it was the last registered miyesr for
 the low-level driver, this disconnects the registered device-operation
 routines from the CD-ROM interface. This function returns zero upon
-success, and non-zero upon failure.
+success, and yesn-zero upon failure.
 
 ::
 
-	int cdrom_open(struct inode * ip, struct file * fp)
+	int cdrom_open(struct iyesde * ip, struct file * fp)
 
-This function is not called directly by the low-level drivers, it is
+This function is yest called directly by the low-level drivers, it is
 listed in the standard *cdrom_fops*. If the VFS opens a file, this
 function becomes active. A strategy is implemented in this routine,
 taking care of all capabilities and options that are set in the
@@ -812,7 +812,7 @@ transferred to the device_dependent *open()* call.
 
 ::
 
-	void cdrom_release(struct inode *ip, struct file *fp)
+	void cdrom_release(struct iyesde *ip, struct file *fp)
 
 This function implements the reverse-logic of *cdrom_open()*, and then
 calls the device-dependent *release()* routine. When the use-count has
@@ -824,7 +824,7 @@ and *invalidate_buffers(dev)*.
 
 ::
 
-	int cdrom_ioctl(struct inode *ip, struct file *fp,
+	int cdrom_ioctl(struct iyesde *ip, struct file *fp,
 			unsigned int cmd, unsigned long arg)
 
 This function handles all the standard *ioctl* requests for CD-ROM
@@ -839,7 +839,7 @@ Directly implemented *ioctl()'s*
 
 The following `old` CD-ROM *ioctl()*\ 's are implemented by directly
 calling device-operations in *cdrom_device_ops*, if implemented and
-not masked:
+yest masked:
 
 `CDROMMULTISESSION`
 	Requests the last session on a CD-ROM.
@@ -848,9 +848,9 @@ not masked:
 `CDROMCLOSETRAY`
 	Close tray.
 `CDROMEJECT_SW`
-	If *arg\not=0*, set behavior to auto-close (close
+	If *arg\yest=0*, set behavior to auto-close (close
 	tray on first open) and auto-eject (eject on last release), otherwise
-	set behavior to non-moving on *open()* and *release()* calls.
+	set behavior to yesn-moving on *open()* and *release()* calls.
 `CDROM_GET_MCN`
 	Get the Media Catalog Number from a CD.
 
@@ -937,7 +937,7 @@ commands can be identified by the underscores in their names.
 	It should be viewed as a complement to *CDROM_DRIVE_STATUS*.
 	This *ioctl* can provide *some* information about the current
 	disc that is inserted in the drive. This functionality used to be
-	implemented in the low level drivers, but is now carried out
+	implemented in the low level drivers, but is yesw carried out
 	entirely in Uniform CD-ROM Driver.
 
 	The history of development of the CD's use as a carrier medium for
@@ -950,9 +950,9 @@ commands can be identified by the underscores in their names.
 	under, thereby breaking all user applications that use this
 	function, the Uniform CD-ROM Driver implements this *ioctl* as
 	follows: If the CD in question has audio tracks on it, and it has
-	absolutely no CD-I, XA, or data tracks on it, it will be reported
+	absolutely yes CD-I, XA, or data tracks on it, it will be reported
 	as *CDS_AUDIO*. If it has both audio and data tracks, it will
-	return *CDS_MIXED*. If there are no audio tracks on the disc, and
+	return *CDS_MIXED*. If there are yes audio tracks on the disc, and
 	if the CD in question has any CD-I tracks on it, it will be
 	reported as *CDS_XA_2_2*. Failing that, if the CD in question
 	has any XA tracks on it, it will be reported as *CDS_XA_2_1*.
@@ -961,8 +961,8 @@ commands can be identified by the underscores in their names.
 
 	This *ioctl* can return::
 
-		CDS_NO_INFO	/* no information available */
-		CDS_NO_DISC	/* no disc is inserted, or tray is opened */
+		CDS_NO_INFO	/* yes information available */
+		CDS_NO_DISC	/* yes disc is inserted, or tray is opened */
 		CDS_AUDIO	/* Audio disc (2352 audio bytes/frame) */
 		CDS_DATA_1	/* data disc, mode 1 (2048 user bytes/frame) */
 		CDS_XA_2_1	/* mixed data (XA), mode 2, form 1 (2048 user bytes) */
@@ -1014,7 +1014,7 @@ How to update your driver
   happen to like. If your driver doesn't support a certain function,
   make the entry *NULL*. At the entry *capability* you should list all
   capabilities your driver currently supports. If your driver
-  has a capability that is not listed, please send me a message.
+  has a capability that is yest listed, please send me a message.
 - Copy the *cdrom_device_info* declaration from the same example
   driver, and modify the entries according to your needs. If your
   driver dynamically determines the capabilities of the hardware, this
@@ -1030,7 +1030,7 @@ How to update your driver
   just calls to the routines you adapted in the previous step.
 - You may remove all remaining memory checking code in the
   *audio_ioctl()* function that deals with audio commands (these are
-  listed in the second part of cdrom_ioctl_. There is no
+  listed in the second part of cdrom_ioctl_. There is yes
   need for memory allocation either, so most *case*s in the *switch*
   statement look similar to::
 
@@ -1053,11 +1053,11 @@ Thanks
 Thanks to all the people involved. First, Erik Andersen, who has
 taken over the torch in maintaining `cdrom.c` and integrating much
 CD-ROM-related code in the 2.1-kernel. Thanks to Scott Snyder and
-Gerd Knorr, who were the first to implement this interface for SCSI
+Gerd Kyesrr, who were the first to implement this interface for SCSI
 and IDE-CD drivers and added many ideas for extension of the data
 structures relative to kernel~2.0. Further thanks to Heiko Eißfeldt,
-Thomas Quinot, Jon Tombs, Ken Pizzini, Eberhard Mönkeberg and Andrew Kroll,
+Thomas Quiyest, Jon Tombs, Ken Pizzini, Eberhard Mönkeberg and Andrew Kroll,
 the Linux CD-ROM device driver developers who were kind
-enough to give suggestions and criticisms during the writing. Finally
+eyesugh to give suggestions and criticisms during the writing. Finally
 of course, I want to thank Linus Torvalds for making this possible in
 the first place.

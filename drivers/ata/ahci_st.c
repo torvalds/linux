@@ -107,19 +107,19 @@ static int st_ahci_probe_resets(struct ahci_host_priv *hpriv,
 
 	drv_data->pwr = devm_reset_control_get(dev, "pwr-dwn");
 	if (IS_ERR(drv_data->pwr)) {
-		dev_info(dev, "power reset control not defined\n");
+		dev_info(dev, "power reset control yest defined\n");
 		drv_data->pwr = NULL;
 	}
 
 	drv_data->sw_rst = devm_reset_control_get(dev, "sw-rst");
 	if (IS_ERR(drv_data->sw_rst)) {
-		dev_info(dev, "soft reset control not defined\n");
+		dev_info(dev, "soft reset control yest defined\n");
 		drv_data->sw_rst = NULL;
 	}
 
 	drv_data->pwr_rst = devm_reset_control_get(dev, "pwr-rst");
 	if (IS_ERR(drv_data->pwr_rst)) {
-		dev_dbg(dev, "power soft reset control not defined\n");
+		dev_dbg(dev, "power soft reset control yest defined\n");
 		drv_data->pwr_rst = NULL;
 	}
 
@@ -168,7 +168,7 @@ static int st_ahci_probe(struct platform_device *pdev)
 
 	st_ahci_configure_oob(hpriv->mmio);
 
-	of_property_read_u32(dev->of_node,
+	of_property_read_u32(dev->of_yesde,
 			     "ports-implemented", &hpriv->force_port_map);
 
 	err = ahci_platform_init_host(pdev, hpriv, &st_ahci_port_info,

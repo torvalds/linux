@@ -40,10 +40,10 @@ config CORESIGHT_CATU
 	help
 	   Enable support for the Coresight Address Translation Unit (CATU).
 	   CATU supports a scatter gather table of 4K pages, with forward/backward
-	   lookup. CATU helps TMC ETR to use a large physically non-contiguous trace
+	   lookup. CATU helps TMC ETR to use a large physically yesn-contiguous trace
 	   buffer by translating the addresses used by ETR to the physical address
 	   by looking up the provided table. CATU can also be used in pass-through
-	   mode where the address is not translated.
+	   mode where the address is yest translated.
 
 config CORESIGHT_SINK_TPIU
 	bool "Coresight generic TPIU driver"
@@ -104,7 +104,7 @@ config CORESIGHT_CPU_DEBUG
 	  This driver provides support for coresight debugging module. This
 	  is primarily used to dump sample-based profiling registers when
 	  system triggers panic, the driver will parse context registers so
-	  can quickly get to know program counter (PC), secure state,
+	  can quickly get to kyesw program counter (PC), secure state,
 	  exception level, etc. Before use debugging functionality, platform
 	  needs to ensure the clock domain and power domain are enabled
 	  properly, please refer Documentation/trace/coresight-cpu-debug.rst

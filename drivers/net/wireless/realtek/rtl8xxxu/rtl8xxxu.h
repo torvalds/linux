@@ -563,12 +563,12 @@ struct rtl8723au_phy_stats {
 	u8	cck_agc_rpt_ofdm_cfosho_a;
 	u8	cck_rpt_b_ofdm_cfosho_b;
 	u8	reserved_1;
-	u8	noise_power_db_msb;
+	u8	yesise_power_db_msb;
 	u8	path_cfotail[RTL8723A_MAX_RF_PATHS];
 	u8	pcts_mask[RTL8723A_MAX_RF_PATHS];
 	s8	stream_rxevm[RTL8723A_MAX_RF_PATHS];
 	u8	path_rxsnr[RTL8723A_MAX_RF_PATHS];
-	u8	noise_power_db_lsb;
+	u8	yesise_power_db_lsb;
 	u8	reserved_2[3];
 	u8	stream_csi[RTL8723A_MAX_RF_PATHS];
 	u8	stream_target_csi[RTL8723A_MAX_RF_PATHS];
@@ -610,7 +610,7 @@ struct rtl8xxxu_firmware_header {
 	u8	function;
 
 	__le16	major_version;		/*  FW Version */
-	u8	minor_version;		/*  FW Subversion, default 0x00 */
+	u8	miyesr_version;		/*  FW Subversion, default 0x00 */
 	u8	reserved1;
 
 	u8	month;			/*  Release time Month field */
@@ -693,7 +693,7 @@ struct rtl8723au_efuse {
 	u8 res7;
 	u8 version			/* 0x30 */;
 	u8 customer_id_major;
-	u8 customer_id_minor;
+	u8 customer_id_miyesr;
 	u8 xtal_k;
 	u8 chipset;			/* 0x34 */
 	u8 res8[0x82];
@@ -860,7 +860,7 @@ struct rtl8192eu_efuse {
 	u8 res12[2];
 	u8 serial[0x0b];		/* 0xf5 */
 	u8 res13[0x30];
-	u8 unknown[0x0d];		/* 0x130 */
+	u8 unkyeswn[0x0d];		/* 0x130 */
 	u8 res14[0xc3];
 };
 
@@ -1059,7 +1059,7 @@ struct h2c_cmd {
 		struct {
 			u8 cmd;
 			u8 data;
-		} __packed ignore_wlan;
+		} __packed igyesre_wlan;
 		struct {
 			u8 cmd;
 			u8 ant_inverse;
@@ -1165,7 +1165,7 @@ struct rtl8723bu_c2h {
 			u8 basic_rate:1;
 			u8 bt_has_reset:1;
 			u8 dummy4_1:1;
-			u8 ignore_wlan:1;
+			u8 igyesre_wlan:1;
 			u8 auto_report:1;
 			u8 dummy4_2:3;
 
@@ -1178,7 +1178,7 @@ struct rtl8723bu_c2h {
 			u8 macid;
 			u8 ldpc:1;
 			u8 txbf:1;
-			u8 noisy_state:1;
+			u8 yesisy_state:1;
 			u8 dummy2_0:5;
 			u8 dummy3_0;
 		} __packed ra_report;
@@ -1295,7 +1295,7 @@ struct rtl8xxxu_priv {
 	struct rtl8723au_idx ht20_max_power_offset[RTL8723A_CHANNEL_GROUPS];
 	/*
 	 * Newer generation chips only keep power diffs per TX count,
-	 * not per channel group.
+	 * yest per channel group.
 	 */
 	struct rtl8723au_idx ofdm_tx_power_diff[RTL8723B_TX_COUNT];
 	struct rtl8723au_idx ht20_tx_power_diff[RTL8723B_TX_COUNT];
@@ -1316,7 +1316,7 @@ struct rtl8xxxu_priv {
 	u32 boot_eeprom:1;
 	u32 usb_interrupts:1;
 	u32 ep_tx_high_queue:1;
-	u32 ep_tx_normal_queue:1;
+	u32 ep_tx_yesrmal_queue:1;
 	u32 ep_tx_low_queue:1;
 	u32 has_xtalk:1;
 	u32 rx_buf_aggregation:1;
@@ -1362,12 +1362,12 @@ struct rtl8xxxu_priv {
 	u32 bb_recovery_backup[RTL8XXXU_BB_REGS];
 	enum rtl8xxxu_rtl_chip rtl_chip;
 	u8 pi_enabled:1;
-	u8 no_pape:1;
+	u8 yes_pape:1;
 	u8 int_buf[USB_INTR_CONTENT_LENGTH];
 	u8 rssi_level;
 	/*
 	 * Only one virtual interface permitted because only STA mode
-	 * is supported and no iface_combinations are provided.
+	 * is supported and yes iface_combinations are provided.
 	 */
 	struct ieee80211_vif *vif;
 	struct delayed_work ra_watchdog;
@@ -1437,7 +1437,7 @@ struct rtl8xxxu_fileops {
 	u8 total_page_num;
 	u8 page_num_hi;
 	u8 page_num_lo;
-	u8 page_num_norm;
+	u8 page_num_yesrm;
 };
 
 extern int rtl8xxxu_debug;

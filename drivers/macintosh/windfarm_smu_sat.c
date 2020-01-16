@@ -6,7 +6,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -32,7 +32,7 @@ struct wf_sat {
 	u8			cache[16];
 	struct list_head	sensors;
 	struct i2c_client	*i2c;
-	struct device_node	*node;
+	struct device_yesde	*yesde;
 };
 
 static struct wf_sat *sats[2];
@@ -75,7 +75,7 @@ struct smu_sdbp_header *smu_sat_get_sdb_partition(unsigned int sat_id, int id,
 	}
 	len = err;
 	if (len == 0) {
-		printk(KERN_ERR "smu_sat_get_sdb_part no partition %x\n", id);
+		printk(KERN_ERR "smu_sat_get_sdb_part yes partition %x\n", id);
 		return NULL;
 	}
 
@@ -192,13 +192,13 @@ static const struct wf_sensor_ops wf_sat_ops = {
 static int wf_sat_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct device_node *dev = client->dev.of_node;
+	struct device_yesde *dev = client->dev.of_yesde;
 	struct wf_sat *sat;
 	struct wf_sat_sensor *sens;
 	const u32 *reg;
 	const char *loc;
 	u8 chip, core;
-	struct device_node *child;
+	struct device_yesde *child;
 	int shift, cpu, index;
 	char *name;
 	int vsens[2], isens[2];
@@ -207,7 +207,7 @@ static int wf_sat_probe(struct i2c_client *client,
 	if (sat == NULL)
 		return -ENOMEM;
 	sat->nr = -1;
-	sat->node = of_node_get(dev);
+	sat->yesde = of_yesde_get(dev);
 	kref_init(&sat->ref);
 	mutex_init(&sat->mutex);
 	sat->i2c = client;
@@ -247,25 +247,25 @@ static int wf_sat_probe(struct i2c_client *client,
 			continue;
 		}
 
-		if (of_node_is_type(child, "voltage-sensor")) {
+		if (of_yesde_is_type(child, "voltage-sensor")) {
 			name = "cpu-voltage";
 			shift = 4;
 			vsens[core] = index;
-		} else if (of_node_is_type(child, "current-sensor")) {
+		} else if (of_yesde_is_type(child, "current-sensor")) {
 			name = "cpu-current";
 			shift = 8;
 			isens[core] = index;
-		} else if (of_node_is_type(child, "temp-sensor")) {
+		} else if (of_yesde_is_type(child, "temp-sensor")) {
 			name = "cpu-temp";
 			shift = 10;
 		} else
 			continue;	/* hmmm shouldn't happen */
 
-		/* the +16 is enough for "cpu-voltage-n" */
+		/* the +16 is eyesugh for "cpu-voltage-n" */
 		sens = kzalloc(sizeof(struct wf_sat_sensor) + 16, GFP_KERNEL);
 		if (sens == NULL) {
 			printk(KERN_ERR "wf_sat_create: couldn't create "
-			       "%s sensor %d (no memory)\n", name, cpu);
+			       "%s sensor %d (yes memory)\n", name, cpu);
 			continue;
 		}
 		sens->index = index;
@@ -292,7 +292,7 @@ static int wf_sat_probe(struct i2c_client *client,
 		sens = kzalloc(sizeof(struct wf_sat_sensor) + 16, GFP_KERNEL);
 		if (sens == NULL) {
 			printk(KERN_ERR "wf_sat_create: couldn't create power "
-			       "sensor %d (no memory)\n", cpu);
+			       "sensor %d (yes memory)\n", cpu);
 			continue;
 		}
 		sens->index = vsens[core];

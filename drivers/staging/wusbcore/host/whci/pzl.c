@@ -49,7 +49,7 @@ static void update_pzl_pointers(struct whc *whc, int period, u64 addr)
 /*
  * Return the 'period' to use for this qset.  The minimum interval for
  * the endpoint is used so whatever urbs are submitted the device is
- * polled often enough.
+ * polled often eyesugh.
  */
 static int qset_get_period(struct whc *whc, struct whc_qset *qset)
 {
@@ -69,13 +69,13 @@ static void qset_insert_in_sw_list(struct whc *whc, struct whc_qset *qset)
 	period = qset_get_period(whc, qset);
 
 	qset_clear(whc, qset);
-	list_move(&qset->list_node, &whc->periodic_list[period]);
+	list_move(&qset->list_yesde, &whc->periodic_list[period]);
 	qset->in_sw_list = true;
 }
 
 static void pzl_qset_remove(struct whc *whc, struct whc_qset *qset)
 {
-	list_move(&qset->list_node, &whc->periodic_removed_list);
+	list_move(&qset->list_yesde, &whc->periodic_removed_list);
 	qset->in_hw_list = false;
 	qset->in_sw_list = false;
 }
@@ -125,7 +125,7 @@ static enum whc_update pzl_process_qset(struct whc *whc, struct whc_qset *qset)
 
 done:
 	/*
-	 * If there are no qTDs in this qset, remove it from the PZL.
+	 * If there are yes qTDs in this qset, remove it from the PZL.
 	 */
 	if (qset->remove && qset->ntds == 0) {
 		pzl_qset_remove(whc, qset);
@@ -170,7 +170,7 @@ void pzl_stop(struct whc *whc)
  * @wusbcmd: WUSBCMD value to start the update.
  *
  * If the WUSB HC is inactive (i.e., the PZL is stopped) then the
- * update must be skipped as the hardware may not respond to update
+ * update must be skipped as the hardware may yest respond to update
  * requests.
  */
 void pzl_update(struct whc *whc, uint32_t wusbcmd)
@@ -198,7 +198,7 @@ static void update_pzl_hw_view(struct whc *whc)
 	u64 tmp_qh = 0;
 
 	for (period = 0; period < 5; period++) {
-		list_for_each_entry_safe(qset, t, &whc->periodic_list[period], list_node) {
+		list_for_each_entry_safe(qset, t, &whc->periodic_list[period], list_yesde) {
 			whc_qset_set_link_ptr(&qset->qh.link, tmp_qh);
 			tmp_qh = qset->qset_dma;
 			qset->in_hw_list = true;
@@ -225,7 +225,7 @@ void scan_periodic_work(struct work_struct *work)
 	spin_lock_irq(&whc->lock);
 
 	for (period = 4; period >= 0; period--) {
-		list_for_each_entry_safe(qset, t, &whc->periodic_list[period], list_node) {
+		list_for_each_entry_safe(qset, t, &whc->periodic_list[period], list_yesde) {
 			if (!qset->in_hw_list)
 				update |= WHC_UPDATE_ADDED;
 			update |= pzl_process_qset(whc, qset);
@@ -253,7 +253,7 @@ void scan_periodic_work(struct work_struct *work)
 	 */
 	spin_lock_irq(&whc->lock);
 
-	list_for_each_entry_safe(qset, t, &whc->periodic_removed_list, list_node) {
+	list_for_each_entry_safe(qset, t, &whc->periodic_removed_list, list_yesde) {
 		qset_remove_complete(whc, qset);
 		if (qset->reset) {
 			qset_reset(whc, qset);
@@ -335,7 +335,7 @@ int pzl_urb_dequeue(struct whc *whc, struct urb *urb, int status)
 	if (ret < 0)
 		goto out;
 
-	list_for_each_entry_safe(std, t, &qset->stds, list_node) {
+	list_for_each_entry_safe(std, t, &qset->stds, list_yesde) {
 		if (std->urb == urb) {
 			if (std->qtd)
 				has_qtd = true;

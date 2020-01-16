@@ -15,7 +15,7 @@ And these for relevant defines:
   [2] include/dt-bindings/pinctrl/lochnagar.h
   [3] include/dt-bindings/clock/lochnagar.h
 
-And these documents for the required sub-node binding details:
+And these documents for the required sub-yesde binding details:
   [4] Clock: ../clock/cirrus,lochnagar.txt
   [5] Pinctrl: ../pinctrl/cirrus,lochnagar.txt
   [6] Regulator: ../regulator/cirrus,lochnagar.txt
@@ -32,13 +32,13 @@ Required properties:
 
   - reset-gpios : Reset line to the Lochnagar, see [1].
 
-Required sub-nodes:
+Required sub-yesdes:
 
   - lochnagar-clk : Binding for the clocking components, see [4].
 
   - lochnagar-pinctrl : Binding for the pin control components, see [5].
 
-Optional sub-nodes:
+Optional sub-yesdes:
 
   - Bindings for the regulator components, see [6]. Only available on
     Lochnagar 2.

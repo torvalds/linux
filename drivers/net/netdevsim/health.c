@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/debugfs.h>
 #include <linux/err.h>
@@ -17,7 +17,7 @@ nsim_dev_empty_reporter_dump(struct devlink_health_reporter *reporter,
 }
 
 static int
-nsim_dev_empty_reporter_diagnose(struct devlink_health_reporter *reporter,
+nsim_dev_empty_reporter_diagyesse(struct devlink_health_reporter *reporter,
 				 struct devlink_fmsg *fmsg,
 				 struct netlink_ext_ack *extack)
 {
@@ -28,7 +28,7 @@ static const
 struct devlink_health_reporter_ops nsim_dev_empty_reporter_ops = {
 	.name = "empty",
 	.dump = nsim_dev_empty_reporter_dump,
-	.diagnose = nsim_dev_empty_reporter_diagnose,
+	.diagyesse = nsim_dev_empty_reporter_diagyesse,
 };
 
 struct nsim_dev_dummy_reporter_ctx {
@@ -201,7 +201,7 @@ nsim_dev_dummy_reporter_dump(struct devlink_health_reporter *reporter,
 }
 
 static int
-nsim_dev_dummy_reporter_diagnose(struct devlink_health_reporter *reporter,
+nsim_dev_dummy_reporter_diagyesse(struct devlink_health_reporter *reporter,
 				 struct devlink_fmsg *fmsg,
 				 struct netlink_ext_ack *extack)
 {
@@ -223,7 +223,7 @@ struct devlink_health_reporter_ops nsim_dev_dummy_reporter_ops = {
 	.name = "dummy",
 	.recover = nsim_dev_dummy_reporter_recover,
 	.dump = nsim_dev_dummy_reporter_dump,
-	.diagnose = nsim_dev_dummy_reporter_diagnose,
+	.diagyesse = nsim_dev_dummy_reporter_diagyesse,
 };
 
 static ssize_t nsim_dev_health_break_write(struct file *file,

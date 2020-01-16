@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <bpf/libbpf.h>
@@ -246,7 +246,7 @@ bool is_kernel_module(const char *pathname, int cpumode)
 	/* Treat PERF_RECORD_MISC_CPUMODE_UNKNOWN as kernel */
 	default:
 		if (kmod_path__parse(&m, pathname)) {
-			pr_err("Failed to check whether %s is a kernel module or not. Assume it is.",
+			pr_err("Failed to check whether %s is a kernel module or yest. Assume it is.",
 					pathname);
 			return true;
 		}
@@ -281,7 +281,7 @@ static int decompress_kmodule(struct dso *dso, const char *name,
 	 * when we try all possible 'debug' objects until we find the
 	 * data. So even if the DSO is represented by 'krava.xz' module,
 	 * we can end up here opening ~/.debug/....23432432/debug' file
-	 * which is not compressed.
+	 * which is yest compressed.
 	 *
 	 * To keep this transparent, we detect this and return the file
 	 * descriptor to the uncompressed file.
@@ -291,12 +291,12 @@ static int decompress_kmodule(struct dso *dso, const char *name,
 
 	fd = mkstemp(tmpbuf);
 	if (fd < 0) {
-		dso->load_errno = errno;
+		dso->load_erryes = erryes;
 		return -1;
 	}
 
 	if (compressions[dso->comp].decompress(name, fd)) {
-		dso->load_errno = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
+		dso->load_erryes = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
 		close(fd);
 		fd = -1;
 	}
@@ -338,7 +338,7 @@ int dso__decompress_kmodule_path(struct dso *dso, const char *name,
  *    @ext  - if (@alloc_ext && @comp) is true, it contains strdup-ed string
  *            the compression suffix
  *
- * Returns 0 if there's no strdup error, -ENOMEM otherwise.
+ * Returns 0 if there's yes strdup error, -ENOMEM otherwise.
  */
 int __kmod_path__parse(struct kmod_path *m, const char *path,
 		       bool alloc_name)
@@ -356,7 +356,7 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 	 * priority than '.ko' suffix.
 	 *
 	 * The kernel names are from machine__mmap_name. Such
-	 * name should belong to kernel itself, not kernel module.
+	 * name should belong to kernel itself, yest kernel module.
 	 */
 	if (name[0] == '[') {
 		is_simple_name = true;
@@ -385,7 +385,7 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 	if (m->comp > COMP_ID__NONE)
 		ext -= 3;
 
-	/* Check .ko extension only if there's enough name left. */
+	/* Check .ko extension only if there's eyesugh name left. */
 	if (ext > name)
 		m->kmod = !strncmp(ext, ".ko", 3);
 
@@ -455,8 +455,8 @@ static int do_open(char *name)
 			return fd;
 
 		pr_debug("dso open failed: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
-		if (!dso__data_open_cnt || errno != EMFILE)
+			 str_error_r(erryes, sbuf, sizeof(sbuf)));
+		if (!dso__data_open_cnt || erryes != EMFILE)
 			break;
 
 		close_first_dso();
@@ -490,7 +490,7 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 		size_t len = sizeof(newpath);
 
 		if (dso__decompress_kmodule_path(dso, name, newpath, len) < 0) {
-			fd = -dso->load_errno;
+			fd = -dso->load_erryes;
 			goto out;
 		}
 
@@ -677,7 +677,7 @@ out:
  *
  * External interface to find dso's file, open it and
  * returns file descriptor.  It should be paired with
- * dso__data_put_fd() if it returns non-negative value.
+ * dso__data_put_fd() if it returns yesn-negative value.
  */
 int dso__data_get_fd(struct dso *dso, struct machine *machine)
 {
@@ -714,19 +714,19 @@ bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by)
 
 static ssize_t bpf_read(struct dso *dso, u64 offset, char *data)
 {
-	struct bpf_prog_info_node *node;
+	struct bpf_prog_info_yesde *yesde;
 	ssize_t size = DSO__DATA_CACHE_SIZE;
 	u64 len;
 	u8 *buf;
 
-	node = perf_env__find_bpf_prog_info(dso->bpf_prog.env, dso->bpf_prog.id);
-	if (!node || !node->info_linear) {
+	yesde = perf_env__find_bpf_prog_info(dso->bpf_prog.env, dso->bpf_prog.id);
+	if (!yesde || !yesde->info_linear) {
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 		return -1;
 	}
 
-	len = node->info_linear->info.jited_prog_len;
-	buf = (u8 *)(uintptr_t)node->info_linear->info.jited_prog_insns;
+	len = yesde->info_linear->info.jited_prog_len;
+	buf = (u8 *)(uintptr_t)yesde->info_linear->info.jited_prog_insns;
 
 	if (offset >= len)
 		return -1;
@@ -738,15 +738,15 @@ static ssize_t bpf_read(struct dso *dso, u64 offset, char *data)
 
 static int bpf_size(struct dso *dso)
 {
-	struct bpf_prog_info_node *node;
+	struct bpf_prog_info_yesde *yesde;
 
-	node = perf_env__find_bpf_prog_info(dso->bpf_prog.env, dso->bpf_prog.id);
-	if (!node || !node->info_linear) {
+	yesde = perf_env__find_bpf_prog_info(dso->bpf_prog.env, dso->bpf_prog.id);
+	if (!yesde || !yesde->info_linear) {
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 		return -1;
 	}
 
-	dso->data.file_size = node->info_linear->info.jited_prog_len;
+	dso->data.file_size = yesde->info_linear->info.jited_prog_len;
 	return 0;
 }
 
@@ -754,15 +754,15 @@ static void
 dso_cache__free(struct dso *dso)
 {
 	struct rb_root *root = &dso->data.cache;
-	struct rb_node *next = rb_first(root);
+	struct rb_yesde *next = rb_first(root);
 
 	pthread_mutex_lock(&dso->lock);
 	while (next) {
 		struct dso_cache *cache;
 
-		cache = rb_entry(next, struct dso_cache, rb_node);
-		next = rb_next(&cache->rb_node);
-		rb_erase(&cache->rb_node, root);
+		cache = rb_entry(next, struct dso_cache, rb_yesde);
+		next = rb_next(&cache->rb_yesde);
+		rb_erase(&cache->rb_yesde, root);
 		free(cache);
 	}
 	pthread_mutex_unlock(&dso->lock);
@@ -771,15 +771,15 @@ dso_cache__free(struct dso *dso)
 static struct dso_cache *__dso_cache__find(struct dso *dso, u64 offset)
 {
 	const struct rb_root *root = &dso->data.cache;
-	struct rb_node * const *p = &root->rb_node;
-	const struct rb_node *parent = NULL;
+	struct rb_yesde * const *p = &root->rb_yesde;
+	const struct rb_yesde *parent = NULL;
 	struct dso_cache *cache;
 
 	while (*p != NULL) {
 		u64 end;
 
 		parent = *p;
-		cache = rb_entry(parent, struct dso_cache, rb_node);
+		cache = rb_entry(parent, struct dso_cache, rb_yesde);
 		end = cache->offset + DSO__DATA_CACHE_SIZE;
 
 		if (offset < cache->offset)
@@ -797,8 +797,8 @@ static struct dso_cache *
 dso_cache__insert(struct dso *dso, struct dso_cache *new)
 {
 	struct rb_root *root = &dso->data.cache;
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &root->rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct dso_cache *cache;
 	u64 offset = new->offset;
 
@@ -807,7 +807,7 @@ dso_cache__insert(struct dso *dso, struct dso_cache *new)
 		u64 end;
 
 		parent = *p;
-		cache = rb_entry(parent, struct dso_cache, rb_node);
+		cache = rb_entry(parent, struct dso_cache, rb_yesde);
 		end = cache->offset + DSO__DATA_CACHE_SIZE;
 
 		if (offset < cache->offset)
@@ -818,8 +818,8 @@ dso_cache__insert(struct dso *dso, struct dso_cache *new)
 			goto out;
 	}
 
-	rb_link_node(&new->rb_node, parent, p);
-	rb_insert_color(&new->rb_node, root);
+	rb_link_yesde(&new->rb_yesde, parent, p);
+	rb_insert_color(&new->rb_yesde, root);
 
 	cache = NULL;
 out:
@@ -848,14 +848,14 @@ static ssize_t file_read(struct dso *dso, struct machine *machine,
 	pthread_mutex_lock(&dso__data_open_lock);
 
 	/*
-	 * dso->data.fd might be closed if other thread opened another
+	 * dso->data.fd might be closed if other thread opened ayesther
 	 * file (dso) due to open file limit (RLIMIT_NOFILE).
 	 */
 	try_to_open_dso(dso, machine);
 
 	if (dso->data.fd < 0) {
 		dso->data.status = DSO_DATA_STATUS_ERROR;
-		ret = -errno;
+		ret = -erryes;
 		goto out;
 	}
 
@@ -928,7 +928,7 @@ static ssize_t dso_cache_io(struct dso *dso, struct machine *machine,
 /*
  * Reads and caches dso data DSO__DATA_CACHE_SIZE size chunks
  * in the rb_tree. Any read to already cached data is served
- * by cached data. Writes update the cache only, not the backing file.
+ * by cached data. Writes update the cache only, yest the backing file.
  */
 static ssize_t cached_io(struct dso *dso, struct machine *machine,
 			 u64 offset, u8 *data, ssize_t size, bool out)
@@ -968,21 +968,21 @@ static int file_size(struct dso *dso, struct machine *machine)
 	pthread_mutex_lock(&dso__data_open_lock);
 
 	/*
-	 * dso->data.fd might be closed if other thread opened another
+	 * dso->data.fd might be closed if other thread opened ayesther
 	 * file (dso) due to open file limit (RLIMIT_NOFILE).
 	 */
 	try_to_open_dso(dso, machine);
 
 	if (dso->data.fd < 0) {
-		ret = -errno;
+		ret = -erryes;
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 		goto out;
 	}
 
 	if (fstat(dso->data.fd, &st) < 0) {
-		ret = -errno;
+		ret = -erryes;
 		pr_err("dso cache fstat failed: %s\n",
-		       str_error_r(errno, sbuf, sizeof(sbuf)));
+		       str_error_r(erryes, sbuf, sizeof(sbuf)));
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 		goto out;
 	}
@@ -1019,7 +1019,7 @@ off_t dso__data_size(struct dso *dso, struct machine *machine)
 	if (dso__data_file_size(dso, machine))
 		return -1;
 
-	/* For now just estimate dso data size is close to file size */
+	/* For yesw just estimate dso data size is close to file size */
 	return dso->data.file_size;
 }
 
@@ -1086,7 +1086,7 @@ ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
  * @data: buffer to write
  * @size: size of the @data buffer
  *
- * Write into the dso file data cache, but do not change the file itself.
+ * Write into the dso file data cache, but do yest change the file itself.
  */
 ssize_t dso__data_write_cache_offs(struct dso *dso, struct machine *machine,
 				   u64 offset, const u8 *data_in, ssize_t size)
@@ -1107,7 +1107,7 @@ ssize_t dso__data_write_cache_offs(struct dso *dso, struct machine *machine,
  * @data: buffer to write
  * @size: size of the @data buffer
  *
- * External interface to write into the dso file data cache, but do not change
+ * External interface to write into the dso file data cache, but do yest change
  * the file itself.
  */
 ssize_t dso__data_write_cache_addr(struct dso *dso, struct map *map,
@@ -1139,7 +1139,7 @@ struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
 
 	/*
 	 * We need to run this in all cases, since during the build_id
-	 * processing we had no idea this was the kernel dso.
+	 * processing we had yes idea this was the kernel dso.
 	 */
 	if (dso != NULL) {
 		dso__set_short_name(dso, short_name, false);
@@ -1160,12 +1160,12 @@ static void dso__set_long_name_id(struct dso *dso, const char *name, struct dso_
 		free((char *)dso->long_name);
 
 	if (root) {
-		rb_erase(&dso->rb_node, root);
+		rb_erase(&dso->rb_yesde, root);
 		/*
 		 * __dsos__findnew_link_by_longname_id() isn't guaranteed to
 		 * add it back, so a clean removal is required here.
 		 */
-		RB_CLEAR_NODE(&dso->rb_node);
+		RB_CLEAR_NODE(&dso->rb_yesde);
 		dso->root = NULL;
 	}
 
@@ -1198,7 +1198,7 @@ void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
 int dso__name_len(const struct dso *dso)
 {
 	if (!dso)
-		return strlen("[unknown]");
+		return strlen("[unkyeswn]");
 	if (verbose > 0)
 		return dso->long_name_len;
 
@@ -1232,7 +1232,7 @@ struct dso *dso__new_id(const char *name, struct dso_id *id)
 		dso__set_short_name(dso, dso->name, false);
 		dso->symbols = dso->symbol_names = RB_ROOT_CACHED;
 		dso->data.cache = RB_ROOT;
-		dso->inlined_nodes = RB_ROOT_CACHED;
+		dso->inlined_yesdes = RB_ROOT_CACHED;
 		dso->srclines = RB_ROOT_CACHED;
 		dso->data.fd = -1;
 		dso->data.status = DSO_DATA_STATUS_UNKNOWN;
@@ -1248,9 +1248,9 @@ struct dso *dso__new_id(const char *name, struct dso_id *id)
 		dso->kernel = DSO_TYPE_USER;
 		dso->needs_swap = DSO_SWAP__UNSET;
 		dso->comp = COMP_ID__NONE;
-		RB_CLEAR_NODE(&dso->rb_node);
+		RB_CLEAR_NODE(&dso->rb_yesde);
 		dso->root = NULL;
-		INIT_LIST_HEAD(&dso->node);
+		INIT_LIST_HEAD(&dso->yesde);
 		INIT_LIST_HEAD(&dso->data.open_entry);
 		pthread_mutex_init(&dso->lock, NULL);
 		refcount_set(&dso->refcnt, 1);
@@ -1266,12 +1266,12 @@ struct dso *dso__new(const char *name)
 
 void dso__delete(struct dso *dso)
 {
-	if (!RB_EMPTY_NODE(&dso->rb_node))
+	if (!RB_EMPTY_NODE(&dso->rb_yesde))
 		pr_err("DSO %s is still in rbtree when being deleted!\n",
 		       dso->long_name);
 
 	/* free inlines first, as they reference symbols */
-	inlines__tree_delete(&dso->inlined_nodes);
+	inlines__tree_delete(&dso->inlined_yesdes);
 	srcline__tree_delete(&dso->srclines);
 	symbols__delete(&dso->symbols);
 
@@ -1325,7 +1325,7 @@ void dso__read_running_kernel_build_id(struct dso *dso, struct machine *machine)
 
 	if (machine__is_default_guest(machine))
 		return;
-	sprintf(path, "%s/sys/kernel/notes", machine->root_dir);
+	sprintf(path, "%s/sys/kernel/yestes", machine->root_dir);
 	if (sysfs__read_build_id(path, dso->build_id,
 				 sizeof(dso->build_id)) == 0)
 		dso->has_build_id = true;
@@ -1342,7 +1342,7 @@ int dso__kernel_module_get_build_id(struct dso *dso,
 	const char *name = dso->short_name + 1;
 
 	snprintf(filename, sizeof(filename),
-		 "%s/sys/module/%.*s/notes/.note.gnu.build-id",
+		 "%s/sys/module/%.*s/yestes/.yeste.gnu.build-id",
 		 root_dir, (int)strlen(name) - 1, name);
 
 	if (sysfs__read_build_id(filename, dso->build_id,
@@ -1362,7 +1362,7 @@ size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
 
 size_t dso__fprintf(struct dso *dso, FILE *fp)
 {
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	size_t ret = fprintf(fp, "dso: %s (", dso->short_name);
 
 	if (dso->short_name != dso->long_name)
@@ -1371,7 +1371,7 @@ size_t dso__fprintf(struct dso *dso, FILE *fp)
 	ret += dso__fprintf_buildid(dso, fp);
 	ret += fprintf(fp, ")\n");
 	for (nd = rb_first_cached(&dso->symbols); nd; nd = rb_next(nd)) {
-		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
+		struct symbol *pos = rb_entry(nd, struct symbol, rb_yesde);
 		ret += symbol__fprintf(pos, fp);
 	}
 
@@ -1394,14 +1394,14 @@ enum dso_type dso__type(struct dso *dso, struct machine *machine)
 
 int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
 {
-	int idx, errnum = dso->load_errno;
+	int idx, errnum = dso->load_erryes;
 	/*
-	 * This must have a same ordering as the enum dso_load_errno.
+	 * This must have a same ordering as the enum dso_load_erryes.
 	 */
 	static const char *dso_load__error_str[] = {
 	"Internal tools/perf/ library error",
 	"Invalid ELF file",
-	"Can not read build id",
+	"Can yest read build id",
 	"Mismatching build id",
 	"Decompression failure",
 	};

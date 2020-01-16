@@ -31,8 +31,8 @@ jiffies = jiffies_64;
 	 * Align to 4 KB so that			\
 	 * a) the HYP vector table is at its minimum	\
 	 *    alignment of 2048 bytes			\
-	 * b) the HYP init code will not cross a page	\
-	 *    boundary if its size does not exceed	\
+	 * b) the HYP init code will yest cross a page	\
+	 *    boundary if its size does yest exceed	\
 	 *    4 KB (see related ASSERT() below)		\
 	 */						\
 	. = ALIGN(SZ_4K);				\
@@ -89,9 +89,9 @@ PECOFF_FILE_ALIGNMENT = 0x200;
 SECTIONS
 {
 	/*
-	 * XXX: The linker does not define how output sections are
+	 * XXX: The linker does yest define how output sections are
 	 * assigned to input sections when there are multiple statements
-	 * matching the same input section name.  There is no documented
+	 * matching the same input section name.  There is yes documented
 	 * order of matching.
 	 */
 	/DISCARD/ : {
@@ -258,7 +258,7 @@ SECTIONS
 
 /*
  * The HYP init code and ID map text can't be longer than a page each,
- * and should not cross a page boundary.
+ * and should yest cross a page boundary.
  */
 ASSERT(__hyp_idmap_text_end - (__hyp_idmap_text_start & ~(SZ_4K - 1)) <= SZ_4K,
 	"HYP init code too big or misaligned")

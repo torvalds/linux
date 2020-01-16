@@ -3,7 +3,7 @@
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Rahul Sharma <rahul.sharma@samsung.com>
  *
- * Common Clock Framework support for Exynos5260 SoC.
+ * Common Clock Framework support for Exyyess5260 SoC.
  */
 
 #ifndef __CLK_EXYNOS5260_H

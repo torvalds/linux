@@ -8,7 +8,7 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Note <jbyeste@gmail.com>, et al.
  * - stlc45xx driver
  *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
  */
@@ -72,7 +72,7 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 			}
 			break;
 		case BR_CODE_COMPONENT_VERSION:
-			/* 24 bytes should be enough for all firmwares */
+			/* 24 bytes should be eyesugh for all firmwares */
 			if (strnlen((unsigned char *) bootrec->data, 24) < 24)
 				fw_version = (unsigned char *) bootrec->data;
 			break;
@@ -154,12 +154,12 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 
 	wiphy_info(priv->hw->wiphy,
 		   "cryptographic accelerator WEP:%s, TKIP:%s, CCMP:%s\n",
-		   (priv->privacy_caps & BR_DESC_PRIV_CAP_WEP) ? "YES" : "no",
+		   (priv->privacy_caps & BR_DESC_PRIV_CAP_WEP) ? "YES" : "yes",
 		   (priv->privacy_caps &
 		    (BR_DESC_PRIV_CAP_TKIP | BR_DESC_PRIV_CAP_MICHAEL))
-		   ? "YES" : "no",
+		   ? "YES" : "yes",
 		   (priv->privacy_caps & BR_DESC_PRIV_CAP_AESCCMP)
-		   ? "YES" : "no");
+		   ? "YES" : "yes");
 
 	if (priv->rx_keycache_size) {
 		/*
@@ -251,7 +251,7 @@ int p54_download_eeprom(struct p54_common *priv, void *buf,
 			&priv->eeprom_comp, HZ);
 	if (timeout <= 0) {
 		wiphy_err(priv->hw->wiphy,
-			"device does not respond or signal received!\n");
+			"device does yest respond or signal received!\n");
 		ret = -EBUSY;
 	}
 	priv->eeprom = NULL;
@@ -435,7 +435,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 	if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW)
 		body = skb_put(skb, sizeof(body->longbow));
 	else
-		body = skb_put(skb, sizeof(body->normal));
+		body = skb_put(skb, sizeof(body->yesrmal));
 
 	for (i = 0; i < priv->output_limit->entries; i++) {
 		__le16 *entry_freq = (void *) (priv->output_limit->data +
@@ -452,14 +452,14 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 			struct pda_channel_output_limit *limits =
 			       (void *) entry_freq;
 
-			body->normal.val_barker = 0x38;
-			body->normal.val_bpsk = body->normal.dup_bpsk =
+			body->yesrmal.val_barker = 0x38;
+			body->yesrmal.val_bpsk = body->yesrmal.dup_bpsk =
 				limits->val_bpsk;
-			body->normal.val_qpsk = body->normal.dup_qpsk =
+			body->yesrmal.val_qpsk = body->yesrmal.dup_qpsk =
 				limits->val_qpsk;
-			body->normal.val_16qam = body->normal.dup_16qam =
+			body->yesrmal.val_16qam = body->yesrmal.dup_16qam =
 				limits->val_16qam;
-			body->normal.val_64qam = body->normal.dup_64qam =
+			body->yesrmal.val_64qam = body->yesrmal.dup_64qam =
 				limits->val_64qam;
 		}
 		break;
@@ -479,7 +479,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 				entry + sizeof(__le16),
 				priv->curve_data->entry_size);
 		} else {
-			struct p54_scan_body *chan = &body->normal;
+			struct p54_scan_body *chan = &body->yesrmal;
 			struct pda_pa_curve_data *curve_data =
 				(void *) priv->curve_data->data;
 
@@ -713,9 +713,9 @@ int p54_fetch_statistics(struct p54_common *priv)
 
 	/*
 	 * The statistic feedback causes some extra headaches here, if it
-	 * is not to crash/corrupt the firmware data structures.
+	 * is yest to crash/corrupt the firmware data structures.
 	 *
-	 * Unlike all other Control Get OIDs we can not use helpers like
+	 * Unlike all other Control Get OIDs we can yest use helpers like
 	 * skb_put to reserve the space for the data we're requesting.
 	 * Instead the extra frame length -which will hold the results later-
 	 * will only be told to the p54_assign_address, so that following

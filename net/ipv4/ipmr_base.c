@@ -67,7 +67,7 @@ void *mr_mfc_find_parent(struct mr_table *mrt, void *hasharg, int parent)
 	struct mr_mfc *c;
 
 	list = rhltable_lookup(&mrt->mfc_hash, hasharg, *mrt->ops.rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode)
+	rhl_for_each_entry_rcu(c, tmp, list, myesde)
 		if (parent == -1 || parent == c->mfc_parent)
 			return c;
 
@@ -82,7 +82,7 @@ void *mr_mfc_find_any_parent(struct mr_table *mrt, int vifi)
 
 	list = rhltable_lookup(&mrt->mfc_hash, mrt->ops.cmparg_any,
 			       *mrt->ops.rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode)
+	rhl_for_each_entry_rcu(c, tmp, list, myesde)
 		if (c->mfc_un.res.ttls[vifi] < 255)
 			return c;
 
@@ -96,7 +96,7 @@ void *mr_mfc_find_any(struct mr_table *mrt, int vifi, void *hasharg)
 	struct mr_mfc *c, *proxy;
 
 	list = rhltable_lookup(&mrt->mfc_hash, hasharg, *mrt->ops.rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode) {
+	rhl_for_each_entry_rcu(c, tmp, list, myesde) {
 		if (c->mfc_un.res.ttls[vifi] < 255)
 			return c;
 
@@ -228,7 +228,7 @@ int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	if (c->mfc_flags & MFC_OFFLOAD)
 		rtm->rtm_flags |= RTNH_F_OFFLOAD;
 
-	mp_attr = nla_nest_start_noflag(skb, RTA_MULTIPATH);
+	mp_attr = nla_nest_start_yesflag(skb, RTA_MULTIPATH);
 	if (!mp_attr)
 		return -EMSGSIZE;
 
@@ -236,7 +236,7 @@ int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 		if (VIF_EXISTS(mrt, ct) && c->mfc_un.res.ttls[ct] < 255) {
 			struct vif_device *vif;
 
-			nhp = nla_reserve_nohdr(skb, sizeof(*nhp));
+			nhp = nla_reserve_yeshdr(skb, sizeof(*nhp));
 			if (!nhp) {
 				nla_nest_cancel(skb, mp_attr);
 				return -EMSGSIZE;
@@ -355,7 +355,7 @@ int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 	struct mr_table *mrt;
 	int err;
 
-	/* multicast does not track protocol or have route type other
+	/* multicast does yest track protocol or have route type other
 	 * than RTN_MULTICAST
 	 */
 	if (filter->filter_set) {
@@ -384,9 +384,9 @@ next_table:
 }
 EXPORT_SYMBOL(mr_rtm_dumproute);
 
-int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
+int mr_dump(struct net *net, struct yestifier_block *nb, unsigned short family,
 	    int (*rules_dump)(struct net *net,
-			      struct notifier_block *nb,
+			      struct yestifier_block *nb,
 			      struct netlink_ext_ack *extack),
 	    struct mr_table *(*mr_iter)(struct net *net,
 					struct mr_table *mrt),
@@ -411,7 +411,7 @@ int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 			if (!v->dev)
 				continue;
 
-			err = mr_call_vif_notifier(nb, family,
+			err = mr_call_vif_yestifier(nb, family,
 						   FIB_EVENT_VIF_ADD,
 						   v, vifi, mrt->id, extack);
 			if (err)
@@ -424,7 +424,7 @@ int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 
 		/* Notify on table MFC entries */
 		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list) {
-			err = mr_call_mfc_notifier(nb, family,
+			err = mr_call_mfc_yestifier(nb, family,
 						   FIB_EVENT_ENTRY_ADD,
 						   mfc, mrt->id, extack);
 			if (err)

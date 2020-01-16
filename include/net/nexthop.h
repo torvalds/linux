@@ -47,7 +47,7 @@ struct nh_config {
 };
 
 struct nh_info {
-	struct hlist_node	dev_hash;    /* entry on netns devhash */
+	struct hlist_yesde	dev_hash;    /* entry on netns devhash */
 	struct nexthop		*nh_parent;
 
 	u8			family;
@@ -77,7 +77,7 @@ struct nh_group {
 };
 
 struct nexthop {
-	struct rb_node		rb_node;    /* entry on netns rbtree */
+	struct rb_yesde		rb_yesde;    /* entry on netns rbtree */
 	struct list_head	fi_list;    /* v4 entries using nh */
 	struct list_head	f6i_list;   /* v6 entries using nh */
 	struct list_head	grp_list;   /* nh group entries using this nh */
@@ -98,13 +98,13 @@ struct nexthop {
 	};
 };
 
-/* caller is holding rcu or rtnl; no reference taken to nexthop */
+/* caller is holding rcu or rtnl; yes reference taken to nexthop */
 struct nexthop *nexthop_find_by_id(struct net *net, u32 id);
 void nexthop_free_rcu(struct rcu_head *head);
 
 static inline bool nexthop_get(struct nexthop *nh)
 {
-	return refcount_inc_not_zero(&nh->refcnt);
+	return refcount_inc_yest_zero(&nh->refcnt);
 }
 
 static inline void nexthop_put(struct nexthop *nh)
@@ -161,7 +161,7 @@ struct nexthop *nexthop_mpath_select(const struct nexthop *nh, int nhsel)
 }
 
 static inline
-int nexthop_mpath_fill_node(struct sk_buff *skb, struct nexthop *nh,
+int nexthop_mpath_fill_yesde(struct sk_buff *skb, struct nexthop *nh,
 			    u8 rt_family)
 {
 	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);

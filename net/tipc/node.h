@@ -1,5 +1,5 @@
 /*
- * net/tipc/node.h: Include file for TIPC node management routines
+ * net/tipc/yesde.h: Include file for TIPC yesde management routines
  *
  * Copyright (c) 2000-2006, 2014-2016, Ericsson AB
  * Copyright (c) 2005, 2010-2014, Wind River Systems
@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -72,56 +72,56 @@ enum {
 
 #define INVALID_BEARER_ID -1
 
-void tipc_node_stop(struct net *net);
-bool tipc_node_get_id(struct net *net, u32 addr, u8 *id);
-u32 tipc_node_get_addr(struct tipc_node *node);
-char *tipc_node_get_id_str(struct tipc_node *node);
-void tipc_node_put(struct tipc_node *node);
-struct tipc_node *tipc_node_create(struct net *net, u32 addr, u8 *peer_id,
+void tipc_yesde_stop(struct net *net);
+bool tipc_yesde_get_id(struct net *net, u32 addr, u8 *id);
+u32 tipc_yesde_get_addr(struct tipc_yesde *yesde);
+char *tipc_yesde_get_id_str(struct tipc_yesde *yesde);
+void tipc_yesde_put(struct tipc_yesde *yesde);
+struct tipc_yesde *tipc_yesde_create(struct net *net, u32 addr, u8 *peer_id,
 				   u16 capabilities, u32 hash_mixes,
 				   bool preliminary);
 #ifdef CONFIG_TIPC_CRYPTO
-struct tipc_crypto *tipc_node_crypto_rx(struct tipc_node *__n);
-struct tipc_crypto *tipc_node_crypto_rx_by_list(struct list_head *pos);
+struct tipc_crypto *tipc_yesde_crypto_rx(struct tipc_yesde *__n);
+struct tipc_crypto *tipc_yesde_crypto_rx_by_list(struct list_head *pos);
 #endif
-u32 tipc_node_try_addr(struct net *net, u8 *id, u32 addr);
-void tipc_node_check_dest(struct net *net, u32 onode, u8 *peer_id128,
+u32 tipc_yesde_try_addr(struct net *net, u8 *id, u32 addr);
+void tipc_yesde_check_dest(struct net *net, u32 oyesde, u8 *peer_id128,
 			  struct tipc_bearer *bearer,
 			  u16 capabilities, u32 signature, u32 hash_mixes,
 			  struct tipc_media_addr *maddr,
 			  bool *respond, bool *dupl_addr);
-void tipc_node_delete_links(struct net *net, int bearer_id);
-void tipc_node_apply_property(struct net *net, struct tipc_bearer *b, int prop);
-int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 node,
+void tipc_yesde_delete_links(struct net *net, int bearer_id);
+void tipc_yesde_apply_property(struct net *net, struct tipc_bearer *b, int prop);
+int tipc_yesde_get_linkname(struct net *net, u32 bearer_id, u32 yesde,
 			   char *linkname, size_t len);
-int tipc_node_xmit(struct net *net, struct sk_buff_head *list, u32 dnode,
+int tipc_yesde_xmit(struct net *net, struct sk_buff_head *list, u32 dyesde,
 		   int selector);
-int tipc_node_distr_xmit(struct net *net, struct sk_buff_head *list);
-int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dest,
+int tipc_yesde_distr_xmit(struct net *net, struct sk_buff_head *list);
+int tipc_yesde_xmit_skb(struct net *net, struct sk_buff *skb, u32 dest,
 		       u32 selector);
-void tipc_node_subscribe(struct net *net, struct list_head *subscr, u32 addr);
-void tipc_node_unsubscribe(struct net *net, struct list_head *subscr, u32 addr);
-void tipc_node_broadcast(struct net *net, struct sk_buff *skb);
-int tipc_node_add_conn(struct net *net, u32 dnode, u32 port, u32 peer_port);
-void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port);
-int tipc_node_get_mtu(struct net *net, u32 addr, u32 sel, bool connected);
-bool tipc_node_is_up(struct net *net, u32 addr);
-u16 tipc_node_get_capabilities(struct net *net, u32 addr);
-int tipc_nl_node_dump(struct sk_buff *skb, struct netlink_callback *cb);
-int tipc_nl_node_dump_link(struct sk_buff *skb, struct netlink_callback *cb);
-int tipc_nl_node_reset_link_stats(struct sk_buff *skb, struct genl_info *info);
-int tipc_nl_node_get_link(struct sk_buff *skb, struct genl_info *info);
-int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info);
+void tipc_yesde_subscribe(struct net *net, struct list_head *subscr, u32 addr);
+void tipc_yesde_unsubscribe(struct net *net, struct list_head *subscr, u32 addr);
+void tipc_yesde_broadcast(struct net *net, struct sk_buff *skb);
+int tipc_yesde_add_conn(struct net *net, u32 dyesde, u32 port, u32 peer_port);
+void tipc_yesde_remove_conn(struct net *net, u32 dyesde, u32 port);
+int tipc_yesde_get_mtu(struct net *net, u32 addr, u32 sel, bool connected);
+bool tipc_yesde_is_up(struct net *net, u32 addr);
+u16 tipc_yesde_get_capabilities(struct net *net, u32 addr);
+int tipc_nl_yesde_dump(struct sk_buff *skb, struct netlink_callback *cb);
+int tipc_nl_yesde_dump_link(struct sk_buff *skb, struct netlink_callback *cb);
+int tipc_nl_yesde_reset_link_stats(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_yesde_get_link(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_yesde_set_link(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info);
 
-int tipc_nl_node_set_monitor(struct sk_buff *skb, struct genl_info *info);
-int tipc_nl_node_get_monitor(struct sk_buff *skb, struct genl_info *info);
-int tipc_nl_node_dump_monitor(struct sk_buff *skb, struct netlink_callback *cb);
-int tipc_nl_node_dump_monitor_peer(struct sk_buff *skb,
+int tipc_nl_yesde_set_monitor(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_yesde_get_monitor(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_yesde_dump_monitor(struct sk_buff *skb, struct netlink_callback *cb);
+int tipc_nl_yesde_dump_monitor_peer(struct sk_buff *skb,
 				   struct netlink_callback *cb);
 #ifdef CONFIG_TIPC_CRYPTO
-int tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info);
-int tipc_nl_node_flush_key(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_yesde_set_key(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_yesde_flush_key(struct sk_buff *skb, struct genl_info *info);
 #endif
-void tipc_node_pre_cleanup_net(struct net *exit_net);
+void tipc_yesde_pre_cleanup_net(struct net *exit_net);
 #endif

@@ -5,8 +5,8 @@
  * (C) Copyright IBM Corporation 2001-2005
  * (C) Copyright Red Hat, Inc. 2005
  *
- * Author(s): Maximino Augilar <IBM STI Design Center>
- *	    : Ryan S. Arnold <rsa@us.ibm.com>
+ * Author(s): Maximiyes Augilar <IBM STI Design Center>
+ *	    : Ryan S. Aryesld <rsa@us.ibm.com>
  *	    : Utz Bacher <utz.bacher@de.ibm.com>
  *	    : David Woodhouse <dwmw2@infradead.org>
  *
@@ -31,7 +31,7 @@ struct hvc_struct *hvc_rtas_dev;
 static int rtascons_put_char_token = RTAS_UNKNOWN_SERVICE;
 static int rtascons_get_char_token = RTAS_UNKNOWN_SERVICE;
 
-static inline int hvc_rtas_write_console(uint32_t vtermno, const char *buf,
+static inline int hvc_rtas_write_console(uint32_t vtermyes, const char *buf,
 		int count)
 {
 	int i;
@@ -44,7 +44,7 @@ static inline int hvc_rtas_write_console(uint32_t vtermno, const char *buf,
 	return i;
 }
 
-static int hvc_rtas_read_console(uint32_t vtermno, char *buf, int count)
+static int hvc_rtas_read_console(uint32_t vtermyes, char *buf, int count)
 {
 	int i, c;
 
@@ -91,7 +91,7 @@ static int __init hvc_rtas_init(void)
 }
 device_initcall(hvc_rtas_init);
 
-/* This will happen prior to module init.  There is no tty at this time? */
+/* This will happen prior to module init.  There is yes tty at this time? */
 static int __init hvc_rtas_console_init(void)
 {
 	rtascons_put_char_token = rtas_token("put-term-char");

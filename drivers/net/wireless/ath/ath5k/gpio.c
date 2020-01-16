@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -47,7 +47,7 @@
  *
  * Used to set the LED blinking state. This only
  * works for the LED connected to the LED_0, LED_1 pins,
- * not the GPIO based.
+ * yest the GPIO based.
  */
 void
 ath5k_hw_set_ledstate(struct ath5k_hw *ah, unsigned int state)

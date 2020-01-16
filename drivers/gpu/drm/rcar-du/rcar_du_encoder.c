@@ -30,29 +30,29 @@ static const struct drm_encoder_funcs encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-static unsigned int rcar_du_encoder_count_ports(struct device_node *node)
+static unsigned int rcar_du_encoder_count_ports(struct device_yesde *yesde)
 {
-	struct device_node *ports;
-	struct device_node *port;
+	struct device_yesde *ports;
+	struct device_yesde *port;
 	unsigned int num_ports = 0;
 
-	ports = of_get_child_by_name(node, "ports");
+	ports = of_get_child_by_name(yesde, "ports");
 	if (!ports)
-		ports = of_node_get(node);
+		ports = of_yesde_get(yesde);
 
-	for_each_child_of_node(ports, port) {
-		if (of_node_name_eq(port, "port"))
+	for_each_child_of_yesde(ports, port) {
+		if (of_yesde_name_eq(port, "port"))
 			num_ports++;
 	}
 
-	of_node_put(ports);
+	of_yesde_put(ports);
 
 	return num_ports;
 }
 
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_output output,
-			 struct device_node *enc_node)
+			 struct device_yesde *enc_yesde)
 {
 	struct rcar_du_encoder *renc;
 	struct drm_encoder *encoder;
@@ -68,17 +68,17 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	encoder = rcar_encoder_to_drm_encoder(renc);
 
 	dev_dbg(rcdu->dev, "initializing encoder %pOF for output %u\n",
-		enc_node, output);
+		enc_yesde, output);
 
 	/*
-	 * Locate the DRM bridge from the DT node. For the DPAD outputs, if the
-	 * DT node has a single port, assume that it describes a panel and
+	 * Locate the DRM bridge from the DT yesde. For the DPAD outputs, if the
+	 * DT yesde has a single port, assume that it describes a panel and
 	 * create a panel bridge.
 	 */
 	if ((output == RCAR_DU_OUTPUT_DPAD0 ||
 	     output == RCAR_DU_OUTPUT_DPAD1) &&
-	    rcar_du_encoder_count_ports(enc_node) == 1) {
-		struct drm_panel *panel = of_drm_find_panel(enc_node);
+	    rcar_du_encoder_count_ports(enc_yesde) == 1) {
+		struct drm_panel *panel = of_drm_find_panel(enc_yesde);
 
 		if (IS_ERR(panel)) {
 			ret = PTR_ERR(panel);
@@ -92,7 +92,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			goto done;
 		}
 	} else {
-		bridge = of_drm_find_bridge(enc_node);
+		bridge = of_drm_find_bridge(enc_yesde);
 		if (!bridge) {
 			ret = -EPROBE_DEFER;
 			goto done;

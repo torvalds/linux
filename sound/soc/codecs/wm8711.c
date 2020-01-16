@@ -38,7 +38,7 @@ struct wm8711_priv {
  * wm8711 register cache
  * We can't read the WM8711 register space when we are
  * using 2 wire for device control, so we cache them instead.
- * There is no point in caching the reset register
+ * There is yes point in caching the reset register
  */
 static const struct reg_default wm8711_reg_defaults[] = {
 	{ 0, 0x0079 }, { 1, 0x0079 }, { 2, 0x000a }, { 3, 0x0008 },
@@ -377,7 +377,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8711 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8711_of_match[] = {

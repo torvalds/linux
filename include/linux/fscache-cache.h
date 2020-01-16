@@ -60,13 +60,13 @@ struct fscache_cache {
 	size_t			max_index_size;	/* maximum size of index data */
 	char			identifier[36];	/* cache label */
 
-	/* node management */
+	/* yesde management */
 	struct work_struct	op_gc;		/* operation garbage collector */
 	struct list_head	object_list;	/* list of data/index objects */
 	struct list_head	op_gc_list;	/* list of ops to be deleted */
 	spinlock_t		object_list_lock;
 	spinlock_t		op_gc_list_lock;
-	atomic_t		object_count;	/* no. of live objects in this cache */
+	atomic_t		object_count;	/* yes. of live objects in this cache */
 	struct fscache_object	*fsdef;		/* object for the fsdef index */
 	unsigned long		flags;
 #define FSCACHE_IOERROR		0	/* cache stopped on I/O error */
@@ -78,20 +78,20 @@ extern wait_queue_head_t fscache_cache_cleared_wq;
 /*
  * operation to be applied to a cache object
  * - retrieval initiation operations are done in the context of the process
- *   that issued them, and not in an async thread pool
+ *   that issued them, and yest in an async thread pool
  */
 typedef void (*fscache_operation_release_t)(struct fscache_operation *op);
 typedef void (*fscache_operation_processor_t)(struct fscache_operation *op);
 typedef void (*fscache_operation_cancel_t)(struct fscache_operation *op);
 
 enum fscache_operation_state {
-	FSCACHE_OP_ST_BLANK,		/* Op is not yet submitted */
+	FSCACHE_OP_ST_BLANK,		/* Op is yest yet submitted */
 	FSCACHE_OP_ST_INITIALISED,	/* Op is initialised */
 	FSCACHE_OP_ST_PENDING,		/* Op is blocked from running */
 	FSCACHE_OP_ST_IN_PROGRESS,	/* Op is in progress */
 	FSCACHE_OP_ST_COMPLETE,		/* Op is complete */
 	FSCACHE_OP_ST_CANCELLED,	/* Op has been cancelled */
-	FSCACHE_OP_ST_DEAD		/* Op is now dead */
+	FSCACHE_OP_ST_DEAD		/* Op is yesw dead */
 };
 
 struct fscache_operation {
@@ -102,7 +102,7 @@ struct fscache_operation {
 	unsigned long		flags;
 #define FSCACHE_OP_TYPE		0x000f	/* operation type */
 #define FSCACHE_OP_ASYNC	0x0001	/* - async op, processor may sleep for disk */
-#define FSCACHE_OP_MYTHREAD	0x0002	/* - processing is done be issuing thread, not pool */
+#define FSCACHE_OP_MYTHREAD	0x0002	/* - processing is done be issuing thread, yest pool */
 #define FSCACHE_OP_WAITING	4	/* cleared when op is woken */
 #define FSCACHE_OP_EXCLUSIVE	5	/* exclusive op, other ops must wait */
 #define FSCACHE_OP_DEC_READ_CNT	6	/* decrement object->n_reads on destruction */
@@ -115,7 +115,7 @@ struct fscache_operation {
 
 	/* operation processor callback
 	 * - can be NULL if FSCACHE_OP_WAITING is going to be used to perform
-	 *   the op in a non-pool thread */
+	 *   the op in a yesn-pool thread */
 	fscache_operation_processor_t processor;
 
 	/* Operation cancellation cleanup (optional) */
@@ -211,7 +211,7 @@ static inline void fscache_put_retrieval(struct fscache_retrieval *op)
  * cached page storage work item
  * - used to do three things:
  *   - batch writes to the cache
- *   - do cache writes asynchronously
+ *   - do cache writes asynchroyesusly
  *   - defer writes until cache object lookup completion
  */
 struct fscache_storage {
@@ -269,7 +269,7 @@ struct fscache_cache_ops {
 	/* sync a cache */
 	void (*sync_cache)(struct fscache_cache *cache);
 
-	/* notification that the attributes of a non-index object (such as
+	/* yestification that the attributes of a yesn-index object (such as
 	 * i_size) have changed */
 	int (*attr_changed)(struct fscache_object *object);
 
@@ -365,7 +365,7 @@ struct fscache_object {
 #define FSCACHE_OBJECT_LOCK		0	/* T if object is busy being processed */
 #define FSCACHE_OBJECT_PENDING_WRITE	1	/* T if object has pending write */
 #define FSCACHE_OBJECT_WAITING		2	/* T if object is waiting on its parent */
-#define FSCACHE_OBJECT_IS_LIVE		3	/* T if object is not withdrawn or relinquished */
+#define FSCACHE_OBJECT_IS_LIVE		3	/* T if object is yest withdrawn or relinquished */
 #define FSCACHE_OBJECT_IS_LOOKED_UP	4	/* T if object has been looked up */
 #define FSCACHE_OBJECT_IS_AVAILABLE	5	/* T if object has become active */
 #define FSCACHE_OBJECT_RETIRED		6	/* T if object was retired on relinquishment */
@@ -373,7 +373,7 @@ struct fscache_object {
 #define FSCACHE_OBJECT_RUN_AFTER_DEAD	8	/* T if object has been dispatched after death */
 
 	struct list_head	cache_link;	/* link in cache->object_list */
-	struct hlist_node	cookie_link;	/* link in cookie->backing_objects */
+	struct hlist_yesde	cookie_link;	/* link in cookie->backing_objects */
 	struct fscache_cache	*cache;		/* cache that supplied this object */
 	struct fscache_cookie	*cookie;	/* netfs's file/index object */
 	struct fscache_object	*parent;	/* parent object */
@@ -382,7 +382,7 @@ struct fscache_object {
 	struct list_head	dep_link;	/* link in parent's dependents list */
 	struct list_head	pending_ops;	/* unstarted operations on this object */
 #ifdef CONFIG_FSCACHE_OBJECT_LIST
-	struct rb_node		objlist_link;	/* link in global object list */
+	struct rb_yesde		objlist_link;	/* link in global object list */
 #endif
 	pgoff_t			store_limit;	/* current storage limit */
 	loff_t			store_limit_l;	/* current storage limit */
@@ -496,7 +496,7 @@ static inline void __fscache_use_cookie(struct fscache_cookie *cookie)
 static inline bool fscache_use_cookie(struct fscache_object *object)
 {
 	struct fscache_cookie *cookie = object->cookie;
-	return atomic_inc_not_zero(&cookie->n_active) != 0;
+	return atomic_inc_yest_zero(&cookie->n_active) != 0;
 }
 
 static inline bool __fscache_unuse_cookie(struct fscache_cookie *cookie)

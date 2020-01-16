@@ -177,7 +177,7 @@ static u32 read_rtc_register_38x_wa(struct armada38x_rtc *rtc, u8 rtc_reg)
 
 		/*
 		 * If a value already has half of the sample this is the most
-		 * frequent one and we can stop the research right now
+		 * frequent one and we can stop the research right yesw
 		 */
 		if (max > SAMPLE_NR / 2)
 			break;
@@ -229,7 +229,7 @@ static void armada38x_rtc_reset(struct armada38x_rtc *rtc)
 	u32 reg;
 
 	reg = rtc->data->read_rtc_reg(rtc, RTC_CONF_TEST);
-	/* If bits [7:0] are non-zero, assume RTC was uninitialized */
+	/* If bits [7:0] are yesn-zero, assume RTC was uninitialized */
 	if (reg & 0xff) {
 		rtc_delayed_write(0, rtc, RTC_CONF_TEST);
 		msleep(500); /* Oscillator startup time */
@@ -458,7 +458,7 @@ static const struct rtc_class_ops armada38x_rtc_ops = {
 	.set_offset = armada38x_rtc_set_offset,
 };
 
-static const struct rtc_class_ops armada38x_rtc_ops_noirq = {
+static const struct rtc_class_ops armada38x_rtc_ops_yesirq = {
 	.read_time = armada38x_rtc_read_time,
 	.set_time = armada38x_rtc_set_time,
 	.read_alarm = armada38x_rtc_read_alarm,
@@ -535,7 +535,7 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 
 	if (devm_request_irq(&pdev->dev, rtc->irq, armada38x_rtc_alarm_irq,
 				0, pdev->name, rtc) < 0) {
-		dev_warn(&pdev->dev, "Interrupt not available.\n");
+		dev_warn(&pdev->dev, "Interrupt yest available.\n");
 		rtc->irq = -1;
 	}
 	platform_set_drvdata(pdev, rtc);
@@ -545,10 +545,10 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 		rtc->rtc_dev->ops = &armada38x_rtc_ops;
 	} else {
 		/*
-		 * If there is no interrupt available then we can't
+		 * If there is yes interrupt available then we can't
 		 * use the alarm
 		 */
-		rtc->rtc_dev->ops = &armada38x_rtc_ops_noirq;
+		rtc->rtc_dev->ops = &armada38x_rtc_ops_yesirq;
 	}
 
 	/* Update RTC-MBUS bridge timing parameters */

@@ -189,7 +189,7 @@ extern int iop3xx_get_init_atu(void);
 /* Watchdog timer definitions */
 #define IOP_WDTCR_EN_ARM        0x1e1e1e1e
 #define IOP_WDTCR_EN            0xe1e1e1e1
-/* iop3xx does not support stopping the watchdog, so we just re-arm */
+/* iop3xx does yest support stopping the watchdog, so we just re-arm */
 #define IOP_WDTCR_DIS_ARM	(IOP_WDTCR_EN_ARM)
 #define IOP_WDTCR_DIS		(IOP_WDTCR_EN)
 

@@ -8,7 +8,7 @@
 #define __MACH_PRCMU_H
 
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/err.h>
 
 #include <dt-bindings/mfd/dbx500-prcmu.h> /* For clock identifiers */
@@ -594,10 +594,10 @@ int prcmu_qos_requirement(int pm_qos_class);
 int prcmu_qos_add_requirement(int pm_qos_class, char *name, s32 value);
 int prcmu_qos_update_requirement(int pm_qos_class, char *name, s32 new_value);
 void prcmu_qos_remove_requirement(int pm_qos_class, char *name);
-int prcmu_qos_add_notifier(int prcmu_qos_class,
-			   struct notifier_block *notifier);
-int prcmu_qos_remove_notifier(int prcmu_qos_class,
-			      struct notifier_block *notifier);
+int prcmu_qos_add_yestifier(int prcmu_qos_class,
+			   struct yestifier_block *yestifier);
+int prcmu_qos_remove_yestifier(int prcmu_qos_class,
+			      struct yestifier_block *yestifier);
 
 #else
 
@@ -631,13 +631,13 @@ static inline void prcmu_qos_remove_requirement(int prcmu_qos_class, char *name)
 {
 }
 
-static inline int prcmu_qos_add_notifier(int prcmu_qos_class,
-					 struct notifier_block *notifier)
+static inline int prcmu_qos_add_yestifier(int prcmu_qos_class,
+					 struct yestifier_block *yestifier)
 {
 	return 0;
 }
-static inline int prcmu_qos_remove_notifier(int prcmu_qos_class,
-					    struct notifier_block *notifier)
+static inline int prcmu_qos_remove_yestifier(int prcmu_qos_class,
+					    struct yestifier_block *yestifier)
 {
 	return 0;
 }

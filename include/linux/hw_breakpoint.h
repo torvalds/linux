@@ -58,7 +58,7 @@ modify_user_hw_breakpoint_check(struct perf_event *bp, struct perf_event_attr *a
 				bool check);
 
 /*
- * Kernel breakpoints are not associated with any particular thread.
+ * Kernel breakpoints are yest associated with any particular thread.
  */
 extern struct perf_event *
 register_wide_hw_breakpoint_cpu(struct perf_event_attr *attr,

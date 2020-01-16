@@ -40,7 +40,7 @@ enum ps2_subcmds {
 
 struct nvec_ps2 {
 	struct serio *ser_dev;
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	struct nvec_chip *nvec;
 };
 
@@ -70,7 +70,7 @@ static int ps2_sendcommand(struct serio *ser_dev, unsigned char cmd)
 	return nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
 }
 
-static int nvec_ps2_notifier(struct notifier_block *nb,
+static int nvec_ps2_yestifier(struct yestifier_block *nb,
 			     unsigned long event_type, void *data)
 {
 	int i;
@@ -116,9 +116,9 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 	strlcpy(ser_dev->phys, "nvec", sizeof(ser_dev->phys));
 
 	ps2_dev.ser_dev = ser_dev;
-	ps2_dev.notifier.notifier_call = nvec_ps2_notifier;
+	ps2_dev.yestifier.yestifier_call = nvec_ps2_yestifier;
 	ps2_dev.nvec = nvec;
-	nvec_register_notifier(nvec, &ps2_dev.notifier, 0);
+	nvec_register_yestifier(nvec, &ps2_dev.yestifier, 0);
 
 	serio_register_port(ser_dev);
 
@@ -131,7 +131,7 @@ static int nvec_mouse_remove(struct platform_device *pdev)
 
 	ps2_sendcommand(ps2_dev.ser_dev, DISABLE_MOUSE);
 	ps2_stopstreaming(ps2_dev.ser_dev);
-	nvec_unregister_notifier(nvec, &ps2_dev.notifier);
+	nvec_unregister_yestifier(nvec, &ps2_dev.yestifier);
 	serio_unregister_port(ps2_dev.ser_dev);
 
 	return 0;

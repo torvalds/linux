@@ -3,12 +3,12 @@
  * arch/sh/kernel/cpu/sh5/unwind.c
  *
  * Copyright (C) 2004  Paul Mundt
- * Copyright (C) 2004  Richard Curnow
+ * Copyright (C) 2004  Richard Curyesw
  */
 #include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -26,7 +26,7 @@ static u8 regcache[63];
  *
  * There are generally a few cases which determine where we can find out
  * the r14/r18 values. In the general case, this can be determined by poking
- * around the prologue of the symbol PC is in (note that we absolutely must
+ * around the prologue of the symbol PC is in (yeste that we absolutely must
  * have frame pointer support as well as the kernel symbol table mapped,
  * otherwise we can't even get this far).
  *
@@ -34,7 +34,7 @@ static u8 regcache[63];
  * the sp/fp.
  *
  * Notably, this entire approach is somewhat error prone, and in the event
- * that the previous frame cannot be determined, that's all we can do.
+ * that the previous frame canyest be determined, that's all we can do.
  * Either way, this still leaves us with a more correct backtrace then what
  * we would be able to come up with by walking the stack (which is garbage
  * for anything beyond the first frame).
@@ -75,14 +75,14 @@ static int lookup_prev_stack_frame(unsigned long fp, unsigned long pc,
 	 */
 	for (i = 0; i < 100; i++, prologue += sizeof(unsigned long)) {
 		unsigned long op;
-		u8 major, minor;
+		u8 major, miyesr;
 		u8 src, dest, disp;
 
 		op = *(unsigned long *)prologue;
 
 		major = (op >> 26) & 0x3f;
 		src   = (op >> 20) & 0x3f;
-		minor = (op >> 16) & 0xf;
+		miyesr = (op >> 16) & 0xf;
 		disp  = (op >> 10) & 0x3f;
 		dest  = (op >>  4) & 0x3f;
 
@@ -102,7 +102,7 @@ static int lookup_prev_stack_frame(unsigned long fp, unsigned long pc,
 
 		switch (major) {
 		case (0x00 >> 2):
-			switch (minor) {
+			switch (miyesr) {
 			case 0x8: /* add.l */
 			case 0x9: /* add */
 				/* Look for r15, r63, r14 */
@@ -184,7 +184,7 @@ static int lookup_prev_stack_frame(unsigned long fp, unsigned long pc,
 		return -EINVAL;
 	}
 
-	/* For innermost leaf function, there might not be a offset_r18 */
+	/* For innermost leaf function, there might yest be a offset_r18 */
 	if (!*pprev_pc && (offset_r18 == 0))
 		return -EINVAL;
 
@@ -300,7 +300,7 @@ static void sh64_unwinder_dump(struct task_struct *task,
 {
 	if (!regs) {
 		/*
-		 * Fetch current regs if we have no other saved state to back
+		 * Fetch current regs if we have yes other saved state to back
 		 * trace from.
 		 */
 		regs = &here_regs;
@@ -321,7 +321,7 @@ static void sh64_unwinder_dump(struct task_struct *task,
 		__asm__ __volatile__ (
 			"pta 0f, tr0\n\t"
 			"blink tr0, %0\n\t"
-			"0: nop"
+			"0: yesp"
 			: "=r" (regs->pc)
 		);
 	}

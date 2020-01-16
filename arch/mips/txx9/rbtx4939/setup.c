@@ -69,7 +69,7 @@ static void __init rbtx4939_pci_setup(void)
 	     (TX4939_PCFG_ET0MODE | TX4939_PCFG_ET1MODE))) {
 		tx4939_report_pci1clk();
 
-		/* mem:64K(max), io:64K(max) (enough for ETH0,ETH1) */
+		/* mem:64K(max), io:64K(max) (eyesugh for ETH0,ETH1) */
 		c = txx9_alloc_pci_controller(NULL, 0, 0x10000, 0, 0x10000);
 		register_pci_controller(c);
 		tx4927_pcic_setup(tx4939_pcic1ptr, c, 0);
@@ -274,7 +274,7 @@ static void __rbtx4939_7segled_putc(unsigned int pos, unsigned char val)
 
 static void rbtx4939_7segled_putc(unsigned int pos, unsigned char val)
 {
-	/* convert from map_to_seg7() notation */
+	/* convert from map_to_seg7() yestation */
 	val = (val & 0x88) |
 		((val & 0x40) >> 6) |
 		((val & 0x20) >> 4) |

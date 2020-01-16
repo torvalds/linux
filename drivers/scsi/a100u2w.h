@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
+ * along with this program; see the file COPYING.  If yest, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -64,7 +64,7 @@ struct orc_sgent {
 };
 
 /* SCSI related definition                                              */
-#define DISC_NOT_ALLOW          0x80	/* Disconnect is not allowed    */
+#define DISC_NOT_ALLOW          0x80	/* Disconnect is yest allowed    */
 #define DISC_ALLOW              0xC0	/* Disconnect is allowed        */
 
 
@@ -259,7 +259,7 @@ struct orc_host {
 #define TCF_SPIN_UP	  0x80
 
 /* Bit Definition for HCS_AFlags */
-#define	HCS_AF_IGNORE		0x01	/* Adapter ignore         */
+#define	HCS_AF_IGNORE		0x01	/* Adapter igyesre         */
 #define	HCS_AF_DISABLE_RESET	0x10	/* Adapter disable reset  */
 #define	HCS_AF_DISABLE_ADPT	0x80	/* Adapter disable                */
 

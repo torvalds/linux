@@ -63,7 +63,7 @@ static phys_addr_t get_phys_addr(struct fsl_dma_domain *dma_domain, dma_addr_t i
 	geom = &dma_domain->iommu_domain.geometry;
 
 	if (!win_cnt || !dma_domain->geom_size) {
-		pr_debug("Number of windows/geometry not configured for the domain\n");
+		pr_debug("Number of windows/geometry yest configured for the domain\n");
 		return 0;
 	}
 
@@ -98,7 +98,7 @@ static int map_subwins(int liodn, struct fsl_dma_domain *dma_domain)
 						 sub_win_ptr[i].size,
 						 ~(u32)0,
 						 rpn,
-						 dma_domain->snoop_id,
+						 dma_domain->syesop_id,
 						 dma_domain->stash_id,
 						 (i > 0) ? 1 : 0,
 						 sub_win_ptr[i].prot);
@@ -126,7 +126,7 @@ static int map_win(int liodn, struct fsl_dma_domain *dma_domain)
 				 wnd->size,
 				 ~(u32)0,
 				 wnd->paddr >> PAMU_PAGE_SHIFT,
-				 dma_domain->snoop_id, dma_domain->stash_id,
+				 dma_domain->syesop_id, dma_domain->stash_id,
 				 0, wnd->prot);
 	spin_unlock_irqrestore(&iommu_lock, flags);
 	if (ret)
@@ -157,7 +157,7 @@ static int update_liodn(int liodn, struct fsl_dma_domain *dma_domain, u32 wnd_nr
 					 wnd->size,
 					 ~(u32)0,
 					 wnd->paddr >> PAMU_PAGE_SHIFT,
-					 dma_domain->snoop_id,
+					 dma_domain->syesop_id,
 					 dma_domain->stash_id,
 					 (wnd_nr > 0) ? 1 : 0,
 					 wnd->prot);
@@ -173,7 +173,7 @@ static int update_liodn(int liodn, struct fsl_dma_domain *dma_domain, u32 wnd_nr
 					 wnd->size,
 					 ~(u32)0,
 					 wnd->paddr >> PAMU_PAGE_SHIFT,
-					 dma_domain->snoop_id, dma_domain->stash_id,
+					 dma_domain->syesop_id, dma_domain->stash_id,
 					 0, wnd->prot);
 		if (ret)
 			pr_debug("Window reconfiguration failed for liodn %d\n",
@@ -193,7 +193,7 @@ static int update_liodn_stash(int liodn, struct fsl_dma_domain *dma_domain,
 
 	spin_lock_irqsave(&iommu_lock, flags);
 	if (!dma_domain->win_arr) {
-		pr_debug("Windows not configured, stash destination update failed for liodn %d\n",
+		pr_debug("Windows yest configured, stash destination update failed for liodn %d\n",
 			 liodn);
 		spin_unlock_irqrestore(&iommu_lock, flags);
 		return -EINVAL;
@@ -229,7 +229,7 @@ static int pamu_set_liodn(int liodn, struct device *dev,
 	/*
 	 * Configure the omi_index at the geometry setup time.
 	 * This is a static value which depends on the type of
-	 * device and would not change thereafter.
+	 * device and would yest change thereafter.
 	 */
 	get_ome_index(&omi_index, dev);
 
@@ -240,7 +240,7 @@ static int pamu_set_liodn(int liodn, struct device *dev,
 	ret = pamu_disable_liodn(liodn);
 	if (!ret)
 		ret = pamu_config_ppaace(liodn, window_addr, window_size, omi_index,
-					 0, dma_domain->snoop_id,
+					 0, dma_domain->syesop_id,
 					 dma_domain->stash_id, win_cnt, 0);
 	spin_unlock_irqrestore(&iommu_lock, flags);
 	if (ret) {
@@ -257,7 +257,7 @@ static int pamu_set_liodn(int liodn, struct device *dev,
 			if (!ret)
 				ret = pamu_config_spaace(liodn, win_cnt, i,
 							 subwin_size, omi_index,
-							 0, dma_domain->snoop_id,
+							 0, dma_domain->syesop_id,
 							 dma_domain->stash_id,
 							 0, 0);
 			spin_unlock_irqrestore(&iommu_lock, flags);
@@ -279,13 +279,13 @@ static int check_size(u64 size, dma_addr_t iova)
 	 * to PAMU page size.
 	 */
 	if ((size & (size - 1)) || size < PAMU_PAGE_SIZE) {
-		pr_debug("Size too small or not a power of two\n");
+		pr_debug("Size too small or yest a power of two\n");
 		return -EINVAL;
 	}
 
 	/* iova must be page size aligned */
 	if (iova & (size - 1)) {
-		pr_debug("Address is not aligned with window size\n");
+		pr_debug("Address is yest aligned with window size\n");
 		return -EINVAL;
 	}
 
@@ -301,7 +301,7 @@ static struct fsl_dma_domain *iommu_alloc_dma_domain(void)
 		return NULL;
 
 	domain->stash_id = ~(u32)0;
-	domain->snoop_id = ~(u32)0;
+	domain->syesop_id = ~(u32)0;
 	domain->win_cnt = pamu_get_max_subwin_cnt();
 	domain->geom_size = 0;
 
@@ -349,7 +349,7 @@ static void attach_device(struct fsl_dma_domain *dma_domain, int liodn, struct d
 
 	spin_lock_irqsave(&device_domain_lock, flags);
 	/*
-	 * Check here if the device is already attached to domain or not.
+	 * Check here if the device is already attached to domain or yest.
 	 * If the device is already attached to a domain detach it.
 	 */
 	old_domain_info = dev->archdata.iommu_domain;
@@ -499,7 +499,7 @@ static void fsl_pamu_window_disable(struct iommu_domain *domain, u32 wnd_nr)
 
 	spin_lock_irqsave(&dma_domain->domain_lock, flags);
 	if (!dma_domain->win_arr) {
-		pr_debug("Number of windows not configured\n");
+		pr_debug("Number of windows yest configured\n");
 		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
 		return;
 	}
@@ -538,7 +538,7 @@ static int fsl_pamu_window_enable(struct iommu_domain *domain, u32 wnd_nr,
 
 	spin_lock_irqsave(&dma_domain->domain_lock, flags);
 	if (!dma_domain->win_arr) {
-		pr_debug("Number of windows not configured\n");
+		pr_debug("Number of windows yest configured\n");
 		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
 		return -ENODEV;
 	}
@@ -565,7 +565,7 @@ static int fsl_pamu_window_enable(struct iommu_domain *domain, u32 wnd_nr,
 
 		ret = check_size(size, domain->geometry.aperture_start);
 		if (ret) {
-			pr_debug("Aperture start not aligned to the size\n");
+			pr_debug("Aperture start yest aligned to the size\n");
 			spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
 			return -EINVAL;
 		}
@@ -610,7 +610,7 @@ static int handle_attach_device(struct fsl_dma_domain *dma_domain,
 		/* Ensure that LIODN value is valid */
 		if (liodn[i] >= PAACE_NUMBER_ENTRIES) {
 			pr_debug("Invalid liodn %d, attach device failed for %pOF\n",
-				 liodn[i], dev->of_node);
+				 liodn[i], dev->of_yesde);
 			ret = -EINVAL;
 			break;
 		}
@@ -618,7 +618,7 @@ static int handle_attach_device(struct fsl_dma_domain *dma_domain,
 		attach_device(dma_domain, liodn[i], dev);
 		/*
 		 * Check if geometry has already been configured
-		 * for the domain. If yes, set the geometry for
+		 * for the domain. If no, set the geometry for
 		 * the LIODN.
 		 */
 		if (dma_domain->win_arr) {
@@ -669,12 +669,12 @@ static int fsl_pamu_attach_device(struct iommu_domain *domain,
 		dev = pci_ctl->parent;
 	}
 
-	liodn = of_get_property(dev->of_node, "fsl,liodn", &len);
+	liodn = of_get_property(dev->of_yesde, "fsl,liodn", &len);
 	if (liodn) {
 		liodn_cnt = len / sizeof(u32);
 		ret = handle_attach_device(dma_domain, dev, liodn, liodn_cnt);
 	} else {
-		pr_debug("missing fsl,liodn property at %pOF\n", dev->of_node);
+		pr_debug("missing fsl,liodn property at %pOF\n", dev->of_yesde);
 		ret = -EINVAL;
 	}
 
@@ -705,11 +705,11 @@ static void fsl_pamu_detach_device(struct iommu_domain *domain,
 		dev = pci_ctl->parent;
 	}
 
-	prop = of_get_property(dev->of_node, "fsl,liodn", &len);
+	prop = of_get_property(dev->of_yesde, "fsl,liodn", &len);
 	if (prop)
 		detach_device(dev, dma_domain);
 	else
-		pr_debug("missing fsl,liodn property at %pOF\n", dev->of_node);
+		pr_debug("missing fsl,liodn property at %pOF\n", dev->of_yesde);
 }
 
 static  int configure_domain_geometry(struct iommu_domain *domain, void *data)
@@ -721,7 +721,7 @@ static  int configure_domain_geometry(struct iommu_domain *domain, void *data)
 
 	geom_size = geom_attr->aperture_end - geom_attr->aperture_start + 1;
 	/*
-	 * Sanity check the geometry size. Also, we do not support
+	 * Sanity check the geometry size. Also, we do yest support
 	 * DMA outside of the geometry.
 	 */
 	if (check_size(geom_size, geom_attr->aperture_start) ||
@@ -969,7 +969,7 @@ static struct iommu_group *get_pci_device_group(struct pci_dev *pdev)
 		group = pci_device_group(&pdev->dev);
 
 		/*
-		 * PCIe controller is not a paritionable entity
+		 * PCIe controller is yest a paritionable entity
 		 * free the controller device iommu_group.
 		 */
 		if (pci_ctl->parent->iommu_group)
@@ -980,7 +980,7 @@ static struct iommu_group *get_pci_device_group(struct pci_dev *pdev)
 		 * PCI controllers device group. If this is the first
 		 * device to be probed for the pci controller, copy the
 		 * device group information from the PCI controller device
-		 * node and remove the PCI controller iommu group.
+		 * yesde and remove the PCI controller iommu group.
 		 * For subsequent devices, the iommu group information can
 		 * be obtained from sibling devices (i.e. from the bus_devices
 		 * link list).
@@ -1010,7 +1010,7 @@ static struct iommu_group *fsl_pamu_device_group(struct device *dev)
 	 */
 	if (dev_is_pci(dev))
 		group = get_pci_device_group(to_pci_dev(dev));
-	else if (of_get_property(dev->of_node, "fsl,liodn", &len))
+	else if (of_get_property(dev->of_yesde, "fsl,liodn", &len))
 		group = get_device_iommu_group(dev);
 
 	return group;

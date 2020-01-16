@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -97,7 +97,7 @@ static bool lspcon_detect_vendor(struct intel_lspcon *lspcon)
 		break;
 
 	default:
-		DRM_ERROR("Invalid/Unknown vendor OUI\n");
+		DRM_ERROR("Invalid/Unkyeswn vendor OUI\n");
 		return false;
 	}
 
@@ -287,7 +287,7 @@ static bool lspcon_parade_fw_ready(struct drm_dp_aux *aux)
 			return true;
 	}
 
-	DRM_ERROR("Parade FW not ready to accept AVI IF\n");
+	DRM_ERROR("Parade FW yest ready to accept AVI IF\n");
 	return false;
 }
 
@@ -302,7 +302,7 @@ static bool _lspcon_parade_write_infoframe_blocks(struct drm_dp_aux *aux,
 
 	while (block_count < 4) {
 		if (!lspcon_parade_fw_ready(aux)) {
-			DRM_DEBUG_KMS("LSPCON FW not ready, block %d\n",
+			DRM_DEBUG_KMS("LSPCON FW yest ready, block %d\n",
 				      block_count);
 			return false;
 		}
@@ -320,7 +320,7 @@ static bool _lspcon_parade_write_infoframe_blocks(struct drm_dp_aux *aux,
 		 * Once a block of data is written, we have to inform the FW
 		 * about this by writing into avi infoframe control register:
 		 * - set the kickoff bit[7] to 1
-		 * - write the block no. to bits[1:0]
+		 * - write the block yes. to bits[1:0]
 		 */
 		reg = LSPCON_PARADE_AVI_IF_CTRL;
 		avi_if_ctrl = LSPCON_PARADE_AVI_IF_KICKOFF | block_count;
@@ -347,7 +347,7 @@ static bool _lspcon_write_avi_infoframe_parade(struct drm_dp_aux *aux,
 	/*
 	 * Parade's frames contains 32 bytes of data, divided
 	 * into 4 frames:
-	 *	Token byte (first byte of first frame, must be non-zero)
+	 *	Token byte (first byte of first frame, must be yesn-zero)
 	 *	HB0 to HB2	 from AVI IF (3 bytes header)
 	 *	PB0 to PB27 from AVI IF (28 bytes data)
 	 * So it should look like this
@@ -559,7 +559,7 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 	struct drm_connector *connector = &dp->attached_connector->base;
 
 	if (!HAS_LSPCON(dev_priv)) {
-		DRM_ERROR("LSPCON is not supported on this platform\n");
+		DRM_ERROR("LSPCON is yest supported on this platform\n");
 		return false;
 	}
 

@@ -79,7 +79,7 @@ static int cs47l24_adsp_power_ev(struct snd_soc_dapm_widget *w,
 
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
-static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
+static DECLARE_TLV_DB_SCALE(yesise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
 #define CS47L24_NG_SRC(name, base) \
@@ -183,7 +183,7 @@ ARIZONA_MIXER_CONTROLS("DSP3L", ARIZONA_DSP3LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP3R", ARIZONA_DSP3RMIX_INPUT_1_SOURCE),
 
 SOC_SINGLE_TLV("Noise Generator Volume", ARIZONA_COMFORT_NOISE_GENERATOR,
-	       ARIZONA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, noise_tlv),
+	       ARIZONA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, yesise_tlv),
 
 ARIZONA_MIXER_CONTROLS("HPOUT1L", ARIZONA_OUT1LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("HPOUT1R", ARIZONA_OUT1RMIX_INPUT_1_SOURCE),
@@ -1104,7 +1104,7 @@ static irqreturn_t cs47l24_adsp2_irq(int irq, void *data)
 			serviced++;
 		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
 			info.core = i;
-			arizona_call_notifiers(arizona,
+			arizona_call_yestifiers(arizona,
 					       ARIZONA_NOTIFY_VOICE_TRIGGER,
 					       &info);
 		}
@@ -1133,7 +1133,7 @@ static int cs47l24_component_probe(struct snd_soc_component *component)
 		return ret;
 
 	arizona_init_gpio(component);
-	arizona_init_mono(component);
+	arizona_init_moyes(component);
 
 	ret = wm_adsp2_component_probe(&priv->core.adsp[1], component);
 	if (ret)
@@ -1203,7 +1203,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs47l24 = {
 	.num_dapm_routes	= ARRAY_SIZE(cs47l24_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int cs47l24_probe(struct platform_device *pdev)

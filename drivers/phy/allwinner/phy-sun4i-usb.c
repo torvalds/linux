@@ -5,7 +5,7 @@
  * Copyright (C) 2014-2015 Hans de Goede <hdegoede@redhat.com>
  *
  * Based on code from
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Allwinner Techyeslogy Co., Ltd. <www.allwinnertech.com>
  *
  * Modelled after: Samsung S5P/EXYNOS SoC series MIPI CSIS/DSIM DPHY driver
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
@@ -56,7 +56,7 @@
 /* ISCR, Interface Status and Control bits */
 #define ISCR_ID_PULLUP_EN		(1 << 17)
 #define ISCR_DPDM_PULLUP_EN	(1 << 16)
-/* sunxi has the phy id/vbus pins not connected, so we use the force bits */
+/* sunxi has the phy id/vbus pins yest connected, so we use the force bits */
 #define ISCR_FORCE_ID_MASK	(3 << 14)
 #define ISCR_FORCE_ID_LOW		(2 << 14)
 #define ISCR_FORCE_ID_HIGH	(3 << 14)
@@ -91,7 +91,7 @@
 #define MAX_PHYS			4
 
 /*
- * Note do not raise the debounce time, we must report Vusb high within 100ms
+ * Note do yest raise the debounce time, we must report Vusb high within 100ms
  * otherwise we get Vbus errors
  */
 #define DEBOUNCE_TIME			msecs_to_jiffies(50)
@@ -142,7 +142,7 @@ struct sun4i_usb_phy_data {
 	struct gpio_desc *id_det_gpio;
 	struct gpio_desc *vbus_det_gpio;
 	struct power_supply *vbus_power_supply;
-	struct notifier_block vbus_power_nb;
+	struct yestifier_block vbus_power_nb;
 	bool vbus_power_nb_registered;
 	bool force_session_end;
 	int id_det_irq;
@@ -406,7 +406,7 @@ static bool sun4i_usb_phy0_poll(struct sun4i_usb_phy_data *data)
 		return true;
 
 	/*
-	 * The A31/A23/A33 companion pmics (AXP221/AXP223) do not
+	 * The A31/A23/A33 companion pmics (AXP221/AXP223) do yest
 	 * generate vbus change interrupts when the board is driving
 	 * vbus using the N_VBUSEN pin on the pmic, so we must poll
 	 * when using the pmic for vbus-det _and_ we're driving vbus.
@@ -431,7 +431,7 @@ static int sun4i_usb_phy_power_on(struct phy *_phy)
 	/* For phy0 only turn on Vbus if we don't have an ext. Vbus */
 	if (phy->index == 0 && sun4i_usb_phy0_have_vbus_det(data) &&
 				data->vbus_det) {
-		dev_warn(&_phy->dev, "External vbus detected, not enabling our own vbus\n");
+		dev_warn(&_phy->dev, "External vbus detected, yest enabling our own vbus\n");
 		return 0;
 	}
 
@@ -461,7 +461,7 @@ static int sun4i_usb_phy_power_off(struct phy *_phy)
 
 	/*
 	 * phy0 vbus typically slowly discharges, sometimes this causes the
-	 * Vbus gpio to not trigger an edge irq on Vbus off, so force a rescan.
+	 * Vbus gpio to yest trigger an edge irq on Vbus off, so force a rescan.
 	 */
 	if (phy->index == 0 && !sun4i_usb_phy0_poll(data))
 		mod_delayed_work(system_wq, &data->detect, POLL_TIME);
@@ -546,7 +546,7 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 		container_of(work, struct sun4i_usb_phy_data, detect.work);
 	struct phy *phy0 = data->phys[0].phy;
 	struct sun4i_usb_phy *phy = phy_get_drvdata(phy0);
-	bool force_session_end, id_notify = false, vbus_notify = false;
+	bool force_session_end, id_yestify = false, vbus_yestify = false;
 	int id_det, vbus_det;
 
 	if (phy0 == NULL)
@@ -566,12 +566,12 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 	data->force_session_end = false;
 
 	if (id_det != data->id_det) {
-		/* id-change, force session end if we've no vbus detection */
+		/* id-change, force session end if we've yes vbus detection */
 		if (data->dr_mode == USB_DR_MODE_OTG &&
 		    !sun4i_usb_phy0_have_vbus_det(data))
 			force_session_end = true;
 
-		/* When entering host mode (id = 0) force end the session now */
+		/* When entering host mode (id = 0) force end the session yesw */
 		if (force_session_end && id_det == 0) {
 			sun4i_usb_phy0_set_vbus_detect(phy0, 0);
 			msleep(200);
@@ -579,18 +579,18 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 		}
 		sun4i_usb_phy0_set_id_detect(phy0, id_det);
 		data->id_det = id_det;
-		id_notify = true;
+		id_yestify = true;
 	}
 
 	if (vbus_det != data->vbus_det) {
 		sun4i_usb_phy0_set_vbus_detect(phy0, vbus_det);
 		data->vbus_det = vbus_det;
-		vbus_notify = true;
+		vbus_yestify = true;
 	}
 
 	mutex_unlock(&phy0->mutex);
 
-	if (id_notify) {
+	if (id_yestify) {
 		extcon_set_state_sync(data->extcon, EXTCON_USB_HOST,
 					!id_det);
 		/* When leaving host mode force end the session here */
@@ -610,7 +610,7 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 			sun4i_usb_phy0_reroute(data, id_det);
 	}
 
-	if (vbus_notify)
+	if (vbus_yestify)
 		extcon_set_state_sync(data->extcon, EXTCON_USB, vbus_det);
 
 	if (sun4i_usb_phy0_poll(data))
@@ -627,7 +627,7 @@ static irqreturn_t sun4i_usb_phy0_id_vbus_det_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int sun4i_usb_phy0_vbus_notify(struct notifier_block *nb,
+static int sun4i_usb_phy0_vbus_yestify(struct yestifier_block *nb,
 				      unsigned long val, void *v)
 {
 	struct sun4i_usb_phy_data *data =
@@ -661,7 +661,7 @@ static int sun4i_usb_phy_remove(struct platform_device *pdev)
 	struct sun4i_usb_phy_data *data = dev_get_drvdata(dev);
 
 	if (data->vbus_power_nb_registered)
-		power_supply_unreg_notifier(&data->vbus_power_nb);
+		power_supply_unreg_yestifier(&data->vbus_power_nb);
 	if (data->id_det_irq > 0)
 		devm_free_irq(dev, data->id_det_irq, data);
 	if (data->vbus_det_irq > 0)
@@ -682,7 +682,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 {
 	struct sun4i_usb_phy_data *data;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct phy_provider *phy_provider;
 	struct resource *res;
 	int i, ret;
@@ -838,9 +838,9 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	}
 
 	if (data->vbus_power_supply) {
-		data->vbus_power_nb.notifier_call = sun4i_usb_phy0_vbus_notify;
+		data->vbus_power_nb.yestifier_call = sun4i_usb_phy0_vbus_yestify;
 		data->vbus_power_nb.priority = 0;
-		ret = power_supply_reg_notifier(&data->vbus_power_nb);
+		ret = power_supply_reg_yestifier(&data->vbus_power_nb);
 		if (ret) {
 			sun4i_usb_phy_remove(pdev); /* Stop detect work */
 			return ret;

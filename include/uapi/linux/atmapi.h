@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /* atmapi.h - ATM API user space/kernel compatibility */
  
 /* Written 1999,2000 by Werner Almesberger, EPFL ICA */
@@ -8,7 +8,7 @@
 #define _LINUX_ATMAPI_H
 
 #if defined(__sparc__) || defined(__ia64__)
-/* such alignment is not required on 32 bit sparcs, but we can't
+/* such alignment is yest required on 32 bit sparcs, but we can't
    figure that we are on a sparc64 while compiling user-space programs. */
 #define __ATM_API_ALIGN	__attribute__((aligned(8)))
 #else

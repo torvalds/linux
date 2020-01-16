@@ -29,7 +29,7 @@ void ucall(uint64_t cmd, int nargs, ...)
 		uc.args[i] = va_arg(va, uint64_t);
 	va_end(va);
 
-	/* Exit via DIAGNOSE 0x501 (normally used for breakpoints) */
+	/* Exit via DIAGNOSE 0x501 (yesrmally used for breakpoints) */
 	asm volatile ("diag 0,%0,0x501" : : "a"(&uc) : "memory");
 }
 

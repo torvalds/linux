@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -99,7 +99,7 @@ typedef struct drm_savage_init {
 	unsigned int texture_offset;
 	unsigned int texture_size;
 
-	/* physical locations of non-permanent maps */
+	/* physical locations of yesn-permanent maps */
 	unsigned long status_offset;
 	unsigned long buffers_offset;
 	unsigned long agp_textures_offset;
@@ -125,7 +125,7 @@ typedef struct drm_savage_cmdbuf {
 
 #define SAVAGE_WAIT_2D  0x1	/* wait for 2D idle before updating event tag */
 #define SAVAGE_WAIT_3D  0x2	/* wait for 3D idle before updating event tag */
-#define SAVAGE_WAIT_IRQ 0x4	/* emit or wait for IRQ, not implemented yet */
+#define SAVAGE_WAIT_IRQ 0x4	/* emit or wait for IRQ, yest implemented yet */
 typedef struct drm_savage_event {
 	unsigned int count;
 	unsigned int flags;

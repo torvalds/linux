@@ -23,12 +23,12 @@
  *
  * To mitigate this, one bit is used as a flag to tell whether the value has
  * been sampled since a new value was recorded. That allows us to avoid bumping
- * the counter if no one has sampled it since the last time an error was
+ * the counter if yes one has sampled it since the last time an error was
  * recorded.
  *
  * A new errseq_t should always be zeroed out.  A errseq_t value of all zeroes
  * is the special (but common) case where there has never been an error. An all
- * zero value thus serves as the "epoch" if one wishes to know whether there
+ * zero value thus serves as the "epoch" if one wishes to kyesw whether there
  * has ever been an error set since it was first initialized.
  */
 
@@ -52,8 +52,8 @@
  * Any error set will always overwrite an existing error.
  *
  * Return: The previous value, primarily for debugging purposes. The
- * return value should not be used as a previously sampled value in later
- * calls as it will not have the SEEN flag set.
+ * return value should yest be used as a previously sampled value in later
+ * calls as it will yest have the SEEN flag set.
  */
 errseq_t errseq_set(errseq_t *eseq, int err)
 {
@@ -84,7 +84,7 @@ errseq_t errseq_set(errseq_t *eseq, int err)
 		if (old & ERRSEQ_SEEN)
 			new += ERRSEQ_CTR_INC;
 
-		/* If there would be no change, then call it done */
+		/* If there would be yes change, then call it done */
 		if (new == old) {
 			cur = new;
 			break;
@@ -112,7 +112,7 @@ EXPORT_SYMBOL(errseq_set);
  * @eseq: Pointer to errseq_t to be sampled.
  *
  * This function allows callers to initialise their errseq_t variable.
- * If the error has been "seen", new callers will not see an old error.
+ * If the error has been "seen", new callers will yest see an old error.
  * If there is an unseen error in @eseq, the caller of this function will
  * see it the next time it checks for an error.
  *
@@ -123,7 +123,7 @@ errseq_t errseq_sample(errseq_t *eseq)
 {
 	errseq_t old = READ_ONCE(*eseq);
 
-	/* If nobody has seen this error yet, then we can be the first. */
+	/* If yesbody has seen this error yet, then we can be the first. */
 	if (!(old & ERRSEQ_SEEN))
 		old = 0;
 	return old;
@@ -136,8 +136,8 @@ EXPORT_SYMBOL(errseq_sample);
  * @since: Previously-sampled errseq_t from which to check.
  *
  * Grab the value that eseq points to, and see if it has changed @since
- * the given value was sampled. The @since value is not advanced, so there
- * is no need to mark the value as seen.
+ * the given value was sampled. The @since value is yest advanced, so there
+ * is yes need to mark the value as seen.
  *
  * Return: The latest error set in the errseq_t or 0 if it hasn't changed.
  */
@@ -163,12 +163,12 @@ EXPORT_SYMBOL(errseq_check);
  * swap it into place as the new eseq value. Then, set that value as the new
  * "since" value, and return whatever the error portion is set to.
  *
- * Note that no locking is provided here for concurrent updates to the "since"
+ * Note that yes locking is provided here for concurrent updates to the "since"
  * value. The caller must provide that if necessary. Because of this, callers
  * may want to do a lockless errseq_check before taking the lock and calling
  * this.
  *
- * Return: Negative errno if one has been stored, or 0 if no new error has
+ * Return: Negative erryes if one has been stored, or 0 if yes new error has
  * occurred.
  */
 int errseq_check_and_advance(errseq_t *eseq, errseq_t *since)
@@ -178,7 +178,7 @@ int errseq_check_and_advance(errseq_t *eseq, errseq_t *since)
 
 	/*
 	 * Most callers will want to use the inline wrapper to check this,
-	 * so that the common case of no error is handled without needing
+	 * so that the common case of yes error is handled without needing
 	 * to take the lock that protects the "since" value.
 	 */
 	old = READ_ONCE(*eseq);
@@ -190,7 +190,7 @@ int errseq_check_and_advance(errseq_t *eseq, errseq_t *since)
 		 * We don't care about the outcome of the swap here. If the
 		 * swap doesn't occur, then it has either been updated by a
 		 * writer who is altering the value in some way (updating
-		 * counter or resetting the error), or another reader who is
+		 * counter or resetting the error), or ayesther reader who is
 		 * just setting the "seen" flag. Either outcome is OK, and we
 		 * can advance "since" and return an error based on what we
 		 * have.

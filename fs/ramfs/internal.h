@@ -6,4 +6,4 @@
  */
 
 
-extern const struct inode_operations ramfs_file_inode_operations;
+extern const struct iyesde_operations ramfs_file_iyesde_operations;

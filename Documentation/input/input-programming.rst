@@ -36,7 +36,7 @@ pressed or released a BUTTON_IRQ happens. The driver could look like::
 
 	    button_dev = input_allocate_device();
 	    if (!button_dev) {
-		    printk(KERN_ERR "button.c: Not enough memory\n");
+		    printk(KERN_ERR "button.c: Not eyesugh memory\n");
 		    error = -ENOMEM;
 		    goto err_free_irq;
 	    }
@@ -98,7 +98,7 @@ Then the example driver registers the input device structure by calling::
 This adds the button_dev structure to linked lists of the input driver and
 calls device handler modules _connect functions to tell them a new input
 device has appeared. input_register_device() may sleep and therefore must
-not be called from an interrupt or with a spinlock held.
+yest be called from an interrupt or with a spinlock held.
 
 While in use, the only used function of the driver is::
 
@@ -109,7 +109,7 @@ via the::
 
 	input_report_key()
 
-call to the input system. There is no need to check whether the interrupt
+call to the input system. There is yes need to check whether the interrupt
 routine isn't reporting two same value events (press, press for example) to
 the input system, because the input_report_* functions check that
 themselves.
@@ -129,7 +129,7 @@ dev->open() and dev->close()
 In case the driver has to repeatedly poll the device, because it doesn't
 have an interrupt coming from it and the polling is too expensive to be done
 all the time, or if the device uses a valuable resource (eg. interrupt), it
-can use the open and close callback to know when it can stop polling or
+can use the open and close callback to kyesw when it can stop polling or
 release the interrupt and when it must resume polling or grab the interrupt
 again. To do that, we would add this to our example driver::
 
@@ -161,7 +161,7 @@ makes sure that dev->open() is called only when the first user connects
 to the device and that dev->close() is called when the very last user
 disconnects. Calls to both callbacks are serialized.
 
-The open() callback should return a 0 in case of success or any nonzero value
+The open() callback should return a 0 in case of success or any yesnzero value
 in case of failure. The close() callback (which is void) must always succeed.
 
 Basic event types
@@ -173,7 +173,7 @@ It's reported to the input system via::
 	input_report_key(struct input_dev *dev, int code, int value)
 
 See uapi/linux/input-event-codes.h for the allowable values of code (from 0 to
-KEY_MAX). Value is interpreted as a truth value, ie any nonzero value means key
+KEY_MAX). Value is interpreted as a truth value, ie any yesnzero value means key
 pressed, zero value means key released. The input code generates events only
 in case the value is different from before.
 
@@ -190,7 +190,7 @@ set the corresponding bits and call the::
 
 	input_report_rel(struct input_dev *dev, int code, int value)
 
-function. Events are generated only for nonzero value.
+function. Events are generated only for yesnzero value.
 
 However EV_ABS requires a little special care. Before calling
 input_register_device, you have to fill additional fields in the input_dev
@@ -207,9 +207,9 @@ Or, you can just say::
 	input_set_abs_params(button_dev, ABS_X, 0, 255, 4, 8);
 
 This setting would be appropriate for a joystick X axis, with the minimum of
-0, maximum of 255 (which the joystick *must* be able to reach, no problem if
+0, maximum of 255 (which the joystick *must* be able to reach, yes problem if
 it sometimes reports more, but it must be able to always reach the min and
-max values), with noise in the data up to +- 4, and with a center flat
+max values), with yesise in the data up to +- 4, and with a center flat
 position of size 8.
 
 If you don't need absfuzz and absflat, you can set them to zero, which mean
@@ -268,15 +268,15 @@ Key autorepeat
 ~~~~~~~~~~~~~~
 
 ... is simple. It is handled by the input.c module. Hardware autorepeat is
-not used, because it's not present in many devices and even where it is
-present, it is broken sometimes (at keyboards: Toshiba notebooks). To enable
+yest used, because it's yest present in many devices and even where it is
+present, it is broken sometimes (at keyboards: Toshiba yestebooks). To enable
 autorepeat for your device, just set EV_REP in dev->evbit. All will be
 handled by the input system.
 
 Other event types, handling output events
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The other event types up to now are:
+The other event types up to yesw are:
 
 - EV_LED - used for the keyboard LEDs.
 - EV_SND - used for keyboard beeps.
@@ -299,4 +299,4 @@ driver can handle these events, it has to set the respective bits in evbit,
     }
 
 This callback routine can be called from an interrupt or a BH (although that
-isn't a rule), and thus must not sleep, and must not take too long to finish.
+isn't a rule), and thus must yest sleep, and must yest take too long to finish.

@@ -54,7 +54,7 @@
 	 * the official GPU firmware DT blob.
 	 *
 	 * Legend:
-	 * "NC" = not connected (no rail from the SoC)
+	 * "NC" = yest connected (yes rail from the SoC)
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
@@ -158,7 +158,7 @@
 	pinctrl-0 = <&emmc_gpio34>;
 	status = "okay";
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 	mmc-pwrseq = <&wifi_pwrseq>;
 
 	brcmf: wifi@1 {

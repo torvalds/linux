@@ -80,7 +80,7 @@ struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
 	/* Qualifies the rest of the information */
 	u16 flag;
 
-	/* The base CPU number to do receive processing. not used */
+	/* The base CPU number to do receive processing. yest used */
 	u16 base_cpu_number;
 
 	/* This describes the hash function and type being enabled */
@@ -113,7 +113,7 @@ struct ndis_pkt_8021q_info;
  * Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame
  * within the RNDIS
  *
- * The size of this structure is less than 48 bytes and we can now
+ * The size of this structure is less than 48 bytes and we can yesw
  * place this structure in the skb->cb field.
  */
 struct hv_netvsc_packet {
@@ -362,7 +362,7 @@ union nvsp_message_init_uber {
  */
 struct nvsp_1_message_send_ndis_version {
 	u32 ndis_major_ver;
-	u32 ndis_minor_ver;
+	u32 ndis_miyesr_ver;
 } __packed;
 
 /*
@@ -382,7 +382,7 @@ struct nvsp_1_receive_buffer_section {
 } __packed;
 
 /*
- * This message is used by the VSP to acknowledge a receive buffer send by the
+ * This message is used by the VSP to ackyeswledge a receive buffer send by the
  * VSC. This message must be sent by the VSP before the VSP uses the receive
  * buffer.
  */
@@ -431,7 +431,7 @@ struct nvsp_1_message_send_send_buffer {
 } __packed;
 
 /*
- * This message is used by the VSP to acknowledge a send buffer sent by the
+ * This message is used by the VSP to ackyeswledge a send buffer sent by the
  * VSC. This message must be sent by the VSP before the VSP uses the sent
  * buffer.
  */
@@ -470,7 +470,7 @@ struct nvsp_1_message_send_rndis_packet {
 	/*
 	 * This field is used to send part or all of the data through a send
 	 * buffer. This values specifies an index into the send buffer. If the
-	 * index is 0xFFFFFFFF, then the send buffer is not being used and all
+	 * index is 0xFFFFFFFF, then the send buffer is yest being used and all
 	 * of the data was sent through other VMBus mechanisms.
 	 */
 	u32 send_buf_section_index;
@@ -480,7 +480,7 @@ struct nvsp_1_message_send_rndis_packet {
 /*
  * This message is used by both the VSP and the VSC to complete a RNDIS message
  * to the opposite channel endpoint. At this point, the initiator of this
- * message cannot use any resources associated with the original RNDIS packet.
+ * message canyest use any resources associated with the original RNDIS packet.
  */
 struct nvsp_1_message_send_rndis_packet_complete {
 	u32 status;
@@ -566,7 +566,7 @@ union nvsp_2_message_uber {
 } __packed;
 
 struct nvsp_4_send_vf_association {
-	/* 1: allocated, serial number is valid. 0: not allocated */
+	/* 1: allocated, serial number is valid. 0: yest allocated */
 	u32 allocated;
 
 	/* Serial number of the VF to team with */
@@ -700,7 +700,7 @@ struct nvsp_6_pd_api_req {
 		/* Allocate Common Buffer */
 		struct __packed {
 			u32 len;
-			u32 pf_node; /* Preferred Node */
+			u32 pf_yesde; /* Preferred Node */
 			u16 region_id;
 		} alloc_com_buf;
 
@@ -708,7 +708,7 @@ struct nvsp_6_pd_api_req {
 		struct __packed {
 			u32 len;
 			u64 pa; /* Physical Address */
-			u32 pf_node; /* Preferred Node */
+			u32 pf_yesde; /* Preferred Node */
 			u16 region_id;
 			u8 cache_type;
 		} free_com_buf;
@@ -749,7 +749,7 @@ struct nvsp_6_pd_api_comp {
 		struct __packed {
 			u64 pa; /* Physical Address */
 			u32 len;
-			u32 pf_node; /* Preferred Node */
+			u32 pf_yesde; /* Preferred Node */
 			u16 region_id;
 			u8 cache_type;
 		} alloc_com_buf;
@@ -872,13 +872,13 @@ struct netvsc_stats {
 
 struct netvsc_ethtool_stats {
 	unsigned long tx_scattered;
-	unsigned long tx_no_memory;
-	unsigned long tx_no_space;
+	unsigned long tx_yes_memory;
+	unsigned long tx_yes_space;
 	unsigned long tx_too_big;
 	unsigned long tx_busy;
 	unsigned long tx_send_full;
 	unsigned long rx_comp_busy;
-	unsigned long rx_no_memory;
+	unsigned long rx_yes_memory;
 	unsigned long stop_queue;
 	unsigned long wake_queue;
 };
@@ -952,7 +952,7 @@ struct net_device_context {
 	struct netvsc_vf_pcpu_stats __percpu *vf_stats;
 	struct delayed_work vf_takeover;
 
-	/* 1: allocated, serial number is valid. 0: not allocated */
+	/* 1: allocated, serial number is valid. 0: yest allocated */
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
 	u32 vf_serial;
@@ -982,7 +982,7 @@ struct netvsc_device {
 
 	wait_queue_head_t wait_drain;
 	bool destroy;
-	bool tx_disable; /* if true, do not wake up queue again */
+	bool tx_disable; /* if true, do yest wake up queue again */
 
 	/* Receive buffer allocated by us but manages by NetVSP */
 	void *recv_buf;
@@ -1026,7 +1026,7 @@ struct netvsc_device {
 struct rndis_initialize_request {
 	u32 req_id;
 	u32 major_ver;
-	u32 minor_ver;
+	u32 miyesr_ver;
 	u32 max_xfer_size;
 };
 
@@ -1035,7 +1035,7 @@ struct rndis_initialize_complete {
 	u32 req_id;
 	u32 status;
 	u32 major_ver;
-	u32 minor_ver;
+	u32 miyesr_ver;
 	u32 dev_flags;
 	u32 medium;
 	u32 max_pkt_per_msg;
@@ -1050,7 +1050,7 @@ struct rndis_initialize_complete {
 struct rndis_co_address_family {
 	u32 address_family;
 	u32 major_ver;
-	u32 minor_ver;
+	u32 miyesr_ver;
 };
 
 /* NdisHalt message */
@@ -1108,9 +1108,9 @@ struct rndis_indicate_status {
 	u32 status_buf_offset;
 };
 
-/* Diagnostic information passed as the status buffer in */
+/* Diagyesstic information passed as the status buffer in */
 /* struct rndis_indicate_status messages signifying error conditions. */
-struct rndis_diagnostic_info {
+struct rndis_diagyesstic_info {
 	u32 diag_status;
 	u32 error_offset;
 };
@@ -1198,7 +1198,7 @@ struct ndis_pkt_8021q_info {
 	union {
 		struct {
 			u32 pri:3; /* User Priority */
-			u32 cfi:1; /* Canonical Format ID */
+			u32 cfi:1; /* Cayesnical Format ID */
 			u32 vlanid:12; /* VLAN ID */
 			u32 reserved:16;
 		};
@@ -1486,7 +1486,7 @@ struct rndis_config_parameter_info {
 #define RNDIS_CONFIG_PARAM_TYPE_STRING      2
 
 /* CONDIS Miniport messages for connection oriented devices */
-/* that do not implement a call manager. */
+/* that do yest implement a call manager. */
 
 /* CoNdisMiniportCreateVc message */
 struct rcondis_mp_create_vc {

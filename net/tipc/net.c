@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -39,7 +39,7 @@
 #include "name_distr.h"
 #include "subscr.h"
 #include "socket.h"
-#include "node.h"
+#include "yesde.h"
 #include "bcast.h"
 #include "netlink.h"
 #include "monitor.h"
@@ -47,7 +47,7 @@
 /*
  * The TIPC locking policy is designed to ensure a very fine locking
  * granularity, permitting complete parallel access to individual
- * port and node/link instances. The code consists of four major
+ * port and yesde/link instances. The code consists of four major
  * locking domains, each protected with their own disjunct set of locks.
  *
  * 1: The bearer level.
@@ -56,18 +56,18 @@
  *    bearer instance valid on both paths of message transmission and
  *    reception.
  *
- * 2: The node and link level.
- *    All node instances are saved into two tipc_node_list and node_htable
- *    lists. The two lists are protected by node_list_lock on write side,
- *    and they are guarded with RCU lock on read side. Especially node
+ * 2: The yesde and link level.
+ *    All yesde instances are saved into two tipc_yesde_list and yesde_htable
+ *    lists. The two lists are protected by yesde_list_lock on write side,
+ *    and they are guarded with RCU lock on read side. Especially yesde
  *    instance is destroyed only when TIPC module is removed, and we can
- *    confirm that there has no any user who is accessing the node at the
+ *    confirm that there has yes any user who is accessing the yesde at the
  *    moment. Therefore, Except for iterating the two lists within RCU
- *    protection, it's no needed to hold RCU that we access node instance
+ *    protection, it's yes needed to hold RCU that we access yesde instance
  *    in other places.
  *
- *    In addition, all members in node structure including link instances
- *    are protected by node spin lock.
+ *    In addition, all members in yesde structure including link instances
+ *    are protected by yesde spin lock.
  *
  * 3: The transport level of the protocol.
  *    This consists of the structures port, (and its user level
@@ -76,7 +76,7 @@
  *
  *    This layer has four different locks:
  *     - The tipc_port spin_lock. This is protecting each port instance
- *       from parallel data access and removal. Since we can not place
+ *       from parallel data access and removal. Since we can yest place
  *       this lock in the port itself, it has been placed in the
  *       corresponding reference table entry, which has the same life
  *       cycle as the module. This entry is difficult to access from
@@ -113,16 +113,16 @@ struct tipc_net_work {
 
 static void tipc_net_finalize(struct net *net, u32 addr);
 
-int tipc_net_init(struct net *net, u8 *node_id, u32 addr)
+int tipc_net_init(struct net *net, u8 *yesde_id, u32 addr)
 {
 	if (tipc_own_id(net)) {
-		pr_info("Cannot configure node identity twice\n");
+		pr_info("Canyest configure yesde identity twice\n");
 		return -1;
 	}
 	pr_info("Started in network mode\n");
 
-	if (node_id)
-		tipc_set_node_id(net, node_id);
+	if (yesde_id)
+		tipc_set_yesde_id(net, yesde_id);
 	if (addr)
 		tipc_net_finalize(net, addr);
 	return 0;
@@ -132,9 +132,9 @@ static void tipc_net_finalize(struct net *net, u32 addr)
 {
 	struct tipc_net *tn = tipc_net(net);
 
-	if (cmpxchg(&tn->node_addr, 0, addr))
+	if (cmpxchg(&tn->yesde_addr, 0, addr))
 		return;
-	tipc_set_node_addr(net, addr);
+	tipc_set_yesde_addr(net, addr);
 	tipc_named_reinit(net);
 	tipc_sk_reinit(net);
 	tipc_mon_reinit_self(net);
@@ -170,7 +170,7 @@ void tipc_net_stop(struct net *net)
 
 	rtnl_lock();
 	tipc_bearer_stop(net);
-	tipc_node_stop(net);
+	tipc_yesde_stop(net);
 	rtnl_unlock();
 
 	pr_info("Left network mode\n");
@@ -179,8 +179,8 @@ void tipc_net_stop(struct net *net)
 static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	u64 *w0 = (u64 *)&tn->node_id[0];
-	u64 *w1 = (u64 *)&tn->node_id[8];
+	u64 *w0 = (u64 *)&tn->yesde_id[0];
+	u64 *w1 = (u64 *)&tn->yesde_id[8];
 	struct nlattr *attrs;
 	void *hdr;
 
@@ -189,7 +189,7 @@ static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_NET);
+	attrs = nla_nest_start_yesflag(msg->skb, TIPC_NLA_NET);
 	if (!attrs)
 		goto msg_full;
 
@@ -279,15 +279,15 @@ int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (attrs[TIPC_NLA_NET_NODEID]) {
-		u8 node_id[NODE_ID_LEN];
-		u64 *w0 = (u64 *)&node_id[0];
-		u64 *w1 = (u64 *)&node_id[8];
+		u8 yesde_id[NODE_ID_LEN];
+		u64 *w0 = (u64 *)&yesde_id[0];
+		u64 *w1 = (u64 *)&yesde_id[8];
 
 		if (!attrs[TIPC_NLA_NET_NODEID_W1])
 			return -EINVAL;
 		*w0 = nla_get_u64(attrs[TIPC_NLA_NET_NODEID]);
 		*w1 = nla_get_u64(attrs[TIPC_NLA_NET_NODEID_W1]);
-		tipc_net_init(net, node_id, 0);
+		tipc_net_init(net, yesde_id, 0);
 	}
 	return 0;
 }

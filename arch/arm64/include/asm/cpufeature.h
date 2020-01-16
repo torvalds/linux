@@ -42,7 +42,7 @@ enum ftr_type {
 };
 
 #define FTR_STRICT	true	/* SANITY check strict matching required */
-#define FTR_NONSTRICT	false	/* SANITY check ignored */
+#define FTR_NONSTRICT	false	/* SANITY check igyesred */
 
 #define FTR_SIGNED	true	/* Value should be treated as signed */
 #define FTR_UNSIGNED	false	/* Value should be treated as unsigned */
@@ -88,7 +88,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  *
  * To support systems with heterogeneous CPUs, we need to make sure that we
  * detect the capabilities correctly on the system and take appropriate
- * measures to ensure there are no incompatibilities.
+ * measures to ensure there are yes incompatibilities.
  *
  * This comment tries to explain how we treat the capabilities.
  * Each capability has the following list of attributes :
@@ -117,7 +117,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  *        (or used) by the kernel very early even before the SMP cpus
  *        are brought up.
  *
- *    The process of detection is usually denoted by "update" capability
+ *    The process of detection is usually deyested by "update" capability
  *    state in the code.
  *
  * 2) Finalise the state : The kernel should finalise the state of a
@@ -161,7 +161,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  *    If there is a conflict, the kernel takes an action, based on the
  *    severity (e.g, a CPU could be prevented from booting or cause a
  *    kernel panic). The CPU is allowed to "affect" the state of the
- *    capability, if it has not been finalised already. See section 5
+ *    capability, if it has yest been finalised already. See section 5
  *    for more details on conflicts.
  *
  * 4) Action: As mentioned in (2), the kernel can take an action for each
@@ -170,7 +170,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  *    registers (e.g, SCTLR, TCR etc.) or patching the kernel via
  *    alternatives. The kernel patching is batched and performed at later
  *    point. The actions are always initiated only after the capability
- *    is finalised. This is usally denoted by "enabling" the capability.
+ *    is finalised. This is usally deyested by "enabling" the capability.
  *    The actions are initiated as follows :
  *	a) Action is triggered on all online CPUs, after the capability is
  *	finalised, invoked within the stop_machine() context from
@@ -196,16 +196,16 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  *		ARM64_CPUCAP_OPTIONAL_FOR_LATE_CPU - Case(a) is allowed
  *		ARM64_CPUCAP_PERMITTED_FOR_LATE_CPU - Case(b) is allowed
  *
- *     Case (a) is not permitted for a capability that the system requires
+ *     Case (a) is yest permitted for a capability that the system requires
  *     all CPUs to have in order for the capability to be enabled. This is
  *     typical for capabilities that represent enhanced functionality.
  *
- *     Case (b) is not permitted for a capability that must be enabled
+ *     Case (b) is yest permitted for a capability that must be enabled
  *     during boot if any CPU in the system requires it in order to run
- *     safely. This is typical for erratum work arounds that cannot be
+ *     safely. This is typical for erratum work arounds that canyest be
  *     enabled after the corresponding capability is finalised.
  *
- *     In some non-typical cases either both (a) and (b), or neither,
+ *     In some yesn-typical cases either both (a) and (b), or neither,
  *     should be permitted. This can be described by including neither
  *     or both flags in the capability's type field.
  */
@@ -245,7 +245,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  * CPU errata workarounds that need to be enabled at boot time if one or
  * more CPUs in the system requires it. When one of these capabilities
  * has been enabled, it is safe to allow any CPU to boot that doesn't
- * require the workaround. However, it is not safe if a "late" CPU
+ * require the workaround. However, it is yest safe if a "late" CPU
  * requires a workaround and the system hasn't enabled it already.
  */
 #define ARM64_CPUCAP_LOCAL_CPU_ERRATUM		\
@@ -253,7 +253,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
 /*
  * CPU feature detected at boot time based on system-wide value of a
  * feature. It is safe for a late CPU to have this feature even though
- * the system hasn't enabled it, although the feature will not be used
+ * the system hasn't enabled it, although the feature will yest be used
  * by Linux in this case. If the system has enabled this feature already,
  * then every late CPU must have it.
  */
@@ -261,7 +261,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
 	(ARM64_CPUCAP_SCOPE_SYSTEM | ARM64_CPUCAP_PERMITTED_FOR_LATE_CPU)
 /*
  * CPU feature detected at boot time based on feature of one or more CPUs.
- * All possible conflicts for a late CPU are ignored.
+ * All possible conflicts for a late CPU are igyesred.
  */
 #define ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE		\
 	(ARM64_CPUCAP_SCOPE_LOCAL_CPU		|	\
@@ -270,7 +270,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
 
 /*
  * CPU feature detected at boot time, on one or more CPUs. A late CPU
- * is not allowed to have the capability when the system doesn't have it.
+ * is yest allowed to have the capability when the system doesn't have it.
  * It is Ok for a late CPU to miss the feature.
  */
 #define ARM64_CPUCAP_BOOT_RESTRICTED_CPU_LOCAL_FEATURE	\
@@ -650,10 +650,10 @@ static inline u32 id_aa64mmfr0_parange_to_phys_shift(int parange)
 	case 5: return 48;
 	case 6: return 52;
 	/*
-	 * A future PE could use a value unknown to the kernel.
+	 * A future PE could use a value unkyeswn to the kernel.
 	 * However, by the "D10.1.4 Principles of the ID scheme
 	 * for fields in ID registers", ARM DDI 0487C.a, any new
-	 * value is guaranteed to be higher than what we know already.
+	 * value is guaranteed to be higher than what we kyesw already.
 	 * As a safe limit, we return the limit supported by the kernel.
 	 */
 	default: return CONFIG_ARM64_PA_BITS;

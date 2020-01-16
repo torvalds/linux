@@ -100,7 +100,7 @@ static const struct mfd_cell da9063_common_devs[] = {
 	},
 };
 
-/* Only present on DA9063 , not on DA9063L */
+/* Only present on DA9063 , yest on DA9063L */
 static const struct mfd_cell da9063_devs[] = {
 	{
 		.name		= DA9063_DRVNAME_RTC,
@@ -117,7 +117,7 @@ static int da9063_clear_fault_log(struct da9063 *da9063)
 
 	ret = regmap_read(da9063->regmap, DA9063_REG_FAULT_LOG, &fault_log);
 	if (ret < 0) {
-		dev_err(da9063->dev, "Cannot read FAULT_LOG.\n");
+		dev_err(da9063->dev, "Canyest read FAULT_LOG.\n");
 		return -EIO;
 	}
 
@@ -153,7 +153,7 @@ static int da9063_clear_fault_log(struct da9063 *da9063)
 			   fault_log);
 	if (ret < 0)
 		dev_err(da9063->dev,
-			"Cannot reset FAULT_LOG values %d\n", ret);
+			"Canyest reset FAULT_LOG values %d\n", ret);
 
 	return ret;
 }
@@ -165,7 +165,7 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 
 	ret = da9063_clear_fault_log(da9063);
 	if (ret < 0)
-		dev_err(da9063->dev, "Cannot clear fault log\n");
+		dev_err(da9063->dev, "Canyest clear fault log\n");
 
 	da9063->flags = 0;
 	da9063->irq_base = -1;
@@ -173,7 +173,7 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 
 	ret = regmap_read(da9063->regmap, DA9063_REG_CHIP_ID, &model);
 	if (ret < 0) {
-		dev_err(da9063->dev, "Cannot read chip model id.\n");
+		dev_err(da9063->dev, "Canyest read chip model id.\n");
 		return -EIO;
 	}
 	if (model != PMIC_CHIP_ID_DA9063) {
@@ -183,7 +183,7 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 
 	ret = regmap_read(da9063->regmap, DA9063_REG_CHIP_VARIANT, &variant_id);
 	if (ret < 0) {
-		dev_err(da9063->dev, "Cannot read chip variant id.\n");
+		dev_err(da9063->dev, "Canyest read chip variant id.\n");
 		return -EIO;
 	}
 
@@ -195,7 +195,7 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 
 	if (variant_code < PMIC_DA9063_BB && variant_code != PMIC_DA9063_AD) {
 		dev_err(da9063->dev,
-			"Cannot support variant code: 0x%02X\n", variant_code);
+			"Canyest support variant code: 0x%02X\n", variant_code);
 		return -ENODEV;
 	}
 
@@ -203,7 +203,7 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 
 	ret = da9063_irq_init(da9063);
 	if (ret) {
-		dev_err(da9063->dev, "Cannot initialize interrupts.\n");
+		dev_err(da9063->dev, "Canyest initialize interrupts.\n");
 		return ret;
 	}
 

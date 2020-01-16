@@ -60,7 +60,7 @@ static int opti_pre_reset(struct ata_link *link, unsigned long deadline)
 		{ 0x40, 1, 0x08, 0x00 }
 	};
 
-	if (!pci_test_config_bits(pdev, &opti_enable_bits[ap->port_no]))
+	if (!pci_test_config_bits(pdev, &opti_enable_bits[ap->port_yes]))
 		return -ENOENT;
 
 	return ata_sff_prereset(link, deadline);
@@ -139,7 +139,7 @@ static void opti_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	}
 
 	/* Commence primary programming sequence */
-	opti_write_reg(ap, adev->devno, MISC_REG);
+	opti_write_reg(ap, adev->devyes, MISC_REG);
 	opti_write_reg(ap, data_rec_timing[clock][pio], READ_REG);
 	opti_write_reg(ap, data_rec_timing[clock][pio], WRITE_REG);
 	opti_write_reg(ap, addr, MISC_REG);

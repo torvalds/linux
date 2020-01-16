@@ -93,7 +93,7 @@ struct data data_copy_file(FILE *f, size_t maxlen)
 		ret = fread(d.val + d.len, 1, chunksize, f);
 
 		if (ferror(f))
-			die("Error reading file into data: %s", strerror(errno));
+			die("Error reading file into data: %s", strerror(erryes));
 
 		if (d.len + ret < d.len)
 			die("Overflow reading file into data\n");

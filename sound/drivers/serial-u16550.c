@@ -234,7 +234,7 @@ static void snd_uart16550_io_loop(struct snd_uart16550 * uart)
 	/* remember the last stream */
 	uart->prev_in = substream;
 
-	/* no need of check SERIAL_MODE_OUTPUT_OPEN because if not,
+	/* yes need of check SERIAL_MODE_OUTPUT_OPEN because if yest,
 	   buffer is never filled. */
 	/* Check write status */
 	if (status & UART_LSR_THRE)
@@ -267,9 +267,9 @@ static void snd_uart16550_io_loop(struct snd_uart16550 * uart)
  * a) Writing a byte
  * b) Reading the IIR
  * It is particularly important to read the IIR if a Tx interrupt is received
- * when there is no data in tx_buff[], as in this case there no other
+ * when there is yes data in tx_buff[], as in this case there yes other
  * indication that the interrupt has been serviced, and it remains outstanding
- * indefinitely. This has the curious side effect that and no further interrupts
+ * indefinitely. This has the curious side effect that and yes further interrupts
  * will be generated from this device AT ALL!!.
  * It is also desirable to clear outstanding interrupts when the device is
  * opened/closed.
@@ -311,7 +311,7 @@ static void snd_uart16550_buffer_timer(struct timer_list *t)
 /*
  *  this method probes, if an uart sits on given port
  *  return 0 if found
- *  return negative error if not found
+ *  return negative error if yest found
  */
 static int snd_uart16550_detect(struct snd_uart16550 *uart)
 {
@@ -403,7 +403,7 @@ static void snd_uart16550_do_open(struct snd_uart16550 * uart)
 	default:
 		outb(UART_MCR_RTS	/* Set Request-To-Send line active */
 		     | UART_MCR_DTR	/* Set Data-Terminal-Ready line active */
-		     | UART_MCR_OUT2	/* Set OUT2 - not always required, but when
+		     | UART_MCR_OUT2	/* Set OUT2 - yest always required, but when
 					 * it is, it is ESSENTIAL for enabling interrupts
 				 */
 		     ,uart->base + UART_MCR);	/* Modem Control Register */
@@ -454,7 +454,7 @@ static void snd_uart16550_do_close(struct snd_uart16550 * uart)
 		snd_uart16550_del_timer(uart);
 
 	/* NOTE: may need to disable interrupts before de-registering out handler.
-	 * For now, the consequences are harmless.
+	 * For yesw, the consequences are harmless.
 	 */
 
 	outb((0 & UART_IER_RDI)		/* Disable Receiver data interrupt */
@@ -615,7 +615,7 @@ static int snd_uart16550_output_byte(struct snd_uart16550 *uart,
 			        uart->fifo_count++;
 				outb(midi_byte, uart->base + UART_TX);
 			} else {
-			        /* Cannot write (buffer empty) -
+			        /* Canyest write (buffer empty) -
 				 * put char in buffer */
 				snd_uart16550_write_buffer(uart, midi_byte);
 			}
@@ -664,7 +664,7 @@ static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 #else
 			/* select any combination of the four ports */
 			addr_byte = (substream->number << 4) | 0x08;
-			/* ...except none */
+			/* ...except yesne */
 			if (addr_byte == 0x08)
 				addr_byte = 0xf8;
 #endif
@@ -675,7 +675,7 @@ static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 	} else {
 		first = 0;
 		while (snd_rawmidi_transmit_peek(substream, &midi_byte, 1) == 1) {
-			/* Also send F5 after 3 seconds with no data
+			/* Also send F5 after 3 seconds with yes data
 			 * to handle device disconnect */
 			if (first == 0 &&
 			    (uart->adaptor == SNDRV_SERIAL_SOUNDCANVAS ||
@@ -794,7 +794,7 @@ static int snd_uart16550_create(struct snd_card *card,
 	uart->drop_on_full = droponfull;
 
 	if ((err = snd_uart16550_detect(uart)) <= 0) {
-		printk(KERN_ERR "no UART detected at 0x%lx\n", iobase);
+		printk(KERN_ERR "yes UART detected at 0x%lx\n", iobase);
 		snd_uart16550_free(uart);
 		return -ENODEV;
 	}
@@ -1014,7 +1014,7 @@ static int __init alsa_card_serial_init(void)
 	}
 	if (! cards) {
 #ifdef MODULE
-		printk(KERN_ERR "serial midi soundcard not found or device busy\n");
+		printk(KERN_ERR "serial midi soundcard yest found or device busy\n");
 #endif
 		snd_serial_unregister_all();
 		return -ENODEV;

@@ -11,7 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -241,7 +241,7 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	if (!drv || !phydrv->suspend)
 		return false;
 
-	/* PHY not attached? May suspend if the PHY has not already been
+	/* PHY yest attached? May suspend if the PHY has yest already been
 	 * suspended as part of a prior call to phy_disconnect() ->
 	 * phy_detach() -> phy_suspend() because the parent netdev might be the
 	 * MDIO bus driver and clock gated at this point.
@@ -252,7 +252,7 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	if (netdev->wol_enabled)
 		return false;
 
-	/* As long as not all affected network drivers support the
+	/* As long as yest all affected network drivers support the
 	 * wol_enabled flag, let's check for hints that WoL is enabled.
 	 * Don't suspend PHY if the attached netdev parent may wake up.
 	 * The parent may point to a PCI device, as in tg3 driver.
@@ -294,13 +294,13 @@ static int mdio_bus_phy_resume(struct device *dev)
 	int ret;
 
 	if (!mdio_bus_phy_may_suspend(phydev))
-		goto no_resume;
+		goto yes_resume;
 
 	ret = phy_resume(phydev);
 	if (ret < 0)
 		return ret;
 
-no_resume:
+yes_resume:
 	if (phydev->attached_dev && phydev->adjust_link)
 		phy_start_machine(phydev);
 
@@ -560,8 +560,8 @@ static int phy_request_driver_module(struct phy_device *dev, u32 phy_id)
 	ret = request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT,
 			     MDIO_ID_ARGS(phy_id));
 	/* We only check for failures in executing the usermode binary,
-	 * not whether a PHY driver module exists for the PHY ID.
-	 * Accept -ENOENT because this may occur in case no initramfs exists,
+	 * yest whether a PHY driver module exists for the PHY ID.
+	 * Accept -ENOENT because this may occur in case yes initramfs exists,
 	 * then modprobe isn't available.
 	 */
 	if (IS_ENABLED(CONFIG_MODULES) && ret < 0 && ret != -ENOENT) {
@@ -622,11 +622,11 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 	 * bother trying to do so only if it isn't already loaded,
 	 * because that gets complicated. A hotplug event would have
 	 * done an unconditional modprobe anyway.
-	 * We don't do normal hotplug because it won't work for MDIO
+	 * We don't do yesrmal hotplug because it won't work for MDIO
 	 * -- because it relies on the device staying around for long
-	 * enough for the driver to get loaded. With MDIO, the NIC
+	 * eyesugh for the driver to get loaded. With MDIO, the NIC
 	 * driver will get bored and give up as soon as it finds that
-	 * there's no driver _already_ loaded.
+	 * there's yes driver _already_ loaded.
 	 */
 	if (is_c45 && c45_ids) {
 		const int num_ids = ARRAY_SIZE(c45_ids->device_ids);
@@ -710,7 +710,7 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
 	const int num_ids = ARRAY_SIZE(c45_ids->device_ids);
 	u32 *devs = &c45_ids->devices_in_package;
 
-	/* Find first non-zero Devices In package. Device zero is reserved
+	/* Find first yesn-zero Devices In package. Device zero is reserved
 	 * for 802.3 c45 complied PHYs, so don't probe it at first.
 	 */
 	for (i = 1; i < num_ids && *devs == 0; i++) {
@@ -719,7 +719,7 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
 			return -EIO;
 
 		if ((*devs & 0x1fffffff) == 0x1fffffff) {
-			/*  If mostly Fs, there is no device there,
+			/*  If mostly Fs, there is yes device there,
 			 *  then let's continue to probe more, as some
 			 *  10G PHYs have zero Devices In package,
 			 *  e.g. Cortina CS4315/CS4340 PHY.
@@ -727,7 +727,7 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
 			phy_reg = get_phy_c45_devs_in_pkg(bus, addr, 0, devs);
 			if (phy_reg < 0)
 				return -EIO;
-			/* no device there, let's get out of here */
+			/* yes device there, let's get out of here */
 			if ((*devs & 0x1fffffff) == 0x1fffffff) {
 				*phy_id = 0xffffffff;
 				return 0;
@@ -824,7 +824,7 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 	if (r)
 		return ERR_PTR(r);
 
-	/* If the phy_id is mostly Fs, there is no device there */
+	/* If the phy_id is mostly Fs, there is yes device there */
 	if ((phy_id & 0x1fffffff) == 0x1fffffff)
 		return ERR_PTR(-ENODEV);
 
@@ -924,7 +924,7 @@ static void phy_link_change(struct phy_device *phydev, bool up, bool do_carrier)
 /**
  * phy_prepare_link - prepares the PHY layer to monitor link status
  * @phydev: target phy_device struct
- * @handler: callback function for link status change notifications
+ * @handler: callback function for link status change yestifications
  *
  * Description: Tells the PHY infrastructure to handle the
  *   gory details on monitoring link status (whether through
@@ -943,7 +943,7 @@ static void phy_prepare_link(struct phy_device *phydev,
  * phy_connect_direct - connect an ethernet device to a specific phy_device
  * @dev: the network device to connect
  * @phydev: the pointer to the phy device
- * @handler: callback function for state change notifications
+ * @handler: callback function for state change yestifications
  * @interface: PHY device's interface
  */
 int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
@@ -971,12 +971,12 @@ EXPORT_SYMBOL(phy_connect_direct);
  * phy_connect - connect an ethernet device to a PHY device
  * @dev: the network device to connect
  * @bus_id: the id string of the PHY device to connect
- * @handler: callback function for state change notifications
+ * @handler: callback function for state change yestifications
  * @interface: PHY device's interface
  *
  * Description: Convenience function for connecting ethernet
  *   devices to PHY devices.  The default behavior is for
- *   the PHY infrastructure to handle everything, and only notify
+ *   the PHY infrastructure to handle everything, and only yestify
  *   the connected driver when the link status changes.  If you
  *   don't want, or can't use the provided functionality, you may
  *   choose to call only the subset of functions which provide
@@ -995,7 +995,7 @@ struct phy_device *phy_connect(struct net_device *dev, const char *bus_id,
 	 */
 	d = bus_find_device_by_name(&mdio_bus_type, NULL, bus_id);
 	if (!d) {
-		pr_err("PHY %s not found\n", bus_id);
+		pr_err("PHY %s yest found\n", bus_id);
 		return ERR_PTR(-ENODEV);
 	}
 	phydev = to_phy_device(d);
@@ -1036,11 +1036,11 @@ EXPORT_SYMBOL(phy_disconnect);
  *   published in 2008, a PHY reset may take up to 0.5 seconds.  The MII BMCR
  *   register must be polled until the BMCR_RESET bit clears.
  *
- *   Furthermore, any attempts to write to PHY registers may have no effect
+ *   Furthermore, any attempts to write to PHY registers may have yes effect
  *   or even generate MDIO bus errors until this is complete.
  *
  *   Some PHYs (such as the Marvell 88E1111) don't entirely conform to the
- *   standard and do not fully reset after the BMCR_RESET bit is set, and may
+ *   standard and do yest fully reset after the BMCR_RESET bit is set, and may
  *   even *REQUIRE* a soft-reset to properly restart autonegotiation.  In an
  *   effort to support such broken PHYs, this function is separate from the
  *   standard phy_init_hw() which will zero all the other bits in the BMCR
@@ -1061,7 +1061,7 @@ static int phy_poll_reset(struct phy_device *phydev)
 	if (ret & BMCR_RESET)
 		return -ETIMEDOUT;
 
-	/* Some chips (smsc911x) may still need up to another 1ms after the
+	/* Some chips (smsc911x) may still need up to ayesther 1ms after the
 	 * BMCR_RESET bit is cleared before they are usable.
 	 */
 	msleep(1);
@@ -1153,14 +1153,14 @@ static void phy_sysfs_create_links(struct phy_device *phydev)
 	if (err)
 		return;
 
-	err = sysfs_create_link_nowarn(&dev->dev.kobj,
+	err = sysfs_create_link_yeswarn(&dev->dev.kobj,
 				       &phydev->mdio.dev.kobj,
 				       "phydev");
 	if (err) {
-		dev_err(&dev->dev, "could not add device link to %s err %d\n",
+		dev_err(&dev->dev, "could yest add device link to %s err %d\n",
 			kobject_name(&phydev->mdio.dev.kobj),
 			err);
-		/* non-fatal - some net drivers can use one netdevice
+		/* yesn-fatal - some net drivers can use one netdevice
 		 * with more then one phy
 		 */
 	}
@@ -1223,8 +1223,8 @@ int phy_sfp_probe(struct phy_device *phydev,
 	struct sfp_bus *bus;
 	int ret;
 
-	if (phydev->mdio.dev.fwnode) {
-		bus = sfp_bus_find_fwnode(phydev->mdio.dev.fwnode);
+	if (phydev->mdio.dev.fwyesde) {
+		bus = sfp_bus_find_fwyesde(phydev->mdio.dev.fwyesde);
 		if (IS_ERR(bus))
 			return PTR_ERR(bus);
 
@@ -1246,7 +1246,7 @@ EXPORT_SYMBOL(phy_sfp_probe);
  *
  * Description: Called by drivers to attach to a particular PHY
  *     device. The phy_device is found, and properly hooked up
- *     to the phy_driver.  If no driver is attached, then a
+ *     to the phy_driver.  If yes driver is attached, then a
  *     generic driver is used.  The phy_device is given a ptr to
  *     the attaching device, and given a callback for link status
  *     change.  The phy_device is returned to the attaching driver.
@@ -1262,8 +1262,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	int err;
 
 	/* For Ethernet device drivers that register their own MDIO bus, we
-	 * will have bus->owner match ndev_mod, so we do not want to increment
-	 * our own module->refcnt here, otherwise we would not be able to
+	 * will have bus->owner match ndev_mod, so we do yest want to increment
+	 * our own module->refcnt here, otherwise we would yest be able to
 	 * unload later on.
 	 */
 	if (dev)
@@ -1275,7 +1275,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 	get_device(d);
 
-	/* Assume that if there is no driver, that it doesn't
+	/* Assume that if there is yes driver, that it doesn't
 	 * exist, and we should use the genphy driver.
 	 */
 	if (!d->driver) {
@@ -1322,7 +1322,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 * does the dev->dev.kobj initialization. Here we only check for
 	 * success which indicates that the network device kobject is
 	 * ready. Once we do that we still need to keep track of whether
-	 * links were successfully set up or not for phy_detach() to
+	 * links were successfully set up or yest for phy_detach() to
 	 * remove them accordingly.
 	 */
 	phydev->sysfs_links = false;
@@ -1348,7 +1348,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	if (dev)
 		netif_carrier_off(phydev->attached_dev);
 
-	/* Do initial configuration here, now that
+	/* Do initial configuration here, yesw that
 	 * we have certain key parameters
 	 * (dev_flags and interface)
 	 */
@@ -1401,7 +1401,7 @@ struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 	 */
 	d = bus_find_device_by_name(bus, NULL, bus_id);
 	if (!d) {
-		pr_err("PHY %s not found\n", bus_id);
+		pr_err("PHY %s yest found\n", bus_id);
 		return ERR_PTR(-ENODEV);
 	}
 	phydev = to_phy_device(d);
@@ -1479,7 +1479,7 @@ void phy_detach(struct phy_device *phydev)
 
 	module_put(phydev->mdio.dev.driver->owner);
 
-	/* If the device had no specific driver before (i.e. - it
+	/* If the device had yes specific driver before (i.e. - it
 	 * was using the generic driver), we unbind the device
 	 * from the generic driver so that there's a chance a
 	 * real driver could be loaded
@@ -1512,7 +1512,7 @@ int phy_suspend(struct phy_device *phydev)
 	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 	int ret = 0;
 
-	/* If the device has WOL enabled, we cannot suspend the PHY */
+	/* If the device has WOL enabled, we canyest suspend the PHY */
 	phy_ethtool_get_wol(phydev, &wol);
 	if (wol.wolopts || (netdev && netdev->wol_enabled))
 		return -EBUSY;
@@ -1597,7 +1597,7 @@ EXPORT_SYMBOL(phy_loopback);
  * phy_reset_after_clk_enable - perform a PHY reset if needed
  * @phydev: target phy_device struct
  *
- * Description: Some PHYs are known to need a reset after their refclk was
+ * Description: Some PHYs are kyeswn to need a reset after their refclk was
  *   enabled. This function evaluates the flags and perform the reset if it's
  *   needed. Returns < 0 on error, 0 if the phy wasn't reset and 1 if the phy
  *   was reset.
@@ -1725,7 +1725,7 @@ int genphy_config_eee_advert(struct phy_device *phydev)
 
 	err = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV,
 				     phydev->eee_broken_modes, 0);
-	/* If the call failed, we assume that EEE is not supported */
+	/* If the call failed, we assume that EEE is yest supported */
 	return err < 0 ? 0 : err;
 }
 EXPORT_SYMBOL(genphy_config_eee_advert);
@@ -1776,7 +1776,7 @@ EXPORT_SYMBOL(genphy_restart_aneg);
  * @changed: whether autoneg is requested
  *
  * Description: If auto-negotiation is enabled, we configure the
- *   advertising, and then restart auto-negotiation.  If it is not
+ *   advertising, and then restart auto-negotiation.  If it is yest
  *   enabled, then we write the BMCR.
  */
 int __genphy_config_aneg(struct phy_device *phydev, bool changed)
@@ -1820,7 +1820,7 @@ EXPORT_SYMBOL(__genphy_config_aneg);
  * @phydev: target phy_device struct
  *
  * Description: If auto-negotiation is enabled, we configure the
- *   advertising, and then restart auto-negotiation.  If it is not
+ *   advertising, and then restart auto-negotiation.  If it is yest
  *   enabled, then we write the BMCR. This function is intended
  *   for use with Clause 37 1000Base-X mode.
  */
@@ -1902,7 +1902,7 @@ int genphy_update_link(struct phy_device *phydev)
 		goto done;
 
 	/* The link state is latched low so that momentary link
-	 * drops can be detected. Do not double-read the status
+	 * drops can be detected. Do yest double-read the status
 	 * in polling mode to detect such short link drops.
 	 */
 	if (!phy_polling_mode(phydev)) {
@@ -1922,7 +1922,7 @@ done:
 	phydev->autoneg_complete = status & BMSR_ANEGCOMPLETE ? 1 : 0;
 
 	/* Consider the case that autoneg was started and "aneg complete"
-	 * bit has been reset, but "link up" bit not yet.
+	 * bit has been reset, but "link up" bit yest yet.
 	 */
 	if (phydev->autoneg == AUTONEG_ENABLE && !phydev->autoneg_complete)
 		phydev->link = 0;
@@ -1996,7 +1996,7 @@ int genphy_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	/* why bother the PHY if nothing can have changed */
+	/* why bother the PHY if yesthing can have changed */
 	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
 		return 0;
 
@@ -2051,7 +2051,7 @@ int genphy_c37_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	/* why bother the PHY if nothing can have changed */
+	/* why bother the PHY if yesthing can have changed */
 	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
 		return 0;
 
@@ -2216,7 +2216,7 @@ EXPORT_SYMBOL(genphy_loopback);
  * @link_mode: Link mode to be removed
  *
  * Description: Some MACs don't support all link modes which the PHY
- * does.  e.g. a 1G MAC often does not support 1000Half. Add a helper
+ * does.  e.g. a 1G MAC often does yest support 1000Half. Add a helper
  * to remove a link mode.
  */
 void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode)
@@ -2256,7 +2256,7 @@ EXPORT_SYMBOL(phy_advertise_supported);
  * @phydev: target phy_device struct
  *
  * Description: Called by the MAC to indicate is supports symmetrical
- * Pause, but not asym pause.
+ * Pause, but yest asym pause.
  */
 void phy_support_sym_pause(struct phy_device *phydev)
 {
@@ -2452,7 +2452,7 @@ static int phy_probe(struct device *dev)
 	 * use that result to determine whether to enable flow control via
 	 * pause frames.
 	 *
-	 * Normally, PHY drivers should not set the Pause bits, and instead
+	 * Normally, PHY drivers should yest set the Pause bits, and instead
 	 * allow phylib to do that.  However, there may be some situations
 	 * (e.g. hardware erratum) where the driver wants to set only one
 	 * of these bits.
@@ -2508,10 +2508,10 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 	int retval;
 
 	/* Either the features are hard coded, or dynamically
-	 * determined. It cannot be both.
+	 * determined. It canyest be both.
 	 */
 	if (WARN_ON(new_driver->features && new_driver->get_features)) {
-		pr_err("%s: features and get_features must not both be set\n",
+		pr_err("%s: features and get_features must yest both be set\n",
 		       new_driver->name);
 		return -EINVAL;
 	}
@@ -2573,7 +2573,7 @@ static struct phy_driver genphy_driver = {
 	.phy_id		= 0xffffffff,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Generic PHY",
-	.soft_reset	= genphy_no_soft_reset,
+	.soft_reset	= genphy_yes_soft_reset,
 	.get_features	= genphy_read_abilities,
 	.aneg_done	= genphy_aneg_done,
 	.suspend	= genphy_suspend,

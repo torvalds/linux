@@ -8,7 +8,7 @@
  *
  * Copyright (C) 2009 Nokia Corporation and/or its subsidiary(-ies).
  *
- * Contact: Samu Onkalo <samu.p.onkalo@nokia.com>
+ * Contact: Samu Onkalo <samu.p.onkalo@yeskia.com>
  */
 
 #include <linux/module.h>
@@ -108,7 +108,7 @@ static int lis3lv02d_i2c_probe(struct i2c_client *client,
 
 #ifdef CONFIG_OF
 	if (of_match_device(lis3lv02d_i2c_dt_ids, &client->dev)) {
-		lis3_dev.of_node = client->dev.of_node;
+		lis3_dev.of_yesde = client->dev.of_yesde;
 		ret = lis3lv02d_init_dt(&lis3_dev);
 		if (ret)
 			return ret;

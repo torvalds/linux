@@ -14,14 +14,14 @@ static void TsInactTimeout(struct timer_list *unused)
 {
 	// Not implement yet
 	// This is used for WMMSA and ACM.
-	// This function would be call when TS is no Tx/Rx for some period of time.
+	// This function would be call when TS is yes Tx/Rx for some period of time.
 }
 
 /********************************************************************************************************************
- *function:  I still not understand this function, so wait for further implementation
+ *function:  I still yest understand this function, so wait for further implementation
  *   input:  unsigned long	 data		//acturally we send struct tx_ts_record or struct rx_ts_record to these timer
  *  return:  NULL
- *  notice:
+ *  yestice:
  ********************************************************************************************************************/
 static void RxPktPendingTimeout(struct timer_list *t)
 {
@@ -64,7 +64,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	}
 
 	if (index > 0) {
-		// Set rx_timeout_indicate_seq to 0xffff to indicate no pending packets in buffer now.
+		// Set rx_timeout_indicate_seq to 0xffff to indicate yes pending packets in buffer yesw.
 		pRxTs->rx_timeout_indicate_seq = 0xffff;
 
 		// Indicate packets
@@ -88,7 +88,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
  *function:  Add BA timer function
  *   input:  unsigned long	 data		//acturally we send struct tx_ts_record or struct rx_ts_record to these timer
  *  return:  NULL
- *  notice:
+ *  yestice:
  ********************************************************************************************************************/
 static void TsAddBaProcess(struct timer_list *t)
 {
@@ -124,8 +124,8 @@ static void ResetTxTsEntry(struct tx_ts_record *pTS)
 static void ResetRxTsEntry(struct rx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->ts_common_info);
-	pTS->rx_indicate_seq = 0xffff; // This indicate the rx_indicate_seq is not used now!!
-	pTS->rx_timeout_indicate_seq = 0xffff; // This indicate the rx_timeout_indicate_seq is not used now!!
+	pTS->rx_indicate_seq = 0xffff; // This indicate the rx_indicate_seq is yest used yesw!!
+	pTS->rx_timeout_indicate_seq = 0xffff; // This indicate the rx_timeout_indicate_seq is yest used yesw!!
 	ResetBaEntry(&pTS->rx_admitted_ba_record);	  // For BA Recipient
 }
 
@@ -295,7 +295,7 @@ bool GetTs(
 {
 	u8	UP = 0;
 	//
-	// We do not build any TS for Broadcast or Multicast stream.
+	// We do yest build any TS for Broadcast or Multicast stream.
 	// So reject these kinds of search here.
 	//
 	if (is_multicast_ether_addr(Addr)) {
@@ -308,7 +308,7 @@ bool GetTs(
 	} else {
 		// In WMM case: we use 4 TID only
 		if (!is_ac_valid(TID)) {
-			IEEE80211_DEBUG(IEEE80211_DL_ERR, " in %s(), TID(%d) is not valid\n", __func__, TID);
+			IEEE80211_DEBUG(IEEE80211_DL_ERR, " in %s(), TID(%d) is yest valid\n", __func__, TID);
 			return false;
 		}
 
@@ -350,7 +350,7 @@ bool GetTs(
 			//
 			// Create a new Traffic stream for current Tx/Rx
 			// This is for EDCA and WMM to add a new TS.
-			// For HCCA or WMMSA, TS cannot be addmit without negotiation.
+			// For HCCA or WMMSA, TS canyest be addmit without negotiation.
 			//
 			struct tspec_body	TSpec;
 			struct qos_tsinfo	*pTSInfo = &TSpec.ts_info;
@@ -398,7 +398,7 @@ bool GetTs(
 
 				return true;
 			} else {
-				IEEE80211_DEBUG(IEEE80211_DL_ERR, "in function %s() There is not enough TS record to be used!!", __func__);
+				IEEE80211_DEBUG(IEEE80211_DL_ERR, "in function %s() There is yest eyesugh TS record to be used!!", __func__);
 				return false;
 			}
 		}
@@ -525,7 +525,7 @@ void TsStartAddBaProcess(struct ieee80211_device *ieee, struct tx_ts_record *pTx
 			mod_timer(&pTxTS->ts_add_ba_timer,
 				  jiffies + msecs_to_jiffies(TS_ADDBA_DELAY));
 		} else {
-			IEEE80211_DEBUG(IEEE80211_DL_BA, "%s: Immediately Start ADDBA now!!\n", __func__);
+			IEEE80211_DEBUG(IEEE80211_DL_BA, "%s: Immediately Start ADDBA yesw!!\n", __func__);
 			mod_timer(&pTxTS->ts_add_ba_timer, jiffies + 10); //set 10 ticks
 		}
 	} else {

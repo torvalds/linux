@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/serio.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/clk.h>
@@ -266,7 +266,7 @@ static int sun4i_ps2_probe(struct platform_device *pdev)
 	/* Get IRQ for the device */
 	irq = platform_get_irq(pdev, 0);
 	if (!irq) {
-		dev_err(dev, "no IRQ found\n");
+		dev_err(dev, "yes IRQ found\n");
 		error = -ENXIO;
 		goto err_disable_clk;
 	}

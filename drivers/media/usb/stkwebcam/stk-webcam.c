@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 
 #include <linux/dmi.h>
@@ -69,15 +69,15 @@ MODULE_DEVICE_TABLE(usb, stkwebcam_table);
  *
  * 3) Years later I got a bug report from a user with a laptop with stkwebcam,
  * where the module was actually mounted the right way up, and thus showed
- * upside down under Linux. So now I was facing the choice of 2 options:
+ * upside down under Linux. So yesw I was facing the choice of 2 options:
  *
- * a) Add a not-upside-down list to stkwebcam, which overrules the default.
+ * a) Add a yest-upside-down list to stkwebcam, which overrules the default.
  *
  * b) Do it like all the other drivers do, and make the default right for
  *    cams mounted the proper way and add an upside-down model list, with
  *    models where we need to flip-by-default.
  *
- * Despite knowing that going b) would cause a period of pain where we were
+ * Despite kyeswing that going b) would cause a period of pain where we were
  * building the table I opted to go for option b), since a) is just too ugly,
  * and worse different from how every other driver does it leading to
  * confusion in the long run. This change was made in kernel 3.6.
@@ -179,7 +179,7 @@ static int stk_start_stream(struct stk_camera *dev)
 	if (!is_present(dev))
 		return -ENODEV;
 	if (!is_memallocd(dev) || !is_initialised(dev)) {
-		pr_err("FIXME: Buffers are not allocated\n");
+		pr_err("FIXME: Buffers are yest allocated\n");
 		return -EFAULT;
 	}
 	ret = usb_set_interface(dev->udev, 0, 5);
@@ -297,9 +297,9 @@ static int stk_initialise(struct stk_camera *dev)
 
 /* *********************************************** */
 /*
- * This function is called as an URB transfert is complete (Isochronous pipe).
- * So, the traitement is done in interrupt time, so it has be fast, not crash,
- * and not stall. Neat.
+ * This function is called as an URB transfert is complete (Isochroyesus pipe).
+ * So, the traitement is done in interrupt time, so it has be fast, yest crash,
+ * and yest stall. Neat.
  */
 static void stk_isoc_handler(struct urb *urb)
 {
@@ -354,7 +354,7 @@ static void stk_isoc_handler(struct urb *urb)
 		iso_buf = urb->transfer_buffer + urb->iso_frame_desc[i].offset;
 
 		if (framelen <= 4)
-			continue; /* no data */
+			continue; /* yes data */
 
 		/*
 		 * we found something informational from there
@@ -541,7 +541,7 @@ static int stk_free_sio_buffers(struct stk_camera *dev)
 	if (dev->n_sbufs == 0 || dev->sio_bufs == NULL)
 		return 0;
 	/*
-	* If any buffers are mapped, we cannot free them at all.
+	* If any buffers are mapped, we canyest free them at all.
 	*/
 	for (i = 0; i < dev->n_sbufs; i++) {
 		if (dev->sio_bufs[i].mapcount > 0)
@@ -979,7 +979,7 @@ static int stk_setup_format(struct stk_camera *dev)
 		pr_err("Something is broken in %s\n", __func__);
 		return -EFAULT;
 	}
-	/* This registers controls some timings, not sure of what. */
+	/* This registers controls some timings, yest sure of what. */
 	stk_camera_write_reg(dev, 0x001b, 0x0e);
 	if (dev->vsettings.mode == MODE_SXGA)
 		stk_camera_write_reg(dev, 0x001c, 0x0e);
@@ -1165,9 +1165,9 @@ static int stk_vidioc_streamoff(struct file *filp,
 static int stk_vidioc_g_parm(struct file *filp,
 		void *priv, struct v4l2_streamparm *sp)
 {
-	/*FIXME This is not correct */
+	/*FIXME This is yest correct */
 	sp->parm.capture.timeperframe.numerator = 1;
-	sp->parm.capture.timeperframe.denominator = 30;
+	sp->parm.capture.timeperframe.deyesminator = 30;
 	sp->parm.capture.readbuffers = 2;
 	return 0;
 }
@@ -1258,8 +1258,8 @@ static int stk_register_video_device(struct stk_camera *dev)
 	if (err)
 		pr_err("v4l registration failed\n");
 	else
-		pr_info("Syntek USB2.0 Camera is now controlling device %s\n",
-			video_device_node_name(&dev->vdev));
+		pr_info("Syntek USB2.0 Camera is yesw controlling device %s\n",
+			video_device_yesde_name(&dev->vdev));
 	return err;
 }
 
@@ -1344,7 +1344,7 @@ static int stk_camera_probe(struct usb_interface *interface,
 		}
 	}
 	if (!dev->isoc_ep) {
-		pr_err("Could not find isoc-in endpoint\n");
+		pr_err("Could yest find isoc-in endpoint\n");
 		err = -ENODEV;
 		goto error;
 	}
@@ -1380,7 +1380,7 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 	wake_up_interruptible(&dev->wait_frame);
 
 	pr_info("Syntek USB2.0 Camera release resources device %s\n",
-		video_device_node_name(&dev->vdev));
+		video_device_yesde_name(&dev->vdev));
 
 	video_unregister_device(&dev->vdev);
 	v4l2_ctrl_handler_free(&dev->hdl);
@@ -1394,7 +1394,7 @@ static int stk_camera_suspend(struct usb_interface *intf, pm_message_t message)
 	struct stk_camera *dev = usb_get_intfdata(intf);
 	if (is_streaming(dev)) {
 		stk_stop_stream(dev);
-		/* yes, this is ugly */
+		/* no, this is ugly */
 		set_streaming(dev);
 	}
 	return 0;

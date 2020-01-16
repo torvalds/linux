@@ -140,10 +140,10 @@ static void pxa3xx_cpu_pm_suspend(void)
 static void pxa3xx_cpu_pm_enter(suspend_state_t state)
 {
 	/*
-	 * Don't sleep if no wakeup sources are defined
+	 * Don't sleep if yes wakeup sources are defined
 	 */
 	if (wakeup_src == 0) {
-		printk(KERN_ERR "Not suspending: no wakeup sources\n");
+		printk(KERN_ERR "Not suspending: yes wakeup sources\n");
 		return;
 	}
 
@@ -358,7 +358,7 @@ void __init pxa3xx_init_irq(void)
 
 #ifdef CONFIG_OF
 static int __init __init
-pxa3xx_dt_init_irq(struct device_node *node, struct device_node *parent)
+pxa3xx_dt_init_irq(struct device_yesde *yesde, struct device_yesde *parent)
 {
 	__pxa3xx_init_irq();
 	pxa_dt_irq_init(pxa3xx_set_wake);
@@ -423,9 +423,9 @@ static struct platform_device *devices[] __initdata = {
 
 static const struct dma_slave_map pxa3xx_slave_map[] = {
 	/* PXA25x, PXA27x and PXA3xx common entries */
-	{ "pxa2xx-ac97", "pcm_pcm_mic_mono", PDMA_FILTER_PARAM(LOWEST, 8) },
-	{ "pxa2xx-ac97", "pcm_pcm_aux_mono_in", PDMA_FILTER_PARAM(LOWEST, 9) },
-	{ "pxa2xx-ac97", "pcm_pcm_aux_mono_out",
+	{ "pxa2xx-ac97", "pcm_pcm_mic_moyes", PDMA_FILTER_PARAM(LOWEST, 8) },
+	{ "pxa2xx-ac97", "pcm_pcm_aux_moyes_in", PDMA_FILTER_PARAM(LOWEST, 9) },
+	{ "pxa2xx-ac97", "pcm_pcm_aux_moyes_out",
 	  PDMA_FILTER_PARAM(LOWEST, 10) },
 	{ "pxa2xx-ac97", "pcm_pcm_stereo_in", PDMA_FILTER_PARAM(LOWEST, 11) },
 	{ "pxa2xx-ac97", "pcm_pcm_stereo_out", PDMA_FILTER_PARAM(LOWEST, 12) },

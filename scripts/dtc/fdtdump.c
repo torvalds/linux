@@ -23,7 +23,7 @@ static void print_data(const char *data, int len)
 	int i;
 	const char *p = data;
 
-	/* no data, don't print */
+	/* yes data, don't print */
 	if (len == 0)
 		return;
 
@@ -126,7 +126,7 @@ static void dump_blob(void *blob)
 		}
 
 		if (tag != FDT_PROP) {
-			fprintf(stderr, "%*s ** Unknown tag 0x%08x\n", depth * shift, "", tag);
+			fprintf(stderr, "%*s ** Unkyeswn tag 0x%08x\n", depth * shift, "", tag);
 			break;
 		}
 		sz = fdt32_to_cpu(GET_CELL(p));

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * kvm asynchronous fault support
+ * kvm asynchroyesus fault support
  *
  * Copyright 2010 Red Hat, Inc.
  *
@@ -70,8 +70,8 @@ static void async_pf_execute(struct work_struct *work)
 	might_sleep();
 
 	/*
-	 * This work is run asynchronously to the task which owns
-	 * mm and might be done in another context, so we must
+	 * This work is run asynchroyesusly to the task which owns
+	 * mm and might be done in ayesther context, so we must
 	 * access remotely.
 	 */
 	down_read(&mm->mmap_sem);
@@ -113,8 +113,8 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 		list_del(&work->queue);
 
 		/*
-		 * We know it's present in vcpu->async_pf.done, do
-		 * nothing here.
+		 * We kyesw it's present in vcpu->async_pf.done, do
+		 * yesthing here.
 		 */
 		if (!work->vcpu)
 			continue;
@@ -176,7 +176,7 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
 	/* setup delayed work */
 
 	/*
-	 * do alloc nowait since if we are going to sleep anyway we
+	 * do alloc yeswait since if we are going to sleep anyway we
 	 * may as well sleep faulting in page
 	 */
 	work = kmem_cache_zalloc(async_pf_cache, GFP_NOWAIT | __GFP_NOWARN);
@@ -203,7 +203,7 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
 
 	list_add_tail(&work->queue, &vcpu->async_pf.queue);
 	vcpu->async_pf.queued++;
-	kvm_arch_async_page_not_present(vcpu, work);
+	kvm_arch_async_page_yest_present(vcpu, work);
 	return 1;
 retry_sync:
 	kvm_put_kvm(work->vcpu->kvm);

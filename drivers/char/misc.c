@@ -12,18 +12,18 @@
  *   See busmouse.c for particulars.
  *
  * Made things a lot mode modular - easy to compile in just one or two
- * of the misc drivers, as they are now completely independent. Linus.
+ * of the misc drivers, as they are yesw completely independent. Linus.
  *
  * Support for loadable modules. 8-Sep-95 Philip Blundell <pjb27@cam.ac.uk>
  *
  * Fixed a failing symbol register to free the device registration
  *		Alan Cox <alan@lxorguk.ukuu.org.uk> 21-Jan-96
  *
- * Dynamic minors and /proc/mice by Alessandro Rubini. 26-Mar-96
+ * Dynamic miyesrs and /proc/mice by Alessandro Rubini. 26-Mar-96
  *
  * Renamed to misc and miscdevice to be more accurate. Alan Cox 26-Mar-96
  *
- * Handling of mouse minor numbers for kerneld:
+ * Handling of mouse miyesr numbers for kerneld:
  *  Idea by Jacques Gelinas <jack@solucorp.qc.ca>,
  *  adapted by Bjorn Ekwall <bj0rn@blox.se>
  *  corrected by Alan Cox <alan@lxorguk.ukuu.org.uk>
@@ -37,7 +37,7 @@
 #include <linux/module.h>
 
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/miscdevice.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
@@ -58,10 +58,10 @@ static LIST_HEAD(misc_list);
 static DEFINE_MUTEX(misc_mtx);
 
 /*
- * Assigned numbers, used for dynamic minors
+ * Assigned numbers, used for dynamic miyesrs
  */
 #define DYNAMIC_MINORS 64 /* like dynamic majors */
-static DECLARE_BITMAP(misc_minors, DYNAMIC_MINORS);
+static DECLARE_BITMAP(misc_miyesrs, DYNAMIC_MINORS);
 
 #ifdef CONFIG_PROC_FS
 static void *misc_seq_start(struct seq_file *seq, loff_t *pos)
@@ -84,7 +84,7 @@ static int misc_seq_show(struct seq_file *seq, void *v)
 {
 	const struct miscdevice *p = list_entry(v, struct miscdevice, list);
 
-	seq_printf(seq, "%3i %s\n", p->minor, p->name ? p->name : "");
+	seq_printf(seq, "%3i %s\n", p->miyesr, p->name ? p->name : "");
 	return 0;
 }
 
@@ -97,9 +97,9 @@ static const struct seq_operations misc_seq_ops = {
 };
 #endif
 
-static int misc_open(struct inode *inode, struct file *file)
+static int misc_open(struct iyesde *iyesde, struct file *file)
 {
-	int minor = iminor(inode);
+	int miyesr = imiyesr(iyesde);
 	struct miscdevice *c;
 	int err = -ENODEV;
 	const struct file_operations *new_fops = NULL;
@@ -107,7 +107,7 @@ static int misc_open(struct inode *inode, struct file *file)
 	mutex_lock(&misc_mtx);
 
 	list_for_each_entry(c, &misc_list, list) {
-		if (c->minor == minor) {
+		if (c->miyesr == miyesr) {
 			new_fops = fops_get(c->fops);
 			break;
 		}
@@ -115,11 +115,11 @@ static int misc_open(struct inode *inode, struct file *file)
 
 	if (!new_fops) {
 		mutex_unlock(&misc_mtx);
-		request_module("char-major-%d-%d", MISC_MAJOR, minor);
+		request_module("char-major-%d-%d", MISC_MAJOR, miyesr);
 		mutex_lock(&misc_mtx);
 
 		list_for_each_entry(c, &misc_list, list) {
-			if (c->minor == minor) {
+			if (c->miyesr == miyesr) {
 				new_fops = fops_get(c->fops);
 				break;
 			}
@@ -138,7 +138,7 @@ static int misc_open(struct inode *inode, struct file *file)
 	err = 0;
 	replace_fops(file, new_fops);
 	if (file->f_op->open)
-		err = file->f_op->open(inode, file);
+		err = file->f_op->open(iyesde, file);
 fail:
 	mutex_unlock(&misc_mtx);
 	return err;
@@ -149,24 +149,24 @@ static struct class *misc_class;
 static const struct file_operations misc_fops = {
 	.owner		= THIS_MODULE,
 	.open		= misc_open,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 /**
  *	misc_register	-	register a miscellaneous device
  *	@misc: device structure
  *
- *	Register a miscellaneous device with the kernel. If the minor
- *	number is set to %MISC_DYNAMIC_MINOR a minor number is assigned
- *	and placed in the minor field of the structure. For other cases
- *	the minor number requested is used.
+ *	Register a miscellaneous device with the kernel. If the miyesr
+ *	number is set to %MISC_DYNAMIC_MINOR a miyesr number is assigned
+ *	and placed in the miyesr field of the structure. For other cases
+ *	the miyesr number requested is used.
  *
- *	The structure passed is linked into the kernel and may not be
+ *	The structure passed is linked into the kernel and may yest be
  *	destroyed until it has been unregistered. By default, an open()
  *	syscall to the device sets file->private_data to point to the
  *	structure. Drivers don't need open in fops for this.
  *
- *	A zero is returned on success and a negative errno code for
+ *	A zero is returned on success and a negative erryes code for
  *	failure.
  */
 
@@ -174,44 +174,44 @@ int misc_register(struct miscdevice *misc)
 {
 	dev_t dev;
 	int err = 0;
-	bool is_dynamic = (misc->minor == MISC_DYNAMIC_MINOR);
+	bool is_dynamic = (misc->miyesr == MISC_DYNAMIC_MINOR);
 
 	INIT_LIST_HEAD(&misc->list);
 
 	mutex_lock(&misc_mtx);
 
 	if (is_dynamic) {
-		int i = find_first_zero_bit(misc_minors, DYNAMIC_MINORS);
+		int i = find_first_zero_bit(misc_miyesrs, DYNAMIC_MINORS);
 
 		if (i >= DYNAMIC_MINORS) {
 			err = -EBUSY;
 			goto out;
 		}
-		misc->minor = DYNAMIC_MINORS - i - 1;
-		set_bit(i, misc_minors);
+		misc->miyesr = DYNAMIC_MINORS - i - 1;
+		set_bit(i, misc_miyesrs);
 	} else {
 		struct miscdevice *c;
 
 		list_for_each_entry(c, &misc_list, list) {
-			if (c->minor == misc->minor) {
+			if (c->miyesr == misc->miyesr) {
 				err = -EBUSY;
 				goto out;
 			}
 		}
 	}
 
-	dev = MKDEV(MISC_MAJOR, misc->minor);
+	dev = MKDEV(MISC_MAJOR, misc->miyesr);
 
 	misc->this_device =
 		device_create_with_groups(misc_class, misc->parent, dev,
 					  misc, misc->groups, "%s", misc->name);
 	if (IS_ERR(misc->this_device)) {
 		if (is_dynamic) {
-			int i = DYNAMIC_MINORS - misc->minor - 1;
+			int i = DYNAMIC_MINORS - misc->miyesr - 1;
 
 			if (i < DYNAMIC_MINORS && i >= 0)
-				clear_bit(i, misc_minors);
-			misc->minor = MISC_DYNAMIC_MINOR;
+				clear_bit(i, misc_miyesrs);
+			misc->miyesr = MISC_DYNAMIC_MINOR;
 		}
 		err = PTR_ERR(misc->this_device);
 		goto out;
@@ -238,28 +238,28 @@ EXPORT_SYMBOL(misc_register);
 
 void misc_deregister(struct miscdevice *misc)
 {
-	int i = DYNAMIC_MINORS - misc->minor - 1;
+	int i = DYNAMIC_MINORS - misc->miyesr - 1;
 
 	if (WARN_ON(list_empty(&misc->list)))
 		return;
 
 	mutex_lock(&misc_mtx);
 	list_del(&misc->list);
-	device_destroy(misc_class, MKDEV(MISC_MAJOR, misc->minor));
+	device_destroy(misc_class, MKDEV(MISC_MAJOR, misc->miyesr));
 	if (i < DYNAMIC_MINORS && i >= 0)
-		clear_bit(i, misc_minors);
+		clear_bit(i, misc_miyesrs);
 	mutex_unlock(&misc_mtx);
 }
 EXPORT_SYMBOL(misc_deregister);
 
-static char *misc_devnode(struct device *dev, umode_t *mode)
+static char *misc_devyesde(struct device *dev, umode_t *mode)
 {
 	struct miscdevice *c = dev_get_drvdata(dev);
 
 	if (mode && c->mode)
 		*mode = c->mode;
-	if (c->nodename)
-		return kstrdup(c->nodename, GFP_KERNEL);
+	if (c->yesdename)
+		return kstrdup(c->yesdename, GFP_KERNEL);
 	return NULL;
 }
 
@@ -277,7 +277,7 @@ static int __init misc_init(void)
 	err = -EIO;
 	if (register_chrdev(MISC_MAJOR, "misc", &misc_fops))
 		goto fail_printk;
-	misc_class->devnode = misc_devnode;
+	misc_class->devyesde = misc_devyesde;
 	return 0;
 
 fail_printk:

@@ -163,10 +163,10 @@ config SAMPLE_VFIO_MDEV_MBOCHS
 	  Build a virtual display sample driver for use as a VFIO
 	  mediated device.  It supports the region display interface
 	  (VFIO_GFX_PLANE_TYPE_DMABUF).
-	  Emulate enough of qemu stdvga to make bochs-drm.ko happy.
+	  Emulate eyesugh of qemu stdvga to make bochs-drm.ko happy.
 	  That is basically the vram memory bar and the bochs dispi
 	  interface vbe registers in the mmio register bar.
-	  Specifically it does *not* include any legacy vga stuff.
+	  Specifically it does *yest* include any legacy vga stuff.
 	  Device looks a lot like "qemu -device secondary-vga".
 
 config SAMPLE_ANDROID_BINDERFS

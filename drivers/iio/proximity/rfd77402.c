@@ -262,7 +262,7 @@ static int rfd77402_probe(struct i2c_client *client,
 	ret = i2c_smbus_read_word_data(client, RFD77402_MOD_CHIP_ID);
 	if (ret < 0)
 		return ret;
-	if (ret != 0xad01 && ret != 0xad02) /* known chip ids */
+	if (ret != 0xad01 && ret != 0xad02) /* kyeswn chip ids */
 		return -ENODEV;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_GENERIC_STATFS_H
 #define _UAPI_GENERIC_STATFS_H
 
@@ -9,7 +9,7 @@
  * Most 64-bit platforms use 'long', while most 32-bit platforms use '__u32'.
  * Yes, they differ in signedness as well as size.
  * Special cases can override it for themselves -- except for S390x, which
- * is just a little too special for us. And MIPS, which I'm not touching
+ * is just a little too special for us. And MIPS, which I'm yest touching
  * with a 10' pole.
  */
 #ifndef __statfs_word

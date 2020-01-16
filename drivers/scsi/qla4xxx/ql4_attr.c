@@ -70,7 +70,7 @@ qla4_8xxx_sysfs_write_fw_dump(struct file *filep, struct kobject *kobj,
 			set_bit(AF_82XX_DUMP_READING, &ha->flags);
 			DEBUG2(ql4_printk(KERN_INFO, ha,
 					  "Raw firmware dump ready for read on (%ld).\n",
-					  ha->host_no));
+					  ha->host_yes));
 		}
 		break;
 	case 2:
@@ -92,13 +92,13 @@ qla4_8xxx_sysfs_write_fw_dump(struct file *filep, struct kobject *kobj,
 			}
 		} else
 			ql4_printk(KERN_INFO, ha,
-				   "%s: Reset not performed as device state is 0x%x\n",
+				   "%s: Reset yest performed as device state is 0x%x\n",
 				   __func__, dev_state);
 
 		ha->isp_ops->idc_unlock(ha);
 		break;
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -158,11 +158,11 @@ qla4xxx_fw_version_show(struct device *dev,
 
 	if (is_qla80XX(ha))
 		return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d (%x)\n",
-				ha->fw_info.fw_major, ha->fw_info.fw_minor,
+				ha->fw_info.fw_major, ha->fw_info.fw_miyesr,
 				ha->fw_info.fw_patch, ha->fw_info.fw_build);
 	else
 		return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d.%02d\n",
-				ha->fw_info.fw_major, ha->fw_info.fw_minor,
+				ha->fw_info.fw_major, ha->fw_info.fw_miyesr,
 				ha->fw_info.fw_patch, ha->fw_info.fw_build);
 }
 
@@ -180,7 +180,7 @@ qla4xxx_iscsi_version_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_qla_host *ha = to_qla_host(class_to_shost(dev));
 	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", ha->fw_info.iscsi_major,
-			ha->fw_info.iscsi_minor);
+			ha->fw_info.iscsi_miyesr);
 }
 
 static ssize_t
@@ -189,7 +189,7 @@ qla4xxx_optrom_version_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_qla_host *ha = to_qla_host(class_to_shost(dev));
 	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d.%02d\n",
-			ha->fw_info.bootload_major, ha->fw_info.bootload_minor,
+			ha->fw_info.bootload_major, ha->fw_info.bootload_miyesr,
 			ha->fw_info.bootload_patch, ha->fw_info.bootload_build);
 }
 

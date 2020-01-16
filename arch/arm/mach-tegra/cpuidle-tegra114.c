@@ -39,7 +39,7 @@ static int tegra114_idle_power_down(struct cpuidle_device *dev,
 
 	call_firmware_op(prepare_idle, TF_PM_MODE_LP2_NOFLUSH_L2);
 
-	/* Do suspend by ourselves if the firmware does not implement it */
+	/* Do suspend by ourselves if the firmware does yest implement it */
 	if (call_firmware_op(do_idle, 0) == -ENOSYS)
 		cpu_suspend(0, tegra30_sleep_cpu_secondary_finish);
 

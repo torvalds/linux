@@ -112,7 +112,7 @@ static struct i915_vma *create_ring_vma(struct i915_ggtt *ggtt, int size)
 		return ERR_CAST(obj);
 
 	/*
-	 * Mark ring buffers as read-only from GPU side (so no stray overwrites)
+	 * Mark ring buffers as read-only from GPU side (so yes stray overwrites)
 	 * if supported by the platform's GGTT.
 	 */
 	if (vm->has_read_only)
@@ -175,7 +175,7 @@ void intel_ring_free(struct kref *ref)
 	kfree(ring);
 }
 
-static noinline int
+static yesinline int
 wait_for_space(struct intel_ring *ring,
 	       struct intel_timeline *tl,
 	       unsigned int bytes)
@@ -191,7 +191,7 @@ wait_for_space(struct intel_ring *ring,
 		if (target->ring != ring)
 			continue;
 
-		/* Would completion of this request free enough space? */
+		/* Would completion of this request free eyesugh space? */
 		if (bytes <= __intel_ring_space(target->postfix,
 						ring->emit, ring->size))
 			break;
@@ -233,7 +233,7 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 
 		if (bytes > remain_usable) {
 			/*
-			 * Not enough space for the basic request. So need to
+			 * Not eyesugh space for the basic request. So need to
 			 * flush out the remainder and then wait for
 			 * base + reserved.
 			 */
@@ -255,7 +255,7 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 
 		/*
 		 * Space is reserved in the ringbuffer for finalising the
-		 * request, as that cannot be allowed to fail. During request
+		 * request, as that canyest be allowed to fail. During request
 		 * finalisation, reserved_space is set to 0 to stop the
 		 * overallocation and the assumption is that then we never need
 		 * to wait (which has the risk of failing with EINTR).

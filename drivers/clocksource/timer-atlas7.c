@@ -228,7 +228,7 @@ static int __init sirfsoc_clockevent_init(void)
 }
 
 /* initialize the kernel jiffy timer source */
-static int __init sirfsoc_atlas7_timer_init(struct device_node *np)
+static int __init sirfsoc_atlas7_timer_init(struct device_yesde *np)
 {
 	struct clk *clk;
 
@@ -239,7 +239,7 @@ static int __init sirfsoc_atlas7_timer_init(struct device_node *np)
 
 	atlas7_timer_rate = clk_get_rate(clk);
 
-	/* timer dividers: 0, not divided */
+	/* timer dividers: 0, yest divided */
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_64COUNTER_CTRL);
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_0_CTRL);
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_1_CTRL);
@@ -260,7 +260,7 @@ static int __init sirfsoc_atlas7_timer_init(struct device_node *np)
 	return sirfsoc_clockevent_init();
 }
 
-static int __init sirfsoc_of_timer_init(struct device_node *np)
+static int __init sirfsoc_of_timer_init(struct device_yesde *np)
 {
 	sirfsoc_timer_base = of_iomap(np, 0);
 	if (!sirfsoc_timer_base) {

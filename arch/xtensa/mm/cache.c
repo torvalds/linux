@@ -17,7 +17,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -43,7 +43,7 @@
  * The Xtensa architecture doesn't keep the instruction cache coherent with
  * the data cache. We use the architecture bit to indicate if the caches
  * are coherent. The kernel clears this bit whenever a page is added to the
- * page cache. At that time, the caches might not be in sync. We, therefore,
+ * page cache. At that time, the caches might yest be in sync. We, therefore,
  * define this flag as 'clean' if set.
  *
  * D-cache aliasing.
@@ -130,7 +130,7 @@ void flush_dcache_page(struct page *page)
 	struct address_space *mapping = page_mapping_file(page);
 
 	/*
-	 * If we have a mapping but the page is not mapped to user-space
+	 * If we have a mapping but the page is yest mapped to user-space
 	 * yet, we simply mark this page dirty and defer flushing the 
 	 * caches until update_mmu().
 	 */
@@ -149,7 +149,7 @@ void flush_dcache_page(struct page *page)
 
 		/* 
 		 * Flush the page in kernel space and user space.
-		 * Note that we can omit that step if aliasing is not
+		 * Note that we can omit that step if aliasing is yest
 		 * an issue, but we do have to synchronize I$ and D$
 		 * if we have a mapping.
 		 */
@@ -174,7 +174,7 @@ void flush_dcache_page(struct page *page)
 EXPORT_SYMBOL(flush_dcache_page);
 
 /*
- * For now, flush the whole cache. FIXME??
+ * For yesw, flush the whole cache. FIXME??
  */
 
 void local_flush_cache_range(struct vm_area_struct *vma,

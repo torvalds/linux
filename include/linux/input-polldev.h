@@ -14,7 +14,7 @@
  * @private: private driver data.
  * @open: driver-supplied method that prepares device for polling
  *	(enabled the device and maybe flushes device state).
- * @close: driver-supplied method that is called when device is no
+ * @close: driver-supplied method that is called when device is yes
  *	longer being polled. Used to put device into low power mode.
  * @poll: driver-supplied method that polls the device and posts
  *	input events (mandatory).
@@ -28,7 +28,7 @@
  *	Must be properly initialized by the driver (id, name, phys, bits).
  *
  * Polled input device provides a skeleton for supporting simple input
- * devices that do not raise interrupts but have to be periodically
+ * devices that do yest raise interrupts but have to be periodically
  * scanned or polled to detect changes in their state.
  */
 struct input_polled_dev {

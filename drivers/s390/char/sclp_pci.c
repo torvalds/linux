@@ -10,7 +10,7 @@
 #include <linux/completion.h>
 #include <linux/export.h>
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/err.h>
@@ -33,7 +33,7 @@ static struct sclp_register sclp_pci_event = {
 	.send_mask = EVTYP_ERRNOTIFY_MASK,
 };
 
-struct err_notify_evbuf {
+struct err_yestify_evbuf {
 	struct evbuf_header header;
 	u8 action;
 	u8 atype;
@@ -42,9 +42,9 @@ struct err_notify_evbuf {
 	u8 data[0];
 } __packed;
 
-struct err_notify_sccb {
+struct err_yestify_sccb {
 	struct sccb_header header;
-	struct err_notify_evbuf evbuf;
+	struct err_yestify_evbuf evbuf;
 } __packed;
 
 struct pci_cfg_sccb {
@@ -121,7 +121,7 @@ static int sclp_pci_check_report(struct zpci_report_error_header *report)
 		return -EINVAL;
 	}
 
-	if (report->length > (PAGE_SIZE - sizeof(struct err_notify_sccb)))
+	if (report->length > (PAGE_SIZE - sizeof(struct err_yestify_sccb)))
 		return -EINVAL;
 
 	return 0;
@@ -130,7 +130,7 @@ static int sclp_pci_check_report(struct zpci_report_error_header *report)
 int sclp_pci_report(struct zpci_report_error_header *report, u32 fh, u32 fid)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
-	struct err_notify_sccb *sccb;
+	struct err_yestify_sccb *sccb;
 	struct sclp_req req;
 	int ret;
 

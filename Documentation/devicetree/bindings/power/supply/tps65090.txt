@@ -7,7 +7,7 @@ Optional Properties:
 -ti,enable-low-current-chrg: Enables charging when a low current is detected
  while the default logic is to stop charging.
 
-This node is a subnode of the tps65090 PMIC.
+This yesde is a subyesde of the tps65090 PMIC.
 
 Example:
 

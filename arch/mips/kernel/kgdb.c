@@ -37,7 +37,7 @@
 
 static struct hard_trap_info {
 	unsigned char tt;	/* Trap type code for MIPS R3xxx and R4xxx */
-	unsigned char signo;	/* Signal that we map this trap into */
+	unsigned char sigyes;	/* Signal that we map this trap into */
 } hard_trap_info[] = {
 	{ 6, SIGBUS },		/* instruction bus error */
 	{ 7, SIGBUS },		/* data bus error */
@@ -128,32 +128,32 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] =
 	{ "fir", GDB_SIZEOF_REG, 0 },
 };
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int regyes, void *mem, struct pt_regs *regs)
 {
 	int fp_reg;
 
-	if (regno < 0 || regno >= DBG_MAX_REG_NUM)
+	if (regyes < 0 || regyes >= DBG_MAX_REG_NUM)
 		return -EINVAL;
 
-	if (dbg_reg_def[regno].offset != -1 && regno < 38) {
-		memcpy((void *)regs + dbg_reg_def[regno].offset, mem,
-		       dbg_reg_def[regno].size);
-	} else if (current && dbg_reg_def[regno].offset != -1 && regno < 72) {
+	if (dbg_reg_def[regyes].offset != -1 && regyes < 38) {
+		memcpy((void *)regs + dbg_reg_def[regyes].offset, mem,
+		       dbg_reg_def[regyes].size);
+	} else if (current && dbg_reg_def[regyes].offset != -1 && regyes < 72) {
 		/* FP registers 38 -> 69 */
 		if (!(regs->cp0_status & ST0_CU1))
 			return 0;
-		if (regno == 70) {
+		if (regyes == 70) {
 			/* Process the fcr31/fsr (register 70) */
 			memcpy((void *)&current->thread.fpu.fcr31, mem,
-			       dbg_reg_def[regno].size);
+			       dbg_reg_def[regyes].size);
 			goto out_save;
-		} else if (regno == 71) {
-			/* Ignore the fir (register 71) */
+		} else if (regyes == 71) {
+			/* Igyesre the fir (register 71) */
 			goto out_save;
 		}
-		fp_reg = dbg_reg_def[regno].offset;
+		fp_reg = dbg_reg_def[regyes].offset;
 		memcpy((void *)&current->thread.fpu.fpr[fp_reg], mem,
-		       dbg_reg_def[regno].size);
+		       dbg_reg_def[regyes].size);
 out_save:
 		restore_fp(current);
 	}
@@ -161,39 +161,39 @@ out_save:
 	return 0;
 }
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int regyes, void *mem, struct pt_regs *regs)
 {
 	int fp_reg;
 
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (regyes >= DBG_MAX_REG_NUM || regyes < 0)
 		return NULL;
 
-	if (dbg_reg_def[regno].offset != -1 && regno < 38) {
+	if (dbg_reg_def[regyes].offset != -1 && regyes < 38) {
 		/* First 38 registers */
-		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
-		       dbg_reg_def[regno].size);
-	} else if (current && dbg_reg_def[regno].offset != -1 && regno < 72) {
+		memcpy(mem, (void *)regs + dbg_reg_def[regyes].offset,
+		       dbg_reg_def[regyes].size);
+	} else if (current && dbg_reg_def[regyes].offset != -1 && regyes < 72) {
 		/* FP registers 38 -> 69 */
 		if (!(regs->cp0_status & ST0_CU1))
 			goto out;
 		save_fp(current);
-		if (regno == 70) {
+		if (regyes == 70) {
 			/* Process the fcr31/fsr (register 70) */
 			memcpy(mem, (void *)&current->thread.fpu.fcr31,
-			       dbg_reg_def[regno].size);
+			       dbg_reg_def[regyes].size);
 			goto out;
-		} else if (regno == 71) {
-			/* Ignore the fir (register 71) */
-			memset(mem, 0, dbg_reg_def[regno].size);
+		} else if (regyes == 71) {
+			/* Igyesre the fir (register 71) */
+			memset(mem, 0, dbg_reg_def[regyes].size);
 			goto out;
 		}
-		fp_reg = dbg_reg_def[regno].offset;
+		fp_reg = dbg_reg_def[regyes].offset;
 		memcpy(mem, (void *)&current->thread.fpu.fpr[fp_reg],
-		       dbg_reg_def[regno].size);
+		       dbg_reg_def[regyes].size);
 	}
 
 out:
-	return dbg_reg_def[regno].name;
+	return dbg_reg_def[regyes].name;
 
 }
 
@@ -201,14 +201,14 @@ void arch_kgdb_breakpoint(void)
 {
 	__asm__ __volatile__(
 		".globl breakinst\n\t"
-		".set\tnoreorder\n\t"
-		"nop\n"
+		".set\tyesreorder\n\t"
+		"yesp\n"
 		"breakinst:\tbreak\n\t"
-		"nop\n\t"
+		"yesp\n\t"
 		".set\treorder");
 }
 
-void kgdb_call_nmi_hook(void *ignored)
+void kgdb_call_nmi_hook(void *igyesred)
 {
 	mm_segment_t old_fs;
 
@@ -224,16 +224,16 @@ static int compute_signal(int tt)
 {
 	struct hard_trap_info *ht;
 
-	for (ht = hard_trap_info; ht->tt && ht->signo; ht++)
+	for (ht = hard_trap_info; ht->tt && ht->sigyes; ht++)
 		if (ht->tt == tt)
-			return ht->signo;
+			return ht->sigyes;
 
-	return SIGHUP;		/* default for things we don't know about */
+	return SIGHUP;		/* default for things we don't kyesw about */
 }
 
 /*
  * Similar to regs_to_gdb_regs() except that process is sleeping and so
- * we may not be able to get all the info.
+ * we may yest be able to get all the info.
  */
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 {
@@ -275,7 +275,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	/*
 	 * BadVAddr, Cause
 	 * Ideally these would come from the last exception frame up the stack
-	 * but that requires unwinding, otherwise we can't know much for sure.
+	 * but that requires unwinding, otherwise we can't kyesw much for sure.
 	 */
 	*(ptr++) = 0;
 	*(ptr++) = 0;
@@ -296,7 +296,7 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
  * Calls linux_debug_hook before the kernel dies. If KGDB is enabled,
  * then try to fall into the debugger
  */
-static int kgdb_mips_notify(struct notifier_block *self, unsigned long cmd,
+static int kgdb_mips_yestify(struct yestifier_block *self, unsigned long cmd,
 			    void *ptr)
 {
 	struct die_args *args = (struct die_args *)ptr;
@@ -306,14 +306,14 @@ static int kgdb_mips_notify(struct notifier_block *self, unsigned long cmd,
 
 #ifdef CONFIG_KPROBES
 	/*
-	 * Return immediately if the kprobes fault notifier has set
+	 * Return immediately if the kprobes fault yestifier has set
 	 * DIE_PAGE_FAULT.
 	 */
 	if (cmd == DIE_PAGE_FAULT)
 		return NOTIFY_DONE;
 #endif /* CONFIG_KPROBES */
 
-	/* Userspace events, ignore. */
+	/* Userspace events, igyesre. */
 	if (user_mode(regs))
 		return NOTIFY_DONE;
 
@@ -357,18 +357,18 @@ int kgdb_ll_trap(int cmd, const char *str,
 	if (!kgdb_io_module_registered)
 		return NOTIFY_DONE;
 
-	return kgdb_mips_notify(NULL, cmd, &args);
+	return kgdb_mips_yestify(NULL, cmd, &args);
 }
 #endif /* CONFIG_KGDB_LOW_LEVEL_TRAP */
 
-static struct notifier_block kgdb_notifier = {
-	.notifier_call = kgdb_mips_notify,
+static struct yestifier_block kgdb_yestifier = {
+	.yestifier_call = kgdb_mips_yestify,
 };
 
 /*
  * Handle the 'c' command
  */
-int kgdb_arch_handle_exception(int vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int vector, int sigyes, int err_code,
 			       char *remcom_in_buffer, char *remcom_out_buffer,
 			       struct pt_regs *regs)
 {
@@ -398,7 +398,7 @@ const struct kgdb_arch arch_kgdb_ops = {
 
 int kgdb_arch_init(void)
 {
-	register_die_notifier(&kgdb_notifier);
+	register_die_yestifier(&kgdb_yestifier);
 
 	return 0;
 }
@@ -411,5 +411,5 @@ int kgdb_arch_init(void)
  */
 void kgdb_arch_exit(void)
 {
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_yestifier(&kgdb_yestifier);
 }

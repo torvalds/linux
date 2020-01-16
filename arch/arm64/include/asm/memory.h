@@ -5,7 +5,7 @@
  * Copyright (C) 2000-2002 Russell King
  * Copyright (C) 2012 ARM Ltd.
  *
- * Note: this file should not be included by non-asm/.h files
+ * Note: this file should yest be included by yesn-asm/.h files
  */
 #ifndef __ASM_MEMORY_H
 #define __ASM_MEMORY_H
@@ -31,7 +31,7 @@
  * needs to cover the memory region from the beginning of the 52-bit
  * PAGE_OFFSET all the way to PAGE_END for 48-bit. This allows us to
  * keep a constant PAGE_OFFSET and "fallback" to using the higher end
- * of the VMEMMAP where 52-bit support is not available in hardware.
+ * of the VMEMMAP where 52-bit support is yest available in hardware.
  */
 #define VMEMMAP_SIZE ((_PAGE_END(VA_BITS_MIN) - PAGE_OFFSET) \
 			>> (PAGE_SHIFT - STRUCT_PAGE_MAX_SHIFT))
@@ -251,19 +251,19 @@ static inline const void *__tag_set(const void *addr, u8 tag)
 #define __lm_to_phys(addr)	(((addr) + physvirt_offset))
 #define __kimg_to_phys(addr)	((addr) - kimage_voffset)
 
-#define __virt_to_phys_nodebug(x) ({					\
+#define __virt_to_phys_yesdebug(x) ({					\
 	phys_addr_t __x = (phys_addr_t)(__tag_reset(x));		\
 	__is_lm_address(__x) ? __lm_to_phys(__x) : __kimg_to_phys(__x);	\
 })
 
-#define __pa_symbol_nodebug(x)	__kimg_to_phys((phys_addr_t)(x))
+#define __pa_symbol_yesdebug(x)	__kimg_to_phys((phys_addr_t)(x))
 
 #ifdef CONFIG_DEBUG_VIRTUAL
 extern phys_addr_t __virt_to_phys(unsigned long x);
 extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #else
-#define __virt_to_phys(x)	__virt_to_phys_nodebug(x)
-#define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
+#define __virt_to_phys(x)	__virt_to_phys_yesdebug(x)
+#define __phys_addr_symbol(x)	__pa_symbol_yesdebug(x)
 #endif /* CONFIG_DEBUG_VIRTUAL */
 
 #define __phys_to_virt(x)	((unsigned long)((x) - physvirt_offset))
@@ -297,7 +297,7 @@ static inline void *phys_to_virt(phys_addr_t x)
  */
 #define __pa(x)			__virt_to_phys((unsigned long)(x))
 #define __pa_symbol(x)		__phys_addr_symbol(RELOC_HIDE((unsigned long)(x), 0))
-#define __pa_nodebug(x)		__virt_to_phys_nodebug((unsigned long)(x))
+#define __pa_yesdebug(x)		__virt_to_phys_yesdebug((unsigned long)(x))
 #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 #define virt_to_pfn(x)		__phys_to_pfn(__virt_to_phys((unsigned long)(x)))

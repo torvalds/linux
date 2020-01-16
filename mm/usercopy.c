@@ -26,18 +26,18 @@
  * stack frame (if possible).
  *
  * Returns:
- *	NOT_STACK: not at all on the stack
+ *	NOT_STACK: yest at all on the stack
  *	GOOD_FRAME: fully within a valid stack frame
  *	GOOD_STACK: fully on the stack (when can't do frame-checking)
  *	BAD_STACK: error condition (invalid stack position or bad stack frame)
  */
-static noinline int check_stack_object(const void *obj, unsigned long len)
+static yesinline int check_stack_object(const void *obj, unsigned long len)
 {
 	const void * const stack = task_stack_page(current);
 	const void * const stackend = stack + THREAD_SIZE;
 	int ret;
 
-	/* Object is not on the stack at all. */
+	/* Object is yest on the stack at all. */
 	if (obj + len <= stack || stackend <= obj)
 		return NOT_STACK;
 
@@ -75,19 +75,19 @@ void usercopy_warn(const char *name, const char *detail, bool to_user,
 	WARN_ONCE(1, "Bad or missing usercopy whitelist? Kernel memory %s attempt detected %s %s%s%s%s (offset %lu, size %lu)!\n",
 		 to_user ? "exposure" : "overwrite",
 		 to_user ? "from" : "to",
-		 name ? : "unknown?!",
+		 name ? : "unkyeswn?!",
 		 detail ? " '" : "", detail ? : "", detail ? "'" : "",
 		 offset, len);
 }
 
-void __noreturn usercopy_abort(const char *name, const char *detail,
+void __yesreturn usercopy_abort(const char *name, const char *detail,
 			       bool to_user, unsigned long offset,
 			       unsigned long len)
 {
 	pr_emerg("Kernel memory %s attempt detected %s %s%s%s%s (offset %lu, size %lu)!\n",
 		 to_user ? "exposure" : "overwrite",
 		 to_user ? "from" : "to",
-		 name ? : "unknown?!",
+		 name ? : "unkyeswn?!",
 		 detail ? " '" : "", detail ? : "", detail ? "'" : "",
 		 offset, len);
 
@@ -106,7 +106,7 @@ static bool overlaps(const unsigned long ptr, unsigned long n,
 	const unsigned long check_low = ptr;
 	unsigned long check_high = check_low + n;
 
-	/* Does not overlap if entirely above or entirely below. */
+	/* Does yest overlap if entirely above or entirely below. */
 	if (check_low >= high || check_high <= low)
 		return false;
 
@@ -129,7 +129,7 @@ static inline void check_kernel_text_object(const unsigned long ptr,
 	 * mapping of the kernel text, i.e. there is more than one virtual
 	 * kernel address that points to the kernel image. It is usually
 	 * when there is a separate linear physical memory mapping, in that
-	 * __pa() is not just the reverse of __va(). This can be detected
+	 * __pa() is yest just the reverse of __va(). This can be detected
 	 * and checked:
 	 */
 	textlow_linear = (unsigned long)lm_alias(textlow);
@@ -166,12 +166,12 @@ static inline void check_page_span(const void *ptr, unsigned long n,
 	bool is_reserved, is_cma;
 
 	/*
-	 * Sometimes the kernel data regions are not marked Reserved (see
-	 * check below). And sometimes [_sdata,_edata) does not cover
+	 * Sometimes the kernel data regions are yest marked Reserved (see
+	 * check below). And sometimes [_sdata,_edata) does yest cover
 	 * rodata and/or bss, so check each range explicitly.
 	 */
 
-	/* Allow reads of kernel rodata region (if not marked as Reserved). */
+	/* Allow reads of kernel rodata region (if yest marked as Reserved). */
 	if (ptr >= (const void *)__start_rodata &&
 	    end <= (const void *)__end_rodata) {
 		if (!to_user)
@@ -179,11 +179,11 @@ static inline void check_page_span(const void *ptr, unsigned long n,
 		return;
 	}
 
-	/* Allow kernel data region (if not marked as Reserved). */
+	/* Allow kernel data region (if yest marked as Reserved). */
 	if (ptr >= (const void *)_sdata && end <= (const void *)_edata)
 		return;
 
-	/* Allow kernel bss region (if not marked as Reserved). */
+	/* Allow kernel bss region (if yest marked as Reserved). */
 	if (ptr >= (const void *)__bss_start &&
 	    end <= (const void *)__bss_stop)
 		return;
@@ -211,10 +211,10 @@ static inline void check_page_span(const void *ptr, unsigned long n,
 	for (ptr += PAGE_SIZE; ptr <= end; ptr += PAGE_SIZE) {
 		page = virt_to_head_page(ptr);
 		if (is_reserved && !PageReserved(page))
-			usercopy_abort("spans Reserved and non-Reserved pages",
+			usercopy_abort("spans Reserved and yesn-Reserved pages",
 				       NULL, to_user, 0, n);
 		if (is_cma && !is_migrate_cma_page(page))
-			usercopy_abort("spans CMA and non-CMA pages", NULL,
+			usercopy_abort("spans CMA and yesn-CMA pages", NULL,
 				       to_user, 0, n);
 	}
 #endif
@@ -239,7 +239,7 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 		/* Check slab allocator for flags and size. */
 		__check_heap_object(ptr, n, page, to_user);
 	} else {
-		/* Verify object does not incorrectly span multiple pages. */
+		/* Verify object does yest incorrectly span multiple pages. */
 		check_page_span(ptr, n, page, to_user);
 	}
 }
@@ -248,10 +248,10 @@ static DEFINE_STATIC_KEY_FALSE_RO(bypass_usercopy_checks);
 
 /*
  * Validates that the given object is:
- * - not bogus address
+ * - yest bogus address
  * - fully contained by stack (or stack frame, when available)
  * - fully within SLAB object (or object whitelist area, when available)
- * - not in kernel text
+ * - yest in kernel text
  */
 void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 {
@@ -268,14 +268,14 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 	/* Check for bad stack object. */
 	switch (check_stack_object(ptr, n)) {
 	case NOT_STACK:
-		/* Object is not touching the current process stack. */
+		/* Object is yest touching the current process stack. */
 		break;
 	case GOOD_FRAME:
 	case GOOD_STACK:
 		/*
 		 * Object is either in the correct frame (when it
 		 * is possible to check) or just generally on the
-		 * process stack (when frame checking not available).
+		 * process stack (when frame checking yest available).
 		 */
 		return;
 	default:

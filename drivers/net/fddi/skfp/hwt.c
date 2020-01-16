@@ -217,7 +217,7 @@ u_long hwt_quick_read(struct s_smc *smc)
  * para	start		start time
  *	duration	time to wait
  *
- * NOTE: The function will return immediately, if the timer is not
+ * NOTE: The function will return immediately, if the timer is yest
  *	 started
  ************************/
 void hwt_wait_time(struct s_smc *smc, u_long start, long int duration)

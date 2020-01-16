@@ -26,27 +26,27 @@
 		<pro>   is the protocol number for the adapter that
 			supports this drive.  These numbers are
                         logged by 'paride' when the protocol modules
-			are initialised.  (0 if not given)
+			are initialised.  (0 if yest given)
 
 		<uni>   for those adapters that support chained
 			devices, this is the unit selector for the
 		        chain of devices on the given port.  It should
 			be zero for devices that don't support chaining.
-			(0 if not given)
+			(0 if yest given)
 
 		<mod>   this can be -1 to choose the best mode, or one
 		        of the mode numbers supported by the adapter.
-			(-1 if not given)
+			(-1 if yest given)
 
 		<geo>   this defaults to 0 to indicate that the driver
 			should use the CHS geometry provided by the drive
 			itself.  If set to 1, the driver will provide
 			a logical geometry with 64 heads and 32 sectors
 			per track, to be consistent with most SCSI
-		        drivers.  (0 if not given)
+		        drivers.  (0 if yest given)
 
 		<sby>   set this to zero to disable the power saving
-			standby mode, if needed.  (1 if not given)
+			standby mode, if needed.  (1 if yest given)
 
 		<dly>   some parallel ports require the driver to 
 			go more slowly.  -1 sets a default value that
@@ -79,7 +79,7 @@
 
 	    verbose	This parameter controls the amount of logging
 			that the driver will do.  Set it to 0 for 
-			normal operation, 1 to see autoprobe progress
+			yesrmal operation, 1 to see autoprobe progress
 			messages, or 2 to see additional debugging
 			output.  (default 0)
 
@@ -896,7 +896,7 @@ static void pd_probe_drive(struct pd_unit *disk)
 	strcpy(p->disk_name, disk->name);
 	p->fops = &pd_fops;
 	p->major = major;
-	p->first_minor = (disk - pd) << PD_BITS;
+	p->first_miyesr = (disk - pd) << PD_BITS;
 	p->events = DISK_EVENT_MEDIA_CHANGE;
 	disk->gd = p;
 	p->private_data = disk;
@@ -907,7 +907,7 @@ static void pd_probe_drive(struct pd_unit *disk)
 	disk->tag_set.nr_hw_queues = 1;
 	disk->tag_set.nr_maps = 1;
 	disk->tag_set.queue_depth = 2;
-	disk->tag_set.numa_node = NUMA_NO_NODE;
+	disk->tag_set.numa_yesde = NUMA_NO_NODE;
 	disk->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
 
 	if (blk_mq_alloc_tag_set(&disk->tag_set))
@@ -961,7 +961,7 @@ static int pd_detect(void)
 		return -1;
 	}
 
-	if (pd_drive_count == 0) { /* nothing spec'd - so autoprobe for 1 */
+	if (pd_drive_count == 0) { /* yesthing spec'd - so autoprobe for 1 */
 		disk = pd;
 		if (pi_init(disk->pi, 1, -1, -1, -1, -1, -1, pd_scratch,
 			    PI_PD, verbose, disk->name)) {
@@ -992,7 +992,7 @@ static int pd_detect(void)
 		}
 	}
 	if (!found) {
-		printk("%s: no valid drive found\n", name);
+		printk("%s: yes valid drive found\n", name);
 		pi_unregister_driver(par_drv);
 	}
 	return found;

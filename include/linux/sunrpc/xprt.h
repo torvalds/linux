@@ -75,7 +75,7 @@ struct rpc_rqst {
 	struct rpc_cred *	rq_cred;	/* Bound cred */
 	__be32			rq_xid;		/* request XID */
 	int			rq_cong;	/* has incremented xprt->cong */
-	u32			rq_seqno;	/* gss seq no. used on req. */
+	u32			rq_seqyes;	/* gss seq yes. used on req. */
 	int			rq_enc_pages_num;
 	struct page		**rq_enc_pages;	/* scratch pages for use by
 						   gss privacy code */
@@ -83,7 +83,7 @@ struct rpc_rqst {
 
 	union {
 		struct list_head	rq_list;	/* Slot allocation list */
-		struct rb_node		rq_recv;	/* Receive queue */
+		struct rb_yesde		rq_recv;	/* Receive queue */
 	};
 
 	struct list_head	rq_xmit;	/* Send queue */
@@ -168,7 +168,7 @@ struct rpc_xprt_ops {
  * To preserve compatibility with the historical use of raw IP protocol
  * id's for transport selection, UDP and TCP identifiers are specified
  * with the previous values. No such restriction exists for new transports,
- * except that they may not collide with these values (17 and 6,
+ * except that they may yest collide with these values (17 and 6,
  * respectively).
  */
 #define XPRT_TRANSPORT_BC       (1 << 31)

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2001-2003 Hewlett-Packard Co
  *               Stephane Eranian <eranian@hpl.hp.com>
@@ -29,7 +29,7 @@
 #define PFM_UNLOAD_CONTEXT	0x11
 
 /*
- * PMU model specific commands (may not be supported on all PMU models)
+ * PMU model specific commands (may yest be supported on all PMU models)
  */
 #define PFM_WRITE_IBRS		0x20
 #define PFM_WRITE_DBRS		0x21
@@ -37,9 +37,9 @@
 /*
  * context flags
  */
-#define PFM_FL_NOTIFY_BLOCK    	 0x01	/* block task on user level notifications */
+#define PFM_FL_NOTIFY_BLOCK    	 0x01	/* block task on user level yestifications */
 #define PFM_FL_SYSTEM_WIDE	 0x02	/* create a system wide context */
-#define PFM_FL_OVFL_NO_MSG	 0x80   /* do not post overflow/end messages for notification */
+#define PFM_FL_OVFL_NO_MSG	 0x80   /* do yest post overflow/end messages for yestification */
 
 /*
  * event set flags
@@ -49,16 +49,16 @@
 /*
  * PMC flags
  */
-#define PFM_REGFL_OVFL_NOTIFY	0x1	/* send notification on overflow */
+#define PFM_REGFL_OVFL_NOTIFY	0x1	/* send yestification on overflow */
 #define PFM_REGFL_RANDOM	0x2	/* randomize sampling interval   */
 
 /*
- * PMD/PMC/IBR/DBR return flags (ignored on input)
+ * PMD/PMC/IBR/DBR return flags (igyesred on input)
  *
  * Those flags are used on output and must be checked in case EAGAIN is returned
  * by any of the calls using a pfarg_reg_t or pfarg_dbreg_t structure.
  */
-#define PFM_REG_RETFL_NOTAVAIL	(1UL<<31) /* set if register is implemented but not available */
+#define PFM_REG_RETFL_NOTAVAIL	(1UL<<31) /* set if register is implemented but yest available */
 #define PFM_REG_RETFL_EINVAL	(1UL<<30) /* set if register entry is invalid */
 #define PFM_REG_RETFL_MASK	(PFM_REG_RETFL_NOTAVAIL|PFM_REG_RETFL_EINVAL)
 
@@ -71,7 +71,7 @@ typedef unsigned char pfm_uuid_t[16];	/* custom sampling buffer identifier type 
  */
 typedef struct {
 	pfm_uuid_t     ctx_smpl_buf_id;	 /* which buffer format to use (if needed) */
-	unsigned long  ctx_flags;	 /* noblock/block */
+	unsigned long  ctx_flags;	 /* yesblock/block */
 	unsigned short ctx_nextra_sets;	 /* number of extra event sets (you always get 1) */
 	unsigned short ctx_reserved1;	 /* for future use */
 	int	       ctx_fd;		 /* return arg: unique identification for context */
@@ -90,7 +90,7 @@ typedef struct {
 	unsigned long	reg_value;	   /* initial pmc/pmd value */
 	unsigned long	reg_flags;	   /* input: pmc/pmd flags, return: reg error */
 
-	unsigned long	reg_long_reset;	   /* reset after buffer overflow notification */
+	unsigned long	reg_long_reset;	   /* reset after buffer overflow yestification */
 	unsigned long	reg_short_reset;   /* reset after counter overflow */
 
 	unsigned long	reg_reset_pmds[4]; /* which other counters to reset on overflow */
@@ -114,7 +114,7 @@ typedef struct {
 } pfarg_dbreg_t;
 
 typedef struct {
-	unsigned int	ft_version;	/* perfmon: major [16-31], minor [0-15] */
+	unsigned int	ft_version;	/* perfmon: major [16-31], miyesr [0-15] */
 	unsigned int	ft_reserved;	/* reserved for future use */
 	unsigned long	reserved[4];	/* for future use */
 } pfarg_features_t;

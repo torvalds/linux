@@ -16,7 +16,7 @@
 
 /*
  * The card config version must match the driver's expected version. If it does
- * not, the DMA interfaces will not be attached and the user will need to
+ * yest, the DMA interfaces will yest be attached and the user will need to
  * initialize/upgrade the card configuration using the card config utility.
  */
 #define RSXX_CFG_VERSION	4

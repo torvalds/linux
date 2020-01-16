@@ -37,7 +37,7 @@
  *
  * The SharedDesc never changes for a connection unless rekeyed, but
  * each packet will likely be in a different place. So all we need
- * to know to process the packet is where the input is, where the
+ * to kyesw to process the packet is where the input is, where the
  * output goes, and what context we want to process with. Context is
  * in the SharedDesc, packet references in the JobDesc.
  *
@@ -731,7 +731,7 @@ static struct ahash_edesc *ahash_edesc_alloc(struct caam_hash_ctx *ctx,
 
 	edesc = kzalloc(sizeof(*edesc) + sg_size, GFP_DMA | flags);
 	if (!edesc) {
-		dev_err(ctx->jrdev, "could not allocate extended descriptor\n");
+		dev_err(ctx->jrdev, "could yest allocate extended descriptor\n");
 		return NULL;
 	}
 
@@ -1140,7 +1140,7 @@ static int ahash_digest(struct ahash_request *req)
 }
 
 /* submit ahash final if it the first job descriptor */
-static int ahash_final_no_ctx(struct ahash_request *req)
+static int ahash_final_yes_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
@@ -1199,7 +1199,7 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 }
 
 /* submit ahash update if it the first job descriptor after update */
-static int ahash_update_no_ctx(struct ahash_request *req)
+static int ahash_update_yes_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
@@ -1334,7 +1334,7 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 }
 
 /* submit ahash finup if it the first job descriptor after update */
-static int ahash_finup_no_ctx(struct ahash_request *req)
+static int ahash_finup_yes_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
@@ -1514,9 +1514,9 @@ static int ahash_update_first(struct ahash_request *req)
 		state->finup = ahash_finup_ctx;
 		state->final = ahash_final_ctx;
 	} else if (*next_buflen) {
-		state->update = ahash_update_no_ctx;
-		state->finup = ahash_finup_no_ctx;
-		state->final = ahash_final_no_ctx;
+		state->update = ahash_update_yes_ctx;
+		state->finup = ahash_finup_yes_ctx;
+		state->final = ahash_final_yes_ctx;
 		scatterwalk_map_and_copy(next_buf, req->src, 0,
 					 req->nbytes, 0);
 		switch_buf(state);
@@ -1544,7 +1544,7 @@ static int ahash_init(struct ahash_request *req)
 
 	state->update = ahash_update_first;
 	state->finup = ahash_finup_first;
-	state->final = ahash_final_no_ctx;
+	state->final = ahash_final_yes_ctx;
 
 	state->ctx_dma = 0;
 	state->ctx_dma_len = 0;
@@ -2004,7 +2004,7 @@ int caam_algapi_hash_init(struct device *ctrldev)
 
 	/*
 	 * Skip registration of any hashing algorithms if MD block
-	 * is not present.
+	 * is yest present.
 	 */
 	if (!md_inst)
 		return 0;
@@ -2020,7 +2020,7 @@ int caam_algapi_hash_init(struct device *ctrldev)
 		struct caam_hash_alg *t_alg;
 		struct caam_hash_template *alg = driver_hash + i;
 
-		/* If MD size is not supported by device, skip registration */
+		/* If MD size is yest supported by device, skip registration */
 		if (is_mdha(alg->alg_type) &&
 		    alg->template_ahash.halg.digestsize > md_limit)
 			continue;

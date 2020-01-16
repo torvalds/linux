@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -402,7 +402,7 @@ struct ath5k_edge_power {
  * @ee_margin_tx_rx: Margin in dB when final attenuation stage should be used
  *
  * @ee_false_detect: Backoff in Sensitivity (dB) on channels with spur signals
- * @ee_noise_floor_thr: Noise floor threshold in 1dB steps
+ * @ee_yesise_floor_thr: Noise floor threshold in 1dB steps
  * @ee_adc_desired_size: Desired amplitude for ADC, used by AGC; in 0.5 dB steps
  * @ee_pga_desired_size: Desired output of PGA (for BB gain) in 0.5 dB steps
  * @ee_pd_gain_overlap: PD ADC curves need to overlap in 0.5dB steps (ee_map>=2)
@@ -480,7 +480,7 @@ struct ath5k_eeprom_info {
 	struct ath5k_edge_power ee_ctl_pwr[AR5K_EEPROM_N_EDGES * AR5K_EEPROM_MAX_CTLS];
 
 	/* Noise Floor Calibration settings */
-	s16	ee_noise_floor_thr[AR5K_EEPROM_N_MODES];
+	s16	ee_yesise_floor_thr[AR5K_EEPROM_N_MODES];
 	s8	ee_adc_desired_size[AR5K_EEPROM_N_MODES];
 	s8	ee_pga_desired_size[AR5K_EEPROM_N_MODES];
 	s8	ee_adc_desired_size_turbo[AR5K_EEPROM_N_MODES];

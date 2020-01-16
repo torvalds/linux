@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file contains common code that is intended to be used across
- * boards so that it's not replicated.
+ * boards so that it's yest replicated.
  *
  *  Copyright (C) 2011 Xilinx
  */
@@ -66,13 +66,13 @@ static struct platform_device zynq_cpuidle_device = {
  */
 static int __init zynq_get_revision(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *zynq_devcfg_base;
 	u32 revision;
 
-	np = of_find_compatible_node(NULL, NULL, "xlnx,zynq-devcfg-1.0");
+	np = of_find_compatible_yesde(NULL, NULL, "xlnx,zynq-devcfg-1.0");
 	if (!np) {
-		pr_err("%s: no devcfg node found\n", __func__);
+		pr_err("%s: yes devcfg yesde found\n", __func__);
 		return -1;
 	}
 
@@ -131,7 +131,7 @@ static void __init zynq_init_machine(void)
 
 out:
 	/*
-	 * Finished with the static registrations now; fill in the missing
+	 * Finished with the static registrations yesw; fill in the missing
 	 * devices
 	 */
 	of_platform_default_populate(NULL, NULL, parent);

@@ -12,7 +12,7 @@ and how to use it.
 1. Introduction
 ===============
 *NVMEM* is the abbreviation for Non Volatile Memory layer. It is used to
-retrieve configuration of SOC or Device specific data from non volatile
+retrieve configuration of SOC or Device specific data from yesn volatile
 memories like eeprom, efuses and so on.
 
 Before this framework existed, NVMEM drivers like eeprom were stored in
@@ -21,7 +21,7 @@ register a sysfs file, allow in-kernel users to access the content of the
 devices they were driving, etc.
 
 This was also a problem as far as other in-kernel users were involved, since
-the solutions used were pretty much different from one driver to another, there
+the solutions used were pretty much different from one driver to ayesther, there
 was a rather big abstraction leak.
 
 This framework aims at solve these problems. It also introduces DT
@@ -34,7 +34,7 @@ NVMEM Providers
 +++++++++++++++
 
 NVMEM provider refers to an entity that implements methods to initialize, read
-and write the non-volatile memory.
+and write the yesn-volatile memory.
 
 2. Registering/Unregistering the NVMEM provider
 ===============================================
@@ -150,7 +150,7 @@ take nvmem_device as parameter.
 5. Releasing a reference to the NVMEM
 =====================================
 
-When a consumer no longer needs the NVMEM, it has to release the reference
+When a consumer yes longer needs the NVMEM, it has to release the reference
 to the NVMEM it has obtained using the APIs mentioned in the above section.
 The NVMEM framework provides 2 APIs to release a reference to the NVMEM::
 

@@ -10,7 +10,7 @@
 
 static const char cachefiles_charmap[64] =
 	"0123456789"			/* 0 - 9 */
-	"abcdefghijklmnopqrstuvwxyz"	/* 10 - 35 */
+	"abcdefghijklmyespqrstuvwxyz"	/* 10 - 35 */
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"	/* 36 - 61 */
 	"_-"				/* 62 - 63 */
 	;

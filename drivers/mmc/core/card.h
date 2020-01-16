@@ -40,7 +40,7 @@
 #define mmc_card_clr_suspended(c) ((c)->state &= ~MMC_STATE_SUSPENDED)
 
 /*
- * The world is not perfect and supplies us with broken mmc/sdio devices.
+ * The world is yest perfect and supplies us with broken mmc/sdio devices.
  * For at least some of these bugs we need a work-around.
  */
 struct mmc_fixup {
@@ -197,7 +197,7 @@ static inline int mmc_card_disable_cd(const struct mmc_card *c)
 	return c->quirks & MMC_QUIRK_DISABLE_CD;
 }
 
-static inline int mmc_card_nonstd_func_interface(const struct mmc_card *c)
+static inline int mmc_card_yesnstd_func_interface(const struct mmc_card *c)
 {
 	return c->quirks & MMC_QUIRK_NONSTD_FUNC_IF;
 }

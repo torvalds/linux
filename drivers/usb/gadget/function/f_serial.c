@@ -16,10 +16,10 @@
 
 
 /*
- * This function packages a simple "generic serial" port with no real
+ * This function packages a simple "generic serial" port with yes real
  * control mechanisms, just raw data transfer over two bulk endpoints.
  *
- * Because it's not standardized, this isn't as interoperable as the
+ * Because it's yest standardized, this isn't as interoperable as the
  * CDC ACM driver.  However, for many purposes it's just as functional
  * if you can arrange appropriate host side drivers.
  */
@@ -148,7 +148,7 @@ static int gser_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct f_gser		*gser = func_to_gser(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
 
-	/* we know alt == 0, so this is an activation or a reset */
+	/* we kyesw alt == 0, so this is an activation or a reset */
 
 	if (gser->port.in->enabled) {
 		dev_dbg(&cdev->gadget->dev,

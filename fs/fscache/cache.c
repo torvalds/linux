@@ -37,7 +37,7 @@ struct fscache_cache_tag *__fscache_lookup_cache_tag(const char *name)
 
 	up_read(&fscache_addremove_sem);
 
-	/* the tag does not exist - create a candidate */
+	/* the tag does yest exist - create a candidate */
 	xtag = kzalloc(sizeof(*xtag) + strlen(name) + 1, GFP_KERNEL);
 	if (!xtag)
 		/* return a dummy tag if out of memory */
@@ -46,7 +46,7 @@ struct fscache_cache_tag *__fscache_lookup_cache_tag(const char *name)
 	atomic_set(&xtag->usage, 1);
 	strcpy(xtag->name, name);
 
-	/* write lock, search again and add if still not present */
+	/* write lock, search again and add if still yest present */
 	down_write(&fscache_addremove_sem);
 
 	list_for_each_entry(tag, &fscache_cache_tag_list, link) {
@@ -97,7 +97,7 @@ struct fscache_cache *fscache_select_cache_for_object(
 	_enter("");
 
 	if (list_empty(&fscache_cache_list)) {
-		_leave(" = NULL [no cache]");
+		_leave(" = NULL [yes cache]");
 		return NULL;
 	}
 
@@ -122,7 +122,7 @@ struct fscache_cache *fscache_select_cache_for_object(
 
 	/* the parent is unbacked */
 	if (cookie->type != FSCACHE_COOKIE_TYPE_INDEX) {
-		/* cookie not an index and is unbacked */
+		/* cookie yest an index and is unbacked */
 		spin_unlock(&cookie->lock);
 		_leave(" = NULL [cookie ub,ni]");
 		return NULL;
@@ -131,16 +131,16 @@ struct fscache_cache *fscache_select_cache_for_object(
 	spin_unlock(&cookie->lock);
 
 	if (!cookie->def->select_cache)
-		goto no_preference;
+		goto yes_preference;
 
 	/* ask the netfs for its preference */
 	tag = cookie->def->select_cache(cookie->parent->netfs_data,
 					cookie->netfs_data);
 	if (!tag)
-		goto no_preference;
+		goto yes_preference;
 
 	if (tag == ERR_PTR(-ENOMEM)) {
-		_leave(" = NULL [nomem tag]");
+		_leave(" = NULL [yesmem tag]");
 		return NULL;
 	}
 
@@ -155,8 +155,8 @@ struct fscache_cache *fscache_select_cache_for_object(
 	_leave(" = %p [specific]", tag->cache);
 	return tag->cache;
 
-no_preference:
-	/* netfs has no preference - just select first cache */
+yes_preference:
+	/* netfs has yes preference - just select first cache */
 	cache = list_entry(fscache_cache_list.next,
 			   struct fscache_cache, link);
 	_leave(" = %p [first]", cache);
@@ -236,7 +236,7 @@ int fscache_add_cache(struct fscache_cache *cache,
 	/* we use the cache tag to uniquely identify caches */
 	tag = __fscache_lookup_cache_tag(tagname);
 	if (IS_ERR(tag))
-		goto nomem;
+		goto yesmem;
 
 	if (test_and_set_bit(FSCACHE_TAG_RESERVED, &tag->flags))
 		goto tag_in_use;
@@ -264,7 +264,7 @@ int fscache_add_cache(struct fscache_cache *cache,
 	fscache_objlist_add(ifsdef);
 
 	/* add the cache's netfs definition index object to the top level index
-	 * cookie as a known backing object */
+	 * cookie as a kyeswn backing object */
 	spin_lock(&fscache_fsdef_index.lock);
 
 	hlist_add_head(&ifsdef->cookie_link,
@@ -276,7 +276,7 @@ int fscache_add_cache(struct fscache_cache *cache,
 	spin_unlock(&fscache_fsdef_index.lock);
 	up_write(&fscache_addremove_sem);
 
-	pr_notice("Cache \"%s\" added (type %s)\n",
+	pr_yestice("Cache \"%s\" added (type %s)\n",
 		  cache->tag->name, cache->ops->name);
 	kobject_uevent(cache->kobj, KOBJ_ADD);
 
@@ -294,7 +294,7 @@ error:
 	_leave(" = -EINVAL");
 	return -EINVAL;
 
-nomem:
+yesmem:
 	_leave(" = -ENOMEM");
 	return -ENOMEM;
 }
@@ -304,7 +304,7 @@ EXPORT_SYMBOL(fscache_add_cache);
  * fscache_io_error - Note a cache I/O error
  * @cache: The record describing the cache
  *
- * Note that an I/O error occurred in a cache and that it should no longer be
+ * Note that an I/O error occurred in a cache and that it should yes longer be
  * used for anything.  This also reports the error into the kernel log.
  *
  * See Documentation/filesystems/caching/backend-api.txt for a complete
@@ -364,7 +364,7 @@ void fscache_withdraw_cache(struct fscache_cache *cache)
 
 	_enter("");
 
-	pr_notice("Withdrawing cache \"%s\"\n",
+	pr_yestice("Withdrawing cache \"%s\"\n",
 		  cache->tag->name);
 
 	/* make the cache unavailable for cookie acquisition */
@@ -388,7 +388,7 @@ void fscache_withdraw_cache(struct fscache_cache *cache)
 	cache->ops->dissociate_pages(cache);
 	fscache_stat_d(&fscache_n_cop_dissociate_pages);
 
-	/* we now have to destroy all the active objects pertaining to this
+	/* we yesw have to destroy all the active objects pertaining to this
 	 * cache - which we do by passing them off to thread pool to be
 	 * disposed of */
 	_debug("destroy");

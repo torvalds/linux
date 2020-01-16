@@ -360,7 +360,7 @@ static void nvme_tcp_exit_request(struct blk_mq_tag_set *set,
 
 static int nvme_tcp_init_request(struct blk_mq_tag_set *set,
 		struct request *rq, unsigned int hctx_idx,
-		unsigned int numa_node)
+		unsigned int numa_yesde)
 {
 	struct nvme_tcp_ctrl *ctrl = set->driver_data;
 	struct nvme_tcp_request *req = blk_mq_rq_to_pdu(rq);
@@ -433,7 +433,7 @@ static int nvme_tcp_process_nvme_cqe(struct nvme_tcp_queue *queue,
 	rq = blk_mq_tag_to_rq(nvme_tcp_tagset(queue), cqe->command_id);
 	if (!rq) {
 		dev_err(queue->ctrl->ctrl.device,
-			"queue %d tag 0x%x not found\n",
+			"queue %d tag 0x%x yest found\n",
 			nvme_tcp_queue_id(queue), cqe->command_id);
 		nvme_tcp_error_recovery(&queue->ctrl->ctrl);
 		return -EINVAL;
@@ -453,7 +453,7 @@ static int nvme_tcp_handle_c2h_data(struct nvme_tcp_queue *queue,
 	rq = blk_mq_tag_to_rq(nvme_tcp_tagset(queue), pdu->command_id);
 	if (!rq) {
 		dev_err(queue->ctrl->ctrl.device,
-			"queue %d tag %#x not found\n",
+			"queue %d tag %#x yest found\n",
 			nvme_tcp_queue_id(queue), pdu->command_id);
 		return -ENOENT;
 	}
@@ -470,7 +470,7 @@ static int nvme_tcp_handle_c2h_data(struct nvme_tcp_queue *queue,
 	if (pdu->hdr.flags & NVME_TCP_F_DATA_SUCCESS &&
 	    unlikely(!(pdu->hdr.flags & NVME_TCP_F_DATA_LAST))) {
 		dev_err(queue->ctrl->ctrl.device,
-			"queue %d tag %#x SUCCESS set but not last PDU\n",
+			"queue %d tag %#x SUCCESS set but yest last PDU\n",
 			nvme_tcp_queue_id(queue), rq->tag);
 		nvme_tcp_error_recovery(&queue->ctrl->ctrl);
 		return -EPROTO;
@@ -557,7 +557,7 @@ static int nvme_tcp_handle_r2t(struct nvme_tcp_queue *queue,
 	rq = blk_mq_tag_to_rq(nvme_tcp_tagset(queue), pdu->command_id);
 	if (!rq) {
 		dev_err(queue->ctrl->ctrl.device,
-			"queue %d tag %#x not found\n",
+			"queue %d tag %#x yest found\n",
 			nvme_tcp_queue_id(queue), pdu->command_id);
 		return -ENOENT;
 	}
@@ -642,7 +642,7 @@ static int nvme_tcp_recv_data(struct nvme_tcp_queue *queue, struct sk_buff *skb,
 	rq = blk_mq_tag_to_rq(nvme_tcp_tagset(queue), pdu->command_id);
 	if (!rq) {
 		dev_err(queue->ctrl->ctrl.device,
-			"queue %d tag %#x not found\n",
+			"queue %d tag %#x yest found\n",
 			nvme_tcp_queue_id(queue), pdu->command_id);
 		return -ENOENT;
 	}
@@ -664,7 +664,7 @@ static int nvme_tcp_recv_data(struct nvme_tcp_queue *queue, struct sk_buff *skb,
 			 */
 			if (!req->curr_bio) {
 				dev_err(queue->ctrl->ctrl.device,
-					"queue %d no space in request %#x",
+					"queue %d yes space in request %#x",
 					nvme_tcp_queue_id(queue), rq->tag);
 				nvme_tcp_init_recv_ctx(queue);
 				return -EIO;
@@ -863,7 +863,7 @@ static int nvme_tcp_try_send_data(struct nvme_tcp_request *req)
 
 		/* can't zcopy slab pages */
 		if (unlikely(PageSlab(page))) {
-			ret = sock_no_sendpage(queue->sock, page, offset, len,
+			ret = sock_yes_sendpage(queue->sock, page, offset, len,
 					flags);
 		} else {
 			ret = kernel_sendpage(queue->sock, page, offset, len,
@@ -1170,7 +1170,7 @@ static int nvme_tcp_init_connection(struct nvme_tcp_queue *queue)
 	icreq->hdr.plen = cpu_to_le32(icreq->hdr.hlen);
 	icreq->pfv = cpu_to_le16(NVME_TCP_PFV_1_0);
 	icreq->maxr2t = 0; /* single inflight r2t supported */
-	icreq->hpda = 0; /* no alignment constraint */
+	icreq->hpda = 0; /* yes alignment constraint */
 	if (queue->hdr_digest)
 		icreq->digest |= NVME_TCP_HDR_DIGEST_ENABLE;
 	if (queue->data_digest)
@@ -1248,7 +1248,7 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl,
 {
 	struct nvme_tcp_ctrl *ctrl = to_tcp_ctrl(nctrl);
 	struct nvme_tcp_queue *queue = &ctrl->queues[qid];
-	struct linger sol = { .l_onoff = 1, .l_linger = 0 };
+	struct linger sol = { .l_oyesff = 1, .l_linger = 0 };
 	int ret, opt, rcv_pdu_size, n;
 
 	queue->ctrl = ctrl;
@@ -1281,7 +1281,7 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl,
 		goto err_sock;
 	}
 
-	/* Set TCP no delay */
+	/* Set TCP yes delay */
 	opt = 1;
 	ret = kernel_setsockopt(queue->sock, IPPROTO_TCP,
 			TCP_NODELAY, (char *)&opt, sizeof(opt));
@@ -1470,7 +1470,7 @@ static struct blk_mq_tag_set *nvme_tcp_alloc_tagset(struct nvme_ctrl *nctrl,
 		set->ops = &nvme_tcp_admin_mq_ops;
 		set->queue_depth = NVME_AQ_MQ_TAG_DEPTH;
 		set->reserved_tags = 2; /* connect + keep-alive */
-		set->numa_node = NUMA_NO_NODE;
+		set->numa_yesde = NUMA_NO_NODE;
 		set->cmd_size = sizeof(struct nvme_tcp_request);
 		set->driver_data = ctrl;
 		set->nr_hw_queues = 1;
@@ -1481,7 +1481,7 @@ static struct blk_mq_tag_set *nvme_tcp_alloc_tagset(struct nvme_ctrl *nctrl,
 		set->ops = &nvme_tcp_mq_ops;
 		set->queue_depth = nctrl->sqsize + 1;
 		set->reserved_tags = 1; /* fabric connect */
-		set->numa_node = NUMA_NO_NODE;
+		set->numa_yesde = NUMA_NO_NODE;
 		set->flags = BLK_MQ_F_SHOULD_MERGE;
 		set->cmd_size = sizeof(struct nvme_tcp_request);
 		set->driver_data = ctrl;
@@ -1611,7 +1611,7 @@ static void nvme_tcp_set_io_queues(struct nvme_ctrl *nctrl,
 	} else {
 		/*
 		 * shared read/write queues
-		 * either no write queues were requested, or we don't have
+		 * either yes write queues were requested, or we don't have
 		 * sufficient queue count to have dedicated default queues.
 		 */
 		ctrl->io_queues[HCTX_TYPE_DEFAULT] =
@@ -1805,7 +1805,7 @@ static void nvme_tcp_teardown_io_queues(struct nvme_ctrl *ctrl,
 
 static void nvme_tcp_reconnect_or_remove(struct nvme_ctrl *ctrl)
 {
-	/* If we are resetting/deleting then do nothing */
+	/* If we are resetting/deleting then do yesthing */
 	if (ctrl->state != NVME_CTRL_CONNECTING) {
 		WARN_ON_ONCE(ctrl->state == NVME_CTRL_NEW ||
 			ctrl->state == NVME_CTRL_LIVE);
@@ -1833,7 +1833,7 @@ static int nvme_tcp_setup_ctrl(struct nvme_ctrl *ctrl, bool new)
 		return ret;
 
 	if (ctrl->icdoff) {
-		dev_err(ctrl->device, "icdoff is not supported!\n");
+		dev_err(ctrl->device, "icdoff is yest supported!\n");
 		goto destroy_admin;
 	}
 
@@ -2156,7 +2156,7 @@ static blk_status_t nvme_tcp_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_status_t ret;
 
 	if (!nvmf_check_ready(&queue->ctrl->ctrl, rq, queue_ready))
-		return nvmf_fail_nonready_command(&queue->ctrl->ctrl, rq);
+		return nvmf_fail_yesnready_command(&queue->ctrl->ctrl, rq);
 
 	ret = nvme_tcp_setup_cmd_pdu(ns, rq);
 	if (unlikely(ret))

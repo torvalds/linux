@@ -206,7 +206,7 @@ static const struct efx_nic_reg efx_nic_regs[] = {
 	REGISTER_AB(EE_SPI_HDATA),
 	REGISTER_AB(EE_BASE_PAGE),
 	REGISTER_AB(EE_VPD_CFG0),
-	/* EE_VPD_SW_CNTL and EE_VPD_SW_DATA are not used */
+	/* EE_VPD_SW_CNTL and EE_VPD_SW_DATA are yest used */
 	/* PMBX_DBG_IADDR and PBMX_DBG_IDATA are indirect */
 	/* PCIE_CORE_INDIRECT is indirect */
 	REGISTER_AB(NIC_STAT),
@@ -221,7 +221,7 @@ static const struct efx_nic_reg efx_nic_regs[] = {
 	REGISTER_AB(PCIE_SD_CTL0123),
 	REGISTER_AB(PCIE_SD_CTL45),
 	REGISTER_AB(PCIE_PCS_CTL_STAT),
-	/* DEBUG_DATA_OUT is not used */
+	/* DEBUG_DATA_OUT is yest used */
 	/* DRV_EV is WO */
 	REGISTER_AZ(EVQ_CTL),
 	REGISTER_AZ(EVQ_CNT1),
@@ -241,7 +241,7 @@ static const struct efx_nic_reg efx_nic_regs[] = {
 	REGISTER_BZ(RX_RSS_TKEY),
 	/* RX_NODESC_DROP is RC */
 	REGISTER_AA(RX_SELF_RST),
-	/* RX_DEBUG, RX_PUSH_DROP are not used */
+	/* RX_DEBUG, RX_PUSH_DROP are yest used */
 	REGISTER_CZ(RX_RSS_IPV6_REG1),
 	REGISTER_CZ(RX_RSS_IPV6_REG2),
 	REGISTER_CZ(RX_RSS_IPV6_REG3),
@@ -249,7 +249,7 @@ static const struct efx_nic_reg efx_nic_regs[] = {
 	REGISTER_AZ(TX_DC_CFG),
 	REGISTER_AA(TX_CHKSM_CFG),
 	REGISTER_AZ(TX_CFG),
-	/* TX_PUSH_DROP is not used */
+	/* TX_PUSH_DROP is yest used */
 	REGISTER_AZ(TX_RESERVED),
 	REGISTER_BZ(TX_PACE),
 	/* TX_PACE_DROP_QID is RC */
@@ -268,9 +268,9 @@ static const struct efx_nic_reg efx_nic_regs[] = {
 	REGISTER_AB(MAC_MC_HASH_REG1),
 	REGISTER_AB(GM_CFG1),
 	REGISTER_AB(GM_CFG2),
-	/* GM_IPG and GM_HD are not used */
+	/* GM_IPG and GM_HD are yest used */
 	REGISTER_AB(GM_MAX_FLEN),
-	/* GM_TEST is not used */
+	/* GM_TEST is yest used */
 	REGISTER_AB(GM_ADR1),
 	REGISTER_AB(GM_ADR2),
 	REGISTER_AB(GMF_CFG0),
@@ -290,11 +290,11 @@ static const struct efx_nic_reg efx_nic_regs[] = {
 	REGISTER_AB(XM_PAUSE_TIME),
 	REGISTER_AB(XM_TX_PARAM),
 	REGISTER_AB(XM_RX_PARAM),
-	/* XM_MGT_INT_MSK (note no 'A') is RC */
+	/* XM_MGT_INT_MSK (yeste yes 'A') is RC */
 	REGISTER_AB(XX_PWR_RST),
 	REGISTER_AB(XX_SD_CTL),
 	REGISTER_AB(XX_TXDRV_CTL),
-	/* XX_PRBS_CTL, XX_PRBS_CHK and XX_PRBS_ERR are not used */
+	/* XX_PRBS_CTL, XX_PRBS_CHK and XX_PRBS_ERR are yest used */
 	/* XX_CORE_STAT is partly RC */
 	REGISTER_DZ(BIU_HW_REV_ID),
 	REGISTER_DZ(MC_DB_LWRD),
@@ -334,7 +334,7 @@ struct efx_nic_reg_table {
 #define REGISTER_TABLE_DZ(name) REGISTER_TABLE(name, E, D, Z)
 
 static const struct efx_nic_reg_table efx_nic_reg_tables[] = {
-	/* DRIVER is not used */
+	/* DRIVER is yest used */
 	/* EVQ_RPTR, TIMER_COMMAND, USR_EV and {RX,TX}_DESC_UPD are WO */
 	REGISTER_TABLE_BB(TX_IPFIL_TBL),
 	REGISTER_TABLE_BB(TX_SRC_MAC_TBL),
@@ -356,11 +356,11 @@ static const struct efx_nic_reg_table efx_nic_reg_tables[] = {
 	REGISTER_TABLE_BB_CZ(TIMER_TBL),
 	REGISTER_TABLE_BB_CZ(TX_PACE_TBL),
 	REGISTER_TABLE_BZ(RX_INDIRECTION_TBL),
-	/* TX_FILTER_TBL0 is huge and not used by this driver */
+	/* TX_FILTER_TBL0 is huge and yest used by this driver */
 	REGISTER_TABLE_CZ(TX_MAC_FILTER_TBL0),
 	REGISTER_TABLE_CZ(MC_TREG_SMEM),
-	/* MSIX_PBA_TABLE is not mapped */
-	/* SRM_DBG is not mapped (and is redundant with BUF_FLL_TBL) */
+	/* MSIX_PBA_TABLE is yest mapped */
+	/* SRM_DBG is yest mapped (and is redundant with BUF_FLL_TBL) */
 	REGISTER_TABLE_BZ(RX_FILTER_TBL0),
 	REGISTER_TABLE_DZ(BIU_MC_SFT_STATUS),
 };
@@ -475,7 +475,7 @@ size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
  * @desc: Array of &struct efx_hw_stat_desc describing the DMA buffer
  *	layout.  DMA widths of 0, 16, 32 and 64 are supported; where
  *	the width is specified as 0 the corresponding element of
- *	@stats is not updated.
+ *	@stats is yest updated.
  * @count: Length of the @desc array
  * @mask: Bitmask of which elements of @desc are enabled
  * @stats: Buffer to update with the converted statistics.  The length
@@ -519,13 +519,13 @@ void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 	}
 }
 
-void efx_nic_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *rx_nodesc_drops)
+void efx_nic_fix_yesdesc_drop_stat(struct efx_nic *efx, u64 *rx_yesdesc_drops)
 {
 	/* if down, or this is the first update after coming up */
-	if (!(efx->net_dev->flags & IFF_UP) || !efx->rx_nodesc_drops_prev_state)
-		efx->rx_nodesc_drops_while_down +=
-			*rx_nodesc_drops - efx->rx_nodesc_drops_total;
-	efx->rx_nodesc_drops_total = *rx_nodesc_drops;
-	efx->rx_nodesc_drops_prev_state = !!(efx->net_dev->flags & IFF_UP);
-	*rx_nodesc_drops -= efx->rx_nodesc_drops_while_down;
+	if (!(efx->net_dev->flags & IFF_UP) || !efx->rx_yesdesc_drops_prev_state)
+		efx->rx_yesdesc_drops_while_down +=
+			*rx_yesdesc_drops - efx->rx_yesdesc_drops_total;
+	efx->rx_yesdesc_drops_total = *rx_yesdesc_drops;
+	efx->rx_yesdesc_drops_prev_state = !!(efx->net_dev->flags & IFF_UP);
+	*rx_yesdesc_drops -= efx->rx_yesdesc_drops_while_down;
 }

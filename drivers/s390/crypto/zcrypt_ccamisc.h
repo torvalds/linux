@@ -105,7 +105,7 @@ struct cipherkeytoken {
 /*
  * Simple check if the token is a valid CCA secure AES data key
  * token. If keybitsize is given, the bitsize of the key is
- * also checked. Returns 0 on success or errno value on failure.
+ * also checked. Returns 0 on success or erryes value on failure.
  */
 int cca_check_secaeskeytoken(debug_info_t *dbg, int dbflvl,
 			     const u8 *token, int keybitsize);
@@ -115,7 +115,7 @@ int cca_check_secaeskeytoken(debug_info_t *dbg, int dbflvl,
  * token. If keybitsize is given, the bitsize of the key is
  * also checked. If checkcpacfexport is enabled, the key is also
  * checked for the export flag to allow CPACF export.
- * Returns 0 on success or errno value on failure.
+ * Returns 0 on success or erryes value on failure.
  */
 int cca_check_secaescipherkey(debug_info_t *dbg, int dbflvl,
 			      const u8 *token, int keybitsize,
@@ -177,8 +177,8 @@ int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify);
 /*
  * Build a list of cca apqns meeting the following constrains:
  * - apqn is online and is in fact a CCA apqn
- * - if cardnr is not FFFF only apqns with this cardnr
- * - if domain is not FFFF only apqns with this domainnr
+ * - if cardnr is yest FFFF only apqns with this cardnr
+ * - if domain is yest FFFF only apqns with this domainnr
  * - if minhwtype > 0 only apqns with hwtype >= minhwtype
  * - if cur_mkvp != 0 only apqns where cur_mkvp == mkvp
  * - if old_mkvp != 0 only apqns where old_mkvp == mkvp
@@ -189,7 +189,7 @@ int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify);
  * the number of apqns stored into the list is returned in *nr_apqns. One apqn
  * entry is simple a 32 bit value with 16 bit cardnr and 16 bit domain nr and
  * may be casted to struct pkey_apqn. The return value is either 0 for success
- * or a negative errno value. If no apqn meeting the criterias is found,
+ * or a negative erryes value. If yes apqn meeting the criterias is found,
  * -ENODEV is returned.
  */
 int cca_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,

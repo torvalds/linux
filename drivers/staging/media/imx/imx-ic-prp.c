@@ -309,7 +309,7 @@ static int prp_link_validate(struct v4l2_subdev *sd,
 
 	if (priv->src_sd->grp_id & IMX_MEDIA_GRP_ID_IPU_VDIC) {
 		/*
-		 * the ->PRPENC link cannot be enabled if the source
+		 * the ->PRPENC link canyest be enabled if the source
 		 * is the VDIC
 		 */
 		if (priv->sink_sd_prpenc) {
@@ -418,7 +418,7 @@ static int prp_s_frame_interval(struct v4l2_subdev *sd,
 	mutex_lock(&priv->lock);
 
 	/* No limits on valid frame intervals */
-	if (fi->interval.numerator == 0 || fi->interval.denominator == 0)
+	if (fi->interval.numerator == 0 || fi->interval.deyesminator == 0)
 		fi->interval = priv->frame_interval;
 	else
 		priv->frame_interval = fi->interval;
@@ -435,7 +435,7 @@ static int prp_registered(struct v4l2_subdev *sd)
 
 	/* init default frame interval */
 	priv->frame_interval.numerator = 1;
-	priv->frame_interval.denominator = 30;
+	priv->frame_interval.deyesminator = 30;
 
 	/* set a default mbus format  */
 	imx_media_enum_ipu_format(&code, 0, CS_SEL_YUV);

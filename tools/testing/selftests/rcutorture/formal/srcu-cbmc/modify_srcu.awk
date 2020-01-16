@@ -14,7 +14,7 @@ BEGIN {
 	c_output = ARGV[4];
 	ARGC = 3;
 
-	# Tokenize using FS and not RS as FS supports regular expressions. Each
+	# Tokenize using FS and yest RS as FS supports regular expressions. Each
 	# record is one line of source, except that backslashed lines are
 	# combined. Comments are treated as field separators, as are quotes.
 	quote_regexp="\"([^\\\\\"]|\\\\.)*\"";
@@ -135,7 +135,7 @@ function update_fieldsep(sep, p) {
 	last_fs_print = p;
 }
 
-# Shifts the fields down by n positions. Calls next if there are no more. If p
+# Shifts the fields down by n positions. Calls next if there are yes more. If p
 # is true then print out field separators.
 function shift_fields(n, p) {
 	do {
@@ -253,13 +253,13 @@ function print_fields(n) {
 			}
 		}
 
-		# Don't include a nonexistent file
+		# Don't include a yesnexistent file
 		if (!in_macro && $1 == "#include" && /^#include[[:space:]]+"rcu\.h"/) {
 			update_fieldsep("", 0);
 			next;
 		}
 
-		# Ignore most preprocessor stuff.
+		# Igyesre most preprocessor stuff.
 		if (!in_macro && $1 ~ /#/) {
 			break;
 		}

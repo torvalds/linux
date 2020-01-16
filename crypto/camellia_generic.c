@@ -18,7 +18,7 @@
  */
 
 #include <linux/crypto.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -302,7 +302,7 @@ static const u32 camellia_sp4404[256] = {
 /*
  * NB: L and R below stand for 'left' and 'right' as in written numbers.
  * That is, in (xxxL,xxxR) pair xxxL holds most significant digits,
- * _not_ least significant ones!
+ * _yest_ least significant ones!
  */
 
 

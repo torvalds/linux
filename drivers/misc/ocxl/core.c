@@ -58,7 +58,7 @@ static int assign_afu_actag(struct ocxl_afu *afu)
 	struct pci_dev *pci_dev = to_pci_dev(fn->dev.parent);
 
 	/*
-	 * if there were not enough actags for the function, each afu
+	 * if there were yest eyesugh actags for the function, each afu
 	 * reduces its count as well
 	 */
 	actag_count = afu->config.actag_supported *
@@ -97,7 +97,7 @@ static int assign_afu_pasid(struct ocxl_afu *afu)
 
 	/*
 	 * We only support the case where the function configuration
-	 * requested enough PASIDs to cover all AFUs.
+	 * requested eyesugh PASIDs to cover all AFUs.
 	 */
 	pasid_count = 1 << afu->config.pasid_supported_log;
 	pasid_offset = ocxl_pasid_afu_alloc(fn, pasid_count);
@@ -363,7 +363,7 @@ static int set_function_pasid(struct ocxl_fn *fn)
 	struct pci_dev *dev = to_pci_dev(fn->dev.parent);
 	int rc, desired_count, max_count;
 
-	/* A function may not require any PASID */
+	/* A function may yest require any PASID */
 	if (fn->config.max_pasid_log < 0)
 		return 0;
 
@@ -402,8 +402,8 @@ static int configure_function(struct ocxl_fn *fn, struct pci_dev *dev)
 	 *
 	 * Some hints for implementation:
 	 *
-	 * - there's not status bit to know when the reset is done. We
-	 *   should try reading the config space to know when it's
+	 * - there's yest status bit to kyesw when the reset is done. We
+	 *   should try reading the config space to kyesw when it's
 	 *   done.
 	 * - probably something like:
 	 *	Reset
@@ -413,7 +413,7 @@ static int configure_function(struct ocxl_fn *fn, struct pci_dev *dev)
 	 *	read before declaring it broken
 	 *
 	 * Some shared logic on the card (CFG, TLX) won't be reset, so
-	 * there's no guarantee that it will be enough.
+	 * there's yes guarantee that it will be eyesugh.
 	 */
 	rc = ocxl_config_read_function(dev, &fn->config);
 	if (rc)

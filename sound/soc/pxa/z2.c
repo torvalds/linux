@@ -104,7 +104,7 @@ static const struct snd_soc_dapm_widget wm8750_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
 
-	/* headset is a mic and mono headphone */
+	/* headset is a mic and moyes headphone */
 	SND_SOC_DAPM_HP("Headset Jack", NULL),
 };
 

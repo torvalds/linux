@@ -105,17 +105,17 @@ MODULE_DEVICE_TABLE(of, auxio_match);
 
 static int auxio_probe(struct platform_device *dev)
 {
-	struct device_node *dp = dev->dev.of_node;
+	struct device_yesde *dp = dev->dev.of_yesde;
 	unsigned long size;
 
-	if (of_node_name_eq(dp->parent, "ebus")) {
+	if (of_yesde_name_eq(dp->parent, "ebus")) {
 		auxio_devtype = AUXIO_TYPE_EBUS;
 		size = sizeof(u32);
-	} else if (of_node_name_eq(dp->parent, "sbus")) {
+	} else if (of_yesde_name_eq(dp->parent, "sbus")) {
 		auxio_devtype = AUXIO_TYPE_SBUS;
 		size = 1;
 	} else {
-		printk("auxio: Unknown parent bus type [%pOFn]\n",
+		printk("auxio: Unkyeswn parent bus type [%pOFn]\n",
 		       dp->parent);
 		return -ENODEV;
 	}

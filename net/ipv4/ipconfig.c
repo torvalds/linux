@@ -17,7 +17,7 @@
  *	- Arnaldo Carvalho de Melo <acme@conectiva.com.br>, 08/11/1999
  *
  *  DHCP support added.  To users this looks like a whole separate
- *  protocol, but we know it's just a bag on the side of BOOTP.
+ *  protocol, but we kyesw it's just a bag on the side of BOOTP.
  *		-- Chip Salzenberg <chip@valinux.com>, May 2000
  *
  *  Ported DHCP support from 2.2.16 to 2.4.0-test4
@@ -109,7 +109,7 @@ static unsigned int carrier_timeout = 120;
 
 /* This is used by platforms which might be able to set the ipconfig
  * variables using firmware environment vars.  If this is set, it will
- * ignore such firmware variables.
+ * igyesre such firmware variables.
  */
 int ic_set_manually __initdata = 0;		/* IPconfig parameters set manually */
 
@@ -159,7 +159,7 @@ static int ic_proto_used;			/* Protocol used, if any */
 #endif
 static __be32 ic_nameservers[CONF_NAMESERVERS_MAX]; /* DNS Server IP addresses */
 static __be32 ic_ntp_servers[CONF_NTP_SERVERS_MAX]; /* NTP server IP addresses */
-static u8 ic_domain[64];		/* DNS (not NIS) domain name */
+static u8 ic_domain[64];		/* DNS (yest NIS) domain name */
 
 /*
  * Private state.
@@ -232,7 +232,7 @@ static int __init ic_open_devs(void)
 			if (dev->mtu >= 364)
 				able |= IC_BOOTP;
 			else
-				pr_warn("DHCP/BOOTP: Ignoring device %s, MTU %d too small\n",
+				pr_warn("DHCP/BOOTP: Igyesring device %s, MTU %d too small\n",
 					dev->name, dev->mtu);
 			if (!(dev->flags & IFF_NOARP))
 				able |= IC_RARP;
@@ -264,7 +264,7 @@ static int __init ic_open_devs(void)
 		}
 	}
 
-	/* no point in waiting if we could not bring up at least one device */
+	/* yes point in waiting if we could yest bring up at least one device */
 	if (!ic_first_dev)
 		goto have_carrier;
 
@@ -296,7 +296,7 @@ have_carrier:
 
 	if (!ic_first_dev) {
 		if (user_dev_name[0])
-			pr_err("IP-Config: Device `%s' not found\n",
+			pr_err("IP-Config: Device `%s' yest found\n",
 			       user_dev_name);
 		else
 			pr_err("IP-Config: No network devices available\n");
@@ -366,7 +366,7 @@ static int __init ic_setup_if(void)
 		       err);
 		return -1;
 	}
-	/* Handle the case where we need non-standard MTU on the boot link (a network
+	/* Handle the case where we need yesn-standard MTU on the boot link (a network
 	 * using jumbo frames, for instance).  If we can't set the mtu, don't error
 	 * out, we'll try to muddle along.
 	 */
@@ -390,7 +390,7 @@ static int __init ic_setup_routes(void)
 
 		memset(&rm, 0, sizeof(rm));
 		if ((ic_gateway ^ ic_myaddr) & ic_netmask) {
-			pr_err("IP-Config: Gateway not on directly connected network\n");
+			pr_err("IP-Config: Gateway yest on directly connected network\n");
 			return -1;
 		}
 		set_sockaddr((struct sockaddr_in *) &rm.rt_dst, 0, 0);
@@ -398,7 +398,7 @@ static int __init ic_setup_routes(void)
 		set_sockaddr((struct sockaddr_in *) &rm.rt_gateway, ic_gateway, 0);
 		rm.rt_flags = RTF_UP | RTF_GATEWAY;
 		if ((err = ip_rt_ioctl(&init_net, SIOCADDRT, &rm)) < 0) {
-			pr_err("IP-Config: Cannot add default route (%d)\n",
+			pr_err("IP-Config: Canyest add default route (%d)\n",
 			       err);
 			return -1;
 		}
@@ -414,12 +414,12 @@ static int __init ic_setup_routes(void)
 static int __init ic_defaults(void)
 {
 	/*
-	 *	At this point we have no userspace running so need not
+	 *	At this point we have yes userspace running so need yest
 	 *	claim locks on system_utsname
 	 */
 
 	if (!ic_host_name_set)
-		sprintf(init_utsname()->nodename, "%pI4", &ic_myaddr);
+		sprintf(init_utsname()->yesdename, "%pI4", &ic_myaddr);
 
 	if (root_server_addr == NONE)
 		root_server_addr = ic_servaddr;
@@ -438,7 +438,7 @@ static int __init ic_defaults(void)
 			       &ic_myaddr);
 			return -1;
 		}
-		pr_notice("IP-Config: Guessing netmask %pI4\n",
+		pr_yestice("IP-Config: Guessing netmask %pI4\n",
 			  &ic_netmask);
 	}
 
@@ -493,17 +493,17 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	/* Basic sanity checks can be done without the lock.  */
 	rarp = (struct arphdr *)skb_transport_header(skb);
 
-	/* If this test doesn't pass, it's not IP, or we should
-	 * ignore it anyway.
+	/* If this test doesn't pass, it's yest IP, or we should
+	 * igyesre it anyway.
 	 */
 	if (rarp->ar_hln != dev->addr_len || dev->type != ntohs(rarp->ar_hrd))
 		goto drop;
 
-	/* If it's not a RARP reply, delete it. */
+	/* If it's yest a RARP reply, delete it. */
 	if (rarp->ar_op != htons(ARPOP_RREPLY))
 		goto drop;
 
-	/* If it's not Ethernet, delete it. */
+	/* If it's yest Ethernet, delete it. */
 	if (rarp->ar_pro != htons(ETH_P_IP))
 		goto drop;
 
@@ -536,11 +536,11 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	rarp_ptr += dev->addr_len;
 	memcpy(&tip, rarp_ptr, 4);
 
-	/* Discard packets which are not meant for us. */
+	/* Discard packets which are yest meant for us. */
 	if (memcmp(tha, dev->dev_addr, dev->addr_len))
 		goto drop_unlock;
 
-	/* Discard packets which are not from specified server. */
+	/* Discard packets which are yest from specified server. */
 	if (ic_servaddr != NONE && ic_servaddr != sip)
 		goto drop_unlock;
 
@@ -610,7 +610,7 @@ struct bootp_pkt {		/* BOOTP packet format */
 	__be32 xid;		/* Transaction ID */
 	__be16 secs;		/* Seconds since we started */
 	__be16 flags;		/* Just what it says */
-	__be32 client_ip;		/* Client's IP address if known */
+	__be32 client_ip;		/* Client's IP address if kyeswn */
 	__be32 your_ip;		/* Assigned IP address */
 	__be32 server_ip;		/* (Next, e.g. NFS) Server's IP address */
 	__be32 relay_ip;		/* IP address of BOOTP relay */
@@ -699,9 +699,9 @@ ic_dhcp_init_options(u8 *options, struct ic_device *d)
 
 		if (ic_host_name_set) {
 			*e++ = 12;	/* host-name */
-			len = strlen(utsname()->nodename);
+			len = strlen(utsname()->yesdename);
 			*e++ = len;
-			memcpy(e, utsname()->nodename, len);
+			memcpy(e, utsname()->yesdename, len);
 			e += len;
 		}
 		if (*vendor_class_identifier) {
@@ -715,7 +715,7 @@ ic_dhcp_init_options(u8 *options, struct ic_device *d)
 		}
 		len = strlen(dhcp_client_identifier + 1);
 		/* the minimum length of identifier is 2, include 1 byte type,
-		 * and can not be larger than the length of options
+		 * and can yest be larger than the length of options
 		 */
 		if (len >= 1 && len < 312 - (e - options) - 1) {
 			*e++ = 61;
@@ -772,7 +772,7 @@ static inline void __init ic_bootp_init(void)
 	/* Re-initialise all name servers and NTP servers to NONE, in case any
 	 * were set via the "ip=" or "nfsaddrs=" kernel command line parameters:
 	 * any IP addresses specified there will already have been decoded but
-	 * are no longer needed
+	 * are yes longer needed
 	 */
 	ic_nameservers_predef();
 	ic_ntp_servers_predef();
@@ -826,7 +826,7 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	b->udph.source = htons(68);
 	b->udph.dest = htons(67);
 	b->udph.len = htons(sizeof(struct bootp_pkt) - sizeof(struct iphdr));
-	/* UDP checksum not calculated -- explicitly allowed in BOOTP RFC */
+	/* UDP checksum yest calculated -- explicitly allowed in BOOTP RFC */
 
 	/* Construct DHCP/BOOTP header */
 	b->op = BOOTP_REQUEST;
@@ -835,7 +835,7 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	else if (dev->type == ARPHRD_FDDI)
 		b->htype = ARPHRD_ETHER;
 	else {
-		pr_warn("Unknown ARP type 0x%04x for device %s\n", dev->type,
+		pr_warn("Unkyeswn ARP type 0x%04x for device %s\n", dev->type,
 			dev->name);
 		b->htype = dev->type; /* can cause undefined behavior */
 	}
@@ -870,7 +870,7 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 
 
 /*
- *  Copy BOOTP-supplied string if not already set.
+ *  Copy BOOTP-supplied string if yest already set.
  */
 static int __init ic_bootp_string(char *dest, char *src, int len, int max)
 {
@@ -919,7 +919,7 @@ static void __init ic_do_bootp_ext(u8 *ext)
 		}
 		break;
 	case 12:	/* Host name */
-		ic_bootp_string(utsname()->nodename, ext+1, *ext,
+		ic_bootp_string(utsname()->yesdename, ext+1, *ext,
 				__NEW_UTS_LEN);
 		ic_host_name_set = 1;
 		break;
@@ -935,7 +935,7 @@ static void __init ic_do_bootp_ext(u8 *ext)
 		memcpy(&mtu, ext+1, sizeof(mtu));
 		ic_dev_mtu = ntohs(mtu);
 		break;
-	case 40:	/* NIS Domain name (_not_ DNS) */
+	case 40:	/* NIS Domain name (_yest_ DNS) */
 		ic_bootp_string(utsname()->domainname, ext+1, *ext,
 				__NEW_UTS_LEN);
 		break;
@@ -984,9 +984,9 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	if (h->ihl != 5 || h->version != 4 || h->protocol != IPPROTO_UDP)
 		goto drop;
 
-	/* Fragments are not supported */
+	/* Fragments are yest supported */
 	if (ip_is_fragment(h)) {
-		net_err_ratelimited("DHCP/BOOTP: Ignoring fragmented reply\n");
+		net_err_ratelimited("DHCP/BOOTP: Igyesring fragmented reply\n");
 		goto drop;
 	}
 
@@ -1034,7 +1034,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	/* Is it a reply to our BOOTP request? */
 	if (b->op != BOOTP_REPLY ||
 	    b->xid != d->xid) {
-		net_err_ratelimited("DHCP/BOOTP: Reply not for us on %s, op[%x] xid[%x]\n",
+		net_err_ratelimited("DHCP/BOOTP: Reply yest for us on %s, op[%x] xid[%x]\n",
 				    d->dev->name, b->op, b->xid);
 		goto drop_unlock;
 	}
@@ -1075,7 +1075,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 			switch (mt) {
 			case DHCPOFFER:
 				/* While in the process of accepting one offer,
-				 * ignore all others.
+				 * igyesre all others.
 				 */
 				if (ic_myaddr != NONE)
 					goto drop_unlock;
@@ -1165,7 +1165,7 @@ static int __init ic_dynamic(void)
 	int do_rarp = ic_proto_have_if & IC_RARP;
 
 	/*
-	 * If none of DHCP/BOOTP/RARP was selected, return with an error.
+	 * If yesne of DHCP/BOOTP/RARP was selected, return with an error.
 	 * This routine gets only called when some pieces of information
 	 * are missing, and without DHCP/BOOTP/RARP we are unable to get it.
 	 */
@@ -1204,10 +1204,10 @@ static int __init ic_dynamic(void)
 	 * seems to be a terrible waste of CPU time, but actually there is
 	 * only one process running at all, so we don't need to use any
 	 * scheduler functions.
-	 * [Actually we could now, but the nothing else running note still
+	 * [Actually we could yesw, but the yesthing else running yeste still
 	 *  applies.. - AC]
 	 */
-	pr_notice("Sending %s%s%s requests .",
+	pr_yestice("Sending %s%s%s requests .",
 		  do_bootp
 		  ? ((ic_proto_enabled & IC_USE_DHCP) ? "DHCP" : "BOOTP") : "",
 		  (do_bootp && do_rarp) ? " and " : "",
@@ -1482,7 +1482,7 @@ static int __init ip_auto_config(void)
 	/*
 	 * If the config information is insufficient (e.g., our IP address or
 	 * IP address of the boot server is missing or we have multiple network
-	 * interfaces and no default was set), use BOOTP or RARP to get the
+	 * interfaces and yes default was set), use BOOTP or RARP to get the
 	 * missing values.
 	 */
 	if (ic_myaddr == NONE ||
@@ -1497,7 +1497,7 @@ static int __init ip_auto_config(void)
 			ic_close_devs();
 
 			/*
-			 * I don't know why, but sometimes the
+			 * I don't kyesw why, but sometimes the
 			 * eepro100 driver (at least) gets upset and
 			 * doesn't work the first time it's opened.
 			 * But then if you close it and reopen it, it
@@ -1505,7 +1505,7 @@ static int __init ip_auto_config(void)
 			 * least once before giving up.
 			 *
 			 * Also, if the root will be NFS-mounted, we
-			 * have nowhere to go if DHCP fails.  So we
+			 * have yeswhere to go if DHCP fails.  So we
 			 * just have to keep trying forever.
 			 *
 			 * 				-- Chip
@@ -1569,7 +1569,7 @@ static int __init ip_auto_config(void)
 		ic_dev->dev->name, ic_dev->dev->addr_len, ic_dev->dev->dev_addr,
 		&ic_myaddr, &ic_netmask, &ic_gateway);
 	pr_info("     host=%s, domain=%s, nis-domain=%s\n",
-		utsname()->nodename, ic_domain, utsname()->domainname);
+		utsname()->yesdename, ic_domain, utsname()->domainname);
 	pr_info("     bootserver=%pI4, rootserver=%pI4, rootpath=%s",
 		&ic_servaddr, &root_server_addr, root_server_path);
 	if (ic_dev_mtu)
@@ -1628,7 +1628,7 @@ static int __init ic_proto_name(char *name)
 	if (!strcmp(name, "on") || !strcmp(name, "any")) {
 		return 1;
 	}
-	if (!strcmp(name, "off") || !strcmp(name, "none")) {
+	if (!strcmp(name, "off") || !strcmp(name, "yesne")) {
 		return 0;
 	}
 #ifdef CONFIG_IP_PNP_DHCP
@@ -1689,10 +1689,10 @@ static int __init ip_auto_config_setup(char *addrs)
 	if (ic_proto_name(addrs))
 		return 1;
 
-	/* If no static IP is given, turn off autoconfig and bail.  */
+	/* If yes static IP is given, turn off autoconfig and bail.  */
 	if (*addrs == 0 ||
 	    strcmp(addrs, "off") == 0 ||
-	    strcmp(addrs, "none") == 0) {
+	    strcmp(addrs, "yesne") == 0) {
 		ic_enable = 0;
 		return 1;
 	}
@@ -1731,8 +1731,8 @@ static int __init ip_auto_config_setup(char *addrs)
 					strlcpy(utsname()->domainname, dp,
 						sizeof(utsname()->domainname));
 				}
-				strlcpy(utsname()->nodename, ip,
-					sizeof(utsname()->nodename));
+				strlcpy(utsname()->yesdename, ip,
+					sizeof(utsname()->yesdename));
 				ic_host_name_set = 1;
 				break;
 			case 5:

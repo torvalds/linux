@@ -51,7 +51,7 @@ sun8i_dw_hdmi_mode_valid_h6(struct drm_connector *connector,
 	 * Controller support maximum of 594 MHz, which correlates to
 	 * 4K@60Hz 4:4:4 or RGB. However, for frequencies greater than
 	 * 340 MHz scrambling has to be enabled. Because scrambling is
-	 * not yet implemented, just limit to 340 MHz for now.
+	 * yest yet implemented, just limit to 340 MHz for yesw.
 	 */
 	if (mode->clock > 340000)
 		return MODE_CLOCK_HIGH;
@@ -59,40 +59,40 @@ sun8i_dw_hdmi_mode_valid_h6(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static bool sun8i_dw_hdmi_node_is_tcon_top(struct device_node *node)
+static bool sun8i_dw_hdmi_yesde_is_tcon_top(struct device_yesde *yesde)
 {
 	return IS_ENABLED(CONFIG_DRM_SUN8I_TCON_TOP) &&
-		!!of_match_node(sun8i_tcon_top_of_table, node);
+		!!of_match_yesde(sun8i_tcon_top_of_table, yesde);
 }
 
 static u32 sun8i_dw_hdmi_find_possible_crtcs(struct drm_device *drm,
-					     struct device_node *node)
+					     struct device_yesde *yesde)
 {
-	struct device_node *port, *ep, *remote, *remote_port;
+	struct device_yesde *port, *ep, *remote, *remote_port;
 	u32 crtcs = 0;
 
-	remote = of_graph_get_remote_node(node, 0, -1);
+	remote = of_graph_get_remote_yesde(yesde, 0, -1);
 	if (!remote)
 		return 0;
 
-	if (sun8i_dw_hdmi_node_is_tcon_top(remote)) {
+	if (sun8i_dw_hdmi_yesde_is_tcon_top(remote)) {
 		port = of_graph_get_port_by_id(remote, 4);
 		if (!port)
 			goto crtcs_exit;
 
-		for_each_child_of_node(port, ep) {
+		for_each_child_of_yesde(port, ep) {
 			remote_port = of_graph_get_remote_port(ep);
 			if (remote_port) {
 				crtcs |= drm_of_crtc_port_mask(drm, remote_port);
-				of_node_put(remote_port);
+				of_yesde_put(remote_port);
 			}
 		}
 	} else {
-		crtcs = drm_of_find_possible_crtcs(drm, node);
+		crtcs = drm_of_find_possible_crtcs(drm, yesde);
 	}
 
 crtcs_exit:
-	of_node_put(remote);
+	of_yesde_put(remote);
 
 	return crtcs;
 }
@@ -101,19 +101,19 @@ static int sun8i_dw_hdmi_find_connector_pdev(struct device *dev,
 					     struct platform_device **pdev_out)
 {
 	struct platform_device *pdev;
-	struct device_node *remote;
+	struct device_yesde *remote;
 
-	remote = of_graph_get_remote_node(dev->of_node, 1, -1);
+	remote = of_graph_get_remote_yesde(dev->of_yesde, 1, -1);
 	if (!remote)
 		return -ENODEV;
 
 	if (!of_device_is_compatible(remote, "hdmi-connector")) {
-		of_node_put(remote);
+		of_yesde_put(remote);
 		return -ENODEV;
 	}
 
-	pdev = of_find_device_by_node(remote);
-	of_node_put(remote);
+	pdev = of_find_device_by_yesde(remote);
+	of_yesde_put(remote);
 	if (!pdev)
 		return -ENODEV;
 
@@ -127,12 +127,12 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 	struct platform_device *pdev = to_platform_device(dev), *connector_pdev;
 	struct dw_hdmi_plat_data *plat_data;
 	struct drm_device *drm = data;
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 	struct drm_encoder *encoder;
 	struct sun8i_dw_hdmi *hdmi;
 	int ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
@@ -146,11 +146,11 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->quirks = of_device_get_match_data(dev);
 
 	encoder->possible_crtcs =
-		sun8i_dw_hdmi_find_possible_crtcs(drm, dev->of_node);
+		sun8i_dw_hdmi_find_possible_crtcs(drm, dev->of_yesde);
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
 	 * supposed to be connected to, it's because the CRTC has
-	 * not been registered yet.  Defer probing, and hope that
+	 * yest been registered yet.  Defer probing, and hope that
 	 * the required CRTC is added later.
 	 */
 	if (encoder->possible_crtcs == 0)
@@ -158,7 +158,7 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 
 	hdmi->rst_ctrl = devm_reset_control_get(dev, "ctrl");
 	if (IS_ERR(hdmi->rst_ctrl)) {
-		dev_err(dev, "Could not get ctrl reset control\n");
+		dev_err(dev, "Could yest get ctrl reset control\n");
 		return PTR_ERR(hdmi->rst_ctrl);
 	}
 
@@ -196,24 +196,24 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 
 	ret = reset_control_deassert(hdmi->rst_ctrl);
 	if (ret) {
-		dev_err(dev, "Could not deassert ctrl reset control\n");
+		dev_err(dev, "Could yest deassert ctrl reset control\n");
 		goto err_disable_ddc_en;
 	}
 
 	ret = clk_prepare_enable(hdmi->clk_tmds);
 	if (ret) {
-		dev_err(dev, "Could not enable tmds clock\n");
+		dev_err(dev, "Could yest enable tmds clock\n");
 		goto err_assert_ctrl_reset;
 	}
 
-	phy_node = of_parse_phandle(dev->of_node, "phys", 0);
-	if (!phy_node) {
+	phy_yesde = of_parse_phandle(dev->of_yesde, "phys", 0);
+	if (!phy_yesde) {
 		dev_err(dev, "Can't found PHY phandle\n");
 		goto err_disable_clk_tmds;
 	}
 
-	ret = sun8i_hdmi_phy_probe(hdmi, phy_node);
-	of_node_put(phy_node);
+	ret = sun8i_hdmi_phy_probe(hdmi, phy_yesde);
+	of_yesde_put(phy_yesde);
 	if (ret) {
 		dev_err(dev, "Couldn't get the HDMI PHY\n");
 		goto err_disable_clk_tmds;

@@ -10,10 +10,10 @@ cflags-$(CONFIG_CPU_LOONGSON2F) += \
 	$(call cc-option,-march=loongson2f,-march=r4600)
 # Enable the workarounds for Loongson2f
 ifdef CONFIG_CPU_LOONGSON2F_WORKAROUNDS
-  ifeq ($(call as-option,-Wa$(comma)-mfix-loongson2f-nop,),)
-    $(error only binutils >= 2.20.2 have needed option -mfix-loongson2f-nop)
+  ifeq ($(call as-option,-Wa$(comma)-mfix-loongson2f-yesp,),)
+    $(error only binutils >= 2.20.2 have needed option -mfix-loongson2f-yesp)
   else
-    cflags-$(CONFIG_CPU_NOP_WORKAROUNDS) += -Wa$(comma)-mfix-loongson2f-nop
+    cflags-$(CONFIG_CPU_NOP_WORKAROUNDS) += -Wa$(comma)-mfix-loongson2f-yesp
   endif
   ifeq ($(call as-option,-Wa$(comma)-mfix-loongson2f-jump,),)
     $(error only binutils >= 2.20.2 have needed option -mfix-loongson2f-jump)
@@ -27,6 +27,6 @@ endif
 #
 
 platform-$(CONFIG_MACH_LOONGSON2EF) += loongson2ef/
-cflags-$(CONFIG_MACH_LOONGSON2EF) += -I$(srctree)/arch/mips/include/asm/mach-loongson2ef -mno-branch-likely
+cflags-$(CONFIG_MACH_LOONGSON2EF) += -I$(srctree)/arch/mips/include/asm/mach-loongson2ef -myes-branch-likely
 load-$(CONFIG_LEMOTE_FULOONG2E) += 0xffffffff80100000
 load-$(CONFIG_LEMOTE_MACH2F) += 0xffffffff80200000

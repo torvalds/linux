@@ -28,7 +28,7 @@
 #define L3C_EVENT_TYPE0		0x1d00
 /*
  * Each counter is 48-bits and [48:63] are reserved
- * which are Read-As-Zero and Writes-Ignored.
+ * which are Read-As-Zero and Writes-Igyesred.
  */
 #define L3C_CNTR0_LOWER		0x1e00
 
@@ -248,13 +248,13 @@ static int hisi_l3c_pmu_init_data(struct platform_device *pdev,
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
 				     &l3c_pmu->sccl_id)) {
-		dev_err(&pdev->dev, "Can not read l3c sccl-id!\n");
+		dev_err(&pdev->dev, "Can yest read l3c sccl-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,ccl-id",
 				     &l3c_pmu->ccl_id)) {
-		dev_err(&pdev->dev, "Can not read l3c ccl-id!\n");
+		dev_err(&pdev->dev, "Can yest read l3c ccl-id!\n");
 		return -EINVAL;
 	}
 
@@ -370,7 +370,7 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_L3_ONLINE,
-				       &l3c_pmu->node);
+				       &l3c_pmu->yesde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
 		return ret;
@@ -397,7 +397,7 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(l3c_pmu->dev, "L3C PMU register failed!\n");
 		cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_HISI_L3_ONLINE,
-					    &l3c_pmu->node);
+					    &l3c_pmu->yesde);
 	}
 
 	return ret;
@@ -409,7 +409,7 @@ static int hisi_l3c_pmu_remove(struct platform_device *pdev)
 
 	perf_pmu_unregister(&l3c_pmu->pmu);
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_HISI_L3_ONLINE,
-				    &l3c_pmu->node);
+				    &l3c_pmu->yesde);
 
 	return 0;
 }

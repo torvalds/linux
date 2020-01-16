@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -215,7 +215,7 @@ int ci_load_smc_ucode(struct radeon_device *rdev, u32 limit)
 			ucode_size = HAWAII_SMC_UCODE_SIZE;
 			break;
 		default:
-			DRM_ERROR("unknown asic in smc ucode loader\n");
+			DRM_ERROR("unkyeswn asic in smc ucode loader\n");
 			BUG();
 		}
 

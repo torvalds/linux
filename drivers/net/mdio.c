@@ -6,7 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ethtool.h>
 #include <linux/mdio.h>
 #include <linux/module.h>
@@ -28,7 +28,7 @@ int mdio45_probe(struct mdio_if_info *mdio, int prtad)
 	int mmd, stat2, devs1, devs2;
 
 	/* Assume PHY must have at least one of PMA/PMD, WIS, PCS, PHY
-	 * XS or DTE XS; give up if none is present. */
+	 * XS or DTE XS; give up if yesne is present. */
 	for (mmd = 1; mmd <= 5; mmd++) {
 		/* Is this MMD present? */
 		stat2 = mdio->mdio_read(mdio->dev, prtad, mmd, MDIO_STAT2);
@@ -60,7 +60,7 @@ EXPORT_SYMBOL(mdio45_probe);
  * @mask: Mask for flag (single bit set)
  * @sense: New value of flag
  *
- * This debounces changes: it does not write the register if the flag
+ * This debounces changes: it does yest write the register if the flag
  * already has the proper value.  Returns 0 on success, negative on error.
  */
 int mdio_set_flag(const struct mdio_if_info *mdio,
@@ -88,7 +88,7 @@ EXPORT_SYMBOL(mdio_set_flag);
  * @mmd_mask: Mask for MMDs to check
  *
  * Returns 1 if the PHY reports link status up/OK, 0 otherwise.
- * @mmd_mask is normally @mdio->mmds, but if loopback is enabled
+ * @mmd_mask is yesrmally @mdio->mmds, but if loopback is enabled
  * the MMDs being bypassed should be excluded from the mask.
  */
 int mdio45_links_ok(const struct mdio_if_info *mdio, u32 mmd_mask)
@@ -176,8 +176,8 @@ static u32 mdio45_get_an(const struct mdio_if_info *mdio, u16 addr)
  * The @ecmd parameter is expected to have been cleared before calling
  * mdio45_ethtool_gset_npage().
  *
- * Since the CSRs for auto-negotiation using next pages are not fully
- * standardised, this function does not attempt to decode them.  The
+ * Since the CSRs for auto-negotiation using next pages are yest fully
+ * standardised, this function does yest attempt to decode them.  The
  * caller must pass them in.
  */
 void mdio45_ethtool_gset_npage(const struct mdio_if_info *mdio,
@@ -348,8 +348,8 @@ EXPORT_SYMBOL(mdio45_ethtool_gset_npage);
  * The @cmd parameter is expected to have been cleared before calling
  * mdio45_ethtool_ksettings_get_npage().
  *
- * Since the CSRs for auto-negotiation using next pages are not fully
- * standardised, this function does not attempt to decode them.  The
+ * Since the CSRs for auto-negotiation using next pages are yest fully
+ * standardised, this function does yest attempt to decode them.  The
  * caller must pass them in.
  */
 void mdio45_ethtool_ksettings_get_npage(const struct mdio_if_info *mdio,

@@ -251,7 +251,7 @@ static struct ctl_table mac_hid_dir[] = {
 	{ }
 };
 
-/* /proc/sys/dev itself, in case that is not there yet */
+/* /proc/sys/dev itself, in case that is yest there yet */
 static struct ctl_table mac_hid_root_dir[] = {
 	{
 		.procname	= "dev",

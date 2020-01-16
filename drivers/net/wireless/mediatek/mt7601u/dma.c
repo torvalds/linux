@@ -51,7 +51,7 @@ mt7601u_rx_skb_from_seg(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 		hdr_len = 0;
 	}
 
-	/* If not doing paged RX allocated skb will always have enough space */
+	/* If yest doing paged RX allocated skb will always have eyesugh space */
 	copy = (true_len <= skb_tailroom(skb)) ? true_len : hdr_len + 8;
 	frag = true_len - copy;
 
@@ -96,7 +96,7 @@ static void mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data,
 	if (unlikely(rxwi->zero[0] || rxwi->zero[1] || rxwi->zero[2]))
 		dev_err_once(dev->dev, "Error: RXWI zero fields are set\n");
 	if (unlikely(FIELD_GET(MT_RXD_INFO_TYPE, fce_info)))
-		dev_err_once(dev->dev, "Error: RX path seen a non-pkt urb\n");
+		dev_err_once(dev->dev, "Error: RX path seen a yesn-pkt urb\n");
 
 	trace_mt_rx(dev, rxwi, fce_info);
 
@@ -185,7 +185,7 @@ static void mt7601u_complete_rx(struct urb *urb)
 	struct mt7601u_rx_queue *q = &dev->rx_q;
 	unsigned long flags;
 
-	/* do no schedule rx tasklet if urb has been unlinked
+	/* do yes schedule rx tasklet if urb has been unlinked
 	 * or the device has been removed
 	 */
 	switch (urb->status) {

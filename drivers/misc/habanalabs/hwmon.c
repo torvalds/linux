@@ -445,7 +445,7 @@ int hl_hwmon_init(struct hl_device *hdev)
 
 		hdev->hwmon_initialized = true;
 	} else {
-		dev_info(hdev->dev, "no available sensors\n");
+		dev_info(hdev->dev, "yes available sensors\n");
 	}
 
 	return 0;

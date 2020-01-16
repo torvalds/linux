@@ -18,7 +18,7 @@ config CRYPTO_DEV_QAT_DH895xCC
 	depends on X86 && PCI
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) DH895xcc with Intel(R) QuickAssist Technology
+	  Support for Intel(R) DH895xcc with Intel(R) QuickAssist Techyeslogy
 	  for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -29,7 +29,7 @@ config CRYPTO_DEV_QAT_C3XXX
 	depends on X86 && PCI
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) C3xxx with Intel(R) QuickAssist Technology
+	  Support for Intel(R) C3xxx with Intel(R) QuickAssist Techyeslogy
 	  for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -40,7 +40,7 @@ config CRYPTO_DEV_QAT_C62X
 	depends on X86 && PCI
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) C62x with Intel(R) QuickAssist Technology
+	  Support for Intel(R) C62x with Intel(R) QuickAssist Techyeslogy
 	  for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -53,7 +53,7 @@ config CRYPTO_DEV_QAT_DH895xCCVF
 	select CRYPTO_DEV_QAT
 
 	help
-	  Support for Intel(R) DH895xcc with Intel(R) QuickAssist Technology
+	  Support for Intel(R) DH895xcc with Intel(R) QuickAssist Techyeslogy
 	  Virtual Function for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -65,7 +65,7 @@ config CRYPTO_DEV_QAT_C3XXXVF
 	select PCI_IOV
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) C3xxx with Intel(R) QuickAssist Technology
+	  Support for Intel(R) C3xxx with Intel(R) QuickAssist Techyeslogy
 	  Virtual Function for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -77,7 +77,7 @@ config CRYPTO_DEV_QAT_C62XVF
 	select PCI_IOV
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) C62x with Intel(R) QuickAssist Technology
+	  Support for Intel(R) C62x with Intel(R) QuickAssist Techyeslogy
 	  Virtual Function for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module

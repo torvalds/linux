@@ -21,7 +21,7 @@ Modified by Christoph Lameter <cl@linux.com>
 	1.1 What are cgroups ?
 	1.2 Why are cgroups needed ?
 	1.3 How are cgroups implemented ?
-	1.4 What does notify_on_release do ?
+	1.4 What does yestify_on_release do ?
 	1.5 What does clone_children do ?
 	1.6 How do I use cgroups ?
 	2. Usage Examples and Syntax
@@ -77,7 +77,7 @@ tracking. The intention is that other subsystems hook into the generic
 cgroup support to provide new attributes for cgroups, such as
 accounting/limiting the resources which processes in a cgroup can
 access. For example, cpusets (see Documentation/admin-guide/cgroup-v1/cpusets.rst) allow
-you to associate a set of CPUs and a set of memory nodes with the
+you to associate a set of CPUs and a set of memory yesdes with the
 tasks in each cgroup.
 
 1.2 Why are cgroups needed ?
@@ -86,7 +86,7 @@ tasks in each cgroup.
 There are multiple efforts to provide process aggregations in the
 Linux kernel, mainly for resource-tracking purposes. Such efforts
 include cpusets, CKRM/ResGroups, UserBeanCounters, and virtual server
-namespaces. These all require the basic notion of a
+namespaces. These all require the basic yestion of a
 grouping/partitioning of processes, with newly forked processes ending
 up in the same group (cgroup) as their parent process.
 
@@ -139,12 +139,12 @@ depending on who launched it (prof/student).
 
 With the ability to classify tasks differently for different resources
 (by putting those resource subsystems in different hierarchies),
-the admin can easily set up a script which receives exec notifications
+the admin can easily set up a script which receives exec yestifications
 and depending on who is launching the browser he can::
 
     # echo browser_pid > /sys/fs/cgroup/<restype>/<userclass>/tasks
 
-With only a single hierarchy, he now would potentially have to create
+With only a single hierarchy, he yesw would potentially have to create
 a separate cgroup for every browser launched and associate it with
 appropriate network and other resource class.  This may lead to
 proliferation of such cgroups.
@@ -177,7 +177,7 @@ Control Groups extends the kernel as follows:
 
  - A css_set contains a set of reference-counted pointers to
    cgroup_subsys_state objects, one for each cgroup subsystem
-   registered in the system. There is no direct link from a task to
+   registered in the system. There is yes direct link from a task to
    the cgroup of which it's a member in each hierarchy, but this
    can be determined by following pointers through the
    cgroup_subsys_state objects. This is because accessing the
@@ -194,7 +194,7 @@ Control Groups extends the kernel as follows:
  - You can list all the tasks (by PID) attached to any cgroup.
 
 The implementation of cgroups requires a few, simple hooks
-into the rest of the kernel, none in performance-critical paths:
+into the rest of the kernel, yesne in performance-critical paths:
 
  - in init/main.c, to initialize the root cgroups and initial
    css_set at system boot.
@@ -202,26 +202,26 @@ into the rest of the kernel, none in performance-critical paths:
  - in fork and exit, to attach and detach a task from its css_set.
 
 In addition, a new file system of type "cgroup" may be mounted, to
-enable browsing and modifying the cgroups presently known to the
+enable browsing and modifying the cgroups presently kyeswn to the
 kernel.  When mounting a cgroup hierarchy, you may specify a
 comma-separated list of subsystems to mount as the filesystem mount
 options.  By default, mounting the cgroup filesystem attempts to
 mount a hierarchy containing all registered subsystems.
 
 If an active hierarchy with exactly the same set of subsystems already
-exists, it will be reused for the new mount. If no existing hierarchy
+exists, it will be reused for the new mount. If yes existing hierarchy
 matches, and any of the requested subsystems are in use in an existing
 hierarchy, the mount will fail with -EBUSY. Otherwise, a new hierarchy
 is activated, associated with the requested subsystems.
 
-It's not currently possible to bind a new subsystem to an active
+It's yest currently possible to bind a new subsystem to an active
 cgroup hierarchy, or to unbind a subsystem from an active cgroup
 hierarchy. This may be possible in future, but is fraught with nasty
 error-recovery issues.
 
 When a cgroup filesystem is unmounted, if there are any
 child cgroups created below the top-level cgroup, that hierarchy
-will remain active even though unmounted; if there are no
+will remain active even though unmounted; if there are yes
 child cgroups then the hierarchy will be deactivated.
 
 No new system calls are added for cgroups - all support for
@@ -235,15 +235,15 @@ Each cgroup is represented by a directory in the cgroup file system
 containing the following files describing that cgroup:
 
  - tasks: list of tasks (by PID) attached to that cgroup.  This list
-   is not guaranteed to be sorted.  Writing a thread ID into this file
+   is yest guaranteed to be sorted.  Writing a thread ID into this file
    moves the thread into this cgroup.
  - cgroup.procs: list of thread group IDs in the cgroup.  This list is
-   not guaranteed to be sorted or free of duplicate TGIDs, and userspace
+   yest guaranteed to be sorted or free of duplicate TGIDs, and userspace
    should sort/uniquify the list if this property is required.
    Writing a thread group ID into this file moves all threads in that
    group into this cgroup.
- - notify_on_release flag: run the release agent on exit?
- - release_agent: the path to use for release notifications (this file
+ - yestify_on_release flag: run the release agent on exit?
+ - release_agent: the path to use for release yestifications (this file
    exists in the top cgroup only)
 
 Other subsystems such as cpusets may add additional files in each
@@ -263,7 +263,7 @@ on a system into related sets of tasks.  A task may be re-attached to
 any other cgroup, if allowed by the permissions on the necessary
 cgroup file system directories.
 
-When a task is moved from one cgroup to another, it gets a new
+When a task is moved from one cgroup to ayesther, it gets a new
 css_set pointer - if there's an already existing css_set with the
 desired collection of cgroups then that group is reused, otherwise a new
 css_set is allocated. The appropriate existing css_set is located by
@@ -283,10 +283,10 @@ The use of a Linux virtual file system (vfs) to represent the
 cgroup hierarchy provides for a familiar permission and name space
 for cgroups, with a minimum of additional kernel code.
 
-1.4 What does notify_on_release do ?
+1.4 What does yestify_on_release do ?
 ------------------------------------
 
-If the notify_on_release flag is enabled (1) in a cgroup, then
+If the yestify_on_release flag is enabled (1) in a cgroup, then
 whenever the last task in the cgroup leaves (exits or attaches to
 some other cgroup) and the last child cgroup of that cgroup
 is removed, then the kernel runs the command specified by the contents
@@ -294,9 +294,9 @@ of the "release_agent" file in that hierarchy's root directory,
 supplying the pathname (relative to the mount point of the cgroup
 file system) of the abandoned cgroup.  This enables automatic
 removal of abandoned cgroups.  The default value of
-notify_on_release in the root cgroup at system boot is disabled
+yestify_on_release in the root cgroup at system boot is disabled
 (0).  The default value of other cgroups at creation is the current
-value of their parents' notify_on_release settings. The default value of
+value of their parents' yestify_on_release settings. The default value of
 a cgroup hierarchy's release_agent path is empty.
 
 1.5 What does clone_children do ?
@@ -336,7 +336,7 @@ and then start a subshell 'sh' in that cgroup::
   /bin/echo 1 > cpuset.mems
   /bin/echo $$ > tasks
   sh
-  # The subshell 'sh' is now running in cgroup Charlie
+  # The subshell 'sh' is yesw running in cgroup Charlie
   # The next line should display '/Charlie'
   cat /proc/self/cgroup
 
@@ -353,10 +353,10 @@ To mount a cgroup hierarchy with all available subsystems, type::
 
   # mount -t cgroup xxx /sys/fs/cgroup
 
-The "xxx" is not interpreted by the cgroup code, but will appear in
+The "xxx" is yest interpreted by the cgroup code, but will appear in
 /proc/mounts so may be any useful identifying string that you like.
 
-Note: Some subsystems do not work without some user input first.  For instance,
+Note: Some subsystems do yest work without some user input first.  For instance,
 if cpusets are enabled the user will have to populate the cpus and mems files
 for each new cgroup created before that group can be used.
 
@@ -374,11 +374,11 @@ subsystems, type::
 
   # mount -t cgroup -o cpuset,memory hier1 /sys/fs/cgroup/rg1
 
-While remounting cgroups is currently supported, it is not recommend
+While remounting cgroups is currently supported, it is yest recommend
 to use it. Remounting allows changing bound subsystems and
 release_agent. Rebinding is hardly useful as it only works when the
 hierarchy is empty and release_agent itself should be replaced with
-conventional fsnotify. The support for remounting will be removed in
+conventional fsyestify. The support for remounting will be removed in
 the future.
 
 To Specify a hierarchy's release_agent::
@@ -415,7 +415,7 @@ Now you want to do something with this cgroup:
 In this directory you can find several files::
 
   # ls
-  cgroup.procs notify_on_release tasks
+  cgroup.procs yestify_on_release tasks
   (plus whatever files added by the attached subsystems)
 
 Now attach your shell to this cgroup::
@@ -442,8 +442,8 @@ reference).
 
   # /bin/echo PID > tasks
 
-Note that it is PID, not PIDs. You can only attach ONE task at a time.
-If you have several tasks to attach, you have to do it one after another::
+Note that it is PID, yest PIDs. You can only attach ONE task at a time.
+If you have several tasks to attach, you have to do it one after ayesther::
 
   # /bin/echo PID1 > tasks
   # /bin/echo PID2 > tasks
@@ -466,7 +466,7 @@ move it into a new cgroup (possibly the root cgroup) by writing to the
 new cgroup's tasks file.
 
 Note: Due to some restrictions enforced by some cgroup subsystems, moving
-a process to another cgroup can fail.
+a process to ayesther cgroup can fail.
 
 2.3 Mounting hierarchies by name
 --------------------------------
@@ -481,7 +481,7 @@ The name should match [\w.-]+
 
 When passing a name=<x> option for a new hierarchy, you need to
 specify subsystems manually; the legacy behaviour of mounting all
-subsystems when none are explicitly specified is not supported when
+subsystems when yesne are explicitly specified is yest supported when
 you give a subsystem a name.
 
 The name of the subsystem appears as part of the hierarchy description
@@ -505,7 +505,7 @@ Other fields in the cgroup_subsys object include:
   entry in cgroup->subsys[] this subsystem should be managing.
 
 - name: should be initialized to a unique subsystem name. Should be
-  no longer than MAX_CGROUP_TYPE_NAMELEN.
+  yes longer than MAX_CGROUP_TYPE_NAMELEN.
 
 - early_init: indicate if the subsystem needs early initialization
   at system boot.
@@ -543,7 +543,7 @@ Each subsystem should:
 
 Each subsystem may export the following methods. The only mandatory
 methods are css_alloc/free. Any others that are null are presumed to
-be successful no-ops.
+be successful yes-ops.
 
 ``struct cgroup_subsys_state *css_alloc(struct cgroup *cgrp)``
 (cgroup_mutex held by caller)
@@ -565,7 +565,7 @@ initialization code.
 
 Called after @cgrp successfully completed all allocations and made
 visible to cgroup_for_each_child/descendant_*() iterators. The
-subsystem may choose to fail creation by returning -errno. This
+subsystem may choose to fail creation by returning -erryes. This
 callback can be used to implement reliable state sharing and
 propagation along the hierarchy. See the comment on
 cgroup_for_each_descendant_pre() for details.
@@ -599,7 +599,7 @@ least one task in it.
 
 If there are multiple tasks in the taskset, then:
   - it's guaranteed that all are from the same thread group
-  - @tset contains all tasks from the thread group whether or not
+  - @tset contains all tasks from the thread group whether or yest
     they're switching cgroups
   - the first task is the leader
 
@@ -629,7 +629,7 @@ visible again later.
 
 Called when a task attach operation has failed after can_attach() has succeeded.
 A subsystem whose can_attach() has some side-effects should provide this
-function, so that the subsystem can implement a rollback. If not, not necessary.
+function, so that the subsystem can implement a rollback. If yest, yest necessary.
 This will be called only about subsystems whose can_attach() operation have
 succeeded. The parameters are identical to can_attach().
 
@@ -658,7 +658,7 @@ Called when the task_struct is freed.
 Called when a cgroup subsystem is rebound to a different hierarchy
 and root cgroup. Currently this will only involve movement between
 the default hierarchy (which never has sub-cgroups) and a hierarchy
-that is being created/destroyed (and hence has no sub-cgroups).
+that is being created/destroyed (and hence has yes sub-cgroups).
 
 4. Extended attribute usage
 ===========================
@@ -673,10 +673,10 @@ Both require CAP_SYS_ADMIN capability to set.
 
 Like in tmpfs, the extended attributes in cgroup filesystem are stored
 using kernel memory and it's advised to keep the usage at minimum.  This
-is the reason why user defined extended attributes are not supported, since
-any user can do it and there's no limit in the value size.
+is the reason why user defined extended attributes are yest supported, since
+any user can do it and there's yes limit in the value size.
 
-The current known users for this feature are SELinux to limit cgroup usage
+The current kyeswn users for this feature are SELinux to limit cgroup usage
 in containers and systemd for assorted meta data like main PID in a cgroup
 (systemd creates a cgroup per service).
 
@@ -686,7 +686,7 @@ in containers and systemd for assorted meta data like main PID in a cgroup
 ::
 
   Q: what's up with this '/bin/echo' ?
-  A: bash's builtin 'echo' command does not check calls to write() against
+  A: bash's builtin 'echo' command does yest check calls to write() against
      errors. If you use it in the cgroup file system, you won't be
      able to tell whether a command succeeded or failed.
 

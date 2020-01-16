@@ -164,9 +164,9 @@ static int fpga_mgr_write_complete(struct fpga_manager *mgr,
  * an FPGA ready to be configured, writing the image to it, then doing whatever
  * post-configuration steps necessary.  This code assumes the caller got the
  * mgr pointer from of_fpga_mgr_get() or fpga_mgr_get() and checked that it is
- * not an error code.
+ * yest an error code.
  *
- * This is the preferred entry point for FPGA programming, it does not require
+ * This is the preferred entry point for FPGA programming, it does yest require
  * any contiguous kernel memory.
  *
  * Return: 0 on success, negative error code otherwise.
@@ -240,7 +240,7 @@ static int fpga_mgr_buf_load_mapped(struct fpga_manager *mgr,
  * Step the low level fpga manager through the device-specific steps of getting
  * an FPGA ready to be configured, writing the image to it, then doing whatever
  * post-configuration steps necessary.  This code assumes the caller got the
- * mgr pointer from of_fpga_mgr_get() and checked that it is not an error code.
+ * mgr pointer from of_fpga_mgr_get() and checked that it is yest an error code.
  *
  * Return: 0 on success, negative error code otherwise.
  */
@@ -257,7 +257,7 @@ static int fpga_mgr_buf_load(struct fpga_manager *mgr,
 
 	/*
 	 * This is just a fast path if the caller has already created a
-	 * contiguous kernel buffer and the driver doesn't require SG, non-SG
+	 * contiguous kernel buffer and the driver doesn't require SG, yesn-SG
 	 * drivers will still work on the slow path.
 	 */
 	if (mgr->mops->write)
@@ -311,7 +311,7 @@ static int fpga_mgr_buf_load(struct fpga_manager *mgr,
  * Request an FPGA image using the firmware class, then write out to the FPGA.
  * Update the state before each step to provide info on what step failed if
  * there is a failure.  This code assumes the caller got the mgr pointer
- * from of_fpga_mgr_get() or fpga_mgr_get() and checked that it is not an error
+ * from of_fpga_mgr_get() or fpga_mgr_get() and checked that it is yest an error
  * code.
  *
  * Return: 0 on success, negative error code otherwise.
@@ -365,7 +365,7 @@ int fpga_mgr_load(struct fpga_manager *mgr, struct fpga_image_info *info)
 EXPORT_SYMBOL_GPL(fpga_mgr_load);
 
 static const char * const state_str[] = {
-	[FPGA_MGR_STATE_UNKNOWN] =		"unknown",
+	[FPGA_MGR_STATE_UNKNOWN] =		"unkyeswn",
 	[FPGA_MGR_STATE_POWER_OFF] =		"power off",
 	[FPGA_MGR_STATE_POWER_UP] =		"power up",
 	[FPGA_MGR_STATE_RESET] =		"reset",
@@ -386,7 +386,7 @@ static const char * const state_str[] = {
 	[FPGA_MGR_STATE_WRITE_COMPLETE] =	"write complete",
 	[FPGA_MGR_STATE_WRITE_COMPLETE_ERR] =	"write complete error",
 
-	/* FPGA reports to be in normal operating mode */
+	/* FPGA reports to be in yesrmal operating mode */
 	[FPGA_MGR_STATE_OPERATING] =		"operating",
 };
 
@@ -483,17 +483,17 @@ struct fpga_manager *fpga_mgr_get(struct device *dev)
 EXPORT_SYMBOL_GPL(fpga_mgr_get);
 
 /**
- * of_fpga_mgr_get - Given a device node, get a reference to a fpga mgr.
+ * of_fpga_mgr_get - Given a device yesde, get a reference to a fpga mgr.
  *
- * @node:	device node
+ * @yesde:	device yesde
  *
  * Return: fpga manager struct or IS_ERR() condition containing error code.
  */
-struct fpga_manager *of_fpga_mgr_get(struct device_node *node)
+struct fpga_manager *of_fpga_mgr_get(struct device_yesde *yesde)
 {
 	struct device *dev;
 
-	dev = class_find_device_by_of_node(fpga_mgr_class, node);
+	dev = class_find_device_by_of_yesde(fpga_mgr_class, yesde);
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
@@ -572,7 +572,7 @@ struct fpga_manager *fpga_mgr_create(struct device *dev, const char *name,
 	}
 
 	if (!name || !strlen(name)) {
-		dev_err(dev, "Attempt to register with no name!\n");
+		dev_err(dev, "Attempt to register with yes name!\n");
 		return NULL;
 	}
 
@@ -596,7 +596,7 @@ struct fpga_manager *fpga_mgr_create(struct device *dev, const char *name,
 	mgr->dev.class = fpga_mgr_class;
 	mgr->dev.groups = mops->groups;
 	mgr->dev.parent = dev;
-	mgr->dev.of_node = dev->of_node;
+	mgr->dev.of_yesde = dev->of_yesde;
 	mgr->dev.id = id;
 
 	ret = dev_set_name(&mgr->dev, "fpga%d", id);

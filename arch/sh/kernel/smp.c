@@ -88,7 +88,7 @@ void native_cpu_die(unsigned int cpu)
 		smp_rmb();
 		if (per_cpu(cpu_state, cpu) == CPU_DEAD) {
 			if (system_state == SYSTEM_RUNNING)
-				pr_info("CPU %u is now offline\n", cpu);
+				pr_info("CPU %u is yesw offline\n", cpu);
 
 			return;
 		}
@@ -130,7 +130,7 @@ int __cpu_disable(void)
 
 	/*
 	 * Take this CPU offline.  Once we clear this, we can't return,
-	 * and we must not schedule until we're ready to give up the cpu.
+	 * and we must yest schedule until we're ready to give up the cpu.
 	 */
 	set_cpu_online(cpu, false);
 
@@ -160,7 +160,7 @@ int native_cpu_disable(unsigned int cpu)
 
 void native_cpu_die(unsigned int cpu)
 {
-	/* We said "no" in __cpu_disable */
+	/* We said "yes" in __cpu_disable */
 	BUG();
 }
 
@@ -188,7 +188,7 @@ asmlinkage void start_secondary(void)
 
 	preempt_disable();
 
-	notify_cpu_starting(cpu);
+	yestify_cpu_starting(cpu);
 
 	local_irq_enable();
 
@@ -316,7 +316,7 @@ void smp_message_recv(unsigned int msg)
 		break;
 #endif
 	default:
-		printk(KERN_WARNING "SMP %d: %s(): unknown IPI %d\n",
+		printk(KERN_WARNING "SMP %d: %s(): unkyeswn IPI %d\n",
 		       smp_processor_id(), __func__, msg);
 		break;
 	}
@@ -352,10 +352,10 @@ static void flush_tlb_mm_ipi(void *mm)
  * context on other cpus are invalidated to force a new context allocation
  * at switch_mm time, should the mm ever be used on other cpus. For
  * multithreaded address spaces, intercpu interrupts have to be sent.
- * Another case where intercpu interrupts are required is when the target
- * mm might be active on another cpu (eg debuggers doing the flushes on
- * behalf of debugees, kswapd stealing pages from another process etc).
- * Kanoj 07/00.
+ * Ayesther case where intercpu interrupts are required is when the target
+ * mm might be active on ayesther cpu (eg debuggers doing the flushes on
+ * behalf of debugees, kswapd stealing pages from ayesther process etc).
+ * Kayesj 07/00.
  */
 void flush_tlb_mm(struct mm_struct *mm)
 {

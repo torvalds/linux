@@ -102,12 +102,12 @@ END_FTR_SECTION(0, 1);						\
 #define HCALL_BRANCH(LABEL)
 #endif
 
-_GLOBAL_TOC(plpar_hcall_norets)
+_GLOBAL_TOC(plpar_hcall_yesrets)
 	HMT_MEDIUM
 
 	mfcr	r0
 	stw	r0,8(r1)
-	HCALL_BRANCH(plpar_hcall_norets_trace)
+	HCALL_BRANCH(plpar_hcall_yesrets_trace)
 	HVSC				/* invoke the hypervisor */
 
 	lwz	r0,8(r1)
@@ -115,7 +115,7 @@ _GLOBAL_TOC(plpar_hcall_norets)
 	blr				/* return r3 = status */
 
 #ifdef CONFIG_TRACEPOINTS
-plpar_hcall_norets_trace:
+plpar_hcall_yesrets_trace:
 	HCALL_INST_PRECALL(R4)
 	HVSC
 	HCALL_INST_POSTCALL_NORETS
@@ -187,8 +187,8 @@ plpar_hcall_trace:
 /*
  * plpar_hcall_raw can be called in real mode. kexec/kdump need some
  * hypervisor calls to be executed in real mode. So plpar_hcall_raw
- * does not access the per cpu hypervisor call statistics variables,
- * since these variables may not be present in the RMO region.
+ * does yest access the per cpu hypervisor call statistics variables,
+ * since these variables may yest be present in the RMO region.
  */
 _GLOBAL(plpar_hcall_raw)
 	HMT_MEDIUM

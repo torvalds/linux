@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config INOTIFY_USER
-	bool "Inotify support for userspace"
+	bool "Iyestify support for userspace"
 	select FSNOTIFY
 	default y
 	---help---
-	  Say Y here to enable inotify support for userspace, including the
-	  associated system calls.  Inotify allows monitoring of both files and
+	  Say Y here to enable iyestify support for userspace, including the
+	  associated system calls.  Iyestify allows monitoring of both files and
 	  directories via a single open fd.  Events are read from the file
 	  descriptor, which is also select()- and poll()-able.
-	  Inotify fixes numerous shortcomings in dnotify and introduces several
+	  Iyestify fixes numerous shortcomings in dyestify and introduces several
 	  new features including multiple file events, one-shot support, and
-	  unmount notification.
+	  unmount yestification.
 
-	  For more information, see <file:Documentation/filesystems/inotify.txt>
+	  For more information, see <file:Documentation/filesystems/iyestify.txt>
 
 	  If unsure, say Y.

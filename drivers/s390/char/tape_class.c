@@ -32,7 +32,7 @@ static struct class *tape_class;
  * drivername
  *	The pointer to the drivers name for it's character devices.
  * dev
- *	The intended major/minor number. The major number may be 0 to
+ *	The intended major/miyesr number. The major number may be 0 to
  *	get a dynamic major number.
  * fops
  *	The pointer to the drivers file operations for the tape device.

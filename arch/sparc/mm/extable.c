@@ -12,7 +12,7 @@ void sort_extable(struct exception_table_entry *start,
 {
 }
 
-/* Caller knows they are in a range if ret->fixup == 0 */
+/* Caller kyesws they are in a range if ret->fixup == 0 */
 const struct exception_table_entry *
 search_extable(const struct exception_table_entry *base,
 	       const size_t num,

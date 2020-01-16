@@ -78,8 +78,8 @@ static int fsl_spi_get_type(struct device *dev)
 {
 	const struct of_device_id *match;
 
-	if (dev->of_node) {
-		match = of_match_node(of_fsl_spi_match, dev->of_node);
+	if (dev->of_yesde) {
+		match = of_match_yesde(of_fsl_spi_match, dev->of_yesde);
 		if (match && match->data)
 			return ((struct fsl_spi_match_data *)match->data)->type;
 	}
@@ -211,7 +211,7 @@ static int mspi_apply_qe_mode_quirks(struct spi_mpc8xxx_cs *cs,
 	/* QE uses Little Endian for words > 8
 	 * so transform all words > 8 into 8 bits
 	 * Unfortnatly that doesn't work for LSB so
-	 * reject these for now */
+	 * reject these for yesw */
 	/* Note: 32 bits word, LSB works iff
 	 * tfcr/rfcr is set to CPMFCR_GBL */
 	if (spi->mode & SPI_LSB_FIRST &&
@@ -388,7 +388,7 @@ static int fsl_spi_do_one_msg(struct spi_master *master,
 		cs_change = t->cs_change;
 		if (first->speed_hz != t->speed_hz) {
 			dev_err(&spi->dev,
-				"speed_hz cannot change while CS is active\n");
+				"speed_hz canyest change while CS is active\n");
 			return -EINVAL;
 		}
 	}
@@ -703,7 +703,7 @@ static void fsl_spi_cs_control(struct spi_device *spi, bool on)
 static int of_fsl_spi_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct spi_master *master;
 	struct resource mem;
 	int irq = 0, type;
@@ -787,7 +787,7 @@ static struct platform_driver of_fsl_spi_driver = {
  * XXX XXX XXX
  * This is "legacy" platform driver, was used by the MPC8323E-RDB boards
  * only. The driver should go away soon, since newer MPC8323E-RDB's device
- * tree can work with OpenFirmware driver. But for now we support old trees
+ * tree can work with OpenFirmware driver. But for yesw we support old trees
  * as well.
  */
 static int plat_mpc8xxx_spi_probe(struct platform_device *pdev)

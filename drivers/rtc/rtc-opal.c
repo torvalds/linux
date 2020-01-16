@@ -148,7 +148,7 @@ static int opal_get_tpo_time(struct device *dev, struct rtc_wkalrm *alarm)
 	y_m_d = be32_to_cpu(__y_m_d);
 	h_m_s_ms = ((u64)be32_to_cpu(__h_m) << 32);
 
-	/* check if no alarm is set */
+	/* check if yes alarm is set */
 	if (y_m_d == 0 && h_m_s_ms == 0) {
 		pr_debug("No alarm is set\n");
 		rc = -ENOENT;
@@ -218,7 +218,7 @@ static int opal_tpo_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	/*
 	 * TPO is automatically enabled when opal_set_tpo_time() is called with
-	 * non-zero rtc-time. We only handle disable case which needs to be
+	 * yesn-zero rtc-time. We only handle disable case which needs to be
 	 * explicitly told to opal.
 	 */
 	return enabled ? 0 : opal_set_tpo_time(dev, &alarm);
@@ -233,9 +233,9 @@ static int opal_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 
-	if (pdev->dev.of_node &&
-	    (of_property_read_bool(pdev->dev.of_node, "wakeup-source") ||
-	     of_property_read_bool(pdev->dev.of_node, "has-tpo")/* legacy */)) {
+	if (pdev->dev.of_yesde &&
+	    (of_property_read_bool(pdev->dev.of_yesde, "wakeup-source") ||
+	     of_property_read_bool(pdev->dev.of_yesde, "has-tpo")/* legacy */)) {
 		device_set_wakeup_capable(&pdev->dev, true);
 		opal_rtc_ops.read_alarm	= opal_get_tpo_time;
 		opal_rtc_ops.set_alarm = opal_set_tpo_time;

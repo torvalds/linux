@@ -88,9 +88,9 @@ u8 vp7045_read_reg(struct dvb_usb_device *d, u8 reg)
 	return v;
 }
 
-static int vp7045_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int vp7045_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
-	u8 v = onoff;
+	u8 v = oyesff;
 	return vp7045_usb_op(d,SET_TUNER_POWER,&v,1,NULL,0,150);
 }
 
@@ -104,7 +104,7 @@ static int vp7045_rc_query(struct dvb_usb_device *d)
 	if (key != 0x44) {
 		/*
 		 * The 8 bit address isn't available, but since the remote uses
-		 * address 0 we'll use that. nec repeats are ignored too, even
+		 * address 0 we'll use that. nec repeats are igyesred too, even
 		 * though the remote sends them.
 		 */
 		rc_keydown(d->rc_dev, RC_PROTO_NEC, RC_SCANCODE_NEC(0, key), 0);

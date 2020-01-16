@@ -45,7 +45,7 @@ struct rpmsg_channel_info {
  * @src: local address
  * @dst: destination address
  * @ept: the rpmsg endpoint of this channel
- * @announce: if set, rpmsg will announce the creation/removal of this channel
+ * @anyesunce: if set, rpmsg will anyesunce the creation/removal of this channel
  */
 struct rpmsg_device {
 	struct device dev;
@@ -54,7 +54,7 @@ struct rpmsg_device {
 	u32 src;
 	u32 dst;
 	struct rpmsg_endpoint *ept;
-	bool announce;
+	bool anyesunce;
 
 	const struct rpmsg_device_ops *ops;
 };
@@ -252,7 +252,7 @@ static inline __poll_t rpmsg_poll(struct rpmsg_endpoint *ept,
  * module_rpmsg_driver() - Helper macro for registering an rpmsg driver
  * @__rpmsg_driver: rpmsg_driver struct
  *
- * Helper macro for rpmsg drivers which do not do anything special in module
+ * Helper macro for rpmsg drivers which do yest do anything special in module
  * init/exit. This eliminates a lot of boilerplate.  Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */

@@ -10,8 +10,8 @@ struct drm_i915_private;
 
 /*
  * Sorted by south display engine compatibility.
- * If the new PCH comes with a south display engine that is not
- * inherited from the latest item, please do not add it to the
+ * If the new PCH comes with a south display engine that is yest
+ * inherited from the latest item, please do yest add it to the
  * end. Instead, add it right after its "parent" PCH.
  */
 enum intel_pch {
@@ -21,7 +21,7 @@ enum intel_pch {
 	PCH_CPT,	/* Cougarpoint/Pantherpoint PCH */
 	PCH_LPT,	/* Lynxpoint/Wildcatpoint PCH */
 	PCH_SPT,        /* Sunrisepoint/Kaby Lake PCH */
-	PCH_CNP,        /* Cannon/Comet Lake PCH */
+	PCH_CNP,        /* Canyesn/Comet Lake PCH */
 	PCH_ICP,	/* Ice Lake PCH */
 	PCH_JSP,	/* Jasper Lake PCH */
 	PCH_MCC,        /* Mule Creek Canyon PCH */

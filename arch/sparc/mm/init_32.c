@@ -12,7 +12,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -266,7 +266,7 @@ void __init mem_init(void)
 		memblock_alloc(i << 2, SMP_CACHE_BYTES);
 
 	if (sparc_valid_addr_bitmap == NULL) {
-		prom_printf("mem_init: Cannot alloc valid_addr_bitmap.\n");
+		prom_printf("mem_init: Canyest alloc valid_addr_bitmap.\n");
 		prom_halt();
 	}
 	memset(sparc_valid_addr_bitmap, 0, i << 2);

@@ -5,7 +5,7 @@ Required properties :
  - reg : Offset and length of the register set for the device
  - compatible : should be "mrvl,mmp-twsi" where mmp is the name of a
    compatible processor, e.g. pxa168, pxa910, mmp2, mmp3.
-   For the pxa2xx/pxa3xx, an additional node "mrvl,pxa-i2c" is required
+   For the pxa2xx/pxa3xx, an additional yesde "mrvl,pxa-i2c" is required
    as shown in the example below.
    For the Armada 3700, the compatible should be "marvell,armada-3700-i2c".
 

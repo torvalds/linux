@@ -25,7 +25,7 @@ process_entry:
 	PTR_ADDIU	s0, s0, SZREG
 
 	/*
-	 * In case of a kdump/crash kernel, the indirection page is not
+	 * In case of a kdump/crash kernel, the indirection page is yest
 	 * populated as the kernel is directly copied to a reserved location
 	 */
 	beqz		s2, done
@@ -86,7 +86,7 @@ done:
 	 * Unfortunately, this code is cpu-specific.
 	 */
 	.set push
-	.set noreorder
+	.set yesreorder
 	syncw
 	syncw
 	synci		0($0)
@@ -111,7 +111,7 @@ LEAF(kexec_smp_wait)
 	PTR_L		s1, kexec_start_address
 
 	/* Non-relocated address works for args and kexec_start_address ( old
-	 * kernel is not overwritten). But we need relocated address of
+	 * kernel is yest overwritten). But we need relocated address of
 	 * kexec_flag.
 	 */
 
@@ -127,7 +127,7 @@ LEAF(kexec_smp_wait)
 
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	.set push
-	.set noreorder
+	.set yesreorder
 	synci		0($0)
 	.set pop
 #else

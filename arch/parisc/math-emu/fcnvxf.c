@@ -69,9 +69,9 @@ sgl_to_sgl_fcnvxf(
         	} 
 	}
 	/*
-	 * Generate exponent and normalized mantissa
+	 * Generate exponent and yesrmalized mantissa
 	 */
-	dst_exponent = 16;    /* initialize for normalization */
+	dst_exponent = 16;    /* initialize for yesrmalization */
 	/*
 	 * Check word for most significant bit set.  Returns
 	 * a value in dst_exponent indicating the bit position,
@@ -140,9 +140,9 @@ sgl_to_dbl_fcnvxf(
         	}
 	}
 	/*
-	 * Generate exponent and normalized mantissa
+	 * Generate exponent and yesrmalized mantissa
 	 */
-	dst_exponent = 16;    /* initialize for normalization */
+	dst_exponent = 16;    /* initialize for yesrmalization */
 	/*
 	 * Check word for most significant bit set.  Returns
 	 * a value in dst_exponent indicating the bit position,
@@ -191,9 +191,9 @@ dbl_to_sgl_fcnvxf(
 		}
         }
 	/*
-	 * Generate exponent and normalized mantissa
+	 * Generate exponent and yesrmalized mantissa
 	 */
-	dst_exponent = 16;    /* initialize for normalization */
+	dst_exponent = 16;    /* initialize for yesrmalization */
 	if (srcp1 == 0) {
 		/*
 		 * Check word for most significant bit set.  Returns
@@ -296,9 +296,9 @@ dbl_to_dbl_fcnvxf(
 		}
         }
 	/*
-	 * Generate exponent and normalized mantissa
+	 * Generate exponent and yesrmalized mantissa
 	 */
-	dst_exponent = 16;    /* initialize for normalization */
+	dst_exponent = 16;    /* initialize for yesrmalization */
 	if (srcp1 == 0) {
 		/*
 		 * Check word for most significant bit set.  Returns

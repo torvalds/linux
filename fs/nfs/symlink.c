@@ -12,7 +12,7 @@
  */
 
 #include <linux/time.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/nfs.h>
 #include <linux/nfs2.h>
@@ -28,10 +28,10 @@
 
 static int nfs_symlink_filler(void *data, struct page *page)
 {
-	struct inode *inode = data;
+	struct iyesde *iyesde = data;
 	int error;
 
-	error = NFS_PROTO(inode)->readlink(inode, page, 0, PAGE_SIZE);
+	error = NFS_PROTO(iyesde)->readlink(iyesde, page, 0, PAGE_SIZE);
 	if (error < 0)
 		goto error;
 	SetPageUptodate(page);
@@ -45,17 +45,17 @@ error:
 }
 
 static const char *nfs_get_link(struct dentry *dentry,
-				struct inode *inode,
+				struct iyesde *iyesde,
 				struct delayed_call *done)
 {
 	struct page *page;
 	void *err;
 
 	if (!dentry) {
-		err = ERR_PTR(nfs_revalidate_mapping_rcu(inode));
+		err = ERR_PTR(nfs_revalidate_mapping_rcu(iyesde));
 		if (err)
 			return err;
-		page = find_get_page(inode->i_mapping, 0);
+		page = find_get_page(iyesde->i_mapping, 0);
 		if (!page)
 			return ERR_PTR(-ECHILD);
 		if (!PageUptodate(page)) {
@@ -63,11 +63,11 @@ static const char *nfs_get_link(struct dentry *dentry,
 			return ERR_PTR(-ECHILD);
 		}
 	} else {
-		err = ERR_PTR(nfs_revalidate_mapping(inode, inode->i_mapping));
+		err = ERR_PTR(nfs_revalidate_mapping(iyesde, iyesde->i_mapping));
 		if (err)
 			return err;
-		page = read_cache_page(&inode->i_data, 0, nfs_symlink_filler,
-				inode);
+		page = read_cache_page(&iyesde->i_data, 0, nfs_symlink_filler,
+				iyesde);
 		if (IS_ERR(page))
 			return ERR_CAST(page);
 	}
@@ -78,7 +78,7 @@ static const char *nfs_get_link(struct dentry *dentry,
 /*
  * symlinks can't do much...
  */
-const struct inode_operations nfs_symlink_inode_operations = {
+const struct iyesde_operations nfs_symlink_iyesde_operations = {
 	.get_link	= nfs_get_link,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,

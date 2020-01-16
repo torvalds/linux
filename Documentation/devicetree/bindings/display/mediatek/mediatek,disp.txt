@@ -7,7 +7,7 @@ and input selectors in the MMSYS_CONFIG register space. Pixel clock and start
 of frame signal are distributed to the other function blocks by a DISP_MUTEX
 function block.
 
-All DISP device tree nodes must be siblings to the central MMSYS_CONFIG node.
+All DISP device tree yesdes must be siblings to the central MMSYS_CONFIG yesde.
 For a description of the MMSYS_CONFIG binding, see
 Documentation/devicetree/bindings/arm/mediatek/mediatek,mmsys.txt.
 
@@ -50,9 +50,9 @@ Required properties (all function blocks):
 - clocks: device clocks
   See Documentation/devicetree/bindings/clock/clock-bindings.txt for details.
   For most function blocks this is just a single clock input. Only the DSI and
-  DPI controller nodes have multiple clock inputs. These are documented in
+  DPI controller yesdes have multiple clock inputs. These are documented in
   mediatek,dsi.txt and mediatek,dpi.txt, respectively.
-  An exception is that the mt8183 mutex is always free running with no clocks property.
+  An exception is that the mt8183 mutex is always free running with yes clocks property.
 
 Required properties (DMA function blocks):
 - compatible: Should be one of

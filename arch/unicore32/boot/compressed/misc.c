@@ -20,7 +20,7 @@ unsigned int free_mem_ptr;
 unsigned int free_mem_end_ptr;
 
 #define STATIC static
-#define STATIC_RW_DATA	/* non-static please */
+#define STATIC_RW_DATA	/* yesn-static please */
 
 /*
  * arch-dependent implementations

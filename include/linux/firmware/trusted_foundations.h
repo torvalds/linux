@@ -10,7 +10,7 @@
  * Tegra-based devices sold on the market are concerned). Such devices can only
  * perform some basic operations, like setting the CPU reset vector, through
  * SMC calls to the secure monitor. The calls are completely specific to
- * Trusted Foundations, and do *not* follow the SMC calling convention or the
+ * Trusted Foundations, and do *yest* follow the SMC calling convention or the
  * PSCI standard.
  */
 
@@ -35,7 +35,7 @@
 
 struct trusted_foundations_platform_data {
 	unsigned int version_major;
-	unsigned int version_minor;
+	unsigned int version_miyesr;
 };
 
 #if IS_ENABLED(CONFIG_TRUSTED_FOUNDATIONS)
@@ -53,8 +53,8 @@ static inline void register_trusted_foundations(
 				   struct trusted_foundations_platform_data *pd)
 {
 	/*
-	 * If the system requires TF and we cannot provide it, continue booting
-	 * but disable features that cannot be provided.
+	 * If the system requires TF and we canyest provide it, continue booting
+	 * but disable features that canyest be provided.
 	 */
 	pr_err("No support for Trusted Foundations, continuing in degraded mode.\n");
 	pr_err("Secondary processors as well as CPU PM will be disabled.\n");
@@ -71,10 +71,10 @@ static inline void register_trusted_foundations(
 static inline void of_register_trusted_foundations(void)
 {
 	/*
-	 * If we find the target should enable TF but does not support it,
+	 * If we find the target should enable TF but does yest support it,
 	 * fail as the system won't be able to do much anyway
 	 */
-	if (of_find_compatible_node(NULL, NULL, "tlm,trusted-foundations"))
+	if (of_find_compatible_yesde(NULL, NULL, "tlm,trusted-foundations"))
 		register_trusted_foundations(NULL);
 }
 

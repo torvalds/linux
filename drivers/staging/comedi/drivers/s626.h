@@ -112,7 +112,7 @@
 						 */
 #define S626_RPS_SIG2		0x00800000	/*
 						 * RPS semaphore 2
-						 * (not used).
+						 * (yest used).
 						 */
 #define S626_RPS_GPIO2		0x00080000	/* RPS GPIO2 */
 #define S626_RPS_GPIO3		0x00100000	/* RPS GPIO3 */
@@ -193,7 +193,7 @@
 /* Master Control Register 2 (MC2) constants. */
 #define S626_MC2_UPLD_DEBI	0x0002	/* Upload DEBI. */
 #define S626_MC2_UPLD_IIC	0x0001	/* Upload I2C. */
-#define S626_MC2_RPSSIG2	0x2000	/* RPS signal 2 (not used). */
+#define S626_MC2_RPSSIG2	0x2000	/* RPS signal 2 (yest used). */
 #define S626_MC2_RPSSIG1	0x1000	/* RPS signal 1 (DAC RPS busy). */
 #define S626_MC2_RPSSIG0	0x0800	/* RPS signal 0 (ADC RPS busy). */
 

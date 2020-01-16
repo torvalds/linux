@@ -1,4 +1,4 @@
-* Qualcomm Technologies Inc. SDM845 ASoC sound card driver
+* Qualcomm Techyeslogies Inc. SDM845 ASoC sound card driver
 
 This binding describes the SDM845 sound card, which uses qdsp for audio.
 
@@ -22,7 +22,7 @@ This binding describes the SDM845 sound card, which uses qdsp for audio.
 	Definition: The user-visible name of this sound card.
 
 = dailinks
-Each subnode of sndcard represents either a dailink, and subnodes of each
+Each subyesde of sndcard represents either a dailink, and subyesdes of each
 dailinks would be cpu/codec/platform dais.
 
 - link-name:
@@ -30,26 +30,26 @@ dailinks would be cpu/codec/platform dais.
 	Value type: <string>
 	Definition: User friendly name for dai link
 
-= CPU, PLATFORM, CODEC dais subnodes
+= CPU, PLATFORM, CODEC dais subyesdes
 - cpu:
 	Usage: required
-	Value type: <subnode>
-	Definition: cpu dai sub-node
+	Value type: <subyesde>
+	Definition: cpu dai sub-yesde
 
 - codec:
 	Usage: required
-	Value type: <subnode>
-	Definition: codec dai sub-node
+	Value type: <subyesde>
+	Definition: codec dai sub-yesde
 
 - platform:
 	Usage: Optional
-	Value type: <subnode>
-	Definition: platform dai sub-node
+	Value type: <subyesde>
+	Definition: platform dai sub-yesde
 
 - sound-dai:
 	Usage: required
 	Value type: <phandle>
-	Definition: dai phandle/s and port of CPU/CODEC/PLATFORM node.
+	Definition: dai phandle/s and port of CPU/CODEC/PLATFORM yesde.
 
 Example:
 

@@ -26,8 +26,8 @@ Optional properties:
 - fixed-link : Assume a fixed link. See fixed-link.txt in the same directory.
   Use instead of phy-handle.
 
-Optional subnodes:
-- mdio : specifies the mdio bus, used as a container for phy nodes
+Optional subyesdes:
+- mdio : specifies the mdio bus, used as a container for phy yesdes
   according to phy.txt in the same directory
 
 Example:

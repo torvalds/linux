@@ -33,7 +33,7 @@
 #define H_CONTROL_CA_FUNCTION_TERMINATE_PROCESS       8 /* terminate the process before completion */
 #define H_CONTROL_CA_FUNCTION_COLLECT_VPD             9 /* collect VPD */
 #define H_CONTROL_CA_FUNCTION_GET_FUNCTION_ERR_INT   11 /* read the function-wide error data based on an interrupt */
-#define H_CONTROL_CA_FUNCTION_ACK_FUNCTION_ERR_INT   12 /* acknowledge function-wide error data based on an interrupt */
+#define H_CONTROL_CA_FUNCTION_ACK_FUNCTION_ERR_INT   12 /* ackyeswledge function-wide error data based on an interrupt */
 #define H_CONTROL_CA_FUNCTION_GET_ERROR_LOG          13 /* retrieve the Platform Log ID (PLID) of an error log */
 
 #define H_CONTROL_CA_FAULTS_RESPOND_PSL         1
@@ -153,12 +153,12 @@ long cxl_h_attach_process(u64 unit_address,
 			*mmio_size = retbuf[2];
 		return 0;
 	case H_PARAMETER:     /* An incorrect parameter was supplied. */
-	case H_FUNCTION:      /* The function is not supported. */
+	case H_FUNCTION:      /* The function is yest supported. */
 		return -EINVAL;
-	case H_AUTHORITY:     /* The partition does not have authority to perform this hcall */
-	case H_RESOURCE:      /* The coherent platform function does not have enough additional resource to attach the process */
+	case H_AUTHORITY:     /* The partition does yest have authority to perform this hcall */
+	case H_RESOURCE:      /* The coherent platform function does yest have eyesugh additional resource to attach the process */
 	case H_HARDWARE:      /* A hardware event prevented the attach operation */
-	case H_STATE:         /* The coherent platform function is not in a valid state */
+	case H_STATE:         /* The coherent platform function is yest in a valid state */
 	case H_BUSY:
 		return -EBUSY;
 	default:
@@ -185,10 +185,10 @@ long cxl_h_detach_process(u64 unit_address, u64 process_token)
 		return 0;
 	case H_PARAMETER:     /* An incorrect parameter was supplied. */
 		return -EINVAL;
-	case H_AUTHORITY:     /* The partition does not have authority to perform this hcall */
+	case H_AUTHORITY:     /* The partition does yest have authority to perform this hcall */
 	case H_RESOURCE:      /* The function has page table mappings for MMIO */
 	case H_HARDWARE:      /* A hardware event prevented the detach operation */
-	case H_STATE:         /* The coherent platform function is not in a valid state */
+	case H_STATE:         /* The coherent platform function is yest in a valid state */
 	case H_BUSY:
 		return -EBUSY;
 	default:
@@ -221,15 +221,15 @@ static long cxl_h_control_function(u64 unit_address, u64 op,
 			*out = retbuf[0];
 		return 0;
 	case H_PARAMETER:     /* An incorrect parameter was supplied. */
-	case H_FUNCTION:      /* The function is not supported. */
-	case H_NOT_FOUND:     /* The operation supplied was not valid */
-	case H_NOT_AVAILABLE: /* The operation cannot be performed because the AFU has not been downloaded */
+	case H_FUNCTION:      /* The function is yest supported. */
+	case H_NOT_FOUND:     /* The operation supplied was yest valid */
+	case H_NOT_AVAILABLE: /* The operation canyest be performed because the AFU has yest been downloaded */
 	case H_SG_LIST:       /* An block list entry was invalid */
 		return -EINVAL;
-	case H_AUTHORITY:     /* The partition does not have authority to perform this hcall */
+	case H_AUTHORITY:     /* The partition does yest have authority to perform this hcall */
 	case H_RESOURCE:      /* The function has page table mappings for MMIO */
 	case H_HARDWARE:      /* A hardware event prevented the attach operation */
-	case H_STATE:         /* The coherent platform function is not in a valid state */
+	case H_STATE:         /* The coherent platform function is yest in a valid state */
 	case H_BUSY:
 		return -EBUSY;
 	default:
@@ -366,7 +366,7 @@ long cxl_h_get_fn_error_interrupt(u64 unit_address, u64 *reg)
 }
 
 /**
- * cxl_h_ack_fn_error_interrupt - Acknowledge function-wide error data
+ * cxl_h_ack_fn_error_interrupt - Ackyeswledge function-wide error data
  *                                based on an interrupt
  * Parameter1 = value to write to the function-wide error interrupt register
  */
@@ -415,9 +415,9 @@ long cxl_h_collect_int_info(u64 unit_address, u64 process_token,
 		return 0;
 	case H_PARAMETER:   /* An incorrect parameter was supplied. */
 		return -EINVAL;
-	case H_AUTHORITY:   /* The partition does not have authority to perform this hcall. */
+	case H_AUTHORITY:   /* The partition does yest have authority to perform this hcall. */
 	case H_HARDWARE:    /* A hardware event prevented the collection of the interrupt info.*/
-	case H_STATE:       /* The coherent platform function is not in a valid state to collect interrupt info. */
+	case H_STATE:       /* The coherent platform function is yest in a valid state to collect interrupt info. */
 		return -EBUSY;
 	default:
 		WARN(1, "Unexpected return code: %lx", rc);
@@ -459,10 +459,10 @@ long cxl_h_control_faults(u64 unit_address, u64 process_token,
 		return -EINVAL;
 	case H_HARDWARE:   /* A hardware event prevented the control of faults. */
 	case H_STATE:      /* The function was in an invalid state. */
-	case H_AUTHORITY:  /* The partition does not have authority to perform this hcall; the coherent platform facilities may need to be licensed. */
+	case H_AUTHORITY:  /* The partition does yest have authority to perform this hcall; the coherent platform facilities may need to be licensed. */
 		return -EBUSY;
-	case H_FUNCTION:   /* The function is not supported */
-	case H_NOT_FOUND:  /* The operation supplied was not valid */
+	case H_FUNCTION:   /* The function is yest supported */
+	case H_NOT_FOUND:  /* The operation supplied was yest valid */
 		return -EINVAL;
 	default:
 		WARN(1, "Unexpected return code: %lx", rc);
@@ -492,15 +492,15 @@ static long cxl_h_control_facility(u64 unit_address, u64 op,
 			*out = retbuf[0];
 		return 0;
 	case H_PARAMETER:     /* An incorrect parameter was supplied. */
-	case H_FUNCTION:      /* The function is not supported. */
-	case H_NOT_FOUND:     /* The operation supplied was not valid */
-	case H_NOT_AVAILABLE: /* The operation cannot be performed because the AFU has not been downloaded */
+	case H_FUNCTION:      /* The function is yest supported. */
+	case H_NOT_FOUND:     /* The operation supplied was yest valid */
+	case H_NOT_AVAILABLE: /* The operation canyest be performed because the AFU has yest been downloaded */
 	case H_SG_LIST:       /* An block list entry was invalid */
 		return -EINVAL;
-	case H_AUTHORITY:     /* The partition does not have authority to perform this hcall */
+	case H_AUTHORITY:     /* The partition does yest have authority to perform this hcall */
 	case H_RESOURCE:      /* The function has page table mappings for MMIO */
 	case H_HARDWARE:      /* A hardware event prevented the attach operation */
-	case H_STATE:         /* The coherent platform facility is not in a valid state */
+	case H_STATE:         /* The coherent platform facility is yest in a valid state */
 	case H_BUSY:
 		return -EBUSY;
 	default:
@@ -597,14 +597,14 @@ static long cxl_h_download_facility(u64 unit_address, u64 op,
 	case H_SUCCESS:       /* The operation is completed for the coherent platform facility */
 		return 0;
 	case H_PARAMETER:     /* An incorrect parameter was supplied */
-	case H_FUNCTION:      /* The function is not supported. */
+	case H_FUNCTION:      /* The function is yest supported. */
 	case H_SG_LIST:       /* An block list entry was invalid */
 	case H_BAD_DATA:      /* Image verification failed */
 		return -EINVAL;
-	case H_AUTHORITY:     /* The partition does not have authority to perform this hcall */
+	case H_AUTHORITY:     /* The partition does yest have authority to perform this hcall */
 	case H_RESOURCE:      /* The function has page table mappings for MMIO */
 	case H_HARDWARE:      /* A hardware event prevented the attach operation */
-	case H_STATE:         /* The coherent platform facility is not in a valid state */
+	case H_STATE:         /* The coherent platform facility is yest in a valid state */
 	case H_BUSY:
 		return -EBUSY;
 	case H_CONTINUE:

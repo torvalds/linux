@@ -64,7 +64,7 @@ Measuring power-of-2 buffers
 ============================
 
 Calculation of the occupancy or the remaining capacity of an arbitrarily sized
-circular buffer would normally be a slow operation, requiring the use of a
+circular buffer would yesrmally be a slow operation, requiring the use of a
 modulus (divide) instruction.  However, if the buffer is of a power-of-2 size,
 then a much quicker bitwise-AND instruction can be used instead.
 
@@ -99,7 +99,7 @@ The macros are:
      This returns the number of items currently occupying a buffer[2].
 
 
- (#) Measure the non-wrapping occupancy of a buffer::
+ (#) Measure the yesn-wrapping occupancy of a buffer::
 
 	CIRC_CNT_TO_END(head_index, tail_index, buffer_size);
 
@@ -107,12 +107,12 @@ The macros are:
      the buffer without having to wrap back to the beginning of the buffer.
 
 
-Each of these macros will nominally return a value between 0 and buffer_size-1,
+Each of these macros will yesminally return a value between 0 and buffer_size-1,
 however:
 
  (1) CIRC_SPACE*() are intended to be used in the producer.  To the producer
      they will return a lower bound as the producer controls the head index,
-     but the consumer may still be depleting the buffer on another CPU and
+     but the consumer may still be depleting the buffer on ayesther CPU and
      moving the tail index.
 
      To the consumer it will show an upper bound as the producer may be busy
@@ -120,14 +120,14 @@ however:
 
  (2) CIRC_CNT*() are intended to be used in the consumer.  To the consumer they
      will return a lower bound as the consumer controls the tail index, but the
-     producer may still be filling the buffer on another CPU and moving the
+     producer may still be filling the buffer on ayesther CPU and moving the
      head index.
 
      To the producer it will show an upper bound as the consumer may be busy
      emptying the buffer.
 
  (3) To a third party, the order in which the writes to the indices by the
-     producer and consumer become visible cannot be guaranteed as they are
+     producer and consumer become visible canyest be guaranteed as they are
      independent and may be made on different CPUs - so the result in such a
      situation will merely be a guess, and may even be negative.
 
@@ -179,8 +179,8 @@ This will instruct the CPU that the contents of the new item must be written
 before the head index makes it available to the consumer and then instructs the
 CPU that the revised head index must be written before the consumer is woken.
 
-Note that wake_up() does not guarantee any sort of barrier unless something
-is actually awakened.  We therefore cannot rely on it for ordering.  However,
+Note that wake_up() does yest guarantee any sort of barrier unless something
+is actually awakened.  We therefore canyest rely on it for ordering.  However,
 there is always one element of the array left empty.  Therefore, the
 producer must produce two elements before it could possibly corrupt the
 element currently being read by the consumer.  Therefore, the unlock-lock

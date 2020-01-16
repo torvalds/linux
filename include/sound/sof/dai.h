@@ -29,9 +29,9 @@
 #define SOF_DAI_FMT_CONT	(1 << 4) /**< continuous clock */
 #define SOF_DAI_FMT_GATED	(0 << 4) /**< clock is gated */
 
-#define SOF_DAI_FMT_NB_NF	(0 << 8) /**< normal bit clock + frame */
-#define SOF_DAI_FMT_NB_IF	(2 << 8) /**< normal BCLK + inv FRM */
-#define SOF_DAI_FMT_IB_NF	(3 << 8) /**< invert BCLK + nor FRM */
+#define SOF_DAI_FMT_NB_NF	(0 << 8) /**< yesrmal bit clock + frame */
+#define SOF_DAI_FMT_NB_IF	(2 << 8) /**< yesrmal BCLK + inv FRM */
+#define SOF_DAI_FMT_IB_NF	(3 << 8) /**< invert BCLK + yesr FRM */
 #define SOF_DAI_FMT_IB_IF	(4 << 8) /**< invert BCLK + FRM */
 
 #define SOF_DAI_FMT_CBM_CFM	(0 << 12) /**< codec clk & FRM master */

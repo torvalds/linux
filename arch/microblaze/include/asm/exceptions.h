@@ -28,14 +28,14 @@
 #if CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR
 #define __enable_hw_exceptions()					\
 	__asm__ __volatile__ ("	msrset	r0, %0;				\
-				nop;"					\
+				yesp;"					\
 				:					\
 				: "i" (HWEX_MSR_BIT)			\
 				: "memory")
 
 #define __disable_hw_exceptions()					\
 	__asm__ __volatile__ ("	msrclr r0, %0;				\
-				nop;"					\
+				yesp;"					\
 				:					\
 				: "i" (HWEX_MSR_BIT)			\
 				: "memory")
@@ -43,10 +43,10 @@
 #define __enable_hw_exceptions()					\
 	__asm__ __volatile__ ("						\
 				mfs	r12, rmsr;			\
-				nop;					\
+				yesp;					\
 				ori	r12, r12, %0;			\
 				mts	rmsr, r12;			\
-				nop;"					\
+				yesp;"					\
 				:					\
 				: "i" (HWEX_MSR_BIT)			\
 				: "memory", "r12")
@@ -54,10 +54,10 @@
 #define __disable_hw_exceptions()					\
 	__asm__ __volatile__ ("						\
 				mfs	r12, rmsr;			\
-				nop;					\
+				yesp;					\
 				andi	r12, r12, ~%0;			\
 				mts	rmsr, r12;			\
-				nop;"					\
+				yesp;"					\
 				:					\
 				: "i" (HWEX_MSR_BIT)			\
 				: "memory", "r12")

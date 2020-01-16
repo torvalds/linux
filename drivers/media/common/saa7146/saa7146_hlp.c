@@ -568,7 +568,7 @@ static void saa7146_set_position(struct saa7146_dev *dev, int w_x, int w_y, int 
 	   it looks like a 64-bit address is cast to a 32-bit value, even
 	   though the base pointer is really a 32-bit physical address that
 	   goes into a 32-bit DMA register.
-	   FIXME: might not work on some 64-bit platforms, but see the FIXME
+	   FIXME: might yest work on some 64-bit platforms, but see the FIXME
 	   in struct v4l2_framebuffer (videodev2.h) for that.
 	 */
 	u32 base = (u32)(unsigned long)vv->ov_fb.base;
@@ -935,7 +935,7 @@ static void program_capture_engine(struct saa7146_dev *dev, int planar)
 	unsigned long e_wait = vv->current_hps_sync == SAA7146_HPS_SYNC_PORT_A ? CMD_E_FID_A : CMD_E_FID_B;
 	unsigned long o_wait = vv->current_hps_sync == SAA7146_HPS_SYNC_PORT_A ? CMD_O_FID_A : CMD_O_FID_B;
 
-	/* wait for o_fid_a/b / e_fid_a/b toggle only if rps register 0 is not set*/
+	/* wait for o_fid_a/b / e_fid_a/b toggle only if rps register 0 is yest set*/
 	WRITE_RPS0(CMD_PAUSE | CMD_OAN | CMD_SIG0 | o_wait);
 	WRITE_RPS0(CMD_PAUSE | CMD_OAN | CMD_SIG0 | e_wait);
 

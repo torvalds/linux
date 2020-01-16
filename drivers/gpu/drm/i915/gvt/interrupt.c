@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -56,7 +56,7 @@ static const char * const irq_name[INTEL_GVT_EVENT_MAX] = {
 	[RCS_DEBUG] = "Render EU debug from SVG",
 	[RCS_MMIO_SYNC_FLUSH] = "Render MMIO sync flush status",
 	[RCS_CMD_STREAMER_ERR] = "Render CS error interrupt",
-	[RCS_PIPE_CONTROL] = "Render PIPE CONTROL notify",
+	[RCS_PIPE_CONTROL] = "Render PIPE CONTROL yestify",
 	[RCS_WATCHDOG_EXCEEDED] = "Render CS Watchdog counter exceeded",
 	[RCS_PAGE_DIRECTORY_FAULT] = "Render page directory faults",
 	[RCS_AS_CONTEXT_SWITCH] = "Render AS Context Switch Interrupt",
@@ -64,22 +64,22 @@ static const char * const irq_name[INTEL_GVT_EVENT_MAX] = {
 	[VCS_MI_USER_INTERRUPT] = "Video CS MI USER INTERRUPT",
 	[VCS_MMIO_SYNC_FLUSH] = "Video MMIO sync flush status",
 	[VCS_CMD_STREAMER_ERR] = "Video CS error interrupt",
-	[VCS_MI_FLUSH_DW] = "Video MI FLUSH DW notify",
+	[VCS_MI_FLUSH_DW] = "Video MI FLUSH DW yestify",
 	[VCS_WATCHDOG_EXCEEDED] = "Video CS Watchdog counter exceeded",
 	[VCS_PAGE_DIRECTORY_FAULT] = "Video page directory faults",
 	[VCS_AS_CONTEXT_SWITCH] = "Video AS Context Switch Interrupt",
 	[VCS2_MI_USER_INTERRUPT] = "VCS2 Video CS MI USER INTERRUPT",
-	[VCS2_MI_FLUSH_DW] = "VCS2 Video MI FLUSH DW notify",
+	[VCS2_MI_FLUSH_DW] = "VCS2 Video MI FLUSH DW yestify",
 	[VCS2_AS_CONTEXT_SWITCH] = "VCS2 Context Switch Interrupt",
 
 	[BCS_MI_USER_INTERRUPT] = "Blitter CS MI USER INTERRUPT",
 	[BCS_MMIO_SYNC_FLUSH] = "Billter MMIO sync flush status",
 	[BCS_CMD_STREAMER_ERR] = "Blitter CS error interrupt",
-	[BCS_MI_FLUSH_DW] = "Blitter MI FLUSH DW notify",
+	[BCS_MI_FLUSH_DW] = "Blitter MI FLUSH DW yestify",
 	[BCS_PAGE_DIRECTORY_FAULT] = "Blitter page directory faults",
 	[BCS_AS_CONTEXT_SWITCH] = "Blitter AS Context Switch Interrupt",
 
-	[VECS_MI_FLUSH_DW] = "Video Enhanced Streamer MI FLUSH DW notify",
+	[VECS_MI_FLUSH_DW] = "Video Enhanced Streamer MI FLUSH DW yestify",
 	[VECS_AS_CONTEXT_SWITCH] = "VECS Context Switch Interrupt",
 
 	[PIPE_A_FIFO_UNDERRUN] = "Pipe A FIFO underrun",

@@ -4,13 +4,13 @@
  *
  * Author: Will Deacon <will.deacon@arm.com>
  *
- * This supplies .note.* sections to go into the PT_NOTE inside the vDSO text.
+ * This supplies .yeste.* sections to go into the PT_NOTE inside the vDSO text.
  * Here we can supply some information useful to userland.
  */
 
 #include <linux/uts.h>
 #include <linux/version.h>
-#include <linux/elfnote.h>
+#include <linux/elfyeste.h>
 #include <linux/build-salt.h>
 
 ELFNOTE_START(Linux, 0, "a")

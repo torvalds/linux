@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -170,12 +170,12 @@ static ssize_t ttm_pool_store(struct kobject *kobj,
 		m->options.small = val;
 	else if (attr == &ttm_page_pool_alloc_size) {
 		if (val > NUM_PAGES_TO_ALLOC*8) {
-			pr_err("Setting allocation size to %lu is not allowed. Recommended size is %lu\n",
+			pr_err("Setting allocation size to %lu is yest allowed. Recommended size is %lu\n",
 			       NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 7),
 			       NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 10));
 			return size;
 		} else if (val > NUM_PAGES_TO_ALLOC) {
-			pr_warn("Setting allocation size to larger than %lu is not recommended\n",
+			pr_warn("Setting allocation size to larger than %lu is yest recommended\n",
 				NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 10));
 		}
 		m->options.alloc_size = val;
@@ -565,7 +565,7 @@ out:
 }
 
 /**
- * Fill the given pool if there aren't enough pages and the requested number of
+ * Fill the given pool if there aren't eyesugh pages and the requested number of
  * pages is small.
  */
 static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool, int ttm_flags,
@@ -577,7 +577,7 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool, int ttm_flags,
 	unsigned cpages = 0;
 	/**
 	 * Only allow one pool fill operation at a time.
-	 * If pool doesn't have enough pages for the allocation new pages are
+	 * If pool doesn't have eyesugh pages for the allocation new pages are
 	 * allocated from outside of pool.
 	 */
 	if (pool->fill_lock)
@@ -585,7 +585,7 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool, int ttm_flags,
 
 	pool->fill_lock = true;
 
-	/* If allocation request is small and there are not enough
+	/* If allocation request is small and there are yest eyesugh
 	 * pages in a pool we fill the pool up first. */
 	if (count < _manager->options.small
 		&& count > pool->npages) {
@@ -683,7 +683,7 @@ out:
 		}
 	}
 
-	/* If pool didn't have enough pages allocate new one. */
+	/* If pool didn't have eyesugh pages allocate new one. */
 	if (count) {
 		gfp_t gfp_flags = pool->gfp_flags;
 
@@ -1017,7 +1017,7 @@ void ttm_page_alloc_fini(void)
 	pr_info("Finalizing pool allocator\n");
 	ttm_pool_mm_shrink_fini(_manager);
 
-	/* OK to use static buffer since global mutex is no longer used. */
+	/* OK to use static buffer since global mutex is yes longer used. */
 	for (i = 0; i < NUM_POOLS; ++i)
 		ttm_page_pool_free(&_manager->pools[i], FREE_ALL_PAGES, true);
 

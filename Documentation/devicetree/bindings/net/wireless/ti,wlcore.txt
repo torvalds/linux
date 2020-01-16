@@ -1,7 +1,7 @@
 TI Wilink 6/7/8 (wl12xx/wl18xx) SDIO devices
 
-This node provides properties for controlling the wilink wireless device. The
-node is expected to be specified as a child node to the SDIO controller that
+This yesde provides properties for controlling the wilink wireless device. The
+yesde is expected to be specified as a child yesde to the SDIO controller that
 connects the device to the system.
 
 Required properties:
@@ -24,7 +24,7 @@ Optional properties:
  - tcxo-clock-frequency : tcxo clock frequency in Hz
 
 Note: the *-clock-frequency properties assume internal clocks. In case of external
-clock, new bindings (for parsing the clock nodes) have to be added.
+clock, new bindings (for parsing the clock yesdes) have to be added.
 
 Example:
 

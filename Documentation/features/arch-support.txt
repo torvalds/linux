@@ -6,6 +6,6 @@ support matrix, for all upstream Linux architectures.
 The meaning of entries in the tables is:
 
     | ok |  # feature supported by the architecture
-    |TODO|  # feature not yet supported by the architecture
-    | .. |  # feature cannot be supported by the hardware
+    |TODO|  # feature yest yet supported by the architecture
+    | .. |  # feature canyest be supported by the hardware
 

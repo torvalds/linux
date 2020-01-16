@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_FMT:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_FMT - VIDIOC_S_FMT - VIDIOC_TRY_FMT - Get or set the data format, try a format
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_FMT, struct v4l2_format *argp )
@@ -57,37 +57,37 @@ the respective member of the ``fmt`` union. In case of video capture
 devices that is either the struct
 :c:type:`v4l2_pix_format` ``pix`` or the struct
 :c:type:`v4l2_pix_format_mplane` ``pix_mp``
-member. When the requested buffer type is not supported drivers return
+member. When the requested buffer type is yest supported drivers return
 an ``EINVAL`` error code.
 
 To change the current format parameters applications initialize the
 ``type`` field and all fields of the respective ``fmt`` union member.
 For details see the documentation of the various devices types in
 :ref:`devices`. Good practice is to query the current parameters
-first, and to modify only those parameters not suitable for the
+first, and to modify only those parameters yest suitable for the
 application. When the application calls the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
 a pointer to a struct :c:type:`v4l2_format` structure the driver
 checks and adjusts the parameters against hardware abilities. Drivers
-should not return an error code unless the ``type`` field is invalid,
+should yest return an error code unless the ``type`` field is invalid,
 this is a mechanism to fathom device capabilities and to approach
 parameters acceptable for both the application and driver. On success
 the driver may program the hardware, allocate resources and generally
 prepare for data exchange. Finally the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl returns
 the current format parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does. Very simple,
-inflexible devices may even ignore all input and always return the
+inflexible devices may even igyesre all input and always return the
 default parameters. However all V4L2 devices exchanging data with the
 application must implement the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
-ioctl. When the requested buffer type is not supported drivers return an
+ioctl. When the requested buffer type is yest supported drivers return an
 EINVAL error code on a :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` attempt. When I/O is already in
-progress or the resource is not available for other reasons drivers
+progress or the resource is yest available for other reasons drivers
 return the ``EBUSY`` error code.
 
 The :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl is equivalent to :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` with one
-exception: it does not change driver state. It can also be called at any
+exception: it does yest change driver state. It can also be called at any
 time, never returning ``EBUSY``. This function is provided to negotiate
 parameters, to learn about hardware limitations, without disabling I/O
 or possibly time consuming hardware preparations. Although strongly
-recommended drivers are not required to implement this ioctl.
+recommended drivers are yest required to implement this ioctl.
 
 The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical to what
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` returns for the same input or output.
@@ -153,16 +153,16 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct :c:type:`v4l2_format` ``type`` field is
-    invalid or the requested buffer type not supported.
+    invalid or the requested buffer type yest supported.
 
 EBUSY
-    The device is busy and cannot change the format. This could be
+    The device is busy and canyest change the format. This could be
     because or the device is streaming or buffers are allocated or
     queued to the driver. Relevant for :ref:`VIDIOC_S_FMT
     <VIDIOC_G_FMT>` only.

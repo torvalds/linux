@@ -97,7 +97,7 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 
 	if (lodev->txcarrier < lodev->rxcarriermin ||
 	    lodev->txcarrier > lodev->rxcarriermax) {
-		dprintk("ignoring tx, carrier out of range\n");
+		dprintk("igyesring tx, carrier out of range\n");
 		goto out;
 	}
 
@@ -107,7 +107,7 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 		rxmask = RXMASK_REGULAR;
 
 	if (!(rxmask & lodev->txmask)) {
-		dprintk("ignoring tx, rx mask mismatch\n");
+		dprintk("igyesring tx, rx mask mismatch\n");
 		goto out;
 	}
 
@@ -118,7 +118,7 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 			ir_raw_event_store_with_filter(dev, &rawir);
 	}
 
-	/* Fake a silence long enough to cause us to go idle */
+	/* Fake a silence long eyesugh to cause us to go idle */
 	rawir.pulse = false;
 	rawir.duration = dev->timeout;
 	ir_raw_event_store_with_filter(dev, &rawir);

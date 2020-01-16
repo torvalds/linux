@@ -29,10 +29,10 @@ static const struct snmp_mib sctp_snmp_list[] = {
 	SNMP_MIB_ITEM("SctpChecksumErrors", SCTP_MIB_CHECKSUMERRORS),
 	SNMP_MIB_ITEM("SctpOutCtrlChunks", SCTP_MIB_OUTCTRLCHUNKS),
 	SNMP_MIB_ITEM("SctpOutOrderChunks", SCTP_MIB_OUTORDERCHUNKS),
-	SNMP_MIB_ITEM("SctpOutUnorderChunks", SCTP_MIB_OUTUNORDERCHUNKS),
+	SNMP_MIB_ITEM("SctpOutUyesrderChunks", SCTP_MIB_OUTUNORDERCHUNKS),
 	SNMP_MIB_ITEM("SctpInCtrlChunks", SCTP_MIB_INCTRLCHUNKS),
 	SNMP_MIB_ITEM("SctpInOrderChunks", SCTP_MIB_INORDERCHUNKS),
-	SNMP_MIB_ITEM("SctpInUnorderChunks", SCTP_MIB_INUNORDERCHUNKS),
+	SNMP_MIB_ITEM("SctpInUyesrderChunks", SCTP_MIB_INUNORDERCHUNKS),
 	SNMP_MIB_ITEM("SctpFragUsrMsgs", SCTP_MIB_FRAGUSRMSGS),
 	SNMP_MIB_ITEM("SctpReasmUsrMsgs", SCTP_MIB_REASMUSRMSGS),
 	SNMP_MIB_ITEM("SctpOutSCTPPacks", SCTP_MIB_OUTSCTPPACKS),
@@ -180,7 +180,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 			   sctp_sk(sk)->type, sk->sk_state, hash,
 			   epb->bind_addr.port,
 			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
-			   sock_i_ino(sk));
+			   sock_i_iyes(sk));
 
 		sctp_seq_dump_local_addrs(seq, epb);
 		seq_printf(seq, "\n");
@@ -258,7 +258,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		   assoc->sndbuf_used,
 		   atomic_read(&assoc->rmem_alloc),
 		   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
-		   sock_i_ino(sk),
+		   sock_i_iyes(sk),
 		   epb->bind_addr.port,
 		   assoc->peer.port);
 	seq_printf(seq, " ");
@@ -339,7 +339,7 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq, "0 ");
 
 		/*
-		 * remote address start time (START).  This is also not
+		 * remote address start time (START).  This is also yest
 		 * currently implemented, but we can record it with a
 		 * jiffies marker in a subsequent patch
 		 */

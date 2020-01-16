@@ -72,24 +72,24 @@ static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_stereo_out = {
 	.maxburst	= 32,
 };
 
-static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_mono_out = {
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_moyes_out = {
 	.addr		= __PREG(MODR),
 	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
-	.chan_name	= "pcm_aux_mono_out",
+	.chan_name	= "pcm_aux_moyes_out",
 	.maxburst	= 16,
 };
 
-static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_mono_in = {
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_moyes_in = {
 	.addr		= __PREG(MODR),
 	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
-	.chan_name	= "pcm_aux_mono_in",
+	.chan_name	= "pcm_aux_moyes_in",
 	.maxburst	= 16,
 };
 
-static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_mic_mono_in = {
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_mic_moyes_in = {
 	.addr		= __PREG(MCDR),
 	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
-	.chan_name	= "pcm_aux_mic_mono",
+	.chan_name	= "pcm_aux_mic_moyes",
 	.maxburst	= 16,
 };
 
@@ -114,9 +114,9 @@ static int pxa2xx_ac97_aux_startup(struct snd_pcm_substream *substream,
 	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dma_data = &pxa2xx_ac97_pcm_aux_mono_out;
+		dma_data = &pxa2xx_ac97_pcm_aux_moyes_out;
 	else
-		dma_data = &pxa2xx_ac97_pcm_aux_mono_in;
+		dma_data = &pxa2xx_ac97_pcm_aux_moyes_in;
 
 	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
@@ -129,7 +129,7 @@ static int pxa2xx_ac97_mic_startup(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return -ENODEV;
 	snd_soc_dai_set_dma_data(cpu_dai, substream,
-				 &pxa2xx_ac97_pcm_mic_mono_in);
+				 &pxa2xx_ac97_pcm_mic_moyes_in);
 
 	return 0;
 }

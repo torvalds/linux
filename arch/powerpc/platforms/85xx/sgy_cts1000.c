@@ -18,7 +18,7 @@
 
 #include <asm/machdep.h>
 
-static struct device_node *halt_node;
+static struct device_yesde *halt_yesde;
 
 static const struct of_device_id child_match[] = {
 	{
@@ -34,15 +34,15 @@ static void gpio_halt_wfn(struct work_struct *work)
 }
 static DECLARE_WORK(gpio_halt_wq, gpio_halt_wfn);
 
-static void __noreturn gpio_halt_cb(void)
+static void __yesreturn gpio_halt_cb(void)
 {
 	enum of_gpio_flags flags;
 	int trigger, gpio;
 
-	if (!halt_node)
+	if (!halt_yesde)
 		panic("No reset GPIO information was provided in DT\n");
 
-	gpio = of_get_gpio_flags(halt_node, 0, &flags);
+	gpio = of_get_gpio_flags(halt_yesde, 0, &flags);
 
 	if (!gpio_is_valid(gpio))
 		panic("Provided GPIO is invalid\n");
@@ -70,25 +70,25 @@ static irqreturn_t gpio_halt_irq(int irq, void *__data)
 static int gpio_halt_probe(struct platform_device *pdev)
 {
 	enum of_gpio_flags flags;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	int gpio, err, irq;
 	int trigger;
 
-	if (!node)
+	if (!yesde)
 		return -ENODEV;
 
-	/* If there's no matching child, this isn't really an error */
-	halt_node = of_find_matching_node(node, child_match);
-	if (!halt_node)
+	/* If there's yes matching child, this isn't really an error */
+	halt_yesde = of_find_matching_yesde(yesde, child_match);
+	if (!halt_yesde)
 		return 0;
 
 	/* Technically we could just read the first one, but punish
 	 * DT writers for invalid form. */
-	if (of_gpio_count(halt_node) != 1)
+	if (of_gpio_count(halt_yesde) != 1)
 		return -EINVAL;
 
 	/* Get the gpio number relative to the dynamic base. */
-	gpio = of_get_gpio_flags(halt_node, 0, &flags);
+	gpio = of_get_gpio_flags(halt_yesde, 0, &flags);
 	if (!gpio_is_valid(gpio))
 		return -EINVAL;
 
@@ -96,7 +96,7 @@ static int gpio_halt_probe(struct platform_device *pdev)
 	if (err) {
 		printk(KERN_ERR "gpio-halt: error requesting GPIO %d.\n",
 		       gpio);
-		halt_node = NULL;
+		halt_yesde = NULL;
 		return err;
 	}
 
@@ -105,14 +105,14 @@ static int gpio_halt_probe(struct platform_device *pdev)
 	gpio_direction_output(gpio, !trigger);
 
 	/* Now get the IRQ which tells us when the power button is hit */
-	irq = irq_of_parse_and_map(halt_node, 0);
+	irq = irq_of_parse_and_map(halt_yesde, 0);
 	err = request_irq(irq, gpio_halt_irq, IRQF_TRIGGER_RISING |
-			  IRQF_TRIGGER_FALLING, "gpio-halt", halt_node);
+			  IRQF_TRIGGER_FALLING, "gpio-halt", halt_yesde);
 	if (err) {
 		printk(KERN_ERR "gpio-halt: error requesting IRQ %d for "
 		       "GPIO %d.\n", irq, gpio);
 		gpio_free(gpio);
-		halt_node = NULL;
+		halt_yesde = NULL;
 		return err;
 	}
 
@@ -128,18 +128,18 @@ static int gpio_halt_probe(struct platform_device *pdev)
 
 static int gpio_halt_remove(struct platform_device *pdev)
 {
-	if (halt_node) {
-		int gpio = of_get_gpio(halt_node, 0);
-		int irq = irq_of_parse_and_map(halt_node, 0);
+	if (halt_yesde) {
+		int gpio = of_get_gpio(halt_yesde, 0);
+		int irq = irq_of_parse_and_map(halt_yesde, 0);
 
-		free_irq(irq, halt_node);
+		free_irq(irq, halt_yesde);
 
 		ppc_md.halt = NULL;
 		pm_power_off = NULL;
 
 		gpio_free(gpio);
 
-		halt_node = NULL;
+		halt_yesde = NULL;
 	}
 
 	return 0;
@@ -147,7 +147,7 @@ static int gpio_halt_remove(struct platform_device *pdev)
 
 static const struct of_device_id gpio_halt_match[] = {
 	/* We match on the gpio bus itself and scan the children since they
-	 * wont be matched against us. We know the bus wont match until it
+	 * wont be matched against us. We kyesw the bus wont match until it
 	 * has been registered too. */
 	{
 		.compatible = "fsl,qoriq-gpio",

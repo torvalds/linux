@@ -44,7 +44,7 @@ extern int pinctrl_init_done(struct device *dev);
 
 struct device;
 
-/* Stubs if we're not using pinctrl */
+/* Stubs if we're yest using pinctrl */
 
 static inline int pinctrl_bind_pins(struct device *dev)
 {

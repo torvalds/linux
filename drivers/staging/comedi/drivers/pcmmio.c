@@ -23,23 +23,23 @@
  *	subdevice 2 - first 24 channels of the 48 channel of DIO
  *			(with edge-triggered interrupt support)
  *	subdevice 3 - last 24 channels of the 48 channel DIO
- *			(no interrupt support for this bank of channels)
+ *			(yes interrupt support for this bank of channels)
  *
- * Some notes:
+ * Some yestes:
  *
- * Synchronous reads and writes are the only things implemented for analog
+ * Synchroyesus reads and writes are the only things implemented for analog
  * input and output. The hardware itself can do streaming acquisition, etc.
  *
- * Asynchronous I/O for the DIO subdevices *is* implemented, however! They
+ * Asynchroyesus I/O for the DIO subdevices *is* implemented, however! They
  * are basically edge-triggered interrupts for any configuration of the
  * channels in subdevice 2.
  *
- * Also note that this interrupt support is untested.
+ * Also yeste that this interrupt support is untested.
  *
  * A few words about edge-detection IRQ support (commands on DIO):
  *
  * To use edge-detection IRQ support for the DIO subdevice, pass the IRQ
- * of the board to the comedi_config command. The board IRQ is not jumpered
+ * of the board to the comedi_config command. The board IRQ is yest jumpered
  * but rather configured through software, so any IRQ from 1-15 is OK.
  *
  * Due to the genericity of the comedi API, you need to create a special
@@ -51,9 +51,9 @@
  * one 32-bit unsigned int. This value is the mask of channels that had
  * edges detected from your channel list. Note that the bits positions
  * in the mask correspond to positions in your chanlist when you
- * specified the command and *not* channel id's!
+ * specified the command and *yest* channel id's!
  *
- * To set the polarity of the edge-detection interrupts pass a nonzero value
+ * To set the polarity of the edge-detection interrupts pass a yesnzero value
  * for either CR_RANGE or CR_AREF for edge-up polarity, or a zero
  * value for both CR_RANGE and CR_AREF if you want edge-down polarity.
  *

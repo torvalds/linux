@@ -25,7 +25,7 @@ struct tegra_sku_info tegra_sku_info;
 EXPORT_SYMBOL(tegra_sku_info);
 
 static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
-	[TEGRA_REVISION_UNKNOWN] = "unknown",
+	[TEGRA_REVISION_UNKNOWN] = "unkyeswn",
 	[TEGRA_REVISION_A01]     = "A01",
 	[TEGRA_REVISION_A02]     = "A02",
 	[TEGRA_REVISION_A03]     = "A03",
@@ -290,7 +290,7 @@ static void tegra_enable_fuse_clk(void __iomem *base)
 
 	/*
 	 * Enable FUSE clock. This needs to be hardcoded because the clock
-	 * subsystem is not active during early boot.
+	 * subsystem is yest active during early boot.
 	 */
 	reg = readl(base + 0x14);
 	reg |= 1 << 7;
@@ -325,20 +325,20 @@ struct device * __init tegra_soc_device_register(void)
 static int __init tegra_init_fuse(void)
 {
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource regs;
 
 	tegra_init_apbmisc();
 
-	np = of_find_matching_node_and_match(NULL, tegra_fuse_match, &match);
+	np = of_find_matching_yesde_and_match(NULL, tegra_fuse_match, &match);
 	if (!np) {
 		/*
 		 * Fall back to legacy initialization for 32-bit ARM only. All
 		 * 64-bit ARM device tree files for Tegra are required to have
-		 * a FUSE node.
+		 * a FUSE yesde.
 		 *
 		 * This is for backwards-compatibility with old device trees
-		 * that didn't contain a FUSE node.
+		 * that didn't contain a FUSE yesde.
 		 */
 		if (IS_ENABLED(CONFIG_ARM) && soc_is_tegra()) {
 			u8 chip = tegra_get_chip_id();
@@ -378,7 +378,7 @@ static int __init tegra_init_fuse(void)
 			}
 		} else {
 			/*
-			 * At this point we're not running on Tegra, so play
+			 * At this point we're yest running on Tegra, so play
 			 * nice with multi-platform kernels.
 			 */
 			return 0;
@@ -386,7 +386,7 @@ static int __init tegra_init_fuse(void)
 	} else {
 		/*
 		 * Extract information from the device tree if we've found a
-		 * matching node.
+		 * matching yesde.
 		 */
 		if (of_address_to_resource(np, 0, &regs) < 0) {
 			pr_err("failed to get FUSE register\n");
@@ -396,7 +396,7 @@ static int __init tegra_init_fuse(void)
 		fuse->soc = match->data;
 	}
 
-	np = of_find_matching_node(NULL, car_match);
+	np = of_find_matching_yesde(NULL, car_match);
 	if (np) {
 		void __iomem *base = of_iomap(np, 0);
 		if (base) {
@@ -408,7 +408,7 @@ static int __init tegra_init_fuse(void)
 		}
 	}
 
-	fuse->base = ioremap_nocache(regs.start, resource_size(&regs));
+	fuse->base = ioremap_yescache(regs.start, resource_size(&regs));
 	if (!fuse->base) {
 		pr_err("failed to map FUSE registers\n");
 		return -ENXIO;
@@ -440,15 +440,15 @@ early_initcall(tegra_init_fuse);
 #ifdef CONFIG_ARM64
 static int __init tegra_init_soc(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct device *soc;
 
 	/* make sure we're running on Tegra */
-	np = of_find_matching_node(NULL, tegra_fuse_match);
+	np = of_find_matching_yesde(NULL, tegra_fuse_match);
 	if (!np)
 		return 0;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	soc = tegra_soc_device_register();
 	if (IS_ERR(soc)) {

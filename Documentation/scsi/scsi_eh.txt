@@ -32,7 +32,7 @@ TABLE OF CONTENTS
  Each SCSI command is represented with struct scsi_cmnd (== scmd).  A
 scmd has two list_head's to link itself into lists.  The two are
 scmd->list and scmd->eh_entry.  The former is used for free list or
-per-device allocated scmd list and not of much interest to this EH
+per-device allocated scmd list and yest of much interest to this EH
 discussion.  The latter is used for completion and EH lists and unless
 otherwise stated scmds are always linked using scmd->eh_entry in this
 discussion.
@@ -47,7 +47,7 @@ invoking hostt->queuecommand() or the block layer will time it out.
 
 [1-2-1] Completing a scmd w/ scsi_done
 
- For all non-EH commands, scsi_done() is the completion callback.  It
+ For all yesn-EH commands, scsi_done() is the completion callback.  It
 just calls blk_complete_request() to delete the block layer timer and
 raise SCSI_SOFTIRQ
 
@@ -60,7 +60,7 @@ with the command.
 	scsi_finish_command() is invoked for the command.  The
 	function does some maintenance chores and then calls
 	scsi_io_completion() to finish the I/O.
-	scsi_io_completion() then notifies the block layer on
+	scsi_io_completion() then yestifies the block layer on
 	the completed request by calling blk_end_request and
 	friends or figures out what to do with the remainder
 	of the data in case of an error.
@@ -89,11 +89,11 @@ function
 	limit is reached, action for BLK_EH_DONE is taken instead.
 
     - BLK_EH_DONE
-        eh_timed_out() callback did not handle the command.
+        eh_timed_out() callback did yest handle the command.
 	Step #2 is taken.
 
  2. scsi_abort_command() is invoked to schedule an asynchrous abort.
-    Asynchronous abort are not invoked for commands which the
+    Asynchroyesus abort are yest invoked for commands which the
     SCSI_EH_ABORT_SCHEDULED flag is set (this indicates that the command
     already had been aborted once, and this is a retry which failed),
     or when the EH deadline is expired. In these case Step #3 is taken.
@@ -101,11 +101,11 @@ function
  3. scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD) is invoked for the
     command.  See [1-4] for more information.
 
-[1-3] Asynchronous command aborts
+[1-3] Asynchroyesus command aborts
 
  After a timeout occurs a command abort is scheduled from
  scsi_abort_command(). If the abort is successful the command
- will either be retried (if the number of retries is not exhausted)
+ will either be retried (if the number of retries is yest exhausted)
  or terminated with DID_TIME_OUT.
  Otherwise scsi_eh_scmd_add() is invoked for the command.
  See [1-4] for more information.
@@ -125,7 +125,7 @@ function
  As can be seen above, once any scmd is added to shost->eh_cmd_q,
 SHOST_RECOVERY shost_state bit is turned on.  This prevents any new
 scmd to be issued from blk queue to the host; eventually, all scmds on
-the host either complete normally, fail and get added to eh_cmd_q, or
+the host either complete yesrmally, fail and get added to eh_cmd_q, or
 time out and get added to shost->eh_cmd_q.
 
  If all scmds either complete or fail, the number of in-flight scmds
@@ -134,13 +134,13 @@ shost->host_failed.  This wakes up SCSI EH thread.  So, once woken up,
 SCSI EH thread can expect that all in-flight commands have failed and
 are linked on shost->eh_cmd_q.
 
- Note that this does not mean lower layers are quiescent.  If a LLDD
+ Note that this does yest mean lower layers are quiescent.  If a LLDD
 completed a scmd with error status, the LLDD and lower layers are
 assumed to forget about the scmd at that point.  However, if a scmd
 has timed out, unless hostt->eh_timed_out() made lower layers forget
-about the scmd, which currently no LLDD does, the command is still
+about the scmd, which currently yes LLDD does, the command is still
 active as long as lower layers are concerned and completion could
-occur at any time.  Of course, all such completions are ignored as the
+occur at any time.  Of course, all such completions are igyesred as the
 timer has already expired.
 
  We'll talk about how SCSI EH takes actions to abort - make LLDD
@@ -162,7 +162,7 @@ ways.
 	handling.  As such, it should do all chores the SCSI midlayer
 	performs during recovery.  This will be discussed in [2-2].
 
- Once recovery is complete, SCSI EH resumes normal operation by
+ Once recovery is complete, SCSI EH resumes yesrmal operation by
 calling scsi_restart_operations(), which
 
  1. Checks if door locking is needed and locks door.
@@ -181,7 +181,7 @@ calling scsi_restart_operations(), which
 
 [2-1-1] Overview
 
- If eh_strategy_handler() is not present, SCSI midlayer takes charge
+ If eh_strategy_handler() is yest present, SCSI midlayer takes charge
 of driving error handling.  EH's goals are two - make LLDD, host and
 device forget about timed out scmds and make them ready for new
 commands.  A scmd is said to be recovered if the scmd is forgotten by
@@ -200,7 +200,7 @@ int (* eh_bus_reset_handler)(struct scsi_cmnd *);
 int (* eh_host_reset_handler)(struct scsi_cmnd *);
 
  Higher-severity actions are taken only when lower-severity actions
-cannot recover some of failed scmds.  Also, note that failure of the
+canyest recover some of failed scmds.  Also, yeste that failure of the
 highest-severity action means EH failure and results in offlining of
 all unrecovered devices.
 
@@ -214,7 +214,7 @@ all unrecovered devices.
    scmds.  e.g. resetting a device recovers all failed scmds on the
    device.
 
- - Higher severity actions are taken iff eh_work_q is not empty after
+ - Higher severity actions are taken iff eh_work_q is yest empty after
    lower severity actions are complete.
 
  - EH reuses failed scmds to issue commands for recovery.  For
@@ -224,11 +224,11 @@ all unrecovered devices.
  When a scmd is recovered, the scmd is moved from eh_work_q to EH
 local eh_done_q using scsi_eh_finish_cmd().  After all scmds are
 recovered (eh_work_q is empty), scsi_eh_flush_done_q() is invoked to
-either retry or error-finish (notify upper layer of failure) recovered
+either retry or error-finish (yestify upper layer of failure) recovered
 scmds.
 
- scmds are retried iff its sdev is still online (not offlined during
-EH), REQ_FAILFAST is not set and ++scmd->retries is less than
+ scmds are retried iff its sdev is still online (yest offlined during
+EH), REQ_FAILFAST is yest set and ++scmd->retries is less than
 scmd->allowed.
 
 
@@ -244,21 +244,21 @@ scmd->allowed.
  2. EH starts
     ACTION: move all scmds to EH's local eh_work_q.  shost->eh_cmd_q
 	    is cleared.
-    LOCKING: shost->host_lock (not strictly necessary, just for
+    LOCKING: shost->host_lock (yest strictly necessary, just for
              consistency)
 
  3. scmd recovered
     ACTION: scsi_eh_finish_cmd() is invoked to EH-finish scmd
 	- scsi_setup_cmd_retry()
 	- move from local eh_work_q to local eh_done_q
-    LOCKING: none
+    LOCKING: yesne
     CONCURRENCY: at most one thread per separate eh_work_q to
 		 keep queue manipulation lockless
 
  4. EH completes
-    ACTION: scsi_eh_flush_done_q() retries scmds or notifies upper
+    ACTION: scsi_eh_flush_done_q() retries scmds or yestifies upper
 	    layer of failure. May be called concurrently but must have
-	    a no more than one thread per separate eh_work_q to
+	    a yes more than one thread per separate eh_work_q to
 	    manipulate the queue locklessly
 	- scmd is removed from eh_done_q and scmd->eh_entry is cleared
 	- if retry is necessary, scmd is requeued using
@@ -289,7 +289,7 @@ scmd->allowed.
 	performance reasons and as sense information could get out of
 	sync between occurrence of CHECK CONDITION and this action.
 
-	Note that if autosense is not supported, scmd->sense_buffer
+	Note that if autosense is yest supported, scmd->sense_buffer
 	contains invalid sense data when error-completing the scmd
 	with scsi_done().  scsi_decide_disposition() always returns
 	FAILED in such cases thus invoking SCSI EH.  When the scmd
@@ -297,7 +297,7 @@ scmd->allowed.
 	scsi_decide_disposition() is called again.
 
 	1. Invoke scsi_request_sense() which issues REQUEST_SENSE
-           command.  If fails, no action.  Note that taking no action
+           command.  If fails, yes action.  Note that taking yes action
            causes higher-severity recovery to be taken for the scmd.
 
 	2. Invoke scsi_decide_disposition() on the scmd
@@ -318,7 +318,7 @@ scmd->allowed.
     <<scsi_eh_abort_cmds>>
 
 	This action is taken for each timed out command when
-	no_async_abort is enabled in the host template.
+	yes_async_abort is enabled in the host template.
 	hostt->eh_abort_handler() is invoked for each scmd.  The
 	handler returns SUCCESS if it has succeeded to make LLDD and
 	all related hardware forget about the scmd.
@@ -331,7 +331,7 @@ scmd->allowed.
 	Note that both offline and ready status mean that the sdev is
 	ready to process new scmds, where processing also implies
 	immediate failing; thus, if a sdev is in one of the two
-	states, no further recovery action is needed.
+	states, yes further recovery action is needed.
 
 	Device readiness is tested using scsi_eh_tur() which issues
 	TEST_UNIT_READY command.  Note that the scmd must have been
@@ -351,7 +351,7 @@ scmd->allowed.
 	    For each sdev which has failed scmds with valid sense data
 	    of which scsi_check_sense()'s verdict is FAILED,
 	    START_STOP_UNIT command is issued w/ start=1.  Note that
-	    as we explicitly choose error-completed scmds, it is known
+	    as we explicitly choose error-completed scmds, it is kyeswn
 	    that lower layers have forgotten about the scmd and we can
 	    reuse it for STU.
 
@@ -365,7 +365,7 @@ scmd->allowed.
 	    scmds.  Yet, this function EH-finish all scmds on the sdev
 	    if STU succeeds leaving lower layers in an inconsistent
 	    state.  It seems that STU action should be taken only when
-	    a sdev has no timed out scmd.
+	    a sdev has yes timed out scmd.
 
 	2. If !list_empty(&eh_work_q), invoke scsi_eh_bus_device_reset().
 
@@ -373,8 +373,8 @@ scmd->allowed.
 
 	    This action is very similar to scsi_eh_stu() except that,
 	    instead of issuing STU, hostt->eh_device_reset_handler()
-	    is used.  Also, as we're not issuing SCSI commands and
-	    resetting clears all scmds on the sdev, there is no need
+	    is used.  Also, as we're yest issuing SCSI commands and
+	    resetting clears all scmds on the sdev, there is yes need
 	    to choose error-completed scmds.
 
 	3. If !list_empty(&eh_work_q), invoke scsi_eh_bus_reset()
@@ -407,7 +407,7 @@ scmd->allowed.
 
 	    At this point all scmds are recovered (or given up) and
 	    put on eh_done_q by scsi_eh_finish_cmd().  This function
-	    flushes eh_done_q by either retrying or notifying upper
+	    flushes eh_done_q by either retrying or yestifying upper
 	    layer of failure of the scmds.
 
 
@@ -455,7 +455,7 @@ except for #1 must be implemented by eh_strategy_handler().
 
 [2-2-3] Things to consider
 
- - Know that timed out scmds are still active on lower layers.  Make
+ - Kyesw that timed out scmds are still active on lower layers.  Make
    lower layers forget about them before doing anything else with
    those scmds.
 

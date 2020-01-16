@@ -19,7 +19,7 @@
 #include <linux/mpls.h>
 #include <linux/gcd.h>
 #include <linux/bitfield.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include "core.h"
 #include "rdev-ops.h"
 
@@ -77,7 +77,7 @@ int ieee80211_channel_to_frequency(int chan, enum nl80211_band band)
 	/* see 802.11 17.3.8.3.2 and Annex J
 	 * there are overlapping channel numbers in 5GHz and 2GHz bands */
 	if (chan <= 0)
-		return 0; /* not supported */
+		return 0; /* yest supported */
 	switch (band) {
 	case NL80211_BAND_2GHZ:
 		if (chan == 14)
@@ -103,7 +103,7 @@ int ieee80211_channel_to_frequency(int chan, enum nl80211_band band)
 	default:
 		;
 	}
-	return 0; /* not supported */
+	return 0; /* yest supported */
 }
 EXPORT_SYMBOL(ieee80211_channel_to_frequency);
 
@@ -334,10 +334,10 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 		break;
 	default:
 		/*
-		 * We don't know anything about this algorithm,
+		 * We don't kyesw anything about this algorithm,
 		 * allow using it -- but the driver must check
 		 * all parameters! We still check below whether
-		 * or not the driver supports this algorithm,
+		 * or yest the driver supports this algorithm,
 		 * of course.
 		 */
 		break;
@@ -347,7 +347,7 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 		switch (params->cipher) {
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
-			/* These ciphers do not use key sequence */
+			/* These ciphers do yest use key sequence */
 			return -EINVAL;
 		case WLAN_CIPHER_SUITE_TKIP:
 		case WLAN_CIPHER_SUITE_CCMP:
@@ -675,7 +675,7 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 		subframe_len = sizeof(struct ethhdr) + len;
 		padding = (4 - subframe_len) & 0x3;
 
-		/* the last MSDU has no padding */
+		/* the last MSDU has yes padding */
 		remaining = skb->len - offset;
 		if (subframe_len > remaining)
 			goto purge;
@@ -692,7 +692,7 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 		}
 
 		/* reuse skb for the last subframe */
-		if (!skb_is_nonlinear(skb) && !reuse_frag && last) {
+		if (!skb_is_yesnlinear(skb) && !reuse_frag && last) {
 			skb_pull(skb, offset);
 			frame = skb;
 			reuse_skb = true;
@@ -808,7 +808,7 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 
 	ret = dscp >> 5;
 out:
-	return array_index_nospec(ret, IEEE80211_NUM_TIDS);
+	return array_index_yesspec(ret, IEEE80211_NUM_TIDS);
 }
 EXPORT_SYMBOL(cfg80211_classify8021d);
 
@@ -924,7 +924,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 	if (otype == NL80211_IFTYPE_AP_VLAN)
 		return -EOPNOTSUPP;
 
-	/* cannot change into P2P device or NAN */
+	/* canyest change into P2P device or NAN */
 	if (ntype == NL80211_IFTYPE_P2P_DEVICE ||
 	    ntype == NL80211_IFTYPE_NAN)
 		return -EOPNOTSUPP;
@@ -1003,7 +1003,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 			break;
 		case NL80211_IFTYPE_UNSPECIFIED:
 		case NUM_NL80211_IFTYPES:
-			/* not happening */
+			/* yest happening */
 			break;
 		case NL80211_IFTYPE_P2P_DEVICE:
 		case NL80211_IFTYPE_NAN:
@@ -1142,7 +1142,7 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 		   58500000,
 		   65000000,
 		   78000000,
-		/* not in the spec, but some devices use this: */
+		/* yest in the spec, but some devices use this: */
 		   86500000,
 		},
 		{  13500000,
@@ -1284,7 +1284,7 @@ static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
 		return 0;
 	}
 
-	/* now scale to the appropriate MCS */
+	/* yesw scale to the appropriate MCS */
 	tmp = result;
 	tmp *= SCALE;
 	do_div(tmp, mcs_divisors[rate->mcs]);
@@ -1579,7 +1579,7 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 		break;
 	case NL80211_CHAN_WIDTH_10:
 	case NL80211_CHAN_WIDTH_5:
-		return false; /* unsupported for now */
+		return false; /* unsupported for yesw */
 	default:
 		vht_opclass = 0;
 		break;
@@ -1660,7 +1660,7 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 		return true;
 	}
 
-	/* not supported yet */
+	/* yest supported yet */
 	return false;
 }
 EXPORT_SYMBOL(ieee80211_chandef_to_operating_class);
@@ -1730,12 +1730,12 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 
 	/*
 	 * This is a bit strange, since the iteration used to rely only on
-	 * the data given by the driver, but here it now relies on context,
+	 * the data given by the driver, but here it yesw relies on context,
 	 * in form of the currently operating interfaces.
 	 * This is OK for all current users, and saves us from having to
 	 * push the GCD calculations into all the drivers.
 	 * In the future, this should probably rely more on data that's in
-	 * cfg80211 already - the only thing not would appear to be any new
+	 * cfg80211 already - the only thing yest would appear to be any new
 	 * interfaces (while being brought up) and channel/radar data.
 	 */
 	cfg80211_calculate_bi_data(wiphy, params->new_beacon_int,
@@ -1878,7 +1878,7 @@ int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,
 
 	/*
 	 * mask must have at least one bit set here since we
-	 * didn't accept a 0-length rates array nor allowed
+	 * didn't accept a 0-length rates array yesr allowed
 	 * entries in the array that didn't exist
 	 */
 
@@ -2011,7 +2011,7 @@ void cfg80211_send_layer2_update(struct net_device *dev, const u8 *addr)
 	msg->dsap = 0;
 	msg->ssap = 0x01;	/* NULL LSAP, CR Bit: Response */
 	msg->control = 0xaf;	/* XID response lsb.1111F101.
-				 * F=0 (no poll command; unsolicited frame) */
+				 * F=0 (yes poll command; unsolicited frame) */
 	msg->xid_info[0] = 0x81;	/* XID format identifier */
 	msg->xid_info[1] = 1;	/* LLC types/classes: Type 1 LLC */
 	msg->xid_info[2] = 0;	/* XID sender's receive window size (RW) */
@@ -2067,7 +2067,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 	supp_width = le32_get_bits(cap->vht_cap_info,
 				   IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK);
 
-	/* if not capable, treat ext_nss_bw as 0 */
+	/* if yest capable, treat ext_nss_bw as 0 */
 	if (!ext_nss_bw_capable)
 		ext_nss_bw = 0;
 
@@ -2075,13 +2075,13 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 	if (supp_width == 3)
 		return 0;
 
-	/* This is an invalid combination so pretend nothing is supported */
+	/* This is an invalid combination so pretend yesthing is supported */
 	if (supp_width == 2 && (ext_nss_bw == 1 || ext_nss_bw == 2))
 		return 0;
 
 	/*
 	 * Cover all the special cases according to IEEE 802.11-2016
-	 * Table 9-250. All other cases are either factor of 1 or not
+	 * Table 9-250. All other cases are either factor of 1 or yest
 	 * valid/supported.
 	 */
 	switch (bw) {
@@ -2104,7 +2104,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 		break;
 	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
 		if (supp_width == 0 && ext_nss_bw == 1)
-			return 0; /* not possible */
+			return 0; /* yest possible */
 		if (supp_width == 0 &&
 		    ext_nss_bw == 2)
 			return max_vht_nss / 2;
@@ -2113,7 +2113,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 			return (3 * max_vht_nss) / 4;
 		if (supp_width == 1 &&
 		    ext_nss_bw == 0)
-			return 0; /* not possible */
+			return 0; /* yest possible */
 		if (supp_width == 1 &&
 		    ext_nss_bw == 1)
 			return max_vht_nss / 2;
@@ -2123,7 +2123,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 		break;
 	}
 
-	/* not covered or invalid combination received */
+	/* yest covered or invalid combination received */
 	return max_vht_nss;
 }
 EXPORT_SYMBOL(ieee80211_get_vht_max_nss);

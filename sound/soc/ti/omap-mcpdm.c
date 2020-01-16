@@ -222,7 +222,7 @@ static irqreturn_t omap_mcpdm_irq_handler(int irq, void *dev_id)
 
 	irq_status = omap_mcpdm_read(mcpdm, MCPDM_REG_IRQSTATUS);
 
-	/* Acknowledge irq event */
+	/* Ackyeswledge irq event */
 	omap_mcpdm_write(mcpdm, MCPDM_REG_IRQSTATUS, irq_status);
 
 	if (irq_status & MCPDM_DN_IRQ_FULL)
@@ -337,7 +337,7 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		link_mask <<= 3;
 
-		/* If capture is not running assume a stereo stream to come */
+		/* If capture is yest running assume a stereo stream to come */
 		if (!mcpdm->config[!stream].link_mask)
 			mcpdm->config[!stream].link_mask = 0x3;
 
@@ -345,7 +345,7 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 				(MCPDM_DN_THRES_MAX - threshold) * channels;
 		latency = threshold;
 	} else {
-		/* If playback is not running assume a stereo stream to come */
+		/* If playback is yest running assume a stereo stream to come */
 		if (!mcpdm->config[!stream].link_mask)
 			mcpdm->config[!stream].link_mask = (0x3 << 3);
 

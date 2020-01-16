@@ -67,7 +67,7 @@ static void copy_instruction(struct kprobe *p)
 		 * "jg .+24" that skips the mcount block or the "brcl 0,0"
 		 * in case of hotpatch.
 		 */
-		ftrace_generate_nop_insn((struct ftrace_insn *)p->ainsn.insn);
+		ftrace_generate_yesp_insn((struct ftrace_insn *)p->ainsn.insn);
 		p->ainsn.is_ftrace_insn = 1;
 	} else
 		memcpy(p->ainsn.insn, p->addr, insn_length(*p->addr >> 8));
@@ -160,14 +160,14 @@ static int swap_instruction(void *data)
 	len = sizeof(new_insn);
 	insn = (struct ftrace_insn *) p->addr;
 	if (args->arm_kprobe) {
-		if (is_ftrace_nop(insn))
+		if (is_ftrace_yesp(insn))
 			new_insn.disp = KPROBE_ON_FTRACE_NOP;
 		else
 			new_insn.disp = KPROBE_ON_FTRACE_CALL;
 	} else {
 		ftrace_generate_call_insn(&new_insn, (unsigned long)p->addr);
 		if (insn->disp == KPROBE_ON_FTRACE_NOP)
-			ftrace_generate_nop_insn(&new_insn);
+			ftrace_generate_yesp_insn(&new_insn);
 	}
 skip_ftrace:
 	s390_kernel_write(p->addr, &new_insn, len);
@@ -248,7 +248,7 @@ NOKPROBE_SYMBOL(push_kprobe);
 
 /*
  * Deactivate a kprobe by backing up to the previous state. If the
- * current state is KPROBE_REENTER prev_kprobe.kp will be non-NULL,
+ * current state is KPROBE_REENTER prev_kprobe.kp will be yesn-NULL,
  * for any other state prev_kprobe.kp will be NULL.
  */
 static void pop_kprobe(struct kprobe_ctlblk *kcb)
@@ -306,10 +306,10 @@ static int kprobe_handler(struct pt_regs *regs)
 	if (p) {
 		if (kprobe_running()) {
 			/*
-			 * We have hit a kprobe while another is still
+			 * We have hit a kprobe while ayesther is still
 			 * active. This can happen in the pre and post
 			 * handler. Single step the instruction of the
-			 * new probe but do not call any handler function
+			 * new probe but do yest call any handler function
 			 * of this secondary kprobe.
 			 * push_kprobe and pop_kprobe saves and restores
 			 * the currently active kprobe.
@@ -319,17 +319,17 @@ static int kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_REENTER;
 		} else {
 			/*
-			 * If we have no pre-handler or it returned 0, we
+			 * If we have yes pre-handler or it returned 0, we
 			 * continue with single stepping. If we have a
-			 * pre-handler and it returned non-zero, it prepped
+			 * pre-handler and it returned yesn-zero, it prepped
 			 * for changing execution path, so get out doing
-			 * nothing more here.
+			 * yesthing more here.
 			 */
 			push_kprobe(kcb, p);
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 			if (p->pre_handler && p->pre_handler(p, regs)) {
 				pop_kprobe(kcb);
-				preempt_enable_no_resched();
+				preempt_enable_yes_resched();
 				return 1;
 			}
 			kcb->kprobe_status = KPROBE_HIT_SS;
@@ -337,12 +337,12 @@ static int kprobe_handler(struct pt_regs *regs)
 		enable_singlestep(kcb, regs, (unsigned long) p->ainsn.insn);
 		return 1;
 	} /* else:
-	   * No kprobe at this address and no active kprobe. The trap has
-	   * not been caused by a kprobe breakpoint. The race of breakpoint
-	   * vs. kprobe remove does not exist because on s390 as we use
+	   * No kprobe at this address and yes active kprobe. The trap has
+	   * yest been caused by a kprobe breakpoint. The race of breakpoint
+	   * vs. kprobe remove does yest exist because on s390 as we use
 	   * stop_machine to arm/disarm the breakpoints.
 	   */
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 	return 0;
 }
 NOKPROBE_SYMBOL(kprobe_handler);
@@ -366,7 +366,7 @@ static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri;
 	struct hlist_head *head, empty_rp;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned long flags, orig_ret_address;
 	unsigned long trampoline_address;
 	kprobe_opcode_t *correct_ret_addr;
@@ -393,7 +393,7 @@ static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	trampoline_address = (unsigned long) &kretprobe_trampoline;
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		orig_ret_address = (unsigned long) ri->ret_addr;
@@ -412,7 +412,7 @@ static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	correct_ret_addr = ri->ret_addr;
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		orig_ret_address = (unsigned long) ri->ret_addr;
@@ -442,7 +442,7 @@ static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 		kfree(ri);
 	}
 	/*
-	 * By returning a non-zero value, we are telling
+	 * By returning a yesn-zero value, we are telling
 	 * kprobe_handler() that we don't want the post_handler
 	 * to run (and have re-enabled preemption)
 	 */
@@ -472,7 +472,7 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 		ftrace_generate_call_insn(&call_insn, (unsigned long) p->addr);
 		/*
 		 * A kprobe on an enabled ftrace call site actually single
-		 * stepped an unconditional branch (ftrace nop equivalent).
+		 * stepped an unconditional branch (ftrace yesp equivalent).
 		 * Now we need to fixup things and pretend that a brasl r0,...
 		 * was executed instead.
 		 */
@@ -516,12 +516,12 @@ static int post_kprobe_handler(struct pt_regs *regs)
 
 	resume_execution(p, regs);
 	pop_kprobe(kcb);
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 
 	/*
 	 * if somebody else is singlestepping across a probe point, psw mask
 	 * will have PER set, in which case, continue the remaining processing
-	 * of do_single_step, as if this is not a probe hit.
+	 * of do_single_step, as if this is yest a probe hit.
 	 */
 	if (regs->psw.mask & PSW_MASK_PER)
 		return 0;
@@ -544,11 +544,11 @@ static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the nip points back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * yesrmal page fault.
 		 */
 		disable_singlestep(kcb, regs, (unsigned long) p->addr);
 		pop_kprobe(kcb);
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 		break;
 	case KPROBE_HIT_ACTIVE:
 	case KPROBE_HIT_SSDONE:
@@ -580,7 +580,7 @@ static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		}
 
 		/*
-		 * fixup_exception() could not handle it,
+		 * fixup_exception() could yest handle it,
 		 * Let do_page_fault() fix it.
 		 */
 		break;
@@ -607,7 +607,7 @@ NOKPROBE_SYMBOL(kprobe_fault_handler);
 /*
  * Wrapper routine to for handling exceptions.
  */
-int kprobe_exceptions_notify(struct notifier_block *self,
+int kprobe_exceptions_yestify(struct yestifier_block *self,
 			     unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *) data;
@@ -640,7 +640,7 @@ int kprobe_exceptions_notify(struct notifier_block *self,
 
 	return ret;
 }
-NOKPROBE_SYMBOL(kprobe_exceptions_notify);
+NOKPROBE_SYMBOL(kprobe_exceptions_yestify);
 
 static struct kprobe trampoline = {
 	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,

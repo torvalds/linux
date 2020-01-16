@@ -33,7 +33,7 @@ struct sigcontext32 {
 };
 
 
-/* This is what we use for 32bit new non-rt signals. */
+/* This is what we use for 32bit new yesn-rt signals. */
 
 typedef struct {
 	struct {

@@ -1,6 +1,6 @@
 STMicroelectronics STM32 Factory-programmed data device tree bindings
 
-This represents STM32 Factory-programmed read only non-volatile area: locked
+This represents STM32 Factory-programmed read only yesn-volatile area: locked
 flash, OTP, read-only HW regs... This contains various information such as:
 analog calibration data for temperature sensor (e.g. TS_CAL1, TS_CAL2),
 internal vref (VREFIN_CAL), unique device ID...
@@ -14,7 +14,7 @@ Required properties:
 - #size-cells:		Should be '<1>'.
 
 Optional Data cells:
-- Must be child nodes as described in nvmem.txt.
+- Must be child yesdes as described in nvmem.txt.
 
 Example on stm32f4:
 	romem: nvmem@1fff7800 {

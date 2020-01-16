@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_FBUF:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_FBUF - VIDIOC_S_FBUF - Get or set frame buffer overlay parameters
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_FBUF, struct v4l2_framebuffer *argp )
@@ -48,18 +48,18 @@ to get and set the framebuffer parameters for a
 (OSD). The type of overlay is implied by the device type (capture or
 output device) and can be determined with the
 :ref:`VIDIOC_QUERYCAP` ioctl. One ``/dev/videoN``
-device must not support both kinds of overlay.
+device must yest support both kinds of overlay.
 
-The V4L2 API distinguishes destructive and non-destructive overlays. A
+The V4L2 API distinguishes destructive and yesn-destructive overlays. A
 destructive overlay copies captured video images into the video memory
-of a graphics card. A non-destructive overlay blends video images into a
+of a graphics card. A yesn-destructive overlay blends video images into a
 VGA signal or graphics into a video signal. *Video Output Overlays* are
-always non-destructive.
+always yesn-destructive.
 
 To get the current parameters applications call the :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>`
 ioctl with a pointer to a struct :c:type:`v4l2_framebuffer`
 structure. The driver fills all fields of the structure or returns an
-EINVAL error code when overlays are not supported.
+EINVAL error code when overlays are yest supported.
 
 To set the parameters for a *Video Output Overlay*, applications must
 initialize the ``flags`` field of a struct
@@ -70,7 +70,7 @@ this structure, the driver prepares for the overlay and returns the
 framebuffer parameters as :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` does, or it returns an error
 code.
 
-To set the parameters for a *non-destructive Video Overlay*,
+To set the parameters for a *yesn-destructive Video Overlay*,
 applications must initialize the ``flags`` field, the ``fmt``
 substructure, and call :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`. Again the driver prepares for
 the overlay and returns the framebuffer parameters as :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>`
@@ -112,7 +112,7 @@ destructive video overlay.
     * -
       -
       -
-      - This field is irrelevant to *non-destructive Video Overlays*. For
+      - This field is irrelevant to *yesn-destructive Video Overlays*. For
 	*destructive Video Overlays* applications must provide a base
 	address. The driver may accept only base addresses which are a
 	multiple of two, four or eight bytes. For *Video Output Overlays*
@@ -138,7 +138,7 @@ destructive video overlay.
     * -
       -
       -
-      - For *non-destructive Video Overlays* this field only defines a
+      - For *yesn-destructive Video Overlays* this field only defines a
 	format for the struct :c:type:`v4l2_window`
 	``chromakey`` field.
     * -
@@ -152,7 +152,7 @@ destructive video overlay.
       -
       - Usually this is an RGB format (for example
 	:ref:`V4L2_PIX_FMT_RGB565 <V4L2-PIX-FMT-RGB565>`) but YUV
-	formats (only packed YUV formats when chroma keying is used, not
+	formats (only packed YUV formats when chroma keying is used, yest
 	including ``V4L2_PIX_FMT_YUYV`` and ``V4L2_PIX_FMT_UYVY``) and the
 	``V4L2_PIX_FMT_PAL8`` format are also permitted. The behavior of
 	the driver when an application requests a compressed format is
@@ -160,7 +160,7 @@ destructive video overlay.
     * -
       - enum :c:type:`v4l2_field`
       - ``field``
-      - Drivers and applications shall ignore this field. If applicable,
+      - Drivers and applications shall igyesre this field. If applicable,
 	the field order is selected with the
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, using the ``field``
 	field of struct :c:type:`v4l2_window`.
@@ -171,11 +171,11 @@ destructive video overlay.
 	lines.
     * - :cspan:`3`
 
-	This field is irrelevant to *non-destructive Video Overlays*.
+	This field is irrelevant to *yesn-destructive Video Overlays*.
 
 	For *destructive Video Overlays* both applications and drivers can
 	set this field to request padding bytes at the end of each line.
-	Drivers however may ignore the requested value, returning
+	Drivers however may igyesre the requested value, returning
 	``width`` times bytes-per-pixel or a larger value required by the
 	hardware. That implies applications can just set this field to
 	zero to get a reasonable default.
@@ -186,7 +186,7 @@ destructive video overlay.
 	reside in accessible memory. Consider for example the case where
 	padding bytes after the last line of an image cross a system page
 	boundary. Capture devices may write padding bytes, the value is
-	undefined. Output devices ignore the contents of padding bytes.
+	undefined. Output devices igyesre the contents of padding bytes.
 
 	When the image format is planar the ``bytesperline`` value applies
 	to the first plane and is divided by the same factor as the
@@ -198,7 +198,7 @@ destructive video overlay.
     * -
       - __u32
       - ``sizeimage``
-      - This field is irrelevant to *non-destructive Video Overlays*. For
+      - This field is irrelevant to *yesn-destructive Video Overlays*. For
 	*destructive Video Overlays* applications must initialize this
 	field. For *Video Output Overlays* the driver must return a valid
 	format.
@@ -227,16 +227,16 @@ destructive video overlay.
 
     * - ``V4L2_FBUF_CAP_EXTERNOVERLAY``
       - 0x0001
-      - The device is capable of non-destructive overlays. When the driver
+      - The device is capable of yesn-destructive overlays. When the driver
 	clears this flag, only destructive overlays are supported. There
-	are no drivers yet which support both destructive and
-	non-destructive overlays. Video Output Overlays are in practice
-	always non-destructive.
+	are yes drivers yet which support both destructive and
+	yesn-destructive overlays. Video Output Overlays are in practice
+	always yesn-destructive.
     * - ``V4L2_FBUF_CAP_CHROMAKEY``
       - 0x0002
       - The device supports clipping by chroma-keying the images. That is,
 	image pixels replace pixels in the VGA or video signal only where
-	the latter assume a certain color. Chroma-keying makes no sense
+	the latter assume a certain color. Chroma-keying makes yes sense
 	for destructive overlays.
     * - ``V4L2_FBUF_CAP_LIST_CLIPPING``
       - 0x0004
@@ -247,16 +247,16 @@ destructive video overlay.
     * - ``V4L2_FBUF_CAP_LOCAL_ALPHA``
       - 0x0010
       - The device supports clipping/blending using the alpha channel of
-	the framebuffer or VGA signal. Alpha blending makes no sense for
+	the framebuffer or VGA signal. Alpha blending makes yes sense for
 	destructive overlays.
     * - ``V4L2_FBUF_CAP_GLOBAL_ALPHA``
       - 0x0020
       - The device supports alpha blending using a global alpha value.
-	Alpha blending makes no sense for destructive overlays.
+	Alpha blending makes yes sense for destructive overlays.
     * - ``V4L2_FBUF_CAP_LOCAL_INV_ALPHA``
       - 0x0040
       - The device supports clipping/blending using the inverted alpha
-	channel of the framebuffer or VGA signal. Alpha blending makes no
+	channel of the framebuffer or VGA signal. Alpha blending makes yes
 	sense for destructive overlays.
     * - ``V4L2_FBUF_CAP_SRC_CHROMAKEY``
       - 0x0080
@@ -289,7 +289,7 @@ destructive video overlay.
 	size, otherwise the existing overlay size (as set by
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`) will be used. Only one
 	video capture driver (bttv) supports this flag. The use of this
-	flag for capture devices is deprecated. There is no way to detect
+	flag for capture devices is deprecated. There is yes way to detect
 	which drivers support this flag, so the only reliable method of
 	setting the overlay size is through
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`. If this flag is set for a
@@ -303,7 +303,7 @@ destructive video overlay.
 	``chromakey`` field of struct :c:type:`v4l2_window`
 	and negotiated with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 	ioctl, see :ref:`overlay` and :ref:`osd`.
-    * - :cspan:`2` There are no flags to enable clipping using a list of
+    * - :cspan:`2` There are yes flags to enable clipping using a list of
 	clip rectangles or a bitmap. These methods are negotiated with the
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, see :ref:`overlay`
 	and :ref:`osd`.
@@ -343,7 +343,7 @@ destructive video overlay.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -355,7 +355,7 @@ EINVAL
     The :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` parameters are unsuitable.
 
 .. [#f1]
-   A physical base address may not suit all platforms. GK notes in
+   A physical base address may yest suit all platforms. GK yestes in
    theory we should pass something like PCI device + memory region +
    offset instead. If you encounter problems please discuss on the
    linux-media mailing list:

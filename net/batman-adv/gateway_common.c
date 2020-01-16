@@ -9,7 +9,7 @@
 
 #include <linux/atomic.h>
 #include <linux/byteorder/generic.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/limits.h>
 #include <linux/math64.h>
@@ -28,7 +28,7 @@
  *  throughput information
  * @net_dev: the soft interface net device
  * @buff: string buffer to parse
- * @description: text shown when throughput string cannot be parsed
+ * @description: text shown when throughput string canyest be parsed
  * @throughput: pointer holding the returned throughput information
  *
  * Return: false on parse error and true otherwise.
@@ -209,13 +209,13 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 /**
  * batadv_gw_tvlv_ogm_handler_v1() - process incoming gateway tvlv container
  * @bat_priv: the bat priv with all the soft interface information
- * @orig: the orig_node of the ogm
+ * @orig: the orig_yesde of the ogm
  * @flags: flags indicating the tvlv state (see batadv_tvlv_handler_flags)
  * @tvlv_value: tvlv buffer containing the gateway data
  * @tvlv_value_len: tvlv buffer length
  */
 static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
-					  struct batadv_orig_node *orig,
+					  struct batadv_orig_yesde *orig,
 					  u8 flags,
 					  void *tvlv_value, u16 tvlv_value_len)
 {
@@ -239,7 +239,7 @@ static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 		}
 	}
 
-	batadv_gw_node_update(bat_priv, orig, &gateway);
+	batadv_gw_yesde_update(bat_priv, orig, &gateway);
 
 	/* restart gateway selection */
 	if (gateway.bandwidth_down != 0 &&

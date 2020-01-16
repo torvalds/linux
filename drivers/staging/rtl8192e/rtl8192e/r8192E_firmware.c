@@ -85,7 +85,7 @@ static bool _rtl92e_fw_check_ready(struct net_device *dev,
 		break;
 	default:
 		rt_status = false;
-		netdev_dbg(dev, "Unknown firmware status");
+		netdev_dbg(dev, "Unkyeswn firmware status");
 		break;
 	}
 

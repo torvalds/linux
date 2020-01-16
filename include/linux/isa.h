@@ -7,7 +7,7 @@
 #define __LINUX_ISA_H
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 
 struct isa_driver {
@@ -43,7 +43,7 @@ static inline void isa_unregister_driver(struct isa_driver *d)
  * @__isa_driver: isa_driver struct
  * @__num_isa_dev: number of devices to register
  *
- * Helper macro for ISA drivers which do not do anything special in module
+ * Helper macro for ISA drivers which do yest do anything special in module
  * init/exit. This eliminates a lot of boilerplate code. Each module may only
  * use this macro once, and calling it replaces module_init and module_exit.
  */

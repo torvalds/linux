@@ -31,7 +31,7 @@ static void *hw_qpageit_get_inc(struct hw_queue *queue)
 		queue->current_q_offset -= queue->pagesize;
 		retvalue = NULL;
 	} else if (((u64) retvalue) & (EHEA_PAGESIZE-1)) {
-		pr_err("not on pageboundary\n");
+		pr_err("yest on pageboundary\n");
 		retvalue = NULL;
 	}
 	return retvalue;
@@ -64,7 +64,7 @@ static int hw_queue_ctor(struct hw_queue *queue, const u32 nr_of_pages,
 	while (i < nr_of_pages) {
 		u8 *kpage = (u8 *)get_zeroed_page(GFP_KERNEL);
 		if (!kpage)
-			goto out_nomem;
+			goto out_yesmem;
 		for (k = 0; k < pages_per_kpage && i < nr_of_pages; k++) {
 			(queue->queue_pages)[i] = (struct ehea_page *)kpage;
 			kpage += pagesize;
@@ -78,7 +78,7 @@ static int hw_queue_ctor(struct hw_queue *queue, const u32 nr_of_pages,
 	queue->toggle_state = 1;
 
 	return 0;
-out_nomem:
+out_yesmem:
 	for (i = 0; i < nr_of_pages; i += pages_per_kpage) {
 		if (!(queue->queue_pages)[i])
 			break;
@@ -116,7 +116,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq)
-		goto out_nomem;
+		goto out_yesmem;
 
 	cq->attr.max_nr_of_cqes = nr_of_cqe;
 	cq->attr.cq_token = cq_token;
@@ -157,7 +157,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 			vpage = hw_qpageit_get_inc(&cq->hw_queue);
 
 			if ((hret != H_SUCCESS) || (vpage)) {
-				pr_err("registration of pages not complete hret=%llx\n",
+				pr_err("registration of pages yest complete hret=%llx\n",
 				       hret);
 				goto out_kill_hwq;
 			}
@@ -185,7 +185,7 @@ out_freeres:
 out_freemem:
 	kfree(cq);
 
-out_nomem:
+out_yesmem:
 	return NULL;
 }
 
@@ -865,7 +865,7 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 
 	pt = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!pt) {
-		pr_err("no mem\n");
+		pr_err("yes mem\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -882,7 +882,7 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 
 	if (!ehea_bmap) {
 		ehea_h_free_resource(adapter->handle, mr->handle, FORCE_FREE);
-		pr_err("no busmap available\n");
+		pr_err("yes busmap available\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -977,7 +977,7 @@ u64 ehea_error_data(struct ehea_adapter *adapter, u64 res_handle,
 
 	rblock = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!rblock) {
-		pr_err("Cannot allocate rblock memory\n");
+		pr_err("Canyest allocate rblock memory\n");
 		goto out;
 	}
 
@@ -991,7 +991,7 @@ u64 ehea_error_data(struct ehea_adapter *adapter, u64 res_handle,
 	} else if (ret == H_R_STATE) {
 		pr_err("No error data available: %llX\n", res_handle);
 	} else
-		pr_err("Error data could not be fetched: %llX\n", res_handle);
+		pr_err("Error data could yest be fetched: %llX\n", res_handle);
 
 	free_page((unsigned long)rblock);
 out:

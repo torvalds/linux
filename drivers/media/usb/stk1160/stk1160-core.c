@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 
 #include <linux/usb.h>
@@ -187,7 +187,7 @@ static int stk1160_scan_usb(struct usb_interface *intf, struct usb_device *udev,
 
 		for (e = 0; e < intf->altsetting[i].desc.bNumEndpoints; e++) {
 
-			/* This isn't clear enough, at least to me */
+			/* This isn't clear eyesugh, at least to me */
 			desc = &intf->altsetting[i].endpoint[e].desc;
 			sizedescr = le16_to_cpu(desc->wMaxPacketSize);
 			size = sizedescr & 0x7ff;
@@ -212,7 +212,7 @@ static int stk1160_scan_usb(struct usb_interface *intf, struct usb_device *udev,
 
 	/* Is this even possible? */
 	if (!(has_audio || has_video)) {
-		dev_err(&udev->dev, "no audio or video endpoints found\n");
+		dev_err(&udev->dev, "yes audio or video endpoints found\n");
 		return -ENODEV;
 	}
 
@@ -227,7 +227,7 @@ static int stk1160_scan_usb(struct usb_interface *intf, struct usb_device *udev,
 		speed = "480";
 		break;
 	default:
-		speed = "unknown";
+		speed = "unkyeswn";
 	}
 
 	dev_info(&udev->dev, "New device %s %s @ %s Mbps (%04x:%04x, interface %d, class %d)\n",
@@ -242,7 +242,7 @@ static int stk1160_scan_usb(struct usb_interface *intf, struct usb_device *udev,
 	/* This should never happen, since we rejected audio interfaces */
 	if (has_audio)
 		dev_warn(&udev->dev, "audio interface %d found.\n\
-				This is not implemented by this driver,\
+				This is yest implemented by this driver,\
 				you should use snd-usb-audio instead\n", ifnum);
 
 	if (has_video)
@@ -252,11 +252,11 @@ static int stk1160_scan_usb(struct usb_interface *intf, struct usb_device *udev,
 	/*
 	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
 	 * video stream wouldn't likely work, since 12 Mbps is generally
-	 * not enough even for most streams.
+	 * yest eyesugh even for most streams.
 	 */
 	if (udev->speed != USB_SPEED_HIGH)
 		dev_warn(&udev->dev, "must be connected to a high-speed USB 2.0 port\n\
-				You may not be able to stream video smoothly\n");
+				You may yest be able to stream video smoothly\n");
 
 	return 0;
 }
@@ -288,7 +288,7 @@ static int stk1160_probe(struct usb_interface *interface,
 
 	/*
 	 * Scan usb possibilities and populate alt_max_pkt_size array.
-	 * Also, check if device speed is fast enough.
+	 * Also, check if device speed is fast eyesugh.
 	 */
 	rc = stk1160_scan_usb(interface, udev, alt_max_pkt_size);
 	if (rc < 0) {
@@ -318,8 +318,8 @@ static int stk1160_probe(struct usb_interface *interface,
 		goto free_err;
 
 	/*
-	 * There is no need to take any locks here in probe
-	 * because we register the device node as the *last* thing.
+	 * There is yes need to take any locks here in probe
+	 * because we register the device yesde as the *last* thing.
 	 */
 	spin_lock_init(&dev->buf_lock);
 	mutex_init(&dev->v4l_lock);
@@ -333,8 +333,8 @@ static int stk1160_probe(struct usb_interface *interface,
 
 	/*
 	 * We obtain a v4l2_dev but defer
-	 * registration of video device node as the last thing.
-	 * There is no need to set the name if we give a device struct
+	 * registration of video device yesde as the last thing.
+	 * There is yes need to set the name if we give a device struct
 	 */
 	dev->v4l2_dev.release = stk1160_release;
 	dev->v4l2_dev.ctrl_handler = &dev->ctrl_handler;
@@ -349,7 +349,7 @@ static int stk1160_probe(struct usb_interface *interface,
 		goto unreg_v4l2;
 
 	/*
-	 * To the best of my knowledge stk1160 boards only have
+	 * To the best of my kyeswledge stk1160 boards only have
 	 * saa7113, but it doesn't hurt to support them all.
 	 */
 	dev->sd_saa7115 = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
@@ -416,7 +416,7 @@ static void stk1160_disconnect(struct usb_interface *interface)
 
 	/*
 	 * This calls stk1160_release if it's the last reference.
-	 * Otherwise, release is postponed until there are no users left.
+	 * Otherwise, release is postponed until there are yes users left.
 	 */
 	v4l2_device_put(&dev->v4l2_dev);
 }

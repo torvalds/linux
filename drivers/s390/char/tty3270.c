@@ -269,7 +269,7 @@ tty3270_rebuild_update(struct tty3270 *tp)
 }
 
 /*
- * Alloc string for size bytes. If there is not enough room in
+ * Alloc string for size bytes. If there is yest eyesugh room in
  * freemem, free strings until there is room.
  */
 static struct string *
@@ -1465,7 +1465,7 @@ tty3270_goto_xy(struct tty3270 *tp, int cx, int cy)
 }
 
 /*
- * Process escape sequences. Known sequences:
+ * Process escape sequences. Kyeswn sequences:
  *  Esc 7			Save Cursor Position
  *  Esc 8			Restore Cursor Position
  *  Esc [ Pn ; Pn ; .. m	Set attributes
@@ -1487,16 +1487,16 @@ tty3270_goto_xy(struct tty3270 *tp, int cx, int cy)
 static void
 tty3270_escape_sequence(struct tty3270 *tp, char ch)
 {
-	enum { ESnormal, ESesc, ESsquare, ESgetpars };
+	enum { ESyesrmal, ESesc, ESsquare, ESgetpars };
 
-	if (tp->esc_state == ESnormal) {
+	if (tp->esc_state == ESyesrmal) {
 		if (ch == 0x1b)
 			/* Starting new escape sequence. */
 			tp->esc_state = ESesc;
 		return;
 	}
 	if (tp->esc_state == ESesc) {
-		tp->esc_state = ESnormal;
+		tp->esc_state = ESyesrmal;
 		switch (ch) {
 		case '[':
 			tp->esc_state = ESsquare;
@@ -1555,7 +1555,7 @@ tty3270_escape_sequence(struct tty3270 *tp, char ch)
 			return;
 		}
 	}
-	tp->esc_state = ESnormal;
+	tp->esc_state = ESyesrmal;
 	if (ch == 'n' && !tp->esc_ques) {
 		if (tp->esc_par[0] == 5)		/* Status report. */
 			kbd_puts_queue(&tp->port, "\033[0n");
@@ -1684,7 +1684,7 @@ tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
 		case 0x1b:		/* Start escape sequence. */
 			tty3270_escape_sequence(tp, buf[i_msg]);
 			break;
-		default:		/* Insert normal character. */
+		default:		/* Insert yesrmal character. */
 			if (tp->cx >= tp->view.cols) {
 				tty3270_cr(tp);
 				tty3270_lf(tp);
@@ -1905,17 +1905,17 @@ static const struct tty_operations tty3270_ops = {
 	.set_termios = tty3270_set_termios
 };
 
-static void tty3270_create_cb(int minor)
+static void tty3270_create_cb(int miyesr)
 {
-	tty_register_device(tty3270_driver, minor - RAW3270_FIRSTMINOR, NULL);
+	tty_register_device(tty3270_driver, miyesr - RAW3270_FIRSTMINOR, NULL);
 }
 
-static void tty3270_destroy_cb(int minor)
+static void tty3270_destroy_cb(int miyesr)
 {
-	tty_unregister_device(tty3270_driver, minor - RAW3270_FIRSTMINOR);
+	tty_unregister_device(tty3270_driver, miyesr - RAW3270_FIRSTMINOR);
 }
 
-static struct raw3270_notifier tty3270_notifier =
+static struct raw3270_yestifier tty3270_yestifier =
 {
 	.create = tty3270_create_cb,
 	.destroy = tty3270_destroy_cb,
@@ -1945,7 +1945,7 @@ static int __init tty3270_init(void)
 	driver->driver_name = "tty3270";
 	driver->name = "3270/tty";
 	driver->major = IBM_TTY3270_MAJOR;
-	driver->minor_start = RAW3270_FIRSTMINOR;
+	driver->miyesr_start = RAW3270_FIRSTMINOR;
 	driver->name_base = RAW3270_FIRSTMINOR;
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
@@ -1957,7 +1957,7 @@ static int __init tty3270_init(void)
 		return ret;
 	}
 	tty3270_driver = driver;
-	raw3270_register_notifier(&tty3270_notifier);
+	raw3270_register_yestifier(&tty3270_yestifier);
 	return 0;
 }
 
@@ -1966,7 +1966,7 @@ tty3270_exit(void)
 {
 	struct tty_driver *driver;
 
-	raw3270_unregister_notifier(&tty3270_notifier);
+	raw3270_unregister_yestifier(&tty3270_yestifier);
 	driver = tty3270_driver;
 	tty3270_driver = NULL;
 	tty_unregister_driver(driver);

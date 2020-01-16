@@ -116,7 +116,7 @@ static void hsu_dma_start_transfer(struct hsu_dma_chan *hsuc)
 		return;
 	}
 
-	list_del(&vdesc->node);
+	list_del(&vdesc->yesde);
 	hsuc->desc = to_hsu_dma_desc(vdesc);
 
 	/* Start the channel with a new descriptor */
@@ -138,7 +138,7 @@ static void hsu_dma_start_transfer(struct hsu_dma_chan *hsuc)
  *
  *      Return:
  *      1 for DMA timeout status, 0 for other DMA status, or error code for
- *      invalid parameters or no interrupt pending.
+ *      invalid parameters or yes interrupt pending.
  */
 int hsu_dma_get_status(struct hsu_dma_chip *chip, unsigned short nr,
 		       u32 *status)
@@ -173,7 +173,7 @@ int hsu_dma_get_status(struct hsu_dma_chip *chip, unsigned short nr,
 	/*
 	 * At this point, at least one of Descriptor Time Out, Channel Error
 	 * or Descriptor Done bits must be set. Clear the Descriptor Time Out
-	 * bits and if sr is still non-zero, it must be channel error or
+	 * bits and if sr is still yesn-zero, it must be channel error or
 	 * descriptor done which are higher priority than timeout and handled
 	 * in hsu_dma_do_irq(). Else, it must be a timeout.
 	 */
@@ -194,7 +194,7 @@ EXPORT_SYMBOL_GPL(hsu_dma_get_status);
  *      Description:
  *      This function handles Channel Error and Descriptor Done interrupts.
  *      This function should be called after determining that the DMA interrupt
- *      is not a normal timeout interrupt, ie. hsu_dma_get_status() returned 0.
+ *      is yest a yesrmal timeout interrupt, ie. hsu_dma_get_status() returned 0.
  *
  *      Return:
  *      0 for invalid channel number, 1 otherwise.

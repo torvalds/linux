@@ -5,7 +5,7 @@
 
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
@@ -174,10 +174,10 @@ static int tas2562_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		break;
 
 	case 0:
-		/* Do not change slot width */
+		/* Do yest change slot width */
 		break;
 	default:
-		dev_err(tas2562->dev, "slot width not supported");
+		dev_err(tas2562->dev, "slot width yest supported");
 		ret = -EINVAL;
 	}
 
@@ -271,7 +271,7 @@ static int tas2562_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		asi_cfg_1 |= TAS2562_TDM_CFG1_RX_FALLING;
 		break;
 	default:
-		dev_err(tas2562->dev, "ASI format Inverse is not found\n");
+		dev_err(tas2562->dev, "ASI format Inverse is yest found\n");
 		return -EINVAL;
 	}
 
@@ -293,7 +293,7 @@ static int tas2562_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		tdm_rx_start_slot = 0;
 		break;
 	default:
-		dev_err(tas2562->dev, "DAI Format is not found, fmt=0x%x\n",
+		dev_err(tas2562->dev, "DAI Format is yest found, fmt=0x%x\n",
 			fmt);
 		ret = -EINVAL;
 		break;
@@ -450,7 +450,7 @@ static const struct snd_soc_component_driver soc_component_dev_tas2562 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_dai_ops tas2562_speaker_dai_ops = {
@@ -522,11 +522,11 @@ static int tas2562_parse_dt(struct tas2562_data *tas2562)
 		}
 	}
 
-	ret = fwnode_property_read_u32(dev->fwnode, "ti,imon-slot-no",
+	ret = fwyesde_property_read_u32(dev->fwyesde, "ti,imon-slot-yes",
 			&tas2562->i_sense_slot);
 	if (ret)
 		dev_err(dev, "Looking up %s property failed %d\n",
-			"ti,imon-slot-no", ret);
+			"ti,imon-slot-yes", ret);
 
 	return ret;
 }

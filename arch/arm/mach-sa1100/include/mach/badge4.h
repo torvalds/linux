@@ -2,7 +2,7 @@
 /*
  * arch/arm/mach-sa1100/include/mach/badge4.h
  *
- *   Tim Connors <connors@hpl.hp.com>
+ *   Tim Conyesrs <conyesrs@hpl.hp.com>
  *   Christopher Hoover <ch@hpl.hp.com>
  *
  * Copyright (C) 2002 Hewlett-Packard Company

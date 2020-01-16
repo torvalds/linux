@@ -8,7 +8,7 @@
  *  Copyright © 2013 Tom St Denis <tstdenis@elliptictech.com>
  * Based on crypto/xcbc.c:
  *  Copyright © 2006 USAGI/WIDE Project,
- *   Author: Kazunori Miyazawa <miyazawa@linux-ipv6.org>
+ *   Author: Kazuyesri Miyazawa <miyazawa@linux-ipv6.org>
  */
 
 #include <crypto/internal/hash.h>
@@ -53,7 +53,7 @@ static int crypto_cmac_digest_setkey(struct crypto_shash *parent,
 	struct cmac_tfm_ctx *ctx = crypto_shash_ctx(parent);
 	unsigned int bs = crypto_shash_blocksize(parent);
 	__be64 *consts = PTR_ALIGN((void *)ctx->ctx,
-				   (alignmask | (__alignof__(__be64) - 1)) + 1);
+				   (alignmask | (__aligyesf__(__be64) - 1)) + 1);
 	u64 _const[2];
 	int i, err = 0;
 	u8 msb_mask, gfmask;
@@ -170,7 +170,7 @@ static int crypto_cmac_digest_final(struct shash_desc *pdesc, u8 *out)
 	struct crypto_cipher *tfm = tctx->child;
 	int bs = crypto_shash_blocksize(parent);
 	u8 *consts = PTR_ALIGN((void *)tctx->ctx,
-			       (alignmask | (__alignof__(__be64) - 1)) + 1);
+			       (alignmask | (__aligyesf__(__be64) - 1)) + 1);
 	u8 *odds = PTR_ALIGN((void *)ctx->ctx, alignmask + 1);
 	u8 *prev = odds + bs;
 	unsigned int offset = 0;
@@ -268,7 +268,7 @@ static int cmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst->alg.base.cra_ctxsize =
 		ALIGN(sizeof(struct cmac_tfm_ctx), crypto_tfm_ctx_alignment())
-		+ ((alignmask | (__alignof__(__be64) - 1)) &
+		+ ((alignmask | (__aligyesf__(__be64) - 1)) &
 		   ~(crypto_tfm_ctx_alignment() - 1))
 		+ alg->cra_blocksize * 2;
 

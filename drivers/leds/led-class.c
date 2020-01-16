@@ -28,7 +28,7 @@ static ssize_t brightness_show(struct device *dev,
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 
-	/* no lock needed for this */
+	/* yes lock needed for this */
 	led_update_brightness(led_cdev);
 
 	return sprintf(buf, "%u\n", led_cdev->brightness);
@@ -144,16 +144,16 @@ static void led_remove_brightness_hw_changed(struct led_classdev *led_cdev)
 	device_remove_file(led_cdev->dev, &dev_attr_brightness_hw_changed);
 }
 
-void led_classdev_notify_brightness_hw_changed(struct led_classdev *led_cdev,
+void led_classdev_yestify_brightness_hw_changed(struct led_classdev *led_cdev,
 					       enum led_brightness brightness)
 {
 	if (WARN_ON(!led_cdev->brightness_hw_changed_kn))
 		return;
 
 	led_cdev->brightness_hw_changed = brightness;
-	sysfs_notify_dirent(led_cdev->brightness_hw_changed_kn);
+	sysfs_yestify_dirent(led_cdev->brightness_hw_changed_kn);
 }
-EXPORT_SYMBOL_GPL(led_classdev_notify_brightness_hw_changed);
+EXPORT_SYMBOL_GPL(led_classdev_yestify_brightness_hw_changed);
 #else
 static int led_add_brightness_hw_changed(struct led_classdev *led_cdev)
 {
@@ -171,7 +171,7 @@ static void led_remove_brightness_hw_changed(struct led_classdev *led_cdev)
 void led_classdev_suspend(struct led_classdev *led_cdev)
 {
 	led_cdev->flags |= LED_SUSPENDED;
-	led_set_brightness_nopm(led_cdev, 0);
+	led_set_brightness_yespm(led_cdev, 0);
 }
 EXPORT_SYMBOL_GPL(led_classdev_suspend);
 
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(led_classdev_suspend);
  */
 void led_classdev_resume(struct led_classdev *led_cdev)
 {
-	led_set_brightness_nopm(led_cdev, led_cdev->brightness);
+	led_set_brightness_yespm(led_cdev, led_cdev->brightness);
 
 	if (led_cdev->flash_resume)
 		led_cdev->flash_resume(led_cdev);
@@ -276,8 +276,8 @@ int led_classdev_register_ext(struct device *parent,
 		mutex_unlock(&led_cdev->led_access);
 		return PTR_ERR(led_cdev->dev);
 	}
-	if (init_data && init_data->fwnode)
-		led_cdev->dev->fwnode = init_data->fwnode;
+	if (init_data && init_data->fwyesde)
+		led_cdev->dev->fwyesde = init_data->fwyesde;
 
 	if (ret)
 		dev_warn(parent, "Led %s renamed to %s due to name collision",
@@ -302,7 +302,7 @@ int led_classdev_register_ext(struct device *parent,
 #endif
 	/* add to the list of leds */
 	down_write(&leds_list_lock);
-	list_add_tail(&led_cdev->node, &leds_list);
+	list_add_tail(&led_cdev->yesde, &leds_list);
 	up_write(&leds_list_lock);
 
 	if (!led_cdev->max_brightness)
@@ -358,7 +358,7 @@ void led_classdev_unregister(struct led_classdev *led_cdev)
 	device_unregister(led_cdev->dev);
 
 	down_write(&leds_list_lock);
-	list_del(&led_cdev->node);
+	list_del(&led_cdev->yesde);
 	up_write(&leds_list_lock);
 
 	mutex_destroy(&led_cdev->led_access);

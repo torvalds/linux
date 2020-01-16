@@ -17,7 +17,7 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
-	.note		: { *(.note.*) }		:text	:note
+	.yeste		: { *(.yeste.*) }		:text	:yeste
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
 	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
@@ -27,7 +27,7 @@ SECTIONS
 
 	/*
 	 * This linker script is used both with -r and with -shared.
-	 * For the layouts to match, we need to skip more than enough
+	 * For the layouts to match, we need to skip more than eyesugh
 	 * space for the dynamic symbol table, etc. If this amount is
 	 * insufficient, ld -shared will error; simply increase it here.
 	 */
@@ -50,7 +50,7 @@ PHDRS
 {
 	text		PT_LOAD		FLAGS(5) FILEHDR PHDRS; /* PF_R|PF_X */
 	dynamic		PT_DYNAMIC	FLAGS(4);		/* PF_R */
-	note		PT_NOTE		FLAGS(4);		/* PF_R */
+	yeste		PT_NOTE		FLAGS(4);		/* PF_R */
 	eh_frame_hdr	PT_GNU_EH_FRAME;
 }
 

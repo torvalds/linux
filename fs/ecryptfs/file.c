@@ -22,10 +22,10 @@
 /**
  * ecryptfs_read_update_atime
  *
- * generic_file_read updates the atime of upper layer inode.  But, it
+ * generic_file_read updates the atime of upper layer iyesde.  But, it
  * doesn't give us a chance to update the atime of the lower layer
- * inode.  This function is a wrapper to generic_file_read.  It
- * updates the atime of the lower level inode if generic_file_read
+ * iyesde.  This function is a wrapper to generic_file_read.  It
+ * updates the atime of the lower level iyesde if generic_file_read
  * returns without any errors. This is to be used only for file reads.
  * The function to be used for directory reads is ecryptfs_read.
  */
@@ -55,7 +55,7 @@ struct ecryptfs_getdents_callback {
 /* Inspired by generic filldir in fs/readdir.c */
 static int
 ecryptfs_filldir(struct dir_context *ctx, const char *lower_name,
-		 int lower_namelen, loff_t offset, u64 ino, unsigned int d_type)
+		 int lower_namelen, loff_t offset, u64 iyes, unsigned int d_type)
 {
 	struct ecryptfs_getdents_callback *buf =
 		container_of(ctx, struct ecryptfs_getdents_callback, ctx);
@@ -85,7 +85,7 @@ ecryptfs_filldir(struct dir_context *ctx, const char *lower_name,
 	}
 
 	buf->caller->pos = buf->ctx.pos;
-	rc = !dir_emit(buf->caller, name, name_size, ino, d_type);
+	rc = !dir_emit(buf->caller, name, name_size, iyes, d_type);
 	kfree(name);
 	if (!rc)
 		buf->entries_written++;
@@ -102,11 +102,11 @@ static int ecryptfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	int rc;
 	struct file *lower_file;
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct ecryptfs_getdents_callback buf = {
 		.ctx.actor = ecryptfs_filldir,
 		.caller = ctx,
-		.sb = inode->i_sb,
+		.sb = iyesde->i_sb,
 	};
 	lower_file = ecryptfs_file_to_lower(file);
 	rc = iterate_dir(lower_file, &buf.ctx);
@@ -116,8 +116,8 @@ static int ecryptfs_readdir(struct file *file, struct dir_context *ctx)
 	if (buf.filldir_called && !buf.entries_written)
 		goto out;
 	if (rc >= 0)
-		fsstack_copy_attr_atime(inode,
-					file_inode(lower_file));
+		fsstack_copy_attr_atime(iyesde,
+					file_iyesde(lower_file));
 out:
 	return rc;
 }
@@ -126,14 +126,14 @@ struct kmem_cache *ecryptfs_file_info_cache;
 
 static int read_or_initialize_metadata(struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	struct ecryptfs_crypt_stat *crypt_stat;
 	int rc;
 
-	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
+	crypt_stat = &ecryptfs_iyesde_to_private(iyesde)->crypt_stat;
 	mount_crypt_stat = &ecryptfs_superblock_to_private(
-						inode->i_sb)->mount_crypt_stat;
+						iyesde->i_sb)->mount_crypt_stat;
 	mutex_lock(&crypt_stat->cs_mutex);
 
 	if (crypt_stat->flags & ECRYPTFS_POLICY_APPLIED &&
@@ -154,8 +154,8 @@ static int read_or_initialize_metadata(struct dentry *dentry)
 	}
 
 	if (!(mount_crypt_stat->flags & ECRYPTFS_XATTR_METADATA_ENABLED) &&
-	    !i_size_read(ecryptfs_inode_to_lower(inode))) {
-		rc = ecryptfs_initialize_file(dentry, inode);
+	    !i_size_read(ecryptfs_iyesde_to_lower(iyesde))) {
+		rc = ecryptfs_initialize_file(dentry, iyesde);
 		if (!rc)
 			goto out;
 	}
@@ -181,14 +181,14 @@ static int ecryptfs_mmap(struct file *file, struct vm_area_struct *vma)
 
 /**
  * ecryptfs_open
- * @inode: inode specifying file to open
+ * @iyesde: iyesde specifying file to open
  * @file: Structure to return filled in
  *
- * Opens the file specified by inode.
+ * Opens the file specified by iyesde.
  *
- * Returns zero on success; non-zero otherwise
+ * Returns zero on success; yesn-zero otherwise
  */
-static int ecryptfs_open(struct inode *inode, struct file *file)
+static int ecryptfs_open(struct iyesde *iyesde, struct file *file)
 {
 	int rc = 0;
 	struct ecryptfs_crypt_stat *crypt_stat = NULL;
@@ -206,7 +206,7 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 		rc = -ENOMEM;
 		goto out;
 	}
-	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
+	crypt_stat = &ecryptfs_iyesde_to_private(iyesde)->crypt_stat;
 	mutex_lock(&crypt_stat->cs_mutex);
 	if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED)) {
 		ecryptfs_printk(KERN_DEBUG, "Setting flags for stat...\n");
@@ -215,7 +215,7 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 				      | ECRYPTFS_ENCRYPTED);
 	}
 	mutex_unlock(&crypt_stat->cs_mutex);
-	rc = ecryptfs_get_lower_file(ecryptfs_dentry, inode);
+	rc = ecryptfs_get_lower_file(ecryptfs_dentry, iyesde);
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to initialize "
 			"the lower file for the dentry with name "
@@ -223,7 +223,7 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 			ecryptfs_dentry, rc);
 		goto out_free;
 	}
-	if ((ecryptfs_inode_to_private(inode)->lower_file->f_flags & O_ACCMODE)
+	if ((ecryptfs_iyesde_to_private(iyesde)->lower_file->f_flags & O_ACCMODE)
 	    == O_RDONLY && (file->f_flags & O_ACCMODE) != O_RDONLY) {
 		rc = -EPERM;
 		printk(KERN_WARNING "%s: Lower file is RO; eCryptfs "
@@ -231,16 +231,16 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 		goto out_put;
 	}
 	ecryptfs_set_file_lower(
-		file, ecryptfs_inode_to_private(inode)->lower_file);
+		file, ecryptfs_iyesde_to_private(iyesde)->lower_file);
 	rc = read_or_initialize_metadata(ecryptfs_dentry);
 	if (rc)
 		goto out_put;
-	ecryptfs_printk(KERN_DEBUG, "inode w/ addr = [0x%p], i_ino = "
-			"[0x%.16lx] size: [0x%.16llx]\n", inode, inode->i_ino,
-			(unsigned long long)i_size_read(inode));
+	ecryptfs_printk(KERN_DEBUG, "iyesde w/ addr = [0x%p], i_iyes = "
+			"[0x%.16lx] size: [0x%.16llx]\n", iyesde, iyesde->i_iyes,
+			(unsigned long long)i_size_read(iyesde));
 	goto out;
 out_put:
-	ecryptfs_put_lower_file(inode);
+	ecryptfs_put_lower_file(iyesde);
 out_free:
 	kmem_cache_free(ecryptfs_file_info_cache,
 			ecryptfs_file_to_private(file));
@@ -250,14 +250,14 @@ out:
 
 /**
  * ecryptfs_dir_open
- * @inode: inode specifying file to open
+ * @iyesde: iyesde specifying file to open
  * @file: Structure to return filled in
  *
- * Opens the file specified by inode.
+ * Opens the file specified by iyesde.
  *
- * Returns zero on success; non-zero otherwise
+ * Returns zero on success; yesn-zero otherwise
  */
-static int ecryptfs_dir_open(struct inode *inode, struct file *file)
+static int ecryptfs_dir_open(struct iyesde *iyesde, struct file *file)
 {
 	struct dentry *ecryptfs_dentry = file->f_path.dentry;
 	/* Private value of ecryptfs_dentry allocated in
@@ -299,15 +299,15 @@ static int ecryptfs_flush(struct file *file, fl_owner_t td)
 	return 0;
 }
 
-static int ecryptfs_release(struct inode *inode, struct file *file)
+static int ecryptfs_release(struct iyesde *iyesde, struct file *file)
 {
-	ecryptfs_put_lower_file(inode);
+	ecryptfs_put_lower_file(iyesde);
 	kmem_cache_free(ecryptfs_file_info_cache,
 			ecryptfs_file_to_private(file));
 	return 0;
 }
 
-static int ecryptfs_dir_release(struct inode *inode, struct file *file)
+static int ecryptfs_dir_release(struct iyesde *iyesde, struct file *file)
 {
 	fput(ecryptfs_file_to_lower(file));
 	kmem_cache_free(ecryptfs_file_info_cache,
@@ -359,7 +359,7 @@ ecryptfs_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case FS_IOC_GETVERSION:
 	case FS_IOC_SETVERSION:
 		rc = lower_file->f_op->unlocked_ioctl(lower_file, cmd, arg);
-		fsstack_copy_attr_all(file_inode(file), file_inode(lower_file));
+		fsstack_copy_attr_all(file_iyesde(file), file_iyesde(lower_file));
 
 		return rc;
 	default:
@@ -384,7 +384,7 @@ ecryptfs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case FS_IOC32_GETVERSION:
 	case FS_IOC32_SETVERSION:
 		rc = lower_file->f_op->compat_ioctl(lower_file, cmd, arg);
-		fsstack_copy_attr_all(file_inode(file), file_inode(lower_file));
+		fsstack_copy_attr_all(file_iyesde(file), file_iyesde(lower_file));
 
 		return rc;
 	default:

@@ -76,16 +76,16 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	mr	r11,r4			/* r11 saves tp */
 	bl	__get_datapage@local	/* get data page */
 	mr	r9,r3			/* datapage ptr in r9 */
-	lis	r7,NSEC_PER_SEC@h	/* want nanoseconds */
+	lis	r7,NSEC_PER_SEC@h	/* want nayesseconds */
 	ori	r7,r7,NSEC_PER_SEC@l
 50:	bl	__do_get_tspec@local	/* get sec/nsec from tb & kernel */
-	bne	cr1,80f			/* not monotonic -> all done */
+	bne	cr1,80f			/* yest moyestonic -> all done */
 
 	/*
 	 * CLOCK_MONOTONIC
 	 */
 
-	/* now we must fixup using wall to monotonic. We need to snapshot
+	/* yesw we must fixup using wall to moyestonic. We need to snapshot
 	 * that value and do the counter trick again. Fortunately, we still
 	 * have the counter value in r8 that was returned by __do_get_xsec.
 	 * At this point, r3,r4 contain our sec/nsec values, r5 and r6
@@ -95,7 +95,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	lwz	r5,(WTOM_CLOCK_SEC+LOPART)(r9)
 	lwz	r6,WTOM_CLOCK_NSEC(r9)
 
-	/* We now have our offset in r5,r6. We create a fake dependency
+	/* We yesw have our offset in r5,r6. We create a fake dependency
 	 * on that value and re-check the counter
 	 */
 	or	r0,r6,r5
@@ -208,11 +208,11 @@ V_FUNCTION_END(__kernel_time)
  * This is the core of clock_gettime() and gettimeofday(),
  * it returns the current time in r3 (seconds) and r4.
  * On entry, r7 gives the resolution of r4, either USEC_PER_SEC
- * or NSEC_PER_SEC, giving r4 in microseconds or nanoseconds.
+ * or NSEC_PER_SEC, giving r4 in microseconds or nayesseconds.
  * It expects the datapage ptr in r9 and doesn't clobber it.
  * It clobbers r0, r5 and r6.
  * On return, r8 contains the counter value that can be reused.
- * This clobbers cr0 but not any other cr field.
+ * This clobbers cr0 but yest any other cr field.
  */
 __do_get_tspec:
   .cfi_startproc
@@ -249,11 +249,11 @@ __do_get_tspec:
 	 * We only use the high 32 bits of the tb_to_xs value.
 	 * Even with a 1GHz timebase clock, the high 32 bits of
 	 * tb_to_xs will be at least 4 million, so the error from
-	 * ignoring the low 32 bits will be no more than 0.25ppm.
+	 * igyesring the low 32 bits will be yes more than 0.25ppm.
 	 * The error will just make the clock run very very slightly
 	 * slow until the next time the kernel updates the VDSO data,
 	 * at which point the clock will catch up to the kernel's value,
-	 * so there is no long-term error accumulation.
+	 * so there is yes long-term error accumulation.
 	 */
 	lwz	r5,CFG_TB_TO_XS(r9)	/* load values */
 	mulhwu	r4,r4,r5
@@ -284,7 +284,7 @@ __do_get_tspec:
         cmplw	cr0,r8,r0		/* check if updated */
 	bne-	1b
 
-	mulhwu	r4,r4,r7		/* convert to micro or nanoseconds */
+	mulhwu	r4,r4,r7		/* convert to micro or nayesseconds */
 
 	blr
   .cfi_endproc

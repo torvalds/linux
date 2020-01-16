@@ -25,7 +25,7 @@ static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 		return;
 	if (CHECK(meta->ifindex != 1, "check_meta_ifindex",
 		  "meta->ifindex = %d\n", meta->ifindex))
-		/* spurious kfree_skb not on loopback device */
+		/* spurious kfree_skb yest on loopback device */
 		return;
 	if (CHECK(meta->cb8_0 != cb.cb8[0], "check_cb8_0", "cb8_0 %x != %x\n",
 		  meta->cb8_0, cb.cb8[0]))
@@ -74,25 +74,25 @@ void test_kfree_skb(void)
 
 	err = bpf_prog_load("./test_pkt_access.o", BPF_PROG_TYPE_SCHED_CLS,
 			    &obj, &tattr.prog_fd);
-	if (CHECK(err, "prog_load sched cls", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "prog_load sched cls", "err %d erryes %d\n", err, erryes))
 		return;
 
 	err = bpf_prog_load_xattr(&attr, &obj2, &kfree_skb_fd);
-	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "prog_load raw tp", "err %d erryes %d\n", err, erryes))
 		goto close_prog;
 
 	prog = bpf_object__find_program_by_title(obj2, "tp_btf/kfree_skb");
-	if (CHECK(!prog, "find_prog", "prog kfree_skb not found\n"))
+	if (CHECK(!prog, "find_prog", "prog kfree_skb yest found\n"))
 		goto close_prog;
 	fentry = bpf_object__find_program_by_title(obj2, "fentry/eth_type_trans");
-	if (CHECK(!fentry, "find_prog", "prog eth_type_trans not found\n"))
+	if (CHECK(!fentry, "find_prog", "prog eth_type_trans yest found\n"))
 		goto close_prog;
 	fexit = bpf_object__find_program_by_title(obj2, "fexit/eth_type_trans");
-	if (CHECK(!fexit, "find_prog", "prog eth_type_trans not found\n"))
+	if (CHECK(!fexit, "find_prog", "prog eth_type_trans yest found\n"))
 		goto close_prog;
 
 	global_data = bpf_object__find_map_by_name(obj2, "kfree_sk.bss");
-	if (CHECK(!global_data, "find global data", "not found\n"))
+	if (CHECK(!global_data, "find global data", "yest found\n"))
 		goto close_prog;
 
 	link = bpf_program__attach_raw_tracepoint(prog, NULL);
@@ -108,7 +108,7 @@ void test_kfree_skb(void)
 		goto close_prog;
 
 	perf_buf_map = bpf_object__find_map_by_name(obj2, "perf_buf_map");
-	if (CHECK(!perf_buf_map, "find_perf_buf_map", "not found\n"))
+	if (CHECK(!perf_buf_map, "find_perf_buf_map", "yest found\n"))
 		goto close_prog;
 
 	/* set up perf buffer */
@@ -122,8 +122,8 @@ void test_kfree_skb(void)
 	err = bpf_prog_test_run_xattr(&tattr);
 	duration = tattr.duration;
 	CHECK(err || tattr.retval, "ipv6",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, tattr.retval, duration);
+	      "err %d erryes %d retval %d duration %d\n",
+	      err, erryes, tattr.retval, duration);
 
 	/* read perf buffer */
 	err = perf_buffer__poll(pb, 100);

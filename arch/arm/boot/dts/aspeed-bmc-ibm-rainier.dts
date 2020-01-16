@@ -29,7 +29,7 @@
 		ranges;
 
 		flash_memory: region@B8000000 {
-			no-map;
+			yes-map;
 			reg = <0xB8000000 0x04000000>; /* 64M */
 		};
 	};
@@ -966,7 +966,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "pyesr";
 		spi-max-frequency = <100000000>;
 	};
 };

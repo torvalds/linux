@@ -23,10 +23,10 @@ static int mx5_cpu_rev = -1;
 static u32 imx5_read_srev_reg(const char *compat)
 {
 	void __iomem *iim_base;
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 srev;
 
-	np = of_find_compatible_node(NULL, NULL, compat);
+	np = of_find_compatible_yesde(NULL, NULL, compat);
 	iim_base = of_iomap(np, 0);
 	WARN_ON(!iim_base);
 
@@ -125,22 +125,22 @@ EXPORT_SYMBOL(mx53_revision);
 void __init imx5_pmu_init(void)
 {
 	void __iomem *tigerp_base;
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 gpc;
 
 	if (!IS_ENABLED(CONFIG_ARM_PMU))
 		return;
 
-	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a8-pmu");
+	np = of_find_compatible_yesde(NULL, NULL, "arm,cortex-a8-pmu");
 	if (!np)
 		return;
 
 	if (!of_property_read_bool(np, "secure-reg-access"))
 		goto exit;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx51-tigerp");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx51-tigerp");
 	if (!np)
 		return;
 
@@ -153,6 +153,6 @@ void __init imx5_pmu_init(void)
 	writel_relaxed(gpc, tigerp_base + ARM_GPC);
 	iounmap(tigerp_base);
 exit:
-	of_node_put(np);
+	of_yesde_put(np);
 
 }

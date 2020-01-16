@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Montage Technology M88DS3103/M88RS6000 demodulator driver
+ * Montage Techyeslogy M88DS3103/M88RS6000 demodulator driver
  *
  * Copyright (C) 2013 Antti Palosaari <crope@iki.fi>
  */
@@ -16,7 +16,7 @@ static int m88ds3103_update_bits(struct m88ds3103_dev *dev,
 	int ret;
 	u8 tmp;
 
-	/* no need for read if whole reg is written */
+	/* yes need for read if whole reg is written */
 	if (mask != 0xff) {
 		ret = regmap_bulk_read(dev->regmap, reg, &tmp, 1);
 		if (ret)
@@ -129,7 +129,7 @@ static int m88ds3103_read_status(struct dvb_frontend *fe,
 
 	/* CNR */
 	if (dev->fe_status & FE_HAS_VITERBI) {
-		unsigned int cnr, noise, signal, noise_tot, signal_tot;
+		unsigned int cnr, yesise, signal, yesise_tot, signal_tot;
 
 		cnr = 0;
 		/* more iterations for more accurate estimation */
@@ -154,7 +154,7 @@ static int m88ds3103_read_status(struct dvb_frontend *fe,
 				cnr = div_u64((u64) 10000 * intlog2(itmp), intlog2(10));
 			break;
 		case SYS_DVBS2:
-			noise_tot = 0;
+			yesise_tot = 0;
 			signal_tot = 0;
 
 			for (i = 0; i < M88DS3103_SNR_ITERATIONS; i++) {
@@ -162,22 +162,22 @@ static int m88ds3103_read_status(struct dvb_frontend *fe,
 				if (ret)
 					goto err;
 
-				noise = buf[1] << 6;    /* [13:6] */
-				noise |= buf[0] & 0x3f; /*  [5:0] */
-				noise >>= 2;
+				yesise = buf[1] << 6;    /* [13:6] */
+				yesise |= buf[0] & 0x3f; /*  [5:0] */
+				yesise >>= 2;
 				signal = buf[2] * buf[2];
 				signal >>= 1;
 
-				noise_tot += noise;
+				yesise_tot += yesise;
 				signal_tot += signal;
 			}
 
-			noise = noise_tot / M88DS3103_SNR_ITERATIONS;
+			yesise = yesise_tot / M88DS3103_SNR_ITERATIONS;
 			signal = signal_tot / M88DS3103_SNR_ITERATIONS;
 
 			/* SNR(X) dB = 10 * log10(X) dB */
-			if (signal > noise) {
-				itmp = signal / noise;
+			if (signal > yesise) {
+				itmp = signal / yesise;
 				cnr = div_u64((u64) 10000 * intlog10(itmp), (1 << 24));
 			}
 			break;
@@ -237,7 +237,7 @@ static int m88ds3103_read_status(struct dvb_frontend *fe,
 
 			utmp = buf[2] << 16 | buf[1] << 8 | buf[0] << 0;
 
-			/* enough data? */
+			/* eyesugh data? */
 			if (utmp > 4000) {
 				ret = regmap_bulk_read(dev->regmap, 0xf7, buf, 2);
 				if (ret)
@@ -339,8 +339,8 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 			goto err;
 	} else {
 		/*
-		 * Use nominal target frequency as tuner driver does not provide
-		 * actual frequency used. Carrier offset calculation is not
+		 * Use yesminal target frequency as tuner driver does yest provide
+		 * actual frequency used. Carrier offset calculation is yest
 		 * valid.
 		 */
 		tuner_frequency_khz = c->frequency;
@@ -581,7 +581,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	dev_dbg(&client->dev, "carrier offset=%d\n",
 		(tuner_frequency_khz - c->frequency));
 
-	/* Use 32-bit calc as there is no s64 version of DIV_ROUND_CLOSEST() */
+	/* Use 32-bit calc as there is yes s64 version of DIV_ROUND_CLOSEST() */
 	s32tmp = 0x10000 * (tuner_frequency_khz - c->frequency);
 	s32tmp = DIV_ROUND_CLOSEST(s32tmp, dev->mclk / 1000);
 	buf[0] = (s32tmp >> 0) & 0xff;
@@ -661,7 +661,7 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&firmware, name, &client->dev);
 	if (ret) {
-		dev_err(&client->dev, "firmware file '%s' not found\n", name);
+		dev_err(&client->dev, "firmware file '%s' yest found\n", name);
 		goto err;
 	}
 
@@ -695,7 +695,7 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 
 	if (!utmp) {
 		ret = -EINVAL;
-		dev_info(&client->dev, "firmware did not run\n");
+		dev_info(&client->dev, "firmware did yest run\n");
 		goto err;
 	}
 
@@ -1289,7 +1289,7 @@ EXPORT_SYMBOL(m88ds3103_attach);
 static const struct dvb_frontend_ops m88ds3103_ops = {
 	.delsys = {SYS_DVBS, SYS_DVBS2},
 	.info = {
-		.name = "Montage Technology M88DS3103",
+		.name = "Montage Techyeslogy M88DS3103",
 		.frequency_min_hz =  950 * MHz,
 		.frequency_max_hz = 2150 * MHz,
 		.frequency_tolerance_hz = 5 * MHz,
@@ -1401,7 +1401,7 @@ static int m88ds3103_probe(struct i2c_client *client,
 		break;
 	default:
 		ret = -ENODEV;
-		dev_err(&client->dev, "Unknown device. Chip_id=%02x\n", dev->chip_id);
+		dev_err(&client->dev, "Unkyeswn device. Chip_id=%02x\n", dev->chip_id);
 		goto err_kfree;
 	}
 
@@ -1460,7 +1460,7 @@ static int m88ds3103_probe(struct i2c_client *client,
 	/* create dvb_frontend */
 	memcpy(&dev->fe.ops, &m88ds3103_ops, sizeof(struct dvb_frontend_ops));
 	if (dev->chip_id == M88RS6000_CHIP_ID)
-		strscpy(dev->fe.ops.info.name, "Montage Technology M88RS6000",
+		strscpy(dev->fe.ops.info.name, "Montage Techyeslogy M88RS6000",
 			sizeof(dev->fe.ops.info.name));
 	if (!pdata->attach_in_use)
 		dev->fe.ops.release = NULL;
@@ -1509,7 +1509,7 @@ static struct i2c_driver m88ds3103_driver = {
 module_i2c_driver(m88ds3103_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
-MODULE_DESCRIPTION("Montage Technology M88DS3103 DVB-S/S2 demodulator driver");
+MODULE_DESCRIPTION("Montage Techyeslogy M88DS3103 DVB-S/S2 demodulator driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(M88DS3103_FIRMWARE);
 MODULE_FIRMWARE(M88RS6000_FIRMWARE);

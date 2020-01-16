@@ -97,7 +97,7 @@ EXPORT_SYMBOL(blk_queue_flag_clear);
  * @flag: flag to be set
  * @q: request queue
  *
- * Returns the previous value of @flag - 0 if the flag was not set and 1 if
+ * Returns the previous value of @flag - 0 if the flag was yest set and 1 if
  * the flag was already set.
  */
 bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q)
@@ -114,7 +114,7 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->q = q;
 	rq->__sector = (sector_t) -1;
 	INIT_HLIST_NODE(&rq->hash);
-	RB_CLEAR_NODE(&rq->rb_node);
+	RB_CLEAR_NODE(&rq->rb_yesde);
 	rq->tag = -1;
 	rq->internal_tag = -1;
 	rq->start_time_ns = ktime_get_ns();
@@ -164,11 +164,11 @@ inline const char *blk_op_str(unsigned int op)
 EXPORT_SYMBOL_GPL(blk_op_str);
 
 static const struct {
-	int		errno;
+	int		erryes;
 	const char	*name;
 } blk_errors[] = {
 	[BLK_STS_OK]		= { 0,		"" },
-	[BLK_STS_NOTSUPP]	= { -EOPNOTSUPP, "operation not supported" },
+	[BLK_STS_NOTSUPP]	= { -EOPNOTSUPP, "operation yest supported" },
 	[BLK_STS_TIMEOUT]	= { -ETIMEDOUT,	"timeout" },
 	[BLK_STS_NOSPC]		= { -ENOSPC,	"critical space allocation" },
 	[BLK_STS_TRANSPORT]	= { -ENOLINK,	"recoverable transport" },
@@ -178,37 +178,37 @@ static const struct {
 	[BLK_STS_PROTECTION]	= { -EILSEQ,	"protection" },
 	[BLK_STS_RESOURCE]	= { -ENOMEM,	"kernel resource" },
 	[BLK_STS_DEV_RESOURCE]	= { -EBUSY,	"device resource" },
-	[BLK_STS_AGAIN]		= { -EAGAIN,	"nonblocking retry" },
+	[BLK_STS_AGAIN]		= { -EAGAIN,	"yesnblocking retry" },
 
-	/* device mapper special case, should not leak out: */
+	/* device mapper special case, should yest leak out: */
 	[BLK_STS_DM_REQUEUE]	= { -EREMCHG, "dm internal retry" },
 
-	/* everything else not covered above: */
+	/* everything else yest covered above: */
 	[BLK_STS_IOERR]		= { -EIO,	"I/O" },
 };
 
-blk_status_t errno_to_blk_status(int errno)
+blk_status_t erryes_to_blk_status(int erryes)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(blk_errors); i++) {
-		if (blk_errors[i].errno == errno)
+		if (blk_errors[i].erryes == erryes)
 			return (__force blk_status_t)i;
 	}
 
 	return BLK_STS_IOERR;
 }
-EXPORT_SYMBOL_GPL(errno_to_blk_status);
+EXPORT_SYMBOL_GPL(erryes_to_blk_status);
 
-int blk_status_to_errno(blk_status_t status)
+int blk_status_to_erryes(blk_status_t status)
 {
 	int idx = (__force int)status;
 
 	if (WARN_ON_ONCE(idx >= ARRAY_SIZE(blk_errors)))
 		return -EIO;
-	return blk_errors[idx].errno;
+	return blk_errors[idx].erryes;
 }
-EXPORT_SYMBOL_GPL(blk_status_to_errno);
+EXPORT_SYMBOL_GPL(blk_status_to_erryes);
 
 static void print_req_error(struct request *req, blk_status_t status,
 		const char *caller)
@@ -264,15 +264,15 @@ EXPORT_SYMBOL(blk_dump_rq_flags);
  * @q: the queue
  *
  * Description:
- *     The block layer may perform asynchronous callback activity
+ *     The block layer may perform asynchroyesus callback activity
  *     on a queue, such as calling the unplug function after a timeout.
  *     A block device may call blk_sync_queue to ensure that any
  *     such activity is cancelled, thus allowing it to release resources
  *     that the callbacks might use. The caller must already have made sure
- *     that its ->make_request_fn will not re-add plugging prior to calling
+ *     that its ->make_request_fn will yest re-add plugging prior to calling
  *     this function.
  *
- *     This function does not cancel any asynchronous activity arising
+ *     This function does yest cancel any asynchroyesus activity arising
  *     out of elevator or throttling code. That would require elevator_exit()
  *     and blkcg_exit_queue() to be called with queue lock initialized.
  *
@@ -341,7 +341,7 @@ void blk_cleanup_queue(struct request_queue *q)
 {
 	WARN_ON_ONCE(blk_queue_registered(q));
 
-	/* mark @q DYING, no new request or merges will be allowed afterwards */
+	/* mark @q DYING, yes new request or merges will be allowed afterwards */
 	blk_set_queue_dying(q);
 
 	blk_queue_flag_set(QUEUE_FLAG_NOMERGES, q);
@@ -359,7 +359,7 @@ void blk_cleanup_queue(struct request_queue *q)
 
 	blk_queue_flag_set(QUEUE_FLAG_DEAD, q);
 
-	/* for synchronous bio-based driver finish in-flight integrity i/o */
+	/* for synchroyesus bio-based driver finish in-flight integrity i/o */
 	blk_flush_integrity();
 
 	/* @q won't process any more request, flush async actions */
@@ -372,10 +372,10 @@ void blk_cleanup_queue(struct request_queue *q)
 	/*
 	 * In theory, request pool of sched_tags belongs to request queue.
 	 * However, the current implementation requires tag_set for freeing
-	 * requests, so free the pool now.
+	 * requests, so free the pool yesw.
 	 *
 	 * Queue has become frozen, there can't be any in-queue requests, so
-	 * it is safe to free requests now.
+	 * it is safe to free requests yesw.
 	 */
 	mutex_lock(&q->sysfs_lock);
 	if (q->elevator)
@@ -391,7 +391,7 @@ EXPORT_SYMBOL(blk_cleanup_queue);
 
 struct request_queue *blk_alloc_queue(gfp_t gfp_mask)
 {
-	return blk_alloc_queue_node(gfp_mask, NUMA_NO_NODE);
+	return blk_alloc_queue_yesde(gfp_mask, NUMA_NO_NODE);
 }
 EXPORT_SYMBOL(blk_alloc_queue);
 
@@ -472,17 +472,17 @@ static void blk_timeout_work(struct work_struct *work)
 }
 
 /**
- * blk_alloc_queue_node - allocate a request queue
+ * blk_alloc_queue_yesde - allocate a request queue
  * @gfp_mask: memory allocation flags
- * @node_id: NUMA node to allocate memory from
+ * @yesde_id: NUMA yesde to allocate memory from
  */
-struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
+struct request_queue *blk_alloc_queue_yesde(gfp_t gfp_mask, int yesde_id)
 {
 	struct request_queue *q;
 	int ret;
 
-	q = kmem_cache_alloc_node(blk_requestq_cachep,
-				gfp_mask | __GFP_ZERO, node_id);
+	q = kmem_cache_alloc_yesde(blk_requestq_cachep,
+				gfp_mask | __GFP_ZERO, yesde_id);
 	if (!q)
 		return NULL;
 
@@ -496,7 +496,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	if (ret)
 		goto fail_id;
 
-	q->backing_dev_info = bdi_alloc_node(gfp_mask, node_id);
+	q->backing_dev_info = bdi_alloc_yesde(gfp_mask, yesde_id);
 	if (!q->backing_dev_info)
 		goto fail_split;
 
@@ -507,7 +507,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	q->backing_dev_info->ra_pages = VM_READAHEAD_PAGES;
 	q->backing_dev_info->capabilities = BDI_CAP_CGROUP_WRITEBACK;
 	q->backing_dev_info->name = "block";
-	q->node = node_id;
+	q->yesde = yesde_id;
 
 	timer_setup(&q->backing_dev_info->laptop_mode_wb_timer,
 		    laptop_mode_timer_fn, 0);
@@ -558,7 +558,7 @@ fail_q:
 	kmem_cache_free(blk_requestq_cachep, q);
 	return NULL;
 }
-EXPORT_SYMBOL(blk_alloc_queue_node);
+EXPORT_SYMBOL(blk_alloc_queue_yesde);
 
 bool blk_get_queue(struct request_queue *q)
 {
@@ -651,10 +651,10 @@ bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
 	unsigned short segments = blk_rq_nr_discard_segments(req);
 
 	if (segments >= queue_max_discard_segments(q))
-		goto no_merge;
+		goto yes_merge;
 	if (blk_rq_sectors(req) + bio_sectors(bio) >
 	    blk_rq_get_max_sectors(req, blk_rq_pos(req)))
-		goto no_merge;
+		goto yes_merge;
 
 	rq_qos_merge(q, req, bio);
 
@@ -665,8 +665,8 @@ bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
 
 	blk_account_io_start(req, false);
 	return true;
-no_merge:
-	req_set_nomerge(q, req);
+yes_merge:
+	req_set_yesmerge(q, req);
 	return false;
 }
 
@@ -676,7 +676,7 @@ no_merge:
  * @bio: new bio being queued
  * @nr_segs: number of segments in @bio
  * @same_queue_rq: pointer to &struct request that gets filled in when
- * another request associated with @q is found on the plug list
+ * ayesther request associated with @q is found on the plug list
  * (optional, may be %NULL)
  *
  * Determine whether @bio being queued on @q can be merged with a request
@@ -685,12 +685,12 @@ no_merge:
  *
  * Plugging coalesces IOs from the same issuer for the same purpose without
  * going through @q->queue_lock.  As such it's more of an issuing mechanism
- * than scheduling, and the request, while may have elvpriv data, is not
+ * than scheduling, and the request, while may have elvpriv data, is yest
  * added on the elevator at this point.  In addition, we don't have
  * reliable access to the elevator outside queue lock.  Only check basic
  * merging parameters without querying the elevator.
  *
- * Caller must ensure !blk_queue_nomerges(q) beforehand.
+ * Caller must ensure !blk_queue_yesmerges(q) beforehand.
  */
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs, struct request **same_queue_rq)
@@ -799,8 +799,8 @@ static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
 
 		WARN_ONCE(1,
 		       "generic_make_request: Trying to write "
-			"to read-only block-device %s (partno %d)\n",
-			bio_devname(bio, b), part->partno);
+			"to read-only block-device %s (partyes %d)\n",
+			bio_devname(bio, b), part->partyes);
 		/* Older lvm-tools actually trigger this */
 		return false;
 	}
@@ -808,7 +808,7 @@ static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
 	return false;
 }
 
-static noinline int should_fail_bio(struct bio *bio)
+static yesinline int should_fail_bio(struct bio *bio)
 {
 	if (should_fail_request(&bio->bi_disk->part0, bio->bi_iter.bi_size))
 		return -EIO;
@@ -843,7 +843,7 @@ static inline int blk_partition_remap(struct bio *bio)
 	int ret = -EIO;
 
 	rcu_read_lock();
-	p = __disk_get_part(bio->bi_disk, bio->bi_partno);
+	p = __disk_get_part(bio->bi_disk, bio->bi_partyes);
 	if (unlikely(!p))
 		goto out;
 	if (unlikely(should_fail_request(p, bio->bi_iter.bi_size)))
@@ -858,14 +858,14 @@ static inline int blk_partition_remap(struct bio *bio)
 		trace_block_bio_remap(bio->bi_disk->queue, bio, part_devt(p),
 				      bio->bi_iter.bi_sector - p->start_sect);
 	}
-	bio->bi_partno = 0;
+	bio->bi_partyes = 0;
 	ret = 0;
 out:
 	rcu_read_unlock();
 	return ret;
 }
 
-static noinline_for_stack bool
+static yesinline_for_stack bool
 generic_make_request_checks(struct bio *bio)
 {
 	struct request_queue *q;
@@ -879,13 +879,13 @@ generic_make_request_checks(struct bio *bio)
 	if (unlikely(!q)) {
 		printk(KERN_ERR
 		       "generic_make_request: Trying to access "
-			"nonexistent block-device %s (%Lu)\n",
+			"yesnexistent block-device %s (%Lu)\n",
 			bio_devname(bio, b), (long long)bio->bi_iter.bi_sector);
 		goto end_io;
 	}
 
 	/*
-	 * Non-mq queues do not honor REQ_NOWAIT, so complete a bio
+	 * Non-mq queues do yest hoyesr REQ_NOWAIT, so complete a bio
 	 * with BLK_STS_AGAIN status in order to catch -EAGAIN and
 	 * to give a chance to the caller to repeat request gracefully.
 	 */
@@ -897,7 +897,7 @@ generic_make_request_checks(struct bio *bio)
 	if (should_fail_bio(bio))
 		goto end_io;
 
-	if (bio->bi_partno) {
+	if (bio->bi_partyes) {
 		if (unlikely(blk_partition_remap(bio)))
 			goto end_io;
 	} else {
@@ -927,30 +927,30 @@ generic_make_request_checks(struct bio *bio)
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
 		if (!blk_queue_discard(q))
-			goto not_supported;
+			goto yest_supported;
 		break;
 	case REQ_OP_SECURE_ERASE:
 		if (!blk_queue_secure_erase(q))
-			goto not_supported;
+			goto yest_supported;
 		break;
 	case REQ_OP_WRITE_SAME:
 		if (!q->limits.max_write_same_sectors)
-			goto not_supported;
+			goto yest_supported;
 		break;
 	case REQ_OP_ZONE_RESET:
 	case REQ_OP_ZONE_OPEN:
 	case REQ_OP_ZONE_CLOSE:
 	case REQ_OP_ZONE_FINISH:
 		if (!blk_queue_is_zoned(q))
-			goto not_supported;
+			goto yest_supported;
 		break;
 	case REQ_OP_ZONE_RESET_ALL:
 		if (!blk_queue_is_zoned(q) || !blk_queue_zone_resetall(q))
-			goto not_supported;
+			goto yest_supported;
 		break;
 	case REQ_OP_WRITE_ZEROES:
 		if (!q->limits.max_write_zeroes_sectors)
-			goto not_supported;
+			goto yest_supported;
 		break;
 	default:
 		break;
@@ -960,9 +960,9 @@ generic_make_request_checks(struct bio *bio)
 	 * Various block parts want %current->io_context and lazy ioc
 	 * allocation ends up trading a lot of pain for a small amount of
 	 * memory.  Just allocate it upfront.  This may fail and block
-	 * layer knows how to live with it.
+	 * layer kyesws how to live with it.
 	 */
-	create_io_context(GFP_ATOMIC, q->node);
+	create_io_context(GFP_ATOMIC, q->yesde);
 
 	if (!blkcg_bio_issue_check(q, bio))
 		return false;
@@ -976,7 +976,7 @@ generic_make_request_checks(struct bio *bio)
 	}
 	return true;
 
-not_supported:
+yest_supported:
 	status = BLK_STS_NOTSUPP;
 end_io:
 	bio->bi_status = status;
@@ -992,16 +992,16 @@ end_io:
  * devices. It is passed a &struct bio, which describes the I/O that needs
  * to be done.
  *
- * generic_make_request() does not return any status.  The
- * success/failure status of the request, along with notification of
- * completion, is delivered asynchronously through the bio->bi_end_io
+ * generic_make_request() does yest return any status.  The
+ * success/failure status of the request, along with yestification of
+ * completion, is delivered asynchroyesusly through the bio->bi_end_io
  * function described (one day) else where.
  *
  * The caller of generic_make_request must make sure that bi_io_vec
  * are set to describe the memory buffer, and that bi_dev and bi_sector are
  * set to describe the device address, and the
  * bi_end_io and optionally bi_private are set to describe how
- * completion notification should be signaled.
+ * completion yestification should be signaled.
  *
  * generic_make_request and the drivers it calls may use bi_next if this
  * bio happens to be merged with someone else, and may resubmit the bio to
@@ -1029,8 +1029,8 @@ blk_qc_t generic_make_request(struct bio *bio)
 	 * current->bio_list to keep a list of requests submited by a
 	 * make_request_fn function.  current->bio_list is also used as a
 	 * flag to say if generic_make_request is currently active in this
-	 * task or not.  If it is NULL, then no make_request is active.  If
-	 * it is non-NULL, then a make_request is active, and new requests
+	 * task or yest.  If it is NULL, then yes make_request is active.  If
+	 * it is yesn-NULL, then a make_request is active, and new requests
 	 * should be added at the tail
 	 */
 	if (current->bio_list) {
@@ -1038,7 +1038,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 		goto out;
 	}
 
-	/* following loop may be a bit non-obvious, and so deserves some
+	/* following loop may be a bit yesn-obvious, and so deserves some
 	 * explanation.
 	 * Before entering the loop, bio->bi_next is NULL (as all callers
 	 * ensure that) so we have a list with a single bio.
@@ -1047,9 +1047,9 @@ blk_qc_t generic_make_request(struct bio *bio)
 	 * thus initialising the bio_list of new bios to be
 	 * added.  ->make_request() may indeed add some more bios
 	 * through a recursive call to generic_make_request.  If it
-	 * did, we find a non-NULL value in bio_list and re-enter the loop
+	 * did, we find a yesn-NULL value in bio_list and re-enter the loop
 	 * from the top.  In this case we really did just take the bio
-	 * of the top of the list (no pretending) and so remove it from
+	 * of the top of the list (yes pretending) and so remove it from
 	 * bio_list, and call into ->make_request() again.
 	 */
 	BUG_ON(bio->bi_next);
@@ -1080,7 +1080,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 					bio_list_add(&same, bio);
 				else
 					bio_list_add(&lower, bio);
-			/* now assemble so we handle the lowest level first */
+			/* yesw assemble so we handle the lowest level first */
 			bio_list_merge(&bio_list_on_stack[0], &lower);
 			bio_list_merge(&bio_list_on_stack[0], &same);
 			bio_list_merge(&bio_list_on_stack[0], &bio_list_on_stack[1]);
@@ -1104,23 +1104,23 @@ EXPORT_SYMBOL(generic_make_request);
  * direct_make_request - hand a buffer directly to its device driver for I/O
  * @bio:  The bio describing the location in memory and on the device.
  *
- * This function behaves like generic_make_request(), but does not protect
- * against recursion.  Must only be used if the called driver is known
- * to not call generic_make_request (or direct_make_request) again from
+ * This function behaves like generic_make_request(), but does yest protect
+ * against recursion.  Must only be used if the called driver is kyeswn
+ * to yest call generic_make_request (or direct_make_request) again from
  * its make_request function.  (Calling direct_make_request again from
  * a workqueue is perfectly fine as that doesn't recurse).
  */
 blk_qc_t direct_make_request(struct bio *bio)
 {
 	struct request_queue *q = bio->bi_disk->queue;
-	bool nowait = bio->bi_opf & REQ_NOWAIT;
+	bool yeswait = bio->bi_opf & REQ_NOWAIT;
 	blk_qc_t ret;
 
 	if (!generic_make_request_checks(bio))
 		return BLK_QC_T_NONE;
 
-	if (unlikely(blk_queue_enter(q, nowait ? BLK_MQ_REQ_NOWAIT : 0))) {
-		if (nowait && !blk_queue_dying(q))
+	if (unlikely(blk_queue_enter(q, yeswait ? BLK_MQ_REQ_NOWAIT : 0))) {
+		if (yeswait && !blk_queue_dying(q))
 			bio->bi_status = BLK_STS_AGAIN;
 		else
 			bio->bi_status = BLK_STS_IOERR;
@@ -1154,7 +1154,7 @@ blk_qc_t submit_bio(struct bio *bio)
 
 	/*
 	 * If it's a regular read/write or a barrier with data attached,
-	 * go through the normal accounting stuff before submission.
+	 * go through the yesrmal accounting stuff before submission.
 	 */
 	if (bio_has_data(bio)) {
 		unsigned int count;
@@ -1324,12 +1324,12 @@ void blk_account_io_completion(struct request *req, unsigned int bytes)
 	}
 }
 
-void blk_account_io_done(struct request *req, u64 now)
+void blk_account_io_done(struct request *req, u64 yesw)
 {
 	/*
 	 * Account IO completion.  flush_rq isn't accounted as a
-	 * normal IO on queueing nor completion.  Accounting the
-	 * containing request is enough.
+	 * yesrmal IO on queueing yesr completion.  Accounting the
+	 * containing request is eyesugh.
 	 */
 	if (req->part && blk_do_io_stat(req) &&
 	    !(req->rq_flags & RQF_FLUSH_SEQ)) {
@@ -1341,8 +1341,8 @@ void blk_account_io_done(struct request *req, u64 now)
 
 		update_io_ticks(part, jiffies);
 		part_stat_inc(part, ios[sgrp]);
-		part_stat_add(part, nsecs[sgrp], now - req->start_time_ns);
-		part_stat_add(part, time_in_queue, nsecs_to_jiffies64(now - req->start_time_ns));
+		part_stat_add(part, nsecs[sgrp], yesw - req->start_time_ns);
+		part_stat_add(part, time_in_queue, nsecs_to_jiffies64(yesw - req->start_time_ns));
 		part_dec_in_flight(req->q, part, rq_data_dir(req));
 
 		hd_struct_put(part);
@@ -1388,7 +1388,7 @@ void blk_account_io_start(struct request *rq, bool new_io)
 
 /*
  * Steal bios from a request and add them to a bio list.
- * The request must not have been partially completed before.
+ * The request must yest have been partially completed before.
  */
 void blk_steal_bios(struct bio_list *list, struct request *rq)
 {
@@ -1426,7 +1426,7 @@ EXPORT_SYMBOL_GPL(blk_steal_bios);
  *     %false return from this function.
  *
  * Note:
- *	The RQF_SPECIAL_PAYLOAD flag is ignored on purpose in both
+ *	The RQF_SPECIAL_PAYLOAD flag is igyesred on purpose in both
  *	blk_rq_bytes() and in blk_update_request().
  *
  * Return:
@@ -1438,7 +1438,7 @@ bool blk_update_request(struct request *req, blk_status_t error,
 {
 	int total_bytes;
 
-	trace_block_rq_complete(req, blk_status_to_errno(error), nr_bytes);
+	trace_block_rq_complete(req, blk_status_to_erryes(error), nr_bytes);
 
 	if (!req->bio)
 		return false;
@@ -1585,7 +1585,7 @@ EXPORT_SYMBOL_GPL(blk_rq_unprep_clone);
 
 /*
  * Copy attributes of the original request to the clone request.
- * The actual data parts (e.g. ->cmd, ->sense) are not copied.
+ * The actual data parts (e.g. ->cmd, ->sense) are yest copied.
  */
 static void __blk_rq_prep_clone(struct request *dst, struct request *src)
 {
@@ -1607,14 +1607,14 @@ static void __blk_rq_prep_clone(struct request *dst, struct request *src)
  * @bs: bio_set that bios for clone are allocated from
  * @gfp_mask: memory allocation mask for bio
  * @bio_ctr: setup function to be called for each clone bio.
- *           Returns %0 for success, non %0 for failure.
+ *           Returns %0 for success, yesn %0 for failure.
  * @data: private data to be passed to @bio_ctr
  *
  * Description:
  *     Clones bios in @rq_src to @rq, and copies attributes of @rq_src to @rq.
  *     The actual data parts of @rq_src (e.g. ->cmd, ->sense)
- *     are not copied, and copying such parts is the caller's responsibility.
- *     Also, pages which the original bios are pointing to are not copied
+ *     are yest copied, and copying such parts is the caller's responsibility.
+ *     Also, pages which the original bios are pointing to are yest copied
  *     and the cloned bios just point same pages.
  *     So cloned bios must be completed before original bios, which means
  *     the caller must complete @rq before @rq_src.
@@ -1715,7 +1715,7 @@ void blk_start_plug(struct blk_plug *plug)
 	plug->multiple_queues = false;
 
 	/*
-	 * Store ordering should not be needed here, since a potential
+	 * Store ordering should yest be needed here, since a potential
 	 * preempt will imply a full memory barrier
 	 */
 	tsk->plug = plug;

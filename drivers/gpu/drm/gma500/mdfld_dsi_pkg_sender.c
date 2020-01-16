@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -187,7 +187,7 @@ static int handle_dsi_error(struct mdfld_dsi_pkg_sender *sender, u32 mask)
 
 	if (mask & REG_READ(intr_stat_reg))
 		dev_dbg(sender->dev->dev,
-				"Cannot clean interrupt 0x%08x\n", mask);
+				"Canyest clean interrupt 0x%08x\n", mask);
 	return 0;
 }
 
@@ -208,7 +208,7 @@ static int dsi_error_handler(struct mdfld_dsi_pkg_sender *sender)
 			dev_dbg(sender->dev->dev, "[DSI]: %s\n", dsi_errors[i]);
 			err = handle_dsi_error(sender, mask);
 			if (err)
-				DRM_ERROR("Cannot handle error\n");
+				DRM_ERROR("Canyest handle error\n");
 		}
 	}
 	return err;
@@ -629,7 +629,7 @@ int mdfld_dsi_pkg_sender_init(struct mdfld_dsi_connector *dsi_connector,
 	pkg_sender->dpll_reg = map->dpll;
 	pkg_sender->dspcntr_reg = map->cntr;
 	pkg_sender->pipeconf_reg = map->conf;
-	pkg_sender->dsplinoff_reg = map->linoff;
+	pkg_sender->dspliyesff_reg = map->liyesff;
 	pkg_sender->dspsurf_reg = map->surf;
 	pkg_sender->pipestat_reg = map->status;
 

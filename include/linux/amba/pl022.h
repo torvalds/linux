@@ -19,7 +19,7 @@
 #include <linux/types.h>
 
 /**
- * whether SSP is in loopback mode or not
+ * whether SSP is in loopback mode or yest
  */
 enum ssp_loopback {
 	LOOPBACK_DISABLED,
@@ -29,7 +29,7 @@ enum ssp_loopback {
 /**
  * enum ssp_interface - interfaces allowed for this SSP Controller
  * @SSP_INTERFACE_MOTOROLA_SPI: Motorola Interface
- * @SSP_INTERFACE_TI_SYNC_SERIAL: Texas Instrument Synchronous Serial
+ * @SSP_INTERFACE_TI_SYNC_SERIAL: Texas Instrument Synchroyesus Serial
  * interface
  * @SSP_INTERFACE_NATIONAL_MICROWIRE: National Semiconductor Microwire
  * interface
@@ -176,7 +176,7 @@ enum ssp_microwire_wait_state {
  * enum ssp_duplex - whether Full/Half Duplex on microwire, only
  * available in the ST Micro variant.
  * @SSP_MICROWIRE_CHANNEL_FULL_DUPLEX: SSPTXD becomes bi-directional,
- *     SSPRXD not used
+ *     SSPRXD yest used
  * @SSP_MICROWIRE_CHANNEL_HALF_DUPLEX: SSPTXD is an output, SSPRXD is
  *     an input.
  */
@@ -188,7 +188,7 @@ enum ssp_duplex {
 /**
  * enum ssp_clkdelay - an optional clock delay on the feedback clock
  * only available in the ST Micro PL023 variant.
- * @SSP_FEEDBACK_CLK_DELAY_NONE: no delay, the data coming in from the
+ * @SSP_FEEDBACK_CLK_DELAY_NONE: yes delay, the data coming in from the
  * slave is sampled directly
  * @SSP_FEEDBACK_CLK_DELAY_1T: the incoming slave data is sampled with
  * a delay of T-dt
@@ -225,14 +225,14 @@ struct dma_chan;
  * @bus_id: identifier for this bus
  * @num_chipselect: chipselects are used to distinguish individual
  *     SPI slaves, and are numbered from zero to num_chipselects - 1.
- *     each slave has a chipselect signal, but it's common that not
+ *     each slave has a chipselect signal, but it's common that yest
  *     every chipselect is connected to a slave.
  * @enable_dma: if true enables DMA driven transfers.
  * @dma_rx_param: parameter to locate an RX DMA channel.
  * @dma_tx_param: parameter to locate a TX DMA channel.
  * @autosuspend_delay: delay in ms following transfer completion before the
  *     runtime power management system suspends the device. A setting of 0
- *     indicates no delay and the device will be suspended immediately.
+ *     indicates yes delay and the device will be suspended immediately.
  * @rt: indicates the controller should run the message pump with realtime
  *     priority to minimise the transfer latency on the bus.
  * @chipselects: list of <num_chipselects> chip select gpios

@@ -923,7 +923,7 @@ enum MSC_BIT {
 	MSC_RFE		= 0x02, /* Frame reception error (flagged by PHY) */
 	MSC_RTSF	= 0x04, /* Frame length error (frame too short) */
 	MSC_RTLF	= 0x08, /* Frame length error (frame too long) */
-	MSC_FRE		= 0x10, /* Fraction error (not a multiple of 8 bits) */
+	MSC_FRE		= 0x10, /* Fraction error (yest a multiple of 8 bits) */
 	MSC_CRL		= 0x20, /* Carrier lost */
 	MSC_CEEF	= 0x40, /* Carrier extension error */
 	MSC_MC		= 0x80, /* Multicast frame reception */
@@ -1033,7 +1033,7 @@ struct ravb_private {
 	int rx_irqs[NUM_RX_QUEUE];
 	int tx_irqs[NUM_TX_QUEUE];
 
-	unsigned no_avb_link:1;
+	unsigned yes_avb_link:1;
 	unsigned avb_link_active_low:1;
 	unsigned wol_enabled:1;
 	int num_tx_desc;	/* TX descriptors per packet */

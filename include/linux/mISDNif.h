@@ -1,8 +1,8 @@
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@yesvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@yesvell.com>
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU LESSER GENERAL PUBLIC LICENSE
@@ -20,7 +20,7 @@
 
 #include <stdarg.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/socket.h>
 
 /*
@@ -29,7 +29,7 @@
  * <8 bit> Major version
  *		- changed if any interface become backwards incompatible
  *
- * <8 bit> Minor version
+ * <8 bit> Miyesr version
  *              - changed if any interface is extended but backwards compatible
  *
  * <16 bit> Release number
@@ -290,7 +290,7 @@ struct sockaddr_mISDN {
 
 struct mISDNversion {
 	unsigned char	major;
-	unsigned char	minor;
+	unsigned char	miyesr;
 	unsigned short	release;
 };
 
@@ -390,7 +390,7 @@ clear_channelmap(u_int nr, u_char *map)
 
 /* special RX buffer value for MISDN_CTRL_RX_BUFFER request.p1 is the minimum
  * buffer size request.p2 the maximum. Using  MISDN_CTRL_RX_SIZE_IGNORE will
- * not change the value, but still read back the actual stetting.
+ * yest change the value, but still read back the actual stetting.
  */
 #define MISDN_CTRL_RX_SIZE_IGNORE	-1
 
@@ -507,7 +507,7 @@ struct mISDNstack {
 	u_long			status;
 	struct mISDNdevice	*dev;
 	struct task_struct	*thread;
-	struct completion	*notify;
+	struct completion	*yestify;
 	wait_queue_head_t	workq;
 	struct sk_buff_head	msgq;
 	struct list_head	layer2;

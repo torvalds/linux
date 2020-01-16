@@ -15,15 +15,15 @@
 
 
 /*
- *	Define master clock frequency. This is done at config time now.
+ *	Define master clock frequency. This is done at config time yesw.
  *	No point enumerating dozens of possible clock options here. And
  *	in any case new boards come along from time to time that have yet
- *	another different clocking frequency.
+ *	ayesther different clocking frequency.
  */
 #ifdef CONFIG_CLOCK_FREQ
 #define	MCF_CLK		CONFIG_CLOCK_FREQ
 #else
-#error "Don't know what your ColdFire CPU clock frequency is??"
+#error "Don't kyesw what your ColdFire CPU clock frequency is??"
 #endif
 
 /*
@@ -32,10 +32,10 @@
  *	The majority of ColdFire parts use an MBAR register to set
  *	the base address. Some have an IPSBAR register instead, and it
  *	has slightly different rules on its size and alignment. Some
- *	parts have fixed addresses and the internal peripherals cannot
+ *	parts have fixed addresses and the internal peripherals canyest
  *	be relocated in the CPU address space.
  *
- *	The value of MBAR or IPSBAR is config time selectable, we no
+ *	The value of MBAR or IPSBAR is config time selectable, we yes
  *	longer hard define it here. No MBAR or IPSBAR will be defined if
  *	this part has a fixed peripheral address map.
  */

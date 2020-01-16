@@ -9,7 +9,7 @@
 /*
  * Generally, all registers can be read like memory, i.e., with quadlet read or
  * block read transactions with at least quadlet-aligned offset and length.
- * Writes are not allowed except where noted; quadlet-sized registers must be
+ * Writes are yest allowed except where yested; quadlet-sized registers must be
  * written with a quadlet write transaction.
  *
  * All values are in big endian.  The DICE firmware runs on a little-endian CPU
@@ -47,8 +47,8 @@
  */
 
 /*
- * Stores the full 64-bit address (node ID and offset in the node's address
- * space) where the device will send notifications.  Must be changed with
+ * Stores the full 64-bit address (yesde ID and offset in the yesde's address
+ * space) where the device will send yestifications.  Must be changed with
  * a compare/swap transaction by the owner.  This register is automatically
  * cleared on a bus reset.
  */
@@ -57,7 +57,7 @@
 #define  OWNER_NODE_SHIFT		48
 
 /*
- * A bitmask with asynchronous events; read-only.  When any event(s) happen,
+ * A bitmask with asynchroyesus events; read-only.  When any event(s) happen,
  * the bits of previous events are cleared, and the value of this register is
  * also written to the address stored in the owner register.
  */
@@ -117,7 +117,7 @@
 #define  CLOCK_RATE_SHIFT		8
 
 /*
- * Enable streaming; read/write.  Writing a non-zero value (re)starts all
+ * Enable streaming; read/write.  Writing a yesn-zero value (re)starts all
  * streams that have a valid iso channel set; zero stops all streams.  The
  * streams' parameters must be configured before starting.  This register is
  * automatically cleared on a bus reset.
@@ -139,7 +139,7 @@
 #define GLOBAL_EXTENDED_STATUS		0x058
 /*
  * The _LOCKED bits always show the current status; any change generates
- * a notification.
+ * a yestification.
  */
 #define  EXT_STATUS_AES1_LOCKED		0x00000001
 #define  EXT_STATUS_AES2_LOCKED		0x00000002
@@ -153,7 +153,7 @@
 #define  EXT_STATUS_ARX4_LOCKED		0x00000200
 #define  EXT_STATUS_WC_LOCKED		0x00000400
 /*
- * The _SLIP bits do not generate notifications; a set bit indicates that an
+ * The _SLIP bits do yest generate yestifications; a set bit indicates that an
  * error occurred since the last time when this register was read with
  * a quadlet read transaction.
  */
@@ -175,7 +175,7 @@
 #define GLOBAL_SAMPLE_RATE		0x05c
 
 /*
- * Some old firmware versions do not have the following global registers.
+ * Some old firmware versions do yest have the following global registers.
  * Windows drivers produced by TCAT lost backward compatibility in its
  * early release because they can handle firmware only which supports the
  * following registers.
@@ -238,8 +238,8 @@
 #define TX_SIZE				0x004
 
 /*
- * The isochronous channel number on which packets are sent, or -1 if the
- * stream is not to be used; read/write.
+ * The isochroyesus channel number on which packets are sent, or -1 if the
+ * stream is yest to be used; read/write.
  */
 #define TX_ISOCHRONOUS			0x008
 
@@ -300,14 +300,14 @@
 #define RX_SIZE				0x004
 
 /*
- * The isochronous channel number on which packets are received, or -1 if the
- * stream is not to be used; read/write.
+ * The isochroyesus channel number on which packets are received, or -1 if the
+ * stream is yest to be used; read/write.
  */
 #define RX_ISOCHRONOUS			0x008
 
 /*
  * Index of first quadlet to be interpreted; read/write.  If > 0, that many
- * quadlets at the beginning of each data block will be ignored, and all the
+ * quadlets at the beginning of each data block will be igyesred, and all the
  * audio and MIDI quadlets will follow.
  */
 #define RX_SEQ_START			0x00c
@@ -372,7 +372,7 @@
 #define EXT_SYNC_ADAT_USER_DATA		0x00c
 /* The data bits, if available. */
 #define  ADAT_USER_DATA_MASK		0x0f
-/* The data bits are not available. */
+/* The data bits are yest available. */
 #define  ADAT_USER_DATA_NO_DATA		0x10
 
 #endif

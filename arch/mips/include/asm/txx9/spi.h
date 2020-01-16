@@ -13,7 +13,7 @@
 #ifndef __ASM_TXX9_SPI_H
 #define __ASM_TXX9_SPI_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #ifdef CONFIG_SPI
 int spi_eeprom_register(int busid, int chipid, int size);

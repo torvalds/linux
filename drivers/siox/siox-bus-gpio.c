@@ -130,7 +130,7 @@ static int siox_gpio_probe(struct platform_device *pdev)
 
 	smaster->pushpull = siox_gpio_pushpull;
 	/* XXX: determine automatically like spi does */
-	smaster->busno = 0;
+	smaster->busyes = 0;
 
 	ret = siox_master_register(smaster);
 	if (ret) {

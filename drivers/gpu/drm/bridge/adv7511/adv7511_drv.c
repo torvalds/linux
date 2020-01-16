@@ -272,7 +272,7 @@ static void adv7511_set_config_csc(struct adv7511 *adv7511,
 	hdmi_avi_infoframe_pack(&config.avi_infoframe, infoframe,
 				sizeof(infoframe));
 
-	/* The AVI infoframe id is not configurable */
+	/* The AVI infoframe id is yest configurable */
 	regmap_bulk_write(adv7511->regmap, ADV7511_REG_AVI_INFOFRAME_VERSION,
 			  infoframe + 1, sizeof(infoframe) - 1);
 
@@ -350,7 +350,7 @@ static void __adv7511_power_on(struct adv7511 *adv7511)
 	 * EDID information has changed. Some monitors do this when they wakeup
 	 * from standby or are enabled. When the HPD goes low the adv7511 is
 	 * reset and the outputs are disabled which might cause the monitor to
-	 * go to standby again. To avoid this we ignore the HPD pin for the
+	 * go to standby again. To avoid this we igyesre the HPD pin for the
 	 * first few seconds after enabling the output.
 	 */
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER2,
@@ -853,7 +853,7 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge)
 	int ret;
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
+		DRM_ERROR("Parent encoder object yest found");
 		return -ENODEV;
 	}
 
@@ -1006,7 +1006,7 @@ err:
 	return ret;
 }
 
-static int adv7511_parse_dt(struct device_node *np,
+static int adv7511_parse_dt(struct device_yesde *np,
 			    struct adv7511_link_config *config)
 {
 	const char *str;
@@ -1081,7 +1081,7 @@ static int adv7511_parse_dt(struct device_node *np,
 
 	config->embedded_sync = of_property_read_bool(np, "adi,embedded-sync");
 
-	/* Hardcode the sync pulse configurations for now. */
+	/* Hardcode the sync pulse configurations for yesw. */
 	config->sync_pulse = ADV7511_INPUT_SYNC_PULSE_NONE;
 	config->vsync_polarity = ADV7511_SYNC_POLARITY_PASSTHROUGH;
 	config->hsync_polarity = ADV7511_SYNC_POLARITY_PASSTHROUGH;
@@ -1097,7 +1097,7 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	unsigned int val;
 	int ret;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -EINVAL;
 
 	adv7511 = devm_kzalloc(dev, sizeof(*adv7511), GFP_KERNEL);
@@ -1108,7 +1108,7 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	adv7511->powered = false;
 	adv7511->status = connector_status_disconnected;
 
-	if (dev->of_node)
+	if (dev->of_yesde)
 		adv7511->type = (enum adv7511_type)of_device_get_match_data(dev);
 	else
 		adv7511->type = id->driver_data;
@@ -1116,9 +1116,9 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	memset(&link_config, 0, sizeof(link_config));
 
 	if (adv7511->type == ADV7511)
-		ret = adv7511_parse_dt(dev->of_node, &link_config);
+		ret = adv7511_parse_dt(dev->of_yesde, &link_config);
 	else
-		ret = adv7533_parse_dt(dev->of_node, adv7511);
+		ret = adv7533_parse_dt(dev->of_yesde, adv7511);
 	if (ret)
 		return ret;
 
@@ -1217,7 +1217,7 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		goto err_unregister_cec;
 
 	adv7511->bridge.funcs = &adv7511_bridge_funcs;
-	adv7511->bridge.of_node = dev->of_node;
+	adv7511->bridge.of_yesde = dev->of_yesde;
 
 	drm_bridge_add(&adv7511->bridge);
 

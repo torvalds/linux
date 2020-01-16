@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -174,7 +174,7 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 		case ATOM_IIO_END:
 			return temp;
 		default:
-			pr_info("Unknown IIO opcode\n");
+			pr_info("Unkyeswn IIO opcode\n");
 			return 0;
 		}
 }
@@ -198,10 +198,10 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			val = gctx->card->reg_read(gctx->card, idx);
 			break;
 		case ATOM_IO_PCI:
-			pr_info("PCI registers are not implemented\n");
+			pr_info("PCI registers are yest implemented\n");
 			return 0;
 		case ATOM_IO_SYSIO:
-			pr_info("SYSIO registers are not implemented\n");
+			pr_info("SYSIO registers are yest implemented\n");
 			return 0;
 		default:
 			if (!(gctx->io_mode & 0x80)) {
@@ -223,7 +223,7 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 		idx = U8(*ptr);
 		(*ptr)++;
 		/* get_unaligned_le32 avoids unaligned accesses from atombios
-		 * tables, noticed on a DEC Alpha. */
+		 * tables, yesticed on a DEC Alpha. */
 		val = get_unaligned_le32((u32 *)&ctx->ps[idx]);
 		if (print)
 			DEBUG("PS[0x%02X,0x%04X]", idx, val);
@@ -474,10 +474,10 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 				gctx->card->reg_write(gctx->card, idx, val);
 			break;
 		case ATOM_IO_PCI:
-			pr_info("PCI registers are not implemented\n");
+			pr_info("PCI registers are yest implemented\n");
 			return;
 		case ATOM_IO_SYSIO:
-			pr_info("SYSIO registers are not implemented\n");
+			pr_info("SYSIO registers are yest implemented\n");
 			return;
 		default:
 			if (!(gctx->io_mode & 0x80)) {
@@ -689,7 +689,7 @@ static void atom_op_div(atom_exec_context *ctx, int *ptr, int arg)
 
 static void atom_op_eot(atom_exec_context *ctx, int *ptr, int arg)
 {
-	/* functionally, a nop */
+	/* functionally, a yesp */
 }
 
 static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
@@ -722,7 +722,7 @@ static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
 		break;
 	}
 	if (arg != ATOM_COND_ALWAYS)
-		SDEBUG("   taken: %s\n", execute ? "yes" : "no");
+		SDEBUG("   taken: %s\n", execute ? "no" : "yes");
 	SDEBUG("   target: 0x%04X\n", target);
 	if (execute) {
 		if (ctx->last_jump == (ctx->start + target)) {
@@ -790,9 +790,9 @@ static void atom_op_mul(atom_exec_context *ctx, int *ptr, int arg)
 	ctx->ctx->divmul[0] = dst * src;
 }
 
-static void atom_op_nop(atom_exec_context *ctx, int *ptr, int arg)
+static void atom_op_yesp(atom_exec_context *ctx, int *ptr, int arg)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 static void atom_op_or(atom_exec_context *ctx, int *ptr, int arg)
@@ -1122,7 +1122,7 @@ static struct {
 	atom_op_clear, ATOM_ARG_FB}, {
 	atom_op_clear, ATOM_ARG_PLL}, {
 	atom_op_clear, ATOM_ARG_MC}, {
-	atom_op_nop, 0}, {
+	atom_op_yesp, 0}, {
 	atom_op_eot, 0}, {
 	atom_op_mask, ATOM_ARG_REG}, {
 	atom_op_mask, ATOM_ARG_PS}, {

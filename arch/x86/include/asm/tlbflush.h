@@ -28,7 +28,7 @@
  * use different names for each of them:
  *
  * ASID  - [0, TLB_NR_DYN_ASIDS-1]
- *         the canonical identifier for an mm
+ *         the cayesnical identifier for an mm
  *
  * kPCID - [1, TLB_NR_DYN_ASIDS]
  *         the value we write into the PCID part of CR3; corresponds to the
@@ -36,7 +36,7 @@
  *
  * uPCID - [2048 + 1, 2048 + TLB_NR_DYN_ASIDS]
  *         for KPTI each mm has two address spaces and thus needs two
- *         PCID values, but we can still do with a single ASID denomination
+ *         PCID values, but we can still do with a single ASID deyesmination
  *         for each mm. Corresponds to kPCID + 2048.
  *
  */
@@ -58,8 +58,8 @@
 
 /*
  * ASIDs are zero-based: 0->MAX_AVAIL_ASID are valid.  -1 below to account
- * for them being zero-based.  Another -1 is because PCID 0 is reserved for
- * use by non-PCID-aware users.
+ * for them being zero-based.  Ayesther -1 is because PCID 0 is reserved for
+ * use by yesn-PCID-aware users.
  */
 #define MAX_ASID_AVAILABLE ((1 << CR3_AVAIL_PCID_BITS) - 2)
 
@@ -78,7 +78,7 @@ static inline u16 kern_pcid(u16 asid)
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 	/*
-	 * Make sure that the dynamic ASID space does not confict with the
+	 * Make sure that the dynamic ASID space does yest confict with the
 	 * bit we are using to switch between user and kernel ASIDs.
 	 */
 	BUILD_BUG_ON(TLB_NR_DYN_ASIDS >= (1 << X86_CR3_PTI_PCID_USER_BIT));
@@ -92,13 +92,13 @@ static inline u16 kern_pcid(u16 asid)
 	/*
 	 * The dynamically-assigned ASIDs that get passed in are small
 	 * (<TLB_NR_DYN_ASIDS).  They never have the high switch bit set,
-	 * so do not bother to clear it.
+	 * so do yest bother to clear it.
 	 *
 	 * If PCID is on, ASID-aware code paths put the ASID+1 into the
 	 * PCID bits.  This serves two purposes.  It prevents a nasty
 	 * situation in which PCID-unaware code saves CR3, loads some other
 	 * value (with PCID == 0), and then restores CR3, thus corrupting
-	 * the TLB for ASID 0 if the saved ASID was nonzero.  It also means
+	 * the TLB for ASID 0 if the saved ASID was yesnzero.  It also means
 	 * that any bugs involving loading a PCID-enabled CR3 with
 	 * CR4.PCIDE off will trigger deterministically.
 	 */
@@ -128,7 +128,7 @@ static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
 	}
 }
 
-static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
+static inline unsigned long build_cr3_yesflush(pgd_t *pgd, u16 asid)
 {
 	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
 	/*
@@ -156,7 +156,7 @@ struct tlb_context {
 struct tlb_state {
 	/*
 	 * cpu_tlbstate.loaded_mm should match CR3 whenever interrupts
-	 * are on.  This means that it may not match current->active_mm,
+	 * are on.  This means that it may yest match current->active_mm,
 	 * which will contain the previous user mm when we're in lazy TLB
 	 * mode even if we've already switched back to swapper_pg_dir.
 	 *
@@ -185,7 +185,7 @@ struct tlb_state {
 	 *    mm_cpumask(loaded_mm) and is_lazy == false;
 	 *
 	 *  - Not using a real mm.  loaded_mm == &init_mm.  Our CPU's bit
-	 *    will not be set in mm_cpumask(&init_mm) and is_lazy == false.
+	 *    will yest be set in mm_cpumask(&init_mm) and is_lazy == false.
 	 *
 	 *  - Lazily using a real mm.  loaded_mm != &init_mm, our bit
 	 *    is set in mm_cpumask(loaded_mm), but is_lazy == true.
@@ -198,10 +198,10 @@ struct tlb_state {
 	/*
 	 * If set we changed the page tables in such a way that we
 	 * needed an invalidation of all contexts (aka. PCIDs / ASIDs).
-	 * This tells us to go invalidate all the non-loaded ctxs[]
+	 * This tells us to go invalidate all the yesn-loaded ctxs[]
 	 * on the next context switch.
 	 *
-	 * The current ctx was kept up-to-date as it ran and does not
+	 * The current ctx was kept up-to-date as it ran and does yest
 	 * need to be invalidated.
 	 */
 	bool invalidate_other;
@@ -231,7 +231,7 @@ struct tlb_state {
 	 *
 	 * To be clear, this means that it's legal for the TLB code to
 	 * flush the TLB without updating tlb_gen.  This can happen
-	 * (for now, at least) due to paravirt remote flushes.
+	 * (for yesw, at least) due to paravirt remote flushes.
 	 *
 	 * NB: context 0 is a bit special, since it's also used by
 	 * various bits of init code.  This is fine -- code that
@@ -378,7 +378,7 @@ extern void initialize_tlbstate_and_flush(void);
  */
 static inline void invalidate_user_asid(u16 asid)
 {
-	/* There is no user ASID if address space separation is off */
+	/* There is yes user ASID if address space separation is off */
 	if (!IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION))
 		return;
 
@@ -504,10 +504,10 @@ static inline void __flush_tlb_one_kernel(unsigned long addr)
 	 * use PCID if we also use global PTEs for the kernel mapping, and
 	 * INVLPG flushes global translations across all address spaces.
 	 *
-	 * If PTI is on, then the kernel is mapped with non-global PTEs, and
+	 * If PTI is on, then the kernel is mapped with yesn-global PTEs, and
 	 * __flush_tlb_one_user() will flush the given address for the current
 	 * kernel address space and for its usermode counterpart, but it does
-	 * not flush it for other address spaces.
+	 * yest flush it for other address spaces.
 	 */
 	__flush_tlb_one_user(addr);
 
@@ -517,7 +517,7 @@ static inline void __flush_tlb_one_kernel(unsigned long addr)
 	/*
 	 * See above.  We need to propagate the flush to all other address
 	 * spaces.  In principle, we only need to propagate it to kernelmode
-	 * address spaces, but the extra bookkeeping we would need is not
+	 * address spaces, but the extra bookkeeping we would need is yest
 	 * worth it.
 	 */
 	invalidate_other_asid();

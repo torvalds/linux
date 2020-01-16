@@ -4,11 +4,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -53,7 +53,7 @@
 #define TBICON_DISABLE_TX_DIS	0x1000	/* Disable transmit disparity */
 #define TBICON_AN_SENSE		0x0100	/* Auto-negotiation sense enable */
 #define TBICON_CLK_SELECT	0x0020	/* Clock select */
-#define TBICON_MI_MODE		0x0010	/* GMII mode (TBI if not set) */
+#define TBICON_MI_MODE		0x0010	/* GMII mode (TBI if yest set) */
 
 #define TBIANA_SGMII		0x4001
 #define TBIANA_1000X		0x01a0
@@ -229,7 +229,7 @@ struct dtsec_regs {
 	u32 rbca;	/* 0x22C Rx broadcast packet counter */
 	u32 rxcf;	/* 0x230 Rx control frame packet counter */
 	u32 rxpf;	/* 0x234 Rx pause frame packet counter */
-	u32 rxuo;	/* 0x238 Rx unknown OP code counter */
+	u32 rxuo;	/* 0x238 Rx unkyeswn OP code counter */
 	u32 raln;	/* 0x23C Rx alignment error counter */
 	u32 rflr;	/* 0x240 Rx frame length error counter */
 	u32 rcde;	/* 0x244 Rx code error counter */
@@ -313,8 +313,8 @@ struct dtsec_cfg {
 	u32 rx_prepend;
 	u16 tx_pause_time_extd;
 	u16 maximum_frame;
-	u32 non_back_to_back_ipg1;
-	u32 non_back_to_back_ipg2;
+	u32 yesn_back_to_back_ipg1;
+	u32 yesn_back_to_back_ipg2;
 	u32 min_ifg_enforcement;
 	u32 back_to_back_ipg;
 };
@@ -359,8 +359,8 @@ static void set_dflts(struct dtsec_cfg *cfg)
 	cfg->ptp_exception_en = true;
 	cfg->preamble_len = DEFAULT_PREAMBLE_LEN;
 	cfg->tx_pause_time_extd = DEFAULT_TX_PAUSE_TIME_EXTD;
-	cfg->non_back_to_back_ipg1 = DEFAULT_NON_BACK_TO_BACK_IPG1;
-	cfg->non_back_to_back_ipg2 = DEFAULT_NON_BACK_TO_BACK_IPG2;
+	cfg->yesn_back_to_back_ipg1 = DEFAULT_NON_BACK_TO_BACK_IPG1;
+	cfg->yesn_back_to_back_ipg2 = DEFAULT_NON_BACK_TO_BACK_IPG2;
 	cfg->min_ifg_enforcement = DEFAULT_MIN_IFG_ENFORCEMENT;
 	cfg->back_to_back_ipg = DEFAULT_BACK_TO_BACK_IPG;
 	cfg->maximum_frame = DEFAULT_MAXIMUM_FRAME;
@@ -433,7 +433,7 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 	iowrite32be(tmp, &regs->rctrl);
 
 	/* Assign a Phy Address to the TBI (TBIPA).
-	 * Done also in cases where TBI is not selected to avoid conflict with
+	 * Done also in cases where TBI is yest selected to avoid conflict with
 	 * the external PHY's Physical address
 	 */
 	iowrite32be(tbi_addr, &regs->tbipa);
@@ -472,10 +472,10 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 	tmp |= MACCFG2_FULL_DUPLEX;
 	iowrite32be(tmp, &regs->maccfg2);
 
-	tmp = (((cfg->non_back_to_back_ipg1 <<
+	tmp = (((cfg->yesn_back_to_back_ipg1 <<
 		 IPGIFG_NON_BACK_TO_BACK_IPG_1_SHIFT)
 		& IPGIFG_NON_BACK_TO_BACK_IPG_1)
-	       | ((cfg->non_back_to_back_ipg2 <<
+	       | ((cfg->yesn_back_to_back_ipg2 <<
 		   IPGIFG_NON_BACK_TO_BACK_IPG_2_SHIFT)
 		 & IPGIFG_NON_BACK_TO_BACK_IPG_2)
 	       | ((cfg->min_ifg_enforcement << IPGIFG_MIN_IFG_ENFORCEMENT_SHIFT)
@@ -566,9 +566,9 @@ static int check_init_parameters(struct fman_mac *dtsec)
 		       MAX_PACKET_ALIGNMENT);
 		return -EINVAL;
 	}
-	if (((dtsec->dtsec_drv_param)->non_back_to_back_ipg1 >
+	if (((dtsec->dtsec_drv_param)->yesn_back_to_back_ipg1 >
 	     MAX_INTER_PACKET_GAP) ||
-	    ((dtsec->dtsec_drv_param)->non_back_to_back_ipg2 >
+	    ((dtsec->dtsec_drv_param)->yesn_back_to_back_ipg2 >
 	     MAX_INTER_PACKET_GAP) ||
 	     ((dtsec->dtsec_drv_param)->back_to_back_ipg >
 	      MAX_INTER_PACKET_GAP)) {
@@ -686,7 +686,7 @@ static void dtsec_isr(void *handle)
 	struct dtsec_regs __iomem *regs = dtsec->regs;
 	u32 event;
 
-	/* do not handle MDIO events */
+	/* do yest handle MDIO events */
 	event = ioread32be(&regs->ievent) &
 		(u32)(~(DTSEC_IMASK_MMRDEN | DTSEC_IMASK_MMWREN));
 
@@ -729,7 +729,7 @@ static void dtsec_isr(void *handle)
 			 */
 			if ((tmp_reg1 & 0x007F0000) !=
 				(tmp_reg1 & 0x0000007F)) {
-				/* If they are not equal, save the value of
+				/* If they are yest equal, save the value of
 				 * this register and wait for at least
 				 * MAXFRM*16 ns
 				 */
@@ -899,8 +899,8 @@ static void graceful_stop(struct fman_mac *dtsec, enum comm_mode mode)
 	/* Graceful stop - Assert the graceful Tx stop bit */
 	if (mode & COMM_MODE_TX) {
 		if (dtsec->fm_rev_info.major == 2) {
-			/* dTSEC Errata A004: Do not use TCTRL[GTS]=1 */
-			pr_debug("GTS not supported due to DTSEC_A004 Errata.\n");
+			/* dTSEC Errata A004: Do yest use TCTRL[GTS]=1 */
+			pr_debug("GTS yest supported due to DTSEC_A004 Errata.\n");
 		} else {
 			tmp = ioread32be(&regs->tctrl) | TCTRL_GTS;
 			iowrite32be(tmp, &regs->tctrl);
@@ -1070,9 +1070,9 @@ int dtsec_add_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 	ghtx = (bool)((ioread32be(&regs->rctrl) & RCTRL_GHTX) ? true : false);
 	mcast = (bool)((addr & MAC_GROUP_ADDRESS) ? true : false);
 
-	/* Cannot handle unicast mac addr when GHTX is on */
+	/* Canyest handle unicast mac addr when GHTX is on */
 	if (ghtx && !mcast) {
-		pr_err("Could not compute hash bucket\n");
+		pr_err("Could yest compute hash bucket\n");
 		return -EINVAL;
 	}
 	crc = crc32_le(crc, (u8 *)eth_addr, ETH_ALEN);
@@ -1106,14 +1106,14 @@ int dtsec_add_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 	if (!hash_entry)
 		return -ENOMEM;
 	hash_entry->addr = addr;
-	INIT_LIST_HEAD(&hash_entry->node);
+	INIT_LIST_HEAD(&hash_entry->yesde);
 
 	if (addr & MAC_GROUP_ADDRESS)
 		/* Group Address */
-		list_add_tail(&hash_entry->node,
+		list_add_tail(&hash_entry->yesde,
 			      &dtsec->multicast_addr_hash->lsts[bucket]);
 	else
-		list_add_tail(&hash_entry->node,
+		list_add_tail(&hash_entry->yesde,
 			      &dtsec->unicast_addr_hash->lsts[bucket]);
 
 	return 0;
@@ -1181,9 +1181,9 @@ int dtsec_del_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 	ghtx = (bool)((ioread32be(&regs->rctrl) & RCTRL_GHTX) ? true : false);
 	mcast = (bool)((addr & MAC_GROUP_ADDRESS) ? true : false);
 
-	/* Cannot handle unicast mac addr when GHTX is on */
+	/* Canyest handle unicast mac addr when GHTX is on */
 	if (ghtx && !mcast) {
-		pr_err("Could not compute hash bucket\n");
+		pr_err("Could yest compute hash bucket\n");
 		return -EINVAL;
 	}
 	crc = crc32_le(crc, (u8 *)eth_addr, ETH_ALEN);
@@ -1206,7 +1206,7 @@ int dtsec_del_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 			      &dtsec->multicast_addr_hash->lsts[bucket]) {
 			hash_entry = ETH_HASH_ENTRY_OBJ(pos);
 			if (hash_entry->addr == addr) {
-				list_del_init(&hash_entry->node);
+				list_del_init(&hash_entry->yesde);
 				kfree(hash_entry);
 				break;
 			}
@@ -1219,7 +1219,7 @@ int dtsec_del_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 			      &dtsec->unicast_addr_hash->lsts[bucket]) {
 			hash_entry = ETH_HASH_ENTRY_OBJ(pos);
 			if (hash_entry->addr == addr) {
-				list_del_init(&hash_entry->node);
+				list_del_init(&hash_entry->yesde);
 				kfree(hash_entry);
 				break;
 			}
@@ -1228,7 +1228,7 @@ int dtsec_del_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 			set_bucket(dtsec->regs, bucket, false);
 	}
 
-	/* address does not exist */
+	/* address does yest exist */
 	WARN_ON(!hash_entry);
 
 	return 0;
@@ -1474,7 +1474,7 @@ int dtsec_init(struct fman_mac *dtsec)
 	/* register err intr handler for dtsec to FPM (err) */
 	fman_register_intr(dtsec->fm, FMAN_MOD_MAC, dtsec->mac_id,
 			   FMAN_INTR_TYPE_ERR, dtsec_isr, dtsec);
-	/* register 1588 intr handler for TMR to FPM (normal) */
+	/* register 1588 intr handler for TMR to FPM (yesrmal) */
 	fman_register_intr(dtsec->fm, FMAN_MOD_MAC, dtsec->mac_id,
 			   FMAN_INTR_TYPE_NORMAL, dtsec_1588_isr, dtsec);
 
@@ -1545,12 +1545,12 @@ struct fman_mac *dtsec_config(struct fman_mac_params *params)
 	dtsec->fm = params->fm;
 	dtsec->basex_if = params->basex_if;
 
-	if (!params->internal_phy_node) {
-		pr_err("TBI PHY node is not available\n");
+	if (!params->internal_phy_yesde) {
+		pr_err("TBI PHY yesde is yest available\n");
 		goto err_dtsec_drv_param;
 	}
 
-	dtsec->tbiphy = of_phy_find_device(params->internal_phy_node);
+	dtsec->tbiphy = of_phy_find_device(params->internal_phy_yesde);
 	if (!dtsec->tbiphy) {
 		pr_err("of_phy_find_device (TBI PHY) failed\n");
 		goto err_dtsec_drv_param;

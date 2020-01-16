@@ -20,8 +20,8 @@ Required properties:
 - amlogic,mmc-syscon	: Required for NAND clocks, it's shared with SD/eMMC
 				controller port C
 
-Optional children nodes:
-Children nodes represent the available nand chips.
+Optional children yesdes:
+Children yesdes represent the available nand chips.
 
 Other properties:
 see Documentation/devicetree/bindings/mtd/nand-controller.yaml for generic bindings.

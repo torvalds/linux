@@ -2,7 +2,7 @@
 /*
  * Userspace driver for the LED subsystem
  *
- * Copyright (C) 2016 David Lechner <david@lechnology.com>
+ * Copyright (C) 2016 David Lechner <david@lechyeslogy.com>
  *
  * Based on uinput.c: Aristeu Sergio Rozanski Filho <aris@cathedrallabs.org>
  */
@@ -49,7 +49,7 @@ static void uleds_brightness_set(struct led_classdev *led_cdev,
 	}
 }
 
-static int uleds_open(struct inode *inode, struct file *file)
+static int uleds_open(struct iyesde *iyesde, struct file *file)
 {
 	struct uleds_device *udev;
 
@@ -65,7 +65,7 @@ static int uleds_open(struct inode *inode, struct file *file)
 	udev->state = ULEDS_STATE_UNKNOWN;
 
 	file->private_data = udev;
-	stream_open(inode, file);
+	stream_open(iyesde, file);
 
 	return 0;
 }
@@ -179,7 +179,7 @@ static __poll_t uleds_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-static int uleds_release(struct inode *inode, struct file *file)
+static int uleds_release(struct iyesde *iyesde, struct file *file)
 {
 	struct uleds_device *udev = file->private_data;
 
@@ -200,12 +200,12 @@ static const struct file_operations uleds_fops = {
 	.read		= uleds_read,
 	.write		= uleds_write,
 	.poll		= uleds_poll,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice uleds_misc = {
 	.fops		= &uleds_fops,
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name		= ULEDS_NAME,
 };
 
@@ -221,6 +221,6 @@ static void __exit uleds_exit(void)
 }
 module_exit(uleds_exit);
 
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechyeslogy.com>");
 MODULE_DESCRIPTION("Userspace driver for the LED subsystem");
 MODULE_LICENSE("GPL");

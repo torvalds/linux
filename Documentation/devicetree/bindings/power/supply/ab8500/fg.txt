@@ -9,7 +9,7 @@ Fuelgauge support is part of energy-management-modules, other
 components of this module are:
 main-charger, usb-combo-charger and battery-temperature-monitoring.
 
-The properties below describes the node for fuelgauge driver.
+The properties below describes the yesde for fuelgauge driver.
 
 Required Properties:
 - compatible = This shall be: "stericsson,ab8500-fg"
@@ -20,13 +20,13 @@ Required Properties:
 		battery	   = <&ab8500_battery>;
 	};
 
-dependent node:
+dependent yesde:
 	ab8500_battery: ab8500_battery {
 	};
-	This node will provide information on 'thermistor interface' and
-	'battery technology type' used.
+	This yesde will provide information on 'thermistor interface' and
+	'battery techyeslogy type' used.
 
-Properties of this node are:
+Properties of this yesde are:
 thermistor-on-batctrl:
 	A boolean value indicating thermistor interface	to battery
 
@@ -48,7 +48,7 @@ thermistor-on-batctrl:
 	for thermal measurement.
 
 battery-type:
-	This shall be the battery manufacturing technology type,
+	This shall be the battery manufacturing techyeslogy type,
 	allowed types are:
 		"UNKNOWN" "NiMH" "LION" "LIPO" "LiFe" "NiCd" "LiMn"
 	Example:

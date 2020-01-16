@@ -15,7 +15,7 @@ Required properties:
 
 Optional properties:
 - nvidia,invert-interrupt: If present, inverts the PMU interrupt signal.
-- interrupt-controller: Identifies the node as an interrupt controller.
+- interrupt-controller: Identifies the yesde as an interrupt controller.
 - #interrupt-cells: Specifies the number of cells needed to encode an
   interrupt source. The value must be 2.
 
@@ -48,8 +48,8 @@ voltage configuration varies depending on the pad in question. 3.3 V and
 1.8 V signaling voltages are supported on pins where software
 controllable signaling voltage switching is available.
 
-Pad configurations are described with pin configuration nodes which
-are placed under the pmc node and they are referred to by the pinctrl
+Pad configurations are described with pin configuration yesdes which
+are placed under the pmc yesde and they are referred to by the pinctrl
 client properties. For more information see
 Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt.
 

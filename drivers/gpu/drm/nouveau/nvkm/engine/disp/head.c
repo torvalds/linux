@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -40,17 +40,17 @@ nvkm_head_find(struct nvkm_disp *disp, int id)
 }
 
 int
-nvkm_head_mthd_scanoutpos(struct nvkm_object *object,
+nvkm_head_mthd_scayesutpos(struct nvkm_object *object,
 			  struct nvkm_head *head, void *data, u32 size)
 {
 	union {
-		struct nv04_disp_scanoutpos_v0 v0;
+		struct nv04_disp_scayesutpos_v0 v0;
 	} *args = data;
 	int ret = -ENOSYS;
 
-	nvif_ioctl(object, "head scanoutpos size %d\n", size);
+	nvif_ioctl(object, "head scayesutpos size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "head scanoutpos vers %d\n",
+		nvif_ioctl(object, "head scayesutpos vers %d\n",
 			   args->v0.version);
 
 		head->func->state(head, &head->arm);

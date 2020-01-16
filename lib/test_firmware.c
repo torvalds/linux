@@ -4,7 +4,7 @@
  *
  * It is designed to be used for basic evaluation of the firmware loading
  * subsystem (for example when validating firmware verification). It lacks
- * any extra dependencies, and will not normally be loaded by the system
+ * any extra dependencies, and will yest yesrmally be loaded by the system
  * unless explicitly requested by name.
  */
 
@@ -51,7 +51,7 @@ struct test_batched_req {
  *	request_firmware_into_buf() will be used instead.
  * @sync_direct: when the sync trigger is used if this is true
  *	request_firmware_direct() will be used instead.
- * @send_uevent: whether or not to send a uevent for async requests
+ * @send_uevent: whether or yest to send a uevent for async requests
  * @num_requests: number of requests to try per test case. This is trigger
  *	specific.
  * @reqs: stores all requests information
@@ -59,13 +59,13 @@ struct test_batched_req {
  *	from through the read_fw trigger.
  * @test_result: a test may use this to collect the result from the call
  *	of the request_firmware*() calls used in their tests. In order of
- *	priority we always keep first any setup error. If no setup errors were
+ *	priority we always keep first any setup error. If yes setup errors were
  *	found then we move on to the first error encountered while running the
  *	API. Note that for async calls this typically will be a successful
  *	result (0) unless of course you've used bogus parameters, or the system
  *	is out of memory.  In the async case the callback is expected to do a
  *	bit more homework to figure out what happened, unfortunately the only
- *	information passed today on error is the fact that no firmware was
+ *	information passed today on error is the fact that yes firmware was
  *	found so we can only assume -ENOENT on async calls if the firmware is
  *	NULL.
  *
@@ -75,7 +75,7 @@ struct test_batched_req {
  *
  *	0:		success for sync, for async it means request was sent
  *	-EINVAL:	invalid parameters or request
- *	-ENOENT:	files not found
+ *	-ENOENT:	files yest found
  *
  *	System environment:
  *
@@ -207,7 +207,7 @@ static ssize_t reset_store(struct device *dev,
 	ret = __test_firmware_config_init();
 	if (ret < 0) {
 		ret = -ENOMEM;
-		pr_err("could not alloc settings for config trigger: %d\n",
+		pr_err("could yest alloc settings for config trigger: %d\n",
 		       ret);
 		goto out;
 	}
@@ -531,7 +531,7 @@ static ssize_t trigger_async_request_store(struct device *dev,
 	mutex_lock(&test_fw_mutex);
 	release_firmware(test_firmware);
 	test_firmware = NULL;
-	rc = request_firmware_nowait(THIS_MODULE, 1, name, dev, GFP_KERNEL,
+	rc = request_firmware_yeswait(THIS_MODULE, 1, name, dev, GFP_KERNEL,
 				     NULL, trigger_async_request_cb);
 	if (rc) {
 		pr_info("async load of '%s' failed: %d\n", name, rc);
@@ -574,7 +574,7 @@ static ssize_t trigger_custom_fallback_store(struct device *dev,
 	mutex_lock(&test_fw_mutex);
 	release_firmware(test_firmware);
 	test_firmware = NULL;
-	rc = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOHOTPLUG, name,
+	rc = request_firmware_yeswait(THIS_MODULE, FW_ACTION_NOHOTPLUG, name,
 				     dev, GFP_KERNEL, NULL,
 				     trigger_async_request_cb);
 	if (rc) {
@@ -650,7 +650,7 @@ static int test_fw_run_batch_request(void *data)
 
 /*
  * We use a kthread as otherwise the kernel serializes all our sync requests
- * and we would not be able to mimic batched requests on a sync call. Batched
+ * and we would yest be able to mimic batched requests on a sync call. Batched
  * requests on a sync call can for instance happen on a device driver when
  * multiple cards are used and firmware loading happens outside of probe.
  */
@@ -721,7 +721,7 @@ out_unlock:
 static DEVICE_ATTR_WO(trigger_batched_requests);
 
 /*
- * We wait for each callback to return with the lock held, no need to lock here
+ * We wait for each callback to return with the lock held, yes need to lock here
  */
 static void trigger_batched_cb(const struct firmware *fw, void *context)
 {
@@ -739,8 +739,8 @@ static void trigger_batched_cb(const struct firmware *fw, void *context)
 	req->fw = fw;
 
 	/*
-	 * Unfortunately the firmware API gives us nothing other than a null FW
-	 * if the firmware was not found on async requests.  Best we can do is
+	 * Unfortunately the firmware API gives us yesthing other than a null FW
+	 * if the firmware was yest found on async requests.  Best we can do is
 	 * just assume -ENOENT. A better API would pass the actual return
 	 * value to the callback.
 	 */
@@ -782,7 +782,7 @@ ssize_t trigger_batched_requests_async_store(struct device *dev,
 		req->fw = NULL;
 		req->idx = i;
 		init_completion(&req->completion);
-		rc = request_firmware_nowait(THIS_MODULE, send_uevent,
+		rc = request_firmware_yeswait(THIS_MODULE, send_uevent,
 					     req->name,
 					     dev, GFP_KERNEL, req,
 					     trigger_batched_cb);
@@ -872,7 +872,7 @@ static ssize_t read_firmware_show(struct device *dev,
 	pr_info("#%u: loaded %zu\n", idx, req->fw->size);
 
 	if (req->fw->size > PAGE_SIZE) {
-		pr_err("Testing interface must use PAGE_SIZE firmware for now\n");
+		pr_err("Testing interface must use PAGE_SIZE firmware for yesw\n");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -917,7 +917,7 @@ static struct attribute *test_dev_attrs[] = {
 ATTRIBUTE_GROUPS(test_dev);
 
 static struct miscdevice test_fw_misc_device = {
-	.minor          = MISC_DYNAMIC_MINOR,
+	.miyesr          = MISC_DYNAMIC_MINOR,
 	.name           = "test_firmware",
 	.fops           = &test_fw_fops,
 	.groups 	= test_dev_groups,
@@ -934,14 +934,14 @@ static int __init test_firmware_init(void)
 	rc = __test_firmware_config_init();
 	if (rc) {
 		kfree(test_fw_config);
-		pr_err("could not init firmware test config: %d\n", rc);
+		pr_err("could yest init firmware test config: %d\n", rc);
 		return rc;
 	}
 
 	rc = misc_register(&test_fw_misc_device);
 	if (rc) {
 		kfree(test_fw_config);
-		pr_err("could not register misc device: %d\n", rc);
+		pr_err("could yest register misc device: %d\n", rc);
 		return rc;
 	}
 

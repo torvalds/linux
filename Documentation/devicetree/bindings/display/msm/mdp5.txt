@@ -1,4 +1,4 @@
-Qualcomm adreno/snapdragon MDP5 display controller
+Qualcomm adreyes/snapdragon MDP5 display controller
 
 Description:
 
@@ -15,7 +15,7 @@ Required properties:
   * "mdss_phys"
   * "vbif_phys"
 - interrupts: The interrupt signal from MDSS.
-- interrupt-controller: identifies the node as an interrupt controller.
+- interrupt-controller: identifies the yesde as an interrupt controller.
 - #interrupt-cells: specifies the number of cells needed to encode an interrupt
   source, should be 1.
 - power-domains: a power domain consumer specifier according to

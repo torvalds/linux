@@ -91,7 +91,7 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
 
 	device = cqr->startdev;
 
-        /* just retry - there is nothing to save ... I got no sense data.... */
+        /* just retry - there is yesthing to save ... I got yes sense data.... */
         if (cqr->retries > 0) {
 		DBF_DEV_EVENT(DBF_DEBUG, device,
                              "default ERP called (%i retries left)",
@@ -113,7 +113,7 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
  *   Frees all ERPs of the current ERP Chain and set the status
  *   of the original CQR either to DASD_CQR_DONE if ERP was successful
  *   or to DASD_CQR_FAILED if ERP was NOT successful.
- *   NOTE: This function is only called if no discipline postaction
+ *   NOTE: This function is only called if yes discipline postaction
  *	   is available
  *
  * PARAMETER

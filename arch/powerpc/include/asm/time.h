@@ -162,7 +162,7 @@ static inline void set_dec(u64 val)
 	--val;
 #endif
 	mtspr(SPRN_DEC, val);
-#endif /* not 40x */
+#endif /* yest 40x */
 }
 
 static inline unsigned long tb_ticks_since(unsigned long tstamp)
@@ -192,7 +192,7 @@ extern void __init time_init(void);
 
 DECLARE_PER_CPU(u64, decrementers_next_tb);
 
-/* Convert timebase ticks to nanoseconds */
+/* Convert timebase ticks to nayesseconds */
 unsigned long long tb_to_ns(unsigned long long tb_ticks);
 
 #endif /* __KERNEL__ */

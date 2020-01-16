@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -106,12 +106,12 @@ static inline int iwl_mvm_check_pn(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/* do PN checking */
 
-	/* multicast and non-data only arrives on default queue */
+	/* multicast and yesn-data only arrives on default queue */
 	if (!ieee80211_is_data(hdr->frame_control) ||
 	    is_multicast_ether_addr(hdr->addr1))
 		return 0;
 
-	/* do not check PN for open AP */
+	/* do yest check PN for open AP */
 	if (!(stats->flag & RX_FLAG_DECRYPTED))
 		return 0;
 
@@ -183,8 +183,8 @@ static int iwl_mvm_create_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 		pad_len = 2;
 	}
 
-	/* If frame is small enough to fit in skb->head, pull it completely.
-	 * If not, only pull ieee80211_hdr (including crypto if present, and
+	/* If frame is small eyesugh to fit in skb->head, pull it completely.
+	 * If yest, only pull ieee80211_hdr (including crypto if present, and
 	 * an additional 8 bytes for SNAP/ethertype, see below) so that
 	 * splice() or TCP coalesce are more efficient.
 	 *
@@ -259,7 +259,7 @@ static void iwl_mvm_add_rtap_sniffer_config(struct iwl_mvm *mvm,
 	radiotap->len = size - sizeof(*radiotap);
 	radiotap->pad = 2;
 
-	/* fill the data now */
+	/* fill the data yesw */
 	memcpy(radiotap->data, &mvm->cur_aid, sizeof(mvm->cur_aid));
 	/* and clear the padding */
 	memset(radiotap->data + sizeof(__le16), 0, radiotap->pad);
@@ -314,7 +314,7 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 	 * Drop UNKNOWN frames in aggregation, unless in monitor mode
 	 * (where we don't have the keys).
 	 * We limit this to aggregation because in TKIP this is a valid
-	 * scenario, since we may not have the (correct) TTAK (phase 1
+	 * scenario, since we may yest have the (correct) TTAK (phase 1
 	 * key) in the firmware.
 	 */
 	if (phy_info & IWL_RX_MPDU_PHY_AMPDU &&
@@ -327,7 +327,7 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 	    IWL_RX_MPDU_STATUS_SEC_NONE)
 		return 0;
 
-	/* TODO: handle packets encrypted with unknown alg */
+	/* TODO: handle packets encrypted with unkyeswn alg */
 
 	switch (status & IWL_RX_MPDU_STATUS_SEC_MASK) {
 	case IWL_RX_MPDU_STATUS_SEC_CCM:
@@ -378,7 +378,7 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 		return 0;
 	default:
 		/*
-		 * Sometimes we can get frames that were not decrypted
+		 * Sometimes we can get frames that were yest decrypted
 		 * because the firmware didn't have the keys yet. This can
 		 * happen after connection where we can get multicast frames
 		 * before the GTK is installed.
@@ -470,11 +470,11 @@ static bool iwl_mvm_is_dup(struct ieee80211_sta *sta, int queue,
 	return false;
 }
 
-int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
+int iwl_mvm_yestify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
 			    const u8 *data, u32 count, bool async)
 {
 	u8 buf[sizeof(struct iwl_rxq_sync_cmd) +
-	       sizeof(struct iwl_mvm_rss_sync_notif)];
+	       sizeof(struct iwl_mvm_rss_sync_yestif)];
 	struct iwl_rxq_sync_cmd *cmd = (void *)buf;
 	u32 data_size = sizeof(*cmd) + count;
 	int ret;
@@ -484,7 +484,7 @@ int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
 	 * Ensure we don't overflow buf
 	 */
 	if (WARN_ON(count & 3 ||
-		    count > sizeof(struct iwl_mvm_rss_sync_notif)))
+		    count > sizeof(struct iwl_mvm_rss_sync_yestif)))
 		return -EINVAL;
 
 	cmd->rxq_mask = cpu_to_le32(rxq_mask);
@@ -514,14 +514,14 @@ static bool iwl_mvm_is_sn_less(u16 sn1, u16 sn2, u16 buffer_size)
 
 static void iwl_mvm_sync_nssn(struct iwl_mvm *mvm, u8 baid, u16 nssn)
 {
-	struct iwl_mvm_rss_sync_notif notif = {
+	struct iwl_mvm_rss_sync_yestif yestif = {
 		.metadata.type = IWL_MVM_RXQ_NSSN_SYNC,
 		.metadata.sync = 0,
 		.nssn_sync.baid = baid,
 		.nssn_sync.nssn = nssn,
 	};
 
-	iwl_mvm_sync_rx_queues_internal(mvm, (void *)&notif, sizeof(notif));
+	iwl_mvm_sync_rx_queues_internal(mvm, (void *)&yestif, sizeof(yestif));
 }
 
 #define RX_REORDER_BUF_TIMEOUT_MQ (HZ / 10)
@@ -546,9 +546,9 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 	lockdep_assert_held(&reorder_buf->lock);
 
 	/*
-	 * We keep the NSSN not too far behind, if we are sync'ing it and it
+	 * We keep the NSSN yest too far behind, if we are sync'ing it and it
 	 * is more than 2048 ahead of us, it must be behind us. Discard it.
-	 * This can happen if the queue that hit the 0 / 2048 seqno was lagging
+	 * This can happen if the queue that hit the 0 / 2048 seqyes was lagging
 	 * behind and this queue already processed packets. The next if
 	 * would have caught cases where this queue would have processed less
 	 * than 64 packets, but it may have processed more than 64 packets.
@@ -557,7 +557,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 	    ieee80211_sn_less(nssn, ssn))
 		goto set_timer;
 
-	/* ignore nssn smaller than head sn - this can happen due to timeout */
+	/* igyesre nssn smaller than head sn - this can happen due to timeout */
 	if (iwl_mvm_is_sn_less(nssn, ssn, reorder_buf->buf_size))
 		goto set_timer;
 
@@ -625,7 +625,7 @@ void iwl_mvm_reorder_timer_expired(struct timer_list *t)
 		if (skb_queue_empty(&entries[index].e.frames)) {
 			/*
 			 * If there is a hole and the next frame didn't expire
-			 * we want to break and not advance SN
+			 * we want to break and yest advance SN
 			 */
 			cont = false;
 			continue;
@@ -661,7 +661,7 @@ void iwl_mvm_reorder_timer_expired(struct timer_list *t)
 		rcu_read_unlock();
 	} else {
 		/*
-		 * If no frame expired and there are stored frames, index is now
+		 * If yes frame expired and there are stored frames, index is yesw
 		 * pointing to the first unexpired frame - modify timer
 		 * accordingly to this frame.
 		 */
@@ -708,7 +708,7 @@ out:
 	rcu_read_unlock();
 }
 
-static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
+static void iwl_mvm_release_frames_from_yestif(struct iwl_mvm *mvm,
 					      struct napi_struct *napi,
 					      u8 baid, u16 nssn, int queue,
 					      u32 flags)
@@ -717,7 +717,7 @@ static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
 	struct iwl_mvm_reorder_buffer *reorder_buf;
 	struct iwl_mvm_baid_data *ba_data;
 
-	IWL_DEBUG_HT(mvm, "Frame release notification for BAID %u, NSSN %d\n",
+	IWL_DEBUG_HT(mvm, "Frame release yestification for BAID %u, NSSN %d\n",
 		     baid, nssn);
 
 	if (WARN_ON_ONCE(baid == IWL_RX_REORDER_DATA_INVALID_BAID ||
@@ -749,42 +749,42 @@ static void iwl_mvm_nssn_sync(struct iwl_mvm *mvm,
 			      struct napi_struct *napi, int queue,
 			      const struct iwl_mvm_nssn_sync_data *data)
 {
-	iwl_mvm_release_frames_from_notif(mvm, napi, data->baid,
+	iwl_mvm_release_frames_from_yestif(mvm, napi, data->baid,
 					  data->nssn, queue,
 					  IWL_MVM_RELEASE_FROM_RSS_SYNC);
 }
 
-void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct napi_struct *napi,
+void iwl_mvm_rx_queue_yestif(struct iwl_mvm *mvm, struct napi_struct *napi,
 			    struct iwl_rx_cmd_buffer *rxb, int queue)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_rxq_sync_notification *notif;
-	struct iwl_mvm_internal_rxq_notif *internal_notif;
+	struct iwl_rxq_sync_yestification *yestif;
+	struct iwl_mvm_internal_rxq_yestif *internal_yestif;
 
-	notif = (void *)pkt->data;
-	internal_notif = (void *)notif->payload;
+	yestif = (void *)pkt->data;
+	internal_yestif = (void *)yestif->payload;
 
-	if (internal_notif->sync &&
-	    mvm->queue_sync_cookie != internal_notif->cookie) {
+	if (internal_yestif->sync &&
+	    mvm->queue_sync_cookie != internal_yestif->cookie) {
 		WARN_ONCE(1, "Received expired RX queue sync message\n");
 		return;
 	}
 
-	switch (internal_notif->type) {
+	switch (internal_yestif->type) {
 	case IWL_MVM_RXQ_EMPTY:
 		break;
 	case IWL_MVM_RXQ_NOTIF_DEL_BA:
-		iwl_mvm_del_ba(mvm, queue, (void *)internal_notif->data);
+		iwl_mvm_del_ba(mvm, queue, (void *)internal_yestif->data);
 		break;
 	case IWL_MVM_RXQ_NSSN_SYNC:
 		iwl_mvm_nssn_sync(mvm, napi, queue,
-				  (void *)internal_notif->data);
+				  (void *)internal_yestif->data);
 		break;
 	default:
-		WARN_ONCE(1, "Invalid identifier %d", internal_notif->type);
+		WARN_ONCE(1, "Invalid identifier %d", internal_yestif->type);
 	}
 
-	if (internal_notif->sync &&
+	if (internal_yestif->sync &&
 	    !atomic_dec_return(&mvm->queue_sync_counter))
 		wake_up(&mvm->rx_sync_waitq);
 }
@@ -811,8 +811,8 @@ static void iwl_mvm_oldsn_workaround(struct iwl_mvm *mvm,
 	} else if (buffer->consec_oldsn_prev_drop) {
 		/*
 		 * tracking state didn't change, and we had an old SN
-		 * indication before - do nothing in this case, we
-		 * already noted this one down and are waiting for the
+		 * indication before - do yesthing in this case, we
+		 * already yested this one down and are waiting for the
 		 * next A-MPDU (by GP2)
 		 */
 		return;
@@ -880,14 +880,14 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	if (baid == IWL_RX_REORDER_DATA_INVALID_BAID)
 		return false;
 
-	/* no sta yet */
+	/* yes sta yet */
 	if (WARN_ONCE(IS_ERR_OR_NULL(sta),
 		      "Got valid BAID without a valid station assigned\n"))
 		return false;
 
 	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 
-	/* not a data packet or a bar */
+	/* yest a data packet or a bar */
 	if (!ieee80211_is_back_req(hdr->frame_control) &&
 	    (!ieee80211_is_data_qos(hdr->frame_control) ||
 	     is_multicast_ether_addr(hdr->addr1)))
@@ -899,7 +899,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	baid_data = rcu_dereference(mvm->baid_map[baid]);
 	if (!baid_data) {
 		IWL_DEBUG_RX(mvm,
-			     "Got valid BAID but no baid allocated, bypass the re-ordering buffer. Baid %d reorder 0x%x\n",
+			     "Got valid BAID but yes baid allocated, bypass the re-ordering buffer. Baid %d reorder 0x%x\n",
 			      baid, reorder);
 		return false;
 	}
@@ -939,8 +939,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	 * the reorder buffer, in which case we just release up to it and the
 	 * rest of the function will take care of storing it and releasing up to
 	 * the nssn.
-	 * This should not happen. This queue has been lagging and it should
-	 * have been updated by a IWL_MVM_RXQ_NSSN_SYNC notification. Be nice
+	 * This should yest happen. This queue has been lagging and it should
+	 * have been updated by a IWL_MVM_RXQ_NSSN_SYNC yestification. Be nice
 	 * and update the other queues.
 	 */
 	if (!iwl_mvm_is_sn_less(nssn, buffer->head_sn + buffer->buf_size,
@@ -959,20 +959,20 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	if (ieee80211_sn_less(sn, buffer->head_sn))
 		goto drop;
 
-	/* release immediately if allowed by nssn and no stored frames */
+	/* release immediately if allowed by nssn and yes stored frames */
 	if (!buffer->num_stored && ieee80211_sn_less(sn, nssn)) {
 		if (iwl_mvm_is_sn_less(buffer->head_sn, nssn,
 				       buffer->buf_size) &&
 		   (!amsdu || last_subframe)) {
 			/*
-			 * If we crossed the 2048 or 0 SN, notify all the
+			 * If we crossed the 2048 or 0 SN, yestify all the
 			 * queues. This is done in order to avoid having a
 			 * head_sn that lags behind for too long. When that
 			 * happens, we can get to a situation where the head_sn
 			 * is within the interval [nssn - buf_size : nssn]
 			 * which will make us think that the nssn is a packet
 			 * that we already freed because of the reordering
-			 * buffer and we will ignore it. So maintain the
+			 * buffer and we will igyesre it. So maintain the
 			 * head_sn somewhat updated across all the queues:
 			 * when it crosses 0 and 2048.
 			 */
@@ -986,12 +986,12 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	}
 
 	/*
-	 * release immediately if there are no stored frames, and the sn is
+	 * release immediately if there are yes stored frames, and the sn is
 	 * equal to the head.
 	 * This can happen due to reorder timer, where NSSN is behind head_sn.
 	 * When we released everything, and we got the next frame in the
 	 * sequence, according to the NSSN we can't release immediately,
-	 * while technically there is no hole and we can move forward.
+	 * while technically there is yes hole and we can move forward.
 	 */
 	if (!buffer->num_stored && sn == buffer->head_sn) {
 		if (!amsdu || last_subframe) {
@@ -1008,7 +1008,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 
 	/*
 	 * Check if we already stored this frame
-	 * As AMSDU is either received or not as whole, logic is simple:
+	 * As AMSDU is either received or yest as whole, logic is simple:
 	 * If we have frames in that position in the buffer and the last frame
 	 * originated from AMSDU had a different SN then it is a retransmission.
 	 * If it is the same SN then if the subframe index is incrementing it
@@ -1032,15 +1032,15 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	}
 
 	/*
-	 * We cannot trust NSSN for AMSDU sub-frames that are not the last.
+	 * We canyest trust NSSN for AMSDU sub-frames that are yest the last.
 	 * The reason is that NSSN advances on the first sub-frame, and may
 	 * cause the reorder buffer to advance before all the sub-frames arrive.
 	 * Example: reorder buffer contains SN 0 & 2, and we receive AMSDU with
 	 * SN 1. NSSN for first sub frame will be 3 with the result of driver
 	 * releasing SN 0,1, 2. When sub-frame 1 arrives - reorder buffer is
 	 * already ahead and it will be dropped.
-	 * If the last sub-frame is not on this queue - we will get frame
-	 * release notification with up to date NSSN.
+	 * If the last sub-frame is yest on this queue - we will get frame
+	 * release yestification with up to date NSSN.
 	 */
 	if (!amsdu || last_subframe)
 		iwl_mvm_release_frames(mvm, sta, napi, baid_data,
@@ -1059,7 +1059,7 @@ drop:
 static void iwl_mvm_agg_rx_received(struct iwl_mvm *mvm,
 				    u32 reorder_data, u8 baid)
 {
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	unsigned long timeout;
 	struct iwl_mvm_baid_data *data;
 
@@ -1068,7 +1068,7 @@ static void iwl_mvm_agg_rx_received(struct iwl_mvm *mvm,
 	data = rcu_dereference(mvm->baid_map[baid]);
 	if (!data) {
 		IWL_DEBUG_RX(mvm,
-			     "Got valid BAID but no baid allocated, bypass the re-ordering buffer. Baid %d reorder 0x%x\n",
+			     "Got valid BAID but yes baid allocated, bypass the re-ordering buffer. Baid %d reorder 0x%x\n",
 			      baid, reorder_data);
 		goto out;
 	}
@@ -1078,14 +1078,14 @@ static void iwl_mvm_agg_rx_received(struct iwl_mvm *mvm,
 
 	timeout = data->timeout;
 	/*
-	 * Do not update last rx all the time to avoid cache bouncing
+	 * Do yest update last rx all the time to avoid cache bouncing
 	 * between the rx queues.
 	 * Update it every timeout. Worst case is the session will
 	 * expire after ~ 2 * timeout, which doesn't matter that much.
 	 */
-	if (time_before(data->last_rx + TU_TO_JIFFIES(timeout), now))
+	if (time_before(data->last_rx + TU_TO_JIFFIES(timeout), yesw))
 		/* Update is atomic */
-		data->last_rx = now;
+		data->last_rx = yesw;
 
 out:
 	rcu_read_unlock();
@@ -1171,7 +1171,7 @@ iwl_mvm_decode_he_phy_ru_alloc(struct iwl_mvm_rx_phy_data *phy_data,
 	 * transmission and *don't* have the HE phy data (due
 	 * to the bits being used for TSF). This shouldn't
 	 * happen though as management frames where we need
-	 * the TSF/timers are not be transmitted in HE-MU.
+	 * the TSF/timers are yest be transmitted in HE-MU.
 	 */
 	u8 ru = le32_get_bits(phy_data->d1, IWL_RX_PHY_DATA1_HE_RU_ALLOC_MASK);
 	u32 he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
@@ -1326,7 +1326,7 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 					      IEEE80211_RADIOTAP_HE_DATA4_SU_MU_SPTL_REUSE);
 		break;
 	default:
-		/* nothing here */
+		/* yesthing here */
 		break;
 	}
 
@@ -1368,7 +1368,7 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 					      IEEE80211_RADIOTAP_HE_DATA3_BEAM_CHANGE);
 		break;
 	default:
-		/* nothing */
+		/* yesthing */
 		break;
 	}
 }
@@ -1382,7 +1382,7 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 	struct ieee80211_radiotap_he_mu *he_mu = NULL;
 	u32 he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
 	u8 stbc, ltf;
-	static const struct ieee80211_radiotap_he known = {
+	static const struct ieee80211_radiotap_he kyeswn = {
 		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
 				     IEEE80211_RADIOTAP_HE_DATA1_DATA_DCM_KNOWN |
 				     IEEE80211_RADIOTAP_HE_DATA1_STBC_KNOWN |
@@ -1390,7 +1390,7 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 		.data2 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN |
 				     IEEE80211_RADIOTAP_HE_DATA2_TXBF_KNOWN),
 	};
-	static const struct ieee80211_radiotap_he_mu mu_known = {
+	static const struct ieee80211_radiotap_he_mu mu_kyeswn = {
 		.flags1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS_KNOWN |
 				      IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM_KNOWN |
 				      IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_SYMS_USERS_KNOWN |
@@ -1399,12 +1399,12 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 				      IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_KNOWN),
 	};
 
-	he = skb_put_data(skb, &known, sizeof(known));
+	he = skb_put_data(skb, &kyeswn, sizeof(kyeswn));
 	rx_status->flag |= RX_FLAG_RADIOTAP_HE;
 
 	if (phy_data->info_type == IWL_RX_PHY_INFO_TYPE_HE_MU ||
 	    phy_data->info_type == IWL_RX_PHY_INFO_TYPE_HE_MU_EXT) {
-		he_mu = skb_put_data(skb, &mu_known, sizeof(mu_known));
+		he_mu = skb_put_data(skb, &mu_kyeswn, sizeof(mu_kyeswn));
 		rx_status->flag |= RX_FLAG_RADIOTAP_HE_MU;
 	}
 
@@ -1610,7 +1610,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 				      IWL_RX_PHY_DATA1_INFO_TYPE_MASK);
 
 	hdr = (void *)(pkt->data + desc_size);
-	/* Dont use dev_alloc_skb(), we'll have enough headroom once
+	/* Dont use dev_alloc_skb(), we'll have eyesugh headroom once
 	 * ieee80211_hdr pulled.
 	 */
 	skb = alloc_skb(128, GFP_ATOMIC);
@@ -1712,7 +1712,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		/*
 		 * Toggle is switched whenever new aggregation starts. Make
 		 * sure ampdu_reference is never 0 so we can later use it to
-		 * see if the frame was really part of an A-MPDU or not.
+		 * see if the frame was really part of an A-MPDU or yest.
 		 */
 		if (toggle_bit != mvm->ampdu_toggle) {
 			mvm->ampdu_ref++;
@@ -1889,12 +1889,12 @@ out:
 	rcu_read_unlock();
 }
 
-void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
+void iwl_mvm_rx_monitor_yes_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 				struct iwl_rx_cmd_buffer *rxb, int queue)
 {
 	struct ieee80211_rx_status *rx_status;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_rx_no_data *desc = (void *)pkt->data;
+	struct iwl_rx_yes_data *desc = (void *)pkt->data;
 	u32 rate_n_flags = le32_to_cpu(desc->rate);
 	u32 gp2_on_air_rise = le32_to_cpu(desc->on_air_rise_time);
 	u32 rssi = le32_to_cpu(desc->rssi);
@@ -1919,7 +1919,7 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 		le32_get_bits(desc->phy_info[1],
 			      IWL_RX_PHY_DATA1_INFO_TYPE_MASK);
 
-	/* Dont use dev_alloc_skb(), we'll have enough headroom once
+	/* Dont use dev_alloc_skb(), we'll have eyesugh headroom once
 	 * ieee80211_hdr pulled.
 	 */
 	skb = alloc_skb(128, GFP_ATOMIC);
@@ -2037,7 +2037,7 @@ void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_frame_release *release = (void *)pkt->data;
 
-	iwl_mvm_release_frames_from_notif(mvm, napi, release->baid,
+	iwl_mvm_release_frames_from_yestif(mvm, napi, release->baid,
 					  le16_to_cpu(release->nssn),
 					  queue, 0);
 }
@@ -2065,7 +2065,7 @@ void iwl_mvm_rx_bar_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 	baid_data = rcu_dereference(mvm->baid_map[baid]);
 	if (!baid_data) {
 		IWL_DEBUG_RX(mvm,
-			     "Got valid BAID %d but not allocated, invalid BAR release!\n",
+			     "Got valid BAID %d but yest allocated, invalid BAR release!\n",
 			      baid);
 		goto out;
 	}
@@ -2076,7 +2076,7 @@ void iwl_mvm_rx_bar_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 		 tid))
 		goto out;
 
-	iwl_mvm_release_frames_from_notif(mvm, napi, baid, nssn, queue, 0);
+	iwl_mvm_release_frames_from_yestif(mvm, napi, baid, nssn, queue, 0);
 out:
 	rcu_read_unlock();
 }

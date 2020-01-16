@@ -97,7 +97,7 @@ struct hvsock {
 	struct vmbus_channel *chan;
 	struct vmpacket_descriptor *recv_desc;
 
-	/* The length of the payload not delivered to userland yet */
+	/* The length of the payload yest delivered to userland yet */
 	u32 recv_data_len;
 	/* The offset of the payload */
 	u32 recv_data_off;
@@ -107,7 +107,7 @@ struct hvsock {
 };
 
 /* In the VM, we support Hyper-V Sockets with AF_VSOCK, and the endpoint is
- * <cid, port> (see struct sockaddr_vm). Note: cid is not really used here:
+ * <cid, port> (see struct sockaddr_vm). Note: cid is yest really used here:
  * when we write apps to connect to the host, we can only use VMADDR_CID_ANY
  * or VMADDR_CID_HOST (both are equivalent) as the remote cid, and when we
  * write apps to bind() & listen() in the VM, we can only use VMADDR_CID_ANY
@@ -125,7 +125,7 @@ struct hvsock {
  *    GUID VmId;
  *    GUID ServiceId;
  * };
- * Note: VmID is not used by Linux VM and actually it isn't transmitted via
+ * Note: VmID is yest used by Linux VM and actually it isn't transmitted via
  * VMBus, because here it's obvious the host and the VM can easily identify
  * each other. Though the VmID is useful on the host, especially in the case
  * of Windows container, Linux VM doesn't need it at all.
@@ -399,7 +399,7 @@ static void hvs_open_connection(struct vmbus_channel *chan)
 	 * size that can be set by the user, but, since currently, the hv_sock
 	 * VMBUS ring buffer is physically contiguous allocation, restrict it
 	 * further.
-	 * Older versions of hv_sock host side code cannot handle bigger VMBUS
+	 * Older versions of hv_sock host side code canyest handle bigger VMBUS
 	 * ring buffer size. Use the version number to limit the change to newer
 	 * versions.
 	 */
@@ -434,9 +434,9 @@ static void hvs_open_connection(struct vmbus_channel *chan)
 	vmbus_set_chn_rescind_callback(chan, hvs_close_connection);
 
 	/* Set the pending send size to max packet size to always get
-	 * notifications from the host when there is enough writable space.
-	 * The host is optimized to send notifications only when the pending
-	 * size boundary is crossed, and not always.
+	 * yestifications from the host when there is eyesugh writable space.
+	 * The host is optimized to send yestifications only when the pending
+	 * size boundary is crossed, and yest always.
 	 */
 	hvs_set_channel_pending_send_size(chan);
 
@@ -783,7 +783,7 @@ static bool hvs_stream_allow(u32 cid, u32 port)
 }
 
 static
-int hvs_notify_poll_in(struct vsock_sock *vsk, size_t target, bool *readable)
+int hvs_yestify_poll_in(struct vsock_sock *vsk, size_t target, bool *readable)
 {
 	struct hvsock *hvs = vsk->trans;
 
@@ -792,7 +792,7 @@ int hvs_notify_poll_in(struct vsock_sock *vsk, size_t target, bool *readable)
 }
 
 static
-int hvs_notify_poll_out(struct vsock_sock *vsk, size_t target, bool *writable)
+int hvs_yestify_poll_out(struct vsock_sock *vsk, size_t target, bool *writable)
 {
 	*writable = hvs_stream_has_space(vsk) > 0;
 
@@ -800,58 +800,58 @@ int hvs_notify_poll_out(struct vsock_sock *vsk, size_t target, bool *writable)
 }
 
 static
-int hvs_notify_recv_init(struct vsock_sock *vsk, size_t target,
-			 struct vsock_transport_recv_notify_data *d)
+int hvs_yestify_recv_init(struct vsock_sock *vsk, size_t target,
+			 struct vsock_transport_recv_yestify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_recv_pre_block(struct vsock_sock *vsk, size_t target,
-			      struct vsock_transport_recv_notify_data *d)
+int hvs_yestify_recv_pre_block(struct vsock_sock *vsk, size_t target,
+			      struct vsock_transport_recv_yestify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_recv_pre_dequeue(struct vsock_sock *vsk, size_t target,
-				struct vsock_transport_recv_notify_data *d)
+int hvs_yestify_recv_pre_dequeue(struct vsock_sock *vsk, size_t target,
+				struct vsock_transport_recv_yestify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_recv_post_dequeue(struct vsock_sock *vsk, size_t target,
+int hvs_yestify_recv_post_dequeue(struct vsock_sock *vsk, size_t target,
 				 ssize_t copied, bool data_read,
-				 struct vsock_transport_recv_notify_data *d)
+				 struct vsock_transport_recv_yestify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_send_init(struct vsock_sock *vsk,
-			 struct vsock_transport_send_notify_data *d)
+int hvs_yestify_send_init(struct vsock_sock *vsk,
+			 struct vsock_transport_send_yestify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_send_pre_block(struct vsock_sock *vsk,
-			      struct vsock_transport_send_notify_data *d)
+int hvs_yestify_send_pre_block(struct vsock_sock *vsk,
+			      struct vsock_transport_send_yestify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_send_pre_enqueue(struct vsock_sock *vsk,
-				struct vsock_transport_send_notify_data *d)
+int hvs_yestify_send_pre_enqueue(struct vsock_sock *vsk,
+				struct vsock_transport_send_yestify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_send_post_enqueue(struct vsock_sock *vsk, ssize_t written,
-				 struct vsock_transport_send_notify_data *d)
+int hvs_yestify_send_post_enqueue(struct vsock_sock *vsk, ssize_t written,
+				 struct vsock_transport_send_yestify_data *d)
 {
 	return 0;
 }
@@ -880,16 +880,16 @@ static struct vsock_transport hvs_transport = {
 	.stream_is_active         = hvs_stream_is_active,
 	.stream_allow             = hvs_stream_allow,
 
-	.notify_poll_in           = hvs_notify_poll_in,
-	.notify_poll_out          = hvs_notify_poll_out,
-	.notify_recv_init         = hvs_notify_recv_init,
-	.notify_recv_pre_block    = hvs_notify_recv_pre_block,
-	.notify_recv_pre_dequeue  = hvs_notify_recv_pre_dequeue,
-	.notify_recv_post_dequeue = hvs_notify_recv_post_dequeue,
-	.notify_send_init         = hvs_notify_send_init,
-	.notify_send_pre_block    = hvs_notify_send_pre_block,
-	.notify_send_pre_enqueue  = hvs_notify_send_pre_enqueue,
-	.notify_send_post_enqueue = hvs_notify_send_post_enqueue,
+	.yestify_poll_in           = hvs_yestify_poll_in,
+	.yestify_poll_out          = hvs_yestify_poll_out,
+	.yestify_recv_init         = hvs_yestify_recv_init,
+	.yestify_recv_pre_block    = hvs_yestify_recv_pre_block,
+	.yestify_recv_pre_dequeue  = hvs_yestify_recv_pre_dequeue,
+	.yestify_recv_post_dequeue = hvs_yestify_recv_post_dequeue,
+	.yestify_send_init         = hvs_yestify_send_init,
+	.yestify_send_pre_block    = hvs_yestify_send_pre_block,
+	.yestify_send_pre_enqueue  = hvs_yestify_send_pre_enqueue,
+	.yestify_send_post_enqueue = hvs_yestify_send_post_enqueue,
 
 };
 
@@ -908,7 +908,7 @@ static int hvs_probe(struct hv_device *hdev,
 	/* Always return success to suppress the unnecessary error message
 	 * in vmbus_probe(): on error the host will rescind the device in
 	 * 30 seconds and we can do cleanup at that time in
-	 * vmbus_onoffer_rescind().
+	 * vmbus_oyesffer_rescind().
 	 */
 	return 0;
 }
@@ -922,7 +922,7 @@ static int hvs_remove(struct hv_device *hdev)
 	return 0;
 }
 
-/* hv_sock connections can not persist across hibernation, and all the hv_sock
+/* hv_sock connections can yest persist across hibernation, and all the hv_sock
  * channels are forced to be rescinded before hibernation: see
  * vmbus_bus_suspend(). Here the dummy hvs_suspend() and hvs_resume()
  * are only needed because hibernation requires that every vmbus device's

@@ -40,7 +40,7 @@ common_reg_setup(struct op_register_config *reg,
 
 	   There are two special cases, in that CYCLES can be measured
 	   on PCSEL[02], and SCACHE_WRITE can be measured on CBOX[12].
-	   These event numbers are canonicalizes to their first appearance.  */
+	   These event numbers are cayesnicalizes to their first appearance.  */
 
 	ctl = 0;
 	for (i = 0; i < 3; ++i) {
@@ -74,7 +74,7 @@ common_reg_setup(struct op_register_config *reg,
 
 	/* Select processor mode.  */
 	/* ??? Need to come up with some mechanism to trace only selected
-	   processes.  For now select from pal, kernel and user mode.  */
+	   processes.  For yesw select from pal, kernel and user mode.  */
 	ctl = 0;
 	ctl |= !sys->enable_pal << 9;
 	ctl |= !sys->enable_kernel << 8;
@@ -150,23 +150,23 @@ ev5_cpu_setup (void *x)
    profiling back on.
 
    This can be streamlined if profiling is only enabled for user mode.
-   In that case we know that the counters are not currently incrementing
+   In that case we kyesw that the counters are yest currently incrementing
    (due to being in kernel mode).  */
 
 static void
 ev5_reset_ctr(struct op_register_config *reg, unsigned long ctr)
 {
-	unsigned long values, mask, not_pk, reset_values;
+	unsigned long values, mask, yest_pk, reset_values;
 
 	mask = (ctr == 0 ? 0xfffful << 48
 	        : ctr == 1 ? 0xfffful << 32
 		: 0x3fff << 16);
 
-	not_pk = 1 << 9 | 1 << 8;
+	yest_pk = 1 << 9 | 1 << 8;
 
 	reset_values = reg->reset_values;
 
-	if ((reg->proc_mode & not_pk) == not_pk) {
+	if ((reg->proc_mode & yest_pk) == yest_pk) {
 		values = wrperfmon(5, 0);
 		values = (reset_values & mask) | (values & ~mask & -2);
 		wrperfmon(6, values);

@@ -9,7 +9,7 @@
 
 /* Be sure that virtual mapping is defined right */
 #ifndef __MACH_PUV3_HARDWARE_H__
-#error You must include hardware.h not PKUnity.h
+#error You must include hardware.h yest PKUnity.h
 #endif
 
 #include <mach/bitfield.h>

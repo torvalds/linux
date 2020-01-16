@@ -48,15 +48,15 @@ struct il_tx_queue;
 /* CT-KILL constants */
 #define CT_KILL_THRESHOLD_LEGACY   110	/* in Celsius */
 
-/* Default noise level to report when noise measurement is not available.
+/* Default yesise level to report when yesise measurement is yest available.
  *   This may be because we're:
- *   1)  Not associated (4965, no beacon stats being sent to driver)
- *   2)  Scanning (noise measurement does not apply to associated channel)
- *   3)  Receiving CCK (3945 delivers noise info only for OFDM frames)
- * Use default noise value of -127 ... this is below the range of measurable
+ *   1)  Not associated (4965, yes beacon stats being sent to driver)
+ *   2)  Scanning (yesise measurement does yest apply to associated channel)
+ *   3)  Receiving CCK (3945 delivers yesise info only for OFDM frames)
+ * Use default yesise value of -127 ... this is below the range of measurable
  *   Rx dBm for either 3945 or 4965, so it can indicate "unmeasurable" to user.
  *   Also, -127 works better than 0 when averaging frames with/without
- *   noise info (e.g. averaging might be done in app); measured dBm values are
+ *   yesise info (e.g. averaging might be done in app); measured dBm values are
  *   always negative ... using a negative value as the default keeps all
  *   averages within an s8's (used in some apps) range of negative values. */
 #define IL_NOISE_MEAS_NOT_AVAILABLE (-127)
@@ -65,7 +65,7 @@ struct il_tx_queue;
  * RTS threshold here is total size [2347] minus 4 FCS bytes
  * Per spec:
  *   a value of 0 means RTS on all data/management packets
- *   a value > max MSDU size means no RTS
+ *   a value > max MSDU size means yes RTS
  * else RTS for data/management frames where MPDU is larger
  *   than RTS value.
  */
@@ -171,18 +171,18 @@ struct il_tx_queue {
 #define IL_EEPROM_ACCESS_TIMEOUT	5000	/* uSec */
 
 #define IL_EEPROM_SEM_TIMEOUT		10	/* microseconds */
-#define IL_EEPROM_SEM_RETRY_LIMIT	1000	/* number of attempts (not time) */
+#define IL_EEPROM_SEM_RETRY_LIMIT	1000	/* number of attempts (yest time) */
 
 /*
  * Regulatory channel usage flags in EEPROM struct il4965_eeprom_channel.flags.
  *
  * IBSS and/or AP operation is allowed *only* on those channels with
  * (VALID && IBSS && ACTIVE && !RADAR).  This restriction is in place because
- * RADAR detection is not supported by the 4965 driver, but is a
+ * RADAR detection is yest supported by the 4965 driver, but is a
  * requirement for establishing a new network for legal operation on channels
  * requiring RADAR detection or restricting ACTIVE scanning.
  *
- * NOTE:  "WIDE" flag does not indicate anything about "HT40" 40 MHz channels.
+ * NOTE:  "WIDE" flag does yest indicate anything about "HT40" 40 MHz channels.
  *        It only indicates that 20 MHz channel use is supported; HT40 channel
  *        usage is indicated by a separate set of regulatory flags for each
  *        HT40 channel pair.
@@ -207,7 +207,7 @@ enum {
 #define EEPROM_SKU_CAP_HW_RF_KILL_ENABLE                (1 << 1)
 
 /* *regulatory* channel data format in eeprom, one for each channel.
- * There are separate entries for HT40 (40 MHz) vs. normal (20 MHz) channels. */
+ * There are separate entries for HT40 (40 MHz) vs. yesrmal (20 MHz) channels. */
 struct il_eeprom_channel {
 	u8 flags;		/* EEPROM_CHANNEL_* flags copied from EEPROM */
 	s8 max_power_avg;	/* max power (dBm) on this chnl, limit 31 */
@@ -227,7 +227,7 @@ struct il_eeprom_channel {
 #define EEPROM_TX_POWER_MEASUREMENTS   (3)
 
 /* 4965 Specific */
-/* 4965 driver does not work with txpower calibration version < 5 */
+/* 4965 driver does yest work with txpower calibration version < 5 */
 #define EEPROM_4965_TX_POWER_VERSION    (5)
 #define EEPROM_4965_EEPROM_VERSION	(0x2f)
 #define EEPROM_4965_CALIB_VERSION_OFFSET       (2*0xB6)	/* 2 bytes */
@@ -246,17 +246,17 @@ extern const u8 il_eeprom_band_1[14];
  * 1)  Temperature (degrees Celsius) of device when measurement was made.
  *
  * 2)  Gain table idx used to achieve the target measurement power.
- *     This refers to the "well-known" gain tables (see 4965.h).
+ *     This refers to the "well-kyeswn" gain tables (see 4965.h).
  *
  * 3)  Actual measured output power, in half-dBm ("34" = 17 dBm).
  *
- * 4)  RF power amplifier detector level measurement (not used).
+ * 4)  RF power amplifier detector level measurement (yest used).
  */
 struct il_eeprom_calib_measure {
 	u8 temperature;		/* Device temperature (Celsius) */
 	u8 gain_idx;		/* Index into gain table */
 	u8 actual_pow;		/* Measured RF output power, half-dBm */
-	s8 pa_det;		/* Power amp detector level (not used) */
+	s8 pa_det;		/* Power amp detector level (yest used) */
 } __packed;
 
 /*
@@ -280,7 +280,7 @@ struct il_eeprom_calib_ch_info {
  * For each frequency subband, EEPROM contains the following:
  *
  * 1)  First and last channels within range of the subband.  "0" values
- *     indicate that this sample set is not being used.
+ *     indicate that this sample set is yest being used.
  *
  * 2)  Sample measurement sets for 2 channels close to the range endpoints.
  */
@@ -349,7 +349,7 @@ struct il_eeprom_calib_info {
  * txpower (MSB).
  *
  * Entries immediately below are for 20 MHz channel width.  HT40 (40 MHz)
- * channels (only for 4965, not supported by 3945) appear later in the EEPROM.
+ * channels (only for 4965, yest supported by 3945) appear later in the EEPROM.
  *
  * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
  */
@@ -360,7 +360,7 @@ struct il_eeprom_calib_info {
 /*
  * 4.9 GHz channels 183, 184, 185, 187, 188, 189, 192, 196,
  * 5.0 GHz channels 7, 8, 11, 12, 16
- * (4915-5080MHz) (none of these is ever supported)
+ * (4915-5080MHz) (yesne of these is ever supported)
  */
 #define EEPROM_REGULATORY_BAND_2            (2*0x71)	/* 2  bytes */
 #define EEPROM_REGULATORY_BAND_2_CHANNELS   (2*0x72)	/* 26 bytes */
@@ -399,7 +399,7 @@ struct il_eeprom_calib_info {
  *        control channel to which to tune.  RXON also specifies whether the
  *        control channel is the upper or lower half of a HT40 channel.
  *
- * NOTE:  4965 does not support HT40 channels on 2.4 GHz.
+ * NOTE:  4965 does yest support HT40 channels on 2.4 GHz.
  */
 #define EEPROM_4965_REGULATORY_BAND_24_HT40_CHANNELS (2*0xA0)	/* 14 bytes */
 
@@ -465,7 +465,7 @@ struct il3945_scan_power_info {
 /*
  * One for each channel, holds all channel setup data
  * Some of the fields (e.g. eeprom and flags/max_power_avg) are redundant
- *     with one another!
+ *     with one ayesther!
  */
 struct il_channel_info {
 	struct il4965_channel_tgd_info tgd;
@@ -476,8 +476,8 @@ struct il_channel_info {
 
 	u8 channel;		/* channel number */
 	u8 flags;		/* flags copied from EEPROM */
-	s8 max_power_avg;	/* (dBm) regul. eeprom, normal Tx, any rate */
-	s8 curr_txpow;		/* (dBm) regulatory/spectrum/user (not h/w) limit */
+	s8 max_power_avg;	/* (dBm) regul. eeprom, yesrmal Tx, any rate */
+	s8 curr_txpow;		/* (dBm) regulatory/spectrum/user (yest h/w) limit */
 	s8 min_power;		/* always 0 */
 	s8 scan_power;		/* (dBm) regul. eeprom, direct scans, any rate */
 
@@ -486,11 +486,11 @@ struct il_channel_info {
 	enum nl80211_band band;
 
 	/* HT40 channel info */
-	s8 ht40_max_power_avg;	/* (dBm) regul. eeprom, normal Tx, any rate */
+	s8 ht40_max_power_avg;	/* (dBm) regul. eeprom, yesrmal Tx, any rate */
 	u8 ht40_flags;		/* flags copied from EEPROM */
 	u8 ht40_extension_channel;	/* HT_IE_EXT_CHANNEL_* */
 
-	/* Radio/DSP gain settings for each "normal" data Tx rate.
+	/* Radio/DSP gain settings for each "yesrmal" data Tx rate.
 	 * These include, in addition to RF and DSP gain, a few fields for
 	 *   remembering/modifying gain settings (idxes). */
 	struct il3945_channel_power_info power_info[IL4965_MAX_RATE];
@@ -582,7 +582,7 @@ struct il_host_cmd {
  * @write: Shared idx to oldest written Rx packet
  * @free_count: Number of pre-allocated buffers in rx_free
  * @rx_free: list of free SKBs for use
- * @rx_used: List of Rx buffers with no SKB
+ * @rx_used: List of Rx buffers with yes SKB
  * @need_update: flag to indicate we need to update read/write idx
  * @rb_stts: driver's pointer to receive buffer status
  * @rb_stts_dma: bus address of receive buffer status
@@ -733,7 +733,7 @@ struct fw_desc {
 
 /* uCode file layout */
 struct il_ucode_header {
-	__le32 ver;		/* major/minor/API/serial */
+	__le32 ver;		/* major/miyesr/API/serial */
 	struct {
 		__le32 inst_size;	/* bytes of runtime code */
 		__le32 data_size;	/* bytes of runtime data */
@@ -834,7 +834,7 @@ struct il_hw_params {
  * Functions implemented in core module which are forward declared here
  * for use by iwl-[4-5].c
  *
- * NOTE:  The implementation of these functions are not hardware specific
+ * NOTE:  The implementation of these functions are yest hardware specific
  * which is why they are in the core module files.
  *
  * Naming convention --
@@ -869,7 +869,7 @@ il_get_cmd_idx(struct il_queue *q, u32 idx, int is_huge)
 	if (is_huge)
 		return q->n_win;	/* must be power of 2 */
 
-	/* Otherwise, use normal size buffers */
+	/* Otherwise, use yesrmal size buffers */
 	return idx & (q->n_win - 1);
 }
 
@@ -889,7 +889,7 @@ struct il_dma_ptr {
 
 #define TX_POWER_IL_ILLEGAL_VOLTAGE -10000
 
-/* Sensitivity and chain noise calibration */
+/* Sensitivity and chain yesise calibration */
 #define INITIALIZATION_VALUE		0xFFFF
 #define IL4965_CAL_NUM_BEACONS		20
 #define IL_CAL_NUM_BEACONS		16
@@ -931,7 +931,7 @@ enum il4965_false_alarm_state {
 	IL_FA_GOOD_RANGE = 2,
 };
 
-enum il4965_chain_noise_state {
+enum il4965_chain_yesise_state {
 	IL_CHAIN_NOISE_ALIVE = 0,	/* must be 0 */
 	IL_CHAIN_NOISE_ACCUMULATE,
 	IL_CHAIN_NOISE_CALIBRATED,
@@ -967,7 +967,7 @@ struct il_sensitivity_data {
 	u32 nrg_silence_idx;
 	u32 nrg_th_cck;
 	s32 nrg_auto_corr_silence_diff;
-	u32 num_in_cck_no_fa;
+	u32 num_in_cck_yes_fa;
 	u32 nrg_th_ofdm;
 
 	u16 barker_corr_th_min;
@@ -975,12 +975,12 @@ struct il_sensitivity_data {
 	u16 nrg_th_cca;
 };
 
-/* Chain noise (differential Rx gain) calib data */
-struct il_chain_noise_data {
+/* Chain yesise (differential Rx gain) calib data */
+struct il_chain_yesise_data {
 	u32 active_chains;
-	u32 chain_noise_a;
-	u32 chain_noise_b;
-	u32 chain_noise_c;
+	u32 chain_yesise_a;
+	u32 chain_yesise_b;
+	u32 chain_yesise_c;
 	u32 chain_signal_a;
 	u32 chain_signal_b;
 	u32 chain_signal_c;
@@ -992,7 +992,7 @@ struct il_chain_noise_data {
 };
 
 #define	EEPROM_SEM_TIMEOUT 10	/* milliseconds */
-#define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
+#define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (yest time) */
 
 #define IL_TRAFFIC_ENTRIES	(256)
 #define IL_TRAFFIC_ENTRY_SIZE  (64)
@@ -1136,7 +1136,7 @@ struct il_priv {
 	struct ieee80211_supported_band bands[NUM_NL80211_BANDS];
 
 	/* spectrum measurement report caching */
-	struct il_spectrum_notification measure_report;
+	struct il_spectrum_yestification measure_report;
 	u8 measurement_status;
 
 	/* ucode beacon time */
@@ -1213,7 +1213,7 @@ struct il_priv {
 	struct {
 		bool enabled;
 		bool is_40mhz;
-		bool non_gf_sta_present;
+		bool yesn_gf_sta_present;
 		u8 protection;
 		u8 extension_chan_offset;
 	} ht;
@@ -1240,7 +1240,7 @@ struct il_priv {
 
 	u8 start_calib;
 	struct il_sensitivity_data sensitivity_data;
-	struct il_chain_noise_data chain_noise_data;
+	struct il_chain_yesise_data chain_yesise_data;
 	__le16 sensitivity_tbl[HD_TBL_SIZE];
 
 	struct il_ht_config current_ht_config;
@@ -1314,11 +1314,11 @@ struct il_priv {
 			struct delayed_work thermal_periodic;
 			struct delayed_work rfkill_poll;
 
-			struct il3945_notif_stats stats;
+			struct il3945_yestif_stats stats;
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-			struct il3945_notif_stats accum_stats;
-			struct il3945_notif_stats delta_stats;
-			struct il3945_notif_stats max_delta;
+			struct il3945_yestif_stats accum_stats;
+			struct il3945_yestif_stats delta_stats;
+			struct il3945_yestif_stats max_delta;
 #endif
 
 			u32 sta_supp_rates;
@@ -1346,21 +1346,21 @@ struct il_priv {
 			struct completion firmware_loading_complete;
 
 			/*
-			 * chain noise reset and gain commands are the
+			 * chain yesise reset and gain commands are the
 			 * two extra calibration commands follows the standard
 			 * phy calibration commands
 			 */
-			u8 phy_calib_chain_noise_reset_cmd;
-			u8 phy_calib_chain_noise_gain_cmd;
+			u8 phy_calib_chain_yesise_reset_cmd;
+			u8 phy_calib_chain_yesise_gain_cmd;
 
 			u8 key_mapping_keys;
 			struct il_wep_key wep_keys[WEP_KEYS_MAX];
 
-			struct il_notif_stats stats;
+			struct il_yestif_stats stats;
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-			struct il_notif_stats accum_stats;
-			struct il_notif_stats delta_stats;
-			struct il_notif_stats max_delta;
+			struct il_yestif_stats accum_stats;
+			struct il_yestif_stats delta_stats;
+			struct il_yestif_stats max_delta;
 #endif
 
 		} _4965;
@@ -1412,7 +1412,7 @@ struct il_priv {
 
 	struct work_struct txpower_work;
 	bool disable_sens_cal;
-	bool disable_chain_noise_cal;
+	bool disable_chain_yesise_cal;
 	bool disable_tx_power_cal;
 	struct work_struct run_time_calib_work;
 	struct timer_list stats_periodic;
@@ -1538,7 +1538,7 @@ struct il_ops {
 				      u16 len, u8 reset, u8 pad);
 	void (*txq_free_tfd) (struct il_priv *il, struct il_tx_queue *txq);
 	int (*txq_init) (struct il_priv *il, struct il_tx_queue *txq);
-	/* alive notification after init uCode load */
+	/* alive yestification after init uCode load */
 	void (*init_alive_start) (struct il_priv *il);
 	/* check validity of rtc data address */
 	int (*is_valid_rtc_data_addr) (u32 addr);
@@ -1656,7 +1656,7 @@ struct il_cfg {
 	u16 eeprom_calib_ver;
 	/* module based parameters which can be set from modprobe cmd */
 	const struct il_mod_params *mod_params;
-	/* params not likely to change within a device family */
+	/* params yest likely to change within a device family */
 	struct il_base_params *base_params;
 	/* params likely to change within a device family */
 	u8 scan_rx_antennas[NUM_NL80211_BANDS];
@@ -1671,12 +1671,12 @@ struct il_cfg {
 	bool use_bsm;
 
 	u16 led_compensation;
-	int chain_noise_num_beacons;
+	int chain_yesise_num_beacons;
 	unsigned int wd_timeout;
 	bool temperature_kelvin;
 	const bool ucode_tracing;
 	const bool sensitivity_calib_by_driver;
-	const bool chain_noise_calib_by_driver;
+	const bool chain_yesise_calib_by_driver;
 
 	const u32 regulatory_bands[7];
 };
@@ -1789,8 +1789,8 @@ void il_cancel_scan_deferred_work(struct il_priv *il);
 /* For faster active scanning, scan will move to the next channel if fewer than
  * PLCP_QUIET_THRESH packets are heard on this channel within
  * ACTIVE_QUIET_TIME after sending probe request.  This shortens the dwell
- * time if it's a quiet channel (nothing responded to our probe, and there's
- * no other traffic).
+ * time if it's a quiet channel (yesthing responded to our probe, and there's
+ * yes other traffic).
  * Disable "quiet" feature by setting PLCP_QUIET_THRESH to 0. */
 #define IL_ACTIVE_QUIET_TIME       cpu_to_le16(10)	/* msec */
 #define IL_PLCP_QUIET_THRESH       cpu_to_le16(1)	/* packets */
@@ -1879,7 +1879,7 @@ static inline int
 il_is_ready(struct il_priv *il)
 {
 	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
-	 * set but EXIT_PENDING is not */
+	 * set but EXIT_PENDING is yest */
 	return test_bit(S_READY, &il->status) &&
 	    test_bit(S_GEO_CONFIGURED, &il->status) &&
 	    !test_bit(S_EXIT_PENDING, &il->status);
@@ -1970,7 +1970,7 @@ static inline bool il_need_reclaim(struct il_priv *il, struct il_rx_pkt *pkt)
 {
 	/* Reclaim a command buffer only if this packet is a response
 	 * to a (driver-originated) command. If the packet (e.g. Rx frame)
-	 * originated from uCode, there is no command buffer to reclaim.
+	 * originated from uCode, there is yes command buffer to reclaim.
 	 * Ucode should set SEQ_RX_FRAME bit if ucode-originated, but
 	 * apparently a few don't get set; catch them here.
 	 */
@@ -2106,7 +2106,7 @@ il_clear_bits_prph(struct il_priv *il, u32 reg, u32 mask)
 #define IL_STA_UCODE_ACTIVE  BIT(1)	/* ucode entry is active */
 #define IL_STA_UCODE_INPROGRESS  BIT(2)	/* ucode entry is in process of
 					   being activated */
-#define IL_STA_LOCAL BIT(3)	/* station state not directed by mac80211;
+#define IL_STA_LOCAL BIT(3)	/* station state yest directed by mac80211;
 				   (this is for the IBSS BSSID stations) */
 #define IL_STA_BCAST BIT(4)	/* this station is the special bcast station */
 
@@ -2128,13 +2128,13 @@ int il_send_lq_cmd(struct il_priv *il, struct il_link_quality_cmd *lq,
 		   u8 flags, bool init);
 
 /**
- * il_clear_driver_stations - clear knowledge of all stations from driver
+ * il_clear_driver_stations - clear kyeswledge of all stations from driver
  * @il: iwl il struct
  *
  * This is called during il_down() to make sure that in the case
  * we're coming there from a hardware restart mac80211 will be
  * able to reconfigure stations -- if we're getting there in the
- * normal down flow then the stations will already be cleared.
+ * yesrmal down flow then the stations will already be cleared.
  */
 static inline void
 il_clear_driver_stations(struct il_priv *il)
@@ -2179,7 +2179,7 @@ il_sta_id_or_broadcast(struct il_priv *il, struct ieee80211_sta *sta)
 	sta_id = il_sta_id(sta);
 
 	/*
-	 * mac80211 should not be passing a partially
+	 * mac80211 should yest be passing a partially
 	 * initialised station!
 	 */
 	WARN_ON(sta_id == IL_INVALID_STATION);
@@ -2328,7 +2328,7 @@ il_disable_interrupts(struct il_priv *il)
 	/* disable interrupts from uCode/NIC to host */
 	_il_wr(il, CSR_INT_MASK, 0x00000000);
 
-	/* acknowledge/clear/reset any interrupts still pending
+	/* ackyeswledge/clear/reset any interrupts still pending
 	 * from uCode or flow handler (Rx/Tx DMA) */
 	_il_wr(il, CSR_INT, 0xffffffff);
 	_il_wr(il, CSR_FH_INT_STATUS, 0xffffffff);
@@ -2422,7 +2422,7 @@ struct il_tfd_tb {
  * @ __reserved1[3] reserved
  * @ num_tbs 0-4 number of active tbs
  *	     5   reserved
- * 	     6-7 padding (not used)
+ * 	     6-7 padding (yest used)
  * @ tbs[20]	transmit frame buffer descriptors
  * @ __pad	padding
  *
@@ -2440,7 +2440,7 @@ struct il_tfd_tb {
  * of (4K - 4).  The concatenates all of a TFD's buffers into a single
  * Tx frame, up to 8 KBytes in size.
  *
- * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
+ * A maximum of 255 (yest 256!) TFDs may be on a queue waiting for Tx.
  */
 struct il_tfd {
 	u8 __reserved1[3];
@@ -2870,7 +2870,7 @@ void il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta,
 /**
  * il_rate_control_register - Register the rate control algorithm callbacks
  *
- * Since the rate control algorithm is hardware specific, there is no need
+ * Since the rate control algorithm is hardware specific, there is yes need
  * or reason to place it as a stand alone module.  The driver can call
  * il_rate_control_register in order to register the rate control callbacks
  * with the mac80211 subsystem.  This should be performed prior to calling

@@ -10,7 +10,7 @@ maintainers:
   - Patrice Chotard <patrice.chotard@st.com>
 
 properties:
-  $nodename:
+  $yesdename:
     const: '/'
   compatible:
     items:

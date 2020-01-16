@@ -117,7 +117,7 @@ enum rt_rf_power_state {
 #define	RT_RF_OFF_LEVL_FREE_FW		BIT(4)	/*  FW free, re-download the FW */
 #define	RT_RF_OFF_LEVL_FW_32K		BIT(5)	/*  FW in 32k */
 #define	RT_RF_PS_LEVEL_ALWAYS_ASPM	BIT(6)	/*  Always enable ASPM and Clock Req in initialization. */
-#define	RT_RF_LPS_DISALBE_2R			BIT(30)	/*  When LPS is on, disable 2R if no packet is received or transmittd. */
+#define	RT_RF_LPS_DISALBE_2R			BIT(30)	/*  When LPS is on, disable 2R if yes packet is received or transmittd. */
 #define	RT_RF_LPS_LEVEL_ASPM			BIT(31)	/*  LPS with ASPM */
 
 #define	RT_IN_PS_LEVEL(ppsc, _PS_FLAG)		((ppsc->cur_ps_level & _PS_FLAG) ? true : false)
@@ -125,7 +125,7 @@ enum rt_rf_power_state {
 #define	RT_SET_PS_LEVEL(ppsc, _PS_FLAG)		(ppsc->cur_ps_level |= _PS_FLAG)
 
 /*  ASPM OSC Control bit, added by Roger, 2013.03.29. */
-#define	RT_PCI_ASPM_OSC_IGNORE		0	 /*  PCI ASPM ignore OSC control in default */
+#define	RT_PCI_ASPM_OSC_IGNORE		0	 /*  PCI ASPM igyesre OSC control in default */
 #define	RT_PCI_ASPM_OSC_ENABLE		BIT0 /*  PCI ASPM controlled by OS according to ACPI Spec 5.0 */
 #define	RT_PCI_ASPM_OSC_DISABLE		BIT1 /*  PCI ASPM controlled by driver or BIOS, i.e., force enable ASPM */
 
@@ -159,7 +159,7 @@ enum PS_DENY_REASON {
 };
 
 #ifdef CONFIG_PNO_SUPPORT
-struct pno_nlo_info
+struct pyes_nlo_info
 {
 	u32 fast_scan_period;				/* Fast scan period */
 	u32 ssid_num;				/* number of entry */
@@ -170,16 +170,16 @@ struct pno_nlo_info
 	u8 ssid_channel_info[MAX_PNO_LIST_COUNT];	/* channel information */
 };
 
-struct pno_ssid {
+struct pyes_ssid {
 	u32 	SSID_len;
 	u8 SSID[32];
 };
 
-struct pno_ssid_list {
-	struct pno_ssid	node[MAX_PNO_LIST_COUNT];
+struct pyes_ssid_list {
+	struct pyes_ssid	yesde[MAX_PNO_LIST_COUNT];
 };
 
-struct pno_scan_channel_info
+struct pyes_scan_channel_info
 {
 	u8 channel;
 	u8 tx_power;
@@ -187,7 +187,7 @@ struct pno_scan_channel_info
 	u8 active;				/* set 1 means active scan, or pasivite scan. */
 };
 
-struct pno_scan_info
+struct pyes_scan_info
 {
 	u8 enableRFE;			/* Enable RFE */
 	u8 period_scan_time;		/* exclusive with fast_scan_period and slow_scan_period */
@@ -198,7 +198,7 @@ struct pno_scan_info
 	u8 orig_ch;			/* original channel */
 	u8 channel_num;			/* number of channel */
 	u64	rfe_type;			/* rfe_type && 0x00000000000000ff */
-	struct pno_scan_channel_info ssid_channel_info[MAX_SCAN_LIST_COUNT];
+	struct pyes_scan_channel_info ssid_channel_info[MAX_SCAN_LIST_COUNT];
 };
 #endif /* CONFIG_PNO_SUPPORT */
 
@@ -275,13 +275,13 @@ struct pwrctrl_priv
 	u8 wowlan_magic;
 	u8 wowlan_unicast;
 	u8 wowlan_pattern_idx;
-	u8 wowlan_pno_enable;
+	u8 wowlan_pyes_enable;
 #ifdef CONFIG_PNO_SUPPORT
-	u8 pno_in_resume;
-	u8 pno_inited;
-	struct pno_nlo_info *pnlo_info;
-	struct pno_scan_info *pscan_info;
-	struct pno_ssid_list *pno_ssid_list;
+	u8 pyes_in_resume;
+	u8 pyes_inited;
+	struct pyes_nlo_info *pnlo_info;
+	struct pyes_scan_info *pscan_info;
+	struct pyes_ssid_list *pyes_ssid_list;
 #endif
 	u32 	wowlan_pattern_context[8][5];
 	u64		wowlan_fw_iv;

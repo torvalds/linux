@@ -14,7 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -36,7 +36,7 @@
 
 /* Supported palette hacks */
 enum {
-	cmap_unknown,
+	cmap_unkyeswn,
 	cmap_simple,		/* ATI Mach64 */
 	cmap_r128,		/* ATI Rage128 */
 	cmap_M3A,		/* ATI Rage Mobility M3 Head A */
@@ -90,10 +90,10 @@ extern boot_infos_t *boot_infos;
     /*
      *  Set a single color register. The values supplied are already
      *  rounded down to the hardware's capabilities (according to the
-     *  entries in the var structure). Return != 0 for invalid regno.
+     *  entries in the var structure). Return != 0 for invalid regyes.
      */
 
-static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int offb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			  u_int transp, struct fb_info *info)
 {
 	struct offb_par *par = (struct offb_par *) info->par;
@@ -105,7 +105,7 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		u32 cb = blue >> (16 - info->var.blue.length);
 		u32 value;
 
-		if (regno >= 16)
+		if (regyes >= 16)
 			return -EINVAL;
 
 		value = (cr << info->var.red.offset) |
@@ -116,11 +116,11 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			mask <<= info->var.transp.offset;
 			value |= mask;
 		}
-		pal[regno] = value;
+		pal[regyes] = value;
 		return 0;
 	}
 
-	if (regno > 255)
+	if (regyes > 255)
 		return -EINVAL;
 
 	red >>= 8;
@@ -132,7 +132,7 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 	switch (par->cmap_type) {
 	case cmap_simple:
-		writeb(regno, par->cmap_adr);
+		writeb(regyes, par->cmap_adr);
 		writeb(red, par->cmap_data);
 		writeb(green, par->cmap_data);
 		writeb(blue, par->cmap_data);
@@ -144,7 +144,7 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		/* fall through */
 	case cmap_r128:
 		/* Set palette index & data */
-		out_8(par->cmap_adr + 0xb0, regno);
+		out_8(par->cmap_adr + 0xb0, regyes);
 		out_le32(par->cmap_adr + 0xb4,
 			 (red << 16 | green << 8 | blue));
 		break;
@@ -153,26 +153,26 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		out_le32(par->cmap_adr + 0x58,
 			 in_le32(par->cmap_adr + 0x58) | 0x20);
 		/* Set palette index & data */
-		out_8(par->cmap_adr + 0xb0, regno);
+		out_8(par->cmap_adr + 0xb0, regyes);
 		out_le32(par->cmap_adr + 0xb4, (red << 16 | green << 8 | blue));
 		break;
 	case cmap_radeon:
 		/* Set palette index & data (could be smarter) */
-		out_8(par->cmap_adr + 0xb0, regno);
+		out_8(par->cmap_adr + 0xb0, regyes);
 		out_le32(par->cmap_adr + 0xb4, (red << 16 | green << 8 | blue));
 		break;
 	case cmap_gxt2000:
-		out_le32(((unsigned __iomem *) par->cmap_adr) + regno,
+		out_le32(((unsigned __iomem *) par->cmap_adr) + regyes,
 			 (red << 16 | green << 8 | blue));
 		break;
 	case cmap_avivo:
-		/* Write to both LUTs for now */
+		/* Write to both LUTs for yesw */
 		writel(1, par->cmap_adr + AVIVO_DC_LUT_RW_SELECT);
-		writeb(regno, par->cmap_adr + AVIVO_DC_LUT_RW_INDEX);
+		writeb(regyes, par->cmap_adr + AVIVO_DC_LUT_RW_INDEX);
 		writel(((red) << 22) | ((green) << 12) | ((blue) << 2),
 		       par->cmap_adr + AVIVO_DC_LUT_30_COLOR);
 		writel(0, par->cmap_adr + AVIVO_DC_LUT_RW_SELECT);
-		writeb(regno, par->cmap_adr + AVIVO_DC_LUT_RW_INDEX);
+		writeb(regyes, par->cmap_adr + AVIVO_DC_LUT_RW_INDEX);
 		writel(((red) << 22) | ((green) << 12) | ((blue) << 2),
 		       par->cmap_adr + AVIVO_DC_LUT_30_COLOR);
 		break;
@@ -297,7 +297,7 @@ static struct fb_ops offb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static void __iomem *offb_map_reg(struct device_node *np, int index,
+static void __iomem *offb_map_reg(struct device_yesde *np, int index,
 				  unsigned long offset, unsigned long size)
 {
 	const __be32 *addrp;
@@ -319,29 +319,29 @@ static void __iomem *offb_map_reg(struct device_node *np, int index,
 	return ioremap(taddr + offset, size);
 }
 
-static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp,
+static void offb_init_palette_hacks(struct fb_info *info, struct device_yesde *dp,
 				    unsigned long address)
 {
 	struct offb_par *par = (struct offb_par *) info->par;
 
-	if (of_node_name_prefix(dp, "ATY,Rage128")) {
+	if (of_yesde_name_prefix(dp, "ATY,Rage128")) {
 		par->cmap_adr = offb_map_reg(dp, 2, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_r128;
-	} else if (of_node_name_prefix(dp, "ATY,RageM3pA") ||
-		   of_node_name_prefix(dp, "ATY,RageM3p12A")) {
+	} else if (of_yesde_name_prefix(dp, "ATY,RageM3pA") ||
+		   of_yesde_name_prefix(dp, "ATY,RageM3p12A")) {
 		par->cmap_adr = offb_map_reg(dp, 2, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_M3A;
-	} else if (of_node_name_prefix(dp, "ATY,RageM3pB")) {
+	} else if (of_yesde_name_prefix(dp, "ATY,RageM3pB")) {
 		par->cmap_adr = offb_map_reg(dp, 2, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_M3B;
-	} else if (of_node_name_prefix(dp, "ATY,Rage6")) {
+	} else if (of_yesde_name_prefix(dp, "ATY,Rage6")) {
 		par->cmap_adr = offb_map_reg(dp, 1, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_radeon;
-	} else if (of_node_name_prefix(dp, "ATY,")) {
+	} else if (of_yesde_name_prefix(dp, "ATY,")) {
 		unsigned long base = address & 0xff000000UL;
 		par->cmap_adr =
 			ioremap(base + 0x7ff000, 0x1000) + 0xcc0;
@@ -352,9 +352,9 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 		par->cmap_adr = offb_map_reg(dp, 0, 0x6000, 0x1000);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_gxt2000;
-	} else if (of_node_name_prefix(dp, "vga,Display-")) {
+	} else if (of_yesde_name_prefix(dp, "vga,Display-")) {
 		/* Look for AVIVO initialized by SLOF */
-		struct device_node *pciparent = of_get_parent(dp);
+		struct device_yesde *pciparent = of_get_parent(dp);
 		const u32 *vid, *did;
 		vid = of_get_property(pciparent, "vendor-id", NULL);
 		did = of_get_property(pciparent, "device-id", NULL);
@@ -366,7 +366,7 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 			if (par->cmap_adr)
 				par->cmap_type = cmap_avivo;
 		}
-		of_node_put(pciparent);
+		of_yesde_put(pciparent);
 	} else if (dp && of_device_is_compatible(dp, "qemu,std-vga")) {
 #ifdef __BIG_ENDIAN
 		const __be32 io_of_addr[3] = { 0x01000000, 0x0, 0x0 };
@@ -382,14 +382,14 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 			}
 		}
 	}
-	info->fix.visual = (par->cmap_type != cmap_unknown) ?
+	info->fix.visual = (par->cmap_type != cmap_unkyeswn) ?
 		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_STATIC_PSEUDOCOLOR;
 }
 
 static void __init offb_init_fb(const char *name,
 				int width, int height, int depth,
 				int pitch, unsigned long address,
-				int foreign_endian, struct device_node *dp)
+				int foreign_endian, struct device_yesde *dp)
 {
 	unsigned long res_size = pitch * height;
 	struct offb_par *par = &default_par;
@@ -438,7 +438,7 @@ static void __init offb_init_fb(const char *name,
 	fix->type = FB_TYPE_PACKED_PIXELS;
 	fix->type_aux = 0;
 
-	par->cmap_type = cmap_unknown;
+	par->cmap_type = cmap_unkyeswn;
 	if (depth == 8)
 		offb_init_palette_hacks(info, dp, address);
 	else
@@ -494,7 +494,7 @@ static void __init offb_init_fb(const char *name,
 	var->red.msb_right = var->green.msb_right = var->blue.msb_right =
 	    var->transp.msb_right = 0;
 	var->grayscale = 0;
-	var->nonstd = 0;
+	var->yesnstd = 0;
 	var->activate = 0;
 	var->height = var->width = -1;
 	var->pixclock = 10000;
@@ -535,7 +535,7 @@ out_aper:
 }
 
 
-static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
+static void __init offb_init_yesdriver(struct device_yesde *dp, int yes_real_yesde)
 {
 	unsigned int len;
 	int i, width = 640, height = 480, depth = 8, pitch = 640;
@@ -582,15 +582,15 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 
 	rsize = (unsigned long)pitch * (unsigned long)height;
 
-	/* Ok, now we try to figure out the address of the framebuffer.
+	/* Ok, yesw we try to figure out the address of the framebuffer.
 	 *
 	 * Unfortunately, Open Firmware doesn't provide a standard way to do
 	 * so. All we can do is a dodgy heuristic that happens to work in
 	 * practice. On most machines, the "address" property contains what
-	 * we need, though not on Matrox cards found in IBM machines. What I've
+	 * we need, though yest on Matrox cards found in IBM machines. What I've
 	 * found that appears to give good results is to go through the PCI
-	 * ranges and pick one that is both big enough and if possible encloses
-	 * the "address" property. If none match, we pick the biggest
+	 * ranges and pick one that is both big eyesugh and if possible encloses
+	 * the "address" property. If yesne match, we pick the biggest
 	 */
 	up = of_get_property(dp, "linux,bootx-addr", &len);
 	if (up == NULL)
@@ -599,7 +599,7 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 		addr_prop = *up;
 
 	/* Hack for when BootX is passing us */
-	if (no_real_node)
+	if (yes_real_yesde)
 		goto skip_addr;
 
 	for (i = 0; (addrp = of_get_address(dp, i, &asize, &flags))
@@ -648,43 +648,43 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 		}
 #endif
 		/* kludge for valkyrie */
-		if (of_node_name_eq(dp, "valkyrie"))
+		if (of_yesde_name_eq(dp, "valkyrie"))
 			address += 0x1000;
-		offb_init_fb(no_real_node ? "bootx" : NULL,
+		offb_init_fb(yes_real_yesde ? "bootx" : NULL,
 			     width, height, depth, pitch, address,
-			     foreign_endian, no_real_node ? NULL : dp);
+			     foreign_endian, yes_real_yesde ? NULL : dp);
 	}
 }
 
 static int __init offb_init(void)
 {
-	struct device_node *dp = NULL, *boot_disp = NULL;
+	struct device_yesde *dp = NULL, *boot_disp = NULL;
 
 	if (fb_get_options("offb", NULL))
 		return -ENODEV;
 
-	/* Check if we have a MacOS display without a node spec */
-	if (of_get_property(of_chosen, "linux,bootx-noscreen", NULL) != NULL) {
-		/* The old code tried to work out which node was the MacOS
+	/* Check if we have a MacOS display without a yesde spec */
+	if (of_get_property(of_chosen, "linux,bootx-yesscreen", NULL) != NULL) {
+		/* The old code tried to work out which yesde was the MacOS
 		 * display based on the address. I'm dropping that since the
-		 * lack of a node spec only happens with old BootX versions
+		 * lack of a yesde spec only happens with old BootX versions
 		 * (users can update) and with this code, they'll still get
-		 * a display (just not the palette hacks).
+		 * a display (just yest the palette hacks).
 		 */
-		offb_init_nodriver(of_chosen, 1);
+		offb_init_yesdriver(of_chosen, 1);
 	}
 
-	for_each_node_by_type(dp, "display") {
+	for_each_yesde_by_type(dp, "display") {
 		if (of_get_property(dp, "linux,opened", NULL) &&
 		    of_get_property(dp, "linux,boot-display", NULL)) {
 			boot_disp = dp;
-			offb_init_nodriver(dp, 0);
+			offb_init_yesdriver(dp, 0);
 		}
 	}
-	for_each_node_by_type(dp, "display") {
+	for_each_yesde_by_type(dp, "display") {
 		if (of_get_property(dp, "linux,opened", NULL) &&
 		    dp != boot_disp)
-			offb_init_nodriver(dp, 0);
+			offb_init_yesdriver(dp, 0);
 	}
 
 	return 0;

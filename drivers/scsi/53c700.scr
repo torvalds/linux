@@ -14,7 +14,7 @@
 ;;  GNU General Public License for more details.
 ;;
 ;;  You should have received a copy of the GNU General Public License
-;;  along with this program; if not, write to the Free Software
+;;  along with this program; if yest, write to the Free Software
 ;;  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;;
 ;;-----------------------------------------------------------------------------
@@ -160,7 +160,7 @@ GetReselectionWithTag:
 	
 	ENTRY	SelectedAsTarget
 SelectedAsTarget:
-; Basically tell the selecting device that there's nothing here
+; Basically tell the selecting device that there's yesthing here
 	SET	TARGET
 	DISCONNECT
 	CLEAR	TARGET
@@ -225,10 +225,10 @@ Receive5Byte:
 	MOVE	5, ReceiveMsgAddress + 2, WHEN MSG_IN
 	RETURN
 ;
-; Come here from the message processor to ignore the message
+; Come here from the message processor to igyesre the message
 ;
-	ENTRY	IgnoreMessage
-IgnoreMessage:
+	ENTRY	IgyesreMessage
+IgyesreMessage:
 	CLEAR	ACK
 	RETURN
 ;
@@ -244,7 +244,7 @@ SendIdentifyMsg:
 	CALL	SendMessage
 	CLEAR	ATN
 
-IgnoreMsgBeforeCommand:
+IgyesreMsgBeforeCommand:
 	CLEAR	ACK
 	ENTRY	SendCommand
 SendCommand:
@@ -259,33 +259,33 @@ ResumeSendCommand:
 	JUMP	DataOut, IF DATA_OUT
 	INT	UNEXPECTED_PHASE_AFTER_CMD
 
-IgnoreMsgDuringData:
+IgyesreMsgDuringData:
 	CLEAR	ACK
 	; fall through to MsgInDuringData
 
 Entry MsgInDuringData
 MsgInDuringData:
 ;
-; Could be we have nothing more to transfer
+; Could be we have yesthing more to transfer
 ;
 	JUMP	Finish, WHEN STATUS
 	MOVE	1, ReceiveMsgAddress, WHEN MSG_IN
 	JUMP	DisconnectDuringDataIn, IF DISCONNECT_MSG
-	JUMP	IgnoreMsgDuringData, IF SAVE_DATA_PTRS_MSG
-	JUMP	IgnoreMsgDuringData, IF RESTORE_DATA_PTRS_MSG
+	JUMP	IgyesreMsgDuringData, IF SAVE_DATA_PTRS_MSG
+	JUMP	IgyesreMsgDuringData, IF RESTORE_DATA_PTRS_MSG
 	INT	MSG_IN_DURING_DATA_IN
 
 MsgInAfterCmd:
 	MOVE	1, ReceiveMsgAddress, WHEN MSG_IN
 	JUMP	DisconnectAfterCmd, IF DISCONNECT_MSG
-	JUMP	IgnoreMsgInAfterCmd, IF SAVE_DATA_PTRS_MSG
-	JUMP	IgnoreMsgInAfterCmd, IF RESTORE_DATA_PTRS_MSG
+	JUMP	IgyesreMsgInAfterCmd, IF SAVE_DATA_PTRS_MSG
+	JUMP	IgyesreMsgInAfterCmd, IF RESTORE_DATA_PTRS_MSG
 	CALL	ProcessReceiveMessage
 	INT	MSG_IN_AFTER_CMD
 	CLEAR	ACK
 	JUMP	ResumeSendCommand
 
-IgnoreMsgInAfterCmd:
+IgyesreMsgInAfterCmd:
 	CLEAR	ACK
 	JUMP	ResumeSendCommand
 
@@ -303,8 +303,8 @@ Disconnect2:
 
 MsgInBeforeCommand:
 	MOVE	1, ReceiveMsgAddress, WHEN MSG_IN
-	JUMP	IgnoreMsgBeforeCommand, IF SAVE_DATA_PTRS_MSG
-	JUMP	IgnoreMsgBeforeCommand, IF RESTORE_DATA_PTRS_MSG
+	JUMP	IgyesreMsgBeforeCommand, IF SAVE_DATA_PTRS_MSG
+	JUMP	IgyesreMsgBeforeCommand, IF RESTORE_DATA_PTRS_MSG
 	CALL	ProcessReceiveMessage
 	INT	MSG_IN_BEFORE_CMD
 	CLEAR	ACK
@@ -333,8 +333,8 @@ ResumeDataOut:
 MsgInAfterDataIn:
 	MOVE	1, ReceiveMsgAddress, WHEN MSG_IN
 	JUMP	DisconnectAfterDataIn, IF DISCONNECT_MSG
-	JUMP	IgnoreMsgAfterData, IF SAVE_DATA_PTRS_MSG
-	JUMP	IgnoreMsgAfterData, IF RESTORE_DATA_PTRS_MSG
+	JUMP	IgyesreMsgAfterData, IF SAVE_DATA_PTRS_MSG
+	JUMP	IgyesreMsgAfterData, IF RESTORE_DATA_PTRS_MSG
 	CALL	ProcessReceiveMessage
 	INT	MSG_IN_AFTER_DATA_IN
 	CLEAR	ACK
@@ -368,14 +368,14 @@ Disconnect6:
 MsgInAfterDataOut:
 	MOVE	1, ReceiveMsgAddress, WHEN MSG_IN
 	JUMP	DisconnectAfterDataOut, if DISCONNECT_MSG
-	JUMP	IgnoreMsgAfterData, IF SAVE_DATA_PTRS_MSG
-	JUMP	IgnoreMsgAfterData, IF RESTORE_DATA_PTRS_MSG
+	JUMP	IgyesreMsgAfterData, IF SAVE_DATA_PTRS_MSG
+	JUMP	IgyesreMsgAfterData, IF RESTORE_DATA_PTRS_MSG
 	CALL	ProcessReceiveMessage
 	INT	MSG_IN_AFTER_DATA_OUT
 	CLEAR	ACK
 	JUMP	ResumeDataOut
 
-IgnoreMsgAfterData:
+IgyesreMsgAfterData:
 	CLEAR	ACK
 ; Data in and out do the same thing on resume, so pick one
 	JUMP	ResumeDataIn

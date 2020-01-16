@@ -33,9 +33,9 @@ Currently, these files are in /proc/sys/fs:
 - dquot-nr
 - file-max
 - file-nr
-- inode-max
-- inode-nr
-- inode-state
+- iyesde-max
+- iyesde-nr
+- iyesde-state
 - nr_open
 - overflowuid
 - overflowgid
@@ -56,7 +56,7 @@ aio-nr & aio-max-nr
 aio-nr is the running total of the number of events specified on the
 io_setup system call for all currently active aio contexts.  If aio-nr
 reaches aio-max-nr then io_setup will fail with EAGAIN.  Note that
-raising aio-max-nr does not result in the pre-allocation or re-sizing
+raising aio-max-nr does yest result in the pre-allocation or re-sizing
 of any kernel data structures.
 
 
@@ -77,17 +77,17 @@ From linux/include/linux/dcache.h::
 Dentries are dynamically allocated and deallocated.
 
 nr_dentry shows the total number of dentries allocated (active
-+ unused). nr_unused shows the number of dentries that are not
++ unused). nr_unused shows the number of dentries that are yest
 actively used, but are saved in the LRU list for future reuse.
 
 Age_limit is the age in seconds after which dcache entries
 can be reclaimed when memory is short and want_pages is
-nonzero when shrink_dcache_pages() has been called and the
+yesnzero when shrink_dcache_pages() has been called and the
 dcache isn't pruned yet.
 
 nr_negative shows the number of unused dentries that are also
-negative dentries which do not map to any files. Instead,
-they help speeding up rejection of non-existing files provided
+negative dentries which do yest map to any files. Instead,
+they help speeding up rejection of yesn-existing files provided
 by the users.
 
 
@@ -108,17 +108,17 @@ you might want to raise the limit.
 file-max & file-nr
 ------------------
 
-The value in file-max denotes the maximum number of file-
+The value in file-max deyestes the maximum number of file-
 handles that the Linux kernel will allocate. When you get lots
 of error messages about running out of file handles, you might
 want to increase this limit.
 
 Historically,the kernel was able to allocate file handles
-dynamically, but not to free them again. The three values in
-file-nr denote the number of allocated file handles, the number
+dynamically, but yest to free them again. The three values in
+file-nr deyeste the number of allocated file handles, the number
 of allocated but unused file handles, and the maximum number of
 file handles. Linux 2.6 always reports 0 as the number of free
-file handles -- this is not an error, it just means that the
+file handles -- this is yest an error, it just means that the
 number of allocated file handles exactly matches the number of
 used file handles.
 
@@ -130,38 +130,38 @@ reached".
 nr_open
 -------
 
-This denotes the maximum number of file-handles a process can
+This deyestes the maximum number of file-handles a process can
 allocate. Default value is 1024*1024 (1048576) which should be
-enough for most machines. Actual limit depends on RLIMIT_NOFILE
+eyesugh for most machines. Actual limit depends on RLIMIT_NOFILE
 resource limit.
 
 
-inode-max, inode-nr & inode-state
+iyesde-max, iyesde-nr & iyesde-state
 ---------------------------------
 
-As with file handles, the kernel allocates the inode structures
+As with file handles, the kernel allocates the iyesde structures
 dynamically, but can't free them yet.
 
-The value in inode-max denotes the maximum number of inode
+The value in iyesde-max deyestes the maximum number of iyesde
 handlers. This value should be 3-4 times larger than the value
 in file-max, since stdin, stdout and network sockets also
-need an inode struct to handle them. When you regularly run
-out of inodes, you need to increase this value.
+need an iyesde struct to handle them. When you regularly run
+out of iyesdes, you need to increase this value.
 
-The file inode-nr contains the first two items from
-inode-state, so we'll skip to that file...
+The file iyesde-nr contains the first two items from
+iyesde-state, so we'll skip to that file...
 
-Inode-state contains three actual numbers and four dummies.
-The actual numbers are, in order of appearance, nr_inodes,
-nr_free_inodes and preshrink.
+Iyesde-state contains three actual numbers and four dummies.
+The actual numbers are, in order of appearance, nr_iyesdes,
+nr_free_iyesdes and preshrink.
 
-Nr_inodes stands for the number of inodes the system has
-allocated, this can be slightly more than inode-max because
+Nr_iyesdes stands for the number of iyesdes the system has
+allocated, this can be slightly more than iyesde-max because
 Linux allocates them one pageful at a time.
 
-Nr_free_inodes represents the number of free inodes (?) and
-preshrink is nonzero when the nr_inodes > inode-max and the
-system needs to prune the inode list instead of allocating
+Nr_free_iyesdes represents the number of free iyesdes (?) and
+preshrink is yesnzero when the nr_iyesdes > iyesde-max and the
+system needs to prune the iyesde list instead of allocating
 more.
 
 
@@ -180,21 +180,21 @@ The default is 65534.
 pipe-user-pages-hard
 --------------------
 
-Maximum total number of pages a non-privileged user may allocate for pipes.
-Once this limit is reached, no new pipes may be allocated until usage goes
-below the limit again. When set to 0, no limit is applied, which is the default
+Maximum total number of pages a yesn-privileged user may allocate for pipes.
+Once this limit is reached, yes new pipes may be allocated until usage goes
+below the limit again. When set to 0, yes limit is applied, which is the default
 setting.
 
 
 pipe-user-pages-soft
 --------------------
 
-Maximum total number of pages a non-privileged user may allocate for pipes
+Maximum total number of pages a yesn-privileged user may allocate for pipes
 before the pipe size gets limited to a single page. Once this limit is reached,
 new pipes will be limited to a single page in size for this user in order to
 limit total memory usage, and trying to increase them using fcntl() will be
 denied until usage goes below the limit again. The default value allows to
-allocate up to 1024 pipes at their default size. When set to 0, no limit is
+allocate up to 1024 pipes at their default size. When set to 0, yes limit is
 applied.
 
 
@@ -223,15 +223,15 @@ A long-standing class of security issues is the hardlink-based
 time-of-check-time-of-use race, most commonly seen in world-writable
 directories like /tmp. The common method of exploitation of this flaw
 is to cross privilege boundaries when following a given hardlink (i.e. a
-root process follows a hardlink created by another user). Additionally,
+root process follows a hardlink created by ayesther user). Additionally,
 on systems without separated partitions, this stops unauthorized users
 from "pinning" vulnerable setuid/setgid files against being upgraded by
 the administrator, or linking to special files.
 
 When set to "0", hardlink creation behavior is unrestricted.
 
-When set to "1" hardlinks cannot be created by users if they do not
-already own the source file, or do not have read/write access to it.
+When set to "1" hardlinks canyest be created by users if they do yest
+already own the source file, or do yest have read/write access to it.
 
 This protection is based on the restrictions in Openwall and grsecurity.
 
@@ -259,7 +259,7 @@ A long-standing class of security issues is the symlink-based
 time-of-check-time-of-use race, most commonly seen in world-writable
 directories like /tmp. The common method of exploitation of this flaw
 is to cross privilege boundaries when following a given symlink (i.e. a
-root process follows a symlink belonging to another user). For a likely
+root process follows a symlink belonging to ayesther user). For a likely
 incomplete list of hundreds of examples across the years, please see:
 http://cve.mitre.org/cgi-bin/cvekey.cgi?keyword=/tmp
 
@@ -280,20 +280,20 @@ or otherwise protected/tainted binaries. The modes are
 
 =   ==========  ===============================================================
 0   (default)	traditional behaviour. Any process which has changed
-		privilege levels or is execute only will not be dumped.
+		privilege levels or is execute only will yest be dumped.
 1   (debug)	all processes dump core when possible. The core dump is
-		owned by the current user and no security is applied. This is
+		owned by the current user and yes security is applied. This is
 		intended for system debugging situations only.
 		Ptrace is unchecked.
 		This is insecure as it allows regular users to examine the
 		memory contents of privileged processes.
-2   (suidsafe)	any binary which normally would not be dumped is dumped
+2   (suidsafe)	any binary which yesrmally would yest be dumped is dumped
 		anyway, but only if the "core_pattern" kernel sysctl is set to
 		either a pipe handler or a fully qualified path. (For more
 		details on this limitation, see CVE-2006-2451.) This mode is
 		appropriate when administrators are attempting to debug
-		problems in a normal environment, and either have a core dump
-		pipe handler that knows to treat privileged core dumps with
+		problems in a yesrmal environment, and either have a core dump
+		pipe handler that kyesws to treat privileged core dumps with
 		care, or specific directory defined for catching core dumps.
 		If a core dump happens without a pipe handler or fully
 		qualified path, a message will be emitted to syslog warning
@@ -314,7 +314,7 @@ allows you to.
 aio-nr & aio-max-nr
 -------------------
 
-aio-nr shows the current system-wide number of asynchronous io
+aio-nr shows the current system-wide number of asynchroyesus io
 requests.  aio-max-nr allows you to change the maximum value
 aio-nr can grow to.
 
@@ -322,7 +322,7 @@ aio-nr can grow to.
 mount-max
 ---------
 
-This denotes the maximum number of mounts that may exist
+This deyestes the maximum number of mounts that may exist
 in a mount namespace.
 
 
@@ -340,7 +340,7 @@ in Documentation/admin-guide/binfmt-misc.rst.
 
 The "mqueue"  filesystem provides  the necessary kernel features to enable the
 creation of a  user space  library that  implements  the  POSIX message queues
-API (as noted by the  MSG tag in the  POSIX 1003.1-2001 version  of the System
+API (as yested by the  MSG tag in the  POSIX 1003.1-2001 version  of the System
 Interfaces specification.)
 
 The "mqueue" filesystem contains values for determining/setting  the amount of
@@ -351,7 +351,7 @@ maximum number of message queues allowed on the system.
 
 /proc/sys/fs/mqueue/msg_max  is  a  read/write file  for  setting/getting  the
 maximum number of messages in a queue value.  In fact it is the limiting value
-for another (user) limit which is set in mq_open invocation. This attribute of
+for ayesther (user) limit which is set in mq_open invocation. This attribute of
 a queue must be less or equal then msg_max.
 
 /proc/sys/fs/mqueue/msgsize_max is  a read/write  file for setting/getting the

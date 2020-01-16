@@ -56,12 +56,12 @@ int parse_callchain_record(const char *arg __maybe_unused,
 }
 
 /*
- * Add this one here not to drag util/env.c
+ * Add this one here yest to drag util/env.c
  */
 struct perf_env perf_env;
 
 /*
- * Support debug printing even though util/debug.c is not linked.  That means
+ * Support debug printing even though util/debug.c is yest linked.  That means
  * implementing 'verbose' and 'eprintf'.
  */
 int verbose;
@@ -831,7 +831,7 @@ static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 	 * multiple events, use evlist.open().
 	 */
 	if (evsel__open(evsel, cpus, threads) < 0) {
-		PyErr_SetFromErrno(PyExc_OSError);
+		PyErr_SetFromErryes(PyExc_OSError);
 		return NULL;
 	}
 
@@ -908,7 +908,7 @@ static PyObject *pyrf_evlist__mmap(struct pyrf_evlist *pevlist,
 		return NULL;
 
 	if (evlist__mmap(evlist, pages) < 0) {
-		PyErr_SetFromErrno(PyExc_OSError);
+		PyErr_SetFromErryes(PyExc_OSError);
 		return NULL;
 	}
 
@@ -928,7 +928,7 @@ static PyObject *pyrf_evlist__poll(struct pyrf_evlist *pevlist,
 
 	n = evlist__poll(evlist, timeout);
 	if (n < 0) {
-		PyErr_SetFromErrno(PyExc_OSError);
+		PyErr_SetFromErryes(PyExc_OSError);
 		return NULL;
 	}
 
@@ -1073,7 +1073,7 @@ static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
 		perf_evlist__set_leader(evlist);
 
 	if (evlist__open(evlist) < 0) {
-		PyErr_SetFromErrno(PyExc_OSError);
+		PyErr_SetFromErryes(PyExc_OSError);
 		return NULL;
 	}
 

@@ -11,7 +11,7 @@
 #include <linux/ata.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/libata.h>
@@ -23,7 +23,7 @@
 
 unsigned int ata_acpi_gtf_filter = ATA_ACPI_FILTER_DEFAULT;
 module_param_named(acpi_gtf_filter, ata_acpi_gtf_filter, int, 0644);
-MODULE_PARM_DESC(acpi_gtf_filter, "filter mask for ACPI _GTF commands, set to filter out (0x1=set xfermode, 0x2=lock/freeze lock, 0x4=DIPM, 0x8=FPDMA non-zero offset, 0x10=FPDMA DMA Setup FIS auto-activate)");
+MODULE_PARM_DESC(acpi_gtf_filter, "filter mask for ACPI _GTF commands, set to filter out (0x1=set xfermode, 0x2=lock/freeze lock, 0x4=DIPM, 0x8=FPDMA yesn-zero offset, 0x10=FPDMA DMA Setup FIS auto-activate)");
 
 #define NO_PORT_MULT		0xffff
 #define SATA_ADR(root, pmp)	(((root) << 16) | (pmp))
@@ -54,7 +54,7 @@ struct ata_acpi_hotplug_context {
  * @dev: the acpi_handle returned will correspond to this device
  *
  * Returns the acpi_handle for the ACPI namespace object corresponding to
- * the ata_device passed into the function, or NULL if no such object exists
+ * the ata_device passed into the function, or NULL if yes such object exists
  * or ACPI is disabled for this device due to consecutive errors.
  */
 acpi_handle ata_dev_acpi_handle(struct ata_device *dev)
@@ -90,12 +90,12 @@ static void ata_acpi_detach_device(struct ata_port *ap, struct ata_device *dev)
  * the event is port-wide @dev is NULL.  If the event is specific to a
  * device, @dev points to it.
  *
- * Hotplug (as opposed to unplug) notification is always handled as
+ * Hotplug (as opposed to unplug) yestification is always handled as
  * port-wide while unplug only kills the target device on device-wide
  * event.
  *
  * LOCKING:
- * ACPI notify handler context.  May sleep.
+ * ACPI yestify handler context.  May sleep.
  */
 static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 				    u32 event)
@@ -132,14 +132,14 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 		ata_port_wait_eh(ap);
 }
 
-static int ata_acpi_dev_notify_dock(struct acpi_device *adev, u32 event)
+static int ata_acpi_dev_yestify_dock(struct acpi_device *adev, u32 event)
 {
 	struct ata_device *dev = ata_hotplug_data(adev->hp).dev;
 	ata_acpi_handle_hotplug(dev->link->ap, dev, event);
 	return 0;
 }
 
-static int ata_acpi_ap_notify_dock(struct acpi_device *adev, u32 event)
+static int ata_acpi_ap_yestify_dock(struct acpi_device *adev, u32 event)
 {
 	ata_acpi_handle_hotplug(ata_hotplug_data(adev->hp).ap, NULL, event);
 	return 0;
@@ -182,10 +182,10 @@ void ata_acpi_bind_port(struct ata_port *ap)
 	struct acpi_device *adev;
 	struct ata_acpi_hotplug_context *context;
 
-	if (libata_noacpi || ap->flags & ATA_FLAG_ACPI_SATA || !host_companion)
+	if (libata_yesacpi || ap->flags & ATA_FLAG_ACPI_SATA || !host_companion)
 		return;
 
-	acpi_preset_companion(&ap->tdev, host_companion, ap->port_no);
+	acpi_preset_companion(&ap->tdev, host_companion, ap->port_yes);
 
 	if (ata_acpi_gtm(ap, &ap->__acpi_init_gtm) == 0)
 		ap->pflags |= ATA_PFLAG_INIT_GTM_VALID;
@@ -199,7 +199,7 @@ void ata_acpi_bind_port(struct ata_port *ap)
 		return;
 
 	context->data.ap = ap;
-	acpi_initialize_hp_context(adev, &context->hp, ata_acpi_ap_notify_dock,
+	acpi_initialize_hp_context(adev, &context->hp, ata_acpi_ap_yestify_dock,
 				   ata_acpi_ap_uevent);
 }
 
@@ -216,18 +216,18 @@ void ata_acpi_bind_dev(struct ata_device *dev)
 	 * For both sata/pata devices, host companion device is required.
 	 * For pata device, port companion device is also required.
 	 */
-	if (libata_noacpi || !host_companion ||
+	if (libata_yesacpi || !host_companion ||
 			(!(ap->flags & ATA_FLAG_ACPI_SATA) && !port_companion))
 		return;
 
 	if (ap->flags & ATA_FLAG_ACPI_SATA) {
 		if (!sata_pmp_attached(ap))
-			adr = SATA_ADR(ap->port_no, NO_PORT_MULT);
+			adr = SATA_ADR(ap->port_yes, NO_PORT_MULT);
 		else
-			adr = SATA_ADR(ap->port_no, dev->link->pmp);
+			adr = SATA_ADR(ap->port_yes, dev->link->pmp);
 		parent = host_companion;
 	} else {
-		adr = dev->devno;
+		adr = dev->devyes;
 		parent = port_companion;
 	}
 
@@ -241,7 +241,7 @@ void ata_acpi_bind_dev(struct ata_device *dev)
 		return;
 
 	context->data.dev = dev;
-	acpi_initialize_hp_context(adev, &context->hp, ata_acpi_dev_notify_dock,
+	acpi_initialize_hp_context(adev, &context->hp, ata_acpi_dev_yestify_dock,
 				   ata_acpi_dev_uevent);
 }
 
@@ -282,7 +282,7 @@ void ata_acpi_dissociate(struct ata_host *host)
  * EH context.
  *
  * RETURNS:
- * 0 on success, -ENOENT if _GTM doesn't exist, -errno on failure.
+ * 0 on success, -ENOENT if _GTM doesn't exist, -erryes on failure.
  */
 int ata_acpi_gtm(struct ata_port *ap, struct ata_acpi_gtm *gtm)
 {
@@ -342,7 +342,7 @@ EXPORT_SYMBOL_GPL(ata_acpi_gtm);
  * EH context.
  *
  * RETURNS:
- * 0 on success, -ENOENT if _STM doesn't exist, -errno on failure.
+ * 0 on success, -ENOENT if _STM doesn't exist, -erryes on failure.
  */
 int ata_acpi_stm(struct ata_port *ap, const struct ata_acpi_gtm *stm)
 {
@@ -387,10 +387,10 @@ EXPORT_SYMBOL_GPL(ata_acpi_stm);
  *
  * This applies to both PATA and SATA drives.
  *
- * The _GTF method has no input parameters.
+ * The _GTF method has yes input parameters.
  * It returns a variable number of register set values (registers
  * hex 1F1..1F7, taskfiles).
- * The <variable number> is not known in advance, so have ACPI-CA
+ * The <variable number> is yest kyeswn in advance, so have ACPI-CA
  * allocate the buffer as needed and return it, then free it later.
  *
  * LOCKING:
@@ -420,9 +420,9 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf)
 
 	if (ata_msg_probe(ap))
 		ata_dev_dbg(dev, "%s: ENTER: port#: %d\n",
-			    __func__, ap->port_no);
+			    __func__, ap->port_yes);
 
-	/* _GTF has no input parameters */
+	/* _GTF has yes input parameters */
 	status = acpi_evaluate_object(ata_dev_acpi_handle(dev), "_GTF", NULL,
 				      &output);
 	out_obj = dev->gtf_cache = output.pointer;
@@ -497,7 +497,7 @@ unsigned long ata_acpi_gtm_xfermask(struct ata_device *dev,
 	u8 mode;
 
 	/* we always use the 0 slot for crap hardware */
-	unit = dev->devno;
+	unit = dev->devyes;
 	if (!(gtm->flags & 0x10))
 		unit = 0;
 
@@ -605,7 +605,7 @@ static int ata_acpi_filter_tf(struct ata_device *dev,
 		    tf->nsect == SATA_DIPM)
 			return 1;
 
-		/* inhibit FPDMA non-zero offset */
+		/* inhibit FPDMA yesn-zero offset */
 		if (dev->gtf_filter & ATA_ACPI_FILTER_FPDMA_OFFSET &&
 		    (tf->nsect == SATA_FPDMA_OFFSET ||
 		     tf->nsect == SATA_FPDMA_IN_ORDER))
@@ -639,8 +639,8 @@ static int ata_acpi_filter_tf(struct ata_device *dev,
  * EH context.
  *
  * RETURNS:
- * 1 if command is executed successfully.  0 if ignored, rejected or
- * filtered out, -errno on other errors.
+ * 1 if command is executed successfully.  0 if igyesred, rejected or
+ * filtered out, -erryes on other errors.
  */
 static int ata_acpi_run_tf(struct ata_device *dev,
 			   const struct ata_acpi_gtf *gtf,
@@ -704,7 +704,7 @@ static int ata_acpi_run_tf(struct ata_device *dev,
 		       "ACPI cmd %02x/%02x:%02x:%02x:%02x:%02x:%02x (%s) %s\n",
 		       tf.command, tf.feature, tf.nsect, tf.lbal,
 		       tf.lbam, tf.lbah, tf.device,
-		       (descr ? descr : "unknown"), msg);
+		       (descr ? descr : "unkyeswn"), msg);
 
 	return rc;
 }
@@ -721,7 +721,7 @@ static int ata_acpi_run_tf(struct ata_device *dev,
  *
  * RETURNS:
  * Number of executed taskfiles on success, 0 if _GTF doesn't exist.
- * -errno on other errors.
+ * -erryes on other errors.
  */
 static int ata_acpi_exec_tfs(struct ata_device *dev, int *nr_executed)
 {
@@ -766,7 +766,7 @@ static int ata_acpi_exec_tfs(struct ata_device *dev, int *nr_executed)
  * EH context.
  *
  * RETURNS:
- * 0 on success, -ENOENT if _SDD doesn't exist, -errno on failure.
+ * 0 on success, -ENOENT if _SDD doesn't exist, -erryes on failure.
  */
 static int ata_acpi_push_id(struct ata_device *dev)
 {
@@ -777,7 +777,7 @@ static int ata_acpi_push_id(struct ata_device *dev)
 
 	if (ata_msg_probe(ap))
 		ata_dev_dbg(dev, "%s: ix = %d, port#: %d\n",
-			    __func__, dev->devno, ap->port_no);
+			    __func__, dev->devyes, ap->port_yes);
 
 	/* Give the drive Identify data to the drive via the _SDD method */
 	/* _SDD: set up input parameters */
@@ -786,7 +786,7 @@ static int ata_acpi_push_id(struct ata_device *dev)
 	in_params[0].type = ACPI_TYPE_BUFFER;
 	in_params[0].buffer.length = sizeof(dev->id[0]) * ATA_ID_WORDS;
 	in_params[0].buffer.pointer = (u8 *)dev->id;
-	/* Output buffer: _SDD has no output */
+	/* Output buffer: _SDD has yes output */
 
 	/* It's OK for _SDD to be missing too. */
 	swap_buf_le16(dev->id, ATA_ID_WORDS);
@@ -818,7 +818,7 @@ static int ata_acpi_push_id(struct ata_device *dev)
  * EH context.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erryes on failure.
  */
 int ata_acpi_on_suspend(struct ata_port *ap)
 {
@@ -860,7 +860,7 @@ void ata_acpi_on_resume(struct ata_port *ap)
 		}
 	} else {
 		/* SATA _GTF needs to be evaulated after _SDD and
-		 * there's no reason to evaluate IDE _GTF early
+		 * there's yes reason to evaluate IDE _GTF early
 		 * without _STM.  Clear cache and schedule _GTF.
 		 */
 		ata_for_each_dev(dev, &ap->link, ALL) {
@@ -972,8 +972,8 @@ void ata_acpi_set_state(struct ata_port *ap, pm_message_t state)
  * EH context.
  *
  * RETURNS:
- * Positive number if IDENTIFY data needs to be refreshed, 0 if not,
- * -errno on failure.
+ * Positive number if IDENTIFY data needs to be refreshed, 0 if yest,
+ * -erryes on failure.
  */
 int ata_acpi_on_devcfg(struct ata_device *dev)
 {
@@ -1018,11 +1018,11 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
 	return 0;
 
  acpi_err:
-	/* ignore evaluation failure if we can continue safely */
+	/* igyesre evaluation failure if we can continue safely */
 	if (rc == -EINVAL && !nr_executed && !(ap->pflags & ATA_PFLAG_FROZEN))
 		return 0;
 
-	/* fail and let EH retry once more for unknown IO errors */
+	/* fail and let EH retry once more for unkyeswn IO errors */
 	if (!(dev->flags & ATA_DFLAG_ACPI_FAILED)) {
 		dev->flags |= ATA_DFLAG_ACPI_FAILED;
 		return rc;
@@ -1031,8 +1031,8 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
 	dev->flags |= ATA_DFLAG_ACPI_DISABLED;
 	ata_dev_warn(dev, "ACPI: failed the second time, disabled\n");
 
-	/* We can safely continue if no _GTF command has been executed
-	 * and port is not frozen.
+	/* We can safely continue if yes _GTF command has been executed
+	 * and port is yest frozen.
 	 */
 	if (!nr_executed && !(ap->pflags & ATA_PFLAG_FROZEN))
 		return 0;

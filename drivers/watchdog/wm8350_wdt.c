@@ -16,10 +16,10 @@
 #include <linux/uaccess.h>
 #include <linux/mfd/wm8350/core.h>
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		 "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static DEFINE_MUTEX(wdt_mutex);
@@ -146,7 +146,7 @@ static int wm8350_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	watchdog_set_nowayout(&wm8350_wdt, nowayout);
+	watchdog_set_yeswayout(&wm8350_wdt, yeswayout);
 	watchdog_set_drvdata(&wm8350_wdt, wm8350);
 	wm8350_wdt.parent = &pdev->dev;
 

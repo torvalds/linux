@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -42,7 +42,7 @@
 #include "csio_hw.h"
 
 static irqreturn_t
-csio_nondata_isr(int irq, void *dev_id)
+csio_yesndata_isr(int irq, void *dev_id)
 {
 	struct csio_hw *hw = (struct csio_hw *) dev_id;
 	int rv;
@@ -176,7 +176,7 @@ csio_process_scsi_cmpl(struct csio_hw *hw, void *wr, uint32_t len,
 			 * completing abort at the exact same time that the
 			 * driver has deteced the abort timeout, the following
 			 * check prevents calling of scsi_done twice for the
-			 * same command: once from the eh_abort_handler, another
+			 * same command: once from the eh_abort_handler, ayesther
 			 * from csio_scsi_isr_handler(). This also avoids the
 			 * need to check if csio_scsi_cmnd(req) is NULL in the
 			 * fast path.
@@ -331,7 +331,7 @@ csio_fcoe_isr(int irq, void *dev_id)
 
 	CSIO_DB_ASSERT(intx_q);
 
-	/* IQ handler is not possible for intx_q, hence pass in NULL */
+	/* IQ handler is yest possible for intx_q, hence pass in NULL */
 	if (likely(csio_wr_process_iq(hw, intx_q, NULL, NULL) == 0))
 		ret = IRQ_HANDLED;
 
@@ -359,7 +359,7 @@ csio_add_msix_desc(struct csio_hw *hw)
 
 	/* Non-data vector */
 	memset(entryp->desc, 0, len + 1);
-	snprintf(entryp->desc, len, "csio-%02x:%02x:%x-nondata",
+	snprintf(entryp->desc, len, "csio-%02x:%02x:%x-yesndata",
 		 CSIO_PCI_BUS(hw), CSIO_PCI_DEV(hw), CSIO_PCI_FUNC(hw));
 
 	entryp++;
@@ -400,7 +400,7 @@ csio_request_irqs(struct csio_hw *hw)
 	/* Add the MSIX vector descriptions */
 	csio_add_msix_desc(hw);
 
-	rv = request_irq(pci_irq_vector(pdev, k), csio_nondata_isr, 0,
+	rv = request_irq(pci_irq_vector(pdev, k), csio_yesndata_isr, 0,
 			 entryp[k].desc, hw);
 	if (rv) {
 		csio_err(hw, "IRQ request failed for vec %d err:%d\n",
@@ -529,7 +529,7 @@ csio_enable_msix(struct csio_hw *hw)
 
 	/* Distribute vectors */
 	k = 0;
-	csio_set_nondata_intr_idx(hw, k);
+	csio_set_yesndata_intr_idx(hw, k);
 	csio_set_mb_intr_idx(csio_hw_to_mbm(hw), k++);
 	csio_set_fwevt_intr_idx(hw, k++);
 

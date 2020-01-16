@@ -5,7 +5,7 @@
 
   This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-  Copyright (C) 2001-2008, LINBIT Information Technologies GmbH.
+  Copyright (C) 2001-2008, LINBIT Information Techyeslogies GmbH.
   Copyright (C) 2001-2008, Philipp Reisner <philipp.reisner@linbit.com>.
   Copyright (C) 2001-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
@@ -24,9 +24,9 @@
 #include <limits.h>
 
 /* Although the Linux source code makes a difference between
-   generic endianness and the bitfields' endianness, there is no
+   generic endianness and the bitfields' endianness, there is yes
    architecture as of Linux-2.6.24-rc4 where the bitfields' endianness
-   does not match the generic endianness. */
+   does yest match the generic endianness. */
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define __LITTLE_ENDIAN_BITFIELD
@@ -46,7 +46,7 @@ extern const char *drbd_buildtag(void);
 
 
 enum drbd_io_error_p {
-	EP_PASS_ON, /* FIXME should the better be named "Ignore"? */
+	EP_PASS_ON, /* FIXME should the better be named "Igyesre"? */
 	EP_CALL_HELPER,
 	EP_DETACH
 };
@@ -78,7 +78,7 @@ enum drbd_after_sb_p {
 	ASB_VIOLENTLY
 };
 
-enum drbd_on_no_data {
+enum drbd_on_yes_data {
 	OND_IO_ERROR,
 	OND_SUSPEND_IO
 };
@@ -103,7 +103,7 @@ enum drbd_read_balancing {
 	RB_1M_STRIPING,
 };
 
-/* KEEP the order, do not delete or insert. Only append. */
+/* KEEP the order, do yest delete or insert. Only append. */
 enum drbd_ret_code {
 	ERR_CODE_BASE		= 100,
 	NO_ERROR		= 101,
@@ -186,7 +186,7 @@ enum drbd_role {
 
 /* The order of these constants is important.
  * The lower ones (<C_WF_REPORT_PARAMS) indicate
- * that there is no socket!
+ * that there is yes socket!
  * >=C_WF_REPORT_PARAMS ==> There is a socket
  */
 enum drbd_conns {
@@ -197,7 +197,7 @@ enum drbd_conns {
 	/* These temporal states are all used on the way
 	 * from >= C_CONNECTED to Unconnected.
 	 * The 'disconnect reason' states
-	 * I do not allow to change between them. */
+	 * I do yest allow to change between them. */
 	C_TIMEOUT,
 	C_BROKEN_PIPE,
 	C_NETWORK_FAILURE,
@@ -253,33 +253,33 @@ union drbd_state {
  */
 	struct {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned role:2 ;   /* 3/4	 primary/secondary/unknown */
-		unsigned peer:2 ;   /* 3/4	 primary/secondary/unknown */
+		unsigned role:2 ;   /* 3/4	 primary/secondary/unkyeswn */
+		unsigned peer:2 ;   /* 3/4	 primary/secondary/unkyeswn */
 		unsigned conn:5 ;   /* 17/32	 cstates */
 		unsigned disk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
 		unsigned pdsk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
-		unsigned susp:1 ;   /* 2/2	 IO suspended no/yes (by user) */
+		unsigned susp:1 ;   /* 2/2	 IO suspended yes/no (by user) */
 		unsigned aftr_isp:1 ; /* isp .. imposed sync pause */
 		unsigned peer_isp:1 ;
 		unsigned user_isp:1 ;
-		unsigned susp_nod:1 ; /* IO suspended because no data */
+		unsigned susp_yesd:1 ; /* IO suspended because yes data */
 		unsigned susp_fen:1 ; /* IO suspended because fence peer handler runs*/
 		unsigned _pad:9;   /* 0	 unused */
 #elif defined(__BIG_ENDIAN_BITFIELD)
 		unsigned _pad:9;
 		unsigned susp_fen:1 ;
-		unsigned susp_nod:1 ;
+		unsigned susp_yesd:1 ;
 		unsigned user_isp:1 ;
 		unsigned peer_isp:1 ;
 		unsigned aftr_isp:1 ; /* isp .. imposed sync pause */
-		unsigned susp:1 ;   /* 2/2	 IO suspended  no/yes */
+		unsigned susp:1 ;   /* 2/2	 IO suspended  yes/no */
 		unsigned pdsk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
 		unsigned disk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
 		unsigned conn:5 ;   /* 17/32	 cstates */
-		unsigned peer:2 ;   /* 3/4	 primary/secondary/unknown */
-		unsigned role:2 ;   /* 3/4	 primary/secondary/unknown */
+		unsigned peer:2 ;   /* 3/4	 primary/secondary/unkyeswn */
+		unsigned role:2 ;   /* 3/4	 primary/secondary/unkyeswn */
 #else
-# error "this endianness is not supported"
+# error "this endianness is yest supported"
 #endif
 	};
 	unsigned int i;
@@ -346,7 +346,7 @@ enum drbd_timeout_flag {
 	UT_PEER_OUTDATED = 2,
 };
 
-enum drbd_notification_type {
+enum drbd_yestification_type {
 	NOTIFY_EXISTS,
 	NOTIFY_CREATE,
 	NOTIFY_CHANGE,

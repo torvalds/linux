@@ -202,7 +202,7 @@ static int quadfs_pll_enable(struct clk_hw *hw)
 		CLKGEN_WRITE(pll, nreset, 1);
 
 	/*
-	 * Use a fixed input clock noise bandwidth filter for the moment
+	 * Use a fixed input clock yesise bandwidth filter for the moment
 	 */
 	if (pll->data->bwfilter_present)
 		CLKGEN_WRITE(pll, ref_bw, PLL_BW_GOODREF);
@@ -452,7 +452,7 @@ struct st_clk_quadfs_fsynth {
 	 * Cached hardware values from set_rate so we can program the
 	 * hardware in enable. There are two reasons for this:
 	 *
-	 *  1. The registers may not be writable until the parent has been
+	 *  1. The registers may yest be writable until the parent has been
 	 *     enabled.
 	 *
 	 *  2. It restores the clock rate when a driver does an enable
@@ -472,7 +472,7 @@ static void quadfs_fsynth_program_enable(struct st_clk_quadfs_fsynth *fs)
 {
 	/*
 	 * Pulse the program enable register lsb to make the hardware take
-	 * notice of the new md/pe values with a glitchless transition.
+	 * yestice of the new md/pe values with a glitchless transition.
 	 */
 	CLKGEN_WRITE(fs, en[fs->chan], 1);
 	CLKGEN_WRITE(fs, en[fs->chan], 0);
@@ -483,7 +483,7 @@ static void quadfs_fsynth_program_rate(struct st_clk_quadfs_fsynth *fs)
 	unsigned long flags = 0;
 
 	/*
-	 * Ensure the md/pe parameters are ignored while we are
+	 * Ensure the md/pe parameters are igyesred while we are
 	 * reprogramming them so we can get a glitchless change
 	 * when fine tuning the speed of a running clock.
 	 */
@@ -652,7 +652,7 @@ static int clk_fs660c32_dig_get_params(unsigned long input,
 	if (deviation == ~0) /* No solution found */
 		return -1;
 
-	/* pe fine tuning if deviation not 0: +/- 2 around computed pe value */
+	/* pe fine tuning if deviation yest 0: +/- 2 around computed pe value */
 	if (deviation) {
 		fs_tmp.mdiv = fs->mdiv;
 		fs_tmp.sdiv = fs->sdiv;
@@ -697,7 +697,7 @@ static int quadfs_fsynt_get_hw_value_for_recalc(struct st_clk_quadfs_fsynth *fs,
 		params->nsdiv = 1;
 
 	/*
-	 * If All are NULL then assume no clock rate is programmed.
+	 * If All are NULL then assume yes clock rate is programmed.
 	 */
 	if (!params->mdiv && !params->pe && !params->sdiv)
 		return 1;
@@ -827,7 +827,7 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 	struct clk_init_data init;
 
 	/*
-	 * Sanity check required pointers, note that nsdiv3 is optional.
+	 * Sanity check required pointers, yeste that nsdiv3 is optional.
 	 */
 	if (WARN_ON(!name || !parent_name))
 		return ERR_PTR(-EINVAL);
@@ -857,7 +857,7 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 }
 
 static void __init st_of_create_quadfs_fsynths(
-		struct device_node *np, const char *pll_name,
+		struct device_yesde *np, const char *pll_name,
 		struct clkgen_quadfs_data *quadfs, void __iomem *reg,
 		spinlock_t *lock)
 {
@@ -915,7 +915,7 @@ static void __init st_of_create_quadfs_fsynths(
 	of_clk_add_provider(np, of_clk_src_onecell_get, clk_data);
 }
 
-static void __init st_of_quadfs_setup(struct device_node *np,
+static void __init st_of_quadfs_setup(struct device_yesde *np,
 		struct clkgen_quadfs_data *data)
 {
 	struct clk *clk;
@@ -957,13 +957,13 @@ err_exit:
 	kfree(pll_name); /* No longer need local copy of the PLL name */
 }
 
-static void __init st_of_quadfs660C_setup(struct device_node *np)
+static void __init st_of_quadfs660C_setup(struct device_yesde *np)
 {
 	st_of_quadfs_setup(np, (struct clkgen_quadfs_data *) &st_fs660c32_C);
 }
 CLK_OF_DECLARE(quadfs660C, "st,quadfs-pll", st_of_quadfs660C_setup);
 
-static void __init st_of_quadfs660D_setup(struct device_node *np)
+static void __init st_of_quadfs660D_setup(struct device_yesde *np)
 {
 	st_of_quadfs_setup(np, (struct clkgen_quadfs_data *) &st_fs660c32_D);
 }

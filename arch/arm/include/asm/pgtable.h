@@ -12,13 +12,13 @@
 
 #ifndef CONFIG_MMU
 
-#include <asm-generic/pgtable-nopud.h>
-#include <asm/pgtable-nommu.h>
+#include <asm-generic/pgtable-yespud.h>
+#include <asm/pgtable-yesmmu.h>
 
 #else
 
 #define __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 #include <asm/memory.h>
 #include <asm/pgtable-hwdef.h>
 
@@ -57,7 +57,7 @@ extern void __pgd_error(const char *file, int line, pgd_t);
 /*
  * This is the lowest virtual address we can permit any user space
  * mapping to be mapped at.  This is particularly important for
- * non-high vector CPUs.
+ * yesn-high vector CPUs.
  */
 #define FIRST_USER_ADDRESS	(PAGE_SIZE * 2)
 
@@ -113,7 +113,7 @@ extern pgprot_t		pgprot_s2_device;
 #define __pgprot_modify(prot,mask,bits)		\
 	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
 
-#define pgprot_noncached(prot) \
+#define pgprot_yesncached(prot) \
 	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_UNCACHED)
 
 #define pgprot_writecombine(prot) \
@@ -143,7 +143,7 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
  * The table below defines the page protection levels that we insert into our
  * Linux page table version.  These get translated into the best that the
  * architecture can perform.  Note that on most ARM hardware:
- *  1) We cannot do execute protection
+ *  1) We canyest do execute protection
  *  2) If we could do execute protection, then read is implied
  *  3) write implies read permissions
  */
@@ -184,7 +184,7 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_yesne(pmd)		(!pmd_val(pmd))
 
 static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 {
@@ -220,7 +220,7 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 						: !!(pte_val(pte) & (val)))
 #define pte_isclear(pte, val)	(!(pte_val(pte) & (val)))
 
-#define pte_none(pte)		(!pte_val(pte))
+#define pte_yesne(pte)		(!pte_val(pte))
 #define pte_present(pte)	(pte_isset((pte), L_PTE_PRESENT))
 #define pte_valid(pte)		(pte_isset((pte), L_PTE_VALID))
 #define pte_accessible(mm, pte)	(mm_tlb_flush_pending(mm) ? pte_present(pte) : pte_valid(pte))
@@ -335,7 +335,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  *   <--------------- offset ------------------------> < type -> 0 0
  *
  * This gives us up to 31 swap files and 128GB per swap file.  Note that
- * the offset field is always non-zero.
+ * the offset field is always yesn-zero.
  */
 #define __SWP_TYPE_SHIFT	2
 #define __SWP_TYPE_BITS		5
@@ -351,13 +351,13 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 /*
  * It is an error for the kernel to have more swap files than we can
- * encode in the PTEs.  This ensures that we know when MAX_SWAPFILES
+ * encode in the PTEs.  This ensures that we kyesw when MAX_SWAPFILES
  * is increased beyond what we presently support.
  */
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
 
-/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
-/* FIXME: this is not correct */
+/* Needs to be defined here and yest in linux/mm.h, as it is arch dependent */
+/* FIXME: this is yest correct */
 #define kern_addr_valid(addr)	(1)
 
 #include <asm-generic/pgtable.h>

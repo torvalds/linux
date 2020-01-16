@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2016-2017 Micron Technology, Inc.
+ * Copyright (C) 2016-2017 Micron Techyeslogy, Inc.
  *
  * Authors:
  *	Peter Pan <peterpandong@micron.com>
@@ -278,7 +278,7 @@ static int spinand_write_to_cache_op(struct spinand_device *spinand,
 	ssize_t ret;
 
 	/*
-	 * Looks like PROGRAM LOAD (AKA write cache) does not necessarily reset
+	 * Looks like PROGRAM LOAD (AKA write cache) does yest necessarily reset
 	 * the cache content to 0xFF (depends on vendor implementation), so we
 	 * must fill the page cache entirely even if we only want to program
 	 * the data portion of the page, otherwise we might corrupt the BBM or
@@ -413,7 +413,7 @@ static int spinand_check_ecc_status(struct spinand_device *spinand, u8 status)
 
 	case STATUS_ECC_HAS_BITFLIPS:
 		/*
-		 * We have no way to know exactly how many bitflips have been
+		 * We have yes way to kyesw exactly how many bitflips have been
 		 * fixed, so let's return the maximum possible value so that
 		 * wear-leveling layers move the data immediately.
 		 */
@@ -802,7 +802,7 @@ spinand_select_op_variant(struct spinand_device *spinand,
 	struct nand_device *nand = spinand_to_nand(spinand);
 	unsigned int i;
 
-	for (i = 0; i < variants->nops; i++) {
+	for (i = 0; i < variants->yesps; i++) {
 		struct spi_mem_op op = variants->ops[i];
 		unsigned int nbytes;
 		int ret;
@@ -906,7 +906,7 @@ static int spinand_detect(struct spinand_device *spinand)
 
 	ret = spinand_manufacturer_detect(spinand);
 	if (ret) {
-		dev_err(dev, "unknown raw ID %*phN\n", SPINAND_MAX_ID_LEN,
+		dev_err(dev, "unkyeswn raw ID %*phN\n", SPINAND_MAX_ID_LEN,
 			spinand->id.data);
 		return ret;
 	}
@@ -927,13 +927,13 @@ static int spinand_detect(struct spinand_device *spinand)
 	return 0;
 }
 
-static int spinand_noecc_ooblayout_ecc(struct mtd_info *mtd, int section,
+static int spinand_yesecc_ooblayout_ecc(struct mtd_info *mtd, int section,
 				       struct mtd_oob_region *region)
 {
 	return -ERANGE;
 }
 
-static int spinand_noecc_ooblayout_free(struct mtd_info *mtd, int section,
+static int spinand_yesecc_ooblayout_free(struct mtd_info *mtd, int section,
 					struct mtd_oob_region *region)
 {
 	if (section)
@@ -946,9 +946,9 @@ static int spinand_noecc_ooblayout_free(struct mtd_info *mtd, int section,
 	return 0;
 }
 
-static const struct mtd_ooblayout_ops spinand_noecc_ooblayout = {
-	.ecc = spinand_noecc_ooblayout_ecc,
-	.free = spinand_noecc_ooblayout_free,
+static const struct mtd_ooblayout_ops spinand_yesecc_ooblayout = {
+	.ecc = spinand_yesecc_ooblayout_ecc,
+	.free = spinand_yesecc_ooblayout_free,
 };
 
 static int spinand_init(struct spinand_device *spinand)
@@ -973,7 +973,7 @@ static int spinand_init(struct spinand_device *spinand)
 	/*
 	 * Use kzalloc() instead of devm_kzalloc() here, because some drivers
 	 * may use this buffer for DMA access.
-	 * Memory allocated by devm_ does not guarantee DMA-safe alignment.
+	 * Memory allocated by devm_ does yest guarantee DMA-safe alignment.
 	 */
 	spinand->databuf = kzalloc(nanddev_page_size(nand) +
 			       nanddev_per_page_oobsize(nand),
@@ -1029,7 +1029,7 @@ static int spinand_init(struct spinand_device *spinand)
 		goto err_manuf_cleanup;
 
 	/*
-	 * Right now, we don't support ECC, so let the whole oob
+	 * Right yesw, we don't support ECC, so let the whole oob
 	 * area is available for user.
 	 */
 	mtd->_read_oob = spinand_mtd_read;
@@ -1043,7 +1043,7 @@ static int spinand_init(struct spinand_device *spinand)
 	if (spinand->eccinfo.ooblayout)
 		mtd_set_ooblayout(mtd, spinand->eccinfo.ooblayout);
 	else
-		mtd_set_ooblayout(mtd, &spinand_noecc_ooblayout);
+		mtd_set_ooblayout(mtd, &spinand_yesecc_ooblayout);
 
 	ret = mtd_ooblayout_count_freebytes(mtd);
 	if (ret < 0)
@@ -1088,7 +1088,7 @@ static int spinand_probe(struct spi_mem *mem)
 
 	spinand->spimem = mem;
 	spi_mem_set_drvdata(mem, spinand);
-	spinand_set_of_node(spinand, mem->spi->dev.of_node);
+	spinand_set_of_yesde(spinand, mem->spi->dev.of_yesde);
 	mutex_init(&spinand->lock);
 	mtd = spinand_to_mtd(spinand);
 	mtd->dev.parent = &mem->spi->dev;

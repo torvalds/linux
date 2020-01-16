@@ -10,7 +10,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
    */
 
@@ -70,7 +70,7 @@
 #define PP_RxFrame 0x0404	/*  Receive frame pointer */
 #define PP_TxFrame 0x0A00	/*  Transmit frame pointer */
 
-/*  Primary I/O Base Address. If no I/O base is supplied by the user, then this */
+/*  Primary I/O Base Address. If yes I/O base is supplied by the user, then this */
 /*  can be used as the default I/O base to access the PacketPage Area. */
 #define DEFAULTIOBASE 0x0300
 #define FIRST_IO 0x020C		/*  First I/O port to check */
@@ -371,7 +371,7 @@
 
   /*  the assumption here is that the bits in the eeprom are generally  */
   /*  in the same position as those in the autonegctl register. */
-  /*  Of course the IMM bit is not in that register so it must be  */
+  /*  Of course the IMM bit is yest in that register so it must be  */
   /*  masked out */
 #define EE_FORCE_FDX  0x8000
 #define EE_NLP_ENABLE 0x0200
@@ -379,7 +379,7 @@
 #define EE_ALLOW_FDX 0x0080
 #define EE_AUTO_NEG_CNF_MASK (EE_FORCE_FDX|EE_NLP_ENABLE|EE_AUTO_NEG_ENABLE|EE_ALLOW_FDX)
 
-#define IMM_BIT 0x0040		/*  ignore missing media	 */
+#define IMM_BIT 0x0040		/*  igyesre missing media	 */
 
 #define ADAPTER_CNF_OFFSET (AUTO_NEG_CNF_OFFSET + 2)
 #define A_CNF_10B_T 0x0001

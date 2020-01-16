@@ -6,7 +6,7 @@
  * Copyright (C) 1999-2000, 2002-2003, 2005 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/mman.h>

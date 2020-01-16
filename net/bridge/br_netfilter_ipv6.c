@@ -197,7 +197,7 @@ static int br_nf_pre_routing_finish_ipv6(struct net *net, struct sock *sk, struc
 			kfree_skb(skb);
 			return 0;
 		}
-		skb_dst_set_noref(skb, &rt->dst);
+		skb_dst_set_yesref(skb, &rt->dst);
 	}
 
 	skb->dev = nf_bridge->physindev;

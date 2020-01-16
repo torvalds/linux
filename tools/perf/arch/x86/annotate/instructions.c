@@ -65,7 +65,7 @@ static struct ins x86__instructions[] = {
 	{ .name = "jnge",	.ops = &jump_ops, },
 	{ .name = "jnl",	.ops = &jump_ops, },
 	{ .name = "jnle",	.ops = &jump_ops, },
-	{ .name = "jno",	.ops = &jump_ops, },
+	{ .name = "jyes",	.ops = &jump_ops, },
 	{ .name = "jnp",	.ops = &jump_ops, },
 	{ .name = "jns",	.ops = &jump_ops, },
 	{ .name = "jnz",	.ops = &jump_ops, },
@@ -96,9 +96,9 @@ static struct ins x86__instructions[] = {
 	{ .name = "movzwl",	.ops = &mov_ops,  },
 	{ .name = "mulsd",	.ops = &mov_ops,  },
 	{ .name = "mulss",	.ops = &mov_ops,  },
-	{ .name = "nop",	.ops = &nop_ops,  },
-	{ .name = "nopl",	.ops = &nop_ops,  },
-	{ .name = "nopw",	.ops = &nop_ops,  },
+	{ .name = "yesp",	.ops = &yesp_ops,  },
+	{ .name = "yespl",	.ops = &yesp_ops,  },
+	{ .name = "yespw",	.ops = &yesp_ops,  },
 	{ .name = "or",		.ops = &mov_ops,  },
 	{ .name = "orb",	.ops = &mov_ops,  },
 	{ .name = "orl",	.ops = &mov_ops,  },
@@ -189,7 +189,7 @@ static int x86__cpuid_parse(struct arch *arch, char *cpuid)
 	return -1;
 }
 
-static int x86__annotate_init(struct arch *arch, char *cpuid)
+static int x86__anyestate_init(struct arch *arch, char *cpuid)
 {
 	int err = 0;
 

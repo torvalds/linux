@@ -24,7 +24,7 @@ static void crash_shutdown_secondary(void *passed_regs)
 	/*
 	 * If we are passed registers, use those.  Otherwise get the
 	 * regs from the last interrupt, which should be correct, as
-	 * we are in an interrupt.  But if the regs are not there,
+	 * we are in an interrupt.  But if the regs are yest there,
 	 * pull them from the top of the stack.  They are probably
 	 * wrong, but we need something to keep from crashing again.
 	 */

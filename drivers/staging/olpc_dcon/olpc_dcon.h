@@ -2,7 +2,7 @@
 #ifndef OLPC_DCON_H_
 #define OLPC_DCON_H_
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/workqueue.h>
 
 /* DCON registers */
@@ -64,7 +64,7 @@ struct dcon_priv {
 
 	wait_queue_head_t waitq;
 	struct work_struct switch_source;
-	struct notifier_block reboot_nb;
+	struct yestifier_block reboot_nb;
 
 	/* Shadow register for the DCON_REG_MODE register */
 	u8 disp_mode;
@@ -83,11 +83,11 @@ struct dcon_priv {
 	ktime_t irq_time;
 	ktime_t load_time;
 
-	/* Current output type; true == mono, false == color */
-	bool mono;
+	/* Current output type; true == moyes, false == color */
+	bool moyes;
 	bool asleep;
 	/* This get set while controlling fb blank state from the driver */
-	bool ignore_fb_events;
+	bool igyesre_fb_events;
 };
 
 struct dcon_platform_data {

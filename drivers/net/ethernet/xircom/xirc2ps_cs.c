@@ -6,7 +6,7 @@
  * including the CE2, CE IIps, RE-10, CEM28, CEM33, CE33, CEM56,
  * CE3-100, CE3B, RE-100, REM10BT, and REM56G-100.
  *
- * 2000-09-24 <psheer@icon.co.za> The Xircom CE3B-100 may not
+ * 2000-09-24 <psheer@icon.co.za> The Xircom CE3B-100 may yest
  * autodetect the media properly. In this case use the
  * if_port=1 (for 10BaseT) or if_port=4 (for 100BaseT) options
  * to force the media type.
@@ -27,7 +27,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if yest, see <http://www.gnu.org/licenses/>.
  *
  *
  * ALTERNATIVELY, this driver may be distributed under the terms of
@@ -40,12 +40,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    yestice, and the entire permission yestice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may yest be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -145,7 +145,7 @@ enum xirc_rsr {
     PhyPkt = 0x01,	/* set:physical packet, clear: multicast packet */
     BrdcstPkt = 0x02,	/* set if it is a broadcast packet */
     PktTooLong = 0x04,	/* set if packet length > 1518 */
-    AlignErr = 0x10,	/* incorrect CRC and last octet not complete */
+    AlignErr = 0x10,	/* incorrect CRC and last octet yest complete */
     CRCErr = 0x20,	/* incorrect CRC and last octet is complete */
     PktRxOk = 0x80	/* received ok */
 };
@@ -164,7 +164,7 @@ enum xirc_ecr {
 /* values for the leds:    Bits 2-0 for led 1
  *  0 disabled		   Bits 5-3 for led 2
  *  1 collision
- *  2 noncollision
+ *  2 yesncollision
  *  3 link_detected
  *  4 incor_polarity
  *  5 jabber
@@ -210,21 +210,21 @@ enum xirc_cmd { 	    /* Commands */
 static const char *if_names[] = { "Auto", "10BaseT", "10Base2", "AUI", "100BaseT" };
 
 /* card types */
-#define XIR_UNKNOWN  0	/* unknown: not supported */
-#define XIR_CE	     1	/* (prodid 1) different hardware: not supported */
+#define XIR_UNKNOWN  0	/* unkyeswn: yest supported */
+#define XIR_CE	     1	/* (prodid 1) different hardware: yest supported */
 #define XIR_CE2      2	/* (prodid 2) */
 #define XIR_CE3      3	/* (prodid 3) */
-#define XIR_CEM      4	/* (prodid 1) different hardware: not supported */
+#define XIR_CEM      4	/* (prodid 1) different hardware: yest supported */
 #define XIR_CEM2     5	/* (prodid 2) */
 #define XIR_CEM3     6	/* (prodid 3) */
 #define XIR_CEM33    7	/* (prodid 4) */
 #define XIR_CEM56M   8	/* (prodid 5) */
 #define XIR_CEM56    9	/* (prodid 6) */
-#define XIR_CM28    10	/* (prodid 3) modem only: not supported here */
-#define XIR_CM33    11	/* (prodid 4) modem only: not supported here */
-#define XIR_CM56    12	/* (prodid 5) modem only: not supported here */
-#define XIR_CG	    13	/* (prodid 1) GSM modem only: not supported */
-#define XIR_CBE     14	/* (prodid 1) cardbus ethernet: not supported */
+#define XIR_CM28    10	/* (prodid 3) modem only: yest supported here */
+#define XIR_CM33    11	/* (prodid 4) modem only: yest supported here */
+#define XIR_CM56    12	/* (prodid 5) modem only: yest supported here */
+#define XIR_CG	    13	/* (prodid 1) GSM modem only: yest supported */
+#define XIR_CBE     14	/* (prodid 1) cardbus ethernet: yest supported */
 /*====================================================================*/
 
 /* Module parameters */
@@ -241,8 +241,8 @@ INT_MODULE_PARM(lockup_hack,	0);  /* anti lockup hack */
 
 /*====================================================================*/
 
-/* We do not process more than these number of bytes during one
- * interrupt. (Of course we receive complete packets, so this is not
+/* We do yest process more than these number of bytes during one
+ * interrupt. (Of course we receive complete packets, so this is yest
  * an exact value).
  * Something between 2000..22000; first value gives best interrupt latency,
  * the second enables the usage of the complete on-chip buffer. We use the
@@ -515,7 +515,7 @@ xirc2ps_detach(struct pcmcia_device *link)
 
 /****************
  * Detect the type of the card. s is the buffer with the data of tuple 0x20
- * Returns: 0 := not supported
+ * Returns: 0 := yest supported
  *		       mediaid=11 and prodid=47
  * Media-Id bits:
  *  Ethernet	    0x01
@@ -558,11 +558,11 @@ set_card_type(struct pcmcia_device *link)
     local->modem = 0;
     local->card_type = XIR_UNKNOWN;
     if (!(prodid & 0x40)) {
-	pr_notice("Oops: Not a creditcard\n");
+	pr_yestice("Oops: Not a creditcard\n");
 	return 0;
     }
     if (!(mediaid & 0x01)) {
-	pr_notice("Not an Ethernet card\n");
+	pr_yestice("Not an Ethernet card\n");
 	return 0;
     }
     if (mediaid & 0x10) {
@@ -593,11 +593,11 @@ set_card_type(struct pcmcia_device *link)
 	}
     }
     if (local->card_type == XIR_CE || local->card_type == XIR_CEM) {
-	pr_notice("Sorry, this is an old CE card\n");
+	pr_yestice("Sorry, this is an old CE card\n");
 	return 0;
     }
     if (local->card_type == XIR_UNKNOWN)
-	pr_notice("unknown card (mediaid=%02x prodid=%02x)\n", mediaid, prodid);
+	pr_yestice("unkyeswn card (mediaid=%02x prodid=%02x)\n", mediaid, prodid);
 
     return 1;
 }
@@ -678,7 +678,7 @@ static int pcmcia_get_mac_ce(struct pcmcia_device *p_dev,
 	if ((tuple->TupleData[0] != 2) || (tuple->TupleData[1] != 1) ||
 		(tuple->TupleData[2] != 6))
 		return -EINVAL;
-	/* another try	(James Lehmer's CE2 version 4.1)*/
+	/* ayesther try	(James Lehmer's CE2 version 4.1)*/
 	for (i = 2; i < 6; i++)
 		dev->dev_addr[i] = tuple->TupleData[i+2];
 	return 0;
@@ -701,7 +701,7 @@ xirc2ps_config(struct pcmcia_device * link)
 
     /* Is this a valid	card */
     if (link->has_manf_id == 0) {
-	pr_notice("manfid not found in CIS\n");
+	pr_yestice("manfid yest found in CIS\n");
 	goto failure;
     }
 
@@ -723,21 +723,21 @@ xirc2ps_config(struct pcmcia_device * link)
 	local->manf_str = "Toshiba";
 	break;
       default:
-	pr_notice("Unknown Card Manufacturer ID: 0x%04x\n",
+	pr_yestice("Unkyeswn Card Manufacturer ID: 0x%04x\n",
 		  (unsigned)link->manf_id);
 	goto failure;
     }
     dev_dbg(&link->dev, "found %s card\n", local->manf_str);
 
     if (!set_card_type(link)) {
-	pr_notice("this card is not supported\n");
+	pr_yestice("this card is yest supported\n");
 	goto failure;
     }
 
     /* get the ethernet address from the CIS */
     err = pcmcia_get_mac_from_cis(link, dev);
 
-    /* not found: try to get the node-id from tuple 0x89 */
+    /* yest found: try to get the yesde-id from tuple 0x89 */
     if (err) {
 	    len = pcmcia_get_tuple(link, 0x89, &buf);
 	    /* data layout looks like tuple 0x22 */
@@ -756,7 +756,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	err = pcmcia_loop_tuple(link, CISTPL_FUNCE, pcmcia_get_mac_ce, dev);
 
     if (err) {
-	pr_notice("node-id not found in CIS\n");
+	pr_yestice("yesde-id yest found in CIS\n");
 	goto failure;
     }
 
@@ -783,7 +783,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	     * try to configure as Ethernet only.
 	     * .... */
 	}
-	pr_notice("no ports available\n");
+	pr_yestice("yes ports available\n");
     } else {
 	link->io_lines = 10;
 	link->resource[0]->end = 16;
@@ -802,7 +802,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	 goto config_error;
 
     /****************
-     * Now allocate an interrupt line.	Note that this does not
+     * Now allocate an interrupt line.	Note that this does yest
      * actually assign a handler to the interrupt.
      */
     if ((err=pcmcia_request_irq(link, xirc2ps_interrupt)))
@@ -831,7 +831,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	if (err)
 	    goto config_error;
 
-	/* There is no config entry for the Ethernet part which
+	/* There is yes config entry for the Ethernet part which
 	 * is at 0x0800. So we allocate a window into the attribute
 	 * memory and write direct to the CIS registers
 	 */
@@ -845,7 +845,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	if ((err = pcmcia_map_mem_page(link, link->resource[2], 0)))
 	    goto config_error;
 
-	/* Setup the CCRs; there are no infos in the CIS about the Ethernet
+	/* Setup the CCRs; there are yes infos in the CIS about the Ethernet
 	 * part.
 	 */
 	writeb(0x47, local->dingo_ccr + CISREG_COR);
@@ -892,9 +892,9 @@ xirc2ps_config(struct pcmcia_device * link)
 	       (local->mohawk && if_port==4))
 	dev->if_port = if_port;
     else
-	pr_notice("invalid if_port requested\n");
+	pr_yestice("invalid if_port requested\n");
 
-    /* we can now register the device with the net subsystem */
+    /* we can yesw register the device with the net subsystem */
     dev->irq = link->irq;
     dev->base_addr = link->resource[0]->start;
 
@@ -904,7 +904,7 @@ xirc2ps_config(struct pcmcia_device * link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if ((err=register_netdev(dev))) {
-	pr_notice("register_netdev() failed\n");
+	pr_yestice("register_netdev() failed\n");
 	goto config_error;
     }
 
@@ -1137,8 +1137,8 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	lp->last_ptr_value = nn;
 	if (nn < n) /* rollover */
 	    dev->stats.tx_packets += 256 - n;
-	else if (n == nn) { /* happens sometimes - don't know why */
-	    pr_debug("PTR not changed?\n");
+	else if (n == nn) { /* happens sometimes - don't kyesw why */
+	    pr_debug("PTR yest changed?\n");
 	} else
 	    dev->stats.tx_packets += lp->last_ptr_value - n;
 	netif_wake_queue(dev);
@@ -1166,7 +1166,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	    pr_debug("set maxrx=%u (rcvd=%u ticks=%lu)\n",
 		  maxrx_bytes, bytes_rcvd, duration);
 	} else if (!duration && maxrx_bytes < 22000) {
-	    /* now much faster */
+	    /* yesw much faster */
 	    maxrx_bytes += 2000;
 	    if (maxrx_bytes > 22000)
 		maxrx_bytes = 22000;
@@ -1207,7 +1207,7 @@ xirc_tx_timeout(struct net_device *dev)
 {
     struct local_info *lp = netdev_priv(dev);
     dev->stats.tx_errors++;
-    netdev_notice(dev, "transmit timed out\n");
+    netdev_yestice(dev, "transmit timed out\n");
     schedule_work(&lp->tx_timeout_task);
 }
 
@@ -1225,7 +1225,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 
     /* adjust the packet length to min. required
-     * and hope that the buffer is large enough
+     * and hope that the buffer is large eyesugh
      * to provide some random data.
      * fixme: For Mohawk we can change this by sending
      * a larger packetlen than we actually have; the chip will
@@ -1247,8 +1247,8 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     /* TRS doesn't work - (indeed it is eliminated with sil-rev 1) */
     okay = pktlen +2 < freespace;
     pr_debug("%s: avail. tx space=%u%s\n",
-	  dev->name, freespace, okay ? " (okay)":" (not enough)");
-    if (!okay) { /* not enough space */
+	  dev->name, freespace, okay ? " (okay)":" (yest eyesugh)");
+    if (!okay) { /* yest eyesugh space */
 	return NETDEV_TX_BUSY;  /* upper layer may decide to requeue this packet */
     }
     /* send the packet */
@@ -1340,7 +1340,7 @@ set_multicast_list(struct net_device *dev)
     SelectPage(0x42);
     value = GetByte(XIRCREG42_SWC1) & 0xC0;
 
-    if (dev->flags & IFF_PROMISC) { /* snoop */
+    if (dev->flags & IFF_PROMISC) { /* syesop */
 	PutByte(XIRCREG42_SWC1, value | 0x06); /* set MPE and PME */
     } else if (netdev_mc_count(dev) > 9 || (dev->flags & IFF_ALLMULTI)) {
 	PutByte(XIRCREG42_SWC1, value | 0x02); /* set MPE */
@@ -1375,7 +1375,7 @@ do_config(struct net_device *dev, struct ifmap *map)
 	    dev->if_port = map->port;
 	}
 	netdev_info(dev, "switching to %s port\n", if_names[dev->if_port]);
-	do_reset(dev,1);  /* not the fine way :-) */
+	do_reset(dev,1);  /* yest the fine way :-) */
     }
     return 0;
 }
@@ -1650,15 +1650,15 @@ init_mii(struct net_device *dev)
     if (local->probe_port)
 	control = 0x1000; /* auto neg */
     else if (dev->if_port == 4)
-	control = 0x2000; /* no auto neg, 100mbs mode */
+	control = 0x2000; /* yes auto neg, 100mbs mode */
     else
-	control = 0x0000; /* no auto neg, 10mbs mode */
+	control = 0x0000; /* yes auto neg, 10mbs mode */
     mii_wr(ioaddr,  0, 0, control, 16);
     udelay(100);
     control = mii_rd(ioaddr, 0, 0);
 
     if (control & 0x0400) {
-	netdev_notice(dev, "can't take PHY out of isolation mode\n");
+	netdev_yestice(dev, "can't take PHY out of isolation mode\n");
 	local->probe_port = 0;
 	return 0;
     }

@@ -73,7 +73,7 @@ static inline void reset_hung_task_detector(void) { }
  * 'soft_watchdog_user_enabled' are variables that are only used as an
  * 'interface' between the parameters in /proc/sys/kernel and the internal
  * state bits in 'watchdog_enabled'. The 'watchdog_thresh' variable is
- * handled differently because its value is not boolean, and the lockup
+ * handled differently because its value is yest boolean, and the lockup
  * detectors are 'suspended' while 'watchdog_thresh' is equal zero.
  */
 #define NMI_WATCHDOG_ENABLED_BIT   0

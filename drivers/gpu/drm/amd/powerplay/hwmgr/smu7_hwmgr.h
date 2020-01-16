@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -217,7 +217,7 @@ struct smu7_hwmgr {
 
 	bool                           is_memory_gddr5;
 	uint16_t                       acpi_vddc;
-	bool                           pspp_notify_required;
+	bool                           pspp_yestify_required;
 	uint16_t                       force_pcie_gen;
 	uint16_t                       acpi_pcie_gen;
 	uint32_t                       pcie_gen_cap;

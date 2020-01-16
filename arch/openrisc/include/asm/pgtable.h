@@ -22,7 +22,7 @@
 #define __ASM_OPENRISC_PGTABLE_H
 
 #define __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 
 #ifndef __ASSEMBLY__
 #include <asm/mmu.h>
@@ -33,7 +33,7 @@
  * or32, we use that, but "fold" the mid level into the top-level page
  * table. Since the MMU TLB is software loaded through an interrupt, it
  * supports any page table structure, so we could have used a three-level
- * setup, but for the amounts of memory we normally use, a two-level is
+ * setup, but for the amounts of memory we yesrmally use, a two-level is
  * probably more efficient.
  *
  * This file contains the functions and defines necessary to modify and use
@@ -217,18 +217,18 @@ extern unsigned long empty_zero_page[2048];
 /* to set the page-dir */
 #define SET_PAGE_DIR(tsk, pgdir)
 
-#define pte_none(x)	(!pte_val(x))
+#define pte_yesne(x)	(!pte_val(x))
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
 #define pte_clear(mm, addr, xp)	do { pte_val(*(xp)) = 0; } while (0)
 
-#define pmd_none(x)	(!pmd_val(x))
+#define pmd_yesne(x)	(!pmd_val(x))
 #define	pmd_bad(x)	((pmd_val(x) & (~PAGE_MASK)) != _KERNPG_TABLE)
 #define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
 #define pmd_clear(xp)	do { pmd_val(*(xp)) = 0; } while (0)
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 
 static inline int pte_read(pte_t pte)  { return pte_val(pte) & _PAGE_READ; }
@@ -429,7 +429,7 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 
 /* __PHX__ FIXME, SWAP, this probably doesn't work */
 
-/* Encode and de-code a swap entry (must be !pte_none(e) && !pte_present(e)) */
+/* Encode and de-code a swap entry (must be !pte_yesne(e) && !pte_present(e)) */
 /* Since the PAGE_PRESENT bit is bit 4, we can use the bits above */
 
 #define __swp_type(x)			(((x).val >> 5) & 0x7f)

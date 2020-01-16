@@ -32,7 +32,7 @@ static const struct igc_stats igc_gstrings_stats[] = {
 	IGC_STAT("multicast", stats.mprc),
 	IGC_STAT("collisions", stats.colc),
 	IGC_STAT("rx_crc_errors", stats.crcerrs),
-	IGC_STAT("rx_no_buffer_count", stats.rnbc),
+	IGC_STAT("rx_yes_buffer_count", stats.rnbc),
 	IGC_STAT("rx_missed_errors", stats.mpc),
 	IGC_STAT("tx_aborted_errors", stats.ecol),
 	IGC_STAT("tx_carrier_errors", stats.tncrs),
@@ -83,7 +83,7 @@ static const struct igc_stats igc_gstrings_net_stats[] = {
 	IGC_NETDEV_STAT(tx_heartbeat_errors)
 };
 
-enum igc_diagnostics_results {
+enum igc_diagyesstics_results {
 	TEST_REG = 0,
 	TEST_EEP,
 	TEST_IRQ,
@@ -167,7 +167,7 @@ static void igc_get_regs(struct net_device *netdev,
 
 	/* Interrupt */
 	/* Reading EICS for EICR because they read the
-	 * same but EICS does not clear on read
+	 * same but EICS does yest clear on read
 	 */
 	regs_buff[6] = rd32(IGC_EICS);
 	regs_buff[7] = rd32(IGC_EICS);
@@ -176,7 +176,7 @@ static void igc_get_regs(struct net_device *netdev,
 	regs_buff[10] = rd32(IGC_EIAC);
 	regs_buff[11] = rd32(IGC_EIAM);
 	/* Reading ICS for ICR because they read the
-	 * same but ICS does not clear on read
+	 * same but ICS does yest clear on read
 	 */
 	regs_buff[12] = rd32(IGC_ICS);
 	regs_buff[13] = rd32(IGC_ICS);
@@ -336,7 +336,7 @@ static u32 igc_get_link(struct net_device *netdev)
 	struct igc_adapter *adapter = netdev_priv(netdev);
 	struct igc_mac_info *mac = &adapter->hw.mac;
 
-	/* If the link is not reported up to netdev, interrupts are disabled,
+	/* If the link is yest reported up to netdev, interrupts are disabled,
 	 * and so the physical link state may have changed since we last
 	 * looked. Set get_link_status to make sure that the true link
 	 * state is interrogated, rather than pulling a cached and possibly
@@ -502,7 +502,7 @@ static int igc_set_ringparam(struct net_device *netdev,
 
 	if (new_tx_count == adapter->tx_ring_count &&
 	    new_rx_count == adapter->rx_ring_count) {
-		/* nothing to do */
+		/* yesthing to do */
 		return 0;
 	}
 
@@ -643,7 +643,7 @@ static int igc_set_pauseparam(struct net_device *netdev,
 		else if (!pause->rx_pause && pause->tx_pause)
 			hw->fc.requested_mode = igc_fc_tx_pause;
 		else if (!pause->rx_pause && !pause->tx_pause)
-			hw->fc.requested_mode = igc_fc_none;
+			hw->fc.requested_mode = igc_fc_yesne;
 
 		hw->fc.current_mode = hw->fc.requested_mode;
 
@@ -884,7 +884,7 @@ static int igc_get_ethtool_nfc_entry(struct igc_adapter *adapter,
 	/* report total rule count */
 	cmd->data = IGC_MAX_RXNFC_FILTERS;
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_yesde) {
 		if (fsp->location <= rule->sw_idx)
 			break;
 	}
@@ -936,7 +936,7 @@ static int igc_get_ethtool_nfc_all(struct igc_adapter *adapter,
 	/* report total rule count */
 	cmd->data = IGC_MAX_RXNFC_FILTERS;
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_yesde) {
 		if (cnt == cmd->rule_cnt)
 			return -EMSGSIZE;
 		rule_locs[cnt] = rule->sw_idx;
@@ -1036,7 +1036,7 @@ static int igc_set_rss_hash_opt(struct igc_adapter *adapter,
 {
 	u32 flags = adapter->flags;
 
-	/* RSS does not support anything other than hashing
+	/* RSS does yest support anything other than hashing
 	 * to queues on src and dst IPs and ports
 	 */
 	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
@@ -1307,8 +1307,8 @@ static int igc_update_ethtool_nfc_entry(struct igc_adapter *adapter,
 	parent = NULL;
 	rule = NULL;
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
-		/* hash found, or no matching entry */
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_yesde) {
+		/* hash found, or yes matching entry */
 		if (rule->sw_idx >= sw_idx)
 			break;
 		parent = rule;
@@ -1319,25 +1319,25 @@ static int igc_update_ethtool_nfc_entry(struct igc_adapter *adapter,
 		if (!input)
 			err = igc_erase_filter(adapter, rule);
 
-		hlist_del(&rule->nfc_node);
+		hlist_del(&rule->nfc_yesde);
 		kfree(rule);
 		adapter->nfc_filter_count--;
 	}
 
-	/* If no input this was a delete, err should be 0 if a rule was
+	/* If yes input this was a delete, err should be 0 if a rule was
 	 * successfully found and removed from the list else -EINVAL
 	 */
 	if (!input)
 		return err;
 
-	/* initialize node */
-	INIT_HLIST_NODE(&input->nfc_node);
+	/* initialize yesde */
+	INIT_HLIST_NODE(&input->nfc_yesde);
 
 	/* add filter to the list */
 	if (parent)
-		hlist_add_behind(&input->nfc_node, &parent->nfc_node);
+		hlist_add_behind(&input->nfc_yesde, &parent->nfc_yesde);
 	else
-		hlist_add_head(&input->nfc_node, &adapter->nfc_filter_list);
+		hlist_add_head(&input->nfc_yesde, &adapter->nfc_filter_list);
 
 	/* update counts */
 	adapter->nfc_filter_count++;
@@ -1412,7 +1412,7 @@ static int igc_add_ethtool_nfc_entry(struct igc_adapter *adapter,
 
 	spin_lock(&adapter->nfc_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_yesde) {
 		if (!memcmp(&input->filter, &rule->filter,
 			    sizeof(input->filter))) {
 			err = -EEXIST;
@@ -1523,7 +1523,7 @@ static int igc_set_rxfh(struct net_device *netdev, const u32 *indir,
 	u32 num_queues;
 	int i;
 
-	/* We do not allow change in unsupported parameters */
+	/* We do yest allow change in unsupported parameters */
 	if (key ||
 	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
 		return -EOPNOTSUPP;
@@ -1574,11 +1574,11 @@ static int igc_set_channels(struct net_device *netdev,
 	unsigned int count = ch->combined_count;
 	unsigned int max_combined = 0;
 
-	/* Verify they are not requesting separate vectors */
+	/* Verify they are yest requesting separate vectors */
 	if (!count || ch->rx_count || ch->tx_count)
 		return -EINVAL;
 
-	/* Verify other_count is valid and has not been changed */
+	/* Verify other_count is valid and has yest been changed */
 	if (ch->other_count != NON_Q_VECTORS)
 		return -EINVAL;
 
@@ -1761,11 +1761,11 @@ static int igc_set_link_ksettings(struct net_device *netdev,
 	u32 advertising;
 
 	/* When adapter in resetting mode, autoneg/speed/duplex
-	 * cannot be changed
+	 * canyest be changed
 	 */
 	if (igc_check_reset_block(hw)) {
 		dev_err(&adapter->pdev->dev,
-			"Cannot change link characteristics when reset is active.\n");
+			"Canyest change link characteristics when reset is active.\n");
 		return -EINVAL;
 	}
 
@@ -1776,7 +1776,7 @@ static int igc_set_link_ksettings(struct net_device *netdev,
 	if (cmd->base.eth_tp_mdix_ctrl) {
 		if (cmd->base.eth_tp_mdix_ctrl != ETH_TP_MDI_AUTO &&
 		    cmd->base.autoneg != AUTONEG_ENABLE) {
-			dev_err(&adapter->pdev->dev, "forcing MDI/MDI-X state is not supported when link speed and/or duplex are forced\n");
+			dev_err(&adapter->pdev->dev, "forcing MDI/MDI-X state is yest supported when link speed and/or duplex are forced\n");
 			return -EINVAL;
 		}
 	}
@@ -1795,7 +1795,7 @@ static int igc_set_link_ksettings(struct net_device *netdev,
 	} else {
 		/* calling this overrides forced MDI setting */
 		dev_info(&adapter->pdev->dev,
-			 "Force mode currently not supported\n");
+			 "Force mode currently yest supported\n");
 	}
 
 	/* MDI-X => 2; MDI => 1; Auto => 3 */

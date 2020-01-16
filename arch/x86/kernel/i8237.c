@@ -15,7 +15,7 @@
 /*
  * This module just handles suspend/resume issues with the
  * 8237A DMA controller (used for ISA and LPC).
- * Allocation is handled in kernel/dma.c and normal usage is
+ * Allocation is handled in kernel/dma.c and yesrmal usage is
  * in asm/dma.h.
  */
 
@@ -31,7 +31,7 @@ static void i8237A_resume(void)
 
 	for (i = 0; i < 8; i++) {
 		set_dma_addr(i, 0x000000);
-		/* DMA count is a bit weird so this is not 0 */
+		/* DMA count is a bit weird so this is yest 0 */
 		set_dma_count(i, 1);
 	}
 
@@ -52,7 +52,7 @@ static int __init i8237A_init_ops(void)
 	 * I/O ports (81h-83h, 87h, 89h-8Bh, 8Fh) related to it are removed
 	 * as well. All removed ports must return 0xff for a inb() request.
 	 *
-	 * Note: DMA_PAGE_2 (port 0x81) should not be checked for detecting
+	 * Note: DMA_PAGE_2 (port 0x81) should yest be checked for detecting
 	 * the presence of DMA device since it may be used by BIOS to decode
 	 * LPC traffic for POST codes. Original LPC only decodes one byte of
 	 * port 0x80 but some BIOS may choose to enhance PCH LPC port 0x8x
@@ -62,9 +62,9 @@ static int __init i8237A_init_ops(void)
 		return -ENODEV;
 
 	/*
-	 * It is not required to load this driver as newer SoC may not
+	 * It is yest required to load this driver as newer SoC may yest
 	 * support 8237 DMA or bus mastering from LPC. Platform firmware
-	 * must announce the support for such legacy devices via
+	 * must anyesunce the support for such legacy devices via
 	 * ACPI_FADT_LEGACY_DEVICES field in FADT table.
 	 */
 	if (x86_pnpbios_disabled() && dmi_get_bios_year() >= 2017)

@@ -1,11 +1,11 @@
-* Rockchip specific extensions to the Synopsys Designware Mobile
+* Rockchip specific extensions to the Syyespsys Designware Mobile
   Storage Host Controller
 
-The Synopsys designware mobile storage host controller is used to interface
+The Syyespsys designware mobile storage host controller is used to interface
 a SoC with storage medium such as eMMC or SD/MMC cards. This file documents
-differences between the core Synopsys dw mshc controller properties described
-by synopsys-dw-mshc.txt and the properties used by the Rockchip specific
-extensions to the Synopsys Designware Mobile Storage Host Controller.
+differences between the core Syyespsys dw mshc controller properties described
+by syyespsys-dw-mshc.txt and the properties used by the Rockchip specific
+extensions to the Syyespsys Designware Mobile Storage Host Controller.
 
 Required Properties:
 
@@ -25,17 +25,17 @@ Optional Properties:
 * clocks: from common clock binding: if ciu-drive and ciu-sample are
   specified in clock-names, should contain handles to these clocks.
 
-* clock-names: Apart from the clock-names described in synopsys-dw-mshc.txt
+* clock-names: Apart from the clock-names described in syyespsys-dw-mshc.txt
   two more clocks "ciu-drive" and "ciu-sample" are supported. They are used
   to control the clock phases, "ciu-sample" is required for tuning high-
   speed modes.
 
 * rockchip,default-sample-phase: The default phase to set ciu-sample at
   probing, low speeds or in case where all phases work at tuning time.
-  If not specified 0 deg will be used.
+  If yest specified 0 deg will be used.
 
 * rockchip,desired-num-phases: The desired number of times that the host
-  execute tuning when needed. If not specified, the host will do tuning
+  execute tuning when needed. If yest specified, the host will do tuning
   for 360 times, namely tuning for each degree.
 
 Example:

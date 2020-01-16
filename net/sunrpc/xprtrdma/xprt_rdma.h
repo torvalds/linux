@@ -14,14 +14,14 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      yestice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright yestice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. yesr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
@@ -57,7 +57,7 @@
 #include <linux/sunrpc/xprtrdma.h> 	/* xprt parameters */
 
 #define RDMA_RESOLVE_TIMEOUT	(5000)	/* 5 seconds */
-#define RDMA_CONNECT_RETRY_MAX	(2)	/* retries if no listener backlog */
+#define RDMA_CONNECT_RETRY_MAX	(2)	/* retries if yes listener backlog */
 
 #define RPCRDMA_BIND_TO		(60U * HZ)
 #define RPCRDMA_INIT_REEST_TO	(5U * HZ)
@@ -161,12 +161,12 @@ static inline void *rdmab_data(const struct rpcrdma_regbuf *rb)
  *
  * Elements of the Read list take up more room than the
  * Write list or Reply chunk. 16 read segments means the
- * chunk lists cannot consume more than
+ * chunk lists canyest consume more than
  *
  * ((16 + 2) * read segment size) + 1 XDR words,
  *
  * or about 400 bytes. The fixed part of the header is
- * another 24 bytes. Thus when the inline threshold is
+ * ayesther 24 bytes. Thus when the inline threshold is
  * 1024 bytes, at least 600 bytes are available for RPC
  * message bodies.
  */
@@ -176,11 +176,11 @@ enum {
 
 /*
  * struct rpcrdma_rep -- this structure encapsulates state required
- * to receive and complete an RPC Reply, asychronously. It needs
+ * to receive and complete an RPC Reply, asychroyesusly. It needs
  * several pieces of state:
  *
  *   o receive buffer and ib_sge (donated to provider)
- *   o status of receive (success or not, length, inv rkey)
+ *   o status of receive (success or yest, length, inv rkey)
  *   o bookkeeping state to get run by reply handler (XDR stream)
  *
  * These structures are allocated during transport initialization.
@@ -201,7 +201,7 @@ struct rpcrdma_rep {
 	struct rpc_rqst		*rr_rqst;
 	struct xdr_buf		rr_hdrbuf;
 	struct xdr_stream	rr_stream;
-	struct llist_node	rr_node;
+	struct llist_yesde	rr_yesde;
 	struct ib_recv_wr	rr_recv_wr;
 	struct list_head	rr_all;
 };
@@ -230,7 +230,7 @@ struct rpcrdma_sendctx {
  * struct rpcrdma_mr - external memory region metadata
  *
  * An external memory region is any buffer or page that is registered
- * on the fly (ie, not pre-registered).
+ * on the fly (ie, yest pre-registered).
  */
 struct rpcrdma_frwr {
 	struct ib_mr			*fr_mr;
@@ -264,14 +264,14 @@ struct rpcrdma_mr {
  * struct rpcrdma_buffer. N is the max number of outstanding requests.
  *
  * It includes pre-registered buffer memory for send AND recv.
- * The recv buffer, however, is not owned by this structure, and
+ * The recv buffer, however, is yest owned by this structure, and
  * is "donated" to the hardware when a recv is posted. When a
  * reply is handled, the recv buffer used is given back to the
  * struct rpcrdma_req associated with the request.
  *
  * In addition to the basic memory, this structure includes an array
  * of iovs for send operations. The reason is that the iovs passed to
- * ib_post_{send,recv} must not be modified until the work request
+ * ib_post_{send,recv} must yest be modified until the work request
  * completes.
  */
 
@@ -288,7 +288,7 @@ enum {
 struct rpcrdma_mr_seg {		/* chunk descriptors */
 	u32		mr_len;		/* length of chunk or segment */
 	struct page	*mr_page;	/* owning page, if any */
-	char		*mr_offset;	/* kva if no page, else offset */
+	char		*mr_offset;	/* kva if yes page, else offset */
 };
 
 /* The Send SGE array is provisioned to send a maximum size
@@ -407,7 +407,7 @@ struct rpcrdma_stats {
 	unsigned long long	fixup_copy_count;
 	unsigned long		reply_waits_for_send;
 	unsigned long		local_inv_needed;
-	unsigned long		nomsg_call_count;
+	unsigned long		yesmsg_call_count;
 	unsigned long		bcall_count;
 };
 
@@ -415,8 +415,8 @@ struct rpcrdma_stats {
  * RPCRDMA transport -- encapsulates the structures above for
  * integration with RPC.
  *
- * The contained structures are embedded, not pointers,
- * for convenience. This structure need not be visible externally.
+ * The contained structures are embedded, yest pointers,
+ * for convenience. This structure need yest be visible externally.
  *
  * It is allocated and initialized during mount, and released
  * during unmount.
@@ -501,7 +501,7 @@ bool __rpcrdma_regbuf_dma_map(struct rpcrdma_xprt *r_xprt,
 /**
  * rpcrdma_regbuf_is_mapped - check if buffer is DMA mapped
  *
- * Returns true if the buffer is now mapped to rb->rg_device.
+ * Returns true if the buffer is yesw mapped to rb->rg_device.
  */
 static inline bool rpcrdma_regbuf_is_mapped(struct rpcrdma_regbuf *rb)
 {
@@ -555,9 +555,9 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req);
  */
 
 enum rpcrdma_chunktype {
-	rpcrdma_noch = 0,
-	rpcrdma_noch_pullup,
-	rpcrdma_noch_mapped,
+	rpcrdma_yesch = 0,
+	rpcrdma_yesch_pullup,
+	rpcrdma_yesch_mapped,
 	rpcrdma_readch,
 	rpcrdma_areadch,
 	rpcrdma_writech,

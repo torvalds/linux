@@ -5,10 +5,10 @@
  * Authors:     Raducu Deaconu <rhadoo_io@yahoo.com>
  *
  * Scheduler implements "overflow" loadbalancing according to number of active
- * connections , will keep all connections to the node with the highest weight
- * and overflow to the next node if the number of connections exceeds the node's
+ * connections , will keep all connections to the yesde with the highest weight
+ * and overflow to the next yesde if the number of connections exceeds the yesde's
  * weight.
- * Note that this scheduler might not be suitable for UDP because it only uses
+ * Note that this scheduler might yest be suitable for UDP because it only uses
  * active connections
  */
 
@@ -29,7 +29,7 @@ ip_vs_ovf_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	int hw = 0, w;
 
 	IP_VS_DBG(6, "ip_vs_ovf_schedule(): Scheduling...\n");
-	/* select the node with highest weight, go to next in line if active
+	/* select the yesde with highest weight, go to next in line if active
 	* connections exceed weight
 	*/
 	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
@@ -53,7 +53,7 @@ ip_vs_ovf_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		return h;
 	}
 
-	ip_vs_scheduler_err(svc, "no destination available");
+	ip_vs_scheduler_err(svc, "yes destination available");
 	return NULL;
 }
 

@@ -11,7 +11,7 @@
 #include <linux/byteorder/generic.h>
 #include <linux/crc32c.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/genetlink.h>
 #include <linux/gfp.h>
 #include <linux/if_ether.h>
@@ -116,7 +116,7 @@ static int __init batadv_init(void)
 	batadv_socket_init();
 	batadv_debugfs_init();
 
-	register_netdevice_notifier(&batadv_hard_if_notifier);
+	register_netdevice_yestifier(&batadv_hard_if_yestifier);
 	rtnl_link_register(&batadv_link_ops);
 	batadv_netlink_register();
 
@@ -136,7 +136,7 @@ static void __exit batadv_exit(void)
 	batadv_debugfs_destroy();
 	batadv_netlink_unregister();
 	rtnl_link_unregister(&batadv_link_ops);
-	unregister_netdevice_notifier(&batadv_hard_if_notifier);
+	unregister_netdevice_yestifier(&batadv_hard_if_yestifier);
 	batadv_hardif_remove_interfaces();
 
 	flush_workqueue(batadv_event_workqueue);
@@ -180,7 +180,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
 	INIT_HLIST_HEAD(&bat_priv->gw.gateway_list);
 #ifdef CONFIG_BATMAN_ADV_MCAST
-	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_unsnoopables_list);
+	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_unsyesopables_list);
 	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_ipv4_list);
 	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_ipv6_list);
 #endif
@@ -246,7 +246,7 @@ void batadv_mesh_free(struct net_device *soft_iface)
 
 	batadv_purge_outstanding_packets(bat_priv, NULL);
 
-	batadv_gw_node_free(bat_priv);
+	batadv_gw_yesde_free(bat_priv);
 
 	batadv_v_mesh_free(bat_priv);
 	batadv_nc_mesh_free(bat_priv);
@@ -263,7 +263,7 @@ void batadv_mesh_free(struct net_device *soft_iface)
 
 	/* Since the originator table clean up routine is accessing the TT
 	 * tables as well, it has to be invoked after the TT tables have been
-	 * freed and marked as empty. This ensures that no cleanup RCU callbacks
+	 * freed and marked as empty. This ensures that yes cleanup RCU callbacks
 	 * accessing the TT data are scheduled for later execution.
 	 */
 	batadv_originator_free(bat_priv);
@@ -334,7 +334,7 @@ batadv_seq_print_text_primary_if_get(struct seq_file *seq)
 		goto out;
 
 	seq_printf(seq,
-		   "BATMAN mesh %s disabled - primary interface not active\n",
+		   "BATMAN mesh %s disabled - primary interface yest active\n",
 		   net_dev->name);
 	batadv_hardif_put(primary_if);
 	primary_if = NULL;
@@ -385,7 +385,7 @@ void batadv_skb_set_priority(struct sk_buff *skb, int offset)
 	struct vlan_ethhdr *vhdr, vhdr_tmp;
 	u32 prio;
 
-	/* already set, do nothing */
+	/* already set, do yesthing */
 	if (skb->priority >= 256 && skb->priority <= 263)
 		return;
 
@@ -485,7 +485,7 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 		goto err_free;
 
-	/* discard frames on not active interfaces */
+	/* discard frames on yest active interfaces */
 	if (hard_iface->if_status != BATADV_IF_ACTIVE)
 		goto err_free;
 
@@ -593,7 +593,7 @@ batadv_recv_handler_register(u8 packet_type,
 
 /**
  * batadv_recv_handler_unregister() - Unregister handler for packet type
- * @packet_type: batadv_packettype which should no longer be handled
+ * @packet_type: batadv_packettype which should yes longer be handled
  */
 void batadv_recv_handler_unregister(u8 packet_type)
 {
@@ -607,7 +607,7 @@ void batadv_recv_handler_unregister(u8 packet_type)
  * @payload_ptr: Pointer to position inside the head buffer of the skb
  *  marking the start of the data to be CRC'ed
  *
- * payload_ptr must always point to an address in the skb head buffer and not to
+ * payload_ptr must always point to an address in the skb head buffer and yest to
  * a fragment.
  *
  * Return: big endian crc32c of the checksummed data
@@ -691,7 +691,7 @@ bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid)
  * @bat_priv: the bat priv with all the soft interface information
  * @type: subsystem type of event. Stored in uevent's BATTYPE
  * @action: action type of event. Stored in uevent's BATACTION
- * @data: string with additional information to the event (ignored for
+ * @data: string with additional information to the event (igyesred for
  *  BATADV_UEV_DEL). Stored in uevent's BATDATA
  *
  * Return: 0 on success or negative error number in case of failure
@@ -717,7 +717,7 @@ int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
 	if (!uevent_env[1])
 		goto out;
 
-	/* If the event is DEL, ignore the data field */
+	/* If the event is DEL, igyesre the data field */
 	if (action != BATADV_UEV_DEL) {
 		uevent_env[2] = kasprintf(GFP_ATOMIC,
 					  "%s%s", BATADV_UEV_DATA_VAR, data);

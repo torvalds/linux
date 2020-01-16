@@ -39,7 +39,7 @@
 #define RX_RING_SIZE	32
 #define PKT_BUF_SZ		1536			/* Size of each temporary Rx buffer.*/
 
-/* "Knobs" that adjust features and parameters. */
+/* "Kyesbs" that adjust features and parameters. */
 /* Set the copy breakpoint for the copy-only-tiny-frames scheme.
    Setting to > 1512 effectively disables this feature. */
 #ifndef __arm__
@@ -49,7 +49,7 @@ static int rx_copybreak = 200;
    transfer capability of these cards. -- rmk */
 static int rx_copybreak = 1513;
 #endif
-/* Allow setting MTU to a larger size, bypassing the normal ethernet setup. */
+/* Allow setting MTU to a larger size, bypassing the yesrmal ethernet setup. */
 static const int mtu = 1500;
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 static int max_interrupt_work = 32;
@@ -62,7 +62,7 @@ static int watchdog = 5000;
  */
 #define tx_interrupt_mitigation 1
 
-/* Put out somewhat more debugging messages. (0: no msg, 1 minimal .. 6). */
+/* Put out somewhat more debugging messages. (0: yes msg, 1 minimal .. 6). */
 #define vortex_debug debug
 #ifdef VORTEX_DEBUG
 static int vortex_debug = VORTEX_DEBUG;
@@ -74,7 +74,7 @@ static int vortex_debug = 1;
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
@@ -110,10 +110,10 @@ MODULE_DESCRIPTION("3Com 3c59x/3c9xx ethernet driver ");
 MODULE_LICENSE("GPL");
 
 
-/* Operational parameter that usually are not changed. */
+/* Operational parameter that usually are yest changed. */
 
 /* The Vortex size is twice that of the original EtherLinkIII series: the
-   runtime register window, window 1, is now always mapped in.
+   runtime register window, window 1, is yesw always mapped in.
    The Boomerang size is twice as large as the Vortex -- it has additional
    bus master control registers. */
 #define VORTEX_TOTAL_SIZE 0x20
@@ -121,7 +121,7 @@ MODULE_LICENSE("GPL");
 
 /* Set iff a MII transceiver on any interface requires mdio preamble.
    This only set with the original DP83840 on older 3c905 boards, so the extra
-   code size of a per-interface flag is not worthwhile. */
+   code size of a per-interface flag is yest worthwhile. */
 static char mii_preamble_required;
 
 #define PFX DRV_NAME ": "
@@ -144,13 +144,13 @@ with the kernel source or available from
 
 II. Board-specific settings
 
-PCI bus devices are configured by the system at boot time, so no jumpers
+PCI bus devices are configured by the system at boot time, so yes jumpers
 need to be set on the board.  The system BIOS should be set to assign the
 PCI INTA signal to an otherwise unused system IRQ line.
 
 The EEPROM settings for media type and forced-full-duplex are observed.
 The EEPROM media type should be left at the default "autoselect" unless using
-10base2 or AUI connections which cannot be reliably detected.
+10base2 or AUI connections which canyest be reliably detected.
 
 III. Driver operation
 
@@ -268,7 +268,7 @@ enum vortex_chips {
 };
 
 
-/* note: this array directly indexed by above enums, and MUST
+/* yeste: this array directly indexed by above enums, and MUST
  * be kept in sync with both the enums above, and the PCI device
  * table below
  */
@@ -429,7 +429,7 @@ MODULE_DEVICE_TABLE(pci, vortex_pci_tbl);
 
 
 /* Operational definitions.
-   These are not used by other compilation units and thus are not
+   These are yest used by other compilation units and thus are yest
    exported in a ".h" file.
 
    First the windows.  There are eight register windows, with the command
@@ -441,7 +441,7 @@ MODULE_DEVICE_TABLE(pci, vortex_pci_tbl);
 /* The top five bits written to EL3_CMD are a command, the lower
    11 bits are the parameter, if applicable.
    Note that 11 parameters bits was fine for ethernet, but the new chip
-   can handle FDDI length frames (~4500 octets) and now parameters count
+   can handle FDDI length frames (~4500 octets) and yesw parameters count
    32-bit 'Dwords' rather than octets. */
 
 enum vortex_cmd {
@@ -470,7 +470,7 @@ enum vortex_status {
 	CmdInProgress = 1<<12,			/* EL3_CMD is still busy.*/
 };
 
-/* Register window 1 offsets, the window used in normal operation.
+/* Register window 1 offsets, the window used in yesrmal operation.
    On the Vortex this window is always mapped at offsets 0x10-0x1f. */
 enum Window1 {
 	TX_FIFO = 0x10,  RX_FIFO = 0x10,  RxErrors = 0x14,
@@ -578,7 +578,7 @@ struct boom_tx_desc {
 enum tx_desc_status {
 	CRCDisable=0x2000, TxDComplete=0x8000,
 	AddIPChksum=0x02000000, AddTCPChksum=0x04000000, AddUDPChksum=0x08000000,
-	TxIntrUploaded=0x80000000,		/* IRQ when in FIFO, but maybe not sent. */
+	TxIntrUploaded=0x80000000,		/* IRQ when in FIFO, but maybe yest sent. */
 };
 
 /* Chip features we care about in vp->capabilities, read from the EEPROM. */
@@ -613,7 +613,7 @@ struct vortex_private {
 	void __iomem *cb_fn_base;		/* CardBus function status addr space. */
 
 	/* Some values here only for performance evaluation and path-coverage */
-	int rx_nocopy, rx_copy, queued_packet, rx_csumhits;
+	int rx_yescopy, rx_copy, queued_packet, rx_csumhits;
 	int card_idx;
 
 	/* The remainder are related to chip state, mostly media selection. */
@@ -634,7 +634,7 @@ struct vortex_private {
 		large_frames:1,			/* accept large frames */
 		handling_irq:1;			/* private in_irq indicator */
 	/* {get|set}_wol operations are already serialized by rtnl.
-	 * no additional locking is required for the enable_wol and acpi_set_WOL()
+	 * yes additional locking is required for the enable_wol and acpi_set_WOL()
 	 */
 	int drv_flags;
 	u16 status_enable;
@@ -972,9 +972,9 @@ static int __init vortex_eisa_init(void)
 	err = eisa_driver_register (&vortex_eisa_driver);
 	if (!err) {
 		/*
-		 * Because of the way EISA bus is probed, we cannot assume
+		 * Because of the way EISA bus is probed, we canyest assume
 		 * any device have been found when we exit from
-		 * eisa_driver_register (the bus root driver may not be
+		 * eisa_driver_register (the bus root driver may yest be
 		 * initialized yet). So we blindly assume something was
 		 * found, and let the sysfs magic happened...
 		 */
@@ -1129,7 +1129,7 @@ static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 	if (dev->mem_start) {
 		/*
 		 * The 'options' param is passed in as the third arg to the
-		 * LILO 'ether=' argument for non-modular use
+		 * LILO 'ether=' argument for yesn-modular use
 		 */
 		option = dev->mem_start;
 	}
@@ -1505,7 +1505,7 @@ issue_and_wait(struct net_device *dev, int cmd)
 		}
 		udelay(10);
 	}
-	pr_err("%s: command 0x%04x did not complete! Status=0x%x\n",
+	pr_err("%s: command 0x%04x did yest complete! Status=0x%x\n",
 			   dev->name, cmd, ioread16(ioaddr + EL3_STATUS));
 }
 
@@ -1556,7 +1556,7 @@ vortex_up(struct net_device *dev)
 			pci_restore_state(VORTEX_PCI(vp));
 		err = pci_enable_device(VORTEX_PCI(vp));
 		if (err) {
-			pr_warn("%s: Could not enable device\n", dev->name);
+			pr_warn("%s: Could yest enable device\n", dev->name);
 			goto err_out;
 		}
 	}
@@ -1572,7 +1572,7 @@ vortex_up(struct net_device *dev)
 	} else if (vp->autoselect) {
 		if (vp->has_nway) {
 			if (vortex_debug > 1)
-				pr_info("%s: using NWAY device table, not %d\n",
+				pr_info("%s: using NWAY device table, yest %d\n",
 								dev->name, dev->if_port);
 			dev->if_port = XCVR_NWAY;
 		} else {
@@ -1722,9 +1722,9 @@ vortex_open(struct net_device *dev)
 	int retval;
 	dma_addr_t dma;
 
-	/* Use the now-standard shared IRQ implementation. */
+	/* Use the yesw-standard shared IRQ implementation. */
 	if ((retval = request_irq(dev->irq, vortex_boomerang_interrupt, IRQF_SHARED, dev->name, dev))) {
-		pr_err("%s: Could not reserve IRQ %d\n", dev->name, dev->irq);
+		pr_err("%s: Could yest reserve IRQ %d\n", dev->name, dev->irq);
 		goto err;
 	}
 
@@ -1751,7 +1751,7 @@ vortex_open(struct net_device *dev)
 			vp->rx_ring[i].addr = cpu_to_le32(dma);
 		}
 		if (i != RX_RING_SIZE) {
-			pr_emerg("%s: no memory for rx ring\n", dev->name);
+			pr_emerg("%s: yes memory for rx ring\n", dev->name);
 			retval = -ENOMEM;
 			goto err_free_skb;
 		}
@@ -1806,7 +1806,7 @@ vortex_timer(struct timer_list *t)
 		} else {
 			netif_carrier_off(dev);
 			if (vortex_debug > 1) {
-				pr_debug("%s: Media %s has no link beat, %x.\n",
+				pr_debug("%s: Media %s has yes link beat, %x.\n",
 					   dev->name, media_tbl[dev->if_port].name, media_status);
 			}
 		}
@@ -1819,7 +1819,7 @@ vortex_timer(struct timer_list *t)
 		break;
 	  default:					/* Other media types handled by Tx timeouts. */
 		if (vortex_debug > 1)
-		  pr_debug("%s: Media %s has no indication, %x.\n",
+		  pr_debug("%s: Media %s has yes indication, %x.\n",
 				 dev->name, media_tbl[dev->if_port].name, media_status);
 		ok = 1;
 	}
@@ -1845,7 +1845,7 @@ vortex_timer(struct timer_list *t)
 				   dev->name, media_tbl[dev->if_port].name);
 		} else {
 			if (vortex_debug > 1)
-				pr_debug("%s: Media selection failed, now trying %s port.\n",
+				pr_debug("%s: Media selection failed, yesw trying %s port.\n",
 					   dev->name, media_tbl[dev->if_port].name);
 			next_tick = media_tbl[dev->if_port].wait;
 		}
@@ -1885,7 +1885,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 	pr_err("%s: transmit timed out, tx_status %2.2x status %4.4x.\n",
 		   dev->name, ioread8(ioaddr + TxStatus),
 		   ioread16(ioaddr + EL3_STATUS));
-	pr_err("  diagnostics: net %04x media %04x dma %08x fifo %04x\n",
+	pr_err("  diagyesstics: net %04x media %04x dma %08x fifo %04x\n",
 			window_read16(vp, 4, Wn4_NetDiag),
 			window_read16(vp, 4, Wn4_Media),
 			ioread32(ioaddr + PktStatus),
@@ -1895,8 +1895,8 @@ static void vortex_tx_timeout(struct net_device *dev)
 		pr_err("%s: Transmitter encountered 16 collisions --"
 			   " network cable problem?\n", dev->name);
 	if (ioread16(ioaddr + EL3_STATUS) & IntLatch) {
-		pr_err("%s: Interrupt posted but not delivered --"
-			   " IRQ blocked by another device?\n", dev->name);
+		pr_err("%s: Interrupt posted but yest delivered --"
+			   " IRQ blocked by ayesther device?\n", dev->name);
 		/* Bad idea here.. but we might as well handle a few events. */
 		vortex_boomerang_interrupt(dev->irq, dev);
 	}
@@ -1966,7 +1966,7 @@ vortex_error(struct net_device *dev, int status)
 			do_tx_reset = 1;
 		} else if ((tx_status & 0x08) && (vp->drv_flags & MAX_COLLISION_RESET))  {	/* maxCollisions */
 			do_tx_reset = 1;
-			reset_mask = 0x0108;		/* Reset interface logic, but not download logic */
+			reset_mask = 0x0108;		/* Reset interface logic, but yest download logic */
 		} else {				/* Merely re-enable the transmitter. */
 			iowrite16(TxEnable, ioaddr + EL3_CMD);
 		}
@@ -2000,7 +2000,7 @@ vortex_error(struct net_device *dev, int status)
 	if (status & HostError) {
 		u16 fifo_diag;
 		fifo_diag = window_read16(vp, 4, Wn4_FIFODiag);
-		pr_err("%s: Host error, FIFO diagnostic register %4.4x.\n",
+		pr_err("%s: Host error, FIFO diagyesstic register %4.4x.\n",
 			   dev->name, fifo_diag);
 		/* Adapter failure requires Tx/Rx reset and reinit. */
 		if (vp->full_bus_master_tx) {
@@ -2011,10 +2011,10 @@ vortex_error(struct net_device *dev, int status)
 				pr_err("%s: PCI bus error, bus status %8.8x\n", dev->name, bus_status);
 
 			/* In this case, blow the card away */
-			/* Must not enter D3 or we can't legally issue the reset! */
+			/* Must yest enter D3 or we can't legally issue the reset! */
 			vortex_down(dev, 0);
 			issue_and_wait(dev, TotalReset | 0xff);
-			vortex_up(dev);		/* AKPM: bug.  vortex_up() assumes that the rx ring is full. It may not be. */
+			vortex_up(dev);		/* AKPM: bug.  vortex_up() assumes that the rx ring is full. It may yest be. */
 		} else if (fifo_diag & 0x0400)
 			do_tx_reset = 1;
 		if (fifo_diag & 0x3000) {
@@ -2274,7 +2274,7 @@ _vortex_interrupt(int irq, struct net_device *dev)
 		vp->deferred = 0;
 	}
 
-	if (status == 0xffff)		/* h/w no longer present (hotplug)? */
+	if (status == 0xffff)		/* h/w yes longer present (hotplug)? */
 		goto handler_exit;
 
 	if (vortex_debug > 4)
@@ -2345,7 +2345,7 @@ _vortex_interrupt(int irq, struct net_device *dev)
 			mod_timer(&vp->timer, jiffies + 1*HZ);
 			break;
 		}
-		/* Acknowledge the IRQ. */
+		/* Ackyeswledge the IRQ. */
 		iowrite16(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD);
 	} while ((status = ioread16(ioaddr + EL3_STATUS)) & (IntLatch | RxComplete));
 
@@ -2387,7 +2387,7 @@ _boomerang_interrupt(int irq, struct net_device *dev)
 		goto handler_exit;		/* No interrupt: shared IRQs can cause this */
 	handled = 1;
 
-	if (status == 0xffff) {		/* h/w no longer present (hotplug)? */
+	if (status == 0xffff) {		/* h/w yes longer present (hotplug)? */
 		if (vortex_debug > 1)
 			pr_debug("boomerang_interrupt(1): status = 0xffff\n");
 		goto handler_exit;
@@ -2450,7 +2450,7 @@ _boomerang_interrupt(int irq, struct net_device *dev)
 					dev_consume_skb_irq(skb);
 					vp->tx_skbuff[entry] = NULL;
 				} else {
-					pr_debug("boomerang_interrupt: no skb!\n");
+					pr_debug("boomerang_interrupt: yes skb!\n");
 				}
 				/* dev->stats.tx_packets++;  Counted below. */
 				dirty_tx++;
@@ -2481,7 +2481,7 @@ _boomerang_interrupt(int irq, struct net_device *dev)
 			mod_timer(&vp->timer, jiffies + 1*HZ);
 			break;
 		}
-		/* Acknowledge the IRQ. */
+		/* Ackyeswledge the IRQ. */
 		iowrite16(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD);
 		if (vp->cb_fn_base)			/* The PCMCIA people are idiots.  */
 			iowrite32(0x8000, vp->cb_fn_base + 4);
@@ -2575,7 +2575,7 @@ static int vortex_rx(struct net_device *dev)
 						break;
 				continue;
 			} else if (vortex_debug > 0)
-				pr_notice("%s: No memory to allocate a sk_buff of size %d.\n",
+				pr_yestice("%s: No memory to allocate a sk_buff of size %d.\n",
 					dev->name, pkt_len);
 			dev->stats.rx_dropped++;
 		}
@@ -2621,7 +2621,7 @@ boomerang_rx(struct net_device *dev)
 				pr_debug("Receiving packet size %d status %4.4x.\n",
 					   pkt_len, rx_status);
 
-			/* Check if the packet is long enough to just accept without
+			/* Check if the packet is long eyesugh to just accept without
 			   copying to a properly sized skbuff. */
 			if (pkt_len < rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
@@ -2656,7 +2656,7 @@ boomerang_rx(struct net_device *dev)
 				vp->rx_ring[entry].addr = cpu_to_le32(newdma);
 				skb_put(skb, pkt_len);
 				dma_unmap_single(vp->gendev, dma, PKT_BUF_SZ, DMA_FROM_DEVICE);
-				vp->rx_nocopy++;
+				vp->rx_yescopy++;
 			}
 			skb->protocol = eth_type_trans(skb, dev);
 			{					/* Use hardware checksum info. */
@@ -2733,16 +2733,16 @@ vortex_close(struct net_device *dev)
 	if (vortex_debug > 1) {
 		pr_debug("%s: vortex_close() status %4.4x, Tx status %2.2x.\n",
 			   dev->name, ioread16(ioaddr + EL3_STATUS), ioread8(ioaddr + TxStatus));
-		pr_debug("%s: vortex close stats: rx_nocopy %d rx_copy %d"
+		pr_debug("%s: vortex close stats: rx_yescopy %d rx_copy %d"
 			   " tx_queued %d Rx pre-checksummed %d.\n",
-			   dev->name, vp->rx_nocopy, vp->rx_copy, vp->queued_packet, vp->rx_csumhits);
+			   dev->name, vp->rx_yescopy, vp->rx_copy, vp->queued_packet, vp->rx_csumhits);
 	}
 
 #if DO_ZEROCOPY
 	if (vp->rx_csumhits &&
 	    (vp->drv_flags & HAS_HWCKSM) == 0 &&
 	    (vp->card_idx >= MAX_UNITS || hw_checksums[vp->card_idx] == -1)) {
-		pr_warn("%s supports hardware checksums, and we're not using them!\n",
+		pr_warn("%s supports hardware checksums, and we're yest using them!\n",
 			dev->name);
 	}
 #endif
@@ -2834,7 +2834,7 @@ static struct net_device_stats *vortex_get_stats(struct net_device *dev)
 }
 
 /*  Update statistics.
-	Unlike with the EL3 we need not worry about interrupts changing
+	Unlike with the EL3 we need yest worry about interrupts changing
 	the window setting from underneath us, but we must still guard
 	against a race condition with a StatsUpdate interrupt updating the
 	table.  This is done by checking that the ASM (!) code generated uses
@@ -2844,7 +2844,7 @@ static void update_stats(void __iomem *ioaddr, struct net_device *dev)
 {
 	struct vortex_private *vp = netdev_priv(dev);
 
-	/* Unlike the 3c5x9 we need not turn off stats updates while reading. */
+	/* Unlike the 3c5x9 we need yest turn off stats updates while reading. */
 	/* Switch to the stats window, and read everything. */
 	dev->stats.tx_carrier_errors		+= window_read8(vp, 6, 0);
 	dev->stats.tx_heartbeat_errors		+= window_read8(vp, 6, 1);
@@ -3046,7 +3046,7 @@ static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #endif
 
 
-/* Pre-Cyclone chips have no documented multicast filter, so the only
+/* Pre-Cyclone chips have yes documented multicast filter, so the only
    multicast setting is to receive all multicast frames.  At least
    the chip has a very clean way to set the mode, unlike many others. */
 static void set_rx_mode(struct net_device *dev)
@@ -3057,7 +3057,7 @@ static void set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {
 		if (vortex_debug > 3)
-			pr_notice("%s: Setting promiscuous mode.\n", dev->name);
+			pr_yestice("%s: Setting promiscuous mode.\n", dev->name);
 		new_mode = SetRxFilter|RxStation|RxMulticast|RxBroadcast|RxProm;
 	} else	if (!netdev_mc_empty(dev) || dev->flags & IFF_ALLMULTI) {
 		new_mode = SetRxFilter|RxStation|RxMulticast|RxBroadcast;
@@ -3236,7 +3236,7 @@ static void acpi_set_WOL(struct net_device *dev)
 		iowrite16(RxEnable, ioaddr + EL3_CMD);
 
 		if (pci_enable_wake(VORTEX_PCI(vp), PCI_D3hot, 1)) {
-			pr_info("%s: WOL not supported.\n", pci_name(VORTEX_PCI(vp)));
+			pr_info("%s: WOL yest supported.\n", pci_name(VORTEX_PCI(vp)));
 
 			vp->enable_wol = 0;
 			return;

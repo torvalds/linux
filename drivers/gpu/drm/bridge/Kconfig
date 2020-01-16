@@ -42,7 +42,7 @@ config DRM_DUMB_VGA_DAC
 	depends on OF
 	select DRM_KMS_HELPER
 	help
-	  Support for non-programmable RGB to VGA DAC bridges, such as ADI
+	  Support for yesn-programmable RGB to VGA DAC bridges, such as ADI
 	  ADV7123, TI THS8134 and THS8135 or passive resistor ladder DACs.
 
 config DRM_LVDS_ENCODER
@@ -153,6 +153,6 @@ source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 source "drivers/gpu/drm/bridge/adv7511/Kconfig"
 
-source "drivers/gpu/drm/bridge/synopsys/Kconfig"
+source "drivers/gpu/drm/bridge/syyespsys/Kconfig"
 
 endmenu

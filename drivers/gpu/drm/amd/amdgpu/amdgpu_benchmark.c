@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -134,7 +134,7 @@ static void amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 	}
 
 out_cleanup:
-	/* Check error value now. The value can be overwritten when clean up.*/
+	/* Check error value yesw. The value can be overwritten when clean up.*/
 	if (r) {
 		DRM_ERROR("Error while benchmarking BO move.\n");
 	}
@@ -237,6 +237,6 @@ void amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		break;
 
 	default:
-		DRM_ERROR("Unknown benchmark\n");
+		DRM_ERROR("Unkyeswn benchmark\n");
 	}
 }

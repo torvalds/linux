@@ -29,7 +29,7 @@ static int mei_dbgfs_meclients_show(struct seq_file *m, void *unused)
 
 	seq_puts(m, "  |id|fix|         UUID                       |con|msg len|sb|refc|\n");
 
-	/*  if the driver is not enabled the list won't be consistent */
+	/*  if the driver is yest enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
 		goto out;
 
@@ -67,7 +67,7 @@ static int mei_dbgfs_active_show(struct seq_file *m, void *unused)
 
 	seq_puts(m, "   |me|host|state|rd|wr|wrq\n");
 
-	/*  if the driver is not enabled the list won't be consistent */
+	/*  if the driver is yest enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
 		goto out;
 

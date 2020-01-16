@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright 2017 Iceyeswy Zheng <iceyeswy@aosc.io>
  */
 
 #ifndef _CCU_SUN8I_R40_H_
@@ -57,7 +57,7 @@
 
 #define CLK_MBUS		155
 
-/* Another bunch of module clocks are exported */
+/* Ayesther bunch of module clocks are exported */
 
 #define CLK_NUMBER		(CLK_OUTB + 1)
 

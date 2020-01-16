@@ -42,8 +42,8 @@ static_assert(sizeof(struct ionic_lif_stats) == 1024);
 
 static_assert(sizeof(struct ionic_admin_cmd) == 64);
 static_assert(sizeof(struct ionic_admin_comp) == 16);
-static_assert(sizeof(struct ionic_nop_cmd) == 64);
-static_assert(sizeof(struct ionic_nop_comp) == 16);
+static_assert(sizeof(struct ionic_yesp_cmd) == 64);
+static_assert(sizeof(struct ionic_yesp_comp) == 16);
 
 /* Device commands */
 static_assert(sizeof(struct ionic_dev_identify_cmd) == 64);
@@ -96,9 +96,9 @@ static_assert(sizeof(struct ionic_rdma_reset_cmd) == 64);
 static_assert(sizeof(struct ionic_rdma_queue_cmd) == 64);
 
 /* Events */
-static_assert(sizeof(struct ionic_notifyq_cmd) == 4);
-static_assert(sizeof(union ionic_notifyq_comp) == 64);
-static_assert(sizeof(struct ionic_notifyq_event) == 64);
+static_assert(sizeof(struct ionic_yestifyq_cmd) == 4);
+static_assert(sizeof(union ionic_yestifyq_comp) == 64);
+static_assert(sizeof(struct ionic_yestifyq_event) == 64);
 static_assert(sizeof(struct ionic_link_change_event) == 64);
 static_assert(sizeof(struct ionic_reset_event) == 64);
 static_assert(sizeof(struct ionic_heartbeat_event) == 64);

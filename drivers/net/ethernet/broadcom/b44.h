@@ -284,9 +284,9 @@ struct ring_info {
 };
 
 #define B44_MCAST_TABLE_SIZE		32
-/* no local phy regs, e.g: Broadcom switches pseudo-PHY */
+/* yes local phy regs, e.g: Broadcom switches pseudo-PHY */
 #define B44_PHY_ADDR_NO_LOCAL_PHY	BRCM_PSEUDO_PHY_ADDR
-/* no phy present at all */
+/* yes phy present at all */
 #define B44_PHY_ADDR_NO_PHY		31
 #define B44_MDC_RATIO			5000000
 
@@ -337,7 +337,7 @@ struct ring_info {
 	_B44(rx_align_errs)		\
 	_B44(rx_symbol_errs)		\
 	_B44(rx_pause_pkts)		\
-	_B44(rx_nonpause_pkts)
+	_B44(rx_yesnpause_pkts)
 
 /* SW copy of device statistics, kept up to date by periodic timer
  * which probes HW values. Check b44_stats_update if you mess with

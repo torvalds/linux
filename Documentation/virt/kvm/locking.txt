@@ -15,7 +15,7 @@ The acquisition orders for mutexes are as follows:
 
 On x86, vcpu->mutex is taken outside kvm->arch.hyperv.hv_lock.
 
-Everything else is a leaf: no other lock is taken inside the critical
+Everything else is a leaf: yes other lock is taken inside the critical
 sections.
 
 2: Exception
@@ -27,7 +27,7 @@ Fast page fault is the fast path which fixes the guest page fault out of
 the mmu-lock on x86. Currently, the page fault can be fast in one of the
 following two cases:
 
-1. Access Tracking: The SPTE is not present, but it is marked for access
+1. Access Tracking: The SPTE is yest present, but it is marked for access
 tracking i.e. the SPTE_SPECIAL_MASK is set. That means we need to
 restore the saved R/X bits. This is described in more detail later below.
 
@@ -39,7 +39,7 @@ What we use to avoid all the race is the SPTE_HOST_WRITEABLE bit and
 SPTE_MMU_WRITEABLE bit on the spte:
 - SPTE_HOST_WRITEABLE means the gfn is writable on host.
 - SPTE_MMU_WRITEABLE means the gfn is writable on mmu. The bit is set when
-  the gfn is writable on guest mmu and it is not write-protected by shadow
+  the gfn is writable on guest mmu and it is yest write-protected by shadow
   page write-protection.
 
 On fast page fault path, we will use cmpxchg to atomically set the spte W
@@ -50,7 +50,7 @@ is safe because whenever changing these bits can be detected by cmpxchg.
 But we need carefully check these cases:
 1): The mapping from gfn to pfn
 The mapping from gfn to pfn may be changed since we can only ensure the pfn
-is not changed during cmpxchg. This is a ABA problem, for example, below case
+is yest changed during cmpxchg. This is a ABA problem, for example, below case
 will happen:
 
 At the beginning:
@@ -81,9 +81,9 @@ We dirty-log for gfn1, that means gfn2 is lost in dirty-bitmap.
 For direct sp, we can easily avoid it since the spte of direct sp is fixed
 to gfn. For indirect sp, before we do cmpxchg, we call gfn_to_pfn_atomic()
 to pin gfn to pfn, because after gfn_to_pfn_atomic():
-- We have held the refcount of pfn that means the pfn can not be freed and
-  be reused for another gfn.
-- The pfn is writable that means it can not be shared between different gfns
+- We have held the refcount of pfn that means the pfn can yest be freed and
+  be reused for ayesther gfn.
+- The pfn is writable that means it can yest be shared between different gfns
   by KSM.
 
 Then, we can ensure the dirty bitmaps is correctly set for a gfn.
@@ -92,11 +92,11 @@ Currently, to simplify the whole things, we disable fast page fault for
 indirect shadow page.
 
 2): Dirty bit tracking
-In the origin code, the spte can be fast updated (non-atomically) if the
+In the origin code, the spte can be fast updated (yesn-atomically) if the
 spte is read-only and the Accessed bit has already been set since the
-Accessed bit and Dirty bit can not be lost.
+Accessed bit and Dirty bit can yest be lost.
 
-But it is not true after fast page fault since the spte can be marked
+But it is yest true after fast page fault since the spte can be marked
 writable between reading spte and updating spte. Like below case:
 
 At the beginning:
@@ -150,16 +150,16 @@ See the comments in spte_has_volatile_bits() and mmu_spte_update().
 
 Lockless Access Tracking:
 
-This is used for Intel CPUs that are using EPT but do not support the EPT A/D
-bits. In this case, when the KVM MMU notifier is called to track accesses to a
-page (via kvm_mmu_notifier_clear_flush_young), it marks the PTE as not-present
+This is used for Intel CPUs that are using EPT but do yest support the EPT A/D
+bits. In this case, when the KVM MMU yestifier is called to track accesses to a
+page (via kvm_mmu_yestifier_clear_flush_young), it marks the PTE as yest-present
 by clearing the RWX bits in the PTE and storing the original R & X bits in
-some unused/ignored bits. In addition, the SPTE_SPECIAL_MASK is also set on the
-PTE (using the ignored bit 62). When the VM tries to access the page later on,
+some unused/igyesred bits. In addition, the SPTE_SPECIAL_MASK is also set on the
+PTE (using the igyesred bit 62). When the VM tries to access the page later on,
 a fault is generated and the fast page fault mechanism described above is used
-to atomically restore the PTE to a Present state. The W bit is not saved when
+to atomically restore the PTE to a Present state. The W bit is yest saved when
 the PTE is marked for access tracking and during restoration to the Present
-state, the W bit is set depending on whether or not it was a write access. If
+state, the W bit is set depending on whether or yest it was a write access. If
 it wasn't, then the W bit will remain clear until a write access happens, at 
 which time it will be set using the Dirty tracking mechanism described above.
 
@@ -183,13 +183,13 @@ Type:		raw_spinlock
 Arch:		x86
 Protects:	- kvm_arch::{last_tsc_write,last_tsc_nsec,last_tsc_offset}
 		- tsc offset in vmcb
-Comment:	'raw' because updating the tsc offsets must not be preempted.
+Comment:	'raw' because updating the tsc offsets must yest be preempted.
 
 Name:		kvm->mmu_lock
 Type:		spinlock_t
 Arch:		any
 Protects:	-shadow page/shadow tlb entry
-Comment:	it is a spinlock since it is used in mmu notifier.
+Comment:	it is a spinlock since it is used in mmu yestifier.
 
 Name:		kvm->srcu
 Type:		srcu lock
@@ -210,6 +210,6 @@ Comment:	This is a per-CPU lock and it is used for VT-d posted-interrupts.
 		When VT-d posted-interrupts is supported and the VM has assigned
 		devices, we put the blocked vCPU on the list blocked_vcpu_on_cpu
 		protected by blocked_vcpu_on_cpu_lock, when VT-d hardware issues
-		wakeup notification event since external interrupts from the
+		wakeup yestification event since external interrupts from the
 		assigned devices happens, we will find the vCPU on the list to
 		wakeup.

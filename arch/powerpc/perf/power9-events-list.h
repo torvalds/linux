@@ -36,7 +36,7 @@ EVENT(PM_L1_DEMAND_WRITE,			0x0408c)
 EVENT(PM_IC_PREF_WRITE,				0x0488c)
 /* The data cache was reloaded from local core's L3 due to a demand load */
 EVENT(PM_DATA_FROM_L3,				0x4c042)
-/* Demand LD - L3 Miss (not L2 hit and not L3 hit) */
+/* Demand LD - L3 Miss (yest L2 hit and yest L3 hit) */
 EVENT(PM_DATA_FROM_L3MISS,			0x300fe)
 /* All successful D-side store dispatches for this thread */
 EVENT(PM_L2_ST,					0x16880)
@@ -59,9 +59,9 @@ EVENT(PM_RUN_CYC_ALT,				0x200f4)
 /* Instruction Dispatched */
 EVENT(PM_INST_DISP,				0x200f2)
 EVENT(PM_INST_DISP_ALT,				0x300f2)
-/* Branch event that are not strongly biased */
+/* Branch event that are yest strongly biased */
 EVENT(PM_BR_2PATH,				0x20036)
-/* ALternate branch event that are not strongly biased */
+/* ALternate branch event that are yest strongly biased */
 EVENT(PM_BR_2PATH_ALT,				0x40036)
 
 /* Blacklisted events */

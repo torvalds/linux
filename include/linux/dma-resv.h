@@ -2,15 +2,15 @@
  * Header file for reservations for dma-buf and ttm
  *
  * Copyright(C) 2011 Linaro Limited. All rights reserved.
- * Copyright (C) 2012-2013 Canonical Ltd
+ * Copyright (C) 2012-2013 Cayesnical Ltd
  * Copyright (C) 2012 Texas Instruments
  *
  * Authors:
  * Rob Clark <robdclark@gmail.com>
- * Maarten Lankhorst <maarten.lankhorst@canonical.com>
+ * Maarten Lankhorst <maarten.lankhorst@cayesnical.com>
  * Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  *
- * Based on bo.c which bears the following copyright notice,
+ * Based on bo.c which bears the following copyright yestice,
  * but is dual licensed:
  *
  * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
@@ -24,7 +24,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -101,7 +101,7 @@ static inline struct dma_resv_list *dma_resv_get_list(struct dma_resv *obj)
  *
  * Locks the reservation object for exclusive access and modification. Note,
  * that the lock is only against other writers, readers will run concurrently
- * with a writer under RCU. The seqlock is used to notify readers if they
+ * with a writer under RCU. The seqlock is used to yestify readers if they
  * overlap with a writer.
  *
  * As the reservation object may be locked by multiple parties in an
@@ -123,7 +123,7 @@ static inline int dma_resv_lock(struct dma_resv *obj,
  * Locks the reservation object interruptible for exclusive access and
  * modification. Note, that the lock is only against other writers, readers
  * will run concurrently with a writer under RCU. The seqlock is used to
- * notify readers if they overlap with a writer.
+ * yestify readers if they overlap with a writer.
  *
  * As the reservation object may be locked by multiple parties in an
  * undefined order, a #ww_acquire_ctx is passed to unwind if a cycle
@@ -173,10 +173,10 @@ static inline int dma_resv_lock_slow_interruptible(struct dma_resv *obj,
  *
  * Tries to lock the reservation object for exclusive access and modification.
  * Note, that the lock is only against other writers, readers will run
- * concurrently with a writer under RCU. The seqlock is used to notify readers
+ * concurrently with a writer under RCU. The seqlock is used to yestify readers
  * if they overlap with a writer.
  *
- * Also note that since no context is provided, no deadlock protection is
+ * Also yeste that since yes context is provided, yes deadlock protection is
  * possible.
  *
  * Returns true if the lock was acquired, false otherwise.
@@ -201,8 +201,8 @@ static inline bool dma_resv_is_locked(struct dma_resv *obj)
  * dma_resv_locking_ctx - returns the context used to lock the object
  * @obj: the reservation object
  *
- * Returns the context used to lock a reservation object or NULL if no context
- * was used or the object is not locked at all.
+ * Returns the context used to lock a reservation object or NULL if yes context
+ * was used or the object is yest locked at all.
  */
 static inline struct ww_acquire_ctx *dma_resv_locking_ctx(struct dma_resv *obj)
 {
@@ -256,7 +256,7 @@ dma_resv_get_excl(struct dma_resv *obj)
  * reference count and returns it.
  *
  * RETURNS
- * The exclusive fence or NULL if none
+ * The exclusive fence or NULL if yesne
  */
 static inline struct dma_fence *
 dma_resv_get_excl_rcu(struct dma_resv *obj)

@@ -63,7 +63,7 @@ struct perf_file_header {
 	u64				attr_size;
 	struct perf_file_section	attrs;
 	struct perf_file_section	data;
-	/* event_types is ignored */
+	/* event_types is igyesred */
 	struct perf_file_section	event_types;
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };

@@ -237,7 +237,7 @@ struct atiixp_dma {
 	int running;
 	int suspended;
 	int pcm_open_flag;
-	int ac97_pcm_type;	/* index # of ac97_pcm to access, -1 = not used */
+	int ac97_pcm_type;	/* index # of ac97_pcm to access, -1 = yest used */
 	unsigned int saved_curptr;
 };
 
@@ -263,7 +263,7 @@ struct atiixp {
 
 	int max_channels;		/* max. channels for PCM out */
 
-	unsigned int codec_not_ready_bits;	/* for codec detection */
+	unsigned int codec_yest_ready_bits;	/* for codec detection */
 
 	int spdif_over_aclink;		/* passed from the module option */
 	struct mutex open_mutex;	/* playback open mutex */
@@ -536,7 +536,7 @@ static int snd_atiixp_aclink_down(struct atiixp *chip)
 /*
  * auto-detection of codecs
  *
- * the IXP chip can generate interrupts for the non-existing codecs.
+ * the IXP chip can generate interrupts for the yesn-existing codecs.
  * NEW_FRAME interrupt is used to make sure that the interrupt is generated
  * even if all three codecs are connected.
  */
@@ -565,11 +565,11 @@ static int snd_atiixp_codec_detect(struct atiixp *chip)
 {
 	int timeout;
 
-	chip->codec_not_ready_bits = 0;
+	chip->codec_yest_ready_bits = 0;
 	if (ac97_codec == -1)
 		ac97_codec = ac97_probing_bugs(chip->pci);
 	if (ac97_codec >= 0) {
-		chip->codec_not_ready_bits |= 
+		chip->codec_yest_ready_bits |= 
 			CODEC_CHECK_BITS ^ (1 << (ac97_codec + 10));
 		return 0;
 	}
@@ -579,13 +579,13 @@ static int snd_atiixp_codec_detect(struct atiixp *chip)
 	timeout = 50;
 	while (timeout-- > 0) {
 		mdelay(1);
-		if (chip->codec_not_ready_bits)
+		if (chip->codec_yest_ready_bits)
 			break;
 	}
 	atiixp_write(chip, IER, 0); /* disable irqs */
 
-	if ((chip->codec_not_ready_bits & ALL_CODEC_NOT_READY) == ALL_CODEC_NOT_READY) {
-		dev_err(chip->card->dev, "no codec detected!\n");
+	if ((chip->codec_yest_ready_bits & ALL_CODEC_NOT_READY) == ALL_CODEC_NOT_READY) {
+		dev_err(chip->card->dev, "yes codec detected!\n");
 		return -ENXIO;
 	}
 	return 0;
@@ -1295,11 +1295,11 @@ static int snd_atiixp_pcm_new(struct atiixp *chip)
 	chmap->channel_mask = SND_PCM_CHMAP_MASK_2468;
 	chip->ac97[0]->chmaps[SNDRV_PCM_STREAM_PLAYBACK] = chmap;
 
-	/* no SPDIF support on codec? */
+	/* yes SPDIF support on codec? */
 	if (chip->pcms[ATI_PCM_SPDIF] && ! chip->pcms[ATI_PCM_SPDIF]->rates)
 		return 0;
 		
-	/* FIXME: non-48k sample rate doesn't work on my test machine with AD1888 */
+	/* FIXME: yesn-48k sample rate doesn't work on my test machine with AD1888 */
 	if (chip->pcms[ATI_PCM_SPDIF])
 		chip->pcms[ATI_PCM_SPDIF]->rates = SNDRV_PCM_RATE_48000;
 
@@ -1367,7 +1367,7 @@ static irqreturn_t snd_atiixp_interrupt(int irq, void *dev_id)
 		unsigned int detected;
 		detected = status & CODEC_CHECK_BITS;
 		spin_lock(&chip->reg_lock);
-		chip->codec_not_ready_bits |= detected;
+		chip->codec_yest_ready_bits |= detected;
 		atiixp_update(chip, IER, detected, 0); /* disable the detected irqs */
 		spin_unlock(&chip->reg_lock);
 	}
@@ -1399,7 +1399,7 @@ static const struct ac97_quirk ac97_quirks[] = {
 	{
 		.subvendor = 0x103c,
 		.subdevice = 0x3091,
-		.name = "unknown HP",
+		.name = "unkyeswn HP",
 		.type = AC97_TUNE_MUTE_LED
 	},
 	{ } /* terminator */
@@ -1432,7 +1432,7 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 
 	codec_count = 0;
 	for (i = 0; i < NUM_ATI_CODECS; i++) {
-		if (chip->codec_not_ready_bits & codec_skip[i])
+		if (chip->codec_yest_ready_bits & codec_skip[i])
 			continue;
 		memset(&ac97, 0, sizeof(ac97));
 		ac97.private_data = chip;
@@ -1444,14 +1444,14 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 		if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i])) < 0) {
 			chip->ac97[i] = NULL; /* to be sure */
 			dev_dbg(chip->card->dev,
-				"codec %d not available for audio\n", i);
+				"codec %d yest available for audio\n", i);
 			continue;
 		}
 		codec_count++;
 	}
 
 	if (! codec_count) {
-		dev_err(chip->card->dev, "no codec available\n");
+		dev_err(chip->card->dev, "yes codec available\n");
 		return -ENODEV;
 	}
 

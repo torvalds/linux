@@ -203,7 +203,7 @@
 };
 
 &usdhc4 {
-	non-removable;
+	yesn-removable;
 	vmmc-supply = <&reg_3p3v>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;

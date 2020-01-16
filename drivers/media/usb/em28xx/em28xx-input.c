@@ -95,7 +95,7 @@ static int em28xx_get_key_terratec(struct i2c_client *i2c_dev,
 
 	/*
 	 * it seems that 0xFE indicates that a button is still hold
-	 * down, while 0xff indicates that no button is hold down.
+	 * down, while 0xff indicates that yes button is hold down.
 	 */
 
 	if (b == 0xff)
@@ -129,10 +129,10 @@ static int em28xx_get_key_em_haup(struct i2c_client *i2c_dev,
 	/*
 	 * Rearranges bits to the right order.
 	 * The bit order were determined experimentally by using
-	 * The original Hauppauge Grey IR and another RC5 that uses addr=0x08
+	 * The original Hauppauge Grey IR and ayesther RC5 that uses addr=0x08
 	 * The RC5 code has 14 bits, but we've experimentally determined
 	 * the meaning for only 11 bits.
-	 * So, the code translation is not complete. Yet, it is enough to
+	 * So, the code translation is yest complete. Yet, it is eyesugh to
 	 * work with the provided RC5 IR.
 	 */
 	*protocol = RC_PROTO_RC5;
@@ -354,7 +354,7 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 			 * register is read.  The em2860/2880 datasheet says
 			 * that it is supposed to clear the readcount, but it
 			 * doesn't. So with the em2874, we are looking for a
-			 * non-zero read count as opposed to a readcount
+			 * yesn-zero read count as opposed to a readcount
 			 * that is incrementing
 			 */
 			ir->last_readcount = 0;
@@ -472,7 +472,7 @@ static int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_proto)
 		return em2874_ir_change_protocol(rc_dev, rc_proto);
 	default:
 		dev_err(&ir->dev->intf->dev,
-			"Unrecognized em28xx chip id 0x%02x: IR not supported\n",
+			"Unrecognized em28xx chip id 0x%02x: IR yest supported\n",
 			dev->chip_id);
 		return -EINVAL;
 	}
@@ -482,8 +482,8 @@ static int em28xx_probe_i2c_ir(struct em28xx *dev)
 {
 	int i = 0;
 	/*
-	 * Leadtek winfast tv USBII deluxe can find a non working IR-device
-	 * at address 0x18, so if that address is needed for another board in
+	 * Leadtek winfast tv USBII deluxe can find a yesn working IR-device
+	 * at address 0x18, so if that address is needed for ayesther board in
 	 * the future, please put it after 0x1f.
 	 */
 	static const unsigned short addr_list[] = {
@@ -651,7 +651,7 @@ static void em28xx_init_buttons(struct em28xx *dev)
 			/* Check sanity */
 			if (!em28xx_find_led(dev, EM28XX_LED_ILLUMINATION)) {
 				dev_err(&dev->intf->dev,
-					"BUG: illumination button defined, but no illumination LED.\n");
+					"BUG: illumination button defined, but yes illumination LED.\n");
 				goto next_button;
 			}
 		}
@@ -727,7 +727,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	if (!dev->board.ir_codes && !dev->board.has_ir_i2c) {
 		/* No remote control support */
 		dev_warn(&dev->intf->dev,
-			 "Remote control support is not available for this card.\n");
+			 "Remote control support is yest available for this card.\n");
 		return 0;
 	}
 
@@ -855,7 +855,7 @@ static int em28xx_ir_fini(struct em28xx *dev)
 
 	em28xx_shutdown_buttons(dev);
 
-	/* skip detach on non attached boards */
+	/* skip detach on yesn attached boards */
 	if (!ir)
 		goto ref_put;
 

@@ -15,7 +15,7 @@
 
 #include <linux/compat.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/slab.h>
@@ -155,7 +155,7 @@ char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size
 	u32 align = buf->buf_align - 1, offset;
 	char *addr = buf->addr;
 
-	/* If IO mapped, we need to sync before access, no sharing of
+	/* If IO mapped, we need to sync before access, yes sharing of
 	 * the pixmap is done
 	 */
 	if (buf->flags & FB_PIXMAP_IO) {
@@ -168,8 +168,8 @@ char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size
 	offset = buf->offset + align;
 	offset &= ~align;
 	if (offset + size > buf->size) {
-		/* We do not fit. In order to be able to re-use the buffer,
-		 * we must ensure no asynchronous DMA'ing or whatever operation
+		/* We do yest fit. In order to be able to re-use the buffer,
+		 * we must ensure yes asynchroyesus DMA'ing or whatever operation
 		 * is in progress, we sync for that.
 		 */
 		if (info->fbops->fb_sync && (buf->flags & FB_PIXMAP_SYNC))
@@ -322,7 +322,7 @@ static void fb_set_logo(struct fb_info *info,
 
 /*
  * Three (3) kinds of logo maps exist.  linux_logo_clut224 (>16 colors),
- * linux_logo_vga16 (16 colors) and linux_logo_mono (2 colors).  Depending on
+ * linux_logo_vga16 (16 colors) and linux_logo_moyes (2 colors).  Depending on
  * the visual format and color depth of the framebuffer, the DAC, the
  * pseudo_palette, and the logo data will be adjusted accordingly.
  *
@@ -335,13 +335,13 @@ static void fb_set_logo(struct fb_info *info,
  * will be set.
  *
  * Case 2 - linux_logo_vga16:
- * The number of colors just matches the console colors, thus there is no need
+ * The number of colors just matches the console colors, thus there is yes need
  * to set the DAC or the pseudo_palette.  However, the bitmap is packed, ie,
  * each byte contains color information for two pixels (upper and lower nibble).
  * To be consistent with fb_imageblit() usage, we therefore separate the two
  * nibbles into separate bytes. The "depth" flag will be set to 4.
  *
- * Case 3 - linux_logo_mono:
+ * Case 3 - linux_logo_moyes:
  * This is similar with Case 2.  Each byte contains information for 8 pixels.
  * We isolate each bit and expand each into a byte. The "depth" flag will
  * be set to 1.
@@ -462,7 +462,7 @@ static int fb_show_logo_line(struct fb_info *info, int rotate,
 	unsigned char *logo_new = NULL, *logo_rotate = NULL;
 	struct fb_image image;
 
-	/* Return if the frame buffer is not mapped or suspended */
+	/* Return if the frame buffer is yest mapped or suspended */
 	if (logo == NULL || info->state != FBINFO_STATE_RUNNING ||
 	    info->fbops->owner)
 		return 0;
@@ -636,7 +636,7 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 		depth = 4;
 	}
 
-	/* Return if no suitable logo was found */
+	/* Return if yes suitable logo was found */
 	fb_logo.logo = fb_find_logo(depth);
 
 	if (!fb_logo.logo) {
@@ -724,7 +724,7 @@ static int fb_seq_show(struct seq_file *m, void *v)
 	struct fb_info *fi = registered_fb[i];
 
 	if (fi)
-		seq_printf(m, "%d %s\n", fi->node, fi->fix.id);
+		seq_printf(m, "%d %s\n", fi->yesde, fi->fix.id);
 	return 0;
 }
 
@@ -740,13 +740,13 @@ static const struct seq_operations proc_fb_seq_ops = {
  * but if the current registered fb has changed, we don't
  * actually want to use it.
  *
- * So look up the fb_info using the inode minor number,
+ * So look up the fb_info using the iyesde miyesr number,
  * and just verify it against the reference we have.
  */
 static struct fb_info *file_fb_info(struct file *file)
 {
-	struct inode *inode = file_inode(file);
-	int fbidx = iminor(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	int fbidx = imiyesr(iyesde);
 	struct fb_info *info = registered_fb[fbidx];
 
 	if (info != file->private_data)
@@ -1045,7 +1045,7 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 
 	event.info = info;
 	event.data = &mode;
-	fb_notifier_call_chain(FB_EVENT_MODE_CHANGE, &event);
+	fb_yestifier_call_chain(FB_EVENT_MODE_CHANGE, &event);
 
 	if (flags & FBINFO_MISC_USEREVENT)
 		fbcon_update_vcs(info, activate & FB_ACTIVATE_ALL);
@@ -1070,7 +1070,7 @@ fb_blank(struct fb_info *info, int blank)
  		ret = info->fbops->fb_blank(blank, info);
 
 	if (!ret)
-		fb_notifier_call_chain(FB_EVENT_BLANK, &event);
+		fb_yestifier_call_chain(FB_EVENT_BLANK, &event);
 
  	return ret;
 }
@@ -1385,11 +1385,11 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 }
 
 static int
-fb_open(struct inode *inode, struct file *file)
+fb_open(struct iyesde *iyesde, struct file *file)
 __acquires(&info->lock)
 __releases(&info->lock)
 {
-	int fbidx = iminor(inode);
+	int fbidx = imiyesr(iyesde);
 	struct fb_info *info;
 	int res = 0;
 
@@ -1416,7 +1416,7 @@ __releases(&info->lock)
 	}
 #ifdef CONFIG_FB_DEFERRED_IO
 	if (info->fbdefio)
-		fb_deferred_io_open(info, inode, file);
+		fb_deferred_io_open(info, iyesde, file);
 #endif
 out:
 	unlock_fb_info(info);
@@ -1426,7 +1426,7 @@ out:
 }
 
 static int 
-fb_release(struct inode *inode, struct file *file)
+fb_release(struct iyesde *iyesde, struct file *file)
 __acquires(&info->lock)
 __releases(&info->lock)
 {
@@ -1592,7 +1592,7 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	for (i = 0 ; i < FB_MAX; i++)
 		if (!registered_fb[i])
 			break;
-	fb_info->node = i;
+	fb_info->yesde = i;
 	atomic_set(&fb_info->count, 1);
 	mutex_init(&fb_info->lock);
 	mutex_init(&fb_info->mm_lock);
@@ -1601,7 +1601,7 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 				     MKDEV(FB_MAJOR, i), NULL, "fb%d", i);
 	if (IS_ERR(fb_info->dev)) {
 		/* Not fatal */
-		printk(KERN_WARNING "Unable to create device for framebuffer %d; errno = %ld\n", i, PTR_ERR(fb_info->dev));
+		printk(KERN_WARNING "Unable to create device for framebuffer %d; erryes = %ld\n", i, PTR_ERR(fb_info->dev));
 		fb_info->dev = NULL;
 	} else
 		fb_init_device(fb_info);
@@ -1640,14 +1640,14 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	{
 		struct fb_event event;
 		event.info = fb_info;
-		fb_notifier_call_chain(FB_EVENT_FB_REGISTERED, &event);
+		fb_yestifier_call_chain(FB_EVENT_FB_REGISTERED, &event);
 	}
 #endif
 
 	if (!lockless_register_fb)
 		console_lock();
 	else
-		atomic_inc(&ignore_console_lock_warning);
+		atomic_inc(&igyesre_console_lock_warning);
 	lock_fb_info(fb_info);
 	ret = fbcon_fb_registered(fb_info);
 	unlock_fb_info(fb_info);
@@ -1655,13 +1655,13 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	if (!lockless_register_fb)
 		console_unlock();
 	else
-		atomic_dec(&ignore_console_lock_warning);
+		atomic_dec(&igyesre_console_lock_warning);
 	return ret;
 }
 
 static void unbind_console(struct fb_info *fb_info)
 {
-	int i = fb_info->node;
+	int i = fb_info->yesde;
 
 	if (WARN_ON(i < 0 || i >= FB_MAX || registered_fb[i] != fb_info))
 		return;
@@ -1677,7 +1677,7 @@ void unlink_framebuffer(struct fb_info *fb_info)
 {
 	int i;
 
-	i = fb_info->node;
+	i = fb_info->yesde;
 	if (WARN_ON(i < 0 || i >= FB_MAX || registered_fb[i] != fb_info))
 		return;
 
@@ -1701,14 +1701,14 @@ static void do_unregister_framebuffer(struct fb_info *fb_info)
 	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
 		kfree(fb_info->pixmap.addr);
 	fb_destroy_modelist(&fb_info->modelist);
-	registered_fb[fb_info->node] = NULL;
+	registered_fb[fb_info->yesde] = NULL;
 	num_registered_fb--;
 	fb_cleanup_device(fb_info);
 #ifdef CONFIG_GUMSTIX_AM200EPD
 	{
 		struct fb_event event;
 		event.info = fb_info;
-		fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
+		fb_yestifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 	}
 #endif
 	console_lock();
@@ -1809,7 +1809,7 @@ EXPORT_SYMBOL(remove_conflicting_pci_framebuffers);
  *
  *	Registers a frame buffer device @fb_info.
  *
- *	Returns negative errno on error, or zero for success.
+ *	Returns negative erryes on error, or zero for success.
  *
  */
 int
@@ -1831,15 +1831,15 @@ EXPORT_SYMBOL(register_framebuffer);
  *
  *	Unregisters a frame buffer device @fb_info.
  *
- *	Returns negative errno on error, or zero for success.
+ *	Returns negative erryes on error, or zero for success.
  *
- *      This function will also notify the framebuffer console
+ *      This function will also yestify the framebuffer console
  *      to release the driver.
  *
  *      This is meant to be called within a driver's module_exit()
  *      function. If this is called outside module_exit(), ensure
  *      that the driver implements fb_open() and fb_release() to
- *      check that no processes are using the device.
+ *      check that yes processes are using the device.
  */
 void
 unregister_framebuffer(struct fb_info *fb_info)
@@ -1899,7 +1899,7 @@ fbmem_init(void)
 	fb_class = class_create(THIS_MODULE, "graphics");
 	if (IS_ERR(fb_class)) {
 		ret = PTR_ERR(fb_class);
-		pr_warn("Unable to create fb class; errno = %d\n", ret);
+		pr_warn("Unable to create fb class; erryes = %d\n", ret);
 		fb_class = NULL;
 		goto err_class;
 	}

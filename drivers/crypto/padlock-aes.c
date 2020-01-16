@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
@@ -244,7 +244,7 @@ static inline void ecb_crypt(const u8 *in, u8 *out, u32 *key,
 			     struct cword *cword, int count)
 {
 	/* Padlock in ECB mode fetches at least ecb_fetch_bytes of data.
-	 * We could avoid some copying here but it's probably not worth it.
+	 * We could avoid some copying here but it's probably yest worth it.
 	 */
 	if (unlikely(offset_in_page(in) + ecb_fetch_bytes > PAGE_SIZE)) {
 		ecb_crypt_copy(in, out, key, cword, count);
@@ -493,7 +493,7 @@ static int __init padlock_init(void)
 		return -ENODEV;
 
 	if (!boot_cpu_has(X86_FEATURE_XCRYPT_EN)) {
-		printk(KERN_NOTICE PFX "VIA PadLock detected, but not enabled. Hmm, strange...\n");
+		printk(KERN_NOTICE PFX "VIA PadLock detected, but yest enabled. Hmm, strange...\n");
 		return -ENODEV;
 	}
 
@@ -511,7 +511,7 @@ static int __init padlock_init(void)
 	if (c->x86 == 6 && c->x86_model == 15 && c->x86_stepping == 2) {
 		ecb_fetch_blocks = MAX_ECB_FETCH_BLOCKS;
 		cbc_fetch_blocks = MAX_CBC_FETCH_BLOCKS;
-		printk(KERN_NOTICE PFX "VIA Nano stepping 2 detected: enabling workaround.\n");
+		printk(KERN_NOTICE PFX "VIA Nayes stepping 2 detected: enabling workaround.\n");
 	}
 
 out:

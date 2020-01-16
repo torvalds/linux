@@ -31,12 +31,12 @@
  * UCSI_SWAP_TIMEOUT_MS - Timeout for role swap requests
  *
  * 5 seconds is close to the time it takes for CapsCounter to reach 0, so even
- * if the PPM does not generate Connector Change events before that with
- * partners that do not support USB Power Delivery, this should still work.
+ * if the PPM does yest generate Connector Change events before that with
+ * partners that do yest support USB Power Delivery, this should still work.
  */
 #define UCSI_SWAP_TIMEOUT_MS	5000
 
-static int ucsi_acknowledge_command(struct ucsi *ucsi)
+static int ucsi_ackyeswledge_command(struct ucsi *ucsi)
 {
 	u64 ctrl;
 
@@ -46,7 +46,7 @@ static int ucsi_acknowledge_command(struct ucsi *ucsi)
 	return ucsi->ops->sync_write(ucsi, UCSI_CONTROL, &ctrl, sizeof(ctrl));
 }
 
-static int ucsi_acknowledge_connector_change(struct ucsi *ucsi)
+static int ucsi_ackyeswledge_connector_change(struct ucsi *ucsi)
 {
 	u64 ctrl;
 
@@ -63,8 +63,8 @@ static int ucsi_read_error(struct ucsi *ucsi)
 	u16 error;
 	int ret;
 
-	/* Acknowlege the command that failed */
-	ret = ucsi_acknowledge_command(ucsi);
+	/* Ackyeswlege the command that failed */
+	ret = ucsi_ackyeswledge_command(ucsi);
 	if (ret)
 		return ret;
 
@@ -108,7 +108,7 @@ static int ucsi_read_error(struct ucsi *ucsi)
 		break;
 	case UCSI_ERROR_UNDEFINED:
 	default:
-		dev_err(ucsi->dev, "unknown error %u\n", error);
+		dev_err(ucsi->dev, "unkyeswn error %u\n", error);
 		break;
 	}
 
@@ -164,7 +164,7 @@ static int ucsi_run_command(struct ucsi *ucsi, u64 command,
 			return ret;
 	}
 
-	ret = ucsi_acknowledge_command(ucsi);
+	ret = ucsi_ackyeswledge_command(ucsi);
 	if (ret)
 		return ret;
 
@@ -188,7 +188,7 @@ int ucsi_resume(struct ucsi *ucsi)
 {
 	u64 command;
 
-	/* Restore UCSI notification enable mask after system resume */
+	/* Restore UCSI yestification enable mask after system resume */
 	command = UCSI_SET_NOTIFICATION_ENABLE | UCSI_ENABLE_NTFY_ALL;
 
 	return ucsi_send_command(ucsi, command, NULL, 0);
@@ -557,9 +557,9 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 
 	if (con->status.change & UCSI_CONSTAT_CAM_CHANGE) {
 		/*
-		 * We don't need to know the currently supported alt modes here.
+		 * We don't need to kyesw the currently supported alt modes here.
 		 * Running GET_CAM_SUPPORTED command just to make sure the PPM
-		 * does not get stuck in case it assumes we do so.
+		 * does yest get stuck in case it assumes we do so.
 		 */
 		command = UCSI_GET_CAM_SUPPORTED;
 		command |= UCSI_CONNECTOR_NUMBER(con->num);
@@ -569,7 +569,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 	if (con->status.change & UCSI_CONSTAT_PARTNER_CHANGE)
 		ucsi_partner_change(con);
 
-	ret = ucsi_acknowledge_connector_change(ucsi);
+	ret = ucsi_ackyeswledge_connector_change(ucsi);
 	if (ret)
 		dev_err(ucsi->dev, "%s: ACK failed (%d)", __func__, ret);
 
@@ -753,14 +753,14 @@ static const struct typec_operations ucsi_ops = {
 	.pr_set = ucsi_pr_swap
 };
 
-static struct fwnode_handle *ucsi_find_fwnode(struct ucsi_connector *con)
+static struct fwyesde_handle *ucsi_find_fwyesde(struct ucsi_connector *con)
 {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	int i = 1;
 
-	device_for_each_child_node(con->ucsi->dev, fwnode)
+	device_for_each_child_yesde(con->ucsi->dev, fwyesde)
 		if (i++ == con->num)
-			return fwnode;
+			return fwyesde;
 	return NULL;
 }
 
@@ -809,7 +809,7 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 	if (con->cap.op_mode & UCSI_CONCAP_OPMODE_DEBUG_ACCESSORY)
 		*accessory = TYPEC_ACCESSORY_DEBUG;
 
-	cap->fwnode = ucsi_find_fwnode(con);
+	cap->fwyesde = ucsi_find_fwyesde(con);
 	cap->driver_data = con;
 	cap->ops = &ucsi_ops;
 
@@ -871,7 +871,7 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
  * ucsi_init - Initialize UCSI interface
  * @ucsi: UCSI to be initialized
  *
- * Registers all ports @ucsi has and enables all notification events.
+ * Registers all ports @ucsi has and enables all yestification events.
  */
 int ucsi_init(struct ucsi *ucsi)
 {
@@ -889,7 +889,7 @@ int ucsi_init(struct ucsi *ucsi)
 		goto err;
 	}
 
-	/* Enable basic notifications */
+	/* Enable basic yestifications */
 	command = UCSI_SET_NOTIFICATION_ENABLE;
 	command |= UCSI_ENABLE_NTFY_CMD_COMPLETE | UCSI_ENABLE_NTFY_ERROR;
 	ret = ucsi_run_command(ucsi, command, NULL, 0);
@@ -922,7 +922,7 @@ int ucsi_init(struct ucsi *ucsi)
 			goto err_unregister;
 	}
 
-	/* Enable all notifications */
+	/* Enable all yestifications */
 	command = UCSI_SET_NOTIFICATION_ENABLE | UCSI_ENABLE_NTFY_ALL;
 	ret = ucsi_run_command(ucsi, command, NULL, 0);
 	if (ret < 0)
@@ -1048,10 +1048,10 @@ void ucsi_unregister(struct ucsi *ucsi)
 	u64 cmd = UCSI_SET_NOTIFICATION_ENABLE;
 	int i;
 
-	/* Make sure that we are not in the middle of driver initialization */
+	/* Make sure that we are yest in the middle of driver initialization */
 	cancel_work_sync(&ucsi->work);
 
-	/* Disable notifications */
+	/* Disable yestifications */
 	ucsi->ops->async_write(ucsi, UCSI_CONTROL, &cmd, sizeof(cmd));
 
 	for (i = 0; i < ucsi->cap.num_connectors; i++) {

@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -104,7 +104,7 @@ struct ietf_mpa_v2 {
 	u8 priv_data[0];
 };
 
-struct i40iw_cm_node;
+struct i40iw_cm_yesde;
 enum i40iw_timer_type {
 	I40IW_TIMER_TYPE_SEND,
 	I40IW_TIMER_TYPE_RECV,
@@ -152,7 +152,7 @@ struct option_windowscale {
 	u8 shiftcount;
 };
 
-union all_known_options {
+union all_kyeswn_options {
 	char as_end;
 	struct option_base as_base;
 	struct option_mss as_mss;
@@ -209,8 +209,8 @@ typedef u32 i40iw_addr_t;
 
 struct i40iw_qp;
 
-/* cm node transition states */
-enum i40iw_cm_node_state {
+/* cm yesde transition states */
+enum i40iw_cm_yesde_state {
 	I40IW_CM_STATE_UNKNOWN,
 	I40IW_CM_STATE_INITED,
 	I40IW_CM_STATE_LISTENING,
@@ -296,7 +296,7 @@ struct i40iw_cm_listener {
 	atomic_t pend_accepts_cnt;
 	int backlog;
 	enum i40iw_cm_listener_state listener_state;
-	u32 reused_node;
+	u32 reused_yesde;
 	u8 user_pri;
 	u8 tos;
 	u16 vlan_id;
@@ -311,12 +311,12 @@ struct i40iw_kmem_info {
 	u32 size;
 };
 
-/* per connection node and node state information */
-struct i40iw_cm_node {
+/* per connection yesde and yesde state information */
+struct i40iw_cm_yesde {
 	u32 loc_addr[4], rem_addr[4];
 	u16 loc_port, rem_port;
 	u16 vlan_id;
-	enum i40iw_cm_node_state state;
+	enum i40iw_cm_yesde_state state;
 	u8 loc_mac[ETH_ALEN];
 	u8 rem_mac[ETH_ALEN];
 	atomic_t ref_count;
@@ -325,7 +325,7 @@ struct i40iw_cm_node {
 	struct i40iw_sc_dev *dev;
 	struct i40iw_cm_tcp_context tcp_cntxt;
 	struct i40iw_cm_core *cm_core;
-	struct i40iw_cm_node *loopbackpartner;
+	struct i40iw_cm_yesde *loopbackpartner;
 	struct i40iw_timer_entry *send_entry;
 	struct i40iw_timer_entry *close_entry;
 	spinlock_t retrans_list_lock; /* cm transmit packet */
@@ -395,16 +395,16 @@ struct i40iw_cm_event {
 	enum i40iw_cm_event_type type;
 	struct i40iw_cm_info cm_info;
 	struct work_struct event_work;
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 };
 
 struct i40iw_cm_core {
 	struct i40iw_device *iwdev;
 	struct i40iw_sc_dev *dev;
 
-	struct list_head listen_nodes;
+	struct list_head listen_yesdes;
 	struct list_head accelerated_list;
-	struct list_head non_accelerated_list;
+	struct list_head yesn_accelerated_list;
 
 	struct timer_list tcp_timer;
 
@@ -417,12 +417,12 @@ struct i40iw_cm_core {
 
 	unsigned long ports_in_use[BITS_TO_LONGS(MAX_PORTS)];
 
-	u64	stats_nodes_created;
-	u64	stats_nodes_destroyed;
+	u64	stats_yesdes_created;
+	u64	stats_yesdes_destroyed;
 	u64	stats_listen_created;
 	u64	stats_listen_destroyed;
-	u64	stats_listen_nodes_created;
-	u64	stats_listen_nodes_destroyed;
+	u64	stats_listen_yesdes_created;
+	u64	stats_listen_yesdes_destroyed;
 	u64	stats_loopbacks;
 	u64	stats_accepts;
 	u64	stats_rejects;
@@ -432,7 +432,7 @@ struct i40iw_cm_core {
 	u64	stats_backlog_drops;
 };
 
-int i40iw_schedule_cm_timer(struct i40iw_cm_node *cm_node,
+int i40iw_schedule_cm_timer(struct i40iw_cm_yesde *cm_yesde,
 			    struct i40iw_puda_buf *sqbuf,
 			    enum i40iw_timer_type type,
 			    int send_retrans,
@@ -453,7 +453,7 @@ int i40iw_arp_table(struct i40iw_device *iwdev,
 		    u8 *mac_addr,
 		    u32 action);
 
-void i40iw_if_notify(struct i40iw_device *iwdev, struct net_device *netdev,
+void i40iw_if_yestify(struct i40iw_device *iwdev, struct net_device *netdev,
 		     u32 *ipaddr, bool ipv4, bool ifup);
 void i40iw_cm_teardown_connections(struct i40iw_device *iwdev, u32 *ipaddr,
 				   struct i40iw_cm_info *nfo,

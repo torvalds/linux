@@ -11,7 +11,7 @@
 /*
  * This is the most fundamental element of KUnit, the test case. A test case
  * makes a set EXPECTATIONs and ASSERTIONs about the behavior of some code; if
- * any expectations or assertions are not met, the test fails; otherwise, the
+ * any expectations or assertions are yest met, the test fails; otherwise, the
  * test passes.
  *
  * In KUnit, a test case is just a function with the signature
@@ -47,8 +47,8 @@ static int example_test_init(struct kunit *test)
 static struct kunit_case example_test_cases[] = {
 	/*
 	 * This is a helper to create a test case object from a test case
-	 * function; its exact function is not important to understand how to
-	 * use KUnit, just know that this is how you associate test cases with a
+	 * function; its exact function is yest important to understand how to
+	 * use KUnit, just kyesw that this is how you associate test cases with a
 	 * test suite.
 	 */
 	KUNIT_CASE(example_simple_test),

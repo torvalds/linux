@@ -43,7 +43,7 @@ const char *color[] = {
 };
 const int num_colors = ARRAY_SIZE(color);
 
-const char nocolor[] = "\033[00m";
+const char yescolor[] = "\033[00m";
 
 const char *sym[] = {
 	" ",
@@ -101,7 +101,7 @@ static void print_hist(int fd)
 		if (text_only)
 			printf("%s", sym[c]);
 		else
-			printf("%s %s", color[c], nocolor);
+			printf("%s %s", color[c], yescolor);
 	}
 	printf(" # %lld\n", total_events);
 }
@@ -141,13 +141,13 @@ int main(int ac, char **argv)
 	if (text_only)
 		printf("  %s", sym[num_colors - 1]);
 	else
-		printf("  %s %s", color[num_colors - 1], nocolor);
+		printf("  %s %s", color[num_colors - 1], yescolor);
 	printf(" - many events with this latency\n");
 
 	if (text_only)
 		printf("  %s", sym[0]);
 	else
-		printf("  %s %s", color[0], nocolor);
+		printf("  %s %s", color[0], yescolor);
 	printf(" - few events\n");
 
 	for (i = 0; ; i++) {

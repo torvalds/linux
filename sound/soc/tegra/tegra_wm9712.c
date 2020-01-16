@@ -65,7 +65,7 @@ static struct snd_soc_card snd_soc_tegra_wm9712 = {
 
 static int tegra_wm9712_driver_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct snd_soc_card *card = &snd_soc_tegra_wm9712;
 	struct tegra_wm9712 *machine;
 	int ret;
@@ -96,16 +96,16 @@ static int tegra_wm9712_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto codec_unregister;
 
-	tegra_wm9712_dai.cpus->of_node = of_parse_phandle(np,
+	tegra_wm9712_dai.cpus->of_yesde = of_parse_phandle(np,
 				       "nvidia,ac97-controller", 0);
-	if (!tegra_wm9712_dai.cpus->of_node) {
+	if (!tegra_wm9712_dai.cpus->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,ac97-controller' missing or invalid\n");
 		ret = -EINVAL;
 		goto codec_unregister;
 	}
 
-	tegra_wm9712_dai.platforms->of_node = tegra_wm9712_dai.cpus->of_node;
+	tegra_wm9712_dai.platforms->of_yesde = tegra_wm9712_dai.cpus->of_yesde;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)

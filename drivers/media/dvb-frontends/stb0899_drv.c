@@ -1464,7 +1464,7 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe)
 			internal->srch_range	= SearchRange + 1500000 + (i_params->srate / 5);
 			internal->derot_percent	= 30;
 
-			/* What to do for tuners having no bandwidth setup ?	*/
+			/* What to do for tuners having yes bandwidth setup ?	*/
 			/* enable tuner I/O */
 			stb0899_i2c_gate_ctrl(&state->frontend, 1);
 

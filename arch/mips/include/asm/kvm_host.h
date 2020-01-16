@@ -3,7 +3,7 @@
 * License.  See the file "COPYING" in the main directory of this archive
 * for more details.
 *
-* Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+* Copyright (C) 2012  MIPS Techyeslogies, Inc.  All rights reserved.
 * Authors: Sanjay Lal <sanjayl@kymasys.com>
 */
 
@@ -80,7 +80,7 @@
 
 #define KVM_MAX_VCPUS		8
 #define KVM_USER_MEM_SLOTS	8
-/* memory slots that does not exposed to userspace */
+/* memory slots that does yest exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS	0
 
 #define KVM_HALT_POLL_NS_DEFAULT 500000
@@ -95,7 +95,7 @@ extern unsigned long GUESTID_VERSION_MASK;
 /*
  * Special address that contains the comm page, used for reducing # of traps
  * This needs to be within 32Kb of 0x0 (so the zero register can be used), but
- * preferably not at 0x0 so that most kernel NULL pointer dereferences can be
+ * preferably yest at 0x0 so that most kernel NULL pointer dereferences can be
  * caught.
  */
 #define KVM_GUEST_COMMPAGE_ADDR		((PAGE_SIZE > 0x8000) ?	0 : \
@@ -249,7 +249,7 @@ struct mips_coproc {
 #define MIPS_CP0_GTOFFSET_SEL	7
 
 /* Resume Flags */
-#define RESUME_FLAG_DR		(1<<0)	/* Reload guest nonvolatile state? */
+#define RESUME_FLAG_DR		(1<<0)	/* Reload guest yesnvolatile state? */
 #define RESUME_FLAG_HOST	(1<<1)	/* Resume host? */
 
 #define RESUME_GUEST		0
@@ -257,7 +257,7 @@ struct mips_coproc {
 #define RESUME_HOST		RESUME_FLAG_HOST
 
 enum emulation_result {
-	EMULATE_DONE,		/* no further processing */
+	EMULATE_DONE,		/* yes further processing */
 	EMULATE_DO_MMIO,	/* kvm_run filled with MMIO request */
 	EMULATE_FAIL,		/* can't emulate this instruction */
 	EMULATE_WAIT,		/* WAIT instruction */
@@ -297,10 +297,10 @@ struct kvm_mips_tlb {
 
 /*
  * We don't want allocation failures within the mmu code, so we preallocate
- * enough memory for a single page fault in a cache.
+ * eyesugh memory for a single page fault in a cache.
  */
 struct kvm_mmu_memory_cache {
-	int nobjs;
+	int yesbjs;
 	void *objects[KVM_NR_MEM_OBJS];
 };
 
@@ -355,7 +355,7 @@ struct kvm_vcpu_arch {
 	u32 count_bias;
 	/* Frequency of timer in Hz */
 	u32 count_hz;
-	/* Dynamic nanosecond bias (multiple of count_period) to avoid overflow */
+	/* Dynamic nayessecond bias (multiple of count_period) to avoid overflow */
 	s64 count_dyn_bias;
 	/* Resume time */
 	ktime_t count_resume;
@@ -726,7 +726,7 @@ __BUILD_KVM_RW_HW(kscratch6,      l,  MIPS_CP0_DESAVE,       7)
 
 /* Bitwise operations (on HW state) */
 __BUILD_KVM_SET_HW(status,        32, MIPS_CP0_STATUS,       0)
-/* Cause can be modified asynchronously from hardirq hrtimer callback */
+/* Cause can be modified asynchroyesusly from hardirq hrtimer callback */
 __BUILD_KVM_ATOMIC_HW(cause,      32, MIPS_CP0_CAUSE,        0)
 __BUILD_KVM_SET_HW(ebase,         l,  MIPS_CP0_PRID,         1)
 

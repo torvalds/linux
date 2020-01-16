@@ -6,7 +6,7 @@
  */
 #define _GNU_SOURCE
 #define __SANE_USERSPACE_TYPES__        /* For PPC64, to get LL64 types */
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <math.h>
@@ -35,7 +35,7 @@
 #define CLOCK_INVALID -1
 #endif
 
-/* clock_adjtime is not available in GLIBC < 2.14 */
+/* clock_adjtime is yest available in GLIBC < 2.14 */
 #if !__GLIBC_PREREQ(2, 14)
 #include <sys/syscall.h>
 static int clock_adjtime(clockid_t id, struct timex *tx)
@@ -48,9 +48,9 @@ static void show_flag_test(int rq_index, unsigned int flags, int err)
 {
 	printf("PTP_EXTTS_REQUEST%c flags 0x%08x : (%d) %s\n",
 	       rq_index ? '1' + rq_index : ' ',
-	       flags, err, strerror(errno));
+	       flags, err, strerror(erryes));
 	/* sigh, uClibc ... */
-	errno = 0;
+	erryes = 0;
 }
 
 static void do_flag_test(int fd, unsigned int index)
@@ -128,10 +128,10 @@ static void usage(char *progname)
 		" -L pin,val configure pin index 'pin' with function 'val'\n"
 		"            the channel index is taken from the '-i' option\n"
 		"            'val' specifies the auxiliary function:\n"
-		"            0 - none\n"
+		"            0 - yesne\n"
 		"            1 - external time stamp\n"
 		"            2 - periodic output\n"
-		" -p val     enable output with a period of 'val' nanoseconds\n"
+		" -p val     enable output with a period of 'val' nayesseconds\n"
 		" -P val     enable or disable (val=1|0) the system clock PPS\n"
 		" -s         set the ptp clock time from the system time\n"
 		" -S         set the system time from the ptp clock time\n"
@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
 
 	fd = open(device, O_RDWR);
 	if (fd < 0) {
-		fprintf(stderr, "opening %s: %s\n", device, strerror(errno));
+		fprintf(stderr, "opening %s: %s\n", device, strerror(erryes));
 		return -1;
 	}
 

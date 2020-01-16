@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -75,7 +75,7 @@ bail:
  * socket and force a reconneect from smaller -> larger ip addr. The reason
  * we special case cp_index 0 is to allow the rds probe ping itself to itself
  * get through efficiently.
- * Since reconnects are only initiated from the node with the numerically
+ * Since reconnects are only initiated from the yesde with the numerically
  * smaller ip address, we recycle conns in RDS_CONN_ERROR on the passive side
  * by moving them to CONNECTING in this function.
  */
@@ -90,7 +90,7 @@ struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 	 */
 	if (rds_addr_cmp(&conn->c_faddr, &conn->c_laddr) >= 0) {
 		/* Make sure we initiate at least one path if this
-		 * has not already been done; rds_start_mprds() will
+		 * has yest already been done; rds_start_mprds() will
 		 * take care of additional paths, if necessary.
 		 */
 		if (npaths == 1)
@@ -113,13 +113,13 @@ struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 
 void rds_tcp_set_linger(struct socket *sock)
 {
-	struct linger no_linger = {
-		.l_onoff = 1,
+	struct linger yes_linger = {
+		.l_oyesff = 1,
 		.l_linger = 0,
 	};
 
 	kernel_setsockopt(sock, SOL_SOCKET, SO_LINGER,
-			  (char *)&no_linger, sizeof(no_linger));
+			  (char *)&yes_linger, sizeof(yes_linger));
 }
 
 int rds_tcp_accept_one(struct socket *sock)
@@ -150,11 +150,11 @@ int rds_tcp_accept_one(struct socket *sock)
 	if (ret < 0)
 		goto out;
 
-	/* sock_create_lite() does not get a hold on the owner module so we
+	/* sock_create_lite() does yest get a hold on the owner module so we
 	 * need to do it here.  Note that sock_release() uses sock->ops to
 	 * determine if it needs to decrement the reference count.  So set
 	 * sock->ops after calling accept() in case that fails.  And there's
-	 * no need to do try_module_get() as the listener should have a hold
+	 * yes need to do try_module_get() as the listener should have a hold
 	 * already.
 	 */
 	new_sock->ops = sock->ops;
@@ -183,7 +183,7 @@ int rds_tcp_accept_one(struct socket *sock)
 		 peer_addr, ntohs(inet->inet_dport));
 
 #if IS_ENABLED(CONFIG_IPV6)
-	/* sk_bound_dev_if is not set if the peer address is not link local
+	/* sk_bound_dev_if is yest set if the peer address is yest link local
 	 * address.  In this case, it happens that mcast_oif is set.  So
 	 * just use it.
 	 */
@@ -237,7 +237,7 @@ int rds_tcp_accept_one(struct socket *sock)
 rst_nsk:
 	/* reset the newly returned accept sock and bail.
 	 * It is safe to set linger on new_sock because the RDS connection
-	 * has not been brought up on new_sock, so no RDS-level data could
+	 * has yest been brought up on new_sock, so yes RDS-level data could
 	 * be pending on it. By setting linger, we achieve the side-effect
 	 * of avoiding TIME_WAIT state on new_sock.
 	 */
@@ -297,13 +297,13 @@ struct socket *rds_tcp_listen_init(struct net *net, bool isv6)
 	ret = sock_create_kern(net, isv6 ? PF_INET6 : PF_INET, SOCK_STREAM,
 			       IPPROTO_TCP, &sock);
 	if (ret < 0) {
-		rdsdebug("could not create %s listener socket: %d\n",
+		rdsdebug("could yest create %s listener socket: %d\n",
 			 isv6 ? "IPv6" : "IPv4", ret);
 		goto out;
 	}
 
 	sock->sk->sk_reuse = SK_CAN_REUSE;
-	rds_tcp_nonagle(sock);
+	rds_tcp_yesnagle(sock);
 
 	write_lock_bh(&sock->sk->sk_callback_lock);
 	sock->sk->sk_user_data = sock->sk->sk_data_ready;
@@ -328,7 +328,7 @@ struct socket *rds_tcp_listen_init(struct net *net, bool isv6)
 
 	ret = sock->ops->bind(sock, (struct sockaddr *)&ss, addr_len);
 	if (ret < 0) {
-		rdsdebug("could not bind %s listener socket: %d\n",
+		rdsdebug("could yest bind %s listener socket: %d\n",
 			 isv6 ? "IPv6" : "IPv4", ret);
 		goto out;
 	}

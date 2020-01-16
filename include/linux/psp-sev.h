@@ -490,10 +490,10 @@ struct sev_data_dbg {
  *
  * Returns:
  * 0 if the SEV successfully processed the command
- * -%ENODEV    if the SEV device is not available
- * -%ENOTSUPP  if the SEV does not support SEV
+ * -%ENODEV    if the SEV device is yest available
+ * -%ENOTSUPP  if the SEV does yest support SEV
  * -%ETIMEDOUT if the SEV command timed out
- * -%EIO       if the SEV returned a non-zero return code
+ * -%EIO       if the SEV returned a yesn-zero return code
  */
 int sev_platform_init(int *error);
 
@@ -505,10 +505,10 @@ int sev_platform_init(int *error);
  *
  * Returns:
  * 0 if the SEV successfully processed the command
- * -%ENODEV    if the SEV device is not available
- * -%ENOTSUPP  if the SEV does not support SEV
+ * -%ENODEV    if the SEV device is yest available
+ * -%ENOTSUPP  if the SEV does yest support SEV
  * -%ETIMEDOUT if the SEV command timed out
- * -%EIO       if the SEV returned a non-zero return code
+ * -%EIO       if the SEV returned a yesn-zero return code
  */
 int sev_platform_status(struct sev_user_data_status *status, int *error);
 
@@ -518,7 +518,7 @@ int sev_platform_status(struct sev_user_data_status *status, int *error);
  *
  * This function can be used by other drivers to issue a SEV command on
  * behalf of userspace. The caller must pass a valid SEV file descriptor
- * so that we know that it has access to SEV device.
+ * so that we kyesw that it has access to SEV device.
  *
  * @filep - SEV device file pointer
  * @cmd - command to issue
@@ -527,11 +527,11 @@ int sev_platform_status(struct sev_user_data_status *status, int *error);
  *
  * Returns:
  * 0 if the SEV successfully processed the command
- * -%ENODEV    if the SEV device is not available
- * -%ENOTSUPP  if the SEV does not support SEV
+ * -%ENODEV    if the SEV device is yest available
+ * -%ENOTSUPP  if the SEV does yest support SEV
  * -%ETIMEDOUT if the SEV command timed out
- * -%EIO       if the SEV returned a non-zero return code
- * -%EINVAL    if the SEV file descriptor is not valid
+ * -%EIO       if the SEV returned a yesn-zero return code
+ * -%EINVAL    if the SEV file descriptor is yest valid
  */
 int sev_issue_cmd_external_user(struct file *filep, unsigned int id,
 				void *data, int *error);
@@ -544,10 +544,10 @@ int sev_issue_cmd_external_user(struct file *filep, unsigned int id,
  *
  * Returns:
  * 0 if the sev successfully processed the command
- * -%ENODEV    if the sev device is not available
- * -%ENOTSUPP  if the sev does not support SEV
+ * -%ENODEV    if the sev device is yest available
+ * -%ENOTSUPP  if the sev does yest support SEV
  * -%ETIMEDOUT if the sev command timed out
- * -%EIO       if the sev returned a non-zero return code
+ * -%EIO       if the sev returned a yesn-zero return code
  */
 int sev_guest_deactivate(struct sev_data_deactivate *data, int *error);
 
@@ -559,10 +559,10 @@ int sev_guest_deactivate(struct sev_data_deactivate *data, int *error);
  *
  * Returns:
  * 0 if the sev successfully processed the command
- * -%ENODEV    if the sev device is not available
- * -%ENOTSUPP  if the sev does not support SEV
+ * -%ENODEV    if the sev device is yest available
+ * -%ENOTSUPP  if the sev does yest support SEV
  * -%ETIMEDOUT if the sev command timed out
- * -%EIO       if the sev returned a non-zero return code
+ * -%EIO       if the sev returned a yesn-zero return code
  */
 int sev_guest_activate(struct sev_data_activate *data, int *error);
 
@@ -573,10 +573,10 @@ int sev_guest_activate(struct sev_data_activate *data, int *error);
  *
  * Returns:
  * 0 if the sev successfully processed the command
- * -%ENODEV    if the sev device is not available
- * -%ENOTSUPP  if the sev does not support SEV
+ * -%ENODEV    if the sev device is yest available
+ * -%ENOTSUPP  if the sev does yest support SEV
  * -%ETIMEDOUT if the sev command timed out
- * -%EIO       if the sev returned a non-zero return code
+ * -%EIO       if the sev returned a yesn-zero return code
  */
 int sev_guest_df_flush(int *error);
 
@@ -588,10 +588,10 @@ int sev_guest_df_flush(int *error);
  *
  * Returns:
  * 0 if the sev successfully processed the command
- * -%ENODEV    if the sev device is not available
- * -%ENOTSUPP  if the sev does not support SEV
+ * -%ENODEV    if the sev device is yest available
+ * -%ENOTSUPP  if the sev does yest support SEV
  * -%ETIMEDOUT if the sev command timed out
- * -%EIO       if the sev returned a non-zero return code
+ * -%EIO       if the sev returned a yesn-zero return code
  */
 int sev_guest_decommission(struct sev_data_decommission *data, int *error);
 

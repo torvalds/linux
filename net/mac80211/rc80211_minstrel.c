@@ -7,7 +7,7 @@
  *
  * Based on minstrel.c:
  *   Copyright (C) 2005-2007 Derek Smithies <derek@indranet.co.nz>
- *   Sponsored by Indranet Technologies Ltd
+ *   Sponsored by Indranet Techyeslogies Ltd
  *
  * Based on sample.c:
  *   Copyright (c) 2005 John Bicket
@@ -17,13 +17,13 @@
  *   modification, are permitted provided that the following conditions
  *   are met:
  *   1. Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer,
+ *      yestice, this list of conditions and the following disclaimer,
  *      without modification.
  *   2. Redistributions in binary form must reproduce at minimum a disclaimer
  *      similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
  *      redistribution must be conditioned upon including a substantially
  *      similar Disclaimer requirement for further binary redistribution.
- *   3. Neither the names of the above-listed copyright holders nor the names
+ *   3. Neither the names of the above-listed copyright holders yesr the names
  *      of any contributors may be used to endorse or promote products derived
  *      from this software without specific prior written permission.
  *
@@ -361,7 +361,7 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 		return;
 #endif
 
-	/* Don't use EAPOL frames for sampling on non-mrr hw */
+	/* Don't use EAPOL frames for sampling on yesn-mrr hw */
 	if (mp->hw->max_rates == 1 &&
 	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		return;
@@ -369,7 +369,7 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 	delta = (mi->total_packets * sampling_ratio / 100) -
 			(mi->sample_packets + mi->sample_deferred / 2);
 
-	/* delta < 0: no sampling required */
+	/* delta < 0: yes sampling required */
 	prev_sample = mi->prev_sample;
 	mi->prev_sample = false;
 	if (delta < 0 || (!mrr_capable && prev_sample))
@@ -380,7 +380,7 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 		mi->sample_packets = 0;
 		mi->total_packets = 0;
 	} else if (delta > mi->n_rates * 2) {
-		/* With multi-rate retry, not every planned sample
+		/* With multi-rate retry, yest every planned sample
 		 * attempt actually gets used, due to the way the retry
 		 * chain is set up - [max_tp,sample,prob,lowest] for
 		 * sample_rate < max_tp.
@@ -399,7 +399,7 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 
 	/* Decide if direct ( 1st mrr stage) or indirect (2nd mrr stage)
 	 * rate sampling method should be used.
-	 * Respect such rates that are not sampled for 20 interations.
+	 * Respect such rates that are yest sampled for 20 interations.
 	 */
 	if (mrr_capable &&
 	    msr->perfect_tx_time > mr->perfect_tx_time &&
@@ -409,7 +409,7 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 		 * second MRR stage. Increase the sample counter only
 		 * if the deferred sample rate was actually used.
 		 * Use the sample_deferred counter to make sure that
-		 * the sampling is not done in large bursts */
+		 * the sampling is yest done in large bursts */
 		info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 		rate++;
 		mi->sample_deferred++;
@@ -422,7 +422,7 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 			msr->sample_limit--;
 	}
 
-	/* If we're not using MRR and the sampling rate already
+	/* If we're yest using MRR and the sampling rate already
 	 * has a probability of >95%, we shouldn't be attempting
 	 * to use it, as this only wastes precious airtime */
 	if (!mrr_capable &&

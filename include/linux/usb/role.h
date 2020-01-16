@@ -18,7 +18,7 @@ typedef enum usb_role (*usb_role_switch_get_t)(struct device *dev);
 
 /**
  * struct usb_role_switch_desc - USB Role Switch Descriptor
- * @fwnode: The device node to be associated with the role switch
+ * @fwyesde: The device yesde to be associated with the role switch
  * @usb2_port: Optional reference to the host controller port device (USB2)
  * @usb3_port: Optional reference to the host controller port device (USB3)
  * @udc: Optional reference to the peripheral controller device
@@ -33,7 +33,7 @@ typedef enum usb_role (*usb_role_switch_get_t)(struct device *dev);
  * usb_role_switch_register() before registering the switch.
  */
 struct usb_role_switch_desc {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct device *usb2_port;
 	struct device *usb3_port;
 	struct device *udc;
@@ -47,11 +47,11 @@ struct usb_role_switch_desc {
 int usb_role_switch_set_role(struct usb_role_switch *sw, enum usb_role role);
 enum usb_role usb_role_switch_get_role(struct usb_role_switch *sw);
 struct usb_role_switch *usb_role_switch_get(struct device *dev);
-struct usb_role_switch *fwnode_usb_role_switch_get(struct fwnode_handle *node);
+struct usb_role_switch *fwyesde_usb_role_switch_get(struct fwyesde_handle *yesde);
 void usb_role_switch_put(struct usb_role_switch *sw);
 
 struct usb_role_switch *
-usb_role_switch_find_by_fwnode(const struct fwnode_handle *fwnode);
+usb_role_switch_find_by_fwyesde(const struct fwyesde_handle *fwyesde);
 
 struct usb_role_switch *
 usb_role_switch_register(struct device *parent,
@@ -75,7 +75,7 @@ static inline struct usb_role_switch *usb_role_switch_get(struct device *dev)
 }
 
 static inline struct usb_role_switch *
-fwnode_usb_role_switch_get(struct fwnode_handle *node)
+fwyesde_usb_role_switch_get(struct fwyesde_handle *yesde)
 {
 	return ERR_PTR(-ENODEV);
 }

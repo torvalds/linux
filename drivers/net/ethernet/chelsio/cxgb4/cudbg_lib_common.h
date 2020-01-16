@@ -21,7 +21,7 @@ struct cudbg_hdr {
 	u32 signature;
 	u32 hdr_len;
 	u16 major_ver;
-	u16 minor_ver;
+	u16 miyesr_ver;
 	u32 data_len;
 	u32 hdr_flags;
 	u16 max_entities;

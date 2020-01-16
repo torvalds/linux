@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -43,13 +43,13 @@
  *
  * @cmd: [IN] Message Cmd
  * @in_ebx: [IN] Message Len, through EBX
- * @in_si: [IN] Input argument through SI, set to 0 if not used
- * @in_di: [IN] Input argument through DI, set ot 0 if not used
+ * @in_si: [IN] Input argument through SI, set to 0 if yest used
+ * @in_di: [IN] Input argument through DI, set ot 0 if yest used
  * @flags: [IN] hypercall flags + [channel id]
  * @magic: [IN] hypervisor magic value
  * @eax: [OUT] value of EAX register
  * @ebx: [OUT] e.g. status from an HB message status command
- * @ecx: [OUT] e.g. status from a non-HB message status command
+ * @ecx: [OUT] e.g. status from a yesn-HB message status command
  * @edx: [OUT] e.g. channel id
  * @si:  [OUT]
  * @di:  [OUT]
@@ -84,14 +84,14 @@
  *
  * @cmd: [IN] Message Cmd
  * @in_ecx: [IN] Message Len, through ECX
- * @in_si: [IN] Input argument through SI, set to 0 if not used
- * @in_di: [IN] Input argument through DI, set to 0 if not used
+ * @in_si: [IN] Input argument through SI, set to 0 if yest used
+ * @in_di: [IN] Input argument through DI, set to 0 if yest used
  * @flags: [IN] hypercall flags + [channel id]
  * @magic: [IN] hypervisor magic value
  * @bp:  [IN]
  * @eax: [OUT] value of EAX register
  * @ebx: [OUT] e.g. status from an HB message status command
- * @ecx: [OUT] e.g. status from a non-HB message status command
+ * @ecx: [OUT] e.g. status from a yesn-HB message status command
  * @edx: [OUT] e.g. channel id
  * @si:  [OUT]
  * @di:  [OUT]

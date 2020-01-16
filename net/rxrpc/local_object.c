@@ -276,7 +276,7 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 
 	local = rxrpc_alloc_local(rxnet, srx);
 	if (!local)
-		goto nomem;
+		goto yesmem;
 
 	ret = rxrpc_open_socket(local, net);
 	if (ret < 0)
@@ -297,7 +297,7 @@ found:
 	_leave(" = %p", local);
 	return local;
 
-nomem:
+yesmem:
 	ret = -ENOMEM;
 sock_error:
 	mutex_unlock(&rxnet->local_mutex);
@@ -416,7 +416,7 @@ void rxrpc_unuse_local(struct rxrpc_local *local)
  * Destroy a local endpoint's socket and then hand the record to RCU to dispose
  * of.
  *
- * Closing the socket cannot be done from bottom half context or RCU callback
+ * Closing the socket canyest be done from bottom half context or RCU callback
  * context because it might sleep.
  */
 static void rxrpc_local_destroyer(struct rxrpc_local *local)
@@ -443,7 +443,7 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 		sock_release(socket);
 	}
 
-	/* At this point, there should be no more packets coming in to the
+	/* At this point, there should be yes more packets coming in to the
 	 * local endpoint.
 	 */
 	rxrpc_purge_queue(&local->reject_queue);

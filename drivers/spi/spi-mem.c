@@ -19,12 +19,12 @@
  *					  memory operation
  * @ctlr: the SPI controller requesting this dma_map()
  * @op: the memory operation containing the buffer to map
- * @sgt: a pointer to a non-initialized sg_table that will be filled by this
+ * @sgt: a pointer to a yesn-initialized sg_table that will be filled by this
  *	 function
  *
  * Some controllers might want to do DMA on the data buffer embedded in @op.
  * This helper prepares everything for you and provides a ready-to-use
- * sg_table. This function is not intended to be called from spi drivers.
+ * sg_table. This function is yest intended to be called from spi drivers.
  * Only SPI controller drivers should use it.
  * Note that the caller must ensure the memory region pointed by
  * op->data.buf.{in,out} is DMA-able before calling this function.
@@ -68,7 +68,7 @@ EXPORT_SYMBOL_GPL(spi_controller_dma_map_mem_op_data);
  * This helper prepares things so that the CPU can access the
  * op->data.buf.{in,out} buffer again.
  *
- * This function is not intended to be called from SPI drivers. Only SPI
+ * This function is yest intended to be called from SPI drivers. Only SPI
  * controller drivers should use it.
  *
  * This function should be called after the DMA operation has finished and is
@@ -439,7 +439,7 @@ int spi_mem_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 }
 EXPORT_SYMBOL_GPL(spi_mem_adjust_op_size);
 
-static ssize_t spi_mem_no_dirmap_read(struct spi_mem_dirmap_desc *desc,
+static ssize_t spi_mem_yes_dirmap_read(struct spi_mem_dirmap_desc *desc,
 				      u64 offs, size_t len, void *buf)
 {
 	struct spi_mem_op op = desc->info.op_tmpl;
@@ -459,7 +459,7 @@ static ssize_t spi_mem_no_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	return op.data.nbytes;
 }
 
-static ssize_t spi_mem_no_dirmap_write(struct spi_mem_dirmap_desc *desc,
+static ssize_t spi_mem_yes_dirmap_write(struct spi_mem_dirmap_desc *desc,
 				       u64 offs, size_t len, const void *buf)
 {
 	struct spi_mem_op op = desc->info.op_tmpl;
@@ -486,7 +486,7 @@ static ssize_t spi_mem_no_dirmap_write(struct spi_mem_dirmap_desc *desc,
  *
  * This function is creating a direct mapping descriptor which can then be used
  * to access the memory using spi_mem_dirmap_read() or spi_mem_dirmap_write().
- * If the SPI controller driver does not support direct mapping, this function
+ * If the SPI controller driver does yest support direct mapping, this function
  * fallback to an implementation using spi_mem_exec_op(), so that the caller
  * doesn't have to bother implementing a fallback on his own.
  *
@@ -518,7 +518,7 @@ spi_mem_dirmap_create(struct spi_mem *mem,
 		ret = ctlr->mem_ops->dirmap_create(desc);
 
 	if (ret) {
-		desc->nodirmap = true;
+		desc->yesdirmap = true;
 		if (!spi_mem_supports_op(desc->mem, &desc->info.op_tmpl))
 			ret = -ENOTSUPP;
 		else
@@ -545,7 +545,7 @@ void spi_mem_dirmap_destroy(struct spi_mem_dirmap_desc *desc)
 {
 	struct spi_controller *ctlr = desc->mem->spi->controller;
 
-	if (!desc->nodirmap && ctlr->mem_ops && ctlr->mem_ops->dirmap_destroy)
+	if (!desc->yesdirmap && ctlr->mem_ops && ctlr->mem_ops->dirmap_destroy)
 		ctlr->mem_ops->dirmap_destroy(desc);
 
 	kfree(desc);
@@ -624,7 +624,7 @@ EXPORT_SYMBOL_GPL(devm_spi_mem_dirmap_destroy);
 /**
  * spi_mem_dirmap_read() - Read data through a direct mapping
  * @desc: direct mapping descriptor
- * @offs: offset to start reading from. Note that this is not an absolute
+ * @offs: offset to start reading from. Note that this is yest an absolute
  *	  offset, but the offset within the direct mapping which already has
  *	  its own offset
  * @len: length in bytes
@@ -649,8 +649,8 @@ ssize_t spi_mem_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	if (!len)
 		return 0;
 
-	if (desc->nodirmap) {
-		ret = spi_mem_no_dirmap_read(desc, offs, len, buf);
+	if (desc->yesdirmap) {
+		ret = spi_mem_yes_dirmap_read(desc, offs, len, buf);
 	} else if (ctlr->mem_ops && ctlr->mem_ops->dirmap_read) {
 		ret = spi_mem_access_start(desc->mem);
 		if (ret)
@@ -670,7 +670,7 @@ EXPORT_SYMBOL_GPL(spi_mem_dirmap_read);
 /**
  * spi_mem_dirmap_write() - Write data through a direct mapping
  * @desc: direct mapping descriptor
- * @offs: offset to start writing from. Note that this is not an absolute
+ * @offs: offset to start writing from. Note that this is yest an absolute
  *	  offset, but the offset within the direct mapping which already has
  *	  its own offset
  * @len: length in bytes
@@ -695,8 +695,8 @@ ssize_t spi_mem_dirmap_write(struct spi_mem_dirmap_desc *desc,
 	if (!len)
 		return 0;
 
-	if (desc->nodirmap) {
-		ret = spi_mem_no_dirmap_write(desc, offs, len, buf);
+	if (desc->yesdirmap) {
+		ret = spi_mem_yes_dirmap_write(desc, offs, len, buf);
 	} else if (ctlr->mem_ops && ctlr->mem_ops->dirmap_write) {
 		ret = spi_mem_access_start(desc->mem);
 		if (ret)

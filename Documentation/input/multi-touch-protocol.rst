@@ -17,12 +17,12 @@ document describes the multi-touch (MT) protocol which allows kernel
 drivers to report details for an arbitrary number of contacts.
 
 The protocol is divided into two types, depending on the capabilities of the
-hardware. For devices handling anonymous contacts (type A), the protocol
+hardware. For devices handling ayesnymous contacts (type A), the protocol
 describes how to send the raw data for all contacts to the receiver. For
 devices capable of tracking identifiable contacts (type B), the protocol
 describes how to send updates for individual contacts via event slots.
 
-.. note::
+.. yeste::
    MT protocol type A is obsolete, all kernel drivers have been
    converted to use type B.
 
@@ -31,14 +31,14 @@ Protocol Usage
 
 Contact details are sent sequentially as separate packets of ABS_MT
 events. Only the ABS_MT events are recognized as part of a contact
-packet. Since these events are ignored by current single-touch (ST)
+packet. Since these events are igyesred by current single-touch (ST)
 applications, the MT protocol can be implemented on top of the ST protocol
 in an existing driver.
 
 Drivers for type A devices separate contact packets by calling
 input_mt_sync() at the end of each packet. This generates a SYN_MT_REPORT
 event, which instructs the receiver to accept the data for the current
-contact and prepare to receive another.
+contact and prepare to receive ayesther.
 
 Drivers for type B devices separate contact packets by calling
 input_mt_slot(), with a slot as argument, at the beginning of each packet.
@@ -57,16 +57,16 @@ the ABS_MT_TRACKING_ID, either provided by the hardware or computed from
 the raw data [#f5]_.
 
 For type A devices, the kernel driver should generate an arbitrary
-enumeration of the full set of anonymous contacts currently on the
-surface. The order in which the packets appear in the event stream is not
+enumeration of the full set of ayesnymous contacts currently on the
+surface. The order in which the packets appear in the event stream is yest
 important.  Event filtering and finger tracking is left to user space [#f3]_.
 
 For type B devices, the kernel driver should associate a slot with each
 identified contact, and use that slot to propagate changes for the contact.
 Creation, replacement and destruction of contacts is achieved by modifying
-the ABS_MT_TRACKING_ID of the associated slot.  A non-negative tracking id
-is interpreted as a contact, and the value -1 denotes an unused slot.  A
-tracking id not previously present is considered new, and a tracking id no
+the ABS_MT_TRACKING_ID of the associated slot.  A yesn-negative tracking id
+is interpreted as a contact, and the value -1 deyestes an unused slot.  A
+tracking id yest previously present is considered new, and a tracking id yes
 longer present is considered removed.  Since only changes are propagated,
 the full state of each initiated contact has to reside in the receiving
 end.  Upon receiving an MT event, one simply updates the appropriate
@@ -84,7 +84,7 @@ explicitly sending the corresponding BTN_TOOL_*TAP event and setting
 use_count to false when calling input_mt_report_pointer_emulation().
 The driver should only advertise as many slots as the hardware can report.
 Userspace can detect that a driver can report more total contacts than slots
-by noting that the largest supported BTN_TOOL_*TAP event is larger than the
+by yesting that the largest supported BTN_TOOL_*TAP event is larger than the
 total number of type B slots reported in the absinfo for the ABS_MT_SLOT axis.
 
 The minimum value of the ABS_MT_SLOT axis must be 0.
@@ -121,7 +121,7 @@ And here is the sequence after lifting the second contact::
 
 If the driver reports one of BTN_TOUCH or ABS_PRESSURE in addition to the
 ABS_MT events, the last SYN_MT_REPORT event may be omitted. Otherwise, the
-last SYN_REPORT will be dropped by the input core, resulting in no
+last SYN_REPORT will be dropped by the input core, resulting in yes
 zero-contact event reaching userland.
 
 
@@ -154,7 +154,7 @@ Here is the sequence after lifting the contact in slot 0::
 
 The slot being modified is already 0, so the ABS_MT_SLOT is omitted.  The
 message removes the association of slot 0 with contact 45, thereby
-destroying contact 45 and freeing slot 0 to be reused for another contact.
+destroying contact 45 and freeing slot 0 to be reused for ayesther contact.
 
 Finally, here is the sequence after lifting the second contact::
 
@@ -212,7 +212,7 @@ indicate the distance between the contact and the surface.
 
 In addition to the MAJOR parameters, the oval shape of the touch and finger
 regions can be described by adding the MINOR parameters, such that MAJOR
-and MINOR are the major and minor axis of an ellipse. The orientation of
+and MINOR are the major and miyesr axis of an ellipse. The orientation of
 the touch ellipse can be described with the ORIENTATION parameter, and the
 direction of the finger ellipse is given by the vector (a - b).
 
@@ -237,7 +237,7 @@ ABS_MT_TOUCH_MAJOR
     possible value of ABS_MT_TOUCH_MAJOR is sqrt(X^2 + Y^2), the diagonal [#f4]_.
 
 ABS_MT_TOUCH_MINOR
-    The length, in surface units, of the minor axis of the contact. If the
+    The length, in surface units, of the miyesr axis of the contact. If the
     contact is circular, this event can be omitted [#f4]_.
 
 ABS_MT_WIDTH_MAJOR
@@ -247,12 +247,12 @@ ABS_MT_WIDTH_MAJOR
     same [#f4]_.
 
 ABS_MT_WIDTH_MINOR
-    The length, in surface units, of the minor axis of the approaching
+    The length, in surface units, of the miyesr axis of the approaching
     tool. Omit if circular [#f4]_.
 
     The above four values can be used to derive additional information about
     the contact. The ratio ABS_MT_TOUCH_MAJOR / ABS_MT_WIDTH_MAJOR approximates
-    the notion of pressure. The fingers of the hand and the palm all have
+    the yestion of pressure. The fingers of the hand and the palm all have
     different characteristic widths.
 
 ABS_MT_PRESSURE
@@ -269,7 +269,7 @@ ABS_MT_ORIENTATION
     The orientation of the touching ellipse. The value should describe a signed
     quarter of a revolution clockwise around the touch center. The signed value
     range is arbitrary, but zero should be returned for an ellipse aligned with
-    the Y axis (north) of the surface, a negative value when the ellipse is
+    the Y axis (yesrth) of the surface, a negative value when the ellipse is
     turned to the left, and a positive value when the ellipse is turned to the
     right. When aligned with the X axis in the positive direction, the range
     max should be returned; when aligned with the X axis in the negative
@@ -281,9 +281,9 @@ ABS_MT_ORIENTATION
     range max * 2 should be returned.
 
     Orientation can be omitted if the touch area is circular, or if the
-    information is not available in the kernel driver. Partial orientation
+    information is yest available in the kernel driver. Partial orientation
     support is possible if the device can distinguish between the two axis, but
-    not (uniquely) any values in between. In such cases, the range of
+    yest (uniquely) any values in between. In such cases, the range of
     ABS_MT_ORIENTATION should be [0, 1] [#f4]_.
 
 ABS_MT_POSITION_X
@@ -294,12 +294,12 @@ ABS_MT_POSITION_Y
 
 ABS_MT_TOOL_X
     The surface X coordinate of the center of the approaching tool. Omit if
-    the device cannot distinguish between the intended touch point and the
+    the device canyest distinguish between the intended touch point and the
     tool itself.
 
 ABS_MT_TOOL_Y
     The surface Y coordinate of the center of the approaching tool. Omit if the
-    device cannot distinguish between the intended touch point and the tool
+    device canyest distinguish between the intended touch point and the tool
     itself.
 
     The four position values can be used to separate the position of the touch
@@ -308,25 +308,25 @@ ABS_MT_TOOL_Y
     aligned with the touch axes.
 
 ABS_MT_TOOL_TYPE
-    The type of approaching tool. A lot of kernel drivers cannot distinguish
+    The type of approaching tool. A lot of kernel drivers canyest distinguish
     between different tool types, such as a finger or a pen. In such cases, the
     event should be omitted. The protocol currently mainly supports
     MT_TOOL_FINGER, MT_TOOL_PEN, and MT_TOOL_PALM [#f2]_.
     For type B devices, this event is handled by input core; drivers should
     instead use input_mt_report_slot_state(). A contact's ABS_MT_TOOL_TYPE may
     change over time while still touching the device, because the firmware may
-    not be able to determine which tool is being used when it first appears.
+    yest be able to determine which tool is being used when it first appears.
 
 ABS_MT_BLOB_ID
     The BLOB_ID groups several packets together into one arbitrarily shaped
     contact. The sequence of points forms a polygon which defines the shape of
-    the contact. This is a low-level anonymous grouping for type A devices, and
-    should not be confused with the high-level trackingID [#f5]_. Most type A
-    devices do not have blob capability, so drivers can safely omit this event.
+    the contact. This is a low-level ayesnymous grouping for type A devices, and
+    should yest be confused with the high-level trackingID [#f5]_. Most type A
+    devices do yest have blob capability, so drivers can safely omit this event.
 
 ABS_MT_TRACKING_ID
     The TRACKING_ID identifies an initiated contact throughout its life cycle
-    [#f5]_. The value range of the TRACKING_ID should be large enough to ensure
+    [#f5]_. The value range of the TRACKING_ID should be large eyesugh to ensure
     unique identification of a contact maintained over an extended period of
     time. For type B devices, this event is handled by input core; drivers
     should instead use input_mt_report_slot_state().
@@ -340,7 +340,7 @@ better to the MT protocol than others. To simplify and unify the mapping,
 this section gives recipes for how to compute certain events.
 
 For devices reporting contacts as rectangular shapes, signed orientation
-cannot be obtained. Assuming X and Y are the lengths of the sides of the
+canyest be obtained. Assuming X and Y are the lengths of the sides of the
 touching rectangle, here is a simple formula that retains the most
 information possible::
 
@@ -359,17 +359,17 @@ For win8 devices with both T and C coordinates, the position mapping is::
    ABS_MT_TOOL_X := C_X
    ABS_MT_TOOL_Y := C_Y
 
-Unfortunately, there is not enough information to specify both the touching
+Unfortunately, there is yest eyesugh information to specify both the touching
 ellipse and the tool ellipse, so one has to resort to approximations.  One
 simple scheme, which is compatible with earlier usage, is::
 
    ABS_MT_TOUCH_MAJOR := min(X, Y)
-   ABS_MT_TOUCH_MINOR := <not used>
-   ABS_MT_ORIENTATION := <not used>
+   ABS_MT_TOUCH_MINOR := <yest used>
+   ABS_MT_ORIENTATION := <yest used>
    ABS_MT_WIDTH_MAJOR := min(X, Y) + distance(T, C)
    ABS_MT_WIDTH_MINOR := min(X, Y)
 
-Rationale: We have no information about the orientation of the touching
+Rationale: We have yes information about the orientation of the touching
 ellipse, so approximate it with an inscribed circle instead. The tool
 ellipse should align with the vector (T - C), so the diameter must
 increase with distance(T, C). Finally, assume that the touch diameter is
@@ -399,7 +399,7 @@ Notes
 -----
 
 In order to stay compatible with existing applications, the data reported
-in a finger packet must not be recognized as single-touch events.
+in a finger packet must yest be recognized as single-touch events.
 
 For type A devices, all finger data bypasses input filtering, since
 subsequent events of the same type refer to different fingers.

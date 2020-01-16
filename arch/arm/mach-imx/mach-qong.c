@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Copyright (C) 2009 Ilya Yanok, Emcraft Systems Ltd, <yanok@emcraft.com>
+ *  Copyright (C) 2009 Ilya Yayesk, Emcraft Systems Ltd, <yayesk@emcraft.com>
  */
 
 #include <linux/types.h>
@@ -25,8 +25,8 @@
 #include "iomux-mx3.h"
 
 /* FPGA defines */
-#define QONG_FPGA_VERSION(major, minor, rev)	\
-	(((major & 0xF) << 12) | ((minor & 0xF) << 8) | (rev & 0xFF))
+#define QONG_FPGA_VERSION(major, miyesr, rev)	\
+	(((major & 0xF) << 12) | ((miyesr & 0xF) << 8) | (rev & 0xFF))
 
 #define QONG_FPGA_BASEADDR		MX31_CS1_BASE_ADDR
 #define QONG_FPGA_PERIPH_SIZE		(1 << 24)
@@ -102,7 +102,7 @@ static struct resource qong_flash_resource = {
 	.flags = IORESOURCE_MEM,
 };
 
-static struct platform_device qong_nor_mtd_device = {
+static struct platform_device qong_yesr_mtd_device = {
 	.name = "physmap-flash",
 	.id = 0,
 	.dev = {
@@ -112,9 +112,9 @@ static struct platform_device qong_nor_mtd_device = {
 	.num_resources = 1,
 };
 
-static void qong_init_nor_mtd(void)
+static void qong_init_yesr_mtd(void)
 {
-	(void)platform_device_register(&qong_nor_mtd_device);
+	(void)platform_device_register(&qong_yesr_mtd_device);
 }
 
 /*
@@ -240,7 +240,7 @@ static void __init qong_init(void)
 	imx31_soc_init();
 
 	mxc_init_imx_uart();
-	qong_init_nor_mtd();
+	qong_init_yesr_mtd();
 	imx31_add_imx2_wdt();
 }
 

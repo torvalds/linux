@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: int.c
@@ -55,7 +55,7 @@ int vnt_int_start_interrupt(struct vnt_private *priv)
 	return ret;
 }
 
-static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
+static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_yes, u8 tsr)
 {
 	struct vnt_usb_send_context *context;
 	struct ieee80211_tx_info *info;
@@ -63,10 +63,10 @@ static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
 	u8 tx_retry = (tsr & 0xf0) >> 4;
 	s8 idx;
 
-	if (pkt_no >= priv->num_tx_context)
+	if (pkt_yes >= priv->num_tx_context)
 		return -EINVAL;
 
-	context = priv->tx_context[pkt_no];
+	context = priv->tx_context[pkt_yes];
 
 	if (!context->skb)
 		return -EINVAL;

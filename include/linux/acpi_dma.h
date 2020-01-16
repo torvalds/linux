@@ -31,7 +31,7 @@ struct acpi_dma_spec {
 
 /**
  * struct acpi_dma - representation of the registered DMAC
- * @dma_controllers:	linked list node
+ * @dma_controllers:	linked list yesde
  * @dev:		struct device of this controller
  * @acpi_dma_xlate:	callback function to find a suitable channel
  * @data:		private data used by a callback function

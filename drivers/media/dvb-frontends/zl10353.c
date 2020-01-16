@@ -107,9 +107,9 @@ static void zl10353_dump_regs(struct dvb_frontend *fe)
 	printk(KERN_CONT "\n");
 }
 
-static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,
+static void zl10353_calc_yesminal_rate(struct dvb_frontend *fe,
 				      u32 bandwidth,
-				      u16 *nominal_rate)
+				      u16 *yesminal_rate)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
 	u32 adc_clock = 450560; /* 45.056 MHz */
@@ -121,10 +121,10 @@ static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,
 
 	value = (u64)10 * (1 << 23) / 7 * 125;
 	value = (bw * value) + adc_clock / 2;
-	*nominal_rate = div_u64(value, adc_clock);
+	*yesminal_rate = div_u64(value, adc_clock);
 
 	dprintk("%s: bw %d, adc_clock %d => 0x%x\n",
-		__func__, bw, adc_clock, *nominal_rate);
+		__func__, bw, adc_clock, *yesminal_rate);
 }
 
 static void zl10353_calc_input_freq(struct dvb_frontend *fe,
@@ -167,7 +167,7 @@ static int zl10353_set_parameters(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct zl10353_state *state = fe->demodulator_priv;
-	u16 nominal_rate, input_freq;
+	u16 yesminal_rate, input_freq;
 	u8 pllbuf[6] = { 0x67 }, acq_ctl = 0;
 	u16 tps = 0;
 
@@ -208,9 +208,9 @@ static int zl10353_set_parameters(struct dvb_frontend *fe)
 		zl10353_single_write(fe, 0xcc, 0x73);
 	}
 
-	zl10353_calc_nominal_rate(fe, c->bandwidth_hz, &nominal_rate);
-	zl10353_single_write(fe, TRL_NOMINAL_RATE_1, msb(nominal_rate));
-	zl10353_single_write(fe, TRL_NOMINAL_RATE_0, lsb(nominal_rate));
+	zl10353_calc_yesminal_rate(fe, c->bandwidth_hz, &yesminal_rate);
+	zl10353_single_write(fe, TRL_NOMINAL_RATE_1, msb(yesminal_rate));
+	zl10353_single_write(fe, TRL_NOMINAL_RATE_0, lsb(yesminal_rate));
 	state->bandwidth = c->bandwidth_hz;
 
 	zl10353_calc_input_freq(fe, &input_freq);
@@ -329,11 +329,11 @@ static int zl10353_set_parameters(struct dvb_frontend *fe)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
 	/*
-	 * If there is no tuner attached to the secondary I2C bus, we call
+	 * If there is yes tuner attached to the secondary I2C bus, we call
 	 * set_params to program a potential tuner attached somewhere else.
 	 * Otherwise, we update the PLL registers via calc_regs.
 	 */
-	if (state->config.no_tuner) {
+	if (state->config.yes_tuner) {
 		if (fe->ops.tuner_ops.set_params) {
 			fe->ops.tuner_ops.set_params(fe);
 			if (fe->ops.i2c_gate_ctrl)
@@ -347,8 +347,8 @@ static int zl10353_set_parameters(struct dvb_frontend *fe)
 
 	zl10353_single_write(fe, 0x5F, 0x13);
 
-	/* If no attached tuner or invalid PLL registers, just start the FSM. */
-	if (state->config.no_tuner || fe->ops.tuner_ops.calc_regs == NULL)
+	/* If yes attached tuner or invalid PLL registers, just start the FSM. */
+	if (state->config.yes_tuner || fe->ops.tuner_ops.calc_regs == NULL)
 		zl10353_single_write(fe, FSM_GO, 0x01);
 	else
 		zl10353_single_write(fe, TUNER_GO, 0x01);
@@ -378,7 +378,7 @@ static int zl10353_get_parameters(struct dvb_frontend *fe,
 	if (s6 < 0 || s9 < 0)
 		return -EREMOTEIO;
 	if ((s6 & (1 << 5)) == 0 || (s9 & (1 << 4)) == 0)
-		return -EINVAL;	/* no FE or TPS lock */
+		return -EINVAL;	/* yes FE or TPS lock */
 
 	tps = zl10353_read_register(state, TPS_RECEIVED_1) << 8 |
 	      zl10353_read_register(state, TPS_RECEIVED_0);
@@ -554,7 +554,7 @@ static int zl10353_init(struct dvb_frontend *fe)
 	if (state->config.pll_0)
 		zl10353_reset_attach[4] = state->config.pll_0;
 
-	/* Do a "hard" reset if not already done */
+	/* Do a "hard" reset if yest already done */
 	if (zl10353_read_register(state, 0x50) != zl10353_reset_attach[1] ||
 	    zl10353_read_register(state, 0x51) != zl10353_reset_attach[2]) {
 		zl10353_write(fe, zl10353_reset_attach,

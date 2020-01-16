@@ -58,7 +58,7 @@
 
 /*
  * These XCHAL_* #defines from varian/core.h
- * are not valid to use with V3 MMU. Non-XCHAL
+ * are yest valid to use with V3 MMU. Non-XCHAL
  * constants are defined above and should be used.
  */
 #undef  XCHAL_VECBASE_RESET_VADDR

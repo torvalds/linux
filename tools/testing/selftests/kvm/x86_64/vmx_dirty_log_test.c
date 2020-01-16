@@ -132,12 +132,12 @@ int main(int argc, char *argv[])
 		case UCALL_SYNC:
 			/*
 			 * The nested guest wrote at offset 0x1000 in the memslot, but the
-			 * dirty bitmap must be filled in according to L1 GPA, not L2.
+			 * dirty bitmap must be filled in according to L1 GPA, yest L2.
 			 */
 			kvm_vm_get_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap);
 			if (uc.args[1]) {
 				TEST_ASSERT(test_bit(0, bmap), "Page 0 incorrectly reported clean\n");
-				TEST_ASSERT(host_test_mem[0] == 1, "Page 0 not written by guest\n");
+				TEST_ASSERT(host_test_mem[0] == 1, "Page 0 yest written by guest\n");
 			} else {
 				TEST_ASSERT(!test_bit(0, bmap), "Page 0 incorrectly reported dirty\n");
 				TEST_ASSERT(host_test_mem[0] == 0xaaaaaaaaaaaaaaaaULL, "Page 0 written by guest\n");
@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 			done = true;
 			break;
 		default:
-			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
+			TEST_ASSERT(false, "Unkyeswn ucall 0x%x.", uc.cmd);
 		}
 	}
 }

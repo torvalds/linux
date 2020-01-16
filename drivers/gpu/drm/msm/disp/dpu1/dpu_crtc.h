@@ -47,7 +47,7 @@ enum dpu_crtc_smmu_state {
 
 /**
  * enum dpu_crtc_smmu_state_transition_type: state transition type
- * @NONE: no pending state transitions
+ * @NONE: yes pending state transitions
  * @PRE_COMMIT: state transitions should be done before processing the commit
  * @POST_COMMIT: state transitions to be done after processing the commit.
  */
@@ -109,25 +109,25 @@ struct dpu_crtc_frame_event {
  * @base          : Base drm crtc structure
  * @name          : ASCII description of this crtc
  * @event         : Pointer to last received drm vblank event. If there is a
- *                  pending vblank event, this will be non-null.
+ *                  pending vblank event, this will be yesn-null.
  * @vsync_count   : Running count of received vsync events
  * @drm_requested_vblank : Whether vblanks have been enabled in the encoder
  * @property_info : Opaque structure for generic property support
  * @property_defaults : Array of default values for generic property support
  * @stage_cfg     : H/w mixer stage configuration
- * @debugfs_root  : Parent of debugfs node
+ * @debugfs_root  : Parent of debugfs yesde
  * @vblank_cb_count : count of vblank callback since last reset
  * @play_count    : frame count between crtc enable and disable
  * @vblank_cb_time  : ktime at vblank count reset
  * @enabled       : whether the DPU CRTC is currently enabled. updated in the
- *                  commit-thread, not state-swap time which is earlier, so
+ *                  commit-thread, yest state-swap time which is earlier, so
  *                  safe to make decisions on during VBLANK on/off work
  * @feature_list  : list of color processing features supported on a crtc
  * @active_list   : list of color processing features are active
  * @dirty_list    : list of color processing features are dirty
  * @ad_dirty: list containing ad properties that are dirty
  * @ad_active: list containing ad properties that are active
- * @frame_pending : Whether or not an update is pending
+ * @frame_pending : Whether or yest an update is pending
  * @frame_events  : static allocation of in-flight frame events
  * @frame_event_list : available frame event list
  * @spin_lock     : spin lock for frame event, transaction status, etc...
@@ -180,7 +180,7 @@ struct dpu_crtc {
  * @base: Base drm crtc state structure
  * @bw_control    : true if bw/clk controlled by core bw/clk properties
  * @bw_split_vote : true if bw controlled by llcc/dram bw properties
- * @lm_bounds     : LM boundaries based on current mode full resolution, no ROI.
+ * @lm_bounds     : LM boundaries based on current mode full resolution, yes ROI.
  *                  Origin top left of CRTC.
  * @property_state: Local storage for msm_prop properties
  * @property_values: Current crtc property values

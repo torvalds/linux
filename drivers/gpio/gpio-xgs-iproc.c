@@ -145,7 +145,7 @@ static int iproc_gpio_irq_set_type(struct irq_data *d, u32 type)
 		writel_relaxed(int_pol, chip->base + IPROC_GPIO_CCA_INT_LEVEL);
 		break;
 	default:
-		/* should not come here */
+		/* should yest come here */
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -194,7 +194,7 @@ static irqreturn_t iproc_gpio_irq_handler(int irq, void *data)
 static int iproc_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	struct iproc_gpio_chip *chip;
 	u32 num_gpios;
 	int irq, ret;

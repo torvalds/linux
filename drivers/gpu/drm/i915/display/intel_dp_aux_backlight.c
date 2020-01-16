@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -116,7 +116,7 @@ static bool intel_dp_aux_set_pwm_freq(struct intel_connector *connector)
 
 	/* Find desired value of (F x P)
 	 * Note that, if F x P is out of supported range, the maximum value or
-	 * minimum value will applied automatically. So no need to check that.
+	 * minimum value will applied automatically. So yes need to check that.
 	 */
 	freq = dev_priv->vbt.backlight.pwm_freq_hz;
 	DRM_DEBUG_KMS("VBT defined backlight frequency %u Hz\n", freq);
@@ -199,7 +199,7 @@ static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_st
 		new_dpcd_buf |= DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD;
 		break;
 
-	/* Do nothing when it is already DPCD mode */
+	/* Do yesthing when it is already DPCD mode */
 	case DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD:
 	default:
 		break;

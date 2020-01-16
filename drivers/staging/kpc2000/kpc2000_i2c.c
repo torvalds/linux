@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -129,7 +129,7 @@ struct i2c_device {
 #define outb_p(d, a) writeq(d, (void __iomem *)a)
 
 /* Make sure the SMBus host is ready to start transmitting.
- * Return 0 if it is, -EBUSY if it is not.
+ * Return 0 if it is, -EBUSY if it is yest.
  */
 static int i801_check_pre(struct i2c_device *priv)
 {
@@ -407,7 +407,7 @@ static int i801_block_transaction(struct i2c_device *priv,
 	}
 
 	/* Experience has shown that the block buffer can only be used for
-	 * SMBus (not I2C) block transactions, even though the datasheet
+	 * SMBus (yest I2C) block transactions, even though the datasheet
 	 * doesn't mention this limitation.
 	 */
 	if ((priv->features & FEATURE_BLOCK_BUFFER) &&
@@ -432,7 +432,7 @@ static int i801_block_transaction(struct i2c_device *priv,
 	return result;
 }
 
-/* Return negative errno on error. */
+/* Return negative erryes on error. */
 static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		       unsigned short flags, char read_write, u8 command,
 		       int size, union i2c_smbus_data *data)
@@ -516,20 +516,20 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	}
 
 	if (hwpec) { /* enable/disable hardware PEC */
-		dev_dbg(&priv->adapter.dev, "  [acc] hwpec: yes\n");
+		dev_dbg(&priv->adapter.dev, "  [acc] hwpec: no\n");
 		outb_p(inb_p(SMBAUXCTL(priv)) | SMBAUXCTL_CRC, SMBAUXCTL(priv));
 	} else {
-		dev_dbg(&priv->adapter.dev, "  [acc] hwpec: no\n");
+		dev_dbg(&priv->adapter.dev, "  [acc] hwpec: yes\n");
 		outb_p(inb_p(SMBAUXCTL(priv)) &
 				(~SMBAUXCTL_CRC), SMBAUXCTL(priv));
 	}
 
 	if (block) {
-		dev_dbg(&priv->adapter.dev, "  [acc] block: yes\n");
+		dev_dbg(&priv->adapter.dev, "  [acc] block: no\n");
 		ret = i801_block_transaction(priv, data, read_write, size,
 					     hwpec);
 	} else {
-		dev_dbg(&priv->adapter.dev, "  [acc] block: no\n");
+		dev_dbg(&priv->adapter.dev, "  [acc] block: yes\n");
 		ret = i801_transaction(priv, xact | ENABLE_INT9);
 	}
 
@@ -659,7 +659,7 @@ static int pi2c_probe(struct platform_device *pldev)
 	if (!res)
 		return -ENXIO;
 
-	priv->smba = (unsigned long)devm_ioremap_nocache(&pldev->dev,
+	priv->smba = (unsigned long)devm_ioremap_yescache(&pldev->dev,
 							 res->start,
 							 resource_size(res));
 	if (!priv->smba)

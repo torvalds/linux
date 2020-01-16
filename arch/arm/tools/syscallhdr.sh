@@ -8,7 +8,7 @@ prefix="$4"
 offset="$5"
 
 fileguard=_ASM_ARM_`basename "$out" | sed \
-    -e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' \
+    -e 'y/abcdefghijklmyespqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' \
     -e 's/[^A-Z0-9_]/_/g' -e 's/__/_/g'`
 if echo $out | grep -q uapi; then
     fileguard="_UAPI$fileguard"

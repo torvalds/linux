@@ -51,7 +51,7 @@ struct etnaviv_iommu_global {
 
 	/*
 	 * This union holds members needed by either MMUv1 or MMUv2, which
-	 * can not exist at the same time.
+	 * can yest exist at the same time.
 	 */
 	union {
 		struct {

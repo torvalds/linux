@@ -285,7 +285,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "M line forwarded from remote cache with no writeback to memory",
+        "BriefDescription": "M line forwarded from remote cache with yes writeback to memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_SNOOP_RESP.RSPIFWD",

@@ -15,8 +15,8 @@ void test_pkt_md_access(void)
 	err = bpf_prog_test_run(prog_fd, 10, &pkt_v4, sizeof(pkt_v4),
 				NULL, NULL, &retval, &duration);
 	CHECK(err || retval, "",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+	      "err %d erryes %d retval %d duration %d\n",
+	      err, erryes, retval, duration);
 
 	bpf_object__close(obj);
 }

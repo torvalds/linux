@@ -6,12 +6,12 @@
  *
  * Based on code from:
  *
- * Copyright (c) 2014 Imagination Technologies Ltd.
+ * Copyright (c) 2014 Imagination Techyeslogies Ltd.
  * Author: Markos Chandras <markos.chandras@imgtec.com>
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/filter.h>
 #include <linux/bpf.h>
 #include <linux/slab.h>
@@ -71,13 +71,13 @@
 enum reg_val_type {
 	/* uninitialized */
 	REG_UNKNOWN,
-	/* not known to be 32-bit compatible. */
+	/* yest kyeswn to be 32-bit compatible. */
 	REG_64BIT,
-	/* 32-bit compatible, no truncation needed for 64-bit ops. */
+	/* 32-bit compatible, yes truncation needed for 64-bit ops. */
 	REG_64BIT_32BIT,
 	/* 32-bit compatible, need truncation for 64-bit ops. */
 	REG_32BIT,
-	/* 32-bit no sign/zero extension needed. */
+	/* 32-bit yes sign/zero extension needed. */
 	REG_32BIT_POS
 };
 
@@ -179,7 +179,7 @@ static u32 b_imm(unsigned int tgt, struct jit_ctx *ctx)
 
 enum which_ebpf_reg {
 	src_reg,
-	src_reg_no_fp,
+	src_reg_yes_fp,
 	dst_reg,
 	dst_reg_fp_ok
 };
@@ -194,7 +194,7 @@ static int ebpf_to_mips_reg(struct jit_ctx *ctx,
 			    const struct bpf_insn *insn,
 			    enum which_ebpf_reg w)
 {
-	int ebpf_reg = (w == src_reg || w == src_reg_no_fp) ?
+	int ebpf_reg = (w == src_reg || w == src_reg_yes_fp) ?
 		insn->src_reg : insn->dst_reg;
 
 	switch (ebpf_reg) {
@@ -223,12 +223,12 @@ static int ebpf_to_mips_reg(struct jit_ctx *ctx,
 		ctx->flags |= EBPF_SAVE_S3;
 		return MIPS_R_S3;
 	case BPF_REG_10:
-		if (w == dst_reg || w == src_reg_no_fp)
+		if (w == dst_reg || w == src_reg_yes_fp)
 			goto bad_reg;
 		ctx->flags |= EBPF_SEEN_FP;
 		/*
 		 * Needs special handling, return something that
-		 * cannot be clobbered just in case.
+		 * canyest be clobbered just in case.
 		 */
 		return MIPS_R_ZERO;
 	case BPF_REG_AX:
@@ -265,7 +265,7 @@ bad_reg:
  *     $sp -------->    +--------------------------------+
  *
  * If BPF_REG_10 is never referenced, then the MAX_BPF_STACK sized
- * area is not allocated.
+ * area is yest allocated.
  */
 static int gen_int_prologue(struct jit_ctx *ctx)
 {
@@ -400,7 +400,7 @@ static int build_int_epilogue(struct jit_ctx *ctx, int dest_reg)
 		emit_instr_long(ctx, daddiu, addiu,
 					MIPS_R_SP, MIPS_R_SP, stack_adjust);
 	else
-		emit_instr(ctx, nop);
+		emit_instr(ctx, yesp);
 
 	return 0;
 }
@@ -447,7 +447,7 @@ static int gen_imm_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	case BPF_RSH:
 	case BPF_LSH:
 	case BPF_ARSH:
-		/* Shift amounts are truncated, no need for bounds */
+		/* Shift amounts are truncated, yes need for bounds */
 		upper_bound = S32_MAX;
 		lower_bound = S32_MIN;
 		break;
@@ -456,7 +456,7 @@ static int gen_imm_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	}
 
 	/*
-	 * Immediate move clobbers the register, so no sign/zero
+	 * Immediate move clobbers the register, so yes sign/zero
 	 * extension needed.
 	 */
 	if (BPF_CLASS(insn->code) == BPF_ALU64 &&
@@ -638,7 +638,7 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx, int this_idx)
 	b_off = b_imm(this_idx + 1, ctx);
 	emit_instr(ctx, beq, MIPS_R_AT, MIPS_R_ZERO, b_off);
 	/* Delay slot */
-	emit_instr(ctx, nop);
+	emit_instr(ctx, yesp);
 
 	/* goto *(prog->bpf_func + 4); */
 	off = offsetof(struct bpf_prog, bpf_func);
@@ -699,7 +699,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			return dst;
 		if (get_reg_val_type(ctx, this_idx, insn->dst_reg) == REG_32BIT)
 			emit_instr(ctx, dinsu, dst, MIPS_R_ZERO, 32, 32);
-		if (insn->imm == 1) /* Mult by 1 is a nop */
+		if (insn->imm == 1) /* Mult by 1 is a yesp */
 			break;
 		gen_imm_to_reg(insn, MIPS_R_AT, ctx);
 		if (MIPS_ISA_REV >= 6) {
@@ -726,7 +726,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			/* sign extend */
 			emit_instr(ctx, sll, dst, dst, 0);
 		}
-		if (insn->imm == 1) /* Mult by 1 is a nop */
+		if (insn->imm == 1) /* Mult by 1 is a yesp */
 			break;
 		gen_imm_to_reg(insn, MIPS_R_AT, ctx);
 		if (MIPS_ISA_REV >= 6) {
@@ -759,7 +759,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			/* sign extend */
 			emit_instr(ctx, sll, dst, dst, 0);
 		if (insn->imm == 1) {
-			/* div by 1 is a nop, mod by 1 is zero */
+			/* div by 1 is a yesp, mod by 1 is zero */
 			if (bpf_op == BPF_MOD)
 				emit_instr(ctx, addu, dst, MIPS_R_ZERO, MIPS_R_ZERO);
 			break;
@@ -788,7 +788,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		if (get_reg_val_type(ctx, this_idx, insn->dst_reg) == REG_32BIT)
 			emit_instr(ctx, dinsu, dst, MIPS_R_ZERO, 32, 32);
 		if (insn->imm == 1) {
-			/* div by 1 is a nop, mod by 1 is zero */
+			/* div by 1 is a yesp, mod by 1 is zero */
 			if (bpf_op == BPF_MOD)
 				emit_instr(ctx, addu, dst, MIPS_R_ZERO, MIPS_R_ZERO);
 			break;
@@ -915,7 +915,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	case BPF_ALU | BPF_LSH | BPF_X: /* ALU_REG */
 	case BPF_ALU | BPF_RSH | BPF_X: /* ALU_REG */
 	case BPF_ALU | BPF_ARSH | BPF_X: /* ALU_REG */
-		src = ebpf_to_mips_reg(ctx, insn, src_reg_no_fp);
+		src = ebpf_to_mips_reg(ctx, insn, src_reg_yes_fp);
 		dst = ebpf_to_mips_reg(ctx, insn, dst_reg);
 		if (src < 0 || dst < 0)
 			return -EINVAL;
@@ -995,7 +995,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			if (is_bad_offset(b_off))
 				return -E2BIG;
 			emit_instr(ctx, beq, MIPS_R_ZERO, MIPS_R_ZERO, b_off);
-			emit_instr(ctx, nop);
+			emit_instr(ctx, yesp);
 		}
 		break;
 	case BPF_JMP | BPF_JEQ | BPF_K: /* JMP_IMM */
@@ -1022,7 +1022,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	case BPF_JMP | BPF_JGT | BPF_X:
 	case BPF_JMP | BPF_JGE | BPF_X:
 	case BPF_JMP | BPF_JSET | BPF_X:
-		src = ebpf_to_mips_reg(ctx, insn, src_reg_no_fp);
+		src = ebpf_to_mips_reg(ctx, insn, src_reg_yes_fp);
 		dst = ebpf_to_mips_reg(ctx, insn, dst_reg);
 		if (src < 0 || dst < 0)
 			return -EINVAL;
@@ -1050,7 +1050,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 					emit_instr(ctx, blez, MIPS_R_AT, b_off);
 				else
 					emit_instr(ctx, bgtz, MIPS_R_AT, b_off);
-				emit_instr(ctx, nop);
+				emit_instr(ctx, yesp);
 				return 2; /* We consumed the exit. */
 			}
 			b_off = b_imm(this_idx + insn->off + 1, ctx);
@@ -1060,7 +1060,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 				emit_instr(ctx, bgtz, MIPS_R_AT, b_off);
 			else
 				emit_instr(ctx, blez, MIPS_R_AT, b_off);
-			emit_instr(ctx, nop);
+			emit_instr(ctx, yesp);
 			break;
 		} else if (bpf_op == BPF_JSGE || bpf_op == BPF_JSLT) {
 			emit_instr(ctx, slt, MIPS_R_AT, dst, src);
@@ -1071,7 +1071,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			/* dst or src could be AT */
 			emit_instr(ctx, dsubu, MIPS_R_T8, dst, src);
 			emit_instr(ctx, sltu, MIPS_R_AT, dst, src);
-			/* SP known to be non-zero, movz becomes boolean not */
+			/* SP kyeswn to be yesn-zero, movz becomes boolean yest */
 			if (MIPS_ISA_REV >= 6) {
 				emit_instr(ctx, seleqz, MIPS_R_T9,
 						MIPS_R_SP, MIPS_R_T8);
@@ -1118,10 +1118,10 @@ jeq_common:
 				emit_instr(ctx, bne, dst, src, b_off);
 			else
 				emit_instr(ctx, beq, dst, src, b_off);
-			emit_instr(ctx, nop);
+			emit_instr(ctx, yesp);
 			if (ctx->offsets[this_idx] & OFFSETS_B_CONV) {
 				emit_instr(ctx, j, target);
-				emit_instr(ctx, nop);
+				emit_instr(ctx, yesp);
 			}
 			return 2; /* We consumed the exit. */
 		}
@@ -1142,10 +1142,10 @@ jeq_common:
 			emit_instr(ctx, beq, dst, src, b_off);
 		else
 			emit_instr(ctx, bne, dst, src, b_off);
-		emit_instr(ctx, nop);
+		emit_instr(ctx, yesp);
 		if (ctx->offsets[this_idx] & OFFSETS_B_CONV) {
 			emit_instr(ctx, j, target);
-			emit_instr(ctx, nop);
+			emit_instr(ctx, yesp);
 		}
 		break;
 	case BPF_JMP | BPF_JSGT | BPF_K: /* JMP_IMM */
@@ -1176,7 +1176,7 @@ jeq_common:
 					emit_instr(ctx, bgtz, dst, b_off);
 					break;
 				}
-				emit_instr(ctx, nop);
+				emit_instr(ctx, yesp);
 				return 2; /* We consumed the exit. */
 			}
 			b_off = b_imm(this_idx + insn->off + 1, ctx);
@@ -1196,7 +1196,7 @@ jeq_common:
 				emit_instr(ctx, blez, dst, b_off);
 				break;
 			}
-			emit_instr(ctx, nop);
+			emit_instr(ctx, yesp);
 			break;
 		}
 		/*
@@ -1261,14 +1261,14 @@ jeq_common:
 				if (is_bad_offset(b_off))
 					return -E2BIG;
 				emit_instr(ctx, bbit0, dst, ffs((u32)insn->imm) - 1, b_off);
-				emit_instr(ctx, nop);
+				emit_instr(ctx, yesp);
 				return 2; /* We consumed the exit. */
 			}
 			b_off = b_imm(this_idx + insn->off + 1, ctx);
 			if (is_bad_offset(b_off))
 				return -E2BIG;
 			emit_instr(ctx, bbit1, dst, ffs((u32)insn->imm) - 1, b_off);
-			emit_instr(ctx, nop);
+			emit_instr(ctx, yesp);
 			break;
 		}
 		t64 = (u32)insn->imm;
@@ -1293,7 +1293,7 @@ jeq_common:
 		} else {
 			emit_instr(ctx, b, b_off);
 		}
-		emit_instr(ctx, nop);
+		emit_instr(ctx, yesp);
 		break;
 	case BPF_LD | BPF_DW | BPF_IMM:
 		if (insn->src_reg != 0)
@@ -1311,7 +1311,7 @@ jeq_common:
 		emit_const_to_reg(ctx, MIPS_R_T9, (u64)t64s);
 		emit_instr(ctx, jalr, MIPS_R_RA, MIPS_R_T9);
 		/* delay slot */
-		emit_instr(ctx, nop);
+		emit_instr(ctx, yesp);
 		break;
 
 	case BPF_JMP | BPF_TAIL_CALL:
@@ -1395,7 +1395,7 @@ jeq_common:
 			src = MIPS_R_SP;
 			mem_off = insn->off + MAX_BPF_STACK;
 		} else {
-			src = ebpf_to_mips_reg(ctx, insn, src_reg_no_fp);
+			src = ebpf_to_mips_reg(ctx, insn, src_reg_yes_fp);
 			if (src < 0)
 				return src;
 			mem_off = insn->off;
@@ -1435,12 +1435,12 @@ jeq_common:
 				return dst;
 			mem_off = insn->off;
 		}
-		src = ebpf_to_mips_reg(ctx, insn, src_reg_no_fp);
+		src = ebpf_to_mips_reg(ctx, insn, src_reg_yes_fp);
 		if (src < 0)
 			return src;
 		if (BPF_MODE(insn->code) == BPF_XADD) {
 			/*
-			 * If mem_off does not fit within the 9 bit ll/sc
+			 * If mem_off does yest fit within the 9 bit ll/sc
 			 * instruction immediate field, use a temp reg.
 			 */
 			if (MIPS_ISA_REV >= 6 &&
@@ -1464,7 +1464,7 @@ jeq_common:
 				 * instructions of 4 bytes each
 				 */
 				emit_instr(ctx, beq, MIPS_R_T8, MIPS_R_ZERO, -4 * 4);
-				emit_instr(ctx, nop);
+				emit_instr(ctx, yesp);
 				break;
 			case BPF_DW:
 				if (get_reg_val_type(ctx, this_idx, insn->src_reg) == REG_32BIT) {
@@ -1476,7 +1476,7 @@ jeq_common:
 				emit_instr(ctx, daddu, MIPS_R_T8, MIPS_R_T8, src);
 				emit_instr(ctx, scd, MIPS_R_T8, mem_off, dst);
 				emit_instr(ctx, beq, MIPS_R_T8, MIPS_R_ZERO, -4 * 4);
-				emit_instr(ctx, nop);
+				emit_instr(ctx, yesp);
 				break;
 			}
 		} else { /* BPF_MEM */
@@ -1543,8 +1543,8 @@ static int build_int_body(struct jit_ctx *ctx)
 
 	/*
 	 * All exits have an offset of the epilogue, some offsets may
-	 * not have been set due to banch-around threading, so set
-	 * them now.
+	 * yest have been set due to banch-around threading, so set
+	 * them yesw.
 	 */
 	if (ctx->target == NULL)
 		for (i = 0; i < prog->len; i++) {
@@ -1731,7 +1731,7 @@ static int reg_val_propagate_range(struct jit_ctx *ctx, u64 initial_rvt,
  * operations to be omitted.
  *
  * Doesn't handle yet confluence of control paths with conflicting
- * ranges, but it is good enough for most sane code.
+ * ranges, but it is good eyesugh for most sane code.
  */
 static int reg_val_propagate(struct jit_ctx *ctx)
 {
@@ -1758,7 +1758,7 @@ static int reg_val_propagate(struct jit_ctx *ctx)
 restart_search:
 	/*
 	 * Then repeatedly find the first conditional branch where
-	 * both edges of control flow have not been taken, and follow
+	 * both edges of control flow have yest been taken, and follow
 	 * the branch taken edge.  We will end up restarting the
 	 * search once per conditional branch insn.
 	 */
@@ -1778,7 +1778,7 @@ restart_search:
 	}
 	/*
 	 * Eventually all conditional branches have been followed on
-	 * both branches and we are done.  Any insn that has not been
+	 * both branches and we are done.  Any insn that has yest been
 	 * visited at this point is dead.
 	 */
 
@@ -1854,7 +1854,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		goto out_err;
 
 	/*
-	 * If no calls are made (EBPF_SAVE_RA), then tail call count
+	 * If yes calls are made (EBPF_SAVE_RA), then tail call count
 	 * in $v1, else we must save in n$s4.
 	 */
 	if (ctx.flags & EBPF_SEEN_TC) {
@@ -1868,7 +1868,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	 * Second pass generates offsets, if any branches are out of
 	 * range a jump-around long sequence is generated, and we have
 	 * to try again from the beginning to generate the new
-	 * offsets.  This is done until no additional conversions are
+	 * offsets.  This is done until yes additional conversions are
 	 * necessary.
 	 */
 	do {
@@ -1913,7 +1913,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	prog->bpf_func = (void *)ctx.target;
 	prog->jited = 1;
 	prog->jited_len = image_size;
-out_normal:
+out_yesrmal:
 	if (tmp_blinded)
 		bpf_jit_prog_release_other(prog, prog == orig_prog ?
 					   tmp : orig_prog);
@@ -1926,5 +1926,5 @@ out_err:
 	prog = orig_prog;
 	if (header)
 		bpf_jit_binary_free(header);
-	goto out_normal;
+	goto out_yesrmal;
 }

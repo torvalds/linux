@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinctrl.h>
-#include "pinctrl-nomadik.h"
+#include "pinctrl-yesmadik.h"
 
 /* All the pins that can be used for GPIO and some other functions */
 #define _GPIO(offset)		(offset)
@@ -130,10 +130,10 @@
 #define STN8815_PIN_M22		_GPIO(121)
 #define STN8815_PIN_M19		_GPIO(122)
 #define STN8815_PIN_J22		_GPIO(123)
-/* GPIOs 124-127 not routed to pins */
+/* GPIOs 124-127 yest routed to pins */
 
 /*
- * The names of the pins are denoted by GPIO number and ball name, even
+ * The names of the pins are deyested by GPIO number and ball name, even
  * though they can be used for other things than GPIO, this is the first
  * column in the table of the data sheet and often used on schematics and
  * such.

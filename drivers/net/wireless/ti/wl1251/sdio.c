@@ -39,7 +39,7 @@ static void wl1251_sdio_interrupt(struct sdio_func *func)
 
 	wl1251_debug(DEBUG_IRQ, "IRQ");
 
-	/* FIXME should be synchronous for sdio */
+	/* FIXME should be synchroyesus for sdio */
 	ieee80211_queue_work(wl->hw, &wl->irq_work);
 }
 
@@ -212,7 +212,7 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 	struct ieee80211_hw *hw;
 	struct wl1251_sdio *wl_sdio;
 	const struct wl1251_platform_data *wl1251_board_data;
-	struct device_node *np = func->dev.of_node;
+	struct device_yesde *np = func->dev.of_yesde;
 
 	hw = wl1251_alloc_hw();
 	if (IS_ERR(hw))
@@ -293,8 +293,8 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 
 	sdio_set_drvdata(func, wl);
 
-	/* Tell PM core that we don't need the card to be powered now */
-	pm_runtime_put_noidle(&func->dev);
+	/* Tell PM core that we don't need the card to be powered yesw */
+	pm_runtime_put_yesidle(&func->dev);
 
 	return ret;
 
@@ -318,7 +318,7 @@ static void wl1251_sdio_remove(struct sdio_func *func)
 	struct wl1251_sdio *wl_sdio = wl->if_priv;
 
 	/* Undo decrement done above in wl1251_probe */
-	pm_runtime_get_noresume(&func->dev);
+	pm_runtime_get_yesresume(&func->dev);
 
 	if (wl->irq)
 		free_irq(wl->irq, wl);
@@ -335,7 +335,7 @@ static int wl1251_suspend(struct device *dev)
 {
 	/*
 	 * Tell MMC/SDIO core it's OK to power down the card
-	 * (if it isn't already), but not to remove it completely.
+	 * (if it isn't already), but yest to remove it completely.
 	 */
 	return 0;
 }
@@ -371,7 +371,7 @@ static int __init wl1251_sdio_init(void)
 static void __exit wl1251_sdio_exit(void)
 {
 	sdio_unregister_driver(&wl1251_sdio_driver);
-	wl1251_notice("unloaded");
+	wl1251_yestice("unloaded");
 }
 
 module_init(wl1251_sdio_init);

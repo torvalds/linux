@@ -247,7 +247,7 @@ struct ptd {
 #define PTD_NOTACCESSED     0x0F
 
 
-/* map OHCI TD status codes (CC) to errno values */
+/* map OHCI TD status codes (CC) to erryes values */
 static const int cc_to_error[16] = {
 	/* No  Error  */               0,
 	/* CRC Error  */               -EILSEQ,
@@ -332,10 +332,10 @@ static const int cc_to_error[16] = {
 /* roothub.a masks */
 #define	RH_A_NDP	(0xff << 0)		/* number of downstream ports */
 #define	RH_A_PSM	(1 << 8)		/* power switching mode */
-#define	RH_A_NPS	(1 << 9)		/* no power switching */
+#define	RH_A_NPS	(1 << 9)		/* yes power switching */
 #define	RH_A_DT		(1 << 10)		/* device type (mbz) */
 #define	RH_A_OCPM	(1 << 11)		/* over current protection mode */
-#define	RH_A_NOCP	(1 << 12)		/* no over current protection */
+#define	RH_A_NOCP	(1 << 12)		/* yes over current protection */
 #define	RH_A_POTPGT	(0xff << 24)		/* power on to power good time */
 
 #define	FI			0x2edf		/* 12000 bits per frame (-1) */
@@ -460,7 +460,7 @@ struct isp1362_hcd {
 	struct list_head	periodic;
 	u16			fmindex;
 
-	/* periodic schedule: isochronous */
+	/* periodic schedule: isochroyesus */
 	struct list_head	isoc;
 	unsigned int		istl_flip:1;
 	unsigned int		irq_active:1;
@@ -502,7 +502,7 @@ static inline const char *ISP1362_INT_NAME(int n)
 	case ISP1362_INT_INTL:   return "INTL";
 	case ISP1362_INT_ATL:    return "ATL";
 	case ISP1362_INT_OTG:    return "OTG";
-	default:                 return "unknown";
+	default:                 return "unkyeswn";
 	}
 }
 
@@ -579,9 +579,9 @@ static inline struct usb_hcd *isp1362_hcd_to_hcd(struct isp1362_hcd *isp1362_hcd
 })
 
 /* basic access functions for ISP1362 chip registers */
-/* NOTE: The contents of the address pointer register cannot be read back! The driver must ensure,
+/* NOTE: The contents of the address pointer register canyest be read back! The driver must ensure,
  * that all register accesses are performed with interrupts disabled, since the interrupt
- * handler has no way of restoring the previous state.
+ * handler has yes way of restoring the previous state.
  */
 static void isp1362_write_addr(struct isp1362_hcd *isp1362_hcd, isp1362_reg_t reg)
 {
@@ -681,7 +681,7 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 		return;
 
 	if ((unsigned long)dp & 0x1) {
-		/* not aligned */
+		/* yest aligned */
 		for (; len > 1; len -= 2) {
 			data = *dp++;
 			data |= *dp++ << 8;

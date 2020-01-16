@@ -132,7 +132,7 @@ static const struct rt_channel_plan_map RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {
  * @ch_set: the given channel set
  * @ch: the given channel number
  *
- * return the index of channel_num in channel_set, -1 if not found
+ * return the index of channel_num in channel_set, -1 if yest found
  */
 int rtw_ch_set_search_ch(struct rt_channel_info *ch_set, const u32 ch)
 {
@@ -612,7 +612,7 @@ static int issue_probereq(struct adapter *padapter,
 	int bssrate_len = 0;
 	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, ("+%s\n", __func__));
+	RT_TRACE(_module_rtl871x_mlme_c_, _drv_yestice_, ("+%s\n", __func__));
 
 	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
 	if (!pmgntframe)
@@ -674,7 +674,7 @@ static int issue_probereq(struct adapter *padapter,
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
+	RT_TRACE(_module_rtl871x_mlme_c_, _drv_yestice_,
 		 ("issuing probe_req, tx_len=%d\n", pattrib->last_txcmdsz));
 
 	if (wait_ack) {
@@ -730,7 +730,7 @@ exit:
 	return ret;
 }
 
-/*  if psta == NULL, indicate we are station(client) now... */
+/*  if psta == NULL, indicate we are station(client) yesw... */
 static void issue_auth(struct adapter *padapter, struct sta_info *psta,
 		       unsigned short status)
 {
@@ -1088,8 +1088,8 @@ static void issue_assocreq(struct adapter *padapter)
 		}
 
 		if (j == sta_bssrate_len) {
-			/*  the rate is not supported by STA */
-			DBG_88E("%s(): the rate[%d]=%02X is not supported by STA!\n", __func__, i, pmlmeinfo->network.SupportedRates[i]);
+			/*  the rate is yest supported by STA */
+			DBG_88E("%s(): the rate[%d]=%02X is yest supported by STA!\n", __func__, i, pmlmeinfo->network.SupportedRates[i]);
 		} else {
 			/*  the rate is supported by STA */
 			bssrate[index++] = pmlmeinfo->network.SupportedRates[i];
@@ -1102,7 +1102,7 @@ static void issue_assocreq(struct adapter *padapter)
 	if (bssrate_len == 0) {
 		rtw_free_xmitbuf(pxmitpriv, pmgntframe->pxmitbuf);
 		rtw_free_xmitframe(pxmitpriv, pmgntframe);
-		goto exit; /* don't connect to AP if no joint supported rate */
+		goto exit; /* don't connect to AP if yes joint supported rate */
 	}
 
 	if (bssrate_len > 8) {
@@ -1674,7 +1674,7 @@ static void issue_action_BA(struct adapter *padapter, unsigned char *raddr,
 			pframe = rtw_set_fixed_ie(pframe, 2, &(le_tmp),
 						  &pattrib->pktlen);
 
-			reason_code = 37;/* Requested from peer STA as it does not want to use the mechanism */
+			reason_code = 37;/* Requested from peer STA as it does yest want to use the mechanism */
 			le_tmp = cpu_to_le16(reason_code);
 			pframe = rtw_set_fixed_ie(pframe, 2, &(le_tmp),
 						  &pattrib->pktlen);
@@ -1708,7 +1708,7 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 	u8 ICS[8][15];
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
 
-	if ((pmlmepriv->num_FortyMHzIntolerant == 0) || (pmlmepriv->num_sta_no_ht == 0))
+	if ((pmlmepriv->num_FortyMHzIntolerant == 0) || (pmlmepriv->num_sta_yes_ht == 0))
 		return;
 
 	if (pmlmeinfo->bwmode_updated)
@@ -1760,7 +1760,7 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 
 	/*  */
 	memset(ICS, 0, sizeof(ICS));
-	if (pmlmepriv->num_sta_no_ht > 0) {
+	if (pmlmepriv->num_sta_yes_ht > 0) {
 		int i;
 
 		spin_lock_bh(&pmlmepriv->scanned_queue.lock);
@@ -1780,7 +1780,7 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 			pbss_network = (struct wlan_bssid_ex *)&pnetwork->network;
 
 			p = rtw_get_ie(pbss_network->ies + _FIXED_IE_LENGTH_, _HT_CAPABILITY_IE_, &len, pbss_network->ie_length - _FIXED_IE_LENGTH_);
-			if ((p == NULL) || (len == 0)) { /* non-HT */
+			if ((p == NULL) || (len == 0)) { /* yesn-HT */
 				if ((pbss_network->Configuration.DSConfig <= 0) || (pbss_network->Configuration.DSConfig > 14))
 					continue;
 
@@ -1959,7 +1959,7 @@ static void site_survey(struct adapter *padapter)
 		set_survey_timer(pmlmeext, pmlmeext->chan_scan_time);
 	} else {
 		/*  20100721:Interrupt scan operation here. */
-		/*  For SW antenna diversity before link, it needs to switch to another antenna and scan again. */
+		/*  For SW antenna diversity before link, it needs to switch to ayesther antenna and scan again. */
 		/*  It compares the scan result and select better one to do connection. */
 		if (rtw_hal_antdiv_before_linked(padapter)) {
 			pmlmeext->sitesurvey_res.bss_cnt = 0;
@@ -2062,7 +2062,7 @@ static u8 collect_bss_info(struct adapter *padapter,
 	/*  checking SSID */
 	p = rtw_get_ie(bssid->ies + ie_offset, _SSID_IE_, &len, bssid->ie_length - ie_offset);
 	if (!p) {
-		DBG_88E("marc: cannot find SSID for survey event\n");
+		DBG_88E("marc: canyest find SSID for survey event\n");
 		return _FAIL;
 	}
 
@@ -2114,7 +2114,7 @@ static u8 collect_bss_info(struct adapter *padapter,
 
 	if (p) {
 		bssid->Configuration.DSConfig = *(p + 2);
-	} else {/*  In 5G, some ap do not have DSSET IE */
+	} else {/*  In 5G, some ap do yest have DSSET IE */
 		/*  checking HT info for channel */
 		p = rtw_get_ie(bssid->ies + ie_offset, _HT_ADD_INFO_IE_, &len, bssid->ie_length - ie_offset);
 		if (p) {
@@ -2166,7 +2166,7 @@ static u8 collect_bss_info(struct adapter *padapter,
 			if (le16_to_cpu(pHT_caps->cap_info) & BIT(14))
 				pmlmepriv->num_FortyMHzIntolerant++;
 		} else {
-			pmlmepriv->num_sta_no_ht++;
+			pmlmepriv->num_sta_yes_ht++;
 		}
 	}
 
@@ -2299,8 +2299,8 @@ static void start_clnt_auth(struct adapter *padapter)
 	pmlmeinfo->link_count = 0;
 	pmlmeext->retry = 0;
 
-	/*  Because of AP's not receiving deauth before */
-	/*  AP may: 1)not response auth or 2)deauth us after link is complete */
+	/*  Because of AP's yest receiving deauth before */
+	/*  AP may: 1)yest response auth or 2)deauth us after link is complete */
 	/*  issue deauth before issuing auth to deal with the situation */
 	/*	Commented by Albert 2012/07/21 */
 	/*	For the Win8 P2P connection, it will be hard to have a successful connection if this Wi-Fi doesn't connect to it. */
@@ -2373,7 +2373,7 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 		struct rt_channel_info chplan_sta[MAX_CHANNEL_NUM];
 		u8 country[4];
 		u8 fcn; /*  first channel number */
-		u8 noc; /*  number of channel */
+		u8 yesc; /*  number of channel */
 		u8 j, k;
 
 		ie = rtw_get_ie(bssid->ies + _FIXED_IE_LENGTH_, _COUNTRY_IE_, &len, bssid->ie_length - _FIXED_IE_LENGTH_);
@@ -2388,16 +2388,16 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 		memset(country, 0, 4);
 		memcpy(country, p, 3);
 		p += 3;
-		RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
+		RT_TRACE(_module_rtl871x_mlme_c_, _drv_yestice_,
 			 ("%s: 802.11d country =%s\n", __func__, country));
 
 		i = 0;
 		while ((ie - p) >= 3) {
 			fcn = *(p++);
-			noc = *(p++);
+			yesc = *(p++);
 			p++;
 
-			for (j = 0; j < noc; j++) {
+			for (j = 0; j < yesc; j++) {
 				channel = fcn + j;
 
 				chplan_ap.Channel[i++] = channel;
@@ -2442,7 +2442,7 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 				}
 			} while (1);
 
-			/*  change AP not support channel to Passive scan */
+			/*  change AP yest support channel to Passive scan */
 			while ((i < MAX_CHANNEL_NUM) &&
 			       (chplan_sta[i].ChannelNum != 0) &&
 			       (chplan_sta[i].ChannelNum <= 14)) {
@@ -2486,7 +2486,7 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 		if (chplan_new[i].ChannelNum == channel) {
 			if (chplan_new[i].ScanType == SCAN_PASSIVE) {
 				chplan_new[i].ScanType = SCAN_ACTIVE;
-				RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
+				RT_TRACE(_module_rtl871x_mlme_c_, _drv_yestice_,
 					 ("%s: change channel %d scan type from passive to active\n",
 					 __func__, channel));
 			}
@@ -2599,7 +2599,7 @@ static unsigned int OnBeacon(struct adapter *padapter,
 			if (psta != NULL) {
 				ret = rtw_check_bcn_info(padapter, pframe, len);
 				if (!ret) {
-						DBG_88E_LEVEL(_drv_info_, "ap has changed, disconnect now\n ");
+						DBG_88E_LEVEL(_drv_info_, "ap has changed, disconnect yesw\n ");
 						receive_disconnect(padapter, pmlmeinfo->network.MacAddress, 65535);
 						return _SUCCESS;
 				}
@@ -2676,7 +2676,7 @@ static unsigned int OnAuth(struct adapter *padapter,
 	    psecuritypriv->dot11PrivacyAlgrthm != _WEP104_)
 		auth_mode = 0;
 
-	if ((algorithm > 0 && auth_mode == 0) ||	/*  rx a shared-key auth but shared not enabled */
+	if ((algorithm > 0 && auth_mode == 0) ||	/*  rx a shared-key auth but shared yest enabled */
 	    (algorithm == 0 && auth_mode == 1)) {	/*  rx a open-system auth but shared-key is enabled */
 		DBG_88E("auth rejected due to bad alg [alg=%d, auth_mib=%d] %02X%02X%02X%02X%02X%02X\n",
 			algorithm, auth_mode, sa[0], sa[1], sa[2], sa[3], sa[4], sa[5]);
@@ -2824,7 +2824,7 @@ static unsigned int OnAuthClient(struct adapter *padapter,
 
 	DBG_88E("%s\n", __func__);
 
-	/* check A1 matches or not */
+	/* check A1 matches or yest */
 	if (memcmp(myid(&padapter->eeprompriv), get_da(pframe), ETH_ALEN))
 		return _SUCCESS;
 
@@ -2955,7 +2955,7 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 		pstat->state |= WIFI_FW_ASSOC_STATE;
 	}
 	pstat->capability = capab_info;
-	/* now parse all ieee802_11 ie to point to elems */
+	/* yesw parse all ieee802_11 ie to point to elems */
 	if (rtw_ieee802_11_parse_elems(pos, left, &elems, 1) == ParseFailed ||
 	    !elems.ssid) {
 		DBG_88E("STA %pM sent invalid association request\n",
@@ -2964,13 +2964,13 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 		goto OnAssocReqFail;
 	}
 
-	/*  now we should check all the fields... */
+	/*  yesw we should check all the fields... */
 	/*  checking SSID */
 	p = rtw_get_ie(pframe + WLAN_HDR_A3_LEN + ie_offset, _SSID_IE_, &ie_len,
 		pkt_len - WLAN_HDR_A3_LEN - ie_offset);
 
 	if (!p || ie_len == 0) {
-		/*  broadcast ssid, however it is not allowed in assocreq */
+		/*  broadcast ssid, however it is yest allowed in assocreq */
 		status = _STATS_FAILURE_;
 		goto OnAssocReqFail;
 	} else {
@@ -3086,13 +3086,13 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 			/* sta->wps_ie = wpabuf_alloc_copy(elems.wps_ie + 4, */
 			/*				elems.wps_ie_len - 4); */
 		} else {
-			DBG_88E("STA did not include WPA/RSN IE "
+			DBG_88E("STA did yest include WPA/RSN IE "
 				   "in (Re)Association Request - possible WPS "
 				   "use\n");
 			pstat->flags |= WLAN_STA_MAYBE_WPS;
 		}
 
-		/*  AP support WPA/RSN, and sta is going to do WPS, but AP is not ready */
+		/*  AP support WPA/RSN, and sta is going to do WPS, but AP is yest ready */
 		/*  that the selected registrar of AP is _FLASE */
 		if ((psecuritypriv->wpa_psk > 0) && (pstat->flags & (WLAN_STA_WPS|WLAN_STA_MAYBE_WPS))) {
 			if (pmlmepriv->wps_beacon_ie) {
@@ -3101,7 +3101,7 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 				rtw_get_wps_attr_content(pmlmepriv->wps_beacon_ie, pmlmepriv->wps_beacon_ie_len, WPS_ATTR_SELECTED_REGISTRAR, &selected_registrar, NULL);
 
 				if (!selected_registrar) {
-					DBG_88E("selected_registrar is false , or AP is not ready to do WPS\n");
+					DBG_88E("selected_registrar is false , or AP is yest ready to do WPS\n");
 
 					status = _STATS_UNABLE_HANDLE_STA_;
 
@@ -3252,7 +3252,7 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 		if (pstat->aid > pstapriv->max_num_sta) {
 			pstat->aid = 0;
 
-			DBG_88E("  no room for more AIDs\n");
+			DBG_88E("  yes room for more AIDs\n");
 
 			status = WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
 
@@ -3281,13 +3281,13 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 	}
 	spin_unlock_bh(&pstapriv->asoc_list_lock);
 
-	/*  now the station is qualified to join our BSS... */
+	/*  yesw the station is qualified to join our BSS... */
 	if ((pstat->state & WIFI_FW_ASSOC_SUCCESS) && (_STATS_SUCCESSFUL_ == status)) {
 		/* 1 bss_cap_update & sta_info_update */
 		bss_cap_update_on_sta_join(padapter, pstat);
 		sta_info_update(padapter, pstat);
 
-		/* issue assoc rsp before notify station join event. */
+		/* issue assoc rsp before yestify station join event. */
 		if (frame_type == WIFI_ASSOCREQ)
 			issue_asocrsp(padapter, status, pstat, WIFI_ASSOCRSP);
 		else
@@ -3337,7 +3337,7 @@ static unsigned int OnAssocRsp(struct adapter *padapter,
 
 	DBG_88E("%s\n", __func__);
 
-	/* check A1 matches or not */
+	/* check A1 matches or yest */
 	if (memcmp(myid(&padapter->eeprompriv), get_da(pframe), ETH_ALEN))
 		return _SUCCESS;
 
@@ -3370,7 +3370,7 @@ static unsigned int OnAssocRsp(struct adapter *padapter,
 
 	/* following are moved to join event callback function */
 	/* to handle HT, WMM, rate adaptive, update MAC reg */
-	/* for not to handle the synchronous IO in the tasklet */
+	/* for yest to handle the synchroyesus IO in the tasklet */
 	for (i = 6 + WLAN_HDR_A3_LEN; i < pkt_len;) {
 		pIE = (struct ndis_802_11_var_ie *)(pframe + i);
 
@@ -3589,7 +3589,7 @@ static unsigned int OnAction_back(struct adapter *padapter,
 	u8 *pframe = precv_frame->pkt->data;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
-	/* check RA matches or not */
+	/* check RA matches or yest */
 	if (memcmp(myid(&padapter->eeprompriv), GetAddr1Ptr(pframe),
 		   ETH_ALEN))/* for if1, sta/ap mode */
 		return _SUCCESS;
@@ -3647,7 +3647,7 @@ static unsigned int OnAction_back(struct adapter *padapter,
 				preorder_ctrl->indicate_seq = 0xffff;
 			}
 			DBG_88E("%s(): DELBA: %x(%x)\n", __func__, pmlmeinfo->agg_enable_bitmap, reason_code);
-			/* todo: how to notify the host while receiving DELETE BA */
+			/* todo: how to yestify the host while receiving DELETE BA */
 			break;
 		default:
 			break;
@@ -3742,7 +3742,7 @@ static unsigned int on_action_public(struct adapter *padapter,
 	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
 	u8 category, action;
 
-	/* check RA matches or not */
+	/* check RA matches or yest */
 	if (memcmp(myid(&padapter->eeprompriv), GetAddr1Ptr(pframe), ETH_ALEN))
 		goto exit;
 
@@ -4110,7 +4110,7 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 	index = GetFrameSubType(pframe) >> 4;
 
 	if (index > 13) {
-		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("Currently we do not support reserved sub-fr-type=%d\n", index));
+		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("Currently we do yest support reserved sub-fr-type=%d\n", index));
 		return;
 	}
 	ptable += index;
@@ -4543,7 +4543,7 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter, struct sta_info *p
 
 	if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
 		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) {/* adhoc master or sta_count>1 */
-			/* nothing to do */
+			/* yesthing to do */
 		} else { /* adhoc client */
 			/*  correcting TSF */
 			correct_TSF(padapter, pmlmeext);
@@ -4593,7 +4593,7 @@ void mlmeext_sta_del_event_callback(struct adapter *padapter)
 
 		pmlmeinfo->state = WIFI_FW_NULL_STATE;
 
-		/* set MSR to no link state -> infra. mode */
+		/* set MSR to yes link state -> infra. mode */
 		Set_MSR(padapter, _HW_STATE_STATION_);
 
 		del_timer_sync(&pmlmeext->link_timer);
@@ -4728,7 +4728,7 @@ void linked_status_chk(struct adapter *padapter)
 						pmlmeinfo->FW_sta_info[i].retry = 0;
 						pmlmeinfo->FW_sta_info[i].status = 0;
 						report_del_sta_event(padapter, psta->hwaddr
-							, 65535/*  indicate disconnect caused by no rx */
+							, 65535/*  indicate disconnect caused by yes rx */
 					);
 					}
 				} else {
@@ -4772,7 +4772,7 @@ void survey_timer_hdl(struct timer_list *t)
 			goto exit_survey_timer_hdl;
 		}
 
-		init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara, _SiteSurvey_CMD_);
+		init_h2fwcmd_w_parm_yes_rsp(ph2c, psurveyPara, _SiteSurvey_CMD_);
 		rtw_enqueue_cmd(pcmdpriv, ph2c);
 	}
 
@@ -4788,7 +4788,7 @@ void link_timer_hdl(struct timer_list *t)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
-		DBG_88E("%s:no beacon while connecting\n", __func__);
+		DBG_88E("%s:yes beacon while connecting\n", __func__);
 		pmlmeinfo->state = WIFI_FW_NULL_STATE;
 		report_join_res(padapter, -3);
 	} else if (pmlmeinfo->state & WIFI_FW_AUTH_STATE) {
@@ -4929,7 +4929,7 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 	struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
 	u32 i;
 
-	/* check already connecting to AP or not */
+	/* check already connecting to AP or yest */
 	if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) {
 		if (pmlmeinfo->state & WIFI_FW_STATION_STATE)
 			issue_deauth_ex(padapter, pnetwork->MacAddress, WLAN_REASON_DEAUTH_LEAVING, 5, 100);
@@ -4941,7 +4941,7 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 
 		del_timer_sync(&pmlmeext->link_timer);
 
-		/* set MSR to nolink -> infra. mode */
+		/* set MSR to yeslink -> infra. mode */
 		Set_MSR(padapter, _HW_STATE_STATION_);
 
 		rtw_hal_set_hwreg(padapter, HW_VAR_MLME_DISCONNECT, NULL);
@@ -5054,7 +5054,7 @@ u8 disconnect_hdl(struct adapter *padapter, unsigned char *pbuf)
 		rtw_hal_set_hwreg(padapter, HW_VAR_BCN_FUNC, (u8 *)(&val8));
 	}
 
-	/* set MSR to no link state -> infra. mode */
+	/* set MSR to yes link state -> infra. mode */
 	Set_MSR(padapter, _HW_STATE_STATION_);
 
 	pmlmeinfo->state = WIFI_FW_NULL_STATE;
@@ -5176,7 +5176,7 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 
 		rtw_hal_set_hwreg(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
 
-		/* set MSR to no link state */
+		/* set MSR to yes link state */
 		Set_MSR(padapter, _HW_STATE_NOLINK_);
 
 		val8 = 1; /* under site survey */
@@ -5344,7 +5344,7 @@ u8 set_tx_beacon_cmd(struct adapter *padapter)
 				      pmlmeinfo->hidden_ssid_mode);
 	ptxBeacon_parm->ie_length += len_diff;
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, ptxBeacon_parm, _TX_Beacon_CMD_);
+	init_h2fwcmd_w_parm_yes_rsp(ph2c, ptxBeacon_parm, _TX_Beacon_CMD_);
 
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 

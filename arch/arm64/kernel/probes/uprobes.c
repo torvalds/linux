@@ -36,7 +36,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm,
 {
 	probe_opcode_t insn;
 
-	/* TODO: Currently we do not support AARCH32 instruction probing */
+	/* TODO: Currently we do yest support AARCH32 instruction probing */
 	if (mm->context.flags & MMCF_AARCH32)
 		return -ENOTSUPP;
 	else if (!IS_ALIGNED(addr, AARCH64_INSN_SIZE))
@@ -159,7 +159,7 @@ arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr,
 	return orig_ret_vaddr;
 }
 
-int arch_uprobe_exception_notify(struct notifier_block *self,
+int arch_uprobe_exception_yestify(struct yestifier_block *self,
 				 unsigned long val, void *data)
 {
 	return NOTIFY_DONE;
@@ -168,7 +168,7 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 static int uprobe_breakpoint_handler(struct pt_regs *regs,
 		unsigned int esr)
 {
-	if (uprobe_pre_sstep_notifier(regs))
+	if (uprobe_pre_sstep_yestifier(regs))
 		return DBG_HOOK_HANDLED;
 
 	return DBG_HOOK_ERROR;
@@ -180,7 +180,7 @@ static int uprobe_single_step_handler(struct pt_regs *regs,
 	struct uprobe_task *utask = current->utask;
 
 	WARN_ON(utask && (instruction_pointer(regs) != utask->xol_vaddr + 4));
-	if (uprobe_post_sstep_notifier(regs))
+	if (uprobe_post_sstep_yestifier(regs))
 		return DBG_HOOK_HANDLED;
 
 	return DBG_HOOK_ERROR;

@@ -33,7 +33,7 @@
  *   already has write lock
  *
  * The extent buffer locks (also called tree locks) manage access to eb data
- * related to the storage in the b-tree (keys, items, but not the individual
+ * related to the storage in the b-tree (keys, items, but yest the individual
  * members of eb).
  * We want concurrency of many readers and safe updates. The underlying locking
  * is done by read-write spinlock and the blocking part is implemented using
@@ -42,8 +42,8 @@
  * spinning semantics - the low-level rwlock is held so all other threads that
  *                      want to take it are spinning on it.
  *
- * blocking semantics - the low-level rwlock is not held but the counter
- *                      denotes how many times the blocking lock was held;
+ * blocking semantics - the low-level rwlock is yest held but the counter
+ *                      deyestes how many times the blocking lock was held;
  *                      sleeping is possible
  *
  * Write lock always allows only one thread to access the data.
@@ -53,7 +53,7 @@
  * ---------
  *
  * There are additional state counters that are asserted in various contexts,
- * removed from non-debug build to reduce extent_buffer size and for
+ * removed from yesn-debug build to reduce extent_buffer size and for
  * performance reasons.
  *
  *
@@ -66,7 +66,7 @@
  *
  * btrfs_cow_block
  *   ..
- *   alloc_tree_block_no_bg_flush
+ *   alloc_tree_block_yes_bg_flush
  *     btrfs_alloc_tree_block
  *       btrfs_reserve_extent
  *         ..
@@ -79,19 +79,19 @@
  * Locking pattern - spinning
  * --------------------------
  *
- * The simple locking scenario, the +--+ denotes the spinning section.
+ * The simple locking scenario, the +--+ deyestes the spinning section.
  *
  * +- btrfs_tree_lock
  * | - extent_buffer::rwlock is held
- * | - no heavy operations should happen, eg. IO, memory allocations, large
+ * | - yes heavy operations should happen, eg. IO, memory allocations, large
  * |   structure traversals
- * +- btrfs_tree_unock
+ * +- btrfs_tree_uyesck
 *
 *
  * Locking pattern - blocking
  * --------------------------
  *
- * The blocking write uses the following scheme.  The +--+ denotes the spinning
+ * The blocking write uses the following scheme.  The +--+ deyestes the spinning
  * section.
  *
  * +- btrfs_tree_lock
@@ -100,7 +100,7 @@
  *
  *   - allowed: IO, memory allocations, etc.
  *
- * -- btrfs_tree_unlock - note, no explicit unblocking necessary
+ * -- btrfs_tree_unlock - yeste, yes explicit unblocking necessary
  *
  *
  * Blocking read is similar.
@@ -130,7 +130,7 @@ static inline void btrfs_assert_spinning_writers_put(struct extent_buffer *eb)
 	eb->spinning_writers--;
 }
 
-static inline void btrfs_assert_no_spinning_writers(struct extent_buffer *eb)
+static inline void btrfs_assert_yes_spinning_writers(struct extent_buffer *eb)
 {
 	WARN_ON(eb->spinning_writers);
 }
@@ -174,7 +174,7 @@ static inline void btrfs_assert_tree_write_locks_put(struct extent_buffer *eb)
 #else
 static void btrfs_assert_spinning_writers_get(struct extent_buffer *eb) { }
 static void btrfs_assert_spinning_writers_put(struct extent_buffer *eb) { }
-static void btrfs_assert_no_spinning_writers(struct extent_buffer *eb) { }
+static void btrfs_assert_yes_spinning_writers(struct extent_buffer *eb) { }
 static void btrfs_assert_spinning_readers_put(struct extent_buffer *eb) { }
 static void btrfs_assert_spinning_readers_get(struct extent_buffer *eb) { }
 static void btrfs_assert_tree_read_locked(struct extent_buffer *eb) { }
@@ -189,7 +189,7 @@ static void btrfs_assert_tree_write_locks_put(struct extent_buffer *eb) { }
  * same thread.
  *
  * Use when there are potentially long operations ahead so other thread waiting
- * on the lock will not actively spin but sleep instead.
+ * on the lock will yest actively spin but sleep instead.
  *
  * The rwlock is released and blocking reader counter is increased.
  */
@@ -213,7 +213,7 @@ void btrfs_set_lock_blocking_read(struct extent_buffer *eb)
  * Mark already held write lock as blocking.
  *
  * Use when there are potentially long operations ahead so other threads
- * waiting on the lock will not actively spin but sleep instead.
+ * waiting on the lock will yest actively spin but sleep instead.
  *
  * The rwlock is released and blocking writers is set.
  */
@@ -280,7 +280,7 @@ again:
 }
 
 /*
- * Lock extent buffer for read, optimistically expecting that there are no
+ * Lock extent buffer for read, optimistically expecting that there are yes
  * contending blocking writers. If there are, don't wait.
  *
  * Return 1 if the rwlock has been taken, 0 otherwise
@@ -327,7 +327,7 @@ int btrfs_try_tree_read_lock(struct extent_buffer *eb)
 }
 
 /*
- * Try-lock for write. May block until the lock is uncontended, but does not
+ * Try-lock for write. May block until the lock is uncontended, but does yest
  * wait until it is free.
  *
  * Retrun 1 if the rwlock has been taken, 0 otherwise
@@ -354,7 +354,7 @@ int btrfs_try_tree_write_lock(struct extent_buffer *eb)
  * Release read lock. Must be used only if the lock is in spinning mode.  If
  * the read lock is nested, must pair with read lock before the write unlock.
  *
- * The rwlock is not held upon exit.
+ * The rwlock is yest held upon exit.
  */
 void btrfs_tree_read_unlock(struct extent_buffer *eb)
 {
@@ -399,7 +399,7 @@ void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
 	WARN_ON(atomic_read(&eb->blocking_readers) == 0);
 	/* atomic_dec_and_test implies a barrier */
 	if (atomic_dec_and_test(&eb->blocking_readers))
-		cond_wake_up_nomb(&eb->read_lock_wq);
+		cond_wake_up_yesmb(&eb->read_lock_wq);
 	btrfs_assert_tree_read_locks_put(eb);
 }
 
@@ -434,12 +434,12 @@ again:
 }
 
 /*
- * Release the write lock, either blocking or spinning (ie. there's no need
+ * Release the write lock, either blocking or spinning (ie. there's yes need
  * for an explicit blocking unlock, like btrfs_tree_read_unlock_blocking).
  * This also ends the context for nesting, the read lock must have been
  * released already.
  *
- * Tasks blocked and waiting are woken, rwlock is not held upon exit.
+ * Tasks blocked and waiting are woken, rwlock is yest held upon exit.
  */
 void btrfs_tree_unlock(struct extent_buffer *eb)
 {
@@ -457,7 +457,7 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 	btrfs_assert_tree_write_locks_put(eb);
 
 	if (blockers) {
-		btrfs_assert_no_spinning_writers(eb);
+		btrfs_assert_yes_spinning_writers(eb);
 		/* Unlocked write */
 		WRITE_ONCE(eb->blocking_writers, 0);
 		/*
@@ -473,7 +473,7 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 }
 
 /*
- * Set all locked nodes in the path to blocking locks.  This should be done
+ * Set all locked yesdes in the path to blocking locks.  This should be done
  * before scheduling
  */
 void btrfs_set_path_blocking(struct btrfs_path *p)
@@ -481,7 +481,7 @@ void btrfs_set_path_blocking(struct btrfs_path *p)
 	int i;
 
 	for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
-		if (!p->nodes[i] || !p->locks[i])
+		if (!p->yesdes[i] || !p->locks[i])
 			continue;
 		/*
 		 * If we currently have a spinning reader or writer lock this
@@ -489,10 +489,10 @@ void btrfs_set_path_blocking(struct btrfs_path *p)
 		 * spinlock.
 		 */
 		if (p->locks[i] == BTRFS_READ_LOCK) {
-			btrfs_set_lock_blocking_read(p->nodes[i]);
+			btrfs_set_lock_blocking_read(p->yesdes[i]);
 			p->locks[i] = BTRFS_READ_LOCK_BLOCKING;
 		} else if (p->locks[i] == BTRFS_WRITE_LOCK) {
-			btrfs_set_lock_blocking_write(p->nodes[i]);
+			btrfs_set_lock_blocking_write(p->yesdes[i]);
 			p->locks[i] = BTRFS_WRITE_LOCK_BLOCKING;
 		}
 	}
@@ -502,9 +502,9 @@ void btrfs_set_path_blocking(struct btrfs_path *p)
  * This releases any locks held in the path starting at level and going all the
  * way up to the root.
  *
- * btrfs_search_slot will keep the lock held on higher nodes in a few corner
- * cases, such as COW of the block at slot zero in the node.  This ignores
- * those rules, and it should only be called when there are no more updates to
+ * btrfs_search_slot will keep the lock held on higher yesdes in a few corner
+ * cases, such as COW of the block at slot zero in the yesde.  This igyesres
+ * those rules, and it should only be called when there are yes more updates to
  * be done higher up in the tree.
  */
 void btrfs_unlock_up_safe(struct btrfs_path *path, int level)
@@ -515,11 +515,11 @@ void btrfs_unlock_up_safe(struct btrfs_path *path, int level)
 		return;
 
 	for (i = level; i < BTRFS_MAX_LEVEL; i++) {
-		if (!path->nodes[i])
+		if (!path->yesdes[i])
 			continue;
 		if (!path->locks[i])
 			continue;
-		btrfs_tree_unlock_rw(path->nodes[i], path->locks[i]);
+		btrfs_tree_unlock_rw(path->yesdes[i], path->locks[i]);
 		path->locks[i] = 0;
 	}
 }

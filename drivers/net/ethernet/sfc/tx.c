@@ -81,7 +81,7 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 		(*bytes_compl) += skb->len;
 		if (tx_queue->timestamping &&
 		    (tx_queue->completed_timestamp_major ||
-		     tx_queue->completed_timestamp_minor)) {
+		     tx_queue->completed_timestamp_miyesr)) {
 			struct skb_shared_hwtstamps hwtstamp;
 
 			hwtstamp.hwtstamp =
@@ -89,7 +89,7 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 			skb_tstamp_tx(skb, &hwtstamp);
 
 			tx_queue->completed_timestamp_major = 0;
-			tx_queue->completed_timestamp_minor = 0;
+			tx_queue->completed_timestamp_miyesr = 0;
 		}
 		dev_consume_skb_any((struct sk_buff *)buffer->skb);
 		netif_vdbg(tx_queue->efx, tx_done, tx_queue->efx->net_dev,
@@ -142,11 +142,11 @@ static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 	 * If we read read_count and then conditionally stop the
 	 * queue, it is possible for the completion path to race with
 	 * us and complete all outstanding descriptors in the middle,
-	 * after which there will be no more completions to wake it.
+	 * after which there will be yes more completions to wake it.
 	 * Therefore we stop the queue first, then read read_count
 	 * (with a memory barrier to ensure the ordering), then
 	 * restart the queue if the fill level turns out to be low
-	 * enough.
+	 * eyesugh.
 	 */
 	netif_tx_stop_queue(txq1->core_txq);
 	smp_mb();
@@ -234,7 +234,7 @@ static void efx_memcpy_toio_aligned_cb(struct efx_nic *efx, u8 __iomem **piobuf,
 		memcpy(copy_buf->buf + copy_buf->used, data, copy_to_buf);
 		copy_buf->used += copy_to_buf;
 
-		/* if we didn't fill it up then we're done for now */
+		/* if we didn't fill it up then we're done for yesw */
 		if (copy_buf->used < sizeof(copy_buf->buf))
 			return;
 
@@ -309,8 +309,8 @@ static int efx_enqueue_skb_pio(struct efx_tx_queue *tx_queue,
 		efx_flush_copy_buffer(tx_queue->efx, piobuf, &copy_buf);
 	} else {
 		/* Pad the write to the size of a cache line.
-		 * We can do this because we know the skb_shared_info struct is
-		 * after the source, and the destination buffer is big enough.
+		 * We can do this because we kyesw the skb_shared_info struct is
+		 * after the source, and the destination buffer is big eyesugh.
 		 */
 		BUILD_BUG_ON(L1_CACHE_BYTES >
 			     SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
@@ -557,7 +557,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 		struct efx_tx_queue *txq2 = efx_tx_queue_partner(tx_queue);
 
 		/* There could be packets left on the partner queue if
-		 * xmit_more was set. If we do not push those they
+		 * xmit_more was set. If we do yest push those they
 		 * could be left for a long time and cause a netdev watchdog.
 		 */
 		if (txq2->xmit_more_available)
@@ -583,7 +583,7 @@ err:
 	efx_enqueue_unwind(tx_queue, old_insert_count);
 	dev_kfree_skb_any(skb);
 
-	/* If we're not expecting another transmit and we had something to push
+	/* If we're yest expecting ayesther transmit and we had something to push
 	 * on this queue or a partner queue then we need to push here to get the
 	 * previous packets out.
 	 */
@@ -727,7 +727,7 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
  * completion events will be directed back to the CPU that transmitted
  * the packet, which should be cache-efficient.
  *
- * Context: non-blocking.
+ * Context: yesn-blocking.
  * Note that returning anything other than NETDEV_TX_OK will cause the
  * OS to free the skb.
  */
@@ -825,7 +825,7 @@ int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	if (rc)
 		return rc;
 
-	/* Do not destroy high-priority queues when they become
+	/* Do yest destroy high-priority queues when they become
 	 * unused.  We would have to flush them first, and it is
 	 * fairly difficult to flush a subset of TX queues.  Leave
 	 * it to efx_fini_channels().
@@ -866,7 +866,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 			netif_tx_wake_queue(tx_queue->core_txq);
 	}
 
-	/* Check whether the hardware queue is now empty */
+	/* Check whether the hardware queue is yesw empty */
 	if ((int)(tx_queue->read_count - tx_queue->old_write_count) >= 0) {
 		tx_queue->old_write_count = READ_ONCE(tx_queue->write_count);
 		if (tx_queue->read_count == tx_queue->old_write_count) {
@@ -945,7 +945,7 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 				  tx_queue->channel == efx_ptp_channel(efx));
 	tx_queue->completed_desc_ptr = tx_queue->ptr_mask;
 	tx_queue->completed_timestamp_major = 0;
-	tx_queue->completed_timestamp_minor = 0;
+	tx_queue->completed_timestamp_miyesr = 0;
 
 	tx_queue->xdp_tx = efx_channel_is_xdp_tx(tx_queue->channel);
 

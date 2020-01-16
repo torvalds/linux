@@ -20,7 +20,7 @@ struct ionic_tx_stats {
 	u64 bytes;
 	u64 clean;
 	u64 linearize;
-	u64 no_csum;
+	u64 yes_csum;
 	u64 csum;
 	u64 crc32_csum;
 	u64 tso;
@@ -33,7 +33,7 @@ struct ionic_rx_stats {
 	u64 alloc_err;
 	u64 pkts;
 	u64 bytes;
-	u64 csum_none;
+	u64 csum_yesne;
 	u64 csum_complete;
 	u64 csum_error;
 	u64 buffers_posted;
@@ -112,9 +112,9 @@ struct ionic_lif_sw_stats {
 	u64 rx_packets;
 	u64 rx_bytes;
 	u64 tx_tso;
-	u64 tx_no_csum;
+	u64 tx_yes_csum;
 	u64 tx_csum;
-	u64 rx_csum_none;
+	u64 rx_csum_yesne;
 	u64 rx_csum_complete;
 	u64 rx_csum_error;
 };
@@ -144,7 +144,7 @@ struct ionic_lif {
 	u64 __iomem *kern_dbpage;
 	spinlock_t adminq_lock;		/* lock for AdminQ operations */
 	struct ionic_qcq *adminqcq;
-	struct ionic_qcq *notifyqcq;
+	struct ionic_qcq *yestifyqcq;
 	struct ionic_qcqst *txqcqs;
 	struct ionic_qcqst *rxqcqs;
 	u64 last_eid;
@@ -189,7 +189,7 @@ struct ionic_lif {
 #define lif_to_txq(lif, i)	(&lif_to_txqcq((lif), i)->q)
 #define lif_to_rxq(lif, i)	(&lif_to_txqcq((lif), i)->q)
 
-/* return 0 if successfully set the bit, else non-zero */
+/* return 0 if successfully set the bit, else yesn-zero */
 static inline int ionic_wait_for_bit(struct ionic_lif *lif, int bitname)
 {
 	return wait_on_bit_lock(lif->state, bitname, TASK_INTERRUPTIBLE);

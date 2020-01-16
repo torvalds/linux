@@ -2,7 +2,7 @@
 //
 // extcon-max77693.c - MAX77693 extcon driver to support MAX77693 MUIC
 //
-// Copyright (C) 2012 Samsung Electrnoics
+// Copyright (C) 2012 Samsung Electryesics
 // Chanwoo Choi <cw00.choi@samsung.com>
 
 #include <linux/kernel.h>
@@ -78,9 +78,9 @@ struct max77693_muic_info {
 
 	/*
 	 * Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * yestify cable state to yestifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should yestify cable state to upper layer.
 	 */
 	struct delayed_work wq_detcable;
 
@@ -438,7 +438,7 @@ static int max77693_muic_get_cable_type(struct max77693_muic_info *info,
 		cable_type = vbvolt;
 		break;
 	default:
-		dev_err(info->dev, "Unknown cable group (%d)\n", group);
+		dev_err(info->dev, "Unkyeswn cable group (%d)\n", group);
 		cable_type = -EINVAL;
 		break;
 	}
@@ -470,7 +470,7 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 				MAX77693_CABLE_GROUP_VBVOLT, &cable_attached);
 		if (attached && !vbvolt) {
 			dev_warn(info->dev,
-				"Cannot detect external power supply\n");
+				"Canyest detect external power supply\n");
 			return 0;
 		}
 
@@ -689,7 +689,7 @@ static int max77693_muic_adc_handler(struct max77693_muic_info *info)
 		 * The MAX77693 MUIC device can detect total 34 cable type
 		 * except of charger cable and MUIC device didn't define
 		 * specfic role of cable in the range of from 0x01 to 0x12
-		 * of ADC value. So, can use/define cable with no role according
+		 * of ADC value. So, can use/define cable with yes role according
 		 * to schema of hardware board.
 		 */
 		ret = max77693_muic_dock_handler(info, cable_type, attached);
@@ -708,7 +708,7 @@ static int max77693_muic_adc_handler(struct max77693_muic_info *info)
 		 * The MAX77693 MUIC device can detect total 34 cable type
 		 * except of charger cable and MUIC device didn't define
 		 * specfic role of cable in the range of from 0x01 to 0x12
-		 * of ADC value. So, can use/define cable with no role according
+		 * of ADC value. So, can use/define cable with yes role according
 		 * to schema of hardware board.
 		 */
 		if (attached)
@@ -792,7 +792,7 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			 * micro-usb port. When the target connect MHL cable,
 			 * extcon driver check whether USB/TA cable is
 			 * connected. If USB/TA cable is connected, extcon
-			 * driver notify state to notifiee for charging battery.
+			 * driver yestify state to yestifiee for charging battery.
 			 *
 			 * Features of 'USB/TA with MHL cable'
 			 * - Support MHL
@@ -817,8 +817,8 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			 * - Dock device include two port(Dock-Audio and micro-
 			 * usb port). When the target connect Dock-Audio device,
 			 * extcon driver check whether USB/TA cable is connected
-			 * or not. If USB/TA cable is connected, extcon driver
-			 * notify state to notifiee for charging battery.
+			 * or yest. If USB/TA cable is connected, extcon driver
+			 * yestify state to yestifiee for charging battery.
 			 *
 			 * Features of 'USB/TA cable with Dock-Audio device'
 			 * - Support external output feature of audio.
@@ -1034,7 +1034,7 @@ static int max77693_muic_detect_accessory(struct max77693_muic_info *info)
 	if (attached && adc != MAX77693_MUIC_ADC_OPEN) {
 		ret = max77693_muic_adc_handler(info);
 		if (ret < 0) {
-			dev_err(info->dev, "Cannot detect accessory\n");
+			dev_err(info->dev, "Canyest detect accessory\n");
 			mutex_unlock(&info->mutex);
 			return ret;
 		}
@@ -1045,7 +1045,7 @@ static int max77693_muic_detect_accessory(struct max77693_muic_info *info)
 	if (attached && chg_type != MAX77693_CHARGER_TYPE_NONE) {
 		ret = max77693_muic_chg_handler(info);
 		if (ret < 0) {
-			dev_err(info->dev, "Cannot detect charger accessory\n");
+			dev_err(info->dev, "Canyest detect charger accessory\n");
 			mutex_unlock(&info->mutex);
 			return ret;
 		}
@@ -1119,7 +1119,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 
 	ret = input_register_device(info->dock);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot register input device error(%d)\n",
+		dev_err(&pdev->dev, "Canyest register input device error(%d)\n",
 				ret);
 		return ret;
 	}
@@ -1243,9 +1243,9 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	 * Detect accessory after completing the initialization of platform
 	 *
 	 * - Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * yestify cable state to yestifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should yestify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, max77693_muic_detect_cable_wq);
 	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,

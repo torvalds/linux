@@ -9,7 +9,7 @@
  * bootup setup stuff..
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -78,15 +78,15 @@ static const char *gg2_cachesizes[4] = {
 	"256 KB", "512 KB", "1 MB", "Reserved"
 };
 static const char *gg2_cachetypes[4] = {
-	"Asynchronous", "Reserved", "Flow-Through Synchronous",
-	"Pipelined Synchronous"
+	"Asynchroyesus", "Reserved", "Flow-Through Synchroyesus",
+	"Pipelined Synchroyesus"
 };
 static const char *gg2_cachemodes[4] = {
 	"Disabled", "Write-Through", "Copy-Back", "Transparent Mode"
 };
 
 static const char *chrp_names[] = {
-	"Unknown",
+	"Unkyeswn",
 	"","","",
 	"Motorola",
 	"IBM or Longtrail",
@@ -98,10 +98,10 @@ static void chrp_show_cpuinfo(struct seq_file *m)
 {
 	int i, sdramen;
 	unsigned int t;
-	struct device_node *root;
+	struct device_yesde *root;
 	const char *model = "";
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (root)
 		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: CHRP %s\n", model);
@@ -151,7 +151,7 @@ static void chrp_show_cpuinfo(struct seq_file *m)
 			   gg2_cachetypes[(t>>2) & 3],
 			   gg2_cachemodes[t & 3]);
 	}
-	of_node_put(root);
+	of_yesde_put(root);
 }
 
 /*
@@ -194,10 +194,10 @@ static void __init sio_fixup_irq(const char *name, u8 device, u8 level,
 
 static void __init sio_init(void)
 {
-	struct device_node *root;
+	struct device_yesde *root;
 	const char *model;
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (!root)
 		return;
 
@@ -209,38 +209,38 @@ static void __init sio_init(void)
 		sio_fixup_irq("mouse", 1, 12, 2);
 	}
 
-	of_node_put(root);
+	of_yesde_put(root);
 }
 
 
 static void __init pegasos_set_l2cr(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	/* On Pegasos, enable the l2 cache if needed, as the OF forgets it */
 	if (_chrp_type != _CHRP_Pegasos)
 		return;
 
 	/* Enable L2 cache if needed */
-	np = of_find_node_by_type(NULL, "cpu");
+	np = of_find_yesde_by_type(NULL, "cpu");
 	if (np != NULL) {
 		const unsigned int *l2cr = of_get_property(np, "l2cr", NULL);
 		if (l2cr == NULL) {
-			printk ("Pegasos l2cr : no cpu l2cr property found\n");
+			printk ("Pegasos l2cr : yes cpu l2cr property found\n");
 			goto out;
 		}
 		if (!((*l2cr) & 0x80000000)) {
-			printk ("Pegasos l2cr : L2 cache was not active, "
+			printk ("Pegasos l2cr : L2 cache was yest active, "
 				"activating\n");
 			_set_L2CR(0);
 			_set_L2CR((*l2cr) | 0x80000000);
 		}
 	}
 out:
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
-static void __noreturn briq_restart(char *cmd)
+static void __yesreturn briq_restart(char *cmd)
 {
 	local_irq_disable();
 	if (briq_SPOR)
@@ -250,13 +250,13 @@ static void __noreturn briq_restart(char *cmd)
 
 /*
  * Per default, input/output-device points to the keyboard/screen
- * If no card is installed, the built-in serial port is used as a fallback.
- * But unfortunately, the firmware does not connect /chosen/{stdin,stdout}
- * the the built-in serial node. Instead, a /failsafe node is created.
+ * If yes card is installed, the built-in serial port is used as a fallback.
+ * But unfortunately, the firmware does yest connect /chosen/{stdin,stdout}
+ * the the built-in serial yesde. Instead, a /failsafe yesde is created.
  */
 static __init void chrp_init(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	const char *property;
 
 	if (strstr(boot_command_line, "console="))
@@ -264,10 +264,10 @@ static __init void chrp_init(void)
 	/* find the boot console from /chosen/stdout */
 	if (!of_chosen)
 		return;
-	node = of_find_node_by_path("/");
-	if (!node)
+	yesde = of_find_yesde_by_path("/");
+	if (!yesde)
 		return;
-	property = of_get_property(node, "model", NULL);
+	property = of_get_property(yesde, "model", NULL);
 	if (!property)
 		goto out_put;
 	if (strcmp(property, "Pegasos2"))
@@ -276,26 +276,26 @@ static __init void chrp_init(void)
 	property = of_get_property(of_chosen, "linux,stdout-path", NULL);
 	if (!property)
 		goto out_put;
-	of_node_put(node);
-	node = of_find_node_by_path(property);
-	if (!node)
+	of_yesde_put(yesde);
+	yesde = of_find_yesde_by_path(property);
+	if (!yesde)
 		return;
-	if (!of_node_is_type(node, "serial"))
+	if (!of_yesde_is_type(yesde, "serial"))
 		goto out_put;
 	/*
 	 * The 9pin connector is either /failsafe
 	 * or /pci@80000000/isa@C/serial@i2F8
 	 * The optional graphics card has also type 'serial' in VGA mode.
 	 */
-	if (of_node_name_eq(node, "failsafe") || of_node_name_eq(node, "serial"))
+	if (of_yesde_name_eq(yesde, "failsafe") || of_yesde_name_eq(yesde, "serial"))
 		add_preferred_console("ttyS", 0, NULL);
 out_put:
-	of_node_put(node);
+	of_yesde_put(yesde);
 }
 
 static void __init chrp_setup_arch(void)
 {
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_yesde *root = of_find_yesde_by_path("/");
 	const char *machine = NULL;
 
 	/* init to some ~sane value until calibrate_delay() runs */
@@ -318,7 +318,7 @@ static void __init chrp_setup_arch(void)
 		/* Let's assume it is an IBM chrp if all else fails */
 		_chrp_type = _CHRP_IBM;
 	}
-	of_node_put(root);
+	of_yesde_put(root);
 	printk("chrp type = %x [%s]\n", _chrp_type, chrp_names[_chrp_type]);
 
 	rtas_initialize();
@@ -332,7 +332,7 @@ static void __init chrp_setup_arch(void)
 		ppc_md.set_rtc_time	= rtas_set_rtc_time;
 	}
 
-	/* On pegasos, enable the L2 cache if not already done by OF */
+	/* On pegasos, enable the L2 cache if yest already done by OF */
 	pegasos_set_l2cr();
 
 	/* Lookup PCI host bridges */
@@ -370,11 +370,11 @@ static void chrp_8259_cascade(struct irq_desc *desc)
 }
 
 /*
- * Finds the open-pic node and sets up the mpic driver.
+ * Finds the open-pic yesde and sets up the mpic driver.
  */
 static void __init chrp_find_openpic(void)
 {
-	struct device_node *np, *root;
+	struct device_yesde *np, *root;
 	int len, i, j;
 	int isu_size;
 	const unsigned int *iranges, *opprop = NULL;
@@ -382,10 +382,10 @@ static void __init chrp_find_openpic(void)
 	unsigned long opaddr;
 	int na = 1;
 
-	np = of_find_node_by_type(NULL, "open-pic");
+	np = of_find_yesde_by_type(NULL, "open-pic");
 	if (np == NULL)
 		return;
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (root) {
 		opprop = of_get_property(root, "platform-open-pic", &oplen);
 		na = of_n_addr_cells(root);
@@ -406,7 +406,7 @@ static void __init chrp_find_openpic(void)
 
 	iranges = of_get_property(np, "interrupt-ranges", &len);
 	if (iranges == NULL)
-		len = 0;	/* non-distributed mpic */
+		len = 0;	/* yesn-distributed mpic */
 	else
 		len /= 2 * sizeof(unsigned int);
 
@@ -447,8 +447,8 @@ static void __init chrp_find_openpic(void)
 	mpic_init(chrp_mpic);
 	ppc_md.get_irq = mpic_get_irq;
  bail:
-	of_node_put(root);
-	of_node_put(np);
+	of_yesde_put(root);
+	of_yesde_put(np);
 }
 
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_XMON)
@@ -460,12 +460,12 @@ static struct irqaction xmon_irqaction = {
 
 static void __init chrp_find_8259(void)
 {
-	struct device_node *np, *pic = NULL;
+	struct device_yesde *np, *pic = NULL;
 	unsigned long chrp_int_ack = 0;
 	unsigned int cascade_irq;
 
 	/* Look for cascade */
-	for_each_node_by_type(np, "interrupt-controller")
+	for_each_yesde_by_type(np, "interrupt-controller")
 		if (of_device_is_compatible(np, "chrp,iic")) {
 			pic = np;
 			break;
@@ -476,28 +476,28 @@ static void __init chrp_find_8259(void)
 	 */
 	if (pic == NULL && chrp_mpic != NULL) {
 		printk(KERN_ERR "i8259: Not found in device-tree"
-		       " assuming no legacy interrupts\n");
+		       " assuming yes legacy interrupts\n");
 		return;
 	}
 
 	/* Look for intack. In a perfect world, we would look for it on
 	 * the ISA bus that holds the 8259 but heh... Works that way. If
 	 * we ever see a problem, we can try to re-use the pSeries code here.
-	 * Also, Pegasos-type platforms don't have a proper node to start
+	 * Also, Pegasos-type platforms don't have a proper yesde to start
 	 * from anyway
 	 */
-	for_each_node_by_name(np, "pci") {
+	for_each_yesde_by_name(np, "pci") {
 		const unsigned int *addrp = of_get_property(np,
-				"8259-interrupt-acknowledge", NULL);
+				"8259-interrupt-ackyeswledge", NULL);
 
 		if (addrp == NULL)
 			continue;
 		chrp_int_ack = addrp[of_n_addr_cells(np)-1];
 		break;
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 	if (np == NULL)
-		printk(KERN_WARNING "Cannot find PCI interrupt acknowledge"
+		printk(KERN_WARNING "Canyest find PCI interrupt ackyeswledge"
 		       " address, polling\n");
 
 	i8259_init(pic, chrp_int_ack);
@@ -518,13 +518,13 @@ static void __init chrp_find_8259(void)
 static void __init chrp_init_IRQ(void)
 {
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_XMON)
-	struct device_node *kbd;
+	struct device_yesde *kbd;
 #endif
 	chrp_find_openpic();
 	chrp_find_8259();
 
 #ifdef CONFIG_SMP
-	/* Pegasos has no MPIC, those ops would make it crash. It might be an
+	/* Pegasos has yes MPIC, those ops would make it crash. It might be an
 	 * option to move setting them to after we probe the PIC though
 	 */
 	if (chrp_mpic != NULL)
@@ -537,10 +537,10 @@ static void __init chrp_init_IRQ(void)
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_XMON)
 	/* see if there is a keyboard in the device tree
 	   with a parent of type "adb" */
-	for_each_node_by_name(kbd, "keyboard")
-		if (of_node_is_type(kbd->parent, "adb"))
+	for_each_yesde_by_name(kbd, "keyboard")
+		if (of_yesde_is_type(kbd->parent, "adb"))
 			break;
-	of_node_put(kbd);
+	of_yesde_put(kbd);
 	if (kbd)
 		setup_irq(HYDRA_INT_ADB_NMI, &xmon_irqaction);
 #endif

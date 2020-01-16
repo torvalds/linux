@@ -10,7 +10,7 @@
 #include <asm/asm-offsets.h>
 
 	.text
-	.set noat
+	.set yesat
 
 	.align 5
 	.globl _mcount

@@ -58,8 +58,8 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 		if (!skb_partial_csum_set(skb, start, off))
 			return -EINVAL;
 	} else {
-		/* gso packets without NEEDS_CSUM do not set transport_offset.
-		 * probe and drop if does not match one of the above types.
+		/* gso packets without NEEDS_CSUM do yest set transport_offset.
+		 * probe and drop if does yest match one of the above types.
 		 */
 		if (gso_type && skb->network_header) {
 			if (!skb->protocol)
@@ -67,7 +67,7 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 retry:
 			skb_probe_transport_header(skb);
 			if (!skb_transport_header_was_set(skb)) {
-				/* UFO does not specify ipv4 or 6: try both */
+				/* UFO does yest specify ipv4 or 6: try both */
 				if (gso_type & SKB_GSO_UDP &&
 				    skb->protocol == htons(ETH_P_IP)) {
 					skb->protocol = htons(ETH_P_IPV6);
@@ -98,7 +98,7 @@ static inline int virtio_net_hdr_from_skb(const struct sk_buff *skb,
 					  bool has_data_valid,
 					  int vlan_hlen)
 {
-	memset(hdr, 0, sizeof(*hdr));   /* no info leak */
+	memset(hdr, 0, sizeof(*hdr));   /* yes info leak */
 
 	if (skb_is_gso(skb)) {
 		struct skb_shared_info *sinfo = skb_shinfo(skb);

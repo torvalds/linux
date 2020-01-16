@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -55,7 +55,7 @@ static inline bool unsupported(u32 conf, u32 conf_mask, u32 val, u32 mask)
 
 static int set_tcb_field(struct adapter *adap, struct filter_entry *f,
 			 unsigned int ftid,  u16 word, u64 mask, u64 val,
-			 int no_reply)
+			 int yes_reply)
 {
 	struct cpl_set_tcb_field *req;
 	struct sk_buff *skb;
@@ -68,7 +68,7 @@ static int set_tcb_field(struct adapter *adap, struct filter_entry *f,
 	INIT_TP_WR_CPL(req, CPL_SET_TCB_FIELD, ftid);
 	req->reply_ctrl = htons(REPLY_CHAN_V(0) |
 				QUEUENO_V(adap->sge.fw_evtq.abs_id) |
-				NO_REPLY_V(no_reply));
+				NO_REPLY_V(yes_reply));
 	req->word_cookie = htons(TCB_WORD_V(word) | TCB_COOKIE_V(ftid));
 	req->mask = cpu_to_be64(mask);
 	req->val = cpu_to_be64(val);
@@ -81,10 +81,10 @@ static int set_tcb_field(struct adapter *adap, struct filter_entry *f,
  */
 static int set_tcb_tflag(struct adapter *adap, struct filter_entry *f,
 			 unsigned int ftid, unsigned int bit_pos,
-			 unsigned int val, int no_reply)
+			 unsigned int val, int yes_reply)
 {
 	return set_tcb_field(adap, f, ftid,  TCB_T_FLAGS_W, 1ULL << bit_pos,
-			     (unsigned long long)val << bit_pos, no_reply);
+			     (unsigned long long)val << bit_pos, yes_reply);
 }
 
 static void mk_abort_req_ulp(struct cpl_abort_req *abort_req, unsigned int tid)
@@ -120,7 +120,7 @@ static void mk_abort_rpl_ulp(struct cpl_abort_rpl *abort_rpl, unsigned int tid)
 static void mk_set_tcb_ulp(struct filter_entry *f,
 			   struct cpl_set_tcb_field *req,
 			   unsigned int word, u64 mask, u64 val,
-			   u8 cookie, int no_reply)
+			   u8 cookie, int yes_reply)
 {
 	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)req;
 	struct ulptx_idata *sc = (struct ulptx_idata *)(txpkt + 1);
@@ -130,7 +130,7 @@ static void mk_set_tcb_ulp(struct filter_entry *f,
 	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_IMM));
 	sc->len = htonl(sizeof(*req) - sizeof(struct work_request_hdr));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, f->tid));
-	req->reply_ctrl = htons(NO_REPLY_V(no_reply) | REPLY_CHAN_V(0) |
+	req->reply_ctrl = htons(NO_REPLY_V(yes_reply) | REPLY_CHAN_V(0) |
 				QUEUENO_V(0));
 	req->word_cookie = htons(TCB_WORD_V(word) | TCB_COOKIE_V(cookie));
 	req->mask = cpu_to_be64(mask);
@@ -653,7 +653,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 	 * into the Work Request and the definition of that structure is
 	 * currently in cxgbtool.h which isn't appropriate to pull into the
 	 * common code.  We may eventually try to come up with a more neutral
-	 * filter specification structure but for now it's easiest to simply
+	 * filter specification structure but for yesw it's easiest to simply
 	 * put this fairly direct code in line ...
 	 */
 	if (adapter->params.filter2_wr_support)
@@ -755,7 +755,7 @@ int writable_filter(struct filter_entry *f)
 
 /* Delete the filter at the specified index (if valid).  The checks for all
  * the common problems with doing this like the filter being locked, currently
- * pending in another operation, etc.
+ * pending in ayesther operation, etc.
  */
 int delete_filter(struct adapter *adapter, unsigned int fidx)
 {
@@ -951,7 +951,7 @@ bool is_filter_exact_match(struct adapter *adap,
 	if (!is_hashfilter(adap))
 		return false;
 
-	 /* Keep tunnel VNI match disabled for hash-filters for now */
+	 /* Keep tunnel VNI match disabled for hash-filters for yesw */
 	if (fs->mask.encap_vld)
 		return false;
 
@@ -1355,7 +1355,7 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 
 	/* IPv6 filters occupy four slots and must be aligned on
 	 * four-slot boundaries.  IPv4 filters only occupy a single
-	 * slot and have no alignment requirements but writing a new
+	 * slot and have yes alignment requirements but writing a new
 	 * IPv4 filter into the middle of an existing IPv6 filter
 	 * requires clearing the old IPv6 filter and hence we prevent
 	 * insertion.
@@ -1424,7 +1424,7 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 		}
 	}
 
-	/* Check to make sure that provided filter index is not
+	/* Check to make sure that provided filter index is yest
 	 * already in use by someone else
 	 */
 	f = &adapter->tids.ftid_tab[filter_id];
@@ -1542,7 +1542,7 @@ static int cxgb4_del_hash_filter(struct net_device *dev, int filter_id,
 
 	f = lookup_tid(t, filter_id);
 	if (!f) {
-		netdev_err(dev, "%s: no filter entry for filter_id = %d",
+		netdev_err(dev, "%s: yes filter entry for filter_id = %d",
 			   __func__, filter_id);
 		return -EINVAL;
 	}
@@ -1560,7 +1560,7 @@ static int cxgb4_del_hash_filter(struct net_device *dev, int filter_id,
 			+ sizeof(*abort_req) + sizeof(*abort_rpl), 16);
 	skb = alloc_skb(wrlen, GFP_KERNEL);
 	if (!skb) {
-		netdev_err(dev, "%s: could not allocate skb ..\n", __func__);
+		netdev_err(dev, "%s: could yest allocate skb ..\n", __func__);
 		return -ENOMEM;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, f->fs.val.iport & 0x3);
@@ -1753,7 +1753,7 @@ void hash_del_filter_rpl(struct adapter *adap,
 
 	f = lookup_tid(t, tid);
 	if (!f) {
-		dev_err(adap->pdev_dev, "%s:could not find filter entry",
+		dev_err(adap->pdev_dev, "%s:could yest find filter entry",
 			__func__);
 		return;
 	}
@@ -1782,7 +1782,7 @@ void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl)
 
 	f = lookup_atid(t, ftid);
 	if (!f) {
-		dev_err(adap->pdev_dev, "%s:could not find filter entry",
+		dev_err(adap->pdev_dev, "%s:could yest find filter entry",
 			__func__);
 		return;
 	}
@@ -1842,7 +1842,7 @@ void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl)
 	max_fidx = adap->tids.nftids + adap->tids.nsftids;
 	/* Get the corresponding filter entry for this tid */
 	if (adap->tids.ftid_tab) {
-		/* Check this in normal filter region */
+		/* Check this in yesrmal filter region */
 		idx = tid - adap->tids.ftid_base;
 		if (idx >= max_fidx)
 			return;

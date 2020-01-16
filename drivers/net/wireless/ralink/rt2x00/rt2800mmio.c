@@ -134,7 +134,7 @@ void rt2800mmio_fill_rxdone(struct queue_entry *entry,
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
 	/*
-	 * Unfortunately we don't know the cipher type used during
+	 * Unfortunately we don't kyesw the cipher type used during
 	 * decryption. This prevents us from correct providing
 	 * correct statistics through debugfs.
 	 */
@@ -162,7 +162,7 @@ void rt2800mmio_fill_rxdone(struct queue_entry *entry,
 			 * In order to check the Michael Mic, the packet must have
 			 * been decrypted.  Mac80211 doesnt check the MMIC failure 
 			 * flag to initiate MMIC countermeasures if the decoded flag
-			 * has not been set.
+			 * has yest been set.
 			 */
 			rxdesc->flags |= RX_FLAG_DECRYPTED;
 
@@ -361,7 +361,7 @@ irqreturn_t rt2800mmio_interrupt(int irq, void *dev_instance)
 		tasklet_schedule(&rt2x00dev->autowake_tasklet);
 
 	/*
-	 * Disable all interrupts for which a tasklet was scheduled right now,
+	 * Disable all interrupts for which a tasklet was scheduled right yesw,
 	 * the tasklet will reenable the appropriate interrupts.
 	 */
 	spin_lock(&rt2x00dev->irqmask_lock);
@@ -773,7 +773,7 @@ EXPORT_SYMBOL_GPL(rt2800mmio_init_registers);
  */
 int rt2800mmio_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	/* Wait for DMA, ignore error until we initialize queues. */
+	/* Wait for DMA, igyesre error until we initialize queues. */
 	rt2800_wait_wpdma_ready(rt2x00dev);
 
 	if (unlikely(rt2800mmio_init_queues(rt2x00dev)))
@@ -796,7 +796,7 @@ static void rt2800mmio_work_txdone(struct work_struct *work)
 
 		tasklet_disable(&rt2x00dev->txstatus_tasklet);
 		rt2800_txdone(rt2x00dev, UINT_MAX);
-		rt2800_txdone_nostatus(rt2x00dev);
+		rt2800_txdone_yesstatus(rt2x00dev);
 		tasklet_enable(&rt2x00dev->txstatus_tasklet);
 	}
 

@@ -131,7 +131,7 @@ static void lpc32xx_kscan_close(struct input_dev *dev)
 static int lpc32xx_parse_dt(struct device *dev,
 				      struct lpc32xx_kscan_drv *kscandat)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	u32 rows = 0, columns = 0;
 	int err;
 
@@ -149,7 +149,7 @@ static int lpc32xx_parse_dt(struct device *dev,
 	of_property_read_u32(np, "nxp,debounce-delay-ms", &kscandat->deb_clks);
 	of_property_read_u32(np, "nxp,scan-delay-ms", &kscandat->scan_delay);
 	if (!kscandat->deb_clks || !kscandat->scan_delay) {
-		dev_err(dev, "debounce or scan delay not specified\n");
+		dev_err(dev, "debounce or scan delay yest specified\n");
 		return -EINVAL;
 	}
 

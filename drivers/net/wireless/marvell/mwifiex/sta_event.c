@@ -28,7 +28,7 @@
 #define MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE    12
 
 static int mwifiex_check_ibss_peer_capabilities(struct mwifiex_private *priv,
-					        struct mwifiex_sta_node *sta_ptr,
+					        struct mwifiex_sta_yesde *sta_ptr,
 					        struct sk_buff *event)
 {
 	int evt_len, ele_len;
@@ -59,7 +59,7 @@ static int mwifiex_check_ibss_peer_capabilities(struct mwifiex_private *priv,
 		curr += (sizeof(*tlv_mgmt_frame) + 12);
 	} else {
 		mwifiex_dbg(priv->adapter, MSG,
-			    "management frame tlv not found!\n");
+			    "management frame tlv yest found!\n");
 		return 0;
 	}
 
@@ -254,12 +254,12 @@ static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 {
 	int ret = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	struct mwifiex_tdls_generic_event *tdls_evt =
 			(void *)event_skb->data + sizeof(adapter->event_cause);
 	u8 *mac = tdls_evt->peer_mac;
 
-	/* reserved 2 bytes are not mandatory in tdls event */
+	/* reserved 2 bytes are yest mandatory in tdls event */
 	if (event_skb->len < (sizeof(struct mwifiex_tdls_generic_event) -
 			      sizeof(u16) - sizeof(adapter->event_cause))) {
 		mwifiex_dbg(adapter, ERROR, "Invalid event length!\n");
@@ -268,7 +268,7 @@ static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 
 	sta_ptr = mwifiex_get_sta_entry(priv, tdls_evt->peer_mac);
 	if (!sta_ptr) {
-		mwifiex_dbg(adapter, ERROR, "cannot get sta entry!\n");
+		mwifiex_dbg(adapter, ERROR, "canyest get sta entry!\n");
 		return -1;
 	}
 
@@ -344,7 +344,7 @@ static void mwifiex_process_uap_tx_pause(struct mwifiex_private *priv,
 					 struct mwifiex_ie_types_header *tlv)
 {
 	struct mwifiex_tx_pause_tlv *tp;
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 
 	tp = (void *)tlv;
 	mwifiex_dbg(priv->adapter, EVENT,
@@ -375,7 +375,7 @@ static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
 					 struct mwifiex_ie_types_header *tlv)
 {
 	struct mwifiex_tx_pause_tlv *tp;
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	int status;
 
 	tp = (void *)tlv;
@@ -425,7 +425,7 @@ void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
 	if (le16_to_cpu(chan_info->header.type) != TLV_TYPE_MULTI_CHAN_INFO ||
 	    tlv_buf_left < sizeof(struct mwifiex_ie_types_multi_chan_info)) {
 		mwifiex_dbg(adapter, ERROR,
-			    "unknown TLV in chan_info event\n");
+			    "unkyeswn TLV in chan_info event\n");
 		return;
 	}
 
@@ -596,7 +596,7 @@ mwifiex_fw_dump_info_event(struct mwifiex_private *priv,
 
 	if (adapter->iface_type != MWIFIEX_USB) {
 		mwifiex_dbg(adapter, MSG,
-			    "event is not on usb interface, ignore it\n");
+			    "event is yest on usb interface, igyesre it\n");
 		return;
 	}
 
@@ -613,7 +613,7 @@ mwifiex_fw_dump_info_event(struct mwifiex_private *priv,
 
 		mwifiex_drv_info_dump(adapter);
 
-		/* If no proceeded event arrive in 10s, upload device
+		/* If yes proceeded event arrive in 10s, upload device
 		 * dump data, this will be useful if the end of
 		 * transmission event get lost, in this cornel case,
 		 * user would still get partial of the dump.
@@ -674,7 +674,7 @@ upload_dump:
  *      - EVENT_BW_CHANGE
  *      - EVENT_HOSTWAKE_STAIE
   *
- * For the following events, no action is taken -
+ * For the following events, yes action is taken -
  *      - EVENT_MIB_CHANGED
  *      - EVENT_INIT_DONE
  *      - EVENT_DUMMY_HOST_WAKEUP_SIGNAL
@@ -703,12 +703,12 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 	u32 eventcause = adapter->event_cause;
 	u16 ctrl, reason_code;
 	u8 ibss_sta_addr[ETH_ALEN];
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 
 	switch (eventcause) {
 	case EVENT_DUMMY_HOST_WAKEUP_SIGNAL:
 		mwifiex_dbg(adapter, ERROR,
-			    "invalid EVENT: DUMMY_HOST_WAKEUP_SIGNAL, ignore it\n");
+			    "invalid EVENT: DUMMY_HOST_WAKEUP_SIGNAL, igyesre it\n");
 		break;
 	case EVENT_LINK_SENSED:
 		mwifiex_dbg(adapter, EVENT, "event: LINK_SENSED\n");
@@ -879,7 +879,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_RSSI_LOW:
-		cfg80211_cqm_rssi_notify(priv->netdev,
+		cfg80211_cqm_rssi_yestify(priv->netdev,
 					 NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
 					 0, GFP_KERNEL);
 		mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
@@ -894,7 +894,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		mwifiex_dbg(adapter, EVENT, "event: MAX_FAIL\n");
 		break;
 	case EVENT_RSSI_HIGH:
-		cfg80211_cqm_rssi_notify(priv->netdev,
+		cfg80211_cqm_rssi_yestify(priv->netdev,
 					 NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
 					 0, GFP_KERNEL);
 		mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
@@ -1016,7 +1016,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_CHANNEL_SWITCH_ANN:
-		mwifiex_dbg(adapter, EVENT, "event: Channel Switch Announcement\n");
+		mwifiex_dbg(adapter, EVENT, "event: Channel Switch Anyesuncement\n");
 		priv->csa_expire_time =
 				jiffies + msecs_to_jiffies(DFS_CHAN_MOVE_TIME);
 		priv->csa_chan = priv->curr_bss_params.bss_descriptor.channel;
@@ -1070,12 +1070,12 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		mwifiex_dbg(adapter, EVENT, "event: firmware debug info\n");
 		mwifiex_fw_dump_info_event(priv, adapter->event_skb);
 		break;
-	/* Debugging event; not used, but let's not print an ERROR for it. */
+	/* Debugging event; yest used, but let's yest print an ERROR for it. */
 	case EVENT_UNKNOWN_DEBUG:
 		mwifiex_dbg(adapter, EVENT, "event: debug\n");
 		break;
 	default:
-		mwifiex_dbg(adapter, ERROR, "event: unknown event id: %#x\n",
+		mwifiex_dbg(adapter, ERROR, "event: unkyeswn event id: %#x\n",
 			    eventcause);
 		break;
 	}

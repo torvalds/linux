@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -331,7 +331,7 @@ static enum resp_states get_srq_wqe(struct rxe_qp *qp)
 		return RESPST_ERR_RNR;
 	}
 
-	/* note kernel and user space recv wqes have same size */
+	/* yeste kernel and user space recv wqes have same size */
 	memcpy(&qp->resp.srq_wqe, wqe, sizeof(qp->resp.srq_wqe));
 
 	qp->resp.wqe = &qp->resp.srq_wqe.wqe;
@@ -378,7 +378,7 @@ static enum resp_states check_resource(struct rxe_qp *qp,
 	}
 
 	if (pkt->mask & RXE_READ_OR_ATOMIC) {
-		/* it is the requesters job to not send
+		/* it is the requesters job to yest send
 		 * too many read/atomic ops, we just
 		 * recycle the responder resource queue
 		 */
@@ -444,7 +444,7 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 		return RESPST_EXECUTE;
 	}
 
-	/* A zero-byte op is not required to set an addr or rkey. */
+	/* A zero-byte op is yest required to set an addr or rkey. */
 	if ((pkt->mask & (RXE_READ_MASK | RXE_WRITE_OR_SEND)) &&
 	    (pkt->mask & RXE_RETH_MASK) &&
 	    reth_len(pkt) == 0) {
@@ -484,8 +484,8 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 				goto err;
 			}
 			if ((bth_pad(pkt) != (0x3 & (-resid)))) {
-				/* This case may not be exactly that
-				 * but nothing else fits.
+				/* This case may yest be exactly that
+				 * but yesthing else fits.
 				 */
 				state = RESPST_ERR_LENGTH;
 				goto err;
@@ -651,7 +651,7 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	return skb;
 }
 
-/* RDMA read response. If res is not NULL, then we have a current RDMA request
+/* RDMA read response. If res is yest NULL, then we have a current RDMA request
  * being processed or replayed.
  */
 static enum resp_states read_reply(struct rxe_qp *qp,
@@ -698,7 +698,7 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 		res->read.length	= qp->resp.resid;
 		res->read.rkey		= qp->resp.rkey;
 
-		/* note res inherits the reference to mr from qp */
+		/* yeste res inherits the reference to mr from qp */
 		res->read.mr		= qp->resp.mr;
 		qp->resp.mr		= NULL;
 
@@ -805,7 +805,7 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 		if (err)
 			return err;
 	} else if (pkt->mask & RXE_READ_MASK) {
-		/* For RDMA Read we can increment the msn now. See C9-148. */
+		/* For RDMA Read we can increment the msn yesw. See C9-148. */
 		qp->resp.msn++;
 		return RESPST_READ_REPLY;
 	} else if (pkt->mask & RXE_ATOMIC_MASK) {
@@ -1019,7 +1019,7 @@ out:
 	return rc;
 }
 
-static enum resp_states acknowledge(struct rxe_qp *qp,
+static enum resp_states ackyeswledge(struct rxe_qp *qp,
 				    struct rxe_pkt_info *pkt)
 {
 	if (qp_type(qp) != IB_QPT_RC)
@@ -1091,7 +1091,7 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 
 		res = find_resource(qp, pkt->psn);
 		if (!res) {
-			/* Resource not found. Class D error.  Drop the
+			/* Resource yest found. Class D error.  Drop the
 			 * request.
 			 */
 			rc = RESPST_CLEANUP;
@@ -1142,13 +1142,13 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 			/* Resend the result. */
 			rc = rxe_xmit_packet(qp, pkt, res->atomic.skb);
 			if (rc) {
-				pr_err("Failed resending result. This flow is not handled - skb ignored\n");
+				pr_err("Failed resending result. This flow is yest handled - skb igyesred\n");
 				rc = RESPST_CLEANUP;
 				goto out;
 			}
 		}
 
-		/* Resource not found. Class D error. Drop the request. */
+		/* Resource yest found. Class D error. Drop the request. */
 		rc = RESPST_CLEANUP;
 		goto out;
 	}
@@ -1182,7 +1182,7 @@ static enum resp_states do_class_d1e_error(struct rxe_qp *qp)
 	} else {
 		/* Class D1. This packet may be the start of a
 		 * new message and could be valid. The previous
-		 * message is invalid and ignored. reset the
+		 * message is invalid and igyesred. reset the
 		 * recv wr to its original state
 		 */
 		if (qp->resp.wqe) {
@@ -1201,7 +1201,7 @@ static enum resp_states do_class_d1e_error(struct rxe_qp *qp)
 	}
 }
 
-static void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
+static void rxe_drain_req_pkts(struct rxe_qp *qp, bool yestify)
 {
 	struct sk_buff *skb;
 
@@ -1210,7 +1210,7 @@ static void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 		kfree_skb(skb);
 	}
 
-	if (notify)
+	if (yestify)
 		return;
 
 	while (!qp->srq && qp->rq.queue && queue_head(qp->rq.queue))
@@ -1279,7 +1279,7 @@ int rxe_responder(void *arg)
 			state = read_reply(qp, pkt);
 			break;
 		case RESPST_ACKNOWLEDGE:
-			state = acknowledge(qp, pkt);
+			state = ackyeswledge(qp, pkt);
 			break;
 		case RESPST_CLEANUP:
 			state = cleanup(qp, pkt);
@@ -1335,7 +1335,7 @@ int rxe_responder(void *arg)
 					qp->resp.status = IB_WC_REM_ACCESS_ERR;
 					state = RESPST_COMPLETE;
 				} else {
-					/* UC/non-SRQ Class E. */
+					/* UC/yesn-SRQ Class E. */
 					state = RESPST_CLEANUP;
 				}
 			}

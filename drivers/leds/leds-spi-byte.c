@@ -6,7 +6,7 @@
  * - one LED is controlled by a single byte on MOSI
  * - the value of the byte gives the brightness between two values (lowest to
  *   highest)
- * - no return value is necessary (no MISO signal)
+ * - yes return value is necessary (yes MISO signal)
  *
  * The value for minimum and maximum brightness depends on the device
  * (compatible string).
@@ -81,7 +81,7 @@ static int spi_byte_brightness_set_blocking(struct led_classdev *dev,
 static int spi_byte_probe(struct spi_device *spi)
 {
 	const struct of_device_id *of_dev_id;
-	struct device_node *child;
+	struct device_yesde *child;
 	struct device *dev = &spi->dev;
 	struct spi_byte_led *led;
 	const char *name = "leds-spi-byte::";
@@ -92,11 +92,11 @@ static int spi_byte_probe(struct spi_device *spi)
 	if (!of_dev_id)
 		return -EINVAL;
 
-	if (of_get_child_count(dev->of_node) != 1) {
-		dev_err(dev, "Device must have exactly one LED sub-node.");
+	if (of_get_child_count(dev->of_yesde) != 1) {
+		dev_err(dev, "Device must have exactly one LED sub-yesde.");
 		return -EINVAL;
 	}
-	child = of_get_next_child(dev->of_node, NULL);
+	child = of_get_next_child(dev->of_yesde, NULL);
 
 	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 	if (!led)

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -34,7 +34,7 @@
  * -------------------------------------------------------------------------------
  * A variable of type fInt can be accessed in 3 ways using the dot (.) operator
  * fInt A;
- * A.full => The full number as it is. Generally not easy to read
+ * A.full => The full number as it is. Generally yest easy to read
  * A.partial.real => Only the integer portion
  * A.partial.decimal => Only the fractional portion
  */
@@ -98,7 +98,7 @@ static int GetReal (fInt A);                              /* Internal function *
  * 3) fMultiply - OutputOutOfRangeException:
  * 4) fGetSquare - OutputOutOfRangeException:
  * 5) fDivide - DivideByZeroException
- * 6) fSqrt - NegativeSquareRootException: Input cannot be a negative number
+ * 6) fSqrt - NegativeSquareRootException: Input canyest be a negative number
  */
 
 /* -------------------------------------------------------------------------------------

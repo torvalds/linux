@@ -120,7 +120,7 @@ static void virtio_fs_drain_queue(struct virtio_fs_vq *fsvq)
 	/* Wait for in flight requests to finish.*/
 	spin_lock(&fsvq->lock);
 	if (fsvq->in_flight) {
-		/* We are holding virtio_fs_mutex. There should not be any
+		/* We are holding virtio_fs_mutex. There should yest be any
 		 * waiters waiting for completion.
 		 */
 		reinit_completion(&fsvq->in_flight_zero);
@@ -150,7 +150,7 @@ static void virtio_fs_drain_all_queues(struct virtio_fs *fs)
 	/* Provides mutual exclusion between ->remove and ->kill_sb
 	 * paths. We don't want both of these draining queue at the
 	 * same time. Current completion logic reinits completion
-	 * and that means there should not be any other thread
+	 * and that means there should yest be any other thread
 	 * doing reinit or waiting for completion already.
 	 */
 	mutex_lock(&virtio_fs_mutex);
@@ -208,7 +208,7 @@ static struct virtio_fs *virtio_fs_find_instance(const char *tag)
 		}
 	}
 
-	fs = NULL; /* not found */
+	fs = NULL; /* yest found */
 
 found:
 	mutex_unlock(&virtio_fs_mutex);
@@ -345,7 +345,7 @@ static int send_forget_request(struct virtio_fs_vq *fsvq,
 	struct scatterlist sg;
 	struct virtqueue *vq;
 	int ret = 0;
-	bool notify;
+	bool yestify;
 	struct virtio_fs_forget_req *req = &forget->req;
 
 	spin_lock(&fsvq->lock);
@@ -363,7 +363,7 @@ static int send_forget_request(struct virtio_fs_vq *fsvq,
 	ret = virtqueue_add_outbuf(vq, &sg, 1, forget, GFP_ATOMIC);
 	if (ret < 0) {
 		if (ret == -ENOMEM || ret == -ENOSPC) {
-			pr_debug("virtio-fs: Could not queue FORGET: err=%d. Will try later\n",
+			pr_debug("virtio-fs: Could yest queue FORGET: err=%d. Will try later\n",
 				 ret);
 			list_add_tail(&forget->list, &fsvq->queued_reqs);
 			schedule_delayed_work(&fsvq->dispatch_work,
@@ -373,7 +373,7 @@ static int send_forget_request(struct virtio_fs_vq *fsvq,
 			/* Queue is full */
 			ret = 1;
 		} else {
-			pr_debug("virtio-fs: Could not queue FORGET: err=%d. Dropping it.\n",
+			pr_debug("virtio-fs: Could yest queue FORGET: err=%d. Dropping it.\n",
 				 ret);
 			kfree(forget);
 			if (in_flight)
@@ -384,11 +384,11 @@ static int send_forget_request(struct virtio_fs_vq *fsvq,
 
 	if (!in_flight)
 		inc_in_flight_req(fsvq);
-	notify = virtqueue_kick_prepare(vq);
+	yestify = virtqueue_kick_prepare(vq);
 	spin_unlock(&fsvq->lock);
 
-	if (notify)
-		virtqueue_notify(vq);
+	if (yestify)
+		virtqueue_yestify(vq);
 	return ret;
 out:
 	spin_unlock(&fsvq->lock);
@@ -717,7 +717,7 @@ static void virtio_fs_remove(struct virtio_device *vdev)
 static int virtio_fs_freeze(struct virtio_device *vdev)
 {
 	/* TODO need to save state here */
-	pr_warn("virtio-fs: suspend/resume not yet supported\n");
+	pr_warn("virtio-fs: suspend/resume yest yet supported\n");
 	return -EOPNOTSUPP;
 }
 
@@ -772,7 +772,7 @@ __releases(fiq->lock)
 
 	req->ih = (struct fuse_in_header){
 		.opcode = FUSE_FORGET,
-		.nodeid = link->forget_one.nodeid,
+		.yesdeid = link->forget_one.yesdeid,
 		.unique = unique,
 		.len = sizeof(*req),
 	};
@@ -890,7 +890,7 @@ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
 	unsigned int total_sgs;
 	unsigned int i;
 	int ret;
-	bool notify;
+	bool yestify;
 	struct fuse_pqueue *fpq;
 
 	/* Does the sglist fit on the stack? */
@@ -904,7 +904,7 @@ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
 		}
 	}
 
-	/* Use a bounce buffer since stack args cannot be mapped */
+	/* Use a bounce buffer since stack args canyest be mapped */
 	ret = copy_args_to_argbuf(req);
 	if (ret < 0)
 		goto out;
@@ -957,12 +957,12 @@ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
 
 	if (!in_flight)
 		inc_in_flight_req(fsvq);
-	notify = virtqueue_kick_prepare(vq);
+	yestify = virtqueue_kick_prepare(vq);
 
 	spin_unlock(&fsvq->lock);
 
-	if (notify)
-		virtqueue_notify(vq);
+	if (yestify)
+		virtqueue_yestify(vq);
 
 out:
 	if (ret < 0 && req->argbuf) {
@@ -995,9 +995,9 @@ __releases(fiq->lock)
 
 	fs = fiq->priv;
 
-	pr_debug("%s: opcode %u unique %#llx nodeid %#llx in.len %u out.len %u\n",
+	pr_debug("%s: opcode %u unique %#llx yesdeid %#llx in.len %u out.len %u\n",
 		  __func__, req->in.h.opcode, req->in.h.unique,
-		 req->in.h.nodeid, req->in.h.len,
+		 req->in.h.yesdeid, req->in.h.len,
 		 fuse_len_args(req->args->out_numargs, req->args->out_args));
 
 	fsvq = &fs->vqs[queue_id];
@@ -1048,9 +1048,9 @@ static int virtio_fs_fill_super(struct super_block *sb)
 		.max_read = UINT_MAX,
 		.blksize = 512,
 		.destroy = true,
-		.no_control = true,
-		.no_force_umount = true,
-		.no_mount_options = true,
+		.yes_control = true,
+		.yes_force_umount = true,
+		.yes_mount_options = true,
 	};
 
 	mutex_lock(&virtio_fs_mutex);
@@ -1061,12 +1061,12 @@ static int virtio_fs_fill_super(struct super_block *sb)
 	 */
 	err = -EINVAL;
 	if (list_empty(&fs->list)) {
-		pr_info("virtio-fs: tag <%s> not found\n", fs->tag);
+		pr_info("virtio-fs: tag <%s> yest found\n", fs->tag);
 		goto err;
 	}
 
 	err = -ENOMEM;
-	/* Allocate fuse_dev for hiprio and notification queues */
+	/* Allocate fuse_dev for hiprio and yestification queues */
 	for (i = 0; i < VQ_REQUEST; i++) {
 		struct virtio_fs_vq *fsvq = &fs->vqs[i];
 
@@ -1111,7 +1111,7 @@ static void virtio_kill_sb(struct super_block *sb)
 
 	/* If mount failed, we can still be called without any fc */
 	if (!fc)
-		return fuse_kill_sb_anon(sb);
+		return fuse_kill_sb_ayesn(sb);
 
 	vfs = fc->iq.priv;
 	fsvq = &vfs->vqs[VQ_HIPRIO];
@@ -1122,9 +1122,9 @@ static void virtio_kill_sb(struct super_block *sb)
 	spin_unlock(&fsvq->lock);
 	virtio_fs_drain_all_queues(vfs);
 
-	fuse_kill_sb_anon(sb);
+	fuse_kill_sb_ayesn(sb);
 
-	/* fuse_kill_sb_anon() must have sent destroy. Stop all queues
+	/* fuse_kill_sb_ayesn() must have sent destroy. Stop all queues
 	 * and drain one more time and free fuse devices. Freeing fuse
 	 * devices will drop their reference on fuse_conn and that in
 	 * turn will drop its reference on virtio_fs object.
@@ -1147,7 +1147,7 @@ static int virtio_fs_set_super(struct super_block *sb,
 {
 	int err;
 
-	err = get_anon_bdev(&sb->s_dev);
+	err = get_ayesn_bdev(&sb->s_dev);
 	if (!err)
 		fuse_conn_get(fsc->s_fs_info);
 
@@ -1167,7 +1167,7 @@ static int virtio_fs_get_tree(struct fs_context *fsc)
 	 */
 	fs = virtio_fs_find_instance(fsc->source);
 	if (!fs) {
-		pr_info("virtio-fs: tag <%s> not found\n", fsc->source);
+		pr_info("virtio-fs: tag <%s> yest found\n", fsc->source);
 		return -EINVAL;
 	}
 
@@ -1247,7 +1247,7 @@ static void __exit virtio_fs_exit(void)
 }
 module_exit(virtio_fs_exit);
 
-MODULE_AUTHOR("Stefan Hajnoczi <stefanha@redhat.com>");
+MODULE_AUTHOR("Stefan Hajyesczi <stefanha@redhat.com>");
 MODULE_DESCRIPTION("Virtio Filesystem");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_FS(KBUILD_MODNAME);

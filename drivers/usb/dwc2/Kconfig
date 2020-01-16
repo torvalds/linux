@@ -90,7 +90,7 @@ config USB_DWC2_DEBUG_PERIODIC
 	help
 	  Say N here to disable (verbose) debugging messages to be
 	  logged for periodic transfers. This allows better debugging of
-	  non-periodic transfers, but of course the debug logs will be
+	  yesn-periodic transfers, but of course the debug logs will be
 	  incomplete. Note that this also disables some debug messages
-	  for which the transfer type cannot be deduced.
+	  for which the transfer type canyest be deduced.
 endif

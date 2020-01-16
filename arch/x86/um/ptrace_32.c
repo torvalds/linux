@@ -18,10 +18,10 @@ void arch_switch_to(struct task_struct *to)
 		return;
 
 	if (err != -EINVAL)
-		printk(KERN_WARNING "arch_switch_tls failed, errno %d, "
-		       "not EINVAL\n", -err);
+		printk(KERN_WARNING "arch_switch_tls failed, erryes %d, "
+		       "yest EINVAL\n", -err);
 	else
-		printk(KERN_WARNING "arch_switch_tls failed, errno = EINVAL\n");
+		printk(KERN_WARNING "arch_switch_tls failed, erryes = EINVAL\n");
 }
 
 int is_syscall(unsigned long addr)
@@ -49,7 +49,7 @@ int is_syscall(unsigned long addr)
 }
 
 /* determines which flags the user has access to. */
-/* 1 = access 0 = no access */
+/* 1 = access 0 = yes access */
 #define FLAG_MASK 0x00044dd5
 
 static const int reg_offsets[] = {
@@ -72,10 +72,10 @@ static const int reg_offsets[] = {
 	[ORIG_EAX] = HOST_ORIG_AX,
 };
 
-int putreg(struct task_struct *child, int regno, unsigned long value)
+int putreg(struct task_struct *child, int regyes, unsigned long value)
 {
-	regno >>= 2;
-	switch (regno) {
+	regyes >>= 2;
+	switch (regyes) {
 	case EBX:
 	case ECX:
 	case EDX:
@@ -115,9 +115,9 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 		child->thread.regs.regs.gp[HOST_EFLAGS] |= value;
 		return 0;
 	default :
-		panic("Bad register in putreg() : %d\n", regno);
+		panic("Bad register in putreg() : %d\n", regyes);
 	}
-	child->thread.regs.regs.gp[reg_offsets[regno]] = value;
+	child->thread.regs.regs.gp[reg_offsets[regyes]] = value;
 	return 0;
 }
 
@@ -140,12 +140,12 @@ int poke_user(struct task_struct *child, long addr, long data)
 	return -EIO;
 }
 
-unsigned long getreg(struct task_struct *child, int regno)
+unsigned long getreg(struct task_struct *child, int regyes)
 {
 	unsigned long mask = ~0UL;
 
-	regno >>= 2;
-	switch (regno) {
+	regyes >>= 2;
+	switch (regyes) {
 	case FS:
 	case GS:
 	case DS:
@@ -167,9 +167,9 @@ unsigned long getreg(struct task_struct *child, int regno)
 	case ORIG_EAX:
 		break;
 	default:
-		panic("Bad register in getreg() : %d\n", regno);
+		panic("Bad register in getreg() : %d\n", regyes);
 	}
-	return mask & child->thread.regs.regs.gp[reg_offsets[regno]];
+	return mask & child->thread.regs.regs.gp[reg_offsets[regyes]];
 }
 
 /* read the word at location addr in the USER area. */

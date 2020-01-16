@@ -72,7 +72,7 @@
  * The debounce range is from 1ms to 4s with a step size of 1ms.
  *
  * The latch EIC is used to latch some special power down signals and
- * generate interrupts, since the latch EIC does not depend on the APB clock
+ * generate interrupts, since the latch EIC does yest depend on the APB clock
  * to capture signals.
  *
  * The async EIC uses a 32k clock to capture the short signals (microsecond
@@ -196,13 +196,13 @@ static int sprd_eic_get(struct gpio_chip *chip, unsigned int offset)
 
 static int sprd_eic_direction_input(struct gpio_chip *chip, unsigned int offset)
 {
-	/* EICs are always input, nothing need to do here. */
+	/* EICs are always input, yesthing need to do here. */
 	return 0;
 }
 
 static void sprd_eic_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
-	/* EICs are always input, nothing need to do here. */
+	/* EICs are always input, yesthing need to do here. */
 }
 
 static int sprd_eic_set_debounce(struct gpio_chip *chip, unsigned int offset,
@@ -604,7 +604,7 @@ static int sprd_eic_probe(struct platform_device *pdev)
 	sprd_eic->chip.ngpio = pdata->num_eics;
 	sprd_eic->chip.base = -1;
 	sprd_eic->chip.parent = &pdev->dev;
-	sprd_eic->chip.of_node = pdev->dev.of_node;
+	sprd_eic->chip.of_yesde = pdev->dev.of_yesde;
 	sprd_eic->chip.direction_input = sprd_eic_direction_input;
 	switch (sprd_eic->type) {
 	case SPRD_EIC_DEBOUNCE:
@@ -642,7 +642,7 @@ static int sprd_eic_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &sprd_eic->chip, sprd_eic);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip %d.\n", ret);
+		dev_err(&pdev->dev, "Could yest register gpiochip %d.\n", ret);
 		return ret;
 	}
 

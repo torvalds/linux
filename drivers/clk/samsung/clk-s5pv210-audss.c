@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2014 Tomasz Figa <t.figa@samsung.com>
  *
- * Based on Exynos Audio Subsystem Clock Controller driver:
+ * Based on Exyyess Audio Subsystem Clock Controller driver:
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Author: Padmavathi Venna <padma.v@samsung.com>
@@ -170,7 +170,7 @@ static int s5pv210_audss_clk_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = of_clk_add_hw_provider(pdev->dev.of_node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(pdev->dev.of_yesde, of_clk_hw_onecell_get,
 				     clk_data);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add clock provider\n");

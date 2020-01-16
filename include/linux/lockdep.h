@@ -29,7 +29,7 @@ extern int lock_stat;
 #include <linux/stacktrace.h>
 
 /*
- * We'd rather not expose kernel/lockdep_states.h this wide, but we do need
+ * We'd rather yest expose kernel/lockdep_states.h this wide, but we do need
  * the total number of states... :-(
  */
 #define XXX_LOCK_USAGE_STATES		(1+2*4)
@@ -59,12 +59,12 @@ struct lockdep_subclass_key {
 /* hash_entry is used to keep track of dynamically allocated keys. */
 struct lock_class_key {
 	union {
-		struct hlist_node		hash_entry;
+		struct hlist_yesde		hash_entry;
 		struct lockdep_subclass_key	subkeys[MAX_LOCKDEP_SUBCLASSES];
 	};
 };
 
-extern struct lock_class_key __lockdep_no_validate__;
+extern struct lock_class_key __lockdep_yes_validate__;
 
 struct lock_trace;
 
@@ -78,19 +78,19 @@ struct lock_class {
 	/*
 	 * class-hash:
 	 */
-	struct hlist_node		hash_entry;
+	struct hlist_yesde		hash_entry;
 
 	/*
 	 * Entry in all_lock_classes when in use. Entry in free_lock_classes
-	 * when not in use. Instances that are being freed are on one of the
+	 * when yest in use. Instances that are being freed are on one of the
 	 * zapped_classes lists.
 	 */
 	struct list_head		lock_entry;
 
 	/*
 	 * These fields represent a directed graph of lock dependencies,
-	 * to every node we attach a list of "forward" and a list of
-	 * "backward" graph nodes.
+	 * to every yesde we attach a list of "forward" and a list of
+	 * "backward" graph yesdes.
 	 */
 	struct list_head		locks_after, locks_before;
 
@@ -106,7 +106,7 @@ struct lock_class {
 
 	/*
 	 * Generation counter, when doing certain classes of graph walking,
-	 * to ensure that we check one node only once:
+	 * to ensure that we check one yesde only once:
 	 */
 	int				name_version;
 	const char			*name;
@@ -115,7 +115,7 @@ struct lock_class {
 	unsigned long			contention_point[LOCKSTAT_POINTS];
 	unsigned long			contending_point[LOCKSTAT_POINTS];
 #endif
-} __no_randomize_layout;
+} __yes_randomize_layout;
 
 #ifdef CONFIG_LOCK_STAT
 struct lock_time {
@@ -215,7 +215,7 @@ struct lock_chain {
 					depth       :  6,
 					base	    : 24;
 	/* 4 byte hole */
-	struct hlist_node		entry;
+	struct hlist_yesde		entry;
 	u64				chain_key;
 };
 
@@ -256,7 +256,7 @@ struct held_lock {
 	 * The lock-stack is unified in that the lock chains of interrupt
 	 * contexts nest ontop of process context chains, but we 'separate'
 	 * the hashes by starting with 0 if we cross into an interrupt
-	 * context, and we also keep do not add cross-context lock
+	 * context, and we also keep do yest add cross-context lock
 	 * dependencies - the lock usage graph walking covers that area
 	 * anyway, and we'd just unnecessarily increase the number of
 	 * dependencies otherwise. [Note: hardirq and softirq contexts
@@ -318,8 +318,8 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
 		lockdep_init_map(&(lock)->dep_map, #lock, \
 				 (lock)->dep_map.key, sub)
 
-#define lockdep_set_novalidate_class(lock) \
-	lockdep_set_class_and_name(lock, &__lockdep_no_validate__, #lock)
+#define lockdep_set_yesvalidate_class(lock) \
+	lockdep_set_class_and_name(lock, &__lockdep_yes_validate__, #lock)
 /*
  * Compare locking classes
  */
@@ -337,7 +337,7 @@ static inline int lockdep_match_key(struct lockdep_map *lock,
  * Values for "read":
  *
  *   0: exclusive (write) acquire
- *   1: read-acquire (no recursion allowed)
+ *   1: read-acquire (yes recursion allowed)
  *   2: read-acquire with same-instance recursion allowed
  *
  * Values for check:
@@ -441,11 +441,11 @@ static inline void lockdep_set_selftest_task(struct task_struct *task)
 		do { (void)(key); } while (0)
 #define lockdep_set_subclass(lock, sub)		do { } while (0)
 
-#define lockdep_set_novalidate_class(lock) do { } while (0)
+#define lockdep_set_yesvalidate_class(lock) do { } while (0)
 
 /*
  * We don't define lockdep_match_class() and lockdep_match_key() for !LOCKDEP
- * case since the result is not well defined and the caller should rather
+ * case since the result is yest well defined and the caller should rather
  * #ifdef the call himself.
  */
 
@@ -453,7 +453,7 @@ static inline void lockdep_set_selftest_task(struct task_struct *task)
 # define lockdep_free_key_range(start, size)	do { } while (0)
 # define lockdep_sys_exit() 			do { } while (0)
 /*
- * The class key takes no space if lockdep is disabled:
+ * The class key takes yes space if lockdep is disabled:
  */
 struct lock_class_key { };
 
@@ -466,7 +466,7 @@ static inline void lockdep_unregister_key(struct lock_class_key *key)
 }
 
 /*
- * The lockdep_map takes no space if lockdep is disabled:
+ * The lockdep_map takes yes space if lockdep is disabled:
  */
 struct lockdep_map { };
 
@@ -500,7 +500,7 @@ enum xhlock_context_t {
 #define lockdep_init_map_crosslock(m, n, k, s) do {} while (0)
 /*
  * To initialize a lockdep_map statically use this macro.
- * Note that _name must not be NULL.
+ * Note that _name must yest be NULL.
  */
 #define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
 	{ .name = (_name), .key = (void *)(_key), }
@@ -552,7 +552,7 @@ do {								\
 /*
  * On lockdep we dont want the hand-coded irq-enable of
  * _raw_*_lock_flags() code, because lockdep assumes
- * that interrupts are not re-enabled during lock-acquire:
+ * that interrupts are yest re-enabled during lock-acquire:
  */
 #define LOCK_CONTENDED_FLAGS(_lock, try, lock, lockfl, flags) \
 	LOCK_CONTENDED((_lock), (try), (lock))
@@ -631,13 +631,13 @@ do {									\
 #define lockdep_assert_irqs_enabled()	do {				\
 		WARN_ONCE(debug_locks && !current->lockdep_recursion &&	\
 			  !current->hardirqs_enabled,			\
-			  "IRQs not enabled as expected\n");		\
+			  "IRQs yest enabled as expected\n");		\
 	} while (0)
 
 #define lockdep_assert_irqs_disabled()	do {				\
 		WARN_ONCE(debug_locks && !current->lockdep_recursion &&	\
 			  current->hardirqs_enabled,			\
-			  "IRQs not disabled as expected\n");		\
+			  "IRQs yest disabled as expected\n");		\
 	} while (0)
 
 #define lockdep_assert_in_irq() do {					\

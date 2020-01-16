@@ -19,7 +19,7 @@
 
 #define RDS_IB_DEFAULT_RETRY_COUNT	1
 
-#define RDS_IB_SUPPORTED_PROTOCOLS	0x00000003	/* minor versions supported */
+#define RDS_IB_SUPPORTED_PROTOCOLS	0x00000003	/* miyesr versions supported */
 
 #define RDS_IB_RECYCLE_BATCH_COUNT	32
 
@@ -59,18 +59,18 @@ struct rds_ib_refill_cache {
 /* This is the common structure for the IB private data exchange in setting up
  * an RDS connection.  The exchange is different for IPv4 and IPv6 connections.
  * The reason is that the address size is different and the addresses
- * exchanged are in the beginning of the structure.  Hence it is not possible
+ * exchanged are in the beginning of the structure.  Hence it is yest possible
  * for interoperability if same structure is used.
  */
 struct rds_ib_conn_priv_cmn {
 	u8			ricpc_protocol_major;
-	u8			ricpc_protocol_minor;
-	__be16			ricpc_protocol_minor_mask;	/* bitmask */
+	u8			ricpc_protocol_miyesr;
+	__be16			ricpc_protocol_miyesr_mask;	/* bitmask */
 	u8			ricpc_dp_toss;
 	u8			ripc_reserved1;
 	__be16			ripc_reserved2;
 	__be64			ricpc_ack_seq;
-	__be32			ricpc_credit;	/* non-zero enables flow ctl */
+	__be32			ricpc_credit;	/* yesn-zero enables flow ctl */
 };
 
 struct rds_ib_connect_private {
@@ -88,8 +88,8 @@ struct rds6_ib_connect_private {
 };
 
 #define dp_protocol_major	dp_cmn.ricpc_protocol_major
-#define dp_protocol_minor	dp_cmn.ricpc_protocol_minor
-#define dp_protocol_minor_mask	dp_cmn.ricpc_protocol_minor_mask
+#define dp_protocol_miyesr	dp_cmn.ricpc_protocol_miyesr
+#define dp_protocol_miyesr_mask	dp_cmn.ricpc_protocol_miyesr_mask
 #define dp_ack_seq		dp_cmn.ricpc_ack_seq
 #define dp_credit		dp_cmn.ricpc_credit
 
@@ -126,7 +126,7 @@ struct rds_ib_work_ring {
 
 /* Rings are posted with all the allocations they'll need to queue the
  * incoming message to the receiving socket so this can't fail.
- * All fragments start with a header, so we can make sure we're not receiving
+ * All fragments start with a header, so we can make sure we're yest receiving
  * garbage, and we can tell a small 8 byte fragment from an ACK frame.
  */
 struct rds_ib_ack_state {
@@ -142,7 +142,7 @@ struct rds_ib_device;
 
 struct rds_ib_connection {
 
-	struct list_head	ib_node;
+	struct list_head	ib_yesde;
 	struct rds_ib_device	*rds_ibdev;
 	struct rds_connection	*conn;
 
@@ -265,8 +265,8 @@ struct rds_ib_device {
 	int			*vector_load;
 };
 
-#define ibdev_to_node(ibdev) dev_to_node((ibdev)->dev.parent)
-#define rdsibdev_to_node(rdsibdev) ibdev_to_node(rdsibdev->dev)
+#define ibdev_to_yesde(ibdev) dev_to_yesde((ibdev)->dev.parent)
+#define rdsibdev_to_yesde(rdsibdev) ibdev_to_yesde(rdsibdev->dev)
 
 /* bits for i_ack_flags */
 #define IB_ACK_IN_FLIGHT	0
@@ -364,8 +364,8 @@ extern struct ib_client rds_ib_client;
 
 extern unsigned int rds_ib_retry_count;
 
-extern spinlock_t ib_nodev_conns_lock;
-extern struct list_head ib_nodev_conns;
+extern spinlock_t ib_yesdev_conns_lock;
+extern struct list_head ib_yesdev_conns;
 
 /* ib_cm.c */
 int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp);
@@ -396,7 +396,7 @@ int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev,
 			 struct in6_addr *ipaddr);
 void rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
 void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
-void rds_ib_destroy_nodev_conns(void);
+void rds_ib_destroy_yesdev_conns(void);
 void rds_ib_mr_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc);
 
 /* ib_recv.c */

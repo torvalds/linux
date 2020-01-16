@@ -55,7 +55,7 @@ void __init init_IRQ(void)
 	unsigned int order = get_order(IRQ_STACK_SIZE);
 
 	for (i = 0; i < NR_IRQS; i++)
-		irq_set_noprobe(i);
+		irq_set_yesprobe(i);
 
 	if (cpu_has_veic)
 		clear_c0_status(ST0_IM);
@@ -95,7 +95,7 @@ static inline void check_stack_overflow(void) {}
 
 
 /*
- * do_IRQ handles all normal device IRQ's (the special
+ * do_IRQ handles all yesrmal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
  * handlers).
  */

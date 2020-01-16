@@ -160,7 +160,7 @@ static const struct of_device_id wfx_sdio_of_match[];
 static int wfx_sdio_probe(struct sdio_func *func,
 			  const struct sdio_device_id *id)
 {
-	struct device_node *np = func->dev.of_node;
+	struct device_yesde *np = func->dev.of_yesde;
 	struct wfx_sdio_priv *bus;
 	int ret;
 
@@ -174,15 +174,15 @@ static int wfx_sdio_probe(struct sdio_func *func,
 		return -ENOMEM;
 
 	if (np) {
-		if (!of_match_node(wfx_sdio_of_match, np)) {
-			dev_warn(&func->dev, "no compatible device found in DT\n");
+		if (!of_match_yesde(wfx_sdio_of_match, np)) {
+			dev_warn(&func->dev, "yes compatible device found in DT\n");
 			return -ENODEV;
 		}
 		bus->of_irq = irq_of_parse_and_map(np, 0);
 	} else {
 		dev_warn(&func->dev,
-			 "device is not declared in DT, features will be limited\n");
-		// FIXME: ignore VID/PID and only rely on device tree
+			 "device is yest declared in DT, features will be limited\n");
+		// FIXME: igyesre VID/PID and only rely on device tree
 		// return -ENODEV;
 	}
 
@@ -245,7 +245,7 @@ static void wfx_sdio_remove(struct sdio_func *func)
 #define SDIO_DEVICE_ID_SILABS_WF200  0x1000
 static const struct sdio_device_id wfx_sdio_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_SILABS, SDIO_DEVICE_ID_SILABS_WF200) },
-	// FIXME: ignore VID/PID and only rely on device tree
+	// FIXME: igyesre VID/PID and only rely on device tree
 	// { SDIO_DEVICE(SDIO_ANY_ID, SDIO_ANY_ID) },
 	{ },
 };

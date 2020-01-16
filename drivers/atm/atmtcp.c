@@ -23,7 +23,7 @@ extern int atm_init_aal5(struct atm_vcc *vcc); /* "raw" AAL5 transport */
 
 struct atmtcp_dev_data {
 	struct atm_vcc *vcc;	/* control VCC; NULL if detached */
-	int persist;		/* non-zero if persistent */
+	int persist;		/* yesn-zero if persistent */
 };
 
 
@@ -102,7 +102,7 @@ static int atmtcp_recv_control(const struct atmtcp_control *msg)
 		change_bit(ATM_VF_ADDR,&vcc->flags);
 		break;
 	    default:
-		printk(KERN_ERR "atmtcp_recv_control: unknown type %d\n",
+		printk(KERN_ERR "atmtcp_recv_control: unkyeswn type %d\n",
 		    msg->type);
 		return -EINVAL;
 	}

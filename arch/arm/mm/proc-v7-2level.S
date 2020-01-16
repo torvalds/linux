@@ -16,11 +16,11 @@
 #define TTB_IRGN_WT	((1 << 0) | (0 << 6))
 #define TTB_IRGN_WB	((1 << 0) | (1 << 6))
 
-/* PTWs cacheable, inner WB not shareable, outer WB not shareable */
+/* PTWs cacheable, inner WB yest shareable, outer WB yest shareable */
 #define TTB_FLAGS_UP	TTB_IRGN_WB|TTB_RGN_OC_WB
 #define PMD_FLAGS_UP	PMD_SECT_WB
 
-/* PTWs cacheable, inner WBWA shareable, outer WBWA not shareable */
+/* PTWs cacheable, inner WBWA shareable, outer WBWA yest shareable */
 #define TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA
 #define PMD_FLAGS_SMP	PMD_SECT_WBWA|PMD_SECT_S
 
@@ -32,11 +32,11 @@
  *	- pgd_phys - physical address of new TTB
  *
  *	It is assumed that:
- *	- we are not using split page tables
+ *	- we are yest using split page tables
  *
  *	Note that we always need to flush BTAC/BTB if IBE is set
- *	even on Cortex-A8 revisions not affected by 430973.
- *	If IBE is not set, the flush BTAC/BTB won't do anything.
+ *	even on Cortex-A8 revisions yest affected by 430973.
+ *	If IBE is yest set, the flush BTAC/BTB won't do anything.
  */
 ENTRY(cpu_v7_switch_mm)
 #ifdef CONFIG_MMU
@@ -100,7 +100,7 @@ ENTRY(cpu_v7_set_pte_ext)
  ARM(	str	r3, [r0, #2048]! )
  THUMB(	add	r0, r0, #2048 )
  THUMB(	str	r3, [r0] )
-	ALT_SMP(W(nop))
+	ALT_SMP(W(yesp))
 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
 #endif
 	bx	lr
@@ -130,9 +130,9 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 *
 	 *   DS0 = PRRR[16] = 0		- device shareable property
 	 *   DS1 = PRRR[17] = 1		- device shareable property
-	 *   NS0 = PRRR[18] = 0		- normal shareable property
-	 *   NS1 = PRRR[19] = 1		- normal shareable property
-	 *   NOS = PRRR[24+n] = 1	- not outer shareable
+	 *   NS0 = PRRR[18] = 0		- yesrmal shareable property
+	 *   NS1 = PRRR[19] = 1		- yesrmal shareable property
+	 *   NOS = PRRR[24+n] = 1	- yest outer shareable
 	 */
 .equ	PRRR,	0xff0a81a8
 .equ	NMRR,	0x40e040e0

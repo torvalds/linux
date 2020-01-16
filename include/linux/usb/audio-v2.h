@@ -26,11 +26,11 @@
  *
  *   bmaControls() is a (ch+1)-element array of 4-byte bitmaps,
  *   each containing a set of bit pairs. If a Control is present,
- *   it must be Host readable. If a certain Control is not
+ *   it must be Host readable. If a certain Control is yest
  *   present then the bit pair must be set to 0b00.
  *   If a Control is present but read-only, the bit pair must be
  *   set to 0b01. If a Control is also Host programmable, the bit
- *   pair must be set to 0b11. The value 0b10 is not allowed.
+ *   pair must be set to 0b11. The value 0b10 is yest allowed.
  *
  */
 
@@ -173,7 +173,7 @@ struct uac2_as_header_descriptor {
 
 #define UAC2_FORMAT_TYPE_I_RAW_DATA	(1 << 31)
 
-/* 4.10.1.2 Class-Specific AS Isochronous Audio Data Endpoint Descriptor */
+/* 4.10.1.2 Class-Specific AS Isochroyesus Audio Data Endpoint Descriptor */
 
 struct uac2_iso_endpoint_descriptor {
 	__u8  bLength;			/* in bytes: 8 */

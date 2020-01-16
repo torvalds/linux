@@ -133,7 +133,7 @@ int venus_helper_alloc_dpb_bufs(struct venus_inst *inst)
 	u32 count;
 	int ret;
 
-	/* no need to allocate dpb buffers */
+	/* yes need to allocate dpb buffers */
 	if (!inst->dpb_fmt)
 		return 0;
 
@@ -660,7 +660,7 @@ put_ts_metadata(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 	}
 
 	if (slot == -1) {
-		dev_dbg(inst->core->dev, "%s: no free slot\n", __func__);
+		dev_dbg(inst->core->dev, "%s: yes free slot\n", __func__);
 		return;
 	}
 

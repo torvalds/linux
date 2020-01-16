@@ -51,35 +51,35 @@ static int __init ppc460ex_canyonlands_fixup(void)
 {
 	u8 __iomem *bcsr ;
 	void __iomem *vaddr;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret = 0;
 
-	np = of_find_compatible_node(NULL, NULL, "amcc,ppc460ex-bcsr");
+	np = of_find_compatible_yesde(NULL, NULL, "amcc,ppc460ex-bcsr");
 	if (!np) {
-		printk(KERN_ERR "failed did not find amcc, ppc460ex bcsr node\n");
+		printk(KERN_ERR "failed did yest find amcc, ppc460ex bcsr yesde\n");
 		return -ENODEV;
 	}
 
 	bcsr = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (!bcsr) {
-		printk(KERN_CRIT "Could not remap bcsr\n");
+		printk(KERN_CRIT "Could yest remap bcsr\n");
 		ret = -ENODEV;
 		goto err_bcsr;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,ppc4xx-gpio");
+	np = of_find_compatible_yesde(NULL, NULL, "ibm,ppc4xx-gpio");
 	if (!np) {
-		printk(KERN_ERR "failed did not find ibm,ppc4xx-gpio node\n");
+		printk(KERN_ERR "failed did yest find ibm,ppc4xx-gpio yesde\n");
 		return -ENODEV;
 	}
 
 	vaddr = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (!vaddr) {
-		printk(KERN_CRIT "Could not get gpio node address\n");
+		printk(KERN_CRIT "Could yest get gpio yesde address\n");
 		ret = -ENODEV;
 		goto err_gpio;
 	}

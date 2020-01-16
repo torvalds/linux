@@ -21,12 +21,12 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       yestice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation yesr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
@@ -51,7 +51,7 @@
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -183,7 +183,7 @@ struct ntb_transport_qp {
 	u64 rx_bytes;
 	u64 rx_pkts;
 	u64 rx_ring_empty;
-	u64 rx_err_no_buf;
+	u64 rx_err_yes_buf;
 	u64 rx_err_oflow;
 	u64 rx_err_ver;
 	u64 rx_memcpy;
@@ -191,7 +191,7 @@ struct ntb_transport_qp {
 	u64 tx_bytes;
 	u64 tx_pkts;
 	u64 tx_ring_full;
-	u64 tx_err_no_buf;
+	u64 tx_err_yes_buf;
 	u64 tx_memcpy;
 	u64 tx_async;
 
@@ -240,7 +240,7 @@ struct ntb_transport_ctx {
 	struct delayed_work link_work;
 	struct work_struct link_cleanup;
 
-	struct dentry *debugfs_node_dir;
+	struct dentry *debugfs_yesde_dir;
 };
 
 enum {
@@ -384,7 +384,7 @@ int ntb_transport_register_client_dev(char *device_name)
 {
 	struct ntb_transport_client_dev *client_dev;
 	struct ntb_transport_ctx *nt;
-	int node;
+	int yesde;
 	int rc, i = 0;
 
 	if (list_empty(&ntb_transport_list))
@@ -393,10 +393,10 @@ int ntb_transport_register_client_dev(char *device_name)
 	list_for_each_entry(nt, &ntb_transport_list, entry) {
 		struct device *dev;
 
-		node = dev_to_node(&nt->ndev->dev);
+		yesde = dev_to_yesde(&nt->ndev->dev);
 
-		client_dev = kzalloc_node(sizeof(*client_dev),
-					  GFP_KERNEL, node);
+		client_dev = kzalloc_yesde(sizeof(*client_dev),
+					  GFP_KERNEL, yesde);
 		if (!client_dev) {
 			rc = -ENOMEM;
 			goto err;
@@ -494,7 +494,7 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "rx_ring_empty - %llu\n", qp->rx_ring_empty);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "rx_err_no_buf - %llu\n", qp->rx_err_no_buf);
+			       "rx_err_yes_buf - %llu\n", qp->rx_err_yes_buf);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "rx_err_oflow - \t%llu\n", qp->rx_err_oflow);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
@@ -519,7 +519,7 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "tx_ring_full - \t%llu\n", qp->tx_ring_full);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "tx_err_no_buf - %llu\n", qp->tx_err_no_buf);
+			       "tx_err_yes_buf - %llu\n", qp->tx_err_yes_buf);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "tx_mw - \t0x%p\n", qp->tx_mw);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
@@ -622,7 +622,7 @@ static int ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt,
 	unsigned int rx_size, num_qps_mw;
 	unsigned int mw_num, mw_count, qp_count;
 	unsigned int i;
-	int node;
+	int yesde;
 
 	mw_count = nt->mw_count;
 	qp_count = nt->qp_count;
@@ -654,9 +654,9 @@ static int ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt,
 	 * We should add additional entries if that is the case so we
 	 * can be in sync with the transport frames.
 	 */
-	node = dev_to_node(&ndev->dev);
+	yesde = dev_to_yesde(&ndev->dev);
 	for (i = qp->rx_alloc_entry; i < qp->rx_max_entry; i++) {
-		entry = kzalloc_node(sizeof(*entry), GFP_KERNEL, node);
+		entry = kzalloc_yesde(sizeof(*entry), GFP_KERNEL, yesde);
 		if (!entry)
 			return -ENOMEM;
 
@@ -730,7 +730,7 @@ static void ntb_transport_setup_qp_msi(struct ntb_transport_ctx *nt,
 
 	if (spad >= ntb_spad_count(nt->ndev)) {
 		dev_warn_once(&qp->ndev->pdev->dev,
-			      "Not enough SPADS to use MSI interrupts\n");
+			      "Not eyesugh SPADS to use MSI interrupts\n");
 		return;
 	}
 
@@ -921,7 +921,7 @@ static void ntb_qp_link_down_reset(struct ntb_transport_qp *qp)
 	qp->rx_bytes = 0;
 	qp->rx_pkts = 0;
 	qp->rx_ring_empty = 0;
-	qp->rx_err_no_buf = 0;
+	qp->rx_err_yes_buf = 0;
 	qp->rx_err_oflow = 0;
 	qp->rx_err_ver = 0;
 	qp->rx_memcpy = 0;
@@ -929,7 +929,7 @@ static void ntb_qp_link_down_reset(struct ntb_transport_qp *qp)
 	qp->tx_bytes = 0;
 	qp->tx_pkts = 0;
 	qp->tx_ring_full = 0;
-	qp->tx_err_no_buf = 0;
+	qp->tx_err_yes_buf = 0;
 	qp->tx_memcpy = 0;
 	qp->tx_async = 0;
 }
@@ -991,7 +991,7 @@ static void ntb_transport_link_cleanup(struct ntb_transport_ctx *nt)
 		ntb_free_mw(nt, i);
 
 	/* The scratchpad registers keep the values if the remote side
-	 * goes down, blast them now to give them a sane value the next
+	 * goes down, blast them yesw to give them a sane value the next
 	 * time they are accessed
 	 */
 	count = ntb_spad_count(nt->ndev);
@@ -1208,12 +1208,12 @@ static int ntb_transport_init_queue(struct ntb_transport_ctx *nt,
 	qp->tx_max_frame = min(transport_mtu, tx_size / 2);
 	qp->tx_max_entry = tx_size / qp->tx_max_frame;
 
-	if (nt->debugfs_node_dir) {
+	if (nt->debugfs_yesde_dir) {
 		char debugfs_name[4];
 
 		snprintf(debugfs_name, 4, "qp%d", qp_num);
 		qp->debugfs_dir = debugfs_create_dir(debugfs_name,
-						     nt->debugfs_node_dir);
+						     nt->debugfs_yesde_dir);
 
 		qp->debugfs_stats = debugfs_create_file("stats", S_IRUSR,
 							qp->debugfs_dir, qp,
@@ -1246,7 +1246,7 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	struct ntb_transport_mw *mw;
 	unsigned int mw_count, qp_count, spad_count, max_mw_count_for_spads;
 	u64 qp_bitmap;
-	int node;
+	int yesde;
 	int rc, i;
 
 	mw_count = ntb_peer_mw_count(ndev);
@@ -1266,9 +1266,9 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	if (ntb_peer_port_count(ndev) != NTB_DEF_PEER_CNT)
 		dev_warn(&ndev->dev, "Multi-port NTB devices unsupported\n");
 
-	node = dev_to_node(&ndev->dev);
+	yesde = dev_to_yesde(&ndev->dev);
 
-	nt = kzalloc_node(sizeof(*nt), GFP_KERNEL, node);
+	nt = kzalloc_yesde(sizeof(*nt), GFP_KERNEL, yesde);
 	if (!nt)
 		return -ENOMEM;
 
@@ -1301,8 +1301,8 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 
 	nt->msi_spad_offset = nt->mw_count * 2 + MW0_SZ_HIGH;
 
-	nt->mw_vec = kcalloc_node(mw_count, sizeof(*nt->mw_vec),
-				  GFP_KERNEL, node);
+	nt->mw_vec = kcalloc_yesde(mw_count, sizeof(*nt->mw_vec),
+				  GFP_KERNEL, yesde);
 	if (!nt->mw_vec) {
 		rc = -ENOMEM;
 		goto err;
@@ -1348,15 +1348,15 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	nt->qp_bitmap = qp_bitmap;
 	nt->qp_bitmap_free = qp_bitmap;
 
-	nt->qp_vec = kcalloc_node(qp_count, sizeof(*nt->qp_vec),
-				  GFP_KERNEL, node);
+	nt->qp_vec = kcalloc_yesde(qp_count, sizeof(*nt->qp_vec),
+				  GFP_KERNEL, yesde);
 	if (!nt->qp_vec) {
 		rc = -ENOMEM;
 		goto err1;
 	}
 
 	if (nt_debugfs_dir) {
-		nt->debugfs_node_dir =
+		nt->debugfs_yesde_dir =
 			debugfs_create_dir(pci_name(ndev->pdev),
 					   nt_debugfs_dir);
 	}
@@ -1626,7 +1626,7 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 		qp->qp_num, hdr->ver, hdr->len, hdr->flags);
 
 	if (!(hdr->flags & DESC_DONE_FLAG)) {
-		dev_dbg(&qp->ndev->pdev->dev, "done flag not set\n");
+		dev_dbg(&qp->ndev->pdev->dev, "done flag yest set\n");
 		qp->rx_ring_empty++;
 		return -EAGAIN;
 	}
@@ -1648,8 +1648,8 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 
 	entry = ntb_list_mv(&qp->ntb_rx_q_lock, &qp->rx_pend_q, &qp->rx_post_q);
 	if (!entry) {
-		dev_dbg(&qp->ndev->pdev->dev, "no receive buffer\n");
-		qp->rx_err_no_buf++;
+		dev_dbg(&qp->ndev->pdev->dev, "yes receive buffer\n");
+		qp->rx_err_yes_buf++;
 		return -EAGAIN;
 	}
 
@@ -1766,8 +1766,8 @@ static void ntb_tx_copy_callback(void *data,
 		ntb_peer_db_set(qp->ndev, BIT_ULL(qp->qp_num));
 
 	/* The entry length can only be zero if the packet is intended to be a
-	 * "link down" or similar.  Since no payload is being sent in these
-	 * cases, there is nothing to add to the completion queue.
+	 * "link down" or similar.  Since yes payload is being sent in these
+	 * cases, there is yesthing to add to the completion queue.
 	 */
 	if (entry->len > 0) {
 		qp->tx_bytes += entry->len;
@@ -1784,10 +1784,10 @@ static void ntb_memcpy_tx(struct ntb_queue_entry *entry, void __iomem *offset)
 {
 #ifdef ARCH_HAS_NOCACHE_UACCESS
 	/*
-	 * Using non-temporal mov to improve performance on non-cached
+	 * Using yesn-temporal mov to improve performance on yesn-cached
 	 * writes, even though we aren't actually copying from user space.
 	 */
-	__copy_from_user_inatomic_nocache(offset, entry->buf, entry->len);
+	__copy_from_user_inatomic_yescache(offset, entry->buf, entry->len);
 #else
 	memcpy_toio(offset, entry->buf, entry->len);
 #endif
@@ -1954,9 +1954,9 @@ static void ntb_send_link_down(struct ntb_transport_qp *qp)
 	ntb_qp_link_down_reset(qp);
 }
 
-static bool ntb_dma_filter_fn(struct dma_chan *chan, void *node)
+static bool ntb_dma_filter_fn(struct dma_chan *chan, void *yesde)
 {
-	return dev_to_node(&chan->dev->device) == (int)(unsigned long)node;
+	return dev_to_yesde(&chan->dev->device) == (int)(unsigned long)yesde;
 }
 
 /**
@@ -1985,14 +1985,14 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 	u64 qp_bit;
 	unsigned int free_queue;
 	dma_cap_mask_t dma_mask;
-	int node;
+	int yesde;
 	int i;
 
 	ndev = dev_ntb(client_dev->parent);
 	pdev = ndev->pdev;
 	nt = ndev->ctx;
 
-	node = dev_to_node(&ndev->dev);
+	yesde = dev_to_yesde(&ndev->dev);
 
 	free_queue = ffs(nt->qp_bitmap_free);
 	if (!free_queue)
@@ -2017,13 +2017,13 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 	if (use_dma) {
 		qp->tx_dma_chan =
 			dma_request_channel(dma_mask, ntb_dma_filter_fn,
-					    (void *)(unsigned long)node);
+					    (void *)(unsigned long)yesde);
 		if (!qp->tx_dma_chan)
 			dev_info(&pdev->dev, "Unable to allocate TX DMA channel\n");
 
 		qp->rx_dma_chan =
 			dma_request_channel(dma_mask, ntb_dma_filter_fn,
-					    (void *)(unsigned long)node);
+					    (void *)(unsigned long)yesde);
 		if (!qp->rx_dma_chan)
 			dev_info(&pdev->dev, "Unable to allocate RX DMA channel\n");
 	} else {
@@ -2051,7 +2051,7 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 		qp->rx_dma_chan ? "DMA" : "CPU");
 
 	for (i = 0; i < NTB_QP_DEF_NUM_ENTRIES; i++) {
-		entry = kzalloc_node(sizeof(*entry), GFP_KERNEL, node);
+		entry = kzalloc_yesde(sizeof(*entry), GFP_KERNEL, yesde);
 		if (!entry)
 			goto err1;
 
@@ -2062,7 +2062,7 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 	qp->rx_alloc_entry = NTB_QP_DEF_NUM_ENTRIES;
 
 	for (i = 0; i < qp->tx_max_entry; i++) {
-		entry = kzalloc_node(sizeof(*entry), GFP_KERNEL, node);
+		entry = kzalloc_yesde(sizeof(*entry), GFP_KERNEL, yesde);
 		if (!entry)
 			goto err2;
 
@@ -2169,12 +2169,12 @@ void ntb_transport_free_queue(struct ntb_transport_qp *qp)
 		kfree(entry);
 
 	while ((entry = ntb_list_rm(&qp->ntb_rx_q_lock, &qp->rx_pend_q))) {
-		dev_warn(&pdev->dev, "Freeing item from non-empty rx_pend_q\n");
+		dev_warn(&pdev->dev, "Freeing item from yesn-empty rx_pend_q\n");
 		kfree(entry);
 	}
 
 	while ((entry = ntb_list_rm(&qp->ntb_rx_q_lock, &qp->rx_post_q))) {
-		dev_warn(&pdev->dev, "Freeing item from non-empty rx_post_q\n");
+		dev_warn(&pdev->dev, "Freeing item from yesn-empty rx_post_q\n");
 		kfree(entry);
 	}
 
@@ -2283,7 +2283,7 @@ int ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 
 	entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q);
 	if (!entry) {
-		qp->tx_err_no_buf++;
+		qp->tx_err_yes_buf++;
 		return -EBUSY;
 	}
 
@@ -2323,10 +2323,10 @@ void ntb_transport_link_up(struct ntb_transport_qp *qp)
 EXPORT_SYMBOL_GPL(ntb_transport_link_up);
 
 /**
- * ntb_transport_link_down - Notify NTB transport to no longer enqueue data
+ * ntb_transport_link_down - Notify NTB transport to yes longer enqueue data
  * @qp: NTB transport layer queue to be disabled
  *
- * Notify NTB transport layer of client's desire to no longer receive data on
+ * Notify NTB transport layer of client's desire to yes longer receive data on
  * transport queue specified.  It is the client's responsibility to ensure all
  * entries on queue are purged or otherwise handled appropriately.
  */

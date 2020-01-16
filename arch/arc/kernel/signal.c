@@ -2,16 +2,16 @@
 /*
  * Signal Handling for ARC
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * vineetg: Jan 2010 (Restarting of timer related syscalls)
  *
  * vineetg: Nov 2009 (Everything needed for TIF_RESTORE_SIGMASK)
  *  -do_signal() supports TIF_RESTORE_SIGMASK
- *  -do_signal() no loner needs oldset, required by OLD sys_sigsuspend
- *  -sys_rt_sigsuspend() now comes from generic code, so discard arch implemen
- *  -sys_sigsuspend() no longer needs to fudge ptregs, hence that arg removed
- *  -sys_sigsuspend() no longer loops for do_signal(), sets TIF_xxx and leaves
+ *  -do_signal() yes loner needs oldset, required by OLD sys_sigsuspend
+ *  -sys_rt_sigsuspend() yesw comes from generic code, so discard arch implemen
+ *  -sys_sigsuspend() yes longer needs to fudge ptregs, hence that arg removed
+ *  -sys_sigsuspend() yes longer loops for do_signal(), sets TIF_xxx and leaves
  *   the job to do_signal()
  *
  * vineetg: July 2009
@@ -30,7 +30,7 @@
  * vineetg: Aug 11th 2008: Bug #94183
  *  -ViXS were still seeing crashes when using insmod to load drivers.
  *   It turned out that the code to change Execute permssions for TLB entries
- *   of user was not guarded for interrupts (mod_tlb_permission)
+ *   of user was yest guarded for interrupts (mod_tlb_permission)
  *   This was causing TLB entries to be overwritten on unrelated indexes
  *
  * Vineetg: July 15th 2008: Bug #94183
@@ -41,7 +41,7 @@
  *   on resuming user mode, signal handler branches off to BTA of orig JMP
  *  -FIX: clear the DE bit from status32 in setup_frame( )
  *
- * Rahul Trivedi, Kanika Nema: Codito Technologies 2004
+ * Rahul Trivedi, Kanika Nema: Codito Techyeslogies 2004
  */
 
 #include <linux/signal.h>
@@ -155,11 +155,11 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	struct pt_regs *regs = current_pt_regs();
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/* Since we stacked the signal on a word boundary,
 	 * then 'sp' should be word aligned here.  If it's
-	 * not, then the user is trying to mess with us.
+	 * yest, then the user is trying to mess with us.
 	 */
 	if (regs->sp & 3)
 		goto badframe;
@@ -235,16 +235,16 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 
 	/*
 	 * w/o SA_SIGINFO, struct ucontext is partially populated (only
-	 * uc_mcontext/uc_sigmask) for kernel's normal user state preservation
+	 * uc_mcontext/uc_sigmask) for kernel's yesrmal user state preservation
 	 * during signal handler execution. This works for SA_SIGINFO as well
-	 * although the semantics are now overloaded (the same reg state can be
+	 * although the semantics are yesw overloaded (the same reg state can be
 	 * inspected by userland: but are they allowed to fiddle with it ?
 	 */
 	err |= stash_usr_regs(sf, regs, set);
 
 	/*
 	 * SA_SIGINFO requires 3 args to signal handler:
-	 *  #1: sig-no (common to any handler)
+	 *  #1: sig-yes (common to any handler)
 	 *  #2: struct siginfo
 	 *  #3: struct ucontext (completely populated)
 	 */
@@ -260,7 +260,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 
 		/*
 		 * small optim to avoid unconditonally calling do_sigaltstack
-		 * in sigreturn path, now that we only have rt_sigreturn
+		 * in sigreturn path, yesw that we only have rt_sigreturn
 		 */
 		magic = MAGIC_SIGALTSTK;
 	}
@@ -277,7 +277,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 
 	/*
 	 * handler returns using sigreturn stub provided already by userpsace
-	 * If not, nuke the process right away
+	 * If yest, nuke the process right away
 	 */
 	if(!(ksig->ka.sa.sa_flags & SA_RESTORER))
 		return 1;
@@ -304,7 +304,7 @@ static void arc_restart_syscall(struct k_sigaction *ka, struct pt_regs *regs)
 	case -ERESTARTNOHAND:
 		/*
 		 * ERESTARTNOHAND means that the syscall should
-		 * only be restarted if there was no handler for
+		 * only be restarted if there was yes handler for
 		 * the signal, and since we only get here if there
 		 * is a handler, we don't restart
 		 */
@@ -314,7 +314,7 @@ static void arc_restart_syscall(struct k_sigaction *ka, struct pt_regs *regs)
 	case -ERESTARTSYS:
 		/*
 		 * ERESTARTSYS means to restart the syscall if
-		 * there is no handler or the handler was
+		 * there is yes handler or the handler was
 		 * registered with SA_RESTART
 		 */
 		if (!(ka->sa.sa_flags & SA_RESTART)) {
@@ -384,16 +384,16 @@ void do_signal(struct pt_regs *regs)
 		syscall_wont_restart(regs);	/* No more restarts */
 	}
 
-	/* If there's no signal to deliver, restore the saved sigmask back */
+	/* If there's yes signal to deliver, restore the saved sigmask back */
 	restore_saved_sigmask();
 }
 
-void do_notify_resume(struct pt_regs *regs)
+void do_yestify_resume(struct pt_regs *regs)
 {
 	/*
 	 * ASM glue gaurantees that this is only called when returning to
 	 * user mode
 	 */
 	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 }

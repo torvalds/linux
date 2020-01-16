@@ -37,7 +37,7 @@ struct table_instance {
 	struct hlist_head *buckets;
 	unsigned int n_buckets;
 	struct rcu_head rcu;
-	int node_ver;
+	int yesde_ver;
 	u32 hash_seed;
 	bool keep_flows;
 };

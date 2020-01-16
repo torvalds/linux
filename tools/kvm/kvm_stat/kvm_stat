@@ -3,7 +3,7 @@
 #
 # top-like utility for displaying kvm statistics
 #
-# Copyright 2006-2008 Qumranet Technologies
+# Copyright 2006-2008 Qumranet Techyeslogies
 # Copyright 2008-2011 Red Hat, Inc.
 #
 # Authors:
@@ -250,7 +250,7 @@ class Arch(object):
         else:
             # X86_64
             for line in open('/proc/cpuinfo'):
-                if not line.startswith('flags'):
+                if yest line.startswith('flags'):
                     continue
 
                 flags = line.split()
@@ -328,7 +328,7 @@ class perf_event_attr(ctypes.Structure):
     For an extensive explanation see perf_event_open(2) and
     include/uapi/linux/perf_event.h, struct perf_event_attr
 
-    All fields that are not initialized in the constructor are 0.
+    All fields that are yest initialized in the constructor are 0.
 
     """
     _fields_ = [('type', ctypes.c_uint32),
@@ -392,7 +392,7 @@ class Event(object):
     """Represents a performance event and manages its life cycle."""
     def __init__(self, name, group, trace_cpu, trace_pid, trace_point,
                  trace_filter, trace_set='kvm'):
-        self.libc = ctypes.CDLL('libc.so.6', use_errno=True)
+        self.libc = ctypes.CDLL('libc.so.6', use_erryes=True)
         self.syscall = self.libc.syscall
         self.name = name
         self.fd = None
@@ -402,8 +402,8 @@ class Event(object):
     def __del__(self):
         """Closes the event's file descriptor.
 
-        As no python file object was created for the file descriptor,
-        python will not reference count the descriptor and will not
+        As yes python file object was created for the file descriptor,
+        python will yest reference count the descriptor and will yest
         close it itself automatically, so we do it.
 
         """
@@ -460,7 +460,7 @@ class Event(object):
         fd = self._perf_event_open(event_attr, trace_pid,
                                    trace_cpu, group_leader, 0)
         if fd == -1:
-            err = ctypes.get_errno()
+            err = ctypes.get_erryes()
             raise OSError(err, os.strerror(err),
                           'while calling sys_perf_event_open().')
 
@@ -502,9 +502,9 @@ class Provider(object):
     @staticmethod
     def is_field_wanted(fields_filter, field):
         """Indicate whether field is valid according to fields_filter."""
-        if not fields_filter:
+        if yest fields_filter:
             return True
-        return re.match(fields_filter, field) is not None
+        return re.match(fields_filter, field) is yest None
 
     @staticmethod
     def walkdir(path):
@@ -534,7 +534,7 @@ class TracepointProvider(Provider):
         the values that can be filtered.
 
         Trace events can be filtered for special values by setting a
-        filter string via an ioctl. The string normally has the format
+        filter string via an ioctl. The string yesrmally has the format
         identifier==value. For each filter a new event will be created, to
         be able to distinguish the events.
 
@@ -578,7 +578,7 @@ class TracepointProvider(Provider):
         # add parents for child fields - otherwise we won't see any output!
         for field in self._fields:
             parent = ARCH.tracepoint_is_child(field)
-            if (parent and parent not in self._fields):
+            if (parent and parent yest in self._fields):
                 self.fields.append(parent)
 
     @staticmethod
@@ -591,7 +591,7 @@ class TracepointProvider(Provider):
             members = list_string.split(',')
 
             for member in members:
-                if '-' not in member:
+                if '-' yest in member:
                     integers.append(int(member))
                 else:
                     int_range = member.split('-')
@@ -630,7 +630,7 @@ class TracepointProvider(Provider):
                 resource.setrlimit(resource.RLIMIT_NOFILE, (newlim, hardlim))
 
         except ValueError:
-            sys.exit("NOFILE rlimit could not be raised to {0}".format(newlim))
+            sys.exit("NOFILE rlimit could yest be raised to {0}".format(newlim))
 
         for groupid in groupids:
             group = Group()
@@ -676,7 +676,7 @@ class TracepointProvider(Provider):
                     event.reset()
                     event.enable()
                 else:
-                    # Do not disable the group leader.
+                    # Do yest disable the group leader.
                     # It would disable all of its events.
                     if index != 0:
                         event.disable()
@@ -700,7 +700,7 @@ class TracepointProvider(Provider):
         ret = defaultdict(int)
         for group in self.group_leaders:
             for name, val in group.read().items():
-                if name not in self._fields:
+                if name yest in self._fields:
                     continue
                 parent = ARCH.tracepoint_is_child(name)
                 if parent:
@@ -742,7 +742,7 @@ class DebugfsProvider(Provider):
         # add parents for child fields - otherwise we won't see any output!
         for field in self._fields:
             parent = ARCH.debugfs_is_child(field)
-            if (parent and parent not in self._fields):
+            if (parent and parent yest in self._fields):
                 self.fields.append(parent)
 
     @property
@@ -775,7 +775,7 @@ class DebugfsProvider(Provider):
     def _verify_paths(self):
         """Remove invalid paths"""
         for path in self.paths:
-            if not os.path.exists(os.path.join(PATH_DEBUGFS_KVM, path)):
+            if yest os.path.exists(os.path.join(PATH_DEBUGFS_KVM, path)):
                 self.paths.remove(path)
                 continue
 
@@ -790,8 +790,8 @@ class DebugfsProvider(Provider):
         """
         results = {}
 
-        # If no debugfs filtering support is available, then don't read.
-        if not self.do_read:
+        # If yes debugfs filtering support is available, then don't read.
+        if yest self.do_read:
             return results
         self._verify_paths()
 
@@ -870,7 +870,7 @@ class Stats(object):
         if options.debugfs:
             providers.append(DebugfsProvider(options.pid, options.fields,
                                              options.dbgfs_include_past))
-        if options.tracepoints or not providers:
+        if options.tracepoints or yest providers:
             providers.append(TracepointProvider(options.pid, options.fields))
 
         return providers
@@ -986,19 +986,19 @@ class Tui(object):
         """Initialises curses for later use.  Based on curses.wrapper
            implementation from the Python standard library."""
         self.screen = curses.initscr()
-        curses.noecho()
+        curses.yesecho()
         curses.cbreak()
 
-        # The try/catch works around a minor bit of
+        # The try/catch works around a miyesr bit of
         # over-conscientiousness in the curses module, the error
-        # return from C start_color() is ignorable.
+        # return from C start_color() is igyesrable.
         try:
             curses.start_color()
         except curses.error:
             pass
 
-        # Hide cursor in extra statement as some monochrome terminals
-        # might support hiding but not colors.
+        # Hide cursor in extra statement as some moyeschrome terminals
+        # might support hiding but yest colors.
         try:
             curses.curs_set(0)
         except curses.error:
@@ -1008,12 +1008,12 @@ class Tui(object):
         return self
 
     def __exit__(self, *exception):
-        """Resets the terminal to its normal state.  Based on curses.wrapper
+        """Resets the terminal to its yesrmal state.  Based on curses.wrapper
            implementation from the Python standard library."""
         if self.screen:
             self.screen.keypad(0)
             curses.echo()
-            curses.nocbreak()
+            curses.yescbreak()
             curses.endwin()
 
     @staticmethod
@@ -1055,7 +1055,7 @@ class Tui(object):
     def get_pid_from_gname(gname):
         """Fuzzy function to convert guest name to QEMU process pid.
 
-        Returns a list of potential pids, can be empty if no match found.
+        Returns a list of potential pids, can be empty if yes match found.
         Throws an exception on processing errors.
 
         """
@@ -1088,7 +1088,7 @@ class Tui(object):
             # the '-name' switch allows for two ways to specify the guest name,
             # where the plain name overrides the name specified via 'guest='
             for arg in parms:
-                if '=' not in arg:
+                if '=' yest in arg:
                     name = arg
                     break
                 if arg[:6] == 'guest=':
@@ -1165,7 +1165,7 @@ class Tui(object):
                 if values == (0, 0):
                     continue
                 if key.find(' ') != -1:
-                    if not self.stats.child_events:
+                    if yest self.stats.child_events:
                         continue
                     childs.insert(0, (key, values))
                 else:
@@ -1177,7 +1177,7 @@ class Tui(object):
 
             return sorted_items
 
-        if not self._is_running_guest(self.stats.pid_filter):
+        if yest self._is_running_guest(self.stats.pid_filter):
             if self._gname:
                 try: # ...to identify the guest by name in case it's back
                     pids = self.get_pid_from_gname(self._gname)
@@ -1201,12 +1201,12 @@ class Tui(object):
                 if self.get_gname_from_pid(key):
                     total += values.value
                 continue
-            if not key.find(' ') != -1:
+            if yest key.find(' ') != -1:
                 total += values.value
             else:
                 ctotal += values.value
         if total == 0.:
-            # we don't have any fields, or all non-child events are filtered
+            # we don't have any fields, or all yesn-child events are filtered
             total = ctotal
 
         # print events
@@ -1218,7 +1218,7 @@ class Tui(object):
                 break
             if self._display_guests:
                 key = self.get_gname_from_pid(key)
-                if not key:
+                if yest key:
                     continue
             cur = int(round(values.delta / sleeptime)) if values.delta else 0
             if cur < 0:
@@ -1268,7 +1268,7 @@ class Tui(object):
 
     def _show_help_interactive(self):
         """Display help with list of interactive commands"""
-        msg = ('   b     toggle events by guests (debugfs only, honors'
+        msg = ('   b     toggle events by guests (debugfs only, hoyesrs'
                ' filters)',
                '   c     clear filter',
                '   f     filter by regular expression',
@@ -1313,7 +1313,7 @@ class Tui(object):
             self.screen.addstr(3, 0, "New regex: ")
             curses.echo()
             regex = self.screen.getstr().decode(ENCODING)
-            curses.noecho()
+            curses.yesecho()
             if len(regex) == 0:
                 self.stats.fields_filter = ''
                 self._refresh_header()
@@ -1339,7 +1339,7 @@ class Tui(object):
                                self._delay_regular)
             curses.echo()
             val = self.screen.getstr().decode(ENCODING)
-            curses.noecho()
+            curses.yesecho()
 
             try:
                 if len(val) > 0:
@@ -1361,7 +1361,7 @@ class Tui(object):
 
     def _is_running_guest(self, pid):
         """Check if pid is still a running process."""
-        if not pid:
+        if yest pid:
             return True
         return os.path.isdir(os.path.join('/proc/', str(pid)))
 
@@ -1386,13 +1386,13 @@ class Tui(object):
             curses.curs_set(1)
             self.screen.addstr(3, 0, "Guest or pid [ENTER exits]: ")
             guest = self.screen.getstr().decode(ENCODING)
-            curses.noecho()
+            curses.yesecho()
 
             pid = 0
-            if not guest or guest == '0':
+            if yest guest or guest == '0':
                 break
             if guest.isdigit():
-                if not self._is_running_guest(guest):
+                if yest self._is_running_guest(guest):
                     msg = '"' + guest + '": Not a running process'
                     continue
                 pid = int(guest)
@@ -1430,13 +1430,13 @@ class Tui(object):
             try:
                 char = self.screen.getkey()
                 if char == 'b':
-                    self._display_guests = not self._display_guests
+                    self._display_guests = yest self._display_guests
                     if self.stats.toggle_display_guests(self._display_guests):
-                        self._show_msg(['Command not available with '
+                        self._show_msg(['Command yest available with '
                                         'tracepoints enabled', 'Restart with '
                                         'debugfs only (see option \'-d\') and '
                                         'try again!'])
-                        self._display_guests = not self._display_guests
+                        self._display_guests = yest self._display_guests
                     self._refresh_header()
                 if char == 'c':
                     self.stats.fields_filter = ''
@@ -1453,7 +1453,7 @@ class Tui(object):
                 if char == 'h':
                     self._show_help_interactive()
                 if char == 'o':
-                    self._sorting = not self._sorting
+                    self._sorting = yest self._sorting
                 if char == 'q':
                     break
                 if char == 'r':
@@ -1464,7 +1464,7 @@ class Tui(object):
                     curses.curs_set(0)
                     sleeptime = self._delay_initial
                 if char == 'x':
-                    self.stats.child_events = not self.stats.child_events
+                    self.stats.child_events = yest self.stats.child_events
             except KeyboardInterrupt:
                 break
             except curses.error:
@@ -1526,13 +1526,13 @@ Requirements:
     %s
     %s/events/*
     /proc/pid/task
-- /proc/sys/kernel/perf_event_paranoid < 1 if user has no
+- /proc/sys/kernel/perf_event_parayesid < 1 if user has yes
   CAP_SYS_ADMIN and perf events are used.
-- CAP_SYS_RESOURCE if the hard limit is not high enough to allow
+- CAP_SYS_RESOURCE if the hard limit is yest high eyesugh to allow
   the large number of files that are possibly opened.
 
 Interactive Commands:
-   b     toggle events by guests (debugfs only, honors filters)
+   b     toggle events by guests (debugfs only, hoyesrs filters)
    c     clear filter
    f     filter by regular expression
    g     filter by guest name
@@ -1628,7 +1628,7 @@ Press any other key to refresh statistics immediately.
         # verify that we were passed a valid regex up front
         re.compile(options.fields)
     except re.error:
-        sys.exit('Error: "' + options.fields + '" is not a valid regular '
+        sys.exit('Error: "' + options.fields + '" is yest a valid regular '
                  'expression')
 
     return options
@@ -1636,8 +1636,8 @@ Press any other key to refresh statistics immediately.
 
 def check_access(options):
     """Exits if the current user can't access all needed directories."""
-    if not os.path.exists(PATH_DEBUGFS_TRACING) and (options.tracepoints or
-                                                     not options.debugfs):
+    if yest os.path.exists(PATH_DEBUGFS_TRACING) and (options.tracepoints or
+                                                     yest options.debugfs):
         sys.stderr.write("Please enable CONFIG_TRACING in your kernel "
                          "when using the option -t (default).\n"
                          "If it is enabled, make {0} readable by the "
@@ -1672,7 +1672,7 @@ def assign_globals():
     PATH_DEBUGFS_KVM = os.path.join(debugfs, 'kvm')
     PATH_DEBUGFS_TRACING = os.path.join(debugfs, 'tracing')
 
-    if not os.path.exists(PATH_DEBUGFS_KVM):
+    if yest os.path.exists(PATH_DEBUGFS_KVM):
         sys.stderr.write("Please make sure that CONFIG_KVM is enabled in "
                          "your kernel and that the modules are loaded.\n")
         sys.exit(1)
@@ -1684,10 +1684,10 @@ def main():
     options = check_access(options)
 
     if (options.pid > 0 and
-        not os.path.isdir(os.path.join('/proc/',
+        yest os.path.isdir(os.path.join('/proc/',
                                        str(options.pid)))):
         sys.stderr.write('Did you use a (unsupported) tid instead of a pid?\n')
-        sys.exit('Specified pid does not exist.')
+        sys.exit('Specified pid does yest exist.')
 
     stats = Stats(options)
 
@@ -1701,7 +1701,7 @@ def main():
 
     if options.log:
         log(stats)
-    elif not options.once:
+    elif yest options.once:
         with Tui(stats) as tui:
             tui.show_stats()
     else:

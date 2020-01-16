@@ -12,7 +12,7 @@ Description:
 		 Controls the minimum sleep time for gc_thread. Time
 		 is in milliseconds.
 
-What:		/sys/fs/f2fs/<disk>/gc_no_gc_sleep_time
+What:		/sys/fs/f2fs/<disk>/gc_yes_gc_sleep_time
 Date:		July 2013
 Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
 Description:
@@ -88,8 +88,8 @@ Date:          July 2017
 Contact:       "Chao Yu" <yuchao0@huawei.com>
 Description:
 		Controls discard granularity of inner discard thread, inner thread
-		will not issue discards with size that is smaller than granularity.
-		The unit size is one block, now only support configuring in range
+		will yest issue discards with size that is smaller than granularity.
+		The unit size is one block, yesw only support configuring in range
 		of [1, 512].
 
 What:          /sys/fs/f2fs/<disk>/umount_discard_timeout
@@ -237,7 +237,7 @@ What:		/sys/fs/f2fs/<disk>/readdir_ra
 Date:		November 2017
 Contact:	"Sheng Yong" <shengyong1@huawei.com>
 Description:
-		 Controls readahead inode block in readdir.
+		 Controls readahead iyesde block in readdir.
 
 What:		/sys/fs/f2fs/<disk>/extension_list
 Date:		Feburary 2018
@@ -263,4 +263,4 @@ Date		July 2019
 Contact:	"Daniel Rosenberg" <drosen@google.com>
 Description:
 		Displays name and version of the encoding set for the filesystem.
-                If no encoding is set, displays (none)
+                If yes encoding is set, displays (yesne)

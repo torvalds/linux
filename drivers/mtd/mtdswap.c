@@ -5,7 +5,7 @@
  *
  * Copyright © 2007,2011 Nokia Corporation. All rights reserved.
  *
- * Authors: Jarkko Lavinen <jarkko.lavinen@nokia.com>
+ * Authors: Jarkko Lavinen <jarkko.lavinen@yeskia.com>
  *
  * Based on Richard Purdie's earlier implementation in 2007. Background
  * support and lock-less operation written by Adrian Hunter.
@@ -67,7 +67,7 @@
 #define EBLOCK_IDX_SHIFT	5
 
 struct swap_eb {
-	struct rb_node rb;
+	struct rb_yesde rb;
 	struct rb_root *root;
 
 	unsigned int flags;
@@ -158,7 +158,7 @@ enum {
 #define MIN_ERASE_BLOCKS	(MIN_SPARE_EBLOCKS + 1)
 
 #define TREE_ROOT(d, name) (&d->trees[MTDSWAP_ ## name].root)
-#define TREE_EMPTY(d, name) (TREE_ROOT(d, name)->rb_node == NULL)
+#define TREE_EMPTY(d, name) (TREE_ROOT(d, name)->rb_yesde == NULL)
 #define TREE_NONEMPTY(d, name) (!TREE_EMPTY(d, name))
 #define TREE_COUNT(d, name) (d->trees[MTDSWAP_ ## name].count)
 
@@ -202,10 +202,10 @@ static void mtdswap_eb_detach(struct mtdswap_dev *d, struct swap_eb *eb)
 
 static void __mtdswap_rb_add(struct rb_root *root, struct swap_eb *eb)
 {
-	struct rb_node **p, *parent = NULL;
+	struct rb_yesde **p, *parent = NULL;
 	struct swap_eb *cur;
 
-	p = &root->rb_node;
+	p = &root->rb_yesde;
 	while (*p) {
 		parent = *p;
 		cur = rb_entry(parent, struct swap_eb, rb);
@@ -215,7 +215,7 @@ static void __mtdswap_rb_add(struct rb_root *root, struct swap_eb *eb)
 			p = &(*p)->rb_left;
 	}
 
-	rb_link_node(&eb->rb, parent, p);
+	rb_link_yesde(&eb->rb, parent, p);
 	rb_insert_color(&eb->rb, root);
 }
 
@@ -233,9 +233,9 @@ static void mtdswap_rb_add(struct mtdswap_dev *d, struct swap_eb *eb, int idx)
 	d->trees[idx].count++;
 }
 
-static struct rb_node *mtdswap_rb_index(struct rb_root *root, unsigned int idx)
+static struct rb_yesde *mtdswap_rb_index(struct rb_root *root, unsigned int idx)
 {
-	struct rb_node *p;
+	struct rb_yesde *p;
 	unsigned int i;
 
 	p = rb_first(root);
@@ -258,7 +258,7 @@ static int mtdswap_handle_badblock(struct mtdswap_dev *d, struct swap_eb *eb)
 	mtdswap_eb_detach(d, eb);
 	eb->root = NULL;
 
-	/* badblocks not supported */
+	/* badblocks yest supported */
 	if (!mtd_can_have_bb(d->mtd))
 		return 1;
 
@@ -309,7 +309,7 @@ static int mtdswap_read_oob(struct mtdswap_dev *d, loff_t from,
 	}
 
 	if (ops->oobretlen < ops->ooblen) {
-		dev_warn(d->dev, "Read OOB return short read (%zd bytes not "
+		dev_warn(d->dev, "Read OOB return short read (%zd bytes yest "
 			"%zd) for block at %08llx\n",
 			ops->oobretlen, ops->ooblen, from);
 		return -EIO;
@@ -400,7 +400,7 @@ static int mtdswap_write_marker(struct mtdswap_dev *d, struct swap_eb *eb,
 
 	if (ops.oobretlen != ops.ooblen) {
 		dev_warn(d->dev, "Short OOB write for block at %08llx: "
-			"%zd not %zd\n",
+			"%zd yest %zd\n",
 			offset, ops.oobretlen, ops.ooblen);
 		return ret;
 	}
@@ -416,7 +416,7 @@ static int mtdswap_write_marker(struct mtdswap_dev *d, struct swap_eb *eb,
 static void mtdswap_check_counts(struct mtdswap_dev *d)
 {
 	struct rb_root hist_root = RB_ROOT;
-	struct rb_node *medrb;
+	struct rb_yesde *medrb;
 	struct swap_eb *eb;
 	unsigned int i, cnt, median;
 
@@ -549,7 +549,7 @@ retry:
 			goto retry;
 		}
 
-		dev_err(d->dev, "Cannot erase erase block %#llx on %s\n",
+		dev_err(d->dev, "Canyest erase erase block %#llx on %s\n",
 			erase.addr, mtd->name);
 
 		mtdswap_handle_badblock(d, eb);
@@ -606,7 +606,7 @@ static unsigned int mtdswap_free_page_cnt(struct mtdswap_dev *d)
 		d->pages_per_eblk - d->curr_write_pos;
 }
 
-static unsigned int mtdswap_enough_free_pages(struct mtdswap_dev *d)
+static unsigned int mtdswap_eyesugh_free_pages(struct mtdswap_dev *d)
 {
 	return mtdswap_free_page_cnt(d) > d->pages_per_eblk;
 }
@@ -622,7 +622,7 @@ static int mtdswap_write_block(struct mtdswap_dev *d, char *buf,
 
 retry:
 	if (!gc_context)
-		while (!mtdswap_enough_free_pages(d))
+		while (!mtdswap_eyesugh_free_pages(d))
 			if (mtdswap_gc(d, 0) > 0)
 				return -ENOSPC;
 
@@ -764,7 +764,7 @@ static int __mtdswap_choose_gc_tree(struct mtdswap_dev *d)
 		stopat = MTDSWAP_HIFRAG;
 
 	for (idx = MTDSWAP_BITFLIP; idx >= stopat; idx--)
-		if (d->trees[idx].root.rb_node != NULL)
+		if (d->trees[idx].root.rb_yesde != NULL)
 			return idx;
 
 	return -1;
@@ -807,7 +807,7 @@ static int mtdswap_choose_wl_tree(struct mtdswap_dev *d)
 	max = 0;
 	for (i = 0; i <= MTDSWAP_DIRTY; i++) {
 		root = &d->trees[i].root;
-		if (root->rb_node == NULL)
+		if (root->rb_yesde == NULL)
 			continue;
 
 		wear = d->max_erase_count - MTDSWAP_ECNT_MIN(root);
@@ -1031,7 +1031,7 @@ static int mtdswap_writesect(struct mtd_blktrans_dev *dev,
 		return -ENOSPC;
 
 	if (header) {
-		/* Ignore writes to the header page */
+		/* Igyesre writes to the header page */
 		if (unlikely(page == 0))
 			return 0;
 
@@ -1185,7 +1185,7 @@ static int mtdswap_show(struct seq_file *s, void *data)
 	for (i = 0; i < MTDSWAP_TREE_CNT; i++) {
 		struct rb_root *root = &d->trees[i].root;
 
-		if (root->rb_node) {
+		if (root->rb_yesde) {
 			count[i] = d->trees[i].count;
 			min[i] = MTDSWAP_ECNT_MIN(root);
 			max[i] = MTDSWAP_ECNT_MAX(root);
@@ -1358,19 +1358,19 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		return;
 
 	if (mtd->erasesize < PAGE_SIZE || mtd->erasesize % PAGE_SIZE) {
-		printk(KERN_ERR "%s: Erase size %u not multiple of PAGE_SIZE "
+		printk(KERN_ERR "%s: Erase size %u yest multiple of PAGE_SIZE "
 			"%lu\n", MTDSWAP_PREFIX, mtd->erasesize, PAGE_SIZE);
 		return;
 	}
 
 	if (PAGE_SIZE % mtd->writesize || mtd->writesize > PAGE_SIZE) {
-		printk(KERN_ERR "%s: PAGE_SIZE %lu not multiple of write size"
+		printk(KERN_ERR "%s: PAGE_SIZE %lu yest multiple of write size"
 			" %u\n", MTDSWAP_PREFIX, PAGE_SIZE, mtd->writesize);
 		return;
 	}
 
 	if (!mtd->oobsize || mtd->oobavail < MTDSWAP_OOBSIZE) {
-		printk(KERN_ERR "%s: Not enough free bytes in OOB, "
+		printk(KERN_ERR "%s: Not eyesugh free bytes in OOB, "
 			"%d available, %zu needed.\n",
 			MTDSWAP_PREFIX, mtd->oobavail, MTDSWAP_OOBSIZE);
 		return;
@@ -1394,7 +1394,7 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	eavailable = eblocks - bad_blocks;
 
 	if (eavailable < MIN_ERASE_BLOCKS) {
-		printk(KERN_ERR "%s: Not enough erase blocks. %u available, "
+		printk(KERN_ERR "%s: Not eyesugh erase blocks. %u available, "
 			"%d needed\n", MTDSWAP_PREFIX, eavailable,
 			MIN_ERASE_BLOCKS);
 		return;
@@ -1500,6 +1500,6 @@ module_exit(mtdswap_modexit);
 
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jarkko Lavinen <jarkko.lavinen@nokia.com>");
+MODULE_AUTHOR("Jarkko Lavinen <jarkko.lavinen@yeskia.com>");
 MODULE_DESCRIPTION("Block device access to an MTD suitable for using as "
 		"swap space");

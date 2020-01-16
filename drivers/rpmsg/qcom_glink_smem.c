@@ -27,7 +27,7 @@
 
 #define FIFO_FULL_RESERVE 8
 #define FIFO_ALIGNMENT 8
-#define TX_BLOCKED_CMD_RESERVE 8 /* size of struct read_notif_request */
+#define TX_BLOCKED_CMD_RESERVE 8 /* size of struct read_yestif_request */
 
 #define SMEM_GLINK_NATIVE_XPRT_DESCRIPTOR	478
 #define SMEM_GLINK_NATIVE_XPRT_FIFO_0		479
@@ -183,7 +183,7 @@ static void qcom_glink_smem_release(struct device *dev)
 }
 
 struct qcom_glink *qcom_glink_smem_register(struct device *parent,
-					    struct device_node *node)
+					    struct device_yesde *yesde)
 {
 	struct glink_smem_pipe *rx_pipe;
 	struct glink_smem_pipe *tx_pipe;
@@ -199,9 +199,9 @@ struct qcom_glink *qcom_glink_smem_register(struct device *parent,
 		return ERR_PTR(-ENOMEM);
 
 	dev->parent = parent;
-	dev->of_node = node;
+	dev->of_yesde = yesde;
 	dev->release = qcom_glink_smem_release;
-	dev_set_name(dev, "%s:%pOFn", dev_name(parent->parent), node);
+	dev_set_name(dev, "%s:%pOFn", dev_name(parent->parent), yesde);
 	ret = device_register(dev);
 	if (ret) {
 		pr_err("failed to register glink edge\n");
@@ -209,7 +209,7 @@ struct qcom_glink *qcom_glink_smem_register(struct device *parent,
 		return ERR_PTR(ret);
 	}
 
-	ret = of_property_read_u32(dev->of_node, "qcom,remote-pid",
+	ret = of_property_read_u32(dev->of_yesde, "qcom,remote-pid",
 				   &remote_pid);
 	if (ret) {
 		dev_err(dev, "failed to parse qcom,remote-pid\n");

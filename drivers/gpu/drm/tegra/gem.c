@@ -85,7 +85,7 @@ static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 			goto free;
 	} else if (obj->sgt) {
 		/*
-		 * If the buffer object already has an SG table but no pages
+		 * If the buffer object already has an SG table but yes pages
 		 * were allocated for it, it means the buffer was imported and
 		 * the SG table needs to be copied to avoid overwriting any
 		 * other potential users of the original SG table.
@@ -96,8 +96,8 @@ static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 			goto free;
 	} else {
 		/*
-		 * If the buffer object had no pages allocated and if it was
-		 * not imported, it had to be allocated with the DMA API, so
+		 * If the buffer object had yes pages allocated and if it was
+		 * yest imported, it had to be allocated with the DMA API, so
 		 * the DMA API helper can be used.
 		 */
 		err = dma_get_sgtable(dev, sgt, obj->vaddr, obj->iova,
@@ -206,7 +206,7 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 
 	mutex_lock(&tegra->mm_lock);
 
-	err = drm_mm_insert_node_generic(&tegra->mm,
+	err = drm_mm_insert_yesde_generic(&tegra->mm,
 					 bo->mm, bo->gem.size, PAGE_SIZE, 0, 0);
 	if (err < 0) {
 		dev_err(tegra->drm->dev, "out of I/O virtual memory: %d\n",
@@ -229,7 +229,7 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 	return 0;
 
 remove:
-	drm_mm_remove_node(bo->mm);
+	drm_mm_remove_yesde(bo->mm);
 unlock:
 	mutex_unlock(&tegra->mm_lock);
 	kfree(bo->mm);
@@ -243,7 +243,7 @@ static int tegra_bo_iommu_unmap(struct tegra_drm *tegra, struct tegra_bo *bo)
 
 	mutex_lock(&tegra->mm_lock);
 	iommu_unmap(tegra->domain, bo->iova, bo->size);
-	drm_mm_remove_node(bo->mm);
+	drm_mm_remove_yesde(bo->mm);
 	mutex_unlock(&tegra->mm_lock);
 
 	kfree(bo->mm);

@@ -60,7 +60,7 @@ int mpc7448_hpc2_exclude_device(struct pci_controller *hose,
 
 static void __init mpc7448_hpc2_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	if (ppc_md.progress)
 		ppc_md.progress("mpc7448_hpc2_setup_arch():set_bridge", 0);
 
@@ -68,7 +68,7 @@ static void __init mpc7448_hpc2_setup_arch(void)
 
 	/* setup PCI host bridge */
 #ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "tsi108-pci")
+	for_each_compatible_yesde(np, "pci", "tsi108-pci")
 		tsi108_setup_pci(np, MPC7448HPC2_PCI_CFG_PHYS, 0);
 
 	ppc_md.pci_exclude_device = mpc7448_hpc2_exclude_device;
@@ -99,8 +99,8 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 	struct mpic *mpic;
 #ifdef CONFIG_PCI
 	unsigned int cascade_pci_irq;
-	struct device_node *tsi_pci;
-	struct device_node *cascade_node = NULL;
+	struct device_yesde *tsi_pci;
+	struct device_yesde *cascade_yesde = NULL;
 #endif
 
 	mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
@@ -115,21 +115,21 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 	mpic_init(mpic);
 
 #ifdef CONFIG_PCI
-	tsi_pci = of_find_node_by_type(NULL, "pci");
+	tsi_pci = of_find_yesde_by_type(NULL, "pci");
 	if (tsi_pci == NULL) {
-		printk("%s: No tsi108 pci node found !\n", __func__);
+		printk("%s: No tsi108 pci yesde found !\n", __func__);
 		return;
 	}
-	cascade_node = of_find_node_by_type(NULL, "pic-router");
-	if (cascade_node == NULL) {
-		printk("%s: No tsi108 pci cascade node found !\n", __func__);
+	cascade_yesde = of_find_yesde_by_type(NULL, "pic-router");
+	if (cascade_yesde == NULL) {
+		printk("%s: No tsi108 pci cascade yesde found !\n", __func__);
 		return;
 	}
 
 	cascade_pci_irq = irq_of_parse_and_map(tsi_pci, 0);
 	DBG("%s: tsi108 cascade_pci_irq = 0x%x\n", __func__,
 	    (u32) cascade_pci_irq);
-	tsi108_pci_int_init(cascade_node);
+	tsi108_pci_int_init(cascade_yesde);
 	irq_set_handler_data(cascade_pci_irq, mpic);
 	irq_set_chained_handler(cascade_pci_irq, tsi108_irq_cascade);
 #endif
@@ -142,7 +142,7 @@ void mpc7448_hpc2_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "vendor\t\t: Freescale Semiconductor\n");
 }
 
-static void __noreturn mpc7448_hpc2_restart(char *cmd)
+static void __yesreturn mpc7448_hpc2_restart(char *cmd)
 {
 	local_irq_disable();
 

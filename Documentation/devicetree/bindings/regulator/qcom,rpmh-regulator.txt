@@ -1,4 +1,4 @@
-Qualcomm Technologies, Inc. RPMh Regulators
+Qualcomm Techyeslogies, Inc. RPMh Regulators
 
 rpmh-regulator devices support PMIC regulator management via the Voltage
 Regulator Manager (VRM) and Oscillator Buffer (XOB) RPMh accelerators.  The APPS
@@ -14,14 +14,14 @@ switches, and LDO/SMPS regulators which have a fixed voltage and mode.
 Required Node Structure
 =======================
 
-RPMh regulators must be described in two levels of device nodes.  The first
+RPMh regulators must be described in two levels of device yesdes.  The first
 level describes the PMIC containing the regulators and must reside within an
-RPMh device node.  The second level describes each regulator within the PMIC
+RPMh device yesde.  The second level describes each regulator within the PMIC
 which is to be used on the board.  Each of these regulators maps to a single
 RPMh resource.
 
-The names used for regulator nodes must match those supported by a given PMIC.
-Supported regulator node names:
+The names used for regulator yesdes must match those supported by a given PMIC.
+Supported regulator yesde names:
 	PM8005:		smps1 - smps4
 	PM8009:		smps1 - smps2, ldo1 - ldo7
 	PM8150:		smps1 - smps10, ldo1 - ldo18

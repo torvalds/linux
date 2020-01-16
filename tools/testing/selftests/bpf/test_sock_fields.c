@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
@@ -129,33 +129,33 @@ static void check_result(void)
 	err = bpf_map_lookup_elem(linum_map_fd, &egress_linum_idx,
 				  &egress_linum);
 	CHECK(err == -1, "bpf_map_lookup_elem(linum_map_fd)",
-	      "err:%d errno:%d", err, errno);
+	      "err:%d erryes:%d", err, erryes);
 
 	err = bpf_map_lookup_elem(linum_map_fd, &ingress_linum_idx,
 				  &ingress_linum);
 	CHECK(err == -1, "bpf_map_lookup_elem(linum_map_fd)",
-	      "err:%d errno:%d", err, errno);
+	      "err:%d erryes:%d", err, erryes);
 
 	err = bpf_map_lookup_elem(sk_map_fd, &egress_srv_idx, &srv_sk);
 	CHECK(err == -1, "bpf_map_lookup_elem(sk_map_fd, &egress_srv_idx)",
-	      "err:%d errno:%d", err, errno);
+	      "err:%d erryes:%d", err, erryes);
 	err = bpf_map_lookup_elem(tp_map_fd, &egress_srv_idx, &srv_tp);
 	CHECK(err == -1, "bpf_map_lookup_elem(tp_map_fd, &egress_srv_idx)",
-	      "err:%d errno:%d", err, errno);
+	      "err:%d erryes:%d", err, erryes);
 
 	err = bpf_map_lookup_elem(sk_map_fd, &egress_cli_idx, &cli_sk);
 	CHECK(err == -1, "bpf_map_lookup_elem(sk_map_fd, &egress_cli_idx)",
-	      "err:%d errno:%d", err, errno);
+	      "err:%d erryes:%d", err, erryes);
 	err = bpf_map_lookup_elem(tp_map_fd, &egress_cli_idx, &cli_tp);
 	CHECK(err == -1, "bpf_map_lookup_elem(tp_map_fd, &egress_cli_idx)",
-	      "err:%d errno:%d", err, errno);
+	      "err:%d erryes:%d", err, erryes);
 
 	err = bpf_map_lookup_elem(sk_map_fd, &ingress_listen_idx, &listen_sk);
 	CHECK(err == -1, "bpf_map_lookup_elem(sk_map_fd, &ingress_listen_idx)",
-	      "err:%d errno:%d", err, errno);
+	      "err:%d erryes:%d", err, erryes);
 	err = bpf_map_lookup_elem(tp_map_fd, &ingress_listen_idx, &listen_tp);
 	CHECK(err == -1, "bpf_map_lookup_elem(tp_map_fd, &ingress_listen_idx)",
-	      "err:%d errno:%d", err, errno);
+	      "err:%d erryes:%d", err, erryes);
 
 	printf("listen_sk: ");
 	print_sk(&listen_sk);
@@ -257,7 +257,7 @@ static void check_sk_pkt_out_cnt(int accept_fd, int cli_fd)
 					  &pkt_out_cnt10);
 
 	/* The bpf prog only counts for fullsock and
-	 * passive conneciton did not become fullsock until 3WHS
+	 * passive conneciton did yest become fullsock until 3WHS
 	 * had been finished.
 	 * The bpf prog only counted two data packet out but we
 	 * specially init accept_fd's pkt_out_cnt by 2 in
@@ -265,8 +265,8 @@ static void check_sk_pkt_out_cnt(int accept_fd, int cli_fd)
 	 */
 	CHECK(err || pkt_out_cnt.cnt != 4 || pkt_out_cnt10.cnt != 40,
 	      "bpf_map_lookup_elem(sk_pkt_out_cnt, &accept_fd)",
-	      "err:%d errno:%d pkt_out_cnt:%u pkt_out_cnt10:%u",
-	      err, errno, pkt_out_cnt.cnt, pkt_out_cnt10.cnt);
+	      "err:%d erryes:%d pkt_out_cnt:%u pkt_out_cnt10:%u",
+	      err, erryes, pkt_out_cnt.cnt, pkt_out_cnt10.cnt);
 
 	pkt_out_cnt.cnt = ~0;
 	pkt_out_cnt10.cnt = ~0;
@@ -283,8 +283,8 @@ static void check_sk_pkt_out_cnt(int accept_fd, int cli_fd)
 	CHECK(err || pkt_out_cnt.cnt != 0xeB9F + 4 ||
 	      pkt_out_cnt10.cnt != 0xeB9F + 40,
 	      "bpf_map_lookup_elem(sk_pkt_out_cnt, &cli_fd)",
-	      "err:%d errno:%d pkt_out_cnt:%u pkt_out_cnt10:%u",
-	      err, errno, pkt_out_cnt.cnt, pkt_out_cnt10.cnt);
+	      "err:%d erryes:%d pkt_out_cnt:%u pkt_out_cnt10:%u",
+	      err, erryes, pkt_out_cnt.cnt, pkt_out_cnt10.cnt);
 }
 
 static void init_sk_storage(int sk_fd, __u32 pkt_out_cnt)
@@ -296,13 +296,13 @@ static void init_sk_storage(int sk_fd, __u32 pkt_out_cnt)
 	err = bpf_map_update_elem(sk_pkt_out_cnt_fd, &sk_fd, &scnt,
 				  BPF_NOEXIST);
 	CHECK(err, "bpf_map_update_elem(sk_pkt_out_cnt_fd)",
-	      "err:%d errno:%d", err, errno);
+	      "err:%d erryes:%d", err, erryes);
 
 	scnt.cnt *= 10;
 	err = bpf_map_update_elem(sk_pkt_out_cnt10_fd, &sk_fd, &scnt,
 				  BPF_NOEXIST);
 	CHECK(err, "bpf_map_update_elem(sk_pkt_out_cnt10_fd)",
-	      "err:%d errno:%d", err, errno);
+	      "err:%d erryes:%d", err, erryes);
 }
 
 static void test(void)
@@ -316,88 +316,88 @@ static void test(void)
 	ev.events = EPOLLIN;
 
 	epfd = epoll_create(1);
-	CHECK(epfd == -1, "epoll_create()", "epfd:%d errno:%d", epfd, errno);
+	CHECK(epfd == -1, "epoll_create()", "epfd:%d erryes:%d", epfd, erryes);
 
 	/* Prepare listen_fd */
 	listen_fd = socket(AF_INET6, SOCK_STREAM | SOCK_NONBLOCK, 0);
-	CHECK(listen_fd == -1, "socket()", "listen_fd:%d errno:%d",
-	      listen_fd, errno);
+	CHECK(listen_fd == -1, "socket()", "listen_fd:%d erryes:%d",
+	      listen_fd, erryes);
 
 	init_loopback6(&srv_sa6);
 	err = bind(listen_fd, (struct sockaddr *)&srv_sa6, sizeof(srv_sa6));
-	CHECK(err, "bind(listen_fd)", "err:%d errno:%d", err, errno);
+	CHECK(err, "bind(listen_fd)", "err:%d erryes:%d", err, erryes);
 
 	err = getsockname(listen_fd, (struct sockaddr *)&srv_sa6, &addrlen);
-	CHECK(err, "getsockname(listen_fd)", "err:%d errno:%d", err, errno);
+	CHECK(err, "getsockname(listen_fd)", "err:%d erryes:%d", err, erryes);
 
 	err = listen(listen_fd, 1);
-	CHECK(err, "listen(listen_fd)", "err:%d errno:%d", err, errno);
+	CHECK(err, "listen(listen_fd)", "err:%d erryes:%d", err, erryes);
 
 	/* Prepare cli_fd */
 	cli_fd = socket(AF_INET6, SOCK_STREAM | SOCK_NONBLOCK, 0);
-	CHECK(cli_fd == -1, "socket()", "cli_fd:%d errno:%d", cli_fd, errno);
+	CHECK(cli_fd == -1, "socket()", "cli_fd:%d erryes:%d", cli_fd, erryes);
 
 	init_loopback6(&cli_sa6);
 	err = bind(cli_fd, (struct sockaddr *)&cli_sa6, sizeof(cli_sa6));
-	CHECK(err, "bind(cli_fd)", "err:%d errno:%d", err, errno);
+	CHECK(err, "bind(cli_fd)", "err:%d erryes:%d", err, erryes);
 
 	err = getsockname(cli_fd, (struct sockaddr *)&cli_sa6, &addrlen);
-	CHECK(err, "getsockname(cli_fd)", "err:%d errno:%d",
-	      err, errno);
+	CHECK(err, "getsockname(cli_fd)", "err:%d erryes:%d",
+	      err, erryes);
 
 	/* Update addr_map with srv_sa6 and cli_sa6 */
 	err = bpf_map_update_elem(addr_map_fd, &addr_srv_idx, &srv_sa6, 0);
-	CHECK(err, "map_update", "err:%d errno:%d", err, errno);
+	CHECK(err, "map_update", "err:%d erryes:%d", err, erryes);
 
 	err = bpf_map_update_elem(addr_map_fd, &addr_cli_idx, &cli_sa6, 0);
-	CHECK(err, "map_update", "err:%d errno:%d", err, errno);
+	CHECK(err, "map_update", "err:%d erryes:%d", err, erryes);
 
 	/* Connect from cli_sa6 to srv_sa6 */
 	err = connect(cli_fd, (struct sockaddr *)&srv_sa6, addrlen);
 	printf("srv_sa6.sin6_port:%u cli_sa6.sin6_port:%u\n\n",
 	       ntohs(srv_sa6.sin6_port), ntohs(cli_sa6.sin6_port));
-	CHECK(err && errno != EINPROGRESS,
-	      "connect(cli_fd)", "err:%d errno:%d", err, errno);
+	CHECK(err && erryes != EINPROGRESS,
+	      "connect(cli_fd)", "err:%d erryes:%d", err, erryes);
 
 	ev.data.fd = listen_fd;
 	err = epoll_ctl(epfd, EPOLL_CTL_ADD, listen_fd, &ev);
-	CHECK(err, "epoll_ctl(EPOLL_CTL_ADD, listen_fd)", "err:%d errno:%d",
-	      err, errno);
+	CHECK(err, "epoll_ctl(EPOLL_CTL_ADD, listen_fd)", "err:%d erryes:%d",
+	      err, erryes);
 
 	/* Accept the connection */
 	/* Have some timeout in accept(listen_fd). Just in case. */
 	err = epoll_wait(epfd, &ev, 1, 1000);
 	CHECK(err != 1 || ev.data.fd != listen_fd,
 	      "epoll_wait(listen_fd)",
-	      "err:%d errno:%d ev.data.fd:%d listen_fd:%d",
-	      err, errno, ev.data.fd, listen_fd);
+	      "err:%d erryes:%d ev.data.fd:%d listen_fd:%d",
+	      err, erryes, ev.data.fd, listen_fd);
 
 	accept_fd = accept(listen_fd, NULL, NULL);
-	CHECK(accept_fd == -1, "accept(listen_fd)", "accept_fd:%d errno:%d",
-	      accept_fd, errno);
+	CHECK(accept_fd == -1, "accept(listen_fd)", "accept_fd:%d erryes:%d",
+	      accept_fd, erryes);
 	close(listen_fd);
 
 	ev.data.fd = cli_fd;
 	err = epoll_ctl(epfd, EPOLL_CTL_ADD, cli_fd, &ev);
-	CHECK(err, "epoll_ctl(EPOLL_CTL_ADD, cli_fd)", "err:%d errno:%d",
-	      err, errno);
+	CHECK(err, "epoll_ctl(EPOLL_CTL_ADD, cli_fd)", "err:%d erryes:%d",
+	      err, erryes);
 
 	init_sk_storage(accept_fd, 2);
 
 	for (i = 0; i < 2; i++) {
 		/* Send some data from accept_fd to cli_fd */
 		err = send(accept_fd, DATA, DATA_LEN, 0);
-		CHECK(err != DATA_LEN, "send(accept_fd)", "err:%d errno:%d",
-		      err, errno);
+		CHECK(err != DATA_LEN, "send(accept_fd)", "err:%d erryes:%d",
+		      err, erryes);
 
 		/* Have some timeout in recv(cli_fd). Just in case. */
 		err = epoll_wait(epfd, &ev, 1, 1000);
 		CHECK(err != 1 || ev.data.fd != cli_fd,
-		      "epoll_wait(cli_fd)", "err:%d errno:%d ev.data.fd:%d cli_fd:%d",
-		      err, errno, ev.data.fd, cli_fd);
+		      "epoll_wait(cli_fd)", "err:%d erryes:%d ev.data.fd:%d cli_fd:%d",
+		      err, erryes, ev.data.fd, cli_fd);
 
 		err = recv(cli_fd, NULL, 0, MSG_TRUNC);
-		CHECK(err, "recv(cli_fd)", "err:%d errno:%d", err, errno);
+		CHECK(err, "recv(cli_fd)", "err:%d erryes:%d", err, erryes);
 	}
 
 	check_sk_pkt_out_cnt(accept_fd, cli_fd);
@@ -422,18 +422,18 @@ int main(int argc, char **argv)
 	struct bpf_map *map;
 
 	err = setup_cgroup_environment();
-	CHECK(err, "setup_cgroup_environment()", "err:%d errno:%d",
-	      err, errno);
+	CHECK(err, "setup_cgroup_environment()", "err:%d erryes:%d",
+	      err, erryes);
 
 	atexit(cleanup_cgroup_environment);
 
 	/* Create a cgroup, get fd, and join it */
 	cgroup_fd = create_and_get_cgroup(TEST_CGROUP);
 	CHECK(cgroup_fd == -1, "create_and_get_cgroup()",
-	      "cgroup_fd:%d errno:%d", cgroup_fd, errno);
+	      "cgroup_fd:%d erryes:%d", cgroup_fd, erryes);
 
 	err = join_cgroup(TEST_CGROUP);
-	CHECK(err, "join_cgroup", "err:%d errno:%d", err, errno);
+	CHECK(err, "join_cgroup", "err:%d erryes:%d", err, erryes);
 
 	err = bpf_prog_load_xattr(&attr, &obj, &egress_fd);
 	CHECK(err, "bpf_prog_load_xattr()", "err:%d", err);
@@ -442,41 +442,41 @@ int main(int argc, char **argv)
 							 "cgroup_skb/ingress");
 	CHECK(!ingress_prog,
 	      "bpf_object__find_program_by_title(cgroup_skb/ingress)",
-	      "not found");
+	      "yest found");
 	ingress_fd = bpf_program__fd(ingress_prog);
 
 	err = bpf_prog_attach(egress_fd, cgroup_fd, BPF_CGROUP_INET_EGRESS, 0);
 	CHECK(err == -1, "bpf_prog_attach(CPF_CGROUP_INET_EGRESS)",
-	      "err:%d errno%d", err, errno);
+	      "err:%d erryes%d", err, erryes);
 
 	err = bpf_prog_attach(ingress_fd, cgroup_fd,
 			      BPF_CGROUP_INET_INGRESS, 0);
 	CHECK(err == -1, "bpf_prog_attach(CPF_CGROUP_INET_INGRESS)",
-	      "err:%d errno%d", err, errno);
+	      "err:%d erryes%d", err, erryes);
 	close(cgroup_fd);
 
 	map = bpf_object__find_map_by_name(obj, "addr_map");
-	CHECK(!map, "cannot find addr_map", "(null)");
+	CHECK(!map, "canyest find addr_map", "(null)");
 	addr_map_fd = bpf_map__fd(map);
 
 	map = bpf_object__find_map_by_name(obj, "sock_result_map");
-	CHECK(!map, "cannot find sock_result_map", "(null)");
+	CHECK(!map, "canyest find sock_result_map", "(null)");
 	sk_map_fd = bpf_map__fd(map);
 
 	map = bpf_object__find_map_by_name(obj, "tcp_sock_result_map");
-	CHECK(!map, "cannot find tcp_sock_result_map", "(null)");
+	CHECK(!map, "canyest find tcp_sock_result_map", "(null)");
 	tp_map_fd = bpf_map__fd(map);
 
 	map = bpf_object__find_map_by_name(obj, "linum_map");
-	CHECK(!map, "cannot find linum_map", "(null)");
+	CHECK(!map, "canyest find linum_map", "(null)");
 	linum_map_fd = bpf_map__fd(map);
 
 	map = bpf_object__find_map_by_name(obj, "sk_pkt_out_cnt");
-	CHECK(!map, "cannot find sk_pkt_out_cnt", "(null)");
+	CHECK(!map, "canyest find sk_pkt_out_cnt", "(null)");
 	sk_pkt_out_cnt_fd = bpf_map__fd(map);
 
 	map = bpf_object__find_map_by_name(obj, "sk_pkt_out_cnt10");
-	CHECK(!map, "cannot find sk_pkt_out_cnt10", "(null)");
+	CHECK(!map, "canyest find sk_pkt_out_cnt10", "(null)");
 	sk_pkt_out_cnt10_fd = bpf_map__fd(map);
 
 	test();

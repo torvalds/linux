@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/i2c.h>
@@ -325,7 +325,7 @@ static int saa6752hs_set_bitrate(struct i2c_client *client,
 		set_reg16(client, 0x81, params->vi_bitrate_peak);
 		tot_bitrate = params->vi_bitrate_peak;
 	} else {
-		/* set the target bitrate (no max bitrate for CBR) */
+		/* set the target bitrate (yes max bitrate for CBR) */
 		set_reg16(client, 0x81, params->vi_bitrate);
 		tot_bitrate = params->vi_bitrate;
 	}
@@ -362,7 +362,7 @@ static int saa6752hs_try_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
-		/* peak bitrate shall be >= normal bitrate */
+		/* peak bitrate shall be >= yesrmal bitrate */
 		if (ctrl->val == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR &&
 		    h->video_bitrate_peak->val < h->video_bitrate->val)
 			h->video_bitrate_peak->val = h->video_bitrate->val;

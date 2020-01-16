@@ -102,7 +102,7 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 
 	substream = prm->ss;
 
-	/* Do nothing if ALSA isn't active */
+	/* Do yesthing if ALSA isn't active */
 	if (!substream)
 		goto exit;
 
@@ -556,7 +556,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 		}
 	}
 
-	/* Choose any slot, with no id */
+	/* Choose any slot, with yes id */
 	err = snd_card_new(&g_audio->gadget->dev,
 			-1, NULL, THIS_MODULE, 0, &card);
 	if (err < 0)
@@ -566,7 +566,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 
 	/*
 	 * Create first PCM device
-	 * Create a substream only for non-zero channel streams
+	 * Create a substream only for yesn-zero channel streams
 	 */
 	err = snd_pcm_new(uac->card, pcm_name, 0,
 			       p_chmask ? 1 : 0, c_chmask ? 1 : 0, &pcm);

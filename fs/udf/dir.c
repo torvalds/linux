@@ -21,13 +21,13 @@
  *  11/25/98 blf  Rewrote directory handling (readdir+lookup) to support reading
  *                across blocks.
  *  12/12/98      Split out the lookup code to namei.c. bulk of directory
- *                code now in directory.c:udf_fileident_read.
+ *                code yesw in directory.c:udf_fileident_read.
  */
 
 #include "udfdecl.h"
 
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/bio.h>
@@ -38,8 +38,8 @@
 
 static int udf_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *dir = file_inode(file);
-	struct udf_inode_info *iinfo = UDF_I(dir);
+	struct iyesde *dir = file_iyesde(file);
+	struct udf_iyesde_info *iinfo = UDF_I(dir);
 	struct udf_fileident_bh fibh = { .sbh = NULL, .ebh = NULL};
 	struct fileIdentDesc *fi = NULL;
 	struct fileIdentDesc cfi;
@@ -79,7 +79,7 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 
 	fibh.soffset = fibh.eoffset = nf_pos & (sb->s_blocksize - 1);
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
-		if (inode_bmap(dir, nf_pos >> sb->s_blocksize_bits,
+		if (iyesde_bmap(dir, nf_pos >> sb->s_blocksize_bits,
 		    &epos, &eloc, &elen, &offset)
 		    != (EXT_RECORDED_ALLOCATED >> 30)) {
 			ret = -ENOENT;

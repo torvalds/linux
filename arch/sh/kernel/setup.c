@@ -14,7 +14,7 @@
 #include <linux/console.h>
 #include <linux/root_dev.h>
 #include <linux/utsname.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/cpu.h>
 #include <linux/pfn.h>
 #include <linux/fs.h>
@@ -49,7 +49,7 @@
 /*
  * Initialize loops_per_jiffy as 10000000 (1000MIPS).
  * This value will be used at the very early stage of serial setup.
- * The bigger value means no problem.
+ * The bigger value means yes problem.
  */
 struct sh_cpuinfo cpu_data[NR_CPUS] __read_mostly = {
 	[0] = {
@@ -112,7 +112,7 @@ static int __init early_parse_mem(char *p)
 
 	memory_limit = PAGE_ALIGN(memparse(p, &p));
 
-	pr_notice("Memory limited to %ldMB\n", memory_limit >> 20);
+	pr_yestice("Memory limited to %ldMB\n", memory_limit >> 20);
 
 	return 0;
 }
@@ -200,7 +200,7 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	struct resource *res = &mem_resources[nid];
 	unsigned long start, end;
 
-	WARN_ON(res->name); /* max one active range per node for now */
+	WARN_ON(res->name); /* max one active range per yesde for yesw */
 
 	start = start_pfn << PAGE_SHIFT;
 	end = end_pfn << PAGE_SHIFT;
@@ -217,7 +217,7 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	}
 
 	/*
-	 * We don't know which RAM region contains kernel data or
+	 * We don't kyesw which RAM region contains kernel data or
 	 * the reserved crashkernel region, so try it repeatedly
 	 * and let the resource manager test it.
 	 */
@@ -236,7 +236,7 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	pmb_bolt_mapping((unsigned long)__va(start), start, end - start,
 			 PAGE_KERNEL);
 
-	memblock_set_node(PFN_PHYS(start_pfn), PFN_PHYS(end_pfn - start_pfn),
+	memblock_set_yesde(PFN_PHYS(start_pfn), PFN_PHYS(end_pfn - start_pfn),
 			  &memblock.memory, nid);
 }
 

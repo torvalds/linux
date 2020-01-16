@@ -1,11 +1,11 @@
 Generic register bitfield-based multiplexer controller bindings
 
 Define register bitfields to be used to control multiplexers. The parent
-device tree node must be a device node to provide register r/w access.
+device tree yesde must be a device yesde to provide register r/w access.
 
 Required properties:
 - compatible : should be one of
-	"reg-mux" : if parent device of mux controller is not syscon device
+	"reg-mux" : if parent device of mux controller is yest syscon device
 	"mmio-mux" : if parent device of mux controller is syscon device
 - #mux-control-cells : <1>
 - mux-reg-masks : an array of register offset and pre-shifted bitfield mask
@@ -21,7 +21,7 @@ bitfield described by the corresponding register offset and bitfield mask
 pair in the mux-reg-masks array.
 
 Example 1:
-The parent device of mux controller is not a syscon device.
+The parent device of mux controller is yest a syscon device.
 
 &i2c0 {
 	fpga@66 { // fpga connected to i2c

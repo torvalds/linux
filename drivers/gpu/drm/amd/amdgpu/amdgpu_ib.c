@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -335,10 +335,10 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 
 	tmo_mm = tmo_gfx = AMDGPU_IB_TEST_TIMEOUT;
 	if (amdgpu_sriov_vf(adev)) {
-		/* for MM engines in hypervisor side they are not scheduled together
+		/* for MM engines in hypervisor side they are yest scheduled together
 		 * with CP and SDMA engines, so even in exclusive mode MM engine could
 		 * still running on other VF thus the IB TEST TIMEOUT for MM engines
-		 * under SR-IOV should be set to a long time. 8 sec should be enough
+		 * under SR-IOV should be set to a long time. 8 sec should be eyesugh
 		 * for the MM comes back to this VF.
 		 */
 		tmo_mm = 8 * AMDGPU_IB_TEST_TIMEOUT;
@@ -346,7 +346,7 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 
 	if (amdgpu_sriov_runtime(adev)) {
 		/* for CP & SDMA engines since they are scheduled together so
-		 * need to make the timeout width enough to cover the time
+		 * need to make the timeout width eyesugh to cover the time
 		 * cost waiting for it coming back under RUNTIME only
 		*/
 		tmo_gfx = 8 * AMDGPU_IB_TEST_TIMEOUT;
@@ -359,7 +359,7 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		long tmo;
 
 		/* KIQ rings don't have an IB test because we never submit IBs
-		 * to them and they have no interrupt support.
+		 * to them and they have yes interrupt support.
 		 */
 		if (!ring->sched.ready || !ring->funcs->test_ib)
 			continue;
@@ -405,8 +405,8 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 
 static int amdgpu_debugfs_sa_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 
 	amdgpu_sa_bo_dump_debug_info(&adev->ring_tmp_bo, m);

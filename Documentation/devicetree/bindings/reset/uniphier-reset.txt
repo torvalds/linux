@@ -28,7 +28,7 @@ Example:
 			#reset-cells = <1>;
 		};
 
-		other nodes ...
+		other yesdes ...
 	};
 
 
@@ -60,7 +60,7 @@ Example:
 			#reset-cells = <1>;
 		};
 
-		other nodes ...
+		other yesdes ...
 	};
 
 
@@ -91,7 +91,7 @@ Example:
 			#reset-cells = <1>;
 		};
 
-		other nodes ...
+		other yesdes ...
 	};
 
 
@@ -116,7 +116,7 @@ Example:
 			#reset-cells = <1>;
 		};
 
-		other nodes ...
+		other yesdes ...
 	};
 
 

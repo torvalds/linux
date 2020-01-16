@@ -56,7 +56,7 @@ static const int pcc3_uart_clk_ids[] __initconst = {
 static struct clk **pcc2_uart_clks[ARRAY_SIZE(pcc2_uart_clk_ids) + 1] __initdata;
 static struct clk **pcc3_uart_clks[ARRAY_SIZE(pcc3_uart_clk_ids) + 1] __initdata;
 
-static void __init imx7ulp_clk_scg1_init(struct device_node *np)
+static void __init imx7ulp_clk_scg1_init(struct device_yesde *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **clks;
@@ -143,7 +143,7 @@ static void __init imx7ulp_clk_scg1_init(struct device_node *np)
 }
 CLK_OF_DECLARE(imx7ulp_clk_scg1, "fsl,imx7ulp-scg1", imx7ulp_clk_scg1_init);
 
-static void __init imx7ulp_clk_pcc2_init(struct device_node *np)
+static void __init imx7ulp_clk_pcc2_init(struct device_yesde *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **clks;
@@ -198,7 +198,7 @@ static void __init imx7ulp_clk_pcc2_init(struct device_node *np)
 }
 CLK_OF_DECLARE(imx7ulp_clk_pcc2, "fsl,imx7ulp-pcc2", imx7ulp_clk_pcc2_init);
 
-static void __init imx7ulp_clk_pcc3_init(struct device_node *np)
+static void __init imx7ulp_clk_pcc3_init(struct device_yesde *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **clks;
@@ -252,7 +252,7 @@ static void __init imx7ulp_clk_pcc3_init(struct device_node *np)
 }
 CLK_OF_DECLARE(imx7ulp_clk_pcc3, "fsl,imx7ulp-pcc3", imx7ulp_clk_pcc3_init);
 
-static void __init imx7ulp_clk_smc1_init(struct device_node *np)
+static void __init imx7ulp_clk_smc1_init(struct device_yesde *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **clks;

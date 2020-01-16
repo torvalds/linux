@@ -8,9 +8,9 @@
 cflags-$(CONFIG_X86_32)		:= -march=i386
 cflags-$(CONFIG_X86_64)		:= -mcmodel=small
 cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ -O2 \
-				   -fPIC -fno-strict-aliasing -mno-red-zone \
-				   -mno-mmx -mno-sse -fshort-wchar \
-				   -Wno-pointer-sign \
+				   -fPIC -fyes-strict-aliasing -myes-red-zone \
+				   -myes-mmx -myes-sse -fshort-wchar \
+				   -Wyes-pointer-sign \
 				   $(call cc-disable-warning, address-of-packed-member) \
 				   $(call cc-disable-warning, gnu)
 
@@ -19,15 +19,15 @@ cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ -O2 \
 cflags-$(CONFIG_ARM64)		:= $(subst $(CC_FLAGS_FTRACE),,$(KBUILD_CFLAGS)) \
 				   -fpie $(DISABLE_STACKLEAK_PLUGIN)
 cflags-$(CONFIG_ARM)		:= $(subst $(CC_FLAGS_FTRACE),,$(KBUILD_CFLAGS)) \
-				   -fno-builtin -fpic \
-				   $(call cc-option,-mno-single-pic-base)
+				   -fyes-builtin -fpic \
+				   $(call cc-option,-myes-single-pic-base)
 
 cflags-$(CONFIG_EFI_ARMSTUB)	+= -I$(srctree)/scripts/dtc/libfdt
 
 KBUILD_CFLAGS			:= $(cflags-y) -DDISABLE_BRANCH_PROFILING \
 				   -D__NO_FORTIFY \
 				   $(call cc-option,-ffreestanding) \
-				   $(call cc-option,-fno-stack-protector) \
+				   $(call cc-option,-fyes-stack-protector) \
 				   -D__DISABLE_EXPORTS
 
 GCOV_PROFILE			:= n
@@ -35,7 +35,7 @@ KASAN_SANITIZE			:= n
 UBSAN_SANITIZE			:= n
 OBJECT_FILES_NON_STANDARD	:= y
 
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
+# Prevents link failures: __sanitizer_cov_trace_pc() is yest linked in.
 KCOV_INSTRUMENT			:= n
 
 lib-y				:= efi-stub-helper.o gop.o secureboot.o tpm.o \
@@ -58,14 +58,14 @@ CFLAGS_arm64-stub.o		:= -DTEXT_OFFSET=$(TEXT_OFFSET)
 
 #
 # arm64 puts the stub in the kernel proper, which will unnecessarily retain all
-# code indefinitely unless it is annotated as __init/__initdata/__initconst etc.
-# So let's apply the __init annotations at the section level, by prefixing
+# code indefinitely unless it is anyestated as __init/__initdata/__initconst etc.
+# So let's apply the __init anyestations at the section level, by prefixing
 # the section names directly. This will ensure that even all the inline string
 # literals are covered.
 # The fact that the stub and the kernel proper are essentially the same binary
 # also means that we need to be extra careful to make sure that the stub does
-# not rely on any absolute symbol references, considering that the virtual
-# kernel mapping that the linker uses is not active yet when the stub is
+# yest rely on any absolute symbol references, considering that the virtual
+# kernel mapping that the linker uses is yest active yet when the stub is
 # executing. So build all C dependencies of the EFI stub into libstub, and do
 # a verification pass to see if any absolute relocations exist in any of the
 # object files.
@@ -83,14 +83,14 @@ $(obj)/%.stub.o: $(obj)/%.o FORCE
 #
 # Strip debug sections and some other sections that may legally contain
 # absolute relocations, so that we can inspect the remaining sections for
-# such relocations. If none are found, regenerate the output object, but
+# such relocations. If yesne are found, regenerate the output object, but
 # this time, use objcopy and leave all sections in place.
 #
 quiet_cmd_stubcopy = STUBCPY $@
       cmd_stubcopy =							\
 	$(STRIP) --strip-debug -o $@ $<;				\
 	if $(OBJDUMP) -r $@ | grep $(STUBCOPY_RELOC-y); then		\
-		echo "$@: absolute symbol references not allowed in the EFI stub" >&2; \
+		echo "$@: absolute symbol references yest allowed in the EFI stub" >&2; \
 		/bin/false;						\
 	fi;								\
 	$(OBJCOPY) $(STUBCOPY_FLAGS-y) $< $@

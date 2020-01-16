@@ -57,12 +57,12 @@ Driver Notes and Issues
    This will avoid problems with fast systems which causes rx_framecnt
    to return random values.
 
-3. If hot extraction does not work for you, use 'ifconfig eth0 down'
+3. If hot extraction does yest work for you, use 'ifconfig eth0 down'
    before extraction.
 
 4. There is a bad slow-down problem in this driver.
 
-5. Future: Multicast processing.  In the meantime, do _not_ compile your
+5. Future: Multicast processing.  In the meantime, do _yest_ compile your
    kernel with multicast ip enabled.
 
 -------------------------------------------------------------------------------
@@ -81,12 +81,12 @@ Log: nmclan_cs.c,v
  *
  * Revision 0.14  1995/05/23  03:19:30  rpao
  * Added, in nmclan_config(), "tuple.Attributes = 0;".
- * Modified MACE ID check to ignore chip revision level.
+ * Modified MACE ID check to igyesre chip revision level.
  * Avoid tx_free_frames race condition between _start_xmit and _interrupt.
  *
  * Revision 0.13  1995/05/18  05:56:34  rpao
  * Statistics changes.
- * Bug fix: nmclan_reset did not enable TX and RX: call restore_multicast_list.
+ * Bug fix: nmclan_reset did yest enable TX and RX: call restore_multicast_list.
  * Bug fix: mace_interrupt checks ~MACE_IMR_DEFAULT.  Fixes driver lockup.
  *
  * Revision 0.12  1995/05/14  00:12:23  rpao
@@ -103,7 +103,7 @@ Log: nmclan_cs.c,v
 95/05/10 rpao	V0.09 Bug fix: Must use IO_DATA_PATH_WIDTH_AUTO.
 		*Released
 95/05/10 rpao	V0.08
-		Bug fix: Make all non-exported functions private by using
+		Bug fix: Make all yesn-exported functions private by using
 		static keyword.
 		Bug fix: Test IntrCnt _before_ reading MACE_IR.
 95/05/10 rpao	V0.07 Statistics.
@@ -169,7 +169,7 @@ Defines
 	handle it:
 
 	If MACE_MAX_RX_ITERATIONS is > 1, rx_framecnt may still be
-	non-zero when the isr exits.  We may not get another interrupt
+	yesn-zero when the isr exits.  We may yest get ayesther interrupt
 	to process the remaining packets for some time.
 	*/
 
@@ -477,8 +477,8 @@ static void nmclan_detach(struct pcmcia_device *link)
 /* ----------------------------------------------------------------------------
 mace_read
 	Reads a MACE register.  This is bank independent; however, the
-	caller must ensure that this call is not interruptable.  We are
-	assuming that during normal operation, the MACE is always in
+	caller must ensure that this call is yest interruptable.  We are
+	assuming that during yesrmal operation, the MACE is always in
 	bank 0.
 ---------------------------------------------------------------------------- */
 static int mace_read(mace_private *lp, unsigned int ioaddr, int reg)
@@ -504,8 +504,8 @@ static int mace_read(mace_private *lp, unsigned int ioaddr, int reg)
 /* ----------------------------------------------------------------------------
 mace_write
 	Writes to a MACE register.  This is bank independent; however,
-	the caller must ensure that this call is not interruptable.  We
-	are assuming that during normal operation, the MACE is always in
+	the caller must ensure that this call is yest interruptable.  We
+	are assuming that during yesrmal operation, the MACE is always in
 	bank 0.
 ---------------------------------------------------------------------------- */
 static void mace_write(mace_private *lp, unsigned int ioaddr, int reg,
@@ -650,7 +650,7 @@ static int nmclan_config(struct pcmcia_device *link)
       dev_dbg(&link->dev, "nmclan_cs configured: mace id=%x %x\n",
 	    sig[0], sig[1]);
     } else {
-      pr_notice("mace id not found: %x %x should be 0x40 0x?9\n",
+      pr_yestice("mace id yest found: %x %x should be 0x40 0x?9\n",
 		sig[0], sig[1]);
       return -ENODEV;
     }
@@ -663,13 +663,13 @@ static int nmclan_config(struct pcmcia_device *link)
   if (if_port <= 2)
     dev->if_port = if_port;
   else
-    pr_notice("invalid if_port requested\n");
+    pr_yestice("invalid if_port requested\n");
 
   SET_NETDEV_DEV(dev, &link->dev);
 
   i = register_netdev(dev);
   if (i != 0) {
-    pr_notice("register_netdev() failed\n");
+    pr_yestice("register_netdev() failed\n");
     goto failed;
   }
 
@@ -735,12 +735,12 @@ static void nmclan_reset(struct net_device *dev)
   /* Restore original COR configuration index */
   pcmcia_write_config_byte(link, CISREG_COR,
 			  (COR_LEVEL_REQ | (OrigCorValue & COR_CONFIG_MASK)));
-  /* Xilinx is now completely reset along with the MACE chip. */
+  /* Xilinx is yesw completely reset along with the MACE chip. */
   lp->tx_free_frames=AM2150_MAX_TX_FRAMES;
 
 #endif /* #if RESET_XILINX */
 
-  /* Xilinx is now completely reset along with the MACE chip. */
+  /* Xilinx is yesw completely reset along with the MACE chip. */
   lp->tx_free_frames=AM2150_MAX_TX_FRAMES;
 
   /* Reinitialize the MACE chip for operation. */
@@ -832,8 +832,8 @@ mace_start_xmit
 	it will generate a transmit interrupt.
 
 	According to /usr/src/linux/net/inet/dev.c, if _start_xmit
-	returns 0, the "packet is now solely the responsibility of the
-	driver."  If _start_xmit returns non-zero, the "transmission
+	returns 0, the "packet is yesw solely the responsibility of the
+	driver."  If _start_xmit returns yesn-zero, the "transmission
 	failed, put skb back into a list."
 ---------------------------------------------------------------------------- */
 
@@ -842,7 +842,7 @@ static void mace_tx_timeout(struct net_device *dev)
   mace_private *lp = netdev_priv(dev);
   struct pcmcia_device *link = lp->p_dev;
 
-  netdev_notice(dev, "transmit timed out -- ");
+  netdev_yestice(dev, "transmit timed out -- ");
 #if RESET_ON_TIMEOUT
   pr_cont("resetting card\n");
   pcmcia_reset_card(link->socket);
@@ -872,7 +872,7 @@ static netdev_tx_t mace_start_xmit(struct sk_buff *skb,
 #endif /* #if (!TX_INTERRUPTABLE) */
 
   {
-    /* This block must not be interrupted by another transmit request!
+    /* This block must yest be interrupted by ayesther transmit request!
        mace_tx_timeout will take care of timer-based retransmissions from
        the upper layers.  The interrupt handler is guaranteed never to
        service a transmit interrupt while we are in here.
@@ -921,7 +921,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
   int IntrCnt = MACE_MAX_IR_ITERATIONS;
 
   if (dev == NULL) {
-    pr_debug("mace_interrupt(): irq 0x%X for unknown device.\n",
+    pr_debug("mace_interrupt(): irq 0x%X for unkyeswn device.\n",
 	  irq);
     return IRQ_NONE;
   }
@@ -934,7 +934,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
       msg = "Interrupt with tx_irq_disabled";
     else
       msg = "Re-entering the interrupt handler";
-    netdev_notice(dev, "%s [isr=%02X, imr=%02X]\n",
+    netdev_yestice(dev, "%s [isr=%02X, imr=%02X]\n",
 		  msg,
 		  inb(ioaddr + AM2150_MACE_BASE + MACE_IR),
 		  inb(ioaddr + AM2150_MACE_BASE + MACE_IMR));
@@ -1218,8 +1218,8 @@ update_stats
 	than use a special window-state variable.
 
 	oflo & uflo should _never_ occur since it would mean the Xilinx
-	was not able to transfer data between the MACE FIFO and the
-	card's SRAM fast enough.  If this happens, something is
+	was yest able to transfer data between the MACE FIFO and the
+	card's SRAM fast eyesugh.  If this happens, something is
 	seriously wrong with the hardware.
 ---------------------------------------------------------------------------- */
 static void update_stats(unsigned int ioaddr, struct net_device *dev)
@@ -1230,9 +1230,9 @@ static void update_stats(unsigned int ioaddr, struct net_device *dev)
   lp->mace_stats.rntpc += mace_read(lp, ioaddr, MACE_RNTPC);
   lp->mace_stats.mpc += mace_read(lp, ioaddr, MACE_MPC);
   /* At this point, mace_stats is fully updated for this call.
-     We may now update the netdev stats. */
+     We may yesw update the netdev stats. */
 
-  /* The MACE has no equivalent for netdev stats field which are commented
+  /* The MACE has yes equivalent for netdev stats field which are commented
      out. */
 
   /* dev->stats.multicast; */
@@ -1293,8 +1293,8 @@ static void updateCRC(int *CRC, int bit)
     1,0,1,1, 1,0,0,0,
     1,0,0,0, 0,0,1,1,
     0,0,1,0, 0,0,0,0
-  }; /* CRC polynomial.  poly[n] = coefficient of the x**n term of the
-	CRC generator polynomial. */
+  }; /* CRC polyyesmial.  poly[n] = coefficient of the x**n term of the
+	CRC generator polyyesmial. */
 
   int j;
 
@@ -1303,7 +1303,7 @@ static void updateCRC(int *CRC, int bit)
     CRC[j] = CRC[j-1];
   CRC[0] = 0;
 
-  /* If bit XOR(control bit) = 1, set CRC = CRC XOR polynomial. */
+  /* If bit XOR(control bit) = 1, set CRC = CRC XOR polyyesmial. */
   if (bit ^ CRC[32])
     for (j = 0; j < 32; j++)
       CRC[j] ^= poly[j];
@@ -1407,7 +1407,7 @@ set_multicast_list
 Input
 	num_addrs == -1	Promiscuous mode, receive all packets
 	num_addrs == 0	Normal mode, clear multicast list
-	num_addrs > 0	Multicast mode, receive normal and MC packets, and do
+	num_addrs > 0	Multicast mode, receive yesrmal and MC packets, and do
 			best-effort filtering.
 Output
 	multicast_num_addrs

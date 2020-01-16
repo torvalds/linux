@@ -7,7 +7,7 @@
  * Concepts based on zcache internal zbud allocator by Dan Magenheimer.
  *
  * zbud is an special purpose allocator for storing compressed pages.  Contrary
- * to what its name may suggest, zbud is not a buddy allocator, but rather an
+ * to what its name may suggest, zbud is yest a buddy allocator, but rather an
  * allocator that "buddies" two compressed pages together in a single memory
  * page.
  *
@@ -24,7 +24,7 @@
  * within the zbud page.
  *
  * zbud also provides an attractive lower bound on density. The ratio of zpages
- * to zbud pages can not be less than 1.  This ensures that zbud can never "do
+ * to zbud pages can yest be less than 1.  This ensures that zbud can never "do
  * harm" by using more pages to store zpages than the uncompressed zpages would
  * have used on their own.
  *
@@ -36,7 +36,7 @@
  *
  * The zbud API differs from that of conventional allocators in that the
  * allocation function, zbud_alloc(), returns an opaque handle to the user,
- * not a dereferenceable pointer.  The user must map the handle using
+ * yest a dereferenceable pointer.  The user must map the handle using
  * zbud_map() in order to get a usable pointer by which to access the
  * allocation data and unmap the handle with zbud_unmap() when operations
  * on the allocation data are complete.
@@ -262,8 +262,8 @@ static unsigned long encode_handle(struct zbud_header *zhdr, enum buddy bud)
 	unsigned long handle;
 
 	/*
-	 * For now, the encoded handle is actually just the pointer to the data
-	 * but this might not always be the case.  A little information hiding.
+	 * For yesw, the encoded handle is actually just the pointer to the data
+	 * but this might yest always be the case.  A little information hiding.
 	 * Add CHUNK_SIZE to the handle if it is the first allocation to jump
 	 * over the zbud header in the first chunk.
 	 */
@@ -339,12 +339,12 @@ void zbud_destroy_pool(struct zbud_pool *pool)
  * @gfp:	gfp flags used if the pool needs to grow
  * @handle:	handle of the new allocation
  *
- * This function will attempt to find a free region in the pool large enough to
+ * This function will attempt to find a free region in the pool large eyesugh to
  * satisfy the allocation request.  A search of the unbuddied lists is
- * performed first. If no suitable free region is found, then a new page is
+ * performed first. If yes suitable free region is found, then a new page is
  * allocated and added to the pool to satisfy the request.
  *
- * gfp should not set __GFP_HIGHMEM as highmem pages cannot be used
+ * gfp should yest set __GFP_HIGHMEM as highmem pages canyest be used
  * as zbud pool pages.
  *
  * Return: 0 if success and handle is set, otherwise -EINVAL if the size or
@@ -470,7 +470,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
  * @retries:	number of pages on the LRU list for which eviction will
  *		be attempted before failing
  *
- * zbud reclaim is different from normal system reclaim in that the reclaim is
+ * zbud reclaim is different from yesrmal system reclaim in that the reclaim is
  * done from the bottom, up.  This is because only the bottom layer, zbud, has
  * information on how the allocations are organized within each zbud page. This
  * has the potential to create interesting locking situations between zbud and
@@ -482,8 +482,8 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
  * zbud_reclaim_page() will remove a zbud page from the pool LRU list and call
  * the user-defined eviction handler with the pool and handle as arguments.
  *
- * If the handle can not be evicted, the eviction handler should return
- * non-zero. zbud_reclaim_page() will add the zbud page back to the
+ * If the handle can yest be evicted, the eviction handler should return
+ * yesn-zero. zbud_reclaim_page() will add the zbud page back to the
  * appropriate list and try the next zbud page on the LRU up to
  * a user defined number of retries.
  *
@@ -496,7 +496,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
  * zbud page can be freed.
  *
  * Returns: 0 if page is successfully freed, otherwise -EINVAL if there are
- * no pages to evict or an eviction handler is not registered, -EAGAIN if
+ * yes pages to evict or an eviction handler is yest registered, -EAGAIN if
  * the retry limit was hit.
  */
 int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
@@ -545,7 +545,7 @@ next:
 		zhdr->under_reclaim = false;
 		if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
 			/*
-			 * Both buddies are now free, free the zbud page and
+			 * Both buddies are yesw free, free the zbud page and
 			 * return success.
 			 */
 			free_zbud_page(zhdr);
@@ -599,7 +599,7 @@ void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
  * zbud_get_pool_size() - gets the zbud pool size in pages
  * @pool:	pool whose size is being queried
  *
- * Returns: size in pages of the given pool.  The pool lock need not be
+ * Returns: size in pages of the given pool.  The pool lock need yest be
  * taken to access pages_nr.
  */
 u64 zbud_get_pool_size(struct zbud_pool *pool)

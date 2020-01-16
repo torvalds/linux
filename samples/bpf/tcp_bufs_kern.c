@@ -6,7 +6,7 @@
  *
  * BPF program to set initial receive window to 40 packets and send
  * and receive buffers to 1.5MB. This would usually be done after
- * doing appropriate checks that indicate the hosts are far enough
+ * doing appropriate checks that indicate the hosts are far eyesugh
  * away (i.e. large RTT).
  *
  * Use "bpftool cgroup attach $cg sock_ops $prog" to load this BPF program.

@@ -49,7 +49,7 @@ bool skl_wm_level_equals(const struct skl_wm_level *l1,
 			 const struct skl_wm_level *l2);
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 				 const struct skl_ddb_entry *entries,
-				 int num_entries, int ignore_idx);
+				 int num_entries, int igyesre_idx);
 void skl_write_plane_wm(struct intel_plane *plane,
 			const struct intel_crtc_state *crtc_state);
 void skl_write_cursor_wm(struct intel_plane *plane,

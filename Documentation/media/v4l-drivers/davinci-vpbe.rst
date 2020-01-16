@@ -31,7 +31,7 @@ Consists of the following (in the same order as the list under file
 partitioning):
 
  1. V4L2 display driver
-    Implements creation of video2 and video3 device nodes and
+    Implements creation of video2 and video3 device yesdes and
     provides v4l2 device interface to manage VID0 and VID1 layers.
 
  2. Display controller
@@ -51,7 +51,7 @@ partitioning):
     is implemented for this as well as configure_venc() (part of the next patch)
     API to set timings in VENC for a specific display resolution. As of this
     patch series, the interconnection and enabling and setting of the external
-    encoders is not present, and would be a part of the next patch series.
+    encoders is yest present, and would be a part of the next patch series.
 
  3. VENC subdevice module
     Responsible for setting outputs provided through internal DACs and also
@@ -59,7 +59,7 @@ partitioning):
     at the port or LCD panel timings required. When external encoder/LCD panel
     is connected, the timings for a specific standard/preset is retrieved from
     the board specific table and the values are used to set the timings in
-    venc using non-standard timing mode.
+    venc using yesn-standard timing mode.
 
     Support LCD Panel displays using the VENC. For example to support a Logic
     PD display, it requires setting up the LCD controller port with a set of

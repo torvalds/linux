@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * mount.c - operations for initializing and mounting configfs.
  *
@@ -29,17 +29,17 @@ struct kmem_cache *configfs_dir_cachep;
 static int configfs_mnt_count = 0;
 
 
-static void configfs_free_inode(struct inode *inode)
+static void configfs_free_iyesde(struct iyesde *iyesde)
 {
-	if (S_ISLNK(inode->i_mode))
-		kfree(inode->i_link);
-	free_inode_nonrcu(inode);
+	if (S_ISLNK(iyesde->i_mode))
+		kfree(iyesde->i_link);
+	free_iyesde_yesnrcu(iyesde);
 }
 
 static const struct super_operations configfs_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
-	.free_inode	= configfs_free_inode,
+	.drop_iyesde	= generic_delete_iyesde,
+	.free_iyesde	= configfs_free_iyesde,
 };
 
 static struct config_group configfs_root_group = {
@@ -64,7 +64,7 @@ static struct configfs_dirent configfs_root = {
 
 static int configfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct dentry *root;
 
 	sb->s_blocksize = PAGE_SIZE;
@@ -73,21 +73,21 @@ static int configfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_op = &configfs_ops;
 	sb->s_time_gran = 1;
 
-	inode = configfs_new_inode(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
+	iyesde = configfs_new_iyesde(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
 				   &configfs_root, sb);
-	if (inode) {
-		inode->i_op = &configfs_root_inode_operations;
-		inode->i_fop = &configfs_dir_operations;
-		/* directory inodes start off with i_nlink == 2 (for "." entry) */
-		inc_nlink(inode);
+	if (iyesde) {
+		iyesde->i_op = &configfs_root_iyesde_operations;
+		iyesde->i_fop = &configfs_dir_operations;
+		/* directory iyesdes start off with i_nlink == 2 (for "." entry) */
+		inc_nlink(iyesde);
 	} else {
-		pr_debug("could not get root inode\n");
+		pr_debug("could yest get root iyesde\n");
 		return -ENOMEM;
 	}
 
-	root = d_make_root(inode);
+	root = d_make_root(iyesde);
 	if (!root) {
-		pr_debug("%s: could not get root dentry!\n",__func__);
+		pr_debug("%s: could yest get root dentry!\n",__func__);
 		return -ENOMEM;
 	}
 	config_group_init(&configfs_root_group);

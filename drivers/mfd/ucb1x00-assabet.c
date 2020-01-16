@@ -99,5 +99,5 @@ module_init(ucb1x00_assabet_init);
 module_exit(ucb1x00_assabet_exit);
 
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");
-MODULE_DESCRIPTION("Assabet noddy testing only example ADC driver");
+MODULE_DESCRIPTION("Assabet yesddy testing only example ADC driver");
 MODULE_LICENSE("GPL");

@@ -17,8 +17,8 @@
  * BNA debufs interface
  *
  * To access the interface, debugfs file system should be mounted
- * if not already mounted using:
- *	mount -t debugfs none /sys/kernel/debug
+ * if yest already mounted using:
+ *	mount -t debugfs yesne /sys/kernel/debug
  *
  * BNA Hierarchy:
  *	- bna/pci_dev:<pci_name>
@@ -38,9 +38,9 @@ struct bnad_debug_info {
 };
 
 static int
-bnad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
+bnad_debugfs_open_fwtrc(struct iyesde *iyesde, struct file *file)
 {
-	struct bnad *bnad = inode->i_private;
+	struct bnad *bnad = iyesde->i_private;
 	struct bnad_debug_info *fw_debug;
 	unsigned long flags;
 	int rc;
@@ -78,9 +78,9 @@ bnad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 }
 
 static int
-bnad_debugfs_open_fwsave(struct inode *inode, struct file *file)
+bnad_debugfs_open_fwsave(struct iyesde *iyesde, struct file *file)
 {
-	struct bnad *bnad = inode->i_private;
+	struct bnad *bnad = iyesde->i_private;
 	struct bnad_debug_info *fw_debug;
 	unsigned long flags;
 	int rc;
@@ -118,7 +118,7 @@ bnad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 }
 
 static int
-bnad_debugfs_open_reg(struct inode *inode, struct file *file)
+bnad_debugfs_open_reg(struct iyesde *iyesde, struct file *file)
 {
 	struct bnad_debug_info *reg_debug;
 
@@ -126,7 +126,7 @@ bnad_debugfs_open_reg(struct inode *inode, struct file *file)
 	if (!reg_debug)
 		return -ENOMEM;
 
-	reg_debug->i_private = inode->i_private;
+	reg_debug->i_private = iyesde->i_private;
 
 	file->private_data = reg_debug;
 
@@ -179,9 +179,9 @@ out:
 }
 
 static int
-bnad_debugfs_open_drvinfo(struct inode *inode, struct file *file)
+bnad_debugfs_open_drvinfo(struct iyesde *iyesde, struct file *file)
 {
-	struct bnad *bnad = inode->i_private;
+	struct bnad *bnad = iyesde->i_private;
 	struct bnad_debug_info *drv_info;
 	int rc;
 
@@ -402,7 +402,7 @@ bnad_debugfs_write_regwr(struct file *file, const char __user *buf,
 }
 
 static int
-bnad_debugfs_release(struct inode *inode, struct file *file)
+bnad_debugfs_release(struct iyesde *iyesde, struct file *file)
 {
 	struct bnad_debug_info *debug = file->private_data;
 
@@ -415,7 +415,7 @@ bnad_debugfs_release(struct inode *inode, struct file *file)
 }
 
 static int
-bnad_debugfs_buffer_release(struct inode *inode, struct file *file)
+bnad_debugfs_buffer_release(struct iyesde *iyesde, struct file *file)
 {
 	struct bnad_debug_info *debug = file->private_data;
 

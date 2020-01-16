@@ -88,7 +88,7 @@ static int board_added(struct controller *ctrl)
 	retval = pciehp_configure_device(ctrl);
 	if (retval) {
 		if (retval != -EEXIST) {
-			ctrl_err(ctrl, "Cannot add device at %04x:%02x:00\n",
+			ctrl_err(ctrl, "Canyest add device at %04x:%02x:00\n",
 				 pci_domain_nr(parent), parent->number);
 			goto err_exit;
 		}
@@ -122,7 +122,7 @@ static void remove_board(struct controller *ctrl, bool safe_removal)
 		 */
 		msleep(1000);
 
-		/* Ignore link or presence changes caused by power off */
+		/* Igyesre link or presence changes caused by power off */
 		atomic_and(~(PCI_EXP_SLTSTA_DLLSC | PCI_EXP_SLTSTA_PDC),
 			   &ctrl->pending_events);
 	}
@@ -202,7 +202,7 @@ void pciehp_handle_button_press(struct controller *ctrl)
 			  slot_name(ctrl));
 		break;
 	default:
-		ctrl_err(ctrl, "Slot(%s): Ignoring invalid state %#x\n",
+		ctrl_err(ctrl, "Slot(%s): Igyesring invalid state %#x\n",
 			 slot_name(ctrl), ctrl->state);
 		break;
 	}
@@ -230,7 +230,7 @@ void pciehp_handle_presence_or_link_change(struct controller *ctrl, u32 events)
 
 	/*
 	 * If the slot is on and presence or link has changed, turn it off.
-	 * Even if it's occupied again, we cannot assume the card is the same.
+	 * Even if it's occupied again, we canyest assume the card is the same.
 	 */
 	mutex_lock(&ctrl->state_lock);
 	switch (ctrl->state) {
@@ -244,7 +244,7 @@ void pciehp_handle_presence_or_link_change(struct controller *ctrl, u32 events)
 			ctrl_info(ctrl, "Slot(%s): Link Down\n",
 				  slot_name(ctrl));
 		if (events & PCI_EXP_SLTSTA_PDC)
-			ctrl_info(ctrl, "Slot(%s): Card not present\n",
+			ctrl_info(ctrl, "Slot(%s): Card yest present\n",
 				  slot_name(ctrl));
 		pciehp_disable_slot(ctrl, SURPRISE_REMOVAL);
 		break;
@@ -369,7 +369,7 @@ int pciehp_sysfs_enable_slot(struct hotplug_slot *hotplug_slot)
 	case OFF_STATE:
 		mutex_unlock(&ctrl->state_lock);
 		/*
-		 * The IRQ thread becomes a no-op if the user pulls out the
+		 * The IRQ thread becomes a yes-op if the user pulls out the
 		 * card before the thread wakes up, so initialize to -ENODEV.
 		 */
 		ctrl->request_result = -ENODEV;

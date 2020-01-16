@@ -26,13 +26,13 @@ static int raspberrypi_cpufreq_probe(struct platform_device *pdev)
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev) {
-		pr_err("Cannot get CPU for cpufreq driver\n");
+		pr_err("Canyest get CPU for cpufreq driver\n");
 		return -ENODEV;
 	}
 
 	clk = clk_get(cpu_dev, NULL);
 	if (IS_ERR(clk)) {
-		dev_err(cpu_dev, "Cannot get clock for CPU0\n");
+		dev_err(cpu_dev, "Canyest get clock for CPU0\n");
 		return PTR_ERR(clk);
 	}
 

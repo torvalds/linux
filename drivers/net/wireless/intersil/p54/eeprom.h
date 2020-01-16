@@ -7,7 +7,7 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Note <jbyeste@gmail.com>, et al.
  *
  * - LMAC API interface header file for STLC4560 (lmac_longbow.h)
  *   Copyright (C) 2007 Conexant Systems, Inc.

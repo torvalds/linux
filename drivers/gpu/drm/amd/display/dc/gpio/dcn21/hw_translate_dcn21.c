@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -35,7 +35,7 @@
 
 #include "dcn/dcn_2_1_0_offset.h"
 #include "dcn/dcn_2_1_0_sh_mask.h"
-#include "renoir_ip_offset.h"
+#include "reyesir_ip_offset.h"
 
 
 
@@ -174,14 +174,14 @@ static bool offset_to_id(
 		*en = GPIO_DDC_LINE_DDC_VGA;
 		return true;
 
-//	case REG(DC_GPIO_I2CPAD_A): not exit
+//	case REG(DC_GPIO_I2CPAD_A): yest exit
 //	case REG(DC_GPIO_PWRSEQ_A):
 //	case REG(DC_GPIO_PAD_STRENGTH_1):
 //	case REG(DC_GPIO_PAD_STRENGTH_2):
 //	case REG(DC_GPIO_DEBUG):
 	/* UNEXPECTED */
 	default:
-//	case REG(DC_GPIO_SYNCA_A): not exist
+//	case REG(DC_GPIO_SYNCA_A): yest exist
 #ifdef PALLADIUM_SUPPORTED
 		*id = GPIO_ID_HPD;
 		*en = GPIO_DDC_LINE_DDC1;
@@ -316,22 +316,22 @@ static bool id_to_offset(
 	case GPIO_ID_GSL:
 		switch (en) {
 		case GPIO_GSL_GENLOCK_CLOCK:
-				/*not implmented*/
+				/*yest implmented*/
 			ASSERT_CRITICAL(false);
 			result = false;
 		break;
 		case GPIO_GSL_GENLOCK_VSYNC:
-			/*not implmented*/
+			/*yest implmented*/
 			ASSERT_CRITICAL(false);
 			result = false;
 		break;
 		case GPIO_GSL_SWAPLOCK_A:
-			/*not implmented*/
+			/*yest implmented*/
 			ASSERT_CRITICAL(false);
 			result = false;
 		break;
 		case GPIO_GSL_SWAPLOCK_B:
-			/*not implmented*/
+			/*yest implmented*/
 			ASSERT_CRITICAL(false);
 			result = false;
 

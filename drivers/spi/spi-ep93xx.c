@@ -214,7 +214,7 @@ static void ep93xx_do_read(struct spi_master *master)
  *
  * This function transfers next bytes (or half-words) to/from RX/TX FIFOs. If
  * called several times, the whole transfer will be completed. Returns
- * %-EINPROGRESS when current transfer was not yet completed otherwise %0.
+ * %-EINPROGRESS when current transfer was yest yet completed otherwise %0.
  *
  * When this function is finished, RX FIFO should be empty and TX FIFO should be
  * full.
@@ -437,7 +437,7 @@ static irqreturn_t ep93xx_spi_interrupt(int irq, void *dev_id)
 	u32 val;
 
 	/*
-	 * If we got ROR (receive overrun) interrupt we know that something is
+	 * If we got ROR (receive overrun) interrupt we kyesw that something is
 	 * wrong. Just abort the message.
 	 */
 	if (readl(espi->mmio + SSPIIR) & SSPIIR_RORIS) {
@@ -453,7 +453,7 @@ static irqreturn_t ep93xx_spi_interrupt(int irq, void *dev_id)
 		 */
 		if (ep93xx_spi_read_write(master)) {
 			/*
-			 * In normal case, there still is some processing left
+			 * In yesrmal case, there still is some processing left
 			 * for current transfer. Let's wait for the next
 			 * interrupt then.
 			 */
@@ -463,7 +463,7 @@ static irqreturn_t ep93xx_spi_interrupt(int irq, void *dev_id)
 
 	/*
 	 * Current transfer is finished, either with error or with success. In
-	 * any case we disable interrupts and notify the worker to handle
+	 * any case we disable interrupts and yestify the worker to handle
 	 * any post-processing of the message.
 	 */
 	val = readl(espi->mmio + SSPCR1);
@@ -494,7 +494,7 @@ static int ep93xx_spi_transfer_one(struct spi_master *master,
 	espi->tx = 0;
 
 	/*
-	 * There is no point of setting up DMA for the transfers which will
+	 * There is yes point of setting up DMA for the transfers which will
 	 * fit into the FIFO and can be transferred with a single interrupt.
 	 * So in these cases we will be using PIO and don't bother for DMA.
 	 */

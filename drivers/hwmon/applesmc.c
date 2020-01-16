@@ -8,7 +8,7 @@
  * Copyright (C) 2010 Henrik Rydberg <rydberg@euromail.se>
  *
  * Based on hdaps.c driver:
- * Copyright (C) 2005 Robert Love <rml@novell.com>
+ * Copyright (C) 2005 Robert Love <rml@yesvell.com>
  * Copyright (C) 2005 Jesper Juhl <jj@chaosbits.net>
  *
  * Fan control based on smcFanControl:
@@ -76,7 +76,7 @@ static const char *const fan_speed_fmt[] = {
 	"F%dAc",		/* actual speed */
 	"F%dMn",		/* minimum speed (rw) */
 	"F%dMx",		/* maximum speed */
-	"F%dSf",		/* safe speed - not all models */
+	"F%dSf",		/* safe speed - yest all models */
 	"F%dTg",		/* target speed (manual: rw) */
 };
 
@@ -90,19 +90,19 @@ static const char *const fan_speed_fmt[] = {
 #define to_index(attr) (to_sensor_dev_attr(attr)->index & 0xffff)
 #define to_option(attr) (to_sensor_dev_attr(attr)->index >> 16)
 
-/* Dynamic device node attributes */
+/* Dynamic device yesde attributes */
 struct applesmc_dev_attr {
 	struct sensor_device_attribute sda;	/* hwmon attributes */
-	char name[32];				/* room for node file name */
+	char name[32];				/* room for yesde file name */
 };
 
-/* Dynamic device node group */
-struct applesmc_node_group {
+/* Dynamic device yesde group */
+struct applesmc_yesde_group {
 	char *format;				/* format string */
 	void *show;				/* show function */
 	void *store;				/* store function */
 	int option;				/* function argument */
-	struct applesmc_dev_attr *nodes;	/* dynamic node array */
+	struct applesmc_dev_attr *yesdes;	/* dynamic yesde array */
 };
 
 /* AppleSMC entry - cached register information */
@@ -226,7 +226,7 @@ static int read_smc(u8 cmd, const char *key, u8 *buffer, u8 len)
 		return -EIO;
 	}
 
-	/* This has no effect on newer (2012) SMCs */
+	/* This has yes effect on newer (2012) SMCs */
 	if (send_byte(len, APPLESMC_DATA_PORT)) {
 		pr_warn("%.4s: read len fail\n", key);
 		return -EIO;
@@ -1031,7 +1031,7 @@ static struct led_classdev applesmc_backlight = {
 	.brightness_set		= applesmc_brightness_set,
 };
 
-static struct applesmc_node_group info_group[] = {
+static struct applesmc_yesde_group info_group[] = {
 	{ "name", applesmc_name_show },
 	{ "key_count", applesmc_key_count_show },
 	{ "key_at_index", applesmc_key_at_index_show, applesmc_key_at_index_store },
@@ -1042,18 +1042,18 @@ static struct applesmc_node_group info_group[] = {
 	{ }
 };
 
-static struct applesmc_node_group accelerometer_group[] = {
+static struct applesmc_yesde_group accelerometer_group[] = {
 	{ "position", applesmc_position_show },
 	{ "calibrate", applesmc_calibrate_show, applesmc_calibrate_store },
 	{ }
 };
 
-static struct applesmc_node_group light_sensor_group[] = {
+static struct applesmc_yesde_group light_sensor_group[] = {
 	{ "light", applesmc_light_show },
 	{ }
 };
 
-static struct applesmc_node_group fan_group[] = {
+static struct applesmc_yesde_group fan_group[] = {
 	{ "fan%d_label", applesmc_show_fan_position },
 	{ "fan%d_input", applesmc_show_fan_speed, NULL, 0 },
 	{ "fan%d_min", applesmc_show_fan_speed, applesmc_store_fan_speed, 1 },
@@ -1064,7 +1064,7 @@ static struct applesmc_node_group fan_group[] = {
 	{ }
 };
 
-static struct applesmc_node_group temp_group[] = {
+static struct applesmc_yesde_group temp_group[] = {
 	{ "temp%d_label", applesmc_show_sensor_label },
 	{ "temp%d_input", applesmc_show_temperature },
 	{ }
@@ -1073,48 +1073,48 @@ static struct applesmc_node_group temp_group[] = {
 /* Module stuff */
 
 /*
- * applesmc_destroy_nodes - remove files and free associated memory
+ * applesmc_destroy_yesdes - remove files and free associated memory
  */
-static void applesmc_destroy_nodes(struct applesmc_node_group *groups)
+static void applesmc_destroy_yesdes(struct applesmc_yesde_group *groups)
 {
-	struct applesmc_node_group *grp;
-	struct applesmc_dev_attr *node;
+	struct applesmc_yesde_group *grp;
+	struct applesmc_dev_attr *yesde;
 
-	for (grp = groups; grp->nodes; grp++) {
-		for (node = grp->nodes; node->sda.dev_attr.attr.name; node++)
+	for (grp = groups; grp->yesdes; grp++) {
+		for (yesde = grp->yesdes; yesde->sda.dev_attr.attr.name; yesde++)
 			sysfs_remove_file(&pdev->dev.kobj,
-					  &node->sda.dev_attr.attr);
-		kfree(grp->nodes);
-		grp->nodes = NULL;
+					  &yesde->sda.dev_attr.attr);
+		kfree(grp->yesdes);
+		grp->yesdes = NULL;
 	}
 }
 
 /*
- * applesmc_create_nodes - create a two-dimensional group of sysfs files
+ * applesmc_create_yesdes - create a two-dimensional group of sysfs files
  */
-static int applesmc_create_nodes(struct applesmc_node_group *groups, int num)
+static int applesmc_create_yesdes(struct applesmc_yesde_group *groups, int num)
 {
-	struct applesmc_node_group *grp;
-	struct applesmc_dev_attr *node;
+	struct applesmc_yesde_group *grp;
+	struct applesmc_dev_attr *yesde;
 	struct attribute *attr;
 	int ret, i;
 
 	for (grp = groups; grp->format; grp++) {
-		grp->nodes = kcalloc(num + 1, sizeof(*node), GFP_KERNEL);
-		if (!grp->nodes) {
+		grp->yesdes = kcalloc(num + 1, sizeof(*yesde), GFP_KERNEL);
+		if (!grp->yesdes) {
 			ret = -ENOMEM;
 			goto out;
 		}
 		for (i = 0; i < num; i++) {
-			node = &grp->nodes[i];
-			scnprintf(node->name, sizeof(node->name), grp->format,
+			yesde = &grp->yesdes[i];
+			scnprintf(yesde->name, sizeof(yesde->name), grp->format,
 				  i + 1);
-			node->sda.index = (grp->option << 16) | (i & 0xffff);
-			node->sda.dev_attr.show = grp->show;
-			node->sda.dev_attr.store = grp->store;
-			attr = &node->sda.dev_attr.attr;
+			yesde->sda.index = (grp->option << 16) | (i & 0xffff);
+			yesde->sda.dev_attr.show = grp->show;
+			yesde->sda.dev_attr.store = grp->store;
+			attr = &yesde->sda.dev_attr.attr;
 			sysfs_attr_init(attr);
-			attr->name = node->name;
+			attr->name = yesde->name;
 			attr->mode = 0444 | (grp->store ? 0200 : 0);
 			ret = sysfs_create_file(&pdev->dev.kobj, attr);
 			if (ret) {
@@ -1126,7 +1126,7 @@ static int applesmc_create_nodes(struct applesmc_node_group *groups, int num)
 
 	return 0;
 out:
-	applesmc_destroy_nodes(groups);
+	applesmc_destroy_yesdes(groups);
 	return ret;
 }
 
@@ -1138,7 +1138,7 @@ static int applesmc_create_accelerometer(void)
 	if (!smcreg.has_accelerometer)
 		return 0;
 
-	ret = applesmc_create_nodes(accelerometer_group, 1);
+	ret = applesmc_create_yesdes(accelerometer_group, 1);
 	if (ret)
 		goto out;
 
@@ -1176,7 +1176,7 @@ out_idev:
 	input_free_device(applesmc_idev);
 
 out_sysfs:
-	applesmc_destroy_nodes(accelerometer_group);
+	applesmc_destroy_yesdes(accelerometer_group);
 
 out:
 	pr_warn("driver init failed (ret=%d)!\n", ret);
@@ -1189,21 +1189,21 @@ static void applesmc_release_accelerometer(void)
 	if (!smcreg.has_accelerometer)
 		return;
 	input_unregister_device(applesmc_idev);
-	applesmc_destroy_nodes(accelerometer_group);
+	applesmc_destroy_yesdes(accelerometer_group);
 }
 
 static int applesmc_create_light_sensor(void)
 {
 	if (!smcreg.num_light_sensors)
 		return 0;
-	return applesmc_create_nodes(light_sensor_group, 1);
+	return applesmc_create_yesdes(light_sensor_group, 1);
 }
 
 static void applesmc_release_light_sensor(void)
 {
 	if (!smcreg.num_light_sensors)
 		return;
-	applesmc_destroy_nodes(light_sensor_group);
+	applesmc_destroy_yesdes(light_sensor_group);
 }
 
 static int applesmc_create_key_backlight(void)
@@ -1266,7 +1266,7 @@ static int __init applesmc_init(void)
 	int ret;
 
 	if (!dmi_check_system(applesmc_whitelist)) {
-		pr_warn("supported laptop not found!\n");
+		pr_warn("supported laptop yest found!\n");
 		ret = -ENODEV;
 		goto out;
 	}
@@ -1293,15 +1293,15 @@ static int __init applesmc_init(void)
 	if (ret)
 		goto out_device;
 
-	ret = applesmc_create_nodes(info_group, 1);
+	ret = applesmc_create_yesdes(info_group, 1);
 	if (ret)
 		goto out_smcreg;
 
-	ret = applesmc_create_nodes(fan_group, smcreg.fan_count);
+	ret = applesmc_create_yesdes(fan_group, smcreg.fan_count);
 	if (ret)
 		goto out_info;
 
-	ret = applesmc_create_nodes(temp_group, smcreg.index_count);
+	ret = applesmc_create_yesdes(temp_group, smcreg.index_count);
 	if (ret)
 		goto out_fans;
 
@@ -1332,11 +1332,11 @@ out_light_sysfs:
 out_accelerometer:
 	applesmc_release_accelerometer();
 out_temperature:
-	applesmc_destroy_nodes(temp_group);
+	applesmc_destroy_yesdes(temp_group);
 out_fans:
-	applesmc_destroy_nodes(fan_group);
+	applesmc_destroy_yesdes(fan_group);
 out_info:
-	applesmc_destroy_nodes(info_group);
+	applesmc_destroy_yesdes(info_group);
 out_smcreg:
 	applesmc_destroy_smcreg();
 out_device:
@@ -1356,9 +1356,9 @@ static void __exit applesmc_exit(void)
 	applesmc_release_key_backlight();
 	applesmc_release_light_sensor();
 	applesmc_release_accelerometer();
-	applesmc_destroy_nodes(temp_group);
-	applesmc_destroy_nodes(fan_group);
-	applesmc_destroy_nodes(info_group);
+	applesmc_destroy_yesdes(temp_group);
+	applesmc_destroy_yesdes(fan_group);
+	applesmc_destroy_yesdes(info_group);
 	applesmc_destroy_smcreg();
 	platform_device_unregister(pdev);
 	platform_driver_unregister(&applesmc_driver);

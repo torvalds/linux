@@ -21,14 +21,14 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/pkt_sched.h>
 #include <linux/poll.h>
 #include <linux/rtnetlink.h>
@@ -85,10 +85,10 @@ static inline void hdlc_proto_stop(struct net_device *dev)
 
 
 
-static int hdlc_device_event(struct notifier_block *this, unsigned long event,
+static int hdlc_device_event(struct yestifier_block *this, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	hdlc_device *hdlc;
 	unsigned long flags;
 	int on;
@@ -97,7 +97,7 @@ static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 		return NOTIFY_DONE;
 
 	if (!(dev->priv_flags & IFF_WAN_HDLC))
-		return NOTIFY_DONE; /* not an HDLC device */
+		return NOTIFY_DONE; /* yest an HDLC device */
 
 	if (event != NETDEV_CHANGE)
 		return NOTIFY_DONE; /* Only interested in carrier changes */
@@ -113,7 +113,7 @@ static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 	spin_lock_irqsave(&hdlc->state_lock, flags);
 
 	if (hdlc->carrier == on)
-		goto carrier_exit; /* no change in DCD line level */
+		goto carrier_exit; /* yes change in DCD line level */
 
 	hdlc->carrier = on;
 
@@ -145,7 +145,7 @@ int hdlc_open(struct net_device *dev)
 #endif
 
 	if (hdlc->proto == NULL)
-		return -ENOSYS;	/* no protocol attached */
+		return -ENOSYS;	/* yes protocol attached */
 
 	if (hdlc->proto->open) {
 		int result = hdlc->proto->open(dev);
@@ -295,8 +295,8 @@ int detach_hdlc_protocol(struct net_device *dev)
 	int err;
 
 	if (hdlc->proto) {
-		err = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE, dev);
-		err = notifier_to_errno(err);
+		err = call_netdevice_yestifiers(NETDEV_PRE_TYPE_CHANGE, dev);
+		err = yestifier_to_erryes(err);
 		if (err) {
 			netdev_err(dev, "Refused to change device type\n");
 			return err;
@@ -361,8 +361,8 @@ static struct packet_type hdlc_packet_type __read_mostly = {
 };
 
 
-static struct notifier_block hdlc_notifier = {
-	.notifier_call = hdlc_device_event,
+static struct yestifier_block hdlc_yestifier = {
+	.yestifier_call = hdlc_device_event,
 };
 
 
@@ -371,7 +371,7 @@ static int __init hdlc_module_init(void)
 	int result;
 
 	pr_info("%s\n", version);
-	if ((result = register_netdevice_notifier(&hdlc_notifier)) != 0)
+	if ((result = register_netdevice_yestifier(&hdlc_yestifier)) != 0)
 		return result;
 	dev_add_pack(&hdlc_packet_type);
 	return 0;
@@ -382,7 +382,7 @@ static int __init hdlc_module_init(void)
 static void __exit hdlc_module_exit(void)
 {
 	dev_remove_pack(&hdlc_packet_type);
-	unregister_netdevice_notifier(&hdlc_notifier);
+	unregister_netdevice_yestifier(&hdlc_yestifier);
 }
 
 

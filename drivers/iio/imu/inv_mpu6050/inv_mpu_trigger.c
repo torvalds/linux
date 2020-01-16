@@ -32,7 +32,7 @@ static void inv_scan_query_mpu9x50(struct iio_dev *indio_dev)
 
 	inv_scan_query_mpu6050(indio_dev);
 
-	/* no magnetometer if i2c auxiliary bus is used */
+	/* yes magnetometer if i2c auxiliary bus is used */
 	if (st->magn_disabled)
 		return;
 
@@ -68,7 +68,7 @@ static unsigned int inv_compute_skip_samples(const struct inv_mpu6050_state *st)
 	if (st->chip_config.gyro_fifo_enable)
 		gyro_skip = 1;
 
-	/* mag first sample is always not ready, skip it */
+	/* mag first sample is always yest ready, skip it */
 	if (st->chip_config.magn_fifo_enable)
 		magn_skip = 1;
 

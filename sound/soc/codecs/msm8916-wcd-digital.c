@@ -381,7 +381,7 @@ static uint32_t get_iir_band_coeff(struct snd_soc_component *component,
 {
 	uint32_t value = 0;
 
-	/* Address does not automatically update if reading */
+	/* Address does yest automatically update if reading */
 	snd_soc_component_write(component,
 		(LPASS_CDC_IIR1_COEF_B1_CTL + 64 * iir_idx),
 		((band_idx * BAND_MAX + coeff_idx)
@@ -1149,7 +1149,7 @@ static const struct snd_soc_component_driver msm8916_wcd_digital = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config msm8916_codec_regmap_config = {

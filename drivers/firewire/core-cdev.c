@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/firewire.h>
 #include <linux/firewire-cdev.h>
 #include <linux/idr.h>
@@ -233,12 +233,12 @@ static inline u64 uptr_to_u64(void __user *ptr)
 }
 #endif /* CONFIG_COMPAT */
 
-static int fw_device_op_open(struct inode *inode, struct file *file)
+static int fw_device_op_open(struct iyesde *iyesde, struct file *file)
 {
 	struct fw_device *device;
 	struct client *client;
 
-	device = fw_device_get_by_devt(inode->i_rdev);
+	device = fw_device_get_by_devt(iyesde->i_rdev);
 	if (device == NULL)
 		return -ENODEV;
 
@@ -265,7 +265,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 
 	file->private_data = client;
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 static void queue_event(struct client *client, struct event *event,
@@ -345,11 +345,11 @@ static void fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 	event->closure	     = client->bus_reset_closure;
 	event->type          = FW_CDEV_EVENT_BUS_RESET;
 	event->generation    = client->device->generation;
-	event->node_id       = client->device->node_id;
-	event->local_node_id = card->local_node->node_id;
-	event->bm_node_id    = card->bm_node_id;
-	event->irm_node_id   = card->irm_node->node_id;
-	event->root_node_id  = card->root_node->node_id;
+	event->yesde_id       = client->device->yesde_id;
+	event->local_yesde_id = card->local_yesde->yesde_id;
+	event->bm_yesde_id    = card->bm_yesde_id;
+	event->irm_yesde_id   = card->irm_yesde->yesde_id;
+	event->root_yesde_id  = card->root_yesde->yesde_id;
 
 	spin_unlock_irq(&card->lock);
 }
@@ -638,7 +638,7 @@ static int ioctl_send_request(struct client *client, union ioctl_arg *arg)
 		return -EINVAL;
 	}
 
-	return init_request(client, &arg->send_request, client->device->node_id,
+	return init_request(client, &arg->send_request, client->device->yesde_id,
 			    client->device->max_speed);
 }
 
@@ -723,8 +723,8 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 		req->type	= FW_CDEV_EVENT_REQUEST2;
 		req->tcode	= tcode;
 		req->offset	= offset;
-		req->source_node_id = source;
-		req->destination_node_id = destination;
+		req->source_yesde_id = source;
+		req->destination_yesde_id = destination;
 		req->card	= card->index;
 		req->generation	= generation;
 		req->length	= length;
@@ -862,7 +862,7 @@ static int ioctl_add_descriptor(struct client *client, union ioctl_arg *arg)
 	struct descriptor_resource *r;
 	int ret;
 
-	/* Access policy: Allow this ioctl only on local nodes' device files. */
+	/* Access policy: Allow this ioctl only on local yesdes' device files. */
 	if (!client->device->is_local)
 		return -ENOSYS;
 
@@ -1061,13 +1061,13 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 		return -EINVAL;
 
 	/*
-	 * If the user passes a non-NULL data pointer, has mmap()'ed
+	 * If the user passes a yesn-NULL data pointer, has mmap()'ed
 	 * the iso buffer, and the pointer points inside the buffer,
 	 * we setup the payload pointers accordingly.  Otherwise we
 	 * set them both to 0, which will still let packets with
-	 * payload_length == 0 through.  In other words, if no packets
-	 * use the indirect payload, the iso buffer need not be mapped
-	 * and the a->data pointer is ignored.
+	 * payload_length == 0 through.  In other words, if yes packets
+	 * use the indirect payload, the iso buffer need yest be mapped
+	 * and the a->data pointer is igyesred.
 	 */
 	payload = (unsigned long)a->data - client->vm_start;
 	buffer_end = client->buffer.page_count << PAGE_SHIFT;
@@ -1426,7 +1426,7 @@ static int ioctl_deallocate_iso_resource_once(struct client *client,
 
 /*
  * Returns a speed code:  Maximum speed to or from this device,
- * limited by the device's link speed, the local node's link speed,
+ * limited by the device's link speed, the local yesde's link speed,
  * and all PHY port speeds between the two links.
  */
 static int ioctl_get_speed(struct client *client, union ioctl_arg *arg)
@@ -1493,7 +1493,7 @@ static void outbound_phy_packet_callback(struct fw_packet *packet,
 	case ACK_BUSY_B:	e->phy_packet.rcode = RCODE_BUSY;	break;
 	case ACK_DATA_ERROR:	e->phy_packet.rcode = RCODE_DATA_ERROR;	break;
 	case ACK_TYPE_ERROR:	e->phy_packet.rcode = RCODE_TYPE_ERROR;	break;
-	/* stale generation; cancelled; on certain controllers: no ack */
+	/* stale generation; cancelled; on certain controllers: yes ack */
 	default:		e->phy_packet.rcode = status;		break;
 	}
 	e->phy_packet.data[0] = packet->timestamp;
@@ -1509,7 +1509,7 @@ static int ioctl_send_phy_packet(struct client *client, union ioctl_arg *arg)
 	struct fw_card *card = client->device->card;
 	struct outbound_phy_packet_event *e;
 
-	/* Access policy: Allow this ioctl only on local nodes' device files. */
+	/* Access policy: Allow this ioctl only on local yesdes' device files. */
 	if (!client->device->is_local)
 		return -ENOSYS;
 
@@ -1541,7 +1541,7 @@ static int ioctl_receive_phy_packets(struct client *client, union ioctl_arg *arg
 	struct fw_cdev_receive_phy_packets *a = &arg->receive_phy_packets;
 	struct fw_card *card = client->device->card;
 
-	/* Access policy: Allow this ioctl only on local nodes' device files. */
+	/* Access policy: Allow this ioctl only on local yesdes' device files. */
 	if (!client->device->is_local)
 		return -ENOSYS;
 
@@ -1727,7 +1727,7 @@ static int shutdown_resource(int id, void *p, void *data)
 	return 0;
 }
 
-static int fw_device_op_release(struct inode *inode, struct file *file)
+static int fw_device_op_release(struct iyesde *iyesde, struct file *file)
 {
 	struct client *client = file->private_data;
 	struct event *event, *next_event;
@@ -1781,7 +1781,7 @@ static __poll_t fw_device_op_poll(struct file *file, poll_table * pt)
 
 const struct file_operations fw_device_ops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.open		= fw_device_op_open,
 	.read		= fw_device_op_read,
 	.unlocked_ioctl	= fw_device_op_ioctl,

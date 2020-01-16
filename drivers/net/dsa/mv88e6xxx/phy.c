@@ -81,7 +81,7 @@ int mv88e6xxx_phy_page_read(struct mv88e6xxx_chip *chip, int phy,
 {
 	int err;
 
-	/* There is no paging for registers 22 */
+	/* There is yes paging for registers 22 */
 	if (reg == MV88E6XXX_PHY_PAGE)
 		return -EINVAL;
 
@@ -99,7 +99,7 @@ int mv88e6xxx_phy_page_write(struct mv88e6xxx_chip *chip, int phy,
 {
 	int err;
 
-	/* There is no paging for registers 22 */
+	/* There is yes paging for registers 22 */
 	if (reg == MV88E6XXX_PHY_PAGE)
 		return -EINVAL;
 

@@ -5,8 +5,8 @@
  * Front-end raw character devices.  These can be bound to any block
  * devices to provide genuine Unix raw character device semantics.
  *
- * We reserve minor number 0 for a control interface.  ioctl()s on this
- * device are used to bind the other minor numbers to block devices.
+ * We reserve miyesr number 0 for a control interface.  ioctl()s on this
+ * device are used to bind the other miyesr numbers to block devices.
  */
 
 #include <linux/init.h>
@@ -37,10 +37,10 @@ static struct raw_device_data *raw_devices;
 static DEFINE_MUTEX(raw_mutex);
 static const struct file_operations raw_ctl_fops; /* forward declaration */
 
-static int max_raw_minors = MAX_RAW_MINORS;
+static int max_raw_miyesrs = MAX_RAW_MINORS;
 
-module_param(max_raw_minors, int, 0);
-MODULE_PARM_DESC(max_raw_minors, "Maximum number of raw devices (1-65536)");
+module_param(max_raw_miyesrs, int, 0);
+MODULE_PARM_DESC(max_raw_miyesrs, "Maximum number of raw devices (1-65536)");
 
 /*
  * Open/close code for raw IO.
@@ -50,15 +50,15 @@ MODULE_PARM_DESC(max_raw_minors, "Maximum number of raw devices (1-65536)");
  * O_DIRECT.
  *
  * Set the device's soft blocksize to the minimum possible.  This gives the
- * finest possible alignment and has no adverse impact on performance.
+ * finest possible alignment and has yes adverse impact on performance.
  */
-static int raw_open(struct inode *inode, struct file *filp)
+static int raw_open(struct iyesde *iyesde, struct file *filp)
 {
-	const int minor = iminor(inode);
+	const int miyesr = imiyesr(iyesde);
 	struct block_device *bdev;
 	int err;
 
-	if (minor == 0) {	/* It is the control device */
+	if (miyesr == 0) {	/* It is the control device */
 		filp->f_op = &raw_ctl_fops;
 		return 0;
 	}
@@ -68,7 +68,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 	/*
 	 * All we need to do on open is check that the device is bound.
 	 */
-	bdev = raw_devices[minor].binding;
+	bdev = raw_devices[miyesr].binding;
 	err = -ENODEV;
 	if (!bdev)
 		goto out;
@@ -80,10 +80,10 @@ static int raw_open(struct inode *inode, struct file *filp)
 	if (err)
 		goto out1;
 	filp->f_flags |= O_DIRECT;
-	filp->f_mapping = bdev->bd_inode->i_mapping;
-	if (++raw_devices[minor].inuse == 1)
-		file_inode(filp)->i_mapping =
-			bdev->bd_inode->i_mapping;
+	filp->f_mapping = bdev->bd_iyesde->i_mapping;
+	if (++raw_devices[miyesr].inuse == 1)
+		file_iyesde(filp)->i_mapping =
+			bdev->bd_iyesde->i_mapping;
 	filp->private_data = bdev;
 	mutex_unlock(&raw_mutex);
 	return 0;
@@ -96,19 +96,19 @@ out:
 }
 
 /*
- * When the final fd which refers to this character-special node is closed, we
+ * When the final fd which refers to this character-special yesde is closed, we
  * make its ->mapping point back at its own i_data.
  */
-static int raw_release(struct inode *inode, struct file *filp)
+static int raw_release(struct iyesde *iyesde, struct file *filp)
 {
-	const int minor= iminor(inode);
+	const int miyesr= imiyesr(iyesde);
 	struct block_device *bdev;
 
 	mutex_lock(&raw_mutex);
-	bdev = raw_devices[minor].binding;
-	if (--raw_devices[minor].inuse == 0)
-		/* Here  inode->i_mapping == bdev->bd_inode->i_mapping  */
-		inode->i_mapping = &inode->i_data;
+	bdev = raw_devices[miyesr].binding;
+	if (--raw_devices[miyesr].inuse == 0)
+		/* Here  iyesde->i_mapping == bdev->bd_iyesde->i_mapping  */
+		iyesde->i_mapping = &iyesde->i_data;
 	mutex_unlock(&raw_mutex);
 
 	blkdev_put(bdev, filp->f_mode | FMODE_EXCL);
@@ -125,16 +125,16 @@ raw_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 	return blkdev_ioctl(bdev, 0, command, arg);
 }
 
-static int bind_set(int number, u64 major, u64 minor)
+static int bind_set(int number, u64 major, u64 miyesr)
 {
-	dev_t dev = MKDEV(major, minor);
+	dev_t dev = MKDEV(major, miyesr);
 	struct raw_device_data *rawdev;
 	int err = 0;
 
-	if (number <= 0 || number >= max_raw_minors)
+	if (number <= 0 || number >= max_raw_miyesrs)
 		return -EINVAL;
 
-	if (MAJOR(dev) != major || MINOR(dev) != minor)
+	if (MAJOR(dev) != major || MINOR(dev) != miyesr)
 		return -EINVAL;
 
 	rawdev = &raw_devices[number];
@@ -147,10 +147,10 @@ static int bind_set(int number, u64 major, u64 minor)
 		return -EPERM;
 
 	/*
-	 * For now, we don't need to check that the underlying
-	 * block device is present or not: we can do that when
+	 * For yesw, we don't need to check that the underlying
+	 * block device is present or yest: we can do that when
 	 * the raw device is opened.  Just check that the
-	 * major/minor numbers make sense.
+	 * major/miyesr numbers make sense.
 	 */
 
 	if (MAJOR(dev) == 0 && dev != 0)
@@ -190,7 +190,7 @@ static int bind_get(int number, dev_t *dev)
 	struct raw_device_data *rawdev;
 	struct block_device *bdev;
 
-	if (number <= 0 || number >= max_raw_minors)
+	if (number <= 0 || number >= max_raw_miyesrs)
 		return -EINVAL;
 
 	rawdev = &raw_devices[number];
@@ -218,18 +218,18 @@ static long raw_ctl_ioctl(struct file *filp, unsigned int command,
 		if (copy_from_user(&rq, (void __user *) arg, sizeof(rq)))
 			return -EFAULT;
 
-		return bind_set(rq.raw_minor, rq.block_major, rq.block_minor);
+		return bind_set(rq.raw_miyesr, rq.block_major, rq.block_miyesr);
 
 	case RAW_GETBIND:
 		if (copy_from_user(&rq, (void __user *) arg, sizeof(rq)))
 			return -EFAULT;
 
-		err = bind_get(rq.raw_minor, &dev);
+		err = bind_get(rq.raw_miyesr, &dev);
 		if (err)
 			return err;
 
 		rq.block_major = MAJOR(dev);
-		rq.block_minor = MINOR(dev);
+		rq.block_miyesr = MINOR(dev);
 
 		if (copy_to_user((void __user *)arg, &rq, sizeof(rq)))
 			return -EFAULT;
@@ -242,9 +242,9 @@ static long raw_ctl_ioctl(struct file *filp, unsigned int command,
 
 #ifdef CONFIG_COMPAT
 struct raw32_config_request {
-	compat_int_t	raw_minor;
+	compat_int_t	raw_miyesr;
 	compat_u64	block_major;
-	compat_u64	block_minor;
+	compat_u64	block_miyesr;
 };
 
 static long raw_ctl_compat_ioctl(struct file *file, unsigned int cmd,
@@ -260,18 +260,18 @@ static long raw_ctl_compat_ioctl(struct file *file, unsigned int cmd,
 		if (copy_from_user(&rq, user_req, sizeof(rq)))
 			return -EFAULT;
 
-		return bind_set(rq.raw_minor, rq.block_major, rq.block_minor);
+		return bind_set(rq.raw_miyesr, rq.block_major, rq.block_miyesr);
 
 	case RAW_GETBIND:
 		if (copy_from_user(&rq, user_req, sizeof(rq)))
 			return -EFAULT;
 
-		err = bind_get(rq.raw_minor, &dev);
+		err = bind_get(rq.raw_miyesr, &dev);
 		if (err)
 			return err;
 
 		rq.block_major = MAJOR(dev);
-		rq.block_minor = MINOR(dev);
+		rq.block_miyesr = MINOR(dev);
 
 		if (copy_to_user(user_req, &rq, sizeof(rq)))
 			return -EFAULT;
@@ -301,12 +301,12 @@ static const struct file_operations raw_ctl_fops = {
 #endif
 	.open		= raw_open,
 	.owner		= THIS_MODULE,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct cdev raw_cdev;
 
-static char *raw_devnode(struct device *dev, umode_t *mode)
+static char *raw_devyesde(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "raw/%s", dev_name(dev));
 }
@@ -316,26 +316,26 @@ static int __init raw_init(void)
 	dev_t dev = MKDEV(RAW_MAJOR, 0);
 	int ret;
 
-	if (max_raw_minors < 1 || max_raw_minors > 65536) {
-		printk(KERN_WARNING "raw: invalid max_raw_minors (must be"
+	if (max_raw_miyesrs < 1 || max_raw_miyesrs > 65536) {
+		printk(KERN_WARNING "raw: invalid max_raw_miyesrs (must be"
 			" between 1 and 65536), using %d\n", MAX_RAW_MINORS);
-		max_raw_minors = MAX_RAW_MINORS;
+		max_raw_miyesrs = MAX_RAW_MINORS;
 	}
 
-	raw_devices = vzalloc(array_size(max_raw_minors,
+	raw_devices = vzalloc(array_size(max_raw_miyesrs,
 					 sizeof(struct raw_device_data)));
 	if (!raw_devices) {
-		printk(KERN_ERR "Not enough memory for raw device structures\n");
+		printk(KERN_ERR "Not eyesugh memory for raw device structures\n");
 		ret = -ENOMEM;
 		goto error;
 	}
 
-	ret = register_chrdev_region(dev, max_raw_minors, "raw");
+	ret = register_chrdev_region(dev, max_raw_miyesrs, "raw");
 	if (ret)
 		goto error;
 
 	cdev_init(&raw_cdev, &raw_fops);
-	ret = cdev_add(&raw_cdev, dev, max_raw_minors);
+	ret = cdev_add(&raw_cdev, dev, max_raw_miyesrs);
 	if (ret)
 		goto error_region;
 	raw_class = class_create(THIS_MODULE, "raw");
@@ -345,13 +345,13 @@ static int __init raw_init(void)
 		ret = PTR_ERR(raw_class);
 		goto error_region;
 	}
-	raw_class->devnode = raw_devnode;
+	raw_class->devyesde = raw_devyesde;
 	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, 0), NULL, "rawctl");
 
 	return 0;
 
 error_region:
-	unregister_chrdev_region(dev, max_raw_minors);
+	unregister_chrdev_region(dev, max_raw_miyesrs);
 error:
 	vfree(raw_devices);
 	return ret;
@@ -362,7 +362,7 @@ static void __exit raw_exit(void)
 	device_destroy(raw_class, MKDEV(RAW_MAJOR, 0));
 	class_destroy(raw_class);
 	cdev_del(&raw_cdev);
-	unregister_chrdev_region(MKDEV(RAW_MAJOR, 0), max_raw_minors);
+	unregister_chrdev_region(MKDEV(RAW_MAJOR, 0), max_raw_miyesrs);
 }
 
 module_init(raw_init);

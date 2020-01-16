@@ -266,7 +266,7 @@ static ssize_t device_id_show(struct device *dev,
 /*
 	POD startup procedure.
 	This is a sequence of functions with special requirements (e.g., must
-	not run immediately after initialization, must not run in interrupt
+	yest run immediately after initialization, must yest run in interrupt
 	context). After the last one has finished, the device is ready to use.
 */
 
@@ -474,7 +474,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.altsetting = 0,
 		.ep_ctrl_r = 0x82,
 		.ep_ctrl_w = 0x02,
-		/* no audio channel */
+		/* yes audio channel */
 	},
 	[LINE6_PODXT] = {
 		.id = "PODxt",

@@ -75,7 +75,7 @@ void acpi_ut_track_stack_ptr(void)
  *
  * DESCRIPTION: Remove the "Acpi" prefix from the function name, if present.
  *              This allows compiler macros such as __func__ to be used
- *              with no change to the debug output.
+ *              with yes change to the debug output.
  *
  ******************************************************************************/
 
@@ -86,7 +86,7 @@ static const char *acpi_ut_trim_function_name(const char *function_name)
 
 	if (*(ACPI_CAST_PTR(u32, function_name)) == ACPI_PREFIX_MIXED) {
 
-		/* This is the case where the original source has not been modified */
+		/* This is the case where the original source has yest been modified */
 
 		return (function_name + 4);
 	}
@@ -140,7 +140,7 @@ acpi_debug_print(u32 requested_debug_level,
 	}
 
 	/*
-	 * Thread tracking and context switch notification
+	 * Thread tracking and context switch yestification
 	 */
 	thread_id = acpi_os_get_thread_id();
 	if (thread_id != acpi_gbl_previous_thread_id) {
@@ -208,7 +208,7 @@ ACPI_EXPORT_SYMBOL(acpi_debug_print)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Print message with no headers. Has same interface as
+ * DESCRIPTION: Print message with yes headers. Has same interface as
  *              debug_print so that the same macros can be used.
  *
  ******************************************************************************/

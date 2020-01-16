@@ -78,7 +78,7 @@ MODULE_DEVICE_TABLE(usb, gigaset_table);
  *       41 01 xx xx
  *            Set baud rate. xxxx=ceil(0x384000/rate)=trunc(0x383fff/rate)+1.
  *       41 03 ps bb
- *            Set byte size and parity. p:  0x20=even,0x10=odd,0x00=no parity
+ *            Set byte size and parity. p:  0x20=even,0x10=odd,0x00=yes parity
  *                                     [    0x30: m, 0x40: s           ]
  *                                     [s:  0: 1 stop bit; 1: 1.5; 2: 2]
  *                                      bb: bits/byte (seen 7 and 8)
@@ -181,7 +181,7 @@ static int set_value(struct cardstate *cs, u8 req, u16 val)
 		(unsigned)req, (unsigned)val);
 	r = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x12, 0x41,
 			    0xf /*?*/, 0, NULL, 0, 2000 /*?*/);
-	/* no idea what this does */
+	/* yes idea what this does */
 	if (r < 0) {
 		dev_err(&udev->dev, "error %d on request 0x12\n", -r);
 		return r;
@@ -257,7 +257,7 @@ static int gigaset_set_line_ctrl(struct cardstate *cs, unsigned cflag)
 	case CS8:
 		val |= 8 << 8; break;
 	default:
-		dev_err(cs->dev, "CSIZE was not CS5-CS8, using default of 8\n");
+		dev_err(cs->dev, "CSIZE was yest CS5-CS8, using default of 8\n");
 		val |= 8 << 8;
 		break;
 	}
@@ -277,14 +277,14 @@ static int gigaset_set_line_ctrl(struct cardstate *cs, unsigned cflag)
 /*============================================================================*/
 static int gigaset_init_bchannel(struct bc_state *bcs)
 {
-	/* nothing to do for M10x */
+	/* yesthing to do for M10x */
 	gigaset_bchannel_up(bcs);
 	return 0;
 }
 
 static int gigaset_close_bchannel(struct bc_state *bcs)
 {
-	/* nothing to do for M10x */
+	/* yesthing to do for M10x */
 	gigaset_bchannel_down(bcs);
 	return 0;
 }
@@ -309,13 +309,13 @@ static void gigaset_modem_fill(unsigned long data)
 	}
 
 again:
-	if (!bcs->tx_skb) {	/* no skb is being sent */
+	if (!bcs->tx_skb) {	/* yes skb is being sent */
 		if (cs->cmdbuf) {	/* commands to send? */
 			gig_dbg(DEBUG_OUTPUT, "modem_fill: cb");
 			if (send_cb(cs) < 0) {
 				gig_dbg(DEBUG_OUTPUT,
 					"modem_fill: send_cb failed");
-				goto again; /* no callback will be called! */
+				goto again; /* yes callback will be called! */
 			}
 			return;
 		}
@@ -332,7 +332,7 @@ again:
 	gig_dbg(DEBUG_OUTPUT, "modem_fill: tx_skb");
 	if (write_modem(cs) < 0) {
 		gig_dbg(DEBUG_OUTPUT, "modem_fill: write_modem failed");
-		goto again;	/* no callback will be called! */
+		goto again;	/* yes callback will be called! */
 	}
 }
 
@@ -356,7 +356,7 @@ static void gigaset_read_int_callback(struct urb *urb)
 			src = cs->hw.usb->rcvbuf;
 			if (unlikely(*src))
 				dev_warn(cs->dev,
-					 "%s: There was no leading 0, but 0x%02x!\n",
+					 "%s: There was yes leading 0, but 0x%02x!\n",
 					 __func__, (unsigned) *src);
 			++src; /* skip leading 0x00 */
 			--numbytes;
@@ -368,7 +368,7 @@ static void gigaset_read_int_callback(struct urb *urb)
 			gig_dbg(DEBUG_INTR, "Received zero block length");
 	} else {
 		/* The urb might have been killed. */
-		gig_dbg(DEBUG_ANY, "%s - nonzero status received: %d",
+		gig_dbg(DEBUG_ANY, "%s - yesnzero status received: %d",
 			__func__, status);
 		if (status == -ENOENT || status == -ESHUTDOWN)
 			/* killed or endpoint shutdown: don't resubmit */
@@ -397,7 +397,7 @@ static void gigaset_write_bulk_callback(struct urb *urb)
 	unsigned long flags;
 
 	switch (status) {
-	case 0:			/* normal completion */
+	case 0:			/* yesrmal completion */
 		break;
 	case -ENOENT:		/* killed */
 		gig_dbg(DEBUG_ANY, "%s: killed", __func__);
@@ -474,7 +474,7 @@ static int send_cb(struct cardstate *cs)
 			if (status) {
 				ucs->busy = 0;
 				dev_err(cs->dev,
-					"could not submit urb (error %d)\n",
+					"could yest submit urb (error %d)\n",
 					-status);
 				cb->len = 0; /* skip urb => remove cb+wakeup
 						in next loop cycle */
@@ -558,7 +558,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 
 static void gigaset_reinitbcshw(struct bc_state *bcs)
 {
-	/* nothing to do for M10x */
+	/* yesthing to do for M10x */
 }
 
 static void gigaset_freecshw(struct cardstate *cs)
@@ -627,7 +627,7 @@ static int write_modem(struct cardstate *cs)
 	spin_unlock_irqrestore(&cs->lock, flags);
 
 	if (ret) {
-		dev_err(cs->dev, "could not submit urb (error %d)\n", -ret);
+		dev_err(cs->dev, "could yest submit urb (error %d)\n", -ret);
 		ucs->busy = 0;
 	}
 
@@ -660,23 +660,23 @@ static int gigaset_probe(struct usb_interface *interface,
 	/* See if the device offered us matches what we can accept */
 	if ((le16_to_cpu(udev->descriptor.idVendor)  != USB_M105_VENDOR_ID) ||
 	    (le16_to_cpu(udev->descriptor.idProduct) != USB_M105_PRODUCT_ID)) {
-		gig_dbg(DEBUG_ANY, "device ID (0x%x, 0x%x) not for me - skip",
+		gig_dbg(DEBUG_ANY, "device ID (0x%x, 0x%x) yest for me - skip",
 			le16_to_cpu(udev->descriptor.idVendor),
 			le16_to_cpu(udev->descriptor.idProduct));
 		return -ENODEV;
 	}
 	if (hostif->desc.bInterfaceNumber != 0) {
-		gig_dbg(DEBUG_ANY, "interface %d not for me - skip",
+		gig_dbg(DEBUG_ANY, "interface %d yest for me - skip",
 			hostif->desc.bInterfaceNumber);
 		return -ENODEV;
 	}
 	if (hostif->desc.bAlternateSetting != 0) {
-		dev_notice(&udev->dev, "unsupported altsetting %d - skip",
+		dev_yestice(&udev->dev, "unsupported altsetting %d - skip",
 			   hostif->desc.bAlternateSetting);
 		return -ENODEV;
 	}
 	if (hostif->desc.bInterfaceClass != 255) {
-		dev_notice(&udev->dev, "unsupported interface class %d - skip",
+		dev_yestice(&udev->dev, "unsupported interface class %d - skip",
 			   hostif->desc.bInterfaceClass);
 		return -ENODEV;
 	}
@@ -761,7 +761,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	retval = usb_submit_urb(ucs->read_urb, GFP_KERNEL);
 	if (retval) {
-		dev_err(cs->dev, "Could not submit URB (error %d)\n", -retval);
+		dev_err(cs->dev, "Could yest submit URB (error %d)\n", -retval);
 		goto error;
 	}
 
@@ -854,7 +854,7 @@ static int gigaset_resume(struct usb_interface *intf)
 	cs->connected = 1;
 	rc = usb_submit_urb(cs->hw.usb->read_urb, GFP_KERNEL);
 	if (rc) {
-		dev_err(cs->dev, "Could not submit read URB (error %d)\n", -rc);
+		dev_err(cs->dev, "Could yest submit read URB (error %d)\n", -rc);
 		return rc;
 	}
 
@@ -931,19 +931,19 @@ static void __exit usb_gigaset_exit(void)
 	int i;
 
 	gigaset_blockdriver(driver); /* => probe will fail
-				      * => no gigaset_start any more
+				      * => yes gigaset_start any more
 				      */
 
 	/* stop all connected devices */
-	for (i = 0; i < driver->minors; i++)
+	for (i = 0; i < driver->miyesrs; i++)
 		gigaset_shutdown(driver->cs + i);
 
-	/* from now on, no isdn callback should be possible */
+	/* from yesw on, yes isdn callback should be possible */
 
 	/* deregister this driver with the USB subsystem */
 	usb_deregister(&gigaset_usb_driver);
 	/* this will call the disconnect-callback */
-	/* from now on, no disconnect/probe callback should be running */
+	/* from yesw on, yes disconnect/probe callback should be running */
 
 	gigaset_freedriver(driver);
 	driver = NULL;

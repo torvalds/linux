@@ -91,22 +91,22 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"GVC000F",		0	},
 	/* Archtek SmartLink Modem 3334BRV 33.6K Data Fax Voice */
 	{	"GVC0303",		0	},
-	/* Hayes */
-	/* Hayes Optima 288 V.34-V.FC + FAX + Voice Plug & Play */
+	/* Hano */
+	/* Hano Optima 288 V.34-V.FC + FAX + Voice Plug & Play */
 	{	"HAY0001",		0	},
-	/* Hayes Optima 336 V.34 + FAX + Voice PnP */
+	/* Hano Optima 336 V.34 + FAX + Voice PnP */
 	{	"HAY000C",		0	},
-	/* Hayes Optima 336B V.34 + FAX + Voice PnP */
+	/* Hano Optima 336B V.34 + FAX + Voice PnP */
 	{	"HAY000D",		0	},
-	/* Hayes Accura 56K Ext Fax Modem PnP */
+	/* Hano Accura 56K Ext Fax Modem PnP */
 	{	"HAY5670",		0	},
-	/* Hayes Accura 56K Ext Fax Modem PnP */
+	/* Hano Accura 56K Ext Fax Modem PnP */
 	{	"HAY5674",		0	},
-	/* Hayes Accura 56K Fax Modem PnP */
+	/* Hano Accura 56K Fax Modem PnP */
 	{	"HAY5675",		0	},
-	/* Hayes 288, V.34 + FAX */
+	/* Hano 288, V.34 + FAX */
 	{	"HAYF000",		0	},
-	/* Hayes Optima 288 V.34 + FAX + Voice, Plug & Play */
+	/* Hano Optima 288 V.34 + FAX + Voice, Plug & Play */
 	{	"HAYF001",		0	},
 	/* IBM */
 	/* IBM Thinkpad 701 Internal Modem Voice */
@@ -248,9 +248,9 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	/* Standard PCMCIA Card Modem */
 	{	"PNP2000",		0	},
 	/* Rockwell */
-	/* Modular Technology */
+	/* Modular Techyeslogy */
 	/* Rockwell 33.6 DPF Internal PnP */
-	/* Modular Technology 33.6 Internal PnP */
+	/* Modular Techyeslogy 33.6 Internal PnP */
 	{	"ROK0030",		0	},
 	/* Kortex International */
 	/* KORTEX 14400 Externe PnP */
@@ -262,10 +262,10 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"ROK4920",		0	},
 	/* Rockwell */
 	/* British Telecom */
-	/* Modular Technology */
+	/* Modular Techyeslogy */
 	/* Rockwell 33.6 DPF External PnP */
 	/* BT Prologue 33.6 External PnP */
-	/* Modular Technology 33.6 External PnP */
+	/* Modular Techyeslogy 33.6 External PnP */
 	{	"RSS00A0",		0	},
 	/* Viking 56K FAX INT */
 	{	"RSS0262",		0	},
@@ -360,17 +360,17 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"LTS0001",		0       },
 	/* Rockwell's (PORALiNK) 33600 INT PNP */
 	{	"WCI0003",		0	},
-	/* Unknown PnP modems */
+	/* Unkyeswn PnP modems */
 	{	"PNPCXXX",		UNKNOWN_DEV	},
-	/* More unknown PnP modems */
+	/* More unkyeswn PnP modems */
 	{	"PNPDXXX",		UNKNOWN_DEV	},
 	/*
-	 * Winbond CIR port, should not be probed. We should keep track of
+	 * Winbond CIR port, should yest be probed. We should keep track of
 	 * it to prevent the legacy serial driver from probing it.
 	 */
 	{	"WEC1022",		CIR_PORT	},
 	/*
-	 * SMSC IrCC SIR/FIR port, should not be probed by serial driver as
+	 * SMSC IrCC SIR/FIR port, should yest be probed by serial driver as
 	 * well so its own driver can bind to it.
 	 */
 	{	"SMCF010",		CIR_PORT	},
@@ -411,7 +411,7 @@ static bool check_resources(struct pnp_dev *dev)
 }
 
 /*
- * Given a complete unknown PnP device, try to use some heuristics to
+ * Given a complete unkyeswn PnP device, try to use some heuristics to
  * detect modems. Currently use such heuristic set:
  *     - dev->name or dev->bus->name must contain "modem" substring;
  *     - device must have only one IO region (8 byte long) with base address

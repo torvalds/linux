@@ -125,7 +125,7 @@ static int __init mv78xx0_pcie_setup(int nr, struct pci_sys_data *sys)
 static int pcie_valid_config(struct pcie_port *pp, int bus, int dev)
 {
 	/*
-	 * Don't go out when trying to access nonexisting devices
+	 * Don't go out when trying to access yesnexisting devices
 	 * on the local bus.
 	 */
 	if (bus == pp->root_bus_nr && dev > 1)
@@ -245,7 +245,7 @@ static void __init add_pcie_port(int maj, int min, void __iomem *base)
 		spin_lock_init(&pp->conf_lock);
 		memset(&pp->res, 0, sizeof(pp->res));
 	} else {
-		printk("link down, ignoring\n");
+		printk("link down, igyesring\n");
 	}
 }
 

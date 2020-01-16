@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 // Copyright (C) 1994, 1995, 1996 by Ralf Baechle
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 #ifndef	_ASM_CACHECTL
 #define	_ASM_CACHECTL
 

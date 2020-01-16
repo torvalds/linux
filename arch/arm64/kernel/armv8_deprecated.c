@@ -49,7 +49,7 @@ struct insn_emulation_ops {
 };
 
 struct insn_emulation {
-	struct list_head node;
+	struct list_head yesde;
 	struct insn_emulation_ops *ops;
 	int current_mode;
 	int min;
@@ -69,7 +69,7 @@ static void register_emulation_hooks(struct insn_emulation_ops *ops)
 	for (hook = ops->hooks; hook->instr_mask; hook++)
 		register_undef_hook(hook);
 
-	pr_notice("Registered %s emulation handler\n", ops->name);
+	pr_yestice("Registered %s emulation handler\n", ops->name);
 }
 
 static void remove_emulation_hooks(struct insn_emulation_ops *ops)
@@ -81,7 +81,7 @@ static void remove_emulation_hooks(struct insn_emulation_ops *ops)
 	for (hook = ops->hooks; hook->instr_mask; hook++)
 		unregister_undef_hook(hook);
 
-	pr_notice("Removed %s emulation handler\n", ops->name);
+	pr_yestice("Removed %s emulation handler\n", ops->name);
 }
 
 static void enable_insn_hw_mode(void *data)
@@ -114,7 +114,7 @@ static int run_all_cpu_set_hw_mode(struct insn_emulation *insn, bool enable)
  * Run set_hw_mode for all insns on a starting CPU.
  * Returns:
  *  0 		- If all the hooks ran successfully.
- * -EINVAL	- At least one hook is not supported by the CPU.
+ * -EINVAL	- At least one hook is yest supported by the CPU.
  */
 static int run_all_insn_set_hw_mode(unsigned int cpu)
 {
@@ -123,10 +123,10 @@ static int run_all_insn_set_hw_mode(unsigned int cpu)
 	struct insn_emulation *insn;
 
 	raw_spin_lock_irqsave(&insn_emulation_lock, flags);
-	list_for_each_entry(insn, &insn_emulation, node) {
+	list_for_each_entry(insn, &insn_emulation, yesde) {
 		bool enable = (insn->current_mode == INSN_HW);
 		if (insn->ops->set_hw_mode && insn->ops->set_hw_mode(enable)) {
-			pr_warn("CPU[%u] cannot support the emulation of %s",
+			pr_warn("CPU[%u] canyest support the emulation of %s",
 				cpu, insn->ops->name);
 			rc = -EINVAL;
 		}
@@ -148,7 +148,7 @@ static int update_insn_emulation_mode(struct insn_emulation *insn,
 		break;
 	case INSN_HW:
 		if (!run_all_cpu_set_hw_mode(insn, false))
-			pr_notice("Disabled %s support\n", insn->ops->name);
+			pr_yestice("Disabled %s support\n", insn->ops->name);
 		break;
 	}
 
@@ -161,7 +161,7 @@ static int update_insn_emulation_mode(struct insn_emulation *insn,
 	case INSN_HW:
 		ret = run_all_cpu_set_hw_mode(insn, true);
 		if (!ret)
-			pr_notice("Enabled %s support\n", insn->ops->name);
+			pr_yestice("Enabled %s support\n", insn->ops->name);
 		break;
 	}
 
@@ -194,7 +194,7 @@ static void __init register_insn_emulation(struct insn_emulation_ops *ops)
 	}
 
 	raw_spin_lock_irqsave(&insn_emulation_lock, flags);
-	list_add(&insn->node, &insn_emulation);
+	list_add(&insn->yesde, &insn_emulation);
 	nr_insn_emulated++;
 	raw_spin_unlock_irqrestore(&insn_emulation_lock, flags);
 
@@ -240,7 +240,7 @@ static void __init register_insn_emulation_sysctl(void)
 		return;
 
 	raw_spin_lock_irqsave(&insn_emulation_lock, flags);
-	list_for_each_entry(insn, &insn_emulation, node) {
+	list_for_each_entry(insn, &insn_emulation, yesde) {
 		sysctl = &insns_sysctl[i];
 
 		sysctl->mode = 0644;
@@ -322,7 +322,7 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 	unsigned int res = 0;
 
 	if ((type != TYPE_SWPB) && (address & 0x3)) {
-		/* SWP to unaligned address not permitted */
+		/* SWP to unaligned address yest permitted */
 		pr_debug("SWP instruction on unaligned pointer!\n");
 		return -EFAULT;
 	}
@@ -385,7 +385,7 @@ static int swp_handler(struct pt_regs *regs, u32 instr)
 		/* Condition failed - return to next instruction */
 		goto ret;
 	case ARM_OPCODE_CONDTEST_UNCOND:
-		/* If unconditional encoding - not a SWP, undef */
+		/* If unconditional encoding - yest a SWP, undef */
 		return -EFAULT;
 	default:
 		return -EINVAL;
@@ -405,7 +405,7 @@ static int swp_handler(struct pt_regs *regs, u32 instr)
 	/* Check access in reasonable access range for both SWP and SWPB */
 	user_ptr = (const void __user *)(unsigned long)(address & ~3);
 	if (!access_ok(user_ptr, 4)) {
-		pr_debug("SWP{B} emulation: access to 0x%08x not allowed!\n",
+		pr_debug("SWP{B} emulation: access to 0x%08x yest allowed!\n",
 			address);
 		goto fault;
 	}
@@ -430,14 +430,14 @@ ret:
 
 fault:
 	pr_debug("SWP{B} emulation: access caused memory abort!\n");
-	arm64_notify_segfault(address);
+	arm64_yestify_segfault(address);
 
 	return 0;
 }
 
 /*
  * Only emulate SWP/SWPB executed in ARM state/User mode.
- * The kernel must be SWP free and SWP{B} does not exist in Thumb.
+ * The kernel must be SWP free and SWP{B} does yest exist in Thumb.
  */
 static struct undef_hook swp_hooks[] = {
 	{
@@ -468,7 +468,7 @@ static int cp15barrier_handler(struct pt_regs *regs, u32 instr)
 		/* Condition failed - return to next instruction */
 		goto ret;
 	case ARM_OPCODE_CONDTEST_UNCOND:
-		/* If unconditional encoding - not a barrier instruction */
+		/* If unconditional encoding - yest a barrier instruction */
 		return -EFAULT;
 	default:
 		return -EINVAL;
@@ -495,7 +495,7 @@ static int cp15barrier_handler(struct pt_regs *regs, u32 instr)
 		 * isb - mcr p15, 0, Rt, c7, c5, 4
 		 *
 		 * Taking an exception or returning from one acts as an
-		 * instruction barrier. So no explicit barrier needed here.
+		 * instruction barrier. So yes explicit barrier needed here.
 		 */
 		trace_instruction_emulation(
 			"mcr p15, 0, Rt, c7, c5, 4 ; isb", regs->pc);
@@ -618,7 +618,7 @@ static struct insn_emulation_ops setend_ops = {
 };
 
 /*
- * Invoked as late_initcall, since not needed before init spawned.
+ * Invoked as late_initcall, since yest needed before init spawned.
  */
 static int __init armv8_deprecated_init(void)
 {
@@ -632,10 +632,10 @@ static int __init armv8_deprecated_init(void)
 		if(system_supports_mixed_endian_el0())
 			register_insn_emulation(&setend_ops);
 		else
-			pr_info("setend instruction emulation is not supported on this system\n");
+			pr_info("setend instruction emulation is yest supported on this system\n");
 	}
 
-	cpuhp_setup_state_nocalls(CPUHP_AP_ARM64_ISNDEP_STARTING,
+	cpuhp_setup_state_yescalls(CPUHP_AP_ARM64_ISNDEP_STARTING,
 				  "arm64/isndep:starting",
 				  run_all_insn_set_hw_mode, NULL);
 	register_insn_emulation_sysctl();

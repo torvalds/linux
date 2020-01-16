@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -24,7 +24,7 @@
 /**
  * DOC: Shader validator for VC4.
  *
- * Since the VC4 has no IOMMU between it and system memory, a user
+ * Since the VC4 has yes IOMMU between it and system memory, a user
  * with access to execute shaders could escalate privilege by
  * overwriting system memory (using the VPM write address register in
  * the general-purpose DMA mode) or reading system memory it shouldn't
@@ -36,7 +36,7 @@
  * accesses are made so that we can do relocations for them in the
  * uniform stream.
  *
- * Shader BO are immutable for their lifetimes (enforced by not
+ * Shader BO are immutable for their lifetimes (enforced by yest
  * allowing mmaps, GEM prime export, or rendering to from a CL), so
  * this validation is only performed at BO creation time.
  */
@@ -50,7 +50,7 @@ struct vc4_shader_validation_state {
 	/* Current IP being validated. */
 	uint32_t ip;
 
-	/* IP at the end of the BO, do not read shader[max_ip] */
+	/* IP at the end of the BO, do yest read shader[max_ip] */
 	uint32_t max_ip;
 
 	uint64_t *shader;
@@ -323,10 +323,10 @@ validate_uniform_address_write(struct vc4_validated_shader_info *validated_shade
 	 * of its uniform reads.
 	 *
 	 * One could potentially emit more efficient QPU code, by
-	 * noticing that (say) an if statement does uniform control
+	 * yesticing that (say) an if statement does uniform control
 	 * flow for all threads and that the if reads the same number
 	 * of uniforms on each side.  However, this scheme is easy to
-	 * validate so it's all we allow for now.
+	 * validate so it's all we allow for yesw.
 	 */
 	switch (QPU_GET_FIELD(inst, QPU_SIG)) {
 	case QPU_SIG_NONE:
@@ -337,7 +337,7 @@ validate_uniform_address_write(struct vc4_validated_shader_info *validated_shade
 		break;
 	default:
 		DRM_DEBUG("uniforms address change must be "
-			  "normal math\n");
+			  "yesrmal math\n");
 		return false;
 	}
 
@@ -429,7 +429,7 @@ check_reg_write(struct vc4_validated_shader_info *validated_shader,
 	case QPU_W_TLB_COLOR_MS:
 	case QPU_W_TLB_COLOR_ALL:
 	case QPU_W_TLB_Z:
-		/* These only interact with the tile buffer, not main memory,
+		/* These only interact with the tile buffer, yest main memory,
 		 * so they're safe.
 		 */
 		return true;
@@ -450,7 +450,7 @@ check_reg_write(struct vc4_validated_shader_info *validated_shader,
 	case QPU_W_TLB_ALPHA_MASK:
 	case QPU_W_MUTEX_RELEASE:
 		/* XXX: I haven't thought about these, so don't support them
-		 * for now.
+		 * for yesw.
 		 */
 		DRM_DEBUG("Unsupported waddr %d\n", waddr);
 		return false;
@@ -585,7 +585,7 @@ check_branch(uint64_t inst,
 		validation_state->needs_uniform_address_for_loop = true;
 
 	/* We don't want to have to worry about validation of this, and
-	 * there's no need for it.
+	 * there's yes need for it.
 	 */
 	if (waddr_add != QPU_W_NOP || waddr_mul != QPU_W_NOP) {
 		DRM_DEBUG("branch instruction at %d wrote a register.\n",
@@ -629,7 +629,7 @@ check_instruction_reads(struct vc4_validated_shader_info *validated_shader,
 }
 
 /* Make sure that all branches are absolute and point within the shader, and
- * note their targets for later.
+ * yeste their targets for later.
  */
 static bool
 vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
@@ -667,7 +667,7 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 
 		if (inst & QPU_BRANCH_REG) {
 			DRM_DEBUG("branching from register relative "
-				  "not supported\n");
+				  "yest supported\n");
 			return false;
 		}
 
@@ -678,11 +678,11 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 
 		/* The actual branch target is the instruction after the delay
 		 * slots, plus whatever byte offset is in the low 32 bits of
-		 * the instruction.  Make sure we're not branching beyond the
+		 * the instruction.  Make sure we're yest branching beyond the
 		 * end of the shader object.
 		 */
 		if (branch_imm % sizeof(inst) != 0) {
-			DRM_DEBUG("branch target not aligned\n");
+			DRM_DEBUG("branch target yest aligned\n");
 			return false;
 		}
 
@@ -695,7 +695,7 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 		}
 		set_bit(branch_target_ip, validation_state->branch_targets);
 
-		/* Make sure that the non-branching path is also not outside
+		/* Make sure that the yesn-branching path is also yest outside
 		 * the shader.
 		 */
 		if (after_delay_ip >= validation_state->max_ip) {
@@ -716,7 +716,7 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 	return true;
 }
 
-/* Resets any known state for the shader, used when we may be branched to from
+/* Resets any kyeswn state for the shader, used when we may be branched to from
  * multiple locations in the program (or at shader start).
  */
 static void
@@ -927,7 +927,7 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 		validated_shader->uniforms_size += 4;
 	}
 
-	/* Again, no chance of integer overflow here because the worst case
+	/* Again, yes chance of integer overflow here because the worst case
 	 * scenario is 8 bytes of uniforms plus handles per 8-byte
 	 * instruction.
 	 */

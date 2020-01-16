@@ -147,7 +147,7 @@ static int amd_create_gatt_table(struct agp_bridge_data *bridge)
 
 	/* Get the address for the gart region.
 	 * This is a bus address even on the alpha, b/c its
-	 * used to program the agp master not the cpu
+	 * used to program the agp master yest the cpu
 	 */
 
 	addr = pci_bus_address(agp_bridge->dev, AGP_APERTURE_BAR);
@@ -431,7 +431,7 @@ static int agp_amdk7_probe(struct pci_dev *pdev,
 
 	/* 751 Errata (22564_B-1.PDF)
 	   erratum 20: strobe glitch with Nvidia NV10 GeForce cards.
-	   system controller may experience noise due to strong drive strengths
+	   system controller may experience yesise due to strong drive strengths
 	 */
 	if (agp_bridge->dev->device == PCI_DEVICE_ID_AMD_FE_GATE_7006) {
 		struct pci_dev *gfxcard=NULL;
@@ -440,7 +440,7 @@ static int agp_amdk7_probe(struct pci_dev *pdev,
 		while (!cap_ptr) {
 			gfxcard = pci_get_class(PCI_CLASS_DISPLAY_VGA<<8, gfxcard);
 			if (!gfxcard) {
-				dev_info(&pdev->dev, "no AGP VGA controller\n");
+				dev_info(&pdev->dev, "yes AGP VGA controller\n");
 				return -ENODEV;
 			}
 			cap_ptr = pci_find_capability(gfxcard, PCI_CAP_ID_AGP);

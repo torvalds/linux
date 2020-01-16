@@ -9,11 +9,11 @@ USB Request Block (URB)
 :Again:   2017-Mar-29
 
 
-.. note::
+.. yeste::
 
-    The USB subsystem now has a substantial section at :ref:`usb-hostside-api`
+    The USB subsystem yesw has a substantial section at :ref:`usb-hostside-api`
     section, generated from the current source code.
-    This particular documentation file isn't complete and may not be
+    This particular documentation file isn't complete and may yest be
     updated to the last version; don't rely on it except for a quick
     overview.
 
@@ -26,7 +26,7 @@ called USB Request Block, or URB for short.
 - An URB consists of all relevant information to execute any USB transaction
   and deliver the data and status back.
 
-- Execution of an URB is inherently an asynchronous operation, i.e. the
+- Execution of an URB is inherently an asynchroyesus operation, i.e. the
   :c:func:`usb_submit_urb` call returns immediately after it has successfully
   queued the requested action.
 
@@ -39,7 +39,7 @@ called USB Request Block, or URB for short.
 
 - Each endpoint for a device logically supports a queue of requests.
   You can fill that queue, so that the USB hardware can still transfer
-  data to an endpoint while your driver handles completion of another.
+  data to an endpoint while your driver handles completion of ayesther.
   This maximizes use of USB bandwidth, and supports seamless streaming
   of data to (or from) devices when using periodic transfer modes.
 
@@ -97,10 +97,10 @@ URBs are allocated by calling :c:func:`usb_alloc_urb`::
 	struct urb *usb_alloc_urb(int isoframes, int mem_flags)
 
 Return value is a pointer to the allocated URB, 0 if allocation failed.
-The parameter isoframes specifies the number of isochronous transfer frames
+The parameter isoframes specifies the number of isochroyesus transfer frames
 you want to schedule. For CTRL/BULK/INT, use 0.  The mem_flags parameter
 holds standard memory allocation flags, letting you control (among other
-things) whether the underlying code may block or not.
+things) whether the underlying code may block or yest.
 
 To free an URB, use :c:func:`usb_free_urb`::
 
@@ -108,7 +108,7 @@ To free an URB, use :c:func:`usb_free_urb`::
 
 You may free an urb that you've submitted, but which hasn't yet been
 returned to you in a completion callback.  It will automatically be
-deallocated when it is no longer in use.
+deallocated when it is yes longer in use.
 
 
 What has to be filled in?
@@ -155,7 +155,7 @@ error code, usually caused by the following:
 After submission, ``urb->status`` is ``-EINPROGRESS``; however, you should
 never look at that value except in your completion callback.
 
-For isochronous endpoints, your completion handlers should (re)submit
+For isochroyesus endpoints, your completion handlers should (re)submit
 URBs to the same endpoint with the ``URB_ISO_ASAP`` flag, using
 multi-buffering, to get seamless ISO streaming.
 
@@ -164,17 +164,17 @@ How to cancel an already running URB?
 =====================================
 
 There are two ways to cancel an URB you've submitted but which hasn't
-been returned to your driver yet.  For an asynchronous cancel, call
+been returned to your driver yet.  For an asynchroyesus cancel, call
 :c:func:`usb_unlink_urb`::
 
 	int usb_unlink_urb(struct urb *urb)
 
 It removes the urb from the internal list and frees all allocated
 HW descriptors. The status is changed to reflect unlinking.  Note
-that the URB will not normally have finished when :c:func:`usb_unlink_urb`
+that the URB will yest yesrmally have finished when :c:func:`usb_unlink_urb`
 returns; you must still wait for the completion handler to be called.
 
-To cancel an URB synchronously, call :c:func:`usb_kill_urb`::
+To cancel an URB synchroyesusly, call :c:func:`usb_kill_urb`::
 
 	void usb_kill_urb(struct urb *urb)
 
@@ -193,7 +193,7 @@ which often means some sort of lock will be needed to prevent the URB
 from being deallocated while it is still in use.
 
 On the other hand, since usb_unlink_urb may end up calling the
-completion handler, the handler must not take any lock that is held
+completion handler, the handler must yest take any lock that is held
 when usb_unlink_urb is invoked.  The general solution to this problem
 is to increment the URB's reference count while holding the lock, then
 drop the lock and call usb_unlink_urb or usb_kill_urb, and then
@@ -202,9 +202,9 @@ count by calling :c:func`usb_get_urb`::
 
 	struct urb *usb_get_urb(struct urb *urb)
 
-(ignore the return value; it is the same as the argument) and
+(igyesre the return value; it is the same as the argument) and
 decrement the reference count by calling :c:func:`usb_free_urb`.  Of course,
-none of this is necessary if there's no danger of the URB being freed
+yesne of this is necessary if there's yes danger of the URB being freed
 by the completion handler.
 
 
@@ -236,13 +236,13 @@ In the current kernel, completion handlers run with local interrupts
 disabled, but in the future this will be changed, so don't assume that
 local IRQs are always disabled inside completion handlers.
 
-How to do isochronous (ISO) transfers?
+How to do isochroyesus (ISO) transfers?
 ======================================
 
 Besides the fields present on a bulk transfer, for ISO, you also
 also have to set ``urb->interval`` to say how often to make transfers; it's
 often one per frame (which is once every microframe for highspeed devices).
-The actual interval used will be a power of two that's no bigger than what
+The actual interval used will be a power of two that's yes bigger than what
 you specify. You can use the :c:func:`usb_fill_int_urb` macro to fill
 most ISO transfer fields.
 
@@ -275,7 +275,7 @@ ISO data with some other event stream.
 How to start interrupt (INT) transfers?
 =======================================
 
-Interrupt transfers, like isochronous transfers, are periodic, and happen
+Interrupt transfers, like isochroyesus transfers, are periodic, and happen
 in intervals that are powers of two (1, 2, 4 etc) units.  Units are frames
 for full and low speed devices, and microframes for high speed ones.
 You can use the :c:func:`usb_fill_int_urb` macro to fill INT transfer fields.
@@ -283,7 +283,7 @@ You can use the :c:func:`usb_fill_int_urb` macro to fill INT transfer fields.
 The :c:func:`usb_submit_urb` call modifies ``urb->interval`` to the implemented
 interval value that is less than or equal to the requested interval value.
 
-In Linux 2.6, unlike earlier versions, interrupt URBs are not automagically
+In Linux 2.6, unlike earlier versions, interrupt URBs are yest automagically
 restarted when they complete.  They end when the completion handler is
 called, just like other URBs.  If you want an interrupt URB to be restarted,
 your completion handler must resubmit it.

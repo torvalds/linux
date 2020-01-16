@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Joshua Henderson, joshua.henderson@microchip.com
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techyeslogy Inc.  All rights reserved.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -40,12 +40,12 @@ void __init plat_mem_setup(void)
 
 	dtb = (void *)get_fdtaddr();
 	if (!dtb) {
-		pr_err("pic32: no DTB found.\n");
+		pr_err("pic32: yes DTB found.\n");
 		return;
 	}
 
 	/*
-	 * Load the builtin device tree. This causes the chosen node to be
+	 * Load the builtin device tree. This causes the chosen yesde to be
 	 * parsed resulting in our memory appearing.
 	 */
 	__dt_setup_arch(dtb);
@@ -114,13 +114,13 @@ static struct of_dev_auxdata pic32_auxdata_lookup[] __initdata = {
 
 static int __init pic32_of_prepare_platform_data(struct of_dev_auxdata *lookup)
 {
-	struct device_node *root, *np;
+	struct device_yesde *root, *np;
 	struct resource res;
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 
 	for (; lookup->compatible; lookup++) {
-		np = of_find_compatible_node(NULL, NULL, lookup->compatible);
+		np = of_find_compatible_yesde(NULL, NULL, lookup->compatible);
 		if (np) {
 			lookup->name = (char *)np->name;
 			if (lookup->phys_addr)
@@ -136,7 +136,7 @@ static int __init pic32_of_prepare_platform_data(struct of_dev_auxdata *lookup)
 static int __init plat_of_setup(void)
 {
 	if (!of_have_populated_dt())
-		panic("Device tree not present");
+		panic("Device tree yest present");
 
 	pic32_of_prepare_platform_data(pic32_auxdata_lookup);
 	if (of_platform_default_populate(NULL, pic32_auxdata_lookup, NULL))

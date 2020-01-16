@@ -15,7 +15,7 @@
 #define PCIBIOS_MIN_IO		0
 #define PCIBIOS_MIN_MEM		0
 
-/* RISC-V shim does not initialize PCI bus */
+/* RISC-V shim does yest initialize PCI bus */
 #define pcibios_assign_all_busses() 1
 
 extern int isa_dma_bridge_buggy;
@@ -23,7 +23,7 @@ extern int isa_dma_bridge_buggy;
 #ifdef CONFIG_PCI
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
-	/* no legacy IRQ on risc-v */
+	/* yes legacy IRQ on risc-v */
 	return -ENODEV;
 }
 

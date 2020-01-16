@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-yeste */
 /*
  * osd.h - DEPRECATED On Screen Display API
  *
- * NOTE: should not be used on future drivers
+ * NOTE: should yest be used on future drivers
  *
  * Copyright (C) 2001 Ralph  Metzler <ralph@convergence.de>
  *                  & Marcus Metzler <marcus@convergence.de>
@@ -19,7 +19,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
@@ -30,7 +30,7 @@
 #include <linux/compiler.h>
 
 typedef enum {
-	/* All functions return -2 on "not open" */
+	/* All functions return -2 on "yest open" */
 	OSD_Close = 1,	/* () */
 	/*
 	 * Disables OSD and releases the buffers
@@ -93,7 +93,7 @@ typedef enum {
 	OSD_SetRow,	/* (x0,y0,x1,data) */
 	/*
 	 * fills pixels x0,y through  x1,y with the content of data[]
-	 * returns 0 on success, -1 on clipping all pixel (no pixel drawn)
+	 * returns 0 on success, -1 on clipping all pixel (yes pixel drawn)
 	 */
 	OSD_SetBlock,	/* (x0,y0,x1,y1,increment{color},data) */
 	/*

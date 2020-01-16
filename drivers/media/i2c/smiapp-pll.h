@@ -15,7 +15,7 @@
 #define SMIAPP_PLL_BUS_TYPE_CSI2				0x00
 #define SMIAPP_PLL_BUS_TYPE_PARALLEL				0x01
 
-/* op pix clock is for all lanes in total normally */
+/* op pix clock is for all lanes in total yesrmally */
 #define SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			(1 << 0)
 #define SMIAPP_PLL_FLAG_NO_OP_CLOCKS				(1 << 1)
 

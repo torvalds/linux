@@ -183,7 +183,7 @@ static int __dma_purge_tlb(struct zpci_dev *zdev, dma_addr_t dma_addr,
 	int ret;
 
 	/*
-	 * With zdev->tlb_refresh == 0, rpcit is not required to establish new
+	 * With zdev->tlb_refresh == 0, rpcit is yest required to establish new
 	 * translations when previously invalid translation-table entries are
 	 * validated. With lazy unmap, rpcit is skipped for previously valid
 	 * entries, but a global rpcit is then required before any address can
@@ -205,7 +205,7 @@ static int __dma_purge_tlb(struct zpci_dev *zdev, dma_addr_t dma_addr,
 			goto out;
 
 		spin_lock_irqsave(&zdev->iommu_bitmap_lock, irqflags);
-		bitmap_andnot(zdev->iommu_bitmap, zdev->iommu_bitmap,
+		bitmap_andyest(zdev->iommu_bitmap, zdev->iommu_bitmap,
 			      zdev->lazy_bitmap, zdev->iommu_pages);
 		bitmap_zero(zdev->lazy_bitmap, zdev->iommu_pages);
 		spin_unlock_irqrestore(&zdev->iommu_bitmap_lock, irqflags);
@@ -283,7 +283,7 @@ static dma_addr_t dma_alloc_address(struct device *dev, int size)
 			if (zpci_refresh_global(zdev))
 				goto out_error;
 
-			bitmap_andnot(zdev->iommu_bitmap, zdev->iommu_bitmap,
+			bitmap_andyest(zdev->iommu_bitmap, zdev->iommu_bitmap,
 				      zdev->lazy_bitmap, zdev->iommu_pages);
 			bitmap_zero(zdev->lazy_bitmap, zdev->iommu_pages);
 		}

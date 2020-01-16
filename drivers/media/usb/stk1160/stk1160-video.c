@@ -24,20 +24,20 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 static inline void print_err_status(struct stk1160 *dev,
 				     int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkyeswn";
 
 	switch (status) {
 	case -ENOENT:
-		errmsg = "unlinked synchronously";
+		errmsg = "unlinked synchroyesusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroyesusly";
 		break;
 	case -ENOSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device yest responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -49,7 +49,7 @@ static inline void print_err_status(struct stk1160 *dev,
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does yest respond";
 		break;
 	}
 
@@ -137,7 +137,7 @@ void stk1160_copy_video(struct stk1160 *dev, u8 *src, int len)
 		lencopy = bytesperline - lineoff;
 
 	/*
-	 * Check if we have enough space left in the buffer.
+	 * Check if we have eyesugh space left in the buffer.
 	 * In that case, we force loop exit after copy.
 	 */
 	if (lencopy > buf->bytesused - buf->length) {
@@ -180,7 +180,7 @@ void stk1160_copy_video(struct stk1160 *dev, u8 *src, int len)
 			lencopy = bytesperline;
 
 		/*
-		 * Check if we have enough space left in the buffer.
+		 * Check if we have eyesugh space left in the buffer.
 		 * In that case, we force loop exit after copy.
 		 */
 		if (lencopy > buf->bytesused - buf->length) {
@@ -247,11 +247,11 @@ static void stk1160_process_isoc(struct stk1160 *dev, struct urb *urb)
 
 		/*
 		 * An 8-byte packet sequence means end of field.
-		 * So if we don't have any packet, we start receiving one now
+		 * So if we don't have any packet, we start receiving one yesw
 		 * and if we do have a packet, then we are done with it.
 		 *
 		 * These end of field packets are always 0xc0 or 0x80,
-		 * but not always 8-byte long so we don't check packet length.
+		 * but yest always 8-byte long so we don't check packet length.
 		 */
 		if (p[0] == 0xc0) {
 
@@ -332,7 +332,7 @@ void stk1160_cancel_isoc(struct stk1160 *dev)
 	int i, num_bufs = dev->isoc_ctl.num_bufs;
 
 	/*
-	 * This check is not necessary, but we add it
+	 * This check is yest necessary, but we add it
 	 * to avoid a spurious debug message
 	 */
 	if (!num_bufs)
@@ -458,13 +458,13 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 		dev->isoc_ctl.transfer_buffer[i] = kmalloc(sb_size, GFP_KERNEL);
 #endif
 		if (!dev->isoc_ctl.transfer_buffer[i]) {
-			stk1160_err("cannot alloc %d bytes for tx[%d] buffer\n",
+			stk1160_err("canyest alloc %d bytes for tx[%d] buffer\n",
 				sb_size, i);
 
-			/* Not enough transfer buffers, so just give up */
+			/* Not eyesugh transfer buffers, so just give up */
 			if (i < STK1160_MIN_BUFS)
 				goto free_i_bufs;
-			goto nomore_tx_bufs;
+			goto yesmore_tx_bufs;
 		}
 		memset(dev->isoc_ctl.transfer_buffer[i], 0, sb_size);
 
@@ -502,10 +502,10 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 
 	return 0;
 
-nomore_tx_bufs:
+yesmore_tx_bufs:
 	/*
 	 * Failed to allocate desired buffer count. However, we may have
-	 * enough to work fine, so we just free the extra urb,
+	 * eyesugh to work fine, so we just free the extra urb,
 	 * store the allocated count and keep going, fingers crossed!
 	 */
 	usb_free_urb(dev->isoc_ctl.urb[i]);

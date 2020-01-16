@@ -27,7 +27,7 @@ struct coproc_reg {
 
 	bool is_64bit;
 
-	/* Trapped access from guest, if non-NULL. */
+	/* Trapped access from guest, if yesn-NULL. */
 	bool (*access)(struct kvm_vcpu *,
 		       const struct coproc_params *,
 		       const struct coproc_reg *);
@@ -56,7 +56,7 @@ static inline void print_cp_instr(const struct coproc_params *p)
 	}
 }
 
-static inline bool ignore_write(struct kvm_vcpu *vcpu,
+static inline bool igyesre_write(struct kvm_vcpu *vcpu,
 				const struct coproc_params *p)
 {
 	return true;
@@ -70,7 +70,7 @@ static inline bool read_zero(struct kvm_vcpu *vcpu,
 }
 
 /* Reset functions */
-static inline void reset_unknown(struct kvm_vcpu *vcpu,
+static inline void reset_unkyeswn(struct kvm_vcpu *vcpu,
 				 const struct coproc_reg *r)
 {
 	BUG_ON(!r->reg);
@@ -85,7 +85,7 @@ static inline void reset_val(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 	vcpu_cp15(vcpu, r->reg) = r->val;
 }
 
-static inline void reset_unknown64(struct kvm_vcpu *vcpu,
+static inline void reset_unkyeswn64(struct kvm_vcpu *vcpu,
 				   const struct coproc_reg *r)
 {
 	BUG_ON(!r->reg);

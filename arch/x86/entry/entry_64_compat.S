@@ -7,7 +7,7 @@
 #include "calling.h"
 #include <asm/asm-offsets.h>
 #include <asm/current.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/ia32_unistd.h>
 #include <asm/thread_info.h>
 #include <asm/segment.h>
@@ -33,8 +33,8 @@
  *
  * SYSENTER loads SS, RSP, CS, and RIP from previously programmed MSRs.
  * IF and VM in RFLAGS are cleared (IOW: interrupts are off).
- * SYSENTER does not save anything on the stack,
- * and does not save old RIP (!!!), RSP, or RFLAGS.
+ * SYSENTER does yest save anything on the stack,
+ * and does yest save old RIP (!!!), RSP, or RFLAGS.
  *
  * Arguments:
  * eax  system call number
@@ -58,9 +58,9 @@ SYM_FUNC_START(entry_SYSENTER_compat)
 	/*
 	 * User tracing code (ptrace or signal handlers) might assume that
 	 * the saved RAX contains a 32-bit number when we're invoking a 32-bit
-	 * syscall.  Just in case the high bits are nonzero, zero-extend
+	 * syscall.  Just in case the high bits are yesnzero, zero-extend
 	 * the syscall number.  (This could almost certainly be deleted
-	 * with no ill effects.)
+	 * with yes ill effects.)
 	 */
 	movl	%eax, %eax
 
@@ -71,7 +71,7 @@ SYM_FUNC_START(entry_SYSENTER_compat)
 	/*
 	 * Push flags.  This is nasty.  First, interrupts are currently
 	 * off, but we need pt_regs->flags to have IF set.  Second, even
-	 * if TF was set when SYSENTER started, it's clear by now.  We fix
+	 * if TF was set when SYSENTER started, it's clear by yesw.  We fix
 	 * that later using TIF_SINGLESTEP.
 	 */
 	pushfq				/* pt_regs->flags (except IF = 0) */
@@ -85,25 +85,25 @@ SYM_FUNC_START(entry_SYSENTER_compat)
 	pushq	%rcx			/* pt_regs->cx */
 	pushq	$-ENOSYS		/* pt_regs->ax */
 	pushq   $0			/* pt_regs->r8  = 0 */
-	xorl	%r8d, %r8d		/* nospec   r8 */
+	xorl	%r8d, %r8d		/* yesspec   r8 */
 	pushq   $0			/* pt_regs->r9  = 0 */
-	xorl	%r9d, %r9d		/* nospec   r9 */
+	xorl	%r9d, %r9d		/* yesspec   r9 */
 	pushq   $0			/* pt_regs->r10 = 0 */
-	xorl	%r10d, %r10d		/* nospec   r10 */
+	xorl	%r10d, %r10d		/* yesspec   r10 */
 	pushq   $0			/* pt_regs->r11 = 0 */
-	xorl	%r11d, %r11d		/* nospec   r11 */
+	xorl	%r11d, %r11d		/* yesspec   r11 */
 	pushq   %rbx                    /* pt_regs->rbx */
-	xorl	%ebx, %ebx		/* nospec   rbx */
+	xorl	%ebx, %ebx		/* yesspec   rbx */
 	pushq   %rbp                    /* pt_regs->rbp (will be overwritten) */
-	xorl	%ebp, %ebp		/* nospec   rbp */
+	xorl	%ebp, %ebp		/* yesspec   rbp */
 	pushq   $0			/* pt_regs->r12 = 0 */
-	xorl	%r12d, %r12d		/* nospec   r12 */
+	xorl	%r12d, %r12d		/* yesspec   r12 */
 	pushq   $0			/* pt_regs->r13 = 0 */
-	xorl	%r13d, %r13d		/* nospec   r13 */
+	xorl	%r13d, %r13d		/* yesspec   r13 */
 	pushq   $0			/* pt_regs->r14 = 0 */
-	xorl	%r14d, %r14d		/* nospec   r14 */
+	xorl	%r14d, %r14d		/* yesspec   r14 */
 	pushq   $0			/* pt_regs->r15 = 0 */
-	xorl	%r15d, %r15d		/* nospec   r15 */
+	xorl	%r15d, %r15d		/* yesspec   r15 */
 	cld
 
 	/*
@@ -114,7 +114,7 @@ SYM_FUNC_START(entry_SYSENTER_compat)
 	 * we don't get preempted with NT set.
 	 *
 	 * If TF is set, we will single-step all the way to here -- do_debug
-	 * will ignore all the traps.  (Yes, this is slow, but so is
+	 * will igyesre all the traps.  (Yes, this is slow, but so is
 	 * single-stepping in general.  This allows us to avoid having
 	 * a more complicated code to handle the case where a user program
 	 * forces us to single-step through the SYSENTER entry code.)
@@ -123,7 +123,7 @@ SYM_FUNC_START(entry_SYSENTER_compat)
 	 * out-of-line as an optimization: NT is unlikely to be set in the
 	 * majority of the cases and instead of polluting the I$ unnecessarily,
 	 * we're keeping that code behind a branch which will predict as
-	 * not-taken and therefore its instructions won't be fetched.
+	 * yest-taken and therefore its instructions won't be fetched.
 	 */
 	testl	$X86_EFLAGS_NT|X86_EFLAGS_AC|X86_EFLAGS_TF, EFLAGS(%rsp)
 	jnz	.Lsysenter_fix_flags
@@ -160,14 +160,14 @@ SYM_FUNC_END(entry_SYSENTER_compat)
  * As evidence:
  *
  *  - The calling convention for SYSCALL has changed several times without
- *    anyone noticing.
+ *    anyone yesticing.
  *
  *  - Prior to the in-kernel X86_BUG_SYSRET_SS_ATTRS fixup, anything
  *    user task that did SYSCALL without immediately reloading SS
  *    would randomly crash.
  *
- *  - Most programmers do not directly target AMD CPUs, and the 32-bit
- *    SYSCALL instruction does not exist on Intel CPUs.  Even on AMD
+ *  - Most programmers do yest directly target AMD CPUs, and the 32-bit
+ *    SYSCALL instruction does yest exist on Intel CPUs.  Even on AMD
  *    CPUs, Linux disables the SYSCALL instruction on 32-bit kernels
  *    because the SYSCALL instruction in legacy/native 32-bit mode (as
  *    opposed to compat mode) is sufficiently poorly designed as to be
@@ -175,21 +175,21 @@ SYM_FUNC_END(entry_SYSENTER_compat)
  *
  * 32-bit SYSCALL saves RIP to RCX, clears RFLAGS.RF, then saves
  * RFLAGS to R11, then loads new SS, CS, and RIP from previously
- * programmed MSRs.  RFLAGS gets masked by a value from another MSR
- * (so CLD and CLAC are not needed).  SYSCALL does not save anything on
- * the stack and does not change RSP.
+ * programmed MSRs.  RFLAGS gets masked by a value from ayesther MSR
+ * (so CLD and CLAC are yest needed).  SYSCALL does yest save anything on
+ * the stack and does yest change RSP.
  *
  * Note: RFLAGS saving+masking-with-MSR happens only in Long mode
  * (in legacy 32-bit mode, IF, RF and VM bits are cleared and that's it).
  * Don't get confused: RFLAGS saving+masking depends on Long Mode Active bit
  * (EFER.LMA=1), NOT on bitness of userspace where SYSCALL executes
- * or target CS descriptor's L bit (SYSCALL does not read segment descriptors).
+ * or target CS descriptor's L bit (SYSCALL does yest read segment descriptors).
  *
  * Arguments:
  * eax  system call number
  * ecx  return address
  * ebx  arg1
- * ebp  arg2	(note: not saved in the stack frame, should not be touched)
+ * ebp  arg2	(yeste: yest saved in the stack frame, should yest be touched)
  * edx  arg3
  * esi  arg4
  * edi  arg5
@@ -220,32 +220,32 @@ SYM_INNER_LABEL(entry_SYSCALL_compat_after_hwframe, SYM_L_GLOBAL)
 	pushq	%rax			/* pt_regs->orig_ax */
 	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
-	xorl	%esi, %esi		/* nospec   si */
+	xorl	%esi, %esi		/* yesspec   si */
 	pushq	%rdx			/* pt_regs->dx */
-	xorl	%edx, %edx		/* nospec   dx */
+	xorl	%edx, %edx		/* yesspec   dx */
 	pushq	%rbp			/* pt_regs->cx (stashed in bp) */
-	xorl	%ecx, %ecx		/* nospec   cx */
+	xorl	%ecx, %ecx		/* yesspec   cx */
 	pushq	$-ENOSYS		/* pt_regs->ax */
 	pushq   $0			/* pt_regs->r8  = 0 */
-	xorl	%r8d, %r8d		/* nospec   r8 */
+	xorl	%r8d, %r8d		/* yesspec   r8 */
 	pushq   $0			/* pt_regs->r9  = 0 */
-	xorl	%r9d, %r9d		/* nospec   r9 */
+	xorl	%r9d, %r9d		/* yesspec   r9 */
 	pushq   $0			/* pt_regs->r10 = 0 */
-	xorl	%r10d, %r10d		/* nospec   r10 */
+	xorl	%r10d, %r10d		/* yesspec   r10 */
 	pushq   $0			/* pt_regs->r11 = 0 */
-	xorl	%r11d, %r11d		/* nospec   r11 */
+	xorl	%r11d, %r11d		/* yesspec   r11 */
 	pushq   %rbx                    /* pt_regs->rbx */
-	xorl	%ebx, %ebx		/* nospec   rbx */
+	xorl	%ebx, %ebx		/* yesspec   rbx */
 	pushq   %rbp                    /* pt_regs->rbp (will be overwritten) */
-	xorl	%ebp, %ebp		/* nospec   rbp */
+	xorl	%ebp, %ebp		/* yesspec   rbp */
 	pushq   $0			/* pt_regs->r12 = 0 */
-	xorl	%r12d, %r12d		/* nospec   r12 */
+	xorl	%r12d, %r12d		/* yesspec   r12 */
 	pushq   $0			/* pt_regs->r13 = 0 */
-	xorl	%r13d, %r13d		/* nospec   r13 */
+	xorl	%r13d, %r13d		/* yesspec   r13 */
 	pushq   $0			/* pt_regs->r14 = 0 */
-	xorl	%r14d, %r14d		/* nospec   r14 */
+	xorl	%r14d, %r14d		/* yesspec   r14 */
 	pushq   $0			/* pt_regs->r15 = 0 */
-	xorl	%r15d, %r15d		/* nospec   r15 */
+	xorl	%r15d, %r15d		/* yesspec   r15 */
 
 	/*
 	 * User mode is traced as though IRQs are on, and SYSENTER
@@ -262,8 +262,8 @@ SYM_INNER_LABEL(entry_SYSCALL_compat_after_hwframe, SYM_L_GLOBAL)
 	/* Opportunistic SYSRET */
 sysret32_from_system_call:
 	/*
-	 * We are not going to return to userspace from the trampoline
-	 * stack. So let's erase the thread stack right now.
+	 * We are yest going to return to userspace from the trampoline
+	 * stack. So let's erase the thread stack right yesw.
 	 */
 	STACKLEAK_ERASE
 	TRACE_IRQS_ON			/* User mode traces as IRQs on. */
@@ -286,19 +286,19 @@ sysret32_from_system_call:
          *  CS = __USER32_CS
          *  SS = __USER_DS
          *
-	 * ECX will not match pt_regs->cx, but we're returning to a vDSO
+	 * ECX will yest match pt_regs->cx, but we're returning to a vDSO
 	 * trampoline that will fix up RCX, so this is okay.
 	 *
 	 * R12-R15 are callee-saved, so they contain whatever was in them
-	 * when the system call started, which is already known to user
+	 * when the system call started, which is already kyeswn to user
 	 * code.  We zero R8-R10 to avoid info leaks.
          */
 	movq	RSP-ORIG_RAX(%rsp), %rsp
 
 	/*
 	 * The original userspace %rsp (RSP-ORIG_RAX(%rsp)) is stored
-	 * on the process stack which is not mapped to userspace and
-	 * not readable after we SWITCH_TO_USER_CR3.  Delay the CR3
+	 * on the process stack which is yest mapped to userspace and
+	 * yest readable after we SWITCH_TO_USER_CR3.  Delay the CR3
 	 * switch until after after the last reference to the process
 	 * stack.
 	 *
@@ -327,7 +327,7 @@ SYM_CODE_END(entry_SYSCALL_compat)
  * $0x80 regardless of what instruction was originally used to do the
  * system call.
  *
- * This is considered a slow path.  It is not used by most libc
+ * This is considered a slow path.  It is yest used by most libc
  * implementations on modern hardware except during process startup.
  *
  * Arguments:
@@ -349,9 +349,9 @@ SYM_CODE_START(entry_INT80_compat)
 	/*
 	 * User tracing code (ptrace or signal handlers) might assume that
 	 * the saved RAX contains a 32-bit number when we're invoking a 32-bit
-	 * syscall.  Just in case the high bits are nonzero, zero-extend
+	 * syscall.  Just in case the high bits are yesnzero, zero-extend
 	 * the syscall number.  (This could almost certainly be deleted
-	 * with no ill effects.)
+	 * with yes ill effects.)
 	 */
 	movl	%eax, %eax
 
@@ -375,32 +375,32 @@ SYM_CODE_START(entry_INT80_compat)
 .Lint80_keep_stack:
 
 	pushq	%rsi			/* pt_regs->si */
-	xorl	%esi, %esi		/* nospec   si */
+	xorl	%esi, %esi		/* yesspec   si */
 	pushq	%rdx			/* pt_regs->dx */
-	xorl	%edx, %edx		/* nospec   dx */
+	xorl	%edx, %edx		/* yesspec   dx */
 	pushq	%rcx			/* pt_regs->cx */
-	xorl	%ecx, %ecx		/* nospec   cx */
+	xorl	%ecx, %ecx		/* yesspec   cx */
 	pushq	$-ENOSYS		/* pt_regs->ax */
 	pushq   %r8			/* pt_regs->r8 */
-	xorl	%r8d, %r8d		/* nospec   r8 */
+	xorl	%r8d, %r8d		/* yesspec   r8 */
 	pushq   %r9			/* pt_regs->r9 */
-	xorl	%r9d, %r9d		/* nospec   r9 */
+	xorl	%r9d, %r9d		/* yesspec   r9 */
 	pushq   %r10			/* pt_regs->r10*/
-	xorl	%r10d, %r10d		/* nospec   r10 */
+	xorl	%r10d, %r10d		/* yesspec   r10 */
 	pushq   %r11			/* pt_regs->r11 */
-	xorl	%r11d, %r11d		/* nospec   r11 */
+	xorl	%r11d, %r11d		/* yesspec   r11 */
 	pushq   %rbx                    /* pt_regs->rbx */
-	xorl	%ebx, %ebx		/* nospec   rbx */
+	xorl	%ebx, %ebx		/* yesspec   rbx */
 	pushq   %rbp                    /* pt_regs->rbp */
-	xorl	%ebp, %ebp		/* nospec   rbp */
+	xorl	%ebp, %ebp		/* yesspec   rbp */
 	pushq   %r12                    /* pt_regs->r12 */
-	xorl	%r12d, %r12d		/* nospec   r12 */
+	xorl	%r12d, %r12d		/* yesspec   r12 */
 	pushq   %r13                    /* pt_regs->r13 */
-	xorl	%r13d, %r13d		/* nospec   r13 */
+	xorl	%r13d, %r13d		/* yesspec   r13 */
 	pushq   %r14                    /* pt_regs->r14 */
-	xorl	%r14d, %r14d		/* nospec   r14 */
+	xorl	%r14d, %r14d		/* yesspec   r14 */
 	pushq   %r15                    /* pt_regs->r15 */
-	xorl	%r15d, %r15d		/* nospec   r15 */
+	xorl	%r15d, %r15d		/* yesspec   r15 */
 	cld
 
 	/*

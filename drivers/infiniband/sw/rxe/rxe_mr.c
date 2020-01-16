@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -307,7 +307,7 @@ void *iova_to_vaddr(struct rxe_mem *mem, u64 iova, int length)
 	void *addr;
 
 	if (mem->state != RXE_MEM_STATE_VALID) {
-		pr_warn("mem not in valid state\n");
+		pr_warn("mem yest in valid state\n");
 		addr = NULL;
 		goto out;
 	}
@@ -339,7 +339,7 @@ out:
 
 /* copy data from a range (vaddr, vaddr+length-1) to or from
  * a mem object starting at iova. Compute incremental value of
- * crc32 if crcp is not zero. caller must hold a reference to mem
+ * crc32 if crcp is yest zero. caller must hold a reference to mem
  */
 int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		 enum copy_direction dir, u32 *crcp)

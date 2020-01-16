@@ -21,9 +21,9 @@ void prom_putchar(char c)
 }
 
 #ifdef CONFIG_VIRTIO_CONSOLE
-static int paravirt_put_chars(u32 vtermno, const char *buf, int count)
+static int paravirt_put_chars(u32 vtermyes, const char *buf, int count)
 {
-	kvm_hypercall3(KVM_HC_MIPS_CONSOLE_OUTPUT, vtermno,
+	kvm_hypercall3(KVM_HC_MIPS_CONSOLE_OUTPUT, vtermyes,
 		(unsigned long)buf, count);
 
 	return count;

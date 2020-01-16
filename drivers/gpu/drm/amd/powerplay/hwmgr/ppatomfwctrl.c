@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -81,9 +81,9 @@ bool pp_atomfwctrl_is_voltage_controlled_by_gpio_v4(struct pp_hwmgr *hwmgr,
 			pp_atomfwctrl_get_voltage_info_table(hwmgr);
 	bool ret;
 
-	/* If we cannot find the table do NOT try to control this voltage. */
+	/* If we canyest find the table do NOT try to control this voltage. */
 	PP_ASSERT_WITH_CODE(voltage_info,
-			"Could not find Voltage Table in BIOS.",
+			"Could yest find Voltage Table in BIOS.",
 			return false);
 
 	ret = (pp_atomfwctrl_lookup_voltage_type_v4(voltage_info,
@@ -104,7 +104,7 @@ int pp_atomfwctrl_get_voltage_table_v4(struct pp_hwmgr *hwmgr,
 	int result = 0;
 
 	PP_ASSERT_WITH_CODE(voltage_info,
-			"Could not find Voltage Table in BIOS.",
+			"Could yest find Voltage Table in BIOS.",
 			return -1);
 
 	voltage_object = pp_atomfwctrl_lookup_voltage_type_v4(voltage_info,
@@ -213,9 +213,9 @@ bool pp_atomfwctrl_get_pp_assign_pin(struct pp_hwmgr *hwmgr,
 	struct atom_gpio_pin_lut_v2_1 *gpio_lookup_table =
 			pp_atomfwctrl_get_gpio_lookup_table(hwmgr);
 
-	/* If we cannot find the table do NOT try to control this voltage. */
+	/* If we canyest find the table do NOT try to control this voltage. */
 	PP_ASSERT_WITH_CODE(gpio_lookup_table,
-			"Could not find GPIO lookup Table in BIOS.",
+			"Could yest find GPIO lookup Table in BIOS.",
 			return false);
 
 	ret = pp_atomfwctrl_lookup_gpio_pin(gpio_lookup_table,
@@ -230,7 +230,7 @@ bool pp_atomfwctrl_get_pp_assign_pin(struct pp_hwmgr *hwmgr,
 */
 int pp_atomfwctrl_enter_self_refresh(struct pp_hwmgr *hwmgr)
 {
-	/* 0 - no action
+	/* 0 - yes action
 	 * 1 - leave power to video memory always on
 	 */
 	return 0;
@@ -610,7 +610,7 @@ int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 		pp_atomfwctrl_copy_vbios_bootup_values_3_1(hwmgr,
 				boot_values, fwinfo_3_1);
 	} else {
-		pr_info("Fw info table revision does not match!");
+		pr_info("Fw info table revision does yest match!");
 		return -EINVAL;
 	}
 

@@ -18,7 +18,7 @@
 #include <net/sock.h>
 
 #include "debug.h"
-#include "snoc.h"
+#include "syesc.h"
 
 #define ATH10K_QMI_CLIENT_ID		0x4b4e454c
 #define ATH10K_QMI_TIMEOUT		30
@@ -237,15 +237,15 @@ static int ath10k_qmi_bdf_dnld_send_sync(struct ath10k_qmi *qmi)
 	if (!req)
 		return -ENOMEM;
 
-	temp = ar->normal_mode_fw.board_data;
-	remaining = ar->normal_mode_fw.board_len;
+	temp = ar->yesrmal_mode_fw.board_data;
+	remaining = ar->yesrmal_mode_fw.board_len;
 
 	while (remaining) {
 		req->valid = 1;
 		req->file_id_valid = 1;
 		req->file_id = 0;
 		req->total_size_valid = 1;
-		req->total_size = ar->normal_mode_fw.board_len;
+		req->total_size = ar->yesrmal_mode_fw.board_len;
 		req->seg_id_valid = 1;
 		req->data_valid = 1;
 		req->end_valid = 1;
@@ -306,14 +306,14 @@ static int ath10k_qmi_send_cal_report_req(struct ath10k_qmi *qmi)
 	struct wlfw_cal_report_resp_msg_v01 resp = {};
 	struct wlfw_cal_report_req_msg_v01 req = {};
 	struct ath10k *ar = qmi->ar;
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_syesc *ar_syesc = ath10k_syesc_priv(ar);
 	struct qmi_txn txn;
 	int i, j = 0;
 	int ret;
 
-	if (ar_snoc->xo_cal_supported) {
+	if (ar_syesc->xo_cal_supported) {
 		req.xo_cal_data_valid = 1;
-		req.xo_cal_data = ar_snoc->xo_cal_data;
+		req.xo_cal_data = ar_syesc->xo_cal_data;
 	}
 
 	ret = qmi_txn_init(&qmi->qmi_hdl, &txn, wlfw_cal_report_resp_msg_v01_ei,
@@ -360,8 +360,8 @@ out:
 static int
 ath10k_qmi_mode_send_sync_msg(struct ath10k *ar, enum wlfw_driver_mode_enum_v01 mode)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_qmi *qmi = ar_snoc->qmi;
+	struct ath10k_syesc *ar_syesc = ath10k_syesc_priv(ar);
+	struct ath10k_qmi *qmi = ar_syesc->qmi;
 	struct wlfw_wlan_mode_resp_msg_v01 resp = {};
 	struct wlfw_wlan_mode_req_msg_v01 req = {};
 	struct qmi_txn txn;
@@ -409,8 +409,8 @@ ath10k_qmi_cfg_send_sync_msg(struct ath10k *ar,
 			     struct ath10k_qmi_wlan_enable_cfg *config,
 			     const char *version)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_qmi *qmi = ar_snoc->qmi;
+	struct ath10k_syesc *ar_syesc = ath10k_syesc_priv(ar);
+	struct ath10k_qmi *qmi = ar_syesc->qmi;
 	struct wlfw_wlan_cfg_resp_msg_v01 resp = {};
 	struct wlfw_wlan_cfg_req_msg_v01 *req;
 	struct qmi_txn txn;
@@ -527,7 +527,7 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 	struct wlfw_cap_resp_msg_v01 *resp;
 	struct wlfw_cap_req_msg_v01 req = {};
 	struct ath10k *ar = qmi->ar;
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_syesc *ar_syesc = ath10k_syesc_priv(ar);
 	struct qmi_txn txn;
 	int ret;
 
@@ -582,7 +582,7 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 		strlcpy(qmi->fw_build_id, resp->fw_build_id,
 			MAX_BUILD_ID_LEN + 1);
 
-	if (!test_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags)) {
+	if (!test_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_syesc->flags)) {
 		ath10k_info(ar, "qmi chip_id 0x%x chip_family 0x%x board_id 0x%x soc_id 0x%x",
 			    qmi->chip_info.chip_id, qmi->chip_info.chip_family,
 			    qmi->board_info.board_id, qmi->soc_info.soc_id);
@@ -604,7 +604,7 @@ static int ath10k_qmi_host_cap_send_sync(struct ath10k_qmi *qmi)
 	struct wlfw_host_cap_req_msg_v01 req = {};
 	struct qmi_elem_info *req_ei;
 	struct ath10k *ar = qmi->ar;
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_syesc *ar_syesc = ath10k_syesc_priv(ar);
 	struct qmi_txn txn;
 	int ret;
 
@@ -616,7 +616,7 @@ static int ath10k_qmi_host_cap_send_sync(struct ath10k_qmi *qmi)
 	if (ret < 0)
 		goto out;
 
-	if (test_bit(ATH10K_SNOC_FLAG_8BIT_HOST_CAP_QUIRK, &ar_snoc->flags))
+	if (test_bit(ATH10K_SNOC_FLAG_8BIT_HOST_CAP_QUIRK, &ar_syesc->flags))
 		req_ei = wlfw_host_cap_8bit_req_msg_v01_ei;
 	else
 		req_ei = wlfw_host_cap_req_msg_v01_ei;
@@ -650,9 +650,9 @@ out:
 
 int ath10k_qmi_set_fw_log_mode(struct ath10k *ar, u8 fw_log_mode)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_syesc *ar_syesc = ath10k_syesc_priv(ar);
 	struct wlfw_ini_resp_msg_v01 resp = {};
-	struct ath10k_qmi *qmi = ar_snoc->qmi;
+	struct ath10k_qmi *qmi = ar_syesc->qmi;
 	struct wlfw_ini_req_msg_v01 req = {};
 	struct qmi_txn txn;
 	int ret;
@@ -699,7 +699,7 @@ ath10k_qmi_ind_register_send_sync_msg(struct ath10k_qmi *qmi)
 	struct wlfw_ind_register_resp_msg_v01 resp = {};
 	struct wlfw_ind_register_req_msg_v01 req = {};
 	struct ath10k *ar = qmi->ar;
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_syesc *ar_syesc = ath10k_syesc_priv(ar);
 	struct qmi_txn txn;
 	int ret;
 
@@ -710,7 +710,7 @@ ath10k_qmi_ind_register_send_sync_msg(struct ath10k_qmi *qmi)
 	req.msa_ready_enable_valid = 1;
 	req.msa_ready_enable = 1;
 
-	if (ar_snoc->xo_cal_supported) {
+	if (ar_syesc->xo_cal_supported) {
 		req.xo_cal_enable_valid = 1;
 		req.xo_cal_enable = 1;
 	}
@@ -761,7 +761,7 @@ static void ath10k_qmi_event_server_arrive(struct ath10k_qmi *qmi)
 		return;
 
 	if (qmi->fw_ready) {
-		ath10k_snoc_fw_indication(ar, ATH10K_QMI_EVENT_FW_READY_IND);
+		ath10k_syesc_fw_indication(ar, ATH10K_QMI_EVENT_FW_READY_IND);
 		return;
 	}
 
@@ -836,14 +836,14 @@ ath10k_qmi_driver_event_post(struct ath10k_qmi *qmi,
 static void ath10k_qmi_event_server_exit(struct ath10k_qmi *qmi)
 {
 	struct ath10k *ar = qmi->ar;
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_syesc *ar_syesc = ath10k_syesc_priv(ar);
 
 	ath10k_qmi_remove_msa_permission(qmi);
 	ath10k_core_free_board_files(ar);
-	if (!test_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags))
-		ath10k_snoc_fw_crashed_dump(ar);
+	if (!test_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_syesc->flags))
+		ath10k_syesc_fw_crashed_dump(ar);
 
-	ath10k_snoc_fw_indication(ar, ATH10K_QMI_EVENT_FW_DOWN_IND);
+	ath10k_syesc_fw_indication(ar, ATH10K_QMI_EVENT_FW_DOWN_IND);
 	ath10k_dbg(ar, ATH10K_DBG_QMI, "wifi fw qmi service disconnected\n");
 }
 
@@ -870,7 +870,7 @@ static int ath10k_qmi_event_fw_ready_ind(struct ath10k_qmi *qmi)
 	struct ath10k *ar = qmi->ar;
 
 	ath10k_dbg(ar, ATH10K_DBG_QMI, "wifi fw ready event received\n");
-	ath10k_snoc_fw_indication(ar, ATH10K_QMI_EVENT_FW_READY_IND);
+	ath10k_syesc_fw_indication(ar, ATH10K_QMI_EVENT_FW_READY_IND);
 
 	return 0;
 }
@@ -920,7 +920,7 @@ static int ath10k_qmi_new_server(struct qmi_handle *qmi_hdl,
 	int ret;
 
 	sq->sq_family = AF_QIPCRTR;
-	sq->sq_node = service->node;
+	sq->sq_yesde = service->yesde;
 	sq->sq_port = service->port;
 
 	ath10k_dbg(ar, ATH10K_DBG_QMI, "wifi fw qmi service found\n");
@@ -994,18 +994,18 @@ static int ath10k_qmi_setup_msa_resources(struct ath10k_qmi *qmi, u32 msa_size)
 {
 	struct ath10k *ar = qmi->ar;
 	struct device *dev = ar->dev;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct resource r;
 	int ret;
 
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (node) {
-		ret = of_address_to_resource(node, 0, &r);
+	yesde = of_parse_phandle(dev->of_yesde, "memory-region", 0);
+	if (yesde) {
+		ret = of_address_to_resource(yesde, 0, &r);
 		if (ret) {
 			dev_err(dev, "failed to resolve msa fixed region\n");
 			return ret;
 		}
-		of_node_put(node);
+		of_yesde_put(yesde);
 
 		qmi->msa_pa = r.start;
 		qmi->msa_mem_size = resource_size(&r);
@@ -1034,7 +1034,7 @@ static int ath10k_qmi_setup_msa_resources(struct ath10k_qmi *qmi, u32 msa_size)
 
 int ath10k_qmi_init(struct ath10k *ar, u32 msa_size)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_syesc *ar_syesc = ath10k_syesc_priv(ar);
 	struct ath10k_qmi *qmi;
 	int ret;
 
@@ -1043,7 +1043,7 @@ int ath10k_qmi_init(struct ath10k *ar, u32 msa_size)
 		return -ENOMEM;
 
 	qmi->ar = ar;
-	ar_snoc->qmi = qmi;
+	ar_syesc->qmi = qmi;
 
 	ret = ath10k_qmi_setup_msa_resources(qmi, msa_size);
 	if (ret)
@@ -1087,14 +1087,14 @@ err:
 
 int ath10k_qmi_deinit(struct ath10k *ar)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_qmi *qmi = ar_snoc->qmi;
+	struct ath10k_syesc *ar_syesc = ath10k_syesc_priv(ar);
+	struct ath10k_qmi *qmi = ar_syesc->qmi;
 
 	qmi_handle_release(&qmi->qmi_hdl);
 	cancel_work_sync(&qmi->event_work);
 	destroy_workqueue(qmi->event_wq);
 	kfree(qmi);
-	ar_snoc->qmi = NULL;
+	ar_syesc->qmi = NULL;
 
 	return 0;
 }

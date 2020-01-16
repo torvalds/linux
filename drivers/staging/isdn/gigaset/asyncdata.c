@@ -16,7 +16,7 @@
 #include <linux/export.h>
 
 /* check if byte must be stuffed/escaped
- * I'm not sure which data should be encoded.
+ * I'm yest sure which data should be encoded.
  * Therefore I will go the hard way and encode every value
  * less than 0x20, the flag sequence and the control escape char.
  */
@@ -96,7 +96,7 @@ static unsigned cmd_loop(unsigned numbytes, struct inbuf_t *inbuf)
 				inbuf->inputstate |= INS_DLE_char;
 				goto exit;
 			}
-			/* quoted or not in DLE mode: treat as regular data */
+			/* quoted or yest in DLE mode: treat as regular data */
 			/* fall through */
 		default:
 			/* append to line buffer if possible */
@@ -240,8 +240,8 @@ byte_stuff:
 			continue;
 #ifdef CONFIG_GIGASET_DEBUG
 		} else if (muststuff(c)) {
-			/* Should not happen. Possible after ZDLE=1<CR><LF>. */
-			gig_dbg(DEBUG_HDLC, "not byte stuffed: 0x%02x", c);
+			/* Should yest happen. Possible after ZDLE=1<CR><LF>. */
+			gig_dbg(DEBUG_HDLC, "yest byte stuffed: 0x%02x", c);
 #endif
 		}
 
@@ -329,7 +329,7 @@ static unsigned iraw_loop(unsigned numbytes, struct inbuf_t *inbuf)
 /* process DLE escapes
  * Called whenever a DLE sequence might be encountered in the input stream.
  * Either processes the entire DLE sequence or, if that isn't possible,
- * notes the fact that an initial DLE has been received in the INS_DLE_char
+ * yestes the fact that an initial DLE has been received in the INS_DLE_char
  * inputstate flag and resumes processing of the sequence on the next call.
  */
 static void handle_dle(struct inbuf_t *inbuf)
@@ -337,10 +337,10 @@ static void handle_dle(struct inbuf_t *inbuf)
 	struct cardstate *cs = inbuf->cs;
 
 	if (cs->mstate == MS_LOCKED)
-		return;		/* no DLE processing in lock mode */
+		return;		/* yes DLE processing in lock mode */
 
 	if (!(inbuf->inputstate & INS_DLE_char)) {
-		/* no DLE pending */
+		/* yes DLE pending */
 		if (inbuf->data[inbuf->head] == DLE_FLAG &&
 		    (cs->dle || inbuf->inputstate & INS_DLE_command)) {
 			/* start of DLE sequence */
@@ -363,14 +363,14 @@ static void handle_dle(struct inbuf_t *inbuf)
 	switch (inbuf->data[inbuf->head]) {
 	case 'X':	/* begin of event message */
 		if (inbuf->inputstate & INS_command)
-			dev_notice(cs->dev,
+			dev_yestice(cs->dev,
 				   "received <DLE>X in command mode\n");
 		inbuf->inputstate |= INS_command | INS_DLE_command;
 		inbuf->head++;	/* byte consumed */
 		break;
 	case '.':	/* end of event message */
 		if (!(inbuf->inputstate & INS_DLE_command))
-			dev_notice(cs->dev,
+			dev_yestice(cs->dev,
 				   "received <DLE>. without <DLE>X\n");
 		inbuf->inputstate &= ~INS_DLE_command;
 		/* return to data mode if in DLE mode */
@@ -382,11 +382,11 @@ static void handle_dle(struct inbuf_t *inbuf)
 		/* mark as quoted */
 		inbuf->inputstate |= INS_DLE_char;
 		if (!(cs->dle || inbuf->inputstate & INS_DLE_command))
-			dev_notice(cs->dev,
-				   "received <DLE><DLE> not in DLE mode\n");
+			dev_yestice(cs->dev,
+				   "received <DLE><DLE> yest in DLE mode\n");
 		break;	/* quoted byte left in buffer */
 	default:
-		dev_notice(cs->dev, "received <DLE><%02x>\n",
+		dev_yestice(cs->dev, "received <DLE><%02x>\n",
 			   inbuf->data[inbuf->head]);
 		/* quoted byte left in buffer */
 	}
@@ -418,7 +418,7 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 		gig_dbg(DEBUG_INTR, "processing %u bytes", numbytes);
 		/*
 		 * numbytes may be 0 if handle_dle() ate the last byte.
-		 * This does no harm, *_loop() will just return 0 immediately.
+		 * This does yes harm, *_loop() will just return 0 immediately.
 		 */
 
 		if (cs->mstate == MS_LOCKED)

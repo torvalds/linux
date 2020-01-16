@@ -479,7 +479,7 @@ static int lm3533_device_init(struct lm3533 *lm3533)
 	dev_dbg(lm3533->dev, "%s\n", __func__);
 
 	if (!pdata) {
-		dev_err(lm3533->dev, "no platform data\n");
+		dev_err(lm3533->dev, "yes platform data\n");
 		return -EINVAL;
 	}
 

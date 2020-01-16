@@ -340,7 +340,7 @@ void rtl88ee_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HAL_DEF_WOWLAN:
 		break;
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -468,12 +468,12 @@ void rtl88ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 		}
 	case HW_VAR_AMPDU_FACTOR:{
-		u8 regtoset_normal[4] = { 0x41, 0xa8, 0x72, 0xb9 };
+		u8 regtoset_yesrmal[4] = { 0x41, 0xa8, 0x72, 0xb9 };
 		u8 factor_toset;
 		u8 *p_regtoset = NULL;
 		u8 index = 0;
 
-		p_regtoset = regtoset_normal;
+		p_regtoset = regtoset_yesrmal;
 
 		factor_toset = *val;
 		if (factor_toset <= 3) {
@@ -553,7 +553,7 @@ void rtl88ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				acm_ctrl &= (~ACMHW_VOQEN);
 				break;
 			default:
-				pr_err("switch case %#x not processed\n",
+				pr_err("switch case %#x yest processed\n",
 				       e_aci);
 				break;
 			}
@@ -717,7 +717,7 @@ void rtl88ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				    2, array);
 		break; }
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -909,7 +909,7 @@ static bool _rtl88ee_init_mac(struct ieee80211_hw *hw)
 			DMA_BIT_MASK(32));
 
 	/* if we want to support 64 bit DMA, we should set it here,
-	 * but now we do not support 64 bit DMA
+	 * but yesw we do yest support 64 bit DMA
 	 */
 	rtl_write_dword(rtlpriv, REG_INT_MIG, 0);
 
@@ -1009,7 +1009,7 @@ void rtl88ee_enable_hw_security_config(struct ieee80211_hw *hw)
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-			 "not open hw encryption\n");
+			 "yest open hw encryption\n");
 		return;
 	}
 
@@ -1077,7 +1077,7 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 	err = rtl88e_download_fw(hw, false);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "Failed to download FW. Init HW without FW now..\n");
+			 "Failed to download FW. Init HW without FW yesw..\n");
 		err = 1;
 		goto exit;
 	}
@@ -1225,7 +1225,7 @@ static int _rtl88ee_set_media_status(struct ieee80211_hw *hw,
 			 "Set Network type to AP!\n");
 		break;
 	default:
-		pr_err("Network type %d not support!\n", type);
+		pr_err("Network type %d yest support!\n", type);
 		return 1;
 		break;
 	}
@@ -1234,7 +1234,7 @@ static int _rtl88ee_set_media_status(struct ieee80211_hw *hw,
 	 * MSR_ADHOC == Link in ad hoc network;
 	 * Therefore, check link state is necessary.
 	 *
-	 * MSR_AP == AP mode; link state is not cared here.
+	 * MSR_AP == AP mode; link state is yest cared here.
 	 */
 	if (mode != MSR_AP && rtlpriv->mac80211.link_state < MAC80211_LINKED) {
 		mode = MSR_NOLINK;
@@ -1341,7 +1341,7 @@ void rtl88ee_enable_interrupt(struct ieee80211_hw *hw)
 	rtlpci->irq_enabled = true;
 	/* there are some C2H CMDs have been sent
 	 * before system interrupt is enabled, e.g., C2H, CPWM.
-	 * So we need to clear all C2H events that FW has notified,
+	 * So we need to clear all C2H events that FW has yestified,
 	 * otherwise FW won't schedule any commands anymore.
 	 */
 	rtl_write_byte(rtlpriv, REG_C2HEVT_CLEAR, 0);
@@ -1785,7 +1785,7 @@ static void _rtl88ee_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 		rtlefuse->eeprom_thermalmeter = EEPROM_DEFAULT_THERMALMETER;
 
 	if (rtlefuse->eeprom_thermalmeter == 0xff || autoload_fail) {
-		rtlefuse->apk_thermalmeterignore = true;
+		rtlefuse->apk_thermalmeterigyesre = true;
 		rtlefuse->eeprom_thermalmeter = EEPROM_DEFAULT_THERMALMETER;
 	}
 
@@ -2323,7 +2323,7 @@ void rtl88ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 			enc_algo = CAM_AES;
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x yest processed\n",
 			       enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
@@ -2342,7 +2342,7 @@ void rtl88ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id =
 					  rtl_cam_get_free_entry(hw, p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("Can not find free hw security cam entry\n");
+						pr_err("Can yest find free hw security cam entry\n");
 						return;
 					}
 				} else {

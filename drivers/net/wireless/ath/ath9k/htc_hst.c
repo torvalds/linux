@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -243,7 +243,7 @@ int htc_connect_service(struct htc_target *target,
 	/* Find an available endpoint */
 	endpoint = get_next_avail_ep(target->endpoint);
 	if (!endpoint) {
-		dev_err(target->dev, "Endpoint is not available for service %d\n",
+		dev_err(target->dev, "Endpoint is yest available for service %d\n",
 			service_connreq->service_id);
 		return -EINVAL;
 	}
@@ -381,7 +381,7 @@ static void ath9k_htc_fw_panic_report(struct htc_target *htc_handle,
 		break;
 		}
 	default:
-		dev_err(htc_handle->dev, "ath: unknown panic pattern!\n");
+		dev_err(htc_handle->dev, "ath: unkyeswn panic pattern!\n");
 		break;
 	}
 }

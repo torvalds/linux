@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -38,7 +38,7 @@ extern void ret_from_kernel_thread(void);
 /*
  * User space process size: memory size
  *
- * TASK_SIZE on MMU cpu is usually 1GB. However, on no-MMU arch, both
+ * TASK_SIZE on MMU cpu is usually 1GB. However, on yes-MMU arch, both
  * user processes and the kernel is on the same memory region. They
  * both share the memory space and that is limited by the amount of
  * physical memory. thus, we set TASK_SIZE == amount of total memory.

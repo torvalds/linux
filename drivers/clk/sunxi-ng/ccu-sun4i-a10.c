@@ -47,9 +47,9 @@ static struct ccu_nkmp pll_core_clk = {
  *
  * With sigma-delta modulation for fractional-N on the audio PLL,
  * we have to use specific dividers. This means the variable divider
- * can no longer be used, as the audio codec requests the exact clock
- * rates we support through this mechanism. So we now hard code the
- * variable divider to 1. This means the clock rates will no longer
+ * can yes longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we yesw hard code the
+ * variable divider to 1. This means the clock rates will yes longer
  * match the clock names.
  */
 #define SUN4I_PLL_AUDIO_REG	0x008
@@ -468,7 +468,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(mmc0_clk, "mmc0", mod0_default_parents, 0x088,
 				  BIT(31),	/* gate */
 				  0);
 
-/* MMC output and sample clocks are not present on A10 */
+/* MMC output and sample clocks are yest present on A10 */
 static SUNXI_CCU_PHASE(mmc0_output_clk, "mmc0_output", "mmc0",
 		       0x088, 8, 3, 0);
 static SUNXI_CCU_PHASE(mmc0_sample_clk, "mmc0_sample", "mmc0",
@@ -481,7 +481,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(mmc1_clk, "mmc1", mod0_default_parents, 0x08c,
 				  BIT(31),	/* gate */
 				  0);
 
-/* MMC output and sample clocks are not present on A10 */
+/* MMC output and sample clocks are yest present on A10 */
 static SUNXI_CCU_PHASE(mmc1_output_clk, "mmc1_output", "mmc1",
 		       0x08c, 8, 3, 0);
 static SUNXI_CCU_PHASE(mmc1_sample_clk, "mmc1_sample", "mmc1",
@@ -494,7 +494,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(mmc2_clk, "mmc2", mod0_default_parents, 0x090,
 				  BIT(31),	/* gate */
 				  0);
 
-/* MMC output and sample clocks are not present on A10 */
+/* MMC output and sample clocks are yest present on A10 */
 static SUNXI_CCU_PHASE(mmc2_output_clk, "mmc2_output", "mmc2",
 		       0x090, 8, 3, 0);
 static SUNXI_CCU_PHASE(mmc2_sample_clk, "mmc2_sample", "mmc2",
@@ -507,7 +507,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(mmc3_clk, "mmc3", mod0_default_parents, 0x094,
 				  BIT(31),	/* gate */
 				  0);
 
-/* MMC output and sample clocks are not present on A10 */
+/* MMC output and sample clocks are yest present on A10 */
 static SUNXI_CCU_PHASE(mmc3_output_clk, "mmc3_output", "mmc3",
 		       0x094, 8, 3, 0);
 static SUNXI_CCU_PHASE(mmc3_sample_clk, "mmc3_sample", "mmc3",
@@ -1425,16 +1425,16 @@ static const struct sunxi_ccu_desc sun7i_a20_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sunxi_a10_a20_ccu_resets),
 };
 
-static void __init sun4i_ccu_init(struct device_node *node,
+static void __init sun4i_ccu_init(struct device_yesde *yesde,
 				  const struct sunxi_ccu_desc *desc)
 {
 	void __iomem *reg;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(reg)) {
-		pr_err("%s: Could not map the clock registers\n",
-		       of_node_full_name(node));
+		pr_err("%s: Could yest map the clock registers\n",
+		       of_yesde_full_name(yesde));
 		return;
 	}
 
@@ -1443,7 +1443,7 @@ static void __init sun4i_ccu_init(struct device_node *node,
 	/*
 	 * Force VCO and PLL bias current to lowest setting. Higher
 	 * settings interfere with sigma-delta modulation and result
-	 * in audible noise and distortions when using SPDIF or I2S.
+	 * in audible yesise and distortions when using SPDIF or I2S.
 	 */
 	val &= ~GENMASK(25, 16);
 
@@ -1464,19 +1464,19 @@ static void __init sun4i_ccu_init(struct device_node *node,
 	val &= ~GENMASK(7, 6);
 	writel(val | (2 << 6), reg + SUN4I_AHB_REG);
 
-	sunxi_ccu_probe(node, reg, desc);
+	sunxi_ccu_probe(yesde, reg, desc);
 }
 
-static void __init sun4i_a10_ccu_setup(struct device_node *node)
+static void __init sun4i_a10_ccu_setup(struct device_yesde *yesde)
 {
-	sun4i_ccu_init(node, &sun4i_a10_ccu_desc);
+	sun4i_ccu_init(yesde, &sun4i_a10_ccu_desc);
 }
 CLK_OF_DECLARE(sun4i_a10_ccu, "allwinner,sun4i-a10-ccu",
 	       sun4i_a10_ccu_setup);
 
-static void __init sun7i_a20_ccu_setup(struct device_node *node)
+static void __init sun7i_a20_ccu_setup(struct device_yesde *yesde)
 {
-	sun4i_ccu_init(node, &sun7i_a20_ccu_desc);
+	sun4i_ccu_init(yesde, &sun7i_a20_ccu_desc);
 }
 CLK_OF_DECLARE(sun7i_a20_ccu, "allwinner,sun7i-a20-ccu",
 	       sun7i_a20_ccu_setup);

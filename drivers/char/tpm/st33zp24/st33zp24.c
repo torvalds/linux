@@ -151,7 +151,7 @@ static int request_locality(struct tpm_chip *chip)
 		msleep(TPM_TIMEOUT);
 	} while (time_before(jiffies, stop));
 
-	/* could not get locality */
+	/* could yest get locality */
 	return -EACCES;
 } /* request_locality() */
 
@@ -280,7 +280,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 			}
 		} while (ret == -ERESTARTSYS && freezing(current));
 
-		disable_irq_nosync(tpm_dev->irq);
+		disable_irq_yessync(tpm_dev->irq);
 
 	} else {
 		do {
@@ -338,7 +338,7 @@ static irqreturn_t tpm_ioserirq_handler(int irq, void *dev_id)
 
 	tpm_dev->intrs++;
 	wake_up_interruptible(&tpm_dev->read_queue);
-	disable_irq_nosync(tpm_dev->irq);
+	disable_irq_yessync(tpm_dev->irq);
 
 	return IRQ_HANDLED;
 } /* tpm_ioserirq_handler() */
@@ -550,7 +550,7 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 				IRQF_TRIGGER_HIGH, "TPM SERIRQ management",
 				chip);
 		if (ret < 0) {
-			dev_err(&chip->dev, "TPM SERIRQ signals %d not available\n",
+			dev_err(&chip->dev, "TPM SERIRQ signals %d yest available\n",
 				irq);
 			goto _tpm_clean_answer;
 		}
@@ -573,7 +573,7 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 		tpm_dev->irq = irq;
 		chip->flags |= TPM_CHIP_FLAG_IRQ;
 
-		disable_irq_nosync(tpm_dev->irq);
+		disable_irq_yessync(tpm_dev->irq);
 	}
 
 	return tpm_chip_register(chip);

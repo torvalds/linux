@@ -6,7 +6,7 @@
  * include/asm-sh/cpu-sh5/registers.h
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2004  Richard Curnow
+ * Copyright (C) 2004  Richard Curyesw
  */
 
 #ifdef __ASSEMBLY__
@@ -61,7 +61,7 @@
  * 			    syntax independednt)
  */
 #define SR_RESET_VAL	0x0000000050008000
-#define SR_HARMLESS	0x00000000500080f0	/* Write ignores for most */
+#define SR_HARMLESS	0x00000000500080f0	/* Write igyesres for most */
 #define SR_ENABLE_FPU	0xffffffffffff7fff	/* AND with this */
 
 #if defined (CONFIG_SH64_SR_WATCH)

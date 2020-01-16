@@ -66,7 +66,7 @@ static void assert_slb_presence(bool present, unsigned long ea)
 
 	/*
 	 * slbfee. requires bit 24 (PPC bit 39) be clear in RB. Hardware
-	 * ignores all other bits from 0-27, so just clear them all.
+	 * igyesres all other bits from 0-27, so just clear them all.
 	 */
 	ea &= ~((1UL << 28) - 1);
 	asm volatile(__PPC_SLBFEE_DOT(%0, %1) : "=r"(tmp) : "r"(ea) : "cr0");
@@ -82,7 +82,7 @@ static inline void slb_shadow_update(unsigned long ea, int ssize,
 	struct slb_shadow *p = get_slb_shadow();
 
 	/*
-	 * Clear the ESID first so the entry is not valid while we are
+	 * Clear the ESID first so the entry is yest valid while we are
 	 * updating it.  No write barriers are needed here, provided
 	 * we only update the current CPU's SLB shadow buffer.
 	 */
@@ -115,7 +115,7 @@ static inline void create_shadowed_slbe(unsigned long ea, int ssize,
 }
 
 /*
- * Insert bolted entries into SLB (which may not be empty, so don't clear
+ * Insert bolted entries into SLB (which may yest be empty, so don't clear
  * slb_cache_ptr).
  */
 void __slb_restore_bolted_realmode(void)
@@ -154,7 +154,7 @@ void slb_flush_all_realmode(void)
 }
 
 /*
- * This flushes non-bolted entries, it can be run in virtual mode. Must
+ * This flushes yesn-bolted entries, it can be run in virtual mode. Must
  * be called with interrupts disabled.
  */
 void slb_flush_and_restore_bolted(void)
@@ -259,7 +259,7 @@ void slb_dump_contents(struct slb_entry *slb_ptr)
 void slb_vmalloc_update(void)
 {
 	/*
-	 * vmalloc is not bolted, so just have to flush non-bolted.
+	 * vmalloc is yest bolted, so just have to flush yesn-bolted.
 	 */
 	slb_flush_and_restore_bolted();
 }
@@ -322,7 +322,7 @@ void slb_setup_new_exec(void)
 
 	/*
 	 * preload cache can only be used to determine whether a SLB
-	 * entry exists if it does not start to overflow.
+	 * entry exists if it does yest start to overflow.
 	 */
 	if (ti->slb_preload_nr + 2 > SLB_PRELOAD_NR)
 		return;
@@ -330,7 +330,7 @@ void slb_setup_new_exec(void)
 	hard_irq_disable();
 
 	/*
-	 * We have no good place to clear the slb preload cache on exec,
+	 * We have yes good place to clear the slb preload cache on exec,
 	 * flush_thread is about the earliest arch hook but that happens
 	 * after we switch to the mm and have aleady preloaded the SLBEs.
 	 *
@@ -408,7 +408,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	unsigned char i;
 
 	/*
-	 * We need interrupts hard-disabled here, not just soft-disabled,
+	 * We need interrupts hard-disabled here, yest just soft-disabled,
 	 * so that a PMU interrupt can't occur, which might try to access
 	 * user memory (to get a stack trace) and possible cause an SLB miss
 	 * which would update the slb_cache/slb_cache_ptr fields in the PACA.
@@ -419,7 +419,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 		/*
 		 * SLBIA IH=3 invalidates all Class=1 SLBEs and their
 		 * associated lookaside structures, which matches what
-		 * switch_slb wants. So ARCH_300 does not use the slb
+		 * switch_slb wants. So ARCH_300 does yest use the slb
 		 * cache.
 		 */
 		asm volatile(PPC_SLBIA(3));
@@ -553,7 +553,7 @@ void slb_initialize(void)
 	 * For the boot cpu, we're running on the stack in init_thread_union,
 	 * which is in the first segment of the linear mapping, and also
 	 * get_paca()->kstack hasn't been initialized yet.
-	 * For secondary cpus, we need to bolt the kernel stack entry now.
+	 * For secondary cpus, we need to bolt the kernel stack entry yesw.
 	 */
 	slb_shadow_clear(KSTACK_INDEX);
 	if (raw_smp_processor_id() != boot_cpuid &&
@@ -569,7 +569,7 @@ static void slb_cache_update(unsigned long esid_data)
 	int slb_cache_index;
 
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		return; /* ISAv3.0B and later does not use slb_cache */
+		return; /* ISAv3.0B and later does yest use slb_cache */
 
 	/*
 	 * Now update slb cache entries
@@ -586,7 +586,7 @@ static void slb_cache_update(unsigned long esid_data)
 		/*
 		 * Our cache is full and the current cache content strictly
 		 * doesn't indicate the active SLB conents. Bump the ptr
-		 * so that switch_slb() will ignore the cache.
+		 * so that switch_slb() will igyesre the cache.
 		 */
 		local_paca->slb_cache_ptr = SLB_CACHE_ENTRIES + 1;
 	}
@@ -599,11 +599,11 @@ static enum slb_index alloc_slb_index(bool kernel)
 	/*
 	 * The allocation bitmaps can become out of synch with the SLB
 	 * when the _switch code does slbie when bolting a new stack
-	 * segment and it must not be anywhere else in the SLB. This leaves
+	 * segment and it must yest be anywhere else in the SLB. This leaves
 	 * a kernel allocated entry that is unused in the SLB. With very
 	 * large systems or small segment sizes, the bitmaps could slowly
 	 * fill with these entries. They will eventually be cleared out
-	 * by the round robin allocator in that case, so it's probably not
+	 * by the round robin allocator in that case, so it's probably yest
 	 * worth accounting for.
 	 */
 
@@ -649,13 +649,13 @@ static long slb_insert_entry(unsigned long ea, unsigned long context,
 		return -EFAULT;
 
 	/*
-	 * There must not be a kernel SLB fault in alloc_slb_index or before
+	 * There must yest be a kernel SLB fault in alloc_slb_index or before
 	 * slbmte here or the allocation bitmaps could get out of whack with
 	 * the SLB.
 	 *
 	 * User SLB faults or preloads take this path which might get inlined
 	 * into the caller, so add compiler barriers here to ensure unsafe
-	 * memory accesses do not come between.
+	 * memory accesses do yest come between.
 	 */
 	barrier();
 
@@ -765,22 +765,22 @@ long do_slb_fault(struct pt_regs *regs, unsigned long ea)
 {
 	unsigned long id = get_region_id(ea);
 
-	/* IRQs are not reconciled here, so can't check irqs_disabled */
+	/* IRQs are yest reconciled here, so can't check irqs_disabled */
 	VM_WARN_ON(mfmsr() & MSR_EE);
 
 	if (unlikely(!(regs->msr & MSR_RI)))
 		return -EINVAL;
 
 	/*
-	 * SLB kernel faults must be very careful not to touch anything
-	 * that is not bolted. E.g., PACA and global variables are okay,
-	 * mm->context stuff is not.
+	 * SLB kernel faults must be very careful yest to touch anything
+	 * that is yest bolted. E.g., PACA and global variables are okay,
+	 * mm->context stuff is yest.
 	 *
 	 * SLB user faults can access all of kernel memory, but must be
-	 * careful not to touch things like IRQ state because it is not
+	 * careful yest to touch things like IRQ state because it is yest
 	 * "reconciled" here. The difficulty is that we must use
 	 * fast_exception_return to return from kernel SLB faults without
-	 * looking at possible non-bolted memory. We could test user vs
+	 * looking at possible yesn-bolted memory. We could test user vs
 	 * kernel faults in the interrupt handler asm and do a full fault,
 	 * reconcile, ret_from_except for user faults which would make them
 	 * first class kernel code. But for performance it's probably nicer

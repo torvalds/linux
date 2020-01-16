@@ -88,12 +88,12 @@ void __context_tracking_enter(enum ctx_state state)
 		 * context transitions and states to prevent inconsistency on those of
 		 * other CPUs.
 		 * If a task triggers an exception in userspace, sleep on the exception
-		 * handler and then migrate to another CPU, that new CPU must know where
+		 * handler and then migrate to ayesther CPU, that new CPU must kyesw where
 		 * the exception returns by the time we call exception_exit().
 		 * This information can only be provided by the previous CPU when it called
 		 * exception_enter().
 		 * OTOH we can spare the calls to vtime and RCU when context_tracking.active
-		 * is false because we know that CPU is not tickless.
+		 * is false because we kyesw that CPU is yest tickless.
 		 */
 		__this_cpu_write(context_tracking.state, state);
 	}
@@ -111,7 +111,7 @@ void context_tracking_enter(enum ctx_state state)
 	 * leading to that nesting:
 	 * rcu_irq_enter() rcu_user_exit() rcu_user_exit() rcu_irq_exit()
 	 * This would mess up the dyntick_nesting count though. And rcu_irq_*()
-	 * helpers are enough to protect RCU uses inside the exception. So
+	 * helpers are eyesugh to protect RCU uses inside the exception. So
 	 * just return immediately if we detect we are in an IRQ.
 	 */
 	if (in_interrupt())
@@ -140,7 +140,7 @@ NOKPROBE_SYMBOL(context_tracking_user_enter);
  * signal handling, etc...
  *
  * This call supports re-entrancy. This way it can be called from any exception
- * handler without needing to know if we came from userspace or not.
+ * handler without needing to kyesw if we came from userspace or yest.
  */
 void __context_tracking_exit(enum ctx_state state)
 {

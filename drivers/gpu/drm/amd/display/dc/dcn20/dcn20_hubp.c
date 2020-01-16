@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -105,17 +105,17 @@ void hubp2_program_deadline(
 
 	if (REG(NOM_PARAMETERS_0))
 		REG_SET(NOM_PARAMETERS_0, 0,
-			DST_Y_PER_PTE_ROW_NOM_L, dlg_attr->dst_y_per_pte_row_nom_l);
+			DST_Y_PER_PTE_ROW_NOM_L, dlg_attr->dst_y_per_pte_row_yesm_l);
 
 	if (REG(NOM_PARAMETERS_1))
 		REG_SET(NOM_PARAMETERS_1, 0,
-			REFCYC_PER_PTE_GROUP_NOM_L, dlg_attr->refcyc_per_pte_group_nom_l);
+			REFCYC_PER_PTE_GROUP_NOM_L, dlg_attr->refcyc_per_pte_group_yesm_l);
 
 	REG_SET(NOM_PARAMETERS_4, 0,
-		DST_Y_PER_META_ROW_NOM_L, dlg_attr->dst_y_per_meta_row_nom_l);
+		DST_Y_PER_META_ROW_NOM_L, dlg_attr->dst_y_per_meta_row_yesm_l);
 
 	REG_SET(NOM_PARAMETERS_5, 0,
-		REFCYC_PER_META_CHUNK_NOM_L, dlg_attr->refcyc_per_meta_chunk_nom_l);
+		REFCYC_PER_META_CHUNK_NOM_L, dlg_attr->refcyc_per_meta_chunk_yesm_l);
 
 	REG_SET_2(PER_LINE_DELIVERY, 0,
 		REFCYC_PER_LINE_DELIVERY_L, dlg_attr->refcyc_per_line_delivery_l,
@@ -126,17 +126,17 @@ void hubp2_program_deadline(
 
 	if (REG(NOM_PARAMETERS_2))
 		REG_SET(NOM_PARAMETERS_2, 0,
-			DST_Y_PER_PTE_ROW_NOM_C, dlg_attr->dst_y_per_pte_row_nom_c);
+			DST_Y_PER_PTE_ROW_NOM_C, dlg_attr->dst_y_per_pte_row_yesm_c);
 
 	if (REG(NOM_PARAMETERS_3))
 		REG_SET(NOM_PARAMETERS_3, 0,
-			REFCYC_PER_PTE_GROUP_NOM_C, dlg_attr->refcyc_per_pte_group_nom_c);
+			REFCYC_PER_PTE_GROUP_NOM_C, dlg_attr->refcyc_per_pte_group_yesm_c);
 
 	REG_SET(NOM_PARAMETERS_6, 0,
-		DST_Y_PER_META_ROW_NOM_C, dlg_attr->dst_y_per_meta_row_nom_c);
+		DST_Y_PER_META_ROW_NOM_C, dlg_attr->dst_y_per_meta_row_yesm_c);
 
 	REG_SET(NOM_PARAMETERS_7, 0,
-		REFCYC_PER_META_CHUNK_NOM_C, dlg_attr->refcyc_per_meta_chunk_nom_c);
+		REFCYC_PER_META_CHUNK_NOM_C, dlg_attr->refcyc_per_meta_chunk_yesm_c);
 
 	/* TTU - per hubp */
 	REG_SET_2(DCN_TTU_QOS_WM, 0,
@@ -228,7 +228,7 @@ static void hubp2_setup(
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
 	/* otg is locked when this func is called. Register are double buffered.
-	 * disable the requestors is not needed
+	 * disable the requestors is yest needed
 	 */
 
 	hubp2_vready_at_or_After_vsync(hubp, pipe_dest);
@@ -288,7 +288,7 @@ void hubp2_setup_interdependent(
 		QoS_LEVEL_FLIP, ttu_attr->qos_level_flip);
 }
 
-/* DCN2 (GFX10), the following GFX fields are deprecated. They can be set but they will not be used:
+/* DCN2 (GFX10), the following GFX fields are deprecated. They can be set but they will yest be used:
  *	NUM_BANKS
  *	NUM_SE
  *	NUM_RB_PER_SE
@@ -377,7 +377,7 @@ void hubp2_program_rotation(
 	else
 		mirror = 0;
 
-	/* Program rotation angle and horz mirror - no mirror */
+	/* Program rotation angle and horz mirror - yes mirror */
 	if (rotation == ROTATION_ANGLE_0)
 		REG_UPDATE_2(DCSURF_SURFACE_CONFIG,
 				ROTATION_ANGLE, 0,
@@ -595,7 +595,7 @@ void hubp2_cursor_set_attributes(
 			CURSOR_LINES_PER_CHUNK, lpc);
 
 	REG_SET_2(CURSOR_SETTINGS, 0,
-			/* no shift of the cursor HDL schedule */
+			/* yes shift of the cursor HDL schedule */
 			CURSOR0_DST_Y_OFFSET, 0,
 			 /* used to shift the cursor chunk request deadline */
 			CURSOR0_CHUNK_HDL_ADJUST, 3);
@@ -694,7 +694,7 @@ bool hubp2_program_surface_flip_and_addr(
 		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x1);
 
 	} else {
-		// turn off stereo if not in stereo
+		// turn off stereo if yest in stereo
 		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, 0x0);
 		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x0);
 	}
@@ -702,13 +702,13 @@ bool hubp2_program_surface_flip_and_addr(
 
 
 	/* HW automatically latch rest of address register on write to
-	 * DCSURF_PRIMARY_SURFACE_ADDRESS if SURFACE_UPDATE_LOCK is not used
+	 * DCSURF_PRIMARY_SURFACE_ADDRESS if SURFACE_UPDATE_LOCK is yest used
 	 *
 	 * program high first and then the low addr, order matters!
 	 */
 	switch (address->type) {
 	case PLN_ADDR_TYPE_GRAPHICS:
-		/* DCN1.0 does not support const color
+		/* DCN1.0 does yest support const color
 		 * TODO: program DCHUBBUB_RET_PATH_DCC_CFGx_0/1
 		 * base on address->grph.dcc_const_color
 		 * x = 0, 2, 4, 6 for pipe 0, 1, 2, 3 for rgb and luma
@@ -922,7 +922,7 @@ void hubp2_set_blank(struct hubp *hubp, bool blank)
 			/* init sequence workaround: in case HUBP is
 			 * power gated, this wait would timeout.
 			 *
-			 * we just wrote reg_val to non-0, if it stay 0
+			 * we just wrote reg_val to yesn-0, if it stay 0
 			 * it means HUBP is gated
 			 */
 			REG_WAIT(DCHUBP_CNTL,
@@ -989,16 +989,16 @@ void hubp2_cursor_set_position(
 				param->h_scale_ratio));
 
 	if (src_x_offset >= (int)param->viewport.width)
-		cur_en = 0;  /* not visible beyond right edge*/
+		cur_en = 0;  /* yest visible beyond right edge*/
 
 	if (src_x_offset + cursor_width <= 0)
-		cur_en = 0;  /* not visible beyond left edge*/
+		cur_en = 0;  /* yest visible beyond left edge*/
 
 	if (src_y_offset >= (int)param->viewport.height)
-		cur_en = 0;  /* not visible beyond bottom edge*/
+		cur_en = 0;  /* yest visible beyond bottom edge*/
 
 	if (src_y_offset + cursor_height <= 0)
-		cur_en = 0;  /* not visible beyond top edge*/
+		cur_en = 0;  /* yest visible beyond top edge*/
 
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
 		hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
@@ -1098,17 +1098,17 @@ void hubp2_read_state_common(struct hubp *hubp)
 
 	if (REG(NOM_PARAMETERS_0))
 		REG_GET(NOM_PARAMETERS_0,
-			DST_Y_PER_PTE_ROW_NOM_L, &dlg_attr->dst_y_per_pte_row_nom_l);
+			DST_Y_PER_PTE_ROW_NOM_L, &dlg_attr->dst_y_per_pte_row_yesm_l);
 
 	if (REG(NOM_PARAMETERS_1))
 		REG_GET(NOM_PARAMETERS_1,
-			REFCYC_PER_PTE_GROUP_NOM_L, &dlg_attr->refcyc_per_pte_group_nom_l);
+			REFCYC_PER_PTE_GROUP_NOM_L, &dlg_attr->refcyc_per_pte_group_yesm_l);
 
 	REG_GET(NOM_PARAMETERS_4,
-		DST_Y_PER_META_ROW_NOM_L, &dlg_attr->dst_y_per_meta_row_nom_l);
+		DST_Y_PER_META_ROW_NOM_L, &dlg_attr->dst_y_per_meta_row_yesm_l);
 
 	REG_GET(NOM_PARAMETERS_5,
-		REFCYC_PER_META_CHUNK_NOM_L, &dlg_attr->refcyc_per_meta_chunk_nom_l);
+		REFCYC_PER_META_CHUNK_NOM_L, &dlg_attr->refcyc_per_meta_chunk_yesm_l);
 
 	REG_GET_2(PER_LINE_DELIVERY_PRE,
 		REFCYC_PER_LINE_DELIVERY_PRE_L, &dlg_attr->refcyc_per_line_delivery_pre_l,
@@ -1133,17 +1133,17 @@ void hubp2_read_state_common(struct hubp *hubp)
 
 	if (REG(NOM_PARAMETERS_2))
 		REG_GET(NOM_PARAMETERS_2,
-			DST_Y_PER_PTE_ROW_NOM_C, &dlg_attr->dst_y_per_pte_row_nom_c);
+			DST_Y_PER_PTE_ROW_NOM_C, &dlg_attr->dst_y_per_pte_row_yesm_c);
 
 	if (REG(NOM_PARAMETERS_3))
 		REG_GET(NOM_PARAMETERS_3,
-			REFCYC_PER_PTE_GROUP_NOM_C, &dlg_attr->refcyc_per_pte_group_nom_c);
+			REFCYC_PER_PTE_GROUP_NOM_C, &dlg_attr->refcyc_per_pte_group_yesm_c);
 
 	REG_GET(NOM_PARAMETERS_6,
-		DST_Y_PER_META_ROW_NOM_C, &dlg_attr->dst_y_per_meta_row_nom_c);
+		DST_Y_PER_META_ROW_NOM_C, &dlg_attr->dst_y_per_meta_row_yesm_c);
 
 	REG_GET(NOM_PARAMETERS_7,
-		REFCYC_PER_META_CHUNK_NOM_C, &dlg_attr->refcyc_per_meta_chunk_nom_c);
+		REFCYC_PER_META_CHUNK_NOM_C, &dlg_attr->refcyc_per_meta_chunk_yesm_c);
 
 	/* TTU - per hubp */
 	REG_GET_2(DCN_TTU_QOS_WM,

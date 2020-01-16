@@ -7,8 +7,8 @@
  * <jkmaline@cc.hut.fi>
  * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
  *
- * Adaption to a generic IEEE 802.11 stack by James Ketrenos
- * <jketreno@linux.intel.com>
+ * Adaption to a generic IEEE 802.11 stack by James Ketreyess
+ * <jketreyes@linux.intel.com>
  *
  * Copyright (c) 2004, Intel Corporation
  */
@@ -35,15 +35,15 @@ struct ieee80211_crypto_ops {
 
 	/* encrypt/decrypt return < 0 on error or >= 0 on success. The return
 	 * value from decrypt_mpdu is passed as the keyidx value for
-	 * decrypt_msdu. skb must have enough head and tail room for the
-	 * encryption; if not, error will be returned; these functions are
+	 * decrypt_msdu. skb must have eyesugh head and tail room for the
+	 * encryption; if yest, error will be returned; these functions are
 	 * called for all MPDUs (i.e., fragments).
 	 */
 	int (*encrypt_mpdu)(struct sk_buff *skb, int hdr_len, void *priv);
 	int (*decrypt_mpdu)(struct sk_buff *skb, int hdr_len, void *priv);
 
 	/* These functions are called for full MSDUs, i.e. full frames.
-	 * These can be NULL if full MSDU operations are not needed.
+	 * These can be NULL if full MSDU operations are yest needed.
 	 */
 	int (*encrypt_msdu)(struct sk_buff *skb, int hdr_len, void *priv);
 	int (*decrypt_msdu)(struct sk_buff *skb, int keyidx, int hdr_len,
@@ -59,7 +59,7 @@ struct ieee80211_crypto_ops {
 
 	/* maximum number of bytes added by encryption; encrypt buf is
 	 * allocated with extra_prefix_len bytes, copy of in_buf, and
-	 * extra_postfix_len; encrypt need not use all this space, but
+	 * extra_postfix_len; encrypt need yest use all this space, but
 	 * the result must start at the beginning of the buffer and correct
 	 * length must be returned
 	 */

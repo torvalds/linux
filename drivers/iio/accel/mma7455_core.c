@@ -72,7 +72,7 @@ static int mma7455_drdy(struct mma7455_data *mma7455)
 		msleep(20);
 	}
 
-	dev_warn(dev, "data not ready\n");
+	dev_warn(dev, "data yest ready\n");
 
 	return -EIO;
 }
@@ -98,7 +98,7 @@ static irqreturn_t mma7455_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

@@ -18,7 +18,7 @@
  * @reg_init_data: The regulator init data.
  * @en_discharge: Enable discharge the output capacitor via internal
  *                register.
- * @en_internal_pulldn: internal pull down enable or not.
+ * @en_internal_pulldn: internal pull down enable or yest.
  * @vsel0_gpio: Gpio number for vsel0. It should be -1 if this is tied with
  *              fixed logic.
  * @vsel1_gpio: Gpio number for vsel1. It should be -1 if this is tied with

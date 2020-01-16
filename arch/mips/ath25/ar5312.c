@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2003 Atheros Communications, Inc.,  All Rights Reserved.
- * Copyright (C) 2006 FON Technology, SL.
+ * Copyright (C) 2006 FON Techyeslogy, SL.
  * Copyright (C) 2006 Imre Kaloz <kaloz@openwrt.org>
  * Copyright (C) 2006-2009 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2012 Alexandros C. Couloumbis <alex@ozo.com>
@@ -185,7 +185,7 @@ static void __init ar5312_flash_init(void)
 	void __iomem *flashctl_base;
 	u32 ctl;
 
-	flashctl_base = ioremap_nocache(AR5312_FLASHCTL_BASE,
+	flashctl_base = ioremap_yescache(AR5312_FLASHCTL_BASE,
 					AR5312_FLASHCTL_SIZE);
 
 	ctl = __raw_readl(flashctl_base + AR5312_FLASHCTL0);
@@ -233,7 +233,7 @@ void __init ar5312_init_devices(void)
 	ath25_find_config(AR5312_FLASH_BASE, AR5312_FLASH_SIZE);
 	config = ath25_board.config;
 
-	/* AR2313 has CPU minor rev. 10 */
+	/* AR2313 has CPU miyesr rev. 10 */
 	if ((current_cpu_data.processor_id & 0xff) == 0x0a)
 		ath25_soc = ATH25_SOC_AR2313;
 
@@ -358,7 +358,7 @@ void __init ar5312_plat_mem_setup(void)
 	u32 devid;
 
 	/* Detect memory size */
-	sdram_base = ioremap_nocache(AR5312_SDRAMCTL_BASE,
+	sdram_base = ioremap_yescache(AR5312_SDRAMCTL_BASE,
 				     AR5312_SDRAMCTL_SIZE);
 	memcfg = __raw_readl(sdram_base + AR5312_MEM_CFG1);
 	bank0_ac = ATH25_REG_MS(memcfg, AR5312_MEM_CFG1_AC0);
@@ -369,7 +369,7 @@ void __init ar5312_plat_mem_setup(void)
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
 	iounmap(sdram_base);
 
-	ar5312_rst_base = ioremap_nocache(AR5312_RST_BASE, AR5312_RST_SIZE);
+	ar5312_rst_base = ioremap_yescache(AR5312_RST_BASE, AR5312_RST_SIZE);
 
 	devid = ar5312_rst_reg_read(AR5312_REV);
 	devid >>= AR5312_REV_WMAC_MIN_S;

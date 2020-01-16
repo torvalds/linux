@@ -9,8 +9,8 @@
  * #!-checking implemented by tytso.
  */
 /*
- * Demand-loading implemented 01.12.91 - no need to read anything but
- * the header into memory. The inode of the executable is put into
+ * Demand-loading implemented 01.12.91 - yes need to read anything but
+ * the header into memory. The iyesde of the executable is put into
  * "current->executable", and page faults do the actual loading. Clean.
  *
  * Once more I can proudly say that linux stood up to being changed: it
@@ -57,7 +57,7 @@
 #include <linux/audit.h>
 #include <linux/tracehook.h>
 #include <linux/kmod.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/fs_struct.h>
 #include <linux/oom.h>
 #include <linux/compat.h>
@@ -104,7 +104,7 @@ static inline void put_binfmt(struct linux_binfmt * fmt)
 	module_put(fmt->module);
 }
 
-bool path_noexec(const struct path *path)
+bool path_yesexec(const struct path *path)
 {
 	return (path->mnt->mnt_flags & MNT_NOEXEC) ||
 	       (path->mnt->mnt_sb->s_iflags & SB_I_NOEXEC);
@@ -115,7 +115,7 @@ bool path_noexec(const struct path *path)
  * Note that a shared library must be both readable and executable due to
  * security reasons.
  *
- * Also note that we take the address to load from from the file itself.
+ * Also yeste that we take the address to load from from the file itself.
  */
 SYSCALL_DEFINE1(uselib, const char __user *, library)
 {
@@ -140,14 +140,14 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 		goto out;
 
 	error = -EINVAL;
-	if (!S_ISREG(file_inode(file)->i_mode))
+	if (!S_ISREG(file_iyesde(file)->i_mode))
 		goto exit;
 
 	error = -EACCES;
-	if (path_noexec(&file->f_path))
+	if (path_yesexec(&file->f_path))
 		goto exit;
 
-	fsnotify_open(file);
+	fsyestify_open(file);
 
 	error = -ENOEXEC;
 
@@ -174,7 +174,7 @@ out:
 
 #ifdef CONFIG_MMU
 /*
- * The nascent bprm->mm is not visible until exec_mmap() but it can
+ * The nascent bprm->mm is yest visible until exec_mmap() but it can
  * use a lot of memory, account these pages in current->mm temporary
  * for oom_badness()->get_mm_rss(). Once exec succeeds or fails, we
  * change the counter back via acct_arg_size(0).
@@ -248,7 +248,7 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	bprm->vma = vma = vm_area_alloc(mm);
 	if (!vma)
 		return -ENOMEM;
-	vma_set_anonymous(vma);
+	vma_set_ayesnymous(vma);
 
 	if (down_write_killable(&mm->mmap_sem)) {
 		err = -EINTR;
@@ -351,7 +351,7 @@ static bool valid_arg_len(struct linux_binprm *bprm, long len)
 
 /*
  * Create a new mm_struct and populate it with a temporary stack
- * vm_area_struct.  We don't have enough context at this point to set the stack
+ * vm_area_struct.  We don't have eyesugh context at this point to set the stack
  * flags, permissions, and offset, so we use temporary values.  We'll update
  * them later in setup_arg_pages().
  */
@@ -464,7 +464,7 @@ static int prepare_arg_pages(struct linux_binprm *bprm,
 	 * Limit to 1/4 of the max stack size or 3/4 of _STK_LIM
 	 * (whichever is smaller) for the argv+env strings.
 	 * This ensures that:
-	 *  - the remaining binfmt code will not run out of stack space,
+	 *  - the remaining binfmt code will yest run out of stack space,
 	 *  - the program will have a reasonable amount of stack left
 	 *    to work from.
 	 */
@@ -494,7 +494,7 @@ static int prepare_arg_pages(struct linux_binprm *bprm,
 /*
  * 'copy_strings()' copies argument/environment strings from the old
  * processes's memory to the new process's stack.  The call to get_user_pages()
- * ensures the destination page is created and not swapped out.
+ * ensures the destination page is created and yest swapped out.
  */
 static int copy_strings(int argc, struct user_arg_ptr argv,
 			struct linux_binprm *bprm)
@@ -635,7 +635,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	BUG_ON(new_start > new_end);
 
 	/*
-	 * ensure there are no vmas between where we want to go
+	 * ensure there are yes vmas between where we want to go
 	 * and where we are
 	 */
 	if (vma != find_vma(mm, new_start))
@@ -665,7 +665,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 			vma->vm_next ? vma->vm_next->vm_start : USER_PGTABLES_CEILING);
 	} else {
 		/*
-		 * otherwise, clean from old_start; this is done to not touch
+		 * otherwise, clean from old_start; this is done to yest touch
 		 * the address space in [new_end, old_start) some architectures
 		 * have constraints on va-space that make this illegal (IA64) -
 		 * for the others its just a little faster.
@@ -858,10 +858,10 @@ static struct file *do_open_execat(int fd, struct filename *name, int flags)
 		goto out;
 
 	err = -EACCES;
-	if (!S_ISREG(file_inode(file)->i_mode))
+	if (!S_ISREG(file_iyesde(file)->i_mode))
 		goto exit;
 
-	if (path_noexec(&file->f_path))
+	if (path_yesexec(&file->f_path))
 		goto exit;
 
 	err = deny_write_access(file);
@@ -869,7 +869,7 @@ static struct file *do_open_execat(int fd, struct filename *name, int flags)
 		goto exit;
 
 	if (name->name[0] != '\0')
-		fsnotify_open(file);
+		fsyestify_open(file);
 
 out:
 	return file;
@@ -899,7 +899,7 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 	ssize_t bytes = 0;
 	int ret;
 
-	if (!S_ISREG(file_inode(file)->i_mode) || max_size < 0)
+	if (!S_ISREG(file_iyesde(file)->i_mode) || max_size < 0)
 		return -EINVAL;
 
 	ret = deny_write_access(file);
@@ -910,7 +910,7 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 	if (ret)
 		goto out;
 
-	i_size = i_size_read(file_inode(file));
+	i_size = i_size_read(file_iyesde(file));
 	if (i_size <= 0) {
 		ret = -EINVAL;
 		goto out;
@@ -1011,7 +1011,7 @@ static int exec_mmap(struct mm_struct *mm)
 	struct task_struct *tsk;
 	struct mm_struct *old_mm, *active_mm;
 
-	/* Notify parent that we're no longer interested in the old VM */
+	/* Notify parent that we're yes longer interested in the old VM */
 	tsk = current;
 	old_mm = current->mm;
 	exec_mm_release(tsk, old_mm);
@@ -1064,7 +1064,7 @@ static int de_thread(struct task_struct *tsk)
 	spinlock_t *lock = &oldsighand->siglock;
 
 	if (thread_group_empty(tsk))
-		goto no_thread_group;
+		goto yes_thread_group;
 
 	/*
 	 * Kill all other threads in the thread group.
@@ -1072,7 +1072,7 @@ static int de_thread(struct task_struct *tsk)
 	spin_lock_irq(lock);
 	if (signal_group_exit(sig)) {
 		/*
-		 * Another group action in progress, just
+		 * Ayesther group action in progress, just
 		 * return so that the signal is processed.
 		 */
 		spin_unlock_irq(lock);
@@ -1080,11 +1080,11 @@ static int de_thread(struct task_struct *tsk)
 	}
 
 	sig->group_exit_task = tsk;
-	sig->notify_count = zap_other_threads(tsk);
+	sig->yestify_count = zap_other_threads(tsk);
 	if (!thread_group_leader(tsk))
-		sig->notify_count--;
+		sig->yestify_count--;
 
-	while (sig->notify_count) {
+	while (sig->yestify_count) {
 		__set_current_state(TASK_KILLABLE);
 		spin_unlock_irq(lock);
 		schedule();
@@ -1107,9 +1107,9 @@ static int de_thread(struct task_struct *tsk)
 			write_lock_irq(&tasklist_lock);
 			/*
 			 * Do this under tasklist_lock to ensure that
-			 * exit_notify() can't miss ->group_exit_task
+			 * exit_yestify() can't miss ->group_exit_task
 			 */
-			sig->notify_count = -1;
+			sig->yestify_count = -1;
 			if (likely(leader->exit_state))
 				break;
 			__set_current_state(TASK_KILLABLE);
@@ -1124,9 +1124,9 @@ static int de_thread(struct task_struct *tsk)
 		 * The only record we have of the real-time age of a
 		 * process, regardless of execs it's done, is start_time.
 		 * All the past CPU time is accumulated in signal_struct
-		 * from sister threads now dead.  But in this non-leader
-		 * exec, nothing survives from the original leader thread,
-		 * whose birth marks the true age of this process now.
+		 * from sister threads yesw dead.  But in this yesn-leader
+		 * exec, yesthing survives from the original leader thread,
+		 * whose birth marks the true age of this process yesw.
 		 * When we take on its identity by switching to its PID, we
 		 * also take its birthdate (always earlier than our own).
 		 */
@@ -1179,9 +1179,9 @@ static int de_thread(struct task_struct *tsk)
 	}
 
 	sig->group_exit_task = NULL;
-	sig->notify_count = 0;
+	sig->yestify_count = 0;
 
-no_thread_group:
+yes_thread_group:
 	/* we have changed execution domain */
 	tsk->exit_signal = SIGCHLD;
 
@@ -1194,7 +1194,7 @@ no_thread_group:
 		struct sighand_struct *newsighand;
 		/*
 		 * This ->sighand is shared with the CLONE_SIGHAND
-		 * but not CLONE_THREAD task, switch to the new one.
+		 * but yest CLONE_THREAD task, switch to the new one.
 		 */
 		newsighand = kmem_cache_alloc(sighand_cachep, GFP_KERNEL);
 		if (!newsighand)
@@ -1217,10 +1217,10 @@ no_thread_group:
 	return 0;
 
 killed:
-	/* protects against exit_notify() and __exit_signal() */
+	/* protects against exit_yestify() and __exit_signal() */
 	read_lock(&tasklist_lock);
 	sig->group_exit_task = NULL;
-	sig->notify_count = 0;
+	sig->yestify_count = 0;
 	read_unlock(&tasklist_lock);
 	return -EAGAIN;
 }
@@ -1249,7 +1249,7 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 }
 
 /*
- * Calling this is the point of no return. None of the failures will be
+ * Calling this is the point of yes return. None of the failures will be
  * seen by userspace since either the process is already taking a fatal
  * signal (via de_thread() or coredump), or will have SEGV raised
  * (after exec_mmap()) by search_binary_handlers (see below).
@@ -1268,7 +1268,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 
 	/*
 	 * Must be called _before_ exec_mmap() as bprm->mm is
-	 * not visibile until then. This also enables the update
+	 * yest visibile until then. This also enables the update
 	 * to be lockless.
 	 */
 	set_mm_exe_file(bprm->mm, bprm->file);
@@ -1283,7 +1283,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 
 	/*
 	 * After clearing bprm->mm (to mark that current is using the
-	 * prepared mm now), we have nothing left of the original
+	 * prepared mm yesw), we have yesthing left of the original
 	 * process. If anything from here on returns an error, the check
 	 * in search_binary_handler() will SEGV current.
 	 */
@@ -1311,15 +1311,15 @@ EXPORT_SYMBOL(flush_old_exec);
 
 void would_dump(struct linux_binprm *bprm, struct file *file)
 {
-	struct inode *inode = file_inode(file);
-	if (inode_permission(inode, MAY_READ) < 0) {
+	struct iyesde *iyesde = file_iyesde(file);
+	if (iyesde_permission(iyesde, MAY_READ) < 0) {
 		struct user_namespace *old, *user_ns;
 		bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
 
 		/* Ensure mm->user_ns contains the executable */
 		user_ns = old = bprm->mm->user_ns;
 		while ((user_ns != &init_user_ns) &&
-		       !privileged_wrt_inode_uidgid(user_ns, inode))
+		       !privileged_wrt_iyesde_uidgid(user_ns, iyesde))
 			user_ns = user_ns->parent;
 
 		if (old != user_ns) {
@@ -1333,21 +1333,21 @@ EXPORT_SYMBOL(would_dump);
 void setup_new_exec(struct linux_binprm * bprm)
 {
 	/*
-	 * Once here, prepare_binrpm() will not be called any more, so
+	 * Once here, prepare_binrpm() will yest be called any more, so
 	 * the final state of setuid/setgid/fscaps can be merged into the
 	 * secureexec flag.
 	 */
 	bprm->secureexec |= bprm->cap_elevated;
 
 	if (bprm->secureexec) {
-		/* Make sure parent cannot signal privileged process. */
+		/* Make sure parent canyest signal privileged process. */
 		current->pdeath_signal = 0;
 
 		/*
 		 * For secureexec, reset the stack limit to sane default to
 		 * avoid bad behavior from the prior rlimits. This has to
 		 * happen before arch_pick_mmap_layout(), which examines
-		 * RLIMIT_STACK, but after the point of no return to avoid
+		 * RLIMIT_STACK, but after the point of yes return to avoid
 		 * needing to clean up the change on failure.
 		 */
 		if (bprm->rlim_stack.rlim_cur > _STK_LIM)
@@ -1380,7 +1380,7 @@ void setup_new_exec(struct linux_binprm * bprm)
 	 */
 	current->mm->task_size = TASK_SIZE;
 
-	/* An exec changes our domain. We are no longer part of the thread
+	/* An exec changes our domain. We are yes longer part of the thread
 	   group */
 	current->self_exec_id++;
 	flush_signal_handlers(current, 0);
@@ -1490,7 +1490,7 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 	 * This isn't strictly necessary, but it makes it harder for LSMs to
 	 * mess up.
 	 */
-	if (task_no_new_privs(current))
+	if (task_yes_new_privs(current))
 		bprm->unsafe |= LSM_UNSAFE_NO_NEW_PRIVS;
 
 	t = p;
@@ -1512,7 +1512,7 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 
 static void bprm_fill_uid(struct linux_binprm *bprm)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	unsigned int mode;
 	kuid_t uid;
 	kgid_t gid;
@@ -1529,24 +1529,24 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
 	if (!mnt_may_suid(bprm->file->f_path.mnt))
 		return;
 
-	if (task_no_new_privs(current))
+	if (task_yes_new_privs(current))
 		return;
 
-	inode = bprm->file->f_path.dentry->d_inode;
-	mode = READ_ONCE(inode->i_mode);
+	iyesde = bprm->file->f_path.dentry->d_iyesde;
+	mode = READ_ONCE(iyesde->i_mode);
 	if (!(mode & (S_ISUID|S_ISGID)))
 		return;
 
 	/* Be careful if suid/sgid is set */
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
-	/* reload atomically mode/uid/gid now that lock held */
-	mode = inode->i_mode;
-	uid = inode->i_uid;
-	gid = inode->i_gid;
-	inode_unlock(inode);
+	/* reload atomically mode/uid/gid yesw that lock held */
+	mode = iyesde->i_mode;
+	uid = iyesde->i_uid;
+	gid = iyesde->i_gid;
+	iyesde_unlock(iyesde);
 
-	/* We ignore suid/sgid if there are no mappings for them in the ns */
+	/* We igyesre suid/sgid if there are yes mappings for them in the ns */
 	if (!kuid_has_mapping(bprm->cred->user_ns, uid) ||
 		 !kgid_has_mapping(bprm->cred->user_ns, gid))
 		return;
@@ -1563,7 +1563,7 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
 }
 
 /*
- * Fill the binprm structure from the inode.
+ * Fill the binprm structure from the iyesde.
  * Check permissions, then read the first BINPRM_BUF_SIZE bytes
  *
  * This may be called multiple times for binary chains (scripts for example).
@@ -1767,7 +1767,7 @@ static int __do_execve_file(int fd, struct filename *filename,
 
 	bprm->file = file;
 	if (!filename) {
-		bprm->filename = "none";
+		bprm->filename = "yesne";
 	} else if (fd == AT_FDCWD || filename->name[0] == '/') {
 		bprm->filename = filename->name;
 	} else {

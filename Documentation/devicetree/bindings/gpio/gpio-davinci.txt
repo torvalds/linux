@@ -11,7 +11,7 @@ Required Properties:
 - reg: Physical base address of the controller and the size of memory mapped
        registers.
 
-- gpio-controller : Marks the device node as a gpio controller.
+- gpio-controller : Marks the device yesde as a gpio controller.
 
 - #gpio-cells : Should be two.
   - first cell is the pin number
@@ -37,7 +37,7 @@ Required Properties:
 - clock-names: Name should be "gpio";
 
 Currently clock-names and clocks are needed for all keystone 2 platforms
-Davinci platforms do not have DT clocks as of now.
+Davinci platforms do yest have DT clocks as of yesw.
 
 The GPIO controller also acts as an interrupt controller. It uses the default
 two cells specifier as described in Documentation/devicetree/bindings/

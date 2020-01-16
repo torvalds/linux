@@ -275,7 +275,7 @@
 /* Set on AXI slave write decode error */
 # define SCALER_DISPSTAT_IRQSLVWR		BIT(5)
 /* Set when SCALER_DISPSTAT_DMA_ERROR is set, or
- * SCALER_DISPSTAT_RESP_ERROR is not SCALER_DISPSTAT_RESP_OKAY.
+ * SCALER_DISPSTAT_RESP_ERROR is yest SCALER_DISPSTAT_RESP_OKAY.
  */
 # define SCALER_DISPSTAT_IRQDMA			BIT(4)
 /* Set when any of the EOF/EOLN/ESFRAME/ESLINE bits are set and their
@@ -316,9 +316,9 @@
  * instead of an entire line.
  */
 # define SCALER_DISPCTRLX_ONECTX		BIT(28)
-/* Set to have DISPSLAVE return 2 16bpp pixels and no status data. */
+/* Set to have DISPSLAVE return 2 16bpp pixels and yes status data. */
 # define SCALER_DISPCTRLX_FIFO32		BIT(27)
-/* Turns on output to the DISPSLAVE register instead of the normal
+/* Turns on output to the DISPSLAVE register instead of the yesrmal
  * FIFO.
  */
 # define SCALER_DISPCTRLX_FIFOREG		BIT(26)
@@ -390,7 +390,7 @@
 #define SCALER_DISPALPHA2                       0x00000070
 #define SCALER_GAMADDR                          0x00000078
 # define SCALER_GAMADDR_AUTOINC			BIT(31)
-/* Enables all gamma ramp SRAMs, not just those of CRTCs with gamma
+/* Enables all gamma ramp SRAMs, yest just those of CRTCs with gamma
  * enabled.
  */
 # define SCALER_GAMADDR_SRAMENB			BIT(30)
@@ -510,7 +510,7 @@
  * of pixel clock.
  */
 # define VC4_HDMI_CRP_USE_MAI_BUS_SYNC_FOR_CTS	BIT(26)
-/* When set, no CRP packets will be sent. */
+/* When set, yes CRP packets will be sent. */
 # define VC4_HDMI_CRP_CFG_DISABLE		BIT(25)
 /* If set, generates CTS values based on N, audio clock, and video
  * clock.  N must be divisible by 128.
@@ -604,7 +604,7 @@
  * bytes to signal that RX_DATA should be consumed, and at RX_EOM.
  *
  * If disabled, maximum 16 bytes will be received (including header),
- * and interrupt at RX_EOM.  Later bytes will be acked but not put
+ * and interrupt at RX_EOM.  Later bytes will be acked but yest put
  * into the RX_DATA.
  */
 # define VC4_HDMI_CEC_RX_CONTINUE		BIT(23)
@@ -829,7 +829,7 @@ enum hvs_pixel_format {
 };
 
 /* Note: the LSB is the rightmost character shown.  Only valid for
- * HVS_PIXEL_FORMAT_RGB8888, not RGB888.
+ * HVS_PIXEL_FORMAT_RGB8888, yest RGB888.
  */
 #define HVS_PIXEL_ORDER_RGBA			0
 #define HVS_PIXEL_ORDER_BGRA			1
@@ -895,7 +895,7 @@ enum hvs_pixel_format {
 #define SCALER_CTL0_SCL_H_NONE_V_TPZ		6
 #define SCALER_CTL0_SCL_H_TPZ_V_NONE		7
 
-/* Set to indicate no scaling. */
+/* Set to indicate yes scaling. */
 #define SCALER_CTL0_UNITY			BIT(4)
 
 #define SCALER_CTL0_PIXEL_FORMAT_MASK		VC4_MASK(3, 0)

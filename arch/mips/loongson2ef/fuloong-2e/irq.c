@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Techyeslogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  */
 #include <linux/interrupt.h>
@@ -36,7 +36,7 @@ asmlinkage void mach_irq_dispatch(unsigned int pending)
 }
 
 static struct irqaction cascade_irqaction = {
-	.handler = no_action,
+	.handler = yes_action,
 	.name = "cascade",
 	.flags = IRQF_NO_THREAD,
 };

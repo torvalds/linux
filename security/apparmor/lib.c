@@ -5,7 +5,7 @@
  * This file contains basic common functions used in AppArmor
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  */
 
 #include <linux/ctype.h>
@@ -30,7 +30,7 @@ struct aa_perms allperms = { .allow = ALL_PERMS_MASK,
  * @fqname: a full qualified name in namespace profile format (NOT NULL)
  * @ns_name: pointer to portion of the string containing the ns name (NOT NULL)
  *
- * Returns: profile name or NULL if one is not specified
+ * Returns: profile name or NULL if one is yest specified
  *
  * Split a namespace name from a profile name (see policy.c for naming
  * description).  If a portion of the name is missing it returns NULL for
@@ -67,7 +67,7 @@ char *aa_split_fqname(char *fqname, char **ns_name)
  * skipn_spaces - Removes leading whitespace from @str.
  * @str: The string to be stripped.
  *
- * Returns a pointer to the first non-whitespace character in @str.
+ * Returns a pointer to the first yesn-whitespace character in @str.
  * if all whitespace will return NULL
  */
 
@@ -118,7 +118,7 @@ const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
 }
 
 /**
- * aa_info_message - log a none profile related status message
+ * aa_info_message - log a yesne profile related status message
  * @str: message to log
  */
 void aa_info_message(const char *str)
@@ -177,15 +177,15 @@ const char *aa_file_perm_names[] = {
 	"link",
 	"snapshot",
 
-	"unknown",
-	"unknown",
-	"unknown",
-	"unknown",
+	"unkyeswn",
+	"unkyeswn",
+	"unkyeswn",
+	"unkyeswn",
 
-	"unknown",
-	"unknown",
-	"unknown",
-	"unknown",
+	"unkyeswn",
+	"unkyeswn",
+	"unkyeswn",
+	"unkyeswn",
 
 	"stack",
 	"change_onexec",
@@ -414,7 +414,7 @@ int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
  * @perms: perms computed for the request
  * @request: requested perms
  * @deny: Returns: explicit deny set
- * @sa: initialized audit structure (MAY BE NULL if not auditing)
+ * @sa: initialized audit structure (MAY BE NULL if yest auditing)
  * @cb: callback fn for type specific fields (MAY BE NULL)
  *
  * Returns: 0 if permission else error code
@@ -422,7 +422,7 @@ int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
  * Note: profile audit modes need to be set before calling by setting the
  *       perm masks appropriately.
  *
- *       If not auditing then complain mode is not enabled and the
+ *       If yest auditing then complain mode is yest enabled and the
  *       error code will indicate whether there was an explicit deny
  *	 with a positive value.
  */
@@ -434,7 +434,7 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 	u32 denied = request & (~perms->allow | perms->deny);
 
 	if (likely(!denied)) {
-		/* mask off perms that are not being force audited */
+		/* mask off perms that are yest being force audited */
 		request &= perms->audit;
 		if (!request || !sa)
 			return 0;

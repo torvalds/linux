@@ -8,7 +8,7 @@ various kernel trees. Note that if you are interested in video card drivers
 you should probably talk to XFree86 (http://www.xfree86.org/) and/or X.Org
 (http://x.org/) instead.
 
-.. note::
+.. yeste::
 
    This document is old and has seen little maintenance in recent years; it
    should probably be updated or, perhaps better, just deleted.  Most of
@@ -23,10 +23,10 @@ document.
 Allocating Device Numbers
 -------------------------
 
-Major and minor numbers for block and character devices are allocated
+Major and miyesr numbers for block and character devices are allocated
 by the Linux assigned name and number authority (currently this is
 Torben Mathiasen). The site is http://www.lanana.org/. This
-also deals with allocating numbers for devices that are not going to
+also deals with allocating numbers for devices that are yest going to
 be submitted to the mainstream kernel.
 See :ref:`Documentation/admin-guide/devices.rst <admin_devices>`
 for more information on this.
@@ -47,7 +47,7 @@ Linux 2.2:
 Linux 2.4:
 	If the code area has a general maintainer then please submit it to
 	the maintainer listed in MAINTAINERS in the kernel file. If the
-	maintainer does not respond or you cannot find the appropriate
+	maintainer does yest respond or you canyest find the appropriate
 	maintainer then please contact Willy Tarreau <w@1wt.eu>.
 
 Linux 2.6 and upper:
@@ -69,7 +69,7 @@ Licensing:
 Copyright:
 		The copyright owner must agree to use of GPL.
 		It's best if the submitter and copyright owner
-		are the same person/entity. If not, the name of
+		are the same person/entity. If yest, the name of
 		the person/entity authorizing use of GPL should be
 		listed in case it's necessary to verify the will of
 		the copyright owner.
@@ -87,21 +87,21 @@ Code:
 		If you have sections of code
 		that need to be in other formats, for example because they
 		are shared with a windows driver kit and you want to
-		maintain them just once separate them out nicely and note
+		maintain them just once separate them out nicely and yeste
 		this fact.
 
 Portability:
-		Pointers are not always 32bits, not all computers are little
-		endian, people do not all have floating point and you
+		Pointers are yest always 32bits, yest all computers are little
+		endian, people do yest all have floating point and you
 		shouldn't use inline x86 assembler in your driver without
-		careful thought. Pure x86 drivers generally are not popular.
+		careful thought. Pure x86 drivers generally are yest popular.
 		If you only have x86 hardware it is hard to test portability
 		but it is easy to make sure the code can easily be made
 		portable.
 
 Clarity:
 		It helps if anyone can see how to fix the driver. It helps
-		you because you get patches not bug reports. If you submit a
+		you because you get patches yest bug reports. If you submit a
 		driver that intentionally obfuscates how the hardware works
 		it will go in the bitbucket.
 
@@ -113,9 +113,9 @@ PM support:
 		system-wide suspend and resume transitions.  You should verify
 		that your driver correctly handles the suspend and resume, but
 		if you are unable to ensure that, please at least define the
-		.suspend method returning the -ENOSYS ("Function not
+		.suspend method returning the -ENOSYS ("Function yest
 		implemented") error.  You should also try to make sure that your
-		driver uses as little power as possible when it's not doing
+		driver uses as little power as possible when it's yest doing
 		anything.  For the driver testing instructions see
 		Documentation/power/drivers-testing.rst and for a relatively
 		complete overview of the power management issues related to
@@ -184,7 +184,7 @@ Linux USB project:
 	http://www.linux-usb.org/
 
 How to NOT write kernel driver by Arjan van de Ven:
-	http://www.fenrus.org/how-to-not-write-a-device-driver-paper.pdf
+	http://www.fenrus.org/how-to-yest-write-a-device-driver-paper.pdf
 
 Kernel Janitor:
 	http://kernelnewbies.org/KernelJanitors

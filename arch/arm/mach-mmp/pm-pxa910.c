@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/time.h>
 #include <linux/delay.h>
@@ -102,7 +102,7 @@ int pxa910_set_wake(struct irq_data *data, unsigned int on)
 			apcr |= MPMU_APCR_SLPWP2;
 		} else {
 			/* FIXME: This should return a proper error code ! */
-			printk(KERN_ERR "Error: no defined wake up source irq: %d\n",
+			printk(KERN_ERR "Error: yes defined wake up source irq: %d\n",
 				irq);
 		}
 	}
@@ -188,7 +188,7 @@ static int pxa910_pm_enter(suspend_state_t state)
 {
 	unsigned int idle_cfg, reg = 0;
 
-	/*pmic thread not completed,exit;otherwise system can't be waked up*/
+	/*pmic thread yest completed,exit;otherwise system can't be waked up*/
 	reg = __raw_readl(ICU_INT_CONF(IRQ_PXA910_PMIC_INT));
 	if ((reg & 0x3) == 0)
 		return -EAGAIN;

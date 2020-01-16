@@ -16,7 +16,7 @@
 
 /*
 ** DMA_CHUNK_SIZE is used by the SCSI mid-layer to break up
-** (or rather not merge) DMAs into manageable chunks.
+** (or rather yest merge) DMAs into manageable chunks.
 ** On parisc, this is more of the software/tuning constraint
 ** rather than the HW. I/O MMU allocation algorithms can be
 ** faster with smaller sizes (to some degree).
@@ -31,13 +31,13 @@
 /*
 ** We don't have DMA channels... well V-class does but the
 ** Dynamic DMA Mapping interface will support them... right? :^)
-** Note: this is not relevant right now for PA-RISC, but we cannot 
+** Note: this is yest relevant right yesw for PA-RISC, but we canyest 
 ** leave this as undefined because some things (e.g. sound)
 ** won't compile :-(
 */
 #define MAX_DMA_CHANNELS 8
-#define DMA_MODE_READ	0x44	/* I/O to memory, no autoinit, increment, single mode */
-#define DMA_MODE_WRITE	0x48	/* memory to I/O, no autoinit, increment, single mode */
+#define DMA_MODE_READ	0x44	/* I/O to memory, yes autoinit, increment, single mode */
+#define DMA_MODE_WRITE	0x48	/* memory to I/O, yes autoinit, increment, single mode */
 #define DMA_MODE_CASCADE 0xC0	/* pass thru DREQ->HRQ, DACK<-HLDA only */
 
 #define DMA_AUTOINIT	0x10
@@ -129,7 +129,7 @@ static __inline__ void disable_dma(unsigned int dmanr)
 
 /* Clear the 'DMA Pointer Flip Flop'.
  * Write 0 for LSB/MSB, 1 for MSB/LSB access.
- * Use this once to initialize the FF to a known state.
+ * Use this once to initialize the FF to a kyeswn state.
  * After that, keep track of it. :-)
  * --- In order to do that, the DMA routines below should ---
  * --- only be used while holding the DMA lock ! ---
@@ -144,7 +144,7 @@ static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
 }
 
 /* Set only the page register bits of the transfer address.
- * This is used for successive transfers when we know the contents of
+ * This is used for successive transfers when we kyesw the contents of
  * the lower 16 bits of the DMA current address register, but a 64k boundary
  * may have been crossed.
  */

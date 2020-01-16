@@ -1,7 +1,7 @@
 Valid-License-Identifier: CDDL-1.0
 SPDX-URL: https://spdx.org/licenses/CDDL-1.0.html
 Usage-Guide:
-  Do NOT use. The CDDL-1.0 is not GPL2 compatible. It may only be used for
+  Do NOT use. The CDDL-1.0 is yest GPL2 compatible. It may only be used for
   dual-licensed files where the other license is GPL2 compatible.
   If you end up using this it MUST be used together with a GPL2 compatible
   license using "OR".
@@ -36,7 +36,7 @@ Version 1.0
              makes Original Software available under this License.
 
         1.6. "Larger Work" means a work which combines Covered Software or
-             portions thereof with code not governed by the terms of this
+             portions thereof with code yest governed by the terms of this
              License.
 
         1.7. "License" means this document.
@@ -62,7 +62,7 @@ Version 1.0
               of computer software code that is originally released under
               this License.
 
-        1.11. "Patent Claims" means any patent claim(s), now owned or
+        1.11. "Patent Claims" means any patent claim(s), yesw owned or
               hereafter acquired, including without limitation, method,
               process, and apparatus claims, in any patent Licensable by
               grantor.
@@ -87,7 +87,7 @@ Version 1.0
 
         Conditioned upon Your compliance with Section 3.1 below and subject
         to third party intellectual property claims, the Initial Developer
-        hereby grants You a world-wide, royalty-free, non-exclusive
+        hereby grants You a world-wide, royalty-free, yesn-exclusive
         license:
 
             (a) under intellectual property rights (other than patent or
@@ -107,7 +107,7 @@ Version 1.0
                 or otherwise makes the Original Software available to a
                 third party under the terms of this License.
 
-            (d) Notwithstanding Section 2.1(b) above, no patent license is
+            (d) Notwithstanding Section 2.1(b) above, yes patent license is
                 granted: (1) for code that You delete from the Original
                 Software, or (2) for infringements caused by: (i) the
                 modification of the Original Software, or (ii) the
@@ -118,7 +118,7 @@ Version 1.0
 
         Conditioned upon Your compliance with Section 3.1 below and subject
         to third party intellectual property claims, each Contributor
-        hereby grants You a world-wide, royalty-free, non-exclusive
+        hereby grants You a world-wide, royalty-free, yesn-exclusive
         license:
 
             (a) under intellectual property rights (other than patent or
@@ -144,7 +144,7 @@ Version 1.0
                 otherwise makes the Modifications available to a third
                 party.
 
-            (d) Notwithstanding Section 2.2(b) above, no patent license is
+            (d) Notwithstanding Section 2.2(b) above, yes patent license is
                 granted: (1) for any code that Contributor has deleted from
                 the Contributor Version; (2) for infringements caused by:
                 (i) third party modifications of Contributor Version, or
@@ -178,21 +178,21 @@ Version 1.0
 
         3.3. Required Notices.
 
-        You must include a notice in each of Your Modifications that
-        identifies You as the Contributor of the Modification. You may not
-        remove or alter any copyright, patent or trademark notices
-        contained within the Covered Software, or any notices of licensing
+        You must include a yestice in each of Your Modifications that
+        identifies You as the Contributor of the Modification. You may yest
+        remove or alter any copyright, patent or trademark yestices
+        contained within the Covered Software, or any yestices of licensing
         or any descriptive text giving attribution to any Contributor or
         the Initial Developer.
 
         3.4. Application of Additional Terms.
 
-        You may not offer or impose any terms on any Covered Software in
+        You may yest offer or impose any terms on any Covered Software in
         Source Code form that alters or restricts the applicable version of
         this License or the recipients' rights hereunder. You may choose to
         offer, and to charge a fee for, warranty, support, indemnity or
         liability obligations to one or more recipients of Covered
-        Software. However, you may do so only on Your own behalf, and not
+        Software. However, you may do so only on Your own behalf, and yest
         on behalf of the Initial Developer or any Contributor. You must
         make it absolutely clear that any such warranty, support, indemnity
         or liability obligation is offered by You alone, and You hereby
@@ -207,12 +207,12 @@ Version 1.0
         under the terms of this License or under the terms of a license of
         Your choice, which may contain terms different from this License,
         provided that You are in compliance with the terms of this License
-        and that the license for the Executable form does not attempt to
+        and that the license for the Executable form does yest attempt to
         limit or alter the recipient's rights in the Source Code form from
         the rights set forth in this License. If You distribute the Covered
         Software in Executable form under a different license, You must
         make it absolutely clear that any terms which differ from this
-        License are offered by You alone, not by the Initial Developer or
+        License are offered by You alone, yest by the Initial Developer or
         Contributor. You hereby agree to indemnify the Initial Developer
         and every Contributor for any liability incurred by the Initial
         Developer or such Contributor as a result of any such terms You
@@ -221,7 +221,7 @@ Version 1.0
         3.6. Larger Works.
 
         You may create a Larger Work by combining Covered Software with
-        other code not governed by the terms of this License and distribute
+        other code yest governed by the terms of this License and distribute
         the Larger Work as a single product. In such a case, You must make
         sure the requirements of this License are fulfilled for the Covered
         Software.
@@ -232,7 +232,7 @@ Version 1.0
         Sun Microsystems, Inc. is the initial license steward and may
         publish revised and/or new versions of this License from time to
         time. Each version will be given a distinguishing version
-        number. Except as provided in Section 4.3, no one other than the
+        number. Except as provided in Section 4.3, yes one other than the
         license steward has the right to modify this License.
 
         4.2. Effect of New Versions.
@@ -240,7 +240,7 @@ Version 1.0
         You may always continue to use, distribute or otherwise make the
         Covered Software available under the terms of the version of the
         License under which You originally received the Covered
-        Software. If the Initial Developer includes a notice in the
+        Software. If the Initial Developer includes a yestice in the
         Original Software prohibiting it from being distributed or
         otherwise made available under any subsequent version of the
         License, You must distribute and make the Covered Software
@@ -256,7 +256,7 @@ Version 1.0
         license for Your Original Software, You may create and use a
         modified version of this License if You: (a) rename the license and
         remove any references to the name of the license steward (except to
-        note that the license differs from this License); and (b) otherwise
+        yeste that the license differs from this License); and (b) otherwise
         make it clear that the license contains terms which differ from
         this License.
 
@@ -291,10 +291,10 @@ Version 1.0
         Participant is the Initial Developer) directly or indirectly
         infringes any patent, then any and all rights granted directly or
         indirectly to You by such Participant, the Initial Developer (if
-        the Initial Developer is not the Participant) and all Contributors
+        the Initial Developer is yest the Participant) and all Contributors
         under Sections 2.1 and/or 2.2 of this License shall, upon 60 days
-        notice from Participant terminate prospectively and automatically
-        at the expiration of such 60 day notice period, unless if within
+        yestice from Participant terminate prospectively and automatically
+        at the expiration of such 60 day yestice period, unless if within
         such 60 day period You withdraw Your claim with respect to the
         Participant Software against such Participant either unilaterally
         or pursuant to a written agreement with Participant.
@@ -341,18 +341,18 @@ Version 1.0
     matter hereof. If any provision of this License is held to be
     unenforceable, such provision shall be reformed only to the extent
     necessary to make it enforceable. This License shall be governed by the
-    law of the jurisdiction specified in a notice contained within the
+    law of the jurisdiction specified in a yestice contained within the
     Original Software (except to the extent applicable law, if any,
     provides otherwise), excluding such jurisdiction's conflict-of-law
     provisions. Any litigation relating to this License shall be subject to
     the jurisdiction of the courts located in the jurisdiction and venue
-    specified in a notice contained within the Original Software, with the
+    specified in a yestice contained within the Original Software, with the
     losing party responsible for costs, including, without limitation,
     court costs and reasonable attorneys' fees and expenses. The
     application of the United Nations Convention on Contracts for the
     International Sale of Goods is expressly excluded. Any law or
     regulation which provides that the language of a contract shall be
-    construed against the drafter shall not apply to this License. You
+    construed against the drafter shall yest apply to this License. You
     agree that You alone are responsible for compliance with the United
     States export administration regulations (and the export control laws
     and regulation of any other countries) when You use, distribute or

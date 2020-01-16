@@ -4,7 +4,7 @@
  *
  * Written by Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
  */
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -43,11 +43,11 @@ static void print_open_warning(int err, bool uprobe)
 		else
 			config = "CONFIG_KPROBE_EVENTS";
 
-		pr_warning("%cprobe_events file does not exist"
+		pr_warning("%cprobe_events file does yest exist"
 			   " - please rebuild kernel with %s.\n",
 			   uprobe ? 'u' : 'k', config);
 	} else if (err == -ENOTSUP)
-		pr_warning("Tracefs or debugfs is not mounted.\n");
+		pr_warning("Tracefs or debugfs is yest mounted.\n");
 	else
 		pr_warning("Failed to open %cprobe_events: %s\n",
 			   uprobe ? 'u' : 'k',
@@ -58,7 +58,7 @@ static void print_both_open_warning(int kerr, int uerr)
 {
 	/* Both kprobes and uprobes are disabled, warn it. */
 	if (kerr == -ENOTSUP && uerr == -ENOTSUP)
-		pr_warning("Tracefs or debugfs is not mounted.\n");
+		pr_warning("Tracefs or debugfs is yest mounted.\n");
 	else if (kerr == -ENOENT && uerr == -ENOENT)
 		pr_warning("Please rebuild kernel with CONFIG_KPROBE_EVENTS "
 			   "or/and CONFIG_UPROBE_EVENTS.\n");
@@ -85,7 +85,7 @@ int open_trace_file(const char *trace_file, bool readwrite)
 			ret = open(buf, O_RDONLY, 0);
 
 		if (ret < 0)
-			ret = -errno;
+			ret = -erryes;
 	}
 	return ret;
 }
@@ -185,7 +185,7 @@ static struct strlist *__probe_file__get_namelist(int fd, bool include_group)
 {
 	char buf[128];
 	struct strlist *sl, *rawlist;
-	struct str_node *ent;
+	struct str_yesde *ent;
 	struct probe_trace_event tev;
 	int ret = 0;
 
@@ -238,9 +238,9 @@ int probe_file__add_event(int fd, struct probe_trace_event *tev)
 	pr_debug("Writing event: %s\n", buf);
 	if (!probe_event_dry_run) {
 		if (write(fd, buf, strlen(buf)) < (int)strlen(buf)) {
-			ret = -errno;
+			ret = -erryes;
 			pr_warning("Failed to write event: %s\n",
-				   str_error_r(errno, sbuf, sizeof(sbuf)));
+				   str_error_r(erryes, sbuf, sizeof(sbuf)));
 		}
 	}
 	free(buf);
@@ -248,7 +248,7 @@ int probe_file__add_event(int fd, struct probe_trace_event *tev)
 	return ret;
 }
 
-static int __del_trace_probe_event(int fd, struct str_node *ent)
+static int __del_trace_probe_event(int fd, struct str_yesde *ent)
 {
 	char *p;
 	char buf[128];
@@ -261,7 +261,7 @@ static int __del_trace_probe_event(int fd, struct str_node *ent)
 
 	p = strchr(buf + 2, ':');
 	if (!p) {
-		pr_debug("Internal error: %s should have ':' but not.\n",
+		pr_debug("Internal error: %s should have ':' but yest.\n",
 			 ent->s);
 		ret = -ENOTSUP;
 		goto error;
@@ -271,7 +271,7 @@ static int __del_trace_probe_event(int fd, struct str_node *ent)
 	pr_debug("Writing event: %s\n", buf);
 	ret = write(fd, buf, strlen(buf));
 	if (ret < 0) {
-		ret = -errno;
+		ret = -erryes;
 		goto error;
 	}
 
@@ -286,7 +286,7 @@ int probe_file__get_events(int fd, struct strfilter *filter,
 			   struct strlist *plist)
 {
 	struct strlist *namelist;
-	struct str_node *ent;
+	struct str_yesde *ent;
 	const char *p;
 	int ret = -ENOENT;
 
@@ -313,7 +313,7 @@ int probe_file__get_events(int fd, struct strfilter *filter,
 int probe_file__del_strlist(int fd, struct strlist *namelist)
 {
 	int ret = 0;
-	struct str_node *ent;
+	struct str_yesde *ent;
 
 	strlist__for_each_entry(ent, namelist) {
 		ret = __del_trace_probe_event(fd, ent);
@@ -346,7 +346,7 @@ int probe_file__del_events(int fd, struct strfilter *filter)
 static void probe_cache_entry__delete(struct probe_cache_entry *entry)
 {
 	if (entry) {
-		BUG_ON(!list_empty(&entry->node));
+		BUG_ON(!list_empty(&entry->yesde));
 
 		strlist__delete(entry->tevlist);
 		clear_perf_probe_event(&entry->pev);
@@ -361,7 +361,7 @@ probe_cache_entry__new(struct perf_probe_event *pev)
 	struct probe_cache_entry *entry = zalloc(sizeof(*entry));
 
 	if (entry) {
-		INIT_LIST_HEAD(&entry->node);
+		INIT_LIST_HEAD(&entry->yesde);
 		entry->tevlist = strlist__new(NULL, NULL);
 		if (!entry->tevlist)
 			zfree(&entry);
@@ -382,7 +382,7 @@ int probe_cache_entry__get_event(struct probe_cache_entry *entry,
 				 struct probe_trace_event **tevs)
 {
 	struct probe_trace_event *tev;
-	struct str_node *node;
+	struct str_yesde *yesde;
 	int ret, i;
 
 	ret = strlist__nr_entries(entry->tevlist);
@@ -394,9 +394,9 @@ int probe_cache_entry__get_event(struct probe_cache_entry *entry,
 		return -ENOMEM;
 
 	i = 0;
-	strlist__for_each_entry(node, entry->tevlist) {
+	strlist__for_each_entry(yesde, entry->tevlist) {
 		tev = &(*tevs)[i++];
-		ret = parse_probe_trace_command(node->s, tev);
+		ret = parse_probe_trace_command(yesde->s, tev);
 		if (ret < 0)
 			break;
 	}
@@ -436,7 +436,7 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target,
 		return ret;
 	}
 
-	/* If we have no buildid cache, make it */
+	/* If we have yes buildid cache, make it */
 	if (!build_id_cache__cached(sbuildid)) {
 		ret = build_id_cache__add_s(sbuildid, target, nsi,
 					    is_kallsyms, NULL);
@@ -473,7 +473,7 @@ static int probe_cache__load(struct probe_cache *pcache)
 
 	fddup = dup(pcache->fd);
 	if (fddup < 0)
-		return -errno;
+		return -erryes;
 	fp = fdopen(fddup, "r");
 	if (!fp) {
 		close(fddup);
@@ -505,7 +505,7 @@ static int probe_cache__load(struct probe_cache *pcache)
 				probe_cache_entry__delete(entry);
 				goto out;
 			}
-			list_add_tail(&entry->node, &pcache->entries);
+			list_add_tail(&entry->yesde, &pcache->entries);
 		} else {	/* trace_probe_event */
 			if (!entry) {
 				ret = -EINVAL;
@@ -534,8 +534,8 @@ void probe_cache__purge(struct probe_cache *pcache)
 {
 	struct probe_cache_entry *entry, *n;
 
-	list_for_each_entry_safe(entry, n, &pcache->entries, node) {
-		list_del_init(&entry->node);
+	list_for_each_entry_safe(entry, n, &pcache->entries, yesde) {
+		list_del_init(&entry->yesde);
 		probe_cache_entry__delete(entry);
 	}
 }
@@ -656,7 +656,7 @@ int probe_cache__add_entry(struct probe_cache *pcache,
 	/* Remove old cache entry */
 	entry = probe_cache__find(pcache, pev);
 	if (entry) {
-		list_del_init(&entry->node);
+		list_del_init(&entry->yesde);
 		probe_cache_entry__delete(entry);
 	}
 
@@ -675,7 +675,7 @@ int probe_cache__add_entry(struct probe_cache *pcache,
 		strlist__add(entry->tevlist, command);
 		free(command);
 	}
-	list_add_tail(&entry->node, &pcache->entries);
+	list_add_tail(&entry->yesde, &pcache->entries);
 	pr_debug("Added probe cache: %d\n", ntevs);
 	return 0;
 
@@ -686,18 +686,18 @@ out_err:
 }
 
 #ifdef HAVE_GELF_GETNOTE_SUPPORT
-static unsigned long long sdt_note__get_addr(struct sdt_note *note)
+static unsigned long long sdt_yeste__get_addr(struct sdt_yeste *yeste)
 {
-	return note->bit32 ?
-		(unsigned long long)note->addr.a32[SDT_NOTE_IDX_LOC] :
-		(unsigned long long)note->addr.a64[SDT_NOTE_IDX_LOC];
+	return yeste->bit32 ?
+		(unsigned long long)yeste->addr.a32[SDT_NOTE_IDX_LOC] :
+		(unsigned long long)yeste->addr.a64[SDT_NOTE_IDX_LOC];
 }
 
-static unsigned long long sdt_note__get_ref_ctr_offset(struct sdt_note *note)
+static unsigned long long sdt_yeste__get_ref_ctr_offset(struct sdt_yeste *yeste)
 {
-	return note->bit32 ?
-		(unsigned long long)note->addr.a32[SDT_NOTE_IDX_REFCTR] :
-		(unsigned long long)note->addr.a64[SDT_NOTE_IDX_REFCTR];
+	return yeste->bit32 ?
+		(unsigned long long)yeste->addr.a32[SDT_NOTE_IDX_REFCTR] :
+		(unsigned long long)yeste->addr.a64[SDT_NOTE_IDX_REFCTR];
 }
 
 static const char * const type_to_suffix[] = {
@@ -769,7 +769,7 @@ error:
 	return ret;
 }
 
-static char *synthesize_sdt_probe_command(struct sdt_note *note,
+static char *synthesize_sdt_probe_command(struct sdt_yeste *yeste,
 					const char *pathname,
 					const char *sdtgrp)
 {
@@ -782,21 +782,21 @@ static char *synthesize_sdt_probe_command(struct sdt_note *note,
 		return NULL;
 
 	err = strbuf_addf(&buf, "p:%s/%s %s:0x%llx",
-			sdtgrp, note->name, pathname,
-			sdt_note__get_addr(note));
+			sdtgrp, yeste->name, pathname,
+			sdt_yeste__get_addr(yeste));
 
-	ref_ctr_offset = sdt_note__get_ref_ctr_offset(note);
+	ref_ctr_offset = sdt_yeste__get_ref_ctr_offset(yeste);
 	if (ref_ctr_offset && err >= 0)
 		err = strbuf_addf(&buf, "(0x%llx)", ref_ctr_offset);
 
 	if (err < 0)
 		goto error;
 
-	if (!note->args)
+	if (!yeste->args)
 		goto out;
 
-	if (note->args) {
-		args = argv_split(note->args, &args_count);
+	if (yeste->args) {
+		args = argv_split(yeste->args, &args_count);
 
 		for (i = 0; i < args_count; ++i) {
 			if (synthesize_sdt_probe_arg(&buf, i, args[i]) < 0)
@@ -815,23 +815,23 @@ int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 {
 	struct probe_cache_entry *entry = NULL;
 	struct list_head sdtlist;
-	struct sdt_note *note;
+	struct sdt_yeste *yeste;
 	char *buf;
 	char sdtgrp[64];
 	int ret;
 
 	INIT_LIST_HEAD(&sdtlist);
-	ret = get_sdt_note_list(&sdtlist, pathname);
+	ret = get_sdt_yeste_list(&sdtlist, pathname);
 	if (ret < 0) {
-		pr_debug4("Failed to get sdt note: %d\n", ret);
+		pr_debug4("Failed to get sdt yeste: %d\n", ret);
 		return ret;
 	}
-	list_for_each_entry(note, &sdtlist, note_list) {
-		ret = snprintf(sdtgrp, 64, "sdt_%s", note->provider);
+	list_for_each_entry(yeste, &sdtlist, yeste_list) {
+		ret = snprintf(sdtgrp, 64, "sdt_%s", yeste->provider);
 		if (ret < 0)
 			break;
 		/* Try to find same-name entry */
-		entry = probe_cache__find_by_name(pcache, sdtgrp, note->name);
+		entry = probe_cache__find_by_name(pcache, sdtgrp, yeste->name);
 		if (!entry) {
 			entry = probe_cache_entry__new(NULL);
 			if (!entry) {
@@ -840,14 +840,14 @@ int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 			}
 			entry->sdt = true;
 			ret = asprintf(&entry->spev, "%s:%s=%s", sdtgrp,
-					note->name, note->name);
+					yeste->name, yeste->name);
 			if (ret < 0)
 				break;
-			entry->pev.event = strdup(note->name);
+			entry->pev.event = strdup(yeste->name);
 			entry->pev.group = strdup(sdtgrp);
-			list_add_tail(&entry->node, &pcache->entries);
+			list_add_tail(&entry->yesde, &pcache->entries);
 		}
-		buf = synthesize_sdt_probe_command(note, pathname, sdtgrp);
+		buf = synthesize_sdt_probe_command(yeste, pathname, sdtgrp);
 		if (!buf) {
 			ret = -ENOMEM;
 			break;
@@ -858,17 +858,17 @@ int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 		entry = NULL;
 	}
 	if (entry) {
-		list_del_init(&entry->node);
+		list_del_init(&entry->yesde);
 		probe_cache_entry__delete(entry);
 	}
-	cleanup_sdt_note_list(&sdtlist);
+	cleanup_sdt_yeste_list(&sdtlist);
 	return ret;
 }
 #endif
 
 static int probe_cache_entry__write(struct probe_cache_entry *entry, int fd)
 {
-	struct str_node *snode;
+	struct str_yesde *syesde;
 	struct stat st;
 	struct iovec iov[3];
 	const char *prefix = entry->sdt ? "%" : "#";
@@ -886,9 +886,9 @@ static int probe_cache_entry__write(struct probe_cache_entry *entry, int fd)
 	if (ret < (int)iov[1].iov_len + 2)
 		goto rollback;
 
-	strlist__for_each_entry(snode, entry->tevlist) {
-		iov[0].iov_base = (void *)snode->s;
-		iov[0].iov_len = strlen(snode->s);
+	strlist__for_each_entry(syesde, entry->tevlist) {
+		iov[0].iov_base = (void *)syesde->s;
+		iov[0].iov_len = strlen(syesde->s);
 		iov[1].iov_base = (void *)"\n"; iov[1].iov_len = 1;
 		ret = writev(fd, iov, 2);
 		if (ret < (int)iov[0].iov_len + 1)
@@ -911,7 +911,7 @@ int probe_cache__commit(struct probe_cache *pcache)
 	struct probe_cache_entry *entry;
 	int ret = 0;
 
-	/* TBD: if we do not update existing entries, skip it */
+	/* TBD: if we do yest update existing entries, skip it */
 	ret = lseek(pcache->fd, 0, SEEK_SET);
 	if (ret < 0)
 		goto out;
@@ -947,10 +947,10 @@ int probe_cache__filter_purge(struct probe_cache *pcache,
 {
 	struct probe_cache_entry *entry, *tmp;
 
-	list_for_each_entry_safe(entry, tmp, &pcache->entries, node) {
+	list_for_each_entry_safe(entry, tmp, &pcache->entries, yesde) {
 		if (probe_cache_entry__compare(entry, filter)) {
 			pr_info("Removed cached event: %s\n", entry->spev);
-			list_del_init(&entry->node);
+			list_del_init(&entry->yesde);
 			probe_cache_entry__delete(entry);
 		}
 	}
@@ -974,7 +974,7 @@ int probe_cache__show_all_caches(struct strfilter *filter)
 {
 	struct probe_cache *pcache;
 	struct strlist *bidlist;
-	struct str_node *nd;
+	struct str_yesde *nd;
 	char *buf = strfilter__string(filter);
 
 	pr_debug("list cache with filter: %s\n", buf);
@@ -982,7 +982,7 @@ int probe_cache__show_all_caches(struct strfilter *filter)
 
 	bidlist = build_id_cache__list_all(true);
 	if (!bidlist) {
-		pr_debug("Failed to get buildids: %d\n", errno);
+		pr_debug("Failed to get buildids: %d\n", erryes);
 		return -EINVAL;
 	}
 	strlist__for_each_entry(nd, bidlist) {

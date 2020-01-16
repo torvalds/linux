@@ -89,12 +89,12 @@ static int gpo_twl6040_probe(struct platform_device *pdev)
 
 	twl6040gpo_chip.parent = &pdev->dev;
 #ifdef CONFIG_OF_GPIO
-	twl6040gpo_chip.of_node = twl6040_core_dev->of_node;
+	twl6040gpo_chip.of_yesde = twl6040_core_dev->of_yesde;
 #endif
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &twl6040gpo_chip, NULL);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "could yest register gpiochip, %d\n", ret);
 		twl6040gpo_chip.ngpio = 0;
 	}
 

@@ -204,7 +204,7 @@ static void __init __cns3xxx_timer_init(unsigned int timer_irq)
 	u32 irq_mask;
 
 	/*
-	 * Initialise to a known state (all timers off)
+	 * Initialise to a kyeswn state (all timers off)
 	 */
 
 	/* disable timer1 and timer2 */
@@ -219,7 +219,7 @@ static void __init __cns3xxx_timer_init(unsigned int timer_irq)
 	writel(0, cns3xxx_tmr1 + TIMER1_MATCH_V1_OFFSET);
 	writel(0, cns3xxx_tmr1 + TIMER1_MATCH_V2_OFFSET);
 
-	/* mask irq, non-mask timer1 overflow */
+	/* mask irq, yesn-mask timer1 overflow */
 	irq_mask = readl(cns3xxx_tmr1 + TIMER1_2_INTERRUPT_MASK_OFFSET);
 	irq_mask &= ~(1 << 2);
 	irq_mask |= 0x03;
@@ -353,11 +353,11 @@ static const struct of_dev_auxdata cns3xxx_auxdata[] __initconst = {
 
 static void __init cns3xxx_init(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
 	cns3xxx_l2x0_init();
 
-	dn = of_find_compatible_node(NULL, NULL, "cavium,cns3420-ahci");
+	dn = of_find_compatible_yesde(NULL, NULL, "cavium,cns3420-ahci");
 	if (of_device_is_available(dn)) {
 		u32 tmp;
 	
@@ -377,7 +377,7 @@ static void __init cns3xxx_init(void)
 		cns3xxx_pwr_soft_rst(CNS3XXX_PWR_SOFTWARE_RST(SATA));
 	}
 
-	dn = of_find_compatible_node(NULL, NULL, "cavium,cns3420-sdhci");
+	dn = of_find_compatible_yesde(NULL, NULL, "cavium,cns3420-sdhci");
 	if (of_device_is_available(dn)) {
 		u32 __iomem *gpioa = IOMEM(CNS3XXX_MISC_BASE_VIRT + 0x0014);
 		u32 gpioa_pins = __raw_readl(gpioa);

@@ -25,7 +25,7 @@
  *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/init.h>
@@ -465,7 +465,7 @@ static int vrc4173_cardu_probe(struct pci_dev *dev,
 
 	slot = vrc4173_cardu_slots++;
 	socket = &cardu_sockets[slot];
-	if (socket->noprobe != 0)
+	if (socket->yesprobe != 0)
 		return -EBUSY;
 
 	sprintf(socket->name, "NEC VRC4173 CARDU%1d", slot+1);
@@ -541,8 +541,8 @@ static int vrc4173_cardu_setup(char *options)
 	if (strncmp(options, "cardu1:", 7) == 0) {
 		options += 7;
 		if (*options != '\0') {
-			if (strncmp(options, "noprobe", 7) == 0) {
-				cardu_sockets[CARDU1].noprobe = 1;
+			if (strncmp(options, "yesprobe", 7) == 0) {
+				cardu_sockets[CARDU1].yesprobe = 1;
 				options += 7;
 			}
 
@@ -554,8 +554,8 @@ static int vrc4173_cardu_setup(char *options)
 
 	if (strncmp(options, "cardu2:", 7) == 0) {
 		options += 7;
-		if ((*options != '\0') && (strncmp(options, "noprobe", 7) == 0))
-			cardu_sockets[CARDU2].noprobe = 1;
+		if ((*options != '\0') && (strncmp(options, "yesprobe", 7) == 0))
+			cardu_sockets[CARDU2].yesprobe = 1;
 	}
 
 	return 1;

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Copyright (C) 2019 Renesas Electronics Corporation
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -21,7 +21,7 @@
  */
 void usbhs_pkt_init(struct usbhs_pkt *pkt)
 {
-	INIT_LIST_HEAD(&pkt->node);
+	INIT_LIST_HEAD(&pkt->yesde);
 }
 
 /*
@@ -52,7 +52,7 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 	unsigned long flags;
 
 	if (!done) {
-		dev_err(dev, "no done function\n");
+		dev_err(dev, "yes done function\n");
 		return;
 	}
 
@@ -60,11 +60,11 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 	usbhs_lock(priv, flags);
 
 	if (!pipe->handler) {
-		dev_err(dev, "no handler function\n");
+		dev_err(dev, "yes handler function\n");
 		pipe->handler = &usbhsf_null_handler;
 	}
 
-	list_move_tail(&pkt->node, &pipe->list);
+	list_move_tail(&pkt->yesde, &pipe->list);
 
 	/*
 	 * each pkt must hold own handler.
@@ -86,12 +86,12 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 
 static void __usbhsf_pkt_del(struct usbhs_pkt *pkt)
 {
-	list_del_init(&pkt->node);
+	list_del_init(&pkt->yesde);
 }
 
 struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe)
 {
-	return list_first_entry_or_null(&pipe->list, struct usbhs_pkt, node);
+	return list_first_entry_or_null(&pipe->list, struct usbhs_pkt, yesde);
 }
 
 static void usbhsf_fifo_unselect(struct usbhs_pipe *pipe,
@@ -173,7 +173,7 @@ static int usbhsf_pkt_handler(struct usbhs_pipe *pipe, int type)
 		func = pkt->handler->dma_done;
 		break;
 	default:
-		dev_err(dev, "unknown pkt handler\n");
+		dev_err(dev, "unkyeswn pkt handler\n");
 		goto __usbhs_pkt_handler_end;
 	}
 
@@ -227,7 +227,7 @@ static void usbhsf_tx_irq_ctrl(struct usbhs_pipe *pipe, int enable)
 	 * see
 	 *   "Operation" - "Interrupt Function" - "BRDY Interrupt"
 	 *
-	 * on the other hand, normal pipe can use "ready interrupt" for "send"
+	 * on the other hand, yesrmal pipe can use "ready interrupt" for "send"
 	 * even though it is single/double buffer
 	 */
 	if (usbhs_pipe_is_dcp(pipe))
@@ -281,7 +281,7 @@ static void usbhsf_fifo_clear(struct usbhs_pipe *pipe,
 	}
 
 	/*
-	 * if non-DCP pipe, this driver should set BCLR when
+	 * if yesn-DCP pipe, this driver should set BCLR when
 	 * usbhsf_fifo_barrier() returns 0.
 	 */
 	if (!ret)
@@ -503,7 +503,7 @@ static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 	int is_short;
 
 	usbhs_pipe_data_sequence(pipe, pkt->sequence);
-	pkt->sequence = -1; /* -1 sequence will be ignored */
+	pkt->sequence = -1; /* -1 sequence will be igyesred */
 
 	usbhs_pipe_set_trans_count_if_bulk(pipe, pkt->length);
 
@@ -513,7 +513,7 @@ static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 
 	ret = usbhs_pipe_is_accessible(pipe);
 	if (ret < 0) {
-		/* inaccessible pipe is not an error */
+		/* inaccessible pipe is yest an error */
 		ret = 0;
 		goto usbhs_fifo_write_busy;
 	}
@@ -623,7 +623,7 @@ static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 	 * pipe enable to prepare packet receive
 	 */
 	usbhs_pipe_data_sequence(pipe, pkt->sequence);
-	pkt->sequence = -1; /* -1 sequence will be ignored */
+	pkt->sequence = -1; /* -1 sequence will be igyesred */
 
 	if (usbhs_pipe_is_dcp(pipe))
 		usbhsf_fifo_clear(pipe, fifo);
@@ -680,8 +680,8 @@ static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 		/*
 		 * If function mode, since this controller is possible to enter
 		 * Control Write status stage at this timing, this driver
-		 * should not disable the pipe. If such a case happens, this
-		 * controller is not able to complete the status stage.
+		 * should yest disable the pipe. If such a case happens, this
+		 * controller is yest able to complete the status stage.
 		 */
 		if (!usbhs_mod_is_host(priv) && !usbhs_pipe_is_dcp(pipe))
 			usbhs_pipe_disable(pipe);	/* disable pipe first */
@@ -1013,7 +1013,7 @@ static int usbhsf_dma_prepare_pop_with_usb_dmac(struct usbhs_pkt *pkt,
 	/*
 	 * usbhs_fifo_dma_pop_handler :: prepare
 	 * enabled irq to come here.
-	 * but it is no longer needed for DMA. disable it.
+	 * but it is yes longer needed for DMA. disable it.
 	 */
 	usbhsf_rx_irq_ctrl(pipe, 0);
 
@@ -1092,7 +1092,7 @@ static int usbhsf_dma_try_pop_with_rx_irq(struct usbhs_pkt *pkt, int *is_done)
 	/*
 	 * usbhs_fifo_dma_pop_handler :: prepare
 	 * enabled irq to come here.
-	 * but it is no longer needed for DMA. disable it.
+	 * but it is yes longer needed for DMA. disable it.
 	 */
 	usbhsf_rx_irq_ctrl(pipe, 0);
 
@@ -1179,7 +1179,7 @@ static int usbhsf_dma_pop_done_with_usb_dmac(struct usbhs_pkt *pkt,
 
 	/*
 	 * Since the driver disables rx_irq in DMA mode, the interrupt handler
-	 * cannot the BRDYSTS. So, the function clears it here because the
+	 * canyest the BRDYSTS. So, the function clears it here because the
 	 * driver may use PIO mode next time.
 	 */
 	usbhs_xxxsts_clear(priv, BRDYSTS, usbhs_pipe_number(pipe));
@@ -1268,7 +1268,7 @@ static void usbhsf_dma_init_dt(struct device *dev, struct usbhs_fifo *fifo,
 
 	/*
 	 * To avoid complex handing for DnFIFOs, the driver uses each
-	 * DnFIFO as TX or RX direction (not bi-direction).
+	 * DnFIFO as TX or RX direction (yest bi-direction).
 	 * So, the driver uses odd channels for TX, even channels for RX.
 	 */
 	snprintf(name, sizeof(name), "ch%d", channel);
@@ -1288,7 +1288,7 @@ static void usbhsf_dma_init(struct usbhs_priv *priv, struct usbhs_fifo *fifo,
 {
 	struct device *dev = usbhs_priv_to_dev(priv);
 
-	if (dev_of_node(dev))
+	if (dev_of_yesde(dev))
 		usbhsf_dma_init_dt(dev, fifo, channel);
 	else
 		usbhsf_dma_init_pdev(fifo);
@@ -1319,7 +1319,7 @@ static int usbhsf_irq_empty(struct usbhs_priv *priv,
 
 	/*
 	 * search interrupted "pipe"
-	 * not "uep".
+	 * yest "uep".
 	 */
 	usbhs_for_each_pipe_with_dcp(pipe, priv, i) {
 		if (!(irq_state->bempsts & (1 << i)))
@@ -1349,7 +1349,7 @@ static int usbhsf_irq_ready(struct usbhs_priv *priv,
 
 	/*
 	 * search interrupted "pipe"
-	 * not "uep".
+	 * yest "uep".
 	 */
 	usbhs_for_each_pipe_with_dcp(pipe, priv, i) {
 		if (!(irq_state->brdysts & (1 << i)))

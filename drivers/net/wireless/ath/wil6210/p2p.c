@@ -181,7 +181,7 @@ u8 wil_p2p_stop_discovery(struct wil6210_vif *vif)
 
 	if (p2p->discovery_started) {
 		if (p2p->pending_listen_wdev) {
-			/* discovery not really started, only pending */
+			/* discovery yest really started, only pending */
 			p2p->pending_listen_wdev = NULL;
 		} else {
 			del_timer_sync(&p2p->discovery_timer);
@@ -213,7 +213,7 @@ int wil_p2p_cancel_listen(struct wil6210_vif *vif, u64 cookie)
 	mutex_unlock(&wil->mutex);
 
 	if (!started) {
-		wil_err(wil, "listen not started\n");
+		wil_err(wil, "listen yest started\n");
 		return -ENOENT;
 	}
 
@@ -305,7 +305,7 @@ void wil_p2p_delayed_listen_work(struct work_struct *work)
 
 	mutex_lock(&wil->vif_mutex);
 	if (vif->scan_request) {
-		/* another scan started, wait again... */
+		/* ayesther scan started, wait again... */
 		mutex_unlock(&wil->vif_mutex);
 		goto out;
 	}

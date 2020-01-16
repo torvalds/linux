@@ -256,12 +256,12 @@ static int neo1973_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_disable_pin(&card->dapm, "Handset Spk");
 
 	/* allow audio paths from the GSM modem to run during suspend */
-	snd_soc_dapm_ignore_suspend(&card->dapm, "GSM Line Out");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "GSM Line In");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Headset Mic");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Handset Mic");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Stereo Out");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Handset Spk");
+	snd_soc_dapm_igyesre_suspend(&card->dapm, "GSM Line Out");
+	snd_soc_dapm_igyesre_suspend(&card->dapm, "GSM Line In");
+	snd_soc_dapm_igyesre_suspend(&card->dapm, "Headset Mic");
+	snd_soc_dapm_igyesre_suspend(&card->dapm, "Handset Mic");
+	snd_soc_dapm_igyesre_suspend(&card->dapm, "Stereo Out");
+	snd_soc_dapm_igyesre_suspend(&card->dapm, "Handset Spk");
 
 	return 0;
 }

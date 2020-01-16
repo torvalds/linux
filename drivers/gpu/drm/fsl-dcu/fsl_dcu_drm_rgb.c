@@ -126,16 +126,16 @@ err_cleanup:
 
 int fsl_dcu_create_outputs(struct fsl_dcu_drm_device *fsl_dev)
 {
-	struct device_node *panel_node;
+	struct device_yesde *panel_yesde;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	int ret;
 
 	/* This is for backward compatibility */
-	panel_node = of_parse_phandle(fsl_dev->np, "fsl,panel", 0);
-	if (panel_node) {
-		fsl_dev->connector.panel = of_drm_find_panel(panel_node);
-		of_node_put(panel_node);
+	panel_yesde = of_parse_phandle(fsl_dev->np, "fsl,panel", 0);
+	if (panel_yesde) {
+		fsl_dev->connector.panel = of_drm_find_panel(panel_yesde);
+		of_yesde_put(panel_yesde);
 		if (IS_ERR(fsl_dev->connector.panel))
 			return PTR_ERR(fsl_dev->connector.panel);
 

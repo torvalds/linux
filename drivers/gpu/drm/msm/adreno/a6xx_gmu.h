@@ -32,7 +32,7 @@ struct a6xx_gmu_bo {
  * the more things that the GMU hardware controls on its own.
  */
 
-/* The GMU does not do any idle state management */
+/* The GMU does yest do any idle state management */
 #define GMU_IDLE_STATE_ACTIVE 0
 
 /* The GMU manages SPTP power collapse */
@@ -114,9 +114,9 @@ static inline u64 gmu_read64(struct a6xx_gmu *gmu, u32 lo, u32 hi)
 
 /*
  * These are the available OOB (out of band requests) to the GMU where "out of
- * band" means that the CPU talks to the GMU directly and not through HFI.
+ * band" means that the CPU talks to the GMU directly and yest through HFI.
  * Normally this works by writing a ITCM/DTCM register and then triggering a
- * interrupt (the "request" bit) and waiting for an acknowledgment (the "ack"
+ * interrupt (the "request" bit) and waiting for an ackyeswledgment (the "ack"
  * bit). The state is cleared by writing the "clear' bit to the GMU interrupt.
  *
  * These are used to force the GMU/GPU to stay on during a critical sequence or
@@ -134,8 +134,8 @@ enum a6xx_gmu_oob_state {
  */
 
 /*
- * Let the GMU know that a boot or slumber operation has started. The value in
- * REG_A6XX_GMU_BOOT_SLUMBER_OPTION lets the GMU know which operation we are
+ * Let the GMU kyesw that a boot or slumber operation has started. The value in
+ * REG_A6XX_GMU_BOOT_SLUMBER_OPTION lets the GMU kyesw which operation we are
  * doing
  */
 #define GMU_OOB_BOOT_SLUMBER_REQUEST	22
@@ -150,7 +150,7 @@ enum a6xx_gmu_oob_state {
 #define GMU_OOB_DCVS_CLEAR	31
 
 /*
- * Let the GMU know to not turn off any GPU registers while the CPU is in a
+ * Let the GMU kyesw to yest turn off any GPU registers while the CPU is in a
  * critical section
  */
 #define GMU_OOB_GPU_SET_REQUEST	16

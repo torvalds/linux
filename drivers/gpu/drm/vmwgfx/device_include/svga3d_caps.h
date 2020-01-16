@@ -10,7 +10,7 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright yestice and this permission yestice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -35,7 +35,7 @@
  *
  *       Note that these definitions are only for 3D capabilities.
  *       The SVGA device also has "device capabilities" and "FIFO
- *       capabilities", which are non-3D-specific and are stored as
+ *       capabilities", which are yesn-3D-specific and are stored as
  *       bitfields rather than key/value pairs.
  */
 

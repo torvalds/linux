@@ -89,7 +89,7 @@
 #define TMIOFB_ACC_LDGO_LHRV	0x00000020
 #define TMIOFB_ACC_LDGO_LDMOD	0x00000040
 
-/* a FIFO is always allocated, even if acceleration is not used */
+/* a FIFO is always allocated, even if acceleration is yest used */
 #define TMIOFB_FIFO_SIZE	512
 
 /*
@@ -218,7 +218,7 @@ static irqreturn_t tmiofb_irq(int irq, void *__info)
 
 #ifdef CONFIG_FB_TMIO_ACCELL
 	/*
-	 * We were in polling mode and now we got correct irq.
+	 * We were in polling mode and yesw we got correct irq.
 	 * Switch back to IRQ-based sync of command FIFO
 	 */
 	if (unlikely(par->use_polling && irq != -1)) {
@@ -595,7 +595,7 @@ static int tmiofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->blue.length = 5;
 	var->transp.offset = 0;
 	var->transp.length = 0;
-	var->nonstd = 0;
+	var->yesnstd = 0;
 	var->height = data->height; /* mm */
 	var->width = data->width; /* mm */
 	var->rotate = 0;
@@ -620,14 +620,14 @@ static int tmiofb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static int tmiofb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int tmiofb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
 	struct tmiofb_par *par = info->par;
 
-	if (regno < ARRAY_SIZE(par->pseudo_palette)) {
-		par->pseudo_palette[regno] =
+	if (regyes < ARRAY_SIZE(par->pseudo_palette)) {
+		par->pseudo_palette[regyes] =
 			((red & 0xf800)) |
 			((green & 0xfc00) >>  5) |
 			((blue & 0xf800) >> 11);

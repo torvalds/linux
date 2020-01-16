@@ -3,7 +3,7 @@
  *   Driver for KeyStream IEEE802.11 b/g wireless LAN cards.
  *
  *   Copyright (C) 2006-2008 KeyStream Corp.
- *   Copyright (C) 2009 Renesas Technology Corp.
+ *   Copyright (C) 2009 Renesas Techyeslogy Corp.
  */
 
 #ifndef _KS_WLAN_H
@@ -215,7 +215,7 @@ struct local_ap {
 	} rate_set;
 	u16 capability;
 	u8 channel;
-	u8 noise;
+	u8 yesise;
 	struct rsn_ie wpa_ie;
 	struct rsn_ie rsn_ie;
 	struct wps_ie wps_ie;
@@ -261,7 +261,7 @@ struct power_save_status {
 	atomic_t status;	/* initialvalue 0 */
 	struct completion wakeup_wait;
 	atomic_t confirm_wait;
-	atomic_t snooze_guard;
+	atomic_t syesoze_guard;
 };
 
 struct sleep_status {

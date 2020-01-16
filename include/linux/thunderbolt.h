@@ -2,7 +2,7 @@
 /*
  * Thunderbolt service API
  *
- * Copyright (C) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2017, Intel Corporation
  * Authors: Michael Jamet <michael.jamet@intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
@@ -177,11 +177,11 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @vendor: Vendor ID of the remote domain
  * @device: Device ID of the demote domain
  * @lock: Lock to serialize access to the following fields of this structure
- * @vendor_name: Name of the vendor (or %NULL if not known)
- * @device_name: Name of the device (or %NULL if not known)
+ * @vendor_name: Name of the vendor (or %NULL if yest kyeswn)
+ * @device_name: Name of the device (or %NULL if yest kyeswn)
  * @is_unplugged: The XDomain is unplugged
  * @resume: The XDomain is being resumed
- * @needs_uuid: If the XDomain does not have @remote_uuid it will be
+ * @needs_uuid: If the XDomain does yest have @remote_uuid it will be
  *		queried first
  * @transmit_path: HopID which the remote end expects us to transmit
  * @transmit_ring: Local ring (hop) where outgoing packets are pushed
@@ -196,10 +196,10 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  *		  giving up
  * @get_properties_work: Work used to get remote domain properties
  * @properties_retries: Number of times left to read properties
- * @properties_changed_work: Work used to notify the remote domain that
+ * @properties_changed_work: Work used to yestify the remote domain that
  *			     our properties have changed
  * @properties_changed_retries: Number of times left to send properties
- *				changed notification
+ *				changed yestification
  * @link: Root switch link the remote domain is connected (ICM only)
  * @depth: Depth in the chain the remote domain is connected (ICM only)
  *
@@ -208,8 +208,8 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * &struct tb_service objects.
  *
  * Service drivers may access this structure if they need to enumerate
- * non-standard properties but they need hold @lock when doing so
- * because properties can be changed asynchronously in response to
+ * yesn-standard properties but they need hold @lock when doing so
+ * because properties can be changed asynchroyesusly in response to
  * changes in the remote domain.
  */
 struct tb_xdomain {
@@ -312,14 +312,14 @@ int tb_xdomain_request(struct tb_xdomain *xd, const void *request,
  * @uuid: XDomain messages with this UUID are dispatched to this handler
  * @callback: Callback called with the XDomain message. Returning %1
  *	      here tells the XDomain core that the message was handled
- *	      by this handler and should not be forwared to other
+ *	      by this handler and should yest be forwared to other
  *	      handlers.
  * @data: Data passed with the callback
  * @list: Handlers are linked using this
  *
  * Thunderbolt services can hook into incoming XDomain requests by
  * registering protocol handler. Only limitation is that the XDomain
- * discovery protocol UUID cannot be registered since it is handled by
+ * discovery protocol UUID canyest be registered since it is handled by
  * the core XDomain code.
  *
  * The @callback must check that the message is really directed to the
@@ -436,7 +436,7 @@ static inline struct tb_xdomain *tb_service_parent(struct tb_service *svc)
  * @msix_ida: Used to allocate MSI-X vectors for rings
  * @going_away: The host controller device is about to disappear so when
  *		this flag is set, avoid touching the hardware anymore.
- * @interrupt_work: Work scheduled to handle ring interrupt when no
+ * @interrupt_work: Work scheduled to handle ring interrupt when yes
  *		    MSI-X is used.
  * @hop_count: Number of rings (end point hops) supported by NHI.
  */
@@ -512,7 +512,7 @@ typedef void (*ring_cb)(struct tb_ring *, struct ring_frame *, bool canceled);
 
 /**
  * enum ring_desc_flags - Flags for DMA ring descriptor
- * %RING_DESC_ISOCH: Enable isonchronous DMA (Tx only)
+ * %RING_DESC_ISOCH: Enable isonchroyesus DMA (Tx only)
  * %RING_DESC_CRC_ERROR: In frame mode CRC check failed for the frame (Rx only)
  * %RING_DESC_COMPLETED: Descriptor completed (set by NHI)
  * %RING_DESC_POSTED: Always set this

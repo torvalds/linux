@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_int.c
  *      esas2r interrupt handling
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -23,7 +23,7 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  *  solely responsible for determining the appropriateness of using and
  *  distributing the Program and assumes all risks associated with its
- *  exercise of rights under this Agreement, including but not limited to
+ *  exercise of rights under this Agreement, including but yest limited to
  *  the risks and costs of program errors, damage to or loss of data,
  *  programs or equipment, and unavailability or interruption of operations.
  *
@@ -37,7 +37,7 @@
  *  HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if yest, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -279,7 +279,7 @@ static void esas2r_get_outbound_responses(struct esas2r_adapter *a)
 			esas2r_handle_outbound_rsp_err(a, rq, rsp);
 		} else {
 			/*
-			 * Copy the outbound completion struct for non-I/O
+			 * Copy the outbound completion struct for yesn-I/O
 			 * requests.
 			 */
 			memcpy(&rq->func_rsp, &rsp->func_rsp,
@@ -312,7 +312,7 @@ void esas2r_do_deferred_processes(struct esas2r_adapter *a)
 	/*
 	 * startreqs is used to control starting requests
 	 * that are on the deferred queue
-	 *  = 0 - do not start any requests
+	 *  = 0 - do yest start any requests
 	 *  = 1 - can start discovery requests
 	 *  = 2 - can start any request
 	 */
@@ -409,7 +409,7 @@ void esas2r_process_adapter_reset(struct esas2r_adapter *a)
 	}
 
 	/*
-	 * just clear the interrupt callback for now.  it will be dequeued if
+	 * just clear the interrupt callback for yesw.  it will be dequeued if
 	 * and when we find it on the active queue and we don't want the
 	 * callback called.  also set the dummy completion callback in case we
 	 * were doing an I/O request.
@@ -485,13 +485,13 @@ static void esas2r_chip_rst_needed_during_tasklet(struct esas2r_adapter *a)
 	clear_bit(AF_BUSRST_PENDING, &a->flags);
 	/*
 	 * Make sure we don't get attempt more than 3 resets
-	 * when the uptime between resets does not exceed one
+	 * when the uptime between resets does yest exceed one
 	 * minute.  This will stop any situation where there is
 	 * really something wrong with the hardware.  The way
 	 * this works is that we start with uptime ticks at 0.
 	 * Each time we do a reset, we add 20 seconds worth to
 	 * the count.  Each time a timer tick occurs, as long
-	 * as a chip reset is not pending, we decrement the
+	 * as a chip reset is yest pending, we decrement the
 	 * tick count.  If the uptime ticks ever gets to 60
 	 * seconds worth, we disable the adapter from that
 	 * point forward.  Three strikes, you're out.
@@ -547,7 +547,7 @@ static void esas2r_chip_rst_needed_during_tasklet(struct esas2r_adapter *a)
 			esas2r_process_adapter_reset(a);
 
 			if (!alrdyrst) {
-				/* Remove devices now that I/O is cleaned up. */
+				/* Remove devices yesw that I/O is cleaned up. */
 				a->prev_dev_cnt =
 					esas2r_targ_db_get_tgt_cnt(a);
 				esas2r_targ_db_remove_all(a, false);
@@ -580,9 +580,9 @@ static void esas2r_handle_chip_rst_during_tasklet(struct esas2r_adapter *a)
 		if (test_bit(AF_POWER_MGT, &a->flags)) {
 			/* Recovery from power management. */
 			if (test_bit(AF_FIRST_INIT, &a->flags)) {
-				/* Chip reset during normal power up */
+				/* Chip reset during yesrmal power up */
 				esas2r_log(ESAS2R_LOG_CRIT,
-					   "The firmware was reset during a normal power-up sequence");
+					   "The firmware was reset during a yesrmal power-up sequence");
 			} else {
 				/* Deferred power up complete. */
 				clear_bit(AF_POWER_MGT, &a->flags);
@@ -833,7 +833,7 @@ void esas2r_ae_complete(struct esas2r_adapter *a, struct esas2r_request *rq)
 
 		default:
 
-			/* Silently ignore the rest and let the apps deal with
+			/* Silently igyesre the rest and let the apps deal with
 			 * them.
 			 */
 
@@ -848,7 +848,7 @@ void esas2r_ae_complete(struct esas2r_adapter *a, struct esas2r_request *rq)
 	esas2r_trace_exit();
 }
 
-/* Send an asynchronous event for a chip reset or power management. */
+/* Send an asynchroyesus event for a chip reset or power management. */
 void esas2r_send_reset_ae(struct esas2r_adapter *a, bool pwr_mgt)
 {
 	struct atto_vda_ae_hdr ae;

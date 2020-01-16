@@ -383,16 +383,16 @@ fail:
 static int cfg_device(struct xen_snd_front_info *front_info,
 		      struct xen_front_cfg_pcm_instance *pcm_instance,
 		      struct snd_pcm_hardware *parent_pcm_hw,
-		      const char *path, int node_index, int *stream_cnt)
+		      const char *path, int yesde_index, int *stream_cnt)
 {
 	char *str;
 	char *device_path;
 	int ret, i, num_streams;
 	int num_pb, num_cap;
 	int cur_pb, cur_cap;
-	char node[3];
+	char yesde[3];
 
-	device_path = kasprintf(GFP_KERNEL, "%s/%d", path, node_index);
+	device_path = kasprintf(GFP_KERNEL, "%s/%d", path, yesde_index);
 	if (!device_path)
 		return -ENOMEM;
 
@@ -402,7 +402,7 @@ static int cfg_device(struct xen_snd_front_info *front_info,
 		kfree(str);
 	}
 
-	pcm_instance->device_id = node_index;
+	pcm_instance->device_id = yesde_index;
 
 	/*
 	 * Check XenStore if PCM HW configuration exists for this device
@@ -414,8 +414,8 @@ static int cfg_device(struct xen_snd_front_info *front_info,
 	/* Find out how many streams were configured in Xen store. */
 	num_streams = 0;
 	do {
-		snprintf(node, sizeof(node), "%d", num_streams);
-		if (!xenbus_exists(XBT_NIL, device_path, node))
+		snprintf(yesde, sizeof(yesde), "%d", num_streams);
+		if (!xenbus_exists(XBT_NIL, device_path, yesde))
 			break;
 
 		num_streams++;
@@ -478,13 +478,13 @@ int xen_snd_front_cfg_card(struct xen_snd_front_info *front_info,
 	struct xenbus_device *xb_dev = front_info->xb_dev;
 	struct xen_front_cfg_card *cfg = &front_info->cfg;
 	int ret, num_devices, i;
-	char node[3];
+	char yesde[3];
 
 	*stream_cnt = 0;
 	num_devices = 0;
 	do {
-		snprintf(node, sizeof(node), "%d", num_devices);
-		if (!xenbus_exists(XBT_NIL, xb_dev->nodename, node))
+		snprintf(yesde, sizeof(yesde), "%d", num_devices);
+		if (!xenbus_exists(XBT_NIL, xb_dev->yesdename, yesde))
 			break;
 
 		num_devices++;
@@ -493,12 +493,12 @@ int xen_snd_front_cfg_card(struct xen_snd_front_info *front_info,
 	if (!num_devices) {
 		dev_warn(&xb_dev->dev,
 			 "No devices configured for sound card at %s\n",
-			 xb_dev->nodename);
+			 xb_dev->yesdename);
 		return -ENODEV;
 	}
 
 	/* Start from default PCM HW configuration for the card. */
-	cfg_read_pcm_hw(xb_dev->nodename, NULL, &cfg->pcm_hw);
+	cfg_read_pcm_hw(xb_dev->yesdename, NULL, &cfg->pcm_hw);
 
 	cfg->pcm_instances =
 			devm_kcalloc(&front_info->xb_dev->dev, num_devices,
@@ -509,7 +509,7 @@ int xen_snd_front_cfg_card(struct xen_snd_front_info *front_info,
 
 	for (i = 0; i < num_devices; i++) {
 		ret = cfg_device(front_info, &cfg->pcm_instances[i],
-				 &cfg->pcm_hw, xb_dev->nodename, i, stream_cnt);
+				 &cfg->pcm_hw, xb_dev->yesdename, i, stream_cnt);
 		if (ret < 0)
 			return ret;
 	}

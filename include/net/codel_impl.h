@@ -13,15 +13,15 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the authors may not be used to endorse or promote products
+ * 3. The names of the authors may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this yestice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
@@ -105,7 +105,7 @@ static bool codel_should_drop(const struct sk_buff *skb,
 			      codel_skb_len_t skb_len_func,
 			      codel_skb_time_t skb_time_func,
 			      u32 *backlog,
-			      codel_time_t now)
+			      codel_time_t yesw)
 {
 	bool ok_to_drop;
 	u32 skb_len;
@@ -116,7 +116,7 @@ static bool codel_should_drop(const struct sk_buff *skb,
 	}
 
 	skb_len = skb_len_func(skb);
-	vars->ldelay = now - skb_time_func(skb);
+	vars->ldelay = yesw - skb_time_func(skb);
 
 	if (unlikely(skb_len > stats->maxpacket))
 		stats->maxpacket = skb_len;
@@ -132,8 +132,8 @@ static bool codel_should_drop(const struct sk_buff *skb,
 		/* just went above from below. If we stay above
 		 * for at least interval we'll say it's ok to drop
 		 */
-		vars->first_above_time = now + params->interval;
-	} else if (codel_time_after(now, vars->first_above_time)) {
+		vars->first_above_time = yesw + params->interval;
+	} else if (codel_time_after(yesw, vars->first_above_time)) {
 		ok_to_drop = true;
 	}
 	return ok_to_drop;
@@ -150,33 +150,33 @@ static struct sk_buff *codel_dequeue(void *ctx,
 				     codel_skb_dequeue_t dequeue_func)
 {
 	struct sk_buff *skb = dequeue_func(vars, ctx);
-	codel_time_t now;
+	codel_time_t yesw;
 	bool drop;
 
 	if (!skb) {
 		vars->dropping = false;
 		return skb;
 	}
-	now = codel_get_time();
+	yesw = codel_get_time();
 	drop = codel_should_drop(skb, ctx, vars, params, stats,
-				 skb_len_func, skb_time_func, backlog, now);
+				 skb_len_func, skb_time_func, backlog, yesw);
 	if (vars->dropping) {
 		if (!drop) {
 			/* sojourn time below target - leave dropping state */
 			vars->dropping = false;
-		} else if (codel_time_after_eq(now, vars->drop_next)) {
+		} else if (codel_time_after_eq(yesw, vars->drop_next)) {
 			/* It's time for the next drop. Drop the current
 			 * packet and dequeue the next. The dequeue might
 			 * take us out of dropping state.
-			 * If not, schedule the next drop.
+			 * If yest, schedule the next drop.
 			 * A large backlog might result in drop rates so high
-			 * that the next drop should happen now,
+			 * that the next drop should happen yesw,
 			 * hence the while loop.
 			 */
 			while (vars->dropping &&
-			       codel_time_after_eq(now, vars->drop_next)) {
+			       codel_time_after_eq(yesw, vars->drop_next)) {
 				vars->count++; /* dont care of possible wrap
-						* since there is no more divide
+						* since there is yes more divide
 						*/
 				codel_Newton_step(vars);
 				if (params->ecn && INET_ECN_set_ce(skb)) {
@@ -195,7 +195,7 @@ static struct sk_buff *codel_dequeue(void *ctx,
 						       vars, params, stats,
 						       skb_len_func,
 						       skb_time_func,
-						       backlog, now)) {
+						       backlog, yesw)) {
 					/* leave dropping state */
 					vars->dropping = false;
 				} else {
@@ -220,20 +220,20 @@ static struct sk_buff *codel_dequeue(void *ctx,
 			skb = dequeue_func(vars, ctx);
 			drop = codel_should_drop(skb, ctx, vars, params,
 						 stats, skb_len_func,
-						 skb_time_func, backlog, now);
+						 skb_time_func, backlog, yesw);
 		}
 		vars->dropping = true;
 		/* if min went above target close to when we last went below it
 		 * assume that the drop rate that controlled the queue on the
-		 * last cycle is a good starting point to control it now.
+		 * last cycle is a good starting point to control it yesw.
 		 */
 		delta = vars->count - vars->lastcount;
 		if (delta > 1 &&
-		    codel_time_before(now - vars->drop_next,
+		    codel_time_before(yesw - vars->drop_next,
 				      16 * params->interval)) {
 			vars->count = delta;
 			/* we dont care if rec_inv_sqrt approximation
-			 * is not very precise :
+			 * is yest very precise :
 			 * Next Newton steps will correct it quadratically.
 			 */
 			codel_Newton_step(vars);
@@ -242,7 +242,7 @@ static struct sk_buff *codel_dequeue(void *ctx,
 			vars->rec_inv_sqrt = ~0U >> REC_INV_SQRT_SHIFT;
 		}
 		vars->lastcount = vars->count;
-		vars->drop_next = codel_control_law(now, params->interval,
+		vars->drop_next = codel_control_law(yesw, params->interval,
 						    vars->rec_inv_sqrt);
 	}
 end:

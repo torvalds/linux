@@ -4,7 +4,7 @@
  * Copyright (C) STMicroelectronics SA 2017
  *
  * Modified by Philippe Cornu <philippe.cornu@st.com>
- * This generic Synopsys DesignWare MIPI DSI host driver is based on the
+ * This generic Syyespsys DesignWare MIPI DSI host driver is based on the
  * Rockchip version from rockchip/dw-mipi-dsi.c with phy & bridge APIs.
  */
 
@@ -310,7 +310,7 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
 
-	ret = drm_of_find_panel_or_bridge(host->dev->of_node, 1, 0,
+	ret = drm_of_find_panel_or_bridge(host->dev->of_yesde, 1, 0,
 					  &panel, &bridge);
 	if (ret)
 		return ret;
@@ -348,7 +348,7 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 			return ret;
 	}
 
-	drm_of_panel_bridge_remove(host->dev->of_node, 1, 0);
+	drm_of_panel_bridge_remove(host->dev->of_yesde, 1, 0);
 
 	drm_bridge_remove(&dsi->bridge);
 
@@ -450,7 +450,7 @@ static int dw_mipi_dsi_read(struct dw_mipi_dsi *dsi,
 	}
 
 	for (i = 0; i < len; i += 4) {
-		/* Read fifo must not be empty before all bytes are read */
+		/* Read fifo must yest be empty before all bytes are read */
 		ret = readl_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
 					 val, !(val & GEN_PLD_R_EMPTY),
 					 1000, CMD_PKT_STATUS_TIMEOUT_US);
@@ -632,10 +632,10 @@ static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi,
 {
 	/*
 	 * TODO dw drv improvements
-	 * only burst mode is supported here. For non-burst video modes,
+	 * only burst mode is supported here. For yesn-burst video modes,
 	 * we should compute DSI_VID_PKT_SIZE, DSI_VCCR.NUMC &
 	 * DSI_VNPCR.NPSIZE... especially because this driver supports
-	 * non-burst video modes, see dw_mipi_dsi_video_mode_config()...
+	 * yesn-burst video modes, see dw_mipi_dsi_video_mode_config()...
 	 */
 
 	dsi_write(dsi, DSI_VID_PKT_SIZE,
@@ -725,7 +725,7 @@ static void dw_mipi_dsi_dphy_timing_config(struct dw_mipi_dsi *dsi)
 	 * TODO dw drv improvements
 	 * data & clock lane timers should be computed according to panel
 	 * blankings and to the automatic clock lane control mode...
-	 * note: DSI_PHY_TMR_CFG.MAX_RD_TIME should be in line with
+	 * yeste: DSI_PHY_TMR_CFG.MAX_RD_TIME should be in line with
 	 * DSI_CMD_MODE_CFG.MAX_RD_PKT_SIZE_LP (see CMD_MODE_ALL_LP)
 	 */
 
@@ -838,7 +838,7 @@ static unsigned int dw_mipi_dsi_get_lanes(struct dw_mipi_dsi *dsi)
 	if (dsi->slave)
 		return dsi->lanes + dsi->slave->lanes;
 
-	/* single-dsi, so no other instance to consider */
+	/* single-dsi, so yes other instance to consider */
 	return dsi->lanes;
 }
 
@@ -929,11 +929,11 @@ static int dw_mipi_dsi_bridge_attach(struct drm_bridge *bridge)
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found\n");
+		DRM_ERROR("Parent encoder object yest found\n");
 		return -ENODEV;
 	}
 
-	/* Set the encoder type as caller does not know it */
+	/* Set the encoder type as caller does yest kyesw it */
 	bridge->encoder->encoder_type = DRM_MODE_ENCODER_DSI;
 
 	/* Attach the panel-bridge to the dsi bridge */
@@ -992,7 +992,7 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	dsi->plat_data = plat_data;
 
 	if (!plat_data->phy_ops->init || !plat_data->phy_ops->get_lane_mbps) {
-		DRM_ERROR("Phy not properly configured\n");
+		DRM_ERROR("Phy yest properly configured\n");
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -1013,8 +1013,8 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	}
 
 	/*
-	 * Note that the reset was not defined in the initial device tree, so
-	 * we have to be prepared for it not being found.
+	 * Note that the reset was yest defined in the initial device tree, so
+	 * we have to be prepared for it yest being found.
 	 */
 	apb_rst = devm_reset_control_get_optional_exclusive(dev, "apb");
 	if (IS_ERR(apb_rst)) {
@@ -1055,7 +1055,7 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	dsi->bridge.driver_private = dsi;
 	dsi->bridge.funcs = &dw_mipi_dsi_bridge_funcs;
 #ifdef CONFIG_OF
-	dsi->bridge.of_node = pdev->dev.of_node;
+	dsi->bridge.of_yesde = pdev->dev.of_yesde;
 #endif
 
 	return dsi;

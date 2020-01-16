@@ -4,19 +4,19 @@ The Freescale MXS GPIO controller is part of MXS PIN controller.  The
 GPIOs are organized in port/bank.  Each port consists of 32 GPIOs.
 
 As the GPIO controller is embedded in the PIN controller and all the
-GPIO ports share the same IO space with PIN controller, the GPIO node
-will be represented as sub-nodes of MXS pinctrl node.
+GPIO ports share the same IO space with PIN controller, the GPIO yesde
+will be represented as sub-yesdes of MXS pinctrl yesde.
 
-Required properties for GPIO node:
+Required properties for GPIO yesde:
 - compatible : Should be "fsl,<soc>-gpio".  The supported SoCs include
   imx23 and imx28.
 - interrupts : Should be the port interrupt shared by all 32 pins.
-- gpio-controller : Marks the device node as a gpio controller.
+- gpio-controller : Marks the device yesde as a gpio controller.
 - #gpio-cells : Should be two.  The first cell is the pin number and
   the second cell is used to specify the gpio polarity:
       0 = active high
       1 = active low
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device yesde as an interrupt controller.
 - #interrupt-cells : Should be 2.  The first cell is the GPIO number.
   The second cell bits[3:0] is used to specify trigger type and level flags:
       1 = low-to-high edge triggered.
@@ -25,7 +25,7 @@ Required properties for GPIO node:
       8 = active low level-sensitive.
 
 Note: Each GPIO port should have an alias correctly numbered in "aliases"
-node.
+yesde.
 
 Examples:
 

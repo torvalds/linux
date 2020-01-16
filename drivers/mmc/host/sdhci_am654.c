@@ -216,7 +216,7 @@ static void sdhci_am654_set_power(struct sdhci_host *host, unsigned char mode,
 
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
 	}
-	sdhci_set_power_noreg(host, mode, vdd);
+	sdhci_set_power_yesreg(host, mode, vdd);
 }
 
 static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
@@ -227,7 +227,7 @@ static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
 		switch (timing) {
 		/*
 		 * According to the data manual, HISPD bit
-		 * should not be set in these speed modes.
+		 * should yest be set in these speed modes.
 		 */
 		case MMC_TIMING_SD_HS:
 		case MMC_TIMING_MMC_HS:
@@ -497,7 +497,7 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	match = of_match_node(sdhci_am654_of_match, pdev->dev.of_node);
+	match = of_match_yesde(sdhci_am654_of_match, pdev->dev.of_yesde);
 	drvdata = match->data;
 	host = sdhci_pltfm_init(pdev, drvdata->pdata, sizeof(*sdhci_am654));
 	if (IS_ERR(host))
@@ -509,7 +509,7 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 
 	clk_xin = devm_clk_get(dev, "clk_xin");
 	if (IS_ERR(clk_xin)) {
-		dev_err(dev, "clk_xin clock not found.\n");
+		dev_err(dev, "clk_xin clock yest found.\n");
 		ret = PTR_ERR(clk_xin);
 		goto err_pltfm_free;
 	}
@@ -520,7 +520,7 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		goto pm_runtime_disable;
 	}
 

@@ -8,13 +8,13 @@
 struct device;
 struct typec_mux;
 struct typec_switch;
-struct fwnode_handle;
+struct fwyesde_handle;
 
 typedef int (*typec_switch_set_fn_t)(struct typec_switch *sw,
 				     enum typec_orientation orientation);
 
 struct typec_switch_desc {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	typec_switch_set_fn_t set;
 	void *drvdata;
 };
@@ -32,7 +32,7 @@ void *typec_switch_get_drvdata(struct typec_switch *sw);
 typedef int (*typec_mux_set_fn_t)(struct typec_mux *mux, int state);
 
 struct typec_mux_desc {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	typec_mux_set_fn_t set;
 	void *drvdata;
 };

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Synopsys G210 Test Chip driver
+ * Syyespsys G210 Test Chip driver
  *
- * Copyright (C) 2015-2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2015-2016 Syyespsys, Inc. (www.syyespsys.com)
  *
- * Authors: Joao Pinto <jpinto@synopsys.com>
+ * Authors: Joao Pinto <jpinto@syyespsys.com>
  */
 
 #include <linux/kernel.h>
@@ -22,13 +22,13 @@
  */
 static struct ufs_hba_variant_ops tc_dwc_g210_20bit_pltfm_hba_vops = {
 	.name                   = "tc-dwc-g210-pltfm",
-	.link_startup_notify	= ufshcd_dwc_link_startup_notify,
+	.link_startup_yestify	= ufshcd_dwc_link_startup_yestify,
 	.phy_initialization = tc_dwc_g210_config_20_bit,
 };
 
 static struct ufs_hba_variant_ops tc_dwc_g210_40bit_pltfm_hba_vops = {
 	.name                   = "tc-dwc-g210-pltfm",
-	.link_startup_notify	= ufshcd_dwc_link_startup_notify,
+	.link_startup_yestify	= ufshcd_dwc_link_startup_yestify,
 	.phy_initialization = tc_dwc_g210_config_40_bit,
 };
 
@@ -57,7 +57,7 @@ static int tc_dwc_g210_pltfm_probe(struct platform_device *pdev)
 	struct ufs_hba_variant_ops *vops;
 	struct device *dev = &pdev->dev;
 
-	of_id = of_match_node(tc_dwc_g210_pltfm_match, dev->of_node);
+	of_id = of_match_yesde(tc_dwc_g210_pltfm_match, dev->of_yesde);
 	vops = (struct ufs_hba_variant_ops *)of_id->data;
 
 	/* Perform generic probe */
@@ -105,6 +105,6 @@ static struct platform_driver tc_dwc_g210_pltfm_driver = {
 module_platform_driver(tc_dwc_g210_pltfm_driver);
 
 MODULE_ALIAS("platform:tc-dwc-g210-pltfm");
-MODULE_DESCRIPTION("Synopsys Test Chip G210 platform glue driver");
-MODULE_AUTHOR("Joao Pinto <Joao.Pinto@synopsys.com>");
+MODULE_DESCRIPTION("Syyespsys Test Chip G210 platform glue driver");
+MODULE_AUTHOR("Joao Pinto <Joao.Pinto@syyespsys.com>");
 MODULE_LICENSE("Dual BSD/GPL");

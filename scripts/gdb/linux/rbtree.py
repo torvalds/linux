@@ -7,101 +7,101 @@ import gdb
 from linux import utils
 
 rb_root_type = utils.CachedType("struct rb_root")
-rb_node_type = utils.CachedType("struct rb_node")
+rb_yesde_type = utils.CachedType("struct rb_yesde")
 
 
 def rb_first(root):
     if root.type == rb_root_type.get_type():
-        node = node.address.cast(rb_root_type.get_type().pointer())
+        yesde = yesde.address.cast(rb_root_type.get_type().pointer())
     elif root.type != rb_root_type.get_type().pointer():
-        raise gdb.GdbError("Must be struct rb_root not {}".format(root.type))
+        raise gdb.GdbError("Must be struct rb_root yest {}".format(root.type))
 
-    node = root['rb_node']
-    if node is 0:
+    yesde = root['rb_yesde']
+    if yesde is 0:
         return None
 
-    while node['rb_left']:
-        node = node['rb_left']
+    while yesde['rb_left']:
+        yesde = yesde['rb_left']
 
-    return node
+    return yesde
 
 
 def rb_last(root):
     if root.type == rb_root_type.get_type():
-        node = node.address.cast(rb_root_type.get_type().pointer())
+        yesde = yesde.address.cast(rb_root_type.get_type().pointer())
     elif root.type != rb_root_type.get_type().pointer():
-        raise gdb.GdbError("Must be struct rb_root not {}".format(root.type))
+        raise gdb.GdbError("Must be struct rb_root yest {}".format(root.type))
 
-    node = root['rb_node']
-    if node is 0:
+    yesde = root['rb_yesde']
+    if yesde is 0:
         return None
 
-    while node['rb_right']:
-        node = node['rb_right']
+    while yesde['rb_right']:
+        yesde = yesde['rb_right']
 
-    return node
-
-
-def rb_parent(node):
-    parent = gdb.Value(node['__rb_parent_color'] & ~3)
-    return parent.cast(rb_node_type.get_type().pointer())
+    return yesde
 
 
-def rb_empty_node(node):
-    return node['__rb_parent_color'] == node.address
+def rb_parent(yesde):
+    parent = gdb.Value(yesde['__rb_parent_color'] & ~3)
+    return parent.cast(rb_yesde_type.get_type().pointer())
 
 
-def rb_next(node):
-    if node.type == rb_node_type.get_type():
-        node = node.address.cast(rb_node_type.get_type().pointer())
-    elif node.type != rb_node_type.get_type().pointer():
-        raise gdb.GdbError("Must be struct rb_node not {}".format(node.type))
+def rb_empty_yesde(yesde):
+    return yesde['__rb_parent_color'] == yesde.address
 
-    if rb_empty_node(node):
+
+def rb_next(yesde):
+    if yesde.type == rb_yesde_type.get_type():
+        yesde = yesde.address.cast(rb_yesde_type.get_type().pointer())
+    elif yesde.type != rb_yesde_type.get_type().pointer():
+        raise gdb.GdbError("Must be struct rb_yesde yest {}".format(yesde.type))
+
+    if rb_empty_yesde(yesde):
         return None
 
-    if node['rb_right']:
-        node = node['rb_right']
-        while node['rb_left']:
-            node = node['rb_left']
-        return node
+    if yesde['rb_right']:
+        yesde = yesde['rb_right']
+        while yesde['rb_left']:
+            yesde = yesde['rb_left']
+        return yesde
 
-    parent = rb_parent(node)
-    while parent and node == parent['rb_right']:
-            node = parent
-            parent = rb_parent(node)
+    parent = rb_parent(yesde)
+    while parent and yesde == parent['rb_right']:
+            yesde = parent
+            parent = rb_parent(yesde)
 
     return parent
 
 
-def rb_prev(node):
-    if node.type == rb_node_type.get_type():
-        node = node.address.cast(rb_node_type.get_type().pointer())
-    elif node.type != rb_node_type.get_type().pointer():
-        raise gdb.GdbError("Must be struct rb_node not {}".format(node.type))
+def rb_prev(yesde):
+    if yesde.type == rb_yesde_type.get_type():
+        yesde = yesde.address.cast(rb_yesde_type.get_type().pointer())
+    elif yesde.type != rb_yesde_type.get_type().pointer():
+        raise gdb.GdbError("Must be struct rb_yesde yest {}".format(yesde.type))
 
-    if rb_empty_node(node):
+    if rb_empty_yesde(yesde):
         return None
 
-    if node['rb_left']:
-        node = node['rb_left']
-        while node['rb_right']:
-            node = node['rb_right']
-        return node.dereference()
+    if yesde['rb_left']:
+        yesde = yesde['rb_left']
+        while yesde['rb_right']:
+            yesde = yesde['rb_right']
+        return yesde.dereference()
 
-    parent = rb_parent(node)
-    while parent and node == parent['rb_left'].dereference():
-            node = parent
-            parent = rb_parent(node)
+    parent = rb_parent(yesde)
+    while parent and yesde == parent['rb_left'].dereference():
+            yesde = parent
+            parent = rb_parent(yesde)
 
     return parent
 
 
 class LxRbFirst(gdb.Function):
-    """Lookup and return a node from an RBTree
+    """Lookup and return a yesde from an RBTree
 
-$lx_rb_first(root): Return the node at the given index.
-If index is omitted, the root node is dereferenced and returned."""
+$lx_rb_first(root): Return the yesde at the given index.
+If index is omitted, the root yesde is dereferenced and returned."""
 
     def __init__(self):
         super(LxRbFirst, self).__init__("lx_rb_first")
@@ -118,10 +118,10 @@ LxRbFirst()
 
 
 class LxRbLast(gdb.Function):
-    """Lookup and return a node from an RBTree.
+    """Lookup and return a yesde from an RBTree.
 
-$lx_rb_last(root): Return the node at the given index.
-If index is omitted, the root node is dereferenced and returned."""
+$lx_rb_last(root): Return the yesde at the given index.
+If index is omitted, the root yesde is dereferenced and returned."""
 
     def __init__(self):
         super(LxRbLast, self).__init__("lx_rb_last")
@@ -138,16 +138,16 @@ LxRbLast()
 
 
 class LxRbNext(gdb.Function):
-    """Lookup and return a node from an RBTree.
+    """Lookup and return a yesde from an RBTree.
 
-$lx_rb_next(node): Return the node at the given index.
-If index is omitted, the root node is dereferenced and returned."""
+$lx_rb_next(yesde): Return the yesde at the given index.
+If index is omitted, the root yesde is dereferenced and returned."""
 
     def __init__(self):
         super(LxRbNext, self).__init__("lx_rb_next")
 
-    def invoke(self, node):
-        result = rb_next(node)
+    def invoke(self, yesde):
+        result = rb_next(yesde)
         if result is None:
             raise gdb.GdbError("No entry in tree")
 
@@ -158,16 +158,16 @@ LxRbNext()
 
 
 class LxRbPrev(gdb.Function):
-    """Lookup and return a node from an RBTree.
+    """Lookup and return a yesde from an RBTree.
 
-$lx_rb_prev(node): Return the node at the given index.
-If index is omitted, the root node is dereferenced and returned."""
+$lx_rb_prev(yesde): Return the yesde at the given index.
+If index is omitted, the root yesde is dereferenced and returned."""
 
     def __init__(self):
         super(LxRbPrev, self).__init__("lx_rb_prev")
 
-    def invoke(self, node):
-        result = rb_prev(node)
+    def invoke(self, yesde):
+        result = rb_prev(yesde)
         if result is None:
             raise gdb.GdbError("No entry in tree")
 

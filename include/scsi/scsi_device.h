@@ -34,14 +34,14 @@ struct scsi_mode_data {
  * scsi_lib:scsi_device_set_state().
  */
 enum scsi_device_state {
-	SDEV_CREATED = 1,	/* device created but not added to sysfs
+	SDEV_CREATED = 1,	/* device created but yest added to sysfs
 				 * Only internal commands allowed (for inq) */
 	SDEV_RUNNING,		/* device properly configured
 				 * All commands allowed */
 	SDEV_CANCEL,		/* beginning to delete device
 				 * Only error handler commands allowed */
 	SDEV_DEL,		/* device deleted 
-				 * no commands allowed */
+				 * yes commands allowed */
 	SDEV_QUIESCE,		/* Device quiescent.  No block commands
 				 * will be accepted, only specials (which
 				 * originate in the mid-layer) */
@@ -79,9 +79,9 @@ enum scsi_device_event {
 
 struct scsi_event {
 	enum scsi_device_event	evt_type;
-	struct list_head	node;
+	struct list_head	yesde;
 
-	/* put union of data structures, for non-simple event types,
+	/* put union of data structures, for yesn-simple event types,
 	 * here
 	 */
 };
@@ -148,7 +148,7 @@ struct scsi_device {
 	struct scsi_target      *sdev_target;   /* used only for single_lun */
 
 	blist_flags_t		sdev_bflags; /* black/white flags as also found in
-				 * scsi_devinfo.[hc]. For now used only to
+				 * scsi_devinfo.[hc]. For yesw used only to
 				 * pass settings from slave_alloc to scsi
 				 * core. */
 	unsigned int eh_timeout; /* Error handling timeout */
@@ -172,32 +172,32 @@ struct scsi_device {
 				     * because we did a bus reset. */
 	unsigned use_10_for_rw:1; /* first try 10-byte read / write */
 	unsigned use_10_for_ms:1; /* first try 10-byte mode sense/select */
-	unsigned no_report_opcodes:1;	/* no REPORT SUPPORTED OPERATION CODES */
-	unsigned no_write_same:1;	/* no WRITE SAME command */
+	unsigned yes_report_opcodes:1;	/* yes REPORT SUPPORTED OPERATION CODES */
+	unsigned yes_write_same:1;	/* yes WRITE SAME command */
 	unsigned use_16_for_rw:1; /* Use read/write(16) over read/write(10) */
-	unsigned skip_ms_page_8:1;	/* do not use MODE SENSE page 0x08 */
-	unsigned skip_ms_page_3f:1;	/* do not use MODE SENSE page 0x3f */
-	unsigned skip_vpd_pages:1;	/* do not read VPD pages */
+	unsigned skip_ms_page_8:1;	/* do yest use MODE SENSE page 0x08 */
+	unsigned skip_ms_page_3f:1;	/* do yest use MODE SENSE page 0x3f */
+	unsigned skip_vpd_pages:1;	/* do yest read VPD pages */
 	unsigned try_vpd_pages:1;	/* attempt to read VPD pages */
 	unsigned use_192_bytes_for_3f:1; /* ask for 192 bytes from page 0x3f */
-	unsigned no_start_on_add:1;	/* do not issue start on add */
+	unsigned yes_start_on_add:1;	/* do yest issue start on add */
 	unsigned allow_restart:1; /* issue START_UNIT in error handler */
 	unsigned manage_start_stop:1;	/* Let HLD (sd) manage start/stop */
 	unsigned start_stop_pwr_cond:1;	/* Set power cond. in START_STOP_UNIT */
-	unsigned no_uld_attach:1; /* disable connecting to upper level drivers */
-	unsigned select_no_atn:1;
+	unsigned yes_uld_attach:1; /* disable connecting to upper level drivers */
+	unsigned select_yes_atn:1;
 	unsigned fix_capacity:1;	/* READ_CAPACITY is too high by 1 */
 	unsigned guess_capacity:1;	/* READ_CAPACITY might be too high by 1 */
 	unsigned retry_hwerror:1;	/* Retry HARDWARE_ERROR */
-	unsigned last_sector_bug:1;	/* do not use multisector accesses on
+	unsigned last_sector_bug:1;	/* do yest use multisector accesses on
 					   SD_LAST_BUGGY_SECTORS */
-	unsigned no_read_disc_info:1;	/* Avoid READ_DISC_INFO cmds */
-	unsigned no_read_capacity_16:1; /* Avoid READ_CAPACITY_16 cmds */
+	unsigned yes_read_disc_info:1;	/* Avoid READ_DISC_INFO cmds */
+	unsigned yes_read_capacity_16:1; /* Avoid READ_CAPACITY_16 cmds */
 	unsigned try_rc_10_first:1;	/* Try READ_CAPACACITY_10 first */
 	unsigned security_supported:1;	/* Supports Security Protocols */
 	unsigned is_visible:1;	/* is the device visible in sysfs */
 	unsigned wce_default_on:1;	/* Cache is ON by default */
-	unsigned no_dif:1;	/* T10 PI (DIF) should be disabled */
+	unsigned yes_dif:1;	/* T10 PI (DIF) should be disabled */
 	unsigned broken_fua:1;		/* Don't set FUA bit */
 	unsigned lun_in_cdb:1;		/* Store LUN bits in CDB[1] */
 	unsigned unmap_limit_for_ws:1;	/* Use the UNMAP limit for WRITE SAME */
@@ -275,8 +275,8 @@ enum scsi_target_state {
 };
 
 /*
- * scsi_target: representation of a scsi target, for now, this is only
- * used for single_lun devices. If no one has active IO to the target,
+ * scsi_target: representation of a scsi target, for yesw, this is only
+ * used for single_lun devices. If yes one has active IO to the target,
  * starget_sdev_user is NULL, else it points to the active sdev.
  */
 struct scsi_target {
@@ -292,9 +292,9 @@ struct scsi_target {
 	unsigned int		single_lun:1;	/* Indicates we should only
 						 * allow I/O to one of the luns
 						 * for the device at a time. */
-	unsigned int		pdt_1f_for_no_lun:1;	/* PDT = 0x1f
-						 * means no lun present. */
-	unsigned int		no_report_luns:1;	/* Don't use
+	unsigned int		pdt_1f_for_yes_lun:1;	/* PDT = 0x1f
+						 * means yes lun present. */
+	unsigned int		yes_report_luns:1;	/* Don't use
 						 * REPORT LUNS for scanning. */
 	unsigned int		expecting_lun_change:1;	/* A device has reported
 						 * a 3F/0E UA, other devices on
@@ -305,7 +305,7 @@ struct scsi_target {
 
 	/*
 	 * LLDs should set this in the slave_alloc host template callout.
-	 * If set to zero then there is not limit.
+	 * If set to zero then there is yest limit.
 	 */
 	unsigned int		can_queue;
 	unsigned int		max_target_blocked;
@@ -378,7 +378,7 @@ extern struct scsi_device *__scsi_iterate_devices(struct Scsi_Host *,
  * @sdev: the &struct scsi_device to use as a cursor
  * @shost: the &struct scsi_host to iterate over
  *
- * Iterator that returns each device attached to @shost.  It does _not_
+ * Iterator that returns each device attached to @shost.  It does _yest_
  * take a reference on the scsi_device, so the whole loop must be
  * protected by shost->host_lock.
  *
@@ -505,8 +505,8 @@ static inline int scsi_device_created(struct scsi_device *sdev)
 		sdev->sdev_state == SDEV_CREATED_BLOCK;
 }
 
-int scsi_internal_device_block_nowait(struct scsi_device *sdev);
-int scsi_internal_device_unblock_nowait(struct scsi_device *sdev,
+int scsi_internal_device_block_yeswait(struct scsi_device *sdev);
+int scsi_internal_device_unblock_yeswait(struct scsi_device *sdev,
 					enum scsi_device_state new_state);
 
 /* accessor functions for the SCSI parameters */
@@ -547,7 +547,7 @@ static inline int scsi_device_enclosure(struct scsi_device *sdev)
 
 static inline int scsi_device_protection(struct scsi_device *sdev)
 {
-	if (sdev->no_dif)
+	if (sdev->yes_dif)
 		return 0;
 
 	return sdev->scsi_level > SCSI_2 && sdev->inquiry[5] & (1<<0);
@@ -564,7 +564,7 @@ static inline int scsi_device_tpgs(struct scsi_device *sdev)
  *
  * If the 'try_vpd_pages' flag is set it takes precedence.
  * Otherwise we will assume VPD pages are supported if the
- * SCSI level is at least SPC-3 and 'skip_vpd_pages' is not set.
+ * SCSI level is at least SPC-3 and 'skip_vpd_pages' is yest set.
  */
 static inline int scsi_device_supports_vpd(struct scsi_device *sdev)
 {

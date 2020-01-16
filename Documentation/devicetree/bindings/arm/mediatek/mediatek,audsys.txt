@@ -18,7 +18,7 @@ The AUDSYS controller uses the common clk binding from
 Documentation/devicetree/bindings/clock/clock-bindings.txt
 The available clocks are defined in dt-bindings/clock/mt*-clk.h.
 
-Required sub-nodes:
+Required sub-yesdes:
 -------
 For common binding part and usage, refer to
 ../sonud/mt2701-afe-pcm.txt.

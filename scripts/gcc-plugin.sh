@@ -34,7 +34,7 @@ case "$plugincc" in
 		;;
 
 	*"$2 CXX"*)
-		# the c++ compiler needs another test, see below
+		# the c++ compiler needs ayesther test, see below
 		;;
 
 	*)

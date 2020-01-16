@@ -10,7 +10,7 @@ maintainers:
   - David S. Miller <davem@davemloft.net>
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^ethernet(@.*)?$"
 
   local-mac-address:
@@ -49,7 +49,7 @@ properties:
   nvmem-cells:
     maxItems: 1
     description:
-      Reference to an nvmem node for the MAC address
+      Reference to an nvmem yesde for the MAC address
 
   nvmem-cells-names:
     const: mac-address
@@ -58,7 +58,7 @@ properties:
     description:
       Operation mode of the PHY interface
     enum:
-      # There is not a standard bus between the MAC and the PHY,
+      # There is yest a standard bus between the MAC and the PHY,
       # something proprietary is being used to embed the PHY in the
       # MAC.
       - internal
@@ -74,15 +74,15 @@ properties:
       - rgmii
 
       # RGMII with internal RX and TX delays provided by the PHY,
-      # the MAC should not add the RX or TX delays in this case
+      # the MAC should yest add the RX or TX delays in this case
       - rgmii-id
 
       # RGMII with internal RX delay provided by the PHY, the MAC
-      # should not add an RX delay in this case
+      # should yest add an RX delay in this case
       - rgmii-rxid
 
       # RGMII with internal TX delay provided by the PHY, the MAC
-      # should not add an TX delay in this case
+      # should yest add an TX delay in this case
       - rgmii-txid
       - rtbi
       - smii
@@ -103,7 +103,7 @@ properties:
   phy-handle:
     $ref: /schemas/types.yaml#definitions/phandle
     description:
-      Specifies a reference to a node representing a PHY device.
+      Specifies a reference to a yesde representing a PHY device.
 
   phy:
     $ref: "#/properties/phy-handle"
@@ -124,7 +124,7 @@ properties:
   sfp:
     $ref: /schemas/types.yaml#definitions/phandle
     description:
-      Specifies a reference to a node representing a SFP cage.
+      Specifies a reference to a yesde representing a SFP cage.
 
   tx-fifo-depth:
     $ref: /schemas/types.yaml#definitions/uint32
@@ -141,7 +141,7 @@ properties:
           - in-band-status
     description:
       Specifies the PHY management type. If auto is set and fixed-link
-      is not specified, it uses MDIO for management.
+      is yest specified, it uses MDIO for management.
 
   fixed-link:
     allOf:
@@ -170,11 +170,11 @@ properties:
 
               - enum: [0, 1]
                 description:
-                  Pause configuration. 0 for no pause, 1 for pause
+                  Pause configuration. 0 for yes pause, 1 for pause
 
               - enum: [0, 1]
                 description:
-                  Asymmetric pause configuration. 0 for no asymmetric
+                  Asymmetric pause configuration. 0 for yes asymmetric
                   pause, 1 for asymmetric pause
 
 

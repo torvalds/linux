@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -31,7 +31,7 @@ struct mlxsw_sp_bridge {
 		struct delayed_work dw;
 #define MLXSW_SP_DEFAULT_LEARNING_INTERVAL 100
 		unsigned int interval; /* ms */
-	} fdb_notify;
+	} fdb_yestify;
 #define MLXSW_SP_MIN_AGEING_TIME 10
 #define MLXSW_SP_MAX_AGEING_TIME 1000000
 #define MLXSW_SP_DEFAULT_AGEING_TIME 300
@@ -439,7 +439,7 @@ mlxsw_sp_port_bridge_vlan_stp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 
 	list_for_each_entry(mlxsw_sp_port_vlan, &bridge_vlan->port_vlan_list,
-			    bridge_vlan_node) {
+			    bridge_vlan_yesde) {
 		if (mlxsw_sp_port_vlan->mlxsw_sp_port != mlxsw_sp_port)
 			continue;
 		return mlxsw_sp_port_vid_stp_set(mlxsw_sp_port,
@@ -497,7 +497,7 @@ mlxsw_sp_port_bridge_vlan_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 
 	list_for_each_entry(mlxsw_sp_port_vlan, &bridge_vlan->port_vlan_list,
-			    bridge_vlan_node) {
+			    bridge_vlan_yesde) {
 		if (mlxsw_sp_port_vlan->mlxsw_sp_port != mlxsw_sp_port)
 			continue;
 		return mlxsw_sp_fid_flood_set(mlxsw_sp_port_vlan->fid,
@@ -546,7 +546,7 @@ mlxsw_sp_port_bridge_vlan_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	u16 vid = bridge_vlan->vid;
 
 	list_for_each_entry(mlxsw_sp_port_vlan, &bridge_vlan->port_vlan_list,
-			    bridge_vlan_node) {
+			    bridge_vlan_yesde) {
 		if (mlxsw_sp_port_vlan->mlxsw_sp_port != mlxsw_sp_port)
 			continue;
 		return mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid, set);
@@ -996,7 +996,7 @@ mlxsw_sp_port_vlan_bridge_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 		goto err_bridge_vlan_get;
 	}
 
-	list_add(&mlxsw_sp_port_vlan->bridge_vlan_node,
+	list_add(&mlxsw_sp_port_vlan->bridge_vlan_yesde,
 		 &bridge_vlan->port_vlan_list);
 
 	mlxsw_sp_bridge_port_get(mlxsw_sp_port->mlxsw_sp->bridge,
@@ -1033,7 +1033,7 @@ mlxsw_sp_port_vlan_bridge_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 	bridge_vlan = mlxsw_sp_bridge_vlan_find(bridge_port, vid);
 	last_port = list_is_singular(&bridge_vlan->port_vlan_list);
 
-	list_del(&mlxsw_sp_port_vlan->bridge_vlan_node);
+	list_del(&mlxsw_sp_port_vlan->bridge_vlan_yesde);
 	mlxsw_sp_bridge_vlan_put(bridge_vlan);
 	mlxsw_sp_port_vid_stp_set(mlxsw_sp_port, vid, BR_STATE_DISABLED);
 	mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid, false);
@@ -1339,7 +1339,7 @@ out:
 
 static int
 mlxsw_sp_port_fdb_set(struct mlxsw_sp_port *mlxsw_sp_port,
-		      struct switchdev_notifier_fdb_info *fdb_info, bool adding)
+		      struct switchdev_yestifier_fdb_info *fdb_info, bool adding)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct net_device *orig_dev = fdb_info->info.dev;
@@ -1945,11 +1945,11 @@ mlxsw_sp_bridge_8021q_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 				struct netlink_ext_ack *extack)
 {
 	if (is_vlan_dev(bridge_port->dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "Can not enslave a VLAN device to a VLAN-aware bridge");
+		NL_SET_ERR_MSG_MOD(extack, "Can yest enslave a VLAN device to a VLAN-aware bridge");
 		return -EINVAL;
 	}
 
-	/* Port is no longer usable as a router interface */
+	/* Port is yes longer usable as a router interface */
 	if (mlxsw_sp_port->default_vlan->fid)
 		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port->default_vlan);
 
@@ -1982,7 +1982,7 @@ mlxsw_sp_bridge_8021q_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 
 	/* If the VLAN is 0, we need to find the VLAN that is configured as
 	 * PVID and egress untagged on the bridge port of the VxLAN device.
-	 * It is possible no such VLAN exists
+	 * It is possible yes such VLAN exists
 	 */
 	if (!vid) {
 		err = mlxsw_sp_vxlan_mapped_vid(vxlan_dev, &vid);
@@ -1990,7 +1990,7 @@ mlxsw_sp_bridge_8021q_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 			return err;
 	}
 
-	/* If no other port is member in the VLAN, then the FID does not exist.
+	/* If yes other port is member in the VLAN, then the FID does yest exist.
 	 * NVE will be enabled on the FID once a port joins the VLAN
 	 */
 	fid = mlxsw_sp_fid_8021q_lookup(mlxsw_sp, vid);
@@ -2007,7 +2007,7 @@ mlxsw_sp_bridge_8021q_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 	if (err)
 		goto err_nve_fid_enable;
 
-	/* The tunnel port does not hold a reference on the FID. Only
+	/* The tunnel port does yest hold a reference on the FID. Only
 	 * local ports and the router port
 	 */
 	mlxsw_sp_fid_put(fid);
@@ -2140,11 +2140,11 @@ mlxsw_sp_bridge_8021d_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 		return -EINVAL;
 
 	if (mlxsw_sp_port_is_br_member(mlxsw_sp_port, bridge_device->dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "Can not bridge VLAN uppers of the same port");
+		NL_SET_ERR_MSG_MOD(extack, "Can yest bridge VLAN uppers of the same port");
 		return -EINVAL;
 	}
 
-	/* Port is no longer usable as a router interface */
+	/* Port is yes longer usable as a router interface */
 	if (mlxsw_sp_port_vlan->fid)
 		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
 
@@ -2186,7 +2186,7 @@ mlxsw_sp_bridge_8021d_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 
 	fid = mlxsw_sp_fid_8021d_lookup(mlxsw_sp, bridge_device->dev->ifindex);
 	if (!fid) {
-		NL_SET_ERR_MSG_MOD(extack, "Did not find a corresponding FID");
+		NL_SET_ERR_MSG_MOD(extack, "Did yest find a corresponding FID");
 		return -EINVAL;
 	}
 
@@ -2200,7 +2200,7 @@ mlxsw_sp_bridge_8021d_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 	if (err)
 		goto err_nve_fid_enable;
 
-	/* The tunnel port does not hold a reference on the FID. Only
+	/* The tunnel port does yest hold a reference on the FID. Only
 	 * local ports and the router port
 	 */
 	mlxsw_sp_fid_put(fid);
@@ -2345,7 +2345,7 @@ void mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
 	struct vxlan_dev *vxlan = netdev_priv(vxlan_dev);
 	struct mlxsw_sp_fid *fid;
 
-	/* If the VxLAN device is down, then the FID does not have a VNI */
+	/* If the VxLAN device is down, then the FID does yest have a VNI */
 	fid = mlxsw_sp_fid_lookup_by_vni(mlxsw_sp, vxlan->cfg.vni);
 	if (!fid)
 		return;
@@ -2399,15 +2399,15 @@ mlxsw_sp_switchdev_addr_vxlan_convert(enum mlxsw_sp_l3proto proto,
 	}
 }
 
-static void mlxsw_sp_fdb_vxlan_call_notifiers(struct net_device *dev,
+static void mlxsw_sp_fdb_vxlan_call_yestifiers(struct net_device *dev,
 					      const char *mac,
 					      enum mlxsw_sp_l3proto proto,
 					      union mlxsw_sp_l3addr *addr,
 					      __be32 vni, bool adding)
 {
-	struct switchdev_notifier_vxlan_fdb_info info;
+	struct switchdev_yestifier_vxlan_fdb_info info;
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	enum switchdev_notifier_type type;
+	enum switchdev_yestifier_type type;
 
 	type = adding ? SWITCHDEV_VXLAN_FDB_ADD_TO_BRIDGE :
 			SWITCHDEV_VXLAN_FDB_DEL_TO_BRIDGE;
@@ -2418,10 +2418,10 @@ static void mlxsw_sp_fdb_vxlan_call_notifiers(struct net_device *dev,
 	ether_addr_copy(info.eth_addr, mac);
 	info.vni = vni;
 	info.offloaded = adding;
-	call_switchdev_notifiers(type, dev, &info.info, NULL);
+	call_switchdev_yestifiers(type, dev, &info.info, NULL);
 }
 
-static void mlxsw_sp_fdb_nve_call_notifiers(struct net_device *dev,
+static void mlxsw_sp_fdb_nve_call_yestifiers(struct net_device *dev,
 					    const char *mac,
 					    enum mlxsw_sp_l3proto proto,
 					    union mlxsw_sp_l3addr *addr,
@@ -2429,24 +2429,24 @@ static void mlxsw_sp_fdb_nve_call_notifiers(struct net_device *dev,
 					    bool adding)
 {
 	if (netif_is_vxlan(dev))
-		mlxsw_sp_fdb_vxlan_call_notifiers(dev, mac, proto, addr, vni,
+		mlxsw_sp_fdb_vxlan_call_yestifiers(dev, mac, proto, addr, vni,
 						  adding);
 }
 
 static void
-mlxsw_sp_fdb_call_notifiers(enum switchdev_notifier_type type,
+mlxsw_sp_fdb_call_yestifiers(enum switchdev_yestifier_type type,
 			    const char *mac, u16 vid,
 			    struct net_device *dev, bool offloaded)
 {
-	struct switchdev_notifier_fdb_info info;
+	struct switchdev_yestifier_fdb_info info;
 
 	info.addr = mac;
 	info.vid = vid;
 	info.offloaded = offloaded;
-	call_switchdev_notifiers(type, dev, &info.info, NULL);
+	call_switchdev_yestifiers(type, dev, &info.info, NULL);
 }
 
-static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
+static void mlxsw_sp_fdb_yestify_mac_process(struct mlxsw_sp *mlxsw_sp,
 					    char *sfn_pl, int rec_index,
 					    bool adding)
 {
@@ -2454,17 +2454,17 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct mlxsw_sp_bridge_port *bridge_port;
 	struct mlxsw_sp_port *mlxsw_sp_port;
-	enum switchdev_notifier_type type;
+	enum switchdev_yestifier_type type;
 	char mac[ETH_ALEN];
 	u8 local_port;
 	u16 vid, fid;
-	bool do_notification = true;
+	bool do_yestification = true;
 	int err;
 
 	mlxsw_reg_sfn_mac_unpack(sfn_pl, rec_index, mac, &fid, &local_port);
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	if (!mlxsw_sp_port) {
-		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Incorrect local port in FDB notification\n");
+		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Incorrect local port in FDB yestification\n");
 		goto just_remove;
 	}
 
@@ -2473,13 +2473,13 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_fid(mlxsw_sp_port, fid);
 	if (!mlxsw_sp_port_vlan) {
-		netdev_err(mlxsw_sp_port->dev, "Failed to find a matching {Port, VID} following FDB notification\n");
+		netdev_err(mlxsw_sp_port->dev, "Failed to find a matching {Port, VID} following FDB yestification\n");
 		goto just_remove;
 	}
 
 	bridge_port = mlxsw_sp_port_vlan->bridge_port;
 	if (!bridge_port) {
-		netdev_err(mlxsw_sp_port->dev, "{Port, VID} not associated with a bridge\n");
+		netdev_err(mlxsw_sp_port->dev, "{Port, VID} yest associated with a bridge\n");
 		goto just_remove;
 	}
 
@@ -2494,20 +2494,20 @@ do_fdb_op:
 		return;
 	}
 
-	if (!do_notification)
+	if (!do_yestification)
 		return;
 	type = adding ? SWITCHDEV_FDB_ADD_TO_BRIDGE : SWITCHDEV_FDB_DEL_TO_BRIDGE;
-	mlxsw_sp_fdb_call_notifiers(type, mac, vid, bridge_port->dev, adding);
+	mlxsw_sp_fdb_call_yestifiers(type, mac, vid, bridge_port->dev, adding);
 
 	return;
 
 just_remove:
 	adding = false;
-	do_notification = false;
+	do_yestification = false;
 	goto do_fdb_op;
 }
 
-static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
+static void mlxsw_sp_fdb_yestify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 						char *sfn_pl, int rec_index,
 						bool adding)
 {
@@ -2515,18 +2515,18 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct mlxsw_sp_bridge_port *bridge_port;
 	struct mlxsw_sp_port *mlxsw_sp_port;
-	enum switchdev_notifier_type type;
+	enum switchdev_yestifier_type type;
 	char mac[ETH_ALEN];
 	u16 lag_vid = 0;
 	u16 lag_id;
 	u16 vid, fid;
-	bool do_notification = true;
+	bool do_yestification = true;
 	int err;
 
 	mlxsw_reg_sfn_mac_lag_unpack(sfn_pl, rec_index, mac, &fid, &lag_id);
 	mlxsw_sp_port = mlxsw_sp_lag_rep_port(mlxsw_sp, lag_id);
 	if (!mlxsw_sp_port) {
-		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Cannot find port representor for LAG\n");
+		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Canyest find port representor for LAG\n");
 		goto just_remove;
 	}
 
@@ -2535,13 +2535,13 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_fid(mlxsw_sp_port, fid);
 	if (!mlxsw_sp_port_vlan) {
-		netdev_err(mlxsw_sp_port->dev, "Failed to find a matching {Port, VID} following FDB notification\n");
+		netdev_err(mlxsw_sp_port->dev, "Failed to find a matching {Port, VID} following FDB yestification\n");
 		goto just_remove;
 	}
 
 	bridge_port = mlxsw_sp_port_vlan->bridge_port;
 	if (!bridge_port) {
-		netdev_err(mlxsw_sp_port->dev, "{Port, VID} not associated with a bridge\n");
+		netdev_err(mlxsw_sp_port->dev, "{Port, VID} yest associated with a bridge\n");
 		goto just_remove;
 	}
 
@@ -2558,21 +2558,21 @@ do_fdb_op:
 		return;
 	}
 
-	if (!do_notification)
+	if (!do_yestification)
 		return;
 	type = adding ? SWITCHDEV_FDB_ADD_TO_BRIDGE : SWITCHDEV_FDB_DEL_TO_BRIDGE;
-	mlxsw_sp_fdb_call_notifiers(type, mac, vid, bridge_port->dev, adding);
+	mlxsw_sp_fdb_call_yestifiers(type, mac, vid, bridge_port->dev, adding);
 
 	return;
 
 just_remove:
 	adding = false;
-	do_notification = false;
+	do_yestification = false;
 	goto do_fdb_op;
 }
 
 static int
-__mlxsw_sp_fdb_notify_mac_uc_tunnel_process(struct mlxsw_sp *mlxsw_sp,
+__mlxsw_sp_fdb_yestify_mac_uc_tunnel_process(struct mlxsw_sp *mlxsw_sp,
 					    const struct mlxsw_sp_fid *fid,
 					    bool adding,
 					    struct net_device **nve_dev,
@@ -2622,13 +2622,13 @@ __mlxsw_sp_fdb_notify_mac_uc_tunnel_process(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-static void mlxsw_sp_fdb_notify_mac_uc_tunnel_process(struct mlxsw_sp *mlxsw_sp,
+static void mlxsw_sp_fdb_yestify_mac_uc_tunnel_process(struct mlxsw_sp *mlxsw_sp,
 						      char *sfn_pl,
 						      int rec_index,
 						      bool adding)
 {
 	enum mlxsw_reg_sfn_uc_tunnel_protocol sfn_proto;
-	enum switchdev_notifier_type type;
+	enum switchdev_yestifier_type type;
 	struct net_device *nve_dev;
 	union mlxsw_sp_l3addr addr;
 	struct mlxsw_sp_fid *fid;
@@ -2651,7 +2651,7 @@ static void mlxsw_sp_fdb_notify_mac_uc_tunnel_process(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_ip_resolve;
 
-	err = __mlxsw_sp_fdb_notify_mac_uc_tunnel_process(mlxsw_sp, fid, adding,
+	err = __mlxsw_sp_fdb_yestify_mac_uc_tunnel_process(mlxsw_sp, fid, adding,
 							  &nve_dev, &vid, &vni);
 	if (err)
 		goto err_fdb_process;
@@ -2662,13 +2662,13 @@ static void mlxsw_sp_fdb_notify_mac_uc_tunnel_process(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_fdb_op;
 
-	mlxsw_sp_fdb_nve_call_notifiers(nve_dev, mac,
+	mlxsw_sp_fdb_nve_call_yestifiers(nve_dev, mac,
 					(enum mlxsw_sp_l3proto) sfn_proto,
 					&addr, vni, adding);
 
 	type = adding ? SWITCHDEV_FDB_ADD_TO_BRIDGE :
 			SWITCHDEV_FDB_DEL_TO_BRIDGE;
-	mlxsw_sp_fdb_call_notifiers(type, mac, vid, nve_dev, adding);
+	mlxsw_sp_fdb_call_yestifiers(type, mac, vid, nve_dev, adding);
 
 	mlxsw_sp_fid_put(fid);
 
@@ -2679,54 +2679,54 @@ err_fdb_process:
 err_ip_resolve:
 	mlxsw_sp_fid_put(fid);
 err_fid_lookup:
-	/* Remove an FDB entry in case we cannot process it. Otherwise the
-	 * device will keep sending the same notification over and over again.
+	/* Remove an FDB entry in case we canyest process it. Otherwise the
+	 * device will keep sending the same yestification over and over again.
 	 */
 	mlxsw_sp_port_fdb_tunnel_uc_op(mlxsw_sp, mac, fid_index,
 				       (enum mlxsw_sp_l3proto) sfn_proto, &addr,
 				       false, true);
 }
 
-static void mlxsw_sp_fdb_notify_rec_process(struct mlxsw_sp *mlxsw_sp,
+static void mlxsw_sp_fdb_yestify_rec_process(struct mlxsw_sp *mlxsw_sp,
 					    char *sfn_pl, int rec_index)
 {
 	switch (mlxsw_reg_sfn_rec_type_get(sfn_pl, rec_index)) {
 	case MLXSW_REG_SFN_REC_TYPE_LEARNED_MAC:
-		mlxsw_sp_fdb_notify_mac_process(mlxsw_sp, sfn_pl,
+		mlxsw_sp_fdb_yestify_mac_process(mlxsw_sp, sfn_pl,
 						rec_index, true);
 		break;
 	case MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC:
-		mlxsw_sp_fdb_notify_mac_process(mlxsw_sp, sfn_pl,
+		mlxsw_sp_fdb_yestify_mac_process(mlxsw_sp, sfn_pl,
 						rec_index, false);
 		break;
 	case MLXSW_REG_SFN_REC_TYPE_LEARNED_MAC_LAG:
-		mlxsw_sp_fdb_notify_mac_lag_process(mlxsw_sp, sfn_pl,
+		mlxsw_sp_fdb_yestify_mac_lag_process(mlxsw_sp, sfn_pl,
 						    rec_index, true);
 		break;
 	case MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC_LAG:
-		mlxsw_sp_fdb_notify_mac_lag_process(mlxsw_sp, sfn_pl,
+		mlxsw_sp_fdb_yestify_mac_lag_process(mlxsw_sp, sfn_pl,
 						    rec_index, false);
 		break;
 	case MLXSW_REG_SFN_REC_TYPE_LEARNED_UNICAST_TUNNEL:
-		mlxsw_sp_fdb_notify_mac_uc_tunnel_process(mlxsw_sp, sfn_pl,
+		mlxsw_sp_fdb_yestify_mac_uc_tunnel_process(mlxsw_sp, sfn_pl,
 							  rec_index, true);
 		break;
 	case MLXSW_REG_SFN_REC_TYPE_AGED_OUT_UNICAST_TUNNEL:
-		mlxsw_sp_fdb_notify_mac_uc_tunnel_process(mlxsw_sp, sfn_pl,
+		mlxsw_sp_fdb_yestify_mac_uc_tunnel_process(mlxsw_sp, sfn_pl,
 							  rec_index, false);
 		break;
 	}
 }
 
-static void mlxsw_sp_fdb_notify_work_schedule(struct mlxsw_sp *mlxsw_sp)
+static void mlxsw_sp_fdb_yestify_work_schedule(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_bridge *bridge = mlxsw_sp->bridge;
 
-	mlxsw_core_schedule_dw(&bridge->fdb_notify.dw,
-			       msecs_to_jiffies(bridge->fdb_notify.interval));
+	mlxsw_core_schedule_dw(&bridge->fdb_yestify.dw,
+			       msecs_to_jiffies(bridge->fdb_yestify.interval));
 }
 
-static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
+static void mlxsw_sp_fdb_yestify_work(struct work_struct *work)
 {
 	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp *mlxsw_sp;
@@ -2739,31 +2739,31 @@ static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 	if (!sfn_pl)
 		return;
 
-	bridge = container_of(work, struct mlxsw_sp_bridge, fdb_notify.dw.work);
+	bridge = container_of(work, struct mlxsw_sp_bridge, fdb_yestify.dw.work);
 	mlxsw_sp = bridge->mlxsw_sp;
 
 	rtnl_lock();
 	mlxsw_reg_sfn_pack(sfn_pl);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(sfn), sfn_pl);
 	if (err) {
-		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to get FDB notifications\n");
+		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to get FDB yestifications\n");
 		goto out;
 	}
 	num_rec = mlxsw_reg_sfn_num_rec_get(sfn_pl);
 	for (i = 0; i < num_rec; i++)
-		mlxsw_sp_fdb_notify_rec_process(mlxsw_sp, sfn_pl, i);
+		mlxsw_sp_fdb_yestify_rec_process(mlxsw_sp, sfn_pl, i);
 
 out:
 	rtnl_unlock();
 	kfree(sfn_pl);
-	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);
+	mlxsw_sp_fdb_yestify_work_schedule(mlxsw_sp);
 }
 
 struct mlxsw_sp_switchdev_event_work {
 	struct work_struct work;
 	union {
-		struct switchdev_notifier_fdb_info fdb_info;
-		struct switchdev_notifier_vxlan_fdb_info vxlan_fdb_info;
+		struct switchdev_yestifier_fdb_info fdb_info;
+		struct switchdev_yestifier_vxlan_fdb_info vxlan_fdb_info;
 	};
 	struct net_device *dev;
 	unsigned long event;
@@ -2775,8 +2775,8 @@ mlxsw_sp_switchdev_bridge_vxlan_fdb_event(struct mlxsw_sp *mlxsw_sp,
 					  switchdev_work,
 					  struct mlxsw_sp_fid *fid, __be32 vni)
 {
-	struct switchdev_notifier_vxlan_fdb_info vxlan_fdb_info;
-	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_yestifier_vxlan_fdb_info vxlan_fdb_info;
+	struct switchdev_yestifier_fdb_info *fdb_info;
 	struct net_device *dev = switchdev_work->dev;
 	enum mlxsw_sp_l3proto proto;
 	union mlxsw_sp_l3addr addr;
@@ -2799,9 +2799,9 @@ mlxsw_sp_switchdev_bridge_vxlan_fdb_event(struct mlxsw_sp *mlxsw_sp,
 		if (err)
 			return;
 		vxlan_fdb_info.offloaded = true;
-		call_switchdev_notifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
+		call_switchdev_yestifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
 					 &vxlan_fdb_info.info, NULL);
-		mlxsw_sp_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED,
+		mlxsw_sp_fdb_call_yestifiers(SWITCHDEV_FDB_OFFLOADED,
 					    vxlan_fdb_info.eth_addr,
 					    fdb_info->vid, dev, true);
 		break;
@@ -2812,7 +2812,7 @@ mlxsw_sp_switchdev_bridge_vxlan_fdb_event(struct mlxsw_sp *mlxsw_sp,
 						     proto, &addr, false,
 						     false);
 		vxlan_fdb_info.offloaded = false;
-		call_switchdev_notifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
+		call_switchdev_yestifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
 					 &vxlan_fdb_info.info, NULL);
 		break;
 	}
@@ -2873,7 +2873,7 @@ static void mlxsw_sp_switchdev_bridge_fdb_event_work(struct work_struct *work)
 	struct mlxsw_sp_switchdev_event_work *switchdev_work =
 		container_of(work, struct mlxsw_sp_switchdev_event_work, work);
 	struct net_device *dev = switchdev_work->dev;
-	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_yestifier_fdb_info *fdb_info;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	int err;
 
@@ -2895,7 +2895,7 @@ static void mlxsw_sp_switchdev_bridge_fdb_event_work(struct work_struct *work)
 		err = mlxsw_sp_port_fdb_set(mlxsw_sp_port, fdb_info, true);
 		if (err)
 			break;
-		mlxsw_sp_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED,
+		mlxsw_sp_fdb_call_yestifiers(SWITCHDEV_FDB_OFFLOADED,
 					    fdb_info->addr,
 					    fdb_info->vid, dev, true);
 		break;
@@ -2925,7 +2925,7 @@ mlxsw_sp_switchdev_vxlan_fdb_add(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_switchdev_event_work *
 				 switchdev_work)
 {
-	struct switchdev_notifier_vxlan_fdb_info *vxlan_fdb_info;
+	struct switchdev_yestifier_vxlan_fdb_info *vxlan_fdb_info;
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct net_device *dev = switchdev_work->dev;
 	u8 all_zeros_mac[ETH_ALEN] = { 0 };
@@ -2957,14 +2957,14 @@ mlxsw_sp_switchdev_vxlan_fdb_add(struct mlxsw_sp *mlxsw_sp,
 			return;
 		}
 		vxlan_fdb_info->offloaded = true;
-		call_switchdev_notifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
+		call_switchdev_yestifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
 					 &vxlan_fdb_info->info, NULL);
 		mlxsw_sp_fid_put(fid);
 		return;
 	}
 
 	/* The device has a single FDB table, whereas Linux has two - one
-	 * in the bridge driver and another in the VxLAN driver. We only
+	 * in the bridge driver and ayesther in the VxLAN driver. We only
 	 * program an entry to the device if the MAC points to the VxLAN
 	 * device in the bridge's FDB table
 	 */
@@ -2978,9 +2978,9 @@ mlxsw_sp_switchdev_vxlan_fdb_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_fdb_tunnel_uc_op;
 	vxlan_fdb_info->offloaded = true;
-	call_switchdev_notifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
+	call_switchdev_yestifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
 				 &vxlan_fdb_info->info, NULL);
-	mlxsw_sp_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED,
+	mlxsw_sp_fdb_call_yestifiers(SWITCHDEV_FDB_OFFLOADED,
 				    vxlan_fdb_info->eth_addr, vid, dev, true);
 
 	mlxsw_sp_fid_put(fid);
@@ -2997,7 +2997,7 @@ mlxsw_sp_switchdev_vxlan_fdb_del(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_switchdev_event_work *
 				 switchdev_work)
 {
-	struct switchdev_notifier_vxlan_fdb_info *vxlan_fdb_info;
+	struct switchdev_yestifier_vxlan_fdb_info *vxlan_fdb_info;
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct net_device *dev = switchdev_work->dev;
 	struct net_device *br_dev = netdev_master_upper_dev_get(dev);
@@ -3030,7 +3030,7 @@ mlxsw_sp_switchdev_vxlan_fdb_del(struct mlxsw_sp *mlxsw_sp,
 				       mlxsw_sp_fid_index(fid), proto, &addr,
 				       false, false);
 	vid = bridge_device->ops->fid_vid(bridge_device, fid);
-	mlxsw_sp_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED,
+	mlxsw_sp_fdb_call_yestifiers(SWITCHDEV_FDB_OFFLOADED,
 				    vxlan_fdb_info->eth_addr, vid, dev, false);
 
 	mlxsw_sp_fid_put(fid);
@@ -3075,37 +3075,37 @@ out:
 static int
 mlxsw_sp_switchdev_vxlan_work_prepare(struct mlxsw_sp_switchdev_event_work *
 				      switchdev_work,
-				      struct switchdev_notifier_info *info)
+				      struct switchdev_yestifier_info *info)
 {
 	struct vxlan_dev *vxlan = netdev_priv(switchdev_work->dev);
-	struct switchdev_notifier_vxlan_fdb_info *vxlan_fdb_info;
+	struct switchdev_yestifier_vxlan_fdb_info *vxlan_fdb_info;
 	struct vxlan_config *cfg = &vxlan->cfg;
 	struct netlink_ext_ack *extack;
 
-	extack = switchdev_notifier_info_to_extack(info);
+	extack = switchdev_yestifier_info_to_extack(info);
 	vxlan_fdb_info = container_of(info,
-				      struct switchdev_notifier_vxlan_fdb_info,
+				      struct switchdev_yestifier_vxlan_fdb_info,
 				      info);
 
 	if (vxlan_fdb_info->remote_port != cfg->dst_port) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Non-default remote port is not supported");
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Non-default remote port is yest supported");
 		return -EOPNOTSUPP;
 	}
 	if (vxlan_fdb_info->remote_vni != cfg->vni ||
 	    vxlan_fdb_info->vni != cfg->vni) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Non-default VNI is not supported");
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Non-default VNI is yest supported");
 		return -EOPNOTSUPP;
 	}
 	if (vxlan_fdb_info->remote_ifindex) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Local interface is not supported");
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Local interface is yest supported");
 		return -EOPNOTSUPP;
 	}
 	if (is_multicast_ether_addr(vxlan_fdb_info->eth_addr)) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Multicast MAC addresses not supported");
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Multicast MAC addresses yest supported");
 		return -EOPNOTSUPP;
 	}
 	if (vxlan_addr_multicast(&vxlan_fdb_info->remote_ip)) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Multicast destination IP is not supported");
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Multicast destination IP is yest supported");
 		return -EOPNOTSUPP;
 	}
 
@@ -3115,13 +3115,13 @@ mlxsw_sp_switchdev_vxlan_work_prepare(struct mlxsw_sp_switchdev_event_work *
 }
 
 /* Called under rcu_read_lock() */
-static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
+static int mlxsw_sp_switchdev_event(struct yestifier_block *unused,
 				    unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_yestifier_info_to_dev(ptr);
 	struct mlxsw_sp_switchdev_event_work *switchdev_work;
-	struct switchdev_notifier_fdb_info *fdb_info;
-	struct switchdev_notifier_info *info = ptr;
+	struct switchdev_yestifier_fdb_info *fdb_info;
+	struct switchdev_yestifier_info *info = ptr;
 	struct net_device *br_dev;
 	int err;
 
@@ -3129,10 +3129,10 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     mlxsw_sp_port_dev_check,
 						     mlxsw_sp_port_attr_set);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	}
 
-	/* Tunnel devices are not our uppers, so check their master instead */
+	/* Tunnel devices are yest our uppers, so check their master instead */
 	br_dev = netdev_master_upper_dev_get_rcu(dev);
 	if (!br_dev)
 		return NOTIFY_DONE;
@@ -3154,7 +3154,7 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 	case SWITCHDEV_FDB_ADD_TO_BRIDGE: /* fall through */
 	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
 		fdb_info = container_of(info,
-					struct switchdev_notifier_fdb_info,
+					struct switchdev_yestifier_fdb_info,
 					info);
 		INIT_WORK(&switchdev_work->work,
 			  mlxsw_sp_switchdev_bridge_fdb_event_work);
@@ -3196,8 +3196,8 @@ err_addr_alloc:
 	return NOTIFY_BAD;
 }
 
-struct notifier_block mlxsw_sp_switchdev_notifier = {
-	.notifier_call = mlxsw_sp_switchdev_event,
+struct yestifier_block mlxsw_sp_switchdev_yestifier = {
+	.yestifier_call = mlxsw_sp_switchdev_event,
 };
 
 static int
@@ -3213,9 +3213,9 @@ mlxsw_sp_switchdev_vxlan_vlan_add(struct mlxsw_sp *mlxsw_sp,
 	u16 old_vid;
 	int err;
 
-	/* We cannot have the same VLAN as PVID and egress untagged on multiple
-	 * VxLAN devices. Note that we get this notification before the VLAN is
-	 * actually added to the bridge's database, so it is not possible for
+	/* We canyest have the same VLAN as PVID and egress untagged on multiple
+	 * VxLAN devices. Note that we get this yestification before the VLAN is
+	 * actually added to the bridge's database, so it is yest possible for
 	 * the lookup function to return 'vxlan_dev'
 	 */
 	if (flag_untagged && flag_pvid &&
@@ -3227,7 +3227,7 @@ mlxsw_sp_switchdev_vxlan_vlan_add(struct mlxsw_sp *mlxsw_sp,
 	if (!netif_running(vxlan_dev))
 		return 0;
 
-	/* First case: FID is not associated with this VNI, but the new VLAN
+	/* First case: FID is yest associated with this VNI, but the new VLAN
 	 * is both PVID and egress untagged. Need to enable NVE on the FID, if
 	 * it exists
 	 */
@@ -3240,7 +3240,7 @@ mlxsw_sp_switchdev_vxlan_vlan_add(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	/* Second case: FID is associated with the VNI and the VLAN associated
-	 * with the FID is the same as the notified VLAN. This means the flags
+	 * with the FID is the same as the yestified VLAN. This means the flags
 	 * (PVID / egress untagged) were toggled and that NVE should be
 	 * disabled on the FID
 	 */
@@ -3256,7 +3256,7 @@ mlxsw_sp_switchdev_vxlan_vlan_add(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	/* Third case: A new VLAN was configured on the VxLAN device, but this
-	 * VLAN is not PVID, so there is nothing to do.
+	 * VLAN is yest PVID, so there is yesthing to do.
 	 */
 	if (!flag_pvid) {
 		mlxsw_sp_fid_put(fid);
@@ -3316,7 +3316,7 @@ out:
 
 static int
 mlxsw_sp_switchdev_vxlan_vlans_add(struct net_device *vxlan_dev,
-				   struct switchdev_notifier_port_obj_info *
+				   struct switchdev_yestifier_port_obj_info *
 				   port_obj_info)
 {
 	struct switchdev_obj_port_vlan *vlan =
@@ -3330,7 +3330,7 @@ mlxsw_sp_switchdev_vxlan_vlans_add(struct net_device *vxlan_dev,
 	struct net_device *br_dev;
 	u16 vid;
 
-	extack = switchdev_notifier_info_to_extack(&port_obj_info->info);
+	extack = switchdev_yestifier_info_to_extack(&port_obj_info->info);
 	br_dev = netdev_master_upper_dev_get(vxlan_dev);
 	if (!br_dev)
 		return 0;
@@ -3367,7 +3367,7 @@ mlxsw_sp_switchdev_vxlan_vlans_add(struct net_device *vxlan_dev,
 
 static void
 mlxsw_sp_switchdev_vxlan_vlans_del(struct net_device *vxlan_dev,
-				   struct switchdev_notifier_port_obj_info *
+				   struct switchdev_yestifier_port_obj_info *
 				   port_obj_info)
 {
 	struct switchdev_obj_port_vlan *vlan =
@@ -3401,7 +3401,7 @@ mlxsw_sp_switchdev_vxlan_vlans_del(struct net_device *vxlan_dev,
 
 static int
 mlxsw_sp_switchdev_handle_vxlan_obj_add(struct net_device *vxlan_dev,
-					struct switchdev_notifier_port_obj_info *
+					struct switchdev_yestifier_port_obj_info *
 					port_obj_info)
 {
 	int err = 0;
@@ -3420,7 +3420,7 @@ mlxsw_sp_switchdev_handle_vxlan_obj_add(struct net_device *vxlan_dev,
 
 static void
 mlxsw_sp_switchdev_handle_vxlan_obj_del(struct net_device *vxlan_dev,
-					struct switchdev_notifier_port_obj_info *
+					struct switchdev_yestifier_port_obj_info *
 					port_obj_info)
 {
 	switch (port_obj_info->obj->id) {
@@ -3432,10 +3432,10 @@ mlxsw_sp_switchdev_handle_vxlan_obj_del(struct net_device *vxlan_dev,
 	}
 }
 
-static int mlxsw_sp_switchdev_blocking_event(struct notifier_block *unused,
+static int mlxsw_sp_switchdev_blocking_event(struct yestifier_block *unused,
 					     unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_yestifier_info_to_dev(ptr);
 	int err = 0;
 
 	switch (event) {
@@ -3446,7 +3446,7 @@ static int mlxsw_sp_switchdev_blocking_event(struct notifier_block *unused,
 			err = switchdev_handle_port_obj_add(dev, ptr,
 							mlxsw_sp_port_dev_check,
 							mlxsw_sp_port_obj_add);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	case SWITCHDEV_PORT_OBJ_DEL:
 		if (netif_is_vxlan(dev))
 			mlxsw_sp_switchdev_handle_vxlan_obj_del(dev, ptr);
@@ -3454,19 +3454,19 @@ static int mlxsw_sp_switchdev_blocking_event(struct notifier_block *unused,
 			err = switchdev_handle_port_obj_del(dev, ptr,
 							mlxsw_sp_port_dev_check,
 							mlxsw_sp_port_obj_del);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	case SWITCHDEV_PORT_ATTR_SET:
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     mlxsw_sp_port_dev_check,
 						     mlxsw_sp_port_attr_set);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	}
 
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block mlxsw_sp_switchdev_blocking_notifier = {
-	.notifier_call = mlxsw_sp_switchdev_blocking_event,
+static struct yestifier_block mlxsw_sp_switchdev_blocking_yestifier = {
+	.yestifier_call = mlxsw_sp_switchdev_blocking_event,
 };
 
 u8
@@ -3478,7 +3478,7 @@ mlxsw_sp_bridge_port_stp_state(struct mlxsw_sp_bridge_port *bridge_port)
 static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_bridge *bridge = mlxsw_sp->bridge;
-	struct notifier_block *nb;
+	struct yestifier_block *nb;
 	int err;
 
 	err = mlxsw_sp_ageing_set(mlxsw_sp, MLXSW_SP_DEFAULT_AGEING_TIME);
@@ -3487,39 +3487,39 @@ static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 		return err;
 	}
 
-	err = register_switchdev_notifier(&mlxsw_sp_switchdev_notifier);
+	err = register_switchdev_yestifier(&mlxsw_sp_switchdev_yestifier);
 	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Failed to register switchdev notifier\n");
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to register switchdev yestifier\n");
 		return err;
 	}
 
-	nb = &mlxsw_sp_switchdev_blocking_notifier;
-	err = register_switchdev_blocking_notifier(nb);
+	nb = &mlxsw_sp_switchdev_blocking_yestifier;
+	err = register_switchdev_blocking_yestifier(nb);
 	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Failed to register switchdev blocking notifier\n");
-		goto err_register_switchdev_blocking_notifier;
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to register switchdev blocking yestifier\n");
+		goto err_register_switchdev_blocking_yestifier;
 	}
 
-	INIT_DELAYED_WORK(&bridge->fdb_notify.dw, mlxsw_sp_fdb_notify_work);
-	bridge->fdb_notify.interval = MLXSW_SP_DEFAULT_LEARNING_INTERVAL;
-	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);
+	INIT_DELAYED_WORK(&bridge->fdb_yestify.dw, mlxsw_sp_fdb_yestify_work);
+	bridge->fdb_yestify.interval = MLXSW_SP_DEFAULT_LEARNING_INTERVAL;
+	mlxsw_sp_fdb_yestify_work_schedule(mlxsw_sp);
 	return 0;
 
-err_register_switchdev_blocking_notifier:
-	unregister_switchdev_notifier(&mlxsw_sp_switchdev_notifier);
+err_register_switchdev_blocking_yestifier:
+	unregister_switchdev_yestifier(&mlxsw_sp_switchdev_yestifier);
 	return err;
 }
 
 static void mlxsw_sp_fdb_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	struct notifier_block *nb;
+	struct yestifier_block *nb;
 
-	cancel_delayed_work_sync(&mlxsw_sp->bridge->fdb_notify.dw);
+	cancel_delayed_work_sync(&mlxsw_sp->bridge->fdb_yestify.dw);
 
-	nb = &mlxsw_sp_switchdev_blocking_notifier;
-	unregister_switchdev_blocking_notifier(nb);
+	nb = &mlxsw_sp_switchdev_blocking_yestifier;
+	unregister_switchdev_blocking_yestifier(nb);
 
-	unregister_switchdev_notifier(&mlxsw_sp_switchdev_notifier);
+	unregister_switchdev_yestifier(&mlxsw_sp_switchdev_yestifier);
 }
 
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp)

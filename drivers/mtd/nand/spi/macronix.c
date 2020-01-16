@@ -81,7 +81,7 @@ static int mx35lf1ge4ab_ecc_get_status(struct spinand_device *spinand,
 		/*
 		 * Let's try to retrieve the real maximum number of bitflips
 		 * in order to avoid forcing the wear-leveling layer to move
-		 * data around if it's not necessary.
+		 * data around if it's yest necessary.
 		 */
 		if (mx35lf1ge4ab_get_eccsr(spinand, &eccsr))
 			return nand->eccreq.strength;

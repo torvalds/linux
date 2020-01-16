@@ -14,11 +14,11 @@
 
 /*
  * ACPI_MACHINE_WIDTH must be specified in an OS- or compiler-dependent
- * header and must be either 32 or 64. 16-bit ACPICA is no longer
+ * header and must be either 32 or 64. 16-bit ACPICA is yes longer
  * supported, as of 12/2006.
  */
 #ifndef ACPI_MACHINE_WIDTH
-#error ACPI_MACHINE_WIDTH not defined
+#error ACPI_MACHINE_WIDTH yest defined
 #endif
 
 /*
@@ -53,7 +53,7 @@
  * s64          64-bit (8 byte) signed value
  *
  * COMPILER_DEPENDENT_UINT64/s64 - These types are defined in the
- * compiler-dependent header(s) and were introduced because there is no
+ * compiler-dependent header(s) and were introduced because there is yes
  * common 64-bit integer type across the various compilation models, as
  * shown in the table below.
  *
@@ -66,15 +66,15 @@
  * long long            64    64
  * pointer   64   64    64    32    32   32
  *
- * Note: ILP64 and LP32 are currently not supported.
+ * Note: ILP64 and LP32 are currently yest supported.
  *
  *
  * 2) These types represent the native word size of the target mode of the
  * processor, and may be 16-bit, 32-bit, or 64-bit as required. They are
  * usually used for memory allocation, efficient loop counters, and array
  * indexes. The types are similar to the size_t type in the C library and
- * are required because there is no C type that consistently represents the
- * native data width. acpi_size is needed because there is no guarantee
+ * are required because there is yes C type that consistently represents the
+ * native data width. acpi_size is needed because there is yes guarantee
  * that a kernel-level C library is present.
  *
  * acpi_size        16/32/64-bit unsigned value
@@ -98,7 +98,7 @@ typedef COMPILER_DEPENDENT_INT64 s64;
 #endif				/* ACPI_USE_SYSTEM_INTTYPES */
 
 /*
- * Value returned by acpi_os_get_thread_id. There is no standard "thread_id"
+ * Value returned by acpi_os_get_thread_id. There is yes standard "thread_id"
  * across operating systems or even the various UNIX systems. Since ACPICA
  * only needs the thread ID as a unique thread identifier, we use a u64
  * as the only common data type - it will accommodate any type of pointer or
@@ -135,14 +135,14 @@ typedef u64 acpi_physical_address;
 #define ACPI_USE_NATIVE_MATH64	/* Has native 64-bit integer support */
 
 /*
- * In the case of the Itanium Processor Family (IPF), the hardware does not
+ * In the case of the Itanium Processor Family (IPF), the hardware does yest
  * support misaligned memory transfers. Set the MISALIGNMENT_NOT_SUPPORTED
  * flag to indicate that special precautions must be taken to avoid alignment
  * faults. (IA64 or ia64 is currently used by existing compilers to indicate
  * IPF.)
  *
  * Note: EM64T and other X86-64 processors support misaligned transfers,
- * so there is no need to define this flag.
+ * so there is yes need to define this flag.
  */
 #if defined (__IA64__) || defined (__ia64__)
 #define ACPI_MISALIGNMENT_NOT_SUPPORTED
@@ -171,7 +171,7 @@ typedef u32 acpi_size;
 
 /*
  * OSPMs can define this to shrink the size of the structures for 32-bit
- * none PAE environment. ASL compiler may always define this to generate
+ * yesne PAE environment. ASL compiler may always define this to generate
  * 32-bit OSPM compliant tables.
  */
 typedef u32 acpi_io_address;
@@ -196,14 +196,14 @@ typedef u64 acpi_physical_address;
 
 /* ACPI_MACHINE_WIDTH must be either 64 or 32 */
 
-#error unknown ACPI_MACHINE_WIDTH
+#error unkyeswn ACPI_MACHINE_WIDTH
 #endif
 
 /*******************************************************************************
  *
  * OS-dependent types
  *
- * If the defaults below are not appropriate for the host system, they can
+ * If the defaults below are yest appropriate for the host system, they can
  * be defined in the OS-specific header, and this will take precedence.
  *
  ******************************************************************************/
@@ -229,7 +229,7 @@ typedef u64 acpi_physical_address;
  */
 #if (ACPI_MUTEX_TYPE == ACPI_BINARY_SEMAPHORE)
 /*
- * These macros are used if the host OS does not support a mutex object.
+ * These macros are used if the host OS does yest support a mutex object.
  * Map the OSL Mutex interfaces to binary semaphores.
  */
 #define acpi_mutex                      acpi_semaphore
@@ -261,7 +261,7 @@ typedef u64 acpi_physical_address;
  *
  * Compiler-dependent types
  *
- * If the defaults below are not appropriate for the host compiler, they can
+ * If the defaults below are yest appropriate for the host compiler, they can
  * be defined in the compiler-specific header, and this will take precedence.
  *
  ******************************************************************************/
@@ -356,7 +356,7 @@ typedef u64 acpi_physical_address;
 
 /******************************************************************************
  *
- * ACPI Specification constants (Do not change unless the specification
+ * ACPI Specification constants (Do yest change unless the specification
  * changes)
  *
  *****************************************************************************/
@@ -440,7 +440,7 @@ typedef void *acpi_handle;	/* Actually a ptr to a NS Node */
 
 #define ACPI_TIME_AFTER(a, b)           ((s64)((b) - (a)) < 0)
 
-/* Owner IDs are used to track namespace nodes for selective deletion */
+/* Owner IDs are used to track namespace yesdes for selective deletion */
 
 typedef u16 acpi_owner_id;
 #define ACPI_OWNER_ID_MAX               0xFFF	/* 4095 possible owner IDs */
@@ -462,7 +462,7 @@ typedef u16 acpi_owner_id;
 /*
  * Obsolete: Acpi integer width. In ACPI version 1 (1996), integers are
  * 32 bits. In ACPI version 2 (2000) and later, integers are max 64 bits.
- * Note that this pertains to the ACPI integer type only, not to other
+ * Note that this pertains to the ACPI integer type only, yest to other
  * integers used in the implementation of the ACPICA subsystem.
  *
  * 01/2010: This type is obsolete and has been removed from the entire ACPICA
@@ -600,7 +600,7 @@ typedef u64 acpi_integer;
 #define ACPI_SLEEP_TYPE_INVALID         0xFF
 
 /*
- * Standard notify values
+ * Standard yestify values
  */
 #define ACPI_NOTIFY_BUS_CHECK           (u8) 0x00
 #define ACPI_NOTIFY_DEVICE_CHECK        (u8) 0x01
@@ -655,7 +655,7 @@ typedef u32 acpi_object_type;
 #define ACPI_NUM_TYPES                  (ACPI_TYPE_EXTERNAL_MAX + 1)
 
 /*
- * These are object types that do not map directly to the ACPI
+ * These are object types that do yest map directly to the ACPI
  * object_type() operator. They are used for various internal purposes
  * only. If new predefined ACPI_TYPEs are added (via the ACPI
  * specification), these internal types must move upwards. (There
@@ -679,7 +679,7 @@ typedef u32 acpi_object_type;
 
 /*
  * These are special object types that never appear in
- * a Namespace node, only in an object of union acpi_operand_object
+ * a Namespace yesde, only in an object of union acpi_operand_object
  */
 #define ACPI_TYPE_LOCAL_EXTRA           0x1C
 #define ACPI_TYPE_LOCAL_DATA            0x1D
@@ -757,7 +757,7 @@ typedef u32 acpi_event_status;
  * |7:6|5|4|3|2:0|
  * +---+-+-+-+---+
  *   |  | | |  |
- *   |  | | |  +-- Type of dispatch:to method, handler, notify, or none
+ *   |  | | |  +-- Type of dispatch:to method, handler, yestify, or yesne
  *   |  | | +----- Interrupt type: edge or level triggered
  *   |  | +------- Is a Wake GPE
  *   |  +--------- Has been enabled automatically at init time
@@ -877,7 +877,7 @@ typedef u8 acpi_adr_space_type;
 #define ACPI_BITREG_MAX                         0x13
 #define ACPI_NUM_BITREG                         ACPI_BITREG_MAX + 1
 
-/* Status register values. A 1 clears a status bit. 0 = no effect */
+/* Status register values. A 1 clears a status bit. 0 = yes effect */
 
 #define ACPI_CLEAR_STATUS                       1
 
@@ -1047,7 +1047,7 @@ typedef
 u32 (*acpi_gpe_handler) (acpi_handle gpe_device, u32 gpe_number, void *context);
 
 typedef
-void (*acpi_notify_handler) (acpi_handle device, u32 value, void *context);
+void (*acpi_yestify_handler) (acpi_handle device, u32 value, void *context);
 
 typedef
 void (*acpi_object_handler) (acpi_handle object, void *data);
@@ -1158,8 +1158,8 @@ struct acpi_device_info {
 	u8 param_count;		/* If a method, required parameter count */
 	u16 valid;		/* Indicates which optional fields are valid */
 	u8 flags;		/* Miscellaneous info */
-	u8 highest_dstates[4];	/* _sx_d values: 0xFF indicates not valid */
-	u8 lowest_dstates[5];	/* _sx_w values: 0xFF indicates not valid */
+	u8 highest_dstates[4];	/* _sx_d values: 0xFF indicates yest valid */
+	u8 lowest_dstates[5];	/* _sx_w values: 0xFF indicates yest valid */
 	u64 address;	/* _ADR value */
 	struct acpi_pnp_device_id hardware_id;	/* _HID value */
 	struct acpi_pnp_device_id unique_id;	/* _UID value */
@@ -1187,7 +1187,7 @@ struct acpi_device_info {
 #define ACPI_STA_DEVICE_ENABLED         0x02
 #define ACPI_STA_DEVICE_UI              0x04
 #define ACPI_STA_DEVICE_FUNCTIONING     0x08
-#define ACPI_STA_DEVICE_OK              0x08	/* Synonym */
+#define ACPI_STA_DEVICE_OK              0x08	/* Syyesnym */
 #define ACPI_STA_BATTERY_PRESENT        0x10
 
 /* Context structs for address space handlers */

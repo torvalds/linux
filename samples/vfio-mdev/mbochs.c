@@ -2,9 +2,9 @@
 /*
  * Mediated virtual PCI display host device driver
  *
- * Emulate enough of qemu stdvga to make bochs-drm.ko happy.  That is
+ * Emulate eyesugh of qemu stdvga to make bochs-drm.ko happy.  That is
  * basically the vram memory bar and the bochs dispi interface vbe
- * registers in the mmio register bar.	Specifically it does *not*
+ * registers in the mmio register bar.	Specifically it does *yest*
  * include any legacy vga stuff.  Device looks a lot like "qemu -device
  * secondary-vga".
  *
@@ -254,7 +254,7 @@ static int mbochs_check_framebuffer(struct mdev_state *mdev_state,
 	WARN_ON(!mutex_is_locked(&mdev_state->ops_lock));
 
 	if (!(vbe[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED))
-		goto nofb;
+		goto yesfb;
 
 	memset(mode, 0, sizeof(*mode));
 	switch (vbe[VBE_DISPI_INDEX_BPP]) {
@@ -263,9 +263,9 @@ static int mbochs_check_framebuffer(struct mdev_state *mdev_state,
 		mode->bytepp = 4;
 		break;
 	default:
-		dev_info_ratelimited(dev, "%s: bpp %d not supported\n",
+		dev_info_ratelimited(dev, "%s: bpp %d yest supported\n",
 				     __func__, vbe[VBE_DISPI_INDEX_BPP]);
-		goto nofb;
+		goto yesfb;
 	}
 
 	mode->width  = vbe[VBE_DISPI_INDEX_XRES];
@@ -281,17 +281,17 @@ static int mbochs_check_framebuffer(struct mdev_state *mdev_state,
 	if (mode->width < 64 || mode->height < 64) {
 		dev_info_ratelimited(dev, "%s: invalid resolution %dx%d\n",
 				     __func__, mode->width, mode->height);
-		goto nofb;
+		goto yesfb;
 	}
 	if (mode->offset + mode->size > mdev_state->memsize) {
 		dev_info_ratelimited(dev, "%s: framebuffer memory overflow\n",
 				     __func__);
-		goto nofb;
+		goto yesfb;
 	}
 
 	return 0;
 
-nofb:
+yesfb:
 	memset(mode, 0, sizeof(*mode));
 	return -EINVAL;
 }
@@ -996,7 +996,7 @@ static int mbochs_dmabuf_export(struct mbochs_dmabuf *dmabuf)
 	WARN_ON(!mutex_is_locked(&mdev_state->ops_lock));
 
 	if (!IS_ALIGNED(dmabuf->mode.offset, PAGE_SIZE)) {
-		dev_info_ratelimited(dev, "%s: framebuffer not page-aligned\n",
+		dev_info_ratelimited(dev, "%s: framebuffer yest page-aligned\n",
 				     __func__);
 		return -EINVAL;
 	}
@@ -1438,7 +1438,7 @@ static const struct file_operations vd_fops = {
 
 static void mbochs_device_release(struct device *dev)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 static int __init mbochs_dev_init(void)

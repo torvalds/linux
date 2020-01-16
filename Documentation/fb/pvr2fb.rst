@@ -14,7 +14,7 @@ Advantages:
 
 Disadvantages:
 
- * Driver is largely untested on non-Dreamcast systems.
+ * Driver is largely untested on yesn-Dreamcast systems.
 
 Configuration
 =============
@@ -37,28 +37,28 @@ mode:X      default video mode with format [xres]x[yres]-<bpp>@<refresh rate>
 	    24bpp and 32bpp modes function poorly. Work to fix that is
 	    ongoing
 
-	    Note: the 640x240 mode is currently broken, and should not be
+	    Note: the 640x240 mode is currently broken, and should yest be
 	    used for any reason. It is only mentioned here as a reference.
 
 inverse     invert colors on screen (for LCD displays)
 
-nomtrr      disables write combining on frame buffer. This slows down driver
-	    but there is reported minor incompatibility between GUS DMA and
+yesmtrr      disables write combining on frame buffer. This slows down driver
+	    but there is reported miyesr incompatibility between GUS DMA and
 	    XFree under high loads if write combining is enabled (sound
 	    dropouts). MTRR is enabled by default on systems that have it
 	    configured and that support it.
 
 cable:X     cable type. This can be any of the following: vga, rgb, and
-	    composite. If none is specified, we guess.
+	    composite. If yesne is specified, we guess.
 
 output:X    output type. This can be any of the following: pal, ntsc, and
-	    vga. If none is specified, we guess.
+	    vga. If yesne is specified, we guess.
 ==========  ==================================================================
 
 X11
 ===
 
-XF86_FBDev has been shown to work on the Dreamcast in the past - though not yet
+XF86_FBDev has been shown to work on the Dreamcast in the past - though yest yet
 on any 2.6 series kernel.
 
 Paul Mundt <lethal@linuxdc.org>

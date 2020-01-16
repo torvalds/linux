@@ -225,14 +225,14 @@ static const struct msm_dsi_cfg_handler dsi_cfg_handlers[] = {
 		&sdm845_dsi_cfg, &msm_dsi_6g_v2_host_ops},
 };
 
-const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 minor)
+const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 miyesr)
 {
 	const struct msm_dsi_cfg_handler *cfg_hnd = NULL;
 	int i;
 
 	for (i = ARRAY_SIZE(dsi_cfg_handlers) - 1; i >= 0; i--) {
 		if ((dsi_cfg_handlers[i].major == major) &&
-			(dsi_cfg_handlers[i].minor == minor)) {
+			(dsi_cfg_handlers[i].miyesr == miyesr)) {
 			cfg_hnd = &dsi_cfg_handlers[i];
 			break;
 		}

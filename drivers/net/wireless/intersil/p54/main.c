@@ -8,7 +8,7 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Note <jbyeste@gmail.com>, et al.
  * - stlc45xx driver
  *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
  */
@@ -23,9 +23,9 @@
 #include "p54.h"
 #include "lmac.h"
 
-static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+static bool modparam_yeshwcrypt;
+module_param_named(yeshwcrypt, modparam_yeshwcrypt, bool, 0444);
+MODULE_PARM_DESC(yeshwcrypt, "Disable hardware encryption.");
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
 MODULE_DESCRIPTION("Softmac Prism54 common code");
 MODULE_LICENSE("GPL");
@@ -47,13 +47,13 @@ static int p54_sta_add_remove(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static void p54_sta_notify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
-			      enum sta_notify_cmd notify_cmd,
+static void p54_sta_yestify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
+			      enum sta_yestify_cmd yestify_cmd,
 			      struct ieee80211_sta *sta)
 {
 	struct p54_common *priv = dev->priv;
 
-	switch (notify_cmd) {
+	switch (yestify_cmd) {
 	case STA_NOTIFY_AWAKE:
 		/* update the firmware's filter table */
 		p54_sta_unlock(priv, sta->addr);
@@ -151,7 +151,7 @@ static int p54_beacon_update(struct p54_common *priv,
 	 * The driver only needs to upload a new beacon template, once
 	 * the template was changed by the stack or userspace.
 	 *
-	 * LMAC API 3.2.2 also specifies that the driver does not need
+	 * LMAC API 3.2.2 also specifies that the driver does yest need
 	 * to cancel the old beacon template by hand, instead the firmware
 	 * will release the previous one through the feedback mechanism.
 	 */
@@ -371,7 +371,7 @@ static u64 p54_prepare_multicast(struct ieee80211_hw *dev,
 		ARRAY_SIZE(((struct p54_group_address_table *)NULL)->mac_list));
 	/*
 	 * The first entry is reserved for the global broadcast MAC.
-	 * Otherwise the firmware will drop it and ARP will no longer work.
+	 * Otherwise the firmware will drop it and ARP will yes longer work.
 	 */
 	i = 1;
 	priv->mc_maclist_num = netdev_hw_addr_list_count(mc_list) + i;
@@ -503,7 +503,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 	u8 algo = 0;
 	u8 *addr = NULL;
 
-	if (modparam_nohwcrypt)
+	if (modparam_yeshwcrypt)
 		return -EOPNOTSUPP;
 
 	if (key->flags & IEEE80211_KEY_FLAG_RX_MGMT) {
@@ -556,7 +556,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		if (slot < 0) {
 			/*
 			 * The device supports the chosen algorithm, but the
-			 * firmware does not provide enough key slots to store
+			 * firmware does yest provide eyesugh key slots to store
 			 * all of them.
 			 * But encryption offload for outgoing frames is always
 			 * possible, so we just pretend that the upload was
@@ -573,7 +573,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		slot = key->hw_key_idx;
 
 		if (slot == 0xff) {
-			/* This key was not uploaded into the rx key cache. */
+			/* This key was yest uploaded into the rx key cache. */
 
 			goto out_unlock;
 		}
@@ -632,9 +632,9 @@ static int p54_get_survey(struct ieee80211_hw *dev, int idx,
 				survey->filled |= SURVEY_INFO_IN_USE;
 			} else {
 				/*
-				 * hw/fw has not accumulated enough sample sets.
-				 * Wait for 100ms, this ought to be enough to
-				 * to get at least one non-null set of channel
+				 * hw/fw has yest accumulated eyesugh sample sets.
+				 * Wait for 100ms, this ought to be eyesugh to
+				 * to get at least one yesn-null set of channel
 				 * usage statistics.
 				 */
 				msleep(100);
@@ -678,8 +678,8 @@ static void p54_flush(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
 	i = P54_STATISTICS_UPDATE * 2 / 20;
 
 	/*
-	 * In this case no locking is required because as we speak the
-	 * queues have already been stopped and no new frames can sneak
+	 * In this case yes locking is required because as we speak the
+	 * queues have already been stopped and yes new frames can sneak
 	 * up from behind.
 	 */
 	while ((total = p54_flush_count(priv) && i--)) {
@@ -709,7 +709,7 @@ static const struct ieee80211_ops p54_ops = {
 	.add_interface		= p54_add_interface,
 	.remove_interface	= p54_remove_interface,
 	.set_tim		= p54_set_tim,
-	.sta_notify		= p54_sta_notify,
+	.sta_yestify		= p54_sta_yestify,
 	.sta_add		= p54_sta_add_remove,
 	.sta_remove		= p54_sta_add_remove,
 	.set_key		= p54_set_key,
@@ -759,10 +759,10 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	priv->tx_stats[P54_QUEUE_CAB].limit = 3;
 	priv->tx_stats[P54_QUEUE_DATA].limit = 5;
 	dev->queues = 1;
-	priv->noise = -94;
+	priv->yesise = -94;
 	/*
-	 * We support at most 8 tries no matter which rate they're at,
-	 * we cannot support max_rates * max_rate_tries as we set it
+	 * We support at most 8 tries yes matter which rate they're at,
+	 * we canyest support max_rates * max_rate_tries as we set it
 	 * here, but setting it correctly to 4/2 or so would limit us
 	 * artificially if the RC algorithm wants just two rates, so
 	 * let's say 4/7, we'll redistribute it at TX time, see the
@@ -774,7 +774,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 				 sizeof(struct p54_tx_data);
 
 	/*
-	 * For now, disable PS by default because it affects
+	 * For yesw, disable PS by default because it affects
 	 * link stability significantly.
 	 */
 	dev->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -800,7 +800,7 @@ int p54_register_common(struct ieee80211_hw *dev, struct device *pdev)
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
-		dev_err(pdev, "Cannot register device (%d).\n", err);
+		dev_err(pdev, "Canyest register device (%d).\n", err);
 		return err;
 	}
 	priv->registered = true;

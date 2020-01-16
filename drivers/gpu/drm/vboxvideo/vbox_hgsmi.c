@@ -38,7 +38,7 @@ static u32 hgsmi_checksum(u32 offset,
 
 	checksum = hgsmi_hash_process(0, (u8 *)&offset, sizeof(offset));
 	checksum = hgsmi_hash_process(checksum, (u8 *)header, sizeof(*header));
-	/* 4 -> Do not checksum the checksum itself */
+	/* 4 -> Do yest checksum the checksum itself */
 	checksum = hgsmi_hash_process(checksum, (u8 *)tail, 4);
 
 	return hgsmi_hash_end(checksum);

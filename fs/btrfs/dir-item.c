@@ -13,7 +13,7 @@
  * success a struct btrfs_dir_item pointer is returned, otherwise it is
  * an ERR_PTR.
  *
- * The name is not copied into the dir item, you have to do that yourself.
+ * The name is yest copied into the dir item, you have to do that yourself.
  */
 static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 						   *trans,
@@ -40,7 +40,7 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 	} else if (ret < 0)
 		return ERR_PTR(ret);
 	WARN_ON(ret > 0);
-	leaf = path->nodes[0];
+	leaf = path->yesdes[0];
 	item = btrfs_item_nr(path->slots[0]);
 	ptr = btrfs_item_ptr(leaf, path->slots[0], char);
 	BUG_ON(data_size > btrfs_item_size(leaf, item));
@@ -80,7 +80,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 		return PTR_ERR(dir_item);
 	memset(&location, 0, sizeof(location));
 
-	leaf = path->nodes[0];
+	leaf = path->yesdes[0];
 	btrfs_cpu_key_to_disk(&disk_key, &location);
 	btrfs_set_dir_item_key(leaf, dir_item, &disk_key);
 	btrfs_set_dir_type(leaf, dir_item, BTRFS_FT_XATTR);
@@ -92,7 +92,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 
 	write_extent_buffer(leaf, name, name_ptr, name_len);
 	write_extent_buffer(leaf, data, data_ptr, data_len);
-	btrfs_mark_buffer_dirty(path->nodes[0]);
+	btrfs_mark_buffer_dirty(path->yesdes[0]);
 
 	return ret;
 }
@@ -101,12 +101,12 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
  * insert a directory item in the tree, doing all the magic for
  * both indexes. 'dir' indicates which objectid to insert it into,
  * 'location' is the key to stuff into the directory item, 'type' is the
- * type of the inode we're pointing to, and 'index' is the sequence number
+ * type of the iyesde we're pointing to, and 'index' is the sequence number
  * to use for the second index (if one is created).
  * Will return 0 or -ENOMEM
  */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, const char *name,
-			  int name_len, struct btrfs_inode *dir,
+			  int name_len, struct btrfs_iyesde *dir,
 			  struct btrfs_key *location, u8 type, u64 index)
 {
 	int ret = 0;
@@ -120,7 +120,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, const char *name,
 	struct btrfs_disk_key disk_key;
 	u32 data_size;
 
-	key.objectid = btrfs_ino(dir);
+	key.objectid = btrfs_iyes(dir);
 	key.type = BTRFS_DIR_ITEM_KEY;
 	key.offset = btrfs_name_hash(name, name_len);
 
@@ -141,7 +141,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, const char *name,
 		goto out_free;
 	}
 
-	leaf = path->nodes[0];
+	leaf = path->yesdes[0];
 	btrfs_set_dir_item_key(leaf, dir_item, &disk_key);
 	btrfs_set_dir_type(leaf, dir_item, type);
 	btrfs_set_dir_data_len(leaf, dir_item, 0);
@@ -227,7 +227,7 @@ int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
 	if (ret < 0)
 		goto out;
 
-	/* nothing found, we're safe */
+	/* yesthing found, we're safe */
 	if (ret > 0) {
 		ret = 0;
 		goto out;
@@ -246,7 +246,7 @@ int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
 	 * name
 	 */
 	data_size = sizeof(*di) + name_len;
-	leaf = path->nodes[0];
+	leaf = path->yesdes[0];
 	slot = path->slots[0];
 	if (data_size + btrfs_item_size_nr(leaf, slot) +
 	    sizeof(struct btrfs_item) > BTRFS_LEAF_DATA_SIZE(root->fs_info)) {
@@ -311,7 +311,7 @@ btrfs_search_dir_index_item(struct btrfs_root *root,
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	leaf = path->nodes[0];
+	leaf = path->yesdes[0];
 	nritems = btrfs_header_nritems(leaf);
 
 	while (1) {
@@ -321,7 +321,7 @@ btrfs_search_dir_index_item(struct btrfs_root *root,
 				return ERR_PTR(ret);
 			if (ret > 0)
 				break;
-			leaf = path->nodes[0];
+			leaf = path->yesdes[0];
 			nritems = btrfs_header_nritems(leaf);
 			continue;
 		}
@@ -379,7 +379,7 @@ struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_fs_info *fs_info,
 	u32 this_len;
 	struct extent_buffer *leaf;
 
-	leaf = path->nodes[0];
+	leaf = path->yesdes[0];
 	dir_item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_dir_item);
 
 	total_len = btrfs_item_size_nr(leaf, path->slots[0]);
@@ -415,7 +415,7 @@ int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 	u32 item_len;
 	int ret = 0;
 
-	leaf = path->nodes[0];
+	leaf = path->yesdes[0];
 	sub_item_len = sizeof(*di) + btrfs_dir_name_len(leaf, di) +
 		btrfs_dir_data_len(leaf, di);
 	item_len = btrfs_item_size_nr(leaf, path->slots[0]);

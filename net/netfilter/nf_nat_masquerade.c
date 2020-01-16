@@ -32,7 +32,7 @@ nf_nat_masquerade_ipv4(struct sk_buff *skb, unsigned int hooknum,
 			 ctinfo == IP_CT_RELATED_REPLY)));
 
 	/* Source address is 0.0.0.0 - locally generated packet that is
-	 * probably not supposed to be masqueraded.
+	 * probably yest supposed to be masqueraded.
 	 */
 	if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip == 0)
 		return NF_ACCEPT;
@@ -72,11 +72,11 @@ static int device_cmp(struct nf_conn *i, void *ifindex)
 	return nat->masq_index == (int)(long)ifindex;
 }
 
-static int masq_device_event(struct notifier_block *this,
+static int masq_device_event(struct yestifier_block *this,
 			     unsigned long event,
 			     void *ptr)
 {
-	const struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	const struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 
 	if (event == NETDEV_DOWN) {
@@ -106,16 +106,16 @@ static int inet_cmp(struct nf_conn *ct, void *ptr)
 	return ifa->ifa_address == tuple->dst.u3.ip;
 }
 
-static int masq_inet_event(struct notifier_block *this,
+static int masq_inet_event(struct yestifier_block *this,
 			   unsigned long event,
 			   void *ptr)
 {
 	struct in_device *idev = ((struct in_ifaddr *)ptr)->ifa_dev;
 	struct net *net = dev_net(idev->dev);
 
-	/* The masq_dev_notifier will catch the case of the device going
+	/* The masq_dev_yestifier will catch the case of the device going
 	 * down.  So if the inetdev is dead and being destroyed we have
-	 * no work to do.  Otherwise this is an individual address removal
+	 * yes work to do.  Otherwise this is an individual address removal
 	 * and we have to perform the flush.
 	 */
 	if (idev->dead)
@@ -127,12 +127,12 @@ static int masq_inet_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block masq_dev_notifier = {
-	.notifier_call	= masq_device_event,
+static struct yestifier_block masq_dev_yestifier = {
+	.yestifier_call	= masq_device_event,
 };
 
-static struct notifier_block masq_inet_notifier = {
-	.notifier_call	= masq_inet_event,
+static struct yestifier_block masq_inet_yestifier = {
+	.yestifier_call	= masq_inet_event,
 };
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -221,14 +221,14 @@ static void iterate_cleanup_work(struct work_struct *work)
 	module_put(THIS_MODULE);
 }
 
-/* atomic notifier; can't call nf_ct_iterate_cleanup_net (it can sleep).
+/* atomic yestifier; can't call nf_ct_iterate_cleanup_net (it can sleep).
  *
  * Defer it to the system workqueue.
  *
  * As we can have 'a lot' of inet_events (depending on amount of ipv6
  * addresses being deleted), we also need to limit work item queue.
  */
-static int masq_inet6_event(struct notifier_block *this,
+static int masq_inet6_event(struct yestifier_block *this,
 			    unsigned long event, void *ptr)
 {
 	struct inet6_ifaddr *ifa = ptr;
@@ -266,19 +266,19 @@ static int masq_inet6_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block masq_inet6_notifier = {
-	.notifier_call	= masq_inet6_event,
+static struct yestifier_block masq_inet6_yestifier = {
+	.yestifier_call	= masq_inet6_event,
 };
 
-static int nf_nat_masquerade_ipv6_register_notifier(void)
+static int nf_nat_masquerade_ipv6_register_yestifier(void)
 {
-	return register_inet6addr_notifier(&masq_inet6_notifier);
+	return register_inet6addr_yestifier(&masq_inet6_yestifier);
 }
 #else
-static inline int nf_nat_masquerade_ipv6_register_notifier(void) { return 0; }
+static inline int nf_nat_masquerade_ipv6_register_yestifier(void) { return 0; }
 #endif
 
-int nf_nat_masquerade_inet_register_notifiers(void)
+int nf_nat_masquerade_inet_register_yestifiers(void)
 {
 	int ret = 0;
 
@@ -288,50 +288,50 @@ int nf_nat_masquerade_inet_register_notifiers(void)
 		goto out_unlock;
 	}
 
-	/* check if the notifier was already set */
+	/* check if the yestifier was already set */
 	if (++masq_refcnt > 1)
 		goto out_unlock;
 
 	/* Register for device down reports */
-	ret = register_netdevice_notifier(&masq_dev_notifier);
+	ret = register_netdevice_yestifier(&masq_dev_yestifier);
 	if (ret)
 		goto err_dec;
 	/* Register IP address change reports */
-	ret = register_inetaddr_notifier(&masq_inet_notifier);
+	ret = register_inetaddr_yestifier(&masq_inet_yestifier);
 	if (ret)
 		goto err_unregister;
 
-	ret = nf_nat_masquerade_ipv6_register_notifier();
+	ret = nf_nat_masquerade_ipv6_register_yestifier();
 	if (ret)
 		goto err_unreg_inet;
 
 	mutex_unlock(&masq_mutex);
 	return ret;
 err_unreg_inet:
-	unregister_inetaddr_notifier(&masq_inet_notifier);
+	unregister_inetaddr_yestifier(&masq_inet_yestifier);
 err_unregister:
-	unregister_netdevice_notifier(&masq_dev_notifier);
+	unregister_netdevice_yestifier(&masq_dev_yestifier);
 err_dec:
 	masq_refcnt--;
 out_unlock:
 	mutex_unlock(&masq_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_nat_masquerade_inet_register_notifiers);
+EXPORT_SYMBOL_GPL(nf_nat_masquerade_inet_register_yestifiers);
 
-void nf_nat_masquerade_inet_unregister_notifiers(void)
+void nf_nat_masquerade_inet_unregister_yestifiers(void)
 {
 	mutex_lock(&masq_mutex);
-	/* check if the notifiers still have clients */
+	/* check if the yestifiers still have clients */
 	if (--masq_refcnt > 0)
 		goto out_unlock;
 
-	unregister_netdevice_notifier(&masq_dev_notifier);
-	unregister_inetaddr_notifier(&masq_inet_notifier);
+	unregister_netdevice_yestifier(&masq_dev_yestifier);
+	unregister_inetaddr_yestifier(&masq_inet_yestifier);
 #if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&masq_inet6_notifier);
+	unregister_inet6addr_yestifier(&masq_inet6_yestifier);
 #endif
 out_unlock:
 	mutex_unlock(&masq_mutex);
 }
-EXPORT_SYMBOL_GPL(nf_nat_masquerade_inet_unregister_notifiers);
+EXPORT_SYMBOL_GPL(nf_nat_masquerade_inet_unregister_yestifiers);

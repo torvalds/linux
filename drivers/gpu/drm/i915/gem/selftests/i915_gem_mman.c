@@ -351,7 +351,7 @@ static int igt_partial_tiling(void *arg)
 
 		if (i915->quirks & QUIRK_PIN_SWIZZLED_PAGES)
 			/*
-			 * The swizzling pattern is actually unknown as it
+			 * The swizzling pattern is actually unkyeswn as it
 			 * varies based on physical address of each page.
 			 * See i915_gem_detect_bit_6_swizzle().
 			 */
@@ -606,7 +606,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct drm_mm *mm = &i915->drm.vma_offset_manager->vm_addr_space_mm;
 	struct drm_i915_gem_object *obj;
-	struct drm_mm_node resv, *hole;
+	struct drm_mm_yesde resv, *hole;
 	u64 hole_start, hole_end;
 	int loop, err;
 
@@ -620,7 +620,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 		resv.start = hole_start;
 		resv.size = hole_end - hole_start - 1; /* PAGE_SIZE units */
 		mmap_offset_lock(i915);
-		err = drm_mm_reserve_node(mm, &resv);
+		err = drm_mm_reserve_yesde(mm, &resv);
 		mmap_offset_unlock(i915);
 		if (err) {
 			pr_err("Failed to trim VMA manager, err=%d\n", err);
@@ -657,7 +657,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	}
 
 	if (!assert_mmap_offset(i915, PAGE_SIZE, -ENOSPC)) {
-		pr_err("Unexpectedly succeeded in inserting object into no holes!\n");
+		pr_err("Unexpectedly succeeded in inserting object into yes holes!\n");
 		err = -EINVAL;
 		goto err_obj;
 	}
@@ -684,7 +684,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 
 out:
 	mmap_offset_lock(i915);
-	drm_mm_remove_node(&resv);
+	drm_mm_remove_yesde(&resv);
 	mmap_offset_unlock(i915);
 out_park:
 	restore_retire_worker(i915);

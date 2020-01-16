@@ -7,9 +7,9 @@ KASAN_SANITIZE_slab_common.o := n
 KASAN_SANITIZE_slab.o := n
 KASAN_SANITIZE_slub.o := n
 
-# These files are disabled because they produce non-interesting and/or
-# flaky coverage that is not a function of syscall inputs. E.g. slab is out of
-# free pages, or a task is migrated between nodes.
+# These files are disabled because they produce yesn-interesting and/or
+# flaky coverage that is yest a function of syscall inputs. E.g. slab is out of
+# free pages, or a task is migrated between yesdes.
 KCOV_INSTRUMENT_slab_common.o := n
 KCOV_INSTRUMENT_slob.o := n
 KCOV_INSTRUMENT_slab.o := n
@@ -24,7 +24,7 @@ KCOV_INSTRUMENT_vmstat.o := n
 CFLAGS_init-mm.o += $(call cc-disable-warning, override-init)
 CFLAGS_init-mm.o += $(call cc-disable-warning, initializer-overrides)
 
-mmu-y			:= nommu.o
+mmu-y			:= yesmmu.o
 mmu-$(CONFIG_MMU)	:= highmem.o memory.o mincore.o \
 			   mlock.o mmap.o mmu_gather.o mprotect.o mremap.o \
 			   msync.o page_vma_mapped.o pagewalk.o \
@@ -65,7 +65,7 @@ obj-$(CONFIG_NUMA) 	+= mempolicy.o
 obj-$(CONFIG_SPARSEMEM)	+= sparse.o
 obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
 obj-$(CONFIG_SLOB) += slob.o
-obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
+obj-$(CONFIG_MMU_NOTIFIER) += mmu_yestifier.o
 obj-$(CONFIG_KSM) += ksm.o
 obj-$(CONFIG_PAGE_POISONING) += page_poison.o
 obj-$(CONFIG_SLAB) += slab.o

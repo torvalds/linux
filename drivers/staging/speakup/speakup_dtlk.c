@@ -7,7 +7,7 @@
  * Copyright (C) 2003 David Borowski.
  *
  * specificly written as a driver for the speakup screenreview
- * package it's not a general device driver.
+ * package it's yest a general device driver.
  * This driver is for the RC Systems DoubleTalk PC internal synthesizer.
  */
 #include <linux/jiffies.h>
@@ -126,7 +126,7 @@ static struct spk_synth synth_dtlk = {
 	.synth_immediate = synth_immediate,
 	.catch_up = do_catch_up,
 	.flush = synth_flush,
-	.is_alive = spk_synth_is_alive_nop,
+	.is_alive = spk_synth_is_alive_yesp,
 	.synth_adjust = NULL,
 	.read_buff_add = NULL,
 	.get_index = spk_synth_get_index,
@@ -202,7 +202,7 @@ static void do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
-		synth_buffer_skip_nonlatin1();
+		synth_buffer_skip_yesnlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -350,7 +350,7 @@ static int synth_probe(struct spk_synth *synth)
 	}
 	port_val &= 0xfbff;
 	if (port_val != 0x107f) {
-		pr_info("DoubleTalk PC: not found\n");
+		pr_info("DoubleTalk PC: yest found\n");
 		if (synth_lpc)
 			synth_release_region(synth_lpc, SYNTH_IO_EXTENT);
 		return -ENODEV;

@@ -2,7 +2,7 @@
 /*
  * inet fragments management
  *
- * 		Authors:	Pavel Emelyanov <xemul@openvz.org>
+ * 		Authors:	Pavel Emelyayesv <xemul@openvz.org>
  *				Started as consolidation of ipv4/ip_fragment.c,
  *				ipv6/reassembly. and ipv6 nf conntrack reassembly
  */
@@ -45,7 +45,7 @@ struct ipfrag_skb_cb {
 
 static void fragcb_clear(struct sk_buff *skb)
 {
-	RB_CLEAR_NODE(&skb->rbnode);
+	RB_CLEAR_NODE(&skb->rbyesde);
 	FRAG_CB(skb)->next_frag = NULL;
 	FRAG_CB(skb)->frag_run_len = skb->len;
 }
@@ -68,11 +68,11 @@ static void fragrun_create(struct inet_frag_queue *q, struct sk_buff *skb)
 	fragcb_clear(skb);
 
 	if (q->last_run_head)
-		rb_link_node(&skb->rbnode, &q->last_run_head->rbnode,
-			     &q->last_run_head->rbnode.rb_right);
+		rb_link_yesde(&skb->rbyesde, &q->last_run_head->rbyesde,
+			     &q->last_run_head->rbyesde.rb_right);
 	else
-		rb_link_node(&skb->rbnode, NULL, &q->rb_fragments.rb_node);
-	rb_insert_color(&skb->rbnode, &q->rb_fragments);
+		rb_link_yesde(&skb->rbyesde, NULL, &q->rb_fragments.rb_yesde);
+	rb_insert_color(&skb->rbyesde, &q->rb_fragments);
 
 	q->fragments_tail = skb;
 	q->last_run_head = skb;
@@ -154,7 +154,7 @@ static void fqdir_work_fn(struct work_struct *work)
 
 	/* We need to make sure all ongoing call_rcu(..., inet_frag_destroy_rcu)
 	 * have completed, since they need to dereference fqdir.
-	 * Would it not be nice to have kfree_rcu_barrier() ? :)
+	 * Would it yest be nice to have kfree_rcu_barrier() ? :)
 	 */
 	rcu_barrier();
 
@@ -203,11 +203,11 @@ void inet_frag_kill(struct inet_frag_queue *fq)
 		rcu_read_lock();
 		/* The RCU read lock provides a memory barrier
 		 * guaranteeing that if fqdir->dead is false then
-		 * the hash table destruction will not start until
+		 * the hash table destruction will yest start until
 		 * after we unlock.  Paired with inet_frags_exit_net().
 		 */
 		if (!fqdir->dead) {
-			rhashtable_remove_fast(&fqdir->rhashtable, &fq->node,
+			rhashtable_remove_fast(&fqdir->rhashtable, &fq->yesde,
 					       fqdir->f->rhash_params);
 			refcount_dec(&fq->refcnt);
 		} else {
@@ -231,14 +231,14 @@ static void inet_frag_destroy_rcu(struct rcu_head *head)
 
 unsigned int inet_frag_rbtree_purge(struct rb_root *root)
 {
-	struct rb_node *p = rb_first(root);
+	struct rb_yesde *p = rb_first(root);
 	unsigned int sum = 0;
 
 	while (p) {
-		struct sk_buff *skb = rb_entry(p, struct sk_buff, rbnode);
+		struct sk_buff *skb = rb_entry(p, struct sk_buff, rbyesde);
 
 		p = rb_next(p);
-		rb_erase(&skb->rbnode, root);
+		rb_erase(&skb->rbyesde, root);
 		while (skb) {
 			struct sk_buff *next = FRAG_CB(skb)->next_frag;
 
@@ -308,7 +308,7 @@ static struct inet_frag_queue *inet_frag_create(struct fqdir *fqdir,
 	mod_timer(&q->timer, jiffies + fqdir->timeout);
 
 	*prev = rhashtable_lookup_get_insert_key(&fqdir->rhashtable, &q->key,
-						 &q->node, f->rhash_params);
+						 &q->yesde, f->rhash_params);
 	if (*prev) {
 		q->flags |= INET_FRAG_COMPLETE;
 		inet_frag_kill(q);
@@ -318,7 +318,7 @@ static struct inet_frag_queue *inet_frag_create(struct fqdir *fqdir,
 	return q;
 }
 
-/* TODO : call from rcu_read_lock() and no longer use refcount_inc_not_zero() */
+/* TODO : call from rcu_read_lock() and yes longer use refcount_inc_yest_zero() */
 struct inet_frag_queue *inet_frag_find(struct fqdir *fqdir, void *key)
 {
 	struct inet_frag_queue *fq = NULL, *prev;
@@ -333,7 +333,7 @@ struct inet_frag_queue *inet_frag_find(struct fqdir *fqdir, void *key)
 		fq = inet_frag_create(fqdir, key, &prev);
 	if (!IS_ERR_OR_NULL(prev)) {
 		fq = prev;
-		if (!refcount_inc_not_zero(&fq->refcnt))
+		if (!refcount_inc_yest_zero(&fq->refcnt))
 			fq = NULL;
 	}
 	rcu_read_unlock();
@@ -352,7 +352,7 @@ int inet_frag_queue_insert(struct inet_frag_queue *q, struct sk_buff *skb,
 	 *   overlapping fragment, the entire datagram (and any constituent
 	 *   fragments) MUST be silently discarded.
 	 *
-	 * Duplicates, however, should be ignored (i.e. skb dropped, but the
+	 * Duplicates, however, should be igyesred (i.e. skb dropped, but the
 	 * queue/fragments kept for later reassembly).
 	 */
 	if (!last)
@@ -368,11 +368,11 @@ int inet_frag_queue_insert(struct inet_frag_queue *q, struct sk_buff *skb,
 			fragrun_create(q, skb);
 	} else {
 		/* Binary search. Note that skb can become the first fragment,
-		 * but not the last (covered above).
+		 * but yest the last (covered above).
 		 */
-		struct rb_node **rbn, *parent;
+		struct rb_yesde **rbn, *parent;
 
-		rbn = &q->rb_fragments.rb_node;
+		rbn = &q->rb_fragments.rb_yesde;
 		do {
 			struct sk_buff *curr;
 			int curr_run_end;
@@ -395,8 +395,8 @@ int inet_frag_queue_insert(struct inet_frag_queue *q, struct sk_buff *skb,
 		 * one of its NULL left/right children. Insert skb.
 		 */
 		fragcb_clear(skb);
-		rb_link_node(&skb->rbnode, parent, rbn);
-		rb_insert_color(&skb->rbnode, &q->rb_fragments);
+		rb_link_yesde(&skb->rbyesde, parent, rbn);
+		rb_insert_color(&skb->rbyesde, &q->rb_fragments);
 	}
 
 	skb->ip_defrag_offset = offset;
@@ -417,16 +417,16 @@ void *inet_frag_reasm_prepare(struct inet_frag_queue *q, struct sk_buff *skb,
 		if (!fp)
 			return NULL;
 		FRAG_CB(fp)->next_frag = FRAG_CB(skb)->next_frag;
-		if (RB_EMPTY_NODE(&skb->rbnode))
+		if (RB_EMPTY_NODE(&skb->rbyesde))
 			FRAG_CB(parent)->next_frag = fp;
 		else
-			rb_replace_node(&skb->rbnode, &fp->rbnode,
+			rb_replace_yesde(&skb->rbyesde, &fp->rbyesde,
 					&q->rb_fragments);
 		if (q->fragments_tail == skb)
 			q->fragments_tail = fp;
 		skb_morph(skb, head);
 		FRAG_CB(skb)->next_frag = FRAG_CB(head)->next_frag;
-		rb_replace_node(&head->rbnode, &skb->rbnode,
+		rb_replace_yesde(&head->rbyesde, &skb->rbyesde,
 				&q->rb_fragments);
 		consume_skb(head);
 		head = skb;
@@ -435,7 +435,7 @@ void *inet_frag_reasm_prepare(struct inet_frag_queue *q, struct sk_buff *skb,
 
 	delta = -head->truesize;
 
-	/* Head of list must not be cloned. */
+	/* Head of list must yest be cloned. */
 	if (skb_unclone(head, GFP_ATOMIC))
 		return NULL;
 
@@ -478,7 +478,7 @@ void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
 			    void *reasm_data, bool try_coalesce)
 {
 	struct sk_buff **nextp = (struct sk_buff **)reasm_data;
-	struct rb_node *rbn;
+	struct rb_yesde *rbn;
 	struct sk_buff *fp;
 	int sum_truesize;
 
@@ -486,8 +486,8 @@ void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
 
 	/* Traverse the tree in order, to build frag_list. */
 	fp = FRAG_CB(head)->next_frag;
-	rbn = rb_next(&head->rbnode);
-	rb_erase(&head->rbnode, &q->rb_fragments);
+	rbn = rb_next(&head->rbyesde);
+	rb_erase(&head->rbyesde, &q->rb_fragments);
 
 	sum_truesize = head->truesize;
 	while (rbn || fp) {
@@ -511,7 +511,7 @@ void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
 				kfree_skb_partial(fp, stolen);
 			} else {
 				fp->prev = NULL;
-				memset(&fp->rbnode, 0, sizeof(fp->rbnode));
+				memset(&fp->rbyesde, 0, sizeof(fp->rbyesde));
 				fp->sk = NULL;
 
 				head->data_len += fp->len;
@@ -526,7 +526,7 @@ void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
 		}
 		/* Move to the next run. */
 		if (rbn) {
-			struct rb_node *rbnext = rb_next(rbn);
+			struct rb_yesde *rbnext = rb_next(rbn);
 
 			fp = rb_to_skb(rbn);
 			rb_erase(rbn, &q->rb_fragments);
@@ -536,7 +536,7 @@ void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
 	sub_frag_mem_limit(q->fqdir, sum_truesize);
 
 	*nextp = NULL;
-	skb_mark_not_on_list(head);
+	skb_mark_yest_on_list(head);
 	head->prev = NULL;
 	head->tstamp = q->stamp;
 }
@@ -551,11 +551,11 @@ struct sk_buff *inet_frag_pull_head(struct inet_frag_queue *q)
 		return NULL;
 	skb = FRAG_CB(head)->next_frag;
 	if (skb)
-		rb_replace_node(&head->rbnode, &skb->rbnode,
+		rb_replace_yesde(&head->rbyesde, &skb->rbyesde,
 				&q->rb_fragments);
 	else
-		rb_erase(&head->rbnode, &q->rb_fragments);
-	memset(&head->rbnode, 0, sizeof(head->rbnode));
+		rb_erase(&head->rbyesde, &q->rb_fragments);
+	memset(&head->rbyesde, 0, sizeof(head->rbyesde));
 	barrier();
 
 	if (head == q->fragments_tail)

@@ -38,7 +38,7 @@ struct vdec_fb {
  * @used:	Capture buffer contain decoded frame data and keep in
  *			codec data structure
  * @queued_in_vb2:	Capture buffer is queue in vb2
- * @queued_in_v4l2:	Capture buffer is in v4l2 driver, but not in vb2
+ * @queued_in_v4l2:	Capture buffer is in v4l2 driver, but yest in vb2
  *			queue yet
  * @lastframe:		Intput buffer is last buffer - EOS
  * @error:		An unrecoverable error occurs on this buffer.

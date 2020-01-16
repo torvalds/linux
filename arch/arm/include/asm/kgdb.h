@@ -61,12 +61,12 @@ extern int kgdb_fault_expected;
  * fps:    unused, 1 long word
  * cpsr:   1 long word
  *
- * Even though f0-f7 and fps are not used, they need to be
+ * Even though f0-f7 and fps are yest used, they need to be
  * present in the registers sent for correct processing in
  * the host-side gdb.
  *
  * In particular, it is crucial that CPSR is in the right place,
- * otherwise gdb will not be able to correctly interpret stepping over
+ * otherwise gdb will yest be able to correctly interpret stepping over
  * conditional branches.
  */
 #define _GP_REGS		16
@@ -99,7 +99,7 @@ extern int kgdb_fault_expected;
 #define _CPSR			(GDB_MAX_REGS - 1)
 
 /*
- * So that we can denote the end of a frame for tracing,
+ * So that we can deyeste the end of a frame for tracing,
  * in the simple case:
  */
 #define CFI_END_FRAME(func)	__CFI_END_FRAME(_PC, _SPT, func)

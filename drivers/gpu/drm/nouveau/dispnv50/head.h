@@ -5,11 +5,11 @@
 #include "atom.h"
 #include "lut.h"
 
-#include "nouveau_crtc.h"
+#include "yesuveau_crtc.h"
 
 struct nv50_head {
 	const struct nv50_head_func *func;
-	struct nouveau_crtc base;
+	struct yesuveau_crtc base;
 	struct nv50_lut olut;
 };
 

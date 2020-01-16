@@ -3,7 +3,7 @@
  *  USB ATI Remote support
  *
  *                Copyright (c) 2011, 2012 Anssi Hannula <anssi.hannula@iki.fi>
- *  Version 2.2.0 Copyright (c) 2004 Torrey Hoffman <thoffman@arnor.net>
+ *  Version 2.2.0 Copyright (c) 2004 Torrey Hoffman <thoffman@aryesr.net>
  *  Version 2.1.1 Copyright (c) 2002 Vladimir Dergachev
  *
  *  This 2.2.0 version is a rewrite / cleanup of the 2.1.1 driver, including
@@ -16,9 +16,9 @@
  *
  *  Changes:
  *
- *  Feb 2004: Torrey Hoffman <thoffman@arnor.net>
+ *  Feb 2004: Torrey Hoffman <thoffman@aryesr.net>
  *            Version 2.2.0
- *  Jun 2004: Torrey Hoffman <thoffman@arnor.net>
+ *  Jun 2004: Torrey Hoffman <thoffman@aryesr.net>
  *            Version 2.2.1
  *            Added key repeat support contributed by:
  *                Vincent Vanackere <vanackere@lif.univ-mrs.fr>
@@ -29,15 +29,15 @@
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
- * Hardware & software notes
+ * Hardware & software yestes
  *
  * These remote controls are distributed by ATI as part of their
  * "All-In-Wonder" video card packages.  The receiver self-identifies as a
- * "USB Receiver" with manufacturer "X10 Wireless Technology Inc".
+ * "USB Receiver" with manufacturer "X10 Wireless Techyeslogy Inc".
  *
  * The "Lola" remote is available from X10.  See:
  *    http://www.x10.com/products/lola_sg1.htm
- * The Lola is similar to the ATI remote but has no mouse support, and slightly
+ * The Lola is similar to the ATI remote but has yes mouse support, and slightly
  * different keys.
  *
  * It is possible to use multiple receivers and remotes on multiple computers
@@ -58,22 +58,22 @@
  * and mask.  Note: debugging prints remote numbers as zero-based hexadecimal.
  *
  * The driver has a "channel_mask" parameter. This bitmask specifies which
- * channels will be ignored by the module.  To mask out channels, just add
+ * channels will be igyesred by the module.  To mask out channels, just add
  * all the 2^channel_number values together.
  *
  * For instance, set channel_mask = 2^4 = 16 (binary 10000) to make ati_remote
- * ignore signals coming from remote controls transmitting on channel 4, but
+ * igyesre signals coming from remote controls transmitting on channel 4, but
  * accept all other channels.
  *
  * Or, set channel_mask = 65533, (0xFFFD), and all channels except 1 will be
- * ignored.
+ * igyesred.
  *
  * The default is 0 (respond to all channels). Bit 0 and bits 17-32 of this
  * parameter are unused.
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -96,7 +96,7 @@
 #define FIREFLY_REMOTE_PRODUCT_ID	0x0008
 
 #define DRIVER_VERSION		"2.2.1"
-#define DRIVER_AUTHOR           "Torrey Hoffman <thoffman@arnor.net>"
+#define DRIVER_AUTHOR           "Torrey Hoffman <thoffman@aryesr.net>"
 #define DRIVER_DESC             "ATI/X10 RF USB Remote Control"
 
 #define NAME_BUFSIZE      80    /* size of product name, path buffers */
@@ -115,7 +115,7 @@
 
 static unsigned long channel_mask;
 module_param(channel_mask, ulong, 0644);
-MODULE_PARM_DESC(channel_mask, "Bitmask of remote control channels to ignore");
+MODULE_PARM_DESC(channel_mask, "Bitmask of remote control channels to igyesre");
 
 static int debug;
 module_param(debug, int, 0644);
@@ -131,7 +131,7 @@ MODULE_PARM_DESC(repeat_delay, "Delay before sending repeats, default = 500 msec
 
 static bool mouse = true;
 module_param(mouse, bool, 0444);
-MODULE_PARM_DESC(mouse, "Enable mouse device, default = yes");
+MODULE_PARM_DESC(mouse, "Enable mouse device, default = no");
 
 #define dbginfo(dev, format, arg...) \
 	do { if (debug) dev_info(dev , format , ## arg); } while (0)
@@ -157,7 +157,7 @@ static const char *get_medion_keymap(struct usb_interface *interface)
 	if (udev->manufacturer && udev->product) {
 		if (udev->actconfig->desc.bmAttributes & USB_CONFIG_ATT_WAKEUP) {
 
-			if (!strcmp(udev->manufacturer, "X10 Wireless Technology Inc")
+			if (!strcmp(udev->manufacturer, "X10 Wireless Techyeslogy Inc")
 			    && !strcmp(udev->product, "USB Receiver"))
 				return RC_MAP_MEDION_X10_DIGITAINER;
 
@@ -166,14 +166,14 @@ static const char *get_medion_keymap(struct usb_interface *interface)
 				return RC_MAP_MEDION_X10_OR2X;
 		} else {
 
-			 if (!strcmp(udev->manufacturer, "X10 Wireless Technology Inc")
+			 if (!strcmp(udev->manufacturer, "X10 Wireless Techyeslogy Inc")
 			    && !strcmp(udev->product, "USB Receiver"))
 				return RC_MAP_MEDION_X10;
 		}
 	}
 
 	dev_info(&interface->dev,
-		 "Unknown Medion X10 receiver, using default ati_remote Medion keymap\n");
+		 "Unkyeswn Medion X10 receiver, using default ati_remote Medion keymap\n");
 
 	return RC_MAP_MEDION_X10;
 }
@@ -455,19 +455,19 @@ static const struct accel_times accel[] = {
  */
 static int ati_remote_compute_accel(struct ati_remote *ati_remote)
 {
-	unsigned long now = jiffies, reset_time;
+	unsigned long yesw = jiffies, reset_time;
 	int i;
 
 	reset_time = msecs_to_jiffies(250);
 
-	if (time_after(now, ati_remote->old_jiffies + reset_time)) {
-		ati_remote->acc_jiffies = now;
+	if (time_after(yesw, ati_remote->old_jiffies + reset_time)) {
+		ati_remote->acc_jiffies = yesw;
 		return 1;
 	}
 	for (i = 0; i < ARRAY_SIZE(accel) - 1; i++) {
 		unsigned long timeout = msecs_to_jiffies(accel[i].msecs);
 
-		if (time_before(now, ati_remote->acc_jiffies + timeout))
+		if (time_before(yesw, ati_remote->acc_jiffies + timeout))
 			return accel[i].value;
 	}
 	return accel[i].value;
@@ -509,7 +509,7 @@ static void ati_remote_input_report(struct urb *urb)
 	}
 
 	/* Mask unwanted remote channels.  */
-	/* note: remote_num is 0-based, channel 1 on remote == 0 here */
+	/* yeste: remote_num is 0-based, channel 1 on remote == 0 here */
 	remote_num = (data[3] >> 4) & 0x0f;
 	if (channel_mask & (1 << (remote_num + 1))) {
 		dbginfo(&ati_remote->interface->dev,
@@ -539,7 +539,7 @@ static void ati_remote_input_report(struct urb *urb)
 							scancode & 0x78);
 
 		if (wheel_keycode == KEY_RESERVED) {
-			/* scrollwheel was not mapped, assume mouse */
+			/* scrollwheel was yest mapped, assume mouse */
 
 			/* Look up event code index in the mouse translation
 			 * table.
@@ -564,19 +564,19 @@ static void ati_remote_input_report(struct urb *urb)
 		ati_remote->old_jiffies = jiffies;
 
 	} else if (index < 0 || ati_remote_tbl[index].kind == KIND_FILTERED) {
-		unsigned long now = jiffies;
+		unsigned long yesw = jiffies;
 
 		/* Filter duplicate events which happen "too close" together. */
 		if (ati_remote->old_data == data[2] &&
-		    time_before(now, ati_remote->old_jiffies +
+		    time_before(yesw, ati_remote->old_jiffies +
 				     msecs_to_jiffies(repeat_filter))) {
 			ati_remote->repeat_count++;
 		} else {
 			ati_remote->repeat_count = 0;
-			ati_remote->first_jiffies = now;
+			ati_remote->first_jiffies = yesw;
 		}
 
-		ati_remote->old_jiffies = now;
+		ati_remote->old_jiffies = yesw;
 
 		/* Ensure we skip at least the 4 first duplicate events
 		 * (generated by a single keypress), and continue skipping
@@ -584,7 +584,7 @@ static void ati_remote_input_report(struct urb *urb)
 		 */
 		if (ati_remote->repeat_count > 0 &&
 		    (ati_remote->repeat_count < 5 ||
-		     time_before(now, ati_remote->first_jiffies +
+		     time_before(yesw, ati_remote->first_jiffies +
 				      msecs_to_jiffies(repeat_delay))))
 			return;
 
@@ -612,12 +612,12 @@ static void ati_remote_input_report(struct urb *urb)
 				* it would cause ghost repeats which would be a
 				* regression for this driver.
 				*/
-				rc_keydown_notimeout(ati_remote->rdev,
+				rc_keydown_yestimeout(ati_remote->rdev,
 						     RC_PROTO_OTHER,
 						     scancode, data[2]);
 				rc_keyup(ati_remote->rdev);
 			}
-			goto nosync;
+			goto yessync;
 		}
 
 	} else if (ati_remote_tbl[index].kind == KIND_ACCEL) {
@@ -642,7 +642,7 @@ static void ati_remote_input_report(struct urb *urb)
 		return;
 	}
 	input_sync(dev);
-nosync:
+yessync:
 	ati_remote->old_data = data[2];
 }
 

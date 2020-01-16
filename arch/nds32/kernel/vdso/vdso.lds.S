@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-2.0
- * Copyright (C) 2005-2017 Andes Technology Corporation
+ * Copyright (C) 2005-2017 Andes Techyeslogy Corporation
  */
 
 
@@ -22,7 +22,7 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
-	.note		: { *(.note.*) }		:text	:note
+	.yeste		: { *(.yeste.*) }		:text	:yeste
 
 
 	.text		: { *(.text*) }			:text
@@ -36,7 +36,7 @@ SECTIONS
 
 
 	/DISCARD/	: {
-		*(.note.GNU-stack)
+		*(.yeste.GNU-stack)
 		*(.data .data.* .gnu.linkonce.d.* .sdata*)
 		*(.bss .sbss .dynbss .dynsbss)
 	}
@@ -50,7 +50,7 @@ PHDRS
 {
 	text		PT_LOAD		FLAGS(5) FILEHDR PHDRS; /* PF_R|PF_X */
 	dynamic		PT_DYNAMIC	FLAGS(4);		/* PF_R */
-	note		PT_NOTE		FLAGS(4);		/* PF_R */
+	yeste		PT_NOTE		FLAGS(4);		/* PF_R */
 	eh_frame_hdr	PT_GNU_EH_FRAME;
 }
 

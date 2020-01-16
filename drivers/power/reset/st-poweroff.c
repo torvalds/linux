@@ -39,7 +39,7 @@ static struct reset_syscfg stih407_reset = {
 
 static struct reset_syscfg *st_restart_syscfg;
 
-static int st_restart(struct notifier_block *this, unsigned long mode,
+static int st_restart(struct yestifier_block *this, unsigned long mode,
 		      void *cmd)
 {
 	/* reset syscfg updated */
@@ -57,8 +57,8 @@ static int st_restart(struct notifier_block *this, unsigned long mode,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block st_restart_nb = {
-	.notifier_call = st_restart,
+static struct yestifier_block st_restart_nb = {
+	.yestifier_call = st_restart,
 	.priority = 192,
 };
 
@@ -72,7 +72,7 @@ static const struct of_device_id st_reset_of_match[] = {
 
 static int st_reset_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 

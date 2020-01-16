@@ -26,7 +26,7 @@ void v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev)
 	INIT_LIST_HEAD(&fh->list);
 	set_bit(V4L2_FL_USES_V4L2_FH, &fh->vdev->flags);
 	/*
-	 * determine_valid_ioctls() does not know if struct v4l2_fh
+	 * determine_valid_ioctls() does yest kyesw if struct v4l2_fh
 	 * is used by this driver, but here we do. So enable the
 	 * prio ioctls here.
 	 */

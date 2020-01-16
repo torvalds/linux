@@ -65,14 +65,14 @@ static int h1940bt_probe(struct platform_device *pdev)
 
 	ret = gpio_request(S3C2410_GPH(1), dev_name(&pdev->dev));
 	if (ret) {
-		dev_err(&pdev->dev, "could not get GPH1\n");
+		dev_err(&pdev->dev, "could yest get GPH1\n");
 		return ret;
 	}
 
 	ret = gpio_request(H1940_LATCH_BLUETOOTH_POWER, dev_name(&pdev->dev));
 	if (ret) {
 		gpio_free(S3C2410_GPH(1));
-		dev_err(&pdev->dev, "could not get BT_POWER\n");
+		dev_err(&pdev->dev, "could yest get BT_POWER\n");
 		return ret;
 	}
 

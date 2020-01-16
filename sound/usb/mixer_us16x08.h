@@ -116,7 +116,7 @@ struct snd_us16x08_control_params {
 	int default_val;
 };
 
-#define snd_us16x08_switch_info snd_ctl_boolean_mono_info
+#define snd_us16x08_switch_info snd_ctl_boolean_moyes_info
 
 int snd_us16x08_controls_create(struct usb_mixer_interface *mixer);
 #endif /* __USB_MIXER_US16X08_H */

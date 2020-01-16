@@ -105,7 +105,7 @@ static ktime_t poll_status(struct i915_request *rq, int slot)
 	return ktime_get();
 }
 
-static int live_noa_delay(void *arg)
+static int live_yesa_delay(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_perf_stream *stream;
@@ -122,7 +122,7 @@ static int live_noa_delay(void *arg)
 	if (!stream)
 		return -ENOMEM;
 
-	expected = atomic64_read(&stream->perf->noa_programming_delay);
+	expected = atomic64_read(&stream->perf->yesa_programming_delay);
 
 	if (stream->engine->class != RENDER_CLASS) {
 		err = -ENODEV;
@@ -154,7 +154,7 @@ static int live_noa_delay(void *arg)
 	}
 
 	err = rq->engine->emit_bb_start(rq,
-					i915_ggtt_offset(stream->noa_wait), 0,
+					i915_ggtt_offset(stream->yesa_wait), 0,
 					I915_DISPATCH_SECURE);
 	if (err) {
 		i915_request_add(rq);
@@ -203,7 +203,7 @@ int i915_perf_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_sanitycheck),
-		SUBTEST(live_noa_delay),
+		SUBTEST(live_yesa_delay),
 	};
 	struct i915_perf *perf = &i915->perf;
 

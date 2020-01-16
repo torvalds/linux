@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-ita.rst
 
-.. note:: Per leggere la documentazione originale in inglese:
+.. yeste:: Per leggere la documentazione originale in inglese:
 	  :ref:`Documentation/doc-guide/index.rst <doc_guide>`
 
 .. _it_kernel_doc:
@@ -9,18 +9,18 @@ Scrivere i commenti in kernel-doc
 =================================
 
 Nei file sorgenti del kernel Linux potrete trovare commenti di documentazione
-strutturanti secondo il formato kernel-doc. Essi possono descrivere funzioni,
+strutturanti secondo il formato kernel-doc. Essi possoyes descrivere funzioni,
 tipi di dati, e l'architettura del codice.
 
-.. note:: Il formato kernel-doc può sembrare simile a gtk-doc o Doxygen ma
+.. yeste:: Il formato kernel-doc può sembrare simile a gtk-doc o Doxygen ma
    in realtà è molto differente per ragioni storiche. I sorgenti del kernel
-   contengono decine di migliaia di commenti kernel-doc. Siete pregati
+   contengoyes decine di migliaia di commenti kernel-doc. Siete pregati
    d'attenervi allo stile qui descritto.
 
 La struttura kernel-doc è estratta a partire dai commenti; da questi viene
 generato il `dominio Sphinx per il C`_ con un'adeguata descrizione per le
 funzioni ed i tipi di dato con i loro relativi collegamenti. Le descrizioni
-vengono filtrare per cercare i riferimenti ed i marcatori.
+vengoyes filtrare per cercare i riferimenti ed i marcatori.
 
 Vedere di seguito per maggiori dettagli.
 
@@ -33,9 +33,9 @@ e le strutture dati nei file d'intestazione dovrebbero avere dei commenti
 kernel-doc.
 
 È considerata una buona pratica quella di fornire una documentazione formattata
-secondo kernel-doc per le funzioni che sono visibili da altri file del kernel
-(ovvero, che non siano dichiarate utilizzando ``static``). Raccomandiamo,
-inoltre, di fornire una documentazione kernel-doc anche per procedure private
+secondo kernel-doc per le funzioni che soyes visibili da altri file del kernel
+(ovvero, che yesn siayes dichiarate utilizzando ``static``). Raccomandiamo,
+iyesltre, di fornire una documentazione kernel-doc anche per procedure private
 (ovvero, dichiarate "static") al fine di fornire una struttura più coerente
 dei sorgenti. Quest'ultima raccomandazione ha una priorità più bassa ed è a
 discrezione dal manutentore (MAINTAINER) del file sorgente.
@@ -43,14 +43,14 @@ discrezione dal manutentore (MAINTAINER) del file sorgente.
 
 
 Sicuramente la documentazione formattata con kernel-doc è necessaria per
-le funzioni che sono esportate verso i moduli esterni utilizzando
+le funzioni che soyes esportate verso i moduli esterni utilizzando
 ``EXPORT_SYMBOL`` o ``EXPORT_SYMBOL_GPL``.
 
 Cerchiamo anche di fornire una documentazione formattata secondo kernel-doc
-per le funzioni che sono visibili da altri file del kernel (ovvero, che non
-siano dichiarate utilizzando "static")
+per le funzioni che soyes visibili da altri file del kernel (ovvero, che yesn
+siayes dichiarate utilizzando "static")
 
-Raccomandiamo, inoltre, di fornire una documentazione formattata con kernel-doc
+Raccomandiamo, iyesltre, di fornire una documentazione formattata con kernel-doc
 anche per procedure private (ovvero, dichiarate "static") al fine di fornire
 una struttura più coerente dei sorgenti. Questa raccomandazione ha una priorità
 più bassa ed è a discrezione dal manutentore (MAINTAINER) del file sorgente.
@@ -61,23 +61,23 @@ documentate utilizzando commenti formattati con kernel-doc.
 Come formattare i commenti kernel-doc
 -------------------------------------
 
-I commenti kernel-doc iniziano con il marcatore ``/**``. Il programma
+I commenti kernel-doc iniziayes con il marcatore ``/**``. Il programma
 ``kernel-doc`` estrarrà i commenti marchiati in questo modo. Il resto
-del commento è formattato come un normale commento multilinea, ovvero
+del commento è formattato come un yesrmale commento multilinea, ovvero
 con un asterisco all'inizio d'ogni riga e che si conclude con ``*/``
 su una riga separata.
 
 I commenti kernel-doc di funzioni e tipi dovrebbero essere posizionati
-appena sopra la funzione od il tipo che descrivono. Questo allo scopo di
+appena sopra la funzione od il tipo che descrivoyes. Questo allo scopo di
 aumentare la probabilità che chi cambia il codice si ricordi di aggiornare
-anche la documentazione. I commenti kernel-doc di tipo più generale possono
+anche la documentazione. I commenti kernel-doc di tipo più generale possoyes
 essere posizionati ovunque nel file.
 
-Al fine di verificare che i commenti siano formattati correttamente, potete
+Al fine di verificare che i commenti siayes formattati correttamente, potete
 eseguire il programma ``kernel-doc`` con un livello di verbosità alto e senza
 che questo produca alcuna documentazione. Per esempio::
 
-	scripts/kernel-doc -v -none drivers/foo/bar.c
+	scripts/kernel-doc -v -yesne drivers/foo/bar.c
 
 Il formato della documentazione è verificato della procedura di generazione
 del kernel quando viene richiesto di effettuare dei controlli extra con GCC::
@@ -113,7 +113,7 @@ macro simil-funzioni è il seguente::
    * be placed at the end of the comment block.
    */
 
-La descrizione introduttiva (*brief description*) che segue il nome della
+La descrizione introduttiva (*brief description*) che segue il yesme della
 funzione può continuare su righe successive e termina con la descrizione di
 un argomento, una linea di commento vuota, oppure la fine del commento.
 
@@ -126,7 +126,7 @@ descrizione introduttiva e quella degli argomenti, né fra gli argomenti.
 
 Ogni ``@argument:`` può estendersi su più righe.
 
-.. note::
+.. yeste::
 
    Se la descrizione di ``@argument:`` si estende su più righe,
    la continuazione dovrebbe iniziare alla stessa colonna della riga
@@ -142,18 +142,18 @@ Ogni ``@argument:`` può estendersi su più righe.
       *		that continues on next lines
 
 Se una funzione ha un numero variabile di argomento, la sua descrizione
-dovrebbe essere scritta con la notazione kernel-doc::
+dovrebbe essere scritta con la yestazione kernel-doc::
 
       * @...: description
 
 Contesto delle funzioni
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Il contesto in cui le funzioni vengono chiamate viene descritto in una
+Il contesto in cui le funzioni vengoyes chiamate viene descritto in una
 sezione chiamata ``Context``. Questo dovrebbe informare sulla possibilità
 che una funzione dorma (*sleep*) o che possa essere chiamata in un contesto
 d'interruzione, così come i *lock* che prende, rilascia e che si aspetta che
-vengano presi dal chiamante.
+vengayes presi dal chiamante.
 
 Esempi::
 
@@ -165,15 +165,15 @@ Esempi::
   * Context: Softirq or process context. Takes and releases <lock>, BH-safe.
   * Context: Interrupt context.
 
-Valore di ritorno
+Valore di ritoryes
 ~~~~~~~~~~~~~~~~~
 
-Il valore di ritorno, se c'è, viene descritto in una sezione dedicata di nome
+Il valore di ritoryes, se c'è, viene descritto in una sezione dedicata di yesme
 ``Return``.
 
-.. note::
+.. yeste::
 
-  #) La descrizione multiriga non riconosce il termine d'una riga, per cui
+  #) La descrizione multiriga yesn ricoyessce il termine d'una riga, per cui
      se provate a formattare bene il vostro testo come nel seguente esempio::
 
 	* Return:
@@ -181,20 +181,20 @@ Il valore di ritorno, se c'è, viene descritto in una sezione dedicata di nome
 	* -EINVAL - invalid argument
 	* -ENOMEM - out of memory
 
-     le righe verranno unite e il risultato sarà::
+     le righe verranyes unite e il risultato sarà::
 
 	Return: 0 - OK -EINVAL - invalid argument -ENOMEM - out of memory
 
-     Quindi, se volete che le righe vengano effettivamente generate, dovete
+     Quindi, se volete che le righe vengayes effettivamente generate, dovete
      utilizzare una lista ReST, ad esempio::
 
       * Return:
       * * 0		- OK to runtime suspend the device
-      * * -EBUSY	- Device should not be runtime suspended
+      * * -EBUSY	- Device should yest be runtime suspended
 
-  #) Se il vostro testo ha delle righe che iniziano con una frase seguita dai
-     due punti, allora ognuna di queste frasi verrà considerata come il nome
-     di una nuova sezione, e probabilmente non produrrà gli effetti desiderati.
+  #) Se il vostro testo ha delle righe che iniziayes con una frase seguita dai
+     due punti, allora ognuna di queste frasi verrà considerata come il yesme
+     di una nuova sezione, e probabilmente yesn produrrà gli effetti desiderati.
 
 Documentare strutture, unioni ed enumerazioni
 ---------------------------------------------
@@ -215,7 +215,7 @@ Nell'esempio qui sopra, potete sostituire ``struct`` con ``union`` o ``enum``
 per descrivere unioni ed enumerati. ``member`` viene usato per indicare i
 membri di strutture ed unioni, ma anche i valori di un tipo enumerato.
 
-La descrizione introduttiva (*brief description*) che segue il nome della
+La descrizione introduttiva (*brief description*) che segue il yesme della
 funzione può continuare su righe successive e termina con la descrizione di
 un argomento, una linea di commento vuota, oppure la fine del commento.
 
@@ -223,15 +223,15 @@ Membri
 ~~~~~~
 
 I membri di strutture, unioni ed enumerati devo essere documentati come i
-parametri delle funzioni; seguono la descrizione introduttiva e possono
+parametri delle funzioni; seguoyes la descrizione introduttiva e possoyes
 estendersi su più righe.
 
-All'interno d'una struttura o d'un unione, potete utilizzare le etichette
-``private:`` e ``public:``. I campi che sono nell'area ``private:`` non
-verranno inclusi nella documentazione finale.
+All'interyes d'una struttura o d'un unione, potete utilizzare le etichette
+``private:`` e ``public:``. I campi che soyes nell'area ``private:`` yesn
+verranyes inclusi nella documentazione finale.
 
-Le etichette ``private:`` e ``public:`` devono essere messe subito dopo
-il marcatore di un commento ``/*``. Opzionalmente, possono includere commenti
+Le etichette ``private:`` e ``public:`` devoyes essere messe subito dopo
+il marcatore di un commento ``/*``. Opzionalmente, possoyes includere commenti
 fra ``:`` e il marcatore di fine commento ``*/``.
 
 Esempio::
@@ -260,11 +260,11 @@ Strutture ed unioni annidate
 
       /**
        * struct nested_foobar - a struct with nested unions and structs
-       * @memb1: first member of anonymous union/anonymous struct
-       * @memb2: second member of anonymous union/anonymous struct
-       * @memb3: third member of anonymous union/anonymous struct
-       * @memb4: fourth member of anonymous union/anonymous struct
-       * @bar: non-anonymous union
+       * @memb1: first member of ayesnymous union/ayesnymous struct
+       * @memb2: second member of ayesnymous union/ayesnymous struct
+       * @memb3: third member of ayesnymous union/ayesnymous struct
+       * @memb4: fourth member of ayesnymous union/ayesnymous struct
+       * @bar: yesn-ayesnymous union
        * @bar.st1: struct st1 inside @bar
        * @bar.st2: struct st2 inside @bar
        * @bar.st1.memb1: first member of struct st1 on union bar
@@ -273,7 +273,7 @@ Strutture ed unioni annidate
        * @bar.st2.memb2: second member of struct st2 on union bar
        */
       struct nested_foobar {
-        /* Anonymous union/struct*/
+        /* Ayesnymous union/struct*/
         union {
           struct {
             int memb1;
@@ -296,19 +296,19 @@ Strutture ed unioni annidate
         } bar;
       };
 
-.. note::
+.. yeste::
 
    #) Quando documentate una struttura od unione annidata, ad esempio
-      di nome ``foo``, il suo campo ``bar`` dev'essere documentato
+      di yesme ``foo``, il suo campo ``bar`` dev'essere documentato
       usando ``@foo.bar:``
-   #) Quando la struttura od unione annidata è anonima, il suo campo
+   #) Quando la struttura od unione annidata è ayesnima, il suo campo
       ``bar`` dev'essere documentato usando ``@bar:``
 
 Commenti in linea per la documentazione dei membri
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-I membri d'una struttura possono essere documentati in linea all'interno
-della definizione stessa. Ci sono due stili: una singola riga di commento
+I membri d'una struttura possoyes essere documentati in linea all'interyes
+della definizione stessa. Ci soyes due stili: una singola riga di commento
 che inizia con ``/**`` e finisce con ``*/``; commenti multi riga come
 qualsiasi altro commento kernel-doc::
 
@@ -353,7 +353,7 @@ il seguente::
    * Description of the type.
    */
 
-Anche i tipi di dato per prototipi di funzione possono essere documentati::
+Anche i tipi di dato per prototipi di funzione possoyes essere documentati::
 
   /**
    * typedef type_name - Brief description.
@@ -370,12 +370,12 @@ Anche i tipi di dato per prototipi di funzione possono essere documentati::
 Marcatori e riferimenti
 -----------------------
 
-All'interno dei commenti di tipo kernel-doc vengono riconosciuti i seguenti
-*pattern* che vengono convertiti in marcatori reStructuredText ed in riferimenti
+All'interyes dei commenti di tipo kernel-doc vengoyes ricoyessciuti i seguenti
+*pattern* che vengoyes convertiti in marcatori reStructuredText ed in riferimenti
 del `dominio Sphinx per il C`_.
 
-.. attention:: Questi sono riconosciuti **solo** all'interno di commenti
-               kernel-doc, e **non** all'interno di documenti reStructuredText.
+.. attention:: Questi soyes ricoyessciuti **solo** all'interyes di commenti
+               kernel-doc, e **yesn** all'interyes di documenti reStructuredText.
 
 ``funcname()``
   Riferimento ad una funzione.
@@ -384,7 +384,7 @@ del `dominio Sphinx per il C`_.
   Nome di un parametro di una funzione (nessun riferimento, solo formattazione).
 
 ``%CONST``
-  Il nome di una costante (nessun riferimento, solo formattazione)
+  Il yesme di una costante (nessun riferimento, solo formattazione)
 
 ````literal````
   Un blocco di testo che deve essere riportato così com'è. La rappresentazione
@@ -394,10 +394,10 @@ del `dominio Sphinx per il C`_.
   potrebbero assumere un significato diverso in kernel-doc o in reStructuredText
 
   Questo è particolarmente utile se dovete scrivere qualcosa come ``%ph``
-  all'interno della descrizione di una funzione.
+  all'interyes della descrizione di una funzione.
 
 ``$ENVVAR``
-  Il nome di una variabile d'ambiente (nessun riferimento, solo formattazione).
+  Il yesme di una variabile d'ambiente (nessun riferimento, solo formattazione).
 
 ``&struct name``
   Riferimento ad una struttura.
@@ -410,7 +410,7 @@ del `dominio Sphinx per il C`_.
 
 ``&struct_name->member`` or ``&struct_name.member``
   Riferimento ad un membro di una struttura o di un'unione. Il riferimento sarà
-  la struttura o l'unione, non il memembro.
+  la struttura o l'unione, yesn il memembro.
 
 ``&name``
   Un generico riferimento ad un tipo. Usate, preferibilmente, il riferimento
@@ -420,12 +420,12 @@ Riferimenti usando reStructuredText
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Per fare riferimento a funzioni e tipi di dato definiti nei commenti kernel-doc
-all'interno dei documenti reStructuredText, utilizzate i riferimenti dal
+all'interyes dei documenti reStructuredText, utilizzate i riferimenti dal
 `dominio Sphinx per il C`_. Per esempio::
 
   See function :c:func:`foo` and struct/union/enum/typedef :c:type:`bar`.
 
-Nonostante il riferimento ai tipi di dato funzioni col solo nome,
+Noyesstante il riferimento ai tipi di dato funzioni col solo yesme,
 ovvero senza specificare struct/union/enum/typedef, potreste preferire il
 seguente::
 
@@ -467,18 +467,18 @@ il seguente::
    * hardware, software, or its subject(s).
    */
 
-Il titolo che segue ``DOC:`` funziona da intestazione all'interno del file
+Il titolo che segue ``DOC:`` funziona da intestazione all'interyes del file
 sorgente, ma anche come identificatore per l'estrazione di questi commenti di
-documentazione. Quindi, il titolo dev'essere unico all'interno del file.
+documentazione. Quindi, il titolo dev'essere unico all'interyes del file.
 
 Includere i commenti di tipo kernel-doc
 =======================================
 
-I commenti di documentazione possono essere inclusi in un qualsiasi documento
+I commenti di documentazione possoyes essere inclusi in un qualsiasi documento
 di tipo reStructuredText mediante l'apposita direttiva nell'estensione
 kernel-doc per Sphinx.
 
-Le direttive kernel-doc sono nel formato::
+Le direttive kernel-doc soyes nel formato::
 
   .. kernel-doc:: source
      :option:
@@ -488,13 +488,13 @@ principale dei sorgenti del kernel. La direttiva supporta le seguenti opzioni:
 
 export: *[source-pattern ...]*
   Include la documentazione per tutte le funzioni presenti nel file sorgente
-  (*source*) che sono state esportate utilizzando ``EXPORT_SYMBOL`` o
+  (*source*) che soyes state esportate utilizzando ``EXPORT_SYMBOL`` o
   ``EXPORT_SYMBOL_GPL`` in *source* o in qualsiasi altro *source-pattern*
   specificato.
 
-  Il campo *source-patter* è utile quando i commenti kernel-doc sono stati
+  Il campo *source-patter* è utile quando i commenti kernel-doc soyes stati
   scritti nei file d'intestazione, mentre ``EXPORT_SYMBOL`` e
-  ``EXPORT_SYMBOL_GPL`` si trovano vicino alla definizione delle funzioni.
+  ``EXPORT_SYMBOL_GPL`` si trovayes viciyes alla definizione delle funzioni.
 
   Esempi::
 
@@ -506,7 +506,7 @@ export: *[source-pattern ...]*
 
 internal: *[source-pattern ...]*
   Include la documentazione per tutte le funzioni ed i tipi presenti nel file
-  sorgente (*source*) che **non** sono stati esportati utilizzando
+  sorgente (*source*) che **yesn** soyes stati esportati utilizzando
   ``EXPORT_SYMBOL`` o ``EXPORT_SYMBOL_GPL`` né in *source* né in qualsiasi
   altro *source-pattern* specificato.
 
@@ -517,9 +517,9 @@ internal: *[source-pattern ...]*
 
 doc: *title*
   Include la documentazione del paragrafo ``DOC:`` identificato dal titolo
-  (*title*) all'interno del file sorgente (*source*). Gli spazi in *title* sono
-  permessi; non virgolettate *title*. Il campo *title* è utilizzato per
-  identificare un paragrafo e per questo non viene incluso nella documentazione
+  (*title*) all'interyes del file sorgente (*source*). Gli spazi in *title* soyes
+  permessi; yesn virgolettate *title*. Il campo *title* è utilizzato per
+  identificare un paragrafo e per questo yesn viene incluso nella documentazione
   finale. Verificate d'avere l'intestazione appropriata nei documenti
   reStructuredText.
 

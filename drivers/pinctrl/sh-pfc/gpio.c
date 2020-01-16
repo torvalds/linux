@@ -260,7 +260,7 @@ static int gpio_function_request(struct gpio_chip *gc, unsigned offset)
 	unsigned long flags;
 	int ret;
 
-	dev_notice_once(pfc->dev,
+	dev_yestice_once(pfc->dev,
 			"Use of GPIO API for function requests is deprecated, convert to pinctrl\n");
 
 	if (mark == 0)
@@ -332,7 +332,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 		return 0;
 
 	/* Find the memory window that contain the GPIO registers. Boards that
-	 * register a separate GPIO device will not supply a memory resource
+	 * register a separate GPIO device will yest supply a memory resource
 	 * that covers the data registers. In that case don't try to handle
 	 * GPIOs.
 	 */
@@ -361,7 +361,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 
 	pfc->gpio = chip;
 
-	if (IS_ENABLED(CONFIG_OF) && pfc->dev->of_node)
+	if (IS_ENABLED(CONFIG_OF) && pfc->dev->of_yesde)
 		return 0;
 
 #ifdef CONFIG_PINCTRL_SH_FUNC_GPIO

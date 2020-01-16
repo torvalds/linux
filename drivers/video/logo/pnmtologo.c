@@ -13,7 +13,7 @@
  */
 
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +28,7 @@ static const char *outputname;
 static FILE *out;
 
 
-#define LINUX_LOGO_MONO		1	/* monochrome black/white */
+#define LINUX_LOGO_MONO		1	/* moyeschrome black/white */
 #define LINUX_LOGO_VGA16	2	/* 16 colors VGA text palette */
 #define LINUX_LOGO_CLUT224	3	/* 224 colors */
 #define LINUX_LOGO_GRAY256	4	/* 256 levels grayscale */
@@ -77,8 +77,8 @@ static unsigned int logo_clutsize;
 static int is_plain_pbm = 0;
 
 static void die(const char *fmt, ...)
-    __attribute__ ((noreturn)) __attribute ((format (printf, 1, 2)));
-static void usage(void) __attribute ((noreturn));
+    __attribute__ ((yesreturn)) __attribute ((format (printf, 1, 2)));
+static void usage(void) __attribute ((yesreturn));
 
 
 static unsigned int get_number(FILE *fp)
@@ -91,7 +91,7 @@ static unsigned int get_number(FILE *fp)
 	if (c == EOF)
 	    die("%s: end of file\n", filename);
 	if (c == '#') {
-	    /* Ignore comments 'till end of line */
+	    /* Igyesre comments 'till end of line */
 	    do {
 		c = fgetc(fp);
 		if (c == EOF)
@@ -105,7 +105,7 @@ static unsigned int get_number(FILE *fp)
     while (isdigit(c)) {
 	val = 10*val+c-'0';
 	/* some PBM are 'broken'; GiMP for example exports a PBM without space
-	 * between the digits. This is Ok cause we know a PBM can only have a '1'
+	 * between the digits. This is Ok cause we kyesw a PBM can only have a '1'
 	 * or a '0' for the digit. */
 	if (is_plain_pbm)
 		break;
@@ -132,12 +132,12 @@ static void read_image(void)
     /* open image file */
     fp = fopen(filename, "r");
     if (!fp)
-	die("Cannot open file %s: %s\n", filename, strerror(errno));
+	die("Canyest open file %s: %s\n", filename, strerror(erryes));
 
     /* check file type and read file header */
     magic = fgetc(fp);
     if (magic != 'P')
-	die("%s is not a PNM file\n", filename);
+	die("%s is yest a PNM file\n", filename);
     magic = fgetc(fp);
     switch (magic) {
 	case '1':
@@ -150,11 +150,11 @@ static void read_image(void)
 	case '5':
 	case '6':
 	    /* Binary PBM/PGM/PPM */
-	    die("%s: Binary PNM is not supported\n"
-		"Use pnmnoraw(1) to convert it to ASCII PNM\n", filename);
+	    die("%s: Binary PNM is yest supported\n"
+		"Use pnmyesraw(1) to convert it to ASCII PNM\n", filename);
 
 	default:
-	    die("%s is not a PNM file\n", filename);
+	    die("%s is yest a PNM file\n", filename);
     }
     logo_width = get_number(fp);
     logo_height = get_number(fp);
@@ -162,11 +162,11 @@ static void read_image(void)
     /* allocate image data */
     logo_data = (struct color **)malloc(logo_height*sizeof(struct color *));
     if (!logo_data)
-	die("%s\n", strerror(errno));
+	die("%s\n", strerror(erryes));
     for (i = 0; i < logo_height; i++) {
 	logo_data[i] = malloc(logo_width*sizeof(struct color));
 	if (!logo_data[i])
-	    die("%s\n", strerror(errno));
+	    die("%s\n", strerror(erryes));
     }
 
     /* read image data */
@@ -231,7 +231,7 @@ static void write_header(void)
     if (outputname) {
 	out = fopen(outputname, "w");
 	if (!out)
-	    die("Cannot create file %s: %s\n", outputname, strerror(errno));
+	    die("Canyest create file %s: %s\n", outputname, strerror(erryes));
     } else {
 	out = stdout;
     }
@@ -280,7 +280,7 @@ static void write_hex(unsigned char byte)
     write_hex_cnt++;
 }
 
-static void write_logo_mono(void)
+static void write_logo_moyes(void)
 {
     unsigned int i, j;
     unsigned char val, bit;
@@ -289,7 +289,7 @@ static void write_logo_mono(void)
     for (i = 0; i < logo_height; i++)
 	for (j = 0; j < logo_width; j++)
 	    if (!is_black(logo_data[i][j]) && !is_white(logo_data[i][j]))
-		die("Image must be monochrome\n");
+		die("Image must be moyeschrome\n");
 
     /* write file header */
     write_header();
@@ -437,7 +437,7 @@ static void usage(void)
 	"    -n <name>   : specify logo name (default: linux_logo)\n"
 	"    -o <output> : output to file <output> instead of stdout\n"
 	"    -t <type>   : specify logo type, one of\n"
-	"                      mono    : monochrome black/white\n"
+	"                      moyes    : moyeschrome black/white\n"
 	"                      vga16   : 16 colors VGA text palette\n"
 	"                      clut224 : 224 colors (default)\n"
 	"                      gray256 : 256 levels grayscale\n"
@@ -470,7 +470,7 @@ int main(int argc, char *argv[])
 		break;
 
 	    case 't':
-		if (!strcmp(optarg, "mono"))
+		if (!strcmp(optarg, "moyes"))
 		    logo_type = LINUX_LOGO_MONO;
 		else if (!strcmp(optarg, "vga16"))
 		    logo_type = LINUX_LOGO_VGA16;
@@ -495,7 +495,7 @@ int main(int argc, char *argv[])
     read_image();
     switch (logo_type) {
 	case LINUX_LOGO_MONO:
-	    write_logo_mono();
+	    write_logo_moyes();
 	    break;
 
 	case LINUX_LOGO_VGA16:

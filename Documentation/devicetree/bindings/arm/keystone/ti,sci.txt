@@ -2,7 +2,7 @@ Texas Instruments System Control Interface (TI-SCI) Message Protocol
 --------------------------------------------------------------------
 
 Texas Instrument's processors including those belonging to Keystone generation
-of processors have separate hardware entity which is now responsible for the
+of processors have separate hardware entity which is yesw responsible for the
 management of the System on Chip (SoC) system. These include various system
 level functions as well.
 
@@ -16,11 +16,11 @@ See http://processors.wiki.ti.com/index.php/TISCI for protocol definition.
 TI-SCI controller Device Node:
 =============================
 
-The TI-SCI node describes the Texas Instrument's System Controller entity node.
-This parent node may optionally have additional children nodes which describe
+The TI-SCI yesde describes the Texas Instrument's System Controller entity yesde.
+This parent yesde may optionally have additional children yesdes which describe
 specific functionality such as clocks, power domain, reset or additional
 functionality as may be required for the SoC. This hierarchy also describes the
-relationship between the TI-SCI parent node to the child node.
+relationship between the TI-SCI parent yesde to the child yesde.
 
 Required properties:
 -------------------
@@ -32,8 +32,8 @@ Required properties:
 
 - mboxes: Mailboxes corresponding to the mbox-names. Each value of the mboxes
 	  property should contain a phandle to the mailbox controller device
-	  node and an args specifier that will be the phandle to the intended
-	  sub-mailbox child node to be used for communication.
+	  yesde and an args specifier that will be the phandle to the intended
+	  sub-mailbox child yesde to be used for communication.
 
 See Documentation/devicetree/bindings/mailbox/mailbox.txt for more details
 about the generic mailbox controller and client driver bindings. Also see
@@ -66,7 +66,7 @@ Example (K2G):
 TI-SCI Client Device Node:
 =========================
 
-Client nodes are maintained as children of the relevant TI-SCI device node.
+Client yesdes are maintained as children of the relevant TI-SCI device yesde.
 
 Example (K2G):
 -------------
@@ -74,12 +74,12 @@ Example (K2G):
 		compatible = "ti,k2g-sci";
 		...
 
-		my_clk_node: clk_node {
+		my_clk_yesde: clk_yesde {
 			...
 			...
 		};
 
-		my_pd_node: pd_node {
+		my_pd_yesde: pd_yesde {
 			...
 			...
 		};

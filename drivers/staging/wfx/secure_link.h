@@ -40,8 +40,8 @@ static inline int wfx_sl_check_pubkey(struct wfx_dev *wdev, u8 *ncp_pubkey,
 static inline void wfx_sl_fill_pdata(struct device *dev,
 				     struct wfx_platform_data *pdata)
 {
-	if (of_find_property(dev->of_node, "slk_key", NULL))
-		dev_err(dev, "secure link is not supported by this driver, ignoring provided key\n");
+	if (of_find_property(dev->of_yesde, "slk_key", NULL))
+		dev_err(dev, "secure link is yest supported by this driver, igyesring provided key\n");
 }
 
 static inline int wfx_sl_init(struct wfx_dev *wdev)

@@ -14,7 +14,7 @@ struct mb_cache_entry {
 	/* List of entries in cache - protected by cache->c_list_lock */
 	struct list_head	e_list;
 	/* Hash table list - protected by hash chain bitlock */
-	struct hlist_bl_node	e_hash_list;
+	struct hlist_bl_yesde	e_hash_list;
 	atomic_t		e_refcnt;
 	/* Key in hash - stable during lifetime of the entry */
 	u32			e_key;

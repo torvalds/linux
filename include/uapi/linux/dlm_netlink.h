@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2007 Red Hat, Inc.  All rights reserved.
  *
@@ -24,7 +24,7 @@ enum {
 struct dlm_lock_data {
 	__u16 version;
 	__u32 lockspace_id;
-	int nodeid;
+	int yesdeid;
 	int ownpid;
 	__u32 id;
 	__u32 remid;

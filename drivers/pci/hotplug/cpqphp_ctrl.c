@@ -162,7 +162,7 @@ static u8 handle_presence_change(u16 change, struct controller *ctrl)
 				return 0;
 
 			/* If the switch closed, must be a button
-			 * If not in button mode, nevermind
+			 * If yest in button mode, nevermind
 			 */
 			if (func->switch_save && (ctrl->push_button == 1)) {
 				temp_word = ctrl->ctrl_int_comp >> 16;
@@ -189,9 +189,9 @@ static u8 handle_presence_change(u16 change, struct controller *ctrl)
 						dbg("hp_slot %d button cancel\n", hp_slot);
 					} else if ((p_slot->state == POWERON_STATE)
 						   || (p_slot->state == POWEROFF_STATE)) {
-						/* info(msg_button_ignore, p_slot->number); */
+						/* info(msg_button_igyesre, p_slot->number); */
 						taskInfo->event_type = INT_BUTTON_IGNORE;
-						dbg("hp_slot %d button ignore\n", hp_slot);
+						dbg("hp_slot %d button igyesre\n", hp_slot);
 					}
 				}
 			} else {
@@ -292,7 +292,7 @@ static u8 handle_power_fault(u8 change, struct controller *ctrl)
 
 
 /**
- * sort_by_size - sort nodes on the list by their length, smallest first.
+ * sort_by_size - sort yesdes on the list by their length, smallest first.
  * @head: list to sort
  */
 static int sort_by_size(struct pci_resource **head)
@@ -340,7 +340,7 @@ static int sort_by_size(struct pci_resource **head)
 
 
 /**
- * sort_by_max_size - sort nodes on the list by their length, largest first.
+ * sort_by_max_size - sort yesdes on the list by their length, largest first.
  * @head: list to sort
  */
 static int sort_by_max_size(struct pci_resource **head)
@@ -388,17 +388,17 @@ static int sort_by_max_size(struct pci_resource **head)
 
 
 /**
- * do_pre_bridge_resource_split - find node of resources that are unused
+ * do_pre_bridge_resource_split - find yesde of resources that are unused
  * @head: new list head
  * @orig_head: original list head
- * @alignment: max node size (?)
+ * @alignment: max yesde size (?)
  */
 static struct pci_resource *do_pre_bridge_resource_split(struct pci_resource **head,
 				struct pci_resource **orig_head, u32 alignment)
 {
-	struct pci_resource *prevnode = NULL;
-	struct pci_resource *node;
-	struct pci_resource *split_node;
+	struct pci_resource *prevyesde = NULL;
+	struct pci_resource *yesde;
+	struct pci_resource *split_yesde;
 	u32 rc;
 	u32 temp_dword;
 	dbg("do_pre_bridge_resource_split\n");
@@ -422,58 +422,58 @@ static struct pci_resource *do_pre_bridge_resource_split(struct pci_resource **h
 	 * we may be able to split some off of the front
 	 */
 
-	node = *head;
+	yesde = *head;
 
-	if (node->length & (alignment - 1)) {
+	if (yesde->length & (alignment - 1)) {
 		/* this one isn't an aligned length, so we'll make a new entry
 		 * and split it up.
 		 */
-		split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+		split_yesde = kmalloc(sizeof(*split_yesde), GFP_KERNEL);
 
-		if (!split_node)
+		if (!split_yesde)
 			return NULL;
 
-		temp_dword = (node->length | (alignment-1)) + 1 - alignment;
+		temp_dword = (yesde->length | (alignment-1)) + 1 - alignment;
 
-		split_node->base = node->base;
-		split_node->length = temp_dword;
+		split_yesde->base = yesde->base;
+		split_yesde->length = temp_dword;
 
-		node->length -= temp_dword;
-		node->base += split_node->length;
+		yesde->length -= temp_dword;
+		yesde->base += split_yesde->length;
 
 		/* Put it in the list */
-		*head = split_node;
-		split_node->next = node;
+		*head = split_yesde;
+		split_yesde->next = yesde;
 	}
 
-	if (node->length < alignment)
+	if (yesde->length < alignment)
 		return NULL;
 
 	/* Now unlink it */
-	if (*head == node) {
-		*head = node->next;
+	if (*head == yesde) {
+		*head = yesde->next;
 	} else {
-		prevnode = *head;
-		while (prevnode->next != node)
-			prevnode = prevnode->next;
+		prevyesde = *head;
+		while (prevyesde->next != yesde)
+			prevyesde = prevyesde->next;
 
-		prevnode->next = node->next;
+		prevyesde->next = yesde->next;
 	}
-	node->next = NULL;
+	yesde->next = NULL;
 
-	return node;
+	return yesde;
 }
 
 
 /**
- * do_bridge_resource_split - find one node of resources that aren't in use
+ * do_bridge_resource_split - find one yesde of resources that aren't in use
  * @head: list head
- * @alignment: max node size (?)
+ * @alignment: max yesde size (?)
  */
 static struct pci_resource *do_bridge_resource_split(struct pci_resource **head, u32 alignment)
 {
-	struct pci_resource *prevnode = NULL;
-	struct pci_resource *node;
+	struct pci_resource *prevyesde = NULL;
+	struct pci_resource *yesde;
 	u32 rc;
 	u32 temp_dword;
 
@@ -482,52 +482,52 @@ static struct pci_resource *do_bridge_resource_split(struct pci_resource **head,
 	if (rc)
 		return NULL;
 
-	node = *head;
+	yesde = *head;
 
-	while (node->next) {
-		prevnode = node;
-		node = node->next;
-		kfree(prevnode);
+	while (yesde->next) {
+		prevyesde = yesde;
+		yesde = yesde->next;
+		kfree(prevyesde);
 	}
 
-	if (node->length < alignment)
+	if (yesde->length < alignment)
 		goto error;
 
-	if (node->base & (alignment - 1)) {
+	if (yesde->base & (alignment - 1)) {
 		/* Short circuit if adjusted size is too small */
-		temp_dword = (node->base | (alignment-1)) + 1;
-		if ((node->length - (temp_dword - node->base)) < alignment)
+		temp_dword = (yesde->base | (alignment-1)) + 1;
+		if ((yesde->length - (temp_dword - yesde->base)) < alignment)
 			goto error;
 
-		node->length -= (temp_dword - node->base);
-		node->base = temp_dword;
+		yesde->length -= (temp_dword - yesde->base);
+		yesde->base = temp_dword;
 	}
 
-	if (node->length & (alignment - 1))
-		/* There's stuff in use after this node */
+	if (yesde->length & (alignment - 1))
+		/* There's stuff in use after this yesde */
 		goto error;
 
-	return node;
+	return yesde;
 error:
-	kfree(node);
+	kfree(yesde);
 	return NULL;
 }
 
 
 /**
- * get_io_resource - find first node of given size not in ISA aliasing window.
+ * get_io_resource - find first yesde of given size yest in ISA aliasing window.
  * @head: list to search
- * @size: size of node to find, must be a power of two.
+ * @size: size of yesde to find, must be a power of two.
  *
  * Description: This function sorts the resource list by size and then returns
- * returns the first node of "size" length that is not in the ISA aliasing
- * window.  If it finds a node larger than "size" it will split it up.
+ * returns the first yesde of "size" length that is yest in the ISA aliasing
+ * window.  If it finds a yesde larger than "size" it will split it up.
  */
 static struct pci_resource *get_io_resource(struct pci_resource **head, u32 size)
 {
-	struct pci_resource *prevnode;
-	struct pci_resource *node;
-	struct pci_resource *split_node;
+	struct pci_resource *prevyesde;
+	struct pci_resource *yesde;
+	struct pci_resource *split_yesde;
 	u32 temp_dword;
 
 	if (!(*head))
@@ -539,92 +539,92 @@ static struct pci_resource *get_io_resource(struct pci_resource **head, u32 size
 	if (sort_by_size(head))
 		return NULL;
 
-	for (node = *head; node; node = node->next) {
-		if (node->length < size)
+	for (yesde = *head; yesde; yesde = yesde->next) {
+		if (yesde->length < size)
 			continue;
 
-		if (node->base & (size - 1)) {
+		if (yesde->base & (size - 1)) {
 			/* this one isn't base aligned properly
 			 * so we'll make a new entry and split it up
 			 */
-			temp_dword = (node->base | (size-1)) + 1;
+			temp_dword = (yesde->base | (size-1)) + 1;
 
 			/* Short circuit if adjusted size is too small */
-			if ((node->length - (temp_dword - node->base)) < size)
+			if ((yesde->length - (temp_dword - yesde->base)) < size)
 				continue;
 
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_yesde = kmalloc(sizeof(*split_yesde), GFP_KERNEL);
 
-			if (!split_node)
+			if (!split_yesde)
 				return NULL;
 
-			split_node->base = node->base;
-			split_node->length = temp_dword - node->base;
-			node->base = temp_dword;
-			node->length -= split_node->length;
+			split_yesde->base = yesde->base;
+			split_yesde->length = temp_dword - yesde->base;
+			yesde->base = temp_dword;
+			yesde->length -= split_yesde->length;
 
 			/* Put it in the list */
-			split_node->next = node->next;
-			node->next = split_node;
-		} /* End of non-aligned base */
+			split_yesde->next = yesde->next;
+			yesde->next = split_yesde;
+		} /* End of yesn-aligned base */
 
 		/* Don't need to check if too small since we already did */
-		if (node->length > size) {
+		if (yesde->length > size) {
 			/* this one is longer than we need
 			 * so we'll make a new entry and split it up
 			 */
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_yesde = kmalloc(sizeof(*split_yesde), GFP_KERNEL);
 
-			if (!split_node)
+			if (!split_yesde)
 				return NULL;
 
-			split_node->base = node->base + size;
-			split_node->length = node->length - size;
-			node->length = size;
+			split_yesde->base = yesde->base + size;
+			split_yesde->length = yesde->length - size;
+			yesde->length = size;
 
 			/* Put it in the list */
-			split_node->next = node->next;
-			node->next = split_node;
+			split_yesde->next = yesde->next;
+			yesde->next = split_yesde;
 		}  /* End of too big on top end */
 
-		/* For IO make sure it's not in the ISA aliasing space */
-		if (node->base & 0x300L)
+		/* For IO make sure it's yest in the ISA aliasing space */
+		if (yesde->base & 0x300L)
 			continue;
 
 		/* If we got here, then it is the right size
 		 * Now take it out of the list and break
 		 */
-		if (*head == node) {
-			*head = node->next;
+		if (*head == yesde) {
+			*head = yesde->next;
 		} else {
-			prevnode = *head;
-			while (prevnode->next != node)
-				prevnode = prevnode->next;
+			prevyesde = *head;
+			while (prevyesde->next != yesde)
+				prevyesde = prevyesde->next;
 
-			prevnode->next = node->next;
+			prevyesde->next = yesde->next;
 		}
-		node->next = NULL;
+		yesde->next = NULL;
 		break;
 	}
 
-	return node;
+	return yesde;
 }
 
 
 /**
- * get_max_resource - get largest node which has at least the given size.
- * @head: the list to search the node in
- * @size: the minimum size of the node to find
+ * get_max_resource - get largest yesde which has at least the given size.
+ * @head: the list to search the yesde in
+ * @size: the minimum size of the yesde to find
  *
- * Description: Gets the largest node that is at least "size" big from the
- * list pointed to by head.  It aligns the node on top and bottom
+ * Description: Gets the largest yesde that is at least "size" big from the
+ * list pointed to by head.  It aligns the yesde on top and bottom
  * to "size" alignment before returning it.
  */
 static struct pci_resource *get_max_resource(struct pci_resource **head, u32 size)
 {
 	struct pci_resource *max;
 	struct pci_resource *temp;
-	struct pci_resource *split_node;
+	struct pci_resource *split_yesde;
 	u32 temp_dword;
 
 	if (cpqhp_resource_sort_and_combine(head))
@@ -634,7 +634,7 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
 		return NULL;
 
 	for (max = *head; max; max = max->next) {
-		/* If not big enough we could probably just bail,
+		/* If yest big eyesugh we could probably just bail,
 		 * instead we'll continue to the next.
 		 */
 		if (max->length < size)
@@ -650,36 +650,36 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
 			if ((max->length - (temp_dword - max->base)) < size)
 				continue;
 
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_yesde = kmalloc(sizeof(*split_yesde), GFP_KERNEL);
 
-			if (!split_node)
+			if (!split_yesde)
 				return NULL;
 
-			split_node->base = max->base;
-			split_node->length = temp_dword - max->base;
+			split_yesde->base = max->base;
+			split_yesde->length = temp_dword - max->base;
 			max->base = temp_dword;
-			max->length -= split_node->length;
+			max->length -= split_yesde->length;
 
-			split_node->next = max->next;
-			max->next = split_node;
+			split_yesde->next = max->next;
+			max->next = split_yesde;
 		}
 
 		if ((max->base + max->length) & (size - 1)) {
 			/* this one isn't end aligned properly at the top
 			 * so we'll make a new entry and split it up
 			 */
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_yesde = kmalloc(sizeof(*split_yesde), GFP_KERNEL);
 
-			if (!split_node)
+			if (!split_yesde)
 				return NULL;
 			temp_dword = ((max->base + max->length) & ~(size - 1));
-			split_node->base = temp_dword;
-			split_node->length = max->length + max->base
-					     - split_node->base;
-			max->length -= split_node->length;
+			split_yesde->base = temp_dword;
+			split_yesde->length = max->length + max->base
+					     - split_yesde->base;
+			max->length -= split_yesde->length;
 
-			split_node->next = max->next;
-			max->next = split_node;
+			split_yesde->next = max->next;
+			max->next = split_yesde;
 		}
 
 		/* Make sure it didn't shrink too much when we aligned it */
@@ -712,16 +712,16 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
  * @size: the size limit to use
  *
  * Description: This function sorts the resource list by size and then
- * returns the first node of "size" length.  If it finds a node
+ * returns the first yesde of "size" length.  If it finds a yesde
  * larger than "size" it will split it up.
  *
  * size must be a power of two.
  */
 static struct pci_resource *get_resource(struct pci_resource **head, u32 size)
 {
-	struct pci_resource *prevnode;
-	struct pci_resource *node;
-	struct pci_resource *split_node;
+	struct pci_resource *prevyesde;
+	struct pci_resource *yesde;
+	struct pci_resource *split_yesde;
 	u32 temp_dword;
 
 	if (cpqhp_resource_sort_and_combine(head))
@@ -730,90 +730,90 @@ static struct pci_resource *get_resource(struct pci_resource **head, u32 size)
 	if (sort_by_size(head))
 		return NULL;
 
-	for (node = *head; node; node = node->next) {
-		dbg("%s: req_size =%x node=%p, base=%x, length=%x\n",
-		    __func__, size, node, node->base, node->length);
-		if (node->length < size)
+	for (yesde = *head; yesde; yesde = yesde->next) {
+		dbg("%s: req_size =%x yesde=%p, base=%x, length=%x\n",
+		    __func__, size, yesde, yesde->base, yesde->length);
+		if (yesde->length < size)
 			continue;
 
-		if (node->base & (size - 1)) {
-			dbg("%s: not aligned\n", __func__);
+		if (yesde->base & (size - 1)) {
+			dbg("%s: yest aligned\n", __func__);
 			/* this one isn't base aligned properly
 			 * so we'll make a new entry and split it up
 			 */
-			temp_dword = (node->base | (size-1)) + 1;
+			temp_dword = (yesde->base | (size-1)) + 1;
 
 			/* Short circuit if adjusted size is too small */
-			if ((node->length - (temp_dword - node->base)) < size)
+			if ((yesde->length - (temp_dword - yesde->base)) < size)
 				continue;
 
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_yesde = kmalloc(sizeof(*split_yesde), GFP_KERNEL);
 
-			if (!split_node)
+			if (!split_yesde)
 				return NULL;
 
-			split_node->base = node->base;
-			split_node->length = temp_dword - node->base;
-			node->base = temp_dword;
-			node->length -= split_node->length;
+			split_yesde->base = yesde->base;
+			split_yesde->length = temp_dword - yesde->base;
+			yesde->base = temp_dword;
+			yesde->length -= split_yesde->length;
 
-			split_node->next = node->next;
-			node->next = split_node;
-		} /* End of non-aligned base */
+			split_yesde->next = yesde->next;
+			yesde->next = split_yesde;
+		} /* End of yesn-aligned base */
 
 		/* Don't need to check if too small since we already did */
-		if (node->length > size) {
+		if (yesde->length > size) {
 			dbg("%s: too big\n", __func__);
 			/* this one is longer than we need
 			 * so we'll make a new entry and split it up
 			 */
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_yesde = kmalloc(sizeof(*split_yesde), GFP_KERNEL);
 
-			if (!split_node)
+			if (!split_yesde)
 				return NULL;
 
-			split_node->base = node->base + size;
-			split_node->length = node->length - size;
-			node->length = size;
+			split_yesde->base = yesde->base + size;
+			split_yesde->length = yesde->length - size;
+			yesde->length = size;
 
 			/* Put it in the list */
-			split_node->next = node->next;
-			node->next = split_node;
+			split_yesde->next = yesde->next;
+			yesde->next = split_yesde;
 		}  /* End of too big on top end */
 
 		dbg("%s: got one!!!\n", __func__);
 		/* If we got here, then it is the right size
 		 * Now take it out of the list */
-		if (*head == node) {
-			*head = node->next;
+		if (*head == yesde) {
+			*head = yesde->next;
 		} else {
-			prevnode = *head;
-			while (prevnode->next != node)
-				prevnode = prevnode->next;
+			prevyesde = *head;
+			while (prevyesde->next != yesde)
+				prevyesde = prevyesde->next;
 
-			prevnode->next = node->next;
+			prevyesde->next = yesde->next;
 		}
-		node->next = NULL;
+		yesde->next = NULL;
 		break;
 	}
-	return node;
+	return yesde;
 }
 
 
 /**
- * cpqhp_resource_sort_and_combine - sort nodes by base addresses and clean up
+ * cpqhp_resource_sort_and_combine - sort yesdes by base addresses and clean up
  * @head: the list to sort and clean up
  *
- * Description: Sorts all of the nodes in the list in ascending order by
+ * Description: Sorts all of the yesdes in the list in ascending order by
  * their base addresses.  Also does garbage collection by
- * combining adjacent nodes.
+ * combining adjacent yesdes.
  *
  * Returns %0 if success.
  */
 int cpqhp_resource_sort_and_combine(struct pci_resource **head)
 {
-	struct pci_resource *node1;
-	struct pci_resource *node2;
+	struct pci_resource *yesde1;
+	struct pci_resource *yesde2;
 	int out_of_order = 1;
 
 	dbg("%s: head = %p, *head = %p\n", __func__, head, *head);
@@ -834,40 +834,40 @@ int cpqhp_resource_sort_and_combine(struct pci_resource **head)
 		/* Special case for swapping list head */
 		if (((*head)->next) &&
 		    ((*head)->base > (*head)->next->base)) {
-			node1 = *head;
+			yesde1 = *head;
 			(*head) = (*head)->next;
-			node1->next = (*head)->next;
-			(*head)->next = node1;
+			yesde1->next = (*head)->next;
+			(*head)->next = yesde1;
 			out_of_order++;
 		}
 
-		node1 = (*head);
+		yesde1 = (*head);
 
-		while (node1->next && node1->next->next) {
-			if (node1->next->base > node1->next->next->base) {
+		while (yesde1->next && yesde1->next->next) {
+			if (yesde1->next->base > yesde1->next->next->base) {
 				out_of_order++;
-				node2 = node1->next;
-				node1->next = node1->next->next;
-				node1 = node1->next;
-				node2->next = node1->next;
-				node1->next = node2;
+				yesde2 = yesde1->next;
+				yesde1->next = yesde1->next->next;
+				yesde1 = yesde1->next;
+				yesde2->next = yesde1->next;
+				yesde1->next = yesde2;
 			} else
-				node1 = node1->next;
+				yesde1 = yesde1->next;
 		}
 	}  /* End of out_of_order loop */
 
-	node1 = *head;
+	yesde1 = *head;
 
-	while (node1 && node1->next) {
-		if ((node1->base + node1->length) == node1->next->base) {
+	while (yesde1 && yesde1->next) {
+		if ((yesde1->base + yesde1->length) == yesde1->next->base) {
 			/* Combine */
 			dbg("8..\n");
-			node1->length += node1->next->length;
-			node2 = node1->next;
-			node1->next = node1->next->next;
-			kfree(node2);
+			yesde1->length += yesde1->next->length;
+			yesde2 = yesde1->next;
+			yesde1->next = yesde1->next->next;
+			kfree(yesde2);
 		} else
-			node1 = node1->next;
+			yesde1 = yesde1->next;
 	}
 
 	return 0;
@@ -946,10 +946,10 @@ irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data)
 
 
 /**
- * cpqhp_slot_create - Creates a node and adds it to the proper bus.
- * @busnumber: bus where new node is to be located
+ * cpqhp_slot_create - Creates a yesde and adds it to the proper bus.
+ * @busnumber: bus where new yesde is to be located
  *
- * Returns pointer to the new node or %NULL if unsuccessful.
+ * Returns pointer to the new yesde or %NULL if unsuccessful.
  */
 struct pci_func *cpqhp_slot_create(u8 busnumber)
 {
@@ -976,7 +976,7 @@ struct pci_func *cpqhp_slot_create(u8 busnumber)
 
 
 /**
- * slot_remove - Removes a node from the linked list of slots.
+ * slot_remove - Removes a yesde from the linked list of slots.
  * @old_slot: slot to remove
  *
  * Returns %0 if successful, !0 otherwise.
@@ -1013,7 +1013,7 @@ static int slot_remove(struct pci_func *old_slot)
 
 
 /**
- * bridge_slot_remove - Removes a node from the linked list of slots.
+ * bridge_slot_remove - Removes a yesde from the linked list of slots.
  * @bridge: bridge to remove
  *
  * Returns %0 if successful, !0 otherwise.
@@ -1057,12 +1057,12 @@ out:
 
 
 /**
- * cpqhp_slot_find - Looks for a node by bus, and device, multiple functions accessed
+ * cpqhp_slot_find - Looks for a yesde by bus, and device, multiple functions accessed
  * @bus: bus to find
  * @device: device to find
  * @index: is %0 for first function found, %1 for the second...
  *
- * Returns pointer to the node if successful, %NULL otherwise.
+ * Returns pointer to the yesde if successful, %NULL otherwise.
  */
 struct pci_func *cpqhp_slot_find(u8 bus, u8 device, u8 index)
 {
@@ -1124,15 +1124,15 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 	if (bus->cur_bus_speed == adapter_speed)
 		return 0;
 
-	/* We don't allow freq/mode changes if we find another adapter running
-	 * in another slot on this controller
+	/* We don't allow freq/mode changes if we find ayesther adapter running
+	 * in ayesther slot on this controller
 	 */
 	for (slot = ctrl->slot; slot; slot = slot->next) {
 		if (slot->device == (hp_slot + ctrl->slot_device_offset))
 			continue;
 		if (get_presence_status(ctrl, slot) == 0)
 			continue;
-		/* If another adapter is running on the same segment but at a
+		/* If ayesther adapter is running on the same segment but at a
 		 * lower speed/mode, we allow the new adapter to function at
 		 * this rate if supported
 		 */
@@ -1282,7 +1282,7 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 		/* Wait for SOBS to be unset */
 		wait_for_ctrl_irq(ctrl);
 
-		/* Change bits in slot power register to force another shift out
+		/* Change bits in slot power register to force ayesther shift out
 		 * NOTE: this is to work around the timer bug */
 		temp_byte = readb(ctrl->hpc_reg + SLOT_POWER);
 		writeb(0x00, ctrl->hpc_reg + SLOT_POWER);
@@ -1429,7 +1429,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	/* Wait for SOBS to be unset */
 	wait_for_ctrl_irq(ctrl);
 
-	/* Change bits in slot power register to force another shift out
+	/* Change bits in slot power register to force ayesther shift out
 	 * NOTE: this is to work around the timer bug
 	 */
 	temp_byte = readb(ctrl->hpc_reg + SLOT_POWER);
@@ -1562,7 +1562,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 		func->is_a_board = 0x01;
 
 		/* next, we will instantiate the linux pci_dev structures (with
-		 * appropriate driver notification, if already present) */
+		 * appropriate driver yestification, if already present) */
 		dbg("%s: configure linux pci_dev structure\n", __func__);
 		index = 0;
 		do {
@@ -2051,7 +2051,7 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 	if (p_slot)
 		physical_slot = p_slot->number;
 
-	/* Make sure there are no video controllers here */
+	/* Make sure there are yes video controllers here */
 	while (func && !rc) {
 		pci_bus->number = func->bus;
 		devfn = PCI_DEVFN(func->device, func->function);
@@ -2062,7 +2062,7 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 			return rc;
 
 		if (class_code == PCI_BASE_CLASS_DISPLAY) {
-			/* Display/Video adapter (not supported) */
+			/* Display/Video adapter (yest supported) */
 			rc = REMOVE_NOT_SUPPORTED;
 		} else {
 			/* See if it's a bridge */
@@ -2214,7 +2214,7 @@ int cpqhp_hardware_test(struct controller *ctrl, int test_num)
  * configure_new_device - Configures the PCI header information of one board.
  * @ctrl: pointer to controller structure
  * @func: pointer to function structure
- * @behind_bridge: 1 if this is a recursive call, 0 if not
+ * @behind_bridge: 1 if this is a recursive call, 0 if yest
  * @resources: pointer to set of resource lists
  *
  * Returns 0 if success.
@@ -2309,7 +2309,7 @@ static u32 configure_new_device(struct controller  *ctrl, struct pci_func  *func
  * configure_new_function - Configures the PCI header information of one device
  * @ctrl: pointer to controller structure
  * @func: pointer to function structure
- * @behind_bridge: 1 if this is a recursive call, 0 if not
+ * @behind_bridge: 1 if this is a recursive call, 0 if yest
  * @resources: pointer to set of resource lists
  *
  * Calls itself recursively for bridged devices.
@@ -2332,14 +2332,14 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 	u32 base;
 	u32 ID;
 	unsigned int devfn;
-	struct pci_resource *mem_node;
-	struct pci_resource *p_mem_node;
-	struct pci_resource *io_node;
-	struct pci_resource *bus_node;
-	struct pci_resource *hold_mem_node;
-	struct pci_resource *hold_p_mem_node;
-	struct pci_resource *hold_IO_node;
-	struct pci_resource *hold_bus_node;
+	struct pci_resource *mem_yesde;
+	struct pci_resource *p_mem_yesde;
+	struct pci_resource *io_yesde;
+	struct pci_resource *bus_yesde;
+	struct pci_resource *hold_mem_yesde;
+	struct pci_resource *hold_p_mem_yesde;
+	struct pci_resource *hold_IO_yesde;
+	struct pci_resource *hold_bus_yesde;
 	struct irq_mapping irqs;
 	struct pci_func *new_slot;
 	struct pci_bus *pci_bus;
@@ -2363,22 +2363,22 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 
 		/* find range of buses to use */
 		dbg("find ranges of buses to use\n");
-		bus_node = get_max_resource(&(resources->bus_head), 1);
+		bus_yesde = get_max_resource(&(resources->bus_head), 1);
 
 		/* If we don't have any buses to allocate, we can't continue */
-		if (!bus_node)
+		if (!bus_yesde)
 			return -ENOMEM;
 
 		/* set Secondary bus */
-		temp_byte = bus_node->base;
-		dbg("set Secondary bus = %d\n", bus_node->base);
+		temp_byte = bus_yesde->base;
+		dbg("set Secondary bus = %d\n", bus_yesde->base);
 		rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_SECONDARY_BUS, temp_byte);
 		if (rc)
 			return rc;
 
 		/* set subordinate bus */
-		temp_byte = bus_node->base + bus_node->length - 1;
-		dbg("set subordinate bus = %d\n", bus_node->base + bus_node->length - 1);
+		temp_byte = bus_yesde->base + bus_yesde->length - 1;
+		dbg("set subordinate bus = %d\n", bus_yesde->base + bus_yesde->length - 1);
 		rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_SUBORDINATE_BUS, temp_byte);
 		if (rc)
 			return rc;
@@ -2399,25 +2399,25 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 			return rc;
 
 		/* Setup the IO, memory, and prefetchable windows */
-		io_node = get_max_resource(&(resources->io_head), 0x1000);
-		if (!io_node)
+		io_yesde = get_max_resource(&(resources->io_head), 0x1000);
+		if (!io_yesde)
 			return -ENOMEM;
-		mem_node = get_max_resource(&(resources->mem_head), 0x100000);
-		if (!mem_node)
+		mem_yesde = get_max_resource(&(resources->mem_head), 0x100000);
+		if (!mem_yesde)
 			return -ENOMEM;
-		p_mem_node = get_max_resource(&(resources->p_mem_head), 0x100000);
-		if (!p_mem_node)
+		p_mem_yesde = get_max_resource(&(resources->p_mem_head), 0x100000);
+		if (!p_mem_yesde)
 			return -ENOMEM;
 		dbg("Setup the IO, memory, and prefetchable windows\n");
-		dbg("io_node\n");
-		dbg("(base, len, next) (%x, %x, %p)\n", io_node->base,
-					io_node->length, io_node->next);
-		dbg("mem_node\n");
-		dbg("(base, len, next) (%x, %x, %p)\n", mem_node->base,
-					mem_node->length, mem_node->next);
-		dbg("p_mem_node\n");
-		dbg("(base, len, next) (%x, %x, %p)\n", p_mem_node->base,
-					p_mem_node->length, p_mem_node->next);
+		dbg("io_yesde\n");
+		dbg("(base, len, next) (%x, %x, %p)\n", io_yesde->base,
+					io_yesde->length, io_yesde->next);
+		dbg("mem_yesde\n");
+		dbg("(base, len, next) (%x, %x, %p)\n", mem_yesde->base,
+					mem_yesde->length, mem_yesde->next);
+		dbg("p_mem_yesde\n");
+		dbg("(base, len, next) (%x, %x, %p)\n", p_mem_yesde->base,
+					p_mem_yesde->length, p_mem_yesde->next);
 
 		/* set up the IRQ info */
 		if (!resources->irqs) {
@@ -2436,70 +2436,70 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 			irqs.valid_INT = resources->irqs->valid_INT;
 		}
 
-		/* set up resource lists that are now aligned on top and bottom
+		/* set up resource lists that are yesw aligned on top and bottom
 		 * for anything behind the bridge. */
-		temp_resources.bus_head = bus_node;
-		temp_resources.io_head = io_node;
-		temp_resources.mem_head = mem_node;
-		temp_resources.p_mem_head = p_mem_node;
+		temp_resources.bus_head = bus_yesde;
+		temp_resources.io_head = io_yesde;
+		temp_resources.mem_head = mem_yesde;
+		temp_resources.p_mem_head = p_mem_yesde;
 		temp_resources.irqs = &irqs;
 
-		/* Make copies of the nodes we are going to pass down so that
+		/* Make copies of the yesdes we are going to pass down so that
 		 * if there is a problem,we can just use these to free resources
 		 */
-		hold_bus_node = kmalloc(sizeof(*hold_bus_node), GFP_KERNEL);
-		hold_IO_node = kmalloc(sizeof(*hold_IO_node), GFP_KERNEL);
-		hold_mem_node = kmalloc(sizeof(*hold_mem_node), GFP_KERNEL);
-		hold_p_mem_node = kmalloc(sizeof(*hold_p_mem_node), GFP_KERNEL);
+		hold_bus_yesde = kmalloc(sizeof(*hold_bus_yesde), GFP_KERNEL);
+		hold_IO_yesde = kmalloc(sizeof(*hold_IO_yesde), GFP_KERNEL);
+		hold_mem_yesde = kmalloc(sizeof(*hold_mem_yesde), GFP_KERNEL);
+		hold_p_mem_yesde = kmalloc(sizeof(*hold_p_mem_yesde), GFP_KERNEL);
 
-		if (!hold_bus_node || !hold_IO_node || !hold_mem_node || !hold_p_mem_node) {
-			kfree(hold_bus_node);
-			kfree(hold_IO_node);
-			kfree(hold_mem_node);
-			kfree(hold_p_mem_node);
+		if (!hold_bus_yesde || !hold_IO_yesde || !hold_mem_yesde || !hold_p_mem_yesde) {
+			kfree(hold_bus_yesde);
+			kfree(hold_IO_yesde);
+			kfree(hold_mem_yesde);
+			kfree(hold_p_mem_yesde);
 
 			return 1;
 		}
 
-		memcpy(hold_bus_node, bus_node, sizeof(struct pci_resource));
+		memcpy(hold_bus_yesde, bus_yesde, sizeof(struct pci_resource));
 
-		bus_node->base += 1;
-		bus_node->length -= 1;
-		bus_node->next = NULL;
+		bus_yesde->base += 1;
+		bus_yesde->length -= 1;
+		bus_yesde->next = NULL;
 
 		/* If we have IO resources copy them and fill in the bridge's
 		 * IO range registers */
-		memcpy(hold_IO_node, io_node, sizeof(struct pci_resource));
-		io_node->next = NULL;
+		memcpy(hold_IO_yesde, io_yesde, sizeof(struct pci_resource));
+		io_yesde->next = NULL;
 
 		/* set IO base and Limit registers */
-		temp_byte = io_node->base >> 8;
+		temp_byte = io_yesde->base >> 8;
 		rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_IO_BASE, temp_byte);
 
-		temp_byte = (io_node->base + io_node->length - 1) >> 8;
+		temp_byte = (io_yesde->base + io_yesde->length - 1) >> 8;
 		rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_IO_LIMIT, temp_byte);
 
 		/* Copy the memory resources and fill in the bridge's memory
 		 * range registers.
 		 */
-		memcpy(hold_mem_node, mem_node, sizeof(struct pci_resource));
-		mem_node->next = NULL;
+		memcpy(hold_mem_yesde, mem_yesde, sizeof(struct pci_resource));
+		mem_yesde->next = NULL;
 
 		/* set Mem base and Limit registers */
-		temp_word = mem_node->base >> 16;
+		temp_word = mem_yesde->base >> 16;
 		rc = pci_bus_write_config_word(pci_bus, devfn, PCI_MEMORY_BASE, temp_word);
 
-		temp_word = (mem_node->base + mem_node->length - 1) >> 16;
+		temp_word = (mem_yesde->base + mem_yesde->length - 1) >> 16;
 		rc = pci_bus_write_config_word(pci_bus, devfn, PCI_MEMORY_LIMIT, temp_word);
 
-		memcpy(hold_p_mem_node, p_mem_node, sizeof(struct pci_resource));
-		p_mem_node->next = NULL;
+		memcpy(hold_p_mem_yesde, p_mem_yesde, sizeof(struct pci_resource));
+		p_mem_yesde->next = NULL;
 
 		/* set Pre Mem base and Limit registers */
-		temp_word = p_mem_node->base >> 16;
+		temp_word = p_mem_yesde->base >> 16;
 		rc = pci_bus_write_config_word(pci_bus, devfn, PCI_PREF_MEMORY_BASE, temp_word);
 
-		temp_word = (p_mem_node->base + p_mem_node->length - 1) >> 16;
+		temp_word = (p_mem_yesde->base + p_mem_yesde->length - 1) >> 16;
 		rc = pci_bus_write_config_word(pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
 
 		/* Adjust this to compensate for extra adjustment in first loop
@@ -2513,20 +2513,20 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 			irqs.barber_pole = (irqs.barber_pole + 1) & 0x03;
 
 			ID = 0xFFFFFFFF;
-			pci_bus->number = hold_bus_node->base;
+			pci_bus->number = hold_bus_yesde->base;
 			pci_bus_read_config_dword(pci_bus, PCI_DEVFN(device, 0), 0x00, &ID);
 			pci_bus->number = func->bus;
 
 			if (ID != 0xFFFFFFFF) {	  /*  device present */
 				/* Setup slot structure. */
-				new_slot = cpqhp_slot_create(hold_bus_node->base);
+				new_slot = cpqhp_slot_create(hold_bus_yesde->base);
 
 				if (new_slot == NULL) {
 					rc = -ENOMEM;
 					continue;
 				}
 
-				new_slot->bus = hold_bus_node->base;
+				new_slot->bus = hold_bus_yesde->base;
 				new_slot->device = device;
 				new_slot->function = 0;
 				new_slot->is_a_board = 1;
@@ -2558,13 +2558,13 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 			}	/* end of for loop */
 		}
 		/* Return unused bus resources
-		 * First use the temporary node to store information for
+		 * First use the temporary yesde to store information for
 		 * the board */
-		if (bus_node && temp_resources.bus_head) {
-			hold_bus_node->length = bus_node->base - hold_bus_node->base;
+		if (bus_yesde && temp_resources.bus_head) {
+			hold_bus_yesde->length = bus_yesde->base - hold_bus_yesde->base;
 
-			hold_bus_node->next = func->bus_head;
-			func->bus_head = hold_bus_node;
+			hold_bus_yesde->next = func->bus_head;
+			func->bus_head = hold_bus_yesde;
 
 			temp_byte = temp_resources.bus_head->base - 1;
 
@@ -2581,157 +2581,157 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 
 		/* If we have IO space available and there is some left,
 		 * return the unused portion */
-		if (hold_IO_node && temp_resources.io_head) {
-			io_node = do_pre_bridge_resource_split(&(temp_resources.io_head),
-							       &hold_IO_node, 0x1000);
+		if (hold_IO_yesde && temp_resources.io_head) {
+			io_yesde = do_pre_bridge_resource_split(&(temp_resources.io_head),
+							       &hold_IO_yesde, 0x1000);
 
 			/* Check if we were able to split something off */
-			if (io_node) {
-				hold_IO_node->base = io_node->base + io_node->length;
+			if (io_yesde) {
+				hold_IO_yesde->base = io_yesde->base + io_yesde->length;
 
-				temp_byte = (hold_IO_node->base) >> 8;
+				temp_byte = (hold_IO_yesde->base) >> 8;
 				rc = pci_bus_write_config_word(pci_bus, devfn, PCI_IO_BASE, temp_byte);
 
-				return_resource(&(resources->io_head), io_node);
+				return_resource(&(resources->io_head), io_yesde);
 			}
 
-			io_node = do_bridge_resource_split(&(temp_resources.io_head), 0x1000);
+			io_yesde = do_bridge_resource_split(&(temp_resources.io_head), 0x1000);
 
 			/* Check if we were able to split something off */
-			if (io_node) {
-				/* First use the temporary node to store
+			if (io_yesde) {
+				/* First use the temporary yesde to store
 				 * information for the board */
-				hold_IO_node->length = io_node->base - hold_IO_node->base;
+				hold_IO_yesde->length = io_yesde->base - hold_IO_yesde->base;
 
 				/* If we used any, add it to the board's list */
-				if (hold_IO_node->length) {
-					hold_IO_node->next = func->io_head;
-					func->io_head = hold_IO_node;
+				if (hold_IO_yesde->length) {
+					hold_IO_yesde->next = func->io_head;
+					func->io_head = hold_IO_yesde;
 
-					temp_byte = (io_node->base - 1) >> 8;
+					temp_byte = (io_yesde->base - 1) >> 8;
 					rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_IO_LIMIT, temp_byte);
 
-					return_resource(&(resources->io_head), io_node);
+					return_resource(&(resources->io_head), io_yesde);
 				} else {
 					/* it doesn't need any IO */
 					temp_word = 0x0000;
 					rc = pci_bus_write_config_word(pci_bus, devfn, PCI_IO_LIMIT, temp_word);
 
-					return_resource(&(resources->io_head), io_node);
-					kfree(hold_IO_node);
+					return_resource(&(resources->io_head), io_yesde);
+					kfree(hold_IO_yesde);
 				}
 			} else {
 				/* it used most of the range */
-				hold_IO_node->next = func->io_head;
-				func->io_head = hold_IO_node;
+				hold_IO_yesde->next = func->io_head;
+				func->io_head = hold_IO_yesde;
 			}
-		} else if (hold_IO_node) {
+		} else if (hold_IO_yesde) {
 			/* it used the whole range */
-			hold_IO_node->next = func->io_head;
-			func->io_head = hold_IO_node;
+			hold_IO_yesde->next = func->io_head;
+			func->io_head = hold_IO_yesde;
 		}
 		/* If we have memory space available and there is some left,
 		 * return the unused portion */
-		if (hold_mem_node && temp_resources.mem_head) {
-			mem_node = do_pre_bridge_resource_split(&(temp_resources.  mem_head),
-								&hold_mem_node, 0x100000);
+		if (hold_mem_yesde && temp_resources.mem_head) {
+			mem_yesde = do_pre_bridge_resource_split(&(temp_resources.  mem_head),
+								&hold_mem_yesde, 0x100000);
 
 			/* Check if we were able to split something off */
-			if (mem_node) {
-				hold_mem_node->base = mem_node->base + mem_node->length;
+			if (mem_yesde) {
+				hold_mem_yesde->base = mem_yesde->base + mem_yesde->length;
 
-				temp_word = (hold_mem_node->base) >> 16;
+				temp_word = (hold_mem_yesde->base) >> 16;
 				rc = pci_bus_write_config_word(pci_bus, devfn, PCI_MEMORY_BASE, temp_word);
 
-				return_resource(&(resources->mem_head), mem_node);
+				return_resource(&(resources->mem_head), mem_yesde);
 			}
 
-			mem_node = do_bridge_resource_split(&(temp_resources.mem_head), 0x100000);
+			mem_yesde = do_bridge_resource_split(&(temp_resources.mem_head), 0x100000);
 
 			/* Check if we were able to split something off */
-			if (mem_node) {
-				/* First use the temporary node to store
+			if (mem_yesde) {
+				/* First use the temporary yesde to store
 				 * information for the board */
-				hold_mem_node->length = mem_node->base - hold_mem_node->base;
+				hold_mem_yesde->length = mem_yesde->base - hold_mem_yesde->base;
 
-				if (hold_mem_node->length) {
-					hold_mem_node->next = func->mem_head;
-					func->mem_head = hold_mem_node;
+				if (hold_mem_yesde->length) {
+					hold_mem_yesde->next = func->mem_head;
+					func->mem_head = hold_mem_yesde;
 
 					/* configure end address */
-					temp_word = (mem_node->base - 1) >> 16;
+					temp_word = (mem_yesde->base - 1) >> 16;
 					rc = pci_bus_write_config_word(pci_bus, devfn, PCI_MEMORY_LIMIT, temp_word);
 
 					/* Return unused resources to the pool */
-					return_resource(&(resources->mem_head), mem_node);
+					return_resource(&(resources->mem_head), mem_yesde);
 				} else {
 					/* it doesn't need any Mem */
 					temp_word = 0x0000;
 					rc = pci_bus_write_config_word(pci_bus, devfn, PCI_MEMORY_LIMIT, temp_word);
 
-					return_resource(&(resources->mem_head), mem_node);
-					kfree(hold_mem_node);
+					return_resource(&(resources->mem_head), mem_yesde);
+					kfree(hold_mem_yesde);
 				}
 			} else {
 				/* it used most of the range */
-				hold_mem_node->next = func->mem_head;
-				func->mem_head = hold_mem_node;
+				hold_mem_yesde->next = func->mem_head;
+				func->mem_head = hold_mem_yesde;
 			}
-		} else if (hold_mem_node) {
+		} else if (hold_mem_yesde) {
 			/* it used the whole range */
-			hold_mem_node->next = func->mem_head;
-			func->mem_head = hold_mem_node;
+			hold_mem_yesde->next = func->mem_head;
+			func->mem_head = hold_mem_yesde;
 		}
 		/* If we have prefetchable memory space available and there
 		 * is some left at the end, return the unused portion */
 		if (temp_resources.p_mem_head) {
-			p_mem_node = do_pre_bridge_resource_split(&(temp_resources.p_mem_head),
-								  &hold_p_mem_node, 0x100000);
+			p_mem_yesde = do_pre_bridge_resource_split(&(temp_resources.p_mem_head),
+								  &hold_p_mem_yesde, 0x100000);
 
 			/* Check if we were able to split something off */
-			if (p_mem_node) {
-				hold_p_mem_node->base = p_mem_node->base + p_mem_node->length;
+			if (p_mem_yesde) {
+				hold_p_mem_yesde->base = p_mem_yesde->base + p_mem_yesde->length;
 
-				temp_word = (hold_p_mem_node->base) >> 16;
+				temp_word = (hold_p_mem_yesde->base) >> 16;
 				rc = pci_bus_write_config_word(pci_bus, devfn, PCI_PREF_MEMORY_BASE, temp_word);
 
-				return_resource(&(resources->p_mem_head), p_mem_node);
+				return_resource(&(resources->p_mem_head), p_mem_yesde);
 			}
 
-			p_mem_node = do_bridge_resource_split(&(temp_resources.p_mem_head), 0x100000);
+			p_mem_yesde = do_bridge_resource_split(&(temp_resources.p_mem_head), 0x100000);
 
 			/* Check if we were able to split something off */
-			if (p_mem_node) {
-				/* First use the temporary node to store
+			if (p_mem_yesde) {
+				/* First use the temporary yesde to store
 				 * information for the board */
-				hold_p_mem_node->length = p_mem_node->base - hold_p_mem_node->base;
+				hold_p_mem_yesde->length = p_mem_yesde->base - hold_p_mem_yesde->base;
 
 				/* If we used any, add it to the board's list */
-				if (hold_p_mem_node->length) {
-					hold_p_mem_node->next = func->p_mem_head;
-					func->p_mem_head = hold_p_mem_node;
+				if (hold_p_mem_yesde->length) {
+					hold_p_mem_yesde->next = func->p_mem_head;
+					func->p_mem_head = hold_p_mem_yesde;
 
-					temp_word = (p_mem_node->base - 1) >> 16;
+					temp_word = (p_mem_yesde->base - 1) >> 16;
 					rc = pci_bus_write_config_word(pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
 
-					return_resource(&(resources->p_mem_head), p_mem_node);
+					return_resource(&(resources->p_mem_head), p_mem_yesde);
 				} else {
 					/* it doesn't need any PMem */
 					temp_word = 0x0000;
 					rc = pci_bus_write_config_word(pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
 
-					return_resource(&(resources->p_mem_head), p_mem_node);
-					kfree(hold_p_mem_node);
+					return_resource(&(resources->p_mem_head), p_mem_yesde);
+					kfree(hold_p_mem_yesde);
 				}
 			} else {
 				/* it used the most of the range */
-				hold_p_mem_node->next = func->p_mem_head;
-				func->p_mem_head = hold_p_mem_node;
+				hold_p_mem_yesde->next = func->p_mem_head;
+				func->p_mem_head = hold_p_mem_yesde;
 			}
-		} else if (hold_p_mem_node) {
+		} else if (hold_p_mem_yesde) {
 			/* it used the whole range */
-			hold_p_mem_node->next = func->p_mem_head;
-			func->p_mem_head = hold_p_mem_node;
+			hold_p_mem_yesde->next = func->p_mem_head;
+			func->p_mem_head = hold_p_mem_yesde;
 		}
 		/* We should be configuring an IRQ and the bridge's base address
 		 * registers if it needs them.  Although we have never seen such
@@ -2756,7 +2756,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 		rc = pci_bus_read_config_byte(pci_bus, devfn, 0x0B, &class_code);
 
 		if (class_code == PCI_BASE_CLASS_DISPLAY) {
-			/* Display (video) adapter (not supported) */
+			/* Display (video) adapter (yest supported) */
 			return DEVICE_TYPE_NOT_SUPPORTED;
 		}
 		/* Figure out IO and memory needs */
@@ -2778,31 +2778,31 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 					base = ~base + 1;
 
 					dbg("CND:      length = 0x%x\n", base);
-					io_node = get_io_resource(&(resources->io_head), base);
-					if (!io_node)
+					io_yesde = get_io_resource(&(resources->io_head), base);
+					if (!io_yesde)
 						return -ENOMEM;
-					dbg("Got io_node start = %8.8x, length = %8.8x next (%p)\n",
-					    io_node->base, io_node->length, io_node->next);
+					dbg("Got io_yesde start = %8.8x, length = %8.8x next (%p)\n",
+					    io_yesde->base, io_yesde->length, io_yesde->next);
 					dbg("func (%p) io_head (%p)\n", func, func->io_head);
 
 					/* allocate the resource to the board */
-					base = io_node->base;
-					io_node->next = func->io_head;
-					func->io_head = io_node;
+					base = io_yesde->base;
+					io_yesde->next = func->io_head;
+					func->io_head = io_yesde;
 				} else if ((temp_register & 0x0BL) == 0x08) {
 					/* Map prefetchable memory */
 					base = temp_register & 0xFFFFFFF0;
 					base = ~base + 1;
 
 					dbg("CND:      length = 0x%x\n", base);
-					p_mem_node = get_resource(&(resources->p_mem_head), base);
+					p_mem_yesde = get_resource(&(resources->p_mem_head), base);
 
 					/* allocate the resource to the board */
-					if (p_mem_node) {
-						base = p_mem_node->base;
+					if (p_mem_yesde) {
+						base = p_mem_yesde->base;
 
-						p_mem_node->next = func->p_mem_head;
-						func->p_mem_head = p_mem_node;
+						p_mem_yesde->next = func->p_mem_head;
+						func->p_mem_head = p_mem_yesde;
 					} else
 						return -ENOMEM;
 				} else if ((temp_register & 0x0BL) == 0x00) {
@@ -2811,14 +2811,14 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 					base = ~base + 1;
 
 					dbg("CND:      length = 0x%x\n", base);
-					mem_node = get_resource(&(resources->mem_head), base);
+					mem_yesde = get_resource(&(resources->mem_head), base);
 
 					/* allocate the resource to the board */
-					if (mem_node) {
-						base = mem_node->base;
+					if (mem_yesde) {
+						base = mem_yesde->base;
 
-						mem_node->next = func->mem_head;
-						func->mem_head = mem_node;
+						mem_yesde->next = func->mem_head;
+						func->mem_head = mem_yesde;
 					} else
 						return -ENOMEM;
 				} else {
@@ -2834,7 +2834,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 
 					/* Upper 32 bits of address always zero
 					 * on today's systems */
-					/* FIXME this is probably not true on
+					/* FIXME this is probably yest true on
 					 * Alpha and ia64??? */
 					base = 0;
 					rc = pci_bus_write_config_dword(pci_bus, devfn, cloop, base);
@@ -2915,9 +2915,9 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 free_and_out:
 	cpqhp_destroy_resource_list(&temp_resources);
 
-	return_resource(&(resources->bus_head), hold_bus_node);
-	return_resource(&(resources->io_head), hold_IO_node);
-	return_resource(&(resources->mem_head), hold_mem_node);
-	return_resource(&(resources->p_mem_head), hold_p_mem_node);
+	return_resource(&(resources->bus_head), hold_bus_yesde);
+	return_resource(&(resources->io_head), hold_IO_yesde);
+	return_resource(&(resources->mem_head), hold_mem_yesde);
+	return_resource(&(resources->p_mem_head), hold_p_mem_yesde);
 	return rc;
 }

@@ -16,7 +16,7 @@
 #include <asm/cache.h>
 #include <asm/ctl_reg.h>
 #include <asm/dwarf.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
@@ -28,7 +28,7 @@
 #include <asm/setup.h>
 #include <asm/nmi.h>
 #include <asm/export.h>
-#include <asm/nospec-insn.h>
+#include <asm/yesspec-insn.h>
 
 __PT_R0      =	__PT_GPRS
 __PT_R1      =	__PT_GPRS + 8
@@ -179,7 +179,7 @@ _LPP_OFFSET	= __LC_LPP
 			.exitm
 		.endif
 		.ifeq \mask
-			.error "Mask must not be zero"
+			.error "Mask must yest be zero"
 		.endif
 		off = \size - \bytepos - 1
 		tm	off+\addr, \mask
@@ -211,14 +211,14 @@ _LPP_OFFSET	= __LC_LPP
 	.section .kprobes.text, "ax"
 .Ldummy:
 	/*
-	 * This nop exists only in order to avoid that __switch_to starts at
+	 * This yesp exists only in order to avoid that __switch_to starts at
 	 * the beginning of the kprobes text section. In that case we would
 	 * have several symbols at the same address. E.g. objdump would take
 	 * an arbitrary symbol name when disassembling this code.
-	 * With the added nop in between the __switch_to symbol is unique
+	 * With the added yesp in between the __switch_to symbol is unique
 	 * again.
 	 */
-	nop	0
+	yesp	0
 
 ENTRY(__bpon)
 	.globl __bpon
@@ -267,7 +267,7 @@ ENTRY(sie64a)
 	xc	__SF_SIE_REASON(8,%r15),__SF_SIE_REASON(%r15) # reason code = 0
 	mvc	__SF_SIE_FLAGS(8,%r15),__TI_flags(%r12) # copy thread flags
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU		# load guest fp/vx registers ?
-	jno	.Lsie_load_guest_gprs
+	jyes	.Lsie_load_guest_gprs
 	brasl	%r14,load_fpu_regs		# load guest fp/vx regs
 .Lsie_load_guest_gprs:
 	lmg	%r0,%r13,0(%r3)			# load guest gprs 0-13
@@ -277,7 +277,7 @@ ENTRY(sie64a)
 	lctlg	%c1,%c1,__GMAP_ASCE(%r14)	# load primary asce
 .Lsie_gmap:
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
-	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
+	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE yesw
 	tm	__SIE_PROG20+3(%r14),3		# last exit...
 	jnz	.Lsie_skip
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
@@ -289,21 +289,21 @@ ENTRY(sie64a)
 	BPOFF
 	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 .Lsie_skip:
-	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
+	ni	__SIE_PROG0C+3(%r14),0xfe	# yes longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 .Lsie_done:
 # some program checks are suppressing. C code (e.g. do_protection_exception)
 # will rewind the PSW by the ILC, which is often 4 bytes in case of SIE. There
 # are some corner cases (e.g. runtime instrumentation) where ILC is unpredictable.
-# Other instructions between sie64a and .Lsie_done should not cause program
-# interrupts. So lets use 3 nops as a landing pad for all possible rewinds.
+# Other instructions between sie64a and .Lsie_done should yest cause program
+# interrupts. So lets use 3 yesps as a landing pad for all possible rewinds.
 # See also .Lcleanup_sie
 .Lrewind_pad6:
-	nopr	7
+	yespr	7
 .Lrewind_pad4:
-	nopr	7
+	yespr	7
 .Lrewind_pad2:
-	nopr	7
+	yespr	7
 	.globl sie_exit
 sie_exit:
 	lg	%r14,__SF_SIE_SAVEAREA(%r15)	# load guest register save area
@@ -332,7 +332,7 @@ EXPORT_SYMBOL(sie_exit)
 #endif
 
 /*
- * SVC interrupt handler routine. System calls are synchronous events and
+ * SVC interrupt handler routine. System calls are synchroyesus events and
  * are executed with interrupts enabled.
  */
 
@@ -416,7 +416,7 @@ ENTRY(system_call)
 	jo	.Lsysc_syscall_restart
 #ifdef CONFIG_UPROBES
 	TSTMSK	__TI_flags(%r12),_TIF_UPROBE
-	jo	.Lsysc_uprobe_notify
+	jo	.Lsysc_uprobe_yestify
 #endif
 	TSTMSK	__TI_flags(%r12),_TIF_GUARDED_STORAGE
 	jo	.Lsysc_guarded_storage
@@ -432,7 +432,7 @@ ENTRY(system_call)
 	TSTMSK	__TI_flags(%r12),_TIF_SIGPENDING
 	jo	.Lsysc_sigpending
 	TSTMSK	__TI_flags(%r12),_TIF_NOTIFY_RESUME
-	jo	.Lsysc_notify_resume
+	jo	.Lsysc_yestify_resume
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lsysc_vxrs
 	TSTMSK	__LC_CPU_FLAGS,(_CIF_ASCE_PRIMARY|_CIF_ASCE_SECONDARY)
@@ -486,7 +486,7 @@ ENTRY(system_call)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	brasl	%r14,do_signal
 	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL
-	jno	.Lsysc_return
+	jyes	.Lsysc_return
 .Lsysc_do_syscall:
 	lghi	%r13,__TASK_thread
 	lmg	%r2,%r7,__PT_R2(%r11)	# load svc arguments
@@ -494,21 +494,21 @@ ENTRY(system_call)
 	j	.Lsysc_do_svc
 
 #
-# _TIF_NOTIFY_RESUME is set, call do_notify_resume
+# _TIF_NOTIFY_RESUME is set, call do_yestify_resume
 #
-.Lsysc_notify_resume:
+.Lsysc_yestify_resume:
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	larl	%r14,.Lsysc_return
-	jg	do_notify_resume
+	jg	do_yestify_resume
 
 #
-# _TIF_UPROBE is set, call uprobe_notify_resume
+# _TIF_UPROBE is set, call uprobe_yestify_resume
 #
 #ifdef CONFIG_UPROBES
-.Lsysc_uprobe_notify:
+.Lsysc_uprobe_yestify:
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	larl	%r14,.Lsysc_return
-	jg	uprobe_notify_resume
+	jg	uprobe_yestify_resume
 #endif
 
 #
@@ -558,7 +558,7 @@ ENTRY(system_call)
 	brasl	%r14,do_syscall_trace_enter
 	lghi	%r0,NR_syscalls
 	clgr	%r0,%r2
-	jnh	.Lsysc_tracenogo
+	jnh	.Lsysc_traceyesgo
 	sllg	%r8,%r2,3
 	lg	%r9,0(%r8,%r10)
 .Lsysc_tracego:
@@ -567,7 +567,7 @@ ENTRY(system_call)
 	lg	%r2,__PT_ORIG_GPR2(%r11)
 	BASR_EX	%r14,%r9		# call sys_xxx
 	stg	%r2,__PT_R2(%r11)	# store return value
-.Lsysc_tracenogo:
+.Lsysc_traceyesgo:
 	TSTMSK	__TI_flags(%r12),_TIF_TRACE
 	jz	.Lsysc_return
 	lgr	%r2,%r11		# pass pointer to pt_regs
@@ -585,18 +585,18 @@ ENTRY(ret_from_fork)
 	TRACE_IRQS_ON
 	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
 	tm	__PT_PSW+1(%r11),0x01	# forking a kernel thread ?
-	jne	.Lsysc_tracenogo
+	jne	.Lsysc_traceyesgo
 	# it's a kernel thread
 	lmg	%r9,%r10,__PT_R9(%r11)	# load gprs
 	la	%r2,0(%r10)
 	BASR_EX	%r14,%r9
-	j	.Lsysc_tracenogo
+	j	.Lsysc_traceyesgo
 ENDPROC(ret_from_fork)
 
 ENTRY(kernel_thread_starter)
 	la	%r2,0(%r10)
 	BASR_EX	%r14,%r9
-	j	.Lsysc_tracenogo
+	j	.Lsysc_traceyesgo
 ENDPROC(kernel_thread_starter)
 
 /*
@@ -621,7 +621,7 @@ ENTRY(pgm_check_handler)
 	clg	%r14,BASED(.Lsie_critical_length)
 	jhe	0f
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
-	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
+	ni	__SIE_PROG0C+3(%r14),0xfe	# yes longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit
 	lghi	%r11,_PIF_GUEST_FAULT
@@ -683,7 +683,7 @@ ENTRY(pgm_check_handler)
 .Lpgm_return:
 	LOCKDEP_SYS_EXIT
 	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
-	jno	.Lsysc_restore
+	jyes	.Lsysc_restore
 	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL
 	jo	.Lsysc_do_syscall
 	j	.Lsysc_tif
@@ -768,7 +768,7 @@ ENTRY(io_int_handler)
 	lmg	%r0,%r10,__PT_R0(%r11)
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
 	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
-	jno	.Lio_exit_kernel
+	jyes	.Lio_exit_kernel
 	BPEXIT	__TI_flags(%r12),_TIF_ISOLATE_BP
 .Lio_exit_timer:
 	stpt	__LC_EXIT_TIMER
@@ -789,13 +789,13 @@ ENTRY(io_int_handler)
 #
 .Lio_work:
 	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
-	jo	.Lio_work_user		# yes -> do resched & signal
+	jo	.Lio_work_user		# no -> do resched & signal
 #ifdef CONFIG_PREEMPT
 	# check for preemptive scheduling
 	icm	%r0,15,__LC_PREEMPT_COUNT
 	jnz	.Lio_restore		# preemption is disabled
 	TSTMSK	__TI_flags(%r12),_TIF_NEED_RESCHED
-	jno	.Lio_restore
+	jyes	.Lio_restore
 	# switch to kernel stack
 	lg	%r1,__PT_R15(%r11)
 	aghi	%r1,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
@@ -837,7 +837,7 @@ ENTRY(io_int_handler)
 	TSTMSK	__TI_flags(%r12),_TIF_SIGPENDING
 	jo	.Lio_sigpending
 	TSTMSK	__TI_flags(%r12),_TIF_NOTIFY_RESUME
-	jo	.Lio_notify_resume
+	jo	.Lio_yestify_resume
 	TSTMSK	__TI_flags(%r12),_TIF_GUARDED_STORAGE
 	jo	.Lio_guarded_storage
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
@@ -927,13 +927,13 @@ ENTRY(io_int_handler)
 	j	.Lio_return
 
 #
-# _TIF_NOTIFY_RESUME or is set, call do_notify_resume
+# _TIF_NOTIFY_RESUME or is set, call do_yestify_resume
 #
-.Lio_notify_resume:
+.Lio_yestify_resume:
 	# TRACE_IRQS_ON already done at .Lio_return
 	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
 	lgr	%r2,%r11		# pass pointer to pt_regs
-	brasl	%r14,do_notify_resume
+	brasl	%r14,do_yestify_resume
 	ssm	__LC_PGM_NEW_PSW	# disable I/O and ext. interrupts
 	TRACE_IRQS_OFF
 	j	.Lio_return
@@ -1017,7 +1017,7 @@ ENTRY(save_fpu_regs)
 	stfpc	__THREAD_FPU_fpc(%r2)
 	lg	%r3,__THREAD_FPU_regs(%r2)
 	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_VX
-	jz	.Lsave_fpu_regs_fp	  # no -> store FP regs
+	jz	.Lsave_fpu_regs_fp	  # yes -> store FP regs
 	VSTM	%v0,%v15,0,%r3		  # vstm 0,15,0(3)
 	VSTM	%v16,%v31,256,%r3	  # vstm 16,31,256(3)
 	j	.Lsave_fpu_regs_done	  # -> set CIF_FPU flag
@@ -1060,11 +1060,11 @@ load_fpu_regs:
 	lg	%r4,__LC_CURRENT
 	aghi	%r4,__TASK_thread
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
-	jno	.Lload_fpu_regs_exit
+	jyes	.Lload_fpu_regs_exit
 	lfpc	__THREAD_FPU_fpc(%r4)
 	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_VX
 	lg	%r4,__THREAD_FPU_regs(%r4)	# %r4 <- reg save area
-	jz	.Lload_fpu_regs_fp		# -> no VX, load FP regs
+	jz	.Lload_fpu_regs_fp		# -> yes VX, load FP regs
 	VLM	%v0,%v15,0,%r4
 	VLM	%v16,%v31,256,%r4
 	j	.Lload_fpu_regs_done
@@ -1109,18 +1109,18 @@ ENTRY(mcck_int_handler)
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_MCK_OLD_PSW
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_SYSTEM_DAMAGE
-	jo	.Lmcck_panic		# yes -> rest of mcck code invalid
+	jo	.Lmcck_panic		# no -> rest of mcck code invalid
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_CR_VALID
-	jno	.Lmcck_panic		# control registers invalid -> panic
+	jyes	.Lmcck_panic		# control registers invalid -> panic
 	la	%r14,4095
 	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA-4095(%r14) # validate ctl regs
 	ptlb
 	lg	%r11,__LC_MCESAD-4095(%r14) # extended machine check save area
 	nill	%r11,0xfc00		# MCESA_ORIGIN_MASK
 	TSTMSK	__LC_CREGS_SAVE_AREA+16-4095(%r14),CR2_GUARDED_STORAGE
-	jno	0f
+	jyes	0f
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_GS_VALID
-	jno	0f
+	jyes	0f
 	.insn	 rxy,0xe3000000004d,0,__MCESA_GS_SAVE_AREA(%r11) # LGSC
 0:	l	%r14,__LC_FP_CREG_SAVE_AREA-4095(%r14)
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_FC_VALID
@@ -1166,11 +1166,11 @@ ENTRY(mcck_int_handler)
 2:	spt	0(%r14)
 	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
 3:	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_MWP_VALID
-	jno	.Lmcck_panic
+	jyes	.Lmcck_panic
 	tmhh	%r8,0x0001		# interrupting from user ?
 	jnz	4f
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
-	jno	.Lmcck_panic
+	jyes	.Lmcck_panic
 4:	ssm	__LC_PGM_NEW_PSW	# turn dat on, keep irqs off
 	SWITCH_ASYNC __LC_GPREGS_SAVE_AREA+64,__LC_MCCK_ENTER_TIMER
 .Lmcck_skip:
@@ -1193,14 +1193,14 @@ ENTRY(mcck_int_handler)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	brasl	%r14,s390_do_machine_check
 	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
-	jno	.Lmcck_return
+	jyes	.Lmcck_return
 	lg	%r1,__LC_KERNEL_STACK	# switch to kernel stack
 	mvc	STACK_FRAME_OVERHEAD(__PT_SIZE,%r1),0(%r11)
 	xc	__SF_BACKCHAIN(8,%r1),__SF_BACKCHAIN(%r1)
 	la	%r11,STACK_FRAME_OVERHEAD(%r1)
 	lgr	%r15,%r1
 	TSTMSK	__LC_CPU_FLAGS,_CIF_MCCK_PENDING
-	jno	.Lmcck_return
+	jyes	.Lmcck_return
 	TRACE_IRQS_OFF
 	brasl	%r14,s390_handle_mcck
 	TRACE_IRQS_ON
@@ -1209,7 +1209,7 @@ ENTRY(mcck_int_handler)
 	lmg	%r0,%r10,__PT_R0(%r11)
 	mvc	__LC_RETURN_MCCK_PSW(16),__PT_PSW(%r11) # move return PSW
 	tm	__LC_RETURN_MCCK_PSW+1,0x01 # returning to user ?
-	jno	0f
+	jyes	0f
 	BPEXIT	__TI_flags(%r12),_TIF_ISOLATE_BP
 	stpt	__LC_EXIT_TIMER
 	mvc	__VDSO_ECTG_BASE(16,%r14),__LC_EXIT_TIMER
@@ -1253,7 +1253,7 @@ ENDPROC(restart_int_handler)
 
 #if defined(CONFIG_CHECK_STACK) || defined(CONFIG_VMAP_STACK)
 /*
- * The synchronous or the asynchronous stack overflowed. We are dead.
+ * The synchroyesus or the asynchroyesus stack overflowed. We are dead.
  * No need to properly save the registers, we are going to panic anyway.
  * Setup a pt_regs so that show_trace can provide a good call trace.
  */
@@ -1331,7 +1331,7 @@ ENDPROC(cleanup_critical)
 	.quad	.Lsie_done
 
 .Lcleanup_sie:
-	cghi    %r11,__LC_SAVE_AREA_ASYNC 	#Is this in normal interrupt?
+	cghi    %r11,__LC_SAVE_AREA_ASYNC 	#Is this in yesrmal interrupt?
 	je      1f
 	slg     %r9,BASED(.Lsie_crit_mcck_start)
 	clg     %r9,BASED(.Lsie_crit_mcck_length)
@@ -1339,7 +1339,7 @@ ENDPROC(cleanup_critical)
 	oi      __LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
 1:	BPENTER __SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 	lg	%r9,__SF_SIE_CONTROL(%r15)	# get control block pointer
-	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
+	ni	__SIE_PROG0C+3(%r9),0xfe	# yes longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit
 	BR_EX	%r14,%r11

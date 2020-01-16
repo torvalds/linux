@@ -17,7 +17,7 @@
 
 #define PARIDE_H_VERSION 	"1.01"
 
-/* Some adapters need to know what kind of device they are in
+/* Some adapters need to kyesw what kind of device they are in
 
    Values for devtype:
 */
@@ -28,7 +28,7 @@
 #define PI_PT	3	/* ATAPI tape */
 #define PI_PG   4       /* ATAPI generic */
 
-/* The paride module contains no state, instead the drivers allocate
+/* The paride module contains yes state, instead the drivers allocate
    a pi_adapter data structure and pass it to paride in every operation.
 
 */
@@ -140,7 +140,7 @@ struct pi_protocol {
 	int	max_mode;	/* max mode number */
 	int	epp_first;	/* modes >= this use 8 ports */
 	
-	int	default_delay;  /* delay parameter if not specified */
+	int	default_delay;  /* delay parameter if yest specified */
 	int	max_units;	/* max chained units probed for */
 
 	void (*write_regr)(PIA *,int,int,int);

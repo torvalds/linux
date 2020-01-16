@@ -8,7 +8,7 @@
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -310,7 +310,7 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
 	int i, ret;
 
 	if (!pnp_can_configure(dev)) {
-		pnp_dbg(&dev->dev, "configuration not supported\n");
+		pnp_dbg(&dev->dev, "configuration yest supported\n");
 		return -ENODEV;
 	}
 
@@ -337,7 +337,7 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
 int pnp_start_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_write(dev)) {
-		pnp_dbg(&dev->dev, "activation not supported\n");
+		pnp_dbg(&dev->dev, "activation yest supported\n");
 		return -EINVAL;
 	}
 
@@ -355,12 +355,12 @@ int pnp_start_dev(struct pnp_dev *dev)
  * pnp_stop_dev - low-level disable of the PnP device
  * @dev: pointer to the desired device
  *
- * does not free resources
+ * does yest free resources
  */
 int pnp_stop_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_disable(dev)) {
-		pnp_dbg(&dev->dev, "disabling not supported\n");
+		pnp_dbg(&dev->dev, "disabling yest supported\n");
 		return -EINVAL;
 	}
 	if (dev->protocol->disable(dev) < 0) {
@@ -376,7 +376,7 @@ int pnp_stop_dev(struct pnp_dev *dev)
  * pnp_activate_dev - activates a PnP device for use
  * @dev: pointer to the desired device
  *
- * does not validate or set resources so be careful.
+ * does yest validate or set resources so be careful.
  */
 int pnp_activate_dev(struct pnp_dev *dev)
 {

@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _mpeg-controls:
 
@@ -16,9 +16,9 @@ Codec Control Reference
 Below all controls within the Codec control class are described. First
 the generic controls, then controls specific for certain hardware.
 
-.. note::
+.. yeste::
 
-   These controls are applicable to all codecs and not just MPEG. The
+   These controls are applicable to all codecs and yest just MPEG. The
    defines are prefixed with V4L2_CID_MPEG/V4L2_MPEG as the controls
    were originally made for MPEG codecs and later extended to cover all
    encoding formats.
@@ -45,7 +45,7 @@ Codec Control IDs
     (enum)
 
 enum v4l2_mpeg_stream_type -
-    The MPEG-1, -2 or -4 output stream type. One cannot assume anything
+    The MPEG-1, -2 or -4 output stream type. One canyest assume anything
     here. Each hardware MPEG encoder tends to support different subsets
     of the available MPEG stream types. This control is specific to
     multiplexed MPEG streams. The currently defined stream types are:
@@ -385,7 +385,7 @@ enum v4l2_mpeg_audio_mode -
     * - ``V4L2_MPEG_AUDIO_MODE_DUAL``
       - Bilingual
     * - ``V4L2_MPEG_AUDIO_MODE_MONO``
-      - Mono
+      - Moyes
 
 
 
@@ -397,7 +397,7 @@ enum v4l2_mpeg_audio_mode -
 enum v4l2_mpeg_audio_mode_extension -
     Joint Stereo audio mode extension. In Layer I and II they indicate
     which subbands are in intensity stereo. All other subbands are coded
-    in stereo. Layer III is not (yet) supported. Possible values are:
+    in stereo. Layer III is yest (yet) supported. Possible values are:
 
 
 
@@ -461,7 +461,7 @@ enum v4l2_mpeg_audio_crc -
 
 
 ``V4L2_CID_MPEG_AUDIO_MUTE (boolean)``
-    Mutes the audio when capturing. This is not done by muting audio
+    Mutes the audio when capturing. This is yest done by muting audio
     hardware, which can still produce a slight hiss, but in the encoder
     itself, guaranteeing a fixed and reproducible audio bitstream. 0 =
     unmuted, 1 = muted.
@@ -472,7 +472,7 @@ enum v4l2_mpeg_audio_crc -
     (enum)
 
 enum v4l2_mpeg_audio_dec_playback -
-    Determines how monolingual audio should be played back. Possible
+    Determines how moyeslingual audio should be played back. Possible
     values are:
 
 
@@ -492,7 +492,7 @@ enum v4l2_mpeg_audio_dec_playback -
     * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_RIGHT``
       - Right channel playback.
     * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_MONO``
-      - Mono playback.
+      - Moyes playback.
     * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_SWAPPED_STEREO``
       - Stereo playback with swapped left and right channels.
 
@@ -589,7 +589,7 @@ enum v4l2_mpeg_video_bitrate_mode -
 
 ``V4L2_CID_MPEG_VIDEO_BITRATE_PEAK (integer)``
     Peak video bitrate in bits per second. Must be larger or equal to
-    the average video bitrate. It is ignored if the video bitrate mode
+    the average video bitrate. It is igyesred if the video bitrate mode
     is set to constant bitrate.
 
 ``V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION (integer)``
@@ -998,7 +998,7 @@ enum v4l2_mpeg_video_h264_loop_filter_mode -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_ALPHA (integer)``
@@ -1188,7 +1188,7 @@ enum v4l2_mpeg_video_h264_entropy_mode -
 
 ``V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME (button)``
     Force a key frame for the next queued buffer. Applicable to
-    encoders. This is a general, codec-agnostic keyframe control.
+    encoders. This is a general, codec-agyesstic keyframe control.
 
 ``V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE (integer)``
     The Coded Picture Buffer size in kilobytes, it is used as a
@@ -1201,7 +1201,7 @@ enum v4l2_mpeg_video_h264_entropy_mode -
     GOP this is the period between two I-frames. The period between IDR
     (Instantaneous Decoding Refresh) frames is taken from the GOP_SIZE
     control. An IDR frame, which stands for Instantaneous Decoding
-    Refresh is an I-frame after which no prior frames are referenced.
+    Refresh is an I-frame after which yes prior frames are referenced.
     This means that a stream can be restarted from an IDR frame without
     the need to store or decode any previous frames. Applicable to the
     H264 encoder.
@@ -1234,7 +1234,7 @@ enum v4l2_mpeg_video_header_mode -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER (boolean)``
@@ -1298,7 +1298,7 @@ enum v4l2_mpeg_video_h264_sei_fp_arrangement_type -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 
@@ -1331,7 +1331,7 @@ enum v4l2_mpeg_video_h264_fmo_map_type -
       - Slices are interleaved one after other with macroblocks in run
 	length order.
     * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_SCATTERED_SLICES``
-      - Scatters the macroblocks based on a mathematical function known to
+      - Scatters the macroblocks based on a mathematical function kyeswn to
 	both encoder and decoder.
     * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_FOREGROUND_WITH_LEFT_OVER``
       - Macroblocks arranged in rectangular areas or regions of interest.
@@ -1346,7 +1346,7 @@ enum v4l2_mpeg_video_h264_fmo_map_type -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 
@@ -1463,9 +1463,9 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     specification, unless there is an explicit comment stating
     otherwise.
 
-    .. note::
+    .. yeste::
 
-       This compound control is not yet part of the public kernel API and
+       This compound control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_ctrl_h264_sps
@@ -1517,7 +1517,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - ``offset_for_ref_frame[255]``
       -
     * - __s32
-      - ``offset_for_non_ref_pic``
+      - ``offset_for_yesn_ref_pic``
       -
     * - __s32
       - ``offset_for_top_to_bottom_field``
@@ -1605,9 +1605,9 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     specification, unless there is an explicit comment stating
     otherwise.
 
-    .. note::
+    .. yeste::
 
-       This compound control is not yet part of the public kernel API and
+       This compound control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_ctrl_h264_pps
@@ -1697,9 +1697,9 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     specification, unless there is an explicit comment stating
     otherwise.
 
-    .. note::
+    .. yeste::
 
-       This compound control is not yet part of the public kernel API and
+       This compound control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_ctrl_h264_scaling_matrix
@@ -1731,9 +1731,9 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     documentation, refer to the above specification, unless there is
     an explicit comment stating otherwise.
 
-    .. note::
+    .. yeste::
 
-       This compound control is not yet part of the public kernel API
+       This compound control is yest yet part of the public kernel API
        and it is expected to change.
 
        This structure is expected to be passed as an array, with one
@@ -1824,11 +1824,11 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       -
     * - __u8
       - ``num_ref_idx_l0_active_minus1``
-      - If num_ref_idx_active_override_flag is not set, this field must be
+      - If num_ref_idx_active_override_flag is yest set, this field must be
         set to the value of num_ref_idx_l0_default_active_minus1.
     * - __u8
       - ``num_ref_idx_l1_active_minus1``
-      - If num_ref_idx_active_override_flag is not set, this field must be
+      - If num_ref_idx_active_override_flag is yest set, this field must be
         set to the value of num_ref_idx_l1_default_active_minus1.
     * - __u32
       - ``slice_group_change_cycle``
@@ -1884,10 +1884,10 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     :widths:       1 1 2
 
     * - __u16
-      - ``luma_log2_weight_denom``
+      - ``luma_log2_weight_deyesm``
       -
     * - __u16
-      - ``chroma_log2_weight_denom``
+      - ``chroma_log2_weight_deyesm``
       -
     * - struct :c:type:`v4l2_h264_weight_factors`
       - ``weight_factors[2]``
@@ -1925,9 +1925,9 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     specification, unless there is an explicit comment stating
     otherwise.
 
-    .. note::
+    .. yeste::
 
-       This compound control is not yet part of the public kernel API and
+       This compound control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_ctrl_h264_decode_params
@@ -2039,9 +2039,9 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     Drivers may expose a single or multiple decoding modes, depending
     on what they can support.
 
-    .. note::
+    .. yeste::
 
-       This menu control is not yet part of the public kernel API and
+       This menu control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_mpeg_video_h264_decode_mode
@@ -2082,9 +2082,9 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     Drivers may expose a single or multiple start codes, depending
     on what they can support.
 
-    .. note::
+    .. yeste::
 
-       This menu control is not yet part of the public kernel API and
+       This menu control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_mpeg_video_h264_start_code
@@ -2114,9 +2114,9 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     configuring a stateless hardware decoding pipeline for MPEG-2.
     The bitstream parameters are defined according to :ref:`mpeg2part2`.
 
-    .. note::
+    .. yeste::
 
-       This compound control is not yet part of the public kernel API and
+       This compound control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_ctrl_mpeg2_slice_params
@@ -2251,9 +2251,9 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     Specifies quantization matrices (as extracted from the bitstream) for the
     associated MPEG-2 slice data.
 
-    .. note::
+    .. yeste::
 
-       This compound control is not yet part of the public kernel API and
+       This compound control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_ctrl_mpeg2_quantization
@@ -2275,41 +2275,41 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - ``load_intra_quantiser_matrix``
       - One bit to indicate whether to load the ``intra_quantiser_matrix`` data.
     * - __u8
-      - ``load_non_intra_quantiser_matrix``
-      - One bit to indicate whether to load the ``non_intra_quantiser_matrix``
+      - ``load_yesn_intra_quantiser_matrix``
+      - One bit to indicate whether to load the ``yesn_intra_quantiser_matrix``
 	data.
     * - __u8
       - ``load_chroma_intra_quantiser_matrix``
       - One bit to indicate whether to load the
-	``chroma_intra_quantiser_matrix`` data, only relevant for non-4:2:0 YUV
+	``chroma_intra_quantiser_matrix`` data, only relevant for yesn-4:2:0 YUV
 	formats.
     * - __u8
-      - ``load_chroma_non_intra_quantiser_matrix``
+      - ``load_chroma_yesn_intra_quantiser_matrix``
       - One bit to indicate whether to load the
-	``chroma_non_intra_quantiser_matrix`` data, only relevant for non-4:2:0
+	``chroma_yesn_intra_quantiser_matrix`` data, only relevant for yesn-4:2:0
 	YUV formats.
     * - __u8
       - ``intra_quantiser_matrix[64]``
       - The quantization matrix coefficients for intra-coded frames, in zigzag
 	scanning order. It is relevant for both luma and chroma components,
 	although it can be superseded by the chroma-specific matrix for
-	non-4:2:0 YUV formats.
+	yesn-4:2:0 YUV formats.
     * - __u8
-      - ``non_intra_quantiser_matrix[64]``
-      - The quantization matrix coefficients for non-intra-coded frames, in
+      - ``yesn_intra_quantiser_matrix[64]``
+      - The quantization matrix coefficients for yesn-intra-coded frames, in
 	zigzag scanning order. It is relevant for both luma and chroma
 	components, although it can be superseded by the chroma-specific matrix
-	for non-4:2:0 YUV formats.
+	for yesn-4:2:0 YUV formats.
     * - __u8
       - ``chroma_intra_quantiser_matrix[64]``
       - The quantization matrix coefficients for the chominance component of
 	intra-coded frames, in zigzag scanning order. Only relevant for
-	non-4:2:0 YUV formats.
+	yesn-4:2:0 YUV formats.
     * - __u8
-      - ``chroma_non_intra_quantiser_matrix[64]``
+      - ``chroma_yesn_intra_quantiser_matrix[64]``
       - The quantization matrix coefficients for the chrominance component of
-	non-intra-coded frames, in zigzag scanning order. Only relevant for
-	non-4:2:0 YUV formats.
+	yesn-intra-coded frames, in zigzag scanning order. Only relevant for
+	yesn-4:2:0 YUV formats.
 
 ``V4L2_CID_FWHT_I_FRAME_QP (integer)``
     Quantization parameter for an I frame for FWHT. Valid range: from 1
@@ -2327,9 +2327,9 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     configuring a stateless hardware decoding pipeline for VP8.
     The bitstream parameters are defined according to :ref:`vp8`.
 
-    .. note::
+    .. yeste::
 
-       This compound control is not yet part of the public kernel API and
+       This compound control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_ctrl_vp8_frame_header
@@ -2375,7 +2375,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - Bitstream version.
     * - __u8
       - ``prob_skip_false``
-      - Indicates the probability that the macroblock is not skipped.
+      - Indicates the probability that the macroblock is yest skipped.
     * - __u8
       - ``prob_intra``
       - Indicates the probability that a macroblock is intra-predicted.
@@ -2446,7 +2446,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - Show frame flag, indicates if the frame is for display.
     * - ``V4L2_VP8_FRAME_HEADER_FLAG_MB_NO_SKIP_COEFF``
       - 0x08
-      - Enable/disable skipping of macroblocks with no non-zero coefficients.
+      - Enable/disable skipping of macroblocks with yes yesn-zero coefficients.
     * - ``V4L2_VP8_FRAME_HEADER_FLAG_SIGN_BIAS_GOLDEN``
       - 0x10
       - Sign of motion vectors when the golden frame is referenced.
@@ -2580,7 +2580,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     * - ``V4L2_VP8_LF_FILTER_TYPE_SIMPLE``
       - 0x04
       - If set, indicates the filter type is simple.
-        If cleared, the filter type is normal.
+        If cleared, the filter type is yesrmal.
 
 .. c:type:: v4l2_vp8_quantization_header
 
@@ -2644,7 +2644,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 MFC 5.1 MPEG Controls
@@ -2708,14 +2708,14 @@ MFC 5.1 Control IDs
 ``V4L2_CID_MPEG_MFC51_VIDEO_RC_REACTION_COEFF (integer)``
     Reaction coefficient for MFC rate control. Applicable to encoders.
 
-    .. note::
+    .. yeste::
 
        #. Valid only when the frame level RC is enabled.
 
        #. For tight CBR, this field must be small (ex. 2 ~ 10). For
 	  VBR, this field must be large (ex. 100 ~ 1000).
 
-       #. It is not recommended to use the greater number than
+       #. It is yest recommended to use the greater number than
 	  FRAME_RATE * (10^9 / BIT_RATE).
 
 ``V4L2_CID_MPEG_MFC51_VIDEO_H264_ADAPTIVE_RC_DARK (boolean)``
@@ -2775,7 +2775,7 @@ enum v4l2_mpeg_mfc51_video_frame_skip_mode -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 ``V4L2_CID_MPEG_MFC51_VIDEO_RC_FIXED_TARGET_BIT (integer)``
     Enable rate-control with fixed target bit. If this setting is
@@ -2809,7 +2809,7 @@ enum v4l2_mpeg_mfc51_video_force_frame_type -
     * - ``V4L2_MPEG_MFC51_FORCE_FRAME_TYPE_I_FRAME``
       - Force an I-frame.
     * - ``V4L2_MPEG_MFC51_FORCE_FRAME_TYPE_NOT_CODED``
-      - Force a non-coded frame.
+      - Force a yesn-coded frame.
 
 
 .. _v4l2-mpeg-fwht:
@@ -2819,9 +2819,9 @@ enum v4l2_mpeg_mfc51_video_force_frame_type -
     associated FWHT data. This includes the necessary parameters for
     configuring a stateless hardware decoding pipeline for FWHT.
 
-    .. note::
+    .. yeste::
 
-       This compound control is not yet part of the public kernel API and
+       This compound control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_ctrl_fwht_params
@@ -2999,11 +2999,11 @@ enum v4l2_mpeg_cx2341x_video_luma_spatial_filter_type -
     * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_HV_SEPARABLE``
       - Two-dimensional separable
     * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_NON_SEPARABLE``
-      - Two-dimensional symmetrical non-separable
+      - Two-dimensional symmetrical yesn-separable
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 
@@ -3105,7 +3105,7 @@ enum v4l2_mpeg_cx2341x_video_median_filter_type -
     bytes, including the packet_start_code_prefix and stream_id
     fields. The stream_id is 0xBF (private stream 2). The payload
     consists of 0x00 bytes, to be filled in by the application. 0 = do
-    not insert, 1 = insert packets.
+    yest insert, 1 = insert packets.
 
 
 VPX Control Reference
@@ -3180,7 +3180,7 @@ enum v4l2_vp8_num_ref_frames -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 
@@ -3229,7 +3229,7 @@ enum v4l2_vp8_golden_frame_sel -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_VPX_MIN_QP (integer)``
@@ -3342,7 +3342,7 @@ enum v4l2_mpeg_video_hevc_hier_coding_type -
 
 .. raw:: latex
 
-    \footnotesize
+    \footyestesize
 
 .. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
 
@@ -3357,12 +3357,12 @@ enum v4l2_mpeg_video_hevc_hier_coding_type -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_LAYER (integer)``
-    Selects the hierarchical coding layer. In normal encoding
-    (non-hierarchial coding), it should be zero. Possible values are [0, 6].
+    Selects the hierarchical coding layer. In yesrmal encoding
+    (yesn-hierarchial coding), it should be zero. Possible values are [0, 6].
     0 indicates HIERARCHICAL CODING LAYER 0, 1 indicates HIERARCHICAL CODING
     LAYER 1 and so on.
 
@@ -3411,7 +3411,7 @@ enum v4l2_mpeg_video_hevc_profile -
 
 .. raw:: latex
 
-    \footnotesize
+    \footyestesize
 
 .. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
 
@@ -3428,7 +3428,7 @@ enum v4l2_mpeg_video_hevc_profile -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 .. _v4l2-hevc-level:
@@ -3441,7 +3441,7 @@ enum v4l2_mpeg_video_hevc_level -
 
 .. raw:: latex
 
-    \footnotesize
+    \footyestesize
 
 .. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
 
@@ -3478,7 +3478,7 @@ enum v4l2_mpeg_video_hevc_level -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_FRAME_RATE_RESOLUTION (integer)``
@@ -3500,7 +3500,7 @@ enum v4l2_mpeg_video_hevc_tier -
 
 .. raw:: latex
 
-    \footnotesize
+    \footyestesize
 
 .. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
 
@@ -3515,7 +3515,7 @@ enum v4l2_mpeg_video_hevc_tier -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_MAX_PARTITION_DEPTH (integer)``
@@ -3531,7 +3531,7 @@ enum v4l2_mpeg_video_hevc_loop_filter_mode -
 
 .. raw:: latex
 
-    \footnotesize
+    \footyestesize
 
 .. tabularcolumns:: |p{12.1cm}|p{5.4cm}|
 
@@ -3548,7 +3548,7 @@ enum v4l2_mpeg_video_hevc_loop_filter_mode -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_LF_BETA_OFFSET_DIV2 (integer)``
@@ -3569,7 +3569,7 @@ enum v4l2_mpeg_video_hevc_hier_refresh_type -
 
 .. raw:: latex
 
-    \footnotesize
+    \footyestesize
 
 .. tabularcolumns:: |p{8.0cm}|p{9.0cm}|
 
@@ -3586,13 +3586,13 @@ enum v4l2_mpeg_video_hevc_hier_refresh_type -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_PERIOD (integer)``
     Selects the refresh period for HEVC encoder.
     This specifies the number of I pictures between two CRA/IDR pictures.
-    This is valid only if REFRESH_TYPE is not 0.
+    This is valid only if REFRESH_TYPE is yest 0.
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_LOSSLESS_CU (boolean)``
     Indicates HEVC lossless encoding. Setting it to 0 disables lossless
@@ -3621,7 +3621,7 @@ enum v4l2_mpeg_video_hevc_hier_refresh_type -
 ``V4L2_CID_MPEG_VIDEO_HEVC_STRONG_SMOOTHING (boolean)``
     Indicates bi-linear interpolation is conditionally used in the intra
     prediction filtering process in the CVS when set to 1. Indicates bi-linear
-    interpolation is not used in the CVS when set to 0.
+    interpolation is yest used in the CVS when set to 0.
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_MAX_NUM_MERGE_MV_MINUS1 (integer)``
     Indicates maximum number of merge candidate motion vectors.
@@ -3649,7 +3649,7 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
 
 .. raw:: latex
 
-    \footnotesize
+    \footyestesize
 
 .. tabularcolumns:: |p{6.0cm}|p{11.0cm}|
 
@@ -3668,7 +3668,7 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L0_BR (integer)``
     Indicates bit rate for hierarchical coding layer 0 for HEVC encoder.
@@ -4147,10 +4147,10 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
     :widths:       1 1 2
 
     * - __u8
-      - ``luma_log2_weight_denom``
+      - ``luma_log2_weight_deyesm``
       -
     * - __s8
-      - ``delta_chroma_log2_weight_denom``
+      - ``delta_chroma_log2_weight_deyesm``
       -
     * - __s8
       - ``delta_luma_weight_l0[V4L2_HEVC_DPB_ENTRIES_NUM_MAX]``
@@ -4190,9 +4190,9 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
     Drivers may expose a single or multiple decoding modes, depending
     on what they can support.
 
-    .. note::
+    .. yeste::
 
-       This menu control is not yet part of the public kernel API and
+       This menu control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_mpeg_video_hevc_decode_mode
@@ -4223,9 +4223,9 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
     Drivers may expose a single or multiple start codes, depending
     on what they can support.
 
-    .. note::
+    .. yeste::
 
-       This menu control is not yet part of the public kernel API and
+       This menu control is yest yet part of the public kernel API and
        it is expected to change.
 
 .. c:type:: v4l2_mpeg_video_hevc_start_code

@@ -126,7 +126,7 @@ static void cx18_mdl_send_to_dvb(struct cx18_stream *s, struct cx18_mdl *mdl)
 	if (s->dvb == NULL || !s->dvb->enabled || mdl->bytesused == 0)
 		return;
 
-	/* We ignore mdl and buf readpos accounting here - it doesn't matter */
+	/* We igyesre mdl and buf readpos accounting here - it doesn't matter */
 
 	/* The likely case */
 	if (list_is_singular(&mdl->buf_list)) {
@@ -208,14 +208,14 @@ static void cx18_mdl_send_to_alsa(struct cx18 *cx, struct cx18_stream *s,
 	if (mdl->bytesused == 0)
 		return;
 
-	/* We ignore mdl and buf readpos accounting here - it doesn't matter */
+	/* We igyesre mdl and buf readpos accounting here - it doesn't matter */
 
 	/* The likely case */
 	if (list_is_singular(&mdl->buf_list)) {
 		buf = list_first_entry(&mdl->buf_list, struct cx18_buffer,
 				       list);
 		if (buf->bytesused)
-			cx->pcm_announce_callback(cx->alsa, buf->buf,
+			cx->pcm_anyesunce_callback(cx->alsa, buf->buf,
 						  buf->bytesused);
 		return;
 	}
@@ -223,7 +223,7 @@ static void cx18_mdl_send_to_alsa(struct cx18 *cx, struct cx18_stream *s,
 	list_for_each_entry(buf, &mdl->buf_list, list) {
 		if (buf->bytesused == 0)
 			break;
-		cx->pcm_announce_callback(cx->alsa, buf->buf, buf->bytesused);
+		cx->pcm_anyesunce_callback(cx->alsa, buf->buf, buf->bytesused);
 	}
 }
 
@@ -241,7 +241,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 	s = cx18_handle_to_stream(cx, handle);
 
 	if (s == NULL) {
-		CX18_WARN("Got DMA done notification for unknown/inactive handle %d, %s mailbox seq no %d\n",
+		CX18_WARN("Got DMA done yestification for unkyeswn/inactive handle %d, %s mailbox seq yes %d\n",
 			  handle,
 			  (order->flags & CX18_F_EWO_MB_STALE_UPON_RECEIPT) ?
 			  "stale" : "good", mb->request);
@@ -260,7 +260,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 		 * We go through the trouble of dealing with stale mailboxes
 		 * because most of the time, the mailbox data is still valid and
 		 * unchanged (and in practice the firmware ping-pongs the
-		 * two mdl_ack buffers so mdl_acks are not stale).
+		 * two mdl_ack buffers so mdl_acks are yest stale).
 		 *
 		 * There are occasions when we get a half changed mailbox,
 		 * which this check catches for a handle & id mismatch.  If the
@@ -276,7 +276,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 		if ((order->flags & CX18_F_EWO_MB_STALE_UPON_RECEIPT) &&
 		    !(id >= s->mdl_base_idx &&
 		      id < (s->mdl_base_idx + s->buffers))) {
-			CX18_WARN("Fell behind! Ignoring stale mailbox with  inconsistent data. Lost MDL for mailbox seq no %d\n",
+			CX18_WARN("Fell behind! Igyesring stale mailbox with  inconsistent data. Lost MDL for mailbox seq yes %d\n",
 				  mb->request);
 			break;
 		}
@@ -284,7 +284,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 
 		CX18_DEBUG_HI_DMA("DMA DONE for %s (MDL %d)\n", s->name, id);
 		if (mdl == NULL) {
-			CX18_WARN("Could not find MDL %d for stream %s\n",
+			CX18_WARN("Could yest find MDL %d for stream %s\n",
 				  id, s->name);
 			continue;
 		}
@@ -297,7 +297,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 			cx18_enqueue(s, mdl, &s->q_free);
 		} else if (s->type == CX18_ENC_STREAM_TYPE_PCM) {
 			/* Pass the data to cx18-alsa */
-			if (cx->pcm_announce_callback != NULL) {
+			if (cx->pcm_anyesunce_callback != NULL) {
 				cx18_mdl_send_to_alsa(cx, s, mdl);
 				cx18_enqueue(s, mdl, &s->q_free);
 			} else {
@@ -344,14 +344,14 @@ static void epu_cmd(struct cx18 *cx, struct cx18_in_work_order *order)
 			epu_debug(cx, order);
 			break;
 		default:
-			CX18_WARN("Unknown CPU to EPU mailbox command %#0x\n",
+			CX18_WARN("Unkyeswn CPU to EPU mailbox command %#0x\n",
 				  order->mb.cmd);
 			break;
 		}
 		break;
 	}
 	case APU:
-		CX18_WARN("Unknown APU to EPU mailbox command %#0x\n",
+		CX18_WARN("Unkyeswn APU to EPU mailbox command %#0x\n",
 			  order->mb.cmd);
 		break;
 	default:
@@ -403,7 +403,7 @@ static void mb_ack_irq(struct cx18 *cx, struct cx18_in_work_order *order)
 	/* Don't ack if the RPU has gotten impatient and timed us out */
 	if (req != cx18_readl(cx, &ack_mb->request) ||
 	    req == cx18_readl(cx, &ack_mb->ack)) {
-		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our incoming %s to EPU mailbox (sequence no. %u) while processing\n",
+		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our incoming %s to EPU mailbox (sequence yes. %u) while processing\n",
 				rpu_str[order->rpu], rpu_str[order->rpu], req);
 		order->flags |= CX18_F_EWO_MB_STALE_WHILE_PROC;
 		return;
@@ -477,14 +477,14 @@ int epu_cmd_irq(struct cx18 *cx, struct cx18_in_work_order *order)
 			ret = epu_debug_irq(cx, order);
 			break;
 		default:
-			CX18_WARN("Unknown CPU to EPU mailbox command %#0x\n",
+			CX18_WARN("Unkyeswn CPU to EPU mailbox command %#0x\n",
 				  order->mb.cmd);
 			break;
 		}
 		break;
 	}
 	case APU:
-		CX18_WARN("Unknown APU to EPU mailbox command %#0x\n",
+		CX18_WARN("Unkyeswn APU to EPU mailbox command %#0x\n",
 			  order->mb.cmd);
 		break;
 	default:
@@ -502,7 +502,7 @@ struct cx18_in_work_order *alloc_in_work_order_irq(struct cx18 *cx)
 	for (i = 0; i < CX18_MAX_IN_WORK_ORDERS; i++) {
 		/*
 		 * We only need "pending" atomic to inspect its contents,
-		 * and need not do a check and set because:
+		 * and need yest do a check and set because:
 		 * 1. Any work handler thread only clears "pending" and only
 		 * on one, particular work order at a time, per handler thread.
 		 * 2. "pending" is only set here, and we're serialized because
@@ -555,7 +555,7 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 		(&order_mb->request)[i] = cx18_readl(cx, &mb->request + i);
 
 	if (order_mb->request == order_mb->ack) {
-		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our incoming %s to EPU mailbox (sequence no. %u)\n",
+		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our incoming %s to EPU mailbox (sequence yes. %u)\n",
 				rpu_str[rpu], rpu_str[rpu], order_mb->request);
 		if (cx18_debug & CX18_DBGFLG_WARN)
 			dump_mb(cx, order_mb, "incoming");
@@ -564,7 +564,7 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 
 	/*
 	 * Individual EPU command processing is responsible for ack-ing
-	 * a non-stale mailbox as soon as possible
+	 * a yesn-stale mailbox as soon as possible
 	 */
 	submit = epu_cmd_irq(cx, order);
 	if (submit > 0) {
@@ -574,7 +574,7 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 
 
 /*
- * Functions called from a non-interrupt, non work_queue context
+ * Functions called from a yesn-interrupt, yesn work_queue context
  */
 
 static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
@@ -590,7 +590,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	DEFINE_WAIT(w);
 
 	if (info == NULL) {
-		CX18_WARN("unknown cmd %x\n", cmd);
+		CX18_WARN("unkyeswn cmd %x\n", cmd);
 		return -EINVAL;
 	}
 
@@ -620,7 +620,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 		mb = &cx->scb->epu2cpu_mb;
 		break;
 	default:
-		CX18_WARN("Unknown RPU (%d) for API call\n", info->rpu);
+		CX18_WARN("Unkyeswn RPU (%d) for API call\n", info->rpu);
 		return -EINVAL;
 	}
 
@@ -633,7 +633,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	 *
 	 * If the wait for ack after sending a previous command was interrupted
 	 * by a signal, we may get here and find a busy mailbox.  After waiting,
-	 * mark it "not busy" from our end, if the XPU hasn't ack'ed it still.
+	 * mark it "yest busy" from our end, if the XPU hasn't ack'ed it still.
 	 */
 	req = cx18_readl(cx, &mb->request);
 	timeout = msecs_to_jiffies(10);
@@ -641,7 +641,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 				 (ack = cx18_readl(cx, &mb->ack)) == req,
 				 timeout);
 	if (req != ack) {
-		/* waited long enough, make the mbox "not busy" from our end */
+		/* waited long eyesugh, make the mbox "yest busy" from our end */
 		cx18_writel(cx, req, &mb->ack);
 		CX18_ERR("mbox was found stuck busy when setting up for %s; clearing busy and trying to proceed\n",
 			 info->name);
@@ -667,7 +667,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	CX18_DEBUG_HI_IRQ("sending interrupt SW1: %x to send %s\n",
 			  irq, info->name);
 
-	/* So we don't miss the wakeup, prepare to wait before notifying fw */
+	/* So we don't miss the wakeup, prepare to wait before yestifying fw */
 	prepare_to_wait(waitq, &w, TASK_UNINTERRUPTIBLE);
 	cx18_write_reg_expect(cx, irq, SW1_INT_SET, irq, irq);
 
@@ -687,7 +687,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 		mutex_unlock(mb_lock);
 		if (ret >= timeout) {
 			/* Timed out */
-			CX18_DEBUG_WARN("sending %s timed out waiting %d msecs for RPU acknowledgment\n",
+			CX18_DEBUG_WARN("sending %s timed out waiting %d msecs for RPU ackyeswledgment\n",
 					info->name, jiffies_to_msecs(ret));
 		} else {
 			CX18_DEBUG_WARN("woken up before mailbox ack was ready after submitting %s to RPU.  only waited %d msecs on req %u but awakened with unmatched ack %u\n",
@@ -699,7 +699,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	}
 
 	if (ret >= timeout)
-		CX18_DEBUG_WARN("failed to be awakened upon RPU acknowledgment sending %s; timed out waiting %d msecs\n",
+		CX18_DEBUG_WARN("failed to be awakened upon RPU ackyeswledgment sending %s; timed out waiting %d msecs\n",
 				info->name, jiffies_to_msecs(ret));
 	else
 		CX18_DEBUG_HI_API("waited %u msecs for %s to be acked\n",
@@ -806,7 +806,7 @@ int cx18_api_func(void *priv, u32 cmd, int in, int out,
 		return cx18_vapi(cx, CX18_CPU_SET_MEDIAN_CORING, 5,
 				s->handle, data[0], data[1], data[2], data[3]);
 	}
-	CX18_WARN("Unknown cmd %x\n", cmd);
+	CX18_WARN("Unkyeswn cmd %x\n", cmd);
 	return 0;
 }
 

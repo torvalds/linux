@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -49,21 +49,21 @@
 #include <asm/netlogic/xlp-hal/sys.h>
 
 /* Main initialization */
-void nlm_node_init(int node)
+void nlm_yesde_init(int yesde)
 {
-	struct nlm_soc_info *nodep;
+	struct nlm_soc_info *yesdep;
 
-	nodep = nlm_get_node(node);
-	if (node == 0)
-		nodep->coremask = 1;	/* node 0, boot cpu */
-	nodep->sysbase = nlm_get_sys_regbase(node);
-	nodep->picbase = nlm_get_pic_regbase(node);
-	nodep->ebase = read_c0_ebase() & MIPS_EBASE_BASE;
+	yesdep = nlm_get_yesde(yesde);
+	if (yesde == 0)
+		yesdep->coremask = 1;	/* yesde 0, boot cpu */
+	yesdep->sysbase = nlm_get_sys_regbase(yesde);
+	yesdep->picbase = nlm_get_pic_regbase(yesde);
+	yesdep->ebase = read_c0_ebase() & MIPS_EBASE_BASE;
 	if (cpu_is_xlp9xx())
-		nodep->socbus = xlp9xx_get_socbus(node);
+		yesdep->socbus = xlp9xx_get_socbus(yesde);
 	else
-		nodep->socbus = 0;
-	spin_lock_init(&nodep->piclock);
+		yesdep->socbus = 0;
+	spin_lock_init(&yesdep->piclock);
 }
 
 static int xlp9xx_irq_to_irt(int irq)
@@ -225,19 +225,19 @@ int nlm_irq_to_irt(int irq)
 		return xlp_irq_to_irt(irq);
 }
 
-static unsigned int nlm_xlp2_get_core_frequency(int node, int core)
+static unsigned int nlm_xlp2_get_core_frequency(int yesde, int core)
 {
-	unsigned int pll_post_div, ctrl_val0, ctrl_val1, denom;
+	unsigned int pll_post_div, ctrl_val0, ctrl_val1, deyesm;
 	uint64_t num, sysbase, clockbase;
 
 	if (cpu_is_xlp9xx()) {
-		clockbase = nlm_get_clock_regbase(node);
+		clockbase = nlm_get_clock_regbase(yesde);
 		ctrl_val0 = nlm_read_sys_reg(clockbase,
 					SYS_9XX_CPU_PLL_CTRL0(core));
 		ctrl_val1 = nlm_read_sys_reg(clockbase,
 					SYS_9XX_CPU_PLL_CTRL1(core));
 	} else {
-		sysbase = nlm_get_node(node)->sysbase;
+		sysbase = nlm_get_yesde(yesde)->sysbase;
 		ctrl_val0 = nlm_read_sys_reg(sysbase,
 						SYS_CPU_PLL_CTRL0(core));
 		ctrl_val1 = nlm_read_sys_reg(sysbase,
@@ -265,19 +265,19 @@ static unsigned int nlm_xlp2_get_core_frequency(int node, int core)
 	}
 
 	num = 1000000ULL * (400 * 3 + 100 * (ctrl_val1 & 0x3f));
-	denom = 3 * pll_post_div;
-	do_div(num, denom);
+	deyesm = 3 * pll_post_div;
+	do_div(num, deyesm);
 
 	return (unsigned int)num;
 }
 
-static unsigned int nlm_xlp_get_core_frequency(int node, int core)
+static unsigned int nlm_xlp_get_core_frequency(int yesde, int core)
 {
 	unsigned int pll_divf, pll_divr, dfs_div, ext_div;
-	unsigned int rstval, dfsval, denom;
+	unsigned int rstval, dfsval, deyesm;
 	uint64_t num, sysbase;
 
-	sysbase = nlm_get_node(node)->sysbase;
+	sysbase = nlm_get_yesde(yesde)->sysbase;
 	rstval = nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG);
 	dfsval = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIV_VALUE);
 	pll_divf = ((rstval >> 10) & 0x7f) + 1;
@@ -286,18 +286,18 @@ static unsigned int nlm_xlp_get_core_frequency(int node, int core)
 	dfs_div  = ((dfsval >> (core * 4)) & 0xf) + 1;
 
 	num = 800000000ULL * pll_divf;
-	denom = 3 * pll_divr * ext_div * dfs_div;
-	do_div(num, denom);
+	deyesm = 3 * pll_divr * ext_div * dfs_div;
+	do_div(num, deyesm);
 
 	return (unsigned int)num;
 }
 
-unsigned int nlm_get_core_frequency(int node, int core)
+unsigned int nlm_get_core_frequency(int yesde, int core)
 {
 	if (cpu_is_xlpii())
-		return nlm_xlp2_get_core_frequency(node, core);
+		return nlm_xlp2_get_core_frequency(yesde, core);
 	else
-		return nlm_xlp_get_core_frequency(node, core);
+		return nlm_xlp_get_core_frequency(yesde, core);
 }
 
 /*
@@ -305,14 +305,14 @@ unsigned int nlm_get_core_frequency(int node, int core)
  * freq_out = (ref_freq/2 * (6 + ctrl2[7:0]) + ctrl2[20:8]/2^13) /
  * 		((2^ctrl0[7:5]) * Table(ctrl0[26:24]))
  */
-static unsigned int nlm_xlp2_get_pic_frequency(int node)
+static unsigned int nlm_xlp2_get_pic_frequency(int yesde)
 {
 	u32 ctrl_val0, ctrl_val2, vco_post_div, pll_post_div, cpu_xlp9xx;
 	u32 mdiv, fdiv, pll_out_freq_den, reg_select, ref_div, pic_div;
 	u64 sysbase, pll_out_freq_num, ref_clk_select, clockbase, ref_clk;
 
-	sysbase = nlm_get_node(node)->sysbase;
-	clockbase = nlm_get_clock_regbase(node);
+	sysbase = nlm_get_yesde(yesde)->sysbase;
+	clockbase = nlm_get_clock_regbase(yesde);
 	cpu_xlp9xx = cpu_is_xlp9xx();
 
 	/* Find ref_clk_base */
@@ -446,10 +446,10 @@ static unsigned int nlm_xlp2_get_pic_frequency(int node)
 	return pll_out_freq_num;
 }
 
-unsigned int nlm_get_pic_frequency(int node)
+unsigned int nlm_get_pic_frequency(int yesde)
 {
 	if (cpu_is_xlpii())
-		return nlm_xlp2_get_pic_frequency(node);
+		return nlm_xlp2_get_pic_frequency(yesde);
 	else
 		return 133333333;
 }
@@ -460,10 +460,10 @@ unsigned int nlm_get_cpu_frequency(void)
 }
 
 /*
- * Fills upto 8 pairs of entries containing the DRAM map of a node
- * if node < 0, get dram map for all nodes
+ * Fills upto 8 pairs of entries containing the DRAM map of a yesde
+ * if yesde < 0, get dram map for all yesdes
  */
-int nlm_get_dram_map(int node, uint64_t *dram_map, int nentries)
+int nlm_get_dram_map(int yesde, uint64_t *dram_map, int nentries)
 {
 	uint64_t bridgebase, base, lim;
 	uint32_t val;
@@ -485,11 +485,11 @@ int nlm_get_dram_map(int node, uint64_t *dram_map, int nentries)
 			limreg = BRIDGE_DRAM_LIMIT(i);
 			xlatreg = BRIDGE_DRAM_NODE_TRANSLN(i);
 		}
-		if (node >= 0) {
-			/* node specified, get node mapping of BAR */
+		if (yesde >= 0) {
+			/* yesde specified, get yesde mapping of BAR */
 			val = nlm_read_bridge_reg(bridgebase, xlatreg);
 			n = (val >> 1) & 0x3;
-			if (n != node)
+			if (n != yesde)
 				continue;
 		}
 		val = nlm_read_bridge_reg(bridgebase, barreg);
@@ -497,7 +497,7 @@ int nlm_get_dram_map(int node, uint64_t *dram_map, int nentries)
 		base = (uint64_t) val << 20;
 		val = nlm_read_bridge_reg(bridgebase, limreg);
 		val = (val >>  12) & 0xfffff;
-		if (val == 0)   /* BAR not used */
+		if (val == 0)   /* BAR yest used */
 			continue;
 		lim = ((uint64_t)val + 1) << 20;
 		dram_map[rv] = base;

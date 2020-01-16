@@ -41,7 +41,7 @@ Required properties:
 		"com_aux" for phy common block aux clock,
 		"ref_aux" for phy reference aux clock,
 
-		For "qcom,ipq8074-qmp-pcie-phy": no clocks are listed.
+		For "qcom,ipq8074-qmp-pcie-phy": yes clocks are listed.
 		For "qcom,msm8996-qmp-pcie-phy" must contain:
 			"aux", "cfg_ahb", "ref".
 		For "qcom,msm8996-qmp-usb3-phy" must contain:
@@ -96,16 +96,16 @@ Optional properties:
  - vddp-ref-clk-supply: Phandle to a regulator supply to any specific refclk
 			pll block.
 
-Required nodes:
- - Each device node of QMP phy is required to have as many child nodes as
+Required yesdes:
+ - Each device yesde of QMP phy is required to have as many child yesdes as
    the number of lanes the PHY has.
 
-Required properties for child nodes of PCIe PHYs (one child per lane):
+Required properties for child yesdes of PCIe PHYs (one child per lane):
  - reg: list of offset and length pairs of register sets for PHY blocks -
 	tx, rx, pcs, and pcs_misc (optional).
  - #phy-cells: must be 0
 
-Required properties for a single "lanes" child node of non-PCIe PHYs:
+Required properties for a single "lanes" child yesde of yesn-PCIe PHYs:
  - reg: list of offset and length pairs of register sets for PHY blocks
 	For 1-lane devices:
 		tx, rx, pcs, and (optionally) pcs_misc
@@ -113,7 +113,7 @@ Required properties for a single "lanes" child node of non-PCIe PHYs:
 		tx0, rx0, pcs, tx1, rx1, and (optionally) pcs_misc
  - #phy-cells: must be 0
 
-Required properties for child node of PCIe and USB3 qmp phys:
+Required properties for child yesde of PCIe and USB3 qmp phys:
  - clocks: a list of phandles and clock-specifier pairs,
 	   one for each entry in clock-names.
  - clock-names: Must contain following:
@@ -128,7 +128,7 @@ Required properties for child node of PCIe and USB3 qmp phys:
     - Phy pll outputs pipe clocks for pipe based PHYs. These clocks are then
       gate-controlled by the gcc.
 
-Required properties for child node of PHYs with lane reset, AKA:
+Required properties for child yesde of PHYs with lane reset, AKA:
 	"qcom,msm8996-qmp-pcie-phy"
  - resets: a list of phandles and reset controller specifier pairs,
 	   one for each entry in reset-names.

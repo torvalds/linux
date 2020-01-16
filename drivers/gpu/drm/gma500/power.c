@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -53,8 +53,8 @@ void gma_power_init(struct drm_device *dev)
 	dev_priv->ospm_base &= 0xffff;
 
 	dev_priv->display_power = true;	/* We start active */
-	dev_priv->display_count = 0;	/* Currently no users */
-	dev_priv->suspended = false;	/* And not suspended */
+	dev_priv->display_count = 0;	/* Currently yes users */
+	dev_priv->suspended = false;	/* And yest suspended */
 	spin_lock_init(&power_ctrl_lock);
 	mutex_init(&power_mutex);
 
@@ -182,7 +182,7 @@ static bool gma_resume_pci(struct pci_dev *pdev)
  *	@state: suspend type
  *
  *	Called back by the PCI layer during a suspend of the system. We
- *	perform the necessary shut down steps and save enough state that
+ *	perform the necessary shut down steps and save eyesugh state that
  *	we can undo this when resume is called.
  */
 int gma_power_suspend(struct device *_dev)
@@ -195,7 +195,7 @@ int gma_power_suspend(struct device *_dev)
 	if (!dev_priv->suspended) {
 		if (dev_priv->display_count) {
 			mutex_unlock(&power_mutex);
-			dev_err(dev->dev, "GPU hardware busy, cannot suspend\n");
+			dev_err(dev->dev, "GPU hardware busy, canyest suspend\n");
 			return -EBUSY;
 		}
 		psb_irq_uninstall(dev);

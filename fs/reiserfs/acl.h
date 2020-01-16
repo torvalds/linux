@@ -48,29 +48,29 @@ static inline int reiserfs_acl_count(size_t size)
 }
 
 #ifdef CONFIG_REISERFS_FS_POSIX_ACL
-struct posix_acl *reiserfs_get_acl(struct inode *inode, int type);
-int reiserfs_set_acl(struct inode *inode, struct posix_acl *acl, int type);
-int reiserfs_acl_chmod(struct inode *inode);
+struct posix_acl *reiserfs_get_acl(struct iyesde *iyesde, int type);
+int reiserfs_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type);
+int reiserfs_acl_chmod(struct iyesde *iyesde);
 int reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
-				 struct inode *dir, struct dentry *dentry,
-				 struct inode *inode);
-int reiserfs_cache_default_acl(struct inode *dir);
+				 struct iyesde *dir, struct dentry *dentry,
+				 struct iyesde *iyesde);
+int reiserfs_cache_default_acl(struct iyesde *dir);
 
 #else
 
-#define reiserfs_cache_default_acl(inode) 0
+#define reiserfs_cache_default_acl(iyesde) 0
 #define reiserfs_get_acl NULL
 #define reiserfs_set_acl NULL
 
-static inline int reiserfs_acl_chmod(struct inode *inode)
+static inline int reiserfs_acl_chmod(struct iyesde *iyesde)
 {
 	return 0;
 }
 
 static inline int
 reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
-			     const struct inode *dir, struct dentry *dentry,
-			     struct inode *inode)
+			     const struct iyesde *dir, struct dentry *dentry,
+			     struct iyesde *iyesde)
 {
 	return 0;
 }

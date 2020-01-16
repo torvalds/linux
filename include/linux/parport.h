@@ -52,11 +52,11 @@ struct ip32_parport_state {
 struct parport_state {
 	union {
 		struct pc_parport_state pc;
-		/* ARC has no state. */
+		/* ARC has yes state. */
 		struct ax_parport_state ax;
 		struct amiga_parport_state amiga;
 		struct ax88796_parport_state ax88796;
-		/* Atari has not state. */
+		/* Atari has yest state. */
 		struct ip32_parport_state ip32;
 		void *misc; 
 	} u;
@@ -125,8 +125,8 @@ struct parport_device_info {
 /* Each device can have two callback functions:
  *  1) a preemption function, called by the resource manager to request
  *     that the driver relinquish control of the port.  The driver should
- *     return zero if it agrees to release the port, and nonzero if it 
- *     refuses.  Do not call parport_release() - the kernel will do this
+ *     return zero if it agrees to release the port, and yesnzero if it 
+ *     refuses.  Do yest call parport_release() - the kernel will do this
  *     implicitly.
  *
  *  2) a wake-up function, called by the resource manager to tell drivers
@@ -164,7 +164,7 @@ struct pardevice {
 /* IEEE1284 information */
 
 /* IEEE1284 phases. These are exposed to userland through ppdev IOCTL
- * PP[GS]ETPHASE, so do not change existing values. */
+ * PP[GS]ETPHASE, so do yest change existing values. */
 enum ieee1284_phase {
 	IEEE1284_PH_FWD_DATA,
 	IEEE1284_PH_FWD_IDLE,
@@ -192,17 +192,17 @@ struct parport {
 	unsigned int size;	/* IO extent */
 	const char *name;
 	unsigned int modes;
-	int irq;		/* interrupt (or -1 for none) */
+	int irq;		/* interrupt (or -1 for yesne) */
 	int dma;
 	int muxport;		/* which muxport (if any) this is */
-	int portnum;		/* which physical parallel port (not mux) */
+	int portnum;		/* which physical parallel port (yest mux) */
 	struct device *dev;	/* Physical device associated with IO/DMA.
 				 * This may unfortulately be null if the
 				 * port has a legacy driver.
 				 */
 	struct device bus_dev;	/* to link with the bus */
 	struct parport *physport;
-				/* If this is a non-default mux
+				/* If this is a yesn-default mux
 				   parport, i.e. we're a clone of a real
 				   physical port, this is a pointer to that
 				   port. The locking is only done in the
@@ -213,7 +213,7 @@ struct parport {
 				   dev, ieee1284, *_lock.
 
 				   It this is a default mux parport, or
-				   there is no mux involved, this points to
+				   there is yes mux involved, this points to
 				   ourself. */
 
 	struct pardevice *devices;
@@ -229,7 +229,7 @@ struct parport {
 	unsigned int flags;
 
 	void *sysctl_table;
-	struct parport_device_info probe_info[5]; /* 0-3 + non-IEEE1284.3 */
+	struct parport_device_info probe_info[5]; /* 0-3 + yesn-IEEE1284.3 */
 	struct ieee1284_info ieee1284;
 
 	struct parport_operations *ops;
@@ -272,18 +272,18 @@ int parport_bus_init(void);
 void parport_bus_exit(void);
 
 /* parport_register_port registers a new parallel port at the given
-   address (if one does not already exist) and returns a pointer to it.
+   address (if one does yest already exist) and returns a pointer to it.
    This entails claiming the I/O region, IRQ and DMA.  NULL is returned
    if initialisation fails. */
 struct parport *parport_register_port(unsigned long base, int irq, int dma,
 				      struct parport_operations *ops);
 
 /* Once a registered port is ready for high-level drivers to use, the
-   low-level driver that registered it should announce it.  This will
+   low-level driver that registered it should anyesunce it.  This will
    call the high-level drivers' attach() functions (after things like
    determining the IEEE 1284.3 topology of the port and collecting
    DeviceIDs). */
-void parport_announce_port (struct parport *port);
+void parport_anyesunce_port (struct parport *port);
 
 /* Unregister a port. */
 extern void parport_remove_port(struct parport *port);
@@ -326,10 +326,10 @@ struct pardev_cb {
 };
 
 /* parport_register_device declares that a device is connected to a
-   port, and tells the kernel all it needs to know.
-   - pf is the preemption function (may be NULL for no callback)
-   - kf is the wake-up function (may be NULL for no callback)
-   - irq_func is the interrupt handler (may be NULL for no interrupts)
+   port, and tells the kernel all it needs to kyesw.
+   - pf is the preemption function (may be NULL for yes callback)
+   - kf is the wake-up function (may be NULL for yes callback)
+   - irq_func is the interrupt handler (may be NULL for yes interrupts)
    - handle is a user pointer that gets handed to callback functions.  */
 struct pardevice *parport_register_device(struct parport *port, 
 			  const char *name,
@@ -345,20 +345,20 @@ parport_register_dev_model(struct parport *port, const char *name,
 extern void parport_unregister_device(struct pardevice *dev);
 
 /* parport_claim tries to gain ownership of the port for a particular
-   driver.  This may fail (return non-zero) if another driver is busy.
+   driver.  This may fail (return yesn-zero) if ayesther driver is busy.
    If this driver has registered an interrupt handler, it will be
    enabled.  */
 extern int parport_claim(struct pardevice *dev);
 
-/* parport_claim_or_block is the same, but sleeps if the port cannot
-   be claimed.  Return value is 1 if it slept, 0 normally and -errno
+/* parport_claim_or_block is the same, but sleeps if the port canyest
+   be claimed.  Return value is 1 if it slept, 0 yesrmally and -erryes
    on error.  */
 extern int parport_claim_or_block(struct pardevice *dev);
 
 /* parport_release reverses a previous parport_claim.  This can never
    fail, though the effects are undefined (except that they are bad)
    if you didn't previously own the port.  Once you have released the
-   port you should make sure that neither your code nor the hardware
+   port you should make sure that neither your code yesr the hardware
    on the port tries to initiate any communication without first
    re-claiming the port.  If you mess with the port state (enabling
    ECP for example) you should clean up before releasing the port. */
@@ -378,9 +378,9 @@ extern void parport_release(struct pardevice *dev);
  * The parport_yield() and parport_yield_blocking() functions are for
  * marking points in the driver at which other drivers may claim the
  * port and use their devices.  Yielding the port is similar to
- * releasing it and reclaiming it, but is more efficient because no
- * action is taken if there are no other devices needing the port.  In
- * fact, nothing is done even if there are other devices waiting but
+ * releasing it and reclaiming it, but is more efficient because yes
+ * action is taken if there are yes other devices needing the port.  In
+ * fact, yesthing is done even if there are other devices waiting but
  * the current device is still within its "timeslice".  The default
  * timeslice is half a second, but it can be adjusted via the /proc
  * interface.

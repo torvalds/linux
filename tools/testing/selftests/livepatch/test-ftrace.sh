@@ -45,7 +45,7 @@ livepatch: failed to enable patch '$MOD_LIVEPATCH'
 livepatch: '$MOD_LIVEPATCH': canceling patching transition, going to unpatch
 livepatch: '$MOD_LIVEPATCH': completing unpatching transition
 livepatch: '$MOD_LIVEPATCH': unpatching complete
-modprobe: ERROR: could not insert '$MOD_LIVEPATCH': Device or resource busy
+modprobe: ERROR: could yest insert '$MOD_LIVEPATCH': Device or resource busy
 livepatch: kernel.ftrace_enabled = 1
 % modprobe $MOD_LIVEPATCH
 livepatch: enabling patch '$MOD_LIVEPATCH'

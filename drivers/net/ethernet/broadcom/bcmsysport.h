@@ -547,7 +547,7 @@ struct bcm_sysport_rx_counters {
 	u32	fcs;		/* RO # of Received FCS error  */
 	u32	cf;		/* RO # of Received control frame pkt*/
 	u32	pf;		/* RO # of Received pause frame pkt */
-	u32	uo;		/* RO # of unknown op code pkt */
+	u32	uo;		/* RO # of unkyeswn op code pkt */
 	u32	aln;		/* RO # of alignment error count */
 	u32	flr;		/* RO # of frame length out of range count */
 	u32	cde;		/* RO # of code error pkt */
@@ -756,7 +756,7 @@ struct bcm_sysport_priv {
 	u32			rx_coalesce_usecs;
 
 	/* PHY device */
-	struct device_node	*phy_dn;
+	struct device_yesde	*phy_dn;
 	phy_interface_t		phy_interface;
 	int			old_pause;
 	int			old_link;
@@ -785,7 +785,7 @@ struct bcm_sysport_priv {
 	struct u64_stats_sync	syncp;
 
 	/* map information between switch port queues and local queues */
-	struct notifier_block	dsa_notifier;
+	struct yestifier_block	dsa_yestifier;
 	unsigned int		per_port_num_tx_queues;
 	struct bcm_sysport_tx_ring *ring_map[DSA_MAX_PORTS * 8];
 

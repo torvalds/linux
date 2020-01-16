@@ -295,7 +295,7 @@ static int pxa_usb_phy_probe(struct platform_device *pdev)
 	if (!pxa_usb_phy)
 		return -ENOMEM;
 
-	of_id = of_match_node(pxa_usb_phy_of_match, dev->of_node);
+	of_id = of_match_yesde(pxa_usb_phy_of_match, dev->of_yesde);
 	if (of_id)
 		pxa_usb_phy->version = (enum pxa_usb_phy_version)of_id->data;
 	else
@@ -321,7 +321,7 @@ static int pxa_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(provider);
 	}
 
-	if (!dev->of_node) {
+	if (!dev->of_yesde) {
 		phy_create_lookup(pxa_usb_phy->phy, "usb", "mv-udc");
 		phy_create_lookup(pxa_usb_phy->phy, "usb", "pxa-u2oehci");
 		phy_create_lookup(pxa_usb_phy->phy, "usb", "mv-otg");

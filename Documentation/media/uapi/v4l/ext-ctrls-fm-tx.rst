@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _fm-tx-controls:
 
@@ -68,7 +68,7 @@ FM_TX Control IDs
     32 or 64.
 
 ``V4L2_CID_RDS_TX_MONO_STEREO (boolean)``
-    Sets the Mono/Stereo bit of the Decoder Identification code. If set,
+    Sets the Moyes/Stereo bit of the Decoder Identification code. If set,
     then the audio was recorded as stereo.
 
 ``V4L2_CID_RDS_TX_ARTIFICIAL_HEAD (boolean)``
@@ -86,10 +86,10 @@ FM_TX Control IDs
     then the PTY code is dynamically switched.
 
 ``V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT (boolean)``
-    If set, then a traffic announcement is in progress.
+    If set, then a traffic anyesuncement is in progress.
 
 ``V4L2_CID_RDS_TX_TRAFFIC_PROGRAM (boolean)``
-    If set, then the tuned programme carries traffic announcements.
+    If set, then the tuned programme carries traffic anyesuncements.
 
 ``V4L2_CID_RDS_TX_MUSIC_SPEECH (boolean)``
     If set, then this channel broadcasts music. If cleared, then it

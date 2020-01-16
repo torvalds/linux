@@ -160,7 +160,7 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 	desc.count = skb->len - desc.offset;
 
 	if (skb_csum_unnecessary(skb))
-		goto no_checksum;
+		goto yes_checksum;
 
 	desc.csum = csum_partial(skb->data, desc.offset, skb->csum);
 	if (xdr_partial_copy_from_skb(xdr, 0, &desc, xdr_skb_read_and_csum_bits) < 0)
@@ -178,7 +178,7 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 	    !skb->csum_complete_sw)
 		netdev_rx_csum_fault(skb->dev, skb);
 	return 0;
-no_checksum:
+yes_checksum:
 	if (xdr_partial_copy_from_skb(xdr, 0, &desc, xdr_skb_read_bits) < 0)
 		return -1;
 	if (desc.count)

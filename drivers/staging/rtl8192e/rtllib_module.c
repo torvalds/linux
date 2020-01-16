@@ -9,12 +9,12 @@
  * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ * James P. Ketreyess <ipw2100-admin@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  */
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
 #include <linux/in.h>

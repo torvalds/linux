@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -29,9 +29,9 @@
 
 #include <drm/drm_fb_helper.h>
 
-#include "nouveau_display.h"
+#include "yesuveau_display.h"
 
-struct nouveau_fbdev {
+struct yesuveau_fbdev {
 	struct drm_fb_helper helper; /* must be first */
 	unsigned int saved_flags;
 	struct nvif_object surf2d;
@@ -46,7 +46,7 @@ struct nouveau_fbdev {
 	bool hotplug_waiting;
 };
 
-void nouveau_fbcon_restore(void);
+void yesuveau_fbcon_restore(void);
 
 int nv04_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region);
 int nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
@@ -63,17 +63,17 @@ int nvc0_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region);
 int nvc0_fbcon_imageblit(struct fb_info *info, const struct fb_image *image);
 int nvc0_fbcon_accel_init(struct fb_info *info);
 
-void nouveau_fbcon_gpu_lockup(struct fb_info *info);
+void yesuveau_fbcon_gpu_lockup(struct fb_info *info);
 
-int nouveau_fbcon_init(struct drm_device *dev);
-void nouveau_fbcon_fini(struct drm_device *dev);
-void nouveau_fbcon_set_suspend(struct drm_device *dev, int state);
-void nouveau_fbcon_accel_save_disable(struct drm_device *dev);
-void nouveau_fbcon_accel_restore(struct drm_device *dev);
+int yesuveau_fbcon_init(struct drm_device *dev);
+void yesuveau_fbcon_fini(struct drm_device *dev);
+void yesuveau_fbcon_set_suspend(struct drm_device *dev, int state);
+void yesuveau_fbcon_accel_save_disable(struct drm_device *dev);
+void yesuveau_fbcon_accel_restore(struct drm_device *dev);
 
-void nouveau_fbcon_output_poll_changed(struct drm_device *dev);
-void nouveau_fbcon_hotplug_resume(struct nouveau_fbdev *fbcon);
-extern int nouveau_nofbaccel;
+void yesuveau_fbcon_output_poll_changed(struct drm_device *dev);
+void yesuveau_fbcon_hotplug_resume(struct yesuveau_fbdev *fbcon);
+extern int yesuveau_yesfbaccel;
 
 #endif /* __NV50_FBCON_H__ */
 

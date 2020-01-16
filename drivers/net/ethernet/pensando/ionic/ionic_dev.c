@@ -3,7 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/etherdevice.h>
@@ -111,12 +111,12 @@ int ionic_heartbeat_check(struct ionic *ionic)
 	if (time_before(hb_time, (idev->last_hb_time + ionic->watchdog_period)))
 		return 0;
 
-	/* firmware is useful only if fw_status is non-zero */
+	/* firmware is useful only if fw_status is yesn-zero */
 	fw_status = ioread32(&idev->dev_info_regs->fw_status);
 	if (!fw_status)
 		return -ENXIO;
 
-	/* early FW has no heartbeat, else FW will return non-zero */
+	/* early FW has yes heartbeat, else FW will return yesn-zero */
 	hb = ioread32(&idev->dev_info_regs->fw_heartbeat);
 	if (!hb)
 		return 0;
@@ -536,10 +536,10 @@ void ionic_q_service(struct ionic_queue *q, struct ionic_cq_info *cq_info,
 	if (q->tail->index == q->head->index)
 		return;
 
-	/* stop index must be for a descriptor that is not yet completed */
+	/* stop index must be for a descriptor that is yest yet completed */
 	if (unlikely(!ionic_q_is_posted(q, stop_index)))
 		dev_err(q->lif->ionic->dev,
-			"ionic stop is not posted %s stop %u tail %u head %u\n",
+			"ionic stop is yest posted %s stop %u tail %u head %u\n",
 			q->name, stop_index, q->tail->index, q->head->index);
 
 	do {

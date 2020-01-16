@@ -2,7 +2,7 @@
 /*
  * TLB Exception Handling for ARC
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * Vineetg: April 2011 :
  *  -MMU v1: moved out legacy code into a seperate file
@@ -10,8 +10,8 @@
  *      helps avoid a shift when preparing PD0 from PTE
  *
  * Vineetg: July 2009
- *  -For MMU V2, we need not do heuristics at the time of commiting a D-TLB
- *   entry, so that it doesn't knock out it's I-TLB entry
+ *  -For MMU V2, we need yest do heuristics at the time of commiting a D-TLB
+ *   entry, so that it doesn't kyesck out it's I-TLB entry
  *  -Some more fine tuning:
  *   bmsk instead of add, asl.cc instead of branch, delay slot utilise etc
  *
@@ -29,7 +29,7 @@
  * Vineetg: March 25th Bug #92690
  *  -Added Debug Code to check if sw-ASID == hw-ASID
 
- * Rahul Trivedi, Amit Bhor: Codito Technologies 2004
+ * Rahul Trivedi, Amit Bhor: Codito Techyeslogies 2004
  */
 
 #include <linux/linkage.h>
@@ -56,8 +56,8 @@
 ; only need to save only a handful of regs, as opposed to complete reg file]
 ;
 ; For ARC700 SMP, the "global" obviously can't be used for free up the FIRST
-; core reg as it will not be SMP safe.
-; Thus scratch AUX reg is used (and no longer used to cache task PGD).
+; core reg as it will yest be SMP safe.
+; Thus scratch AUX reg is used (and yes longer used to cache task PGD).
 ; To save the rest of 3 regs - per cpu, the global is made "per-cpu".
 ; Epilogue thus has to locate the "per-cpu" storage for regs.
 ; To avoid cache line bouncing the per-cpu global is aligned/sized per
@@ -98,7 +98,7 @@ ex_saved_reg1:
 	; VERIFY if the ASID in MMU-PID Reg is same as
 	; one in Linux data structures
 
-	tlb_paranoid_check_asm
+	tlb_parayesid_check_asm
 .endm
 
 .macro TLBMISS_RESTORE_REGS
@@ -157,14 +157,14 @@ ex_saved_reg1:
 ; In bizzare scenrios SW and HW ASID can get out-of-sync which is trouble.
 ; So we try to detect this in TLB Mis shandler
 
-.macro tlb_paranoid_check_asm
+.macro tlb_parayesid_check_asm
 
 #ifdef CONFIG_ARC_DBG_TLB_PARANOIA
 
 	GET_CURR_TASK_ON_CPU  r3
 	ld r0, [r3, TASK_ACT_MM]
 	ld r0, [r0, MM_CTXT+MM_CTXT_ASID]
-	breq r0, 0, 55f	; Error if no ASID allocated
+	breq r0, 0, 55f	; Error if yes ASID allocated
 
 	lr r1, [ARC_REG_PID]
 	and r1, r1, 0xFF
@@ -185,8 +185,8 @@ ex_saved_reg1:
 	mov r2, 1
 	j print_asid_mismatch
 
-5:	; ASIDs match so proceed normally
-	nop
+5:	; ASIDs match so proceed yesrmally
+	yesp
 
 #endif
 
@@ -214,7 +214,7 @@ ex_saved_reg1:
 	lsr     r0, r2, PGDIR_SHIFT     ; Bits for indexing into PGD
 	ld.as   r3, [r1, r0]            ; PGD entry corresp to faulting addr
 	tst	r3, r3
-	bz	do_slow_path_pf         ; if no Page Table, do page fault
+	bz	do_slow_path_pf         ; if yes Page Table, do page fault
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	and.f	0, r3, _PAGE_HW_SZ	; Is this Huge PMD (thp)
@@ -326,7 +326,7 @@ ENTRY(EV_TLBMissI)
 	xor.f   r3, r3, r2  ; check ( ( pte & flags_test ) == flags_test )
 	bnz     do_slow_path_pf
 
-	; Let Linux VM know that the page was accessed
+	; Let Linux VM kyesw that the page was accessed
 	or      r0, r0, _PAGE_ACCESSED  ; set Accessed Bit
 	st_s    r0, [r1]                ; Write back PTE
 
@@ -370,12 +370,12 @@ ENTRY(EV_TLBMissD)
 	or.nz   r2, r2, _PAGE_WRITE     	; chk for Write flag in PTE
 	; Above laddering takes care of XCHG access (both R and W)
 
-	; By now, r2 setup with all the Flags we need to check in PTE
+	; By yesw, r2 setup with all the Flags we need to check in PTE
 	and     r3, r0, r2              ; Mask out NON Flag bits from PTE
 	brne.d  r3, r2, do_slow_path_pf ; is ((pte & flags_test) == flags_test)
 
 	;----------------------------------------------------------------
-	; UPDATE_PTE: Let Linux VM know that page was accessed/dirty
+	; UPDATE_PTE: Let Linux VM kyesw that page was accessed/dirty
 	or      r0, r0, _PAGE_ACCESSED        ; Accessed bit always
 	or.nz   r0, r0, _PAGE_DIRTY           ; if Write, set Dirty bit as well
 	st_s    r0, [r1]                      ; Write back PTE

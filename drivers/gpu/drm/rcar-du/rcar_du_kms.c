@@ -105,7 +105,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.edf = PnDDCR4_EDF_NONE,
 	},
 	/*
-	 * The following formats are not supported on Gen2 and thus have no
+	 * The following formats are yest supported on Gen2 and thus have yes
 	 * associated .pnmr or .edf settings.
 	 */
 	{
@@ -337,7 +337,7 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	} else {
 		/*
 		 * On Gen3 the memory interface is handled by the VSP that
-		 * limits the pitch to 65535 bytes and has no alignment
+		 * limits the pitch to 65535 bytes and has yes alignment
 		 * constraint.
 		 */
 		max_pitch = 65535;
@@ -354,7 +354,7 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	for (i = 1; i < format->planes; ++i) {
 		if (mode_cmd->pitches[i] != mode_cmd->pitches[0]) {
 			dev_dbg(dev->dev,
-				"luma and chroma pitches do not match\n");
+				"luma and chroma pitches do yest match\n");
 			return ERR_PTR(-EINVAL);
 		}
 	}
@@ -438,14 +438,14 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 				     enum rcar_du_output output,
 				     struct of_endpoint *ep)
 {
-	struct device_node *entity;
+	struct device_yesde *entity;
 	int ret;
 
 	/* Locate the connected entity and initialize the encoder. */
-	entity = of_graph_get_remote_port_parent(ep->local_node);
+	entity = of_graph_get_remote_port_parent(ep->local_yesde);
 	if (!entity) {
 		dev_dbg(rcdu->dev, "unconnected endpoint %pOF, skipping\n",
-			ep->local_node);
+			ep->local_yesde);
 		return -ENODEV;
 	}
 
@@ -453,7 +453,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 		dev_dbg(rcdu->dev,
 			"connected entity %pOF is disabled, skipping\n",
 			entity);
-		of_node_put(entity);
+		of_yesde_put(entity);
 		return -ENODEV;
 	}
 
@@ -463,30 +463,30 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 			 "failed to initialize encoder %pOF on output %u (%d), skipping\n",
 			 entity, output, ret);
 
-	of_node_put(entity);
+	of_yesde_put(entity);
 
 	return ret;
 }
 
 static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 {
-	struct device_node *np = rcdu->dev->of_node;
-	struct device_node *ep_node;
+	struct device_yesde *np = rcdu->dev->of_yesde;
+	struct device_yesde *ep_yesde;
 	unsigned int num_encoders = 0;
 
 	/*
 	 * Iterate over the endpoints and create one encoder for each output
 	 * pipeline.
 	 */
-	for_each_endpoint_of_node(np, ep_node) {
+	for_each_endpoint_of_yesde(np, ep_yesde) {
 		enum rcar_du_output output;
 		struct of_endpoint ep;
 		unsigned int i;
 		int ret;
 
-		ret = of_graph_parse_endpoint(ep_node, &ep);
+		ret = of_graph_parse_endpoint(ep_yesde, &ep);
 		if (ret < 0) {
-			of_node_put(ep_node);
+			of_yesde_put(ep_yesde);
 			return ret;
 		}
 
@@ -510,7 +510,7 @@ static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 		ret = rcar_du_encoders_init_one(rcdu, output, &ep);
 		if (ret < 0) {
 			if (ret == -EPROBE_DEFER) {
-				of_node_put(ep_node);
+				of_yesde_put(ep_yesde);
 				return ret;
 			}
 
@@ -541,10 +541,10 @@ static int rcar_du_properties_init(struct rcar_du_device *rcdu)
 
 static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 {
-	const struct device_node *np = rcdu->dev->of_node;
+	const struct device_yesde *np = rcdu->dev->of_yesde;
 	struct of_phandle_args args;
 	struct {
-		struct device_node *np;
+		struct device_yesde *np;
 		unsigned int crtcs_mask;
 	} vsps[RCAR_DU_MAX_VSPS] = { { NULL, }, };
 	unsigned int vsps_count = 0;
@@ -554,7 +554,7 @@ static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 
 	/*
 	 * First parse the DT vsps property to populate the list of VSPs. Each
-	 * entry contains a pointer to the VSP DT node and a bitmask of the
+	 * entry contains a pointer to the VSP DT yesde and a bitmask of the
 	 * connected DU CRTCs.
 	 */
 	cells = of_property_count_u32_elems(np, "vsps") / rcdu->num_crtcs - 1;
@@ -579,7 +579,7 @@ static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 		}
 
 		if (j < vsps_count)
-			of_node_put(args.np);
+			of_yesde_put(args.np);
 		else
 			vsps[vsps_count++].np = args.np;
 
@@ -595,7 +595,7 @@ static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 	}
 
 	/*
-	 * Then initialize all the VSPs from the node pointers and CRTCs bitmask
+	 * Then initialize all the VSPs from the yesde pointers and CRTCs bitmask
 	 * computed previously.
 	 */
 	for (i = 0; i < vsps_count; ++i) {
@@ -613,7 +613,7 @@ static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 
 error:
 	for (i = 0; i < ARRAY_SIZE(vsps); ++i)
-		of_node_put(vsps[i].np);
+		of_yesde_put(vsps[i].np);
 
 	return ret;
 }
@@ -638,7 +638,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
-	dev->mode_config.normalize_zpos = true;
+	dev->mode_config.yesrmalize_zpos = true;
 	dev->mode_config.funcs = &rcar_du_mode_config_funcs;
 	dev->mode_config.helper_private = &rcar_du_mode_config_helper;
 
@@ -729,7 +729,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		return ret;
 
 	if (ret == 0) {
-		dev_err(rcdu->dev, "error: no encoder could be initialized\n");
+		dev_err(rcdu->dev, "error: yes encoder could be initialized\n");
 		return -EINVAL;
 	}
 
@@ -764,7 +764,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	 * Initialize the default DPAD0 source to the index of the first DU
 	 * channel that can be connected to DPAD0. The exact value doesn't
 	 * matter as it should be overwritten by mode setting for the RGB
-	 * output, but it is nonetheless required to ensure a valid initial
+	 * output, but it is yesnetheless required to ensure a valid initial
 	 * hardware configuration on Gen3 where DU0 can't always be connected to
 	 * DPAD0.
 	 */

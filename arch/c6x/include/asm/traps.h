@@ -24,7 +24,7 @@
 
 struct exception_info {
 	char *kernel_str;
-	int  signo;
+	int  sigyes;
 	int  code;
 };
 

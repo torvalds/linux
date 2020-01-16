@@ -7,14 +7,14 @@
  * Copyright (C) 2004-2005 David Brownell
  *
  * Some parts based on tlv320aic24.c:
- * Copyright (C) by Kai Svahn <kai.svahn@nokia.com>
+ * Copyright (C) by Kai Svahn <kai.svahn@yeskia.com>
  *
  * Changes for interrupt handling and clean-up by
- * Tony Lindgren <tony@atomide.com> and Imre Deak <imre.deak@nokia.com>
+ * Tony Lindgren <tony@atomide.com> and Imre Deak <imre.deak@yeskia.com>
  * Cleanup and generalized support for voltage setting by
  * Juha Yrjola
  * Added support for controlling VCORE and regulator sleep states,
- * Amit Kucheria <amit.kucheria@nokia.com>
+ * Amit Kucheria <amit.kucheria@yeskia.com>
  * Copyright (C) 2005, 2006 Nokia Corporation
  */
 
@@ -226,7 +226,7 @@ static int menelaus_ack_irq(int irq)
 		return menelaus_write_reg(MENELAUS_INT_ACK1, 1 << irq);
 }
 
-/* Adds a handler for an interrupt. Does not run in interrupt context */
+/* Adds a handler for an interrupt. Does yest run in interrupt context */
 static int menelaus_add_irq_work(int irq,
 		void (*handler)(struct menelaus_chip *))
 {
@@ -256,7 +256,7 @@ static int menelaus_remove_irq_work(int irq)
 /*
  * Gets scheduled when a card detect interrupt happens. Note that in some cases
  * this line is wired to card cover switch rather than the card detect switch
- * in each slot. In this case the cards are not seen by menelaus.
+ * in each slot. In this case the cards are yest seen by menelaus.
  * FIXME: Add handling for D1 too
  */
 static void menelaus_mmc_cd_work(struct menelaus_chip *menelaus_hw)
@@ -386,7 +386,7 @@ int menelaus_set_mmc_slot(int slot, int enable, int power, int cd_en)
 		if (ret < 0)
 			goto out;
 	}
-	/* Disable autonomous shutdown */
+	/* Disable autoyesmous shutdown */
 	val &= ~(MCT_CTRL3_S1_AUTO_EN | MCT_CTRL3_S2_AUTO_EN);
 	ret = menelaus_write_reg(MENELAUS_MCT_CTRL3, val);
 out:
@@ -756,7 +756,7 @@ out:
 
 /*-----------------------------------------------------------------------*/
 
-/* Handles Menelaus interrupts. Does not run in interrupt context */
+/* Handles Menelaus interrupts. Does yest run in interrupt context */
 static void menelaus_work(struct work_struct *_menelaus)
 {
 	struct menelaus_chip *menelaus =
@@ -791,13 +791,13 @@ static void menelaus_work(struct work_struct *_menelaus)
 }
 
 /*
- * We cannot use I2C in interrupt context, so we just schedule work.
+ * We canyest use I2C in interrupt context, so we just schedule work.
  */
 static irqreturn_t menelaus_irq(int irq, void *_menelaus)
 {
 	struct menelaus_chip *menelaus = _menelaus;
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	(void)schedule_work(&menelaus->work);
 
 	return IRQ_HANDLED;
@@ -929,7 +929,7 @@ static int menelaus_set_time(struct device *dev, struct rtc_time *t)
 		return status;
 	}
 
-	/* now commit the write */
+	/* yesw commit the write */
 	status = menelaus_write_reg(MENELAUS_RTC_UPDATE, RTC_UPDATE_EVERY);
 	if (status < 0)
 		dev_err(&the_menelaus->client->dev, "rtc commit time, err %d\n",
@@ -1058,7 +1058,7 @@ static int menelaus_ioctl(struct device *dev, unsigned cmd, unsigned long arg)
 #define menelaus_ioctl	NULL
 #endif
 
-/* REVISIT no compensation register support ... */
+/* REVISIT yes compensation register support ... */
 
 static const struct rtc_class_ops menelaus_rtc_ops = {
 	.ioctl			= menelaus_ioctl,
@@ -1085,7 +1085,7 @@ static inline void menelaus_rtc_init(struct menelaus_chip *m)
 
 	/* assume 32KDETEN pin is pulled high */
 	if (!(menelaus_read_reg(MENELAUS_OSC_CTRL) & 0x80)) {
-		dev_dbg(&m->client->dev, "no 32k oscillator\n");
+		dev_dbg(&m->client->dev, "yes 32k oscillator\n");
 		return;
 	}
 
@@ -1133,7 +1133,7 @@ static inline void menelaus_rtc_init(struct menelaus_chip *m)
 
 static inline void menelaus_rtc_init(struct menelaus_chip *m)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 #endif
@@ -1152,7 +1152,7 @@ static int menelaus_probe(struct i2c_client *client,
 					dev_get_platdata(&client->dev);
 
 	if (the_menelaus) {
-		dev_dbg(&client->dev, "only one %s for now\n",
+		dev_dbg(&client->dev, "only one %s for yesw\n",
 				DRIVER_NAME);
 		return -ENODEV;
 	}
@@ -1169,7 +1169,7 @@ static int menelaus_probe(struct i2c_client *client,
 	/* If a true probe check the device */
 	rev = menelaus_read_reg(MENELAUS_REV);
 	if (rev < 0) {
-		pr_err(DRIVER_NAME ": device not found");
+		pr_err(DRIVER_NAME ": device yest found");
 		return -ENODEV;
 	}
 

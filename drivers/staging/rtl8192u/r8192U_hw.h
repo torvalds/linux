@@ -114,7 +114,7 @@ enum _RTL8192Usb_HW {
 #define BCN_TCFG_IFS			0
 	BCN_INTERVAL		= 0x070, // Beacon Interval (TU)
 	ATIMWND			= 0x072, // ATIM Window Size (TU)
-	BCN_DRV_EARLY_INT	= 0x074, // Driver Early Interrupt Time (TU). Time to send interrupt to notify to change beacon content before TBTT
+	BCN_DRV_EARLY_INT	= 0x074, // Driver Early Interrupt Time (TU). Time to send interrupt to yestify to change beacon content before TBTT
 	BCN_DMATIME		= 0x076, // Beacon DMA and ATIM interrupt time (US). Indicates the time before TBTT to perform beacon queue DMA
 	BCN_ERR_THRESH		= 0x078, // Beacon Error Threshold
 	RWCAM			= 0x0A0, //IN 8190 Data Sheet is called CAMcmd
@@ -181,7 +181,7 @@ enum _RTL8192Usb_HW {
 #define RRSR_36M					BIT(9)
 #define RRSR_48M					BIT(10)
 #define RRSR_54M					BIT(11)
-#define BRSR_AckShortPmb			BIT(23)		// CCK ACK: use Short Preamble or not.
+#define BRSR_AckShortPmb			BIT(23)		// CCK ACK: use Short Preamble or yest.
 	UFWP			= 0x318,
 	RATR0			= 0x320, // Rate Adaptive Table register1
 	DRIVER_RSSI		= 0x32c,					// Driver tell Firmware current RSSI

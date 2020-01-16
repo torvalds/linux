@@ -30,11 +30,11 @@ static int arm_pmu_acpi_register_irq(int cpu)
 	gsi = gicc->performance_interrupt;
 
 	/*
-	 * Per the ACPI spec, the MADT cannot describe a PMU that doesn't
+	 * Per the ACPI spec, the MADT canyest describe a PMU that doesn't
 	 * have an interrupt. QEMU advertises this by using a GSI of zero,
-	 * which is not known to be valid on any hardware despite being
+	 * which is yest kyeswn to be valid on any hardware despite being
 	 * valid per the spec. Take the pragmatic approach and reject a
-	 * GSI of zero for now.
+	 * GSI of zero for yesw.
 	 */
 	if (!gsi)
 		return 0;
@@ -47,13 +47,13 @@ static int arm_pmu_acpi_register_irq(int cpu)
 	/*
 	 * Helpfully, the MADT GICC doesn't have a polarity flag for the
 	 * "performance interrupt". Luckily, on compliant GICs the polarity is
-	 * a fixed value in HW (for both SPIs and PPIs) that we cannot change
+	 * a fixed value in HW (for both SPIs and PPIs) that we canyest change
 	 * from SW.
 	 *
 	 * Here we pass in ACPI_ACTIVE_HIGH to keep the core code happy. This
-	 * may not match the real polarity, but that should not matter.
+	 * may yest match the real polarity, but that should yest matter.
 	 *
-	 * Other interrupt controllers are not supported with ACPI.
+	 * Other interrupt controllers are yest supported with ACPI.
 	 */
 	return acpi_register_gsi(NULL, gsi, trigger, ACPI_ACTIVE_HIGH);
 }
@@ -87,7 +87,7 @@ static struct platform_device spe_dev = {
 };
 
 /*
- * For lack of a better place, hook the normal PMU MADT walk
+ * For lack of a better place, hook the yesrmal PMU MADT walk
  * and create a SPE device if we detect a recent MADT with
  * a homogeneous PPI mapping.
  */
@@ -99,7 +99,7 @@ static void arm_spe_acpi_register_device(void)
 
 	/*
 	 * Sanity check all the GICC tables for the same interrupt number.
-	 * For now, we only support homogeneous ACPI/SPE machines.
+	 * For yesw, we only support homogeneous ACPI/SPE machines.
 	 */
 	for_each_possible_cpu(cpu) {
 		struct acpi_madt_generic_interrupt *gicc;
@@ -248,7 +248,7 @@ static bool pmu_irq_matches(struct arm_pmu *pmu, int irq)
  * associate a CPU and its interrupt before the common code tries to manage the
  * affinity and so on.
  *
- * Note that hotplug events are serialized, so we cannot race with another CPU
+ * Note that hotplug events are serialized, so we canyest race with ayesther CPU
  * coming up. The perf core won't open events while a hotplug event is in
  * progress.
  */
@@ -258,7 +258,7 @@ static int arm_pmu_acpi_cpu_starting(unsigned int cpu)
 	struct pmu_hw_events __percpu *hw_events;
 	int irq;
 
-	/* If we've already probed this CPU, we have nothing to do */
+	/* If we've already probed this CPU, we have yesthing to do */
 	if (per_cpu(probed_pmus, cpu))
 		return 0;
 
@@ -293,11 +293,11 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 	int cpu, ret;
 
 	/*
-	 * Initialise and register the set of PMUs which we know about right
-	 * now. Ideally we'd do this in arm_pmu_acpi_cpu_starting() so that we
+	 * Initialise and register the set of PMUs which we kyesw about right
+	 * yesw. Ideally we'd do this in arm_pmu_acpi_cpu_starting() so that we
 	 * could handle late hotplug, but this may lead to deadlock since we
-	 * might try to register a hotplug notifier instance from within a
-	 * hotplug notifier.
+	 * might try to register a hotplug yestifier instance from within a
+	 * hotplug yestifier.
 	 *
 	 * There's also the problem of having access to the right init_fn,
 	 * without tying this too deeply into the "real" PMU driver.
@@ -314,7 +314,7 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 
 		ret = init_fn(pmu);
 		if (ret == -ENODEV) {
-			/* PMU not handled by this driver, or not present */
+			/* PMU yest handled by this driver, or yest present */
 			continue;
 		} else if (ret) {
 			pr_warn("Unable to initialise PMU for CPU%d\n", cpu);

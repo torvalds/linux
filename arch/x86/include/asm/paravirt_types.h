@@ -43,7 +43,7 @@
 #include <asm/desc_defs.h>
 #include <asm/kmap_types.h>
 #include <asm/pgtable_types.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 struct page;
 struct thread_struct;
@@ -58,7 +58,7 @@ struct mmu_gather;
 struct vm_area_struct;
 
 /*
- * Wrapper type for pointers to code which uses the non-standard
+ * Wrapper type for pointers to code which uses the yesn-standard
  * calling convention.  See PV_CALL_SAVE_REGS_THUNK below.
  */
 struct paravirt_callee_save {
@@ -72,7 +72,7 @@ struct pv_info {
 	int shared_kernel_pmd;
 
 #ifdef CONFIG_X86_64
-	u16 extra_user_64bit_cs;  /* __USER_CS if none */
+	u16 extra_user_64bit_cs;  /* __USER_CS if yesne */
 #endif
 #endif
 
@@ -83,14 +83,14 @@ struct pv_init_ops {
 	/*
 	 * Patch may replace one of the defined code sequences with
 	 * arbitrary code, subject to the same register constraints.
-	 * This generally means the code is not free to clobber any
+	 * This generally means the code is yest free to clobber any
 	 * registers other than EAX.  The patch function should return
-	 * the number of bytes of code generated, as we nop pad the
+	 * the number of bytes of code generated, as we yesp pad the
 	 * rest in generic code.
 	 */
 	unsigned (*patch)(u8 type, void *insn_buff,
 			  unsigned long addr, unsigned len);
-} __no_randomize_layout;
+} __yes_randomize_layout;
 
 #ifdef CONFIG_PARAVIRT_XXL
 struct pv_lazy_ops {
@@ -98,21 +98,21 @@ struct pv_lazy_ops {
 	void (*enter)(void);
 	void (*leave)(void);
 	void (*flush)(void);
-} __no_randomize_layout;
+} __yes_randomize_layout;
 #endif
 
 struct pv_time_ops {
 	unsigned long long (*sched_clock)(void);
 	unsigned long long (*steal_clock)(int cpu);
-} __no_randomize_layout;
+} __yes_randomize_layout;
 
 struct pv_cpu_ops {
 	/* hooks for various privileged instructions */
 	void (*io_delay)(void);
 
 #ifdef CONFIG_PARAVIRT_XXL
-	unsigned long (*get_debugreg)(int regno);
-	void (*set_debugreg)(int regno, unsigned long value);
+	unsigned long (*get_debugreg)(int regyes);
+	void (*set_debugreg)(int regyes, unsigned long value);
 
 	unsigned long (*read_cr0)(void);
 	void (*write_cr0)(unsigned long);
@@ -176,14 +176,14 @@ struct pv_cpu_ops {
 	void (*start_context_switch)(struct task_struct *prev);
 	void (*end_context_switch)(struct task_struct *next);
 #endif
-} __no_randomize_layout;
+} __yes_randomize_layout;
 
 struct pv_irq_ops {
 #ifdef CONFIG_PARAVIRT_XXL
 	/*
 	 * Get/set interrupt state.  save_fl and restore_fl are only
 	 * expected to use X86_EFLAGS_IF; all other bits
-	 * returned from save_fl are undefined, and may be ignored by
+	 * returned from save_fl are undefined, and may be igyesred by
 	 * restore_fl.
 	 *
 	 * NOTE: These functions callers expect the callee to preserve
@@ -197,7 +197,7 @@ struct pv_irq_ops {
 	void (*safe_halt)(void);
 	void (*halt)(void);
 #endif
-} __no_randomize_layout;
+} __yes_randomize_layout;
 
 struct pv_mmu_ops {
 	/* TLB operations */
@@ -299,7 +299,7 @@ struct pv_mmu_ops {
 	void (*set_fixmap)(unsigned /* enum fixed_addresses */ idx,
 			   phys_addr_t phys, pgprot_t flags);
 #endif
-} __no_randomize_layout;
+} __yes_randomize_layout;
 
 struct arch_spinlock;
 #ifdef CONFIG_SMP
@@ -316,7 +316,7 @@ struct pv_lock_ops {
 	void (*kick)(int cpu);
 
 	struct paravirt_callee_save vcpu_is_preempted;
-} __no_randomize_layout;
+} __yes_randomize_layout;
 
 /* This contains all the paravirt structures: we get a convenient
  * number for each function using the offset which we use to indicate
@@ -328,7 +328,7 @@ struct paravirt_patch_template {
 	struct pv_irq_ops	irq;
 	struct pv_mmu_ops	mmu;
 	struct pv_lock_ops	lock;
-} __no_randomize_layout;
+} __yes_randomize_layout;
 
 extern struct pv_info pv_info;
 extern struct paravirt_patch_template pv_ops;
@@ -390,7 +390,7 @@ int paravirt_disable_iospace(void);
  * (pv_op_struct.operations)(args...).
  *
  * Unfortunately, this is a relatively slow operation for modern CPUs,
- * because it cannot necessarily determine what the destination
+ * because it canyest necessarily determine what the destination
  * address is.  In this case, the address is a runtime constant, so at
  * the very least we can patch the call to e a simple direct call, or
  * ideally, patch an inline implementation into the callsite.  (Direct
@@ -404,7 +404,7 @@ int paravirt_disable_iospace(void);
  * to be modified (either clobbered or used for return values).
  * X86_64, on the other hand, already specifies a register-based calling
  * conventions, returning at %rax, with parameteres going on %rdi, %rsi,
- * %rdx, and %rcx. Note that for this reason, x86_64 does not need any
+ * %rdx, and %rcx. Note that for this reason, x86_64 does yest need any
  * special handling for dealing with 4 arguments, unlike i386.
  * However, x86_64 also have to clobber all caller saved registers, which
  * unfortunately, are quite a bit (r8 - r11)
@@ -415,7 +415,7 @@ int paravirt_disable_iospace(void);
  * appropriate patching under the control of the backend pv_init_ops
  * implementation.
  *
- * Unfortunately there's no way to get gcc to generate the args setup
+ * Unfortunately there's yes way to get gcc to generate the args setup
  * for the call, and then allow the call itself to be generated by an
  * inline asm.  Because of this, we must do the complete arg setup and
  * return value handling from within these macros.  This is fairly
@@ -424,7 +424,7 @@ int paravirt_disable_iospace(void);
  * There are 5 sets of PVOP_* macros for dealing with 0-4 arguments.
  * It could be extended to more arguments, but there would be little
  * to be gained from that.  For each number of arguments, there are
- * the two VCALL and CALL variants for void and non-void functions.
+ * the two VCALL and CALL variants for void and yesn-void functions.
  *
  * When there is a return value, the invoker of the macro must specify
  * the return type.  The macro then uses sizeof() on that type to
@@ -658,10 +658,10 @@ void paravirt_enter_lazy_mmu(void);
 void paravirt_leave_lazy_mmu(void);
 void paravirt_flush_lazy_mmu(void);
 
-void _paravirt_nop(void);
+void _paravirt_yesp(void);
 u64 _paravirt_ident_64(u64);
 
-#define paravirt_nop	((void *)_paravirt_nop)
+#define paravirt_yesp	((void *)_paravirt_yesp)
 
 /* These all sit in the .parainstructions section to tell us what to patch. */
 struct paravirt_patch_site {

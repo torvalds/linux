@@ -105,9 +105,9 @@ static void uniphier_sd_external_dma_callback(void *param,
 
 	if (result->result == DMA_TRANS_NOERROR) {
 		/*
-		 * When the external DMA engine is enabled, strangely enough,
+		 * When the external DMA engine is enabled, strangely eyesugh,
 		 * the DATAEND flag can be asserted even if the DMA engine has
-		 * not been kicked yet.  Enable the TMIO_STAT_DATAEND irq only
+		 * yest been kicked yet.  Enable the TMIO_STAT_DATAEND irq only
 		 * after we make sure the DMA engine finishes the transfer,
 		 * hence, in this callback.
 		 */
@@ -302,7 +302,7 @@ static void uniphier_sd_internal_dma_request(struct tmio_mmc_host *host,
 	struct uniphier_sd_priv *priv = uniphier_sd_priv(host);
 
 	/*
-	 * Due to a hardware bug, Pro5 cannot use DMA for RX.
+	 * Due to a hardware bug, Pro5 canyest use DMA for RX.
 	 * We can still use DMA for TX, but PIO for RX.
 	 */
 	if (!(priv->caps & UNIPHIER_SD_CAP_BROKEN_DMA_RX))
@@ -448,7 +448,7 @@ static void uniphier_sd_set_clock(struct tmio_mmc_host *host,
 	 * In the original IP, bit[7:0] represents the divisor.
 	 * bit7 set: 1/512, ... bit0 set:1/4, all bits clear: 1/2
 	 *
-	 * The IP does not define a way to achieve 1/1.  For UniPhier variants,
+	 * The IP does yest define a way to achieve 1/1.  For UniPhier variants,
 	 * bit10 is used for 1/1.  Newer versions of UniPhier variants use
 	 * bit16 for 1/1024.
 	 */

@@ -1,7 +1,7 @@
 /* +++ trees.c */
 /* trees.c -- output deflated data using Huffman coding
  * Copyright (C) 1995-1996 Jean-loup Gailly
- * For conditions of distribution and use, see copyright notice in zlib.h 
+ * For conditions of distribution and use, see copyright yestice in zlib.h 
  */
 
 /*
@@ -47,7 +47,7 @@
  */
 
 #define MAX_BL_BITS 7
-/* Bit length codes must not exceed MAX_BL_BITS bits */
+/* Bit length codes must yest exceed MAX_BL_BITS bits */
 
 #define END_BLOCK 256
 /* end of block literal code */
@@ -86,9 +86,9 @@ static const uch bl_order[BL_CODES]
  */
 
 static ct_data static_ltree[L_CODES+2];
-/* The static literal tree. Since the bit lengths are imposed, there is no
+/* The static literal tree. Since the bit lengths are imposed, there is yes
  * need for the L_CODES extra codes used during heap construction. However
- * The codes 286 and 287 are needed to build a canonical tree (see zlib_tr_init
+ * The codes 286 and 287 are needed to build a cayesnical tree (see zlib_tr_init
  * below).
  */
 
@@ -104,13 +104,13 @@ static uch dist_code[512];
  */
 
 static uch length_code[MAX_MATCH-MIN_MATCH+1];
-/* length code for each normalized match length (0 == MIN_MATCH) */
+/* length code for each yesrmalized match length (0 == MIN_MATCH) */
 
 static int base_length[LENGTH_CODES];
-/* First normalized length for each code (0 = MIN_MATCH) */
+/* First yesrmalized length for each code (0 = MIN_MATCH) */
 
 static int base_dist[D_CODES];
-/* First normalized distance for each code (0 = distance of 1) */
+/* First yesrmalized distance for each code (0 = distance of 1) */
 
 struct static_tree_desc_s {
     const ct_data *static_tree;  /* static tree or NULL */
@@ -154,7 +154,7 @@ static void copy_block     (deflate_state *s, char *buf, unsigned len,
 
 #ifndef DEBUG_ZLIB
 #  define send_code(s, c, tree) send_bits(s, tree[c].Code, tree[c].Len)
-   /* Send a code of the given tree. c and tree must not have side effects */
+   /* Send a code of the given tree. c and tree must yest have side effects */
 
 #else /* DEBUG_ZLIB */
 #  define send_code(s, c, tree) \
@@ -165,7 +165,7 @@ static void copy_block     (deflate_state *s, char *buf, unsigned len,
 #define d_code(dist) \
    ((dist) < 256 ? dist_code[dist] : dist_code[256+((dist)>>7)])
 /* Mapping from a distance to a distance code. dist is the distance - 1 and
- * must not have side effects. dist_code[256] and dist_code[257] are never
+ * must yest have side effects. dist_code[256] and dist_code[257] are never
  * used.
  */
 
@@ -186,7 +186,7 @@ static void send_bits(
     Assert(length > 0 && length <= 15, "invalid length");
     s->bits_sent += (ulg)length;
 
-    /* If not enough room in bi_buf, use (valid) bits from bi_buf and
+    /* If yest eyesugh room in bi_buf, use (valid) bits from bi_buf and
      * (16 - bi_valid) bits from value, leaving (width - (16-bi_valid))
      * unused bits in value.
      */
@@ -259,7 +259,7 @@ static void tr_static_init(void)
         }
     }
     Assert (dist == 256, "tr_static_init: dist != 256");
-    dist >>= 7; /* from now on, all distances are divided by 128 */
+    dist >>= 7; /* from yesw on, all distances are divided by 128 */
     for ( ; code < D_CODES; code++) {
         base_dist[code] = dist << 7;
         for (n = 0; n < (1<<(extra_dbits[code]-7)); n++) {
@@ -275,8 +275,8 @@ static void tr_static_init(void)
     while (n <= 255) static_ltree[n++].Len = 9, bl_count[9]++;
     while (n <= 279) static_ltree[n++].Len = 7, bl_count[7]++;
     while (n <= 287) static_ltree[n++].Len = 8, bl_count[8]++;
-    /* Codes 286 and 287 do not exist, but we must include them in the
-     * tree construction to get a canonical Huffman tree (longest code
+    /* Codes 286 and 287 do yest exist, but we must include them in the
+     * tree construction to get a cayesnical Huffman tree (longest code
      * all ones)
      */
     gen_codes((ct_data *)static_ltree, L_CODES+1, bl_count);
@@ -311,7 +311,7 @@ void zlib_tr_init(
 
     s->bi_buf = 0;
     s->bi_valid = 0;
-    s->last_eob_len = 8; /* enough lookahead for inflate */
+    s->last_eob_len = 8; /* eyesugh lookahead for inflate */
 #ifdef DEBUG_ZLIB
     s->bits_sent = 0L;
 #endif
@@ -340,7 +340,7 @@ static void init_block(
 }
 
 #define SMALLEST 1
-/* Index within the heap array of least frequent node in the Huffman tree */
+/* Index within the heap array of least frequent yesde in the Huffman tree */
 
 
 /* ===========================================================================
@@ -363,15 +363,15 @@ static void init_block(
    (tree[n].Freq == tree[m].Freq && depth[n] <= depth[m]))
 
 /* ===========================================================================
- * Restore the heap property by moving down the tree starting at node k,
- * exchanging a node with the smallest of its two sons if necessary, stopping
+ * Restore the heap property by moving down the tree starting at yesde k,
+ * exchanging a yesde with the smallest of its two sons if necessary, stopping
  * when the heap property is re-established (each father smaller than its
  * two sons).
  */
 static void pqdownheap(
 	deflate_state *s,
 	ct_data *tree,  /* the tree to restore */
-	int k		/* node to move down */
+	int k		/* yesde to move down */
 )
 {
     int v = s->heap[k];
@@ -398,11 +398,11 @@ static void pqdownheap(
  * Compute the optimal bit lengths for a tree and update the total bit length
  * for the current block.
  * IN assertion: the fields freq and dad are set, heap[heap_max] and
- *    above are the tree nodes sorted by increasing frequency.
+ *    above are the tree yesdes sorted by increasing frequency.
  * OUT assertions: the field len is set to the optimal bit length, the
  *     array bl_count contains the frequencies for each bit length.
  *     The length opt_len is updated; static_len is also updated if stree is
- *     not null.
+ *     yest null.
  */
 static void gen_bitlen(
 	deflate_state *s,
@@ -434,9 +434,9 @@ static void gen_bitlen(
         bits = tree[tree[n].Dad].Len + 1;
         if (bits > max_length) bits = max_length, overflow++;
         tree[n].Len = (ush)bits;
-        /* We overwrite tree[n].Dad which is no longer needed */
+        /* We overwrite tree[n].Dad which is yes longer needed */
 
-        if (n > max_code) continue; /* not a leaf node */
+        if (n > max_code) continue; /* yest a leaf yesde */
 
         s->bl_count[bits]++;
         xbits = 0;
@@ -458,7 +458,7 @@ static void gen_bitlen(
         s->bl_count[bits+1] += 2; /* move one overflow item as its brother */
         s->bl_count[max_length]--;
         /* The brother of the overflow item also moves one step up,
-         * but this does not affect bl_count[max_length]
+         * but this does yest affect bl_count[max_length]
          */
         overflow -= 2;
     } while (overflow > 0);
@@ -485,16 +485,16 @@ static void gen_bitlen(
 }
 
 /* ===========================================================================
- * Generate the codes for a given tree and bit counts (which need not be
+ * Generate the codes for a given tree and bit counts (which need yest be
  * optimal).
  * IN assertion: the array bl_count contains the bit length statistics for
  * the given tree and the field len is set for all tree elements.
- * OUT assertion: the field code is set for all tree elements of non
+ * OUT assertion: the field code is set for all tree elements of yesn
  *     zero code length.
  */
 static void gen_codes(
 	ct_data *tree,             /* the tree to decorate */
-	int max_code,              /* largest code with non zero frequency */
+	int max_code,              /* largest code with yesn zero frequency */
 	ush *bl_count             /* number of codes at each bit length */
 )
 {
@@ -533,7 +533,7 @@ static void gen_codes(
  * IN assertion: the field freq is set for all tree elements.
  * OUT assertions: the fields len and code are set to the optimal bit length
  *     and corresponding code. The length opt_len is updated; static_len is
- *     also updated if stree is not null. The field max_code is set.
+ *     also updated if stree is yest null. The field max_code is set.
  */
 static void build_tree(
 	deflate_state *s,
@@ -544,12 +544,12 @@ static void build_tree(
     const ct_data *stree  = desc->stat_desc->static_tree;
     int elems             = desc->stat_desc->elems;
     int n, m;          /* iterate over heap elements */
-    int max_code = -1; /* largest code with non zero frequency */
-    int node;          /* new node being created */
+    int max_code = -1; /* largest code with yesn zero frequency */
+    int yesde;          /* new yesde being created */
 
     /* Construct the initial heap, with least frequent element in
      * heap[SMALLEST]. The sons of heap[n] are heap[2*n] and heap[2*n+1].
-     * heap[0] is not used.
+     * heap[0] is yest used.
      */
     s->heap_len = 0, s->heap_max = HEAP_SIZE;
 
@@ -565,14 +565,14 @@ static void build_tree(
     /* The pkzip format requires that at least one distance code exists,
      * and that at least one bit should be sent even if there is only one
      * possible code. So to avoid special checks later on we force at least
-     * two codes of non zero frequency.
+     * two codes of yesn zero frequency.
      */
     while (s->heap_len < 2) {
-        node = s->heap[++(s->heap_len)] = (max_code < 2 ? ++max_code : 0);
-        tree[node].Freq = 1;
-        s->depth[node] = 0;
-        s->opt_len--; if (stree) s->static_len -= stree[node].Len;
-        /* node is 0 or 1 so it does not have extra bits */
+        yesde = s->heap[++(s->heap_len)] = (max_code < 2 ? ++max_code : 0);
+        tree[yesde].Freq = 1;
+        s->depth[yesde] = 0;
+        s->opt_len--; if (stree) s->static_len -= stree[yesde].Len;
+        /* yesde is 0 or 1 so it does yest have extra bits */
     }
     desc->max_code = max_code;
 
@@ -582,40 +582,40 @@ static void build_tree(
     for (n = s->heap_len/2; n >= 1; n--) pqdownheap(s, tree, n);
 
     /* Construct the Huffman tree by repeatedly combining the least two
-     * frequent nodes.
+     * frequent yesdes.
      */
-    node = elems;              /* next internal node of the tree */
+    yesde = elems;              /* next internal yesde of the tree */
     do {
-        pqremove(s, tree, n);  /* n = node of least frequency */
-        m = s->heap[SMALLEST]; /* m = node of next least frequency */
+        pqremove(s, tree, n);  /* n = yesde of least frequency */
+        m = s->heap[SMALLEST]; /* m = yesde of next least frequency */
 
-        s->heap[--(s->heap_max)] = n; /* keep the nodes sorted by frequency */
+        s->heap[--(s->heap_max)] = n; /* keep the yesdes sorted by frequency */
         s->heap[--(s->heap_max)] = m;
 
-        /* Create a new node father of n and m */
-        tree[node].Freq = tree[n].Freq + tree[m].Freq;
-        s->depth[node] = (uch) (max(s->depth[n], s->depth[m]) + 1);
-        tree[n].Dad = tree[m].Dad = (ush)node;
+        /* Create a new yesde father of n and m */
+        tree[yesde].Freq = tree[n].Freq + tree[m].Freq;
+        s->depth[yesde] = (uch) (max(s->depth[n], s->depth[m]) + 1);
+        tree[n].Dad = tree[m].Dad = (ush)yesde;
 #ifdef DUMP_BL_TREE
         if (tree == s->bl_tree) {
-            fprintf(stderr,"\nnode %d(%d), sons %d(%d) %d(%d)",
-                    node, tree[node].Freq, n, tree[n].Freq, m, tree[m].Freq);
+            fprintf(stderr,"\nyesde %d(%d), sons %d(%d) %d(%d)",
+                    yesde, tree[yesde].Freq, n, tree[n].Freq, m, tree[m].Freq);
         }
 #endif
-        /* and insert the new node in the heap */
-        s->heap[SMALLEST] = node++;
+        /* and insert the new yesde in the heap */
+        s->heap[SMALLEST] = yesde++;
         pqdownheap(s, tree, SMALLEST);
 
     } while (s->heap_len >= 2);
 
     s->heap[--(s->heap_max)] = s->heap[SMALLEST];
 
-    /* At this point, the fields freq and dad are set. We can now
+    /* At this point, the fields freq and dad are set. We can yesw
      * generate the bit lengths.
      */
     gen_bitlen(s, (tree_desc *)desc);
 
-    /* The field len is now set, we can generate the bit codes */
+    /* The field len is yesw set, we can generate the bit codes */
     gen_codes ((ct_data *)tree, max_code, s->bl_count);
 }
 
@@ -626,7 +626,7 @@ static void build_tree(
 static void scan_tree(
 	deflate_state *s,
 	ct_data *tree,   /* the tree to be scanned */
-	int max_code     /* and its largest code of non zero frequency */
+	int max_code     /* and its largest code of yesn zero frequency */
 )
 {
     int n;                     /* iterates over all tree elements */
@@ -672,7 +672,7 @@ static void scan_tree(
 static void send_tree(
 	deflate_state *s,
 	ct_data *tree, /* the tree to be scanned */
-	int max_code   /* and its largest code of non zero frequency */
+	int max_code   /* and its largest code of yesn zero frequency */
 )
 {
     int n;                     /* iterates over all tree elements */
@@ -725,7 +725,7 @@ static int build_bl_tree(
 	deflate_state *s
 )
 {
-    int max_blindex;  /* index of last bit length code of non zero freq */
+    int max_blindex;  /* index of last bit length code of yesn zero freq */
 
     /* Determine the bit length frequencies for literal and distance trees */
     scan_tree(s, (ct_data *)s->dyn_ltree, s->l_desc.max_code);
@@ -733,12 +733,12 @@ static int build_bl_tree(
 
     /* Build the bit length tree: */
     build_tree(s, (tree_desc *)(&(s->bl_desc)));
-    /* opt_len now includes the length of the tree representations, except
+    /* opt_len yesw includes the length of the tree representations, except
      * the lengths of the bit lengths codes and the 5+5+4 bits for the counts.
      */
 
     /* Determine the number of bit length codes to send. The pkzip format
-     * requires that at least 4 bit length codes be sent. (appnote.txt says
+     * requires that at least 4 bit length codes be sent. (appyeste.txt says
      * 3 but the actual value used is 4.)
      */
     for (max_blindex = BL_CODES-1; max_blindex >= 3; max_blindex--) {
@@ -766,13 +766,13 @@ static void send_all_trees(
 {
     int rank;                    /* index in bl_order */
 
-    Assert (lcodes >= 257 && dcodes >= 1 && blcodes >= 4, "not enough codes");
+    Assert (lcodes >= 257 && dcodes >= 1 && blcodes >= 4, "yest eyesugh codes");
     Assert (lcodes <= L_CODES && dcodes <= D_CODES && blcodes <= BL_CODES,
             "too many codes");
     Tracev((stderr, "\nbl counts: "));
-    send_bits(s, lcodes-257, 5); /* not +255 as stated in appnote.txt */
+    send_bits(s, lcodes-257, 5); /* yest +255 as stated in appyeste.txt */
     send_bits(s, dcodes-1,   5);
-    send_bits(s, blcodes-4,  4); /* not -3 as stated in appnote.txt */
+    send_bits(s, blcodes-4,  4); /* yest -3 as stated in appyeste.txt */
     for (rank = 0; rank < blcodes; rank++) {
         Tracev((stderr, "\nbl code %2d ", bl_order[rank]));
         send_bits(s, s->bl_tree[bl_order[rank]].Len, 3);
@@ -816,13 +816,13 @@ void zlib_tr_stored_type_only(
 
 
 /* ===========================================================================
- * Send one empty static block to give enough lookahead for inflate.
+ * Send one empty static block to give eyesugh lookahead for inflate.
  * This takes 10 bits, of which 7 may remain in the bit buffer.
  * The current inflate code requires 9 bits of lookahead. If the
  * last two codes for the previous block (real code plus EOB) were coded
  * on 5 bits or less, inflate may have only 5+3 bits of lookahead to decode
  * the last real code. In this case we send two empty static blocks instead
- * of one. (There are no problems if the previous block is stored or fixed.)
+ * of one. (There are yes problems if the previous block is stored or fixed.)
  * To simplify the code, we assume the worst case of last real code encoded
  * on one bit only.
  */
@@ -861,7 +861,7 @@ ulg zlib_tr_flush_block(
 )
 {
     ulg opt_lenb, static_lenb; /* opt_len and static_len in bytes */
-    int max_blindex = 0;  /* index of last bit length code of non zero freq */
+    int max_blindex = 0;  /* index of last bit length code of yesn zero freq */
 
     /* Build the Huffman trees unless a stored block is forced */
     if (s->level > 0) {
@@ -890,7 +890,7 @@ ulg zlib_tr_flush_block(
 	opt_lenb = (s->opt_len+3+7)>>3;
 	static_lenb = (s->static_len+3+7)>>3;
 
-	Tracev((stderr, "\nopt %lu(%lu) stat %lu(%lu) stored %lu lit %u ",
+	Tracev((stderr, "\yespt %lu(%lu) stat %lu(%lu) stored %lu lit %u ",
 		opt_lenb, s->opt_len, static_lenb, s->static_len, stored_len,
 		s->last_lit));
 
@@ -1042,7 +1042,7 @@ static void compress_block(
                 lc -= base_length[code];
                 send_bits(s, lc, extra);       /* send the extra length bits */
             }
-            dist--; /* dist is now the match distance - 1 */
+            dist--; /* dist is yesw the match distance - 1 */
             code = d_code(dist);
             Assert (code < D_CODES, "bad d_code");
 
@@ -1067,7 +1067,7 @@ static void compress_block(
  * Set the data type to ASCII or BINARY, using a crude approximation:
  * binary if more than 20% of the bytes are <= 6 or >= 128, ascii otherwise.
  * IN assertion: the fields freq of dyn_ltree are set and the total of all
- * frequencies does not exceed 64K (to fit in an int on 16 bit machines).
+ * frequencies does yest exceed 64K (to fit in an int on 16 bit machines).
  */
 static void set_data_type(
 	deflate_state *s
@@ -1094,7 +1094,7 @@ static void copy_block(
 )
 {
     bi_windup(s);        /* align on byte boundary */
-    s->last_eob_len = 8; /* enough lookahead for inflate */
+    s->last_eob_len = 8; /* eyesugh lookahead for inflate */
 
     if (header) {
         put_short(s, (ush)len);   

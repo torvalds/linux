@@ -929,7 +929,7 @@ static void cs42l52_beep_work(struct work_struct *work)
 }
 
 /* For usability define a way of injecting beep events for the device -
- * many systems will not have a keyboard.
+ * many systems will yest have a keyboard.
  */
 static int cs42l52_beep_event(struct input_dev *dev, unsigned int type,
 			     unsigned int code, int hz)
@@ -1058,7 +1058,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs42l52 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 /* Current and threshold powerup sequence Pg37 */
@@ -1114,25 +1114,25 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 		if (!pdata)
 			return -ENOMEM;
 
-		if (i2c_client->dev.of_node) {
-			if (of_property_read_bool(i2c_client->dev.of_node,
+		if (i2c_client->dev.of_yesde) {
+			if (of_property_read_bool(i2c_client->dev.of_yesde,
 				"cirrus,mica-differential-cfg"))
 				pdata->mica_diff_cfg = true;
 
-			if (of_property_read_bool(i2c_client->dev.of_node,
+			if (of_property_read_bool(i2c_client->dev.of_yesde,
 				"cirrus,micb-differential-cfg"))
 				pdata->micb_diff_cfg = true;
 
-			if (of_property_read_u32(i2c_client->dev.of_node,
+			if (of_property_read_u32(i2c_client->dev.of_yesde,
 				"cirrus,micbias-lvl", &val32) >= 0)
 				pdata->micbias_lvl = val32;
 
-			if (of_property_read_u32(i2c_client->dev.of_node,
+			if (of_property_read_u32(i2c_client->dev.of_yesde,
 				"cirrus,chgfreq-divisor", &val32) >= 0)
 				pdata->chgfreq = val32;
 
 			pdata->reset_gpio =
-				of_get_named_gpio(i2c_client->dev.of_node,
+				of_get_named_gpio(i2c_client->dev.of_yesde,
 						"cirrus,reset-gpio", 0);
 		}
 		cs42l52->pdata = *pdata;

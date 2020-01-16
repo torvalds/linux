@@ -36,8 +36,8 @@ struct s5c73m3_gpio {
  * @gpio_reset:  GPIO driving RESET pin
  * @gpio_stby:   GPIO driving STBY pin
  * @nlanes:      maximum number of MIPI-CSI lanes used
- * @horiz_flip:  default horizontal image flip value, non zero to enable
- * @vert_flip:   default vertical image flip value, non zero to enable
+ * @horiz_flip:  default horizontal image flip value, yesn zero to enable
+ * @vert_flip:   default vertical image flip value, yesn zero to enable
  */
 
 struct s5c73m3_platform_data {

@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if yest, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/gpio.h>
@@ -169,7 +169,7 @@ static struct platform_device *osk5912_devices[] __initdata = {
 
 static const struct gpio_led tps_leds[] = {
 	/* NOTE:  D9 and D2 have hardware blink support.
-	 * Also, D9 requires non-battery power.
+	 * Also, D9 requires yesn-battery power.
 	 */
 	{ .gpio = OSK_TPS_GPIO_LED_D9, .name = "d9",
 			.default_trigger = "disk-activity", },
@@ -425,7 +425,7 @@ static int mistral_get_pendown_state(void)
 
 static const struct ads7846_platform_data mistral_ts_info = {
 	.model			= 7846,
-	.vref_delay_usecs	= 100,	/* internal, no capacitor */
+	.vref_delay_usecs	= 100,	/* internal, yes capacitor */
 	.x_plate_ohms		= 419,
 	.y_plate_ohms		= 486,
 	.get_pendown_state	= mistral_get_pendown_state,
@@ -442,7 +442,7 @@ static struct spi_board_info __initdata mistral_boardinfo[] = { {
 } };
 
 static irqreturn_t
-osk_mistral_wake_interrupt(int irq, void *ignored)
+osk_mistral_wake_interrupt(int irq, void *igyesred)
 {
 	return IRQ_HANDLED;
 }
@@ -522,7 +522,7 @@ static void __init osk_mistral_init(void)
 				&osk_mistral_wake_interrupt);
 		if (ret != 0) {
 			gpio_free(OMAP_MPUIO(2));
-			printk(KERN_ERR "OSK+Mistral: no wakeup irq, %d?\n",
+			printk(KERN_ERR "OSK+Mistral: yes wakeup irq, %d?\n",
 				ret);
 		} else
 			enable_irq_wake(irq);

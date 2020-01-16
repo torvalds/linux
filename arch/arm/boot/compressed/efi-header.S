@@ -8,9 +8,9 @@
 #include <linux/pe.h>
 #include <linux/sizes.h>
 
-		.macro	__nop
+		.macro	__yesp
 #ifdef CONFIG_EFI_STUB
-		@ This is almost but not quite a NOP, since it does clobber the
+		@ This is almost but yest quite a NOP, since it does clobber the
 		@ condition flags. But it is the best we can do for EFI, since
 		@ PE/COFF expects the magic string "MZ" at offset 0, while the
 		@ ARM/Linux boot protocol expects an executable instruction
@@ -18,7 +18,7 @@
 		.inst	MZ_MAGIC | (0x1310 << 16)	@ tstne r0, #0x4d000
 #else
  AR_CLASS(	mov	r0, r0		)
-  M_CLASS(	nop.w			)
+  M_CLASS(	yesp.w			)
 #endif
 		.endm
 
@@ -56,7 +56,7 @@ coff_header:
 optional_header:
 		.short	PE_OPT_MAGIC_PE32		@ PE32 format
 		.byte	0x02				@ MajorLinkerVersion
-		.byte	0x14				@ MinorLinkerVersion
+		.byte	0x14				@ MiyesrLinkerVersion
 		.long	__pecoff_code_size		@ SizeOfCode
 		.long	__pecoff_data_size		@ SizeOfInitializedData
 		.long	0				@ SizeOfUninitializedData
@@ -69,11 +69,11 @@ extra_header_fields:
 		.long	SZ_4K				@ SectionAlignment
 		.long	SZ_512				@ FileAlignment
 		.short	0				@ MajorOsVersion
-		.short	0				@ MinorOsVersion
+		.short	0				@ MiyesrOsVersion
 		.short	0				@ MajorImageVersion
-		.short	0				@ MinorImageVersion
+		.short	0				@ MiyesrImageVersion
 		.short	0				@ MajorSubsystemVersion
-		.short	0				@ MinorSubsystemVersion
+		.short	0				@ MiyesrSubsystemVersion
 		.long	0				@ Win32VersionValue
 
 		.long	__pecoff_end - start		@ SizeOfImage

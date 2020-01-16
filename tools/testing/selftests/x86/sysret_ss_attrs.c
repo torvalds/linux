@@ -86,9 +86,9 @@ int main()
 
 #ifdef __x86_64__
 		/*
-		 * On 32-bit, just doing a syscall through glibc is enough
+		 * On 32-bit, just doing a syscall through glibc is eyesugh
 		 * to cause a crash if our cached SS descriptor is invalid.
-		 * On 64-bit, it's not, so try extra hard.
+		 * On 64-bit, it's yest, so try extra hard.
 		 */
 		call32_from_64(stack32 + 4088, test_ss);
 #endif

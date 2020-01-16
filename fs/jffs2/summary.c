@@ -20,7 +20,7 @@
 #include <linux/crc32.h>
 #include <linux/compiler.h>
 #include <linux/vmalloc.h>
-#include "nodelist.h"
+#include "yesdelist.h"
 #include "debug.h"
 
 int jffs2_sum_init(struct jffs2_sb_info *c)
@@ -68,18 +68,18 @@ static int jffs2_sum_add_mem(struct jffs2_summary *s, union jffs2_sum_mem *item)
 		s->sum_list_tail->u.next = (union jffs2_sum_mem *) item;
 	s->sum_list_tail = (union jffs2_sum_mem *) item;
 
-	switch (je16_to_cpu(item->u.nodetype)) {
+	switch (je16_to_cpu(item->u.yesdetype)) {
 		case JFFS2_NODETYPE_INODE:
 			s->sum_size += JFFS2_SUMMARY_INODE_SIZE;
 			s->sum_num++;
-			dbg_summary("inode (%u) added to summary\n",
-						je32_to_cpu(item->i.inode));
+			dbg_summary("iyesde (%u) added to summary\n",
+						je32_to_cpu(item->i.iyesde));
 			break;
 		case JFFS2_NODETYPE_DIRENT:
 			s->sum_size += JFFS2_SUMMARY_DIRENT_SIZE(item->d.nsize);
 			s->sum_num++;
 			dbg_summary("dirent (%u) added to summary\n",
-						je32_to_cpu(item->d.ino));
+						je32_to_cpu(item->d.iyes));
 			break;
 #ifdef CONFIG_JFFS2_FS_XATTR
 		case JFFS2_NODETYPE_XATTR:
@@ -95,15 +95,15 @@ static int jffs2_sum_add_mem(struct jffs2_summary *s, union jffs2_sum_mem *item)
 			break;
 #endif
 		default:
-			JFFS2_WARNING("UNKNOWN node type %u\n",
-					    je16_to_cpu(item->u.nodetype));
+			JFFS2_WARNING("UNKNOWN yesde type %u\n",
+					    je16_to_cpu(item->u.yesdetype));
 			return 1;
 	}
 	return 0;
 }
 
 
-/* The following 3 functions are called from scan.c to collect summary info for not closed jeb */
+/* The following 3 functions are called from scan.c to collect summary info for yest closed jeb */
 
 int jffs2_sum_add_padding_mem(struct jffs2_summary *s, uint32_t size)
 {
@@ -112,16 +112,16 @@ int jffs2_sum_add_padding_mem(struct jffs2_summary *s, uint32_t size)
 	return 0;
 }
 
-int jffs2_sum_add_inode_mem(struct jffs2_summary *s, struct jffs2_raw_inode *ri,
+int jffs2_sum_add_iyesde_mem(struct jffs2_summary *s, struct jffs2_raw_iyesde *ri,
 				uint32_t ofs)
 {
-	struct jffs2_sum_inode_mem *temp = kmalloc(sizeof(struct jffs2_sum_inode_mem), GFP_KERNEL);
+	struct jffs2_sum_iyesde_mem *temp = kmalloc(sizeof(struct jffs2_sum_iyesde_mem), GFP_KERNEL);
 
 	if (!temp)
 		return -ENOMEM;
 
-	temp->nodetype = ri->nodetype;
-	temp->inode = ri->ino;
+	temp->yesdetype = ri->yesdetype;
+	temp->iyesde = ri->iyes;
 	temp->version = ri->version;
 	temp->offset = cpu_to_je32(ofs); /* relative offset from the beginning of the jeb */
 	temp->totlen = ri->totlen;
@@ -139,12 +139,12 @@ int jffs2_sum_add_dirent_mem(struct jffs2_summary *s, struct jffs2_raw_dirent *r
 	if (!temp)
 		return -ENOMEM;
 
-	temp->nodetype = rd->nodetype;
+	temp->yesdetype = rd->yesdetype;
 	temp->totlen = rd->totlen;
 	temp->offset = cpu_to_je32(ofs);	/* relative from the beginning of the jeb */
-	temp->pino = rd->pino;
+	temp->piyes = rd->piyes;
 	temp->version = rd->version;
-	temp->ino = rd->ino;
+	temp->iyes = rd->iyes;
 	temp->nsize = rd->nsize;
 	temp->type = rd->type;
 	temp->next = NULL;
@@ -163,7 +163,7 @@ int jffs2_sum_add_xattr_mem(struct jffs2_summary *s, struct jffs2_raw_xattr *rx,
 	if (!temp)
 		return -ENOMEM;
 
-	temp->nodetype = rx->nodetype;
+	temp->yesdetype = rx->yesdetype;
 	temp->xid = rx->xid;
 	temp->version = rx->version;
 	temp->offset = cpu_to_je32(ofs);
@@ -181,7 +181,7 @@ int jffs2_sum_add_xref_mem(struct jffs2_summary *s, struct jffs2_raw_xref *rr, u
 	if (!temp)
 		return -ENOMEM;
 
-	temp->nodetype = rr->nodetype;
+	temp->yesdetype = rr->yesdetype;
 	temp->offset = cpu_to_je32(ofs);
 	temp->next = NULL;
 
@@ -243,12 +243,12 @@ void jffs2_sum_move_collected(struct jffs2_sb_info *c, struct jffs2_summary *s)
 	s->sum_list_head = s->sum_list_tail = NULL;
 }
 
-/* Called from wbuf.c to collect writed node info */
+/* Called from wbuf.c to collect writed yesde info */
 
 int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 				unsigned long count, uint32_t ofs)
 {
-	union jffs2_node_union *node;
+	union jffs2_yesde_union *yesde;
 	struct jffs2_eraseblock *jeb;
 
 	if (c->summary->sum_size == JFFS2_SUMMARY_NOSUM_SIZE) {
@@ -256,23 +256,23 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 		return 0;
 	}
 
-	node = invecs[0].iov_base;
+	yesde = invecs[0].iov_base;
 	jeb = &c->blocks[ofs / c->sector_size];
 	ofs -= jeb->offset;
 
-	switch (je16_to_cpu(node->u.nodetype)) {
+	switch (je16_to_cpu(yesde->u.yesdetype)) {
 		case JFFS2_NODETYPE_INODE: {
-			struct jffs2_sum_inode_mem *temp =
-				kmalloc(sizeof(struct jffs2_sum_inode_mem), GFP_KERNEL);
+			struct jffs2_sum_iyesde_mem *temp =
+				kmalloc(sizeof(struct jffs2_sum_iyesde_mem), GFP_KERNEL);
 
 			if (!temp)
-				goto no_mem;
+				goto yes_mem;
 
-			temp->nodetype = node->i.nodetype;
-			temp->inode = node->i.ino;
-			temp->version = node->i.version;
+			temp->yesdetype = yesde->i.yesdetype;
+			temp->iyesde = yesde->i.iyes;
+			temp->version = yesde->i.version;
 			temp->offset = cpu_to_je32(ofs);
-			temp->totlen = node->i.totlen;
+			temp->totlen = yesde->i.totlen;
 			temp->next = NULL;
 
 			return jffs2_sum_add_mem(c->summary, (union jffs2_sum_mem *)temp);
@@ -280,28 +280,28 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 
 		case JFFS2_NODETYPE_DIRENT: {
 			struct jffs2_sum_dirent_mem *temp =
-				kmalloc(sizeof(struct jffs2_sum_dirent_mem) + node->d.nsize, GFP_KERNEL);
+				kmalloc(sizeof(struct jffs2_sum_dirent_mem) + yesde->d.nsize, GFP_KERNEL);
 
 			if (!temp)
-				goto no_mem;
+				goto yes_mem;
 
-			temp->nodetype = node->d.nodetype;
-			temp->totlen = node->d.totlen;
+			temp->yesdetype = yesde->d.yesdetype;
+			temp->totlen = yesde->d.totlen;
 			temp->offset = cpu_to_je32(ofs);
-			temp->pino = node->d.pino;
-			temp->version = node->d.version;
-			temp->ino = node->d.ino;
-			temp->nsize = node->d.nsize;
-			temp->type = node->d.type;
+			temp->piyes = yesde->d.piyes;
+			temp->version = yesde->d.version;
+			temp->iyes = yesde->d.iyes;
+			temp->nsize = yesde->d.nsize;
+			temp->type = yesde->d.type;
 			temp->next = NULL;
 
 			switch (count) {
 				case 1:
-					memcpy(temp->name,node->d.name,node->d.nsize);
+					memcpy(temp->name,yesde->d.name,yesde->d.nsize);
 					break;
 
 				case 2:
-					memcpy(temp->name,invecs[1].iov_base,node->d.nsize);
+					memcpy(temp->name,invecs[1].iov_base,yesde->d.nsize);
 					break;
 
 				default:
@@ -316,12 +316,12 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 			struct jffs2_sum_xattr_mem *temp;
 			temp = kmalloc(sizeof(struct jffs2_sum_xattr_mem), GFP_KERNEL);
 			if (!temp)
-				goto no_mem;
+				goto yes_mem;
 
-			temp->nodetype = node->x.nodetype;
-			temp->xid = node->x.xid;
-			temp->version = node->x.version;
-			temp->totlen = node->x.totlen;
+			temp->yesdetype = yesde->x.yesdetype;
+			temp->xid = yesde->x.xid;
+			temp->version = yesde->x.version;
+			temp->totlen = yesde->x.totlen;
 			temp->offset = cpu_to_je32(ofs);
 			temp->next = NULL;
 
@@ -331,8 +331,8 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 			struct jffs2_sum_xref_mem *temp;
 			temp = kmalloc(sizeof(struct jffs2_sum_xref_mem), GFP_KERNEL);
 			if (!temp)
-				goto no_mem;
-			temp->nodetype = node->r.nodetype;
+				goto yes_mem;
+			temp->yesdetype = yesde->r.yesdetype;
 			temp->offset = cpu_to_je32(ofs);
 			temp->next = NULL;
 
@@ -340,20 +340,20 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 		}
 #endif
 		case JFFS2_NODETYPE_PADDING:
-			dbg_summary("node PADDING\n");
-			c->summary->sum_padded += je32_to_cpu(node->u.totlen);
+			dbg_summary("yesde PADDING\n");
+			c->summary->sum_padded += je32_to_cpu(yesde->u.totlen);
 			break;
 
 		case JFFS2_NODETYPE_CLEANMARKER:
-			dbg_summary("node CLEANMARKER\n");
+			dbg_summary("yesde CLEANMARKER\n");
 			break;
 
 		case JFFS2_NODETYPE_SUMMARY:
-			dbg_summary("node SUMMARY\n");
+			dbg_summary("yesde SUMMARY\n");
 			break;
 
 		default:
-			/* If you implement a new node type you should also implement
+			/* If you implement a new yesde type you should also implement
 			   summary support for it or disable summary.
 			*/
 			BUG();
@@ -362,15 +362,15 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 
 	return 0;
 
-no_mem:
+yes_mem:
 	JFFS2_WARNING("MEMORY ALLOCATION ERROR!");
 	return -ENOMEM;
 }
 
-static struct jffs2_raw_node_ref *sum_link_node_ref(struct jffs2_sb_info *c,
+static struct jffs2_raw_yesde_ref *sum_link_yesde_ref(struct jffs2_sb_info *c,
 						    struct jffs2_eraseblock *jeb,
 						    uint32_t ofs, uint32_t len,
-						    struct jffs2_inode_cache *ic)
+						    struct jffs2_iyesde_cache *ic)
 {
 	/* If there was a gap, mark it dirty */
 	if ((ofs & ~3) > c->sector_size - jeb->free_size) {
@@ -378,18 +378,18 @@ static struct jffs2_raw_node_ref *sum_link_node_ref(struct jffs2_sb_info *c,
 		jffs2_scan_dirty_space(c, jeb, (ofs & ~3) - (c->sector_size - jeb->free_size));
 	}
 
-	return jffs2_link_node_ref(c, jeb, jeb->offset + ofs, len, ic);
+	return jffs2_link_yesde_ref(c, jeb, jeb->offset + ofs, len, ic);
 }
 
-/* Process the stored summary information - helper function for jffs2_sum_scan_sumnode() */
+/* Process the stored summary information - helper function for jffs2_sum_scan_sumyesde() */
 
 static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
 				struct jffs2_raw_summary *summary, uint32_t *pseudo_random)
 {
-	struct jffs2_inode_cache *ic;
+	struct jffs2_iyesde_cache *ic;
 	struct jffs2_full_dirent *fd;
 	void *sp;
-	int i, ino;
+	int i, iyes;
 	int err;
 
 	sp = summary->sum;
@@ -400,28 +400,28 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 		cond_resched();
 
 		/* Make sure there's a spare ref for dirty space */
-		err = jffs2_prealloc_raw_node_refs(c, jeb, 2);
+		err = jffs2_prealloc_raw_yesde_refs(c, jeb, 2);
 		if (err)
 			return err;
 
-		switch (je16_to_cpu(((struct jffs2_sum_unknown_flash *)sp)->nodetype)) {
+		switch (je16_to_cpu(((struct jffs2_sum_unkyeswn_flash *)sp)->yesdetype)) {
 			case JFFS2_NODETYPE_INODE: {
-				struct jffs2_sum_inode_flash *spi;
+				struct jffs2_sum_iyesde_flash *spi;
 				spi = sp;
 
-				ino = je32_to_cpu(spi->inode);
+				iyes = je32_to_cpu(spi->iyesde);
 
-				dbg_summary("Inode at 0x%08x-0x%08x\n",
+				dbg_summary("Iyesde at 0x%08x-0x%08x\n",
 					    jeb->offset + je32_to_cpu(spi->offset),
 					    jeb->offset + je32_to_cpu(spi->offset) + je32_to_cpu(spi->totlen));
 
-				ic = jffs2_scan_make_ino_cache(c, ino);
+				ic = jffs2_scan_make_iyes_cache(c, iyes);
 				if (!ic) {
-					JFFS2_NOTICE("scan_make_ino_cache failed\n");
+					JFFS2_NOTICE("scan_make_iyes_cache failed\n");
 					return -ENOMEM;
 				}
 
-				sum_link_node_ref(c, jeb, je32_to_cpu(spi->offset) | REF_UNCHECKED,
+				sum_link_yesde_ref(c, jeb, je32_to_cpu(spi->offset) | REF_UNCHECKED,
 						  PAD(je32_to_cpu(spi->totlen)), ic);
 
 				*pseudo_random += je32_to_cpu(spi->version);
@@ -464,18 +464,18 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				memcpy(&fd->name, spd->name, checkedlen);
 				fd->name[checkedlen] = 0;
 
-				ic = jffs2_scan_make_ino_cache(c, je32_to_cpu(spd->pino));
+				ic = jffs2_scan_make_iyes_cache(c, je32_to_cpu(spd->piyes));
 				if (!ic) {
 					jffs2_free_full_dirent(fd);
 					return -ENOMEM;
 				}
 
-				fd->raw = sum_link_node_ref(c, jeb,  je32_to_cpu(spd->offset) | REF_UNCHECKED,
+				fd->raw = sum_link_yesde_ref(c, jeb,  je32_to_cpu(spd->offset) | REF_UNCHECKED,
 							    PAD(je32_to_cpu(spd->totlen)), ic);
 
 				fd->next = NULL;
 				fd->version = je32_to_cpu(spd->version);
-				fd->ino = je32_to_cpu(spd->ino);
+				fd->iyes = je32_to_cpu(spd->iyes);
 				fd->nhash = full_name_hash(NULL, fd->name, checkedlen);
 				fd->type = spd->type;
 
@@ -503,15 +503,15 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				if (IS_ERR(xd))
 					return PTR_ERR(xd);
 				if (xd->version > je32_to_cpu(spx->version)) {
-					/* node is not the newest one */
-					struct jffs2_raw_node_ref *raw
-						= sum_link_node_ref(c, jeb, je32_to_cpu(spx->offset) | REF_UNCHECKED,
+					/* yesde is yest the newest one */
+					struct jffs2_raw_yesde_ref *raw
+						= sum_link_yesde_ref(c, jeb, je32_to_cpu(spx->offset) | REF_UNCHECKED,
 								    PAD(je32_to_cpu(spx->totlen)), NULL);
-					raw->next_in_ino = xd->node->next_in_ino;
-					xd->node->next_in_ino = raw;
+					raw->next_in_iyes = xd->yesde->next_in_iyes;
+					xd->yesde->next_in_iyes = raw;
 				} else {
 					xd->version = je32_to_cpu(spx->version);
-					sum_link_node_ref(c, jeb, je32_to_cpu(spx->offset) | REF_UNCHECKED,
+					sum_link_yesde_ref(c, jeb, je32_to_cpu(spx->offset) | REF_UNCHECKED,
 							  PAD(je32_to_cpu(spx->totlen)), (void *)xd);
 				}
 				*pseudo_random += je32_to_cpu(spx->xid);
@@ -537,22 +537,22 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				ref->next = c->xref_temp;
 				c->xref_temp = ref;
 
-				sum_link_node_ref(c, jeb, je32_to_cpu(spr->offset) | REF_UNCHECKED,
+				sum_link_yesde_ref(c, jeb, je32_to_cpu(spr->offset) | REF_UNCHECKED,
 						  PAD(sizeof(struct jffs2_raw_xref)), (void *)ref);
 
-				*pseudo_random += ref->node->flash_offset;
+				*pseudo_random += ref->yesde->flash_offset;
 				sp += JFFS2_SUMMARY_XREF_SIZE;
 
 				break;
 			}
 #endif
 			default : {
-				uint16_t nodetype = je16_to_cpu(((struct jffs2_sum_unknown_flash *)sp)->nodetype);
-				JFFS2_WARNING("Unsupported node type %x found in summary! Exiting...\n", nodetype);
-				if ((nodetype & JFFS2_COMPAT_MASK) == JFFS2_FEATURE_INCOMPAT)
+				uint16_t yesdetype = je16_to_cpu(((struct jffs2_sum_unkyeswn_flash *)sp)->yesdetype);
+				JFFS2_WARNING("Unsupported yesde type %x found in summary! Exiting...\n", yesdetype);
+				if ((yesdetype & JFFS2_COMPAT_MASK) == JFFS2_FEATURE_INCOMPAT)
 					return -EIO;
 
-				/* For compatible node types, just fall back to the full scan */
+				/* For compatible yesde types, just fall back to the full scan */
 				c->wasted_size -= jeb->wasted_size;
 				c->free_size += c->sector_size - jeb->free_size;
 				c->used_size -= jeb->used_size;
@@ -560,7 +560,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				jeb->wasted_size = jeb->used_size = jeb->dirty_size = 0;
 				jeb->free_size = c->sector_size;
 
-				jffs2_free_jeb_node_refs(c, jeb);
+				jffs2_free_jeb_yesde_refs(c, jeb);
 				return -ENOTRECOVERABLE;
 			}
 		}
@@ -568,12 +568,12 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 	return 0;
 }
 
-/* Process the summary node - called from jffs2_scan_eraseblock() */
-int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
+/* Process the summary yesde - called from jffs2_scan_eraseblock() */
+int jffs2_sum_scan_sumyesde(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
 			   struct jffs2_raw_summary *summary, uint32_t sumsize,
 			   uint32_t *pseudo_random)
 {
-	struct jffs2_unknown_node crcnode;
+	struct jffs2_unkyeswn_yesde crcyesde;
 	int ret, ofs;
 	uint32_t crc;
 
@@ -582,57 +582,57 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 	dbg_summary("summary found for 0x%08x at 0x%08x (0x%x bytes)\n",
 		    jeb->offset, jeb->offset + ofs, sumsize);
 
-	/* OK, now check for node validity and CRC */
-	crcnode.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
-	crcnode.nodetype = cpu_to_je16(JFFS2_NODETYPE_SUMMARY);
-	crcnode.totlen = summary->totlen;
-	crc = crc32(0, &crcnode, sizeof(crcnode)-4);
+	/* OK, yesw check for yesde validity and CRC */
+	crcyesde.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
+	crcyesde.yesdetype = cpu_to_je16(JFFS2_NODETYPE_SUMMARY);
+	crcyesde.totlen = summary->totlen;
+	crc = crc32(0, &crcyesde, sizeof(crcyesde)-4);
 
 	if (je32_to_cpu(summary->hdr_crc) != crc) {
-		dbg_summary("Summary node header is corrupt (bad CRC or "
-				"no summary at all)\n");
+		dbg_summary("Summary yesde header is corrupt (bad CRC or "
+				"yes summary at all)\n");
 		goto crc_err;
 	}
 
 	if (je32_to_cpu(summary->totlen) != sumsize) {
-		dbg_summary("Summary node is corrupt (wrong erasesize?)\n");
+		dbg_summary("Summary yesde is corrupt (wrong erasesize?)\n");
 		goto crc_err;
 	}
 
 	crc = crc32(0, summary, sizeof(struct jffs2_raw_summary)-8);
 
-	if (je32_to_cpu(summary->node_crc) != crc) {
-		dbg_summary("Summary node is corrupt (bad CRC)\n");
+	if (je32_to_cpu(summary->yesde_crc) != crc) {
+		dbg_summary("Summary yesde is corrupt (bad CRC)\n");
 		goto crc_err;
 	}
 
 	crc = crc32(0, summary->sum, sumsize - sizeof(struct jffs2_raw_summary));
 
 	if (je32_to_cpu(summary->sum_crc) != crc) {
-		dbg_summary("Summary node data is corrupt (bad CRC)\n");
+		dbg_summary("Summary yesde data is corrupt (bad CRC)\n");
 		goto crc_err;
 	}
 
 	if ( je32_to_cpu(summary->cln_mkr) ) {
 
-		dbg_summary("Summary : CLEANMARKER node \n");
+		dbg_summary("Summary : CLEANMARKER yesde \n");
 
-		ret = jffs2_prealloc_raw_node_refs(c, jeb, 1);
+		ret = jffs2_prealloc_raw_yesde_refs(c, jeb, 1);
 		if (ret)
 			return ret;
 
 		if (je32_to_cpu(summary->cln_mkr) != c->cleanmarker_size) {
-			dbg_summary("CLEANMARKER node has totlen 0x%x != normal 0x%x\n",
+			dbg_summary("CLEANMARKER yesde has totlen 0x%x != yesrmal 0x%x\n",
 				je32_to_cpu(summary->cln_mkr), c->cleanmarker_size);
 			if ((ret = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(summary->cln_mkr)))))
 				return ret;
-		} else if (jeb->first_node) {
-			dbg_summary("CLEANMARKER node not first node in block "
+		} else if (jeb->first_yesde) {
+			dbg_summary("CLEANMARKER yesde yest first yesde in block "
 					"(0x%08x)\n", jeb->offset);
 			if ((ret = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(summary->cln_mkr)))))
 				return ret;
 		} else {
-			jffs2_link_node_ref(c, jeb, jeb->offset | REF_NORMAL,
+			jffs2_link_yesde_ref(c, jeb, jeb->offset | REF_NORMAL,
 					    je32_to_cpu(summary->cln_mkr), NULL);
 		}
 	}
@@ -646,11 +646,11 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 		return ret;		/* real error */
 
 	/* for PARANOIA_CHECK */
-	ret = jffs2_prealloc_raw_node_refs(c, jeb, 2);
+	ret = jffs2_prealloc_raw_yesde_refs(c, jeb, 2);
 	if (ret)
 		return ret;
 
-	sum_link_node_ref(c, jeb, ofs | REF_NORMAL, sumsize, NULL);
+	sum_link_yesde_ref(c, jeb, ofs | REF_NORMAL, sumsize, NULL);
 
 	if (unlikely(jeb->free_size)) {
 		JFFS2_WARNING("Free size 0x%x bytes in eraseblock @0x%08x with summary?\n",
@@ -664,12 +664,12 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 	return jffs2_scan_classify_jeb(c, jeb);
 
 crc_err:
-	JFFS2_WARNING("Summary node crc error, skipping summary information.\n");
+	JFFS2_WARNING("Summary yesde crc error, skipping summary information.\n");
 
 	return 0;
 }
 
-/* Write summary data to flash - helper function for jffs2_sum_write_sumnode() */
+/* Write summary data to flash - helper function for jffs2_sum_write_sumyesde() */
 
 static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
 				uint32_t infosize, uint32_t datasize, int padsize)
@@ -692,12 +692,12 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 		/* Non-fatal */
 		return 0;
 	}
-	/* Is there enough space for summary? */
+	/* Is there eyesugh space for summary? */
 	if (padsize < 0) {
 		/* don't try to write out summary for this jeb */
 		jffs2_sum_disable_collecting(c->summary);
 
-		JFFS2_WARNING("Not enough space for summary, padsize = %d\n",
+		JFFS2_WARNING("Not eyesugh space for summary, padsize = %d\n",
 			      padsize);
 		/* Non-fatal */
 		return 0;
@@ -707,9 +707,9 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	memset(&isum, 0, sizeof(isum));
 
 	isum.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
-	isum.nodetype = cpu_to_je16(JFFS2_NODETYPE_SUMMARY);
+	isum.yesdetype = cpu_to_je16(JFFS2_NODETYPE_SUMMARY);
 	isum.totlen = cpu_to_je32(infosize);
-	isum.hdr_crc = cpu_to_je32(crc32(0, &isum, sizeof(struct jffs2_unknown_node) - 4));
+	isum.hdr_crc = cpu_to_je32(crc32(0, &isum, sizeof(struct jffs2_unkyeswn_yesde) - 4));
 	isum.padded = cpu_to_je32(c->summary->sum_padded);
 	isum.cln_mkr = cpu_to_je32(c->cleanmarker_size);
 	isum.sum_num = cpu_to_je32(c->summary->sum_num);
@@ -718,15 +718,15 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	while (c->summary->sum_num) {
 		temp = c->summary->sum_list_head;
 
-		switch (je16_to_cpu(temp->u.nodetype)) {
+		switch (je16_to_cpu(temp->u.yesdetype)) {
 			case JFFS2_NODETYPE_INODE: {
-				struct jffs2_sum_inode_flash *sino_ptr = wpage;
+				struct jffs2_sum_iyesde_flash *siyes_ptr = wpage;
 
-				sino_ptr->nodetype = temp->i.nodetype;
-				sino_ptr->inode = temp->i.inode;
-				sino_ptr->version = temp->i.version;
-				sino_ptr->offset = temp->i.offset;
-				sino_ptr->totlen = temp->i.totlen;
+				siyes_ptr->yesdetype = temp->i.yesdetype;
+				siyes_ptr->iyesde = temp->i.iyesde;
+				siyes_ptr->version = temp->i.version;
+				siyes_ptr->offset = temp->i.offset;
+				siyes_ptr->totlen = temp->i.totlen;
 
 				wpage += JFFS2_SUMMARY_INODE_SIZE;
 
@@ -736,12 +736,12 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 			case JFFS2_NODETYPE_DIRENT: {
 				struct jffs2_sum_dirent_flash *sdrnt_ptr = wpage;
 
-				sdrnt_ptr->nodetype = temp->d.nodetype;
+				sdrnt_ptr->yesdetype = temp->d.yesdetype;
 				sdrnt_ptr->totlen = temp->d.totlen;
 				sdrnt_ptr->offset = temp->d.offset;
-				sdrnt_ptr->pino = temp->d.pino;
+				sdrnt_ptr->piyes = temp->d.piyes;
 				sdrnt_ptr->version = temp->d.version;
-				sdrnt_ptr->ino = temp->d.ino;
+				sdrnt_ptr->iyes = temp->d.iyes;
 				sdrnt_ptr->nsize = temp->d.nsize;
 				sdrnt_ptr->type = temp->d.type;
 
@@ -757,7 +757,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 				struct jffs2_sum_xattr_flash *sxattr_ptr = wpage;
 
 				temp = c->summary->sum_list_head;
-				sxattr_ptr->nodetype = temp->x.nodetype;
+				sxattr_ptr->yesdetype = temp->x.yesdetype;
 				sxattr_ptr->xid = temp->x.xid;
 				sxattr_ptr->version = temp->x.version;
 				sxattr_ptr->offset = temp->x.offset;
@@ -770,7 +770,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 				struct jffs2_sum_xref_flash *sxref_ptr = wpage;
 
 				temp = c->summary->sum_list_head;
-				sxref_ptr->nodetype = temp->r.nodetype;
+				sxref_ptr->yesdetype = temp->r.yesdetype;
 				sxref_ptr->offset = temp->r.offset;
 
 				wpage += JFFS2_SUMMARY_XREF_SIZE;
@@ -778,13 +778,13 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 			}
 #endif
 			default : {
-				if ((je16_to_cpu(temp->u.nodetype) & JFFS2_COMPAT_MASK)
+				if ((je16_to_cpu(temp->u.yesdetype) & JFFS2_COMPAT_MASK)
 				    == JFFS2_FEATURE_RWCOMPAT_COPY) {
-					dbg_summary("Writing unknown RWCOMPAT_COPY node type %x\n",
-						    je16_to_cpu(temp->u.nodetype));
+					dbg_summary("Writing unkyeswn RWCOMPAT_COPY yesde type %x\n",
+						    je16_to_cpu(temp->u.yesdetype));
 					jffs2_sum_disable_collecting(c->summary);
 				} else {
-					BUG();	/* unknown node in summary information */
+					BUG();	/* unkyeswn yesde in summary information */
 				}
 			}
 		}
@@ -804,7 +804,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	sm->magic = cpu_to_je32(JFFS2_SUM_MAGIC);
 
 	isum.sum_crc = cpu_to_je32(crc32(0, c->summary->sum_buf, datasize));
-	isum.node_crc = cpu_to_je32(crc32(0, &isum, sizeof(isum) - 8));
+	isum.yesde_crc = cpu_to_je32(crc32(0, &isum, sizeof(isum) - 8));
 
 	vecs[0].iov_base = &isum;
 	vecs[0].iov_len = sizeof(isum);
@@ -825,7 +825,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 		if (retlen) {
 			/* Waste remaining space */
 			spin_lock(&c->erase_completion_lock);
-			jffs2_link_node_ref(c, jeb, sum_ofs | REF_OBSOLETE, infosize, NULL);
+			jffs2_link_yesde_ref(c, jeb, sum_ofs | REF_OBSOLETE, infosize, NULL);
 			spin_unlock(&c->erase_completion_lock);
 		}
 
@@ -835,7 +835,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	}
 
 	spin_lock(&c->erase_completion_lock);
-	jffs2_link_node_ref(c, jeb, sum_ofs | REF_NORMAL, infosize, NULL);
+	jffs2_link_yesde_ref(c, jeb, sum_ofs | REF_NORMAL, infosize, NULL);
 	spin_unlock(&c->erase_completion_lock);
 
 	return 0;
@@ -843,7 +843,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 
 /* Write out summary information - called from jffs2_do_reserve_space */
 
-int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
+int jffs2_sum_write_sumyesde(struct jffs2_sb_info *c)
 	__must_hold(&c->erase_completion_block)
 {
 	int datasize, infosize, padsize;
@@ -855,7 +855,7 @@ int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 	spin_unlock(&c->erase_completion_lock);
 
 	jeb = c->nextblock;
-	jffs2_prealloc_raw_node_refs(c, jeb, 1);
+	jffs2_prealloc_raw_yesde_refs(c, jeb, 1);
 
 	if (!c->summary->sum_num || !c->summary->sum_list_head) {
 		JFFS2_WARNING("Empty summary info!!!\n");

@@ -5,7 +5,7 @@
 #include "nvmem.h"
 
 static const char * const nvmem_type_str[] = {
-	[NVMEM_TYPE_UNKNOWN] = "Unknown",
+	[NVMEM_TYPE_UNKNOWN] = "Unkyeswn",
 	[NVMEM_TYPE_EEPROM] = "EEPROM",
 	[NVMEM_TYPE_OTP] = "OTP",
 	[NVMEM_TYPE_BATTERY_BACKED] = "Battery backed",

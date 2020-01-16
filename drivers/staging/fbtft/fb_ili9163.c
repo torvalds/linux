@@ -31,7 +31,7 @@
 
 /* ILI9163C commands */
 #define CMD_FRMCTR1	0xB1 /* Frame Rate Control */
-			     /*	(In normal mode/Full colors) */
+			     /*	(In yesrmal mode/Full colors) */
 #define CMD_FRMCTR2	0xB2 /* Frame Rate Control (In Idle mode/8-colors) */
 #define CMD_FRMCTR3	0xB3 /* Frame Rate Control */
 			     /*	(In Partial mode/full colors) */
@@ -68,9 +68,9 @@
  */
 
 #ifdef RED
-#define __OFFSET		32 /*see note 2 - this is the red version */
+#define __OFFSET		32 /*see yeste 2 - this is the red version */
 #else
-#define __OFFSET		0  /*see note 2 - this is the black version */
+#define __OFFSET		0  /*see yeste 2 - this is the black version */
 #endif
 
 static int init_display(struct fbtft_par *par)
@@ -92,7 +92,7 @@ static int init_display(struct fbtft_par *par)
 #endif
 	write_reg(par, MIPI_DCS_ENTER_NORMAL_MODE);
 	write_reg(par, CMD_DFUNCTR, 0xff, 0x06);
-	/* Frame Rate Control (In normal mode/Full colors) */
+	/* Frame Rate Control (In yesrmal mode/Full colors) */
 	write_reg(par, CMD_FRMCTR1, 0x08, 0x02);
 	write_reg(par, CMD_DINVCTR, 0x07); /* display inversion  */
 	/* Set VRH1[4:0] & VC[2:0] for VCI1 & GVDD */
@@ -147,7 +147,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys,
 /*
  * 7) MY:  1(bottom to top),	0(top to bottom)    Row Address Order
  * 6) MX:  1(R to L),		0(L to R)	    Column Address Order
- * 5) MV:  1(Exchanged),	0(normal)	    Row/Column exchange
+ * 5) MV:  1(Exchanged),	0(yesrmal)	    Row/Column exchange
  * 4) ML:  1(bottom to top),	0(top to bottom)    Vertical Refresh Order
  * 3) RGB: 1(BGR),		0(RGB)		    Color Space
  * 2) MH:  1(R to L),		0(L to R)	    Horizontal Refresh Order
@@ -155,7 +155,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys,
  * 0)
  *
  *	MY, MX, MV, ML,RGB, MH, D1, D0
- *	0 | 0 | 0 | 0 | 1 | 0 | 0 | 0	//normal
+ *	0 | 0 | 0 | 0 | 1 | 0 | 0 | 0	//yesrmal
  *	1 | 0 | 0 | 0 | 1 | 0 | 0 | 0	//Y-Mirror
  *	0 | 1 | 0 | 0 | 1 | 0 | 0 | 0	//X-Mirror
  *	1 | 1 | 0 | 0 | 1 | 0 | 0 | 0	//X-Y-Mirror

@@ -35,12 +35,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -63,7 +63,7 @@
 #include "mvm.h"
 
 struct iwl_mvm_iface_iterator_data {
-	struct ieee80211_vif *ignore_vif;
+	struct ieee80211_vif *igyesre_vif;
 	int idx;
 
 	struct iwl_mvm_phy_ctxt *phyctxt;
@@ -130,7 +130,7 @@ static void iwl_mvm_iface_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_iface_iterator_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (vif == data->ignore_vif)
+	if (vif == data->igyesre_vif)
 		return;
 
 	if (mvmvif->phy_ctxt != data->phyctxt)
@@ -151,7 +151,7 @@ static int iwl_mvm_binding_update(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_iface_iterator_data data = {
-		.ignore_vif = vif,
+		.igyesre_vif = vif,
 		.phyctxt = phyctxt,
 	};
 	u32 action = FW_CTXT_ACTION_MODIFY;
@@ -164,7 +164,7 @@ static int iwl_mvm_binding_update(struct iwl_mvm *mvm,
 						   &data);
 
 	/*
-	 * If there are no other interfaces yet we
+	 * If there are yes other interfaces yet we
 	 * need to create a new binding.
 	 */
 	if (data.idx == 0) {

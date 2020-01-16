@@ -512,7 +512,7 @@ static struct drm_driver ingenic_drm_driver_data = {
 	.desc			= "DRM module for Ingenic SoCs",
 	.date			= "20190422",
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 	.patchlevel		= 0,
 
 	.fops			= &ingenic_drm_fops,
@@ -669,7 +669,7 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->pix_clk);
 	}
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &panel, &bridge);
+	ret = drm_of_find_panel_or_bridge(dev->of_yesde, 0, 0, &panel, &bridge);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to get panel handle");

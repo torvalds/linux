@@ -20,7 +20,7 @@
 #define SI3054_VERB_READ_NODE  0x900
 #define SI3054_VERB_WRITE_NODE 0x100
 
-/* si3054 nodes (registers) */
+/* si3054 yesdes (registers) */
 #define SI3054_EXTENDED_MID    2
 #define SI3054_LINE_RATE       3
 #define SI3054_LINE_LEVEL      4
@@ -60,7 +60,7 @@
 #define SI3054_CHIPID_DAA_ID         0x0f00
 #define SI3054_CHIPID_CODEC_ID      (1<<12)
 
-/* si3054 codec registers (nodes) access macros */
+/* si3054 codec registers (yesdes) access macros */
 #define GET_REG(codec,reg) (snd_hda_codec_read(codec,reg,0,SI3054_VERB_READ_NODE,0))
 #define SET_REG(codec,reg,val) (snd_hda_codec_write(codec,reg,0,SI3054_VERB_WRITE_NODE,val))
 #define SET_REG_CACHE(codec,reg,val) \
@@ -80,7 +80,7 @@ struct si3054_spec {
 #define PRIVATE_REG(val) ((val>>16)&0xffff)
 #define PRIVATE_MASK(val) (val&0xffff)
 
-#define si3054_switch_info	snd_ctl_boolean_mono_info
+#define si3054_switch_info	snd_ctl_boolean_moyes_info
 
 static int si3054_switch_get(struct snd_kcontrol *kcontrol,
 		               struct snd_ctl_elem_value *uvalue)
@@ -225,8 +225,8 @@ static int si3054_init(struct hda_codec *codec)
 	} while ((val & SI3054_MEI_READY) != SI3054_MEI_READY && wait_count--);
 
 	if((val&SI3054_MEI_READY) != SI3054_MEI_READY) {
-		codec_err(codec, "si3054: cannot initialize. EXT MID = %04x\n", val);
-		/* let's pray that this is no fatal error */
+		codec_err(codec, "si3054: canyest initialize. EXT MID = %04x\n", val);
+		/* let's pray that this is yes fatal error */
 		/* return -EACCES; */
 	}
 
@@ -237,7 +237,7 @@ static int si3054_init(struct hda_codec *codec)
 
 	if((GET_REG(codec,SI3054_LINE_STATUS) & (1<<6)) == 0) {
 		codec_dbg(codec,
-			  "Link Frame Detect(FDT) is not ready (line status: %04x)\n",
+			  "Link Frame Detect(FDT) is yest ready (line status: %04x)\n",
 				GET_REG(codec,SI3054_LINE_STATUS));
 	}
 

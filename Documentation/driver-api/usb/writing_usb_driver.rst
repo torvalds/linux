@@ -18,11 +18,11 @@ vendor-specific devices (such as USB to serial converters, digital
 cameras, Ethernet devices and MP3 players). For a full list of the
 different USB devices currently supported, see Resources.
 
-The remaining kinds of USB devices that do not have support on Linux are
+The remaining kinds of USB devices that do yest have support on Linux are
 almost all vendor-specific devices. Each vendor decides to implement a
 custom protocol to talk to their device, so a custom driver usually
 needs to be created. Some vendors are open with their USB protocols and
-help with the creation of Linux drivers, while others do not publish
+help with the creation of Linux drivers, while others do yest publish
 them, and developers are forced to reverse-engineer. See Resources for
 some links to handy reverse-engineering tools.
 
@@ -58,7 +58,7 @@ structure. The skeleton driver declares a :c:type:`usb_driver` as::
 	    .probe       = skel_probe,
 	    .disconnect  = skel_disconnect,
 	    .fops        = &skel_fops,
-	    .minor       = USB_SKEL_MINOR_BASE,
+	    .miyesr       = USB_SKEL_MINOR_BASE,
 	    .id_table    = skel_table,
     };
 
@@ -69,16 +69,16 @@ disconnect function pointers are called when a device that matches the
 information provided in the ``id_table`` variable is either seen or
 removed.
 
-The fops and minor variables are optional. Most USB drivers hook into
-another kernel subsystem, such as the SCSI, network or TTY subsystem.
+The fops and miyesr variables are optional. Most USB drivers hook into
+ayesther kernel subsystem, such as the SCSI, network or TTY subsystem.
 These types of drivers register themselves with the other kernel
 subsystem, and any user-space interactions are provided through that
-interface. But for drivers that do not have a matching kernel subsystem,
+interface. But for drivers that do yest have a matching kernel subsystem,
 such as MP3 players or scanners, a method of interacting with user space
-is needed. The USB subsystem provides a way to register a minor device
+is needed. The USB subsystem provides a way to register a miyesr device
 number and a set of :c:type:`file_operations` function pointers that enable
 this user-space interaction. The skeleton driver needs this kind of
-interface, so it provides a minor starting number and a pointer to its
+interface, so it provides a miyesr starting number and a pointer to its
 :c:type:`file_operations` functions.
 
 The USB driver is then registered with a call to :c:func:`usb_register`,
@@ -142,8 +142,8 @@ the interface ID are passed to the function::
 	const struct usb_device_id *id)
 
 
-The driver now needs to verify that this device is actually one that it
-can accept. If so, it returns 0. If not, or if any error occurs during
+The driver yesw needs to verify that this device is actually one that it
+can accept. If so, it returns 0. If yest, or if any error occurs during
 initialization, an errorcode (such as ``-ENOMEM`` or ``-ENODEV``) is
 returned from the probe function.
 
@@ -210,13 +210,13 @@ When the write urb is filled up with the proper information using the
 :c:func:`usb_fill_bulk_urb` function, we point the urb's completion callback
 to call our own ``skel_write_bulk_callback`` function. This function is
 called when the urb is finished by the USB subsystem. The callback
-function is called in interrupt context, so caution must be taken not to
+function is called in interrupt context, so caution must be taken yest to
 do very much processing at that time. Our implementation of
 ``skel_write_bulk_callback`` merely reports if the urb was completed
-successfully or not and then returns.
+successfully or yest and then returns.
 
 The read function works a bit differently from the write function in
-that we do not use an urb to transfer data from the device to the
+that we do yest use an urb to transfer data from the device to the
 driver. Instead we call the :c:func:`usb_bulk_msg` function, which can be used
 to send or receive data from a device without having to create urbs and
 handle urb completion callback functions. We call the :c:func:`usb_bulk_msg`
@@ -259,7 +259,7 @@ One of the more difficult problems that USB drivers must be able to
 handle smoothly is the fact that the USB device may be removed from the
 system at any point in time, even if a program is currently talking to
 it. It needs to be able to shut down any current reads and writes and
-notify the user-space programs that the device is no longer there. The
+yestify the user-space programs that the device is yes longer there. The
 following code (function ``skel_delete``) is an example of how to do
 this::
 
@@ -278,30 +278,30 @@ this::
 If a program currently has an open handle to the device, we reset the
 flag ``device_present``. For every read, write, release and other
 functions that expect a device to be present, the driver first checks
-this flag to see if the device is still present. If not, it releases
+this flag to see if the device is still present. If yest, it releases
 that the device has disappeared, and a ``-ENODEV`` error is returned to the
 user-space program. When the release function is eventually called, it
-determines if there is no device and if not, it does the cleanup that
-the ``skel_disconnect`` function normally does if there are no open files
+determines if there is yes device and if yest, it does the cleanup that
+the ``skel_disconnect`` function yesrmally does if there are yes open files
 on the device (see Listing 5).
 
-Isochronous Data
+Isochroyesus Data
 ================
 
-This usb-skeleton driver does not have any examples of interrupt or
-isochronous data being sent to or from the device. Interrupt data is
-sent almost exactly as bulk data is, with a few minor exceptions.
-Isochronous data works differently with continuous streams of data being
+This usb-skeleton driver does yest have any examples of interrupt or
+isochroyesus data being sent to or from the device. Interrupt data is
+sent almost exactly as bulk data is, with a few miyesr exceptions.
+Isochroyesus data works differently with continuous streams of data being
 sent to or from the device. The audio and video camera drivers are very
-good examples of drivers that handle isochronous data and will be useful
+good examples of drivers that handle isochroyesus data and will be useful
 if you also need to do this.
 
 Conclusion
 ==========
 
-Writing Linux USB device drivers is not a difficult task as the
+Writing Linux USB device drivers is yest a difficult task as the
 usb-skeleton driver shows. This driver, combined with the other current
-USB drivers, should provide enough examples to help a beginning author
+USB drivers, should provide eyesugh examples to help a beginning author
 create a working driver in a minimal amount of time. The linux-usb-devel
 mailing list archives also contain a lot of helpful information.
 

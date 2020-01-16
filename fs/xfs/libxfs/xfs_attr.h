@@ -6,19 +6,19 @@
 #ifndef __XFS_ATTR_H__
 #define	__XFS_ATTR_H__
 
-struct xfs_inode;
+struct xfs_iyesde;
 struct xfs_da_args;
 struct xfs_attr_list_context;
 
 /*
  * Large attribute lists are structured around Btrees where all the data
- * elements are in the leaf nodes.  Attribute names are hashed into an int,
+ * elements are in the leaf yesdes.  Attribute names are hashed into an int,
  * then that int is used as the index into the Btree.  Since the hashval
- * of an attribute name may not be unique, we may have duplicate keys.
+ * of an attribute name may yest be unique, we may have duplicate keys.
  * The internal links in the Btree are logical block offsets into the file.
  *
  * Small attribute lists use a different format and are packed as tightly
- * as possible so as to fit into the literal area of the inode.
+ * as possible so as to fit into the literal area of the iyesde.
  */
 
 /*========================================================================
@@ -31,10 +31,10 @@ struct xfs_attr_list_context;
 #define ATTR_TRUST	0x0004	/* -- unused, from IRIX -- */
 #define ATTR_SECURE	0x0008	/* use attrs in security namespace */
 #define ATTR_CREATE	0x0010	/* pure create: fail if attr already exists */
-#define ATTR_REPLACE	0x0020	/* pure set: fail if attr does not exist */
+#define ATTR_REPLACE	0x0020	/* pure set: fail if attr does yest exist */
 
-#define ATTR_KERNOTIME	0x1000	/* [kernel] don't update inode timestamps */
-#define ATTR_KERNOVAL	0x2000	/* [kernel] get attr size only, not value */
+#define ATTR_KERNOTIME	0x1000	/* [kernel] don't update iyesde timestamps */
+#define ATTR_KERNOVAL	0x2000	/* [kernel] get attr size only, yest value */
 
 #define ATTR_INCOMPLETE	0x4000	/* [kernel] return INCOMPLETE attr keys */
 #define ATTR_ALLOC	0x8000	/* allocate xattr buffer on demand */
@@ -92,7 +92,7 @@ typedef struct attrlist_ent {	/* data from attr_list() */
  */
 typedef struct attrlist_cursor_kern {
 	__u32	hashval;	/* hash value of next entry to add */
-	__u32	blkno;		/* block containing entry (suggestion) */
+	__u32	blkyes;		/* block containing entry (suggestion) */
 	__u32	offset;		/* offset in list of equal-hashvals */
 	__u16	pad1;		/* padding to match user-level */
 	__u8	pad2;		/* padding to match user-level */
@@ -111,15 +111,15 @@ typedef void (*put_listent_func_t)(struct xfs_attr_list_context *, int,
 
 typedef struct xfs_attr_list_context {
 	struct xfs_trans		*tp;
-	struct xfs_inode		*dp;		/* inode */
+	struct xfs_iyesde		*dp;		/* iyesde */
 	struct attrlist_cursor_kern	*cursor;	/* position in list */
 	char				*alist;		/* output buffer */
 
 	/*
-	 * Abort attribute list iteration if non-zero.  Can be used to pass
+	 * Abort attribute list iteration if yesn-zero.  Can be used to pass
 	 * error values to the xfs_attr_list caller.
 	 */
-	int				seen_enough;
+	int				seen_eyesugh;
 
 	ssize_t				count;		/* num used entries */
 	int				dupcnt;		/* count dup hashvals seen */
@@ -139,19 +139,19 @@ typedef struct xfs_attr_list_context {
 /*
  * Overall external interface routines.
  */
-int xfs_attr_inactive(struct xfs_inode *dp);
+int xfs_attr_inactive(struct xfs_iyesde *dp);
 int xfs_attr_list_int_ilocked(struct xfs_attr_list_context *);
 int xfs_attr_list_int(struct xfs_attr_list_context *);
-int xfs_inode_hasattr(struct xfs_inode *ip);
-int xfs_attr_get_ilocked(struct xfs_inode *ip, struct xfs_da_args *args);
-int xfs_attr_get(struct xfs_inode *ip, const unsigned char *name,
+int xfs_iyesde_hasattr(struct xfs_iyesde *ip);
+int xfs_attr_get_ilocked(struct xfs_iyesde *ip, struct xfs_da_args *args);
+int xfs_attr_get(struct xfs_iyesde *ip, const unsigned char *name,
 		 unsigned char **value, int *valuelenp, int flags);
-int xfs_attr_set(struct xfs_inode *dp, const unsigned char *name,
+int xfs_attr_set(struct xfs_iyesde *dp, const unsigned char *name,
 		 unsigned char *value, int valuelen, int flags);
 int xfs_attr_set_args(struct xfs_da_args *args);
-int xfs_attr_remove(struct xfs_inode *dp, const unsigned char *name, int flags);
+int xfs_attr_remove(struct xfs_iyesde *dp, const unsigned char *name, int flags);
 int xfs_attr_remove_args(struct xfs_da_args *args);
-int xfs_attr_list(struct xfs_inode *dp, char *buffer, int bufsize,
+int xfs_attr_list(struct xfs_iyesde *dp, char *buffer, int bufsize,
 		  int flags, struct attrlist_cursor_kern *cursor);
 bool xfs_attr_namecheck(const void *name, size_t length);
 

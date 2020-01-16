@@ -78,14 +78,14 @@ static void mvebu_armada_pm_enter(void __iomem *sdram_reg, u32 srcmd)
 
 static int __init mvebu_armada_pm_init(void)
 {
-	struct device_node *np;
-	struct device_node *gpio_ctrl_np = NULL;
+	struct device_yesde *np;
+	struct device_yesde *gpio_ctrl_np = NULL;
 	int ret = 0, i;
 
 	if (!of_machine_is_compatible("marvell,axp-gp"))
 		return -ENODEV;
 
-	np = of_find_node_by_name(NULL, "pm_pic");
+	np = of_find_yesde_by_name(NULL, "pm_pic");
 	if (!np)
 		return -ENODEV;
 
@@ -127,7 +127,7 @@ static int __init mvebu_armada_pm_init(void)
 		}
 
 		if (gpio_ctrl_np)
-			of_node_put(gpio_ctrl_np);
+			of_yesde_put(gpio_ctrl_np);
 		gpio_ctrl_np = args.np;
 		pic_raw_gpios[i] = args.args[0];
 	}
@@ -141,8 +141,8 @@ static int __init mvebu_armada_pm_init(void)
 	mvebu_pm_suspend_init(mvebu_armada_pm_enter);
 
 out:
-	of_node_put(np);
-	of_node_put(gpio_ctrl_np);
+	of_yesde_put(np);
+	of_yesde_put(gpio_ctrl_np);
 	return ret;
 }
 

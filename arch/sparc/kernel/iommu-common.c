@@ -244,7 +244,7 @@ static struct iommu_pool *get_pool(struct iommu_map_table *tbl,
 }
 
 /* Caller supplies the index of the entry into the iommu map table
- * itself when the mapping from dma_addr to the entry is not the
+ * itself when the mapping from dma_addr to the entry is yest the
  * default addr->entry mapping below.
  */
 void iommu_tbl_range_free(struct iommu_map_table *iommu, u64 dma_addr,

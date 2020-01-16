@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -1134,7 +1134,7 @@ struct cmdq_modify_qp {
 	#define CMDQ_MODIFY_QP_MODIFY_MASK_TOS_ECN		    0x40000000UL
 	#define CMDQ_MODIFY_QP_MODIFY_MASK_TOS_DSCP		    0x80000000UL
 	__le32 qp_cid;
-	u8 network_type_en_sqd_async_notify_new_state;
+	u8 network_type_en_sqd_async_yestify_new_state;
 	#define CMDQ_MODIFY_QP_NEW_STATE_MASK			    0xfUL
 	#define CMDQ_MODIFY_QP_NEW_STATE_SFT			    0
 	#define CMDQ_MODIFY_QP_NEW_STATE_RESET			   0x0UL
@@ -2159,7 +2159,7 @@ struct creq_query_qp_resp_sb {
 	u8 resp_size;
 	u8 reserved8;
 	__le32 xid;
-	u8 en_sqd_async_notify_state;
+	u8 en_sqd_async_yestify_state;
 	#define CREQ_QUERY_QP_RESP_SB_STATE_MASK		    0xfUL
 	#define CREQ_QUERY_QP_RESP_SB_STATE_SFT		    0
 	#define CREQ_QUERY_QP_RESP_SB_STATE_RESET		   0x0UL
@@ -2816,7 +2816,7 @@ struct creq_query_version_resp {
 	u8 status;
 	__le16 cookie;
 	u8 fw_maj;
-	u8 fw_minor;
+	u8 fw_miyesr;
 	u8 fw_bld;
 	u8 fw_rsvd;
 	u8 v;
@@ -2827,7 +2827,7 @@ struct creq_query_version_resp {
 	#define CREQ_QUERY_VERSION_RESP_EVENT_QUERY_VERSION       0x8bUL
 	__le16 reserved16;
 	u8 intf_maj;
-	u8 intf_minor;
+	u8 intf_miyesr;
 	u8 intf_bld;
 	u8 intf_rsvd;
 };
@@ -2954,11 +2954,11 @@ struct creq_query_roce_stats_resp_sb {
 	__le64	res_opcode_err;
 	__le64	res_rx_invalid_rkey;
 	__le64	res_rx_domain_err;
-	__le64	res_rx_no_perm;
+	__le64	res_rx_yes_perm;
 	__le64	res_rx_range_err;
 	__le64	res_tx_invalid_rkey;
 	__le64	res_tx_domain_err;
-	__le64	res_tx_no_perm;
+	__le64	res_tx_yes_perm;
 	__le64	res_tx_range_err;
 	__le64	res_irrq_oflow;
 	__le64	res_unsup_opcode;
@@ -2980,8 +2980,8 @@ struct creq_query_roce_stats_resp_sb {
 	__le64  active_qp_count_p3;
 };
 
-/* QP error notification event (16 bytes) */
-struct creq_qp_error_notification {
+/* QP error yestification event (16 bytes) */
+struct creq_qp_error_yestification {
 	u8 type;
 	#define CREQ_QP_ERROR_NOTIFICATION_TYPE_MASK		    0x3fUL
 	#define CREQ_QP_ERROR_NOTIFICATION_TYPE_SFT		    0
@@ -3011,7 +3011,7 @@ struct creq_qp_error_notification {
 
 #define ROCE_SP_HSI_VERSION_STR	"1.6.0"
 /*
- * Following is the signature for ROCE_SP_HSI message field that indicates not
+ * Following is the signature for ROCE_SP_HSI message field that indicates yest
  * applicable (All F's). Need to cast it the size of the field if needed.
  */
 #define ROCE_SP_HSI_NA_SIGNATURE	((__le32)(-1))

@@ -252,7 +252,7 @@ static int xgene_hwmon_reg_map_rd(struct xgene_hwmon_dev *ctx, u32 addr,
 	return rc;
 }
 
-static int xgene_hwmon_get_notification_msg(struct xgene_hwmon_dev *ctx,
+static int xgene_hwmon_get_yestification_msg(struct xgene_hwmon_dev *ctx,
 					    u32 *amsg)
 {
 	u32 msg[3];
@@ -417,7 +417,7 @@ static int xgene_hwmon_tpc_alarm(struct xgene_hwmon_dev *ctx,
 				 struct slimpro_resp_msg *amsg)
 {
 	ctx->temp_critical_alarm = !!amsg->param2;
-	sysfs_notify(&ctx->dev->kobj, NULL, "temp1_critical_alarm");
+	sysfs_yestify(&ctx->dev->kobj, NULL, "temp1_critical_alarm");
 
 	return 0;
 }
@@ -448,7 +448,7 @@ static void xgene_hwmon_evt_work(struct work_struct *work)
 		 * If Slimpro Mailbox, get message from specific FIFO
 		 */
 		if (!acpi_disabled) {
-			ret = xgene_hwmon_get_notification_msg(ctx,
+			ret = xgene_hwmon_get_yestification_msg(ctx,
 							       (u32 *)&amsg);
 			if (ret < 0)
 				continue;
@@ -483,7 +483,7 @@ static void xgene_hwmon_rx_cb(struct mbox_client *cl, void *msg)
 	 * While the driver registers with the mailbox framework, an interrupt
 	 * can be pending before the probe function completes its
 	 * initialization. If such condition occurs, just queue up the message
-	 * as the driver is not ready for servicing the callback.
+	 * as the driver is yest ready for servicing the callback.
 	 */
 	if (xgene_hwmon_rx_ready(ctx, msg) < 0)
 		return;
@@ -535,7 +535,7 @@ static void xgene_hwmon_pcc_rx_cb(struct mbox_client *cl, void *msg)
 	 * While the driver registers with the mailbox framework, an interrupt
 	 * can be pending before the probe function completes its
 	 * initialization. If such condition occurs, just queue up the message
-	 * as the driver is not ready for servicing the callback.
+	 * as the driver is yest ready for servicing the callback.
 	 */
 	if (xgene_hwmon_rx_ready(ctx, &amsg) < 0)
 		return;
@@ -578,10 +578,10 @@ static void xgene_hwmon_pcc_rx_cb(struct mbox_client *cl, void *msg)
 	}
 
 	/*
-	 * Platform notifies interrupt to OSPM.
+	 * Platform yestifies interrupt to OSPM.
 	 * OPSM schedules a consumer command to get this information
 	 * in a workqueue. Platform must wait until OSPM has issued
-	 * a consumer command that serves this notification.
+	 * a consumer command that serves this yestification.
 	 */
 
 	/* Enqueue to the FIFO */
@@ -594,7 +594,7 @@ static void xgene_hwmon_pcc_rx_cb(struct mbox_client *cl, void *msg)
 static void xgene_hwmon_tx_done(struct mbox_client *cl, void *msg, int ret)
 {
 	if (ret) {
-		dev_dbg(cl->dev, "TX did not complete: CMD sent:%x, ret:%d\n",
+		dev_dbg(cl->dev, "TX did yest complete: CMD sent:%x, ret:%d\n",
 			*(u16 *)msg, ret);
 	} else {
 		dev_dbg(cl->dev, "TX completed. CMD sent:%x, ret:%d\n",
@@ -641,7 +641,7 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 	cl->tx_done = xgene_hwmon_tx_done;
 	cl->tx_block = false;
 	cl->tx_tout = MBOX_OP_TIMEOUTMS;
-	cl->knows_txdone = false;
+	cl->kyesws_txdone = false;
 	if (acpi_disabled) {
 		cl->rx_callback = xgene_hwmon_rx_cb;
 		ctx->mbox_chan = mbox_request_channel(cl, 0);
@@ -665,7 +665,7 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 
 		if (device_property_read_u32(&pdev->dev, "pcc-channel",
 					     &ctx->mbox_idx)) {
-			dev_err(&pdev->dev, "no pcc-channel property\n");
+			dev_err(&pdev->dev, "yes pcc-channel property\n");
 			rc = -ENODEV;
 			goto out_mbox_free;
 		}
@@ -687,13 +687,13 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		 */
 		cppc_ss = ctx->mbox_chan->con_priv;
 		if (!cppc_ss) {
-			dev_err(&pdev->dev, "PPC subspace not found\n");
+			dev_err(&pdev->dev, "PPC subspace yest found\n");
 			rc = -ENODEV;
 			goto out;
 		}
 
 		if (!ctx->mbox_chan->mbox->txdone_irq) {
-			dev_err(&pdev->dev, "PCC IRQ not supported\n");
+			dev_err(&pdev->dev, "PCC IRQ yest supported\n");
 			rc = -ENODEV;
 			goto out;
 		}

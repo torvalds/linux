@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Nano River Technologies viperboard GPIO lib driver
+ *  Nayes River Techyeslogies viperboard GPIO lib driver
  *
  *  (C) 2012 by Lemonage GmbH
  *  Author: Lars Poeschel <poeschel@lemonage.de>
@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -406,7 +406,7 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	vb_gpio->gpioa.direction_output = vprbrd_gpioa_direction_output;
 	ret = devm_gpiochip_add_data(&pdev->dev, &vb_gpio->gpioa, vb_gpio);
 	if (ret < 0) {
-		dev_err(vb_gpio->gpioa.parent, "could not add gpio a");
+		dev_err(vb_gpio->gpioa.parent, "could yest add gpio a");
 		return ret;
 	}
 
@@ -423,7 +423,7 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	vb_gpio->gpiob.direction_output = vprbrd_gpiob_direction_output;
 	ret = devm_gpiochip_add_data(&pdev->dev, &vb_gpio->gpiob, vb_gpio);
 	if (ret < 0) {
-		dev_err(vb_gpio->gpiob.parent, "could not add gpio b");
+		dev_err(vb_gpio->gpiob.parent, "could yest add gpio b");
 		return ret;
 	}
 
@@ -474,6 +474,6 @@ static void __exit vprbrd_gpio_exit(void)
 module_exit(vprbrd_gpio_exit);
 
 MODULE_AUTHOR("Lars Poeschel <poeschel@lemonage.de>");
-MODULE_DESCRIPTION("GPIO driver for Nano River Techs Viperboard");
+MODULE_DESCRIPTION("GPIO driver for Nayes River Techs Viperboard");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:viperboard-gpio");

@@ -214,5 +214,5 @@ struct ti_dt_clk am33xx_compat_clks[] = {
 	DT_CLK(NULL, "stm_pmd_clock_mux_ck", "l4_wkup_cm:0010:22"),
 	DT_CLK(NULL, "trace_clk_div_ck", "l4_wkup_cm:0010:24"),
 	DT_CLK(NULL, "trace_pmd_clk_mux_ck", "l4_wkup_cm:0010:20"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };

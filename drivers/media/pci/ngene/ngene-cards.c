@@ -255,7 +255,7 @@ static int tuner_attach_tda18212(struct ngene_channel *chan, u32 dmdtype)
 
 	return 0;
 err:
-	dev_err(pdev, "TDA18212 tuner not found. Device is not fully operational.\n");
+	dev_err(pdev, "TDA18212 tuner yest found. Device is yest fully operational.\n");
 	return -ENODEV;
 }
 
@@ -550,7 +550,7 @@ static int init_xo2(struct ngene_channel *chan, struct i2c_adapter *i2c)
 	 * speed: 0=55,1=75,2=90,3=104 MBit/s
 	 * Note: The ngene hardware must be run at 75 MBit/s compared
 	 * to more modern ddbridge hardware which runs at 90 MBit/s,
-	 * else there will be issues with the data transport and non-
+	 * else there will be issues with the data transport and yesn-
 	 * working secondary/slave demods/tuners.
 	 */
 	i2c_write_reg(i2c, addr, 0x09, 1);
@@ -645,7 +645,7 @@ static int cineS2_probe(struct ngene_channel *chan)
 			}
 			break;
 		case NGENE_XO2_TYPE_CI:
-			dev_info(pdev, "DuoFlex CI modules not supported\n");
+			dev_info(pdev, "DuoFlex CI modules yest supported\n");
 			return -ENODEV;
 		default:
 			dev_info(pdev, "Unsupported XO2 module type\n");
@@ -677,7 +677,7 @@ static int cineS2_probe(struct ngene_channel *chan)
 		}
 		rc = i2c_transfer(i2c, &i2c_msg, 1);
 		if (rc != 1) {
-			dev_err(pdev, "Could not setup DPNx\n");
+			dev_err(pdev, "Could yest setup DPNx\n");
 			return -EIO;
 		}
 	} else if (port_has_drxk(i2c, chan->number^2)) {

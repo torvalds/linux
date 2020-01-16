@@ -6,8 +6,8 @@
  *
  * IMPORTANT: The included file nicstarmac.c was NOT WRITTEN BY ME.
  *            It was taken from the frle-0.22 device driver.
- *            As the file doesn't have a copyright notice, in the file
- *            nicstarmac.copyright I put the copyright notice from the
+ *            As the file doesn't have a copyright yestice, in the file
+ *            nicstarmac.copyright I put the copyright yestice from the
  *            frle-0.22 device driver.
  *            Some code is based on the nicstar driver by M. Welsh.
  *
@@ -74,7 +74,7 @@
 #undef GENERAL_DEBUG
 #undef EXTRA_DEBUG
 
-/* Do not touch these */
+/* Do yest touch these */
 
 #ifdef TX_DEBUG
 #define TXPRINTK(args...) printk(args)
@@ -325,7 +325,7 @@ static void ns_write_sram(ns_dev * card, u32 sram_address, u32 * value,
 {
 	unsigned long flags;
 	int i, c;
-	count--;		/* count range now is 0..3 instead of 1..4 */
+	count--;		/* count range yesw is 0..3 instead of 1..4 */
 	c = count;
 	c <<= 2;		/* to use increments of 4 */
 	spin_lock_irqsave(&card->res_lock, flags);
@@ -475,7 +475,7 @@ static int ns_init_card(int i, struct pci_dev *pcidev)
 #endif /* PHY_LOOPBACK */
 		break;
 	default:
-		printk("nicstar%d: unknown PHY type (0x%08X).\n", i, data);
+		printk("nicstar%d: unkyeswn PHY type (0x%08X).\n", i, data);
 		error = 8;
 		ns_init_card_error(card, error);
 		return error;
@@ -676,7 +676,7 @@ static int ns_init_card(int i, struct pci_dev *pcidev)
 		skb_queue_tail(&card->lbpool.queue, lb);
 		skb_reserve(lb, NS_SMBUFSIZE);
 		push_rxbufs(card, lb);
-		/* Due to the implementation of push_rxbufs() this is 1, not 0 */
+		/* Due to the implementation of push_rxbufs() this is 1, yest 0 */
 		if (j == 1) {
 			card->rcbuf = lb;
 			card->rawcell = (struct ns_rcqe *) lb->data;
@@ -1138,12 +1138,12 @@ static irqreturn_t ns_irq_handler(int irq, void *dev_id)
 	if (stat_r & NS_STAT_RAWCF) {
 		writel(NS_STAT_RAWCF, card->membase + STAT);
 #ifndef RCQ_SUPPORT
-		printk("nicstar%d: Raw cell received and no support yet...\n",
+		printk("nicstar%d: Raw cell received and yes support yet...\n",
 		       card->index);
 #endif /* RCQ_SUPPORT */
 		/* NOTE: the following procedure may keep a raw cell pending until the
 		   next interrupt. As this preliminary support is only meant to
-		   avoid buffer leakage, this is not an issue. */
+		   avoid buffer leakage, this is yest an issue. */
 		while (readl(card->membase + RAWCT) != card->rawch) {
 
 			if (ns_rcqe_islast(card->rawcell)) {
@@ -1235,10 +1235,10 @@ static int ns_open(struct atm_vcc *vcc)
 				   the compiler warning. */
 	u32 u32d[4];
 	int frscdi = 0;		/* Index of the SCD. Initialized to remove the compiler
-				   warning. How I wish compilers were clever enough to
+				   warning. How I wish compilers were clever eyesugh to
 				   tell which variables can truly be used
 				   uninitialized... */
-	int inuse;		/* tx or rx vc already in use by another vcc */
+	int inuse;		/* tx or rx vc already in use by ayesther vcc */
 	short vpi = vcc->vpi;
 	int vci = vcc->vci;
 
@@ -1266,7 +1266,7 @@ static int ns_open(struct atm_vcc *vcc)
 
 	set_bit(ATM_VF_ADDR, &vcc->flags);
 
-	/* NOTE: You are not allowed to modify an open connection's QOS. To change
+	/* NOTE: You are yest allowed to modify an open connection's QOS. To change
 	   that, remove the ATM_VF_PARTIAL flag checking. There may be other changes
 	   needed to do that. */
 	if (!test_bit(ATM_VF_PARTIAL, &vcc->flags)) {
@@ -1305,7 +1305,7 @@ static int ns_open(struct atm_vcc *vcc)
 				     (card->tst_free_entries -
 				      NS_TST_RESERVED)) <= 0) {
 					PRINTK
-					    ("nicstar%d: no CBR bandwidth free.\n",
+					    ("nicstar%d: yes CBR bandwidth free.\n",
 					     card->index);
 					clear_bit(ATM_VF_PARTIAL, &vcc->flags);
 					clear_bit(ATM_VF_ADDR, &vcc->flags);
@@ -1324,7 +1324,7 @@ static int ns_open(struct atm_vcc *vcc)
 
 			if (n > (card->tst_free_entries - NS_TST_RESERVED)) {
 				PRINTK
-				    ("nicstar%d: not enough free CBR bandwidth.\n",
+				    ("nicstar%d: yest eyesugh free CBR bandwidth.\n",
 				     card->index);
 				clear_bit(ATM_VF_PARTIAL, &vcc->flags);
 				clear_bit(ATM_VF_ADDR, &vcc->flags);
@@ -1342,7 +1342,7 @@ static int ns_open(struct atm_vcc *vcc)
 			}
 			if (frscdi == NS_FRSCD_NUM) {
 				PRINTK
-				    ("nicstar%d: no SCD available for CBR channel.\n",
+				    ("nicstar%d: yes SCD available for CBR channel.\n",
 				     card->index);
 				card->tst_free_entries += n;
 				clear_bit(ATM_VF_PARTIAL, &vcc->flags);
@@ -1479,7 +1479,7 @@ static void ns_close(struct atm_vcc *vcc)
 				spin_unlock_irqrestore(&scq->lock, flags);
 				break;
 			}
-			/* If the last entry is not a TSR, place one in the SCQ in order to
+			/* If the last entry is yest a TSR, place one in the SCQ in order to
 			   be able to completely drain it and then close. */
 			if (!ns_scqe_is_tsr(scqep) && scq->tail != scq->next) {
 				ns_scqe tsr;
@@ -1578,7 +1578,7 @@ static void fill_tst(ns_dev * card, int n, vc_map * vc)
 	u32 data;
 
 	/* It would be very complicated to keep the two TSTs synchronized while
-	   assuring that writes are only made to the inactive TST. So, for now I
+	   assuring that writes are only made to the inactive TST. So, for yesw I
 	   will use only one TST. If problems occur, I will change this again */
 
 	new_tst = card->tst_addr;
@@ -1627,7 +1627,7 @@ static int ns_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	scq_info *scq;
 	unsigned long buflen;
 	ns_scqe scqe;
-	u32 flags;		/* TBD flags, not CPU flags */
+	u32 flags;		/* TBD flags, yest CPU flags */
 
 	card = vcc->dev->dev_data;
 	TXPRINTK("nicstar%d: ns_send() called.\n", card->index);
@@ -1640,7 +1640,7 @@ static int ns_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	}
 
 	if (!vc->tx) {
-		printk("nicstar%d: Trying to transmit on a non-tx VC.\n",
+		printk("nicstar%d: Trying to transmit on a yesn-tx VC.\n",
 		       card->index);
 		atomic_inc(&vcc->stats->tx_err);
 		dev_kfree_skb_any(skb);
@@ -1696,7 +1696,7 @@ static int ns_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	}
 
 	if (vcc->qos.txtp.traffic_class == ATM_CBR) {
-		scqe.word_1 = ns_tbd_mkword_1_novbr(flags, (u32) buflen);
+		scqe.word_1 = ns_tbd_mkword_1_yesvbr(flags, (u32) buflen);
 		scq = ((vc_map *) vcc->dev_data)->scq;
 	} else {
 		scqe.word_1 =
@@ -1866,7 +1866,7 @@ static void process_tsq(ns_dev * card)
 			else {
 				if (card->scd2vc[scdi] == NULL) {
 					printk
-					    ("nicstar%d: could not find VC from SCD index.\n",
+					    ("nicstar%d: could yest find VC from SCD index.\n",
 					     card->index);
 					ns_tsi_init(card->tsq.next);
 					return;
@@ -1982,7 +1982,7 @@ static void dequeue_rx(ns_dev * card, ns_rsqe * rsqe)
 	skb = idr_remove(&card->idr, id);
 	if (!skb) {
 		RXPRINTK(KERN_ERR
-			 "nicstar%d: skb not found!\n", card->index);
+			 "nicstar%d: skb yest found!\n", card->index);
 		return;
 	}
 	dma_sync_single_for_cpu(&card->pcidev->dev,
@@ -2006,7 +2006,7 @@ static void dequeue_rx(ns_dev * card, ns_rsqe * rsqe)
 
 	vc = &(card->vcmap[vpi << card->vcibits | vci]);
 	if (!vc->rx) {
-		RXPRINTK("nicstar%d: SDU received on non-rx vc %d.%d.\n",
+		RXPRINTK("nicstar%d: SDU received on yesn-rx vc %d.%d.\n",
 			 card->index, vpi, vci);
 		recycle_rx_buf(card, skb);
 		return;
@@ -2106,7 +2106,7 @@ static void dequeue_rx(ns_dev * card, ns_rsqe * rsqe)
 	if (NS_PRV_IOVCNT(iovb) == 1) {
 		if (NS_PRV_BUFTYPE(skb) != BUF_SM) {
 			printk
-			    ("nicstar%d: Expected a small buffer, and this is not one.\n",
+			    ("nicstar%d: Expected a small buffer, and this is yest one.\n",
 			     card->index);
 			which_list(card, skb);
 			atomic_inc(&vcc->stats->rx_err);
@@ -2119,7 +2119,7 @@ static void dequeue_rx(ns_dev * card, ns_rsqe * rsqe)
 
 		if (NS_PRV_BUFTYPE(skb) != BUF_LG) {
 			printk
-			    ("nicstar%d: Expected a large buffer, and this is not one.\n",
+			    ("nicstar%d: Expected a large buffer, and this is yest one.\n",
 			     card->index);
 			which_list(card, skb);
 			atomic_inc(&vcc->stats->rx_err);

@@ -51,7 +51,7 @@ struct buffer_timeout {
 };
 
 enum cdma_event {
-	CDMA_EVENT_NONE,		/* not waiting for any event */
+	CDMA_EVENT_NONE,		/* yest waiting for any event */
 	CDMA_EVENT_SYNC_QUEUE_EMPTY,	/* wait for empty sync queue */
 	CDMA_EVENT_PUSH_BUFFER_SPACE	/* wait for space in push buffer */
 };

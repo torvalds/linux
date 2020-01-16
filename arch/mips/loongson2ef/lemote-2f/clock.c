@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 - 2008 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2006 - 2008 Lemote Inc. & Institute of Computing Techyeslogy
  * Author: Yanhua, yanh@lemote.com
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -8,7 +8,7 @@
  */
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -57,7 +57,7 @@ static void propagate_rate(struct clk *clk)
 {
 	struct clk *clkp;
 
-	list_for_each_entry(clkp, &clock_list, node) {
+	list_for_each_entry(clkp, &clock_list, yesde) {
 		if (likely(clkp->parent != clk))
 			continue;
 		if (likely(clkp->ops && clkp->ops->recalc))

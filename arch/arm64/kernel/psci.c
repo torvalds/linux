@@ -18,7 +18,7 @@
 #include <uapi/linux/psci.h>
 
 #include <asm/cpu_ops.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/smp_plat.h>
 
 static int __init cpu_psci_cpu_init(unsigned int cpu)
@@ -29,7 +29,7 @@ static int __init cpu_psci_cpu_init(unsigned int cpu)
 static int __init cpu_psci_cpu_prepare(unsigned int cpu)
 {
 	if (!psci_ops.cpu_on) {
-		pr_err("no cpu_on method, not booting CPU%d\n", cpu);
+		pr_err("yes cpu_on method, yest booting CPU%d\n", cpu);
 		return -ENODEV;
 	}
 
@@ -68,8 +68,8 @@ static void cpu_psci_cpu_die(unsigned int cpu)
 {
 	int ret;
 	/*
-	 * There are no known implementations of PSCI actually using the
-	 * power state field, pass a sensible default for now.
+	 * There are yes kyeswn implementations of PSCI actually using the
+	 * power state field, pass a sensible default for yesw.
 	 */
 	u32 state = PSCI_POWER_STATE_TYPE_POWER_DOWN <<
 		    PSCI_0_2_POWER_STATE_TYPE_SHIFT;
@@ -105,7 +105,7 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 		usleep_range(100, 1000);
 	} while (time_before(jiffies, end));
 
-	pr_warn("CPU%d may not have shut down cleanly (AFFINITY_INFO reports %d)\n",
+	pr_warn("CPU%d may yest have shut down cleanly (AFFINITY_INFO reports %d)\n",
 			cpu, err);
 	return -ETIMEDOUT;
 }

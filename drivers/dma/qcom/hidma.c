@@ -1,5 +1,5 @@
 /*
- * Qualcomm Technologies HIDMA DMA engine interface
+ * Qualcomm Techyeslogies HIDMA DMA engine interface
  *
  * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
@@ -16,7 +16,7 @@
 /*
  * Copyright (C) Freescale Semicondutor, Inc. 2007, 2008.
  * Copyright (C) Semihalf 2009
- * Copyright (C) Ilya Yanok, Emcraft Systems 2010
+ * Copyright (C) Ilya Yayesk, Emcraft Systems 2010
  * Copyright (C) Alexander Popov, Promcontroller 2014
  *
  * Written by Piotr Ziecik <kosmo@semihalf.com>. Hardware description
@@ -130,7 +130,7 @@ static void hidma_process_completed(struct hidma_chan *mchan)
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 	/* Execute callbacks and run dependencies */
-	list_for_each_entry_safe(mdesc, next, &list, node) {
+	list_for_each_entry_safe(mdesc, next, &list, yesde) {
 		enum dma_status llstat;
 		struct dmaengine_desc_callback cb;
 		struct dmaengine_result result;
@@ -156,7 +156,7 @@ static void hidma_process_completed(struct hidma_chan *mchan)
 		dma_run_dependencies(desc);
 
 		spin_lock_irqsave(&mchan->lock, irqflags);
-		list_move(&mdesc->node, &mchan->free);
+		list_move(&mdesc->yesde, &mchan->free);
 		spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 		dmaengine_desc_callback_invoke(&cb, &result);
@@ -178,14 +178,14 @@ static void hidma_callback(void *data)
 	bool queued = false;
 
 	spin_lock_irqsave(&mchan->lock, irqflags);
-	if (mdesc->node.next) {
+	if (mdesc->yesde.next) {
 		/* Delete from the active list, add to completed list */
-		list_move_tail(&mdesc->node, &mchan->completed);
+		list_move_tail(&mdesc->yesde, &mchan->completed);
 		queued = true;
 
 		/* calculate the next running descriptor */
 		mchan->running = list_first_entry(&mchan->active,
-						  struct hidma_desc, node);
+						  struct hidma_desc, yesde);
 	}
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
@@ -219,7 +219,7 @@ static int hidma_chan_init(struct hidma_dev *dmadev, u32 dma_sig)
 	INIT_LIST_HEAD(&mchan->queued);
 
 	spin_lock_init(&mchan->lock);
-	list_add_tail(&mchan->chan.device_node, &ddev->channels);
+	list_add_tail(&mchan->chan.device_yesde, &ddev->channels);
 	dmadev->ddev.chancnt++;
 	return 0;
 }
@@ -241,15 +241,15 @@ static void hidma_issue_pending(struct dma_chan *dmach)
 	int status;
 
 	spin_lock_irqsave(&mchan->lock, flags);
-	list_for_each_entry_safe(qdesc, next, &mchan->queued, node) {
+	list_for_each_entry_safe(qdesc, next, &mchan->queued, yesde) {
 		hidma_ll_queue_request(dmadev->lldev, qdesc->tre_ch);
-		list_move_tail(&qdesc->node, &mchan->active);
+		list_move_tail(&qdesc->yesde, &mchan->active);
 	}
 
 	if (!mchan->running) {
 		struct hidma_desc *desc = list_first_entry(&mchan->active,
 							   struct hidma_desc,
-							   node);
+							   yesde);
 		mchan->running = desc;
 	}
 	spin_unlock_irqrestore(&mchan->lock, flags);
@@ -335,7 +335,7 @@ static dma_cookie_t hidma_tx_submit(struct dma_async_tx_descriptor *txd)
 	spin_lock_irqsave(&mchan->lock, irqflags);
 
 	/* Move descriptor to queued */
-	list_move_tail(&mdesc->node, &mchan->queued);
+	list_move_tail(&mdesc->yesde, &mchan->queued);
 
 	/* Update cookie */
 	cookie = dma_cookie_assign(txd);
@@ -377,12 +377,12 @@ static int hidma_alloc_chan_resources(struct dma_chan *dmach)
 			kfree(mdesc);
 			break;
 		}
-		list_add_tail(&mdesc->node, &descs);
+		list_add_tail(&mdesc->yesde, &descs);
 	}
 
 	if (rc) {
 		/* return the allocated descriptors */
-		list_for_each_entry_safe(mdesc, tmp, &descs, node) {
+		list_for_each_entry_safe(mdesc, tmp, &descs, yesde) {
 			hidma_ll_free(dmadev->lldev, mdesc->tre_ch);
 			kfree(mdesc);
 		}
@@ -408,8 +408,8 @@ hidma_prep_dma_memcpy(struct dma_chan *dmach, dma_addr_t dest, dma_addr_t src,
 	/* Get free descriptor */
 	spin_lock_irqsave(&mchan->lock, irqflags);
 	if (!list_empty(&mchan->free)) {
-		mdesc = list_first_entry(&mchan->free, struct hidma_desc, node);
-		list_del(&mdesc->node);
+		mdesc = list_first_entry(&mchan->free, struct hidma_desc, yesde);
+		list_del(&mdesc->yesde);
 	}
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
@@ -423,7 +423,7 @@ hidma_prep_dma_memcpy(struct dma_chan *dmach, dma_addr_t dest, dma_addr_t src,
 
 	/* Place descriptor in prepared list */
 	spin_lock_irqsave(&mchan->lock, irqflags);
-	list_add_tail(&mdesc->node, &mchan->prepared);
+	list_add_tail(&mdesc->yesde, &mchan->prepared);
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 	return &mdesc->desc;
@@ -441,8 +441,8 @@ hidma_prep_dma_memset(struct dma_chan *dmach, dma_addr_t dest, int value,
 	/* Get free descriptor */
 	spin_lock_irqsave(&mchan->lock, irqflags);
 	if (!list_empty(&mchan->free)) {
-		mdesc = list_first_entry(&mchan->free, struct hidma_desc, node);
-		list_del(&mdesc->node);
+		mdesc = list_first_entry(&mchan->free, struct hidma_desc, yesde);
+		list_del(&mdesc->yesde);
 	}
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
@@ -456,7 +456,7 @@ hidma_prep_dma_memset(struct dma_chan *dmach, dma_addr_t dest, int value,
 
 	/* Place descriptor in prepared list */
 	spin_lock_irqsave(&mchan->lock, irqflags);
-	list_add_tail(&mdesc->node, &mchan->prepared);
+	list_add_tail(&mdesc->yesde, &mchan->prepared);
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 	return &mdesc->desc;
@@ -486,12 +486,12 @@ static int hidma_terminate_channel(struct dma_chan *chan)
 	/* this suspends the existing transfer */
 	rc = hidma_ll_disable(dmadev->lldev);
 	if (rc) {
-		dev_err(dmadev->ddev.dev, "channel did not pause\n");
+		dev_err(dmadev->ddev.dev, "channel did yest pause\n");
 		goto out;
 	}
 
 	/* return all user requests */
-	list_for_each_entry_safe(mdesc, tmp, &list, node) {
+	list_for_each_entry_safe(mdesc, tmp, &list, yesde) {
 		struct dma_async_tx_descriptor *txd = &mdesc->desc;
 
 		dma_descriptor_unmap(txd);
@@ -499,7 +499,7 @@ static int hidma_terminate_channel(struct dma_chan *chan)
 		dma_run_dependencies(txd);
 
 		/* move myself to free_list */
-		list_move(&mdesc->node, &mchan->free);
+		list_move(&mdesc->yesde, &mchan->free);
 	}
 
 	rc = hidma_ll_enable(dmadev->lldev);
@@ -544,9 +544,9 @@ static void hidma_free_chan_resources(struct dma_chan *dmach)
 	list_splice_tail_init(&mchan->free, &descs);
 
 	/* Free descriptors */
-	list_for_each_entry_safe(mdesc, tmp, &descs, node) {
+	list_for_each_entry_safe(mdesc, tmp, &descs, yesde) {
 		hidma_ll_free(mdma->lldev, mdesc->tre_ch);
-		list_del(&mdesc->node);
+		list_del(&mdesc->yesde);
 		kfree(mdesc);
 	}
 
@@ -564,7 +564,7 @@ static int hidma_pause(struct dma_chan *chan)
 	if (!mchan->paused) {
 		pm_runtime_get_sync(dmadev->ddev.dev);
 		if (hidma_ll_disable(dmadev->lldev))
-			dev_warn(dmadev->ddev.dev, "channel did not stop\n");
+			dev_warn(dmadev->ddev.dev, "channel did yest stop\n");
 		mchan->paused = true;
 		pm_runtime_mark_last_busy(dmadev->ddev.dev);
 		pm_runtime_put_autosuspend(dmadev->ddev.dev);
@@ -916,7 +916,7 @@ static void hidma_shutdown(struct platform_device *pdev)
 
 	pm_runtime_get_sync(dmadev->ddev.dev);
 	if (hidma_ll_disable(dmadev->lldev))
-		dev_warn(dmadev->ddev.dev, "channel did not stop\n");
+		dev_warn(dmadev->ddev.dev, "channel did yest stop\n");
 	pm_runtime_mark_last_busy(dmadev->ddev.dev);
 	pm_runtime_put_autosuspend(dmadev->ddev.dev);
 

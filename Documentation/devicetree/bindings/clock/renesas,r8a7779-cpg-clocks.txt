@@ -17,7 +17,7 @@ Required Properties:
   - #power-domain-cells: Must be 0
 
 SoC devices that are part of the CPG/MSTP Clock Domain and can be power-managed
-through an MSTP clock should refer to the CPG device node in their
+through an MSTP clock should refer to the CPG device yesde in their
 "power-domains" property, as documented by the generic PM domain bindings in
 Documentation/devicetree/bindings/power/power_domain.txt.
 
@@ -25,7 +25,7 @@ Documentation/devicetree/bindings/power/power_domain.txt.
 Examples
 --------
 
-  - CPG device node:
+  - CPG device yesde:
 
 	cpg_clocks: cpg_clocks@ffc80000 {
 		compatible = "renesas,r8a7779-cpg-clocks";
@@ -38,7 +38,7 @@ Examples
 	};
 
 
-  - CPG/MSTP Clock Domain member device node:
+  - CPG/MSTP Clock Domain member device yesde:
 
 	sata: sata@fc600000 {
 		compatible = "renesas,sata-r8a7779", "renesas,rcar-sata";

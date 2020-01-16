@@ -48,7 +48,7 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 	s32 ret_val;
 
 	if (hw->phy.media_type != e1000_media_type_copper) {
-		phy->type = e1000_phy_none;
+		phy->type = e1000_phy_yesne;
 		return 0;
 	}
 
@@ -108,7 +108,7 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 	}
 
 	if (ret_val)
-		e_dbg("PHY ID unknown: type = 0x%08x\n", phy->id);
+		e_dbg("PHY ID unkyeswn: type = 0x%08x\n", phy->id);
 
 	return ret_val;
 }
@@ -147,7 +147,7 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 		if (((eecd >> 15) & 0x3) == 0x3) {
 			nvm->type = e1000_nvm_flash_hw;
 			nvm->word_size = 2048;
-			/* Autonomous Flash update bit must be cleared due
+			/* Autoyesmous Flash update bit must be cleared due
 			 * to Flash update issue.
 			 */
 			eecd &= ~E1000_EECD_AUPDEN;
@@ -295,7 +295,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 		/* Make sure SWSM.SMBI is clear */
 		swsm = er32(SWSM);
 		if (swsm & E1000_SWSM_SMBI) {
-			/* This bit should not be set on a first interface, and
+			/* This bit should yest be set on a first interface, and
 			 * indicates that the bootagent or EFI code has
 			 * improperly left this bit enabled
 			 */
@@ -361,7 +361,7 @@ static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 		if (adapter->flags & FLAG_IS_QUAD_PORT &&
 		    (!(adapter->flags & FLAG_IS_QUAD_PORT_A)))
 			adapter->flags &= ~FLAG_HAS_WOL;
-		/* Does not support WoL on any port */
+		/* Does yest support WoL on any port */
 		if (pdev->device == E1000_DEV_ID_82571EB_SERDES_QUAD)
 			adapter->flags &= ~FLAG_HAS_WOL;
 		break;
@@ -395,7 +395,7 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 	case e1000_82571:
 	case e1000_82572:
 		/* The 82571 firmware may still be configuring the PHY.
-		 * In this case, we cannot access the PHY until the
+		 * In this case, we canyest access the PHY until the
 		 * configuration is done.  So we explicitly set the
 		 * PHY ID.
 		 */
@@ -440,7 +440,7 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 
 	/* If we have timedout 3 times on trying to acquire
 	 * the inter-port SMBI semaphore, there is old code
-	 * operating on the other port, and it is not
+	 * operating on the other port, and it is yest
 	 * releasing SMBI. Modify the number of times that
 	 * we try for the semaphore to interwork with this
 	 * older code.
@@ -589,7 +589,7 @@ static void e1000_put_hw_semaphore_82574(struct e1000_hw *hw)
  *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU D0 state according to the active flag.
- *  LPLU will not be activated unless the
+ *  LPLU will yest be activated unless the
  *  device autonegotiation advertisement meets standards of
  *  either 10 or 10/100 or 10/100/1000 at all duplexes.
  *  This is a function pointer entry point only called by
@@ -640,8 +640,8 @@ static s32 e1000_set_d3_lplu_state_82574(struct e1000_hw *hw, bool active)
  *  @hw: pointer to the HW structure
  *
  *  To gain access to the EEPROM, first we must obtain a hardware semaphore.
- *  Then for non-82573 hardware, set the EEPROM access request bit and wait
- *  for EEPROM access grant bit.  If the access grant bit is not set, release
+ *  Then for yesn-82573 hardware, set the EEPROM access request bit and wait
+ *  for EEPROM access grant bit.  If the access grant bit is yest set, release
  *  hardware semaphore.
  **/
 static s32 e1000_acquire_nvm_82571(struct e1000_hw *hw)
@@ -685,9 +685,9 @@ static void e1000_release_nvm_82571(struct e1000_hw *hw)
  *  @words: number of words to write
  *  @data: 16 bit word(s) to be written to the EEPROM
  *
- *  For non-82573 silicon, write data to EEPROM at offset using SPI interface.
+ *  For yesn-82573 silicon, write data to EEPROM at offset using SPI interface.
  *
- *  If e1000e_update_nvm_checksum is not called after this function, the
+ *  If e1000e_update_nvm_checksum is yest called after this function, the
  *  EEPROM will most likely contain an invalid checksum.
  **/
 static s32 e1000_write_nvm_82571(struct e1000_hw *hw, u16 offset, u16 words,
@@ -799,7 +799,7 @@ static s32 e1000_validate_nvm_checksum_82571(struct e1000_hw *hw)
  *  command has completed before trying to write the next word.  After write
  *  poll for completion.
  *
- *  If e1000e_update_nvm_checksum is not called after this function, the
+ *  If e1000e_update_nvm_checksum is yest called after this function, the
  *  EEPROM will most likely contain an invalid checksum.
  **/
 static s32 e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
@@ -810,7 +810,7 @@ static s32 e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
 	s32 ret_val = 0;
 
 	/* A check for invalid values:  offset too large, too many words,
-	 * and not enough words.
+	 * and yest eyesugh words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
@@ -854,7 +854,7 @@ static s32 e1000_get_cfg_done_82571(struct e1000_hw *hw)
 		timeout--;
 	}
 	if (!timeout) {
-		e_dbg("MNG configuration cycle has not completed.\n");
+		e_dbg("MNG configuration cycle has yest completed.\n");
 		return -E1000_ERR_RESET;
 	}
 
@@ -867,7 +867,7 @@ static s32 e1000_get_cfg_done_82571(struct e1000_hw *hw)
  *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU D0 state according to the active flag.  When activating LPLU
- *  this function also disables smart speed and vice versa.  LPLU will not be
+ *  this function also disables smart speed and vice versa.  LPLU will yest be
  *  activated unless the device autonegotiation advertisement meets standards
  *  of either 10 or 10/100 or 10/100/1000 at all duplexes.  This is a function
  *  pointer entry point only called by PHY setup routines.
@@ -936,14 +936,14 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
  *  e1000_reset_hw_82571 - Reset hardware
  *  @hw: pointer to the HW structure
  *
- *  This resets the hardware into a known state.
+ *  This resets the hardware into a kyeswn state.
  **/
 static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 {
 	u32 ctrl, ctrl_ext, eecd, tctl;
 	s32 ret_val;
 
-	/* Prevent the PCI-E bus from sticking if there is no TLP connection
+	/* Prevent the PCI-E bus from sticking if there is yes TLP connection
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = e1000e_disable_pcie_master(hw);
@@ -1072,7 +1072,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 
 	/* Initialize identification LED */
 	ret_val = mac->ops.id_led_init(hw);
-	/* An error is not fatal and we should not stop init due to this */
+	/* An error is yest fatal and we should yest stop init due to this */
 	if (ret_val)
 		e_dbg("Error initializing identification LED\n");
 
@@ -1126,7 +1126,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	/* Clear all of the statistics registers (clear on read).  It is
 	 * important that we do this after we have tried to establish link
 	 * because the symbol error count will increment wildly if there
-	 * is no link.
+	 * is yes link.
 	 */
 	e1000_clear_hw_cntrs_82571(hw);
 
@@ -1137,7 +1137,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
  *  e1000_initialize_hw_bits_82571 - Initialize hardware-dependent bits
  *  @hw: pointer to the HW structure
  *
- *  Initializes required hardware-dependent bits needed for normal operation.
+ *  Initializes required hardware-dependent bits needed for yesrmal operation.
  **/
 static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 {
@@ -1336,7 +1336,7 @@ static s32 e1000_led_on_82574(struct e1000_hw *hw)
 
 	ctrl = hw->mac.ledctl_mode2;
 	if (!(E1000_STATUS_LU & er32(STATUS))) {
-		/* If no link, then turn LED on by setting the invert bit
+		/* If yes link, then turn LED on by setting the invert bit
 		 * for each LED that's "on" (0x0E) in ledctl_mode2.
 		 */
 		for (i = 0; i < 4; i++)
@@ -1353,7 +1353,7 @@ static s32 e1000_led_on_82574(struct e1000_hw *hw)
  *  e1000_check_phy_82574 - check 82574 phy hung state
  *  @hw: pointer to the HW structure
  *
- *  Returns whether phy is hung or not
+ *  Returns whether phy is hung or yest
  **/
 bool e1000_check_phy_82574(struct e1000_hw *hw)
 {
@@ -1387,11 +1387,11 @@ bool e1000_check_phy_82574(struct e1000_hw *hw)
  *  control.  Calls the appropriate media-specific link configuration
  *  function.  Assuming the adapter has a valid link partner, a valid link
  *  should be established.  Assumes the hardware has previously been reset
- *  and the transmitter and receiver are not enabled.
+ *  and the transmitter and receiver are yest enabled.
  **/
 static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 {
-	/* 82573 does not have a word in the NVM to determine
+	/* 82573 does yest have a word in the NVM to determine
 	 * the default flow control setting, so we explicitly
 	 * set it to full.
 	 */
@@ -1457,11 +1457,11 @@ static s32 e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw)
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
-		/* If SerDes loopback mode is entered, there is no form
+		/* If SerDes loopback mode is entered, there is yes form
 		 * of reset to take the adapter out of that mode.  So we
 		 * have to explicitly take the adapter out of loopback
 		 * mode.  This prevents drivers from twiddling their thumbs
-		 * if another tool failed to take it out of loopback mode.
+		 * if ayesther tool failed to take it out of loopback mode.
 		 */
 		ew32(SCTL, E1000_SCTL_DISABLE_SERDES_LOOPBACK);
 		break;
@@ -1480,7 +1480,7 @@ static s32 e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw)
  *
  *  If autonegotiation is supported by the link partner, the link state is
  *  determined by the result of autonegotiation. This is the most likely case.
- *  If autonegotiation is not supported by the link partner, and the link
+ *  If autonegotiation is yest supported by the link partner, and the link
  *  has a valid signal, force the link up.
  *
  *  The link state is represented internally here by 4 states:
@@ -1488,7 +1488,7 @@ static s32 e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw)
  *  1) down
  *  2) autoneg_progress
  *  3) autoneg_complete (the link successfully autonegotiated)
- *  4) forced_up (the link has been forced up, it did not autonegotiate)
+ *  4) forced_up (the link has been forced up, it did yest autonegotiate)
  *
  **/
 static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
@@ -1509,7 +1509,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 	rxcw = er32(RXCW);
 
 	if ((rxcw & E1000_RXCW_SYNCH) && !(rxcw & E1000_RXCW_IV)) {
-		/* Receiver is synchronized with no invalid bits.  */
+		/* Receiver is synchronized with yes invalid bits.  */
 		switch (mac->serdes_link_state) {
 		case e1000_serdes_link_autoneg_complete:
 			if (!(status & E1000_STATUS_LU)) {
@@ -1562,7 +1562,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 					e_dbg("AN_PROG   -> DOWN\n");
 				}
 			} else {
-				/* The link partner did not autoneg.
+				/* The link partner did yest autoneg.
 				 * Force link up and full duplex, and change
 				 * state to forced.
 				 */
@@ -1585,7 +1585,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 
 		case e1000_serdes_link_down:
 		default:
-			/* The link was down but the receiver has now gained
+			/* The link was down but the receiver has yesw gained
 			 * valid sync, so lets see if we can bring the link
 			 * up.
 			 */
@@ -1604,7 +1604,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			e_dbg("ANYSTATE  -> DOWN\n");
 		} else {
 			/* Check several times, if SYNCH bit and CONFIG
-			 * bit both are consistently 1 then simply ignore
+			 * bit both are consistently 1 then simply igyesre
 			 * the IV bit and restart Autoneg
 			 */
 			for (i = 0; i < AN_RETRY_COUNT; i++) {
@@ -1644,7 +1644,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
  *  @data: pointer to the NVM (EEPROM)
  *
  *  Read the EEPROM for the current default LED configuration.  If the
- *  LED configuration is not valid, set to a valid LED configuration.
+ *  LED configuration is yest valid, set to a valid LED configuration.
  **/
 static s32 e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data)
 {
@@ -1705,7 +1705,7 @@ void e1000e_set_laa_state_82571(struct e1000_hw *hw, bool state)
 	if (state)
 		/* Hold a copy of the LAA in RAR[14] This is done so that
 		 * between the time RAR[0] gets clobbered and the time it
-		 * gets fixed, the actual LAA is in one of the RARs and no
+		 * gets fixed, the actual LAA is in one of the RARs and yes
 		 * incoming packets directed to this port are dropped.
 		 * Eventually the LAA will be in RAR[0] and RAR[14].
 		 */
@@ -1719,7 +1719,7 @@ void e1000e_set_laa_state_82571(struct e1000_hw *hw, bool state)
  *
  *  Verifies that the EEPROM has completed the update.  After updating the
  *  EEPROM, we need to check bit 15 in work 0x23 for the checksum fix.  If
- *  the checksum fix is not implemented, we need to set the bit and update
+ *  the checksum fix is yest implemented, we need to set the bit and update
  *  the checksum.  Otherwise, if bit 15 is set and the checksum is incorrect,
  *  we need to return bad checksum.
  **/
@@ -1791,7 +1791,7 @@ static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
  * @hw: pointer to the HW structure
  *
  * In the case of a PHY power down to save power, or to turn off link during a
- * driver unload, or wake on lan is not enabled, remove the link.
+ * driver unload, or wake on lan is yest enabled, remove the link.
  **/
 static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw)
 {
@@ -1801,7 +1801,7 @@ static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw)
 	if (!phy->ops.check_reset_block)
 		return;
 
-	/* If the management interface is not enabled, then power down */
+	/* If the management interface is yest enabled, then power down */
 	if (!(mac->ops.check_mng_mode(hw) || phy->ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);
 }

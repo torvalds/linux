@@ -29,14 +29,14 @@ static const struct mtk_gate mfg_clks[] = {
 static int clk_mt6779_mfg_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_MFGCFG_NR_CLK);
 
-	mtk_clk_register_gates(node, mfg_clks, ARRAY_SIZE(mfg_clks),
+	mtk_clk_register_gates(yesde, mfg_clks, ARRAY_SIZE(mfg_clks),
 			       clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 }
 
 static const struct of_device_id of_match_clk_mt6779_mfg[] = {

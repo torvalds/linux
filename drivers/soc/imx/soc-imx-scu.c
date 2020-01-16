@@ -164,14 +164,14 @@ static struct platform_driver imx_scu_soc_driver = {
 static int __init imx_scu_soc_init(void)
 {
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx-scu");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx-scu");
 	if (!np)
 		return -ENODEV;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	ret = platform_driver_register(&imx_scu_soc_driver);
 	if (ret)

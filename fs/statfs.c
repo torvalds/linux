@@ -253,7 +253,7 @@ SYSCALL_DEFINE2(ustat, unsigned, dev, struct ustat __user *, ubuf)
 
 	memset(&tmp,0,sizeof(struct ustat));
 	tmp.f_tfree = sbuf.f_bfree;
-	tmp.f_tinode = sbuf.f_ffree;
+	tmp.f_tiyesde = sbuf.f_ffree;
 
 	return copy_to_user(ubuf, &tmp, sizeof(struct ustat)) ? -EFAULT : 0;
 }
@@ -393,7 +393,7 @@ COMPAT_SYSCALL_DEFINE2(ustat, unsigned, dev, struct compat_ustat __user *, u)
 
 	memset(&tmp, 0, sizeof(struct compat_ustat));
 	tmp.f_tfree = sbuf.f_bfree;
-	tmp.f_tinode = sbuf.f_ffree;
+	tmp.f_tiyesde = sbuf.f_ffree;
 	if (copy_to_user(u, &tmp, sizeof(struct compat_ustat)))
 		return -EFAULT;
 	return 0;

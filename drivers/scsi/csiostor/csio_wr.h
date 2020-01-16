@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -248,8 +248,8 @@ struct csio_ioreq {
 	struct csio_dma_buf	dma_buf;	/* Req/resp DMA buffers */
 	uint16_t		wr_status;	/* WR completion status */
 	int16_t			drv_status;	/* Driver internal status */
-	struct csio_lnode	*lnode;		/* Owner lnode */
-	struct csio_rnode	*rnode;		/* Src/destination rnode */
+	struct csio_lyesde	*lyesde;		/* Owner lyesde */
+	struct csio_ryesde	*ryesde;		/* Src/destination ryesde */
 	void (*io_cbfn) (struct csio_hw *, struct csio_ioreq *);
 						/* completion callback */
 	void			*scratch1;	/* Scratch area 1.
@@ -377,14 +377,14 @@ struct csio_fl {
 };
 
 struct csio_qstats {
-	uint32_t	n_tot_reqs;		/* Total no. of Requests */
-	uint32_t	n_tot_rsps;		/* Total no. of responses */
+	uint32_t	n_tot_reqs;		/* Total yes. of Requests */
+	uint32_t	n_tot_rsps;		/* Total yes. of responses */
 	uint32_t	n_qwrap;		/* Queue wraps */
 	uint32_t	n_eq_wr_split;		/* Number of split EQ WRs */
 	uint32_t	n_qentry;		/* Queue entry */
 	uint32_t	n_qempty;		/* Queue empty */
 	uint32_t	n_qfull;		/* Queue fulls */
-	uint32_t	n_rsp_unknown;		/* Unknown response type */
+	uint32_t	n_rsp_unkyeswn;		/* Unkyeswn response type */
 	uint32_t	n_stray_comp;		/* Stray completion intr */
 	uint32_t	n_flq_refill;		/* Number of FL refills */
 };

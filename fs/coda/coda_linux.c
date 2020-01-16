@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Inode operations for Coda filesystem
+ * Iyesde operations for Coda filesystem
  * Original version: (C) 1996 P. Braam and M. Callahan
  * Rewritten for Linux 2.1. (C) 1997 Carnegie Mellon University
  * 
@@ -13,7 +13,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/uaccess.h>
 #include <linux/string.h>
 
@@ -87,53 +87,53 @@ static struct coda_timespec timespec64_to_coda(struct timespec64 ts64)
 }
 
 /* utility functions below */
-void coda_vattr_to_iattr(struct inode *inode, struct coda_vattr *attr)
+void coda_vattr_to_iattr(struct iyesde *iyesde, struct coda_vattr *attr)
 {
-        int inode_type;
-        /* inode's i_flags, i_ino are set by iget 
+        int iyesde_type;
+        /* iyesde's i_flags, i_iyes are set by iget 
            XXX: is this all we need ??
            */
         switch (attr->va_type) {
         case C_VNON:
-                inode_type  = 0;
+                iyesde_type  = 0;
                 break;
         case C_VREG:
-                inode_type = S_IFREG;
+                iyesde_type = S_IFREG;
                 break;
         case C_VDIR:
-                inode_type = S_IFDIR;
+                iyesde_type = S_IFDIR;
                 break;
         case C_VLNK:
-                inode_type = S_IFLNK;
+                iyesde_type = S_IFLNK;
                 break;
         default:
-                inode_type = 0;
+                iyesde_type = 0;
         }
-	inode->i_mode |= inode_type;
+	iyesde->i_mode |= iyesde_type;
 
 	if (attr->va_mode != (u_short) -1)
-	        inode->i_mode = attr->va_mode | inode_type;
+	        iyesde->i_mode = attr->va_mode | iyesde_type;
         if (attr->va_uid != -1) 
-	        inode->i_uid = make_kuid(&init_user_ns, (uid_t) attr->va_uid);
+	        iyesde->i_uid = make_kuid(&init_user_ns, (uid_t) attr->va_uid);
         if (attr->va_gid != -1)
-	        inode->i_gid = make_kgid(&init_user_ns, (gid_t) attr->va_gid);
+	        iyesde->i_gid = make_kgid(&init_user_ns, (gid_t) attr->va_gid);
 	if (attr->va_nlink != -1)
-		set_nlink(inode, attr->va_nlink);
+		set_nlink(iyesde, attr->va_nlink);
 	if (attr->va_size != -1)
-	        inode->i_size = attr->va_size;
+	        iyesde->i_size = attr->va_size;
 	if (attr->va_size != -1)
-		inode->i_blocks = (attr->va_size + 511) >> 9;
+		iyesde->i_blocks = (attr->va_size + 511) >> 9;
 	if (attr->va_atime.tv_sec != -1) 
-		inode->i_atime = coda_to_timespec64(attr->va_atime);
+		iyesde->i_atime = coda_to_timespec64(attr->va_atime);
 	if (attr->va_mtime.tv_sec != -1)
-		inode->i_mtime = coda_to_timespec64(attr->va_mtime);
+		iyesde->i_mtime = coda_to_timespec64(attr->va_mtime);
         if (attr->va_ctime.tv_sec != -1)
-		inode->i_ctime = coda_to_timespec64(attr->va_ctime);
+		iyesde->i_ctime = coda_to_timespec64(attr->va_ctime);
 }
 
 
 /* 
- * BSD sets attributes that need not be modified to -1. 
+ * BSD sets attributes that need yest be modified to -1. 
  * Linux uses the valid field to indicate what should be
  * looked at.  The BSD type field needs to be deduced from linux 
  * mode.

@@ -45,8 +45,8 @@ static void imx3_idle(void)
 		/* WFI */
 		"mov %0, #0\n"
 		"mcr p15, 0, %0, c7, c0, 4\n"
-		"nop\n" "nop\n" "nop\n" "nop\n"
-		"nop\n" "nop\n" "nop\n"
+		"yesp\n" "yesp\n" "yesp\n" "yesp\n"
+		"yesp\n" "yesp\n" "yesp\n"
 		/* enable I and D cache */
 		"mrc p15, 0, %0, c1, c0, 0\n"
 		"orr %0, %0, #0x00001000\n"
@@ -60,7 +60,7 @@ static void __iomem *imx3_ioremap_caller(phys_addr_t phys_addr, size_t size,
 {
 	if (mtype == MT_DEVICE) {
 		/*
-		 * Access all peripherals below 0x80000000 as nonshared device
+		 * Access all peripherals below 0x80000000 as yesnshared device
 		 * on mx3, but leave l2cc alone.  Otherwise cache corruptions
 		 * can occur.
 		 */
@@ -83,7 +83,7 @@ static void __init imx3_init_l2x0(void)
  * i.MX35 CPUs in the wild, comming with bogus L2 cache settings. These
  * misconfigured CPUs will run amok immediately when the L2 cache gets enabled.
  * Workaraound is to setup the correct register setting prior enabling the
- * L2 cache. This should not hurt already working CPUs, as they are using the
+ * L2 cache. This should yest hurt already working CPUs, as they are using the
  * same value.
  */
 #define L2_MEM_VAL 0x10
@@ -93,7 +93,7 @@ static void __init imx3_init_l2x0(void)
 		writel(0x00000515, clkctl_base + L2_MEM_VAL);
 		iounmap(clkctl_base);
 	} else {
-		pr_err("L2 cache: Cannot fix timing. Trying to continue without\n");
+		pr_err("L2 cache: Canyest fix timing. Trying to continue without\n");
 	}
 
 	l2x0_base = ioremap(MX3x_L2CC_BASE_ADDR, 4096);

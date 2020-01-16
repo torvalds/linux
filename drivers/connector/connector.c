@@ -35,21 +35,21 @@ static int cn_already_initialized;
  *
  * msg->seq and msg->ack are used to determine message genealogy.
  * When someone sends message it puts there locally unique sequence
- * and random acknowledge numbers.  Sequence number may be copied into
+ * and random ackyeswledge numbers.  Sequence number may be copied into
  * nlmsghdr->nlmsg_seq too.
  *
  * Sequence number is incremented with each message to be sent.
  *
  * If we expect a reply to our message then the sequence number in
  * received message MUST be the same as in original message, and
- * acknowledge number MUST be the same + 1.
+ * ackyeswledge number MUST be the same + 1.
  *
- * If we receive a message and its sequence number is not equal to the
+ * If we receive a message and its sequence number is yest equal to the
  * one we are expecting then it is a new message.
  *
  * If we receive a message and its sequence number is the same as one
- * we are expecting but it's acknowledgement number is not equal to
- * the acknowledgement number in the original message + 1, then it is
+ * we are expecting but it's ackyeswledgement number is yest equal to
+ * the ackyeswledgement number in the original message + 1, then it is
  * a new message.
  *
  * If msg->len != len, then additional cn_msg messages are expected following
@@ -189,7 +189,7 @@ static void cn_rx_skb(struct sk_buff *skb)
 
 /*
  * Callback add routing - adds callback with given ID and name.
- * If there is registered callback with the same ID it will not be added.
+ * If there is registered callback with the same ID it will yest be added.
  *
  * May sleep.
  */
@@ -214,8 +214,8 @@ EXPORT_SYMBOL_GPL(cn_add_callback);
 /*
  * Callback remove routing - removes callback
  * with given ID.
- * If there is no registered callback with given
- * ID nothing happens.
+ * If there is yes registered callback with given
+ * ID yesthing happens.
  *
  * May sleep while waiting for reference counter to become zero.
  */

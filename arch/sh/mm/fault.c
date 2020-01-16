@@ -25,9 +25,9 @@
 #include <asm/traps.h>
 
 static void
-force_sig_info_fault(int si_signo, int si_code, unsigned long address)
+force_sig_info_fault(int si_sigyes, int si_code, unsigned long address)
 {
-	force_sig_fault(si_signo, si_code, (void __user *)address);
+	force_sig_fault(si_sigyes, si_code, (void __user *)address);
 }
 
 /*
@@ -57,7 +57,7 @@ static void show_pte(struct mm_struct *mm, unsigned long addr)
 		pmd_t *pmd;
 		pte_t *pte;
 
-		if (pgd_none(*pgd))
+		if (pgd_yesne(*pgd))
 			break;
 
 		if (pgd_bad(*pgd)) {
@@ -70,7 +70,7 @@ static void show_pte(struct mm_struct *mm, unsigned long addr)
 			printk(", *pud=%0*Lx", (u32)(sizeof(*pud) * 2),
 			       (u64)pud_val(*pud));
 
-		if (pud_none(*pud))
+		if (pud_yesne(*pud))
 			break;
 
 		if (pud_bad(*pud)) {
@@ -83,7 +83,7 @@ static void show_pte(struct mm_struct *mm, unsigned long addr)
 			printk(", *pmd=%0*Lx", (u32)(sizeof(*pmd) * 2),
 			       (u64)pmd_val(*pmd));
 
-		if (pmd_none(*pmd))
+		if (pmd_yesne(*pmd))
 			break;
 
 		if (pmd_bad(*pmd)) {
@@ -91,7 +91,7 @@ static void show_pte(struct mm_struct *mm, unsigned long addr)
 			break;
 		}
 
-		/* We must not map this if we have highmem enabled */
+		/* We must yest map this if we have highmem enabled */
 		if (PageHighMem(pfn_to_page(pmd_val(*pmd) >> PAGE_SHIFT)))
 			break;
 
@@ -134,8 +134,8 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 	else {
 		/*
 		 * The page tables are fully synchronised so there must
-		 * be another reason for the fault. Return NULL here to
-		 * signal that we have not taken care of the fault.
+		 * be ayesther reason for the fault. Return NULL here to
+		 * signal that we have yest taken care of the fault.
 		 */
 		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
 		return NULL;
@@ -153,7 +153,7 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 /*
  * Handle a fault on the vmalloc or module mapping area
  */
-static noinline int vmalloc_fault(unsigned long address)
+static yesinline int vmalloc_fault(unsigned long address)
 {
 	pgd_t *pgd_k;
 	pmd_t *pmd_k;
@@ -167,7 +167,7 @@ static noinline int vmalloc_fault(unsigned long address)
 	 * Synchronize this task's top level page-table
 	 * with the 'reference' page table.
 	 *
-	 * Do _not_ use "current" here. We might be inside
+	 * Do _yest_ use "current" here. We might be inside
 	 * an interrupt in the middle of a task switch..
 	 */
 	pgd_k = get_TTB();
@@ -201,8 +201,8 @@ show_fault_oops(struct pt_regs *regs, unsigned long address)
 	show_pte(NULL, address);
 }
 
-static noinline void
-no_context(struct pt_regs *regs, unsigned long error_code,
+static yesinline void
+yes_context(struct pt_regs *regs, unsigned long error_code,
 	   unsigned long address)
 {
 	/* Are we prepared to handle this kernel fault?  */
@@ -226,7 +226,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 }
 
 static void
-__bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+__bad_area_yessemaphore(struct pt_regs *regs, unsigned long error_code,
 		       unsigned long address, int si_code)
 {
 	/* User mode accesses just cause a SIGSEGV */
@@ -241,14 +241,14 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 		return;
 	}
 
-	no_context(regs, error_code, address);
+	yes_context(regs, error_code, address);
 }
 
-static noinline void
-bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+static yesinline void
+bad_area_yessemaphore(struct pt_regs *regs, unsigned long error_code,
 		     unsigned long address)
 {
-	__bad_area_nosemaphore(regs, error_code, address, SEGV_MAPERR);
+	__bad_area_yessemaphore(regs, error_code, address, SEGV_MAPERR);
 }
 
 static void
@@ -263,16 +263,16 @@ __bad_area(struct pt_regs *regs, unsigned long error_code,
 	 */
 	up_read(&mm->mmap_sem);
 
-	__bad_area_nosemaphore(regs, error_code, address, si_code);
+	__bad_area_yessemaphore(regs, error_code, address, si_code);
 }
 
-static noinline void
+static yesinline void
 bad_area(struct pt_regs *regs, unsigned long error_code, unsigned long address)
 {
 	__bad_area(regs, error_code, address, SEGV_MAPERR);
 }
 
-static noinline void
+static yesinline void
 bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
 		      unsigned long address)
 {
@@ -289,24 +289,24 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address)
 
 	/* Kernel mode? Handle exceptions or die: */
 	if (!user_mode(regs))
-		no_context(regs, error_code, address);
+		yes_context(regs, error_code, address);
 
 	force_sig_info_fault(SIGBUS, BUS_ADRERR, address);
 }
 
-static noinline int
+static yesinline int
 mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 	       unsigned long address, vm_fault_t fault)
 {
 	/*
-	 * Pagefault was interrupted by SIGKILL. We have no reason to
+	 * Pagefault was interrupted by SIGKILL. We have yes reason to
 	 * continue pagefault.
 	 */
 	if (fatal_signal_pending(current)) {
 		if (!(fault & VM_FAULT_RETRY))
 			up_read(&current->mm->mmap_sem);
 		if (!user_mode(regs))
-			no_context(regs, error_code, address);
+			yes_context(regs, error_code, address);
 		return 1;
 	}
 
@@ -317,7 +317,7 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 		/* Kernel mode? Handle exceptions or die: */
 		if (!user_mode(regs)) {
 			up_read(&current->mm->mmap_sem);
-			no_context(regs, error_code, address);
+			yes_context(regs, error_code, address);
 			return 1;
 		}
 		up_read(&current->mm->mmap_sem);
@@ -343,7 +343,7 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 static inline int access_error(int error_code, struct vm_area_struct *vma)
 {
 	if (error_code & FAULT_CODE_WRITE) {
-		/* write, present and write, not present: */
+		/* write, present and write, yest present: */
 		if (unlikely(!(vma->vm_flags & VM_WRITE)))
 			return 1;
 		return 0;
@@ -354,7 +354,7 @@ static inline int access_error(int error_code, struct vm_area_struct *vma)
 		     !(vma->vm_flags & VM_EXEC)))
 		return 1;
 
-	/* read, not present: */
+	/* read, yest present: */
 	if (unlikely(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))))
 		return 1;
 
@@ -393,7 +393,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	 * NOTE! We MUST NOT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * yesthing more.
 	 */
 	if (unlikely(fault_in_kernel_space(address))) {
 		if (vmalloc_fault(address) >= 0)
@@ -401,7 +401,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 		if (kprobe_page_fault(regs, vec))
 			return;
 
-		bad_area_nosemaphore(regs, error_code, address);
+		bad_area_yessemaphore(regs, error_code, address);
 		return;
 	}
 
@@ -415,11 +415,11 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
 	/*
-	 * If we're in an interrupt, have no user context or are running
-	 * with pagefaults disabled then we must not take the fault:
+	 * If we're in an interrupt, have yes user context or are running
+	 * with pagefaults disabled then we must yest take the fault:
 	 */
 	if (unlikely(faulthandler_disabled() || !mm)) {
-		bad_area_nosemaphore(regs, error_code, address);
+		bad_area_yessemaphore(regs, error_code, address);
 		return;
 	}
 

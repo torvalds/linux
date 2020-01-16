@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <poll.h>
 #include <fcntl.h>
@@ -100,10 +100,10 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_QUATERNION] = "quaternion",
 	[IIO_MOD_TEMP_AMBIENT] = "ambient",
 	[IIO_MOD_TEMP_OBJECT] = "object",
-	[IIO_MOD_NORTH_MAGN] = "from_north_magnetic",
-	[IIO_MOD_NORTH_TRUE] = "from_north_true",
-	[IIO_MOD_NORTH_MAGN_TILT_COMP] = "from_north_magnetic_tilt_comp",
-	[IIO_MOD_NORTH_TRUE_TILT_COMP] = "from_north_true_tilt_comp",
+	[IIO_MOD_NORTH_MAGN] = "from_yesrth_magnetic",
+	[IIO_MOD_NORTH_TRUE] = "from_yesrth_true",
+	[IIO_MOD_NORTH_MAGN_TILT_COMP] = "from_yesrth_magnetic_tilt_comp",
+	[IIO_MOD_NORTH_TRUE_TILT_COMP] = "from_yesrth_true_tilt_comp",
 	[IIO_MOD_RUNNING] = "running",
 	[IIO_MOD_JOGGING] = "jogging",
 	[IIO_MOD_WALKING] = "walking",
@@ -112,7 +112,7 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_I] = "i",
 	[IIO_MOD_Q] = "q",
 	[IIO_MOD_CO2] = "co2",
-	[IIO_MOD_ETHANOL] = "ethanol",
+	[IIO_MOD_ETHANOL] = "ethayesl",
 	[IIO_MOD_H2] = "h2",
 	[IIO_MOD_VOC] = "voc",
 	[IIO_MOD_PM1] = "pm1",
@@ -121,7 +121,7 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_PM10] = "pm10",
 };
 
-static bool event_is_known(struct iio_event_data *event)
+static bool event_is_kyeswn(struct iio_event_data *event)
 {
 	enum iio_chan_type type = IIO_EVENT_CODE_EXTRACT_CHAN_TYPE(event->id);
 	enum iio_modifier mod = IIO_EVENT_CODE_EXTRACT_MODIFIER(event->id);
@@ -251,8 +251,8 @@ static void print_event(struct iio_event_data *event)
 	int chan2 = IIO_EVENT_CODE_EXTRACT_CHAN2(event->id);
 	bool diff = IIO_EVENT_CODE_EXTRACT_DIFF(event->id);
 
-	if (!event_is_known(event)) {
-		fprintf(stderr, "Unknown event: time: %lld, id: %llx\n",
+	if (!event_is_kyeswn(event)) {
+		fprintf(stderr, "Unkyeswn event: time: %lld, id: %llx\n",
 			event->timestamp, event->id);
 
 		return;
@@ -313,17 +313,17 @@ int main(int argc, char **argv)
 
 	fd = open(chrdev_name, 0);
 	if (fd == -1) {
-		ret = -errno;
+		ret = -erryes;
 		fprintf(stderr, "Failed to open %s\n", chrdev_name);
 		goto error_free_chrdev_name;
 	}
 
 	ret = ioctl(fd, IIO_GET_EVENT_FD_IOCTL, &event_fd);
 	if (ret == -1 || event_fd == -1) {
-		ret = -errno;
+		ret = -erryes;
 		if (ret == -ENODEV)
 			fprintf(stderr,
-				"This device does not support events\n");
+				"This device does yest support events\n");
 		else
 			fprintf(stderr, "Failed to retrieve event fd\n");
 		if (close(fd) == -1)
@@ -333,18 +333,18 @@ int main(int argc, char **argv)
 	}
 
 	if (close(fd) == -1)  {
-		ret = -errno;
+		ret = -erryes;
 		goto error_free_chrdev_name;
 	}
 
 	while (true) {
 		ret = read(event_fd, &event, sizeof(event));
 		if (ret == -1) {
-			if (errno == EAGAIN) {
-				fprintf(stderr, "nothing available\n");
+			if (erryes == EAGAIN) {
+				fprintf(stderr, "yesthing available\n");
 				continue;
 			} else {
-				ret = -errno;
+				ret = -erryes;
 				perror("Failed to read event from device");
 				break;
 			}

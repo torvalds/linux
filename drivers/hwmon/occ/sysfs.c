@@ -115,7 +115,7 @@ void occ_sysfs_poll_done(struct occ *occ)
 
 	/*
 	 * On the first poll response, we haven't yet created the sysfs
-	 * attributes, so don't make any notify calls.
+	 * attributes, so don't make any yestify calls.
 	 */
 	if (!occ->hwmon)
 		goto done;
@@ -123,51 +123,51 @@ void occ_sysfs_poll_done(struct occ *occ)
 	if ((header->status & OCC_STAT_MASTER) !=
 	    (occ->prev_stat & OCC_STAT_MASTER)) {
 		name = sensor_dev_attr_occ_master.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_yestify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->status & OCC_STAT_ACTIVE) !=
 	    (occ->prev_stat & OCC_STAT_ACTIVE)) {
 		name = sensor_dev_attr_occ_active.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_yestify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->ext_status & OCC_EXT_STAT_DVFS_OT) !=
 	    (occ->prev_ext_stat & OCC_EXT_STAT_DVFS_OT)) {
 		name = sensor_dev_attr_occ_dvfs_overtemp.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_yestify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->ext_status & OCC_EXT_STAT_DVFS_POWER) !=
 	    (occ->prev_ext_stat & OCC_EXT_STAT_DVFS_POWER)) {
 		name = sensor_dev_attr_occ_dvfs_power.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_yestify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->ext_status & OCC_EXT_STAT_MEM_THROTTLE) !=
 	    (occ->prev_ext_stat & OCC_EXT_STAT_MEM_THROTTLE)) {
 		name = sensor_dev_attr_occ_mem_throttle.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_yestify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->ext_status & OCC_EXT_STAT_QUICK_DROP) !=
 	    (occ->prev_ext_stat & OCC_EXT_STAT_QUICK_DROP)) {
 		name = sensor_dev_attr_occ_quick_pwr_drop.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_yestify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->status & OCC_STAT_MASTER) &&
 	    header->occs_present != occ->prev_occs_present) {
 		name = sensor_dev_attr_occs_present.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_yestify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if (occ->error && occ->error != occ->prev_error) {
 		name = dev_attr_occ_error.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_yestify(&occ->bus_dev->kobj, NULL, name);
 	}
 
-	/* no notifications for OCC state; doesn't indicate error condition */
+	/* yes yestifications for OCC state; doesn't indicate error condition */
 
 done:
 	occ->prev_error = occ->error;

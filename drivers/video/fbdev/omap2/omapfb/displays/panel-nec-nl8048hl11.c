@@ -230,12 +230,12 @@ static struct omap_dss_driver nec_8048_ops = {
 
 static int nec_8048_probe_of(struct spi_device *spi)
 {
-	struct device_node *node = spi->dev.of_node;
+	struct device_yesde *yesde = spi->dev.of_yesde;
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *in;
 	int gpio;
 
-	gpio = of_get_named_gpio(node, "reset-gpios", 0);
+	gpio = of_get_named_gpio(yesde, "reset-gpios", 0);
 	if (!gpio_is_valid(gpio)) {
 		dev_err(&spi->dev, "failed to parse enable gpio\n");
 		return gpio;
@@ -245,7 +245,7 @@ static int nec_8048_probe_of(struct spi_device *spi)
 	/* XXX the panel spec doesn't mention any QVGA pin?? */
 	ddata->qvga_gpio = -ENOENT;
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(yesde);
 	if (IS_ERR(in)) {
 		dev_err(&spi->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -264,7 +264,7 @@ static int nec_8048_probe(struct spi_device *spi)
 
 	dev_dbg(&spi->dev, "%s\n", __func__);
 
-	if (!spi->dev.of_node)
+	if (!spi->dev.of_yesde)
 		return -ENODEV;
 
 	spi->mode = SPI_MODE_0;

@@ -37,7 +37,7 @@
 	sdhci@700b0600 {
 		status = "okay";
 		bus-width = <8>;
-		non-removable;
+		yesn-removable;
 	};
 
 	clocks {

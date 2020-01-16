@@ -47,7 +47,7 @@ static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 	int pp_id = mixer->pp;
 
 	if (IS_ERR_OR_NULL(mdp5_kms->vsync_clk)) {
-		DRM_DEV_ERROR(dev, "vsync_clk is not initialized\n");
+		DRM_DEV_ERROR(dev, "vsync_clk is yest initialized\n");
 		return -EINVAL;
 	}
 

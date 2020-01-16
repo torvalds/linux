@@ -24,7 +24,7 @@
 #include <net/phonet/gprs.h>
 
 /* sk_state values:
- * TCP_CLOSE		sock not in use yet
+ * TCP_CLOSE		sock yest in use yet
  * TCP_CLOSE_WAIT	disconnected pipe
  * TCP_LISTEN		listening pipe endpoint
  * TCP_SYN_RECV		connected pipe in disabled state
@@ -185,7 +185,7 @@ static int pep_reject_conn(struct sock *sk, struct sk_buff *skb, u8 code,
 	return pep_reply(sk, skb, code, data, sizeof(data), priority);
 }
 
-/* Control requests are not sent by the pipe service and have a specific
+/* Control requests are yest sent by the pipe service and have a specific
  * message format. */
 static int pep_ctrlreq_error(struct sock *sk, struct sk_buff *oskb, u8 code,
 				gfp_t priority)
@@ -260,7 +260,7 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 
 	hdr = pnp_hdr(skb);
 	if (hdr->pep_type != PN_PEP_TYPE_COMMON) {
-		net_dbg_ratelimited("Phonet unknown PEP type: %u\n",
+		net_dbg_ratelimited("Phonet unkyeswn PEP type: %u\n",
 				    (unsigned int)hdr->pep_type);
 		return -EOPNOTSUPP;
 	}
@@ -292,7 +292,7 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 		break;
 
 	default:
-		net_dbg_ratelimited("Phonet unknown PEP indication: %u\n",
+		net_dbg_ratelimited("Phonet unkyeswn PEP indication: %u\n",
 				    (unsigned int)hdr->data[0]);
 		return -EOPNOTSUPP;
 	}
@@ -364,7 +364,7 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 		case PN_PIPE_ENABLE:
 			pn->init_enable = 1;
 			break;
-		default: /* not allowed to send an error here!? */
+		default: /* yest allowed to send an error here!? */
 			err = -EINVAL;
 			goto out;
 		}
@@ -439,7 +439,7 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 		break;
 
 	default:
-		net_dbg_ratelimited("Phonet unknown PEP message: %u\n",
+		net_dbg_ratelimited("Phonet unkyeswn PEP message: %u\n",
 				    hdr->message_id);
 		err = -EINVAL;
 	}
@@ -610,7 +610,7 @@ static int pipe_handler_do_rcv(struct sock *sk, struct sk_buff *skb)
 		break;
 
 	case PNS_PEP_DISCONNECT_RESP:
-		/* sock should already be dead, nothing to do */
+		/* sock should already be dead, yesthing to do */
 		break;
 
 	case PNS_PEP_STATUS_IND:
@@ -626,22 +626,22 @@ static struct sock *pep_find_pipe(const struct hlist_head *hlist,
 					const struct sockaddr_pn *dst,
 					u8 pipe_handle)
 {
-	struct sock *sknode;
+	struct sock *skyesde;
 	u16 dobj = pn_sockaddr_get_object(dst);
 
-	sk_for_each(sknode, hlist) {
-		struct pep_sock *pnnode = pep_sk(sknode);
+	sk_for_each(skyesde, hlist) {
+		struct pep_sock *pnyesde = pep_sk(skyesde);
 
-		/* Ports match, but addresses might not: */
-		if (pnnode->pn_sk.sobject != dobj)
+		/* Ports match, but addresses might yest: */
+		if (pnyesde->pn_sk.sobject != dobj)
 			continue;
-		if (pnnode->pipe_handle != pipe_handle)
+		if (pnyesde->pipe_handle != pipe_handle)
 			continue;
-		if (sknode->sk_state == TCP_CLOSE_WAIT)
+		if (skyesde->sk_state == TCP_CLOSE_WAIT)
 			continue;
 
-		sock_hold(sknode);
-		return sknode;
+		sock_hold(skyesde);
+		return skyesde;
 	}
 	return NULL;
 }
@@ -654,7 +654,7 @@ static struct sock *pep_find_pipe(const struct hlist_head *hlist,
 static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct pep_sock *pn = pep_sk(sk);
-	struct sock *sknode;
+	struct sock *skyesde;
 	struct pnpipehdr *hdr;
 	struct sockaddr_pn dst;
 	u8 pipe_handle;
@@ -670,9 +670,9 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 	pn_skb_get_dst_sockaddr(skb, &dst);
 
 	/* Look for an existing pipe handle */
-	sknode = pep_find_pipe(&pn->hlist, &dst, pipe_handle);
-	if (sknode)
-		return sk_receive_skb(sknode, skb, 1);
+	skyesde = pep_find_pipe(&pn->hlist, &dst, pipe_handle);
+	if (skyesde)
+		return sk_receive_skb(skyesde, skb, 1);
 
 	switch (hdr->message_id) {
 	case PNS_PEP_CONNECT_REQ:
@@ -698,7 +698,7 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 	case PNS_PEP_RESET_REQ:
 	case PNS_PEP_ENABLE_REQ:
 	case PNS_PEP_DISABLE_REQ:
-		/* invalid handle is not even allowed here! */
+		/* invalid handle is yest even allowed here! */
 		break;
 
 	default:
@@ -872,7 +872,7 @@ static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp,
 		newsk = NULL;
 		goto drop;
 	}
-	sk_add_node(newsk, &pn->hlist);
+	sk_add_yesde(newsk, &pn->hlist);
 drop:
 	release_sock(sk);
 	kfree_skb(skb);
@@ -1013,7 +1013,7 @@ static int pep_setsockopt(struct sock *sk, int level, int optname,
 			gprs_detach(sk);
 			err = 0;
 		}
-		goto out_norel;
+		goto out_yesrel;
 
 	case PNPIPE_HANDLE:
 		if ((sk->sk_state == TCP_CLOSE) &&
@@ -1032,7 +1032,7 @@ static int pep_setsockopt(struct sock *sk, int level, int optname,
 	}
 	release_sock(sk);
 
-out_norel:
+out_yesrel:
 	return err;
 }
 
@@ -1164,7 +1164,7 @@ disabled:
 			goto out;
 		}
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erryes(timeo);
 			goto out;
 		}
 
@@ -1235,7 +1235,7 @@ struct sk_buff *pep_read(struct sock *sk)
 }
 
 static int pep_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		       int noblock, int flags, int *addr_len)
+		       int yesblock, int flags, int *addr_len)
 {
 	struct sk_buff *skb;
 	int err;
@@ -1248,7 +1248,7 @@ static int pep_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		return -ENOTCONN;
 
 	if ((flags & MSG_OOB) || sock_flag(sk, SOCK_URGINLINE)) {
-		/* Dequeue and acknowledge control request */
+		/* Dequeue and ackyeswledge control request */
 		struct pep_sock *pn = pep_sk(sk);
 
 		if (flags & MSG_PEEK)
@@ -1264,7 +1264,7 @@ static int pep_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			return -EINVAL;
 	}
 
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = skb_recv_datagram(sk, flags, yesblock, &err);
 	lock_sock(sk);
 	if (skb == NULL) {
 		if (err == -ENOTCONN && sk->sk_state == TCP_CLOSE_WAIT)
@@ -1305,7 +1305,7 @@ static void pep_sock_unhash(struct sock *sk)
 
 		pn = pep_sk(skparent);
 		lock_sock(skparent);
-		sk_del_node_init(sk);
+		sk_del_yesde_init(sk);
 		sk = skparent;
 	}
 

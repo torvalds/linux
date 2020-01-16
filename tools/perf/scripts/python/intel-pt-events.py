@@ -19,7 +19,7 @@ import struct
 sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 	'/scripts/python/Perf-Trace-Util/lib/Perf/Trace')
 
-# These perf imports are not used at present
+# These perf imports are yest used at present
 #from perf_trace_context import *
 #from Core import *
 
@@ -97,16 +97,16 @@ def process_event(param_dict):
 	comm	   = param_dict["comm"]
 	name	   = param_dict["ev_name"]
 
-	# Symbol and dso info are not always resolved
+	# Symbol and dso info are yest always resolved
 	if "dso" in param_dict:
 		dso = param_dict["dso"]
 	else:
-		dso = "[unknown]"
+		dso = "[unkyeswn]"
 
 	if "symbol" in param_dict:
 		symbol = param_dict["symbol"]
 	else:
-		symbol = "[unknown]"
+		symbol = "[unkyeswn]"
 
 	if name == "ptwrite":
 		print_common_start(comm, sample, name)

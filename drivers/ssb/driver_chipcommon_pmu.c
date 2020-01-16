@@ -228,7 +228,7 @@ static void ssb_pmu1_pllinit_r0(struct ssb_chipcommon *cc,
 	unsigned int i;
 
 	if (bus->chip_id == 0x4312) {
-		/* We do not touch the BCM4312 PLL and assume
+		/* We do yest touch the BCM4312 PLL and assume
 		 * the default crystal settings work out-of-the-box. */
 		cc->pmu.crystalfreq = 20000;
 		return;
@@ -349,7 +349,7 @@ static void ssb_pmu_pll_init(struct ssb_chipcommon *cc)
 	case 43222:
 		break;
 	default:
-		dev_err(cc->dev->dev, "ERROR: PLL init unknown for device %04X\n",
+		dev_err(cc->dev->dev, "ERROR: PLL init unkyeswn for device %04X\n",
 			bus->chip_id);
 	}
 }
@@ -471,7 +471,7 @@ static void ssb_pmu_resources_init(struct ssb_chipcommon *cc)
 		max_msk = 0xFFFFF;
 		break;
 	default:
-		dev_err(cc->dev->dev, "ERROR: PMU resource config unknown for device %04X\n",
+		dev_err(cc->dev->dev, "ERROR: PMU resource config unkyeswn for device %04X\n",
 			bus->chip_id);
 	}
 
@@ -636,7 +636,7 @@ u32 ssb_pmu_get_alp_clock(struct ssb_chipcommon *cc)
 	case 0x5354:
 		return ssb_pmu_get_alp_clock_clk0(cc);
 	default:
-		dev_err(cc->dev->dev, "ERROR: PMU alp clock unknown for device %04X\n",
+		dev_err(cc->dev->dev, "ERROR: PMU alp clock unkyeswn for device %04X\n",
 			bus->chip_id);
 		return 0;
 	}
@@ -648,10 +648,10 @@ u32 ssb_pmu_get_cpu_clock(struct ssb_chipcommon *cc)
 
 	switch (bus->chip_id) {
 	case 0x5354:
-		/* 5354 chip uses a non programmable PLL of frequency 240MHz */
+		/* 5354 chip uses a yesn programmable PLL of frequency 240MHz */
 		return 240000000;
 	default:
-		dev_err(cc->dev->dev, "ERROR: PMU cpu clock unknown for device %04X\n",
+		dev_err(cc->dev->dev, "ERROR: PMU cpu clock unkyeswn for device %04X\n",
 			bus->chip_id);
 		return 0;
 	}
@@ -665,7 +665,7 @@ u32 ssb_pmu_get_controlclock(struct ssb_chipcommon *cc)
 	case 0x5354:
 		return 120000000;
 	default:
-		dev_err(cc->dev->dev, "ERROR: PMU controlclock unknown for device %04X\n",
+		dev_err(cc->dev->dev, "ERROR: PMU controlclock unkyeswn for device %04X\n",
 			bus->chip_id);
 		return 0;
 	}
@@ -706,7 +706,7 @@ void ssb_pmu_spuravoid_pllupdate(struct ssb_chipcommon *cc, int spuravoid)
 		break;
 	default:
 		dev_err(cc->dev->dev,
-			"Unknown spuravoidance settings for chip 0x%04X, not changing PLL\n",
+			"Unkyeswn spuravoidance settings for chip 0x%04X, yest changing PLL\n",
 			cc->dev->bus->chip_id);
 		return;
 	}

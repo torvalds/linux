@@ -1,6 +1,6 @@
 GTM601 UMTS modem audio interface CODEC
 
-This device has no configuration interface. Sample rate is fixed - 8kHz.
+This device has yes configuration interface. Sample rate is fixed - 8kHz.
 
 Required properties:
 

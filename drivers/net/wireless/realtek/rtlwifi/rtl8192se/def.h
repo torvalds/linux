@@ -73,7 +73,7 @@ static inline void set_tx_desc_queue_sel(__le32 *__pdesc, u32 __val)
 	le32p_replace_bits((__pdesc + 1), __val, GENMASK(12, 8));
 }
 
-static inline void set_tx_desc_non_qos(__le32 *__pdesc, u32 __val)
+static inline void set_tx_desc_yesn_qos(__le32 *__pdesc, u32 __val)
 {
 	le32p_replace_bits((__pdesc + 1), __val, BIT(16));
 }
@@ -207,8 +207,8 @@ static inline void set_tx_desc_next_desc_address(__le32 *__pdesc, u32 __val)
 
 /* Because the PCI Tx descriptors are chaied at the
  * initialization and all the NextDescAddresses in
- * these descriptors cannot not be cleared (,or
- * driver/HW cannot find the next descriptor), the
+ * these descriptors canyest yest be cleared (,or
+ * driver/HW canyest find the next descriptor), the
  * offset 36 (NextDescAddresses) is reserved when
  * the desc is cleared. */
 #define	TX_DESC_NEXT_DESC_OFFSET			36

@@ -35,7 +35,7 @@ BEGIN {
 
 	# Setup generating tables
 	print "/* x86 opcode map generated from x86-opcode-map.txt */"
-	print "/* Do not change this code. */\n"
+	print "/* Do yest change this code. */\n"
 	ggid = 1
 	geid = 1
 	gaid = 0
@@ -244,7 +244,7 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 		i = opnd[j]
 		if (match(i, imm_expr) == 1) {
 			if (!imm_flag[i])
-				semantic_error("Unknown imm opnd: " i)
+				semantic_error("Unkyeswn imm opnd: " i)
 			if (imm) {
 				if (i != "Ib")
 					semantic_error("Second IMM error")
@@ -300,7 +300,7 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 		if (match($i, sep_expr))
 			i++
 		else if (i < NF)
-			semantic_error($i " is not a separator")
+			semantic_error($i " is yest a separator")
 
 		# check if group opcode
 		if (match(opcode, group_expr)) {
@@ -333,7 +333,7 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 		# check prefixes
 		if (match(ext, prefix_expr)) {
 			if (!prefix_num[opcode])
-				semantic_error("Unknown prefix: " opcode)
+				semantic_error("Unkyeswn prefix: " opcode)
 			flags = add_flags(flags, "INAT_MAKE_PREFIX(" prefix_num[opcode] ")")
 		}
 		if (length(flags) == 0)

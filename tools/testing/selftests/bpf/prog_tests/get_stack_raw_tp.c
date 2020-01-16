@@ -23,7 +23,7 @@ struct get_stack_trace_t {
 static void get_stack_print_output(void *ctx, int cpu, void *data, __u32 size)
 {
 	bool good_kern_stack = false, good_user_stack = false;
-	const char *nonjit_func = "___bpf_prog_run";
+	const char *yesnjit_func = "___bpf_prog_run";
 	struct get_stack_trace_t *e = data;
 	int i, num_stack;
 	static __u64 cnt;
@@ -36,9 +36,9 @@ static void get_stack_print_output(void *ctx, int cpu, void *data, __u32 size)
 		bool found = false;
 
 		num_stack = size / sizeof(__u64);
-		/* If jit is enabled, we do not have a good way to
+		/* If jit is enabled, we do yest have a good way to
 		 * verify the sanity of the kernel stack. So we
-		 * just assume it is good if the stack is not empty.
+		 * just assume it is good if the stack is yest empty.
 		 * This could be improved in the future.
 		 */
 		if (env.jit_enabled) {
@@ -46,7 +46,7 @@ static void get_stack_print_output(void *ctx, int cpu, void *data, __u32 size)
 		} else {
 			for (i = 0; i < num_stack; i++) {
 				ks = ksym_search(raw_data[i]);
-				if (ks && (strcmp(ks->name, nonjit_func) == 0)) {
+				if (ks && (strcmp(ks->name, yesnjit_func) == 0)) {
 					found = true;
 					break;
 				}
@@ -63,7 +63,7 @@ static void get_stack_print_output(void *ctx, int cpu, void *data, __u32 size)
 		} else {
 			for (i = 0; i < num_stack; i++) {
 				ks = ksym_search(e->kern_stack[i]);
-				if (ks && (strcmp(ks->name, nonjit_func) == 0)) {
+				if (ks && (strcmp(ks->name, yesnjit_func) == 0)) {
 					good_kern_stack = true;
 					break;
 				}
@@ -94,25 +94,25 @@ void test_get_stack_raw_tp(void)
 	cpu_set_t cpu_set;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
-	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "prog_load raw tp", "err %d erryes %d\n", err, erryes))
 		return;
 
 	prog = bpf_object__find_program_by_title(obj, prog_name);
-	if (CHECK(!prog, "find_probe", "prog '%s' not found\n", prog_name))
+	if (CHECK(!prog, "find_probe", "prog '%s' yest found\n", prog_name))
 		goto close_prog;
 
 	map = bpf_object__find_map_by_name(obj, "perfmap");
-	if (CHECK(!map, "bpf_find_map", "not found\n"))
+	if (CHECK(!map, "bpf_find_map", "yest found\n"))
 		goto close_prog;
 
 	err = load_kallsyms();
-	if (CHECK(err < 0, "load_kallsyms", "err %d errno %d\n", err, errno))
+	if (CHECK(err < 0, "load_kallsyms", "err %d erryes %d\n", err, erryes))
 		goto close_prog;
 
 	CPU_ZERO(&cpu_set);
 	CPU_SET(0, &cpu_set);
 	err = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set);
-	if (CHECK(err, "set_affinity", "err %d, errno %d\n", err, errno))
+	if (CHECK(err, "set_affinity", "err %d, erryes %d\n", err, erryes))
 		goto close_prog;
 
 	link = bpf_program__attach_raw_tracepoint(prog, "sys_enter");
@@ -126,7 +126,7 @@ void test_get_stack_raw_tp(void)
 
 	/* trigger some syscall action */
 	for (i = 0; i < MAX_CNT_RAWTP; i++)
-		nanosleep(&tv, NULL);
+		nayessleep(&tv, NULL);
 
 	while (exp_cnt > 0) {
 		err = perf_buffer__poll(pb, 100);

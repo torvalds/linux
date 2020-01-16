@@ -8,7 +8,7 @@
 #define _LINUX_SWITCHDEV_H_
 
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/list.h>
 #include <net/ip_fib.h>
 
@@ -96,7 +96,7 @@ struct switchdev_obj_port_mdb {
 
 typedef int switchdev_obj_dump_cb_t(struct switchdev_obj *obj);
 
-enum switchdev_notifier_type {
+enum switchdev_yestifier_type {
 	SWITCHDEV_FDB_ADD_TO_BRIDGE = 1,
 	SWITCHDEV_FDB_DEL_TO_BRIDGE,
 	SWITCHDEV_FDB_ADD_TO_DEVICE,
@@ -114,41 +114,41 @@ enum switchdev_notifier_type {
 	SWITCHDEV_VXLAN_FDB_OFFLOADED,
 };
 
-struct switchdev_notifier_info {
+struct switchdev_yestifier_info {
 	struct net_device *dev;
 	struct netlink_ext_ack *extack;
 };
 
-struct switchdev_notifier_fdb_info {
-	struct switchdev_notifier_info info; /* must be first */
+struct switchdev_yestifier_fdb_info {
+	struct switchdev_yestifier_info info; /* must be first */
 	const unsigned char *addr;
 	u16 vid;
 	u8 added_by_user:1,
 	   offloaded:1;
 };
 
-struct switchdev_notifier_port_obj_info {
-	struct switchdev_notifier_info info; /* must be first */
+struct switchdev_yestifier_port_obj_info {
+	struct switchdev_yestifier_info info; /* must be first */
 	const struct switchdev_obj *obj;
 	struct switchdev_trans *trans;
 	bool handled;
 };
 
-struct switchdev_notifier_port_attr_info {
-	struct switchdev_notifier_info info; /* must be first */
+struct switchdev_yestifier_port_attr_info {
+	struct switchdev_yestifier_info info; /* must be first */
 	const struct switchdev_attr *attr;
 	struct switchdev_trans *trans;
 	bool handled;
 };
 
 static inline struct net_device *
-switchdev_notifier_info_to_dev(const struct switchdev_notifier_info *info)
+switchdev_yestifier_info_to_dev(const struct switchdev_yestifier_info *info)
 {
 	return info->dev;
 }
 
 static inline struct netlink_ext_ack *
-switchdev_notifier_info_to_extack(const struct switchdev_notifier_info *info)
+switchdev_yestifier_info_to_extack(const struct switchdev_yestifier_info *info)
 {
 	return info->extack;
 }
@@ -164,16 +164,16 @@ int switchdev_port_obj_add(struct net_device *dev,
 int switchdev_port_obj_del(struct net_device *dev,
 			   const struct switchdev_obj *obj);
 
-int register_switchdev_notifier(struct notifier_block *nb);
-int unregister_switchdev_notifier(struct notifier_block *nb);
-int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
-			     struct switchdev_notifier_info *info,
+int register_switchdev_yestifier(struct yestifier_block *nb);
+int unregister_switchdev_yestifier(struct yestifier_block *nb);
+int call_switchdev_yestifiers(unsigned long val, struct net_device *dev,
+			     struct switchdev_yestifier_info *info,
 			     struct netlink_ext_ack *extack);
 
-int register_switchdev_blocking_notifier(struct notifier_block *nb);
-int unregister_switchdev_blocking_notifier(struct notifier_block *nb);
-int call_switchdev_blocking_notifiers(unsigned long val, struct net_device *dev,
-				      struct switchdev_notifier_info *info,
+int register_switchdev_blocking_yestifier(struct yestifier_block *nb);
+int unregister_switchdev_blocking_yestifier(struct yestifier_block *nb);
+int call_switchdev_blocking_yestifiers(unsigned long val, struct net_device *dev,
+				      struct switchdev_yestifier_info *info,
 				      struct netlink_ext_ack *extack);
 
 void switchdev_port_fwd_mark_set(struct net_device *dev,
@@ -181,20 +181,20 @@ void switchdev_port_fwd_mark_set(struct net_device *dev,
 				 bool joining);
 
 int switchdev_handle_port_obj_add(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_yestifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
 				      struct switchdev_trans *trans,
 				      struct netlink_ext_ack *extack));
 int switchdev_handle_port_obj_del(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_yestifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*del_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj));
 
 int switchdev_handle_port_attr_set(struct net_device *dev,
-			struct switchdev_notifier_port_attr_info *port_attr_info,
+			struct switchdev_yestifier_port_attr_info *port_attr_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev,
 				      const struct switchdev_attr *attr,
@@ -224,40 +224,40 @@ static inline int switchdev_port_obj_del(struct net_device *dev,
 	return -EOPNOTSUPP;
 }
 
-static inline int register_switchdev_notifier(struct notifier_block *nb)
+static inline int register_switchdev_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }
 
-static inline int unregister_switchdev_notifier(struct notifier_block *nb)
+static inline int unregister_switchdev_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }
 
-static inline int call_switchdev_notifiers(unsigned long val,
+static inline int call_switchdev_yestifiers(unsigned long val,
 					   struct net_device *dev,
-					   struct switchdev_notifier_info *info,
+					   struct switchdev_yestifier_info *info,
 					   struct netlink_ext_ack *extack)
 {
 	return NOTIFY_DONE;
 }
 
 static inline int
-register_switchdev_blocking_notifier(struct notifier_block *nb)
+register_switchdev_blocking_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }
 
 static inline int
-unregister_switchdev_blocking_notifier(struct notifier_block *nb)
+unregister_switchdev_blocking_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }
 
 static inline int
-call_switchdev_blocking_notifiers(unsigned long val,
+call_switchdev_blocking_yestifiers(unsigned long val,
 				  struct net_device *dev,
-				  struct switchdev_notifier_info *info,
+				  struct switchdev_yestifier_info *info,
 				  struct netlink_ext_ack *extack)
 {
 	return NOTIFY_DONE;
@@ -265,7 +265,7 @@ call_switchdev_blocking_notifiers(unsigned long val,
 
 static inline int
 switchdev_handle_port_obj_add(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_yestifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
@@ -277,7 +277,7 @@ switchdev_handle_port_obj_add(struct net_device *dev,
 
 static inline int
 switchdev_handle_port_obj_del(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_yestifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*del_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj))
@@ -287,7 +287,7 @@ switchdev_handle_port_obj_del(struct net_device *dev,
 
 static inline int
 switchdev_handle_port_attr_set(struct net_device *dev,
-			struct switchdev_notifier_port_attr_info *port_attr_info,
+			struct switchdev_yestifier_port_attr_info *port_attr_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev,
 				      const struct switchdev_attr *attr,

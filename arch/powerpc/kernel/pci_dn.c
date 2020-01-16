@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001 Todd Inglett, IBM Corporation
  *
- * PCI manipulation via device_nodes.
+ * PCI manipulation via device_yesdes.
  */
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -30,7 +30,7 @@
 static struct pci_dn *pci_bus_to_pdn(struct pci_bus *bus)
 {
 	struct pci_bus *pbus;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct pci_dn *pdn;
 
 	/*
@@ -47,9 +47,9 @@ static struct pci_dn *pci_bus_to_pdn(struct pci_bus *bus)
 
 	/*
 	 * Except virtual bus, all PCI buses should
-	 * have device nodes.
+	 * have device yesdes.
 	 */
-	dn = pci_bus_to_OF_node(pbus);
+	dn = pci_bus_to_OF_yesde(pbus);
 	pdn = dn ? PCI_DN(dn) : NULL;
 
 	return pdn;
@@ -58,7 +58,7 @@ static struct pci_dn *pci_bus_to_pdn(struct pci_bus *bus)
 struct pci_dn *pci_get_pdn_by_devfn(struct pci_bus *bus,
 				    int devfn)
 {
-	struct device_node *dn = NULL;
+	struct device_yesde *dn = NULL;
 	struct pci_dn *parent, *pdn;
 	struct pci_dev *pdev = NULL;
 
@@ -68,12 +68,12 @@ struct pci_dn *pci_get_pdn_by_devfn(struct pci_bus *bus,
 			if (pdev->dev.archdata.pci_data)
 				return pdev->dev.archdata.pci_data;
 
-			dn = pci_device_to_OF_node(pdev);
+			dn = pci_device_to_OF_yesde(pdev);
 			break;
 		}
 	}
 
-	/* Fast path: fetch from device node */
+	/* Fast path: fetch from device yesde */
 	pdn = dn ? PCI_DN(dn) : NULL;
 	if (pdn)
 		return pdn;
@@ -84,7 +84,7 @@ struct pci_dn *pci_get_pdn_by_devfn(struct pci_bus *bus,
 		return NULL;
 
 	list_for_each_entry(pdn, &parent->child_list, list) {
-		if (pdn->busno == bus->number &&
+		if (pdn->busyes == bus->number &&
                     pdn->devfn == devfn)
                         return pdn;
         }
@@ -94,21 +94,21 @@ struct pci_dn *pci_get_pdn_by_devfn(struct pci_bus *bus,
 
 struct pci_dn *pci_get_pdn(struct pci_dev *pdev)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct pci_dn *parent, *pdn;
 
 	/* Search device directly */
 	if (pdev->dev.archdata.pci_data)
 		return pdev->dev.archdata.pci_data;
 
-	/* Check device node */
-	dn = pci_device_to_OF_node(pdev);
+	/* Check device yesde */
+	dn = pci_device_to_OF_yesde(pdev);
 	pdn = dn ? PCI_DN(dn) : NULL;
 	if (pdn)
 		return pdn;
 
 	/*
-	 * VFs don't have device nodes. We hook their
+	 * VFs don't have device yesdes. We hook their
 	 * firmware data to PF's bridge.
 	 */
 	parent = pci_bus_to_pdn(pdev->bus);
@@ -116,7 +116,7 @@ struct pci_dn *pci_get_pdn(struct pci_dev *pdev)
 		return NULL;
 
 	list_for_each_entry(pdn, &parent->child_list, list) {
-		if (pdn->busno == pdev->bus->number &&
+		if (pdn->busyes == pdev->bus->number &&
 		    pdn->devfn == pdev->devfn)
 			return pdn;
 	}
@@ -127,7 +127,7 @@ struct pci_dn *pci_get_pdn(struct pci_dev *pdev)
 #ifdef CONFIG_PCI_IOV
 static struct pci_dn *add_one_dev_pci_data(struct pci_dn *parent,
 					   int vf_index,
-					   int busno, int devfn)
+					   int busyes, int devfn)
 {
 	struct pci_dn *pdn;
 
@@ -141,7 +141,7 @@ static struct pci_dn *add_one_dev_pci_data(struct pci_dn *parent,
 
 	pdn->phb = parent->phb;
 	pdn->parent = parent;
-	pdn->busno = busno;
+	pdn->busyes = busyes;
 	pdn->devfn = devfn;
 	pdn->vf_index = vf_index;
 	pdn->pe_number = IODA_INVALID_PE;
@@ -159,7 +159,7 @@ struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
 	struct pci_dn *parent, *pdn;
 	int i;
 
-	/* Only support IOV for now */
+	/* Only support IOV for yesw */
 	if (!pdev->is_physfn)
 		return pci_get_pdn(pdev);
 
@@ -180,7 +180,7 @@ struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
 					   pci_iov_virtfn_bus(pdev, i),
 					   pci_iov_virtfn_devfn(pdev, i));
 		if (!pdn) {
-			dev_warn(&pdev->dev, "%s: Cannot create firmware data for VF#%d\n",
+			dev_warn(&pdev->dev, "%s: Canyest create firmware data for VF#%d\n",
 				 __func__, i);
 			return NULL;
 		}
@@ -215,7 +215,7 @@ void remove_dev_pci_data(struct pci_dev *pdev)
 		return;
 	}
 
-	/* Only support IOV PF for now */
+	/* Only support IOV PF for yesw */
 	if (!pdev->is_physfn)
 		return;
 
@@ -239,7 +239,7 @@ void remove_dev_pci_data(struct pci_dev *pdev)
 
 		list_for_each_entry_safe(pdn, tmp,
 			&parent->child_list, list) {
-			if (pdn->busno != pci_iov_virtfn_bus(pdev, i) ||
+			if (pdn->busyes != pci_iov_virtfn_bus(pdev, i) ||
 			    pdn->devfn != pci_iov_virtfn_devfn(pdev, i))
 				continue;
 
@@ -261,12 +261,12 @@ void remove_dev_pci_data(struct pci_dev *pdev)
 #endif /* CONFIG_PCI_IOV */
 }
 
-struct pci_dn *pci_add_device_node_info(struct pci_controller *hose,
-					struct device_node *dn)
+struct pci_dn *pci_add_device_yesde_info(struct pci_controller *hose,
+					struct device_yesde *dn)
 {
 	const __be32 *type = of_get_property(dn, "ibm,pci-config-space-type", NULL);
 	const __be32 *regs;
-	struct device_node *parent;
+	struct device_yesde *parent;
 	struct pci_dn *pdn;
 #ifdef CONFIG_EEH
 	struct eeh_dev *edev;
@@ -283,7 +283,7 @@ struct pci_dn *pci_add_device_node_info(struct pci_controller *hose,
 		u32 addr = of_read_number(regs, 1);
 
 		/* First register entry is addr (00BBSS00)  */
-		pdn->busno = (addr >> 16) & 0xff;
+		pdn->busyes = (addr >> 16) & 0xff;
 		pdn->devfn = (addr >> 8) & 0xff;
 	}
 
@@ -307,7 +307,7 @@ struct pci_dn *pci_add_device_node_info(struct pci_controller *hose,
 	}
 #endif
 
-	/* Attach to parent node */
+	/* Attach to parent yesde */
 	INIT_LIST_HEAD(&pdn->child_list);
 	INIT_LIST_HEAD(&pdn->list);
 	parent = of_get_parent(dn);
@@ -317,12 +317,12 @@ struct pci_dn *pci_add_device_node_info(struct pci_controller *hose,
 
 	return pdn;
 }
-EXPORT_SYMBOL_GPL(pci_add_device_node_info);
+EXPORT_SYMBOL_GPL(pci_add_device_yesde_info);
 
-void pci_remove_device_node_info(struct device_node *dn)
+void pci_remove_device_yesde_info(struct device_yesde *dn)
 {
 	struct pci_dn *pdn = dn ? PCI_DN(dn) : NULL;
-	struct device_node *parent;
+	struct device_yesde *parent;
 	struct pci_dev *pdev;
 #ifdef CONFIG_EEH
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
@@ -337,10 +337,10 @@ void pci_remove_device_node_info(struct device_node *dn)
 	WARN_ON(!list_empty(&pdn->child_list));
 	list_del(&pdn->list);
 
-	/* Drop the parent pci_dn's ref to our backing dt node */
+	/* Drop the parent pci_dn's ref to our backing dt yesde */
 	parent = of_get_parent(dn);
 	if (parent)
-		of_node_put(parent);
+		of_yesde_put(parent);
 
 	/*
 	 * At this point we *might* still have a pci_dev that was
@@ -348,7 +348,7 @@ void pci_remove_device_node_info(struct device_node *dn)
 	 * the pci_dev's release function is called.
 	 */
 	pdev = pci_get_domain_bus_and_slot(pdn->phb->global_number,
-			pdn->busno, pdn->devfn);
+			pdn->busyes, pdn->devfn);
 	if (pdev) {
 		/* NB: pdev has a ref to dn */
 		pci_dbg(pdev, "marked pdn (from %pOF) as dead\n", dn);
@@ -360,31 +360,31 @@ void pci_remove_device_node_info(struct device_node *dn)
 
 	pci_dev_put(pdev);
 }
-EXPORT_SYMBOL_GPL(pci_remove_device_node_info);
+EXPORT_SYMBOL_GPL(pci_remove_device_yesde_info);
 
 /*
  * Traverse a device tree stopping each PCI device in the tree.
- * This is done depth first.  As each node is processed, a "pre"
+ * This is done depth first.  As each yesde is processed, a "pre"
  * function is called and the children are processed recursively.
  *
- * The "pre" func returns a value.  If non-zero is returned from
+ * The "pre" func returns a value.  If yesn-zero is returned from
  * the "pre" func, the traversal stops and this value is returned.
  * This return value is useful when using traverse as a method of
  * finding a device.
  *
- * NOTE: we do not run the func for devices that do not appear to
- * be PCI except for the start node which we assume (this is good
- * because the start node is often a phb which may be missing PCI
+ * NOTE: we do yest run the func for devices that do yest appear to
+ * be PCI except for the start yesde which we assume (this is good
+ * because the start yesde is often a phb which may be missing PCI
  * properties).
  * We use the class-code as an indicator. If we run into
- * one of these nodes we also assume its siblings are non-pci for
+ * one of these yesdes we also assume its siblings are yesn-pci for
  * performance.
  */
-void *pci_traverse_device_nodes(struct device_node *start,
-				void *(*fn)(struct device_node *, void *),
+void *pci_traverse_device_yesdes(struct device_yesde *start,
+				void *(*fn)(struct device_yesde *, void *),
 				void *data)
 {
-	struct device_node *dn, *nextdn;
+	struct device_yesde *dn, *nextdn;
 	void *ret;
 
 	/* We started with a phb, iterate all childs */
@@ -423,7 +423,7 @@ void *pci_traverse_device_nodes(struct device_node *start,
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(pci_traverse_device_nodes);
+EXPORT_SYMBOL_GPL(pci_traverse_device_yesdes);
 
 static struct pci_dn *pci_dn_next_one(struct pci_dn *root,
 				      struct pci_dn *pdn)
@@ -454,7 +454,7 @@ void *traverse_pci_dn(struct pci_dn *root,
 	struct pci_dn *pdn = root;
 	void *ret;
 
-	/* Only scan the child nodes */
+	/* Only scan the child yesdes */
 	for (pdn = pci_dn_next_one(root, pdn); pdn;
 	     pdn = pci_dn_next_one(root, pdn)) {
 		ret = fn(pdn, data);
@@ -465,12 +465,12 @@ void *traverse_pci_dn(struct pci_dn *root,
 	return NULL;
 }
 
-static void *add_pdn(struct device_node *dn, void *data)
+static void *add_pdn(struct device_yesde *dn, void *data)
 {
 	struct pci_controller *hose = data;
 	struct pci_dn *pdn;
 
-	pdn = pci_add_device_node_info(hose, dn);
+	pdn = pci_add_device_yesde_info(hose, dn);
 	if (!pdn)
 		return ERR_PTR(-ENOMEM);
 
@@ -487,20 +487,20 @@ static void *add_pdn(struct device_node *dn, void *data)
  */
 void pci_devs_phb_init_dynamic(struct pci_controller *phb)
 {
-	struct device_node *dn = phb->dn;
+	struct device_yesde *dn = phb->dn;
 	struct pci_dn *pdn;
 
-	/* PHB nodes themselves must not match */
-	pdn = pci_add_device_node_info(phb, dn);
+	/* PHB yesdes themselves must yest match */
+	pdn = pci_add_device_yesde_info(phb, dn);
 	if (pdn) {
-		pdn->devfn = pdn->busno = -1;
+		pdn->devfn = pdn->busyes = -1;
 		pdn->vendor_id = pdn->device_id = pdn->class_code = 0;
 		pdn->phb = phb;
 		phb->pci_data = pdn;
 	}
 
 	/* Update dn->phb ptrs for new phb and children devices */
-	pci_traverse_device_nodes(dn, add_pdn, phb);
+	pci_traverse_device_yesdes(dn, add_pdn, phb);
 }
 
 /** 
@@ -508,7 +508,7 @@ void pci_devs_phb_init_dynamic(struct pci_controller *phb)
  * 
  * This routine walks over all phb's (pci-host bridges) on the
  * system, and sets up assorted pci-related structures 
- * (including pci info in the device node structs) for each
+ * (including pci info in the device yesde structs) for each
  * pci device found underneath.  This routine runs once,
  * early in the boot sequence.
  */
@@ -516,8 +516,8 @@ static int __init pci_devs_phb_init(void)
 {
 	struct pci_controller *phb, *tmp;
 
-	/* This must be done first so the device nodes have valid pci info! */
-	list_for_each_entry_safe(phb, tmp, &hose_list, list_node)
+	/* This must be done first so the device yesdes have valid pci info! */
+	list_for_each_entry_safe(phb, tmp, &hose_list, list_yesde)
 		pci_devs_phb_init_dynamic(phb);
 
 	return 0;

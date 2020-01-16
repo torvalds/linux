@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -35,7 +35,7 @@
 
 /* TODO: include signal_types.h and remove this enum */
 enum as_signal_type {
-	AS_SIGNAL_TYPE_NONE = 0L, /* no signal */
+	AS_SIGNAL_TYPE_NONE = 0L, /* yes signal */
 	AS_SIGNAL_TYPE_DVI,
 	AS_SIGNAL_TYPE_HDMI,
 	AS_SIGNAL_TYPE_LVDS,
@@ -46,10 +46,10 @@ enum as_signal_type {
 };
 
 enum bp_result {
-	BP_RESULT_OK = 0, /* There was no error */
+	BP_RESULT_OK = 0, /* There was yes error */
 	BP_RESULT_BADINPUT, /*Bad input parameter */
 	BP_RESULT_BADBIOSTABLE, /* Bad BIOS table */
-	BP_RESULT_UNSUPPORTED, /* BIOS Table is not supported */
+	BP_RESULT_UNSUPPORTED, /* BIOS Table is yest supported */
 	BP_RESULT_NORECORD, /* Record can't be found */
 	BP_RESULT_FAILURE
 };
@@ -143,7 +143,7 @@ struct bp_transmitter_control {
 	enum dc_lane_count lanes_number;
 	enum clock_source_id pll_id; /* needed for DCE 4.0 */
 	enum signal_type signal;
-	enum dc_color_depth color_depth; /* not used for DCE6.0 */
+	enum dc_color_depth color_depth; /* yest used for DCE6.0 */
 	enum hpd_source_id hpd_sel; /* ucHPDSel, used for DCe6.0 */
 	struct graphics_object_id connector_obj_id;
 	/* symClock; in 10kHz, pixel clock, in HDMI deep color mode, it should
@@ -195,10 +195,10 @@ struct bp_adjust_pixel_clock_parameters {
 	uint32_t pixel_clock;
 	/* Output: Adjusted Pixel Clock (after VBIOS exec table) in KHz */
 	uint32_t adjusted_pixel_clock;
-	/* Output: If non-zero, this refDiv value should be used to calculate
+	/* Output: If yesn-zero, this refDiv value should be used to calculate
 	 * other ppll params */
 	uint32_t reference_divider;
-	/* Output: If non-zero, this postDiv value should be used to calculate
+	/* Output: If yesn-zero, this postDiv value should be used to calculate
 	 * other ppll params */
 	uint32_t pixel_clock_post_divider;
 	/* Input: Enable spread spectrum */

@@ -14,7 +14,7 @@
 #define PRNG_MODE_SHA512 2
 #define PRNG_MODE_TRNG	 3
 
-struct prno_parm {
+struct pryes_parm {
 	u32 res;
 	u32 reseed_counter;
 	u64 stream_bytes;
@@ -31,7 +31,7 @@ struct prng_parm {
 static int check_prng(void)
 {
 	if (!cpacf_query_func(CPACF_KMC, CPACF_KMC_PRNG)) {
-		sclp_early_printk("KASLR disabled: CPU has no PRNG\n");
+		sclp_early_printk("KASLR disabled: CPU has yes PRNG\n");
 		return 0;
 	}
 	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
@@ -54,7 +54,7 @@ static unsigned long get_random(unsigned long limit)
 		},
 	};
 	unsigned long seed, random;
-	struct prno_parm prno;
+	struct pryes_parm pryes;
 	__u64 entropy[4];
 	int mode, i;
 
@@ -65,9 +65,9 @@ static unsigned long get_random(unsigned long limit)
 		cpacf_trng(NULL, 0, (u8 *) &random, sizeof(random));
 		break;
 	case PRNG_MODE_SHA512:
-		cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED, &prno, NULL, 0,
+		cpacf_pryes(CPACF_PRNO_SHA512_DRNG_SEED, &pryes, NULL, 0,
 			   (u8 *) &seed, sizeof(seed));
-		cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN, &prno, (u8 *) &random,
+		cpacf_pryes(CPACF_PRNO_SHA512_DRNG_GEN, &pryes, (u8 *) &random,
 			   sizeof(random), NULL, 0);
 		break;
 	case PRNG_MODE_TDES:
@@ -139,7 +139,7 @@ unsigned long get_random_base(unsigned long safe_addr)
 		block_sum += end - start - kernel_size;
 	}
 	if (!block_sum) {
-		sclp_early_printk("KASLR disabled: not enough memory\n");
+		sclp_early_printk("KASLR disabled: yest eyesugh memory\n");
 		return 0;
 	}
 

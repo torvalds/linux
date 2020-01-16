@@ -14,15 +14,15 @@ issues. This document describes the locking systems in the Linux Kernel
 in 2.6.
 
 With the wide availability of HyperThreading, and preemption in the
-Linux Kernel, everyone hacking on the kernel needs to know the
+Linux Kernel, everyone hacking on the kernel needs to kyesw the
 fundamentals of concurrency and locking for SMP.
 
 The Problem With Concurrency
 ============================
 
-(Skip this if you know what a Race Condition is).
+(Skip this if you kyesw what a Race Condition is).
 
-In a normal program, you can increment a counter like so:
+In a yesrmal program, you can increment a counter like so:
 
 ::
 
@@ -100,7 +100,7 @@ simple**.
 
 Be reluctant to introduce new locks.
 
-Strangely enough, this last one is the exact reverse of my advice when
+Strangely eyesugh, this last one is the exact reverse of my advice when
 you **have** slept with someone crazier than yourself. And you should
 think about getting a big dog.
 
@@ -128,14 +128,14 @@ Locks and Uniprocessor Kernels
 ------------------------------
 
 For kernels compiled without ``CONFIG_SMP``, and without
-``CONFIG_PREEMPT`` spinlocks do not exist at all. This is an excellent
-design decision: when no-one else can run at the same time, there is no
+``CONFIG_PREEMPT`` spinlocks do yest exist at all. This is an excellent
+design decision: when yes-one else can run at the same time, there is yes
 reason to have a lock.
 
 If the kernel is compiled without ``CONFIG_SMP``, but ``CONFIG_PREEMPT``
 is set, then spinlocks simply disable preemption, which is sufficient to
 prevent any races. For most purposes, we can think of preemption as
-equivalent to SMP, and not worry about it separately.
+equivalent to SMP, and yest worry about it separately.
 
 You should always test your locking code with ``CONFIG_SMP`` and
 ``CONFIG_PREEMPT`` enabled, even if you don't have an SMP test box,
@@ -153,14 +153,14 @@ protect it. This is the most trivial case: you initialize the mutex.
 Then you can call :c:func:`mutex_lock_interruptible()` to grab the
 mutex, and :c:func:`mutex_unlock()` to release it. There is also a
 :c:func:`mutex_lock()`, which should be avoided, because it will
-not return if a signal is received.
+yest return if a signal is received.
 
 Example: ``net/netfilter/nf_sockopt.c`` allows registration of new
 :c:func:`setsockopt()` and :c:func:`getsockopt()` calls, with
 :c:func:`nf_register_sockopt()`. Registration and de-registration
 are only done on module load and unload (and boot time, where there is
-no concurrency), and the list of registrations is only consulted for an
-unknown :c:func:`setsockopt()` or :c:func:`getsockopt()` system
+yes concurrency), and the list of registrations is only consulted for an
+unkyeswn :c:func:`setsockopt()` or :c:func:`getsockopt()` system
 call. The ``nf_sockopt_mutex`` is perfect to protect this, especially
 since the setsockopt and getsockopt calls may well sleep.
 
@@ -169,7 +169,7 @@ Locking Between User Context and Softirqs
 
 If a softirq shares data with user context, you have two problems.
 Firstly, the current user context can be interrupted by a softirq, and
-secondly, the critical region could be entered from another CPU. This is
+secondly, the critical region could be entered from ayesther CPU. This is
 where :c:func:`spin_lock_bh()` (``include/linux/spinlock.h``) is
 used. It disables softirqs on that CPU, then grabs the lock.
 :c:func:`spin_unlock_bh()` does the reverse. (The '_bh' suffix is
@@ -202,7 +202,7 @@ identical.
 Locking Between Tasklets/Timers
 -------------------------------
 
-Sometimes a tasklet or timer might want to share data with another
+Sometimes a tasklet or timer might want to share data with ayesther
 tasklet or timer.
 
 The Same Tasklet/Timer
@@ -215,10 +215,10 @@ on SMP.
 Different Tasklets/Timers
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If another tasklet/timer wants to share data with your tasklet or timer
+If ayesther tasklet/timer wants to share data with your tasklet or timer
 , you will both need to use :c:func:`spin_lock()` and
 :c:func:`spin_unlock()` calls. :c:func:`spin_lock_bh()` is
-unnecessary here, as you are already in a tasklet, and none will be run
+unnecessary here, as you are already in a tasklet, and yesne will be run
 on the same CPU.
 
 Locking Between Softirqs
@@ -232,7 +232,7 @@ The Same Softirq
 The same softirq can run on the other CPUs: you can use a per-CPU array
 (see `Per-CPU Data <#per-cpu-data>`__) for better performance. If you're
 going so far as to use a softirq, you probably care about scalable
-performance enough to justify the extra complexity.
+performance eyesugh to justify the extra complexity.
 
 You'll need to use :c:func:`spin_lock()` and
 :c:func:`spin_unlock()` for shared data.
@@ -242,7 +242,7 @@ Different Softirqs
 
 You'll need to use :c:func:`spin_lock()` and
 :c:func:`spin_unlock()` for shared data, whether it be a timer,
-tasklet, different softirq or the same or another softirq: any of them
+tasklet, different softirq or the same or ayesther softirq: any of them
 could be running on a different CPU.
 
 Hard IRQ Context
@@ -258,13 +258,13 @@ Locking Between Hard IRQ and Softirqs/Tasklets
 If a hardware irq handler shares data with a softirq, you have two
 concerns. Firstly, the softirq processing can be interrupted by a
 hardware interrupt, and secondly, the critical region could be entered
-by a hardware interrupt on another CPU. This is where
+by a hardware interrupt on ayesther CPU. This is where
 :c:func:`spin_lock_irq()` is used. It is defined to disable
 interrupts on that cpu, then grab the lock.
 :c:func:`spin_unlock_irq()` does the reverse.
 
-The irq handler does not to use :c:func:`spin_lock_irq()`, because
-the softirq cannot run while the irq handler is running: it can use
+The irq handler does yest to use :c:func:`spin_lock_irq()`, because
+the softirq canyest run while the irq handler is running: it can use
 :c:func:`spin_lock()`, which is slightly faster. The only exception
 would be if a different hardware irq handler uses the same lock:
 :c:func:`spin_lock_irq()` will stop that from interrupting us.
@@ -315,9 +315,9 @@ Table of Minimum Requirements
 
 The following table lists the **minimum** locking requirements between
 various contexts. In some cases, the same context can only be running on
-one CPU at a time, so no locking is required for that context (eg. a
+one CPU at a time, so yes locking is required for that context (eg. a
 particular thread can only run on one CPU at a time, but if it needs
-shares data with another thread, locking is required).
+shares data with ayesther thread, locking is required).
 
 Remember the advice above: you can always use
 :c:func:`spin_lock_irqsave()`, which is a superset of all other
@@ -359,20 +359,20 @@ The trylock Functions
 
 There are functions that try to acquire a lock only once and immediately
 return a value telling about success or failure to acquire the lock.
-They can be used if you need no access to the data protected with the
+They can be used if you need yes access to the data protected with the
 lock when some other thread is holding the lock. You should acquire the
 lock later if you then need access to the data protected with the lock.
 
-:c:func:`spin_trylock()` does not spin but returns non-zero if it
-acquires the spinlock on the first try or 0 if not. This function can be
+:c:func:`spin_trylock()` does yest spin but returns yesn-zero if it
+acquires the spinlock on the first try or 0 if yest. This function can be
 used in all contexts like :c:func:`spin_lock()`: you must have
 disabled the contexts that might interrupt you and acquire the spin
 lock.
 
-:c:func:`mutex_trylock()` does not suspend your task but returns
-non-zero if it could lock the mutex on the first try or 0 if not. This
-function cannot be safely used in hardware or software interrupt
-contexts despite not sleeping.
+:c:func:`mutex_trylock()` does yest suspend your task but returns
+yesn-zero if it could lock the mutex on the first try or 0 if yest. This
+function canyest be safely used in hardware or software interrupt
+contexts despite yest sleeping.
 
 Common Examples
 ===============
@@ -392,7 +392,7 @@ to protect the cache and all the objects within it. Here's the code::
     #include <linux/slab.h>
     #include <linux/string.h>
     #include <linux/mutex.h>
-    #include <asm/errno.h>
+    #include <asm/erryes.h>
 
     struct object
     {
@@ -491,7 +491,7 @@ objects directly.
 
 There is a slight (and common) optimization here: in
 :c:func:`cache_add()` we set up the fields of the object before
-grabbing the lock. This is safe, as no-one else can access it until we
+grabbing the lock. This is safe, as yes-one else can access it until we
 put it in cache.
 
 Accessing From Interrupt Context
@@ -567,7 +567,7 @@ which are taken away, and the ``+`` are lines which are added.
      }
 
 Note that the :c:func:`spin_lock_irqsave()` will turn off
-interrupts if they are on, otherwise does nothing (if we are already in
+interrupts if they are on, otherwise does yesthing (if we are already in
 an interrupt handler), hence these functions are safe to call from any
 context.
 
@@ -580,28 +580,28 @@ user context, otherwise this should become a parameter to
 Exposing Objects Outside This File
 ----------------------------------
 
-If our objects contained more information, it might not be sufficient to
+If our objects contained more information, it might yest be sufficient to
 copy the information in and out: other parts of the code might want to
 keep pointers to these objects, for example, rather than looking up the
 id every time. This produces two problems.
 
 The first problem is that we use the ``cache_lock`` to protect objects:
-we'd need to make this non-static so the rest of the code can use it.
-This makes locking trickier, as it is no longer all in one place.
+we'd need to make this yesn-static so the rest of the code can use it.
+This makes locking trickier, as it is yes longer all in one place.
 
-The second problem is the lifetime problem: if another structure keeps a
+The second problem is the lifetime problem: if ayesther structure keeps a
 pointer to an object, it presumably expects that pointer to remain
 valid. Unfortunately, this is only guaranteed while you hold the lock,
 otherwise someone might call :c:func:`cache_delete()` and even
-worse, add another object, re-using the same address.
+worse, add ayesther object, re-using the same address.
 
-As there is only one lock, you can't hold it forever: no-one else would
+As there is only one lock, you can't hold it forever: yes-one else would
 get any work done.
 
 The solution to this problem is to use a reference count: everyone who
 has a pointer to the object increases it when they first get the object,
 and drops the reference count when they're finished with it. Whoever
-drops it to zero knows it is unused, and can actually delete it.
+drops it to zero kyesws it is unused, and can actually delete it.
 
 Here is the code::
 
@@ -694,12 +694,12 @@ Here is the code::
 We encapsulate the reference counting in the standard 'get' and 'put'
 functions. Now we can return the object itself from
 :c:func:`cache_find()` which has the advantage that the user can
-now sleep holding the object (eg. to :c:func:`copy_to_user()` to
+yesw sleep holding the object (eg. to :c:func:`copy_to_user()` to
 name to userspace).
 
-The other point to note is that I said a reference should be held for
+The other point to yeste is that I said a reference should be held for
 every pointer to the object: thus the reference count is 1 when first
-inserted into the cache. In some versions the framework does not hold a
+inserted into the cache. In some versions the framework does yest hold a
 reference count, but they are more complicated.
 
 Using Atomic Operations For The Reference Count
@@ -707,12 +707,12 @@ Using Atomic Operations For The Reference Count
 
 In practice, :c:type:`atomic_t` would usually be used for refcnt. There are a
 number of atomic operations defined in ``include/asm/atomic.h``: these
-are guaranteed to be seen atomically from all CPUs in the system, so no
+are guaranteed to be seen atomically from all CPUs in the system, so yes
 lock is required. In this case, it is simpler than using spinlocks,
-although for anything non-trivial using spinlocks is clearer. The
+although for anything yesn-trivial using spinlocks is clearer. The
 :c:func:`atomic_inc()` and :c:func:`atomic_dec_and_test()`
 are used instead of the standard increment and decrement operators, and
-the lock is no longer used to protect the reference count itself.
+the lock is yes longer used to protect the reference count itself.
 
 ::
 
@@ -799,7 +799,7 @@ In these examples, we assumed that the objects (except the reference
 counts) never changed once they are created. If we wanted to allow the
 name to change, there are three possibilities:
 
--  You can make ``cache_lock`` non-static, and tell people to grab that
+-  You can make ``cache_lock`` yesn-static, and tell people to grab that
    lock before changing the name in any object.
 
 -  You can provide a :c:func:`cache_obj_rename()` which grabs this
@@ -807,7 +807,7 @@ name to change, there are three possibilities:
    that function.
 
 -  You can make the ``cache_lock`` protect only the cache itself, and
-   use another lock to protect the name.
+   use ayesther lock to protect the name.
 
 Theoretically, you can make the locks as fine-grained as one lock for
 every field, for every object. In practice, the most common variants
@@ -872,7 +872,7 @@ the name field.
 Note also that I added a comment describing what data was protected by
 which locks. This is extremely important, as it describes the runtime
 behavior of the code, and can be hard to gain from just reading. And as
-Alan Cox says, “Lock data, not code”.
+Alan Cox says, “Lock data, yest code”.
 
 Common Problems
 ===============
@@ -882,8 +882,8 @@ Deadlock: Simple and Advanced
 
 There is a coding bug where a piece of code tries to grab a spinlock
 twice: it will spin forever, waiting for the lock to be released
-(spinlocks, rwlocks and mutexes are not recursive in Linux). This is
-trivial to diagnose: not a
+(spinlocks, rwlocks and mutexes are yest recursive in Linux). This is
+trivial to diagyesse: yest a
 stay-up-five-nights-talk-to-fluffy-code-bunnies kind of problem.
 
 For a slightly more complex case, imagine you have a region shared by a
@@ -893,11 +893,11 @@ by the softirq while it holds the lock, and the softirq will then spin
 forever trying to get the same lock.
 
 Both of these are called deadlock, and as shown above, it can occur even
-with a single CPU (although not on UP compiles, since spinlocks vanish
+with a single CPU (although yest on UP compiles, since spinlocks vanish
 on kernel compiles with ``CONFIG_SMP``\ =n. You'll still get data
 corruption in the second example).
 
-This complete lockup is easy to diagnose: on SMP boxes the watchdog
+This complete lockup is easy to diagyesse: on SMP boxes the watchdog
 timer or compiling with ``DEBUG_SPINLOCK`` set
 (``include/linux/spinlock.h``) will show this up immediately when it
 happens.
@@ -905,15 +905,15 @@ happens.
 A more complex problem is the so-called 'deadly embrace', involving two
 or more locks. Say you have a hash table: each entry in the table is a
 spinlock, and a chain of hashed objects. Inside a softirq handler, you
-sometimes want to alter an object from one place in the hash to another:
+sometimes want to alter an object from one place in the hash to ayesther:
 you grab the spinlock of the old hash chain and the spinlock of the new
 hash chain, and delete the object from the old one, and insert it in the
 new one.
 
 There are two problems here. First, if your code ever tries to move the
 object to the same chain, it will deadlock with itself as it tries to
-lock it twice. Secondly, if the same softirq on another CPU is trying to
-move another object in the reverse direction, the following could
+lock it twice. Secondly, if the same softirq on ayesther CPU is trying to
+move ayesther object in the reverse direction, the following could
 happen:
 
 +-----------------------+-----------------------+
@@ -935,25 +935,25 @@ Preventing Deadlock
 Textbooks will tell you that if you always lock in the same order, you
 will never get this kind of deadlock. Practice will tell you that this
 approach doesn't scale: when I create a new lock, I don't understand
-enough of the kernel to figure out where in the 5000 lock hierarchy it
+eyesugh of the kernel to figure out where in the 5000 lock hierarchy it
 will fit.
 
 The best locks are encapsulated: they never get exposed in headers, and
-are never held around calls to non-trivial functions outside the same
+are never held around calls to yesn-trivial functions outside the same
 file. You can read through this code and see that it will never
-deadlock, because it never tries to grab another lock while it has that
-one. People using your code don't even need to know you are using a
+deadlock, because it never tries to grab ayesther lock while it has that
+one. People using your code don't even need to kyesw you are using a
 lock.
 
 A classic problem here is when you provide callbacks or hooks: if you
 call these with the lock held, you risk simple deadlock, or a deadly
-embrace (who knows what the callback will do?). Remember, the other
+embrace (who kyesws what the callback will do?). Remember, the other
 programmers are out to get you, so don't do this.
 
 Overzealous Prevention Of Deadlocks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Deadlocks are problematic, but not as bad as data corruption. Code which
+Deadlocks are problematic, but yest as bad as data corruption. Code which
 grabs a read lock, searches a list, fails to find what it wants, drops
 the read lock, grabs a write lock and inserts the object has a race
 condition.
@@ -1011,7 +1011,7 @@ do::
                     spin_unlock_bh(&list_lock);
 
 
-Another common problem is deleting timers which restart themselves (by
+Ayesther common problem is deleting timers which restart themselves (by
 calling :c:func:`add_timer()` at the end of their timer function).
 Because this is a fairly common case which is prone to races, you should
 use :c:func:`del_timer_sync()` (``include/linux/timer.h``) to
@@ -1029,7 +1029,7 @@ using fewer, or smarter locks. I'm assuming that the lock is used fairly
 often: otherwise, you wouldn't be concerned about efficiency.
 
 Concurrency depends on how long the lock is usually held: you should
-hold the lock for as long as needed, but no longer. In the cache
+hold the lock for as long as needed, but yes longer. In the cache
 example, we always create the object without the lock held, and then
 grab the lock only when we are ready to insert it in the list.
 
@@ -1039,14 +1039,14 @@ the last one to grab the lock (ie. is the lock cache-hot for this CPU):
 on a machine with more CPUs, this likelihood drops fast. Consider a
 700MHz Intel Pentium III: an instruction takes about 0.7ns, an atomic
 increment takes about 58ns, a lock which is cache-hot on this CPU takes
-160ns, and a cacheline transfer from another CPU takes an additional 170
+160ns, and a cacheline transfer from ayesther CPU takes an additional 170
 to 360ns. (These figures from Paul McKenney's `Linux Journal RCU
 article <http://www.linuxjournal.com/article.php?sid=6993>`__).
 
 These two aims conflict: holding a lock for a short time might be done
 by splitting locks into parts (such as in our final per-object-lock
 example), but this increases the number of lock acquisitions, and the
-results are often slower than having a single lock. This is another
+results are often slower than having a single lock. This is ayesther
 reason to advocate locking simplicity.
 
 The third concern is addressed below: there are some methods to reduce
@@ -1064,8 +1064,8 @@ be sole holder.
 
 If your code divides neatly along reader/writer lines (as our cache code
 does), and the lock is held by readers for significant lengths of time,
-using these locks can help. They are slightly slower than the normal
-locks though, so in practice ``rwlock_t`` is not usually worthwhile.
+using these locks can help. They are slightly slower than the yesrmal
+locks though, so in practice ``rwlock_t`` is yest usually worthwhile.
 
 Avoiding Locks: Read Copy Update
 --------------------------------
@@ -1091,7 +1091,7 @@ first operation (setting the new element's ``next`` pointer) is complete
 and will be seen by all CPUs, before the second operation is (putting
 the new element into the list). This is important, since modern
 compilers and modern CPUs can both reorder instructions unless told
-otherwise: we want a reader to either not see the new element at all, or
+otherwise: we want a reader to either yest see the new element at all, or
 see the new element with the ``next`` pointer correctly pointing at the
 rest of the list.
 
@@ -1109,7 +1109,7 @@ will either see it, or skip over it.
 
 
 There is :c:func:`list_del_rcu()` (``include/linux/list.h``) which
-does this (the normal version poisons the old object, which we don't
+does this (the yesrmal version poisons the old object, which we don't
 want).
 
 The reader must also be careful: some CPUs can look through the ``next``
@@ -1118,28 +1118,28 @@ don't realize that the pre-fetched contents is wrong when the ``next``
 pointer changes underneath them. Once again, there is a
 :c:func:`list_for_each_entry_rcu()` (``include/linux/list.h``)
 to help you. Of course, writers can just use
-:c:func:`list_for_each_entry()`, since there cannot be two
+:c:func:`list_for_each_entry()`, since there canyest be two
 simultaneous writers.
 
 Our final dilemma is this: when can we actually destroy the removed
 element? Remember, a reader might be stepping through this element in
-the list right now: if we free this element and the ``next`` pointer
+the list right yesw: if we free this element and the ``next`` pointer
 changes, the reader will jump off into garbage and crash. We need to
-wait until we know that all the readers who were traversing the list
+wait until we kyesw that all the readers who were traversing the list
 when we deleted the element are finished. We use
 :c:func:`call_rcu()` to register a callback which will actually
 destroy the object once all pre-existing readers are finished.
 Alternatively, :c:func:`synchronize_rcu()` may be used to block
 until all pre-existing are finished.
 
-But how does Read Copy Update know when the readers are finished? The
+But how does Read Copy Update kyesw when the readers are finished? The
 method is this: firstly, the readers always traverse the list inside
 :c:func:`rcu_read_lock()`/:c:func:`rcu_read_unlock()` pairs:
 these simply disable preemption so the reader won't go to sleep while
 reading the list.
 
 RCU then waits until every other CPU has slept at least once: since
-readers cannot sleep, we know that any readers which were traversing the
+readers canyest sleep, we kyesw that any readers which were traversing the
 list during the deletion are finished, and the callback is triggered.
 The real Read Copy Update code is a little more optimized than this, but
 this is the fundamental idea.
@@ -1154,7 +1154,7 @@ this is the fundamental idea.
      #include <linux/string.h>
     +#include <linux/rcupdate.h>
      #include <linux/mutex.h>
-     #include <asm/errno.h>
+     #include <asm/erryes.h>
 
      struct object
      {
@@ -1181,7 +1181,7 @@ this is the fundamental idea.
              return NULL;
      }
 
-    +/* Final discard done once we know no readers are looking. */
+    +/* Final discard done once we kyesw yes readers are looking. */
     +static void cache_delete_rcu(void *arg)
     +{
     +        object_put(arg);
@@ -1223,43 +1223,43 @@ this is the fundamental idea.
      }
 
 Note that the reader will alter the popularity member in
-:c:func:`__cache_find()`, and now it doesn't hold a lock. One
+:c:func:`__cache_find()`, and yesw it doesn't hold a lock. One
 solution would be to make it an ``atomic_t``, but for this usage, we
-don't really care about races: an approximate result is good enough, so
+don't really care about races: an approximate result is good eyesugh, so
 I didn't change it.
 
-The result is that :c:func:`cache_find()` requires no
+The result is that :c:func:`cache_find()` requires yes
 synchronization with any other functions, so is almost as fast on SMP as
 it would be on UP.
 
 There is a further optimization possible here: remember our original
-cache code, where there were no reference counts and the caller simply
+cache code, where there were yes reference counts and the caller simply
 held the lock whenever using the object? This is still possible: if you
-hold the lock, no one can delete the object, so you don't need to get
+hold the lock, yes one can delete the object, so you don't need to get
 and put the reference count.
 
 Now, because the 'read lock' in RCU is simply disabling preemption, a
 caller which always has preemption disabled between calling
-:c:func:`cache_find()` and :c:func:`object_put()` does not
+:c:func:`cache_find()` and :c:func:`object_put()` does yest
 need to actually get and put the reference count: we could expose
-:c:func:`__cache_find()` by making it non-static, and such
+:c:func:`__cache_find()` by making it yesn-static, and such
 callers could simply call that.
 
-The benefit here is that the reference count is not written to: the
-object is not altered in any way, which is much faster on SMP machines
+The benefit here is that the reference count is yest written to: the
+object is yest altered in any way, which is much faster on SMP machines
 due to caching.
 
 Per-CPU Data
 ------------
 
-Another technique for avoiding locking which is used fairly widely is to
+Ayesther technique for avoiding locking which is used fairly widely is to
 duplicate information for each CPU. For example, if you wanted to keep a
 count of a common condition, you could use a spin lock and a single
 counter. Nice and simple.
 
-If that was too slow (it's usually not, but if you've got a really big
+If that was too slow (it's usually yest, but if you've got a really big
 machine to test on and can show that it is), you could instead use a
-counter for each CPU, then none of them need an exclusive lock. See
+counter for each CPU, then yesne of them need an exclusive lock. See
 :c:func:`DEFINE_PER_CPU()`, :c:func:`get_cpu_var()` and
 :c:func:`put_cpu_var()` (``include/linux/percpu.h``).
 
@@ -1268,8 +1268,8 @@ and the :c:func:`cpu_local_inc()` and related functions, which are
 more efficient than simple code on some architectures
 (``include/asm/local.h``).
 
-Note that there is no simple, reliable way of getting an exact value of
-such a counter, without introducing more locks. This is not a problem
+Note that there is yes simple, reliable way of getting an exact value of
+such a counter, without introducing more locks. This is yest a problem
 for some uses.
 
 Data Which Mostly Used By An IRQ Handler
@@ -1277,7 +1277,7 @@ Data Which Mostly Used By An IRQ Handler
 
 If data is always accessed from within the same IRQ handler, you don't
 need a lock at all: the kernel already guarantees that the irq handler
-will not run simultaneously on multiple CPUs.
+will yest run simultaneously on multiple CPUs.
 
 Manfred Spraul points out that you can still do this, even if the data
 is very occasionally accessed in user context or softirqs/tasklets. The
@@ -1328,10 +1328,10 @@ from user context, and can sleep.
 -  :c:func:`mutex_lock_interruptible()` and
    :c:func:`mutex_lock()`
 
-   There is a :c:func:`mutex_trylock()` which does not sleep.
-   Still, it must not be used inside interrupt context since its
-   implementation is not safe for that. :c:func:`mutex_unlock()`
-   will also never sleep. It cannot be used in interrupt context either
+   There is a :c:func:`mutex_trylock()` which does yest sleep.
+   Still, it must yest be used inside interrupt context since its
+   implementation is yest safe for that. :c:func:`mutex_unlock()`
+   will also never sleep. It canyest be used in interrupt context either
    since a mutex must be released by the same task that acquired it.
 
 Some Functions Which Don't Sleep
@@ -1370,7 +1370,7 @@ Further reading
 -  Unix Systems for Modern Architectures: Symmetric Multiprocessing and
    Caching for Kernel Programmers:
 
-   Curt Schimmel's very good introduction to kernel level locking (not
+   Curt Schimmel's very good introduction to kernel level locking (yest
    written for Linux, but nearly everything applies). The book is
    expensive, but really worth every penny to understand SMP locking.
    [ISBN: 0201633388]
@@ -1385,14 +1385,14 @@ Ruedi Aschwanden, Alan Cox, Manfred Spraul, Tim Waugh, Pete Zaitcev,
 James Morris, Robert Love, Paul McKenney, John Ashby for proofreading,
 correcting, flaming, commenting.
 
-Thanks to the cabal for having no influence on this document.
+Thanks to the cabal for having yes influence on this document.
 
 Glossary
 ========
 
 preemption
   Prior to 2.5, or when ``CONFIG_PREEMPT`` is unset, processes in user
-  context inside the kernel would not preempt each other (ie. you had that
+  context inside the kernel would yest preempt each other (ie. you had that
   CPU until you gave it up, except for interrupts). With the addition of
   ``CONFIG_PREEMPT`` in 2.5.4, this changed: when in user context, higher
   priority tasks can "cut in": spinlocks were changed to disable
@@ -1400,7 +1400,7 @@ preemption
 
 bh
   Bottom Half: for historical reasons, functions with '_bh' in them often
-  now refer to any software interrupt, e.g. :c:func:`spin_lock_bh()`
+  yesw refer to any software interrupt, e.g. :c:func:`spin_lock_bh()`
   blocks any software interrupt on the current CPU. Bottom halves are
   deprecated, and will eventually be replaced by tasklets. Only one bottom
   half will be running at any time.

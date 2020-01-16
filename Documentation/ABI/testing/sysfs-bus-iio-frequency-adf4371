@@ -41,4 +41,4 @@ Description:
 		This attribute allows the user to power down the PLL and it's
 		RFOut buffers.
 		Writing 1 causes the specified channel to power down.
-		Clearing returns to normal operation.
+		Clearing returns to yesrmal operation.

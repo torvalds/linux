@@ -67,18 +67,18 @@ EXPORT_SYMBOL(DMA_MODE_WRITE);
 
 /*
  * This is run before start_kernel(), the kernel has been relocated
- * and we are running with enough of the MMU enabled to have our
+ * and we are running with eyesugh of the MMU enabled to have our
  * proper kernel virtual addresses
  *
  * We do the initial parsing of the flat device-tree and prepares
  * for the MMU to be fully initialized.
  */
-notrace void __init machine_init(u64 dt_ptr)
+yestrace void __init machine_init(u64 dt_ptr)
 {
-	unsigned int *addr = (unsigned int *)patch_site_addr(&patch__memset_nocache);
+	unsigned int *addr = (unsigned int *)patch_site_addr(&patch__memset_yescache);
 	unsigned long insn;
 
-	/* Configure static keys first, now that we're relocated. */
+	/* Configure static keys first, yesw that we're relocated. */
 	setup_feature_keys();
 
 	early_ioremap_setup();
@@ -86,7 +86,7 @@ notrace void __init machine_init(u64 dt_ptr)
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 
-	patch_instruction_site(&patch__memcpy_nocache, PPC_INST_NOP);
+	patch_instruction_site(&patch__memcpy_yescache, PPC_INST_NOP);
 
 	insn = create_cond_branch(addr, branch_target(addr), 0x820000);
 	patch_instruction(addr, insn);	/* replace b by bne cr0 */
@@ -143,7 +143,7 @@ static void *__init alloc_stack(void)
 	void *ptr = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
 
 	if (!ptr)
-		panic("cannot allocate %d bytes for stack at %pS\n",
+		panic("canyest allocate %d bytes for stack at %pS\n",
 		      THREAD_SIZE, (void *)_RET_IP_);
 
 	return ptr;
@@ -203,7 +203,7 @@ __init void initialize_cache_info(void)
 {
 	/*
 	 * Set cache line size based on type of cpu as a default.
-	 * Systems with OF can look in the properties on the cpu node(s)
+	 * Systems with OF can look in the properties on the cpu yesde(s)
 	 * for a possibly more accurate value.
 	 */
 	dcache_bsize = cur_cpu_spec->dcache_bsize;

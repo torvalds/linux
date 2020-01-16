@@ -12,25 +12,25 @@
 #define DEVCG_DEV_ALL   4  /* this represents all devices */
 
 #ifdef CONFIG_CGROUP_DEVICE
-int devcgroup_check_permission(short type, u32 major, u32 minor,
+int devcgroup_check_permission(short type, u32 major, u32 miyesr,
 			       short access);
 #else
-static inline int devcgroup_check_permission(short type, u32 major, u32 minor,
+static inline int devcgroup_check_permission(short type, u32 major, u32 miyesr,
 					     short access)
 { return 0; }
 #endif
 
 #if defined(CONFIG_CGROUP_DEVICE) || defined(CONFIG_CGROUP_BPF)
-static inline int devcgroup_inode_permission(struct inode *inode, int mask)
+static inline int devcgroup_iyesde_permission(struct iyesde *iyesde, int mask)
 {
 	short type, access = 0;
 
-	if (likely(!inode->i_rdev))
+	if (likely(!iyesde->i_rdev))
 		return 0;
 
-	if (S_ISBLK(inode->i_mode))
+	if (S_ISBLK(iyesde->i_mode))
 		type = DEVCG_DEV_BLOCK;
-	else if (S_ISCHR(inode->i_mode))
+	else if (S_ISCHR(iyesde->i_mode))
 		type = DEVCG_DEV_CHAR;
 	else
 		return 0;
@@ -40,11 +40,11 @@ static inline int devcgroup_inode_permission(struct inode *inode, int mask)
 	if (mask & MAY_READ)
 		access |= DEVCG_ACC_READ;
 
-	return devcgroup_check_permission(type, imajor(inode), iminor(inode),
+	return devcgroup_check_permission(type, imajor(iyesde), imiyesr(iyesde),
 					  access);
 }
 
-static inline int devcgroup_inode_mknod(int mode, dev_t dev)
+static inline int devcgroup_iyesde_mkyesd(int mode, dev_t dev)
 {
 	short type;
 
@@ -61,8 +61,8 @@ static inline int devcgroup_inode_mknod(int mode, dev_t dev)
 }
 
 #else
-static inline int devcgroup_inode_permission(struct inode *inode, int mask)
+static inline int devcgroup_iyesde_permission(struct iyesde *iyesde, int mask)
 { return 0; }
-static inline int devcgroup_inode_mknod(int mode, dev_t dev)
+static inline int devcgroup_iyesde_mkyesd(int mode, dev_t dev)
 { return 0; }
 #endif

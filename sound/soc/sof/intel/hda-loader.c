@@ -40,7 +40,7 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 	dsp_stream = hda_dsp_stream_get(sdev, direction);
 
 	if (!dsp_stream) {
-		dev_err(sdev->dev, "error: no stream available\n");
+		dev_err(sdev->dev, "error: yes stream available\n");
 		return -ENODEV;
 	}
 	hstream = &dsp_stream->hstream;
@@ -311,7 +311,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	stream = get_stream_with_tag(sdev, tag);
 	if (!stream) {
 		dev_err(sdev->dev,
-			"error: could not get stream with stream tag %d\n",
+			"error: could yest get stream with stream tag %d\n",
 			tag);
 		ret = -ENODEV;
 		goto err;

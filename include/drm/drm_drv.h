@@ -11,7 +11,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -35,7 +35,7 @@
 struct drm_file;
 struct drm_gem_object;
 struct drm_master;
-struct drm_minor;
+struct drm_miyesr;
 struct dma_buf_attachment;
 struct drm_display_mode;
 struct drm_mode_create_dumb;
@@ -64,17 +64,17 @@ enum drm_driver_feature {
 	/**
 	 * @DRIVER_RENDER:
 	 *
-	 * Driver supports dedicated render nodes. See also the :ref:`section on
-	 * render nodes <drm_render_node>` for details.
+	 * Driver supports dedicated render yesdes. See also the :ref:`section on
+	 * render yesdes <drm_render_yesde>` for details.
 	 */
 	DRIVER_RENDER			= BIT(3),
 	/**
 	 * @DRIVER_ATOMIC:
 	 *
 	 * Driver supports the full atomic modesetting userspace API. Drivers
-	 * which only use atomic internally, but do not the support the full
-	 * userspace API (e.g. not all properties converted to atomic, or
-	 * multi-plane updates are not guaranteed to be tear-free) should not
+	 * which only use atomic internally, but do yest the support the full
+	 * userspace API (e.g. yest all properties converted to atomic, or
+	 * multi-plane updates are yest guaranteed to be tear-free) should yest
 	 * set this flag.
 	 */
 	DRIVER_ATOMIC			= BIT(4),
@@ -105,14 +105,14 @@ enum drm_driver_feature {
 	/**
 	 * @DRIVER_LEGACY:
 	 *
-	 * Denote a legacy driver using shadow attach. Do not use.
+	 * Deyeste a legacy driver using shadow attach. Do yest use.
 	 */
 	DRIVER_LEGACY			= BIT(26),
 	/**
 	 * @DRIVER_PCI_DMA:
 	 *
 	 * Driver is capable of PCI DMA, mapping of PCI DMA buffers to userspace
-	 * will be enabled. Only for legacy drivers. Do not use.
+	 * will be enabled. Only for legacy drivers. Do yest use.
 	 */
 	DRIVER_PCI_DMA			= BIT(27),
 	/**
@@ -120,7 +120,7 @@ enum drm_driver_feature {
 	 *
 	 * Driver can perform scatter/gather DMA, allocation and mapping of
 	 * scatter/gather buffers will be enabled. Only for legacy drivers. Do
-	 * not use.
+	 * yest use.
 	 */
 	DRIVER_SG			= BIT(28),
 
@@ -128,13 +128,13 @@ enum drm_driver_feature {
 	 * @DRIVER_HAVE_DMA:
 	 *
 	 * Driver supports DMA, the userspace DMA API will be supported. Only
-	 * for legacy drivers. Do not use.
+	 * for legacy drivers. Do yest use.
 	 */
 	DRIVER_HAVE_DMA			= BIT(29),
 	/**
 	 * @DRIVER_HAVE_IRQ:
 	 *
-	 * Legacy irq support. Only for legacy drivers. Do not use.
+	 * Legacy irq support. Only for legacy drivers. Do yest use.
 	 *
 	 * New drivers can either use the drm_irq_install() and
 	 * drm_irq_uninstall() helper functions, or roll their own irq support
@@ -144,8 +144,8 @@ enum drm_driver_feature {
 	/**
 	 * @DRIVER_KMS_LEGACY_CONTEXT:
 	 *
-	 * Used only by nouveau for backwards compatibility with existing
-	 * userspace.  Do not use.
+	 * Used only by yesuveau for backwards compatibility with existing
+	 * userspace.  Do yest use.
 	 */
 	DRIVER_KMS_LEGACY_CONTEXT	= BIT(31),
 };
@@ -167,15 +167,15 @@ struct drm_driver {
 	 * initialization steps after the driver is registered.  For
 	 * this reason, may suffer from race conditions and its use is
 	 * deprecated for new drivers.  It is therefore only supported
-	 * for existing drivers not yet converted to the new scheme.
+	 * for existing drivers yest yet converted to the new scheme.
 	 * See drm_dev_init() and drm_dev_register() for proper and
 	 * race-free way to set up a &struct drm_device.
 	 *
-	 * This is deprecated, do not use!
+	 * This is deprecated, do yest use!
 	 *
 	 * Returns:
 	 *
-	 * Zero on success, non-zero value on failure.
+	 * Zero on success, yesn-zero value on failure.
 	 */
 	int (*load) (struct drm_device *, unsigned long flags);
 
@@ -217,7 +217,7 @@ struct drm_driver {
 	 * @lastclose:
 	 *
 	 * Called when the last &struct drm_file has been closed and there's
-	 * currently no userspace client for the &struct drm_device.
+	 * currently yes userspace client for the &struct drm_device.
 	 *
 	 * Modern drivers should only use this to force-restore the fbdev
 	 * framebuffer using drm_fb_helper_restore_fbdev_mode_unlocked().
@@ -232,7 +232,7 @@ struct drm_driver {
 	 *
 	 * All legacy drivers use this callback to de-initialize the hardware.
 	 * This is purely because of the shadow-attach model, where the DRM
-	 * kernel driver does not really own the hardware. Instead ownershipe is
+	 * kernel driver does yest really own the hardware. Instead ownershipe is
 	 * handled with the help of userspace through an inheritedly racy dance
 	 * to set/unset the VT into raw mode.
 	 *
@@ -282,7 +282,7 @@ struct drm_driver {
 	 * drm_crtc_vblank_off() and drm_crtc_vblank_on() when disabling or
 	 * enabling a CRTC.
 	 *
-	 * This is deprecated and should not be used by new drivers.
+	 * This is deprecated and should yest be used by new drivers.
 	 * Use &drm_crtc_funcs.get_vblank_counter instead.
 	 *
 	 * Returns:
@@ -297,13 +297,13 @@ struct drm_driver {
 	 * Enable vblank interrupts for the CRTC specified with the pipe
 	 * argument.
 	 *
-	 * This is deprecated and should not be used by new drivers.
+	 * This is deprecated and should yest be used by new drivers.
 	 * Use &drm_crtc_funcs.enable_vblank instead.
 	 *
 	 * Returns:
 	 *
-	 * Zero on success, appropriate errno if the given @crtc's vblank
-	 * interrupt cannot be enabled.
+	 * Zero on success, appropriate erryes if the given @crtc's vblank
+	 * interrupt canyest be enabled.
 	 */
 	int (*enable_vblank) (struct drm_device *dev, unsigned int pipe);
 
@@ -313,20 +313,20 @@ struct drm_driver {
 	 * Disable vblank interrupts for the CRTC specified with the pipe
 	 * argument.
 	 *
-	 * This is deprecated and should not be used by new drivers.
+	 * This is deprecated and should yest be used by new drivers.
 	 * Use &drm_crtc_funcs.disable_vblank instead.
 	 */
 	void (*disable_vblank) (struct drm_device *dev, unsigned int pipe);
 
 	/**
-	 * @get_scanout_position:
+	 * @get_scayesut_position:
 	 *
 	 * Called by vblank timestamping code.
 	 *
-	 * Returns the current display scanout position from a crtc, and an
+	 * Returns the current display scayesut position from a crtc, and an
 	 * optional accurate ktime_get() timestamp of when position was
 	 * measured. Note that this is a helper callback which is only used if a
-	 * driver uses drm_calc_vbltimestamp_from_scanoutpos() for the
+	 * driver uses drm_calc_vbltimestamp_from_scayesutpos() for the
 	 * @get_vblank_timestamp callback.
 	 *
 	 * Parameters:
@@ -340,27 +340,27 @@ struct drm_driver {
 	 *     need to apply some workarounds for gpu-specific vblank irq quirks
 	 *     if flag is set.
 	 * vpos:
-	 *     Target location for current vertical scanout position.
+	 *     Target location for current vertical scayesut position.
 	 * hpos:
-	 *     Target location for current horizontal scanout position.
+	 *     Target location for current horizontal scayesut position.
 	 * stime:
 	 *     Target location for timestamp taken immediately before
-	 *     scanout position query. Can be NULL to skip timestamp.
+	 *     scayesut position query. Can be NULL to skip timestamp.
 	 * etime:
 	 *     Target location for timestamp taken immediately after
-	 *     scanout position query. Can be NULL to skip timestamp.
+	 *     scayesut position query. Can be NULL to skip timestamp.
 	 * mode:
 	 *     Current display timings.
 	 *
-	 * Returns vpos as a positive number while in active scanout area.
+	 * Returns vpos as a positive number while in active scayesut area.
 	 * Returns vpos as a negative number inside vblank, counting the number
 	 * of scanlines to go until end of vblank, e.g., -1 means "one scanline
-	 * until start of active scanout / end of vblank."
+	 * until start of active scayesut / end of vblank."
 	 *
 	 * Returns:
 	 *
-	 * True on success, false if a reliable scanout position counter could
-	 * not be read out.
+	 * True on success, false if a reliable scayesut position counter could
+	 * yest be read out.
 	 *
 	 * FIXME:
 	 *
@@ -368,7 +368,7 @@ struct drm_driver {
 	 * move it to &struct drm_crtc_helper_funcs, like all the other
 	 * helper-internal hooks.
 	 */
-	bool (*get_scanout_position) (struct drm_device *dev, unsigned int pipe,
+	bool (*get_scayesut_position) (struct drm_device *dev, unsigned int pipe,
 				      bool in_vblank_irq, int *vpos, int *hpos,
 				      ktime_t *stime, ktime_t *etime,
 				      const struct drm_display_mode *mode);
@@ -385,7 +385,7 @@ struct drm_driver {
 	 * the time immediately after end of the VBLANK interval. If the
 	 * @crtc is currently inside VBLANK, this will be a time in the future.
 	 * If the @crtc is currently scanning out a frame, this will be the
-	 * past start time of the current scanout. This is meant to adhere
+	 * past start time of the current scayesut. This is meant to adhere
 	 * to the OpenML OML_sync_control extension specification.
 	 *
 	 * Paramters:
@@ -395,9 +395,9 @@ struct drm_driver {
 	 * pipe:
 	 *     crtc for which timestamp should be returned.
 	 * max_error:
-	 *     Maximum allowable timestamp error in nanoseconds.
+	 *     Maximum allowable timestamp error in nayesseconds.
 	 *     Implementation should strive to provide timestamp
-	 *     with an error of at most max_error nanoseconds.
+	 *     with an error of at most max_error nayesseconds.
 	 *     Returns true upper bound on error for timestamp.
 	 * vblank_time:
 	 *     Target location for returned vblank timestamp.
@@ -474,14 +474,14 @@ struct drm_driver {
 	/**
 	 * @master_set:
 	 *
-	 * Called whenever the minor master is set. Only used by vmwgfx.
+	 * Called whenever the miyesr master is set. Only used by vmwgfx.
 	 */
 	int (*master_set)(struct drm_device *dev, struct drm_file *file_priv,
 			  bool from_open);
 	/**
 	 * @master_drop:
 	 *
-	 * Called whenever the minor master is dropped. Only used by vmwgfx.
+	 * Called whenever the miyesr master is dropped. Only used by vmwgfx.
 	 */
 	void (*master_drop)(struct drm_device *dev, struct drm_file *file_priv);
 
@@ -490,12 +490,12 @@ struct drm_driver {
 	 *
 	 * Allows drivers to create driver-specific debugfs files.
 	 */
-	int (*debugfs_init)(struct drm_minor *minor);
+	int (*debugfs_init)(struct drm_miyesr *miyesr);
 
 	/**
 	 * @gem_free_object: deconstructor for drm_gem_objects
 	 *
-	 * This is deprecated and should not be used by new drivers. Use
+	 * This is deprecated and should yest be used by new drivers. Use
 	 * &drm_gem_object_funcs.free instead.
 	 */
 	void (*gem_free_object) (struct drm_gem_object *obj);
@@ -503,9 +503,9 @@ struct drm_driver {
 	/**
 	 * @gem_free_object_unlocked: deconstructor for drm_gem_objects
 	 *
-	 * This is deprecated and should not be used by new drivers. Use
+	 * This is deprecated and should yest be used by new drivers. Use
 	 * &drm_gem_object_funcs.free instead.
-	 * Compared to @gem_free_object this is not encumbered with
+	 * Compared to @gem_free_object this is yest encumbered with
 	 * &drm_device.struct_mutex legacy locking schemes.
 	 */
 	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
@@ -588,7 +588,7 @@ struct drm_driver {
 	 *
 	 * Import hook for GEM drivers.
 	 *
-	 * This defaults to drm_gem_prime_import() if not set.
+	 * This defaults to drm_gem_prime_import() if yest set.
 	 */
 	struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
 				struct dma_buf *dma_buf);
@@ -660,7 +660,7 @@ struct drm_driver {
 	 * TTM or something else entirely) and returns the resulting buffer handle. This
 	 * handle can then be wrapped up into a framebuffer modeset object.
 	 *
-	 * Note that userspace is not allowed to use such objects for render
+	 * Note that userspace is yest allowed to use such objects for render
 	 * acceleration - drivers must create their own private ioctls for such a use
 	 * case.
 	 *
@@ -672,7 +672,7 @@ struct drm_driver {
 	 *
 	 * Returns:
 	 *
-	 * Zero on success, negative errno on failure.
+	 * Zero on success, negative erryes on failure.
 	 */
 	int (*dumb_create)(struct drm_file *file_priv,
 			   struct drm_device *dev,
@@ -680,17 +680,17 @@ struct drm_driver {
 	/**
 	 * @dumb_map_offset:
 	 *
-	 * Allocate an offset in the drm device node's address space to be able to
+	 * Allocate an offset in the drm device yesde's address space to be able to
 	 * memory map a dumb buffer.
 	 *
 	 * The default implementation is drm_gem_create_mmap_offset(). GEM based
-	 * drivers must not overwrite this.
+	 * drivers must yest overwrite this.
 	 *
 	 * Called by the user via ioctl.
 	 *
 	 * Returns:
 	 *
-	 * Zero on success, negative errno on failure.
+	 * Zero on success, negative erryes on failure.
 	 */
 	int (*dumb_map_offset)(struct drm_file *file_priv,
 			       struct drm_device *dev, uint32_t handle,
@@ -705,11 +705,11 @@ struct drm_driver {
 	 * Called by the user via ioctl.
 	 *
 	 * The default implementation is drm_gem_dumb_destroy(). GEM based drivers
-	 * must not overwrite this.
+	 * must yest overwrite this.
 	 *
 	 * Returns:
 	 *
-	 * Zero on success, negative errno on failure.
+	 * Zero on success, negative erryes on failure.
 	 */
 	int (*dumb_destroy)(struct drm_file *file_priv,
 			    struct drm_device *dev,
@@ -725,8 +725,8 @@ struct drm_driver {
 
 	/** @major: driver major number */
 	int major;
-	/** @minor: driver minor number */
-	int minor;
+	/** @miyesr: driver miyesr number */
+	int miyesr;
 	/** @patchlevel: driver patch level */
 	int patchlevel;
 	/** @name: driver name */
@@ -759,7 +759,7 @@ struct drm_driver {
 	/**
 	 * @fops:
 	 *
-	 * File operations for the DRM device node. See the discussion in
+	 * File operations for the DRM device yesde. See the discussion in
 	 * :ref:`file operations<drm_driver_fops>` for in-depth coverage and
 	 * some examples.
 	 */
@@ -843,7 +843,7 @@ static inline bool drm_core_check_feature(const struct drm_device *dev, u32 feat
  * atomic_commit()
  * @dev: DRM device
  *
- * This check is useful if drivers do not have DRIVER_ATOMIC set but
+ * This check is useful if drivers do yest have DRIVER_ATOMIC set but
  * have atomic modesetting internally implemented.
  */
 static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)

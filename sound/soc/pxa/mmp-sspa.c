@@ -124,7 +124,7 @@ static int mmp_sspa_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		break;
 	case MMP_SSPA_CLK_PLL:
 	case MMP_SSPA_CLK_VCXO:
-		/* not support yet */
+		/* yest support yet */
 		return -EINVAL;
 	default:
 		return -EINVAL;
@@ -174,7 +174,7 @@ static int mmp_sspa_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	if (sspa_priv->dai_fmt == fmt)
 		return 0;
 
-	/* we can only change the settings if the port is not in use */
+	/* we can only change the settings if the port is yest in use */
 	if ((mmp_sspa_read_reg(sspa, SSPA_TXSP) & SSPA_SP_S_EN) ||
 	    (mmp_sspa_read_reg(sspa, SSPA_RXSP) & SSPA_SP_S_EN)) {
 		dev_err(sspa->dev,
@@ -223,7 +223,7 @@ static int mmp_sspa_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 
 	/*
 	 * FIXME: hw issue, for the tx serial port,
-	 * can not config the master/slave mode;
+	 * can yest config the master/slave mode;
 	 * so must clean this bit.
 	 * The master/slave mode has been set in the
 	 * rx port.
@@ -236,7 +236,7 @@ static int mmp_sspa_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 
 	/* Since we are configuring the timings for the format by hand
 	 * we have to defer some things until hw_params() where we
-	 * know parameters like the sample size.
+	 * kyesw parameters like the sample size.
 	 */
 	sspa_priv->dai_fmt = fmt;
 	return 0;
@@ -318,8 +318,8 @@ static int mmp_sspa_trigger(struct snd_pcm_substream *substream, int cmd,
 		/*
 		 * whatever playback or capture, must enable rx.
 		 * this is a hw issue, so need check if rx has been
-		 * enabled or not; if has been enabled by another
-		 * stream, do not enable again.
+		 * enabled or yest; if has been enabled by ayesther
+		 * stream, do yest enable again.
 		 */
 		if (!sspa_priv->running_cnt)
 			mmp_sspa_rx_enable(sspa);
@@ -338,7 +338,7 @@ static int mmp_sspa_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			mmp_sspa_tx_disable(sspa);
 
-		/* have no capture stream, disable rx port */
+		/* have yes capture stream, disable rx port */
 		if (!sspa_priv->running_cnt)
 			mmp_sspa_rx_disable(sspa);
 		break;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 //
-// Copyright (c) 2018 Mellanox Technologies. All rights reserved.
-// Copyright (c) 2018 Vadim Pasternak <vadimp@mellanox.com>
+// Copyright (c) 2018 Mellayesx Techyeslogies. All rights reserved.
+// Copyright (c) 2018 Vadim Pasternak <vadimp@mellayesx.com>
 
 #include <linux/bitops.h>
 #include <linux/device.h>
@@ -34,7 +34,7 @@
  * FAN datasheet defines the formula for RPM calculations as RPM = 15/t-high.
  * The logic in a programmable device measures the time t-high by sampling the
  * tachometer every t-sample (with the default value 11.32 uS) and increment
- * a counter (N) as long as the pulse has not change:
+ * a counter (N) as long as the pulse has yest change:
  * RPM = 15 / (t-sample * (K + Regval)), where:
  * Regval: is the value read from the programmable device register;
  *  - 0xff - represents tachometer fault;
@@ -430,7 +430,7 @@ static int mlxreg_fan_config(struct mlxreg_fan *fan,
 					data->label);
 				return -EINVAL;
 			}
-			/* Validate that conf parameters are not zeros. */
+			/* Validate that conf parameters are yest zeros. */
 			if (!data->mask && !data->bit && !data->capability) {
 				dev_err(fan->dev, "invalid conf entry params: %s\n",
 					data->label);
@@ -517,7 +517,7 @@ static struct platform_driver mlxreg_fan_driver = {
 
 module_platform_driver(mlxreg_fan_driver);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox FAN driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx FAN driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:mlxreg-fan");

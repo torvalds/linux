@@ -67,7 +67,7 @@ struct isif_dfc {
 #define	ISIF_VDFC_HORZ_INTERPOL		2
 	/* one of the vertical defect correction modes above */
 	__u8 corr_mode;
-	/* 0 - whole line corrected, 1 - not pixels upper than the defect */
+	/* 0 - whole line corrected, 1 - yest pixels upper than the defect */
 	__u8 corr_whole_line;
 #define ISIF_VDFC_NO_SHIFT		0
 #define ISIF_VDFC_SHIFT_1		1

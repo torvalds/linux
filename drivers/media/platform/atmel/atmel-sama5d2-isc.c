@@ -2,7 +2,7 @@
 /*
  * Microchip Image Sensor Controller (ISC) driver
  *
- * Copyright (C) 2016-2019 Microchip Technology, Inc.
+ * Copyright (C) 2016-2019 Microchip Techyeslogy, Inc.
  *
  * Author: Songjun Wu
  * Author: Eugen Hristev <eugen.hristev@microchip.com>
@@ -42,7 +42,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 
@@ -56,8 +56,8 @@
 
 static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *epn = NULL, *rem;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *epn = NULL, *rem;
 	struct isc_subdev_entity *subdev_entity;
 	unsigned int flags;
 	int ret;
@@ -65,7 +65,7 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 	INIT_LIST_HEAD(&isc->subdev_entities);
 
 	while (1) {
-		struct v4l2_fwnode_endpoint v4l2_epn = { .bus_type = 0 };
+		struct v4l2_fwyesde_endpoint v4l2_epn = { .bus_type = 0 };
 
 		epn = of_graph_get_next_endpoint(np, epn);
 		if (!epn)
@@ -73,35 +73,35 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 
 		rem = of_graph_get_remote_port_parent(epn);
 		if (!rem) {
-			dev_notice(dev, "Remote device at %pOF not found\n",
+			dev_yestice(dev, "Remote device at %pOF yest found\n",
 				   epn);
 			continue;
 		}
 
-		ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(epn),
+		ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(epn),
 						 &v4l2_epn);
 		if (ret) {
-			of_node_put(rem);
+			of_yesde_put(rem);
 			ret = -EINVAL;
-			dev_err(dev, "Could not parse the endpoint\n");
+			dev_err(dev, "Could yest parse the endpoint\n");
 			break;
 		}
 
 		subdev_entity = devm_kzalloc(dev, sizeof(*subdev_entity),
 					     GFP_KERNEL);
 		if (!subdev_entity) {
-			of_node_put(rem);
+			of_yesde_put(rem);
 			ret = -ENOMEM;
 			break;
 		}
 
 		/* asd will be freed by the subsystem once it's added to the
-		 * notifier list
+		 * yestifier list
 		 */
 		subdev_entity->asd = kzalloc(sizeof(*subdev_entity->asd),
 					     GFP_KERNEL);
 		if (!subdev_entity->asd) {
-			of_node_put(rem);
+			of_yesde_put(rem);
 			ret = -ENOMEM;
 			break;
 		}
@@ -122,11 +122,11 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 					ISC_PFE_CFG0_CCIR656;
 
 		subdev_entity->asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		subdev_entity->asd->match.fwnode = of_fwnode_handle(rem);
+		subdev_entity->asd->match.fwyesde = of_fwyesde_handle(rem);
 		list_add_tail(&subdev_entity->list, &isc->subdev_entities);
 	}
 
-	of_node_put(epn);
+	of_yesde_put(epn);
 	return ret;
 }
 
@@ -222,28 +222,28 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	}
 
 	if (list_empty(&isc->subdev_entities)) {
-		dev_err(dev, "no subdev found\n");
+		dev_err(dev, "yes subdev found\n");
 		ret = -ENODEV;
 		goto unregister_v4l2_device;
 	}
 
 	list_for_each_entry(subdev_entity, &isc->subdev_entities, list) {
-		v4l2_async_notifier_init(&subdev_entity->notifier);
+		v4l2_async_yestifier_init(&subdev_entity->yestifier);
 
-		ret = v4l2_async_notifier_add_subdev(&subdev_entity->notifier,
+		ret = v4l2_async_yestifier_add_subdev(&subdev_entity->yestifier,
 						     subdev_entity->asd);
 		if (ret) {
-			fwnode_handle_put(subdev_entity->asd->match.fwnode);
+			fwyesde_handle_put(subdev_entity->asd->match.fwyesde);
 			kfree(subdev_entity->asd);
 			goto cleanup_subdev;
 		}
 
-		subdev_entity->notifier.ops = &isc_async_ops;
+		subdev_entity->yestifier.ops = &isc_async_ops;
 
-		ret = v4l2_async_notifier_register(&isc->v4l2_dev,
-						   &subdev_entity->notifier);
+		ret = v4l2_async_yestifier_register(&isc->v4l2_dev,
+						   &subdev_entity->yestifier);
 		if (ret) {
-			dev_err(dev, "fail to register async notifier\n");
+			dev_err(dev, "fail to register async yestifier\n");
 			goto cleanup_subdev;
 		}
 

@@ -15,7 +15,7 @@
 #include <sound/tlv.h>
 #include "max98371.h"
 
-static const char *const monomix_text[] = {
+static const char *const moyesmix_text[] = {
 	"Left", "Right", "LeftRightDiv2",
 };
 
@@ -24,8 +24,8 @@ static const char *const hpf_cutoff_txt[] = {
 	"100Hz", "200Hz", "400Hz", "800Hz",
 };
 
-static SOC_ENUM_SINGLE_DECL(max98371_monomix, MAX98371_MONOMIX_CFG, 0,
-		monomix_text);
+static SOC_ENUM_SINGLE_DECL(max98371_moyesmix, MAX98371_MONOMIX_CFG, 0,
+		moyesmix_text);
 
 static SOC_ENUM_SINGLE_DECL(max98371_hpf_cutoff, MAX98371_HPF, 0,
 		hpf_cutoff_txt);
@@ -173,7 +173,7 @@ static const struct snd_kcontrol_new max98371_snd_controls[] = {
 			max98371_dht_rot_gain),
 	SOC_SINGLE("DHT Attack Step", MAX98371_DHT, MAX98371_DHT_STEP, 3, 0),
 	SOC_SINGLE("DHT Attack Rate", MAX98371_DHT, 0, 7, 0),
-	SOC_ENUM("Monomix Select", max98371_monomix),
+	SOC_ENUM("Moyesmix Select", max98371_moyesmix),
 	SOC_ENUM("HPF Cutoff", max98371_hpf_cutoff),
 };
 
@@ -351,7 +351,7 @@ static const struct snd_soc_component_driver max98371_component = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98371_regmap = {
@@ -426,6 +426,6 @@ static struct i2c_driver max98371_i2c_driver = {
 
 module_i2c_driver(max98371_i2c_driver);
 
-MODULE_AUTHOR("anish kumar <yesanishhere@gmail.com>");
+MODULE_AUTHOR("anish kumar <noanishhere@gmail.com>");
 MODULE_DESCRIPTION("ALSA SoC MAX98371 driver");
 MODULE_LICENSE("GPL");

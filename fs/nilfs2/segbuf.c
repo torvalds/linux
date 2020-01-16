@@ -121,7 +121,7 @@ int nilfs_segbuf_extend_payload(struct nilfs_segment_buffer *segbuf,
 }
 
 int nilfs_segbuf_reset(struct nilfs_segment_buffer *segbuf, unsigned int flags,
-		       time64_t ctime, __u64 cno)
+		       time64_t ctime, __u64 cyes)
 {
 	int err;
 
@@ -134,7 +134,7 @@ int nilfs_segbuf_reset(struct nilfs_segment_buffer *segbuf, unsigned int flags,
 	segbuf->sb_sum.sumbytes = sizeof(struct nilfs_segment_summary);
 	segbuf->sb_sum.nfinfo = segbuf->sb_sum.nfileblk = 0;
 	segbuf->sb_sum.ctime = ctime;
-	segbuf->sb_sum.cno = cno;
+	segbuf->sb_sum.cyes = cyes;
 	return 0;
 }
 
@@ -160,7 +160,7 @@ void nilfs_segbuf_fill_in_segsum(struct nilfs_segment_buffer *segbuf)
 	raw_sum->ss_nfinfo   = cpu_to_le32(segbuf->sb_sum.nfinfo);
 	raw_sum->ss_sumbytes = cpu_to_le32(segbuf->sb_sum.sumbytes);
 	raw_sum->ss_pad      = 0;
-	raw_sum->ss_cno      = cpu_to_le64(segbuf->sb_sum.cno);
+	raw_sum->ss_cyes      = cpu_to_le64(segbuf->sb_sum.cyes);
 }
 
 /*
@@ -231,7 +231,7 @@ nilfs_segbuf_fill_in_super_root_crc(struct nilfs_segment_buffer *segbuf,
 	u32 crc;
 
 	raw_sr = (struct nilfs_super_root *)segbuf->sb_super_root->b_data;
-	srsize = NILFS_SR_BYTES(nilfs->ns_inode_size);
+	srsize = NILFS_SR_BYTES(nilfs->ns_iyesde_size);
 	crc = crc32_le(seed,
 		       (unsigned char *)raw_sr + sizeof(raw_sr->sr_sum),
 		       srsize - sizeof(raw_sr->sr_sum));

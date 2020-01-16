@@ -116,11 +116,11 @@
 /*
  * Category 2 - MONITOR mode
  *
- * The MONITOR mode is same as preview mode as we said. The M-5MOLS has another
+ * The MONITOR mode is same as preview mode as we said. The M-5MOLS has ayesther
  * mode named "Preview", but this preview mode is used at the case specific
  * vider-recording mode. This mmode supports only YUYV format. On the other
  * hand, the JPEG & RAW formats is supports by CAPTURE mode. And, there are
- * another options like zoom/color effect(different with effect in PARAMETER
+ * ayesther options like zoom/color effect(different with effect in PARAMETER
  * mode)/anti hand shaking algorithm.
  */
 

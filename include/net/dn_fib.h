@@ -64,8 +64,8 @@ typedef struct {
 	__u16	datum;
 } dn_fib_idx_t;
 
-struct dn_fib_node {
-	struct dn_fib_node *fn_next;
+struct dn_fib_yesde {
+	struct dn_fib_yesde *fn_next;
 	struct dn_fib_info *fn_info;
 #define DN_FIB_INFO(f) ((f)->fn_info)
 	dn_fib_key_t	fn_key;
@@ -76,7 +76,7 @@ struct dn_fib_node {
 
 
 struct dn_fib_table {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	u32 n;
 
 	int (*insert)(struct dn_fib_table *t, struct rtmsg *r, 
@@ -144,7 +144,7 @@ static inline void dn_fib_res_put(struct dn_fib_res *res)
 		fib_rule_put(res->r);
 }
 
-#else /* Endnode */
+#else /* Endyesde */
 
 #define dn_fib_init()  do { } while(0)
 #define dn_fib_cleanup() do { } while(0)

@@ -38,7 +38,7 @@ struct ppc4xx_msi {
 	void __iomem *msi_regs;
 	int *msi_virqs;
 	struct msi_bitmap bitmap;
-	struct device_node *msi_dev;
+	struct device_yesde *msi_dev;
 };
 
 static struct ppc4xx_msi ppc4xx_msi;
@@ -49,7 +49,7 @@ static int ppc4xx_msi_init_allocator(struct platform_device *dev,
 	int err;
 
 	err = msi_bitmap_alloc(&msi_data->bitmap, msi_irqs,
-			      dev->dev.of_node);
+			      dev->dev.of_yesde);
 	if (err)
 		return err;
 
@@ -64,7 +64,7 @@ static int ppc4xx_msi_init_allocator(struct platform_device *dev,
 
 static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	int int_no = -ENOMEM;
+	int int_yes = -ENOMEM;
 	unsigned int virq;
 	struct msi_msg msg;
 	struct msi_desc *entry;
@@ -80,17 +80,17 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return -ENOMEM;
 
 	for_each_pci_msi_entry(entry, dev) {
-		int_no = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
-		if (int_no >= 0)
+		int_yes = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
+		if (int_yes >= 0)
 			break;
-		if (int_no < 0) {
+		if (int_yes < 0) {
 			pr_debug("%s: fail allocating msi interrupt\n",
 					__func__);
 		}
-		virq = irq_of_parse_and_map(msi_data->msi_dev, int_no);
+		virq = irq_of_parse_and_map(msi_data->msi_dev, int_yes);
 		if (!virq) {
 			dev_err(&dev->dev, "%s: fail mapping irq\n", __func__);
-			msi_bitmap_free_hwirqs(&msi_data->bitmap, int_no, 1);
+			msi_bitmap_free_hwirqs(&msi_data->bitmap, int_yes, 1);
 			return -ENOSPC;
 		}
 		dev_dbg(&dev->dev, "%s: virq = %d\n", __func__, virq);
@@ -100,7 +100,7 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		msg.address_lo = msi_data->msi_addr_lo;
 
 		irq_set_msi_desc(virq, entry);
-		msg.data = int_no;
+		msg.data = int_yes;
 		pci_write_msi_msg(virq, &msg);
 	}
 	return 0;
@@ -134,19 +134,19 @@ static int ppc4xx_setup_pcieh_hw(struct platform_device *dev,
 	void *msi_virt;
 	int err;
 
-	sdr_addr = of_get_property(dev->dev.of_node, "sdr-base", NULL);
+	sdr_addr = of_get_property(dev->dev.of_yesde, "sdr-base", NULL);
 	if (!sdr_addr)
 		return -EINVAL;
 
-	msi_data = of_get_property(dev->dev.of_node, "msi-data", NULL);
+	msi_data = of_get_property(dev->dev.of_yesde, "msi-data", NULL);
 	if (!msi_data)
 		return -EINVAL;
 
-	msi_mask = of_get_property(dev->dev.of_node, "msi-mask", NULL);
+	msi_mask = of_get_property(dev->dev.of_yesde, "msi-mask", NULL);
 	if (!msi_mask)
 		return -EINVAL;
 
-	msi->msi_dev = of_find_node_by_name(NULL, "ppc4xx-msi");
+	msi->msi_dev = of_find_yesde_by_name(NULL, "ppc4xx-msi");
 	if (!msi->msi_dev)
 		return -ENODEV;
 
@@ -154,7 +154,7 @@ static int ppc4xx_setup_pcieh_hw(struct platform_device *dev,
 	if (!msi->msi_regs) {
 		dev_err(&dev->dev, "of_iomap failed\n");
 		err = -ENOMEM;
-		goto node_put;
+		goto yesde_put;
 	}
 	dev_dbg(&dev->dev, "PCIE-MSI: msi register mapped 0x%x 0x%x\n",
 		(u32) (msi->msi_regs + PEIH_TERMADH), (u32) (msi->msi_regs));
@@ -186,8 +186,8 @@ static int ppc4xx_setup_pcieh_hw(struct platform_device *dev,
 
 iounmap:
 	iounmap(msi->msi_regs);
-node_put:
-	of_node_put(msi->msi_dev);
+yesde_put:
+	of_yesde_put(msi->msi_dev);
 	return err;
 }
 
@@ -206,7 +206,7 @@ static int ppc4xx_of_msi_remove(struct platform_device *dev)
 	if (msi->bitmap.bitmap)
 		msi_bitmap_free(&msi->bitmap);
 	iounmap(msi->msi_regs);
-	of_node_put(msi->msi_dev);
+	of_yesde_put(msi->msi_dev);
 
 	return 0;
 }
@@ -226,13 +226,13 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 	dev->dev.platform_data = msi;
 
 	/* Get MSI ranges */
-	err = of_address_to_resource(dev->dev.of_node, 0, &res);
+	err = of_address_to_resource(dev->dev.of_yesde, 0, &res);
 	if (err) {
-		dev_err(&dev->dev, "%pOF resource error!\n", dev->dev.of_node);
+		dev_err(&dev->dev, "%pOF resource error!\n", dev->dev.of_yesde);
 		return err;
 	}
 
-	msi_irqs = of_irq_count(dev->dev.of_node);
+	msi_irqs = of_irq_count(dev->dev.of_yesde);
 	if (!msi_irqs)
 		return -ENODEV;
 
@@ -247,7 +247,7 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 	}
 	ppc4xx_msi = *msi;
 
-	list_for_each_entry(phb, &hose_list, list_node) {
+	list_for_each_entry(phb, &hose_list, list_yesde) {
 		phb->controller_ops.setup_msi_irqs = ppc4xx_setup_msi_irqs;
 		phb->controller_ops.teardown_msi_irqs = ppc4xx_teardown_msi_irqs;
 	}

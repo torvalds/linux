@@ -14,7 +14,7 @@
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_bmap.h"
@@ -343,7 +343,7 @@ xfs_attr3_leaf_verify(
 	 * Quickly check the freemap information.  Attribute data has to be
 	 * aligned to 4-byte boundaries, and likewise for the free space.
 	 *
-	 * Note that for 64k block size filesystems, the freemap entries cannot
+	 * Note that for 64k block size filesystems, the freemap entries canyest
 	 * overflow as they are only be16 fields. However, when checking end
 	 * pointer of the freemap, we have to be careful to detect overflows and
 	 * so use uint32_t for those checks.
@@ -394,8 +394,8 @@ xfs_attr3_leaf_write_verify(
 }
 
 /*
- * leaf/node format detection on trees is sketchy, so a node read can be done on
- * leaf level blocks when detection identifies the tree as a node format tree
+ * leaf/yesde format detection on trees is sketchy, so a yesde read can be done on
+ * leaf level blocks when detection identifies the tree as a yesde format tree
  * incorrectly. In this case, we need to swap the verifier to match the correct
  * format of the block being read.
  */
@@ -428,13 +428,13 @@ const struct xfs_buf_ops xfs_attr3_leaf_buf_ops = {
 int
 xfs_attr3_leaf_read(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
-	xfs_dablk_t		bno,
+	struct xfs_iyesde	*dp,
+	xfs_dablk_t		byes,
 	struct xfs_buf		**bpp)
 {
 	int			err;
 
-	err = xfs_da_read_buf(tp, dp, bno, 0, bpp, XFS_ATTR_FORK,
+	err = xfs_da_read_buf(tp, dp, byes, 0, bpp, XFS_ATTR_FORK,
 			&xfs_attr3_leaf_buf_ops);
 	if (!err && tp && *bpp)
 		xfs_trans_buf_set_type(tp, *bpp, XFS_BLFT_ATTR_LEAF_BUF);
@@ -485,7 +485,7 @@ xfs_attr_copy_value(
 	args->valuelen = valuelen;
 
 	/* remote block xattr requires IO for copy-in */
-	if (args->rmtblkno)
+	if (args->rmtblkyes)
 		return xfs_attr_rmtval_get(args);
 
 	/*
@@ -508,15 +508,15 @@ xfs_attr_copy_value(
  * Query whether the requested number of additional bytes of extended
  * attribute space will be able to fit inline.
  *
- * Returns zero if not, else the di_forkoff fork offset to be used in the
+ * Returns zero if yest, else the di_forkoff fork offset to be used in the
  * literal area for attribute data once the new bytes have been added.
  *
  * di_forkoff must be 8 byte aligned, hence is stored as a >>3 value;
- * special case for dev/uuid inodes, they have fixed size data forks.
+ * special case for dev/uuid iyesdes, they have fixed size data forks.
  */
 int
 xfs_attr_shortform_bytesfit(
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	int			bytes)
 {
 	struct xfs_mount	*mp = dp->i_mount;
@@ -548,7 +548,7 @@ xfs_attr_shortform_bytesfit(
 
 	/*
 	 * For attr2 we can try to move the forkoff if there is space in the
-	 * literal area, but for the old format we are done if there is no
+	 * literal area, but for the old format we are done if there is yes
 	 * space in the fixed attribute fork.
 	 */
 	if (!(mp->m_flags & XFS_MOUNT_ATTR2))
@@ -559,7 +559,7 @@ xfs_attr_shortform_bytesfit(
 	switch (dp->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
 		/*
-		 * If there is no attr fork and the data fork is extents, 
+		 * If there is yes attr fork and the data fork is extents, 
 		 * determine if creating the default attr fork will result
 		 * in the extents form migrating to btree. If so, the
 		 * minimum offset only needs to be the space required for
@@ -629,7 +629,7 @@ void
 xfs_attr_shortform_create(xfs_da_args_t *args)
 {
 	xfs_attr_sf_hdr_t *hdr;
-	xfs_inode_t *dp;
+	xfs_iyesde_t *dp;
 	struct xfs_ifork *ifp;
 
 	trace_xfs_attr_sf_create(args);
@@ -650,12 +650,12 @@ xfs_attr_shortform_create(xfs_da_args_t *args)
 	hdr = (xfs_attr_sf_hdr_t *)ifp->if_u1.if_data;
 	hdr->count = 0;
 	hdr->totsize = cpu_to_be16(sizeof(*hdr));
-	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
+	xfs_trans_log_iyesde(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
 }
 
 /*
  * Add a name/value pair to the shortform attribute list.
- * Overflow from the inode has already been checked for.
+ * Overflow from the iyesde has already been checked for.
  */
 void
 xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
@@ -664,7 +664,7 @@ xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
 	xfs_attr_sf_entry_t *sfe;
 	int i, offset, size;
 	xfs_mount_t *mp;
-	xfs_inode_t *dp;
+	xfs_iyesde_t *dp;
 	struct xfs_ifork *ifp;
 
 	trace_xfs_attr_sf_add(args);
@@ -702,18 +702,18 @@ xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
 	memcpy(&sfe->nameval[args->namelen], args->value, args->valuelen);
 	sf->hdr.count++;
 	be16_add_cpu(&sf->hdr.totsize, size);
-	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
+	xfs_trans_log_iyesde(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
 
 	xfs_sbversion_add_attr2(mp, args->trans);
 }
 
 /*
- * After the last attribute is removed revert to original inode format,
+ * After the last attribute is removed revert to original iyesde format,
  * making all literal area available to the data fork once more.
  */
 void
 xfs_attr_fork_remove(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_trans	*tp)
 {
 	xfs_idestroy_fork(ip, XFS_ATTR_FORK);
@@ -723,7 +723,7 @@ xfs_attr_fork_remove(
 	ASSERT(ip->i_d.di_anextents == 0);
 	ASSERT(ip->i_afp == NULL);
 
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_iyesde(tp, ip, XFS_ILOG_CORE);
 }
 
 /*
@@ -736,7 +736,7 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 	xfs_attr_sf_entry_t *sfe;
 	int base, size=0, end, totsize, i;
 	xfs_mount_t *mp;
-	xfs_inode_t *dp;
+	xfs_iyesde_t *dp;
 
 	trace_xfs_attr_sf_remove(args);
 
@@ -787,7 +787,7 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 				(args->op_flags & XFS_DA_OP_ADDNAME) ||
 				!(mp->m_flags & XFS_MOUNT_ATTR2) ||
 				dp->i_d.di_format == XFS_DINODE_FMT_BTREE);
-		xfs_trans_log_inode(args->trans, dp,
+		xfs_trans_log_iyesde(args->trans, dp,
 					XFS_ILOG_CORE | XFS_ILOG_ADATA);
 	}
 
@@ -831,7 +831,7 @@ xfs_attr_shortform_lookup(xfs_da_args_t *args)
  * Retrieve the attribute value and length.
  *
  * If ATTR_KERNOVAL is specified, only the length needs to be returned.
- * Unlike a lookup, we only return an error if the attribute does not
+ * Unlike a lookup, we only return an error if the attribute does yest
  * exist or we can't retrieve the value.
  */
 int
@@ -868,13 +868,13 @@ xfs_attr_shortform_to_leaf(
 	struct xfs_da_args		*args,
 	struct xfs_buf			**leaf_bp)
 {
-	struct xfs_inode		*dp;
+	struct xfs_iyesde		*dp;
 	struct xfs_attr_shortform	*sf;
 	struct xfs_attr_sf_entry	*sfe;
 	struct xfs_da_args		nargs;
 	char				*tmpbuffer;
 	int				error, i, size;
-	xfs_dablk_t			blkno;
+	xfs_dablk_t			blkyes;
 	struct xfs_buf			*bp;
 	struct xfs_ifork		*ifp;
 
@@ -893,12 +893,12 @@ xfs_attr_shortform_to_leaf(
 	xfs_bmap_local_to_extents_empty(args->trans, dp, XFS_ATTR_FORK);
 
 	bp = NULL;
-	error = xfs_da_grow_inode(args, &blkno);
+	error = xfs_da_grow_iyesde(args, &blkyes);
 	if (error)
 		goto out;
 
-	ASSERT(blkno == 0);
-	error = xfs_attr3_leaf_create(args, blkno, &bp);
+	ASSERT(blkyes == 0);
+	error = xfs_attr3_leaf_create(args, blkyes, &bp);
 	if (error)
 		goto out;
 
@@ -941,7 +941,7 @@ out:
 int
 xfs_attr_shortform_allfit(
 	struct xfs_buf		*bp,
-	struct xfs_inode	*dp)
+	struct xfs_iyesde	*dp)
 {
 	struct xfs_attr_leafblock *leaf;
 	struct xfs_attr_leaf_entry *entry;
@@ -980,7 +980,7 @@ xfs_attr_shortform_allfit(
 /* Verify the consistency of an inline attribute fork. */
 xfs_failaddr_t
 xfs_attr_shortform_verify(
-	struct xfs_inode		*ip)
+	struct xfs_iyesde		*ip)
 {
 	struct xfs_attr_shortform	*sfp;
 	struct xfs_attr_sf_entry	*sfep;
@@ -1014,7 +1014,7 @@ xfs_attr_shortform_verify(
 		if (((char *)sfep + sizeof(*sfep)) >= endp)
 			return __this_address;
 
-		/* Don't allow names with known bad length. */
+		/* Don't allow names with kyeswn bad length. */
 		if (sfep->namelen == 0)
 			return __this_address;
 
@@ -1028,7 +1028,7 @@ xfs_attr_shortform_verify(
 			return __this_address;
 
 		/*
-		 * Check for unknown flags.  Short form doesn't support
+		 * Check for unkyeswn flags.  Short form doesn't support
 		 * the incomplete or local bits, so we can use the namespace
 		 * mask here.
 		 */
@@ -1065,7 +1065,7 @@ xfs_attr3_leaf_to_shortform(
 	struct xfs_attr_leaf_entry *entry;
 	struct xfs_attr_leaf_name_local *name_loc;
 	struct xfs_da_args	nargs;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	char			*tmpbuffer;
 	int			error;
 	int			i;
@@ -1088,7 +1088,7 @@ xfs_attr3_leaf_to_shortform(
 	/*
 	 * Clean out the prior contents of the attribute list.
 	 */
-	error = xfs_da_shrink_inode(args, 0, bp);
+	error = xfs_da_shrink_iyesde(args, 0, bp);
 	if (error)
 		goto out;
 
@@ -1135,34 +1135,34 @@ out:
 }
 
 /*
- * Convert from using a single leaf to a root node and a leaf.
+ * Convert from using a single leaf to a root yesde and a leaf.
  */
 int
-xfs_attr3_leaf_to_node(
+xfs_attr3_leaf_to_yesde(
 	struct xfs_da_args	*args)
 {
 	struct xfs_attr_leafblock *leaf;
 	struct xfs_attr3_icleaf_hdr icleafhdr;
 	struct xfs_attr_leaf_entry *entries;
-	struct xfs_da3_icnode_hdr icnodehdr;
-	struct xfs_da_intnode	*node;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_da3_icyesde_hdr icyesdehdr;
+	struct xfs_da_intyesde	*yesde;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*bp1 = NULL;
 	struct xfs_buf		*bp2 = NULL;
-	xfs_dablk_t		blkno;
+	xfs_dablk_t		blkyes;
 	int			error;
 
-	trace_xfs_attr_leaf_to_node(args);
+	trace_xfs_attr_leaf_to_yesde(args);
 
-	error = xfs_da_grow_inode(args, &blkno);
+	error = xfs_da_grow_iyesde(args, &blkyes);
 	if (error)
 		goto out;
 	error = xfs_attr3_leaf_read(args->trans, dp, 0, &bp1);
 	if (error)
 		goto out;
 
-	error = xfs_da_get_buf(args->trans, dp, blkno, &bp2, XFS_ATTR_FORK);
+	error = xfs_da_get_buf(args->trans, dp, blkyes, &bp2, XFS_ATTR_FORK);
 	if (error)
 		goto out;
 
@@ -1172,28 +1172,28 @@ xfs_attr3_leaf_to_node(
 	memcpy(bp2->b_addr, bp1->b_addr, args->geo->blksize);
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_da3_blkinfo *hdr3 = bp2->b_addr;
-		hdr3->blkno = cpu_to_be64(bp2->b_bn);
+		hdr3->blkyes = cpu_to_be64(bp2->b_bn);
 	}
 	xfs_trans_log_buf(args->trans, bp2, 0, args->geo->blksize - 1);
 
 	/*
-	 * Set up the new root node.
+	 * Set up the new root yesde.
 	 */
-	error = xfs_da3_node_create(args, 0, 1, &bp1, XFS_ATTR_FORK);
+	error = xfs_da3_yesde_create(args, 0, 1, &bp1, XFS_ATTR_FORK);
 	if (error)
 		goto out;
-	node = bp1->b_addr;
-	xfs_da3_node_hdr_from_disk(mp, &icnodehdr, node);
+	yesde = bp1->b_addr;
+	xfs_da3_yesde_hdr_from_disk(mp, &icyesdehdr, yesde);
 
 	leaf = bp2->b_addr;
 	xfs_attr3_leaf_hdr_from_disk(args->geo, &icleafhdr, leaf);
 	entries = xfs_attr3_leaf_entryp(leaf);
 
 	/* both on-disk, don't endian-flip twice */
-	icnodehdr.btree[0].hashval = entries[icleafhdr.count - 1].hashval;
-	icnodehdr.btree[0].before = cpu_to_be32(blkno);
-	icnodehdr.count = 1;
-	xfs_da3_node_hdr_to_disk(dp->i_mount, node, &icnodehdr);
+	icyesdehdr.btree[0].hashval = entries[icleafhdr.count - 1].hashval;
+	icyesdehdr.btree[0].before = cpu_to_be32(blkyes);
+	icyesdehdr.count = 1;
+	xfs_da3_yesde_hdr_to_disk(dp->i_mount, yesde, &icyesdehdr);
 	xfs_trans_log_buf(args->trans, bp1, 0, args->geo->blksize - 1);
 	error = 0;
 out:
@@ -1206,24 +1206,24 @@ out:
 
 /*
  * Create the initial contents of a leaf attribute list
- * or a leaf in a node attribute list.
+ * or a leaf in a yesde attribute list.
  */
 STATIC int
 xfs_attr3_leaf_create(
 	struct xfs_da_args	*args,
-	xfs_dablk_t		blkno,
+	xfs_dablk_t		blkyes,
 	struct xfs_buf		**bpp)
 {
 	struct xfs_attr_leafblock *leaf;
 	struct xfs_attr3_icleaf_hdr ichdr;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*bp;
 	int			error;
 
 	trace_xfs_attr_leaf_create(args);
 
-	error = xfs_da_get_buf(args->trans, args->dp, blkno, &bp,
+	error = xfs_da_get_buf(args->trans, args->dp, blkyes, &bp,
 					    XFS_ATTR_FORK);
 	if (error)
 		return error;
@@ -1240,8 +1240,8 @@ xfs_attr3_leaf_create(
 
 		ichdr.magic = XFS_ATTR3_LEAF_MAGIC;
 
-		hdr3->blkno = cpu_to_be64(bp->b_bn);
-		hdr3->owner = cpu_to_be64(dp->i_ino);
+		hdr3->blkyes = cpu_to_be64(bp->b_bn);
+		hdr3->owner = cpu_to_be64(dp->i_iyes);
 		uuid_copy(&hdr3->uuid, &mp->m_sb.sb_meta_uuid);
 
 		ichdr.freemap[0].base = sizeof(struct xfs_attr3_leaf_hdr);
@@ -1259,7 +1259,7 @@ xfs_attr3_leaf_create(
 }
 
 /*
- * Split the leaf node, rebalance, then add the new entry.
+ * Split the leaf yesde, rebalance, then add the new entry.
  */
 int
 xfs_attr3_leaf_split(
@@ -1267,22 +1267,22 @@ xfs_attr3_leaf_split(
 	struct xfs_da_state_blk	*oldblk,
 	struct xfs_da_state_blk	*newblk)
 {
-	xfs_dablk_t blkno;
+	xfs_dablk_t blkyes;
 	int error;
 
 	trace_xfs_attr_leaf_split(state->args);
 
 	/*
-	 * Allocate space for a new leaf node.
+	 * Allocate space for a new leaf yesde.
 	 */
 	ASSERT(oldblk->magic == XFS_ATTR_LEAF_MAGIC);
-	error = xfs_da_grow_inode(state->args, &blkno);
+	error = xfs_da_grow_iyesde(state->args, &blkyes);
 	if (error)
 		return error;
-	error = xfs_attr3_leaf_create(state->args, blkno, &newblk->bp);
+	error = xfs_attr3_leaf_create(state->args, blkyes, &newblk->bp);
 	if (error)
 		return error;
-	newblk->blkno = blkno;
+	newblk->blkyes = blkyes;
 	newblk->magic = XFS_ATTR_LEAF_MAGIC;
 
 	/*
@@ -1296,7 +1296,7 @@ xfs_attr3_leaf_split(
 
 	/*
 	 * Save info on "old" attribute for "atomic rename" ops, leaf_add()
-	 * modifies the index/blkno/rmtblk/rmtblkcnt fields to show the
+	 * modifies the index/blkyes/rmtblk/rmtblkcnt fields to show the
 	 * "new" attrs info.  Will need the "old" info to remove it later.
 	 *
 	 * Insert the "new" entry in the correct block.
@@ -1352,7 +1352,7 @@ xfs_attr3_leaf_add(
 			continue;
 		}
 		if (!ichdr.freemap[i].size)
-			continue;	/* no space in this map */
+			continue;	/* yes space in this map */
 		tmp = entsize;
 		if (ichdr.freemap[i].base < ichdr.firstused)
 			tmp += sizeof(xfs_attr_leaf_entry_t);
@@ -1364,9 +1364,9 @@ xfs_attr3_leaf_add(
 	}
 
 	/*
-	 * If there are no holes in the address space of the block,
-	 * and we don't have enough freespace, then compaction will do us
-	 * no good and we should just give up.
+	 * If there are yes holes in the address space of the block,
+	 * and we don't have eyesugh freespace, then compaction will do us
+	 * yes good and we should just give up.
 	 */
 	if (!ichdr.holes && sum < entsize)
 		return -ENOSPC;
@@ -1379,7 +1379,7 @@ xfs_attr3_leaf_add(
 
 	/*
 	 * After compaction, the block is guaranteed to have only one
-	 * free region, in freemap[0].  If it is not big enough, give up.
+	 * free region, in freemap[0].  If it is yest big eyesugh, give up.
 	 */
 	if (ichdr.freemap[0].size < (entsize + sizeof(xfs_attr_leaf_entry_t))) {
 		tmp = -ENOSPC;
@@ -1453,7 +1453,7 @@ xfs_attr3_leaf_add_work(
 	entry->flags |= XFS_ATTR_NSP_ARGS_TO_ONDISK(args->flags);
 	if (args->op_flags & XFS_DA_OP_RENAME) {
 		entry->flags |= XFS_ATTR_INCOMPLETE;
-		if ((args->blkno2 == args->blkno) &&
+		if ((args->blkyes2 == args->blkyes) &&
 		    (args->index2 <= args->index)) {
 			args->index2++;
 		}
@@ -1466,7 +1466,7 @@ xfs_attr3_leaf_add_work(
 	       (be32_to_cpu(entry->hashval) <= be32_to_cpu((entry+1)->hashval)));
 
 	/*
-	 * For "remote" attribute values, simply note that we need to
+	 * For "remote" attribute values, simply yeste that we need to
 	 * allocate space for the "remote" value.  We can't actually
 	 * allocate the extents in this transaction, and we can't decide
 	 * which blocks they should be as we might allocate more blocks
@@ -1487,7 +1487,7 @@ xfs_attr3_leaf_add_work(
 		/* just in case */
 		name_rmt->valuelen = 0;
 		name_rmt->valueblk = 0;
-		args->rmtblkno = 1;
+		args->rmtblkyes = 1;
 		args->rmtblkcnt = xfs_attr3_rmt_blocks(mp, args->valuelen);
 		args->rmtvaluelen = args->valuelen;
 	}
@@ -1496,7 +1496,7 @@ xfs_attr3_leaf_add_work(
 				   xfs_attr_leaf_entsize(leaf, args->index)));
 
 	/*
-	 * Update the control info for this leaf node
+	 * Update the control info for this leaf yesde
 	 */
 	if (be16_to_cpu(entry->nameidx) < ichdr->firstused)
 		ichdr->firstused = be16_to_cpu(entry->nameidx);
@@ -1543,7 +1543,7 @@ xfs_attr3_leaf_compact(
 
 	/*
 	 * Copy the on-disk header back into the destination buffer to ensure
-	 * all the information in the header that is not part of the incore
+	 * all the information in the header that is yest part of the incore
 	 * header structure is preserved.
 	 */
 	memcpy(bp->b_addr, tmpbuffer, xfs_attr3_leaf_hdr_size(leaf_src));
@@ -1617,13 +1617,13 @@ xfs_attr_leaf_order(
 }
 
 /*
- * Redistribute the attribute list entries between two leaf nodes,
+ * Redistribute the attribute list entries between two leaf yesdes,
  * taking into account the size of the new entry.
  *
  * NOTE: if new block is empty, then it will get the upper half of the
  * old block.  At present, all (one) callers pass in an empty second block.
  *
- * This code adjusts the args->index/blkno and args->index2/blkno2 fields
+ * This code adjusts the args->index/blkyes and args->index2/blkyes2 fields
  * to match what it is doing in splitting the attribute leaf block.  Those
  * values are used in "atomic rename" operations on attributes.  Note that
  * the "new" and "old" values can end up in different blocks.
@@ -1771,29 +1771,29 @@ xfs_attr3_leaf_rebalance(
 	 * the index.  We must also track the entry just following the
 	 * new entry for use in an "atomic rename" operation, that entry
 	 * is always the "old" entry and the "new" entry is what we are
-	 * inserting.  The index/blkno fields refer to the "old" entry,
-	 * while the index2/blkno2 fields refer to the "new" entry.
+	 * inserting.  The index/blkyes fields refer to the "old" entry,
+	 * while the index2/blkyes2 fields refer to the "new" entry.
 	 */
 	if (blk1->index > ichdr1.count) {
 		ASSERT(state->inleaf == 0);
 		blk2->index = blk1->index - ichdr1.count;
 		args->index = args->index2 = blk2->index;
-		args->blkno = args->blkno2 = blk2->blkno;
+		args->blkyes = args->blkyes2 = blk2->blkyes;
 	} else if (blk1->index == ichdr1.count) {
 		if (state->inleaf) {
 			args->index = blk1->index;
-			args->blkno = blk1->blkno;
+			args->blkyes = blk1->blkyes;
 			args->index2 = 0;
-			args->blkno2 = blk2->blkno;
+			args->blkyes2 = blk2->blkyes;
 		} else {
 			/*
 			 * On a double leaf split, the original attr location
-			 * is already stored in blkno2/index2, so don't
+			 * is already stored in blkyes2/index2, so don't
 			 * overwrite it overwise we corrupt the tree.
 			 */
 			blk2->index = blk1->index - ichdr1.count;
 			args->index = blk2->index;
-			args->blkno = blk2->blkno;
+			args->blkyes = blk2->blkyes;
 			if (!state->extravalid) {
 				/*
 				 * set the new attr location to match the old
@@ -1801,13 +1801,13 @@ xfs_attr3_leaf_rebalance(
 				 * decide where in the leaf to place it.
 				 */
 				args->index2 = blk2->index;
-				args->blkno2 = blk2->blkno;
+				args->blkyes2 = blk2->blkyes;
 			}
 		}
 	} else {
 		ASSERT(state->inleaf == 1);
 		args->index = args->index2 = blk1->index;
-		args->blkno = args->blkno2 = blk1->blkno;
+		args->blkyes = args->blkyes2 = blk1->blkyes;
 	}
 }
 
@@ -1815,7 +1815,7 @@ xfs_attr3_leaf_rebalance(
  * Examine entries until we reduce the absolute difference in
  * byte usage between the two blocks to a minimum.
  * GROT: Is this really necessary?  With other than a 512 byte blocksize,
- * GROT: there will always be enough room in either block for a new entry.
+ * GROT: there will always be eyesugh room in either block for a new entry.
  * GROT: Do a double-split for this case?
  */
 STATIC int
@@ -1890,7 +1890,7 @@ xfs_attr3_leaf_figure_balance(
 
 	/*
 	 * Calculate the number of usedbytes that will end up in lower block.
-	 * If new entry not in lower block, fix up the count.
+	 * If new entry yest in lower block, fix up the count.
 	 */
 	totallen -= count * sizeof(*entry);
 	if (foundit) {
@@ -1914,7 +1914,7 @@ xfs_attr3_leaf_figure_balance(
  * If the current block is over 50% full, don't try to join it, return 0.
  * If the block is empty, fill in the state structure and return 2.
  * If it can be collapsed, fill in the state structure and return 1.
- * If nothing can be done, return 0.
+ * If yesthing can be done, return 0.
  *
  * GROT: allow for INCOMPLETE entries in calculation.
  */
@@ -1927,7 +1927,7 @@ xfs_attr3_leaf_toosmall(
 	struct xfs_da_state_blk	*blk;
 	struct xfs_attr3_icleaf_hdr ichdr;
 	struct xfs_buf		*bp;
-	xfs_dablk_t		blkno;
+	xfs_dablk_t		blkyes;
 	int			bytes;
 	int			forward;
 	int			error;
@@ -1938,7 +1938,7 @@ xfs_attr3_leaf_toosmall(
 
 	/*
 	 * Check for the degenerate case of the block being over 50% full.
-	 * If so, it's not worth even looking to see if we might be able
+	 * If so, it's yest worth even looking to see if we might be able
 	 * to coalesce with a sibling.
 	 */
 	blk = &state->path.blk[ state->path.active-1 ];
@@ -1954,7 +1954,7 @@ xfs_attr3_leaf_toosmall(
 
 	/*
 	 * Check for the degenerate case of the block being empty.
-	 * If the block is empty, we'll simply delete it, no need to
+	 * If the block is empty, we'll simply delete it, yes need to
 	 * coalesce it with a sibling block.  We choose (arbitrarily)
 	 * to merge with the forward block unless it is NULL.
 	 */
@@ -1989,13 +1989,13 @@ xfs_attr3_leaf_toosmall(
 	for (i = 0; i < 2; forward = !forward, i++) {
 		struct xfs_attr3_icleaf_hdr ichdr2;
 		if (forward)
-			blkno = ichdr.forw;
+			blkyes = ichdr.forw;
 		else
-			blkno = ichdr.back;
-		if (blkno == 0)
+			blkyes = ichdr.back;
+		if (blkyes == 0)
 			continue;
 		error = xfs_attr3_leaf_read(state->args->trans, state->args->dp,
-					blkno, &bp);
+					blkyes, &bp);
 		if (error)
 			return error;
 
@@ -2022,7 +2022,7 @@ xfs_attr3_leaf_toosmall(
 	 * numbered block) and path point to the block we want to drop.
 	 */
 	memcpy(&state->altpath, &state->path, sizeof(state->path));
-	if (blkno < blk->blkno) {
+	if (blkyes < blk->blkyes) {
 		error = xfs_da3_path_shift(state, &state->altpath, forward,
 						 0, &retval);
 	} else {
@@ -2231,7 +2231,7 @@ xfs_attr3_leaf_unbalance(
 	 */
 	if (savehdr.holes == 0) {
 		/*
-		 * dest leaf has no holes, so we add there.  May need
+		 * dest leaf has yes holes, so we add there.  May need
 		 * to make some room in the entry array.
 		 */
 		if (xfs_attr3_leaf_order(save_blk->bp, &savehdr,
@@ -2258,7 +2258,7 @@ xfs_attr3_leaf_unbalance(
 
 		/*
 		 * Copy the header into the temp leaf so that all the stuff
-		 * not in the incore header is present and gets copied back in
+		 * yest in the incore header is present and gets copied back in
 		 * once we've moved all the entries.
 		 */
 		memcpy(tmp_leaf, save_leaf, xfs_attr3_leaf_hdr_size(save_leaf));
@@ -2317,7 +2317,7 @@ xfs_attr3_leaf_unbalance(
  * This is the internal routine, it uses the caller's buffer.
  *
  * Note that duplicate keys are allowed, but only check within the
- * current leaf node.  The Btree code must check in adjacent leaf nodes.
+ * current leaf yesde.  The Btree code must check in adjacent leaf yesdes.
  *
  * Return in args->index the index into the entry[] array of either
  * the found entry, or where the entry should have been (insert before
@@ -2351,7 +2351,7 @@ xfs_attr3_leaf_lookup_int(
 	}
 
 	/*
-	 * Binary search.  (note: small blocks will skip this loop)
+	 * Binary search.  (yeste: small blocks will skip this loop)
 	 */
 	hashval = args->hashval;
 	probe = span = ichdr.count / 2;
@@ -2429,7 +2429,7 @@ xfs_attr3_leaf_lookup_int(
 				continue;
 			args->index = probe;
 			args->rmtvaluelen = be32_to_cpu(name_rmt->valuelen);
-			args->rmtblkno = be32_to_cpu(name_rmt->valueblk);
+			args->rmtblkyes = be32_to_cpu(name_rmt->valueblk);
 			args->rmtblkcnt = xfs_attr3_rmt_blocks(
 							args->dp->i_mount,
 							args->rmtvaluelen);
@@ -2445,7 +2445,7 @@ xfs_attr3_leaf_lookup_int(
  * list structure.
  *
  * If ATTR_KERNOVAL is specified, only the length needs to be returned.
- * Unlike a lookup, we only return an error if the attribute does not
+ * Unlike a lookup, we only return an error if the attribute does yest
  * exist or we can't retrieve the value.
  */
 int
@@ -2478,7 +2478,7 @@ xfs_attr3_leaf_getvalue(
 	ASSERT(name_rmt->namelen == args->namelen);
 	ASSERT(memcmp(args->name, name_rmt->name, args->namelen) == 0);
 	args->rmtvaluelen = be32_to_cpu(name_rmt->valuelen);
-	args->rmtblkno = be32_to_cpu(name_rmt->valueblk);
+	args->rmtblkyes = be32_to_cpu(name_rmt->valueblk);
 	args->rmtblkcnt = xfs_attr3_rmt_blocks(args->dp->i_mount,
 					       args->rmtvaluelen);
 	return xfs_attr_copy_value(args, NULL, args->rmtvaluelen);
@@ -2489,7 +2489,7 @@ xfs_attr3_leaf_getvalue(
  *========================================================================*/
 
 /*
- * Move the indicated entries from one leaf to another.
+ * Move the indicated entries from one leaf to ayesther.
  * NOTE: this routine modifies both source and destination leaves.
  */
 /*ARGSUSED*/
@@ -2511,7 +2511,7 @@ xfs_attr3_leaf_moveents(
 	int				i;
 
 	/*
-	 * Check for nothing to do.
+	 * Check for yesthing to do.
 	 */
 	if (count == 0)
 		return;
@@ -2631,7 +2631,7 @@ xfs_attr3_leaf_moveents(
 	ichdr_d->freemap[2].base = 0;
 	ichdr_d->freemap[1].size = 0;
 	ichdr_d->freemap[2].size = 0;
-	ichdr_s->holes = 1;	/* leaf may not be compact */
+	ichdr_s->holes = 1;	/* leaf may yest be compact */
 }
 
 /*
@@ -2731,7 +2731,7 @@ xfs_attr3_leaf_clearflag(
 	/*
 	 * Set up the operation.
 	 */
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp);
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkyes, &bp);
 	if (error)
 		return error;
 
@@ -2762,10 +2762,10 @@ xfs_attr3_leaf_clearflag(
 	xfs_trans_log_buf(args->trans, bp,
 			 XFS_DA_LOGRANGE(leaf, entry, sizeof(*entry)));
 
-	if (args->rmtblkno) {
+	if (args->rmtblkyes) {
 		ASSERT((entry->flags & XFS_ATTR_LOCAL) == 0);
 		name_rmt = xfs_attr3_leaf_name_remote(leaf, args->index);
-		name_rmt->valueblk = cpu_to_be32(args->rmtblkno);
+		name_rmt->valueblk = cpu_to_be32(args->rmtblkyes);
 		name_rmt->valuelen = cpu_to_be32(args->rmtvaluelen);
 		xfs_trans_log_buf(args->trans, bp,
 			 XFS_DA_LOGRANGE(leaf, name_rmt, sizeof(*name_rmt)));
@@ -2774,7 +2774,7 @@ xfs_attr3_leaf_clearflag(
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	return xfs_trans_roll_inode(&args->trans, args->dp);
+	return xfs_trans_roll_iyesde(&args->trans, args->dp);
 }
 
 /*
@@ -2798,7 +2798,7 @@ xfs_attr3_leaf_setflag(
 	/*
 	 * Set up the operation.
 	 */
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp);
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkyes, &bp);
 	if (error)
 		return error;
 
@@ -2825,13 +2825,13 @@ xfs_attr3_leaf_setflag(
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	return xfs_trans_roll_inode(&args->trans, args->dp);
+	return xfs_trans_roll_iyesde(&args->trans, args->dp);
 }
 
 /*
  * In a single transaction, clear the INCOMPLETE flag on the leaf entry
- * given by args->blkno/index and set the INCOMPLETE flag on the leaf
- * entry given by args->blkno2/index2.
+ * given by args->blkyes/index and set the INCOMPLETE flag on the leaf
+ * entry given by args->blkyes2/index2.
  *
  * Note that they could be in different blocks, or in the same block.
  */
@@ -2860,15 +2860,15 @@ xfs_attr3_leaf_flipflags(
 	/*
 	 * Read the block containing the "old" attr
 	 */
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp1);
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkyes, &bp1);
 	if (error)
 		return error;
 
 	/*
 	 * Read the block containing the "new" attr, if it is different
 	 */
-	if (args->blkno2 != args->blkno) {
-		error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno2,
+	if (args->blkyes2 != args->blkyes) {
+		error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkyes2,
 					   &bp2);
 		if (error)
 			return error;
@@ -2920,10 +2920,10 @@ xfs_attr3_leaf_flipflags(
 	entry1->flags &= ~XFS_ATTR_INCOMPLETE;
 	xfs_trans_log_buf(args->trans, bp1,
 			  XFS_DA_LOGRANGE(leaf1, entry1, sizeof(*entry1)));
-	if (args->rmtblkno) {
+	if (args->rmtblkyes) {
 		ASSERT((entry1->flags & XFS_ATTR_LOCAL) == 0);
 		name_rmt = xfs_attr3_leaf_name_remote(leaf1, args->index);
-		name_rmt->valueblk = cpu_to_be32(args->rmtblkno);
+		name_rmt->valueblk = cpu_to_be32(args->rmtblkyes);
 		name_rmt->valuelen = cpu_to_be32(args->rmtvaluelen);
 		xfs_trans_log_buf(args->trans, bp1,
 			 XFS_DA_LOGRANGE(leaf1, name_rmt, sizeof(*name_rmt)));
@@ -2943,7 +2943,7 @@ xfs_attr3_leaf_flipflags(
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	error = xfs_trans_roll_inode(&args->trans, args->dp);
+	error = xfs_trans_roll_iyesde(&args->trans, args->dp);
 
 	return error;
 }

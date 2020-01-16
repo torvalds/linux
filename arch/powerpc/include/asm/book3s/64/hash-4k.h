@@ -23,7 +23,7 @@
 #define H_KERN_MAP_SIZE		(ASM_CONST(1) << REGION_SHIFT)
 
 /*
- * Define the address range of the kernel non-linear virtual area
+ * Define the address range of the kernel yesn-linear virtual area
  * 16TB
  */
 #define H_KERN_VIRT_START	ASM_CONST(0xc000100000000000)
@@ -74,7 +74,7 @@ static inline int hash__hugepd_ok(hugepd_t hpd)
 {
 	unsigned long hpdval = hpd_val(hpd);
 	/*
-	 * if it is not a pte and have hugepd shift mask
+	 * if it is yest a pte and have hugepd shift mask
 	 * set, then it is a hugepd directory pointer
 	 */
 	if (!(hpdval & _PAGE_PTE) && (hpdval & _PAGE_PRESENT) &&

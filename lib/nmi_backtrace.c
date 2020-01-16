@@ -54,7 +54,7 @@ void nmi_trigger_cpumask_backtrace(const cpumask_t *mask,
 
 	/*
 	 * Don't try to send an NMI to this cpu; it may work on some
-	 * architectures, but on others it may not, and we'll get
+	 * architectures, but on others it may yest, and we'll get
 	 * information at least as useful just by doing a dump_stack() here.
 	 * Note that nmi_cpu_backtrace(NULL) will clear the cpu bit.
 	 */
@@ -77,7 +77,7 @@ void nmi_trigger_cpumask_backtrace(const cpumask_t *mask,
 
 	/*
 	 * Force flush any remote buffers that might be stuck in IRQ context
-	 * and therefore could not run their irq_work.
+	 * and therefore could yest run their irq_work.
 	 */
 	printk_safe_flush();
 

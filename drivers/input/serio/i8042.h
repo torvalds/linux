@@ -31,8 +31,8 @@
 
 /*
  * This is in 50us units, the time we wait for the i8042 to react. This
- * has to be long enough for the i8042 itself to timeout on sending a byte
- * to a non-existent mouse.
+ * has to be long eyesugh for the i8042 itself to timeout on sending a byte
+ * to a yesn-existent mouse.
  */
 
 #define I8042_CTL_TIMEOUT	10000

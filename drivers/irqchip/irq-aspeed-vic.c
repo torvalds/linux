@@ -63,7 +63,7 @@ static void vic_init_hw(struct aspeed_vic *vic)
 	writel(0xffffffff, vic->base + AVIC_INT_ENABLE_CLR);
 	writel(0xffffffff, vic->base + AVIC_INT_ENABLE_CLR + 4);
 
-	/* Make sure no soft trigger is on */
+	/* Make sure yes soft trigger is on */
 	writel(0xffffffff, vic->base + AVIC_INT_TRIGGER_CLR);
 	writel(0xffffffff, vic->base + AVIC_INT_TRIGGER_CLR + 4);
 
@@ -72,8 +72,8 @@ static void vic_init_hw(struct aspeed_vic *vic)
 	writel(0, vic->base + AVIC_INT_SELECT + 4);
 
 	/* Some interrupts have a programable high/low level trigger
-	 * (4 GPIO direct inputs), for now we assume this was configured
-	 * by firmware. We read which ones are edge now.
+	 * (4 GPIO direct inputs), for yesw we assume this was configured
+	 * by firmware. We read which ones are edge yesw.
 	 */
 	sense = readl(vic->base + AVIC_INT_SENSE);
 	vic->edge_sources[0] = ~sense;
@@ -110,7 +110,7 @@ static void avic_ack_irq(struct irq_data *d)
 	unsigned int sidx = d->hwirq >> 5;
 	unsigned int sbit = 1u << (d->hwirq & 0x1f);
 
-	/* Clear edge latch for edge interrupts, nop for level */
+	/* Clear edge latch for edge interrupts, yesp for level */
 	if (vic->edge_sources[sidx] & sbit)
 		writel(sbit, vic->base + AVIC_EDGE_CLR + sidx * 4);
 }
@@ -133,7 +133,7 @@ static void avic_unmask_irq(struct irq_data *d)
 	writel(sbit, vic->base + AVIC_INT_ENABLE + sidx * 4);
 }
 
-/* For level irq, faster than going through a nop "ack" and mask */
+/* For level irq, faster than going through a yesp "ack" and mask */
 static void avic_mask_ack_irq(struct irq_data *d)
 {
 	struct aspeed_vic *vic = irq_data_get_irq_chip_data(d);
@@ -181,18 +181,18 @@ static const struct irq_domain_ops avic_dom_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 };
 
-static int __init avic_of_init(struct device_node *node,
-			       struct device_node *parent)
+static int __init avic_of_init(struct device_yesde *yesde,
+			       struct device_yesde *parent)
 {
 	void __iomem *regs;
 	struct aspeed_vic *vic;
 
-	if (WARN(parent, "non-root Aspeed VIC not supported"))
+	if (WARN(parent, "yesn-root Aspeed VIC yest supported"))
 		return -EINVAL;
-	if (WARN(system_avic, "duplicate Aspeed VIC not supported"))
+	if (WARN(system_avic, "duplicate Aspeed VIC yest supported"))
 		return -EINVAL;
 
-	regs = of_iomap(node, 0);
+	regs = of_iomap(yesde, 0);
 	if (WARN_ON(!regs))
 		return -EIO;
 
@@ -211,7 +211,7 @@ static int __init avic_of_init(struct device_node *node,
 	set_handle_irq(avic_handle_irq);
 
 	/* Register our domain */
-	vic->dom = irq_domain_add_simple(node, NUM_IRQS, 0,
+	vic->dom = irq_domain_add_simple(yesde, NUM_IRQS, 0,
 					 &avic_dom_ops, vic);
 
 	return 0;

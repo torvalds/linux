@@ -11,7 +11,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -54,7 +54,7 @@ struct resource_constraint {
 static DEFINE_RWLOCK(resource_lock);
 
 /*
- * For memory hotplug, there is no way to free resource entries allocated
+ * For memory hotplug, there is yes way to free resource entries allocated
  * by boot mem after the system is up. So for reusing the resource entry
  * we need to remember the resource.
  */
@@ -88,7 +88,7 @@ enum { MAX_IORES_LEVEL = 5 };
 static void *r_start(struct seq_file *m, loff_t *pos)
 	__acquires(resource_lock)
 {
-	struct resource *p = PDE_DATA(file_inode(m->file));
+	struct resource *p = PDE_DATA(file_iyesde(m->file));
 	loff_t l = 0;
 	read_lock(&resource_lock);
 	for (p = p->child; p && l < *pos; p = r_next(m, p, &l))
@@ -104,7 +104,7 @@ static void r_stop(struct seq_file *m, void *v)
 
 static int r_show(struct seq_file *m, void *v)
 {
-	struct resource *root = PDE_DATA(file_inode(m->file));
+	struct resource *root = PDE_DATA(file_iyesde(m->file));
 	struct resource *r = v, *p;
 	unsigned long long start, end;
 	int width = root->end < 0x10000 ? 4 : 8;
@@ -325,10 +325,10 @@ EXPORT_SYMBOL(release_resource);
  * IORES_DESC_NONE).
  *
  * If a resource is found, returns 0 and @*res is overwritten with the part
- * of the resource that's within [@start..@end]; if none is found, returns
+ * of the resource that's within [@start..@end]; if yesne is found, returns
  * -ENODEV.  Returns -EINVAL for invalid parameters.
  *
- * This function walks the whole tree and not just first level children
+ * This function walks the whole tree and yest just first level children
  * unless @first_lvl is true.
  *
  * @start:	start address of the resource searched for
@@ -366,7 +366,7 @@ static int find_next_iomem_res(resource_size_t start, resource_size_t end,
 
 		/*
 		 * Now that we found a range that matches what we look for,
-		 * check the flags and the descriptor. If we were not asked to
+		 * check the flags and the descriptor. If we were yest asked to
 		 * use only the first level, start looking at children as well.
 		 */
 		siblings_only = first_lvl;
@@ -414,7 +414,7 @@ static int __walk_iomem_res_desc(resource_size_t start, resource_size_t end,
 
 /**
  * Walks through iomem resources and calls func() with matching resource
- * ranges. This walks through whole tree and not just first level children.
+ * ranges. This walks through whole tree and yest just first level children.
  * All the memory ranges which overlap start,end and also match flags and
  * desc are valid candidates.
  *
@@ -439,7 +439,7 @@ EXPORT_SYMBOL_GPL(walk_iomem_res_desc);
  * This function calls the @func callback against all memory ranges of type
  * System RAM which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
  * Now, this function is only for System RAM, it deals with full ranges and
- * not PFNs. If resources are not PFN-aligned, dealing with PFNs can truncate
+ * yest PFNs. If resources are yest PFN-aligned, dealing with PFNs can truncate
  * ranges.
  */
 int walk_system_ram_res(u64 start, u64 end, void *arg,
@@ -514,7 +514,7 @@ int __weak page_is_ram(unsigned long pfn)
 EXPORT_SYMBOL_GPL(page_is_ram);
 
 /**
- * region_intersects() - determine intersection of region with known resources
+ * region_intersects() - determine intersection of region with kyeswn resources
  * @start: region start address
  * @size: size of region
  * @flags: flags of resource (in iomem_resource)
@@ -522,15 +522,15 @@ EXPORT_SYMBOL_GPL(page_is_ram);
  *
  * Check if the specified region partially overlaps or fully eclipses a
  * resource identified by @flags and @desc (optional with IORES_DESC_NONE).
- * Return REGION_DISJOINT if the region does not overlap @flags/@desc,
- * return REGION_MIXED if the region overlaps @flags/@desc and another
+ * Return REGION_DISJOINT if the region does yest overlap @flags/@desc,
+ * return REGION_MIXED if the region overlaps @flags/@desc and ayesther
  * resource, and return REGION_INTERSECTS if the region overlaps @flags/@desc
- * and no other defined resource. Note that REGION_INTERSECTS is also
+ * and yes other defined resource. Note that REGION_INTERSECTS is also
  * returned in the case when the specified region overlaps RAM and undefined
  * memory holes.
  *
  * region_intersect() is used by memory remapping functions to ensure
- * the user is not remapping RAM and is a vast speed up over walking
+ * the user is yest remapping RAM and is a vast speed up over walking
  * through the resource table page by page.
  */
 int region_intersects(resource_size_t start, size_t size, unsigned long flags,
@@ -657,7 +657,7 @@ static int find_resource(struct resource *root, struct resource *new,
 
 /**
  * reallocate_resource - allocate a slot in the resource tree given range & alignment.
- *	The resource will be relocated if the new size cannot be reallocated in the
+ *	The resource will be relocated if the new size canyest be reallocated in the
  *	current location.
  *
  * @root: root resource descriptor
@@ -713,7 +713,7 @@ out:
  * @min: minimum boundary to allocate
  * @max: maximum boundary to allocate
  * @align: alignment requested, in bytes
- * @alignf: alignment function, optional, called if not NULL
+ * @alignf: alignment function, optional, called if yest NULL
  * @alignf_data: arbitrary data to pass to the @alignf function
  */
 int allocate_resource(struct resource *root, struct resource *new,
@@ -834,7 +834,7 @@ static struct resource * __insert_resource(struct resource *parent, struct resou
  *
  * Returns 0 on success, conflict resource if the resource can't be inserted.
  *
- * This function is equivalent to request_resource_conflict when no conflict
+ * This function is equivalent to request_resource_conflict when yes conflict
  * happens. If a conflict happens, and the conflicting resources
  * entirely fit within the range of the new resource, then the new
  * resource is inserted and the conflicting resources become children of
@@ -910,7 +910,7 @@ void insert_resource_expand_to_fit(struct resource *root, struct resource *new)
  * remove_resource - Remove a resource in the resource tree
  * @old: resource to remove
  *
- * Returns 0 on success, -EINVAL if the resource is not valid.
+ * Returns 0 on success, -EINVAL if the resource is yest valid.
  *
  * This function removes a resource previously inserted by insert_resource()
  * or insert_resource_conflict(), and moves the children (if any) up to
@@ -1060,7 +1060,7 @@ reserve_region_with_split(struct resource *root, resource_size_t start,
 
 	write_lock(&resource_lock);
 	if (root->start > start || root->end < end) {
-		pr_err("requested range [0x%llx-0x%llx] not in root %pr\n",
+		pr_err("requested range [0x%llx-0x%llx] yest in root %pr\n",
 		       (unsigned long long)start, (unsigned long long)end,
 		       root);
 		if (start > root->end || end < root->start)
@@ -1102,7 +1102,7 @@ resource_size_t resource_alignment(struct resource *res)
 /*
  * This is compatibility stuff for IO resources.
  *
- * Note how this, unlike the above, knows about
+ * Note how this, unlike the above, kyesws about
  * the IO flag meanings (busy etc).
  *
  * request_region creates a new busy region.
@@ -1149,7 +1149,7 @@ struct resource * __request_region(struct resource *parent,
 		/*
 		 * mm/hmm.c reserves physical addresses which then
 		 * become unavailable to other users.  Conflicts are
-		 * not expected.  Warn to aid debugging if encountered.
+		 * yest expected.  Warn to aid debugging if encountered.
 		 */
 		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
 			pr_warn("Unaddressable device %s %pR conflicts with %pR",
@@ -1223,7 +1223,7 @@ void __release_region(struct resource *parent, resource_size_t start,
 
 	write_unlock(&resource_lock);
 
-	printk(KERN_WARNING "Trying to free nonexistent resource "
+	printk(KERN_WARNING "Trying to free yesnexistent resource "
 		"<%016llx-%016llx>\n", (unsigned long long)start,
 		(unsigned long long)end);
 }
@@ -1273,7 +1273,7 @@ int release_mem_region_adjustable(struct resource *parent,
 		if (res->start >= end)
 			break;
 
-		/* look for the next resource if it does not fit into */
+		/* look for the next resource if it does yest fit into */
 		if (res->start > start || res->end < end) {
 			p = &res->sibling;
 			continue;
@@ -1281,9 +1281,9 @@ int release_mem_region_adjustable(struct resource *parent,
 
 		/*
 		 * All memory regions added from memory-hotplug path have the
-		 * flag IORESOURCE_SYSTEM_RAM. If the resource does not have
-		 * this flag, we know that we are dealing with a resource coming
-		 * from HMM/devm. HMM/devm use another mechanism to add/release
+		 * flag IORESOURCE_SYSTEM_RAM. If the resource does yest have
+		 * this flag, we kyesw that we are dealing with a resource coming
+		 * from HMM/devm. HMM/devm use ayesther mechanism to add/release
 		 * a resource. This goes via devm_request_mem_region and
 		 * devm_release_mem_region.
 		 * HMM/devm take care to release their resources when they want,
@@ -1365,7 +1365,7 @@ static void devm_resource_release(struct device *dev, void *ptr)
  * @new: descriptor of the resource to request
  *
  * This is a device-managed version of request_resource(). There is usually
- * no need to release resources requested by this function explicitly since
+ * yes need to release resources requested by this function explicitly since
  * that will be taken care of when the device is unbound from its driver.
  * If for some reason the resource needs to be released explicitly, because
  * of ordering issues for example, drivers must call devm_release_resource()
@@ -1549,7 +1549,7 @@ int iomem_map_sanity_check(resource_size_t addr, unsigned long size)
 		    PFN_DOWN(p->end) >= PFN_DOWN(addr + size - 1))
 			continue;
 		/*
-		 * if a resource is "BUSY", it's not a hardware resource
+		 * if a resource is "BUSY", it's yest a hardware resource
 		 * but a driver mapping of such a resource; we don't want
 		 * to warn for those; some drivers legitimately map only
 		 * partial hardware resources. (example: vesafb)
@@ -1577,7 +1577,7 @@ static int strict_iomem_checks;
 
 /*
  * check if an address is reserved in the iomem resource tree
- * returns true if reserved, false if not reserved.
+ * returns true if reserved, false if yest reserved.
  */
 bool iomem_is_exclusive(u64 addr)
 {
@@ -1626,7 +1626,7 @@ struct resource_entry *resource_list_create_entry(struct resource *res,
 
 	entry = kzalloc(sizeof(*entry) + extra_size, GFP_KERNEL);
 	if (entry) {
-		INIT_LIST_HEAD(&entry->node);
+		INIT_LIST_HEAD(&entry->yesde);
 		entry->res = res ? res : &entry->__res;
 	}
 
@@ -1638,7 +1638,7 @@ void resource_list_free(struct list_head *head)
 {
 	struct resource_entry *entry, *tmp;
 
-	list_for_each_entry_safe(entry, tmp, head, node)
+	list_for_each_entry_safe(entry, tmp, head, yesde)
 		resource_list_destroy_entry(entry);
 }
 EXPORT_SYMBOL(resource_list_free);
@@ -1679,7 +1679,7 @@ static struct resource *__request_free_mem_region(struct device *dev,
  * @size: size in bytes of the device memory to add
  * @base: resource tree to look in
  *
- * This function tries to find an empty range of physical address big enough to
+ * This function tries to find an empty range of physical address big eyesugh to
  * contain the new resource, so that it can later be hotplugged as ZONE_DEVICE
  * memory, which in turn allocates struct pages.
  */

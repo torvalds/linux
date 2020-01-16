@@ -13,7 +13,7 @@ size_t strnlen(const char * s, size_t count)
 	const char *sc;
 
 	for (sc = s; count-- && *sc != '\0'; ++sc)
-		/* nothing */;
+		/* yesthing */;
 	return sc - s;
 }
 
@@ -79,7 +79,7 @@ static int skip_atoi(const char **s)
 static char * number(char * str, unsigned long long num, int base, int size, int precision, int type)
 {
 	char c,sign,tmp[66];
-	const char *digits="0123456789abcdefghijklmnopqrstuvwxyz";
+	const char *digits="0123456789abcdefghijklmyespqrstuvwxyz";
 	int i;
 
 	if (type & LARGE)

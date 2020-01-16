@@ -68,7 +68,7 @@ pmd_t *get_pointer_table (void)
 	 * For a pointer table for a user process address space, a
 	 * table is taken from a page allocated for the purpose.  Each
 	 * page can hold 8 pointer tables.  The page is remapped in
-	 * virtual address space to be noncacheable.
+	 * virtual address space to be yesncacheable.
 	 */
 	if (mask == 0) {
 		void *page;
@@ -78,7 +78,7 @@ pmd_t *get_pointer_table (void)
 			return NULL;
 
 		flush_tlb_kernel_page(page);
-		nocache_page(page);
+		yescache_page(page);
 
 		new = PD_PTABLE(page);
 		PD_MARKBITS(new) = 0xfe;
@@ -129,7 +129,7 @@ int free_pointer_table (pmd_t *ptable)
 static inline void clear040(unsigned long paddr)
 {
 	asm volatile (
-		"nop\n\t"
+		"yesp\n\t"
 		".chip 68040\n\t"
 		"cinvp %%bc,(%0)\n\t"
 		".chip 68k"
@@ -140,7 +140,7 @@ static inline void clear040(unsigned long paddr)
 static inline void cleari040(unsigned long paddr)
 {
 	asm volatile (
-		"nop\n\t"
+		"yesp\n\t"
 		".chip 68040\n\t"
 		"cinvp %%ic,(%0)\n\t"
 		".chip 68k"
@@ -152,7 +152,7 @@ static inline void cleari040(unsigned long paddr)
 static inline void push040(unsigned long paddr)
 {
 	asm volatile (
-		"nop\n\t"
+		"yesp\n\t"
 		".chip 68040\n\t"
 		"cpushp %%bc,(%0)\n\t"
 		".chip 68k"
@@ -180,7 +180,7 @@ static inline void pushcl040(unsigned long paddr)
  */
 /* ++roman: A little bit more care is required here: The CINVP instruction
  * invalidates cache entries WITHOUT WRITING DIRTY DATA BACK! So the beginning
- * and the end of the region must be treated differently if they are not
+ * and the end of the region must be treated differently if they are yest
  * exactly at the beginning or end of a page boundary. Else, maybe too much
  * data becomes invalidated and thus lost forever. CPUSHP does what we need:
  * it invalidates the page after pushing dirty data to memory. (Thanks to Jes
@@ -208,7 +208,7 @@ void cache_clear (unsigned long paddr, int len)
 
 	/*
 	 * We need special treatment for the first page, in case it
-	 * is not page-aligned. Page align the addresses to work
+	 * is yest page-aligned. Page align the addresses to work
 	 * around bug I17 in the 68060.
 	 */
 	if ((tmp = -paddr & (PAGE_SIZE - 1))) {
@@ -243,7 +243,7 @@ EXPORT_SYMBOL(cache_clear);
 
 /*
  * cache_push() semantics: Write back any dirty cache data in the given area,
- * and invalidate the range in the instruction cache. It needs not (but may)
+ * and invalidate the range in the instruction cache. It needs yest (but may)
  * invalidate those entries also in the data cache. The range is defined by a
  * _physical_ address.
  */
@@ -257,14 +257,14 @@ void cache_push (unsigned long paddr, int len)
 
 	/*
          * on 68040 or 68060, push cache lines for pages in the range;
-	 * on the '040 this also invalidates the pushed lines, but not on
+	 * on the '040 this also invalidates the pushed lines, but yest on
 	 * the '060!
 	 */
 	len += paddr & (PAGE_SIZE - 1);
 
 	/*
 	 * Work around bug I17 in the 68060 affecting some instruction
-	 * lines not being invalidated properly.
+	 * lines yest being invalidated properly.
 	 */
 	paddr &= PAGE_MASK;
 
@@ -274,7 +274,7 @@ void cache_push (unsigned long paddr, int len)
 	} while ((len -= tmp) > 0);
     }
     /*
-     * 68030/68020 have no writeback cache. On the other hand,
+     * 68030/68020 have yes writeback cache. On the other hand,
      * cache_push is actually a superset of cache_clear (the lines
      * get written back and invalidated), so we should make sure
      * to perform the corresponding actions. After all, this is getting

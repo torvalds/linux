@@ -15,8 +15,8 @@
 #include "checkers.h"
 
 /* These emulation encodings are functionally equivalent... */
-#define t32_emulate_rd8rn16rm0ra12_noflags \
-		t32_emulate_rdlo12rdhi8rn16rm0_noflags
+#define t32_emulate_rd8rn16rm0ra12_yesflags \
+		t32_emulate_rdlo12rdhi8rn16rm0_yesflags
 
 /* t32 thumb actions */
 
@@ -235,7 +235,7 @@ t32_emulate_rd8rn16rm0_rwflags(probes_opcode_t insn,
 }
 
 static void __kprobes
-t32_emulate_rd8pc16_noflags(probes_opcode_t insn,
+t32_emulate_rd8pc16_yesflags(probes_opcode_t insn,
 		struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	unsigned long pc = regs->ARM_pc;
@@ -255,7 +255,7 @@ t32_emulate_rd8pc16_noflags(probes_opcode_t insn,
 }
 
 static void __kprobes
-t32_emulate_rd8rn16_noflags(probes_opcode_t insn,
+t32_emulate_rd8rn16_yesflags(probes_opcode_t insn,
 		struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	int rd = (insn >> 8) & 0xf;
@@ -275,7 +275,7 @@ t32_emulate_rd8rn16_noflags(probes_opcode_t insn,
 }
 
 static void __kprobes
-t32_emulate_rdlo12rdhi8rn16rm0_noflags(probes_opcode_t insn,
+t32_emulate_rdlo12rdhi8rn16rm0_yesflags(probes_opcode_t insn,
 		struct arch_probes_insn *asi,
 		struct pt_regs *regs)
 {
@@ -366,8 +366,8 @@ t16_simulate_cbz(probes_opcode_t insn,
 		struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	int rn = insn & 0x7;
-	probes_opcode_t nonzero = regs->uregs[rn] ? insn : ~insn;
-	if (nonzero & 0x800) {
+	probes_opcode_t yesnzero = regs->uregs[rn] ? insn : ~insn;
+	if (yesnzero & 0x800) {
 		long i = insn & 0x200;
 		long imm5 = insn & 0xf8;
 		unsigned long pc = regs->ARM_pc + 2;
@@ -469,7 +469,7 @@ t16_emulate_loregs_rwflags(probes_opcode_t insn,
 }
 
 static void __kprobes
-t16_emulate_loregs_noitrwflags(probes_opcode_t insn,
+t16_emulate_loregs_yesitrwflags(probes_opcode_t insn,
 		struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	unsigned long cpsr = t16_emulate_loregs(insn, asi, regs);
@@ -554,7 +554,7 @@ t16_decode_push(probes_opcode_t insn, struct arch_probes_insn *asi,
 }
 
 static void __kprobes
-t16_emulate_pop_nopc(probes_opcode_t insn,
+t16_emulate_pop_yespc(probes_opcode_t insn,
 		struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	__asm__ __volatile__ (
@@ -605,7 +605,7 @@ t16_decode_pop(probes_opcode_t insn, struct arch_probes_insn *asi,
 	/* 2nd half (register list) */
 	((u16 *)asi->insn)[1] = __opcode_to_mem_thumb16(insn & 0x1ff);
 	asi->insn_handler = insn & 0x100 ? t16_emulate_pop_pc
-					 : t16_emulate_pop_nopc;
+					 : t16_emulate_pop_yespc;
 	return INSN_GOOD;
 }
 
@@ -615,12 +615,12 @@ const union decode_action kprobes_t16_actions[NUM_PROBES_T16_ACTIONS] = {
 	[PROBES_T16_SIGN_EXTEND] = {.handler = t16_emulate_loregs_rwflags},
 	[PROBES_T16_PUSH] = {.decoder = t16_decode_push},
 	[PROBES_T16_POP] = {.decoder = t16_decode_pop},
-	[PROBES_T16_SEV] = {.handler = probes_emulate_none},
-	[PROBES_T16_WFE] = {.handler = probes_simulate_nop},
+	[PROBES_T16_SEV] = {.handler = probes_emulate_yesne},
+	[PROBES_T16_WFE] = {.handler = probes_simulate_yesp},
 	[PROBES_T16_IT] = {.decoder = t16_decode_it},
 	[PROBES_T16_CMP] = {.handler = t16_emulate_loregs_rwflags},
-	[PROBES_T16_ADDSUB] = {.handler = t16_emulate_loregs_noitrwflags},
-	[PROBES_T16_LOGICAL] = {.handler = t16_emulate_loregs_noitrwflags},
+	[PROBES_T16_ADDSUB] = {.handler = t16_emulate_loregs_yesitrwflags},
+	[PROBES_T16_LOGICAL] = {.handler = t16_emulate_loregs_yesitrwflags},
 	[PROBES_T16_LDR_LIT] = {.handler = t16_simulate_ldr_literal},
 	[PROBES_T16_BLX] = {.handler = t16_simulate_bxblx},
 	[PROBES_T16_HIREGOPS] = {.decoder = t16_decode_hiregs},
@@ -641,26 +641,26 @@ const union decode_action kprobes_t32_actions[NUM_PROBES_T32_ACTIONS] = {
 	[PROBES_T32_ADDSUB] = {.handler = t32_emulate_rd8rn16rm0_rwflags},
 	[PROBES_T32_LOGICAL] = {.handler = t32_emulate_rd8rn16rm0_rwflags},
 	[PROBES_T32_CMP] = {.handler = t32_emulate_rd8rn16rm0_rwflags},
-	[PROBES_T32_ADDWSUBW_PC] = {.handler = t32_emulate_rd8pc16_noflags,},
-	[PROBES_T32_ADDWSUBW] = {.handler = t32_emulate_rd8rn16_noflags},
-	[PROBES_T32_MOVW] = {.handler = t32_emulate_rd8rn16_noflags},
+	[PROBES_T32_ADDWSUBW_PC] = {.handler = t32_emulate_rd8pc16_yesflags,},
+	[PROBES_T32_ADDWSUBW] = {.handler = t32_emulate_rd8rn16_yesflags},
+	[PROBES_T32_MOVW] = {.handler = t32_emulate_rd8rn16_yesflags},
 	[PROBES_T32_SAT] = {.handler = t32_emulate_rd8rn16rm0_rwflags},
-	[PROBES_T32_BITFIELD] = {.handler = t32_emulate_rd8rn16_noflags},
-	[PROBES_T32_SEV] = {.handler = probes_emulate_none},
-	[PROBES_T32_WFE] = {.handler = probes_simulate_nop},
+	[PROBES_T32_BITFIELD] = {.handler = t32_emulate_rd8rn16_yesflags},
+	[PROBES_T32_SEV] = {.handler = probes_emulate_yesne},
+	[PROBES_T32_WFE] = {.handler = probes_simulate_yesp},
 	[PROBES_T32_MRS] = {.handler = t32_simulate_mrs},
 	[PROBES_T32_BRANCH_COND] = {.decoder = t32_decode_cond_branch},
 	[PROBES_T32_BRANCH] = {.handler = t32_simulate_branch},
-	[PROBES_T32_PLDI] = {.handler = probes_simulate_nop},
+	[PROBES_T32_PLDI] = {.handler = probes_simulate_yesp},
 	[PROBES_T32_LDR_LIT] = {.handler = t32_simulate_ldr_literal},
 	[PROBES_T32_LDRSTR] = {.handler = t32_emulate_ldrstr},
 	[PROBES_T32_SIGN_EXTEND] = {.handler = t32_emulate_rd8rn16rm0_rwflags},
 	[PROBES_T32_MEDIA] = {.handler = t32_emulate_rd8rn16rm0_rwflags},
-	[PROBES_T32_REVERSE] = {.handler = t32_emulate_rd8rn16_noflags},
+	[PROBES_T32_REVERSE] = {.handler = t32_emulate_rd8rn16_yesflags},
 	[PROBES_T32_MUL_ADD] = {.handler = t32_emulate_rd8rn16rm0_rwflags},
-	[PROBES_T32_MUL_ADD2] = {.handler = t32_emulate_rd8rn16rm0ra12_noflags},
+	[PROBES_T32_MUL_ADD2] = {.handler = t32_emulate_rd8rn16rm0ra12_yesflags},
 	[PROBES_T32_MUL_ADD_LONG] = {
-		.handler = t32_emulate_rdlo12rdhi8rn16rm0_noflags},
+		.handler = t32_emulate_rdlo12rdhi8rn16rm0_yesflags},
 };
 
 const struct decode_checker *kprobes_t32_checkers[] = {t32_stack_checker, NULL};

@@ -20,7 +20,7 @@ struct rproc;
 struct rproc_debug_trace {
 	struct rproc *rproc;
 	struct dentry *tfile;
-	struct list_head node;
+	struct list_head yesde;
 	struct rproc_mem_entry trace_mem;
 };
 

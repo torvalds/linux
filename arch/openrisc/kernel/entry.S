@@ -8,7 +8,7 @@
  *
  * Modifications for the OpenRISC architecture:
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
- * Copyright (C) 2005 Gyorgy Jeney <nog@bsemi.com>
+ * Copyright (C) 2005 Gyorgy Jeney <yesg@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  */
 
@@ -17,7 +17,7 @@
 #include <asm/processor.h>
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/spr_defs.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -83,7 +83,7 @@
 	l.andi	r3,r5,(SPR_SR_IEE|SPR_SR_TEE)				;\
 	l.sfeq	r5,r0		/* skip trace if irqs were already off */;\
 	l.bf	1f							;\
-	 l.nop								;\
+	 l.yesp								;\
 	TRACE_IRQS_SAVE(r4,trace_hardirqs_off)				;\
 1:
 #else
@@ -176,7 +176,7 @@ handler:							;\
 /*        l.sw    PT_GPR30(r1),r30*/					;\
 	l.sw    PT_GPR31(r1),r31					;\
 	TRACE_IRQS_OFF_ENTRY						;\
-	/* Store -1 in orig_gpr11 for non-syscall exceptions */	;\
+	/* Store -1 in orig_gpr11 for yesn-syscall exceptions */	;\
 	l.addi	r30,r0,-1					;\
 	l.sw	PT_ORIG_GPR11(r1),r30
 
@@ -214,16 +214,16 @@ handler:							;\
 	/* r31 already saved */					;\
 	l.sw    PT_GPR30(r1),r30					;\
 /*        l.sw    PT_GPR31(r1),r31	*/				;\
-	/* Store -1 in orig_gpr11 for non-syscall exceptions */	;\
+	/* Store -1 in orig_gpr11 for yesn-syscall exceptions */	;\
 	l.addi	r30,r0,-1					;\
 	l.sw	PT_ORIG_GPR11(r1),r30				;\
 	l.addi	r3,r1,0						;\
 	/* r4 is exception EA */				;\
 	l.addi	r5,r0,vector					;\
 	l.jal	unhandled_exception				;\
-	 l.nop							;\
+	 l.yesp							;\
 	l.j	_ret_from_exception				;\
-	 l.nop
+	 l.yesp
 
 /* clobbers 'reg' */
 #define CLEAR_LWA_FLAG(reg)		\
@@ -256,14 +256,14 @@ EXCEPTION_ENTRY(_bus_fault_handler)
 	 l.addi  r3,r1,0 /* pt_regs */
 
 	l.j     _ret_from_exception
-	 l.nop
+	 l.yesp
 
 /* ---[ 0x300: Data Page Fault exception ]------------------------------- */
 EXCEPTION_ENTRY(_dtlb_miss_page_fault_handler)
 	CLEAR_LWA_FLAG(r3)
 	l.and	r5,r5,r0
 	l.j	1f
-	 l.nop
+	 l.yesp
 
 EXCEPTION_ENTRY(_data_page_fault_handler)
 	CLEAR_LWA_FLAG(r3)
@@ -290,10 +290,10 @@ EXCEPTION_ENTRY(_data_page_fault_handler)
 	l.bf    8f
 	l.sfeqi r6,0x12                    // l.jalr
 	l.bf    8f
-	 l.nop
+	 l.yesp
 
 	l.j     9f
-	 l.nop
+	 l.yesp
 
 8: // offending insn is in delay slot
 	l.lwz   r6,PT_PC(r3)               // address of an offending insn
@@ -322,22 +322,22 @@ EXCEPTION_ENTRY(_data_page_fault_handler)
 	l.bnf   1f
 	l.ori   r6,r0,0x1                  // write access
 	l.j     2f
-	 l.nop
+	 l.yesp
 1:	l.ori   r6,r0,0x0                  // !write access
 2:
 
 	/* call fault.c handler in or32/mm/fault.c */
 	l.jal   do_page_fault
-	 l.nop
+	 l.yesp
 	l.j     _ret_from_exception
-	 l.nop
+	 l.yesp
 
 /* ---[ 0x400: Insn Page Fault exception ]------------------------------- */
 EXCEPTION_ENTRY(_itlb_miss_page_fault_handler)
 	CLEAR_LWA_FLAG(r3)
 	l.and	r5,r5,r0
 	l.j	1f
-	 l.nop
+	 l.yesp
 
 EXCEPTION_ENTRY(_insn_page_fault_handler)
 	CLEAR_LWA_FLAG(r3)
@@ -350,9 +350,9 @@ EXCEPTION_ENTRY(_insn_page_fault_handler)
 
 	/* call fault.c handler in or32/mm/fault.c */
 	l.jal   do_page_fault
-	 l.nop
+	 l.yesp
 	l.j     _ret_from_exception
-	 l.nop
+	 l.yesp
 
 
 /* ---[ 0x500: Timer exception ]----------------------------------------- */
@@ -363,7 +363,7 @@ EXCEPTION_ENTRY(_timer_handler)
 	 l.addi r3,r1,0 /* pt_regs */
 
 	l.j    _ret_from_intr
-	 l.nop
+	 l.yesp
 
 /* ---[ 0x600: Alignment exception ]-------------------------------------- */
 
@@ -374,7 +374,7 @@ EXCEPTION_ENTRY(_alignment_handler)
 	 l.addi  r3,r1,0 /* pt_regs */
 
 	l.j     _ret_from_exception
-	 l.nop
+	 l.yesp
 
 #if 0
 EXCEPTION_ENTRY(_alignment_handler)
@@ -398,7 +398,7 @@ EXCEPTION_ENTRY(_alignment_handler)
 	l.bf    jr
 	l.sfeqi r4,0x12
 	l.bf    jr
-	l.nop
+	l.yesp
 	l.j     1f
 	l.addi  r5,r5,4                 /* Increment PC to get return insn address */
 
@@ -441,10 +441,10 @@ jr:
 	l.bf    sh
 	l.sfeqi r4,0x35
 	l.bf    sw
-	l.nop
+	l.yesp
 
-1:      l.j     1b                      /* I don't know what to do */
-	l.nop
+1:      l.j     1b                      /* I don't kyesw what to do */
+	l.yesp
 
 lhs:    l.lbs   r5,0(r2)
 	l.slli  r5,r5,8
@@ -524,7 +524,7 @@ sw:
 
 align_end:
 	l.j    _ret_from_intr
-	l.nop
+	l.yesp
 #endif
 
 /* ---[ 0x700: Illegal insn exception ]---------------------------------- */
@@ -535,7 +535,7 @@ EXCEPTION_ENTRY(_illegal_instruction_handler)
 	 l.addi  r3,r1,0 /* pt_regs */
 
 	l.j     _ret_from_exception
-	 l.nop
+	 l.yesp
 
 /* ---[ 0x800: External interrupt exception ]---------------------------- */
 
@@ -545,7 +545,7 @@ EXCEPTION_ENTRY(_external_irq_handler)
 	l.andi	r4,r4,SPR_SR_IEE
 	l.sfeqi	r4,0
 	l.bnf	1f			// ext irq enabled, all ok.
-	l.nop
+	l.yesp
 
 	l.addi  r1,r1,-0x8
 	l.movhi r3,hi(42f)
@@ -570,9 +570,9 @@ EXCEPTION_ENTRY(_external_irq_handler)
 	l.movhi	r8,hi(do_IRQ)
 	l.ori	r8,r8,lo(do_IRQ)
 	l.jalr r8
-	l.nop
+	l.yesp
 	l.j    _ret_from_intr
-	l.nop
+	l.yesp
 
 /* ---[ 0x900: DTLB miss exception ]------------------------------------- */
 
@@ -589,13 +589,13 @@ UNHANDLED_EXCEPTION(_vector_0xb00,0xb00)
 /*
  * Syscalls are a special type of exception in that they are
  * _explicitly_ invoked by userspace and can therefore be
- * held to conform to the same ABI as normal functions with
+ * held to conform to the same ABI as yesrmal functions with
  * respect to whether registers are preserved across the call
- * or not.
+ * or yest.
  */
 
 /* Upon syscall entry we just save the callee-saved registers
- * and not the call-clobbered ones.
+ * and yest the call-clobbered ones.
  */
 
 _string_syscall_return:
@@ -649,13 +649,13 @@ _syscall_check_trace_enter:
 	l.andi	r30,r30,_TIF_SYSCALL_TRACE
 	l.sfne	r30,r0
 	l.bf	_syscall_trace_enter
-	 l.nop
+	 l.yesp
 
 _syscall_check:
 	/* Ensure that the syscall number is reasonable */
 	l.sfgeui r11,__NR_syscalls
 	l.bf	_syscall_badsys
-	 l.nop
+	 l.yesp
 
 _syscall_call:
 	l.movhi r29,hi(sys_call_table)
@@ -665,7 +665,7 @@ _syscall_call:
 	l.lwz   r29,0(r29)
 
 	l.jalr  r29
-	 l.nop
+	 l.yesp
 
 _syscall_return:
 	/* All syscalls return here... just pay attention to ret_from_fork
@@ -684,7 +684,7 @@ _syscall_debug:
 	l.movhi r27,hi(printk)
 	l.ori   r27,r27,lo(printk)
 	l.jalr  r27
-	 l.nop
+	 l.yesp
 	l.addi  r1,r1,8
 #endif
 
@@ -695,7 +695,7 @@ _syscall_check_trace_leave:
 	 */
 	l.sfne	r30,r0
 	l.bf	_syscall_trace_leave
-	 l.nop
+	 l.yesp
 
 /* This is where the exception-return code begins... interrupts need to be
  * disabled the rest of the way here because we can't afford to miss any
@@ -710,7 +710,7 @@ _syscall_check_work:
 	l.sfne	r30,r0
 
 	l.bnf	_syscall_resume_userspace
-	 l.nop
+	 l.yesp
 
 	/* Work pending follows a different return path, so we need to
 	 * make sure that all the call-saved registers get into pt_regs
@@ -727,7 +727,7 @@ _syscall_check_work:
 
 	/* _work_pending needs to be called with interrupts disabled */
 	l.j	_work_pending
-	 l.nop
+	 l.yesp
 
 _syscall_resume_userspace:
 //	ENABLE_INTERRUPTS(r29)
@@ -735,14 +735,14 @@ _syscall_resume_userspace:
 
 /* This is the hot path for returning to userspace from a syscall.  If there's
  * work to be done and the branch to _work_pending was taken above, then the
- * return to userspace will be done via the normal exception return path...
+ * return to userspace will be done via the yesrmal exception return path...
  * that path restores _all_ registers and will overwrite the "clobbered"
  * registers with whatever garbage is in pt_regs -- that's OK because those
  * registers are clobbered anyway and because the extra work is insignificant
  * in the context of the extra work that _work_pending is doing.
 
 /* Once again, syscalls are special and only guarantee to preserve the
- * same registers as a normal function call */
+ * same registers as a yesrmal function call */
 
 /* The assumption here is that the registers r14-r28 (even) are untouched and
  * don't need to be restored... be sure that that's really the case!
@@ -778,7 +778,7 @@ _syscall_resume_userspace:
 	l.lwz   r15,PT_SR(r1)
 	l.lwz	r1,PT_SP(r1)
 	/* Interrupts need to be disabled for setting EPCR and ESR
-	 * so that another interrupt doesn't come in here and clobber
+	 * so that ayesther interrupt doesn't come in here and clobber
 	 * them before we can use them for our l.rfe */
 	DISABLE_INTERRUPTS(r17,r19)
 	l.mtspr r0,r13,SPR_EPCR_BASE
@@ -800,7 +800,7 @@ _syscall_trace_enter:
 	l.jal	do_syscall_trace_enter
 	 l.addi	r3,r1,0
 
-	/* Restore arguments (not preserved across do_syscall_trace_enter)
+	/* Restore arguments (yest preserved across do_syscall_trace_enter)
 	 * so that we can do the syscall for real and return to the syscall
 	 * hot path.
 	 */
@@ -819,7 +819,7 @@ _syscall_trace_leave:
 	 l.addi	r3,r1,0
 
 	l.j	_syscall_check_work
-	 l.nop
+	 l.yesp
 
 _syscall_badsys:
 	/* Here we effectively pretend to have executed an imaginary
@@ -845,7 +845,7 @@ EXCEPTION_ENTRY(_trap_handler)
 	 l.addi  r3,r1,0 /* pt_regs */
 
 	l.j     _ret_from_exception
-	 l.nop
+	 l.yesp
 
 /* ---[ 0xf00: Reserved exception ]-------------------------------------- */
 
@@ -924,13 +924,13 @@ _resume_userspace:
 	l.andi	r13,r4,_TIF_WORK_MASK
 	l.sfeqi	r13,0
 	l.bf	_restore_all
-	 l.nop
+	 l.yesp
 
 _work_pending:
 	l.lwz	r5,PT_ORIG_GPR11(r1)
 	l.sfltsi r5,0
 	l.bnf	1f
-	 l.nop
+	 l.yesp
 	l.andi	r5,r5,0
 1:
 	l.jal	do_work_pending
@@ -938,14 +938,14 @@ _work_pending:
 
 	l.sfeqi	r11,0
 	l.bf	_restore_all
-	 l.nop
+	 l.yesp
 	l.sfltsi r11,0
 	l.bnf	1f
-	 l.nop
+	 l.yesp
 	l.and	r11,r11,r0
 	l.ori	r11,r11,__NR_restart_syscall
 	l.j	_syscall_check_trace_enter
-	 l.nop
+	 l.yesp
 1:
 	l.lwz	r11,PT_ORIG_GPR11(r1)
 	/* Restore arg registers */
@@ -963,7 +963,7 @@ _restore_all:
 	l.andi	r3,r4,(SPR_SR_IEE|SPR_SR_TEE)
 	l.sfeq	r3,r0		/* skip trace if irqs were off */
 	l.bf	skip_hardirqs_on
-	 l.nop
+	 l.yesp
 	TRACE_IRQS_ON
 skip_hardirqs_on:
 #endif
@@ -977,18 +977,18 @@ ENTRY(_ret_from_exception)
 	l.andi	r3,r4,SPR_SR_SM
 	l.sfeqi	r3,0
 	l.bnf	_restore_all
-	 l.nop
+	 l.yesp
 	l.j	_resume_userspace
-	 l.nop
+	 l.yesp
 
 ENTRY(ret_from_fork)
 	l.jal	schedule_tail
-	 l.nop
+	 l.yesp
 
 	/* Check if we are a kernel thread */
 	l.sfeqi	r20,0
 	l.bf	1f
-	 l.nop
+	 l.yesp
 
 	/* ...we are a kernel thread so invoke the requested callback */
 	l.jalr	r20
@@ -1014,7 +1014,7 @@ ENTRY(ret_from_fork)
 	l.lwz	r28,PT_GPR28(r1)
 
 	l.j	_syscall_return
-	 l.nop
+	 l.yesp
 
 /* ========================================================[ switch ] === */
 
@@ -1107,7 +1107,7 @@ ENTRY(_switch)
 	l.lwz   r2,PT_GPR2(r1)
 	l.lwz   r9,PT_GPR9(r1)
 	/* No need to restore r10 */
-	/* ...and do not restore r11 */
+	/* ...and do yest restore r11 */
 
 	/* This is wrong, r12 shouldn't be here... but GCC is broken for the time being
 	 * and expects r12 to be callee-saved... */
@@ -1133,7 +1133,7 @@ ENTRY(_switch)
 	 */
 	l.lwz   r3,TI_TASK(r3)		/* Load 'prev' as schedule_tail arg */
 	l.jr	r9
-	 l.nop
+	 l.yesp
 
 /* ==================================================================== */
 
@@ -1178,13 +1178,13 @@ ENTRY(sys_rt_sigreturn)
 	l.jal	_sys_rt_sigreturn
 	 l.addi	r3,r1,0
 	l.sfne	r30,r0
-	l.bnf	_no_syscall_trace
-	 l.nop
+	l.bnf	_yes_syscall_trace
+	 l.yesp
 	l.jal	do_syscall_trace_leave
 	 l.addi	r3,r1,0
-_no_syscall_trace:
+_yes_syscall_trace:
 	l.j	_resume_userspace
-	 l.nop
+	 l.yesp
 
 /* This is a catch-all syscall for atomic instructions for the OpenRISC 1000.
  * The functions takes a variable number of parameters depending on which
@@ -1201,7 +1201,7 @@ _no_syscall_trace:
  */
 
 ENTRY(sys_or1k_atomic)
-	/* FIXME: This ignores r3 and always does an XCHG */
+	/* FIXME: This igyesres r3 and always does an XCHG */
 	DISABLE_INTERRUPTS(r17,r19)
 	l.lwz	r29,0(r4)
 	l.lwz	r27,0(r5)

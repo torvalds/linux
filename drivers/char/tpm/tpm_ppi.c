@@ -76,7 +76,7 @@ static ssize_t tpm_show_ppi_request(struct device *dev,
 	 * output.pointer should be of package type, including two integers.
 	 * The first is function return code, 0 means success and 1 means
 	 * error. The second is pending TPM operation requested by the OS, 0
-	 * means none and >0 means operation value.
+	 * means yesne and >0 means operation value.
 	 */
 	if (obj->package.count == 3 &&
 	    obj->package.elements[0].type == ACPI_TYPE_INTEGER &&
@@ -237,7 +237,7 @@ static ssize_t tpm_show_ppi_response(struct device *dev,
 	 * 3 integers. The first means function return code, the second means
 	 * most recent TPM operation request, and the last means response to
 	 * the most recent TPM operation request. Only if the first is 0, and
-	 * the second integer is not 0, the response makes sense.
+	 * the second integer is yest 0, the response makes sense.
 	 */
 	ret_obj = obj->package.elements;
 	if (obj->package.count < 3 ||
@@ -293,7 +293,7 @@ static ssize_t show_ppi_operations(acpi_handle dev_handle, char *buf, u32 start,
 		"BIOS only",
 		"Blocked for OS by BIOS",
 		"User required",
-		"User not required",
+		"User yest required",
 	};
 
 	if (!acpi_check_dsm(dev_handle, &tpm_ppi_guid, TPM_PPI_REVISION_ID_1,

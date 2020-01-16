@@ -12,7 +12,7 @@ maintainers:
   - Heiko Stuebner <heiko@sntech.de>
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: '^gpu@[a-f0-9]+$'
   compatible:
     oneOf:
@@ -30,7 +30,7 @@ properties:
               - rockchip,rk3066-mali
               - rockchip,rk3188-mali
               - rockchip,rk3228-mali
-              - samsung,exynos4210-mali
+              - samsung,exyyess4210-mali
               - stericsson,db8500-mali
           - const: arm,mali-400
       - items:

@@ -11,7 +11,7 @@
 #include "srcpos.h"
 
 char *yaml_error_name[] = {
-	[YAML_NO_ERROR] = "no error",
+	[YAML_NO_ERROR] = "yes error",
 	[YAML_MEMORY_ERROR] = "memory error",
 	[YAML_READER_ERROR] = "reader error",
 	[YAML_SCANNER_ERROR] = "scanner error",
@@ -173,10 +173,10 @@ static void yaml_propval(yaml_emitter_t *emitter, struct property *prop)
 }
 
 
-static void yaml_tree(struct node *tree, yaml_emitter_t *emitter)
+static void yaml_tree(struct yesde *tree, yaml_emitter_t *emitter)
 {
 	struct property *prop;
-	struct node *child;
+	struct yesde *child;
 	yaml_event_t event;
 
 	if (tree->deleted)

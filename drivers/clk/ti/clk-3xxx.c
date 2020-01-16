@@ -170,9 +170,9 @@ static void am35xx_clk_find_idlest(struct clk_hw_omap *clk,
  *
  * Some clocks don't have companion clocks.  For example, modules with
  * only an interface clock (such as HECC) don't have a companion
- * clock.  Right now, this code relies on the hardware exporting a bit
+ * clock.  Right yesw, this code relies on the hardware exporting a bit
  * in the correct companion register that indicates that the
- * nonexistent 'companion clock' is active.  Future patches will
+ * yesnexistent 'companion clock' is active.  Future patches will
  * associate this type of code with per-module data structures to
  * avoid this issue, and remove the casts.  No return value.
  */
@@ -226,7 +226,7 @@ const struct clk_hw_omap_ops clkhwops_am35xx_ipss_wait = {
 static struct ti_dt_clk omap3xxx_clks[] = {
 	DT_CLK(NULL, "timer_32k_ck", "omap_32k_fck"),
 	DT_CLK(NULL, "timer_sys_ck", "sys_ck"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 static struct ti_dt_clk omap36xx_omap3430es2plus_clks[] = {
@@ -234,7 +234,7 @@ static struct ti_dt_clk omap36xx_omap3430es2plus_clks[] = {
 	DT_CLK(NULL, "ssi_sst_fck", "ssi_sst_fck_3430es2"),
 	DT_CLK(NULL, "hsotgusb_ick", "hsotgusb_ick_3430es2"),
 	DT_CLK(NULL, "ssi_ick", "ssi_ick_3430es2"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 static struct ti_dt_clk omap3430es1_clks[] = {
@@ -244,13 +244,13 @@ static struct ti_dt_clk omap3430es1_clks[] = {
 	DT_CLK(NULL, "ssi_ick", "ssi_ick_3430es1"),
 	DT_CLK(NULL, "dss1_alwon_fck", "dss1_alwon_fck_3430es1"),
 	DT_CLK(NULL, "dss_ick", "dss_ick_3430es1"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 static struct ti_dt_clk omap36xx_am35xx_omap3430es2plus_clks[] = {
 	DT_CLK(NULL, "dss1_alwon_fck", "dss1_alwon_fck_3430es2"),
 	DT_CLK(NULL, "dss_ick", "dss_ick_3430es2"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 static struct ti_dt_clk am35xx_clks[] = {
@@ -258,7 +258,7 @@ static struct ti_dt_clk am35xx_clks[] = {
 	DT_CLK(NULL, "hsotgusb_fck", "hsotgusb_fck_am35xx"),
 	DT_CLK(NULL, "uart4_ick", "uart4_ick_am35xx"),
 	DT_CLK(NULL, "uart4_fck", "uart4_fck_am35xx"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 static const char *enable_init_clks[] = {

@@ -18,68 +18,68 @@
 static inline void __enable_icache_msr(void)
 {
 	__asm__ __volatile__ ("	 msrset	r0, %0;"	\
-				"nop;"			\
+				"yesp;"			\
 			: : "i" (MSR_ICE) : "memory");
 }
 
 static inline void __disable_icache_msr(void)
 {
 	__asm__ __volatile__ ("	 msrclr	r0, %0;"	\
-				"nop;"			\
+				"yesp;"			\
 			: : "i" (MSR_ICE) : "memory");
 }
 
 static inline void __enable_dcache_msr(void)
 {
 	__asm__ __volatile__ ("	 msrset	r0, %0;"	\
-				"nop;"			\
+				"yesp;"			\
 			: : "i" (MSR_DCE) : "memory");
 }
 
 static inline void __disable_dcache_msr(void)
 {
 	__asm__ __volatile__ ("	 msrclr	r0, %0;"	\
-				"nop; "			\
+				"yesp; "			\
 			: : "i" (MSR_DCE) : "memory");
 }
 
-static inline void __enable_icache_nomsr(void)
+static inline void __enable_icache_yesmsr(void)
 {
 	__asm__ __volatile__ ("	 mfs	r12, rmsr;"	\
-				"nop;"			\
+				"yesp;"			\
 				"ori	r12, r12, %0;"	\
 				"mts	rmsr, r12;"	\
-				"nop;"			\
+				"yesp;"			\
 			: : "i" (MSR_ICE) : "memory", "r12");
 }
 
-static inline void __disable_icache_nomsr(void)
+static inline void __disable_icache_yesmsr(void)
 {
 	__asm__ __volatile__ ("	 mfs	r12, rmsr;"	\
-				"nop;"			\
+				"yesp;"			\
 				"andi	r12, r12, ~%0;"	\
 				"mts	rmsr, r12;"	\
-				"nop;"			\
+				"yesp;"			\
 			: : "i" (MSR_ICE) : "memory", "r12");
 }
 
-static inline void __enable_dcache_nomsr(void)
+static inline void __enable_dcache_yesmsr(void)
 {
 	__asm__ __volatile__ ("	 mfs	r12, rmsr;"	\
-				"nop;"			\
+				"yesp;"			\
 				"ori	r12, r12, %0;"	\
 				"mts	rmsr, r12;"	\
-				"nop;"			\
+				"yesp;"			\
 			: : "i" (MSR_DCE) : "memory", "r12");
 }
 
-static inline void __disable_dcache_nomsr(void)
+static inline void __disable_dcache_yesmsr(void)
 {
 	__asm__ __volatile__ ("	 mfs	r12, rmsr;"	\
-				"nop;"			\
+				"yesp;"			\
 				"andi	r12, r12, ~%0;"	\
 				"mts	rmsr, r12;"	\
-				"nop;"			\
+				"yesp;"			\
 			: : "i" (MSR_DCE) : "memory", "r12");
 }
 
@@ -113,13 +113,13 @@ do {									\
 					: "memory");			\
 } while (0)
 
-/* Used for wdc.flush/clear which can use rB for offset which is not possible
+/* Used for wdc.flush/clear which can use rB for offset which is yest possible
  * to use for simple wdc or wic.
  *
  * start address is cache aligned
- * end address is not aligned, if end is aligned then I have to subtract
+ * end address is yest aligned, if end is aligned then I have to subtract
  * cacheline length because I can't flush/invalidate the next cacheline.
- * If is not, I align it because I will flush/invalidate whole line.
+ * If is yest, I align it because I will flush/invalidate whole line.
  */
 #define CACHE_RANGE_LOOP_2(start, end, line_length, op)			\
 do {									\
@@ -181,7 +181,7 @@ static void __flush_icache_range_msr_irq(unsigned long start, unsigned long end)
 	local_irq_restore(flags);
 }
 
-static void __flush_icache_range_nomsr_irq(unsigned long start,
+static void __flush_icache_range_yesmsr_irq(unsigned long start,
 				unsigned long end)
 {
 	unsigned long flags;
@@ -195,7 +195,7 @@ static void __flush_icache_range_nomsr_irq(unsigned long start,
 			cpuinfo.icache_line_length, cpuinfo.icache_size);
 
 	local_irq_save(flags);
-	__disable_icache_nomsr();
+	__disable_icache_yesmsr();
 
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_1(start, end, cpuinfo.icache_line_length, wic);
@@ -205,11 +205,11 @@ static void __flush_icache_range_nomsr_irq(unsigned long start,
 				: : "r" (i));
 #endif
 
-	__enable_icache_nomsr();
+	__enable_icache_yesmsr();
 	local_irq_restore(flags);
 }
 
-static void __flush_icache_range_noirq(unsigned long start,
+static void __flush_icache_range_yesirq(unsigned long start,
 				unsigned long end)
 {
 #ifndef ASM_LOOP
@@ -251,7 +251,7 @@ static void __flush_icache_all_msr_irq(void)
 	local_irq_restore(flags);
 }
 
-static void __flush_icache_all_nomsr_irq(void)
+static void __flush_icache_all_yesmsr_irq(void)
 {
 	unsigned long flags;
 #ifndef ASM_LOOP
@@ -260,7 +260,7 @@ static void __flush_icache_all_nomsr_irq(void)
 	pr_debug("%s\n", __func__);
 
 	local_irq_save(flags);
-	__disable_icache_nomsr();
+	__disable_icache_yesmsr();
 #ifdef ASM_LOOP
 	CACHE_ALL_LOOP(cpuinfo.icache_size, cpuinfo.icache_line_length, wic);
 #else
@@ -269,11 +269,11 @@ static void __flush_icache_all_nomsr_irq(void)
 			__asm__ __volatile__ ("wic	%0, r0;" \
 					: : "r" (i));
 #endif
-	__enable_icache_nomsr();
+	__enable_icache_yesmsr();
 	local_irq_restore(flags);
 }
 
-static void __flush_icache_all_noirq(void)
+static void __flush_icache_all_yesirq(void)
 {
 #ifndef ASM_LOOP
 	int i;
@@ -311,7 +311,7 @@ static void __invalidate_dcache_all_msr_irq(void)
 	local_irq_restore(flags);
 }
 
-static void __invalidate_dcache_all_nomsr_irq(void)
+static void __invalidate_dcache_all_yesmsr_irq(void)
 {
 	unsigned long flags;
 #ifndef ASM_LOOP
@@ -320,7 +320,7 @@ static void __invalidate_dcache_all_nomsr_irq(void)
 	pr_debug("%s\n", __func__);
 
 	local_irq_save(flags);
-	__disable_dcache_nomsr();
+	__disable_dcache_yesmsr();
 #ifdef ASM_LOOP
 	CACHE_ALL_LOOP(cpuinfo.dcache_size, cpuinfo.dcache_line_length, wdc);
 #else
@@ -329,11 +329,11 @@ static void __invalidate_dcache_all_nomsr_irq(void)
 			__asm__ __volatile__ ("wdc	%0, r0;" \
 					: : "r" (i));
 #endif
-	__enable_dcache_nomsr();
+	__enable_dcache_yesmsr();
 	local_irq_restore(flags);
 }
 
-static void __invalidate_dcache_all_noirq_wt(void)
+static void __invalidate_dcache_all_yesirq_wt(void)
 {
 #ifndef ASM_LOOP
 	int i;
@@ -351,9 +351,9 @@ static void __invalidate_dcache_all_noirq_wt(void)
 
 /*
  * FIXME It is blindly invalidation as is expected
- * but can't be called on noMMU in microblaze_cache_init below
+ * but can't be called on yesMMU in microblaze_cache_init below
  *
- * MS: noMMU kernel won't boot if simple wdc is used
+ * MS: yesMMU kernel won't boot if simple wdc is used
  * The reason should be that there are discared data which kernel needs
  */
 static void __invalidate_dcache_all_wb(void)
@@ -393,7 +393,7 @@ static void __invalidate_dcache_range_wb(unsigned long start,
 #endif
 }
 
-static void __invalidate_dcache_range_nomsr_wt(unsigned long start,
+static void __invalidate_dcache_range_yesmsr_wt(unsigned long start,
 							unsigned long end)
 {
 #ifndef ASM_LOOP
@@ -440,7 +440,7 @@ static void __invalidate_dcache_range_msr_irq_wt(unsigned long start,
 	local_irq_restore(flags);
 }
 
-static void __invalidate_dcache_range_nomsr_irq(unsigned long start,
+static void __invalidate_dcache_range_yesmsr_irq(unsigned long start,
 							unsigned long end)
 {
 	unsigned long flags;
@@ -454,7 +454,7 @@ static void __invalidate_dcache_range_nomsr_irq(unsigned long start,
 			cpuinfo.dcache_line_length, cpuinfo.dcache_size);
 
 	local_irq_save(flags);
-	__disable_dcache_nomsr();
+	__disable_dcache_yesmsr();
 
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_1(start, end, cpuinfo.dcache_line_length, wdc);
@@ -464,7 +464,7 @@ static void __invalidate_dcache_range_nomsr_irq(unsigned long start,
 				: : "r" (i));
 #endif
 
-	__enable_dcache_nomsr();
+	__enable_dcache_yesmsr();
 	local_irq_restore(flags);
 }
 
@@ -511,10 +511,10 @@ struct scache *mbc;
 static const struct scache wb_msr = {
 	.ie = __enable_icache_msr,
 	.id = __disable_icache_msr,
-	.ifl = __flush_icache_all_noirq,
-	.iflr = __flush_icache_range_noirq,
-	.iin = __flush_icache_all_noirq,
-	.iinr = __flush_icache_range_noirq,
+	.ifl = __flush_icache_all_yesirq,
+	.iflr = __flush_icache_range_yesirq,
+	.iin = __flush_icache_all_yesirq,
+	.iinr = __flush_icache_range_yesirq,
 	.de = __enable_dcache_msr,
 	.dd = __disable_dcache_msr,
 	.dfl = __flush_dcache_all_wb,
@@ -524,15 +524,15 @@ static const struct scache wb_msr = {
 };
 
 /* There is only difference in ie, id, de, dd functions */
-static const struct scache wb_nomsr = {
-	.ie = __enable_icache_nomsr,
-	.id = __disable_icache_nomsr,
-	.ifl = __flush_icache_all_noirq,
-	.iflr = __flush_icache_range_noirq,
-	.iin = __flush_icache_all_noirq,
-	.iinr = __flush_icache_range_noirq,
-	.de = __enable_dcache_nomsr,
-	.dd = __disable_dcache_nomsr,
+static const struct scache wb_yesmsr = {
+	.ie = __enable_icache_yesmsr,
+	.id = __disable_icache_yesmsr,
+	.ifl = __flush_icache_all_yesirq,
+	.iflr = __flush_icache_range_yesirq,
+	.iin = __flush_icache_all_yesirq,
+	.iinr = __flush_icache_range_yesirq,
+	.de = __enable_dcache_yesmsr,
+	.dd = __disable_dcache_yesmsr,
 	.dfl = __flush_dcache_all_wb,
 	.dflr = __flush_dcache_range_wb,
 	.din = __invalidate_dcache_all_wb,
@@ -555,50 +555,50 @@ static const struct scache wt_msr = {
 	.dinr = __invalidate_dcache_range_msr_irq_wt,
 };
 
-static const struct scache wt_nomsr = {
-	.ie = __enable_icache_nomsr,
-	.id = __disable_icache_nomsr,
-	.ifl = __flush_icache_all_nomsr_irq,
-	.iflr = __flush_icache_range_nomsr_irq,
-	.iin = __flush_icache_all_nomsr_irq,
-	.iinr = __flush_icache_range_nomsr_irq,
-	.de = __enable_dcache_nomsr,
-	.dd = __disable_dcache_nomsr,
-	.dfl = __invalidate_dcache_all_nomsr_irq,
-	.dflr = __invalidate_dcache_range_nomsr_irq,
-	.din = __invalidate_dcache_all_nomsr_irq,
-	.dinr = __invalidate_dcache_range_nomsr_irq,
+static const struct scache wt_yesmsr = {
+	.ie = __enable_icache_yesmsr,
+	.id = __disable_icache_yesmsr,
+	.ifl = __flush_icache_all_yesmsr_irq,
+	.iflr = __flush_icache_range_yesmsr_irq,
+	.iin = __flush_icache_all_yesmsr_irq,
+	.iinr = __flush_icache_range_yesmsr_irq,
+	.de = __enable_dcache_yesmsr,
+	.dd = __disable_dcache_yesmsr,
+	.dfl = __invalidate_dcache_all_yesmsr_irq,
+	.dflr = __invalidate_dcache_range_yesmsr_irq,
+	.din = __invalidate_dcache_all_yesmsr_irq,
+	.dinr = __invalidate_dcache_range_yesmsr_irq,
 };
 
 /* New wt cache model for newer Microblaze versions */
-static const struct scache wt_msr_noirq = {
+static const struct scache wt_msr_yesirq = {
 	.ie = __enable_icache_msr,
 	.id = __disable_icache_msr,
-	.ifl = __flush_icache_all_noirq,
-	.iflr = __flush_icache_range_noirq,
-	.iin = __flush_icache_all_noirq,
-	.iinr = __flush_icache_range_noirq,
+	.ifl = __flush_icache_all_yesirq,
+	.iflr = __flush_icache_range_yesirq,
+	.iin = __flush_icache_all_yesirq,
+	.iinr = __flush_icache_range_yesirq,
 	.de = __enable_dcache_msr,
 	.dd = __disable_dcache_msr,
-	.dfl = __invalidate_dcache_all_noirq_wt,
-	.dflr = __invalidate_dcache_range_nomsr_wt,
-	.din = __invalidate_dcache_all_noirq_wt,
-	.dinr = __invalidate_dcache_range_nomsr_wt,
+	.dfl = __invalidate_dcache_all_yesirq_wt,
+	.dflr = __invalidate_dcache_range_yesmsr_wt,
+	.din = __invalidate_dcache_all_yesirq_wt,
+	.dinr = __invalidate_dcache_range_yesmsr_wt,
 };
 
-static const struct scache wt_nomsr_noirq = {
-	.ie = __enable_icache_nomsr,
-	.id = __disable_icache_nomsr,
-	.ifl = __flush_icache_all_noirq,
-	.iflr = __flush_icache_range_noirq,
-	.iin = __flush_icache_all_noirq,
-	.iinr = __flush_icache_range_noirq,
-	.de = __enable_dcache_nomsr,
-	.dd = __disable_dcache_nomsr,
-	.dfl = __invalidate_dcache_all_noirq_wt,
-	.dflr = __invalidate_dcache_range_nomsr_wt,
-	.din = __invalidate_dcache_all_noirq_wt,
-	.dinr = __invalidate_dcache_range_nomsr_wt,
+static const struct scache wt_yesmsr_yesirq = {
+	.ie = __enable_icache_yesmsr,
+	.id = __disable_icache_yesmsr,
+	.ifl = __flush_icache_all_yesirq,
+	.iflr = __flush_icache_range_yesirq,
+	.iin = __flush_icache_all_yesirq,
+	.iinr = __flush_icache_range_yesirq,
+	.de = __enable_dcache_yesmsr,
+	.dd = __disable_dcache_yesmsr,
+	.dfl = __invalidate_dcache_all_yesirq_wt,
+	.dflr = __invalidate_dcache_range_yesmsr_wt,
+	.din = __invalidate_dcache_all_yesirq_wt,
+	.dinr = __invalidate_dcache_range_yesmsr_wt,
 };
 
 /* CPU version code for 7.20.c - see arch/microblaze/kernel/cpu/cpuinfo.c */
@@ -617,8 +617,8 @@ void microblaze_cache_init(void)
 			}
 		} else {
 			if (cpuinfo.ver_code >= CPUVER_7_20_A) {
-				pr_info("wt_msr_noirq\n");
-				mbc = (struct scache *)&wt_msr_noirq;
+				pr_info("wt_msr_yesirq\n");
+				mbc = (struct scache *)&wt_msr_yesirq;
 			} else {
 				pr_info("wt_msr\n");
 				mbc = (struct scache *)&wt_msr;
@@ -626,26 +626,26 @@ void microblaze_cache_init(void)
 		}
 	} else {
 		if (cpuinfo.dcache_wb) {
-			pr_info("wb_nomsr\n");
-			mbc = (struct scache *)&wb_nomsr;
+			pr_info("wb_yesmsr\n");
+			mbc = (struct scache *)&wb_yesmsr;
 			if (cpuinfo.ver_code <= CPUVER_7_20_D) {
 				/* MS: problem with signal handling - hw bug */
 				pr_info("WB won't work properly\n");
 			}
 		} else {
 			if (cpuinfo.ver_code >= CPUVER_7_20_A) {
-				pr_info("wt_nomsr_noirq\n");
-				mbc = (struct scache *)&wt_nomsr_noirq;
+				pr_info("wt_yesmsr_yesirq\n");
+				mbc = (struct scache *)&wt_yesmsr_yesirq;
 			} else {
-				pr_info("wt_nomsr\n");
-				mbc = (struct scache *)&wt_nomsr;
+				pr_info("wt_yesmsr\n");
+				mbc = (struct scache *)&wt_yesmsr;
 			}
 		}
 	}
 	/*
 	 * FIXME Invalidation is done in U-BOOT
 	 * WT cache: Data is already written to main memory
-	 * WB cache: Discard data on noMMU which caused that kernel doesn't boot
+	 * WB cache: Discard data on yesMMU which caused that kernel doesn't boot
 	 */
 	/* invalidate_dcache(); */
 	enable_dcache();

@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -46,7 +46,7 @@ struct ttm_bo_global;
 
 struct ttm_bo_device;
 
-struct drm_mm_node;
+struct drm_mm_yesde;
 
 struct ttm_placement;
 
@@ -81,7 +81,7 @@ struct ttm_bus_placement {
 /**
  * struct ttm_mem_reg
  *
- * @mm_node: Memory manager node.
+ * @mm_yesde: Memory manager yesde.
  * @size: Requested size of memory region.
  * @num_pages: Actual size of memory region in pages.
  * @page_alignment: Page alignment.
@@ -93,7 +93,7 @@ struct ttm_bus_placement {
  */
 
 struct ttm_mem_reg {
-	void *mm_node;
+	void *mm_yesde;
 	unsigned long start;
 	unsigned long size;
 	unsigned long num_pages;
@@ -106,14 +106,14 @@ struct ttm_mem_reg {
 /**
  * enum ttm_bo_type
  *
- * @ttm_bo_type_device:	These are 'normal' buffers that can
+ * @ttm_bo_type_device:	These are 'yesrmal' buffers that can
  * be mmapped by user space. Each of these bos occupy a slot in the
- * device address space, that can be used for normal vm operations.
+ * device address space, that can be used for yesrmal vm operations.
  *
  * @ttm_bo_type_kernel: These buffers are like ttm_bo_type_device buffers,
- * but they cannot be accessed from user-space. For kernel-only use.
+ * but they canyest be accessed from user-space. For kernel-only use.
  *
- * @ttm_bo_type_sg: Buffer made from dmabuf sg table shared with another
+ * @ttm_bo_type_sg: Buffer made from dmabuf sg table shared with ayesther
  * driver.
  */
 
@@ -143,10 +143,10 @@ struct ttm_tt;
  * the object is destroyed.
  * @mem: structure describing current placement.
  * @persistent_swap_storage: Usually the swap storage is deleted for buffers
- * pinned in physical memory. If this behaviour is not desired, this member
+ * pinned in physical memory. If this behaviour is yest desired, this member
  * holds a pointer to a persistent shmem object.
  * @ttm: TTM structure holding system pages.
- * @evicted: Whether the object was evicted without user-space knowing.
+ * @evicted: Whether the object was evicted without user-space kyeswing.
  * @lru: List head for the lru list.
  * @ddestroy: List head for the delayed destroy list.
  * @swap: List head for swap LRU list.
@@ -182,7 +182,7 @@ struct ttm_buffer_object {
 	size_t acc_size;
 
 	/**
-	* Members not needing protection.
+	* Members yest needing protection.
 	*/
 
 	struct kref kref;
@@ -256,7 +256,7 @@ struct ttm_bo_kmap_obj {
  * struct ttm_operation_ctx
  *
  * @interruptible: Sleep interruptible if sleeping.
- * @no_wait_gpu: Return immediately if the GPU is busy.
+ * @yes_wait_gpu: Return immediately if the GPU is busy.
  * @resv: Reservation object to allow reserved evictions with.
  * @flags: Including the following flags
  *
@@ -265,7 +265,7 @@ struct ttm_bo_kmap_obj {
  */
 struct ttm_operation_ctx {
 	bool interruptible;
-	bool no_wait_gpu;
+	bool yes_wait_gpu;
 	struct dma_resv *resv;
 	uint64_t bytes_moved;
 	uint32_t flags;
@@ -309,16 +309,16 @@ ttm_bo_get_unless_zero(struct ttm_buffer_object *bo)
  *
  * @bo:  The buffer object.
  * @interruptible:  Use interruptible wait.
- * @no_wait:  Return immediately if buffer is busy.
+ * @yes_wait:  Return immediately if buffer is busy.
  *
  * This function must be called with the bo::mutex held, and makes
  * sure any previous rendering to the buffer is completed.
  * Note: It might be necessary to block validations before the
  * wait by reserving the buffer.
- * Returns -EBUSY if no_wait is true and the buffer is busy.
+ * Returns -EBUSY if yes_wait is true and the buffer is busy.
  * Returns -ERESTARTSYS if interrupted by a signal.
  */
-int ttm_bo_wait(struct ttm_buffer_object *bo, bool interruptible, bool no_wait);
+int ttm_bo_wait(struct ttm_buffer_object *bo, bool interruptible, bool yes_wait);
 
 /**
  * ttm_bo_mem_compat - Check if proposed placement is compatible with a bo
@@ -344,7 +344,7 @@ bool ttm_bo_mem_compat(struct ttm_placement *placement, struct ttm_mem_reg *mem,
  * Returns
  * -EINVAL on invalid proposed placement.
  * -ENOMEM on out-of-memory condition.
- * -EBUSY if no_wait is true and buffer busy.
+ * -EBUSY if yes_wait is true and buffer busy.
  * -ERESTARTSYS if interrupted by a signal.
  */
 int ttm_bo_validate(struct ttm_buffer_object *bo,
@@ -446,7 +446,7 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
  * enables driver-specific objects derived from a ttm_buffer_object.
  *
  * On successful return, the caller owns an object kref to @bo. The kref and
- * list_kref are usually set to 1, but note that in some situations, other
+ * list_kref are usually set to 1, but yeste that in some situations, other
  * tasks may already be holding references to @bo as well.
  * Furthermore, if resv == NULL, the buffer's reservation lock will be held,
  * and it is the caller's responsibility to call ttm_bo_unreserve.
@@ -484,7 +484,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
  * @page_alignment: Data alignment in pages.
  * @interruptible: If needing to sleep to wait for GPU resources,
  * sleep interruptible.
- * pinned in physical memory. If this behaviour is not desired, this member
+ * pinned in physical memory. If this behaviour is yest desired, this member
  * holds a pointer to a persistent shmem object. Typically, this would
  * point to the shmem object backing a GEM object if TTM is used to back a
  * GEM user interface.
@@ -498,7 +498,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
  * enables driver-specific objects derived from a ttm_buffer_object.
  *
  * On successful return, the caller owns an object kref to @bo. The kref and
- * list_kref are usually set to 1, but note that in some situations, other
+ * list_kref are usually set to 1, but yeste that in some situations, other
  * tasks may already be holding references to @bo as well.
  *
  * If a failure occurs, the function will call the @destroy function, or
@@ -553,7 +553,7 @@ int ttm_bo_create(struct ttm_bo_device *bdev, unsigned long size,
  * potentially racing lastclose.
  * Returns:
  * -EINVAL: invalid size or memory type.
- * -ENOMEM: Not enough memory.
+ * -ENOMEM: Not eyesugh memory.
  * May also return driver-specified errors.
  */
 int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
@@ -573,11 +573,11 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
  * there should've been removed by the file descriptor release() method.
  * However, before this function is run, make sure to signal all sync objects,
  * and verify that the delayed delete queue is empty. The driver must also
- * make sure that there are no NO_EVICT buffers present in this memory type
+ * make sure that there are yes NO_EVICT buffers present in this memory type
  * when the call is made.
  *
  * If this function is part of a VT switch, the caller must make sure that
- * there are no appications currently validating buffers before this
+ * there are yes appications currently validating buffers before this
  * function is called. The caller can do that by first taking the
  * struct ttm_bo_device::ttm_lock in write mode.
  *
@@ -594,9 +594,9 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type);
  * @mem_type: The memory type.
  *
  * Evicts all buffers on the lru list of the memory type.
- * This is normally part of a VT switch or an
+ * This is yesrmally part of a VT switch or an
  * out-of-memory-space-due-to-fragmentation handler.
- * The caller must make sure that there are no other processes
+ * The caller must make sure that there are yes other processes
  * currently validating buffers, and can do that by taking the
  * struct ttm_bo_device::ttm_lock in write mode.
  *
@@ -612,7 +612,7 @@ int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type);
  *
  * @map: A struct ttm_bo_kmap_obj returned from ttm_bo_kmap.
  * @is_iomem: Pointer to an integer that on return indicates 1 if the
- * virtual map is io memory, 0 if normal memory.
+ * virtual map is io memory, 0 if yesrmal memory.
  *
  * Returns the virtual address of a buffer object area mapped by ttm_bo_kmap.
  * If *is_iomem is 1 on return, the virtual address points to an io memory area,
@@ -719,7 +719,7 @@ int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo);
  * though (vmwgfx does that).
  *
  * This helper will figure whenever a given ttm bo is a gem object too
- * or not.
+ * or yest.
  *
  * @bo: The bo to check.
  */

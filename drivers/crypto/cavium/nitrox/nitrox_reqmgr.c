@@ -21,7 +21,7 @@
 /**
  * Response codes from SE microcode
  * 0x00 - Success
- *   Completion with no error
+ *   Completion with yes error
  * 0x43 - ERR_GC_DATA_LEN_INVALID
  *   Invalid Data length if Encryption Data length is
  *   less than 16 bytes for AES-XTS and AES-CTS.
@@ -100,7 +100,7 @@ static void softreq_destroy(struct nitrox_softreq *sr)
  *   |               PTR3                 |
  *   --------------------------------------
  *
- *   Returns 0 if success or a negative errno code on error.
+ *   Returns 0 if success or a negative erryes code on error.
  */
 static int create_sg_component(struct nitrox_softreq *sr,
 			       struct nitrox_sgtable *sgtbl, int map_nents)
@@ -151,7 +151,7 @@ static int create_sg_component(struct nitrox_softreq *sr,
  * @sr: Request structure
  * @req: Crypto request structre
  *
- * Returns 0 if successful or a negative errno code on error.
+ * Returns 0 if successful or a negative erryes code on error.
  */
 static int dma_map_inbufs(struct nitrox_softreq *sr,
 			  struct se_crypto_request *req)
@@ -279,7 +279,7 @@ static inline bool cmdq_full(struct nitrox_cmdq *cmdq, int qlen)
  * @sr: Request structure
  *
  * Returns 0 if successful or a negative error code,
- * if no space in ring.
+ * if yes space in ring.
  */
 static void post_se_instr(struct nitrox_softreq *sr,
 			  struct nitrox_cmdq *cmdq)
@@ -380,7 +380,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 {
 	struct nitrox_softreq *sr;
 	dma_addr_t ctx_handle = 0;
-	int qno, ret = 0;
+	int qyes, ret = 0;
 
 	if (!nitrox_ready(ndev))
 		return -ENODEV;
@@ -417,9 +417,9 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	}
 
 	/* select the queue */
-	qno = smp_processor_id() % ndev->nr_queues;
+	qyes = smp_processor_id() % ndev->nr_queues;
 
-	sr->cmdq = &ndev->pkt_inq[qno];
+	sr->cmdq = &ndev->pkt_inq[qyes];
 
 	/*
 	 * 64-Byte Instruction Format
@@ -456,7 +456,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	/* context length in 64-bit words */
 	sr->instr.irh.s.ctxl = (req->ctrl.s.ctxl / 8);
 	/* offset from solicit base port 256 */
-	sr->instr.irh.s.destport = SOLICIT_BASE_DPORT + qno;
+	sr->instr.irh.s.destport = SOLICIT_BASE_DPORT + qyes;
 	sr->instr.irh.s.ctxc = req->ctrl.s.ctxc;
 	sr->instr.irh.s.arg = req->ctrl.s.arg;
 	sr->instr.irh.s.opcode = req->opcode;
@@ -515,7 +515,7 @@ static bool sr_completed(struct nitrox_softreq *sr)
 
 	while (READ_ONCE(*sr->resp.completion) == PENDING_SIG) {
 		if (time_after(jiffies, timeout)) {
-			pr_err("comp not done\n");
+			pr_err("comp yest done\n");
 			return false;
 		}
 	}
@@ -526,7 +526,7 @@ static bool sr_completed(struct nitrox_softreq *sr)
 /**
  * process_request_list - process completed requests
  * @ndev: N5 device
- * @qno: queue to operate
+ * @qyes: queue to operate
  *
  * Returns the number of responses processed.
  */
@@ -551,7 +551,7 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 
 		/* check orh and completion bytes updates */
 		if (!sr_completed(sr)) {
-			/* request not completed, check for timeout */
+			/* request yest completed, check for timeout */
 			if (!cmd_timeout(sr->tstamp, ndev->timeout))
 				break;
 			dev_err_ratelimited(DEV(ndev),

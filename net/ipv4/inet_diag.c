@@ -148,7 +148,7 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 		goto errout;
 
 	r->idiag_uid = from_kuid_munged(user_ns, sock_i_uid(sk));
-	r->idiag_inode = sock_i_ino(sk);
+	r->idiag_iyesde = sock_i_iyes(sk);
 
 	return 0;
 errout:
@@ -352,7 +352,7 @@ static int inet_twsk_diag_fill(struct sock *sk,
 	r->idiag_rqueue	      = 0;
 	r->idiag_wqueue	      = 0;
 	r->idiag_uid	      = 0;
-	r->idiag_inode	      = 0;
+	r->idiag_iyesde	      = 0;
 
 	nlmsg_end(skb, nlh);
 	return 0;
@@ -386,7 +386,7 @@ static int inet_req_diag_fill(struct sock *sk, struct sk_buff *skb,
 	r->idiag_rqueue	= 0;
 	r->idiag_wqueue	= 0;
 	r->idiag_uid	= 0;
-	r->idiag_inode	= 0;
+	r->idiag_iyesde	= 0;
 
 	if (net_admin && nla_put_u32(skb, INET_DIAG_MARK,
 				     inet_rsk(reqsk)->ir_mark))
@@ -555,35 +555,35 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 	int len = nla_len(_bc);
 
 	while (len > 0) {
-		int yes = 1;
+		int no = 1;
 		const struct inet_diag_bc_op *op = bc;
 
 		switch (op->code) {
 		case INET_DIAG_BC_NOP:
 			break;
 		case INET_DIAG_BC_JMP:
-			yes = 0;
+			no = 0;
 			break;
 		case INET_DIAG_BC_S_EQ:
-			yes = entry->sport == op[1].no;
+			no = entry->sport == op[1].yes;
 			break;
 		case INET_DIAG_BC_S_GE:
-			yes = entry->sport >= op[1].no;
+			no = entry->sport >= op[1].yes;
 			break;
 		case INET_DIAG_BC_S_LE:
-			yes = entry->sport <= op[1].no;
+			no = entry->sport <= op[1].yes;
 			break;
 		case INET_DIAG_BC_D_EQ:
-			yes = entry->dport == op[1].no;
+			no = entry->dport == op[1].yes;
 			break;
 		case INET_DIAG_BC_D_GE:
-			yes = entry->dport >= op[1].no;
+			no = entry->dport >= op[1].yes;
 			break;
 		case INET_DIAG_BC_D_LE:
-			yes = entry->dport <= op[1].no;
+			no = entry->dport <= op[1].yes;
 			break;
 		case INET_DIAG_BC_AUTO:
-			yes = !(entry->userlocks & SOCK_BINDPORT_LOCK);
+			no = !(entry->userlocks & SOCK_BINDPORT_LOCK);
 			break;
 		case INET_DIAG_BC_S_COND:
 		case INET_DIAG_BC_D_COND: {
@@ -594,7 +594,7 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 			if (cond->port != -1 &&
 			    cond->port != (op->code == INET_DIAG_BC_S_COND ?
 					     entry->sport : entry->dport)) {
-				yes = 0;
+				no = 0;
 				break;
 			}
 
@@ -614,7 +614,7 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 							    cond->prefix_len))
 						break;
 				}
-				yes = 0;
+				no = 0;
 				break;
 			}
 
@@ -623,7 +623,7 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 			if (bitstring_match(addr, cond->addr,
 					    cond->prefix_len))
 				break;
-			yes = 0;
+			no = 0;
 			break;
 		}
 		case INET_DIAG_BC_DEV_COND: {
@@ -631,7 +631,7 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 
 			ifindex = *((const u32 *)(op + 1));
 			if (ifindex != entry->ifindex)
-				yes = 0;
+				no = 0;
 			break;
 		}
 		case INET_DIAG_BC_MARK_COND: {
@@ -639,17 +639,17 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 
 			cond = (struct inet_diag_markcond *)(op + 1);
 			if ((entry->mark & cond->mask) != cond->mark)
-				yes = 0;
+				no = 0;
 			break;
 		}
 		}
 
-		if (yes) {
-			len -= op->yes;
-			bc += op->yes;
-		} else {
+		if (no) {
 			len -= op->no;
 			bc += op->no;
+		} else {
+			len -= op->yes;
+			bc += op->yes;
 		}
 	}
 	return len == 0;
@@ -706,10 +706,10 @@ static int valid_cc(const void *bc, int len, int cc)
 			return 0;
 		if (cc == len)
 			return 1;
-		if (op->yes < 4 || op->yes & 3)
+		if (op->no < 4 || op->no & 3)
 			return 0;
-		len -= op->yes;
-		bc  += op->yes;
+		len -= op->no;
+		bc  += op->no;
 	}
 	return 0;
 }
@@ -832,17 +832,17 @@ static int inet_diag_bc_audit(const struct nlattr *attr,
 		}
 
 		if (op->code != INET_DIAG_BC_NOP) {
-			if (op->no < min_len || op->no > len + 4 || op->no & 3)
+			if (op->yes < min_len || op->yes > len + 4 || op->yes & 3)
 				return -EINVAL;
-			if (op->no < len &&
-			    !valid_cc(bytecode, bytecode_len, len - op->no))
+			if (op->yes < len &&
+			    !valid_cc(bytecode, bytecode_len, len - op->yes))
 				return -EINVAL;
 		}
 
-		if (op->yes < min_len || op->yes > len + 4 || op->yes & 3)
+		if (op->no < min_len || op->no > len + 4 || op->no & 3)
 			return -EINVAL;
-		bc  += op->yes;
-		len -= op->yes;
+		bc  += op->no;
+		len -= op->no;
 	}
 	return len == 0 ? 0 : -EINVAL;
 }
@@ -911,12 +911,12 @@ void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 
 		for (i = s_i; i < INET_LHTABLE_SIZE; i++) {
 			struct inet_listen_hashbucket *ilb;
-			struct hlist_nulls_node *node;
+			struct hlist_nulls_yesde *yesde;
 
 			num = 0;
 			ilb = &hashinfo->listening_hash[i];
 			spin_lock(&ilb->lock);
-			sk_nulls_for_each(sk, node, &ilb->nulls_head) {
+			sk_nulls_for_each(sk, yesde, &ilb->nulls_head) {
 				struct inet_sock *inet = inet_sk(sk);
 
 				if (!net_eq(sock_net(sk), net))
@@ -960,7 +960,7 @@ skip_listen_ht:
 	for (i = s_i; i <= hashinfo->ehash_mask; i++) {
 		struct inet_ehash_bucket *head = &hashinfo->ehash[i];
 		spinlock_t *lock = inet_ehash_lockp(hashinfo, i);
-		struct hlist_nulls_node *node;
+		struct hlist_nulls_yesde *yesde;
 		struct sock *sk_arr[SKARR_SZ];
 		int num_arr[SKARR_SZ];
 		int idx, accum, res;
@@ -975,39 +975,39 @@ next_chunk:
 		num = 0;
 		accum = 0;
 		spin_lock_bh(lock);
-		sk_nulls_for_each(sk, node, &head->chain) {
+		sk_nulls_for_each(sk, yesde, &head->chain) {
 			int state;
 
 			if (!net_eq(sock_net(sk), net))
 				continue;
 			if (num < s_num)
-				goto next_normal;
+				goto next_yesrmal;
 			state = (sk->sk_state == TCP_TIME_WAIT) ?
 				inet_twsk(sk)->tw_substate : sk->sk_state;
 			if (!(idiag_states & (1 << state)))
-				goto next_normal;
+				goto next_yesrmal;
 			if (r->sdiag_family != AF_UNSPEC &&
 			    sk->sk_family != r->sdiag_family)
-				goto next_normal;
+				goto next_yesrmal;
 			if (r->id.idiag_sport != htons(sk->sk_num) &&
 			    r->id.idiag_sport)
-				goto next_normal;
+				goto next_yesrmal;
 			if (r->id.idiag_dport != sk->sk_dport &&
 			    r->id.idiag_dport)
-				goto next_normal;
+				goto next_yesrmal;
 			twsk_build_assert();
 
 			if (!inet_diag_bc_sk(bc, sk))
-				goto next_normal;
+				goto next_yesrmal;
 
-			if (!refcount_inc_not_zero(&sk->sk_refcnt))
-				goto next_normal;
+			if (!refcount_inc_yest_zero(&sk->sk_refcnt))
+				goto next_yesrmal;
 
 			num_arr[accum] = num;
 			sk_arr[accum] = sk;
 			if (++accum == SKARR_SZ)
 				break;
-next_normal:
+next_yesrmal:
 			++num;
 		}
 		spin_unlock_bh(lock);

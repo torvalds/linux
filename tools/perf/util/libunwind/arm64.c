@@ -6,7 +6,7 @@
  * The function 'LIBUNWIND__ARCH_REG_ID' name is set according to arch
  * name and the defination of this function is included directly from
  * 'arch/arm64/util/unwind-libunwind.c', to make sure that this function
- * is defined no matter what arch the host is.
+ * is defined yes matter what arch the host is.
  *
  * Finally, the arch specific unwind methods are exported which will
  * be assigned to each arm64 thread.

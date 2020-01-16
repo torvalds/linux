@@ -11,7 +11,7 @@
  * of variable-sized tags to the kernel.  The first tag must be a ATAG_CORE
  * tag for the list to be recognised (to distinguish the tagged list from
  * a param_struct).  The list is terminated with a zero-length tag (this tag
- * is not parsed in any way).
+ * is yest parsed in any way).
  */
 
 #include <linux/init.h>
@@ -127,7 +127,7 @@ static int __init parse_tag_cmdline(const struct tag *tag)
 	strlcat(default_command_line, tag->u.cmdline.cmdline,
 		COMMAND_LINE_SIZE);
 #elif defined(CONFIG_CMDLINE_FORCE)
-	pr_warn("Ignoring tag cmdline (using the default kernel command line)\n");
+	pr_warn("Igyesring tag cmdline (using the default kernel command line)\n");
 #else
 	strlcpy(default_command_line, tag->u.cmdline.cmdline,
 		COMMAND_LINE_SIZE);
@@ -164,7 +164,7 @@ static void __init parse_tags(const struct tag *t)
 {
 	for (; t->hdr.size; t = tag_next(t))
 		if (!parse_tag(t))
-			pr_warn("Ignoring unrecognised tag 0x%08x\n",
+			pr_warn("Igyesring unrecognised tag 0x%08x\n",
 				t->hdr.tag);
 }
 
@@ -211,7 +211,7 @@ setup_machine_tags(phys_addr_t __atags_pointer, unsigned int machine_nr)
 		convert_to_tag_list(tags);
 #endif
 	if (tags->hdr.tag != ATAG_CORE) {
-		early_print("Warning: Neither atags nor dtb found\n");
+		early_print("Warning: Neither atags yesr dtb found\n");
 		tags = (struct tag *)&default_tags;
 	}
 

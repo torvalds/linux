@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <perf/evsel.h>
@@ -18,7 +18,7 @@
 
 void perf_evsel__init(struct perf_evsel *evsel, struct perf_event_attr *attr)
 {
-	INIT_LIST_HEAD(&evsel->node);
+	INIT_LIST_HEAD(&evsel->yesde);
 	evsel->attr = *attr;
 }
 
@@ -105,7 +105,7 @@ int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 						 cpus->map[cpu], -1, 0);
 
 			if (fd < 0)
-				return -errno;
+				return -erryes;
 
 			FD(evsel, cpu, thread) = fd;
 		}
@@ -192,7 +192,7 @@ int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
 		return -EINVAL;
 
 	if (readn(FD(evsel, cpu, thread), count->values, size) <= 0)
-		return -errno;
+		return -erryes;
 
 	return 0;
 }

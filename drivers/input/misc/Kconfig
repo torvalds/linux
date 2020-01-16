@@ -92,7 +92,7 @@ config INPUT_ATMEL_CAPTOUCH
 	  implements "captouch" protocol is connected to I2C bus. Typically
 	  this device consists of Atmel Touch sensor controlled by AtMegaXX
 	  MCU running firmware based on Qtouch library.
-	  One should find "atmel,captouch" node in the board specific DTS.
+	  One should find "atmel,captouch" yesde in the board specific DTS.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called atmel_captouch.
@@ -312,7 +312,7 @@ config INPUT_IXP4XX_BEEPER
 	tristate "IXP4XX Beeper support"
 	depends on ARCH_IXP4XX
 	help
-	  If you say yes here, you can connect a beeper to the
+	  If you say no here, you can connect a beeper to the
 	  ixp4xx gpio pins. This is used by the LinkSys NSLU2.
 
 	  If unsure, say Y.
@@ -387,7 +387,7 @@ config INPUT_KEYSPAN_REMOTE
 	  Say Y here if you want to use a Keyspan DMR USB remote control.
 	  Currently only the UIA-11 type of receiver has been tested.  The tag
 	  on the receiver that connects to the USB port should have a P/N that
-	  will tell you what type of DMR you have.  The UIA-10 type is not
+	  will tell you what type of DMR you have.  The UIA-10 type is yest
 	  supported at this time.  This driver maps all buttons to keypress
 	  events.
 
@@ -771,7 +771,7 @@ config INPUT_XEN_KBDDEV_FRONTEND
 	help
 	  This driver implements the front-end of the Xen virtual
 	  keyboard and mouse device driver.  It communicates with a back-end
-	  in another domain.
+	  in ayesther domain.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called xen-kbdfront.

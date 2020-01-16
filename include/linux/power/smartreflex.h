@@ -149,7 +149,7 @@ enum sr_instance {
 
 struct omap_sr {
 	char				*name;
-	struct list_head		node;
+	struct list_head		yesde;
 	struct platform_device		*pdev;
 	struct omap_sr_nvalue_table	*nvalue_table;
 	struct voltagedomain		*voltdm;
@@ -227,9 +227,9 @@ struct omap_smartreflex_dev_attr {
  * @enable:		API to enable a particular class smaartreflex.
  * @disable:		API to disable a particular class smartreflex.
  * @configure:		API to configure a particular class smartreflex.
- * @notify:		API to notify the class driver about an event in SR.
+ * @yestify:		API to yestify the class driver about an event in SR.
  *			Not needed for class3.
- * @notify_flags:	specify the events to be notified to the class driver
+ * @yestify_flags:	specify the events to be yestified to the class driver
  * @class_type:		specify which smartreflex class.
  *			Can be used by the SR driver to take any class
  *			based decisions.
@@ -238,8 +238,8 @@ struct omap_sr_class_data {
 	int (*enable)(struct omap_sr *sr);
 	int (*disable)(struct omap_sr *sr, int is_volt_reset);
 	int (*configure)(struct omap_sr *sr);
-	int (*notify)(struct omap_sr *sr, u32 status);
-	u8 notify_flags;
+	int (*yestify)(struct omap_sr *sr, u32 status);
+	u8 yestify_flags;
 	u8 class_type;
 };
 
@@ -249,13 +249,13 @@ struct omap_sr_class_data {
  * @efuse_offs:	  The offset of the efuse where n-target values are stored.
  * @nvalue:	  The n-target value.
  * @errminlimit:  The value of the ERRMINLIMIT bitfield for this n-target
- * @volt_nominal: microvolts DC that the VDD is initially programmed to
+ * @volt_yesminal: microvolts DC that the VDD is initially programmed to
  */
 struct omap_sr_nvalue_table {
 	u32 efuse_offs;
 	u32 nvalue;
 	u32 errminlimit;
-	unsigned long volt_nominal;
+	unsigned long volt_yesminal;
 };
 
 /**
@@ -272,7 +272,7 @@ struct omap_sr_nvalue_table {
  * @senp_avgweight	SENPAVGWEIGHT value of the sr AVGWEIGHT register
  * @nvalue_count:	Number of distinct nvalues in the nvalue table
  * @enable_on_init:	whether this sr module needs to enabled at
- *			boot up or not.
+ *			boot up or yest.
  * @nvalue_table:	table containing the  efuse offsets and nvalues
  *			corresponding to them.
  * @voltdm:		Pointer to the voltage domain associated with the SR

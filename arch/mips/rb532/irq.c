@@ -16,7 +16,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Copyright 2002 MontaVista Software Inc.
@@ -25,7 +25,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel_stat.h>
@@ -153,7 +153,7 @@ static void rb532_disable_irq(struct irq_data *d)
 			rb532_gpio_set_istat(0, irq_nr - GPIO_MAPPED_IRQ_BASE);
 
 		/*
-		 * if there are no more interrupts enabled in this
+		 * if there are yes more interrupts enabled in this
 		 * group, disable corresponding IP
 		 */
 		if (mask == intr_group[group].mask)

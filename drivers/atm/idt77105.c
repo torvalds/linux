@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/atmdev.h>
 #include <linux/sonet.h>
 #include <linux/delay.h>
@@ -32,7 +32,7 @@
 
 
 struct idt77105_priv {
-	struct idt77105_stats stats;    /* link diagnostics */
+	struct idt77105_stats stats;    /* link diagyesstics */
 	struct atm_dev *dev;		/* device back-pointer */
 	struct idt77105_priv *next;
         int loop_mode;
@@ -76,7 +76,7 @@ static u16 get_counter(struct atm_dev *dev, int counter)
 /*
  * Timer function called every second to gather statistics
  * from the 77105. This is done because the h/w registers
- * will overflow if not read at least once per second. The
+ * will overflow if yest read at least once per second. The
  * kernel's stats are much higher precision. Also, having
  * a separate copy of the stats allows implementation of
  * an ioctl which gathers the stats *without* zero'ing them.
@@ -106,7 +106,7 @@ static void idt77105_stats_timer_func(struct timer_list *unused)
  * have had the cable re-inserted after being pulled out. This is
  * done by polling the Good Signal Bit in the Interrupt Status
  * register every 5 seconds. The other technique (checking Good
- * Signal Bit in the interrupt handler) cannot be used because PHY
+ * Signal Bit in the interrupt handler) canyest be used because PHY
  * interrupts need to be disabled when the cable is pulled out
  * to avoid lots of spurious cell error interrupts.
  */
@@ -179,7 +179,7 @@ static int set_loopback(struct atm_dev *dev,int mode)
 	    (mode == ATM_LM_NONE ? "NONE" : 
 	      (mode == ATM_LM_LOC_ATM ? "DIAG (local)" :
 		(mode == IDT77105_DIAG_LC_LINE_LOOPBACK ? "LOOP (remote)" :
-		  "unknown")))
+		  "unkyeswn")))
 		    );
 	PRIV(dev)->loop_mode = mode;
 	return 0;
@@ -221,7 +221,7 @@ static void idt77105_int(struct atm_dev *dev)
         if (istat & IDT77105_ISTAT_RSCC) {
             /* Rx Signal Condition Change - line went up or down */
             if (istat & IDT77105_ISTAT_GOODSIG) {   /* signal detected again */
-                /* This should not happen (restart timer does it) but JIC */
+                /* This should yest happen (restart timer does it) but JIC */
 		atm_dev_signal_change(dev, ATM_PHY_SIG_FOUND);
             } else {    /* signal lost */
                 /*
@@ -250,7 +250,7 @@ static void idt77105_int(struct atm_dev *dev)
 #ifdef GENERAL_DEBUG
         if (istat & (IDT77105_ISTAT_HECERR | IDT77105_ISTAT_SCR |
                      IDT77105_ISTAT_RSE)) {
-            /* normally don't care - just report in stats */
+            /* yesrmally don't care - just report in stats */
 	    printk(KERN_NOTICE "%s(itf %d): received cell with error\n",
                 dev->type,dev->number);
         }
@@ -276,7 +276,7 @@ static int idt77105_start(struct atm_dev *dev)
 		GET(ISTAT) & IDT77105_ISTAT_GOODSIG ?
 		ATM_PHY_SIG_FOUND : ATM_PHY_SIG_LOST);
 	if (dev->signal == ATM_PHY_SIG_LOST)
-		printk(KERN_WARNING "%s(itf %d): no signal\n",dev->type,
+		printk(KERN_WARNING "%s(itf %d): yes signal\n",dev->type,
 		    dev->number);
 
         /* initialise loop mode from hardware */

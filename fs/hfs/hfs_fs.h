@@ -2,7 +2,7 @@
  *  linux/fs/hfs/hfs_fs.h
  *
  * Copyright (C) 1995-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  */
 
@@ -54,11 +54,11 @@ do {								\
 
 
 /*
- * struct hfs_inode_info
+ * struct hfs_iyesde_info
  *
- * The HFS-specific part of a Linux (struct inode)
+ * The HFS-specific part of a Linux (struct iyesde)
  */
-struct hfs_inode_info {
+struct hfs_iyesde_info {
 	atomic_t opencnt;
 
 	unsigned int flags;
@@ -70,7 +70,7 @@ struct hfs_inode_info {
 
 	struct list_head open_dir_list;
 	spinlock_t open_dir_lock;
-	struct inode *rsrc_inode;
+	struct iyesde *rsrc_iyesde;
 
 	struct mutex extents_lock;
 
@@ -83,14 +83,14 @@ struct hfs_inode_info {
 	u16 cached_start, cached_blocks;
 
 	loff_t phys_size;
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 };
 
 #define HFS_FLG_RSRC		0x0001
 #define HFS_FLG_EXT_DIRTY	0x0002
 #define HFS_FLG_EXT_NEW		0x0004
 
-#define HFS_IS_RSRC(inode)	(HFS_I(inode)->flags & HFS_FLG_RSRC)
+#define HFS_IS_RSRC(iyesde)	(HFS_I(iyesde)->flags & HFS_FLG_RSRC)
 
 /*
  * struct hfs_sb_info
@@ -129,7 +129,7 @@ struct hfs_sb_info {
 	u32 part_start;
 	u16 root_files;				/* The number of
 						   regular
-						   (non-directory)
+						   (yesn-directory)
 						   files in the root
 						   directory */
 	u16 root_dirs;				/* The number of
@@ -161,7 +161,7 @@ struct hfs_sb_info {
 	u16 blockoffset;
 	int fs_div;
 	struct super_block *sb;
-	int work_queued;		/* non-zero delayed work is queued */
+	int work_queued;		/* yesn-zero delayed work is queued */
 	struct delayed_work mdb_work;	/* MDB flush delayed work */
 	spinlock_t work_lock;		/* protects mdb_work and work_queued */
 };
@@ -178,38 +178,38 @@ extern int hfs_clear_vbm_bits(struct super_block *, u16, u16);
 extern int hfs_cat_keycmp(const btree_key *, const btree_key *);
 struct hfs_find_data;
 extern int hfs_cat_find_brec(struct super_block *, u32, struct hfs_find_data *);
-extern int hfs_cat_create(u32, struct inode *, const struct qstr *, struct inode *);
-extern int hfs_cat_delete(u32, struct inode *, const struct qstr *);
-extern int hfs_cat_move(u32, struct inode *, const struct qstr *,
-			struct inode *, const struct qstr *);
+extern int hfs_cat_create(u32, struct iyesde *, const struct qstr *, struct iyesde *);
+extern int hfs_cat_delete(u32, struct iyesde *, const struct qstr *);
+extern int hfs_cat_move(u32, struct iyesde *, const struct qstr *,
+			struct iyesde *, const struct qstr *);
 extern void hfs_cat_build_key(struct super_block *, btree_key *, u32, const struct qstr *);
 
 /* dir.c */
 extern const struct file_operations hfs_dir_operations;
-extern const struct inode_operations hfs_dir_inode_operations;
+extern const struct iyesde_operations hfs_dir_iyesde_operations;
 
 /* extent.c */
 extern int hfs_ext_keycmp(const btree_key *, const btree_key *);
 extern int hfs_free_fork(struct super_block *, struct hfs_cat_file *, int);
-extern int hfs_ext_write_extent(struct inode *);
-extern int hfs_extend_file(struct inode *);
-extern void hfs_file_truncate(struct inode *);
+extern int hfs_ext_write_extent(struct iyesde *);
+extern int hfs_extend_file(struct iyesde *);
+extern void hfs_file_truncate(struct iyesde *);
 
-extern int hfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
+extern int hfs_get_block(struct iyesde *, sector_t, struct buffer_head *, int);
 
-/* inode.c */
+/* iyesde.c */
 extern const struct address_space_operations hfs_aops;
 extern const struct address_space_operations hfs_btree_aops;
 
-extern struct inode *hfs_new_inode(struct inode *, const struct qstr *, umode_t);
-extern void hfs_inode_write_fork(struct inode *, struct hfs_extent *, __be32 *, __be32 *);
-extern int hfs_write_inode(struct inode *, struct writeback_control *);
-extern int hfs_inode_setattr(struct dentry *, struct iattr *);
-extern void hfs_inode_read_fork(struct inode *inode, struct hfs_extent *ext,
+extern struct iyesde *hfs_new_iyesde(struct iyesde *, const struct qstr *, umode_t);
+extern void hfs_iyesde_write_fork(struct iyesde *, struct hfs_extent *, __be32 *, __be32 *);
+extern int hfs_write_iyesde(struct iyesde *, struct writeback_control *);
+extern int hfs_iyesde_setattr(struct dentry *, struct iattr *);
+extern void hfs_iyesde_read_fork(struct iyesde *iyesde, struct hfs_extent *ext,
 			__be32 log_size, __be32 phys_size, u32 clump_size);
-extern struct inode *hfs_iget(struct super_block *, struct hfs_cat_key *, hfs_cat_rec *);
-extern void hfs_evict_inode(struct inode *);
-extern void hfs_delete_inode(struct inode *);
+extern struct iyesde *hfs_iget(struct super_block *, struct hfs_cat_key *, hfs_cat_rec *);
+extern void hfs_evict_iyesde(struct iyesde *);
+extern void hfs_delete_iyesde(struct iyesde *);
 
 /* attr.c */
 extern const struct xattr_handler *hfs_xattr_handlers[];
@@ -249,7 +249,7 @@ extern void hfs_mark_mdb_dirty(struct super_block *sb);
 #define __hfs_u_to_mtime(sec)	cpu_to_be32(sec + 2082844800U - sys_tz.tz_minuteswest * 60)
 #define __hfs_m_to_utime(sec)	(be32_to_cpu(sec) - 2082844800U  + sys_tz.tz_minuteswest * 60)
 
-#define HFS_I(inode)	(container_of(inode, struct hfs_inode_info, vfs_inode))
+#define HFS_I(iyesde)	(container_of(iyesde, struct hfs_iyesde_info, vfs_iyesde))
 #define HFS_SB(sb)	((struct hfs_sb_info *)(sb)->s_fs_info)
 
 #define hfs_m_to_utime(time)	(struct timespec){ .tv_sec = __hfs_m_to_utime(time) }

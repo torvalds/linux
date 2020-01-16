@@ -45,7 +45,7 @@
 #define HFI_UNUSED_PICT				0x10000000
 
 /* message packets */
-struct hfi_msg_event_notify_pkt {
+struct hfi_msg_event_yestify_pkt {
 	struct hfi_session_hdr_pkt shdr;
 	u32 event_id;
 	u32 event_data1;

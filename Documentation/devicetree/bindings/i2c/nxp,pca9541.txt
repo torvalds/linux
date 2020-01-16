@@ -8,7 +8,7 @@ Required Properties:
 
   The following required properties are defined externally:
 
-  - I2C arbitration bus node. See i2c-arb.txt in this directory.
+  - I2C arbitration bus yesde. See i2c-arb.txt in this directory.
 
 
 Example:

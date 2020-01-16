@@ -263,7 +263,7 @@ qla8044_set_qsnt_ready(struct scsi_qla_host *vha)
 	qsnt_state |= (1 << ha->portnum);
 	qla8044_wr_direct(vha, QLA8044_CRB_DRV_STATE_INDEX, qsnt_state);
 	ql_log(ql_log_info, vha, 0xb08e, "%s(%ld): qsnt_state: 0x%08x\n",
-	     __func__, vha->host_no, qsnt_state);
+	     __func__, vha->host_yes, qsnt_state);
 }
 
 void
@@ -276,7 +276,7 @@ qla8044_clear_qsnt_ready(struct scsi_qla_host *vha)
 	qsnt_state &= ~(1 << ha->portnum);
 	qla8044_wr_direct(vha, QLA8044_CRB_DRV_STATE_INDEX, qsnt_state);
 	ql_log(ql_log_info, vha, 0xb08f, "%s(%ld): qsnt_state: 0x%08x\n",
-	    __func__, vha->host_no, qsnt_state);
+	    __func__, vha->host_yes, qsnt_state);
 }
 
 /**
@@ -391,7 +391,7 @@ qla8044_idc_lock(struct qla_hw_data *ha)
 				/* Some other driver got lock,
 				 * OR same driver got lock again (counter
 				 * value changed), when we were waiting for
-				 * lock. Retry for another 2 sec */
+				 * lock. Retry for ayesther 2 sec */
 				ql_dbg(ql_dbg_p3p, vha, 0xb115,
 				    "%s: %d: IDC lock failed\n",
 				    __func__, ha->portnum);
@@ -984,7 +984,7 @@ qla8044_process_reset_template(struct scsi_qla_host *vha,
 			break;
 		default:
 			ql_log(ql_log_fatal, vha, 0xb097,
-			    "%s: Unknown command ==> 0x%04x on "
+			    "%s: Unkyeswn command ==> 0x%04x on "
 			    "entry = %d\n", __func__, p_hdr->cmd, index);
 			break;
 		}
@@ -1353,7 +1353,7 @@ qla8044_start_firmware(struct scsi_qla_host *vha)
 	ret_val = qla8044_check_cmd_peg_status(vha);
 	if (ret_val) {
 		ql_log(ql_log_fatal, vha, 0xb0b0,
-		    "%s: Peg not initialized!\n", __func__);
+		    "%s: Peg yest initialized!\n", __func__);
 		ret_val = QLA_FUNCTION_FAILED;
 	}
 
@@ -1372,7 +1372,7 @@ qla8044_clear_drv_active(struct qla_hw_data *ha)
 
 	ql_log(ql_log_info, vha, 0xb0b1,
 	    "%s(%ld): drv_active: 0x%08x\n",
-	    __func__, vha->host_no, drv_active);
+	    __func__, vha->host_yes, drv_active);
 
 	qla8044_wr_direct(vha, QLA8044_CRB_DRV_ACTIVE_INDEX, drv_active);
 }
@@ -1632,7 +1632,7 @@ qla8044_set_rst_ready(struct scsi_qla_host *vha)
 
 	ql_log(ql_log_info, vha, 0xb0c1,
 	    "%s(%ld): drv_state: 0x%08x\n",
-	    __func__, vha->host_no, drv_state);
+	    __func__, vha->host_yes, drv_state);
 	qla8044_wr_direct(vha, QLA8044_CRB_DRV_STATE_INDEX, drv_state);
 }
 
@@ -1669,7 +1669,7 @@ qla8044_need_reset_handler(struct scsi_qla_host *vha)
 
 	ql_log(ql_log_info, vha, 0xb0c5,
 	    "%s(%ld): drv_state = 0x%x, drv_active = 0x%x dev_state = 0x%x\n",
-	    __func__, vha->host_no, drv_state, drv_active, dev_state);
+	    __func__, vha->host_yes, drv_state, drv_active, dev_state);
 
 	qla8044_set_rst_ready(vha);
 
@@ -1697,11 +1697,11 @@ qla8044_need_reset_handler(struct scsi_qla_host *vha)
 	} while (((drv_state & drv_active) != drv_active) &&
 	    (dev_state == QLA8XXX_DEV_NEED_RESET));
 
-	/* Remove IDC participation of functions not acknowledging */
+	/* Remove IDC participation of functions yest ackyeswledging */
 	if (drv_state != drv_active) {
 		ql_log(ql_log_info, vha, 0xb0c7,
-		    "%s(%ld): Function %d turning off drv_active of non-acking function 0x%x\n",
-		    __func__, vha->host_no, ha->portnum,
+		    "%s(%ld): Function %d turning off drv_active of yesn-acking function 0x%x\n",
+		    __func__, vha->host_yes, ha->portnum,
 		    (drv_active ^ drv_state));
 		drv_active = drv_active & drv_state;
 		qla8044_wr_direct(vha, QLA8044_CRB_DRV_ACTIVE_INDEX,
@@ -1709,7 +1709,7 @@ qla8044_need_reset_handler(struct scsi_qla_host *vha)
 	} else {
 		/*
 		 * Reset owner should execute reset recovery,
-		 * if all functions acknowledged
+		 * if all functions ackyeswledged
 		 */
 		if ((ha->flags.nic_core_reset_owner) &&
 		    (dev_state == QLA8XXX_DEV_NEED_RESET)) {
@@ -1719,7 +1719,7 @@ qla8044_need_reset_handler(struct scsi_qla_host *vha)
 		}
 	}
 
-	/* Exit if non active function */
+	/* Exit if yesn active function */
 	if (!(drv_active & (1 << ha->portnum))) {
 		ha->flags.nic_core_reset_owner = 0;
 		return;
@@ -1750,7 +1750,7 @@ qla8044_set_drv_active(struct scsi_qla_host *vha)
 
 	ql_log(ql_log_info, vha, 0xb0c8,
 	    "%s(%ld): drv_active: 0x%08x\n",
-	    __func__, vha->host_no, drv_active);
+	    __func__, vha->host_yes, drv_active);
 	qla8044_wr_direct(vha, QLA8044_CRB_DRV_ACTIVE_INDEX, drv_active);
 }
 
@@ -1807,7 +1807,7 @@ qla8044_set_idc_ver(struct scsi_qla_host *vha)
 		if (QLA8044_IDC_VER_MAJ_VALUE != idc_ver) {
 			ql_log(ql_log_info, vha, 0xb0cb,
 			    "%s: qla4xxx driver IDC version %d "
-			    "is not compatible with IDC version %d "
+			    "is yest compatible with IDC version %d "
 			    "of other drivers!\n",
 			    __func__, QLA8044_IDC_VER_MAJ_VALUE,
 			    idc_ver);
@@ -1843,7 +1843,7 @@ qla8044_update_idc_reg(struct scsi_qla_host *vha)
 	    QLA8044_CRB_DRV_ACTIVE_INDEX);
 
 	/* If we are the first driver to load and
-	 * ql2xdontresethba is not set, clear IDC_CTRL BIT0. */
+	 * ql2xdontresethba is yest set, clear IDC_CTRL BIT0. */
 	if ((drv_active == (1 << ha->portnum)) && !ql2xdontresethba)
 		qla8044_clear_idc_dontreset(vha);
 
@@ -1885,7 +1885,7 @@ qla8044_need_qsnt_handler(struct scsi_qla_host *vha)
 
 	while (drv_state != drv_active) {
 		if (time_after_eq(jiffies, qsnt_timeout)) {
-			/* Other functions did not ack, changing state to
+			/* Other functions did yest ack, changing state to
 			 * DEV_READY
 			 */
 			clear_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags);
@@ -1940,7 +1940,7 @@ qla8044_device_state_handler(struct scsi_qla_host *vha)
 	ql_dbg(ql_dbg_p3p, vha, 0xb0ce,
 	    "Device state is 0x%x = %s\n",
 	    dev_state, dev_state < MAX_STATES ?
-	    qdev_state(dev_state) : "Unknown");
+	    qdev_state(dev_state) : "Unkyeswn");
 
 	/* wait for 30 seconds for device to go ready */
 	dev_init_timeout = jiffies + (ha->fcoe_dev_init_timeout * HZ);
@@ -1954,7 +1954,7 @@ qla8044_device_state_handler(struct scsi_qla_host *vha)
 				    "%s: Device Init Failed 0x%x = %s\n",
 				    QLA2XXX_DRIVER_NAME, dev_state,
 				    dev_state < MAX_STATES ?
-				    qdev_state(dev_state) : "Unknown");
+				    qdev_state(dev_state) : "Unkyeswn");
 				qla8044_wr_direct(vha,
 				    QLA8044_CRB_DEV_STATE_INDEX,
 				    QLA8XXX_DEV_FAILED);
@@ -1965,7 +1965,7 @@ qla8044_device_state_handler(struct scsi_qla_host *vha)
 		ql_log(ql_log_info, vha, 0xb0d0,
 		    "Device state is 0x%x = %s\n",
 		    dev_state, dev_state < MAX_STATES ?
-		    qdev_state(dev_state) : "Unknown");
+		    qdev_state(dev_state) : "Unkyeswn");
 
 		/* NOTE: Make sure idc unlocked upon exit of switch statement */
 		switch (dev_state) {
@@ -1982,7 +1982,7 @@ qla8044_device_state_handler(struct scsi_qla_host *vha)
 			break;
 		case QLA8XXX_DEV_NEED_RESET:
 			/* For ISP8044, if NEED_RESET is set by any driver,
-			 * it should be honored, irrespective of IDC_CTRL
+			 * it should be hoyesred, irrespective of IDC_CTRL
 			 * DONTRESET_BIT0 */
 			qla8044_need_reset_handler(vha);
 			break;
@@ -2032,7 +2032,7 @@ exit_error:
  * qla4_8xxx_check_temp - Check the ISP82XX temperature.
  * @vha: adapter block pointer.
  *
- * Note: The caller should not hold the idc lock.
+ * Note: The caller should yest hold the idc lock.
  */
 static int
 qla8044_check_temp(struct scsi_qla_host *vha)
@@ -2084,18 +2084,18 @@ qla8044_check_fw_alive(struct scsi_qla_host *vha)
 	fw_heartbeat_counter = qla8044_rd_direct(vha,
 	    QLA8044_PEG_ALIVE_COUNTER_INDEX);
 
-	/* If PEG_ALIVE_COUNTER is 0xffffffff, AER/EEH is in progress, ignore */
+	/* If PEG_ALIVE_COUNTER is 0xffffffff, AER/EEH is in progress, igyesre */
 	if (fw_heartbeat_counter == 0xffffffff) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb0d4,
 		    "scsi%ld: %s: Device in frozen "
 		    "state, QLA82XX_PEG_ALIVE_COUNTER is 0xffffffff\n",
-		    vha->host_no, __func__);
+		    vha->host_yes, __func__);
 		return status;
 	}
 
 	if (vha->fw_heartbeat_counter == fw_heartbeat_counter) {
 		vha->seconds_since_last_heartbeat++;
-		/* FW not alive after 2 seconds */
+		/* FW yest alive after 2 seconds */
 		if (vha->seconds_since_last_heartbeat == 2) {
 			vha->seconds_since_last_heartbeat = 0;
 			halt_status1 = qla8044_rd_direct(vha,
@@ -2108,7 +2108,7 @@ qla8044_check_fw_alive(struct scsi_qla_host *vha)
 			    "Dumping hw/fw registers:\n"
 			    " PEG_HALT_STATUS1: 0x%x, "
 			    "PEG_HALT_STATUS2: 0x%x,\n",
-			    vha->host_no, __func__, halt_status1,
+			    vha->host_yes, __func__, halt_status1,
 			    halt_status2);
 			status = QLA_FUNCTION_FAILED;
 		}
@@ -2173,7 +2173,7 @@ qla8044_watchdog(struct scsi_qla_host *vha)
 						halt_status_unrecoverable = 1;
 				}
 
-				/* Since we cannot change dev_state in interrupt
+				/* Since we canyest change dev_state in interrupt
 				 * context, set appropriate DPC flag then wakeup
 				 *  DPC */
 				if (halt_status_unrecoverable) {
@@ -2369,14 +2369,14 @@ qla8044_minidump_process_rdmem(struct scsi_qla_host *vha,
 
 	if (r_addr & 0xf) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb0f1,
-		    "[%s]: Read addr 0x%x not 16 bytes aligned\n",
+		    "[%s]: Read addr 0x%x yest 16 bytes aligned\n",
 		    __func__, r_addr);
 		return QLA_FUNCTION_FAILED;
 	}
 
 	if (m_hdr->read_data_size % 16) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb0f2,
-		    "[%s]: Read data[0x%x] not multiple of 16 bytes\n",
+		    "[%s]: Read data[0x%x] yest multiple of 16 bytes\n",
 		    __func__, m_hdr->read_data_size);
 		return QLA_FUNCTION_FAILED;
 	}
@@ -2463,7 +2463,7 @@ qla8044_mark_entry_skipped(struct scsi_qla_host *vha,
 
 	ql_log(ql_log_info, vha, 0xb0f7,
 	    "scsi(%ld): Skipping entry[%d]: ETYPE[0x%x]-ELEVEL[0x%x]\n",
-	    vha->host_no, index, entry_hdr->entry_type,
+	    vha->host_yes, index, entry_hdr->entry_type,
 	    entry_hdr->d_ctrl.entry_capture_mask);
 }
 
@@ -2920,7 +2920,7 @@ qla8044_minidump_pex_dma_read(struct scsi_qla_host *vha,
 	rval = qla8044_check_dma_engine_state(vha);
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb147,
-		    "DMA engine not available. Fallback to rdmem-read.\n");
+		    "DMA engine yest available. Fallback to rdmem-read.\n");
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -3231,21 +3231,21 @@ qla8044_collect_md_data(struct scsi_qla_host *vha)
 	uint32_t *data_ptr;
 	uint32_t data_collected = 0, f_capture_mask;
 	int i, rval = QLA_FUNCTION_FAILED;
-	uint64_t now;
+	uint64_t yesw;
 	uint32_t timestamp, idc_control;
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!ha->md_dump) {
 		ql_log(ql_log_info, vha, 0xb101,
 		    "%s(%ld) No buffer to dump\n",
-		    __func__, vha->host_no);
+		    __func__, vha->host_yes);
 		return rval;
 	}
 
 	if (ha->fw_dumped) {
 		ql_log(ql_log_warn, vha, 0xb10d,
 		    "Firmware has been previously dumped (%p) "
-		    "-- ignoring request.\n", ha->fw_dump);
+		    "-- igyesring request.\n", ha->fw_dump);
 		goto md_failed;
 	}
 
@@ -3253,7 +3253,7 @@ qla8044_collect_md_data(struct scsi_qla_host *vha)
 
 	if (!ha->md_tmplt_hdr || !ha->md_dump) {
 		ql_log(ql_log_warn, vha, 0xb10e,
-		    "Memory not allocated for minidump capture\n");
+		    "Memory yest allocated for minidump capture\n");
 		goto md_failed;
 	}
 
@@ -3262,7 +3262,7 @@ qla8044_collect_md_data(struct scsi_qla_host *vha)
 	if (idc_control & GRACEFUL_RESET_BIT1) {
 		ql_log(ql_log_warn, vha, 0xb112,
 		    "Forced reset from application, "
-		    "ignore minidump capture\n");
+		    "igyesre minidump capture\n");
 		qla8044_wr_reg(ha, QLA8044_IDC_DRV_CTRL,
 		    (idc_control & ~GRACEFUL_RESET_BIT1));
 		qla8044_idc_unlock(ha);
@@ -3290,7 +3290,7 @@ qla8044_collect_md_data(struct scsi_qla_host *vha)
 	/* Validate whether required debug level is set */
 	if ((f_capture_mask & 0x3) != 0x3) {
 		ql_log(ql_log_warn, vha, 0xb10f,
-		    "Minimum required capture mask[0x%x] level not set\n",
+		    "Minimum required capture mask[0x%x] level yest set\n",
 		    f_capture_mask);
 
 	}
@@ -3299,15 +3299,15 @@ qla8044_collect_md_data(struct scsi_qla_host *vha)
 	    "[%s]: starting data ptr: %p\n",
 	   __func__, data_ptr);
 	ql_log(ql_log_info, vha, 0xb10b,
-	   "[%s]: no of entry headers in Template: 0x%x\n",
+	   "[%s]: yes of entry headers in Template: 0x%x\n",
 	   __func__, num_entry_hdr);
 	ql_log(ql_log_info, vha, 0xb10c,
 	    "[%s]: Total_data_size 0x%x, %d obtained\n",
 	   __func__, ha->md_dump_size, ha->md_dump_size);
 
 	/* Update current timestamp before taking dump */
-	now = get_jiffies_64();
-	timestamp = (u32)(jiffies_to_msecs(now) / 1000);
+	yesw = get_jiffies_64();
+	timestamp = (u32)(jiffies_to_msecs(yesw) / 1000);
 	tmplt_hdr->driver_timestamp = timestamp;
 
 	entry_hdr = (struct qla8044_minidump_entry_hdr *)
@@ -3469,7 +3469,7 @@ skip_nxt_entry:
 
 	ql_log(ql_log_info, vha, 0xb110,
 	    "Firmware dump saved to temp buffer (%ld/%p %ld/%p).\n",
-	    vha->host_no, ha->md_tmplt_hdr, vha->host_no, ha->md_dump);
+	    vha->host_yes, ha->md_tmplt_hdr, vha->host_yes, ha->md_dump);
 	ha->fw_dumped = 1;
 	qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 
@@ -3915,7 +3915,7 @@ qla8044_intr_handler(int irq, void *dev_id)
 	/* Legacy interrupt is valid if bit31 of leg_int_ptr is set */
 	if (!(leg_int_ptr & (LEG_INT_PTR_B31))) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb144,
-		    "%s: Legacy Interrupt Bit 31 not set, "
+		    "%s: Legacy Interrupt Bit 31 yest set, "
 		    "spurious interrupt!\n", __func__);
 		return IRQ_NONE;
 	}
@@ -4028,7 +4028,7 @@ qla8044_abort_isp(scsi_qla_host_t *vha)
 
 	/* If device_state is NEED_RESET, go ahead with
 	 * Reset,irrespective of ql2xdontresethba. This is to allow a
-	 * non-reset-owner to force a reset. Non-reset-owner sets
+	 * yesn-reset-owner to force a reset. Non-reset-owner sets
 	 * the IDC_CTRL BIT0 to prevent Reset-owner from doing a Reset
 	 * and then forces a Reset by setting device_state to
 	 * NEED_RESET. */
@@ -4050,7 +4050,7 @@ qla8044_abort_isp(scsi_qla_host_t *vha)
 
 	/* For ISP8044, Reset owner is NIC, iSCSI or FCOE based on priority
 	 * and which drivers are present. Unlike ISP82XX, the function setting
-	 * NEED_RESET, may not be the Reset owner. */
+	 * NEED_RESET, may yest be the Reset owner. */
 	qla83xx_reset_ownership(vha);
 
 	qla8044_idc_unlock(ha);
@@ -4078,7 +4078,7 @@ qla8044_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		return;
 
 	scsi_block_requests(vha->host);
-	ha->flags.isp82xx_no_md_cap = 1;
+	ha->flags.isp82xx_yes_md_cap = 1;
 	qla8044_idc_lock(ha);
 	qla82xx_set_reset_owner(vha);
 	qla8044_idc_unlock(ha);

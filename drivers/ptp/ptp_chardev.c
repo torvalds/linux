@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 #include <linux/timekeeping.h>
 
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "ptp_private.h"
 
@@ -84,7 +84,7 @@ int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 	}
 
 	if (info->verify(info, pin, func, chan)) {
-		pr_err("driver cannot use function %u on pin %u\n", func, chan);
+		pr_err("driver canyest use function %u on pin %u\n", func, chan);
 		return -EOPNOTSUPP;
 	}
 
@@ -152,7 +152,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		if (cmd == PTP_EXTTS_REQUEST2) {
 			/* Tell the drivers to check the flags carefully. */
 			req.extts.flags |= PTP_STRICT_FLAGS;
-			/* Make sure no reserved bit is set. */
+			/* Make sure yes reserved bit is set. */
 			if ((req.extts.flags & ~PTP_EXTTS_VALID_FLAGS) ||
 			    req.extts.rsv[0] || req.extts.rsv[1]) {
 				err = -EINVAL;
@@ -237,9 +237,9 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		ts = ktime_to_timespec64(xtstamp.sys_realtime);
 		precise_offset.sys_realtime.sec = ts.tv_sec;
 		precise_offset.sys_realtime.nsec = ts.tv_nsec;
-		ts = ktime_to_timespec64(xtstamp.sys_monoraw);
-		precise_offset.sys_monoraw.sec = ts.tv_sec;
-		precise_offset.sys_monoraw.nsec = ts.tv_nsec;
+		ts = ktime_to_timespec64(xtstamp.sys_moyesraw);
+		precise_offset.sys_moyesraw.sec = ts.tv_sec;
+		precise_offset.sys_moyesraw.nsec = ts.tv_nsec;
 		if (copy_to_user((void __user *)arg, &precise_offset,
 				 sizeof(precise_offset)))
 			err = -EFAULT;
@@ -335,7 +335,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 			err = -EINVAL;
 			break;
 		}
-		pin_index = array_index_nospec(pin_index, ops->n_pins);
+		pin_index = array_index_yesspec(pin_index, ops->n_pins);
 		if (mutex_lock_interruptible(&ptp->pincfg_mux))
 			return -ERESTARTSYS;
 		pd = ops->pin_config[pin_index];
@@ -367,7 +367,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 			err = -EINVAL;
 			break;
 		}
-		pin_index = array_index_nospec(pin_index, ops->n_pins);
+		pin_index = array_index_yesspec(pin_index, ops->n_pins);
 		if (mutex_lock_interruptible(&ptp->pincfg_mux))
 			return -ERESTARTSYS;
 		err = ptp_set_pinfunc(ptp, pin_index, pd.func, pd.chan);

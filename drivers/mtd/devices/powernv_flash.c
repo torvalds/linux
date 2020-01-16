@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -93,7 +93,7 @@ static int powernv_flash_async_op(struct mtd_info *mtd, enum flash_op op,
 			 * are going to end up waiting until OPAL is
 			 * done. However, because the MTD core sends
 			 * us the userspace request in chunks, we need
-			 * it to know we've been interrupted.
+			 * it to kyesw we've been interrupted.
 			 */
 			rc = -EINTR;
 			if (opal_async_wait_response(token, &msg))
@@ -186,14 +186,14 @@ static int powernv_flash_set_driver_info(struct device *dev,
 	u32 erase_size;
 	int rc;
 
-	rc = of_property_read_u32(dev->of_node, "ibm,flash-block-size",
+	rc = of_property_read_u32(dev->of_yesde, "ibm,flash-block-size",
 			&erase_size);
 	if (rc) {
 		dev_err(dev, "couldn't get resource block size information\n");
 		return rc;
 	}
 
-	rc = of_property_read_u64(dev->of_node, "reg", &size);
+	rc = of_property_read_u64(dev->of_yesde, "reg", &size);
 	if (rc) {
 		dev_err(dev, "couldn't get resource size information\n");
 		return rc;
@@ -203,7 +203,7 @@ static int powernv_flash_set_driver_info(struct device *dev,
 	 * Going to have to check what details I need to set and how to
 	 * get them
 	 */
-	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_node);
+	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_yesde);
 	mtd->type = MTD_NORFLASH;
 	mtd->flags = MTD_WRITEABLE;
 	mtd->size = size;
@@ -214,7 +214,7 @@ static int powernv_flash_set_driver_info(struct device *dev,
 	mtd->_read = powernv_flash_read;
 	mtd->_write = powernv_flash_write;
 	mtd->dev.parent = dev;
-	mtd_set_of_node(mtd, dev->of_node);
+	mtd_set_of_yesde(mtd, dev->of_yesde);
 	return 0;
 }
 
@@ -236,9 +236,9 @@ static int powernv_flash_probe(struct platform_device *pdev)
 
 	data->mtd.priv = data;
 
-	ret = of_property_read_u32(dev->of_node, "ibm,opal-id", &(data->id));
+	ret = of_property_read_u32(dev->of_yesde, "ibm,opal-id", &(data->id));
 	if (ret) {
-		dev_err(dev, "no device property 'ibm,opal-id'\n");
+		dev_err(dev, "yes device property 'ibm,opal-id'\n");
 		return ret;
 	}
 
@@ -251,7 +251,7 @@ static int powernv_flash_probe(struct platform_device *pdev)
 	/*
 	 * The current flash that skiboot exposes is one contiguous flash chip
 	 * with an ffs partition at the start, it should prove easier for users
-	 * to deal with partitions or not as they see fit
+	 * to deal with partitions or yest as they see fit
 	 */
 	return mtd_device_register(&data->mtd, NULL, 0);
 }

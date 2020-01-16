@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * USB Communications Device Class (CDC) definitions
  *
  * CDC says how to talk to lots of different types of network adapters,
- * notably ethernet adapters and various modems.  It's used mostly with
+ * yestably ethernet adapters and various modems.  It's used mostly with
  * firmware based USB peripherals.
  */
 
@@ -273,7 +273,7 @@ struct usb_cdc_line_coding {
 
 /* table 62; bits in multicast filter */
 #define	USB_CDC_PACKET_TYPE_PROMISCUOUS		(1 << 0)
-#define	USB_CDC_PACKET_TYPE_ALL_MULTICAST	(1 << 1) /* no filter */
+#define	USB_CDC_PACKET_TYPE_ALL_MULTICAST	(1 << 1) /* yes filter */
 #define	USB_CDC_PACKET_TYPE_DIRECTED		(1 << 2)
 #define	USB_CDC_PACKET_TYPE_BROADCAST		(1 << 3)
 #define	USB_CDC_PACKET_TYPE_MULTICAST		(1 << 4) /* filtered */
@@ -284,9 +284,9 @@ struct usb_cdc_line_coding {
 /*
  * Class-Specific Notifications (6.3) sent by interrupt transfers
  *
- * section 3.8.2 table 11 of the CDC spec lists Ethernet notifications
- * section 3.6.2.1 table 5 specifies ACM notifications, accepted by RNDIS
- * RNDIS also defines its own bit-incompatible notifications
+ * section 3.8.2 table 11 of the CDC spec lists Ethernet yestifications
+ * section 3.6.2.1 table 5 specifies ACM yestifications, accepted by RNDIS
+ * RNDIS also defines its own bit-incompatible yestifications
  */
 
 #define USB_CDC_NOTIFY_NETWORK_CONNECTION	0x00
@@ -294,7 +294,7 @@ struct usb_cdc_line_coding {
 #define USB_CDC_NOTIFY_SERIAL_STATE		0x20
 #define USB_CDC_NOTIFY_SPEED_CHANGE		0x2a
 
-struct usb_cdc_notification {
+struct usb_cdc_yestification {
 	__u8	bmRequestType;
 	__u8	bNotificationType;
 	__le16	wValue;
@@ -363,8 +363,8 @@ struct usb_cdc_ncm_nth32 {
 #define USB_CDC_NCM_NDP32_CRC_SIGN	0x316D636E /* ncm1 */
 #define USB_CDC_NCM_NDP32_NOCRC_SIGN	0x306D636E /* ncm0 */
 
-#define USB_CDC_MBIM_NDP16_IPS_SIGN     0x00535049 /* IPS<sessionID> : IPS0 for now */
-#define USB_CDC_MBIM_NDP32_IPS_SIGN     0x00737069 /* ips<sessionID> : ips0 for now */
+#define USB_CDC_MBIM_NDP16_IPS_SIGN     0x00535049 /* IPS<sessionID> : IPS0 for yesw */
+#define USB_CDC_MBIM_NDP32_IPS_SIGN     0x00737069 /* ips<sessionID> : ips0 for yesw */
 #define USB_CDC_MBIM_NDP16_DSS_SIGN     0x00535344 /* DSS<sessionID> */
 #define USB_CDC_MBIM_NDP32_DSS_SIGN     0x00737364 /* dss<sessionID> */
 

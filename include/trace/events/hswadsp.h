@@ -98,7 +98,7 @@ DEFINE_EVENT(ipc, ipc_pending_reply,
 
 );
 
-DEFINE_EVENT(ipc, ipc_notification,
+DEFINE_EVENT(ipc, ipc_yestification,
 
 	TP_PROTO(const char *name, int val),
 

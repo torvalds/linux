@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2004 Florian Schirmer <jolt@tuxbox.org>
- *  Copyright (C) 2007 Aurelien Jarno <aurelien@aurel32.net>
+ *  Copyright (C) 2007 Aurelien Jaryes <aurelien@aurel32.net>
  *  Copyright (C) 2010-2012 Hauke Mehrtens <hauke@hauke-m.de>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -20,7 +20,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -79,7 +79,7 @@ static __init void prom_init_mem(void)
 	max = 128 << 20;
 
 	for (mem = 1 << 20; mem < max; mem += 1 << 20) {
-		/* Loop condition may be not enough, off may be over 1 MiB */
+		/* Loop condition may be yest eyesugh, off may be over 1 MiB */
 		if (off + mem >= max) {
 			mem = max;
 			pr_debug("Assume 128MB RAM\n");
@@ -90,7 +90,7 @@ static __init void prom_init_mem(void)
 	}
 	lowmem = mem;
 
-	/* Ignoring the last page when ddr size is 128M. Cached
+	/* Igyesring the last page when ddr size is 128M. Cached
 	 * accesses to last page is causing the processor to prefetch
 	 * using address above 128M stepping out of the ddr address
 	 * space.

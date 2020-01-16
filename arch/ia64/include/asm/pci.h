@@ -47,7 +47,7 @@ struct pci_controller {
 	struct acpi_device *companion;
 	void *iommu;
 	int segment;
-	int node;		/* nearest node with memory or NUMA_NO_NODE for global allocation */
+	int yesde;		/* nearest yesde with memory or NUMA_NO_NODE for global allocation */
 
 	void *platform_data;
 };

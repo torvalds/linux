@@ -5,10 +5,10 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice,
+ * 1. Redistributions of source code must retain the above copyright yestice,
  * this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * 2. Redistributions in binary form must reproduce the above copyright yestice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
  *
@@ -43,7 +43,7 @@
 #define TEE_IOC_BASE	0
 
 /* Flags relating to shared memory */
-#define TEE_IOCTL_SHM_MAPPED	0x1	/* memory mapped in normal world */
+#define TEE_IOCTL_SHM_MAPPED	0x1	/* memory mapped in yesrmal world */
 #define TEE_IOCTL_SHM_DMA_BUF	0x2	/* dma-buf handle on shared memory */
 
 #define TEE_MAX_ARG_SIZE	1024
@@ -133,7 +133,7 @@ struct tee_ioctl_buf_data {
 /*
  * Attributes for struct tee_ioctl_param, selects field in the union
  */
-#define TEE_IOCTL_PARAM_ATTR_TYPE_NONE		0	/* parameter not used */
+#define TEE_IOCTL_PARAM_ATTR_TYPE_NONE		0	/* parameter yest used */
 
 /*
  * These defines value parameters (struct tee_ioctl_param_value)
@@ -158,7 +158,7 @@ struct tee_ioctl_buf_data {
 /* Meta parameter carrying extra information about the message. */
 #define TEE_IOCTL_PARAM_ATTR_META		0x100
 
-/* Mask of all known attr bits */
+/* Mask of all kyeswn attr bits */
 #define TEE_IOCTL_PARAM_ATTR_MASK \
 	(TEE_IOCTL_PARAM_ATTR_TYPE_MASK | TEE_IOCTL_PARAM_ATTR_META)
 
@@ -183,7 +183,7 @@ struct tee_ioctl_buf_data {
  * @attr & TEE_PARAM_ATTR_TYPE_MASK indicates if memref or value is used in
  * the union. TEE_PARAM_ATTR_TYPE_VALUE_* indicates value and
  * TEE_PARAM_ATTR_TYPE_MEMREF_* indicates memref. TEE_PARAM_ATTR_TYPE_NONE
- * indicates that none of the members are used.
+ * indicates that yesne of the members are used.
  *
  * Shared memory is allocated with TEE_IOC_SHM_ALLOC which returns an
  * identifier representing the shared memory object. A memref can reference

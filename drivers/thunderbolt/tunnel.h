@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - Tunneling support
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2019, Intel Corporation
  */
 

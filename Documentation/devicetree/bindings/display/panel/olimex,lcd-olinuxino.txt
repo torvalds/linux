@@ -1,11 +1,11 @@
-Binding for Olimex Ltd. LCD-OLinuXino bridge panel.
+Binding for Olimex Ltd. LCD-OLinuXiyes bridge panel.
 
 This device can be used as bridge between a host controller and LCD panels.
 Currently supported LCDs are:
-  - LCD-OLinuXino-4.3TS
-  - LCD-OLinuXino-5
-  - LCD-OLinuXino-7
-  - LCD-OLinuXino-10
+  - LCD-OLinuXiyes-4.3TS
+  - LCD-OLinuXiyes-5
+  - LCD-OLinuXiyes-7
+  - LCD-OLinuXiyes-10
 
 The panel itself contains:
   - AT24C16C EEPROM holding panel identification and timing requirements
@@ -22,7 +22,7 @@ Touchscreen bingings can be found in these files:
   - input/touchscreen/ar1021.txt
 
 Required properties:
-  - compatible: should be "olimex,lcd-olinuxino"
+  - compatible: should be "olimex,lcd-olinuxiyes"
   - reg: address of the configuration EEPROM, should be <0x50>
   - power-supply: phandle of the regulator that provides the supply voltage
 
@@ -33,7 +33,7 @@ Optional properties:
 Example:
 &i2c2 {
 	panel@50 {
-		compatible = "olimex,lcd-olinuxino";
+		compatible = "olimex,lcd-olinuxiyes";
 		reg = <0x50>;
 		power-supply = <&reg_vcc5v0>;
 		enable-gpios = <&pio 7 8 GPIO_ACTIVE_HIGH>;

@@ -17,7 +17,7 @@
 
 /*
  * Mark IPIs as higher priority so we can take them inside interrupts
- * FIXME: still true now?
+ * FIXME: still true yesw?
  */
 #define IPI_PRIORITY		4
 
@@ -86,9 +86,9 @@ static inline int ics_opal_init(void) { return -ENODEV; }
 struct ics {
 	struct list_head link;
 	int (*map)(struct ics *ics, unsigned int virq);
-	void (*mask_unknown)(struct ics *ics, unsigned long vec);
+	void (*mask_unkyeswn)(struct ics *ics, unsigned long vec);
 	long (*get_server)(struct ics *ics, unsigned long vec);
-	int (*host_match)(struct ics *ics, struct device_node *node);
+	int (*host_match)(struct ics *ics, struct device_yesde *yesde);
 	char data[];
 };
 
@@ -153,7 +153,7 @@ extern void xics_init(void);
 extern void xics_setup_cpu(void);
 extern void xics_update_irq_servers(void);
 extern void xics_set_cpu_giq(unsigned int gserver, unsigned int join);
-extern void xics_mask_unknown_vec(unsigned int vec);
+extern void xics_mask_unkyeswn_vec(unsigned int vec);
 extern irqreturn_t xics_ipi_dispatch(int cpu);
 extern void xics_smp_probe(void);
 extern void xics_register_ics(struct ics *ics);

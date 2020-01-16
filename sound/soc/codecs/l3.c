@@ -40,7 +40,7 @@ static void sendbyte(struct l3_pins *adap, unsigned int byte)
 
 /*
  * Send a set of bytes to the chip.  We need to pulse the MODE line
- * between each byte, but never at the start nor at the end of the
+ * between each byte, but never at the start yesr at the end of the
  * transfer.
  */
 static void sendbytes(struct l3_pins *adap, const u8 *buf,

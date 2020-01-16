@@ -24,7 +24,7 @@
 #include "ocxl_hw.h"
 
 /*
- * Pseudo-filesystem to allocate inodes.
+ * Pseudo-filesystem to allocate iyesdes.
  */
 
 #define OCXLFLASH_FS_MAGIC      0x1697698f
@@ -41,7 +41,7 @@ static struct file_system_type ocxlflash_fs_type = {
 	.name		= "ocxlflash",
 	.owner		= THIS_MODULE,
 	.init_fs_context = ocxlflash_fs_init_fs_context,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= kill_ayesn_super,
 };
 
 /*
@@ -56,7 +56,7 @@ static void ocxlflash_release_mapping(struct ocxlflash_context *ctx)
 }
 
 /*
- * ocxlflash_getfile() - allocate pseudo filesystem, inode, and the file
+ * ocxlflash_getfile() - allocate pseudo filesystem, iyesde, and the file
  * @dev:	Generic device of the host.
  * @name:	Name of the pseudo filesystem.
  * @fops:	File operations.
@@ -70,11 +70,11 @@ static struct file *ocxlflash_getfile(struct device *dev, const char *name,
 				      void *priv, int flags)
 {
 	struct file *file;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int rc;
 
 	if (fops->owner && !try_module_get(fops->owner)) {
-		dev_err(dev, "%s: Owner does not exist\n", __func__);
+		dev_err(dev, "%s: Owner does yest exist\n", __func__);
 		rc = -ENOENT;
 		goto err1;
 	}
@@ -82,20 +82,20 @@ static struct file *ocxlflash_getfile(struct device *dev, const char *name,
 	rc = simple_pin_fs(&ocxlflash_fs_type, &ocxlflash_vfs_mount,
 			   &ocxlflash_fs_cnt);
 	if (unlikely(rc < 0)) {
-		dev_err(dev, "%s: Cannot mount ocxlflash pseudofs rc=%d\n",
+		dev_err(dev, "%s: Canyest mount ocxlflash pseudofs rc=%d\n",
 			__func__, rc);
 		goto err2;
 	}
 
-	inode = alloc_anon_inode(ocxlflash_vfs_mount->mnt_sb);
-	if (IS_ERR(inode)) {
-		rc = PTR_ERR(inode);
-		dev_err(dev, "%s: alloc_anon_inode failed rc=%d\n",
+	iyesde = alloc_ayesn_iyesde(ocxlflash_vfs_mount->mnt_sb);
+	if (IS_ERR(iyesde)) {
+		rc = PTR_ERR(iyesde);
+		dev_err(dev, "%s: alloc_ayesn_iyesde failed rc=%d\n",
 			__func__, rc);
 		goto err3;
 	}
 
-	file = alloc_file_pseudo(inode, ocxlflash_vfs_mount, name,
+	file = alloc_file_pseudo(iyesde, ocxlflash_vfs_mount, name,
 				 flags & (O_ACCMODE | O_NONBLOCK), fops);
 	if (IS_ERR(file)) {
 		rc = PTR_ERR(file);
@@ -108,7 +108,7 @@ static struct file *ocxlflash_getfile(struct device *dev, const char *name,
 out:
 	return file;
 err4:
-	iput(inode);
+	iput(iyesde);
 err3:
 	simple_release_fs(&ocxlflash_vfs_mount, &ocxlflash_fs_cnt);
 err2:
@@ -131,7 +131,7 @@ static void __iomem *ocxlflash_psa_map(void *ctx_cookie)
 
 	mutex_lock(&ctx->state_mutex);
 	if (ctx->state != STARTED) {
-		dev_err(dev, "%s: Context not started, state=%d\n", __func__,
+		dev_err(dev, "%s: Context yest started, state=%d\n", __func__,
 			ctx->state);
 		mutex_unlock(&ctx->state_mutex);
 		return NULL;
@@ -172,7 +172,7 @@ static int ocxlflash_process_element(void *ctx_cookie)
  * @cookie:	Interrupt handler private data.
  * @name:	Name of the interrupt.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int afu_map_irq(u64 flags, struct ocxlflash_context *ctx, int num,
 		       irq_handler_t handler, void *cookie, char *name)
@@ -185,7 +185,7 @@ static int afu_map_irq(u64 flags, struct ocxlflash_context *ctx, int num,
 	int rc = 0;
 
 	if (num < 0 || num >= ctx->num_irqs) {
-		dev_err(dev, "%s: Interrupt %d not allocated\n", __func__, num);
+		dev_err(dev, "%s: Interrupt %d yest allocated\n", __func__, num);
 		rc = -ENOENT;
 		goto out;
 	}
@@ -230,7 +230,7 @@ err1:
  * @cookie:	Interrupt handler private data.
  * @name:	Name of the interrupt.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int ocxlflash_map_afu_irq(void *ctx_cookie, int num,
 				 irq_handler_t handler, void *cookie,
@@ -254,7 +254,7 @@ static void afu_unmap_irq(u64 flags, struct ocxlflash_context *ctx, int num,
 	struct ocxlflash_irqs *irq;
 
 	if (num < 0 || num >= ctx->num_irqs) {
-		dev_err(dev, "%s: Interrupt %d not allocated\n", __func__, num);
+		dev_err(dev, "%s: Interrupt %d yest allocated\n", __func__, num);
 		return;
 	}
 
@@ -323,7 +323,7 @@ static void ocxlflash_xsl_fault(void *data, u64 addr, u64 dsisr)
  *
  * Assign the context specific MMIO space, add and enable the PE.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int start_context(struct ocxlflash_context *ctx)
 {
@@ -352,7 +352,7 @@ static int start_context(struct ocxlflash_context *ctx)
 		ctx->psn_phys = afu->ppmmio_phys + (ctx->pe * ctx->psn_size);
 	}
 
-	/* pid and mm not set for master contexts */
+	/* pid and mm yest set for master contexts */
 	if (master) {
 		pid = 0;
 		mm = NULL;
@@ -379,7 +379,7 @@ out:
  * ocxlflash_start_context() - start a kernel context
  * @ctx_cookie:	Adapter context to be started.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int ocxlflash_start_context(void *ctx_cookie)
 {
@@ -392,7 +392,7 @@ static int ocxlflash_start_context(void *ctx_cookie)
  * ocxlflash_stop_context() - stop a context
  * @ctx_cookie:	Adapter context to be stopped.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int ocxlflash_stop_context(void *ctx_cookie)
 {
@@ -441,7 +441,7 @@ static int ocxlflash_afu_reset(void *ctx_cookie)
 	struct device *dev = ctx->hw_afu->dev;
 
 	/* Pending implementation from OCXL transport services */
-	dev_err_once(dev, "%s: afu_reset() fop not supported\n", __func__);
+	dev_err_once(dev, "%s: afu_reset() fop yest supported\n", __func__);
 
 	/* Silently return success until it is implemented */
 	return 0;
@@ -526,7 +526,7 @@ err1:
  * ocxlflash_release_context() - releases an adapter context
  * @ctx_cookie:	Adapter context to be released.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int ocxlflash_release_context(void *ctx_cookie)
 {
@@ -573,7 +573,7 @@ static void ocxlflash_perst_reloads_same_image(void *afu_cookie, bool image)
  * @buf:	Buffer to get the VPD data.
  * @count:	Size of buffer (maximum bytes that can be read).
  *
- * Return: size of VPD on success, -errno on failure
+ * Return: size of VPD on success, -erryes on failure
  */
 static ssize_t ocxlflash_read_adapter_vpd(struct pci_dev *pdev, void *buf,
 					  size_t count)
@@ -592,7 +592,7 @@ static void free_afu_irqs(struct ocxlflash_context *ctx)
 	int i;
 
 	if (!ctx->irqs) {
-		dev_err(dev, "%s: Interrupts not allocated\n", __func__);
+		dev_err(dev, "%s: Interrupts yest allocated\n", __func__);
 		return;
 	}
 
@@ -608,7 +608,7 @@ static void free_afu_irqs(struct ocxlflash_context *ctx)
  * @ctx:	Context associated with the request.
  * @num:	Number of interrupts requested.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int alloc_afu_irqs(struct ocxlflash_context *ctx, int num)
 {
@@ -667,7 +667,7 @@ err:
  * @ctx_cookie:	Context associated with the request.
  * @num:	Number of interrupts requested.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int ocxlflash_allocate_afu_irqs(void *ctx_cookie, int num)
 {
@@ -723,7 +723,7 @@ static void ocxlflash_destroy_afu(void *afu_cookie)
  * @pdev:	PCI device associated with the host.
  * @afu:	AFU associated with the host.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int ocxlflash_config_fn(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 {
@@ -796,7 +796,7 @@ static void ocxlflash_unconfig_fn(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
  * ocxlflash_map_mmio() - map the AFU MMIO space
  * @afu: AFU associated with the host.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int ocxlflash_map_mmio(struct ocxl_hw_afu *afu)
 {
@@ -849,7 +849,7 @@ err1:
  *
  * Must be called _after_ host function configuration.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int ocxlflash_config_afu(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 {
@@ -861,7 +861,7 @@ static int ocxlflash_config_afu(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 	int pos;
 	int rc = 0;
 
-	/* This HW AFU function does not have any AFUs defined */
+	/* This HW AFU function does yest have any AFUs defined */
 	if (!afu->is_present)
 		goto out;
 
@@ -962,7 +962,7 @@ err1:
  * ctx_event_pending() - check for any event pending on the context
  * @ctx:	Context to be checked.
  *
- * Return: true if there is an event pending, false if none pending
+ * Return: true if there is an event pending, false if yesne pending
  */
 static inline bool ctx_event_pending(struct ocxlflash_context *ctx)
 {
@@ -1008,7 +1008,7 @@ static unsigned int afu_poll(struct file *file, struct poll_table_struct *poll)
  * @count:	Size of buffer (maximum bytes that can be read).
  * @off:	Offset.
  *
- * Return: size of the data read on success, -errno on failure
+ * Return: size of the data read on success, -erryes on failure
  */
 static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 			loff_t *off)
@@ -1023,7 +1023,7 @@ static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 	DEFINE_WAIT(event_wait);
 
 	if (*off != 0) {
-		dev_err(dev, "%s: Non-zero offset not supported, off=%lld\n",
+		dev_err(dev, "%s: Non-zero offset yest supported, off=%lld\n",
 			__func__, *off);
 		rc = -EINVAL;
 		goto out;
@@ -1038,7 +1038,7 @@ static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 			break;
 
 		if (file->f_flags & O_NONBLOCK) {
-			dev_err(dev, "%s: File cannot be blocked on I/O\n",
+			dev_err(dev, "%s: File canyest be blocked on I/O\n",
 				__func__);
 			rc = -EAGAIN;
 			goto err;
@@ -1098,12 +1098,12 @@ err:
 
 /**
  * afu_release() - release and free the context
- * @inode:	File inode pointer.
+ * @iyesde:	File iyesde pointer.
  * @file:	File associated with the context.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
-static int afu_release(struct inode *inode, struct file *file)
+static int afu_release(struct iyesde *iyesde, struct file *file)
 {
 	struct ocxlflash_context *ctx = file->private_data;
 	int i;
@@ -1120,7 +1120,7 @@ static int afu_release(struct inode *inode, struct file *file)
  * ocxlflash_mmap_fault() - mmap fault handler
  * @vmf:	VM fault associated with current fault.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static vm_fault_t ocxlflash_mmap_fault(struct vm_fault *vmf)
 {
@@ -1135,7 +1135,7 @@ static vm_fault_t ocxlflash_mmap_fault(struct vm_fault *vmf)
 
 	mutex_lock(&ctx->state_mutex);
 	if (ctx->state != STARTED) {
-		dev_err(dev, "%s: Context not started, state=%d\n",
+		dev_err(dev, "%s: Context yest started, state=%d\n",
 			__func__, ctx->state);
 		mutex_unlock(&ctx->state_mutex);
 		return VM_FAULT_SIGBUS;
@@ -1157,7 +1157,7 @@ static const struct vm_operations_struct ocxlflash_vmops = {
  * @file:	File associated with the context.
  * @vma:	VM area associated with mapping.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int afu_mmap(struct file *file, struct vm_area_struct *vma)
 {
@@ -1168,7 +1168,7 @@ static int afu_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	vma->vm_ops = &ocxlflash_vmops;
 	return 0;
 }
@@ -1212,7 +1212,7 @@ static struct file *ocxlflash_get_fd(void *ctx_cookie,
 
 	flags = O_RDWR | O_CLOEXEC;
 
-	/* This code is similar to anon_inode_getfd() */
+	/* This code is similar to ayesn_iyesde_getfd() */
 	rc = get_unused_fd_flags(flags);
 	if (unlikely(rc < 0)) {
 		dev_err(dev, "%s: get_unused_fd_flags failed rc=%d\n",
@@ -1221,7 +1221,7 @@ static struct file *ocxlflash_get_fd(void *ctx_cookie,
 	}
 	fdtmp = rc;
 
-	/* Patch the file ops that are not defined */
+	/* Patch the file ops that are yest defined */
 	if (fops) {
 		PATCH_FOPS(poll);
 		PATCH_FOPS(read);
@@ -1302,7 +1302,7 @@ out:
  * @ctx_cookie:	Context to be started.
  * @num_irqs:	Number of interrupts requested.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int ocxlflash_start_work(void *ctx_cookie, u64 num_irqs)
 {
@@ -1350,7 +1350,7 @@ err:
  * @file:	File installed with adapter file descriptor.
  * @vma:	VM area associated with mapping.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int ocxlflash_fd_mmap(struct file *file, struct vm_area_struct *vma)
 {
@@ -1359,14 +1359,14 @@ static int ocxlflash_fd_mmap(struct file *file, struct vm_area_struct *vma)
 
 /**
  * ocxlflash_fd_release() - release the context associated with the file
- * @inode:	File inode pointer.
+ * @iyesde:	File iyesde pointer.
  * @file:	File associated with the adapter context.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
-static int ocxlflash_fd_release(struct inode *inode, struct file *file)
+static int ocxlflash_fd_release(struct iyesde *iyesde, struct file *file)
 {
-	return afu_release(inode, file);
+	return afu_release(iyesde, file);
 }
 
 /* Backend ops to ocxlflash services */

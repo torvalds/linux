@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -628,7 +628,7 @@ u32 intel_hdmi_infoframes_enabled(struct intel_encoder *encoder,
  * The data we write to the DIP data buffer registers is 1 byte bigger than the
  * HDMI infoframe size because of an ECC/reserved byte at position 3 (starting
  * at 0). It's also a byte used by DisplayPort so the same DIP registers can be
- * used for both technologies.
+ * used for both techyeslogies.
  *
  * DW0: Reserved/ECC/DP | HB2 | HB1 | HB0
  * DW1:       DB3       | DB2 | DB1 | DB0
@@ -637,7 +637,7 @@ u32 intel_hdmi_infoframes_enabled(struct intel_encoder *encoder,
  *
  * (HB is Header Byte, DB is Data Byte)
  *
- * The hdmi pack() functions don't know about that hardware specific hole so we
+ * The hdmi pack() functions don't kyesw about that hardware specific hole so we
  * trick them by giving an offset into the buffer and moving back the header
  * bytes by one.
  */
@@ -732,7 +732,7 @@ intel_hdmi_compute_avi_infoframe(struct intel_encoder *encoder,
 
 	drm_hdmi_avi_infoframe_colorspace(frame, conn_state);
 
-	/* nonsense combination */
+	/* yesnsense combination */
 	WARN_ON(crtc_state->limited_color_range &&
 		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
 
@@ -863,14 +863,14 @@ static void g4x_set_infoframes(struct intel_encoder *encoder,
 
 	assert_hdmi_port_disabled(intel_hdmi);
 
-	/* If the registers were not initialized yet, they might be zeroes,
+	/* If the registers were yest initialized yet, they might be zeroes,
 	 * which means we're selecting the AVI DIP and we're setting its
 	 * frequency to once. This seems to really confuse the HW and make
 	 * things stop working (the register spec says the AVI always needs to
 	 * be sent every VSync). So here we avoid writing to the register more
 	 * than we need and also explicitly select the AVI DIP and explicitly
 	 * set its frequency to every VSync. Avoiding to write it twice seems to
-	 * be enough to solve the problem, but being defensive shouldn't hurt us
+	 * be eyesugh to solve the problem, but being defensive shouldn't hurt us
 	 * either. */
 	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
 
@@ -946,7 +946,7 @@ static bool gcp_default_phase_possible(int pipe_bpp,
 		pixels_per_group = 1;
 		break;
 	default:
-		/* phase information not relevant for 8bpc */
+		/* phase information yest relevant for 8bpc */
 		return false;
 	}
 
@@ -1919,7 +1919,7 @@ static void ibx_enable_hdmi(struct intel_encoder *encoder,
 	 * for 12bpc with pixel repeat.
 	 *
 	 * FIXME: BSpec says this should be done at the end of
-	 * of the modeset sequence, so not sure if this isn't too soon.
+	 * of the modeset sequence, so yest sure if this isn't too soon.
 	 */
 	if (pipe_config->pipe_bpp > 24 &&
 	    pipe_config->pixel_multiplier > 1) {
@@ -2232,7 +2232,7 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 
 	/*
 	 * HDMI deep color affects the clocks, so it's only possible
-	 * when not cloning with other encoder types.
+	 * when yest cloning with other encoder types.
 	 */
 	if (crtc_state->output_types != 1 << INTEL_OUTPUT_HDMI)
 		return false;
@@ -2518,20 +2518,20 @@ intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector, bool has_edid)
 	enum drm_dp_dual_mode_type type = drm_dp_dual_mode_detect(adapter);
 
 	/*
-	 * Type 1 DVI adaptors are not required to implement any
+	 * Type 1 DVI adaptors are yest required to implement any
 	 * registers, so we can't always detect their presence.
 	 * Ideally we should be able to check the state of the
-	 * CONFIG1 pin, but no such luck on our hardware.
+	 * CONFIG1 pin, but yes such luck on our hardware.
 	 *
 	 * The only method left to us is to check the VBT to see
 	 * if the port is a dual mode capable DP port. But let's
 	 * only do that when we sucesfully read the EDID, to avoid
 	 * confusing log messages about DP dual mode adaptors when
-	 * there's nothing connected to the port.
+	 * there's yesthing connected to the port.
 	 */
 	if (type == DRM_DP_DUAL_MODE_UNKNOWN) {
 		/* An overridden EDID imply that we want this port for testing.
-		 * Make sure not to set limits for that port.
+		 * Make sure yest to set limits for that port.
 		 */
 		if (has_edid && !connector->override_edid &&
 		    intel_bios_is_port_dp_dual_mode(dev_priv, port)) {
@@ -2589,7 +2589,7 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 		connected = true;
 	}
 
-	cec_notifier_set_phys_addr_from_edid(intel_hdmi->cec_notifier, edid);
+	cec_yestifier_set_phys_addr_from_edid(intel_hdmi->cec_yestifier, edid);
 
 	return connected;
 }
@@ -2621,7 +2621,7 @@ out:
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS, wakeref);
 
 	if (status != connector_status_connected)
-		cec_notifier_phys_addr_invalidate(intel_hdmi->cec_notifier);
+		cec_yestifier_phys_addr_invalidate(intel_hdmi->cec_yestifier);
 
 	/*
 	 * Make sure the refs for power wells enabled during detect are
@@ -2763,7 +2763,7 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder,
 
 	vlv_wait_port_ready(dev_priv, dport, 0x0);
 
-	/* Second common lane will stay alive on its own now */
+	/* Second common lane will stay alive on its own yesw */
 	chv_phy_release_cl2_override(encoder);
 }
 
@@ -2815,9 +2815,9 @@ intel_hdmi_connector_register(struct drm_connector *connector)
 
 static void intel_hdmi_destroy(struct drm_connector *connector)
 {
-	struct cec_notifier *n = intel_attached_hdmi(connector)->cec_notifier;
+	struct cec_yestifier *n = intel_attached_hdmi(connector)->cec_yestifier;
 
-	cec_notifier_conn_unregister(n);
+	cec_yestifier_conn_unregister(n);
 
 	intel_connector_destroy(connector);
 }
@@ -2917,7 +2917,7 @@ bool intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] scrambling=%s, TMDS bit clock ratio=1/%d\n",
 		      connector->base.id, connector->name,
-		      yesno(scrambling), high_tmds_clock_ratio ? 40 : 10);
+		      noyes(scrambling), high_tmds_clock_ratio ? 40 : 10);
 
 	/* Set TMDS bit clock ratio to 1/40 or 1/10, and enable/disable scrambling */
 	return drm_scdc_set_high_tmds_clock_ratio(adapter,
@@ -3001,7 +3001,7 @@ static u8 icl_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
 	else if (intel_phy_is_tc(dev_priv, phy))
 		return GMBUS_PIN_9_TC1_ICP + intel_port_to_tc(dev_priv, port);
 
-	WARN(1, "Unknown port:%c\n", port_name(port));
+	WARN(1, "Unkyeswn port:%c\n", port_name(port));
 	return GMBUS_PIN_2_BXT;
 }
 
@@ -3138,7 +3138,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		      intel_encoder->base.base.id, intel_encoder->base.name);
 
 	if (WARN(intel_dig_port->max_lanes < 4,
-		 "Not enough lanes (%d) for HDMI on [ENCODER:%d:%s]\n",
+		 "Not eyesugh lanes (%d) for HDMI on [ENCODER:%d:%s]\n",
 		 intel_dig_port->max_lanes, intel_encoder->base.base.id,
 		 intel_encoder->base.name))
 		return;
@@ -3179,7 +3179,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
 	 * 0xd.  Failure to do so will result in spurious interrupts being
-	 * generated on the port when a cable is not attached.
+	 * generated on the port when a cable is yest attached.
 	 */
 	if (IS_G45(dev_priv)) {
 		u32 temp = I915_READ(PEG_BAND_GAP_DATA);
@@ -3188,11 +3188,11 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	cec_fill_conn_info_from_drm(&conn_info, connector);
 
-	intel_hdmi->cec_notifier =
-		cec_notifier_conn_register(dev->dev, port_identifier(port),
+	intel_hdmi->cec_yestifier =
+		cec_yestifier_conn_register(dev->dev, port_identifier(port),
 					   &conn_info);
-	if (!intel_hdmi->cec_notifier)
-		DRM_DEBUG_KMS("CEC notifier get failed\n");
+	if (!intel_hdmi->cec_yestifier)
+		DRM_DEBUG_KMS("CEC yestifier get failed\n");
 }
 
 static enum intel_hotplug_state
@@ -3204,14 +3204,14 @@ intel_hdmi_hotplug(struct intel_encoder *encoder,
 	state = intel_encoder_hotplug(encoder, connector, irq_received);
 
 	/*
-	 * On many platforms the HDMI live state signal is known to be
+	 * On many platforms the HDMI live state signal is kyeswn to be
 	 * unreliable, so we can't use it to detect if a sink is connected or
-	 * not. Instead we detect if it's connected based on whether we can
-	 * read the EDID or not. That in turn has a problem during disconnect,
+	 * yest. Instead we detect if it's connected based on whether we can
+	 * read the EDID or yest. That in turn has a problem during disconnect,
 	 * since the HPD interrupt may be raised before the DDC lines get
 	 * disconnected (due to how the required length of DDC vs. HPD
 	 * connector pins are specified) and so we'll still be able to get a
-	 * valid EDID. To solve this schedule another detection cycle if this
+	 * valid EDID. To solve this schedule ayesther detection cycle if this
 	 * time around we didn't detect any change in the sink's connection
 	 * status.
 	 */
@@ -3290,7 +3290,7 @@ void intel_hdmi_init(struct drm_i915_private *dev_priv,
 	/*
 	 * BSpec is unclear about HDMI+HDMI cloning on g4x, but it seems
 	 * to work on real hardware. And since g4x can send infoframes to
-	 * only one port anyway, nothing is lost by allowing it.
+	 * only one port anyway, yesthing is lost by allowing it.
 	 */
 	if (IS_G4X(dev_priv))
 		intel_encoder->cloneable |= 1 << INTEL_OUTPUT_HDMI;

@@ -19,22 +19,22 @@
 	.align	11
 
 ENTRY(__kvm_hyp_init)
-	ventry	__invalid		// Synchronous EL2t
+	ventry	__invalid		// Synchroyesus EL2t
 	ventry	__invalid		// IRQ EL2t
 	ventry	__invalid		// FIQ EL2t
 	ventry	__invalid		// Error EL2t
 
-	ventry	__invalid		// Synchronous EL2h
+	ventry	__invalid		// Synchroyesus EL2h
 	ventry	__invalid		// IRQ EL2h
 	ventry	__invalid		// FIQ EL2h
 	ventry	__invalid		// Error EL2h
 
-	ventry	__do_hyp_init		// Synchronous 64-bit EL1
+	ventry	__do_hyp_init		// Synchroyesus 64-bit EL1
 	ventry	__invalid		// IRQ 64-bit EL1
 	ventry	__invalid		// FIQ 64-bit EL1
 	ventry	__invalid		// Error 64-bit EL1
 
-	ventry	__invalid		// Synchronous 32-bit EL1
+	ventry	__invalid		// Synchroyesus 32-bit EL1
 	ventry	__invalid		// IRQ 32-bit EL1
 	ventry	__invalid		// FIQ 32-bit EL1
 	ventry	__invalid		// Error 32-bit EL1
@@ -56,7 +56,7 @@ __do_hyp_init:
 	phys_to_ttbr x4, x0
 alternative_if ARM64_HAS_CNP
 	orr	x4, x4, #TTBR_CNP_BIT
-alternative_else_nop_endif
+alternative_else_yesp_endif
 	msr	ttbr0_el2, x4
 
 	mrs	x4, tcr_el1
@@ -138,7 +138,7 @@ ENTRY(__kvm_handle_stub_hvc)
 	b.ne	1f
 reset:
 	/*
-	 * Reset kvm back to the hyp stub. Do not clobber x0-x4 in
+	 * Reset kvm back to the hyp stub. Do yest clobber x0-x4 in
 	 * case we coming via HVC_SOFT_RESTART.
 	 */
 	mrs	x5, sctlr_el2

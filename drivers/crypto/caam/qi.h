@@ -29,7 +29,7 @@ struct caam_drv_req;
  * caam_qi_cbk - application's callback function invoked by the driver when the
  *               request has been successfully processed.
  * @drv_req: original request that was submitted
- * @status: completion status of request (0 - success, non-zero - error code)
+ * @status: completion status of request (0 - success, yesn-zero - error code)
  */
 typedef void (*caam_qi_cbk)(struct caam_drv_req *drv_req, u32 status);
 
@@ -75,7 +75,7 @@ struct caam_drv_ctx {
  * @cbk: callback function to invoke when job is completed
  * @app_ctx: arbitrary context attached with request by the application
  *
- * The fields mentioned below should not be used by application.
+ * The fields mentioned below should yest be used by application.
  * These are for private use by driver.
  *
  * @hdr__: linked list header to maintain list of outstanding requests to CAAM
@@ -165,7 +165,7 @@ void *qi_cache_alloc(gfp_t flags);
 /**
  * qi_cache_free - Frees buffers allocated from CAAM-QI cache
  *
- * Invoked when a user of the CAAM-QI (i.e. caamalg-qi) no longer needs
+ * Invoked when a user of the CAAM-QI (i.e. caamalg-qi) yes longer needs
  * the buffer previously allocated by a qi_cache_alloc call.
  * No checking is being done, the call is a passthrough call to
  * kmem_cache_free(...)

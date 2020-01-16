@@ -4,23 +4,23 @@
  * 21264 version contributed by Rick Gorton <rick.gorton@alpha-processor.com>
  *
  * Return the address of a given character within a null-terminated
- * string, or null if it is not found.
+ * string, or null if it is yest found.
  *
  * Much of the information about 21264 scheduling/coding comes from:
  *	Compiler Writer's Guide for the Alpha 21264
  *	abbreviated as 'CWG' in other comments here
  *	ftp.digital.com/pub/Digital/info/semiconductor/literature/dsc-library.html
- * Scheduling notation:
+ * Scheduling yestation:
  *	E	- either cluster
  *	U	- upper subcluster; U0 - subcluster U0; U1 - subcluster U1
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
- * Try not to change the actual algorithm if possible for consistency.
+ * Try yest to change the actual algorithm if possible for consistency.
  */
 #include <asm/export.h>
 #include <asm/regdef.h>
 
-	.set noreorder
-	.set noat
+	.set yesreorder
+	.set yesat
 
 	.align 4
 	.globl strchr
@@ -36,7 +36,7 @@ strchr:
 
 	insbl	t3, 6, a3	# U : 00ch000000000000
 	or	t5, t3, a1	# E : 000000000000chch
-	andnot  a0, 7, v0	# E : align our loop pointer
+	andyest  a0, 7, v0	# E : align our loop pointer
 	lda	t4, -1		# E : build garbage mask
 
 	mskqh	t4, a0, t4	# U : only want relevant part of first quad
@@ -55,9 +55,9 @@ strchr:
 	cmpbge  zero, t1, t3	# E : bits set iff byte == c
 	or	t2, t3, t0	# E : bits set iff char match or zero match
 
-	andnot	t0, t4, t0	# E : clear garbage bits
+	andyest	t0, t4, t0	# E : clear garbage bits
 	cttz	t0, a2		# U0 : speculative (in case we get a match)
-	nop			# E :
+	yesp			# E :
 	bne	t0, $found	# U :
 
 	/*
@@ -82,8 +82,8 @@ $found:	negq    t0, t1		# E : clear all but least set bit
 	addq	v0, a2, v0	# E : Add in the bit number from above
 
 	cmoveq	t1, $31, v0	# E : Two mapping slots, latency = 2
-	nop
-	nop
+	yesp
+	yesp
 	ret			# L0 :
 
 	.end strchr

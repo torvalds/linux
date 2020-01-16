@@ -474,7 +474,7 @@ struct tb10x_port {
  * @pinfuncnt: number of pin functions in @pinfuncs.
  * @mutex: mutex for exclusive access to a pin controller's state.
  * @ports: current state of each port.
- * @gpios: Indicates if a given pin is currently used as GPIO (1) or not (0).
+ * @gpios: Indicates if a given pin is currently used as GPIO (1) or yest (0).
  * @pinfuncs: flexible array of pin functions this driver manages.
  */
 struct tb10x_pinctrl {
@@ -536,8 +536,8 @@ static int tb10x_get_group_pins(struct pinctrl_dev *pctl, unsigned n,
 	return 0;
 }
 
-static int tb10x_dt_node_to_map(struct pinctrl_dev *pctl,
-				struct device_node *np_config,
+static int tb10x_dt_yesde_to_map(struct pinctrl_dev *pctl,
+				struct device_yesde *np_config,
 				struct pinctrl_map **map, unsigned *num_maps)
 {
 	const char *string;
@@ -569,7 +569,7 @@ static const struct pinctrl_ops tb10x_pinctrl_ops = {
 	.get_groups_count = tb10x_get_groups_count,
 	.get_group_name   = tb10x_get_group_name,
 	.get_group_pins   = tb10x_get_group_pins,
-	.dt_node_to_map   = tb10x_dt_node_to_map,
+	.dt_yesde_to_map   = tb10x_dt_yesde_to_map,
 	.dt_free_map      = pinctrl_utils_free_map,
 };
 
@@ -651,10 +651,10 @@ static int tb10x_gpio_request_enable(struct pinctrl_dev *pctl,
 	}
 
 	/*
-	 * If we haven't returned an error at this point, the GPIO pin is not
-	 * used by another function and the GPIO request can be granted:
+	 * If we haven't returned an error at this point, the GPIO pin is yest
+	 * used by ayesther function and the GPIO request can be granted:
 	 * Register pin as being used as GPIO so we don't allocate it to
-	 * another function later.
+	 * ayesther function later.
 	 */
 	set_bit(pin, state->gpios);
 
@@ -662,7 +662,7 @@ static int tb10x_gpio_request_enable(struct pinctrl_dev *pctl,
 	 * Potential conflicts between GPIOs and pin functions were caught
 	 * earlier in this function and tb10x_pinctrl_set_config will do the
 	 * Right Thing, either configure the port in GPIO only mode or leave
-	 * another mode compatible with this GPIO request untouched.
+	 * ayesther mode compatible with this GPIO request untouched.
 	 */
 	if (muxport >= 0)
 		tb10x_pinctrl_set_config(state, muxport, muxmode);
@@ -748,18 +748,18 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 {
 	int ret = -EINVAL;
 	struct device *dev = &pdev->dev;
-	struct device_node *of_node = dev->of_node;
-	struct device_node *child;
+	struct device_yesde *of_yesde = dev->of_yesde;
+	struct device_yesde *child;
 	struct tb10x_pinctrl *state;
 	int i;
 
-	if (!of_node) {
-		dev_err(dev, "No device tree node found.\n");
+	if (!of_yesde) {
+		dev_err(dev, "No device tree yesde found.\n");
 		return -EINVAL;
 	}
 
 	state = devm_kzalloc(dev, struct_size(state, pinfuncs,
-					      of_get_child_count(of_node)),
+					      of_get_child_count(of_yesde)),
 			     GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
@@ -779,7 +779,7 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 	for (i = 0; i < TB10X_PORTS; i++)
 		state->ports[i].mode = tb10x_pinctrl_get_config(state, i);
 
-	for_each_child_of_node(of_node, child) {
+	for_each_child_of_yesde(of_yesde, child) {
 		const char *name;
 
 		if (!of_property_read_string(child, "abilis,function",
@@ -792,7 +792,7 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 
 	state->pctl = devm_pinctrl_register(dev, &tb10x_pindesc, state);
 	if (IS_ERR(state->pctl)) {
-		dev_err(dev, "could not register TB10x pin driver\n");
+		dev_err(dev, "could yest register TB10x pin driver\n");
 		ret = PTR_ERR(state->pctl);
 		goto fail;
 	}

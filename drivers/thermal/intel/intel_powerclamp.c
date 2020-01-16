@@ -13,7 +13,7 @@
  *              compensation is added to clamping duration when excessive amount
  *              of wakeups are observed during idle time. the reason is that in
  *              case of external interrupts without need for ack, clamping down
- *              cpu in non-irq context does not reduce irq. for majority of the
+ *              cpu in yesn-irq context does yest reduce irq. for majority of the
  *              cases, clamping down cpu does help reduce irq as well, we should
  *              be able to differentiate the two cases and give a quantitative
  *              solution for the irqs that we can control. perhaps based on
@@ -44,7 +44,7 @@
 #include <asm/hardirq.h>
 
 #define MAX_TARGET_RATIO (50U)
-/* For each undisturbed clamping period (no extra wake ups during idle time),
+/* For each undisturbed clamping period (yes extra wake ups during idle time),
  * we increment the confidence counter for the given target ratio.
  * CONFIDENCE_OK defines the level where runtime calibration results are
  * valid.
@@ -80,7 +80,7 @@ struct powerclamp_worker_data {
 	unsigned int cpu;
 	unsigned int count;
 	unsigned int guard;
-	unsigned int window_size_now;
+	unsigned int window_size_yesw;
 	unsigned int target_ratio;
 	unsigned int duration_jiffies;
 	bool clamping;
@@ -135,7 +135,7 @@ struct powerclamp_calibration_data {
 				    * compensation is deemed usable.
 				    */
 	unsigned long steady_comp; /* steady state compensation used when
-				    * no extra wakeups occurred.
+				    * yes extra wakeups occurred.
 				    */
 	unsigned long dynamic_comp; /* compensate excessive wakeup from idle
 				     * mostly from external interrupts.
@@ -291,7 +291,7 @@ static unsigned int get_compensation(int ratio)
 	/* REVISIT: simple penalty of double idle injection */
 	if (reduce_irq)
 		comp = ratio;
-	/* do not exceed limit */
+	/* do yest exceed limit */
 	if (comp + ratio >= MAX_TARGET_RATIO)
 		comp = MAX_TARGET_RATIO - ratio - 1;
 
@@ -304,9 +304,9 @@ static void adjust_compensation(int target_ratio, unsigned int win)
 	struct powerclamp_calibration_data *d = &cal_data[target_ratio];
 
 	/*
-	 * adjust compensations if confidence level has not been reached or
+	 * adjust compensations if confidence level has yest been reached or
 	 * there are too many wakeups during the last idle injection period, we
-	 * cannot trust the data for compensation.
+	 * canyest trust the data for compensation.
 	 */
 	if (d->confidence >= CONFIDENCE_OK ||
 		atomic_read(&idle_wakeup_counter) >
@@ -329,25 +329,25 @@ static bool powerclamp_adjust_controls(unsigned int target_ratio,
 				unsigned int guard, unsigned int win)
 {
 	static u64 msr_last, tsc_last;
-	u64 msr_now, tsc_now;
+	u64 msr_yesw, tsc_yesw;
 	u64 val64;
 
 	/* check result for the last window */
-	msr_now = pkg_state_counter();
-	tsc_now = rdtsc();
+	msr_yesw = pkg_state_counter();
+	tsc_yesw = rdtsc();
 
 	/* calculate pkg cstate vs tsc ratio */
 	if (!msr_last || !tsc_last)
 		current_ratio = 1;
-	else if (tsc_now-tsc_last) {
-		val64 = 100*(msr_now-msr_last);
-		do_div(val64, (tsc_now-tsc_last));
+	else if (tsc_yesw-tsc_last) {
+		val64 = 100*(msr_yesw-msr_last);
+		do_div(val64, (tsc_yesw-tsc_last));
 		current_ratio = val64;
 	}
 
 	/* update record */
-	msr_last = msr_now;
-	tsc_last = tsc_now;
+	msr_last = msr_yesw;
+	tsc_last = tsc_yesw;
 
 	adjust_compensation(target_ratio, win);
 	/*
@@ -374,13 +374,13 @@ static void clamp_balancing_func(struct kthread_work *work)
 			      balancing_work);
 
 	/*
-	 * make sure user selected ratio does not take effect until
+	 * make sure user selected ratio does yest take effect until
 	 * the next round. adjust target_ratio if user has changed
 	 * target such that we can converge quickly.
 	 */
 	w_data->target_ratio = READ_ONCE(set_target_ratio);
 	w_data->guard = 1 + w_data->target_ratio / 20;
-	w_data->window_size_now = window_size;
+	w_data->window_size_yesw = window_size;
 	w_data->duration_jiffies = msecs_to_jiffies(duration);
 	w_data->count++;
 
@@ -419,11 +419,11 @@ static void clamp_idle_injection_func(struct kthread_work *work)
 	 * control parameters.
 	 */
 	if (w_data->cpu == control_cpu &&
-	    !(w_data->count % w_data->window_size_now)) {
+	    !(w_data->count % w_data->window_size_yesw)) {
 		should_skip =
 			powerclamp_adjust_controls(w_data->target_ratio,
 						   w_data->guard,
-						   w_data->window_size_now);
+						   w_data->window_size_yesw);
 		smp_mb();
 	}
 
@@ -448,27 +448,27 @@ static void poll_pkg_cstate(struct work_struct *dummy)
 	static u64 msr_last;
 	static u64 tsc_last;
 
-	u64 msr_now;
-	u64 tsc_now;
+	u64 msr_yesw;
+	u64 tsc_yesw;
 	u64 val64;
 
-	msr_now = pkg_state_counter();
-	tsc_now = rdtsc();
+	msr_yesw = pkg_state_counter();
+	tsc_yesw = rdtsc();
 
 	/* calculate pkg cstate vs tsc ratio */
 	if (!msr_last || !tsc_last)
 		pkg_cstate_ratio_cur = 1;
 	else {
-		if (tsc_now - tsc_last) {
-			val64 = 100 * (msr_now - msr_last);
-			do_div(val64, (tsc_now - tsc_last));
+		if (tsc_yesw - tsc_last) {
+			val64 = 100 * (msr_yesw - msr_last);
+			do_div(val64, (tsc_yesw - tsc_last));
 			pkg_cstate_ratio_cur = val64;
 		}
 	}
 
 	/* update record */
-	msr_last = msr_now;
-	tsc_last = tsc_now;
+	msr_last = msr_yesw;
+	tsc_last = tsc_yesw;
 
 	if (true == clamping)
 		schedule_delayed_work(&poll_pkg_cstate_work, HZ);
@@ -505,7 +505,7 @@ static void stop_power_clamp_worker(unsigned long cpu)
 	w_data->clamping = false;
 	/*
 	 * Make sure that all works that get queued after this point see
-	 * the clamping disabled. The counter part is not needed because
+	 * the clamping disabled. The counter part is yest needed because
 	 * there is an implicit memory barrier when the queued work
 	 * is proceed.
 	 */
@@ -515,7 +515,7 @@ static void stop_power_clamp_worker(unsigned long cpu)
 	/*
 	 * The balancing work still might be queued here because
 	 * the handling of the "clapming" variable, cancel, and queue
-	 * operations are not synchronized via a lock. But it is not
+	 * operations are yest synchronized via a lock. But it is yest
 	 * a big deal. The balancing work is fast and destroy kthread
 	 * will wait for it.
 	 */
@@ -611,7 +611,7 @@ static int powerclamp_get_cur_state(struct thermal_cooling_device *cdev,
 	if (true == clamping)
 		*state = pkg_cstate_ratio_cur;
 	else
-		/* to save power, do not poll idle ratio while not clamping */
+		/* to save power, do yest poll idle ratio while yest clamping */
 		*state = -1; /* indicates invalid state */
 
 	return 0;
@@ -660,7 +660,7 @@ static int __init powerclamp_probe(void)
 {
 
 	if (!x86_match_cpu(intel_powerclamp_ids)) {
-		pr_err("CPU does not support MWAIT\n");
+		pr_err("CPU does yest support MWAIT\n");
 		return -ENODEV;
 	}
 
@@ -722,7 +722,7 @@ static int __init powerclamp_init(void)
 
 	/* set default limit, maybe adjusted during runtime based on feedback */
 	window_size = 2;
-	retval = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	retval = cpuhp_setup_state_yescalls(CPUHP_AP_ONLINE_DYN,
 					   "thermal/intel_powerclamp:online",
 					   powerclamp_cpu_online,
 					   powerclamp_cpu_predown);
@@ -754,7 +754,7 @@ static int __init powerclamp_init(void)
 exit_free_thread:
 	free_percpu(worker_data);
 exit_unregister:
-	cpuhp_remove_state_nocalls(hp_state);
+	cpuhp_remove_state_yescalls(hp_state);
 exit_free:
 	kfree(cpu_clamping_mask);
 	return retval;
@@ -764,7 +764,7 @@ module_init(powerclamp_init);
 static void __exit powerclamp_exit(void)
 {
 	end_power_clamp();
-	cpuhp_remove_state_nocalls(hp_state);
+	cpuhp_remove_state_yescalls(hp_state);
 	free_percpu(worker_data);
 	thermal_cooling_device_unregister(cooling_dev);
 	kfree(cpu_clamping_mask);

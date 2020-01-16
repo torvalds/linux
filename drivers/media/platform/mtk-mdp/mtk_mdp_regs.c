@@ -40,7 +40,7 @@ static int32_t mtk_mdp_map_color_format(int v4l2_format)
 		return MDP_COLOR_YV12;
 	}
 
-	mtk_mdp_err("Unknown format 0x%x", v4l2_format);
+	mtk_mdp_err("Unkyeswn format 0x%x", v4l2_format);
 
 	return MDP_COLOR_UNKNOWN;
 }

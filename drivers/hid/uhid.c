@@ -61,7 +61,7 @@ static void uhid_device_add_worker(struct work_struct *work)
 
 	ret = hid_add_device(uhid->hid);
 	if (ret) {
-		hid_err(uhid->hid, "Cannot register HID device: error %d\n", ret);
+		hid_err(uhid->hid, "Canyest register HID device: error %d\n", ret);
 
 		hid_destroy_device(uhid->hid);
 		uhid->hid = NULL;
@@ -380,7 +380,7 @@ EXPORT_SYMBOL_GPL(uhid_hid_driver);
 
 #ifdef CONFIG_COMPAT
 
-/* Apparently we haven't stepped on these rakes enough times yet. */
+/* Apparently we haven't stepped on these rakes eyesugh times yet. */
 struct uhid_create_req_compat {
 	__u8 name[128];
 	__u8 phys[64];
@@ -494,7 +494,7 @@ static int uhid_dev_create2(struct uhid_device *uhid,
 		goto err_free;
 	}
 
-	/* @hid is zero-initialized, strncpy() is correct, strlcpy() not */
+	/* @hid is zero-initialized, strncpy() is correct, strlcpy() yest */
 	len = min(sizeof(hid->name), sizeof(ev->u.create2.name)) - 1;
 	strncpy(hid->name, ev->u.create2.name, len);
 	len = min(sizeof(hid->phys), sizeof(ev->u.create2.phys)) - 1;
@@ -612,7 +612,7 @@ static int uhid_dev_set_report_reply(struct uhid_device *uhid,
 	return 0;
 }
 
-static int uhid_char_open(struct inode *inode, struct file *file)
+static int uhid_char_open(struct iyesde *iyesde, struct file *file)
 {
 	struct uhid_device *uhid;
 
@@ -629,12 +629,12 @@ static int uhid_char_open(struct inode *inode, struct file *file)
 	INIT_WORK(&uhid->worker, uhid_device_add_worker);
 
 	file->private_data = uhid;
-	stream_open(inode, file);
+	stream_open(iyesde, file);
 
 	return 0;
 }
 
-static int uhid_char_release(struct inode *inode, struct file *file)
+static int uhid_char_release(struct iyesde *iyesde, struct file *file)
 {
 	struct uhid_device *uhid = file->private_data;
 	unsigned int i;
@@ -727,7 +727,7 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 		 * privileges (e.g. from a setuid binary) or via kernel_write().
 		 */
 		if (file->f_cred != current_cred() || uaccess_kernel()) {
-			pr_err_once("UHID_CREATE from different security context by process %d (%s), this is not allowed.\n",
+			pr_err_once("UHID_CREATE from different security context by process %d (%s), this is yest allowed.\n",
 				    task_tgid_vnr(current), current->comm);
 			ret = -EACCES;
 			goto unlock;
@@ -759,7 +759,7 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 unlock:
 	mutex_unlock(&uhid->devlock);
 
-	/* return "count" not "len" to not confuse the caller */
+	/* return "count" yest "len" to yest confuse the caller */
 	return ret ? ret : count;
 }
 
@@ -783,12 +783,12 @@ static const struct file_operations uhid_fops = {
 	.read		= uhid_char_read,
 	.write		= uhid_char_write,
 	.poll		= uhid_char_poll,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice uhid_misc = {
 	.fops		= &uhid_fops,
-	.minor		= UHID_MINOR,
+	.miyesr		= UHID_MINOR,
 	.name		= UHID_NAME,
 };
 module_misc_device(uhid_misc);

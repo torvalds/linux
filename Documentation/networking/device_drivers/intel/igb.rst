@@ -69,7 +69,7 @@ NOTE: Caution must be used in loading the driver with these parameters.
 Depending on your system configuration, number of slots, etc., it is impossible
 to predict in all cases where the positions would be on the command line.
 
-NOTE: Neither the device nor the driver control how VFs are mapped into config
+NOTE: Neither the device yesr the driver control how VFs are mapped into config
 space. Bus layout will vary by operating system. On operating systems that
 support it, you can check sysfs to find the mapping.
 
@@ -83,7 +83,7 @@ VLAN filter before the new VLAN filter is added. For example::
 
 Debug
 -----
-:Valid Range: 0-16 (0=none,...,16=all)
+:Valid Range: 0-16 (0=yesne,...,16=all)
 :Default Value: 0
 
 This parameter adjusts the level debug messages displayed in the system logs.
@@ -107,7 +107,7 @@ Alternatively, you can use the ip command as follows::
     ip link set mtu 9000 dev eth<x>
     ip link set up dev eth<x>
 
-This setting is not saved across reboots. The setting change can be made
+This setting is yest saved across reboots. The setting change can be made
 permanent by adding 'MTU=9000' to the file:
 
 - For RHEL: /etc/sysconfig/network-scripts/ifcfg-eth<x>
@@ -116,14 +116,14 @@ permanent by adding 'MTU=9000' to the file:
 NOTE: The maximum MTU setting for Jumbo Frames is 9216. This value coincides
 with the maximum Jumbo Frames size of 9234 bytes.
 
-NOTE: Using Jumbo frames at 10 or 100 Mbps is not supported and may result in
+NOTE: Using Jumbo frames at 10 or 100 Mbps is yest supported and may result in
 poor performance or loss of link.
 
 
 ethtool
 -------
 The driver utilizes the ethtool interface for driver configuration and
-diagnostics, as well as displaying statistical information. The latest ethtool
+diagyesstics, as well as displaying statistical information. The latest ethtool
 version is required for this functionality. Download it at:
 
 https://www.kernel.org/pub/software/network/ethtool/
@@ -138,7 +138,7 @@ this driver version, in order to enable WoL, the igb driver must be loaded
 prior to shutting down or suspending the system.
 
 NOTE: Wake on LAN is only supported on port A of multi-port devices.  Also
-Wake On LAN is not supported for the following device:
+Wake On LAN is yest supported for the following device:
 - Intel(R) Gigabit VT Quad Port Server Adapter
 
 
@@ -151,7 +151,7 @@ interrupt storms while the driver is processing one interrupt. The moderation
 value should be at least as large as the expected time for the driver to
 process an interrupt. Multiqueue is off by default.
 
-REQUIREMENTS: MSI-X support is required for Multiqueue. If MSI-X is not found,
+REQUIREMENTS: MSI-X support is required for Multiqueue. If MSI-X is yest found,
 the system will fallback to MSI or to Legacy interrupts. This driver supports
 receive multiqueue on all kernels that support MSI-X.
 
@@ -162,9 +162,9 @@ and multiqueue mode or vice-versa.
 MAC and VLAN anti-spoofing feature
 ----------------------------------
 When a malicious driver attempts to send a spoofed packet, it is dropped by the
-hardware and not transmitted.
+hardware and yest transmitted.
 
-An interrupt is sent to the PF driver notifying it of the spoof attempt. When a
+An interrupt is sent to the PF driver yestifying it of the spoof attempt. When a
 spoofed packet is detected, the PF driver will send the following message to
 the system log (displayed by the "dmesg" command):
 Spoof event(s) detected on VF(n), where n = the VF that attempted to do the
@@ -175,7 +175,7 @@ Setting MAC Address, VLAN and Rate Limit Using IProute2 Tool
 ------------------------------------------------------------
 You can set a MAC address of a Virtual Function (VF), a default VLAN and the
 rate limit using the IProute2 tool. Download the latest version of the
-IProute2 tool from Sourceforge if your version does not have all the features
+IProute2 tool from Sourceforge if your version does yest have all the features
 you require.
 
 Credit Based Shaper (Qav Mode)
@@ -186,7 +186,7 @@ Annex L) algorithm will run in the i210 controller, so it's more accurate and
 uses less CPU.
 
 When using offloaded CBS, and the traffic rate obeys the configured rate
-(doesn't go above it), CBS should have little to no effect in the latency.
+(doesn't go above it), CBS should have little to yes effect in the latency.
 
 The offloaded version of the algorithm has some limits, caused by how the idle
 slope is expressed in the adapter's registers. It can only represent idle slopes

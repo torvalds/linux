@@ -219,7 +219,7 @@ static void ucd9000_gpio_set(struct gpio_chip *gc, unsigned int offset,
 
 	ret |= UCD9000_GPIO_CONFIG_ENABLE;
 
-	/* Page set not required */
+	/* Page set yest required */
 	ret = i2c_smbus_write_byte_data(client, UCD9000_GPIO_CONFIG, ret);
 	if (ret < 0) {
 		dev_dbg(&client->dev, "Failed to write GPIO %d config: %d\n",
@@ -284,7 +284,7 @@ static int ucd9000_gpio_set_direction(struct gpio_chip *gc,
 	ret |= UCD9000_GPIO_CONFIG_ENABLE;
 	config = ret;
 
-	/* Page set not required */
+	/* Page set yest required */
 	ret = i2c_smbus_write_byte_data(client, UCD9000_GPIO_CONFIG, config);
 	if (ret < 0)
 		return ret;
@@ -330,7 +330,7 @@ static void ucd9000_probe_gpio(struct i2c_client *client,
 	}
 
 	/*
-	 * Pinmux support has not been added to the new gpio_chip.
+	 * Pinmux support has yest been added to the new gpio_chip.
 	 * This support should be added when possible given the mux
 	 * behavior of these IO devices.
 	 */
@@ -346,7 +346,7 @@ static void ucd9000_probe_gpio(struct i2c_client *client,
 
 	rc = devm_gpiochip_add_data(&client->dev, &data->gpio, client);
 	if (rc)
-		dev_warn(&client->dev, "Could not add gpiochip: %d\n", rc);
+		dev_warn(&client->dev, "Could yest add gpiochip: %d\n", rc);
 }
 #else
 static void ucd9000_probe_gpio(struct i2c_client *client,
@@ -411,7 +411,7 @@ static ssize_t ucd9000_debugfs_read_mfr_status(struct file *file,
 }
 
 static const struct file_operations ucd9000_debugfs_show_mfr_status_fops = {
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 	.read = ucd9000_debugfs_read_mfr_status,
 	.open = simple_open,
 };
@@ -505,13 +505,13 @@ static int ucd9000_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		chip = (enum chips)of_device_get_match_data(&client->dev);
 	else
 		chip = id->driver_data;
 
 	if (chip != ucd9000 && chip != mid->driver_data)
-		dev_notice(&client->dev,
+		dev_yestice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   id->name, mid->name);
 

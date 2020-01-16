@@ -144,9 +144,9 @@ struct mtk_q_data {
  * @intra_period: I frame period
  * @gop_size: group of picture size, it's used as the intra frame period
  * @framerate_num: frame rate numerator. ex: framerate_num=30 and
- *		   framerate_denom=1 means FPS is 30
- * @framerate_denom: frame rate denominator. ex: framerate_num=30 and
- *		     framerate_denom=1 means FPS is 30
+ *		   framerate_deyesm=1 means FPS is 30
+ * @framerate_deyesm: frame rate deyesminator. ex: framerate_num=30 and
+ *		     framerate_deyesm=1 means FPS is 30
  * @h264_max_qp: Max value for H.264 quantization parameter
  * @h264_profile: V4L2 defined H.264 profile
  * @h264_level: V4L2 defined H.264 level
@@ -161,7 +161,7 @@ struct mtk_enc_params {
 	unsigned int	intra_period;
 	unsigned int	gop_size;
 	unsigned int	framerate_num;
-	unsigned int	framerate_denom;
+	unsigned int	framerate_deyesm;
 	unsigned int	h264_max_qp;
 	unsigned int	h264_profile;
 	unsigned int	h264_level;

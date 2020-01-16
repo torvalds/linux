@@ -36,7 +36,7 @@ static const char *integrator_arch_str(u32 id)
 	case 0x08:
 		return "AHB system bus, ASB processor bus";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -52,7 +52,7 @@ static const char *integrator_fpga_str(u32 id)
 	case 0x04:
 		return "EPM7256AE (Altera PLD)";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -101,16 +101,16 @@ static int __init integrator_soc_init(void)
 	static struct regmap *syscon_regmap;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct device *dev;
 	u32 val;
 	int ret;
 
-	np = of_find_matching_node(NULL, integrator_cm_match);
+	np = of_find_matching_yesde(NULL, integrator_cm_match);
 	if (!np)
 		return -ENODEV;
 
-	syscon_regmap = syscon_node_to_regmap(np);
+	syscon_regmap = syscon_yesde_to_regmap(np);
 	if (IS_ERR(syscon_regmap))
 		return PTR_ERR(syscon_regmap);
 

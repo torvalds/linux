@@ -7,10 +7,10 @@
 #include <asm/unistd.h>
 
 	.text
-/* int __vdso_getcpu(unsigned *cpu, unsigned *node, void *unused); */
+/* int __vdso_getcpu(unsigned *cpu, unsigned *yesde, void *unused); */
 ENTRY(__vdso_getcpu)
 	.cfi_startproc
-	/* For now, just do the syscall. */
+	/* For yesw, just do the syscall. */
 	li a7, __NR_getcpu
 	ecall
 	ret

@@ -1,6 +1,6 @@
 /*
  * Intel 3200/3210 Memory Controller kernel module
- * Copyright (C) 2008-2009 Akamai Technologies, Inc.
+ * Copyright (C) 2008-2009 Akamai Techyeslogies, Inc.
  * Portions by Hitoshi Mitake <h.mitake@gmail.com>.
  *
  * This file may be distributed under the terms of the
@@ -15,7 +15,7 @@
 #include <linux/io.h>
 #include "edac_module.h"
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 #define EDAC_MOD_STR        "i3200_edac"
 
@@ -44,15 +44,15 @@
 #define I3200_ERRSTS		0xc8	/* Error Status Register (16b)
 		 *
 		 * 15    reserved
-		 * 14    Isochronous TBWRR Run Behind FIFO Full
+		 * 14    Isochroyesus TBWRR Run Behind FIFO Full
 		 *       (ITCV)
-		 * 13    Isochronous TBWRR Run Behind FIFO Put
+		 * 13    Isochroyesus TBWRR Run Behind FIFO Put
 		 *       (ITSTV)
 		 * 12    reserved
 		 * 11    MCH Thermal Sensor Event
 		 *       for SMI/SCI/SERR (GTSE)
 		 * 10    reserved
-		 *  9    LOCK to non-DRAM Memory Flag (LCKF)
+		 *  9    LOCK to yesn-DRAM Memory Flag (LCKF)
 		 *  8    reserved
 		 *  7    DRAM Throttle Flag (DTF)
 		 *  6:2  reserved
@@ -187,7 +187,7 @@ static void i3200_get_and_clear_error_info(struct mem_ctl_info *mci,
 	pdev = to_pci_dev(mci->pdev);
 
 	/*
-	 * This is a mess because there is no atomic way to read all the
+	 * This is a mess because there is yes atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
@@ -204,7 +204,7 @@ static void i3200_get_and_clear_error_info(struct mem_ctl_info *mci,
 	/*
 	 * If the error is the same for both reads then the first set
 	 * of reads is valid.  If there is a change then there is a CE
-	 * with no info and the second set of reads is valid and
+	 * with yes info and the second set of reads is valid and
 	 * should be UE info.
 	 */
 	if ((info->errsts ^ info->errsts2) & I3200_ERRSTS_BITS) {
@@ -280,9 +280,9 @@ static void __iomem *i3200_map_mchbar(struct pci_dev *pdev)
 		return NULL;
 	}
 
-	window = ioremap_nocache(u.mchbar, I3200_MMR_WINDOW_SIZE);
+	window = ioremap_yescache(u.mchbar, I3200_MMR_WINDOW_SIZE);
 	if (!window)
-		printk(KERN_ERR "i3200: cannot map mmio space at 0x%llx\n",
+		printk(KERN_ERR "i3200: canyest map mmio space at 0x%llx\n",
 			(unsigned long long)u.mchbar);
 
 	return window;
@@ -539,7 +539,7 @@ module_init(i3200_init);
 module_exit(i3200_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Akamai Technologies, Inc.");
+MODULE_AUTHOR("Akamai Techyeslogies, Inc.");
 MODULE_DESCRIPTION("MC support for Intel 3200 memory hub controllers");
 
 module_param(edac_op_state, int, 0444);

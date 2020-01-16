@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
    md_u.h : user <=> kernel API between Linux raidtools and RAID drivers
           Copyright (C) 1998 Ingo Molnar
@@ -9,7 +9,7 @@
    any later version.
    
    You should have received a copy of the GNU General Public License
-   (for example /usr/src/linux/COPYING); if not, write to the Free
+   (for example /usr/src/linux/COPYING); if yest, write to the Free
    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
 */
 
@@ -17,8 +17,8 @@
 #define _UAPI_MD_U_H
 
 /*
- * Different major versions are not compatible.
- * Different minor versions are only downward compatible.
+ * Different major versions are yest compatible.
+ * Different miyesr versions are only downward compatible.
  * Different patchlevel versions are downward and upward compatible.
  */
 #define MD_MAJOR_VERSION                0
@@ -26,7 +26,7 @@
 /*
  * MD_PATCHLEVEL_VERSION indicates kernel functionality.
  * >=1 means different superblock formats are selectable using SET_ARRAY_INFO
- *     and major_version/minor_version accordingly
+ *     and major_version/miyesr_version accordingly
  * >=2 means that Internal bitmaps are supported by setting MD_SB_BITMAP_PRESENT
  *     in the super status byte
  * >=3 means that bitmap superblock version 4 is supported, which uses
@@ -66,11 +66,11 @@
 #define CLUSTERED_DISK_NACK	_IO (MD_MAJOR, 0x35)
 
 /* 63 partitions with the alternate major number (mdp) */
-#define MdpMinorShift 6
+#define MdpMiyesrShift 6
 
 typedef struct mdu_version_s {
 	int major;
-	int minor;
+	int miyesr;
 	int patchlevel;
 } mdu_version_t;
 
@@ -79,15 +79,15 @@ typedef struct mdu_array_info_s {
 	 * Generic constant information
 	 */
 	int major_version;
-	int minor_version;
+	int miyesr_version;
 	int patch_version;
 	unsigned int ctime;
 	int level;
 	int size;
 	int nr_disks;
 	int raid_disks;
-	int md_minor;
-	int not_persistent;
+	int md_miyesr;
+	int yest_persistent;
 
 	/*
 	 * Generic state information
@@ -107,12 +107,12 @@ typedef struct mdu_array_info_s {
 
 } mdu_array_info_t;
 
-/* non-obvious values for 'level' */
+/* yesn-obvious values for 'level' */
 #define	LEVEL_MULTIPATH		(-4)
 #define	LEVEL_LINEAR		(-1)
 #define	LEVEL_FAULTY		(-5)
 
-/* we need a value for 'no level specified' and 0
+/* we need a value for 'yes level specified' and 0
  * means 'raid0', so we need something else.  This is
  * for internal use only
  */
@@ -124,7 +124,7 @@ typedef struct mdu_disk_info_s {
 	 */
 	int number;
 	int major;
-	int minor;
+	int miyesr;
 	int raid_disk;
 	int state;
 
@@ -135,7 +135,7 @@ typedef struct mdu_start_info_s {
 	 * configuration/status of one particular disk
 	 */
 	int major;
-	int minor;
+	int miyesr;
 	int raid_disk;
 	int state;
 
@@ -150,7 +150,7 @@ typedef struct mdu_param_s
 {
 	int			personality;	/* 1,2,3,4 */
 	int			chunk_size;	/* in bytes */
-	int			max_fault;	/* unused for now */
+	int			max_fault;	/* unused for yesw */
 } mdu_param_t;
 
 #endif /* _UAPI_MD_U_H */

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/user.h>
 #include <linux/regset.h>
 #include <linux/syscalls.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <linux/uaccess.h>
 #include <asm/desc.h>
@@ -32,20 +32,20 @@ static int get_free_idx(void)
 static bool tls_desc_okay(const struct user_desc *info)
 {
 	/*
-	 * For historical reasons (i.e. no one ever documented how any
+	 * For historical reasons (i.e. yes one ever documented how any
 	 * of the segmentation APIs work), user programs can and do
 	 * assume that a struct user_desc that's all zeros except for
-	 * entry_number means "no segment at all".  This never actually
+	 * entry_number means "yes segment at all".  This never actually
 	 * worked.  In fact, up to Linux 3.19, a struct user_desc like
 	 * this would create a 16-bit read-write segment with base and
 	 * limit both equal to zero.
 	 *
-	 * That was close enough to "no segment at all" until we
+	 * That was close eyesugh to "yes segment at all" until we
 	 * hardened this function to disallow 16-bit TLS segments.  Fix
 	 * it up by interpreting these zeroed segments the way that they
 	 * were almost certainly intended to be interpreted.
 	 *
-	 * The correct way to ask for "no segment at all" is to specify
+	 * The correct way to ask for "yes segment at all" is to specify
 	 * a user_desc that satisfies LDT_empty.  To keep everything
 	 * working, we accept both.
 	 *
@@ -75,7 +75,7 @@ static bool tls_desc_okay(const struct user_desc *info)
 	 * If userspace needs to remove a TLS entry, it can still delete
 	 * it outright.
 	 */
-	if (info->seg_not_present)
+	if (info->seg_yest_present)
 		return false;
 
 	return true;
@@ -89,7 +89,7 @@ static void set_tls_desc(struct task_struct *p, int idx,
 	int cpu;
 
 	/*
-	 * We must not get preempted while modifying the TLS.
+	 * We must yest get preempted while modifying the TLS.
 	 */
 	cpu = get_cpu();
 
@@ -210,7 +210,7 @@ static void fill_user_desc(struct user_desc *info, int idx,
 	info->contents = desc->type >> 2;
 	info->read_exec_only = !(desc->type & 2);
 	info->limit_in_pages = desc->g;
-	info->seg_not_present = !desc->p;
+	info->seg_yest_present = !desc->p;
 	info->useable = desc->avl;
 #ifdef CONFIG_X86_64
 	info->lm = desc->l;
@@ -230,7 +230,7 @@ int do_get_thread_area(struct task_struct *p, int idx,
 		return -EINVAL;
 
 	index = idx - GDT_ENTRY_TLS_MIN;
-	index = array_index_nospec(index,
+	index = array_index_yesspec(index,
 			GDT_ENTRY_TLS_MAX - GDT_ENTRY_TLS_MIN + 1);
 
 	fill_user_desc(&info, idx, &p->thread.tls_array[index]);

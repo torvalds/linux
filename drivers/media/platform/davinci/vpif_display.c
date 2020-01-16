@@ -89,7 +89,7 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
 			!ISALIGNED(addr + common->ybtm_off) ||
 			!ISALIGNED(addr + common->ctop_off) ||
 			!ISALIGNED(addr + common->cbtm_off)) {
-			vpif_err("buffer offset not aligned to 8 bytes\n");
+			vpif_err("buffer offset yest aligned to 8 bytes\n");
 			return -EINVAL;
 		}
 	}
@@ -399,7 +399,7 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 			process_progressive_mode(common);
 		} else {
 			/* Interlaced mode */
-			/* If it is first interrupt, ignore it */
+			/* If it is first interrupt, igyesre it */
 
 			if (channel_first_int[i][channel_id]) {
 				channel_first_int[i][channel_id] = 0;
@@ -410,7 +410,7 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 				ch->field_id ^= 1;
 				/* Get field id from VPIF registers */
 				fid = vpif_channel_getfid(ch->channel_id + 2);
-				/* If fid does not match with stored field id */
+				/* If fid does yest match with stored field id */
 				if (fid != ch->field_id) {
 					/* Make them in sync */
 					if (0 == fid)
@@ -447,7 +447,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	}
 
 	if (i == vpif_ch_params_count) {
-		vpif_dbg(1, debug, "Format not found\n");
+		vpif_dbg(1, debug, "Format yest found\n");
 		return -EINVAL;
 	}
 
@@ -830,8 +830,8 @@ static int vpif_set_output(struct vpif_display_config *vpif_cfg,
 	ch->output_idx = index;
 	ch->sd = sd;
 	if (chan_cfg->outputs)
-		/* update tvnorms from the sub device output info */
-		ch->video_dev.tvnorms = chan_cfg->outputs[index].output.std;
+		/* update tvyesrms from the sub device output info */
+		ch->video_dev.tvyesrms = chan_cfg->outputs[index].output.std;
 	return 0;
 }
 
@@ -930,7 +930,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 		return -EBUSY;
 
 	if (timings->type != V4L2_DV_BT_656_1120) {
-		vpif_dbg(2, debug, "Timing type not defined\n");
+		vpif_dbg(2, debug, "Timing type yest defined\n");
 		return -EINVAL;
 	}
 
@@ -1117,7 +1117,7 @@ static void free_vpif_objs(void)
 		kfree(vpif_obj.dev[i]);
 }
 
-static int vpif_async_bound(struct v4l2_async_notifier *notifier,
+static int vpif_async_bound(struct v4l2_async_yestifier *yestifier,
 			    struct v4l2_subdev *subdev,
 			    struct v4l2_async_subdev *asd)
 {
@@ -1231,12 +1231,12 @@ probe_out:
 	return err;
 }
 
-static int vpif_async_complete(struct v4l2_async_notifier *notifier)
+static int vpif_async_complete(struct v4l2_async_yestifier *yestifier)
 {
 	return vpif_probe_complete();
 }
 
-static const struct v4l2_async_notifier_operations vpif_async_ops = {
+static const struct v4l2_async_yestifier_operations vpif_async_ops = {
 	.bound = vpif_async_bound,
 	.complete = vpif_async_complete,
 };
@@ -1295,7 +1295,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 		goto vpif_unregister;
 	}
 
-	v4l2_async_notifier_init(&vpif_obj.notifier);
+	v4l2_async_yestifier_init(&vpif_obj.yestifier);
 
 	if (!vpif_obj.config->asd_sizes) {
 		i2c_adap = i2c_get_adapter(vpif_obj.config->i2c_adapter_id);
@@ -1321,17 +1321,17 @@ static __init int vpif_probe(struct platform_device *pdev)
 		}
 	} else {
 		for (i = 0; i < vpif_obj.config->asd_sizes[0]; i++) {
-			err = v4l2_async_notifier_add_subdev(
-				&vpif_obj.notifier, vpif_obj.config->asd[i]);
+			err = v4l2_async_yestifier_add_subdev(
+				&vpif_obj.yestifier, vpif_obj.config->asd[i]);
 			if (err)
 				goto probe_cleanup;
 		}
 
-		vpif_obj.notifier.ops = &vpif_async_ops;
-		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
-						   &vpif_obj.notifier);
+		vpif_obj.yestifier.ops = &vpif_async_ops;
+		err = v4l2_async_yestifier_register(&vpif_obj.v4l2_dev,
+						   &vpif_obj.yestifier);
 		if (err) {
-			vpif_err("Error registering async notifier\n");
+			vpif_err("Error registering async yestifier\n");
 			err = -EINVAL;
 			goto probe_cleanup;
 		}
@@ -1340,7 +1340,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	return 0;
 
 probe_cleanup:
-	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
+	v4l2_async_yestifier_cleanup(&vpif_obj.yestifier);
 probe_subdev_out:
 	kfree(vpif_obj.sd);
 vpif_unregister:
@@ -1360,8 +1360,8 @@ static int vpif_remove(struct platform_device *device)
 	int i;
 
 	if (vpif_obj.config->asd_sizes) {
-		v4l2_async_notifier_unregister(&vpif_obj.notifier);
-		v4l2_async_notifier_cleanup(&vpif_obj.notifier);
+		v4l2_async_yestifier_unregister(&vpif_obj.yestifier);
+		v4l2_async_yestifier_cleanup(&vpif_obj.yestifier);
 	}
 
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);

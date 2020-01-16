@@ -35,13 +35,13 @@ static DEFINE_SPINLOCK(dbe_lock);
 #ifdef MODULE_START
 void *module_alloc(unsigned long size)
 {
-	return __vmalloc_node_range(size, 1, MODULE_START, MODULE_END,
+	return __vmalloc_yesde_range(size, 1, MODULE_START, MODULE_END,
 				GFP_KERNEL, PAGE_KERNEL, 0, NUMA_NO_NODE,
 				__builtin_return_address(0));
 }
 #endif
 
-static int apply_r_mips_none(struct module *me, u32 *location,
+static int apply_r_mips_yesne(struct module *me, u32 *location,
 			     u32 base, Elf_Addr v, bool rela)
 {
 	return 0;
@@ -88,7 +88,7 @@ static int apply_r_mips_hi16(struct module *me, u32 *location,
 	}
 
 	/*
-	 * We cannot relocate this one now because we don't know the value of
+	 * We canyest relocate this one yesw because we don't kyesw the value of
 	 * the carry we need to add.  Save the information, and let LO16 do the
 	 * actual relocation.
 	 */
@@ -144,7 +144,7 @@ static int apply_r_mips_lo16(struct module *me, u32 *location,
 
 			/*
 			 * Do the HI16 relocation.  Note that we actually don't
-			 * need to know anything about the LO16 itself, except
+			 * need to kyesw anything about the LO16 itself, except
 			 * where to find the low 16 bits of the addend needed
 			 * by the LO16.
 			 */
@@ -289,9 +289,9 @@ static int apply_r_mips_highest(struct module *me, u32 *location,
 typedef int (*reloc_handler)(struct module *me, u32 *location,
 			     u32 base, Elf_Addr v, bool rela);
 
-/* The handlers for known reloc types */
+/* The handlers for kyeswn reloc types */
 static reloc_handler reloc_handlers[] = {
-	[R_MIPS_NONE]		= apply_r_mips_none,
+	[R_MIPS_NONE]		= apply_r_mips_yesne,
 	[R_MIPS_32]		= apply_r_mips_32,
 	[R_MIPS_26]		= apply_r_mips_26,
 	[R_MIPS_HI16]		= apply_r_mips_hi16,
@@ -334,10 +334,10 @@ static int __apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 		sym = (Elf_Sym *)sechdrs[symindex].sh_addr
 			+ ELF_MIPS_R_SYM(*r.rel);
 		if (sym->st_value >= -MAX_ERRNO) {
-			/* Ignore unresolved weak symbol */
+			/* Igyesre unresolved weak symbol */
 			if (ELF_ST_BIND(sym->st_info) == STB_WEAK)
 				continue;
-			pr_warn("%s: Unknown symbol %s\n",
+			pr_warn("%s: Unkyeswn symbol %s\n",
 				me->name, strtab + sym->st_name);
 			err = -ENOENT;
 			goto out;
@@ -350,7 +350,7 @@ static int __apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 			handler = NULL;
 
 		if (!handler) {
-			pr_err("%s: Unknown relocation type %u\n",
+			pr_err("%s: Unkyeswn relocation type %u\n",
 			       me->name, type);
 			err = -EINVAL;
 			goto out;
@@ -375,7 +375,7 @@ out:
 	/*
 	 * Normally the hi16 list should be deallocated at this point. A
 	 * malformed binary however could contain a series of R_MIPS_HI16
-	 * relocations not followed by a R_MIPS_LO16 relocation, or if we hit
+	 * relocations yest followed by a R_MIPS_LO16 relocation, or if we hit
 	 * an error processing a reloc we might have gotten here before
 	 * reaching the R_MIPS_LO16. In either case, free up the list and
 	 * return an error.
@@ -421,8 +421,8 @@ const struct exception_table_entry *search_module_dbetables(unsigned long addr)
 	}
 	spin_unlock_irqrestore(&dbe_lock, flags);
 
-	/* Now, if we found one, we are running inside it now, hence
-	   we cannot unload the module, hence no refcnt needed. */
+	/* Now, if we found one, we are running inside it yesw, hence
+	   we canyest unload the module, hence yes refcnt needed. */
 	return e;
 }
 
@@ -434,8 +434,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 	const Elf_Shdr *s;
 	char *secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 
-	/* Make jump label nops. */
-	jump_label_apply_nops(me);
+	/* Make jump label yesps. */
+	jump_label_apply_yesps(me);
 
 	INIT_LIST_HEAD(&me->arch.dbe_list);
 	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {

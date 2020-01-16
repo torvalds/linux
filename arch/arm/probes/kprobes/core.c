@@ -56,7 +56,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 #ifdef CONFIG_THUMB2_KERNEL
 	thumb = true;
-	addr &= ~1; /* Bit 0 would normally be set to indicate Thumb code */
+	addr &= ~1; /* Bit 0 would yesrmally be set to indicate Thumb code */
 	insn = __mem_to_opcode_thumb16(((u16 *)addr)[0]);
 	if (is_wide_instruction(insn)) {
 		u16 inst2 = __mem_to_opcode_thumb16(((u16 *)addr)[1]);
@@ -83,7 +83,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	p->ainsn.insn = tmp_insn;
 
 	switch ((*decode_insn)(insn, &p->ainsn, true, actions, checkers)) {
-	case INSN_REJECTED:	/* not supported */
+	case INSN_REJECTED:	/* yest supported */
 		return -EINVAL;
 
 	case INSN_GOOD:		/* instruction uses slot */
@@ -227,7 +227,7 @@ singlestep(struct kprobe *p, struct pt_regs *regs, struct kprobe_ctlblk *kcb)
 /*
  * Called with IRQs disabled. IRQs must remain disabled from that point
  * all the way until processing this kprobe is complete.  The current
- * kprobes implementation cannot process more than one nested level of
+ * kprobes implementation canyest process more than one nested level of
  * kprobe, and that level is reserved for user kprobe handlers, so we can't
  * risk encountering a new kprobe in an interrupt handler.
  */
@@ -243,7 +243,7 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 	/*
 	 * First look for a probe which was registered using an address with
 	 * bit 0 set, this is the usual situation for pointers to Thumb code.
-	 * If not found, fallback to looking for one with bit 0 clear.
+	 * If yest found, fallback to looking for one with bit 0 clear.
 	 */
 	p = get_kprobe((kprobe_opcode_t *)(regs->ARM_pc | 1));
 	if (!p)
@@ -258,7 +258,7 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 			/*
 			 * Probe hit but conditional execution check failed,
 			 * so just skip the instruction and continue as if
-			 * nothing had happened.
+			 * yesthing had happened.
 			 * In this case, we can skip recursing check too.
 			 */
 			singlestep_skip(p, regs);
@@ -291,10 +291,10 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
 			/*
-			 * If we have no pre-handler or it returned 0, we
-			 * continue with normal processing. If we have a
-			 * pre-handler and it returned non-zero, it will
-			 * modify the execution path and no need to single
+			 * If we have yes pre-handler or it returned 0, we
+			 * continue with yesrmal processing. If we have a
+			 * pre-handler and it returned yesn-zero, it will
+			 * modify the execution path and yes need to single
 			 * stepping. Let's just reset current kprobe and exit.
 			 */
 			if (!p->pre_handler || !p->pre_handler(p, regs)) {
@@ -310,7 +310,7 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 	} else {
 		/*
 		 * The probe was removed and a race is in progress.
-		 * There is nothing we can do about it.  Let's restart
+		 * There is yesthing we can do about it.  Let's restart
 		 * the instruction.  By the time we can restart, the
 		 * real instruction will be there.
 		 */
@@ -339,7 +339,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the PC to point back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * yesrmal page fault.
 		 */
 		regs->ARM_pc = (long)cur->addr;
 		if (kcb->kprobe_status == KPROBE_REENTER) {
@@ -376,11 +376,11 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr)
 	return 0;
 }
 
-int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+int __kprobes kprobe_exceptions_yestify(struct yestifier_block *self,
 				       unsigned long val, void *data)
 {
 	/*
-	 * notify_die() is currently never called on ARM,
+	 * yestify_die() is currently never called on ARM,
 	 * so this callback is currently empty.
 	 */
 	return NOTIFY_DONE;
@@ -390,8 +390,8 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
  * When a retprobed function returns, trampoline_handler() is called,
  * calling the kretprobe's handler. We construct a struct pt_regs to
  * give a view of registers r0-r11 to the user return-handler.  This is
- * not a complete pt_regs structure, but that should be plenty sufficient
- * for kretprobe handlers which should normally be interested in r0 only
+ * yest a complete pt_regs structure, but that should be plenty sufficient
+ * for kretprobe handlers which should yesrmally be interested in r0 only
  * anyway.
  */
 void __naked __kprobes kretprobe_trampoline(void)
@@ -415,7 +415,7 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head, empty_rp;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address = (unsigned long)&kretprobe_trampoline;
 	kprobe_opcode_t *correct_ret_addr = NULL;
@@ -438,7 +438,7 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 	 */
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		orig_ret_address = (unsigned long)ri->ret_addr;
@@ -457,7 +457,7 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 	correct_ret_addr = ri->ret_addr;
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		orig_ret_address = (unsigned long)ri->ret_addr;

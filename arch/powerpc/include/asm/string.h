@@ -36,8 +36,8 @@ void *__memmove(void *to, const void *from, __kernel_size_t n);
 
 #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
 /*
- * For files that are not instrumented (e.g. mm/slub.c) we
- * should use not instrumented version of mem* functions.
+ * For files that are yest instrumented (e.g. mm/slub.c) we
+ * should use yest instrumented version of mem* functions.
  */
 #define memcpy(dst, src, len) __memcpy(dst, src, len)
 #define memmove(dst, src, len) __memmove(dst, src, len)

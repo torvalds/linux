@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2011 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -73,7 +73,7 @@ struct mlx4_congestion_control_mb_prio_802_1_qau_params {
 struct mlx4_congestion_control_mb_prio_802_1_qau_statistics {
 	__be64 rppp_rp_centiseconds;
 	__be32 reserved1;
-	__be32 ignored_cnm;
+	__be32 igyesred_cnm;
 	__be32 rppp_created_rps;
 	__be32 estimated_total_rate;
 	__be32 max_active_rate_limiter_index;
@@ -250,7 +250,7 @@ static u8 mlx4_en_dcbnl_set_state(struct net_device *dev, u8 state)
 	return 0;
 }
 
-/* On success returns a non-zero 802.1p user priority bitmap
+/* On success returns a yesn-zero 802.1p user priority bitmap
  * otherwise returns 0 as the invalid user priority bitmap to
  * indicate an error.
  */

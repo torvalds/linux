@@ -645,95 +645,95 @@ atomic_fetch_and(int i, atomic_t *v)
 
 #endif /* atomic_fetch_and_relaxed */
 
-#ifndef atomic_andnot
+#ifndef atomic_andyest
 static inline void
-atomic_andnot(int i, atomic_t *v)
+atomic_andyest(int i, atomic_t *v)
 {
 	atomic_and(~i, v);
 }
-#define atomic_andnot atomic_andnot
+#define atomic_andyest atomic_andyest
 #endif
 
-#ifndef atomic_fetch_andnot_relaxed
-#ifdef atomic_fetch_andnot
-#define atomic_fetch_andnot_acquire atomic_fetch_andnot
-#define atomic_fetch_andnot_release atomic_fetch_andnot
-#define atomic_fetch_andnot_relaxed atomic_fetch_andnot
-#endif /* atomic_fetch_andnot */
+#ifndef atomic_fetch_andyest_relaxed
+#ifdef atomic_fetch_andyest
+#define atomic_fetch_andyest_acquire atomic_fetch_andyest
+#define atomic_fetch_andyest_release atomic_fetch_andyest
+#define atomic_fetch_andyest_relaxed atomic_fetch_andyest
+#endif /* atomic_fetch_andyest */
 
-#ifndef atomic_fetch_andnot
+#ifndef atomic_fetch_andyest
 static inline int
-atomic_fetch_andnot(int i, atomic_t *v)
+atomic_fetch_andyest(int i, atomic_t *v)
 {
 	return atomic_fetch_and(~i, v);
 }
-#define atomic_fetch_andnot atomic_fetch_andnot
+#define atomic_fetch_andyest atomic_fetch_andyest
 #endif
 
-#ifndef atomic_fetch_andnot_acquire
+#ifndef atomic_fetch_andyest_acquire
 static inline int
-atomic_fetch_andnot_acquire(int i, atomic_t *v)
+atomic_fetch_andyest_acquire(int i, atomic_t *v)
 {
 	return atomic_fetch_and_acquire(~i, v);
 }
-#define atomic_fetch_andnot_acquire atomic_fetch_andnot_acquire
+#define atomic_fetch_andyest_acquire atomic_fetch_andyest_acquire
 #endif
 
-#ifndef atomic_fetch_andnot_release
+#ifndef atomic_fetch_andyest_release
 static inline int
-atomic_fetch_andnot_release(int i, atomic_t *v)
+atomic_fetch_andyest_release(int i, atomic_t *v)
 {
 	return atomic_fetch_and_release(~i, v);
 }
-#define atomic_fetch_andnot_release atomic_fetch_andnot_release
+#define atomic_fetch_andyest_release atomic_fetch_andyest_release
 #endif
 
-#ifndef atomic_fetch_andnot_relaxed
+#ifndef atomic_fetch_andyest_relaxed
 static inline int
-atomic_fetch_andnot_relaxed(int i, atomic_t *v)
+atomic_fetch_andyest_relaxed(int i, atomic_t *v)
 {
 	return atomic_fetch_and_relaxed(~i, v);
 }
-#define atomic_fetch_andnot_relaxed atomic_fetch_andnot_relaxed
+#define atomic_fetch_andyest_relaxed atomic_fetch_andyest_relaxed
 #endif
 
-#else /* atomic_fetch_andnot_relaxed */
+#else /* atomic_fetch_andyest_relaxed */
 
-#ifndef atomic_fetch_andnot_acquire
+#ifndef atomic_fetch_andyest_acquire
 static inline int
-atomic_fetch_andnot_acquire(int i, atomic_t *v)
+atomic_fetch_andyest_acquire(int i, atomic_t *v)
 {
-	int ret = atomic_fetch_andnot_relaxed(i, v);
+	int ret = atomic_fetch_andyest_relaxed(i, v);
 	__atomic_acquire_fence();
 	return ret;
 }
-#define atomic_fetch_andnot_acquire atomic_fetch_andnot_acquire
+#define atomic_fetch_andyest_acquire atomic_fetch_andyest_acquire
 #endif
 
-#ifndef atomic_fetch_andnot_release
+#ifndef atomic_fetch_andyest_release
 static inline int
-atomic_fetch_andnot_release(int i, atomic_t *v)
+atomic_fetch_andyest_release(int i, atomic_t *v)
 {
 	__atomic_release_fence();
-	return atomic_fetch_andnot_relaxed(i, v);
+	return atomic_fetch_andyest_relaxed(i, v);
 }
-#define atomic_fetch_andnot_release atomic_fetch_andnot_release
+#define atomic_fetch_andyest_release atomic_fetch_andyest_release
 #endif
 
-#ifndef atomic_fetch_andnot
+#ifndef atomic_fetch_andyest
 static inline int
-atomic_fetch_andnot(int i, atomic_t *v)
+atomic_fetch_andyest(int i, atomic_t *v)
 {
 	int ret;
 	__atomic_pre_full_fence();
-	ret = atomic_fetch_andnot_relaxed(i, v);
+	ret = atomic_fetch_andyest_relaxed(i, v);
 	__atomic_post_full_fence();
 	return ret;
 }
-#define atomic_fetch_andnot atomic_fetch_andnot
+#define atomic_fetch_andyest atomic_fetch_andyest
 #endif
 
-#endif /* atomic_fetch_andnot_relaxed */
+#endif /* atomic_fetch_andyest_relaxed */
 
 #ifndef atomic_fetch_or_relaxed
 #define atomic_fetch_or_acquire atomic_fetch_or
@@ -1077,7 +1077,7 @@ atomic_add_negative(int i, atomic_t *v)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, so long as @v was not already @u.
+ * Atomically adds @a to @v, so long as @v was yest already @u.
  * Returns original value of @v
  */
 static inline int
@@ -1102,7 +1102,7 @@ atomic_fetch_add_unless(atomic_t *v, int a, int u)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, if @v was not already @u.
+ * Atomically adds @a to @v, if @v was yest already @u.
  * Returns true if the addition was done.
  */
 static inline bool
@@ -1113,20 +1113,20 @@ atomic_add_unless(atomic_t *v, int a, int u)
 #define atomic_add_unless atomic_add_unless
 #endif
 
-#ifndef atomic_inc_not_zero
+#ifndef atomic_inc_yest_zero
 /**
- * atomic_inc_not_zero - increment unless the number is zero
+ * atomic_inc_yest_zero - increment unless the number is zero
  * @v: pointer of type atomic_t
  *
- * Atomically increments @v by 1, if @v is non-zero.
+ * Atomically increments @v by 1, if @v is yesn-zero.
  * Returns true if the increment was done.
  */
 static inline bool
-atomic_inc_not_zero(atomic_t *v)
+atomic_inc_yest_zero(atomic_t *v)
 {
 	return atomic_add_unless(v, 1, 0);
 }
-#define atomic_inc_not_zero atomic_inc_not_zero
+#define atomic_inc_yest_zero atomic_inc_yest_zero
 #endif
 
 #ifndef atomic_inc_unless_negative
@@ -1755,95 +1755,95 @@ atomic64_fetch_and(s64 i, atomic64_t *v)
 
 #endif /* atomic64_fetch_and_relaxed */
 
-#ifndef atomic64_andnot
+#ifndef atomic64_andyest
 static inline void
-atomic64_andnot(s64 i, atomic64_t *v)
+atomic64_andyest(s64 i, atomic64_t *v)
 {
 	atomic64_and(~i, v);
 }
-#define atomic64_andnot atomic64_andnot
+#define atomic64_andyest atomic64_andyest
 #endif
 
-#ifndef atomic64_fetch_andnot_relaxed
-#ifdef atomic64_fetch_andnot
-#define atomic64_fetch_andnot_acquire atomic64_fetch_andnot
-#define atomic64_fetch_andnot_release atomic64_fetch_andnot
-#define atomic64_fetch_andnot_relaxed atomic64_fetch_andnot
-#endif /* atomic64_fetch_andnot */
+#ifndef atomic64_fetch_andyest_relaxed
+#ifdef atomic64_fetch_andyest
+#define atomic64_fetch_andyest_acquire atomic64_fetch_andyest
+#define atomic64_fetch_andyest_release atomic64_fetch_andyest
+#define atomic64_fetch_andyest_relaxed atomic64_fetch_andyest
+#endif /* atomic64_fetch_andyest */
 
-#ifndef atomic64_fetch_andnot
+#ifndef atomic64_fetch_andyest
 static inline s64
-atomic64_fetch_andnot(s64 i, atomic64_t *v)
+atomic64_fetch_andyest(s64 i, atomic64_t *v)
 {
 	return atomic64_fetch_and(~i, v);
 }
-#define atomic64_fetch_andnot atomic64_fetch_andnot
+#define atomic64_fetch_andyest atomic64_fetch_andyest
 #endif
 
-#ifndef atomic64_fetch_andnot_acquire
+#ifndef atomic64_fetch_andyest_acquire
 static inline s64
-atomic64_fetch_andnot_acquire(s64 i, atomic64_t *v)
+atomic64_fetch_andyest_acquire(s64 i, atomic64_t *v)
 {
 	return atomic64_fetch_and_acquire(~i, v);
 }
-#define atomic64_fetch_andnot_acquire atomic64_fetch_andnot_acquire
+#define atomic64_fetch_andyest_acquire atomic64_fetch_andyest_acquire
 #endif
 
-#ifndef atomic64_fetch_andnot_release
+#ifndef atomic64_fetch_andyest_release
 static inline s64
-atomic64_fetch_andnot_release(s64 i, atomic64_t *v)
+atomic64_fetch_andyest_release(s64 i, atomic64_t *v)
 {
 	return atomic64_fetch_and_release(~i, v);
 }
-#define atomic64_fetch_andnot_release atomic64_fetch_andnot_release
+#define atomic64_fetch_andyest_release atomic64_fetch_andyest_release
 #endif
 
-#ifndef atomic64_fetch_andnot_relaxed
+#ifndef atomic64_fetch_andyest_relaxed
 static inline s64
-atomic64_fetch_andnot_relaxed(s64 i, atomic64_t *v)
+atomic64_fetch_andyest_relaxed(s64 i, atomic64_t *v)
 {
 	return atomic64_fetch_and_relaxed(~i, v);
 }
-#define atomic64_fetch_andnot_relaxed atomic64_fetch_andnot_relaxed
+#define atomic64_fetch_andyest_relaxed atomic64_fetch_andyest_relaxed
 #endif
 
-#else /* atomic64_fetch_andnot_relaxed */
+#else /* atomic64_fetch_andyest_relaxed */
 
-#ifndef atomic64_fetch_andnot_acquire
+#ifndef atomic64_fetch_andyest_acquire
 static inline s64
-atomic64_fetch_andnot_acquire(s64 i, atomic64_t *v)
+atomic64_fetch_andyest_acquire(s64 i, atomic64_t *v)
 {
-	s64 ret = atomic64_fetch_andnot_relaxed(i, v);
+	s64 ret = atomic64_fetch_andyest_relaxed(i, v);
 	__atomic_acquire_fence();
 	return ret;
 }
-#define atomic64_fetch_andnot_acquire atomic64_fetch_andnot_acquire
+#define atomic64_fetch_andyest_acquire atomic64_fetch_andyest_acquire
 #endif
 
-#ifndef atomic64_fetch_andnot_release
+#ifndef atomic64_fetch_andyest_release
 static inline s64
-atomic64_fetch_andnot_release(s64 i, atomic64_t *v)
+atomic64_fetch_andyest_release(s64 i, atomic64_t *v)
 {
 	__atomic_release_fence();
-	return atomic64_fetch_andnot_relaxed(i, v);
+	return atomic64_fetch_andyest_relaxed(i, v);
 }
-#define atomic64_fetch_andnot_release atomic64_fetch_andnot_release
+#define atomic64_fetch_andyest_release atomic64_fetch_andyest_release
 #endif
 
-#ifndef atomic64_fetch_andnot
+#ifndef atomic64_fetch_andyest
 static inline s64
-atomic64_fetch_andnot(s64 i, atomic64_t *v)
+atomic64_fetch_andyest(s64 i, atomic64_t *v)
 {
 	s64 ret;
 	__atomic_pre_full_fence();
-	ret = atomic64_fetch_andnot_relaxed(i, v);
+	ret = atomic64_fetch_andyest_relaxed(i, v);
 	__atomic_post_full_fence();
 	return ret;
 }
-#define atomic64_fetch_andnot atomic64_fetch_andnot
+#define atomic64_fetch_andyest atomic64_fetch_andyest
 #endif
 
-#endif /* atomic64_fetch_andnot_relaxed */
+#endif /* atomic64_fetch_andyest_relaxed */
 
 #ifndef atomic64_fetch_or_relaxed
 #define atomic64_fetch_or_acquire atomic64_fetch_or
@@ -2187,7 +2187,7 @@ atomic64_add_negative(s64 i, atomic64_t *v)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, so long as @v was not already @u.
+ * Atomically adds @a to @v, so long as @v was yest already @u.
  * Returns original value of @v
  */
 static inline s64
@@ -2212,7 +2212,7 @@ atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, if @v was not already @u.
+ * Atomically adds @a to @v, if @v was yest already @u.
  * Returns true if the addition was done.
  */
 static inline bool
@@ -2223,20 +2223,20 @@ atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
 #define atomic64_add_unless atomic64_add_unless
 #endif
 
-#ifndef atomic64_inc_not_zero
+#ifndef atomic64_inc_yest_zero
 /**
- * atomic64_inc_not_zero - increment unless the number is zero
+ * atomic64_inc_yest_zero - increment unless the number is zero
  * @v: pointer of type atomic64_t
  *
- * Atomically increments @v by 1, if @v is non-zero.
+ * Atomically increments @v by 1, if @v is yesn-zero.
  * Returns true if the increment was done.
  */
 static inline bool
-atomic64_inc_not_zero(atomic64_t *v)
+atomic64_inc_yest_zero(atomic64_t *v)
 {
 	return atomic64_add_unless(v, 1, 0);
 }
-#define atomic64_inc_not_zero atomic64_inc_not_zero
+#define atomic64_inc_yest_zero atomic64_inc_yest_zero
 #endif
 
 #ifndef atomic64_inc_unless_negative

@@ -13,8 +13,8 @@
  *
  * B+Trees can be used similar to Linux radix trees (which don't have anything
  * in common with textbook radix trees, beware).  Prerequisite for them working
- * well is that access to a random tree node is much faster than a large number
- * of operations within each node.
+ * well is that access to a random tree yesde is much faster than a large number
+ * of operations within each yesde.
  *
  * Disks have fulfilled the prerequisite for a long time.  More recently DRAM
  * has gained similar properties, as memory access times, when measured in cpu
@@ -28,11 +28,11 @@
  * pointers.
  *
  * This particular implementation stores pointers identified by a long value.
- * Storing NULL pointers is illegal, lookup will return NULL when no entry
+ * Storing NULL pointers is illegal, lookup will return NULL when yes entry
  * was found.
  *
- * A tricks was used that is not commonly found in textbooks.  The lowest
- * values are to the right, not to the left.  All used slots within a node
+ * A tricks was used that is yest commonly found in textbooks.  The lowest
+ * values are to the right, yest to the left.  All used slots within a yesde
  * are on the left, all unused slots contain NUL values.  Most operations
  * simply loop once over all slots and terminate on the first NUL.
  */
@@ -48,29 +48,29 @@
 
 struct btree_geo {
 	int keylen;
-	int no_pairs;
-	int no_longs;
+	int yes_pairs;
+	int yes_longs;
 };
 
 struct btree_geo btree_geo32 = {
 	.keylen = 1,
-	.no_pairs = NODESIZE / sizeof(long) / 2,
-	.no_longs = NODESIZE / sizeof(long) / 2,
+	.yes_pairs = NODESIZE / sizeof(long) / 2,
+	.yes_longs = NODESIZE / sizeof(long) / 2,
 };
 EXPORT_SYMBOL_GPL(btree_geo32);
 
 #define LONG_PER_U64 (64 / BITS_PER_LONG)
 struct btree_geo btree_geo64 = {
 	.keylen = LONG_PER_U64,
-	.no_pairs = NODESIZE / sizeof(long) / (1 + LONG_PER_U64),
-	.no_longs = LONG_PER_U64 * (NODESIZE / sizeof(long) / (1 + LONG_PER_U64)),
+	.yes_pairs = NODESIZE / sizeof(long) / (1 + LONG_PER_U64),
+	.yes_longs = LONG_PER_U64 * (NODESIZE / sizeof(long) / (1 + LONG_PER_U64)),
 };
 EXPORT_SYMBOL_GPL(btree_geo64);
 
 struct btree_geo btree_geo128 = {
 	.keylen = 2 * LONG_PER_U64,
-	.no_pairs = NODESIZE / sizeof(long) / (1 + 2 * LONG_PER_U64),
-	.no_longs = 2 * LONG_PER_U64 * (NODESIZE / sizeof(long) / (1 + 2 * LONG_PER_U64)),
+	.yes_pairs = NODESIZE / sizeof(long) / (1 + 2 * LONG_PER_U64),
+	.yes_longs = 2 * LONG_PER_U64 * (NODESIZE / sizeof(long) / (1 + 2 * LONG_PER_U64)),
 };
 EXPORT_SYMBOL_GPL(btree_geo128);
 
@@ -90,14 +90,14 @@ void btree_free(void *element, void *pool_data)
 }
 EXPORT_SYMBOL_GPL(btree_free);
 
-static unsigned long *btree_node_alloc(struct btree_head *head, gfp_t gfp)
+static unsigned long *btree_yesde_alloc(struct btree_head *head, gfp_t gfp)
 {
-	unsigned long *node;
+	unsigned long *yesde;
 
-	node = mempool_alloc(head->mempool, gfp);
-	if (likely(node))
-		memset(node, 0, NODESIZE);
-	return node;
+	yesde = mempool_alloc(head->mempool, gfp);
+	if (likely(yesde))
+		memset(yesde, 0, NODESIZE);
+	return yesde;
 }
 
 static int longcmp(const unsigned long *l1, const unsigned long *l2, size_t n)
@@ -145,37 +145,37 @@ static void dec_key(struct btree_geo *geo, unsigned long *key)
 	}
 }
 
-static unsigned long *bkey(struct btree_geo *geo, unsigned long *node, int n)
+static unsigned long *bkey(struct btree_geo *geo, unsigned long *yesde, int n)
 {
-	return &node[n * geo->keylen];
+	return &yesde[n * geo->keylen];
 }
 
-static void *bval(struct btree_geo *geo, unsigned long *node, int n)
+static void *bval(struct btree_geo *geo, unsigned long *yesde, int n)
 {
-	return (void *)node[geo->no_longs + n];
+	return (void *)yesde[geo->yes_longs + n];
 }
 
-static void setkey(struct btree_geo *geo, unsigned long *node, int n,
+static void setkey(struct btree_geo *geo, unsigned long *yesde, int n,
 		   unsigned long *key)
 {
-	longcpy(bkey(geo, node, n), key, geo->keylen);
+	longcpy(bkey(geo, yesde, n), key, geo->keylen);
 }
 
-static void setval(struct btree_geo *geo, unsigned long *node, int n,
+static void setval(struct btree_geo *geo, unsigned long *yesde, int n,
 		   void *val)
 {
-	node[geo->no_longs + n] = (unsigned long) val;
+	yesde[geo->yes_longs + n] = (unsigned long) val;
 }
 
-static void clearpair(struct btree_geo *geo, unsigned long *node, int n)
+static void clearpair(struct btree_geo *geo, unsigned long *yesde, int n)
 {
-	longset(bkey(geo, node, n), 0, geo->keylen);
-	node[geo->no_longs + n] = 0;
+	longset(bkey(geo, yesde, n), 0, geo->keylen);
+	yesde[geo->yes_longs + n] = 0;
 }
 
 static inline void __btree_init(struct btree_head *head)
 {
-	head->node = NULL;
+	head->yesde = NULL;
 	head->height = 0;
 }
 
@@ -198,7 +198,7 @@ EXPORT_SYMBOL_GPL(btree_init);
 
 void btree_destroy(struct btree_head *head)
 {
-	mempool_free(head->node, head->mempool);
+	mempool_free(head->yesde, head->mempool);
 	mempool_destroy(head->mempool);
 	head->mempool = NULL;
 }
@@ -208,23 +208,23 @@ void *btree_last(struct btree_head *head, struct btree_geo *geo,
 		 unsigned long *key)
 {
 	int height = head->height;
-	unsigned long *node = head->node;
+	unsigned long *yesde = head->yesde;
 
 	if (height == 0)
 		return NULL;
 
 	for ( ; height > 1; height--)
-		node = bval(geo, node, 0);
+		yesde = bval(geo, yesde, 0);
 
-	longcpy(key, bkey(geo, node, 0), geo->keylen);
-	return bval(geo, node, 0);
+	longcpy(key, bkey(geo, yesde, 0), geo->keylen);
+	return bval(geo, yesde, 0);
 }
 EXPORT_SYMBOL_GPL(btree_last);
 
-static int keycmp(struct btree_geo *geo, unsigned long *node, int pos,
+static int keycmp(struct btree_geo *geo, unsigned long *yesde, int pos,
 		  unsigned long *key)
 {
-	return longcmp(bkey(geo, node, pos), key, geo->keylen);
+	return longcmp(bkey(geo, yesde, pos), key, geo->keylen);
 }
 
 static int keyzero(struct btree_geo *geo, unsigned long *key)
@@ -242,28 +242,28 @@ void *btree_lookup(struct btree_head *head, struct btree_geo *geo,
 		unsigned long *key)
 {
 	int i, height = head->height;
-	unsigned long *node = head->node;
+	unsigned long *yesde = head->yesde;
 
 	if (height == 0)
 		return NULL;
 
 	for ( ; height > 1; height--) {
-		for (i = 0; i < geo->no_pairs; i++)
-			if (keycmp(geo, node, i, key) <= 0)
+		for (i = 0; i < geo->yes_pairs; i++)
+			if (keycmp(geo, yesde, i, key) <= 0)
 				break;
-		if (i == geo->no_pairs)
+		if (i == geo->yes_pairs)
 			return NULL;
-		node = bval(geo, node, i);
-		if (!node)
+		yesde = bval(geo, yesde, i);
+		if (!yesde)
 			return NULL;
 	}
 
-	if (!node)
+	if (!yesde)
 		return NULL;
 
-	for (i = 0; i < geo->no_pairs; i++)
-		if (keycmp(geo, node, i, key) == 0)
-			return bval(geo, node, i);
+	for (i = 0; i < geo->yes_pairs; i++)
+		if (keycmp(geo, yesde, i, key) == 0)
+			return bval(geo, yesde, i);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(btree_lookup);
@@ -272,28 +272,28 @@ int btree_update(struct btree_head *head, struct btree_geo *geo,
 		 unsigned long *key, void *val)
 {
 	int i, height = head->height;
-	unsigned long *node = head->node;
+	unsigned long *yesde = head->yesde;
 
 	if (height == 0)
 		return -ENOENT;
 
 	for ( ; height > 1; height--) {
-		for (i = 0; i < geo->no_pairs; i++)
-			if (keycmp(geo, node, i, key) <= 0)
+		for (i = 0; i < geo->yes_pairs; i++)
+			if (keycmp(geo, yesde, i, key) <= 0)
 				break;
-		if (i == geo->no_pairs)
+		if (i == geo->yes_pairs)
 			return -ENOENT;
-		node = bval(geo, node, i);
-		if (!node)
+		yesde = bval(geo, yesde, i);
+		if (!yesde)
 			return -ENOENT;
 	}
 
-	if (!node)
+	if (!yesde)
 		return -ENOENT;
 
-	for (i = 0; i < geo->no_pairs; i++)
-		if (keycmp(geo, node, i, key) == 0) {
-			setval(geo, node, i, val);
+	for (i = 0; i < geo->yes_pairs; i++)
+		if (keycmp(geo, yesde, i, key) == 0) {
+			setval(geo, yesde, i, val);
 			return 0;
 		}
 	return -ENOENT;
@@ -301,9 +301,9 @@ int btree_update(struct btree_head *head, struct btree_geo *geo,
 EXPORT_SYMBOL_GPL(btree_update);
 
 /*
- * Usually this function is quite similar to normal lookup.  But the key of
- * a parent node may be smaller than the smallest key of all its siblings.
- * In such a case we cannot just return NULL, as we have only proven that no
+ * Usually this function is quite similar to yesrmal lookup.  But the key of
+ * a parent yesde may be smaller than the smallest key of all its siblings.
+ * In such a case we canyest just return NULL, as we have only proven that yes
  * key smaller than __key, but larger than this parent key exists.
  * So we set __key to the parent key and retry.  We have to use the smallest
  * such parent key, which is the last parent key we encountered.
@@ -312,7 +312,7 @@ void *btree_get_prev(struct btree_head *head, struct btree_geo *geo,
 		     unsigned long *__key)
 {
 	int i, height;
-	unsigned long *node, *oldnode;
+	unsigned long *yesde, *oldyesde;
 	unsigned long *retry_key = NULL, key[MAX_KEYLEN];
 
 	if (keyzero(geo, __key))
@@ -324,28 +324,28 @@ void *btree_get_prev(struct btree_head *head, struct btree_geo *geo,
 retry:
 	dec_key(geo, key);
 
-	node = head->node;
+	yesde = head->yesde;
 	for (height = head->height ; height > 1; height--) {
-		for (i = 0; i < geo->no_pairs; i++)
-			if (keycmp(geo, node, i, key) <= 0)
+		for (i = 0; i < geo->yes_pairs; i++)
+			if (keycmp(geo, yesde, i, key) <= 0)
 				break;
-		if (i == geo->no_pairs)
+		if (i == geo->yes_pairs)
 			goto miss;
-		oldnode = node;
-		node = bval(geo, node, i);
-		if (!node)
+		oldyesde = yesde;
+		yesde = bval(geo, yesde, i);
+		if (!yesde)
 			goto miss;
-		retry_key = bkey(geo, oldnode, i);
+		retry_key = bkey(geo, oldyesde, i);
 	}
 
-	if (!node)
+	if (!yesde)
 		goto miss;
 
-	for (i = 0; i < geo->no_pairs; i++) {
-		if (keycmp(geo, node, i, key) <= 0) {
-			if (bval(geo, node, i)) {
-				longcpy(__key, bkey(geo, node, i), geo->keylen);
-				return bval(geo, node, i);
+	for (i = 0; i < geo->yes_pairs; i++) {
+		if (keycmp(geo, yesde, i, key) <= 0) {
+			if (bval(geo, yesde, i)) {
+				longcpy(__key, bkey(geo, yesde, i), geo->keylen);
+				return bval(geo, yesde, i);
 			} else
 				goto miss;
 		}
@@ -360,96 +360,96 @@ miss:
 }
 EXPORT_SYMBOL_GPL(btree_get_prev);
 
-static int getpos(struct btree_geo *geo, unsigned long *node,
+static int getpos(struct btree_geo *geo, unsigned long *yesde,
 		unsigned long *key)
 {
 	int i;
 
-	for (i = 0; i < geo->no_pairs; i++) {
-		if (keycmp(geo, node, i, key) <= 0)
+	for (i = 0; i < geo->yes_pairs; i++) {
+		if (keycmp(geo, yesde, i, key) <= 0)
 			break;
 	}
 	return i;
 }
 
-static int getfill(struct btree_geo *geo, unsigned long *node, int start)
+static int getfill(struct btree_geo *geo, unsigned long *yesde, int start)
 {
 	int i;
 
-	for (i = start; i < geo->no_pairs; i++)
-		if (!bval(geo, node, i))
+	for (i = start; i < geo->yes_pairs; i++)
+		if (!bval(geo, yesde, i))
 			break;
 	return i;
 }
 
 /*
- * locate the correct leaf node in the btree
+ * locate the correct leaf yesde in the btree
  */
 static unsigned long *find_level(struct btree_head *head, struct btree_geo *geo,
 		unsigned long *key, int level)
 {
-	unsigned long *node = head->node;
+	unsigned long *yesde = head->yesde;
 	int i, height;
 
 	for (height = head->height; height > level; height--) {
-		for (i = 0; i < geo->no_pairs; i++)
-			if (keycmp(geo, node, i, key) <= 0)
+		for (i = 0; i < geo->yes_pairs; i++)
+			if (keycmp(geo, yesde, i, key) <= 0)
 				break;
 
-		if ((i == geo->no_pairs) || !bval(geo, node, i)) {
+		if ((i == geo->yes_pairs) || !bval(geo, yesde, i)) {
 			/* right-most key is too large, update it */
 			/* FIXME: If the right-most key on higher levels is
 			 * always zero, this wouldn't be necessary. */
 			i--;
-			setkey(geo, node, i, key);
+			setkey(geo, yesde, i, key);
 		}
 		BUG_ON(i < 0);
-		node = bval(geo, node, i);
+		yesde = bval(geo, yesde, i);
 	}
-	BUG_ON(!node);
-	return node;
+	BUG_ON(!yesde);
+	return yesde;
 }
 
 static int btree_grow(struct btree_head *head, struct btree_geo *geo,
 		      gfp_t gfp)
 {
-	unsigned long *node;
+	unsigned long *yesde;
 	int fill;
 
-	node = btree_node_alloc(head, gfp);
-	if (!node)
+	yesde = btree_yesde_alloc(head, gfp);
+	if (!yesde)
 		return -ENOMEM;
-	if (head->node) {
-		fill = getfill(geo, head->node, 0);
-		setkey(geo, node, 0, bkey(geo, head->node, fill - 1));
-		setval(geo, node, 0, head->node);
+	if (head->yesde) {
+		fill = getfill(geo, head->yesde, 0);
+		setkey(geo, yesde, 0, bkey(geo, head->yesde, fill - 1));
+		setval(geo, yesde, 0, head->yesde);
 	}
-	head->node = node;
+	head->yesde = yesde;
 	head->height++;
 	return 0;
 }
 
 static void btree_shrink(struct btree_head *head, struct btree_geo *geo)
 {
-	unsigned long *node;
+	unsigned long *yesde;
 	int fill;
 
 	if (head->height <= 1)
 		return;
 
-	node = head->node;
-	fill = getfill(geo, node, 0);
+	yesde = head->yesde;
+	fill = getfill(geo, yesde, 0);
 	BUG_ON(fill > 1);
-	head->node = bval(geo, node, 0);
+	head->yesde = bval(geo, yesde, 0);
 	head->height--;
-	mempool_free(node, head->mempool);
+	mempool_free(yesde, head->mempool);
 }
 
 static int btree_insert_level(struct btree_head *head, struct btree_geo *geo,
 			      unsigned long *key, void *val, int level,
 			      gfp_t gfp)
 {
-	unsigned long *node;
+	unsigned long *yesde;
 	int i, pos, fill, err;
 
 	BUG_ON(!val);
@@ -460,49 +460,49 @@ static int btree_insert_level(struct btree_head *head, struct btree_geo *geo,
 	}
 
 retry:
-	node = find_level(head, geo, key, level);
-	pos = getpos(geo, node, key);
-	fill = getfill(geo, node, pos);
-	/* two identical keys are not allowed */
-	BUG_ON(pos < fill && keycmp(geo, node, pos, key) == 0);
+	yesde = find_level(head, geo, key, level);
+	pos = getpos(geo, yesde, key);
+	fill = getfill(geo, yesde, pos);
+	/* two identical keys are yest allowed */
+	BUG_ON(pos < fill && keycmp(geo, yesde, pos, key) == 0);
 
-	if (fill == geo->no_pairs) {
-		/* need to split node */
+	if (fill == geo->yes_pairs) {
+		/* need to split yesde */
 		unsigned long *new;
 
-		new = btree_node_alloc(head, gfp);
+		new = btree_yesde_alloc(head, gfp);
 		if (!new)
 			return -ENOMEM;
 		err = btree_insert_level(head, geo,
-				bkey(geo, node, fill / 2 - 1),
+				bkey(geo, yesde, fill / 2 - 1),
 				new, level + 1, gfp);
 		if (err) {
 			mempool_free(new, head->mempool);
 			return err;
 		}
 		for (i = 0; i < fill / 2; i++) {
-			setkey(geo, new, i, bkey(geo, node, i));
-			setval(geo, new, i, bval(geo, node, i));
-			setkey(geo, node, i, bkey(geo, node, i + fill / 2));
-			setval(geo, node, i, bval(geo, node, i + fill / 2));
-			clearpair(geo, node, i + fill / 2);
+			setkey(geo, new, i, bkey(geo, yesde, i));
+			setval(geo, new, i, bval(geo, yesde, i));
+			setkey(geo, yesde, i, bkey(geo, yesde, i + fill / 2));
+			setval(geo, yesde, i, bval(geo, yesde, i + fill / 2));
+			clearpair(geo, yesde, i + fill / 2);
 		}
 		if (fill & 1) {
-			setkey(geo, node, i, bkey(geo, node, fill - 1));
-			setval(geo, node, i, bval(geo, node, fill - 1));
-			clearpair(geo, node, fill - 1);
+			setkey(geo, yesde, i, bkey(geo, yesde, fill - 1));
+			setval(geo, yesde, i, bval(geo, yesde, fill - 1));
+			clearpair(geo, yesde, fill - 1);
 		}
 		goto retry;
 	}
-	BUG_ON(fill >= geo->no_pairs);
+	BUG_ON(fill >= geo->yes_pairs);
 
 	/* shift and insert */
 	for (i = fill; i > pos; i--) {
-		setkey(geo, node, i, bkey(geo, node, i - 1));
-		setval(geo, node, i, bval(geo, node, i - 1));
+		setkey(geo, yesde, i, bkey(geo, yesde, i - 1));
+		setval(geo, yesde, i, bval(geo, yesde, i - 1));
 	}
-	setkey(geo, node, pos, key);
-	setval(geo, node, pos, val);
+	setkey(geo, yesde, pos, key);
+	setval(geo, yesde, pos, val);
 
 	return 0;
 }
@@ -541,12 +541,12 @@ static void rebalance(struct btree_head *head, struct btree_geo *geo,
 		unsigned long *key, int level, unsigned long *child, int fill)
 {
 	unsigned long *parent, *left = NULL, *right = NULL;
-	int i, no_left, no_right;
+	int i, yes_left, yes_right;
 
 	if (fill == 0) {
 		/* Because we don't steal entries from a neighbour, this case
-		 * can happen.  Parent node contains a single child, this
-		 * node, so merging with a sibling never happens.
+		 * can happen.  Parent yesde contains a single child, this
+		 * yesde, so merging with a sibling never happens.
 		 */
 		btree_remove_level(head, geo, key, level + 1);
 		mempool_free(child, head->mempool);
@@ -559,10 +559,10 @@ static void rebalance(struct btree_head *head, struct btree_geo *geo,
 
 	if (i > 0) {
 		left = bval(geo, parent, i - 1);
-		no_left = getfill(geo, left, 0);
-		if (fill + no_left <= geo->no_pairs) {
+		yes_left = getfill(geo, left, 0);
+		if (fill + yes_left <= geo->yes_pairs) {
 			merge(head, geo, level,
-					left, no_left,
+					left, yes_left,
 					child, fill,
 					parent, i - 1);
 			return;
@@ -570,55 +570,55 @@ static void rebalance(struct btree_head *head, struct btree_geo *geo,
 	}
 	if (i + 1 < getfill(geo, parent, i)) {
 		right = bval(geo, parent, i + 1);
-		no_right = getfill(geo, right, 0);
-		if (fill + no_right <= geo->no_pairs) {
+		yes_right = getfill(geo, right, 0);
+		if (fill + yes_right <= geo->yes_pairs) {
 			merge(head, geo, level,
 					child, fill,
-					right, no_right,
+					right, yes_right,
 					parent, i);
 			return;
 		}
 	}
 	/*
 	 * We could also try to steal one entry from the left or right
-	 * neighbor.  By not doing so we changed the invariant from
-	 * "all nodes are at least half full" to "no two neighboring
-	 * nodes can be merged".  Which means that the average fill of
-	 * all nodes is still half or better.
+	 * neighbor.  By yest doing so we changed the invariant from
+	 * "all yesdes are at least half full" to "yes two neighboring
+	 * yesdes can be merged".  Which means that the average fill of
+	 * all yesdes is still half or better.
 	 */
 }
 
 static void *btree_remove_level(struct btree_head *head, struct btree_geo *geo,
 		unsigned long *key, int level)
 {
-	unsigned long *node;
+	unsigned long *yesde;
 	int i, pos, fill;
 	void *ret;
 
 	if (level > head->height) {
 		/* we recursed all the way up */
 		head->height = 0;
-		head->node = NULL;
+		head->yesde = NULL;
 		return NULL;
 	}
 
-	node = find_level(head, geo, key, level);
-	pos = getpos(geo, node, key);
-	fill = getfill(geo, node, pos);
-	if ((level == 1) && (keycmp(geo, node, pos, key) != 0))
+	yesde = find_level(head, geo, key, level);
+	pos = getpos(geo, yesde, key);
+	fill = getfill(geo, yesde, pos);
+	if ((level == 1) && (keycmp(geo, yesde, pos, key) != 0))
 		return NULL;
-	ret = bval(geo, node, pos);
+	ret = bval(geo, yesde, pos);
 
 	/* remove and shift */
 	for (i = pos; i < fill - 1; i++) {
-		setkey(geo, node, i, bkey(geo, node, i + 1));
-		setval(geo, node, i, bval(geo, node, i + 1));
+		setkey(geo, yesde, i, bkey(geo, yesde, i + 1));
+		setval(geo, yesde, i, bval(geo, yesde, i + 1));
 	}
-	clearpair(geo, node, fill - 1);
+	clearpair(geo, yesde, fill - 1);
 
-	if (fill - 1 < geo->no_pairs / 2) {
+	if (fill - 1 < geo->yes_pairs / 2) {
 		if (level < head->height)
-			rebalance(head, geo, key, level, node, fill - 1);
+			rebalance(head, geo, key, level, yesde, fill - 1);
 		else if (fill - 1 == 1)
 			btree_shrink(head, geo);
 	}
@@ -646,9 +646,9 @@ int btree_merge(struct btree_head *target, struct btree_head *victim,
 
 	BUG_ON(target == victim);
 
-	if (!(target->node)) {
+	if (!(target->yesde)) {
 		/* target is empty, just copy fields over */
-		target->node = victim->node;
+		target->yesde = victim->yesde;
 		target->height = victim->height;
 		__btree_init(victim);
 		return 0;
@@ -674,7 +674,7 @@ int btree_merge(struct btree_head *target, struct btree_head *victim,
 EXPORT_SYMBOL_GPL(btree_merge);
 
 static size_t __btree_for_each(struct btree_head *head, struct btree_geo *geo,
-			       unsigned long *node, unsigned long opaque,
+			       unsigned long *yesde, unsigned long opaque,
 			       void (*func)(void *elem, unsigned long opaque,
 					    unsigned long *key, size_t index,
 					    void *func2),
@@ -683,19 +683,19 @@ static size_t __btree_for_each(struct btree_head *head, struct btree_geo *geo,
 	int i;
 	unsigned long *child;
 
-	for (i = 0; i < geo->no_pairs; i++) {
-		child = bval(geo, node, i);
+	for (i = 0; i < geo->yes_pairs; i++) {
+		child = bval(geo, yesde, i);
 		if (!child)
 			break;
 		if (height > 1)
 			count = __btree_for_each(head, geo, child, opaque,
 					func, func2, reap, height - 1, count);
 		else
-			func(child, opaque, bkey(geo, node, i), count++,
+			func(child, opaque, bkey(geo, yesde, i), count++,
 					func2);
 	}
 	if (reap)
-		mempool_free(node, head->mempool);
+		mempool_free(yesde, head->mempool);
 	return count;
 }
 
@@ -754,8 +754,8 @@ size_t btree_visitor(struct btree_head *head, struct btree_geo *geo,
 
 	if (!func2)
 		func = empty;
-	if (head->node)
-		count = __btree_for_each(head, geo, head->node, opaque, func,
+	if (head->yesde)
+		count = __btree_for_each(head, geo, head->yesde, opaque, func,
 				func2, 0, head->height, 0);
 	return count;
 }
@@ -772,8 +772,8 @@ size_t btree_grim_visitor(struct btree_head *head, struct btree_geo *geo,
 
 	if (!func2)
 		func = empty;
-	if (head->node)
-		count = __btree_for_each(head, geo, head->node, opaque, func,
+	if (head->yesde)
+		count = __btree_for_each(head, geo, head->yesde, opaque, func,
 				func2, 1, head->height, 0);
 	__btree_init(head);
 	return count;
@@ -782,7 +782,7 @@ EXPORT_SYMBOL_GPL(btree_grim_visitor);
 
 static int __init btree_module_init(void)
 {
-	btree_cachep = kmem_cache_create("btree_node", NODESIZE, 0,
+	btree_cachep = kmem_cache_create("btree_yesde", NODESIZE, 0,
 			SLAB_HWCACHE_ALIGN, NULL);
 	return 0;
 }

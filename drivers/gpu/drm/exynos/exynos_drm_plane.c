@@ -8,13 +8,13 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyyess_drm.h>
 
-#include "exynos_drm_crtc.h"
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "exynos_drm_gem.h"
-#include "exynos_drm_plane.h"
+#include "exyyess_drm_crtc.h"
+#include "exyyess_drm_drv.h"
+#include "exyyess_drm_fb.h"
+#include "exyyess_drm_gem.h"
+#include "exyyess_drm_plane.h"
 
 /*
  * This function is to get X or Y size shown via screen. This needs length and
@@ -37,7 +37,7 @@
  *                           e -------
  *                                  f -------
  */
-static int exynos_plane_get_size(int start, unsigned length, unsigned last)
+static int exyyess_plane_get_size(int start, unsigned length, unsigned last)
 {
 	int end = start + length;
 	int size = 0;
@@ -52,9 +52,9 @@ static int exynos_plane_get_size(int start, unsigned length, unsigned last)
 	return size;
 }
 
-static void exynos_plane_mode_set(struct exynos_drm_plane_state *exynos_state)
+static void exyyess_plane_mode_set(struct exyyess_drm_plane_state *exyyess_state)
 {
-	struct drm_plane_state *state = &exynos_state->base;
+	struct drm_plane_state *state = &exyyess_state->base;
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_crtc_state *crtc_state =
 			drm_atomic_get_existing_crtc_state(state->state, crtc);
@@ -67,8 +67,8 @@ static void exynos_plane_mode_set(struct exynos_drm_plane_state *exynos_state)
 	unsigned int actual_h;
 
 	/*
-	 * The original src/dest coordinates are stored in exynos_state->base,
-	 * but we want to keep another copy internal to our driver that we can
+	 * The original src/dest coordinates are stored in exyyess_state->base,
+	 * but we want to keep ayesther copy internal to our driver that we can
 	 * clip/modify ourselves.
 	 */
 
@@ -83,70 +83,70 @@ static void exynos_plane_mode_set(struct exynos_drm_plane_state *exynos_state)
 	src_h = state->src_h >> 16;
 
 	/* set ratio */
-	exynos_state->h_ratio = (src_w << 16) / crtc_w;
-	exynos_state->v_ratio = (src_h << 16) / crtc_h;
+	exyyess_state->h_ratio = (src_w << 16) / crtc_w;
+	exyyess_state->v_ratio = (src_h << 16) / crtc_h;
 
 	/* clip to visible area */
-	actual_w = exynos_plane_get_size(crtc_x, crtc_w, mode->hdisplay);
-	actual_h = exynos_plane_get_size(crtc_y, crtc_h, mode->vdisplay);
+	actual_w = exyyess_plane_get_size(crtc_x, crtc_w, mode->hdisplay);
+	actual_h = exyyess_plane_get_size(crtc_y, crtc_h, mode->vdisplay);
 
 	if (crtc_x < 0) {
 		if (actual_w)
-			src_x += ((-crtc_x) * exynos_state->h_ratio) >> 16;
+			src_x += ((-crtc_x) * exyyess_state->h_ratio) >> 16;
 		crtc_x = 0;
 	}
 
 	if (crtc_y < 0) {
 		if (actual_h)
-			src_y += ((-crtc_y) * exynos_state->v_ratio) >> 16;
+			src_y += ((-crtc_y) * exyyess_state->v_ratio) >> 16;
 		crtc_y = 0;
 	}
 
 	/* set drm framebuffer data. */
-	exynos_state->src.x = src_x;
-	exynos_state->src.y = src_y;
-	exynos_state->src.w = (actual_w * exynos_state->h_ratio) >> 16;
-	exynos_state->src.h = (actual_h * exynos_state->v_ratio) >> 16;
+	exyyess_state->src.x = src_x;
+	exyyess_state->src.y = src_y;
+	exyyess_state->src.w = (actual_w * exyyess_state->h_ratio) >> 16;
+	exyyess_state->src.h = (actual_h * exyyess_state->v_ratio) >> 16;
 
 	/* set plane range to be displayed. */
-	exynos_state->crtc.x = crtc_x;
-	exynos_state->crtc.y = crtc_y;
-	exynos_state->crtc.w = actual_w;
-	exynos_state->crtc.h = actual_h;
+	exyyess_state->crtc.x = crtc_x;
+	exyyess_state->crtc.y = crtc_y;
+	exyyess_state->crtc.w = actual_w;
+	exyyess_state->crtc.h = actual_h;
 
 	DRM_DEV_DEBUG_KMS(crtc->dev->dev,
 			  "plane : offset_x/y(%d,%d), width/height(%d,%d)",
-			  exynos_state->crtc.x, exynos_state->crtc.y,
-			  exynos_state->crtc.w, exynos_state->crtc.h);
+			  exyyess_state->crtc.x, exyyess_state->crtc.y,
+			  exyyess_state->crtc.w, exyyess_state->crtc.h);
 }
 
-static void exynos_drm_plane_reset(struct drm_plane *plane)
+static void exyyess_drm_plane_reset(struct drm_plane *plane)
 {
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_plane_state *exynos_state;
+	struct exyyess_drm_plane *exyyess_plane = to_exyyess_plane(plane);
+	struct exyyess_drm_plane_state *exyyess_state;
 
 	if (plane->state) {
-		exynos_state = to_exynos_plane_state(plane->state);
+		exyyess_state = to_exyyess_plane_state(plane->state);
 		__drm_atomic_helper_plane_destroy_state(plane->state);
-		kfree(exynos_state);
+		kfree(exyyess_state);
 		plane->state = NULL;
 	}
 
-	exynos_state = kzalloc(sizeof(*exynos_state), GFP_KERNEL);
-	if (exynos_state) {
-		__drm_atomic_helper_plane_reset(plane, &exynos_state->base);
-		plane->state->zpos = exynos_plane->config->zpos;
+	exyyess_state = kzalloc(sizeof(*exyyess_state), GFP_KERNEL);
+	if (exyyess_state) {
+		__drm_atomic_helper_plane_reset(plane, &exyyess_state->base);
+		plane->state->zpos = exyyess_plane->config->zpos;
 	}
 }
 
 static struct drm_plane_state *
-exynos_drm_plane_duplicate_state(struct drm_plane *plane)
+exyyess_drm_plane_duplicate_state(struct drm_plane *plane)
 {
-	struct exynos_drm_plane_state *exynos_state;
-	struct exynos_drm_plane_state *copy;
+	struct exyyess_drm_plane_state *exyyess_state;
+	struct exyyess_drm_plane_state *copy;
 
-	exynos_state = to_exynos_plane_state(plane->state);
-	copy = kzalloc(sizeof(*exynos_state), GFP_KERNEL);
+	exyyess_state = to_exyyess_plane_state(plane->state);
+	copy = kzalloc(sizeof(*exyyess_state), GFP_KERNEL);
 	if (!copy)
 		return NULL;
 
@@ -154,27 +154,27 @@ exynos_drm_plane_duplicate_state(struct drm_plane *plane)
 	return &copy->base;
 }
 
-static void exynos_drm_plane_destroy_state(struct drm_plane *plane,
+static void exyyess_drm_plane_destroy_state(struct drm_plane *plane,
 					   struct drm_plane_state *old_state)
 {
-	struct exynos_drm_plane_state *old_exynos_state =
-					to_exynos_plane_state(old_state);
+	struct exyyess_drm_plane_state *old_exyyess_state =
+					to_exyyess_plane_state(old_state);
 	__drm_atomic_helper_plane_destroy_state(old_state);
-	kfree(old_exynos_state);
+	kfree(old_exyyess_state);
 }
 
-static struct drm_plane_funcs exynos_plane_funcs = {
+static struct drm_plane_funcs exyyess_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_plane_cleanup,
-	.reset		= exynos_drm_plane_reset,
-	.atomic_duplicate_state = exynos_drm_plane_duplicate_state,
-	.atomic_destroy_state = exynos_drm_plane_destroy_state,
+	.reset		= exyyess_drm_plane_reset,
+	.atomic_duplicate_state = exyyess_drm_plane_duplicate_state,
+	.atomic_destroy_state = exyyess_drm_plane_destroy_state,
 };
 
 static int
-exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
-			      struct exynos_drm_plane_state *state)
+exyyess_drm_plane_check_format(const struct exyyess_drm_plane_config *config,
+			      struct exyyess_drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->base.fb;
 	struct drm_device *dev = fb->dev;
@@ -197,8 +197,8 @@ exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
 }
 
 static int
-exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
-			    struct exynos_drm_plane_state *state)
+exyyess_drm_plane_check_size(const struct exyyess_drm_plane_config *config,
+			    struct exyyess_drm_plane_state *state)
 {
 	struct drm_crtc *crtc = state->base.crtc;
 	bool width_ok = false, height_ok = false;
@@ -223,66 +223,66 @@ exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
 	if (width_ok && height_ok)
 		return 0;
 
-	DRM_DEV_DEBUG_KMS(crtc->dev->dev, "scaling mode is not supported");
+	DRM_DEV_DEBUG_KMS(crtc->dev->dev, "scaling mode is yest supported");
 	return -ENOTSUPP;
 }
 
-static int exynos_plane_atomic_check(struct drm_plane *plane,
+static int exyyess_plane_atomic_check(struct drm_plane *plane,
 				     struct drm_plane_state *state)
 {
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_plane_state *exynos_state =
-						to_exynos_plane_state(state);
+	struct exyyess_drm_plane *exyyess_plane = to_exyyess_plane(plane);
+	struct exyyess_drm_plane_state *exyyess_state =
+						to_exyyess_plane_state(state);
 	int ret = 0;
 
 	if (!state->crtc || !state->fb)
 		return 0;
 
-	/* translate state into exynos_state */
-	exynos_plane_mode_set(exynos_state);
+	/* translate state into exyyess_state */
+	exyyess_plane_mode_set(exyyess_state);
 
-	ret = exynos_drm_plane_check_format(exynos_plane->config, exynos_state);
+	ret = exyyess_drm_plane_check_format(exyyess_plane->config, exyyess_state);
 	if (ret)
 		return ret;
 
-	ret = exynos_drm_plane_check_size(exynos_plane->config, exynos_state);
+	ret = exyyess_drm_plane_check_size(exyyess_plane->config, exyyess_state);
 	return ret;
 }
 
-static void exynos_plane_atomic_update(struct drm_plane *plane,
+static void exyyess_plane_atomic_update(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = plane->state;
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(state->crtc);
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
+	struct exyyess_drm_crtc *exyyess_crtc = to_exyyess_crtc(state->crtc);
+	struct exyyess_drm_plane *exyyess_plane = to_exyyess_plane(plane);
 
 	if (!state->crtc)
 		return;
 
-	if (exynos_crtc->ops->update_plane)
-		exynos_crtc->ops->update_plane(exynos_crtc, exynos_plane);
+	if (exyyess_crtc->ops->update_plane)
+		exyyess_crtc->ops->update_plane(exyyess_crtc, exyyess_plane);
 }
 
-static void exynos_plane_atomic_disable(struct drm_plane *plane,
+static void exyyess_plane_atomic_disable(struct drm_plane *plane,
 					struct drm_plane_state *old_state)
 {
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(old_state->crtc);
+	struct exyyess_drm_plane *exyyess_plane = to_exyyess_plane(plane);
+	struct exyyess_drm_crtc *exyyess_crtc = to_exyyess_crtc(old_state->crtc);
 
 	if (!old_state->crtc)
 		return;
 
-	if (exynos_crtc->ops->disable_plane)
-		exynos_crtc->ops->disable_plane(exynos_crtc, exynos_plane);
+	if (exyyess_crtc->ops->disable_plane)
+		exyyess_crtc->ops->disable_plane(exyyess_crtc, exyyess_plane);
 }
 
 static const struct drm_plane_helper_funcs plane_helper_funcs = {
-	.atomic_check = exynos_plane_atomic_check,
-	.atomic_update = exynos_plane_atomic_update,
-	.atomic_disable = exynos_plane_atomic_disable,
+	.atomic_check = exyyess_plane_atomic_check,
+	.atomic_update = exyyess_plane_atomic_update,
+	.atomic_disable = exyyess_plane_atomic_disable,
 };
 
-static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
+static void exyyess_plane_attach_zpos_property(struct drm_plane *plane,
 					      int zpos, bool immutable)
 {
 	if (immutable)
@@ -291,19 +291,19 @@ static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
 		drm_plane_create_zpos_property(plane, zpos, 0, MAX_PLANE - 1);
 }
 
-int exynos_plane_init(struct drm_device *dev,
-		      struct exynos_drm_plane *exynos_plane, unsigned int index,
-		      const struct exynos_drm_plane_config *config)
+int exyyess_plane_init(struct drm_device *dev,
+		      struct exyyess_drm_plane *exyyess_plane, unsigned int index,
+		      const struct exyyess_drm_plane_config *config)
 {
 	int err;
 	unsigned int supported_modes = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
 				       BIT(DRM_MODE_BLEND_PREMULTI) |
 				       BIT(DRM_MODE_BLEND_COVERAGE);
-	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_plane *plane = &exyyess_plane->base;
 
-	err = drm_universal_plane_init(dev, &exynos_plane->base,
+	err = drm_universal_plane_init(dev, &exyyess_plane->base,
 				       1 << dev->mode_config.num_crtc,
-				       &exynos_plane_funcs,
+				       &exyyess_plane_funcs,
 				       config->pixel_formats,
 				       config->num_pixel_formats,
 				       NULL, config->type, NULL);
@@ -312,12 +312,12 @@ int exynos_plane_init(struct drm_device *dev,
 		return err;
 	}
 
-	drm_plane_helper_add(&exynos_plane->base, &plane_helper_funcs);
+	drm_plane_helper_add(&exyyess_plane->base, &plane_helper_funcs);
 
-	exynos_plane->index = index;
-	exynos_plane->config = config;
+	exyyess_plane->index = index;
+	exyyess_plane->config = config;
 
-	exynos_plane_attach_zpos_property(&exynos_plane->base, config->zpos,
+	exyyess_plane_attach_zpos_property(&exyyess_plane->base, config->zpos,
 			   !(config->capabilities & EXYNOS_DRM_PLANE_CAP_ZPOS));
 
 	if (config->capabilities & EXYNOS_DRM_PLANE_CAP_PIX_BLEND)

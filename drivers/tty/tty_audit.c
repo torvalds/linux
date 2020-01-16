@@ -14,7 +14,7 @@
 struct tty_audit_buf {
 	struct mutex mutex;	/* Protects all data below */
 	dev_t dev;		/* The TTY which the data is from */
-	unsigned icanon:1;
+	unsigned icayesn:1;
 	size_t valid;
 	unsigned char *data;	/* Allocated size N_TTY_BUF_SIZE */
 };
@@ -40,7 +40,7 @@ static struct tty_audit_buf *tty_audit_buf_alloc(void)
 		goto err_buf;
 	mutex_init(&buf->mutex);
 	buf->dev = MKDEV(0, 0);
-	buf->icanon = 0;
+	buf->icayesn = 0;
 	buf->valid = 0;
 	return buf;
 
@@ -71,7 +71,7 @@ static void tty_audit_log(const char *description, dev_t dev,
 		char name[sizeof(current->comm)];
 
 		audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u major=%d"
-				 " minor=%d comm=", description, pid, uid,
+				 " miyesr=%d comm=", description, pid, uid,
 				 loginuid, sessionid, MAJOR(dev), MINOR(dev));
 		get_task_comm(name, current);
 		audit_log_untrustedstring(ab, name);
@@ -105,7 +105,7 @@ static void tty_audit_buf_push(struct tty_audit_buf *buf)
  *	Make sure all buffered data is written out and deallocate the buffer.
  *	Only needs to be called if current->signal->tty_audit_buf != %NULL.
  *
- *	The process is single-threaded at this point; no other threads share
+ *	The process is single-threaded at this point; yes other threads share
  *	current->signal.
  */
 void tty_audit_exit(void)
@@ -123,7 +123,7 @@ void tty_audit_exit(void)
 /**
  *	tty_audit_fork	-	Copy TTY audit state for a new task
  *
- *	Set up TTY audit state in @sig from current.  @sig needs no locking.
+ *	Set up TTY audit state in @sig from current.  @sig needs yes locking.
  */
 void tty_audit_fork(struct signal_struct *sig)
 {
@@ -137,7 +137,7 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 {
 	dev_t dev;
 
-	dev = MKDEV(tty->driver->major, tty->driver->minor_start) + tty->index;
+	dev = MKDEV(tty->driver->major, tty->driver->miyesr_start) + tty->index;
 	if (tty_audit_push())
 		return;
 
@@ -187,7 +187,7 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 		return NULL;
 	}
 
-	/* Race to use this buffer, free it if another wins */
+	/* Race to use this buffer, free it if ayesther wins */
 	if (cmpxchg(&current->signal->tty_audit_buf, NULL, buf) != NULL)
 		tty_audit_buf_free(buf);
 	return tty_audit_buf_ref();
@@ -201,7 +201,7 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 {
 	struct tty_audit_buf *buf;
-	unsigned int icanon = !!L_ICANON(tty);
+	unsigned int icayesn = !!L_ICANON(tty);
 	unsigned int audit_tty;
 	dev_t dev;
 
@@ -216,7 +216,7 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 	    && tty->driver->subtype == PTY_TYPE_MASTER)
 		return;
 
-	if ((~audit_tty & AUDIT_TTY_LOG_PASSWD) && icanon && !L_ECHO(tty))
+	if ((~audit_tty & AUDIT_TTY_LOG_PASSWD) && icayesn && !L_ECHO(tty))
 		return;
 
 	buf = tty_audit_buf_get();
@@ -224,11 +224,11 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 		return;
 
 	mutex_lock(&buf->mutex);
-	dev = MKDEV(tty->driver->major, tty->driver->minor_start) + tty->index;
-	if (buf->dev != dev || buf->icanon != icanon) {
+	dev = MKDEV(tty->driver->major, tty->driver->miyesr_start) + tty->index;
+	if (buf->dev != dev || buf->icayesn != icayesn) {
 		tty_audit_buf_push(buf);
 		buf->dev = dev;
-		buf->icanon = icanon;
+		buf->icayesn = icayesn;
 	}
 	do {
 		size_t run;

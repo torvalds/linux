@@ -30,12 +30,12 @@ static void sysctr_timer_enable(bool enable)
 	writel(enable ? cmpcr | SYS_CTR_EN : cmpcr, sys_ctr_base + CMPCR);
 }
 
-static void sysctr_irq_acknowledge(void)
+static void sysctr_irq_ackyeswledge(void)
 {
 	/*
 	 * clear the enable bit(EN =0) will clear
 	 * the status bit(ISTAT = 0), then the interrupt
-	 * signal will be negated(acknowledged).
+	 * signal will be negated(ackyeswledged).
 	 */
 	sysctr_timer_enable(false);
 }
@@ -92,7 +92,7 @@ static irqreturn_t sysctr_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
 
-	sysctr_irq_acknowledge();
+	sysctr_irq_ackyeswledge();
 
 	evt->event_handler(evt);
 
@@ -128,7 +128,7 @@ static void __init sysctr_clockevent_init(void)
 					0xff, 0x7fffffff);
 }
 
-static int __init sysctr_timer_init(struct device_node *np)
+static int __init sysctr_timer_init(struct device_yesde *np)
 {
 	int ret = 0;
 

@@ -44,7 +44,7 @@ enum av7110_osd_palette_type
 #define SB_GPIO 3
 #define SB_OFF	SAA7146_GPIO_OUTLO  /* SlowBlank off (TV-Mode) */
 #define SB_ON	SAA7146_GPIO_INPUT  /* SlowBlank on  (AV-Mode) */
-#define SB_WIDE SAA7146_GPIO_OUTHI  /* SlowBlank 6V  (16/9-Mode) (not implemented) */
+#define SB_WIDE SAA7146_GPIO_OUTHI  /* SlowBlank 6V  (16/9-Mode) (yest implemented) */
 
 #define FB_GPIO 1
 #define FB_OFF	SAA7146_GPIO_LO     /* FastBlank off (CVBS-Mode) */
@@ -66,7 +66,7 @@ enum av7110_video_output_mode
 #define HPQOver		0x0008
 #define OSDQFull	0x0010		/* OSD Queue Full */
 #define OSDQOver	0x0020
-#define GPMQBusy	0x0040		/* Queue not empty, FW >= 261d */
+#define GPMQBusy	0x0040		/* Queue yest empty, FW >= 261d */
 #define HPQBusy		0x0080
 #define OSDQBusy	0x0100
 

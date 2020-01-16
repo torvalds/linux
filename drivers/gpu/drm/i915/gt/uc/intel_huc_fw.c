@@ -34,7 +34,7 @@ void intel_huc_fw_init_early(struct intel_huc *huc)
  * The firmware image should have already been fetched into memory, so only
  * check that fetch succeeded, and then transfer the image to the h/w.
  *
- * Return:	non-zero code on error
+ * Return:	yesn-zero code on error
  */
 int intel_huc_fw_upload(struct intel_huc *huc)
 {

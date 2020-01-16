@@ -161,7 +161,7 @@ void btmrvl_debugfs_init(struct hci_dev *hdev)
 	priv->debugfs_data = dbg;
 
 	if (!dbg) {
-		BT_ERR("Can not allocate memory for btmrvl_debugfs_data.");
+		BT_ERR("Can yest allocate memory for btmrvl_debugfs_data.");
 		return;
 	}
 

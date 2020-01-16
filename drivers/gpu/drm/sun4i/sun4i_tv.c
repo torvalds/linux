@@ -603,7 +603,7 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
 	}
 
 	tv->encoder.possible_crtcs = drm_of_find_possible_crtcs(drm,
-								dev->of_node);
+								dev->of_yesde);
 	if (!tv->encoder.possible_crtcs) {
 		ret = -EPROBE_DEFER;
 		goto err_disable_clk;

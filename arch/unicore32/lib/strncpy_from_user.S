@@ -8,7 +8,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 	.text
 	.align	5

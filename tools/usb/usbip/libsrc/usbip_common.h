@@ -46,7 +46,7 @@
 /* Defines for op_code status in server/client op_common PDUs */
 #define ST_OK	0x00
 #define ST_NA	0x01
-	/* Device requested for import is not available */
+	/* Device requested for import is yest available */
 #define ST_DEV_BUSY	0x02
 	/* Device requested for import is in error state */
 #define ST_DEV_ERR	0x03

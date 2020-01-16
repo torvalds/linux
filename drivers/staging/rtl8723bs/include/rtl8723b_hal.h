@@ -172,7 +172,7 @@ typedef enum _C2H_EVT {
 	C2H_DBG = 0,
 	C2H_TSF = 1,
 	C2H_AP_RPT_RSP = 2,
-	C2H_CCX_TX_RPT = 3, /* The FW notify the report
+	C2H_CCX_TX_RPT = 3, /* The FW yestify the report
 			     * of the specific tx packet. */
 	C2H_BT_RSSI = 4,
 	C2H_BT_OP_MODE = 5,

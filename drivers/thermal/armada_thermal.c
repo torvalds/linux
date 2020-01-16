@@ -318,7 +318,7 @@ armada_disable_overheat_interrupt(struct armada_thermal_priv *priv)
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 }
 
-/* There is currently no board with more than one sensor per channel */
+/* There is currently yes board with more than one sensor per channel */
 static int armada_select_channel(struct armada_thermal_priv *priv, int channel)
 {
 	struct armada_thermal_data *data = priv->data;
@@ -363,7 +363,7 @@ static int armada_select_channel(struct armada_thermal_priv *priv, int channel)
 	 */
 	if (armada_wait_sensor_validity(priv)) {
 		dev_err(priv->dev,
-			"Temperature sensor reading not valid\n");
+			"Temperature sensor reading yest valid\n");
 		return -EIO;
 	}
 
@@ -405,7 +405,7 @@ static int armada_get_temp_legacy(struct thermal_zone_device *thermal,
 	/* Valid check */
 	if (!armada_is_valid(priv)) {
 		dev_err(priv->dev,
-			"Temperature sensor reading not valid\n");
+			"Temperature sensor reading yest valid\n");
 		return -EIO;
 	}
 
@@ -525,9 +525,9 @@ static irqreturn_t armada_overheat_isr(int irq, void *blob)
 {
 	/*
 	 * Disable the IRQ and continue in thread context (thermal core
-	 * notification and temperature monitoring).
+	 * yestification and temperature monitoring).
 	 */
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -547,7 +547,7 @@ static irqreturn_t armada_overheat_isr_thread(int irq, void *blob)
 	/*
 	 * The overheat interrupt must be cleared by reading the DFX interrupt
 	 * cause _after_ the temperature has fallen down to the low threshold.
-	 * Otherwise future interrupts might not be served.
+	 * Otherwise future interrupts might yest be served.
 	 */
 	do {
 		msleep(OVERHEAT_INT_POLL_DELAY_MS);
@@ -721,7 +721,7 @@ static int armada_thermal_probe_legacy(struct platform_device *pdev,
 	 * Fix up from the old individual DT register specification to
 	 * cover all the registers.  We do this by adjusting the ioremap()
 	 * result, which should be fine as ioremap() deals with pages.
-	 * However, validate that we do not cross a page boundary while
+	 * However, validate that we do yest cross a page boundary while
 	 * making this adjustment.
 	 */
 	if (((unsigned long)base & ~PAGE_MASK) < data->syscon_status_off)
@@ -736,7 +736,7 @@ static int armada_thermal_probe_legacy(struct platform_device *pdev,
 static int armada_thermal_probe_syscon(struct platform_device *pdev,
 				       struct armada_thermal_priv *priv)
 {
-	priv->syscon = syscon_node_to_regmap(pdev->dev.parent->of_node);
+	priv->syscon = syscon_yesde_to_regmap(pdev->dev.parent->of_yesde);
 	return PTR_ERR_OR_ZERO(priv->syscon);
 }
 
@@ -763,7 +763,7 @@ static void armada_set_sane_name(struct platform_device *pdev,
 	strncpy(priv->zone_name, name, THERMAL_NAME_LENGTH - 1);
 	priv->zone_name[THERMAL_NAME_LENGTH - 1] = '\0';
 
-	/* Then check there are no '-' or hwmon core will complain */
+	/* Then check there are yes '-' or hwmon core will complain */
 	do {
 		insane_char = strpbrk(priv->zone_name, "-");
 		if (insane_char)
@@ -848,11 +848,11 @@ static int armada_thermal_probe(struct platform_device *pdev)
 	 *
 	 * The logic of defining sporadic registers is broken. For instance, it
 	 * blocked the addition of the overheat interrupt feature that needed
-	 * another resource somewhere else in the same memory area. One solution
-	 * is to define an overall system controller and put the thermal node
+	 * ayesther resource somewhere else in the same memory area. One solution
+	 * is to define an overall system controller and put the thermal yesde
 	 * into it, which requires the use of regmaps across all the driver.
 	 */
-	if (IS_ERR(syscon_node_to_regmap(pdev->dev.parent->of_node))) {
+	if (IS_ERR(syscon_yesde_to_regmap(pdev->dev.parent->of_yesde))) {
 		/* Ensure device name is correct for the thermal core */
 		armada_set_sane_name(pdev, priv);
 
@@ -894,14 +894,14 @@ static int armada_thermal_probe(struct platform_device *pdev)
 	if (irq == -EPROBE_DEFER)
 		return irq;
 
-	/* The overheat interrupt feature is not mandatory */
+	/* The overheat interrupt feature is yest mandatory */
 	if (irq > 0) {
 		ret = devm_request_threaded_irq(&pdev->dev, irq,
 						armada_overheat_isr,
 						armada_overheat_isr_thread,
 						0, NULL, priv);
 		if (ret) {
-			dev_err(&pdev->dev, "Cannot request threaded IRQ %d\n",
+			dev_err(&pdev->dev, "Canyest request threaded IRQ %d\n",
 				irq);
 			return ret;
 		}
@@ -934,15 +934,15 @@ static int armada_thermal_probe(struct platform_device *pdev)
 		/*
 		 * The first channel that has a critical trip point registered
 		 * in the DT will serve as interrupt source. Others possible
-		 * critical trip points will simply be ignored by the driver.
+		 * critical trip points will simply be igyesred by the driver.
 		 */
 		if (irq > 0 && !priv->overheat_sensor)
 			armada_configure_overheat_int(priv, tz, sensor->id);
 	}
 
-	/* Just complain if no overheat interrupt was set up */
+	/* Just complain if yes overheat interrupt was set up */
 	if (!priv->overheat_sensor)
-		dev_warn(&pdev->dev, "Overheat interrupt not available\n");
+		dev_warn(&pdev->dev, "Overheat interrupt yest available\n");
 
 	return 0;
 }

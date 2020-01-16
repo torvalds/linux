@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /// Find a use after free.
 //# Values of variables may imply that some
-//# execution paths are not possible, resulting in false positives.
-//# Another source of false positives are macros such as
-//# SCTP_DBG_OBJCNT_DEC that do not actually evaluate their argument
+//# execution paths are yest possible, resulting in false positives.
+//# Ayesther source of false positives are macros such as
+//# SCTP_DBG_OBJCNT_DEC that do yest actually evaluate their argument
 ///
 // Confidence: Moderate
 // Copyright: (C) 2010-2012 Nicolas Palix.
@@ -11,7 +11,7 @@
 // Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.
 // URL: http://coccinelle.lip6.fr/
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 
 virtual org
 virtual report
@@ -90,7 +90,7 @@ position free.p1!=loop.ok,p2!={print.p,sz.p};
 )
 ...
 (
- iter(...,subE,...) S // no use
+ iter(...,subE,...) S // yes use
 |
  list_remove_head(E1,subE,...)
 |

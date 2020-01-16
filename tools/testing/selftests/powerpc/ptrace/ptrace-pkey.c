@@ -116,7 +116,7 @@ static int child(struct shared_info *info)
 
 	/*
 	 * We won't use pkey3. We just want a plausible but invalid key to test
-	 * whether ptrace will let us write to AMR bits we are not supposed to.
+	 * whether ptrace will let us write to AMR bits we are yest supposed to.
 	 *
 	 * This also tests whether the kernel restores the UAMOR permissions
 	 * after a key is freed.
@@ -175,7 +175,7 @@ static int child(struct shared_info *info)
 
 	CHILD_FAIL_IF(reg != info->amr2, &info->child_sync);
 
-	/* Now let parent now that we are finished. */
+	/* Now let parent yesw that we are finished. */
 
 	ret = prod_parent(&info->child_sync);
 	CHILD_FAIL_IF(ret, &info->child_sync);
@@ -281,10 +281,10 @@ static int parent(struct shared_info *info, pid_t pid)
 
 	ret = wait(&status);
 	if (ret != pid) {
-		printf("Child's exit status not captured\n");
+		printf("Child's exit status yest captured\n");
 		ret = TEST_PASS;
 	} else if (!WIFEXITED(status)) {
-		printf("Child exited abnormally\n");
+		printf("Child exited abyesrmally\n");
 		ret = TEST_FAIL;
 	} else
 		ret = WEXITSTATUS(status) ? TEST_FAIL : TEST_PASS;

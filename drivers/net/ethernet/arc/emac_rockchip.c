@@ -49,7 +49,7 @@ static void emac_rockchip_set_mac_speed(void *priv, unsigned int speed)
 		data = (1 << (speed_offset + 16)) | (1 << speed_offset);
 		break;
 	default:
-		pr_err("speed %u not supported\n", speed);
+		pr_err("speed %u yest supported\n", speed);
 		return;
 	}
 
@@ -101,7 +101,7 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 	u32 data;
 	int err;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	ndev = alloc_etherdev(sizeof(struct rockchip_priv_data));
@@ -115,7 +115,7 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 	priv->emac.drv_version = DRV_VERSION;
 	priv->emac.set_mac_speed = emac_rockchip_set_mac_speed;
 
-	err = of_get_phy_mode(dev->of_node, &interface);
+	err = of_get_phy_mode(dev->of_yesde, &interface);
 	if (err)
 		goto out_netdev;
 
@@ -126,7 +126,7 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 		goto out_netdev;
 	}
 
-	priv->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->grf = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 						    "rockchip,grf");
 	if (IS_ERR(priv->grf)) {
 		dev_err(dev, "failed to retrieve global register file (%ld)\n",
@@ -135,7 +135,7 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 		goto out_netdev;
 	}
 
-	match = of_match_node(emac_rockchip_dt_ids, dev->of_node);
+	match = of_match_yesde(emac_rockchip_dt_ids, dev->of_yesde);
 	priv->soc_data = match->data;
 
 	priv->emac.clk = devm_clk_get(dev, "hclk");
@@ -167,7 +167,7 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 			err = -EPROBE_DEFER;
 			goto out_clk_disable;
 		}
-		dev_err(dev, "no regulator found\n");
+		dev_err(dev, "yes regulator found\n");
 		priv->regulator = NULL;
 	}
 

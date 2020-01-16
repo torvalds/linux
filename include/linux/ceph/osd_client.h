@@ -34,7 +34,7 @@ struct ceph_osd {
 	struct ceph_osd_client *o_osdc;
 	int o_osd;
 	int o_incarnation;
-	struct rb_node o_node;
+	struct rb_yesde o_yesde;
 	struct ceph_connection o_con;
 	struct rb_root o_requests;
 	struct rb_root o_linger_requests;
@@ -123,12 +123,12 @@ struct ceph_osd_req_op {
 		} watch;
 		struct {
 			struct ceph_osd_data request_data;
-		} notify_ack;
+		} yestify_ack;
 		struct {
 			u64 cookie;
 			struct ceph_osd_data request_data;
 			struct ceph_osd_data response_data;
-		} notify;
+		} yestify;
 		struct {
 			struct ceph_osd_data response_data;
 		} list_watchers;
@@ -175,8 +175,8 @@ struct ceph_osd_request_target {
 /* an in-flight request */
 struct ceph_osd_request {
 	u64             r_tid;              /* unique for this client */
-	struct rb_node  r_node;
-	struct rb_node  r_mc_node;          /* map check */
+	struct rb_yesde  r_yesde;
+	struct rb_yesde  r_mc_yesde;          /* map check */
 	struct work_struct r_complete_work;
 	struct ceph_osd *r_osd;
 
@@ -199,7 +199,7 @@ struct ceph_osd_request {
 	struct completion r_completion;       /* private to osd_client.c */
 	ceph_osdc_callback_t r_callback;
 
-	struct inode *r_inode;         	      /* for use by callbacks */
+	struct iyesde *r_iyesde;         	      /* for use by callbacks */
 	struct list_head r_private_item;      /* ditto */
 	void *r_priv;			      /* ditto */
 
@@ -240,15 +240,15 @@ struct ceph_blkin_trace_info {
 	__le64 parent_span_id;
 } __packed;
 
-typedef void (*rados_watchcb2_t)(void *arg, u64 notify_id, u64 cookie,
-				 u64 notifier_id, void *data, size_t data_len);
+typedef void (*rados_watchcb2_t)(void *arg, u64 yestify_id, u64 cookie,
+				 u64 yestifier_id, void *data, size_t data_len);
 typedef void (*rados_watcherrcb_t)(void *arg, u64 cookie, int err);
 
 struct ceph_osd_linger_request {
 	struct ceph_osd_client *osdc;
 	u64 linger_id;
 	bool committed;
-	bool is_watch;                  /* watch or notify */
+	bool is_watch;                  /* watch or yestify */
 
 	struct ceph_osd *osd;
 	struct ceph_osd_request *reg_req;
@@ -264,19 +264,19 @@ struct ceph_osd_linger_request {
 
 	struct kref kref;
 	struct mutex lock;
-	struct rb_node node;            /* osd */
-	struct rb_node osdc_node;       /* osdc */
-	struct rb_node mc_node;         /* map check */
+	struct rb_yesde yesde;            /* osd */
+	struct rb_yesde osdc_yesde;       /* osdc */
+	struct rb_yesde mc_yesde;         /* map check */
 	struct list_head scan_item;
 
 	struct completion reg_commit_wait;
-	struct completion notify_finish_wait;
+	struct completion yestify_finish_wait;
 	int reg_commit_error;
-	int notify_finish_error;
+	int yestify_finish_error;
 	int last_error;
 
 	u32 register_gen;
-	u64 notify_id;
+	u64 yestify_id;
 
 	rados_watchcb2_t wcb;
 	rados_watcherrcb_t errcb;
@@ -293,7 +293,7 @@ struct ceph_watch_item {
 };
 
 struct ceph_spg_mapping {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	struct ceph_spg spgid;
 
 	struct rb_root backoffs;
@@ -325,8 +325,8 @@ static inline void ceph_hoid_build_hash_cache(struct ceph_hobject_id *hoid)
  * per-object backoff: begin == end
  */
 struct ceph_osd_backoff {
-	struct rb_node spg_node;
-	struct rb_node id_node;
+	struct rb_yesde spg_yesde;
+	struct rb_yesde id_yesde;
 
 	struct ceph_spg spgid;
 	u64 id;
@@ -366,7 +366,7 @@ struct ceph_osd_client {
 	struct ceph_msgpool	msgpool_op;
 	struct ceph_msgpool	msgpool_op_reply;
 
-	struct workqueue_struct	*notify_wq;
+	struct workqueue_struct	*yestify_wq;
 	struct workqueue_struct	*completion_wq;
 };
 
@@ -479,7 +479,7 @@ int ceph_osdc_alloc_messages(struct ceph_osd_request *req, gfp_t gfp);
 
 extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 				      struct ceph_file_layout *layout,
-				      struct ceph_vino vino,
+				      struct ceph_viyes viyes,
 				      u64 offset, u64 *len,
 				      unsigned int which, int num_ops,
 				      int opcode, int flags,
@@ -492,13 +492,13 @@ extern void ceph_osdc_put_request(struct ceph_osd_request *req);
 
 extern int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 				   struct ceph_osd_request *req,
-				   bool nofail);
+				   bool yesfail);
 extern void ceph_osdc_cancel_request(struct ceph_osd_request *req);
 extern int ceph_osdc_wait_request(struct ceph_osd_client *osdc,
 				  struct ceph_osd_request *req);
 extern void ceph_osdc_sync(struct ceph_osd_client *osdc);
 
-extern void ceph_osdc_flush_notifies(struct ceph_osd_client *osdc);
+extern void ceph_osdc_flush_yestifies(struct ceph_osd_client *osdc);
 void ceph_osdc_maybe_request_map(struct ceph_osd_client *osdc);
 
 int ceph_osdc_call(struct ceph_osd_client *osdc,
@@ -510,7 +510,7 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 		   struct page **resp_pages, size_t *resp_len);
 
 extern int ceph_osdc_readpages(struct ceph_osd_client *osdc,
-			       struct ceph_vino vino,
+			       struct ceph_viyes viyes,
 			       struct ceph_file_layout *layout,
 			       u64 off, u64 *plen,
 			       u32 truncate_seq, u64 truncate_size,
@@ -518,7 +518,7 @@ extern int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 			       int page_align);
 
 extern int ceph_osdc_writepages(struct ceph_osd_client *osdc,
-				struct ceph_vino vino,
+				struct ceph_viyes viyes,
 				struct ceph_file_layout *layout,
 				struct ceph_snap_context *sc,
 				u64 off, u64 len,
@@ -536,7 +536,7 @@ int ceph_osdc_copy_from(struct ceph_osd_client *osdc,
 			u32 dst_fadvise_flags,
 			u8 copy_from_flags);
 
-/* watch/notify */
+/* watch/yestify */
 struct ceph_osd_linger_request *
 ceph_osdc_watch(struct ceph_osd_client *osdc,
 		struct ceph_object_id *oid,
@@ -547,14 +547,14 @@ ceph_osdc_watch(struct ceph_osd_client *osdc,
 int ceph_osdc_unwatch(struct ceph_osd_client *osdc,
 		      struct ceph_osd_linger_request *lreq);
 
-int ceph_osdc_notify_ack(struct ceph_osd_client *osdc,
+int ceph_osdc_yestify_ack(struct ceph_osd_client *osdc,
 			 struct ceph_object_id *oid,
 			 struct ceph_object_locator *oloc,
-			 u64 notify_id,
+			 u64 yestify_id,
 			 u64 cookie,
 			 void *payload,
 			 u32 payload_len);
-int ceph_osdc_notify(struct ceph_osd_client *osdc,
+int ceph_osdc_yestify(struct ceph_osd_client *osdc,
 		     struct ceph_object_id *oid,
 		     struct ceph_object_locator *oloc,
 		     void *payload,

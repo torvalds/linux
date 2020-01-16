@@ -140,7 +140,7 @@ enum {
 /* sgtl5000 private structure in codec */
 struct sgtl5000_priv {
 	int sysclk;	/* sysclk rate */
-	int master;	/* i2s master or not */
+	int master;	/* i2s master or yest */
 	int fmt;	/* i2s data format */
 	struct regulator_bulk_data supplies[SGTL5000_SUPPLY_NUM];
 	int num_supplies;
@@ -209,7 +209,7 @@ static int vag_power_consumers(struct snd_soc_component *component,
 	/*
 	 * If the event comes from HP and Line-In is selected,
 	 * current action is 'DAC to be powered down'.
-	 * As HP_POWERUP is not set when HP muxed to line-in,
+	 * As HP_POWERUP is yest set when HP muxed to line-in,
 	 * we need to keep VAG power ON.
 	 */
 	if (source == HP_POWER_EVENT) {
@@ -240,7 +240,7 @@ static void vag_power_off(struct snd_soc_component *component, u32 source)
 	 * - LINE_IN (for HP events) / HP (for DAC/ADC events)
 	 * - DAC
 	 * - ADC
-	 * (the current consumer is disappearing right now)
+	 * (the current consumer is disappearing right yesw)
 	 */
 	if (vag_power_consumers(component, ana_pwr, source) >= 2)
 		return;
@@ -625,7 +625,7 @@ static int dac_put_volsw(struct snd_kcontrol *kcontrol,
  * avc_put_threshold function: register_value = 10^(dB/20) * 0.636 * 2^15 ==>
  * dB = ( fls(register_value) - 14.347 ) * 6.02
  *
- * As this calculation is expensive and the threshold dB values may not exceed
+ * As this calculation is expensive and the threshold dB values may yest exceed
  * 0 to 96 we use pre-calculated values.
  */
 static int avc_get_threshold(struct snd_kcontrol *kcontrol,
@@ -658,7 +658,7 @@ static int avc_get_threshold(struct snd_kcontrol *kcontrol,
  *
  * The register value is calculated by following formula:
  *                                    register_value = 10^(dB/20) * 0.636 * 2^15
- * As this calculation is expensive and the threshold dB values may not exceed
+ * As this calculation is expensive and the threshold dB values may yest exceed
  * 0 to 96 we use pre-calculated values.
  */
 static int avc_put_threshold(struct snd_kcontrol *kcontrol,
@@ -781,7 +781,7 @@ static int sgtl5000_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	u16 i2s_pwr = SGTL5000_I2S_IN_POWERUP;
 
 	/*
-	 * During 'digital mute' do not mute DAC
+	 * During 'digital mute' do yest mute DAC
 	 * because LINE_IN would be muted aswell. We want to mute
 	 * only I2S block - this can be done by powering it off
 	 */
@@ -944,7 +944,7 @@ static int sgtl5000_set_clock(struct snd_soc_component *component, int frame_rat
 		clk_ctl |= SGTL5000_SYS_FS_96k << SGTL5000_SYS_FS_SHIFT;
 		break;
 	default:
-		dev_err(component->dev, "frame rate %d not supported\n",
+		dev_err(component->dev, "frame rate %d yest supported\n",
 			frame_rate);
 		return -EINVAL;
 	}
@@ -968,14 +968,14 @@ static int sgtl5000_set_clock(struct snd_soc_component *component, int frame_rat
 			SGTL5000_MCLK_FREQ_SHIFT;
 		break;
 	default:
-		/* if mclk does not satisfy the divider, use pll */
+		/* if mclk does yest satisfy the divider, use pll */
 		if (sgtl5000->master) {
 			clk_ctl |= SGTL5000_MCLK_FREQ_PLL <<
 				SGTL5000_MCLK_FREQ_SHIFT;
 		} else {
 			dev_err(component->dev,
-				"PLL not supported in slave mode\n");
-			dev_err(component->dev, "%d ratio is not supported. "
+				"PLL yest supported in slave mode\n");
+			dev_err(component->dev, "%d ratio is yest supported. "
 				"SYS_MCLK needs to be 256, 384 or 512 * fs\n",
 				sgtl5000->sysclk / frame_rate);
 			return -EINVAL;
@@ -1066,7 +1066,7 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
 	else
 		stereo = SGTL5000_ADC_STEREO;
 
-	/* set mono to save power */
+	/* set moyes to save power */
 	snd_soc_component_update_bits(component, SGTL5000_CHIP_ANA_POWER, stereo,
 			channels == 1 ? 0 : stereo);
 
@@ -1276,14 +1276,14 @@ static const u8 vol_quot_table[] = {
 
 /*
  * sgtl5000 has 3 internal power supplies:
- * 1. VAG, normally set to vdda/2
+ * 1. VAG, yesrmally set to vdda/2
  * 2. charge pump, set to different value
  *	according to voltage of vdda and vddio
- * 3. line out VAG, normally set to vddio/2
+ * 3. line out VAG, yesrmally set to vddio/2
  *
  * and should be set according to:
- * 1. vddd provided by external or not
- * 2. vdda and vddio voltage value. > 3.1v or not
+ * 1. vddd provided by external or yest
+ * 2. vdda and vddio voltage value. > 3.1v or yest
  */
 static int sgtl5000_set_power_regs(struct snd_soc_component *component)
 {
@@ -1310,7 +1310,7 @@ static int sgtl5000_set_power_regs(struct snd_soc_component *component)
 	vddd  = vddd / 1000;
 
 	if (vdda <= 0 || vddio <= 0 || vddd < 0) {
-		dev_err(component->dev, "regulator voltage not set correctly\n");
+		dev_err(component->dev, "regulator voltage yest set correctly\n");
 
 		return -EINVAL;
 	}
@@ -1427,7 +1427,7 @@ static int sgtl5000_enable_regulators(struct i2c_client *client)
 
 	vddd = regulator_get_optional(&client->dev, "VDDD");
 	if (IS_ERR(vddd)) {
-		/* See if it's just not registered yet */
+		/* See if it's just yest registered yet */
 		if (PTR_ERR(vddd) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 	} else {
@@ -1526,7 +1526,7 @@ static const struct snd_soc_component_driver sgtl5000_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config sgtl5000_regmap = {
@@ -1548,9 +1548,9 @@ static const struct regmap_config sgtl5000_regmap = {
  * sgtl5000 registers, to make sure we always start with the sane registers
  * values as stated in the datasheet.
  *
- * Since sgtl5000 does not have a reset line, nor a reset command in software,
+ * Since sgtl5000 does yest have a reset line, yesr a reset command in software,
  * we follow this approach to guarantee we always start from the default values
- * and avoid problems like, not being able to probe after an audio playback
+ * and avoid problems like, yest being able to probe after an audio playback
  * followed by a system reset or a 'reboot' command in Linux
  */
 static void sgtl5000_fill_defaults(struct i2c_client *client)
@@ -1574,7 +1574,7 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 {
 	struct sgtl5000_priv *sgtl5000;
 	int ret, reg, rev;
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	u32 value;
 	u16 ana_pwr;
 
@@ -1627,7 +1627,7 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 	if (((reg & SGTL5000_PARTID_MASK) >> SGTL5000_PARTID_SHIFT) !=
 	    SGTL5000_PARTID_PART_ID) {
 		dev_err(&client->dev,
-			"Device with ID register %x is not a sgtl5000\n", reg);
+			"Device with ID register %x is yest a sgtl5000\n", reg);
 		ret = -ENODEV;
 		goto disable_clk;
 	}

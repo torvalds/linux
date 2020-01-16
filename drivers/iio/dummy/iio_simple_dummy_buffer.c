@@ -64,7 +64,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 		 *   transactions.
 		 * software culled hardware scans:
 		 *   occasionally a driver may process the nearest hardware
-		 *   scan to avoid storing elements that are not desired. This
+		 *   scan to avoid storing elements that are yest desired. This
 		 *   is the fiddliest option by far.
 		 * Here let's pretend we have random access. And the values are
 		 * in the constant table fakedata.
@@ -93,7 +93,7 @@ done:
 	 * Tell the core we are done with this trigger and ready for the
 	 * next one.
 	 */
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -110,7 +110,7 @@ static const struct iio_buffer_setup_ops iio_simple_dummy_buffer_setup_ops = {
 	 * iio_triggered_buffer_predisable:
 	 * Generic function that simple detaches the pollfunc from the trigger.
 	 * Replace this to put hardware state back again after the trigger is
-	 * detached but before userspace knows we have disabled the ring.
+	 * detached but before userspace kyesws we have disabled the ring.
 	 */
 	.predisable = &iio_triggered_buffer_predisable,
 };
@@ -141,8 +141,8 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 	 * occurs, this function is run. Typically this grabs data
 	 * from the device.
 	 *
-	 * NULL for the bottom half. This is normally implemented only if we
-	 * either want to ping a capture now pin (no sleeping) or grab
+	 * NULL for the bottom half. This is yesrmally implemented only if we
+	 * either want to ping a capture yesw pin (yes sleeping) or grab
 	 * a timestamp as close as possible to a data ready trigger firing.
 	 *
 	 * IRQF_ONESHOT ensures irqs are masked such that only one instance

@@ -177,7 +177,7 @@ static int __init vfio_ap_init(void)
 {
 	int ret;
 
-	/* If there are no AP instructions, there is nothing to pass through. */
+	/* If there are yes AP instructions, there is yesthing to pass through. */
 	if (!ap_instructions_available())
 		return -ENODEV;
 

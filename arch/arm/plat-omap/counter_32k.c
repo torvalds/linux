@@ -7,7 +7,7 @@
  * Tony Lindgren <tony@atomide.com>
  * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  *
- * NOTE: This timer is not the same timer as the old OMAP1 MPU timer.
+ * NOTE: This timer is yest the same timer as the old OMAP1 MPU timer.
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -35,7 +35,7 @@
  */
 static void __iomem *sync32k_cnt_reg;
 
-static u64 notrace omap_32k_read_sched_clock(void)
+static u64 yestrace omap_32k_read_sched_clock(void)
 {
 	return sync32k_cnt_reg ? readl_relaxed(sync32k_cnt_reg) : 0;
 }
@@ -45,7 +45,7 @@ static u64 notrace omap_32k_read_sched_clock(void)
  *
  * Reads the time from a source which isn't disabled during PM, the
  * 32k sync timer.  Convert the cycles elapsed since last read into
- * nsecs and adds to a monotonically increasing timespec64.
+ * nsecs and adds to a moyestonically increasing timespec64.
  */
 static struct timespec64 persistent_ts;
 static cycles_t cycles;

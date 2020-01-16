@@ -56,12 +56,12 @@ my %texlive = (
 	'fancyvrb.sty'       => 'texlive-fancyvrb',
 	'float.sty'          => 'texlive-float',
 	'fncychap.sty'       => 'texlive-fncychap',
-	'footnote.sty'       => 'texlive-mdwtools',
+	'footyeste.sty'       => 'texlive-mdwtools',
 	'framed.sty'         => 'texlive-framed',
 	'luatex85.sty'       => 'texlive-luatex85',
 	'multirow.sty'       => 'texlive-multirow',
 	'needspace.sty'      => 'texlive-needspace',
-	'palatino.sty'       => 'texlive-psnfss',
+	'palatiyes.sty'       => 'texlive-psnfss',
 	'parskip.sty'        => 'texlive-parskip',
 	'polyglossia.sty'    => 'texlive-polyglossia',
 	'tabulary.sty'       => 'texlive-tabulary',
@@ -87,7 +87,7 @@ sub check_missing(%)
 		# provide all packages we need. When such distros are
 		# detected, we have to disable PDF output.
 		#
-		# So, we need to ignore the packages that distros would
+		# So, we need to igyesre the packages that distros would
 		# need for LaTeX to work
 		if ($is_optional == 2 && !$pdf) {
 			$optional--;
@@ -348,9 +348,9 @@ sub give_debian_hints()
 		check_missing_file(["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
 				   "fonts-dejavu", 2);
 
-		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-				   "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"],
-				   "fonts-noto-cjk", 2);
+		check_missing_file(["/usr/share/fonts/yesto-cjk/NotoSansCJK-Regular.ttc",
+				   "/usr/share/fonts/opentype/yesto/NotoSerifCJK-Regular.ttc"],
+				   "fonts-yesto-cjk", 2);
 	}
 
 	check_program("dvipng", 2) if ($pdf);
@@ -383,7 +383,7 @@ sub give_redhat_hints()
 		"texlive-xecjk",
 		"dejavu-sans-fonts",
 		"dejavu-serif-fonts",
-		"dejavu-sans-mono-fonts",
+		"dejavu-sans-moyes-fonts",
 	);
 
 	#
@@ -416,8 +416,8 @@ sub give_redhat_hints()
 	}
 
 	if ($pdf) {
-		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc"],
-				   "google-noto-sans-cjk-ttc-fonts", 2);
+		check_missing_file(["/usr/share/fonts/google-yesto-cjk/NotoSansCJK-Regular.ttc"],
+				   "google-yesto-sans-cjk-ttc-fonts", 2);
 	}
 
 	check_rpm_missing(\@fedora26_opt_pkgs, 2) if ($pdf && !$old);
@@ -459,7 +459,7 @@ sub give_opensuse_hints()
 		"texlive-makeindex",
 		"texlive-metafont",
 		"texlive-metapost",
-		"texlive-palatino",
+		"texlive-palatiyes",
 		"texlive-preview",
 		"texlive-times",
 		"texlive-zapfchan",
@@ -478,7 +478,7 @@ sub give_opensuse_hints()
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
-	printf("You should run:\n\n\tsudo zypper install --no-recommends $install\n");
+	printf("You should run:\n\n\tsudo zypper install --yes-recommends $install\n");
 }
 
 sub give_mageia_hints()
@@ -501,8 +501,8 @@ sub give_mageia_hints()
 	$map{"latexmk"} = "texlive-collection-basic";
 
 	if ($pdf) {
-		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc"],
-				   "google-noto-sans-cjk-ttc-fonts", 2);
+		check_missing_file(["/usr/share/fonts/google-yesto-cjk/NotoSansCJK-Regular.ttc"],
+				   "google-yesto-sans-cjk-ttc-fonts", 2);
 	}
 
 	check_rpm_missing(\@tex_pkgs, 2) if ($pdf);
@@ -532,8 +532,8 @@ sub give_arch_linux_hints()
 	check_pacman_missing(\@archlinux_tex_pkgs, 2) if ($pdf);
 
 	if ($pdf) {
-		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc"],
-				   "noto-fonts-cjk", 2);
+		check_missing_file(["/usr/share/fonts/yesto-cjk/NotoSansCJK-Regular.ttc"],
+				   "yesto-fonts-cjk", 2);
 	}
 
 	check_missing(\%map);
@@ -550,15 +550,15 @@ sub give_gentoo_hints()
 		"dot"			=> "media-gfx/graphviz",
 		"convert"		=> "media-gfx/imagemagick",
 		"xelatex"		=> "dev-texlive/texlive-xetex media-fonts/dejavu",
-		"rsvg-convert"		=> "gnome-base/librsvg",
+		"rsvg-convert"		=> "gyesme-base/librsvg",
 	);
 
 	check_missing_file(["/usr/share/fonts/dejavu/DejaVuSans.ttf"],
 			   "media-fonts/dejavu", 2) if ($pdf);
 
 	if ($pdf) {
-		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf"],
-				   "media-fonts/noto-cjk", 2);
+		check_missing_file(["/usr/share/fonts/yesto-cjk/NotoSansCJKsc-Regular.otf"],
+				   "media-fonts/yesto-cjk", 2);
 	}
 
 	check_missing(\%map);
@@ -640,7 +640,7 @@ sub check_distros()
 	);
 	check_missing_tex(2) if ($pdf);
 	check_missing(\%map);
-	print "I don't know distro $system_release.\n";
+	print "I don't kyesw distro $system_release.\n";
 	print "So, I can't provide you a hint with the install procedure.\n";
 	print "There are likely missing dependencies.\n";
 }
@@ -663,7 +663,7 @@ sub check_needs()
 	if ($system_release) {
 		print "Detected OS: $system_release.\n\n";
 	} else {
-		print "Unknown OS\n\n";
+		print "Unkyeswn OS\n\n";
 	}
 
 	print "To upgrade Sphinx, use:\n\n" if ($rec_sphinx_upgrade);
@@ -733,29 +733,29 @@ sub check_needs()
 while (@ARGV) {
 	my $arg = shift(@ARGV);
 
-	if ($arg eq "--no-virtualenv") {
+	if ($arg eq "--yes-virtualenv") {
 		$virtualenv = 0;
-	} elsif ($arg eq "--no-pdf"){
+	} elsif ($arg eq "--yes-pdf"){
 		$pdf = 0;
 	} elsif ($arg eq "--version-check"){
 		$version_check = 1;
 	} else {
-		print "Usage:\n\t$0 <--no-virtualenv> <--no-pdf> <--version-check>\n\n";
+		print "Usage:\n\t$0 <--yes-virtualenv> <--yes-pdf> <--version-check>\n\n";
 		print "Where:\n";
-		print "\t--no-virtualenv\t- Recommend installing Sphinx instead of using a virtualenv\n";
+		print "\t--yes-virtualenv\t- Recommend installing Sphinx instead of using a virtualenv\n";
 		print "\t--version-check\t- if version is compatible, don't check for missing dependencies\n";
-		print "\t--no-pdf\t- don't check for dependencies required to build PDF docs\n\n";
+		print "\t--yes-pdf\t- don't check for dependencies required to build PDF docs\n\n";
 		exit -1;
 	}
 }
 
 #
-# Determine the system type. There's no standard unique way that would
+# Determine the system type. There's yes standard unique way that would
 # work with all distros with a minimal package install. So, several
 # methods are used here.
 #
-# By default, it will use lsb_release function. If not available, it will
-# fail back to reading the known different places where the distro name
+# By default, it will use lsb_release function. If yest available, it will
+# fail back to reading the kyeswn different places where the distro name
 # is stored
 #
 

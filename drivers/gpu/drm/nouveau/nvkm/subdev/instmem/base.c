@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -144,7 +144,7 @@ nvkm_instmem_wr32(struct nvkm_instmem *imem, u32 addr, u32 data)
 void
 nvkm_instmem_boot(struct nvkm_instmem *imem)
 {
-	/* Separate bootstrapped objects from normal list, as we need
+	/* Separate bootstrapped objects from yesrmal list, as we need
 	 * to make sure they're accessed with the slowpath on suspend
 	 * and resume.
 	 */

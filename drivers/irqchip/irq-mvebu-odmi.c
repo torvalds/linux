@@ -97,7 +97,7 @@ static int odmi_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	odmi = &odmis[hwirq >> NODMIS_SHIFT];
 	odmin = hwirq & NODMIS_MASK;
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwyesde = domain->parent->fwyesde;
 	fwspec.param_count = 3;
 	fwspec.param[0] = GIC_SPI;
 	fwspec.param[1] = odmi->spi_base - 32 + odmin;
@@ -105,7 +105,7 @@ static int odmi_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 
 	ret = irq_domain_alloc_irqs_parent(domain, virq, 1, &fwspec);
 	if (ret) {
-		pr_err("Cannot allocate parent IRQ\n");
+		pr_err("Canyest allocate parent IRQ\n");
 		spin_lock(&odmis_bm_lock);
 		__clear_bit(odmin, odmis_bm);
 		spin_unlock(&odmis_bm_lock);
@@ -158,13 +158,13 @@ static struct msi_domain_info odmi_msi_domain_info = {
 	.chip	= &odmi_msi_irq_chip,
 };
 
-static int __init mvebu_odmi_init(struct device_node *node,
-				  struct device_node *parent)
+static int __init mvebu_odmi_init(struct device_yesde *yesde,
+				  struct device_yesde *parent)
 {
 	struct irq_domain *inner_domain, *plat_domain;
 	int ret, i;
 
-	if (of_property_read_u32(node, "marvell,odmi-frames", &odmis_count))
+	if (of_property_read_u32(yesde, "marvell,odmi-frames", &odmis_count))
 		return -EINVAL;
 
 	odmis = kcalloc(odmis_count, sizeof(struct odmi_data), GFP_KERNEL);
@@ -181,24 +181,24 @@ static int __init mvebu_odmi_init(struct device_node *node,
 	for (i = 0; i < odmis_count; i++) {
 		struct odmi_data *odmi = &odmis[i];
 
-		ret = of_address_to_resource(node, i, &odmi->res);
+		ret = of_address_to_resource(yesde, i, &odmi->res);
 		if (ret)
 			goto err_unmap;
 
-		odmi->base = of_io_request_and_map(node, i, "odmi");
+		odmi->base = of_io_request_and_map(yesde, i, "odmi");
 		if (IS_ERR(odmi->base)) {
 			ret = PTR_ERR(odmi->base);
 			goto err_unmap;
 		}
 
-		if (of_property_read_u32_index(node, "marvell,spi-base",
+		if (of_property_read_u32_index(yesde, "marvell,spi-base",
 					       i, &odmi->spi_base)) {
 			ret = -EINVAL;
 			goto err_unmap;
 		}
 	}
 
-	inner_domain = irq_domain_create_linear(of_node_to_fwnode(node),
+	inner_domain = irq_domain_create_linear(of_yesde_to_fwyesde(yesde),
 						odmis_count * NODMIS_PER_FRAME,
 						&odmi_domain_ops, NULL);
 	if (!inner_domain) {
@@ -208,7 +208,7 @@ static int __init mvebu_odmi_init(struct device_node *node,
 
 	inner_domain->parent = irq_find_host(parent);
 
-	plat_domain = platform_msi_create_irq_domain(of_node_to_fwnode(node),
+	plat_domain = platform_msi_create_irq_domain(of_yesde_to_fwyesde(yesde),
 						     &odmi_msi_domain_info,
 						     inner_domain);
 	if (!plat_domain) {

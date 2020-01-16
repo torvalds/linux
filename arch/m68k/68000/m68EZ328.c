@@ -45,7 +45,7 @@ void m68ez328_reset(void)
 /***************************************************************************/
 
 unsigned char *cs8900a_hwaddr;
-static int errno;
+static int erryes;
 
 #ifdef CONFIG_UCSIMM
 _bsc0(char *, getserialnum)

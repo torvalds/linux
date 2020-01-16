@@ -16,7 +16,7 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 	if (pte) {
 		__flush_page_to_ram(pte);
 		flush_tlb_kernel_page(pte);
-		nocache_page(pte);
+		yescache_page(pte);
 	}
 
 	return pte;
@@ -44,7 +44,7 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 	pte = kmap(page);
 	__flush_page_to_ram(pte);
 	flush_tlb_kernel_page(pte);
-	nocache_page(pte);
+	yescache_page(pte);
 	kunmap(page);
 	return page;
 }

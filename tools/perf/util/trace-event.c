@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -18,7 +18,7 @@
 /*
  * global trace_event object used by trace_event__tp_format
  *
- * TODO There's no cleanup call for this. Add some sort of
+ * TODO There's yes cleanup call for this. Add some sort of
  * __exit function support and call trace_event__cleanup
  * there.
  */
@@ -83,7 +83,7 @@ tp_format(const char *sys, const char *name)
 	int err;
 
 	if (!tp_dir)
-		return ERR_PTR(-errno);
+		return ERR_PTR(-erryes);
 
 	scnprintf(path, PATH_MAX, "%s/%s/format", tp_dir, name);
 	put_events_file(tp_dir);

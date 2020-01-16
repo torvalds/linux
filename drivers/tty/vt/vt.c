@@ -36,7 +36,7 @@
  *
  *   Original m68k console driver modifications by
  *
- *     - Arno Griffioen <arno@usn.nl>
+ *     - Aryes Griffioen <aryes@usn.nl>
  *     - David Carter <carter@cs.bris.ac.uk>
  * 
  *   The abstract console driver provides a generic interface for a text
@@ -78,7 +78,7 @@
 #include <linux/tty_flip.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kd.h>
 #include <linux/slab.h>
 #include <linux/major.h>
@@ -97,7 +97,7 @@
 #include <linux/pm.h>
 #include <linux/font.h>
 #include <linux/bitops.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
@@ -117,7 +117,7 @@ struct con_driver {
 	const struct consw *con;
 	const char *desc;
 	struct device *dev;
-	int node;
+	int yesde;
 	int first;
 	int last;
 	int flag;
@@ -128,11 +128,11 @@ const struct consw *conswitchp;
 
 /* A bitmap for codes <32. A bit of 1 indicates that the code
  * corresponding to that bit number invokes some special action
- * (such as cursor movement) and should not be displayed as a
+ * (such as cursor movement) and should yest be displayed as a
  * glyph unless the disp_ctrl mode is explicitly enabled.
  */
 #define CTRL_ACTION 0x0d00ff81
-#define CTRL_ALWAYS 0x0800f501	/* Cannot be overridden by disp_ctrl */
+#define CTRL_ALWAYS 0x0800f501	/* Canyest be overridden by disp_ctrl */
 
 /*
  * Here is the default bell parameters: 750HZ, 1/8th of a second
@@ -157,8 +157,8 @@ static void con_flush_chars(struct tty_struct *tty);
 static int set_vesa_blanking(char __user *p);
 static void set_cursor(struct vc_data *vc);
 static void hide_cursor(struct vc_data *vc);
-static void console_callback(struct work_struct *ignored);
-static void con_driver_unregister_callback(struct work_struct *ignored);
+static void console_callback(struct work_struct *igyesred);
+static void con_driver_unregister_callback(struct work_struct *igyesred);
 static void blank_screen_t(struct timer_list *unused);
 static void set_palette(struct vc_data *vc);
 
@@ -174,15 +174,15 @@ static int cur_default = CUR_DEFAULT;
 module_param(cur_default, int, S_IRUGO | S_IWUSR);
 
 /*
- * ignore_poke: don't unblank the screen when things are typed.  This is
+ * igyesre_poke: don't unblank the screen when things are typed.  This is
  * mainly for the privacy of braille terminal users.
  */
-static int ignore_poke;
+static int igyesre_poke;
 
 int do_poke_blanked_console;
 int console_blanked;
 
-static int vesa_blank_mode; /* 0:none 1:suspendV 2:suspendH 3:powerdown */
+static int vesa_blank_mode; /* 0:yesne 1:suspendV 2:suspendH 3:powerdown */
 static int vesa_off_interval;
 static int blankinterval;
 core_param(consoleblank, blankinterval, int, 0444);
@@ -215,7 +215,7 @@ static struct vc_data *master_display_fg;
 
 /*
  * Unfortunately, we need to delay tty echo when we're currently writing to the
- * console since the code is (and always was) not re-entrant, so we schedule
+ * console since the code is (and always was) yest re-entrant, so we schedule
  * all flip requests to process context with schedule-task() and run it from
  * console_callback().
  */
@@ -236,7 +236,7 @@ static int blank_state;
 static int blank_timer_expired;
 enum {
 	blank_off = 0,
-	blank_normal_wait,
+	blank_yesrmal_wait,
 	blank_vesa_wait,
 };
 
@@ -251,30 +251,30 @@ static struct device *tty0dev;
 /*
  * Notifier list for console events.
  */
-static ATOMIC_NOTIFIER_HEAD(vt_notifier_list);
+static ATOMIC_NOTIFIER_HEAD(vt_yestifier_list);
 
-int register_vt_notifier(struct notifier_block *nb)
+int register_vt_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&vt_notifier_list, nb);
+	return atomic_yestifier_chain_register(&vt_yestifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(register_vt_notifier);
+EXPORT_SYMBOL_GPL(register_vt_yestifier);
 
-int unregister_vt_notifier(struct notifier_block *nb)
+int unregister_vt_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&vt_notifier_list, nb);
+	return atomic_yestifier_chain_unregister(&vt_yestifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_vt_notifier);
+EXPORT_SYMBOL_GPL(unregister_vt_yestifier);
 
-static void notify_write(struct vc_data *vc, unsigned int unicode)
+static void yestify_write(struct vc_data *vc, unsigned int unicode)
 {
-	struct vt_notifier_param param = { .vc = vc, .c = unicode };
-	atomic_notifier_call_chain(&vt_notifier_list, VT_WRITE, &param);
+	struct vt_yestifier_param param = { .vc = vc, .c = unicode };
+	atomic_yestifier_call_chain(&vt_yestifier_list, VT_WRITE, &param);
 }
 
-static void notify_update(struct vc_data *vc)
+static void yestify_update(struct vc_data *vc)
 {
-	struct vt_notifier_param param = { .vc = vc };
-	atomic_notifier_call_chain(&vt_notifier_list, VT_UPDATE, &param);
+	struct vt_yestifier_param param = { .vc = vc };
+	atomic_yestifier_call_chain(&vt_yestifier_list, VT_UPDATE, &param);
 }
 /*
  *	Low-Level Functions
@@ -308,7 +308,7 @@ static inline void scrolldelta(int lines)
 {
 	/* FIXME */
 	/* scrolldelta needs some kind of consistency lock, but the BKL was
-	   and still is not protecting versus the scheduled back end */
+	   and still is yest protecting versus the scheduled back end */
 	scrollback_delta += lines;
 	schedule_console_callback();
 }
@@ -495,9 +495,9 @@ static void vc_uniscr_copy_area(struct uni_screen *dst,
 
 /*
  * Called from vcs_read() to make sure unicode screen retrieval is possible.
- * This will initialize the unicode screen buffer if not already done.
+ * This will initialize the unicode screen buffer if yest already done.
  * This returns 0 if OK, or a negative error code otherwise.
- * In particular, -ENODATA is returned if the console is not in UTF-8 mode.
+ * In particular, -ENODATA is returned if the console is yest in UTF-8 mode.
  */
 int vc_uniscr_check(struct vc_data *vc)
 {
@@ -523,7 +523,7 @@ int vc_uniscr_check(struct vc_data *vc)
 	/*
 	 * Let's populate it initially with (imperfect) reverse translation.
 	 * This is the next best thing we can do short of having it enabled
-	 * from the start even when no users rely on this functionality. True
+	 * from the start even when yes users rely on this functionality. True
 	 * unicode content will be available after a complete screen refresh.
 	 */
 	p = (unsigned short *)vc->vc_origin;
@@ -566,7 +566,7 @@ void vc_uniscr_copy_line(struct vc_data *vc, void *dest, int viewed,
 		memcpy(dest, &uniscr->lines[row][col], nr * sizeof(char32_t));
 	} else {
 		/*
-		 * Scrollback is active. For now let's simply backtranslate
+		 * Scrollback is active. For yesw let's simply backtranslate
 		 * the screen glyphs until the unicode screen buffer does
 		 * synchronize with console display drivers for a scrollback
 		 * buffer of its own.
@@ -707,8 +707,8 @@ static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
 		       _blink, _underline, _reverse, _italic);
 
 /*
- * ++roman: I completely changed the attribute format for monochrome
- * mode (!can_do_color). The formerly used MDA (monochrome display
+ * ++roman: I completely changed the attribute format for moyeschrome
+ * mode (!can_do_color). The formerly used MDA (moyeschrome display
  * adapter) format didn't allow the combination of certain effects.
  * Now the attribute is just a bit vector:
  *  Bit 0..1: intensity (0..2)
@@ -792,7 +792,7 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 
 	if (con_should_update(vc))
 		do_update_region(vc, (unsigned long) p, count);
-	notify_update(vc);
+	yestify_update(vc);
 }
 
 /* used by selection: complement pointer position */
@@ -809,7 +809,7 @@ void complement_pos(struct vc_data *vc, int offset)
 		scr_writew(old, screenpos(vc, old_offset, 1));
 		if (con_should_update(vc))
 			vc->vc_sw->con_putc(vc, old, oldy, oldx);
-		notify_update(vc);
+		yestify_update(vc);
 	}
 
 	old_offset = offset;
@@ -827,7 +827,7 @@ void complement_pos(struct vc_data *vc, int offset)
 			oldy = (offset >> 1) / vc->vc_cols;
 			vc->vc_sw->con_putc(vc, new, oldy, oldx);
 		}
-		notify_update(vc);
+		yestify_update(vc);
 	}
 }
 
@@ -965,7 +965,7 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 
 	if (!vc) {
 		/* strange ... */
-		/* printk("redraw_screen: tty %d not allocated ??\n", new_console+1); */
+		/* printk("redraw_screen: tty %d yest allocated ??\n", new_console+1); */
 		return;
 	}
 
@@ -983,7 +983,7 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 			set_origin(old_vc);
 		}
 		if (tty0dev)
-			sysfs_notify(&tty0dev->kobj, NULL, "active");
+			sysfs_yestify(&tty0dev->kobj, NULL, "active");
 	} else {
 		hide_cursor(vc);
 		redraw = 1;
@@ -997,9 +997,9 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 		update = vc->vc_sw->con_switch(vc);
 		set_palette(vc);
 		/*
-		 * If console changed from mono<->color, the best we can do
+		 * If console changed from moyes<->color, the best we can do
 		 * is to clear the buffer attributes. As it currently stands,
-		 * rebuilding new attributes from the old buffer is not doable
+		 * rebuilding new attributes from the old buffer is yest doable
 		 * without overly complex code.
 		 */
 		if (old_was_color != vc->vc_can_do_color) {
@@ -1014,7 +1014,7 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 	if (is_switch) {
 		set_leds();
 		compute_shiftstate();
-		notify_update(vc);
+		yestify_update(vc);
 	}
 }
 
@@ -1065,7 +1065,7 @@ static void visual_deinit(struct vc_data *vc)
 
 int vc_allocate(unsigned int currcons)	/* return 0 on success */
 {
-	struct vt_notifier_param param;
+	struct vt_yestifier_param param;
 	struct vc_data *vc;
 
 	WARN_CONSOLE_UNLOCKED();
@@ -1079,7 +1079,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	/* due to the granularity of kmalloc, we waste some memory here */
 	/* the alloc is done in two steps, to optimize the common situation
 	   of a 25x80 console (structsize=216, screenbuf_size=4000) */
-	/* although the numbers above are not valid since long ago, the
+	/* although the numbers above are yest valid since long ago, the
 	   point is still up-to-date and the comment still has its value
 	   even if only as a historical artifact.  --mj, July 1998 */
 	param.vc = vc = kzalloc(sizeof(struct vc_data), GFP_KERNEL);
@@ -1099,14 +1099,14 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	if (!vc->vc_screenbuf)
 		goto err_free;
 
-	/* If no drivers have overridden us and the user didn't pass a
+	/* If yes drivers have overridden us and the user didn't pass a
 	   boot option, default to displaying the cursor */
 	if (global_cursor_default == -1)
 		global_cursor_default = 1;
 
 	vc_init(vc, vc->vc_rows, vc->vc_cols, 1);
 	vcs_make_sysfs(currcons);
-	atomic_notifier_call_chain(&vt_notifier_list, VT_ALLOCATE, &param);
+	atomic_yestifier_call_chain(&vt_yestifier_list, VT_ALLOCATE, &param);
 
 	return 0;
 err_free:
@@ -1229,7 +1229,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 			first_copied_row = (old_rows - new_rows);
 		} else {
 			/*
-			 * Cursor is in no man's land, copy 1/2 screenful
+			 * Cursor is in yes man's land, copy 1/2 screenful
 			 * from the top and bottom of cursor position
 			 */
 			first_copied_row = (vc->vc_y - new_rows/2);
@@ -1283,7 +1283,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	if (con_is_visible(vc))
 		update_screen(vc);
 	vt_event_post(VT_EVENT_RESIZE, vc->vc_num, vc->vc_num);
-	notify_update(vc);
+	yestify_update(vc);
 	return err;
 }
 
@@ -1334,10 +1334,10 @@ struct vc_data *vc_deallocate(unsigned int currcons)
 	WARN_CONSOLE_UNLOCKED();
 
 	if (vc_cons_allocated(currcons)) {
-		struct vt_notifier_param param;
+		struct vt_yestifier_param param;
 
 		param.vc = vc = vc_cons[currcons].d;
-		atomic_notifier_call_chain(&vt_notifier_list, VT_DEALLOCATE, &param);
+		atomic_yestifier_call_chain(&vt_yestifier_list, VT_DEALLOCATE, &param);
 		vcs_remove_sysfs(currcons);
 		visual_deinit(vc);
 		put_pid(vc->vt_pid);
@@ -1456,7 +1456,7 @@ static void lf(struct vc_data *vc)
 		vc->vc_pos += vc->vc_size_row;
 	}
 	vc->vc_need_wrap = 0;
-	notify_write(vc, '\n');
+	yestify_write(vc, '\n');
 }
 
 static void ri(struct vc_data *vc)
@@ -1477,7 +1477,7 @@ static inline void cr(struct vc_data *vc)
 {
 	vc->vc_pos -= vc->vc_x << 1;
 	vc->vc_need_wrap = vc->vc_x = 0;
-	notify_write(vc, '\r');
+	yestify_write(vc, '\r');
 }
 
 static inline void bs(struct vc_data *vc)
@@ -1486,13 +1486,13 @@ static inline void bs(struct vc_data *vc)
 		vc->vc_pos -= 2;
 		vc->vc_x--;
 		vc->vc_need_wrap = 0;
-		notify_write(vc, '\b');
+		yestify_write(vc, '\b');
 	}
 }
 
 static inline void del(struct vc_data *vc)
 {
-	/* ignored */
+	/* igyesred */
 }
 
 static void csi_J(struct vc_data *vc, int vpar)
@@ -1562,7 +1562,7 @@ static void csi_K(struct vc_data *vc, int vpar)
 }
 
 static void csi_X(struct vc_data *vc, int vpar) /* erase the following vpar positions */
-{					  /* not vt100? */
+{					  /* yest vt100? */
 	int count;
 
 	if (!vpar)
@@ -1637,11 +1637,11 @@ static void rgb_background(struct vc_data *vc, const struct rgb *c)
 
 /*
  * ITU T.416 Higher colour modes. They break the usual properties of SGR codes
- * and thus need to be detected and ignored by hand. That standard also
+ * and thus need to be detected and igyesred by hand. That standard also
  * wants : rather than ; as separators but sequences containing : are currently
- * completely ignored by the parser.
+ * completely igyesred by the parser.
  *
- * Subcommands 3 (CMY) and 4 (CMYK) are so insane there's no point in
+ * Subcommands 3 (CMY) and 4 (CMYK) are so insane there's yes point in
  * supporting them.
  */
 static int vc_t416_color(struct vc_data *vc, int i,
@@ -1835,7 +1835,7 @@ static void set_mode(struct vc_data *vc, int on_off)
 			case 3:	/* 80/132 mode switch unimplemented */
 #if 0
 				vc_resize(deccolm ? 132 : 80, vc->vc_rows);
-				/* this alone does not suffice; some user mode
+				/* this alone does yest suffice; some user mode
 				   utility has to change the hardware regs */
 #endif
 				break;
@@ -2030,8 +2030,8 @@ static void restore_cur(struct vc_data *vc)
 	vc->vc_need_wrap = 0;
 }
 
-enum { ESnormal, ESesc, ESsquare, ESgetpars, ESfunckey,
-	EShash, ESsetG0, ESsetG1, ESpercent, EScsiignore, ESnonstd,
+enum { ESyesrmal, ESesc, ESsquare, ESgetpars, ESfunckey,
+	EShash, ESsetG0, ESsetG1, ESpercent, EScsiigyesre, ESyesnstd,
 	ESpalette, ESosc };
 
 /* console_lock is held (except via vc_init()) */
@@ -2039,7 +2039,7 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 {
 	vc->vc_top		= 0;
 	vc->vc_bottom		= vc->vc_rows;
-	vc->vc_state		= ESnormal;
+	vc->vc_state		= ESyesrmal;
 	vc->vc_priv		= EPecma;
 	vc->vc_translate	= set_translate(LAT1_MAP, vc);
 	vc->vc_G0_charset	= LAT1_MAP;
@@ -2100,7 +2100,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		return;
 	case 7:
 		if (vc->vc_state == ESosc)
-			vc->vc_state = ESnormal;
+			vc->vc_state = ESyesrmal;
 		else if (vc->vc_bell_duration)
 			kd_mksound(vc->vc_bell_pitch, vc->vc_bell_duration);
 		return;
@@ -2115,7 +2115,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 				break;
 		}
 		vc->vc_pos += (vc->vc_x << 1);
-		notify_write(vc, '\t');
+		yestify_write(vc, '\t');
 		return;
 	case 10: case 11: case 12:
 		lf(vc);
@@ -2136,7 +2136,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		vc->vc_disp_ctrl = 0;
 		return;
 	case 24: case 26:
-		vc->vc_state = ESnormal;
+		vc->vc_state = ESyesrmal;
 		return;
 	case 27:
 		vc->vc_state = ESesc;
@@ -2150,13 +2150,13 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 	}
 	switch(vc->vc_state) {
 	case ESesc:
-		vc->vc_state = ESnormal;
+		vc->vc_state = ESyesrmal;
 		switch (c) {
 		case '[':
 			vc->vc_state = ESsquare;
 			return;
 		case ']':
-			vc->vc_state = ESnonstd;
+			vc->vc_state = ESyesnstd;
 			return;
 		case '%':
 			vc->vc_state = ESpercent;
@@ -2203,7 +2203,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			return;
 		}
 		return;
-	case ESnonstd:
+	case ESyesnstd:
 		if (c=='P') {   /* palette escape sequence */
 			for (vc->vc_npar = 0; vc->vc_npar < NPAR; vc->vc_npar++)
 				vc->vc_par[vc->vc_npar] = 0;
@@ -2212,11 +2212,11 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			return;
 		} else if (c=='R') {   /* reset palette */
 			reset_palette(vc);
-			vc->vc_state = ESnormal;
+			vc->vc_state = ESyesrmal;
 		} else if (c>='0' && c<='9')
 			vc->vc_state = ESosc;
 		else
-			vc->vc_state = ESnormal;
+			vc->vc_state = ESyesrmal;
 		return;
 	case ESpalette:
 		if (isxdigit(c)) {
@@ -2230,10 +2230,10 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 				vc->vc_palette[i] = 16 * vc->vc_par[j++];
 				vc->vc_palette[i] += vc->vc_par[j];
 				set_palette(vc);
-				vc->vc_state = ESnormal;
+				vc->vc_state = ESyesrmal;
 			}
 		} else
-			vc->vc_state = ESnormal;
+			vc->vc_state = ESyesrmal;
 		return;
 	case ESsquare:
 		for (vc->vc_npar = 0; vc->vc_npar < NPAR; vc->vc_npar++)
@@ -2270,10 +2270,10 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			return;
 		}
 		if (c >= 0x20 && c <= 0x3f) { /* 0x2x, 0x3a and 0x3c - 0x3f */
-			vc->vc_state = EScsiignore;
+			vc->vc_state = EScsiigyesre;
 			return;
 		}
-		vc->vc_state = ESnormal;
+		vc->vc_state = ESyesrmal;
 		switch(c) {
 		case 'h':
 			if (vc->vc_priv <= EPdec)
@@ -2435,13 +2435,13 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			return;
 		}
 		return;
-	case EScsiignore:
+	case EScsiigyesre:
 		if (c >= 20 && c <= 0x3f)
 			return;
-		vc->vc_state = ESnormal;
+		vc->vc_state = ESyesrmal;
 		return;
 	case ESpercent:
-		vc->vc_state = ESnormal;
+		vc->vc_state = ESyesrmal;
 		switch (c) {
 		case '@':  /* defined in ISO 2022 */
 			vc->vc_utf = 0;
@@ -2453,10 +2453,10 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		}
 		return;
 	case ESfunckey:
-		vc->vc_state = ESnormal;
+		vc->vc_state = ESyesrmal;
 		return;
 	case EShash:
-		vc->vc_state = ESnormal;
+		vc->vc_state = ESyesrmal;
 		if (c == '8') {
 			/* DEC screen alignment test. kludge :-) */
 			vc->vc_video_erase_char =
@@ -2478,7 +2478,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			vc->vc_G0_charset = USER_MAP;
 		if (vc->vc_charset == 0)
 			vc->vc_translate = set_translate(vc->vc_G0_charset, vc);
-		vc->vc_state = ESnormal;
+		vc->vc_state = ESyesrmal;
 		return;
 	case ESsetG1:
 		if (c == '0')
@@ -2491,12 +2491,12 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			vc->vc_G1_charset = USER_MAP;
 		if (vc->vc_charset == 1)
 			vc->vc_translate = set_translate(vc->vc_G1_charset, vc);
-		vc->vc_state = ESnormal;
+		vc->vc_state = ESyesrmal;
 		return;
 	case ESosc:
 		return;
 	default:
-		vc->vc_state = ESnormal;
+		vc->vc_state = ESyesrmal;
 	}
 }
 
@@ -2556,7 +2556,7 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	unsigned long draw_from = 0, draw_to = 0;
 	struct vc_data *vc;
 	unsigned char vc_attr;
-	struct vt_notifier_param param;
+	struct vt_yestifier_param param;
 	uint8_t rescan;
 	uint8_t inverse;
 	uint8_t width;
@@ -2578,7 +2578,7 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	currcons = vc->vc_num;
 	if (!vc_cons_allocated(currcons)) {
 		/* could this happen? */
-		pr_warn_once("con_write: tty %d not allocated\n", currcons+1);
+		pr_warn_once("con_write: tty %d yest allocated\n", currcons+1);
 		console_unlock();
 		return 0;
 	}
@@ -2602,8 +2602,8 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 		inverse = 0;
 		width = 1;
 
-		/* Do no translation at all in control states */
-		if (vc->vc_state != ESnormal) {
+		/* Do yes translation at all in control states */
+		if (vc->vc_state != ESyesrmal) {
 			tc = c;
 		} else if (vc->vc_utf && !vc->vc_disp_ctrl) {
 		    /* Combine UTF-8 into Unicode in vc_utf_char.
@@ -2676,18 +2676,18 @@ rescan_last_byte:
 		    if ((c >= 0xd800 && c <= 0xdfff) || c == 0xfffe || c == 0xffff)
 			c = 0xfffd;
 		    tc = c;
-		} else {	/* no utf or alternate charset mode */
+		} else {	/* yes utf or alternate charset mode */
 		    tc = vc_translate(vc, c);
 		}
 
 		param.c = tc;
-		if (atomic_notifier_call_chain(&vt_notifier_list, VT_PREWRITE,
+		if (atomic_yestifier_call_chain(&vt_yestifier_list, VT_PREWRITE,
 					&param) == NOTIFY_STOP)
 			continue;
 
                 /* If the original code was a control character we
                  * only allow a glyph to be displayed if the code is
-                 * not normally used (such as for cursor movement) or
+                 * yest yesrmally used (such as for cursor movement) or
                  * if the disp_ctrl mode has been explicitly enabled.
                  * Certain characters (as given by the CTRL_ALWAYS
                  * bitmap) are always displayed as control characters,
@@ -2701,7 +2701,7 @@ rescan_last_byte:
 			&& (c != 127 || vc->vc_disp_ctrl)
 			&& (c != 128+27);
 
-		if (vc->vc_state == ESnormal && ok) {
+		if (vc->vc_state == ESyesrmal && ok) {
 			if (vc->vc_utf && !vc->vc_disp_ctrl) {
 				if (is_double_width(c))
 					width = 2;
@@ -2710,18 +2710,18 @@ rescan_last_byte:
 			tc = conv_uni_to_pc(vc, tc);
 			if (tc & ~charmask) {
 				if (tc == -1 || tc == -2) {
-				    continue; /* nothing to display */
+				    continue; /* yesthing to display */
 				}
-				/* Glyph not found */
+				/* Glyph yest found */
 				if ((!(vc->vc_utf && !vc->vc_disp_ctrl) || c < 128) && !(c & ~charmask)) {
 				    /* In legacy mode use the glyph we get by a 1:1 mapping.
-				       This would make absolutely no sense with Unicode in mind,
+				       This would make absolutely yes sense with Unicode in mind,
 				       but do this for ASCII characters since a font may lack
 				       Unicode mapping info and we don't want to end up with
 				       having question marks only. */
 				    tc = c;
 				} else {
-				    /* Display U+FFFD. If it's not found, display an inverse question mark. */
+				    /* Display U+FFFD. If it's yest found, display an inverse question mark. */
 				    tc = conv_uni_to_pc(vc, 0xfffd);
 				    if (tc < 0) {
 					inverse = 1;
@@ -2779,7 +2779,7 @@ rescan_last_byte:
 				if (tc < 0) tc = ' ';
 				next_c = ' ';
 			}
-			notify_write(vc, c);
+			yestify_write(vc, c);
 
 			if (inverse)
 				con_flush(vc, draw_from, draw_to, &draw_x);
@@ -2799,7 +2799,7 @@ rescan_last_byte:
 	con_flush(vc, draw_from, draw_to, &draw_x);
 	vc_uniscr_debug_check(vc);
 	console_conditional_schedule();
-	notify_update(vc);
+	yestify_update(vc);
 	console_unlock();
 	return n;
 }
@@ -2808,12 +2808,12 @@ rescan_last_byte:
  * This is the console switching callback.
  *
  * Doing console switching in a process context allows
- * us to do the switches asynchronously (needed when we want
+ * us to do the switches asynchroyesusly (needed when we want
  * to switch due to a keyboard interrupt).  Synchronization
  * with other console code and prevention of re-entrancy is
  * ensured with console_lock.
  */
-static void console_callback(struct work_struct *ignored)
+static void console_callback(struct work_struct *igyesred)
 {
 	console_lock();
 
@@ -2823,12 +2823,12 @@ static void console_callback(struct work_struct *ignored)
 			hide_cursor(vc_cons[fg_console].d);
 			change_console(vc_cons[want_console].d);
 			/* we only changed when the console had already
-			   been allocated - a new console is not created
+			   been allocated - a new console is yest created
 			   in an interrupt routine */
 		}
 		want_console = -1;
 	}
-	if (do_poke_blanked_console) { /* do not unblank for a LED change */
+	if (do_poke_blanked_console) { /* do yest unblank for a LED change */
 		do_poke_blanked_console = 0;
 		poke_blanked_console();
 	}
@@ -2843,7 +2843,7 @@ static void console_callback(struct work_struct *ignored)
 		do_blank_screen(0);
 		blank_timer_expired = 0;
 	}
-	notify_update(vc_cons[fg_console].d);
+	yestify_update(vc_cons[fg_console].d);
 
 	console_unlock();
 }
@@ -2857,7 +2857,7 @@ int set_console(int nr)
 
 		/*
 		 * Console switch will fail in console_callback() or
-		 * change_console() so there is no point scheduling
+		 * change_console() so there is yes point scheduling
 		 * the callback
 		 *
 		 * Existing set_console() users don't check the return
@@ -2887,14 +2887,14 @@ struct tty_driver *console_driver;
  *
  * This function sets the kernel message console to be @new. It returns the old
  * virtual console number. The virtual terminal number 0 (both as parameter and
- * return value) means no redirection (i.e. always printed on the currently
+ * return value) means yes redirection (i.e. always printed on the currently
  * active console).
  *
  * The parameter -1 means that only the current console is returned, but the
- * value is not modified. You may use the macro vt_get_kmsg_redirect() in that
+ * value is yest modified. You may use the macro vt_get_kmsg_redirect() in that
  * case to make the code more understandable.
  *
- * When the kernel is compiled without CONFIG_VT_CONSOLE, this function ignores
+ * When the kernel is compiled without CONFIG_VT_CONSOLE, this function igyesres
  * the parameter and always returns 0.
  */
 int vt_kmsg_redirect(int new)
@@ -2922,7 +2922,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 	ushort start_x, cnt;
 	int kmsg_console;
 
-	/* console busy or not yet initialized */
+	/* console busy or yest yet initialized */
 	if (!printable)
 		return;
 	if (!spin_trylock(&printing_lock))
@@ -2934,7 +2934,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 
 	if (!vc_cons_allocated(fg_console)) {
 		/* impossible */
-		/* printk("vt_console_print: tty %d not allocated ??\n", currcons+1); */
+		/* printk("vt_console_print: tty %d yest allocated ??\n", currcons+1); */
 		goto quit;
 	}
 
@@ -2970,7 +2970,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 		}
 		vc_uniscr_putc(vc, c);
 		scr_writew((vc->vc_attr << 8) + c, (unsigned short *)vc->vc_pos);
-		notify_write(vc, c);
+		yestify_write(vc, c);
 		cnt++;
 		if (vc->vc_x == vc->vc_cols - 1) {
 			vc->vc_need_wrap = 1;
@@ -2982,7 +2982,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 	if (cnt && con_is_visible(vc))
 		vc->vc_sw->con_putcs(vc, start, cnt, vc->vc_y, start_x);
 	set_cursor(vc);
-	notify_update(vc);
+	yestify_update(vc);
 
 quit:
 	spin_unlock(&printing_lock);
@@ -3058,8 +3058,8 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	/*
 	 * Make it possible to react to Shift+Mousebutton.
 	 * Note that 'shift_state' is an undocumented
-	 * kernel-internal variable; programs not closely
-	 * related to the kernel should not use this.
+	 * kernel-internal variable; programs yest closely
+	 * related to the kernel should yest use this.
 	 */
 			data = vt_get_shift_state();
 			ret = put_user(data, p);
@@ -3108,9 +3108,9 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 				ret = 0;
 			}
 			break;
-		case TIOCL_BLANKSCREEN:	/* until explicitly unblanked, not only poked */
+		case TIOCL_BLANKSCREEN:	/* until explicitly unblanked, yest only poked */
 			console_lock();
-			ignore_poke = 1;
+			igyesre_poke = 1;
 			do_blank_screen(0);
 			console_unlock();
 			break;
@@ -3149,12 +3149,12 @@ static int con_write_room(struct tty_struct *tty)
 {
 	if (tty->stopped)
 		return 0;
-	return 32768;		/* No limit, really; we're not buffering */
+	return 32768;		/* No limit, really; we're yest buffering */
 }
 
 static int con_chars_in_buffer(struct tty_struct *tty)
 {
-	return 0;		/* we're not buffering */
+	return 0;		/* we're yest buffering */
 }
 
 /*
@@ -3313,7 +3313,7 @@ static void vc_init(struct vc_data *vc, unsigned int rows,
 }
 
 /*
- * This routine initializes console interrupts, and does nothing
+ * This routine initializes console interrupts, and does yesthing
  * else. If you want the screen to clear, call tty_write with
  * the appropriate escape-sequence.
  */
@@ -3351,7 +3351,7 @@ static int __init con_init(void)
 		con_driver_map[i] = conswitchp;
 
 	if (blankinterval) {
-		blank_state = blank_normal_wait;
+		blank_state = blank_yesrmal_wait;
 		mod_timer(&console_timer, jiffies + (blankinterval * HZ));
 	}
 
@@ -3372,7 +3372,7 @@ static int __init con_init(void)
 	csi_J(vc, 0);
 	update_screen(vc);
 	pr_info("Console: %s %s %dx%d\n",
-		vc->vc_can_do_color ? "colour" : "mono",
+		vc->vc_can_do_color ? "colour" : "moyes",
 		display_desc, vc->vc_cols, vc->vc_rows);
 	printable = 1;
 
@@ -3443,7 +3443,7 @@ int __init vty_init(const struct file_operations *console_fops)
 	console_driver->name = "tty";
 	console_driver->name_base = 1;
 	console_driver->major = TTY_MAJOR;
-	console_driver->minor_start = 1;
+	console_driver->miyesr_start = 1;
 	console_driver->type = TTY_DRIVER_TYPE_CONSOLE;
 	console_driver->init_termios = tty_std_termios;
 	if (default_utf8)
@@ -3533,7 +3533,7 @@ static int do_bind_con_driver(const struct consw *csw, int first, int last,
 		set_origin(vc);
 		update_attr(vc);
 
-		/* If the console changed between mono <-> color, then
+		/* If the console changed between moyes <-> color, then
 		 * the attributes in the screenbuf will be wrong.  The
 		 * following resets all attributes to something sane.
 		 */
@@ -3548,7 +3548,7 @@ static int do_bind_con_driver(const struct consw *csw, int first, int last,
 		struct vc_data *vc = vc_cons[j].d;
 
 		pr_cont("to %s %s %dx%d\n",
-			vc->vc_can_do_color ? "colour" : "mono",
+			vc->vc_can_do_color ? "colour" : "moyes",
 			desc, vc->vc_cols, vc->vc_rows);
 
 		if (k >= 0) {
@@ -3638,7 +3638,7 @@ int do_unbind_con_driver(const struct consw *csw, int first, int last, int deflt
 	if (!con_is_bound(csw))
 		con_driver->flag &= ~CON_DRIVER_FLAG_INIT;
 
-	/* ignore return value, binding should not fail */
+	/* igyesre return value, binding should yest fail */
 	do_bind_con_driver(defcsw, first, last, deflt);
 err:
 	module_put(owner);
@@ -3817,7 +3817,7 @@ static void vtconsole_deinit_device(struct con_driver *con)
  * con_is_bound - checks if driver is bound to the console
  * @csw: console driver
  *
- * RETURNS: zero if unbound, nonzero if bound
+ * RETURNS: zero if unbound, yesnzero if bound
  *
  * Drivers can call this and if zero, they should release
  * all resources allocated on con_startup()
@@ -3843,7 +3843,7 @@ EXPORT_SYMBOL(con_is_bound);
  * con_is_visible - checks whether the current console is visible
  * @vc: virtual console
  *
- * RETURNS: zero if not visible, nonzero if visible
+ * RETURNS: zero if yest visible, yesnzero if visible
  */
 bool con_is_visible(const struct vc_data *vc)
 {
@@ -3862,7 +3862,7 @@ EXPORT_SYMBOL(con_is_visible);
  * into a state suitable for the kernel debugger.
  *
  * RETURNS:
- * Zero on success, nonzero if a failure occurred when trying to prepare
+ * Zero on success, yesnzero if a failure occurred when trying to prepare
  * the console for the debugger.
  */
 int con_debug_enter(struct vc_data *vc)
@@ -3879,7 +3879,7 @@ int con_debug_enter(struct vc_data *vc)
 	if (vc->vc_sw->con_debug_enter)
 		ret = vc->vc_sw->con_debug_enter(vc);
 #ifdef CONFIG_KGDB_KDB
-	/* Set the initial LINES variable if it is not already set */
+	/* Set the initial LINES variable if it is yest already set */
 	if (vc->vc_rows < 999) {
 		int linecount;
 		char lns[4];
@@ -3919,7 +3919,7 @@ EXPORT_SYMBOL_GPL(con_debug_enter);
  * was invoked.
  *
  * RETURNS:
- * Zero on success, nonzero if a failure occurred when trying to restore
+ * Zero on success, yesnzero if a failure occurred when trying to restore
  * the console.
  */
 int con_debug_leave(void)
@@ -3977,7 +3977,7 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 		    !(con_driver->flag & CON_DRIVER_FLAG_ZOMBIE)) {
 			con_driver->con = csw;
 			con_driver->desc = desc;
-			con_driver->node = i;
+			con_driver->yesde = i;
 			con_driver->flag = CON_DRIVER_FLAG_MODULE |
 			                   CON_DRIVER_FLAG_INIT;
 			con_driver->first = first;
@@ -3992,11 +3992,11 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 
 	con_driver->dev =
 		device_create_with_groups(vtconsole_class, NULL,
-					  MKDEV(0, con_driver->node),
+					  MKDEV(0, con_driver->yesde),
 					  con_driver, con_dev_groups,
-					  "vtcon%i", con_driver->node);
+					  "vtcon%i", con_driver->yesde);
 	if (IS_ERR(con_driver->dev)) {
-		pr_warn("Unable to create device for %s; errno = %ld\n",
+		pr_warn("Unable to create device for %s; erryes = %ld\n",
 			con_driver->desc, PTR_ERR(con_driver->dev));
 		con_driver->dev = NULL;
 	} else {
@@ -4024,7 +4024,7 @@ int do_unregister_con_driver(const struct consw *csw)
 {
 	int i;
 
-	/* cannot unregister a bound driver */
+	/* canyest unregister a bound driver */
 	if (con_is_bound(csw))
 		return -EBUSY;
 
@@ -4057,7 +4057,7 @@ int do_unregister_con_driver(const struct consw *csw)
 }
 EXPORT_SYMBOL_GPL(do_unregister_con_driver);
 
-static void con_driver_unregister_callback(struct work_struct *ignored)
+static void con_driver_unregister_callback(struct work_struct *igyesred)
 {
 	int i;
 
@@ -4072,7 +4072,7 @@ static void con_driver_unregister_callback(struct work_struct *ignored)
 		console_unlock();
 
 		vtconsole_deinit_device(con_driver);
-		device_destroy(vtconsole_class, MKDEV(0, con_driver->node));
+		device_destroy(vtconsole_class, MKDEV(0, con_driver->yesde));
 
 		console_lock();
 
@@ -4080,7 +4080,7 @@ static void con_driver_unregister_callback(struct work_struct *ignored)
 			con_driver->con = NULL;
 		con_driver->desc = NULL;
 		con_driver->dev = NULL;
-		con_driver->node = 0;
+		con_driver->yesde = 0;
 		WARN_ON_ONCE(con_driver->flag != CON_DRIVER_FLAG_ZOMBIE);
 		con_driver->flag = 0;
 		con_driver->first = 0;
@@ -4105,7 +4105,7 @@ int do_take_over_console(const struct consw *csw, int first, int last, int deflt
 	/*
 	 * If we get an busy error we still want to bind the console driver
 	 * and return success, as we may have unbound the console driver
-	 * but not unregistered it.
+	 * but yest unregistered it.
 	 */
 	if (err == -EBUSY)
 		err = 0;
@@ -4134,7 +4134,7 @@ static int __init vtconsole_class_init(void)
 
 	vtconsole_class = class_create(THIS_MODULE, "vtconsole");
 	if (IS_ERR(vtconsole_class)) {
-		pr_warn("Unable to create vt console class; errno = %ld\n",
+		pr_warn("Unable to create vt console class; erryes = %ld\n",
 			PTR_ERR(vtconsole_class));
 		vtconsole_class = NULL;
 	}
@@ -4146,12 +4146,12 @@ static int __init vtconsole_class_init(void)
 		if (con->con && !con->dev) {
 			con->dev =
 				device_create_with_groups(vtconsole_class, NULL,
-							  MKDEV(0, con->node),
+							  MKDEV(0, con->yesde),
 							  con, con_dev_groups,
-							  "vtcon%i", con->node);
+							  "vtcon%i", con->yesde);
 
 			if (IS_ERR(con->dev)) {
-				pr_warn("Unable to create device for %s; errno = %ld\n",
+				pr_warn("Unable to create device for %s; erryes = %ld\n",
 					con->desc, PTR_ERR(con->dev));
 				con->dev = NULL;
 			} else {
@@ -4246,7 +4246,7 @@ void do_unblank_screen(int leaving_gfx)
 {
 	struct vc_data *vc;
 
-	/* This should now always be called from a "sane" (read: can schedule)
+	/* This should yesw always be called from a "sane" (read: can schedule)
 	 * context for the sake of the low level drivers, except in the special
 	 * case of oops_in_progress
 	 */
@@ -4255,12 +4255,12 @@ void do_unblank_screen(int leaving_gfx)
 
 	WARN_CONSOLE_UNLOCKED();
 
-	ignore_poke = 0;
+	igyesre_poke = 0;
 	if (!console_blanked)
 		return;
 	if (!vc_cons_allocated(fg_console)) {
 		/* impossible */
-		pr_warn("unblank_screen: tty %d not allocated ??\n",
+		pr_warn("unblank_screen: tty %d yest allocated ??\n",
 			fg_console + 1);
 		return;
 	}
@@ -4270,12 +4270,12 @@ void do_unblank_screen(int leaving_gfx)
 
 	if (blankinterval) {
 		mod_timer(&console_timer, jiffies + (blankinterval * HZ));
-		blank_state = blank_normal_wait;
+		blank_state = blank_yesrmal_wait;
 	}
 
 	console_blanked = 0;
 	if (vc->vc_sw->con_blank(vc, 0, leaving_gfx))
-		/* Low-level driver cannot restore -> do it ourselves */
+		/* Low-level driver canyest restore -> do it ourselves */
 		update_screen(vc);
 	if (console_blank_hook)
 		console_blank_hook(0);
@@ -4299,7 +4299,7 @@ void unblank_screen(void)
 /*
  * We defer the timer blanking to work queue so it can take the console mutex
  * (console operations can still happen at irq time, but only from printk which
- * has the console mutex. Not perfect yet, but better than no locking
+ * has the console mutex. Not perfect yet, but better than yes locking
  */
 static void blank_screen_t(struct timer_list *unused)
 {
@@ -4311,7 +4311,7 @@ void poke_blanked_console(void)
 {
 	WARN_CONSOLE_UNLOCKED();
 
-	/* Add this so we quickly catch whoever might call us in a non
+	/* Add this so we quickly catch whoever might call us in a yesn
 	 * safe context. Nowadays, unblank_screen() isn't to be called in
 	 * atomic contexts and is allowed to schedule (with the special case
 	 * of oops_in_progress, but that isn't of any concern for this
@@ -4325,13 +4325,13 @@ void poke_blanked_console(void)
 	del_timer(&console_timer);
 	blank_timer_expired = 0;
 
-	if (ignore_poke || !vc_cons[fg_console].d || vc_cons[fg_console].d->vc_mode == KD_GRAPHICS)
+	if (igyesre_poke || !vc_cons[fg_console].d || vc_cons[fg_console].d->vc_mode == KD_GRAPHICS)
 		return;
 	if (console_blanked)
 		unblank_screen();
 	else if (blankinterval) {
 		mod_timer(&console_timer, jiffies + (blankinterval * HZ));
-		blank_state = blank_normal_wait;
+		blank_state = blank_yesrmal_wait;
 	}
 }
 
@@ -4518,12 +4518,12 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 		for (h = 32; h > 0; h--)
 			for (i = 0; i < op->charcount; i++)
 				if (charmap[32*i+h-1])
-					goto nonzero;
+					goto yesnzero;
 
 		kfree(font.data);
 		return -EINVAL;
 
-	nonzero:
+	yesnzero:
 		op->height = h;
 	}
 
@@ -4588,7 +4588,7 @@ static int con_font_copy(struct vc_data *vc, struct console_font_op *op)
 		rc = -ENOSYS;
 	else if (con < 0 || !vc_cons_allocated(con))
 		rc = -ENOTTY;
-	else if (con == vc->vc_num)	/* nothing to do */
+	else if (con == vc->vc_num)	/* yesthing to do */
 		rc = 0;
 	else
 		rc = vc->vc_sw->con_font_copy(vc, con);
@@ -4637,7 +4637,7 @@ u32 screen_glyph_unicode(struct vc_data *vc, int n)
 }
 EXPORT_SYMBOL_GPL(screen_glyph_unicode);
 
-/* used by vcs - note the word offset */
+/* used by vcs - yeste the word offset */
 unsigned short *screen_pos(struct vc_data *vc, int w_offset, int viewed)
 {
 	return screenpos(vc, 2 * w_offset, viewed);
@@ -4676,7 +4676,7 @@ void vcs_scr_writew(struct vc_data *vc, u16 val, u16 *org)
 
 void vcs_scr_updated(struct vc_data *vc)
 {
-	notify_update(vc);
+	yestify_update(vc);
 }
 
 void vc_scrolldelta_helper(struct vc_data *c, int lines,
@@ -4695,7 +4695,7 @@ void vc_scrolldelta_helper(struct vc_data *c, int lines,
 		return;
 	}
 
-	/* Do we have already enough to allow jumping from 0 to the end? */
+	/* Do we have already eyesugh to allow jumping from 0 to the end? */
 	if (rolled_over > scr_end + margin) {
 		from = scr_end;
 		wrap = rolled_over + c->vc_size_row;

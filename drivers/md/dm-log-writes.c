@@ -33,7 +33,7 @@
  * verify it matches what was written.
  *
  * We log writes only after they have been flushed, this makes the log describe
- * close to the order in which the data hits the actual disk, not its cache.  So
+ * close to the order in which the data hits the actual disk, yest its cache.  So
  * for example the following sequence (W means write, C means complete)
  *
  * Wa,Wb,Wc,Cc,Ca,FLUSH,FUAd,Cb,CFLUSH,CFUAd
@@ -42,12 +42,12 @@
  *
  * c,a,b,flush,fuad,<other writes>,<next flush>
  *
- * This is meant to help expose problems where file systems do not properly wait
+ * This is meant to help expose problems where file systems do yest properly wait
  * on data being written before invoking a FLUSH.  FUA bypasses cache so once it
  * completes it is added to the log as it should be on disk.
  *
  * We treat DISCARDs as if they don't bypass cache so that they are logged in
- * order of completion along with the normal writes.  If we didn't do it this
+ * order of completion along with the yesrmal writes.  If we didn't do it this
  * way we would process all the discards first and then write all the data, when
  * in fact we want to do the data and the discard in the order that they
  * completed.
@@ -446,7 +446,7 @@ static int log_super(struct log_writes_c *lc)
 
 static inline sector_t logdev_last_sector(struct log_writes_c *lc)
 {
-	return i_size_read(lc->logdev->bdev->bd_inode) >> SECTOR_SHIFT;
+	return i_size_read(lc->logdev->bdev->bd_iyesde) >> SECTOR_SHIFT;
 }
 
 static int log_writes_kthread(void *arg)
@@ -474,7 +474,7 @@ static int log_writes_kthread(void *arg)
 			lc->next_sector += dev_to_bio_sectors(lc, 1);
 
 			/*
-			 * Apparently the size of the device may not be known
+			 * Apparently the size of the device may yest be kyeswn
 			 * right away, so handle this properly.
 			 */
 			if (!lc->end_sector)
@@ -542,7 +542,7 @@ static int log_writes_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	lc = kzalloc(sizeof(struct log_writes_c), GFP_KERNEL);
 	if (!lc) {
-		ti->error = "Cannot allocate context";
+		ti->error = "Canyest allocate context";
 		return -ENOMEM;
 	}
 	spin_lock_init(&lc->blocks_lock);
@@ -655,7 +655,7 @@ static void log_writes_dtr(struct dm_target *ti)
 	kfree(lc);
 }
 
-static void normal_map_bio(struct dm_target *ti, struct bio *bio)
+static void yesrmal_map_bio(struct dm_target *ti, struct bio *bio)
 {
 	struct log_writes_c *lc = ti->private;
 
@@ -683,17 +683,17 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 		goto map_bio;
 
 	/*
-	 * Map reads as normal.
+	 * Map reads as yesrmal.
 	 */
 	if (bio_data_dir(bio) == READ)
 		goto map_bio;
 
-	/* No sectors and not a flush?  Don't care */
+	/* No sectors and yest a flush?  Don't care */
 	if (!bio_sectors(bio) && !flush_bio)
 		goto map_bio;
 
 	/*
-	 * Discards will have bi_size set but there's no actual data, so just
+	 * Discards will have bi_size set but there's yes actual data, so just
 	 * allocate the size of the pending block.
 	 */
 	if (discard_bio)
@@ -744,7 +744,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 
 	/*
 	 * We will write this bio somewhere else way later so we need to copy
-	 * the actual contents into new pages so we know the data will always be
+	 * the actual contents into new pages so we kyesw the data will always be
 	 * there.
 	 *
 	 * We do this because this could be a bio from O_DIRECT in which case we
@@ -783,11 +783,11 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 		spin_unlock_irq(&lc->blocks_lock);
 	}
 map_bio:
-	normal_map_bio(ti, bio);
+	yesrmal_map_bio(ti, bio);
 	return DM_MAPIO_REMAPPED;
 }
 
-static int normal_end_io(struct dm_target *ti, struct bio *bio,
+static int yesrmal_end_io(struct dm_target *ti, struct bio *bio,
 		blk_status_t *error)
 {
 	struct log_writes_c *lc = ti->private;
@@ -847,7 +847,7 @@ static int log_writes_prepare_ioctl(struct dm_target *ti,
 	/*
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
-	if (ti->len != i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT)
+	if (ti->len != i_size_read(dev->bdev->bd_iyesde) >> SECTOR_SHIFT)
 		return 1;
 	return 0;
 }
@@ -1007,7 +1007,7 @@ static struct target_type log_writes_target = {
 	.ctr    = log_writes_ctr,
 	.dtr    = log_writes_dtr,
 	.map    = log_writes_map,
-	.end_io = normal_end_io,
+	.end_io = yesrmal_end_io,
 	.status = log_writes_status,
 	.prepare_ioctl = log_writes_prepare_ioctl,
 	.message = log_writes_message,

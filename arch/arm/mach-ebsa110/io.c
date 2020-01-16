@@ -18,7 +18,7 @@
  *
  * Things get more interesting on the pass-1 EBSA110 - the PCMCIA controller
  * wiring was screwed in such a way that it had limited memory space access.
- * Luckily, the work-around for this is not too horrible.  See
+ * Luckily, the work-around for this is yest too horrible.  See
  * __isamem_convert_addr for the details.
  */
 #include <linux/module.h>
@@ -220,7 +220,7 @@ u8 __inb8(unsigned int port)
 		void __iomem *a = (void __iomem *)ISAIO_BASE + ((port & ~1) << 1);
 
 		/*
-		 * Shame nothing else does
+		 * Shame yesthing else does
 		 */
 		if (port & 1)
 			ret = __raw_readl(a);
@@ -296,7 +296,7 @@ void __outb8(u8 val, unsigned int port)
 		void __iomem *a = (void __iomem *)ISAIO_BASE + ((port & ~1) << 1);
 
 		/*
-		 * Shame nothing else does
+		 * Shame yesthing else does
 		 */
 		if (port & 1)
 			__raw_writel(val, a);

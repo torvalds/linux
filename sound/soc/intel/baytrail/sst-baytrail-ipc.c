@@ -42,7 +42,7 @@
 #define IPC_HEADER_DATA_MASK	0x3fff
 #define IPC_HEADER_DATA(x)	(((x) & 0x3fff) << IPC_HEADER_DATA_SHIFT)
 
-/* mask for differentiating between notification and reply message */
+/* mask for differentiating between yestification and reply message */
 #define IPC_NOTIFICATION	(0x1 << 7)
 
 /* I2L Stream config/control msgs */
@@ -53,7 +53,7 @@
 #define IPC_IA_DROP_STREAM	0x26
 #define IPC_IA_START_STREAM	0x30
 
-/* notification messages */
+/* yestification messages */
 #define IPC_IA_FW_INIT_CMPLT	0x81
 #define IPC_SST_PERIOD_ELAPSED	0x97
 
@@ -116,7 +116,7 @@ struct sst_byt_tstamp {
 
 struct sst_byt_fw_version {
 	u8 build;
-	u8 minor;
+	u8 miyesr;
 	u8 major;
 	u8 type;
 } __packed;
@@ -139,7 +139,7 @@ struct sst_byt;
 
 /* stream infomation */
 struct sst_byt_stream {
-	struct list_head node;
+	struct list_head yesde;
 
 	/* configuration */
 	struct sst_byt_alloc_params request;
@@ -152,7 +152,7 @@ struct sst_byt_stream {
 	bool running;
 
 	/* driver callback */
-	u32 (*notify_position)(struct sst_byt_stream *stream, void *data);
+	u32 (*yestify_position)(struct sst_byt_stream *stream, void *data);
 	void *pdata;
 };
 
@@ -200,7 +200,7 @@ static struct sst_byt_stream *sst_byt_get_stream(struct sst_byt *byt,
 {
 	struct sst_byt_stream *stream;
 
-	list_for_each_entry(stream, &byt->stream_list, node) {
+	list_for_each_entry(stream, &byt->stream_list, yesde) {
 		if (stream->str_id == stream_id)
 			return stream;
 	}
@@ -264,7 +264,7 @@ static void sst_byt_fw_ready(struct sst_byt *byt, u64 header)
 	wake_up(&byt->boot_wait);
 }
 
-static int sst_byt_process_notification(struct sst_byt *byt,
+static int sst_byt_process_yestification(struct sst_byt *byt,
 					unsigned long *flags)
 {
 	struct sst_dsp *sst = byt->dsp;
@@ -279,9 +279,9 @@ static int sst_byt_process_notification(struct sst_byt *byt,
 	case IPC_SST_PERIOD_ELAPSED:
 		stream_id = sst_byt_header_str_id(header);
 		stream = sst_byt_get_stream(byt, stream_id);
-		if (stream && stream->running && stream->notify_position) {
+		if (stream && stream->running && stream->yestify_position) {
 			spin_unlock_irqrestore(&sst->spinlock, *flags);
-			stream->notify_position(stream, stream->pdata);
+			stream->yestify_position(stream, stream->pdata);
 			spin_lock_irqsave(&sst->spinlock, *flags);
 		}
 		break;
@@ -307,7 +307,7 @@ static irqreturn_t sst_byt_irq_thread(int irq, void *context)
 	if (header & SST_BYT_IPCD_BUSY) {
 		if (header & IPC_NOTIFICATION) {
 			/* message from ADSP */
-			sst_byt_process_notification(byt, &flags);
+			sst_byt_process_yestification(byt, &flags);
 		} else {
 			/* reply from ADSP */
 			sst_byt_process_reply(byt, header);
@@ -336,7 +336,7 @@ static irqreturn_t sst_byt_irq_thread(int irq, void *context)
 
 /* stream API */
 struct sst_byt_stream *sst_byt_stream_new(struct sst_byt *byt, int id,
-	u32 (*notify_position)(struct sst_byt_stream *stream, void *data),
+	u32 (*yestify_position)(struct sst_byt_stream *stream, void *data),
 	void *data)
 {
 	struct sst_byt_stream *stream;
@@ -348,8 +348,8 @@ struct sst_byt_stream *sst_byt_stream_new(struct sst_byt *byt, int id,
 		return NULL;
 
 	spin_lock_irqsave(&sst->spinlock, flags);
-	list_add(&stream->node, &byt->stream_list);
-	stream->notify_position = notify_position;
+	list_add(&stream->yesde, &byt->stream_list);
+	stream->yestify_position = yestify_position;
 	stream->pdata = data;
 	stream->byt = byt;
 	stream->str_id = id;
@@ -452,7 +452,7 @@ int sst_byt_stream_free(struct sst_byt *byt, struct sst_byt_stream *stream)
 	stream->commited = false;
 out:
 	spin_lock_irqsave(&sst->spinlock, flags);
-	list_del(&stream->node);
+	list_del(&stream->yesde);
 	kfree(stream);
 	spin_unlock_irqrestore(&sst->spinlock, flags);
 
@@ -468,7 +468,7 @@ static int sst_byt_stream_operations(struct sst_byt *byt, int type,
 	if (wait)
 		return sst_ipc_tx_message_wait(&byt->ipc, request, NULL);
 	else
-		return sst_ipc_tx_message_nowait(&byt->ipc, request);
+		return sst_ipc_tx_message_yeswait(&byt->ipc, request);
 }
 
 /* stream ALSA trigger operations */
@@ -486,7 +486,7 @@ int sst_byt_stream_start(struct sst_byt *byt, struct sst_byt_stream *stream,
 	request.data = &start_stream;
 	request.size = sizeof(start_stream);
 
-	ret = sst_ipc_tx_message_nowait(&byt->ipc, request);
+	ret = sst_ipc_tx_message_yeswait(&byt->ipc, request);
 	if (ret < 0)
 		dev_err(byt->dev, "ipc: error failed to start stream %d\n",
 			stream->str_id);
@@ -498,7 +498,7 @@ int sst_byt_stream_stop(struct sst_byt *byt, struct sst_byt_stream *stream)
 {
 	int ret;
 
-	/* don't stop streams that are not commited */
+	/* don't stop streams that are yest commited */
 	if (!stream->commited)
 		return 0;
 
@@ -736,7 +736,7 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	/* show firmware information */
 	sst_dsp_inbox_read(byt->dsp, &init, sizeof(init));
 	dev_info(byt->dev, "FW version: %02x.%02x.%02x.%02x\n",
-		 init.fw_version.major, init.fw_version.minor,
+		 init.fw_version.major, init.fw_version.miyesr,
 		 init.fw_version.build, init.fw_version.type);
 	dev_info(byt->dev, "Build type: %x\n", init.fw_version.type);
 	dev_info(byt->dev, "Build date: %s %s\n",

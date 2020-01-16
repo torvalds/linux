@@ -7,7 +7,7 @@
  * The code is based on publicly available information:
  * - Intel IXP4xx Developer's Manual and other e-papers
  * - Intel IXP400 Access Library Software (BSD license)
- * - previous works by Christian Hohnstaedt <chohnstaedt@innominate.com>
+ * - previous works by Christian Hohnstaedt <chohnstaedt@inyesminate.com>
  *   Thanks, Christian.
  */
 
@@ -332,7 +332,7 @@ static int npe_reset(struct npe *npe)
 
 	/* Reset the context store = each context's Context Store registers */
 
-	/* Context 0 has no STARTPC. Instead, this value is used to set NextPC
+	/* Context 0 has yes STARTPC. Instead, this value is used to set NextPC
 	   for Background ECS, to set where NPE starts executing code */
 	val = npe_cmd_read(npe, ECS_BG_CTXT_REG_0, CMD_RD_ECS_REG);
 	val &= ~ECS_REG_0_NEXTPC_MASK;
@@ -340,7 +340,7 @@ static int npe_reset(struct npe *npe)
 	npe_cmd_write(npe, ECS_BG_CTXT_REG_0, CMD_WR_ECS_REG, val);
 
 	for (i = 0; i < 16; i++) {
-		if (i) {	/* Context 0 has no STEVT nor STARTPC */
+		if (i) {	/* Context 0 has yes STEVT yesr STARTPC */
 			/* STEVT = off, 0x80 */
 			if (npe_logical_reg_write8(npe, NPE_STEVT, 0x80, i))
 				return -ETIMEDOUT;
@@ -411,7 +411,7 @@ int npe_send_message(struct npe *npe, const void *msg, const char *what)
 		  what, send[0], send[1]);
 
 	if (__raw_readl(&npe->regs->messaging_status) & MSGSTAT_IFNE) {
-		debug_msg(npe, "NPE input FIFO not empty\n");
+		debug_msg(npe, "NPE input FIFO yest empty\n");
 		return -EIO;
 	}
 
@@ -563,7 +563,7 @@ int npe_load_firmware(struct npe *npe, const char *name, struct device *dev)
 			image->data[i] = swab32(image->data[i]);
 
 	if (cpu_is_ixp42x() && ((image->id >> 28) & 0xF /* device ID */)) {
-		print_npe(KERN_INFO, npe, "IXP43x/IXP46x firmware ignored on "
+		print_npe(KERN_INFO, npe, "IXP43x/IXP46x firmware igyesred on "
 			  "IXP42x\n");
 		goto err;
 	}
@@ -599,7 +599,7 @@ int npe_load_firmware(struct npe *npe, const char *name, struct device *dev)
 		if (image->blocks[blocks].type == FW_BLOCK_TYPE_EOF)
 			break;
 	if (blocks * sizeof(struct dl_block) / 4 >= image->size) {
-		print_npe(KERN_INFO, npe, "firmware EOF block marker not "
+		print_npe(KERN_INFO, npe, "firmware EOF block marker yest "
 			  "found\n");
 		goto err;
 	}
@@ -690,16 +690,16 @@ static int ixp4xx_npe_probe(struct platform_device *pdev)
 
 		if (!(ixp4xx_read_feature_bits() &
 		      (IXP4XX_FEATURE_RESET_NPEA << i))) {
-			dev_info(dev, "NPE%d at 0x%08x-0x%08x not available\n",
+			dev_info(dev, "NPE%d at 0x%08x-0x%08x yest available\n",
 				 i, res->start, res->end);
-			continue; /* NPE already disabled or not present */
+			continue; /* NPE already disabled or yest present */
 		}
 		npe->regs = devm_ioremap_resource(dev, res);
 		if (IS_ERR(npe->regs))
 			return PTR_ERR(npe->regs);
 
 		if (npe_reset(npe)) {
-			dev_info(dev, "NPE%d at 0x%08x-0x%08x does not reset\n",
+			dev_info(dev, "NPE%d at 0x%08x-0x%08x does yest reset\n",
 				 i, res->start, res->end);
 			continue;
 		}

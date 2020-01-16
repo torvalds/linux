@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -106,8 +106,8 @@ static inline int ena_com_free_desc(struct ena_com_io_sq *io_sq)
 	return io_sq->q_depth - 1 - cnt;
 }
 
-/* Check if the submission queue has enough space to hold required_buffers */
-static inline bool ena_com_sq_have_enough_space(struct ena_com_io_sq *io_sq,
+/* Check if the submission queue has eyesugh space to hold required_buffers */
+static inline bool ena_com_sq_have_eyesugh_space(struct ena_com_io_sq *io_sq,
 						u16 required_buffers)
 {
 	int temp;
@@ -211,18 +211,18 @@ static inline int ena_com_update_dev_comp_head(struct ena_com_io_cq *io_cq)
 	return 0;
 }
 
-static inline void ena_com_update_numa_node(struct ena_com_io_cq *io_cq,
-					    u8 numa_node)
+static inline void ena_com_update_numa_yesde(struct ena_com_io_cq *io_cq,
+					    u8 numa_yesde)
 {
-	struct ena_eth_io_numa_node_cfg_reg numa_cfg;
+	struct ena_eth_io_numa_yesde_cfg_reg numa_cfg;
 
-	if (!io_cq->numa_node_cfg_reg)
+	if (!io_cq->numa_yesde_cfg_reg)
 		return;
 
-	numa_cfg.numa_cfg = (numa_node & ENA_ETH_IO_NUMA_NODE_CFG_REG_NUMA_MASK)
+	numa_cfg.numa_cfg = (numa_yesde & ENA_ETH_IO_NUMA_NODE_CFG_REG_NUMA_MASK)
 		| ENA_ETH_IO_NUMA_NODE_CFG_REG_ENABLED_MASK;
 
-	writel(numa_cfg.numa_cfg, io_cq->numa_node_cfg_reg);
+	writel(numa_cfg.numa_cfg, io_cq->numa_yesde_cfg_reg);
 }
 
 static inline void ena_com_comp_ack(struct ena_com_io_sq *io_sq, u16 elem)

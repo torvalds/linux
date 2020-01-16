@@ -29,7 +29,7 @@
  *	@link: ATA link
  *	@unused: returned device on set_mode failure
  *
- *	Use a non standard set_mode function. We don't want to be tuned. We
+ *	Use a yesn standard set_mode function. We don't want to be tuned. We
  *	would prefer to be BIOS generic but for the fact our hardware is
  *	whacked out.
  */
@@ -63,7 +63,7 @@ static struct ata_port_operations rz1000_port_ops = {
 static int rz1000_fifo_disable(struct pci_dev *pdev)
 {
 	u16 reg;
-	/* Be exceptionally paranoid as we must be sure to apply the fix */
+	/* Be exceptionally parayesid as we must be sure to apply the fix */
 	if (pci_read_config_word(pdev, 0x40, &reg) != 0)
 		return -1;
 	reg &= 0xDFFF;

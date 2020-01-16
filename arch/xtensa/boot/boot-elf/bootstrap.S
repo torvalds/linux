@@ -26,7 +26,7 @@
 _ResetVector:
 	_j _SetupMMU
 
-	.begin  no-absolute-literals
+	.begin  yes-absolute-literals
 	.literal_position
 
 #ifdef CONFIG_PARSE_BOOTPARAM
@@ -74,4 +74,4 @@ reset:
 	movi	a4, 0
 	jx      a0
 
-	.end    no-absolute-literals
+	.end    yes-absolute-literals

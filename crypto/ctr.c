@@ -16,7 +16,7 @@
 
 struct crypto_rfc3686_ctx {
 	struct crypto_skcipher *child;
-	u8 nonce[CTR_RFC3686_NONCE_SIZE];
+	u8 yesnce[CTR_RFC3686_NONCE_SIZE];
 };
 
 struct crypto_rfc3686_req_ctx {
@@ -173,11 +173,11 @@ static int crypto_rfc3686_setkey(struct crypto_skcipher *parent,
 	struct crypto_skcipher *child = ctx->child;
 	int err;
 
-	/* the nonce is stored in bytes at end of key */
+	/* the yesnce is stored in bytes at end of key */
 	if (keylen < CTR_RFC3686_NONCE_SIZE)
 		return -EINVAL;
 
-	memcpy(ctx->nonce, key + (keylen - CTR_RFC3686_NONCE_SIZE),
+	memcpy(ctx->yesnce, key + (keylen - CTR_RFC3686_NONCE_SIZE),
 	       CTR_RFC3686_NONCE_SIZE);
 
 	keylen -= CTR_RFC3686_NONCE_SIZE;
@@ -204,7 +204,7 @@ static int crypto_rfc3686_crypt(struct skcipher_request *req)
 	u8 *iv = rctx->iv;
 
 	/* set up counter block */
-	memcpy(iv, ctx->nonce, CTR_RFC3686_NONCE_SIZE);
+	memcpy(iv, ctx->yesnce, CTR_RFC3686_NONCE_SIZE);
 	memcpy(iv + CTR_RFC3686_NONCE_SIZE, req->iv, CTR_RFC3686_IV_SIZE);
 
 	/* initialize counter portion of counter block */

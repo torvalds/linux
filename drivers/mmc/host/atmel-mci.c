@@ -138,8 +138,8 @@
 #define		ATMCI_DMADONE			BIT(25)		/* DMA Transfer Done */
 #define		ATMCI_FIFOEMPTY			BIT(26)		/* FIFO Empty Flag */
 #define		ATMCI_XFRDONE			BIT(27)		/* Transfer Done Flag */
-#define		ATMCI_ACKRCV			BIT(28)		/* Boot Operation Acknowledge Received */
-#define		ATMCI_ACKRCVE			BIT(29)		/* Boot Operation Acknowledge Error */
+#define		ATMCI_ACKRCV			BIT(28)		/* Boot Operation Ackyeswledge Received */
+#define		ATMCI_ACKRCVE			BIT(29)		/* Boot Operation Ackyeswledge Error */
 #define		ATMCI_OVRE			BIT(30)		/* RX Overrun Error */
 #define		ATMCI_UNRE			BIT(31)		/* TX Underrun Error */
 #define	ATMCI_DMA			0x0050	/* DMA Configuration[2] */
@@ -160,7 +160,7 @@
 #define	ATMCI_VERSION			0x00FC  /* Version */
 #define	ATMCI_FIFO_APERTURE		0x0200	/* FIFO Aperture[2] */
 
-/* This is not including the FIFO Aperture on MCI2 */
+/* This is yest including the FIFO Aperture on MCI2 */
 #define	ATMCI_REGS_SIZE		0x100
 
 /* Register access macros */
@@ -211,7 +211,7 @@ struct atmel_mci_caps {
 	bool	has_bad_data_ordering;
 	bool	need_reset_after_xfer;
 	bool	need_blksz_mul_4;
-	bool	need_notbusy_for_read_ops;
+	bool	need_yestbusy_for_read_ops;
 };
 
 struct atmel_mci_dma {
@@ -234,7 +234,7 @@ struct atmel_mci_dma {
  * @mrq: The request currently being processed on @cur_slot,
  *	or NULL if the controller is idle.
  * @cmd: The command currently being sent to the card, or NULL.
- * @data: The data currently being transferred, or NULL if no data
+ * @data: The data currently being transferred, or NULL if yes data
  *	transfer is in progress.
  * @data_size: just data->blocks * data->blksz.
  * @dma: DMA client state.
@@ -255,7 +255,7 @@ struct atmel_mci_dma {
  * @queue: List of slots waiting for access to the controller.
  * @need_clock_update: Update the clock rate before the next request.
  * @need_reset: Reset controller before next request.
- * @timer: Timer to balance the data timeout error flag which cannot rise.
+ * @timer: Timer to balance the data timeout error flag which canyest rise.
  * @mode_reg: Value of the MR register.
  * @cfg_reg: Value of the CFG register.
  * @bus_hz: The rate of @mck in Hz. This forms the basis for MMC bus
@@ -358,14 +358,14 @@ struct atmel_mci {
  * @sdio_irq: SDIO irq mask for this slot.
  * @mrq: mmc_request currently being processed or waiting to be
  *	processed, or NULL when the slot is idle.
- * @queue_node: List node for placing this node in the @queue list of
+ * @queue_yesde: List yesde for placing this yesde in the @queue list of
  *	&struct atmel_mci.
  * @clock: Clock rate configured by set_ios(). Protected by host->lock.
  * @flags: Random state bits associated with the slot.
- * @detect_pin: GPIO pin used for card detection, or negative if not
+ * @detect_pin: GPIO pin used for card detection, or negative if yest
  *	available.
  * @wp_pin: GPIO pin used for card write protect sending, or negative
- *	if not available.
+ *	if yest available.
  * @detect_is_active_high: The state of the detect pin when it is active.
  * @detect_timer: Timer used for debouncing @detect_pin interrupts.
  */
@@ -377,7 +377,7 @@ struct atmel_mci_slot {
 	u32			sdio_irq;
 
 	struct mmc_request	*mrq;
-	struct list_head	queue_node;
+	struct list_head	queue_yesde;
 
 	unsigned int		clock;
 	unsigned long		flags;
@@ -401,7 +401,7 @@ struct atmel_mci_slot {
 
 /*
  * The debugfs stuff below is mostly optimized away when
- * CONFIG_DEBUG_FS is not set.
+ * CONFIG_DEBUG_FS is yest set.
  */
 static int atmci_req_show(struct seq_file *s, void *v)
 {
@@ -506,7 +506,7 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 
 	/*
 	 * Grab a more or less consistent snapshot. Note that we're
-	 * not disabling interrupts, so IMR and SR may not be
+	 * yest disabling interrupts, so IMR and SR may yest be
 	 * consistent.
 	 */
 	spin_lock_bh(&host->lock);
@@ -601,13 +601,13 @@ MODULE_DEVICE_TABLE(of, atmci_dt_ids);
 static struct mci_platform_data*
 atmci_of_init(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *cnp;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *cnp;
 	struct mci_platform_data *pdata;
 	u32 slot_id;
 
 	if (!np) {
-		dev_err(&pdev->dev, "device node not found\n");
+		dev_err(&pdev->dev, "device yesde yest found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -615,7 +615,7 @@ atmci_of_init(struct platform_device *pdev)
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	for_each_child_of_node(np, cnp) {
+	for_each_child_of_yesde(np, cnp) {
 		if (of_property_read_u32(cnp, "reg", &slot_id)) {
 			dev_warn(&pdev->dev, "reg property is missing for %pOF\n",
 				 cnp);
@@ -625,7 +625,7 @@ atmci_of_init(struct platform_device *pdev)
 		if (slot_id >= ATMCI_MAX_NR_SLOTS) {
 			dev_warn(&pdev->dev, "can't have more than %d slots\n",
 			         ATMCI_MAX_NR_SLOTS);
-			of_node_put(cnp);
+			of_yesde_put(cnp);
 			break;
 		}
 
@@ -639,8 +639,8 @@ atmci_of_init(struct platform_device *pdev)
 		pdata->slot[slot_id].detect_is_active_high =
 			of_property_read_bool(cnp, "cd-inverted");
 
-		pdata->slot[slot_id].non_removable =
-			of_property_read_bool(cnp, "non-removable");
+		pdata->slot[slot_id].yesn_removable =
+			of_property_read_bool(cnp, "yesn-removable");
 
 		pdata->slot[slot_id].wp_pin =
 			of_get_named_gpio(cnp, "wp-gpios", 0);
@@ -697,7 +697,7 @@ static void atmci_timeout_timer(struct timer_list *t)
 		host->data = NULL;
 		/*
 		 * With some SDIO modules, sometimes DMA transfer hangs. If
-		 * stop_transfer() is not called then the DMA request is not
+		 * stop_transfer() is yest called then the DMA request is yest
 		 * removed, following ones are queued and never computed.
 		 */
 		if (host->state == STATE_DATA_XFER)
@@ -778,7 +778,7 @@ static u32 atmci_prepare_command(struct mmc_host *mmc,
 	/*
 	 * This should really be MAXLAT_5 for CMD2 and ACMD41, but
 	 * it's too difficult to determine whether this is an ACMD or
-	 * not. Better make it 64.
+	 * yest. Better make it 64.
 	 */
 	cmdr |= ATMCI_CMDR_MAXLAT_64CYC;
 
@@ -979,7 +979,7 @@ static void atmci_dma_complete(void *arg)
 		 * tasklet to finish things up when the data transfer
 		 * is completely done.
 		 *
-		 * We may not complete the mmc request here anyway
+		 * We may yest complete the mmc request here anyway
 		 * because the mmc layer may call back and cause us to
 		 * violate the "don't submit new operations from the
 		 * completion callback" rule of the dma engine
@@ -1011,7 +1011,7 @@ static u32 atmci_prepare_data(struct atmel_mci *host, struct mmc_data *data)
 	 * bytes is impossible.
 	 *
 	 * Errata: MCI Transmit Data Register (TDR) FIFO
-	 * corruption when length is not multiple of 4.
+	 * corruption when length is yest multiple of 4.
 	 */
 	if (data->blocks * data->blksz < 12
 			|| (data->blocks * data->blksz) & 3)
@@ -1100,7 +1100,7 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 
 	/*
 	 * We don't do DMA on "complex" transfers, i.e. with
-	 * non-word-aligned buffers or lengths. Also, we don't bother
+	 * yesn-word-aligned buffers or lengths. Also, we don't bother
 	 * with all the DMA setup overhead for short transfers.
 	 */
 	if (data->blocks * data->blksz < ATMCI_DMA_THRESHOLD)
@@ -1310,7 +1310,7 @@ static void atmci_start_request(struct atmel_mci *host,
 	/*
 	 * We could have enabled interrupts earlier, but I suspect
 	 * that would open up a nice can of interesting race
-	 * conditions (e.g. command and data complete, but stop not
+	 * conditions (e.g. command and data complete, but stop yest
 	 * prepared yet.)
 	 */
 	atmci_writel(host, ATMCI_IER, iflags);
@@ -1331,7 +1331,7 @@ static void atmci_queue_request(struct atmel_mci *host,
 		atmci_start_request(host, slot);
 	} else {
 		dev_dbg(&host->pdev->dev, "queue request\n");
-		list_add_tail(&slot->queue_node, &host->queue);
+		list_add_tail(&slot->queue_yesde, &host->queue);
 	}
 	spin_unlock_bh(&host->lock);
 }
@@ -1346,7 +1346,7 @@ static void atmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	dev_dbg(&host->pdev->dev, "MRQ: cmd %u\n", mrq->cmd->opcode);
 
 	/*
-	 * We may "know" the card is gone even though there's still an
+	 * We may "kyesw" the card is gone even though there's still an
 	 * electrical connection. If so, we really need to communicate
 	 * this to the MMC core since there won't be any more
 	 * interrupts as the card is completely removed. Otherwise,
@@ -1441,7 +1441,7 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		/*
 		 * WRPROOF and RDPROOF prevent overruns/underruns by
 		 * stopping the clock when the FIFO is full/empty.
-		 * This state is not expected to last for long.
+		 * This state is yest expected to last for long.
 		 */
 		if (host->caps.has_rwproof)
 			host->mode_reg |= (ATMCI_MR_WRPROOF | ATMCI_MR_RDPROOF);
@@ -1522,7 +1522,7 @@ static int atmci_get_cd(struct mmc_host *mmc)
 		present = !(gpio_get_value(slot->detect_pin) ^
 			    slot->detect_is_active_high);
 		dev_dbg(&mmc->class_dev, "card is %spresent\n",
-				present ? "" : "not ");
+				present ? "" : "yest ");
 	}
 
 	return present;
@@ -1572,9 +1572,9 @@ static void atmci_request_end(struct atmel_mci *host, struct mmc_request *mrq)
 	host->mrq = NULL;
 	if (!list_empty(&host->queue)) {
 		slot = list_entry(host->queue.next,
-				struct atmel_mci_slot, queue_node);
-		list_del(&slot->queue_node);
-		dev_vdbg(&host->pdev->dev, "list not empty: %s is next\n",
+				struct atmel_mci_slot, queue_yesde);
+		list_del(&slot->queue_yesde);
+		dev_vdbg(&host->pdev->dev, "list yest empty: %s is next\n",
 				mmc_hostname(slot->mmc));
 		host->state = STATE_SENDING_CMD;
 		atmci_start_request(host, slot);
@@ -1624,9 +1624,9 @@ static void atmci_detect_change(struct timer_list *t)
 
 	/*
 	 * atmci_cleanup_slot() sets the ATMCI_SHUTDOWN flag before
-	 * freeing the interrupt. We must not re-enable the interrupt
+	 * freeing the interrupt. We must yest re-enable the interrupt
 	 * if it has been freed, and if we're shutting down, it
-	 * doesn't really matter whether the card is present or not.
+	 * doesn't really matter whether the card is present or yest.
 	 */
 	smp_rmb();
 	if (test_bit(ATMCI_SHUTDOWN, &slot->flags))
@@ -1695,7 +1695,7 @@ static void atmci_detect_change(struct timer_list *t)
 
 				atmci_request_end(host, mrq);
 			} else {
-				list_del(&slot->queue_node);
+				list_del(&slot->queue_yesde);
 				mrq->cmd->error = -ENOMEDIUM;
 				if (mrq->data)
 					mrq->data->error = -ENOMEDIUM;
@@ -1773,7 +1773,7 @@ static void atmci_tasklet_func(unsigned long priv)
 					state = STATE_DATA_XFER;
 			} else if ((!mrq->data) && (mrq->cmd->flags & MMC_RSP_BUSY)) {
 				dev_dbg(&host->pdev->dev,
-				        "command response need waiting notbusy");
+				        "command response need waiting yestbusy");
 				atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
 				state = STATE_WAITING_NOTBUSY;
 			} else
@@ -1807,7 +1807,7 @@ static void atmci_tasklet_func(unsigned long priv)
 				__func__);
 			atmci_set_completed(host, EVENT_XFER_COMPLETE);
 
-			if (host->caps.need_notbusy_for_read_ops ||
+			if (host->caps.need_yestbusy_for_read_ops ||
 			   (host->data->flags & MMC_DATA_WRITE)) {
 				atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
 				state = STATE_WAITING_NOTBUSY;
@@ -1826,22 +1826,22 @@ static void atmci_tasklet_func(unsigned long priv)
 		case STATE_WAITING_NOTBUSY:
 			/*
 			 * We can be in the state for two reasons: a command
-			 * requiring waiting not busy signal (stop command
+			 * requiring waiting yest busy signal (stop command
 			 * included) or a write operation. In the latest case,
 			 * we need to send a stop command.
 			 */
-			dev_dbg(&host->pdev->dev, "FSM: not busy?\n");
+			dev_dbg(&host->pdev->dev, "FSM: yest busy?\n");
 			if (!atmci_test_and_clear_pending(host,
 						EVENT_NOTBUSY))
 				break;
 
-			dev_dbg(&host->pdev->dev, "set completed not busy\n");
+			dev_dbg(&host->pdev->dev, "set completed yest busy\n");
 			atmci_set_completed(host, EVENT_NOTBUSY);
 
 			if (host->data) {
 				/*
 				 * For some commands such as CMD53, even if
-				 * there is data transfer, there is no stop
+				 * there is data transfer, there is yes stop
 				 * command to send.
 				 */
 				if (host->mrq->stop) {
@@ -1863,7 +1863,7 @@ static void atmci_tasklet_func(unsigned long priv)
 		case STATE_SENDING_STOP:
 			/*
 			 * In this state, it is important to set host->data to
-			 * NULL (which is tested in the waiting notbusy state)
+			 * NULL (which is tested in the waiting yestbusy state)
 			 * in order to go to the end request state instead of
 			 * sending stop again.
 			 */
@@ -2151,24 +2151,24 @@ static irqreturn_t atmci_interrupt(int irq, void *dev_id)
 
 		/*
 		 * First mci IPs, so mainly the ones having pdc, have some
-		 * issues with the notbusy signal. You can't get it after
-		 * data transmission if you have not sent a stop command.
+		 * issues with the yestbusy signal. You can't get it after
+		 * data transmission if you have yest sent a stop command.
 		 * The appropriate workaround is to use the BLKE signal.
 		 */
 		if (pending & ATMCI_BLKE) {
 			dev_dbg(&host->pdev->dev, "IRQ: blke\n");
 			atmci_writel(host, ATMCI_IDR, ATMCI_BLKE);
 			smp_wmb();
-			dev_dbg(&host->pdev->dev, "set pending notbusy\n");
+			dev_dbg(&host->pdev->dev, "set pending yestbusy\n");
 			atmci_set_pending(host, EVENT_NOTBUSY);
 			tasklet_schedule(&host->tasklet);
 		}
 
 		if (pending & ATMCI_NOTBUSY) {
-			dev_dbg(&host->pdev->dev, "IRQ: not_busy\n");
+			dev_dbg(&host->pdev->dev, "IRQ: yest_busy\n");
 			atmci_writel(host, ATMCI_IDR, ATMCI_NOTBUSY);
 			smp_wmb();
-			dev_dbg(&host->pdev->dev, "set pending notbusy\n");
+			dev_dbg(&host->pdev->dev, "set pending yestbusy\n");
 			atmci_set_pending(host, EVENT_NOTBUSY);
 			tasklet_schedule(&host->tasklet);
 		}
@@ -2205,7 +2205,7 @@ static irqreturn_t atmci_detect_interrupt(int irq, void *dev_id)
 	 * the state then. Use mod_timer() since we may be in the
 	 * middle of the timer routine when this interrupt triggers.
 	 */
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	mod_timer(&slot->detect_timer, jiffies + msecs_to_jiffies(20));
 
 	return IRQ_HANDLED;
@@ -2275,7 +2275,7 @@ static int atmci_init_slot(struct atmel_mci *host,
 	if (gpio_is_valid(slot->detect_pin)) {
 		if (devm_gpio_request(&host->pdev->dev, slot->detect_pin,
 				      "mmc_detect")) {
-			dev_dbg(&mmc->class_dev, "no detect pin available\n");
+			dev_dbg(&mmc->class_dev, "yes detect pin available\n");
 			slot->detect_pin = -EBUSY;
 		} else if (gpio_get_value(slot->detect_pin) ^
 				slot->detect_is_active_high) {
@@ -2284,7 +2284,7 @@ static int atmci_init_slot(struct atmel_mci *host,
 	}
 
 	if (!gpio_is_valid(slot->detect_pin)) {
-		if (slot_data->non_removable)
+		if (slot_data->yesn_removable)
 			mmc->caps |= MMC_CAP_NONREMOVABLE;
 		else
 			mmc->caps |= MMC_CAP_NEEDS_POLL;
@@ -2293,7 +2293,7 @@ static int atmci_init_slot(struct atmel_mci *host,
 	if (gpio_is_valid(slot->wp_pin)) {
 		if (devm_gpio_request(&host->pdev->dev, slot->wp_pin,
 				      "mmc_wp")) {
-			dev_dbg(&mmc->class_dev, "no WP pin available\n");
+			dev_dbg(&mmc->class_dev, "yes WP pin available\n");
 			slot->wp_pin = -EBUSY;
 		}
 	}
@@ -2313,7 +2313,7 @@ static int atmci_init_slot(struct atmel_mci *host,
 				"mmc-detect", slot);
 		if (ret) {
 			dev_dbg(&mmc->class_dev,
-				"could not request IRQ %d for detect pin\n",
+				"could yest request IRQ %d for detect pin\n",
 				gpio_to_irq(slot->detect_pin));
 			slot->detect_pin = -EBUSY;
 		}
@@ -2383,8 +2383,8 @@ static int atmci_configure_dma(struct atmel_mci *host)
 }
 
 /*
- * HSMCI (High Speed MCI) module is not fully compatible with MCI module.
- * HSMCI provides DMA support and a new config register but no more supports
+ * HSMCI (High Speed MCI) module is yest fully compatible with MCI module.
+ * HSMCI provides DMA support and a new config register but yes more supports
  * PDC.
  */
 static void atmci_get_cap(struct atmel_mci *host)
@@ -2405,7 +2405,7 @@ static void atmci_get_cap(struct atmel_mci *host)
 	host->caps.has_bad_data_ordering = 1;
 	host->caps.need_reset_after_xfer = 1;
 	host->caps.need_blksz_mul_4 = 1;
-	host->caps.need_notbusy_for_read_ops = 0;
+	host->caps.need_yestbusy_for_read_ops = 0;
 
 	/* keep only major version number */
 	switch (version & 0xf00) {
@@ -2424,7 +2424,7 @@ static void atmci_get_cap(struct atmel_mci *host)
 	case 0x200:
 		host->caps.has_rwproof = 1;
 		host->caps.need_blksz_mul_4 = 0;
-		host->caps.need_notbusy_for_read_ops = 1;
+		host->caps.need_yestbusy_for_read_ops = 1;
 		/* Fall through */
 	case 0x100:
 		host->caps.has_bad_data_ordering = 0;
@@ -2456,7 +2456,7 @@ static int atmci_probe(struct platform_device *pdev)
 	if (!pdata) {
 		pdata = atmci_of_init(pdev);
 		if (IS_ERR(pdata)) {
-			dev_err(&pdev->dev, "platform data not available\n");
+			dev_err(&pdev->dev, "platform data yest available\n");
 			return PTR_ERR(pdata);
 		}
 	}
@@ -2523,7 +2523,7 @@ static int atmci_probe(struct platform_device *pdev)
 
 	timer_setup(&host->timer, atmci_timeout_timer, 0);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -2552,7 +2552,7 @@ static int atmci_probe(struct platform_device *pdev)
 	}
 
 	if (!nr_slots) {
-		dev_err(&pdev->dev, "init failed: no slot defined\n");
+		dev_err(&pdev->dev, "init failed: yes slot defined\n");
 		goto err_init_slot;
 	}
 
@@ -2585,7 +2585,7 @@ err_init_slot:
 	clk_disable_unprepare(host->mck);
 
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	del_timer_sync(&host->timer);
 	if (!IS_ERR(host->dma.chan))
@@ -2624,7 +2624,7 @@ static int atmci_remove(struct platform_device *pdev)
 	clk_disable_unprepare(host->mck);
 
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	return 0;
 }

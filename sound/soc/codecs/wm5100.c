@@ -195,7 +195,7 @@ static void wm5100_free_sr(struct snd_soc_component *component, int rate)
 	}
 	if (i < ARRAY_SIZE(wm5100_sr_regs)) {
 		wm5100->sr_ref[i]--;
-		dev_dbg(component->dev, "Dereference SR %dHz, count now %d\n",
+		dev_dbg(component->dev, "Dereference SR %dHz, count yesw %d\n",
 			rate, wm5100->sr_ref[i]);
 	} else {
 		dev_warn(component->dev, "Freeing unreferenced sample rate %dHz\n",
@@ -730,7 +730,7 @@ WM5100_MIXER_CONTROLS("LHPF3", WM5100_HPLP3MIX_INPUT_1_SOURCE),
 WM5100_MIXER_CONTROLS("LHPF4", WM5100_HPLP4MIX_INPUT_1_SOURCE),
 };
 
-static void wm5100_seq_notifier(struct snd_soc_component *component,
+static void wm5100_seq_yestifier(struct snd_soc_component *component,
 				enum snd_soc_dapm_type event, int subseq)
 {
 	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
@@ -1074,7 +1074,7 @@ SND_SOC_DAPM_OUTPUT("PWM2"),
  * look at the error status from the CODEC - if we've got the IRQ
  * hooked up then we will get prompted to look by an interrupt.
  */
-static const struct snd_soc_dapm_widget wm5100_dapm_widgets_noirq[] = {
+static const struct snd_soc_dapm_widget wm5100_dapm_widgets_yesirq[] = {
 SND_SOC_DAPM_POST("Post", wm5100_post_ev),
 };
 
@@ -1404,7 +1404,7 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 
 	base = dai->driver->base;
 
-	/* Data sizes if not using TDM */
+	/* Data sizes if yest using TDM */
 	wl = params_width(params);
 	if (wl < 0)
 		return wl;
@@ -1446,7 +1446,7 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (!aif_rate) {
-		dev_err(component->dev, "%s has no rate set\n",
+		dev_err(component->dev, "%s has yes rate set\n",
 			async ? "ASYNCCLK" : "SYSCLK");
 		return -EINVAL;
 	}
@@ -1576,7 +1576,7 @@ static int wm5100_set_sysclk(struct snd_soc_component *component, int clk_id,
 		return 0;
 
 	default:
-		dev_err(component->dev, "Unknown clock %d\n", clk_id);
+		dev_err(component->dev, "Unkyeswn clock %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -1773,7 +1773,7 @@ static int wm5100_set_fll(struct snd_soc_component *component, int fll_id, int s
 		lock = WM5100_FLL2_LOCK_STS;
 		break;
 	default:
-		dev_err(component->dev, "Unknown FLL %d\n",fll_id);
+		dev_err(component->dev, "Unkyeswn FLL %d\n",fll_id);
 		return -EINVAL;
 	}
 
@@ -2346,8 +2346,8 @@ static int wm5100_probe(struct snd_soc_component *component)
 	/* TODO: check if we're symmetric */
 
 	if (i2c->irq)
-		snd_soc_dapm_new_controls(dapm, wm5100_dapm_widgets_noirq,
-					  ARRAY_SIZE(wm5100_dapm_widgets_noirq));
+		snd_soc_dapm_new_controls(dapm, wm5100_dapm_widgets_yesirq,
+					  ARRAY_SIZE(wm5100_dapm_widgets_yesirq));
 
 	if (wm5100->pdata.hp_pol) {
 		ret = gpio_request_one(wm5100->pdata.hp_pol,
@@ -2380,7 +2380,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm5100 = {
 	.remove			= wm5100_remove,
 	.set_sysclk		= wm5100_set_sysclk,
 	.set_pll		= wm5100_set_fll,
-	.seq_notifier		= wm5100_seq_notifier,
+	.seq_yestifier		= wm5100_seq_yestifier,
 	.controls		= wm5100_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm5100_snd_controls),
 	.dapm_widgets		= wm5100_dapm_widgets,
@@ -2389,7 +2389,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm5100 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm5100_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm5100_regmap = {
@@ -2494,7 +2494,7 @@ static int wm5100_i2c_probe(struct i2c_client *i2c,
 		break;
 
 	default:
-		dev_err(&i2c->dev, "Device is not a WM5100, ID is %x\n", reg);
+		dev_err(&i2c->dev, "Device is yest a WM5100, ID is %x\n", reg);
 		ret = -EINVAL;
 		goto err_reset;
 	}

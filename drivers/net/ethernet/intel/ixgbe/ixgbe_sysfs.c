@@ -155,7 +155,7 @@ int ixgbe_sysfs_init(struct ixgbe_adapter *adapter)
 		goto exit;
 	}
 
-	/* Don't create thermal hwmon interface if no sensors present */
+	/* Don't create thermal hwmon interface if yes sensors present */
 	if (adapter->hw.mac.ops.init_thermal_sensor_thresh(&adapter->hw))
 		goto exit;
 

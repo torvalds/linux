@@ -29,7 +29,7 @@ config DRM_I915_PREEMPT_TIMEOUT
 	help
 	  How long to wait (in milliseconds) for a preemption event to occur
 	  when submitting a new context via execlists. If the current context
-	  does not hit an arbitration point and yield to HW before the timer
+	  does yest hit an arbitration point and yield to HW before the timer
 	  expires, the HW will be reset to allow the more important context
 	  to execute.
 
@@ -41,7 +41,7 @@ config DRM_I915_SPIN_REQUEST
 	help
 	  Before sleeping waiting for a request (GPU operation) to complete,
 	  we may spend some time polling for its completion. As the IRQ may
-	  take a non-negligible time to setup, we do a short spin first to
+	  take a yesn-negligible time to setup, we do a short spin first to
 	  check if the request will complete in the time it would have taken
 	  us to enable the interrupt.
 
@@ -54,7 +54,7 @@ config DRM_I915_STOP_TIMEOUT
 	default 100 # milliseconds
 	help
 	  By stopping submission and sleeping for a short time before resetting
-	  the GPU, we allow the innocent contexts also on the system to quiesce.
+	  the GPU, we allow the inyescent contexts also on the system to quiesce.
 	  It is then less likely for a hanging context to cause collateral
 	  damage as the system is reset in order to recover. The corollary is
 	  that the reset itself may take longer and so be more disruptive to

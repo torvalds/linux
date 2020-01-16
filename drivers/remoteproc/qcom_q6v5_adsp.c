@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Qualcomm Technology Inc. ADSP Peripheral Image Loader for SDM845.
+ * Qualcomm Techyeslogy Inc. ADSP Peripheral Image Loader for SDM845.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  */
 
@@ -165,7 +165,7 @@ static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
 
-	return qcom_mdt_load_no_init(adsp->dev, fw, rproc->firmware, 0,
+	return qcom_mdt_load_yes_init(adsp->dev, fw, rproc->firmware, 0,
 			     adsp->mem_region, adsp->mem_phys, adsp->mem_size,
 			     &adsp->mem_reloc);
 }
@@ -344,7 +344,7 @@ static int adsp_init_reset(struct qcom_adsp *adsp)
 static int adsp_init_mmio(struct qcom_adsp *adsp,
 				struct platform_device *pdev)
 {
-	struct device_node *syscon;
+	struct device_yesde *syscon;
 	struct resource *res;
 	int ret;
 
@@ -356,21 +356,21 @@ static int adsp_init_mmio(struct qcom_adsp *adsp,
 		return -ENOMEM;
 	}
 
-	syscon = of_parse_phandle(pdev->dev.of_node, "qcom,halt-regs", 0);
+	syscon = of_parse_phandle(pdev->dev.of_yesde, "qcom,halt-regs", 0);
 	if (!syscon) {
 		dev_err(&pdev->dev, "failed to parse qcom,halt-regs\n");
 		return -EINVAL;
 	}
 
-	adsp->halt_map = syscon_node_to_regmap(syscon);
-	of_node_put(syscon);
+	adsp->halt_map = syscon_yesde_to_regmap(syscon);
+	of_yesde_put(syscon);
 	if (IS_ERR(adsp->halt_map))
 		return PTR_ERR(adsp->halt_map);
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "qcom,halt-regs",
+	ret = of_property_read_u32_index(pdev->dev.of_yesde, "qcom,halt-regs",
 			1, &adsp->halt_lpass);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "no offset in syscon\n");
+		dev_err(&pdev->dev, "yes offset in syscon\n");
 		return ret;
 	}
 
@@ -379,17 +379,17 @@ static int adsp_init_mmio(struct qcom_adsp *adsp,
 
 static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct resource r;
 	int ret;
 
-	node = of_parse_phandle(adsp->dev->of_node, "memory-region", 0);
-	if (!node) {
-		dev_err(adsp->dev, "no memory-region specified\n");
+	yesde = of_parse_phandle(adsp->dev->of_yesde, "memory-region", 0);
+	if (!yesde) {
+		dev_err(adsp->dev, "yes memory-region specified\n");
 		return -EINVAL;
 	}
 
-	ret = of_address_to_resource(node, 0, &r);
+	ret = of_address_to_resource(yesde, 0, &r);
 	if (ret)
 		return ret;
 

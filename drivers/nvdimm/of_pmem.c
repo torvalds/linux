@@ -17,12 +17,12 @@ struct of_pmem_private {
 static int of_pmem_region_probe(struct platform_device *pdev)
 {
 	struct of_pmem_private *priv;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct nvdimm_bus *bus;
 	bool is_volatile;
 	int i;
 
-	np = dev_of_node(&pdev->dev);
+	np = dev_of_yesde(&pdev->dev);
 	if (!np)
 		return -ENXIO;
 
@@ -32,7 +32,7 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 
 	priv->bus_desc.provider_name = kstrdup(pdev->name, GFP_KERNEL);
 	priv->bus_desc.module = THIS_MODULE;
-	priv->bus_desc.of_node = np;
+	priv->bus_desc.of_yesde = np;
 
 	priv->bus = bus = nvdimm_bus_register(&pdev->dev, &priv->bus_desc);
 	if (!bus) {
@@ -43,7 +43,7 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 
 	is_volatile = !!of_find_property(np, "volatile", NULL);
 	dev_dbg(&pdev->dev, "Registering %s regions from %pOF\n",
-			is_volatile ? "volatile" : "non-volatile",  np);
+			is_volatile ? "volatile" : "yesn-volatile",  np);
 
 	for (i = 0; i < pdev->num_resources; i++) {
 		struct nd_region_desc ndr_desc;
@@ -54,10 +54,10 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 		 * structures so passing a stack pointer is fine.
 		 */
 		memset(&ndr_desc, 0, sizeof(ndr_desc));
-		ndr_desc.numa_node = dev_to_node(&pdev->dev);
-		ndr_desc.target_node = ndr_desc.numa_node;
+		ndr_desc.numa_yesde = dev_to_yesde(&pdev->dev);
+		ndr_desc.target_yesde = ndr_desc.numa_yesde;
 		ndr_desc.res = &pdev->resource[i];
-		ndr_desc.of_node = np;
+		ndr_desc.of_yesde = np;
 		set_bit(ND_REGION_PAGEMAP, &ndr_desc.flags);
 
 		if (is_volatile)

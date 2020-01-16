@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /* keyctl.h: keyctl command IDs
  *
  * Copyright (C) 2004, 2008 Red Hat, Inc. All Rights Reserved.
@@ -105,7 +105,7 @@ struct keyctl_pkey_query {
 };
 
 struct keyctl_pkey_params {
-	__s32		key_id;		/* Serial no. of public key to use */
+	__s32		key_id;		/* Serial yes. of public key to use */
 	__u32		in_len;		/* Input data size */
 	union {
 		__u32		out_len;	/* Output buffer size (encrypt/decrypt/sign) */
@@ -114,7 +114,7 @@ struct keyctl_pkey_params {
 	__u32		__spare[7];
 };
 
-#define KEYCTL_MOVE_EXCL	0x00000001 /* Do not displace from the to-keyring */
+#define KEYCTL_MOVE_EXCL	0x00000001 /* Do yest displace from the to-keyring */
 
 /*
  * Capabilities flags.  The capabilities list is an array of 8-bit integers;

@@ -26,7 +26,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -70,7 +70,7 @@ static unsigned use_dma = 1;
 //#include <linux/moduleparam.h>
 /* "modprobe goku_udc use_dma=1" etc
  *	0 to disable dma
- *	1 to use IN dma only (normal operation)
+ *	1 to use IN dma only (yesrmal operation)
  *	2 to use IN and OUT dma
  */
 module_param(use_dma, uint, S_IRUGO);
@@ -120,7 +120,7 @@ goku_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 			!= EPxSTATUS_EP_INVALID)
 		return -EBUSY;
 
-	/* enabling the no-toggle interrupt mode would need an api hook */
+	/* enabling the yes-toggle interrupt mode would need an api hook */
 	mode = 0;
 	max = get_unaligned_le16(&desc->wMaxPacketSize);
 	switch (max) {
@@ -159,7 +159,7 @@ goku_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		struct goku_udc_regs __iomem	*regs = ep->dev->regs;
 		u32				tmp;
 
-		/* double buffer except (for now) with pio in */
+		/* double buffer except (for yesw) with pio in */
 		tmp = ((ep->dma || !ep->is_in)
 				? 0x10	/* double buffered */
 				: 0x11	/* single buffer */
@@ -342,7 +342,7 @@ write_packet(u32 __iomem *fifo, u8 *buf, struct goku_request *req, unsigned max)
 	return length;
 }
 
-// return:  0 = still running, 1 = completed, negative = errno
+// return:  0 = still running, 1 = completed, negative = erryes
 static int write_fifo(struct goku_ep *ep, struct goku_request *req)
 {
 	struct goku_udc	*dev = ep->dev;
@@ -359,7 +359,7 @@ static int write_fifo(struct goku_ep *ep, struct goku_request *req)
 	if (unlikely(ep->num == 0 && dev->ep0state != EP0_IN))
 		return -EL2HLT;
 
-	/* NOTE:  just single-buffered PIO-IN for now.  */
+	/* NOTE:  just single-buffered PIO-IN for yesw.  */
 	if (unlikely((tmp & DATASET_A(ep->num)) != 0))
 		return 0;
 
@@ -427,7 +427,7 @@ top:
 		size = readl(&regs->EPxSizeLA[ep->num]);
 		bufferspace = req->req.length - req->req.actual;
 
-		/* usually do nothing without an OUT packet */
+		/* usually do yesthing without an OUT packet */
 		if (likely(ep->num != 0 || bufferspace != 0)) {
 			if (unlikely(set == 0))
 				break;
@@ -438,7 +438,7 @@ top:
 				break;
 			size &= DATASIZE;	/* EPxSizeH == 0 */
 
-		/* ep0out no-out-data case for set_config, etc */
+		/* ep0out yes-out-data case for set_config, etc */
 		} else
 			size = 0;
 
@@ -471,7 +471,7 @@ top:
 		/* completion */
 		if (unlikely(is_short || req->req.actual == req->req.length)) {
 			if (unlikely(ep->num == 0)) {
-				/* non-control endpoints now usable? */
+				/* yesn-control endpoints yesw usable? */
 				if (ep->dev->req_config)
 					writel(ep->dev->configured
 							? USBSTATE_CONFIGURED
@@ -528,7 +528,7 @@ pio_advance(struct goku_ep *ep)
 
 /*-------------------------------------------------------------------------*/
 
-// return:  0 = q running, 1 = q stopped, negative = errno
+// return:  0 = q running, 1 = q stopped, negative = erryes
 static int start_dma(struct goku_ep *ep, struct goku_request *req)
 {
 	struct goku_udc_regs __iomem	*regs = ep->dev->regs;
@@ -561,7 +561,7 @@ static int start_dma(struct goku_ep *ep, struct goku_request *req)
 
 	/* Goku DMA-OUT merges short packets, which plays poorly with
 	 * protocols where short packets mark the transfer boundaries.
-	 * The chip supports a nonstandard policy with INT_MSTWRTMOUT,
+	 * The chip supports a yesnstandard policy with INT_MSTWRTMOUT,
 	 * ending transfers after 3 SOFs; we don't turn it on.
 	 */
 	} else {
@@ -603,7 +603,7 @@ stop:
 	}
 	req = list_entry(ep->queue.next, struct goku_request, queue);
 
-	/* normal hw dma completion (not abort) */
+	/* yesrmal hw dma completion (yest abort) */
 	if (likely(ep->is_in)) {
 		if (unlikely(master & MST_RD_ENA))
 			return;
@@ -650,7 +650,7 @@ static void abort_dma(struct goku_ep *ep, int status)
 	master = readl(&regs->dma_master) & MST_RW_BITS;
 
 	/* FIXME using these resets isn't usably documented. this may
-	 * not work unless it's followed by disabling the endpoint.
+	 * yest work unless it's followed by disabling the endpoint.
 	 *
 	 * FIXME the OUT reset path doesn't even behave consistently.
 	 */
@@ -696,7 +696,7 @@ static void abort_dma(struct goku_ep *ep, int status)
 	return;
 
 finished:
-	/* dma already completed; no abort needed */
+	/* dma already completed; yes abort needed */
 	command(regs, COMMAND_FIFO_ENABLE, ep->num);
 	req->req.actual = req->req.length;
 	req->req.status = 0;
@@ -932,7 +932,7 @@ static int goku_fifo_status(struct usb_ep *_ep)
 	if (ep->is_in)
 		return -EOPNOTSUPP;
 
-	/* ignores 16-byte dma buffer; SizeH == 0 */
+	/* igyesres 16-byte dma buffer; SizeH == 0 */
 	regs = ep->dev->regs;
 	size = readl(&regs->EPxSizeLA[ep->num]) & DATASIZE;
 	size += readl(&regs->EPxSizeLB[ep->num]) & DATASIZE;
@@ -963,7 +963,7 @@ static void goku_fifo_flush(struct usb_ep *_ep)
 
 	/* Non-desirable behavior:  FIFO_CLEAR also clears the
 	 * endpoint halt feature.  For OUT, we _could_ just read
-	 * the bytes out (PIO, if !ep->dma); for in, no choice.
+	 * the bytes out (PIO, if !ep->dma); for in, yes choice.
 	 */
 	if (size)
 		command(regs, COMMAND_FIFO_CLEAR, ep->num);
@@ -1000,7 +1000,7 @@ static struct usb_ep *goku_match_ep(struct usb_gadget *g,
 
 	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_INT:
-		/* single buffering is enough */
+		/* single buffering is eyesugh */
 		ep = &dev->ep[3].ep;
 		if (usb_gadget_ep_match_desc(g, ep, desc, ep_comp))
 			return ep;
@@ -1014,7 +1014,7 @@ static struct usb_ep *goku_match_ep(struct usb_gadget *g,
 		}
 		break;
 	default:
-		/* nothing */ ;
+		/* yesthing */ ;
 	}
 
 	return NULL;
@@ -1029,8 +1029,8 @@ static const struct usb_gadget_ops goku_ops = {
 	.udc_start	= goku_udc_start,
 	.udc_stop	= goku_udc_stop,
 	.match_ep	= goku_match_ep,
-	// no remote wakeup
-	// not selfpowered
+	// yes remote wakeup
+	// yest selfpowered
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1047,7 +1047,7 @@ static inline const char *dmastr(void)
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
 
-static const char proc_node_name [] = "driver/udc";
+static const char proc_yesde_name [] = "driver/udc";
 
 #define FOURBITS "%s%s%s%s"
 #define EIGHTBITS FOURBITS FOURBITS
@@ -1150,7 +1150,7 @@ static int udc_proc_read(struct seq_file *m, void *v)
 		   "\n",
 		   pci_name(dev->pdev), driver_desc,
 		   driver_name, DRIVER_VERSION, dmastr(),
-		   dev->driver ? dev->driver->driver.name : "(none)",
+		   dev->driver ? dev->driver->driver.name : "(yesne)",
 		   is_usb_connected
 			   ? ((tmp & PW_PULLUP) ? "full speed" : "powered")
 			   : "disconnected",
@@ -1213,7 +1213,7 @@ static int udc_proc_read(struct seq_file *m, void *v)
 			goto done;
 
 		if (list_empty(&ep->queue)) {
-			seq_puts(m, "\t(nothing queued)\n");
+			seq_puts(m, "\t(yesthing queued)\n");
 			if (seq_has_overflowed(m))
 				goto done;
 			continue;
@@ -1296,7 +1296,7 @@ static void udc_reset(struct goku_udc *dev)
 	readl(&regs->int_enable);
 	dev->int_enable = 0;
 
-	/* deassert reset, leave USB D+ at hi-Z (no pullup)
+	/* deassert reset, leave USB D+ at hi-Z (yes pullup)
 	 * don't let INT_PWRDETECT sequence begin
 	 */
 	udelay(250);
@@ -1341,7 +1341,7 @@ static void ep0_start(struct goku_udc *dev)
 
 static void udc_enable(struct goku_udc *dev)
 {
-	/* start enumeration now, or after power detect irq */
+	/* start enumeration yesw, or after power detect irq */
 	if (readl(&dev->regs->power_detect) & PW_DETECT)
 		ep0_start(dev);
 	else {
@@ -1360,7 +1360,7 @@ static void udc_enable(struct goku_udc *dev)
 
 /* when a driver is successfully registered, it will receive
  * control requests including set_configuration(), which enables
- * non-control requests.  then usb traffic follows until a
+ * yesn-control requests.  then usb traffic follows until a
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
@@ -1496,7 +1496,7 @@ succeed:
 		le16_to_cpu(ctrl.wLength));
 #endif
 
-	/* hw wants to know when we're configured (or not) */
+	/* hw wants to kyesw when we're configured (or yest) */
 	dev->req_config = (ctrl.bRequest == USB_REQ_SET_CONFIGURATION
 				&& ctrl.bRequestType == USB_RECIP_DEVICE);
 	if (unlikely(dev->req_config))
@@ -1618,7 +1618,7 @@ pm_next:
 	}
 
 	/* progress ep0 setup, data, or status stages.
-	 * no transition {EP0_STATUS, EP0_STALL} --> EP0_IDLE; saves irqs
+	 * yes transition {EP0_STATUS, EP0_STALL} --> EP0_IDLE; saves irqs
 	 */
 	if (stat & INT_SETUP) {
 		ACK(INT_SETUP);
@@ -1714,7 +1714,7 @@ static void goku_remove(struct pci_dev *pdev)
 	BUG_ON(dev->driver);
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
-	remove_proc_entry(proc_node_name, NULL);
+	remove_proc_entry(proc_yesde_name, NULL);
 #endif
 	if (dev->regs)
 		udc_reset(dev);
@@ -1765,7 +1765,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* the "gadget" abstracts/virtualizes the controller */
 	dev->gadget.name = driver_name;
 
-	/* now all the pci goodies ... */
+	/* yesw all the pci goodies ... */
 	retval = pci_enable_device(pdev);
 	if (retval < 0) {
 		DBG(dev, "can't enable, %d\n", retval);
@@ -1782,7 +1782,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	dev->got_region = 1;
 
-	base = ioremap_nocache(resource, len);
+	base = ioremap_yescache(resource, len);
 	if (base == NULL) {
 		DBG(dev, "can't map memory\n");
 		retval = -EFAULT;
@@ -1795,7 +1795,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INFO(dev, "version: " DRIVER_VERSION " %s\n", dmastr());
 	INFO(dev, "irq %d, pci mem %p\n", pdev->irq, base);
 
-	/* init to known state, then setup irqs */
+	/* init to kyeswn state, then setup irqs */
 	udc_reset(dev);
 	udc_reinit (dev);
 	if (request_irq(pdev->irq, goku_irq, IRQF_SHARED,
@@ -1810,7 +1810,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
-	proc_create_single_data(proc_node_name, 0, NULL, udc_proc_read, dev);
+	proc_create_single_data(proc_yesde_name, 0, NULL, udc_proc_read, dev);
 #endif
 
 	retval = usb_add_gadget_udc_release(&pdev->dev, &dev->gadget,
@@ -1823,7 +1823,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 err:
 	if (dev)
 		goku_remove (pdev);
-	/* gadget_release is not registered yet, kfree explicitly */
+	/* gadget_release is yest registered yet, kfree explicitly */
 	kfree(dev);
 	return retval;
 }

@@ -78,7 +78,7 @@ static const struct pinctrl_ops rt2880_pctrl_ops = {
 	.get_groups_count	= rt2880_get_group_count,
 	.get_group_name		= rt2880_get_group_name,
 	.get_group_pins		= rt2880_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map		= pinconf_generic_dt_free_map,
 };
 
@@ -165,7 +165,7 @@ static int rt2880_pmx_group_gpio_request_enable(struct pinctrl_dev *pctrldev,
 	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
 
 	if (!p->gpio[pin]) {
-		dev_err(p->dev, "pin %d is not set to gpio mux\n", pin);
+		dev_err(p->dev, "pin %d is yest set to gpio mux\n", pin);
 		return -EINVAL;
 	}
 
@@ -227,7 +227,7 @@ static int rt2880_pinmux_index(struct rt2880_priv *p)
 	if (!f || !gpio_func.groups)
 		return -1;
 
-	/* add a backpointer to the function so it knows its group */
+	/* add a backpointer to the function so it kyesws its group */
 	gpio_func.group_count = p->group_count;
 	for (i = 0; i < gpio_func.group_count; i++)
 		gpio_func.groups[i] = i;
@@ -318,7 +318,7 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 {
 	struct rt2880_priv *p;
 	struct pinctrl_dev *dev;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	if (!rt2880_pinmux_data)
 		return -ENOTSUPP;
@@ -347,7 +347,7 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 		return PTR_ERR(dev);
 
 	/* finalize by adding gpio ranges for enables gpio controllers */
-	for_each_compatible_node(np, NULL, "ralink,rt2880-gpio") {
+	for_each_compatible_yesde(np, NULL, "ralink,rt2880-gpio") {
 		const __be32 *ngpio, *gpiobase;
 		struct pinctrl_gpio_range *range;
 
@@ -358,13 +358,13 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 		gpiobase = of_get_property(np, "ralink,gpio-base", NULL);
 		if (!ngpio || !gpiobase) {
 			dev_err(&pdev->dev, "failed to load chip info\n");
-			of_node_put(np);
+			of_yesde_put(np);
 			return -EINVAL;
 		}
 
 		range = devm_kzalloc(p->dev, sizeof(*range), GFP_KERNEL);
 		if (!range) {
-			of_node_put(np);
+			of_yesde_put(np);
 			return -ENOMEM;
 		}
 		range->name = "pio";

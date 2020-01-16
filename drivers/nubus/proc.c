@@ -106,10 +106,10 @@ nubus_proc_alloc_pde_data(unsigned char *ptr, unsigned int size)
 
 static int nubus_proc_rsrc_show(struct seq_file *m, void *v)
 {
-	struct inode *inode = m->private;
+	struct iyesde *iyesde = m->private;
 	struct nubus_proc_pde_data *pde_data;
 
-	pde_data = PDE_DATA(inode);
+	pde_data = PDE_DATA(iyesde);
 	if (!pde_data)
 		return 0;
 
@@ -117,7 +117,7 @@ static int nubus_proc_rsrc_show(struct seq_file *m, void *v)
 		return -EFBIG;
 
 	if (pde_data->res_size) {
-		int lanes = (int)proc_get_parent_data(inode);
+		int lanes = (int)proc_get_parent_data(iyesde);
 		struct nubus_dirent ent;
 
 		if (!lanes)

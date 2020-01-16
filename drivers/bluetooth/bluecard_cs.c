@@ -29,7 +29,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
@@ -217,7 +217,7 @@ static int bluecard_write(unsigned int iobase, unsigned int offset, __u8 *buf, i
 static void bluecard_write_wakeup(struct bluecard_info *info)
 {
 	if (!info) {
-		BT_ERR("Unknown device");
+		BT_ERR("Unkyeswn device");
 		return;
 	}
 
@@ -371,7 +371,7 @@ static void bluecard_receive(struct bluecard_info *info,
 	int i, len;
 
 	if (!info) {
-		BT_ERR("Unknown device");
+		BT_ERR("Unkyeswn device");
 		return;
 	}
 
@@ -430,8 +430,8 @@ static void bluecard_receive(struct bluecard_info *info,
 				break;
 
 			default:
-				/* unknown packet */
-				BT_ERR("Unknown HCI packet with type 0x%02x received",
+				/* unkyeswn packet */
+				BT_ERR("Unkyeswn HCI packet with type 0x%02x received",
 				       hci_skb_pkt_type(info->rx_skb));
 				info->hdev->stat.err_rx++;
 

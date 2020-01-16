@@ -8,9 +8,9 @@ the architecture. The infrastructure code uses undefined instruction
 hooks to support emulation. Where available it also allows turning on
 the instruction execution in hardware.
 
-The emulation mode can be controlled by writing to sysctl nodes
+The emulation mode can be controlled by writing to sysctl yesdes
 (/proc/sys/abi). The following explains the different execution
-behaviours and the corresponding values of the sysctl nodes -
+behaviours and the corresponding values of the sysctl yesdes -
 
 * Undef
     Value: 0
@@ -39,8 +39,8 @@ The default mode depends on the status of the instruction in the
 architecture. Deprecated instructions should default to emulation
 while obsolete instructions must be undefined by default.
 
-Note: Instruction emulation may not be possible in all cases. See
-individual instruction notes for further information.
+Note: Instruction emulation may yest be possible in all cases. See
+individual instruction yestes for further information.
 
 Supported legacy instructions
 -----------------------------

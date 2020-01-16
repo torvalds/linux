@@ -174,7 +174,7 @@ fs3270_save_callback(struct raw3270_request *rq, void *data)
 	/*
 	 * If the rdbuf command failed or the idal buffer is
 	 * to small for the amount of data returned by the
-	 * rdbuf command, then we have no choice but to send
+	 * rdbuf command, then we have yes choice but to send
 	 * a SIGHUP to the application.
 	 */
 	if (rq->rc != 0 || rq->rescnt == 0) {
@@ -427,28 +427,28 @@ static struct raw3270_fn fs3270_fn = {
  * This routine is called whenever a 3270 fullscreen device is opened.
  */
 static int
-fs3270_open(struct inode *inode, struct file *filp)
+fs3270_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct fs3270 *fp;
 	struct idal_buffer *ib;
-	int minor, rc = 0;
+	int miyesr, rc = 0;
 
-	if (imajor(file_inode(filp)) != IBM_FS3270_MAJOR)
+	if (imajor(file_iyesde(filp)) != IBM_FS3270_MAJOR)
 		return -ENODEV;
-	minor = iminor(file_inode(filp));
-	/* Check for minor 0 multiplexer. */
-	if (minor == 0) {
+	miyesr = imiyesr(file_iyesde(filp));
+	/* Check for miyesr 0 multiplexer. */
+	if (miyesr == 0) {
 		struct tty_struct *tty = get_current_tty();
 		if (!tty || tty->driver->major != IBM_TTY3270_MAJOR) {
 			tty_kref_put(tty);
 			return -ENODEV;
 		}
-		minor = tty->index;
+		miyesr = tty->index;
 		tty_kref_put(tty);
 	}
 	mutex_lock(&fs3270_mutex);
 	/* Check if some other program is already using fullscreen mode. */
-	fp = (struct fs3270 *) raw3270_find_view(&fs3270_fn, minor);
+	fp = (struct fs3270 *) raw3270_find_view(&fs3270_fn, miyesr);
 	if (!IS_ERR(fp)) {
 		raw3270_put_view(&fp->view);
 		rc = -EBUSY;
@@ -463,7 +463,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 
 	init_waitqueue_head(&fp->wait);
 	fp->fs_pid = get_pid(task_pid(current));
-	rc = raw3270_add_view(&fp->view, &fs3270_fn, minor,
+	rc = raw3270_add_view(&fp->view, &fs3270_fn, miyesr,
 			      RAW3270_VIEW_LOCK_BH);
 	if (rc) {
 		fs3270_free_view(&fp->view);
@@ -486,7 +486,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 		raw3270_del_view(&fp->view);
 		goto out;
 	}
-	stream_open(inode, filp);
+	stream_open(iyesde, filp);
 	filp->private_data = fp;
 out:
 	mutex_unlock(&fs3270_mutex);
@@ -498,7 +498,7 @@ out:
  * for the remaining request to be completed. Then we clean up.
  */
 static int
-fs3270_close(struct inode *inode, struct file *filp)
+fs3270_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct fs3270 *fp;
 
@@ -522,23 +522,23 @@ static const struct file_operations fs3270_fops = {
 	.compat_ioctl	 = fs3270_ioctl,	/* ioctl */
 	.open		 = fs3270_open,		/* open */
 	.release	 = fs3270_close,	/* release */
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
-static void fs3270_create_cb(int minor)
+static void fs3270_create_cb(int miyesr)
 {
-	__register_chrdev(IBM_FS3270_MAJOR, minor, 1, "tub", &fs3270_fops);
-	device_create(class3270, NULL, MKDEV(IBM_FS3270_MAJOR, minor),
-		      NULL, "3270/tub%d", minor);
+	__register_chrdev(IBM_FS3270_MAJOR, miyesr, 1, "tub", &fs3270_fops);
+	device_create(class3270, NULL, MKDEV(IBM_FS3270_MAJOR, miyesr),
+		      NULL, "3270/tub%d", miyesr);
 }
 
-static void fs3270_destroy_cb(int minor)
+static void fs3270_destroy_cb(int miyesr)
 {
-	device_destroy(class3270, MKDEV(IBM_FS3270_MAJOR, minor));
-	__unregister_chrdev(IBM_FS3270_MAJOR, minor, 1, "tub");
+	device_destroy(class3270, MKDEV(IBM_FS3270_MAJOR, miyesr));
+	__unregister_chrdev(IBM_FS3270_MAJOR, miyesr, 1, "tub");
 }
 
-static struct raw3270_notifier fs3270_notifier =
+static struct raw3270_yestifier fs3270_yestifier =
 {
 	.create = fs3270_create_cb,
 	.destroy = fs3270_destroy_cb,
@@ -557,14 +557,14 @@ fs3270_init(void)
 		return rc;
 	device_create(class3270, NULL, MKDEV(IBM_FS3270_MAJOR, 0),
 		      NULL, "3270/tub");
-	raw3270_register_notifier(&fs3270_notifier);
+	raw3270_register_yestifier(&fs3270_yestifier);
 	return 0;
 }
 
 static void __exit
 fs3270_exit(void)
 {
-	raw3270_unregister_notifier(&fs3270_notifier);
+	raw3270_unregister_yestifier(&fs3270_yestifier);
 	device_destroy(class3270, MKDEV(IBM_FS3270_MAJOR, 0));
 	__unregister_chrdev(IBM_FS3270_MAJOR, 0, 1, "fs3270");
 }

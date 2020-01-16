@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * linux/mdio.h: definitions for MDIO (clause 45) transceivers
  * Copyright 2006-2009 Solarflare Communications Inc.
@@ -269,7 +269,7 @@
 #define MDIO_AN_EEE_ADV_100TX	0x0002	/* Advertise 100TX EEE cap */
 #define MDIO_AN_EEE_ADV_1000T	0x0004	/* Advertise 1000T EEE cap */
 /* Note: the two defines above can be potentially used by the user-land
- * and cannot remove them now.
+ * and canyest remove them yesw.
  * So, we define the new generic MDIO_EEE_100TX and MDIO_EEE_1000T macros
  * using the previous ones (that can be considered obsolete).
  */

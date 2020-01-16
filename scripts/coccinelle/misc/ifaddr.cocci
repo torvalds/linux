@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/// The address of a variable or field is likely always to be non-zero.
+/// The address of a variable or field is likely always to be yesn-zero.
 ///
 // Confidence: High
 // Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.
 // Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.
 // URL: http://coccinelle.lip6.fr/
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 
 virtual org
 virtual report

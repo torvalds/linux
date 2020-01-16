@@ -25,7 +25,7 @@
  *   wlan - WLAN subsystem enabled: contains either 0 or 1. (ro)
  *
  *   bluetooth - Bluetooth subsystem enabled: contains either 0 or 1
- *   Please note that this file is constantly 0 if no Bluetooth
+ *   Please yeste that this file is constantly 0 if yes Bluetooth
  *   hardware is available. (ro)
  *
  * In addition to these platform device attributes the driver
@@ -93,7 +93,7 @@ static SIMPLE_DEV_PM_OPS(msi_laptop_pm, NULL, msi_laptop_resume);
 
 static bool force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
+MODULE_PARM_DESC(force, "Force driver load, igyesre DMI data");
 
 static int auto_brightness;
 module_param(auto_brightness, int, 0);
@@ -131,7 +131,7 @@ struct quirk_entry {
 	bool ec_delay;
 
 	/* Some MSI Wind netbooks (e.g. MSI Wind U100) need loading SCM to get
-	 * some features working (e.g. ECO mode), but we cannot change
+	 * some features working (e.g. ECO mode), but we canyest change
 	 * Wlan/Bluetooth state in software and we can only read its state.
 	 */
 	bool ec_read_only;
@@ -358,7 +358,7 @@ static ssize_t show_threeg(struct device *dev,
 
 	int ret;
 
-	/* old msi ec not support 3G */
+	/* old msi ec yest support 3G */
 	if (quirks->old_ec_model)
 		return -ENODEV;
 
@@ -773,7 +773,7 @@ static bool msi_rfkill_set_state(struct rfkill *rfkill, bool blocked)
 		return rfkill_set_sw_state(rfkill, blocked);
 }
 
-static void msi_update_rfkill(struct work_struct *ignored)
+static void msi_update_rfkill(struct work_struct *igyesred)
 {
 	get_wireless_state_ec_standard();
 
@@ -787,7 +787,7 @@ static void msi_update_rfkill(struct work_struct *ignored)
 static DECLARE_DELAYED_WORK(msi_rfkill_dwork, msi_update_rfkill);
 static DECLARE_WORK(msi_rfkill_work, msi_update_rfkill);
 
-static void msi_send_touchpad_key(struct work_struct *ignored)
+static void msi_send_touchpad_key(struct work_struct *igyesred)
 {
 	u8 rdata;
 	int result;
@@ -840,7 +840,7 @@ static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
 	return false;
 }
 
-static void msi_init_rfkill(struct work_struct *ignored)
+static void msi_init_rfkill(struct work_struct *igyesred)
 {
 	if (rfk_wlan) {
 		rfkill_set_sw_state(rfk_wlan, !wlan_s);
@@ -1036,7 +1036,7 @@ static int __init msi_init(void)
 
 	dmi_check_system(msi_dmi_table);
 	if (!quirks)
-		/* quirks may be NULL if no match in DMI table */
+		/* quirks may be NULL if yes match in DMI table */
 		quirks = &quirk_load_scm_model;
 	if (force)
 		quirks = &quirk_old_ec_model;

@@ -102,7 +102,7 @@ void ccp_log_error(struct ccp_device *d, unsigned int e)
 	if (e < ARRAY_SIZE(ccp_error_codes))
 		dev_err(d->dev, "CCP error %d: %s\n", e, ccp_error_codes[e]);
 	else
-		dev_err(d->dev, "CCP error %d: Unknown Error\n", e);
+		dev_err(d->dev, "CCP error %d: Unkyeswn Error\n", e);
 }
 
 /* List of CCPs, CCP count, read-write access lock, and access functions
@@ -113,7 +113,7 @@ void ccp_log_error(struct ccp_device *d, unsigned int e)
  * must be acquired before the RR lock.
  *
  * If the unit-lock is acquired for writing, we have total control over
- * the list, so there's no value in getting the RR lock.
+ * the list, so there's yes value in getting the RR lock.
  */
 static DEFINE_RWLOCK(ccp_unit_lock);
 static LIST_HEAD(ccp_units);
@@ -246,7 +246,7 @@ EXPORT_SYMBOL_GPL(ccp_present);
  * ccp_version - get the version of the CCP device
  *
  * Returns the version from the first unit on the list;
- * otherwise a zero if no CCP device is present
+ * otherwise a zero if yes CCP device is present
  */
 unsigned int ccp_version(void)
 {
@@ -276,7 +276,7 @@ EXPORT_SYMBOL_GPL(ccp_version);
  * result in a return code of -EBUSY.
  *
  * The callback routine specified in the ccp_cmd struct will be
- * called to notify the caller of completion (if the cmd was not
+ * called to yestify the caller of completion (if the cmd was yest
  * backlogged) or advancement out of the backlog. If the cmd has
  * advanced out of the backlog the "err" value of the callback
  * will be -EINPROGRESS. Any other "err" value during callback is
@@ -514,7 +514,7 @@ int ccp_trng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	 */
 	trng_value = ioread32(ccp->io_regs + TRNG_OUT_REG);
 	if (!trng_value) {
-		/* Zero is returned if not data is available or if a
+		/* Zero is returned if yest data is available or if a
 		 * bad-entropy error is present. Assume an error if
 		 * we exceed TRNG_RETRIES reads of zero.
 		 */
@@ -555,7 +555,7 @@ int ccp_dev_suspend(struct sp_device *sp, pm_message_t state)
 	unsigned long flags;
 	unsigned int i;
 
-	/* If there's no device there's nothing to do */
+	/* If there's yes device there's yesthing to do */
 	if (!ccp)
 		return 0;
 
@@ -583,7 +583,7 @@ int ccp_dev_resume(struct sp_device *sp)
 	unsigned long flags;
 	unsigned int i;
 
-	/* If there's no device there's nothing to do */
+	/* If there's yes device there's yesthing to do */
 	if (!ccp)
 		return 0;
 
@@ -642,8 +642,8 @@ int ccp_dev_init(struct sp_device *sp)
 
 	ret = ccp->vdata->perform->init(ccp);
 	if (ret) {
-		/* A positive number means that the device cannot be initialized,
-		 * but no additional message is required.
+		/* A positive number means that the device canyest be initialized,
+		 * but yes additional message is required.
 		 */
 		if (ret > 0)
 			goto e_quiet;
@@ -652,12 +652,12 @@ int ccp_dev_init(struct sp_device *sp)
 		goto e_err;
 	}
 
-	dev_notice(dev, "ccp enabled\n");
+	dev_yestice(dev, "ccp enabled\n");
 
 	return 0;
 
 e_err:
-	dev_notice(dev, "ccp initialization failed\n");
+	dev_yestice(dev, "ccp initialization failed\n");
 
 e_quiet:
 	sp->ccp_data = NULL;

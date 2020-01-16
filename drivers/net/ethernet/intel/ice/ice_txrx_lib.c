@@ -17,7 +17,7 @@ void ice_release_rx_desc(struct ice_ring *rx_ring, u32 val)
 	/* update next to alloc since we have filled the ring */
 	rx_ring->next_to_alloc = val;
 
-	/* QRX_TAIL will be updated with any tail value, but hardware ignores
+	/* QRX_TAIL will be updated with any tail value, but hardware igyesres
 	 * the lower 3 bits. This makes it so we only bump tail on meaningful
 	 * boundaries. Also, this allows us to bump tail on intervals of 8 up to
 	 * the budget depending on the current traffic load.
@@ -25,7 +25,7 @@ void ice_release_rx_desc(struct ice_ring *rx_ring, u32 val)
 	val &= ~0x7;
 	if (prev_ntu != val) {
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch. (Only
+		 * kyesw there are new descriptors to fetch. (Only
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
@@ -94,7 +94,7 @@ ice_rx_csum(struct ice_ring *ring, struct sk_buff *skb,
 
 	/* Start with CHECKSUM_NONE and by default csum_level = 0 */
 	skb->ip_summed = CHECKSUM_NONE;
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
 	/* check if Rx checksum is enabled */
 	if (!(ring->netdev->features & NETIF_F_RXCSUM))
@@ -104,7 +104,7 @@ ice_rx_csum(struct ice_ring *ring, struct sk_buff *skb,
 	if (!(rx_status & BIT(ICE_RX_FLEX_DESC_STATUS0_L3L4P_S)))
 		return;
 
-	if (!(decoded.known && decoded.outer_ip))
+	if (!(decoded.kyeswn && decoded.outer_ip))
 		return;
 
 	ipv4 = (decoded.outer_ip == ICE_RX_PTYPE_OUTER_IP) &&
@@ -119,7 +119,7 @@ ice_rx_csum(struct ice_ring *ring, struct sk_buff *skb,
 		 (BIT(ICE_RX_FLEX_DESC_STATUS0_IPV6EXADD_S))))
 		goto checksum_fail;
 
-	/* check for L4 errors and handle packets that were not able to be
+	/* check for L4 errors and handle packets that were yest able to be
 	 * checksummed due to arrival speed
 	 */
 	if (rx_error & BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_L4E_S))

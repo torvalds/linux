@@ -6,11 +6,11 @@
 
 #include <linux/types.h>
 
-extern int nospec_disable;
+extern int yesspec_disable;
 
-void nospec_init_branches(void);
-void nospec_auto_detect(void);
-void nospec_revert(s32 *start, s32 *end);
+void yesspec_init_branches(void);
+void yesspec_auto_detect(void);
+void yesspec_revert(s32 *start, s32 *end);
 
 #endif /* __ASSEMBLY__ */
 

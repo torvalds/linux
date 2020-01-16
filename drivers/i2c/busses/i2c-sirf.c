@@ -147,13 +147,13 @@ static irqreturn_t i2c_sirfsoc_irq(int irq, void *dev_id)
 		writel(SIRFSOC_I2C_STAT_ERR, siic->base + SIRFSOC_I2C_STATUS);
 
 		if (i2c_stat & SIRFSOC_I2C_STAT_NACK)
-			dev_dbg(&siic->adapter.dev, "ACK not received\n");
+			dev_dbg(&siic->adapter.dev, "ACK yest received\n");
 		else
 			dev_err(&siic->adapter.dev, "I2C error\n");
 
 		/*
 		 * Due to hardware ANOMALY, we need to reset I2C earlier after
-		 * we get NOACK while accessing non-existing clients, otherwise
+		 * we get NOACK while accessing yesn-existing clients, otherwise
 		 * we will get errors even we access existing clients later
 		 */
 		writel(readl(siic->base + SIRFSOC_I2C_CTRL) | SIRFSOC_I2C_RESET,
@@ -183,7 +183,7 @@ static void i2c_sirfsoc_set_address(struct sirfsoc_i2c *siic,
 	unsigned char addr;
 	u32 regval = SIRFSOC_I2C_START | SIRFSOC_I2C_CMD_RP(0) | SIRFSOC_I2C_WRITE;
 
-	/* no data and last message -> add STOP */
+	/* yes data and last message -> add STOP */
 	if (siic->last && (msg->len == 0))
 		regval |= SIRFSOC_I2C_STOP;
 
@@ -331,7 +331,7 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	adap->algo_data = siic;
 	adap->retries = 3;
 
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 	adap->dev.parent = &pdev->dev;
 	adap->nr = pdev->id;
 
@@ -350,7 +350,7 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 
 	siic->clk = clk;
 
-	err = of_property_read_u32(pdev->dev.of_node,
+	err = of_property_read_u32(pdev->dev.of_yesde,
 		"clock-frequency", &bitrate);
 	if (err < 0)
 		bitrate = SIRFSOC_I2C_DEFAULT_SPEED;

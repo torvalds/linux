@@ -1,10 +1,10 @@
-Qualcomm Technologies, Inc. NVMEM CPUFreq and OPP bindings
+Qualcomm Techyeslogies, Inc. NVMEM CPUFreq and OPP bindings
 ===================================
 
-In Certain Qualcomm Technologies, Inc. SoCs like apq8096 and msm8996,
+In Certain Qualcomm Techyeslogies, Inc. SoCs like apq8096 and msm8996,
 the CPU frequencies subset and voltage value of each OPP varies based on
 the silicon variant in use.
-Qualcomm Technologies, Inc. Process Voltage Scaling Tables
+Qualcomm Techyeslogies, Inc. Process Voltage Scaling Tables
 defines the voltage and frequency value based on the msm-id in SMEM
 and speedbin blown in the efuse combination.
 The qcom-cpufreq-nvmem driver reads the msm-id and efuse value from the SoC
@@ -14,7 +14,7 @@ operating-points-v2 table when it is parsed by the OPP framework.
 
 Required properties:
 --------------------
-In 'cpu' nodes:
+In 'cpu' yesdes:
 - operating-points-v2: Phandle to the operating-points-v2 table to use.
 
 In 'operating-points-v2' table:
@@ -23,7 +23,7 @@ In 'operating-points-v2' table:
 
 Optional properties:
 --------------------
-In 'cpu' nodes:
+In 'cpu' yesdes:
 - power-domains: A phandle pointing to the PM domain specifier which provides
 		the performance states available for active state management.
 		Please refer to the power-domains bindings
@@ -33,7 +33,7 @@ In 'cpu' nodes:
 	- 'cpr' for qcs404.
 
 In 'operating-points-v2' table:
-- nvmem-cells: A phandle pointing to a nvmem-cells node representing the
+- nvmem-cells: A phandle pointing to a nvmem-cells yesde representing the
 		efuse registers that has information about the
 		speedbin that is used to select the right frequency/voltage
 		value pair.
@@ -41,7 +41,7 @@ In 'operating-points-v2' table:
 		bindings Documentation/devicetree/bindings/nvmem/nvmem.txt
 		and also examples below.
 
-In every OPP node:
+In every OPP yesde:
 - opp-supported-hw: A single 32 bit bitmap value, representing compatible HW.
 		    Bitmap:
 			0:	MSM8996 V3, speedbin 0
@@ -666,7 +666,7 @@ reserved-memory {
 ....
 	smem_mem: smem-mem@86000000 {
 		reg = <0x0 0x86000000 0x0 0x200000>;
-		no-map;
+		yes-map;
 	};
 ....
 };

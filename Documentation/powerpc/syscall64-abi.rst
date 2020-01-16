@@ -21,12 +21,12 @@ There is a maximum of 6 integer parameters to a syscall, passed in r3-r8.
 Both a return value and a return error code are returned. cr0.SO is the return
 error code, and r3 is the return value or error code. When cr0.SO is clear,
 the syscall succeeded and r3 is the return value. When cr0.SO is set, the
-syscall failed and r3 is the error code that generally corresponds to errno.
+syscall failed and r3 is the error code that generally corresponds to erryes.
 
 Stack
 -----
-System calls do not modify the caller's stack frame. For example, the caller's
-stack frame LR and CR save fields are not used.
+System calls do yest modify the caller's stack frame. For example, the caller's
+stack frame LR and CR save fields are yest used.
 
 Register preservation rules
 ---------------------------
@@ -43,7 +43,7 @@ lr          Nonvolatile
 =========== ============= ========================================
 
 All floating point and vector data registers as well as control and status
-registers are nonvolatile.
+registers are yesnvolatile.
 
 Invocation
 ----------
@@ -56,24 +56,24 @@ Syscall behavior can change if the processor is in transactional or suspended
 transaction state, and the syscall can affect the behavior of the transaction.
 
 If the processor is in suspended state when a syscall is made, the syscall
-will be performed as normal, and will return as normal. The syscall will be
+will be performed as yesrmal, and will return as yesrmal. The syscall will be
 performed in suspended state, so its side effects will be persistent according
-to the usual transactional memory semantics. A syscall may or may not result
+to the usual transactional memory semantics. A syscall may or may yest result
 in the transaction being doomed by hardware.
 
 If the processor is in transactional state when a syscall is made, then the
 behavior depends on the presence of PPC_FEATURE2_HTM_NOSC in the AT_HWCAP2 ELF
 auxiliary vector.
 
-- If present, which is the case for newer kernels, then the syscall will not
+- If present, which is the case for newer kernels, then the syscall will yest
   be performed and the transaction will be doomed by the kernel with the
   failure code TM_CAUSE_SYSCALL | TM_CAUSE_PERSISTENT in the TEXASR SPR.
 
-- If not present (older kernels), then the kernel will suspend the
+- If yest present (older kernels), then the kernel will suspend the
   transactional state and the syscall will proceed as in the case of a
   suspended state syscall, and will resume the transactional state before
-  returning to the caller. This case is not well defined or supported, so this
-  behavior should not be relied upon.
+  returning to the caller. This case is yest well defined or supported, so this
+  behavior should yest be relied upon.
 
 
 vsyscall
@@ -84,11 +84,11 @@ following differences. Some vsyscalls may have different calling sequences.
 
 Parameters and return value
 ---------------------------
-r0 is not used as an input. The vsyscall is selected by its address.
+r0 is yest used as an input. The vsyscall is selected by its address.
 
 Stack
 -----
-The vsyscall may or may not use the caller's stack frame save areas.
+The vsyscall may or may yest use the caller's stack frame save areas.
 
 Register preservation rules
 ---------------------------
@@ -107,4 +107,4 @@ function address.
 Transactional Memory
 --------------------
 vsyscalls will run in the same transactional state as the caller. A vsyscall
-may or may not result in the transaction being doomed by hardware.
+may or may yest result in the transaction being doomed by hardware.

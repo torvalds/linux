@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "symbol.h"
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -27,15 +27,15 @@
 
 static void __maps__insert(struct maps *maps, struct map *map);
 
-static inline int is_anon_memory(const char *filename, u32 flags)
+static inline int is_ayesn_memory(const char *filename, u32 flags)
 {
 	return flags & MAP_HUGETLB ||
-	       !strcmp(filename, "//anon") ||
+	       !strcmp(filename, "//ayesn") ||
 	       !strncmp(filename, "/dev/zero", sizeof("/dev/zero") - 1) ||
-	       !strncmp(filename, "/anon_hugepage", sizeof("/anon_hugepage") - 1);
+	       !strncmp(filename, "/ayesn_hugepage", sizeof("/ayesn_hugepage") - 1);
 }
 
-static inline int is_no_dso_memory(const char *filename)
+static inline int is_yes_dso_memory(const char *filename)
 {
 	return !strncmp(filename, "[stack", 6) ||
 	       !strncmp(filename, "/SYSV",5)   ||
@@ -138,7 +138,7 @@ void map__init(struct map *map, u64 start, u64 end, u64 pgoff, struct dso *dso)
 	map->dso      = dso__get(dso);
 	map->map_ip   = map__map_ip;
 	map->unmap_ip = map__unmap_ip;
-	RB_CLEAR_NODE(&map->rb_node);
+	RB_CLEAR_NODE(&map->rb_yesde);
 	map->erange_warned = false;
 	refcount_set(&map->refcnt, 1);
 }
@@ -155,17 +155,17 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 	if (map != NULL) {
 		char newfilename[PATH_MAX];
 		struct dso *dso;
-		int anon, no_dso, vdso, android;
+		int ayesn, yes_dso, vdso, android;
 
 		android = is_android_lib(filename);
-		anon = is_anon_memory(filename, flags);
+		ayesn = is_ayesn_memory(filename, flags);
 		vdso = is_vdso_map(filename);
-		no_dso = is_no_dso_memory(filename);
+		yes_dso = is_yes_dso_memory(filename);
 		map->prot = prot;
 		map->flags = flags;
 		nsi = nsinfo__get(thread->nsinfo);
 
-		if ((anon || no_dso) && nsi && (prot & PROT_EXEC)) {
+		if ((ayesn || yes_dso) && nsi && (prot & PROT_EXEC)) {
 			snprintf(newfilename, sizeof(newfilename),
 				 "/tmp/perf-%d.map", nsi->pid);
 			filename = newfilename;
@@ -177,7 +177,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		}
 
 		if (vdso) {
-			/* The vdso maps are always on the host and not the
+			/* The vdso maps are always on the host and yest the
 			 * container.  Ensure that we don't use setns to look
 			 * them up.
 			 */
@@ -197,7 +197,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 
 		map__init(map, start, start + len, pgoff, dso);
 
-		if (anon || no_dso) {
+		if (ayesn || yes_dso) {
 			map->map_ip = map->unmap_ip = identity__map_ip;
 
 			/*
@@ -219,9 +219,9 @@ out_delete:
 }
 
 /*
- * Constructor variant for modules (where we know from /proc/modules where
+ * Constructor variant for modules (where we kyesw from /proc/modules where
  * they are loaded) and for vmlinux, where only after we load all the
- * symbols we'll know where it starts and ends.
+ * symbols we'll kyesw where it starts and ends.
  */
 struct map *map__new2(u64 start, struct dso *dso)
 {
@@ -259,7 +259,7 @@ bool __map__is_bpf_prog(const struct map *map)
 		return true;
 
 	/*
-	 * If PERF_RECORD_BPF_EVENT is not included, the dso will not have
+	 * If PERF_RECORD_BPF_EVENT is yest included, the dso will yest have
 	 * type of DSO_BINARY_TYPE__BPF_PROG_INFO. In such cases, we can
 	 * guess the type based on name.
 	 */
@@ -293,9 +293,9 @@ void map__put(struct map *map)
 void map__fixup_start(struct map *map)
 {
 	struct rb_root_cached *symbols = &map->dso->symbols;
-	struct rb_node *nd = rb_first_cached(symbols);
+	struct rb_yesde *nd = rb_first_cached(symbols);
 	if (nd != NULL) {
-		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
+		struct symbol *sym = rb_entry(nd, struct symbol, rb_yesde);
 		map->start = sym->start;
 	}
 }
@@ -303,9 +303,9 @@ void map__fixup_start(struct map *map)
 void map__fixup_end(struct map *map)
 {
 	struct rb_root_cached *symbols = &map->dso->symbols;
-	struct rb_node *nd = rb_last(&symbols->rb_root);
+	struct rb_yesde *nd = rb_last(&symbols->rb_root);
 	if (nd != NULL) {
-		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
+		struct symbol *sym = rb_entry(nd, struct symbol, rb_yesde);
 		map->end = sym->end;
 	}
 }
@@ -328,7 +328,7 @@ int map__load(struct map *map)
 			build_id__sprintf(map->dso->build_id,
 					  sizeof(map->dso->build_id),
 					  sbuild_id);
-			pr_debug("%s with build id %s not found", name, sbuild_id);
+			pr_debug("%s with build id %s yest found", name, sbuild_id);
 		} else
 			pr_debug("Failed to open %s", name);
 
@@ -345,7 +345,7 @@ int map__load(struct map *map)
 				"Restart the long running apps that use it!\n",
 				   (int)real_len, name);
 		} else {
-			pr_debug("no symbols found in %s, maybe install a debug package?\n", name);
+			pr_debug("yes symbols found in %s, maybe install a debug package?\n", name);
 		}
 #endif
 		return -1;
@@ -379,7 +379,7 @@ struct map *map__clone(struct map *from)
 
 	if (map != NULL) {
 		refcount_set(&map->refcnt, 1);
-		RB_CLEAR_NODE(&map->rb_node);
+		RB_CLEAR_NODE(&map->rb_yesde);
 		dso__get(map->dso);
 	}
 
@@ -395,7 +395,7 @@ size_t map__fprintf(struct map *map, FILE *fp)
 size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 {
 	char buf[symbol_conf.pad_output_len_dso + 1];
-	const char *dsoname = "[unknown]";
+	const char *dsoname = "[unkyeswn]";
 
 	if (map && map->dso) {
 		if (symbol_conf.show_kernel_path && map->dso->long_name)
@@ -455,8 +455,8 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 	struct kmap *kmap = __map__kmap(map);
 
 	/*
-	 * vmlinux does not have program headers for PTI entry trampolines and
-	 * kcore may not either. However the trampoline object code is on the
+	 * vmlinux does yest have program headers for PTI entry trampolines and
+	 * kcore may yest either. However the trampoline object code is on the
 	 * main kernel map, so just use that instead.
 	 */
 	if (kmap && is_entry_trampoline(kmap->name) && kmap->kmaps && kmap->kmaps->machine) {
@@ -563,7 +563,7 @@ void maps__insert(struct maps *maps, struct map *map)
 
 static void __maps__remove(struct maps *maps, struct map *map)
 {
-	rb_erase_init(&map->rb_node, &maps->entries);
+	rb_erase_init(&map->rb_yesde, &maps->entries);
 	map__put(map);
 }
 
@@ -585,7 +585,7 @@ static void __maps__purge(struct maps *maps)
 	struct map *pos, *next;
 
 	maps__for_each_entry_safe(maps, pos, next) {
-		rb_erase_init(&pos->rb_node,  &maps->entries);
+		rb_erase_init(&pos->rb_yesde,  &maps->entries);
 		map__put(pos);
 	}
 }
@@ -713,7 +713,7 @@ size_t maps__fprintf(struct maps *maps, FILE *fp)
 int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 {
 	struct rb_root *root;
-	struct rb_node *next, *first;
+	struct rb_yesde *next, *first;
 	int err = 0;
 
 	down_write(&maps->lock);
@@ -724,10 +724,10 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 	 * Find first map where end > map->start.
 	 * Same as find_vma() in kernel.
 	 */
-	next = root->rb_node;
+	next = root->rb_yesde;
 	first = NULL;
 	while (next) {
-		struct map *pos = rb_entry(next, struct map, rb_node);
+		struct map *pos = rb_entry(next, struct map, rb_yesde);
 
 		if (pos->end > map->start) {
 			first = next;
@@ -740,12 +740,12 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 
 	next = first;
 	while (next) {
-		struct map *pos = rb_entry(next, struct map, rb_node);
-		next = rb_next(&pos->rb_node);
+		struct map *pos = rb_entry(next, struct map, rb_yesde);
+		next = rb_next(&pos->rb_yesde);
 
 		/*
 		 * Stop if current map starts after map->end.
-		 * Maps are ordered by start: next will not overlap for sure.
+		 * Maps are ordered by start: next will yest overlap for sure.
 		 */
 		if (pos->start >= map->end)
 			break;
@@ -762,9 +762,9 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 			}
 		}
 
-		rb_erase_init(&pos->rb_node, root);
+		rb_erase_init(&pos->rb_yesde, root);
 		/*
-		 * Now check if we need to create new maps for areas not
+		 * Now check if we need to create new maps for areas yest
 		 * overlapped by the new map:
 		 */
 		if (map->start > pos->start) {
@@ -812,7 +812,7 @@ out:
 }
 
 /*
- * XXX This should not really _copy_ te maps, but refcount them.
+ * XXX This should yest really _copy_ te maps, but refcount them.
  */
 int maps__clone(struct thread *thread, struct maps *parent)
 {
@@ -843,35 +843,35 @@ out_unlock:
 
 static void __maps__insert(struct maps *maps, struct map *map)
 {
-	struct rb_node **p = &maps->entries.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &maps->entries.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	const u64 ip = map->start;
 	struct map *m;
 
 	while (*p != NULL) {
 		parent = *p;
-		m = rb_entry(parent, struct map, rb_node);
+		m = rb_entry(parent, struct map, rb_yesde);
 		if (ip < m->start)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
 	}
 
-	rb_link_node(&map->rb_node, parent, p);
-	rb_insert_color(&map->rb_node, &maps->entries);
+	rb_link_yesde(&map->rb_yesde, parent, p);
+	rb_insert_color(&map->rb_yesde, &maps->entries);
 	map__get(map);
 }
 
 struct map *maps__find(struct maps *maps, u64 ip)
 {
-	struct rb_node *p;
+	struct rb_yesde *p;
 	struct map *m;
 
 	down_read(&maps->lock);
 
-	p = maps->entries.rb_node;
+	p = maps->entries.rb_yesde;
 	while (p != NULL) {
-		m = rb_entry(p, struct map, rb_node);
+		m = rb_entry(p, struct map, rb_yesde);
 		if (ip < m->start)
 			p = p->rb_left;
 		else if (ip >= m->end)
@@ -888,19 +888,19 @@ out:
 
 struct map *maps__first(struct maps *maps)
 {
-	struct rb_node *first = rb_first(&maps->entries);
+	struct rb_yesde *first = rb_first(&maps->entries);
 
 	if (first)
-		return rb_entry(first, struct map, rb_node);
+		return rb_entry(first, struct map, rb_yesde);
 	return NULL;
 }
 
 static struct map *__map__next(struct map *map)
 {
-	struct rb_node *next = rb_next(&map->rb_node);
+	struct rb_yesde *next = rb_next(&map->rb_yesde);
 
 	if (next)
-		return rb_entry(next, struct map, rb_node);
+		return rb_entry(next, struct map, rb_yesde);
 	return NULL;
 }
 
@@ -921,7 +921,7 @@ struct kmap *map__kmap(struct map *map)
 	struct kmap *kmap = __map__kmap(map);
 
 	if (!kmap)
-		pr_err("Internal error: map__kmap with a non-kernel map\n");
+		pr_err("Internal error: map__kmap with a yesn-kernel map\n");
 	return kmap;
 }
 
@@ -930,7 +930,7 @@ struct maps *map__kmaps(struct map *map)
 	struct kmap *kmap = map__kmap(map);
 
 	if (!kmap || !kmap->kmaps) {
-		pr_err("Internal error: map__kmaps with a non-kernel map\n");
+		pr_err("Internal error: map__kmaps with a yesn-kernel map\n");
 		return NULL;
 	}
 	return kmap->kmaps;

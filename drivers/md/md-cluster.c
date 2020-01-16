@@ -45,13 +45,13 @@ struct resync_info {
 #define		MD_CLUSTER_SEND_LOCK			4
 /* If cluster operations (such as adding a disk) must lock the
  * communication channel, so as to perform extra operations
- * (update metadata) and no other operation is allowed on the
+ * (update metadata) and yes other operation is allowed on the
  * MD. Token needs to be locked and held until the operation
  * completes witha md_update_sb(), which would eventually release
  * the lock.
  */
 #define		MD_CLUSTER_SEND_LOCKED_ALREADY		5
-/* We should receive message after node joined cluster and
+/* We should receive message after yesde joined cluster and
  * set up all the related infos such as bitmap and personality */
 #define		MD_CLUSTER_ALREADY_IN_CLUSTER		6
 #define		MD_CLUSTER_PENDING_RECV_EVENT		7
@@ -81,7 +81,7 @@ struct md_cluster_info {
 	struct dlm_lock_resource *ack_lockres;
 	struct dlm_lock_resource *message_lockres;
 	struct dlm_lock_resource *token_lockres;
-	struct dlm_lock_resource *no_new_dev_lockres;
+	struct dlm_lock_resource *yes_new_dev_lockres;
 	struct md_thread *recv_thread;
 	struct completion newdisk_completion;
 	wait_queue_head_t wait;
@@ -298,19 +298,19 @@ static void recover_bitmaps(struct md_thread *thread)
 		snprintf(str, 64, "bitmap%04d", slot);
 		bm_lockres = lockres_init(mddev, str, NULL, 1);
 		if (!bm_lockres) {
-			pr_err("md-cluster: Cannot initialize bitmaps\n");
+			pr_err("md-cluster: Canyest initialize bitmaps\n");
 			goto clear_bit;
 		}
 
 		ret = dlm_lock_sync_interruptible(bm_lockres, DLM_LOCK_PW, mddev);
 		if (ret) {
-			pr_err("md-cluster: Could not DLM lock %s: %d\n",
+			pr_err("md-cluster: Could yest DLM lock %s: %d\n",
 					str, ret);
 			goto clear_bit;
 		}
 		ret = md_bitmap_copy_from_slot(mddev, slot, &lo, &hi, true);
 		if (ret) {
-			pr_err("md-cluster: Could not copy data from bitmap %d\n", slot);
+			pr_err("md-cluster: Could yest copy data from bitmap %d\n", slot);
 			goto clear_bit;
 		}
 
@@ -331,11 +331,11 @@ static void recover_bitmaps(struct md_thread *thread)
 			if (lo < mddev->recovery_cp)
 				mddev->recovery_cp = lo;
 			/* wake up thread to continue resync in case resync
-			 * is not finished */
+			 * is yest finished */
 			if (mddev->recovery_cp != MaxSector) {
 				/*
 				 * clear the REMOTE flag since we will launch
-				 * resync thread in current node.
+				 * resync thread in current yesde.
 				 */
 				clear_bit(MD_RESYNCING_REMOTE,
 					  &mddev->recovery);
@@ -365,7 +365,7 @@ static void __recover_slot(struct mddev *mddev, int slot)
 		cinfo->recovery_thread = md_register_thread(recover_bitmaps,
 				mddev, "recover");
 		if (!cinfo->recovery_thread) {
-			pr_warn("md-cluster: Could not create recovery thread\n");
+			pr_warn("md-cluster: Could yest create recovery thread\n");
 			return;
 		}
 	}
@@ -379,7 +379,7 @@ static void recover_slot(void *arg, struct dlm_slot *slot)
 
 	pr_info("md-cluster: %s Node %d/%d down. My slot: %d. Initiating recovery.\n",
 			mddev->bitmap_info.cluster_name,
-			slot->nodeid, slot->slot,
+			slot->yesdeid, slot->slot,
 			cinfo->slot_number);
 	/* deduct one since dlm slot starts from one while the num of
 	 * cluster-md begins with 0 */
@@ -394,8 +394,8 @@ static void recover_done(void *arg, struct dlm_slot *slots,
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 
 	cinfo->slot_number = our_slot;
-	/* completion is only need to be complete when node join cluster,
-	 * it doesn't need to run during another node's failure */
+	/* completion is only need to be complete when yesde join cluster,
+	 * it doesn't need to run during ayesther yesde's failure */
 	if (test_bit(MD_CLUSTER_BEGIN_JOIN_CLUSTER, &cinfo->state)) {
 		complete(&cinfo->completion);
 		clear_bit(MD_CLUSTER_BEGIN_JOIN_CLUSTER, &cinfo->state);
@@ -403,8 +403,8 @@ static void recover_done(void *arg, struct dlm_slot *slots,
 	clear_bit(MD_CLUSTER_SUSPEND_READ_BALANCING, &cinfo->state);
 }
 
-/* the ops is called when node join the cluster, and do lock recovery
- * if node failure occurs */
+/* the ops is called when yesde join the cluster, and do lock recovery
+ * if yesde failure occurs */
 static const struct dlm_lockspace_ops md_ls_ops = {
 	.recover_prep = recover_prep,
 	.recover_slot = recover_slot,
@@ -450,7 +450,7 @@ static void process_suspend_info(struct mddev *mddev,
 	if (!hi) {
 		/*
 		 * clear the REMOTE flag since resync or recovery is finished
-		 * in remote node.
+		 * in remote yesde.
 		 */
 		clear_bit(MD_RESYNCING_REMOTE, &mddev->recovery);
 		remove_suspend_info(mddev, slot);
@@ -466,20 +466,20 @@ static void process_suspend_info(struct mddev *mddev,
 		}
 
 	/*
-	 * The bitmaps are not same for different nodes
-	 * if RESYNCING is happening in one node, then
-	 * the node which received the RESYNCING message
+	 * The bitmaps are yest same for different yesdes
+	 * if RESYNCING is happening in one yesde, then
+	 * the yesde which received the RESYNCING message
 	 * probably will perform resync with the region
 	 * [lo, hi] again, so we could reduce resync time
 	 * a lot if we can ensure that the bitmaps among
-	 * different nodes are match up well.
+	 * different yesdes are match up well.
 	 *
 	 * sync_low/hi is used to record the region which
 	 * arrived in the previous RESYNCING message,
 	 *
 	 * Call md_bitmap_sync_with_cluster to clear NEEDED_MASK
 	 * and set RESYNC_MASK since  resync thread is running
-	 * in another node, so we don't need to do the resync
+	 * in ayesther yesde, so we don't need to do the resync
 	 * again with the same section.
 	 *
 	 * Skip md_bitmap_sync_with_cluster in case reshape
@@ -529,7 +529,7 @@ static void process_metadata_update(struct mddev *mddev, struct cluster_msg *msg
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	mddev->good_device_nr = le32_to_cpu(msg->raid_slot);
 
-	dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR);
+	dlm_lock_sync(cinfo->yes_new_dev_lockres, DLM_LOCK_CR);
 	wait_event(mddev->thread->wqueue,
 		   (got_lock = mddev_trylock(mddev)) ||
 		    test_bit(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD, &cinfo->state));
@@ -550,7 +550,7 @@ static void process_remove_disk(struct mddev *mddev, struct cluster_msg *msg)
 		md_wakeup_thread(mddev->thread);
 	}
 	else
-		pr_warn("%s: %d Could not find disk(%d) to REMOVE\n",
+		pr_warn("%s: %d Could yest find disk(%d) to REMOVE\n",
 			__func__, __LINE__, le32_to_cpu(msg->raid_slot));
 	rcu_read_unlock();
 }
@@ -564,7 +564,7 @@ static void process_readd_disk(struct mddev *mddev, struct cluster_msg *msg)
 	if (rdev && test_bit(Faulty, &rdev->flags))
 		clear_bit(Faulty, &rdev->flags);
 	else
-		pr_warn("%s: %d Could not find disk(%d) which is faulty",
+		pr_warn("%s: %d Could yest find disk(%d) which is faulty",
 			__func__, __LINE__, le32_to_cpu(msg->raid_slot));
 	rcu_read_unlock();
 }
@@ -574,7 +574,7 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 	int ret = 0;
 
 	if (WARN(mddev->cluster_info->slot_number - 1 == le32_to_cpu(msg->slot),
-		"node %d received it's own msg\n", le32_to_cpu(msg->slot)))
+		"yesde %d received it's own msg\n", le32_to_cpu(msg->slot)))
 		return -1;
 	switch (le32_to_cpu(msg->type)) {
 	case METADATA_UPDATED:
@@ -609,7 +609,7 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 		break;
 	default:
 		ret = -1;
-		pr_warn("%s:%d Received unknown message from %d\n",
+		pr_warn("%s:%d Received unkyeswn message from %d\n",
 			__func__, __LINE__, msg->slot);
 	}
 	return ret;
@@ -661,8 +661,8 @@ out:
 }
 
 /* lock_token()
- * Takes the lock on the TOKEN lock resource so no other
- * node can communicate while the operation is underway.
+ * Takes the lock on the TOKEN lock resource so yes other
+ * yesde can communicate while the operation is underway.
  */
 static int lock_token(struct md_cluster_info *cinfo, bool mddev_locked)
 {
@@ -671,8 +671,8 @@ static int lock_token(struct md_cluster_info *cinfo, bool mddev_locked)
 
 	/*
 	 * If resync thread run after raid1d thread, then process_metadata_update
-	 * could not continue if raid1d held reconfig_mutex (and raid1d is blocked
-	 * since another node already got EX on Token and waitting the EX of Ack),
+	 * could yest continue if raid1d held reconfig_mutex (and raid1d is blocked
+	 * since ayesther yesde already got EX on Token and waitting the EX of Ack),
 	 * so let resync wake up thread in case flag is set.
 	 */
 	if (mddev_locked && !test_bit(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD,
@@ -723,9 +723,9 @@ static void unlock_comm(struct md_cluster_info *cinfo)
  * 1. Grabs the message lockresource in EX mode
  * 2. Copies the message to the message LVB
  * 3. Downconverts message lockresource to CW
- * 4. Upconverts ack lock resource from CR to EX. This forces the BAST on other nodes
- *    and the other nodes read the message. The thread will wait here until all other
- *    nodes have released ack lock resource.
+ * 4. Upconverts ack lock resource from CR to EX. This forces the BAST on other yesdes
+ *    and the other yesdes read the message. The thread will wait here until all other
+ *    yesdes have released ack lock resource.
  * 5. Downconvert ack lockresource to CR
  */
 static int __sendmsg(struct md_cluster_info *cinfo, struct cluster_msg *cmsg)
@@ -833,7 +833,7 @@ static int gather_all_resync_info(struct mddev *mddev, int total_slots)
 		/* Read the disk bitmap sb and check if it needs recovery */
 		ret = md_bitmap_copy_from_slot(mddev, i, &lo, &hi, false);
 		if (ret) {
-			pr_warn("md-cluster: Could not gather bitmaps from slot %d", i);
+			pr_warn("md-cluster: Could yest gather bitmaps from slot %d", i);
 			lockres_free(bm_lockres);
 			continue;
 		}
@@ -849,7 +849,7 @@ out:
 	return ret;
 }
 
-static int join(struct mddev *mddev, int nodes)
+static int join(struct mddev *mddev, int yesdes)
 {
 	struct md_cluster_info *cinfo;
 	int ret, ops_rv;
@@ -877,9 +877,9 @@ static int join(struct mddev *mddev, int nodes)
 	if (ret)
 		goto err;
 	wait_for_completion(&cinfo->completion);
-	if (nodes < cinfo->slot_number) {
+	if (yesdes < cinfo->slot_number) {
 		pr_err("md-cluster: Slot allotted(%d) is greater than available slots(%d).",
-			cinfo->slot_number, nodes);
+			cinfo->slot_number, yesdes);
 		ret = -ERANGE;
 		goto err;
 	}
@@ -887,7 +887,7 @@ static int join(struct mddev *mddev, int nodes)
 	ret = -ENOMEM;
 	cinfo->recv_thread = md_register_thread(recv_daemon, mddev, "cluster_recv");
 	if (!cinfo->recv_thread) {
-		pr_err("md-cluster: cannot allocate memory for recv_thread!\n");
+		pr_err("md-cluster: canyest allocate memory for recv_thread!\n");
 		goto err;
 	}
 	cinfo->message_lockres = lockres_init(mddev, "message", NULL, 1);
@@ -896,8 +896,8 @@ static int join(struct mddev *mddev, int nodes)
 	cinfo->token_lockres = lockres_init(mddev, "token", NULL, 0);
 	if (!cinfo->token_lockres)
 		goto err;
-	cinfo->no_new_dev_lockres = lockres_init(mddev, "no-new-dev", NULL, 0);
-	if (!cinfo->no_new_dev_lockres)
+	cinfo->yes_new_dev_lockres = lockres_init(mddev, "yes-new-dev", NULL, 0);
+	if (!cinfo->yes_new_dev_lockres)
 		goto err;
 
 	ret = dlm_lock_sync(cinfo->token_lockres, DLM_LOCK_EX);
@@ -916,9 +916,9 @@ static int join(struct mddev *mddev, int nodes)
 		pr_err("md-cluster: failed to get a sync CR lock on ACK!(%d)\n",
 				ret);
 	dlm_unlock_sync(cinfo->token_lockres);
-	/* get sync CR lock on no-new-dev. */
-	if (dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR))
-		pr_err("md-cluster: failed to get a sync CR lock on no-new-dev!(%d)\n", ret);
+	/* get sync CR lock on yes-new-dev. */
+	if (dlm_lock_sync(cinfo->yes_new_dev_lockres, DLM_LOCK_CR))
+		pr_err("md-cluster: failed to get a sync CR lock on yes-new-dev!(%d)\n", ret);
 
 
 	pr_info("md-cluster: Joined cluster %s slot %d\n", str, cinfo->slot_number);
@@ -948,7 +948,7 @@ err:
 	lockres_free(cinfo->message_lockres);
 	lockres_free(cinfo->token_lockres);
 	lockres_free(cinfo->ack_lockres);
-	lockres_free(cinfo->no_new_dev_lockres);
+	lockres_free(cinfo->yes_new_dev_lockres);
 	lockres_free(cinfo->resync_lockres);
 	lockres_free(cinfo->bitmap_lockres);
 	if (cinfo->lockspace)
@@ -962,7 +962,7 @@ static void load_bitmaps(struct mddev *mddev, int total_slots)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 
-	/* load all the node's bitmap info for resync */
+	/* load all the yesde's bitmap info for resync */
 	if (gather_all_resync_info(mddev, total_slots))
 		pr_err("md-cluster: failed to gather all resyn infos\n");
 	set_bit(MD_CLUSTER_ALREADY_IN_CLUSTER, &cinfo->state);
@@ -993,7 +993,7 @@ static int leave(struct mddev *mddev)
 		return 0;
 
 	/*
-	 * BITMAP_NEEDS_SYNC message should be sent when node
+	 * BITMAP_NEEDS_SYNC message should be sent when yesde
 	 * is leaving the cluster with dirty bitmap, also we
 	 * can only deliver it when dlm connection is available.
 	 *
@@ -1011,7 +1011,7 @@ static int leave(struct mddev *mddev)
 	lockres_free(cinfo->message_lockres);
 	lockres_free(cinfo->token_lockres);
 	lockres_free(cinfo->ack_lockres);
-	lockres_free(cinfo->no_new_dev_lockres);
+	lockres_free(cinfo->yes_new_dev_lockres);
 	lockres_free(cinfo->resync_lockres);
 	lockres_free(cinfo->bitmap_lockres);
 	unlock_all_bitmaps(mddev);
@@ -1035,7 +1035,7 @@ static int slot_number(struct mddev *mddev)
  * Check if the communication is already locked, else lock the communication
  * channel.
  * If it is already locked, token is in EX mode, and hence lock_token()
- * should not be called.
+ * should yest be called.
  */
 static int metadata_update_start(struct mddev *mddev)
 {
@@ -1125,14 +1125,14 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 	int i, rv;
 
 	/*
-	 * We need to ensure all the nodes can grow to a larger
+	 * We need to ensure all the yesdes can grow to a larger
 	 * bitmap size before make the reshaping.
 	 */
 	rv = update_bitmap_size(mddev, newsize);
 	if (rv)
 		return rv;
 
-	for (i = 0; i < mddev->bitmap_info.nodes; i++) {
+	for (i = 0; i < mddev->bitmap_info.yesdes; i++) {
 		if (i == md_cluster_ops->slot_number(mddev))
 			continue;
 
@@ -1144,13 +1144,13 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 		counts = &bitmap->counts;
 
 		/*
-		 * If we can hold the bitmap lock of one node then
-		 * the slot is not occupied, update the pages.
+		 * If we can hold the bitmap lock of one yesde then
+		 * the slot is yest occupied, update the pages.
 		 */
 		snprintf(str, 64, "bitmap%04d", i);
 		bm_lockres = lockres_init(mddev, str, NULL, 1);
 		if (!bm_lockres) {
-			pr_err("Cannot initialize %s lock\n", str);
+			pr_err("Canyest initialize %s lock\n", str);
 			goto out;
 		}
 		bm_lockres->flags |= DLM_LKF_NOQUEUE;
@@ -1161,7 +1161,7 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 
 		if (my_pages != counts->pages)
 			/*
-			 * Let's revert the bitmap size if one node
+			 * Let's revert the bitmap size if one yesde
 			 * can't resize bitmap
 			 */
 			goto out;
@@ -1182,7 +1182,7 @@ static int cluster_check_sync_size(struct mddev *mddev)
 	int i, rv;
 	bitmap_super_t *sb;
 	unsigned long my_sync_size, sync_size = 0;
-	int node_num = mddev->bitmap_info.nodes;
+	int yesde_num = mddev->bitmap_info.yesdes;
 	int current_slot = md_cluster_ops->slot_number(mddev);
 	struct bitmap *bitmap = mddev->bitmap;
 	char str[64];
@@ -1192,7 +1192,7 @@ static int cluster_check_sync_size(struct mddev *mddev)
 	my_sync_size = sb->sync_size;
 	kunmap_atomic(sb);
 
-	for (i = 0; i < node_num; i++) {
+	for (i = 0; i < yesde_num; i++) {
 		if (i == current_slot)
 			continue;
 
@@ -1203,13 +1203,13 @@ static int cluster_check_sync_size(struct mddev *mddev)
 		}
 
 		/*
-		 * If we can hold the bitmap lock of one node then
-		 * the slot is not occupied, update the sb.
+		 * If we can hold the bitmap lock of one yesde then
+		 * the slot is yest occupied, update the sb.
 		 */
 		snprintf(str, 64, "bitmap%04d", i);
 		bm_lockres = lockres_init(mddev, str, NULL, 1);
 		if (!bm_lockres) {
-			pr_err("md-cluster: Cannot initialize %s\n", str);
+			pr_err("md-cluster: Canyest initialize %s\n", str);
 			md_bitmap_free(bitmap);
 			return -1;
 		}
@@ -1237,11 +1237,11 @@ static int cluster_check_sync_size(struct mddev *mddev)
 /*
  * Update the size for cluster raid is a little more complex, we perform it
  * by the steps:
- * 1. hold token lock and update superblock in initiator node.
- * 2. send METADATA_UPDATED msg to other nodes.
- * 3. The initiator node continues to check each bitmap's sync_size, if all
+ * 1. hold token lock and update superblock in initiator yesde.
+ * 2. send METADATA_UPDATED msg to other yesdes.
+ * 3. The initiator yesde continues to check each bitmap's sync_size, if all
  *    bitmaps have the same value of sync_size, then we can set capacity and
- *    let other nodes to perform it. If one node can't update sync_size
+ *    let other yesdes to perform it. If one yesde can't update sync_size
  *    accordingly, we need to revert to previous value.
  */
 static void update_size(struct mddev *mddev, sector_t old_dev_sectors)
@@ -1265,8 +1265,8 @@ static void update_size(struct mddev *mddev, sector_t old_dev_sectors)
 	if (raid_slot >= 0) {
 		cmsg.raid_slot = cpu_to_le32(raid_slot);
 		/*
-		 * We can only change capiticy after all the nodes can do it,
-		 * so need to wait after other nodes already received the msg
+		 * We can only change capiticy after all the yesdes can do it,
+		 * so need to wait after other yesdes already received the msg
 		 * and handled the change
 		 */
 		ret = __sendmsg(cinfo, &cmsg);
@@ -1283,8 +1283,8 @@ static void update_size(struct mddev *mddev, sector_t old_dev_sectors)
 	}
 
 	/*
-	 * check the sync_size from other node's bitmap, if sync_size
-	 * have already updated in other nodes as expected, send an
+	 * check the sync_size from other yesde's bitmap, if sync_size
+	 * have already updated in other yesdes as expected, send an
 	 * empty metadata msg to permit the change of capacity
 	 */
 	if (cluster_check_sync_size(mddev) == 0) {
@@ -1331,7 +1331,7 @@ static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 	struct resync_info ri;
 	struct cluster_msg cmsg = {0};
 
-	/* do not send zero again, if we have sent before */
+	/* do yest send zero again, if we have sent before */
 	if (hi == 0) {
 		memcpy(&ri, cinfo->bitmap_lockres->lksb.sb_lvbptr, sizeof(struct resync_info));
 		if (le64_to_cpu(ri.hi) == 0)
@@ -1364,7 +1364,7 @@ static int resync_finish(struct mddev *mddev)
 
 	/*
 	 * If resync thread is interrupted so we can't say resync is finished,
-	 * another node will launch resync thread to continue.
+	 * ayesther yesde will launch resync thread to continue.
 	 */
 	if (!test_bit(MD_CLOSING, &mddev->flags))
 		ret = resync_info_update(mddev, 0, 0);
@@ -1411,16 +1411,16 @@ static int add_new_disk(struct mddev *mddev, struct md_rdev *rdev)
 		unlock_comm(cinfo);
 		return ret;
 	}
-	cinfo->no_new_dev_lockres->flags |= DLM_LKF_NOQUEUE;
-	ret = dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_EX);
-	cinfo->no_new_dev_lockres->flags &= ~DLM_LKF_NOQUEUE;
-	/* Some node does not "see" the device */
+	cinfo->yes_new_dev_lockres->flags |= DLM_LKF_NOQUEUE;
+	ret = dlm_lock_sync(cinfo->yes_new_dev_lockres, DLM_LOCK_EX);
+	cinfo->yes_new_dev_lockres->flags &= ~DLM_LKF_NOQUEUE;
+	/* Some yesde does yest "see" the device */
 	if (ret == -EAGAIN)
 		ret = -ENOENT;
 	if (ret)
 		unlock_comm(cinfo);
 	else {
-		dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR);
+		dlm_lock_sync(cinfo->yes_new_dev_lockres, DLM_LOCK_CR);
 		/* Since MD_CHANGE_DEVS will be set in add_bound_rdev which
 		 * will run soon after add_new_disk, the below path will be
 		 * invoked:
@@ -1456,7 +1456,7 @@ static int new_disk_ack(struct mddev *mddev, bool ack)
 	}
 
 	if (ack)
-		dlm_unlock_sync(cinfo->no_new_dev_lockres);
+		dlm_unlock_sync(cinfo->yes_new_dev_lockres);
 	complete(&cinfo->newdisk_completion);
 	return 0;
 }
@@ -1477,7 +1477,7 @@ static int lock_all_bitmaps(struct mddev *mddev)
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 
 	cinfo->other_bitmap_lockres =
-		kcalloc(mddev->bitmap_info.nodes - 1,
+		kcalloc(mddev->bitmap_info.yesdes - 1,
 			sizeof(struct dlm_lock_resource *), GFP_KERNEL);
 	if (!cinfo->other_bitmap_lockres) {
 		pr_err("md: can't alloc mem for other bitmap locks\n");
@@ -1485,7 +1485,7 @@ static int lock_all_bitmaps(struct mddev *mddev)
 	}
 
 	my_slot = slot_number(mddev);
-	for (slot = 0; slot < mddev->bitmap_info.nodes; slot++) {
+	for (slot = 0; slot < mddev->bitmap_info.yesdes; slot++) {
 		if (slot == my_slot)
 			continue;
 
@@ -1510,9 +1510,9 @@ static void unlock_all_bitmaps(struct mddev *mddev)
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	int i;
 
-	/* release other node's bitmap lock if they are existed */
+	/* release other yesde's bitmap lock if they are existed */
 	if (cinfo->other_bitmap_lockres) {
-		for (i = 0; i < mddev->bitmap_info.nodes - 1; i++) {
+		for (i = 0; i < mddev->bitmap_info.yesdes - 1; i++) {
 			if (cinfo->other_bitmap_lockres[i]) {
 				lockres_free(cinfo->other_bitmap_lockres[i]);
 			}
@@ -1535,12 +1535,12 @@ static int gather_bitmaps(struct md_rdev *rdev)
 	if (err)
 		goto out;
 
-	for (sn = 0; sn < mddev->bitmap_info.nodes; sn++) {
+	for (sn = 0; sn < mddev->bitmap_info.yesdes; sn++) {
 		if (sn == (cinfo->slot_number - 1))
 			continue;
 		err = md_bitmap_copy_from_slot(mddev, sn, &lo, &hi, false);
 		if (err) {
-			pr_warn("md-cluster: Could not gather bitmaps from slot %d", sn);
+			pr_warn("md-cluster: Could yest gather bitmaps from slot %d", sn);
 			goto out;
 		}
 		if ((hi > 0) && (lo < mddev->recovery_cp))

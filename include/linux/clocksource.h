@@ -3,8 +3,8 @@
  *
  *  This file contains the structure definitions for clocksources.
  *
- *  If you are not a clocksource, or timekeeping code, you should
- *  not be including this file!
+ *  If you are yest a clocksource, or timekeeping code, you should
+ *  yest be including this file!
  */
 #ifndef _LINUX_CLOCKSOURCE_H
 #define _LINUX_CLOCKSOURCE_H
@@ -41,7 +41,7 @@ struct module;
  *			1-99: Unfit for real use
  *				Only available for bootup and testing purposes.
  *			100-199: Base level usability.
- *				Functional for real use, but not desired.
+ *				Functional for real use, but yest desired.
  *			200-299: Good.
  *				A correct and usable clocksource.
  *			300-399: Desired.
@@ -53,9 +53,9 @@ struct module;
  * @enable:		optional function to enable the clocksource
  * @disable:		optional function to disable the clocksource
  * @mask:		bitmask for two's complement
- *			subtraction of non 64 bit counters
- * @mult:		cycle to nanosecond multiplier
- * @shift:		cycle to nanosecond divisor (power of two)
+ *			subtraction of yesn 64 bit counters
+ * @mult:		cycle to nayessecond multiplier
+ * @shift:		cycle to nayessecond divisor (power of two)
  * @max_idle_ns:	max idle time permitted by the clocksource (nsecs)
  * @maxadj:		maximum adjustment value to mult (~11%)
  * @max_cycles:		maximum safe cycle value which won't overflow on multiplication
@@ -67,9 +67,9 @@ struct module;
  *			the watchdog marked the clocksource unstable
  * @owner:		module reference, must be set by clocksource in modules
  *
- * Note: This struct is not used in hotpathes of the timekeeping code
+ * Note: This struct is yest used in hotpathes of the timekeeping code
  * because the timekeeper caches the hot path fields in its own data
- * structure, so no line cache alignment is required,
+ * structure, so yes line cache alignment is required,
  *
  * The pointer to the clocksource itself is handed to the read
  * callback. If you need extra information there you can wrap struct
@@ -169,13 +169,13 @@ static inline u32 clocksource_hz2mult(u32 hz, u32 shift_constant)
 }
 
 /**
- * clocksource_cyc2ns - converts clocksource cycles to nanoseconds
+ * clocksource_cyc2ns - converts clocksource cycles to nayesseconds
  * @cycles:	cycles
- * @mult:	cycle to nanosecond multiplier
- * @shift:	cycle to nanosecond divisor (power of two)
+ * @mult:	cycle to nayessecond multiplier
+ * @shift:	cycle to nayessecond divisor (power of two)
  *
- * Converts clocksource cycles to nanoseconds, using the given @mult and @shift.
- * The code is optimized for performance and is not intended to work
+ * Converts clocksource cycles to nayesseconds, using the given @mult and @shift.
+ * The code is optimized for performance and is yest intended to work
  * with absolute clocksource cycles (as those will easily overflow),
  * but is only intended to be used with relative (delta) clocksource cycles.
  *
@@ -196,7 +196,7 @@ extern struct clocksource * __init clocksource_default_clock(void);
 extern void clocksource_mark_unstable(struct clocksource *cs);
 extern void
 clocksource_start_suspend_timing(struct clocksource *cs, u64 start_cycles);
-extern u64 clocksource_stop_suspend_timing(struct clocksource *cs, u64 now);
+extern u64 clocksource_stop_suspend_timing(struct clocksource *cs, u64 yesw);
 
 extern u64
 clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask, u64 *max_cycles);
@@ -247,7 +247,7 @@ extern void clocksource_arch_init(struct clocksource *cs);
 static inline void clocksource_arch_init(struct clocksource *cs) { }
 #endif
 
-extern int timekeeping_notify(struct clocksource *clock);
+extern int timekeeping_yestify(struct clocksource *clock);
 
 extern u64 clocksource_mmio_readl_up(struct clocksource *);
 extern u64 clocksource_mmio_readl_down(struct clocksource *);

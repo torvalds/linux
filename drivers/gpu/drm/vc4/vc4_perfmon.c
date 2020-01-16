@@ -108,11 +108,11 @@ int vc4_perfmon_create_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!vc4->v3d) {
-		DRM_DEBUG("Creating perfmon no VC4 V3D probed\n");
+		DRM_DEBUG("Creating perfmon yes VC4 V3D probed\n");
 		return -ENODEV;
 	}
 
-	/* Number of monitored counters cannot exceed HW limits. */
+	/* Number of monitored counters canyest exceed HW limits. */
 	if (req->ncounters > DRM_VC4_MAX_PERF_COUNTERS ||
 	    !req->ncounters)
 		return -EINVAL;
@@ -158,7 +158,7 @@ int vc4_perfmon_destroy_ioctl(struct drm_device *dev, void *data,
 	struct vc4_perfmon *perfmon;
 
 	if (!vc4->v3d) {
-		DRM_DEBUG("Destroying perfmon no VC4 V3D probed\n");
+		DRM_DEBUG("Destroying perfmon yes VC4 V3D probed\n");
 		return -ENODEV;
 	}
 
@@ -183,7 +183,7 @@ int vc4_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!vc4->v3d) {
-		DRM_DEBUG("Getting perfmon no VC4 V3D probed\n");
+		DRM_DEBUG("Getting perfmon yes VC4 V3D probed\n");
 		return -ENODEV;
 	}
 

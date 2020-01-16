@@ -17,7 +17,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -51,7 +51,7 @@ static const char stat_gstrings[][ETH_GSTRING_LEN] = {
 	"rx-allocation-errors",
 	"rx-large-frame-errors",
 	"rx-short-frame-errors",
-	"rx-non-octet-errors",
+	"rx-yesn-octet-errors",
 	"rx-crc-errors",
 	"rx-overrun-errors",
 	"rx-busy-errors",
@@ -76,7 +76,7 @@ static const char stat_gstrings[][ETH_GSTRING_LEN] = {
 	"receive-broadcast-packet",
 	"rx-control-frame-packets",
 	"rx-pause-frame-packets",
-	"rx-unknown-op-code",
+	"rx-unkyeswn-op-code",
 	"rx-alignment-error",
 	"rx-frame-length-error",
 	"rx-code-error",
@@ -287,7 +287,7 @@ static int gfar_gcoalesce(struct net_device *dev,
 
 	/* When the packet rate is below pkt_rate_high but above
 	 * pkt_rate_low (both measured in packets per second) the
-	 * normal {rx,tx}_* coalescing parameters are used.
+	 * yesrmal {rx,tx}_* coalescing parameters are used.
 	 */
 
 	/* When the packet rate is (measured in packets per second)
@@ -301,7 +301,7 @@ static int gfar_gcoalesce(struct net_device *dev,
 	cvals->tx_max_coalesced_frames_high = 0;
 
 	/* How often to do adaptive coalescing packet rate sampling,
-	 * measured in seconds.  Must not be zero.
+	 * measured in seconds.  Must yest be zero.
 	 */
 	cvals->rate_sample_interval = 0;
 
@@ -399,7 +399,7 @@ static int gfar_scoalesce(struct net_device *dev,
 
 /* Fills in rvals with the current ring parameters.  Currently,
  * rx, rx_mini, and rx_jumbo rings are the same size, as mini and
- * jumbo are ignored by the driver */
+ * jumbo are igyesred by the driver */
 static void gfar_gringparam(struct net_device *dev,
 			    struct ethtool_ringparam *rvals)
 {
@@ -734,7 +734,7 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 		break;
 	default:
 		netdev_err(priv->ndev,
-			   "Right now this class is not supported\n");
+			   "Right yesw this class is yest supported\n");
 		ret = 0;
 		goto err;
 	}
@@ -821,7 +821,7 @@ static int gfar_check_filer_hardware(struct gfar_private *priv)
 	i = gfar_read(&regs->ecntrl);
 	i &= ECNTRL_FIFM;
 	if (i == ECNTRL_FIFM) {
-		netdev_notice(priv->ndev, "Interface in FIFO mode\n");
+		netdev_yestice(priv->ndev, "Interface in FIFO mode\n");
 		i = gfar_read(&regs->rctrl);
 		i &= RCTRL_PRSDEP_MASK | RCTRL_PRSFM;
 		if (i == (RCTRL_PRSDEP_MASK | RCTRL_PRSFM)) {
@@ -1169,7 +1169,7 @@ static int gfar_convert_to_filer(struct ethtool_rx_flow_spec *rule,
 		gfar_set_attribute(prio, prio_mask, RQFCR_PID_PRI, tab);
 	}
 
-	/* If there has been nothing written till now, it must be a default */
+	/* If there has been yesthing written till yesw, it must be a default */
 	if (tab->index == old_index) {
 		gfar_set_mask(0xFFFFFFFF, tab);
 		tab->fe[tab->index].ctrl = 0x20;
@@ -1186,7 +1186,7 @@ static int gfar_convert_to_filer(struct ethtool_rx_flow_spec *rule,
 	else
 		tab->fe[tab->index - 1].ctrl |= (rule->ring_cookie << 10);
 
-	/* Only big enough entries can be clustered */
+	/* Only big eyesugh entries can be clustered */
 	if (tab->index > (old_index + 2)) {
 		tab->fe[old_index + 1].ctrl |= RQFCR_CLE;
 		tab->fe[tab->index - 1].ctrl |= RQFCR_CLE;
@@ -1230,15 +1230,15 @@ static int gfar_check_capability(struct ethtool_rx_flow_spec *flow,
 	if (flow->flow_type & FLOW_EXT)	{
 		if (~flow->m_ext.data[0] || ~flow->m_ext.data[1])
 			netdev_warn(priv->ndev,
-				    "User-specific data not supported!\n");
+				    "User-specific data yest supported!\n");
 		if (~flow->m_ext.vlan_etype)
 			netdev_warn(priv->ndev,
-				    "VLAN-etype not supported!\n");
+				    "VLAN-etype yest supported!\n");
 	}
 	if (flow->flow_type == IP_USER_FLOW)
 		if (flow->h_u.usr_ip4_spec.ip_ver != ETH_RX_NFC_IP4)
 			netdev_warn(priv->ndev,
-				    "IP-Version differing from IPv4 not supported!\n");
+				    "IP-Version differing from IPv4 yest supported!\n");
 
 	return 0;
 }
@@ -1261,12 +1261,12 @@ static int gfar_process_filer_changes(struct gfar_private *priv)
 		ret = gfar_convert_to_filer(&j->fs, tab);
 		if (ret == -EBUSY) {
 			netdev_err(priv->ndev,
-				   "Rule not added: No free space!\n");
+				   "Rule yest added: No free space!\n");
 			goto end;
 		}
 		if (ret == -1) {
 			netdev_err(priv->ndev,
-				   "Rule not added: Unsupported Flow-type!\n");
+				   "Rule yest added: Unsupported Flow-type!\n");
 			goto end;
 		}
 	}
@@ -1274,7 +1274,7 @@ static int gfar_process_filer_changes(struct gfar_private *priv)
 	/* Write everything to hardware */
 	ret = gfar_write_filer_table(priv, tab);
 	if (ret == -EBUSY) {
-		netdev_err(priv->ndev, "Rule not added: No free space!\n");
+		netdev_err(priv->ndev, "Rule yest added: No free space!\n");
 		goto end;
 	}
 
@@ -1326,7 +1326,7 @@ static int gfar_add_cls(struct gfar_private *priv,
 			}
 			if (comp->fs.location == flow->location) {
 				netdev_err(priv->ndev,
-					   "Rule not added: ID %d not free!\n",
+					   "Rule yest added: ID %d yest free!\n",
 					   flow->location);
 				ret = -EBUSY;
 				goto clean_mem;
@@ -1475,7 +1475,7 @@ static int gfar_get_ts_info(struct net_device *dev,
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct platform_device *ptp_dev;
-	struct device_node *ptp_node;
+	struct device_yesde *ptp_yesde;
 	struct ptp_qoriq *ptp = NULL;
 
 	info->phc_index = -1;
@@ -1486,9 +1486,9 @@ static int gfar_get_ts_info(struct net_device *dev,
 		return 0;
 	}
 
-	ptp_node = of_find_compatible_node(NULL, NULL, "fsl,etsec-ptp");
-	if (ptp_node) {
-		ptp_dev = of_find_device_by_node(ptp_node);
+	ptp_yesde = of_find_compatible_yesde(NULL, NULL, "fsl,etsec-ptp");
+	if (ptp_yesde) {
+		ptp_dev = of_find_device_by_yesde(ptp_yesde);
 		if (ptp_dev)
 			ptp = platform_get_drvdata(ptp_dev);
 	}

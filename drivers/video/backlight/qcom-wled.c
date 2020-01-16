@@ -462,7 +462,7 @@ static void wled_auto_string_detection(struct wled *wled)
 	}
 
 	if (sink_valid != sink_config) {
-		dev_warn(wled->dev, "%x is not a valid sink configuration - using %x instead\n",
+		dev_warn(wled->dev, "%x is yest a valid sink configuration - using %x instead\n",
 			 sink_config, sink_valid);
 		sink_config = sink_valid;
 	}
@@ -1024,16 +1024,16 @@ static int wled_configure(struct wled *wled, int version)
 		{ "qcom,auto-string-detection", &cfg->auto_detection_enabled, },
 	};
 
-	prop_addr = of_get_address(dev->of_node, 0, NULL, NULL);
+	prop_addr = of_get_address(dev->of_yesde, 0, NULL, NULL);
 	if (!prop_addr) {
 		dev_err(wled->dev, "invalid IO resources\n");
 		return -EINVAL;
 	}
 	wled->ctrl_addr = be32_to_cpu(*prop_addr);
 
-	rc = of_property_read_string(dev->of_node, "label", &wled->name);
+	rc = of_property_read_string(dev->of_yesde, "label", &wled->name);
 	if (rc)
-		wled->name = devm_kasprintf(dev, GFP_KERNEL, "%pOFn", dev->of_node);
+		wled->name = devm_kasprintf(dev, GFP_KERNEL, "%pOFn", dev->of_yesde);
 
 	switch (version) {
 	case 3:
@@ -1052,7 +1052,7 @@ static int wled_configure(struct wled *wled, int version)
 		wled->wled_set_brightness = wled4_set_brightness;
 		wled->max_string_count = 4;
 
-		prop_addr = of_get_address(dev->of_node, 1, NULL, NULL);
+		prop_addr = of_get_address(dev->of_yesde, 1, NULL, NULL);
 		if (!prop_addr) {
 			dev_err(wled->dev, "invalid IO resources\n");
 			return -EINVAL;
@@ -1066,7 +1066,7 @@ static int wled_configure(struct wled *wled, int version)
 	}
 
 	for (i = 0; i < size; ++i) {
-		rc = of_property_read_u32(dev->of_node, u32_opts[i].name, &val);
+		rc = of_property_read_u32(dev->of_yesde, u32_opts[i].name, &val);
 		if (rc == -EINVAL) {
 			continue;
 		} else if (rc) {
@@ -1092,17 +1092,17 @@ static int wled_configure(struct wled *wled, int version)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(bool_opts); ++i) {
-		if (of_property_read_bool(dev->of_node, bool_opts[i].name))
+		if (of_property_read_bool(dev->of_yesde, bool_opts[i].name))
 			*bool_opts[i].val_ptr = true;
 	}
 
 	cfg->num_strings = cfg->num_strings + 1;
 
-	string_len = of_property_count_elems_of_size(dev->of_node,
+	string_len = of_property_count_elems_of_size(dev->of_yesde,
 						     "qcom,enabled-strings",
 						     sizeof(u32));
 	if (string_len > 0)
-		of_property_read_u32_array(dev->of_node,
+		of_property_read_u32_array(dev->of_yesde,
 						"qcom,enabled-strings",
 						wled->cfg.enabled_strings,
 						sizeof(u32));
@@ -1127,7 +1127,7 @@ static int wled_configure_short_irq(struct wled *wled,
 
 	wled->short_irq = platform_get_irq_byname(pdev, "short");
 	if (wled->short_irq < 0) {
-		dev_dbg(&pdev->dev, "short irq is not used\n");
+		dev_dbg(&pdev->dev, "short irq is yest used\n");
 		return 0;
 	}
 
@@ -1150,7 +1150,7 @@ static int wled_configure_ovp_irq(struct wled *wled,
 
 	wled->ovp_irq = platform_get_irq_byname(pdev, "ovp");
 	if (wled->ovp_irq < 0) {
-		dev_dbg(&pdev->dev, "OVP IRQ not found - disabling automatic string detection\n");
+		dev_dbg(&pdev->dev, "OVP IRQ yest found - disabling automatic string detection\n");
 		return 0;
 	}
 
@@ -1205,7 +1205,7 @@ static int wled_probe(struct platform_device *pdev)
 
 	version = (uintptr_t)of_device_get_match_data(&pdev->dev);
 	if (!version) {
-		dev_err(&pdev->dev, "Unknown device version\n");
+		dev_err(&pdev->dev, "Unkyeswn device version\n");
 		return -ENODEV;
 	}
 
@@ -1249,7 +1249,7 @@ static int wled_probe(struct platform_device *pdev)
 		return rc;
 
 	val = WLED_DEFAULT_BRIGHTNESS;
-	of_property_read_u32(pdev->dev.of_node, "default-brightness", &val);
+	of_property_read_u32(pdev->dev.of_yesde, "default-brightness", &val);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;

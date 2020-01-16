@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies Ltd.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -292,7 +292,7 @@ static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
 static const char *phys_state_to_str(enum ib_port_phys_state phys_state)
 {
 	static const char * phys_state_str[] = {
-		"<unknown>",
+		"<unkyeswn>",
 		"Sleep",
 		"Polling",
 		"Disabled",
@@ -304,7 +304,7 @@ static const char *phys_state_to_str(enum ib_port_phys_state phys_state)
 
 	if (phys_state < ARRAY_SIZE(phys_state_str))
 		return phys_state_str[phys_state];
-	return "<unknown>";
+	return "<unkyeswn>";
 }
 
 static ssize_t phys_state_show(struct ib_port *p, struct port_attribute *unused,
@@ -331,7 +331,7 @@ static ssize_t link_layer_show(struct ib_port *p, struct port_attribute *unused,
 	case IB_LINK_LAYER_ETHERNET:
 		return sprintf(buf, "%s\n", "Ethernet");
 	default:
-		return sprintf(buf, "%s\n", "Unknown");
+		return sprintf(buf, "%s\n", "Unkyeswn");
 	}
 }
 
@@ -632,7 +632,7 @@ static struct attribute *pma_attrs_ext[] = {
 	NULL
 };
 
-static struct attribute *pma_attrs_noietf[] = {
+static struct attribute *pma_attrs_yesietf[] = {
 	&port_pma_attr_symbol_error.attr.attr,
 	&port_pma_attr_link_error_recovery.attr.attr,
 	&port_pma_attr_link_downed.attr.attr,
@@ -663,9 +663,9 @@ static struct attribute_group pma_group_ext = {
 	.attrs  = pma_attrs_ext
 };
 
-static struct attribute_group pma_group_noietf = {
+static struct attribute_group pma_group_yesietf = {
 	.name  = "counters",
-	.attrs  = pma_attrs_noietf
+	.attrs  = pma_attrs_yesietf
 };
 
 static void ib_port_release(struct kobject *kobj)
@@ -785,11 +785,11 @@ static struct attribute_group *get_counter_table(struct ib_device *dev,
 			return &pma_group_ext;
 
 		if (cpi.capability_mask & IB_PMA_CLASS_CAP_EXT_WIDTH_NOIETF)
-			/* But not the IETF ones */
-			return &pma_group_noietf;
+			/* But yest the IETF ones */
+			return &pma_group_yesietf;
 	}
 
-	/* Fall back to normal counters */
+	/* Fall back to yesrmal counters */
 	return &pma_group;
 }
 
@@ -999,7 +999,7 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 	}
 
 	mutex_init(&stats->lock);
-	/* treat an error here as non-fatal */
+	/* treat an error here as yesn-fatal */
 	hsag->attrs[i] = alloc_hsa_lifespan("lifespan", port_num);
 	if (hsag->attrs[i])
 		sysfs_attr_init(hsag->attrs[i]);
@@ -1139,7 +1139,7 @@ static int add_port(struct ib_core_device *coredev, int port_num)
 	}
 
 	/*
-	 * If port == 0, it means hw_counters are per device and not per
+	 * If port == 0, it means hw_counters are per device and yest per
 	 * port, so holder should be device. Therefore skip per port conunter
 	 * initialization.
 	 */
@@ -1205,23 +1205,23 @@ err_put:
 	return ret;
 }
 
-static ssize_t node_type_show(struct device *device,
+static ssize_t yesde_type_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
-	switch (dev->node_type) {
-	case RDMA_NODE_IB_CA:	  return sprintf(buf, "%d: CA\n", dev->node_type);
-	case RDMA_NODE_RNIC:	  return sprintf(buf, "%d: RNIC\n", dev->node_type);
-	case RDMA_NODE_USNIC:	  return sprintf(buf, "%d: usNIC\n", dev->node_type);
-	case RDMA_NODE_USNIC_UDP: return sprintf(buf, "%d: usNIC UDP\n", dev->node_type);
-	case RDMA_NODE_UNSPECIFIED: return sprintf(buf, "%d: unspecified\n", dev->node_type);
-	case RDMA_NODE_IB_SWITCH: return sprintf(buf, "%d: switch\n", dev->node_type);
-	case RDMA_NODE_IB_ROUTER: return sprintf(buf, "%d: router\n", dev->node_type);
-	default:		  return sprintf(buf, "%d: <unknown>\n", dev->node_type);
+	switch (dev->yesde_type) {
+	case RDMA_NODE_IB_CA:	  return sprintf(buf, "%d: CA\n", dev->yesde_type);
+	case RDMA_NODE_RNIC:	  return sprintf(buf, "%d: RNIC\n", dev->yesde_type);
+	case RDMA_NODE_USNIC:	  return sprintf(buf, "%d: usNIC\n", dev->yesde_type);
+	case RDMA_NODE_USNIC_UDP: return sprintf(buf, "%d: usNIC UDP\n", dev->yesde_type);
+	case RDMA_NODE_UNSPECIFIED: return sprintf(buf, "%d: unspecified\n", dev->yesde_type);
+	case RDMA_NODE_IB_SWITCH: return sprintf(buf, "%d: switch\n", dev->yesde_type);
+	case RDMA_NODE_IB_ROUTER: return sprintf(buf, "%d: router\n", dev->yesde_type);
+	default:		  return sprintf(buf, "%d: <unkyeswn>\n", dev->yesde_type);
 	}
 }
-static DEVICE_ATTR_RO(node_type);
+static DEVICE_ATTR_RO(yesde_type);
 
 static ssize_t sys_image_guid_show(struct device *device,
 				   struct device_attribute *dev_attr, char *buf)
@@ -1236,28 +1236,28 @@ static ssize_t sys_image_guid_show(struct device *device,
 }
 static DEVICE_ATTR_RO(sys_image_guid);
 
-static ssize_t node_guid_show(struct device *device,
+static ssize_t yesde_guid_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
 	return sprintf(buf, "%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[0]),
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[1]),
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[2]),
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[3]));
+		       be16_to_cpu(((__be16 *) &dev->yesde_guid)[0]),
+		       be16_to_cpu(((__be16 *) &dev->yesde_guid)[1]),
+		       be16_to_cpu(((__be16 *) &dev->yesde_guid)[2]),
+		       be16_to_cpu(((__be16 *) &dev->yesde_guid)[3]));
 }
-static DEVICE_ATTR_RO(node_guid);
+static DEVICE_ATTR_RO(yesde_guid);
 
-static ssize_t node_desc_show(struct device *device,
+static ssize_t yesde_desc_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
-	return sprintf(buf, "%.64s\n", dev->node_desc);
+	return sprintf(buf, "%.64s\n", dev->yesde_desc);
 }
 
-static ssize_t node_desc_store(struct device *device,
+static ssize_t yesde_desc_store(struct device *device,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
@@ -1268,14 +1268,14 @@ static ssize_t node_desc_store(struct device *device,
 	if (!dev->ops.modify_device)
 		return -EOPNOTSUPP;
 
-	memcpy(desc.node_desc, buf, min_t(int, count, IB_DEVICE_NODE_DESC_MAX));
+	memcpy(desc.yesde_desc, buf, min_t(int, count, IB_DEVICE_NODE_DESC_MAX));
 	ret = ib_modify_device(dev, IB_DEVICE_MODIFY_NODE_DESC, &desc);
 	if (ret)
 		return ret;
 
 	return count;
 }
-static DEVICE_ATTR_RW(node_desc);
+static DEVICE_ATTR_RW(yesde_desc);
 
 static ssize_t fw_ver_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
@@ -1289,11 +1289,11 @@ static ssize_t fw_ver_show(struct device *device, struct device_attribute *attr,
 static DEVICE_ATTR_RO(fw_ver);
 
 static struct attribute *ib_dev_attrs[] = {
-	&dev_attr_node_type.attr,
-	&dev_attr_node_guid.attr,
+	&dev_attr_yesde_type.attr,
+	&dev_attr_yesde_guid.attr,
 	&dev_attr_sys_image_guid.attr,
 	&dev_attr_fw_ver.attr,
-	&dev_attr_node_desc.attr,
+	&dev_attr_yesde_desc.attr,
 	NULL,
 };
 

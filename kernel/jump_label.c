@@ -95,7 +95,7 @@ static void jump_label_update(struct static_key *key);
 /*
  * There are similar definitions for the !CONFIG_JUMP_LABEL case in jump_label.h.
  * The use of 'atomic_read()' requires atomic.h and its problematic for some
- * kernel headers such as kernel.h and others. Since static_key_count() is not
+ * kernel headers such as kernel.h and others. Since static_key_count() is yest
  * used in the branch statements as it is for the !CONFIG_JUMP_LABEL case its ok
  * to have it be a function here. Similarly, for 'static_key_enable()' and
  * 'static_key_disable()', which require bug.h. This should allow jump_label.h
@@ -128,7 +128,7 @@ void static_key_slow_inc_cpuslocked(struct static_key *key)
 	 * static_key_enabled(&key) for jumps to be updated properly.
 	 *
 	 * So give a special meaning to negative key->enabled: it sends
-	 * static_key_slow_inc() down the slow path, and it is non-zero
+	 * static_key_slow_inc() down the slow path, and it is yesn-zero
 	 * so it counts as "enabled" in jump_label_update().  Note that
 	 * atomic_inc_unless_negative() checks >= 0, so roll our own.
 	 */
@@ -331,9 +331,9 @@ static int __jump_label_text_reserved(struct jump_entry *iter_start,
 }
 
 /*
- * Update code which is definitely not currently executing.
+ * Update code which is definitely yest currently executing.
  * Architectures which need heavyweight synchronization to modify
- * running code can override this to make the non-live update case
+ * running code can override this to make the yesn-live update case
  * cheaper.
  */
 void __weak __init_or_module arch_jump_label_transform_static(struct jump_entry *entry,
@@ -401,7 +401,7 @@ static enum jump_label_type jump_label_type(struct jump_entry *entry)
 static bool jump_label_can_update(struct jump_entry *entry, bool init)
 {
 	/*
-	 * Cannot update code that was in an init text area.
+	 * Canyest update code that was in an init text area.
 	 */
 	if (!init && jump_entry_is_init(entry))
 		return false;
@@ -564,7 +564,7 @@ static void __jump_label_mod_update(struct static_key *key)
 
 		/*
 		 * NULL if the static_key is defined in a module
-		 * that does not use it
+		 * that does yest use it
 		 */
 		if (!mod->entries)
 			continue;
@@ -580,14 +580,14 @@ static void __jump_label_mod_update(struct static_key *key)
 }
 
 /***
- * apply_jump_label_nops - patch module jump labels with arch_get_jump_label_nop()
+ * apply_jump_label_yesps - patch module jump labels with arch_get_jump_label_yesp()
  * @mod: module to patch
  *
- * Allow for run-time selection of the optimal nops. Before the module
- * loads patch these with arch_get_jump_label_nop(), which is specified by
+ * Allow for run-time selection of the optimal yesps. Before the module
+ * loads patch these with arch_get_jump_label_yesp(), which is specified by
  * the arch specific jump label code.
  */
-void jump_label_apply_nops(struct module *mod)
+void jump_label_apply_yesps(struct module *mod)
 {
 	struct jump_entry *iter_start = mod->jump_entries;
 	struct jump_entry *iter_stop = iter_start + mod->num_jump_entries;
@@ -716,7 +716,7 @@ static void jump_label_del_module(struct module *mod)
 }
 
 static int
-jump_label_module_notify(struct notifier_block *self, unsigned long val,
+jump_label_module_yestify(struct yestifier_block *self, unsigned long val,
 			 void *data)
 {
 	struct module *mod = data;
@@ -729,7 +729,7 @@ jump_label_module_notify(struct notifier_block *self, unsigned long val,
 	case MODULE_STATE_COMING:
 		ret = jump_label_add_module(mod);
 		if (ret) {
-			WARN(1, "Failed to allocate memory: jump_label may not work properly.\n");
+			WARN(1, "Failed to allocate memory: jump_label may yest work properly.\n");
 			jump_label_del_module(mod);
 		}
 		break;
@@ -741,17 +741,17 @@ jump_label_module_notify(struct notifier_block *self, unsigned long val,
 	jump_label_unlock();
 	cpus_read_unlock();
 
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
-static struct notifier_block jump_label_module_nb = {
-	.notifier_call = jump_label_module_notify,
+static struct yestifier_block jump_label_module_nb = {
+	.yestifier_call = jump_label_module_yestify,
 	.priority = 1, /* higher than tracepoints */
 };
 
 static __init int jump_label_init_module(void)
 {
-	return register_module_notifier(&jump_label_module_nb);
+	return register_module_yestifier(&jump_label_module_nb);
 }
 early_initcall(jump_label_init_module);
 
@@ -765,7 +765,7 @@ early_initcall(jump_label_init_module);
  * checks if the text addr located between @start and @end
  * overlaps with any of the jump label patch addresses. Code
  * that wants to modify kernel text should first verify that
- * it does not overlap with any of the jump label addresses.
+ * it does yest overlap with any of the jump label addresses.
  * Caller must hold jump_label_mutex.
  *
  * returns 1 if there is an overlap, 0 otherwise
@@ -803,7 +803,7 @@ static void jump_label_update(struct static_key *key)
 	preempt_enable();
 #endif
 	entry = static_key_entries(key);
-	/* if there are no users, entry can be NULL */
+	/* if there are yes users, entry can be NULL */
 	if (entry)
 		__jump_label_update(key, entry, stop,
 				    system_state < SYSTEM_RUNNING);

@@ -29,7 +29,7 @@
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
 	unsigned long		flags;		/* low level flags */
-	__u32			status;		/* thread synchronous flags */
+	__u32			status;		/* thread synchroyesus flags */
 	__u32			cpu;
 	int			preempt_count; /* 0 => preemptable, <0 => BUG */
 	mm_segment_t		addr_limit;	/* thread address space */
@@ -143,10 +143,10 @@ extern void init_thread_xstate(void);
 				 _TIF_SYSCALL_AUDIT | _TIF_SINGLESTEP))
 
 /*
- * Thread-synchronous status.
+ * Thread-synchroyesus status.
  *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
+ * This is different from the flags in that yesbody else
+ * ever touches our thread-synchroyesus status, so we don't
  * have to worry about atomic accesses.
  */
 #define TS_USEDFPU		0x0002	/* FPU used by this task this quantum */

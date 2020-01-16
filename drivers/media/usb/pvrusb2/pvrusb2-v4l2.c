@@ -31,8 +31,8 @@ struct pvr2_v4l2_dev {
 	struct pvr2_context_stream *stream;
 	/* Information about this device: */
 	enum pvr2_config config; /* Expected stream format */
-	int v4l_type; /* V4L defined type for this device node */
-	enum pvr2_v4l_type minor_type; /* pvr2-understood minor device type */
+	int v4l_type; /* V4L defined type for this device yesde */
+	enum pvr2_v4l_type miyesr_type; /* pvr2-understood miyesr device type */
 };
 
 struct pvr2_v4l2_fh {
@@ -60,13 +60,13 @@ struct pvr2_v4l2 {
 
 static int video_nr[PVR_NUM] = {[0 ... PVR_NUM-1] = -1};
 module_param_array(video_nr, int, NULL, 0444);
-MODULE_PARM_DESC(video_nr, "Offset for device's video dev minor");
+MODULE_PARM_DESC(video_nr, "Offset for device's video dev miyesr");
 static int radio_nr[PVR_NUM] = {[0 ... PVR_NUM-1] = -1};
 module_param_array(radio_nr, int, NULL, 0444);
-MODULE_PARM_DESC(radio_nr, "Offset for device's radio dev minor");
+MODULE_PARM_DESC(radio_nr, "Offset for device's radio dev miyesr");
 static int vbi_nr[PVR_NUM] = {[0 ... PVR_NUM-1] = -1};
 module_param_array(vbi_nr, int, NULL, 0444);
-MODULE_PARM_DESC(vbi_nr, "Offset for device's vbi dev minor");
+MODULE_PARM_DESC(vbi_nr, "Offset for device's vbi dev miyesr");
 
 #define PVR_FORMAT_PIX  0
 #define PVR_FORMAT_VBI  1
@@ -80,7 +80,7 @@ static struct v4l2_format pvr_format [] = {
 				.height         = 576,
 				.pixelformat    = V4L2_PIX_FMT_MPEG,
 				.field          = V4L2_FIELD_INTERLACED,
-				/* FIXME : Don't know what to put here... */
+				/* FIXME : Don't kyesw what to put here... */
 				.sizeimage      = 32 * 1024,
 			}
 		}
@@ -201,7 +201,7 @@ static int pvr2_enum_input(struct file *file, void *priv, struct v4l2_input *vi)
 	/* Handling std is a tougher problem.  It doesn't make
 	   sense in cases where a device might be multi-standard.
 	   We could just copy out the current value for the
-	   standard, but it can change over time.  For now just
+	   standard, but it can change over time.  For yesw just
 	   leave it zero. */
 	*vi = tmp;
 	return 0;
@@ -250,9 +250,9 @@ static int pvr2_enumaudio(struct file *file, void *priv, struct v4l2_audio *vin)
 	   which could very well be called "whatever_we_like".
 	   This is for apps that want to see an audio input
 	   just to feel comfortable, as well as to test if
-	   it can do stereo or sth. There is actually no guarantee
-	   that the actual audio input cannot change behind the app's
-	   back, but most applications should not mind that either.
+	   it can do stereo or sth. There is actually yes guarantee
+	   that the actual audio input canyest change behind the app's
+	   back, but most applications should yest mind that either.
 
 	   Hopefully, mplayer people will work with us on this (this
 	   whole mess is to support mplayer pvr://), or Hans will come
@@ -472,9 +472,9 @@ static int pvr2_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	int ret;
 
 	if (!fh->pdi->stream) {
-		/* No stream defined for this node.  This means
-		   that we're not currently allowed to stream from
-		   this node. */
+		/* No stream defined for this yesde.  This means
+		   that we're yest currently allowed to stream from
+		   this yesde. */
 		return -EPERM;
 	}
 	ret = pvr2_hdw_set_stream_type(hdw, pdi->config);
@@ -489,9 +489,9 @@ static int pvr2_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
 
 	if (!fh->pdi->stream) {
-		/* No stream defined for this node.  This means
-		   that we're not currently allowed to stream from
-		   this node. */
+		/* No stream defined for this yesde.  This means
+		   that we're yest currently allowed to stream from
+		   this yesde. */
 		return -EPERM;
 	}
 	return pvr2_hdw_set_streaming(hdw, 0);
@@ -515,7 +515,7 @@ static int pvr2_queryctrl(struct file *file, void *priv,
 	}
 	if (!cptr) {
 		pvr2_trace(PVR2_TRACE_V4LIOCTL,
-				"QUERYCTRL id=0x%x not implemented here",
+				"QUERYCTRL id=0x%x yest implemented here",
 				vc->id);
 		return -EINVAL;
 	}
@@ -549,7 +549,7 @@ static int pvr2_queryctrl(struct file *file, void *priv,
 		break;
 	default:
 		pvr2_trace(PVR2_TRACE_V4LIOCTL,
-				"QUERYCTRL id=0x%x name=%s not mappable",
+				"QUERYCTRL id=0x%x name=%s yest mappable",
 				vc->id, pvr2_ctrl_get_name(cptr));
 		return -EINVAL;
 	}
@@ -640,7 +640,7 @@ static int pvr2_s_ext_ctrls(struct file *file, void *priv,
 	unsigned int idx;
 	int ret;
 
-	/* Default value cannot be changed */
+	/* Default value canyest be changed */
 	if (ctls->which == V4L2_CTRL_WHICH_DEF_VAL)
 		return -EINVAL;
 
@@ -837,13 +837,13 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 	   have to worry about potentially touching deleted resources. */
 	mcnt = scnprintf(msg, sizeof(msg) - 1,
 			 "pvrusb2: unregistered device %s [%s]",
-			 video_device_node_name(&dip->devbase),
+			 video_device_yesde_name(&dip->devbase),
 			 pvr2_config_get_name(cfg));
 	msg[mcnt] = 0;
 
-	pvr2_hdw_v4l_store_minor_number(hdw,dip->minor_type,-1);
+	pvr2_hdw_v4l_store_miyesr_number(hdw,dip->miyesr_type,-1);
 
-	/* Paranoia */
+	/* Parayesia */
 	dip->v4lp = NULL;
 	dip->stream = NULL;
 
@@ -865,7 +865,7 @@ static void pvr2_v4l2_dev_disassociate_parent(struct pvr2_v4l2_dev *dip)
 }
 
 
-static void pvr2_v4l2_destroy_no_lock(struct pvr2_v4l2 *vp)
+static void pvr2_v4l2_destroy_yes_lock(struct pvr2_v4l2 *vp)
 {
 	if (vp->dev_video) {
 		pvr2_v4l2_dev_destroy(vp->dev_video);
@@ -904,7 +904,7 @@ static void pvr2_v4l2_internal_check(struct pvr2_channel *chp)
 			   "pvr2_v4l2 internal_check exit-empty id=%p", vp);
 		return;
 	}
-	pvr2_v4l2_destroy_no_lock(vp);
+	pvr2_v4l2_destroy_yes_lock(vp);
 }
 
 
@@ -941,7 +941,7 @@ static int pvr2_v4l2_release(struct file *file)
 	    list_empty(&vp->dev_video->devbase.fh_list) &&
 	    (!vp->dev_radio ||
 	     list_empty(&vp->dev_radio->devbase.fh_list))) {
-		pvr2_v4l2_destroy_no_lock(vp);
+		pvr2_v4l2_destroy_yes_lock(vp);
 	}
 	return 0;
 }
@@ -966,7 +966,7 @@ static int pvr2_v4l2_open(struct file *file)
 
 	if (!pvr2_hdw_dev_ok(hdw)) {
 		pvr2_trace(PVR2_TRACE_OPEN_CLOSE,
-			   "pvr2_v4l2_open: hardware not ready");
+			   "pvr2_v4l2_open: hardware yest ready");
 		return -EIO;
 	}
 
@@ -1037,7 +1037,7 @@ static int pvr2_v4l2_open(struct file *file)
 }
 
 
-static void pvr2_v4l2_notify(struct pvr2_v4l2_fh *fhp)
+static void pvr2_v4l2_yestify(struct pvr2_v4l2_fh *fhp)
 {
 	wake_up(&fhp->wait_data);
 }
@@ -1050,8 +1050,8 @@ static int pvr2_v4l2_iosetup(struct pvr2_v4l2_fh *fh)
 	if (fh->rhp) return 0;
 
 	if (!fh->pdi->stream) {
-		/* No stream defined for this node.  This means that we're
-		   not currently allowed to stream from this node. */
+		/* No stream defined for this yesde.  This means that we're
+		   yest currently allowed to stream from this yesde. */
 		return -EPERM;
 	}
 
@@ -1071,7 +1071,7 @@ static int pvr2_v4l2_iosetup(struct pvr2_v4l2_fh *fh)
 
 	hdw = fh->channel.mc_head->hdw;
 	sp = fh->pdi->stream->stream;
-	pvr2_stream_set_callback(sp,(pvr2_stream_callback)pvr2_v4l2_notify,fh);
+	pvr2_stream_set_callback(sp,(pvr2_stream_callback)pvr2_v4l2_yestify,fh);
 	pvr2_hdw_set_stream_type(hdw,fh->pdi->config);
 	if ((ret = pvr2_hdw_set_streaming(hdw,!0)) < 0) return ret;
 	return pvr2_ioread_set_enabled(fh->rhp,!0);
@@ -1199,7 +1199,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	case VFL_TYPE_GRABBER:
 		dip->stream = &vp->channel.mc_head->video_stream;
 		dip->config = pvr2_config_mpeg;
-		dip->minor_type = pvr2_v4l_type_video;
+		dip->miyesr_type = pvr2_v4l_type_video;
 		nr_ptr = video_nr;
 		caps |= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_AUDIO;
 		if (!dip->stream) {
@@ -1210,14 +1210,14 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		break;
 	case VFL_TYPE_VBI:
 		dip->config = pvr2_config_vbi;
-		dip->minor_type = pvr2_v4l_type_vbi;
+		dip->miyesr_type = pvr2_v4l_type_vbi;
 		nr_ptr = vbi_nr;
 		caps |= V4L2_CAP_VBI_CAPTURE;
 		break;
 	case VFL_TYPE_RADIO:
 		dip->stream = &vp->channel.mc_head->video_stream;
 		dip->config = pvr2_config_mpeg;
-		dip->minor_type = pvr2_v4l_type_radio;
+		dip->miyesr_type = pvr2_v4l_type_radio;
 		nr_ptr = radio_nr;
 		caps |= V4L2_CAP_RADIO;
 		break;
@@ -1236,7 +1236,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		pvr2_ctrl_get_value(
 			pvr2_hdw_get_ctrl_by_id(hdw,
 						PVR2_CID_STDAVAIL), &val);
-		dip->devbase.tvnorms = (v4l2_std_id)val;
+		dip->devbase.tvyesrms = (v4l2_std_id)val;
 	}
 
 	mindevnum = -1;
@@ -1254,11 +1254,11 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	}
 
 	pr_info("pvrusb2: registered device %s [%s]\n",
-	       video_device_node_name(&dip->devbase),
+	       video_device_yesde_name(&dip->devbase),
 	       pvr2_config_get_name(dip->config));
 
-	pvr2_hdw_v4l_store_minor_number(hdw,
-					dip->minor_type,dip->devbase.minor);
+	pvr2_hdw_v4l_store_miyesr_number(hdw,
+					dip->miyesr_type,dip->devbase.miyesr);
 }
 
 
@@ -1287,6 +1287,6 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 	return vp;
  fail:
 	pvr2_trace(PVR2_TRACE_STRUCT,"Failure creating pvr2_v4l2 id=%p",vp);
-	pvr2_v4l2_destroy_no_lock(vp);
+	pvr2_v4l2_destroy_yes_lock(vp);
 	return NULL;
 }

@@ -10,7 +10,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/poll.h>
@@ -31,25 +31,25 @@
 static struct class *mei_class;
 static dev_t mei_devt;
 #define MEI_MAX_DEVS  MINORMASK
-static DEFINE_MUTEX(mei_minor_lock);
+static DEFINE_MUTEX(mei_miyesr_lock);
 static DEFINE_IDR(mei_idr);
 
 /**
  * mei_open - the open function
  *
- * @inode: pointer to inode structure
+ * @iyesde: pointer to iyesde structure
  * @file: pointer to file structure
  *
  * Return: 0 on success, <0 on error
  */
-static int mei_open(struct inode *inode, struct file *file)
+static int mei_open(struct iyesde *iyesde, struct file *file)
 {
 	struct mei_device *dev;
 	struct mei_cl *cl;
 
 	int err;
 
-	dev = container_of(inode->i_cdev, struct mei_device, cdev);
+	dev = container_of(iyesde->i_cdev, struct mei_device, cdev);
 	if (!dev)
 		return -ENODEV;
 
@@ -73,7 +73,7 @@ static int mei_open(struct inode *inode, struct file *file)
 
 	mutex_unlock(&dev->device_lock);
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 
 err_unlock:
 	mutex_unlock(&dev->device_lock);
@@ -83,12 +83,12 @@ err_unlock:
 /**
  * mei_release - the release function
  *
- * @inode: pointer to inode structure
+ * @iyesde: pointer to iyesde structure
  * @file: pointer to file structure
  *
  * Return: 0 on success, <0 on error
  */
-static int mei_release(struct inode *inode, struct file *file)
+static int mei_release(struct iyesde *iyesde, struct file *file)
 {
 	struct mei_cl *cl = file->private_data;
 	struct mei_device *dev;
@@ -133,7 +133,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	struct mei_cl *cl = file->private_data;
 	struct mei_device *dev;
 	struct mei_cl_cb *cb = NULL;
-	bool nonblock = !!(file->f_flags & O_NONBLOCK);
+	bool yesnblock = !!(file->f_flags & O_NONBLOCK);
 	ssize_t rets;
 
 	if (WARN_ON(!cl || !cl->dev))
@@ -171,7 +171,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	if (nonblock) {
+	if (yesnblock) {
 		rets = -EAGAIN;
 		goto out;
 	}
@@ -198,7 +198,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	}
 
 copy_buffer:
-	/* now copy the data to user space */
+	/* yesw copy the data to user space */
 	if (cb->status) {
 		rets = cb->status;
 		cl_dbg(dev, cl, "read operation failed %zd\n", rets);
@@ -224,7 +224,7 @@ copy_buffer:
 
 	rets = length;
 	*offset += length;
-	/* not all data was read, keep the cb */
+	/* yest all data was read, keep the cb */
 	if (*offset < cb->buf_idx)
 		goto out;
 
@@ -268,7 +268,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	}
 
 	if (!mei_cl_is_connected(cl)) {
-		cl_err(dev, cl, "is not connected");
+		cl_err(dev, cl, "is yest connected");
 		rets = -ENODEV;
 		goto out;
 	}
@@ -361,7 +361,7 @@ static int mei_ioctl_connect_client(struct file *file,
 	/* find ME client we're trying to connect to */
 	me_cl = mei_me_cl_by_uuid(dev, &data->in_client_uuid);
 	if (!me_cl) {
-		dev_dbg(dev->dev, "Cannot connect to FW Client UUID = %pUl\n",
+		dev_dbg(dev->dev, "Canyest connect to FW Client UUID = %pUl\n",
 			&data->in_client_uuid);
 		rets = -ENOTTY;
 		goto end;
@@ -399,15 +399,15 @@ end:
 }
 
 /**
- * mei_ioctl_client_notify_request -
- *     propagate event notification request to client
+ * mei_ioctl_client_yestify_request -
+ *     propagate event yestification request to client
  *
  * @file: pointer to file structure
  * @request: 0 - disable, 1 - enable
  *
  * Return: 0 on success , <0 on error
  */
-static int mei_ioctl_client_notify_request(const struct file *file, u32 request)
+static int mei_ioctl_client_yestify_request(const struct file *file, u32 request)
 {
 	struct mei_cl *cl = file->private_data;
 
@@ -415,29 +415,29 @@ static int mei_ioctl_client_notify_request(const struct file *file, u32 request)
 	    request != MEI_HBM_NOTIFICATION_STOP)
 		return -EINVAL;
 
-	return mei_cl_notify_request(cl, file, (u8)request);
+	return mei_cl_yestify_request(cl, file, (u8)request);
 }
 
 /**
- * mei_ioctl_client_notify_get -  wait for notification request
+ * mei_ioctl_client_yestify_get -  wait for yestification request
  *
  * @file: pointer to file structure
- * @notify_get: 0 - disable, 1 - enable
+ * @yestify_get: 0 - disable, 1 - enable
  *
  * Return: 0 on success , <0 on error
  */
-static int mei_ioctl_client_notify_get(const struct file *file, u32 *notify_get)
+static int mei_ioctl_client_yestify_get(const struct file *file, u32 *yestify_get)
 {
 	struct mei_cl *cl = file->private_data;
-	bool notify_ev;
+	bool yestify_ev;
 	bool block = (file->f_flags & O_NONBLOCK) == 0;
 	int rets;
 
-	rets = mei_cl_notify_get(cl, block, &notify_ev);
+	rets = mei_cl_yestify_get(cl, block, &yestify_ev);
 	if (rets)
 		return rets;
 
-	*notify_get = notify_ev ? 1 : 0;
+	*yestify_get = yestify_ev ? 1 : 0;
 	return 0;
 }
 
@@ -455,7 +455,7 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 	struct mei_device *dev;
 	struct mei_cl *cl = file->private_data;
 	struct mei_connect_client_data connect_data;
-	u32 notify_get, notify_req;
+	u32 yestify_get, yestify_req;
 	int rets;
 
 
@@ -498,24 +498,24 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 
 	case IOCTL_MEI_NOTIFY_SET:
 		dev_dbg(dev->dev, ": IOCTL_MEI_NOTIFY_SET.\n");
-		if (copy_from_user(&notify_req,
-				   (char __user *)data, sizeof(notify_req))) {
+		if (copy_from_user(&yestify_req,
+				   (char __user *)data, sizeof(yestify_req))) {
 			dev_dbg(dev->dev, "failed to copy data from userland\n");
 			rets = -EFAULT;
 			goto out;
 		}
-		rets = mei_ioctl_client_notify_request(file, notify_req);
+		rets = mei_ioctl_client_yestify_request(file, yestify_req);
 		break;
 
 	case IOCTL_MEI_NOTIFY_GET:
 		dev_dbg(dev->dev, ": IOCTL_MEI_NOTIFY_GET.\n");
-		rets = mei_ioctl_client_notify_get(file, &notify_get);
+		rets = mei_ioctl_client_yestify_get(file, &yestify_get);
 		if (rets)
 			goto out;
 
 		dev_dbg(dev->dev, "copy connect data to user\n");
 		if (copy_to_user((char __user *)data,
-				&notify_get, sizeof(notify_get))) {
+				&yestify_get, sizeof(yestify_get))) {
 			dev_dbg(dev->dev, "failed to copy data to userland\n");
 			rets = -EFAULT;
 			goto out;
@@ -546,7 +546,7 @@ static __poll_t mei_poll(struct file *file, poll_table *wait)
 	struct mei_cl *cl = file->private_data;
 	struct mei_device *dev;
 	__poll_t mask = 0;
-	bool notify_en;
+	bool yestify_en;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return EPOLLERR;
@@ -555,7 +555,7 @@ static __poll_t mei_poll(struct file *file, poll_table *wait)
 
 	mutex_lock(&dev->device_lock);
 
-	notify_en = cl->notify_en && (req_events & EPOLLPRI);
+	yestify_en = cl->yestify_en && (req_events & EPOLLPRI);
 
 	if (dev->dev_state != MEI_DEV_ENABLED ||
 	    !mei_cl_is_connected(cl)) {
@@ -563,9 +563,9 @@ static __poll_t mei_poll(struct file *file, poll_table *wait)
 		goto out;
 	}
 
-	if (notify_en) {
+	if (yestify_en) {
 		poll_wait(file, &cl->ev_wait, wait);
-		if (cl->notify_ev)
+		if (cl->yestify_ev)
 			mask |= EPOLLPRI;
 	}
 
@@ -618,7 +618,7 @@ static bool mei_cl_is_write_queued(struct mei_cl *cl)
  * @end:      unused
  * @datasync: unused
  *
- * Return: 0 on success, -ENODEV if client is not connected
+ * Return: 0 on success, -ENODEV if client is yest connected
  */
 static int mei_fsync(struct file *fp, loff_t start, loff_t end, int datasync)
 {
@@ -661,14 +661,14 @@ out:
 }
 
 /**
- * mei_fasync - asynchronous io support
+ * mei_fasync - asynchroyesus io support
  *
  * @fd: file descriptor
  * @file: pointer to file structure
  * @band: band bitmap
  *
  * Return: negative on error,
- *         0 if it did no changes,
+ *         0 if it did yes changes,
  *         and positive a process was added or deleted
  */
 static int mei_fasync(int fd, struct file *file, int band)
@@ -756,7 +756,7 @@ static ssize_t hbm_ver_show(struct device *device,
 	ver = dev->version;
 	mutex_unlock(&dev->device_lock);
 
-	return sprintf(buf, "%u.%u\n", ver.major_version, ver.minor_version);
+	return sprintf(buf, "%u.%u\n", ver.major_version, ver.miyesr_version);
 }
 static DEVICE_ATTR_RO(hbm_ver);
 
@@ -834,8 +834,8 @@ static ssize_t fw_ver_show(struct device *device,
 
 	for (i = 0; i < MEI_MAX_FW_VER_BLOCKS; i++)
 		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "%u:%u.%u.%u.%u\n",
-				 ver[i].platform, ver[i].major, ver[i].minor,
-				 ver[i].hotfix, ver[i].buildno);
+				 ver[i].platform, ver[i].major, ver[i].miyesr,
+				 ver[i].hotfix, ver[i].buildyes);
 	return cnt;
 }
 static DEVICE_ATTR_RO(fw_ver);
@@ -864,7 +864,7 @@ static ssize_t dev_state_show(struct device *device,
 static DEVICE_ATTR_RO(dev_state);
 
 /**
- * dev_set_devstate: set to new device state and notify sysfs file.
+ * dev_set_devstate: set to new device state and yestify sysfs file.
  *
  * @dev: mei_device
  * @state: new device state
@@ -880,7 +880,7 @@ void mei_set_devstate(struct mei_device *dev, enum mei_dev_state state)
 
 	clsdev = class_find_device_by_devt(mei_class, dev->cdev.dev);
 	if (clsdev) {
-		sysfs_notify(&clsdev->kobj, NULL, "dev_state");
+		sysfs_yestify(&clsdev->kobj, NULL, "dev_state");
 		put_device(clsdev);
 	}
 }
@@ -911,72 +911,72 @@ static const struct file_operations mei_fops = {
 	.poll = mei_poll,
 	.fsync = mei_fsync,
 	.fasync = mei_fasync,
-	.llseek = no_llseek
+	.llseek = yes_llseek
 };
 
 /**
- * mei_minor_get - obtain next free device minor number
+ * mei_miyesr_get - obtain next free device miyesr number
  *
  * @dev:  device pointer
  *
- * Return: allocated minor, or -ENOSPC if no free minor left
+ * Return: allocated miyesr, or -ENOSPC if yes free miyesr left
  */
-static int mei_minor_get(struct mei_device *dev)
+static int mei_miyesr_get(struct mei_device *dev)
 {
 	int ret;
 
-	mutex_lock(&mei_minor_lock);
+	mutex_lock(&mei_miyesr_lock);
 	ret = idr_alloc(&mei_idr, dev, 0, MEI_MAX_DEVS, GFP_KERNEL);
 	if (ret >= 0)
-		dev->minor = ret;
+		dev->miyesr = ret;
 	else if (ret == -ENOSPC)
 		dev_err(dev->dev, "too many mei devices\n");
 
-	mutex_unlock(&mei_minor_lock);
+	mutex_unlock(&mei_miyesr_lock);
 	return ret;
 }
 
 /**
- * mei_minor_free - mark device minor number as free
+ * mei_miyesr_free - mark device miyesr number as free
  *
  * @dev:  device pointer
  */
-static void mei_minor_free(struct mei_device *dev)
+static void mei_miyesr_free(struct mei_device *dev)
 {
-	mutex_lock(&mei_minor_lock);
-	idr_remove(&mei_idr, dev->minor);
-	mutex_unlock(&mei_minor_lock);
+	mutex_lock(&mei_miyesr_lock);
+	idr_remove(&mei_idr, dev->miyesr);
+	mutex_unlock(&mei_miyesr_lock);
 }
 
 int mei_register(struct mei_device *dev, struct device *parent)
 {
 	struct device *clsdev; /* class device */
-	int ret, devno;
+	int ret, devyes;
 
-	ret = mei_minor_get(dev);
+	ret = mei_miyesr_get(dev);
 	if (ret < 0)
 		return ret;
 
 	/* Fill in the data structures */
-	devno = MKDEV(MAJOR(mei_devt), dev->minor);
+	devyes = MKDEV(MAJOR(mei_devt), dev->miyesr);
 	cdev_init(&dev->cdev, &mei_fops);
 	dev->cdev.owner = parent->driver->owner;
 
 	/* Add the device */
-	ret = cdev_add(&dev->cdev, devno, 1);
+	ret = cdev_add(&dev->cdev, devyes, 1);
 	if (ret) {
 		dev_err(parent, "unable to add device %d:%d\n",
-			MAJOR(mei_devt), dev->minor);
+			MAJOR(mei_devt), dev->miyesr);
 		goto err_dev_add;
 	}
 
-	clsdev = device_create_with_groups(mei_class, parent, devno,
+	clsdev = device_create_with_groups(mei_class, parent, devyes,
 					   dev, mei_groups,
-					   "mei%d", dev->minor);
+					   "mei%d", dev->miyesr);
 
 	if (IS_ERR(clsdev)) {
 		dev_err(parent, "unable to create device %d:%d\n",
-			MAJOR(mei_devt), dev->minor);
+			MAJOR(mei_devt), dev->miyesr);
 		ret = PTR_ERR(clsdev);
 		goto err_dev_create;
 	}
@@ -988,23 +988,23 @@ int mei_register(struct mei_device *dev, struct device *parent)
 err_dev_create:
 	cdev_del(&dev->cdev);
 err_dev_add:
-	mei_minor_free(dev);
+	mei_miyesr_free(dev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mei_register);
 
 void mei_deregister(struct mei_device *dev)
 {
-	int devno;
+	int devyes;
 
-	devno = dev->cdev.dev;
+	devyes = dev->cdev.dev;
 	cdev_del(&dev->cdev);
 
 	mei_dbgfs_deregister(dev);
 
-	device_destroy(mei_class, devno);
+	device_destroy(mei_class, devyes);
 
-	mei_minor_free(dev);
+	mei_miyesr_free(dev);
 }
 EXPORT_SYMBOL_GPL(mei_deregister);
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Industrial I/O driver for Microchip digital potentiometers
- * Copyright (c) 2015  Axentia Technologies AB
+ * Copyright (c) 2015  Axentia Techyeslogies AB
  * Author: Peter Rosin <peda@axentia.se>
  *
  * Datasheet: http://www.microchip.com/downloads/en/DeviceDoc/22096b.pdf
@@ -360,7 +360,7 @@ static int mcp4531_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
-		dev_err(dev, "SMBUS Word Data not supported\n");
+		dev_err(dev, "SMBUS Word Data yest supported\n");
 		return -EOPNOTSUPP;
 	}
 

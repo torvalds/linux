@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_ASM_X86_VM86_H
 #define _UAPI_ASM_X86_VM86_H
 
@@ -62,7 +62,7 @@
 
 struct vm86_regs {
 /*
- * normal regs, with special meaning for the segment descriptors..
+ * yesrmal regs, with special meaning for the segment descriptors..
  */
 	long ebx;
 	long ecx;

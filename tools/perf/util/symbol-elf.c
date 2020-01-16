@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <fcntl.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -275,7 +275,7 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
  * We need to check if we have a .dynsym, so that we can handle the
  * .plt, synthesizing its symbols, that aren't on the symtabs (be it
  * .dynsym or .symtab).
- * And always look at the original dso, not at debuginfo packages, that
+ * And always look at the original dso, yest at debuginfo packages, that
  * have the PLT data stripped out (shdr_rel_plt.sh_type == SHT_NOBITS).
  */
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
@@ -447,7 +447,7 @@ char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 }
 
 /*
- * Align offset to 4 bytes as needed for note name and descriptor data.
+ * Align offset to 4 bytes as needed for yeste name and descriptor data.
  */
 #define NOTE_ALIGN(n) (((n) + 3) & -4U)
 
@@ -469,29 +469,29 @@ static int elf_read_build_id(Elf *elf, void *bf, size_t size)
 		goto out;
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
-		pr_err("%s: cannot get elf header.\n", __func__);
+		pr_err("%s: canyest get elf header.\n", __func__);
 		goto out;
 	}
 
 	/*
-	 * Check following sections for notes:
-	 *   '.note.gnu.build-id'
-	 *   '.notes'
-	 *   '.note' (VDSO specific)
+	 * Check following sections for yestes:
+	 *   '.yeste.gnu.build-id'
+	 *   '.yestes'
+	 *   '.yeste' (VDSO specific)
 	 */
 	do {
 		sec = elf_section_by_name(elf, &ehdr, &shdr,
-					  ".note.gnu.build-id", NULL);
+					  ".yeste.gnu.build-id", NULL);
 		if (sec)
 			break;
 
 		sec = elf_section_by_name(elf, &ehdr, &shdr,
-					  ".notes", NULL);
+					  ".yestes", NULL);
 		if (sec)
 			break;
 
 		sec = elf_section_by_name(elf, &ehdr, &shdr,
-					  ".note", NULL);
+					  ".yeste", NULL);
 		if (sec)
 			break;
 
@@ -544,7 +544,7 @@ int filename__read_build_id(const char *filename, void *bf, size_t size)
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_debug2("%s: cannot read %s ELF file.\n", __func__, filename);
+		pr_debug2("%s: canyest read %s ELF file.\n", __func__, filename);
 		goto out_close;
 	}
 
@@ -625,7 +625,7 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_debug2("%s: cannot read %s ELF file.\n", __func__, filename);
+		pr_debug2("%s: canyest read %s ELF file.\n", __func__, filename);
 		goto out_close;
 	}
 
@@ -634,7 +634,7 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 		goto out_elf_end;
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
-		pr_err("%s: cannot get elf header.\n", __func__);
+		pr_err("%s: canyest get elf header.\n", __func__);
 		goto out_elf_end;
 	}
 
@@ -725,41 +725,41 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	} else {
 		fd = open(name, O_RDONLY);
 		if (fd < 0) {
-			dso->load_errno = errno;
+			dso->load_erryes = erryes;
 			return -1;
 		}
 	}
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_debug("%s: cannot read %s ELF file.\n", __func__, name);
-		dso->load_errno = DSO_LOAD_ERRNO__INVALID_ELF;
+		pr_debug("%s: canyest read %s ELF file.\n", __func__, name);
+		dso->load_erryes = DSO_LOAD_ERRNO__INVALID_ELF;
 		goto out_close;
 	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
-		dso->load_errno = DSO_LOAD_ERRNO__INVALID_ELF;
-		pr_debug("%s: cannot get elf header.\n", __func__);
+		dso->load_erryes = DSO_LOAD_ERRNO__INVALID_ELF;
+		pr_debug("%s: canyest get elf header.\n", __func__);
 		goto out_elf_end;
 	}
 
 	if (dso__swap_init(dso, ehdr.e_ident[EI_DATA])) {
-		dso->load_errno = DSO_LOAD_ERRNO__INTERNAL_ERROR;
+		dso->load_erryes = DSO_LOAD_ERRNO__INTERNAL_ERROR;
 		goto out_elf_end;
 	}
 
 	/* Always reject images with a mismatched build-id: */
-	if (dso->has_build_id && !symbol_conf.ignore_vmlinux_buildid) {
+	if (dso->has_build_id && !symbol_conf.igyesre_vmlinux_buildid) {
 		u8 build_id[BUILD_ID_SIZE];
 
 		if (elf_read_build_id(elf, build_id, BUILD_ID_SIZE) < 0) {
-			dso->load_errno = DSO_LOAD_ERRNO__CANNOT_READ_BUILDID;
+			dso->load_erryes = DSO_LOAD_ERRNO__CANNOT_READ_BUILDID;
 			goto out_elf_end;
 		}
 
 		if (!dso__build_id_equal(dso, build_id)) {
 			pr_debug("%s: build id mismatch for %s.\n", __func__, name);
-			dso->load_errno = DSO_LOAD_ERRNO__MISMATCHING_BUILDID;
+			dso->load_erryes = DSO_LOAD_ERRNO__MISMATCHING_BUILDID;
 			goto out_elf_end;
 		}
 	}
@@ -790,7 +790,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 
 	ss->name   = strdup(name);
 	if (!ss->name) {
-		dso->load_errno = errno;
+		dso->load_erryes = erryes;
 		goto out_elf_end;
 	}
 
@@ -809,14 +809,14 @@ out_close:
 }
 
 /**
- * ref_reloc_sym_not_found - has kernel relocation symbol been found.
+ * ref_reloc_sym_yest_found - has kernel relocation symbol been found.
  * @kmap: kernel maps and relocation reference symbol
  *
  * This function returns %true if we are dealing with the kernel maps and the
- * relocation reference symbol has not yet been found.  Otherwise %false is
+ * relocation reference symbol has yest yet been found.  Otherwise %false is
  * returned.
  */
-static bool ref_reloc_sym_not_found(struct kmap *kmap)
+static bool ref_reloc_sym_yest_found(struct kmap *kmap)
 {
 	return kmap && kmap->ref_reloc_sym && kmap->ref_reloc_sym->name &&
 	       !kmap->ref_reloc_sym->unrelocated_addr;
@@ -827,7 +827,7 @@ static bool ref_reloc_sym_not_found(struct kmap *kmap)
  * @kmap: kernel maps and relocation reference symbol
  *
  * This function returns the offset of kernel addresses as determined by using
- * the relocation reference symbol i.e. if the kernel has not been relocated
+ * the relocation reference symbol i.e. if the kernel has yest been relocated
  * then the return value is zero.
  */
 static u64 ref_reloc(struct kmap *kmap)
@@ -1034,7 +1034,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	 * The kernel relocation symbol is needed in advance in order to adjust
 	 * kernel maps correctly.
 	 */
-	if (ref_reloc_sym_not_found(kmap)) {
+	if (ref_reloc_sym_yest_found(kmap)) {
 		elf_symtab__for_each_symbol(syms, nr_syms, idx, sym) {
 			const char *elf_name = elf_sym__name(&sym, symstrs);
 
@@ -1056,7 +1056,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 
 	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
 	/*
-	 * Initial kernel and module mappings do not map to the dso.
+	 * Initial kernel and module mappings do yest map to the dso.
 	 * Flag the fixups.
 	 */
 	if (dso->kernel || kmodule) {
@@ -1095,9 +1095,9 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		 * When loading symbols in a data mapping, ABS symbols (which
 		 * has a value of SHN_ABS in its st_shndx) failed at
 		 * elf_getscn().  And it marks the loading as a failure so
-		 * already loaded symbols cannot be fixed up.
+		 * already loaded symbols canyest be fixed up.
 		 *
-		 * I'm not sure what should be done. Just ignore them for now.
+		 * I'm yest sure what should be done. Just igyesre them for yesw.
 		 * - Namhyung Kim
 		 */
 		if (sym.st_shndx == SHN_ABS)
@@ -1152,7 +1152,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	}
 
 	/*
-	 * For misannotated, zeroed, ASM function sizes.
+	 * For misanyestated, zeroed, ASM function sizes.
 	 */
 	if (nr > 0) {
 		symbols__fixup_end(&dso->symbols);
@@ -1434,13 +1434,13 @@ struct phdr_data {
 	off_t rel;
 	u64 addr;
 	u64 len;
-	struct list_head node;
+	struct list_head yesde;
 	struct phdr_data *remaps;
 };
 
 struct sym_data {
 	u64 addr;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct kcore_copy_info {
@@ -1456,7 +1456,7 @@ struct kcore_copy_info {
 };
 
 #define kcore_copy__for_each_phdr(k, p) \
-	list_for_each_entry((p), &(k)->phdrs, node)
+	list_for_each_entry((p), &(k)->phdrs, yesde)
 
 static struct phdr_data *phdr_data__new(u64 addr, u64 len, off_t offset)
 {
@@ -1478,7 +1478,7 @@ static struct phdr_data *kcore_copy_info__addnew(struct kcore_copy_info *kci,
 	struct phdr_data *p = phdr_data__new(addr, len, offset);
 
 	if (p)
-		list_add_tail(&p->node, &kci->phdrs);
+		list_add_tail(&p->yesde, &kci->phdrs);
 
 	return p;
 }
@@ -1487,8 +1487,8 @@ static void kcore_copy__free_phdrs(struct kcore_copy_info *kci)
 {
 	struct phdr_data *p, *tmp;
 
-	list_for_each_entry_safe(p, tmp, &kci->phdrs, node) {
-		list_del_init(&p->node);
+	list_for_each_entry_safe(p, tmp, &kci->phdrs, yesde) {
+		list_del_init(&p->yesde);
 		free(p);
 	}
 }
@@ -1500,7 +1500,7 @@ static struct sym_data *kcore_copy__new_sym(struct kcore_copy_info *kci,
 
 	if (s) {
 		s->addr = addr;
-		list_add_tail(&s->node, &kci->syms);
+		list_add_tail(&s->yesde, &kci->syms);
 	}
 
 	return s;
@@ -1510,8 +1510,8 @@ static void kcore_copy__free_syms(struct kcore_copy_info *kci)
 {
 	struct sym_data *s, *tmp;
 
-	list_for_each_entry_safe(s, tmp, &kci->syms, node) {
-		list_del_init(&s->node);
+	list_for_each_entry_safe(s, tmp, &kci->syms, yesde) {
+		list_del_init(&s->yesde);
 		free(s);
 	}
 }
@@ -1625,7 +1625,7 @@ static int kcore_copy__read_map(u64 start, u64 len, u64 pgoff, void *data)
 			    kci->last_module_symbol))
 		return -1;
 
-	list_for_each_entry(sdat, &kci->syms, node) {
+	list_for_each_entry(sdat, &kci->syms, yesde) {
 		u64 s = round_down(sdat->addr, page_size);
 
 		if (kcore_copy__map(kci, start, end, pgoff, s, s + len))
@@ -1837,12 +1837,12 @@ static int kcore_copy__compare_file(const char *from_dir, const char *to_dir,
 }
 
 /**
- * kcore_copy - copy kallsyms, modules and kcore from one directory to another.
+ * kcore_copy - copy kallsyms, modules and kcore from one directory to ayesther.
  * @from_dir: from directory
  * @to_dir: to directory
  *
  * This function copies kallsyms, modules and kcore files from one directory to
- * another.  kallsyms and modules are copied entirely.  Only code segments are
+ * ayesther.  kallsyms and modules are copied entirely.  Only code segments are
  * copied from kcore.  It is assumed that two segments suffice: one for the
  * kernel proper and one for all the modules.  The code segments are determined
  * from kallsyms and modules files.  The kernel map starts at _stext or the
@@ -1853,10 +1853,10 @@ static int kcore_copy__compare_file(const char *from_dir, const char *to_dir,
  * highest kernel symbol and highest module symbol to, hopefully, encompass that
  * symbol too.  Because it contains only code sections, the resulting kcore is
  * unusual.  One significant peculiarity is that the mapping (start -> pgoff)
- * is not the same for the kernel map and the modules map.  That happens because
+ * is yest the same for the kernel map and the modules map.  That happens because
  * the data is copied adjacently whereas the original kcore has gaps.  Finally,
  * kallsyms and modules files are compared with their copies to check that
- * modules have not been loaded or unloaded while the copies were taking place.
+ * modules have yest been loaded or unloaded while the copies were taking place.
  *
  * Return: %0 on success, %-1 on failure.
  */
@@ -1993,7 +1993,7 @@ void kcore_extract__delete(struct kcore_extract *kce)
 
 #ifdef HAVE_GELF_GETNOTE_SUPPORT
 
-static void sdt_adjust_loc(struct sdt_note *tmp, GElf_Addr base_off)
+static void sdt_adjust_loc(struct sdt_yeste *tmp, GElf_Addr base_off)
 {
 	if (!base_off)
 		return;
@@ -2008,7 +2008,7 @@ static void sdt_adjust_loc(struct sdt_note *tmp, GElf_Addr base_off)
 			tmp->addr.a64[SDT_NOTE_IDX_BASE];
 }
 
-static void sdt_adjust_refctr(struct sdt_note *tmp, GElf_Addr base_addr,
+static void sdt_adjust_refctr(struct sdt_yeste *tmp, GElf_Addr base_addr,
 			      GElf_Addr base_off)
 {
 	if (!base_off)
@@ -2021,21 +2021,21 @@ static void sdt_adjust_refctr(struct sdt_note *tmp, GElf_Addr base_addr,
 }
 
 /**
- * populate_sdt_note : Parse raw data and identify SDT note
+ * populate_sdt_yeste : Parse raw data and identify SDT yeste
  * @elf: elf of the opened file
  * @data: raw data of a section with description offset applied
- * @len: note description size
- * @type: type of the note
- * @sdt_notes: List to add the SDT note
+ * @len: yeste description size
+ * @type: type of the yeste
+ * @sdt_yestes: List to add the SDT yeste
  *
- * Responsible for parsing the @data in section .note.stapsdt in @elf and
- * if its an SDT note, it appends to @sdt_notes list.
+ * Responsible for parsing the @data in section .yeste.stapsdt in @elf and
+ * if its an SDT yeste, it appends to @sdt_yestes list.
  */
-static int populate_sdt_note(Elf **elf, const char *data, size_t len,
-			     struct list_head *sdt_notes)
+static int populate_sdt_yeste(Elf **elf, const char *data, size_t len,
+			     struct list_head *sdt_yestes)
 {
 	const char *provider, *name, *args;
-	struct sdt_note *tmp = NULL;
+	struct sdt_yeste *tmp = NULL;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
 	int ret = -EINVAL;
@@ -2056,35 +2056,35 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 		.d_align = 0
 	};
 
-	tmp = (struct sdt_note *)calloc(1, sizeof(struct sdt_note));
+	tmp = (struct sdt_yeste *)calloc(1, sizeof(struct sdt_yeste));
 	if (!tmp) {
 		ret = -ENOMEM;
 		goto out_err;
 	}
 
-	INIT_LIST_HEAD(&tmp->note_list);
+	INIT_LIST_HEAD(&tmp->yeste_list);
 
 	if (len < dst.d_size + 3)
-		goto out_free_note;
+		goto out_free_yeste;
 
 	/* Translation from file representation to memory representation */
 	if (gelf_xlatetom(*elf, &dst, &src,
 			  elf_getident(*elf, NULL)[EI_DATA]) == NULL) {
 		pr_err("gelf_xlatetom : %s\n", elf_errmsg(-1));
-		goto out_free_note;
+		goto out_free_yeste;
 	}
 
-	/* Populate the fields of sdt_note */
+	/* Populate the fields of sdt_yeste */
 	provider = data + dst.d_size;
 
 	name = (const char *)memchr(provider, '\0', data + len - provider);
 	if (name++ == NULL)
-		goto out_free_note;
+		goto out_free_yeste;
 
 	tmp->provider = strdup(provider);
 	if (!tmp->provider) {
 		ret = -ENOMEM;
-		goto out_free_note;
+		goto out_free_yeste;
 	}
 	tmp->name = strdup(name);
 	if (!tmp->name) {
@@ -2095,9 +2095,9 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	args = memchr(name, '\0', data + len - name);
 
 	/*
-	 * There is no argument if:
-	 * - We reached the end of the note;
-	 * - There is not enough room to hold a potential string;
+	 * There is yes argument if:
+	 * - We reached the end of the yeste;
+	 * - There is yest eyesugh room to hold a potential string;
 	 * - The argument string is empty or just contains ':'.
 	 */
 	if (args == NULL || data + len - args < 2 ||
@@ -2120,7 +2120,7 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	}
 
 	if (!gelf_getehdr(*elf, &ehdr)) {
-		pr_debug("%s : cannot get elf header.\n", __func__);
+		pr_debug("%s : canyest get elf header.\n", __func__);
 		ret = -EBADF;
 		goto out_free_args;
 	}
@@ -2129,8 +2129,8 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	 * Find out the .stapsdt.base section.
 	 * This scn will help us to handle prelinking (if present).
 	 * Compare the retrieved file offset of the base section with the
-	 * base address in the description of the SDT note. If its different,
-	 * then accordingly, adjust the note location.
+	 * base address in the description of the SDT yeste. If its different,
+	 * then accordingly, adjust the yeste location.
 	 */
 	if (elf_section_by_name(*elf, &ehdr, &shdr, SDT_BASE_SCN, NULL))
 		sdt_adjust_loc(tmp, shdr.sh_offset);
@@ -2139,7 +2139,7 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	if (elf_section_by_name(*elf, &ehdr, &shdr, SDT_PROBES_SCN, NULL))
 		sdt_adjust_refctr(tmp, shdr.sh_addr, shdr.sh_offset);
 
-	list_add_tail(&tmp->note_list, sdt_notes);
+	list_add_tail(&tmp->yeste_list, sdt_yestes);
 	return 0;
 
 out_free_args:
@@ -2148,22 +2148,22 @@ out_free_name:
 	zfree(&tmp->name);
 out_free_prov:
 	zfree(&tmp->provider);
-out_free_note:
+out_free_yeste:
 	free(tmp);
 out_err:
 	return ret;
 }
 
 /**
- * construct_sdt_notes_list : constructs a list of SDT notes
+ * construct_sdt_yestes_list : constructs a list of SDT yestes
  * @elf : elf to look into
- * @sdt_notes : empty list_head
+ * @sdt_yestes : empty list_head
  *
  * Scans the sections in 'elf' for the section
- * .note.stapsdt. It, then calls populate_sdt_note to find
- * out the SDT events and populates the 'sdt_notes'.
+ * .yeste.stapsdt. It, then calls populate_sdt_yeste to find
+ * out the SDT events and populates the 'sdt_yestes'.
  */
-static int construct_sdt_notes_list(Elf *elf, struct list_head *sdt_notes)
+static int construct_sdt_yestes_list(Elf *elf, struct list_head *sdt_yestes)
 {
 	GElf_Ehdr ehdr;
 	Elf_Scn *scn = NULL;
@@ -2197,23 +2197,23 @@ static int construct_sdt_notes_list(Elf *elf, struct list_head *sdt_notes)
 
 	data = elf_getdata(scn, NULL);
 
-	/* Get the SDT notes */
-	for (offset = 0; (next = gelf_getnote(data, offset, &nhdr, &name_off,
+	/* Get the SDT yestes */
+	for (offset = 0; (next = gelf_getyeste(data, offset, &nhdr, &name_off,
 					      &desc_off)) > 0; offset = next) {
 		if (nhdr.n_namesz == sizeof(SDT_NOTE_NAME) &&
 		    !memcmp(data->d_buf + name_off, SDT_NOTE_NAME,
 			    sizeof(SDT_NOTE_NAME))) {
-			/* Check the type of the note */
+			/* Check the type of the yeste */
 			if (nhdr.n_type != SDT_NOTE_TYPE)
 				goto out_ret;
 
-			ret = populate_sdt_note(&elf, ((data->d_buf) + desc_off),
-						nhdr.n_descsz, sdt_notes);
+			ret = populate_sdt_yeste(&elf, ((data->d_buf) + desc_off),
+						nhdr.n_descsz, sdt_yestes);
 			if (ret < 0)
 				goto out_ret;
 		}
 	}
-	if (list_empty(sdt_notes))
+	if (list_empty(sdt_yestes))
 		ret = -ENOENT;
 
 out_ret:
@@ -2221,14 +2221,14 @@ out_ret:
 }
 
 /**
- * get_sdt_note_list : Wrapper to construct a list of sdt notes
+ * get_sdt_yeste_list : Wrapper to construct a list of sdt yestes
  * @head : empty list_head
- * @target : file to find SDT notes from
+ * @target : file to find SDT yestes from
  *
  * This opens the file, initializes
- * the ELF and then calls construct_sdt_notes_list.
+ * the ELF and then calls construct_sdt_yestes_list.
  */
-int get_sdt_note_list(struct list_head *head, const char *target)
+int get_sdt_yeste_list(struct list_head *head, const char *target)
 {
 	Elf *elf;
 	int fd, ret;
@@ -2242,7 +2242,7 @@ int get_sdt_note_list(struct list_head *head, const char *target)
 		ret = -EBADF;
 		goto out_close;
 	}
-	ret = construct_sdt_notes_list(elf, head);
+	ret = construct_sdt_yestes_list(elf, head);
 	elf_end(elf);
 out_close:
 	close(fd);
@@ -2250,19 +2250,19 @@ out_close:
 }
 
 /**
- * cleanup_sdt_note_list : free the sdt notes' list
- * @sdt_notes: sdt notes' list
+ * cleanup_sdt_yeste_list : free the sdt yestes' list
+ * @sdt_yestes: sdt yestes' list
  *
- * Free up the SDT notes in @sdt_notes.
- * Returns the number of SDT notes free'd.
+ * Free up the SDT yestes in @sdt_yestes.
+ * Returns the number of SDT yestes free'd.
  */
-int cleanup_sdt_note_list(struct list_head *sdt_notes)
+int cleanup_sdt_yeste_list(struct list_head *sdt_yestes)
 {
-	struct sdt_note *tmp, *pos;
+	struct sdt_yeste *tmp, *pos;
 	int nr_free = 0;
 
-	list_for_each_entry_safe(pos, tmp, sdt_notes, note_list) {
-		list_del_init(&pos->note_list);
+	list_for_each_entry_safe(pos, tmp, sdt_yestes, yeste_list) {
+		list_del_init(&pos->yeste_list);
 		zfree(&pos->name);
 		zfree(&pos->provider);
 		free(pos);
@@ -2272,17 +2272,17 @@ int cleanup_sdt_note_list(struct list_head *sdt_notes)
 }
 
 /**
- * sdt_notes__get_count: Counts the number of sdt events
- * @start: list_head to sdt_notes list
+ * sdt_yestes__get_count: Counts the number of sdt events
+ * @start: list_head to sdt_yestes list
  *
- * Returns the number of SDT notes in a list
+ * Returns the number of SDT yestes in a list
  */
-int sdt_notes__get_count(struct list_head *start)
+int sdt_yestes__get_count(struct list_head *start)
 {
-	struct sdt_note *sdt_ptr;
+	struct sdt_yeste *sdt_ptr;
 	int count = 0;
 
-	list_for_each_entry(sdt_ptr, start, note_list)
+	list_for_each_entry(sdt_ptr, start, yeste_list)
 		count++;
 	return count;
 }

@@ -3,7 +3,7 @@
  * Copyright (C) 2003 Christoph Hellwig.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sysctl.h>

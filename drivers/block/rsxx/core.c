@@ -40,7 +40,7 @@ MODULE_PARM_DESC(force_legacy, "Force the use of legacy type PCI interrupts");
 
 static unsigned int sync_start = 1;
 module_param(sync_start, uint, 0444);
-MODULE_PARM_DESC(sync_start, "On by Default: Driver load will not complete "
+MODULE_PARM_DESC(sync_start, "On by Default: Driver load will yest complete "
 			     "until the card startup has completed.");
 
 static DEFINE_IDA(rsxx_disk_ida);
@@ -150,20 +150,20 @@ static int rsxx_attr_stats_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static int rsxx_attr_stats_open(struct inode *inode, struct file *file)
+static int rsxx_attr_stats_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, rsxx_attr_stats_show, inode->i_private);
+	return single_open(file, rsxx_attr_stats_show, iyesde->i_private);
 }
 
-static int rsxx_attr_pci_regs_open(struct inode *inode, struct file *file)
+static int rsxx_attr_pci_regs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, rsxx_attr_pci_regs_show, inode->i_private);
+	return single_open(file, rsxx_attr_pci_regs_show, iyesde->i_private);
 }
 
 static ssize_t rsxx_cram_read(struct file *fp, char __user *ubuf,
 			      size_t cnt, loff_t *ppos)
 {
-	struct rsxx_cardinfo *card = file_inode(fp)->i_private;
+	struct rsxx_cardinfo *card = file_iyesde(fp)->i_private;
 	char *buf;
 	ssize_t st;
 
@@ -184,7 +184,7 @@ static ssize_t rsxx_cram_read(struct file *fp, char __user *ubuf,
 static ssize_t rsxx_cram_write(struct file *fp, const char __user *ubuf,
 			       size_t cnt, loff_t *ppos)
 {
-	struct rsxx_cardinfo *card = file_inode(fp)->i_private;
+	struct rsxx_cardinfo *card = file_iyesde(fp)->i_private;
 	char *buf;
 	ssize_t st;
 
@@ -393,7 +393,7 @@ static irqreturn_t rsxx_isr(int irq, void *pdata)
 static const char * const rsxx_card_state_to_str(unsigned int state)
 {
 	static const char * const state_strings[] = {
-		"Unknown", "Shutdown", "Starting", "Formatting",
+		"Unkyeswn", "Shutdown", "Starting", "Formatting",
 		"Uninitialized", "Good", "Shutting Down",
 		"Fault", "Read Only Fault", "dStroying"
 	};
@@ -470,7 +470,7 @@ static void card_event_handler(struct work_struct *work)
 		return;
 
 	/*
-	 * Enable the interrupt now to avoid any weird race conditions where a
+	 * Enable the interrupt yesw to avoid any weird race conditions where a
 	 * state change might occur while rsxx_get_card_state() is
 	 * processing a returned creg cmd.
 	 */
@@ -547,7 +547,7 @@ static int rsxx_eeh_frozen(struct pci_dev *dev)
 
 	/*
 	 * We need to guarantee that the write for eeh_state and masking
-	 * interrupts does not become reordered. This will prevent a possible
+	 * interrupts does yest become reordered. This will prevent a possible
 	 * race condition with the EEH code.
 	 */
 	wmb();

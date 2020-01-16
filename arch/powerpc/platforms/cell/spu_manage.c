@@ -25,14 +25,14 @@
 #include "spufs/spufs.h"
 #include "interrupt.h"
 
-struct device_node *spu_devnode(struct spu *spu)
+struct device_yesde *spu_devyesde(struct spu *spu)
 {
-	return spu->devnode;
+	return spu->devyesde;
 }
 
-EXPORT_SYMBOL_GPL(spu_devnode);
+EXPORT_SYMBOL_GPL(spu_devyesde);
 
-static u64 __init find_spu_unit_number(struct device_node *spe)
+static u64 __init find_spu_unit_number(struct device_yesde *spe)
 {
 	const unsigned int *prop;
 	int proplen;
@@ -65,7 +65,7 @@ static void spu_unmap(struct spu *spu)
 }
 
 static int __init spu_map_interrupts_old(struct spu *spu,
-	struct device_node *np)
+	struct device_yesde *np)
 {
 	unsigned int isrc;
 	const u32 *tmp;
@@ -77,14 +77,14 @@ static int __init spu_map_interrupts_old(struct spu *spu,
 		return -ENODEV;
 	isrc = tmp[0];
 
-	tmp = of_get_property(np->parent->parent, "node-id", NULL);
+	tmp = of_get_property(np->parent->parent, "yesde-id", NULL);
 	if (!tmp) {
-		printk(KERN_WARNING "%s: can't find node-id\n", __func__);
-		nid = spu->node;
+		printk(KERN_WARNING "%s: can't find yesde-id\n", __func__);
+		nid = spu->yesde;
 	} else
 		nid = tmp[0];
 
-	/* Add the node number */
+	/* Add the yesde number */
 	isrc |= nid << IIC_IRQ_NODE_SHIFT;
 
 	/* Now map interrupts of all 3 classes */
@@ -92,7 +92,7 @@ static int __init spu_map_interrupts_old(struct spu *spu,
 	spu->irqs[1] = irq_create_mapping(NULL, IIC_IRQ_CLASS_1 | isrc);
 	spu->irqs[2] = irq_create_mapping(NULL, IIC_IRQ_CLASS_2 | isrc);
 
-	/* Right now, we only fail if class 2 failed */
+	/* Right yesw, we only fail if class 2 failed */
 	if (!spu->irqs[2])
 		return -EINVAL;
 
@@ -100,7 +100,7 @@ static int __init spu_map_interrupts_old(struct spu *spu,
 }
 
 static void __iomem * __init spu_map_prop_old(struct spu *spu,
-					      struct device_node *n,
+					      struct device_yesde *n,
 					      const char *name)
 {
 	const struct address_prop {
@@ -118,41 +118,41 @@ static void __iomem * __init spu_map_prop_old(struct spu *spu,
 
 static int __init spu_map_device_old(struct spu *spu)
 {
-	struct device_node *node = spu->devnode;
+	struct device_yesde *yesde = spu->devyesde;
 	const char *prop;
 	int ret;
 
 	ret = -ENODEV;
-	spu->name = of_get_property(node, "name", NULL);
+	spu->name = of_get_property(yesde, "name", NULL);
 	if (!spu->name)
 		goto out;
 
-	prop = of_get_property(node, "local-store", NULL);
+	prop = of_get_property(yesde, "local-store", NULL);
 	if (!prop)
 		goto out;
 	spu->local_store_phys = *(unsigned long *)prop;
 
-	/* we use local store as ram, not io memory */
+	/* we use local store as ram, yest io memory */
 	spu->local_store = (void __force *)
-		spu_map_prop_old(spu, node, "local-store");
+		spu_map_prop_old(spu, yesde, "local-store");
 	if (!spu->local_store)
 		goto out;
 
-	prop = of_get_property(node, "problem", NULL);
+	prop = of_get_property(yesde, "problem", NULL);
 	if (!prop)
 		goto out_unmap;
 	spu->problem_phys = *(unsigned long *)prop;
 
-	spu->problem = spu_map_prop_old(spu, node, "problem");
+	spu->problem = spu_map_prop_old(spu, yesde, "problem");
 	if (!spu->problem)
 		goto out_unmap;
 
-	spu->priv2 = spu_map_prop_old(spu, node, "priv2");
+	spu->priv2 = spu_map_prop_old(spu, yesde, "priv2");
 	if (!spu->priv2)
 		goto out_unmap;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		spu->priv1 = spu_map_prop_old(spu, node, "priv1");
+		spu->priv1 = spu_map_prop_old(spu, yesde, "priv1");
 		if (!spu->priv1)
 			goto out_unmap;
 	}
@@ -166,7 +166,7 @@ out:
 	return ret;
 }
 
-static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
+static int __init spu_map_interrupts(struct spu *spu, struct device_yesde *np)
 {
 	int i;
 
@@ -189,7 +189,7 @@ err:
 static int spu_map_resource(struct spu *spu, int nr,
 			    void __iomem** virt, unsigned long *phys)
 {
-	struct device_node *np = spu->devnode;
+	struct device_yesde *np = spu->devyesde;
 	struct resource resource = { };
 	unsigned long len;
 	int ret;
@@ -208,7 +208,7 @@ static int spu_map_resource(struct spu *spu, int nr,
 
 static int __init spu_map_device(struct spu *spu)
 {
-	struct device_node *np = spu->devnode;
+	struct device_yesde *np = spu->devyesde;
 	int ret = -ENODEV;
 
 	spu->name = of_get_property(np, "name", NULL);
@@ -263,16 +263,16 @@ out:
 static int __init of_enumerate_spus(int (*fn)(void *data))
 {
 	int ret;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	unsigned int n = 0;
 
 	ret = -ENODEV;
-	for_each_node_by_type(node, "spe") {
-		ret = fn(node);
+	for_each_yesde_by_type(yesde, "spe") {
+		ret = fn(yesde);
 		if (ret) {
 			printk(KERN_WARNING "%s: Error initializing %pOFn\n",
-				__func__, node);
-			of_node_put(node);
+				__func__, yesde);
+			of_yesde_put(yesde);
 			break;
 		}
 		n++;
@@ -283,16 +283,16 @@ static int __init of_enumerate_spus(int (*fn)(void *data))
 static int __init of_create_spu(struct spu *spu, void *data)
 {
 	int ret;
-	struct device_node *spe = (struct device_node *)data;
+	struct device_yesde *spe = (struct device_yesde *)data;
 	static int legacy_map = 0, legacy_irq = 0;
 
-	spu->devnode = of_node_get(spe);
+	spu->devyesde = of_yesde_get(spe);
 	spu->spe_id = find_spu_unit_number(spe);
 
-	spu->node = of_node_to_nid(spe);
-	if (spu->node >= MAX_NUMNODES) {
-		printk(KERN_WARNING "SPE %pOF on node %d ignored,"
-		       " node number too big\n", spe, spu->node);
+	spu->yesde = of_yesde_to_nid(spe);
+	if (spu->yesde >= MAX_NUMNODES) {
+		printk(KERN_WARNING "SPE %pOF on yesde %d igyesred,"
+		       " yesde number too big\n", spe, spu->yesde);
 		printk(KERN_WARNING "Check if CONFIG_NUMA is enabled.\n");
 		ret = -ENODEV;
 		goto out;
@@ -322,7 +322,7 @@ static int __init of_create_spu(struct spu *spu, void *data)
 		}
 		ret = spu_map_interrupts_old(spu, spe);
 		if (ret) {
-			printk(KERN_ERR "%s: could not map interrupts\n",
+			printk(KERN_ERR "%s: could yest map interrupts\n",
 				spu->name);
 			goto out_unmap;
 		}
@@ -342,7 +342,7 @@ out:
 static int of_destroy_spu(struct spu *spu)
 {
 	spu_unmap(spu);
-	of_node_put(spu->devnode);
+	of_yesde_put(spu->devyesde);
 	return 0;
 }
 
@@ -361,13 +361,13 @@ static void disable_spu_by_master_run(struct spu_context *ctx)
 static int qs20_reg_idxs[QS20_SPES_PER_BE] =   { 0, 2, 4, 6, 7, 5, 3, 1 };
 static int qs20_reg_memory[QS20_SPES_PER_BE] = { 1, 1, 0, 0, 0, 0, 0, 0 };
 
-static struct spu *spu_lookup_reg(int node, u32 reg)
+static struct spu *spu_lookup_reg(int yesde, u32 reg)
 {
 	struct spu *spu;
 	const u32 *spu_reg;
 
-	list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list) {
-		spu_reg = of_get_property(spu_devnode(spu), "reg", NULL);
+	list_for_each_entry(spu, &cbe_spu_info[yesde].spus, cbe_list) {
+		spu_reg = of_get_property(spu_devyesde(spu), "reg", NULL);
 		if (*spu_reg == reg)
 			return spu;
 	}
@@ -376,15 +376,15 @@ static struct spu *spu_lookup_reg(int node, u32 reg)
 
 static void init_affinity_qs20_harcoded(void)
 {
-	int node, i;
+	int yesde, i;
 	struct spu *last_spu, *spu;
 	u32 reg;
 
-	for (node = 0; node < MAX_NUMNODES; node++) {
+	for (yesde = 0; yesde < MAX_NUMNODES; yesde++) {
 		last_spu = NULL;
 		for (i = 0; i < QS20_SPES_PER_BE; i++) {
 			reg = qs20_reg_idxs[i];
-			spu = spu_lookup_reg(node, reg);
+			spu = spu_lookup_reg(yesde, reg);
 			if (!spu)
 				continue;
 			spu->has_mem_affinity = qs20_reg_memory[reg];
@@ -398,37 +398,37 @@ static void init_affinity_qs20_harcoded(void)
 
 static int of_has_vicinity(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
-	for_each_node_by_type(dn, "spe") {
+	for_each_yesde_by_type(dn, "spe") {
 		if (of_find_property(dn, "vicinity", NULL))  {
-			of_node_put(dn);
+			of_yesde_put(dn);
 			return 1;
 		}
 	}
 	return 0;
 }
 
-static struct spu *devnode_spu(int cbe, struct device_node *dn)
+static struct spu *devyesde_spu(int cbe, struct device_yesde *dn)
 {
 	struct spu *spu;
 
 	list_for_each_entry(spu, &cbe_spu_info[cbe].spus, cbe_list)
-		if (spu_devnode(spu) == dn)
+		if (spu_devyesde(spu) == dn)
 			return spu;
 	return NULL;
 }
 
 static struct spu *
-neighbour_spu(int cbe, struct device_node *target, struct device_node *avoid)
+neighbour_spu(int cbe, struct device_yesde *target, struct device_yesde *avoid)
 {
 	struct spu *spu;
-	struct device_node *spu_dn;
+	struct device_yesde *spu_dn;
 	const phandle *vic_handles;
 	int lenp, i;
 
 	list_for_each_entry(spu, &cbe_spu_info[cbe].spus, cbe_list) {
-		spu_dn = spu_devnode(spu);
+		spu_dn = spu_devyesde(spu);
 		if (spu_dn == avoid)
 			continue;
 		vic_handles = of_get_property(spu_dn, "vicinity", &lenp);
@@ -440,10 +440,10 @@ neighbour_spu(int cbe, struct device_node *target, struct device_node *avoid)
 	return NULL;
 }
 
-static void init_affinity_node(int cbe)
+static void init_affinity_yesde(int cbe)
 {
 	struct spu *spu, *last_spu;
-	struct device_node *vic_dn, *last_spu_dn;
+	struct device_yesde *vic_dn, *last_spu_dn;
 	phandle avoid_ph;
 	const phandle *vic_handles;
 	int lenp, i, added;
@@ -452,27 +452,27 @@ static void init_affinity_node(int cbe)
 								cbe_list);
 	avoid_ph = 0;
 	for (added = 1; added < cbe_spu_info[cbe].n_spus; added++) {
-		last_spu_dn = spu_devnode(last_spu);
+		last_spu_dn = spu_devyesde(last_spu);
 		vic_handles = of_get_property(last_spu_dn, "vicinity", &lenp);
 
 		/*
 		 * Walk through each phandle in vicinity property of the spu
-		 * (tipically two vicinity phandles per spe node)
+		 * (tipically two vicinity phandles per spe yesde)
 		 */
 		for (i = 0; i < (lenp / sizeof(phandle)); i++) {
 			if (vic_handles[i] == avoid_ph)
 				continue;
 
-			vic_dn = of_find_node_by_phandle(vic_handles[i]);
+			vic_dn = of_find_yesde_by_phandle(vic_handles[i]);
 			if (!vic_dn)
 				continue;
 
-			if (of_node_name_eq(vic_dn, "spe") ) {
-				spu = devnode_spu(cbe, vic_dn);
+			if (of_yesde_name_eq(vic_dn, "spe") ) {
+				spu = devyesde_spu(cbe, vic_dn);
 				avoid_ph = last_spu_dn->phandle;
 			} else {
 				/*
-				 * "mic-tm" and "bif0" nodes do not have
+				 * "mic-tm" and "bif0" yesdes do yest have
 				 * vicinity property. So we need to find the
 				 * spe which has vic_dn as neighbour, but
 				 * skipping the one we came from (last_spu_dn)
@@ -480,7 +480,7 @@ static void init_affinity_node(int cbe)
 				spu = neighbour_spu(cbe, vic_dn, last_spu_dn);
 				if (!spu)
 					continue;
-				if (of_node_name_eq(vic_dn, "mic-tm")) {
+				if (of_yesde_name_eq(vic_dn, "mic-tm")) {
 					last_spu->has_mem_affinity = 1;
 					spu->has_mem_affinity = 1;
 				}
@@ -499,7 +499,7 @@ static void init_affinity_fw(void)
 	int cbe;
 
 	for (cbe = 0; cbe < MAX_NUMNODES; cbe++)
-		init_affinity_node(cbe);
+		init_affinity_yesde(cbe);
 }
 
 static int __init init_affinity(void)

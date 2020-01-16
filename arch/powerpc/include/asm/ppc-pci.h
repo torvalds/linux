@@ -19,18 +19,18 @@ extern void pci_setup_phb_io_dynamic(struct pci_controller *hose, int primary);
 
 extern struct list_head hose_list;
 
-extern struct pci_dev *isa_bridge_pcidev;	/* may be NULL if no ISA bus */
+extern struct pci_dev *isa_bridge_pcidev;	/* may be NULL if yes ISA bus */
 
 /** Bus Unit ID macros; get low and hi 32-bits of the 64-bit BUID */
 #define BUID_HI(buid) upper_32_bits(buid)
 #define BUID_LO(buid) lower_32_bits(buid)
 
-/* PCI device_node operations */
-struct device_node;
+/* PCI device_yesde operations */
+struct device_yesde;
 struct pci_dn;
 
-void *pci_traverse_device_nodes(struct device_node *start,
-				void *(*fn)(struct device_node *, void *),
+void *pci_traverse_device_yesdes(struct device_yesde *start,
+				void *(*fn)(struct device_yesde *, void *),
 				void *data);
 void *traverse_pci_dn(struct pci_dn *root,
 		      void *(*fn)(struct pci_dn *, void *),
@@ -39,7 +39,7 @@ extern void pci_devs_phb_init_dynamic(struct pci_controller *phb);
 
 /* From rtas_pci.h */
 extern void init_pci_config_tokens (void);
-extern unsigned long get_phb_buid (struct device_node *);
+extern unsigned long get_phb_buid (struct device_yesde *);
 extern int rtas_setup_phb(struct pci_controller *phb);
 
 #ifdef CONFIG_EEH

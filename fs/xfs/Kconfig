@@ -48,7 +48,7 @@ config XFS_POSIX_ACL
 	  POSIX Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  If you don't know what Access Control Lists are, say N.
+	  If you don't kyesw what Access Control Lists are, say N.
 
 config XFS_RT
 	bool "XFS Realtime subvolume support"
@@ -62,7 +62,7 @@ config XFS_RT
 	  mechanism for ensuring data and metadata/log I/Os are completely
 	  separated.  Regular file I/Os are isolated to a separate device
 	  from all other requests, and this can be done quite transparently
-	  to applications via the inherit-realtime directory inode flag.
+	  to applications via the inherit-realtime directory iyesde flag.
 
 	  See the xfs man page in section 5 for additional information.
 
@@ -92,9 +92,9 @@ config XFS_ONLINE_REPAIR
 	help
 	  If you say Y here you will be able to repair metadata on a
 	  mounted XFS filesystem.  This feature is intended to reduce
-	  filesystem downtime by fixing minor problems before they cause the
+	  filesystem downtime by fixing miyesr problems before they cause the
 	  filesystem to go down.  However, it requires that the filesystem be
-	  formatted with secondary metadata, such as reverse mappings and inode
+	  formatted with secondary metadata, such as reverse mappings and iyesde
 	  parent pointers.
 
 	  This feature is considered EXPERIMENTAL.  Use with caution!
@@ -110,8 +110,8 @@ config XFS_WARN
 	  Say Y here to get an XFS build with many additional warnings.
 	  It converts ASSERT checks to WARN, so will log any out-of-bounds
 	  conditions that occur that would otherwise be missed. It is much
-	  lighter weight than XFS_DEBUG and does not modify algorithms and will
-	  not cause the kernel to panic on non-fatal errors.
+	  lighter weight than XFS_DEBUG and does yest modify algorithms and will
+	  yest cause the kernel to panic on yesn-fatal errors.
 
 	  However, similar to XFS_DEBUG, it is only advisable to use this if you
 	  are debugging a particular problem.
@@ -125,7 +125,7 @@ config XFS_DEBUG
 	  and extra sanity-checking functions in various code paths.
 
 	  Note that the resulting code will be HUGE and SLOW, and probably
-	  not useful unless you are debugging a particular problem.
+	  yest useful unless you are debugging a particular problem.
 
 	  Say N unless you are an XFS developer, or you play one on TV.
 

@@ -145,7 +145,7 @@ static int vimc_sen_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		/* Do not change the format while stream is on */
+		/* Do yest change the format while stream is on */
 		if (vsen->frame)
 			return -EBUSY;
 

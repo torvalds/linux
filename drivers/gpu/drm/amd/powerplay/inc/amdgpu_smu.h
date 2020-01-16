@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -193,8 +193,8 @@ struct smu_performance_level {
 	uint32_t memory_clock;
 	uint32_t vddc;
 	uint32_t vddci;
-	uint32_t non_local_mem_freq;
-	uint32_t non_local_mem_width;
+	uint32_t yesn_local_mem_freq;
+	uint32_t yesn_local_mem_width;
 };
 
 struct smu_clock_info {
@@ -442,7 +442,7 @@ struct pptable_funcs {
 	int (*pre_display_config_changed)(struct smu_context *smu);
 	int (*display_config_changed)(struct smu_context *smu);
 	int (*apply_clocks_adjust_rules)(struct smu_context *smu);
-	int (*notify_smc_dispaly_config)(struct smu_context *smu);
+	int (*yestify_smc_dispaly_config)(struct smu_context *smu);
 	int (*force_dpm_limit_value)(struct smu_context *smu, bool highest);
 	int (*unforce_dpm_levels)(struct smu_context *smu);
 	int (*get_profiling_clk_mask)(struct smu_context *smu,
@@ -495,7 +495,7 @@ struct pptable_funcs {
 	int (*write_pptable)(struct smu_context *smu);
 	int (*set_min_dcef_deep_sleep)(struct smu_context *smu);
 	int (*set_tool_table_location)(struct smu_context *smu);
-	int (*notify_memory_pool_location)(struct smu_context *smu);
+	int (*yestify_memory_pool_location)(struct smu_context *smu);
 	int (*set_last_dcef_min_deep_sleep_clk)(struct smu_context *smu);
 	int (*system_features_control)(struct smu_context *smu, bool en);
 	int (*send_smc_msg_with_param)(struct smu_context *smu,
@@ -504,7 +504,7 @@ struct pptable_funcs {
 	int (*init_display_count)(struct smu_context *smu, uint32_t count);
 	int (*set_allowed_mask)(struct smu_context *smu);
 	int (*get_enabled_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
-	int (*notify_display_change)(struct smu_context *smu);
+	int (*yestify_display_change)(struct smu_context *smu);
 	int (*set_power_limit)(struct smu_context *smu, uint32_t n);
 	int (*get_current_clk_freq)(struct smu_context *smu, enum smu_clk_type clk_id, uint32_t *value);
 	int (*init_max_sustainable_clocks)(struct smu_context *smu);
@@ -530,7 +530,7 @@ struct pptable_funcs {
 			      struct smu_performance_level *level);
 	int (*get_current_shallow_sleep_clocks)(struct smu_context *smu,
 						struct smu_clock_info *clocks);
-	int (*notify_smu_enable_pwe)(struct smu_context *smu);
+	int (*yestify_smu_enable_pwe)(struct smu_context *smu);
 	int (*conv_power_profile_to_pplib_workload)(int power_profile);
 	uint32_t (*get_fan_control_mode)(struct smu_context *smu);
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
@@ -615,7 +615,7 @@ int smu_get_clock_by_type_with_voltage(struct smu_context *smu,
 int smu_display_clock_voltage_request(struct smu_context *smu,
 				      struct pp_display_clock_request *clock_req);
 int smu_display_disable_memory_clock_switch(struct smu_context *smu, bool disable_memory_clock_switch);
-int smu_notify_smu_enable_pwe(struct smu_context *smu);
+int smu_yestify_smu_enable_pwe(struct smu_context *smu);
 
 int smu_set_xgmi_pstate(struct smu_context *smu,
 			uint32_t pstate);

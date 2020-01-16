@@ -178,7 +178,7 @@ static int osd101t2587_panel_probe(struct mipi_dsi_device *dsi)
 	const struct of_device_id *id;
 	int ret;
 
-	id = of_match_node(osd101t2587_of_match, dsi->dev.of_node);
+	id = of_match_yesde(osd101t2587_of_match, dsi->dev.of_yesde);
 	if (!id)
 		return -ENODEV;
 

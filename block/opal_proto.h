@@ -3,7 +3,7 @@
  * Copyright © 2016 Intel Corporation
  *
  * Authors:
- *    Rafael Antognolli <rafael.antognolli@intel.com>
+ *    Rafael Antogyeslli <rafael.antogyeslli@intel.com>
  *    Scott  Bauer      <scott.bauer@intel.com>
  */
 #include <linux/types.h>
@@ -230,7 +230,7 @@ struct opal_packet {
 	__be32 seq_number;
 	__be16 reserved0;
 	__be16 ack_type;
-	__be32 acknowledgment;
+	__be32 ackyeswledgment;
 	__be32 length;
 };
 
@@ -268,16 +268,16 @@ struct d0_header {
 	__be32 reserved01;
 	__be32 reserved02;
 	/*
-	 * the remainder of the structure is vendor specific and will not be
-	 * addressed now
+	 * the remainder of the structure is vendor specific and will yest be
+	 * addressed yesw
 	 */
-	u8 ignored[32];
+	u8 igyesred[32];
 };
 
 /*
  * TPer Feature Descriptor. Contains flags indicating support for the
  * TPer features described in the OPAL specification. The names match the
- * OPAL terminology
+ * OPAL termiyeslogy
  *
  * code == 0x001 in 2.00.100
  */
@@ -306,7 +306,7 @@ struct d0_tper_features {
 /*
  * Locking Feature Descriptor. Contains flags indicating support for the
  * locking features described in the OPAL specification. The names match the
- * OPAL terminology
+ * OPAL termiyeslogy
  *
  * code == 0x0002 in 2.00.100
  */
@@ -334,7 +334,7 @@ struct d0_locking_features {
 /*
  * Geometry Feature Descriptor. Contains flags indicating support for the
  * geometry features described in the OPAL specification. The names match the
- * OPAL terminology
+ * OPAL termiyeslogy
  *
  * code == 0x0003 in 2.00.100
  */
@@ -429,14 +429,14 @@ struct d0_opal_v200 {
 	 */
 	u8 range_crossing;
 	/* num_locking_admin_auth:
-	 * not aligned to 16 bits, so use two u8.
+	 * yest aligned to 16 bits, so use two u8.
 	 * stored in big endian:
 	 * 0: MSB
 	 * 1: LSB
 	 */
 	u8 num_locking_admin_auth[2];
 	/* num_locking_user_auth:
-	 * not aligned to 16 bits, so use two u8.
+	 * yest aligned to 16 bits, so use two u8.
 	 * stored in big endian:
 	 * 0: MSB
 	 * 1: LSB

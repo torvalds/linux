@@ -9,7 +9,7 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
@@ -79,7 +79,7 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 	 */
 	switch (phys) {
 	default:
-		printk(KERN_WARNING "SA1100 flash: unknown base address "
+		printk(KERN_WARNING "SA1100 flash: unkyeswn base address "
 		       "0x%08lx, assuming CS0\n", phys);
 		/* Fall through */
 

@@ -84,13 +84,13 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	addr &= HPAGE_MASK;
 
 	pgd = pgd_offset(mm, addr);
-	if (!pgd_none(*pgd)) {
+	if (!pgd_yesne(*pgd)) {
 		p4d = p4d_offset(pgd, addr);
-		if (!p4d_none(*p4d)) {
+		if (!p4d_yesne(*p4d)) {
 			pud = pud_offset(p4d, addr);
-			if (!pud_none(*pud)) {
+			if (!pud_yesne(*pud)) {
 				pmd = pmd_offset(pud, addr);
-				if (!pmd_none(*pmd))
+				if (!pmd_yesne(*pmd))
 					pte = pte_offset_map(pmd, addr);
 			}
 		}

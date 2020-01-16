@@ -48,10 +48,10 @@ static unsigned long find_bootdata_space(struct ipl_rb_components *comps,
 
 	/*
 	 * Start from safe_addr to find a free memory area large
-	 * enough for the IPL report boot data. This area is used
+	 * eyesugh for the IPL report boot data. This area is used
 	 * for ipl_cert_list_addr/ipl_cert_list_size and
 	 * early_ipl_comp_list_addr/early_ipl_comp_list_size. It must
-	 * not overlap with any component or any certificate.
+	 * yest overlap with any component or any certificate.
 	 */
 repeat:
 	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && INITRD_START && INITRD_SIZE &&
@@ -148,7 +148,7 @@ unsigned long read_ipl_report(unsigned long safe_addr)
 
 	/*
 	 * With either the component list or the certificate list
-	 * missing the kernel will stay ignorant of secure IPL.
+	 * missing the kernel will stay igyesrant of secure IPL.
 	 */
 	if (!comps || !certs)
 		return safe_addr;

@@ -3,7 +3,7 @@ PXA2xx SPI on SSP driver HOWTO
 ==============================
 
 This a mini howto on the pxa2xx_spi driver.  The driver turns a PXA2xx
-synchronous serial port into a SPI master controller
+synchroyesus serial port into a SPI master controller
 (see Documentation/spi/spi-summary.rst). The driver has the following features
 
 - Support for any PXA2xx SSP
@@ -120,7 +120,7 @@ dma_burst_size == 0.
 The "pxa2xx_spi_chip.timeout" fields is used to efficiently handle
 trailing bytes in the SSP receiver fifo.  The correct value for this field is
 dependent on the SPI bus speed ("spi_board_info.max_speed_hz") and the specific
-slave device.  Please note that the PXA2xx SSP 1 does not support trailing byte
+slave device.  Please yeste that the PXA2xx SSP 1 does yest support trailing byte
 timeouts and must busy-wait any trailing bytes.
 
 The "pxa2xx_spi_chip.enable_loopback" field is used to place the SSP porting
@@ -133,7 +133,7 @@ function for asserting/deasserting a slave device chip select.  If the field is
 NULL, the pxa2xx_spi master controller driver assumes that the SSP port is
 configured to use SSPFRM instead.
 
-NOTE: the SPI driver cannot control the chip select if SSPFRM is used, so the
+NOTE: the SPI driver canyest control the chip select if SSPFRM is used, so the
 chipselect is dropped after each spi_transfer.  Most devices need chip select
 asserted around the complete message.  Use SSPFRM as a GPIO (through cs_control)
 to accommodate these chips.

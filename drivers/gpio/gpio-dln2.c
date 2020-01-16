@@ -53,7 +53,7 @@ struct dln2_gpio {
 	 */
 	DECLARE_BITMAP(output_enabled, DLN2_GPIO_MAX_PINS);
 
-	/* active IRQs - not synced to hardware */
+	/* active IRQs - yest synced to hardware */
 	DECLARE_BITMAP(unmasked_irqs, DLN2_GPIO_MAX_PINS);
 	/* active IRQS - synced to hardware */
 	DECLARE_BITMAP(enabled_irqs, DLN2_GPIO_MAX_PINS);
@@ -418,7 +418,7 @@ static void dln2_gpio_event(struct platform_device *pdev, u16 echo,
 
 	irq = irq_find_mapping(dln2->gpio.irq.domain, pin);
 	if (!irq) {
-		dev_err(dln2->gpio.parent, "pin %d not mapped to IRQ\n", pin);
+		dev_err(dln2->gpio.parent, "pin %d yest mapped to IRQ\n", pin);
 		return;
 	}
 

@@ -2,7 +2,7 @@ Cortina Systems Gemini Ethernet Controller
 ==========================================
 
 This ethernet controller is found in the Gemini SoC family:
-StorLink SL3512 and SL3516, also known as Cortina Systems
+StorLink SL3512 and SL3516, also kyeswn as Cortina Systems
 CS3512 and CS3516.
 
 Required properties:
@@ -13,29 +13,29 @@ Required properties:
 - #address-cells: must be specified, must be <1>
 - #size-cells: must be specified, must be <1>
 - ranges: should be state like this giving a 1:1 address translation
-  for the subnodes
+  for the subyesdes
 
-The subnodes represents the two ethernet ports in this device.
-They are not independent of each other since they share resources
-in the parent node, and are thus children.
+The subyesdes represents the two ethernet ports in this device.
+They are yest independent of each other since they share resources
+in the parent yesde, and are thus children.
 
-Required subnodes:
+Required subyesdes:
 - port0: contains the resources for ethernet port 0
 - port1: contains the resources for ethernet port 1
 
-Required subnode properties:
+Required subyesde properties:
 - compatible: must be "cortina,gemini-ethernet-port"
 - reg: must contain two register areas: the DMA/TOE memory and
   the GMAC memory area of the port
 - interrupts: should contain the interrupt line of the port.
-  this is nominally a level interrupt active high.
+  this is yesminally a level interrupt active high.
 - resets: this must provide an SoC-integrated reset line for
   the port.
 - clocks: this should contain a handle to the PCLK clock for
   clocking the silicon in this port
 - clock-names: must be "PCLK"
 
-Optional subnode properties:
+Optional subyesde properties:
 - phy-mode: see ethernet.txt
 - phy-handle: see ethernet.txt
 

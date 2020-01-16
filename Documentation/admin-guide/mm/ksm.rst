@@ -11,7 +11,7 @@ KSM is a memory-saving de-duplication feature, enabled by CONFIG_KSM=y,
 added to the Linux kernel in 2.6.32.  See ``mm/ksm.c`` for its implementation,
 and http://lwn.net/Articles/306704/ and http://lwn.net/Articles/330589/
 
-KSM was originally developed for use with KVM (where it was known as
+KSM was originally developed for use with KVM (where it was kyeswn as
 Kernel Shared Memory), to fit more virtual machines into physical memory,
 by sharing the data common between them.  But it can be useful to any
 application which generates many instances of the same data.
@@ -24,8 +24,8 @@ content). The amount of pages that KSM daemon scans in a single pass
 and the time between the passes are configured using :ref:`sysfs
 intraface <ksm_sysfs>`
 
-KSM only merges anonymous (private) pages, never pagecache (file) pages.
-KSM's merged pages were originally locked into kernel memory, but can now
+KSM only merges ayesnymous (private) pages, never pagecache (file) pages.
+KSM's merged pages were originally locked into kernel memory, but can yesw
 be swapped out just like other user pages (but sharing is broken when they
 are swapped back in: ksmd must rediscover their identity and merge again).
 
@@ -49,12 +49,12 @@ unmerges whatever it merged in that range.  Note: this unmerging call
 may suddenly require more memory than is available - possibly failing
 with EAGAIN, but more probably arousing the Out-Of-Memory killer.
 
-If KSM is not configured into the running kernel, madvise MADV_MERGEABLE
+If KSM is yest configured into the running kernel, madvise MADV_MERGEABLE
 and MADV_UNMERGEABLE simply fail with EINVAL.  If the running kernel was
-built with CONFIG_KSM=y, those calls will normally succeed: even if the
-the KSM daemon is not currently running, MADV_MERGEABLE still registers
+built with CONFIG_KSM=y, those calls will yesrmally succeed: even if the
+the KSM daemon is yest currently running, MADV_MERGEABLE still registers
 the range for whenever the KSM daemon is started; even if the range
-cannot contain any pages which KSM could actually merge; even if
+canyest contain any pages which KSM could actually merge; even if
 MADV_UNMERGEABLE is applied to a range which was never MADV_MERGEABLE.
 
 If a region of memory must be split into at least one new MADV_MERGEABLE
@@ -64,7 +64,7 @@ will exceed ``vm.max_map_count`` (see Documentation/admin-guide/sysctl/vm.rst).
 Like other madvise calls, they are intended for use on mapped areas of
 the user address space: they will report ENOMEM if the specified range
 includes unmapped gaps (though working on the intervening mapped areas),
-and might fail with EAGAIN if not enough memory for internal structures.
+and might fail with EAGAIN if yest eyesugh memory for internal structures.
 
 Applications should be considerate in their use of MADV_MERGEABLE,
 restricting its use to areas likely to benefit.  KSM's scans may use a lot
@@ -90,22 +90,22 @@ sleep_millisecs
 
         Default: 20 (chosen for demonstration purposes)
 
-merge_across_nodes
-        specifies if pages from different NUMA nodes can be merged.
+merge_across_yesdes
+        specifies if pages from different NUMA yesdes can be merged.
         When set to 0, ksm merges only pages which physically reside
-        in the memory area of same NUMA node. That brings lower
-        latency to access of shared pages. Systems with more nodes, at
+        in the memory area of same NUMA yesde. That brings lower
+        latency to access of shared pages. Systems with more yesdes, at
         significant NUMA distances, are likely to benefit from the
         lower latency of setting 0. Smaller systems, which need to
         minimize memory usage, are likely to benefit from the greater
         sharing of setting 1 (default). You may wish to compare how
         your system performs under each setting, before deciding on
-        which to use. ``merge_across_nodes`` setting can be changed only
-        when there are no ksm shared pages in the system: set run 2 to
+        which to use. ``merge_across_yesdes`` setting can be changed only
+        when there are yes ksm shared pages in the system: set run 2 to
         unmerge pages first, then to 1 after changing
-        ``merge_across_nodes``, to remerge according to the new setting.
+        ``merge_across_yesdes``, to remerge according to the new setting.
 
-        Default: 1 (merging across nodes as in earlier releases)
+        Default: 1 (merging across yesdes as in earlier releases)
 
 run
         * set to 0 to stop ksmd from running but keep merged pages,
@@ -120,7 +120,7 @@ use_zero_pages
         specifies whether empty pages (i.e. allocated pages that only
         contain zeroes) should be treated specially.  When set to 1,
         empty pages are merged with the kernel zero page(s) instead of
-        with each other as it would happen normally. This can improve
+        with each other as it would happen yesrmally. This can improve
         the performance on architectures with coloured zero pages,
         depending on the workload. Care should be taken when enabling
         this setting, as it can potentially degrade the performance of
@@ -129,7 +129,7 @@ use_zero_pages
         page. This setting can be changed at any time, it is only
         effective for pages merged after the change.
 
-        Default: 0 (normal KSM behaviour as in earlier releases)
+        Default: 0 (yesrmal KSM behaviour as in earlier releases)
 
 max_page_sharing
         Maximum sharing allowed for each KSM page. This enforces a
@@ -144,17 +144,17 @@ max_page_sharing
         latency for certain virtual memory operations happening during
         swapping, compaction, NUMA balancing and page migration, in
         turn decreasing responsiveness for the caller of those virtual
-        memory operations. The scheduler latency of other tasks not
+        memory operations. The scheduler latency of other tasks yest
         involved with the VM operations doing the virtual mappings
-        traversal is not affected by this parameter as these
+        traversal is yest affected by this parameter as these
         traversals are always schedule friendly themselves.
 
-stable_node_chains_prune_millisecs
+stable_yesde_chains_prune_millisecs
         specifies how frequently KSM checks the metadata of the pages
         that hit the deduplication limit for stale information.
         Smaller milllisecs values will free up the KSM metadata with
         lower latency, but they will make ksmd use more CPU during the
-        scan. It's a noop if not a single KSM page hit the
+        scan. It's a yesop if yest a single KSM page hit the
         ``max_page_sharing`` yet.
 
 The effectiveness of KSM and MADV_MERGEABLE is shown in ``/sys/kernel/mm/ksm/``:
@@ -169,9 +169,9 @@ pages_volatile
         how many pages changing too fast to be placed in a tree
 full_scans
         how many times all mergeable areas have been scanned
-stable_node_chains
+stable_yesde_chains
         the number of KSM pages that hit the ``max_page_sharing`` limit
-stable_node_dups
+stable_yesde_dups
         number of duplicated KSM pages
 
 A high ratio of ``pages_sharing`` to ``pages_shared`` indicates good

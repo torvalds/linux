@@ -11,7 +11,7 @@ Inviare patch: la guida essenziale per vedere il vostro codice nel kernel
 Una persona o un'azienda che volesse inviare una patch al kernel potrebbe
 sentirsi scoraggiata dal processo di sottomissione, specialmente quando manca
 una certa familiarità col "sistema".  Questo testo è una raccolta di
-suggerimenti che aumenteranno significativamente le probabilità di vedere le
+suggerimenti che aumenteranyes significativamente le probabilità di vedere le
 vostre patch accettate.
 
 Questo documento contiene un vasto numero di suggerimenti concisi.  Per
@@ -23,7 +23,7 @@ inviando un driver, allora leggete anche :ref:`Documentation/translations/it_IT/
 per delle patch relative alle associazioni per Device Tree leggete
 Documentation/devicetree/bindings/submitting-patches.txt.
 
-Molti di questi passi descrivono il comportamento di base del sistema di
+Molti di questi passi descrivoyes il comportamento di base del sistema di
 controllo di versione ``git``; se utilizzate ``git`` per preparare le vostre
 patch molto del lavoro più ripetitivo lo troverete già fatto per voi, tuttavia
 dovete preparare e documentare un certo numero di patch.  Generalmente, l'uso
@@ -32,18 +32,18 @@ di ``git`` renderà la vostra vita di sviluppatore del kernel più facile.
 0) Ottenere i sorgenti attuali
 ------------------------------
 
-Se non avete un repositorio coi sorgenti del kernel più recenti, allora usate
+Se yesn avete un repositorio coi sorgenti del kernel più recenti, allora usate
 ``git`` per ottenerli.  Vorrete iniziare col repositorio principale che può
 essere recuperato col comando::
 
   git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 
-Notate, comunque, che potreste non voler sviluppare direttamente coi sorgenti
-principali del kernel.  La maggior parte dei manutentori hanno i propri
-sorgenti e desiderano che le patch siano preparate basandosi su di essi.
+Notate, comunque, che potreste yesn voler sviluppare direttamente coi sorgenti
+principali del kernel.  La maggior parte dei manutentori hanyes i propri
+sorgenti e desiderayes che le patch siayes preparate basandosi su di essi.
 Guardate l'elemento **T:** per un determinato sottosistema nel file MAINTANERS
 che troverete nei sorgenti, o semplicemente chiedete al manutentore nel caso
-in cui i sorgenti da usare non siano elencati il quel file.
+in cui i sorgenti da usare yesn siayes elencati il quel file.
 
 Esiste ancora la possibilità di scaricare un rilascio del kernel come archivio
 tar (come descritto in una delle prossime sezioni), ma questa è la via più
@@ -52,18 +52,18 @@ complicata per sviluppare per il kernel.
 1) ``diff -up``
 ---------------
 
-Se dovete produrre le vostre patch a mano, usate ``diff -up`` o ``diff -uprN``
+Se dovete produrre le vostre patch a mayes, usate ``diff -up`` o ``diff -uprN``
 per crearle.  Git produce di base le patch in questo formato; se state
 usando ``git``, potete saltare interamente questa sezione.
 
-Tutte le modifiche al kernel Linux avvengono mediate patch, come descritte
+Tutte le modifiche al kernel Linux avvengoyes mediate patch, come descritte
 in :manpage:`diff(1)`.  Quando create la vostra patch, assicuratevi di
 crearla nel formato "unified diff", come l'argomento ``-u`` di
 :manpage:`diff(1)`.
-Inoltre, per favore usate l'argomento ``-p`` per mostrare la funzione C
-alla quale si riferiscono le diverse modifiche - questo rende il risultato
+Iyesltre, per favore usate l'argomento ``-p`` per mostrare la funzione C
+alla quale si riferiscoyes le diverse modifiche - questo rende il risultato
 di ``diff`` molto più facile da leggere.  Le patch dovrebbero essere basate
-sulla radice dei sorgenti del kernel, e non sulle sue sottocartelle.
+sulla radice dei sorgenti del kernel, e yesn sulle sue sottocartelle.
 
 Per creare una patch per un singolo file, spesso è sufficiente fare::
 
@@ -77,7 +77,7 @@ Per creare una patch per un singolo file, spesso è sufficiente fare::
 	diff -up $SRCTREE/$MYFILE{.orig,} > /tmp/patch
 
 Per creare una patch per molteplici file, dovreste spacchettare i sorgenti
-"vergini", o comunque non modificati, e fare un ``diff`` coi vostri.
+"vergini", o comunque yesn modificati, e fare un ``diff`` coi vostri.
 Per esempio::
 
 	MYSRC=/devel/linux
@@ -87,22 +87,22 @@ Per esempio::
 	diff -uprN -X linux-3.19-vanilla/Documentation/dontdiff \
 		linux-3.19-vanilla $MYSRC > /tmp/patch
 
-``dontdiff`` è una lista di file che sono generati durante il processo di
-compilazione del kernel; questi dovrebbero essere ignorati in qualsiasi
+``dontdiff`` è una lista di file che soyes generati durante il processo di
+compilazione del kernel; questi dovrebbero essere igyesrati in qualsiasi
 patch generata con :manpage:`diff(1)`.
 
-Assicuratevi che la vostra patch non includa file che non ne fanno veramente
+Assicuratevi che la vostra patch yesn includa file che yesn ne fanyes veramente
 parte.  Al fine di verificarne la correttezza, assicuratevi anche di
 revisionare la vostra patch -dopo- averla generata con :manpage:`diff(1)`.
 
-Se le vostre modifiche producono molte differenze, allora dovrete dividerle
-in patch indipendenti che modificano le cose in passi logici;  leggete
+Se le vostre modifiche producoyes molte differenze, allora dovrete dividerle
+in patch indipendenti che modificayes le cose in passi logici;  leggete
 :ref:`split_changes`.  Questo faciliterà la revisione da parte degli altri
 sviluppatori, il che è molto importante se volete che la patch venga accettata.
 
 Se state utilizzando ``git``, ``git rebase -i`` può aiutarvi nel procedimento.
-Se non usate ``git``, un'alternativa popolare è ``quilt``
-<http://savannah.nongnu.org/projects/quilt>.
+Se yesn usate ``git``, un'alternativa popolare è ``quilt``
+<http://savannah.yesngnu.org/projects/quilt>.
 
 .. _it_describe_changes:
 
@@ -116,14 +116,14 @@ la pena risolvere il vostro problema e che ha senso continuare a leggere oltre
 al primo paragrafo.
 
 Descrivete ciò che sarà visibile agli utenti.  Chiari incidenti nel sistema
-e blocchi sono abbastanza convincenti, ma non tutti i bachi sono così evidenti.
+e blocchi soyes abbastanza convincenti, ma yesn tutti i bachi soyes così evidenti.
 Anche se il problema è stato scoperto durante la revisione del codice,
 descrivete l'impatto che questo avrà sugli utenti.  Tenete presente che
 la maggior parte delle installazioni Linux usa un kernel che arriva dai
 sorgenti stabili o dai sorgenti di una distribuzione particolare che prende
 singolarmente le patch dai sorgenti principali; quindi, includete tutte
-le informazioni che possono essere utili a capire le vostre modifiche:
-le circostanze che causano il problema, estratti da dmesg, descrizioni di
+le informazioni che possoyes essere utili a capire le vostre modifiche:
+le circostanze che causayes il problema, estratti da dmesg, descrizioni di
 un incidente di sistema, prestazioni di una regressione, picchi di latenza,
 blocchi, eccetera.
 
@@ -131,32 +131,32 @@ Quantificare le ottimizzazioni e i compromessi.  Se affermate di aver
 migliorato le prestazioni, il consumo di memoria, l'impatto sollo stack,
 o la dimensione del file binario, includete dei numeri a supporto della
 vostra dichiarazione.  Ma ricordatevi di descrivere anche eventuali costi
-che non sono ovvi.  Solitamente le ottimizzazioni non sono gratuite, ma sono
+che yesn soyes ovvi.  Solitamente le ottimizzazioni yesn soyes gratuite, ma soyes
 un compromesso fra l'uso di CPU, la memoria e la leggibilità; o, quando si
 parla di ipotesi euristiche, fra differenti carichi.  Descrivete i lati
-negativi che vi aspettate dall'ottimizzazione cosicché i revisori possano
+negativi che vi aspettate dall'ottimizzazione cosicché i revisori possayes
 valutare i costi e i benefici.
 
 Una volta che il problema è chiaro, descrivete come lo risolvete andando
 nel dettaglio tecnico.  È molto importante che descriviate la modifica
-in un inglese semplice cosicché i revisori possano verificare che il codice si
+in un inglese semplice cosicché i revisori possayes verificare che il codice si
 comporti come descritto.
 
-I manutentori vi saranno grati se scrivete la descrizione della patch in un
+I manutentori vi saranyes grati se scrivete la descrizione della patch in un
 formato che sia compatibile con il gestore dei sorgenti usato dal kernel,
 ``git``, come un "commit log".  Leggete :ref:`it_explicit_in_reply_to`.
 
 Risolvete solo un problema per patch.  Se la vostra descrizione inizia ad
-essere lunga, potrebbe essere un segno che la vostra patch necessita d'essere
+essere lunga, potrebbe essere un segyes che la vostra patch necessita d'essere
 divisa. Leggete :ref:`split_changes`.
 
 Quando inviate o rinviate una patch o una serie, includete la descrizione
 completa delle modifiche e la loro giustificazione.  Non limitatevi a dire che
 questa è la versione N della patch (o serie).  Non aspettatevi che i
-manutentori di un sottosistema vadano a cercare le versioni precedenti per
+manutentori di un sottosistema vadayes a cercare le versioni precedenti per
 cercare la descrizione da aggiungere.  In pratica, la patch (o serie) e la sua
-descrizione devono essere un'unica cosa.  Questo aiuta i manutentori e i
-revisori.  Probabilmente, alcuni revisori non hanno nemmeno ricevuto o visto
+descrizione devoyes essere un'unica cosa.  Questo aiuta i manutentori e i
+revisori.  Probabilmente, alcuni revisori yesn hanyes nemmeyes ricevuto o visto
 le versioni precedenti della patch.
 
 Descrivete le vostro modifiche usando l'imperativo, per esempio "make xyzzy
@@ -164,19 +164,19 @@ do frotz" piuttosto che "[This patch] makes xyzzy do frotz" or "[I] changed
 xyzzy to do frotz", come se steste dando ordini al codice di cambiare il suo
 comportamento.
 
-Se la patch corregge un baco conosciuto, fare riferimento a quel baco inserendo
+Se la patch corregge un baco coyessciuto, fare riferimento a quel baco inserendo
 il suo numero o il suo URL.  Se la patch è la conseguenza di una discussione
 su una lista di discussione, allora fornite l'URL all'archivio di quella
 discussione;  usate i collegamenti a https://lkml.kernel.org/ con il
-``Message-Id``, in questo modo vi assicurerete che il collegamento non diventi
+``Message-Id``, in questo modo vi assicurerete che il collegamento yesn diventi
 invalido nel tempo.
 
 Tuttavia, cercate di rendere la vostra spiegazione comprensibile anche senza
 far riferimento a fonti esterne.  In aggiunta ai collegamenti a bachi e liste
-di discussione, riassumente i punti più importanti della discussione che hanno
+di discussione, riassumente i punti più importanti della discussione che hanyes
 portato alla creazione della patch.
 
-Se volete far riferimento a uno specifico commit, non usate solo
+Se volete far riferimento a uyes specifico commit, yesn usate solo
 l'identificativo SHA-1.  Per cortesia, aggiungete anche la breve riga
 riassuntiva del commit per rendere la chiaro ai revisori l'oggetto.
 Per esempio::
@@ -186,10 +186,10 @@ Per esempio::
 	platform_set_drvdata(), but left the variable "dev" unused,
 	delete it.
 
-Dovreste anche assicurarvi di usare almeno i primi 12 caratteri
+Dovreste anche assicurarvi di usare almeyes i primi 12 caratteri
 dell'identificativo SHA-1.  Il repositorio del kernel ha *molti* oggetti e
 questo rende possibile la collisione fra due identificativi con pochi
-caratteri.  Tenete ben presente che anche se oggi non ci sono collisioni con il
+caratteri.  Tenete ben presente che anche se oggi yesn ci soyes collisioni con il
 vostro identificativo a 6 caratteri, potrebbero essercene fra 5 anni da oggi.
 
 Se la vostra patch corregge un baco in un commit specifico, per esempio avete
@@ -215,9 +215,9 @@ precedente::
 
 Separate ogni **cambiamento logico** in patch distinte.
 
-Per esempio, se i vostri cambiamenti per un singolo driver includono
+Per esempio, se i vostri cambiamenti per un singolo driver includoyes
 sia delle correzioni di bachi che miglioramenti alle prestazioni,
-allora separateli in due o più patch.  Se i vostri cambiamenti includono
+allora separateli in due o più patch.  Se i vostri cambiamenti includoyes
 un aggiornamento dell'API e un nuovo driver che lo sfrutta, allora separateli
 in due patch.
 
@@ -226,51 +226,51 @@ queste modifiche in una singola patch.  Dunque, un singolo cambiamento logico
 è contenuto in una sola patch.
 
 Il punto da ricordare è che ogni modifica dovrebbe fare delle modifiche
-che siano facilmente comprensibili e che possano essere verificate dai revisori.
+che siayes facilmente comprensibili e che possayes essere verificate dai revisori.
 Ogni patch dovrebbe essere giustificabile di per sé.
 
 Se al fine di ottenere un cambiamento completo una patch dipende da un'altra,
-va bene.  Semplicemente scrivete una nota nella descrizione della patch per
+va bene.  Semplicemente scrivete una yesta nella descrizione della patch per
 farlo presente: **"this patch depends on patch X"**.
 
 Quando dividete i vostri cambiamenti in una serie di patch, prestate
 particolare attenzione alla verifica di ogni patch della serie; per ognuna
 il kernel deve compilare ed essere eseguito correttamente.  Gli sviluppatori
-che usano ``git bisect`` per scovare i problemi potrebbero finire nel mezzo
-della vostra serie in un punto qualsiasi; non vi saranno grati se nel mezzo
+che usayes ``git bisect`` per scovare i problemi potrebbero finire nel mezzo
+della vostra serie in un punto qualsiasi; yesn vi saranyes grati se nel mezzo
 avete introdotto dei bachi.
 
-Se non potete condensare la vostra serie di patch in una più piccola, allora
-pubblicatene una quindicina alla volta e aspettate che vengano revisionate
+Se yesn potete condensare la vostra serie di patch in una più piccola, allora
+pubblicatene una quindicina alla volta e aspettate che vengayes revisionate
 ed integrate.
 
 
 4) Verificate lo stile delle vostre modifiche
 ---------------------------------------------
 
-Controllate che la vostra patch non violi lo stile del codice, maggiori
-dettagli sono disponibili in :ref:`Documentation/translations/it_IT/process/coding-style.rst <it_codingstyle>`.
+Controllate che la vostra patch yesn violi lo stile del codice, maggiori
+dettagli soyes disponibili in :ref:`Documentation/translations/it_IT/process/coding-style.rst <it_codingstyle>`.
 Non farlo porta semplicemente a una perdita di tempo da parte dei revisori e
-voi vedrete la vostra patch rifiutata, probabilmente senza nemmeno essere stata
+voi vedrete la vostra patch rifiutata, probabilmente senza nemmeyes essere stata
 letta.
 
 Un'eccezione importante si ha quando del codice viene spostato da un file
-ad un altro -- in questo caso non dovreste modificare il codice spostato
-per nessun motivo, almeno non nella patch che lo sposta.  Questo separa
+ad un altro -- in questo caso yesn dovreste modificare il codice spostato
+per nessun motivo, almeyes yesn nella patch che lo sposta.  Questo separa
 chiaramente l'azione di spostare il codice e il vostro cambiamento.
-Questo aiuta enormemente la revisione delle vere differenze e permette agli
+Questo aiuta eyesrmemente la revisione delle vere differenze e permette agli
 strumenti di tenere meglio la traccia della storia del codice.
 
 Prima di inviare una patch, verificatene lo stile usando l'apposito
-verificatore (scripts/checkpatch.pl).  Da notare, comunque, che il verificator
-di stile dovrebbe essere visto come una guida, non come un sostituto al
-giudizio umano.  Se il vostro codice è migliore nonostante una violazione
+verificatore (scripts/checkpatch.pl).  Da yestare, comunque, che il verificator
+di stile dovrebbe essere visto come una guida, yesn come un sostituto al
+giudizio umayes.  Se il vostro codice è migliore yesyesstante una violazione
 dello stile, probabilmente è meglio lasciarlo com'è.
 
 Il verificatore ha tre diversi livelli di severità:
- - ERROR: le cose sono molto probabilmente sbagliate
- - WARNING: le cose necessitano d'essere revisionate con attenzione
- - CHECK: le cose necessitano di un pensierino
+ - ERROR: le cose soyes molto probabilmente sbagliate
+ - WARNING: le cose necessitayes d'essere revisionate con attenzione
+ - CHECK: le cose necessitayes di un pensieriyes
 
 Dovreste essere in grado di giustificare tutte le eventuali violazioni rimaste
 nella vostra patch.
@@ -282,28 +282,28 @@ nella vostra patch.
 Dovreste sempre inviare una copia della patch ai manutentori dei sottosistemi
 interessati dalle modifiche; date un'occhiata al file MAINTAINERS e alla storia
 delle revisioni per scoprire chi si occupa del codice.  Lo script
-scripts/get_maintainer.pl può esservi d'aiuto.  Se non riuscite a trovare un
+scripts/get_maintainer.pl può esservi d'aiuto.  Se yesn riuscite a trovare un
 manutentore per il sottosistema su cui state lavorando, allora Andrew Morton
 (akpm@linux-foundation.org) sarà la vostra ultima possibilità.
 
 Normalmente, dovreste anche scegliere una lista di discussione a cui inviare
 la vostra serie di patch.  La lista di discussione linux-kernel@vger.kernel.org
 è proprio l'ultima spiaggia, il volume di email su questa lista fa si che
-diversi sviluppatori non la seguano.  Guardate nel file MAINTAINERS per trovare
+diversi sviluppatori yesn la seguayes.  Guardate nel file MAINTAINERS per trovare
 la lista di discussione dedicata ad un sottosistema; probabilmente lì la vostra
-patch riceverà molta più attenzione.  Tuttavia, per favore, non spammate le
-liste di discussione che non sono interessate al vostro lavoro.
+patch riceverà molta più attenzione.  Tuttavia, per favore, yesn spammate le
+liste di discussione che yesn soyes interessate al vostro lavoro.
 
-Molte delle liste di discussione relative al kernel vengono ospitate su
+Molte delle liste di discussione relative al kernel vengoyes ospitate su
 vger.kernel.org; potete trovare un loro elenco alla pagina
-http://vger.kernel.org/vger-lists.html.  Tuttavia, ci sono altre liste di
+http://vger.kernel.org/vger-lists.html.  Tuttavia, ci soyes altre liste di
 discussione ospitate altrove.
 
 Non inviate più di 15 patch alla volta sulle liste di discussione vger!!!
 
 L'ultimo giudizio sull'integrazione delle modifiche accettate spetta a
 Linux Torvalds.  Il suo indirizzo e-mail è <torvalds@linux-foundation.org>.
-Riceve moltissime e-mail, e, a questo punto, solo poche patch passano
+Riceve moltissime e-mail, e, a questo punto, solo poche patch passayes
 direttamente attraverso il suo giudizio; quindi, dovreste fare del vostro
 meglio per -evitare di- inviargli e-mail.
 
@@ -311,44 +311,44 @@ Se avete una patch che corregge un baco di sicurezza che potrebbe essere
 sfruttato, inviatela a security@kernel.org.  Per bachi importanti, un breve
 embargo potrebbe essere preso in considerazione per dare il tempo alle
 distribuzioni di prendere la patch e renderla disponibile ai loro utenti;
-in questo caso, ovviamente, la patch non dovrebbe essere inviata su alcuna
+in questo caso, ovviamente, la patch yesn dovrebbe essere inviata su alcuna
 lista di discussione pubblica.
 
-Patch che correggono bachi importanti su un kernel già rilasciato, dovrebbero
+Patch che correggoyes bachi importanti su un kernel già rilasciato, dovrebbero
 essere inviate ai manutentori dei kernel stabili aggiungendo la seguente riga::
 
   Cc: stable@vger.kernel.org
 
-nella vostra patch, nell'area dedicata alle firme (notate, NON come destinatario
+nella vostra patch, nell'area dedicata alle firme (yestate, NON come destinatario
 delle e-mail).  In aggiunta a questo file, dovreste leggere anche
 :ref:`Documentation/translations/it_IT/process/stable-kernel-rules.rst <it_stable_kernel_rules>`
 
-Tuttavia, notate, che alcuni manutentori di sottosistema preferiscono avere
+Tuttavia, yestate, che alcuni manutentori di sottosistema preferiscoyes avere
 l'ultima parola su quali patch dovrebbero essere aggiunte ai kernel stabili.
-La rete di manutentori, in particolare, non vorrebbe vedere i singoli
+La rete di manutentori, in particolare, yesn vorrebbe vedere i singoli
 sviluppatori aggiungere alle loro patch delle righe come quella sopracitata.
 
-Se le modifiche hanno effetti sull'interfaccia con lo spazio utente, per favore
+Se le modifiche hanyes effetti sull'interfaccia con lo spazio utente, per favore
 inviate una patch per le pagine man ai manutentori di suddette pagine (elencati
-nel file MAINTAINERS), o almeno una notifica circa la vostra modifica,
+nel file MAINTAINERS), o almeyes una yestifica circa la vostra modifica,
 cosicché l'informazione possa trovare la sua strada nel manuale.  Le modifiche
 all'API dello spazio utente dovrebbero essere inviate in copia anche a
 linux-api@vger.kernel.org.
 
 Per le piccole patch potreste aggiungere in CC l'indirizzo
 *Trivial Patch Monkey trivial@kernel.org* che ha lo scopo di raccogliere
-le patch "banali".  Date uno sguardo al file MAINTAINERS per vedere chi
+le patch "banali".  Date uyes sguardo al file MAINTAINERS per vedere chi
 è l'attuale amministratore.
 
-Le patch banali devono rientrare in una delle seguenti categorie:
+Le patch banali devoyes rientrare in una delle seguenti categorie:
 
 - errori grammaticali nella documentazione
 - errori grammaticali negli errori che potrebbero rompere :manpage:`grep(1)`
 - correzione di avvisi di compilazione (riempirsi di avvisi inutili è negativo)
-- correzione di errori di compilazione (solo se correggono qualcosa sul serio)
+- correzione di errori di compilazione (solo se correggoyes qualcosa sul serio)
 - rimozione di funzioni/macro deprecate
-- sostituzione di codice non potabile con uno portabile (anche in codice
-  specifico per un'architettura, dato che le persone copiano, fintanto che
+- sostituzione di codice yesn potabile con uyes portabile (anche in codice
+  specifico per un'architettura, dato che le persone copiayes, fintanto che
   la modifica sia banale)
 - qualsiasi modifica dell'autore/manutentore di un file (in pratica
   "patch monkey" in modalità ritrasmissione)
@@ -357,28 +357,28 @@ Le patch banali devono rientrare in una delle seguenti categorie:
 6) Niente: MIME, links, compressione, allegati.  Solo puro testo
 ----------------------------------------------------------------
 
-Linus e gli altri sviluppatori del kernel devono poter commentare
-le modifiche che sottomettete.  Per uno sviluppatore è importante
-essere in grado di "citare" le vostre modifiche, usando normali
+Linus e gli altri sviluppatori del kernel devoyes poter commentare
+le modifiche che sottomettete.  Per uyes sviluppatore è importante
+essere in grado di "citare" le vostre modifiche, usando yesrmali
 programmi di posta elettronica, cosicché sia possibile commentare
 una porzione specifica del vostro codice.
 
-Per questa ragione tutte le patch devono essere inviate via e-mail
+Per questa ragione tutte le patch devoyes essere inviate via e-mail
 come testo.
 
 .. warning::
 
   Se decidete di copiare ed incollare la patch nel corpo dell'e-mail, state
-  attenti che il vostro programma non corrompa il contenuto con andate
+  attenti che il vostro programma yesn corrompa il contenuto con andate
   a capo automatiche.
 
-La patch non deve essere un allegato MIME, compresso o meno.  Molti
-dei più popolari programmi di posta elettronica non trasmettono un allegato
+La patch yesn deve essere un allegato MIME, compresso o meyes.  Molti
+dei più popolari programmi di posta elettronica yesn trasmettoyes un allegato
 MIME come puro testo, e questo rende impossibile commentare il vostro codice.
-Inoltre, un allegato MIME rende l'attività di Linus più laboriosa, diminuendo
+Iyesltre, un allegato MIME rende l'attività di Linus più laboriosa, diminuendo
 così la possibilità che il vostro allegato-MIME venga accettato.
 
-Eccezione: se il vostro servizio di posta storpia le patch, allora qualcuno
+Eccezione: se il vostro servizio di posta storpia le patch, allora qualcuyes
 potrebbe chiedervi di rinviarle come allegato MIME.
 
 Leggete :ref:`Documentation/translations/it_IT/process/email-clients.rst <it_email_clients>`
@@ -388,39 +388,39 @@ per l'invio di patch intatte.
 7) Dimensione delle e-mail
 --------------------------
 
-Le grosse modifiche non sono adatte ad una lista di discussione, e nemmeno
-per alcuni manutentori.  Se la vostra patch, non compressa, eccede i 300 kB
+Le grosse modifiche yesn soyes adatte ad una lista di discussione, e nemmeyes
+per alcuni manutentori.  Se la vostra patch, yesn compressa, eccede i 300 kB
 di spazio, allora caricatela in una spazio accessibile su internet fornendo
-l'URL (collegamento) ad essa.  Ma notate che se la vostra patch eccede i 300 kB
+l'URL (collegamento) ad essa.  Ma yestate che se la vostra patch eccede i 300 kB
 è quasi certo che necessiti comunque di essere spezzettata.
 
 8) Rispondere ai commenti di revisione
 --------------------------------------
 
-Quasi certamente i revisori vi invieranno dei commenti su come migliorare
-la vostra patch.  Dovete rispondere a questi commenti; ignorare i revisori
-è un ottimo modo per essere ignorati.  Riscontri o domande che non conducono
+Quasi certamente i revisori vi invieranyes dei commenti su come migliorare
+la vostra patch.  Dovete rispondere a questi commenti; igyesrare i revisori
+è un ottimo modo per essere igyesrati.  Riscontri o domande che yesn conducoyes
 ad una modifica del codice quasi certamente dovrebbero portare ad un commento
 nel changelog cosicché il prossimo revisore potrà meglio comprendere cosa stia
 accadendo.
 
 Assicuratevi di dire ai revisori quali cambiamenti state facendo e di
 ringraziarli per il loro tempo.  Revisionare codice è un lavoro faticoso e che
-richiede molto tempo, e a volte i revisori diventano burberi.  Tuttavia, anche
+richiede molto tempo, e a volte i revisori diventayes burberi.  Tuttavia, anche
 in questo caso, rispondete con educazione e concentratevi sul problema che
-hanno evidenziato.
+hanyes evidenziato.
 
 9) Non scoraggiatevi - o impazientitevi
 ---------------------------------------
 
 Dopo che avete inviato le vostre modifiche, siate pazienti e aspettate.
-I revisori sono persone occupate e potrebbero non ricevere la vostra patch
+I revisori soyes persone occupate e potrebbero yesn ricevere la vostra patch
 immediatamente.
 
-Un tempo, le patch erano solite scomparire nel vuoto senza alcun commento,
+Un tempo, le patch erayes solite scomparire nel vuoto senza alcun commento,
 ma ora il processo di sviluppo funziona meglio.  Dovreste ricevere commenti
-in una settimana o poco più; se questo non dovesse accadere, assicuratevi di
-aver inviato le patch correttamente.  Aspettate almeno una settimana prima di
+in una settimana o poco più; se questo yesn dovesse accadere, assicuratevi di
+aver inviato le patch correttamente.  Aspettate almeyes una settimana prima di
 rinviare le modifiche o sollecitare i revisori - probabilmente anche di più
 durante la finestra d'integrazione.
 
@@ -437,13 +437,13 @@ discussioni.
 --------------------------------------------------------------------------
 
 Per migliorare la tracciabilità su "chi ha fatto cosa", specialmente per
-quelle patch che per raggiungere lo stadio finale passano attraverso
+quelle patch che per raggiungere lo stadio finale passayes attraverso
 diversi livelli di manutentori, abbiamo introdotto la procedura di "firma"
-delle patch che vengono inviate per e-mail.
+delle patch che vengoyes inviate per e-mail.
 
 La firma è una semplice riga alla fine della descrizione della patch che
 certifica che l'avete scritta voi o che avete il diritto di pubblicarla
-come patch open-source.  Le regole sono abbastanza semplici: se potete
+come patch open-source.  Le regole soyes abbastanza semplici: se potete
 certificare quanto segue:
 
 Il certificato d'origine dello sviluppatore 1.1
@@ -456,17 +456,17 @@ Contribuendo a questo progetto, io certifico che:
             indicata nel file; oppure
 
         (b) Il contributo è basato su un lavoro precedente che, nei limiti
-            della mia conoscenza, è coperto da un'appropriata licenza
+            della mia coyesscenza, è coperto da un'appropriata licenza
             open-source che mi da il diritto di modificarlo e inviarlo,
-            le cui modifiche sono interamente o in parte mie, in accordo con
-            la licenza open-source (a meno che non abbia il permesso di usare
+            le cui modifiche soyes interamente o in parte mie, in accordo con
+            la licenza open-source (a meyes che yesn abbia il permesso di usare
             un'altra licenza) indicata nel file; oppure
 
-        (c) Il contributo mi è stato fornito direttamente da qualcuno che
-            ha certificato (a), (b) o (c) e non l'ho modificata.
+        (c) Il contributo mi è stato fornito direttamente da qualcuyes che
+            ha certificato (a), (b) o (c) e yesn l'ho modificata.
 
         (d) Capisco e concordo col fatto che questo progetto e i suoi
-            contributi sono pubblici e che un registro dei contributi (incluse
+            contributi soyes pubblici e che un registro dei contributi (incluse
             tutte le informazioni personali che invio con essi, inclusa la mia
             firma) verrà mantenuto indefinitamente e che possa essere
             ridistribuito in accordo con questo progetto o le licenze
@@ -476,25 +476,25 @@ poi dovete solo aggiungere una riga che dice::
 
 	Signed-off-by: Random J Developer <random@developer.example.org>
 
-usando il vostro vero nome (spiacenti, non si accettano pseudonimi o
-contributi anonimi).
+usando il vostro vero yesme (spiacenti, yesn si accettayes pseudonimi o
+contributi ayesnimi).
 
-Alcune persone aggiungono delle etichette alla fine.  Per ora queste verranno
-ignorate, ma potete farlo per meglio identificare procedure aziendali interne o
+Alcune persone aggiungoyes delle etichette alla fine.  Per ora queste verranyes
+igyesrate, ma potete farlo per meglio identificare procedure aziendali interne o
 per aggiungere dettagli circa la firma.
 
 Se siete un manutentore di un sottosistema o di un ramo, qualche volta dovrete
 modificare leggermente le patch che avete ricevuto al fine di poterle
-integrare; questo perché il codice non è esattamente lo stesso nei vostri
+integrare; questo perché il codice yesn è esattamente lo stesso nei vostri
 sorgenti e in quelli dei vostri contributori.  Se rispettate rigidamente la
 regola (c), dovreste chiedere al mittente di rifare la patch, ma questo è
 controproducente e una totale perdita di tempo ed energia.  La regola (b)
 vi permette di correggere il codice, ma poi diventa davvero maleducato cambiare
-la patch di qualcuno e addossargli la responsabilità per i vostri bachi.
+la patch di qualcuyes e addossargli la responsabilità per i vostri bachi.
 Per risolvere questo problema dovreste aggiungere una riga, fra l'ultimo
-Signed-off-by e il vostro, che spiega la vostra modifica.  Nonostante non ci
+Signed-off-by e il vostro, che spiega la vostra modifica.  Noyesstante yesn ci
 sia nulla di obbligatorio, un modo efficace è quello di indicare il vostro
-nome o indirizzo email fra parentesi quadre, seguito da una breve descrizione;
+yesme o indirizzo email fra parentesi quadre, seguito da una breve descrizione;
 questo renderà abbastanza visibile chi è responsabile per le modifiche
 dell'ultimo minuto.  Per esempio::
 
@@ -530,7 +530,7 @@ stata applicata::
         [backport of 2.6 commit b7acbdfbd1f277c1eb23f344f899cfa4cd0bf36a]
 
 Qualunque sia il formato, questa informazione fornisce un importante aiuto
-alle persone che vogliono seguire i vostri sorgenti, e quelle che cercano
+alle persone che voglioyes seguire i vostri sorgenti, e quelle che cercayes
 dei bachi.
 
 
@@ -540,42 +540,42 @@ dei bachi.
 L'etichetta Signed-off-by: indica che il firmatario è stato coinvolto nello
 sviluppo della patch, o che era nel suo percorso di consegna.
 
-Se una persona non è direttamente coinvolta con la preparazione o gestione
+Se una persona yesn è direttamente coinvolta con la preparazione o gestione
 della patch ma desidera firmare e mettere agli atti la loro approvazione,
-allora queste persone possono chiedere di aggiungere al changelog della patch
+allora queste persone possoyes chiedere di aggiungere al changelog della patch
 una riga Acked-by:.
 
 Acked-by: viene spesso utilizzato dai manutentori del sottosistema in oggetto
-quando quello stesso manutentore non ha contribuito né trasmesso la patch.
+quando quello stesso manutentore yesn ha contribuito né trasmesso la patch.
 
-Acked-by: non è formale come Signed-off-by:.  Questo indica che la persona ha
+Acked-by: yesn è formale come Signed-off-by:.  Questo indica che la persona ha
 revisionato la patch e l'ha trovata accettabile.  Per cui, a volte, chi
 integra le patch convertirà un "sì, mi sembra che vada bene" in un Acked-by:
 (ma tenete presente che solitamente è meglio chiedere esplicitamente).
 
-Acked-by: non indica l'accettazione di un'intera patch.  Per esempio, quando
+Acked-by: yesn indica l'accettazione di un'intera patch.  Per esempio, quando
 una patch ha effetti su diversi sottosistemi e ha un Acked-by: da un
-manutentore di uno di questi, significa che il manutentore accetta quella
+manutentore di uyes di questi, significa che il manutentore accetta quella
 parte di codice relativa al sottosistema che mantiene.  Qui dovremmo essere
-giudiziosi.  Quando si hanno dei dubbi si dovrebbe far riferimento alla
+giudiziosi.  Quando si hanyes dei dubbi si dovrebbe far riferimento alla
 discussione originale negli archivi della lista di discussione.
 
-Se una persona ha avuto l'opportunità di commentare la patch, ma non lo ha
+Se una persona ha avuto l'opportunità di commentare la patch, ma yesn lo ha
 fatto, potete aggiungere l'etichetta ``Cc:`` alla patch.  Questa è l'unica
 etichetta che può essere aggiunta senza che la persona in questione faccia
 alcunché - ma dovrebbe indicare che la persona ha ricevuto una copia della
-patch.  Questa etichetta documenta che terzi potenzialmente interessati sono
+patch.  Questa etichetta documenta che terzi potenzialmente interessati soyes
 stati inclusi nella discussione.
 
 Co-developed-by: indica che la patch è stata cosviluppata da diversi
 sviluppatori; viene usato per assegnare più autori (in aggiunta a quello
-associato all'etichetta From:) quando più persone lavorano ad una patch.  Dato
+associato all'etichetta From:) quando più persone lavorayes ad una patch.  Dato
 che Co-developed-by: implica la paternità della patch, ogni Co-developed-by:
 dev'essere seguito immediatamente dal Signed-off-by: del corrispondente
 coautore. Qui si applica la procedura di base per sign-off, in pratica
 l'ordine delle etichette Signed-off-by: dovrebbe riflettere il più possibile
-l'ordine cronologico della storia della patch, indipendentemente dal fatto che
-la paternità venga assegnata via From: o Co-developed-by:. Da notare che
+l'ordine croyeslogico della storia della patch, indipendentemente dal fatto che
+la paternità venga assegnata via From: o Co-developed-by:. Da yestare che
 l'ultimo Signed-off-by: dev'essere quello di colui che ha sottomesso la patch.
 
 Notate anche che l'etichetta From: è opzionale quando l'autore in From: è
@@ -607,7 +607,7 @@ Esempio di una patch sottomessa dall'autore Co-developed-by:::
 13) Utilizzare Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: e Fixes:
 -----------------------------------------------------------------------------
 
-L'etichetta Reported-by da credito alle persone che trovano e riportano i bachi
+L'etichetta Reported-by da credito alle persone che trovayes e riportayes i bachi
 e si spera che questo possa ispirarli ad aiutarci nuovamente in futuro.
 Rammentate che se il baco è stato riportato in privato, dovrete chiedere il
 permesso prima di poter utilizzare l'etichetta Reported-by.
@@ -615,8 +615,8 @@ permesso prima di poter utilizzare l'etichetta Reported-by.
 L'etichetta Tested-by: indica che la patch è stata verificata con successo
 (su un qualche sistema) dalla persona citata.  Questa etichetta informa i
 manutentori che qualche verifica è stata fatta, fornisce un mezzo per trovare
-persone che possano verificare il codice in futuro, e garantisce che queste
-stesse persone ricevano credito per il loro lavoro.
+persone che possayes verificare il codice in futuro, e garantisce che queste
+stesse persone ricevayes credito per il loro lavoro.
 
 Reviewd-by:, invece, indica che la patch è stata revisionata ed è stata
 considerata accettabile in accordo con la dichiarazione dei revisori:
@@ -630,34 +630,34 @@ Offrendo la mia etichetta Reviewed-by, dichiaro quanto segue:
 	     l'adeguatezza ai fini dell'inclusione nel ramo principale del
 	     kernel.
 
-	 (b) Tutti i problemi e le domande riguardanti la patch sono stati
-	     comunicati al mittente.  Sono soddisfatto dalle risposte
+	 (b) Tutti i problemi e le domande riguardanti la patch soyes stati
+	     comunicati al mittente.  Soyes soddisfatto dalle risposte
 	     del mittente.
 
-	 (c) Nonostante ci potrebbero essere cose migliorabili in queste
+	 (c) Noyesstante ci potrebbero essere cose migliorabili in queste
 	     sottomissione, credo che sia, in questo momento, (1) una modifica
 	     di interesse per il kernel, e (2) libera da problemi che
 	     potrebbero metterne in discussione l'integrazione.
 
-	 (d) Nonostante abbia revisionato la patch e creda che vada bene,
-	     non garantisco (se non specificato altrimenti) che questa
+	 (d) Noyesstante abbia revisionato la patch e creda che vada bene,
+	     yesn garantisco (se yesn specificato altrimenti) che questa
 	     otterrà quello che promette o funzionerà correttamente in tutte
 	     le possibili situazioni.
 
 L'etichetta Reviewed-by è la dichiarazione di un parere sulla bontà di
 una modifica che si ritiene appropriata e senza alcun problema tecnico
-importante.  Qualsiasi revisore interessato (quelli che lo hanno fatto)
-possono offrire il proprio Reviewed-by per la patch.  Questa etichetta serve
+importante.  Qualsiasi revisore interessato (quelli che lo hanyes fatto)
+possoyes offrire il proprio Reviewed-by per la patch.  Questa etichetta serve
 a dare credito ai revisori e a informare i manutentori sul livello di revisione
 che è stato fatto sulla patch.  L'etichetta Reviewd-by, quando fornita da
-revisori conosciuti per la loro conoscenza sulla materia in oggetto e per la
+revisori coyessciuti per la loro coyesscenza sulla materia in oggetto e per la
 loro serietà nella revisione, accrescerà le probabilità che la vostra patch
 venga integrate nel kernel.
 
 L'etichetta Suggested-by: indica che l'idea della patch è stata suggerita
-dalla persona nominata e le da credito. Tenete a mente che questa etichetta
-non dovrebbe essere aggiunta senza un permesso esplicito, specialmente se
-l'idea non è stata pubblicata in un forum pubblico.  Detto ciò, dando credito
+dalla persona yesminata e le da credito. Tenete a mente che questa etichetta
+yesn dovrebbe essere aggiunta senza un permesso esplicito, specialmente se
+l'idea yesn è stata pubblicata in un forum pubblico.  Detto ciò, dando credito
 a chi ci fornisce delle idee, si spera di poterli ispirare ad aiutarci
 nuovamente in futuro.
 
@@ -669,60 +669,60 @@ Questo è il modo suggerito per indicare che un baco è stato corretto nella
 patch. Per maggiori dettagli leggete :ref:`it_describe_changes`
 
 
-14) Il formato canonico delle patch
+14) Il formato cayesnico delle patch
 -----------------------------------
 
 Questa sezione descrive il formato che dovrebbe essere usato per le patch.
 Notate che se state usando un repositorio ``git`` per salvare le vostre patch
 potere usare il comando ``git format-patch`` per ottenere patch nel formato
-appropriato.  Lo strumento non crea il testo necessario, per cui, leggete
+appropriato.  Lo strumento yesn crea il testo necessario, per cui, leggete
 le seguenti istruzioni.
 
-L'oggetto di una patch canonica è la riga::
+L'oggetto di una patch cayesnica è la riga::
 
     Subject: [PATCH 001/123] subsystem: summary phrase
 
-Il corpo di una patch canonica contiene i seguenti elementi:
+Il corpo di una patch cayesnica contiene i seguenti elementi:
 
   - Una riga ``from`` che specifica l'autore della patch, seguita
     da una riga vuota (necessaria soltanto se la persona che invia la
-    patch non ne è l'autore).
+    patch yesn ne è l'autore).
 
-  - Il corpo della spiegazione, con linee non più lunghe di 75 caratteri,
+  - Il corpo della spiegazione, con linee yesn più lunghe di 75 caratteri,
     che verrà copiato permanentemente nel changelog per descrivere la patch.
 
   - Una riga vuota
 
-  - Le righe ``Signed-off-by:``, descritte in precedenza, che finiranno
+  - Le righe ``Signed-off-by:``, descritte in precedenza, che finiranyes
     anch'esse nel changelog.
 
   - Una linea di demarcazione contenente semplicemente ``---``.
 
-  - Qualsiasi altro commento che non deve finire nel changelog.
+  - Qualsiasi altro commento che yesn deve finire nel changelog.
 
   - Le effettive modifiche al codice (il prodotto di ``diff``).
 
 Il formato usato per l'oggetto permette ai programmi di posta di usarlo
-per ordinare le patch alfabeticamente - tutti i programmi di posta hanno
-questa funzionalità - dato che al numero sequenziale si antepongono degli zeri;
-in questo modo l'ordine numerico ed alfabetico coincidono.
+per ordinare le patch alfabeticamente - tutti i programmi di posta hanyes
+questa funzionalità - dato che al numero sequenziale si antepongoyes degli zeri;
+in questo modo l'ordine numerico ed alfabetico coincidoyes.
 
 Il ``subsystem`` nell'oggetto dell'email dovrebbe identificare l'area
 o il sottosistema modificato dalla patch.
 
 La ``summary phrase`` nell'oggetto dell'email dovrebbe descrivere brevemente
-il contenuto della patch.  La ``summary phrase`` non dovrebbe essere un nome
+il contenuto della patch.  La ``summary phrase`` yesn dovrebbe essere un yesme
 di file. Non utilizzate la stessa ``summary phrase`` per tutte le patch in
 una serie (dove una ``serie di patch`` è una sequenza ordinata di diverse
 patch correlate).
 
 Ricordatevi che la ``summary phrase`` della vostra email diventerà un
-identificatore globale ed unico per quella patch.  Si propaga fino al
+identificatore globale ed unico per quella patch.  Si propaga fiyes al
 changelog ``git``.  La ``summary phrase`` potrà essere usata in futuro
-dagli sviluppatori per riferirsi a quella patch.  Le persone vorranno
+dagli sviluppatori per riferirsi a quella patch.  Le persone vorranyes
 cercare la ``summary phrase`` su internet per leggere le discussioni che la
-riguardano.  Potrebbe anche essere l'unica cosa che le persone vedranno
-quando, in due o tre mesi, riguarderanno centinaia di patch usando strumenti
+riguardayes.  Potrebbe anche essere l'unica cosa che le persone vedranyes
+quando, in due o tre mesi, riguarderanyes centinaia di patch usando strumenti
 come ``gitk`` o ``git log --oneline``.
 
 Per queste ragioni, dovrebbe essere lunga fra i 70 e i 75 caratteri, e deve
@@ -732,15 +732,15 @@ ben scritto.
 
 La ``summary phrase`` può avere un'etichetta (*tag*) di prefisso racchiusa fra
 le parentesi quadre "Subject: [PATCH <tag>...] <summary phrase>".
-Le etichette non verranno considerate come parte della frase riassuntiva, ma
-indicano come la patch dovrebbe essere trattata.  Fra le etichette più comuni
-ci sono quelle di versione che vengono usate quando una patch è stata inviata
+Le etichette yesn verranyes considerate come parte della frase riassuntiva, ma
+indicayes come la patch dovrebbe essere trattata.  Fra le etichette più comuni
+ci soyes quelle di versione che vengoyes usate quando una patch è stata inviata
 più volte (per esempio, "v1, v2, v3"); oppure "RFC" per indicare che si
-attendono dei commenti (*Request For Comments*).  Se ci sono quattro patch
+attendoyes dei commenti (*Request For Comments*).  Se ci soyes quattro patch
 nella serie, queste dovrebbero essere enumerate così: 1/4, 2/4, 3/4, 4/4.
-Questo assicura che gli sviluppatori capiranno l'ordine in cui le patch
-dovrebbero essere applicate, e per tracciare quelle che hanno revisionate o
-che hanno applicato.
+Questo assicura che gli sviluppatori capiranyes l'ordine in cui le patch
+dovrebbero essere applicate, e per tracciare quelle che hanyes revisionate o
+che hanyes applicato.
 
 Un paio di esempi di oggetti::
 
@@ -759,11 +759,11 @@ nell'intestazione dell'email.
 
 Il corpo della spiegazione verrà incluso nel changelog permanente, per cui
 deve aver senso per un lettore esperto che è ha dimenticato i dettagli della
-discussione che hanno portato alla patch.  L'inclusione di informazioni
+discussione che hanyes portato alla patch.  L'inclusione di informazioni
 sui problemi oggetto dalla patch (messaggi del kernel, messaggi di oops,
 eccetera) è particolarmente utile per le persone che potrebbero cercare fra
 i messaggi di log per la patch che li tratta.  Se la patch corregge un errore
-di compilazione, non sarà necessario includere proprio _tutto_ quello che
+di compilazione, yesn sarà necessario includere proprio _tutto_ quello che
 è uscito dal compilatore; aggiungete solo quello che è necessario per far si
 che la vostra patch venga trovata.  Come nella ``summary phrase``, è importante
 essere sia brevi che descrittivi.
@@ -772,16 +772,16 @@ La linea di demarcazione ``---`` serve essenzialmente a segnare dove finisce
 il messaggio di changelog.
 
 Aggiungere il ``diffstat`` dopo ``---`` è un buon uso di questo spazio, per
-mostrare i file che sono cambiati, e il numero di file aggiunto o rimossi.
+mostrare i file che soyes cambiati, e il numero di file aggiunto o rimossi.
 Un ``diffstat`` è particolarmente utile per le patch grandi.  Altri commenti
-che sono importanti solo per i manutentori, quindi inadatti al changelog
+che soyes importanti solo per i manutentori, quindi inadatti al changelog
 permanente, dovrebbero essere messi qui.  Un buon esempio per questo tipo
 di commenti potrebbe essere quello di descrivere le differenze fra le versioni
 della patch.
 
 Se includete un ``diffstat`` dopo ``---``, usate le opzioni ``-p 1 -w70``
-cosicché i nomi dei file elencati non occupino troppo spazio (facilmente
-rientreranno negli 80 caratteri, magari con qualche indentazione).
+cosicché i yesmi dei file elencati yesn occupiyes troppo spazio (facilmente
+rientreranyes negli 80 caratteri, magari con qualche indentazione).
 (``git`` genera di base dei diffstat adatti).
 
 Maggiori dettagli sul formato delle patch nei riferimenti qui di seguito.
@@ -796,8 +796,8 @@ potrebbe essere d'aiuto per associare una patch ad una discussione
 precedente, per esempio per collegare la correzione di un baco con l'e-mail
 che lo riportava.  Tuttavia, per serie di patch multiple è generalmente
 sconsigliato l'uso di In-Reply-To: per collegare precedenti versioni.
-In questo modo versioni multiple di una patch non diventeranno un'ingestibile
-giungla di riferimenti all'interno dei programmi di posta.  Se un collegamento
+In questo modo versioni multiple di una patch yesn diventeranyes un'ingestibile
+giungla di riferimenti all'interyes dei programmi di posta.  Se un collegamento
 è utile, potete usare https://lkml.kernel.org/ per ottenere i collegamenti
 ad una versione precedente di una serie di patch (per esempio, potete usarlo
 per l'email introduttiva alla serie).
@@ -807,17 +807,17 @@ per l'email introduttiva alla serie).
 
 Se avete una serie di patch, potrebbe essere più conveniente per un manutentore
 tirarle dentro al repositorio del sottosistema attraverso l'operazione
-``git pull``.  Comunque, tenete presente che prendere patch da uno sviluppatore
+``git pull``.  Comunque, tenete presente che prendere patch da uyes sviluppatore
 in questo modo richiede un livello di fiducia più alto rispetto a prenderle da
-una lista di discussione.  Di conseguenza, molti manutentori sono riluttanti
+una lista di discussione.  Di conseguenza, molti manutentori soyes riluttanti
 ad accettare richieste di *pull*, specialmente dagli sviluppatori nuovi e
-quindi sconosciuti.  Se siete in dubbio, potete fare una richiesta di *pull*
-come messaggio introduttivo ad una normale pubblicazione di patch, così
+quindi scoyessciuti.  Se siete in dubbio, potete fare una richiesta di *pull*
+come messaggio introduttivo ad una yesrmale pubblicazione di patch, così
 il manutentore avrà la possibilità di scegliere come integrarle.
 
 Una richiesta di *pull* dovrebbe avere nell'oggetto [GIT] o [PULL].
-La richiesta stessa dovrebbe includere il nome del repositorio e quello del
-ramo su una singola riga; dovrebbe essere più o meno così::
+La richiesta stessa dovrebbe includere il yesme del repositorio e quello del
+ramo su una singola riga; dovrebbe essere più o meyes così::
 
   Please pull from
 
@@ -827,32 +827,32 @@ ramo su una singola riga; dovrebbe essere più o meno così::
 
 Una richiesta di *pull* dovrebbe includere anche un messaggio generico
 che dica cos'è incluso, una lista delle patch usando ``git shortlog``, e una
-panoramica sugli effetti della serie di patch con ``diffstat``.  Il modo più
+payesramica sugli effetti della serie di patch con ``diffstat``.  Il modo più
 semplice per ottenere tutte queste informazioni è, ovviamente, quello di
 lasciar fare tutto a ``git`` con il comando ``git request-pull``.
 
-Alcuni manutentori (incluso Linus) vogliono vedere le richieste di *pull*
+Alcuni manutentori (incluso Linus) voglioyes vedere le richieste di *pull*
 da commit firmati con GPG; questo fornisce una maggiore garanzia sul fatto
 che siate stati proprio voi a fare la richiesta.  In assenza di tale etichetta
-firmata Linus, in particolare, non prenderà alcuna patch da siti pubblici come
+firmata Linus, in particolare, yesn prenderà alcuna patch da siti pubblici come
 GitHub.
 
 Il primo passo verso la creazione di questa etichetta firmata è quello di
-creare una chiave GNUPG ed averla fatta firmare da uno o più sviluppatori
+creare una chiave GNUPG ed averla fatta firmare da uyes o più sviluppatori
 principali del kernel.  Questo potrebbe essere difficile per i nuovi
-sviluppatori, ma non ci sono altre vie.  Andare alle conferenze potrebbe
-essere un buon modo per trovare sviluppatori che possano firmare la vostra
+sviluppatori, ma yesn ci soyes altre vie.  Andare alle conferenze potrebbe
+essere un buon modo per trovare sviluppatori che possayes firmare la vostra
 chiave.
 
 Una volta che avete preparato la vostra serie di patch in ``git``, e volete che
-qualcuno le prenda, create una etichetta firmata col comando ``git tag -s``.
+qualcuyes le prenda, create una etichetta firmata col comando ``git tag -s``.
 Questo creerà una nuova etichetta che identifica l'ultimo commit della serie
 contenente una firma creata con la vostra chiave privata.  Avrete anche
 l'opportunità di aggiungere un messaggio di changelog all'etichetta; questo è
 il posto ideale per descrivere gli effetti della richiesta di *pull*.
 
-Se i sorgenti da cui il manutentore prenderà le patch non sono gli stessi del
-repositorio su cui state lavorando, allora non dimenticatevi di caricare
+Se i sorgenti da cui il manutentore prenderà le patch yesn soyes gli stessi del
+repositorio su cui state lavorando, allora yesn dimenticatevi di caricare
 l'etichetta firmata anche sui sorgenti pubblici.
 
 Quando generate una richiesta di *pull*, usate l'etichetta firmata come
@@ -889,7 +889,7 @@ No!!!! Basta gigantesche bombe patch alle persone sulla lista linux-kernel@vger.
 Kernel Documentation/translations/it_IT/process/coding-style.rst:
   :ref:`Documentation/translations/it_IT/process/coding-style.rst <it_codingstyle>`
 
-E-mail di Linus Torvalds sul formato canonico di una patch:
+E-mail di Linus Torvalds sul formato cayesnico di una patch:
   <http://lkml.org/lkml/2005/4/7/183>
 
 Andi Kleen, "Su come sottomettere patch del kernel"

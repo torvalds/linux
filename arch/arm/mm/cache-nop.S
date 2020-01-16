@@ -5,43 +5,43 @@
 
 #include "proc-macros.S"
 
-ENTRY(nop_flush_icache_all)
+ENTRY(yesp_flush_icache_all)
 	ret	lr
-ENDPROC(nop_flush_icache_all)
+ENDPROC(yesp_flush_icache_all)
 
-	.globl nop_flush_kern_cache_all
-	.equ nop_flush_kern_cache_all, nop_flush_icache_all
+	.globl yesp_flush_kern_cache_all
+	.equ yesp_flush_kern_cache_all, yesp_flush_icache_all
 
-	.globl nop_flush_kern_cache_louis
-	.equ nop_flush_kern_cache_louis, nop_flush_icache_all
+	.globl yesp_flush_kern_cache_louis
+	.equ yesp_flush_kern_cache_louis, yesp_flush_icache_all
 
-	.globl nop_flush_user_cache_all
-	.equ nop_flush_user_cache_all, nop_flush_icache_all
+	.globl yesp_flush_user_cache_all
+	.equ yesp_flush_user_cache_all, yesp_flush_icache_all
 
-	.globl nop_flush_user_cache_range
-	.equ nop_flush_user_cache_range, nop_flush_icache_all
+	.globl yesp_flush_user_cache_range
+	.equ yesp_flush_user_cache_range, yesp_flush_icache_all
 
-	.globl nop_coherent_kern_range
-	.equ nop_coherent_kern_range, nop_flush_icache_all
+	.globl yesp_coherent_kern_range
+	.equ yesp_coherent_kern_range, yesp_flush_icache_all
 
-ENTRY(nop_coherent_user_range)
+ENTRY(yesp_coherent_user_range)
 	mov	r0, 0
 	ret	lr
-ENDPROC(nop_coherent_user_range)
+ENDPROC(yesp_coherent_user_range)
 
-	.globl nop_flush_kern_dcache_area
-	.equ nop_flush_kern_dcache_area, nop_flush_icache_all
+	.globl yesp_flush_kern_dcache_area
+	.equ yesp_flush_kern_dcache_area, yesp_flush_icache_all
 
-	.globl nop_dma_flush_range
-	.equ nop_dma_flush_range, nop_flush_icache_all
+	.globl yesp_dma_flush_range
+	.equ yesp_dma_flush_range, yesp_flush_icache_all
 
-	.globl nop_dma_map_area
-	.equ nop_dma_map_area, nop_flush_icache_all
+	.globl yesp_dma_map_area
+	.equ yesp_dma_map_area, yesp_flush_icache_all
 
-	.globl nop_dma_unmap_area
-	.equ nop_dma_unmap_area, nop_flush_icache_all
+	.globl yesp_dma_unmap_area
+	.equ yesp_dma_unmap_area, yesp_flush_icache_all
 
 	__INITDATA
 
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions nop
+	define_cache_functions yesp

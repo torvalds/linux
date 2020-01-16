@@ -70,7 +70,7 @@ static int test_btf_dump_case(int n, struct btf_dump_test_case *t)
 	}
 	f = fdopen(fd, "w");
 	if (CHECK(f == NULL, "open_tmp",  "failed to open file: %s(%d)\n",
-		  strerror(errno), errno)) {
+		  strerror(erryes), erryes)) {
 		close(fd);
 		goto done;
 	}
@@ -95,12 +95,12 @@ static int test_btf_dump_case(int n, struct btf_dump_test_case *t)
 	 * START-EXPECTED-OUTPUT and END-EXPECTED-OUTPUT lines in test case.
 	 * For expected output lines, everything before '*' is stripped out.
 	 * Also lines containing comment start and comment end markers are
-	 * ignored. 
+	 * igyesred. 
 	 */
 	snprintf(diff_cmd, sizeof(diff_cmd),
 		 "awk '/START-EXPECTED-OUTPUT/{out=1;next} "
 		 "/END-EXPECTED-OUTPUT/{out=0} "
-		 "/\\/\\*|\\*\\//{next} " /* ignore comment start/end lines */
+		 "/\\/\\*|\\*\\//{next} " /* igyesre comment start/end lines */
 		 "out {sub(/^[ \\t]*\\*/, \"\"); print}' '%s' | diff -u - '%s'",
 		 test_file, out_file);
 	err = system(diff_cmd);

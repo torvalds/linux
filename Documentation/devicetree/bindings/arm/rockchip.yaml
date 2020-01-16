@@ -10,7 +10,7 @@ maintainers:
   - Heiko Stuebner <heiko@sntech.de>
 
 properties:
-  $nodename:
+  $yesdename:
     const: '/'
   compatible:
     oneOf:
@@ -104,12 +104,12 @@ properties:
               - firefly,roc-rk3399-pc-mezzanine
           - const: rockchip,rk3399
 
-      - description: FriendlyElec NanoPi4 series boards
+      - description: FriendlyElec NayesPi4 series boards
         items:
           - enum:
-              - friendlyarm,nanopc-t4
-              - friendlyarm,nanopi-m4
-              - friendlyarm,nanopi-neo4
+              - friendlyarm,nayespc-t4
+              - friendlyarm,nayespi-m4
+              - friendlyarm,nayespi-neo4
           - const: rockchip,rk3399
 
       - description: GeekBuying GeekBox
@@ -294,7 +294,7 @@ properties:
           - const: google,gru
           - const: rockchip,rk3399
 
-      - description: Google Scarlet - Innolux display (Acer Chromebook Tab 10)
+      - description: Google Scarlet - Inyeslux display (Acer Chromebook Tab 10)
         items:
           - const: google,scarlet-rev15-sku6
           - const: google,scarlet-rev15

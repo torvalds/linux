@@ -42,20 +42,20 @@
     {
         "EventCode": "0x54",
         "UMask": "0x4",
-        "BriefDescription": "Number of times a TSX Abort was triggered due to a non-release/commit store to lock",
+        "BriefDescription": "Number of times a TSX Abort was triggered due to a yesn-release/commit store to lock",
         "Counter": "0,1,2,3",
         "EventName": "TX_MEM.ABORT_HLE_STORE_TO_ELIDED_LOCK",
-        "PublicDescription": "Number of times a TSX Abort was triggered due to a non-release/commit store to lock.",
+        "PublicDescription": "Number of times a TSX Abort was triggered due to a yesn-release/commit store to lock.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0x54",
         "UMask": "0x8",
-        "BriefDescription": "Number of times a TSX Abort was triggered due to commit but Lock Buffer not empty",
+        "BriefDescription": "Number of times a TSX Abort was triggered due to commit but Lock Buffer yest empty",
         "Counter": "0,1,2,3",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_NOT_EMPTY",
-        "PublicDescription": "Number of times a TSX Abort was triggered due to commit but Lock Buffer not empty.",
+        "PublicDescription": "Number of times a TSX Abort was triggered due to commit but Lock Buffer yest empty.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -82,17 +82,17 @@
     {
         "EventCode": "0x54",
         "UMask": "0x40",
-        "BriefDescription": "Number of times we could not allocate Lock Buffer",
+        "BriefDescription": "Number of times we could yest allocate Lock Buffer",
         "Counter": "0,1,2,3",
         "EventName": "TX_MEM.HLE_ELISION_BUFFER_FULL",
-        "PublicDescription": "Number of times we could not allocate Lock Buffer.",
+        "PublicDescription": "Number of times we could yest allocate Lock Buffer.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0x5d",
         "UMask": "0x1",
-        "BriefDescription": "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may not always cause a transactional abort.",
+        "BriefDescription": "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may yest always cause a transactional abort.",
         "Counter": "0,1,2,3",
         "EventName": "TX_EXEC.MISC1",
         "SampleAfterValue": "2000003",
@@ -143,17 +143,17 @@
         "BriefDescription": "Counts the number of machine clears due to memory order conflicts.",
         "Counter": "0,1,2,3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PublicDescription": "This event counts the number of memory ordering Machine Clears detected. Memory Ordering Machine Clears can result from one of the following:\n1. memory disambiguation,\n2. external snoop, or\n3. cross SMT-HW-thread snoop (stores) hitting load buffer.",
+        "PublicDescription": "This event counts the number of memory ordering Machine Clears detected. Memory Ordering Machine Clears can result from one of the following:\n1. memory disambiguation,\n2. external syesop, or\n3. cross SMT-HW-thread syesop (stores) hitting load buffer.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0xc8",
         "UMask": "0x1",
-        "BriefDescription": "Number of times we entered an HLE region; does not count nested transactions",
+        "BriefDescription": "Number of times we entered an HLE region; does yest count nested transactions",
         "Counter": "0,1,2,3",
         "EventName": "HLE_RETIRED.START",
-        "PublicDescription": "Number of times we entered an HLE region\n does not count nested transactions.",
+        "PublicDescription": "Number of times we entered an HLE region\n does yest count nested transactions.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -221,20 +221,20 @@
     {
         "EventCode": "0xc8",
         "UMask": "0x80",
-        "BriefDescription": "Number of times an HLE execution aborted due to none of the previous 4 categories (e.g. interrupts)",
+        "BriefDescription": "Number of times an HLE execution aborted due to yesne of the previous 4 categories (e.g. interrupts)",
         "Counter": "0,1,2,3",
         "EventName": "HLE_RETIRED.ABORTED_MISC5",
-        "PublicDescription": "Number of times HLE aborted and was not due to the abort conditions in subevents 3-6.",
+        "PublicDescription": "Number of times HLE aborted and was yest due to the abort conditions in subevents 3-6.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0xc9",
         "UMask": "0x1",
-        "BriefDescription": "Number of times we entered an RTM region; does not count nested transactions",
+        "BriefDescription": "Number of times we entered an RTM region; does yest count nested transactions",
         "Counter": "0,1,2,3",
         "EventName": "RTM_RETIRED.START",
-        "PublicDescription": "Number of times we entered an RTM region\n does not count nested transactions.",
+        "PublicDescription": "Number of times we entered an RTM region\n does yest count nested transactions.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -302,10 +302,10 @@
     {
         "EventCode": "0xc9",
         "UMask": "0x80",
-        "BriefDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)",
+        "BriefDescription": "Number of times an RTM execution aborted due to yesne of the previous 4 categories (e.g. interrupt)",
         "Counter": "0,1,2,3",
         "EventName": "RTM_RETIRED.ABORTED_MISC5",
-        "PublicDescription": "Number of times RTM aborted and was not due to the abort conditions in subevents 3-6.",
+        "PublicDescription": "Number of times RTM aborted and was yest due to the abort conditions in subevents 3-6.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
     },

@@ -93,7 +93,7 @@
 
 #define seps525_use_window	0 /* FBTFT doesn't really use it today */
 
-/* Init sequence taken from: Arduino Library for the Adafruit 2.2" display */
+/* Init sequence taken from: Arduiyes Library for the Adafruit 2.2" display */
 static int init_display(struct fbtft_par *par)
 {
 	par->fbtftops.reset(par);

@@ -53,7 +53,7 @@
 
 	usbphy {
 		usbphy2: usbphy@2 {
-			compatible = "usb-nop-xceiv";
+			compatible = "usb-yesp-xceiv";
 			reg = <2>;
 			vcc-supply = <&reg_5v0>;
 			clocks = <&clks IMX27_CLK_DUMMY>;
@@ -313,7 +313,7 @@
 		interrupts = <19 IRQ_TYPE_EDGE_FALLING>;
 		nxp,external-clock-frequency = <16000000>;
 		nxp,tx-output-config = <0x16>;
-		nxp,no-comparator-bypass;
+		nxp,yes-comparator-bypass;
 		fsl,weim-cs-timing = <0x0000dcf6 0x444a0301 0x44443302>;
 	};
 };

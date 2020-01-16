@@ -3,7 +3,7 @@
  * Texas Instruments System Control Interface Protocol
  *
  * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
- *	Nishanth Menon
+ *	Nishanth Meyesn
  */
 
 #ifndef __TISCI_PROTOCOL_H
@@ -13,14 +13,14 @@
  * struct ti_sci_version_info - version information structure
  * @abi_major:	Major ABI version. Change here implies risk of backward
  *		compatibility break.
- * @abi_minor:	Minor ABI version. Change here implies new feature addition,
+ * @abi_miyesr:	Miyesr ABI version. Change here implies new feature addition,
  *		or compatible change in ABI.
- * @firmware_revision:	Firmware revision (not usually used).
- * @firmware_description: Firmware description (not usually used).
+ * @firmware_revision:	Firmware revision (yest usually used).
+ * @firmware_description: Firmware description (yest usually used).
  */
 struct ti_sci_version_info {
 	u8 abi_major;
-	u8 abi_minor;
+	u8 abi_miyesr;
 	u16 firmware_revision;
 	char firmware_description[32];
 };
@@ -156,12 +156,12 @@ struct ti_sci_dev_ops {
  *		Each device has it's own set of clock inputs. This indexes
  *		which clock input to modify.
  * -min_freq:	The minimum allowable frequency in Hz. This is the minimum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does yest account for clock
  *		tolerances and jitter.
  * -target_freq: The target clock frequency in Hz. A frequency will be
  *		processed as close to this target frequency as possible.
  * -max_freq:	The maximum allowable frequency in Hz. This is the maximum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does yest account for clock
  *		tolerances and jitter.
  *
  * Request for the clock - NOTE: the client MUST maintain integrity of
@@ -386,8 +386,8 @@ struct ti_sci_msg_rm_udmap_rx_ch_cfg {
 	u8 rx_pause_on_err;
 	u8 rx_atype;
 	u8 rx_chan_type;
-	u8 rx_ignore_short;
-	u8 rx_ignore_long;
+	u8 rx_igyesre_short;
+	u8 rx_igyesre_long;
 	u8 rx_burst_size;
 };
 
@@ -461,7 +461,7 @@ struct ti_sci_rm_udmap_ops {
  * @request:	Request to control a physical processor. The requesting host
  *		should be in the processor access list
  * @release:	Relinquish a physical processor control
- * @handover:	Handover a physical processor control to another host
+ * @handover:	Handover a physical processor control to ayesther host
  *		in the permitted list
  * @set_config:	Set base configuration of a processor
  * @set_control: Setup limited control flags in specific cases
@@ -546,7 +546,7 @@ struct ti_sci_resource {
 const struct ti_sci_handle *ti_sci_get_handle(struct device *dev);
 int ti_sci_put_handle(const struct ti_sci_handle *handle);
 const struct ti_sci_handle *devm_ti_sci_get_handle(struct device *dev);
-const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
+const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_yesde *np,
 						  const char *property);
 const struct ti_sci_handle *devm_ti_sci_get_by_phandle(struct device *dev,
 						       const char *property);
@@ -576,7 +576,7 @@ const struct ti_sci_handle *devm_ti_sci_get_handle(struct device *dev)
 }
 
 static inline
-const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
+const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_yesde *np,
 						  const char *property)
 {
 	return ERR_PTR(-EINVAL);

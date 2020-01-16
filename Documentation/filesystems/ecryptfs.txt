@@ -66,8 +66,8 @@ NOTES
 
 eCryptfs version 0.1 should only be mounted on (1) empty directories
 or (2) directories containing files only created by eCryptfs. If you
-mount a directory that has pre-existing files not created by eCryptfs,
-then behavior is undefined. Do not run eCryptfs in higher verbosity
+mount a directory that has pre-existing files yest created by eCryptfs,
+then behavior is undefined. Do yest run eCryptfs in higher verbosity
 levels unless you are doing so for the sole purpose of debugging or
 development, since secret values will be written out to the system log
 in that case.

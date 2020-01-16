@@ -45,7 +45,7 @@ acpi_db_set_method_breakpoint(char *location,
 	u32 aml_offset;
 
 	if (!op) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is yes method currently executing\n");
 		return;
 	}
 
@@ -82,7 +82,7 @@ void acpi_db_set_method_call_breakpoint(union acpi_parse_object *op)
 {
 
 	if (!op) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is yes method currently executing\n");
 		return;
 	}
 
@@ -112,7 +112,7 @@ void acpi_db_set_method_data(char *type_arg, char *index_arg, char *value_arg)
 	struct acpi_walk_state *walk_state;
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 
 	/* Validate type_arg */
 
@@ -126,16 +126,16 @@ void acpi_db_set_method_data(char *type_arg, char *index_arg, char *value_arg)
 	value = strtoul(value_arg, NULL, 16);
 
 	if (type == 'N') {
-		node = acpi_db_convert_to_node(index_arg);
-		if (!node) {
+		yesde = acpi_db_convert_to_yesde(index_arg);
+		if (!yesde) {
 			return;
 		}
 
-		if (node->type != ACPI_TYPE_INTEGER) {
-			acpi_os_printf("Can only set Integer nodes\n");
+		if (yesde->type != ACPI_TYPE_INTEGER) {
+			acpi_os_printf("Can only set Integer yesdes\n");
 			return;
 		}
-		obj_desc = node->object;
+		obj_desc = yesde->object;
 		obj_desc->integer.value = value;
 		return;
 	}
@@ -146,7 +146,7 @@ void acpi_db_set_method_data(char *type_arg, char *index_arg, char *value_arg)
 
 	walk_state = acpi_ds_get_current_walk_state(acpi_gbl_current_walk_list);
 	if (!walk_state) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is yes method currently executing\n");
 		return;
 	}
 
@@ -154,7 +154,7 @@ void acpi_db_set_method_data(char *type_arg, char *index_arg, char *value_arg)
 
 	obj_desc = acpi_ut_create_integer_object((u64)value);
 	if (!obj_desc) {
-		acpi_os_printf("Could not create an internal object\n");
+		acpi_os_printf("Could yest create an internal object\n");
 		return;
 	}
 
@@ -236,7 +236,7 @@ void acpi_db_disassemble_aml(char *statements, union acpi_parse_object *op)
 	u32 num_statements = 8;
 
 	if (!op) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is yes method currently executing\n");
 		return;
 	}
 
@@ -266,9 +266,9 @@ acpi_status acpi_db_disassemble_method(char *name)
 	union acpi_parse_object *op;
 	struct acpi_walk_state *walk_state;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *method;
+	struct acpi_namespace_yesde *method;
 
-	method = acpi_db_convert_to_node(name);
+	method = acpi_db_convert_to_yesde(name);
 	if (!method) {
 		return (AE_BAD_PARAMETER);
 	}
@@ -361,8 +361,8 @@ static acpi_status
 acpi_db_walk_for_execute(acpi_handle obj_handle,
 			 u32 nesting_level, void *context, void **return_value)
 {
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_yesde *yesde =
+	    (struct acpi_namespace_yesde *)obj_handle;
 	struct acpi_db_execute_walk *info =
 	    (struct acpi_db_execute_walk *)context;
 	struct acpi_buffer return_obj;
@@ -374,16 +374,16 @@ acpi_db_walk_for_execute(acpi_handle obj_handle,
 	union acpi_object params[ACPI_METHOD_NUM_ARGS];
 	const union acpi_predefined_info *predefined;
 
-	predefined = acpi_ut_match_predefined_method(node->name.ascii);
+	predefined = acpi_ut_match_predefined_method(yesde->name.ascii);
 	if (!predefined) {
 		return (AE_OK);
 	}
 
-	if (node->type == ACPI_TYPE_LOCAL_SCOPE) {
+	if (yesde->type == ACPI_TYPE_LOCAL_SCOPE) {
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_external_pathname(node);
+	pathname = acpi_ns_get_external_pathname(yesde);
 	if (!pathname) {
 		return (AE_OK);
 	}
@@ -420,18 +420,18 @@ acpi_db_walk_for_execute(acpi_handle obj_handle,
 
 	acpi_gbl_method_executing = TRUE;
 
-	status = acpi_evaluate_object(node, NULL, &param_objects, &return_obj);
+	status = acpi_evaluate_object(yesde, NULL, &param_objects, &return_obj);
 
 	acpi_os_printf("%-32s returned %s\n", pathname,
 		       acpi_format_exception(status));
 	acpi_gbl_method_executing = FALSE;
 	ACPI_FREE(pathname);
 
-	/* Ignore status from method execution */
+	/* Igyesre status from method execution */
 
 	status = AE_OK;
 
-	/* Update count, check if we have executed enough methods */
+	/* Update count, check if we have executed eyesugh methods */
 
 	info->count++;
 	if (info->count >= info->max_count) {
@@ -461,7 +461,7 @@ void acpi_db_evaluate_predefined_names(void)
 	info.count = 0;
 	info.max_count = ACPI_UINT32_MAX;
 
-	/* Search all nodes in namespace */
+	/* Search all yesdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX, acpi_db_walk_for_execute,

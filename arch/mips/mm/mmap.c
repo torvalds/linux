@@ -8,7 +8,7 @@
  */
 #include <linux/compiler.h>
 #include <linux/elf-randomize.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/export.h>
@@ -45,7 +45,7 @@ static unsigned long arch_get_unmapped_area_common(struct file *filp,
 			return -EINVAL;
 
 		/*
-		 * We do not accept a shared mapping if it would violate
+		 * We do yest accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
@@ -106,7 +106,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr0,
 }
 
 /*
- * There is no need to export this but sched.h declares the function as
+ * There is yes need to export this but sched.h declares the function as
  * extern so making it static here results in an error.
  */
 unsigned long arch_get_unmapped_area_topdown(struct file *filp,

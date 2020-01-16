@@ -34,7 +34,7 @@ static bool probed;			/* Has PAMU been probed? */
 
 /*
  * Table for matching compatible strings, for device tree
- * guts node, for QorIQ SOCs.
+ * guts yesde, for QorIQ SOCs.
  * "fsl,qoriq-device-config-2.0" corresponds to T4 & B4
  * SOCs. For the older SOCs "fsl,qoriq-device-config-1.0"
  * string would be used.
@@ -47,7 +47,7 @@ static const struct of_device_id guts_device_ids[] = {
 
 /*
  * Table for matching compatible strings, for device tree
- * L3 cache controller node.
+ * L3 cache controller yesde.
  * "fsl,t4240-l3-cache-controller" corresponds to T4,
  * "fsl,b4860-l3-cache-controller" corresponds to B4 &
  * "fsl,p4080-l3-cache-controller" corresponds to other,
@@ -110,7 +110,7 @@ int pamu_enable_liodn(int liodn)
 	}
 
 	if (!get_bf(ppaace->addr_bitfields, PPAACE_AF_WSE)) {
-		pr_debug("liodn %d not configured\n", liodn);
+		pr_debug("liodn %d yest configured\n", liodn);
 		return -EINVAL;
 	}
 
@@ -148,7 +148,7 @@ int pamu_disable_liodn(int liodn)
 /* Derive the window size encoding for a particular PAACE entry */
 static unsigned int map_addrspace_size_to_wse(phys_addr_t addrspace_size)
 {
-	/* Bug if not a power of 2 */
+	/* Bug if yest a power of 2 */
 	BUG_ON(addrspace_size & (addrspace_size - 1));
 
 	/* window size is 2^(WSE+1) bytes */
@@ -217,7 +217,7 @@ static struct paace *pamu_get_spaace(struct paace *paace, u32 wnum)
  * SPAACE entries are reserved contiguously from that index.
  *
  * Returns a valid fspi index in the range of 0 - SPAACE_NUMBER_ENTRIES on success.
- * If no SPAACE entry is available or the allocator can not reserve the required
+ * If yes SPAACE entry is available or the allocator can yest reserve the required
  * number of contiguous entries function returns ULONG_MAX indicating a failure.
  *
  */
@@ -308,32 +308,32 @@ int pamu_disable_spaace(int liodn, u32 subwin)
  * @liodn: Logical IO device number
  * @win_addr: starting address of DSA window
  * @win-size: size of DSA window
- * @omi: Operation mapping index -- if ~omi == 0 then omi not defined
+ * @omi: Operation mapping index -- if ~omi == 0 then omi yest defined
  * @rpn: real (true physical) page number
  * @stashid: cache stash id for associated cpu -- if ~stashid == 0 then
- *	     stashid not defined
- * @snoopid: snoop id for hardware coherency -- if ~snoopid == 0 then
- *	     snoopid not defined
+ *	     stashid yest defined
+ * @syesopid: syesop id for hardware coherency -- if ~syesopid == 0 then
+ *	     syesopid yest defined
  * @subwin_cnt: number of sub-windows
  * @prot: window permissions
  *
  * Returns 0 upon success else error code < 0 returned
  */
 int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
-		       u32 omi, unsigned long rpn, u32 snoopid, u32 stashid,
+		       u32 omi, unsigned long rpn, u32 syesopid, u32 stashid,
 		       u32 subwin_cnt, int prot)
 {
 	struct paace *ppaace;
 	unsigned long fspi;
 
 	if ((win_size & (win_size - 1)) || win_size < PAMU_PAGE_SIZE) {
-		pr_debug("window size too small or not a power of two %pa\n",
+		pr_debug("window size too small or yest a power of two %pa\n",
 			 &win_size);
 		return -EINVAL;
 	}
 
 	if (win_addr & (win_size - 1)) {
-		pr_debug("window address is not aligned with window size\n");
+		pr_debug("window address is yest aligned with window size\n");
 		return -EINVAL;
 	}
 
@@ -364,9 +364,9 @@ int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
 	if (~stashid != 0)
 		set_bf(ppaace->impl_attr, PAACE_IA_CID, stashid);
 
-	/* configure snoop id */
-	if (~snoopid != 0)
-		ppaace->domain_attr.to_host.snpid = snoopid;
+	/* configure syesop id */
+	if (~syesopid != 0)
+		ppaace->domain_attr.to_host.snpid = syesopid;
 
 	if (subwin_cnt) {
 		/* The first entry is in the primary PAACE instead */
@@ -403,8 +403,8 @@ int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
  * @subwin_size: size of subwindow
  * @omi: Operation mapping index
  * @rpn: real (true physical) page number
- * @snoopid: snoop id for hardware coherency -- if ~snoopid == 0 then
- *			  snoopid not defined
+ * @syesopid: syesop id for hardware coherency -- if ~syesopid == 0 then
+ *			  syesopid yest defined
  * @stashid: cache stash id for associated cpu
  * @enable: enable/disable subwindow after reconfiguration
  * @prot: sub window permissions
@@ -413,7 +413,7 @@ int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
  */
 int pamu_config_spaace(int liodn, u32 subwin_cnt, u32 subwin,
 		       phys_addr_t subwin_size, u32 omi, unsigned long rpn,
-		       u32 snoopid, u32 stashid, int enable, int prot)
+		       u32 syesopid, u32 stashid, int enable, int prot)
 {
 	struct paace *paace;
 
@@ -439,7 +439,7 @@ int pamu_config_spaace(int liodn, u32 subwin_cnt, u32 subwin,
 	}
 
 	if ((subwin_size & (subwin_size - 1)) || subwin_size < PAMU_PAGE_SIZE) {
-		pr_debug("subwindow size out of range, or not a power of 2\n");
+		pr_debug("subwindow size out of range, or yest a power of 2\n");
 		return -EINVAL;
 	}
 
@@ -457,9 +457,9 @@ int pamu_config_spaace(int liodn, u32 subwin_cnt, u32 subwin,
 	set_bf(paace->win_bitfields, PAACE_WIN_TWBAL, rpn);
 	set_bf(paace->addr_bitfields, PAACE_AF_AP, prot);
 
-	/* configure snoop id */
-	if (~snoopid != 0)
-		paace->domain_attr.to_host.snpid = snoopid;
+	/* configure syesop id */
+	if (~syesopid != 0)
+		paace->domain_attr.to_host.snpid = syesopid;
 
 	/* set up operation mapping if it's configured */
 	if (omi < OME_NUMBER_ENTRIES) {
@@ -491,9 +491,9 @@ int pamu_config_spaace(int liodn, u32 subwin_cnt, u32 subwin,
  */
 void get_ome_index(u32 *omi_index, struct device *dev)
 {
-	if (of_device_is_compatible(dev->of_node, "fsl,qman-portal"))
+	if (of_device_is_compatible(dev->of_yesde, "fsl,qman-portal"))
 		*omi_index = OMI_QMAN;
-	if (of_device_is_compatible(dev->of_node, "fsl,qman"))
+	if (of_device_is_compatible(dev->of_yesde, "fsl,qman"))
 		*omi_index = OMI_QMAN_PRIV;
 }
 
@@ -509,70 +509,70 @@ void get_ome_index(u32 *omi_index, struct device *dev)
 u32 get_stash_id(u32 stash_dest_hint, u32 vcpu)
 {
 	const u32 *prop;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	u32 cache_level;
 	int len, found = 0;
 	int i;
 
 	/* Fastpath, exit early if L3/CPC cache is target for stashing */
 	if (stash_dest_hint == PAMU_ATTR_CACHE_L3) {
-		node = of_find_matching_node(NULL, l3_device_ids);
-		if (node) {
-			prop = of_get_property(node, "cache-stash-id", NULL);
+		yesde = of_find_matching_yesde(NULL, l3_device_ids);
+		if (yesde) {
+			prop = of_get_property(yesde, "cache-stash-id", NULL);
 			if (!prop) {
 				pr_debug("missing cache-stash-id at %pOF\n",
-					 node);
-				of_node_put(node);
+					 yesde);
+				of_yesde_put(yesde);
 				return ~(u32)0;
 			}
-			of_node_put(node);
+			of_yesde_put(yesde);
 			return be32_to_cpup(prop);
 		}
 		return ~(u32)0;
 	}
 
-	for_each_of_cpu_node(node) {
-		prop = of_get_property(node, "reg", &len);
+	for_each_of_cpu_yesde(yesde) {
+		prop = of_get_property(yesde, "reg", &len);
 		for (i = 0; i < len / sizeof(u32); i++) {
 			if (be32_to_cpup(&prop[i]) == vcpu) {
 				found = 1;
-				goto found_cpu_node;
+				goto found_cpu_yesde;
 			}
 		}
 	}
-found_cpu_node:
+found_cpu_yesde:
 
-	/* find the hwnode that represents the cache */
+	/* find the hwyesde that represents the cache */
 	for (cache_level = PAMU_ATTR_CACHE_L1; (cache_level < PAMU_ATTR_CACHE_L3) && found; cache_level++) {
 		if (stash_dest_hint == cache_level) {
-			prop = of_get_property(node, "cache-stash-id", NULL);
+			prop = of_get_property(yesde, "cache-stash-id", NULL);
 			if (!prop) {
 				pr_debug("missing cache-stash-id at %pOF\n",
-					 node);
-				of_node_put(node);
+					 yesde);
+				of_yesde_put(yesde);
 				return ~(u32)0;
 			}
-			of_node_put(node);
+			of_yesde_put(yesde);
 			return be32_to_cpup(prop);
 		}
 
-		prop = of_get_property(node, "next-level-cache", NULL);
+		prop = of_get_property(yesde, "next-level-cache", NULL);
 		if (!prop) {
-			pr_debug("can't find next-level-cache at %pOF\n", node);
-			of_node_put(node);
+			pr_debug("can't find next-level-cache at %pOF\n", yesde);
+			of_yesde_put(yesde);
 			return ~(u32)0;  /* can't traverse any further */
 		}
-		of_node_put(node);
+		of_yesde_put(yesde);
 
-		/* advance to next node in cache hierarchy */
-		node = of_find_node_by_phandle(*prop);
-		if (!node) {
-			pr_debug("Invalid node for cache hierarchy\n");
+		/* advance to next yesde in cache hierarchy */
+		yesde = of_find_yesde_by_phandle(*prop);
+		if (!yesde) {
+			pr_debug("Invalid yesde for cache hierarchy\n");
 			return ~(u32)0;
 		}
 	}
 
-	pr_debug("stash dest not found for %d on vcpu %d\n",
+	pr_debug("stash dest yest found for %d on vcpu %d\n",
 		 stash_dest_hint, vcpu);
 	return ~(u32)0;
 }
@@ -584,7 +584,7 @@ found_cpu_node:
 
 /**
  * Setup operation mapping and stash destinations for QMAN and QMAN portal.
- * Memory accesses to QMAN and BMAN private memory need not be coherent, so
+ * Memory accesses to QMAN and BMAN private memory need yest be coherent, so
  * clear the PAACE entry coherency attribute for them.
  */
 static void setup_qbman_paace(struct paace *ppaace, int  paace_type)
@@ -712,11 +712,11 @@ static void setup_liodns(void)
 {
 	int i, len;
 	struct paace *ppaace;
-	struct device_node *node = NULL;
+	struct device_yesde *yesde = NULL;
 	const u32 *prop;
 
-	for_each_node_with_property(node, "fsl,liodn") {
-		prop = of_get_property(node, "fsl,liodn", &len);
+	for_each_yesde_with_property(yesde, "fsl,liodn") {
+		prop = of_get_property(yesde, "fsl,liodn", &len);
 		for (i = 0; i < len / sizeof(u32); i++) {
 			int liodn;
 
@@ -735,11 +735,11 @@ static void setup_liodns(void)
 			       PAACE_ATM_NO_XLATE);
 			set_bf(ppaace->addr_bitfields, PAACE_AF_AP,
 			       PAACE_AP_PERMS_ALL);
-			if (of_device_is_compatible(node, "fsl,qman-portal"))
+			if (of_device_is_compatible(yesde, "fsl,qman-portal"))
 				setup_qbman_paace(ppaace, QMAN_PORTAL_PAACE);
-			if (of_device_is_compatible(node, "fsl,qman"))
+			if (of_device_is_compatible(yesde, "fsl,qman"))
 				setup_qbman_paace(ppaace, QMAN_PAACE);
-			if (of_device_is_compatible(node, "fsl,bman"))
+			if (of_device_is_compatible(yesde, "fsl,bman"))
 				setup_qbman_paace(ppaace, BMAN_PAACE);
 			mb();
 			pamu_enable_liodn(liodn);
@@ -836,7 +836,7 @@ struct ccsr_law {
  */
 static int create_csd(phys_addr_t phys, size_t size, u32 csd_port_id)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const __be32 *iprop;
 	void __iomem *lac = NULL;	/* Local Access Control registers */
 	struct ccsr_law __iomem *law;
@@ -847,7 +847,7 @@ static int create_csd(phys_addr_t phys, size_t size, u32 csd_port_id)
 	u32 csd_id = 0;
 	int ret = 0;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,corenet-law");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,corenet-law");
 	if (!np)
 		return -ENODEV;
 
@@ -872,9 +872,9 @@ static int create_csd(phys_addr_t phys, size_t size, u32 csd_port_id)
 	/* LAW registers are at offset 0xC00 */
 	law = lac + 0xC00;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,corenet-cf");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,corenet-cf");
 	if (!np) {
 		ret = -ENODEV;
 		goto error;
@@ -901,7 +901,7 @@ static int create_csd(phys_addr_t phys, size_t size, u32 csd_port_id)
 	/* The undocumented CSDID registers are at offset 0x600 */
 	csdids = ccm + 0x600;
 
-	of_node_put(np);
+	of_yesde_put(np);
 	np = NULL;
 
 	/* Find an unused coherence subdomain ID */
@@ -959,18 +959,18 @@ error:
 		iounmap(lac);
 
 	if (np)
-		of_node_put(np);
+		of_yesde_put(np);
 
 	return ret;
 }
 
 /*
  * Table of SVRs and the corresponding PORT_ID values. Port ID corresponds to a
- * bit map of snoopers for a given range of memory mapped by a LAW.
+ * bit map of syesopers for a given range of memory mapped by a LAW.
  *
  * All future CoreNet-enabled SOCs will have this erratum(A-004510) fixed, so this
  * table should never need to be updated.  SVRs are guaranteed to be unique, so
- * there is no worry that a future SOC will inadvertently have one of these
+ * there is yes worry that a future SOC will inadvertently have one of these
  * values.
  */
 static const struct {
@@ -1003,7 +1003,7 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	unsigned long pamu_reg_off;
 	unsigned long pamu_reg_base;
 	struct pamu_isr_data *data = NULL;
-	struct device_node *guts_node;
+	struct device_yesde *guts_yesde;
 	u64 size;
 	struct page *p;
 	int ret = 0;
@@ -1025,16 +1025,16 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	if (WARN_ON(probed))
 		return -EBUSY;
 
-	pamu_regs = of_iomap(dev->of_node, 0);
+	pamu_regs = of_iomap(dev->of_yesde, 0);
 	if (!pamu_regs) {
-		dev_err(dev, "ioremap of PAMU node failed\n");
+		dev_err(dev, "ioremap of PAMU yesde failed\n");
 		return -ENOMEM;
 	}
-	of_get_address(dev->of_node, 0, &size, NULL);
+	of_get_address(dev->of_yesde, 0, &size, NULL);
 
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_yesde, 0);
 	if (irq == NO_IRQ) {
-		dev_warn(dev, "no interrupts listed in PAMU node\n");
+		dev_warn(dev, "yes interrupts listed in PAMU yesde\n");
 		goto error;
 	}
 
@@ -1053,17 +1053,17 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	guts_node = of_find_matching_node(NULL, guts_device_ids);
-	if (!guts_node) {
-		dev_err(dev, "could not find GUTS node %pOF\n", dev->of_node);
+	guts_yesde = of_find_matching_yesde(NULL, guts_device_ids);
+	if (!guts_yesde) {
+		dev_err(dev, "could yest find GUTS yesde %pOF\n", dev->of_yesde);
 		ret = -ENODEV;
 		goto error;
 	}
 
-	guts_regs = of_iomap(guts_node, 0);
-	of_node_put(guts_node);
+	guts_regs = of_iomap(guts_yesde, 0);
+	of_yesde_put(guts_yesde);
 	if (!guts_regs) {
-		dev_err(dev, "ioremap of GUTS node failed\n");
+		dev_err(dev, "ioremap of GUTS yesde failed\n");
 		ret = -ENODEV;
 		goto error;
 	}
@@ -1121,7 +1121,7 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 
 		ret = create_csd(ppaact_phys, mem_size, csd_port_id);
 		if (ret) {
-			dev_err(dev, "could not create coherence subdomain\n");
+			dev_err(dev, "could yest create coherence subdomain\n");
 			return ret;
 		}
 	}
@@ -1203,11 +1203,11 @@ static struct platform_driver fsl_of_pamu_driver = {
 static __init int fsl_pamu_init(void)
 {
 	struct platform_device *pdev = NULL;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	/*
-	 * The normal OF process calls the probe function at some
+	 * The yesrmal OF process calls the probe function at some
 	 * indeterminate later time, after most drivers have loaded.  This is
 	 * too late for us, because PAMU clients (like the Qman driver)
 	 * depend on PAMU being initialized early.
@@ -1217,33 +1217,33 @@ static __init int fsl_pamu_init(void)
 	 */
 
 	/*
-	 * We assume that there is only one PAMU node in the device tree.  A
-	 * single PAMU node represents all of the PAMU devices in the SOC
+	 * We assume that there is only one PAMU yesde in the device tree.  A
+	 * single PAMU yesde represents all of the PAMU devices in the SOC
 	 * already.   Everything else already makes that assumption, and the
-	 * binding for the PAMU nodes doesn't allow for any parent-child
+	 * binding for the PAMU yesdes doesn't allow for any parent-child
 	 * relationships anyway.  In other words, support for more than one
-	 * PAMU node would require significant changes to a lot of code.
+	 * PAMU yesde would require significant changes to a lot of code.
 	 */
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,pamu");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,pamu");
 	if (!np) {
-		pr_err("could not find a PAMU node\n");
+		pr_err("could yest find a PAMU yesde\n");
 		return -ENODEV;
 	}
 
 	ret = platform_driver_register(&fsl_of_pamu_driver);
 	if (ret) {
-		pr_err("could not register driver (err=%i)\n", ret);
+		pr_err("could yest register driver (err=%i)\n", ret);
 		goto error_driver_register;
 	}
 
 	pdev = platform_device_alloc("fsl-of-pamu", 0);
 	if (!pdev) {
-		pr_err("could not allocate device %pOF\n", np);
+		pr_err("could yest allocate device %pOF\n", np);
 		ret = -ENOMEM;
 		goto error_device_alloc;
 	}
-	pdev->dev.of_node = of_node_get(np);
+	pdev->dev.of_yesde = of_yesde_get(np);
 
 	ret = pamu_domain_init();
 	if (ret)
@@ -1251,15 +1251,15 @@ static __init int fsl_pamu_init(void)
 
 	ret = platform_device_add(pdev);
 	if (ret) {
-		pr_err("could not add device %pOF (err=%i)\n", np, ret);
+		pr_err("could yest add device %pOF (err=%i)\n", np, ret);
 		goto error_device_add;
 	}
 
 	return 0;
 
 error_device_add:
-	of_node_put(pdev->dev.of_node);
-	pdev->dev.of_node = NULL;
+	of_yesde_put(pdev->dev.of_yesde);
+	pdev->dev.of_yesde = NULL;
 
 	platform_device_put(pdev);
 
@@ -1267,7 +1267,7 @@ error_device_alloc:
 	platform_driver_unregister(&fsl_of_pamu_driver);
 
 error_driver_register:
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return ret;
 }

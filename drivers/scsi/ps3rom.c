@@ -350,7 +350,7 @@ static int ps3rom_probe(struct ps3_system_bus_device *_dev)
 
 	if (dev->blk_size != CD_FRAMESIZE) {
 		dev_err(&dev->sbd.core,
-			"%s:%u: cannot handle block size %llu\n", __func__,
+			"%s:%u: canyest handle block size %llu\n", __func__,
 			__LINE__, dev->blk_size);
 		return -EINVAL;
 	}

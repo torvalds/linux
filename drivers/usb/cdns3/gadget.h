@@ -133,7 +133,7 @@ struct cdns3_usb_regs {
 /*
  * Big Endian access. Driver assume that byte order for
  * SFRs access always is as Little Endian so this bit
- * is not used.
+ * is yest used.
  */
 #define USB_CONF_BENDIAN	BIT(6)
 /* Device software reset. */
@@ -190,7 +190,7 @@ struct cdns3_usb_regs {
 /*
  * Configuration status.
  * 1 - device is in the configured state.
- * 0 - device is not configured.
+ * 0 - device is yest configured.
  */
 #define USB_STS_CFGSTS_MASK	BIT(0)
 #define USB_STS_CFGSTS(p)	((p) & USB_STS_CFGSTS_MASK)
@@ -261,7 +261,7 @@ struct cdns3_usb_regs {
 /*
  * Controller in reset state.
  * 0 - Internal reset is active.
- * 1 - Internal reset is not active and controller is fully operational.
+ * 1 - Internal reset is yest active and controller is fully operational.
  */
 #define USB_STS_IN_RST_MASK	BIT(10)
 #define USB_STS_IN_RST(p)	((p) & USB_STS_IN_RST_MASK)
@@ -295,7 +295,7 @@ struct cdns3_usb_regs {
 #define USB_STS_L1ENS(p)	((p) & USB_STS_L1ENS_MASK)
 /*
  * Internal VBUS connection status (used both in HS/FS  and SS mode).
- * 0 - internal VBUS is not detected.
+ * 0 - internal VBUS is yest detected.
  * 1 - internal VBUS is detected.
  */
 #define USB_STS_VBUSS_MASK	BIT(17)
@@ -315,13 +315,13 @@ struct cdns3_usb_regs {
 /*
  * Disable HS status (used in FS/HS mode).
  * 0 - the disconnect bit for HS/FS mode is set .
- * 1 - the disconnect bit for HS/FS mode is not set.
+ * 1 - the disconnect bit for HS/FS mode is yest set.
  */
 #define USB_STS_USB2CONS_MASK	BIT(20)
 #define USB_STS_USB2CONS(p)	((p) & USB_STS_USB2CONS_MASK)
 /*
  * HS/FS mode connection status (used in FS/HS mode).
- * 0 - High Speed operations in USB2.0 (FS/HS) mode not disabled.
+ * 0 - High Speed operations in USB2.0 (FS/HS) mode yest disabled.
  * 1 - High Speed operations in USB2.0 (FS/HS).
  */
 #define USB_STS_DISABLE_HS_MASK	BIT(21)
@@ -544,7 +544,7 @@ struct cdns3_usb_regs {
 #define EP_CFG_ENABLE		BIT(0)
 /*
  *  Endpoint type.
- * 1 - isochronous
+ * 1 - isochroyesus
  * 2 - bulk
  * 3 - interrupt
  */
@@ -919,7 +919,7 @@ struct cdns3_usb_regs {
  * Receiver termination detection sequence:
  * 0: it is possible that USBSS_DEV will terminate Farend receiver
  *    termination detection sequence
- * 1: USBSS_DEV will not terminate Far-end receiver termination
+ * 1: USBSS_DEV will yest terminate Far-end receiver termination
  *    detection sequence
  */
 #define DBG_LINK1_RXDET_BREAK_DIS		BIT(16)
@@ -928,25 +928,25 @@ struct cdns3_usb_regs {
 /*
  * Set the LFPS_MIN_DET_U1_EXIT value Writing '1' to this bit writes the
  * LFPS_MIN_DET_U1_EXIT field value to the device. This bit is automatically
- * cleared. Writing '0' has no effect
+ * cleared. Writing '0' has yes effect
  */
 #define DBG_LINK1_LFPS_MIN_DET_U1_EXIT_SET	BIT(24)
 /*
  * Set the LFPS_MIN_GEN_U1_EXIT value. Writing '1' to this bit writes the
  * LFPS_MIN_GEN_U1_EXIT field value to the device. This bit is automatically
- * cleared. Writing '0' has no effect
+ * cleared. Writing '0' has yes effect
  */
 #define DBG_LINK1_LFPS_MIN_GEN_U1_EXIT_SET	BIT(25)
 /*
  * Set the RXDET_BREAK_DIS value Writing '1' to this bit writes
  * the RXDET_BREAK_DIS field value to the device. This bit is automatically
- * cleared. Writing '0' has no effect
+ * cleared. Writing '0' has yes effect
  */
 #define DBG_LINK1_RXDET_BREAK_DIS_SET		BIT(26)
 /*
  * Set the LFPS_GEN_PING_SET value Writing '1' to this bit writes
  * the LFPS_GEN_PING field value to the device. This bit is automatically
- * cleared. Writing '0' has no effect."
+ * cleared. Writing '0' has yes effect."
  */
 #define DBG_LINK1_LFPS_GEN_PING_SET		BIT(27)
 
@@ -978,7 +978,7 @@ struct cdns3_usb_regs {
  * pow(2, bInterval-1) * number of usb requests. It is limitation made by
  * driver to save memory. Controller must prepare TRB for each ITP even
  * if bInterval > 1. It's the reason why driver needs so many TRBs for
- * isochronous endpoints.
+ * isochroyesus endpoints.
  */
 #define TRBS_PER_ISOC_SEGMENT	(ISO_MAX_INTERVAL * 8)
 
@@ -1027,7 +1027,7 @@ struct cdns3_trb {
  * the TD will be used. DMA will automatically advance to next TD.
  * - Shall be set to 0 by Software when putting TRB on the Transfer Ring
  * - Shall be set to 1 by Controller when Short Packet condition for this TRB
- *   is detected independent if ISP is set or not.
+ *   is detected independent if ISP is set or yest.
  */
 #define TRB_SP			BIT(1)
 
@@ -1035,7 +1035,7 @@ struct cdns3_trb {
 #define TRB_ISP			BIT(2)
 /*Setting this bit enables FIFO DMA operation mode*/
 #define TRB_FIFO_MODE		BIT(3)
-/* Set PCIe no snoop attribute */
+/* Set PCIe yes syesop attribute */
 #define TRB_CHAIN		BIT(4)
 /* Interrupt on completion */
 #define TRB_IOC			BIT(5)
@@ -1234,7 +1234,7 @@ struct cdns3_request {
  * @ep0_data_dir: direction for control transfer
  * @eps: array of pointers to all endpoints with exclusion ep0
  * @aligned_buf_list: list of aligned buffers internally allocated by driver
- * @aligned_buf_wq: workqueue freeing  no longer used aligned buf.
+ * @aligned_buf_wq: workqueue freeing  yes longer used aligned buf.
  * @selected_ep: actually selected endpoint. It's used only to improve
  *               performance.
  * @isoch_delay: value from Set Isoch Delay request. Only valid on SS/SSP.
@@ -1244,7 +1244,7 @@ struct cdns3_request {
  * @setup_pending: setup packet is processing by gadget driver
  * @hw_configured_flag: hardware endpoint configuration was set.
  * @wake_up_flag: allow device to remote up the host
- * @status_completion_no_call: indicate that driver is waiting for status s
+ * @status_completion_yes_call: indicate that driver is waiting for status s
  *     stage completion. It's used in deferred SET_CONFIGURATION request.
  * @onchip_buffers: number of available on-chip buffers.
  * @onchip_used_size: actual size of on-chip memory assigned to endpoints.
@@ -1289,7 +1289,7 @@ struct cdns3_device {
 	unsigned			setup_pending:1;
 	int				hw_configured_flag:1;
 	int				wake_up_flag:1;
-	unsigned			status_completion_no_call:1;
+	unsigned			status_completion_yes_call:1;
 	int				out_mem_is_allocated;
 
 	struct work_struct		pending_status_wq;

@@ -22,12 +22,12 @@ extern time64_t mktime64(const unsigned int year, const unsigned int mon,
 			const unsigned int day, const unsigned int hour,
 			const unsigned int min, const unsigned int sec);
 
-/* Some architectures do not supply their own clocksource.
+/* Some architectures do yest supply their own clocksource.
  * This is mainly the case in architectures that get their
  * inter-tick times by reading the counter on their interval
- * timer. Since these timers wrap every tick, they're not really
+ * timer. Since these timers wrap every tick, they're yest really
  * useful as clocksources. Wrapping them to act like one is possible
- * but not very efficient. So we provide a callout these arches
+ * but yest very efficient. So we provide a callout these arches
  * can implement for use with the jiffies clocksource to provide
  * finer then tick granular time.
  */
@@ -49,7 +49,7 @@ extern long do_utimes(int dfd, const char __user *filename, struct timespec64 *t
  */
 struct tm {
 	/*
-	 * the number of seconds after the minute, normally in the range
+	 * the number of seconds after the minute, yesrmally in the range
 	 * 0 to 59, but can be up to 60 to allow for leap seconds
 	 */
 	int tm_sec;
@@ -93,7 +93,7 @@ static inline bool itimerspec64_valid(const struct itimerspec64 *its)
  * Similar to time_after(), compare two 32-bit timestamps for relative
  * times.  This is useful for comparing 32-bit seconds values that can't
  * be converted to 64-bit values (e.g. due to disk format or wire protocol
- * issues) when it is known that the times are less than 68 years apart.
+ * issues) when it is kyeswn that the times are less than 68 years apart.
  */
 #define time_after32(a, b)	((s32)((u32)(b) - (u32)(a)) < 0)
 #define time_before32(b, a)	time_after32(a, b)

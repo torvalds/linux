@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/miscdevice.h>	/* for misc_register, and SYNTH_MINOR */
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -44,7 +44,7 @@ static ssize_t speakup_file_read(struct file *fp, char __user *buf,
 	return 0;
 }
 
-static int speakup_file_open(struct inode *ip, struct file *fp)
+static int speakup_file_open(struct iyesde *ip, struct file *fp)
 {
 	if (!synth)
 		return -ENODEV;
@@ -53,7 +53,7 @@ static int speakup_file_open(struct inode *ip, struct file *fp)
 	return 0;
 }
 
-static int speakup_file_release(struct inode *ip, struct file *fp)
+static int speakup_file_release(struct iyesde *ip, struct file *fp)
 {
 	dev_opened = 0;
 	return 0;
@@ -67,7 +67,7 @@ static const struct file_operations synth_fops = {
 };
 
 static struct miscdevice synth_device = {
-	.minor = SYNTH_MINOR,
+	.miyesr = SYNTH_MINOR,
 	.name = "synth",
 	.fops = &synth_fops,
 };
@@ -76,11 +76,11 @@ void speakup_register_devsynth(void)
 {
 	if (misc_registered != 0)
 		return;
-/* zero it so if register fails, deregister will not ref invalid ptrs */
+/* zero it so if register fails, deregister will yest ref invalid ptrs */
 	if (misc_register(&synth_device)) {
 		pr_warn("Couldn't initialize miscdevice /dev/synth.\n");
 	} else {
-		pr_info("initialized device: /dev/synth, node (MAJOR %d, MINOR %d)\n",
+		pr_info("initialized device: /dev/synth, yesde (MAJOR %d, MINOR %d)\n",
 			MISC_MAJOR, SYNTH_MINOR);
 		misc_registered = 1;
 	}

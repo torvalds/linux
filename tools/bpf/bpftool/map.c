@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -110,7 +110,7 @@ int map_parse_fd(int *argc, char ***argv)
 
 		fd = bpf_map_get_fd_by_id(id);
 		if (fd < 0)
-			p_err("get map by id (%u): %s", id, strerror(errno));
+			p_err("get map by id (%u): %s", id, strerror(erryes));
 		return fd;
 	} else if (is_prefix(**argv, "pinned")) {
 		char *path;
@@ -138,7 +138,7 @@ int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
 
 	err = bpf_obj_get_info_by_fd(fd, info, info_len);
 	if (err) {
-		p_err("can't get map info: %s", strerror(errno));
+		p_err("can't get map info: %s", strerror(erryes));
 		close(fd);
 		return err;
 	}
@@ -376,7 +376,7 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 	if (!*argv) {
 		if (!key && !value)
 			return 0;
-		p_err("did not find %s", key ? "key" : "value");
+		p_err("did yest find %s", key ? "key" : "value");
 		return -1;
 	}
 
@@ -416,7 +416,7 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 				return -1;
 			}
 			if (!argv[0] || !argv[1]) {
-				p_err("not enough value arguments for map in map");
+				p_err("yest eyesugh value arguments for map in map");
 				return -1;
 			}
 
@@ -434,7 +434,7 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 				return -1;
 			}
 			if (!argv[0] || !argv[1]) {
-				p_err("not enough value arguments for map of progs");
+				p_err("yest eyesugh value arguments for map of progs");
 				return -1;
 			}
 			if (is_prefix(*argv, "id"))
@@ -457,7 +457,7 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 
 		return parse_elem(argv, info, key, NULL, key_size, value_size,
 				  flags, NULL);
-	} else if (is_prefix(*argv, "any") || is_prefix(*argv, "noexist") ||
+	} else if (is_prefix(*argv, "any") || is_prefix(*argv, "yesexist") ||
 		   is_prefix(*argv, "exist")) {
 		if (!flags) {
 			p_err("flags specified multiple times: %s", *argv);
@@ -466,7 +466,7 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 
 		if (is_prefix(*argv, "any"))
 			*flags = BPF_ANY;
-		else if (is_prefix(*argv, "noexist"))
+		else if (is_prefix(*argv, "yesexist"))
 			*flags = BPF_NOEXIST;
 		else if (is_prefix(*argv, "exist"))
 			*flags = BPF_EXIST;
@@ -502,7 +502,7 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 	jsonw_name(json_wtr, "flags");
 	jsonw_printf(json_wtr, "%d", info->map_flags);
 
-	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
+	print_dev_json(info->ifindex, info->netns_dev, info->netns_iyes);
 
 	jsonw_uint_field(json_wtr, "bytes_key", info->key_size);
 	jsonw_uint_field(json_wtr, "bytes_value", info->value_size);
@@ -579,7 +579,7 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 		printf("name %s  ", info->name);
 
 	printf("flags 0x%x", info->map_flags);
-	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ino);
+	print_dev_plain(info->ifindex, info->netns_dev, info->netns_iyes);
 	printf("\n");
 	printf("\tkey %uB  value %uB  max_entries %u",
 	       info->key_size, info->value_size, info->max_entries);
@@ -605,7 +605,7 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 		}
 		if (owner_jited)
 			printf("owner%s jited",
-			       atoi(owner_jited) ? "" : " not");
+			       atoi(owner_jited) ? "" : " yest");
 
 		free(owner_prog_type);
 		free(owner_jited);
@@ -672,25 +672,25 @@ static int do_show(int argc, char **argv)
 	while (true) {
 		err = bpf_map_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT)
+			if (erryes == ENOENT)
 				break;
-			p_err("can't get next map: %s%s", strerror(errno),
-			      errno == EINVAL ? " -- kernel too old?" : "");
+			p_err("can't get next map: %s%s", strerror(erryes),
+			      erryes == EINVAL ? " -- kernel too old?" : "");
 			break;
 		}
 
 		fd = bpf_map_get_fd_by_id(id);
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erryes == ENOENT)
 				continue;
 			p_err("can't get map by id (%u): %s",
-			      id, strerror(errno));
+			      id, strerror(erryes));
 			break;
 		}
 
 		err = bpf_obj_get_info_by_fd(fd, &info, &len);
 		if (err) {
-			p_err("can't get map info: %s", strerror(errno));
+			p_err("can't get map info: %s", strerror(erryes));
 			close(fd);
 			break;
 		}
@@ -703,7 +703,7 @@ static int do_show(int argc, char **argv)
 	if (json_output)
 		jsonw_end_array(json_wtr);
 
-	return errno == ENOENT ? 0 : -1;
+	return erryes == ENOENT ? 0 : -1;
 }
 
 static int dump_map_elem(int fd, void *key, void *value,
@@ -711,7 +711,7 @@ static int dump_map_elem(int fd, void *key, void *value,
 			 json_writer_t *btf_wtr)
 {
 	int num_elems = 0;
-	int lookup_errno;
+	int lookup_erryes;
 
 	if (!bpf_map_lookup_elem(fd, key, value)) {
 		if (json_output) {
@@ -734,7 +734,7 @@ static int dump_map_elem(int fd, void *key, void *value,
 	}
 
 	/* lookup error handling */
-	lookup_errno = errno;
+	lookup_erryes = erryes;
 
 	if (map_is_map_of_maps(map_info->type) ||
 	    map_is_map_of_progs(map_info->type))
@@ -746,20 +746,20 @@ static int dump_map_elem(int fd, void *key, void *value,
 		print_hex_data_json(key, map_info->key_size);
 		jsonw_name(json_wtr, "value");
 		jsonw_start_object(json_wtr);
-		jsonw_string_field(json_wtr, "error", strerror(lookup_errno));
+		jsonw_string_field(json_wtr, "error", strerror(lookup_erryes));
 		jsonw_end_object(json_wtr);
 		jsonw_end_object(json_wtr);
 	} else {
 		const char *msg = NULL;
 
-		if (lookup_errno == ENOENT)
-			msg = "<no entry>";
-		else if (lookup_errno == ENOSPC &&
+		if (lookup_erryes == ENOENT)
+			msg = "<yes entry>";
+		else if (lookup_erryes == ENOSPC &&
 			 map_info->type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY)
-			msg = "<cannot read>";
+			msg = "<canyest read>";
 
 		print_entry_error(map_info, key,
-				  msg ? : strerror(lookup_errno));
+				  msg ? : strerror(lookup_erryes));
 	}
 
 	return 0;
@@ -815,12 +815,12 @@ static int do_dump(int argc, char **argv)
 
 	if (info.type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY &&
 	    info.value_size != 8)
-		p_info("Warning: cannot read values from %s map with value_size != 8",
+		p_info("Warning: canyest read values from %s map with value_size != 8",
 		       map_type_name[info.type]);
 	while (true) {
 		err = bpf_map_get_next_key(fd, prev_key, key);
 		if (err) {
-			if (errno == ENOENT)
+			if (erryes == ENOENT)
 				err = 0;
 			break;
 		}
@@ -900,7 +900,7 @@ static int do_update(int argc, char **argv)
 
 	err = bpf_map_update_elem(fd, key, value, flags);
 	if (err) {
-		p_err("update failed: %s", strerror(errno));
+		p_err("update failed: %s", strerror(erryes));
 		goto exit_free;
 	}
 
@@ -982,7 +982,7 @@ static int do_lookup(int argc, char **argv)
 
 	err = bpf_map_lookup_elem(fd, key, value);
 	if (err) {
-		if (errno == ENOENT) {
+		if (erryes == ENOENT) {
 			if (json_output) {
 				jsonw_null(json_wtr);
 			} else {
@@ -991,7 +991,7 @@ static int do_lookup(int argc, char **argv)
 				printf("\n\nNot found\n");
 			}
 		} else {
-			p_err("lookup failed: %s", strerror(errno));
+			p_err("lookup failed: %s", strerror(erryes));
 		}
 
 		goto exit_free;
@@ -1043,7 +1043,7 @@ static int do_getnext(int argc, char **argv)
 
 	err = bpf_map_get_next_key(fd, key, nextkey);
 	if (err) {
-		p_err("can't get next key: %s", strerror(errno));
+		p_err("can't get next key: %s", strerror(erryes));
 		goto exit_free;
 	}
 
@@ -1107,7 +1107,7 @@ static int do_delete(int argc, char **argv)
 
 	err = bpf_map_delete_elem(fd, key);
 	if (err)
-		p_err("delete failed: %s", strerror(errno));
+		p_err("delete failed: %s", strerror(erryes));
 
 exit_free:
 	free(key);
@@ -1186,18 +1186,18 @@ static int do_create(int argc, char **argv)
 			attr.map_ifindex = if_nametoindex(*argv);
 			if (!attr.map_ifindex) {
 				p_err("unrecognized netdevice '%s': %s",
-				      *argv, strerror(errno));
+				      *argv, strerror(erryes));
 				return -1;
 			}
 			NEXT_ARG();
 		} else {
-			p_err("unknown arg %s", *argv);
+			p_err("unkyeswn arg %s", *argv);
 			return -1;
 		}
 	}
 
 	if (!attr.name) {
-		p_err("map name not specified");
+		p_err("map name yest specified");
 		return -1;
 	}
 
@@ -1205,7 +1205,7 @@ static int do_create(int argc, char **argv)
 
 	fd = bpf_create_map_xattr(&attr);
 	if (fd < 0) {
-		p_err("map create failed: %s", strerror(errno));
+		p_err("map create failed: %s", strerror(erryes));
 		return -1;
 	}
 
@@ -1240,13 +1240,13 @@ static int do_pop_dequeue(int argc, char **argv)
 
 	err = bpf_map_lookup_and_delete_elem(fd, key, value);
 	if (err) {
-		if (errno == ENOENT) {
+		if (erryes == ENOENT) {
 			if (json_output)
 				jsonw_null(json_wtr);
 			else
 				printf("Error: empty map\n");
 		} else {
-			p_err("pop failed: %s", strerror(errno));
+			p_err("pop failed: %s", strerror(erryes));
 		}
 
 		goto exit_free;
@@ -1281,7 +1281,7 @@ static int do_freeze(int argc, char **argv)
 	err = bpf_map_freeze(fd);
 	close(fd);
 	if (err) {
-		p_err("failed to freeze map: %s", strerror(errno));
+		p_err("failed to freeze map: %s", strerror(erryes));
 		return err;
 	}
 
@@ -1322,7 +1322,7 @@ static int do_help(int argc, char **argv)
 		"       DATA := { [hex] BYTES }\n"
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       VALUE := { DATA | MAP | PROG }\n"
-		"       UPDATE_FLAGS := { any | exist | noexist }\n"
+		"       UPDATE_FLAGS := { any | exist | yesexist }\n"
 		"       TYPE := { hash | array | prog_array | perf_event_array | percpu_hash |\n"
 		"                 percpu_array | stack_trace | cgroup_array | lru_hash |\n"
 		"                 lru_percpu_hash | lpm_trie | array_of_maps | hash_of_maps |\n"

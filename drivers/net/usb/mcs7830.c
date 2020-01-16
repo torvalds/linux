@@ -13,7 +13,7 @@
  * Definitions gathered from MOSCHIP, Data Sheet_7830DA.pdf (thanks!).
  *
  * 2010-12-19: add 7832 USB PID ("functionality same as MCS7830"),
- *             per active notification by manufacturer
+ *             per active yestification by manufacturer
  *
  * TODO:
  * - support HIF_REG_CONFIG_SLEEPMODE/HIF_REG_CONFIG_TXENABLE (via autopm?)
@@ -92,7 +92,7 @@ enum {
 enum {
 	MCS7830_RX_SHORT_FRAME		= 0x01, /* < 64 bytes */
 	MCS7830_RX_LENGTH_ERROR		= 0x02, /* framelen != Ethernet length field */
-	MCS7830_RX_ALIGNMENT_ERROR	= 0x04, /* non-even number of nibbles */
+	MCS7830_RX_ALIGNMENT_ERROR	= 0x04, /* yesn-even number of nibbles */
 	MCS7830_RX_CRC_ERROR		= 0x08,
 	MCS7830_RX_LARGE_FRAME		= 0x10, /* > 1518 bytes */
 	MCS7830_RX_FRAME_CORRECT	= 0x20, /* frame is correct */
@@ -249,7 +249,7 @@ out:
 
 /*
  * This algorithm comes from the original mcs7830 version 1.4 driver,
- * not sure if it is needed.
+ * yest sure if it is needed.
  */
 static int mcs7830_set_autoneg(struct usbnet *dev, int ptrUserPhyMode)
 {
@@ -352,7 +352,7 @@ static void mcs7830_data_set_multicast(struct net_device *net)
 
 	data->config = HIF_REG_CONFIG_TXENABLE;
 
-	/* this should not be needed, but it doesn't work otherwise */
+	/* this should yest be needed, but it doesn't work otherwise */
 	data->config |= HIF_REG_CONFIG_ALLMULTICAST;
 
 	if (net->flags & IFF_PROMISC) {
@@ -382,17 +382,17 @@ static int mcs7830_apply_base_config(struct usbnet *dev)
 {
 	int ret;
 
-	/* re-configure known MAC (suspend case etc.) */
+	/* re-configure kyeswn MAC (suspend case etc.) */
 	ret = mcs7830_hif_set_mac_address(dev, dev->net->dev_addr);
 	if (ret) {
-		dev_info(&dev->udev->dev, "Cannot set MAC address\n");
+		dev_info(&dev->udev->dev, "Canyest set MAC address\n");
 		goto out;
 	}
 
 	/* Set up PHY */
 	ret = mcs7830_set_autoneg(dev, 0);
 	if (ret) {
-		dev_info(&dev->udev->dev, "Cannot set autoneg\n");
+		dev_info(&dev->udev->dev, "Canyest set autoneg\n");
 		goto out;
 	}
 
@@ -480,7 +480,7 @@ static int mcs7830_bind(struct usbnet *dev, struct usb_interface *udev)
 	for (retry = 0; retry < 5 && ret; retry++)
 		ret = mcs7830_hif_get_mac_address(dev, net->dev_addr);
 	if (ret) {
-		dev_warn(&dev->udev->dev, "Cannot read MAC address\n");
+		dev_warn(&dev->udev->dev, "Canyest read MAC address\n");
 		goto out;
 	}
 
@@ -513,7 +513,7 @@ static int mcs7830_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	u8 status;
 
-	/* This check is no longer done by usbnet */
+	/* This check is yes longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len) {
 		dev_err(&dev->udev->dev, "unexpected tiny rx frame\n");
 		return 0;
@@ -601,7 +601,7 @@ MODULE_DEVICE_TABLE(usb, products);
 
 static int mcs7830_reset_resume (struct usb_interface *intf)
 {
- 	/* YES, this function is successful enough that ethtool -d
+ 	/* YES, this function is successful eyesugh that ethtool -d
            does show same output pre-/post-suspend */
 
 	struct usbnet		*dev = usb_get_intfdata(intf);

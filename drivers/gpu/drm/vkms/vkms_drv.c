@@ -46,7 +46,7 @@ static const struct file_operations vkms_driver_fops = {
 	.compat_ioctl	= drm_compat_ioctl,
 	.poll		= drm_poll,
 	.read		= drm_read,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.release	= drm_release,
 };
 
@@ -111,7 +111,7 @@ static struct drm_driver vkms_driver = {
 	.desc			= DRIVER_DESC,
 	.date			= DRIVER_DATE,
 	.major			= DRIVER_MAJOR,
-	.minor			= DRIVER_MINOR,
+	.miyesr			= DRIVER_MINOR,
 };
 
 static const struct drm_mode_config_funcs vkms_mode_funcs = {
@@ -164,7 +164,7 @@ static int __init vkms_init(void)
 					   DMA_BIT_MASK(64));
 
 	if (ret) {
-		DRM_ERROR("Could not initialize DMA support\n");
+		DRM_ERROR("Could yest initialize DMA support\n");
 		goto out_fini;
 	}
 

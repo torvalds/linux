@@ -48,7 +48,7 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 		smp_mb__after_atomic();
 		smc_curs_copy(&conn->tx_curs_fin, &cdcpend->cursor, conn);
 	}
-	smc_tx_sndbuf_nonfull(smc);
+	smc_tx_sndbuf_yesnfull(smc);
 	bh_unlock_sock(&smc->sk);
 }
 
@@ -64,7 +64,7 @@ int smc_cdc_get_free_slot(struct smc_connection *conn,
 				     wr_rdma_buf,
 				     (struct smc_wr_tx_pend_priv **)pend);
 	if (conn->killed)
-		/* abnormal termination */
+		/* abyesrmal termination */
 		rc = -EPIPE;
 	return rc;
 }
@@ -77,7 +77,7 @@ static inline void smc_cdc_add_pending_send(struct smc_connection *conn,
 		"must increase SMC_WR_BUF_SIZE to at least sizeof(struct smc_cdc_msg)");
 	BUILD_BUG_ON_MSG(
 		offsetofend(struct smc_cdc_msg, reserved) > SMC_WR_TX_SIZE,
-		"must adapt SMC_WR_TX_SIZE to sizeof(struct smc_cdc_msg); if not all smc_wr upper layer protocols use the same message size any more, must start to set link->wr_tx_sges[i].length on each individual smc_wr_tx_send()");
+		"must adapt SMC_WR_TX_SIZE to sizeof(struct smc_cdc_msg); if yest all smc_wr upper layer protocols use the same message size any more, must start to set link->wr_tx_sges[i].length on each individual smc_wr_tx_send()");
 	BUILD_BUG_ON_MSG(
 		sizeof(struct smc_cdc_tx_pend) > SMC_WR_TX_PEND_PRIV_SIZE,
 		"must increase SMC_WR_TX_PEND_PRIV_SIZE to at least sizeof(struct smc_cdc_tx_pend)");
@@ -100,7 +100,7 @@ int smc_cdc_msg_send(struct smc_connection *conn,
 	smc_cdc_add_pending_send(conn, pend);
 
 	conn->tx_cdc_seq++;
-	conn->local_tx_ctrl.seqno = conn->tx_cdc_seq;
+	conn->local_tx_ctrl.seqyes = conn->tx_cdc_seq;
 	smc_host_msg_to_cdc((struct smc_cdc_msg *)wr_buf, conn, &cfed);
 	rc = smc_wr_tx_send(link, (struct smc_wr_tx_pend_priv *)pend);
 	if (!rc) {
@@ -208,7 +208,7 @@ int smcd_cdc_msg_send(struct smc_connection *conn)
 	smp_mb__after_atomic();
 	smc_curs_copy(&conn->tx_curs_fin, &conn->tx_curs_sent, conn);
 
-	smc_tx_sndbuf_nonfull(smc);
+	smc_tx_sndbuf_yesnfull(smc);
 	return rc;
 }
 
@@ -284,7 +284,7 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 	if ((diff_cons && smc_tx_prepared_sends(conn)) ||
 	    conn->local_rx_ctrl.prod_flags.cons_curs_upd_req ||
 	    conn->local_rx_ctrl.prod_flags.urg_data_pending)
-		smc_tx_sndbuf_nonempty(conn);
+		smc_tx_sndbuf_yesnempty(conn);
 
 	if (diff_cons && conn->urg_tx_pend &&
 	    atomic_read(&conn->peer_rmbe_space) == conn->peer_rmbe_size) {
@@ -315,7 +315,7 @@ static void smc_cdc_msg_recv(struct smc_sock *smc, struct smc_cdc_msg *cdc)
 	bh_lock_sock(&smc->sk);
 	smc_cdc_msg_recv_action(smc, cdc);
 	bh_unlock_sock(&smc->sk);
-	sock_put(&smc->sk); /* no free sk in softirq-context */
+	sock_put(&smc->sk); /* yes free sk in softirq-context */
 }
 
 /* Schedule a tasklet for this connection. Triggered from the ISM device IRQ
@@ -374,9 +374,9 @@ static void smc_cdc_rx_handler(struct ib_wc *wc, void *buf)
 	smc = container_of(conn, struct smc_sock, conn);
 
 	if (!cdc->prod_flags.failover_validation) {
-		if (smc_cdc_before(ntohs(cdc->seqno),
-				   conn->local_rx_ctrl.seqno))
-			/* received seqno is old */
+		if (smc_cdc_before(ntohs(cdc->seqyes),
+				   conn->local_rx_ctrl.seqyes))
+			/* received seqyes is old */
 			return;
 	}
 	smc_cdc_msg_recv(smc, cdc);

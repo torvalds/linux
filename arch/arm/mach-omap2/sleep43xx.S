@@ -22,7 +22,7 @@
 #include "prm33xx.h"
 #include "prcm43xx.h"
 
-/* replicated define because linux/bitops.h cannot be included in assembly */
+/* replicated define because linux/bitops.h canyest be included in assembly */
 #define BIT(nr)			(1 << (nr))
 
 #define AM33XX_CM_CLKCTRL_MODULESTATE_DISABLED		0x00030000
@@ -76,7 +76,7 @@ ENTRY(am43xx_do_wfi)
 	mov	r8, r0
 #endif
 
-	/* Only flush cache is we know we are losing MPU context */
+	/* Only flush cache is we kyesw we are losing MPU context */
 	tst	r4, #WFI_FLAG_FLUSH_CACHE
 	beq	cache_skip_flush
 
@@ -90,7 +90,7 @@ ENTRY(am43xx_do_wfi)
 	/*
 	 * Clear the SCTLR.C bit to prevent further data cache
 	 * allocation. Clearing SCTLR.C would make all the data accesses
-	 * strongly ordered and would not hit the cache.
+	 * strongly ordered and would yest hit the cache.
 	 */
 	mrc	p15, 0, r0, c1, c0, 0
 	bic	r0, r0, #(1 << 2)	@ Disable the C bit
@@ -271,22 +271,22 @@ wkup_m3_skip:
 	 */
 	wfi
 
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	/* We come here in case of an abort due to a late interrupt */
 	ldr	r1, am43xx_virt_mpu_clkstctrl
@@ -329,7 +329,7 @@ cache_skip_restore:
 	blx	r1
 
 emif_skip_exit_sr_abt:
-	/* Let the suspend code know about the abort */
+	/* Let the suspend code kyesw about the abort */
 	mov	r0, #1
 	ldmfd	sp!, {r4 - r11, pc}	@ restore regs and return
 ENDPROC(am43xx_do_wfi)

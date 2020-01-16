@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -161,7 +161,7 @@ static inline u8 num_of_ant(u8 mask)
 }
 
 /**
- * struct iwl_base_params - params not likely to change within a device family
+ * struct iwl_base_params - params yest likely to change within a device family
  * @max_ll_items: max number of OTP blocks
  * @shadow_ram_support: shadow support for OTP memory
  * @led_compensation: compensate on the led on/off time per HW according
@@ -291,12 +291,12 @@ struct iwl_pwr_tx_backoff {
  * @flag_mac_clock_ready:
  *	Indicates MAC (ucode processor, etc.) is powered up and can run.
  *	Internal resources are accessible.
- *	NOTE:  This does not indicate that the processor is actually running.
- *	NOTE:  This does not indicate that device has completed
+ *	NOTE:  This does yest indicate that the processor is actually running.
+ *	NOTE:  This does yest indicate that device has completed
  *	       init or post-power-down restore of internal SRAM memory.
  *	       Use CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP as indication that
- *	       SRAM is restored and uCode is in normal operation mode.
- *	       This note is relevant only for pre 5xxx devices.
+ *	       SRAM is restored and uCode is in yesrmal operation mode.
+ *	       This yeste is relevant only for pre 5xxx devices.
  *	NOTE:  After device reset, this bit remains "0" until host sets
  *	       INIT_DONE
  * @flag_init_done: Host sets this to put device into fully operational
@@ -304,7 +304,7 @@ struct iwl_pwr_tx_backoff {
  *	low power mode.
  * @flag_mac_access_req: Host sets this to request and maintain MAC wakeup,
  *	to allow host access to device-internal resources. Host must wait for
- *	mac_clock_ready (and !GOING_TO_SLEEP) before accessing non-CSR device
+ *	mac_clock_ready (and !GOING_TO_SLEEP) before accessing yesn-CSR device
  *	registers.
  * @flag_val_mac_access_en: mac access is enabled
  * @flag_master_dis: disable master
@@ -333,7 +333,7 @@ struct iwl_csr_params {
 /**
  * struct iwl_cfg_trans - information needed to start the trans
  *
- * These values cannot be changed when multiple configs are used for a
+ * These values canyest be changed when multiple configs are used for a
  * single PCI ID, because they are needed before the HW REV or RFID
  * can be read.
  *
@@ -393,7 +393,7 @@ struct iwl_fw_mon_regs {
  * @max_data_size: The maximal length of the fw data section (only DVM)
  * @valid_tx_ant: valid transmit antenna
  * @valid_rx_ant: valid receive antenna
- * @non_shared_ant: the antenna that is for WiFi only
+ * @yesn_shared_ant: the antenna that is for WiFi only
  * @nvm_ver: NVM version
  * @nvm_calib_ver: NVM calibration version
  * @lib: pointer to the lib ops
@@ -469,8 +469,8 @@ struct iwl_cfg {
 	    high_temp:1,
 	    mac_addr_from_csr:1,
 	    lp_xtal_workaround:1,
-	    disable_dummy_notification:1,
-	    apmg_not_supported:1,
+	    disable_dummy_yestification:1,
+	    apmg_yest_supported:1,
 	    vht_mu_mimo_supported:1,
 	    integrated:1,
 	    cdb:1,
@@ -478,7 +478,7 @@ struct iwl_cfg {
 	    uhb_supported:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
-	u8 non_shared_ant;
+	u8 yesn_shared_ant;
 	u8 nvm_hw_section_num;
 	u8 max_tx_agg_size;
 	u8 max_ht_ampdu_exponent;

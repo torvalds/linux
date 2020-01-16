@@ -6,7 +6,7 @@
  *              Licensed under the GPLv2
  *
  *  To build:
- *	$ gcc nanosleep.c -o nanosleep -lrt
+ *	$ gcc nayessleep.c -o nayessleep -lrt
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
  *   GNU General Public License for more details.
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -98,32 +98,32 @@ struct timespec timespec_add(struct timespec ts, unsigned long long ns)
 	return ts;
 }
 
-int nanosleep_test(int clockid, long long ns)
+int nayessleep_test(int clockid, long long ns)
 {
-	struct timespec now, target, rel;
+	struct timespec yesw, target, rel;
 
 	/* First check abs time */
-	if (clock_gettime(clockid, &now))
+	if (clock_gettime(clockid, &yesw))
 		return UNSUPPORTED;
-	target = timespec_add(now, ns);
+	target = timespec_add(yesw, ns);
 
-	if (clock_nanosleep(clockid, TIMER_ABSTIME, &target, NULL))
+	if (clock_nayessleep(clockid, TIMER_ABSTIME, &target, NULL))
 		return UNSUPPORTED;
-	clock_gettime(clockid, &now);
+	clock_gettime(clockid, &yesw);
 
-	if (!in_order(target, now))
+	if (!in_order(target, yesw))
 		return -1;
 
 	/* Second check reltime */
-	clock_gettime(clockid, &now);
+	clock_gettime(clockid, &yesw);
 	rel.tv_sec = 0;
 	rel.tv_nsec = 0;
 	rel = timespec_add(rel, ns);
-	target = timespec_add(now, ns);
-	clock_nanosleep(clockid, 0, &rel, NULL);
-	clock_gettime(clockid, &now);
+	target = timespec_add(yesw, ns);
+	clock_nayessleep(clockid, 0, &rel, NULL);
+	clock_gettime(clockid, &yesw);
 
-	if (!in_order(target, now))
+	if (!in_order(target, yesw))
 		return -1;
 	return 0;
 }
@@ -135,18 +135,18 @@ int main(int argc, char **argv)
 
 	for (clockid = CLOCK_REALTIME; clockid < NR_CLOCKIDS; clockid++) {
 
-		/* Skip cputime clockids since nanosleep won't increment cputime */
+		/* Skip cputime clockids since nayessleep won't increment cputime */
 		if (clockid == CLOCK_PROCESS_CPUTIME_ID ||
 				clockid == CLOCK_THREAD_CPUTIME_ID ||
 				clockid == CLOCK_HWSPECIFIC)
 			continue;
 
-		printf("Nanosleep %-31s ", clockstring(clockid));
+		printf("Nayessleep %-31s ", clockstring(clockid));
 		fflush(stdout);
 
 		length = 10;
 		while (length <= (NSEC_PER_SEC * 10)) {
-			ret = nanosleep_test(clockid, length);
+			ret = nayessleep_test(clockid, length);
 			if (ret == UNSUPPORTED) {
 				printf("[UNSUPPORTED]\n");
 				goto next;

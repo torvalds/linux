@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ASM_IA64_INTEL_INTRIN_H
 #define _ASM_IA64_INTEL_INTRIN_H
 /*
@@ -13,7 +13,7 @@
 
 #define ia64_barrier()		__memory_barrier()
 
-#define ia64_stop()	/* Nothing: As of now stop bit is generated for each
+#define ia64_stop()	/* Nothing: As of yesw stop bit is generated for each
 		 	 * intrinsic
 		 	 */
 
@@ -38,7 +38,7 @@
 #define ia64_invala		__invala
 #define ia64_invala_gr		__invala_gr
 #define ia64_invala_fr		__invala_fr
-#define ia64_nop		__nop
+#define ia64_yesp		__yesp
 #define ia64_sum		__sum
 #define ia64_ssm		__ssm
 #define ia64_rum		__rum
@@ -137,7 +137,7 @@
 
 /* Values for lfhint in __lfetch and __lfetch_fault */
 
-#define ia64_lfhint_none	__lfhint_none
+#define ia64_lfhint_yesne	__lfhint_yesne
 #define ia64_lfhint_nt1		__lfhint_nt1
 #define ia64_lfhint_nt2		__lfhint_nt2
 #define ia64_lfhint_nta		__lfhint_nta

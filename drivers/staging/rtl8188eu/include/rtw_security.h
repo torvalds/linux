@@ -132,7 +132,7 @@ struct security_priv {
 	u8	bcheck_grpkey;
 	u8	bgrpkey_handshake;
 	s32	hw_decrypted;/* if the rx packets is hw_decrypted==false,i
-			      * it means the hw has not been ready.
+			      * it means the hw has yest been ready.
 			      */
 
 	/* keeps the auth_type & enc_status from upper layer

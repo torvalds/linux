@@ -144,7 +144,7 @@
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
 	cd-gpios = <&gpio7 11 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	yes-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
 	status = "okay";

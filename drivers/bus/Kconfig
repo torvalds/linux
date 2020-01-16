@@ -33,7 +33,7 @@ config MOXTET
 	tristate "CZ.NIC Turris Mox module configuration bus"
 	depends on SPI_MASTER && OF
 	help
-	  Say yes here to add support for the module configuration bus found
+	  Say no here to add support for the module configuration bus found
 	  on CZ.NIC's Turris Mox. This is needed for the ability to discover
 	  the order in which the modules are connected and to get/set some of
 	  their settings. For example the GPIOs on Mox SFP module are
@@ -168,11 +168,11 @@ config TI_SYSC
 	  found on many TI SoCs.
 
 config TS_NBUS
-	tristate "Technologic Systems NBUS Driver"
+	tristate "Techyeslogic Systems NBUS Driver"
 	depends on SOC_IMX28
 	depends on OF_GPIO && PWM
 	help
-	  Driver for the Technologic Systems NBUS which is used to interface
+	  Driver for the Techyeslogic Systems NBUS which is used to interface
 	  with the peripherals in the FPGA of the TS-4600 SoM.
 
 config UNIPHIER_SYSTEM_BUS

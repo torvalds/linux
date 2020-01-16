@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * TC Applied Technologies Digital Interface Communications Engine driver
+ * TC Applied Techyeslogies Digital Interface Communications Engine driver
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  */
@@ -236,8 +236,8 @@ static void dice_remove(struct fw_unit *unit)
 
 	/*
 	 * Confirm to stop the work for registration before the sound card is
-	 * going to be released. The work is not scheduled again because bus
-	 * reset handler is not called anymore.
+	 * going to be released. The work is yest scheduled again because bus
+	 * reset handler is yest called anymore.
 	 */
 	cancel_delayed_work_sync(&dice->dwork);
 
@@ -364,7 +364,7 @@ static const struct ieee1394_device_id dice_id_table[] = {
 		.driver_data = (kernel_ulong_t)snd_dice_detect_mytek_formats,
 	},
 	// Solid State Logic, Duende Classic and Mini.
-	// NOTE: each field of GUID in config ROM is not compliant to standard
+	// NOTE: each field of GUID in config ROM is yest compliant to standard
 	// DICE scheme.
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |

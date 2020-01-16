@@ -7,7 +7,7 @@
 
 #include <linux/gpio/driver.h>
 
-/* VT8500 has no enable register in the extgpio bank. */
+/* VT8500 has yes enable register in the extgpio bank. */
 #define NO_REG	0xFFFF
 
 #define WMT_PINCTRL_BANK(__en, __dir, __dout, __din, __pen, __pcfg)	\

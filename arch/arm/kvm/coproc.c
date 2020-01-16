@@ -47,7 +47,7 @@ static bool read_from_write_only(struct kvm_vcpu *vcpu,
 	return false;
 }
 
-/* 3 bits per cache level, as per CLIDR, but non-existent caches always 0 */
+/* 3 bits per cache level, as per CLIDR, but yesn-existent caches always 0 */
 static u32 cache_levels;
 
 /* CSSELR values; used to index KVM_REG_ARM_DEMUX_ID_CCSIDR */
@@ -118,7 +118,7 @@ static bool access_actlr(struct kvm_vcpu *vcpu,
 			 const struct coproc_reg *r)
 {
 	if (p->is_write)
-		return ignore_write(vcpu, p);
+		return igyesre_write(vcpu, p);
 
 	*vcpu_reg(vcpu, p->Rt1) = vcpu_cp15(vcpu, c1_ACTLR);
 	return true;
@@ -140,7 +140,7 @@ static bool access_l2ctlr(struct kvm_vcpu *vcpu,
 			  const struct coproc_reg *r)
 {
 	if (p->is_write)
-		return ignore_write(vcpu, p);
+		return igyesre_write(vcpu, p);
 
 	*vcpu_reg(vcpu, p->Rt1) = vcpu_cp15(vcpu, c9_L2CTLR);
 	return true;
@@ -179,21 +179,21 @@ static void reset_actlr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 
 /*
  * TRM entries: A7:4.3.50, A15:4.3.49
- * R/O WI (even if NSACR.NS_L2ERR, a write of 1 is ignored).
+ * R/O WI (even if NSACR.NS_L2ERR, a write of 1 is igyesred).
  */
 static bool access_l2ectlr(struct kvm_vcpu *vcpu,
 			   const struct coproc_params *p,
 			   const struct coproc_reg *r)
 {
 	if (p->is_write)
-		return ignore_write(vcpu, p);
+		return igyesre_write(vcpu, p);
 
 	*vcpu_reg(vcpu, p->Rt1) = 0;
 	return true;
 }
 
 /*
- * See note at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are not easily virtualized).
+ * See yeste at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are yest easily virtualized).
  */
 static bool access_dcsw(struct kvm_vcpu *vcpu,
 			const struct coproc_params *p,
@@ -246,7 +246,7 @@ static bool access_gic_sgi(struct kvm_vcpu *vcpu,
 	 * In a system where GICD_CTLR.DS=1, a ICC_SGI0R access generates
 	 * Group0 SGIs only, while ICC_SGI1R can generate either group,
 	 * depending on the SGI configuration. ICC_ASGI1R is effectively
-	 * equivalent to ICC_SGI0R, as there is no "alternative" secure
+	 * equivalent to ICC_SGI0R, as there is yes "alternative" secure
 	 * group.
 	 */
 	switch (p->Op1) {
@@ -270,7 +270,7 @@ static bool access_gic_sre(struct kvm_vcpu *vcpu,
 			   const struct coproc_reg *r)
 {
 	if (p->is_write)
-		return ignore_write(vcpu, p);
+		return igyesre_write(vcpu, p);
 
 	*vcpu_reg(vcpu, p->Rt1) = vcpu->arch.vgic_cpu.vgic_v3.vgic_sre;
 
@@ -350,7 +350,7 @@ static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 		    const struct coproc_reg *r)
 {
 	if (p->is_write)
-		return ignore_write(vcpu, p);
+		return igyesre_write(vcpu, p);
 	else
 		return read_zero(vcpu, p);
 }
@@ -370,8 +370,8 @@ static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 #define access_pmintenclr trap_raz_wi
 
 /* Architected CP15 registers.
- * CRn denotes the primary register number, but is copied to the CRm in the
- * user space API for 64-bit register access in line with the terminology used
+ * CRn deyestes the primary register number, but is copied to the CRm in the
+ * user space API for 64-bit register access in line with the termiyeslogy used
  * in the ARM ARM.
  * Important: Must be sorted ascending by CRn, CRM, Op1, Op2 and with 64-bit
  *            registers preceding 32-bit ones.
@@ -383,7 +383,7 @@ static const struct coproc_reg cp15_regs[] = {
 
 	/* CSSELR: swapped by interrupt.S. */
 	{ CRn( 0), CRm( 0), Op1( 2), Op2( 0), is32,
-			NULL, reset_unknown, c0_CSSELR },
+			NULL, reset_unkyeswn, c0_CSSELR },
 
 	/* ACTLR: trapped by HCR.TAC bit. */
 	{ CRn( 1), CRm( 0), Op1( 0), Op2( 1), is32,
@@ -394,38 +394,38 @@ static const struct coproc_reg cp15_regs[] = {
 			NULL, reset_val, c1_CPACR, 0x00000000 },
 
 	/* TTBR0/TTBR1/TTBCR: swapped by interrupt.S. */
-	{ CRm64( 2), Op1( 0), is64, access_vm_reg, reset_unknown64, c2_TTBR0 },
+	{ CRm64( 2), Op1( 0), is64, access_vm_reg, reset_unkyeswn64, c2_TTBR0 },
 	{ CRn(2), CRm( 0), Op1( 0), Op2( 0), is32,
-			access_vm_reg, reset_unknown, c2_TTBR0 },
+			access_vm_reg, reset_unkyeswn, c2_TTBR0 },
 	{ CRn(2), CRm( 0), Op1( 0), Op2( 1), is32,
-			access_vm_reg, reset_unknown, c2_TTBR1 },
+			access_vm_reg, reset_unkyeswn, c2_TTBR1 },
 	{ CRn( 2), CRm( 0), Op1( 0), Op2( 2), is32,
 			access_vm_reg, reset_val, c2_TTBCR, 0x00000000 },
-	{ CRm64( 2), Op1( 1), is64, access_vm_reg, reset_unknown64, c2_TTBR1 },
+	{ CRm64( 2), Op1( 1), is64, access_vm_reg, reset_unkyeswn64, c2_TTBR1 },
 
 
 	/* DACR: swapped by interrupt.S. */
 	{ CRn( 3), CRm( 0), Op1( 0), Op2( 0), is32,
-			access_vm_reg, reset_unknown, c3_DACR },
+			access_vm_reg, reset_unkyeswn, c3_DACR },
 
 	/* DFSR/IFSR/ADFSR/AIFSR: swapped by interrupt.S. */
 	{ CRn( 5), CRm( 0), Op1( 0), Op2( 0), is32,
-			access_vm_reg, reset_unknown, c5_DFSR },
+			access_vm_reg, reset_unkyeswn, c5_DFSR },
 	{ CRn( 5), CRm( 0), Op1( 0), Op2( 1), is32,
-			access_vm_reg, reset_unknown, c5_IFSR },
+			access_vm_reg, reset_unkyeswn, c5_IFSR },
 	{ CRn( 5), CRm( 1), Op1( 0), Op2( 0), is32,
-			access_vm_reg, reset_unknown, c5_ADFSR },
+			access_vm_reg, reset_unkyeswn, c5_ADFSR },
 	{ CRn( 5), CRm( 1), Op1( 0), Op2( 1), is32,
-			access_vm_reg, reset_unknown, c5_AIFSR },
+			access_vm_reg, reset_unkyeswn, c5_AIFSR },
 
 	/* DFAR/IFAR: swapped by interrupt.S. */
 	{ CRn( 6), CRm( 0), Op1( 0), Op2( 0), is32,
-			access_vm_reg, reset_unknown, c6_DFAR },
+			access_vm_reg, reset_unkyeswn, c6_DFAR },
 	{ CRn( 6), CRm( 0), Op1( 0), Op2( 2), is32,
-			access_vm_reg, reset_unknown, c6_IFAR },
+			access_vm_reg, reset_unkyeswn, c6_IFAR },
 
 	/* PAR swapped by interrupt.S */
-	{ CRm64( 7), Op1( 0), is64, NULL, reset_unknown64, c7_PAR },
+	{ CRm64( 7), Op1( 0), is64, NULL, reset_unkyeswn64, c7_PAR },
 
 	/*
 	 * DC{C,I,CI}SW operations:
@@ -434,7 +434,7 @@ static const struct coproc_reg cp15_regs[] = {
 	{ CRn( 7), CRm(10), Op1( 0), Op2( 2), is32, access_dcsw},
 	{ CRn( 7), CRm(14), Op1( 0), Op2( 2), is32, access_dcsw},
 	/*
-	 * L2CTLR access (guest wants to know #CPUs).
+	 * L2CTLR access (guest wants to kyesw #CPUs).
 	 */
 	{ CRn( 9), CRm( 0), Op1( 1), Op2( 2), is32,
 			access_l2ctlr, reset_l2ctlr, c9_L2CTLR },
@@ -459,15 +459,15 @@ static const struct coproc_reg cp15_regs[] = {
 
 	/* PRRR/NMRR (aka MAIR0/MAIR1): swapped by interrupt.S. */
 	{ CRn(10), CRm( 2), Op1( 0), Op2( 0), is32,
-			access_vm_reg, reset_unknown, c10_PRRR},
+			access_vm_reg, reset_unkyeswn, c10_PRRR},
 	{ CRn(10), CRm( 2), Op1( 0), Op2( 1), is32,
-			access_vm_reg, reset_unknown, c10_NMRR},
+			access_vm_reg, reset_unkyeswn, c10_NMRR},
 
 	/* AMAIR0/AMAIR1: swapped by interrupt.S. */
 	{ CRn(10), CRm( 3), Op1( 0), Op2( 0), is32,
-			access_vm_reg, reset_unknown, c10_AMAIR0},
+			access_vm_reg, reset_unkyeswn, c10_AMAIR0},
 	{ CRn(10), CRm( 3), Op1( 0), Op2( 1), is32,
-			access_vm_reg, reset_unknown, c10_AMAIR1},
+			access_vm_reg, reset_unkyeswn, c10_AMAIR1},
 
 	/* ICC_SGI1R */
 	{ CRm64(12), Op1( 0), is64, access_gic_sgi},
@@ -487,11 +487,11 @@ static const struct coproc_reg cp15_regs[] = {
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 1), is32,
 			access_vm_reg, reset_val, c13_CID, 0x00000000 },
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 2), is32,
-			NULL, reset_unknown, c13_TID_URW },
+			NULL, reset_unkyeswn, c13_TID_URW },
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 3), is32,
-			NULL, reset_unknown, c13_TID_URO },
+			NULL, reset_unkyeswn, c13_TID_URO },
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 4), is32,
-			NULL, reset_unknown, c13_TID_PRIV },
+			NULL, reset_unkyeswn, c13_TID_PRIV },
 
 	/* CNTP */
 	{ CRm64(14), Op1( 2), is64, access_cntp_cval},
@@ -722,7 +722,7 @@ static bool index_to_params(u64 id, struct coproc_params *params)
 {
 	switch (id & KVM_REG_SIZE_MASK) {
 	case KVM_REG_SIZE_U32:
-		/* Any unused index bits means it's not valid. */
+		/* Any unused index bits means it's yest valid. */
 		if (id & ~(KVM_REG_ARCH_MASK | KVM_REG_SIZE_MASK
 			   | KVM_REG_ARM_COPROC_MASK
 			   | KVM_REG_ARM_32_CRN_MASK
@@ -742,7 +742,7 @@ static bool index_to_params(u64 id, struct coproc_params *params)
 			       >> KVM_REG_ARM_32_OPC2_SHIFT);
 		return true;
 	case KVM_REG_SIZE_U64:
-		/* Any unused index bits means it's not valid. */
+		/* Any unused index bits means it's yest valid. */
 		if (id & ~(KVM_REG_ARCH_MASK | KVM_REG_SIZE_MASK
 			      | KVM_REG_ARM_COPROC_MASK
 			      | KVM_REG_ARM_CRM_MASK
@@ -770,7 +770,7 @@ static const struct coproc_reg *index_to_coproc_reg(struct kvm_vcpu *vcpu,
 	const struct coproc_reg *table, *r;
 	struct coproc_params params;
 
-	/* We only do cp15 for now. */
+	/* We only do cp15 for yesw. */
 	if ((id & KVM_REG_ARM_COPROC_MASK) >> KVM_REG_ARM_COPROC_SHIFT != 15)
 		return NULL;
 
@@ -796,7 +796,7 @@ static const struct coproc_reg *index_to_coproc_reg(struct kvm_vcpu *vcpu,
  * A future CPU may provide a mechanism to present different values to
  * the guest, or a future kvm may trap them.
  */
-/* Unfortunately, there's no register-argument for mrc, so generate. */
+/* Unfortunately, there's yes register-argument for mrc, so generate. */
 #define FUNCTION_FOR32(crn, crm, op1, op2, name)			\
 	static void get_##name(struct kvm_vcpu *v,			\
 			       const struct coproc_reg *r)		\
@@ -960,7 +960,7 @@ static bool is_valid_cache(u32 val)
 		return !(val & 1);
 	case 3: /* Separate instruction and data caches */
 		return true;
-	default: /* Reserved: we can't know instruction or data. */
+	default: /* Reserved: we can't kyesw instruction or data. */
 		return false;
 	}
 }
@@ -970,7 +970,7 @@ static u32 get_ccsidr(u32 csselr)
 {
 	u32 ccsidr;
 
-	/* Make sure noone else changes CSSELR during this! */
+	/* Make sure yesone else changes CSSELR during this! */
 	local_irq_disable();
 	/* Put value into CSSELR */
 	asm volatile("mcr p15, 2, %0, c0, c0, 0" : : "r" (csselr));
@@ -987,7 +987,7 @@ static int demux_c15_get(u64 id, void __user *uaddr)
 	u32 val;
 	u32 __user *uval = uaddr;
 
-	/* Fail if we have unknown bits set. */
+	/* Fail if we have unkyeswn bits set. */
 	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
 		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
 		return -ENOENT;
@@ -1012,7 +1012,7 @@ static int demux_c15_set(u64 id, void __user *uaddr)
 	u32 val, newval;
 	u32 __user *uval = uaddr;
 
-	/* Fail if we have unknown bits set. */
+	/* Fail if we have unkyeswn bits set. */
 	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
 		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
 		return -ENOENT;
@@ -1088,7 +1088,7 @@ static int vfp_get_reg(const struct kvm_vcpu *vcpu, u64 id, void __user *uaddr)
 	u32 vfpid = (id & KVM_REG_ARM_VFP_MASK);
 	u32 val;
 
-	/* Fail if we have unknown bits set. */
+	/* Fail if we have unkyeswn bits set. */
 	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
 		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
 		return -ENOENT;
@@ -1132,7 +1132,7 @@ static int vfp_set_reg(struct kvm_vcpu *vcpu, u64 id, const void __user *uaddr)
 	u32 vfpid = (id & KVM_REG_ARM_VFP_MASK);
 	u32 val;
 
-	/* Fail if we have unknown bits set. */
+	/* Fail if we have unkyeswn bits set. */
 	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
 		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
 		return -ENOENT;
@@ -1295,7 +1295,7 @@ static u64 cp15_to_index(const struct coproc_reg *reg)
 		val |= KVM_REG_SIZE_U64;
 		val |= (reg->Op1 << KVM_REG_ARM_OPC1_SHIFT);
 		/*
-		 * CRn always denotes the primary coproc. reg. nr. for the
+		 * CRn always deyestes the primary coproc. reg. nr. for the
 		 * in-kernel representation, but the user space API uses the
 		 * CRm for the encoding, because it is modelled after the
 		 * MRRC/MCRR instructions: see the ARM ARM rev. c page
@@ -1344,14 +1344,14 @@ static int walk_cp15(struct kvm_vcpu *vcpu, u64 __user *uind)
 		int cmp = cmp_reg(i1, i2);
 		/* target-specific overrides generic entry. */
 		if (cmp <= 0) {
-			/* Ignore registers we trap but don't save. */
+			/* Igyesre registers we trap but don't save. */
 			if (i1->reg) {
 				if (!copy_reg_to_user(i1, &uind))
 					return -EFAULT;
 				total++;
 			}
 		} else {
-			/* Ignore registers we trap but don't save. */
+			/* Igyesre registers we trap but don't save. */
 			if (i2->reg) {
 				if (!copy_reg_to_user(i2, &uind))
 					return -EFAULT;
@@ -1416,11 +1416,11 @@ void kvm_coproc_table_init(void)
 	 * CLIDR format is awkward, so clean it up.  See ARM B4.1.20:
 	 *
 	 *   If software reads the Cache Type fields from Ctype1
-	 *   upwards, once it has seen a value of 0b000, no caches
+	 *   upwards, once it has seen a value of 0b000, yes caches
 	 *   exist at further-out levels of the hierarchy. So, for
 	 *   example, if Ctype3 is the first Cache Type field with a
 	 *   value of 0b000, the values of Ctype4 to Ctype7 must be
-	 *   ignored.
+	 *   igyesred.
 	 */
 	asm volatile("mrc p15, 1, %0, c0, c0, 1" : "=r" (cache_levels));
 	for (i = 0; i < 7; i++)

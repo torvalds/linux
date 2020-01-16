@@ -112,9 +112,9 @@ static DEVICE_ATTR_IGNORE_LOCKDEP(bConfigurationValue, S_IRUGO | S_IWUSR,
 static ssize_t devspec_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	struct device_node *of_node = dev->of_node;
+	struct device_yesde *of_yesde = dev->of_yesde;
 
-	return sprintf(buf, "%pOF\n", of_node);
+	return sprintf(buf, "%pOF\n", of_yesde);
 }
 static DEVICE_ATTR_RO(devspec);
 #endif
@@ -170,7 +170,7 @@ static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 		speed = "10000";
 		break;
 	default:
-		speed = "unknown";
+		speed = "unkyeswn";
 	}
 	return sprintf(buf, "%s\n", speed);
 }
@@ -314,7 +314,7 @@ static ssize_t removable_show(struct device *dev, struct device_attribute *attr,
 		state = "fixed";
 		break;
 	default:
-		state = "unknown";
+		state = "unkyeswn";
 	}
 
 	return sprintf(buf, "%s\n", state);
@@ -325,8 +325,8 @@ static ssize_t ltm_capable_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	if (usb_device_supports_ltm(to_usb_device(dev)))
-		return sprintf(buf, "%s\n", "yes");
-	return sprintf(buf, "%s\n", "no");
+		return sprintf(buf, "%s\n", "no");
+	return sprintf(buf, "%s\n", "yes");
 }
 static DEVICE_ATTR_RO(ltm_capable);
 
@@ -370,7 +370,7 @@ static int add_persist_attributes(struct device *dev)
 		struct usb_device *udev = to_usb_device(dev);
 
 		/* Hubs are automatically enabled for USB_PERSIST,
-		 * no point in creating the attribute file.
+		 * yes point in creating the attribute file.
 		 */
 		if (udev->descriptor.bDeviceClass != USB_CLASS_HUB)
 			rc = sysfs_add_file_to_group(&dev->kobj,
@@ -742,7 +742,7 @@ usb_descriptor_attr(bNumConfigurations, "%d\n");
 usb_descriptor_attr(bMaxPacketSize0, "%d\n");
 
 
-/* show if the device is authorized (1) or not (0) */
+/* show if the device is authorized (1) or yest (0) */
 static ssize_t authorized_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -887,21 +887,21 @@ read_descriptors(struct file *filp, struct kobject *kobj,
 	struct usb_device *udev = to_usb_device(dev);
 	size_t nleft = count;
 	size_t srclen, n;
-	int cfgno;
+	int cfgyes;
 	void *src;
 
 	/* The binary attribute begins with the device descriptor.
 	 * Following that are the raw descriptor entries for all the
 	 * configurations (config plus subsidiary descriptors).
 	 */
-	for (cfgno = -1; cfgno < udev->descriptor.bNumConfigurations &&
-			nleft > 0; ++cfgno) {
-		if (cfgno < 0) {
+	for (cfgyes = -1; cfgyes < udev->descriptor.bNumConfigurations &&
+			nleft > 0; ++cfgyes) {
+		if (cfgyes < 0) {
 			src = &udev->descriptor;
 			srclen = sizeof(struct usb_device_descriptor);
 		} else {
-			src = udev->rawdescriptors[cfgno];
-			srclen = __le16_to_cpu(udev->config[cfgno].desc.
+			src = udev->rawdescriptors[cfgyes];
+			srclen = __le16_to_cpu(udev->config[cfgyes].desc.
 					wTotalLength);
 		}
 		if (off < srclen) {
@@ -964,7 +964,7 @@ static DEVICE_ATTR_RW(authorized_default);
  * interface_authorized_default_show - show default authorization status
  * for USB interfaces
  *
- * note: interface_authorized_default is the default value
+ * yeste: interface_authorized_default is the default value
  *       for initializing the authorized attribute of interfaces
  */
 static ssize_t interface_authorized_default_show(struct device *dev,
@@ -980,7 +980,7 @@ static ssize_t interface_authorized_default_show(struct device *dev,
  * interface_authorized_default_store - store default authorization status
  * for USB interfaces
  *
- * note: interface_authorized_default is the default value
+ * yeste: interface_authorized_default is the default value
  *       for initializing the authorized attribute of interfaces
  */
 static ssize_t interface_authorized_default_store(struct device *dev,

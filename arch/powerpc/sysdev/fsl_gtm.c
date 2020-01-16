@@ -11,7 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -71,14 +71,14 @@ struct gtm {
 	struct gtm_timers_regs __iomem *regs;
 	struct gtm_timer timers[4];
 	spinlock_t lock;
-	struct list_head list_node;
+	struct list_head list_yesde;
 };
 
 static LIST_HEAD(gtms);
 
 /**
  * gtm_get_timer - request GTM timer to use it with the rest of GTM API
- * Context:	non-IRQ
+ * Context:	yesn-IRQ
  *
  * This function reserves GTM timer for later use. It returns gtm_timer
  * structure to use with the rest of GTM API, you should use timer->irq
@@ -89,7 +89,7 @@ struct gtm_timer *gtm_get_timer16(void)
 	struct gtm *gtm = NULL;
 	int i;
 
-	list_for_each_entry(gtm, &gtms, list_node) {
+	list_for_each_entry(gtm, &gtms, list_yesde) {
 		spin_lock_irq(&gtm->lock);
 
 		for (i = 0; i < ARRAY_SIZE(gtm->timers); i++) {
@@ -111,9 +111,9 @@ EXPORT_SYMBOL(gtm_get_timer16);
 
 /**
  * gtm_get_specific_timer - request specific GTM timer
- * @gtm:	specific GTM, pass here GTM's device_node->data
+ * @gtm:	specific GTM, pass here GTM's device_yesde->data
  * @timer:	specific timer number, Timer1 is 0.
- * Context:	non-IRQ
+ * Context:	yesn-IRQ
  *
  * This function reserves GTM timer for later use. It returns gtm_timer
  * structure to use with the rest of GTM API, you should use timer->irq
@@ -242,7 +242,7 @@ static int gtm_set_ref_timer16(struct gtm_timer *tmr, int frequency,
  */
 int gtm_set_timer16(struct gtm_timer *tmr, unsigned long usec, bool reload)
 {
-	/* quite obvious, frequency which is enough for µSec precision */
+	/* quite obvious, frequency which is eyesugh for µSec precision */
 	int freq = 1000000;
 	unsigned int bit;
 
@@ -272,18 +272,18 @@ EXPORT_SYMBOL(gtm_set_timer16);
  * flag was set, timer will also reset itself upon reference value, otherwise
  * it continues to increment.
  *
- * The _exact_ bit in the function name states that this function will not
+ * The _exact_ bit in the function name states that this function will yest
  * crop precision of the "usec" argument, thus usec is limited to 16 bits
  * (single timer width).
  */
 int gtm_set_exact_timer16(struct gtm_timer *tmr, u16 usec, bool reload)
 {
-	/* quite obvious, frequency which is enough for µSec precision */
+	/* quite obvious, frequency which is eyesugh for µSec precision */
 	const int freq = 1000000;
 
 	/*
 	 * We can lower the frequency (and probably power consumption) by
-	 * dividing both frequency and usec by 2 until there is no remainder.
+	 * dividing both frequency and usec by 2 until there is yes remainder.
 	 * But we won't bother with this unless savings are measured, so just
 	 * run the timer as is.
 	 */
@@ -315,12 +315,12 @@ void gtm_stop_timer16(struct gtm_timer *tmr)
 EXPORT_SYMBOL(gtm_stop_timer16);
 
 /**
- * gtm_ack_timer16 - acknowledge timer event (free-run timers only)
+ * gtm_ack_timer16 - ackyeswledge timer event (free-run timers only)
  * @tmr:	pointer to the gtm_timer structure obtained from gtm_get_timer
  * @events:	events mask to ack
  * Context:	any
  *
- * Thus function used to acknowledge timer interrupt event, use it inside the
+ * Thus function used to ackyeswledge timer interrupt event, use it inside the
  * interrupt handler.
  */
 void gtm_ack_timer16(struct gtm_timer *tmr, u16 events)
@@ -329,7 +329,7 @@ void gtm_ack_timer16(struct gtm_timer *tmr, u16 events)
 }
 EXPORT_SYMBOL(gtm_ack_timer16);
 
-static void __init gtm_set_shortcuts(struct device_node *np,
+static void __init gtm_set_shortcuts(struct device_yesde *np,
 				     struct gtm_timer *timers,
 				     struct gtm_timers_regs __iomem *regs)
 {
@@ -374,9 +374,9 @@ static void __init gtm_set_shortcuts(struct device_node *np,
 
 static int __init fsl_gtm_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	for_each_compatible_node(np, NULL, "fsl,gtm") {
+	for_each_compatible_yesde(np, NULL, "fsl,gtm") {
 		int i;
 		struct gtm *gtm;
 		const u32 *clock;
@@ -393,7 +393,7 @@ static int __init fsl_gtm_init(void)
 
 		clock = of_get_property(np, "clock-frequency", &size);
 		if (!clock || size != sizeof(*clock)) {
-			pr_err("%pOF: no clock-frequency\n", np);
+			pr_err("%pOF: yes clock-frequency\n", np);
 			goto err;
 		}
 		gtm->clock = *clock;
@@ -403,7 +403,7 @@ static int __init fsl_gtm_init(void)
 
 			irq = irq_of_parse_and_map(np, i);
 			if (!irq) {
-				pr_err("%pOF: not enough interrupts specified\n",
+				pr_err("%pOF: yest eyesugh interrupts specified\n",
 				       np);
 				goto err;
 			}
@@ -419,11 +419,11 @@ static int __init fsl_gtm_init(void)
 		}
 
 		gtm_set_shortcuts(np, gtm->timers, gtm->regs);
-		list_add(&gtm->list_node, &gtms);
+		list_add(&gtm->list_yesde, &gtms);
 
-		/* We don't want to lose the node and its ->data */
+		/* We don't want to lose the yesde and its ->data */
 		np->data = gtm;
-		of_node_get(np);
+		of_yesde_get(np);
 
 		continue;
 err:

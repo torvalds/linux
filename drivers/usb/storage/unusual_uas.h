@@ -10,7 +10,7 @@
  */
 
 /*
- * IMPORTANT NOTE: This file must be included in another file which defines
+ * IMPORTANT NOTE: This file must be included in ayesther file which defines
  * a UNUSUAL_DEV macro before this file is included.
  */
 
@@ -38,7 +38,7 @@ UNUSUAL_DEV(0x0984, 0x0301, 0x0128, 0x0128,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_IGNORE_UAS),
 
-/* Reported-by: David Webb <djw@noc.ac.uk> */
+/* Reported-by: David Webb <djw@yesc.ac.uk> */
 UNUSUAL_DEV(0x0bc2, 0x331a, 0x0000, 0x9999,
 		"Seagate",
 		"Expansion Desk",
@@ -80,7 +80,7 @@ UNUSUAL_DEV(0x2109, 0x0711, 0x0000, 0x9999,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_ATA_1X),
 
-/* Reported-by: Icenowy Zheng <icenowy@aosc.io> */
+/* Reported-by: Iceyeswy Zheng <iceyeswy@aosc.io> */
 UNUSUAL_DEV(0x2537, 0x1068, 0x0000, 0x9999,
 		"Norelsys",
 		"NS1068X",
@@ -89,7 +89,7 @@ UNUSUAL_DEV(0x2537, 0x1068, 0x0000, 0x9999,
 
 /*
  * Initially Reported-by: Takeo Nakayama <javhera@gmx.com>
- * UAS Ignore Reported by Steven Ellis <sellis@redhat.com>
+ * UAS Igyesre Reported by Steven Ellis <sellis@redhat.com>
  */
 UNUSUAL_DEV(0x357d, 0x7788, 0x0000, 0x9999,
 		"JMicron",

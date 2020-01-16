@@ -42,7 +42,7 @@ struct pmac_irq_hw {
 
 /* Workaround flags for 32bit powermac machines */
 unsigned int of_irq_workarounds;
-struct device_node *of_irq_dflt_pic;
+struct device_yesde *of_irq_dflt_pic;
 
 /* Default addresses */
 static volatile struct pmac_irq_hw __iomem *pmac_irq_hw[4];
@@ -108,7 +108,7 @@ static void pmac_ack_irq(struct irq_data *d)
 	raw_spin_unlock_irqrestore(&pmac_pic_lock, flags);
 }
 
-static void __pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
+static void __pmac_set_irq_mask(unsigned int irq_nr, int yeskicklost)
 {
         unsigned long bit = 1UL << (irq_nr & 0x1f);
         int i = irq_nr >> 5;
@@ -129,7 +129,7 @@ static void __pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
         /*
          * Unfortunately, setting the bit in the enable register
          * when the device interrupt is already on *doesn't* set
-         * the bit in the flag register or request another interrupt.
+         * the bit in the flag register or request ayesther interrupt.
          */
         if (bit & ppc_cached_irq_mask[i] & in_le32(&pmac_irq_hw[i]->level))
 		__pmac_retrigger(irq_nr);
@@ -264,10 +264,10 @@ static struct irqaction gatwick_cascade_action = {
 	.name		= "cascade",
 };
 
-static int pmac_pic_host_match(struct irq_domain *h, struct device_node *node,
+static int pmac_pic_host_match(struct irq_domain *h, struct device_yesde *yesde,
 			       enum irq_domain_bus_token bus_token)
 {
-	/* We match all, we don't always have a node anyway */
+	/* We match all, we don't always have a yesde anyway */
 	return 1;
 }
 
@@ -294,8 +294,8 @@ static const struct irq_domain_ops pmac_pic_host_ops = {
 static void __init pmac_pic_probe_oldstyle(void)
 {
         int i;
-        struct device_node *master = NULL;
-	struct device_node *slave = NULL;
+        struct device_yesde *master = NULL;
+	struct device_yesde *slave = NULL;
 	u8 __iomem *addr;
 	struct resource r;
 
@@ -303,29 +303,29 @@ static void __init pmac_pic_probe_oldstyle(void)
 	ppc_md.get_irq = pmac_pic_get_irq;
 
 	/*
-	 * Find the interrupt controller type & node
+	 * Find the interrupt controller type & yesde
 	 */
 
-	if ((master = of_find_node_by_name(NULL, "gc")) != NULL) {
+	if ((master = of_find_yesde_by_name(NULL, "gc")) != NULL) {
 		max_irqs = max_real_irqs = 32;
-	} else if ((master = of_find_node_by_name(NULL, "ohare")) != NULL) {
+	} else if ((master = of_find_yesde_by_name(NULL, "ohare")) != NULL) {
 		max_irqs = max_real_irqs = 32;
 		/* We might have a second cascaded ohare */
-		slave = of_find_node_by_name(NULL, "pci106b,7");
+		slave = of_find_yesde_by_name(NULL, "pci106b,7");
 		if (slave)
 			max_irqs = 64;
-	} else if ((master = of_find_node_by_name(NULL, "mac-io")) != NULL) {
+	} else if ((master = of_find_yesde_by_name(NULL, "mac-io")) != NULL) {
 		max_irqs = max_real_irqs = 64;
 
 		/* We might have a second cascaded heathrow */
 
-		/* Compensate for of_node_put() in of_find_node_by_name() */
-		of_node_get(master);
-		slave = of_find_node_by_name(master, "mac-io");
+		/* Compensate for of_yesde_put() in of_find_yesde_by_name() */
+		of_yesde_get(master);
+		slave = of_find_yesde_by_name(master, "mac-io");
 
 		/* Check ordering of master & slave */
 		if (of_device_is_compatible(master, "gatwick")) {
-			struct device_node *tmp;
+			struct device_yesde *tmp;
 			BUG_ON(slave == NULL);
 			tmp = master;
 			master = slave;
@@ -346,7 +346,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 	BUG_ON(pmac_pic_host == NULL);
 	irq_set_default_host(pmac_pic_host);
 
-	/* Get addresses of first controller if we have a node for it */
+	/* Get addresses of first controller if we have a yesde for it */
 	BUG_ON(of_address_to_resource(master, 0, &r));
 
 	/* Map interrupts of primary controller */
@@ -357,7 +357,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 	if (max_real_irqs > 32)
 		pmac_irq_hw[i++] = (volatile struct pmac_irq_hw __iomem *)
 			(addr + 0x10);
-	of_node_put(master);
+	of_yesde_put(master);
 
 	printk(KERN_INFO "irq: Found primary Apple PIC %pOF for %d irqs\n",
 	       master, max_real_irqs);
@@ -377,7 +377,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 		       " cascade: %d\n", slave,
 		       max_irqs - max_real_irqs, pmac_irq_cascade);
 	}
-	of_node_put(slave);
+	of_yesde_put(slave);
 
 	/* Disable all interrupts in all controllers */
 	for (i = 0; i * 32 < max_irqs; ++i)
@@ -393,7 +393,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 #endif
 }
 
-int of_irq_parse_oldworld(struct device_node *device, int index,
+int of_irq_parse_oldworld(struct device_yesde *device, int index,
 			struct of_phandle_args *out_irq)
 {
 	const u32 *ints = NULL;
@@ -401,7 +401,7 @@ int of_irq_parse_oldworld(struct device_node *device, int index,
 
 	/*
 	 * Old machines just have a list of interrupt numbers
-	 * and no interrupt-controller nodes. We also have dodgy
+	 * and yes interrupt-controller yesdes. We also have dodgy
 	 * cases where the APPL,interrupts property is completely
 	 * missing behind pci-pci bridges and we have to get it
 	 * from the parent (the bridge itself, as apple just wired
@@ -412,7 +412,7 @@ int of_irq_parse_oldworld(struct device_node *device, int index,
 		if (ints != NULL)
 			break;
 		device = device->parent;
-		if (!of_node_is_type(device, "pci"))
+		if (!of_yesde_is_type(device, "pci"))
 			break;
 	}
 	if (ints == NULL)
@@ -433,22 +433,22 @@ int of_irq_parse_oldworld(struct device_node *device, int index,
 static void __init pmac_pic_setup_mpic_nmi(struct mpic *mpic)
 {
 #if defined(CONFIG_XMON) && defined(CONFIG_PPC32)
-	struct device_node* pswitch;
+	struct device_yesde* pswitch;
 	int nmi_irq;
 
-	pswitch = of_find_node_by_name(NULL, "programmer-switch");
+	pswitch = of_find_yesde_by_name(NULL, "programmer-switch");
 	if (pswitch) {
 		nmi_irq = irq_of_parse_and_map(pswitch, 0);
 		if (nmi_irq) {
 			mpic_irq_set_priority(nmi_irq, 9);
 			setup_irq(nmi_irq, &xmon_action);
 		}
-		of_node_put(pswitch);
+		of_yesde_put(pswitch);
 	}
 #endif	/* defined(CONFIG_XMON) && defined(CONFIG_PPC32) */
 }
 
-static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
+static struct mpic * __init pmac_setup_one_mpic(struct device_yesde *np,
 						int master)
 {
 	const char *name = master ? " MPIC 1   " : " MPIC 2   ";
@@ -478,17 +478,17 @@ static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 static int __init pmac_pic_probe_mpic(void)
 {
 	struct mpic *mpic1, *mpic2;
-	struct device_node *np, *master = NULL, *slave = NULL;
+	struct device_yesde *np, *master = NULL, *slave = NULL;
 
 	/* We can have up to 2 MPICs cascaded */
-	for_each_node_by_type(np, "open-pic") {
+	for_each_yesde_by_type(np, "open-pic") {
 		if (master == NULL &&
 		    of_get_property(np, "interrupts", NULL) == NULL)
-			master = of_node_get(np);
+			master = of_yesde_get(np);
 		else if (slave == NULL)
-			slave = of_node_get(np);
+			slave = of_yesde_get(np);
 		if (master && slave) {
-			of_node_put(np);
+			of_yesde_put(np);
 			break;
 		}
 	}
@@ -513,14 +513,14 @@ static int __init pmac_pic_probe_mpic(void)
 	/* Install NMI if any */
 	pmac_pic_setup_mpic_nmi(mpic1);
 
-	of_node_put(master);
+	of_yesde_put(master);
 
 	/* Set up a cascaded controller, if present */
 	if (slave) {
 		mpic2 = pmac_setup_one_mpic(slave, 0);
 		if (mpic2 == NULL)
 			printk(KERN_ERR "Failed to setup slave MPIC\n");
-		of_node_put(slave);
+		of_yesde_put(slave);
 	}
 
 	return 0;
@@ -544,17 +544,17 @@ void __init pmac_pic_init(void)
 	 * machines with one controller.
 	 */
 	if (pmac_newworld && (of_irq_workarounds & OF_IMAP_NO_PHANDLE)) {
-		struct device_node *np;
+		struct device_yesde *np;
 
-		for_each_node_with_property(np, "interrupt-controller") {
+		for_each_yesde_with_property(np, "interrupt-controller") {
 			/* Skip /chosen/interrupt-controller */
-			if (of_node_name_eq(np, "chosen"))
+			if (of_yesde_name_eq(np, "chosen"))
 				continue;
 			/* It seems like at least one person wants
 			 * to use BootX on a machine with an AppleKiwi
 			 * controller which happens to pretend to be an
 			 * interrupt controller too. */
-			if (of_node_name_eq(np, "AppleKiwi"))
+			if (of_yesde_name_eq(np, "AppleKiwi"))
 				continue;
 			/* I think we found one ! */
 			of_irq_dflt_pic = np;
@@ -578,13 +578,13 @@ void __init pmac_pic_init(void)
 /*
  * These procedures are used in implementing sleep on the powerbooks.
  * sleep_save_intrs() saves the states of all interrupt enables
- * and disables all interrupts except for the nominated one.
+ * and disables all interrupts except for the yesminated one.
  * sleep_restore_intrs() restores the states of all interrupt enables.
  */
 unsigned long sleep_save_mask[2];
 
 /* This used to be passed by the PMU driver but that link got
- * broken with the new driver model. We use this tweak for now...
+ * broken with the new driver model. We use this tweak for yesw...
  * We really want to do things differently though...
  */
 static int pmacpic_find_viaint(void)
@@ -592,17 +592,17 @@ static int pmacpic_find_viaint(void)
 	int viaint = -1;
 
 #ifdef CONFIG_ADB_PMU
-	struct device_node *np;
+	struct device_yesde *np;
 
 	if (pmu_get_model() != PMU_OHARE_BASED)
-		goto not_found;
-	np = of_find_node_by_name(NULL, "via-pmu");
+		goto yest_found;
+	np = of_find_yesde_by_name(NULL, "via-pmu");
 	if (np == NULL)
-		goto not_found;
+		goto yest_found;
 	viaint = irq_of_parse_and_map(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
-not_found:
+yest_found:
 #endif /* CONFIG_ADB_PMU */
 	return viaint;
 }

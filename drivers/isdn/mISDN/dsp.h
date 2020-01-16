@@ -104,7 +104,7 @@ struct dsp_conf {
 	struct list_head	mlist;
 	int			software; /* conf is processed by software */
 	int			hardware; /* conf is processed by hardware */
-	/* note: if both unset, has only one member */
+	/* yeste: if both unset, has only one member */
 };
 
 

@@ -38,10 +38,10 @@ Required properties:
   - pinctrl-names : A pinctrl state named "default" must be defined.
   - pinctrl-0 : A phandle to the default pinctrl state.
 
-Required sub-nodes:
+Required sub-yesdes:
 
 The pin configurations are defined as a child of the pinctrl states
-node, see [2]. Each sub-node can have the following properties:
+yesde, see [2]. Each sub-yesde can have the following properties:
   - groups : A list of groups to select (either this or "pins" must be
     specified), available groups:
       codec-aif1, codec-aif2, codec-aif3, dsp-aif1, dsp-aif2, psia1,

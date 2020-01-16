@@ -111,7 +111,7 @@ static __poll_t hvt_op_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-static int hvt_op_open(struct inode *inode, struct file *file)
+static int hvt_op_open(struct iyesde *iyesde, struct file *file)
 {
 	struct hvutil_transport *hvt;
 	int ret = 0;
@@ -156,7 +156,7 @@ static void hvt_transport_free(struct hvutil_transport *hvt)
 	kfree(hvt);
 }
 
-static int hvt_op_release(struct inode *inode, struct file *file)
+static int hvt_op_release(struct iyesde *iyesde, struct file *file)
 {
 	struct hvutil_transport *hvt;
 	int mode_old;
@@ -234,8 +234,8 @@ int hvutil_transport_send(struct hvutil_transport *hvt, void *msg, int len,
 		ret = cn_netlink_send(cn_msg, 0, 0, GFP_ATOMIC);
 		kfree(cn_msg);
 		/*
-		 * We don't know when netlink messages are delivered but unlike
-		 * in CHARDEV mode we're not blocked and we can send next
+		 * We don't kyesw when netlink messages are delivered but unlike
+		 * in CHARDEV mode we're yest blocked and we can send next
 		 * messages right away.
 		 */
 		if (on_read_cb)
@@ -281,7 +281,7 @@ struct hvutil_transport *hvutil_transport_init(const char *name,
 	hvt->cn_id.idx = cn_idx;
 	hvt->cn_id.val = cn_val;
 
-	hvt->mdev.minor = MISC_DYNAMIC_MINOR;
+	hvt->mdev.miyesr = MISC_DYNAMIC_MINOR;
 	hvt->mdev.name = name;
 
 	hvt->fops.owner = THIS_MODULE;
@@ -335,7 +335,7 @@ void hvutil_transport_destroy(struct hvutil_transport *hvt)
 	/*
 	 * In case we were in 'chardev' mode we still have an open fd so we
 	 * have to defer freeing the device. Netlink interface can be freed
-	 * now.
+	 * yesw.
 	 */
 	spin_lock(&hvt_list_lock);
 	list_del(&hvt->list);

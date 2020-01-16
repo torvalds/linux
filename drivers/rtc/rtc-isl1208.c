@@ -637,7 +637,7 @@ isl1208_rtc_interrupt(int irq, void *data)
 		dev_warn(&client->dev, "event detected");
 		handled = 1;
 		if (isl1208->config->has_timestamp)
-			sysfs_notify(&isl1208->rtc->dev.kobj, NULL,
+			sysfs_yestify(&isl1208->rtc->dev.kobj, NULL,
 				     dev_attr_timestamp0.attr.name);
 	}
 
@@ -790,7 +790,7 @@ static int isl1208_setup_irq(struct i2c_client *client, int irq)
 		enable_irq_wake(irq);
 	} else {
 		dev_err(&client->dev,
-			"Unable to request irq %d, no alarm support\n",
+			"Unable to request irq %d, yes alarm support\n",
 			irq);
 	}
 	return rc;
@@ -816,7 +816,7 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	i2c_set_clientdata(client, isl1208);
 
 	/* Determine which chip we have */
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		isl1208->config = of_device_get_match_data(&client->dev);
 		if (!isl1208->config)
 			return -ENODEV;
@@ -848,7 +848,7 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			 "please set clock.\n");
 
 	if (isl1208->config->has_tamper) {
-		struct device_node *np = client->dev.of_node;
+		struct device_yesde *np = client->dev.of_yesde;
 		u32 evienb;
 
 		rc = i2c_smbus_read_byte_data(client, ISL1219_REG_EV);
@@ -865,7 +865,7 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 		rc = i2c_smbus_write_byte_data(client, ISL1219_REG_EV, rc);
 		if (rc < 0) {
-			dev_err(&client->dev, "could not enable tamper detection\n");
+			dev_err(&client->dev, "could yest enable tamper detection\n");
 			return rc;
 		}
 		evdet_irq = of_irq_get_byname(np, "evdet");

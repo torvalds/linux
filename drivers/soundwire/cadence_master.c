@@ -278,7 +278,7 @@ static int cdns_reg_show(struct seq_file *s, void *data)
 
 	ret += scnprintf(buf + ret, RD_BUF - ret,
 			 "\nStatus & Intr Registers\n");
-	/* 13 Status & Intr registers (offsets 0x70 and 0x74 not defined) */
+	/* 13 Status & Intr registers (offsets 0x70 and 0x74 yest defined) */
 	for (i = CDNS_MCP_STAT; i <=  CDNS_MCP_FIFOSTAT; i += sizeof(u32))
 		ret += cdns_sprintf(cdns, buf, ret, i);
 
@@ -376,14 +376,14 @@ static enum sdw_command_response
 cdns_fill_msg_resp(struct sdw_cdns *cdns,
 		   struct sdw_msg *msg, int count, int offset)
 {
-	int nack = 0, no_ack = 0;
+	int nack = 0, yes_ack = 0;
 	int i;
 
 	/* check message response */
 	for (i = 0; i < count; i++) {
 		if (!(cdns->response_buf[i] & CDNS_MCP_RESP_ACK)) {
-			no_ack = 1;
-			dev_dbg_ratelimited(cdns->dev, "Msg Ack not received\n");
+			yes_ack = 1;
+			dev_dbg_ratelimited(cdns->dev, "Msg Ack yest received\n");
 			if (cdns->response_buf[i] & CDNS_MCP_RESP_NACK) {
 				nack = 1;
 				dev_err_ratelimited(cdns->dev, "Msg NACK received\n");
@@ -394,8 +394,8 @@ cdns_fill_msg_resp(struct sdw_cdns *cdns,
 	if (nack) {
 		dev_err_ratelimited(cdns->dev, "Msg NACKed for Slave %d\n", msg->dev_num);
 		return SDW_CMD_FAIL;
-	} else if (no_ack) {
-		dev_dbg_ratelimited(cdns->dev, "Msg ignored for Slave %d\n", msg->dev_num);
+	} else if (yes_ack) {
+		dev_dbg_ratelimited(cdns->dev, "Msg igyesred for Slave %d\n", msg->dev_num);
 		return SDW_CMD_IGNORED;
 	}
 
@@ -455,7 +455,7 @@ _cdns_xfer_msg(struct sdw_cdns *cdns, struct sdw_msg *msg, int cmd,
 static enum sdw_command_response
 cdns_program_scp_addr(struct sdw_cdns *cdns, struct sdw_msg *msg)
 {
-	int nack = 0, no_ack = 0;
+	int nack = 0, yes_ack = 0;
 	unsigned long time;
 	u32 data[2], base;
 	int i;
@@ -492,8 +492,8 @@ cdns_program_scp_addr(struct sdw_cdns *cdns, struct sdw_msg *msg)
 	/* check response the writes */
 	for (i = 0; i < 2; i++) {
 		if (!(cdns->response_buf[i] & CDNS_MCP_RESP_ACK)) {
-			no_ack = 1;
-			dev_err(cdns->dev, "Program SCP Ack not received\n");
+			yes_ack = 1;
+			dev_err(cdns->dev, "Program SCP Ack yest received\n");
 			if (cdns->response_buf[i] & CDNS_MCP_RESP_NACK) {
 				nack = 1;
 				dev_err(cdns->dev, "Program SCP NACK received\n");
@@ -506,9 +506,9 @@ cdns_program_scp_addr(struct sdw_cdns *cdns, struct sdw_msg *msg)
 		dev_err_ratelimited(cdns->dev,
 				    "SCP_addrpage NACKed for Slave %d\n", msg->dev_num);
 		return SDW_CMD_FAIL;
-	} else if (no_ack) {
+	} else if (yes_ack) {
 		dev_dbg_ratelimited(cdns->dev,
-				    "SCP_addrpage ignored for Slave %d\n", msg->dev_num);
+				    "SCP_addrpage igyesred for Slave %d\n", msg->dev_num);
 		return SDW_CMD_IGNORED;
 	}
 
@@ -772,7 +772,7 @@ irqreturn_t sdw_cdns_thread(int irq, void *dev_id)
 	cdns_writel(cdns, CDNS_MCP_SLAVE_INTSTAT0, slave0);
 	cdns_writel(cdns, CDNS_MCP_SLAVE_INTSTAT1, slave1);
 
-	/* clear and unmask Slave interrupt now */
+	/* clear and unmask Slave interrupt yesw */
 	cdns_writel(cdns, CDNS_MCP_INTSTAT, CDNS_MCP_INT_SLAVE_MASK);
 	cdns_updatel(cdns, CDNS_MCP_INTMASK,
 		     CDNS_MCP_INT_SLAVE_MASK, CDNS_MCP_INT_SLAVE_MASK);
@@ -834,7 +834,7 @@ int sdw_cdns_enable_interrupt(struct sdw_cdns *cdns, bool state)
 	mask |= CDNS_MCP_INT_CTRL_CLASH | CDNS_MCP_INT_DATA_CLASH |
 		CDNS_MCP_INT_PARITY;
 
-	/* no detection of port interrupts for now */
+	/* yes detection of port interrupts for yesw */
 
 	/* enable detection of RX fifo level */
 	mask |= CDNS_MCP_INT_RX_WL;

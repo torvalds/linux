@@ -10,17 +10,17 @@
 static void __iomem *xtal_in_cnt;
 static struct delay_timer delay_timer;
 
-static unsigned long notrace read_xtal_counter(void)
+static unsigned long yestrace read_xtal_counter(void)
 {
 	return readl_relaxed(xtal_in_cnt);
 }
 
-static u64 notrace read_sched_clock(void)
+static u64 yestrace read_sched_clock(void)
 {
 	return read_xtal_counter();
 }
 
-static int __init tango_clocksource_init(struct device_node *np)
+static int __init tango_clocksource_init(struct device_yesde *np)
 {
 	struct clk *clk;
 	int xtal_freq, ret;

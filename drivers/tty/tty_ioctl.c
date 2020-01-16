@@ -9,7 +9,7 @@
 
 #include <linux/types.h>
 #include <linux/termios.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched/signal.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
@@ -49,8 +49,8 @@
  *	@tty: terminal
  *
  *	Return the number of bytes of data in the device private
- *	output queue. If no private method is supplied there is assumed
- *	to be no queue on the device.
+ *	output queue. If yes private method is supplied there is assumed
+ *	to be yes queue on the device.
  */
 
 int tty_chars_in_buffer(struct tty_struct *tty)
@@ -68,9 +68,9 @@ EXPORT_SYMBOL(tty_chars_in_buffer);
  *
  *	Return the number of bytes that can be queued to this device
  *	at the present time. The result should be treated as a guarantee
- *	and the driver cannot offer a value it later shrinks by more than
- *	the number of bytes written. If no method is provided 2K is always
- *	returned and data may be lost as there will be no flow control.
+ *	and the driver canyest offer a value it later shrinks by more than
+ *	the number of bytes written. If yes method is provided 2K is always
+ *	returned and data may be lost as there will be yes flow control.
  */
  
 int tty_write_room(struct tty_struct *tty)
@@ -85,9 +85,9 @@ EXPORT_SYMBOL(tty_write_room);
  *	tty_driver_flush_buffer	-	discard internal buffer
  *	@tty: terminal
  *
- *	Discard the internal output buffer for this device. If no method
- *	is provided then either the buffer cannot be hardware flushed or
- *	there is no buffer driver side.
+ *	Discard the internal output buffer for this device. If yes method
+ *	is provided then either the buffer canyest be hardware flushed or
+ *	there is yes buffer driver side.
  */
 void tty_driver_flush_buffer(struct tty_struct *tty)
 {
@@ -212,7 +212,7 @@ int tty_unthrottle_safe(struct tty_struct *tty)
  *	Wait for characters pending in a tty driver to hit the wire, or
  *	for a timeout to occur (eg due to flow control)
  *
- *	Locking: none
+ *	Locking: yesne
  */
 
 void tty_wait_until_sent(struct tty_struct *tty, long timeout)
@@ -266,7 +266,7 @@ static void unset_locked_termios(struct tty_struct *tty, struct ktermios *old)
  *
  *	Propagate the hardware specific terminal setting bits from
  *	the old termios structure to the new one. This is used in cases
- *	where the hardware does not support reconfiguration or as a helper
+ *	where the hardware does yest support reconfiguration or as a helper
  *	in some cases where only minimal reconfiguration is supported
  */
 
@@ -324,7 +324,7 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 
 
 	/* FIXME: we need to decide on some locking/ordering semantics
-	   for the set_termios notification eventually */
+	   for the set_termios yestification eventually */
 	down_write(&tty->termios_rwsem);
 	old_termios = tty->termios;
 	tty->termios = *new_termios;
@@ -414,8 +414,8 @@ static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
 	tty_set_termios(tty, &tmp_termios);
 
 	/* FIXME: Arguably if tmp_termios == tty->termios AND the
-	   actual requested termios was not tmp_termios then we may
-	   want to return an error as no user requested change has
+	   actual requested termios was yest tmp_termios then we may
+	   want to return an error as yes user requested change has
 	   succeeded */
 	return 0;
 }
@@ -700,7 +700,7 @@ static int tty_change_softcar(struct tty_struct *tty, int arg)
  *	@cmd: command
  *	@arg: ioctl argument
  *
- *	Perform non line discipline specific mode control ioctls. This
+ *	Perform yesn line discipline specific mode control ioctls. This
  *	is designed to be called by line disciplines to ensure they provide
  *	consistent mode setting.
  */

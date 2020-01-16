@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -138,7 +138,7 @@ static int rvt_modify_device(struct ib_device *device,
 			     struct ib_device_modify *device_modify)
 {
 	/*
-	 * There is currently no need to supply this based on qib and hfi1.
+	 * There is currently yes need to supply this based on qib and hfi1.
 	 * Future drivers may need to implement this though.
 	 */
 
@@ -232,9 +232,9 @@ static int rvt_query_pkey(struct ib_device *ibdev, u8 port_num, u16 index,
 {
 	/*
 	 * Driver will be responsible for keeping rvt_dev_info.pkey_table up to
-	 * date. This function will just return that value. There is no need to
+	 * date. This function will just return that value. There is yes need to
 	 * lock, if a stale value is read and sent to the user so be it there is
-	 * no way to protect against that anyway.
+	 * yes way to protect against that anyway.
 	 */
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
 	int port_index;
@@ -424,7 +424,7 @@ static const struct ib_device_ops rvt_dev_ops = {
 	.query_qp = rvt_query_qp,
 	.query_srq = rvt_query_srq,
 	.reg_user_mr = rvt_reg_user_mr,
-	.req_notify_cq = rvt_req_notify_cq,
+	.req_yestify_cq = rvt_req_yestify_cq,
 	.resize_cq = rvt_resize_cq,
 	.unmap_fmr = rvt_unmap_fmr,
 
@@ -435,12 +435,12 @@ static const struct ib_device_ops rvt_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, rvt_ucontext, ibucontext),
 };
 
-static noinline int check_support(struct rvt_dev_info *rdi, int verb)
+static yesinline int check_support(struct rvt_dev_info *rdi, int verb)
 {
 	switch (verb) {
 	case MISC:
 		/*
-		 * These functions are not part of verbs specifically but are
+		 * These functions are yest part of verbs specifically but are
 		 * required for rdmavt to function.
 		 */
 		if ((!rdi->ibdev.ops.init_port) ||
@@ -450,7 +450,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 
 	case MODIFY_DEVICE:
 		/*
-		 * rdmavt does not support modify device currently drivers must
+		 * rdmavt does yest support modify device currently drivers must
 		 * provide.
 		 */
 		if (!rdi->ibdev.ops.modify_device)
@@ -480,7 +480,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		if (!rdi->ibdev.ops.create_qp)
 			if (!rdi->driver_f.qp_priv_alloc ||
 			    !rdi->driver_f.qp_priv_free ||
-			    !rdi->driver_f.notify_qp_reset ||
+			    !rdi->driver_f.yestify_qp_reset ||
 			    !rdi->driver_f.flush_qp_waiters ||
 			    !rdi->driver_f.stop_send_queue ||
 			    !rdi->driver_f.quiesce_qp)
@@ -489,13 +489,13 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 
 	case MODIFY_QP:
 		if (!rdi->ibdev.ops.modify_qp)
-			if (!rdi->driver_f.notify_qp_reset ||
+			if (!rdi->driver_f.yestify_qp_reset ||
 			    !rdi->driver_f.schedule_send ||
 			    !rdi->driver_f.get_pmtu_from_attr ||
 			    !rdi->driver_f.flush_qp_waiters ||
 			    !rdi->driver_f.stop_send_queue ||
 			    !rdi->driver_f.quiesce_qp ||
-			    !rdi->driver_f.notify_error_qp ||
+			    !rdi->driver_f.yestify_error_qp ||
 			    !rdi->driver_f.mtu_from_qp ||
 			    !rdi->driver_f.mtu_to_path_mtu)
 				return -EINVAL;
@@ -504,7 +504,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 	case DESTROY_QP:
 		if (!rdi->ibdev.ops.destroy_qp)
 			if (!rdi->driver_f.qp_priv_free ||
-			    !rdi->driver_f.notify_qp_reset ||
+			    !rdi->driver_f.yestify_qp_reset ||
 			    !rdi->driver_f.flush_qp_waiters ||
 			    !rdi->driver_f.stop_send_queue ||
 			    !rdi->driver_f.quiesce_qp)
@@ -531,7 +531,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
  * It is up to drivers to allocate the rdi and fill in the appropriate
  * information.
  *
- * Return: 0 on success otherwise an errno.
+ * Return: 0 on success otherwise an erryes.
  */
 int rvt_register_device(struct rvt_dev_info *rdi)
 {
@@ -546,7 +546,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	 */
 	for (i = 0; i < _VERB_IDX_MAX; i++)
 		if (check_support(rdi, i)) {
-			pr_err("Driver support req not met at %d\n", i);
+			pr_err("Driver support req yest met at %d\n", i);
 			return -EINVAL;
 		}
 
@@ -577,7 +577,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	ret = rvt_driver_mr_init(rdi);
 	if (ret) {
 		pr_err("Error in driver MR init.\n");
-		goto bail_no_mr;
+		goto bail_yes_mr;
 	}
 
 	/* Memory Working Set Size */
@@ -599,8 +599,8 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 
 	/*
 	 * There are some things which could be set by underlying drivers but
-	 * really should be up to rdmavt to set. For instance drivers can't know
-	 * exactly which functions rdmavt supports, nor do they know the ABI
+	 * really should be up to rdmavt to set. For instance drivers can't kyesw
+	 * exactly which functions rdmavt supports, yesr do they kyesw the ABI
 	 * version, so we do all of this sort of stuff here.
 	 */
 	rdi->ibdev.uverbs_cmd_mask =
@@ -634,11 +634,11 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)           |
 		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)         |
 		(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
-	rdi->ibdev.node_type = RDMA_NODE_IB_CA;
+	rdi->ibdev.yesde_type = RDMA_NODE_IB_CA;
 	if (!rdi->ibdev.num_comp_vectors)
 		rdi->ibdev.num_comp_vectors = 1;
 
-	/* We are now good to announce we exist */
+	/* We are yesw good to anyesunce we exist */
 	ret = ib_register_device(&rdi->ibdev, dev_name(&rdi->ibdev.dev));
 	if (ret) {
 		rvt_pr_err(rdi, "Failed to register driver with ib core.\n");
@@ -655,7 +655,7 @@ bail_wss:
 bail_mr:
 	rvt_mr_exit(rdi);
 
-bail_no_mr:
+bail_yes_mr:
 	rvt_qp_exit(rdi);
 
 	return ret;

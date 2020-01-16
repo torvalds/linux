@@ -10,7 +10,7 @@ __weak void arch_freq_prepare_all(void)
 }
 
 extern const struct seq_operations cpuinfo_op;
-static int cpuinfo_open(struct inode *inode, struct file *file)
+static int cpuinfo_open(struct iyesde *iyesde, struct file *file)
 {
 	arch_freq_prepare_all();
 	return seq_open(file, &cpuinfo_op);

@@ -69,7 +69,7 @@ bool rt2x00mmio_rxdone(struct rt2x00_dev *rt2x00dev)
 		skbdesc->desc_len = entry->queue->desc_size;
 
 		/*
-		 * DMA is already done, notify rt2x00lib that
+		 * DMA is already done, yestify rt2x00lib that
 		 * it finished successfully.
 		 */
 		rt2x00lib_dmastart(entry);

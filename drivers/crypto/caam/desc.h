@@ -92,13 +92,13 @@
 /* If shared descriptor header, 6-bit length */
 #define HDR_DESCLEN_SHR_MASK	0x3f
 
-/* If non-shared header, 7-bit length */
+/* If yesn-shared header, 7-bit length */
 #define HDR_DESCLEN_MASK	0x7f
 
-/* This is a TrustedDesc (if not SharedDesc) */
+/* This is a TrustedDesc (if yest SharedDesc) */
 #define HDR_TRUSTED		0x00004000
 
-/* Make into TrustedDesc (if not SharedDesc) */
+/* Make into TrustedDesc (if yest SharedDesc) */
 #define HDR_MAKE_TRUSTED	0x00002000
 
 /* Save context if self-shared (if SharedDesc) */
@@ -109,7 +109,7 @@
 
 /*
  * Reverse Execution Order - execute JobDesc first, then
- * execute SharedDesc (normally SharedDesc goes first).
+ * execute SharedDesc (yesrmally SharedDesc goes first).
  */
 #define HDR_REVERSE		0x00000800
 
@@ -154,7 +154,7 @@
 #define KEY_ENC			0x00400000
 
 /*
- * No Write Back - Do not allow key to be FIFO STOREd
+ * No Write Back - Do yest allow key to be FIFO STOREd
  */
 #define KEY_NWB			0x00200000
 
@@ -300,7 +300,7 @@
 /*
  * Load Destination: 0 = skip (SEQ_FIFO_LOAD only),
  * 1 = Load for Class1, 2 = Load for Class2, 3 = Load both
- * Store Source: 0 = normal, 1 = Class1key, 2 = Class2key
+ * Store Source: 0 = yesrmal, 1 = Class1key, 2 = Class2key
  */
 #define FIFOLD_CLASS_SHIFT	25
 #define FIFOLD_CLASS_MASK	(0x03 << FIFOLD_CLASS_SHIFT)
@@ -1136,7 +1136,7 @@
 #define OP_PCL_PKPROT_ECC			 0x0002
 #define OP_PCL_PKPROT_F2M			 0x0001
 
-/* For non-protocol/alg-only op commands */
+/* For yesn-protocol/alg-only op commands */
 #define OP_ALG_TYPE_SHIFT	24
 #define OP_ALG_TYPE_MASK	(0x7 << OP_ALG_TYPE_SHIFT)
 #define OP_ALG_TYPE_CLASS1	(2 << OP_ALG_TYPE_SHIFT)

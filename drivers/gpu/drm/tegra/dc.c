@@ -88,12 +88,12 @@ static inline void tegra_plane_writel(struct tegra_plane *plane, u32 value,
 
 bool tegra_dc_has_output(struct tegra_dc *dc, struct device *dev)
 {
-	struct device_node *np = dc->dev->of_node;
+	struct device_yesde *np = dc->dev->of_yesde;
 	struct of_phandle_iterator it;
 	int err;
 
 	of_for_each_phandle(&it, err, np, "nvidia,outputs", NULL, 0)
-		if (it.node == dev->of_node)
+		if (it.yesde == dev->of_yesde)
 			return true;
 
 	return false;
@@ -166,13 +166,13 @@ static void tegra_plane_setup_blending_legacy(struct tegra_plane *plane)
 	};
 	u32 foreground = BLEND_WEIGHT1(255) | BLEND_WEIGHT0(255) |
 			 BLEND_COLOR_KEY_NONE;
-	u32 blendnokey = BLEND_WEIGHT1(255) | BLEND_WEIGHT0(255);
+	u32 blendyeskey = BLEND_WEIGHT1(255) | BLEND_WEIGHT0(255);
 	struct tegra_plane_state *state;
 	u32 blending[2];
 	unsigned int i;
 
-	/* disable blending for non-overlapping case */
-	tegra_plane_writel(plane, blendnokey, DC_WIN_BLEND_NOKEY);
+	/* disable blending for yesn-overlapping case */
+	tegra_plane_writel(plane, blendyeskey, DC_WIN_BLEND_NOKEY);
 	tegra_plane_writel(plane, foreground, DC_WIN_BLEND_1WIN);
 
 	state = to_tegra_plane_state(plane->base.state);
@@ -196,7 +196,7 @@ static void tegra_plane_setup_blending_legacy(struct tegra_plane *plane)
 		 * to the area if all of the windows on top of it have an alpha
 		 * component.
 		 */
-		switch (state->base.normalized_zpos) {
+		switch (state->base.yesrmalized_zpos) {
 		case 0:
 			if (state->blending[0].alpha &&
 			    state->blending[1].alpha)
@@ -226,7 +226,7 @@ static void tegra_plane_setup_blending_legacy(struct tegra_plane *plane)
 				background[i] |= BLEND_CONTROL_DEPENDENT;
 		}
 
-		switch (state->base.normalized_zpos) {
+		switch (state->base.yesrmalized_zpos) {
 		case 0:
 			if (state->blending[0].alpha &&
 			    state->blending[1].alpha)
@@ -250,7 +250,7 @@ static void tegra_plane_setup_blending_legacy(struct tegra_plane *plane)
 		}
 	}
 
-	switch (state->base.normalized_zpos) {
+	switch (state->base.yesrmalized_zpos) {
 	case 0:
 		tegra_plane_writel(plane, background[0], DC_WIN_BLEND_2WIN_X);
 		tegra_plane_writel(plane, background[1], DC_WIN_BLEND_2WIN_Y);
@@ -526,7 +526,7 @@ static const u32 tegra20_primary_formats[] = {
 	DRM_FORMAT_RGBA5551,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_ARGB8888,
-	/* non-native formats */
+	/* yesn-native formats */
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_RGBX5551,
 	DRM_FORMAT_XBGR8888,
@@ -607,7 +607,7 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 	struct tegra_dc *dc = to_tegra_dc(state->crtc);
 	int err;
 
-	/* no need for further checks if the plane is being disabled */
+	/* yes need for further checks if the plane is being disabled */
 	if (!state->crtc)
 		return 0;
 
@@ -619,7 +619,7 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 
 	/*
 	 * Tegra20 and Tegra30 are special cases here because they support
-	 * only variants of specific formats with an alpha component, but not
+	 * only variants of specific formats with an alpha component, but yest
 	 * the corresponding opaque formats. However, the opaque formats can
 	 * be emulated by disabling alpha blending for the plane.
 	 */
@@ -709,7 +709,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	window.bottom_up = tegra_fb_is_bottom_up(fb) || state->bottom_up;
 
 	/* copy from state */
-	window.zpos = plane->state->normalized_zpos;
+	window.zpos = plane->state->yesrmalized_zpos;
 	window.tiling = state->tiling;
 	window.format = state->format;
 	window.swap = state->swap;
@@ -720,7 +720,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 		/*
 		 * Tegra uses a shared stride for UV planes. Framebuffers are
 		 * already checked for this in the tegra_plane_atomic_check()
-		 * function, so it's safe to ignore the V-plane pitch here.
+		 * function, so it's safe to igyesre the V-plane pitch here.
 		 */
 		if (i < 2)
 			window.stride[i] = fb->pitches[i];
@@ -810,11 +810,11 @@ static int tegra_cursor_atomic_check(struct drm_plane *plane,
 	struct tegra_plane *tegra = to_tegra_plane(plane);
 	int err;
 
-	/* no need for further checks if the plane is being disabled */
+	/* yes need for further checks if the plane is being disabled */
 	if (!state->crtc)
 		return 0;
 
-	/* scaling not supported for cursor */
+	/* scaling yest supported for cursor */
 	if ((state->src_w >> 16 != state->crtc_w) ||
 	    (state->src_h >> 16 != state->crtc_h))
 		return -EINVAL;
@@ -863,7 +863,7 @@ static void tegra_cursor_atomic_update(struct drm_plane *plane,
 		break;
 
 	default:
-		WARN(1, "cursor size %ux%u not supported\n",
+		WARN(1, "cursor size %ux%u yest supported\n",
 		     plane->state->crtc_w, plane->state->crtc_h);
 		return;
 	}
@@ -968,7 +968,7 @@ static const u32 tegra20_overlay_formats[] = {
 	DRM_FORMAT_RGBA5551,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_ARGB8888,
-	/* non-native formats */
+	/* yesn-native formats */
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_RGBX5551,
 	DRM_FORMAT_XBGR8888,
@@ -1416,8 +1416,8 @@ static const struct debugfs_reg32 tegra_dc_regs[] = {
 
 static int tegra_dc_show_regs(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct tegra_dc *dc = node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct tegra_dc *dc = yesde->info_ent->data;
 	unsigned int i;
 	int err = 0;
 
@@ -1442,8 +1442,8 @@ unlock:
 
 static int tegra_dc_show_crc(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct tegra_dc *dc = node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct tegra_dc *dc = yesde->info_ent->data;
 	int err = 0;
 	u32 value;
 
@@ -1473,8 +1473,8 @@ unlock:
 
 static int tegra_dc_show_stats(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct tegra_dc *dc = node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct tegra_dc *dc = yesde->info_ent->data;
 
 	seq_printf(s, "frames: %lu\n", dc->stats.frames);
 	seq_printf(s, "vblank: %lu\n", dc->stats.vblank);
@@ -1493,7 +1493,7 @@ static struct drm_info_list debugfs_files[] = {
 static int tegra_dc_late_register(struct drm_crtc *crtc)
 {
 	unsigned int i, count = ARRAY_SIZE(debugfs_files);
-	struct drm_minor *minor = crtc->dev->primary;
+	struct drm_miyesr *miyesr = crtc->dev->primary;
 	struct dentry *root;
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	int err;
@@ -1512,7 +1512,7 @@ static int tegra_dc_late_register(struct drm_crtc *crtc)
 	for (i = 0; i < count; i++)
 		dc->debugfs_files[i].data = dc;
 
-	err = drm_debugfs_create_files(dc->debugfs_files, count, root, minor);
+	err = drm_debugfs_create_files(dc->debugfs_files, count, root, miyesr);
 	if (err < 0)
 		goto free;
 
@@ -1528,10 +1528,10 @@ free:
 static void tegra_dc_early_unregister(struct drm_crtc *crtc)
 {
 	unsigned int count = ARRAY_SIZE(debugfs_files);
-	struct drm_minor *minor = crtc->dev->primary;
+	struct drm_miyesr *miyesr = crtc->dev->primary;
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 
-	drm_debugfs_remove_files(dc->debugfs_files, count, minor);
+	drm_debugfs_remove_files(dc->debugfs_files, count, miyesr);
 	kfree(dc->debugfs_files);
 	dc->debugfs_files = NULL;
 }
@@ -1656,7 +1656,7 @@ static void tegra_dc_commit_state(struct tegra_dc *dc,
 		dev_err(dc->dev, "failed to set parent clock: %d\n", err);
 
 	/*
-	 * Outputs may not want to change the parent clock rate. This is only
+	 * Outputs may yest want to change the parent clock rate. This is only
 	 * relevant to Tegra20 where only a single display PLL is available.
 	 * Since that PLL would typically be used for HDMI, an internal LVDS
 	 * panel would need to be driven by some other clock such as PLL_P
@@ -1732,7 +1732,7 @@ static void tegra_crtc_atomic_disable(struct drm_crtc *crtc,
 		tegra_dc_stop(dc);
 
 		/*
-		 * Ignore the return value, there isn't anything useful to do
+		 * Igyesre the return value, there isn't anything useful to do
 		 * in case this fails.
 		 */
 		tegra_dc_wait_idle(dc, 100);
@@ -1741,7 +1741,7 @@ static void tegra_crtc_atomic_disable(struct drm_crtc *crtc,
 	/*
 	 * This should really be part of the RGB encoder driver, but clearing
 	 * these bits has the side-effect of stopping the display controller.
-	 * When that happens no VBLANK interrupts will be raised. At the same
+	 * When that happens yes VBLANK interrupts will be raised. At the same
 	 * time the encoder is disabled before the display controller, so the
 	 * above code is always going to timeout waiting for the controller
 	 * to go idle.
@@ -2005,7 +2005,7 @@ static int tegra_dc_init(struct host1x_client *client)
 	int err;
 
 	/*
-	 * XXX do not register DCs with no window groups because we cannot
+	 * XXX do yest register DCs with yes window groups because we canyest
 	 * assign a primary plane to them, which in turn will cause KMS to
 	 * crash.
 	 */
@@ -2347,19 +2347,19 @@ MODULE_DEVICE_TABLE(of, tegra_dc_of_match);
 
 static int tegra_dc_parse_dt(struct tegra_dc *dc)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 value = 0;
 	int err;
 
-	err = of_property_read_u32(dc->dev->of_node, "nvidia,head", &value);
+	err = of_property_read_u32(dc->dev->of_yesde, "nvidia,head", &value);
 	if (err < 0) {
 		dev_err(dc->dev, "missing \"nvidia,head\" property\n");
 
 		/*
 		 * If the nvidia,head property isn't present, try to find the
 		 * correct head number by looking up the position of this
-		 * display controller's node within the device tree. Assuming
-		 * that the nodes are ordered properly in the DTS file and
+		 * display controller's yesde within the device tree. Assuming
+		 * that the yesdes are ordered properly in the DTS file and
 		 * that the translation into a flattened device tree blob
 		 * preserves that ordering this will actually yield the right
 		 * head number.
@@ -2367,9 +2367,9 @@ static int tegra_dc_parse_dt(struct tegra_dc *dc)
 		 * If those assumptions don't hold, this will still work for
 		 * cases where only a single display controller is used.
 		 */
-		for_each_matching_node(np, tegra_dc_of_match) {
-			if (np == dc->dev->of_node) {
-				of_node_put(np);
+		for_each_matching_yesde(np, tegra_dc_of_match) {
+			if (np == dc->dev->of_yesde) {
+				of_yesde_put(np);
 				break;
 			}
 

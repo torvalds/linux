@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -106,7 +106,7 @@ struct receive_info {
 	u32 sdio_intr_status_zero;
 	u32 sdio_int_counter;
 	u32 total_sdio_msdu_pending_intr;
-	u32 total_sdio_unknown_intr;
+	u32 total_sdio_unkyeswn_intr;
 	u32 buf_full_counter;
 	u32 buf_available_counter;
 };

@@ -143,7 +143,7 @@ static int v_send_ret_submit(struct vudc *udc, struct urbp *urb_p)
 			goto out;
 		}
 	}
-	/* else - no buffer to send */
+	/* else - yes buffer to send */
 
 	/* 3. setup iso_packet_descriptor */
 	if (urb_p->type == USB_ENDPOINT_XFER_ISOC) {

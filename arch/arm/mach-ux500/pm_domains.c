@@ -56,11 +56,11 @@ static const struct of_device_id ux500_pm_domain_matches[] __initconst = {
 
 int __init ux500_pm_domains_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct genpd_onecell_data *genpd_data;
 	int i;
 
-	np = of_find_matching_node(NULL, ux500_pm_domain_matches);
+	np = of_find_matching_yesde(NULL, ux500_pm_domain_matches);
 	if (!np)
 		return -ENODEV;
 

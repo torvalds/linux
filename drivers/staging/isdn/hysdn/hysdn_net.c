@@ -54,7 +54,7 @@ struct net_local {
 /* sometime after booting when the 'ifconfig' program is run.        */
 /* This routine should set everything up anew at each open, even     */
 /* registers that "should" only need to be set once at boot, so that */
-/* there is non-reboot way to recover if something goes wrong.       */
+/* there is yesn-reboot way to recover if something goes wrong.       */
 /*********************************************************************/
 static int
 net_open(struct net_device *dev)
@@ -65,7 +65,7 @@ net_open(struct net_device *dev)
 
 	netif_start_queue(dev);	/* start tx-queueing */
 
-	/* Fill in the MAC-level header (if not already set) */
+	/* Fill in the MAC-level header (if yest already set) */
 	if (!card->mac_addr[0]) {
 		for (i = 0; i < ETH_ALEN; i++)
 			dev->dev_addr[i] = 0xfc;
@@ -102,7 +102,7 @@ flush_tx_buffers(struct net_local *nl)
 
 
 /*********************************************************************/
-/* close/decativate the device. The device is not removed, but only  */
+/* close/decativate the device. The device is yest removed, but only  */
 /* deactivated.                                                      */
 /*********************************************************************/
 static int
@@ -135,7 +135,7 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	/* If we just used up the very last entry in the
 	 * TX ring on this device, tell the queueing
-	 * layer to send no more.
+	 * layer to send yes more.
 	 */
 	if (lp->sk_count >= MAX_SKB_BUFFERS)
 		netif_stop_queue(dev);
@@ -155,7 +155,7 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 
 /***********************************************************************/
-/* acknowlegde a packet send. The network layer will be informed about */
+/* ackyeswlegde a packet send. The network layer will be informed about */
 /* completion                                                          */
 /***********************************************************************/
 void
@@ -164,7 +164,7 @@ hysdn_tx_netack(hysdn_card *card)
 	struct net_local *lp = card->netif;
 
 	if (!lp)
-		return;		/* non existing device */
+		return;		/* yesn existing device */
 
 
 	if (!lp->sk_count)
@@ -192,7 +192,7 @@ hysdn_rx_netpkt(hysdn_card *card, unsigned char *buf, unsigned short len)
 	struct sk_buff *skb;
 
 	if (!lp)
-		return;		/* non existing device */
+		return;		/* yesn existing device */
 
 	dev = lp->dev;
 	dev->stats.rx_bytes += len;
@@ -224,10 +224,10 @@ hysdn_tx_netget(hysdn_card *card)
 	struct net_local *lp = card->netif;
 
 	if (!lp)
-		return (NULL);	/* non existing device */
+		return (NULL);	/* yesn existing device */
 
 	if (!lp->sk_count)
-		return (NULL);	/* nothing available */
+		return (NULL);	/* yesthing available */
 
 	return (lp->skbs[lp->out_idx]);		/* next packet to send */
 }				/* hysdn_tx_netget */
@@ -244,7 +244,7 @@ static const struct net_device_ops hysdn_netdev_ops = {
 /*****************************************************************************/
 /* hysdn_net_create creates a new net device for the given card. If a device */
 /* already exists, it will be deleted and created a new one. The return value */
-/* 0 announces success, else a negative error code will be returned.         */
+/* 0 anyesunces success, else a negative error code will be returned.         */
 /*****************************************************************************/
 int
 hysdn_net_create(hysdn_card *card)
@@ -291,7 +291,7 @@ hysdn_net_create(hysdn_card *card)
 
 /***************************************************************************/
 /* hysdn_net_release deletes the net device for the given card. The return */
-/* value 0 announces success, else a negative error code will be returned. */
+/* value 0 anyesunces success, else a negative error code will be returned. */
 /***************************************************************************/
 int
 hysdn_net_release(hysdn_card *card)
@@ -299,7 +299,7 @@ hysdn_net_release(hysdn_card *card)
 	struct net_device *dev = card->netif;
 
 	if (!dev)
-		return (0);	/* non existing */
+		return (0);	/* yesn existing */
 
 	card->netif = NULL;	/* clear out pointer */
 	net_close(dev);
@@ -316,7 +316,7 @@ hysdn_net_release(hysdn_card *card)
 
 /*****************************************************************************/
 /* hysdn_net_getname returns a pointer to the name of the network interface. */
-/* if the interface is not existing, a "-" is returned.                      */
+/* if the interface is yest existing, a "-" is returned.                      */
 /*****************************************************************************/
 char *
 hysdn_net_getname(hysdn_card *card)
@@ -324,7 +324,7 @@ hysdn_net_getname(hysdn_card *card)
 	struct net_device *dev = card->netif;
 
 	if (!dev)
-		return ("-");	/* non existing */
+		return ("-");	/* yesn existing */
 
 	return (dev->name);
 }				/* hysdn_net_getname */

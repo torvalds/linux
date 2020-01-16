@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/bitops.h>
@@ -27,9 +27,9 @@ struct mlxsw_sp_fid {
 	unsigned int ref_count;
 	u16 fid_index;
 	struct mlxsw_sp_fid_family *fid_family;
-	struct rhash_head ht_node;
+	struct rhash_head ht_yesde;
 
-	struct rhash_head vni_ht_node;
+	struct rhash_head vni_ht_yesde;
 	enum mlxsw_sp_nve_type nve_type;
 	__be32 vni;
 	u32 nve_flood_index;
@@ -51,13 +51,13 @@ struct mlxsw_sp_fid_8021d {
 static const struct rhashtable_params mlxsw_sp_fid_ht_params = {
 	.key_len = sizeof_field(struct mlxsw_sp_fid, fid_index),
 	.key_offset = offsetof(struct mlxsw_sp_fid, fid_index),
-	.head_offset = offsetof(struct mlxsw_sp_fid, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_fid, ht_yesde),
 };
 
 static const struct rhashtable_params mlxsw_sp_fid_vni_ht_params = {
 	.key_len = sizeof_field(struct mlxsw_sp_fid, vni),
 	.key_offset = offsetof(struct mlxsw_sp_fid, vni),
-	.head_offset = offsetof(struct mlxsw_sp_fid, vni_ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_fid, vni_ht_yesde),
 };
 
 struct mlxsw_sp_flood_table {
@@ -250,7 +250,7 @@ int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, enum mlxsw_sp_nve_type type,
 	fid->nve_ifindex = nve_ifindex;
 	fid->vni = vni;
 	err = rhashtable_lookup_insert_fast(&mlxsw_sp->fid_core->vni_ht,
-					    &fid->vni_ht_node,
+					    &fid->vni_ht_yesde,
 					    mlxsw_sp_fid_vni_ht_params);
 	if (err)
 		return err;
@@ -264,7 +264,7 @@ int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, enum mlxsw_sp_nve_type type,
 	return 0;
 
 err_vni_set:
-	rhashtable_remove_fast(&mlxsw_sp->fid_core->vni_ht, &fid->vni_ht_node,
+	rhashtable_remove_fast(&mlxsw_sp->fid_core->vni_ht, &fid->vni_ht_yesde,
 			       mlxsw_sp_fid_vni_ht_params);
 	return err;
 }
@@ -280,7 +280,7 @@ void mlxsw_sp_fid_vni_clear(struct mlxsw_sp_fid *fid)
 
 	fid->vni_valid = false;
 	ops->vni_clear(fid);
-	rhashtable_remove_fast(&mlxsw_sp->fid_core->vni_ht, &fid->vni_ht_node,
+	rhashtable_remove_fast(&mlxsw_sp->fid_core->vni_ht, &fid->vni_ht_yesde,
 			       mlxsw_sp_fid_vni_ht_params);
 }
 
@@ -496,7 +496,7 @@ static int mlxsw_sp_fid_8021q_index_alloc(struct mlxsw_sp_fid *fid,
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 	u16 vid = *(u16 *) arg;
 
-	/* Use 1:1 mapping for simplicity although not a must */
+	/* Use 1:1 mapping for simplicity although yest a must */
 	if (vid < fid_family->start_index || vid > fid_family->end_index)
 		return -EINVAL;
 	*p_fid_index = vid;
@@ -524,7 +524,7 @@ static int mlxsw_sp_fid_8021q_port_vid_map(struct mlxsw_sp_fid *fid,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u8 local_port = mlxsw_sp_port->local_port;
 
-	/* In case there are no {Port, VID} => FID mappings on the port,
+	/* In case there are yes {Port, VID} => FID mappings on the port,
 	 * we can use the global VID => FID mapping we created when the
 	 * FID was configured.
 	 */
@@ -1069,7 +1069,7 @@ static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_configure;
 
-	err = rhashtable_insert_fast(&mlxsw_sp->fid_core->fid_ht, &fid->ht_node,
+	err = rhashtable_insert_fast(&mlxsw_sp->fid_core->fid_ht, &fid->ht_yesde,
 				     mlxsw_sp_fid_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -1098,7 +1098,7 @@ void mlxsw_sp_fid_put(struct mlxsw_sp_fid *fid)
 
 	list_del(&fid->list);
 	rhashtable_remove_fast(&mlxsw_sp->fid_core->fid_ht,
-			       &fid->ht_node, mlxsw_sp_fid_ht_params);
+			       &fid->ht_yesde, mlxsw_sp_fid_ht_params);
 	fid->fid_family->ops->deconfigure(fid);
 	__clear_bit(fid->fid_index - fid_family->start_index,
 		    fid_family->fids_bitmap);
@@ -1236,8 +1236,8 @@ int mlxsw_sp_port_fids_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 
 	/* Track number of FIDs configured on the port with mapping type
-	 * PORT_VID_TO_FID, so that we know when to transition the port
-	 * back to non-virtual (VLAN) mode.
+	 * PORT_VID_TO_FID, so that we kyesw when to transition the port
+	 * back to yesn-virtual (VLAN) mode.
 	 */
 	mlxsw_sp->fid_core->port_fid_mappings[mlxsw_sp_port->local_port] = 0;
 

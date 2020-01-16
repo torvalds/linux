@@ -5,7 +5,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
@@ -15,7 +15,7 @@
 #include "optee_smc.h"
 
 struct optee_call_waiter {
-	struct list_head list_node;
+	struct list_head list_yesde;
 	struct completion c;
 };
 
@@ -27,7 +27,7 @@ static void optee_cq_wait_init(struct optee_call_queue *cq,
 	 * allocate a thread in secure world we'll end up waiting in
 	 * optee_cq_wait_for_completion().
 	 *
-	 * Normally if there's no contention in secure world the call will
+	 * Normally if there's yes contention in secure world the call will
 	 * complete and we can cleanup directly with optee_cq_wait_final().
 	 */
 	mutex_lock(&cq->mutex);
@@ -35,11 +35,11 @@ static void optee_cq_wait_init(struct optee_call_queue *cq,
 	/*
 	 * We add ourselves to the queue, but we don't wait. This
 	 * guarantees that we don't lose a completion if secure world
-	 * returns busy and another thread just exited and try to complete
+	 * returns busy and ayesther thread just exited and try to complete
 	 * someone.
 	 */
 	init_completion(&w->c);
-	list_add_tail(&w->list_node, &cq->waiters);
+	list_add_tail(&w->list_yesde, &cq->waiters);
 
 	mutex_unlock(&cq->mutex);
 }
@@ -52,9 +52,9 @@ static void optee_cq_wait_for_completion(struct optee_call_queue *cq,
 	mutex_lock(&cq->mutex);
 
 	/* Move to end of list to get out of the way for other waiters */
-	list_del(&w->list_node);
+	list_del(&w->list_yesde);
 	reinit_completion(&w->c);
-	list_add_tail(&w->list_node, &cq->waiters);
+	list_add_tail(&w->list_yesde, &cq->waiters);
 
 	mutex_unlock(&cq->mutex);
 }
@@ -63,7 +63,7 @@ static void optee_cq_complete_one(struct optee_call_queue *cq)
 {
 	struct optee_call_waiter *w;
 
-	list_for_each_entry(w, &cq->waiters, list_node) {
+	list_for_each_entry(w, &cq->waiters, list_yesde) {
 		if (!completion_done(&w->c)) {
 			complete(&w->c);
 			break;
@@ -76,21 +76,21 @@ static void optee_cq_wait_final(struct optee_call_queue *cq,
 {
 	/*
 	 * We're done with the call to secure world. The thread in secure
-	 * world that was used for this call is now available for some
+	 * world that was used for this call is yesw available for some
 	 * other task to use.
 	 */
 	mutex_lock(&cq->mutex);
 
 	/* Get out of the list */
-	list_del(&w->list_node);
+	list_del(&w->list_yesde);
 
 	/* Wake up one eventual waiting task */
 	optee_cq_complete_one(cq);
 
 	/*
-	 * If we're completed we've got a completion from another task that
-	 * was just done with its call to secure world. Since yet another
-	 * thread now is available in secure world wake up another eventual
+	 * If we're completed we've got a completion from ayesther task that
+	 * was just done with its call to secure world. Since yet ayesther
+	 * thread yesw is available in secure world wake up ayesther eventual
 	 * waiting task.
 	 */
 	if (completion_done(&w->c))
@@ -105,7 +105,7 @@ static struct optee_session *find_session(struct optee_context_data *ctxdata,
 {
 	struct optee_session *sess;
 
-	list_for_each_entry(sess, &ctxdata->sess_list, list_node)
+	list_for_each_entry(sess, &ctxdata->sess_list, list_yesde)
 		if (sess->session_id == session_id)
 			return sess;
 
@@ -255,7 +255,7 @@ int optee_open_session(struct tee_context *ctx,
 		/* A new session has been created, add it to the list. */
 		sess->session_id = msg_arg->session;
 		mutex_lock(&ctxdata->mutex);
-		list_add(&sess->list_node, &ctxdata->sess_list);
+		list_add(&sess->list_yesde, &ctxdata->sess_list);
 		mutex_unlock(&ctxdata->mutex);
 	} else {
 		kfree(sess);
@@ -289,7 +289,7 @@ int optee_close_session(struct tee_context *ctx, u32 session)
 	mutex_lock(&ctxdata->mutex);
 	sess = find_session(ctxdata, session);
 	if (sess)
-		list_del(&sess->list_node);
+		list_del(&sess->list_yesde);
 	mutex_unlock(&ctxdata->mutex);
 	if (!sess)
 		return -EINVAL;
@@ -450,7 +450,7 @@ void optee_disable_shm_cache(struct optee *optee)
  * @num_pages: number of entries in @pages
  * @page_offset: offset of user buffer from page start
  *
- * @dst should be big enough to hold list of user page addresses and
+ * @dst should be big eyesugh to hold list of user page addresses and
  *	links to the next pages of buffer
  */
 void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
@@ -468,9 +468,9 @@ void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
 	} *pages_data;
 
 	/*
-	 * Currently OP-TEE uses 4k page size and it does not looks
+	 * Currently OP-TEE uses 4k page size and it does yest looks
 	 * like this will change in the future.  On other hand, there are
-	 * no know ARM architectures with page size < 4k.
+	 * yes kyesw ARM architectures with page size < 4k.
 	 * Thus the next built assert looks redundant. But the following
 	 * code heavily relies on this assumption, so it is better be
 	 * safe than sorry.
@@ -481,7 +481,7 @@ void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
 	/*
 	 * If linux page is bigger than 4k, and user buffer offset is
 	 * larger than 4k/8k/12k/etc this will skip first 4k pages,
-	 * because they bear no value data for OP-TEE.
+	 * because they bear yes value data for OP-TEE.
 	 */
 	optee_page = page_to_phys(*pages) +
 		round_down(page_offset, OPTEE_MSG_NONCONTIG_PAGE_SIZE);
@@ -527,7 +527,7 @@ void optee_free_pages_list(void *list, size_t num_entries)
 	free_pages_exact(list, get_pages_list_size(num_entries));
 }
 
-static bool is_normal_memory(pgprot_t p)
+static bool is_yesrmal_memory(pgprot_t p)
 {
 #if defined(CONFIG_ARM)
 	return (pgprot_val(p) & L_PTE_MT_MASK) == L_PTE_MT_WRITEALLOC;
@@ -540,7 +540,7 @@ static bool is_normal_memory(pgprot_t p)
 
 static int __check_mem_type(struct vm_area_struct *vma, unsigned long end)
 {
-	while (vma && is_normal_memory(vma->vm_page_prot)) {
+	while (vma && is_yesrmal_memory(vma->vm_page_prot)) {
 		if (vma->vm_end >= end)
 			return 0;
 		vma = vma->vm_next;
@@ -556,7 +556,7 @@ static int check_mem_type(unsigned long start, size_t num_pages)
 
 	/*
 	 * Allow kernel address to register with OP-TEE as kernel
-	 * pages are configured as normal memory only.
+	 * pages are configured as yesrmal memory only.
 	 */
 	if (virt_addr_valid(start))
 		return 0;

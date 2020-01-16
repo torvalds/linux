@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /** HPI Version Definitions
-Development releases have odd minor version.
-Production releases have even minor version.
+Development releases have odd miyesr version.
+Production releases have even miyesr version.
 
 \file hpi_version.h
 */
@@ -20,12 +20,12 @@ Production releases have even minor version.
 /** Library version as documented in hpi-api-versions.txt */
 #define HPI_LIB_VER  HPI_VERSION_CONSTRUCTOR(10, 4, 0)
 
-/** Construct hpi version number from major, minor, release numbers */
+/** Construct hpi version number from major, miyesr, release numbers */
 #define HPI_VERSION_CONSTRUCTOR(maj, min, r) ((maj << 16) + (min << 8) + r)
 
 /** Extract major version from hpi version number */
 #define HPI_VER_MAJOR(v) ((int)(v >> 16))
-/** Extract minor version from hpi version number */
+/** Extract miyesr version from hpi version number */
 #define HPI_VER_MINOR(v) ((int)((v >> 8) & 0xFF))
 /** Extract release from hpi version number */
 #define HPI_VER_RELEASE(v) ((int)(v & 0xFF))

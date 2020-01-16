@@ -34,7 +34,7 @@ static unsigned long rxrpc_peer_hash_key(struct rxrpc_local *local,
 
 	_enter("");
 
-	hash_key = (unsigned long)local / __alignof__(*local);
+	hash_key = (unsigned long)local / __aligyesf__(*local);
 	hash_key += srx->transport_type;
 	hash_key += srx->transport_len;
 	hash_key += srx->transport.family;
@@ -299,7 +299,7 @@ static struct rxrpc_peer *rxrpc_create_peer(struct rxrpc_sock *rx,
 
 /*
  * Set up a new incoming peer.  There shouldn't be any other matching peers
- * since we've already done a search in the list from the non-reentrant context
+ * since we've already done a search in the list from the yesn-reentrant context
  * (the data_ready handler) that is the only place we can add new peers.
  */
 void rxrpc_new_incoming_peer(struct rxrpc_sock *rx, struct rxrpc_local *local,
@@ -338,12 +338,12 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_sock *rx,
 	rcu_read_unlock();
 
 	if (!peer) {
-		/* The peer is not yet present in hash - create a candidate
+		/* The peer is yest yet present in hash - create a candidate
 		 * for a new record and then redo the search.
 		 */
 		candidate = rxrpc_create_peer(rx, local, srx, hash_key, gfp);
 		if (!candidate) {
-			_leave(" = NULL [nomem]");
+			_leave(" = NULL [yesmem]");
 			return NULL;
 		}
 

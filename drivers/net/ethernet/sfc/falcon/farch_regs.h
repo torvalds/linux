@@ -87,12 +87,12 @@
 #define	FRF_BZ_INT_ADR_CHAR_LBN 0
 #define	FRF_BZ_INT_ADR_CHAR_WIDTH 64
 
-/* INT_ACK_KER: Kernel interrupt acknowledge register */
+/* INT_ACK_KER: Kernel interrupt ackyeswledge register */
 #define	FR_AA_INT_ACK_KER 0x00000050
 #define	FRF_AA_INT_ACK_KER_FIELD_LBN 0
 #define	FRF_AA_INT_ACK_KER_FIELD_WIDTH 32
 
-/* INT_ISR0_REG: Function 0 Interrupt Acknowledge Status register */
+/* INT_ISR0_REG: Function 0 Interrupt Ackyeswledge Status register */
 #define	FR_BZ_INT_ISR0 0x00000090
 #define	FRF_BZ_INT_ISR_REG_LBN 0
 #define	FRF_BZ_INT_ISR_REG_WIDTH 64
@@ -2804,7 +2804,7 @@
  **************************************************************************
  */
 
-/* Interrupt acknowledge work-around register (A0/A1 only) */
+/* Interrupt ackyeswledge work-around register (A0/A1 only) */
 #define FR_AA_WORK_AROUND_BROKEN_PCI_READS 0x0070
 
 /* EE_SPI_HCMD_REG: SPI host command register */

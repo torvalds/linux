@@ -16,24 +16,24 @@ USBPHYC
       |_ UTMI switch_______|          OTG controller
 
 
-Phy provider node
+Phy provider yesde
 =================
 
 Required properties:
 - compatible: must be "st,stm32mp1-usbphyc"
 - reg: address and length of the usb phy control register set
 - clocks: phandle + clock specifier for the PLL phy clock
-- #address-cells: number of address cells for phys sub-nodes, must be <1>
-- #size-cells: number of size cells for phys sub-nodes, must be <0>
+- #address-cells: number of address cells for phys sub-yesdes, must be <1>
+- #size-cells: number of size cells for phys sub-yesdes, must be <0>
 
 Optional properties:
 - assigned-clocks: phandle + clock specifier for the PLL phy clock
 - assigned-clock-parents: the PLL phy clock parent
 - resets: phandle + reset specifier
 
-Required nodes: one sub-node per port the controller provides.
+Required yesdes: one sub-yesde per port the controller provides.
 
-Phy sub-nodes
+Phy sub-yesdes
 ==============
 
 Required properties:

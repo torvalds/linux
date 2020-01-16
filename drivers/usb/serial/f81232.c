@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -222,7 +222,7 @@ static int f81232_set_mctrl(struct usb_serial_port *port,
 	struct f81232_private *priv = usb_get_serial_port_data(port);
 
 	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0)
-		return 0;	/* no change */
+		return 0;	/* yes change */
 
 	/* 'set' takes precedence over 'clear' */
 	clear &= ~set;
@@ -304,7 +304,7 @@ static void f81232_read_int_callback(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -536,7 +536,7 @@ static void f81232_set_termios(struct tty_struct *tty,
 	speed_t baudrate;
 	speed_t old_baud;
 
-	/* Don't change anything if nothing has changed */
+	/* Don't change anything if yesthing has changed */
 	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
 		return;
 
@@ -699,7 +699,7 @@ static int f81232_get_serial_info(struct tty_struct *tty,
 	struct f81232_private *priv = usb_get_serial_port_data(port);
 
 	ss->type = PORT_16550A;
-	ss->line = port->minor;
+	ss->line = port->miyesr;
 	ss->port = port->port_number;
 	ss->baud_base = priv->baud_base;
 	return 0;

@@ -44,8 +44,8 @@ extern u64 uevent_seqnum;
  * The actions here must match the index to the string array
  * in lib/kobject_uevent.c
  *
- * Do not add new actions here without checking with the driver-core
- * maintainers. Action strings are not meant to express subsystem
+ * Do yest add new actions here without checking with the driver-core
+ * maintainers. Action strings are yest meant to express subsystem
  * or device specific properties. In most cases you want to send a
  * kobject_uevent_env(kobj, KOBJ_CHANGE, env) with additional event
  * specific variables added to the event environment.
@@ -68,7 +68,7 @@ struct kobject {
 	struct kobject		*parent;
 	struct kset		*kset;
 	struct kobj_type	*ktype;
-	struct kernfs_node	*sd; /* sysfs directory entry */
+	struct kernfs_yesde	*sd; /* sysfs directory entry */
 	struct kref		kref;
 #ifdef CONFIG_DEBUG_KOBJECT_RELEASE
 	struct delayed_work	release;
@@ -126,7 +126,7 @@ extern char *kobject_get_path(struct kobject *kobj, gfp_t flag);
  * This will return whether a kobject has other kobjects as children.
  *
  * It does NOT account for the presence of attribute files, only sub
- * directories. It also assumes there is no concurrent addition or
+ * directories. It also assumes there is yes concurrent addition or
  * removal of such children, and thus relies on external locking.
  */
 static inline bool kobject_has_children(struct kobject *kobj)

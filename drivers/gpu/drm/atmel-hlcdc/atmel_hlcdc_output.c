@@ -41,7 +41,7 @@ int atmel_hlcdc_encoder_get_bus_fmt(struct drm_encoder *encoder)
 	return output->bus_fmt;
 }
 
-static int atmel_hlcdc_of_bus_fmt(const struct device_node *ep)
+static int atmel_hlcdc_of_bus_fmt(const struct device_yesde *ep)
 {
 	u32 bus_width;
 	int ret;
@@ -69,30 +69,30 @@ static int atmel_hlcdc_of_bus_fmt(const struct device_node *ep)
 static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 {
 	struct atmel_hlcdc_rgb_output *output;
-	struct device_node *ep;
+	struct device_yesde *ep;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	int ret;
 
-	ep = of_graph_get_endpoint_by_regs(dev->dev->of_node, 0, endpoint);
+	ep = of_graph_get_endpoint_by_regs(dev->dev->of_yesde, 0, endpoint);
 	if (!ep)
 		return -ENODEV;
 
-	ret = drm_of_find_panel_or_bridge(dev->dev->of_node, 0, endpoint,
+	ret = drm_of_find_panel_or_bridge(dev->dev->of_yesde, 0, endpoint,
 					  &panel, &bridge);
 	if (ret) {
-		of_node_put(ep);
+		of_yesde_put(ep);
 		return ret;
 	}
 
 	output = devm_kzalloc(dev->dev, sizeof(*output), GFP_KERNEL);
 	if (!output) {
-		of_node_put(ep);
+		of_yesde_put(ep);
 		return -ENOMEM;
 	}
 
 	output->bus_fmt = atmel_hlcdc_of_bus_fmt(ep);
-	of_node_put(ep);
+	of_yesde_put(ep);
 	if (output->bus_fmt < 0) {
 		dev_err(dev->dev, "endpoint %d: invalid bus width\n", endpoint);
 		return -EINVAL;
@@ -108,7 +108,7 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 
 	if (panel) {
 		bridge = drm_panel_bridge_add_typed(panel,
-						    DRM_MODE_CONNECTOR_Unknown);
+						    DRM_MODE_CONNECTOR_Unkyeswn);
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
 	}

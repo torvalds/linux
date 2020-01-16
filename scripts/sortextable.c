@@ -73,7 +73,7 @@ cleanup(void)
 	close(fd_map);
 }
 
-static void __attribute__((noreturn))
+static void __attribute__((yesreturn))
 fail_file(void)
 {
 	cleanup();
@@ -96,14 +96,14 @@ static void *mmap_file(char const *fname)
 		fail_file();
 	}
 	if (!S_ISREG(sb.st_mode)) {
-		fprintf(stderr, "not a regular file: %s\n", fname);
+		fprintf(stderr, "yest a regular file: %s\n", fname);
 		fail_file();
 	}
 	addr = mmap(0, sb.st_size, PROT_READ|PROT_WRITE, MAP_SHARED,
 		    fd_map, 0);
 	if (addr == MAP_FAILED) {
 		mmap_failed = 1;
-		fprintf(stderr, "Could not mmap file: %s\n", fname);
+		fprintf(stderr, "Could yest mmap file: %s\n", fname);
 		fail_file();
 	}
 	return addr;
@@ -243,7 +243,7 @@ static void sort_relative_table(char *extab_image, int image_size)
 	int i;
 
 	/*
-	 * Do the same thing the runtime sort does, first normalize to
+	 * Do the same thing the runtime sort does, first yesrmalize to
 	 * being relative to the start of the section.
 	 */
 	i = 0;
@@ -255,7 +255,7 @@ static void sort_relative_table(char *extab_image, int image_size)
 
 	qsort(extab_image, image_size / 8, 8, compare_relative_table);
 
-	/* Now denormalize. */
+	/* Now deyesrmalize. */
 	i = 0;
 	while (i < image_size) {
 		uint32_t *loc = (uint32_t *)(extab_image + i);
@@ -381,7 +381,7 @@ main(int argc, char *argv[])
 			fprintf(stderr, "internal error: %s\n", file);
 			exit(1);
 			break;
-		case SJ_SETJMP:    /* normal sequence */
+		case SJ_SETJMP:    /* yesrmal sequence */
 			/* Avoid problems if early cleanup() */
 			fd_map = -1;
 			ehdr_curr = NULL;
@@ -392,7 +392,7 @@ main(int argc, char *argv[])
 			++n_error;
 			break;
 		case SJ_SUCCEED:    /* premature success */
-			/* do nothing */
+			/* do yesthing */
 			break;
 		}  /* end switch */
 	}

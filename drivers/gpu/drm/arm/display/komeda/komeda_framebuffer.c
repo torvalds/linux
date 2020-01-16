@@ -108,7 +108,7 @@ check_failed:
 }
 
 static int
-komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
+komeda_fb_yesne_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 			       struct drm_file *file,
 			       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
@@ -147,7 +147,7 @@ komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 
 	if (fb->format->num_planes == 3) {
 		if (fb->pitches[1] != fb->pitches[2]) {
-			DRM_DEBUG_KMS("The pitch[1] and [2] are not same\n");
+			DRM_DEBUG_KMS("The pitch[1] and [2] are yest same\n");
 			return -EINVAL;
 		}
 	}
@@ -171,7 +171,7 @@ komeda_fb_create(struct drm_device *dev, struct drm_file *file,
 						  mode_cmd->pixel_format,
 						  mode_cmd->modifier[0]);
 	if (!kfb->format_caps) {
-		DRM_DEBUG_KMS("FMT %x is not supported.\n",
+		DRM_DEBUG_KMS("FMT %x is yest supported.\n",
 			      mode_cmd->pixel_format);
 		kfree(kfb);
 		return ERR_PTR(-EINVAL);
@@ -182,7 +182,7 @@ komeda_fb_create(struct drm_device *dev, struct drm_file *file,
 	if (kfb->base.modifier)
 		ret = komeda_fb_afbc_size_check(kfb, file, mode_cmd);
 	else
-		ret = komeda_fb_none_afbc_size_check(mdev, kfb, file, mode_cmd);
+		ret = komeda_fb_yesne_afbc_size_check(mdev, kfb, file, mode_cmd);
 	if (ret < 0)
 		goto err_cleanup;
 

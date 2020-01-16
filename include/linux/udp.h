@@ -40,12 +40,12 @@ struct udp_sock {
 	struct inet_sock inet;
 #define udp_port_hash		inet.sk.__sk_common.skc_u16hashes[0]
 #define udp_portaddr_hash	inet.sk.__sk_common.skc_u16hashes[1]
-#define udp_portaddr_node	inet.sk.__sk_common.skc_portaddr_node
+#define udp_portaddr_yesde	inet.sk.__sk_common.skc_portaddr_yesde
 	int		 pending;	/* Any pending frames ? */
 	unsigned int	 corkflag;	/* Cork is required */
 	__u8		 encap_type;	/* Is this an Encapsulation socket? */
-	unsigned char	 no_check6_tx:1,/* Send zero UDP6 checksums on TX? */
-			 no_check6_rx:1,/* Allow zero UDP6 checksums on RX? */
+	unsigned char	 yes_check6_tx:1,/* Send zero UDP6 checksums on TX? */
+			 yes_check6_rx:1,/* Allow zero UDP6 checksums on RX? */
 			 encap_enabled:1, /* This socket enabled encap
 					   * processing; UDP tunnels and
 					   * different encapsulation layer set
@@ -98,24 +98,24 @@ static inline struct udp_sock *udp_sk(const struct sock *sk)
 	return (struct udp_sock *)sk;
 }
 
-static inline void udp_set_no_check6_tx(struct sock *sk, bool val)
+static inline void udp_set_yes_check6_tx(struct sock *sk, bool val)
 {
-	udp_sk(sk)->no_check6_tx = val;
+	udp_sk(sk)->yes_check6_tx = val;
 }
 
-static inline void udp_set_no_check6_rx(struct sock *sk, bool val)
+static inline void udp_set_yes_check6_rx(struct sock *sk, bool val)
 {
-	udp_sk(sk)->no_check6_rx = val;
+	udp_sk(sk)->yes_check6_rx = val;
 }
 
-static inline bool udp_get_no_check6_tx(struct sock *sk)
+static inline bool udp_get_yes_check6_tx(struct sock *sk)
 {
-	return udp_sk(sk)->no_check6_tx;
+	return udp_sk(sk)->yes_check6_tx;
 }
 
-static inline bool udp_get_no_check6_rx(struct sock *sk)
+static inline bool udp_get_yes_check6_rx(struct sock *sk)
 {
-	return udp_sk(sk)->no_check6_rx;
+	return udp_sk(sk)->yes_check6_rx;
 }
 
 static inline void udp_cmsg_recv(struct msghdr *msg, struct sock *sk,
@@ -136,10 +136,10 @@ static inline bool udp_unexpected_gso(struct sock *sk, struct sk_buff *skb)
 }
 
 #define udp_portaddr_for_each_entry(__sk, list) \
-	hlist_for_each_entry(__sk, list, __sk_common.skc_portaddr_node)
+	hlist_for_each_entry(__sk, list, __sk_common.skc_portaddr_yesde)
 
 #define udp_portaddr_for_each_entry_rcu(__sk, list) \
-	hlist_for_each_entry_rcu(__sk, list, __sk_common.skc_portaddr_node)
+	hlist_for_each_entry_rcu(__sk, list, __sk_common.skc_portaddr_yesde)
 
 #define IS_UDPLITE(__sk) (__sk->sk_protocol == IPPROTO_UDPLITE)
 

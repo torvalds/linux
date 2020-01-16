@@ -19,26 +19,26 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -62,11 +62,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -82,23 +82,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -386,7 +386,7 @@ static void xgbe_an73_set(struct xgbe_prv_data *pdata, bool enable,
 {
 	unsigned int reg;
 
-	/* Disable KR training for now */
+	/* Disable KR training for yesw */
 	reg = XMDIO_READ(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL);
 	reg &= ~XGBE_KR_TRAINING_ENABLE;
 	XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL, reg);
@@ -473,7 +473,7 @@ static enum xgbe_an xgbe_an73_tx_training(struct xgbe_prv_data *pdata,
 
 	*state = XGBE_RX_COMPLETE;
 
-	/* If we're not in KR mode then we're done */
+	/* If we're yest in KR mode then we're done */
 	if (!xgbe_in_kr_mode(pdata))
 		return XGBE_AN_PAGE_RECEIVED;
 
@@ -659,7 +659,7 @@ static void xgbe_an37_isr(struct xgbe_prv_data *pdata)
 		/* Enable AN interrupts */
 		xgbe_an37_enable_interrupts(pdata);
 
-		/* Reissue interrupt if status is not clear */
+		/* Reissue interrupt if status is yest clear */
 		if (pdata->vdata->irq_reissue_support)
 			XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 3);
 	}
@@ -682,7 +682,7 @@ static void xgbe_an73_isr(struct xgbe_prv_data *pdata)
 		/* Enable AN interrupts */
 		xgbe_an73_enable_interrupts(pdata);
 
-		/* Reissue interrupt if status is not clear */
+		/* Reissue interrupt if status is yest clear */
 		if (pdata->vdata->irq_reissue_support)
 			XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 3);
 	}
@@ -934,7 +934,7 @@ static void xgbe_an_state_machine(struct work_struct *work)
 		break;
 	}
 
-	/* Reissue interrupt if status is not clear */
+	/* Reissue interrupt if status is yest clear */
 	if (pdata->vdata->irq_reissue_support)
 		XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 3);
 
@@ -960,7 +960,7 @@ static void xgbe_an37_init(struct xgbe_prv_data *pdata)
 	else
 		reg &= ~0x80;
 
-	/* Full duplex, but not half */
+	/* Full duplex, but yest half */
 	reg |= XGBE_AN_CL37_FD_MASK;
 	reg &= ~XGBE_AN_CL37_HD_MASK;
 
@@ -1083,7 +1083,7 @@ static const char *xgbe_phy_speed_string(int speed)
 	case SPEED_10000:
 		return "10Gbps";
 	case SPEED_UNKNOWN:
-		return "Unknown";
+		return "Unkyeswn";
 	default:
 		return "Unsupported";
 	}
@@ -1474,7 +1474,7 @@ static int xgbe_phy_reset(struct xgbe_prv_data *pdata)
 	if (ret)
 		return ret;
 
-	/* Disable auto-negotiation for now */
+	/* Disable auto-negotiation for yesw */
 	xgbe_an_disable_all(pdata);
 
 	/* Clear auto-negotiation interrupts */

@@ -218,7 +218,7 @@ config MACH_TRIZEPS_UCONXS
 	bool "uConXS Eval Board"
 
 config MACH_TRIZEPS_ANY
-	bool "another Board"
+	bool "ayesther Board"
 
 endchoice
 
@@ -256,7 +256,7 @@ config PCM990_DISPLAY_NEC
 	bool "nec nl6448bc20_18d tft display"
 
 config PCM990_DISPLAY_NONE
-	bool "no display"
+	bool "yes display"
 
 endchoice
 
@@ -472,7 +472,7 @@ config PXA_SHARPSL_DETECT_MACH_ID
 	help
 	  Say Y here if you want the zImage decompressor to detect
 	  the Zaurus machine ID at run-time. For latest kexec-based
-	  boot loader, this is not necessary.
+	  boot loader, this is yest necessary.
 
 config MACH_POODLE
 	bool "Enable Sharp SL-5600 (Poodle) Support"
@@ -540,7 +540,7 @@ config TOSA_USE_EXT_KEYCODES
 	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted
 	  by either console keyboard driver or by Kdrive keybd driver.
 
-	  Say Y only if you know, what you are doing!
+	  Say Y only if you kyesw, what you are doing!
 
 config MACH_ICONTROL
 	bool "TMT iControl/SafeTCam based on the MXM-8x10 CoM"

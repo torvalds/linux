@@ -312,7 +312,7 @@
 			compatible = "shared-dma-pool";
 			reg = <0 0xb7000000 0 0x500000>;
 			alignment = <0x1000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -703,8 +703,8 @@
 			nvmem-cell-names = "calibration-data";
 		};
 
-		nor_flash: spi@1100d000 {
-			compatible = "mediatek,mt8173-nor";
+		yesr_flash: spi@1100d000 {
+			compatible = "mediatek,mt8173-yesr";
 			reg = <0 0x1100d000 0 0xe0>;
 			clocks = <&pericfg CLK_PERI_SPI>,
 				 <&topckgen CLK_TOP_SPINFI_IFR_SEL>;

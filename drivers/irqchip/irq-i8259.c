@@ -97,7 +97,7 @@ static void enable_8259A_irq(struct irq_data *d)
 
 void make_8259A_irq(unsigned int irq)
 {
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	irq_set_chip_and_handler(irq, &i8259A_chip, handle_level_irq);
 	enable_irq(irq);
 }
@@ -139,7 +139,7 @@ static void mask_and_ack_8259A(struct irq_data *d)
 	irqmask = 1 << irq;
 	raw_spin_lock_irqsave(&i8259A_lock, flags);
 	/*
-	 * Lightweight spurious IRQ detection. We do not want
+	 * Lightweight spurious IRQ detection. We do yest want
 	 * to overdo spurious IRQ handling - it's usually a sign
 	 * of hardware problems, so we only do the checks we can
 	 * do without slowing down good hardware unnecessarily.
@@ -149,8 +149,8 @@ static void mask_and_ack_8259A(struct irq_data *d)
 	 * even if the IRQ is masked in the 8259A. Thus we
 	 * can check spurious 8259A IRQs without doing the
 	 * quite slow i8259A_irq_real() call for every IRQ.
-	 * This does not cover 100% of spurious interrupts,
-	 * but should be enough to warn the user that there
+	 * This does yest cover 100% of spurious interrupts,
+	 * but should be eyesugh to warn the user that there
 	 * is something bad going on ...
 	 */
 	if (cached_irq_mask & irqmask)
@@ -178,7 +178,7 @@ spurious_8259A_irq:
 	if (i8259A_irq_real(irq))
 		/*
 		 * oops, the IRQ _is_ in service according to the
-		 * 8259A - not spurious, go handle it.
+		 * 8259A - yest spurious, go handle it.
 		 */
 		goto handle_real_irq;
 
@@ -194,8 +194,8 @@ spurious_8259A_irq:
 		}
 		atomic_inc(&irq_err_count);
 		/*
-		 * Theoretically we do not have to handle this IRQ,
-		 * but in Linux this does not cause problems and is
+		 * Theoretically we do yest have to handle this IRQ,
+		 * but in Linux this does yest cause problems and is
 		 * simpler for us.
 		 */
 		goto handle_real_irq;
@@ -244,7 +244,7 @@ static void init_8259A(int auto_eoi)
 	outb_p(1U << PIC_CASCADE_IR, PIC_MASTER_IMR);	/* 8259A-1 (the master) has a slave on IR2 */
 	if (auto_eoi)	/* master does Auto EOI */
 		outb_p(MASTER_ICW4_DEFAULT | PIC_ICW4_AEOI, PIC_MASTER_IMR);
-	else		/* master expects normal EOI */
+	else		/* master expects yesrmal EOI */
 		outb_p(MASTER_ICW4_DEFAULT, PIC_MASTER_IMR);
 
 	outb_p(0x11, PIC_SLAVE_CMD);	/* ICW1: select 8259A-2 init */
@@ -272,7 +272,7 @@ static void init_8259A(int auto_eoi)
  * IRQ2 is cascade interrupt to second interrupt controller
  */
 static struct irqaction irq2 = {
-	.handler = no_action,
+	.handler = yes_action,
 	.name = "cascade",
 	.flags = IRQF_NO_THREAD,
 };
@@ -309,7 +309,7 @@ static const struct irq_domain_ops i8259A_ops = {
  * driver compatibility reasons interrupts 0 - 15 to be the i8259
  * interrupts even if the hardware uses a different interrupt numbering.
  */
-struct irq_domain * __init __init_i8259_irqs(struct device_node *node)
+struct irq_domain * __init __init_i8259_irqs(struct device_yesde *yesde)
 {
 	struct irq_domain *domain;
 
@@ -318,7 +318,7 @@ struct irq_domain * __init __init_i8259_irqs(struct device_node *node)
 
 	init_8259A(0);
 
-	domain = irq_domain_add_legacy(node, 16, I8259A_IRQ_BASE, 0,
+	domain = irq_domain_add_legacy(yesde, 16, I8259A_IRQ_BASE, 0,
 				       &i8259A_ops, NULL);
 	if (!domain)
 		panic("Failed to add i8259 IRQ domain");
@@ -346,14 +346,14 @@ static void i8259_irq_dispatch(struct irq_desc *desc)
 	generic_handle_irq(irq);
 }
 
-int __init i8259_of_init(struct device_node *node, struct device_node *parent)
+int __init i8259_of_init(struct device_yesde *yesde, struct device_yesde *parent)
 {
 	struct irq_domain *domain;
 	unsigned int parent_irq;
 
-	domain = __init_i8259_irqs(node);
+	domain = __init_i8259_irqs(yesde);
 
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(yesde, 0);
 	if (!parent_irq) {
 		pr_err("Failed to map i8259 parent IRQ\n");
 		irq_domain_remove(domain);

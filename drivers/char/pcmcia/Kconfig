@@ -11,7 +11,7 @@ config SYNCLINK_CS
 	depends on PCMCIA && TTY
 	help
 	  Enable support for the SyncLink PC Card serial adapter, running
-	  asynchronous and HDLC communications up to 512Kbps. The port is
+	  asynchroyesus and HDLC communications up to 512Kbps. The port is
 	  selectable for RS-232, V.35, RS-449, RS-530, and X.21
 
 	  This driver may be built as a module ( = code which can be

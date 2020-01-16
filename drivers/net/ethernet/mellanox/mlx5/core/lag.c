@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -39,7 +39,7 @@
 #include "lag_mp.h"
 
 /* General purpose, use for short periods of time.
- * Beware of lock dependencies (preferably, no locks should be acquired
+ * Beware of lock dependencies (preferably, yes locks should be acquired
  * under it).
  */
 static DEFINE_MUTEX(lag_mutex);
@@ -374,7 +374,7 @@ static void mlx5_do_bond_work(struct work_struct *work)
 static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 					 struct lag_tracker *tracker,
 					 struct net_device *ndev,
-					 struct netdev_notifier_changeupper_info *info)
+					 struct netdev_yestifier_changeupper_info *info)
 {
 	struct net_device *upper = info->upper_dev, *ndev_tmp;
 	struct netdev_lag_upper_info *lag_upper_info = NULL;
@@ -389,7 +389,7 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 	if (info->linking)
 		lag_upper_info = info->upper_info;
 
-	/* The event may still be of interest if the slave does not belong to
+	/* The event may still be of interest if the slave does yest belong to
 	 * us, but is enslaved to a master which has one or more of our netdevs
 	 * as slaves (e.g., if a new slave is added to a master that bonds two
 	 * of our netdevs, we should unbond).
@@ -432,7 +432,7 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 static int mlx5_handle_changelowerstate_event(struct mlx5_lag *ldev,
 					      struct lag_tracker *tracker,
 					      struct net_device *ndev,
-					      struct netdev_notifier_changelowerstate_info *info)
+					      struct netdev_yestifier_changelowerstate_info *info)
 {
 	struct netdev_lag_lower_state_info *lag_lower_info;
 	int idx;
@@ -456,10 +456,10 @@ static int mlx5_handle_changelowerstate_event(struct mlx5_lag *ldev,
 	return 1;
 }
 
-static int mlx5_lag_netdev_event(struct notifier_block *this,
+static int mlx5_lag_netdev_event(struct yestifier_block *this,
 				 unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_yestifier_info_to_dev(ptr);
 	struct lag_tracker tracker;
 	struct mlx5_lag *ldev;
 	int changed = 0;
@@ -584,11 +584,11 @@ void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev)
 
 	mlx5_lag_dev_add_pf(ldev, dev, netdev);
 
-	if (!ldev->nb.notifier_call) {
-		ldev->nb.notifier_call = mlx5_lag_netdev_event;
-		if (register_netdevice_notifier(&ldev->nb)) {
-			ldev->nb.notifier_call = NULL;
-			mlx5_core_err(dev, "Failed to register LAG netdev notifier\n");
+	if (!ldev->nb.yestifier_call) {
+		ldev->nb.yestifier_call = mlx5_lag_netdev_event;
+		if (register_netdevice_yestifier(&ldev->nb)) {
+			ldev->nb.yestifier_call = NULL;
+			mlx5_core_err(dev, "Failed to register LAG netdev yestifier\n");
 		}
 	}
 
@@ -618,8 +618,8 @@ void mlx5_lag_remove(struct mlx5_core_dev *dev)
 			break;
 
 	if (i == MLX5_MAX_PORTS) {
-		if (ldev->nb.notifier_call)
-			unregister_netdevice_notifier(&ldev->nb);
+		if (ldev->nb.yestifier_call)
+			unregister_netdevice_yestifier(&ldev->nb);
 		mlx5_lag_mp_cleanup(ldev);
 		cancel_delayed_work_sync(&ldev->bond_work);
 		mlx5_lag_dev_free(ldev);
@@ -725,7 +725,7 @@ bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv)
 	    ldev->pf[MLX5_LAG_P1].dev == dev)
 		return true;
 
-	/* If bonded, we do not add an IB device for PF1. */
+	/* If bonded, we do yest add an IB device for PF1. */
 	return false;
 }
 

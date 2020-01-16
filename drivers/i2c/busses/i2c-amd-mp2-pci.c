@@ -14,7 +14,7 @@
 
 #include "i2c-amd-mp2.h"
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 static void amd_mp2_c2p_mutex_lock(struct amd_i2c_common *i2c_common)
 {
@@ -191,16 +191,16 @@ void amd_mp2_process_event(struct amd_i2c_common *i2c_common)
 {
 	struct amd_mp2_dev *privdata = i2c_common->mp2_dev;
 
-	if (unlikely(i2c_common->reqcmd == i2c_none)) {
+	if (unlikely(i2c_common->reqcmd == i2c_yesne)) {
 		dev_warn(ndev_dev(privdata),
-			 "received msg but no cmd was sent (bus = %d)!\n",
+			 "received msg but yes cmd was sent (bus = %d)!\n",
 			 i2c_common->bus_id);
 		return;
 	}
 
 	__amd_mp2_process_event(i2c_common);
 
-	i2c_common->reqcmd = i2c_none;
+	i2c_common->reqcmd = i2c_yesne;
 	amd_mp2_c2p_mutex_unlock(i2c_common);
 }
 EXPORT_SYMBOL_GPL(amd_mp2_process_event);
@@ -247,7 +247,7 @@ static irqreturn_t amd_mp2_irq_isr(int irq, void *dev)
 
 void amd_mp2_rw_timeout(struct amd_i2c_common *i2c_common)
 {
-	i2c_common->reqcmd = i2c_none;
+	i2c_common->reqcmd = i2c_yesne;
 	amd_mp2_c2p_mutex_unlock(i2c_common);
 }
 EXPORT_SYMBOL_GPL(amd_mp2_rw_timeout);
@@ -372,7 +372,7 @@ static void amd_mp2_pci_remove(struct pci_dev *pci_dev)
 	struct amd_mp2_dev *privdata = pci_get_drvdata(pci_dev);
 
 	pm_runtime_forbid(&pci_dev->dev);
-	pm_runtime_get_noresume(&pci_dev->dev);
+	pm_runtime_get_yesresume(&pci_dev->dev);
 
 	pci_intx(pci_dev, 0);
 	pci_clear_master(pci_dev);

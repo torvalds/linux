@@ -27,7 +27,7 @@
 /* needed for logical [in,out]-dev filtering */
 #include "../br_private.h"
 
-/* Each cpu has its own set of counters, so there is no need for write_lock in
+/* Each cpu has its own set of counters, so there is yes need for write_lock in
  * the softirq
  * For reading or updating the counters, the user context needs to
  * get a write_lock
@@ -223,7 +223,7 @@ unsigned int ebt_do_table(struct sk_buff *skb,
 
 		ADD_COUNTER(*(counter_base + i), skb->len, 1);
 
-		/* these should only watch: not modify, nor tell us
+		/* these should only watch: yest modify, yesr tell us
 		 * what to do with the packet
 		 */
 		EBT_WATCHER_ITERATE(point, ebt_do_watcher, skb, &acpar);
@@ -277,7 +277,7 @@ letsreturn:
 		i = 0;
 		chaininfo = (struct ebt_entries *) (base + verdict);
 
-		if (WARN(chaininfo->distinguisher, "jump to non-chain\n")) {
+		if (WARN(chaininfo->distinguisher, "jump to yesn-chain\n")) {
 			read_unlock_bh(&table->lock);
 			return NF_DROP;
 		}
@@ -305,7 +305,7 @@ letscontinue:
 
 /* If it succeeds, returns element and locks mutex */
 static inline void *
-find_inlist_lock_noload(struct list_head *head, const char *name, int *error,
+find_inlist_lock_yesload(struct list_head *head, const char *name, int *error,
 			struct mutex *mutex)
 {
 	struct {
@@ -328,7 +328,7 @@ find_inlist_lock(struct list_head *head, const char *name, const char *prefix,
 		 int *error, struct mutex *mutex)
 {
 	return try_then_request_module(
-			find_inlist_lock_noload(head, name, error, mutex),
+			find_inlist_lock_yesload(head, name, error, mutex),
 			"%s%s", prefix, name);
 }
 
@@ -456,7 +456,7 @@ static int ebt_verify_pointers(const struct ebt_replace *repl,
 		if (i != NF_BR_NUMHOOKS || !(e->bitmask & EBT_ENTRY_OR_ENTRIES)) {
 			if (e->bitmask != 0) {
 				/* we make userspace set this right,
-				 * so there is no misunderstanding
+				 * so there is yes misunderstanding
 				 */
 				return -EINVAL;
 			}
@@ -533,7 +533,7 @@ ebt_check_entry_size_and_hooks(const struct ebt_entry *e,
 	   e->target_offset >= e->next_offset)
 		return -EINVAL;
 
-	/* this is not checked anywhere else */
+	/* this is yest checked anywhere else */
 	if (e->next_offset - e->target_offset < sizeof(struct ebt_entry_target))
 		return -EINVAL;
 
@@ -790,7 +790,7 @@ static int check_chainloops(const struct ebt_entries *chain, struct ebt_cl_stack
 			return -1;
 
 		verdict = ((struct ebt_standard_target *)t)->verdict;
-		if (verdict >= 0) { /* jump to another chain */
+		if (verdict >= 0) { /* jump to ayesther chain */
 			struct ebt_entries *hlp2 =
 			   (struct ebt_entries *)(base + verdict);
 			for (i = 0; i < udc_cnt; i++)
@@ -855,7 +855,7 @@ static int translate_table(struct net *net, const char *name,
 
 	/* do some early checkings and initialize some things */
 	i = 0; /* holds the expected nr. of entries for the chain */
-	j = 0; /* holds the up to now counted entries for the chain */
+	j = 0; /* holds the up to yesw counted entries for the chain */
 	k = 0; /* holds the total nr. of entries, should equal
 		* newinfo->nentries afterwards
 		*/
@@ -919,18 +919,18 @@ static int translate_table(struct net *net, const char *name,
 				return -EINVAL;
 			}
 
-	/* we now know the following (along with E=mc²):
+	/* we yesw kyesw the following (along with E=mc²):
 	 *  - the nr of entries in each chain is right
 	 *  - the size of the allocated space is right
 	 *  - all valid hooks have a corresponding chain
-	 *  - there are no loops
+	 *  - there are yes loops
 	 *  - wrong data can still be on the level of a single entry
-	 *  - could be there are jumps to places that are not the
+	 *  - could be there are jumps to places that are yest the
 	 *    beginning of a chain. This can only occur in chains that
-	 *    are not accessible from any base chains, so we don't care.
+	 *    are yest accessible from any base chains, so we don't care.
 	 */
 
-	/* used to know what we need to clean up if something goes wrong */
+	/* used to kyesw what we need to clean up if something goes wrong */
 	i = 0;
 	ret = EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 	   ebt_check_entry, net, newinfo, name, &i, cl_s, udc_cnt);
@@ -1008,9 +1008,9 @@ static int do_replace_finish(struct net *net, struct ebt_replace *repl,
 		goto free_unlock;
 	}
 
-	/* we have the mutex lock, so no danger in reading this pointer */
+	/* we have the mutex lock, so yes danger in reading this pointer */
 	table = t->private;
-	/* make sure the table can only be rmmod'ed if it contains no rules */
+	/* make sure the table can only be rmmod'ed if it contains yes rules */
 	if (!table->nentries && newinfo->nentries && !try_module_get(t->me)) {
 		ret = -ENOENT;
 		goto free_unlock;
@@ -1388,7 +1388,7 @@ static int copy_counters_to_user(struct ebt_table *t,
 	struct ebt_counter *counterstmp;
 	int ret = 0;
 
-	/* userspace might not need the counters */
+	/* userspace might yest need the counters */
 	if (num_counters == 0)
 		return 0;
 
@@ -1561,7 +1561,7 @@ struct compat_ebt_entry_mwt {
 		compat_uptr_t ptr;
 	} u;
 	compat_uint_t match_size;
-	compat_uint_t data[0] __attribute__ ((aligned (__alignof__(struct compat_ebt_replace))));
+	compat_uint_t data[0] __attribute__ ((aligned (__aligyesf__(struct compat_ebt_replace))));
 };
 
 /* account for possible padding between match_size and ->data */
@@ -1842,7 +1842,7 @@ static int compat_copy_everything_to_user(struct ebt_table *t,
 		return -EINVAL;
 	}
 
-	/* userspace might not need the counters */
+	/* userspace might yest need the counters */
 	ret = copy_counters_to_user(t, oldcounters, compat_ptr(tmp.counters),
 					tmp.num_counters, tinfo.nentries);
 	if (ret)
@@ -1891,7 +1891,7 @@ static int ebt_buf_add_pad(struct ebt_entries_buf_state *state, unsigned int sz)
 
 	if (b != NULL && sz > 0)
 		memset(b + state->buf_kern_offset, 0, sz);
-	/* do not adjust ->buf_user_offset here, we added kernel-side padding */
+	/* do yest adjust ->buf_user_offset here, we added kernel-side padding */
 	return ebt_buf_count(state, sz);
 }
 
@@ -2061,7 +2061,7 @@ static int size_entry_mwt(const struct ebt_entry *entry, const unsigned char *ba
 		return -EINVAL;
 
 	startoff = state->buf_user_offset;
-	/* pull in most part of ebt_entry, it does not need to be changed. */
+	/* pull in most part of ebt_entry, it does yest need to be changed. */
 	ret = ebt_buf_add(state, entry,
 			offsetof(struct ebt_entry, watchers_offset));
 	if (ret < 0)

@@ -345,12 +345,12 @@ static const struct attribute_group lp855x_attr_group = {
 static int lp855x_parse_dt(struct lp855x *lp)
 {
 	struct device *dev = lp->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct lp855x_platform_data *pdata;
 	int rom_length;
 
-	if (!node) {
-		dev_err(dev, "no platform data\n");
+	if (!yesde) {
+		dev_err(dev, "yes platform data\n");
 		return -EINVAL;
 	}
 
@@ -358,23 +358,23 @@ static int lp855x_parse_dt(struct lp855x *lp)
 	if (!pdata)
 		return -ENOMEM;
 
-	of_property_read_string(node, "bl-name", &pdata->name);
-	of_property_read_u8(node, "dev-ctrl", &pdata->device_control);
-	of_property_read_u8(node, "init-brt", &pdata->initial_brightness);
-	of_property_read_u32(node, "pwm-period", &pdata->period_ns);
+	of_property_read_string(yesde, "bl-name", &pdata->name);
+	of_property_read_u8(yesde, "dev-ctrl", &pdata->device_control);
+	of_property_read_u8(yesde, "init-brt", &pdata->initial_brightness);
+	of_property_read_u32(yesde, "pwm-period", &pdata->period_ns);
 
 	/* Fill ROM platform data if defined */
-	rom_length = of_get_child_count(node);
+	rom_length = of_get_child_count(yesde);
 	if (rom_length > 0) {
 		struct lp855x_rom_data *rom;
-		struct device_node *child;
+		struct device_yesde *child;
 		int i = 0;
 
 		rom = devm_kcalloc(dev, rom_length, sizeof(*rom), GFP_KERNEL);
 		if (!rom)
 			return -ENOMEM;
 
-		for_each_child_of_node(node, child) {
+		for_each_child_of_yesde(yesde, child) {
 			of_property_read_u8(child, "rom-addr", &rom[i].addr);
 			of_property_read_u8(child, "rom-val", &rom[i].val);
 			i++;

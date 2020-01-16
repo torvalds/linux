@@ -31,8 +31,8 @@ struct task_struct;
 #define task_pt_regs(task) \
 	((struct pt_regs *) (task_stack_page(task) + THREAD_SIZE) - 1)
 
-extern long h8300_get_reg(struct task_struct *task, int regno);
-extern int h8300_put_reg(struct task_struct *task, int regno,
+extern long h8300_get_reg(struct task_struct *task, int regyes);
+extern int h8300_put_reg(struct task_struct *task, int regyes,
 			 unsigned long data);
 
 #endif /* __ASSEMBLY__ */

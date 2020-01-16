@@ -70,7 +70,7 @@
 
 			boost_bypass_n_pin: boost-bypass {
 				pins = "gpio21";
-				function = "normal";
+				function = "yesrmal";
 			};
 		};
 

@@ -22,22 +22,22 @@
 	.align 11
 
 ENTRY(__hyp_stub_vectors)
-	ventry	el2_sync_invalid		// Synchronous EL2t
+	ventry	el2_sync_invalid		// Synchroyesus EL2t
 	ventry	el2_irq_invalid			// IRQ EL2t
 	ventry	el2_fiq_invalid			// FIQ EL2t
 	ventry	el2_error_invalid		// Error EL2t
 
-	ventry	el2_sync_invalid		// Synchronous EL2h
+	ventry	el2_sync_invalid		// Synchroyesus EL2h
 	ventry	el2_irq_invalid			// IRQ EL2h
 	ventry	el2_fiq_invalid			// FIQ EL2h
 	ventry	el2_error_invalid		// Error EL2h
 
-	ventry	el1_sync			// Synchronous 64-bit EL1
+	ventry	el1_sync			// Synchroyesus 64-bit EL1
 	ventry	el1_irq_invalid			// IRQ 64-bit EL1
 	ventry	el1_fiq_invalid			// FIQ 64-bit EL1
 	ventry	el1_error_invalid		// Error 64-bit EL1
 
-	ventry	el1_sync_invalid		// Synchronous 32-bit EL1
+	ventry	el1_sync_invalid		// Synchroyesus 32-bit EL1
 	ventry	el1_irq_invalid			// IRQ 32-bit EL1
 	ventry	el1_fiq_invalid			// FIQ 32-bit EL1
 	ventry	el1_error_invalid		// Error 32-bit EL1
@@ -57,7 +57,7 @@ el1_sync:
 	mov	x2, x4
 	mov	x4, x1
 	mov	x1, x3
-	br	x4				// no return
+	br	x4				// yes return
 
 3:	cmp	x0, #HVC_RESET_VECTORS
 	beq	9f				// Nothing to reset!
@@ -97,7 +97,7 @@ ENDPROC(\label)
  * everywhere, by waiting for any secondary CPUs to be brought up and then
  * checking that is_hyp_mode_available() is true.
  *
- * If not, there is a pre-existing hypervisor, some CPUs failed to boot, or
+ * If yest, there is a pre-existing hypervisor, some CPUs failed to boot, or
  * something else went wrong... in such cases, trying to install a new
  * hypervisor is unlikely to work as desired.
  *

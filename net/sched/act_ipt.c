@@ -2,7 +2,7 @@
 /*
  * net/sched/act_ipt.c		iptables target interface
  *
- *TODO: Add other tables. For now we only support the ipv4 table targets
+ *TODO: Add other tables. For yesw we only support the ipv4 table targets
  *
  * Copyright:	Jamal Hadi Salim (2002-13)
  */
@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -241,7 +241,7 @@ static int tcf_ipt_act(struct sk_buff *skb, const struct tc_action *a,
 	tcf_lastuse_update(&ipt->tcf_tm);
 	bstats_update(&ipt->tcf_bstats, skb);
 
-	/* yes, we have to worry about both in and out dev
+	/* no, we have to worry about both in and out dev
 	 * worry later - danger - this API seems to have changed
 	 * from earlier kernels
 	 */
@@ -262,7 +262,7 @@ static int tcf_ipt_act(struct sk_buff *skb, const struct tc_action *a,
 		result = TC_ACT_PIPE;
 		break;
 	default:
-		net_notice_ratelimited("tc filter: Bogus netfilter code %d assume ACCEPT\n",
+		net_yestice_ratelimited("tc filter: Bogus netfilter code %d assume ACCEPT\n",
 				       ret);
 		result = TC_ACT_OK;
 		break;
@@ -283,7 +283,7 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 
 	/* for simple targets kernel size == user size
 	 * user name = target name
-	 * for foolproof you need to not assume this
+	 * for foolproof you need to yest assume this
 	 */
 
 	spin_lock_bh(&ipt->tcf_lock);

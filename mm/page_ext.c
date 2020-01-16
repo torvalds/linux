@@ -14,7 +14,7 @@
  *
  * This is the feature to manage memory for extended data per page.
  *
- * Until now, we must modify struct page itself to store extra data per page.
+ * Until yesw, we must modify struct page itself to store extra data per page.
  * This requires rebuilding the kernel and it is really time consuming process.
  * And, sometimes, rebuild is impossible due to third party module dependency.
  * At last, enlarging struct page could cause un-wanted system behaviour change.
@@ -23,7 +23,7 @@
  * allocates memory for extended data per page in certain place rather than
  * the struct page itself. This memory can be accessed by the accessor
  * functions provided by this code. During the boot process, it checks whether
- * allocation of huge chunk of memory is needed or not. If not, it avoids
+ * allocation of huge chunk of memory is needed or yest. If yest, it avoids
  * allocating memory at all. With this advantage, we can include this feature
  * into the kernel in default and can avoid rebuild and solve related problems.
  *
@@ -33,18 +33,18 @@
  * is used to do proper initialization after memory is allocated.
  *
  * The need callback is used to decide whether extended memory allocation is
- * needed or not. Sometimes users want to deactivate some features in this
+ * needed or yest. Sometimes users want to deactivate some features in this
  * boot and extra memory would be unneccessary. In this case, to avoid
  * allocating huge chunk of memory, each clients represent their need of
  * extra memory through the need callback. If one of the need callbacks
  * returns true, it means that someone needs extra memory so that
  * page extension core should allocates memory for page extension. If
- * none of need callbacks return true, memory isn't needed at all in this boot
+ * yesne of need callbacks return true, memory isn't needed at all in this boot
  * and page extension core can skip to allocate memory. As result,
- * none of memory is wasted.
+ * yesne of memory is wasted.
  *
  * When need callback returns true, page_ext checks if there is a request for
- * extra memory through size in struct page_ext_operations. If it is non-zero,
+ * extra memory through size in struct page_ext_operations. If it is yesn-zero,
  * extra space is allocated for each page_ext entry and offset is returned to
  * user through offset in struct page_ext_operations.
  *
@@ -109,7 +109,7 @@ static inline struct page_ext *get_entry(void *base, unsigned long index)
 
 void __meminit pgdat_page_ext_init(struct pglist_data *pgdat)
 {
-	pgdat->node_page_ext = NULL;
+	pgdat->yesde_page_ext = NULL;
 }
 
 struct page_ext *lookup_page_ext(const struct page *page)
@@ -118,7 +118,7 @@ struct page_ext *lookup_page_ext(const struct page *page)
 	unsigned long index;
 	struct page_ext *base;
 
-	base = NODE_DATA(page_to_nid(page))->node_page_ext;
+	base = NODE_DATA(page_to_nid(page))->yesde_page_ext;
 	/*
 	 * The sanity checks the page allocator does upon freeing a
 	 * page can reach here before the page_ext arrays are
@@ -127,28 +127,28 @@ struct page_ext *lookup_page_ext(const struct page *page)
 	 */
 	if (unlikely(!base))
 		return NULL;
-	index = pfn - round_down(node_start_pfn(page_to_nid(page)),
+	index = pfn - round_down(yesde_start_pfn(page_to_nid(page)),
 					MAX_ORDER_NR_PAGES);
 	return get_entry(base, index);
 }
 
-static int __init alloc_node_page_ext(int nid)
+static int __init alloc_yesde_page_ext(int nid)
 {
 	struct page_ext *base;
 	unsigned long table_size;
 	unsigned long nr_pages;
 
-	nr_pages = NODE_DATA(nid)->node_spanned_pages;
+	nr_pages = NODE_DATA(nid)->yesde_spanned_pages;
 	if (!nr_pages)
 		return 0;
 
 	/*
-	 * Need extra space if node range is not aligned with
+	 * Need extra space if yesde range is yest aligned with
 	 * MAX_ORDER_NR_PAGES. When page allocator's buddy algorithm
-	 * checks buddy's status, range could be out of exact node range.
+	 * checks buddy's status, range could be out of exact yesde range.
 	 */
-	if (!IS_ALIGNED(node_start_pfn(nid), MAX_ORDER_NR_PAGES) ||
-		!IS_ALIGNED(node_end_pfn(nid), MAX_ORDER_NR_PAGES))
+	if (!IS_ALIGNED(yesde_start_pfn(nid), MAX_ORDER_NR_PAGES) ||
+		!IS_ALIGNED(yesde_end_pfn(nid), MAX_ORDER_NR_PAGES))
 		nr_pages += MAX_ORDER_NR_PAGES;
 
 	table_size = page_ext_size * nr_pages;
@@ -158,7 +158,7 @@ static int __init alloc_node_page_ext(int nid)
 			MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 	if (!base)
 		return -ENOMEM;
-	NODE_DATA(nid)->node_page_ext = base;
+	NODE_DATA(nid)->yesde_page_ext = base;
 	total_usage += table_size;
 	return 0;
 }
@@ -171,8 +171,8 @@ void __init page_ext_init_flatmem(void)
 	if (!invoke_need_callbacks())
 		return;
 
-	for_each_online_node(nid)  {
-		fail = alloc_node_page_ext(nid);
+	for_each_online_yesde(nid)  {
+		fail = alloc_yesde_page_ext(nid);
 		if (fail)
 			goto fail;
 	}
@@ -213,7 +213,7 @@ static void *__meminit alloc_page_ext(size_t size, int nid)
 		return addr;
 	}
 
-	addr = vzalloc_node(size, nid);
+	addr = vzalloc_yesde(size, nid);
 
 	return addr;
 }
@@ -234,10 +234,10 @@ static int __meminit init_section_page_ext(unsigned long pfn, int nid)
 
 	/*
 	 * The value stored in section->page_ext is (base - pfn)
-	 * and it does not point to the memory block allocated above,
+	 * and it does yest point to the memory block allocated above,
 	 * causing kmemleak false positives.
 	 */
-	kmemleak_not_leak(base);
+	kmemleak_yest_leak(base);
 
 	if (!base) {
 		pr_err("page ext allocation failure\n");
@@ -245,7 +245,7 @@ static int __meminit init_section_page_ext(unsigned long pfn, int nid)
 	}
 
 	/*
-	 * The passed "pfn" may not be aligned to SECTION.  For the calculation
+	 * The passed "pfn" may yest be aligned to SECTION.  For the calculation
 	 * we need to apply a mask.
 	 */
 	pfn &= PAGE_SECTION_MASK;
@@ -300,7 +300,7 @@ static int __meminit online_page_ext(unsigned long start_pfn,
 		 * online__pages(), and start_pfn should exist.
 		 */
 		nid = pfn_to_nid(start_pfn);
-		VM_BUG_ON(!node_state(nid, N_ONLINE));
+		VM_BUG_ON(!yesde_state(nid, N_ONLINE));
 	}
 
 	for (pfn = start; !fail && pfn < end; pfn += PAGES_PER_SECTION) {
@@ -332,10 +332,10 @@ static int __meminit offline_page_ext(unsigned long start_pfn,
 
 }
 
-static int __meminit page_ext_callback(struct notifier_block *self,
+static int __meminit page_ext_callback(struct yestifier_block *self,
 			       unsigned long action, void *arg)
 {
-	struct memory_notify *mn = arg;
+	struct memory_yestify *mn = arg;
 	int ret = 0;
 
 	switch (action) {
@@ -358,7 +358,7 @@ static int __meminit page_ext_callback(struct notifier_block *self,
 		break;
 	}
 
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
 #endif
@@ -371,14 +371,14 @@ void __init page_ext_init(void)
 	if (!invoke_need_callbacks())
 		return;
 
-	for_each_node_state(nid, N_MEMORY) {
+	for_each_yesde_state(nid, N_MEMORY) {
 		unsigned long start_pfn, end_pfn;
 
-		start_pfn = node_start_pfn(nid);
-		end_pfn = node_end_pfn(nid);
+		start_pfn = yesde_start_pfn(nid);
+		end_pfn = yesde_end_pfn(nid);
 		/*
-		 * start_pfn and end_pfn may not be aligned to SECTION and the
-		 * page->flags of out of node pages are not initialized.  So we
+		 * start_pfn and end_pfn may yest be aligned to SECTION and the
+		 * page->flags of out of yesde pages are yest initialized.  So we
 		 * scan [start_pfn, the biggest section's pfn < end_pfn) here.
 		 */
 		for (pfn = start_pfn; pfn < end_pfn;
@@ -388,7 +388,7 @@ void __init page_ext_init(void)
 				continue;
 			/*
 			 * Nodes's pfns can be overlapping.
-			 * We know some arch can have a nodes layout such as
+			 * We kyesw some arch can have a yesdes layout such as
 			 * -------------pfn-------------->
 			 * N0 | N1 | N2 | N0 | N1 | N2|....
 			 */
@@ -399,7 +399,7 @@ void __init page_ext_init(void)
 			cond_resched();
 		}
 	}
-	hotplug_memory_notifier(page_ext_callback, 0);
+	hotplug_memory_yestifier(page_ext_callback, 0);
 	pr_info("allocated %ld bytes of page_ext\n", total_usage);
 	invoke_init_callbacks();
 	return;

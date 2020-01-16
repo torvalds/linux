@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -55,17 +55,17 @@ static inline unsigned radeon_mem_type_to_domain(u32 mem_type)
 /**
  * radeon_bo_reserve - reserve bo
  * @bo:		bo structure
- * @no_intr:	don't return -ERESTARTSYS on pending signal
+ * @yes_intr:	don't return -ERESTARTSYS on pending signal
  *
  * Returns:
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
  */
-static inline int radeon_bo_reserve(struct radeon_bo *bo, bool no_intr)
+static inline int radeon_bo_reserve(struct radeon_bo *bo, bool yes_intr)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, !no_intr, false, NULL);
+	r = ttm_bo_reserve(&bo->tbo, !yes_intr, false, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(bo->rdev->dev, "%p reserve failed\n", bo);
@@ -116,11 +116,11 @@ static inline unsigned radeon_bo_gpu_page_alignment(struct radeon_bo *bo)
  */
 static inline u64 radeon_bo_mmap_offset(struct radeon_bo *bo)
 {
-	return drm_vma_node_offset_addr(&bo->tbo.base.vma_node);
+	return drm_vma_yesde_offset_addr(&bo->tbo.base.vma_yesde);
 }
 
 extern int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,
-			  bool no_wait);
+			  bool yes_wait);
 
 extern int radeon_bo_create(struct radeon_device *rdev,
 			    unsigned long size, int byte_align,
@@ -149,10 +149,10 @@ extern void radeon_bo_get_tiling_flags(struct radeon_bo *bo,
 				u32 *tiling_flags, u32 *pitch);
 extern int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 				bool force_drop);
-extern void radeon_bo_move_notify(struct ttm_buffer_object *bo,
+extern void radeon_bo_move_yestify(struct ttm_buffer_object *bo,
 				  bool evict,
 				  struct ttm_mem_reg *new_mem);
-extern int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
+extern int radeon_bo_fault_reserve_yestify(struct ttm_buffer_object *bo);
 extern int radeon_bo_get_surface_reg(struct radeon_bo *bo);
 extern void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
 			    bool shared);

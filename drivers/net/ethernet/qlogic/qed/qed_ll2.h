@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -63,7 +63,7 @@ struct qed_ll2_rx_packet {
 struct qed_ll2_tx_packet {
 	struct list_head list_entry;
 	u16 bd_used;
-	bool notify_fw;
+	bool yestify_fw;
 	void *cookie;
 	/* Flexible Array of bds_set determined by max_bds_per_packet */
 	struct {
@@ -161,14 +161,14 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle);
  *				qed_ll2_require_connection
  * @param addr			rx (physical address) buffers to submit
  * @param cookie
- * @param notify_fw		produce corresponding Rx BD immediately
+ * @param yestify_fw		produce corresponding Rx BD immediately
  *
  * @return 0 on success, failure otherwise
  */
 int qed_ll2_post_rx_buffer(void *cxt,
 			   u8 connection_handle,
 			   dma_addr_t addr,
-			   u16 buf_len, void *cookie, u8 notify_fw);
+			   u16 buf_len, void *cookie, u8 yestify_fw);
 
 /**
  * @brief qed_ll2_prepare_tx_packet - request for start Tx BD
@@ -177,14 +177,14 @@ int qed_ll2_post_rx_buffer(void *cxt,
  * @param cxt - pointer to the hw-function [opaque to some]
  * @param connection_handle
  * @param pkt - info regarding the tx packet
- * @param notify_fw - issue doorbell to fw for this packet
+ * @param yestify_fw - issue doorbell to fw for this packet
  *
  * @return 0 on success, failure otherwise
  */
 int qed_ll2_prepare_tx_packet(void *cxt,
 			      u8 connection_handle,
 			      struct qed_ll2_tx_pkt_info *pkt,
-			      bool notify_fw);
+			      bool yestify_fw);
 
 /**
  * @brief qed_ll2_release_connection -	releases resources

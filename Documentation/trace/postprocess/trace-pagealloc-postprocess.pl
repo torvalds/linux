@@ -8,7 +8,7 @@
 # other options
 #   --prepend-parent	Report on the parent proc and PID
 #   --read-procstat	If the trace lacks process info, get it from /proc
-#   --ignore-pid	Aggregate processes of the same name together
+#   --igyesre-pid	Aggregate processes of the same name together
 #
 # Copyright (c) IBM Corporation 2009
 # Author: Mel Gorman <mel@csn.ul.ie>
@@ -38,7 +38,7 @@ use constant HIGH_EXT_FRAGMENT_CHANGED	=> 15;
 
 my %perprocesspid;
 my %perprocess;
-my $opt_ignorepid;
+my $opt_igyesrepid;
 my $opt_read_procstat;
 my $opt_prepend_parent;
 
@@ -60,7 +60,7 @@ sub sigint_handler {
 	}
 
 	if ($sigint_exit > 3) {
-		print "Many SIGINTs received, exiting now without report\n";
+		print "Many SIGINTs received, exiting yesw without report\n";
 		exit;
 	}
 
@@ -71,7 +71,7 @@ $SIG{INT} = "sigint_handler";
 
 # Parse command line options
 GetOptions(
-	'ignore-pid'	 =>	\$opt_ignorepid,
+	'igyesre-pid'	 =>	\$opt_igyesrepid,
 	'read-procstat'	 =>	\$opt_read_procstat,
 	'prepend-parent' =>	\$opt_prepend_parent,
 );
@@ -115,7 +115,7 @@ sub generate_traceevent_regex {
 		my ($key, $value) = split(/=/, $tuple);
 		my $expected = shift;
 		if ($key ne $expected) {
-			print("WARNING: Format not as expected '$key' != '$expected'");
+			print("WARNING: Format yest as expected '$key' != '$expected'");
 			$regex =~ s/$key=\((.*)\)/$key=$1/;
 		}
 	}
@@ -235,7 +235,7 @@ EVENT_PROCESS:
 			$perprocesspid{$process_pid}->{STATE_PCPU_PAGES_REFILLED}++;
 		} elsif ($tracepoint eq "mm_page_alloc_extfrag") {
 
-			# Extract the details of the event now
+			# Extract the details of the event yesw
 			$details = $5;
 
 			my ($page, $pfn);
@@ -314,7 +314,7 @@ sub dump_stats {
 
 	printf("\n");
 	printf("%-" . $max_strlen . "s %8s %10s   %8s %8s   %8s %8s %8s   %8s %8s %8s %8s %8s %8s\n",
-		"Process", "Pages",  "Pages",      "Pages", "Pages", "PCPU",  "PCPU",   "PCPU",    "Fragment",  "Fragment", "MigType", "Fragment", "Fragment", "Unknown");
+		"Process", "Pages",  "Pages",      "Pages", "Pages", "PCPU",  "PCPU",   "PCPU",    "Fragment",  "Fragment", "MigType", "Fragment", "Fragment", "Unkyeswn");
 	printf("%-" . $max_strlen . "s %8s %10s   %8s %8s   %8s %8s %8s   %8s %8s %8s %8s %8s %8s\n",
 		"details", "allocd", "allocd",     "freed", "freed", "pages", "drains", "refills", "Fallback", "Causing",   "Changed", "Severe", "Moderate", "");
 
@@ -379,7 +379,7 @@ sub aggregate_perprocesspid() {
 }
 
 sub report() {
-	if (!$opt_ignorepid) {
+	if (!$opt_igyesrepid) {
 		dump_stats(\%perprocesspid);
 	} else {
 		aggregate_perprocesspid();

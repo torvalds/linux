@@ -109,7 +109,7 @@ static inline int snd_sof_dsp_post_fw_run(struct snd_sof_dev *sdev)
  * @type: section type as described by snd_sof_fw_blk_type
  *
  * Returns the corresponding BAR index (a positive integer) or -EINVAL
- * in case there is no mapping
+ * in case there is yes mapping
  */
 static inline int snd_sof_dsp_get_bar_index(struct snd_sof_dev *sdev, u32 type)
 {
@@ -124,7 +124,7 @@ static inline int snd_sof_dsp_get_mailbox_offset(struct snd_sof_dev *sdev)
 	if (sof_ops(sdev)->get_mailbox_offset)
 		return sof_ops(sdev)->get_mailbox_offset(sdev);
 
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
+	dev_err(sdev->dev, "error: %s yest defined\n", __func__);
 	return -ENOTSUPP;
 }
 
@@ -134,7 +134,7 @@ static inline int snd_sof_dsp_get_window_offset(struct snd_sof_dev *sdev,
 	if (sof_ops(sdev)->get_window_offset)
 		return sof_ops(sdev)->get_window_offset(sdev, id);
 
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
+	dev_err(sdev->dev, "error: %s yest defined\n", __func__);
 	return -ENOTSUPP;
 }
 /* power management */
@@ -199,7 +199,7 @@ static inline int snd_sof_dsp_set_power_state(struct snd_sof_dev *sdev,
 	if (sof_ops(sdev)->set_power_state)
 		return sof_ops(sdev)->set_power_state(sdev, substate);
 
-	/* D0 substate is not supported */
+	/* D0 substate is yest supported */
 	return -ENOTSUPP;
 }
 
@@ -225,7 +225,7 @@ static inline void snd_sof_dsp_write(struct snd_sof_dev *sdev, u32 bar,
 		return;
 	}
 
-	dev_err_ratelimited(sdev->dev, "error: %s not defined\n", __func__);
+	dev_err_ratelimited(sdev->dev, "error: %s yest defined\n", __func__);
 }
 
 static inline void snd_sof_dsp_write64(struct snd_sof_dev *sdev, u32 bar,
@@ -236,7 +236,7 @@ static inline void snd_sof_dsp_write64(struct snd_sof_dev *sdev, u32 bar,
 		return;
 	}
 
-	dev_err_ratelimited(sdev->dev, "error: %s not defined\n", __func__);
+	dev_err_ratelimited(sdev->dev, "error: %s yest defined\n", __func__);
 }
 
 static inline u32 snd_sof_dsp_read(struct snd_sof_dev *sdev, u32 bar,
@@ -245,7 +245,7 @@ static inline u32 snd_sof_dsp_read(struct snd_sof_dev *sdev, u32 bar,
 	if (sof_ops(sdev)->read)
 		return sof_ops(sdev)->read(sdev, sdev->bar[bar] + offset);
 
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
+	dev_err(sdev->dev, "error: %s yest defined\n", __func__);
 	return -ENOTSUPP;
 }
 
@@ -255,7 +255,7 @@ static inline u64 snd_sof_dsp_read64(struct snd_sof_dev *sdev, u32 bar,
 	if (sof_ops(sdev)->read64)
 		return sof_ops(sdev)->read64(sdev, sdev->bar[bar] + offset);
 
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
+	dev_err(sdev->dev, "error: %s yest defined\n", __func__);
 	return -ENOTSUPP;
 }
 
@@ -402,7 +402,7 @@ static inline const struct snd_sof_dsp_ops
 			return mach_ops[i].ops;
 	}
 
-	/* not found */
+	/* yest found */
 	return NULL;
 }
 
@@ -419,7 +419,7 @@ static inline const struct snd_sof_dsp_ops
  * @timeout_us: Timeout in us, 0 means never timeout
  *
  * Returns 0 on success and -ETIMEDOUT upon a timeout. In either
- * case, the last read value at @addr is stored in @val. Must not
+ * case, the last read value at @addr is stored in @val. Must yest
  * be called from atomic context if sleep_us or timeout_us are used.
  *
  * This is modelled after the readx_poll_timeout macros in linux/iopoll.h.

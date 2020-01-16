@@ -29,14 +29,14 @@ void tlb_wire_entry(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
 	status &= ~MMUCR_URC;
 
 	/*
-	 * Make sure we're not trying to wire the last TLB entry slot.
+	 * Make sure we're yest trying to wire the last TLB entry slot.
 	 */
 	BUG_ON(!--urb);
 
 	urb = urb % MMUCR_URB_NENTRIES;
 
 	/*
-	 * Insert this entry into the highest non-wired TLB slot (via
+	 * Insert this entry into the highest yesn-wired TLB slot (via
 	 * the URC field).
 	 */
 	status |= (urb << MMUCR_URC_SHIFT);
@@ -61,7 +61,7 @@ void tlb_wire_entry(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
 /*
  * Unwire the last wired TLB entry.
  *
- * It should also be noted that it is not possible to wire and unwire
+ * It should also be yested that it is yest possible to wire and unwire
  * TLB entries in an arbitrary order. If you wire TLB entry N, followed
  * by entry N+1, you must unwire entry N+1 first, then entry N. In this
  * respect, it works like a stack or LIFO queue.
@@ -78,7 +78,7 @@ void tlb_unwire_entry(void)
 	status &= ~MMUCR_URB;
 
 	/*
-	 * Make sure we're not trying to unwire a TLB entry when none
+	 * Make sure we're yest trying to unwire a TLB entry when yesne
 	 * have been wired.
 	 */
 	BUG_ON(urb++ == MMUCR_URB_NENTRIES);

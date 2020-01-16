@@ -48,9 +48,9 @@ int init_srcu_struct(struct srcu_struct *ssp);
 #elif defined(CONFIG_TREE_SRCU)
 #include <linux/srcutree.h>
 #elif defined(CONFIG_SRCU)
-#error "Unknown SRCU implementation specified to kernel configuration"
+#error "Unkyeswn SRCU implementation specified to kernel configuration"
 #else
-/* Dummy definition for things like notifiers.  Actual use gets link error. */
+/* Dummy definition for things like yestifiers.  Actual use gets link error. */
 struct srcu_struct { };
 #endif
 
@@ -67,7 +67,7 @@ void synchronize_srcu(struct srcu_struct *ssp);
  * srcu_read_lock_held - might we be in SRCU read-side critical section?
  * @ssp: The srcu_struct structure to check
  *
- * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an SRCU
+ * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns yesnzero iff in an SRCU
  * read-side critical section.  In absence of CONFIG_DEBUG_LOCK_ALLOC,
  * this assumes we are in an SRCU read-side critical section unless it can
  * prove otherwise.
@@ -76,7 +76,7 @@ void synchronize_srcu(struct srcu_struct *ssp);
  * and while lockdep is disabled.
  *
  * Note that SRCU is based on its own statemachine and it doesn't
- * relies on normal RCU, it can be called from the CPU which
+ * relies on yesrmal RCU, it can be called from the CPU which
  * is in the idle loop from an RCU point of view or offline.
  */
 static inline int srcu_read_lock_held(const struct srcu_struct *ssp)
@@ -104,7 +104,7 @@ static inline int srcu_read_lock_held(const struct srcu_struct *ssp)
  *
  * If PROVE_RCU is enabled, invoking this outside of an RCU read-side
  * critical section will result in an RCU-lockdep splat, unless @c evaluates
- * to 1.  The @c argument will normally be a logical expression containing
+ * to 1.  The @c argument will yesrmally be a logical expression containing
  * lockdep_is_held() calls.
  */
 #define srcu_dereference_check(p, ssp, c) \
@@ -123,12 +123,12 @@ static inline int srcu_read_lock_held(const struct srcu_struct *ssp)
 #define srcu_dereference(p, ssp) srcu_dereference_check((p), (ssp), 0)
 
 /**
- * srcu_dereference_notrace - no tracing and no lockdep calls from here
+ * srcu_dereference_yestrace - yes tracing and yes lockdep calls from here
  * @p: the pointer to fetch and protect for later dereferencing
  * @ssp: pointer to the srcu_struct, which is used to check that we
  *	really are in an SRCU read-side critical section.
  */
-#define srcu_dereference_notrace(p, ssp) srcu_dereference_check((p), (ssp), 1)
+#define srcu_dereference_yestrace(p, ssp) srcu_dereference_check((p), (ssp), 1)
 
 /**
  * srcu_read_lock - register a new reader for an SRCU-protected structure.
@@ -137,7 +137,7 @@ static inline int srcu_read_lock_held(const struct srcu_struct *ssp)
  * Enter an SRCU read-side critical section.  Note that SRCU read-side
  * critical sections may be nested.  However, it is illegal to
  * call anything that waits on an SRCU grace period for the same
- * srcu_struct, whether directly or indirectly.  Please note that
+ * srcu_struct, whether directly or indirectly.  Please yeste that
  * one way to indirectly wait on an SRCU grace period is to acquire
  * a mutex that is held elsewhere while calling synchronize_srcu() or
  * synchronize_srcu_expedited().
@@ -156,9 +156,9 @@ static inline int srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp)
 	return retval;
 }
 
-/* Used by tracing, cannot be traced and cannot invoke lockdep. */
-static inline notrace int
-srcu_read_lock_notrace(struct srcu_struct *ssp) __acquires(ssp)
+/* Used by tracing, canyest be traced and canyest invoke lockdep. */
+static inline yestrace int
+srcu_read_lock_yestrace(struct srcu_struct *ssp) __acquires(ssp)
 {
 	int retval;
 
@@ -181,9 +181,9 @@ static inline void srcu_read_unlock(struct srcu_struct *ssp, int idx)
 	__srcu_read_unlock(ssp, idx);
 }
 
-/* Used by tracing, cannot be traced and cannot call lockdep. */
-static inline notrace void
-srcu_read_unlock_notrace(struct srcu_struct *ssp, int idx) __releases(ssp)
+/* Used by tracing, canyest be traced and canyest call lockdep. */
+static inline yestrace void
+srcu_read_unlock_yestrace(struct srcu_struct *ssp, int idx) __releases(ssp)
 {
 	__srcu_read_unlock(ssp, idx);
 }
@@ -199,7 +199,7 @@ srcu_read_unlock_notrace(struct srcu_struct *ssp, int idx) __releases(ssp)
  */
 static inline void smp_mb__after_srcu_read_unlock(void)
 {
-	/* __srcu_read_unlock has smp_mb() internally so nothing to do here. */
+	/* __srcu_read_unlock has smp_mb() internally so yesthing to do here. */
 }
 
 #endif

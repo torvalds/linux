@@ -226,7 +226,7 @@ struct fit_msg_hdr {
  * and must have at least as many entries as the maximum number
  * of commands that may be issued to the device.
  *
- * There are no head/tail pointers. The cycle value is used to
+ * There are yes head/tail pointers. The cycle value is used to
  * infer the presence of new completion records.
  * Initially the cycle in all entries is 0, the index is 0, and
  * the cycle value to expect is 1. When completions are added

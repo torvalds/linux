@@ -74,7 +74,7 @@ static int build_key(struct saa7134_dev *dev)
 		if (data == ir->mask_keycode)
 			rc_keyup(ir->dev);
 		else
-			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+			rc_keydown_yestimeout(ir->dev, RC_PROTO_UNKNOWN, data,
 					     0);
 		return 0;
 	}
@@ -82,7 +82,7 @@ static int build_key(struct saa7134_dev *dev)
 	if (ir->polling) {
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+			rc_keydown_yestimeout(ir->dev, RC_PROTO_UNKNOWN, data,
 					     0);
 		} else {
 			rc_keyup(ir->dev);
@@ -91,7 +91,7 @@ static int build_key(struct saa7134_dev *dev)
 	else {	/* IRQ driven mode - handle key press and release in one go */
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+			rc_keydown_yestimeout(ir->dev, RC_PROTO_UNKNOWN, data,
 					     0);
 			rc_keyup(ir->dev);
 		}
@@ -134,7 +134,7 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_proto *protocol,
 		if ((attempt++) < 10) {
 			/*
 			 * wait a bit for next attempt -
-			 * I don't know how make it better
+			 * I don't kyesw how make it better
 			 */
 			msleep(10);
 			continue;
@@ -179,7 +179,7 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir,
 	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
 
 	/* GPIO&0x40 is pulsed low when a button is pressed. Don't do
-	   I2C receive if gpio&0x40 is not low. */
+	   I2C receive if gpio&0x40 is yest low. */
 
 	if (gpio & 0x40)
 		return 0;       /* No button press */
@@ -231,7 +231,7 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_proto *protocol,
 	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
 
 	/* GPIO&0x100 is pulsed low when a button is pressed. Don't do
-	   I2C receive if gpio&0x100 is not low. */
+	   I2C receive if gpio&0x100 is yest low. */
 
 	if (gpio & 0x100)
 		return 0;       /* No button press */
@@ -275,7 +275,7 @@ static int get_key_purpletv(struct IR_i2c *ir, enum rc_proto *protocol,
 		return -EIO;
 	}
 
-	/* no button press */
+	/* yes button press */
 	if (b==0)
 		return 0;
 
@@ -381,8 +381,8 @@ static int get_key_pinnacle(struct IR_i2c *ir, enum rc_proto *protocol,
 /* The grey pinnacle PCTV remote
  *
  *  There are one issue with this remote:
- *   - I2c packet does not change when the same key is pressed quickly. The workaround
- *     is to hold down each key for about half a second, so that another code is generated
+ *   - I2c packet does yest change when the same key is pressed quickly. The workaround
+ *     is to hold down each key for about half a second, so that ayesther code is generated
  *     in the i2c packet, and the function can distinguish key presses.
  *
  * Sylvain Pasche <sylvain.pasche@gmail.com>
@@ -444,7 +444,7 @@ int saa7134_ir_open(struct rc_dev *rc)
 	struct saa7134_card_ir *ir = dev->remote;
 
 	/* Moved here from saa7134_input_init1() because the latter
-	 * is not called on device resume */
+	 * is yest called on device resume */
 	switch (dev->board) {
 	case SAA7134_BOARD_MD2819:
 	case SAA7134_BOARD_KWORLD_VSTREAM_XPERT:
@@ -850,7 +850,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	int rc;
 
 	if (disable_ir) {
-		input_dbg("IR has been disabled, not probing for i2c remote\n");
+		input_dbg("IR has been disabled, yest probing for i2c remote\n");
 		return;
 	}
 
@@ -891,11 +891,11 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		/* MSI TV@nywhere Plus controller doesn't seem to
 		   respond to probes unless we read something from
 		   an existing device. Weird...
-		   REVISIT: might no longer be needed */
+		   REVISIT: might yes longer be needed */
 		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
 		input_dbg("probe 0x%02x @ %s: %s\n",
 			msg_msi.addr, dev->i2c_adap.name,
-			(1 == rc) ? "yes" : "no");
+			(1 == rc) ? "no" : "yes");
 		break;
 	case SAA7134_BOARD_SNAZIO_TVPVR_PRO:
 		dev->init_data.name = "SnaZio* TVPVR PRO";
@@ -911,12 +911,12 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		 * MSI TV@nywhere Plus controller doesn't seem to
 		 *  respond to probes unless we read something from
 		 *  an existing device. Weird...
-		 * REVISIT: might no longer be needed
+		 * REVISIT: might yes longer be needed
 		 */
 		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
 		input_dbg("probe 0x%02x @ %s: %s\n",
 			msg_msi.addr, dev->i2c_adap.name,
-			(rc == 1) ? "yes" : "no");
+			(rc == 1) ? "no" : "yes");
 		break;
 	case SAA7134_BOARD_KWORLD_PC150U:
 		/* copied and modified from MSI TV@nywhere Plus */
@@ -927,11 +927,11 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		/* MSI TV@nywhere Plus controller doesn't seem to
 		   respond to probes unless we read something from
 		   an existing device. Weird...
-		   REVISIT: might no longer be needed */
+		   REVISIT: might yes longer be needed */
 		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
 		input_dbg("probe 0x%02x @ %s: %s\n",
 			msg_msi.addr, dev->i2c_adap.name,
-			(1 == rc) ? "yes" : "no");
+			(1 == rc) ? "no" : "yes");
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		dev->init_data.name = saa7134_boards[dev->board].name;

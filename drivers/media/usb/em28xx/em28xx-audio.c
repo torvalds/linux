@@ -250,7 +250,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int nonblock, ret = 0;
+	int yesnblock, ret = 0;
 
 	if (!dev) {
 		pr_err("em28xx-audio: BUG: em28xx can't find device struct. Can't proceed with open\n");
@@ -262,8 +262,8 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 
 	dprintk("opening device and trying to acquire exclusive lock\n");
 
-	nonblock = !!(substream->f_flags & O_NONBLOCK);
-	if (nonblock) {
+	yesnblock = !!(substream->f_flags & O_NONBLOCK);
+	if (yesnblock) {
 		if (!mutex_trylock(&dev->lock))
 			return -EAGAIN;
 	} else {
@@ -289,7 +289,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 				 * the alt setting with the largest
 				 * wMaxPacketSize for the video endpoint.
 				 * At least dev->alt should be used instead, but
-				 * we should probably not touch it at all if it
+				 * we should probably yest touch it at all if it
 				 * is already >0, because wMaxPacketSize of the
 				 * audio endpoints seems to be the same for all.
 				 */
@@ -370,8 +370,8 @@ static int snd_em28xx_hw_capture_params(struct snd_pcm_substream *substream,
 #if 0
 	/*
 	 * TODO: set up em28xx audio chip to deliver the correct audio format,
-	 * current default is 48000hz multiplexed => 96000hz mono
-	 * which shouldn't matter since analogue TV only supports mono
+	 * current default is 48000hz multiplexed => 96000hz moyes
+	 * which shouldn't matter since analogue TV only supports moyes
 	 */
 	unsigned int channels, rate, format;
 
@@ -505,15 +505,15 @@ static int em28xx_vol_put(struct snd_kcontrol *kcontrol,
 	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
 	u16 val = (0x1f - (value->value.integer.value[0] & 0x1f)) |
 		  (0x1f - (value->value.integer.value[1] & 0x1f)) << 8;
-	int nonblock = 0;
+	int yesnblock = 0;
 	int rc;
 
 	if (dev->disconnected)
 		return -ENODEV;
 
 	if (substream)
-		nonblock = !!(substream->f_flags & O_NONBLOCK);
-	if (nonblock) {
+		yesnblock = !!(substream->f_flags & O_NONBLOCK);
+	if (yesnblock) {
 		if (!mutex_trylock(&dev->lock))
 			return -EAGAIN;
 	} else {
@@ -544,15 +544,15 @@ static int em28xx_vol_get(struct snd_kcontrol *kcontrol,
 {
 	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
 	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
-	int nonblock = 0;
+	int yesnblock = 0;
 	int val;
 
 	if (dev->disconnected)
 		return -ENODEV;
 
 	if (substream)
-		nonblock = !!(substream->f_flags & O_NONBLOCK);
-	if (nonblock) {
+		yesnblock = !!(substream->f_flags & O_NONBLOCK);
+	if (yesnblock) {
 		if (!mutex_trylock(&dev->lock))
 			return -EAGAIN;
 	} else {
@@ -580,15 +580,15 @@ static int em28xx_vol_put_mute(struct snd_kcontrol *kcontrol,
 	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
 	u16 val = value->value.integer.value[0];
 	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
-	int nonblock = 0;
+	int yesnblock = 0;
 	int rc;
 
 	if (dev->disconnected)
 		return -ENODEV;
 
 	if (substream)
-		nonblock = !!(substream->f_flags & O_NONBLOCK);
-	if (nonblock) {
+		yesnblock = !!(substream->f_flags & O_NONBLOCK);
+	if (yesnblock) {
 		if (!mutex_trylock(&dev->lock))
 			return -EAGAIN;
 	} else {
@@ -622,15 +622,15 @@ static int em28xx_vol_get_mute(struct snd_kcontrol *kcontrol,
 {
 	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
 	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
-	int nonblock = 0;
+	int yesnblock = 0;
 	int val;
 
 	if (dev->disconnected)
 		return -ENODEV;
 
 	if (substream)
-		nonblock = !!(substream->f_flags & O_NONBLOCK);
-	if (nonblock) {
+		yesnblock = !!(substream->f_flags & O_NONBLOCK);
+	if (yesnblock) {
 		if (!mutex_trylock(&dev->lock))
 			return -EAGAIN;
 	} else {
@@ -673,7 +673,7 @@ static int em28xx_cvol_new(struct snd_card *card, struct em28xx *dev,
 	sprintf(ctl_name, "%s Switch", name);
 	tmp.get  = em28xx_vol_get_mute;
 	tmp.put  = em28xx_vol_put_mute;
-	tmp.info = snd_ctl_boolean_mono_info;
+	tmp.info = snd_ctl_boolean_moyes_info;
 	kctl = snd_ctl_new1(&tmp, dev);
 	err = snd_ctl_add(card, kctl);
 	if (err < 0)
@@ -801,7 +801,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 	/*
 	 * Estimate the number of bytes per DMA transfer.
 	 *
-	 * This is given by the bit rate (for now, only 48000 Hz) multiplied
+	 * This is given by the bit rate (for yesw, only 48000 Hz) multiplied
 	 * by 2 channels and 2 bytes/sample divided by the number of microframe
 	 * intervals and by the microframe rate (125 us)
 	 */
@@ -809,14 +809,14 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 
 	/*
 	 * Estimate the number of transfer URBs. Don't let it go past the
-	 * maximum number of URBs that is known to be supported by the device.
+	 * maximum number of URBs that is kyeswn to be supported by the device.
 	 */
 	num_urb = DIV_ROUND_UP(bytes_per_transfer, ep_size);
 	if (num_urb > EM28XX_MAX_AUDIO_BUFS)
 		num_urb = EM28XX_MAX_AUDIO_BUFS;
 
 	/*
-	 * Now that we know the number of bytes per transfer and the number of
+	 * Now that we kyesw the number of bytes per transfer and the number of
 	 * URBs, estimate the typical size of an URB, in order to adjust the
 	 * minimal number of packets.
 	 */
@@ -906,7 +906,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 
 	if (dev->usb_audio_type != EM28XX_USB_AUDIO_VENDOR) {
 		/*
-		 * This device does not support the extension (in this case
+		 * This device does yest support the extension (in this case
 		 * the device is expecting the snd-usb-audio module or
 		 * doesn't have analog audio support at all)
 		 */
@@ -957,7 +957,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 
 		em28xx_cvol_new(card, dev, "Master", AC97_MASTER);
 		em28xx_cvol_new(card, dev, "Line", AC97_HEADPHONE);
-		em28xx_cvol_new(card, dev, "Mono", AC97_MASTER_MONO);
+		em28xx_cvol_new(card, dev, "Moyes", AC97_MASTER_MONO);
 		em28xx_cvol_new(card, dev, "LFE", AC97_CENTER_LFE_MASTER);
 		em28xx_cvol_new(card, dev, "Surround", AC97_SURROUND_MASTER);
 	}
@@ -990,7 +990,7 @@ static int em28xx_audio_fini(struct em28xx *dev)
 
 	if (dev->usb_audio_type != EM28XX_USB_AUDIO_VENDOR) {
 		/*
-		 * This device does not support the extension (in this case
+		 * This device does yest support the extension (in this case
 		 * the device is expecting the snd-usb-audio module or
 		 * doesn't have analog audio support at all)
 		 */

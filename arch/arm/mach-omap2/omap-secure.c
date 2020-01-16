@@ -28,7 +28,7 @@ static phys_addr_t omap_secure_memblock_base;
  * @nargs: Number of valid arguments out of four.
  * @arg1, arg2, arg3 args4: Parameters passed to secure API
  *
- * Return the non-zero error value on failure.
+ * Return the yesn-zero error value on failure.
  */
 u32 omap_secure_dispatcher(u32 idx, u32 flag, u32 nargs, u32 arg1, u32 arg2,
 							 u32 arg3, u32 arg4)
@@ -98,7 +98,7 @@ u32 omap3_save_secure_ram(void __iomem *addr, int size)
  * @nargs: Number of valid arguments out of four.
  * @arg1, arg2, arg3 args4: Parameters passed to secure API
  *
- * Return the non-zero error value on failure.
+ * Return the yesn-zero error value on failure.
  *
  * NOTE: rx51_secure_dispatcher differs from omap_secure_dispatcher because
  *       it calling omap_smc3() instead omap_smc2() and param[0] is nargs+1
@@ -136,7 +136,7 @@ u32 rx51_secure_dispatcher(u32 idx, u32 process, u32 flag, u32 nargs,
  *  @set_bits: bits to set in ACR
  *  @clr_bits: bits to clear in ACR
  *
- * Return the non-zero error value on failure.
+ * Return the yesn-zero error value on failure.
 */
 u32 rx51_secure_update_aux_cr(u32 set_bits, u32 clear_bits)
 {

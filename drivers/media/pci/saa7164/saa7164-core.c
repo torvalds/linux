@@ -118,7 +118,7 @@ static void saa7164_ts_verifier(struct saa7164_buffer *buf)
 		if (*(bufcpu + i) != 0x47)
 			port->sync_errors++;
 
-		/* TODO: Query pid lower 8 bits, ignoring upper bits intensionally */
+		/* TODO: Query pid lower 8 bits, igyesring upper bits intensionally */
 		pid = ((*(bufcpu + i + 1) & 0x1f) << 8) | *(bufcpu + i + 2);
 		cc = *(bufcpu + i + 3) & 0x0f;
 
@@ -328,15 +328,15 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 				}
 
 			} else
-				printk(KERN_ERR "encirq no free buffers, increase param encoder_buffers\n");
+				printk(KERN_ERR "encirq yes free buffers, increase param encoder_buffers\n");
 
 			/* Ensure offset into buffer remains 0, fill buffer
-			 * with known bad data. We check for this data at a later point
+			 * with kyeswn bad data. We check for this data at a later point
 			 * in time. */
 			saa7164_buffer_zero_offsets(port, bufnr);
 			memset(buf->cpu, 0xff, buf->pci_size);
 			if (crc_checking) {
-				/* Throw yet aanother new checksum on the dma buffer */
+				/* Throw yet aayesther new checksum on the dma buffer */
 				buf->crc = crc32(0, buf->cpu, buf->actual_size);
 			}
 
@@ -626,8 +626,8 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 	portf = &dev->ports[SAA7164_PORT_VBI2];
 
 	/* Check that the hardware is accessible. If the status bytes are
-	 * 0xFF then the device is not accessible, the the IRQ belongs
-	 * to another driver.
+	 * 0xFF then the device is yest accessible, the the IRQ belongs
+	 * to ayesther driver.
 	 * 4 x u32 interrupt registers.
 	 */
 	for (i = 0; i < INT_SIZE/4; i++) {
@@ -1147,7 +1147,7 @@ static const struct seq_operations saa7164_seq_ops = {
 	.show = saa7164_seq_show,
 };
 
-static int saa7164_open(struct inode *inode, struct file *file)
+static int saa7164_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &saa7164_seq_ops);
 }
@@ -1230,7 +1230,7 @@ static bool saa7164_enable_msi(struct pci_dev *pci_dev, struct saa7164_dev *dev)
 		return false;
 	}
 
-	/* no error - so request an msi interrupt */
+	/* yes error - so request an msi interrupt */
 	err = request_irq(pci_dev->irq, saa7164_irq, 0,
 						dev->name, dev);
 
@@ -1287,7 +1287,7 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 	/* TODO */
 	err = pci_set_dma_mask(pci_dev, 0xffffffff);
 	if (err) {
-		printk("%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
+		printk("%s/0: Oops: yes 32bit PCI DMA ???\n", dev->name);
 		goto fail_irq;
 	}
 
@@ -1296,7 +1296,7 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 		dev->msi = true;
 	} else {
 		/* if we have an error (i.e. we don't have an interrupt)
-			 or msi is not enabled - fallback to shared interrupt */
+			 or msi is yest enabled - fallback to shared interrupt */
 
 		err = request_irq(pci_dev->irq, saa7164_irq,
 				IRQF_SHARED, dev->name, dev);
@@ -1313,7 +1313,7 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 
 	/* Init the internal command list */
 	for (i = 0; i < SAA_CMD_MAX_MSG_UNITS; i++) {
-		dev->cmds[i].seqno = i;
+		dev->cmds[i].seqyes = i;
 		dev->cmds[i].inuse = 0;
 		mutex_init(&dev->cmds[i].lock);
 		init_waitqueue_head(&dev->cmds[i].wait);
@@ -1322,13 +1322,13 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 	/* We need a deferred interrupt handler for cmd handling */
 	INIT_WORK(&dev->workcmd, saa7164_work_cmdhandler);
 
-	/* Only load the firmware if we know the board */
+	/* Only load the firmware if we kyesw the board */
 	if (dev->board != SAA7164_BOARD_UNKNOWN) {
 
 		err = saa7164_downloadfirmware(dev);
 		if (err < 0) {
 			printk(KERN_ERR
-				"Failed to boot firmware, no features registered\n");
+				"Failed to boot firmware, yes features registered\n");
 			goto fail_fw;
 		}
 

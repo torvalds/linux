@@ -6,7 +6,7 @@
 #DEBUG	= -DDEBUGGING
 DEBUG	=
 PARANOID = -DPARANOID
-ccflags-y += $(PARANOID) $(DEBUG) -fno-builtin $(MATH_EMULATION)
+ccflags-y += $(PARANOID) $(DEBUG) -fyes-builtin $(MATH_EMULATION)
 asflags-y += $(PARANOID)
 
 # From 'C' language sources:
@@ -19,9 +19,9 @@ C_OBJS =fpu_entry.o errors.o \
 
 # From 80x86 assembler sources:
 A_OBJS =reg_u_add.o reg_u_div.o reg_u_mul.o reg_u_sub.o \
-	div_small.o reg_norm.o reg_round.o \
+	div_small.o reg_yesrm.o reg_round.o \
 	wm_shrx.o wm_sqrt.o \
-	div_Xsig.o polynom_Xsig.o round_Xsig.o \
+	div_Xsig.o polyyesm_Xsig.o round_Xsig.o \
 	shr_Xsig.o mul_Xsig.o
 
 obj-y =$(C_OBJS) $(A_OBJS)

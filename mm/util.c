@@ -32,7 +32,7 @@
  * kfree_const - conditionally free memory
  * @x: pointer to the memory
  *
- * Function calls kfree only if @x is not in .rodata section.
+ * Function calls kfree only if @x is yest in .rodata section.
  */
 void kfree_const(const void *x)
 {
@@ -89,7 +89,7 @@ EXPORT_SYMBOL(kstrdup_const);
  * @max: read at most @max chars from @s
  * @gfp: the GFP mask used in the kmalloc() call when allocating memory
  *
- * Note: Use kmemdup_nul() instead if the size is known exactly.
+ * Note: Use kmemdup_nul() instead if the size is kyeswn exactly.
  *
  * Return: newly allocated copy of @s or %NULL in case of error
  */
@@ -188,7 +188,7 @@ EXPORT_SYMBOL(memdup_user);
  * @src: source address in user space
  * @len: number of bytes to copy
  *
- * Return: an ERR_PTR() on failure.  Result may be not
+ * Return: an ERR_PTR() on failure.  Result may be yest
  * physically contiguous.  Use kvfree() to free.
  */
 void *vmemdup_user(const void __user *src, size_t len)
@@ -366,7 +366,7 @@ static int mmap_is_legacy(struct rlimit *rlim_stack)
 }
 
 /*
- * Leave enough space between the mmap area and the stack to honour ulimit in
+ * Leave eyesugh space between the mmap area and the stack to hoyesur ulimit in
  * the face of randomisation.
  */
 #define MIN_GAP		(SZ_128M)
@@ -420,7 +420,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
  * __account_locked_vm - account locked pages to an mm's locked_vm
  * @mm:          mm to account against
  * @pages:       number of pages to account
- * @inc:         %true if @pages should be considered positive, %false if not
+ * @inc:         %true if @pages should be considered positive, %false if yest
  * @task:        task used to check RLIMIT_MEMLOCK
  * @bypass_rlim: %true if checking RLIMIT_MEMLOCK should be skipped
  *
@@ -466,9 +466,9 @@ EXPORT_SYMBOL_GPL(__account_locked_vm);
  * account_locked_vm - account locked pages to an mm's locked_vm
  * @mm:          mm to account against, may be NULL
  * @pages:       number of pages to account
- * @inc:         %true if @pages should be considered positive, %false if not
+ * @inc:         %true if @pages should be considered positive, %false if yest
  *
- * Assumes a non-NULL @mm is valid (i.e. at least one reference on it).
+ * Assumes a yesn-NULL @mm is valid (i.e. at least one reference on it).
  *
  * Return:
  * * 0       on success, or if mm is NULL
@@ -527,25 +527,25 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
 EXPORT_SYMBOL(vm_mmap);
 
 /**
- * kvmalloc_node - attempt to allocate physically contiguous memory, but upon
- * failure, fall back to non-contiguous (vmalloc) allocation.
+ * kvmalloc_yesde - attempt to allocate physically contiguous memory, but upon
+ * failure, fall back to yesn-contiguous (vmalloc) allocation.
  * @size: size of the request.
  * @flags: gfp mask for the allocation - must be compatible (superset) with GFP_KERNEL.
- * @node: numa node to allocate from
+ * @yesde: numa yesde to allocate from
  *
  * Uses kmalloc to get the memory but if the allocation fails then falls back
  * to the vmalloc allocator. Use kvfree for freeing the memory.
  *
- * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported.
+ * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are yest supported.
  * __GFP_RETRY_MAYFAIL is supported, and it should be used only if kmalloc is
  * preferable to the vmalloc fallback, due to visible performance drawbacks.
  *
- * Please note that any use of gfp flags outside of GFP_KERNEL is careful to not
+ * Please yeste that any use of gfp flags outside of GFP_KERNEL is careful to yest
  * fall back to vmalloc.
  *
  * Return: pointer to the allocated memory of %NULL in case of failure
  */
-void *kvmalloc_node(size_t size, gfp_t flags, int node)
+void *kvmalloc_yesde(size_t size, gfp_t flags, int yesde)
 {
 	gfp_t kmalloc_flags = flags;
 	void *ret;
@@ -555,14 +555,14 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 	 * so the given set of flags has to be compatible.
 	 */
 	if ((flags & GFP_KERNEL) != GFP_KERNEL)
-		return kmalloc_node(size, flags, node);
+		return kmalloc_yesde(size, flags, yesde);
 
 	/*
 	 * We want to attempt a large physically contiguous block first because
 	 * it is less likely to fragment multiple larger blocks and therefore
 	 * contribute to a long term fragmentation less than vmalloc fallback.
-	 * However make sure that larger requests are not too disruptive - no
-	 * OOM killer and no allocation failure warnings as we have a fallback.
+	 * However make sure that larger requests are yest too disruptive - yes
+	 * OOM killer and yes allocation failure warnings as we have a fallback.
 	 */
 	if (size > PAGE_SIZE) {
 		kmalloc_flags |= __GFP_NOWARN;
@@ -571,7 +571,7 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 			kmalloc_flags |= __GFP_NORETRY;
 	}
 
-	ret = kmalloc_node(size, kmalloc_flags, node);
+	ret = kmalloc_yesde(size, kmalloc_flags, yesde);
 
 	/*
 	 * It doesn't really make sense to fallback to vmalloc for sub page
@@ -580,10 +580,10 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 	if (ret || size <= PAGE_SIZE)
 		return ret;
 
-	return __vmalloc_node_flags_caller(size, node, flags,
+	return __vmalloc_yesde_flags_caller(size, yesde, flags,
 			__builtin_return_address(0));
 }
-EXPORT_SYMBOL(kvmalloc_node);
+EXPORT_SYMBOL(kvmalloc_yesde);
 
 /**
  * kvfree() - Free memory.
@@ -591,9 +591,9 @@ EXPORT_SYMBOL(kvmalloc_node);
  *
  * kvfree frees memory allocated by any of vmalloc(), kmalloc() or kvmalloc().
  * It is slightly more efficient to use kfree() or vfree() if you are certain
- * that you know which one to use.
+ * that you kyesw which one to use.
  *
- * Context: Either preemptible task context or not-NMI interrupt.
+ * Context: Either preemptible task context or yest-NMI interrupt.
  */
 void kvfree(const void *addr)
 {
@@ -614,7 +614,7 @@ static inline void *__page_rmapping(struct page *page)
 	return (void *)mapping;
 }
 
-/* Neutral page->mapping pointer to address_space or anon_vma or other */
+/* Neutral page->mapping pointer to address_space or ayesn_vma or other */
 void *page_rmapping(struct page *page)
 {
 	page = compound_head(page);
@@ -644,7 +644,7 @@ bool page_mapped(struct page *page)
 }
 EXPORT_SYMBOL(page_mapped);
 
-struct anon_vma *page_anon_vma(struct page *page)
+struct ayesn_vma *page_ayesn_vma(struct page *page)
 {
 	unsigned long mapping;
 
@@ -698,9 +698,9 @@ int __page_mapcount(struct page *page)
 	ret = atomic_read(&page->_mapcount) + 1;
 	/*
 	 * For file THP page->_mapcount contains total number of mapping
-	 * of the page: no need to look into compound_mapcount.
+	 * of the page: yes need to look into compound_mapcount.
 	 */
-	if (!PageAnon(page) && !PageHuge(page))
+	if (!PageAyesn(page) && !PageHuge(page))
 		return ret;
 	page = compound_head(page);
 	ret += atomic_read(compound_mapcount_ptr(page)) + 1;
@@ -759,7 +759,7 @@ unsigned long vm_commit_limit(void)
 }
 
 /*
- * Make sure vm_committed_as in one cacheline and not cacheline shared with
+ * Make sure vm_committed_as in one cacheline and yest cacheline shared with
  * other variables. It can be updated by several CPUs frequently.
  */
 struct percpu_counter vm_committed_as ____cacheline_aligned_in_smp;
@@ -779,9 +779,9 @@ unsigned long vm_memory_committed(void)
 EXPORT_SYMBOL_GPL(vm_memory_committed);
 
 /*
- * Check that a process has enough memory to allocate a new virtual
- * mapping. 0 means there is enough memory for the allocation to
- * succeed and -ENOMEM implies there is not.
+ * Check that a process has eyesugh memory to allocate a new virtual
+ * mapping. 0 means there is eyesugh memory for the allocation to
+ * succeed and -ENOMEM implies there is yest.
  *
  * We currently support three overcommit policies, which are set via the
  * vm.overcommit_memory sysctl.  See Documentation/vm/overcommit-accounting.rst
@@ -794,7 +794,7 @@ EXPORT_SYMBOL_GPL(vm_memory_committed);
  * Note this is a helper function intended to be used by LSMs which
  * wish to use this logic.
  */
-int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+int __vm_eyesugh_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 {
 	long allowed;
 
@@ -848,7 +848,7 @@ error:
  *            to this length.
  *
  * Return: the size of the cmdline field copied. Note that the copy does
- * not guarantee an ending NULL byte.
+ * yest guarantee an ending NULL byte.
  */
 int get_cmdline(struct task_struct *task, char *buffer, int buflen)
 {

@@ -13,7 +13,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -83,18 +83,18 @@ static void empeg_init_termios(struct tty_struct *tty)
 	 * The empeg-car player wants these particular tty settings.
 	 * You could, for example, change the baud rate, however the
 	 * player only supports 115200 (currently), so there is really
-	 * no point in support for changes to the tty settings.
-	 * (at least for now)
+	 * yes point in support for changes to the tty settings.
+	 * (at least for yesw)
 	 *
 	 * The default requirements for this device are:
 	 */
 	termios->c_iflag
-		&= ~(IGNBRK	/* disable ignore break */
+		&= ~(IGNBRK	/* disable igyesre break */
 		| BRKINT	/* disable break causes interrupt */
 		| PARMRK	/* disable mark parity errors */
 		| ISTRIP	/* disable clear high bit of input characters */
 		| INLCR		/* disable translate NL to CR */
-		| IGNCR		/* disable ignore CR */
+		| IGNCR		/* disable igyesre CR */
 		| ICRNL		/* disable translate CR to NL */
 		| IXON);	/* disable enable XON/XOFF flow control */
 
@@ -106,10 +106,10 @@ static void empeg_init_termios(struct tty_struct *tty)
 		| ECHONL	/* disable echo new line */
 		| ICANON	/* disable erase, kill, werase, and rprnt special characters */
 		| ISIG		/* disable interrupt, quit, and suspend special characters */
-		| IEXTEN);	/* disable non-POSIX special characters */
+		| IEXTEN);	/* disable yesn-POSIX special characters */
 
 	termios->c_cflag
-		&= ~(CSIZE	/* no size */
+		&= ~(CSIZE	/* yes size */
 		| PARENB	/* disable parity bit */
 		| CBAUD);	/* clear current baud rate */
 

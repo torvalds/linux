@@ -85,7 +85,7 @@ static int tm6000_ir_config(struct tm6000_IR *ir)
 
 	/*
 	 * The IR decoder supports RC-5 or NEC, with a configurable timing.
-	 * The timing configuration there is not that accurate, as it uses
+	 * The timing configuration there is yest that accurate, as it uses
 	 * approximate values. The NEC spec mentions a 562.5 unit period,
 	 * and RC-5 uses a 888.8 period.
 	 * Currently, driver assumes a clock provided by a 12 MHz XTAL, but
@@ -117,10 +117,10 @@ static int tm6000_ir_config(struct tm6000_IR *ir)
 		(ir->rc_proto == RC_PROTO_BIT_NEC) ? "NEC" : "RC-5",
 		ir_clock_mhz, leader, pulse);
 
-	/* Remote WAKEUP = enable, normal mode, from IR decoder output */
+	/* Remote WAKEUP = enable, yesrmal mode, from IR decoder output */
 	tm6000_set_reg(dev, TM6010_REQ07_RE5_REMOTE_WAKEUP, 0xfe);
 
-	/* Enable IR reception on non-busrt mode */
+	/* Enable IR reception on yesn-busrt mode */
 	tm6000_set_reg(dev, TM6010_REQ07_RD8_IR, 0x2f);
 
 	/* IR_WKUP_SEL = Low byte in decoded IR data */
@@ -478,7 +478,7 @@ int tm6000_ir_fini(struct tm6000_core *dev)
 {
 	struct tm6000_IR *ir = dev->ir;
 
-	/* skip detach on non attached board */
+	/* skip detach on yesn attached board */
 
 	if (!ir)
 		return 0;

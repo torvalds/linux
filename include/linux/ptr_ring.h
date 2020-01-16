@@ -8,7 +8,7 @@
  *	Copyright (C) 2016 Red Hat, Inc.
  *
  *	This is a limited-size FIFO maintaining pointers in FIFO order, with
- *	one CPU producing entries and another consuming entries from a FIFO.
+ *	one CPU producing entries and ayesther consuming entries from a FIFO.
  *
  *	This implementation tries to minimize cache-contention when there is a
  *	single producer and a single consumer CPU.
@@ -23,7 +23,7 @@
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/slab.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #endif
 
 struct ptr_ring {
@@ -178,7 +178,7 @@ static inline void *__ptr_ring_peek(struct ptr_ring *r)
  * NB: This is only safe to call if ring is never resized.
  *
  * However, if some other CPU consumes ring entries at the same time, the value
- * returned is not guaranteed to be correct.
+ * returned is yest guaranteed to be correct.
  *
  * In this case - to avoid incorrectly detecting the ring
  * as empty - the CPU consuming the ring entries is responsible
@@ -263,9 +263,9 @@ static inline void __ptr_ring_discard_one(struct ptr_ring *r)
 	int consumer_head = r->consumer_head;
 	int head = consumer_head++;
 
-	/* Once we have processed enough entries invalidate them in
+	/* Once we have processed eyesugh entries invalidate them in
 	 * the ring all at once so producer can reuse their space in the ring.
-	 * We also do this when we reach end of the ring - not mandatory
+	 * We also do this when we reach end of the ring - yest mandatory
 	 * but helps keep the implementation simple.
 	 */
 	if (unlikely(consumer_head - r->consumer_tail >= r->batch ||
@@ -477,7 +477,7 @@ static inline void __ptr_ring_set_size(struct ptr_ring *r, int size)
 	/* We need to set batch at least to 1 to make logic
 	 * in __ptr_ring_discard_one work correctly.
 	 * Batching too much (because ring is small) would cause a lot of
-	 * burstiness. Needs tuning, for now disable batching.
+	 * burstiness. Needs tuning, for yesw disable batching.
 	 */
 	if (r->batch > r->size / 2 || !r->batch)
 		r->batch = 1;
@@ -521,7 +521,7 @@ static inline void ptr_ring_unconsume(struct ptr_ring *r, void **batch, int n,
 
 	/*
 	 * Clean out buffered entries (for simplicity). This way following code
-	 * can test entries for NULL and if not assume they are valid.
+	 * can test entries for NULL and if yest assume they are valid.
 	 */
 	head = r->consumer_head - 1;
 	while (likely(head >= r->consumer_tail))
@@ -626,12 +626,12 @@ static inline int ptr_ring_resize_multiple(struct ptr_ring **rings,
 
 	queues = kmalloc_array(nrings, sizeof(*queues), gfp);
 	if (!queues)
-		goto noqueues;
+		goto yesqueues;
 
 	for (i = 0; i < nrings; ++i) {
 		queues[i] = __ptr_ring_init_queue_alloc(size, gfp);
 		if (!queues[i])
-			goto nomem;
+			goto yesmem;
 	}
 
 	for (i = 0; i < nrings; ++i) {
@@ -650,13 +650,13 @@ static inline int ptr_ring_resize_multiple(struct ptr_ring **rings,
 
 	return 0;
 
-nomem:
+yesmem:
 	while (--i >= 0)
 		kvfree(queues[i]);
 
 	kfree(queues);
 
-noqueues:
+yesqueues:
 	return -ENOMEM;
 }
 

@@ -142,14 +142,14 @@ int dwmac4_dma_interrupt(void __iomem *ioaddr,
 	}
 	/* TX/RX NORMAL interrupts */
 	if (likely(intr_status & DMA_CHAN_STATUS_NIS)) {
-		x->normal_irq_n++;
+		x->yesrmal_irq_n++;
 		if (likely(intr_status & DMA_CHAN_STATUS_RI)) {
-			x->rx_normal_irq_n++;
+			x->rx_yesrmal_irq_n++;
 			ret |= handle_rx;
 		}
 		if (likely(intr_status & (DMA_CHAN_STATUS_TI |
 					  DMA_CHAN_STATUS_TBU))) {
-			x->tx_normal_irq_n++;
+			x->tx_yesrmal_irq_n++;
 			ret |= handle_tx;
 		}
 		if (unlikely(intr_status & DMA_CHAN_STATUS_ERI))
@@ -167,7 +167,7 @@ void stmmac_dwmac4_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 
 	data = (addr[5] << 8) | addr[4];
 	/* For MAC Addr registers se have to set the Address Enable (AE)
-	 * bit that has no effect on the High Reg 0 where the bit 31 (MO)
+	 * bit that has yes effect on the High Reg 0 where the bit 31 (MO)
 	 * is RO.
 	 */
 	data |= (STMMAC_CHAN0 << GMAC_HI_DCS_SHIFT);

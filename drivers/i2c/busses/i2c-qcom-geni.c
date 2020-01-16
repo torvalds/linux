@@ -95,12 +95,12 @@ struct geni_i2c_err_log {
 };
 
 static const struct geni_i2c_err_log gi2c_log[] = {
-	[GP_IRQ0] = {-EIO, "Unknown I2C err GP_IRQ0"},
+	[GP_IRQ0] = {-EIO, "Unkyeswn I2C err GP_IRQ0"},
 	[NACK] = {-ENXIO, "NACK: slv unresponsive, check its power/reset-ln"},
-	[GP_IRQ2] = {-EIO, "Unknown I2C err GP IRQ2"},
-	[BUS_PROTO] = {-EPROTO, "Bus proto err, noisy/unepxected start/stop"},
+	[GP_IRQ2] = {-EIO, "Unkyeswn I2C err GP IRQ2"},
+	[BUS_PROTO] = {-EPROTO, "Bus proto err, yesisy/unepxected start/stop"},
 	[ARB_LOST] = {-EAGAIN, "Bus arbitration lost, clock line undriveable"},
-	[GP_IRQ5] = {-EIO, "Unknown I2C err GP IRQ5"},
+	[GP_IRQ5] = {-EIO, "Unkyeswn I2C err GP IRQ5"},
 	[GENI_OVERRUN] = {-EIO, "Cmd overrun, check GENI cmd-state machine"},
 	[GENI_ILLEGAL_CMD] = {-EIO, "Illegal cmd, check GENI cmd-state machine"},
 	[GENI_ABORT_DONE] = {-ETIMEDOUT, "Abort after timeout successful"},
@@ -289,7 +289,7 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
 	if (dma && dm_rx_st)
 		writel_relaxed(dm_rx_st, base + SE_DMA_RX_IRQ_CLR);
 
-	/* if this is err with done-bit not set, handle that through timeout. */
+	/* if this is err with done-bit yest set, handle that through timeout. */
 	if (m_stat & M_CMD_DONE_EN || m_stat & M_CMD_ABORT_EN ||
 	    dm_tx_st & TX_DMA_DONE || dm_tx_st & TX_RESET_DONE ||
 	    dm_rx_st & RX_DMA_DONE || dm_rx_st & RX_RESET_DONE)
@@ -359,7 +359,7 @@ static int geni_i2c_rx_one_msg(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
 	struct geni_se *se = &gi2c->se;
 	size_t len = msg->len;
 
-	if (!of_machine_is_compatible("lenovo,yoga-c630"))
+	if (!of_machine_is_compatible("leyesvo,yoga-c630"))
 		dma_buf = i2c_get_dma_safe_msg_buf(msg, 32);
 
 	if (dma_buf)
@@ -400,7 +400,7 @@ static int geni_i2c_tx_one_msg(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
 	struct geni_se *se = &gi2c->se;
 	size_t len = msg->len;
 
-	if (!of_machine_is_compatible("lenovo,yoga-c630"))
+	if (!of_machine_is_compatible("leyesvo,yoga-c630"))
 		dma_buf = i2c_get_dma_safe_msg_buf(msg, 32);
 
 	if (dma_buf)
@@ -447,7 +447,7 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 	ret = pm_runtime_get_sync(gi2c->se.dev);
 	if (ret < 0) {
 		dev_err(gi2c->se.dev, "error turning SE resources:%d\n", ret);
-		pm_runtime_put_noidle(gi2c->se.dev);
+		pm_runtime_put_yesidle(gi2c->se.dev);
 		/* Set device in suspended since resume failed */
 		pm_runtime_set_suspended(gi2c->se.dev);
 		return ret;
@@ -525,7 +525,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 							&gi2c->clk_freq_out);
 	if (ret) {
 		dev_info(&pdev->dev,
-			"Bus frequency not specified, default to 100kHz.\n");
+			"Bus frequency yest specified, default to 100kHz.\n");
 		gi2c->clk_freq_out = KHZ(100);
 	}
 
@@ -560,7 +560,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	disable_irq(gi2c->irq);
 	i2c_set_adapdata(&gi2c->adap, gi2c);
 	gi2c->adap.dev.parent = &pdev->dev;
-	gi2c->adap.dev.of_node = pdev->dev.of_node;
+	gi2c->adap.dev.of_yesde = pdev->dev.of_yesde;
 	strlcpy(gi2c->adap.name, "Geni-I2C", sizeof(gi2c->adap.name));
 
 	ret = geni_se_resources_on(&gi2c->se);
@@ -646,7 +646,7 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused geni_i2c_suspend_noirq(struct device *dev)
+static int __maybe_unused geni_i2c_suspend_yesirq(struct device *dev)
 {
 	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
 
@@ -660,7 +660,7 @@ static int __maybe_unused geni_i2c_suspend_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops geni_i2c_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(geni_i2c_suspend_noirq, NULL)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(geni_i2c_suspend_yesirq, NULL)
 	SET_RUNTIME_PM_OPS(geni_i2c_runtime_suspend, geni_i2c_runtime_resume,
 									NULL)
 };

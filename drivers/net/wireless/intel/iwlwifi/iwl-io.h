@@ -33,12 +33,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -86,10 +86,10 @@ void iwl_write_direct32(struct iwl_trans *trans, u32 reg, u32 value);
 void iwl_write_direct64(struct iwl_trans *trans, u64 reg, u64 value);
 
 
-u32 iwl_read_prph_no_grab(struct iwl_trans *trans, u32 ofs);
+u32 iwl_read_prph_yes_grab(struct iwl_trans *trans, u32 ofs);
 u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs);
-void iwl_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val);
-void iwl_write_prph64_no_grab(struct iwl_trans *trans, u64 ofs, u64 val);
+void iwl_write_prph_yes_grab(struct iwl_trans *trans, u32 ofs, u32 val);
+void iwl_write_prph64_yes_grab(struct iwl_trans *trans, u64 ofs, u64 val);
 void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val);
 int iwl_poll_prph_bit(struct iwl_trans *trans, u32 addr,
 		      u32 bits, u32 mask, int timeout);
@@ -115,9 +115,9 @@ static inline u32 iwl_umac_prph(struct iwl_trans *trans, u32 ofs)
 	return ofs + trans->trans_cfg->umac_prph_offset;
 }
 
-static inline u32 iwl_read_umac_prph_no_grab(struct iwl_trans *trans, u32 ofs)
+static inline u32 iwl_read_umac_prph_yes_grab(struct iwl_trans *trans, u32 ofs)
 {
-	return iwl_read_prph_no_grab(trans, ofs +
+	return iwl_read_prph_yes_grab(trans, ofs +
 				     trans->trans_cfg->umac_prph_offset);
 }
 
@@ -126,10 +126,10 @@ static inline u32 iwl_read_umac_prph(struct iwl_trans *trans, u32 ofs)
 	return iwl_read_prph(trans, ofs + trans->trans_cfg->umac_prph_offset);
 }
 
-static inline void iwl_write_umac_prph_no_grab(struct iwl_trans *trans, u32 ofs,
+static inline void iwl_write_umac_prph_yes_grab(struct iwl_trans *trans, u32 ofs,
 					       u32 val)
 {
-	iwl_write_prph_no_grab(trans,  ofs + trans->trans_cfg->umac_prph_offset,
+	iwl_write_prph_yes_grab(trans,  ofs + trans->trans_cfg->umac_prph_offset,
 			       val);
 }
 

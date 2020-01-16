@@ -81,13 +81,13 @@ void ptp_qoriq_create_debugfs(struct ptp_qoriq *ptp_qoriq)
 
 	if (!debugfs_create_file_unsafe("fiper1-loopback", 0600, root,
 					ptp_qoriq, &ptp_qoriq_fiper1_fops))
-		goto err_node;
+		goto err_yesde;
 	if (!debugfs_create_file_unsafe("fiper2-loopback", 0600, root,
 					ptp_qoriq, &ptp_qoriq_fiper2_fops))
-		goto err_node;
+		goto err_yesde;
 	return;
 
-err_node:
+err_yesde:
 	debugfs_remove_recursive(root);
 	ptp_qoriq->debugfs_root = NULL;
 err_root:

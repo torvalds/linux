@@ -10,14 +10,14 @@ maintainers:
   - Andreas Färber <afaerber@suse.de>
 
 properties:
-  $nodename:
+  $yesdename:
     const: '/'
   compatible:
     oneOf:
       # RTD1293 SoC based boards
       - items:
           - enum:
-              - synology,ds418j # Synology DiskStation DS418j
+              - syyeslogy,ds418j # Syyeslogy DiskStation DS418j
           - const: realtek,rtd1293
 
       # RTD1295 SoC based boards
@@ -31,6 +31,6 @@ properties:
       # RTD1296 SoC based boards
       - items:
           - enum:
-              - synology,ds418 # Synology DiskStation DS418
+              - syyeslogy,ds418 # Syyeslogy DiskStation DS418
           - const: realtek,rtd1296
 ...

@@ -12,7 +12,7 @@
 #include <linux/fs.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/backing-dev.h>
 #include <linux/init.h>
 #include <linux/ioctl.h>
@@ -34,7 +34,7 @@ struct spufs_sb_info {
 	bool debug;
 };
 
-static struct kmem_cache *spufs_inode_cache;
+static struct kmem_cache *spufs_iyesde_cache;
 char *isolated_loader;
 static int isolated_loader_size;
 
@@ -43,12 +43,12 @@ static struct spufs_sb_info *spufs_get_sb_info(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-static struct inode *
-spufs_alloc_inode(struct super_block *sb)
+static struct iyesde *
+spufs_alloc_iyesde(struct super_block *sb)
 {
-	struct spufs_inode_info *ei;
+	struct spufs_iyesde_info *ei;
 
-	ei = kmem_cache_alloc(spufs_inode_cache, GFP_KERNEL);
+	ei = kmem_cache_alloc(spufs_iyesde_cache, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 
@@ -56,50 +56,50 @@ spufs_alloc_inode(struct super_block *sb)
 	ei->i_ctx = NULL;
 	ei->i_openers = 0;
 
-	return &ei->vfs_inode;
+	return &ei->vfs_iyesde;
 }
 
-static void spufs_free_inode(struct inode *inode)
+static void spufs_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(spufs_inode_cache, SPUFS_I(inode));
+	kmem_cache_free(spufs_iyesde_cache, SPUFS_I(iyesde));
 }
 
 static void
 spufs_init_once(void *p)
 {
-	struct spufs_inode_info *ei = p;
+	struct spufs_iyesde_info *ei = p;
 
-	inode_init_once(&ei->vfs_inode);
+	iyesde_init_once(&ei->vfs_iyesde);
 }
 
-static struct inode *
-spufs_new_inode(struct super_block *sb, umode_t mode)
+static struct iyesde *
+spufs_new_iyesde(struct super_block *sb, umode_t mode)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	inode = new_inode(sb);
-	if (!inode)
+	iyesde = new_iyesde(sb);
+	if (!iyesde)
 		goto out;
 
-	inode->i_ino = get_next_ino();
-	inode->i_mode = mode;
-	inode->i_uid = current_fsuid();
-	inode->i_gid = current_fsgid();
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	iyesde->i_iyes = get_next_iyes();
+	iyesde->i_mode = mode;
+	iyesde->i_uid = current_fsuid();
+	iyesde->i_gid = current_fsgid();
+	iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
 out:
-	return inode;
+	return iyesde;
 }
 
 static int
 spufs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    (attr->ia_size != inode->i_size))
+	    (attr->ia_size != iyesde->i_size))
 		return -EINVAL;
-	setattr_copy(inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(iyesde, attr);
+	mark_iyesde_dirty(iyesde);
 	return 0;
 }
 
@@ -109,32 +109,32 @@ spufs_new_file(struct super_block *sb, struct dentry *dentry,
 		const struct file_operations *fops, umode_t mode,
 		size_t size, struct spu_context *ctx)
 {
-	static const struct inode_operations spufs_file_iops = {
+	static const struct iyesde_operations spufs_file_iops = {
 		.setattr = spufs_setattr,
 	};
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int ret;
 
 	ret = -ENOSPC;
-	inode = spufs_new_inode(sb, S_IFREG | mode);
-	if (!inode)
+	iyesde = spufs_new_iyesde(sb, S_IFREG | mode);
+	if (!iyesde)
 		goto out;
 
 	ret = 0;
-	inode->i_op = &spufs_file_iops;
-	inode->i_fop = fops;
-	inode->i_size = size;
-	inode->i_private = SPUFS_I(inode)->i_ctx = get_spu_context(ctx);
-	d_add(dentry, inode);
+	iyesde->i_op = &spufs_file_iops;
+	iyesde->i_fop = fops;
+	iyesde->i_size = size;
+	iyesde->i_private = SPUFS_I(iyesde)->i_ctx = get_spu_context(ctx);
+	d_add(dentry, iyesde);
 out:
 	return ret;
 }
 
 static void
-spufs_evict_inode(struct inode *inode)
+spufs_evict_iyesde(struct iyesde *iyesde)
 {
-	struct spufs_inode_info *ei = SPUFS_I(inode);
-	clear_inode(inode);
+	struct spufs_iyesde_info *ei = SPUFS_I(iyesde);
+	clear_iyesde(iyesde);
 	if (ei->i_ctx)
 		put_spu_context(ei->i_ctx);
 	if (ei->i_gang)
@@ -145,14 +145,14 @@ static void spufs_prune_dir(struct dentry *dir)
 {
 	struct dentry *dentry, *tmp;
 
-	inode_lock(d_inode(dir));
+	iyesde_lock(d_iyesde(dir));
 	list_for_each_entry_safe(dentry, tmp, &dir->d_subdirs, d_child) {
 		spin_lock(&dentry->d_lock);
 		if (simple_positive(dentry)) {
 			dget_dlock(dentry);
 			__d_drop(dentry);
 			spin_unlock(&dentry->d_lock);
-			simple_unlink(d_inode(dir), dentry);
+			simple_unlink(d_iyesde(dir), dentry);
 			/* XXX: what was dcache_lock protecting here? Other
 			 * filesystems (IB, configfs) release dcache_lock
 			 * before unlink */
@@ -162,11 +162,11 @@ static void spufs_prune_dir(struct dentry *dir)
 		}
 	}
 	shrink_dcache_parent(dir);
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 }
 
 /* Caller must hold parent->i_mutex */
-static int spufs_rmdir(struct inode *parent, struct dentry *dir)
+static int spufs_rmdir(struct iyesde *parent, struct dentry *dir)
 {
 	/* remove all entries */
 	int res;
@@ -174,7 +174,7 @@ static int spufs_rmdir(struct inode *parent, struct dentry *dir)
 	d_drop(dir);
 	res = simple_rmdir(parent, dir);
 	/* We have to give up the mm_struct */
-	spu_forget(SPUFS_I(d_inode(dir))->i_ctx);
+	spu_forget(SPUFS_I(d_iyesde(dir))->i_ctx);
 	return res;
 }
 
@@ -196,21 +196,21 @@ static int spufs_fill_dir(struct dentry *dir,
 	return 0;
 }
 
-static int spufs_dir_close(struct inode *inode, struct file *file)
+static int spufs_dir_close(struct iyesde *iyesde, struct file *file)
 {
-	struct inode *parent;
+	struct iyesde *parent;
 	struct dentry *dir;
 	int ret;
 
 	dir = file->f_path.dentry;
-	parent = d_inode(dir->d_parent);
+	parent = d_iyesde(dir->d_parent);
 
-	inode_lock_nested(parent, I_MUTEX_PARENT);
+	iyesde_lock_nested(parent, I_MUTEX_PARENT);
 	ret = spufs_rmdir(parent, dir);
-	inode_unlock(parent);
+	iyesde_unlock(parent);
 	WARN_ON(ret);
 
-	return dcache_dir_close(inode, file);
+	return dcache_dir_close(iyesde, file);
 }
 
 const struct file_operations spufs_context_fops = {
@@ -219,47 +219,47 @@ const struct file_operations spufs_context_fops = {
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
 	.iterate_shared	= dcache_readdir,
-	.fsync		= noop_fsync,
+	.fsync		= yesop_fsync,
 };
 EXPORT_SYMBOL_GPL(spufs_context_fops);
 
 static int
-spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
+spufs_mkdir(struct iyesde *dir, struct dentry *dentry, unsigned int flags,
 		umode_t mode)
 {
 	int ret;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct spu_context *ctx;
 
-	inode = spufs_new_inode(dir->i_sb, mode | S_IFDIR);
-	if (!inode)
+	iyesde = spufs_new_iyesde(dir->i_sb, mode | S_IFDIR);
+	if (!iyesde)
 		return -ENOSPC;
 
 	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		inode->i_mode &= S_ISGID;
+		iyesde->i_gid = dir->i_gid;
+		iyesde->i_mode &= S_ISGID;
 	}
 	ctx = alloc_spu_context(SPUFS_I(dir)->i_gang); /* XXX gang */
-	SPUFS_I(inode)->i_ctx = ctx;
+	SPUFS_I(iyesde)->i_ctx = ctx;
 	if (!ctx) {
-		iput(inode);
+		iput(iyesde);
 		return -ENOSPC;
 	}
 
 	ctx->flags = flags;
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
+	iyesde->i_op = &simple_dir_iyesde_operations;
+	iyesde->i_fop = &simple_dir_operations;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
 	dget(dentry);
 	inc_nlink(dir);
-	inc_nlink(inode);
+	inc_nlink(iyesde);
 
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 
 	if (flags & SPU_CREATE_NOSCHED)
-		ret = spufs_fill_dir(dentry, spufs_dir_nosched_contents,
+		ret = spufs_fill_dir(dentry, spufs_dir_yessched_contents,
 					 mode, ctx);
 	else
 		ret = spufs_fill_dir(dentry, spufs_dir_contents, mode, ctx);
@@ -271,7 +271,7 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 	if (ret)
 		spufs_rmdir(dir, dentry);
 
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 
 	return ret;
 }
@@ -301,7 +301,7 @@ spufs_assert_affinity(unsigned int flags, struct spu_gang *gang,
 						struct file *filp)
 {
 	struct spu_context *tmp, *neighbor, *err;
-	int count, node;
+	int count, yesde;
 	int aff_supp;
 
 	aff_supp = !list_empty(&(list_entry(cbe_spu_info[0].spus.next,
@@ -327,7 +327,7 @@ spufs_assert_affinity(unsigned int flags, struct spu_gang *gang,
 			return ERR_PTR(-EINVAL);
 
 		neighbor = get_spu_context(
-				SPUFS_I(file_inode(filp))->i_ctx);
+				SPUFS_I(file_iyesde(filp))->i_ctx);
 
 		if (!list_empty(&neighbor->aff_list) && !(neighbor->aff_head) &&
 		    !list_is_last(&neighbor->aff_list, &gang->aff_list_head) &&
@@ -348,13 +348,13 @@ spufs_assert_affinity(unsigned int flags, struct spu_gang *gang,
 		if (list_empty(&neighbor->aff_list))
 			count++;
 
-		for (node = 0; node < MAX_NUMNODES; node++) {
-			if ((cbe_spu_info[node].n_spus - atomic_read(
-				&cbe_spu_info[node].reserved_spus)) >= count)
+		for (yesde = 0; yesde < MAX_NUMNODES; yesde++) {
+			if ((cbe_spu_info[yesde].n_spus - atomic_read(
+				&cbe_spu_info[yesde].reserved_spus)) >= count)
 				break;
 		}
 
-		if (node == MAX_NUMNODES) {
+		if (yesde == MAX_NUMNODES) {
 			err = ERR_PTR(-EEXIST);
 			goto out_put_neighbor;
 		}
@@ -399,7 +399,7 @@ spufs_set_affinity(unsigned int flags, struct spu_context *ctx,
 }
 
 static int
-spufs_create_context(struct inode *inode, struct dentry *dentry,
+spufs_create_context(struct iyesde *iyesde, struct dentry *dentry,
 			struct vfsmount *mnt, int flags, umode_t mode,
 			struct file *aff_filp)
 {
@@ -424,7 +424,7 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 	neighbor = NULL;
 	affinity = flags & (SPU_CREATE_AFFINITY_MEM | SPU_CREATE_AFFINITY_SPU);
 	if (affinity) {
-		gang = SPUFS_I(inode)->i_gang;
+		gang = SPUFS_I(iyesde)->i_gang;
 		if (!gang)
 			return -EINVAL;
 		mutex_lock(&gang->aff_mutex);
@@ -435,12 +435,12 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 		}
 	}
 
-	ret = spufs_mkdir(inode, dentry, flags, mode & 0777);
+	ret = spufs_mkdir(iyesde, dentry, flags, mode & 0777);
 	if (ret)
 		goto out_aff_unlock;
 
 	if (affinity) {
-		spufs_set_affinity(flags, SPUFS_I(d_inode(dentry))->i_ctx,
+		spufs_set_affinity(flags, SPUFS_I(d_iyesde(dentry))->i_ctx,
 								neighbor);
 		if (neighbor)
 			put_spu_context(neighbor);
@@ -448,7 +448,7 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 
 	ret = spufs_context_open(&path);
 	if (ret < 0)
-		WARN_ON(spufs_rmdir(inode, dentry));
+		WARN_ON(spufs_rmdir(iyesde, dentry));
 
 out_aff_unlock:
 	if (affinity)
@@ -457,40 +457,40 @@ out_aff_unlock:
 }
 
 static int
-spufs_mkgang(struct inode *dir, struct dentry *dentry, umode_t mode)
+spufs_mkgang(struct iyesde *dir, struct dentry *dentry, umode_t mode)
 {
 	int ret;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct spu_gang *gang;
 
 	ret = -ENOSPC;
-	inode = spufs_new_inode(dir->i_sb, mode | S_IFDIR);
-	if (!inode)
+	iyesde = spufs_new_iyesde(dir->i_sb, mode | S_IFDIR);
+	if (!iyesde)
 		goto out;
 
 	ret = 0;
 	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		inode->i_mode &= S_ISGID;
+		iyesde->i_gid = dir->i_gid;
+		iyesde->i_mode &= S_ISGID;
 	}
 	gang = alloc_spu_gang();
-	SPUFS_I(inode)->i_ctx = NULL;
-	SPUFS_I(inode)->i_gang = gang;
+	SPUFS_I(iyesde)->i_ctx = NULL;
+	SPUFS_I(iyesde)->i_gang = gang;
 	if (!gang) {
 		ret = -ENOMEM;
 		goto out_iput;
 	}
 
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
+	iyesde->i_op = &simple_dir_iyesde_operations;
+	iyesde->i_fop = &simple_dir_operations;
 
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 	inc_nlink(dir);
-	inc_nlink(d_inode(dentry));
+	inc_nlink(d_iyesde(dentry));
 	return ret;
 
 out_iput:
-	iput(inode);
+	iput(iyesde);
 out:
 	return ret;
 }
@@ -519,18 +519,18 @@ static int spufs_gang_open(struct path *path)
 	return ret;
 }
 
-static int spufs_create_gang(struct inode *inode,
+static int spufs_create_gang(struct iyesde *iyesde,
 			struct dentry *dentry,
 			struct vfsmount *mnt, umode_t mode)
 {
 	struct path path = {.mnt = mnt, .dentry = dentry};
 	int ret;
 
-	ret = spufs_mkgang(inode, dentry, mode & 0777);
+	ret = spufs_mkgang(iyesde, dentry, mode & 0777);
 	if (!ret) {
 		ret = spufs_gang_open(&path);
 		if (ret < 0) {
-			int err = simple_rmdir(inode, dentry);
+			int err = simple_rmdir(iyesde, dentry);
 			WARN_ON(err);
 		}
 	}
@@ -543,7 +543,7 @@ static struct file_system_type spufs_type;
 long spufs_create(struct path *path, struct dentry *dentry,
 		unsigned int flags, umode_t mode, struct file *filp)
 {
-	struct inode *dir = d_inode(path->dentry);
+	struct iyesde *dir = d_iyesde(path->dentry);
 	int ret;
 
 	/* check if we are on spufs */
@@ -567,7 +567,7 @@ long spufs_create(struct path *path, struct dentry *dentry,
 		ret = spufs_create_context(dir, dentry, path->mnt, flags, mode,
 					    filp);
 	if (ret >= 0)
-		fsnotify_mkdir(dir, dentry);
+		fsyestify_mkdir(dir, dentry);
 
 	return ret;
 }
@@ -599,16 +599,16 @@ static const struct fs_parameter_description spufs_fs_parameters = {
 static int spufs_show_options(struct seq_file *m, struct dentry *root)
 {
 	struct spufs_sb_info *sbi = spufs_get_sb_info(root->d_sb);
-	struct inode *inode = root->d_inode;
+	struct iyesde *iyesde = root->d_iyesde;
 
-	if (!uid_eq(inode->i_uid, GLOBAL_ROOT_UID))
+	if (!uid_eq(iyesde->i_uid, GLOBAL_ROOT_UID))
 		seq_printf(m, ",uid=%u",
-			   from_kuid_munged(&init_user_ns, inode->i_uid));
-	if (!gid_eq(inode->i_gid, GLOBAL_ROOT_GID))
+			   from_kuid_munged(&init_user_ns, iyesde->i_uid));
+	if (!gid_eq(iyesde->i_gid, GLOBAL_ROOT_GID))
 		seq_printf(m, ",gid=%u",
-			   from_kgid_munged(&init_user_ns, inode->i_gid));
-	if ((inode->i_mode & S_IALLUGO) != 0775)
-		seq_printf(m, ",mode=%o", inode->i_mode);
+			   from_kgid_munged(&init_user_ns, iyesde->i_gid));
+	if ((iyesde->i_mode & S_IALLUGO) != 0775)
+		seq_printf(m, ",mode=%o", iyesde->i_mode);
 	if (sbi->debug)
 		seq_puts(m, ",debug");
 	return 0;
@@ -631,13 +631,13 @@ static int spufs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_uid:
 		uid = make_kuid(current_user_ns(), result.uint_32);
 		if (!uid_valid(uid))
-			return invalf(fc, "Unknown uid");
+			return invalf(fc, "Unkyeswn uid");
 		ctx->uid = uid;
 		break;
 	case Opt_gid:
 		gid = make_kgid(current_user_ns(), result.uint_32);
 		if (!gid_valid(gid))
-			return invalf(fc, "Unknown gid");
+			return invalf(fc, "Unkyeswn gid");
 		ctx->gid = gid;
 		break;
 	case Opt_mode:
@@ -660,11 +660,11 @@ static void spufs_exit_isolated_loader(void)
 static void
 spufs_init_isolated_loader(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	const char *loader;
 	int size;
 
-	dn = of_find_node_by_path("/spu-isolation");
+	dn = of_find_yesde_by_path("/spu-isolation");
 	if (!dn)
 		return;
 
@@ -685,33 +685,33 @@ spufs_init_isolated_loader(void)
 static int spufs_create_root(struct super_block *sb, struct fs_context *fc)
 {
 	struct spufs_fs_context *ctx = fc->fs_private;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	if (!spu_management_ops)
 		return -ENODEV;
 
-	inode = spufs_new_inode(sb, S_IFDIR | ctx->mode);
-	if (!inode)
+	iyesde = spufs_new_iyesde(sb, S_IFDIR | ctx->mode);
+	if (!iyesde)
 		return -ENOMEM;
 
-	inode->i_uid = ctx->uid;
-	inode->i_gid = ctx->gid;
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
-	SPUFS_I(inode)->i_ctx = NULL;
-	inc_nlink(inode);
+	iyesde->i_uid = ctx->uid;
+	iyesde->i_gid = ctx->gid;
+	iyesde->i_op = &simple_dir_iyesde_operations;
+	iyesde->i_fop = &simple_dir_operations;
+	SPUFS_I(iyesde)->i_ctx = NULL;
+	inc_nlink(iyesde);
 
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(iyesde);
 	if (!sb->s_root)
 		return -ENOMEM;
 	return 0;
 }
 
 static const struct super_operations spufs_ops = {
-	.alloc_inode	= spufs_alloc_inode,
-	.free_inode	= spufs_free_inode,
+	.alloc_iyesde	= spufs_alloc_iyesde,
+	.free_iyesde	= spufs_free_iyesde,
 	.statfs		= simple_statfs,
-	.evict_inode	= spufs_evict_inode,
+	.evict_iyesde	= spufs_evict_iyesde,
 	.show_options	= spufs_show_options,
 };
 
@@ -749,11 +749,11 @@ static int spufs_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(struct spufs_fs_context), GFP_KERNEL);
 	if (!ctx)
-		goto nomem;
+		goto yesmem;
 
 	sbi = kzalloc(sizeof(struct spufs_sb_info), GFP_KERNEL);
 	if (!sbi)
-		goto nomem_ctx;
+		goto yesmem_ctx;
 
 	ctx->uid = current_uid();
 	ctx->gid = current_gid();
@@ -764,9 +764,9 @@ static int spufs_init_fs_context(struct fs_context *fc)
 	fc->ops = &spufs_context_ops;
 	return 0;
 
-nomem_ctx:
+yesmem_ctx:
 	kfree(ctx);
-nomem:
+yesmem:
 	return -ENOMEM;
 }
 
@@ -788,11 +788,11 @@ static int __init spufs_init(void)
 		goto out;
 
 	ret = -ENOMEM;
-	spufs_inode_cache = kmem_cache_create("spufs_inode_cache",
-			sizeof(struct spufs_inode_info), 0,
+	spufs_iyesde_cache = kmem_cache_create("spufs_iyesde_cache",
+			sizeof(struct spufs_iyesde_info), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT, spufs_init_once);
 
-	if (!spufs_inode_cache)
+	if (!spufs_iyesde_cache)
 		goto out;
 	ret = spu_sched_init();
 	if (ret)
@@ -813,7 +813,7 @@ out_syscalls:
 out_sched:
 	spu_sched_exit();
 out_cache:
-	kmem_cache_destroy(spufs_inode_cache);
+	kmem_cache_destroy(spufs_iyesde_cache);
 out:
 	return ret;
 }
@@ -825,7 +825,7 @@ static void __exit spufs_exit(void)
 	spufs_exit_isolated_loader();
 	unregister_spu_syscalls(&spufs_calls);
 	unregister_filesystem(&spufs_type);
-	kmem_cache_destroy(spufs_inode_cache);
+	kmem_cache_destroy(spufs_iyesde_cache);
 }
 module_exit(spufs_exit);
 

@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/pagemap.h>
@@ -62,7 +62,7 @@ static bool store_updates_sp(unsigned int inst)
 	case OP_STD:	/* std or stdu */
 		return (inst & 3) == 1;
 	case OP_31:
-		/* check minor opcode */
+		/* check miyesr opcode */
 		switch ((inst >> 1) & 0x3ff) {
 		case OP_31_XOP_STDUX:
 		case OP_31_XOP_STWUX:
@@ -80,11 +80,11 @@ static bool store_updates_sp(unsigned int inst)
  */
 
 static int
-__bad_area_nosemaphore(struct pt_regs *regs, unsigned long address, int si_code)
+__bad_area_yessemaphore(struct pt_regs *regs, unsigned long address, int si_code)
 {
 	/*
 	 * If we are in kernel mode, bail out with a SEGV, this will
-	 * be caught by the assembly which will restore the non-volatile
+	 * be caught by the assembly which will restore the yesn-volatile
 	 * registers before calling bad_page_fault()
 	 */
 	if (!user_mode(regs))
@@ -95,9 +95,9 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long address, int si_code)
 	return 0;
 }
 
-static noinline int bad_area_nosemaphore(struct pt_regs *regs, unsigned long address)
+static yesinline int bad_area_yessemaphore(struct pt_regs *regs, unsigned long address)
 {
-	return __bad_area_nosemaphore(regs, address, SEGV_MAPERR);
+	return __bad_area_yessemaphore(regs, address, SEGV_MAPERR);
 }
 
 static int __bad_area(struct pt_regs *regs, unsigned long address, int si_code)
@@ -110,10 +110,10 @@ static int __bad_area(struct pt_regs *regs, unsigned long address, int si_code)
 	 */
 	up_read(&mm->mmap_sem);
 
-	return __bad_area_nosemaphore(regs, address, si_code);
+	return __bad_area_yessemaphore(regs, address, si_code);
 }
 
-static noinline int bad_area(struct pt_regs *regs, unsigned long address)
+static yesinline int bad_area(struct pt_regs *regs, unsigned long address)
 {
 	return __bad_area(regs, address, SEGV_MAPERR);
 }
@@ -123,7 +123,7 @@ static int bad_key_fault_exception(struct pt_regs *regs, unsigned long address,
 {
 	/*
 	 * If we are in kernel mode, bail out with a SEGV, this will
-	 * be caught by the assembly which will restore the non-volatile
+	 * be caught by the assembly which will restore the yesn-volatile
 	 * registers before calling bad_page_fault()
 	 */
 	if (!user_mode(regs))
@@ -134,7 +134,7 @@ static int bad_key_fault_exception(struct pt_regs *regs, unsigned long address,
 	return 0;
 }
 
-static noinline int bad_access(struct pt_regs *regs, unsigned long address)
+static yesinline int bad_access(struct pt_regs *regs, unsigned long address)
 {
 	return __bad_area(regs, address, SEGV_ACCERR);
 }
@@ -171,7 +171,7 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr,
 				vm_fault_t fault)
 {
 	/*
-	 * Kernel page fault interrupted by SIGKILL. We have no reason to
+	 * Kernel page fault interrupted by SIGKILL. We have yes reason to
 	 * continue processing.
 	 */
 	if (fatal_signal_pending(current) && !user_mode(regs))
@@ -191,7 +191,7 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr,
 			     VM_FAULT_HWPOISON_LARGE))
 			return do_sigbus(regs, addr, fault);
 		else if (fault & VM_FAULT_SIGSEGV)
-			return bad_area_nosemaphore(regs, addr);
+			return bad_area_yessemaphore(regs, addr);
 		else
 			BUG();
 	}
@@ -297,12 +297,12 @@ static bool access_error(bool is_write, bool is_exec,
 			 struct vm_area_struct *vma)
 {
 	/*
-	 * Allow execution from readable areas if the MMU does not
+	 * Allow execution from readable areas if the MMU does yest
 	 * provide separate controls over reading and executing.
 	 *
-	 * Note: That code used to not be enabled for 4xx/BookE.
-	 * It is now as I/D cache coherency for these is done at
-	 * set_pte_at() time and I see no reason why the test
+	 * Note: That code used to yest be enabled for 4xx/BookE.
+	 * It is yesw as I/D cache coherency for these is done at
+	 * set_pte_at() time and I see yes reason why the test
 	 * below wouldn't be valid on those processors. This -may-
 	 * break programs compiled with a really old ABI though.
 	 */
@@ -366,15 +366,15 @@ static void sanity_check_fault(bool is_write, bool is_user,
 	 * removing the hash page table entry, thus resulting in a DSISR_NOHPTE
 	 * fault instead of DSISR_PROTFAULT.
 	 *
-	 * A pte update to relax the access will not result in a hash page table
+	 * A pte update to relax the access will yest result in a hash page table
 	 * entry invalidate and hence can result in DSISR_PROTFAULT.
 	 * ptep_set_access_flags() doesn't do a hpte flush. This is why we have
 	 * the special !is_write in the below conditional.
 	 *
 	 * For platforms that doesn't supports coherent icache and do support
-	 * per page noexec bit, we do setup things such that we do the
+	 * per page yesexec bit, we do setup things such that we do the
 	 * sync between D/I cache via fault. But that is handled via low level
-	 * hash fault code (hash_page_do_lazy_icache()) and we should not reach
+	 * hash fault code (hash_page_do_lazy_icache()) and we should yest reach
 	 * here in such case.
 	 *
 	 * For wrong access that can result in PROTFAULT, the above vma->vm_flags
@@ -383,11 +383,11 @@ static void sanity_check_fault(bool is_write, bool is_user,
 	 *
 	 * For embedded with per page exec support that doesn't support coherent
 	 * icache we do get PROTFAULT and we handle that D/I cache sync in
-	 * set_pte_at while taking the noexec/prot fault. Hence this is WARN_ON
+	 * set_pte_at while taking the yesexec/prot fault. Hence this is WARN_ON
 	 * is conditional for server MMU.
 	 *
 	 * For radix, we can get prot fault for autonuma case, because radix
-	 * page table will have them marked noaccess for user.
+	 * page table will have them marked yesaccess for user.
 	 */
 	if (radix_enabled() || is_write)
 		return;
@@ -423,8 +423,8 @@ static void sanity_check_fault(bool is_write, bool is_user,
  * the error_code parameter is ESR for a data fault, 0 for an instruction
  * fault.
  * For 64-bit processors, the error_code parameter is
- *  - DSISR for a non-SLB data access fault,
- *  - SRR1 & 0x08000000 for a non-SLB instruction access fault
+ *  - DSISR for a yesn-SLB data access fault,
+ *  - SRR1 & 0x08000000 for a yesn-SLB instruction access fault
  *  - 0 any SLB fault.
  *
  * The return value is 0 if the fault was handled, or the signal
@@ -458,7 +458,7 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	sanity_check_fault(is_write, is_user, error_code, address);
 
 	/*
-	 * The kernel should never take an execute fault nor should it
+	 * The kernel should never take an execute fault yesr should it
 	 * take a page fault to a kernel address or a page fault to a user
 	 * address outside of dedicated places
 	 */
@@ -466,8 +466,8 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 		return SIGSEGV;
 
 	/*
-	 * If we're in an interrupt, have no user context or are running
-	 * in a region with pagefaults disabled then we must not take the fault
+	 * If we're in an interrupt, have yes user context or are running
+	 * in a region with pagefaults disabled then we must yest take the fault
 	 */
 	if (unlikely(faulthandler_disabled() || !mm)) {
 		if (is_user)
@@ -475,10 +475,10 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 					   " with faulthandler_disabled()=%d"
 					   " mm=%p\n",
 					   faulthandler_disabled(), mm);
-		return bad_area_nosemaphore(regs, address);
+		return bad_area_yessemaphore(regs, address);
 	}
 
-	/* We restore the interrupt state now */
+	/* We restore the interrupt state yesw */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
@@ -511,13 +511,13 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	 *
 	 * As the vast majority of faults will be valid we will only perform
 	 * the source reference check when there is a possibility of a deadlock.
-	 * Attempt to lock the address space, if we cannot we then validate the
+	 * Attempt to lock the address space, if we canyest we then validate the
 	 * source.  If this is invalid we can skip the address space check,
 	 * thus avoiding the deadlock.
 	 */
 	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
 		if (!is_user && !search_exception_tables(regs->nip))
-			return bad_area_nosemaphore(regs, address);
+			return bad_area_yessemaphore(regs, address);
 
 retry:
 		down_read(&mm->mmap_sem);
@@ -547,7 +547,7 @@ retry:
 		up_read(&mm->mmap_sem);
 		if (fault_in_pages_readable((const char __user *)regs->nip,
 					    sizeof(unsigned int)))
-			return bad_area_nosemaphore(regs, address);
+			return bad_area_yessemaphore(regs, address);
 		goto retry;
 	}
 
@@ -584,7 +584,7 @@ good_area:
 	major |= fault & VM_FAULT_MAJOR;
 
 	/*
-	 * Handle the retry right now, the mmap_sem has been released in that
+	 * Handle the retry right yesw, the mmap_sem has been released in that
 	 * case.
 	 */
 	if (unlikely(fault & VM_FAULT_RETRY)) {
@@ -613,7 +613,7 @@ good_area:
 		return mm_fault_error(regs, address, fault);
 
 	/*
-	 * Major/minor page fault accounting.
+	 * Major/miyesr page fault accounting.
 	 */
 	if (major) {
 		current->maj_flt++;
@@ -674,7 +674,7 @@ void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 			 regs->dar);
 		break;
 	default:
-		pr_alert("BUG: Unable to handle unknown paging fault at 0x%08lx\n",
+		pr_alert("BUG: Unable to handle unkyeswn paging fault at 0x%08lx\n",
 			 regs->dar);
 		break;
 	}

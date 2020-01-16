@@ -49,7 +49,7 @@ void pci_remove_bus(struct pci_bus *bus)
 	pci_proc_detach_bus(bus);
 
 	down_write(&pci_bus_sem);
-	list_del(&bus->node);
+	list_del(&bus->yesde);
 	pci_bus_release_busn_res(bus);
 	up_write(&pci_bus_sem);
 	pci_remove_legacy_files(bus);
@@ -108,7 +108,7 @@ static void pci_remove_bus_device(struct pci_dev *dev)
  * buses and children in a depth-first manner.
  *
  * For each device we remove, delete the device structure from the
- * device lists, remove the /proc entry, and notify userspace
+ * device lists, remove the /proc entry, and yestify userspace
  * (/sbin/hotplug).
  */
 void pci_stop_and_remove_bus_device(struct pci_dev *dev)

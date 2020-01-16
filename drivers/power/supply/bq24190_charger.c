@@ -504,7 +504,7 @@ static int bq24190_set_charge_mode(struct regulator_dev *dev, u8 val)
 	ret = pm_runtime_get_sync(bdi->dev);
 	if (ret < 0) {
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", ret);
-		pm_runtime_put_noidle(bdi->dev);
+		pm_runtime_put_yesidle(bdi->dev);
 		return ret;
 	}
 
@@ -537,7 +537,7 @@ static int bq24190_vbus_is_enabled(struct regulator_dev *dev)
 	ret = pm_runtime_get_sync(bdi->dev);
 	if (ret < 0) {
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", ret);
-		pm_runtime_put_noidle(bdi->dev);
+		pm_runtime_put_yesidle(bdi->dev);
 		return ret;
 	}
 
@@ -752,7 +752,7 @@ static int bq24190_charger_set_charge_type(struct bq24190_dev_info *bdi,
 	 * function.
 	 *
 	 * Note: AFAICT from the datasheet, the user will have to manually
-	 * turn off the charging when in 20% mode.  If its not turned off,
+	 * turn off the charging when in 20% mode.  If its yest turned off,
 	 * there could be battery damage.  So, use this mode at your own risk.
 	 */
 	switch (val->intval) {
@@ -826,7 +826,7 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
 		case 0x1: /* Input Fault (VBUS OVP or VBAT<VBUS<3.8V) */
 			/*
 			 * This could be over-voltage or under-voltage
-			 * and there's no way to tell which.  Instead
+			 * and there's yes way to tell which.  Instead
 			 * of looking foolish and returning 'OVERVOLTAGE'
 			 * when its really under-voltage, just return
 			 * 'UNSPEC_FAILURE'.
@@ -845,7 +845,7 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
 	} else if (v & BQ24190_REG_F_BOOST_FAULT_MASK) {
 		/*
 		 * This could be over-current or over-voltage but there's
-		 * no way to tell which.  Return 'OVERVOLTAGE' since there
+		 * yes way to tell which.  Return 'OVERVOLTAGE' since there
 		 * isn't an 'OVERCURRENT' value defined that we can return
 		 * even if it was over-current.
 		 */
@@ -1212,7 +1212,7 @@ static void bq24190_charger_external_power_changed(struct power_supply *psy)
 	/*
 	 * The Power-Good detection may take up to 220ms, sometimes
 	 * the external charger detection is quicker, and the bq24190 will
-	 * reset to iinlim based on its own charger detection (which is not
+	 * reset to iinlim based on its own charger detection (which is yest
 	 * hooked up when using external charger detection) resulting in a
 	 * too low default 500mA iinlim. Delay setting the input-current-limit
 	 * for 300ms to avoid this.
@@ -1275,10 +1275,10 @@ static int bq24190_battery_get_status(struct bq24190_dev_info *bdi,
 
 	/*
 	 * The battery must be discharging when any of these are true:
-	 * - there is no good power source;
+	 * - there is yes good power source;
 	 * - there is a charge fault.
 	 * Could also be discharging when in "supplement mode" but
-	 * there is no way to tell when its in that mode.
+	 * there is yes way to tell when its in that mode.
 	 */
 	if (!(ss_reg & BQ24190_REG_SS_PG_STAT_MASK) || chrg_fault) {
 		status = POWER_SUPPLY_STATUS_DISCHARGING;
@@ -1422,7 +1422,7 @@ static int bq24190_battery_get_property(struct power_supply *psy,
 		ret = bq24190_battery_get_online(bdi, val);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		/* Could be Li-on or Li-polymer but no way to tell which */
+		/* Could be Li-on or Li-polymer but yes way to tell which */
 		val->intval = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
 		ret = 0;
 		break;
@@ -1548,7 +1548,7 @@ static void bq24190_check_status(struct bq24190_dev_info *bdi)
 		}
 	} while (f_reg && ++i < 2);
 
-	/* ignore over/under voltage fault after disconnect */
+	/* igyesre over/under voltage fault after disconnect */
 	if (f_reg == (1 << BQ24190_REG_F_CHRG_FAULT_SHIFT) &&
 	    !(ss_reg & BQ24190_REG_SS_PG_STAT_MASK))
 		f_reg = 0;
@@ -1612,7 +1612,7 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 	error = pm_runtime_get_sync(bdi->dev);
 	if (error < 0) {
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
-		pm_runtime_put_noidle(bdi->dev);
+		pm_runtime_put_yesidle(bdi->dev);
 		return IRQ_NONE;
 	}
 	bq24190_check_status(bdi);
@@ -1642,7 +1642,7 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
 	case BQ24190_REG_VPRS_PN_24192I:
 		break;
 	default:
-		dev_err(bdi->dev, "Error unknown model: 0x%02x\n", v);
+		dev_err(bdi->dev, "Error unkyeswn model: 0x%02x\n", v);
 		return -ENODEV;
 	}
 
@@ -1672,7 +1672,7 @@ static int bq24190_get_config(struct bq24190_dev_info *bdi)
 			dev_warn(bdi->dev, "invalid value for %s: %u\n", s, v);
 	}
 
-	if (bdi->dev->of_node &&
+	if (bdi->dev->of_yesde &&
 	    !power_supply_get_battery_info(bdi->charger, &info)) {
 		v = info.precharge_current_ua / 1000;
 		if (v >= BQ24190_REG_PCTCC_IPRECHG_MIN
@@ -1753,7 +1753,7 @@ static int bq24190_probe(struct i2c_client *client,
 #endif
 
 	charger_cfg.drv_data = bdi;
-	charger_cfg.of_node = dev->of_node;
+	charger_cfg.of_yesde = dev->of_yesde;
 	charger_cfg.supplied_to = bq24190_charger_supplied_to;
 	charger_cfg.num_supplicants = ARRAY_SIZE(bq24190_charger_supplied_to),
 	bdi->charger = power_supply_register(dev, &bq24190_charger_desc,
@@ -1835,7 +1835,7 @@ static int bq24190_remove(struct i2c_client *client)
 	error = pm_runtime_get_sync(bdi->dev);
 	if (error < 0) {
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
-		pm_runtime_put_noidle(bdi->dev);
+		pm_runtime_put_yesidle(bdi->dev);
 	}
 
 	bq24190_register_reset(bdi);
@@ -1888,7 +1888,7 @@ static __maybe_unused int bq24190_pm_suspend(struct device *dev)
 	error = pm_runtime_get_sync(bdi->dev);
 	if (error < 0) {
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
-		pm_runtime_put_noidle(bdi->dev);
+		pm_runtime_put_yesidle(bdi->dev);
 	}
 
 	bq24190_register_reset(bdi);
@@ -1913,7 +1913,7 @@ static __maybe_unused int bq24190_pm_resume(struct device *dev)
 	error = pm_runtime_get_sync(bdi->dev);
 	if (error < 0) {
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
-		pm_runtime_put_noidle(bdi->dev);
+		pm_runtime_put_yesidle(bdi->dev);
 	}
 
 	bq24190_register_reset(bdi);

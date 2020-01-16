@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/leds.h>
 #include "../leds.h"
 
@@ -15,7 +15,7 @@ static struct led_trigger *trigger;
 
 /*
  * This is called in a special context by the atomic panic
- * notifier. This means the trigger can be changed without
+ * yestifier. This means the trigger can be changed without
  * worrying about locking.
  */
 static void led_trigger_set_panic(struct led_classdev *led_cdev)
@@ -40,19 +40,19 @@ static void led_trigger_set_panic(struct led_classdev *led_cdev)
 	}
 }
 
-static int led_trigger_panic_notifier(struct notifier_block *nb,
+static int led_trigger_panic_yestifier(struct yestifier_block *nb,
 				      unsigned long code, void *unused)
 {
 	struct led_classdev *led_cdev;
 
-	list_for_each_entry(led_cdev, &leds_list, node)
+	list_for_each_entry(led_cdev, &leds_list, yesde)
 		if (led_cdev->flags & LED_PANIC_INDICATOR)
 			led_trigger_set_panic(led_cdev);
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block led_trigger_panic_nb = {
-	.notifier_call = led_trigger_panic_notifier,
+static struct yestifier_block led_trigger_panic_nb = {
+	.yestifier_call = led_trigger_panic_yestifier,
 };
 
 static long led_panic_blink(int state)
@@ -63,7 +63,7 @@ static long led_panic_blink(int state)
 
 static int __init ledtrig_panic_init(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_yestifier_chain_register(&panic_yestifier_list,
 				       &led_trigger_panic_nb);
 
 	led_trigger_register_simple("panic", &trigger);

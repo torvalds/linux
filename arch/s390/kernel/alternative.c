@@ -2,7 +2,7 @@
 #include <linux/module.h>
 #include <asm/alternative.h>
 #include <asm/facility.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 #define MAX_PATCH_LEN (255 - 1)
 
@@ -14,23 +14,23 @@ static int __init disable_alternative_instructions(char *str)
 	return 0;
 }
 
-early_param("noaltinstr", disable_alternative_instructions);
+early_param("yesaltinstr", disable_alternative_instructions);
 
 struct brcl_insn {
 	u16 opc;
 	s32 disp;
 } __packed;
 
-static u16 __initdata_or_module nop16 = 0x0700;
-static u32 __initdata_or_module nop32 = 0x47000000;
-static struct brcl_insn __initdata_or_module nop48 = {
+static u16 __initdata_or_module yesp16 = 0x0700;
+static u32 __initdata_or_module yesp32 = 0x47000000;
+static struct brcl_insn __initdata_or_module yesp48 = {
 	0xc004, 0
 };
 
-static const void *nops[] __initdata_or_module = {
-	&nop16,
-	&nop32,
-	&nop48
+static const void *yesps[] __initdata_or_module = {
+	&yesp16,
+	&yesp32,
+	&yesp48
 };
 
 static void __init_or_module add_jump_padding(void *insns, unsigned int len)
@@ -45,7 +45,7 @@ static void __init_or_module add_jump_padding(void *insns, unsigned int len)
 	len -= sizeof(brcl);
 
 	while (len > 0) {
-		memcpy(insns, &nop16, 2);
+		memcpy(insns, &yesp16, 2);
 		insns += 2;
 		len -= 2;
 	}
@@ -56,7 +56,7 @@ static void __init_or_module add_padding(void *insns, unsigned int len)
 	if (len > 6)
 		add_jump_padding(insns, len);
 	else if (len >= 2)
-		memcpy(insns, nops[len / 2 - 1], len);
+		memcpy(insns, yesps[len / 2 - 1], len);
 }
 
 static void __init_or_module __apply_alternatives(struct alt_instr *start,

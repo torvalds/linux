@@ -7,7 +7,7 @@
  *
  * Based on sun5i-ir.c:
  * Copyright (C) 2007-2012 Daniel Wang
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Allwinner Techyeslogy Co., Ltd. <www.allwinnertech.com>
  */
 
 #include <linux/clk.h>
@@ -64,7 +64,7 @@
 
 /* IR Sample Config */
 #define SUNXI_IR_CIR_REG      0x34
-/* CIR_REG register noise threshold */
+/* CIR_REG register yesise threshold */
 #define REG_CIR_NTHR(val)    (((val) << 2) & (GENMASK(7, 2)))
 /* CIR_REG register idle threshold */
 #define REG_CIR_ITHR(val)    (((val) << 8) & (GENMASK(15, 8)))
@@ -101,7 +101,7 @@ struct sunxi_ir {
 	const char      *map_name;
 };
 
-static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
+static irqreturn_t sunxi_ir_irq(int irqyes, void *dev_id)
 {
 	unsigned long status;
 	unsigned char dt;
@@ -150,7 +150,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	unsigned long tmp = 0;
 
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node;
+	struct device_yesde *dn = dev->of_yesde;
 	const struct sunxi_ir_quirks *quirks;
 	struct resource *res;
 	struct sunxi_ir *ir;
@@ -269,7 +269,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	/* Enable CIR Mode */
 	writel(REG_CTL_MD, ir->base+SUNXI_IR_CTL_REG);
 
-	/* Set noise threshold and idle threshold */
+	/* Set yesise threshold and idle threshold */
 	writel(REG_CIR_NTHR(SUNXI_IR_RXNOISE)|REG_CIR_ITHR(SUNXI_IR_RXIDLE),
 	       ir->base + SUNXI_IR_CIR_REG);
 

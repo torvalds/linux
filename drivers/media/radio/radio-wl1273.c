@@ -3,7 +3,7 @@
  * Driver for the Texas Instruments WL1273 FM radio.
  *
  * Copyright (C) 2011 Nokia Corporation
- * Author: Matti J. Aaltonen <matti.j.aaltonen@nokia.com>
+ * Author: Matti J. Aaltonen <matti.j.aaltonen@yeskia.com>
  */
 
 #include <linux/delay.h>
@@ -159,7 +159,7 @@ static int wl1273_fm_rds(struct wl1273_device *radio)
 		return r;
 
 	if ((val & 0x01) == 0) {
-		/* RDS decoder not synchronized */
+		/* RDS decoder yest synchronized */
 		return -EAGAIN;
 	}
 
@@ -499,11 +499,11 @@ static int wl1273_fm_upload_firmware_patch(struct wl1273_device *radio)
 	dev_dbg(dev, "%s:\n", __func__);
 
 	/*
-	 * Uploading the firmware patch is not always necessary,
+	 * Uploading the firmware patch is yest always necessary,
 	 * so we only print an info message.
 	 */
 	if (request_firmware(&fw_p, fw_name, dev)) {
-		dev_info(dev, "%s - %s not found\n", __func__, fw_name);
+		dev_info(dev, "%s - %s yest found\n", __func__, fw_name);
 
 		return 0;
 	}
@@ -518,7 +518,7 @@ static int wl1273_fm_upload_firmware_patch(struct wl1273_device *radio)
 		goto out;
 	}
 
-	/* ignore possible error here */
+	/* igyesre possible error here */
 	core->write(core, WL1273_RESET, 0);
 
 	dev_dbg(dev, "%s - download OK, r: %d\n", __func__, r);
@@ -665,7 +665,7 @@ static int wl1273_fm_suspend(struct wl1273_device *radio)
 	struct wl1273_core *core = radio->core;
 	int r;
 
-	/* Cannot go from OFF to SUSPENDED */
+	/* Canyest go from OFF to SUSPENDED */
 	if (core->mode == WL1273_MODE_RX)
 		r = core->write(core, WL1273_POWER_SET,
 				WL1273_POWER_SET_RETENTION);
@@ -705,7 +705,7 @@ static int wl1273_fm_set_mode(struct wl1273_device *radio, int mode)
 	case WL1273_MODE_TX:
 		r = wl1273_fm_start(radio, mode);
 		if (r) {
-			dev_err(dev, "%s: Cannot start.\n", __func__);
+			dev_err(dev, "%s: Canyest start.\n", __func__);
 			wl1273_fm_stop(radio);
 			goto out;
 		}
@@ -745,7 +745,7 @@ static int wl1273_fm_set_mode(struct wl1273_device *radio, int mode)
 
 		r = core->set_audio(core, core->audio_mode);
 		if (r)
-			dev_err(dev, "Cannot set audio mode.\n");
+			dev_err(dev, "Canyest set audio mode.\n");
 		break;
 
 	case WL1273_MODE_OFF:
@@ -767,7 +767,7 @@ static int wl1273_fm_set_mode(struct wl1273_device *radio, int mode)
 		break;
 
 	default:
-		dev_err(dev, "%s: Unknown mode: %d\n", __func__, mode);
+		dev_err(dev, "%s: Unkyeswn mode: %d\n", __func__, mode);
 		r = -EINVAL;
 		break;
 	}
@@ -1014,7 +1014,7 @@ static int wl1273_fm_set_rds(struct wl1273_device *radio, unsigned int new_mode)
 	} else if (core->mode == WL1273_MODE_RX && new_mode == WL1273_RDS_ON) {
 		r = wl1273_fm_rds_on(radio);
 	} else {
-		dev_err(radio->dev, "%s: Unknown mode: %d\n",
+		dev_err(radio->dev, "%s: Unkyeswn mode: %d\n",
 			__func__, new_mode);
 		r = -EINVAL;
 	}
@@ -1039,7 +1039,7 @@ static ssize_t wl1273_fm_fops_write(struct file *file, const char __user *buf,
 		return count;
 
 	if (radio->rds_users == 0) {
-		dev_warn(radio->dev, "%s: RDS not on.\n", __func__);
+		dev_warn(radio->dev, "%s: RDS yest on.\n", __func__);
 		return 0;
 	}
 
@@ -1186,7 +1186,7 @@ static ssize_t wl1273_fm_fops_read(struct file *file, char __user *buf,
 		return 0;
 
 	if (radio->rds_users == 0) {
-		dev_warn(radio->dev, "%s: RDS not on.\n", __func__);
+		dev_warn(radio->dev, "%s: RDS yest on.\n", __func__);
 		return 0;
 	}
 
@@ -1213,7 +1213,7 @@ static ssize_t wl1273_fm_fops_read(struct file *file, char __user *buf,
 		goto out;
 	}
 
-	/* block if no new data available */
+	/* block if yes new data available */
 	while (radio->wr_index == radio->rd_index) {
 		if (file->f_flags & O_NONBLOCK) {
 			r = -EWOULDBLOCK;
@@ -1386,7 +1386,7 @@ static int wl1273_fm_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 
 	default:
-		dev_warn(radio->dev, "%s: Unknown IOCTL: %d\n",
+		dev_warn(radio->dev, "%s: Unkyeswn IOCTL: %d\n",
 			 __func__, ctrl->id);
 		break;
 	}
@@ -1452,7 +1452,7 @@ static int wl1273_fm_vidioc_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 
 	default:
-		dev_warn(radio->dev, "%s: Unknown IOCTL: %d\n",
+		dev_warn(radio->dev, "%s: Unkyeswn IOCTL: %d\n",
 			 __func__, ctrl->id);
 		break;
 	}
@@ -1868,7 +1868,7 @@ static int wl1273_fm_vidioc_log_status(struct file *file, void *priv)
 		else if (val == 0)
 			dev_info(dev, "MOST_MODE: Stereo according to blend\n");
 		else if (val == 1)
-			dev_info(dev, "MOST_MODE: Force mono output\n");
+			dev_info(dev, "MOST_MODE: Force moyes output\n");
 		else
 			dev_info(dev, "MOST_MODE: Unexpected value: %d\n", val);
 
@@ -2019,7 +2019,7 @@ static int wl1273_fm_radio_probe(struct platform_device *pdev)
 	radio->buf_size = rds_buf * RDS_BLOCK_SIZE;
 	radio->buffer = devm_kzalloc(&pdev->dev, radio->buf_size, GFP_KERNEL);
 	if (!radio->buffer) {
-		pr_err("Cannot allocate memory for RDS buffer.\n");
+		pr_err("Canyest allocate memory for RDS buffer.\n");
 		r = -ENOMEM;
 		goto pdata_err;
 	}
@@ -2046,7 +2046,7 @@ static int wl1273_fm_radio_probe(struct platform_device *pdev)
 		r = radio->core->pdata->request_resources(radio->core->client);
 		if (r) {
 			dev_err(radio->dev, WL1273_FM_DRIVER_NAME
-				": Cannot get platform data\n");
+				": Canyest get platform data\n");
 			goto pdata_err;
 		}
 
@@ -2062,7 +2062,7 @@ static int wl1273_fm_radio_probe(struct platform_device *pdev)
 			goto err_request_irq;
 		}
 	} else {
-		dev_err(radio->dev, WL1273_FM_DRIVER_NAME ": Core WL1273 IRQ not configured");
+		dev_err(radio->dev, WL1273_FM_DRIVER_NAME ": Core WL1273 IRQ yest configured");
 		r = -EINVAL;
 		goto pdata_err;
 	}
@@ -2082,7 +2082,7 @@ static int wl1273_fm_radio_probe(struct platform_device *pdev)
 
 	r = v4l2_device_register(&pdev->dev, &radio->v4l2dev);
 	if (r) {
-		dev_err(&pdev->dev, "Cannot register v4l2_device.\n");
+		dev_err(&pdev->dev, "Canyest register v4l2_device.\n");
 		goto write_buf_err;
 	}
 
@@ -2128,7 +2128,7 @@ static int wl1273_fm_radio_probe(struct platform_device *pdev)
 	r = video_register_device(&radio->videodev, VFL_TYPE_RADIO, radio_nr);
 	if (r) {
 		dev_err(&pdev->dev, WL1273_FM_DRIVER_NAME
-			": Could not register video device\n");
+			": Could yest register video device\n");
 		goto handler_init_err;
 	}
 
@@ -2155,7 +2155,7 @@ static struct platform_driver wl1273_fm_radio_driver = {
 
 module_platform_driver(wl1273_fm_radio_driver);
 
-MODULE_AUTHOR("Matti Aaltonen <matti.j.aaltonen@nokia.com>");
+MODULE_AUTHOR("Matti Aaltonen <matti.j.aaltonen@yeskia.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:wl1273_fm_radio");

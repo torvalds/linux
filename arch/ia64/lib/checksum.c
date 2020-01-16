@@ -46,7 +46,7 @@ csum_tcpudp_magic(__be32 saddr, __be32 daddr, __u32 len,
 EXPORT_SYMBOL(csum_tcpudp_magic);
 
 __wsum
-csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
+csum_tcpudp_yesfold(__be32 saddr, __be32 daddr, __u32 len,
 		   __u8 proto, __wsum sum)
 {
 	unsigned long result;
@@ -61,7 +61,7 @@ csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
 	result = (result & 0xffffffff) + (result >> 32);
 	return (__force __wsum)result;
 }
-EXPORT_SYMBOL(csum_tcpudp_nofold);
+EXPORT_SYMBOL(csum_tcpudp_yesfold);
 
 extern unsigned long do_csum (const unsigned char *, long);
 

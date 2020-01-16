@@ -33,8 +33,8 @@ firmware {
 Specifying reset lines connected to IP modules
 ==============================================
 
-Device nodes that need access to reset lines should
-specify them as a reset phandle in their corresponding node as
+Device yesdes that need access to reset lines should
+specify them as a reset phandle in their corresponding yesde as
 specified in reset.txt.
 
 For list of all valid reset indicies see

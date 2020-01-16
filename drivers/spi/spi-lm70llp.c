@@ -198,7 +198,7 @@ static void spi_lm70llp_attach(struct parport *p)
 		return;
 	}
 
-	/* TODO:  this just _assumes_ a lm70 is there ... no probe;
+	/* TODO:  this just _assumes_ a lm70 is there ... yes probe;
 	 * the lm70 driver could verify it, reading the manf ID.
 	 */
 

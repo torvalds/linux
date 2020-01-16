@@ -43,7 +43,7 @@ void insn_init(struct insn *insn, const void *kaddr, int buf_len, int x86_64)
 {
 	/*
 	 * Instructions longer than MAX_INSN_SIZE (15 bytes) are invalid
-	 * even if the input buffer is long enough to hold them.
+	 * even if the input buffer is long eyesugh to hold them.
 	 */
 	if (buf_len > MAX_INSN_SIZE)
 		buf_len = MAX_INSN_SIZE;
@@ -175,7 +175,7 @@ found:
 		if (!insn->x86_64) {
 			/*
 			 * In 32-bits mode, if the [7:6] bits (mod bits of
-			 * ModRM) on the second byte are not 11b, it is
+			 * ModRM) on the second byte are yest 11b, it is
 			 * LDS or LES or BOUND.
 			 */
 			if (X86_MODRM_MOD(b2) != 3)
@@ -246,7 +246,7 @@ void insn_get_opcode(struct insn *insn)
 	opcode->bytes[0] = op;
 	opcode->nbytes = 1;
 
-	/* Check if there is VEX prefix or not */
+	/* Check if there is VEX prefix or yest */
 	if (insn_is_avx(insn)) {
 		insn_byte_t m, p;
 		m = insn_vex_m_bits(insn);
@@ -386,11 +386,11 @@ void insn_get_displacement(struct insn *insn)
 	if (insn->modrm.nbytes) {
 		/*
 		 * Interpreting the modrm byte:
-		 * mod = 00 - no displacement fields (exceptions below)
+		 * mod = 00 - yes displacement fields (exceptions below)
 		 * mod = 01 - 1-byte displacement field
 		 * mod = 10 - displacement field is 4 bytes, or 2 bytes if
 		 * 	address size = 2 (0x67 prefix in 32-bit mode)
-		 * mod = 11 - no memory operand
+		 * mod = 11 - yes memory operand
 		 *
 		 * If address size = 2...
 		 * mod = 00, r/m = 110 - displacement field is 2 bytes
@@ -523,7 +523,7 @@ static int __get_immptr(struct insn *insn)
 		insn->immediate1.nbytes = 4;
 		break;
 	case 8:
-		/* ptr16:64 is not exist (no segment) */
+		/* ptr16:64 is yest exist (yes segment) */
 		return 0;
 	default:	/* opnd_bytes must be modified manually */
 		goto err_out;
@@ -560,7 +560,7 @@ void insn_get_immediate(struct insn *insn)
 	}
 
 	if (!inat_has_immediate(insn->attr))
-		/* no immediates */
+		/* yes immediates */
 		goto done;
 
 	switch (inat_immediate_size(insn->attr)) {

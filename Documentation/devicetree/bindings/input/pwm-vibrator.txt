@@ -2,7 +2,7 @@
 
 Registers a PWM device as vibrator. It is expected, that the vibrator's
 strength increases based on the duty cycle of the enable PWM channel
-(100% duty cycle meaning strongest vibration, 0% meaning no vibration).
+(100% duty cycle meaning strongest vibration, 0% meaning yes vibration).
 
 The binding supports an optional direction PWM channel, that can be
 driven at fixed duty cycle. If available this is can be used to increase
@@ -16,7 +16,7 @@ Required properties:
 Optional properties:
 - vcc-supply: Phandle for the regulator supplying power
 - direction-duty-cycle-ns: Duty cycle of the direction PWM channel in
-                           nanoseconds, defaults to 50% of the channel's
+                           nayesseconds, defaults to 50% of the channel's
 			   period.
 
 Example from Motorola Droid 4:

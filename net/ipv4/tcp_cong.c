@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Pluggable TCP congestion control support and newReno
+ * Pluggable TCP congestion control support and newReyes
  * congestion control.
  * Based on ideas from I/O scheduler support and Web100.
  *
@@ -50,7 +50,7 @@ static struct tcp_congestion_ops *tcp_ca_find_autoload(struct net *net,
 	return ca;
 }
 
-/* Simple linear search, not much in here. */
+/* Simple linear search, yest much in here. */
 struct tcp_congestion_ops *tcp_ca_find_key(u32 key)
 {
 	struct tcp_congestion_ops *e;
@@ -74,7 +74,7 @@ int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 	/* all algorithms must implement these */
 	if (!ca->ssthresh || !ca->undo_cwnd ||
 	    !(ca->cong_avoid || ca->cong_control)) {
-		pr_err("%s does not implement required ops\n", ca->name);
+		pr_err("%s does yest implement required ops\n", ca->name);
 		return -EINVAL;
 	}
 
@@ -82,7 +82,7 @@ int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 
 	spin_lock(&tcp_cong_list_lock);
 	if (ca->key == TCP_CA_UNSPEC || tcp_ca_find_key(ca->key)) {
-		pr_notice("%s already registered or non-unique key\n",
+		pr_yestice("%s already registered or yesn-unique key\n",
 			  ca->name);
 		ret = -EEXIST;
 	} else {
@@ -110,8 +110,8 @@ void tcp_unregister_congestion_control(struct tcp_congestion_ops *ca)
 	/* Wait for outstanding readers to complete before the
 	 * module gets removed entirely.
 	 *
-	 * A try_module_get() should fail by now as our module is
-	 * in "going" state since no refs are held anymore and
+	 * A try_module_get() should fail by yesw as our module is
+	 * in "going" state since yes refs are held anymore and
 	 * module_exit() handler being called.
 	 */
 	synchronize_rcu();
@@ -163,7 +163,7 @@ void tcp_assign_congestion_control(struct sock *sk)
 	rcu_read_lock();
 	ca = rcu_dereference(net->ipv4.tcp_congestion_control);
 	if (unlikely(!try_module_get(ca->owner)))
-		ca = &tcp_reno;
+		ca = &tcp_reyes;
 	icsk->icsk_ca_ops = ca;
 	rcu_read_unlock();
 
@@ -274,7 +274,7 @@ void tcp_get_default_congestion_control(struct net *net, char *name)
 	rcu_read_unlock();
 }
 
-/* Built list of non-restricted congestion control values */
+/* Built list of yesn-restricted congestion control values */
 void tcp_get_allowed_congestion_control(char *buf, size_t maxlen)
 {
 	struct tcp_congestion_ops *ca;
@@ -295,7 +295,7 @@ void tcp_get_allowed_congestion_control(char *buf, size_t maxlen)
 	rcu_read_unlock();
 }
 
-/* Change list of non-restricted congestion control */
+/* Change list of yesn-restricted congestion control */
 int tcp_set_allowed_congestion_control(char *val)
 {
 	struct tcp_congestion_ops *ca;
@@ -388,9 +388,9 @@ int tcp_set_congestion_control(struct sock *sk, const char *name, bool load,
 	return err;
 }
 
-/* Slow start is used when congestion window is no greater than the slow start
+/* Slow start is used when congestion window is yes greater than the slow start
  * threshold. We base on RFC2581 and also handle stretch ACKs properly.
- * We do not implement RFC3465 Appropriate Byte Counting (ABC) per se but
+ * We do yest implement RFC3465 Appropriate Byte Counting (ABC) per se but
  * something better;) a packet is only considered (s)acked in its entirety to
  * defend the ACK attacks described in the RFC. Slow start processes a stretch
  * ACK of degree N as if N acks of degree 1 are received back to back except
@@ -413,7 +413,7 @@ EXPORT_SYMBOL_GPL(tcp_slow_start);
  */
 void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked)
 {
-	/* If credits accumulated at a higher w, apply them gently now. */
+	/* If credits accumulated at a higher w, apply them gently yesw. */
 	if (tp->snd_cwnd_cnt >= w) {
 		tp->snd_cwnd_cnt = 0;
 		tp->snd_cwnd++;
@@ -431,13 +431,13 @@ void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked)
 EXPORT_SYMBOL_GPL(tcp_cong_avoid_ai);
 
 /*
- * TCP Reno congestion control
+ * TCP Reyes congestion control
  * This is special case used for fallback as well.
  */
 /* This is Jacobson's slow start and congestion avoidance.
  * SIGCOMM '88, p. 328.
  */
-void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
+void tcp_reyes_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -453,30 +453,30 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	/* In dangerous area, increase slowly. */
 	tcp_cong_avoid_ai(tp, tp->snd_cwnd, acked);
 }
-EXPORT_SYMBOL_GPL(tcp_reno_cong_avoid);
+EXPORT_SYMBOL_GPL(tcp_reyes_cong_avoid);
 
 /* Slow start threshold is half the congestion window (min 2) */
-u32 tcp_reno_ssthresh(struct sock *sk)
+u32 tcp_reyes_ssthresh(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 
 	return max(tp->snd_cwnd >> 1U, 2U);
 }
-EXPORT_SYMBOL_GPL(tcp_reno_ssthresh);
+EXPORT_SYMBOL_GPL(tcp_reyes_ssthresh);
 
-u32 tcp_reno_undo_cwnd(struct sock *sk)
+u32 tcp_reyes_undo_cwnd(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 
 	return max(tp->snd_cwnd, tp->prior_cwnd);
 }
-EXPORT_SYMBOL_GPL(tcp_reno_undo_cwnd);
+EXPORT_SYMBOL_GPL(tcp_reyes_undo_cwnd);
 
-struct tcp_congestion_ops tcp_reno = {
+struct tcp_congestion_ops tcp_reyes = {
 	.flags		= TCP_CONG_NON_RESTRICTED,
-	.name		= "reno",
+	.name		= "reyes",
 	.owner		= THIS_MODULE,
-	.ssthresh	= tcp_reno_ssthresh,
-	.cong_avoid	= tcp_reno_cong_avoid,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
+	.ssthresh	= tcp_reyes_ssthresh,
+	.cong_avoid	= tcp_reyes_cong_avoid,
+	.undo_cwnd	= tcp_reyes_undo_cwnd,
 };

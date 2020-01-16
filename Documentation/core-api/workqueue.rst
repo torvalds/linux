@@ -10,18 +10,18 @@ Concurrency Managed Workqueue (cmwq)
 Introduction
 ============
 
-There are many cases where an asynchronous process execution context
+There are many cases where an asynchroyesus process execution context
 is needed and the workqueue (wq) API is the most commonly used
 mechanism for such cases.
 
-When such an asynchronous execution context is needed, a work item
+When such an asynchroyesus execution context is needed, a work item
 describing which function to execute is put on a queue.  An
-independent thread serves as the asynchronous execution context.  The
+independent thread serves as the asynchroyesus execution context.  The
 queue is called workqueue and the thread is called worker.
 
 While there are work items on the workqueue the worker executes the
 functions associated with the work items one after the other.  When
-there is no work item left on the workqueue the worker becomes idle.
+there is yes work item left on the workqueue the worker becomes idle.
 When a new work item gets queued, the worker begins executing again.
 
 
@@ -47,7 +47,7 @@ including proneness to deadlocks around the single execution context.
 The tension between the provided level of concurrency and resource
 usage also forced its users to make unnecessary tradeoffs like libata
 choosing to use ST wq for polling PIOs and accepting an unnecessary
-limitation that no two polling PIOs can progress at the same time.  As
+limitation that yes two polling PIOs can progress at the same time.  As
 MT wq don't provide much better concurrency, users which require
 higher level of concurrency, like async or fscache, had to implement
 their own thread pool.
@@ -68,17 +68,17 @@ focus on the following goals.
 The Design
 ==========
 
-In order to ease the asynchronous execution of functions a new
+In order to ease the asynchroyesus execution of functions a new
 abstraction, the work item, is introduced.
 
 A work item is a simple struct that holds a pointer to the function
-that is to be executed asynchronously.  Whenever a driver or subsystem
-wants a function to be executed asynchronously it has to set up a work
+that is to be executed asynchroyesusly.  Whenever a driver or subsystem
+wants a function to be executed asynchroyesusly it has to set up a work
 item pointing to that function and queue that work item on a
 workqueue.
 
 Special purpose threads, called worker threads, execute the functions
-off of the queue, one after the other.  If no work is queued, the
+off of the queue, one after the other.  If yes work is queued, the
 worker threads become idle.  These worker threads are managed in so
 called worker-pools.
 
@@ -86,7 +86,7 @@ The cmwq design differentiates between the user-facing workqueues that
 subsystems and drivers queue work items on and the backend mechanism
 which manages worker-pools and processes the queued work items.
 
-There are two worker-pools, one for normal work items and the other
+There are two worker-pools, one for yesrmal work items and the other
 for high priority ones, for each possible CPU and some extra
 worker-pools to serve work items queued on unbound workqueues - the
 number of these backing pools is dynamic.
@@ -103,7 +103,7 @@ When a work item is queued to a workqueue, the target worker-pool is
 determined according to the queue parameters and workqueue attributes
 and appended on the shared worklist of the worker-pool.  For example,
 unless specifically overridden, a work item of a bound workqueue will
-be queued on the worklist of either normal or highpri worker-pool that
+be queued on the worklist of either yesrmal or highpri worker-pool that
 is associated to the CPU the issuer is running on.
 
 For any worker pool implementation, managing the concurrency level
@@ -113,11 +113,11 @@ Minimal to save resources and sufficient in that the system is used at
 its full capacity.
 
 Each worker-pool bound to an actual CPU implements concurrency
-management by hooking into the scheduler.  The worker-pool is notified
+management by hooking into the scheduler.  The worker-pool is yestified
 whenever an active worker wakes up or sleeps and keeps track of the
 number of the currently runnable workers.  Generally, work items are
-not expected to hog a CPU and consume many cycles.  That means
-maintaining just enough concurrency to prevent work processing from
+yest expected to hog a CPU and consume many cycles.  That means
+maintaining just eyesugh concurrency to prevent work processing from
 stalling should be optimal.  As long as there are one or more runnable
 workers on the CPU, the worker-pool doesn't start execution of a new
 work, but, when the last running worker goes to sleep, it immediately
@@ -134,7 +134,7 @@ Unbound workqueue can be assigned custom attributes using
 ``apply_workqueue_attrs()`` and workqueue will automatically create
 backing worker pools matching the attributes.  The responsibility of
 regulating concurrency level is on the users.  There is also a flag to
-mark a bound wq to ignore the concurrency management.  Please refer to
+mark a bound wq to igyesre the concurrency management.  Please refer to
 the API section for details.
 
 Forward progress guarantee relies on that workers can be created when
@@ -155,7 +155,7 @@ removal.  ``alloc_workqueue()`` takes three arguments - ``@name``,
 ``@flags`` and ``@max_active``.  ``@name`` is the name of the wq and
 also used as the name of the rescuer thread if there is one.
 
-A wq no longer manages execution resources but serves as a domain for
+A wq yes longer manages execution resources but serves as a domain for
 forward progress guarantee, flush and work item attributes. ``@flags``
 and ``@max_active`` control how work items are assigned execution
 resources, scheduled and executed.
@@ -166,7 +166,7 @@ resources, scheduled and executed.
 
 ``WQ_UNBOUND``
   Work items queued to an unbound wq are served by the special
-  worker-pools which host workers which are not bound to any
+  worker-pools which host workers which are yest bound to any
   specific CPU.  This makes the wq behave as a simple execution
   context provider without concurrency management.  The unbound
   worker-pools try to start execution of work items as soon as
@@ -183,7 +183,7 @@ resources, scheduled and executed.
 
 ``WQ_FREEZABLE``
   A freezable wq participates in the freeze phase of the system
-  suspend operations.  Work items on the wq are drained and no
+  suspend operations.  Work items on the wq are drained and yes
   new work item starts execution until thawed.
 
 ``WQ_MEM_RECLAIM``
@@ -196,14 +196,14 @@ resources, scheduled and executed.
   worker-pool of the target cpu.  Highpri worker-pools are
   served by worker threads with elevated nice level.
 
-  Note that normal and highpri worker-pools don't interact with
+  Note that yesrmal and highpri worker-pools don't interact with
   each other.  Each maintains its separate pool of workers and
   implements concurrency management among its workers.
 
 ``WQ_CPU_INTENSIVE``
-  Work items of a CPU intensive wq do not contribute to the
+  Work items of a CPU intensive wq do yest contribute to the
   concurrency level.  In other words, runnable CPU intensive
-  work items will not prevent other work items in the same
+  work items will yest prevent other work items in the same
   worker-pool from starting execution.  This is useful for bound
   work items which are expected to hog CPU cycles so that their
   execution is regulated by the system scheduler.
@@ -211,13 +211,13 @@ resources, scheduled and executed.
   Although CPU intensive work items don't contribute to the
   concurrency level, start of their executions is still
   regulated by the concurrency management and runnable
-  non-CPU-intensive work items can delay execution of CPU
+  yesn-CPU-intensive work items can delay execution of CPU
   intensive work items.
 
   This flag is meaningless for unbound wq.
 
-Note that the flag ``WQ_NON_REENTRANT`` no longer exists as all
-workqueues are now non-reentrant - any work item is guaranteed to be
+Note that the flag ``WQ_NON_REENTRANT`` yes longer exists as all
+workqueues are yesw yesn-reentrant - any work item is guaranteed to be
 executed by at most one worker system-wide at any given time.
 
 
@@ -233,7 +233,7 @@ Currently, for a bound wq, the maximum limit for ``@max_active`` is
 512 and the default value used when 0 is specified is 256.  For an
 unbound wq, the limit is higher of 512 and 4 *
 ``num_possible_cpus()``.  These values are chosen sufficiently high
-such that they are not the limiting factor while providing protection
+such that they are yest the limiting factor while providing protection
 in runaway cases.
 
 The number of active work items of a wq is usually regulated by the
@@ -249,7 +249,7 @@ unbound worker-pools and only one work item could be active at any given
 time thus achieving the same ordering property as ST wq.
 
 In the current implementation the above configuration only guarantees
-ST behavior within a given NUMA node. Instead ``alloc_ordered_queue()`` should
+ST behavior within a given NUMA yesde. Instead ``alloc_ordered_queue()`` should
 be used to achieve system-wide ST behavior.
 
 
@@ -264,7 +264,7 @@ behave under different configurations.
  again before finishing.  w1 and w2 burn CPU for 5ms then sleep for
  10ms.
 
-Ignoring all other tasks, works and processing overhead, and assuming
+Igyesring all other tasks, works and processing overhead, and assuming
 simple FIFO scheduling, the following is one highly simplified version
 of possible sequences of events with the original wq. ::
 
@@ -326,14 +326,14 @@ Now, let's assume w1 and w2 are queued to a different wq q1 which has
 Guidelines
 ==========
 
-* Do not forget to use ``WQ_MEM_RECLAIM`` if a wq may process work
+* Do yest forget to use ``WQ_MEM_RECLAIM`` if a wq may process work
   items which are used during memory reclaim.  Each wq with
   ``WQ_MEM_RECLAIM`` set has an execution context reserved for it.  If
   there is dependency among multiple work items used during memory
   reclaim, they should be queued to separate wq each with
   ``WQ_MEM_RECLAIM``.
 
-* Unless strict ordering is required, there is no need to use ST wq.
+* Unless strict ordering is required, there is yes need to use ST wq.
 
 * Unless there is a specific need, using 0 for @max_active is
   recommended.  In most use cases, concurrency level usually stays
@@ -341,9 +341,9 @@ Guidelines
 
 * A wq serves as a domain for forward progress guarantee
   (``WQ_MEM_RECLAIM``, flush and work item attributes.  Work items
-  which are not involved in memory reclaim and don't need to be
+  which are yest involved in memory reclaim and don't need to be
   flushed as a part of a group of work items, and don't require any
-  special attribute, can use one of the system wq.  There is no
+  special attribute, can use one of the system wq.  There is yes
   difference in execution characteristics between using a dedicated wq
   and a system wq.
 

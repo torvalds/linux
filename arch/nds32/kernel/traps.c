@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/module.h>
 #include <linux/personality.h>
@@ -30,7 +30,7 @@ void dump_mem(const char *lvl, unsigned long bottom, unsigned long top)
 
 	/*
 	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.  Note that we now dump the
+	 * to safely read from kernel space.  Note that we yesw dump the
 	 * code first, just in case the backtrace kills us.
 	 */
 	fs = get_fs();
@@ -72,7 +72,7 @@ static void dump_instr(struct pt_regs *regs)
 	return;
 	/*
 	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.  Note that we now dump the
+	 * to safely read from kernel space.  Note that we yesw dump the
 	 * code first, just in case the backtrace kills us.
 	 */
 	fs = get_fs();
@@ -243,14 +243,14 @@ void __init early_trap_init(void)
 	/* Check platform support. */
 	if (((ivb & IVB_mskNIVIC) >> IVB_offNIVIC) < 2)
 		panic
-		    ("IVIC mode is not allowed on the platform with interrupt controller\n");
+		    ("IVIC mode is yest allowed on the platform with interrupt controller\n");
 	__nds32__mtsr((ivb & ~IVB_mskESZ) | (IVB_valESZ16 << IVB_offESZ) |
 		      IVB_BASE, NDS32_SR_IVB);
 	__nds32__mtsr(INT_MASK_INITAIAL_VAL, NDS32_SR_INT_MASK);
 
 	/*
 	 * 0x800 = 128 vectors * 16byte.
-	 * It should be enough to flush a page.
+	 * It should be eyesugh to flush a page.
 	 */
 	cpu_cache_wbinval_page(base, true);
 }
@@ -259,7 +259,7 @@ static void send_sigtrap(struct pt_regs *regs, int error_code, int si_code)
 {
 	struct task_struct *tsk = current;
 
-	tsk->thread.trap_no = ENTRY_DEBUG_RELATED;
+	tsk->thread.trap_yes = ENTRY_DEBUG_RELATED;
 	tsk->thread.error_code = error_code;
 
 	force_sig_fault(SIGTRAP, si_code,
@@ -269,7 +269,7 @@ static void send_sigtrap(struct pt_regs *regs, int error_code, int si_code)
 void do_debug_trap(unsigned long entry, unsigned long addr,
 		   unsigned long type, struct pt_regs *regs)
 {
-	if (notify_die(DIE_OOPS, "Oops", regs, addr, type, SIGTRAP)
+	if (yestify_die(DIE_OOPS, "Oops", regs, addr, type, SIGTRAP)
 	    == NOTIFY_STOP)
 		return;
 
@@ -378,7 +378,7 @@ void do_dispatch_general(unsigned long entry, unsigned long addr,
 		/* trap, used on v3 EDM target debugging workaround */
 		/*
 		 * DIPC(OIPC) is passed as parameter before
-		 * interrupt is enabled, so the DIPC will not be corrupted
+		 * interrupt is enabled, so the DIPC will yest be corrupted
 		 * even though interrupts are coming in
 		 */
 		/*

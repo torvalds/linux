@@ -82,7 +82,7 @@ static int gem_tsu_set_time(struct ptp_clock_info *ptp,
 
 	spin_lock_irqsave(&bp->tsu_clk_lock, flags);
 
-	/* TSH doesn't latch the time and no atomicity! */
+	/* TSH doesn't latch the time and yes atomicity! */
 	gem_writel(bp, TN, 0); /* clear to avoid overflow */
 	gem_writel(bp, TSH, sech);
 	/* write lower bits 2nd, for synchronized secs update */
@@ -152,7 +152,7 @@ static int gem_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 static int gem_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct macb *bp = container_of(ptp, struct macb, ptp_clock_info);
-	struct timespec64 now, then = ns_to_timespec64(delta);
+	struct timespec64 yesw, then = ns_to_timespec64(delta);
 	u32 adj, sign = 0;
 
 	if (delta < 0) {
@@ -161,11 +161,11 @@ static int gem_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	}
 
 	if (delta > TSU_NSEC_MAX_VAL) {
-		gem_tsu_get_time(&bp->ptp_clock_info, &now);
-		now = timespec64_add(now, then);
+		gem_tsu_get_time(&bp->ptp_clock_info, &yesw);
+		yesw = timespec64_add(yesw, then);
 
 		gem_tsu_set_time(&bp->ptp_clock_info,
-				 (const struct timespec64 *)&now);
+				 (const struct timespec64 *)&yesw);
 	} else {
 		adj = (sign << GEM_ADDSUB_OFFSET) | delta;
 
@@ -254,7 +254,7 @@ static int gem_hw_timestamp(struct macb *bp, u32 dma_desc_ts_1,
 	gem_tsu_get_time(&bp->ptp_clock_info, &tsu);
 
 	/* If the top bit is set in the timestamp,
-	 * but not in 1588 timer, it has rolled over,
+	 * but yest in 1588 timer, it has rolled over,
 	 * so subtract max size
 	 */
 	if ((ts->tv_sec & (GEM_DMA_SEC_TOP >> 1)) &&
@@ -354,7 +354,7 @@ void gem_ptp_init(struct net_device *dev)
 
 	bp->ptp_clock_info = gem_ptp_caps_template;
 
-	/* nominal frequency and maximum adjustment in ppb */
+	/* yesminal frequency and maximum adjustment in ppb */
 	bp->tsu_rate = bp->ptp_info->get_tsu_rate(bp);
 	bp->ptp_clock_info.max_adj = bp->ptp_info->get_ptp_max_adj();
 	gem_ptp_init_timer(bp);

@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2003 VIA Techyeslogies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -37,7 +37,7 @@ static int via_do_init_map(struct drm_device *dev, drm_via_init_t *init)
 
 	dev_priv->sarea = drm_legacy_getsarea(dev);
 	if (!dev_priv->sarea) {
-		DRM_ERROR("could not find sarea!\n");
+		DRM_ERROR("could yest find sarea!\n");
 		dev->dev_private = (void *)dev_priv;
 		via_do_cleanup_map(dev);
 		return -EINVAL;
@@ -45,14 +45,14 @@ static int via_do_init_map(struct drm_device *dev, drm_via_init_t *init)
 
 	dev_priv->fb = drm_legacy_findmap(dev, init->fb_offset);
 	if (!dev_priv->fb) {
-		DRM_ERROR("could not find framebuffer!\n");
+		DRM_ERROR("could yest find framebuffer!\n");
 		dev->dev_private = (void *)dev_priv;
 		via_do_cleanup_map(dev);
 		return -EINVAL;
 	}
 	dev_priv->mmio = drm_legacy_findmap(dev, init->mmio_offset);
 	if (!dev_priv->mmio) {
-		DRM_ERROR("could not find mmio region!\n");
+		DRM_ERROR("could yest find mmio region!\n");
 		dev->dev_private = (void *)dev_priv;
 		via_do_cleanup_map(dev);
 		return -EINVAL;

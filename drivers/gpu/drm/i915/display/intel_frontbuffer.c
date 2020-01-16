@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -43,14 +43,14 @@
  * work like a special cache (FBC and PSR) and are interested when they should
  * stop caching and when to restart caching. This is done by placing callbacks
  * into the invalidate and the flush functions: At invalidate the caching must
- * be stopped and at flush time it can be restarted. And maybe they need to know
+ * be stopped and at flush time it can be restarted. And maybe they need to kyesw
  * when the frontbuffer changes (e.g. when the hw doesn't initiate an invalidate
  * and flush on its own) which can be achieved with placing callbacks into the
  * flip functions.
  *
  * The other type of display power saving feature only cares about busyness
  * (e.g. DRRS). In that case all three (invalidate, flush and flip) indicate
- * busyness. There is no direct way to detect idleness. Instead an idle timer
+ * busyness. There is yes direct way to detect idleness. Instead an idle timer
  * work delayed work should be started from the flush and flip functions and
  * cancelled as soon as busyness is detected.
  */
@@ -71,7 +71,7 @@
  *
  * This function gets called every time rendering on the given planes has
  * completed and frontbuffer caching can be started again. Flushes will get
- * delayed if they're blocked by some outstanding asynchronous rendering.
+ * delayed if they're blocked by some outstanding asynchroyesus rendering.
  *
  * Can be called without any locks held.
  */
@@ -94,7 +94,7 @@ static void frontbuffer_flush(struct drm_i915_private *i915,
 }
 
 /**
- * intel_frontbuffer_flip_prepare - prepare asynchronous frontbuffer flip
+ * intel_frontbuffer_flip_prepare - prepare asynchroyesus frontbuffer flip
  * @i915: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
@@ -116,7 +116,7 @@ void intel_frontbuffer_flip_prepare(struct drm_i915_private *i915,
 }
 
 /**
- * intel_frontbuffer_flip_complete - complete asynchronous frontbuffer flip
+ * intel_frontbuffer_flip_complete - complete asynchroyesus frontbuffer flip
  * @i915: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
@@ -139,13 +139,13 @@ void intel_frontbuffer_flip_complete(struct drm_i915_private *i915,
 }
 
 /**
- * intel_frontbuffer_flip - synchronous frontbuffer flip
+ * intel_frontbuffer_flip - synchroyesus frontbuffer flip
  * @i915: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * This function gets called after scheduling a flip on @obj. This is for
- * synchronous plane updates which will happen on the next vblank and which will
- * not get delayed by pending gpu rendering.
+ * synchroyesus plane updates which will happen on the next vblank and which will
+ * yest get delayed by pending gpu rendering.
  *
  * Can be called without any locks held.
  */
@@ -303,7 +303,7 @@ void intel_frontbuffer_track(struct intel_frontbuffer *old,
 
 	if (old) {
 		WARN_ON(!(atomic_read(&old->bits) & frontbuffer_bits));
-		atomic_andnot(frontbuffer_bits, &old->bits);
+		atomic_andyest(frontbuffer_bits, &old->bits);
 	}
 
 	if (new) {

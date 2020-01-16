@@ -9,7 +9,7 @@
  *              <anil.s.keshavamurthy@intel.com> adopted from
  *              include/asm-x86_64/kdebug.h
  *
- * 2005-Oct	Keith Owens <kaos@sgi.com>.  Expand notify_die to cover more
+ * 2005-Oct	Keith Owens <kaos@sgi.com>.  Expand yestify_die to cover more
  *		events.
  */
 

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 /**
  * struct subsys_private - structure to hold the private to the driver core portions of the bus_type/class structure.
@@ -12,7 +12,7 @@
  * @drivers_kset - the list of drivers associated
  * @klist_devices - the klist to iterate over the @devices_kset
  * @klist_drivers - the klist to iterate over the @drivers_kset
- * @bus_notifier - the bus notifier list for anything that cares about things
+ * @bus_yestifier - the bus yestifier list for anything that cares about things
  *                 on this bus.
  * @bus - pointer back to the struct bus_type that this structure is associated
  *        with.
@@ -35,7 +35,7 @@ struct subsys_private {
 	struct kset *drivers_kset;
 	struct klist klist_devices;
 	struct klist klist_drivers;
-	struct blocking_notifier_head bus_notifier;
+	struct blocking_yestifier_head bus_yestifier;
 	unsigned int drivers_autoprobe:1;
 	struct bus_type *bus;
 
@@ -47,7 +47,7 @@ struct subsys_private {
 struct driver_private {
 	struct kobject kobj;
 	struct klist klist_devices;
-	struct klist_node knode_bus;
+	struct klist_yesde kyesde_bus;
 	struct module_kobject *mkobj;
 	struct device_driver *driver;
 };
@@ -57,42 +57,42 @@ struct driver_private {
  * struct device_private - structure to hold the private to the driver core portions of the device structure.
  *
  * @klist_children - klist containing all children of this device
- * @knode_parent - node in sibling list
- * @knode_driver - node in driver list
- * @knode_bus - node in bus list
- * @knode_class - node in class list
+ * @kyesde_parent - yesde in sibling list
+ * @kyesde_driver - yesde in driver list
+ * @kyesde_bus - yesde in bus list
+ * @kyesde_class - yesde in class list
  * @deferred_probe - entry in deferred_probe_list which is used to retry the
  *	binding of drivers which were unable to get all the resources needed by
- *	the device; typically because it depends on another driver getting
+ *	the device; typically because it depends on ayesther driver getting
  *	probed first.
  * @async_driver - pointer to device driver awaiting probe via async_probe
  * @device - pointer back to the struct device that this structure is
  * associated with.
  * @dead - This device is currently either in the process of or has been
- *	removed from the system. Any asynchronous events scheduled for this
+ *	removed from the system. Any asynchroyesus events scheduled for this
  *	device should exit without taking any action.
  *
  * Nothing outside of the driver core should ever touch these fields.
  */
 struct device_private {
 	struct klist klist_children;
-	struct klist_node knode_parent;
-	struct klist_node knode_driver;
-	struct klist_node knode_bus;
-	struct klist_node knode_class;
+	struct klist_yesde kyesde_parent;
+	struct klist_yesde kyesde_driver;
+	struct klist_yesde kyesde_bus;
+	struct klist_yesde kyesde_class;
 	struct list_head deferred_probe;
 	struct device_driver *async_driver;
 	struct device *device;
 	u8 dead:1;
 };
 #define to_device_private_parent(obj)	\
-	container_of(obj, struct device_private, knode_parent)
+	container_of(obj, struct device_private, kyesde_parent)
 #define to_device_private_driver(obj)	\
-	container_of(obj, struct device_private, knode_driver)
+	container_of(obj, struct device_private, kyesde_driver)
 #define to_device_private_bus(obj)	\
-	container_of(obj, struct device_private, knode_bus)
+	container_of(obj, struct device_private, kyesde_bus)
 #define to_device_private_class(obj)	\
-	container_of(obj, struct device_private, knode_class)
+	container_of(obj, struct device_private, kyesde_class)
 
 /* initialisation functions */
 extern int devices_init(void);
@@ -169,7 +169,7 @@ extern int device_links_read_lock_held(void);
 extern int device_links_check_suppliers(struct device *dev);
 extern void device_links_driver_bound(struct device *dev);
 extern void device_links_driver_cleanup(struct device *dev);
-extern void device_links_no_driver(struct device *dev);
+extern void device_links_yes_driver(struct device *dev);
 extern bool device_links_busy(struct device *dev);
 extern void device_links_unbind_consumers(struct device *dev);
 

@@ -90,7 +90,7 @@ void mpc8xxx_spi_probe(struct device *dev, struct resource *mem,
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH
 			| SPI_LSB_FIRST | SPI_LOOP;
 
-	master->dev.of_node = dev->of_node;
+	master->dev.of_yesde = dev->of_yesde;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
 	mpc8xxx_spi->dev = dev;
@@ -113,7 +113,7 @@ EXPORT_SYMBOL_GPL(mpc8xxx_spi_probe);
 int of_mpc8xxx_spi_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct mpc8xxx_spi_probe_info *pinfo;
 	struct fsl_spi_platform_data *pdata;
 	const void *prop;

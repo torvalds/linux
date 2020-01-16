@@ -67,7 +67,7 @@ static struct dm_uevent *dm_build_path_uevent(struct mapped_device *md,
 	event = dm_uevent_alloc(md);
 	if (!event) {
 		DMERR("%s: dm_uevent_alloc() failed", __func__);
-		goto err_nomem;
+		goto err_yesmem;
 	}
 
 	event->action = action;
@@ -107,7 +107,7 @@ static struct dm_uevent *dm_build_path_uevent(struct mapped_device *md,
 
 err_add:
 	dm_uevent_free(event);
-err_nomem:
+err_yesmem:
 	return ERR_PTR(-ENOMEM);
 }
 

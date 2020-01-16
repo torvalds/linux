@@ -131,8 +131,8 @@
 /* MACCESS register additives */
 #define MGAMAC_PW8               0x00
 #define MGAMAC_PW16              0x01
-#define MGAMAC_PW24              0x03 /* not a typo */
-#define MGAMAC_PW32              0x02 /* not a typo */
+#define MGAMAC_PW24              0x03 /* yest a typo */
+#define MGAMAC_PW32              0x02 /* yest a typo */
 #define MGAMAC_BYPASS332         0x10000000
 #define MGAMAC_NODITHER          0x40000000
 #define MGAMAC_DIT555            0x80000000
@@ -202,7 +202,7 @@
 #define MGADWG_BMONOWF		( 0x04 << 25 )
 #define MGADWG_BPLAN		( 0x01 << 25 )
 
-/* note that if bfcol is specified and you're doing a bitblt, it causes
+/* yeste that if bfcol is specified and you're doing a bitblt, it causes
    a fbitblt to be performed, so check that you obey the fbitblt rules */
 
 #define MGADWG_BFCOL   		( 0x02 << 25 )

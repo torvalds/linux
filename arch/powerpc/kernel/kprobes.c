@@ -66,7 +66,7 @@ kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 	 * - Check for the dot variant of the symbol first.
 	 * - If that fails, try looking up the symbol provided.
 	 *
-	 * This ensures we always get to the actual symbol and not
+	 * This ensures we always get to the actual symbol and yest
 	 * the descriptor.
 	 *
 	 * Also handle <module:symbol> format.
@@ -92,7 +92,7 @@ kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 	if (ret > 0)
 		addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name);
 
-	/* Fallback to the original non-dot symbol lookup */
+	/* Fallback to the original yesn-dot symbol lookup */
 	if (!addr && dot_appended)
 		addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);
 #else
@@ -111,12 +111,12 @@ int arch_prepare_kprobe(struct kprobe *p)
 		printk("Attempt to register kprobe at an unaligned address\n");
 		ret = -EINVAL;
 	} else if (IS_MTMSRD(insn) || IS_RFID(insn) || IS_RFI(insn)) {
-		printk("Cannot register a kprobe on rfi/rfid or mtmsr[d]\n");
+		printk("Canyest register a kprobe on rfi/rfid or mtmsr[d]\n");
 		ret = -EINVAL;
 	}
 
 	/* insn must be on a special executable page on ppc64.  This is
-	 * not explicitly required on ppc32 (right now), but it doesn't hurt */
+	 * yest explicitly required on ppc32 (right yesw), but it doesn't hurt */
 	if (!ret) {
 		p->ainsn.insn = get_insn_slot();
 		if (!p->ainsn.insn)
@@ -157,7 +157,7 @@ void arch_remove_kprobe(struct kprobe *p)
 }
 NOKPROBE_SYMBOL(arch_remove_kprobe);
 
-static nokprobe_inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
+static yeskprobe_inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
 	enable_single_step(regs);
 
@@ -165,26 +165,26 @@ static nokprobe_inline void prepare_singlestep(struct kprobe *p, struct pt_regs 
 	 * On powerpc we should single step on the original
 	 * instruction even if the probed insn is a trap
 	 * variant as values in regs could play a part in
-	 * if the trap is taken or not
+	 * if the trap is taken or yest
 	 */
 	regs->nip = (unsigned long)p->ainsn.insn;
 }
 
-static nokprobe_inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
+static yeskprobe_inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	kcb->prev_kprobe.kp = kprobe_running();
 	kcb->prev_kprobe.status = kcb->kprobe_status;
 	kcb->prev_kprobe.saved_msr = kcb->kprobe_saved_msr;
 }
 
-static nokprobe_inline void restore_previous_kprobe(struct kprobe_ctlblk *kcb)
+static yeskprobe_inline void restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	__this_cpu_write(current_kprobe, kcb->prev_kprobe.kp);
 	kcb->kprobe_status = kcb->prev_kprobe.status;
 	kcb->kprobe_saved_msr = kcb->prev_kprobe.saved_msr;
 }
 
-static nokprobe_inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
+static yeskprobe_inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 				struct kprobe_ctlblk *kcb)
 {
 	__this_cpu_write(current_kprobe, p);
@@ -243,7 +243,7 @@ static int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 		 * If, however, we had emulated this instruction in the past,
 		 * then this is just an error with the current run (for
 		 * instance, exceptions due to a load/store). We return 0 so
-		 * that this is now single-stepped, but continue to try
+		 * that this is yesw single-stepped, but continue to try
 		 * emulating it in subsequent probe hits.
 		 */
 		if (unlikely(p->ainsn.boostable != 1))
@@ -271,7 +271,7 @@ int kprobe_handler(struct pt_regs *regs)
 	preempt_disable();
 	kcb = get_kprobe_ctlblk();
 
-	/* Check we're not actually recursing */
+	/* Check we're yest actually recursing */
 	if (kprobe_running()) {
 		p = get_kprobe(addr);
 		if (p) {
@@ -281,10 +281,10 @@ int kprobe_handler(struct pt_regs *regs)
 				/* Turn off 'trace' bits */
 				regs->msr &= ~MSR_SINGLESTEP;
 				regs->msr |= kcb->kprobe_saved_msr;
-				goto no_kprobe;
+				goto yes_kprobe;
 			}
 			/* We have reentered the kprobe_handler(), since
-			 * another probe was hit while within the handler.
+			 * ayesther probe was hit while within the handler.
 			 * We here save the original kprobes variables and
 			 * just single step on the instruction of the new probe
 			 * without calling any user handlers.
@@ -298,25 +298,25 @@ int kprobe_handler(struct pt_regs *regs)
 
 				if (ret > 0) {
 					restore_previous_kprobe(kcb);
-					preempt_enable_no_resched();
+					preempt_enable_yes_resched();
 					return 1;
 				}
 			}
 			prepare_singlestep(p, regs);
 			return 1;
 		} else if (*addr != BREAKPOINT_INSTRUCTION) {
-			/* If trap variant, then it belongs not to us */
+			/* If trap variant, then it belongs yest to us */
 			kprobe_opcode_t cur_insn = *addr;
 
 			if (is_trap(cur_insn))
-				goto no_kprobe;
+				goto yes_kprobe;
 			/* The breakpoint instruction was removed by
-			 * another cpu right after we hit, no further
+			 * ayesther cpu right after we hit, yes further
 			 * handling of this interrupt is appropriate
 			 */
 			ret = 1;
 		}
-		goto no_kprobe;
+		goto yes_kprobe;
 	}
 
 	p = get_kprobe(addr);
@@ -329,18 +329,18 @@ int kprobe_handler(struct pt_regs *regs)
 			 */
 			kprobe_opcode_t cur_insn = *addr;
 			if (is_trap(cur_insn))
-				goto no_kprobe;
+				goto yes_kprobe;
 			/*
 			 * The breakpoint instruction was removed right
-			 * after we hit it.  Another cpu has removed
+			 * after we hit it.  Ayesther cpu has removed
 			 * either a probepoint or a debugger breakpoint
-			 * at this address.  In either case, no further
+			 * at this address.  In either case, yes further
 			 * handling of this interrupt is appropriate.
 			 */
 			ret = 1;
 		}
 		/* Not one of ours: let kernel handle it */
-		goto no_kprobe;
+		goto yes_kprobe;
 	}
 
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
@@ -348,7 +348,7 @@ int kprobe_handler(struct pt_regs *regs)
 	if (p->pre_handler && p->pre_handler(p, regs)) {
 		/* handler changed execution path, so skip ss setup */
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 		return 1;
 	}
 
@@ -361,7 +361,7 @@ int kprobe_handler(struct pt_regs *regs)
 
 			kcb->kprobe_status = KPROBE_HIT_SSDONE;
 			reset_current_kprobe();
-			preempt_enable_no_resched();
+			preempt_enable_yes_resched();
 			return 1;
 		}
 	}
@@ -369,8 +369,8 @@ int kprobe_handler(struct pt_regs *regs)
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
 
-no_kprobe:
-	preempt_enable_no_resched();
+yes_kprobe:
+	preempt_enable_yes_resched();
 	return ret;
 }
 NOKPROBE_SYMBOL(kprobe_handler);
@@ -384,7 +384,7 @@ NOKPROBE_SYMBOL(kprobe_handler);
 asm(".global kretprobe_trampoline\n"
 	".type kretprobe_trampoline, @function\n"
 	"kretprobe_trampoline:\n"
-	"nop\n"
+	"yesp\n"
 	"blr\n"
 	".size kretprobe_trampoline, .-kretprobe_trampoline\n");
 
@@ -395,7 +395,7 @@ static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head, empty_rp;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address =(unsigned long)&kretprobe_trampoline;
 
@@ -417,7 +417,7 @@ static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	 */
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		if (ri->rp && ri->rp->handler)
@@ -444,7 +444,7 @@ static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	 *
 	 * When going back through (1), we need regs->nip to be setup properly
 	 * as it is used to determine the return address from the trap.
-	 * For (2), since nip is not honoured with optprobes, we instead setup
+	 * For (2), since nip is yest hoyesured with optprobes, we instead setup
 	 * the link register properly so that the subsequent 'blr' in
 	 * kretprobe_trampoline jumps back to the right instruction.
 	 *
@@ -502,12 +502,12 @@ int kprobe_post_handler(struct pt_regs *regs)
 	}
 	reset_current_kprobe();
 out:
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 
 	/*
 	 * if somebody else is singlestepping across a probe point, msr
 	 * will have DE/SE set, in which case, continue the remaining processing
-	 * of do_debug, as if this is not a probe hit.
+	 * of do_debug, as if this is yest a probe hit.
 	 */
 	if (regs->msr & MSR_SINGLESTEP)
 		return 0;
@@ -530,7 +530,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the nip points back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * yesrmal page fault.
 		 */
 		regs->nip = (unsigned long)cur->addr;
 		regs->msr &= ~MSR_SINGLESTEP; /* Turn off 'trace' bits */
@@ -539,7 +539,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 			restore_previous_kprobe(kcb);
 		else
 			reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 		break;
 	case KPROBE_HIT_ACTIVE:
 	case KPROBE_HIT_SSDONE:
@@ -570,7 +570,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		}
 
 		/*
-		 * fixup_exception() could not handle it,
+		 * fixup_exception() could yest handle it,
 		 * Let do_page_fault() fix it.
 		 */
 		break;

@@ -72,7 +72,7 @@ EXPORT_SYMBOL_GPL(qcom_mdt_get_size);
  * @data_len:	length of the read metadata blob
  *
  * The mechanism that performs the authentication of the loading firmware
- * expects an ELF header directly followed by the segment of hashes, with no
+ * expects an ELF header directly followed by the segment of hashes, with yes
  * padding inbetween. This function allocates a chunk of memory for this pair
  * and copy the two pieces into the buffer.
  *
@@ -211,7 +211,7 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 		mem_reloc = min_addr;
 	} else {
 		/*
-		 * Image is not relocatable, so offset each segment based on
+		 * Image is yest relocatable, so offset each segment based on
 		 * the allocated physical chunk of memory.
 		 */
 		mem_reloc = mem_phys;
@@ -233,7 +233,7 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 		ptr = mem_region + offset;
 
 		if (phdr->p_filesz && phdr->p_offset < fw->size) {
-			/* Firmware is large enough to be non-split */
+			/* Firmware is large eyesugh to be yesn-split */
 			if (phdr->p_offset + phdr->p_filesz > fw->size) {
 				dev_err(dev,
 					"failed to load segment %d from truncated file %s\n",
@@ -244,7 +244,7 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 
 			memcpy(ptr, fw->data + phdr->p_offset, phdr->p_filesz);
 		} else if (phdr->p_filesz) {
-			/* Firmware not large enough, load split-out segments */
+			/* Firmware yest large eyesugh, load split-out segments */
 			sprintf(fw_name + fw_name_len - 3, "b%02d", i);
 			ret = request_firmware_into_buf(&seg_fw, fw_name, dev,
 							ptr, phdr->p_filesz);
@@ -280,7 +280,7 @@ out:
  * @mem_size:	size of the allocated memory region
  * @reloc_base:	adjusted physical address after relocation
  *
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erryes otherwise.
  */
 int qcom_mdt_load(struct device *dev, const struct firmware *fw,
 		  const char *firmware, int pas_id, void *mem_region,
@@ -293,7 +293,7 @@ int qcom_mdt_load(struct device *dev, const struct firmware *fw,
 EXPORT_SYMBOL_GPL(qcom_mdt_load);
 
 /**
- * qcom_mdt_load_no_init() - load the firmware which header is loaded as fw
+ * qcom_mdt_load_yes_init() - load the firmware which header is loaded as fw
  * @dev:	device handle to associate resources with
  * @fw:		firmware object for the mdt file
  * @firmware:	name of the firmware, for construction of segment file names
@@ -303,9 +303,9 @@ EXPORT_SYMBOL_GPL(qcom_mdt_load);
  * @mem_size:	size of the allocated memory region
  * @reloc_base:	adjusted physical address after relocation
  *
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erryes otherwise.
  */
-int qcom_mdt_load_no_init(struct device *dev, const struct firmware *fw,
+int qcom_mdt_load_yes_init(struct device *dev, const struct firmware *fw,
 			  const char *firmware, int pas_id,
 			  void *mem_region, phys_addr_t mem_phys,
 			  size_t mem_size, phys_addr_t *reloc_base)
@@ -313,7 +313,7 @@ int qcom_mdt_load_no_init(struct device *dev, const struct firmware *fw,
 	return __qcom_mdt_load(dev, fw, firmware, pas_id, mem_region, mem_phys,
 			       mem_size, reloc_base, false);
 }
-EXPORT_SYMBOL_GPL(qcom_mdt_load_no_init);
+EXPORT_SYMBOL_GPL(qcom_mdt_load_yes_init);
 
 MODULE_DESCRIPTION("Firmware parser for Qualcomm MDT format");
 MODULE_LICENSE("GPL v2");

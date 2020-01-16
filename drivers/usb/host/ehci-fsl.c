@@ -79,7 +79,7 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(&pdev->dev,
-			"Found HC with no IRQ. Check %s setup!\n",
+			"Found HC with yes IRQ. Check %s setup!\n",
 			dev_name(&pdev->dev));
 		return -ENODEV;
 	}
@@ -185,10 +185,10 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 
 static bool usb_phy_clk_valid(struct usb_hcd *hcd)
 {
-	void __iomem *non_ehci = hcd->regs;
+	void __iomem *yesn_ehci = hcd->regs;
 	bool ret = true;
 
-	if (!(ioread32be(non_ehci + FSL_SOC_USB_CTRL) & PHY_CLK_VALID))
+	if (!(ioread32be(yesn_ehci + FSL_SOC_USB_CTRL) & PHY_CLK_VALID))
 		ret = false;
 
 	return ret;
@@ -200,12 +200,12 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 {
 	u32 portsc, tmp;
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	void __iomem *non_ehci = hcd->regs;
+	void __iomem *yesn_ehci = hcd->regs;
 	struct device *dev = hcd->self.controller;
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(dev);
 
 	if (pdata->controller_ver < 0) {
-		dev_warn(hcd->self.controller, "Could not get controller version\n");
+		dev_warn(hcd->self.controller, "Could yest get controller version\n");
 		return -ENODEV;
 	}
 
@@ -217,15 +217,15 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 		if (pdata->have_sysif_regs && pdata->controller_ver) {
 			/* controller version 1.6 or above */
 			/* turn off UTMI PHY first */
-			tmp = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
+			tmp = ioread32be(yesn_ehci + FSL_SOC_USB_CTRL);
 			tmp &= ~(CONTROL_REGISTER_W1C_MASK | UTMI_PHY_EN);
-			iowrite32be(tmp, non_ehci + FSL_SOC_USB_CTRL);
+			iowrite32be(tmp, yesn_ehci + FSL_SOC_USB_CTRL);
 
 			/* then turn on ULPI and enable USB controller */
-			tmp = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
+			tmp = ioread32be(yesn_ehci + FSL_SOC_USB_CTRL);
 			tmp &= ~CONTROL_REGISTER_W1C_MASK;
 			tmp |= ULPI_PHY_CLK_SEL | USB_CTRL_USB_EN;
-			iowrite32be(tmp, non_ehci + FSL_SOC_USB_CTRL);
+			iowrite32be(tmp, yesn_ehci + FSL_SOC_USB_CTRL);
 		}
 		portsc |= PORT_PTS_ULPI;
 		break;
@@ -236,7 +236,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 		portsc |= PORT_PTS_PTW;
 		/* fall through */
 	case FSL_USB2_PHY_UTMI:
-		/* Presence of this node "has_fsl_erratum_a006918"
+		/* Presence of this yesde "has_fsl_erratum_a006918"
 		 * in device-tree is used to stop USB controller
 		 * initialization in Linux
 		 */
@@ -258,20 +258,20 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 
 		if (pdata->have_sysif_regs && pdata->controller_ver) {
 			/* controller version 1.6 or above */
-			tmp = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
+			tmp = ioread32be(yesn_ehci + FSL_SOC_USB_CTRL);
 			tmp &= ~CONTROL_REGISTER_W1C_MASK;
 			tmp |= UTMI_PHY_EN;
-			iowrite32be(tmp, non_ehci + FSL_SOC_USB_CTRL);
+			iowrite32be(tmp, yesn_ehci + FSL_SOC_USB_CTRL);
 
 			mdelay(FSL_UTMI_PHY_DLY);  /* Delay for UTMI PHY CLK to
 						become stable - 10ms*/
 		}
 		/* enable UTMI PHY */
 		if (pdata->have_sysif_regs) {
-			tmp = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
+			tmp = ioread32be(yesn_ehci + FSL_SOC_USB_CTRL);
 			tmp &= ~CONTROL_REGISTER_W1C_MASK;
 			tmp |= CTRL_UTMI_PHY_EN;
-			iowrite32be(tmp, non_ehci + FSL_SOC_USB_CTRL);
+			iowrite32be(tmp, yesn_ehci + FSL_SOC_USB_CTRL);
 		}
 		portsc |= PORT_PTS_UTMI;
 		break;
@@ -289,10 +289,10 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 	ehci_writel(ehci, portsc, &ehci->regs->port_status[port_offset]);
 
 	if (phy_mode != FSL_USB2_PHY_ULPI && pdata->have_sysif_regs) {
-		tmp = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
+		tmp = ioread32be(yesn_ehci + FSL_SOC_USB_CTRL);
 		tmp &= ~CONTROL_REGISTER_W1C_MASK;
 		tmp |= USB_CTRL_USB_EN;
-		iowrite32be(tmp, non_ehci + FSL_SOC_USB_CTRL);
+		iowrite32be(tmp, yesn_ehci + FSL_SOC_USB_CTRL);
 	}
 
 	return 0;
@@ -302,23 +302,23 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 {
 	struct usb_hcd *hcd = ehci_to_hcd(ehci);
 	struct fsl_usb2_platform_data *pdata;
-	void __iomem *non_ehci = hcd->regs;
+	void __iomem *yesn_ehci = hcd->regs;
 
 	pdata = dev_get_platdata(hcd->self.controller);
 
 	if (pdata->have_sysif_regs) {
 		/*
-		* Turn on cache snooping hardware, since some PowerPC platforms
+		* Turn on cache syesoping hardware, since some PowerPC platforms
 		* wholly rely on hardware to deal with cache coherent
 		*/
 
-		/* Setup Snooping for all the 4GB space */
+		/* Setup Syesoping for all the 4GB space */
 		/* SNOOP1 starts from 0x0, size 2G */
 		iowrite32be(0x0 | SNOOP_SIZE_2GB,
-			    non_ehci + FSL_SOC_USB_SNOOP1);
+			    yesn_ehci + FSL_SOC_USB_SNOOP1);
 		/* SNOOP2 starts from 0x80000000, size 2G */
 		iowrite32be(0x80000000 | SNOOP_SIZE_2GB,
-			    non_ehci + FSL_SOC_USB_SNOOP2);
+			    yesn_ehci + FSL_SOC_USB_SNOOP2);
 	}
 
 	/* Deal with USB erratum A-005275 */
@@ -350,13 +350,13 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 
 	if (pdata->have_sysif_regs) {
 #ifdef CONFIG_FSL_SOC_BOOKE
-		iowrite32be(0x00000008, non_ehci + FSL_SOC_USB_PRICTRL);
-		iowrite32be(0x00000080, non_ehci + FSL_SOC_USB_AGECNTTHRSH);
+		iowrite32be(0x00000008, yesn_ehci + FSL_SOC_USB_PRICTRL);
+		iowrite32be(0x00000080, yesn_ehci + FSL_SOC_USB_AGECNTTHRSH);
 #else
-		iowrite32be(0x0000000c, non_ehci + FSL_SOC_USB_PRICTRL);
-		iowrite32be(0x00000040, non_ehci + FSL_SOC_USB_AGECNTTHRSH);
+		iowrite32be(0x0000000c, yesn_ehci + FSL_SOC_USB_PRICTRL);
+		iowrite32be(0x00000040, yesn_ehci + FSL_SOC_USB_AGECNTTHRSH);
 #endif
-		iowrite32be(0x00000001, non_ehci + FSL_SOC_USB_SICTRL);
+		iowrite32be(0x00000001, yesn_ehci + FSL_SOC_USB_SICTRL);
 	}
 
 	return 0;
@@ -390,7 +390,7 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 #ifdef CONFIG_PPC_83xx
 	/*
 	 * Deal with MPC834X that need port power to be cycled after the power
-	 * fault condition is removed. Otherwise the state machine does not
+	 * fault condition is removed. Otherwise the state machine does yest
 	 * reflect PORTSC[CSC] correctly.
 	 */
 	ehci->need_oc_pp_cycle = 1;
@@ -402,7 +402,7 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
-	if (of_device_is_compatible(dev->parent->of_node,
+	if (of_device_is_compatible(dev->parent->of_yesde,
 				    "fsl,mpc5121-usb2-dr")) {
 		/*
 		 * set SBUSCFG:AHBBRST so that control msgs don't
@@ -461,7 +461,7 @@ static int ehci_fsl_mpc512x_drv_suspend(struct device *dev)
 	ehci->rh_state = EHCI_RH_SUSPENDED;
 	dev->power.power_state = PMSG_SUSPEND;
 
-	/* ignore non-host interrupts */
+	/* igyesre yesn-host interrupts */
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	/* stop the controller */
@@ -509,7 +509,7 @@ static int ehci_fsl_mpc512x_drv_resume(struct device *dev)
 
 	/*
 	 * If the controller was already suspended at suspend time,
-	 * then don't resume it now.
+	 * then don't resume it yesw.
 	 */
 	if (pdata->already_suspended) {
 		dev_dbg(dev, "already suspended, leaving early\n");
@@ -518,7 +518,7 @@ static int ehci_fsl_mpc512x_drv_resume(struct device *dev)
 	}
 
 	if (!pdata->suspended) {
-		dev_dbg(dev, "not suspended, leaving early\n");
+		dev_dbg(dev, "yest suspended, leaving early\n");
 		return 0;
 	}
 
@@ -583,9 +583,9 @@ static int ehci_fsl_drv_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct ehci_fsl *ehci_fsl = hcd_to_ehci_fsl(hcd);
-	void __iomem *non_ehci = hcd->regs;
+	void __iomem *yesn_ehci = hcd->regs;
 
-	if (of_device_is_compatible(dev->parent->of_node,
+	if (of_device_is_compatible(dev->parent->of_yesde,
 				    "fsl,mpc5121-usb2-dr")) {
 		return ehci_fsl_mpc512x_drv_suspend(dev);
 	}
@@ -595,7 +595,7 @@ static int ehci_fsl_drv_suspend(struct device *dev)
 	if (!fsl_deep_sleep())
 		return 0;
 
-	ehci_fsl->usb_ctrl = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
+	ehci_fsl->usb_ctrl = ioread32be(yesn_ehci + FSL_SOC_USB_CTRL);
 	return 0;
 }
 
@@ -604,9 +604,9 @@ static int ehci_fsl_drv_resume(struct device *dev)
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct ehci_fsl *ehci_fsl = hcd_to_ehci_fsl(hcd);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	void __iomem *non_ehci = hcd->regs;
+	void __iomem *yesn_ehci = hcd->regs;
 
-	if (of_device_is_compatible(dev->parent->of_node,
+	if (of_device_is_compatible(dev->parent->of_yesde,
 				    "fsl,mpc5121-usb2-dr")) {
 		return ehci_fsl_mpc512x_drv_resume(dev);
 	}
@@ -618,7 +618,7 @@ static int ehci_fsl_drv_resume(struct device *dev)
 	usb_root_hub_lost_power(hcd->self.root_hub);
 
 	/* Restore USB PHY settings and enable the controller. */
-	iowrite32be(ehci_fsl->usb_ctrl, non_ehci + FSL_SOC_USB_CTRL);
+	iowrite32be(ehci_fsl->usb_ctrl, yesn_ehci + FSL_SOC_USB_CTRL);
 
 	ehci_reset(ehci);
 	ehci_fsl_reinit(ehci);

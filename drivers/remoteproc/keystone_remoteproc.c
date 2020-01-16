@@ -99,7 +99,7 @@ static int keystone_rproc_dsp_boot(struct keystone_rproc *ksproc, u32 boot_addr)
  * Process the remoteproc exceptions
  *
  * The exception reporting on Keystone DSP remote processors is very simple
- * compared to the equivalent processors on the OMAP family, it is notified
+ * compared to the equivalent processors on the OMAP family, it is yestified
  * through a software-designed specific interrupt source in the IPC interrupt
  * generation register.
  *
@@ -121,11 +121,11 @@ static irqreturn_t keystone_rproc_exception_interrupt(int irq, void *dev_id)
  * This function is executed upon scheduling of the keystone remoteproc
  * driver's workqueue. The workqueue is scheduled by the vring ISR handler.
  *
- * There is no payload message indicating the virtqueue index as is the
+ * There is yes payload message indicating the virtqueue index as is the
  * case with mailbox-based implementations on OMAP family. As such, this
  * handler processes both the Tx and Rx virtqueue indices on every invocation.
  * The rproc_vq_interrupt function can detect if there are new unprocessed
- * messages or not (returns IRQ_NONE vs IRQ_HANDLED), but there is no need
+ * messages or yest (returns IRQ_NONE vs IRQ_HANDLED), but there is yes need
  * to check for these return values. The index 0 triggering will process all
  * pending Rx buffers, and the index 1 triggering will process all newly
  * available Tx buffers and will wakeup any potentially blocked senders.
@@ -133,7 +133,7 @@ static irqreturn_t keystone_rproc_exception_interrupt(int irq, void *dev_id)
  * NOTE:
  * 1. A payload could be added by using some of the source bits in the
  *    IPC interrupt generation registers, but this would need additional
- *    changes to the overall IPC stack, and currently there are no benefits
+ *    changes to the overall IPC stack, and currently there are yes benefits
  *    of adapting that approach.
  * 2. The current logic is based on an inherent design assumption of supporting
  *    only 2 vrings, but this can be changed if needed.
@@ -223,8 +223,8 @@ static int keystone_rproc_stop(struct rproc *rproc)
 }
 
 /*
- * Kick the remote processor to notify about pending unprocessed messages.
- * The vqid usage is not used and is inconsequential, as the kick is performed
+ * Kick the remote processor to yestify about pending unprocessed messages.
+ * The vqid usage is yest used and is inconsequential, as the kick is performed
  * through a simulated GPIO (a bit in an IPC interrupt-triggering register),
  * the remote processor is expected to process both its Tx and Rx virtqueues.
  */
@@ -333,7 +333,7 @@ static int keystone_rproc_of_get_memories(struct platform_device *pdev,
 static int keystone_rproc_of_get_dev_syscon(struct platform_device *pdev,
 					    struct keystone_rproc *ksproc)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -361,7 +361,7 @@ static int keystone_rproc_of_get_dev_syscon(struct platform_device *pdev,
 static int keystone_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct keystone_rproc *ksproc;
 	struct rproc *rproc;
 	int dsp_id;
@@ -377,7 +377,7 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 
 	dsp_id = of_alias_get_id(np, "rproc");
 	if (dsp_id < 0) {
-		dev_warn(dev, "device does not have an alias id\n");
+		dev_warn(dev, "device does yest have an alias id\n");
 		return dsp_id;
 	}
 
@@ -413,7 +413,7 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable clock, status = %d\n", ret);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		goto disable_rpm;
 	}
 
@@ -442,7 +442,7 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	}
 
 	if (of_reserved_mem_device_init(dev))
-		dev_warn(dev, "device does not have specific CMA pool\n");
+		dev_warn(dev, "device does yest have specific CMA pool\n");
 
 	/* ensure the DSP is in reset before loading firmware */
 	ret = reset_control_status(ksproc->reset);
@@ -450,7 +450,7 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get reset status, status = %d\n", ret);
 		goto release_mem;
 	} else if (ret == 0) {
-		WARN(1, "device is not in reset\n");
+		WARN(1, "device is yest in reset\n");
 		keystone_rproc_dsp_reset(ksproc);
 	}
 

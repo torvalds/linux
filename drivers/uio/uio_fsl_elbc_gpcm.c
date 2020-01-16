@@ -29,7 +29,7 @@
    Only the entries reg (to identify bank) and elbc-gpcm-* (initial BR/OR
    values) are required. The entries interrupt*, device_type, and uio_name
    are optional (as well as any type-specific options such as
-   netx5152,init-win0-offset). As long as no interrupt handler is needed,
+   netx5152,init-win0-offset). As long as yes interrupt handler is needed,
    this driver can be used without any type-specific implementation.
 
    The netx5152 type has been tested to work with the netX 51/52 hardware
@@ -118,13 +118,13 @@ static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 	reg_or_cur = in_be32(&bank->or);
 
 	if (attr == &dev_attr_reg_br) {
-		/* not allowed to change effective base address */
+		/* yest allowed to change effective base address */
 		if ((reg_br_cur & reg_or_cur & BR_BA) !=
 		    (reg_new & reg_or_cur & BR_BA)) {
 			return -EINVAL;
 		}
 
-		/* not allowed to change mode */
+		/* yest allowed to change mode */
 		if ((reg_new & BR_MSEL) != BR_MS_GPCM)
 			return -EINVAL;
 
@@ -132,7 +132,7 @@ static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 		out_be32(&bank->br, reg_new | BR_V);
 
 	} else if (attr == &dev_attr_reg_or) {
-		/* not allowed to change access mask */
+		/* yest allowed to change access mask */
 		if ((reg_or_cur & OR_GPCM_AM) != (reg_new & OR_GPCM_AM))
 			return -EINVAL;
 
@@ -181,7 +181,7 @@ static void netx5152_init(struct uio_info *info)
 	const void *prop;
 
 	/* get an optional initial win0 offset */
-	prop = of_get_property(priv->dev->of_node,
+	prop = of_get_property(priv->dev->of_yesde,
 			       "netx5152,init-win0-offset", NULL);
 	if (prop)
 		win0_offset = of_read_ulong(prop, 1);
@@ -247,7 +247,7 @@ static int check_of_data(struct fsl_elbc_gpcm *priv,
 	return 0;
 }
 
-static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
+static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_yesde *yesde,
 		       struct resource *res, u32 *reg_br,
 		       u32 *reg_or, unsigned int *irq, char **name)
 {
@@ -256,28 +256,28 @@ static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
 	int ret;
 
 	/* get the memory resource */
-	ret = of_address_to_resource(node, 0, res);
+	ret = of_address_to_resource(yesde, 0, res);
 	if (ret) {
 		dev_err(priv->dev, "failed to get resource\n");
 		return ret;
 	}
 
 	/* get the bank number */
-	ret = of_property_read_u32(node, "reg", &priv->bank);
+	ret = of_property_read_u32(yesde, "reg", &priv->bank);
 	if (ret) {
 		dev_err(priv->dev, "failed to get bank number\n");
 		return ret;
 	}
 
 	/* get BR value to set */
-	ret = of_property_read_u32(node, "elbc-gpcm-br", reg_br);
+	ret = of_property_read_u32(yesde, "elbc-gpcm-br", reg_br);
 	if (ret) {
 		dev_err(priv->dev, "missing elbc-gpcm-br value\n");
 		return ret;
 	}
 
 	/* get OR value to set */
-	ret = of_property_read_u32(node, "elbc-gpcm-or", reg_or);
+	ret = of_property_read_u32(yesde, "elbc-gpcm-or", reg_or);
 	if (ret) {
 		dev_err(priv->dev, "missing elbc-gpcm-or value\n");
 		return ret;
@@ -285,11 +285,11 @@ static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
 
 	/* get optional peripheral type */
 	priv->name = "generic";
-	if (of_property_read_string(node, "device_type", &type) == 0)
+	if (of_property_read_string(yesde, "device_type", &type) == 0)
 		setup_periph(priv, type);
 
 	/* get optional irq value */
-	*irq = irq_of_parse_and_map(node, 0);
+	*irq = irq_of_parse_and_map(yesde, 0);
 
 	/* sanity check device tree data */
 	ret = check_of_data(priv, res, *reg_br, *reg_or);
@@ -297,7 +297,7 @@ static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
 		return ret;
 
 	/* get optional uio name */
-	if (of_property_read_string(node, "uio_name", &dt_name) != 0)
+	if (of_property_read_string(yesde, "uio_name", &dt_name) != 0)
 		dt_name = "eLBC_GPCM";
 	*name = kstrdup(dt_name, GFP_KERNEL);
 	if (!*name)
@@ -308,7 +308,7 @@ static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
 
 static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct fsl_elbc_gpcm *priv;
 	struct uio_info *info;
 	char *uio_name = NULL;
@@ -331,7 +331,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	priv->lbc = fsl_lbc_ctrl_dev->regs;
 
 	/* get device tree data */
-	ret = get_of_data(priv, node, &res, &reg_br_new, &reg_or_new,
+	ret = get_of_data(priv, yesde, &res, &reg_br_new, &reg_or_new,
 			  &irq, &uio_name);
 	if (ret)
 		goto out_err0;
@@ -353,7 +353,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 		    (reg_br_cur & reg_or_cur & BR_BA)
 		     != fsl_lbc_addr(res.start)) {
 			dev_err(priv->dev,
-				"bank in use by another peripheral\n");
+				"bank in use by ayesther peripheral\n");
 			ret = -ENODEV;
 			goto out_err1;
 		}
@@ -387,7 +387,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	}
 
 	/* set all UIO data */
-	info->mem[0].name = kasprintf(GFP_KERNEL, "%pOFn", node);
+	info->mem[0].name = kasprintf(GFP_KERNEL, "%pOFn", yesde);
 	info->mem[0].addr = res.start;
 	info->mem[0].size = resource_size(&res);
 	info->mem[0].memtype = UIO_MEM_PHYS;
@@ -401,7 +401,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 			info->handler = priv->irq_handler;
 		} else {
 			irq = NO_IRQ;
-			dev_warn(priv->dev, "ignoring irq, no handler\n");
+			dev_warn(priv->dev, "igyesring irq, yes handler\n");
 		}
 	}
 

@@ -91,13 +91,13 @@ module_param_array(fst_excluded_list, int, NULL, 0);
 #pragma pack(1)
 
 /*      This information is derived in part from the FarSite FarSync Smc.h
- *      file. Unfortunately various name clashes and the non-portability of the
+ *      file. Unfortunately various name clashes and the yesn-portability of the
  *      bit field declarations in that file have meant that I have chosen to
  *      recreate the information here.
  *
  *      The SMC (Shared Memory Configuration) has a version number that is
  *      incremented every time there is a significant change. This number can
- *      be used to check that we have not got out of step with the firmware
+ *      be used to check that we have yest got out of step with the firmware
  *      contained in the .CDE files.
  */
 #define SMC_VERSION 24
@@ -215,7 +215,7 @@ struct port_cfg {
 	u8 x25op;		/* Unused at present */
 	u8 internalClock;	/* 1 => internal clock, 0 => external */
 	u8 transparentMode;	/* 1 => on, 0 => off */
-	u8 invertClock;		/* 0 => normal, 1 => inverted */
+	u8 invertClock;		/* 0 => yesrmal, 1 => inverted */
 	u8 padBytes[6];		/* Padding */
 	u32 lineSpeed;		/* Speed in bps */
 };
@@ -276,7 +276,7 @@ struct fst_shared {
 				 */
 
 	u8 interruptHandshake;	/* Set to 0x01 by adapter to signal interrupt,
-				 * set to 0xEE by host to acknowledge interrupt
+				 * set to 0xEE by host to ackyeswledge interrupt
 				 */
 
 	u16 smcVersion;		/* Must match SMC_VERSION */
@@ -294,7 +294,7 @@ struct fst_shared {
 	u16 txd_done;
 	u16 rxd_done;
 
-	u16 mailbox[4];		/* Diagnostics mailbox. Not used */
+	u16 mailbox[4];		/* Diagyesstics mailbox. Not used */
 
 	struct cirbuff interruptEvent;	/* interrupt causes */
 
@@ -314,12 +314,12 @@ struct fst_shared {
 	u16 cardMailbox[4];	/* Not used */
 
 	/* Number of times the card thinks the host has
-	 * missed an interrupt by not acknowledging
+	 * missed an interrupt by yest ackyeswledging
 	 * within 2mS (I guess NT has problems)
 	 */
 	u32 interruptRetryCount;
 
-	/* Driver private data used as an ID. We'll not
+	/* Driver private data used as an ID. We'll yest
 	 * use this as I'd rather keep such things
 	 * in main memory rather than on the PCI bus
 	 */
@@ -362,8 +362,8 @@ struct fst_shared {
 
 /* Mailbox values. (portMailbox) */
 #define NOP             0	/* No operation */
-#define ACK             1	/* Positive acknowledgement to PC driver */
-#define NAK             2	/* Negative acknowledgement to PC driver */
+#define ACK             1	/* Positive ackyeswledgement to PC driver */
+#define NAK             2	/* Negative ackyeswledgement to PC driver */
 #define STARTPORT       3	/* Start an HDLC port */
 #define STOPPORT        4	/* Stop an HDLC port */
 #define ABORTTX         5	/* Abort the transmitter for a port */
@@ -456,7 +456,7 @@ struct fst_card_info {
 	/* Per port info */
 	struct fst_port_info ports[FST_MAX_PORTS];
 	struct pci_dev *device;	/* Information about the pci device */
-	int card_no;		/* Inst of the card on the system */
+	int card_yes;		/* Inst of the card on the system */
 	int family;		/* TxP or TxU */
 	int dmarx_in_progress;
 	int dmatx_in_progress;
@@ -484,7 +484,7 @@ struct fst_card_info {
  *      Shared memory window access macros
  *
  *      We have a nice memory based structure above, which could be directly
- *      mapped on i386 but might not work on other architectures unless we use
+ *      mapped on i386 but might yest work on other architectures unless we use
  *      the readb,w,l and writeb,w,l macros. Unfortunately these macros take
  *      physical offsets so we have to convert. The only saving grace is that
  *      this should all collapse back to a simple indirection eventually.
@@ -507,7 +507,7 @@ struct fst_card_info {
 static int fst_debug_mask = { FST_DEBUG };
 
 /* Most common debug activity is to print something if the corresponding bit
- * is set in the debug mask. Note: this uses a non-ANSI extension in GCC to
+ * is set in the debug mask. Note: this uses a yesn-ANSI extension in GCC to
  * support variable numbers of macro parameters. The inverted if prevents us
  * eating someone else's else clause.
  */
@@ -592,7 +592,7 @@ fst_q_work_item(u64 * queue, int card_index)
 	 * Making an entry in the queue is simply a matter of setting
 	 * a bit for the card indicating that there is work to do in the
 	 * bottom half for the card.  Note the limitation of 64 cards.
-	 * That ought to be enough
+	 * That ought to be eyesugh
 	 */
 	mask = (u64)1 << card_index;
 	*queue |= mask;
@@ -667,7 +667,7 @@ fst_process_int_work_q(unsigned long /*void **/work_q)
 /*      Place the processor in reset state
  *
  * Used to be a simple write to card control space but a glitch in the latest
- * AMD Am186CH processor means that we now have to do it by asserting and de-
+ * AMD Am186CH processor means that we yesw have to do it by asserting and de-
  * asserting the PLX chip PCI Adapter Software Reset. Bit 30 in CNTRL register
  * at offset 9052_CNTRL.  Note the updates for the TXU.
  */
@@ -820,7 +820,7 @@ fst_tx_dma_complete(struct fst_card_info *card, struct fst_port_info *port,
 	struct net_device *dev = port_to_dev(port);
 
 	/*
-	 * Everything is now set, just tell the card to go
+	 * Everything is yesw set, just tell the card to go
 	 */
 	dbg(DBG_TX, "fst_tx_dma_complete\n");
 	FST_WRB(card, txDescrRing[port->index][txpos].bits,
@@ -929,8 +929,8 @@ fst_tx_dma(struct fst_card_info *card, dma_addr_t dma, u32 mem, int len)
 }
 
 /*      Issue a Mailbox command for a port.
- *      Note we issue them on a fire and forget basis, not expecting to see an
- *      error and not waiting for completion.
+ *      Note we issue them on a fire and forget basis, yest expecting to see an
+ *      error and yest waiting for completion.
  */
 static void
 fst_issue_cmd(struct fst_port_info *port, unsigned short cmd)
@@ -1139,22 +1139,22 @@ fst_log_rx_error(struct fst_card_info *card, struct fst_port_info *port,
 	if (dmabits & RX_OFLO) {
 		dev->stats.rx_fifo_errors++;
 		dbg(DBG_ASS, "Rx fifo error on card %d port %d buffer %d\n",
-		    card->card_no, port->index, rxp);
+		    card->card_yes, port->index, rxp);
 	}
 	if (dmabits & RX_CRC) {
 		dev->stats.rx_crc_errors++;
 		dbg(DBG_ASS, "Rx crc error on card %d port %d\n",
-		    card->card_no, port->index);
+		    card->card_yes, port->index);
 	}
 	if (dmabits & RX_FRAM) {
 		dev->stats.rx_frame_errors++;
 		dbg(DBG_ASS, "Rx frame error on card %d port %d\n",
-		    card->card_no, port->index);
+		    card->card_yes, port->index);
 	}
 	if (dmabits == (RX_STP | RX_ENP)) {
 		dev->stats.rx_length_errors++;
 		dbg(DBG_ASS, "Rx length error (%d) on card %d port %d\n",
-		    len, card->card_no, port->index);
+		    len, card->card_yes, port->index);
 	}
 }
 
@@ -1233,7 +1233,7 @@ fst_intr_rx(struct fst_card_info *card, struct fst_port_info *port)
 		 * so throw the frame away and log the event.
 		 */
 		pr_err("Frame received with 0 length. Card %d Port %d\n",
-		       card->card_no, port->index);
+		       card->card_yes, port->index);
 		/* Return descriptor to card */
 		FST_WRB(card, rxDescrRing[pi][rxp].bits, DMA_OWN);
 
@@ -1268,8 +1268,8 @@ fst_intr_rx(struct fst_card_info *card, struct fst_port_info *port)
 	}
 
 	/*
-	 * We know the length we need to receive, len.
-	 * It's not worth using the DMA for reads of less than
+	 * We kyesw the length we need to receive, len.
+	 * It's yest worth using the DMA for reads of less than
 	 * FST_MIN_DMA_LEN
 	 */
 
@@ -1373,7 +1373,7 @@ do_bottom_half_tx(struct fst_card_info *card)
 					cnv_bcnt(skb->len));
 				if ((skb->len < FST_MIN_DMA_LEN) ||
 				    (card->family == FST_FAMILY_TXP)) {
-					/* Enqueue the packet with normal io */
+					/* Enqueue the packet with yesrmal io */
 					memcpy_toio(card->mem +
 						    BUF_OFFSET(txBuffer[pi]
 							       [port->
@@ -1402,7 +1402,7 @@ do_bottom_half_tx(struct fst_card_info *card)
 				if (++port->txpos >= NUM_TX_BUFFER)
 					port->txpos = 0;
 				/*
-				 * If we have flow control on, can we now release it?
+				 * If we have flow control on, can we yesw release it?
 				 */
 				if (port->start) {
 					if (txq_length < fst_txq_low) {
@@ -1440,9 +1440,9 @@ do_bottom_half_rx(struct fst_card_info *card)
 			if (rx_count > fst_max_reads) {
 				/*
 				 * Don't spend forever in receive processing
-				 * Schedule another event
+				 * Schedule ayesther event
 				 */
-				fst_q_work_item(&fst_work_intq, card->card_no);
+				fst_q_work_item(&fst_work_intq, card->card_yes);
 				tasklet_schedule(&fst_int_task);
 				break;	/* Leave the loop */
 			}
@@ -1470,13 +1470,13 @@ fst_intr(int dummy, void *dev_id)
 
 	/*
 	 * Check to see if the interrupt was for this card
-	 * return if not
+	 * return if yest
 	 * Note that the call to clear the interrupt is important
 	 */
 	dbg(DBG_INTR, "intr: %d %p\n", card->irq, card);
 	if (card->state != FST_RUNNING) {
-		pr_err("Interrupt received for card %d in a non running state (%d)\n",
-		       card->card_no, card->state);
+		pr_err("Interrupt received for card %d in a yesn running state (%d)\n",
+		       card->card_yes, card->state);
 
 		/* 
 		 * It is possible to really be running, i.e. we have re-loaded
@@ -1496,7 +1496,7 @@ fst_intr(int dummy, void *dev_id)
 	do_card_interrupt = 0;
 	if (FST_RDB(card, interruptHandshake) == 1) {
 		do_card_interrupt += FST_CARD_INT;
-		/* Set the software acknowledge */
+		/* Set the software ackyeswledge */
 		FST_WRB(card, interruptHandshake, 0xEE);
 	}
 	if (card->family == FST_FAMILY_TXU) {
@@ -1535,7 +1535,7 @@ fst_intr(int dummy, void *dev_id)
 	int_retry_count = FST_RDL(card, interruptRetryCount);
 	if (int_retry_count) {
 		dbg(DBG_ASS, "Card %d int_retry_count is  %d\n",
-		    card->card_no, int_retry_count);
+		    card->card_yes, int_retry_count);
 		FST_WRL(card, interruptRetryCount, 0);
 	}
 
@@ -1544,7 +1544,7 @@ fst_intr(int dummy, void *dev_id)
 	}
 
 	/* Scehdule the bottom half of the ISR */
-	fst_q_work_item(&fst_work_intq, card->card_no);
+	fst_q_work_item(&fst_work_intq, card->card_yes);
 	tasklet_schedule(&fst_int_task);
 
 	/* Drain the event queue */
@@ -1589,7 +1589,7 @@ fst_intr(int dummy, void *dev_id)
 			port_to_dev(port)->stats.tx_errors++;
 			port_to_dev(port)->stats.tx_fifo_errors++;
 			dbg(DBG_ASS, "Tx underflow on card %d port %d\n",
-			    card->card_no, port->index);
+			    card->card_yes, port->index);
 			break;
 
 		case INIT_CPLT:
@@ -1602,7 +1602,7 @@ fst_intr(int dummy, void *dev_id)
 			break;
 
 		default:
-			pr_err("intr: unknown card event %d. ignored\n", event);
+			pr_err("intr: unkyeswn card event %d. igyesred\n", event);
 			break;
 		}
 
@@ -1642,7 +1642,7 @@ check_started_ok(struct fst_card_info *card)
 		card->state = FST_HALTED;
 		return;
 	} else if (i != 0x00) {
-		pr_err("Unknown firmware status 0x%x\n", i);
+		pr_err("Unkyeswn firmware status 0x%x\n", i);
 		card->state = FST_HALTED;
 		return;
 	}
@@ -1653,7 +1653,7 @@ check_started_ok(struct fst_card_info *card)
 	 */
 	if (FST_RDL(card, numberOfPorts) != card->nports) {
 		pr_warn("Port count mismatch on card %d.  Firmware thinks %d we say %d\n",
-			card->card_no,
+			card->card_yes,
 			FST_RDL(card, numberOfPorts), card->nports);
 	}
 }
@@ -1768,7 +1768,7 @@ gather_conf_info(struct fst_card_info *card, struct fst_port_info *port,
 #endif
 
 	/* Only mark information as valid if card is running.
-	 * Copy the data anyway in case it is useful for diagnostics
+	 * Copy the data anyway in case it is useful for diagyesstics
 	 */
 	info->valid = ((card->state == FST_RUNNING) ? FSTVAL_ALL : FSTVAL_CARD)
 #if FST_DEBUG
@@ -1927,7 +1927,7 @@ fst_get_iface(struct fst_card_info *card, struct fst_port_info *port,
 	int i;
 
 	/* First check what line type is set, we'll default to reporting X.21
-	 * if nothing is set as IF_IFACE_SYNC_SERIAL implies it can't be
+	 * if yesthing is set as IF_IFACE_SYNC_SERIAL implies it can't be
 	 * changed
 	 */
 	switch (port->hwif) {
@@ -2074,12 +2074,12 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 		/*
 		 * Most of the settings have been moved to the generic ioctls
-		 * this just covers debug and board ident now
+		 * this just covers debug and board ident yesw
 		 */
 
 		if (card->state != FST_RUNNING) {
-			pr_err("Attempt to configure card %d in non-running state (%d)\n",
-			       card->card_no, card->state);
+			pr_err("Attempt to configure card %d in yesn-running state (%d)\n",
+			       card->card_yes, card->state);
 			return -EIO;
 		}
 		if (copy_from_user(&info, ifr->ifr_data, sizeof (info))) {
@@ -2172,7 +2172,7 @@ fst_closeport(struct fst_port_info *port)
 
 			fst_issue_cmd(port, STOPPORT);
 		} else {
-			dbg(DBG_OPEN, "close: port not running\n");
+			dbg(DBG_OPEN, "close: port yest running\n");
 		}
 	}
 }
@@ -2249,7 +2249,7 @@ fst_tx_timeout(struct net_device *dev)
 	dev->stats.tx_errors++;
 	dev->stats.tx_aborted_errors++;
 	dbg(DBG_ASS, "Tx timeout card %d port %d\n",
-	    card->card_no, port->index);
+	    card->card_yes, port->index);
 	fst_issue_cmd(port, ABORTTX);
 
 	netif_trans_update(dev);
@@ -2275,8 +2275,8 @@ fst_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_errors++;
 		dev->stats.tx_carrier_errors++;
 		dbg(DBG_ASS,
-		    "Tried to transmit but no carrier on card %d port %d\n",
-		    card->card_no, port->index);
+		    "Tried to transmit but yes carrier on card %d port %d\n",
+		    card->card_yes, port->index);
 		return NETDEV_TX_OK;
 	}
 
@@ -2305,7 +2305,7 @@ fst_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irqrestore(&card->card_lock, flags);
 	if (txq_length > fst_txq_high) {
 		/*
-		 * We have got enough buffers in the pipeline.  Ask the network
+		 * We have got eyesugh buffers in the pipeline.  Ask the network
 		 * layer to stop sending frames down
 		 */
 		netif_stop_queue(dev);
@@ -2319,7 +2319,7 @@ fst_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 		dev->stats.tx_errors++;
 		dbg(DBG_ASS, "Tx queue overflow card %d port %d\n",
-		    card->card_no, port->index);
+		    card->card_yes, port->index);
 		return NETDEV_TX_OK;
 	}
 
@@ -2333,8 +2333,8 @@ fst_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		port->txqe = 0;
 	spin_unlock_irqrestore(&card->card_lock, flags);
 
-	/* Scehdule the bottom half which now does transmit processing */
-	fst_q_work_item(&fst_work_txq, card->card_no);
+	/* Scehdule the bottom half which yesw does transmit processing */
+	fst_q_work_item(&fst_work_txq, card->card_yes);
 	tasklet_schedule(&fst_tx_task);
 
 	return NETDEV_TX_OK;
@@ -2348,7 +2348,7 @@ fst_start_xmit(struct sk_buff *skb, struct net_device *dev)
  *      disabled.
  */
 static char *type_strings[] = {
-	"no hardware",		/* Should never be seen */
+	"yes hardware",		/* Should never be seen */
 	"FarSync T2P",
 	"FarSync T4P",
 	"FarSync T1U",
@@ -2370,7 +2370,7 @@ fst_init_card(struct fst_card_info *card)
 	for (i = 0; i < card->nports; i++) {
 		err = register_hdlc_device(card->ports[i].dev);
 		if (err < 0) {
-			pr_err("Cannot register HDLC device for port %d (errno %d)\n",
+			pr_err("Canyest register HDLC device for port %d (erryes %d)\n",
 				i, -err);
 			while (i--)
 				unregister_hdlc_device(card->ports[i].dev);
@@ -2395,12 +2395,12 @@ static const struct net_device_ops fst_ops = {
 
 /*
  *      Initialise card when detected.
- *      Returns 0 to indicate success, or errno otherwise.
+ *      Returns 0 to indicate success, or erryes otherwise.
  */
 static int
 fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int no_of_cards_added = 0;
+	static int yes_of_cards_added = 0;
 	struct fst_card_info *card;
 	int err = 0;
 	int i;
@@ -2412,7 +2412,7 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dbg(DBG_ASS, "The value of debug mask is %x\n", fst_debug_mask);
 #endif
 	/*
-	 * We are going to be clever and allow certain cards not to be
+	 * We are going to be clever and allow certain cards yest to be
 	 * configured.  An exclude list can be provided in /etc/modules.conf
 	 */
 	if (fst_excluded_cards != 0) {
@@ -2422,7 +2422,7 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 */
 		for (i = 0; i < fst_excluded_cards; i++) {
 			if ((pdev->devfn) >> 3 == fst_excluded_list[i]) {
-				pr_info("FarSync PCI device %d not assigned\n",
+				pr_info("FarSync PCI device %d yest assigned\n",
 					(pdev->devfn) >> 3);
 				return -EBUSY;
 			}
@@ -2538,13 +2538,13 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, card);
 
 	/* Remainder of card setup */
-	if (no_of_cards_added >= FST_MAX_CARDS) {
+	if (yes_of_cards_added >= FST_MAX_CARDS) {
 		pr_err("FarSync: too many cards\n");
 		err = -ENOMEM;
 		goto card_array_fail;
 	}
-	fst_card_array[no_of_cards_added] = card;
-	card->card_no = no_of_cards_added++;	/* Record instance and bump it */
+	fst_card_array[yes_of_cards_added] = card;
+	card->card_yes = yes_of_cards_added++;	/* Record instance and bump it */
 	err = fst_init_card(card);
 	if (err)
 		goto init_card_fail;
@@ -2556,7 +2556,7 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    pci_alloc_consistent(card->device, FST_MAX_MTU,
 					 &card->rx_dma_handle_card);
 		if (card->rx_dma_handle_host == NULL) {
-			pr_err("Could not allocate rx dma buffer\n");
+			pr_err("Could yest allocate rx dma buffer\n");
 			err = -ENOMEM;
 			goto rx_dma_fail;
 		}
@@ -2564,7 +2564,7 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    pci_alloc_consistent(card->device, FST_MAX_MTU,
 					 &card->tx_dma_handle_card);
 		if (card->tx_dma_handle_host == NULL) {
-			pr_err("Could not allocate tx dma buffer\n");
+			pr_err("Could yest allocate tx dma buffer\n");
 			err = -ENOMEM;
 			goto tx_dma_fail;
 		}
@@ -2580,7 +2580,7 @@ rx_dma_fail:
 	for (i = 0 ; i < card->nports ; i++)
 		unregister_hdlc_device(card->ports[i].dev);
 init_card_fail:
-	fst_card_array[card->card_no] = NULL;
+	fst_card_array[card->card_yes] = NULL;
 card_array_fail:
 	for (i = 0 ; i < card->nports ; i++)
 		free_netdev(card->ports[i].dev);
@@ -2632,7 +2632,7 @@ fst_remove_one(struct pci_dev *pdev)
 				    card->tx_dma_handle_host,
 				    card->tx_dma_handle_card);
 	}
-	fst_card_array[card->card_no] = NULL;
+	fst_card_array[card->card_yes] = NULL;
 }
 
 static struct pci_driver fst_driver = {

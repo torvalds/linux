@@ -100,7 +100,7 @@ static void rbtn_rfkill_query(struct rfkill *rfkill, void *data)
 
 static int rbtn_rfkill_set_block(void *data, bool blocked)
 {
-	/* NOTE: setting soft rfkill state is not supported */
+	/* NOTE: setting soft rfkill state is yest supported */
 	return -EINVAL;
 }
 
@@ -118,8 +118,8 @@ static int rbtn_rfkill_init(struct acpi_device *device)
 		return 0;
 
 	/*
-	 * NOTE: rbtn controls all radio devices, not only WLAN
-	 *       but rfkill interface does not support "ANY" type
+	 * NOTE: rbtn controls all radio devices, yest only WLAN
+	 *       but rfkill interface does yest support "ANY" type
 	 *       so "WLAN" type is used
 	 */
 	rbtn_data->rfkill = rfkill_alloc("dell-rbtn", &device->dev,
@@ -207,7 +207,7 @@ static void rbtn_input_event(struct rbtn_data *rbtn_data)
 
 static int rbtn_add(struct acpi_device *device);
 static int rbtn_remove(struct acpi_device *device);
-static void rbtn_notify(struct acpi_device *device, u32 event);
+static void rbtn_yestify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id rbtn_ids[] = {
 	{ "DELRBTN", 0 },
@@ -224,7 +224,7 @@ static const struct acpi_device_id rbtn_ids[] = {
 	 *  DELLABC6 is a custom interface that was created solely to
 	 *  have airplane mode support for Windows 7.  For Windows 10
 	 *  the proper interface is to use that which is handled by
-	 *  intel-hid. A OEM airplane mode driver is not used.
+	 *  intel-hid. A OEM airplane mode driver is yest used.
 	 *
 	 *  Since the kernel doesn't identify as Windows 7 it would be
 	 *  incorrect to do attempt to use that interface.
@@ -234,7 +234,7 @@ static const struct acpi_device_id rbtn_ids[] = {
 	 * with the rfkill state as it conflicts with events from
 	 * intel-hid.
 	 *
-	 * The upshot is that it is better to just ignore DELLABC6
+	 * The upshot is that it is better to just igyesre DELLABC6
 	 * devices.
 	 */
 
@@ -266,14 +266,14 @@ static int rbtn_resume(struct device *dev)
 	acpi_status status;
 
 	/*
-	 * Upon resume, some BIOSes send an ACPI notification thet triggers
-	 * an unwanted input event. In order to ignore it, we use a flag
+	 * Upon resume, some BIOSes send an ACPI yestification thet triggers
+	 * an unwanted input event. In order to igyesre it, we use a flag
 	 * that we set at suspend and clear once we have received the extra
-	 * ACPI notification. Since ACPI notifications are delivered
-	 * asynchronously to drivers, we clear the flag from the workqueue
-	 * used to deliver the notifications. This should be enough
+	 * ACPI yestification. Since ACPI yestifications are delivered
+	 * asynchroyesusly to drivers, we clear the flag from the workqueue
+	 * used to deliver the yestifications. This should be eyesugh
 	 * to have the flag cleared only after we received the extra
-	 * notification, if any.
+	 * yestification, if any.
 	 */
 	status = acpi_os_execute(OSL_NOTIFY_HANDLER,
 			 rbtn_clear_suspended_flag, rbtn_data);
@@ -293,14 +293,14 @@ static struct acpi_driver rbtn_driver = {
 	.ops = {
 		.add = rbtn_add,
 		.remove = rbtn_remove,
-		.notify = rbtn_notify,
+		.yestify = rbtn_yestify,
 	},
 	.owner = THIS_MODULE,
 };
 
 
 /*
- * notifier export functions
+ * yestifier export functions
  */
 
 static bool auto_remove_rfkill = true;
@@ -336,7 +336,7 @@ static int rbtn_switch_dev(struct device *dev, void *data)
 	return 0;
 }
 
-int dell_rbtn_notifier_register(struct notifier_block *nb)
+int dell_rbtn_yestifier_register(struct yestifier_block *nb)
 {
 	bool first;
 	int count;
@@ -350,7 +350,7 @@ int dell_rbtn_notifier_register(struct notifier_block *nb)
 
 	first = !rbtn_chain_head.head;
 
-	ret = atomic_notifier_chain_register(&rbtn_chain_head, nb);
+	ret = atomic_yestifier_chain_register(&rbtn_chain_head, nb);
 	if (ret != 0)
 		return ret;
 
@@ -360,13 +360,13 @@ int dell_rbtn_notifier_register(struct notifier_block *nb)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(dell_rbtn_notifier_register);
+EXPORT_SYMBOL_GPL(dell_rbtn_yestifier_register);
 
-int dell_rbtn_notifier_unregister(struct notifier_block *nb)
+int dell_rbtn_yestifier_unregister(struct yestifier_block *nb)
 {
 	int ret;
 
-	ret = atomic_notifier_chain_unregister(&rbtn_chain_head, nb);
+	ret = atomic_yestifier_chain_unregister(&rbtn_chain_head, nb);
 	if (ret != 0)
 		return ret;
 
@@ -376,7 +376,7 @@ int dell_rbtn_notifier_unregister(struct notifier_block *nb)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(dell_rbtn_notifier_unregister);
+EXPORT_SYMBOL_GPL(dell_rbtn_yestifier_unregister);
 
 
 /*
@@ -391,13 +391,13 @@ static int rbtn_add(struct acpi_device *device)
 
 	type = rbtn_check(device);
 	if (type == RBTN_UNKNOWN) {
-		dev_info(&device->dev, "Unknown device type\n");
+		dev_info(&device->dev, "Unkyeswn device type\n");
 		return -EINVAL;
 	}
 
 	ret = rbtn_acquire(device, true);
 	if (ret < 0) {
-		dev_err(&device->dev, "Cannot enable device\n");
+		dev_err(&device->dev, "Canyest enable device\n");
 		return ret;
 	}
 
@@ -447,21 +447,21 @@ static int rbtn_remove(struct acpi_device *device)
 	return 0;
 }
 
-static void rbtn_notify(struct acpi_device *device, u32 event)
+static void rbtn_yestify(struct acpi_device *device, u32 event)
 {
 	struct rbtn_data *rbtn_data = device->driver_data;
 
 	/*
-	 * Some BIOSes send a notification at resume.
-	 * Ignore it to prevent unwanted input events.
+	 * Some BIOSes send a yestification at resume.
+	 * Igyesre it to prevent unwanted input events.
 	 */
 	if (rbtn_data->suspended) {
-		dev_dbg(&device->dev, "ACPI notification ignored\n");
+		dev_dbg(&device->dev, "ACPI yestification igyesred\n");
 		return;
 	}
 
 	if (event != 0x80) {
-		dev_info(&device->dev, "Received unknown event (0x%x)\n",
+		dev_info(&device->dev, "Received unkyeswn event (0x%x)\n",
 			 event);
 		return;
 	}
@@ -472,7 +472,7 @@ static void rbtn_notify(struct acpi_device *device, u32 event)
 		break;
 	case RBTN_SLIDER:
 		rbtn_rfkill_event(device);
-		atomic_notifier_call_chain(&rbtn_chain_head, event, device);
+		atomic_yestifier_call_chain(&rbtn_chain_head, event, device);
 		break;
 	default:
 		break;

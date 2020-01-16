@@ -298,7 +298,7 @@ int fix_alignment(struct pt_regs *regs)
 	int r, type;
 
 	/*
-	 * We require a complete register set, if not, then our assembly
+	 * We require a complete register set, if yest, then our assembly
 	 * is broken
 	 */
 	CHECK_FULL_REGS(regs);
@@ -327,7 +327,7 @@ int fix_alignment(struct pt_regs *regs)
 	 *
 	 * Send a SIGBUS to the process that caused the fault.
 	 *
-	 * We do not emulate these because paste may contain additional metadata
+	 * We do yest emulate these because paste may contain additional metadata
 	 * when pasting to a co-processor. Furthermore, paste_last is the
 	 * synchronisation point for preceding copy/paste sequences.
 	 */

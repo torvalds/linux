@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2019 David Lechner <david@lechnology.com>
+ * Copyright (C) 2019 David Lechner <david@lechyeslogy.com>
  *
  * Counter driver for Texas Instruments Enhanced Quadrature Encoder Pulse (eQEP)
  */
@@ -173,7 +173,7 @@ static int ti_eqep_action_get(struct counter_device *counter,
 		break;
 	case TI_EQEP_COUNT_FUNC_UP_COUNT:
 	case TI_EQEP_COUNT_FUNC_DOWN_COUNT:
-		/* In up/down-count modes only QEPA is counted and QEPB is not
+		/* In up/down-count modes only QEPA is counted and QEPB is yest
 		 * used.
 		 */
 		switch (synapse->signal->id) {
@@ -461,6 +461,6 @@ static struct platform_driver ti_eqep_driver = {
 };
 module_platform_driver(ti_eqep_driver);
 
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechyeslogy.com>");
 MODULE_DESCRIPTION("TI eQEP counter driver");
 MODULE_LICENSE("GPL v2");

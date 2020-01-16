@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/linkage.h>
 #include <asm/memory.h>
 #include <asm/nds32.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/fpu.h>
@@ -90,7 +90,7 @@ fucop_ctl_done:
 exception_handlers:
 	.long	unhandled_exceptions	!Reset/NMI
 	.long	unhandled_exceptions	!TLB fill
-	.long	do_page_fault		!PTE not present
+	.long	do_page_fault		!PTE yest present
 	.long	do_dispatch_tlb_misc	!TLB misc
 	.long	unhandled_exceptions	!TLB VLPT
 	.long	unhandled_exceptions	!Machine Error

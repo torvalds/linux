@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2018, Richtek Technology Corporation
+ * Copyright (C) 2018, Richtek Techyeslogy Corporation
  *
  * Richtek RT1711H Type-C Chip Driver
  */
@@ -219,14 +219,14 @@ static int rt1711h_check_revision(struct i2c_client *i2c)
 	if (ret < 0)
 		return ret;
 	if (ret != RT1711H_VID) {
-		dev_err(&i2c->dev, "vid is not correct, 0x%04x\n", ret);
+		dev_err(&i2c->dev, "vid is yest correct, 0x%04x\n", ret);
 		return -ENODEV;
 	}
 	ret = i2c_smbus_read_word_data(i2c, TCPC_PRODUCT_ID);
 	if (ret < 0)
 		return ret;
 	if (ret != RT1711H_PID) {
-		dev_err(&i2c->dev, "pid is not correct, 0x%04x\n", ret);
+		dev_err(&i2c->dev, "pid is yest correct, 0x%04x\n", ret);
 		return -ENODEV;
 	}
 	return 0;

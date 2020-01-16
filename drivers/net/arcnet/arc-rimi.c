@@ -60,16 +60,16 @@ static void arcrimi_copy_from_card(struct net_device *dev, int bufnum,
 #define BUFFER_SIZE	(512)
 #define MIRROR_SIZE	(BUFFER_SIZE * 4)
 
-/* We cannot probe for a RIM I card; one reason is I don't know how to reset
- * them.  In fact, we can't even get their node ID automatically.  So, we
- * need to be passed a specific shmem address, IRQ, and node ID.
+/* We canyest probe for a RIM I card; one reason is I don't kyesw how to reset
+ * them.  In fact, we can't even get their yesde ID automatically.  So, we
+ * need to be passed a specific shmem address, IRQ, and yesde ID.
  */
 static int __init arcrimi_probe(struct net_device *dev)
 {
 	if (BUGLVL(D_NORMAL)) {
 		pr_info("%s\n", "RIM I (entirely mem-mapped) support");
 		pr_info("E-mail me if you actually test the RIM I driver, please!\n");
-		pr_info("Given: node %02Xh, shmem %lXh, irq %d\n",
+		pr_info("Given: yesde %02Xh, shmem %lXh, irq %d\n",
 			dev->dev_addr[0], dev->mem_start, dev->irq);
 	}
 
@@ -90,7 +90,7 @@ static int __init arcrimi_probe(struct net_device *dev)
 	 */
 	if (!request_mem_region(dev->mem_start, MIRROR_SIZE, "arcnet (90xx)")) {
 		if (BUGLVL(D_NORMAL))
-			pr_notice("Card memory already allocated\n");
+			pr_yestice("Card memory already allocated\n");
 		return -ENODEV;
 	}
 	return arcrimi_found(dev);
@@ -146,13 +146,13 @@ static int __init arcrimi_found(struct net_device *dev)
 	shmem = dev->mem_start;
 	arcnet_writeb(TESTvalue, p, COM9026_REG_W_INTMASK);
 	arcnet_writeb(TESTvalue, p, COM9026_REG_W_COMMAND);
-					/* actually the station/node ID */
+					/* actually the station/yesde ID */
 
 	/* find the real shared memory start/end points, including mirrors */
 
 	/* guess the actual size of one "memory mirror" - the number of
 	 * bytes between copies of the shared memory.  On most cards, it's
-	 * 2k (or there are no mirrors at all) but on some, it's 4k.
+	 * 2k (or there are yes mirrors at all) but on some, it's 4k.
 	 */
 	mirror_size = MIRROR_SIZE;
 	if (arcnet_readb(p, COM9026_REG_R_STATUS) == TESTvalue &&
@@ -186,7 +186,7 @@ static int __init arcrimi_found(struct net_device *dev)
 	lp->hw.copy_from_card = arcrimi_copy_from_card;
 
 	/* re-reserve the memory region - arcrimi_probe() alloced this reqion
-	 * but didn't know the real size.  Free that region and then re-get
+	 * but didn't kyesw the real size.  Free that region and then re-get
 	 * with the correct size.  There is a VERY slim chance this could
 	 * fail.
 	 */
@@ -302,12 +302,12 @@ static void arcrimi_copy_from_card(struct net_device *dev, int bufnum,
 	TIME(dev, "memcpy_fromio", count, memcpy_fromio(buf, memaddr, count));
 }
 
-static int node;
-static int io;			/* use the insmod io= irq= node= options */
+static int yesde;
+static int io;			/* use the insmod io= irq= yesde= options */
 static int irq;
 static char device[9];		/* use eg. device=arc1 to change name */
 
-module_param(node, int, 0);
+module_param(yesde, int, 0);
 module_param(io, int, 0);
 module_param(irq, int, 0);
 module_param_string(device, device, sizeof(device), 0);
@@ -323,8 +323,8 @@ static int __init arc_rimi_init(void)
 	if (!dev)
 		return -ENOMEM;
 
-	if (node && node != 0xff)
-		dev->dev_addr[0] = node;
+	if (yesde && yesde != 0xff)
+		dev->dev_addr[0] = yesde;
 
 	dev->mem_start = io;
 	dev->irq = irq;
@@ -365,7 +365,7 @@ static int __init arcrimi_setup(char *s)
 		pr_err("Too many arguments\n");
 		/* Fall through */
 	case 3:		/* Node ID */
-		node = ints[3];
+		yesde = ints[3];
 		/* Fall through */
 	case 2:		/* IRQ */
 		irq = ints[2];

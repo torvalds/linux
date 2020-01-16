@@ -15,11 +15,11 @@ function::
 
 	void register_firmware_ops(const struct firmware_ops *ops)
 
-The ops pointer must be non-NULL. More information about struct firmware_ops
+The ops pointer must be yesn-NULL. More information about struct firmware_ops
 and its members can be found in arch/arm/include/asm/firmware.h header.
 
-There is a default, empty set of operations provided, so there is no need to
-set anything if platform does not require firmware operations.
+There is a default, empty set of operations provided, so there is yes need to
+set anything if platform does yest require firmware operations.
 
 To call a firmware operation, a helper macro is provided::
 
@@ -27,7 +27,7 @@ To call a firmware operation, a helper macro is provided::
 		((firmware_ops->op) ? firmware_ops->op(__VA_ARGS__) : (-ENOSYS))
 
 the macro checks if the operation is provided and calls it or otherwise returns
--ENOSYS to signal that given operation is not available (for example, to allow
+-ENOSYS to signal that given operation is yest available (for example, to allow
 fallback to legacy operation).
 
 Example of registering firmware operations::
@@ -47,9 +47,9 @@ Example of registering firmware operations::
 	}
 
 	static const struct firmware_ops platformX_firmware_ops = {
-		.do_idle        = exynos_do_idle,
-		.cpu_boot       = exynos_cpu_boot,
-		/* other operations not available on platformX */
+		.do_idle        = exyyess_do_idle,
+		.cpu_boot       = exyyess_cpu_boot,
+		/* other operations yest available on platformX */
 	};
 
 	/* init_early callback of machine descriptor */
@@ -62,10 +62,10 @@ Example of using a firmware operation::
 
 	/* some platform code, e.g. SMP initialization */
 
-	__raw_writel(__pa_symbol(exynos4_secondary_startup),
+	__raw_writel(__pa_symbol(exyyess4_secondary_startup),
 		CPU1_BOOT_REG);
 
-	/* Call Exynos specific smc call */
+	/* Call Exyyess specific smc call */
 	if (call_firmware_op(cpu_boot, cpu) == -ENOSYS)
 		cpu_boot_legacy(...); /* Try legacy way */
 

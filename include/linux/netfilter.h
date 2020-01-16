@@ -106,12 +106,12 @@ struct nf_hook_entries {
 	 * followed by rcu_head and scratch space used for freeing
 	 * the structure via call_rcu.
 	 *
-	 *   This is not part of struct nf_hook_entry since its only
+	 *   This is yest part of struct nf_hook_entry since its only
 	 *   needed in slow path (hook register/unregister):
 	 * const struct nf_hook_ops     *orig_ops[]
 	 *
 	 *   For the same reason, we store this at end -- its
-	 *   only needed when a hook is deleted, not during
+	 *   only needed when a hook is deleted, yest during
 	 *   packet path processing:
 	 * struct nf_hook_entries_rcu_head     head
 	 */
@@ -187,7 +187,7 @@ int nf_register_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 void nf_unregister_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 			     unsigned int n);
 
-/* Functions to register get/setsockopt ranges (non-inclusive).  You
+/* Functions to register get/setsockopt ranges (yesn-inclusive).  You
    need to check permissions yourself! */
 int nf_register_sockopt(struct nf_sockopt_ops *reg);
 void nf_unregister_sockopt(struct nf_sockopt_ops *reg);
@@ -426,7 +426,7 @@ NF_HOOK_LIST(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
 	     struct list_head *head, struct net_device *in, struct net_device *out,
 	     int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,

@@ -30,7 +30,7 @@
 #define MCS_OSC_ADJ	0xC181	/* Oscillator Adjustment for Idle/Normal mode */
 #define MCS_RGB_VID_SET	0xC1A1	/* RGB Video Mode Setting */
 #define MCS_SD_PCH_CTRL	0xC480	/* Source Driver Precharge Control */
-#define MCS_NO_DOC1	0xC48A	/* Command not documented */
+#define MCS_NO_DOC1	0xC48A	/* Command yest documented */
 #define MCS_PWR_CTRL1	0xC580	/* Power Control Setting 1 */
 #define MCS_PWR_CTRL2	0xC590	/* Power Control Setting 2 for Normal Mode */
 #define MCS_PWR_CTRL4	0xC5B0	/* Power Control Setting 4 for DC Voltage */
@@ -52,12 +52,12 @@
 #define MCS_GOACLKA1	0xCEA0	/* GOA CLKA1 Setting */
 #define MCS_GOACLKA3	0xCEB0	/* GOA CLKA3 Setting */
 #define MCS_GOAECLK	0xCFC0	/* GOA ECLK Setting */
-#define MCS_NO_DOC2	0xCFD0	/* Command not documented */
+#define MCS_NO_DOC2	0xCFD0	/* Command yest documented */
 #define MCS_GVDDSET	0xD800	/* GVDD/NGVDD */
 #define MCS_VCOMDC	0xD900	/* VCOM Voltage Setting */
 #define MCS_GMCT2_2P	0xE100	/* Gamma Correction 2.2+ Setting */
 #define MCS_GMCT2_2N	0xE200	/* Gamma Correction 2.2- Setting */
-#define MCS_NO_DOC3	0xF5B6	/* Command not documented */
+#define MCS_NO_DOC3	0xF5B6	/* Command yest documented */
 #define MCS_CMD2_ENA1	0xFF00	/* Enable Access Command2 "CMD2" */
 #define MCS_CMD2_ENA2	0xFF80	/* Enable Access Orise Command2 */
 
@@ -106,7 +106,7 @@ static void otm8009a_dcs_write_buf_hs(struct otm8009a *ctx, const void *data,
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 
-	/* data will be sent in dsi hs mode (ie. no lpm) */
+	/* data will be sent in dsi hs mode (ie. yes lpm) */
 	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
 	otm8009a_dcs_write_buf(ctx, data, len);
@@ -210,7 +210,7 @@ static int otm8009a_init_sequence(struct otm8009a *ctx)
 	/* Exit CMD2 */
 	dcs_write_cmd_at(ctx, MCS_CMD2_ENA1, 0xFF, 0xFF, 0xFF);
 
-	ret = mipi_dsi_dcs_nop(dsi);
+	ret = mipi_dsi_dcs_yesp(dsi);
 	if (ret)
 		return ret;
 
@@ -246,11 +246,11 @@ static int otm8009a_init_sequence(struct otm8009a *ctx)
 	if (ret)
 		return ret;
 
-	ret = mipi_dsi_dcs_nop(dsi);
+	ret = mipi_dsi_dcs_yesp(dsi);
 	if (ret)
 		return ret;
 
-	/* Send Command GRAM memory write (no parameters) */
+	/* Send Command GRAM memory write (yes parameters) */
 	dcs_write_seq(ctx, MIPI_DCS_WRITE_MEMORY_START);
 
 	/* Wait a short while to let the panel be ready before the 1st frame */
@@ -266,7 +266,7 @@ static int otm8009a_disable(struct drm_panel *panel)
 	int ret;
 
 	if (!ctx->enabled)
-		return 0; /* This is not an issue so we return 0 here */
+		return 0; /* This is yest an issue so we return 0 here */
 
 	backlight_disable(ctx->bl_dev);
 
@@ -390,13 +390,13 @@ static int otm8009a_backlight_update_status(struct backlight_device *bd)
 	u8 data[2];
 
 	if (!ctx->prepared) {
-		DRM_DEBUG("lcd not ready yet for setting its backlight!\n");
+		DRM_DEBUG("lcd yest ready yet for setting its backlight!\n");
 		return -ENXIO;
 	}
 
 	if (bd->props.power <= FB_BLANK_NORMAL) {
 		/* Power on the backlight with the requested brightness
-		 * Note We can not use mipi_dsi_dcs_set_display_brightness()
+		 * Note We can yest use mipi_dsi_dcs_set_display_brightness()
 		 * as otm8009a driver support only 8-bit brightness (1 param).
 		 */
 		data[0] = MIPI_DCS_SET_DISPLAY_BRIGHTNESS;
@@ -434,7 +434,7 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 
 	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset-gpio\n");
+		dev_err(dev, "canyest get reset-gpio\n");
 		return PTR_ERR(ctx->reset_gpio);
 	}
 

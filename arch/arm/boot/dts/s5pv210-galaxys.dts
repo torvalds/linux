@@ -62,7 +62,7 @@
 
 &sdhci0 {
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 	mmc-pwrseq = <&nand_pwrseq>;
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4>;
 	pinctrl-names = "default";

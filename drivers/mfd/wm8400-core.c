@@ -63,7 +63,7 @@ static int wm8400_init(struct wm8400 *wm8400,
 		return -EIO;
 	}
 	if (reg != 0x6172) {
-		dev_err(wm8400->dev, "Device is not a WM8400, ID is %x\n",
+		dev_err(wm8400->dev, "Device is yest a WM8400, ID is %x\n",
 			reg);
 		return -ENODEV;
 	}

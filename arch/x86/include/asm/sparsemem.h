@@ -4,9 +4,9 @@
 
 #ifdef CONFIG_SPARSEMEM
 /*
- * generic non-linear memory support:
+ * generic yesn-linear memory support:
  *
- * 1) we will not split memory into more chunks than will fit into the flags
+ * 1) we will yest split memory into more chunks than will fit into the flags
  *    field of the struct page
  *
  * SECTION_SIZE_BITS		2^n: size of each section
@@ -26,7 +26,7 @@
 #  define MAX_PHYSMEM_BITS	32
 # endif
 #else /* CONFIG_X86_32 */
-# define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
+# define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right yesw */
 # define MAX_PHYSADDR_BITS	(pgtable_l5_enabled() ? 52 : 44)
 # define MAX_PHYSMEM_BITS	(pgtable_l5_enabled() ? 52 : 46)
 #endif

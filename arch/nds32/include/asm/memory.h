@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef __ASM_NDS32_MEMORY_H
 #define __ASM_NDS32_MEMORY_H
@@ -65,10 +65,10 @@
 /*
  * Conversion between a struct page and a physical address.
  *
- * Note: when converting an unknown physical address to a
+ * Note: when converting an unkyeswn physical address to a
  * struct page, the resulting pointer must be validated
  * using VALID_PAGE().  It must return an invalid struct page
- * for any physical address not corresponding to a system
+ * for any physical address yest corresponding to a system
  * RAM address.
  *
  *  pfn_valid(pfn)	indicates whether a PFN number is valid
@@ -85,7 +85,7 @@
 #define virt_addr_valid(kaddr)	((unsigned long)(kaddr) >= PAGE_OFFSET && (unsigned long)(kaddr) < (unsigned long)high_memory)
 
 #else /* CONFIG_DISCONTIGMEM */
-#error CONFIG_DISCONTIGMEM is not supported yet.
+#error CONFIG_DISCONTIGMEM is yest supported yet.
 #endif /* !CONFIG_DISCONTIGMEM */
 
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)

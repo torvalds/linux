@@ -596,7 +596,7 @@ struct bpf_redirect_info {
 DECLARE_PER_CPU(struct bpf_redirect_info, bpf_redirect_info);
 
 /* flags for bpf_redirect_info kern_flags */
-#define BPF_RI_F_RF_NO_DIRECT	BIT(0)	/* no napi_direct on return_frame */
+#define BPF_RI_F_RF_NO_DIRECT	BIT(0)	/* yes napi_direct on return_frame */
 
 /* Compute the linear packet data range [data, data_end) which
  * will be accessed by various program types (cls_bpf, act_bpf,
@@ -644,7 +644,7 @@ static inline u8 *bpf_skb_cb(struct sk_buff *skb)
 	 * saved/restored so that protocol specific skb->cb[] data won't
 	 * be lost. In any case, due to unpriviledged eBPF programs
 	 * attached to sockets, we need to clear the bpf_skb_cb() area
-	 * to not leak previous contents to user space.
+	 * to yest leak previous contents to user space.
 	 */
 	BUILD_BUG_ON(sizeof_field(struct __sk_buff, cb) != BPF_SKB_CB_LEN);
 	BUILD_BUG_ON(sizeof_field(struct __sk_buff, cb) !=
@@ -706,7 +706,7 @@ static __always_inline u32 bpf_prog_run_xdp(const struct bpf_prog *prog,
 	 * can be released while still running, or map elements could be
 	 * freed early while still having concurrent users. XDP fastpath
 	 * already takes rcu_read_lock() when fetching the program, so
-	 * it's not necessary here anymore.
+	 * it's yest necessary here anymore.
 	 */
 	return BPF_PROG_RUN(prog, xdp);
 }
@@ -731,7 +731,7 @@ static inline unsigned int bpf_prog_size(unsigned int proglen)
 static inline bool bpf_prog_was_classic(const struct bpf_prog *prog)
 {
 	/* When classic BPF programs have been loaded and the arch
-	 * does not have a classic BPF JIT (anymore), they have been
+	 * does yest have a classic BPF JIT (anymore), they have been
 	 * converted via bpf_migrate_filter() to eBPF and thus always
 	 * have an unspec program type.
 	 */
@@ -819,7 +819,7 @@ void bpf_prog_free_jited_linfo(struct bpf_prog *prog);
 void bpf_prog_free_unused_jited_linfo(struct bpf_prog *prog);
 
 struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags);
-struct bpf_prog *bpf_prog_alloc_no_stats(unsigned int size, gfp_t gfp_extra_flags);
+struct bpf_prog *bpf_prog_alloc_yes_stats(unsigned int size, gfp_t gfp_extra_flags);
 struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 				  gfp_t gfp_extra_flags);
 void __bpf_prog_free(struct bpf_prog *fp);
@@ -873,21 +873,21 @@ int bpf_remove_insns(struct bpf_prog *prog, u32 off, u32 cnt);
 
 void bpf_clear_redirect_map(struct bpf_map *map);
 
-static inline bool xdp_return_frame_no_direct(void)
+static inline bool xdp_return_frame_yes_direct(void)
 {
 	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
 
 	return ri->kern_flags & BPF_RI_F_RF_NO_DIRECT;
 }
 
-static inline void xdp_set_return_frame_no_direct(void)
+static inline void xdp_set_return_frame_yes_direct(void)
 {
 	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
 
 	ri->kern_flags |= BPF_RI_F_RF_NO_DIRECT;
 }
 
-static inline void xdp_clear_return_frame_no_direct(void)
+static inline void xdp_clear_return_frame_yes_direct(void)
 {
 	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
 
@@ -910,10 +910,10 @@ static inline int xdp_ok_fwd_dev(const struct net_device *fwd,
 }
 
 /* The pair of xdp_do_redirect and xdp_do_flush_map MUST be called in the
- * same cpu context. Further for best results no more than a single map
+ * same cpu context. Further for best results yes more than a single map
  * for the do_redirect/do_flush pair should be used. This limitation is
  * because we only track one map and force a flush when the map changes.
- * This does not appear to be a real limitation for existing software.
+ * This does yest appear to be a real limitation for existing software.
  */
 int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
 			    struct xdp_buff *xdp, struct bpf_prog *prog);
@@ -1017,7 +1017,7 @@ static inline bool bpf_jit_blinding_enabled(struct bpf_prog *prog)
 static inline bool bpf_jit_kallsyms_enabled(void)
 {
 	/* There are a couple of corner cases where kallsyms should
-	 * not be enabled f.e. on hardening.
+	 * yest be enabled f.e. on hardening.
 	 */
 	if (bpf_jit_harden)
 		return false;
@@ -1218,7 +1218,7 @@ struct bpf_sock_ops_kern {
 		u32 replylong[4];
 	};
 	u32	is_fullsock;
-	u64	temp;			/* temp and everything after is not
+	u64	temp;			/* temp and everything after is yest
 					 * initialized to 0 before calling
 					 * the BPF program. New fields that
 					 * should be initialized to 0 should

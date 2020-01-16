@@ -18,7 +18,7 @@ Required properties:
   range in the aconnect address space. Should be 1.
 - ranges: Mapping of the aconnect address space to the CPU address space.
 
-All devices accessed via the ACONNNECT are described by child-nodes.
+All devices accessed via the ACONNNECT are described by child-yesdes.
 
 Example:
 

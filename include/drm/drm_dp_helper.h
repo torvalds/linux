@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -28,11 +28,11 @@
 #include <linux/types.h>
 
 /*
- * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
- * DP and DPCD versions are independent.  Differences from 1.0 are not noted,
+ * Unless otherwise yested, all values are from the DP 1.1a spec.  Note that
+ * DP and DPCD versions are independent.  Differences from 1.0 are yest yested,
  * 1.0 devices basically don't exist in the wild.
  *
- * Abbreviations, in chronological order:
+ * Abbreviations, in chroyeslogical order:
  *
  * eDP: Embedded DisplayPort version 1
  * DPI: DisplayPort Interoperability Guideline v1.1a
@@ -48,7 +48,7 @@
 #define DP_MSA_MISC_STEREO_NO_3D		(0 << 9)
 #define DP_MSA_MISC_STEREO_PROG_RIGHT_EYE	(1 << 9)
 #define DP_MSA_MISC_STEREO_PROG_LEFT_EYE	(3 << 9)
-/* bits per component for non-RAW */
+/* bits per component for yesn-RAW */
 #define DP_MSA_MISC_6_BPC			(0 << 5)
 #define DP_MSA_MISC_8_BPC			(1 << 5)
 #define DP_MSA_MISC_10_BPC			(2 << 5)
@@ -367,7 +367,7 @@
 
 /*
  * 0x80-0x8f describe downstream port capabilities, but there are two layouts
- * based on whether DP_DETAILED_CAP_INFO_AVAILABLE was set.  If it was not,
+ * based on whether DP_DETAILED_CAP_INFO_AVAILABLE was set.  If it was yest,
  * each port's descriptor is one byte wide.  If it was set, each port's is
  * four bytes wide, starting with the one byte from the base info.  As of
  * DP interop v1.1a only VGA defines additional detail.
@@ -1475,7 +1475,7 @@ struct drm_dp_dpcd_ident {
 	u8 device_id[6];
 	u8 hw_rev;
 	u8 sw_major_rev;
-	u8 sw_minor_rev;
+	u8 sw_miyesr_rev;
 } __packed;
 
 /**
@@ -1509,15 +1509,15 @@ enum drm_dp_quirk {
 	/**
 	 * @DP_DPCD_QUIRK_NO_PSR:
 	 *
-	 * The device does not support PSR even if reports that it supports or
+	 * The device does yest support PSR even if reports that it supports or
 	 * driver still need to implement proper handling for such device.
 	 */
 	DP_DPCD_QUIRK_NO_PSR,
 	/**
 	 * @DP_DPCD_QUIRK_NO_SINK_COUNT:
 	 *
-	 * The device does not set SINK_COUNT to a non-zero value.
-	 * The driver should ignore SINK_COUNT during detection.
+	 * The device does yest set SINK_COUNT to a yesn-zero value.
+	 * The driver should igyesre SINK_COUNT during detection.
 	 */
 	DP_DPCD_QUIRK_NO_SINK_COUNT,
 };

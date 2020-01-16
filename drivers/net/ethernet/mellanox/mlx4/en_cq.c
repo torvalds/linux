@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -46,13 +46,13 @@ static void mlx4_en_cq_event(struct mlx4_cq *cq, enum mlx4_event event)
 int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 		      struct mlx4_en_cq **pcq,
 		      int entries, int ring, enum cq_type mode,
-		      int node)
+		      int yesde)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_cq *cq;
 	int err;
 
-	cq = kzalloc_node(sizeof(*cq), GFP_KERNEL, node);
+	cq = kzalloc_yesde(sizeof(*cq), GFP_KERNEL, yesde);
 	if (!cq) {
 		en_err(priv, "Failed to allocate CQ structure\n");
 		return -ENOMEM;
@@ -65,13 +65,13 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	cq->type = mode;
 	cq->vector = mdev->dev->caps.num_comp_vectors;
 
-	/* Allocate HW buffers on provided NUMA node.
-	 * dev->numa_node is used in mtt range allocation flow.
+	/* Allocate HW buffers on provided NUMA yesde.
+	 * dev->numa_yesde is used in mtt range allocation flow.
 	 */
-	set_dev_node(&mdev->dev->persist->pdev->dev, node);
+	set_dev_yesde(&mdev->dev->persist->pdev->dev, yesde);
 	err = mlx4_alloc_hwq_res(mdev->dev, &cq->wqres,
 				cq->buf_size);
-	set_dev_node(&mdev->dev->persist->pdev->dev, mdev->dev->numa_node);
+	set_dev_yesde(&mdev->dev->persist->pdev->dev, mdev->dev->numa_yesde);
 	if (err)
 		goto err_cq;
 
@@ -159,7 +159,7 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 		napi_enable(&cq->napi);
 		break;
 	case TX_XDP:
-		/* nothing regarding napi, it's shared with rx ring */
+		/* yesthing regarding napi, it's shared with rx ring */
 		cq->xdp_busy = false;
 		break;
 	}

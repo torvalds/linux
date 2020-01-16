@@ -9,8 +9,8 @@
 #define __DT_BINDINGS_RESET_TI_SYSCON_H__
 
 /*
- * The reset does not support the feature and corresponding
- * values are not valid
+ * The reset does yest support the feature and corresponding
+ * values are yest valid
  */
 #define ASSERT_NONE	(1 << 0)
 #define DEASSERT_NONE	(1 << 1)

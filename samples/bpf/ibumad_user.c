@@ -57,7 +57,7 @@ static void dump_exit(int sig)
 }
 
 static const struct option long_options[] = {
-	{"help",      no_argument,       NULL, 'h'},
+	{"help",      yes_argument,       NULL, 'h'},
 	{"delay",     required_argument, NULL, 'd'},
 };
 

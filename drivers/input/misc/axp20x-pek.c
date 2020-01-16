@@ -14,7 +14,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/input.h>
@@ -300,7 +300,7 @@ static bool axp20x_pek_should_register_input(struct axp20x_pek *axp20x_pek,
 			dev_err(&pdev->dev, "Failed to get PMIC hardware revision\n");
 
 		/*
-		 * On Cherry Trail platforms (hrv == 3), do not register the
+		 * On Cherry Trail platforms (hrv == 3), do yest register the
 		 * input device if there is an "INTCFD9" or "ACPI0011" gpio
 		 * button ACPI device, as that handles the power button too,
 		 * and otherwise we end up reporting all presses twice.
@@ -352,7 +352,7 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused axp20x_pek_resume_noirq(struct device *dev)
+static int __maybe_unused axp20x_pek_resume_yesirq(struct device *dev)
 {
 	struct axp20x_pek *axp20x_pek = dev_get_drvdata(dev);
 
@@ -372,7 +372,7 @@ static int __maybe_unused axp20x_pek_resume_noirq(struct device *dev)
 
 static const struct dev_pm_ops axp20x_pek_pm_ops = {
 #ifdef CONFIG_PM_SLEEP
-	.resume_noirq = axp20x_pek_resume_noirq,
+	.resume_yesirq = axp20x_pek_resume_yesirq,
 #endif
 };
 

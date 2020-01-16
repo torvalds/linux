@@ -111,7 +111,7 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 	struct device *dev = &mc_dev->dev;
 	struct fsl_mc_device_irq *irq;
 	struct ptp_qoriq *ptp_qoriq;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	void __iomem *base;
 	int err;
 
@@ -137,15 +137,15 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 
 	ptp_qoriq->dev = dev;
 
-	node = of_find_compatible_node(NULL, NULL, "fsl,dpaa2-ptp");
-	if (!node) {
+	yesde = of_find_compatible_yesde(NULL, NULL, "fsl,dpaa2-ptp");
+	if (!yesde) {
 		err = -ENODEV;
 		goto err_close;
 	}
 
-	dev->of_node = node;
+	dev->of_yesde = yesde;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base) {
 		err = -ENOMEM;
 		goto err_close;

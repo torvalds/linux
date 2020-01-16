@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 /*
- * MTD driver for the 28F160F3 Flash Memory (non-CFI) on LART.
+ * MTD driver for the 28F160F3 Flash Memory (yesn-CFI) on LART.
  *
  * Author: Abraham vd Merwe <abraham@2d3d.co.za>
  *
@@ -20,7 +20,7 @@
  *
  *    Even though this driver is written for 3 Volt Fast Boot
  *    Block Flash Memory, it is rather specific to LART. With
- *    Minor modifications, notably the without data/address line
+ *    Miyesr modifications, yestably the without data/address line
  *    mangling and different bus settings, etc. it should be
  *    trivial to adapt to other platforms.
  *
@@ -35,7 +35,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -377,7 +377,7 @@ static int flash_erase (struct mtd_info *mtd,struct erase_info *instr)
    i--;
 
    /*
-	* ok, now i is pointing at the erase region in which this
+	* ok, yesw i is pointing at the erase region in which this
 	* erase request starts. Check the start of the requested
 	* erase range is aligned with the erase size which is in
 	* effect here.
@@ -407,7 +407,7 @@ static int flash_erase (struct mtd_info *mtd,struct erase_info *instr)
 
    i = first;
 
-   /* now erase those blocks */
+   /* yesw erase those blocks */
    while (len)
 	 {
 		if (!erase_block (addr))
@@ -439,7 +439,7 @@ static int flash_read (struct mtd_info *mtd,loff_t from,size_t len,size_t *retle
 		while (len && gap--) *buf++ = read8 (from++), len--;
 	 }
 
-   /* now we read dwords until we reach a non-dword boundary */
+   /* yesw we read dwords until we reach a yesn-dword boundary */
    while (len >= BUSWIDTH)
 	 {
 		*((__u32 *) buf) = read32 (from);
@@ -528,7 +528,7 @@ static int flash_write (struct mtd_info *mtd,loff_t to,size_t len,size_t *retlen
 		*retlen += n;
 	 }
 
-   /* now we write dwords until we reach a non-dword boundary */
+   /* yesw we write dwords until we reach a yesn-dword boundary */
    while (len >= BUSWIDTH)
 	 {
 		if (!write_dword (to,*((__u32 *) buf))) return (-EIO);
@@ -604,7 +604,7 @@ static int __init lart_flash_init (void)
    printk ("%s: Probing for 28F160x3 flash on LART...\n",module_name);
    if (!flash_probe ())
 	 {
-		printk (KERN_WARNING "%s: Found no LART compatible flash device\n",module_name);
+		printk (KERN_WARNING "%s: Found yes LART compatible flash device\n",module_name);
 		return (-ENXIO);
 	 }
    printk ("%s: This looks like a LART board to me.\n",module_name);

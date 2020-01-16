@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Nokia de Tecyeslogia
  *
  * Authors:
  *    Aloisio Almeida Jr <aloisio.almeida@openbossa.org>

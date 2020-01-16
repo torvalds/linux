@@ -7,7 +7,7 @@
  *
  * Some code taken from:
  * National Semiconductor SCx200 Watchdog support
- * Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
+ * Copyright (c) 2001,2002 Christer Weinigel <wingel@nayes-system.com>
  *
  */
 
@@ -15,7 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
@@ -38,9 +38,9 @@ static int margin = 60;
 module_param(margin, int, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Disable watchdog shutdown on close");
 
 #define READ_REG(x) readl((void __iomem *)&(x))
 #define WRITE_REG(x, v) writel((v), (void __iomem *)&(x))
@@ -155,7 +155,7 @@ static void ar7_wdt_disable_wdt(void)
 	ar7_wdt_disable(0);
 }
 
-static int ar7_wdt_open(struct inode *inode, struct file *file)
+static int ar7_wdt_open(struct iyesde *iyesde, struct file *file)
 {
 	/* only allow one at a time */
 	if (test_and_set_bit(0, &wdt_is_open))
@@ -163,14 +163,14 @@ static int ar7_wdt_open(struct inode *inode, struct file *file)
 	ar7_wdt_enable_wdt();
 	expect_close = 0;
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int ar7_wdt_release(struct inode *inode, struct file *file)
+static int ar7_wdt_release(struct iyesde *iyesde, struct file *file)
 {
 	if (!expect_close)
-		pr_warn("watchdog device closed unexpectedly, will not disable the watchdog timer\n");
-	else if (!nowayout)
+		pr_warn("watchdog device closed unexpectedly, will yest disable the watchdog timer\n");
+	else if (!yeswayout)
 		ar7_wdt_disable_wdt();
 	clear_bit(0, &wdt_is_open);
 	return 0;
@@ -253,11 +253,11 @@ static const struct file_operations ar7_wdt_fops = {
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= ar7_wdt_open,
 	.release	= ar7_wdt_release,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice ar7_wdt_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.miyesr		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &ar7_wdt_fops,
 };
@@ -274,7 +274,7 @@ static int ar7_wdt_probe(struct platform_device *pdev)
 
 	vbus_clk = clk_get(NULL, "vbus");
 	if (IS_ERR(vbus_clk)) {
-		pr_err("could not get vbus clock\n");
+		pr_err("could yest get vbus clock\n");
 		return PTR_ERR(vbus_clk);
 	}
 
@@ -305,7 +305,7 @@ static int ar7_wdt_remove(struct platform_device *pdev)
 
 static void ar7_wdt_shutdown(struct platform_device *pdev)
 {
-	if (!nowayout)
+	if (!yeswayout)
 		ar7_wdt_disable_wdt();
 }
 

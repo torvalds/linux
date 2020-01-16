@@ -43,7 +43,7 @@ struct nlmclnt_initdata {
 	size_t			addrlen;
 	unsigned short		protocol;
 	u32			nfs_version;
-	int			noresvport;
+	int			yesresvport;
 	struct net		*net;
 	const struct nlmclnt_operations	*nlmclnt_ops;
 	const struct cred	*cred;
@@ -68,7 +68,7 @@ struct nlmclnt_operations {
 
 	/* Called in rpc_task_prepare for unlock.  A return value of true
 	 * indicates the callback has put the task to sleep on a waitqueue
-	 * and NLM should not call rpc_call_start(). */
+	 * and NLM should yest call rpc_call_start(). */
 	bool (*nlmclnt_unlock_prepare)(struct rpc_task*, void *);
 
 	/* Called when the nlm_rqst is freed, callbacks should clean up here */

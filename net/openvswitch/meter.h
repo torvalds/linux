@@ -30,7 +30,7 @@ struct dp_meter_band {
 struct dp_meter {
 	spinlock_t lock;    /* Per meter lock */
 	struct rcu_head rcu;
-	struct hlist_node dp_hash_node; /*Element in datapath->meters
+	struct hlist_yesde dp_hash_yesde; /*Element in datapath->meters
 					 * hash table.
 					 */
 	u32 id;

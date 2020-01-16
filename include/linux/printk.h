@@ -54,7 +54,7 @@ static inline const char *printk_skip_headers(const char *buffer)
 
 /*
  * Default used to be hard-coded at 7, quiet used to be hardcoded at 4,
- * we're now allowing both to be set from kernel config.
+ * we're yesw allowing both to be set from kernel config.
  */
 #define CONSOLE_LOGLEVEL_DEFAULT CONFIG_CONSOLE_LOGLEVEL_DEFAULT
 #define CONSOLE_LOGLEVEL_QUIET	 CONFIG_CONSOLE_LOGLEVEL_QUIET
@@ -100,7 +100,7 @@ struct va_format {
  * Use it for definite and high priority BIOS bugs.
  *
  * FW_WARN
- * Use it for not that clear (e.g. could the kernel messed up things already?)
+ * Use it for yest that clear (e.g. could the kernel messed up things already?)
  * and medium priority BIOS bugs.
  *
  * FW_INFO
@@ -131,7 +131,7 @@ struct va_format {
  * Dummy printk for disabled debugging statements to use whilst maintaining
  * gcc's format checking.
  */
-#define no_printk(fmt, ...)				\
+#define yes_printk(fmt, ...)				\
 ({							\
 	if (0)						\
 		printk(fmt, ##__VA_ARGS__);		\
@@ -290,7 +290,7 @@ extern int kptr_restrict;
 
 /*
  * These can be used to print at the various log levels.
- * All of these will print unconditionally, although note that pr_debug()
+ * All of these will print unconditionally, although yeste that pr_debug()
  * and other debug macros are compiled out unless either DEBUG is defined
  * or CONFIG_DYNAMIC_DEBUG is set.
  */
@@ -304,13 +304,13 @@ extern int kptr_restrict;
 	printk(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warn(fmt, ...) \
 	printk(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_notice(fmt, ...) \
+#define pr_yestice(fmt, ...) \
 	printk(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info(fmt, ...) \
 	printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 /*
  * Like KERN_CONT, pr_cont() should only be used when continuing
- * a line with no newline ('\n') enclosed. Otherwise it defaults
+ * a line with yes newline ('\n') enclosed. Otherwise it defaults
  * back to KERN_DEFAULT.
  */
 #define pr_cont(fmt, ...) \
@@ -322,7 +322,7 @@ extern int kptr_restrict;
 	printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_devel(fmt, ...) \
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	yes_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 
@@ -338,7 +338,7 @@ extern int kptr_restrict;
 	printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_debug(fmt, ...) \
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	yes_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /*
@@ -370,9 +370,9 @@ extern int kptr_restrict;
 })
 #else
 #define printk_once(fmt, ...)					\
-	no_printk(fmt, ##__VA_ARGS__)
+	yes_printk(fmt, ##__VA_ARGS__)
 #define printk_deferred_once(fmt, ...)				\
-	no_printk(fmt, ##__VA_ARGS__)
+	yes_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define pr_emerg_once(fmt, ...)					\
@@ -385,7 +385,7 @@ extern int kptr_restrict;
 	printk_once(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warn_once(fmt, ...)					\
 	printk_once(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_notice_once(fmt, ...)				\
+#define pr_yestice_once(fmt, ...)				\
 	printk_once(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info_once(fmt, ...)					\
 	printk_once(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
@@ -397,7 +397,7 @@ extern int kptr_restrict;
 	printk_once(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_devel_once(fmt, ...)					\
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	yes_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /* If you are writing a driver, please use dev_dbg instead */
@@ -406,12 +406,12 @@ extern int kptr_restrict;
 	printk_once(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_debug_once(fmt, ...)					\
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	yes_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /*
  * ratelimited messages with local ratelimit_state,
- * no local ratelimit_state used in the !PRINTK case
+ * yes local ratelimit_state used in the !PRINTK case
  */
 #ifdef CONFIG_PRINTK
 #define printk_ratelimited(fmt, ...)					\
@@ -425,7 +425,7 @@ extern int kptr_restrict;
 })
 #else
 #define printk_ratelimited(fmt, ...)					\
-	no_printk(fmt, ##__VA_ARGS__)
+	yes_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define pr_emerg_ratelimited(fmt, ...)					\
@@ -438,18 +438,18 @@ extern int kptr_restrict;
 	printk_ratelimited(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warn_ratelimited(fmt, ...)					\
 	printk_ratelimited(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_notice_ratelimited(fmt, ...)					\
+#define pr_yestice_ratelimited(fmt, ...)					\
 	printk_ratelimited(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info_ratelimited(fmt, ...)					\
 	printk_ratelimited(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
-/* no pr_cont_ratelimited, don't do that... */
+/* yes pr_cont_ratelimited, don't do that... */
 
 #if defined(DEBUG)
 #define pr_devel_ratelimited(fmt, ...)					\
 	printk_ratelimited(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_devel_ratelimited(fmt, ...)					\
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	yes_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /* If you are writing a driver, please use dev_dbg instead */
@@ -470,7 +470,7 @@ do {									\
 	printk_ratelimited(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_debug_ratelimited(fmt, ...) \
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	yes_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 extern const struct file_operations kmsg_fops;
@@ -522,7 +522,7 @@ static inline void print_hex_dump_debug(const char *prefix_str, int prefix_type,
  * print_hex_dump_bytes - shorthand form of print_hex_dump() with default params
  * @prefix_str: string to prefix each line with;
  *  caller supplies trailing spaces for alignment if desired
- * @prefix_type: controls whether prefix of an offset, address, or none
+ * @prefix_type: controls whether prefix of an offset, address, or yesne
  *  is printed (%DUMP_PREFIX_OFFSET, %DUMP_PREFIX_ADDRESS, %DUMP_PREFIX_NONE)
  * @buf: data blob to dump
  * @len: number of bytes in the @buf

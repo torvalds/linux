@@ -14,7 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
-#include <media/i2c/noon010pc30.h>
+#include <media/i2c/yeson010pc30.h>
 #include <linux/videodev2.h>
 #include <linux/module.h>
 #include <media/v4l2-ctrls.h>
@@ -107,25 +107,25 @@ MODULE_PARM_DESC(debug, "Enable module debug trace. Set to 1 to enable.");
 /* The token to mark an array end */
 #define REG_TERM		0xFFFF
 
-struct noon010_format {
+struct yeson010_format {
 	u32 code;
 	enum v4l2_colorspace colorspace;
 	u16 ispctl1_reg;
 };
 
-struct noon010_frmsize {
+struct yeson010_frmsize {
 	u16 width;
 	u16 height;
 	int vid_ctl1;
 };
 
-static const char * const noon010_supply_name[] = {
+static const char * const yeson010_supply_name[] = {
 	"vdd_core", "vddio", "vdda"
 };
 
-#define NOON010_NUM_SUPPLIES ARRAY_SIZE(noon010_supply_name)
+#define NOON010_NUM_SUPPLIES ARRAY_SIZE(yeson010_supply_name)
 
-struct noon010_info {
+struct yeson010_info {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
@@ -136,8 +136,8 @@ struct noon010_info {
 	/* Protects the struct members below */
 	struct mutex lock;
 
-	const struct noon010_format *curr_fmt;
-	const struct noon010_frmsize *curr_win;
+	const struct yeson010_format *curr_fmt;
+	const struct yeson010_frmsize *curr_win;
 	unsigned int apply_new_cfg:1;
 	unsigned int streaming:1;
 	unsigned int hflip:1;
@@ -152,7 +152,7 @@ struct i2c_regval {
 };
 
 /* Supported resolutions. */
-static const struct noon010_frmsize noon010_sizes[] = {
+static const struct yeson010_frmsize yeson010_sizes[] = {
 	{
 		.width		= 352,
 		.height		= 288,
@@ -169,7 +169,7 @@ static const struct noon010_frmsize noon010_sizes[] = {
 };
 
 /* Supported pixel formats. */
-static const struct noon010_format noon010_formats[] = {
+static const struct yeson010_format yeson010_formats[] = {
 	{
 		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
@@ -193,7 +193,7 @@ static const struct noon010_format noon010_formats[] = {
 	},
 };
 
-static const struct i2c_regval noon010_base_regs[] = {
+static const struct i2c_regval yeson010_base_regs[] = {
 	{ WIN_COLL_REG,		0x06 },	{ HBLANKL_REG,		0x7C },
 	/* Color corection and saturation */
 	{ ISP_CTL_REG(0),	0x30 }, { ISP_CTL_REG(2),	0x30 },
@@ -228,17 +228,17 @@ static const struct i2c_regval noon010_base_regs[] = {
 	{ REG_TERM,		0 },
 };
 
-static inline struct noon010_info *to_noon010(struct v4l2_subdev *sd)
+static inline struct yeson010_info *to_yeson010(struct v4l2_subdev *sd)
 {
-	return container_of(sd, struct noon010_info, sd);
+	return container_of(sd, struct yeson010_info, sd);
 }
 
 static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 {
-	return &container_of(ctrl->handler, struct noon010_info, hdl)->sd;
+	return &container_of(ctrl->handler, struct yeson010_info, hdl)->sd;
 }
 
-static inline int set_i2c_page(struct noon010_info *info,
+static inline int set_i2c_page(struct yeson010_info *info,
 			       struct i2c_client *client, unsigned int reg)
 {
 	u32 page = reg >> 8 & 0xFF;
@@ -255,7 +255,7 @@ static inline int set_i2c_page(struct noon010_info *info,
 static int cam_i2c_read(struct v4l2_subdev *sd, u32 reg_addr)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct noon010_info *info = to_noon010(sd);
+	struct yeson010_info *info = to_yeson010(sd);
 	int ret = set_i2c_page(info, client, reg_addr);
 
 	if (ret)
@@ -266,7 +266,7 @@ static int cam_i2c_read(struct v4l2_subdev *sd, u32 reg_addr)
 static int cam_i2c_write(struct v4l2_subdev *sd, u32 reg_addr, u32 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct noon010_info *info = to_noon010(sd);
+	struct yeson010_info *info = to_yeson010(sd);
 	int ret = set_i2c_page(info, client, reg_addr);
 
 	if (ret)
@@ -274,7 +274,7 @@ static int cam_i2c_write(struct v4l2_subdev *sd, u32 reg_addr, u32 val)
 	return i2c_smbus_write_byte_data(client, reg_addr & 0xFF, val);
 }
 
-static inline int noon010_bulk_write_reg(struct v4l2_subdev *sd,
+static inline int yeson010_bulk_write_reg(struct v4l2_subdev *sd,
 					 const struct i2c_regval *msg)
 {
 	while (msg->addr != REG_TERM) {
@@ -288,9 +288,9 @@ static inline int noon010_bulk_write_reg(struct v4l2_subdev *sd,
 }
 
 /* Device reset and sleep mode control */
-static int noon010_power_ctrl(struct v4l2_subdev *sd, bool reset, bool sleep)
+static int yeson010_power_ctrl(struct v4l2_subdev *sd, bool reset, bool sleep)
 {
-	struct noon010_info *info = to_noon010(sd);
+	struct yeson010_info *info = to_yeson010(sd);
 	u8 reg = sleep ? 0xF1 : 0xF0;
 	int ret = 0;
 
@@ -307,7 +307,7 @@ static int noon010_power_ctrl(struct v4l2_subdev *sd, bool reset, bool sleep)
 }
 
 /* Automatic white balance control */
-static int noon010_enable_autowhitebalance(struct v4l2_subdev *sd, int on)
+static int yeson010_enable_autowhitebalance(struct v4l2_subdev *sd, int on)
 {
 	int ret;
 
@@ -317,10 +317,10 @@ static int noon010_enable_autowhitebalance(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-/* Called with struct noon010_info.lock mutex held */
-static int noon010_set_flip(struct v4l2_subdev *sd, int hflip, int vflip)
+/* Called with struct yeson010_info.lock mutex held */
+static int yeson010_set_flip(struct v4l2_subdev *sd, int hflip, int vflip)
 {
-	struct noon010_info *info = to_noon010(sd);
+	struct yeson010_info *info = to_yeson010(sd);
 	int reg, ret;
 
 	reg = cam_i2c_read(sd, VDO_CTL_REG(1));
@@ -342,9 +342,9 @@ static int noon010_set_flip(struct v4l2_subdev *sd, int hflip, int vflip)
 }
 
 /* Configure resolution and color format */
-static int noon010_set_params(struct v4l2_subdev *sd)
+static int yeson010_set_params(struct v4l2_subdev *sd)
 {
-	struct noon010_info *info = to_noon010(sd);
+	struct yeson010_info *info = to_yeson010(sd);
 
 	int ret = cam_i2c_write(sd, VDO_CTL_REG(0),
 				info->curr_win->vid_ctl1);
@@ -355,12 +355,12 @@ static int noon010_set_params(struct v4l2_subdev *sd)
 }
 
 /* Find nearest matching image pixel size. */
-static int noon010_try_frame_size(struct v4l2_mbus_framefmt *mf,
-				  const struct noon010_frmsize **size)
+static int yeson010_try_frame_size(struct v4l2_mbus_framefmt *mf,
+				  const struct yeson010_frmsize **size)
 {
 	unsigned int min_err = ~0;
-	int i = ARRAY_SIZE(noon010_sizes);
-	const struct noon010_frmsize *fsize = &noon010_sizes[0],
+	int i = ARRAY_SIZE(yeson010_sizes);
+	const struct yeson010_frmsize *fsize = &yeson010_sizes[0],
 		*match = NULL;
 
 	while (i--) {
@@ -384,7 +384,7 @@ static int noon010_try_frame_size(struct v4l2_mbus_framefmt *mf,
 }
 
 /* Called with info.lock mutex held */
-static int power_enable(struct noon010_info *info)
+static int power_enable(struct yeson010_info *info)
 {
 	int ret;
 
@@ -425,7 +425,7 @@ static int power_enable(struct noon010_info *info)
 }
 
 /* Called with info.lock mutex held */
-static int power_disable(struct noon010_info *info)
+static int power_disable(struct yeson010_info *info)
 {
 	int ret;
 
@@ -451,10 +451,10 @@ static int power_disable(struct noon010_info *info)
 	return 0;
 }
 
-static int noon010_s_ctrl(struct v4l2_ctrl *ctrl)
+static int yeson010_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
-	struct noon010_info *info = to_noon010(sd);
+	struct yeson010_info *info = to_yeson010(sd);
 	int ret = 0;
 
 	v4l2_dbg(1, debug, sd, "%s: ctrl_id: %d, value: %d\n",
@@ -462,8 +462,8 @@ static int noon010_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	mutex_lock(&info->lock);
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any controls to H/W at this time. Instead
+	 * If the device is yest powered up by the host driver do
+	 * yest apply any controls to H/W at this time. Instead
 	 * the controls will be restored right after power-up.
 	 */
 	if (!info->power)
@@ -471,7 +471,7 @@ static int noon010_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTO_WHITE_BALANCE:
-		ret = noon010_enable_autowhitebalance(sd, ctrl->val);
+		ret = yeson010_enable_autowhitebalance(sd, ctrl->val);
 		break;
 	case V4L2_CID_BLUE_BALANCE:
 		ret = cam_i2c_write(sd, MWB_BGAIN_REG, ctrl->val);
@@ -487,22 +487,22 @@ unlock:
 	return ret;
 }
 
-static int noon010_enum_mbus_code(struct v4l2_subdev *sd,
+static int yeson010_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index >= ARRAY_SIZE(noon010_formats))
+	if (code->index >= ARRAY_SIZE(yeson010_formats))
 		return -EINVAL;
 
-	code->code = noon010_formats[code->index].code;
+	code->code = yeson010_formats[code->index].code;
 	return 0;
 }
 
-static int noon010_get_fmt(struct v4l2_subdev *sd,
+static int yeson010_get_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
-	struct noon010_info *info = to_noon010(sd);
+	struct yeson010_info *info = to_yeson010(sd);
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
@@ -526,30 +526,30 @@ static int noon010_get_fmt(struct v4l2_subdev *sd,
 }
 
 /* Return nearest media bus frame format. */
-static const struct noon010_format *noon010_try_fmt(struct v4l2_subdev *sd,
+static const struct yeson010_format *yeson010_try_fmt(struct v4l2_subdev *sd,
 					    struct v4l2_mbus_framefmt *mf)
 {
-	int i = ARRAY_SIZE(noon010_formats);
+	int i = ARRAY_SIZE(yeson010_formats);
 
 	while (--i)
-		if (mf->code == noon010_formats[i].code)
+		if (mf->code == yeson010_formats[i].code)
 			break;
-	mf->code = noon010_formats[i].code;
+	mf->code = yeson010_formats[i].code;
 
-	return &noon010_formats[i];
+	return &yeson010_formats[i];
 }
 
-static int noon010_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int yeson010_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
-	struct noon010_info *info = to_noon010(sd);
-	const struct noon010_frmsize *size = NULL;
-	const struct noon010_format *nf;
+	struct yeson010_info *info = to_yeson010(sd);
+	const struct yeson010_frmsize *size = NULL;
+	const struct yeson010_format *nf;
 	struct v4l2_mbus_framefmt *mf;
 	int ret = 0;
 
-	nf = noon010_try_fmt(sd, &fmt->format);
-	noon010_try_frame_size(&fmt->format, &size);
+	nf = yeson010_try_fmt(sd, &fmt->format);
+	yeson010_try_frame_size(&fmt->format, &size);
 	fmt->format.colorspace = V4L2_COLORSPACE_JPEG;
 	fmt->format.field = V4L2_FIELD_NONE;
 
@@ -572,30 +572,30 @@ static int noon010_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config
 	return ret;
 }
 
-/* Called with struct noon010_info.lock mutex held */
-static int noon010_base_config(struct v4l2_subdev *sd)
+/* Called with struct yeson010_info.lock mutex held */
+static int yeson010_base_config(struct v4l2_subdev *sd)
 {
-	int ret = noon010_bulk_write_reg(sd, noon010_base_regs);
+	int ret = yeson010_bulk_write_reg(sd, yeson010_base_regs);
 	if (!ret)
-		ret = noon010_set_params(sd);
+		ret = yeson010_set_params(sd);
 	if (!ret)
-		ret = noon010_set_flip(sd, 1, 0);
+		ret = yeson010_set_flip(sd, 1, 0);
 
 	return ret;
 }
 
-static int noon010_s_power(struct v4l2_subdev *sd, int on)
+static int yeson010_s_power(struct v4l2_subdev *sd, int on)
 {
-	struct noon010_info *info = to_noon010(sd);
+	struct yeson010_info *info = to_yeson010(sd);
 	int ret;
 
 	mutex_lock(&info->lock);
 	if (on) {
 		ret = power_enable(info);
 		if (!ret)
-			ret = noon010_base_config(sd);
+			ret = yeson010_base_config(sd);
 	} else {
-		noon010_power_ctrl(sd, false, true);
+		yeson010_power_ctrl(sd, false, true);
 		ret = power_disable(info);
 	}
 	mutex_unlock(&info->lock);
@@ -607,19 +607,19 @@ static int noon010_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-static int noon010_s_stream(struct v4l2_subdev *sd, int on)
+static int yeson010_s_stream(struct v4l2_subdev *sd, int on)
 {
-	struct noon010_info *info = to_noon010(sd);
+	struct yeson010_info *info = to_yeson010(sd);
 	int ret = 0;
 
 	mutex_lock(&info->lock);
 	if (!info->streaming != !on) {
-		ret = noon010_power_ctrl(sd, false, !on);
+		ret = yeson010_power_ctrl(sd, false, !on);
 		if (!ret)
 			info->streaming = on;
 	}
 	if (!ret && on && info->apply_new_cfg) {
-		ret = noon010_set_params(sd);
+		ret = yeson010_set_params(sd);
 		if (!ret)
 			info->apply_new_cfg = 0;
 	}
@@ -627,57 +627,57 @@ static int noon010_s_stream(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-static int noon010_log_status(struct v4l2_subdev *sd)
+static int yeson010_log_status(struct v4l2_subdev *sd)
 {
-	struct noon010_info *info = to_noon010(sd);
+	struct yeson010_info *info = to_yeson010(sd);
 
 	v4l2_ctrl_handler_log_status(&info->hdl, sd->name);
 	return 0;
 }
 
-static int noon010_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+static int yeson010_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *mf = v4l2_subdev_get_try_format(sd, fh->pad, 0);
 
-	mf->width = noon010_sizes[0].width;
-	mf->height = noon010_sizes[0].height;
-	mf->code = noon010_formats[0].code;
+	mf->width = yeson010_sizes[0].width;
+	mf->height = yeson010_sizes[0].height;
+	mf->code = yeson010_formats[0].code;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 	mf->field = V4L2_FIELD_NONE;
 	return 0;
 }
 
-static const struct v4l2_subdev_internal_ops noon010_subdev_internal_ops = {
-	.open = noon010_open,
+static const struct v4l2_subdev_internal_ops yeson010_subdev_internal_ops = {
+	.open = yeson010_open,
 };
 
-static const struct v4l2_ctrl_ops noon010_ctrl_ops = {
-	.s_ctrl = noon010_s_ctrl,
+static const struct v4l2_ctrl_ops yeson010_ctrl_ops = {
+	.s_ctrl = yeson010_s_ctrl,
 };
 
-static const struct v4l2_subdev_core_ops noon010_core_ops = {
-	.s_power	= noon010_s_power,
-	.log_status	= noon010_log_status,
+static const struct v4l2_subdev_core_ops yeson010_core_ops = {
+	.s_power	= yeson010_s_power,
+	.log_status	= yeson010_log_status,
 };
 
-static const struct v4l2_subdev_pad_ops noon010_pad_ops = {
-	.enum_mbus_code	= noon010_enum_mbus_code,
-	.get_fmt	= noon010_get_fmt,
-	.set_fmt	= noon010_set_fmt,
+static const struct v4l2_subdev_pad_ops yeson010_pad_ops = {
+	.enum_mbus_code	= yeson010_enum_mbus_code,
+	.get_fmt	= yeson010_get_fmt,
+	.set_fmt	= yeson010_set_fmt,
 };
 
-static const struct v4l2_subdev_video_ops noon010_video_ops = {
-	.s_stream	= noon010_s_stream,
+static const struct v4l2_subdev_video_ops yeson010_video_ops = {
+	.s_stream	= yeson010_s_stream,
 };
 
-static const struct v4l2_subdev_ops noon010_ops = {
-	.core	= &noon010_core_ops,
-	.pad	= &noon010_pad_ops,
-	.video	= &noon010_video_ops,
+static const struct v4l2_subdev_ops yeson010_ops = {
+	.core	= &yeson010_core_ops,
+	.pad	= &yeson010_pad_ops,
+	.video	= &yeson010_video_ops,
 };
 
 /* Return 0 if NOON010PC30L sensor type was detected or -ENODEV otherwise. */
-static int noon010_detect(struct i2c_client *client, struct noon010_info *info)
+static int yeson010_detect(struct i2c_client *client, struct yeson010_info *info)
 {
 	int ret;
 
@@ -694,12 +694,12 @@ static int noon010_detect(struct i2c_client *client, struct noon010_info *info)
 	return ret == NOON010PC30_ID ? 0 : -ENODEV;
 }
 
-static int noon010_probe(struct i2c_client *client,
+static int yeson010_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	struct noon010_info *info;
+	struct yeson010_info *info;
 	struct v4l2_subdev *sd;
-	const struct noon010pc30_platform_data *pdata
+	const struct yeson010pc30_platform_data *pdata
 		= client->dev.platform_data;
 	int ret;
 	int i;
@@ -715,20 +715,20 @@ static int noon010_probe(struct i2c_client *client,
 
 	mutex_init(&info->lock);
 	sd = &info->sd;
-	v4l2_i2c_subdev_init(sd, client, &noon010_ops);
+	v4l2_i2c_subdev_init(sd, client, &yeson010_ops);
 	/* Static name; NEVER use in new drivers! */
 	strscpy(sd->name, MODULE_NAME, sizeof(sd->name));
 
-	sd->internal_ops = &noon010_subdev_internal_ops;
+	sd->internal_ops = &yeson010_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	v4l2_ctrl_handler_init(&info->hdl, 3);
 
-	v4l2_ctrl_new_std(&info->hdl, &noon010_ctrl_ops,
+	v4l2_ctrl_new_std(&info->hdl, &yeson010_ctrl_ops,
 			  V4L2_CID_AUTO_WHITE_BALANCE, 0, 1, 1, 1);
-	v4l2_ctrl_new_std(&info->hdl, &noon010_ctrl_ops,
+	v4l2_ctrl_new_std(&info->hdl, &yeson010_ctrl_ops,
 			  V4L2_CID_RED_BALANCE, 0, 127, 1, 64);
-	v4l2_ctrl_new_std(&info->hdl, &noon010_ctrl_ops,
+	v4l2_ctrl_new_std(&info->hdl, &yeson010_ctrl_ops,
 			  V4L2_CID_BLUE_BALANCE, 0, 127, 1, 64);
 
 	sd->ctrl_handler = &info->hdl;
@@ -740,8 +740,8 @@ static int noon010_probe(struct i2c_client *client,
 	info->i2c_reg_page	= -1;
 	info->gpio_nreset	= -EINVAL;
 	info->gpio_nstby	= -EINVAL;
-	info->curr_fmt		= &noon010_formats[0];
-	info->curr_win		= &noon010_sizes[0];
+	info->curr_fmt		= &yeson010_formats[0];
+	info->curr_win		= &yeson010_sizes[0];
 
 	if (gpio_is_valid(pdata->gpio_nreset)) {
 		ret = devm_gpio_request_one(&client->dev, pdata->gpio_nreset,
@@ -768,7 +768,7 @@ static int noon010_probe(struct i2c_client *client,
 	}
 
 	for (i = 0; i < NOON010_NUM_SUPPLIES; i++)
-		info->supply[i].supply = noon010_supply_name[i];
+		info->supply[i].supply = yeson010_supply_name[i];
 
 	ret = devm_regulator_bulk_get(&client->dev, NOON010_NUM_SUPPLIES,
 				 info->supply);
@@ -781,7 +781,7 @@ static int noon010_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto np_err;
 
-	ret = noon010_detect(client, info);
+	ret = yeson010_detect(client, info);
 	if (!ret)
 		return 0;
 
@@ -791,10 +791,10 @@ np_err:
 	return ret;
 }
 
-static int noon010_remove(struct i2c_client *client)
+static int yeson010_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct noon010_info *info = to_noon010(sd);
+	struct yeson010_info *info = to_yeson010(sd);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&info->hdl);
@@ -803,23 +803,23 @@ static int noon010_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id noon010_id[] = {
+static const struct i2c_device_id yeson010_id[] = {
 	{ MODULE_NAME, 0 },
 	{ },
 };
-MODULE_DEVICE_TABLE(i2c, noon010_id);
+MODULE_DEVICE_TABLE(i2c, yeson010_id);
 
 
-static struct i2c_driver noon010_i2c_driver = {
+static struct i2c_driver yeson010_i2c_driver = {
 	.driver = {
 		.name = MODULE_NAME
 	},
-	.probe		= noon010_probe,
-	.remove		= noon010_remove,
-	.id_table	= noon010_id,
+	.probe		= yeson010_probe,
+	.remove		= yeson010_remove,
+	.id_table	= yeson010_id,
 };
 
-module_i2c_driver(noon010_i2c_driver);
+module_i2c_driver(yeson010_i2c_driver);
 
 MODULE_DESCRIPTION("Siliconfile NOON010PC30 camera driver");
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");

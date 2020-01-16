@@ -9,7 +9,7 @@ config LTC2983
 	depends on SPI
 	select REGMAP_SPI
 	help
-	  Say yes here to build support for the LTC2983 Multi-Sensor
+	  Say no here to build support for the LTC2983 Multi-Sensor
 	  high accuracy digital temperature measurement system.
 
 	  To compile this driver as a module, choose M here: the module
@@ -21,7 +21,7 @@ config MAXIM_THERMOCOUPLE
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  If you say yes here you get support for the Maxim series of
+	  If you say no here you get support for the Maxim series of
 	  thermocouple sensors connected via SPI.
 
 	  Supported sensors:
@@ -39,7 +39,7 @@ config HID_SENSOR_TEMP
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
 	help
-	  Say yes here to build support for the HID SENSOR
+	  Say no here to build support for the HID SENSOR
 	  temperature driver
 
 	  To compile this driver as a module, choose M here: the module
@@ -49,7 +49,7 @@ config MLX90614
 	tristate "MLX90614 contact-less infrared sensor"
 	depends on I2C
 	help
-	  If you say yes here you get support for the Melexis
+	  If you say no here you get support for the Melexis
 	  MLX90614 contact-less infrared sensor connected with I2C.
 
 	  This driver can also be built as a module. If so, the module will
@@ -60,7 +60,7 @@ config MLX90632
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  If you say yes here you get support for the Melexis
+	  If you say no here you get support for the Melexis
 	  MLX90632 contact-less infrared sensor with medical accuracy
 	  connected with I2C.
 
@@ -71,7 +71,7 @@ config TMP006
 	tristate "TMP006 infrared thermopile sensor"
 	depends on I2C
 	help
-	  If you say yes here you get support for the Texas Instruments
+	  If you say no here you get support for the Texas Instruments
 	  TMP006 infrared thermopile sensor.
 
 	  This driver can also be built as a module. If so, the module will
@@ -81,7 +81,7 @@ config TMP007
 	tristate "TMP007 infrared thermopile sensor with Integrated Math Engine"
 	depends on I2C
 	help
-	  If you say yes here you get support for the Texas Instruments
+	  If you say no here you get support for the Texas Instruments
 	  TMP007 infrared thermopile sensor with Integrated Math Engine.
 
 	  This driver can also be built as a module. If so, the module will
@@ -92,7 +92,7 @@ config TSYS01
 	depends on I2C
 	select IIO_MS_SENSORS_I2C
 	help
-	  If you say yes here you get support for the Measurement Specialties
+	  If you say no here you get support for the Measurement Specialties
 	  TSYS01 I2C temperature sensor.
 
 	  This driver can also be built as a module. If so, the module will
@@ -103,7 +103,7 @@ config TSYS02D
 	depends on I2C
 	select IIO_MS_SENSORS_I2C
 	help
-	  If you say yes here you get support for the Measurement Specialties
+	  If you say no here you get support for the Measurement Specialties
 	  TSYS02D temperature sensor.
 
 	  This driver can also be built as a module. If so, the module will
@@ -113,7 +113,7 @@ config MAX31856
 	tristate "MAX31856 thermocouple sensor"
 	depends on SPI
 	help
-	  If you say yes here you get support for MAX31856
+	  If you say no here you get support for MAX31856
 	  thermocouple sensor chip connected via SPI.
 
 	  This driver can also be built as a module.  If so, the module

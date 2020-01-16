@@ -45,7 +45,7 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	struct nf_ct_ext_type *t;
 	struct nf_ct_ext *new;
 
-	/* Conntrack must not be confirmed to avoid races on reallocation. */
+	/* Conntrack must yest be confirmed to avoid races on reallocation. */
 	WARN_ON(nf_ct_is_confirmed(ct));
 
 

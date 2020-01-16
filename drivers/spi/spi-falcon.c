@@ -126,7 +126,7 @@ int falcon_sflash_xfer(struct spi_device *spi, struct spi_transfer *t,
 				}
 				/*
 				 * Prepare the parts of the sfcmd register,
-				 * which should not change during a sequence!
+				 * which should yest change during a sequence!
 				 * Only exception are the length fields,
 				 * especially alen and dumlen.
 				 */
@@ -208,7 +208,7 @@ int falcon_sflash_xfer(struct spi_device *spi, struct spi_transfer *t,
 				state = state_disable_cs;
 			} else {
 				/*
-				 * go to end and expect another
+				 * go to end and expect ayesther
 				 * call (read or write)
 				 */
 				state = state_end;
@@ -335,8 +335,8 @@ static int falcon_sflash_setup(struct spi_device *spi)
 		     SFTIME);
 
 	/*
-	 * set some bits of unused_wd, to not trigger HOLD/WP
-	 * signals on non QUAD flashes
+	 * set some bits of unused_wd, to yest trigger HOLD/WP
+	 * signals on yesn QUAD flashes
 	 */
 	ltq_ebu_w32((SFIO_UNUSED_WD_MASK & (0x8 | 0x4)), SFIO);
 
@@ -404,7 +404,7 @@ static int falcon_sflash_probe(struct platform_device *pdev)
 	master->flags = SPI_MASTER_HALF_DUPLEX;
 	master->setup = falcon_sflash_setup;
 	master->transfer_one_message = falcon_sflash_xfer_one;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret)

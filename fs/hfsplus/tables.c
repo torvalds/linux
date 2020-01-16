@@ -8,7 +8,7 @@
 #include "hfsplus_fs.h"
 
 /*
- *  Unicode case folding table taken from Apple Technote #1150
+ *  Unicode case folding table taken from Apple Techyeste #1150
  *  (HFS Plus Volume Format)
  */
 
@@ -17,11 +17,11 @@ u16 hfsplus_case_fold_table[] = {
  *  The lower case table consists of a 256-entry high-byte table followed by
  *  some number of 256-entry subtables. The high-byte table contains either an
  *  offset to the subtable for characters with that high byte or zero, which
- *  means that there are no case mappings or ignored characters in that block.
- *  Ignored characters are mapped to zero.
+ *  means that there are yes case mappings or igyesred characters in that block.
+ *  Igyesred characters are mapped to zero.
  */
 
-    // High-byte indices ( == 0 iff no case mapping and no ignorables )
+    // High-byte indices ( == 0 iff yes case mapping and yes igyesrables )
 
 
     /* 0 */ 0x0100, 0x0200, 0x0000, 0x0300, 0x0400, 0x0500, 0x0000, 0x0000,

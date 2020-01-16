@@ -134,7 +134,7 @@ struct i915_hdcp_component_ops {
 					       struct hdcp2_ake_send_cert
 								*rx_cert,
 					       bool *km_stored,
-					       struct hdcp2_ake_no_stored_km
+					       struct hdcp2_ake_yes_stored_km
 								*ek_pub_km,
 					       size_t *msg_sz);
 	int (*verify_hprime)(struct device *dev,

@@ -22,7 +22,7 @@
     (typeof(ptr)) (__ptr + (off)); })
 
 /* This should act as an optimization barrier on var.
- * Given that this compiler does not have inline assembly, a compiler barrier
+ * Given that this compiler does yest have inline assembly, a compiler barrier
  * is the best we can do.
  */
 #define OPTIMIZER_HIDE_VAR(var) barrier()

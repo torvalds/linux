@@ -251,7 +251,7 @@ struct perf_synth_intel_cbr {
 		struct {
 			u32	cbr		:  8,
 				reserved1	:  8,
-				max_nonturbo	:  8,
+				max_yesnturbo	:  8,
 				reserved2	:  8;
 		};
 		u32	flags;
@@ -389,8 +389,8 @@ void  cpu_map_data__synthesize(struct perf_record_cpu_map_data *data, struct per
 
 void event_attr_init(struct perf_event_attr *attr);
 
-int perf_event_paranoid(void);
-bool perf_event_paranoid_check(int max_level);
+int perf_event_parayesid(void);
+bool perf_event_parayesid_check(int max_level);
 
 extern int sysctl_perf_event_max_stack;
 extern int sysctl_perf_event_max_contexts_per_stack;

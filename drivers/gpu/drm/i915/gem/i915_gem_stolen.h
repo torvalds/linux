@@ -9,18 +9,18 @@
 #include <linux/types.h>
 
 struct drm_i915_private;
-struct drm_mm_node;
+struct drm_mm_yesde;
 struct drm_i915_gem_object;
 
-int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
-				struct drm_mm_node *node, u64 size,
+int i915_gem_stolen_insert_yesde(struct drm_i915_private *dev_priv,
+				struct drm_mm_yesde *yesde, u64 size,
 				unsigned alignment);
-int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
-					 struct drm_mm_node *node, u64 size,
+int i915_gem_stolen_insert_yesde_in_range(struct drm_i915_private *dev_priv,
+					 struct drm_mm_yesde *yesde, u64 size,
 					 unsigned alignment, u64 start,
 					 u64 end);
-void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
-				 struct drm_mm_node *node);
+void i915_gem_stolen_remove_yesde(struct drm_i915_private *dev_priv,
+				 struct drm_mm_yesde *yesde);
 struct intel_memory_region *i915_gem_stolen_setup(struct drm_i915_private *i915);
 struct drm_i915_gem_object *
 i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,

@@ -4,7 +4,7 @@
       By: YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>
 
     Ver.2.8   Support 32bit MMIO mode
-              Support Synchronous Data Transfer Request (SDTR) mode
+              Support Synchroyesus Data Transfer Request (SDTR) mode
     Ver.2.0   Support 32bit PIO mode
     Ver.1.1.2 Fix for scatter list buffer exceeds
     Ver.1.1   Support scatter list
@@ -70,7 +70,7 @@ MODULE_PARM_DESC(nsp_burst_mode, "Burst transfer mode (0=io8, 1=io32, 2=mem32(de
 /* Release IO ports after configuration? */
 static bool       free_ports = 0;
 module_param(free_ports, bool, 0);
-MODULE_PARM_DESC(free_ports, "Release IO ports after configuration? (default: 0 (=no))");
+MODULE_PARM_DESC(free_ports, "Release IO ports after configuration? (default: 0 (=yes))");
 
 static struct scsi_host_template nsp_driver_template = {
 	.proc_name	         = "nsp_cs",
@@ -438,7 +438,7 @@ static struct nsp_sync_table nsp_sync_table_20M[] = {
 };
 
 /*
- * setup synchronous data transfer mode
+ * setup synchroyesus data transfer mode
  */
 static int nsp_analyze_sdtr(struct scsi_cmnd *SCpnt)
 {
@@ -475,7 +475,7 @@ static int nsp_analyze_sdtr(struct scsi_cmnd *SCpnt)
 		/*
 		 * No proper period/offset found
 		 */
-		nsp_dbg(NSP_DEBUG_SYNC, "no proper period/offset");
+		nsp_dbg(NSP_DEBUG_SYNC, "yes proper period/offset");
 
 		sync->SyncPeriod      = 0;
 		sync->SyncOffset      = 0;
@@ -627,7 +627,7 @@ static int nsp_dataphase_bypass(struct scsi_cmnd *SCpnt)
 
 	count = nsp_fifo_count(SCpnt);
 	if (data->FifoCount == count) {
-		//nsp_dbg(NSP_DEBUG_DATA_IO, "not use bypass quirk");
+		//nsp_dbg(NSP_DEBUG_DATA_IO, "yest use bypass quirk");
 		return 0;
 	}
 
@@ -772,7 +772,7 @@ static void nsp_pio_read(struct scsi_cmnd *SCpnt)
 			break;
 
 		default:
-			nsp_dbg(NSP_DEBUG_DATA_IO, "unknown read mode");
+			nsp_dbg(NSP_DEBUG_DATA_IO, "unkyeswn read mode");
 			return;
 		}
 
@@ -871,7 +871,7 @@ static void nsp_pio_write(struct scsi_cmnd *SCpnt)
 			break;
 
 		default:
-			nsp_dbg(NSP_DEBUG_DATA_IO, "unknown write mode");
+			nsp_dbg(NSP_DEBUG_DATA_IO, "unkyeswn write mode");
 			break;
 		}
 
@@ -906,7 +906,7 @@ static void nsp_pio_write(struct scsi_cmnd *SCpnt)
 #undef WFIFO_CRIT
 
 /*
- * setup synchronous/asynchronous data transfer mode
+ * setup synchroyesus/asynchroyesus data transfer mode
  */
 static int nsp_nexus(struct scsi_cmnd *SCpnt)
 {
@@ -987,12 +987,12 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 	//nsp_dbg(NSP_DEBUG_INTR, "irq_status=0x%x", irq_status);
 	if ((irq_status == 0xff) || ((irq_status & IRQSTATUS_MASK) == 0)) {
 		nsp_write(base, IRQCONTROL, 0);
-		//nsp_dbg(NSP_DEBUG_INTR, "no irq/shared irq");
+		//nsp_dbg(NSP_DEBUG_INTR, "yes irq/shared irq");
 		return IRQ_NONE;
 	}
 
 	/* XXX: IMPORTANT
-	 * Do not read an irq_phase register if no scsi phase interrupt.
+	 * Do yest read an irq_phase register if yes scsi phase interrupt.
 	 * Unless, you should lose a scsi phase interrupt.
 	 */
 	phase = nsp_index_read(base, SCSIBUSMON);
@@ -1125,10 +1125,10 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 	 */
 	//nsp_dbg(NSP_DEBUG_INTR, "start scsi seq");
 
-	/* normal disconnect */
+	/* yesrmal disconnect */
 	if (((tmpSC->SCp.phase == PH_MSG_IN) || (tmpSC->SCp.phase == PH_MSG_OUT)) &&
 	    (irq_phase & LATCHED_BUS_FREE) != 0 ) {
-		nsp_dbg(NSP_DEBUG_INTR, "normal disconnect irq_status=0x%x, phase=0x%x, irq_phase=0x%x", irq_status, phase, irq_phase);
+		nsp_dbg(NSP_DEBUG_INTR, "yesrmal disconnect irq_status=0x%x, phase=0x%x, irq_phase=0x%x", irq_status, phase, irq_phase);
 
 		//*sync_neg       = SYNC_NOT_YET;
 
@@ -1368,14 +1368,14 @@ static int nsp_show_info(struct seq_file *m, struct Scsi_Host *host)
 	int speed;
 	unsigned long flags;
 	nsp_hw_data *data;
-	int hostno;
+	int hostyes;
 
-	hostno = host->host_no;
+	hostyes = host->host_yes;
 	data = (nsp_hw_data *)host->hostdata;
 
 	seq_puts(m, "NinjaSCSI status\n\n"
 		"Driver version:        $Revision: 1.23 $\n");
-	seq_printf(m, "SCSI host No.:         %d\n",          hostno);
+	seq_printf(m, "SCSI host No.:         %d\n",          hostyes);
 	seq_printf(m, "IRQ:                   %d\n",          host->irq);
 	seq_printf(m, "IO:                    0x%lx-0x%lx\n", host->io_port, host->io_port + host->n_io_port - 1);
 	seq_printf(m, "MMIO(virtual address): 0x%lx-0x%lx\n", host->base, host->base + data->MmioLength - 1);
@@ -1421,7 +1421,7 @@ static int nsp_show_info(struct seq_file *m, struct Scsi_Host *host)
 			seq_puts(m, "async");
 			break;
 		case SYNC_NOT_YET:
-			seq_puts(m, " none");
+			seq_puts(m, " yesne");
 			break;
 		default:
 			seq_puts(m, "?????");
@@ -1560,7 +1560,7 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev, void *priv_data)
 			goto next_entry;
 
 		data->MmioAddress = (unsigned long)
-			ioremap_nocache(p_dev->resource[2]->start,
+			ioremap_yescache(p_dev->resource[2]->start,
 					resource_size(p_dev->resource[2]));
 		data->MmioLength  = resource_size(p_dev->resource[2]);
 	}

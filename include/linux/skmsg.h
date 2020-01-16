@@ -115,9 +115,9 @@ int sk_msg_clone(struct sock *sk, struct sk_msg *dst, struct sk_msg *src,
 		 u32 off, u32 len);
 void sk_msg_trim(struct sock *sk, struct sk_msg *msg, int len);
 int sk_msg_free(struct sock *sk, struct sk_msg *msg);
-int sk_msg_free_nocharge(struct sock *sk, struct sk_msg *msg);
+int sk_msg_free_yescharge(struct sock *sk, struct sk_msg *msg);
 void sk_msg_free_partial(struct sock *sk, struct sk_msg *msg, u32 bytes);
-void sk_msg_free_partial_nocharge(struct sock *sk, struct sk_msg *msg,
+void sk_msg_free_partial_yescharge(struct sock *sk, struct sk_msg *msg,
 				  u32 bytes);
 
 void sk_msg_return(struct sock *sk, struct sk_msg *msg, int bytes);
@@ -302,7 +302,7 @@ static inline void sk_psock_report_error(struct sk_psock *psock, int err)
 	sk->sk_error_report(sk);
 }
 
-struct sk_psock *sk_psock_init(struct sock *sk, int node);
+struct sk_psock *sk_psock_init(struct sock *sk, int yesde);
 
 int sk_psock_init_strp(struct sock *sk, struct sk_psock *psock);
 void sk_psock_start_strp(struct sock *sk, struct sk_psock *psock);
@@ -402,7 +402,7 @@ static inline struct sk_psock *sk_psock_get_checked(struct sock *sk)
 			goto out;
 		}
 
-		if (!refcount_inc_not_zero(&psock->refcnt))
+		if (!refcount_inc_yest_zero(&psock->refcnt))
 			psock = ERR_PTR(-EBUSY);
 	}
 out:
@@ -416,7 +416,7 @@ static inline struct sk_psock *sk_psock_get(struct sock *sk)
 
 	rcu_read_lock();
 	psock = sk_psock(sk);
-	if (psock && !refcount_inc_not_zero(&psock->refcnt))
+	if (psock && !refcount_inc_yest_zero(&psock->refcnt))
 		psock = NULL;
 	rcu_read_unlock();
 	return psock;

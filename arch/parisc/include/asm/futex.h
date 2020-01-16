@@ -7,7 +7,7 @@
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 #include <asm/atomic.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 /* The following has to match the LWS code in syscall.S.  We have
    sixteen four-word locks. */
@@ -90,7 +90,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	unsigned long flags;
 
 	/* futex.c wants to do a cmpxchg_inatomic on kernel NULL, which is
-	 * our gateway page, and causes no end of trouble...
+	 * our gateway page, and causes yes end of trouble...
 	 */
 	if (uaccess_kernel() && !uaddr)
 		return -EFAULT;
@@ -98,7 +98,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	if (!access_ok(uaddr, sizeof(u32)))
 		return -EFAULT;
 
-	/* HPPA has no cmpxchg in hardware and therefore the
+	/* HPPA has yes cmpxchg in hardware and therefore the
 	 * best we can do here is use an array of locks. The
 	 * lock selected is based on a hash of the userspace
 	 * address. This should scale to a couple of CPUs.

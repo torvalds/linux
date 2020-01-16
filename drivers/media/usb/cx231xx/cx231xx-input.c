@@ -30,7 +30,7 @@ static int get_key_isdbt(struct IR_i2c *ir, enum rc_proto *protocol,
 		return -EIO;
 
 	/* it seems that 0xFE indicates that a button is still hold
-	   down, while 0xff indicates that no button is hold
+	   down, while 0xff indicates that yes button is hold
 	   down. 0xfe sequences are sometimes interrupted by 0xFF */
 
 	if (cmd == 0xff)
@@ -73,7 +73,7 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	/*
 	 * Board-dependent values
 	 *
-	 * For now, there's just one type of hardware design using
+	 * For yesw, there's just one type of hardware design using
 	 * an i2c device.
 	 */
 	dev->init_data.get_key = get_key_isdbt;

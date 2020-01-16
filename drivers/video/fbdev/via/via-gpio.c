@@ -13,7 +13,7 @@
 #include <linux/export.h>
 
 /*
- * The ports we know about.  Note that the port-25 gpios are not
+ * The ports we kyesw about.  Note that the port-25 gpios are yest
  * mentioned in the datasheet.
  */
 
@@ -26,7 +26,7 @@ struct viafb_gpio {
 
 static struct viafb_gpio viafb_all_gpios[] = {
 	{
-		.vg_name = "VGPIO0",  /* Guess - not in datasheet */
+		.vg_name = "VGPIO0",  /* Guess - yest in datasheet */
 		.vg_io_port = VIASR,
 		.vg_port_index = 0x25,
 		.vg_mask_shift = 1
@@ -67,7 +67,7 @@ static struct viafb_gpio viafb_all_gpios[] = {
 
 /*
  * This structure controls the active GPIOs, which may be a subset
- * of those which are known.
+ * of those which are kyeswn.
  */
 
 struct viafb_gpio_cfg {
@@ -108,7 +108,7 @@ static int via_gpio_dir_out(struct gpio_chip *chip, unsigned int nr,
 }
 
 /*
- * Set the input direction.  I'm not sure this is right; we should
+ * Set the input direction.  I'm yest sure this is right; we should
  * be able to do input without disabling output.
  */
 static int via_gpio_dir_input(struct gpio_chip *chip, unsigned int nr)
@@ -234,7 +234,7 @@ static int viafb_gpio_probe(struct platform_device *platdev)
 	viafb_gpio_config.gpio_chip.names = viafb_gpio_config.gpio_names;
 	viafb_gpio_config.vdev = vdev;
 	if (ngpio == 0) {
-		printk(KERN_INFO "viafb: no GPIOs configured\n");
+		printk(KERN_INFO "viafb: yes GPIOs configured\n");
 		return 0;
 	}
 	/*

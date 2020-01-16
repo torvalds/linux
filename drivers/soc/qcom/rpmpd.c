@@ -405,7 +405,7 @@ static int rpmpd_probe(struct platform_device *pdev)
 		data->domains[i] = &rpmpds[i]->pd;
 	}
 
-	return of_genpd_add_provider_onecell(pdev->dev.of_node, data);
+	return of_genpd_add_provider_onecell(pdev->dev.of_yesde, data);
 }
 
 static struct platform_driver rpmpd_driver = {

@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef _CIFSPROTO_H
@@ -131,16 +131,16 @@ extern int cifs_reconnect(struct TCP_Server_Info *server);
 extern int checkSMB(char *buf, unsigned int len, struct TCP_Server_Info *srvr);
 extern bool is_valid_oplock_break(char *, struct TCP_Server_Info *);
 extern bool backup_cred(struct cifs_sb_info *);
-extern bool is_size_safe_to_change(struct cifsInodeInfo *, __u64 eof);
-extern void cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
+extern bool is_size_safe_to_change(struct cifsIyesdeInfo *, __u64 eof);
+extern void cifs_update_eof(struct cifsIyesdeInfo *cifsi, loff_t offset,
 			    unsigned int bytes_written);
-extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *, bool);
-extern int cifs_get_writable_file(struct cifsInodeInfo *cifs_inode,
+extern struct cifsFileInfo *find_writable_file(struct cifsIyesdeInfo *, bool);
+extern int cifs_get_writable_file(struct cifsIyesdeInfo *cifs_iyesde,
 				  bool fsuid_only,
 				  struct cifsFileInfo **ret_file);
 extern int cifs_get_writable_path(struct cifs_tcon *tcon, const char *name,
 				  struct cifsFileInfo **ret_file);
-extern struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *, bool);
+extern struct cifsFileInfo *find_readable_file(struct cifsIyesdeInfo *, bool);
 extern int cifs_get_readable_path(struct cifs_tcon *tcon, const char *name,
 				  struct cifsFileInfo **ret_file);
 extern unsigned int smbCalcSize(void *buf, struct TCP_Server_Info *server);
@@ -152,21 +152,21 @@ extern int map_smb_to_linux_error(char *buf, bool logErr);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
 			    const struct cifs_tcon *, int /* length of
 			    fixed section (word count) in two byte units */);
-extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
+extern int small_smb_init_yes_tc(const int smb_cmd, const int wct,
 				struct cifs_ses *ses,
 				void **request_buf);
 extern enum securityEnum select_sectype(struct TCP_Server_Info *server,
 				enum securityEnum requested);
 extern int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 			  const struct nls_table *nls_cp);
-extern struct timespec64 cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
+extern struct timespec64 cifs_NTtimeToUnix(__le64 utc_nayesseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec64);
 extern struct timespec64 cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 				      int offset);
-extern void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
-extern int cifs_get_writer(struct cifsInodeInfo *cinode);
-extern void cifs_put_writer(struct cifsInodeInfo *cinode);
-extern void cifs_done_oplock_break(struct cifsInodeInfo *cinode);
+extern void cifs_set_oplock_level(struct cifsIyesdeInfo *ciyesde, __u32 oplock);
+extern int cifs_get_writer(struct cifsIyesdeInfo *ciyesde);
+extern void cifs_put_writer(struct cifsIyesdeInfo *ciyesde);
+extern void cifs_done_oplock_break(struct cifsIyesdeInfo *ciyesde);
 extern int cifs_unlock_range(struct cifsFileInfo *cfile,
 			     struct file_lock *flock, const unsigned int xid);
 extern int cifs_push_mandatory_locks(struct cifsFileInfo *cfile);
@@ -176,7 +176,7 @@ extern struct cifsFileInfo *cifs_new_fileinfo(struct cifs_fid *fid,
 					      struct file *file,
 					      struct tcon_link *tlink,
 					      __u32 oplock);
-extern int cifs_posix_open(char *full_path, struct inode **inode,
+extern int cifs_posix_open(char *full_path, struct iyesde **iyesde,
 			   struct super_block *sb, int mode,
 			   unsigned int f_flags, __u32 *oplock, __u16 *netfid,
 			   unsigned int xid);
@@ -186,32 +186,32 @@ extern void cifs_unix_basic_to_fattr(struct cifs_fattr *fattr,
 				     struct cifs_sb_info *cifs_sb);
 extern void cifs_dir_info_to_fattr(struct cifs_fattr *, FILE_DIRECTORY_INFO *,
 					struct cifs_sb_info *);
-extern void cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr);
-extern struct inode *cifs_iget(struct super_block *sb,
+extern void cifs_fattr_to_iyesde(struct iyesde *iyesde, struct cifs_fattr *fattr);
+extern struct iyesde *cifs_iget(struct super_block *sb,
 			       struct cifs_fattr *fattr);
 
-extern int cifs_get_inode_info(struct inode **inode, const char *full_path,
+extern int cifs_get_iyesde_info(struct iyesde **iyesde, const char *full_path,
 			       FILE_ALL_INFO *data, struct super_block *sb,
 			       int xid, const struct cifs_fid *fid);
-extern int cifs_get_inode_info_unix(struct inode **pinode,
+extern int cifs_get_iyesde_info_unix(struct iyesde **piyesde,
 			const unsigned char *search_path,
 			struct super_block *sb, unsigned int xid);
-extern int cifs_set_file_info(struct inode *inode, struct iattr *attrs,
+extern int cifs_set_file_info(struct iyesde *iyesde, struct iattr *attrs,
 			      unsigned int xid, char *full_path, __u32 dosattr);
 extern int cifs_rename_pending_delete(const char *full_path,
 				      struct dentry *dentry,
 				      const unsigned int xid);
 extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
-			      struct cifs_fattr *fattr, struct inode *inode,
+			      struct cifs_fattr *fattr, struct iyesde *iyesde,
 			      bool get_mode_from_special_sid,
 			      const char *path, const struct cifs_fid *pfid);
-extern int id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64,
+extern int id_mode_to_cifs_acl(struct iyesde *iyesde, const char *path, __u64,
 					kuid_t, kgid_t);
-extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
+extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct iyesde *,
 					const char *, u32 *);
 extern struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *,
 						const struct cifs_fid *, u32 *);
-extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
+extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct iyesde *,
 				const char *, int);
 extern unsigned int setup_special_mode_ACE(struct cifs_ace *pace, __u64 nmode);
 
@@ -306,13 +306,13 @@ extern int CIFSSMBUnixQPathInfo(const unsigned int xid,
 
 extern int CIFSGetDFSRefer(const unsigned int xid, struct cifs_ses *ses,
 			   const char *search_name,
-			   struct dfs_info3_param **target_nodes,
-			   unsigned int *num_of_nodes,
+			   struct dfs_info3_param **target_yesdes,
+			   unsigned int *num_of_yesdes,
 			   const struct nls_table *nls_codepage, int remap);
 
 extern int parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
-			       unsigned int *num_of_nodes,
-			       struct dfs_info3_param **target_nodes,
+			       unsigned int *num_of_yesdes,
+			       struct dfs_info3_param **target_yesdes,
 			       const struct nls_table *nls_codepage, int remap,
 			       const char *searchName, bool is_unicode);
 extern void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
@@ -376,7 +376,7 @@ extern int CIFSSMBUnixSetPathInfo(const unsigned int xid,
 				  const struct nls_table *nls_codepage,
 				  int remap);
 
-extern int CIFSSMBMkDir(const unsigned int xid, struct inode *inode,
+extern int CIFSSMBMkDir(const unsigned int xid, struct iyesde *iyesde,
 			umode_t mode, struct cifs_tcon *tcon,
 			const char *name, struct cifs_sb_info *cifs_sb);
 extern int CIFSSMBRmDir(const unsigned int xid, struct cifs_tcon *tcon,
@@ -440,8 +440,8 @@ extern int CIFSSMBWrite(const unsigned int xid, struct cifs_io_parms *io_parms,
 			unsigned int *nbytes, const char *buf);
 extern int CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 			unsigned int *nbytes, struct kvec *iov, const int nvec);
-extern int CIFSGetSrvInodeNumber(const unsigned int xid, struct cifs_tcon *tcon,
-				 const char *search_name, __u64 *inode_number,
+extern int CIFSGetSrvIyesdeNumber(const unsigned int xid, struct cifs_tcon *tcon,
+				 const char *search_name, __u64 *iyesde_number,
 				 const struct nls_table *nls_codepage,
 				 int remap);
 
@@ -491,10 +491,10 @@ extern int calc_lanman_hash(const char *password, const char *cryptkey,
 #endif /* CIFS_WEAK_PW_HASH */
 #ifdef CONFIG_CIFS_DNOTIFY_EXPERIMENTAL /* unused temporarily */
 extern int CIFSSMBNotify(const unsigned int xid, struct cifs_tcon *tcon,
-			const int notify_subdirs, const __u16 netfid,
+			const int yestify_subdirs, const __u16 netfid,
 			__u32 filter, struct file *file, int multishot,
 			const struct nls_table *nls_codepage);
-#endif /* was needed for dnotify, and will be needed for inotify when VFS fix */
+#endif /* was needed for dyestify, and will be needed for iyestify when VFS fix */
 extern int CIFSSMBCopy(unsigned int xid,
 			struct cifs_tcon *source_tcon,
 			const char *fromName,
@@ -525,7 +525,7 @@ extern int CIFSSMBSetPosixACL(const unsigned int xid, struct cifs_tcon *tcon,
 		const struct nls_table *nls_codepage, int remap_special_chars);
 extern int CIFSGetExtAttr(const unsigned int xid, struct cifs_tcon *tcon,
 			const int netfid, __u64 *pExtAttrBits, __u64 *pMask);
-extern void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb);
+extern void cifs_autodisable_serveriyes(struct cifs_sb_info *cifs_sb);
 extern bool couldbe_mf_symlink(const struct cifs_fattr *fattr);
 extern int check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			      struct cifs_sb_info *cifs_sb,

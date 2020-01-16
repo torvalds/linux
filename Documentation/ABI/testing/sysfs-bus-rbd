@@ -133,12 +133,12 @@ Description:
 		layered rbd image. Entries are separated by empty lines.
 
 
-What:		/sys/bus/rbd/devices/<dev-id>/minor
+What:		/sys/bus/rbd/devices/<dev-id>/miyesr
 Date:		Dec, 2013
 KernelVersion:	v3.14
 Contact:	Sage Weil <sage@newdream.net>
 Description:
-		(RO) The block device minor number.
+		(RO) The block device miyesr number.
 
 
 What:		/sys/bus/rbd/devices/<dev-id>/snap_id
@@ -157,6 +157,6 @@ Description:
 		cluster_fsid:	(RO) The ceph cluster UUID.
 
 		client_addr:	(RO) The ceph unique client
-				entity_addr_t (address + nonce). The format is
-				<address>:<port>/<nonce>: '1.2.3.4:1234/5678' or
+				entity_addr_t (address + yesnce). The format is
+				<address>:<port>/<yesnce>: '1.2.3.4:1234/5678' or
 				'[1:2:3:4:5:6:7:8]:1234/5678'.

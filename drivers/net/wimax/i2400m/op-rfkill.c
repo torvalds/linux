@@ -12,7 +12,7 @@
  * - report changes in the HW RF Kill switch [with
  *   wimax_rfkill_{sw,hw}_report(), which happens when we detect those
  *   indications coming through hardware reports]. We also do it on
- *   initialization to let the stack know the initial HW state.
+ *   initialization to let the stack kyesw the initial HW state.
  *
  * - implement indications from the stack to change the SW RF Kill
  *   switch (coming from sysfs, the wimax stack or user space).
@@ -63,7 +63,7 @@ int i2400m_radio_is(struct i2400m *i2400m, enum wimax_rf_state state)
  *
  * NOTE: the i2400m has a strict state machine; we can only set the
  *       RF-Kill switch when it is on, the HW RF-Kill is on and the
- *       device is initialized. So we ignore errors steaming from not
+ *       device is initialized. So we igyesre errors steaming from yest
  *       being in the right state (-EILSEQ).
  */
 int i2400m_op_rfkill_sw_toggle(struct wimax_dev *wimax_dev,
@@ -144,7 +144,7 @@ error_alloc:
  * @i2400m: device descriptor
  * @rfss: TLV for RF Switches status; already validated
  *
- * NOTE: the reports on RF switch status cannot be trusted
+ * NOTE: the reports on RF switch status canyest be trusted
  *       or used until the device is in a state of RADIO_OFF
  *       or greater.
  */
@@ -165,7 +165,7 @@ void i2400m_report_tlv_rf_switches_status(
 	 * fully initialized */
 	wimax_state = wimax_state_get(&i2400m->wimax_dev);
 	if (wimax_state < WIMAX_ST_RADIO_OFF) {
-		d_printf(3, dev, "ignoring RF switches report, state %u\n",
+		d_printf(3, dev, "igyesring RF switches report, state %u\n",
 			 wimax_state);
 		goto out;
 	}
@@ -177,7 +177,7 @@ void i2400m_report_tlv_rf_switches_status(
 		wimax_report_rfkill_sw(&i2400m->wimax_dev, WIMAX_RF_OFF);
 		break;
 	default:
-		dev_err(dev, "HW BUG? Unknown RF SW state 0x%x\n", sw);
+		dev_err(dev, "HW BUG? Unkyeswn RF SW state 0x%x\n", sw);
 	}
 
 	switch (hw) {
@@ -188,7 +188,7 @@ void i2400m_report_tlv_rf_switches_status(
 		wimax_report_rfkill_hw(&i2400m->wimax_dev, WIMAX_RF_OFF);
 		break;
 	default:
-		dev_err(dev, "HW BUG? Unknown RF HW state 0x%x\n", hw);
+		dev_err(dev, "HW BUG? Unkyeswn RF HW state 0x%x\n", hw);
 	}
 out:
 	d_fnend(3, dev, "(i2400m %p rfss %p [hw %u sw %u]) = void\n",

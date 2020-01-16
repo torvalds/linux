@@ -33,7 +33,7 @@ static LIST_HEAD(clock_list);
 static DEFINE_SPINLOCK(clock_lock);
 static DEFINE_MUTEX(clock_list_sem);
 
-/* clock disable operations are not passed on to hardware during boot */
+/* clock disable operations are yest passed on to hardware during boot */
 static int allow_disable;
 
 void clk_rate_table_build(struct clk *clk,
@@ -310,7 +310,7 @@ static LIST_HEAD(root_clks);
 /**
  * recalculate_root_clocks - recalculate and propagate all root clocks
  *
- * Recalculates all root clocks (clocks with no parent), which if the
+ * Recalculates all root clocks (clocks with yes parent), which if the
  * clock's .recalc is set correctly, should also propagate their rates.
  * Called at init.
  */
@@ -346,7 +346,7 @@ static int clk_establish_mapping(struct clk *clk)
 		struct clk *clkp;
 
 		/*
-		 * dummy mapping for root clocks with no specified ranges
+		 * dummy mapping for root clocks with yes specified ranges
 		 */
 		if (!clk->parent) {
 			clk->mapping = &dummy_mapping;
@@ -354,7 +354,7 @@ static int clk_establish_mapping(struct clk *clk)
 		}
 
 		/*
-		 * If we're on a child clock and it provides no mapping of its
+		 * If we're on a child clock and it provides yes mapping of its
 		 * own, inherit the mapping from its root clock.
 		 */
 		clkp = lookup_root_clock(clk);
@@ -368,7 +368,7 @@ static int clk_establish_mapping(struct clk *clk)
 	if (!mapping->base && mapping->phys) {
 		kref_init(&mapping->ref);
 
-		mapping->base = ioremap_nocache(mapping->phys, mapping->len);
+		mapping->base = ioremap_yescache(mapping->phys, mapping->len);
 		if (unlikely(!mapping->base))
 			return -ENXIO;
 	} else if (mapping->base) {
@@ -418,7 +418,7 @@ int clk_register(struct clk *clk)
 	/*
 	 * trap out already registered clocks
 	 */
-	if (clk->node.next || clk->node.prev)
+	if (clk->yesde.next || clk->yesde.prev)
 		return 0;
 
 	mutex_lock(&clock_list_sem);
@@ -435,7 +435,7 @@ int clk_register(struct clk *clk)
 	else
 		list_add(&clk->sibling, &root_clks);
 
-	list_add(&clk->node, &clock_list);
+	list_add(&clk->yesde, &clock_list);
 
 #ifdef CONFIG_SH_CLK_CPG_LEGACY
 	if (clk->ops && clk->ops->init)
@@ -453,7 +453,7 @@ void clk_unregister(struct clk *clk)
 {
 	mutex_lock(&clock_list_sem);
 	list_del(&clk->sibling);
-	list_del(&clk->node);
+	list_del(&clk->yesde);
 	clk_teardown_mapping(clk);
 	mutex_unlock(&clock_list_sem);
 }
@@ -463,7 +463,7 @@ void clk_enable_init_clocks(void)
 {
 	struct clk *clkp;
 
-	list_for_each_entry(clkp, &clock_list, node)
+	list_for_each_entry(clkp, &clock_list, yesde)
 		if (clkp->flags & CLK_ENABLE_ON_INIT)
 			clk_enable(clkp);
 }
@@ -573,7 +573,7 @@ static void clks_core_resume(void)
 {
 	struct clk *clkp;
 
-	list_for_each_entry(clkp, &clock_list, node) {
+	list_for_each_entry(clkp, &clock_list, yesde) {
 		if (likely(clkp->usecount && clkp->ops)) {
 			unsigned long rate = clkp->rate;
 
@@ -610,11 +610,11 @@ static int __init clk_late_init(void)
 	mutex_lock(&clock_list_sem);
 	spin_lock_irqsave(&clock_lock, flags);
 
-	list_for_each_entry(clk, &clock_list, node)
+	list_for_each_entry(clk, &clock_list, yesde)
 		if (!clk->usecount && clk->ops && clk->ops->disable)
 			clk->ops->disable(clk);
 
-	/* from now on allow clock disable operations */
+	/* from yesw on allow clock disable operations */
 	allow_disable = 1;
 
 	spin_unlock_irqrestore(&clock_lock, flags);

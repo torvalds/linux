@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/reboot.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of.h>
 
 #include <asm/opal.h>
@@ -41,7 +41,7 @@ static bool detect_epow(void)
 	for (i = 0; i < be16_to_cpu(epow_classes); i++) {
 		epow = be16_to_cpu(opal_epow_status[i]);
 
-		/* Filter events which do not need shutdown. */
+		/* Filter events which do yest need shutdown. */
 		if (i == OPAL_SYSEPOW_POWER)
 			epow &= ~(OPAL_SYSPOWER_CHNG | OPAL_SYSPOWER_FAIL |
 					OPAL_SYSPOWER_INCL);
@@ -74,8 +74,8 @@ static bool poweroff_pending(void)
 	return false;
 }
 
-/* OPAL power-control events notifier */
-static int opal_power_control_event(struct notifier_block *nb,
+/* OPAL power-control events yestifier */
+static int opal_power_control_event(struct yestifier_block *nb,
 					unsigned long msg_type, void *msg)
 {
 	uint64_t type;
@@ -103,33 +103,33 @@ static int opal_power_control_event(struct notifier_block *nb,
 			orderly_poweroff(true);
 			break;
 		default:
-			pr_err("Unknown power-control type %llu\n", type);
+			pr_err("Unkyeswn power-control type %llu\n", type);
 		}
 		break;
 	default:
-		pr_err("Unknown OPAL message type %lu\n", msg_type);
+		pr_err("Unkyeswn OPAL message type %lu\n", msg_type);
 	}
 
 	return 0;
 }
 
-/* OPAL EPOW event notifier block */
-static struct notifier_block opal_epow_nb = {
-	.notifier_call	= opal_power_control_event,
+/* OPAL EPOW event yestifier block */
+static struct yestifier_block opal_epow_nb = {
+	.yestifier_call	= opal_power_control_event,
 	.next		= NULL,
 	.priority	= 0,
 };
 
-/* OPAL DPO event notifier block */
-static struct notifier_block opal_dpo_nb = {
-	.notifier_call	= opal_power_control_event,
+/* OPAL DPO event yestifier block */
+static struct yestifier_block opal_dpo_nb = {
+	.yestifier_call	= opal_power_control_event,
 	.next		= NULL,
 	.priority	= 0,
 };
 
-/* OPAL power-control event notifier block */
-static struct notifier_block opal_power_control_nb = {
-	.notifier_call	= opal_power_control_event,
+/* OPAL power-control event yestifier block */
+static struct yestifier_block opal_power_control_nb = {
+	.yestifier_call	= opal_power_control_event,
 	.next		= NULL,
 	.priority	= 0,
 };
@@ -137,34 +137,34 @@ static struct notifier_block opal_power_control_nb = {
 int __init opal_power_control_init(void)
 {
 	int ret, supported = 0;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	/* Register OPAL power-control events notifier */
-	ret = opal_message_notifier_register(OPAL_MSG_SHUTDOWN,
+	/* Register OPAL power-control events yestifier */
+	ret = opal_message_yestifier_register(OPAL_MSG_SHUTDOWN,
 						&opal_power_control_nb);
 	if (ret)
-		pr_err("Failed to register SHUTDOWN notifier, ret = %d\n", ret);
+		pr_err("Failed to register SHUTDOWN yestifier, ret = %d\n", ret);
 
 	/* Determine OPAL EPOW, DPO support */
-	np = of_find_node_by_path("/ibm,opal/epow");
+	np = of_find_yesde_by_path("/ibm,opal/epow");
 	if (np) {
 		supported = of_device_is_compatible(np, "ibm,opal-v3-epow");
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
 	if (!supported)
 		return 0;
 	pr_info("OPAL EPOW, DPO support detected.\n");
 
-	/* Register EPOW event notifier */
-	ret = opal_message_notifier_register(OPAL_MSG_EPOW, &opal_epow_nb);
+	/* Register EPOW event yestifier */
+	ret = opal_message_yestifier_register(OPAL_MSG_EPOW, &opal_epow_nb);
 	if (ret)
-		pr_err("Failed to register EPOW notifier, ret = %d\n", ret);
+		pr_err("Failed to register EPOW yestifier, ret = %d\n", ret);
 
-	/* Register DPO event notifier */
-	ret = opal_message_notifier_register(OPAL_MSG_DPO, &opal_dpo_nb);
+	/* Register DPO event yestifier */
+	ret = opal_message_yestifier_register(OPAL_MSG_DPO, &opal_dpo_nb);
 	if (ret)
-		pr_err("Failed to register DPO notifier, ret = %d\n", ret);
+		pr_err("Failed to register DPO yestifier, ret = %d\n", ret);
 
 	/* Check for any pending EPOW or DPO events. */
 	if (poweroff_pending())

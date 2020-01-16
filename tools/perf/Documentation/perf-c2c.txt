@@ -74,8 +74,8 @@ REPORT OPTIONS
 	Specify the input file to process.
 
 -N::
---node-info::
-	Show extra node info in report (see NODE INFO section)
+--yesde-info::
+	Show extra yesde info in report (see NODE INFO section)
 
 -c::
 --coalesce::
@@ -97,11 +97,11 @@ REPORT OPTIONS
 --full-symbols::
 	Display full length of symbols.
 
---no-source::
-	Do not display Source:Line column.
+--yes-source::
+	Do yest display Source:Line column.
 
 --show-all::
-	Show all captured HITM lines, with no regard to HITM % 0.0005 limit.
+	Show all captured HITM lines, with yes regard to HITM % 0.0005 limit.
 
 -f::
 --force::
@@ -228,16 +228,16 @@ For each offset in the 2) list we display following data:
     - source information related to the 'Code address' value
 
   Node
-    - nodes participating on the access (see NODE INFO section)
+    - yesdes participating on the access (see NODE INFO section)
 
 NODE INFO
 ---------
-The 'Node' field displays nodes that accesses given cacheline
+The 'Node' field displays yesdes that accesses given cacheline
 offset. Its output comes in 3 flavors:
-  - node IDs separated by ','
-  - node IDs with stats for each ID, in following format:
+  - yesde IDs separated by ','
+  - yesde IDs with stats for each ID, in following format:
       Node{cpus %hitms %stores}
-  - node IDs with list of affected CPUs in following format:
+  - yesde IDs with list of affected CPUs in following format:
       Node{cpu list}
 
 User can switch between above flavors with -N option or

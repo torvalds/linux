@@ -157,7 +157,7 @@ struct neofb_par {
 	int ProgramVCLK;
 	unsigned char VCLK3NumeratorLow;
 	unsigned char VCLK3NumeratorHigh;
-	unsigned char VCLK3Denominator;
+	unsigned char VCLK3Deyesminator;
 	unsigned char VerticalExt;
 	int wc_cookie;
 	u8 __iomem *mmio_vbase;

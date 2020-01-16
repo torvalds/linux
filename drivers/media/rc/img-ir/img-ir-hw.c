@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Hardware Decoder found in PowerDown Controller.
  *
- * Copyright 2010-2014 Imagination Technologies Ltd.
+ * Copyright 2010-2014 Imagination Techyeslogies Ltd.
  *
  * This ties into the input subsystem using the RC-core. Protocol support is
  * provided in separate modules which provide the parameters and scancode
@@ -89,7 +89,7 @@ static void img_ir_timings_preprocess(struct img_ir_timings *timings,
 	img_ir_symbol_timing_preprocess(&timings->s01, unit);
 	img_ir_symbol_timing_preprocess(&timings->s10, unit);
 	img_ir_symbol_timing_preprocess(&timings->s11, unit);
-	/* default s10 and s11 to s00 and s01 if no leader */
+	/* default s10 and s11 to s00 and s01 if yes leader */
 	if (unit)
 		/* multiply by unit and convert to microseconds (round up) */
 		timings->ft.ft_min = (timings->ft.ft_min*unit + 999)/1000;
@@ -360,7 +360,7 @@ static void img_ir_decoder_convert(const struct img_ir_decoder *decoder,
 }
 
 /**
- * img_ir_write_timings() - Write timings to the hardware now
+ * img_ir_write_timings() - Write timings to the hardware yesw
  * @priv:	IR private data
  * @regs:	Timing register values to write
  * @type:	RC filter type (RC_FILTER_*)
@@ -518,7 +518,7 @@ unlock:
 	return ret;
 }
 
-static int img_ir_set_normal_filter(struct rc_dev *dev,
+static int img_ir_set_yesrmal_filter(struct rc_dev *dev,
 				    struct rc_scancode_filter *sc_filter)
 {
 	return img_ir_set_filter(dev, RC_FILTER_NORMAL, sc_filter);
@@ -579,7 +579,7 @@ static void img_ir_set_decoder(struct img_ir_priv *priv,
 	img_ir_read(priv, IMG_IR_DATA_LW);
 	img_ir_read(priv, IMG_IR_DATA_UP);
 
-	/* switch back to normal mode */
+	/* switch back to yesrmal mode */
 	hw->mode = IMG_IR_M_NORMAL;
 
 	/* clear the wakeup scancode filter */
@@ -683,7 +683,7 @@ static int img_ir_change_protocol(struct rc_dev *dev, u64 *ir_type)
 
 success:
 	/*
-	 * Only allow matching wakeup protocols for now, and only if filtering
+	 * Only allow matching wakeup protocols for yesw, and only if filtering
 	 * is supported.
 	 */
 	wakeup_protocols = *ir_type;
@@ -723,7 +723,7 @@ static void img_ir_init_decoders(void)
  * img_ir_enable_wake() - Switch to wake mode.
  * @priv:	IR private data.
  *
- * Returns:	non-zero if the IR can wake the system.
+ * Returns:	yesn-zero if the IR can wake the system.
  */
 static int img_ir_enable_wake(struct img_ir_priv *priv)
 {
@@ -759,7 +759,7 @@ static int img_ir_disable_wake(struct img_ir_priv *priv)
 
 	spin_lock_irq(&priv->lock);
 	if (hw->flags & IMG_IR_F_WAKE) {
-		/* restore normal filtering */
+		/* restore yesrmal filtering */
 		if (hw->flags & IMG_IR_F_FILTER) {
 			img_ir_write(priv, IMG_IR_IRQ_ENABLE,
 				     (hw->suspend_irqen & IMG_IR_IRQ_EDGE) |
@@ -802,7 +802,7 @@ static void img_ir_end_repeat(struct img_ir_priv *priv)
 {
 	struct img_ir_priv_hw *hw = &priv->hw;
 	if (hw->mode == IMG_IR_M_REPEATING) {
-		/* switch to normal timings */
+		/* switch to yesrmal timings */
 		img_ir_write(priv, IMG_IR_CONTROL, 0);
 		hw->mode = IMG_IR_M_NORMAL;
 		img_ir_write_timings(priv, &hw->reg_timings.timings,
@@ -841,7 +841,7 @@ static void img_ir_handle_data(struct img_ir_priv *priv, u32 len, u64 raw)
 			dev_dbg(priv->dev, "decoded repeat code\n");
 			rc_repeat(hw->rdev);
 		} else {
-			dev_dbg(priv->dev, "decoded unexpected repeat code, ignoring\n");
+			dev_dbg(priv->dev, "decoded unexpected repeat code, igyesring\n");
 		}
 	} else {
 		dev_dbg(priv->dev, "decode failed (%d)\n", ret);
@@ -897,7 +897,7 @@ static void img_ir_suspend_timer(struct timer_list *t)
 
 #ifdef CONFIG_COMMON_CLK
 static void img_ir_change_frequency(struct img_ir_priv *priv,
-				    struct clk_notifier_data *change)
+				    struct clk_yestifier_data *change)
 {
 	struct img_ir_priv_hw *hw = &priv->hw;
 
@@ -933,7 +933,7 @@ unlock:
 	spin_unlock_irq(&priv->lock);
 }
 
-static int img_ir_clk_notify(struct notifier_block *self, unsigned long action,
+static int img_ir_clk_yestify(struct yestifier_block *self, unsigned long action,
 			     void *data)
 {
 	struct img_ir_priv *priv = container_of(self, struct img_ir_priv,
@@ -1054,15 +1054,15 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	timer_setup(&hw->end_timer, img_ir_end_timer, 0);
 	timer_setup(&hw->suspend_timer, img_ir_suspend_timer, 0);
 
-	/* Register a clock notifier */
+	/* Register a clock yestifier */
 	if (!IS_ERR(priv->clk)) {
 		hw->clk_hz = clk_get_rate(priv->clk);
 #ifdef CONFIG_COMMON_CLK
-		hw->clk_nb.notifier_call = img_ir_clk_notify;
-		error = clk_notifier_register(priv->clk, &hw->clk_nb);
+		hw->clk_nb.yestifier_call = img_ir_clk_yestify;
+		error = clk_yestifier_register(priv->clk, &hw->clk_nb);
 		if (error)
 			dev_warn(priv->dev,
-				 "failed to register clock notifier\n");
+				 "failed to register clock yestifier\n");
 #endif
 	} else {
 		hw->clk_hz = 32768;
@@ -1071,7 +1071,7 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	/* Allocate hardware decoder */
 	hw->rdev = rdev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!rdev) {
-		dev_err(priv->dev, "cannot allocate input device\n");
+		dev_err(priv->dev, "canyest allocate input device\n");
 		error = -ENOMEM;
 		goto err_alloc_rc;
 	}
@@ -1079,7 +1079,7 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	rdev->map_name = RC_MAP_EMPTY;
 	rdev->allowed_protocols = img_ir_allowed_protos(priv);
 	rdev->device_name = "IMG Infrared Decoder";
-	rdev->s_filter = img_ir_set_normal_filter;
+	rdev->s_filter = img_ir_set_yesrmal_filter;
 	rdev->s_wakeup_filter = img_ir_set_wakeup_filter;
 
 	/* Register hardware decoder */
@@ -1090,7 +1090,7 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	}
 
 	/*
-	 * Set this after rc_register_device as no protocols have been
+	 * Set this after rc_register_device as yes protocols have been
 	 * registered yet.
 	 */
 	rdev->change_protocol = img_ir_change_protocol;
@@ -1106,7 +1106,7 @@ err_register_rc:
 err_alloc_rc:
 #ifdef CONFIG_COMMON_CLK
 	if (!IS_ERR(priv->clk))
-		clk_notifier_unregister(priv->clk, &hw->clk_nb);
+		clk_yestifier_unregister(priv->clk, &hw->clk_nb);
 #endif
 	return error;
 }
@@ -1122,7 +1122,7 @@ void img_ir_remove_hw(struct img_ir_priv *priv)
 	rc_unregister_device(rdev);
 #ifdef CONFIG_COMMON_CLK
 	if (!IS_ERR(priv->clk))
-		clk_notifier_unregister(priv->clk, &hw->clk_nb);
+		clk_yestifier_unregister(priv->clk, &hw->clk_nb);
 #endif
 }
 

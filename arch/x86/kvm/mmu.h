@@ -104,22 +104,22 @@ static inline void kvm_mmu_load_cr3(struct kvm_vcpu *vcpu)
 
 /*
  * Currently, we have two sorts of write-protection, a) the first one
- * write-protects guest page to sync the guest modification, b) another one is
+ * write-protects guest page to sync the guest modification, b) ayesther one is
  * used to sync dirty bitmap when we do KVM_GET_DIRTY_LOG. The differences
  * between these two sorts are:
  * 1) the first case clears SPTE_MMU_WRITEABLE bit.
  * 2) the first case requires flushing tlb immediately avoiding corrupting
  *    shadow page table between all vcpus so it should be in the protection of
- *    mmu-lock. And the another case does not need to flush tlb until returning
+ *    mmu-lock. And the ayesther case does yest need to flush tlb until returning
  *    the dirty bitmap to userspace since it only write-protects the page
- *    logged in the bitmap, that means the page in the dirty bitmap is not
+ *    logged in the bitmap, that means the page in the dirty bitmap is yest
  *    missed, so it can flush tlb out of mmu-lock.
  *
  * So, there is the problem: the first case can meet the corrupted tlb caused
- * by another case which write-protects pages but without flush tlb
+ * by ayesther case which write-protects pages but without flush tlb
  * immediately. In order to making the first case be aware this problem we let
  * it flush tlb if we try to write-protect a spte whose SPTE_MMU_WRITEABLE bit
- * is set, it works since another case never touches SPTE_MMU_WRITEABLE bit.
+ * is set, it works since ayesther case never touches SPTE_MMU_WRITEABLE bit.
  *
  * Anyway, whenever a spte is updated (only permission and status bits are
  * changed) we need to check whether the spte with SPTE_MMU_WRITEABLE becomes
@@ -150,7 +150,7 @@ static inline bool is_write_protection(struct kvm_vcpu *vcpu)
  * page fault error code pfec) causes a permission fault with the given PTE
  * access rights (in ACC_* format).
  *
- * Return zero if the access does not fault; return the page fault error code
+ * Return zero if the access does yest fault; return the page fault error code
  * if the access faults.
  */
 static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,

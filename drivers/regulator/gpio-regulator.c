@@ -11,11 +11,11 @@
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
  * Copyright (c) 2009 Nokia Corporation
- * Roger Quadros <ext-roger.quadros@nokia.com>
+ * Roger Quadros <ext-roger.quadros@yeskia.com>
  *
  * This is useful for systems with mixed controllable and
- * non-controllable regulators, as well as for allowing testing on
- * systems with no controllable regulators.
+ * yesn-controllable regulators, as well as for allowing testing on
+ * systems with yes controllable regulators.
  */
 
 #include <linux/err.h>
@@ -127,7 +127,7 @@ static const struct regulator_ops gpio_regulator_voltage_ops = {
 };
 
 static struct gpio_regulator_config *
-of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
+of_get_gpio_regulator_config(struct device *dev, struct device_yesde *np,
 			     const struct regulator_desc *desc)
 {
 	struct gpio_regulator_config *config;
@@ -209,7 +209,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 		else if (!strncmp("current", regtype, 7))
 			config->type = REGULATOR_CURRENT;
 		else
-			dev_warn(dev, "Unknown regulator-type '%s'\n",
+			dev_warn(dev, "Unkyeswn regulator-type '%s'\n",
 				 regtype);
 	}
 
@@ -225,7 +225,7 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gpio_regulator_config *config = dev_get_platdata(dev);
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct gpio_regulator_data *drvdata;
 	struct regulator_config cfg = { };
 	struct regulator_dev *rdev;
@@ -261,7 +261,7 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 							  config->gflags[i]);
 		if (IS_ERR(drvdata->gpiods[i]))
 			return PTR_ERR(drvdata->gpiods[i]);
-		/* This is good to know */
+		/* This is good to kyesw */
 		gpiod_set_consumer_name(drvdata->gpiods[i], drvdata->desc.name);
 	}
 	drvdata->nr_gpios = config->ngpios;
@@ -307,7 +307,7 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 	cfg.dev = dev;
 	cfg.init_data = config->init_data;
 	cfg.driver_data = drvdata;
-	cfg.of_node = np;
+	cfg.of_yesde = np;
 
 	/*
 	 * The signal will be inverted by the GPIO core if flagged so in the

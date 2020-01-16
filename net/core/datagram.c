@@ -19,16 +19,16 @@
  *		Alan Cox	:	Rewrote skb_read_datagram to avoid the
  *					skb_peek_copy stuff.
  *		Alan Cox	:	Added support for SOCK_SEQPACKET.
- *					IPX can no longer use the SO_TYPE hack
- *					but AX.25 now works right, and SPX is
+ *					IPX can yes longer use the SO_TYPE hack
+ *					but AX.25 yesw works right, and SPX is
  *					feasible.
- *		Alan Cox	:	Fixed write poll of non IP protocol
+ *		Alan Cox	:	Fixed write poll of yesn IP protocol
  *					crash.
  *		Florian  La Roche:	Changed for my new skbuff handling.
- *		Darryl Miles	:	Fixed non-blocking SOCK_SEQPACKET.
+ *		Darryl Miles	:	Fixed yesn-blocking SOCK_SEQPACKET.
  *		Linus Torvalds	:	BSD semantic fixes.
  *		Alan Cox	:	Datagram iovec handling
- *		Darryl Miles	:	Fixed non-blocking SOCK_STREAM.
+ *		Darryl Miles	:	Fixed yesn-blocking SOCK_STREAM.
  *		Alan Cox	:	POSIXisms
  *		Pete Wyckoff    :       Unconnected accept() fix.
  *
@@ -40,7 +40,7 @@
 #include <linux/uaccess.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
@@ -75,7 +75,7 @@ static int receiver_wake_function(wait_queue_entry_t *wait, unsigned int mode, i
 				  void *key)
 {
 	/*
-	 * Avoid a wakeup if event not interesting for us
+	 * Avoid a wakeup if event yest interesting for us
 	 */
 	if (key && !(key_to_poll(key) & (EPOLLIN | EPOLLERR)))
 		return 0;
@@ -102,7 +102,7 @@ int __skb_wait_for_more_packets(struct sock *sk, int *err, long *timeo_p,
 
 	/* Socket shut down? */
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
-		goto out_noerr;
+		goto out_yeserr;
 
 	/* Sequenced packets can come disconnected.
 	 * If so we report the problem
@@ -122,11 +122,11 @@ out:
 	finish_wait(sk_sleep(sk), &wait);
 	return error;
 interrupted:
-	error = sock_intr_errno(*timeo_p);
+	error = sock_intr_erryes(*timeo_p);
 out_err:
 	*err = error;
 	goto out;
-out_noerr:
+out_yeserr:
 	*err = 0;
 	error = 1;
 	goto out;
@@ -217,7 +217,7 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
  *	@last: set to last peeked message to inform the wait function
  *	       what to look for when peeking
  *
- *	Get a datagram skbuff, understands the peeking, nonblocking wakeups
+ *	Get a datagram skbuff, understands the peeking, yesnblocking wakeups
  *	and possible races. This replaces identical code in packet, raw and
  *	udp, as well as the IPX AX.25 and Appletalk. It also finally fixes
  *	the long standing peek and read race for datagram sockets. If you
@@ -226,10 +226,10 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
  *	This function will lock the socket if a skb is returned, so
  *	the caller needs to unlock the socket in that case (usually by
  *	calling skb_free_datagram). Returns NULL with @err set to
- *	-EAGAIN if no data was available or to some other value if an
+ *	-EAGAIN if yes data was available or to some other value if an
  *	error was detected.
  *
- *	* It does not lock socket since today. This function is
+ *	* It does yest lock socket since today. This function is
  *	* free of race conditions. This measure should/can improve
  *	* significantly datagram socket latencies at high loads,
  *	* when data copying to user space takes lots of time.
@@ -237,7 +237,7 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
  *	*  8) Great win.)
  *	*			                    --ANK (980729)
  *
- *	The order of the tests when we find no data waiting are specified
+ *	The order of the tests when we find yes data waiting are specified
  *	quite explicitly by POSIX 1003.1g, don't change them without having
  *	the standard around please.
  */
@@ -251,15 +251,15 @@ struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
 	struct sk_buff *skb;
 	unsigned long cpu_flags;
 	/*
-	 * Caller is allowed not to check sk->sk_err before skb_recv_datagram()
+	 * Caller is allowed yest to check sk->sk_err before skb_recv_datagram()
 	 */
 	int error = sock_error(sk);
 
 	if (error)
-		goto no_packet;
+		goto yes_packet;
 
 	do {
-		/* Again only user level code calls this function, so nothing
+		/* Again only user level code calls this function, so yesthing
 		 * interrupt level will suddenly eat the receive_queue.
 		 *
 		 * Look at current nfs client by the way...
@@ -270,7 +270,7 @@ struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
 						off, &error, last);
 		spin_unlock_irqrestore(&queue->lock, cpu_flags);
 		if (error)
-			goto no_packet;
+			goto yes_packet;
 		if (skb)
 			return skb;
 
@@ -282,7 +282,7 @@ struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
 
 	error = -EAGAIN;
 
-no_packet:
+yes_packet:
 	*err = error;
 	return NULL;
 }
@@ -314,11 +314,11 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
 EXPORT_SYMBOL(__skb_recv_datagram);
 
 struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned int flags,
-				  int noblock, int *err)
+				  int yesblock, int *err)
 {
 	int off = 0;
 
-	return __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
+	return __skb_recv_datagram(sk, flags | (yesblock ? MSG_DONTWAIT : 0),
 				   NULL, &off, err);
 }
 EXPORT_SYMBOL(skb_recv_datagram);
@@ -345,7 +345,7 @@ void __skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb, int len)
 	sk_mem_reclaim_partial(sk);
 	unlock_sock_fast(sk, slow);
 
-	/* skb is now orphaned, can be freed outside of locked section */
+	/* skb is yesw orphaned, can be freed outside of locked section */
 	__kfree_skb(skb);
 }
 EXPORT_SYMBOL(__skb_free_datagram_locked);
@@ -390,7 +390,7 @@ EXPORT_SYMBOL(__sk_queue_drop_skb);
  *	before it is freed.
  *
  *	This function currently only disables BH when acquiring the
- *	sk_receive_queue lock.  Therefore it must not be used in a
+ *	sk_receive_queue lock.  Therefore it must yest be used in a
  *	context where that lock is acquired in an IRQ context.
  *
  *	It returns 0 if the packet was removed by us.
@@ -475,7 +475,7 @@ static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 	if (!len)
 		return 0;
 
-	/* This is not really a user copy fault, but rather someone
+	/* This is yest really a user copy fault, but rather someone
 	 * gave us a bogus length on the skb.  We should probably
 	 * print a warning here as it may indicate a kernel bug.
 	 */

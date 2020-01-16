@@ -1,8 +1,8 @@
 * commit 7c734359d350 ("qlge: Size RX buffers based on MTU.", v2.6.33-rc1)
   introduced dead code in the receive routines, which should be rewritten
   anyways by the admission of the author himself, see the comment above
-  ql_build_rx_skb(). That function is now used exclusively to handle packets
-  that underwent header splitting but it still contains code to handle non
+  ql_build_rx_skb(). That function is yesw used exclusively to handle packets
+  that underwent header splitting but it still contains code to handle yesn
   split cases.
 * truesize accounting is incorrect (ex: a 9000B frame has skb->truesize 10280
   while containing two frags of order-1 allocations, ie. >16K)
@@ -14,7 +14,7 @@
   queues" is confusing.
 * struct rx_ring is used for rx and tx completions, with some members relevant
   to one case only
-* there is an inordinate amount of disparate debugging code, most of which is
+* there is an iyesrdinate amount of disparate debugging code, most of which is
   of questionable value. In particular, qlge_dbg.c has hundreds of lines of
   code bitrotting away in ifdef land (doesn't compile since commit
   18c49b91777c ("qlge: do vlan cleanup", v3.1-rc1), 8 years ago).
@@ -29,7 +29,7 @@
   possible (ex. ql_free_rx_buffers(), ql_alloc_rx_buffers())
 * reorder struct members to avoid holes if it doesn't impact performance
 * in terms of namespace, the driver uses either qlge_, ql_ (used by
-  other qlogic drivers, with clashes, ex: ql_sem_spinlock) or nothing (with
+  other qlogic drivers, with clashes, ex: ql_sem_spinlock) or yesthing (with
   clashes, ex: struct ob_mac_iocb_req). Rename everything to use the "qlge_"
   prefix.
 * avoid legacy/deprecated apis (ex. replace pci_dma_*, replace pci_enable_msi,

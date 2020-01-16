@@ -48,7 +48,7 @@ struct z_erofs_collection {
 
 /*
  * let's leave a type here in case of introducing
- * another tagged pointer later.
+ * ayesther tagged pointer later.
  */
 typedef void *z_erofs_next_pcluster_t;
 
@@ -62,7 +62,7 @@ struct z_erofs_pcluster {
 	/* A: compressed pages (including multi-usage pages) */
 	struct page *compressed_pages[Z_EROFS_CLUSTER_MAX_PAGES];
 
-	/* A: lower limit of decompressed length and if full length or not */
+	/* A: lower limit of decompressed length and if full length or yest */
 	unsigned int length;
 
 	/* I: compression algorithm format */

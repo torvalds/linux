@@ -31,7 +31,7 @@ static void da9052_onkey_query(struct da9052_onkey *onkey)
 			"Failed to read onkey event err=%d\n", ret);
 	} else {
 		/*
-		 * Since interrupt for deassertion of ONKEY pin is not
+		 * Since interrupt for deassertion of ONKEY pin is yest
 		 * generated, onkey event state determines the onkey
 		 * button state.
 		 */

@@ -19,7 +19,7 @@ static int test_body(void)
 		 MAP_HUGETLB | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (p != MAP_FAILED) {
 		/*
-		 * Typically the mmap will fail because no huge pages are
+		 * Typically the mmap will fail because yes huge pages are
 		 * allocated on the system. But if there are huge pages
 		 * allocated the mmap will succeed. That's fine too, we just
 		 * munmap here before continuing.  munmap() length of

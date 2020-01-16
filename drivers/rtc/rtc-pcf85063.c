@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * An I2C driver for the PCF85063 RTC
- * Copyright 2014 Rose Technology
+ * Copyright 2014 Rose Techyeslogy
  *
- * Author: Søren Andersen <san@rosetechnology.dk>
+ * Author: Søren Andersen <san@rosetechyeslogy.dk>
  * Maintainers: http://www.nslu2-linux.org/
  *
  * Copyright (C) 2019 Micro Crystal AG
@@ -70,8 +70,8 @@ static int pcf85063_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	u8 regs[7];
 
 	/*
-	 * while reading, the time/date registers are blocked and not updated
-	 * anymore until the access is finished. To not lose a second
+	 * while reading, the time/date registers are blocked and yest updated
+	 * anymore until the access is finished. To yest lose a second
 	 * event, the access must be finished within one second. So, read all
 	 * time/date registers in one turn.
 	 */
@@ -80,7 +80,7 @@ static int pcf85063_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (rc)
 		return rc;
 
-	/* if the clock has lost its power it makes no sense to use its time */
+	/* if the clock has lost its power it makes yes sense to use its time */
 	if (regs[0] & PCF85063_REG_SC_OS) {
 		dev_warn(&pcf85063->rtc->dev, "Power loss detected, invalid time\n");
 		return -EINVAL;
@@ -141,7 +141,7 @@ static int pcf85063_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	/*
 	 * Write the control register as a separate action since the size of
 	 * the register space is different between the PCF85063TP and
-	 * PCF85063A devices.  The rollover point can not be used.
+	 * PCF85063A devices.  The rollover point can yest be used.
 	 */
 	return regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL1,
 				  PCF85063_REG_CTRL1_STOP, 0);
@@ -183,7 +183,7 @@ static int pcf85063_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	buf[1] = bin2bcd(alrm->time.tm_min);
 	buf[2] = bin2bcd(alrm->time.tm_hour);
 	buf[3] = bin2bcd(alrm->time.tm_mday);
-	buf[4] = PCF85063_AEN; /* Do not match on week day */
+	buf[4] = PCF85063_AEN; /* Do yest match on week day */
 
 	ret = regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL2,
 				 PCF85063_CTRL2_AIE | PCF85063_CTRL2_AF, 0);
@@ -342,7 +342,7 @@ static int pcf85063_nvmem_write(void *priv, unsigned int offset,
 }
 
 static int pcf85063_load_capacitance(struct pcf85063 *pcf85063,
-				     const struct device_node *np,
+				     const struct device_yesde *np,
 				     unsigned int force_cap)
 {
 	u32 load = 7000;
@@ -355,7 +355,7 @@ static int pcf85063_load_capacitance(struct pcf85063 *pcf85063,
 
 	switch (load) {
 	default:
-		dev_warn(&pcf85063->rtc->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 7000",
+		dev_warn(&pcf85063->rtc->dev, "Unkyeswn quartz-load-femtofarads value: %d. Assuming 7000",
 			 load);
 		/* fall through */
 	case 7000:
@@ -429,7 +429,7 @@ static int pcf85063_probe(struct i2c_client *client)
 
 	err = regmap_read(pcf85063->regmap, PCF85063_REG_CTRL1, &tmp);
 	if (err) {
-		dev_err(&client->dev, "RTC chip is not present\n");
+		dev_err(&client->dev, "RTC chip is yest present\n");
 		return err;
 	}
 
@@ -437,7 +437,7 @@ static int pcf85063_probe(struct i2c_client *client)
 	if (IS_ERR(pcf85063->rtc))
 		return PTR_ERR(pcf85063->rtc);
 
-	err = pcf85063_load_capacitance(pcf85063, client->dev.of_node,
+	err = pcf85063_load_capacitance(pcf85063, client->dev.of_yesde,
 					config->force_cap_7000 ? 7000 : 0);
 	if (err < 0)
 		dev_warn(&client->dev, "failed to set xtal load capacitance: %d",
@@ -493,6 +493,6 @@ static struct i2c_driver pcf85063_driver = {
 
 module_i2c_driver(pcf85063_driver);
 
-MODULE_AUTHOR("Søren Andersen <san@rosetechnology.dk>");
+MODULE_AUTHOR("Søren Andersen <san@rosetechyeslogy.dk>");
 MODULE_DESCRIPTION("PCF85063 RTC driver");
 MODULE_LICENSE("GPL");

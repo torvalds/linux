@@ -6,13 +6,13 @@
 # Heavily based on the vDSO Makefiles for other archs.
 #
 
-obj-vdso := note.o datapage.o sigreturn.o gettimeofday.o
+obj-vdso := yeste.o datapage.o sigreturn.o gettimeofday.o
 
 # Build rules
 targets := $(obj-vdso) vdso.so vdso.so.dbg
 obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 
-ccflags-y := -shared -fno-common -fno-builtin -nostdlib -fPIC -Wl,-shared -g \
+ccflags-y := -shared -fyes-common -fyes-builtin -yesstdlib -fPIC -Wl,-shared -g \
 	-Wl,-soname=linux-vdso.so.1 -Wl,--hash-style=sysv
 
 # Disable gcov profiling for VDSO code
@@ -51,7 +51,7 @@ include/generated/vdso-offsets.h: $(obj)/vdso.so.dbg FORCE
 sigreturn.o : sigreturn.S
 	$(call if_changed_dep,vdsoas)
 
-note.o : note.S
+yeste.o : yeste.S
 	$(call if_changed_dep,vdsoas)
 
 datapage.o : datapage.S

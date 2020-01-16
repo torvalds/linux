@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
@@ -98,7 +98,7 @@ static int switchdev_deferred_enqueue(struct net_device *dev,
 	return 0;
 }
 
-static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
+static int switchdev_port_attr_yestify(enum switchdev_yestifier_type nt,
 				      struct net_device *dev,
 				      const struct switchdev_attr *attr,
 				      struct switchdev_trans *trans)
@@ -106,15 +106,15 @@ static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
 	int err;
 	int rc;
 
-	struct switchdev_notifier_port_attr_info attr_info = {
+	struct switchdev_yestifier_port_attr_info attr_info = {
 		.attr = attr,
 		.trans = trans,
 		.handled = false,
 	};
 
-	rc = call_switchdev_blocking_notifiers(nt, dev,
+	rc = call_switchdev_blocking_yestifiers(nt, dev,
 					       &attr_info.info, NULL);
-	err = notifier_to_errno(rc);
+	err = yestifier_to_erryes(rc);
 	if (err) {
 		WARN_ON(!attr_info.handled);
 		return err;
@@ -126,7 +126,7 @@ static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
 	return 0;
 }
 
-static int switchdev_port_attr_set_now(struct net_device *dev,
+static int switchdev_port_attr_set_yesw(struct net_device *dev,
 				       const struct switchdev_attr *attr)
 {
 	struct switchdev_trans trans;
@@ -136,22 +136,22 @@ static int switchdev_port_attr_set_now(struct net_device *dev,
 	 * here if there are going to be issues in the commit phase,
 	 * such as lack of resources or support.  The driver/device
 	 * should reserve resources needed for the commit phase here,
-	 * but should not commit the attr.
+	 * but should yest commit the attr.
 	 */
 
 	trans.ph_prepare = true;
-	err = switchdev_port_attr_notify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
+	err = switchdev_port_attr_yestify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
 					 &trans);
 	if (err)
 		return err;
 
-	/* Phase II: commit attr set.  This cannot fail as a fault
+	/* Phase II: commit attr set.  This canyest fail as a fault
 	 * of driver/device.  If it does, it's a bug in the driver/device
 	 * because the driver said everythings was OK in phase I.
 	 */
 
 	trans.ph_prepare = false;
-	err = switchdev_port_attr_notify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
+	err = switchdev_port_attr_yestify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
 					 &trans);
 	WARN(err, "%s: Commit of attribute (id=%d) failed.\n",
 	     dev->name, attr->id);
@@ -165,7 +165,7 @@ static void switchdev_port_attr_set_deferred(struct net_device *dev,
 	const struct switchdev_attr *attr = data;
 	int err;
 
-	err = switchdev_port_attr_set_now(dev, attr);
+	err = switchdev_port_attr_set_yesw(dev, attr);
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to set attribute (id=%d)\n",
 			   err, attr->id);
@@ -187,11 +187,11 @@ static int switchdev_port_attr_set_defer(struct net_device *dev,
  *	@attr: attribute to set
  *
  *	Use a 2-phase prepare-commit transaction model to ensure
- *	system is not left in a partially updated state due to
+ *	system is yest left in a partially updated state due to
  *	failure from driver/device.
  *
- *	rtnl_lock must be held and must not be in atomic section,
- *	in case SWITCHDEV_F_DEFER flag is not set.
+ *	rtnl_lock must be held and must yest be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is yest set.
  */
 int switchdev_port_attr_set(struct net_device *dev,
 			    const struct switchdev_attr *attr)
@@ -199,7 +199,7 @@ int switchdev_port_attr_set(struct net_device *dev,
 	if (attr->flags & SWITCHDEV_F_DEFER)
 		return switchdev_port_attr_set_defer(dev, attr);
 	ASSERT_RTNL();
-	return switchdev_port_attr_set_now(dev, attr);
+	return switchdev_port_attr_set_yesw(dev, attr);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_attr_set);
 
@@ -218,7 +218,7 @@ static size_t switchdev_obj_size(const struct switchdev_obj *obj)
 	return 0;
 }
 
-static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
+static int switchdev_port_obj_yestify(enum switchdev_yestifier_type nt,
 				     struct net_device *dev,
 				     const struct switchdev_obj *obj,
 				     struct switchdev_trans *trans,
@@ -227,14 +227,14 @@ static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
 	int rc;
 	int err;
 
-	struct switchdev_notifier_port_obj_info obj_info = {
+	struct switchdev_yestifier_port_obj_info obj_info = {
 		.obj = obj,
 		.trans = trans,
 		.handled = false,
 	};
 
-	rc = call_switchdev_blocking_notifiers(nt, dev, &obj_info.info, extack);
-	err = notifier_to_errno(rc);
+	rc = call_switchdev_blocking_yestifiers(nt, dev, &obj_info.info, extack);
+	err = yestifier_to_erryes(rc);
 	if (err) {
 		WARN_ON(!obj_info.handled);
 		return err;
@@ -244,7 +244,7 @@ static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
 	return 0;
 }
 
-static int switchdev_port_obj_add_now(struct net_device *dev,
+static int switchdev_port_obj_add_yesw(struct net_device *dev,
 				      const struct switchdev_obj *obj,
 				      struct netlink_ext_ack *extack)
 {
@@ -257,22 +257,22 @@ static int switchdev_port_obj_add_now(struct net_device *dev,
 	 * here if there are going to be issues in the commit phase,
 	 * such as lack of resources or support.  The driver/device
 	 * should reserve resources needed for the commit phase here,
-	 * but should not commit the obj.
+	 * but should yest commit the obj.
 	 */
 
 	trans.ph_prepare = true;
-	err = switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_ADD,
+	err = switchdev_port_obj_yestify(SWITCHDEV_PORT_OBJ_ADD,
 					dev, obj, &trans, extack);
 	if (err)
 		return err;
 
-	/* Phase II: commit obj add.  This cannot fail as a fault
+	/* Phase II: commit obj add.  This canyest fail as a fault
 	 * of driver/device.  If it does, it's a bug in the driver/device
 	 * because the driver said everythings was OK in phase I.
 	 */
 
 	trans.ph_prepare = false;
-	err = switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_ADD,
+	err = switchdev_port_obj_yestify(SWITCHDEV_PORT_OBJ_ADD,
 					dev, obj, &trans, extack);
 	WARN(err, "%s: Commit of object (id=%d) failed.\n", dev->name, obj->id);
 
@@ -285,7 +285,7 @@ static void switchdev_port_obj_add_deferred(struct net_device *dev,
 	const struct switchdev_obj *obj = data;
 	int err;
 
-	err = switchdev_port_obj_add_now(dev, obj, NULL);
+	err = switchdev_port_obj_add_yesw(dev, obj, NULL);
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to add object (id=%d)\n",
 			   err, obj->id);
@@ -308,11 +308,11 @@ static int switchdev_port_obj_add_defer(struct net_device *dev,
  *	@obj: object to add
  *
  *	Use a 2-phase prepare-commit transaction model to ensure
- *	system is not left in a partially updated state due to
+ *	system is yest left in a partially updated state due to
  *	failure from driver/device.
  *
- *	rtnl_lock must be held and must not be in atomic section,
- *	in case SWITCHDEV_F_DEFER flag is not set.
+ *	rtnl_lock must be held and must yest be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is yest set.
  */
 int switchdev_port_obj_add(struct net_device *dev,
 			   const struct switchdev_obj *obj,
@@ -321,14 +321,14 @@ int switchdev_port_obj_add(struct net_device *dev,
 	if (obj->flags & SWITCHDEV_F_DEFER)
 		return switchdev_port_obj_add_defer(dev, obj);
 	ASSERT_RTNL();
-	return switchdev_port_obj_add_now(dev, obj, extack);
+	return switchdev_port_obj_add_yesw(dev, obj, extack);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_add);
 
-static int switchdev_port_obj_del_now(struct net_device *dev,
+static int switchdev_port_obj_del_yesw(struct net_device *dev,
 				      const struct switchdev_obj *obj)
 {
-	return switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_DEL,
+	return switchdev_port_obj_yestify(SWITCHDEV_PORT_OBJ_DEL,
 					 dev, obj, NULL, NULL);
 }
 
@@ -338,7 +338,7 @@ static void switchdev_port_obj_del_deferred(struct net_device *dev,
 	const struct switchdev_obj *obj = data;
 	int err;
 
-	err = switchdev_port_obj_del_now(dev, obj);
+	err = switchdev_port_obj_del_yesw(dev, obj);
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to del object (id=%d)\n",
 			   err, obj->id);
@@ -360,8 +360,8 @@ static int switchdev_port_obj_del_defer(struct net_device *dev,
  *	@id: object ID
  *	@obj: object to delete
  *
- *	rtnl_lock must be held and must not be in atomic section,
- *	in case SWITCHDEV_F_DEFER flag is not set.
+ *	rtnl_lock must be held and must yest be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is yest set.
  */
 int switchdev_port_obj_del(struct net_device *dev,
 			   const struct switchdev_obj *obj)
@@ -369,84 +369,84 @@ int switchdev_port_obj_del(struct net_device *dev,
 	if (obj->flags & SWITCHDEV_F_DEFER)
 		return switchdev_port_obj_del_defer(dev, obj);
 	ASSERT_RTNL();
-	return switchdev_port_obj_del_now(dev, obj);
+	return switchdev_port_obj_del_yesw(dev, obj);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_del);
 
-static ATOMIC_NOTIFIER_HEAD(switchdev_notif_chain);
-static BLOCKING_NOTIFIER_HEAD(switchdev_blocking_notif_chain);
+static ATOMIC_NOTIFIER_HEAD(switchdev_yestif_chain);
+static BLOCKING_NOTIFIER_HEAD(switchdev_blocking_yestif_chain);
 
 /**
- *	register_switchdev_notifier - Register notifier
- *	@nb: notifier_block
+ *	register_switchdev_yestifier - Register yestifier
+ *	@nb: yestifier_block
  *
- *	Register switch device notifier.
+ *	Register switch device yestifier.
  */
-int register_switchdev_notifier(struct notifier_block *nb)
+int register_switchdev_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&switchdev_notif_chain, nb);
+	return atomic_yestifier_chain_register(&switchdev_yestif_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_switchdev_notifier);
+EXPORT_SYMBOL_GPL(register_switchdev_yestifier);
 
 /**
- *	unregister_switchdev_notifier - Unregister notifier
- *	@nb: notifier_block
+ *	unregister_switchdev_yestifier - Unregister yestifier
+ *	@nb: yestifier_block
  *
- *	Unregister switch device notifier.
+ *	Unregister switch device yestifier.
  */
-int unregister_switchdev_notifier(struct notifier_block *nb)
+int unregister_switchdev_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&switchdev_notif_chain, nb);
+	return atomic_yestifier_chain_unregister(&switchdev_yestif_chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
+EXPORT_SYMBOL_GPL(unregister_switchdev_yestifier);
 
 /**
- *	call_switchdev_notifiers - Call notifiers
- *	@val: value passed unmodified to notifier function
+ *	call_switchdev_yestifiers - Call yestifiers
+ *	@val: value passed unmodified to yestifier function
  *	@dev: port device
- *	@info: notifier information data
+ *	@info: yestifier information data
  *
- *	Call all network notifier blocks.
+ *	Call all network yestifier blocks.
  */
-int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
-			     struct switchdev_notifier_info *info,
+int call_switchdev_yestifiers(unsigned long val, struct net_device *dev,
+			     struct switchdev_yestifier_info *info,
 			     struct netlink_ext_ack *extack)
 {
 	info->dev = dev;
 	info->extack = extack;
-	return atomic_notifier_call_chain(&switchdev_notif_chain, val, info);
+	return atomic_yestifier_call_chain(&switchdev_yestif_chain, val, info);
 }
-EXPORT_SYMBOL_GPL(call_switchdev_notifiers);
+EXPORT_SYMBOL_GPL(call_switchdev_yestifiers);
 
-int register_switchdev_blocking_notifier(struct notifier_block *nb)
+int register_switchdev_blocking_yestifier(struct yestifier_block *nb)
 {
-	struct blocking_notifier_head *chain = &switchdev_blocking_notif_chain;
+	struct blocking_yestifier_head *chain = &switchdev_blocking_yestif_chain;
 
-	return blocking_notifier_chain_register(chain, nb);
+	return blocking_yestifier_chain_register(chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_switchdev_blocking_notifier);
+EXPORT_SYMBOL_GPL(register_switchdev_blocking_yestifier);
 
-int unregister_switchdev_blocking_notifier(struct notifier_block *nb)
+int unregister_switchdev_blocking_yestifier(struct yestifier_block *nb)
 {
-	struct blocking_notifier_head *chain = &switchdev_blocking_notif_chain;
+	struct blocking_yestifier_head *chain = &switchdev_blocking_yestif_chain;
 
-	return blocking_notifier_chain_unregister(chain, nb);
+	return blocking_yestifier_chain_unregister(chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_switchdev_blocking_notifier);
+EXPORT_SYMBOL_GPL(unregister_switchdev_blocking_yestifier);
 
-int call_switchdev_blocking_notifiers(unsigned long val, struct net_device *dev,
-				      struct switchdev_notifier_info *info,
+int call_switchdev_blocking_yestifiers(unsigned long val, struct net_device *dev,
+				      struct switchdev_yestifier_info *info,
 				      struct netlink_ext_ack *extack)
 {
 	info->dev = dev;
 	info->extack = extack;
-	return blocking_notifier_call_chain(&switchdev_blocking_notif_chain,
+	return blocking_yestifier_call_chain(&switchdev_blocking_yestif_chain,
 					    val, info);
 }
-EXPORT_SYMBOL_GPL(call_switchdev_blocking_notifiers);
+EXPORT_SYMBOL_GPL(call_switchdev_blocking_yestifiers);
 
 static int __switchdev_handle_port_obj_add(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_yestifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
@@ -458,7 +458,7 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
 	struct list_head *iter;
 	int err = -EOPNOTSUPP;
 
-	extack = switchdev_notifier_info_to_extack(&port_obj_info->info);
+	extack = switchdev_yestifier_info_to_extack(&port_obj_info->info);
 
 	if (check_cb(dev)) {
 		/* This flag is only checked if the return value is success. */
@@ -467,11 +467,11 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
 			      extack);
 	}
 
-	/* Switch ports might be stacked under e.g. a LAG. Ignore the
-	 * unsupported devices, another driver might be able to handle them. But
+	/* Switch ports might be stacked under e.g. a LAG. Igyesre the
+	 * unsupported devices, ayesther driver might be able to handle them. But
 	 * propagate to the callers any hard errors.
 	 *
-	 * If the driver does its own bookkeeping of stacked ports, it's not
+	 * If the driver does its own bookkeeping of stacked ports, it's yest
 	 * necessary to go through this helper.
 	 */
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
@@ -485,7 +485,7 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
 }
 
 int switchdev_handle_port_obj_add(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_yestifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
@@ -503,7 +503,7 @@ int switchdev_handle_port_obj_add(struct net_device *dev,
 EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_add);
 
 static int __switchdev_handle_port_obj_del(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_yestifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*del_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj))
@@ -518,11 +518,11 @@ static int __switchdev_handle_port_obj_del(struct net_device *dev,
 		return del_cb(dev, port_obj_info->obj);
 	}
 
-	/* Switch ports might be stacked under e.g. a LAG. Ignore the
-	 * unsupported devices, another driver might be able to handle them. But
+	/* Switch ports might be stacked under e.g. a LAG. Igyesre the
+	 * unsupported devices, ayesther driver might be able to handle them. But
 	 * propagate to the callers any hard errors.
 	 *
-	 * If the driver does its own bookkeeping of stacked ports, it's not
+	 * If the driver does its own bookkeeping of stacked ports, it's yest
 	 * necessary to go through this helper.
 	 */
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
@@ -536,7 +536,7 @@ static int __switchdev_handle_port_obj_del(struct net_device *dev,
 }
 
 int switchdev_handle_port_obj_del(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_yestifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*del_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj))
@@ -552,7 +552,7 @@ int switchdev_handle_port_obj_del(struct net_device *dev,
 EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_del);
 
 static int __switchdev_handle_port_attr_set(struct net_device *dev,
-			struct switchdev_notifier_port_attr_info *port_attr_info,
+			struct switchdev_yestifier_port_attr_info *port_attr_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev,
 				      const struct switchdev_attr *attr,
@@ -568,11 +568,11 @@ static int __switchdev_handle_port_attr_set(struct net_device *dev,
 			      port_attr_info->trans);
 	}
 
-	/* Switch ports might be stacked under e.g. a LAG. Ignore the
-	 * unsupported devices, another driver might be able to handle them. But
+	/* Switch ports might be stacked under e.g. a LAG. Igyesre the
+	 * unsupported devices, ayesther driver might be able to handle them. But
 	 * propagate to the callers any hard errors.
 	 *
-	 * If the driver does its own bookkeeping of stacked ports, it's not
+	 * If the driver does its own bookkeeping of stacked ports, it's yest
 	 * necessary to go through this helper.
 	 */
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
@@ -586,7 +586,7 @@ static int __switchdev_handle_port_attr_set(struct net_device *dev,
 }
 
 int switchdev_handle_port_attr_set(struct net_device *dev,
-			struct switchdev_notifier_port_attr_info *port_attr_info,
+			struct switchdev_yestifier_port_attr_info *port_attr_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev,
 				      const struct switchdev_attr *attr,

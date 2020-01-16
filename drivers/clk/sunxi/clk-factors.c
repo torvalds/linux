@@ -149,13 +149,13 @@ static int clk_factors_set_rate(struct clk_hw *hw, unsigned long rate,
 	/* Fetch the register value */
 	reg = readl(factors->reg);
 
-	/* Set up the new factors - macros do not do anything if width is 0 */
+	/* Set up the new factors - macros do yest do anything if width is 0 */
 	reg = FACTOR_SET(config->nshift, config->nwidth, reg, req.n);
 	reg = FACTOR_SET(config->kshift, config->kwidth, reg, req.k);
 	reg = FACTOR_SET(config->mshift, config->mwidth, reg, req.m);
 	reg = FACTOR_SET(config->pshift, config->pwidth, reg, req.p);
 
-	/* Apply them now */
+	/* Apply them yesw */
 	writel(reg, factors->reg);
 
 	/* delay 500us so pll stabilizes */
@@ -173,7 +173,7 @@ static const struct clk_ops clk_factors_ops = {
 	.set_rate = clk_factors_set_rate,
 };
 
-static struct clk *__sunxi_factors_register(struct device_node *node,
+static struct clk *__sunxi_factors_register(struct device_yesde *yesde,
 					    const struct factors_data *data,
 					    spinlock_t *lock, void __iomem *reg,
 					    unsigned long flags)
@@ -184,12 +184,12 @@ static struct clk *__sunxi_factors_register(struct device_node *node,
 	struct clk_mux *mux = NULL;
 	struct clk_hw *gate_hw = NULL;
 	struct clk_hw *mux_hw = NULL;
-	const char *clk_name = node->name;
+	const char *clk_name = yesde->name;
 	const char *parents[FACTORS_MAX_PARENTS];
 	int ret, i = 0;
 
 	/* if we have a mux, we will have >1 parents */
-	i = of_clk_parent_fill(node, parents, FACTORS_MAX_PARENTS);
+	i = of_clk_parent_fill(yesde, parents, FACTORS_MAX_PARENTS);
 
 	/*
 	 * some factor clocks, such as pll5 and pll6, may have multiple
@@ -198,7 +198,7 @@ static struct clk *__sunxi_factors_register(struct device_node *node,
 	if (data->name)
 		clk_name = data->name;
 	else
-		of_property_read_string(node, "clock-output-names", &clk_name);
+		of_property_read_string(yesde, "clock-output-names", &clk_name);
 
 	factors = kzalloc(sizeof(struct clk_factors), GFP_KERNEL);
 	if (!factors)
@@ -250,7 +250,7 @@ static struct clk *__sunxi_factors_register(struct device_node *node,
 	if (IS_ERR(clk))
 		goto err_register;
 
-	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	ret = of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 	if (ret)
 		goto err_provider;
 
@@ -269,23 +269,23 @@ err_factors:
 	return NULL;
 }
 
-struct clk *sunxi_factors_register(struct device_node *node,
+struct clk *sunxi_factors_register(struct device_yesde *yesde,
 				   const struct factors_data *data,
 				   spinlock_t *lock,
 				   void __iomem *reg)
 {
-	return __sunxi_factors_register(node, data, lock, reg, 0);
+	return __sunxi_factors_register(yesde, data, lock, reg, 0);
 }
 
-struct clk *sunxi_factors_register_critical(struct device_node *node,
+struct clk *sunxi_factors_register_critical(struct device_yesde *yesde,
 					    const struct factors_data *data,
 					    spinlock_t *lock,
 					    void __iomem *reg)
 {
-	return __sunxi_factors_register(node, data, lock, reg, CLK_IS_CRITICAL);
+	return __sunxi_factors_register(yesde, data, lock, reg, CLK_IS_CRITICAL);
 }
 
-void sunxi_factors_unregister(struct device_node *node, struct clk *clk)
+void sunxi_factors_unregister(struct device_yesde *yesde, struct clk *clk)
 {
 	struct clk_hw *hw = __clk_get_hw(clk);
 	struct clk_factors *factors;
@@ -295,7 +295,7 @@ void sunxi_factors_unregister(struct device_node *node, struct clk *clk)
 
 	factors = to_clk_factors(hw);
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(yesde);
 	/* TODO: The composite clock stuff will leak a bit here. */
 	clk_unregister(clk);
 	kfree(factors->mux);

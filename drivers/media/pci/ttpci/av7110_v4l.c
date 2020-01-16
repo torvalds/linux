@@ -85,7 +85,7 @@ static struct v4l2_input inputs[4] = {
 		.name		= "DVB",
 		.type		= V4L2_INPUT_TYPE_CAMERA,
 		.audioset	= 1,
-		.tuner		= 0, /* ignored */
+		.tuner		= 0, /* igyesred */
 		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
 		.status		= 0,
 		.capabilities	= V4L2_IN_CAP_STD,
@@ -225,7 +225,7 @@ static int av7110_dvb_c_switch(struct saa7146_fh *fh)
 
 	if ((vv->video_status & STATUS_OVERLAY) != 0) {
 		vv->ov_suspend = vv->video_fh;
-		err = saa7146_stop_preview(vv->video_fh); /* side effect: video_status is now 0, video_fh is NULL */
+		err = saa7146_stop_preview(vv->video_fh); /* side effect: video_status is yesw 0, video_fh is NULL */
 		if (err != 0) {
 			dprintk(2, "suspending video failed\n");
 			vv->ov_suspend = NULL;
@@ -245,7 +245,7 @@ static int av7110_dvb_c_switch(struct saa7146_fh *fh)
 			msp_writereg(av7110, MSP_WR_DSP, 0x0008, 0x0000); // loudspeaker source
 			msp_writereg(av7110, MSP_WR_DSP, 0x0009, 0x0000); // headphone source
 			msp_writereg(av7110, MSP_WR_DSP, 0x000a, 0x0000); // SCART 1 source
-			msp_writereg(av7110, MSP_WR_DSP, 0x000e, 0x3000); // FM matrix, mono
+			msp_writereg(av7110, MSP_WR_DSP, 0x000e, 0x3000); // FM matrix, moyes
 			msp_writereg(av7110, MSP_WR_DSP, 0x0000, 0x4f00); // loudspeaker + headphone
 			msp_writereg(av7110, MSP_WR_DSP, 0x0007, 0x4f00); // SCART 1 volume
 
@@ -281,7 +281,7 @@ static int av7110_dvb_c_switch(struct saa7146_fh *fh)
 		msp_writereg(av7110, MSP_WR_DSP, 0x0008, 0x0220); // loudspeaker source
 		msp_writereg(av7110, MSP_WR_DSP, 0x0009, 0x0220); // headphone source
 		msp_writereg(av7110, MSP_WR_DSP, 0x000a, 0x0220); // SCART 1 source
-		msp_writereg(av7110, MSP_WR_DSP, 0x000e, 0x3000); // FM matrix, mono
+		msp_writereg(av7110, MSP_WR_DSP, 0x000e, 0x3000); // FM matrix, moyes
 		msp_writereg(av7110, MSP_WR_DSP, 0x0000, 0x7f00); // loudspeaker + headphone
 		msp_writereg(av7110, MSP_WR_DSP, 0x0007, 0x7f00); // SCART 1 volume
 
@@ -294,7 +294,7 @@ static int av7110_dvb_c_switch(struct saa7146_fh *fh)
 		}
 	}
 
-	/* hmm, this does not do anything!? */
+	/* hmm, this does yest do anything!? */
 	if (av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, ADSwitch, 1, adswitch))
 		dprintk(1, "ADSwitch error\n");
 
@@ -346,7 +346,7 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 		/* bilingual */
 		t->rxsubchans = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 		t->audmode = V4L2_TUNER_MODE_LANG1;
-	} else /* mono */
+	} else /* moyes */
 		t->rxsubchans = V4L2_TUNER_SUB_MONO;
 
 	return 0;
@@ -375,17 +375,17 @@ static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *
 		break;
 	case V4L2_TUNER_MODE_LANG1:
 		dprintk(2, "VIDIOC_S_TUNER: V4L2_TUNER_MODE_LANG1\n");
-		fm_matrix = 0x3000; /* mono */
+		fm_matrix = 0x3000; /* moyes */
 		src = 0x0000;
 		break;
 	case V4L2_TUNER_MODE_LANG2:
 		dprintk(2, "VIDIOC_S_TUNER: V4L2_TUNER_MODE_LANG2\n");
-		fm_matrix = 0x3000; /* mono */
+		fm_matrix = 0x3000; /* moyes */
 		src = 0x0010;
 		break;
 	default: /* case V4L2_TUNER_MODE_MONO: */
 		dprintk(2, "VIDIOC_S_TUNER: TDA9840_SET_MONO\n");
-		fm_matrix = 0x3000; /* mono */
+		fm_matrix = 0x3000; /* moyes */
 		src = 0x0030;
 		break;
 	}
@@ -722,7 +722,7 @@ int av7110_init_analog_module(struct av7110 *av7110)
 	msp_writereg(av7110, MSP_WR_DSP, 0x000d, 0x1900); // prescale SCART
 
 	if (i2c_writereg(av7110, 0x48, 0x01, 0x00)!=1) {
-		pr_info("saa7113 not accessible\n");
+		pr_info("saa7113 yest accessible\n");
 	} else {
 		u8 *i = saa7113_init_regs;
 
@@ -804,7 +804,7 @@ int av7110_init_v4l(struct av7110 *av7110)
 	ret = saa7146_vv_init(dev, vv_data);
 
 	if (ret) {
-		ERR("cannot init capture device. skipping\n");
+		ERR("canyest init capture device. skipping\n");
 		return -ENODEV;
 	}
 	vv_data->vid_ops.vidioc_enum_input = vidioc_enum_input;
@@ -832,13 +832,13 @@ int av7110_init_v4l(struct av7110 *av7110)
 		vv_data->capabilities &= ~V4L2_CAP_SLICED_VBI_OUTPUT;
 
 	if (saa7146_register_device(&av7110->v4l_dev, dev, "av7110", VFL_TYPE_GRABBER)) {
-		ERR("cannot register capture device. skipping\n");
+		ERR("canyest register capture device. skipping\n");
 		saa7146_vv_release(dev);
 		return -ENODEV;
 	}
 	if (FW_VERSION(av7110->arm_app) >= 0x2623) {
 		if (saa7146_register_device(&av7110->vbi_dev, dev, "av7110", VFL_TYPE_VBI))
-			ERR("cannot register vbi v4l2 device. skipping\n");
+			ERR("canyest register vbi v4l2 device. skipping\n");
 	}
 	return 0;
 }

@@ -66,7 +66,7 @@
 #define AUDIO_CLK81_EN		0x034
 /*
  * CLKID index values
- * These indices are entirely contrived and do not map onto the hardware.
+ * These indices are entirely contrived and do yest map onto the hardware.
  */
 
 #define AUD_CLKID_MST_A_MCLK_SEL	59

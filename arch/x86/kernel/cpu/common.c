@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* cpu_feature_enabled() cannot be used this early */
+/* cpu_feature_enabled() canyest be used this early */
 #define USE_EARLY_PGTABLE_L5
 
 #include <linux/memblock.h>
@@ -103,7 +103,7 @@ static void default_init(struct cpuinfo_x86 *c)
 
 static const struct cpu_dev default_cpu = {
 	.c_init		= default_init,
-	.c_vendor	= "Unknown",
+	.c_vendor	= "Unkyeswn",
 	.c_x86_vendor	= X86_VENDOR_UNKNOWN,
 };
 
@@ -117,7 +117,7 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 	 * Also sysret mandates a special GDT layout
 	 *
 	 * TLS descriptors are currently at a different place compared to i386.
-	 * Hopefully nobody expects them at a fixed place (Wine?)
+	 * Hopefully yesbody expects them at a fixed place (Wine?)
 	 */
 	[GDT_ENTRY_KERNEL32_CS]		= GDT_ENTRY_INIT(0xc09b, 0, 0xfffff),
 	[GDT_ENTRY_KERNEL_CS]		= GDT_ENTRY_INIT(0xa09b, 0, 0xfffff),
@@ -169,49 +169,49 @@ static int __init x86_mpx_setup(char *s)
 	if (strlen(s))
 		return 0;
 
-	/* do not emit a message if the feature is not present */
+	/* do yest emit a message if the feature is yest present */
 	if (!boot_cpu_has(X86_FEATURE_MPX))
 		return 1;
 
 	setup_clear_cpu_cap(X86_FEATURE_MPX);
-	pr_info("nompx: Intel Memory Protection Extensions (MPX) disabled\n");
+	pr_info("yesmpx: Intel Memory Protection Extensions (MPX) disabled\n");
 	return 1;
 }
-__setup("nompx", x86_mpx_setup);
+__setup("yesmpx", x86_mpx_setup);
 
 #ifdef CONFIG_X86_64
-static int __init x86_nopcid_setup(char *s)
+static int __init x86_yespcid_setup(char *s)
 {
-	/* nopcid doesn't accept parameters */
+	/* yespcid doesn't accept parameters */
 	if (s)
 		return -EINVAL;
 
-	/* do not emit a message if the feature is not present */
+	/* do yest emit a message if the feature is yest present */
 	if (!boot_cpu_has(X86_FEATURE_PCID))
 		return 0;
 
 	setup_clear_cpu_cap(X86_FEATURE_PCID);
-	pr_info("nopcid: PCID feature disabled\n");
+	pr_info("yespcid: PCID feature disabled\n");
 	return 0;
 }
-early_param("nopcid", x86_nopcid_setup);
+early_param("yespcid", x86_yespcid_setup);
 #endif
 
-static int __init x86_noinvpcid_setup(char *s)
+static int __init x86_yesinvpcid_setup(char *s)
 {
-	/* noinvpcid doesn't accept parameters */
+	/* yesinvpcid doesn't accept parameters */
 	if (s)
 		return -EINVAL;
 
-	/* do not emit a message if the feature is not present */
+	/* do yest emit a message if the feature is yest present */
 	if (!boot_cpu_has(X86_FEATURE_INVPCID))
 		return 0;
 
 	setup_clear_cpu_cap(X86_FEATURE_INVPCID);
-	pr_info("noinvpcid: INVPCID feature disabled\n");
+	pr_info("yesinvpcid: INVPCID feature disabled\n");
 	return 0;
 }
-early_param("noinvpcid", x86_noinvpcid_setup);
+early_param("yesinvpcid", x86_yesinvpcid_setup);
 
 #ifdef CONFIG_X86_32
 static int cachesize_override = -1;
@@ -229,7 +229,7 @@ static int __init x86_sep_setup(char *s)
 	setup_clear_cpu_cap(X86_FEATURE_SEP);
 	return 1;
 }
-__setup("nosep", x86_sep_setup);
+__setup("yessep", x86_sep_setup);
 
 /* Standard macro to see if a specific flag is changeable */
 static inline int flag_is_changeable_p(u32 flag)
@@ -240,7 +240,7 @@ static inline int flag_is_changeable_p(u32 flag)
 	 * Cyrix and IDT cpus allow disabling of CPUID
 	 * so the code below may return different results
 	 * when it is executed before and after enabling
-	 * the CPUID. Add "volatile" to not allow gcc to
+	 * the CPUID. Add "volatile" to yest allow gcc to
 	 * optimize the subsequent calls to this function.
 	 */
 	asm volatile ("pushfl		\n\t"
@@ -279,7 +279,7 @@ static void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 	lo |= 0x200000;
 	wrmsr(MSR_IA32_BBL_CR_CTL, lo, hi);
 
-	pr_notice("CPU serial number disabled.\n");
+	pr_yestice("CPU serial number disabled.\n");
 	clear_cpu_cap(c, X86_FEATURE_PN);
 
 	/* Disabling the serial number may affect the cpuid level */
@@ -309,7 +309,7 @@ static __init int setup_disable_smep(char *arg)
 	check_mpx_erratum(&boot_cpu_data);
 	return 1;
 }
-__setup("nosmep", setup_disable_smep);
+__setup("yessmep", setup_disable_smep);
 
 static __always_inline void setup_smep(struct cpuinfo_x86 *c)
 {
@@ -322,7 +322,7 @@ static __init int setup_disable_smap(char *arg)
 	setup_clear_cpu_cap(X86_FEATURE_SMAP);
 	return 1;
 }
-__setup("nosmap", setup_disable_smap);
+__setup("yessmap", setup_disable_smap);
 
 static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 {
@@ -436,7 +436,7 @@ static void __init setup_cr_pinning(void)
 }
 
 /*
- * Protection Keys are not available in 32-bit mode.
+ * Protection Keys are yest available in 32-bit mode.
  */
 static bool pku_disabled;
 
@@ -469,25 +469,25 @@ static __always_inline void setup_pku(struct cpuinfo_x86 *c)
 static __init int setup_disable_pku(char *arg)
 {
 	/*
-	 * Do not clear the X86_FEATURE_PKU bit.  All of the
+	 * Do yest clear the X86_FEATURE_PKU bit.  All of the
 	 * runtime checks are against OSPKE so clearing the
-	 * bit does nothing.
+	 * bit does yesthing.
 	 *
-	 * This way, we will see "pku" in cpuinfo, but not
+	 * This way, we will see "pku" in cpuinfo, but yest
 	 * "ospke", which is exactly what we want.  It shows
-	 * that the CPU has PKU, but the OS has not enabled it.
+	 * that the CPU has PKU, but the OS has yest enabled it.
 	 * This happens to be exactly how a system would look
 	 * if we disabled the config option.
 	 */
-	pr_info("x86: 'nopku' specified, disabling Memory Protection Keys\n");
+	pr_info("x86: 'yespku' specified, disabling Memory Protection Keys\n");
 	pku_disabled = true;
 	return 1;
 }
-__setup("nopku", setup_disable_pku);
+__setup("yespku", setup_disable_pku);
 #endif /* CONFIG_X86_64 */
 
 /*
- * Some CPU features depend on higher CPUID levels, which may not always
+ * Some CPU features depend on higher CPUID levels, which may yest always
  * be available due to CPUID level capping or broken virtualization
  * software.  Add those features to this table to auto-disable them.
  */
@@ -528,7 +528,7 @@ static void filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 		if (!warn)
 			continue;
 
-		pr_warn("CPU: CPU feature " X86_CAP_FMT " disabled, no CPUID level 0x%x\n",
+		pr_warn("CPU: CPU feature " X86_CAP_FMT " disabled, yes CPUID level 0x%x\n",
 			x86_cap_flag(df->feature), df->level);
 	}
 }
@@ -640,7 +640,7 @@ static void get_model_name(struct cpuinfo_x86 *c)
 		p++;
 
 	while (*p) {
-		/* Note the last non-whitespace index */
+		/* Note the last yesn-whitespace index */
 		if (!isspace(*p))
 			s = q;
 
@@ -696,7 +696,7 @@ void cpu_detect_cache_sizes(struct cpuinfo_x86 *c)
 		l2size = cachesize_override;
 
 	if (l2size == 0)
-		return;		/* Again, no L2 cache is possible */
+		return;		/* Again, yes L2 cache is possible */
 #endif
 
 	c->x86_cache_size = l2size;
@@ -788,7 +788,7 @@ static void get_cpu_vendor(struct cpuinfo_x86 *c)
 		}
 	}
 
-	pr_err_once("CPU: vendor_id '%s' unknown, using generic init.\n" \
+	pr_err_once("CPU: vendor_id '%s' unkyeswn, using generic init.\n" \
 		    "CPU: Your system may be unstable.\n", v);
 
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
@@ -1068,9 +1068,9 @@ static const __initconst struct x86_cpu_id cpu_vuln_whitelist[] = {
 	/*
 	 * Technically, swapgs isn't serializing on AMD (despite it previously
 	 * being documented as such in the APM).  But according to AMD, %gs is
-	 * updated non-speculatively, and the issuing of %gs-relative memory
+	 * updated yesn-speculatively, and the issuing of %gs-relative memory
 	 * operands will be blocked until the %gs update completes, which is
-	 * good enough for our purposes.
+	 * good eyesugh for our purposes.
 	 */
 
 	VULNWL_INTEL(ATOM_TREMONT_D,		NO_ITLB_MULTIHIT),
@@ -1108,7 +1108,7 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 {
 	u64 ia32_cap = x86_read_arch_cap_msr();
 
-	/* Set ITLB_MULTIHIT bug if cpu is not in the whitelist and not mitigated */
+	/* Set ITLB_MULTIHIT bug if cpu is yest in the whitelist and yest mitigated */
 	if (!cpu_matches(NO_ITLB_MULTIHIT) && !(ia32_cap & ARCH_CAP_PSCHANGE_MC_NO))
 		setup_force_cpu_bug(X86_BUG_ITLB_MULTIHIT);
 
@@ -1135,14 +1135,14 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 		setup_force_cpu_bug(X86_BUG_SWAPGS);
 
 	/*
-	 * When the CPU is not mitigated for TAA (TAA_NO=0) set TAA bug when:
+	 * When the CPU is yest mitigated for TAA (TAA_NO=0) set TAA bug when:
 	 *	- TSX is supported or
 	 *	- TSX_CTRL is present
 	 *
 	 * TSX_CTRL check is needed for cases when TSX could be disabled before
 	 * the kernel boot e.g. kexec.
-	 * TSX_CTRL check alone is not sufficient for cases when the microcode
-	 * update is not present or running as guest that don't get TSX_CTRL.
+	 * TSX_CTRL check alone is yest sufficient for cases when the microcode
+	 * update is yest present or running as guest that don't get TSX_CTRL.
 	 */
 	if (!(ia32_cap & ARCH_CAP_TAA_NO) &&
 	    (cpu_has(c, X86_FEATURE_RTM) ||
@@ -1166,14 +1166,14 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 
 /*
  * The NOPL instruction is supposed to exist on all CPUs of family >= 6;
- * unfortunately, that's not true in practice because of early VIA
- * chips and (more importantly) broken virtualizers that are not easy
+ * unfortunately, that's yest true in practice because of early VIA
+ * chips and (more importantly) broken virtualizers that are yest easy
  * to detect. In the latter case it doesn't even *fail* reliably, so
  * probing for it doesn't even work. Disable it completely on 32-bit
  * unless we can find a reliable way to detect all the broken cases.
- * Enable it explicitly on 64-bit for non-constant inputs of cpu_has().
+ * Enable it explicitly on 64-bit for yesn-constant inputs of cpu_has().
  */
-static void detect_nopl(void)
+static void detect_yespl(void)
 {
 #ifdef CONFIG_X86_32
 	setup_clear_cpu_cap(X86_FEATURE_NOPL);
@@ -1186,7 +1186,7 @@ static void detect_nopl(void)
  * Do minimum CPU detection early.
  * Fields really needed: vendor, cpuid_level, family, model, mask,
  * cache alignment.
- * The others are not touched to avoid unwanted side effects.
+ * The others are yest touched to avoid unwanted side effects.
  *
  * WARNING: this function is only called on the boot CPU.  Don't add code
  * here that is supposed to run on all CPUs.
@@ -1246,7 +1246,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	/*
 	 * Later in the boot process pgtable_l5_enabled() relies on
-	 * cpu_feature_enabled(X86_FEATURE_LA57). If 5-level paging is not
+	 * cpu_feature_enabled(X86_FEATURE_LA57). If 5-level paging is yest
 	 * enabled by this point we need to clear the feature bit to avoid
 	 * false-positives at the later stage.
 	 *
@@ -1254,12 +1254,12 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	 *  - 5-level paging is disabled compile-time;
 	 *  - it's 32-bit kernel;
 	 *  - machine doesn't support 5-level paging;
-	 *  - user specified 'no5lvl' in kernel command line.
+	 *  - user specified 'yes5lvl' in kernel command line.
 	 */
 	if (!pgtable_l5_enabled())
 		setup_clear_cpu_cap(X86_FEATURE_LA57);
 
-	detect_nopl();
+	detect_yespl();
 }
 
 void __init early_cpu_init(void)
@@ -1300,7 +1300,7 @@ static void detect_null_seg_behavior(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_64
 	/*
 	 * Empirically, writing zero to a segment selector on AMD does
-	 * not clear the base, whereas writing zero to a segment
+	 * yest clear the base, whereas writing zero to a segment
 	 * selector on Intel does clear the base.  Intel's behavior
 	 * allows slightly faster context switches in the common case
 	 * where GS is unused by the prev and next threads.
@@ -1361,15 +1361,15 @@ static void generic_identify(struct cpuinfo_x86 *c)
 
 	/*
 	 * ESPFIX is a strange bug.  All real CPUs have it.  Paravirt
-	 * systems that run Linux at CPL > 0 may or may not have the
+	 * systems that run Linux at CPL > 0 may or may yest have the
 	 * issue, but, even if they have the issue, there's absolutely
-	 * nothing we can do about it because we can't use the real IRET
+	 * yesthing we can do about it because we can't use the real IRET
 	 * instruction.
 	 *
 	 * NB: For the time being, only 32-bit kernels support
 	 * X86_BUG_ESPFIX as such.  64-bit kernels directly choose
 	 * whether to apply espfix using paravirt hooks.  If any
-	 * non-paravirt system ever shows up that does *not* have the
+	 * yesn-paravirt system ever shows up that does *yest* have the
 	 * ESPFIX issue, we can change this.
 	 */
 #ifdef CONFIG_X86_32
@@ -1431,7 +1431,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	c->loops_per_jiffy = loops_per_jiffy;
 	c->x86_cache_size = 0;
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
-	c->x86_model = c->x86_stepping = 0;	/* So far unknown... */
+	c->x86_model = c->x86_stepping = 0;	/* So far unkyeswn... */
 	c->x86_vendor_id[0] = '\0'; /* Unset */
 	c->x86_model_id[0] = '\0';  /* Unset */
 	c->x86_max_cores = 1;
@@ -1442,7 +1442,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_phys_bits = 36;
 	c->x86_virt_bits = 48;
 #else
-	c->cpuid_level = -1;	/* CPUID not detected */
+	c->cpuid_level = -1;	/* CPUID yest detected */
 	c->x86_clflush_size = 32;
 	c->x86_phys_bits = 32;
 	c->x86_virt_bits = 32;
@@ -1464,7 +1464,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 
 	/*
 	 * Vendor-specific initialization.  In this section we
-	 * canonicalize the feature flags, meaning if there are
+	 * cayesnicalize the feature flags, meaning if there are
 	 * features a certain CPU supports which CPUID doesn't
 	 * tell us, CPUID claiming incorrect flags, or other bugs,
 	 * we handle them here.
@@ -1598,13 +1598,13 @@ void identify_secondary_cpu(struct cpuinfo_x86 *c)
 	x86_spec_ctrl_setup_ap();
 }
 
-static __init int setup_noclflush(char *arg)
+static __init int setup_yesclflush(char *arg)
 {
 	setup_clear_cpu_cap(X86_FEATURE_CLFLUSH);
 	setup_clear_cpu_cap(X86_FEATURE_CLFLUSHOPT);
 	return 1;
 }
-__setup("noclflush", setup_noclflush);
+__setup("yesclflush", setup_yesclflush);
 
 void print_cpu_info(struct cpuinfo_x86 *c)
 {
@@ -1663,7 +1663,7 @@ DEFINE_PER_CPU(unsigned int, irq_count) __visible = -1;
 DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
 EXPORT_PER_CPU_SYMBOL(__preempt_count);
 
-/* May not be marked __init: used by software suspend */
+/* May yest be marked __init: used by software suspend */
 void syscall_init(void)
 {
 	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
@@ -1674,7 +1674,7 @@ void syscall_init(void)
 	/*
 	 * This only works on Intel CPUs.
 	 * On AMD CPUs these MSRs are 32-bit, CPU truncates MSR_IA32_SYSENTER_EIP.
-	 * This does not cause SYSENTER to jump to the wrong location, because
+	 * This does yest cause SYSENTER to jump to the wrong location, because
 	 * AMD doesn't allow SYSENTER in long mode (either 32- or 64-bit).
 	 */
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
@@ -1682,7 +1682,7 @@ void syscall_init(void)
 		    (unsigned long)(cpu_entry_stack(smp_processor_id()) + 1));
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 #else
-	wrmsrl(MSR_CSTAR, (unsigned long)ignore_sysret);
+	wrmsrl(MSR_CSTAR, (unsigned long)igyesre_sysret);
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)GDT_ENTRY_INVALID_SEG);
 	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, 0ULL);
@@ -1743,7 +1743,7 @@ static void clear_all_debug_regs(void)
 	int i;
 
 	for (i = 0; i < 8; i++) {
-		/* Ignore db4, db5 */
+		/* Igyesre db4, db5 */
 		if ((i == 4) || (i == 5))
 			continue;
 
@@ -1781,13 +1781,13 @@ static void wait_for_master_cpu(int cpu)
 #ifdef CONFIG_X86_64
 static inline void setup_getcpu(int cpu)
 {
-	unsigned long cpudata = vdso_encode_cpunode(cpu, early_cpu_to_node(cpu));
+	unsigned long cpudata = vdso_encode_cpuyesde(cpu, early_cpu_to_yesde(cpu));
 	struct desc_struct d = { };
 
 	if (boot_cpu_has(X86_FEATURE_RDTSCP))
 		write_rdtscp_aux(cpudata);
 
-	/* Store CPU and node number in limit. */
+	/* Store CPU and yesde number in limit. */
 	d.limit0 = cpudata;
 	d.limit1 = cpudata >> 16;
 
@@ -1848,7 +1848,7 @@ static inline void tss_setup_io_bitmap(struct tss_struct *tss)
  * cpu_init() initializes state that is per-CPU. Some data is already
  * initialized (naturally) in the bootstrap process, such as the GDT
  * and IDT. We reload them nevertheless, this function acts as a
- * 'CPU state barrier', nothing should get across.
+ * 'CPU state barrier', yesthing should get across.
  */
 void cpu_init(void)
 {
@@ -1861,9 +1861,9 @@ void cpu_init(void)
 	ucode_cpu_init(cpu);
 
 #ifdef CONFIG_NUMA
-	if (this_cpu_read(numa_node) == 0 &&
-	    early_cpu_to_node(cpu) != NUMA_NO_NODE)
-		set_numa_node(early_cpu_to_node(cpu));
+	if (this_cpu_read(numa_yesde) == 0 &&
+	    early_cpu_to_yesde(cpu) != NUMA_NO_NODE)
+		set_numa_yesde(early_cpu_to_yesde(cpu));
 #endif
 	setup_getcpu(cpu);
 
@@ -1951,7 +1951,7 @@ void microcode_check(void)
 	if (!memcmp(&info.x86_capability, &boot_cpu_data.x86_capability, sizeof(info.x86_capability)))
 		return;
 
-	pr_warn("x86/CPU: CPU features have changed after loading microcode, but might not take effect.\n");
+	pr_warn("x86/CPU: CPU features have changed after loading microcode, but might yest take effect.\n");
 	pr_warn("x86/CPU: Please consider either early loading through initrd/built-in or a potential BIOS update.\n");
 }
 

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -26,7 +26,7 @@
 
 #include <core/client.h>
 #include <core/gpuobj.h>
-#include <core/notify.h>
+#include <core/yestify.h>
 #include <subdev/mc.h>
 
 #include <nvif/event.h>
@@ -127,13 +127,13 @@ nvkm_fifo_kevent(struct nvkm_fifo *fifo, int chid)
 
 static int
 nvkm_fifo_kevent_ctor(struct nvkm_object *object, void *data, u32 size,
-		      struct nvkm_notify *notify)
+		      struct nvkm_yestify *yestify)
 {
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
 	if (size == 0) {
-		notify->size  = 0;
-		notify->types = 1;
-		notify->index = chan->chid;
+		yestify->size  = 0;
+		yestify->types = 1;
+		yestify->index = chan->chid;
 		return 0;
 	}
 	return -ENOSYS;
@@ -146,12 +146,12 @@ nvkm_fifo_kevent_func = {
 
 static int
 nvkm_fifo_cevent_ctor(struct nvkm_object *object, void *data, u32 size,
-		      struct nvkm_notify *notify)
+		      struct nvkm_yestify *yestify)
 {
 	if (size == 0) {
-		notify->size  = 0;
-		notify->types = 1;
-		notify->index = 0;
+		yestify->size  = 0;
+		yestify->types = 1;
+		yestify->index = 0;
 		return 0;
 	}
 	return -ENOSYS;
@@ -184,17 +184,17 @@ nvkm_fifo_uevent_init(struct nvkm_event *event, int type, int index)
 
 static int
 nvkm_fifo_uevent_ctor(struct nvkm_object *object, void *data, u32 size,
-		      struct nvkm_notify *notify)
+		      struct nvkm_yestify *yestify)
 {
 	union {
-		struct nvif_notify_uevent_req none;
+		struct nvif_yestify_uevent_req yesne;
 	} *req = data;
 	int ret = -ENOSYS;
 
-	if (!(ret = nvif_unvers(ret, &data, &size, req->none))) {
-		notify->size  = sizeof(struct nvif_notify_uevent_rep);
-		notify->types = 1;
-		notify->index = 0;
+	if (!(ret = nvif_unvers(ret, &data, &size, req->yesne))) {
+		yestify->size  = sizeof(struct nvif_yestify_uevent_rep);
+		yestify->types = 1;
+		yestify->index = 0;
 	}
 
 	return ret;
@@ -210,7 +210,7 @@ nvkm_fifo_uevent_func = {
 void
 nvkm_fifo_uevent(struct nvkm_fifo *fifo)
 {
-	struct nvif_notify_uevent_rep rep = {
+	struct nvif_yestify_uevent_rep rep = {
 	};
 	nvkm_event_send(&fifo->uevent, 1, 0, &rep, sizeof(rep));
 }

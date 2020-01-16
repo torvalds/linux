@@ -265,9 +265,9 @@ struct z8530_channel
 {
 	struct		z8530_irqhandler *irqs;		/* IRQ handlers */
 	/*
-	 *	Synchronous
+	 *	Synchroyesus
 	 */
-	u16		count;		/* Buyes received */
+	u16		count;		/* Buno received */
 	u16		max;		/* Most we can receive this frame */
 	u16		mtu;		/* MTU of the device */
 	u8		*dptr;		/* Pointer into rx buffer */
@@ -317,7 +317,7 @@ struct z8530_channel
 #define Z8530_PORT_SLEEP	0x80000000
 #define Z8530_PORT_OF(x)	((x)&0xFFFF)
 
-	u32		rx_overrun;		/* Overruns - not done yet */
+	u32		rx_overrun;		/* Overruns - yest done yet */
 	u32		rx_crc_err;
 
 	/*
@@ -332,7 +332,7 @@ struct z8530_channel
 	 */
 
 	struct tty_struct 	*tty;		/* Attached terminal */
-	int			line;		/* Minor number */
+	int			line;		/* Miyesr number */
 	wait_queue_head_t	open_wait;	/* Tasks waiting to open */
 	wait_queue_head_t	close_wait;	/* and for close to end */
 	unsigned long		event;		/* Pending events */
@@ -350,7 +350,7 @@ struct z8530_channel
 	int			close_delay;	/* Do we wait for drain on close ? */
 	unsigned short		closing_wait;
 
-	/* We need to know the current clock divisor
+	/* We need to kyesw the current clock divisor
 	 * to read the bps rate the chip has currently
 	 * loaded.
 	 */
@@ -379,7 +379,7 @@ struct z8530_dev
 	struct z8530_channel chanA;	/* SCC channel A */
 	struct z8530_channel chanB;	/* SCC channel B */
 	int type;
-#define Z8530	0	/* NMOS dinosaur */	
+#define Z8530	0	/* NMOS diyessaur */	
 #define Z85C30	1	/* CMOS - better */
 #define Z85230	2	/* CMOS with real FIFO */
 	int irq;	/* Interrupt for the device */
@@ -415,10 +415,10 @@ void z8530_null_rx(struct z8530_channel *c, struct sk_buff *skb);
  *	Standard interrupt vector sets
  */
  
-extern struct z8530_irqhandler z8530_sync, z8530_async, z8530_nop;
+extern struct z8530_irqhandler z8530_sync, z8530_async, z8530_yesp;
 
 /*
- *	Asynchronous Interfacing
+ *	Asynchroyesus Interfacing
  */
 
 /*

@@ -22,7 +22,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 static int gpio_input[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
 				-1, -1, -1, -1, -1, -1, -1, -1 };
@@ -30,7 +30,7 @@ static int gpio_output[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
 				-1, -1, -1, -1, -1, -1, -1, -1 };
 static int gpio_inverted[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
 				-1, -1, -1, -1, -1, -1, -1, -1 };
-static int gpio_normal[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
+static int gpio_yesrmal[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
 				-1, -1, -1, -1, -1, -1, -1, -1 };
 static int gpio_fan[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 module_param_array(gpio_input, int, NULL, 0);
@@ -41,9 +41,9 @@ MODULE_PARM_DESC(gpio_output,
 module_param_array(gpio_inverted, int, NULL, 0);
 MODULE_PARM_DESC(gpio_inverted,
 		 "List of GPIO pins (0-16) to program as inverted");
-module_param_array(gpio_normal, int, NULL, 0);
-MODULE_PARM_DESC(gpio_normal,
-		 "List of GPIO pins (0-16) to program as normal/non-inverted");
+module_param_array(gpio_yesrmal, int, NULL, 0);
+MODULE_PARM_DESC(gpio_yesrmal,
+		 "List of GPIO pins (0-16) to program as yesrmal/yesn-inverted");
 module_param_array(gpio_fan, int, NULL, 0);
 MODULE_PARM_DESC(gpio_fan, "List of GPIO pins (0-7) to program as fan tachs");
 
@@ -228,7 +228,7 @@ static int adm1026_scaling[] = { /* .001 Volts */
 /*
  * Chip sampling rates
  *
- * Some sensors are not updated more frequently than once per second
+ * Some sensors are yest updated more frequently than once per second
  *    so it doesn't make sense to read them more often than that.
  *    We cache the results and return the saved data if the driver
  *    is called again before a second has elapsed.
@@ -296,7 +296,7 @@ static int adm1026_read_value(struct i2c_client *client, u8 reg)
 		/* "RAM" locations */
 		res = i2c_smbus_read_byte_data(client, reg) & 0xff;
 	} else {
-		/* EEPROM, do nothing */
+		/* EEPROM, do yesthing */
 		res = 0;
 	}
 	return res;
@@ -310,7 +310,7 @@ static int adm1026_write_value(struct i2c_client *client, u8 reg, int value)
 		/* "RAM" locations */
 		res = i2c_smbus_write_byte_data(client, reg, value);
 	} else {
-		/* EEPROM, do nothing */
+		/* EEPROM, do yesthing */
 		res = 0;
 	}
 	return res;
@@ -1686,8 +1686,8 @@ static void adm1026_fixup_gpio(struct i2c_client *client)
 
 	/* Normal overrides inverted */
 	for (i = 0; i <= 16; ++i) {
-		if (gpio_normal[i] >= 0 && gpio_normal[i] <= 16)
-			data->gpio_config[gpio_normal[i]] |= 0x02;
+		if (gpio_yesrmal[i] >= 0 && gpio_yesrmal[i] <= 16)
+			data->gpio_config[gpio_yesrmal[i]] |= 0x02;
 	}
 
 	/* Fan overrides input and output */
@@ -1732,7 +1732,7 @@ static void adm1026_init_client(struct i2c_client *client)
 		data->config1);
 	if ((data->config1 & CFG1_MONITOR) == 0) {
 		dev_dbg(&client->dev,
-			"Monitoring not currently enabled.\n");
+			"Monitoring yest currently enabled.\n");
 	}
 	if (data->config1 & CFG1_INT_ENABLE) {
 		dev_dbg(&client->dev,
@@ -1778,30 +1778,30 @@ static void adm1026_init_client(struct i2c_client *client)
 
 	/*
 	 * If the user asks us to reprogram the GPIO config, then
-	 * do it now.
+	 * do it yesw.
 	 */
 	if (gpio_input[0] != -1 || gpio_output[0] != -1
-		|| gpio_inverted[0] != -1 || gpio_normal[0] != -1
+		|| gpio_inverted[0] != -1 || gpio_yesrmal[0] != -1
 		|| gpio_fan[0] != -1) {
 		adm1026_fixup_gpio(client);
 	}
 
 	/*
-	 * WE INTENTIONALLY make no changes to the limits,
+	 * WE INTENTIONALLY make yes changes to the limits,
 	 *   offsets, pwms, fans and zones.  If they were
 	 *   configured, we don't want to mess with them.
-	 *   If they weren't, the default is 100% PWM, no
+	 *   If they weren't, the default is 100% PWM, yes
 	 *   control and will suffice until 'sensors -s'
 	 *   can be run by the user.  We DO set the default
 	 *   value for pwm1.auto_pwm_min to its maximum
 	 *   so that enabling automatic pwm fan control
 	 *   without first setting a value for pwm1.auto_pwm_min
-	 *   will not result in potentially dangerous fan speed decrease.
+	 *   will yest result in potentially dangerous fan speed decrease.
 	 */
 	data->pwm1.auto_pwm_min = 255;
 	/* Start monitoring */
 	value = adm1026_read_value(client, ADM1026_REG_CONFIG1);
-	/* Set MONITOR, clear interrupt acknowledge and s/w reset */
+	/* Set MONITOR, clear interrupt ackyeswledge and s/w reset */
 	value = (value | CFG1_MONITOR) & (~CFG1_INT_CLEAR & ~CFG1_RESET);
 	dev_dbg(&client->dev, "Setting CONFIG to: 0x%02x\n", value);
 	data->config1 = value;
@@ -1863,7 +1863,7 @@ static struct i2c_driver adm1026_driver = {
 	.probe		= adm1026_probe,
 	.id_table	= adm1026_id,
 	.detect		= adm1026_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(adm1026_driver);

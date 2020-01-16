@@ -109,7 +109,7 @@ static struct platform_device sh_keysc_device = {
 	},
 };
 
-static struct mtd_partition migor_nor_flash_partitions[] =
+static struct mtd_partition migor_yesr_flash_partitions[] =
 {
 	{
 		.name = "uboot",
@@ -129,13 +129,13 @@ static struct mtd_partition migor_nor_flash_partitions[] =
 	},
 };
 
-static struct physmap_flash_data migor_nor_flash_data = {
+static struct physmap_flash_data migor_yesr_flash_data = {
 	.width		= 2,
-	.parts		= migor_nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(migor_nor_flash_partitions),
+	.parts		= migor_yesr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(migor_yesr_flash_partitions),
 };
 
-static struct resource migor_nor_flash_resources[] = {
+static struct resource migor_yesr_flash_resources[] = {
 	[0] = {
 		.name		= "NOR Flash",
 		.start		= 0x00000000,
@@ -144,12 +144,12 @@ static struct resource migor_nor_flash_resources[] = {
 	}
 };
 
-static struct platform_device migor_nor_flash_device = {
+static struct platform_device migor_yesr_flash_device = {
 	.name		= "physmap-flash",
-	.resource	= migor_nor_flash_resources,
-	.num_resources	= ARRAY_SIZE(migor_nor_flash_resources),
+	.resource	= migor_yesr_flash_resources,
+	.num_resources	= ARRAY_SIZE(migor_yesr_flash_resources),
 	.dev		= {
-		.platform_data = &migor_nor_flash_data,
+		.platform_data = &migor_yesr_flash_data,
 	},
 };
 
@@ -432,7 +432,7 @@ static struct platform_device *migor_devices[] __initdata = {
 	&smc91x_eth_device,
 	&sh_keysc_device,
 	&migor_lcdc_device,
-	&migor_nor_flash_device,
+	&migor_yesr_flash_device,
 	&migor_nand_flash_device,
 	&sdhi_cn9_device,
 };

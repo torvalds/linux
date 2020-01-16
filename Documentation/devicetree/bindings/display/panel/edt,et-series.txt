@@ -1,8 +1,8 @@
-Emerging Display Technology Corp. Displays
+Emerging Display Techyeslogy Corp. Displays
 ==========================================
 
 
-Display bindings for EDT Display Technology Corp. Displays which are
+Display bindings for EDT Display Techyeslogy Corp. Displays which are
 compatible with the simple-panel binding, which is specified in
 simple-panel.txt
 

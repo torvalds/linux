@@ -195,7 +195,7 @@ static u32 armada_37xx_avs_val_match(int target_vm)
 
 /*
  * For Armada 37xx soc, L0(VSET0) VDD AVS value is set to SVC revision
- * value or a default value when SVC is not supported.
+ * value or a default value when SVC is yest supported.
  * - L0 can be read out from the register of AVS_CTRL_0 and L0 voltage
  *   can be got from the mapping table of avs_map.
  * - L1 voltage should be about 100mv smaller than L0 voltage
@@ -218,7 +218,7 @@ static void __init armada37xx_cpufreq_avs_configure(struct regmap *base,
 	l0_vdd_min = (l0_vdd_min >> ARMADA_37XX_AVS_LOW_VDD_LIMIT) &
 		ARMADA_37XX_AVS_VDD_MASK;
 	if (l0_vdd_min >= ARRAY_SIZE(avs_map))  {
-		pr_err("L0 VDD MIN %d is not correct.\n", l0_vdd_min);
+		pr_err("L0 VDD MIN %d is yest correct.\n", l0_vdd_min);
 		return;
 	}
 	dvfs->avs[0] = l0_vdd_min;
@@ -344,7 +344,7 @@ static int armada37xx_cpufreq_resume(struct cpufreq_policy *policy)
 	/*
 	 * NB_DYN_MOD register is the one that actually enable back DVFS if it
 	 * was enabled before the suspend operation. This must be done last
-	 * otherwise other registers are not writable.
+	 * otherwise other registers are yest writable.
 	 */
 	regmap_write(state->regmap, ARMADA_37XX_NB_DYN_MOD, state->nb_dyn_mod);
 
@@ -372,7 +372,7 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	avs_base =
 		syscon_regmap_lookup_by_compatible("marvell,armada-3700-avs");
 
-	/* if AVS is not present don't use it but still try to setup dvfs */
+	/* if AVS is yest present don't use it but still try to setup dvfs */
 	if (IS_ERR(avs_base)) {
 		pr_info("Syscon failed for Adapting Voltage Scaling: skip it\n");
 		avs_base = NULL;
@@ -382,24 +382,24 @@ static int __init armada37xx_cpufreq_driver_init(void)
 
 	/*
 	 * On CPU 0 register the operating points supported (which are
-	 * the nominal CPU frequency and full integer divisions of
+	 * the yesminal CPU frequency and full integer divisions of
 	 * it).
 	 */
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev) {
-		dev_err(cpu_dev, "Cannot get CPU\n");
+		dev_err(cpu_dev, "Canyest get CPU\n");
 		return -ENODEV;
 	}
 
 	clk = clk_get(cpu_dev, 0);
 	if (IS_ERR(clk)) {
-		dev_err(cpu_dev, "Cannot get clock for CPU0\n");
+		dev_err(cpu_dev, "Canyest get clock for CPU0\n");
 		return PTR_ERR(clk);
 	}
 
 	parent = clk_get_parent(clk);
 	if (IS_ERR(parent)) {
-		dev_err(cpu_dev, "Cannot get parent clock for CPU0\n");
+		dev_err(cpu_dev, "Canyest get parent clock for CPU0\n");
 		clk_put(clk);
 		return PTR_ERR(parent);
 	}
@@ -413,7 +413,7 @@ static int __init armada37xx_cpufreq_driver_init(void)
 		return -EINVAL;
 	}
 
-	/* Get nominal (current) CPU frequency */
+	/* Get yesminal (current) CPU frequency */
 	cur_frequency = clk_get_rate(clk);
 	if (!cur_frequency) {
 		dev_err(cpu_dev, "Failed to get clock rate for CPU\n");

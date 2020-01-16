@@ -87,7 +87,7 @@ struct intel_gt;
 			   __val); \
 })
 
-/* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
+/* seqyes size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
  * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.
  */
 
@@ -132,7 +132,7 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 {
 	/* Writing into the status page should be done sparingly. Since
 	 * we do when we are uncertain of the device state, we take a bit
-	 * of extra paranoia to try and ensure that the HWS takes the value
+	 * of extra parayesia to try and ensure that the HWS takes the value
 	 * we give and that it doesn't end up trapped inside the CPU!
 	 */
 	if (static_cpu_has(X86_FEATURE_CLFLUSH)) {
@@ -152,7 +152,7 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
  * MI_STORE_DATA_IMM.
  *
  * The following dwords have a reserved meaning:
- * 0x00: ISR copy, updated when an ISR bit not set in the HWSTAM changes.
+ * 0x00: ISR copy, updated when an ISR bit yest set in the HWSTAM changes.
  * 0x04: ring 0 head pointer
  * 0x05: ring 1 head pointer (915-class)
  * 0x06: ring 2 head pointer (915-class)

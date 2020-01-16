@@ -176,18 +176,18 @@ static const struct proto_ops bnep_sock_ops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= bnep_sock_compat_ioctl,
 #endif
-	.bind		= sock_no_bind,
-	.getname	= sock_no_getname,
-	.sendmsg	= sock_no_sendmsg,
-	.recvmsg	= sock_no_recvmsg,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
-	.setsockopt	= sock_no_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.mmap		= sock_no_mmap
+	.bind		= sock_yes_bind,
+	.getname	= sock_yes_getname,
+	.sendmsg	= sock_yes_sendmsg,
+	.recvmsg	= sock_yes_recvmsg,
+	.listen		= sock_yes_listen,
+	.shutdown	= sock_yes_shutdown,
+	.setsockopt	= sock_yes_setsockopt,
+	.getsockopt	= sock_yes_getsockopt,
+	.connect	= sock_yes_connect,
+	.socketpair	= sock_yes_socketpair,
+	.accept		= sock_yes_accept,
+	.mmap		= sock_yes_mmap
 };
 
 static struct proto bnep_proto = {

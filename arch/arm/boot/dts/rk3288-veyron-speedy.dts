@@ -211,7 +211,7 @@
 			  "I2S0_SDI",
 			  "I2S0_SDO0",
 			  "HP_DET_H",
-			  "ALS_INT",		/* not connected */
+			  "ALS_INT",		/* yest connected */
 			  "INT_CODEC",
 
 			  "I2S0_CLK",
@@ -281,13 +281,13 @@
 &pinctrl {
 	buck-5v {
 		drv_5v: drv-5v {
-			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	hdmi {
 		vcc50_hdmi_en: vcc50-hdmi-en {
-			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 

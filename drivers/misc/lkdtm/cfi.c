@@ -7,13 +7,13 @@
 static int called_count;
 
 /* Function taking one argument, without a return value. */
-static noinline void lkdtm_increment_void(int *counter)
+static yesinline void lkdtm_increment_void(int *counter)
 {
 	(*counter)++;
 }
 
 /* Function taking one argument, returning int. */
-static noinline int lkdtm_increment_int(int *counter)
+static yesinline int lkdtm_increment_int(int *counter)
 {
 	(*counter)++;
 
@@ -25,7 +25,7 @@ static noinline int lkdtm_increment_int(int *counter)
 void lkdtm_CFI_FORWARD_PROTO(void)
 {
 	/*
-	 * Matches lkdtm_increment_void()'s prototype, but not
+	 * Matches lkdtm_increment_void()'s prototype, but yest
 	 * lkdtm_increment_int()'s prototype.
 	 */
 	void (*func)(int *);

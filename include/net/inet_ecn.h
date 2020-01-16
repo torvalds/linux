@@ -23,7 +23,7 @@ static inline int INET_ECN_is_ce(__u8 dsfield)
 	return (dsfield & INET_ECN_MASK) == INET_ECN_CE;
 }
 
-static inline int INET_ECN_is_not_ect(__u8 dsfield)
+static inline int INET_ECN_is_yest_ect(__u8 dsfield)
 {
 	return (dsfield & INET_ECN_MASK) == INET_ECN_NOT_ECT;
 }
@@ -37,7 +37,7 @@ static inline int INET_ECN_is_capable(__u8 dsfield)
  * RFC 3168 9.1.1
  *  The full-functionality option for ECN encapsulation is to copy the
  *  ECN codepoint of the inside header to the outside header on
- *  encapsulation if the inside header is not-ECT or ECT, and to set the
+ *  encapsulation if the inside header is yest-ECT or ECT, and to set the
  *  ECN codepoint of the outside header to ECT(0) if the ECN codepoint of
  *  the inside header is CE.
  */
@@ -114,15 +114,15 @@ struct ipv6hdr;
 
 /* Note:
  * IP_ECN_set_ce() has to tweak IPV4 checksum when setting CE,
- * meaning both changes have no effect on skb->csum if/when CHECKSUM_COMPLETE
- * In IPv6 case, no checksum compensates the change in IPv6 header,
+ * meaning both changes have yes effect on skb->csum if/when CHECKSUM_COMPLETE
+ * In IPv6 case, yes checksum compensates the change in IPv6 header,
  * so we have to update skb->csum.
  */
 static inline int IP6_ECN_set_ce(struct sk_buff *skb, struct ipv6hdr *iph)
 {
 	__be32 from, to;
 
-	if (INET_ECN_is_not_ect(ipv6_get_dsfield(iph)))
+	if (INET_ECN_is_yest_ect(ipv6_get_dsfield(iph)))
 		return 0;
 
 	from = *(__be32 *)iph;
@@ -185,7 +185,7 @@ static inline int INET_ECN_set_ce(struct sk_buff *skb)
  */
 static inline int __INET_ECN_decapsulate(__u8 outer, __u8 inner, bool *set_ce)
 {
-	if (INET_ECN_is_not_ect(inner)) {
+	if (INET_ECN_is_yest_ect(inner)) {
 		switch (outer & INET_ECN_MASK) {
 		case INET_ECN_NOT_ECT:
 			return 0;

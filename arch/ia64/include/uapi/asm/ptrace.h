@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 1998-2004 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
@@ -51,7 +51,7 @@
  * current -> |			     |   |  |
  *	      +----------------------+ -------
  *
- * Note that ar.ec is not saved explicitly in pt_reg or switch_stack.
+ * Note that ar.ec is yest saved explicitly in pt_reg or switch_stack.
  * This is because ar.ec is saved as part of ar.pfs.
  */
 
@@ -235,7 +235,7 @@ struct pt_all_user_regs {
 
 /*
  * The numbers chosen here are somewhat arbitrary but absolutely MUST
- * not overlap with any of the number assigned in <linux/ptrace.h>.
+ * yest overlap with any of the number assigned in <linux/ptrace.h>.
  */
 #define PTRACE_SINGLEBLOCK	12	/* resume execution until next branch */
 #define PTRACE_OLD_GETSIGINFO	13	/* (replaced by PTRACE_GETSIGINFO in <linux/ptrace.h>)  */

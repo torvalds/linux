@@ -331,7 +331,7 @@ typedef struct _MPI_VERSION_STRUCT
 {
     U8                      Dev;                        /* 00h */
     U8                      Unit;                       /* 01h */
-    U8                      Minor;                      /* 02h */
+    U8                      Miyesr;                      /* 02h */
     U8                      Major;                      /* 03h */
 } MPI_VERSION_STRUCT, MPI_POINTER PTR_MPI_VERSION_STRUCT,
   MpiVersionStruct_t, MPI_POINTER pMpiVersionStruct;
@@ -770,7 +770,7 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCSTATUS_INBAND_NO_CONNECTION      (0x0099)
 
 /****************************************************************************/
-/*  Diagnostic Tools values                                                 */
+/*  Diagyesstic Tools values                                                 */
 /****************************************************************************/
 
 #define MPI_IOCSTATUS_DIAGNOSTIC_RELEASED       (0x00A0)

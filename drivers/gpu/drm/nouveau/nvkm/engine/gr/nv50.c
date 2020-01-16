@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -263,7 +263,7 @@ nv50_gr_prop_trap(struct nv50_gr *gr, u32 ustatus_addr, u32 ustatus, u32 tp)
 				 tp, e14, e10 | ((e18 >> 7) & 0x1f));
 			e18 &= ~0x00000f80;
 		} else {
-			nvkm_error(subdev, "TRAP_PROP - TP %d - Unknown CUDA fault at address %02x%08x\n",
+			nvkm_error(subdev, "TRAP_PROP - TP %d - Unkyeswn CUDA fault at address %02x%08x\n",
 				 tp, e14, e10);
 		}
 		ustatus &= ~0x00000080;
@@ -344,7 +344,7 @@ nv50_gr_tp_trap(struct nv50_gr *gr, int type, u32 ustatus_old,
 			continue;
 		tps++;
 		switch (type) {
-		case 6: /* texture error... unknown for now */
+		case 6: /* texture error... unkyeswn for yesw */
 			if (display) {
 				nvkm_error(subdev, "magic set %d:\n", i);
 				for (r = ustatus_addr + 4; r <= ustatus_addr + 0x10; r += 4)
@@ -402,7 +402,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 	char msg[128];
 
 	if (!status && display) {
-		nvkm_error(subdev, "TRAP: no units reporting traps?\n");
+		nvkm_error(subdev, "TRAP: yes units reporting traps?\n");
 		return 1;
 	}
 
@@ -412,12 +412,12 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 	if (status & 0x001) {
 		ustatus = nvkm_rd32(device, 0x400804) & 0x7fffffff;
 		if (!ustatus && display) {
-			nvkm_error(subdev, "TRAP_DISPATCH - no ustatus?\n");
+			nvkm_error(subdev, "TRAP_DISPATCH - yes ustatus?\n");
 		}
 
 		nvkm_wr32(device, 0x400500, 0x00000000);
 
-		/* Known to be triggered by screwed up NOTIFY and COND... */
+		/* Kyeswn to be triggered by screwed up NOTIFY and COND... */
 		if (ustatus & 0x00000001) {
 			u32 addr = nvkm_rd32(device, 0x400808);
 			u32 subc = (addr & 0x00070000) >> 16;
@@ -437,7 +437,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 					   datah, datal, addr, r848);
 			} else
 			if (display) {
-				nvkm_error(subdev, "no stuck command?\n");
+				nvkm_error(subdev, "yes stuck command?\n");
 			}
 
 			nvkm_wr32(device, 0x400808, 0);
@@ -462,7 +462,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 					   subc, class, mthd, data, addr);
 			} else
 			if (display) {
-				nvkm_error(subdev, "no stuck command?\n");
+				nvkm_error(subdev, "yes stuck command?\n");
 			}
 
 			nvkm_wr32(device, 0x40084c, 0);
@@ -471,7 +471,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 
 		if (ustatus && display) {
 			nvkm_error(subdev, "TRAP_DISPATCH "
-					   "(unknown %08x)\n", ustatus);
+					   "(unkyeswn %08x)\n", ustatus);
 		}
 
 		nvkm_wr32(device, 0x400804, 0xc0000000);
@@ -571,15 +571,15 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 		status &= ~0x010;
 	}
 
-	/* Unknown, not seen yet... 0x402000 is the only trap status reg
+	/* Unkyeswn, yest seen yet... 0x402000 is the only trap status reg
 	 * remaining, so try to handle it anyway. Perhaps related to that
-	 * unknown DMA slot on tesla? */
+	 * unkyeswn DMA slot on tesla? */
 	if (status & 0x20) {
 		ustatus = nvkm_rd32(device, 0x402000) & 0x7fffffff;
 		if (display)
 			nvkm_error(subdev, "TRAP_UNKC04 %08x\n", ustatus);
 		nvkm_wr32(device, 0x402000, 0xc0000000);
-		/* no status modifiction on purpose */
+		/* yes status modifiction on purpose */
 	}
 
 	/* TEXTURE: CUDA texturing units */
@@ -609,7 +609,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 
 	if (status) {
 		if (display)
-			nvkm_error(subdev, "TRAP: unknown %08x\n", status);
+			nvkm_error(subdev, "TRAP: unkyeswn %08x\n", status);
 		nvkm_wr32(device, 0x400108, status);
 	}
 
@@ -633,7 +633,7 @@ nv50_gr_intr(struct nvkm_gr *base)
 	u32 show = stat, show_bitfield = stat;
 	const struct nvkm_enum *en;
 	unsigned long flags;
-	const char *name = "unknown";
+	const char *name = "unkyeswn";
 	char msg[128];
 	int chid = -1;
 
@@ -727,7 +727,7 @@ nv50_gr_init(struct nvkm_gr *base)
 	nvkm_wr32(device, 0x40032c, 0x00000000);
 	nvkm_wr32(device, 0x400330, 0x00000000);
 
-	/* some unknown zcull magic */
+	/* some unkyeswn zcull magic */
 	switch (device->chipset & 0xf0) {
 	case 0x50:
 	case 0x80:

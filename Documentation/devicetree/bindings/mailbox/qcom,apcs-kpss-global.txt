@@ -59,7 +59,7 @@ GLINK RPM referencing the "rpm_hlos" doorbell therein.
 		mbox-names = "rpm_hlos";
 	};
 
-Below is another example of the APCS binding on MSM8916 platforms:
+Below is ayesther example of the APCS binding on MSM8916 platforms:
 
 	apcs: mailbox@b011000 {
 		compatible = "qcom,msm8916-apcs-kpss-global";

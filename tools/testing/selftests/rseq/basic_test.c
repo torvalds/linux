@@ -39,14 +39,14 @@ int main(int argc, char **argv)
 {
 	if (rseq_register_current_thread()) {
 		fprintf(stderr, "Error: rseq_register_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 		goto init_thread_error;
 	}
 	printf("testing current cpu\n");
 	test_cpu_pointer();
 	if (rseq_unregister_current_thread()) {
 		fprintf(stderr, "Error: rseq_unregister_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 		goto init_thread_error;
 	}
 	return 0;

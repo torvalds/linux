@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -43,7 +43,7 @@ struct qxl_ring {
 	struct ring	       *ring;
 	int			element_size;
 	int			n_elements;
-	int			prod_notify;
+	int			prod_yestify;
 	wait_queue_head_t      *push_event;
 	spinlock_t             lock;
 };
@@ -55,15 +55,15 @@ void qxl_ring_free(struct qxl_ring *ring)
 
 void qxl_ring_init_hdr(struct qxl_ring *ring)
 {
-	ring->ring->header.notify_on_prod = ring->n_elements;
+	ring->ring->header.yestify_on_prod = ring->n_elements;
 }
 
 struct qxl_ring *
 qxl_ring_create(struct qxl_ring_header *header,
 		int element_size,
 		int n_elements,
-		int prod_notify,
-		bool set_prod_notify,
+		int prod_yestify,
+		bool set_prod_yestify,
 		wait_queue_head_t *push_event)
 {
 	struct qxl_ring *ring;
@@ -75,9 +75,9 @@ qxl_ring_create(struct qxl_ring_header *header,
 	ring->ring = (struct ring *)header;
 	ring->element_size = element_size;
 	ring->n_elements = n_elements;
-	ring->prod_notify = prod_notify;
+	ring->prod_yestify = prod_yestify;
 	ring->push_event = push_event;
-	if (set_prod_notify)
+	if (set_prod_yestify)
 		qxl_ring_init_hdr(ring);
 	spin_lock_init(&ring->lock);
 	return ring;
@@ -92,7 +92,7 @@ static int qxl_check_header(struct qxl_ring *ring)
 	spin_lock_irqsave(&ring->lock, flags);
 	ret = header->prod - header->cons < header->num_items;
 	if (ret == 0)
-		header->notify_on_cons = header->cons + 1;
+		header->yestify_on_cons = header->cons + 1;
 	spin_unlock_irqrestore(&ring->lock, flags);
 	return ret;
 }
@@ -119,7 +119,7 @@ int qxl_ring_push(struct qxl_ring *ring,
 
 	spin_lock_irqsave(&ring->lock, flags);
 	if (header->prod - header->cons == header->num_items) {
-		header->notify_on_cons = header->cons + 1;
+		header->yestify_on_cons = header->cons + 1;
 		mb();
 		spin_unlock_irqrestore(&ring->lock, flags);
 		if (!drm_can_sleep()) {
@@ -149,8 +149,8 @@ int qxl_ring_push(struct qxl_ring *ring,
 
 	mb();
 
-	if (header->prod == header->notify_on_prod)
-		outb(0, ring->prod_notify);
+	if (header->prod == header->yestify_on_prod)
+		outb(0, ring->prod_yestify);
 
 	spin_unlock_irqrestore(&ring->lock, flags);
 	return 0;
@@ -166,7 +166,7 @@ static bool qxl_ring_pop(struct qxl_ring *ring,
 
 	spin_lock_irqsave(&ring->lock, flags);
 	if (header->cons == header->prod) {
-		header->notify_on_prod = header->cons + 1;
+		header->yestify_on_prod = header->cons + 1;
 		spin_unlock_irqrestore(&ring->lock, flags);
 		return false;
 	}
@@ -267,7 +267,7 @@ int qxl_alloc_bo_reserved(struct qxl_device *qdev,
 	struct qxl_bo *bo;
 	int ret;
 
-	ret = qxl_bo_create(qdev, size, false /* not kernel - device */,
+	ret = qxl_bo_create(qdev, size, false /* yest kernel - device */,
 			    false, QXL_GEM_DOMAIN_VRAM, NULL, &bo);
 	if (ret) {
 		DRM_ERROR("failed to allocate VRAM BO\n");
@@ -337,7 +337,7 @@ int qxl_io_update_area(struct qxl_device *qdev, struct qxl_bo *surf,
 	int ret;
 
 	if (!surf->hw_surf_alloc)
-		DRM_ERROR("got io update area with no hw surface\n");
+		DRM_ERROR("got io update area with yes hw surface\n");
 
 	if (surf->is_primary)
 		surface_id = 0;
@@ -358,7 +358,7 @@ int qxl_io_update_area(struct qxl_device *qdev, struct qxl_bo *surf,
 	return ret;
 }
 
-void qxl_io_notify_oom(struct qxl_device *qdev)
+void qxl_io_yestify_oom(struct qxl_device *qdev)
 {
 	outb(0, qdev->io_base + QXL_IO_NOTIFY_OOM);
 }
@@ -496,7 +496,7 @@ int qxl_hw_surface_alloc(struct qxl_device *qdev,
 
 	surf->surf_create = release;
 
-	/* no need to add a release to the fence for this surface bo,
+	/* yes need to add a release to the fence for this surface bo,
 	   since it is only released when we ask to destroy the surface
 	   and it would never signal otherwise */
 	qxl_push_command_ring_release(qdev, release, QXL_CMD_SURFACE, false);
@@ -527,7 +527,7 @@ int qxl_hw_surface_dealloc(struct qxl_device *qdev,
 		return ret;
 
 	surf->surf_create = NULL;
-	/* remove the surface from the idr, but not the surface id yet */
+	/* remove the surface from the idr, but yest the surface id yet */
 	spin_lock(&qdev->surf_id_idr_lock);
 	idr_replace(&qdev->surf_id_idr, NULL, surf->surface_id);
 	spin_unlock(&qdev->surf_id_idr_lock);
@@ -569,7 +569,7 @@ retry:
 
 static void qxl_surface_evict_locked(struct qxl_device *qdev, struct qxl_bo *surf, bool do_update_area)
 {
-	/* no need to update area if we are just freeing the surface normally */
+	/* yes need to update area if we are just freeing the surface yesrmally */
 	if (do_update_area)
 		qxl_update_surface(qdev, surf);
 

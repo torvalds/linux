@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  HID driver for UC-Logic devices not fully compliant with HID standard
+ *  HID driver for UC-Logic devices yest fully compliant with HID standard
  *
  *  Copyright (c) 2010-2014 Nikolai Kondrashov
  *  Copyright (c) 2013 Martin Rusko
@@ -26,24 +26,24 @@
 struct uclogic_drvdata {
 	/* Interface parameters */
 	struct uclogic_params params;
-	/* Pointer to the replacement report descriptor. NULL if none. */
+	/* Pointer to the replacement report descriptor. NULL if yesne. */
 	__u8 *desc_ptr;
 	/*
 	 * Size of the replacement report descriptor.
-	 * Only valid if desc_ptr is not NULL
+	 * Only valid if desc_ptr is yest NULL
 	 */
 	unsigned int desc_size;
 	/* Pen input device */
 	struct input_dev *pen_input;
 	/* In-range timer */
 	struct timer_list inrange_timer;
-	/* Last rotary encoder state, or U8_MAX for none */
+	/* Last rotary encoder state, or U8_MAX for yesne */
 	u8 re_state;
 };
 
 /**
  * uclogic_inrange_timeout - handle pen in-range state timeout.
- * Emulate input events normally generated when pen goes out of range for
+ * Emulate input events yesrmally generated when pen goes out of range for
  * tablets which don't report that.
  *
  * @t:	The timer the timeout handler is attached to, stored in a struct
@@ -109,7 +109,7 @@ static int uclogic_input_configured(struct hid_device *hdev,
 	struct hid_field *field;
 	size_t len;
 
-	/* no report associated (HID_QUIRK_MULTI_INPUT not set) */
+	/* yes report associated (HID_QUIRK_MULTI_INPUT yest set) */
 	if (!hi->report)
 		return 0;
 
@@ -165,7 +165,7 @@ static int uclogic_probe(struct hid_device *hdev,
 	bool params_initialized = false;
 
 	/*
-	 * libinput requires the pad interface to be on a different node
+	 * libinput requires the pad interface to be on a different yesde
 	 * than the pen, so use QUIRK_MULTI_INPUT for all tablets.
 	 */
 	hdev->quirks |= HID_QUIRK_MULTI_INPUT;
@@ -190,7 +190,7 @@ static int uclogic_probe(struct hid_device *hdev,
 	hid_dbg(hdev, "parameters:\n" UCLOGIC_PARAMS_FMT_STR,
 		UCLOGIC_PARAMS_FMT_ARGS(&drvdata->params));
 	if (drvdata->params.invalid) {
-		hid_info(hdev, "interface is invalid, ignoring\n");
+		hid_info(hdev, "interface is invalid, igyesring\n");
 		rc = -ENODEV;
 		goto failure;
 	}
@@ -220,7 +220,7 @@ static int uclogic_probe(struct hid_device *hdev,
 
 	return 0;
 failure:
-	/* Assume "remove" might not be called if "probe" failed */
+	/* Assume "remove" might yest be called if "probe" failed */
 	if (params_initialized)
 		uclogic_params_cleanup(&drvdata->params);
 	return rc;

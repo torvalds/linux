@@ -33,7 +33,7 @@
 			  0x1 0x0 0x0 0xffa00000 0x00040000
 			  0x2 0x0 0x0 0xffb00000 0x00020000>;
 
-		nor@0,0 {
+		yesr@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";
@@ -42,7 +42,7 @@
 			device-width = <1>;
 
 			partition@0 {
-				/* This location must not be altered  */
+				/* This location must yest be altered  */
 				/* 256KB for Vitesse 7385 Switch firmware */
 				reg = <0x0 0x00040000>;
 				label = "NOR (RO) Vitesse-7385 Firmware";
@@ -70,7 +70,7 @@
 			};
 
 			partition@f00000 {
-				/* This location must not be altered  */
+				/* This location must yest be altered  */
 				/* 512KB for u-boot Bootloader Image */
 				/* 512KB for u-boot Environment Variables */
 				reg = <0x00f00000 0x00100000>;
@@ -87,7 +87,7 @@
 			reg = <0x1 0x0 0x40000>;
 
 			partition@0 {
-				/* This location must not be altered  */
+				/* This location must yest be altered  */
 				/* 1MB for u-boot Bootloader Image */
 				reg = <0x0 0x00100000>;
 				label = "NAND (RO) U-Boot Image";
@@ -151,7 +151,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "spansion,s25sl12801", "jedec,spi-nor";
+				compatible = "spansion,s25sl12801", "jedec,spi-yesr";
 				reg = <0>;
 				spi-max-frequency = <40000000>;
 

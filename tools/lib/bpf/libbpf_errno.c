@@ -57,7 +57,7 @@ int libbpf_strerror(int err, char *buf, size_t size)
 		return 0;
 	}
 
-	snprintf(buf, size, "Unknown libbpf error %d", err);
+	snprintf(buf, size, "Unkyeswn libbpf error %d", err);
 	buf[size - 1] = '\0';
 	return -1;
 }

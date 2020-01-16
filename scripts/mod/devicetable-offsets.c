@@ -79,7 +79,7 @@ int main(void)
 	DEVID_FIELD(pcmcia_device_id, card_id);
 	DEVID_FIELD(pcmcia_device_id, func_id);
 	DEVID_FIELD(pcmcia_device_id, function);
-	DEVID_FIELD(pcmcia_device_id, device_no);
+	DEVID_FIELD(pcmcia_device_id, device_yes);
 	DEVID_FIELD(pcmcia_device_id, prod_id_hash);
 
 	DEVID(of_device_id);

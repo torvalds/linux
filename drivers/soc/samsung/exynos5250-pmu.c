@@ -5,12 +5,12 @@
 //
 // EXYNOS5250 - CPU PMU (Power Management Unit) support
 
-#include <linux/soc/samsung/exynos-regs-pmu.h>
-#include <linux/soc/samsung/exynos-pmu.h>
+#include <linux/soc/samsung/exyyess-regs-pmu.h>
+#include <linux/soc/samsung/exyyess-pmu.h>
 
-#include "exynos-pmu.h"
+#include "exyyess-pmu.h"
 
-static const struct exynos_pmu_conf exynos5250_pmu_config[] = {
+static const struct exyyess_pmu_conf exyyess5250_pmu_config[] = {
 	/* { .offset = offset, .val = { AFTR, LPA, SLEEP } */
 	{ EXYNOS5_ARM_CORE0_SYS_PWR_REG,		{ 0x0, 0x0, 0x2} },
 	{ EXYNOS5_DIS_IRQ_ARM_CORE0_LOCAL_SYS_PWR_REG,	{ 0x0, 0x0, 0x0} },
@@ -115,7 +115,7 @@ static const struct exynos_pmu_conf exynos5250_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-static unsigned int const exynos5_list_both_cnt_feed[] = {
+static unsigned int const exyyess5_list_both_cnt_feed[] = {
 	EXYNOS5_ARM_CORE0_OPTION,
 	EXYNOS5_ARM_CORE1_OPTION,
 	EXYNOS5_ARM_COMMON_OPTION,
@@ -129,18 +129,18 @@ static unsigned int const exynos5_list_both_cnt_feed[] = {
 	EXYNOS5_TOP_PWR_SYSMEM_OPTION,
 };
 
-static unsigned int const exynos5_list_disable_wfi_wfe[] = {
+static unsigned int const exyyess5_list_disable_wfi_wfe[] = {
 	EXYNOS5_ARM_CORE1_OPTION,
 	EXYNOS5_FSYS_ARM_OPTION,
 	EXYNOS5_ISP_ARM_OPTION,
 };
 
-static void exynos5250_pmu_init(void)
+static void exyyess5250_pmu_init(void)
 {
 	unsigned int value;
 	/*
 	 * When SYS_WDTRESET is set, watchdog timer reset request
-	 * is ignored by power management unit.
+	 * is igyesred by power management unit.
 	 */
 	value = pmu_raw_readl(EXYNOS5_AUTO_WDTRESET_DISABLE);
 	value &= ~EXYNOS5_SYS_WDTRESET;
@@ -151,7 +151,7 @@ static void exynos5250_pmu_init(void)
 	pmu_raw_writel(value, EXYNOS5_MASK_WDTRESET_REQUEST);
 }
 
-static void exynos5_powerdown_conf(enum sys_powerdown mode)
+static void exyyess5_powerdown_conf(enum sys_powerdown mode)
 {
 	unsigned int i;
 	unsigned int tmp;
@@ -159,11 +159,11 @@ static void exynos5_powerdown_conf(enum sys_powerdown mode)
 	/*
 	 * Enable both SC_FEEDBACK and SC_COUNTER
 	 */
-	for (i = 0; i < ARRAY_SIZE(exynos5_list_both_cnt_feed); i++) {
-		tmp = pmu_raw_readl(exynos5_list_both_cnt_feed[i]);
+	for (i = 0; i < ARRAY_SIZE(exyyess5_list_both_cnt_feed); i++) {
+		tmp = pmu_raw_readl(exyyess5_list_both_cnt_feed[i]);
 		tmp |= (EXYNOS5_USE_SC_FEEDBACK |
 			EXYNOS5_USE_SC_COUNTER);
-		pmu_raw_writel(tmp, exynos5_list_both_cnt_feed[i]);
+		pmu_raw_writel(tmp, exyyess5_list_both_cnt_feed[i]);
 	}
 
 	/*
@@ -176,16 +176,16 @@ static void exynos5_powerdown_conf(enum sys_powerdown mode)
 	/*
 	 * Disable WFI/WFE on XXX_OPTION
 	 */
-	for (i = 0; i < ARRAY_SIZE(exynos5_list_disable_wfi_wfe); i++) {
-		tmp = pmu_raw_readl(exynos5_list_disable_wfi_wfe[i]);
+	for (i = 0; i < ARRAY_SIZE(exyyess5_list_disable_wfi_wfe); i++) {
+		tmp = pmu_raw_readl(exyyess5_list_disable_wfi_wfe[i]);
 		tmp &= ~(EXYNOS5_OPTION_USE_STANDBYWFE |
 			 EXYNOS5_OPTION_USE_STANDBYWFI);
-		pmu_raw_writel(tmp, exynos5_list_disable_wfi_wfe[i]);
+		pmu_raw_writel(tmp, exyyess5_list_disable_wfi_wfe[i]);
 	}
 }
 
-const struct exynos_pmu_data exynos5250_pmu_data = {
-	.pmu_config	= exynos5250_pmu_config,
-	.pmu_init	= exynos5250_pmu_init,
-	.powerdown_conf	= exynos5_powerdown_conf,
+const struct exyyess_pmu_data exyyess5250_pmu_data = {
+	.pmu_config	= exyyess5250_pmu_config,
+	.pmu_init	= exyyess5250_pmu_init,
+	.powerdown_conf	= exyyess5_powerdown_conf,
 };

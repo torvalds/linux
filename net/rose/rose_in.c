@@ -6,9 +6,9 @@
  * Most of this code is based on the SDL diagrams published in the 7th ARRL
  * Computer Networking Conference papers. The diagrams have mistakes in them,
  * but are mostly correct. Before you modify the code could you read the SDL
- * diagrams as the code is not obvious and probably very easy to break.
+ * diagrams as the code is yest obvious and probably very easy to break.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -184,7 +184,7 @@ static int rose_state3_machine(struct sock *sk, struct sk_buff *skb, int framety
 		}
 		/*
 		 * If the window is full, ack the frame, else start the
-		 * acknowledge hold back timer.
+		 * ackyeswledge hold back timer.
 		 */
 		if (((rose->vl + sysctl_rose_window_size) % ROSE_MODULUS) == rose->vr) {
 			rose->condition &= ~ROSE_COND_ACK_PENDING;
@@ -197,7 +197,7 @@ static int rose_state3_machine(struct sock *sk, struct sk_buff *skb, int framety
 		break;
 
 	default:
-		printk(KERN_WARNING "ROSE: unknown %02X in state 3\n", frametype);
+		printk(KERN_WARNING "ROSE: unkyeswn %02X in state 3\n", frametype);
 		break;
 	}
 

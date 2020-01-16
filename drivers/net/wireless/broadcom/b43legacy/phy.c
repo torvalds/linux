@@ -4,7 +4,7 @@
   Broadcom B43legacy wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-		     Stefano Brivio <stefano.brivio@polimi.it>
+		     Stefayes Brivio <stefayes.brivio@polimi.it>
 		     Michael Buesch <m@bues.ch>
 		     Danny van Dyk <kugelfang@gentoo.org>
      Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -70,7 +70,7 @@ static const s8 b43legacy_tssi2dbm_g_table[] = {
 static void b43legacy_phy_initg(struct b43legacy_wldev *dev);
 
 /* Lock the PHY registers against concurrent access from the microcode.
- * This lock is nonrecursive. */
+ * This lock is yesnrecursive. */
 void b43legacy_phy_lock(struct b43legacy_wldev *dev)
 {
 #if B43legacy_DEBUG
@@ -325,7 +325,7 @@ static void b43legacy_phy_setupg(struct b43legacy_wldev *dev)
 					    b43legacy_ilt_finefreqg[i]);
 		for (i = 0; i < B43legacy_ILT_NOISEG1_SIZE; i++)
 			b43legacy_ilt_write(dev, 0x1800 + i,
-					    b43legacy_ilt_noiseg1[i]);
+					    b43legacy_ilt_yesiseg1[i]);
 		for (i = 0; i < B43legacy_ILT_ROTOR_SIZE; i++)
 			b43legacy_ilt_write32(dev, 0x2000 + i,
 					      b43legacy_ilt_rotor[i]);
@@ -348,21 +348,21 @@ static void b43legacy_phy_setupg(struct b43legacy_wldev *dev)
 			b43legacy_ilt_write(dev, 0x4000 + i, i);
 		for (i = 0; i < B43legacy_ILT_NOISEG2_SIZE; i++)
 			b43legacy_ilt_write(dev, 0x1800 + i,
-					    b43legacy_ilt_noiseg2[i]);
+					    b43legacy_ilt_yesiseg2[i]);
 	}
 
 	if (phy->rev <= 2)
 		for (i = 0; i < B43legacy_ILT_NOISESCALEG_SIZE; i++)
 			b43legacy_ilt_write(dev, 0x1400 + i,
-					    b43legacy_ilt_noisescaleg1[i]);
+					    b43legacy_ilt_yesisescaleg1[i]);
 	else if ((phy->rev >= 7) && (b43legacy_phy_read(dev, 0x0449) & 0x0200))
 		for (i = 0; i < B43legacy_ILT_NOISESCALEG_SIZE; i++)
 			b43legacy_ilt_write(dev, 0x1400 + i,
-					    b43legacy_ilt_noisescaleg3[i]);
+					    b43legacy_ilt_yesisescaleg3[i]);
 	else
 		for (i = 0; i < B43legacy_ILT_NOISESCALEG_SIZE; i++)
 			b43legacy_ilt_write(dev, 0x1400 + i,
-					    b43legacy_ilt_noisescaleg2[i]);
+					    b43legacy_ilt_yesisescaleg2[i]);
 
 	if (phy->rev == 2)
 		for (i = 0; i < B43legacy_ILT_SIGMASQR_SIZE; i++)
@@ -601,7 +601,7 @@ static void b43legacy_phy_initb5(struct b43legacy_wldev *dev)
 		b43legacy_write16(dev, 0x03E4, 0x3000);
 
 	old_channel = (phy->channel == 0xFF) ? 1 : phy->channel;
-	/* Force to channel 7, even if not supported. */
+	/* Force to channel 7, even if yest supported. */
 	b43legacy_radio_selectchannel(dev, 7, 0);
 
 	if (phy->radio_ver != 0x2050) {
@@ -1998,7 +1998,7 @@ int b43legacy_phy_init_tssi2dbm_table(struct b43legacy_wldev *dev)
 			phy->idle_tssi = 62;
 		dyn_tssi2dbm = kmalloc(64, GFP_KERNEL);
 		if (dyn_tssi2dbm == NULL) {
-			b43legacyerr(dev->wl, "Could not allocate memory "
+			b43legacyerr(dev->wl, "Could yest allocate memory "
 			       "for tssi2dbm table\n");
 			return -ENOMEM;
 		}
@@ -2006,7 +2006,7 @@ int b43legacy_phy_init_tssi2dbm_table(struct b43legacy_wldev *dev)
 			if (b43legacy_tssi2dbm_entry(dyn_tssi2dbm, idx, pab0,
 						     pab1, pab2)) {
 				phy->tssi2dbm = NULL;
-				b43legacyerr(dev->wl, "Could not generate "
+				b43legacyerr(dev->wl, "Could yest generate "
 				       "tssi2dBm table\n");
 				kfree(dyn_tssi2dbm);
 				return -ENODEV;
@@ -2014,7 +2014,7 @@ int b43legacy_phy_init_tssi2dbm_table(struct b43legacy_wldev *dev)
 		phy->tssi2dbm = dyn_tssi2dbm;
 		phy->dyn_tssi_tbl = 1;
 	} else {
-		/* pabX values not set in SPROM. */
+		/* pabX values yest set in SPROM. */
 		switch (phy->type) {
 		case B43legacy_PHYTYPE_B:
 			phy->idle_tssi = 0x34;
@@ -2062,7 +2062,7 @@ int b43legacy_phy_init(struct b43legacy_wldev *dev)
 		break;
 	}
 	if (err)
-		b43legacyerr(dev->wl, "Unknown PHYTYPE found\n");
+		b43legacyerr(dev->wl, "Unkyeswn PHYTYPE found\n");
 
 	return err;
 }
@@ -2197,13 +2197,13 @@ void b43legacy_power_saving_ctl_bits(struct b43legacy_wldev *dev,
 	int i;
 	u32 status;
 
-/* FIXME: Force 25 to off and 26 to on for now: */
+/* FIXME: Force 25 to off and 26 to on for yesw: */
 bit25 = 0;
 bit26 = 1;
 
 	if (bit25 == -1) {
-		/* TODO: If powersave is not off and FIXME is not set and we
-		 *	are not in adhoc and thus is not an AP and we arei
+		/* TODO: If powersave is yest off and FIXME is yest set and we
+		 *	are yest in adhoc and thus is yest an AP and we arei
 		 *	associated, set bit 25 */
 	}
 	if (bit26 == -1) {

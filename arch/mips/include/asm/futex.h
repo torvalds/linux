@@ -15,7 +15,7 @@
 #include <asm/asm-eva.h>
 #include <asm/barrier.h>
 #include <asm/compiler.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/sync.h>
 #include <asm/war.h>
 
@@ -24,7 +24,7 @@
 	if (cpu_has_llsc && R10000_LLSC_WAR) {				\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
-		"	.set	noat				\n"	\
+		"	.set	yesat				\n"	\
 		"	.set	push				\n"	\
 		"	.set	arch=r4000			\n"	\
 		"1:	ll	%1, %4	# __futex_atomic_op	\n"	\
@@ -53,7 +53,7 @@
 	} else if (cpu_has_llsc) {					\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
-		"	.set	noat				\n"	\
+		"	.set	yesat				\n"	\
 		"	.set	push				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
 		"	" __SYNC(full, loongson3_war) "		\n"	\
@@ -138,7 +138,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		__asm__ __volatile__(
 		"# futex_atomic_cmpxchg_inatomic			\n"
 		"	.set	push					\n"
-		"	.set	noat					\n"
+		"	.set	yesat					\n"
 		"	.set	push					\n"
 		"	.set	arch=r4000				\n"
 		"1:	ll	%1, %3					\n"
@@ -168,7 +168,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		__asm__ __volatile__(
 		"# futex_atomic_cmpxchg_inatomic			\n"
 		"	.set	push					\n"
-		"	.set	noat					\n"
+		"	.set	yesat					\n"
 		"	.set	push					\n"
 		"	.set	"MIPS_ISA_ARCH_LEVEL"			\n"
 		"	" __SYNC(full, loongson3_war) "			\n"

@@ -14,7 +14,7 @@
 #
 # Setup scenarios for measuring ingress qdisc (with invalid dst_mac):
 # ------------------------------------------------------------------
-# (1) no ingress (uses static_key_false(&ingress_needed))
+# (1) yes ingress (uses static_key_false(&ingress_needed))
 #
 # (2) ingress on other dev (change ingress_needed and calls
 #     handle_ing() but exit early)

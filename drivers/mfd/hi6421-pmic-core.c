@@ -2,7 +2,7 @@
 /*
  * Device driver for Hi6421 PMIC
  *
- * Copyright (c) <2011-2014> HiSilicon Technologies Co., Ltd.
+ * Copyright (c) <2011-2014> HiSilicon Techyeslogies Co., Ltd.
  *              http://www.hisilicon.com
  * Copyright (c) <2013-2017> Linaro Ltd.
  *              http://www.linaro.org
@@ -99,7 +99,7 @@ static int hi6421_pmic_probe(struct platform_device *pdev)
 		n_subdevs = ARRAY_SIZE(hi6421v530_devs);
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown device type %d\n",
+		dev_err(&pdev->dev, "Unkyeswn device type %d\n",
 						(unsigned int)type);
 		return -EINVAL;
 	}

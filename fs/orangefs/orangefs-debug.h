@@ -64,7 +64,7 @@ struct __keyword_mask_s {
  */
 static struct __keyword_mask_s s_kmod_keyword_mask_map[] = {
 	{"super", GOSSIP_SUPER_DEBUG},
-	{"inode", GOSSIP_INODE_DEBUG},
+	{"iyesde", GOSSIP_INODE_DEBUG},
 	{"file", GOSSIP_FILE_DEBUG},
 	{"dir", GOSSIP_DIR_DEBUG},
 	{"utils", GOSSIP_UTILS_DEBUG},
@@ -79,7 +79,7 @@ static struct __keyword_mask_s s_kmod_keyword_mask_map[] = {
 	{"xattr", GOSSIP_XATTR_DEBUG},
 	{"init", GOSSIP_INIT_DEBUG},
 	{"sysfs", GOSSIP_SYSFS_DEBUG},
-	{"none", GOSSIP_NO_DEBUG},
+	{"yesne", GOSSIP_NO_DEBUG},
 	{"all", GOSSIP_MAX_DEBUG}
 };
 

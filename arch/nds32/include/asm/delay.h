@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef __NDS32_DELAY_H__
 #define __NDS32_DELAY_H__
 
 #include <asm/param.h>
 
-/* There is no clocksource cycle counter in the CPU. */
+/* There is yes clocksource cycle counter in the CPU. */
 static inline void __delay(unsigned long loops)
 {
 	__asm__ __volatile__(".align 2\n"
@@ -27,7 +27,7 @@ static inline void __udelay(unsigned long usecs, unsigned long lpj)
 
 #define udelay(usecs) __udelay((usecs), loops_per_jiffy)
 
-/* make sure "usecs *= ..." in udelay do not overflow. */
+/* make sure "usecs *= ..." in udelay do yest overflow. */
 #if HZ >= 1000
 #define MAX_UDELAY_MS	1
 #elif HZ <= 200

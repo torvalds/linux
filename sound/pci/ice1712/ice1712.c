@@ -7,7 +7,7 @@
 
 /*
   NOTES:
-  - spdif nonaudio consumer mode does not work (at least with my
+  - spdif yesnaudio consumer mode does yest work (at least with my
     Sony STR-DB830)
 */
 
@@ -26,9 +26,9 @@
  *
  *  2003.02.20  Taksahi Iwai <tiwai@suse.de>
  *	Split vt1724 part to an independent driver.
- *	The GPIO is accessed through the callback functions now.
+ *	The GPIO is accessed through the callback functions yesw.
  *
- * 2004.03.31 Doug McLain <nostar@comcast.net>
+ * 2004.03.31 Doug McLain <yesstar@comcast.net>
  *    Added support for Event Electronics EZ8 card to hoontech.c.
  */
 
@@ -240,7 +240,7 @@ static unsigned short snd_ice1712_pro_ac97_read(struct snd_ac97 *ac97,
 /*
  * consumer ac97 digital mix
  */
-#define snd_ice1712_digmix_route_ac97_info	snd_ctl_boolean_mono_info
+#define snd_ice1712_digmix_route_ac97_info	snd_ctl_boolean_moyes_info
 
 static int snd_ice1712_digmix_route_ac97_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -394,7 +394,7 @@ static void snd_ice1712_set_input_clock_source(struct snd_ice1712 *ice, int spdi
 	/* change CS8427 clock source too */
 	if (ice->cs8427)
 		snd_ice1712_cs8427_set_input_clock(ice, spdif_is_master);
-	/* notify ak4524 chip as well */
+	/* yestify ak4524 chip as well */
 	if (spdif_is_master) {
 		unsigned int i;
 		for (i = 0; i < ice->akm_codecs; i++) {
@@ -888,7 +888,7 @@ static int snd_ice1712_pcm(struct snd_ice1712 *ice, int device)
 					      64*1024, 64*1024);
 
 	dev_warn(ice->card->dev,
-		 "Consumer PCM code does not work well at the moment --jk\n");
+		 "Consumer PCM code does yest work well at the moment --jk\n");
 
 	return 0;
 }
@@ -1514,7 +1514,7 @@ static int snd_ice1712_ac97_mixer(struct snd_ice1712 *ice)
 		err = snd_ac97_mixer(pbus, &ac97, &ice->ac97);
 		if (err < 0)
 			dev_warn(ice->card->dev,
-				 "cannot initialize ac97 for consumer, skipped\n");
+				 "canyest initialize ac97 for consumer, skipped\n");
 		else {
 			return snd_ctl_add(ice->card,
 			snd_ctl_new1(&snd_ice1712_mixer_digmix_route_ac97,
@@ -1532,7 +1532,7 @@ static int snd_ice1712_ac97_mixer(struct snd_ice1712 *ice)
 		err = snd_ac97_mixer(pbus, &ac97, &ice->ac97);
 		if (err < 0)
 			dev_warn(ice->card->dev,
-				 "cannot initialize pro ac97, skipped\n");
+				 "canyest initialize pro ac97, skipped\n");
 		else
 			return 0;
 	}
@@ -1937,7 +1937,7 @@ static const struct snd_kcontrol_new snd_ice1712_pro_internal_clock_default = {
 	.put = snd_ice1712_pro_internal_clock_default_put
 };
 
-#define snd_ice1712_pro_rate_locking_info	snd_ctl_boolean_mono_info
+#define snd_ice1712_pro_rate_locking_info	snd_ctl_boolean_moyes_info
 
 static int snd_ice1712_pro_rate_locking_get(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
@@ -1968,7 +1968,7 @@ static const struct snd_kcontrol_new snd_ice1712_pro_rate_locking = {
 	.put = snd_ice1712_pro_rate_locking_put
 };
 
-#define snd_ice1712_pro_rate_reset_info		snd_ctl_boolean_mono_info
+#define snd_ice1712_pro_rate_reset_info		snd_ctl_boolean_moyes_info
 
 static int snd_ice1712_pro_rate_reset_get(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol)
@@ -2355,8 +2355,8 @@ static int snd_ice1712_chip_init(struct snd_ice1712 *ice)
 	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DMX6FIRE &&
 	    !ice->dxr_enable)
 		/*  Set eeprom value to limit active ADCs and DACs to 6;
-		 *  Also disable AC97 as no hardware in standard 6fire card/box
-		 *  Note: DXR extensions are not currently supported
+		 *  Also disable AC97 as yes hardware in standard 6fire card/box
+		 *  Note: DXR extensions are yest currently supported
 		 */
 		ice->eeprom.data[ICE_EEP1_CODEC] = 0x3a;
 	pci_write_config_byte(ice->pci, 0x60, ice->eeprom.data[ICE_EEP1_CODEC]);
@@ -2519,7 +2519,7 @@ static int snd_ice1712_create(struct snd_card *card,
 	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(28)) < 0 ||
 	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(28)) < 0) {
 		dev_err(card->dev,
-			"architecture does not support 28bit PCI busmaster DMA\n");
+			"architecture does yest support 28bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -2549,7 +2549,7 @@ static int snd_ice1712_create(struct snd_card *card,
 
 	ice->spdif.cs8403_bits =
 		ice->spdif.cs8403_stream_bits = (0x01 |	/* consumer format */
-						 0x10 |	/* no emphasis */
+						 0x10 |	/* yes emphasis */
 						 0x20);	/* PCM encoder/decoder */
 	ice->card = card;
 	ice->pci = pci;
@@ -2609,7 +2609,7 @@ static int snd_ice1712_create(struct snd_card *card,
  *
  */
 
-static struct snd_ice1712_card_info no_matched;
+static struct snd_ice1712_card_info yes_matched;
 
 static int snd_ice1712_probe(struct pci_dev *pci,
 			     const struct pci_device_id *pci_id)
@@ -2660,7 +2660,7 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 			}
 		}
 	}
-	c = &no_matched;
+	c = &yes_matched;
  __found:
 
 	err = snd_ice1712_pcm_profi(ice, pcm_dev++);
@@ -2705,7 +2705,7 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 		}
 	}
 
-	if (!c->no_mpu401) {
+	if (!c->yes_mpu401) {
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,
 			ICEREG(ice, MPU1_CTRL),
 			c->mpu401_1_info_flags |

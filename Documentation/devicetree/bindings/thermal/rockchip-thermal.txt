@@ -31,7 +31,7 @@ Optional properties:
 - rockchip,hw-tshut-mode : The hardware-controlled shutdown mode 0:CRU 1:GPIO.
 - rockchip,hw-tshut-polarity : The hardware-controlled active polarity 0:LOW
 			       1:HIGH.
-- rockchip,grf : The phandle of the syscon node for the general register file.
+- rockchip,grf : The phandle of the syscon yesde for the general register file.
 
 Exiample:
 tsadc: tsadc@ff280000 {

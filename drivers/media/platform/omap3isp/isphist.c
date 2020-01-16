@@ -43,7 +43,7 @@ static void hist_reset_mem(struct ispstat *hist)
 
 	/*
 	 * We'll clear 4 words at each iteration for optimization. It avoids
-	 * 3/4 of the jumps. We also know HIST_MEM_SIZE is divisible by 4.
+	 * 3/4 of the jumps. We also kyesw HIST_MEM_SIZE is divisible by 4.
 	 */
 	for (i = OMAP3ISP_HIST_MEM_SIZE / 4; i > 0; i--) {
 		isp_reg_readl(isp, OMAP3_ISP_IOMEM_HIST, ISPHIST_DATA);
@@ -249,7 +249,7 @@ static int hist_buf_pio(struct ispstat *hist)
 
 	/*
 	 * We'll read 4 times a 4-bytes-word at each iteration for
-	 * optimization. It avoids 3/4 of the jumps. We also know buf_size is
+	 * optimization. It avoids 3/4 of the jumps. We also kyesw buf_size is
 	 * divisible by 16.
 	 */
 	for (i = hist->buf_size / 16; i > 0; i--) {
@@ -349,7 +349,7 @@ static int hist_validate_params(struct ispstat *hist, void *new_conf)
 
 	buf_size = hist_get_buf_size(user_cfg);
 	if (buf_size > user_cfg->buf_size)
-		/* User's buf_size request wasn't enough */
+		/* User's buf_size request wasn't eyesugh */
 		user_cfg->buf_size = buf_size;
 	else if (user_cfg->buf_size > OMAP3ISP_HIST_MAX_BUF_SIZE)
 		user_cfg->buf_size = OMAP3ISP_HIST_MAX_BUF_SIZE;

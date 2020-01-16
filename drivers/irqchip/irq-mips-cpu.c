@@ -4,7 +4,7 @@
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
  *
  * Copyright (C) 2001 Ralf Baechle
- * Copyright (C) 2005  MIPS Technologies, Inc.	All rights reserved.
+ * Copyright (C) 2005  MIPS Techyeslogies, Inc.	All rights reserved.
  *	Author: Maciej W. Rozycki <macro@mips.com>
  *
  * This file define the irq handler for MIPS CPU interrupts.
@@ -12,10 +12,10 @@
 
 /*
  * Almost all MIPS CPUs define 8 interrupt sources.  They are typically
- * level triggered (i.e., cannot be cleared from CPU; must be cleared from
+ * level triggered (i.e., canyest be cleared from CPU; must be cleared from
  * device).
  *
- * The first two are software interrupts (i.e. not exposed as pins) which
+ * The first two are software interrupts (i.e. yest exposed as pins) which
  * may be used for IPIs in multi-threaded single-core systems.
  *
  * The last one is usually the CPU timer interrupt if the counter register
@@ -205,7 +205,7 @@ static int mips_cpu_ipi_alloc(struct irq_domain *domain, unsigned int virq,
 	return 0;
 }
 
-static int mips_cpu_ipi_match(struct irq_domain *d, struct device_node *node,
+static int mips_cpu_ipi_match(struct irq_domain *d, struct device_yesde *yesde,
 			      enum irq_domain_bus_token bus_token)
 {
 	bool is_ipi;
@@ -213,7 +213,7 @@ static int mips_cpu_ipi_match(struct irq_domain *d, struct device_node *node,
 	switch (bus_token) {
 	case DOMAIN_BUS_IPI:
 		is_ipi = d->bus_token == bus_token;
-		return (!node || (to_of_node(d->fwnode) == node)) && is_ipi;
+		return (!yesde || (to_of_yesde(d->fwyesde) == yesde)) && is_ipi;
 	default:
 		return 0;
 	}
@@ -224,14 +224,14 @@ static const struct irq_domain_ops mips_cpu_ipi_chip_ops = {
 	.match	= mips_cpu_ipi_match,
 };
 
-static void mips_cpu_register_ipi_domain(struct device_node *of_node)
+static void mips_cpu_register_ipi_domain(struct device_yesde *of_yesde)
 {
 	struct cpu_ipi_domain_state *ipi_domain_state;
 
 	ipi_domain_state = kzalloc(sizeof(*ipi_domain_state), GFP_KERNEL);
 	ipi_domain = irq_domain_add_hierarchy(irq_domain,
 					      IRQ_DOMAIN_FLAG_IPI_SINGLE,
-					      2, of_node,
+					      2, of_yesde,
 					      &mips_cpu_ipi_chip_ops,
 					      ipi_domain_state);
 	if (!ipi_domain)
@@ -241,17 +241,17 @@ static void mips_cpu_register_ipi_domain(struct device_node *of_node)
 
 #else /* !CONFIG_GENERIC_IRQ_IPI */
 
-static inline void mips_cpu_register_ipi_domain(struct device_node *of_node) {}
+static inline void mips_cpu_register_ipi_domain(struct device_yesde *of_yesde) {}
 
 #endif /* !CONFIG_GENERIC_IRQ_IPI */
 
-static void __init __mips_cpu_irq_init(struct device_node *of_node)
+static void __init __mips_cpu_irq_init(struct device_yesde *of_yesde)
 {
 	/* Mask interrupts. */
 	clear_c0_status(ST0_IM);
 	clear_c0_cause(CAUSEF_IP);
 
-	irq_domain = irq_domain_add_legacy(of_node, 8, MIPS_CPU_IRQ_BASE, 0,
+	irq_domain = irq_domain_add_legacy(of_yesde, 8, MIPS_CPU_IRQ_BASE, 0,
 					   &mips_cpu_intc_irq_domain_ops,
 					   NULL);
 	if (!irq_domain)
@@ -262,7 +262,7 @@ static void __init __mips_cpu_irq_init(struct device_node *of_node)
 	 * for CPUs which implement the MIPS MT (multi-threading) ASE.
 	 */
 	if (cpu_has_mipsmt)
-		mips_cpu_register_ipi_domain(of_node);
+		mips_cpu_register_ipi_domain(of_yesde);
 }
 
 void __init mips_cpu_irq_init(void)
@@ -270,10 +270,10 @@ void __init mips_cpu_irq_init(void)
 	__mips_cpu_irq_init(NULL);
 }
 
-int __init mips_cpu_irq_of_init(struct device_node *of_node,
-				struct device_node *parent)
+int __init mips_cpu_irq_of_init(struct device_yesde *of_yesde,
+				struct device_yesde *parent)
 {
-	__mips_cpu_irq_init(of_node);
+	__mips_cpu_irq_init(of_yesde);
 	return 0;
 }
 IRQCHIP_DECLARE(cpu_intc, "mti,cpu-interrupt-controller", mips_cpu_irq_of_init);

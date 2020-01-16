@@ -13,7 +13,7 @@ usage: ${0##*/}
 Call without parameters to decode /proc/sys/kernel/tainted.
 
 Call with a positive integer as parameter to decode a value you
-retrieved from /proc/sys/kernel/tainted on another system.
+retrieved from /proc/sys/kernel/tainted on ayesther system.
 
 EOF
 }
@@ -25,7 +25,7 @@ if [ "$1"x != "x" ]; then
 	elif  [ $1 -ge 0 ] 2>/dev/null ; then
 		taint=$1
 	else
-		echo "Error: Parameter '$1' not a positive interger. Aborting." >&2
+		echo "Error: Parameter '$1' yest a positive interger. Aborting." >&2
 		exit 1
 	fi
 else
@@ -39,7 +39,7 @@ else
 fi
 
 if [ $taint -eq 0 ]; then
-	echo "Kernel not Tainted"
+	echo "Kernel yest Tainted"
 	exit
 else
 	echo "Kernel is \"tainted\" for the following reasons:"

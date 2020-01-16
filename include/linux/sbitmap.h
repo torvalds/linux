@@ -142,18 +142,18 @@ struct sbitmap_queue {
 };
 
 /**
- * sbitmap_init_node() - Initialize a &struct sbitmap on a specific memory node.
+ * sbitmap_init_yesde() - Initialize a &struct sbitmap on a specific memory yesde.
  * @sb: Bitmap to initialize.
  * @depth: Number of bits to allocate.
  * @shift: Use 2^@shift bits per word in the bitmap; if a negative number if
  *         given, a good default is chosen.
  * @flags: Allocation flags.
- * @node: Memory node to allocate on.
+ * @yesde: Memory yesde to allocate on.
  *
- * Return: Zero on success or negative errno on failure.
+ * Return: Zero on success or negative erryes on failure.
  */
-int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
-		      gfp_t flags, int node);
+int sbitmap_init_yesde(struct sbitmap *sb, unsigned int depth, int shift,
+		      gfp_t flags, int yesde);
 
 /**
  * sbitmap_free() - Free memory used by a &struct sbitmap.
@@ -228,7 +228,7 @@ typedef bool (*sb_for_each_fn)(struct sbitmap *, unsigned int, void *);
  * @fn: Callback. Should return true to continue or false to break early.
  * @data: Pointer to pass to callback.
  *
- * This is inline even though it's non-trivial so that the function calls to the
+ * This is inline even though it's yesn-trivial so that the function calls to the
  * callback will hopefully get optimized away.
  */
 static inline void __sbitmap_for_each_set(struct sbitmap *sb,
@@ -258,7 +258,7 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 		/*
 		 * On the first iteration of the outer loop, we need to add the
 		 * bit offset back to the size of the word for find_next_bit().
-		 * On all other iterations, nr is zero, so this is a noop.
+		 * On all other iterations, nr is zero, so this is a yesop.
 		 */
 		depth += nr;
 		while (1) {
@@ -352,19 +352,19 @@ void sbitmap_show(struct sbitmap *sb, struct seq_file *m);
 void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m);
 
 /**
- * sbitmap_queue_init_node() - Initialize a &struct sbitmap_queue on a specific
- * memory node.
+ * sbitmap_queue_init_yesde() - Initialize a &struct sbitmap_queue on a specific
+ * memory yesde.
  * @sbq: Bitmap queue to initialize.
- * @depth: See sbitmap_init_node().
- * @shift: See sbitmap_init_node().
+ * @depth: See sbitmap_init_yesde().
+ * @shift: See sbitmap_init_yesde().
  * @round_robin: See sbitmap_get().
  * @flags: Allocation flags.
- * @node: Memory node to allocate on.
+ * @yesde: Memory yesde to allocate on.
  *
- * Return: Zero on success or negative errno on failure.
+ * Return: Zero on success or negative erryes on failure.
  */
-int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
-			    int shift, bool round_robin, gfp_t flags, int node);
+int sbitmap_queue_init_yesde(struct sbitmap_queue *sbq, unsigned int depth,
+			    int shift, bool round_robin, gfp_t flags, int yesde);
 
 /**
  * sbitmap_queue_free() - Free memory used by a &struct sbitmap_queue.
@@ -384,7 +384,7 @@ static inline void sbitmap_queue_free(struct sbitmap_queue *sbq)
  * @depth: New number of bits to resize to.
  *
  * Like sbitmap_resize(), this doesn't reallocate anything. It has to do
- * some extra work on the &struct sbitmap_queue, so it's not safe to just
+ * some extra work on the &struct sbitmap_queue, so it's yest safe to just
  * resize the underlying &struct sbitmap.
  */
 void sbitmap_queue_resize(struct sbitmap_queue *sbq, unsigned int depth);

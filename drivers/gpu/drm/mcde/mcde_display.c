@@ -84,7 +84,7 @@ void mcde_display_irq(struct mcde *mcde)
 		u32 val;
 
 		/*
-		 * In oneshot mode we do not send continuous updates
+		 * In oneshot mode we do yest send continuous updates
 		 * to the display, instead we only push out updates when
 		 * the update function is called, then we disable the
 		 * flow on the channel once we get the TE IRQ.
@@ -160,12 +160,12 @@ static int mcde_display_check(struct drm_simple_display_pipe *pipe,
 
 		/* FB base address must be dword aligned. */
 		if (offset & 3) {
-			DRM_DEBUG_KMS("FB not 32-bit aligned\n");
+			DRM_DEBUG_KMS("FB yest 32-bit aligned\n");
 			return -EINVAL;
 		}
 
 		/*
-		 * There's no pitch register, the mode's hdisplay
+		 * There's yes pitch register, the mode's hdisplay
 		 * controls this.
 		 */
 		if (fb->pitches[0] != mode->hdisplay * fb->format->cpp[0]) {
@@ -315,7 +315,7 @@ static int mcde_configure_extsrc(struct mcde *mcde, enum mcde_extsrc src,
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
 		break;
 	default:
-		dev_err(mcde->dev, "Unknown pixel format 0x%08x\n",
+		dev_err(mcde->dev, "Unkyeswn pixel format 0x%08x\n",
 			format);
 		return -EINVAL;
 	}
@@ -422,7 +422,7 @@ static void mcde_configure_overlay(struct mcde *mcde, enum mcde_overlay ovl,
 		val |= MCDE_OVLXCONF2_OPQ;
 		break;
 	default:
-		dev_err(mcde->dev, "Unknown pixel format 0x%08x\n",
+		dev_err(mcde->dev, "Unkyeswn pixel format 0x%08x\n",
 			format);
 		break;
 	}
@@ -567,7 +567,7 @@ static void mcde_configure_fifo(struct mcde *mcde, enum mcde_fifo fifo,
 	}
 
 	val = fifo_wtrmrk << MCDE_CTRLX_FIFOWTRMRK_SHIFT;
-	/* We only support DSI formatting for now */
+	/* We only support DSI formatting for yesw */
 	val |= MCDE_CTRLX_FORMTYPE_DSI <<
 		MCDE_CTRLX_FORMTYPE_SHIFT;
 
@@ -634,7 +634,7 @@ static void mcde_configure_dsi_formatter(struct mcde *mcde,
 
 	/*
 	 * Enable formatter
-	 * 8 bit commands and DCS commands (notgen = not generic)
+	 * 8 bit commands and DCS commands (yestgen = yest generic)
 	 */
 	val = MCDE_DSICONF0_CMD8 | MCDE_DSICONF0_DCSVID_NOTGEN;
 	if (mcde->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO)
@@ -657,7 +657,7 @@ static void mcde_configure_dsi_formatter(struct mcde *mcde,
 			MCDE_DSICONF0_PACKING_SHIFT;
 		break;
 	default:
-		dev_err(mcde->dev, "unknown DSI format\n");
+		dev_err(mcde->dev, "unkyeswn DSI format\n");
 		return;
 	}
 	writel(val, mcde->regs + conf0);
@@ -693,7 +693,7 @@ static void mcde_enable_fifo(struct mcde *mcde, enum mcde_fifo fifo)
 		cr = MCDE_CRB0;
 		break;
 	default:
-		dev_err(mcde->dev, "cannot enable FIFO %c\n",
+		dev_err(mcde->dev, "canyest enable FIFO %c\n",
 			'A' + fifo);
 		return;
 	}
@@ -721,7 +721,7 @@ static void mcde_disable_fifo(struct mcde *mcde, enum mcde_fifo fifo,
 		cr = MCDE_CRB0;
 		break;
 	default:
-		dev_err(mcde->dev, "cannot disable FIFO %c\n",
+		dev_err(mcde->dev, "canyest disable FIFO %c\n",
 			'A' + fifo);
 		return;
 	}
@@ -784,7 +784,7 @@ static void mcde_drain_pipe(struct mcde *mcde, enum mcde_fifo fifo,
 
 	val = readl(mcde->regs + ctrl);
 	if (!(val & MCDE_CTRLX_FIFOEMPTY)) {
-		dev_err(mcde->dev, "Channel A FIFO not empty (handover)\n");
+		dev_err(mcde->dev, "Channel A FIFO yest empty (handover)\n");
 		/* Attempt to clear the FIFO */
 		mcde_enable_fifo(mcde, fifo);
 		/* Trigger a software sync out on respective channel (0-3) */
@@ -834,8 +834,8 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 		 mode->hdisplay, mode->vdisplay,
 		 drm_get_format_name(format, &tmp));
 	if (!mcde->mdsi) {
-		/* TODO: deal with this for non-DSI output */
-		dev_err(drm->dev, "no DSI master attached!\n");
+		/* TODO: deal with this for yesn-DSI output */
+		dev_err(drm->dev, "yes DSI master attached!\n");
 		return;
 	}
 
@@ -983,7 +983,7 @@ static void mcde_display_send_one_frame(struct mcde *mcde)
 	/*
 	 * Disable FIFO A flow again: since we are using TE sync we
 	 * need to wait for the FIFO to drain before we continue
-	 * so repeated calls to this function will not cause a mess
+	 * so repeated calls to this function will yest cause a mess
 	 * in the hardware by pushing updates will updates are going
 	 * on already.
 	 */
@@ -1025,7 +1025,7 @@ static void mcde_display_update(struct drm_simple_display_pipe *pipe,
 		spin_lock_irq(&crtc->dev->event_lock);
 		/*
 		 * Hardware must be on before we can arm any vblank event,
-		 * this is not a scanout controller where there is always
+		 * this is yest a scayesut controller where there is always
 		 * some periodic update going on, it is completely frozen
 		 * until we get an update. If MCDE output isn't yet enabled,
 		 * we just send a vblank dummy event back.
@@ -1042,7 +1042,7 @@ static void mcde_display_update(struct drm_simple_display_pipe *pipe,
 	}
 
 	/*
-	 * We do not start sending framebuffer updates before the
+	 * We do yest start sending framebuffer updates before the
 	 * display is enabled. Update events will however be dispatched
 	 * from the DRM core before the display is enabled.
 	 */
@@ -1057,7 +1057,7 @@ static void mcde_display_update(struct drm_simple_display_pipe *pipe,
 		 * (before mcde_display_enable() is called) we can't really
 		 * do much with that buffer.
 		 */
-		dev_info(mcde->dev, "ignored a display update\n");
+		dev_info(mcde->dev, "igyesred a display update\n");
 	}
 }
 

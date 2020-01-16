@@ -5,8 +5,8 @@ I2C/SMBus Functionality
 INTRODUCTION
 ------------
 
-Because not every I2C or SMBus adapter implements everything in the
-I2C specifications, a client can not trust that everything it needs
+Because yest every I2C or SMBus adapter implements everything in the
+I2C specifications, a client can yest trust that everything it needs
 is implemented when it is given the option to attach to an adapter:
 the client needs some way to check whether an adapter has the needed
 functionality.
@@ -20,9 +20,9 @@ For the most up-to-date list of functionality constants, please check
 
   =============================== ==============================================
   I2C_FUNC_I2C                    Plain i2c-level commands (Pure SMBus
-                                  adapters typically can not do these)
+                                  adapters typically can yest do these)
   I2C_FUNC_10BIT_ADDR             Handles the 10-bit address extensions
-  I2C_FUNC_PROTOCOL_MANGLING      Knows about the I2C_M_IGNORE_NAK,
+  I2C_FUNC_PROTOCOL_MANGLING      Kyesws about the I2C_M_IGNORE_NAK,
                                   I2C_M_REV_DIR_ADDR and I2C_M_NO_RD_ACK
                                   flags (which modify the I2C protocol!)
   I2C_FUNC_NOSTART                Can skip repeated start sequence
@@ -114,9 +114,9 @@ this is (from the lm75 driver)::
   }
 
 Here, the lm75 driver checks if the adapter can do both SMBus byte data
-and SMBus word data transactions. If not, then the driver won't work on
-this adapter and there's no point in going on. If the check above is
-successful, then the driver knows that it can call the following
+and SMBus word data transactions. If yest, then the driver won't work on
+this adapter and there's yes point in going on. If the check above is
+successful, then the driver kyesws that it can call the following
 functions: i2c_smbus_read_byte_data(), i2c_smbus_write_byte_data(),
 i2c_smbus_read_word_data() and i2c_smbus_write_word_data(). As a rule of
 thumb, the functionality constants you test for with
@@ -150,7 +150,7 @@ below::
   }
   if (!(funcs & I2C_FUNC_SMBUS_QUICK)) {
 	/* Oops, the needed functionality (SMBus write_quick function) is
-           not available! */
+           yest available! */
 	exit(1);
   }
   /* Now it is safe to use the SMBus write_quick command */

@@ -598,7 +598,7 @@ int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input)
 
 		break;
 	default:
-		dev_err(dev->dev, "%s: Unknown Input %d !\n",
+		dev_err(dev->dev, "%s: Unkyeswn Input %d !\n",
 			__func__, INPUT(input)->type);
 		break;
 	}
@@ -814,7 +814,7 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 			/* Enable the DIF for the tuner */
 
 			/* Reinitialize the DIF */
-			status = cx231xx_dif_set_standard(dev, dev->norm);
+			status = cx231xx_dif_set_standard(dev, dev->yesrm);
 			if (status < 0) {
 				dev_err(dev->dev,
 					"%s: cx231xx_dif set to By pass mode- errCode [%d]!\n",
@@ -961,12 +961,12 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 	int status = 0;
 
 	dev_dbg(dev->dev, "%s: 0x%x\n",
-		__func__, (unsigned int)dev->norm);
+		__func__, (unsigned int)dev->yesrm);
 
 	/* Change the DFE_CTRL3 bp_percent to fix flagging */
 	status = vid_blk_write_word(dev, DFE_CTRL3, 0xCD3F0280);
 
-	if (dev->norm & (V4L2_STD_NTSC | V4L2_STD_PAL_M)) {
+	if (dev->yesrm & (V4L2_STD_NTSC | V4L2_STD_PAL_M)) {
 		dev_dbg(dev->dev, "%s: NTSC\n", __func__);
 
 		/* Move the close caption lines out of active video,
@@ -993,7 +993,7 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 							cx231xx_set_field
 							(FLD_HBLANK_CNT, 0x79));
 
-	} else if (dev->norm & V4L2_STD_SECAM) {
+	} else if (dev->yesrm & V4L2_STD_SECAM) {
 		dev_dbg(dev->dev, "%s: SECAM\n", __func__);
 		status =  cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
@@ -1195,9 +1195,9 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 		default:
 			/* This is just a casual suggestion to people adding
 			   new boards in case they use a tuner type we don't
-			   currently know about */
+			   currently kyesw about */
 			dev_info(dev->dev,
-				 "Unknown tuner type configuring SIF");
+				 "Unkyeswn tuner type configuring SIF");
 			break;
 		}
 		break;
@@ -1267,7 +1267,7 @@ int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3)
 	/*
 	 * Should this code check dev->port_3_switch_enabled first
 	 * to skip unnecessary reading of the register?
-	 * If yes, the flag dev->port_3_switch_enabled must be initialized
+	 * If no, the flag dev->port_3_switch_enabled must be initialized
 	 * correctly.
 	 */
 
@@ -1527,7 +1527,7 @@ void cx231xx_set_Colibri_For_LowIF(struct cx231xx *dev, u32 if_freq,
 	cx231xx_afe_set_mode(dev, AFE_MODE_LOW_IF);
 
 	/* Set C2HH for low IF operation.*/
-	standard = dev->norm;
+	standard = dev->yesrm;
 	cx231xx_dif_configure_C2HH_for_low_IF(dev, dev->active_mode,
 						       func_mode, standard);
 
@@ -1645,7 +1645,7 @@ int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,
 		status = cx231xx_reg_mask_write(dev,
 				VID_BLK_I2C_ADDRESS, 32,
 				AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xFF);
-		/* no inv */
+		/* yes inv */
 		status = cx231xx_reg_mask_write(dev,
 				VID_BLK_I2C_ADDRESS, 32,
 				AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
@@ -1664,7 +1664,7 @@ int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xb);
-			/* no inv */
+			/* yes inv */
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
@@ -1689,7 +1689,7 @@ int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xF);
-			/* no inv */
+			/* yes inv */
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
@@ -1709,7 +1709,7 @@ int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xE);
-			/* no inv */
+			/* yes inv */
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
@@ -1729,7 +1729,7 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 
 	status = vid_blk_read_word(dev, DIF_MISC_CTRL, &dif_misc_ctrl_value);
 	if (standard != DIF_USE_BASEBAND)
-		dev->norm = standard;
+		dev->yesrm = standard;
 
 	switch (dev->model) {
 	case CX231XX_BOARD_CNXT_CARRAERA:
@@ -2011,7 +2011,7 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 
 		/* For NTSC the centre frequency of video coming out of
 		   sidewinder is around 7.1MHz or 3.6MHz depending on the
-		   spectral inversion. so for a non spectrally inverted channel
+		   spectral inversion. so for a yesn spectrally inverted channel
 		   the pll freq word is 0x03420c49
 		 */
 
@@ -2135,7 +2135,7 @@ int cx231xx_tuner_post_channel_change(struct cx231xx *dev)
 	status = vid_blk_read_word(dev, DIF_AGC_IF_REF, &dwval);
 	dwval &= ~(FLD_DIF_K_AGC_RF | FLD_DIF_K_AGC_IF);
 
-	if (dev->norm & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_B |
+	if (dev->yesrm & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_B |
 			 V4L2_STD_SECAM_D)) {
 			if (dev->tuner_type == TUNER_NXP_TDA18271) {
 				dwval &= ~FLD_DIF_IF_REF;
@@ -2731,7 +2731,7 @@ int cx231xx_set_gpio_value(struct cx231xx *dev, int pin_number, int pin_value)
 	if (pin_number >= 32)
 		return -EINVAL;
 
-	/* first do a sanity check - if the Pin is not output, make it output */
+	/* first do a sanity check - if the Pin is yest output, make it output */
 	if ((dev->gpio_dir & (1 << pin_number)) == 0x00) {
 		/* It was in input mode */
 		value = dev->gpio_dir | (1 << pin_number);

@@ -45,7 +45,7 @@ struct cpsw_cpts {
 #define RTL_VER_MASK         (0x1f)
 #define MAJOR_VER_SHIFT      (8)     /* Major Version Value */
 #define MAJOR_VER_MASK       (0x7)
-#define MINOR_VER_SHIFT      (0)     /* Minor Version Value */
+#define MINOR_VER_SHIFT      (0)     /* Miyesr Version Value */
 #define MINOR_VER_MASK       (0xff)
 
 /* Bit definitions for the CONTROL register */
@@ -104,7 +104,7 @@ struct cpts {
 	struct ptp_clock_info info;
 	struct ptp_clock *clock;
 	spinlock_t lock; /* protects time registers */
-	u32 cc_mult; /* for the nominal frequency */
+	u32 cc_mult; /* for the yesminal frequency */
 	struct cyclecounter cc;
 	struct timecounter tc;
 	int phc_index;
@@ -121,7 +121,7 @@ void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb);
 int cpts_register(struct cpts *cpts);
 void cpts_unregister(struct cpts *cpts);
 struct cpts *cpts_create(struct device *dev, void __iomem *regs,
-			 struct device_node *node);
+			 struct device_yesde *yesde);
 void cpts_release(struct cpts *cpts);
 
 static inline bool cpts_can_timestamp(struct cpts *cpts, struct sk_buff *skb)
@@ -146,7 +146,7 @@ static inline void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 
 static inline
 struct cpts *cpts_create(struct device *dev, void __iomem *regs,
-			 struct device_node *node)
+			 struct device_yesde *yesde)
 {
 	return NULL;
 }

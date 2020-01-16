@@ -5,7 +5,7 @@
  * Copyright (C) 2018 Johan Hovold <johan@kernel.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gnss.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -34,7 +34,7 @@ static int gnss_serial_open(struct gnss_device *gdev)
 
 	ret = pm_runtime_get_sync(&serdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&serdev->dev);
+		pm_runtime_put_yesidle(&serdev->dev);
 		goto err_close;
 	}
 
@@ -63,7 +63,7 @@ static int gnss_serial_write_raw(struct gnss_device *gdev,
 	struct serdev_device *serdev = gserial->serdev;
 	int ret;
 
-	/* write is only buffered synchronously */
+	/* write is only buffered synchroyesusly */
 	ret = serdev_device_write(serdev, buf, count, MAX_SCHEDULE_TIMEOUT);
 	if (ret < 0 || ret < count)
 		return ret;
@@ -110,10 +110,10 @@ static int gnss_serial_set_power(struct gnss_serial *gserial,
 static int gnss_serial_parse_dt(struct serdev_device *serdev)
 {
 	struct gnss_serial *gserial = serdev_device_get_drvdata(serdev);
-	struct device_node *node = serdev->dev.of_node;
+	struct device_yesde *yesde = serdev->dev.of_yesde;
 	u32 speed = 4800;
 
-	of_property_read_u32(node, "current-speed", &speed);
+	of_property_read_u32(yesde, "current-speed", &speed);
 
 	gserial->speed = speed;
 

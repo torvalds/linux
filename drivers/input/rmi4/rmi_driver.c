@@ -41,8 +41,8 @@ void rmi_free_function_list(struct rmi_device *rmi_dev)
 
 	/* Doing it in the reverse order so F01 will be removed last */
 	list_for_each_entry_safe_reverse(fn, tmp,
-					 &data->function_list, node) {
-		list_del(&fn->node);
+					 &data->function_list, yesde) {
+		list_del(&fn->yesde);
 		rmi_unregister_function(fn);
 	}
 
@@ -101,7 +101,7 @@ static int rmi_driver_process_reset_requests(struct rmi_device *rmi_dev)
 	struct rmi_function *entry;
 	int retval;
 
-	list_for_each_entry(entry, &data->function_list, node) {
+	list_for_each_entry(entry, &data->function_list, yesde) {
 		retval = reset_one_function(entry);
 		if (retval < 0)
 			return retval;
@@ -116,7 +116,7 @@ static int rmi_driver_process_config_requests(struct rmi_device *rmi_dev)
 	struct rmi_function *entry;
 	int retval;
 
-	list_for_each_entry(entry, &data->function_list, node) {
+	list_for_each_entry(entry, &data->function_list, yesde) {
 		retval = configure_one_function(entry);
 		if (retval < 0)
 			return retval;
@@ -245,7 +245,7 @@ struct rmi_function *rmi_find_function(struct rmi_device *rmi_dev, u8 number)
 	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
 	struct rmi_function *entry;
 
-	list_for_each_entry(entry, &data->function_list, node) {
+	list_for_each_entry(entry, &data->function_list, yesde) {
 		if (entry->fd.function_number == number)
 			return entry;
 	}
@@ -278,7 +278,7 @@ static int rmi_suspend_functions(struct rmi_device *rmi_dev)
 	struct rmi_function *entry;
 	int retval;
 
-	list_for_each_entry(entry, &data->function_list, node) {
+	list_for_each_entry(entry, &data->function_list, yesde) {
 		retval = suspend_one_function(entry);
 		if (retval < 0)
 			return retval;
@@ -312,7 +312,7 @@ static int rmi_resume_functions(struct rmi_device *rmi_dev)
 	struct rmi_function *entry;
 	int retval;
 
-	list_for_each_entry(entry, &data->function_list, node) {
+	list_for_each_entry(entry, &data->function_list, yesde) {
 		retval = resume_one_function(entry);
 		if (retval < 0)
 			return retval;
@@ -400,9 +400,9 @@ static int rmi_driver_clear_irq_bits(struct rmi_device *rmi_dev,
 	struct device *dev = &rmi_dev->dev;
 
 	mutex_lock(&data->irq_mutex);
-	bitmap_andnot(data->fn_irq_bits,
+	bitmap_andyest(data->fn_irq_bits,
 		      data->fn_irq_bits, mask, data->irq_count);
-	bitmap_andnot(data->new_irq_mask,
+	bitmap_andyest(data->new_irq_mask,
 		  data->current_irq_mask, mask, data->irq_count);
 
 	error = rmi_write_block(rmi_dev,
@@ -622,7 +622,7 @@ int rmi_read_register_desc(struct rmi_device *d, u16 addr,
 
 	/*
 	 * Allocate a temporary buffer to hold the register structure.
-	 * I'm not using devm_kzalloc here since it will not be retained
+	 * I'm yest using devm_kzalloc here since it will yest be retained
 	 * after exiting this function
 	 */
 	struct_buf = kzalloc(rdesc->struct_size, GFP_KERNEL);
@@ -847,7 +847,7 @@ static int rmi_create_function(struct rmi_device *rmi_dev,
 		return -ENOMEM;
 	}
 
-	INIT_LIST_HEAD(&fn->node);
+	INIT_LIST_HEAD(&fn->yesde);
 	rmi_driver_copy_pdt_to_fd(pdt, &fn->fd);
 
 	fn->rmi_dev = rmi_dev;
@@ -868,7 +868,7 @@ static int rmi_create_function(struct rmi_device *rmi_dev,
 	else if (pdt->function_number == 0x34)
 		data->f34_container = fn;
 
-	list_add_tail(&fn->node, &data->function_list);
+	list_add_tail(&fn->yesde, &data->function_list);
 
 	return RMI_SCAN_CONTINUE;
 }
@@ -1012,7 +1012,7 @@ int rmi_probe_interrupts(struct rmi_driver_data *data)
 {
 	struct rmi_device *rmi_dev = data->rmi_dev;
 	struct device *dev = &rmi_dev->dev;
-	struct fwnode_handle *fwnode = rmi_dev->xport->dev->fwnode;
+	struct fwyesde_handle *fwyesde = rmi_dev->xport->dev->fwyesde;
 	int irq_count = 0;
 	size_t size;
 	int retval;
@@ -1036,7 +1036,7 @@ int rmi_probe_interrupts(struct rmi_driver_data *data)
 		dev_warn(dev, "Device in bootloader mode.\n");
 
 	/* Allocate and register a linear revmap irq_domain */
-	data->irqdomain = irq_domain_create_linear(fwnode, irq_count,
+	data->irqdomain = irq_domain_create_linear(fwyesde, irq_count,
 						   &irq_domain_simple_ops,
 						   data);
 	if (!data->irqdomain) {
@@ -1121,7 +1121,7 @@ static int rmi_driver_probe(struct device *dev)
 
 	pdata = rmi_get_platform_data(rmi_dev);
 
-	if (rmi_dev->xport->dev->of_node) {
+	if (rmi_dev->xport->dev->of_yesde) {
 		retval = rmi_driver_of_probe(rmi_dev->xport->dev, pdata);
 		if (retval)
 			return retval;
@@ -1137,10 +1137,10 @@ static int rmi_driver_probe(struct device *dev)
 
 	/*
 	 * Right before a warm boot, the sensor might be in some unusual state,
-	 * such as F54 diagnostics, or F34 bootloader mode after a firmware
-	 * or configuration update.  In order to clear the sensor to a known
+	 * such as F54 diagyesstics, or F34 bootloader mode after a firmware
+	 * or configuration update.  In order to clear the sensor to a kyeswn
 	 * state and/or apply any updates, we issue a initial reset to clear any
-	 * previous settings and force it into normal operation.
+	 * previous settings and force it into yesrmal operation.
 	 *
 	 * We have to do this before actually building the PDT because
 	 * the reflash updates (if any) might cause various registers to move
@@ -1148,7 +1148,7 @@ static int rmi_driver_probe(struct device *dev)
 	 *
 	 * For a number of reasons, this initial reset may fail to return
 	 * within the specified time, but we'll still be able to bring up the
-	 * driver normally after that failure.  This occurs most commonly in
+	 * driver yesrmally after that failure.  This occurs most commonly in
 	 * a cold boot situation (where then firmware takes longer to come up
 	 * than from a warm boot) and the reset_delay_ms in the platform data
 	 * has been set too short to accommodate that.  Since the sensor will
@@ -1164,9 +1164,9 @@ static int rmi_driver_probe(struct device *dev)
 	if (retval < 0) {
 		/*
 		 * we'll print out a warning and continue since
-		 * failure to get the PDT properties is not a cause to fail
+		 * failure to get the PDT properties is yest a cause to fail
 		 */
-		dev_warn(dev, "Could not read PDT properties from %#06x (code %d). Assuming 0x00.\n",
+		dev_warn(dev, "Could yest read PDT properties from %#06x (code %d). Assuming 0x00.\n",
 			 PDT_PROPERTIES_LOCATION, retval);
 	}
 
@@ -1183,7 +1183,7 @@ static int rmi_driver_probe(struct device *dev)
 		 * In some cases it is preferable to reuse the transport
 		 * devices input device instead of creating a new one here.
 		 * One example is some HID touchpads report "pass-through"
-		 * button events are not reported by rmi registers.
+		 * button events are yest reported by rmi registers.
 		 */
 		data->input = rmi_dev->xport->input;
 	} else {
@@ -1223,7 +1223,7 @@ static int rmi_driver_probe(struct device *dev)
 		goto err_destroy_functions;
 
 	if (data->f01_container->dev.driver) {
-		/* Driver already bound, so enable ATTN now. */
+		/* Driver already bound, so enable ATTN yesw. */
 		retval = rmi_enable_sensor(rmi_dev);
 		if (retval)
 			goto err_disable_irq;

@@ -63,7 +63,7 @@ static struct irq_chip iomd_chip_clr = {
 	.irq_unmask	= iomd_irq_unmask,
 };
 
-static struct irq_chip iomd_chip_noclr = {
+static struct irq_chip iomd_chip_yesclr = {
 	.irq_mask	= iomd_irq_mask,
 	.irq_unmask	= iomd_irq_unmask,
 };
@@ -103,7 +103,7 @@ void __init rpc_init_irq(void)
 			break;
 
 		case 8 ... 15:
-			irq_set_chip_and_handler(irq, &iomd_chip_noclr,
+			irq_set_chip_and_handler(irq, &iomd_chip_yesclr,
 						 handle_level_irq);
 			irq_modify_status(irq, clr, set);
 			iomd_set_base_mask(irq, IOMD_BASE + IOMD_IRQSTATB,
@@ -111,7 +111,7 @@ void __init rpc_init_irq(void)
 			break;
 
 		case 16 ... 21:
-			irq_set_chip_and_handler(irq, &iomd_chip_noclr,
+			irq_set_chip_and_handler(irq, &iomd_chip_yesclr,
 						 handle_level_irq);
 			irq_modify_status(irq, clr, set);
 			iomd_set_base_mask(irq, IOMD_BASE + IOMD_DMASTAT,
@@ -119,7 +119,7 @@ void __init rpc_init_irq(void)
 			break;
 
 		case 64 ... 71:
-			irq_set_chip(irq, &iomd_chip_noclr);
+			irq_set_chip(irq, &iomd_chip_yesclr);
 			irq_modify_status(irq, clr, set);
 			iomd_set_base_mask(irq, IOMD_BASE + IOMD_FIQSTAT,
 					   BIT(irq - 64));

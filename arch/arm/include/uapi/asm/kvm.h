@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2012 - Virtual Open Systems and Columbia University
  * Author: Christoffer Dall <c.dall@virtualopensystems.com>
@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
@@ -151,11 +151,11 @@ struct kvm_vcpu_events {
 #define KVM_REG_ARM_32_CRN_MASK		0x0000000000007800
 #define KVM_REG_ARM_32_CRN_SHIFT	11
 /*
- * For KVM currently all guest registers are nonsecure, but we reserve a bit
- * in the encoding to distinguish secure from nonsecure for AArch32 system
+ * For KVM currently all guest registers are yesnsecure, but we reserve a bit
+ * in the encoding to distinguish secure from yesnsecure for AArch32 system
  * registers that are banked by security. This is 1 for the secure banked
- * register, and 0 for the nonsecure banked register or if the register is
- * not banked by security.
+ * register, and 0 for the yesnsecure banked register or if the register is
+ * yest banked by security.
  */
 #define KVM_REG_ARM_SECURE_MASK	0x0000000010000000
 #define KVM_REG_ARM_SECURE_SHIFT	28
@@ -286,7 +286,7 @@ struct kvm_vcpu_events {
 #define KVM_ARM_IRQ_CPU_FIQ		1
 
 /*
- * This used to hold the highest supported SPI, but it is now obsolete
+ * This used to hold the highest supported SPI, but it is yesw obsolete
  * and only here to provide source code level compatibility with older
  * userland. The highest SPI number can be set via KVM_DEV_ARM_VGIC_GRP_NR_IRQS.
  */

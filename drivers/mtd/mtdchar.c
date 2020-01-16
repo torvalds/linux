@@ -44,10 +44,10 @@ static loff_t mtdchar_lseek(struct file *file, loff_t offset, int orig)
 	return fixed_size_llseek(file, offset, orig, mfi->mtd->size);
 }
 
-static int mtdchar_open(struct inode *inode, struct file *file)
+static int mtdchar_open(struct iyesde *iyesde, struct file *file)
 {
-	int minor = iminor(inode);
-	int devnum = minor >> 1;
+	int miyesr = imiyesr(iyesde);
+	int devnum = miyesr >> 1;
 	int ret = 0;
 	struct mtd_info *mtd;
 	struct mtd_file_info *mfi;
@@ -55,7 +55,7 @@ static int mtdchar_open(struct inode *inode, struct file *file)
 	pr_debug("MTD_open\n");
 
 	/* You can't open the RO devices RW */
-	if ((file->f_mode & FMODE_WRITE) && (minor & 1))
+	if ((file->f_mode & FMODE_WRITE) && (miyesr & 1))
 		return -EACCES;
 
 	mutex_lock(&mtd_mutex);
@@ -71,7 +71,7 @@ static int mtdchar_open(struct inode *inode, struct file *file)
 		goto out1;
 	}
 
-	/* You can't open it RW if it's not a writeable device */
+	/* You can't open it RW if it's yest a writeable device */
 	if ((file->f_mode & FMODE_WRITE) && !(mtd->flags & MTD_WRITEABLE)) {
 		ret = -EACCES;
 		goto out1;
@@ -96,7 +96,7 @@ out:
 
 /*====================================================================*/
 
-static int mtdchar_close(struct inode *inode, struct file *file)
+static int mtdchar_close(struct iyesde *iyesde, struct file *file)
 {
 	struct mtd_file_info *mfi = file->private_data;
 	struct mtd_info *mtd = mfi->mtd;
@@ -129,7 +129,7 @@ static int mtdchar_close(struct inode *inode, struct file *file)
  * longer-term goal, as intimated by dwmw2 above. However, for the
  * write case, this requires yet more complex head and tail transfer
  * handling when those head and tail offsets and sizes are such that
- * alignment requirements are not met in the NAND subdriver.
+ * alignment requirements are yest met in the NAND subdriver.
  */
 
 static ssize_t mtdchar_read(struct file *file, char __user *buf, size_t count,
@@ -286,7 +286,7 @@ static ssize_t mtdchar_write(struct file *file, const char __user *buf, size_t c
 		}
 
 		/*
-		 * Return -ENOSPC only if no data could be written at all.
+		 * Return -ENOSPC only if yes data could be written at all.
 		 * Otherwise just return the number of bytes that actually
 		 * have been written.
 		 */
@@ -433,7 +433,7 @@ static int mtdchar_readoob(struct file *file, struct mtd_info *mtd,
 	 * been corrected by the ECC algorithm.
 	 *
 	 * Note: currently the standard NAND function, nand_read_oob_std,
-	 * does not calculate ECC for the OOB area, so do not rely on
+	 * does yest calculate ECC for the OOB area, so do yest rely on
 	 * this behavior unless you have replaced it with your own.
 	 */
 	if (mtd_is_bitflip_or_eccerr(ret))
@@ -573,10 +573,10 @@ static int mtdchar_blkpg_ioctl(struct mtd_info *mtd,
 
 	case BLKPG_DEL_PARTITION:
 
-		if (p.pno < 0)
+		if (p.pyes < 0)
 			return -EINVAL;
 
-		return mtd_del_partition(mtd, p.pno);
+		return mtd_del_partition(mtd, p.pyes);
 
 	default:
 		return -EINVAL;
@@ -1140,9 +1140,9 @@ static int mtdchar_mmap(struct file *file, struct vm_area_struct *vma)
 	   replaced with something that uses the mtd_get_unmapped_area()
 	   operation properly. */
 	if (0 /*mtd->type == MTD_RAM || mtd->type == MTD_ROM*/) {
-#ifdef pgprot_noncached
+#ifdef pgprot_yesncached
 		if (file->f_flags & O_DSYNC || map->phys >= __pa(high_memory))
-			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+			vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 #endif
 		return vm_iomap_memory(vma, map->phys, map->size);
 	}

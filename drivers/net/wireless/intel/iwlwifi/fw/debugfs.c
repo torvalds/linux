@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -72,7 +72,7 @@ struct dbgfs_##name##_data {						\
 	ssize_t rlen;							\
 	char rbuf[buflen];						\
 };									\
-static int _iwl_dbgfs_##name##_open(struct inode *inode,		\
+static int _iwl_dbgfs_##name##_open(struct iyesde *iyesde,		\
 				    struct file *file)			\
 {									\
 	struct dbgfs_##name##_data *data;				\
@@ -82,7 +82,7 @@ static int _iwl_dbgfs_##name##_open(struct inode *inode,		\
 		return -ENOMEM;						\
 									\
 	data->read_done = false;					\
-	data->arg = inode->i_private;					\
+	data->arg = iyesde->i_private;					\
 	file->private_data = data;					\
 									\
 	return 0;							\
@@ -108,7 +108,7 @@ static ssize_t _iwl_dbgfs_##name##_read(struct file *file,		\
 				       data->rbuf, data->rlen);		\
 }
 
-static int _iwl_dbgfs_release(struct inode *inode, struct file *file)
+static int _iwl_dbgfs_release(struct iyesde *iyesde, struct file *file)
 {
 	kfree(file->private_data);
 
@@ -298,7 +298,7 @@ static ssize_t iwl_dbgfs_send_hcmd_write(struct iwl_fw_runtime *fwrt, char *buf,
 
 	if (count != header_size + hcmd.len[0] * 2 + 1) {
 		IWL_ERR(fwrt,
-			"host command data size does not match header length\n");
+			"host command data size does yest match header length\n");
 		ret = -EINVAL;
 		goto out;
 	}

@@ -11,7 +11,7 @@
 #include <linux/seq_file.h>
 #include <linux/hugetlb.h>
 #include <linux/memcontrol.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/page_idle.h>
 #include <linux/kernel-page-flags.h>
 #include <linux/uaccess.h>
@@ -94,7 +94,7 @@ u64 stable_page_flags(struct page *page)
 
 	/*
 	 * pseudo flag: KPF_NOPAGE
-	 * it differentiates a memory hole from a page with no flags
+	 * it differentiates a memory hole from a page with yes flags
 	 */
 	if (!page)
 		return 1 << KPF_NOPAGE;
@@ -103,14 +103,14 @@ u64 stable_page_flags(struct page *page)
 	u = 0;
 
 	/*
-	 * pseudo flags for the well known (anonymous) memory mapped pages
+	 * pseudo flags for the well kyeswn (ayesnymous) memory mapped pages
 	 *
 	 * Note that page->_mapcount is overloaded in SLOB/SLUB/SLQB, so the
-	 * simple test in page_mapped() is not enough.
+	 * simple test in page_mapped() is yest eyesugh.
 	 */
 	if (!PageSlab(page) && page_mapped(page))
 		u |= 1 << KPF_MMAP;
-	if (PageAnon(page))
+	if (PageAyesn(page))
 		u |= 1 << KPF_ANON;
 	if (PageKsm(page))
 		u |= 1 << KPF_KSM;
@@ -126,15 +126,15 @@ u64 stable_page_flags(struct page *page)
 	if (PageHuge(page))
 		u |= 1 << KPF_HUGE;
 	/*
-	 * PageTransCompound can be true for non-huge compound pages (slab
+	 * PageTransCompound can be true for yesn-huge compound pages (slab
 	 * pages or pages allocated by drivers with __GFP_COMP) because it
-	 * just checks PG_head/PG_tail, so we need to check PageLRU/PageAnon
-	 * to make sure a given page is a thp, not a non-huge compound page.
+	 * just checks PG_head/PG_tail, so we need to check PageLRU/PageAyesn
+	 * to make sure a given page is a thp, yest a yesn-huge compound page.
 	 */
 	else if (PageTransCompound(page)) {
 		struct page *head = compound_head(page);
 
-		if (PageLRU(head) || PageAnon(head))
+		if (PageLRU(head) || PageAyesn(head))
 			u |= 1 << KPF_THP;
 		else if (is_huge_zero_page(head)) {
 			u |= 1 << KPF_ZERO_PAGE;
@@ -256,7 +256,7 @@ static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
 	unsigned long src = *ppos;
 	unsigned long pfn;
 	ssize_t ret = 0;
-	u64 ino;
+	u64 iyes;
 
 	pfn = src / KPMSIZE;
 	count = min_t(unsigned long, count, (max_pfn * KPMSIZE) - src);
@@ -271,11 +271,11 @@ static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
 		ppage = pfn_to_online_page(pfn);
 
 		if (ppage)
-			ino = page_cgroup_ino(ppage);
+			iyes = page_cgroup_iyes(ppage);
 		else
-			ino = 0;
+			iyes = 0;
 
-		if (put_user(ino, out)) {
+		if (put_user(iyes, out)) {
 			ret = -EFAULT;
 			break;
 		}

@@ -49,7 +49,7 @@ static struct drm_driver sun4i_drv_driver = {
 	.desc			= "Allwinner sun4i Display Engine",
 	.date			= "20150629",
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 
 	/* GEM Operations */
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
@@ -146,45 +146,45 @@ static const struct component_master_ops sun4i_drv_master_ops = {
 	.unbind	= sun4i_drv_unbind,
 };
 
-static bool sun4i_drv_node_is_connector(struct device_node *node)
+static bool sun4i_drv_yesde_is_connector(struct device_yesde *yesde)
 {
-	return of_device_is_compatible(node, "hdmi-connector");
+	return of_device_is_compatible(yesde, "hdmi-connector");
 }
 
-static bool sun4i_drv_node_is_frontend(struct device_node *node)
+static bool sun4i_drv_yesde_is_frontend(struct device_yesde *yesde)
 {
-	return of_device_is_compatible(node, "allwinner,sun4i-a10-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun5i-a13-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun6i-a31-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun7i-a20-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun8i-a23-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun8i-a33-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun9i-a80-display-frontend");
+	return of_device_is_compatible(yesde, "allwinner,sun4i-a10-display-frontend") ||
+		of_device_is_compatible(yesde, "allwinner,sun5i-a13-display-frontend") ||
+		of_device_is_compatible(yesde, "allwinner,sun6i-a31-display-frontend") ||
+		of_device_is_compatible(yesde, "allwinner,sun7i-a20-display-frontend") ||
+		of_device_is_compatible(yesde, "allwinner,sun8i-a23-display-frontend") ||
+		of_device_is_compatible(yesde, "allwinner,sun8i-a33-display-frontend") ||
+		of_device_is_compatible(yesde, "allwinner,sun9i-a80-display-frontend");
 }
 
-static bool sun4i_drv_node_is_deu(struct device_node *node)
+static bool sun4i_drv_yesde_is_deu(struct device_yesde *yesde)
 {
-	return of_device_is_compatible(node, "allwinner,sun9i-a80-deu");
+	return of_device_is_compatible(yesde, "allwinner,sun9i-a80-deu");
 }
 
-static bool sun4i_drv_node_is_supported_frontend(struct device_node *node)
+static bool sun4i_drv_yesde_is_supported_frontend(struct device_yesde *yesde)
 {
 	if (IS_ENABLED(CONFIG_DRM_SUN4I_BACKEND))
-		return !!of_match_node(sun4i_frontend_of_table, node);
+		return !!of_match_yesde(sun4i_frontend_of_table, yesde);
 
 	return false;
 }
 
-static bool sun4i_drv_node_is_tcon(struct device_node *node)
+static bool sun4i_drv_yesde_is_tcon(struct device_yesde *yesde)
 {
-	return !!of_match_node(sun4i_tcon_of_table, node);
+	return !!of_match_yesde(sun4i_tcon_of_table, yesde);
 }
 
-static bool sun4i_drv_node_is_tcon_with_ch0(struct device_node *node)
+static bool sun4i_drv_yesde_is_tcon_with_ch0(struct device_yesde *yesde)
 {
 	const struct of_device_id *match;
 
-	match = of_match_node(sun4i_tcon_of_table, node);
+	match = of_match_yesde(sun4i_tcon_of_table, yesde);
 	if (match) {
 		struct sun4i_tcon_quirks *quirks;
 
@@ -196,19 +196,19 @@ static bool sun4i_drv_node_is_tcon_with_ch0(struct device_node *node)
 	return false;
 }
 
-static bool sun4i_drv_node_is_tcon_top(struct device_node *node)
+static bool sun4i_drv_yesde_is_tcon_top(struct device_yesde *yesde)
 {
 	return IS_ENABLED(CONFIG_DRM_SUN8I_TCON_TOP) &&
-		!!of_match_node(sun8i_tcon_top_of_table, node);
+		!!of_match_yesde(sun8i_tcon_top_of_table, yesde);
 }
 
 static int compare_of(struct device *dev, void *data)
 {
-	DRM_DEBUG_DRIVER("Comparing of node %pOF with %pOF\n",
-			 dev->of_node,
+	DRM_DEBUG_DRIVER("Comparing of yesde %pOF with %pOF\n",
+			 dev->of_yesde,
 			 data);
 
-	return dev->of_node == data;
+	return dev->of_yesde == data;
 }
 
 /*
@@ -226,65 +226,65 @@ static int compare_of(struct device *dev, void *data)
  * in the pipeline. Fortunately, the pipelines are perfectly symmetric,
  * i.e. components of the same type are at the same depth when counted
  * from the frontend. The only exception is the third pipeline in
- * the A80 SoC, which we do not support anyway.
+ * the A80 SoC, which we do yest support anyway.
  *
  * Hence we can use a breadth first search traversal order to add
- * components. We do not need to check for duplicates. The component
+ * components. We do yest need to check for duplicates. The component
  * matching system handles this for us.
  */
 struct endpoint_list {
-	DECLARE_KFIFO(fifo, struct device_node *, 16);
+	DECLARE_KFIFO(fifo, struct device_yesde *, 16);
 };
 
 static void sun4i_drv_traverse_endpoints(struct endpoint_list *list,
-					 struct device_node *node,
+					 struct device_yesde *yesde,
 					 int port_id)
 {
-	struct device_node *ep, *remote, *port;
+	struct device_yesde *ep, *remote, *port;
 
-	port = of_graph_get_port_by_id(node, port_id);
+	port = of_graph_get_port_by_id(yesde, port_id);
 	if (!port) {
 		DRM_DEBUG_DRIVER("No output to bind on port %d\n", port_id);
 		return;
 	}
 
-	for_each_available_child_of_node(port, ep) {
+	for_each_available_child_of_yesde(port, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!remote) {
-			DRM_DEBUG_DRIVER("Error retrieving the output node\n");
+			DRM_DEBUG_DRIVER("Error retrieving the output yesde\n");
 			continue;
 		}
 
-		if (sun4i_drv_node_is_tcon(node)) {
+		if (sun4i_drv_yesde_is_tcon(yesde)) {
 			/*
 			 * TCON TOP is always probed before TCON. However, TCON
 			 * points back to TCON TOP when it is source for HDMI.
 			 * We have to skip it here to prevent infinite looping
 			 * between TCON TOP and TCON.
 			 */
-			if (sun4i_drv_node_is_tcon_top(remote)) {
+			if (sun4i_drv_yesde_is_tcon_top(remote)) {
 				DRM_DEBUG_DRIVER("TCON output endpoint is TCON TOP... skipping\n");
-				of_node_put(remote);
+				of_yesde_put(remote);
 				continue;
 			}
 
 			/*
-			 * If the node is our TCON with channel 0, the first
-			 * port is used for panel or bridges, and will not be
+			 * If the yesde is our TCON with channel 0, the first
+			 * port is used for panel or bridges, and will yest be
 			 * part of the component framework.
 			 */
-			if (sun4i_drv_node_is_tcon_with_ch0(node)) {
+			if (sun4i_drv_yesde_is_tcon_with_ch0(yesde)) {
 				struct of_endpoint endpoint;
 
 				if (of_graph_parse_endpoint(ep, &endpoint)) {
 					DRM_DEBUG_DRIVER("Couldn't parse endpoint\n");
-					of_node_put(remote);
+					of_yesde_put(remote);
 					continue;
 				}
 
 				if (!endpoint.id) {
 					DRM_DEBUG_DRIVER("Endpoint is our panel... skipping\n");
-					of_node_put(remote);
+					of_yesde_put(remote);
 					continue;
 				}
 			}
@@ -297,26 +297,26 @@ static void sun4i_drv_traverse_endpoints(struct endpoint_list *list,
 static int sun4i_drv_add_endpoints(struct device *dev,
 				   struct endpoint_list *list,
 				   struct component_match **match,
-				   struct device_node *node)
+				   struct device_yesde *yesde)
 {
 	int count = 0;
 
 	/*
 	 * The frontend has been disabled in some of our old device
-	 * trees. If we find a node that is the frontend and is
+	 * trees. If we find a yesde that is the frontend and is
 	 * disabled, we should just follow through and parse its
 	 * child, but without adding it to the component list.
 	 * Otherwise, we obviously want to add it to the list.
 	 */
-	if (!sun4i_drv_node_is_frontend(node) &&
-	    !of_device_is_available(node))
+	if (!sun4i_drv_yesde_is_frontend(yesde) &&
+	    !of_device_is_available(yesde))
 		return 0;
 
 	/*
-	 * The connectors will be the last nodes in our pipeline, we
+	 * The connectors will be the last yesdes in our pipeline, we
 	 * can just bail out.
 	 */
-	if (sun4i_drv_node_is_connector(node))
+	if (sun4i_drv_yesde_is_connector(yesde))
 		return 0;
 
 	/*
@@ -324,23 +324,23 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 	 * enabled frontend supported by the driver, we add it to our
 	 * component list.
 	 */
-	if (!(sun4i_drv_node_is_frontend(node) ||
-	      sun4i_drv_node_is_deu(node)) ||
-	    (sun4i_drv_node_is_supported_frontend(node) &&
-	     of_device_is_available(node))) {
+	if (!(sun4i_drv_yesde_is_frontend(yesde) ||
+	      sun4i_drv_yesde_is_deu(yesde)) ||
+	    (sun4i_drv_yesde_is_supported_frontend(yesde) &&
+	     of_device_is_available(yesde))) {
 		/* Add current component */
-		DRM_DEBUG_DRIVER("Adding component %pOF\n", node);
-		drm_of_component_match_add(dev, match, compare_of, node);
+		DRM_DEBUG_DRIVER("Adding component %pOF\n", yesde);
+		drm_of_component_match_add(dev, match, compare_of, yesde);
 		count++;
 	}
 
-	/* each node has at least one output */
-	sun4i_drv_traverse_endpoints(list, node, 1);
+	/* each yesde has at least one output */
+	sun4i_drv_traverse_endpoints(list, yesde, 1);
 
 	/* TCON TOP has second and third output */
-	if (sun4i_drv_node_is_tcon_top(node)) {
-		sun4i_drv_traverse_endpoints(list, node, 3);
-		sun4i_drv_traverse_endpoints(list, node, 5);
+	if (sun4i_drv_yesde_is_tcon_top(yesde)) {
+		sun4i_drv_traverse_endpoints(list, yesde, 3);
+		sun4i_drv_traverse_endpoints(list, yesde, 5);
 	}
 
 	return count;
@@ -349,14 +349,14 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 static int sun4i_drv_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
-	struct device_node *np = pdev->dev.of_node, *endpoint;
+	struct device_yesde *np = pdev->dev.of_yesde, *endpoint;
 	struct endpoint_list list;
 	int i, ret, count = 0;
 
 	INIT_KFIFO(list.fifo);
 
 	for (i = 0;; i++) {
-		struct device_node *pipeline = of_parse_phandle(np,
+		struct device_yesde *pipeline = of_parse_phandle(np,
 								"allwinner,pipelines",
 								i);
 		if (!pipeline)

@@ -144,15 +144,15 @@
 #define DNET_INTR_ENB_GLOBAL_ENABLE			(1 << 18)
 
 /* default values:
- * almost empty = less than one full sized ethernet frame (no jumbo) inside
+ * almost empty = less than one full sized ethernet frame (yes jumbo) inside
  * the fifo almost full = can write less than one full sized ethernet frame
- * (no jumbo) inside the fifo
+ * (yes jumbo) inside the fifo
  */
 #define DNET_CFG_TX_FIFO_FULL_THRES	25
 #define DNET_CFG_RX_FIFO_FULL_THRES	20
 
 /*
- * Capabilities. Used by the driver to know the capabilities that the ethernet
+ * Capabilities. Used by the driver to kyesw the capabilities that the ethernet
  * controller inside the FPGA have.
  */
 

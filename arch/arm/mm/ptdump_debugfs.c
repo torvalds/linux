@@ -12,9 +12,9 @@ static int ptdump_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ptdump_open(struct inode *inode, struct file *file)
+static int ptdump_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, ptdump_show, inode->i_private);
+	return single_open(file, ptdump_show, iyesde->i_private);
 }
 
 static const struct file_operations ptdump_fops = {

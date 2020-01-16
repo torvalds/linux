@@ -74,7 +74,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa,
 	uint64_t *entry;
 
 	TEST_ASSERT((gva % vm->page_size) == 0,
-		"Virtual address not on page boundary,\n"
+		"Virtual address yest on page boundary,\n"
 		"  vaddr: 0x%lx vm->page_size: 0x%x",
 		gva, vm->page_size);
 	TEST_ASSERT(sparsebit_is_set(vm->vpages_valid,
@@ -82,7 +82,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa,
 		"Invalid virtual address, vaddr: 0x%lx",
 		gva);
 	TEST_ASSERT((gpa % vm->page_size) == 0,
-		"Physical address not on page boundary,\n"
+		"Physical address yest on page boundary,\n"
 		"  paddr: 0x%lx vm->page_size: 0x%x",
 		gva, vm->page_size);
 	TEST_ASSERT((gpa >> vm->page_shift) <= vm->max_gfn,
@@ -124,7 +124,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa,
  * physical address, within the VM given by vm.  When found, the host
  * virtual address providing the memory to the vm physical address is
  * returned.
- * A TEST_ASSERT failure occurs if no region containing translated
+ * A TEST_ASSERT failure occurs if yes region containing translated
  * VM virtual address exists.
  */
 vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)

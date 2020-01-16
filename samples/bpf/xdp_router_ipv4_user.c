@@ -5,7 +5,7 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,7 +54,7 @@ static void int_exit(int sig)
 			printf("couldn't find a prog id on iface %d\n",
 			       ifindex_list[i]);
 		else
-			printf("program on iface %d changed, not removing\n",
+			printf("program on iface %d changed, yest removing\n",
 			       ifindex_list[i]);
 		prog_id = 0;
 	}
@@ -327,13 +327,13 @@ static int get_route_table(int rtm_family)
 
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock < 0) {
-		printf("open netlink socket: %s\n", strerror(errno));
+		printf("open netlink socket: %s\n", strerror(erryes));
 		return -1;
 	}
 	memset(&sa, 0, sizeof(sa));
 	sa.nl_family = AF_NETLINK;
 	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
-		printf("bind to netlink: %s\n", strerror(errno));
+		printf("bind to netlink: %s\n", strerror(erryes));
 		ret = -1;
 		goto cleanup;
 	}
@@ -353,7 +353,7 @@ static int get_route_table(int rtm_family)
 	msg.msg_iovlen = 1;
 	ret = sendmsg(sock, &msg, 0);
 	if (ret < 0) {
-		printf("send to netlink: %s\n", strerror(errno));
+		printf("send to netlink: %s\n", strerror(erryes));
 		ret = -1;
 		goto cleanup;
 	}
@@ -466,13 +466,13 @@ static int get_arp_table(int rtm_family)
 
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock < 0) {
-		printf("open netlink socket: %s\n", strerror(errno));
+		printf("open netlink socket: %s\n", strerror(erryes));
 		return -1;
 	}
 	memset(&sa, 0, sizeof(sa));
 	sa.nl_family = AF_NETLINK;
 	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
-		printf("bind to netlink: %s\n", strerror(errno));
+		printf("bind to netlink: %s\n", strerror(erryes));
 		ret = -1;
 		goto cleanup;
 	}
@@ -491,7 +491,7 @@ static int get_arp_table(int rtm_family)
 	msg.msg_iovlen = 1;
 	ret = sendmsg(sock, &msg, 0);
 	if (ret < 0) {
-		printf("send to netlink: %s\n", strerror(errno));
+		printf("send to netlink: %s\n", strerror(erryes));
 		ret = -1;
 		goto cleanup;
 	}
@@ -528,7 +528,7 @@ static int monitor_route(void)
 
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock < 0) {
-		printf("open netlink socket: %s\n", strerror(errno));
+		printf("open netlink socket: %s\n", strerror(erryes));
 		return -1;
 	}
 
@@ -537,7 +537,7 @@ static int monitor_route(void)
 	lr.nl_family = AF_NETLINK;
 	lr.nl_groups = RTMGRP_IPV6_ROUTE | RTMGRP_IPV4_ROUTE | RTMGRP_NOTIFY;
 	if (bind(sock, (struct sockaddr *)&lr, sizeof(lr)) < 0) {
-		printf("bind to netlink: %s\n", strerror(errno));
+		printf("bind to netlink: %s\n", strerror(erryes));
 		ret = -1;
 		goto cleanup;
 	}
@@ -546,7 +546,7 @@ static int monitor_route(void)
 
 	sock_arp = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock_arp < 0) {
-		printf("open netlink socket: %s\n", strerror(errno));
+		printf("open netlink socket: %s\n", strerror(erryes));
 		return -1;
 	}
 
@@ -555,7 +555,7 @@ static int monitor_route(void)
 	la.nl_family = AF_NETLINK;
 	la.nl_groups = RTMGRP_NEIGH | RTMGRP_NOTIFY;
 	if (bind(sock_arp, (struct sockaddr *)&la, sizeof(la)) < 0) {
-		printf("bind to netlink: %s\n", strerror(errno));
+		printf("bind to netlink: %s\n", strerror(erryes));
 		ret = -1;
 		goto cleanup;
 	}
@@ -677,7 +677,7 @@ int main(int ac, char **argv)
 
 	printf("\n**************loading bpf file*********************\n\n\n");
 	if (!prog_fd) {
-		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
+		printf("bpf_prog_load_xattr: %s\n", strerror(erryes));
 		return 1;
 	}
 
@@ -698,7 +698,7 @@ int main(int ac, char **argv)
 		ifindex_list[i] = if_nametoindex(ifname_list[i]);
 		if (!ifindex_list[i]) {
 			printf("Couldn't translate interface name: %s",
-			       strerror(errno));
+			       strerror(erryes));
 			return 1;
 		}
 	}
@@ -715,7 +715,7 @@ int main(int ac, char **argv)
 		}
 		err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
 		if (err) {
-			printf("can't get prog info - %s\n", strerror(errno));
+			printf("can't get prog info - %s\n", strerror(erryes));
 			return err;
 		}
 		prog_id_list[i] = info.id;

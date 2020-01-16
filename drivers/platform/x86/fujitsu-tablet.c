@@ -409,7 +409,7 @@ static const struct dmi_system_id dmi_ids[] __initconst = {
 	},
 	{
 		.callback = fujitsu_dmi_lifebook,
-		.ident = "Unknown (using defaults)",
+		.ident = "Unkyeswn (using defaults)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, ""),
 			DMI_MATCH(DMI_PRODUCT_NAME, "")

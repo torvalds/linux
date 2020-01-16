@@ -310,7 +310,7 @@ static void mid_get_vbt_data(struct drm_psb_private *dev_priv)
 		ret = mid_get_vbt_data_r10(dev_priv, addr);
 		break;
 	default:
-		dev_err(dev->dev, "Unknown revision of GCT!\n");
+		dev_err(dev->dev, "Unkyeswn revision of GCT!\n");
 	}
 
 out:

@@ -154,7 +154,7 @@ struct cxgbi_device *cxgbi_device_register(unsigned int extra,
 	mutex_unlock(&cdev_mutex);
 
 	spin_lock(&cdev_rcu_lock);
-	list_add_tail_rcu(&cdev->rcu_node, &cdev_rcu_list);
+	list_add_tail_rcu(&cdev->rcu_yesde, &cdev_rcu_list);
 	spin_unlock(&cdev_rcu_lock);
 
 	log_debug(1 << CXGBI_DBG_DEV,
@@ -174,7 +174,7 @@ void cxgbi_device_unregister(struct cxgbi_device *cdev)
 	mutex_unlock(&cdev_mutex);
 
 	spin_lock(&cdev_rcu_lock);
-	list_del_rcu(&cdev->rcu_node);
+	list_del_rcu(&cdev->rcu_yesde);
 	spin_unlock(&cdev_rcu_lock);
 	synchronize_rcu();
 
@@ -264,7 +264,7 @@ struct cxgbi_device *cxgbi_device_find_by_netdev_rcu(struct net_device *ndev,
 	}
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(cdev, &cdev_rcu_list, rcu_node) {
+	list_for_each_entry_rcu(cdev, &cdev_rcu_list, rcu_yesde) {
 		for (i = 0; i < cdev->nports; i++) {
 			if (ndev == cdev->ports[i]) {
 				cdev->hbas[i]->vdev = vdev;
@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(cxgbi_hbas_add);
  *   rotor scheme to look for the next free port.
  *
  *   If a source port has been specified make sure that it doesn't collide with
- *   our normal source port allocation map.  If it's outside the range of our
+ *   our yesrmal source port allocation map.  If it's outside the range of our
  *   allocation/deallocation scheme just let them use it.
  *
  *   If the source port is outside our allocation range, the caller is
@@ -488,7 +488,7 @@ static int sock_get_port(struct cxgbi_sock *csk)
 	} while (idx != start);
 	spin_unlock_bh(&pmap->lock);
 
-	/* should not happen */
+	/* should yest happen */
 	pr_warn("cdev 0x%p, p#%u %s, next %u?\n",
 		cdev, csk->port_id, cdev->ports[csk->port_id]->name,
 		pmap->next);
@@ -616,7 +616,7 @@ cxgbi_check_route(struct sockaddr *dst_addr, int ifindex)
 	rt = find_route_ipv4(&fl4, 0, daddr->sin_addr.s_addr, 0,
 			     daddr->sin_port, 0, ifindex);
 	if (!rt) {
-		pr_info("no route to ipv4 0x%x, port %u.\n",
+		pr_info("yes route to ipv4 0x%x, port %u.\n",
 			be32_to_cpu(daddr->sin_addr.s_addr),
 			be16_to_cpu(daddr->sin_port));
 		err = -ENETUNREACH;
@@ -650,7 +650,7 @@ cxgbi_check_route(struct sockaddr *dst_addr, int ifindex)
 	}
 
 	if (!(ndev->flags & IFF_UP) || !netif_carrier_ok(ndev)) {
-		pr_info("%s interface not up.\n", ndev->name);
+		pr_info("%s interface yest up.\n", ndev->name);
 		err = -ENETDOWN;
 		goto rel_neigh;
 	}
@@ -732,7 +732,7 @@ cxgbi_check_route6(struct sockaddr *dst_addr, int ifindex)
 	rt = find_route_ipv6(NULL, &daddr6->sin6_addr, ifindex);
 
 	if (!rt) {
-		pr_info("no route to ipv6 %pI6 port %u\n",
+		pr_info("yes route to ipv6 %pI6 port %u\n",
 			daddr6->sin6_addr.s6_addr,
 			be16_to_cpu(daddr6->sin6_port));
 		err = -ENETUNREACH;
@@ -744,7 +744,7 @@ cxgbi_check_route6(struct sockaddr *dst_addr, int ifindex)
 	n = dst_neigh_lookup(dst, &daddr6->sin6_addr);
 
 	if (!n) {
-		pr_info("%pI6, port %u, dst no neighbour.\n",
+		pr_info("%pI6, port %u, dst yes neighbour.\n",
 			daddr6->sin6_addr.s6_addr,
 			be16_to_cpu(daddr6->sin6_port));
 		err = -ENETUNREACH;
@@ -753,7 +753,7 @@ cxgbi_check_route6(struct sockaddr *dst_addr, int ifindex)
 	ndev = n->dev;
 
 	if (!(ndev->flags & IFF_UP) || !netif_carrier_ok(ndev)) {
-		pr_info("%s interface not up.\n", ndev->name);
+		pr_info("%s interface yest up.\n", ndev->name);
 		err = -ENETDOWN;
 		goto rel_rt;
 	}
@@ -902,16 +902,16 @@ static void need_active_close(struct cxgbi_sock *csk)
 	spin_unlock_bh(&csk->lock);
 }
 
-void cxgbi_sock_fail_act_open(struct cxgbi_sock *csk, int errno)
+void cxgbi_sock_fail_act_open(struct cxgbi_sock *csk, int erryes)
 {
 	pr_info("csk 0x%p,%u,%lx, %pI4:%u-%pI4:%u, err %d.\n",
 			csk, csk->state, csk->flags,
 			&csk->saddr.sin_addr.s_addr, csk->saddr.sin_port,
 			&csk->daddr.sin_addr.s_addr, csk->daddr.sin_port,
-			errno);
+			erryes);
 
 	cxgbi_sock_set_state(csk, CTP_CONNECTING);
-	csk->err = errno;
+	csk->err = erryes;
 	cxgbi_sock_closed(csk);
 }
 EXPORT_SYMBOL_GPL(cxgbi_sock_fail_act_open);
@@ -1261,7 +1261,7 @@ void cxgbi_ddp_set_one_ppod(struct cxgbi_pagepod *ppod,
 
 	/*
 	 * the fifth address needs to be repeated in the next ppod, so do
-	 * not move sg
+	 * yest move sg
 	 */
 	if (sg_pp) {
 		*sg_pp = sg;
@@ -1323,7 +1323,7 @@ static int cxgbi_ddp_sgl_check(struct scatterlist *sgl, int nents)
 		if ((sg->offset & 0x3) || (i && sg->offset) ||
 		    ((i != last_sgidx) && len != PAGE_SIZE)) {
 			log_debug(1 << CXGBI_DBG_DDP,
-				  "sg %u/%u, %u,%u, not aligned.\n",
+				  "sg %u/%u, %u,%u, yest aligned.\n",
 				  i, nents, sg->offset, sg->length);
 			goto err_out;
 		}
@@ -1406,7 +1406,7 @@ static int cxgbi_ddp_reserve(struct cxgbi_conn *cconn,
 		/* write ppod from xmit_pdu (of iscsi_scsi_command pdu) */
 		ttinfo->flags |= CXGBI_PPOD_INFO_FLAG_VALID;
 	} else {
-		/* write ppod from control queue now */
+		/* write ppod from control queue yesw */
 		err = cdev->csk_ddp_set_map(ppm, csk, ttinfo);
 		if (err < 0)
 			goto rel_ppods;
@@ -1479,13 +1479,13 @@ static int task_reserve_itt(struct iscsi_task *task, itt_t *hdr_itt)
 			tag = ttinfo->tag;
 		else
 			 log_debug(1 << CXGBI_DBG_DDP,
-				   "csk 0x%p, R task 0x%p, %u,%u, no ddp.\n",
+				   "csk 0x%p, R task 0x%p, %u,%u, yes ddp.\n",
 				   cconn->cep->csk, task, tdata->dlen,
 				   ttinfo->nents);
 	}
 
 	if (err < 0) {
-		err = cxgbi_ppm_make_non_ddp_tag(ppm, sw_tag, &tag);
+		err = cxgbi_ppm_make_yesn_ddp_tag(ppm, sw_tag, &tag);
 		if (err < 0)
 			return err;
 	}
@@ -1511,7 +1511,7 @@ void cxgbi_parse_pdu_itt(struct iscsi_conn *conn, itt_t itt, int *idx, int *age)
 		if (cxgbi_ppm_is_ddp_tag(ppm, tag))
 			sw_bits = cxgbi_ppm_get_tag_caller_data(ppm, tag);
 		else
-			sw_bits = cxgbi_ppm_decode_non_ddp_tag(ppm, tag);
+			sw_bits = cxgbi_ppm_decode_yesn_ddp_tag(ppm, tag);
 	} else {
 		sw_bits = tag;
 	}
@@ -1557,14 +1557,14 @@ static inline int read_pdu_skb(struct iscsi_conn *conn,
 		log_debug(1 << CXGBI_DBG_PDU_RX,
 			"skb 0x%p, off %u, %d, TCP_SUSPEND, rc %d.\n",
 			skb, offset, offloaded, bytes_read);
-		/* no transfer - just have caller flush queue */
+		/* yes transfer - just have caller flush queue */
 		return bytes_read;
 	case ISCSI_TCP_SKB_DONE:
 		pr_info("skb 0x%p, off %u, %d, TCP_SKB_DONE.\n",
 			skb, offset, offloaded);
 		/*
 		 * pdus should always fit in the skb and we should get
-		 * segment done notifcation.
+		 * segment done yestifcation.
 		 */
 		iscsi_conn_printk(KERN_ERR, conn, "Invalid pdu or skb.");
 		return -EFAULT;
@@ -1592,7 +1592,7 @@ skb_read_pdu_bhs(struct cxgbi_sock *csk, struct iscsi_conn *conn,
 		conn, skb, skb->len, cxgbi_skcb_flags(skb));
 
 	if (!iscsi_tcp_recv_segment_is_hdr(tcp_conn)) {
-		pr_info("conn 0x%p, skb 0x%p, not hdr.\n", conn, skb);
+		pr_info("conn 0x%p, skb 0x%p, yest hdr.\n", conn, skb);
 		iscsi_conn_failure(conn, ISCSI_ERR_PROTO);
 		return -EIO;
 	}
@@ -1668,7 +1668,7 @@ static int skb_read_pdu_data(struct iscsi_conn *conn, struct sk_buff *lskb,
 		log_debug(1 << CXGBI_DBG_PDU_RX,
 			"skb 0x%p, op 0x%x, itt 0x%x, %u %s ddp'ed.\n",
 			skb, opcode, ntohl(tcp_conn->in.hdr->itt),
-			tcp_conn->in.datalen, offloaded ? "is" : "not");
+			tcp_conn->in.datalen, offloaded ? "is" : "yest");
 
 	return read_pdu_skb(conn, skb, offset, offloaded);
 }
@@ -2451,8 +2451,8 @@ int cxgbi_set_host_param(struct Scsi_Host *shost, enum iscsi_host_param param,
 	struct cxgbi_hba *chba = iscsi_host_priv(shost);
 
 	if (!chba->ndev) {
-		shost_printk(KERN_ERR, shost, "Could not get host param. "
-				"netdev for host not set.\n");
+		shost_printk(KERN_ERR, shost, "Could yest get host param. "
+				"netdev for host yest set.\n");
 		return -ENODEV;
 	}
 
@@ -2485,8 +2485,8 @@ int cxgbi_get_host_param(struct Scsi_Host *shost, enum iscsi_host_param param,
 	int len = 0;
 
 	if (!chba->ndev) {
-		shost_printk(KERN_ERR, shost, "Could not get host param. "
-				"netdev for host not set.\n");
+		shost_printk(KERN_ERR, shost, "Could yest get host param. "
+				"netdev for host yest set.\n");
 		return -ENODEV;
 	}
 
@@ -2523,7 +2523,7 @@ EXPORT_SYMBOL_GPL(cxgbi_get_host_param);
 
 struct iscsi_endpoint *cxgbi_ep_connect(struct Scsi_Host *shost,
 					struct sockaddr *dst_addr,
-					int non_blocking)
+					int yesn_blocking)
 {
 	struct iscsi_endpoint *ep;
 	struct cxgbi_endpoint *cep;
@@ -2533,8 +2533,8 @@ struct iscsi_endpoint *cxgbi_ep_connect(struct Scsi_Host *shost,
 	int err = -EINVAL;
 
 	log_debug(1 << CXGBI_DBG_ISCSI | 1 << CXGBI_DBG_SOCK,
-		"shost 0x%p, non_blocking %d, dst_addr 0x%p.\n",
-		shost, non_blocking, dst_addr);
+		"shost 0x%p, yesn_blocking %d, dst_addr 0x%p.\n",
+		shost, yesn_blocking, dst_addr);
 
 	if (shost) {
 		hba = iscsi_host_priv(shost);
@@ -2572,9 +2572,9 @@ check_route:
 			goto check_route;
 		}
 
-		pr_info("Could not connect through requested host %u"
+		pr_info("Could yest connect through requested host %u"
 			"hba 0x%p != 0x%p (%u).\n",
-			shost->host_no, hba,
+			shost->host_yes, hba,
 			csk->cdev->hbas[csk->port_id], csk->port_id);
 		err = -ENOSPC;
 		goto release_conn;

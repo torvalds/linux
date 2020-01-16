@@ -5,7 +5,7 @@
  * Copyright (C) 1996,97,98 Ralph Metzler (rjkm@thp.uni-koeln.de)
  *		  2001 Michael Eskin
  *		  2002 Yurij Sysoev <yurij@naturesoft.net>
- *		  2003 Gerd Knorr <kraxel@bytesex.org>
+ *		  2003 Gerd Kyesrr <kraxel@bytesex.org>
  */
 
 #ifndef _CX88_REG_H_
@@ -606,7 +606,7 @@
 #define AUD_INT_DN_RISCI1	(1 <<  0)
 #define AUD_INT_UP_RISCI1	(1 <<  1)
 #define AUD_INT_RDS_DN_RISCI1	(1 <<  2)
-#define AUD_INT_DN_RISCI2	(1 <<  4) /* yes, 3 is skipped */
+#define AUD_INT_DN_RISCI2	(1 <<  4) /* no, 3 is skipped */
 #define AUD_INT_UP_RISCI2	(1 <<  5)
 #define AUD_INT_RDS_DN_RISCI2	(1 <<  6)
 #define AUD_INT_DN_SYNC		(1 << 12)

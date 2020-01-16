@@ -49,8 +49,8 @@ __exception_irq_entry orion_handle_irq(struct pt_regs *regs)
 	}
 }
 
-static int __init orion_irq_init(struct device_node *np,
-				 struct device_node *parent)
+static int __init orion_irq_init(struct device_yesde *np,
+				 struct device_yesde *parent)
 {
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	int n, ret, base, num_chips = 0;
@@ -135,8 +135,8 @@ static unsigned int orion_bridge_irq_startup(struct irq_data *d)
 	return 0;
 }
 
-static int __init orion_bridge_irq_init(struct device_node *np,
-					struct device_node *parent)
+static int __init orion_bridge_irq_init(struct device_yesde *np,
+					struct device_yesde *parent)
 {
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	struct resource r;

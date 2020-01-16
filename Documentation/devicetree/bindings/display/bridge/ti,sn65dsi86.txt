@@ -33,7 +33,7 @@ Optional properties:
 
 - suspend-gpios: specification for GPIO1 pin on bridge (active low)
 
-Required nodes:
+Required yesdes:
 This device has two video ports. Their connections are modelled using the
 OF graph bindings specified in Documentation/devicetree/bindings/graph.txt.
 

@@ -30,7 +30,7 @@ static bool fsl_mc_device_match(struct fsl_mc_device *mc_dev,
 
 }
 
-static int __fsl_mc_device_remove_if_not_in_mc(struct device *dev, void *data)
+static int __fsl_mc_device_remove_if_yest_in_mc(struct device *dev, void *data)
 {
 	int i;
 	struct fsl_mc_child_objs *objs;
@@ -78,17 +78,17 @@ static void dprc_remove_devices(struct fsl_mc_device *mc_bus_dev,
 	if (num_child_objects_in_mc != 0) {
 		/*
 		 * Remove child objects that are in the DPRC in Linux,
-		 * but not in the MC:
+		 * but yest in the MC:
 		 */
 		struct fsl_mc_child_objs objs;
 
 		objs.child_count = num_child_objects_in_mc;
 		objs.child_array = obj_desc_array;
 		device_for_each_child(&mc_bus_dev->dev, &objs,
-				      __fsl_mc_device_remove_if_not_in_mc);
+				      __fsl_mc_device_remove_if_yest_in_mc);
 	} else {
 		/*
-		 * There are no child objects for this DPRC in the MC.
+		 * There are yes child objects for this DPRC in the MC.
 		 * So, remove all the child devices from Linux:
 		 */
 		device_for_each_child(&mc_bus_dev->dev, NULL,
@@ -177,7 +177,7 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 			continue;
 
 		/*
-		 * Check if device is already known to Linux:
+		 * Check if device is already kyeswn to Linux:
 		 */
 		child_dev = fsl_mc_device_lookup(obj_desc, mc_bus_dev);
 		if (child_dev) {
@@ -204,13 +204,13 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
  * state of the Linux bus driver, MC by adding and removing
  * devices accordingly.
  * Two types of devices can be found in a DPRC: allocatable objects (e.g.,
- * dpbp, dpmcp) and non-allocatable devices (e.g., dprc, dpni).
- * All allocatable devices needed to be probed before all non-allocatable
- * devices, to ensure that device drivers for non-allocatable
+ * dpbp, dpmcp) and yesn-allocatable devices (e.g., dprc, dpni).
+ * All allocatable devices needed to be probed before all yesn-allocatable
+ * devices, to ensure that device drivers for yesn-allocatable
  * devices can allocate any type of allocatable devices.
  * That is, we need to ensure that the corresponding resource pools are
  * populated before they can get allocation requests from probe callbacks
- * of the device drivers for the non-allocatable devices.
+ * of the device drivers for the yesn-allocatable devices.
  */
 static int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 			     unsigned int *total_irq_count)
@@ -269,7 +269,7 @@ static int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 			}
 
 			/*
-			 * add a quirk for all versions of dpsec < 4.0...none
+			 * add a quirk for all versions of dpsec < 4.0...yesne
 			 * are coherent regardless of what the MC reports.
 			 */
 			if ((strcmp(obj_desc->type, "dpseci") == 0) &&
@@ -285,7 +285,7 @@ static int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 
 		if (dprc_get_obj_failures != 0) {
 			dev_err(&mc_bus_dev->dev,
-				"%d out of %d devices could not be retrieved\n",
+				"%d out of %d devices could yest be retrieved\n",
 				dprc_get_obj_failures, num_child_objects);
 		}
 	}
@@ -416,7 +416,7 @@ static irqreturn_t dprc_irq0_handler_thread(int irq_num, void *arg)
 		error = dprc_scan_objects(mc_dev, &irq_count);
 		if (error < 0) {
 			/*
-			 * If the error is -ENXIO, we ignore it, as it indicates
+			 * If the error is -ENXIO, we igyesre it, as it indicates
 			 * that the object scan was aborted, as we detected that
 			 * an object was removed from the DPRC in the MC, while
 			 * we were scanning the DPRC.
@@ -591,7 +591,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
 	bool mc_io_created = false;
 	bool msi_domain_set = false;
-	u16 major_ver, minor_ver;
+	u16 major_ver, miyesr_ver;
 
 	if (!is_fsl_mc_bus_dprc(mc_dev))
 		return -EINVAL;
@@ -665,7 +665,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 
 	error = dprc_get_api_version(mc_dev->mc_io, 0,
 				     &major_ver,
-				     &minor_ver);
+				     &miyesr_ver);
 	if (error < 0) {
 		dev_err(&mc_dev->dev, "dprc_get_api_version() failed: %d\n",
 			error);
@@ -674,10 +674,10 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 
 	if (major_ver < DPRC_MIN_VER_MAJOR ||
 	    (major_ver == DPRC_MIN_VER_MAJOR &&
-	     minor_ver < DPRC_MIN_VER_MINOR)) {
+	     miyesr_ver < DPRC_MIN_VER_MINOR)) {
 		dev_err(&mc_dev->dev,
-			"ERROR: DPRC version %d.%d not supported\n",
-			major_ver, minor_ver);
+			"ERROR: DPRC version %d.%d yest supported\n",
+			major_ver, miyesr_ver);
 		error = -ENOTSUPP;
 		goto error_cleanup_open;
 	}
@@ -735,7 +735,7 @@ static void dprc_teardown_irq(struct fsl_mc_device *mc_dev)
  *
  * @mc_dev: Pointer to fsl-mc device representing the DPRC
  *
- * It removes the DPRC's child objects from Linux (not from the MC) and
+ * It removes the DPRC's child objects from Linux (yest from the MC) and
  * closes the DPRC device in the MC.
  * It tears down the interrupts that were configured for the DPRC device.
  * It destroys the interrupt pool associated with this MC bus.

@@ -160,15 +160,15 @@ static void usbtmc_delete(struct kref *kref)
 	kfree(data);
 }
 
-static int usbtmc_open(struct inode *inode, struct file *filp)
+static int usbtmc_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct usb_interface *intf;
 	struct usbtmc_device_data *data;
 	struct usbtmc_file_data *file_data;
 
-	intf = usb_find_interface(&usbtmc_driver, iminor(inode));
+	intf = usb_find_interface(&usbtmc_driver, imiyesr(iyesde));
 	if (!intf) {
-		pr_err("can not find device for minor %d", iminor(inode));
+		pr_err("can yest find device for miyesr %d", imiyesr(iyesde));
 		return -ENODEV;
 	}
 
@@ -243,7 +243,7 @@ static int usbtmc_flush(struct file *file, fl_owner_t id)
 	return 0;
 }
 
-static int usbtmc_release(struct inode *inode, struct file *file)
+static int usbtmc_release(struct iyesde *iyesde, struct file *file)
 {
 	struct usbtmc_file_data *file_data = file->private_data;
 
@@ -300,9 +300,9 @@ static int usbtmc_ioctl_abort_bulk_in_tag(struct usbtmc_device_data *data,
 	if (buffer[0] == USBTMC_STATUS_TRANSFER_NOT_IN_PROGRESS) {
 		/* The device returns this status if either:
 		 * - There is a transfer in progress, but the specified bTag
-		 *   does not match.
-		 * - There is no transfer in progress, but the Bulk-OUT FIFO
-		 *   is not empty.
+		 *   does yest match.
+		 * - There is yes transfer in progress, but the Bulk-OUT FIFO
+		 *   is yest empty.
 		 */
 		rv = -ENOMSG;
 		goto exit;
@@ -429,7 +429,7 @@ static int usbtmc_ioctl_abort_bulk_out_tag(struct usbtmc_device_data *data,
 	n = 0;
 
 usbtmc_abort_bulk_out_check_status:
-	/* do not stress device with subsequent requests */
+	/* do yest stress device with subsequent requests */
 	msleep(50);
 	rv = usb_control_msg(data->usb_dev,
 			     usb_rcvctrlpipe(data->usb_dev, 0),
@@ -577,7 +577,7 @@ static int usbtmc488_ioctl_wait_srq(struct usbtmc_file_data *file_data,
 	unsigned long expire;
 
 	if (!data->iin_ep_present) {
-		dev_dbg(dev, "no interrupt endpoint present\n");
+		dev_dbg(dev, "yes interrupt endpoint present\n");
 		return -EFAULT;
 	}
 
@@ -601,7 +601,7 @@ static int usbtmc488_ioctl_wait_srq(struct usbtmc_file_data *file_data,
 		rv = -ENODEV;
 
 	if (rv < 0) {
-		/* dev can be invalid now! */
+		/* dev can be invalid yesw! */
 		pr_debug("%s - wait interrupted %d\n", __func__, rv);
 		return rv;
 	}
@@ -749,7 +749,7 @@ static void usbtmc_read_bulk_cb(struct urb *urb)
 			status == -EREMOTEIO || /* Short packet */
 			status == -ESHUTDOWN))
 			dev_err(&file_data->data->intf->dev,
-			"%s - nonzero read bulk status received: %d\n",
+			"%s - yesnzero read bulk status received: %d\n",
 			__func__, status);
 
 		spin_lock_irqsave(&file_data->err_lock, flags);
@@ -930,12 +930,12 @@ static ssize_t usbtmc_generic_read(struct usbtmc_file_data *file_data,
 		urb = usb_get_from_anchor(&file_data->in_anchor);
 		if (!urb) {
 			if (!(flags & USBTMC_FLAG_ASYNC)) {
-				/* synchronous case: must not happen */
+				/* synchroyesus case: must yest happen */
 				retval = -EFAULT;
 				goto error;
 			}
 
-			/* asynchronous case: ready, do not block or wait */
+			/* asynchroyesus case: ready, do yest block or wait */
 			*transferred = done;
 			dev_dbg(dev, "%s: (async) done=%u ret=0\n",
 				__func__, done);
@@ -986,7 +986,7 @@ static ssize_t usbtmc_generic_read(struct usbtmc_file_data *file_data,
 
 		if (!(flags & USBTMC_FLAG_ASYNC) &&
 		    max_transfer_size > (bufsize * file_data->in_urbs_used)) {
-			/* resubmit, since other buffers still not enough */
+			/* resubmit, since other buffers still yest eyesugh */
 			usb_anchor_urb(urb, &file_data->submitted);
 			retval = usb_submit_urb(urb, GFP_KERNEL);
 			if (unlikely(retval)) {
@@ -1009,7 +1009,7 @@ error:
 	dev_dbg(dev, "%s: after kill\n", __func__);
 	usb_scuttle_anchored_urbs(&file_data->in_anchor);
 	file_data->in_urbs_used = 0;
-	file_data->in_status = 0; /* no spinlock needed here */
+	file_data->in_status = 0; /* yes spinlock needed here */
 	dev_dbg(dev, "%s: done=%u ret=%d\n", __func__, done, retval);
 
 	return retval;
@@ -1052,7 +1052,7 @@ static void usbtmc_write_bulk_cb(struct urb *urb)
 			urb->status == -ECONNRESET ||
 			urb->status == -ESHUTDOWN))
 			dev_err(&file_data->data->intf->dev,
-				"%s - nonzero write bulk status received: %d\n",
+				"%s - yesnzero write bulk status received: %d\n",
 				__func__, urb->status);
 
 		if (!file_data->out_status) {
@@ -1700,7 +1700,7 @@ usbtmc_clear_check_status:
 		} while ((actual == USBTMC_BUFSIZE) &&
 			  (n < USBTMC_MAX_READS_TO_CLEAR_BULK_IN));
 	} else {
-		/* do not stress device with subsequent requests */
+		/* do yest stress device with subsequent requests */
 		msleep(50);
 		n++;
 	}
@@ -2176,13 +2176,13 @@ static __poll_t usbtmc_poll(struct file *file, poll_table *wait)
 
 	if (data->zombie) {
 		mask = EPOLLHUP | EPOLLERR;
-		goto no_poll;
+		goto yes_poll;
 	}
 
 	poll_wait(file, &data->waitq, wait);
 
-	/* Note that EPOLLPRI is now assigned to SRQ, and
-	 * EPOLLIN|EPOLLRDNORM to normal read data.
+	/* Note that EPOLLPRI is yesw assigned to SRQ, and
+	 * EPOLLIN|EPOLLRDNORM to yesrmal read data.
 	 */
 	mask = 0;
 	if (atomic_read(&file_data->srq_asserted))
@@ -2204,7 +2204,7 @@ static __poll_t usbtmc_poll(struct file *file, poll_table *wait)
 
 	dev_dbg(&data->intf->dev, "poll mask = %x\n", mask);
 
-no_poll:
+yes_poll:
 	mutex_unlock(&data->io_mutex);
 	return mask;
 }
@@ -2226,7 +2226,7 @@ static const struct file_operations fops = {
 static struct usb_class_driver usbtmc_class = {
 	.name =		"usbtmc%d",
 	.fops =		&fops,
-	.minor_base =	USBTMC_MINOR_BASE,
+	.miyesr_base =	USBTMC_MINOR_BASE,
 };
 
 static void usbtmc_interrupt(struct urb *urb)
@@ -2241,7 +2241,7 @@ static void usbtmc_interrupt(struct urb *urb)
 
 	switch (status) {
 	case 0: /* SUCCESS */
-		/* check for valid STB notification */
+		/* check for valid STB yestification */
 		if (data->iin_buffer[0] > 0x81) {
 			data->bNotify1 = data->iin_buffer[0];
 			data->bNotify2 = data->iin_buffer[1];
@@ -2249,7 +2249,7 @@ static void usbtmc_interrupt(struct urb *urb)
 			wake_up_interruptible(&data->waitq);
 			goto exit;
 		}
-		/* check for SRQ notification */
+		/* check for SRQ yestification */
 		if (data->iin_buffer[0] == 0x81) {
 			unsigned long flags;
 			struct list_head *elem;
@@ -2276,7 +2276,7 @@ static void usbtmc_interrupt(struct urb *urb)
 			wake_up_interruptible_all(&data->waitq);
 			goto exit;
 		}
-		dev_warn(dev, "invalid notification: %x\n",
+		dev_warn(dev, "invalid yestification: %x\n",
 			 data->iin_buffer[0]);
 		break;
 	case -EOVERFLOW:
@@ -2293,7 +2293,7 @@ static void usbtmc_interrupt(struct urb *urb)
 		dev_dbg(dev, "urb terminated, status: %d\n", status);
 		return;
 	default:
-		dev_err(dev, "unknown status received: %d\n", status);
+		dev_err(dev, "unkyeswn status received: %d\n", status);
 	}
 exit:
 	rv = usb_submit_urb(urb, GFP_ATOMIC);
@@ -2353,7 +2353,7 @@ static int usbtmc_probe(struct usb_interface *intf,
 	retcode = usb_find_common_endpoints(iface_desc,
 			&bulk_in, &bulk_out, NULL, NULL);
 	if (retcode) {
-		dev_err(&intf->dev, "bulk endpoints not found\n");
+		dev_err(&intf->dev, "bulk endpoints yest found\n");
 		goto err_put;
 	}
 
@@ -2417,12 +2417,12 @@ static int usbtmc_probe(struct usb_interface *intf,
 
 	retcode = usb_register_dev(intf, &usbtmc_class);
 	if (retcode) {
-		dev_err(&intf->dev, "Not able to get a minor (base %u, slice default): %d\n",
+		dev_err(&intf->dev, "Not able to get a miyesr (base %u, slice default): %d\n",
 			USBTMC_MINOR_BASE,
 			retcode);
 		goto error_register;
 	}
-	dev_dbg(&intf->dev, "Using minor number %d\n", intf->minor);
+	dev_dbg(&intf->dev, "Using miyesr number %d\n", intf->miyesr);
 
 	return 0;
 

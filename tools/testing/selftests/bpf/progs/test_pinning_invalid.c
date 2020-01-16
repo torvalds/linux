@@ -11,6 +11,6 @@ struct {
 	__type(key, __u32);
 	__type(value, __u64);
 	__uint(pinning, 2); /* invalid */
-} nopinmap3 SEC(".maps");
+} yespinmap3 SEC(".maps");
 
 char _license[] SEC("license") = "GPL";

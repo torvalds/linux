@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _legacy_dvb_apis:
 
@@ -13,7 +13,7 @@
 Digital TV Deprecated APIs
 ***************************
 
-The APIs described here **should not** be used on new drivers or applications.
+The APIs described here **should yest** be used on new drivers or applications.
 
 The DVBv3 frontend API has issues with new delivery systems, including
 DVB-S2, DVB-T2, ISDB, etc.

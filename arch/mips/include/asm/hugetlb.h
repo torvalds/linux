@@ -57,7 +57,7 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
 }
 
 #define __HAVE_ARCH_HUGE_PTE_NONE
-static inline int huge_pte_none(pte_t pte)
+static inline int huge_pte_yesne(pte_t pte)
 {
 	unsigned long val = pte_val(pte) & ~_PAGE_GLOBAL;
 	return !val || (val == (unsigned long)invalid_pte_table);

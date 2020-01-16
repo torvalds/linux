@@ -51,7 +51,7 @@ struct zd1201 {
 };
 
 struct zd1201_frag {
-	struct hlist_node	fnode;
+	struct hlist_yesde	fyesde;
 	int			seq;
 	struct sk_buff		*skb;
 };

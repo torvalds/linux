@@ -4,7 +4,7 @@
  *
  * (C) Copyright 1999 Linus Torvalds
  *
- * Common interfaces for "ptrace()" which we do not want
+ * Common interfaces for "ptrace()" which we do yest want
  * to continually duplicate across every architecture.
  */
 
@@ -14,7 +14,7 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/coredump.h>
 #include <linux/sched/task.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
@@ -35,9 +35,9 @@
 #include <asm/syscall.h>	/* for syscall_get_* */
 
 /*
- * Access another process' address space via ptrace.
+ * Access ayesther process' address space via ptrace.
  * Source/target buffer must be kernel space,
- * Do not walk the page table directly, use get_user_pages
+ * Do yest walk the page table directly, use get_user_pages
  */
 int ptrace_access_vm(struct task_struct *tsk, unsigned long addr,
 		     void *buf, int len, unsigned int gup_flags)
@@ -106,7 +106,7 @@ static void ptrace_link(struct task_struct *child, struct task_struct *new_paren
  * it goes through TRACED -> RUNNING -> STOPPED transition which is similar
  * to but in the opposite direction of what happens while attaching to a
  * stopped task.  However, in this direction, the intermediate RUNNING
- * state is not hidden even from the current ptracer and if it immediately
+ * state is yest hidden even from the current ptracer and if it immediately
  * re-attaches and performs a WNOHANG wait(2), it may fail.
  *
  * CONTEXT:
@@ -169,12 +169,12 @@ void __ptrace_unlink(struct task_struct *child)
 	spin_unlock(&child->sighand->siglock);
 }
 
-/* Ensure that nothing can wake it up, even SIGKILL */
+/* Ensure that yesthing can wake it up, even SIGKILL */
 static bool ptrace_freeze_traced(struct task_struct *task)
 {
 	bool ret = false;
 
-	/* Lockless, nobody but us can set this flag */
+	/* Lockless, yesbody but us can set this flag */
 	if (task->jobctl & JOBCTL_LISTENING)
 		return ret;
 
@@ -196,7 +196,7 @@ static void ptrace_unfreeze_traced(struct task_struct *task)
 	WARN_ON(!task->ptrace || task->parent != current);
 
 	/*
-	 * PTRACE_LISTEN can allow ptrace_trap_notify to wake us up remotely.
+	 * PTRACE_LISTEN can allow ptrace_trap_yestify to wake us up remotely.
 	 * Recheck state under the lock to close this race.
 	 */
 	spin_lock_irq(&task->sighand->siglock);
@@ -212,21 +212,21 @@ static void ptrace_unfreeze_traced(struct task_struct *task)
 /**
  * ptrace_check_attach - check whether ptracee is ready for ptrace operation
  * @child: ptracee to check for
- * @ignore_state: don't check whether @child is currently %TASK_TRACED
+ * @igyesre_state: don't check whether @child is currently %TASK_TRACED
  *
  * Check whether @child is being ptraced by %current and ready for further
- * ptrace operations.  If @ignore_state is %false, @child also should be in
+ * ptrace operations.  If @igyesre_state is %false, @child also should be in
  * %TASK_TRACED state and on return the child is guaranteed to be traced
- * and not executing.  If @ignore_state is %true, @child can be in any
+ * and yest executing.  If @igyesre_state is %true, @child can be in any
  * state.
  *
  * CONTEXT:
  * Grabs and releases tasklist_lock and @child->sighand->siglock.
  *
  * RETURNS:
- * 0 on success, -ESRCH if %child is not ready.
+ * 0 on success, -ESRCH if %child is yest ready.
  */
-static int ptrace_check_attach(struct task_struct *child, bool ignore_state)
+static int ptrace_check_attach(struct task_struct *child, bool igyesre_state)
 {
 	int ret = -ESRCH;
 
@@ -235,7 +235,7 @@ static int ptrace_check_attach(struct task_struct *child, bool ignore_state)
 	 * possible race where someone else was tracing our child and
 	 * detached between these two checks.  After this locked check,
 	 * we are sure that this is our traced child and that can only
-	 * be changed by us so it's not changing right after this.
+	 * be changed by us so it's yest changing right after this.
 	 */
 	read_lock(&tasklist_lock);
 	if (child->ptrace && child->parent == current) {
@@ -244,17 +244,17 @@ static int ptrace_check_attach(struct task_struct *child, bool ignore_state)
 		 * child->sighand can't be NULL, release_task()
 		 * does ptrace_unlink() before __exit_signal().
 		 */
-		if (ignore_state || ptrace_freeze_traced(child))
+		if (igyesre_state || ptrace_freeze_traced(child))
 			ret = 0;
 	}
 	read_unlock(&tasklist_lock);
 
-	if (!ret && !ignore_state) {
+	if (!ret && !igyesre_state) {
 		if (!wait_task_inactive(child, __TASK_TRACED)) {
 			/*
 			 * This can only happen if may_ptrace_stop() fails and
 			 * ptrace_stop() changes ->state back to TASK_RUNNING,
-			 * so we should not worry about leaking __TASK_TRACED.
+			 * so we should yest worry about leaking __TASK_TRACED.
 			 */
 			WARN_ON(child->state == __TASK_TRACED);
 			ret = -ESRCH;
@@ -267,12 +267,12 @@ static int ptrace_check_attach(struct task_struct *child, bool ignore_state)
 static int ptrace_has_cap(struct user_namespace *ns, unsigned int mode)
 {
 	if (mode & PTRACE_MODE_NOAUDIT)
-		return has_ns_capability_noaudit(current, ns, CAP_SYS_PTRACE);
+		return has_ns_capability_yesaudit(current, ns, CAP_SYS_PTRACE);
 	else
 		return has_ns_capability(current, ns, CAP_SYS_PTRACE);
 }
 
-/* Returns 0 on success, -errno on denial. */
+/* Returns 0 on success, -erryes on denial. */
 static int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 {
 	const struct cred *cred = current_cred(), *tcred;
@@ -307,8 +307,8 @@ static int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 		 * in userland might rely on the old behavior, and this
 		 * shouldn't be a security problem since
 		 * PTRACE_MODE_REALCREDS implies that the caller explicitly
-		 * used a syscall that requests access to another process
-		 * (and not a filesystem syscall to procfs).
+		 * used a syscall that requests access to ayesther process
+		 * (and yest a filesystem syscall to procfs).
 		 */
 		caller_uid = cred->uid;
 		caller_gid = cred->gid;
@@ -328,12 +328,12 @@ static int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 ok:
 	rcu_read_unlock();
 	/*
-	 * If a task drops privileges and becomes nondumpable (through a syscall
+	 * If a task drops privileges and becomes yesndumpable (through a syscall
 	 * like setresuid()) while we are trying to access it, we must ensure
 	 * that the dumpability is read after the credentials; otherwise,
 	 * we may be able to attach to a task that we shouldn't be able to
 	 * attach to (as if the task had dropped privileges without becoming
-	 * nondumpable).
+	 * yesndumpable).
 	 * Pairs with a write barrier in commit_creds().
 	 */
 	smp_rmb();
@@ -425,7 +425,7 @@ static int ptrace_attach(struct task_struct *task, long request,
 	 *
 	 * This hides STOPPED -> RUNNING -> TRACED transition from the
 	 * attaching thread but a different thread in the same group can
-	 * still observe the transient RUNNING state.  IOW, if another
+	 * still observe the transient RUNNING state.  IOW, if ayesther
 	 * thread's WNOHANG wait(2) on the stopped tracee races against
 	 * ATTACH, the wait(2) may fail due to the transient RUNNING.
 	 *
@@ -446,11 +446,11 @@ unlock_creds:
 out:
 	if (!retval) {
 		/*
-		 * We do not bother to change retval or clear JOBCTL_TRAPPING
+		 * We do yest bother to change retval or clear JOBCTL_TRAPPING
 		 * if wait_on_bit() was interrupted by SIGKILL. The tracer will
-		 * not return to user-mode, it will exit and clear this bit in
+		 * yest return to user-mode, it will exit and clear this bit in
 		 * __ptrace_unlink() if it wasn't already cleared by the tracee;
-		 * and until then nobody can ptrace this task.
+		 * and until then yesbody can ptrace this task.
 		 */
 		wait_on_bit(&task->jobctl, JOBCTL_TRAPPING_BIT, TASK_KILLABLE);
 		proc_ptrace_connector(task, PTRACE_ATTACH);
@@ -474,7 +474,7 @@ static int ptrace_traceme(void)
 	if (!current->ptrace) {
 		ret = security_ptrace_traceme(current->parent);
 		/*
-		 * Check PF_EXITING to ensure ->real_parent has not passed
+		 * Check PF_EXITING to ensure ->real_parent has yest passed
 		 * exit_ptrace(). Otherwise we don't report the error but
 		 * pretend ->real_parent untraces us right after return.
 		 */
@@ -491,7 +491,7 @@ static int ptrace_traceme(void)
 /*
  * Called with irqs disabled, returns true if childs should reap themselves.
  */
-static int ignoring_children(struct sighand_struct *sigh)
+static int igyesring_children(struct sighand_struct *sigh)
 {
 	int ret;
 	spin_lock(&sigh->siglock);
@@ -507,13 +507,13 @@ static int ignoring_children(struct sighand_struct *sigh)
  * Return true if it needs to be reaped with release_task().
  * (We can't call release_task() here because we already hold tasklist_lock.)
  *
- * If it's a zombie, our attachedness prevented normal parent notification
- * or self-reaping.  Do notification now if it would have happened earlier.
+ * If it's a zombie, our attachedness prevented yesrmal parent yestification
+ * or self-reaping.  Do yestification yesw if it would have happened earlier.
  * If it should reap itself, return true.
  *
- * If it's our own child, there is no notification to do. But if our normal
+ * If it's our own child, there is yes yestification to do. But if our yesrmal
  * children self-reap, then this child was prevented by ptrace and we must
- * reap it now, in that case we must also wake up sub-threads sleeping in
+ * reap it yesw, in that case we must also wake up sub-threads sleeping in
  * do_wait().
  */
 static bool __ptrace_detach(struct task_struct *tracer, struct task_struct *p)
@@ -529,8 +529,8 @@ static bool __ptrace_detach(struct task_struct *tracer, struct task_struct *p)
 
 	if (!dead && thread_group_empty(p)) {
 		if (!same_thread_group(p->real_parent, tracer))
-			dead = do_notify_parent(p, p->exit_signal);
-		else if (ignoring_children(tracer->sighand)) {
+			dead = do_yestify_parent(p, p->exit_signal);
+		else if (igyesring_children(tracer->sighand)) {
 			__wake_up_parent(p, tracer);
 			dead = true;
 		}
@@ -552,7 +552,7 @@ static int ptrace_detach(struct task_struct *child, unsigned int data)
 	write_lock_irq(&tasklist_lock);
 	/*
 	 * We rely on ptrace_freeze_traced(). It can't be killed and
-	 * untraced by another thread, it can't be a zombie.
+	 * untraced by ayesther thread, it can't be a zombie.
 	 */
 	WARN_ON(!child->ptrace || child->exit_state);
 	/*
@@ -713,7 +713,7 @@ static int ptrace_peek_siginfo(struct task_struct *child,
 		return -EFAULT;
 
 	if (arg.flags & ~PTRACE_PEEKSIGINFO_SHARED)
-		return -EINVAL; /* unknown flags */
+		return -EINVAL; /* unkyeswn flags */
 
 	if (arg.nr < 0)
 		return -EINVAL;
@@ -832,14 +832,14 @@ static int ptrace_resume(struct task_struct *child, long request,
 
 	/*
 	 * Change ->exit_code and ->state under siglock to avoid the race
-	 * with wait_task_stopped() in between; a non-zero ->exit_code will
-	 * wrongly look like another report from tracee.
+	 * with wait_task_stopped() in between; a yesn-zero ->exit_code will
+	 * wrongly look like ayesther report from tracee.
 	 *
 	 * Note that we need siglock even if ->exit_code == data and/or this
-	 * status was not reported yet, the new status must not be cleared by
+	 * status was yest reported yet, the new status must yest be cleared by
 	 * wait_task_stopped() after resume.
 	 *
-	 * If data == 0 we do not care if wait_task_stopped() reports the old
+	 * If data == 0 we do yest care if wait_task_stopped() reports the old
 	 * status and clears the code too; this can't race with the tracee, it
 	 * takes siglock after resume.
 	 */
@@ -864,7 +864,7 @@ find_regset(const struct user_regset_view *view, unsigned int type)
 
 	for (n = 0; n < view->n; ++n) {
 		regset = view->regsets + n;
-		if (regset->core_note_type == type)
+		if (regset->core_yeste_type == type)
 			return regset;
 	}
 
@@ -876,27 +876,27 @@ static int ptrace_regset(struct task_struct *task, int req, unsigned int type,
 {
 	const struct user_regset_view *view = task_user_regset_view(task);
 	const struct user_regset *regset = find_regset(view, type);
-	int regset_no;
+	int regset_yes;
 
 	if (!regset || (kiov->iov_len % regset->size) != 0)
 		return -EINVAL;
 
-	regset_no = regset - view->regsets;
+	regset_yes = regset - view->regsets;
 	kiov->iov_len = min(kiov->iov_len,
 			    (__kernel_size_t) (regset->n * regset->size));
 
 	if (req == PTRACE_GETREGSET)
-		return copy_regset_to_user(task, view, regset_no, 0,
+		return copy_regset_to_user(task, view, regset_yes, 0,
 					   kiov->iov_len, kiov->iov_base);
 	else
-		return copy_regset_from_user(task, view, regset_no, 0,
+		return copy_regset_from_user(task, view, regset_yes, 0,
 					     kiov->iov_len, kiov->iov_base);
 }
 
 /*
  * This is declared in linux/regset.h and defined in machine-dependent
  * code.  We put the export here, near the primary machine-neutral use,
- * to ensure no machine forgets it.
+ * to ensure yes machine forgets it.
  */
 EXPORT_SYMBOL_GPL(task_user_regset_view);
 
@@ -926,7 +926,7 @@ ptrace_get_syscall_info_seccomp(struct task_struct *child, struct pt_regs *regs,
 	 * of struct ptrace_syscall_info.seccomp, it makes sense to
 	 * initialize that subset using ptrace_get_syscall_info_entry().
 	 * This can be reconsidered in the future if these structures
-	 * diverge significantly enough.
+	 * diverge significantly eyesugh.
 	 */
 	ptrace_get_syscall_info_entry(child, regs, info);
 	info->op = PTRACE_SYSCALL_INFO_SECCOMP;
@@ -965,10 +965,10 @@ ptrace_get_syscall_info(struct task_struct *child, unsigned long user_size,
 	unsigned long write_size;
 
 	/*
-	 * This does not need lock_task_sighand() to access
+	 * This does yest need lock_task_sighand() to access
 	 * child->last_siginfo because ptrace_freeze_traced()
 	 * called earlier by ptrace_check_attach() ensures that
-	 * the tracee cannot go away and clear its last_siginfo.
+	 * the tracee canyest go away and clear its last_siginfo.
 	 */
 	switch (child->last_siginfo ? child->last_siginfo->si_code : 0) {
 	case SIGTRAP | 0x80:
@@ -1076,7 +1076,7 @@ int ptrace_request(struct task_struct *child, long request,
 
 		/*
 		 * Every thread does recalc_sigpending() after resume, so
-		 * retarget_shared_pending() and recalc_sigpending() are not
+		 * retarget_shared_pending() and recalc_sigpending() are yest
 		 * called here.
 		 */
 		spin_lock_irq(&child->sighand->siglock);
@@ -1094,10 +1094,10 @@ int ptrace_request(struct task_struct *child, long request,
 		 * Stop tracee without any side-effect on signal or job
 		 * control.  At least one trap is guaranteed to happen
 		 * after this request.  If @child is already trapped, the
-		 * current trap is not disturbed and another trap will
+		 * current trap is yest disturbed and ayesther trap will
 		 * happen after the current trap is ended with PTRACE_CONT.
 		 *
-		 * The actual trap might not be PTRACE_EVENT_STOP trap but
+		 * The actual trap might yest be PTRACE_EVENT_STOP trap but
 		 * the pending condition is cleared regardless.
 		 */
 		if (unlikely(!seized || !lock_task_sighand(child, &flags)))
@@ -1118,8 +1118,8 @@ int ptrace_request(struct task_struct *child, long request,
 
 	case PTRACE_LISTEN:
 		/*
-		 * Listen for events.  Tracee must be in STOP.  It's not
-		 * resumed per-se but is not considered to be in TRACED by
+		 * Listen for events.  Tracee must be in STOP.  It's yest
+		 * resumed per-se but is yest considered to be in TRACED by
 		 * wait(2) or ptrace(2).  If an async event (e.g. group
 		 * stop state change) happens, tracee will enter STOP trap
 		 * again.  Alternatively, ptracer can issue INTERRUPT to
@@ -1133,7 +1133,7 @@ int ptrace_request(struct task_struct *child, long request,
 			child->jobctl |= JOBCTL_LISTENING;
 			/*
 			 * If NOTIFY is set, it means event happened between
-			 * start of this trap and now.  Trigger re-trap.
+			 * start of this trap and yesw.  Trigger re-trap.
 			 */
 			if (child->jobctl & JOBCTL_TRAP_NOTIFY)
 				ptrace_signal_wake_up(child, true);

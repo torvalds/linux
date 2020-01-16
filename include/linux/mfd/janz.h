@@ -10,7 +10,7 @@
 
 struct janz_platform_data {
 	/* MODULbus Module Number */
-	unsigned int modno;
+	unsigned int modyes;
 };
 
 /* PLX bridge chip onboard registers */

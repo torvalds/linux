@@ -47,10 +47,10 @@ config SND_SOC_SOF_DEVELOPER_SUPPORT
 	help
 	  This option unlock SOF developer options for debug/performance/
 	  code hardening.
-	  Distributions should not select this option, only SOF development
+	  Distributions should yest select this option, only SOF development
 	  teams should select it.
 	  Say Y if you are involved in SOF development and need this option
-	  If not, select N
+	  If yest, select N
 
 if SND_SOC_SOF_DEVELOPER_SUPPORT
 
@@ -58,18 +58,18 @@ config SND_SOC_SOF_NOCODEC
 	tristate
 
 config SND_SOC_SOF_NOCODEC_SUPPORT
-	bool "SOF nocodec mode support"
+	bool "SOF yescodec mode support"
 	help
-	  This adds support for a dummy/nocodec machine driver fallback
-	  option if no known codec is detected. This is typically only
+	  This adds support for a dummy/yescodec machine driver fallback
+	  option if yes kyeswn codec is detected. This is typically only
 	  enabled for developers or devices where the sound card is
 	  controlled externally
 	  This option is mutually exclusive with the Intel HDaudio support,
 	  selecting it may have negative impacts and prevent e.g. microphone
 	  functionality from being enabled on Intel CoffeeLake and later
 	  platforms.
-	  Distributions should not select this option!
-	  Say Y if you need this nocodec fallback option
+	  Distributions should yest select this option!
+	  Say Y if you need this yescodec fallback option
 	  If unsure select "N".
 
 config SND_SOC_SOF_STRICT_ABI_CHECKS
@@ -82,9 +82,9 @@ config SND_SOC_SOF_STRICT_ABI_CHECKS
 	  during topology creation or run-time usage if new functionality
 	  is invoked.
 	  This option will stop topology creation and firmware load upfront.
-	  It is intended for SOF CI/releases and not for users or distros.
+	  It is intended for SOF CI/releases and yest for users or distros.
 	  Say Y if you want strict ABI checks for an SOF release
-	  If you are not involved in SOF releases and CI development
+	  If you are yest involved in SOF releases and CI development
 	  select "N".
 
 config SND_SOC_SOF_DEBUG
@@ -98,15 +98,15 @@ config SND_SOC_SOF_DEBUG
 if SND_SOC_SOF_DEBUG
 
 config SND_SOC_SOF_FORCE_NOCODEC_MODE
-	bool "SOF force nocodec Mode"
+	bool "SOF force yescodec Mode"
 	depends on SND_SOC_SOF_NOCODEC_SUPPORT
 	help
-	  This forces SOF to use dummy/nocodec as machine driver, even
+	  This forces SOF to use dummy/yescodec as machine driver, even
 	  though there is a codec detected on the real platform. This is
 	  typically only enabled for developers for debug purposes, before
 	  codec/machine driver is ready, or to exclude the impact of those
 	  drivers
-	  Say Y if you need this force nocodec mode option
+	  Say Y if you need this force yescodec mode option
 	  If unsure select "N".
 
 config SND_SOC_SOF_DEBUG_XRUN_STOP
@@ -134,7 +134,7 @@ config SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION
 	  On platforms (e.g. Intel SKL-) where position update IPC is the only
 	  one choice, this setting won't impact anything.
 	  if you are trying to debug pointer update with position IPCs or where
-	  DPIB/posbuf is not ready, select "Y".
+	  DPIB/posbuf is yest ready, select "Y".
 	  If unsure select "N".
 
 config SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE
@@ -180,16 +180,16 @@ config SND_SOC_SOF
 	select SND_SOC_TOPOLOGY
 	select SND_SOC_SOF_NOCODEC if SND_SOC_SOF_NOCODEC_SUPPORT
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
-	  The selection is made at the top level and does not exactly follow
+	  The selection is made at the top level and does yest exactly follow
 	  module dependencies but since the module or built-in type is decided
 	  at the top level it doesn't matter.
 
 config SND_SOC_SOF_PROBE_WORK_QUEUE
 	bool
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 	  When selected, the probe is handled in two steps, for example to
 	  avoid lockdeps if request_module is used in the probe.

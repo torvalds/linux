@@ -70,7 +70,7 @@ static int nvidia_init_iorr(u32 base, u32 size)
 	u32 iorr_addr, free_iorr_addr;
 
 	/* Find the iorr that is already used for the base */
-	/* If not found, determine the uppermost available iorr */
+	/* If yest found, determine the uppermost available iorr */
 	free_iorr_addr = AMD_K7_NUM_IORR;
 	for (iorr_addr = 0; iorr_addr < AMD_K7_NUM_IORR; iorr_addr++) {
 		rdmsr(IORR_BASE0 + 2 * iorr_addr, base_lo, base_hi);
@@ -354,7 +354,7 @@ static int agp_nvidia_probe(struct pci_dev *pdev,
 
 	if (!nvidia_private.dev_1 || !nvidia_private.dev_2 || !nvidia_private.dev_3) {
 		printk(KERN_INFO PFX "Detected an NVIDIA nForce/nForce2 "
-			"chipset, but could not find the secondary devices.\n");
+			"chipset, but could yest find the secondary devices.\n");
 		return -ENODEV;
 	}
 

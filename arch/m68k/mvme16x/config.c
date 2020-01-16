@@ -83,15 +83,15 @@ static void mvme16x_get_model(char *model)
     suf[3] = '\0';
     suf[0] = suf[1] ? '-' : '\0';
 
-    sprintf(model, "Motorola MVME%x%s", be16_to_cpu(p->brdno), suf);
+    sprintf(model, "Motorola MVME%x%s", be16_to_cpu(p->brdyes), suf);
 }
 
 
 static void mvme16x_get_hardware_list(struct seq_file *m)
 {
-    uint16_t brdno = be16_to_cpu(mvme_bdid.brdno);
+    uint16_t brdyes = be16_to_cpu(mvme_bdid.brdyes);
 
-    if (brdno == 0x0162 || brdno == 0x0172)
+    if (brdyes == 0x0162 || brdyes == 0x0172)
     {
 	unsigned char rev = *(unsigned char *)MVME162_VERSION_REG;
 
@@ -229,11 +229,11 @@ void mvme16x_cons_write(struct console *co, const char *str, unsigned count)
 	while (1) {
 		if (in_8(PCCSCCTICR) & 0x20)
 		{
-			/* We have a Tx int. Acknowledge it */
+			/* We have a Tx int. Ackyeswledge it */
 			sink = in_8(PCCTPIACKR);
 			if ((base_addr[CyLICR] >> 2) == port) {
 				if (i == count) {
-					/* Last char of string is now output */
+					/* Last char of string is yesw output */
 					base_addr[CyTEOIR] = CyNOTRANS;
 					break;
 				}
@@ -267,7 +267,7 @@ void __init config_mvme16x(void)
 {
     p_bdid p = &mvme_bdid;
     char id[40];
-    uint16_t brdno = be16_to_cpu(p->brdno);
+    uint16_t brdyes = be16_to_cpu(p->brdyes);
 
     mach_max_dma_address = 0xffffffff;
     mach_sched_init      = mvme16x_sched_init;
@@ -287,18 +287,18 @@ void __init config_mvme16x(void)
     }
     /* Board type is only set by newer versions of vmelilo/tftplilo */
     if (vme_brdtype == 0)
-	vme_brdtype = brdno;
+	vme_brdtype = brdyes;
 
     mvme16x_get_model(id);
     pr_info("BRD_ID: %s   BUG %x.%x %02x/%02x/%02x\n", id, p->rev >> 4,
 	    p->rev & 0xf, p->yr, p->mth, p->day);
-    if (brdno == 0x0162 || brdno == 0x172)
+    if (brdyes == 0x0162 || brdyes == 0x172)
     {
 	unsigned char rev = *(unsigned char *)MVME162_VERSION_REG;
 
 	mvme16x_config = rev | MVME16x_CONFIG_GOT_SCCA;
 
-	pr_info("MVME%x Hardware status:\n", brdno);
+	pr_info("MVME%x Hardware status:\n", brdyes);
 	pr_info("    CPU Type           68%s040\n",
 		rev & MVME16x_CONFIG_GOT_FPU ? "" : "LC");
 	pr_info("    CPU clock          %dMHz\n",
@@ -321,9 +321,9 @@ static irqreturn_t mvme16x_abort_int (int irq, void *dev_id)
 	unsigned long *new = (unsigned long *)vectors;
 	unsigned long *old = (unsigned long *)0xffe00000;
 	volatile unsigned char uc, *ucp;
-	uint16_t brdno = be16_to_cpu(mvme_bdid.brdno);
+	uint16_t brdyes = be16_to_cpu(mvme_bdid.brdyes);
 
-	if (brdno == 0x0162 || brdno == 0x172)
+	if (brdyes == 0x0162 || brdyes == 0x172)
 	{
 		ucp = (volatile unsigned char *)0xfff42043;
 		uc = *ucp | 8;
@@ -337,7 +337,7 @@ static irqreturn_t mvme16x_abort_int (int irq, void *dev_id)
 	*(new+9) = *(old+9);		/* Trace */
 	*(new+47) = *(old+47);		/* Trap #15 */
 
-	if (brdno == 0x0162 || brdno == 0x172)
+	if (brdyes == 0x0162 || brdyes == 0x172)
 		*(new+0x5e) = *(old+0x5e);	/* ABORT switch */
 	else
 		*(new+0x6e) = *(old+0x6e);	/* ABORT switch */
@@ -388,7 +388,7 @@ static irqreturn_t mvme16x_timer_int (int irq, void *dev_id)
 
 void mvme16x_sched_init (irq_handler_t timer_routine)
 {
-    uint16_t brdno = be16_to_cpu(mvme_bdid.brdno);
+    uint16_t brdyes = be16_to_cpu(mvme_bdid.brdyes);
     int irq;
 
     /* Using PCCchip2 or MC2 chip tick timer 1 */
@@ -402,7 +402,7 @@ void mvme16x_sched_init (irq_handler_t timer_routine)
 
     clocksource_register_hz(&mvme16x_clk, PCC_TIMER_CLOCK_FREQ);
 
-    if (brdno == 0x0162 || brdno == 0x172)
+    if (brdyes == 0x0162 || brdyes == 0x172)
 	irq = MVME162_IRQ_ABORT;
     else
         irq = MVME167_IRQ_ABORT;

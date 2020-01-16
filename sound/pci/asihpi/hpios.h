@@ -76,7 +76,7 @@ struct hpi_ioctl_linux {
 #define HPI_DEBUG_FLAG_NOTICE  KERN_NOTICE
 #define HPI_DEBUG_FLAG_INFO    KERN_INFO
 #define HPI_DEBUG_FLAG_DEBUG   KERN_DEBUG
-#define HPI_DEBUG_FLAG_VERBOSE KERN_DEBUG	/* kernel has no verbose */
+#define HPI_DEBUG_FLAG_VERBOSE KERN_DEBUG	/* kernel has yes verbose */
 
 #include <linux/spinlock.h>
 
@@ -88,7 +88,7 @@ struct hpios_spinlock {
 };
 
 /* The reason for all this evilness is that ALSA calls some of a drivers
- * operators in atomic context, and some not.  But all our functions channel
+ * operators in atomic context, and some yest.  But all our functions channel
  * through the HPI_Message conduit, so we can't handle the different context
  * per function
  */

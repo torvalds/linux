@@ -26,12 +26,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -195,13 +195,13 @@ struct iwl_prph_scratch {
  * struct iwl_prph_info - peripheral information
  * @boot_stage_mirror: reflects the value in the Boot Stage CSR register
  * @ipc_status_mirror: reflects the value in the IPC Status CSR register
- * @sleep_notif: indicates the peripheral sleep status
+ * @sleep_yestif: indicates the peripheral sleep status
  * @reserved: reserved
  */
 struct iwl_prph_info {
 	__le32 boot_stage_mirror;
 	__le32 ipc_status_mirror;
-	__le32 sleep_notif;
+	__le32 sleep_yestif;
 	__le32 reserved;
 } __packed; /* PERIPH_INFO_S */
 

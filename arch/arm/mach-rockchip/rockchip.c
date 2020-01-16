@@ -42,7 +42,7 @@ static void __init rockchip_timer_init(void)
 			dsb();
 			iounmap(reg_base);
 		} else {
-			pr_err("rockchip: could not map timer7 registers\n");
+			pr_err("rockchip: could yest map timer7 registers\n");
 		}
 	}
 

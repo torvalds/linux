@@ -17,15 +17,15 @@ extern const struct amd_nb_bus_dev_range amd_nb_bus_dev_ranges[];
 
 extern bool early_is_amd_nb(u32 value);
 extern struct resource *amd_get_mmconfig_range(struct resource *res);
-extern int amd_cache_northbridges(void);
+extern int amd_cache_yesrthbridges(void);
 extern void amd_flush_garts(void);
 extern int amd_numa_init(void);
 extern int amd_get_subcaches(int);
 extern int amd_set_subcaches(int, unsigned long);
 
-extern int amd_smn_read(u16 node, u32 address, u32 *value);
-extern int amd_smn_write(u16 node, u32 address, u32 value);
-extern int amd_df_indirect_read(u16 node, u8 func, u16 reg, u8 instance_id, u32 *lo);
+extern int amd_smn_read(u16 yesde, u32 address, u32 *value);
+extern int amd_smn_write(u16 yesde, u32 address, u32 value);
+extern int amd_df_indirect_read(u16 yesde, u8 func, u16 reg, u8 instance_id, u32 *lo);
 
 struct amd_l3_cache {
 	unsigned indices;
@@ -56,11 +56,11 @@ struct threshold_bank {
 	struct kobject		*kobj;
 	struct threshold_block	*blocks;
 
-	/* initialized to the number of CPUs on the node sharing this bank */
+	/* initialized to the number of CPUs on the yesde sharing this bank */
 	refcount_t		cpus;
 };
 
-struct amd_northbridge {
+struct amd_yesrthbridge {
 	struct pci_dev *root;
 	struct pci_dev *misc;
 	struct pci_dev *link;
@@ -68,10 +68,10 @@ struct amd_northbridge {
 	struct threshold_bank *bank4;
 };
 
-struct amd_northbridge_info {
+struct amd_yesrthbridge_info {
 	u16 num;
 	u64 flags;
-	struct amd_northbridge *nb;
+	struct amd_yesrthbridge *nb;
 };
 
 #define AMD_NB_GART			BIT(0)
@@ -82,15 +82,15 @@ struct amd_northbridge_info {
 
 u16 amd_nb_num(void);
 bool amd_nb_has_feature(unsigned int feature);
-struct amd_northbridge *node_to_amd_nb(int node);
+struct amd_yesrthbridge *yesde_to_amd_nb(int yesde);
 
-static inline u16 amd_pci_dev_to_node_id(struct pci_dev *pdev)
+static inline u16 amd_pci_dev_to_yesde_id(struct pci_dev *pdev)
 {
 	struct pci_dev *misc;
 	int i;
 
 	for (i = 0; i != amd_nb_num(); i++) {
-		misc = node_to_amd_nb(i)->misc;
+		misc = yesde_to_amd_nb(i)->misc;
 
 		if (pci_domain_nr(misc->bus) == pci_domain_nr(pdev->bus) &&
 		    PCI_SLOT(misc->devfn) == PCI_SLOT(pdev->devfn))
@@ -118,7 +118,7 @@ static inline bool amd_gart_present(void)
 
 #define amd_nb_num(x)		0
 #define amd_nb_has_feature(x)	false
-#define node_to_amd_nb(x)	NULL
+#define yesde_to_amd_nb(x)	NULL
 #define amd_gart_present(x)	false
 
 #endif

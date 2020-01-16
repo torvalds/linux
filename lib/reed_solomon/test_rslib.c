@@ -69,7 +69,7 @@ struct estat {
 struct bcstat {
 	int	rfail;
 	int	rsuccess;
-	int	noncw;
+	int	yesncw;
 	int	nwords;
 };
 
@@ -142,7 +142,7 @@ err:
  * erasures, and stores the random word with errors in r. Erasure positions are
  * stored in derrlocs, while errlocs has one of three values in every position:
  *
- * 0 if there is no error in this position;
+ * 0 if there is yes error in this position;
  * 1 if there is a symbol error in this position;
  * 2 if there is an erasure without symbol corruption.
  *
@@ -177,12 +177,12 @@ static int get_rcw_we(struct rs_control *rs, struct wspace *ws,
 	/* Generating random errors */
 	for (i = 0; i < errs; i++) {
 		do {
-			/* Error value must be nonzero */
+			/* Error value must be yesnzero */
 			errval = prandom_u32() & nn;
 		} while (errval == 0);
 
 		do {
-			/* Must not choose the same location twice */
+			/* Must yest choose the same location twice */
 			errloc = prandom_u32() % len;
 		} while (errlocs[errloc] != 0);
 
@@ -193,7 +193,7 @@ static int get_rcw_we(struct rs_control *rs, struct wspace *ws,
 	/* Generating random erasures */
 	for (i = 0; i < eras; i++) {
 		do {
-			/* Must not choose the same location twice */
+			/* Must yest choose the same location twice */
 			errloc = prandom_u32() % len;
 		} while (errlocs[errloc] != 0);
 
@@ -205,7 +205,7 @@ static int get_rcw_we(struct rs_control *rs, struct wspace *ws,
 		} else {
 			/* Erasure with corrupted symbol */
 			do {
-				/* Error value must be nonzero */
+				/* Error value must be yesnzero */
 				errval = prandom_u32() & nn;
 			} while (errval == 0);
 
@@ -390,13 +390,13 @@ static void test_bc(struct rs_control *rs, int len, int errs,
 			 * that code here. However, all the codes are in
 			 * systematic form, and therefore we can encode the
 			 * returned word, and see whether the parity changes or
-			 * not.
+			 * yest.
 			 */
 			memset(corr, 0, nroots * sizeof(*corr));
 			encode_rs16(rs, r, dlen, corr, 0);
 
 			if (memcmp(r + dlen, corr, nroots * sizeof(*corr)))
-				stat->noncw++;
+				stat->yesncw++;
 		} else {
 			stat->rfail++;
 		}
@@ -429,14 +429,14 @@ static int exercise_rs_bc(struct rs_control *rs, struct wspace *ws,
 				stat.rfail, stat.nwords);
 		pr_info("  decoder returns success: %d / %d\n",
 				stat.rsuccess, stat.nwords);
-		pr_info("    not a codeword:        %d / %d\n",
-				stat.noncw, stat.rsuccess);
+		pr_info("    yest a codeword:        %d / %d\n",
+				stat.yesncw, stat.rsuccess);
 	}
 
-	if (stat.noncw && v >= V_PROGRESS)
-		pr_warn("    FAIL: %d silent failures!\n", stat.noncw);
+	if (stat.yesncw && v >= V_PROGRESS)
+		pr_warn("    FAIL: %d silent failures!\n", stat.yesncw);
 
-	return stat.noncw;
+	return stat.yesncw;
 }
 
 static int run_exercise(struct etab *e)

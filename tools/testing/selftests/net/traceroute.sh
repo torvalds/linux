@@ -5,7 +5,7 @@
 #
 
 VERBOSE=0
-PAUSE_ON_FAIL=no
+PAUSE_ON_FAIL=yes
 
 ################################################################################
 #
@@ -22,7 +22,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "no" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -142,7 +142,7 @@ connect_ns()
 #
 # where H1's default route goes through R1 and R1's default route goes
 # through R2 over N2, traceroute6 from H1 to H2 reports R2's address
-# on N2 and not N1.
+# on N2 and yest N1.
 #
 # Addresses are assigned as follows:
 #
@@ -210,7 +210,7 @@ setup_traceroute6()
 run_traceroute6()
 {
 	if [ ! -x "$(command -v traceroute6)" ]; then
-		echo "SKIP: Could not run IPV6 test without traceroute6"
+		echo "SKIP: Could yest run IPV6 test without traceroute6"
 		return
 	fi
 
@@ -279,7 +279,7 @@ setup_traceroute()
 run_traceroute()
 {
 	if [ ! -x "$(command -v traceroute)" ]; then
-		echo "SKIP: Could not run IPV4 test without traceroute"
+		echo "SKIP: Could yest run IPV4 test without traceroute"
 		return
 	fi
 
@@ -310,7 +310,7 @@ declare -i nsuccess=0
 while getopts :pv o
 do
 	case $o in
-		p) PAUSE_ON_FAIL=yes;;
+		p) PAUSE_ON_FAIL=no;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		*) exit 1;;
 	esac

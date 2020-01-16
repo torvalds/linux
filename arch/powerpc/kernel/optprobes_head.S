@@ -70,18 +70,18 @@ optprobe_template_op_address:
 	 * Parameters to optimized_callback():
 	 * 1. optimized_kprobe structure in r3
 	 */
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 	/* 2. pt_regs pointer in r4 */
 	addi	r4,r1,STACK_FRAME_OVERHEAD
 
 	.global optprobe_template_call_handler
 optprobe_template_call_handler:
 	/* Branch to optimized_callback() */
-	nop
+	yesp
 
 	/*
 	 * Parameters for instruction emulation:
@@ -92,13 +92,13 @@ optprobe_template_call_handler:
 	.global optprobe_template_insn
 optprobe_template_insn:
 	/* 2, Pass instruction to be emulated in r4 */
-	nop
-	nop
+	yesp
+	yesp
 
 	.global optprobe_template_call_emulate
 optprobe_template_call_emulate:
 	/* Branch to emulate_step()  */
-	nop
+	yesp
 
 	/*
 	 * All done.
@@ -124,7 +124,7 @@ optprobe_template_call_emulate:
 	.global optprobe_template_ret
 optprobe_template_ret:
 	/* ... and jump back from trampoline */
-	nop
+	yesp
 
 	.global optprobe_template_end
 optprobe_template_end:

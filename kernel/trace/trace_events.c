@@ -58,7 +58,7 @@ static int system_refcount_dec(struct event_subsystem *system)
 	return --system->ref_count;
 }
 
-/* Double loops, do not use break, only goto's work */
+/* Double loops, do yest use break, only goto's work */
 #define do_for_each_event_file(tr, file)			\
 	list_for_each_entry(tr, &ftrace_trace_arrays, list) {	\
 		list_for_each_entry(file, &tr->events, list)
@@ -227,7 +227,7 @@ int trace_event_raw_init(struct trace_event_call *call)
 }
 EXPORT_SYMBOL_GPL(trace_event_raw_init);
 
-bool trace_event_ignore_this_pid(struct trace_event_file *trace_file)
+bool trace_event_igyesre_this_pid(struct trace_event_file *trace_file)
 {
 	struct trace_array *tr = trace_file->tr;
 	struct trace_array_cpu *data;
@@ -239,9 +239,9 @@ bool trace_event_ignore_this_pid(struct trace_event_file *trace_file)
 
 	data = this_cpu_ptr(tr->trace_buffer.data);
 
-	return data->ignore_pid;
+	return data->igyesre_pid;
 }
-EXPORT_SYMBOL_GPL(trace_event_ignore_this_pid);
+EXPORT_SYMBOL_GPL(trace_event_igyesre_this_pid);
 
 void *trace_event_buffer_reserve(struct trace_event_buffer *fbuffer,
 				 struct trace_event_file *trace_file,
@@ -250,7 +250,7 @@ void *trace_event_buffer_reserve(struct trace_event_buffer *fbuffer,
 	struct trace_event_call *event_call = trace_file->event_call;
 
 	if ((trace_file->flags & EVENT_FILE_FL_PID_FILTER) &&
-	    trace_event_ignore_this_pid(trace_file))
+	    trace_event_igyesre_this_pid(trace_file))
 		return NULL;
 
 	local_save_flags(fbuffer->flags);
@@ -375,12 +375,12 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 		 * reference counter is decremented. If it reaches 0, we want
 		 * to clear the SOFT_DISABLED flag but leave the event in the
 		 * state that it was. That is, if the event was enabled and
-		 * SOFT_DISABLED isn't set, then do nothing. But if SOFT_DISABLED
-		 * is set we do not want the event to be enabled before we
+		 * SOFT_DISABLED isn't set, then do yesthing. But if SOFT_DISABLED
+		 * is set we do yest want the event to be enabled before we
 		 * clear the bit.
 		 *
-		 * When soft_disable is not set but the SOFT_MODE flag is,
-		 * we do nothing. Do not disable the tracepoint, otherwise
+		 * When soft_disable is yest set but the SOFT_MODE flag is,
+		 * we do yesthing. Do yest disable the tracepoint, otherwise
 		 * "soft enable"s (clearing the SOFT_DISABLED bit) wont work.
 		 */
 		if (soft_disable) {
@@ -416,7 +416,7 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 		 * When soft_disable is set and enable is set, we want to
 		 * register the tracepoint for the event, but leave the event
 		 * as is. That means, if the event was already enabled, we do
-		 * nothing (but set SOFT_MODE). If the event is disabled, we
+		 * yesthing (but set SOFT_MODE). If the event is disabled, we
 		 * set SOFT_DISABLED before enabling the event tracepoint, so
 		 * it still seems to be disabled.
 		 */
@@ -453,7 +453,7 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 					tracing_stop_cmdline_record();
 				if (tgid)
 					tracing_stop_tgid_record();
-				pr_info("event trace: Could not enable event "
+				pr_info("event trace: Could yest enable event "
 					"%s\n", trace_event_name(call));
 				break;
 			}
@@ -546,9 +546,9 @@ event_filter_pid_sched_switch_probe_pre(void *data, bool preempt,
 
 	pid_list = rcu_dereference_sched(tr->filtered_pids);
 
-	this_cpu_write(tr->trace_buffer.data->ignore_pid,
-		       trace_ignore_this_task(pid_list, prev) &&
-		       trace_ignore_this_task(pid_list, next));
+	this_cpu_write(tr->trace_buffer.data->igyesre_pid,
+		       trace_igyesre_this_task(pid_list, prev) &&
+		       trace_igyesre_this_task(pid_list, next));
 }
 
 static void
@@ -560,8 +560,8 @@ event_filter_pid_sched_switch_probe_post(void *data, bool preempt,
 
 	pid_list = rcu_dereference_sched(tr->filtered_pids);
 
-	this_cpu_write(tr->trace_buffer.data->ignore_pid,
-		       trace_ignore_this_task(pid_list, next));
+	this_cpu_write(tr->trace_buffer.data->igyesre_pid,
+		       trace_igyesre_this_task(pid_list, next));
 }
 
 static void
@@ -571,13 +571,13 @@ event_filter_pid_sched_wakeup_probe_pre(void *data, struct task_struct *task)
 	struct trace_pid_list *pid_list;
 
 	/* Nothing to do if we are already tracing */
-	if (!this_cpu_read(tr->trace_buffer.data->ignore_pid))
+	if (!this_cpu_read(tr->trace_buffer.data->igyesre_pid))
 		return;
 
 	pid_list = rcu_dereference_sched(tr->filtered_pids);
 
-	this_cpu_write(tr->trace_buffer.data->ignore_pid,
-		       trace_ignore_this_task(pid_list, task));
+	this_cpu_write(tr->trace_buffer.data->igyesre_pid,
+		       trace_igyesre_this_task(pid_list, task));
 }
 
 static void
@@ -586,15 +586,15 @@ event_filter_pid_sched_wakeup_probe_post(void *data, struct task_struct *task)
 	struct trace_array *tr = data;
 	struct trace_pid_list *pid_list;
 
-	/* Nothing to do if we are not tracing */
-	if (this_cpu_read(tr->trace_buffer.data->ignore_pid))
+	/* Nothing to do if we are yest tracing */
+	if (this_cpu_read(tr->trace_buffer.data->igyesre_pid))
 		return;
 
 	pid_list = rcu_dereference_sched(tr->filtered_pids);
 
 	/* Set tracing if current is enabled */
-	this_cpu_write(tr->trace_buffer.data->ignore_pid,
-		       trace_ignore_this_task(pid_list, current));
+	this_cpu_write(tr->trace_buffer.data->igyesre_pid,
+		       trace_igyesre_this_task(pid_list, current));
 }
 
 static void __ftrace_clear_event_pids(struct trace_array *tr)
@@ -625,11 +625,11 @@ static void __ftrace_clear_event_pids(struct trace_array *tr)
 	}
 
 	for_each_possible_cpu(cpu)
-		per_cpu_ptr(tr->trace_buffer.data, cpu)->ignore_pid = false;
+		per_cpu_ptr(tr->trace_buffer.data, cpu)->igyesre_pid = false;
 
 	rcu_assign_pointer(tr->filtered_pids, NULL);
 
-	/* Wait till all users are no longer using pid filtering */
+	/* Wait till all users are yes longer using pid filtering */
 	tracepoint_synchronize_unregister();
 
 	trace_free_pid_list(pid_list);
@@ -712,7 +712,7 @@ static void remove_event_file_dir(struct trace_event_file *file)
 		spin_lock(&dir->d_lock);	/* probably unneeded */
 		list_for_each_entry(child, &dir->d_subdirs, d_child) {
 			if (d_really_is_positive(child))	/* probably unneeded */
-				d_inode(child)->i_private = NULL;
+				d_iyesde(child)->i_private = NULL;
 		}
 		spin_unlock(&dir->d_lock);
 
@@ -729,7 +729,7 @@ static void remove_event_file_dir(struct trace_event_file *file)
  * __ftrace_set_clr_event(NULL, NULL, NULL, set) will set/unset all events.
  */
 static int
-__ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
+__ftrace_set_clr_event_yeslock(struct trace_array *tr, const char *match,
 			      const char *sub, const char *event, int set)
 {
 	struct trace_event_file *file;
@@ -765,7 +765,7 @@ __ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
 		/*
 		 * Save the first error and return that. Some events
 		 * may still have been enabled, but let the user
-		 * know that something went wrong.
+		 * kyesw that something went wrong.
 		 */
 		if (ret && !eret)
 			eret = ret;
@@ -782,7 +782,7 @@ static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
 	int ret;
 
 	mutex_lock(&event_mutex);
-	ret = __ftrace_set_clr_event_nolock(tr, match, sub, event, set);
+	ret = __ftrace_set_clr_event_yeslock(tr, match, sub, event, set);
 	mutex_unlock(&event_mutex);
 
 	return ret;
@@ -803,7 +803,7 @@ int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
 	 *  <subsystem>:* means all events in that subsystem
 	 *  <subsystem>: means the same.
 	 *
-	 *  <name> (no ':') means all events in a subsystem with
+	 *  <name> (yes ':') means all events in a subsystem with
 	 *  the name <name> or any event that matches <name>
 	 */
 
@@ -837,7 +837,7 @@ int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
  * This is a way for other parts of the kernel to enable or disable
  * event recording.
  *
- * Returns 0 on success, -EINVAL if the parameters do not match any
+ * Returns 0 on success, -EINVAL if the parameters do yest match any
  * registered events.
  */
 int trace_set_clr_event(const char *system, const char *event, int set)
@@ -861,7 +861,7 @@ EXPORT_SYMBOL_GPL(trace_set_clr_event);
  * This is a way for other parts of the kernel to enable or disable
  * event recording.
  *
- * Returns 0 on success, -EINVAL if the parameters do not match any
+ * Returns 0 on success, -EINVAL if the parameters do yest match any
  * registered events.
  */
 int trace_array_set_clr_event(struct trace_array *tr, const char *system,
@@ -877,7 +877,7 @@ int trace_array_set_clr_event(struct trace_array *tr, const char *system,
 }
 EXPORT_SYMBOL_GPL(trace_array_set_clr_event);
 
-/* 128 should be much more than enough */
+/* 128 should be much more than eyesugh */
 #define EVENT_BUF_SIZE		127
 
 static ssize_t
@@ -933,7 +933,7 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		call = file->event_call;
 		/*
 		 * The ftrace subsystem is for showing formats only.
-		 * They can not be enabled or disabled via the event files.
+		 * They can yest be enabled or disabled via the event files.
 		 */
 		if (call->class && call->class->reg &&
 		    !(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE))
@@ -1029,7 +1029,7 @@ static void *p_start(struct seq_file *m, loff_t *pos)
 	 * Grab the mutex, to keep calls to p_next() having the same
 	 * tr->filtered_pids as p_start() has.
 	 * If we just passed the tr->filtered_pids around, then RCU would
-	 * have been enough, but doing that makes things more complex.
+	 * have been eyesugh, but doing that makes things more complex.
 	 */
 	mutex_lock(&event_mutex);
 	rcu_read_lock_sched();
@@ -1146,7 +1146,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 		set |= (1 << !!(file->flags & EVENT_FILE_FL_ENABLED));
 
 		/*
-		 * If we have a mixture, no need to look further.
+		 * If we have a mixture, yes need to look further.
 		 */
 		if (set == 3)
 			break;
@@ -1212,17 +1212,17 @@ static void *f_next(struct seq_file *m, void *v, loff_t *pos)
 	struct trace_event_call *call = event_file_data(m->private);
 	struct list_head *common_head = &ftrace_common_fields;
 	struct list_head *head = trace_get_fields(call);
-	struct list_head *node = v;
+	struct list_head *yesde = v;
 
 	(*pos)++;
 
 	switch ((unsigned long)v) {
 	case FORMAT_HEADER:
-		node = common_head;
+		yesde = common_head;
 		break;
 
 	case FORMAT_FIELD_SEPERATOR:
-		node = head;
+		yesde = head;
 		break;
 
 	case FORMAT_PRINTFMT:
@@ -1230,13 +1230,13 @@ static void *f_next(struct seq_file *m, void *v, loff_t *pos)
 		return NULL;
 	}
 
-	node = node->prev;
-	if (node == common_head)
+	yesde = yesde->prev;
+	if (yesde == common_head)
 		return (void *)FORMAT_FIELD_SEPERATOR;
-	else if (node == head)
+	else if (yesde == head)
 		return (void *)FORMAT_PRINTFMT;
 	else
-		return node;
+		return yesde;
 }
 
 static int f_show(struct seq_file *m, void *v)
@@ -1317,7 +1317,7 @@ static const struct seq_operations trace_format_seq_ops = {
 	.show		= f_show,
 };
 
-static int trace_format_open(struct inode *inode, struct file *file)
+static int trace_format_open(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *m;
 	int ret;
@@ -1414,7 +1414,7 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 static LIST_HEAD(event_subsystems);
 
-static int subsystem_open(struct inode *inode, struct file *filp)
+static int subsystem_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct event_subsystem *system = NULL;
 	struct trace_subsystem_dir *dir = NULL; /* Initialize for gcc */
@@ -1429,8 +1429,8 @@ static int subsystem_open(struct inode *inode, struct file *filp)
 	mutex_lock(&trace_types_lock);
 	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
 		list_for_each_entry(dir, &tr->systems, list) {
-			if (dir == inode->i_private) {
-				/* Don't open systems with no events */
+			if (dir == iyesde->i_private) {
+				/* Don't open systems with yes events */
 				if (dir->nr_events) {
 					__get_system_dir(dir);
 					system = dir->subsystem;
@@ -1455,7 +1455,7 @@ static int subsystem_open(struct inode *inode, struct file *filp)
 		return -ENODEV;
 	}
 
-	ret = tracing_open_generic(inode, filp);
+	ret = tracing_open_generic(iyesde, filp);
 	if (ret < 0) {
 		trace_array_put(tr);
 		put_system(dir);
@@ -1464,18 +1464,18 @@ static int subsystem_open(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static int system_tr_open(struct inode *inode, struct file *filp)
+static int system_tr_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct trace_subsystem_dir *dir;
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	int ret;
 
-	/* Make a temporary dir that has no system but points to tr */
+	/* Make a temporary dir that has yes system but points to tr */
 	dir = kzalloc(sizeof(*dir), GFP_KERNEL);
 	if (!dir)
 		return -ENOMEM;
 
-	ret = tracing_open_generic_tr(inode, filp);
+	ret = tracing_open_generic_tr(iyesde, filp);
 	if (ret < 0) {
 		kfree(dir);
 		return ret;
@@ -1486,7 +1486,7 @@ static int system_tr_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int subsystem_release(struct inode *inode, struct file *file)
+static int subsystem_release(struct iyesde *iyesde, struct file *file)
 {
 	struct trace_subsystem_dir *dir = file->private_data;
 
@@ -1582,7 +1582,7 @@ show_header(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
 	return r;
 }
 
-static void ignore_task_cpu(void *data)
+static void igyesre_task_cpu(void *data)
 {
 	struct trace_array *tr = data;
 	struct trace_pid_list *pid_list;
@@ -1594,8 +1594,8 @@ static void ignore_task_cpu(void *data)
 	pid_list = rcu_dereference_protected(tr->filtered_pids,
 					     mutex_is_locked(&event_mutex));
 
-	this_cpu_write(tr->trace_buffer.data->ignore_pid,
-		       trace_ignore_this_task(pid_list, current));
+	this_cpu_write(tr->trace_buffer.data->igyesre_pid,
+		       trace_igyesre_this_task(pid_list, current));
 }
 
 static ssize_t
@@ -1637,9 +1637,9 @@ ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 	} else if (pid_list) {
 		/*
 		 * Register a probe that is called before all other probes
-		 * to set ignore_pid if next or prev do not match.
+		 * to set igyesre_pid if next or prev do yest match.
 		 * Register a probe this is called after all other probes
-		 * to only keep ignore_pid set if next pid matches.
+		 * to only keep igyesre_pid set if next pid matches.
 		 */
 		register_trace_prio_sched_switch(event_filter_pid_sched_switch_probe_pre,
 						 tr, INT_MAX);
@@ -1663,11 +1663,11 @@ ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 	}
 
 	/*
-	 * Ignoring of pids is done at task switch. But we have to
+	 * Igyesring of pids is done at task switch. But we have to
 	 * check for those tasks that are currently running.
 	 * Always do this in case a pid was appended or removed.
 	 */
-	on_each_cpu(ignore_task_cpu, tr, 1);
+	on_each_cpu(igyesre_task_cpu, tr, 1);
 
  out:
 	mutex_unlock(&event_mutex);
@@ -1678,10 +1678,10 @@ ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 	return ret;
 }
 
-static int ftrace_event_avail_open(struct inode *inode, struct file *file);
-static int ftrace_event_set_open(struct inode *inode, struct file *file);
-static int ftrace_event_set_pid_open(struct inode *inode, struct file *file);
-static int ftrace_event_release(struct inode *inode, struct file *file);
+static int ftrace_event_avail_open(struct iyesde *iyesde, struct file *file);
+static int ftrace_event_set_open(struct iyesde *iyesde, struct file *file);
+static int ftrace_event_set_pid_open(struct iyesde *iyesde, struct file *file);
+static int ftrace_event_release(struct iyesde *iyesde, struct file *file);
 
 static const struct seq_operations show_event_seq_ops = {
 	.start = t_start,
@@ -1784,7 +1784,7 @@ static const struct file_operations ftrace_show_header_fops = {
 };
 
 static int
-ftrace_event_open(struct inode *inode, struct file *file,
+ftrace_event_open(struct iyesde *iyesde, struct file *file,
 		  const struct seq_operations *seq_ops)
 {
 	struct seq_file *m;
@@ -1799,34 +1799,34 @@ ftrace_event_open(struct inode *inode, struct file *file,
 		return ret;
 	m = file->private_data;
 	/* copy tr over to seq ops */
-	m->private = inode->i_private;
+	m->private = iyesde->i_private;
 
 	return ret;
 }
 
-static int ftrace_event_release(struct inode *inode, struct file *file)
+static int ftrace_event_release(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 
 	trace_array_put(tr);
 
-	return seq_release(inode, file);
+	return seq_release(iyesde, file);
 }
 
 static int
-ftrace_event_avail_open(struct inode *inode, struct file *file)
+ftrace_event_avail_open(struct iyesde *iyesde, struct file *file)
 {
 	const struct seq_operations *seq_ops = &show_event_seq_ops;
 
 	/* Checks for tracefs lockdown */
-	return ftrace_event_open(inode, file, seq_ops);
+	return ftrace_event_open(iyesde, file, seq_ops);
 }
 
 static int
-ftrace_event_set_open(struct inode *inode, struct file *file)
+ftrace_event_set_open(struct iyesde *iyesde, struct file *file)
 {
 	const struct seq_operations *seq_ops = &show_set_event_seq_ops;
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	int ret;
 
 	ret = tracing_check_open_get_tr(tr);
@@ -1837,17 +1837,17 @@ ftrace_event_set_open(struct inode *inode, struct file *file)
 	    (file->f_flags & O_TRUNC))
 		ftrace_clear_events(tr);
 
-	ret = ftrace_event_open(inode, file, seq_ops);
+	ret = ftrace_event_open(iyesde, file, seq_ops);
 	if (ret < 0)
 		trace_array_put(tr);
 	return ret;
 }
 
 static int
-ftrace_event_set_pid_open(struct inode *inode, struct file *file)
+ftrace_event_set_pid_open(struct iyesde *iyesde, struct file *file)
 {
 	const struct seq_operations *seq_ops = &show_set_pid_seq_ops;
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	int ret;
 
 	ret = tracing_check_open_get_tr(tr);
@@ -1858,7 +1858,7 @@ ftrace_event_set_pid_open(struct inode *inode, struct file *file)
 	    (file->f_flags & O_TRUNC))
 		ftrace_clear_event_pids(tr);
 
-	ret = ftrace_event_open(inode, file, seq_ops);
+	ret = ftrace_event_open(iyesde, file, seq_ops);
 	if (ret < 0)
 		trace_array_put(tr);
 	return ret;
@@ -1905,7 +1905,7 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 	struct event_subsystem *system;
 	struct dentry *entry;
 
-	/* First see if we did not already create this dir */
+	/* First see if we did yest already create this dir */
 	list_for_each_entry(dir, &tr->systems, list) {
 		system = dir->subsystem;
 		if (strcmp(system->name, name) == 0) {
@@ -1920,7 +1920,7 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 		if (strcmp(system->name, name) == 0)
 			break;
 	}
-	/* Reset system variable when not found */
+	/* Reset system variable when yest found */
 	if (&system->list == &event_subsystems)
 		system = NULL;
 
@@ -1953,7 +1953,7 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 	if (!entry) {
 		kfree(system->filter);
 		system->filter = NULL;
-		pr_warn("Could not create tracefs '%s/filter' entry\n", name);
+		pr_warn("Could yest create tracefs '%s/filter' entry\n", name);
 	}
 
 	trace_create_file("enable", 0644, dir->entry, dir,
@@ -1983,7 +1983,7 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 	int ret;
 
 	/*
-	 * If the trace point header did not define TRACE_SYSTEM
+	 * If the trace point header did yest define TRACE_SYSTEM
 	 * then the system would be called "TRACE_SYSTEM".
 	 */
 	if (strcmp(call->class->system, TRACE_SYSTEM) != 0) {
@@ -1996,7 +1996,7 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 	name = trace_event_name(call);
 	file->dir = tracefs_create_dir(name, d_events);
 	if (!file->dir) {
-		pr_warn("Could not create tracefs '%s' directory\n", name);
+		pr_warn("Could yest create tracefs '%s' directory\n", name);
 		return -1;
 	}
 
@@ -2013,13 +2013,13 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 
 	/*
 	 * Other events may have the same class. Only update
-	 * the fields if they are not already defined.
+	 * the fields if they are yest already defined.
 	 */
 	head = trace_get_fields(call);
 	if (list_empty(head)) {
 		ret = call->class->define_fields(call);
 		if (ret < 0) {
-			pr_warn("Could not initialize trace point events/%s\n",
+			pr_warn("Could yest initialize trace point events/%s\n",
 				name);
 			return -1;
 		}
@@ -2113,7 +2113,7 @@ static int event_init(struct trace_event_call *call)
 	if (call->class->raw_init) {
 		ret = call->class->raw_init(call);
 		if (ret < 0 && ret != -ENOSYS)
-			pr_warn("Could not initialize trace events/%s\n", name);
+			pr_warn("Could yest initialize trace events/%s\n", name);
 	}
 
 	return ret;
@@ -2141,7 +2141,7 @@ static char *eval_replace(char *ptr, struct trace_eval_map *map, int len)
 
 	/* Find the length of the eval value as a string */
 	elen = snprintf(ptr, 0, "%ld", map->eval_value);
-	/* Make sure there's enough room to replace the string with the value */
+	/* Make sure there's eyesugh room to replace the string with the value */
 	if (len < elen)
 		return NULL;
 
@@ -2166,7 +2166,7 @@ static void update_event_printk(struct trace_event_call *call,
 	for (ptr = call->print_fmt; *ptr; ptr++) {
 		if (*ptr == '\\') {
 			ptr++;
-			/* paranoid */
+			/* parayesid */
 			if (!*ptr)
 				break;
 			continue;
@@ -2187,7 +2187,7 @@ static void update_event_printk(struct trace_event_call *call,
 				break;
 			/*
 			 * A number must have some kind of delimiter after
-			 * it, and we can ignore that too.
+			 * it, and we can igyesre that too.
 			 */
 			continue;
 		}
@@ -2201,7 +2201,7 @@ static void update_event_printk(struct trace_event_call *call,
 				/*
 				 * No need to decrement here, as eval_replace()
 				 * returns the pointer to the character passed
-				 * the eval, and two evals can not be placed
+				 * the eval, and two evals can yest be placed
 				 * back to back without something in between.
 				 * We can skip that something in between.
 				 */
@@ -2215,7 +2215,7 @@ static void update_event_printk(struct trace_event_call *call,
 				break;
 			/*
 			 * If what comes after this variable is a '.' or
-			 * '->' then we can continue to ignore that string.
+			 * '->' then we can continue to igyesre that string.
 			 */
 			if (*ptr == '.' || (ptr[0] == '-' && ptr[1] == '>')) {
 				ptr += *ptr == '.' ? 1 : 2;
@@ -2420,7 +2420,7 @@ static void trace_module_add_events(struct module *mod)
 
 	/* Don't add infrastructure for mods without tracepoints */
 	if (trace_module_has_bad_taint(mod)) {
-		pr_err("%s: module has bad taint, not creating trace events\n",
+		pr_err("%s: module has bad taint, yest creating trace events\n",
 		       mod->name);
 		return;
 	}
@@ -2456,7 +2456,7 @@ static void trace_module_remove_events(struct module *mod)
 	tracing_reset_all_online_cpus();
 }
 
-static int trace_module_notify(struct notifier_block *self,
+static int trace_module_yestify(struct yestifier_block *self,
 			       unsigned long val, void *data)
 {
 	struct module *mod = data;
@@ -2477,9 +2477,9 @@ static int trace_module_notify(struct notifier_block *self,
 	return 0;
 }
 
-static struct notifier_block trace_module_nb = {
-	.notifier_call = trace_module_notify,
-	.priority = 1, /* higher than trace.c module notify */
+static struct yestifier_block trace_module_nb = {
+	.yestifier_call = trace_module_yestify,
+	.priority = 1, /* higher than trace.c module yestify */
 };
 #endif /* CONFIG_MODULES */
 
@@ -2493,7 +2493,7 @@ __trace_add_event_dirs(struct trace_array *tr)
 	list_for_each_entry(call, &ftrace_events, list) {
 		ret = __trace_add_new_event(call, tr);
 		if (ret < 0)
-			pr_warn("Could not create directory for event %s\n",
+			pr_warn("Could yest create directory for event %s\n",
 				trace_event_name(call));
 	}
 }
@@ -2810,14 +2810,14 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 	/*
 	 * The above returns on success the # of functions enabled,
 	 * but if it didn't find any functions it returns zero.
-	 * Consider no functions a failure too.
+	 * Consider yes functions a failure too.
 	 */
 	if (!ret) {
 		ret = -ENOENT;
 		goto out_disable;
 	} else if (ret < 0)
 		goto out_disable;
-	/* Just return zero, not the number of enabled functions */
+	/* Just return zero, yest the number of enabled functions */
 	ret = 0;
  out:
 	mutex_unlock(&event_mutex);
@@ -2862,7 +2862,7 @@ static inline int register_event_cmds(void) { return 0; }
  * The top level array has already had its trace_event_file
  * descriptors created in order to allow for early events to
  * be recorded. This function is called after the tracefs has been
- * initialized, and we now have to create the files associated
+ * initialized, and we yesw have to create the files associated
  * to the events.
  */
 static __init void
@@ -2875,7 +2875,7 @@ __trace_early_add_event_dirs(struct trace_array *tr)
 	list_for_each_entry(file, &tr->events, list) {
 		ret = event_create_dir(tr->event_dir, file);
 		if (ret < 0)
-			pr_warn("Could not create directory for event %s\n",
+			pr_warn("Could yest create directory for event %s\n",
 				trace_event_name(file->event_call));
 	}
 }
@@ -2893,13 +2893,13 @@ __trace_early_add_events(struct trace_array *tr)
 	int ret;
 
 	list_for_each_entry(call, &ftrace_events, list) {
-		/* Early boot up should not have any modules loaded */
+		/* Early boot up should yest have any modules loaded */
 		if (WARN_ON_ONCE(call->mod))
 			continue;
 
 		ret = __trace_early_add_new_event(call, tr);
 		if (ret < 0)
-			pr_warn("Could not create early event %s\n",
+			pr_warn("Could yest create early event %s\n",
 				trace_event_name(call));
 	}
 }
@@ -2947,42 +2947,42 @@ create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
 	entry = tracefs_create_file("set_event", 0644, parent,
 				    tr, &ftrace_set_event_fops);
 	if (!entry) {
-		pr_warn("Could not create tracefs 'set_event' entry\n");
+		pr_warn("Could yest create tracefs 'set_event' entry\n");
 		return -ENOMEM;
 	}
 
 	d_events = tracefs_create_dir("events", parent);
 	if (!d_events) {
-		pr_warn("Could not create tracefs 'events' directory\n");
+		pr_warn("Could yest create tracefs 'events' directory\n");
 		return -ENOMEM;
 	}
 
 	entry = trace_create_file("enable", 0644, d_events,
 				  tr, &ftrace_tr_enable_fops);
 	if (!entry) {
-		pr_warn("Could not create tracefs 'enable' entry\n");
+		pr_warn("Could yest create tracefs 'enable' entry\n");
 		return -ENOMEM;
 	}
 
-	/* There are not as crucial, just warn if they are not created */
+	/* There are yest as crucial, just warn if they are yest created */
 
 	entry = tracefs_create_file("set_event_pid", 0644, parent,
 				    tr, &ftrace_set_event_pid_fops);
 	if (!entry)
-		pr_warn("Could not create tracefs 'set_event_pid' entry\n");
+		pr_warn("Could yest create tracefs 'set_event_pid' entry\n");
 
 	/* ring buffer internal formats */
 	entry = trace_create_file("header_page", 0444, d_events,
 				  ring_buffer_print_page_header,
 				  &ftrace_show_header_fops);
 	if (!entry)
-		pr_warn("Could not create tracefs 'header_page' entry\n");
+		pr_warn("Could yest create tracefs 'header_page' entry\n");
 
 	entry = trace_create_file("header_event", 0444, d_events,
 				  ring_buffer_print_entry_header,
 				  &ftrace_show_header_fops);
 	if (!entry)
-		pr_warn("Could not create tracefs 'header_event' entry\n");
+		pr_warn("Could yest create tracefs 'header_event' entry\n");
 
 	tr->event_dir = d_events;
 
@@ -3057,9 +3057,9 @@ int event_trace_del_tracer(struct trace_array *tr)
 	__ftrace_clear_event_pids(tr);
 
 	/* Disable any running events */
-	__ftrace_set_clr_event_nolock(tr, NULL, NULL, NULL, 0);
+	__ftrace_set_clr_event_yeslock(tr, NULL, NULL, NULL, 0);
 
-	/* Make sure no more events are being executed */
+	/* Make sure yes more events are being executed */
 	tracepoint_synchronize_unregister();
 
 	down_write(&trace_event_sem);
@@ -3128,7 +3128,7 @@ static __init int event_trace_enable(void)
 	/*
 	 * We need the top trace array to have a working set of trace
 	 * points at early init, before the debug files and directories
-	 * are created. Create the file entries now, and attach them
+	 * are created. Create the file entries yesw, and attach them
 	 * to the actual file dentries later.
 	 */
 	__trace_early_add_events(tr);
@@ -3147,12 +3147,12 @@ static __init int event_trace_enable(void)
 /*
  * event_trace_enable() is called from trace_event_init() first to
  * initialize events and perhaps start any events that are on the
- * command line. Unfortunately, there are some events that will not
+ * command line. Unfortunately, there are some events that will yest
  * start this early, like the system call tracepoints that need
  * to set the TIF_SYSCALL_TRACEPOINT flag of pid 1. But event_trace_enable()
  * is called before pid 1 starts, and this flag is never set, making
  * the syscall tracepoint never get reached, but the event is enabled
- * regardless (and not doing anything).
+ * regardless (and yest doing anything).
  */
 static __init int event_trace_enable_again(void)
 {
@@ -3187,7 +3187,7 @@ __init int event_trace_init(void)
 	entry = tracefs_create_file("available_events", 0444, d_tracer,
 				    tr, &ftrace_avail_fops);
 	if (!entry)
-		pr_warn("Could not create tracefs 'available_events' entry\n");
+		pr_warn("Could yest create tracefs 'available_events' entry\n");
 
 	if (trace_define_generic_fields())
 		pr_warn("tracing: Failed to allocated generic fields");
@@ -3200,9 +3200,9 @@ __init int event_trace_init(void)
 		return ret;
 
 #ifdef CONFIG_MODULES
-	ret = register_module_notifier(&trace_module_nb);
+	ret = register_module_yestifier(&trace_module_nb);
 	if (ret)
-		pr_warn("Failed to register trace events module notifier\n");
+		pr_warn("Failed to register trace events module yestifier\n");
 #endif
 	return 0;
 }
@@ -3310,7 +3310,7 @@ static __init void event_trace_self_tests(void)
 
 		/*
 		 * If an event is already enabled, someone is using
-		 * it and the self test should not be on.
+		 * it and the self test should yest be on.
 		 */
 		if (file->flags & EVENT_FILE_FL_ENABLED) {
 			pr_warn("Enabled event during self test!\n");
@@ -3400,7 +3400,7 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip,
 	int pc;
 
 	pc = preempt_count();
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 	cpu = raw_smp_processor_id();
 	disabled = atomic_inc_return(&per_cpu(ftrace_test_event_disable, cpu));
 
@@ -3422,7 +3422,7 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip,
 				    entry, flags, pc);
  out:
 	atomic_dec(&per_cpu(ftrace_test_event_disable, cpu));
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 }
 
 static struct ftrace_ops trace_ops __initdata  =

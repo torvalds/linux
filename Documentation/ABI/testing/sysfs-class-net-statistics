@@ -4,7 +4,7 @@ KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the number of collisions seen by this network device.
-		This value might not be relevant with all MAC layers.
+		This value might yest be relevant with all MAC layers.
 
 What:		/sys/class/<iface>/statistics/multicast
 Date:		April 2005
@@ -47,7 +47,7 @@ KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the number of packets received by the network device
-		but dropped, that are not forwarded to the upper layers for
+		but dropped, that are yest forwarded to the upper layers for
 		packet processing. See the network driver for the exact
 		meaning of this value.
 
@@ -96,7 +96,7 @@ Description:
 		due to lack of capacity in the receive side. See the network
 		driver for the exact meaning of this value.
 
-What:		/sys/class/<iface>/statistics/rx_nohandler
+What:		/sys/class/<iface>/statistics/rx_yeshandler
 Date:		February 2016
 KernelVersion:	4.6
 Contact:	netdev@vger.kernel.org
@@ -148,7 +148,7 @@ Date:		April 2005
 KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
-		Indicates the number of packets that could not be transmitted
+		Indicates the number of packets that could yest be transmitted
 		because of carrier errors (e.g: physical link down). See the
 		network driver for the exact meaning of this value.
 
@@ -211,7 +211,7 @@ Date:		April 2005
 KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
-		Indicates the number of packets not successfully transmitted
+		Indicates the number of packets yest successfully transmitted
 		due to a window collision. The specific meaning depends on the
 		MAC layer used.  On Ethernet this is usually used to report
 		late collisions errors.

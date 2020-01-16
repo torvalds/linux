@@ -35,7 +35,7 @@
 
 /*
  * Register map: anything suffixed *_H is a big-endian high byte and always
- * followed by the corresponding low byte (*_L) even though these are not
+ * followed by the corresponding low byte (*_L) even though these are yest
  * explicitly included in the register definitions.
  */
 #define MPU3050_CHIP_ID_REG	0x00
@@ -589,7 +589,7 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 
 			/*
 			 * At this point, the timestamp that triggered the
-			 * hardware interrupt is no longer valid for what
+			 * hardware interrupt is yes longer valid for what
 			 * we are reading (the interrupt likely fired for
 			 * the value on the top of the FIFO), so set the
 			 * timestamp to zero and let userspace deal with it.
@@ -599,7 +599,7 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 	}
 
 	/*
-	 * If we picked some datums from the FIFO that's enough, else
+	 * If we picked some datums from the FIFO that's eyesugh, else
 	 * fall through and just read from the current value registers.
 	 * This happens in two cases:
 	 *
@@ -609,7 +609,7 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 	 *   the trigger a copy of the latest value every time we get here.
 	 *
 	 * - The hardware trigger is active but unused and we actually use
-	 *   another trigger which calls here with a frequency higher
+	 *   ayesther trigger which calls here with a frequency higher
 	 *   than what the device provides data. We will then just read
 	 *   duplicate values directly from the hardware registers.
 	 */
@@ -632,7 +632,7 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 
 out_trigger_unlock:
 	mutex_unlock(&mpu3050->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -850,7 +850,7 @@ static int mpu3050_power_up(struct mpu3050 *mpu3050)
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(mpu3050->regs), mpu3050->regs);
 	if (ret) {
-		dev_err(mpu3050->dev, "cannot enable regulators\n");
+		dev_err(mpu3050->dev, "canyest enable regulators\n");
 		return ret;
 	}
 	/*
@@ -877,7 +877,7 @@ static int mpu3050_power_down(struct mpu3050 *mpu3050)
 
 	/*
 	 * Put MPU-3050 into sleep mode before cutting regulators.
-	 * This is important, because we may not be the sole user
+	 * This is important, because we may yest be the sole user
 	 * of the regulator so the power may stay on after this, and
 	 * then we would be wasting power unless we go to sleep mode
 	 * first.
@@ -1050,7 +1050,7 @@ static int mpu3050_trigger_probe(struct iio_dev *indio_dev, int irq)
 		return -ENOMEM;
 
 	/* Check if IRQ is open drain */
-	if (of_property_read_bool(mpu3050->dev->of_node, "drive-open-drain"))
+	if (of_property_read_bool(mpu3050->dev->of_yesde, "drive-open-drain"))
 		mpu3050->irq_opendrain = true;
 
 	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
@@ -1161,7 +1161,7 @@ int mpu3050_common_probe(struct device *dev,
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(mpu3050->regs),
 				      mpu3050->regs);
 	if (ret) {
-		dev_err(dev, "Cannot get regulators\n");
+		dev_err(dev, "Canyest get regulators\n");
 		return ret;
 	}
 
@@ -1171,7 +1171,7 @@ int mpu3050_common_probe(struct device *dev,
 
 	ret = regmap_read(map, MPU3050_CHIP_ID_REG, &val);
 	if (ret) {
-		dev_err(dev, "could not read device ID\n");
+		dev_err(dev, "could yest read device ID\n");
 		ret = -ENODEV;
 
 		goto err_power_down;
@@ -1186,12 +1186,12 @@ int mpu3050_common_probe(struct device *dev,
 
 	ret = regmap_read(map, MPU3050_PRODUCT_ID_REG, &val);
 	if (ret) {
-		dev_err(dev, "could not read device ID\n");
+		dev_err(dev, "could yest read device ID\n");
 		ret = -ENODEV;
 
 		goto err_power_down;
 	}
-	dev_info(dev, "found MPU-3050 part no: %d, version: %d\n",
+	dev_info(dev, "found MPU-3050 part yes: %d, version: %d\n",
 		 ((val >> 4) & 0xf), (val & 0xf));
 
 	ret = mpu3050_hw_init(mpu3050);
@@ -1230,7 +1230,7 @@ int mpu3050_common_probe(struct device *dev,
 	}
 
 	/* Enable runtime PM */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	/*
@@ -1259,7 +1259,7 @@ int mpu3050_common_remove(struct device *dev)
 	struct mpu3050 *mpu3050 = iio_priv(indio_dev);
 
 	pm_runtime_get_sync(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	pm_runtime_disable(dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	if (mpu3050->irq)

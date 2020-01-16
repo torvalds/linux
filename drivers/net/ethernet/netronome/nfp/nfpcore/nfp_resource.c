@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_resource.c
- * Author: Jakub Kicinski <jakub.kicinski@netronome.com>
- *         Jason McMullan <jason.mcmullan@netronome.com>
+ * Author: Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *         Jason McMullan <jason.mcmullan@netroyesme.com>
  */
 #include <linux/delay.h>
 #include <linux/kernel.h>
@@ -76,7 +76,7 @@ static int nfp_cpp_resource_find(struct nfp_cpp *cpp, struct nfp_resource *res)
 
 	/* Search for a matching entry */
 	if (!strcmp(res->name, NFP_RESOURCE_TBL_NAME)) {
-		nfp_err(cpp, "Grabbing device lock not supported\n");
+		nfp_err(cpp, "Grabbing device lock yest supported\n");
 		return -EOPNOTSUPP;
 	}
 	key = crc32_posix(res->name, NFP_RESOURCE_ENTRY_NAME_SZ);
@@ -226,7 +226,7 @@ void nfp_resource_release(struct nfp_resource *res)
  * Wait for resource to appear in the resource table, grab and release
  * its lock.  The wait is jiffies-based, don't expect fine granularity.
  *
- * Return: 0 on success, errno otherwise.
+ * Return: 0 on success, erryes otherwise.
  */
 int nfp_resource_wait(struct nfp_cpp *cpp, const char *name, unsigned int secs)
 {
@@ -313,7 +313,7 @@ u64 nfp_resource_size(struct nfp_resource *res)
  * Start-of-day init procedure for resource table.  Must be called before
  * any local resource table users may exist.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int nfp_resource_table_init(struct nfp_cpp *cpp)
 {

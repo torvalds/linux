@@ -3,7 +3,7 @@
  * linux/drivers/video/omap2/dss/venc.c
  *
  * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@yeskia.com>
  *
  * VENC settings from TI's DSS driver
  */
@@ -493,7 +493,7 @@ static int venc_display_enable(struct omap_dss_device *dssdev)
 	mutex_lock(&venc.venc_lock);
 
 	if (out->manager == NULL) {
-		DSSERR("Failed to enable display: no output/manager\n");
+		DSSERR("Failed to enable display: yes output/manager\n");
 		r = -ENODEV;
 		goto err0;
 	}
@@ -627,7 +627,7 @@ static int venc_init_regulator(void)
 	if (venc.vdda_dac_reg != NULL)
 		return 0;
 
-	if (venc.pdev->dev.of_node)
+	if (venc.pdev->dev.of_yesde)
 		vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda");
 	else
 		vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda_dac");
@@ -801,12 +801,12 @@ static void venc_uninit_output(struct platform_device *pdev)
 
 static int venc_probe_of(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *ep;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *ep;
 	u32 channels;
 	int r;
 
-	ep = omapdss_of_get_first_endpoint(node);
+	ep = omapdss_of_get_first_endpoint(yesde);
 	if (!ep)
 		return 0;
 
@@ -832,11 +832,11 @@ static int venc_probe_of(struct platform_device *pdev)
 		goto err;
 	}
 
-	of_node_put(ep);
+	of_yesde_put(ep);
 
 	return 0;
 err:
-	of_node_put(ep);
+	of_yesde_put(ep);
 
 	return 0;
 }
@@ -883,7 +883,7 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 
 	venc_runtime_put();
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		r = venc_probe_of(pdev);
 		if (r) {
 			DSSERR("Invalid DT data\n");

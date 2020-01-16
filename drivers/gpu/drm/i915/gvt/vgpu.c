@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -40,7 +40,7 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 	/* setup the ballooning information */
 	vgpu_vreg64_t(vgpu, vgtif_reg(magic)) = VGT_MAGIC;
 	vgpu_vreg_t(vgpu, vgtif_reg(version_major)) = 1;
-	vgpu_vreg_t(vgpu, vgtif_reg(version_minor)) = 0;
+	vgpu_vreg_t(vgpu, vgtif_reg(version_miyesr)) = 0;
 	vgpu_vreg_t(vgpu, vgtif_reg(display_ready)) = 0;
 	vgpu_vreg_t(vgpu, vgtif_reg(vgt_id)) = vgpu->id;
 
@@ -52,9 +52,9 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 		vgpu_aperture_gmadr_base(vgpu);
 	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.mappable_gmadr.size)) =
 		vgpu_aperture_sz(vgpu);
-	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.base)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.yesnmappable_gmadr.base)) =
 		vgpu_hidden_gmadr_base(vgpu);
-	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.size)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.yesnmappable_gmadr.size)) =
 		vgpu_hidden_sz(vgpu);
 
 	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.fence_num)) = vgpu_fence_sz(vgpu);
@@ -180,7 +180,7 @@ static void intel_gvt_update_vgpu_types(struct intel_gvt *gvt)
 	unsigned int low_gm_min, high_gm_min, fence_min;
 
 	/* Need to depend on maxium hw resource size but keep on
-	 * static config for now.
+	 * static config for yesw.
 	 */
 	low_gm_avail = gvt_aperture_sz(gvt) - HOST_LOW_GM_SIZE -
 		gvt->gm.vgpu_allocated_low_gm_size;
@@ -521,7 +521,7 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
  * The parameter engine_mask is to specific the engines that need to be
  * resetted. If value ALL_ENGINES is given for engine_mask, it means
  * the caller requests a full GT reset that we will reset all virtual
- * GPU engines. For FLR, engine_mask is ignored.
+ * GPU engines. For FLR, engine_mask is igyesred.
  */
 void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 				 intel_engine_mask_t engine_mask)
@@ -552,7 +552,7 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 	if (engine_mask == ALL_ENGINES || dmlr) {
 		intel_vgpu_select_submission_ops(vgpu, ALL_ENGINES, 0);
 		intel_vgpu_invalidate_ppgtt(vgpu);
-		/*fence will not be reset during virtual reset */
+		/*fence will yest be reset during virtual reset */
 		if (dmlr) {
 			intel_vgpu_reset_gtt(vgpu);
 			intel_vgpu_reset_resource(vgpu);
@@ -566,7 +566,7 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 			intel_vgpu_reset_cfg_space(vgpu);
 			/* only reset the failsafe mode when dmlr reset */
 			vgpu->failsafe = false;
-			vgpu->pv_notified = false;
+			vgpu->pv_yestified = false;
 		}
 	}
 

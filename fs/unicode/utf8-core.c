@@ -4,7 +4,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/parser.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/unicode.h>
 
 #include "utf8n.h"
@@ -125,7 +125,7 @@ int utf8_casefold(const struct unicode_map *um, const struct qstr *str,
 
 EXPORT_SYMBOL(utf8_casefold);
 
-int utf8_normalize(const struct unicode_map *um, const struct qstr *str,
+int utf8_yesrmalize(const struct unicode_map *um, const struct qstr *str,
 		   unsigned char *dest, size_t dlen)
 {
 	const struct utf8data *data = utf8nfdi(um->version);
@@ -147,7 +147,7 @@ int utf8_normalize(const struct unicode_map *um, const struct qstr *str,
 	return -EINVAL;
 }
 
-EXPORT_SYMBOL(utf8_normalize);
+EXPORT_SYMBOL(utf8_yesrmalize);
 
 static int utf8_parse_version(const char *version, unsigned int *maj,
 			      unsigned int *min, unsigned int *rev)
@@ -188,7 +188,7 @@ struct unicode_map *utf8_load(const char *version)
 		unicode_version = UNICODE_AGE(maj, min, rev);
 	} else {
 		unicode_version = utf8version_latest();
-		printk(KERN_WARNING"UTF-8 version not specified. "
+		printk(KERN_WARNING"UTF-8 version yest specified. "
 		       "Assuming latest supported version (%d.%d.%d).",
 		       (unicode_version >> 16) & 0xff,
 		       (unicode_version >> 8) & 0xff,

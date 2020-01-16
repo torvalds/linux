@@ -295,7 +295,7 @@ static int __nvm_config_extended(struct nvm_dev *dev,
 		e->lun_end = dev->geo.all_luns - 1;
 	}
 
-	/* op not set falls into target's default */
+	/* op yest set falls into target's default */
 	if (e->op == 0xFFFF) {
 		e->op = NVM_TARGET_DEFAULT_OP;
 	} else if (e->op < NVM_TARGET_MIN_OP || e->op > NVM_TARGET_MAX_OP) {
@@ -336,13 +336,13 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		e = create->conf.e;
 		break;
 	default:
-		pr_err("config type not valid\n");
+		pr_err("config type yest valid\n");
 		return -EINVAL;
 	}
 
 	tt = nvm_find_target_type(create->tgttype);
 	if (!tt) {
-		pr_err("target type %s not found\n", create->tgttype);
+		pr_err("target type %s yest found\n", create->tgttype);
 		return -EINVAL;
 	}
 
@@ -369,7 +369,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 
 	tgt_dev = nvm_create_tgt_dev(dev, e.lun_begin, e.lun_end, e.op);
 	if (!tgt_dev) {
-		pr_err("could not create target device\n");
+		pr_err("could yest create target device\n");
 		ret = -ENOMEM;
 		goto err_t;
 	}
@@ -380,7 +380,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		goto err_dev;
 	}
 
-	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
+	tqueue = blk_alloc_queue_yesde(GFP_KERNEL, dev->q->yesde);
 	if (!tqueue) {
 		ret = -ENOMEM;
 		goto err_disk;
@@ -390,7 +390,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	strlcpy(tdisk->disk_name, create->tgtname, sizeof(tdisk->disk_name));
 	tdisk->flags = GENHD_FL_EXT_DEVT;
 	tdisk->major = 0;
-	tdisk->first_minor = 0;
+	tdisk->first_miyesr = 0;
 	tdisk->fops = &nvm_fops;
 	tdisk->queue = tqueue;
 
@@ -475,7 +475,7 @@ static void __nvm_remove_target(struct nvm_target *t, bool graceful)
  *
  * Returns:
  * 0: on success
- * 1: on not found
+ * 1: on yest found
  * <0: on error
  */
 static int nvm_remove_tgt(struct nvm_ioctl_remove *remove)
@@ -957,7 +957,7 @@ scan:
  * chunk representation.
  *
  * If any of the planes status are bad or grown bad, the chunk is marked
- * offline. If not bad, the first plane state acts as the chunk state.
+ * offline. If yest bad, the first plane state acts as the chunk state.
  */
 static int nvm_bb_to_chunk(struct nvm_dev *dev, struct ppa_addr ppa,
 			   u8 *blks, int nr_blks, struct nvm_chk_meta *meta)
@@ -1141,16 +1141,16 @@ static int nvm_init(struct nvm_dev *dev)
 	int ret = -EINVAL;
 
 	if (dev->ops->identity(dev)) {
-		pr_err("device could not be identified\n");
+		pr_err("device could yest be identified\n");
 		goto err;
 	}
 
 	pr_debug("ver:%u.%u nvm_vendor:%x\n", geo->major_ver_id,
-			geo->minor_ver_id, geo->vmnt);
+			geo->miyesr_ver_id, geo->vmnt);
 
 	ret = nvm_core_init(dev);
 	if (ret) {
-		pr_err("could not initialize core structures.\n");
+		pr_err("could yest initialize core structures.\n");
 		goto err;
 	}
 
@@ -1164,11 +1164,11 @@ err:
 	return ret;
 }
 
-struct nvm_dev *nvm_alloc_dev(int node)
+struct nvm_dev *nvm_alloc_dev(int yesde)
 {
 	struct nvm_dev *dev;
 
-	dev = kzalloc_node(sizeof(struct nvm_dev), GFP_KERNEL, node);
+	dev = kzalloc_yesde(sizeof(struct nvm_dev), GFP_KERNEL, yesde);
 	if (dev)
 		kref_init(&dev->ref);
 
@@ -1198,7 +1198,7 @@ int nvm_register(struct nvm_dev *dev)
 	dev->dma_pool = dev->ops->create_dma_pool(dev, "ppalist",
 						  exp_pool_size);
 	if (!dev->dma_pool) {
-		pr_err("could not create dma pool\n");
+		pr_err("could yest create dma pool\n");
 		kref_put(&dev->ref, nvm_free);
 		return -ENOMEM;
 	}
@@ -1243,7 +1243,7 @@ static int __nvm_configure_create(struct nvm_ioctl_create *create)
 	up_write(&nvm_lock);
 
 	if (!dev) {
-		pr_err("device not found\n");
+		pr_err("device yest found\n");
 		return -EINVAL;
 	}
 
@@ -1360,7 +1360,7 @@ static long nvm_ioctl_dev_create(struct file *file, void __user *arg)
 			flags &= ~NVM_TARGET_FACTORY;
 
 		if (flags) {
-			pr_err("flag not supported\n");
+			pr_err("flag yest supported\n");
 			return -EINVAL;
 		}
 	}
@@ -1378,7 +1378,7 @@ static long nvm_ioctl_dev_remove(struct file *file, void __user *arg)
 	remove.tgtname[DISK_NAME_LEN - 1] = '\0';
 
 	if (remove.flags != 0) {
-		pr_err("no flags supported\n");
+		pr_err("yes flags supported\n");
 		return -EINVAL;
 	}
 
@@ -1394,7 +1394,7 @@ static long nvm_ioctl_dev_init(struct file *file, void __user *arg)
 		return -EFAULT;
 
 	if (init.flags != 0) {
-		pr_err("no flags supported\n");
+		pr_err("yes flags supported\n");
 		return -EINVAL;
 	}
 
@@ -1442,16 +1442,16 @@ static long nvm_ctl_ioctl(struct file *file, uint cmd, unsigned long arg)
 }
 
 static const struct file_operations _ctl_fops = {
-	.open = nonseekable_open,
+	.open = yesnseekable_open,
 	.unlocked_ioctl = nvm_ctl_ioctl,
 	.owner = THIS_MODULE,
-	.llseek  = noop_llseek,
+	.llseek  = yesop_llseek,
 };
 
 static struct miscdevice _nvm_misc = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name		= "lightnvm",
-	.nodename	= "lightnvm/control",
+	.yesdename	= "lightnvm/control",
 	.fops		= &_ctl_fops,
 };
 builtin_misc_device(_nvm_misc);

@@ -20,7 +20,7 @@ struct line_driver {
 	const char *name;
 	const char *device_name;
 	const short major;
-	const short minor_start;
+	const short miyesr_start;
 	const short type;
 	const short subtype;
 	const int read_irq;

@@ -19,7 +19,7 @@
 
 #include <linux/kmemleak.h>
 
-struct test_node {
+struct test_yesde {
 	long header[25];
 	struct list_head list;
 	long footer[25];
@@ -34,7 +34,7 @@ static DEFINE_PER_CPU(void *, kmemleak_test_pointer);
  */
 static int __init kmemleak_test_init(void)
 {
-	struct test_node *elem;
+	struct test_yesde *elem;
 	int i;
 
 	pr_info("Kmemleak testing\n");
@@ -85,7 +85,7 @@ module_init(kmemleak_test_init);
 
 static void __exit kmemleak_test_exit(void)
 {
-	struct test_node *elem, *tmp;
+	struct test_yesde *elem, *tmp;
 
 	/*
 	 * Remove the list elements without actually freeing the

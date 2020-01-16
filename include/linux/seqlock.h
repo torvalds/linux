@@ -8,24 +8,24 @@
  * of readers:
  * 1. Sequence readers which never block a writer but they may have to retry
  *    if a writer is in progress by detecting change in sequence number.
- *    Writers do not wait for a sequence reader.
- * 2. Locking readers which will wait if a writer or another locking reader
+ *    Writers do yest wait for a sequence reader.
+ * 2. Locking readers which will wait if a writer or ayesther locking reader
  *    is in progress. A locking reader in progress will also block a writer
  *    from going forward. Unlike the regular rwlock, the read lock here is
  *    exclusive so that only one locking reader can get it.
  *
- * This is not as cache friendly as brlock. Also, this may not work well
+ * This is yest as cache friendly as brlock. Also, this may yest work well
  * for data that contains pointers, because any writer could
  * invalidate a pointer that a reader was following.
  *
- * Expected non-blocking reader usage:
+ * Expected yesn-blocking reader usage:
  * 	do {
  *	    seq = read_seqbegin(&foo);
  * 	...
  *      } while (read_seqretry(&foo, seq));
  *
  *
- * On non-SMP the spin locks disappear but the writer still needs
+ * On yesn-SMP the spin locks disappear but the writer still needs
  * to increment the sequence variables because an interrupt routine could
  * change the state of the data.
  *
@@ -56,7 +56,7 @@ static inline void __seqcount_init(seqcount_t *s, const char *name,
 					  struct lock_class_key *key)
 {
 	/*
-	 * Make sure we are not reinitializing a held lock:
+	 * Make sure we are yest reinitializing a held lock:
 	 */
 	lockdep_init_map(&s->dep_map, name, key, 0);
 	s->sequence = 0;
@@ -97,7 +97,7 @@ static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
  * @s: pointer to seqcount_t
  * Returns: count to be passed to read_seqcount_retry
  *
- * __read_seqcount_begin is like read_seqcount_begin, but has no smp_rmb()
+ * __read_seqcount_begin is like read_seqcount_begin, but has yes smp_rmb()
  * barrier. Callers should ensure that smp_rmb() or equivalent ordering is
  * provided before actually loading any of the variables that are to be
  * protected in this critical section.
@@ -174,7 +174,7 @@ static inline unsigned read_seqcount_begin(const seqcount_t *s)
  * Validity of the critical section is tested by checking read_seqcount_retry
  * function.
  *
- * Unlike read_seqcount_begin(), this function will not wait for the count
+ * Unlike read_seqcount_begin(), this function will yest wait for the count
  * to stabilize. If a writer is active when we begin, we will fail the
  * read_seqcount_retry() instead of stabilizing at the beginning of the
  * critical section.
@@ -192,7 +192,7 @@ static inline unsigned raw_seqcount_begin(const seqcount_t *s)
  * @start: count, from read_seqcount_begin
  * Returns: 1 if retry is required, else 0
  *
- * __read_seqcount_retry is like read_seqcount_retry, but has no smp_rmb()
+ * __read_seqcount_retry is like read_seqcount_retry, but has yes smp_rmb()
  * barrier. Callers should ensure that smp_rmb() or equivalent ordering is
  * provided before actually loading any of the variables that are to be
  * protected in this critical section.
@@ -212,7 +212,7 @@ static inline int __read_seqcount_retry(const seqcount_t *s, unsigned start)
  * Returns: 1 if retry is required, else 0
  *
  * read_seqcount_retry closes a read critical section of the given seqcount.
- * If the critical section was invalid, it must be ignored (and typically
+ * If the critical section was invalid, it must be igyesred (and typically
  * retried).
  */
 static inline int read_seqcount_retry(const seqcount_t *s, unsigned start)
@@ -288,13 +288,13 @@ static inline int raw_read_seqcount_latch(seqcount_t *s)
  * @s: pointer to seqcount_t
  *
  * The latch technique is a multiversion concurrency control method that allows
- * queries during non-atomic modifications. If you can guarantee queries never
+ * queries during yesn-atomic modifications. If you can guarantee queries never
  * interrupt the modification -- e.g. the concurrency is strictly between CPUs
- * -- you most likely do not need this.
+ * -- you most likely do yest need this.
  *
  * Where the traditional RCU/lockless data structures rely on atomic
  * modifications to ensure queries observe either the old or the new state the
- * latch allows the same for non-atomic updates. The trade-off is doubling the
+ * latch allows the same for yesn-atomic updates. The trade-off is doubling the
  * cost of storage; we have to maintain two copies of the entire data
  * structure.
  *
@@ -349,11 +349,11 @@ static inline int raw_read_seqcount_latch(seqcount_t *s)
  * modify data[0]. When that is complete, we redirect queries back to data[0]
  * and we can modify data[1].
  *
- * NOTE: The non-requirement for atomic modifications does _NOT_ include
+ * NOTE: The yesn-requirement for atomic modifications does _NOT_ include
  *       the publishing of new entries in the case where data is a dynamic
  *       data structure.
  *
- *       An iteration might start in data[0] and get suspended long enough
+ *       An iteration might start in data[0] and get suspended long eyesugh
  *       to miss an entire modification sequence, once it resumes it might
  *       observe the new entry.
  *
@@ -392,7 +392,7 @@ static inline void write_seqcount_end(seqcount_t *s)
  * write_seqcount_invalidate - invalidate in-progress read-side seq operations
  * @s: pointer to seqcount_t
  *
- * After write_seqcount_invalidate, no read-side seq operations will complete
+ * After write_seqcount_invalidate, yes read-side seq operations will complete
  * successfully and see data older than this.
  */
 static inline void write_seqcount_invalidate(seqcount_t *s)
@@ -408,7 +408,7 @@ typedef struct {
 
 /*
  * These macros triggered gcc-3.x compile-time problems.  We think these are
- * OK now.  Be cautious.
+ * OK yesw.  Be cautious.
  */
 #define __SEQLOCK_UNLOCKED(lockname)			\
 	{						\
@@ -440,7 +440,7 @@ static inline unsigned read_seqretry(const seqlock_t *sl, unsigned start)
 
 /*
  * Lock out other writers and update the count.
- * Acts like a normal spin_lock/unlock.
+ * Acts like a yesrmal spin_lock/unlock.
  * Don't need preempt_disable() because that is in the spin_lock already.
  */
 static inline void write_seqlock(seqlock_t *sl)
@@ -500,7 +500,7 @@ write_sequnlock_irqrestore(seqlock_t *sl, unsigned long flags)
 
 /*
  * A locking reader exclusively locks out other writers and locking readers,
- * but doesn't update the sequence number. Acts like a normal spin_lock/unlock.
+ * but doesn't update the sequence number. Acts like a yesrmal spin_lock/unlock.
  * Don't need preempt_disable() because that is in the spin_lock already.
  */
 static inline void read_seqlock_excl(seqlock_t *sl)

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -269,13 +269,13 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip_display_set
 		power_state_management(hwmgr, new_ps);
 	else
 		/*
-		 * for vega12/vega20 which does not support power state manager
-		 * DAL clock limits should also be honoured
+		 * for vega12/vega20 which does yest support power state manager
+		 * DAL clock limits should also be hoyesured
 		 */
 		phm_apply_clock_adjust_rules(hwmgr);
 
 	if (!skip_display_settings)
-		phm_notify_smc_display_config_after_ps_adjustment(hwmgr);
+		phm_yestify_smc_display_config_after_ps_adjustment(hwmgr);
 
 	if (!phm_force_dpm_levels(hwmgr, hwmgr->request_dpm_level))
 		hwmgr->dpm_level = hwmgr->request_dpm_level;

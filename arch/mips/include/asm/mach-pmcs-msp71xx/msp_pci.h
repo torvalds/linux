@@ -15,16 +15,16 @@
 /*
  * It is convenient to program the OATRAN register so that
  * Athena virtual address space and PCI address space are
- * the same. This is not a requirement, just a convenience.
+ * the same. This is yest a requirement, just a convenience.
  *
  * The only hard restrictions on the value of OATRAN is that
- * OATRAN must not be programmed to allow translated memory
+ * OATRAN must yest be programmed to allow translated memory
  * addresses to fall within the lowest 512MB of
  * PCI address space. This region is hardcoded
  * for use as Athena PCI Host Controller target
  * access memory space to the Athena's SDRAM.
  *
- * Note that OATRAN applies only to memory accesses, not
+ * Note that OATRAN applies only to memory accesses, yest
  * to I/O accesses.
  *
  * To program OATRAN to make Athena virtual address space
@@ -83,14 +83,14 @@ enum
     config_BAR0,	   /* 4 */
     config_BAR1,	   /* 5 */
     config_BAR2,	   /* 6 */
-    config_not_used7,	   /* 7 */
-    config_not_used8,	   /* 8 */
-    config_not_used9,	   /* 9 */
+    config_yest_used7,	   /* 7 */
+    config_yest_used8,	   /* 8 */
+    config_yest_used9,	   /* 9 */
     config_CIS,		   /* 10 */
     config_subsystem,	   /* 11 */
-    config_not_used12,	   /* 12 */
+    config_yest_used12,	   /* 12 */
     config_capabilities,   /* 13 */
-    config_not_used14,	   /* 14 */
+    config_yest_used14,	   /* 14 */
     config_lat_grant_irq,  /* 15 */
     config_message_control,/* 16 */
     config_message_addr,   /* 17 */

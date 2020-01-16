@@ -47,7 +47,7 @@ static inline struct imx_parallel_display *enc_to_imxpd(struct drm_encoder *e)
 static int imx_pd_connector_get_modes(struct drm_connector *connector)
 {
 	struct imx_parallel_display *imxpd = con_to_imxpd(connector);
-	struct device_node *np = imxpd->dev->of_node;
+	struct device_yesde *np = imxpd->dev->of_yesde;
 	int num_modes;
 
 	num_modes = drm_panel_get_modes(imxpd->panel);
@@ -155,7 +155,7 @@ static int imx_pd_register(struct drm_device *drm,
 	struct drm_encoder *encoder = &imxpd->encoder;
 	int ret;
 
-	ret = imx_drm_encoder_parse_of(drm, encoder, imxpd->dev->of_node);
+	ret = imx_drm_encoder_parse_of(drm, encoder, imxpd->dev->of_yesde);
 	if (ret)
 		return ret;
 
@@ -198,7 +198,7 @@ static int imx_pd_register(struct drm_device *drm,
 static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = data;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const u8 *edidp;
 	struct imx_parallel_display *imxpd;
 	int ret;

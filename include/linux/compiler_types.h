@@ -5,21 +5,21 @@
 #ifndef __ASSEMBLY__
 
 #ifdef __CHECKER__
-# define __user		__attribute__((noderef, address_space(1)))
+# define __user		__attribute__((yesderef, address_space(1)))
 # define __kernel	__attribute__((address_space(0)))
 # define __safe		__attribute__((safe))
 # define __force	__attribute__((force))
-# define __nocast	__attribute__((nocast))
-# define __iomem	__attribute__((noderef, address_space(2)))
+# define __yescast	__attribute__((yescast))
+# define __iomem	__attribute__((yesderef, address_space(2)))
 # define __must_hold(x)	__attribute__((context(x,1,1)))
 # define __acquires(x)	__attribute__((context(x,0,1)))
 # define __releases(x)	__attribute__((context(x,1,0)))
 # define __acquire(x)	__context__(x,1)
 # define __release(x)	__context__(x,-1)
 # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
-# define __percpu	__attribute__((noderef, address_space(3)))
-# define __rcu		__attribute__((noderef, address_space(4)))
-# define __private	__attribute__((noderef))
+# define __percpu	__attribute__((yesderef, address_space(3)))
+# define __rcu		__attribute__((yesderef, address_space(4)))
+# define __private	__attribute__((yesderef))
 extern void __chk_user_ptr(const volatile void __user *);
 extern void __chk_io_ptr(const volatile void __iomem *);
 # define ACCESS_PRIVATE(p, member) (*((typeof((p)->member) __force *) &(p)->member))
@@ -32,7 +32,7 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 # define __kernel
 # define __safe
 # define __force
-# define __nocast
+# define __yescast
 # define __iomem
 # define __chk_user_ptr(x) (void)0
 # define __chk_io_ptr(x) (void)0
@@ -67,7 +67,7 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 /* The above compilers also define __GNUC__, so order is important here. */
 #include <linux/compiler-gcc.h>
 #else
-#error "Unknown compiler"
+#error "Unkyeswn compiler"
 #endif
 
 /*
@@ -111,39 +111,39 @@ struct ftrace_likely_data {
 #endif
 
 #if defined(CC_USING_HOTPATCH)
-#define notrace			__attribute__((hotpatch(0, 0)))
+#define yestrace			__attribute__((hotpatch(0, 0)))
 #elif defined(CC_USING_PATCHABLE_FUNCTION_ENTRY)
-#define notrace			__attribute__((patchable_function_entry(0, 0)))
+#define yestrace			__attribute__((patchable_function_entry(0, 0)))
 #else
-#define notrace			__attribute__((__no_instrument_function__))
+#define yestrace			__attribute__((__yes_instrument_function__))
 #endif
 
 /*
  * it doesn't make sense on ARM (currently the only user of __naked)
  * to trace naked functions because then mcount is called without
- * stack and frame pointer being set up and there is no chance to
+ * stack and frame pointer being set up and there is yes chance to
  * restore the lr register to the value before mcount was called.
  */
-#define __naked			__attribute__((__naked__)) notrace
+#define __naked			__attribute__((__naked__)) yestrace
 
 #define __compiler_offsetof(a, b)	__builtin_offsetof(a, b)
 
 /*
  * Force always-inline if the user requests it so via the .config.
- * Prefer gnu_inline, so that extern inline functions do not emit an
+ * Prefer gnu_inline, so that extern inline functions do yest emit an
  * externally visible function. This makes extern inline behave as per gnu89
  * semantics rather than c99. This prevents multiple symbol definition errors
  * of extern inline functions at link time.
  * A lot of inline functions can cause havoc with function tracing.
- * Do not use __always_inline here, since currently it expands to inline again
+ * Do yest use __always_inline here, since currently it expands to inline again
  * (which would break users of __always_inline).
  */
 #if !defined(CONFIG_OPTIMIZE_INLINING)
 #define inline inline __attribute__((__always_inline__)) __gnu_inline \
-	__inline_maybe_unused notrace
+	__inline_maybe_unused yestrace
 #else
 #define inline inline                                    __gnu_inline \
-	__inline_maybe_unused notrace
+	__inline_maybe_unused yestrace
 #endif
 
 /*
@@ -159,7 +159,7 @@ struct ftrace_likely_data {
 #define __inline__ inline
 
 /*
- * GCC does not warn about unused static inline functions for -Wunused-function.
+ * GCC does yest warn about unused static inline functions for -Wunused-function.
  * Suppress the warning in clang as well by using __maybe_unused, but enable it
  * for W=1 build. This will allow clang to find unused functions. Remove the
  * __inline_maybe_unused entirely after fixing most of -Wunused-function warnings.
@@ -171,18 +171,18 @@ struct ftrace_likely_data {
 #endif
 
 /*
- * Rather then using noinline to prevent stack consumption, use
- * noinline_for_stack instead.  For documentation reasons.
+ * Rather then using yesinline to prevent stack consumption, use
+ * yesinline_for_stack instead.  For documentation reasons.
  */
-#define noinline_for_stack noinline
+#define yesinline_for_stack yesinline
 
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
 
 /*
- * The below symbols may be defined for one or more, but not ALL, of the above
- * compilers. We don't consider that to be an error, so set them to nothing.
+ * The below symbols may be defined for one or more, but yest ALL, of the above
+ * compilers. We don't consider that to be an error, so set them to yesthing.
  * For example, some of them are for compiler specific plugins.
  */
 #ifndef __latent_entropy
@@ -193,8 +193,8 @@ struct ftrace_likely_data {
 # define __randomize_layout __designated_init
 #endif
 
-#ifndef __no_randomize_layout
-# define __no_randomize_layout
+#ifndef __yes_randomize_layout
+# define __yes_randomize_layout
 #endif
 
 #ifndef randomized_struct_fields_start
@@ -212,11 +212,11 @@ struct ftrace_likely_data {
 #define asm_inline asm
 #endif
 
-#ifndef __no_fgcse
-# define __no_fgcse
+#ifndef __yes_fgcse
+# define __yes_fgcse
 #endif
 
-/* Are two types/vars the same type (ignoring qualifiers)? */
+/* Are two types/vars the same type (igyesring qualifiers)? */
 #define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
 
 /* Is this type a native word size -- useful for atomic operations */
@@ -224,7 +224,7 @@ struct ftrace_likely_data {
 	(sizeof(t) == sizeof(char) || sizeof(t) == sizeof(short) || \
 	 sizeof(t) == sizeof(int) || sizeof(t) == sizeof(long))
 
-/* Helpers for emitting diagnostics in pragmas. */
+/* Helpers for emitting diagyesstics in pragmas. */
 #ifndef __diag
 #define __diag(string)
 #endif
@@ -236,8 +236,8 @@ struct ftrace_likely_data {
 #define __diag_push()	__diag(push)
 #define __diag_pop()	__diag(pop)
 
-#define __diag_ignore(compiler, version, option, comment) \
-	__diag_ ## compiler(version, ignore, option)
+#define __diag_igyesre(compiler, version, option, comment) \
+	__diag_ ## compiler(version, igyesre, option)
 #define __diag_warn(compiler, version, option, comment) \
 	__diag_ ## compiler(version, warn, option)
 #define __diag_error(compiler, version, option, comment) \

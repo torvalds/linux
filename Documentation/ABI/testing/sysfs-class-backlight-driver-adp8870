@@ -47,7 +47,7 @@ Description:
 		integer between 1..5 (1 = daylight, 2 = bright, ..., 5 = dark).
 		Writing a value between 1..5 forces the backlight controller
 		to enter the corresponding ambient light zone.
-		Writing 0 returns to normal/automatic ambient light level
+		Writing 0 returns to yesrmal/automatic ambient light level
 		operation. The ambient light sensing feature on these devices
 		is an extension to the API documented in
 		Documentation/ABI/stable/sysfs-class-backlight.

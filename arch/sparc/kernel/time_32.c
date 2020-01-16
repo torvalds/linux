@@ -15,7 +15,7 @@
  * 1997-09-10	Updated NTP code according to technical memorandum Jan '96
  *		"A Kernel Model for Precision Timekeeping" by Dave Mills
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -85,7 +85,7 @@ EXPORT_SYMBOL(profile_pc);
 
 volatile u32 __iomem *master_l10_counter;
 
-irqreturn_t notrace timer_interrupt(int dummy, void *dev_id)
+irqreturn_t yestrace timer_interrupt(int dummy, void *dev_id)
 {
 	if (timer_cs_enabled) {
 		write_seqlock(&timer_cs_lock);
@@ -270,7 +270,7 @@ static struct platform_device m48t59_rtc = {
 
 static int clock_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	const char *model = of_get_property(dp, "model", NULL);
 
 	if (!model)

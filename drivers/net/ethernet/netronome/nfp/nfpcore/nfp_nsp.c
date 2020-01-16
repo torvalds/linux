@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_nsp.c
- * Author: Jakub Kicinski <jakub.kicinski@netronome.com>
- *         Jason McMullan <jason.mcmullan@netronome.com>
+ * Author: Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *         Jason McMullan <jason.mcmullan@netroyesme.com>
  */
 
 #include <asm/unaligned.h>
@@ -94,7 +94,7 @@ enum nfp_nsp_cmd {
 	SPCODE_NSP_WRITE_FLASH	= 11, /* Load and flash image from buffer */
 	SPCODE_NSP_SENSORS	= 12, /* Read NSP sensor(s) */
 	SPCODE_NSP_IDENTIFY	= 13, /* Read NSP version */
-	SPCODE_FW_STORED	= 16, /* If no FW loaded, load flash app FW */
+	SPCODE_FW_STORED	= 16, /* If yes FW loaded, load flash app FW */
 	SPCODE_HWINFO_LOOKUP	= 17, /* Lookup HWinfo with overwrites etc. */
 	SPCODE_HWINFO_SET	= 18, /* Set HWinfo entry */
 	SPCODE_FW_LOADED	= 19, /* Is application firmware loaded */
@@ -116,11 +116,11 @@ static const struct {
 	int code;
 	const char *msg;
 } nsp_errors[] = {
-	{ 6010, "could not map to phy for port" },
-	{ 6011, "not an allowed rate/lanes for port" },
-	{ 6012, "not an allowed rate/lanes for port" },
+	{ 6010, "could yest map to phy for port" },
+	{ 6011, "yest an allowed rate/lanes for port" },
+	{ 6012, "yest an allowed rate/lanes for port" },
 	{ 6013, "high/low error, change other port first" },
-	{ 6014, "config not found in flash" },
+	{ 6014, "config yest found in flash" },
 };
 
 struct nfp_nsp {
@@ -128,7 +128,7 @@ struct nfp_nsp {
 	struct nfp_resource *res;
 	struct {
 		u16 major;
-		u16 minor;
+		u16 miyesr;
 	} ver;
 
 	/* Eth table config state */
@@ -140,7 +140,7 @@ struct nfp_nsp {
 /**
  * struct nfp_nsp_command_arg - NFP command argument structure
  * @code:	NFP SP Command Code
- * @dma:	@buf points to a host buffer, not NSP buffer
+ * @dma:	@buf points to a host buffer, yest NSP buffer
  * @timeout_sec:Timeout value to wait for completion in seconds
  * @option:	NFP SP Command Argument
  * @buf:	NFP SP Buffer Address
@@ -239,21 +239,21 @@ static int nfp_nsp_check(struct nfp_nsp *state)
 		return err;
 
 	if (FIELD_GET(NSP_STATUS_MAGIC, reg) != NSP_MAGIC) {
-		nfp_err(cpp, "Cannot detect NFP Service Processor\n");
+		nfp_err(cpp, "Canyest detect NFP Service Processor\n");
 		return -ENODEV;
 	}
 
 	state->ver.major = FIELD_GET(NSP_STATUS_MAJOR, reg);
-	state->ver.minor = FIELD_GET(NSP_STATUS_MINOR, reg);
+	state->ver.miyesr = FIELD_GET(NSP_STATUS_MINOR, reg);
 
 	if (state->ver.major != NSP_MAJOR) {
 		nfp_err(cpp, "Unsupported ABI %hu.%hu\n",
-			state->ver.major, state->ver.minor);
+			state->ver.major, state->ver.miyesr);
 		return -EINVAL;
 	}
-	if (state->ver.minor < NSP_MINOR) {
+	if (state->ver.miyesr < NSP_MINOR) {
 		nfp_err(cpp, "ABI too old to support NIC operation (%u.%hu < %u.%u), please update the management FW on the flash\n",
-			NSP_MAJOR, state->ver.minor, NSP_MAJOR, NSP_MINOR);
+			NSP_MAJOR, state->ver.miyesr, NSP_MAJOR, NSP_MINOR);
 		return -EINVAL;
 	}
 
@@ -311,9 +311,9 @@ u16 nfp_nsp_get_abi_ver_major(struct nfp_nsp *state)
 	return state->ver.major;
 }
 
-u16 nfp_nsp_get_abi_ver_minor(struct nfp_nsp *state)
+u16 nfp_nsp_get_abi_ver_miyesr(struct nfp_nsp *state)
 {
-	return state->ver.minor;
+	return state->ver.miyesr;
 }
 
 static int
@@ -345,12 +345,12 @@ nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg, u32 nsp_cpp, u64 addr,
  * @state:	NFP SP state
  * @arg:	NFP command argument structure
  *
- * Return: 0 for success with no result
+ * Return: 0 for success with yes result
  *
  *	 positive value for NSP completion with a result code
  *
- *	-EAGAIN if the NSP is not yet present
- *	-ENODEV if the NSP is not a supported model
+ *	-EAGAIN if the NSP is yest yet present
+ *	-ENODEV if the NSP is yest a supported model
  *	-EBUSY if the NSP is stuck
  *	-EINTR if interrupted while waiting for completion
  *	-ETIMEDOUT if the NSP took longer than @timeout_sec seconds to complete
@@ -640,7 +640,7 @@ nfp_nsp_command_buf_dma(struct nfp_nsp *nsp,
 
 	if (!sg_ok) {
 		if (buf_order > dma_order) {
-			nfp_err(cpp, "NSP: can't service non-SG DMA for command 0x%04x\n",
+			nfp_err(cpp, "NSP: can't service yesn-SG DMA for command 0x%04x\n",
 				arg->arg.code);
 			return -ENOMEM;
 		}
@@ -661,9 +661,9 @@ nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
 	u64 reg;
 	int err;
 
-	if (nsp->ver.minor < 13) {
-		nfp_err(cpp, "NSP: Code 0x%04x with buffer not supported (ABI %hu.%hu)\n",
-			arg->arg.code, nsp->ver.major, nsp->ver.minor);
+	if (nsp->ver.miyesr < 13) {
+		nfp_err(cpp, "NSP: Code 0x%04x with buffer yest supported (ABI %hu.%hu)\n",
+			arg->arg.code, nsp->ver.major, nsp->ver.miyesr);
 		return -EOPNOTSUPP;
 	}
 
@@ -741,34 +741,34 @@ static void nfp_nsp_load_fw_extended_msg(struct nfp_nsp *state, u32 ret_val)
 		/* 1 */ "Firmware from flash loaded",
 		/* 2 */ "Firmware loading failure",
 	};
-	static const char * const minor_msg[] = {
+	static const char * const miyesr_msg[] = {
 		/*  0 */ "",
-		/*  1 */ "no named partition on flash",
+		/*  1 */ "yes named partition on flash",
 		/*  2 */ "error reading from flash",
-		/*  3 */ "can not deflate",
-		/*  4 */ "not a trusted file",
-		/*  5 */ "can not parse FW file",
-		/*  6 */ "MIP not found in FW file",
+		/*  3 */ "can yest deflate",
+		/*  4 */ "yest a trusted file",
+		/*  5 */ "can yest parse FW file",
+		/*  6 */ "MIP yest found in FW file",
 		/*  7 */ "null firmware name in MIP",
-		/*  8 */ "FW version none",
-		/*  9 */ "FW build number none",
-		/* 10 */ "no FW selection policy HWInfo key found",
+		/*  8 */ "FW version yesne",
+		/*  9 */ "FW build number yesne",
+		/* 10 */ "yes FW selection policy HWInfo key found",
 		/* 11 */ "static FW selection policy",
 		/* 12 */ "FW version has precedence",
 		/* 13 */ "different FW application load requested",
 		/* 14 */ "development build",
 	};
-	unsigned int major, minor;
+	unsigned int major, miyesr;
 	const char *level;
 
 	major = FIELD_GET(NFP_FW_LOAD_RET_MAJOR, ret_val);
-	minor = FIELD_GET(NFP_FW_LOAD_RET_MINOR, ret_val);
+	miyesr = FIELD_GET(NFP_FW_LOAD_RET_MINOR, ret_val);
 
 	if (!nfp_nsp_has_stored_fw_load(state))
 		return;
 
 	/* Lower the message level in legacy case */
-	if (major == 0 && (minor == 0 || minor == 10))
+	if (major == 0 && (miyesr == 0 || miyesr == 10))
 		level = KERN_DEBUG;
 	else if (major == 2)
 		level = KERN_ERR;
@@ -778,13 +778,13 @@ static void nfp_nsp_load_fw_extended_msg(struct nfp_nsp *state, u32 ret_val)
 	if (major >= ARRAY_SIZE(major_msg))
 		nfp_printk(level, state->cpp, "FW loading status: %x\n",
 			   ret_val);
-	else if (minor >= ARRAY_SIZE(minor_msg))
+	else if (miyesr >= ARRAY_SIZE(miyesr_msg))
 		nfp_printk(level, state->cpp, "%s, reason code: %d\n",
-			   major_msg[major], minor);
+			   major_msg[major], miyesr);
 	else
 		nfp_printk(level, state->cpp, "%s%c %s\n",
-			   major_msg[major], minor ? ',' : '.',
-			   minor_msg[minor]);
+			   major_msg[major], miyesr ? ',' : '.',
+			   miyesr_msg[miyesr]);
 }
 
 int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw)
@@ -927,7 +927,7 @@ int nfp_nsp_hwinfo_lookup(struct nfp_nsp *state, void *buf, unsigned int size)
 		return err;
 
 	if (strnlen(buf, size) == size) {
-		nfp_err(state->cpp, "NSP HWinfo value not NULL-terminated\n");
+		nfp_err(state->cpp, "NSP HWinfo value yest NULL-terminated\n");
 		return -EINVAL;
 	}
 
@@ -964,7 +964,7 @@ int nfp_nsp_hwinfo_lookup_optional(struct nfp_nsp *state, void *buf,
 	}
 
 	if (strnlen(buf, size) == size) {
-		nfp_err(state->cpp, "NSP HWinfo value not NULL-terminated\n");
+		nfp_err(state->cpp, "NSP HWinfo value yest NULL-terminated\n");
 		return -EINVAL;
 	}
 
@@ -1076,7 +1076,7 @@ int nfp_nsp_read_module_eeprom(struct nfp_nsp *state, int eth_index,
 
 	BUILD_BUG_ON(offsetof(struct eeprom_buf, data) % 8);
 
-	/* Buffer must be large enough and rounded to the next block size. */
+	/* Buffer must be large eyesugh and rounded to the next block size. */
 	bufsz = struct_size(buf, data, round_up(len, NSP_SFF_EEPROM_BLOCK_LEN));
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)

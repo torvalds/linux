@@ -16,12 +16,12 @@
 /*	Heavy-Hitter Filter (HHF)
  *
  * Principles :
- * Flows are classified into two buckets: non-heavy-hitter and heavy-hitter
- * buckets. Initially, a new flow starts as non-heavy-hitter. Once classified
+ * Flows are classified into two buckets: yesn-heavy-hitter and heavy-hitter
+ * buckets. Initially, a new flow starts as yesn-heavy-hitter. Once classified
  * as heavy-hitter, it is immediately switched to the heavy-hitter bucket.
  * The buckets are dequeued by a Weighted Deficit Round Robin (WDRR) scheduler,
  * in which the heavy-hitter bucket is served with less weight.
- * In other words, non-heavy-hitters (e.g., short bursts of critical traffic)
+ * In other words, yesn-heavy-hitters (e.g., short bursts of critical traffic)
  * are isolated from heavy-hitters (e.g., persistent bulk traffic) and also have
  * higher share of bandwidth.
  *
@@ -35,17 +35,17 @@
  * functions, respectively. The counters are then increased by the packet sizes.
  * Therefore,
  *    - For a heavy-hitter flow: *all* of its k array counters must be large.
- *    - For a non-heavy-hitter flow: some of its k array counters can be large
+ *    - For a yesn-heavy-hitter flow: some of its k array counters can be large
  *      due to hash collision with other small flows; however, with high
- *      probability, not *all* k counters are large.
+ *      probability, yest *all* k counters are large.
  *
  * By the design of the multi-stage filter algorithm, the false negative rate
  * (heavy-hitters getting away uncaptured) is zero. However, the algorithm is
- * susceptible to false positives (non-heavy-hitters mistakenly classified as
+ * susceptible to false positives (yesn-heavy-hitters mistakenly classified as
  * heavy-hitters).
  * Therefore, we also implement the following optimizations to reduce false
  * positives by avoiding unnecessary increment of the counter values:
- *    - Optimization O1: once a heavy-hitter is identified, its bytes are not
+ *    - Optimization O1: once a heavy-hitter is identified, its bytes are yest
  *        accounted in the array counters. This technique is called "shielding"
  *        in Section 3.3.1 of [EV02].
  *    - Optimization O2: conservative update of counters
@@ -64,11 +64,11 @@
  * At a high level, this qdisc works as follows:
  * Given a packet p:
  *   - If the flow-id of p (e.g., TCP 5-tuple) is already in the exact-matching
- *     heavy-hitter flow table, denoted table T, then send p to the heavy-hitter
+ *     heavy-hitter flow table, deyested table T, then send p to the heavy-hitter
  *     bucket.
- *   - Otherwise, forward p to the multi-stage filter, denoted filter F
- *        + If F decides that p belongs to a non-heavy-hitter flow, then send p
- *          to the non-heavy-hitter bucket.
+ *   - Otherwise, forward p to the multi-stage filter, deyested filter F
+ *        + If F decides that p belongs to a yesn-heavy-hitter flow, then send p
+ *          to the yesn-heavy-hitter bucket.
  *        + Otherwise, if F decides that p belongs to a new heavy-hitter flow,
  *          then set up a new flow entry for the flow-id of p in the table T and
  *          send p to the heavy-hitter bucket.
@@ -103,7 +103,7 @@
 #define WDRR_BUCKET_CNT  2     /* two buckets for Weighted DRR */
 enum wdrr_bucket_idx {
 	WDRR_BUCKET_FOR_HH	= 0, /* bucket id for heavy-hitters */
-	WDRR_BUCKET_FOR_NON_HH	= 1  /* bucket id for non-heavy-hitters */
+	WDRR_BUCKET_FOR_NON_HH	= 1  /* bucket id for yesn-heavy-hitters */
 };
 
 #define hhf_time_before(a, b)	\
@@ -161,13 +161,13 @@ struct hhf_sched_data {
 					       */
 	u32		   hhf_evict_timeout; /* aging threshold to evict idle
 					       * HHs out of table T. This should
-					       * be large enough to avoid
+					       * be large eyesugh to avoid
 					       * reordering during HH eviction.
 					       * (default 1s)
 					       */
-	u32		   hhf_non_hh_weight; /* WDRR weight for non-HHs
+	u32		   hhf_yesn_hh_weight; /* WDRR weight for yesn-HHs
 					       * (default 2,
-					       *  i.e., non-HH : HH = 2 : 1)
+					       *  i.e., yesn-HH : HH = 2 : 1)
 					       */
 };
 
@@ -182,7 +182,7 @@ static struct hh_flow_state *seek_list(const u32 hash,
 				       struct hhf_sched_data *q)
 {
 	struct hh_flow_state *flow, *next;
-	u32 now = hhf_time_stamp();
+	u32 yesw = hhf_time_stamp();
 
 	if (list_empty(head))
 		return NULL;
@@ -190,7 +190,7 @@ static struct hh_flow_state *seek_list(const u32 hash,
 	list_for_each_entry_safe(flow, next, head, flowchain) {
 		u32 prev = flow->hit_timestamp + q->hhf_evict_timeout;
 
-		if (hhf_time_before(prev, now)) {
+		if (hhf_time_before(prev, yesw)) {
 			/* Delete expired heavy-hitters, but preserve one entry
 			 * to avoid kzalloc() when next time this slot is hit.
 			 */
@@ -213,14 +213,14 @@ static struct hh_flow_state *alloc_new_hh(struct list_head *head,
 					  struct hhf_sched_data *q)
 {
 	struct hh_flow_state *flow;
-	u32 now = hhf_time_stamp();
+	u32 yesw = hhf_time_stamp();
 
 	if (!list_empty(head)) {
 		/* Find an expired heavy-hitter flow entry. */
 		list_for_each_entry(flow, head, flowchain) {
 			u32 prev = flow->hit_timestamp + q->hhf_evict_timeout;
 
-			if (hhf_time_before(prev, now))
+			if (hhf_time_before(prev, yesw))
 				return flow;
 		}
 	}
@@ -253,14 +253,14 @@ static enum wdrr_bucket_idx hhf_classify(struct sk_buff *skb, struct Qdisc *sch)
 	u32 pkt_len, min_hhf_val;
 	int i;
 	u32 prev;
-	u32 now = hhf_time_stamp();
+	u32 yesw = hhf_time_stamp();
 
 	/* Reset the HHF counter arrays if this is the right time. */
 	prev = q->hhf_arrays_reset_timestamp + q->hhf_reset_timeout;
-	if (hhf_time_before(prev, now)) {
+	if (hhf_time_before(prev, yesw)) {
 		for (i = 0; i < HHF_ARRAYS_CNT; i++)
 			bitmap_zero(q->hhf_valid_bits[i], HHF_ARRAYS_LEN);
-		q->hhf_arrays_reset_timestamp = now;
+		q->hhf_arrays_reset_timestamp = yesw;
 	}
 
 	/* Get hashed flow-id of the skb. */
@@ -270,7 +270,7 @@ static enum wdrr_bucket_idx hhf_classify(struct sk_buff *skb, struct Qdisc *sch)
 	flow_pos = hash & HHF_BIT_MASK;
 	flow = seek_list(hash, &q->hh_flows[flow_pos], q);
 	if (flow) { /* found its HH flow */
-		flow->hit_timestamp = now;
+		flow->hit_timestamp = yesw;
 		return WDRR_BUCKET_FOR_HH;
 	}
 
@@ -308,7 +308,7 @@ static enum wdrr_bucket_idx hhf_classify(struct sk_buff *skb, struct Qdisc *sch)
 		if (!flow) /* memory alloc problem */
 			return WDRR_BUCKET_FOR_NON_HH;
 		flow->hash_id = hash;
-		flow->hit_timestamp = now;
+		flow->hit_timestamp = yesw;
 		q->hh_flows_total_cnt++;
 
 		/* By returning without updating counters in q->hhf_arrays,
@@ -331,7 +331,7 @@ static struct sk_buff *dequeue_head(struct wdrr_bucket *bucket)
 	struct sk_buff *skb = bucket->head;
 
 	bucket->head = skb->next;
-	skb_mark_not_on_list(skb);
+	skb_mark_yest_on_list(skb);
 	return skb;
 }
 
@@ -387,14 +387,14 @@ static int hhf_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 		/* The logic of new_buckets vs. old_buckets is the same as
 		 * new_flows vs. old_flows in the implementation of fq_codel,
-		 * i.e., short bursts of non-HHs should have strict priority.
+		 * i.e., short bursts of yesn-HHs should have strict priority.
 		 */
 		if (idx == WDRR_BUCKET_FOR_HH) {
 			/* Always move heavy-hitters to old bucket. */
 			weight = 1;
 			list_add_tail(&bucket->bucketchain, &q->old_buckets);
 		} else {
-			weight = q->hhf_non_hh_weight;
+			weight = q->hhf_yesn_hh_weight;
 			list_add_tail(&bucket->bucketchain, &q->new_buckets);
 		}
 		bucket->deficit = weight * q->quantum;
@@ -410,7 +410,7 @@ static int hhf_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	if (hhf_drop(sch, to_free) == idx)
 		return NET_XMIT_CN;
 
-	/* As we dropped a packet, better let upper stack know this. */
+	/* As we dropped a packet, better let upper stack kyesw this. */
 	qdisc_tree_reduce_backlog(sch, 1, prev_backlog - sch->qstats.backlog);
 	return NET_XMIT_SUCCESS;
 }
@@ -433,7 +433,7 @@ begin:
 
 	if (bucket->deficit <= 0) {
 		int weight = (bucket - q->buckets == WDRR_BUCKET_FOR_HH) ?
-			      1 : q->hhf_non_hh_weight;
+			      1 : q->hhf_yesn_hh_weight;
 
 		bucket->deficit += weight * q->quantum;
 		list_move_tail(&bucket->bucketchain, &q->old_buckets);
@@ -512,9 +512,9 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt,
 	struct nlattr *tb[TCA_HHF_MAX + 1];
 	unsigned int qlen, prev_backlog;
 	int err;
-	u64 non_hh_quantum;
+	u64 yesn_hh_quantum;
 	u32 new_quantum = q->quantum;
-	u32 new_hhf_non_hh_weight = q->hhf_non_hh_weight;
+	u32 new_hhf_yesn_hh_weight = q->hhf_yesn_hh_weight;
 
 	if (!opt)
 		return -EINVAL;
@@ -528,10 +528,10 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt,
 		new_quantum = nla_get_u32(tb[TCA_HHF_QUANTUM]);
 
 	if (tb[TCA_HHF_NON_HH_WEIGHT])
-		new_hhf_non_hh_weight = nla_get_u32(tb[TCA_HHF_NON_HH_WEIGHT]);
+		new_hhf_yesn_hh_weight = nla_get_u32(tb[TCA_HHF_NON_HH_WEIGHT]);
 
-	non_hh_quantum = (u64)new_quantum * new_hhf_non_hh_weight;
-	if (non_hh_quantum == 0 || non_hh_quantum > INT_MAX)
+	yesn_hh_quantum = (u64)new_quantum * new_hhf_yesn_hh_weight;
+	if (yesn_hh_quantum == 0 || yesn_hh_quantum > INT_MAX)
 		return -EINVAL;
 
 	sch_tree_lock(sch);
@@ -540,7 +540,7 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt,
 		sch->limit = nla_get_u32(tb[TCA_HHF_BACKLOG_LIMIT]);
 
 	q->quantum = new_quantum;
-	q->hhf_non_hh_weight = new_hhf_non_hh_weight;
+	q->hhf_yesn_hh_weight = new_hhf_yesn_hh_weight;
 
 	if (tb[TCA_HHF_HH_FLOWS_LIMIT])
 		q->hh_flows_limit = nla_get_u32(tb[TCA_HHF_HH_FLOWS_LIMIT]);
@@ -590,7 +590,7 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt,
 	q->hhf_reset_timeout = HZ / 25; /* 40  ms */
 	q->hhf_admit_bytes = 131072;    /* 128 KB */
 	q->hhf_evict_timeout = HZ;      /* 1  sec */
-	q->hhf_non_hh_weight = 2;
+	q->hhf_yesn_hh_weight = 2;
 
 	if (opt) {
 		int err = hhf_change(sch, opt, extack);
@@ -656,7 +656,7 @@ static int hhf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct hhf_sched_data *q = qdisc_priv(sch);
 	struct nlattr *opts;
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 
@@ -668,7 +668,7 @@ static int hhf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_HHF_ADMIT_BYTES, q->hhf_admit_bytes) ||
 	    nla_put_u32(skb, TCA_HHF_EVICT_TIMEOUT,
 			jiffies_to_usecs(q->hhf_evict_timeout)) ||
-	    nla_put_u32(skb, TCA_HHF_NON_HH_WEIGHT, q->hhf_non_hh_weight))
+	    nla_put_u32(skb, TCA_HHF_NON_HH_WEIGHT, q->hhf_yesn_hh_weight))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);

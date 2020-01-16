@@ -49,7 +49,7 @@ static bool is_uapsd_supported(struct ieee802_11_elems *elems)
 		 && elems->wmm_param[5] == 1)
 		qos_info = elems->wmm_param[6];
 	else
-		/* no valid wmm information or parameter element found */
+		/* yes valid wmm information or parameter element found */
 		return false;
 
 	return qos_info & IEEE80211_WMM_IE_AP_QOSINFO_UAPSD;
@@ -141,8 +141,8 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_channel *channel)
 {
 	bool beacon = ieee80211_is_beacon(mgmt->frame_control);
-	struct cfg80211_bss *cbss, *non_tx_cbss;
-	struct ieee80211_bss *bss, *non_tx_bss;
+	struct cfg80211_bss *cbss, *yesn_tx_cbss;
+	struct ieee80211_bss *bss, *yesn_tx_bss;
 	struct cfg80211_inform_bss bss_meta = {
 		.boottime_ns = rx_status->boottime_ns,
 	};
@@ -209,10 +209,10 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	bss = (void *)cbss->priv;
 	ieee80211_update_bss_from_elems(local, bss, &elems, rx_status, beacon);
 
-	list_for_each_entry(non_tx_cbss, &cbss->nontrans_list, nontrans_list) {
-		non_tx_bss = (void *)non_tx_cbss->priv;
+	list_for_each_entry(yesn_tx_cbss, &cbss->yesntrans_list, yesntrans_list) {
+		yesn_tx_bss = (void *)yesn_tx_cbss->priv;
 
-		ieee80211_update_bss_from_elems(local, non_tx_bss, &elems,
+		ieee80211_update_bss_from_elems(local, yesn_tx_bss, &elems,
 						rx_status, beacon);
 	}
 
@@ -266,7 +266,7 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 		if (sched_scan_req)
 			sched_scan_req_flags = sched_scan_req->flags;
 
-		/* ignore ProbeResp to foreign address or non-bcast (OCE)
+		/* igyesre ProbeResp to foreign address or yesn-bcast (OCE)
 		 * unless scanning with randomised address
 		 */
 		if (!ieee80211_scan_accept_presp(sdata1, scan_req_flags,
@@ -306,7 +306,7 @@ ieee80211_prepare_scan_chandef(struct cfg80211_chan_def *chandef,
 	}
 }
 
-/* return false if no more work */
+/* return false if yes more work */
 static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 {
 	struct cfg80211_scan_request *req;
@@ -363,7 +363,7 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 					 bands_used, req->rates, &chandef,
 					 flags);
 	local->hw_scan_req->req.ie_len = ielen;
-	local->hw_scan_req->req.no_cck = req->no_cck;
+	local->hw_scan_req->req.yes_cck = req->yes_cck;
 	ether_addr_copy(local->hw_scan_req->req.mac_addr, req->mac_addr);
 	ether_addr_copy(local->hw_scan_req->req.mac_addr_mask,
 			req->mac_addr_mask);
@@ -384,9 +384,9 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	lockdep_assert_held(&local->mtx);
 
 	/*
-	 * It's ok to abort a not-yet-running scan (that
+	 * It's ok to abort a yest-yet-running scan (that
 	 * we have one at all will be verified by checking
-	 * local->scan_req next), but not to complete it
+	 * local->scan_req next), but yest to complete it
 	 * successfully.
 	 */
 	if (WARN_ON(!local->scanning && !aborted))
@@ -434,7 +434,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	local->scanning = 0;
 	local->scan_chandef.chan = NULL;
 
-	/* Set power back to normal operating levels. */
+	/* Set power back to yesrmal operating levels. */
 	ieee80211_hw_config(local, 0);
 
 	if (!hw_scan) {
@@ -445,12 +445,12 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 
 	ieee80211_recalc_idle(local);
 
-	ieee80211_mlme_notify_scan_completed(local);
-	ieee80211_ibss_notify_scan_completed(local);
+	ieee80211_mlme_yestify_scan_completed(local);
+	ieee80211_ibss_yestify_scan_completed(local);
 
-	/* Requeue all the work that might have been ignored while
-	 * the scan was in progress; if there was none this will
-	 * just be a no-op for the particular interface.
+	/* Requeue all the work that might have been igyesred while
+	 * the scan was in progress; if there was yesne this will
+	 * just be a yes-op for the particular interface.
 	 */
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (ieee80211_sdata_running(sdata))
@@ -481,14 +481,14 @@ EXPORT_SYMBOL(ieee80211_scan_completed);
 static int ieee80211_start_sw_scan(struct ieee80211_local *local,
 				   struct ieee80211_sub_if_data *sdata)
 {
-	/* Software scan is not supported in multi-channel cases */
+	/* Software scan is yest supported in multi-channel cases */
 	if (local->use_chanctx)
 		return -EOPNOTSUPP;
 
 	/*
 	 * Hardware/driver doesn't support hw_scan, so use software
 	 * scanning instead. First send a nullfunc frame with power save
-	 * bit on so that AP will buffer the frames for us while we are not
+	 * bit on so that AP will buffer the frames for us while we are yest
 	 * listening, then send probe requests to each channel and wait for
 	 * the responses. After all channels are scanned, tune back to the
 	 * original channel and send a nullfunc frame with power save bit
@@ -618,7 +618,7 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 					     lockdep_is_held(&local->mtx));
 
 	tx_flags = IEEE80211_TX_INTFL_OFFCHAN_TX_OK;
-	if (scan_req->no_cck)
+	if (scan_req->yes_cck)
 		tx_flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 	if (scan_req->flags & NL80211_SCAN_FLAG_MIN_PREQ_CONTENT)
 		flags |= IEEE80211_PROBE_FLAG_MIN_CONTENT;
@@ -711,7 +711,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		 * After allocating local->hw_scan_req, we must
 		 * go through until ieee80211_prep_hw_scan(), so
 		 * anything that might be changed here and leave
-		 * this function early must not go after this
+		 * this function early must yest go after this
 		 * allocation.
 		 */
 	}
@@ -732,7 +732,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		   (req->channels[0] == local->_oper_chandef.chan)) {
 		/*
 		 * If we are scanning only on the operating channel
-		 * then we do not need to stop normal activities
+		 * then we do yest need to stop yesrmal activities
 		 */
 		unsigned long next_delay;
 
@@ -741,7 +741,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		ieee80211_recalc_idle(local);
 
 		/* Notify driver scan is starting, keep order of operations
-		 * same as normal software scan, in case that matters. */
+		 * same as yesrmal software scan, in case that matters. */
 		drv_sw_scan_start(local, sdata, local->scan_addr);
 
 		ieee80211_configure_filter(local); /* accept probe-responses */
@@ -763,7 +763,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 					     next_delay);
 		return 0;
 	} else {
-		/* Do normal software scan */
+		/* Do yesrmal software scan */
 		__set_bit(SCAN_SW_SCANNING, &local->scanning);
 	}
 
@@ -855,10 +855,10 @@ static void ieee80211_scan_state_decision(struct ieee80211_local *local,
 
 	/*
 	 * we're currently scanning a different channel, let's
-	 * see if we can scan another channel without interfering
+	 * see if we can scan ayesther channel without interfering
 	 * with the current traffic situation.
 	 *
-	 * Keep good latency, do not stay off-channel more than 125 ms.
+	 * Keep good latency, do yest stay off-channel more than 125 ms.
 	 */
 
 	bad_latency = time_after(jiffies +
@@ -936,10 +936,10 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	 * (which unfortunately doesn't say _why_ step a) is done,
 	 * but it waits for the probe delay or until a frame is
 	 * received - and the received frame would update the NAV).
-	 * For now, we do not support waiting until a frame is
+	 * For yesw, we do yest support waiting until a frame is
 	 * received.
 	 *
-	 * In any case, it is not necessary for a passive scan.
+	 * In any case, it is yest necessary for a passive scan.
 	 */
 	if ((chan->flags & (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR)) ||
 	    !scan_req->n_ssids) {
@@ -1038,7 +1038,7 @@ void ieee80211_scan_work(struct work_struct *work)
 	}
 
 	/*
-	 * as long as no delay is required advance immediately
+	 * as long as yes delay is required advance immediately
 	 * without scheduling a new work
 	 */
 	do {
@@ -1049,7 +1049,7 @@ void ieee80211_scan_work(struct work_struct *work)
 
 		switch (local->next_scan_state) {
 		case SCAN_DECISION:
-			/* if no more bands/channels left, complete scan */
+			/* if yes more bands/channels left, complete scan */
 			if (local->scan_channel_idx >= scan_req->n_channels) {
 				aborted = false;
 				goto out_complete;
@@ -1171,16 +1171,16 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 void ieee80211_scan_cancel(struct ieee80211_local *local)
 {
 	/*
-	 * We are canceling software scan, or deferred scan that was not
+	 * We are canceling software scan, or deferred scan that was yest
 	 * yet really started (see __ieee80211_start_scan ).
 	 *
 	 * Regarding hardware scan:
-	 * - we can not call  __ieee80211_scan_completed() as when
+	 * - we can yest call  __ieee80211_scan_completed() as when
 	 *   SCAN_HW_SCANNING bit is set this function change
 	 *   local->hw_scan_req to operate on 5G band, what race with
 	 *   driver which can use local->hw_scan_req
 	 *
-	 * - we can not cancel scan_work since driver can schedule it
+	 * - we can yest cancel scan_work since driver can schedule it
 	 *   by ieee80211_scan_completed(..., true) to finish scan
 	 *
 	 * Hence we only call the cancel_hw_scan() callback, but the low-level
@@ -1206,7 +1206,7 @@ void ieee80211_scan_cancel(struct ieee80211_local *local)
 	if (test_bit(SCAN_HW_SCANNING, &local->scanning)) {
 		/*
 		 * Make sure that __ieee80211_scan_completed doesn't trigger a
-		 * scan on another band.
+		 * scan on ayesther band.
 		 */
 		set_bit(SCAN_HW_CANCELLED, &local->scanning);
 		if (local->ops->cancel_hw_scan)
@@ -1383,7 +1383,7 @@ void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw)
 
 	/*
 	 * this shouldn't really happen, so for simplicity
-	 * simply ignore it, and let mac80211 reconfigure
+	 * simply igyesre it, and let mac80211 reconfigure
 	 * the sched scan later on.
 	 */
 	if (local->in_reconfig)

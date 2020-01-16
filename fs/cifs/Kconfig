@@ -61,7 +61,7 @@ config CIFS_STATS2
 	  request timing to be displayed in /proc/fs/cifs/DebugData and also
 	  allow optional logging of slow responses to dmesg (depending on the
 	  value of /proc/fs/cifs/cifsFYI, see fs/cifs/README for more details).
-	  These additional statistics may have a minor effect on performance
+	  These additional statistics may have a miyesr effect on performance
 	  and memory utilization.
 
 	  Unless you are a developer or are doing network performance analysis
@@ -99,7 +99,7 @@ config CIFS_WEAK_PW_HASH
 	  security mechanisms if you are on a public network.  Unless you
 	  have a need to access old SMB servers (and are on a private
 	  network) you probably want to say N.  Even if this support
-	  is enabled in the kernel build, LANMAN authentication will not be
+	  is enabled in the kernel build, LANMAN authentication will yest be
 	  used automatically. At runtime LANMAN mounts are disabled but
 	  can be set to required (or optional) either in
 	  /proc/fs/cifs (see fs/cifs/README for more detail) or via an
@@ -123,14 +123,14 @@ config CIFS_XATTR
 	bool "CIFS extended attributes"
 	depends on CIFS
 	help
-	  Extended attributes are name:value pairs associated with inodes by
+	  Extended attributes are name:value pairs associated with iyesdes by
 	  the kernel or by users (see the attr(5) manual page for details).
 	  CIFS maps the name of extended attributes beginning with the user
 	  namespace prefix to SMB/CIFS EAs.  EAs are stored on Windows
 	  servers without the user namespace prefix, but their names are
 	  seen by Linux cifs clients prefaced by the user namespace prefix.
 	  The system namespace (used by some filesystems to store ACLs) is
-	  not supported at this time.
+	  yest supported at this time.
 
 	  If unsure, say Y.
 

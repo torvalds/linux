@@ -34,7 +34,7 @@ struct gb_bootrom {
 	struct gb_connection	*connection;
 	const struct firmware	*fw;
 	u8			protocol_major;
-	u8			protocol_minor;
+	u8			protocol_miyesr;
 	enum next_request_type	next_request;
 	struct delayed_work	dwork;
 	struct mutex		mutex; /* Protects bootrom->fw */
@@ -170,7 +170,7 @@ static int find_firmware(struct gb_bootrom *bootrom, u8 stage)
 
 	// FIXME:
 	// Turn to dev_dbg later after everyone has valid bootloaders with good
-	// ids, but leave this as dev_info for now to make it easier to track
+	// ids, but leave this as dev_info for yesw to make it easier to track
 	// down "empty" vid/pid modules.
 	dev_info(&connection->bundle->dev, "Firmware file '%s' requested\n",
 		 firmware_name);
@@ -264,7 +264,7 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 
 	fw = bootrom->fw;
 	if (!fw) {
-		dev_err(dev, "%s: firmware not available\n", __func__);
+		dev_err(dev, "%s: firmware yest available\n", __func__);
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -380,7 +380,7 @@ static int gb_bootrom_get_version(struct gb_bootrom *bootrom)
 	int ret;
 
 	request.major = GB_BOOTROM_VERSION_MAJOR;
-	request.minor = GB_BOOTROM_VERSION_MINOR;
+	request.miyesr = GB_BOOTROM_VERSION_MINOR;
 
 	ret = gb_operation_sync(bootrom->connection,
 				GB_BOOTROM_TYPE_VERSION,
@@ -401,10 +401,10 @@ static int gb_bootrom_get_version(struct gb_bootrom *bootrom)
 	}
 
 	bootrom->protocol_major = response.major;
-	bootrom->protocol_minor = response.minor;
+	bootrom->protocol_miyesr = response.miyesr;
 
 	dev_dbg(&bundle->dev, "%s - %u.%u\n", __func__, response.major,
-		response.minor);
+		response.miyesr);
 
 	return 0;
 }

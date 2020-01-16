@@ -62,7 +62,7 @@ config TULIP_MWI
 	  This configures your Tulip card specifically for the card and
 	  system cache line size type you are using.
 
-	  This is experimental code, not yet tested on many boards.
+	  This is experimental code, yest yet tested on many boards.
 
 	  If unsure, say N.
 
@@ -81,7 +81,7 @@ config TULIP_NAPI
 	---help---
 	  NAPI is a new driver API designed to reduce CPU and interrupt load
 	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
+	  still somewhat experimental and thus yest yet enabled by default.
 
 	  If your estimated Rx load is 10kpps or more, or if the card will be
 	  deployed on potentially unfriendly networks (e.g. in a firewall),

@@ -9,9 +9,9 @@ Documentation/devicetree/bindings/input/rmi4.
 Required Properties:
 - compatible: syna,rmi4-spi
 - reg: Chip select address for the device
-- #address-cells: Set to 1 to indicate that the function child nodes
+- #address-cells: Set to 1 to indicate that the function child yesdes
 		    consist of only on uint32 value.
-- #size-cells: Set to 0 to indicate that the function child nodes do not
+- #size-cells: Set to 0 to indicate that the function child yesdes do yest
 		have a size property.
 
 Optional Properties:
@@ -22,8 +22,8 @@ See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 - spi-tx-delay-us: microsecond delay after a write transfer.
 
 Function Parameters:
-Parameters specific to RMI functions are contained in child nodes of the rmi device
- node. Documentation for the parameters of each function can be found in:
+Parameters specific to RMI functions are contained in child yesdes of the rmi device
+ yesde. Documentation for the parameters of each function can be found in:
 Documentation/devicetree/bindings/input/rmi4/rmi_f*.txt.
 
 
@@ -44,7 +44,7 @@ Example:
 
 			rmi4-f01@1 {
 				reg = <0x1>;
-				syna,nosleep-mode = <1>;
+				syna,yessleep-mode = <1>;
 			};
 
 			rmi4-f11@11 {

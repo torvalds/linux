@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -167,7 +167,7 @@ struct kv_power_info {
 	bool caps_db_ramping;
 	bool caps_td_ramping;
 	bool caps_tcp_ramping;
-	bool caps_sclk_throttle_low_notification;
+	bool caps_sclk_throttle_low_yestification;
 	bool caps_fps;
 	bool caps_uvd_dpm;
 	bool caps_uvd_pg;
@@ -185,7 +185,7 @@ struct kv_power_info {
 
 
 /* kv_smc.c */
-int kv_notify_message_to_smu(struct radeon_device *rdev, u32 id);
+int kv_yestify_message_to_smu(struct radeon_device *rdev, u32 id);
 int kv_dpm_get_enable_mask(struct radeon_device *rdev, u32 *enable_mask);
 int kv_send_msg_to_smc_with_parameter(struct radeon_device *rdev,
 				      PPSMC_Msg msg, u32 parameter);

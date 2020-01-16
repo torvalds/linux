@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -124,9 +124,9 @@ struct in_addr {
 #define IP_PMTUDISC_DONT		0	/* Never send DF frames */
 #define IP_PMTUDISC_WANT		1	/* Use per route hints	*/
 #define IP_PMTUDISC_DO			2	/* Always DF		*/
-#define IP_PMTUDISC_PROBE		3       /* Ignore dst pmtu      */
-/* Always use interface mtu (ignores dst pmtu) but don't set DF flag.
- * Also incoming ICMP frag_needed notifications will be ignored on
+#define IP_PMTUDISC_PROBE		3       /* Igyesre dst pmtu      */
+/* Always use interface mtu (igyesres dst pmtu) but don't set DF flag.
+ * Also incoming ICMP frag_needed yestifications will be igyesred on
  * this socket to prevent accepting spoofed ones.
  */
 #define IP_PMTUDISC_INTERFACE		4
@@ -245,7 +245,7 @@ struct sockaddr_in {
 /*
  * Definitions of the bits in an Internet address integer.
  * On subnets, host and network parts are found according
- * to the subnet mask, not these masks.
+ * to the subnet mask, yest these masks.
  */
 #define	IN_CLASSA(a)		((((long int) (a)) & 0x80000000) == 0)
 #define	IN_CLASSA_NET		0xff000000

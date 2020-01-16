@@ -7,8 +7,8 @@
  * TODO:
  * - add smart card reader support for Conditional Access (CA)
  *
- * Card reader in Anysee is nothing more than ISO 7816 card reader.
- * There is no hardware CAM in any Anysee device sold.
+ * Card reader in Anysee is yesthing more than ISO 7816 card reader.
+ * There is yes hardware CAM in any Anysee device sold.
  * In my understanding it should be implemented by making own module
  * for ISO 7816 card reader, like dvb_ca_en50221 is implemented. This
  * module registers serial interface that can be used to communicate
@@ -55,10 +55,10 @@ static int anysee_ctrl_msg(struct dvb_usb_device *d,
 
 	/* TODO FIXME: dvb_usb_generic_rw() fails rarely with error code -32
 	 * (EPIPE, Broken pipe). Function supports currently msleep() as a
-	 * parameter but I would not like to use it, since according to
-	 * Documentation/timers/timers-howto.rst it should not be used such
+	 * parameter but I would yest like to use it, since according to
+	 * Documentation/timers/timers-howto.rst it should yest be used such
 	 * short, under < 20ms, sleeps. Repeating failed message would be
-	 * better choice as not to add unwanted delays...
+	 * better choice as yest to add unwanted delays...
 	 * Fixing that correctly is one of those or both;
 	 * 1) use repeat if possible
 	 * 2) add suitable delay
@@ -124,7 +124,7 @@ static int anysee_wr_reg_mask(struct dvb_usb_device *d, u16 reg, u8 val,
 	int ret;
 	u8 tmp;
 
-	/* no need for read if whole reg is written */
+	/* yes need for read if whole reg is written */
 	if (mask != 0xff) {
 		ret = anysee_read_reg(d, reg, &tmp);
 		if (ret)
@@ -167,10 +167,10 @@ static int anysee_get_hw_info(struct dvb_usb_device *d, u8 *id)
 	return anysee_ctrl_msg(d, buf, sizeof(buf), id, 3);
 }
 
-static int anysee_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int anysee_streaming_ctrl(struct dvb_frontend *fe, int oyesff)
 {
-	u8 buf[] = {CMD_STREAMING_CTRL, (u8)onoff, 0x00};
-	dev_dbg(&fe_to_d(fe)->udev->dev, "%s: onoff=%d\n", __func__, onoff);
+	u8 buf[] = {CMD_STREAMING_CTRL, (u8)oyesff, 0x00};
+	dev_dbg(&fe_to_d(fe)->udev->dev, "%s: oyesff=%d\n", __func__, oyesff);
 	return anysee_ctrl_msg(fe_to_d(fe), buf, sizeof(buf), NULL, 0);
 }
 
@@ -182,10 +182,10 @@ static int anysee_led_ctrl(struct dvb_usb_device *d, u8 mode, u8 interval)
 	return anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
 }
 
-static int anysee_ir_ctrl(struct dvb_usb_device *d, u8 onoff)
+static int anysee_ir_ctrl(struct dvb_usb_device *d, u8 oyesff)
 {
-	u8 buf[] = {CMD_LED_AND_IR_CTRL, 0x02, onoff};
-	dev_dbg(&d->udev->dev, "%s: onoff=%d\n", __func__, onoff);
+	u8 buf[] = {CMD_LED_AND_IR_CTRL, 0x02, oyesff};
+	dev_dbg(&d->udev->dev, "%s: oyesff=%d\n", __func__, oyesff);
 	return anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
 }
 
@@ -296,7 +296,7 @@ static struct zl10353_config anysee_zl10353_tda18212_config2 = {
 	.demod_address = (0x1e >> 1),
 	.parallel_ts = 1,
 	.disable_i2c_gate_ctrl = 1,
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.if2 = 41500,
 };
 
@@ -304,7 +304,7 @@ static struct zl10353_config anysee_zl10353_tda18212_config = {
 	.demod_address = (0x18 >> 1),
 	.parallel_ts = 1,
 	.disable_i2c_gate_ctrl = 1,
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.if2 = 41500,
 };
 
@@ -391,7 +391,7 @@ static struct cxd2820r_config anysee_cxd2820r_config = {
  * IOA=4f IOB=ff IOC=00 IOD=06 IOE=01
  * IOD[0] ZL10353 1=enabled
  * IOA[7] TS 0=enabled
- * tuner is not behind ZL10353 I2C-gate (no care if gate disabled or not)
+ * tuner is yest behind ZL10353 I2C-gate (yes care if gate disabled or yest)
  *
  * E30 C Plus VID=04b4 PID=861f HW=10 FW=1.0 "anysee-DC(LP)"
  * PCB: 507DC (rev0.2)
@@ -522,15 +522,15 @@ static int anysee_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	return anysee_wr_reg_mask(fe_to_d(fe), REG_IOE, (enable << 4), 0x10);
 }
 
-static int anysee_frontend_ctrl(struct dvb_frontend *fe, int onoff)
+static int anysee_frontend_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	struct anysee_state *state = fe_to_priv(fe);
 	struct dvb_usb_device *d = fe_to_d(fe);
 	int ret;
-	dev_dbg(&d->udev->dev, "%s: fe=%d onoff=%d\n", __func__, fe->id, onoff);
+	dev_dbg(&d->udev->dev, "%s: fe=%d oyesff=%d\n", __func__, fe->id, oyesff);
 
-	/* no frontend sleep control */
-	if (onoff == 0)
+	/* yes frontend sleep control */
+	if (oyesff == 0)
 		return 0;
 
 	switch (state->hw) {
@@ -953,7 +953,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	if (!adap->fe[0]) {
-		/* we have no frontend :-( */
+		/* we have yes frontend :-( */
 		ret = -ENODEV;
 		dev_err(&d->udev->dev,
 				"%s: Unsupported Anysee version. Please report to <linux-media@vger.kernel.org>.\n",
@@ -1120,9 +1120,9 @@ static int anysee_rc_query(struct dvb_usb_device *d)
 
 	/* Remote controller is basic NEC using address byte 0x08.
 	   Anysee device RC query returns only two bytes, status and code,
-	   address byte is dropped. Also it does not return any value for
+	   address byte is dropped. Also it does yest return any value for
 	   NEC RCs having address byte other than 0x08. Due to that, we
-	   cannot use that device as standard NEC receiver.
+	   canyest use that device as standard NEC receiver.
 	   It could be possible make hack which reads whole code directly
 	   from device memory... */
 
@@ -1337,7 +1337,7 @@ static int anysee_init(struct dvb_usb_device *d)
 
 	/* There is one interface with two alternate settings.
 	   Alternate setting 0 is for bulk transfer.
-	   Alternate setting 1 is for isochronous transfer.
+	   Alternate setting 1 is for isochroyesus transfer.
 	   We use bulk transfer (alternate setting 0). */
 	ret = usb_set_interface(d->udev, 0, 0);
 	if (ret)
@@ -1418,7 +1418,7 @@ static struct usb_driver anysee_usb_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

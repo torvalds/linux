@@ -19,7 +19,7 @@ Required properties:
 
 - reg: Base address and length of the I/O registers used by the APMU.
 
-- cpus: This node contains a list of CPU cores, which should match the order
+- cpus: This yesde contains a list of CPU cores, which should match the order
   of CPU cores used by the WUPCR and PSTR registers in the Advanced Power
   Management Unit section of the device's datasheet.
 

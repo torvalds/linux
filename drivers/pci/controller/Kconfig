@@ -33,7 +33,7 @@ config PCIE_XILINX_NWL
 	 support root port enabling.
 
 config PCI_FTPCI100
-	bool "Faraday Technology FTPCI100 PCI controller"
+	bool "Faraday Techyeslogy FTPCI100 PCI controller"
 	depends on OF
 	default ARCH_GEMINI
 
@@ -247,8 +247,8 @@ config VMD
 	  and devices attached to them, to be removed from the default
 	  PCI domain and placed within the VMD domain. This provides
 	  more bus resources than are otherwise possible with a
-	  single domain. If you know your system provides one of these and
-	  has devices attached to it, say Y; if you are not sure, say N.
+	  single domain. If you kyesw your system provides one of these and
+	  has devices attached to it, say Y; if you are yest sure, say N.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmd.

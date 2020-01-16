@@ -72,14 +72,14 @@ static int hdmi_dai_startup(struct snd_pcm_substream *substream,
 	ret = snd_pcm_hw_constraint_step(substream->runtime, 0,
 					 SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 128);
 	if (ret < 0) {
-		dev_err(dai->dev, "Could not apply period constraint: %d\n",
+		dev_err(dai->dev, "Could yest apply period constraint: %d\n",
 			ret);
 		return ret;
 	}
 	ret = snd_pcm_hw_constraint_step(substream->runtime, 0,
 					 SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 128);
 	if (ret < 0) {
-		dev_err(dai->dev, "Could not apply buffer constraint: %d\n",
+		dev_err(dai->dev, "Could yest apply buffer constraint: %d\n",
 			ret);
 		return ret;
 	}
@@ -119,7 +119,7 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 		ad->dma_data.maxburst = 32;
 		break;
 	default:
-		dev_err(dai->dev, "format not supported!\n");
+		dev_err(dai->dev, "format yest supported!\n");
 		return -EINVAL;
 	}
 
@@ -170,7 +170,7 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 		iec->status[3] |= IEC958_AES3_CON_FS_192000;
 		break;
 	default:
-		dev_err(dai->dev, "rate not supported!\n");
+		dev_err(dai->dev, "rate yest supported!\n");
 		return -EINVAL;
 	}
 
@@ -192,7 +192,7 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 		iec->status[4] |= IEC958_AES4_CON_MAX_WORDLEN_24;
 		break;
 	default:
-		dev_err(dai->dev, "format not supported!\n");
+		dev_err(dai->dev, "format yest supported!\n");
 		return -EINVAL;
 	}
 
@@ -207,7 +207,7 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	cea->db2_sf_ss = CEA861_AUDIO_INFOFRAME_DB2SF_FROM_STREAM;
 	cea->db2_sf_ss |= CEA861_AUDIO_INFOFRAME_DB2SS_FROM_STREAM;
 
-	cea->db3 = 0; /* not used, all zeros */
+	cea->db3 = 0; /* yest used, all zeros */
 
 	if (params_channels(params) == 2)
 		cea->db4_ca = 0x0;

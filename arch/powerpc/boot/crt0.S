@@ -54,13 +54,13 @@ _zimage_start_lib:
 	/* Work out the offset between the address we were linked at
 	   and the address where we're running. */
 	bl	.+4
-p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
+p_base:	mflr	r10		/* r10 yesw points to runtime addr of p_base */
 #ifndef __powerpc64__
 	/* grab the link address of the dynamic section in r11 */
 	addis	r11,r10,(_GLOBAL_OFFSET_TABLE_-p_base)@ha
 	lwz	r11,(_GLOBAL_OFFSET_TABLE_-p_base)@l(r11)
 	cmpwi	r11,0
-	beq	3f		/* if not linked -pie */
+	beq	3f		/* if yest linked -pie */
 	/* get the runtime address of the dynamic section in r12 */
 	.weak	__dynamic_start
 	addis	r12,r10,(__dynamic_start-p_base)@ha
@@ -86,7 +86,7 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 	b	9b
 
 	/* The relocation section contains a list of relocations.
-	 * We now do the R_PPC_RELATIVE ones, which point to words
+	 * We yesw do the R_PPC_RELATIVE ones, which point to words
 	 * which need to be initialized with addend + offset.
 	 * The R_PPC_RELATIVE ones come first and there are RELACOUNT
 	 * of them. */
@@ -109,7 +109,7 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 	bdnz	2b
 
 	/* Do a cache flush for our text, in case the loader didn't */
-3:	lwz	r9,p_start-p_base(r10)	/* note: these are relocated now */
+3:	lwz	r9,p_start-p_base(r10)	/* yeste: these are relocated yesw */
 	lwz	r8,p_etext-p_base(r10)
 4:	dcbf	r0,r9
 	icbi	r0,r9
@@ -147,7 +147,7 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 	/* Grab the link address of the dynamic section in r11. */
 	ld	r11,-32768(r2)
 	cmpwi	r11,0
-	beq	3f              /* if not linked -pie then no dynamic section */
+	beq	3f              /* if yest linked -pie then yes dynamic section */
 
 	ld	r11,(p_dyn-p_base)(r10)
 	add	r11,r11,r10
@@ -192,7 +192,7 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 	bdnz	13b
 
 	/* Do a cache flush for our text, in case the loader didn't */
-3:	ld	r9,p_start-p_base(r10)	/* note: these are relocated now */
+3:	ld	r9,p_start-p_base(r10)	/* yeste: these are relocated yesw */
 	ld	r8,p_etext-p_base(r10)
 4:	dcbf	r0,r9
 	icbi	r0,r9

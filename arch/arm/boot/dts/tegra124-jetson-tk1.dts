@@ -1656,7 +1656,7 @@
 		status = "okay";
 		spi-max-frequency = <25000000>;
 		spi-flash@0 {
-			compatible = "winbond,w25q32dw", "jedec,spi-nor";
+			compatible = "winbond,w25q32dw", "jedec,spi-yesr";
 			reg = <0>;
 			spi-max-frequency = <20000000>;
 		};
@@ -1823,7 +1823,7 @@
 	sdhci@700b0600 {
 		status = "okay";
 		bus-width = <8>;
-		non-removable;
+		yesn-removable;
 	};
 
 	/* CPU DFLL clock */

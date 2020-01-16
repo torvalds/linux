@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Mellanox watchdog driver
+ * Mellayesx watchdog driver
  *
- * Copyright (C) 2019 Mellanox Technologies
- * Copyright (C) 2019 Michael Shych <mshych@mellanox.com>
+ * Copyright (C) 2019 Mellayesx Techyeslogies
+ * Copyright (C) 2019 Michael Shych <mshych@mellayesx.com>
  */
 
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/platform_data/mlxreg.h>
@@ -252,7 +252,7 @@ static int mlxreg_wdt_probe(struct platform_device *pdev)
 	mlxreg_wdt_config(wdt, pdata);
 
 	if ((pdata->features & MLXREG_CORE_WD_FEATURE_NOWAYOUT))
-		watchdog_set_nowayout(&wdt->wdd, WATCHDOG_NOWAYOUT);
+		watchdog_set_yeswayout(&wdt->wdd, WATCHDOG_NOWAYOUT);
 	watchdog_stop_on_reboot(&wdt->wdd);
 	watchdog_stop_on_unregister(&wdt->wdd);
 	watchdog_set_drvdata(&wdt->wdd, wdt);
@@ -271,7 +271,7 @@ static int mlxreg_wdt_probe(struct platform_device *pdev)
 
 register_error:
 	if (rc)
-		dev_err(dev, "Cannot register watchdog device (err=%d)\n", rc);
+		dev_err(dev, "Canyest register watchdog device (err=%d)\n", rc);
 	return rc;
 }
 
@@ -284,7 +284,7 @@ static struct platform_driver mlxreg_wdt_driver = {
 
 module_platform_driver(mlxreg_wdt_driver);
 
-MODULE_AUTHOR("Michael Shych <michaelsh@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox watchdog driver");
+MODULE_AUTHOR("Michael Shych <michaelsh@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx watchdog driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:mlx-wdt");

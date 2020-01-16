@@ -46,7 +46,7 @@ strp_init(struct strparser *strp, struct sock *sk,
 void strp_pause(struct strparser *strp)
 
      Temporarily pause a stream parser. Message parsing is suspended
-     and no new messages are delivered to the upper layer.
+     and yes new messages are delivered to the upper layer.
 
 void strp_unpause(struct strparser *strp)
 
@@ -71,7 +71,7 @@ int strp_process(struct strparser *strp, struct sk_buff *orig_skb,
 
     strp_process is called in general mode for a stream parser to
     parse an sk_buff. The number of bytes processed or a negative
-    error number is returned. Note that strp_process does not
+    error number is returned. Note that strp_process does yest
     consume the sk_buff. max_msg_size is maximum size the stream
     parser will parse. timeo is timeout for completing a message.
 
@@ -86,7 +86,7 @@ void strp_data_ready(struct strparser *strp);
 void strp_check_rcv(struct strparser *strp);
 
     strp_check_rcv is called to check for new messages on the socket.
-    This is normally called at initialization of a stream parser
+    This is yesrmally called at initialization of a stream parser
     instance or after strp_unpause.
 
 Callbacks
@@ -109,7 +109,7 @@ int (*parse_msg)(struct strparser *strp, struct sk_buff *skb);
 
     >0 : indicates length of successfully parsed message
     0  : indicates more data must be received to parse the message
-    -ESTRPIPE : current message should not be processed by the
+    -ESTRPIPE : current message should yest be processed by the
           kernel, return control of the socket to userspace which
           can proceed to read the messages itself
     other < 0 : Error in parsing, give control back to userspace
@@ -126,7 +126,7 @@ int (*parse_msg)(struct strparser *strp, struct sk_buff *skb);
 void (*lock)(struct strparser *strp)
 
     The lock callback is called to lock the strp structure when
-    the strparser is performing an asynchronous operation (such as
+    the strparser is performing an asynchroyesus operation (such as
     processing a timeout). In receive callback mode the default
     function is to lock_sock for the associated socket. In general
     mode the callback must be set appropriately.
@@ -150,14 +150,14 @@ void (*rcv_msg)(struct strparser *strp, struct sk_buff *skb);
     struct contains two fields: offset and full_len. Offset is
     where the message starts in the skb, and full_len is the
     the length of the message. skb->len - offset may be greater
-    then full_len since strparser does not trim the skb.
+    then full_len since strparser does yest trim the skb.
 
 int (*read_sock_done)(struct strparser *strp, int err);
 
      read_sock_done is called when the stream parser is done reading
      the TCP socket in receive callback mode. The stream parser may
      read multiple messages in a loop and this function allows cleanup
-     to occur when exiting the loop. If the callback is not set (NULL
+     to occur when exiting the loop. If the callback is yest set (NULL
      in strp_init) a default function is used.
 
 void (*abort_parser)(struct strparser *strp, int err);
@@ -166,7 +166,7 @@ void (*abort_parser)(struct strparser *strp, int err);
      in parsing. The default function stops the stream parser and
      sets the error in the socket if the parser is in receive callback
      mode. The default function can be changed by setting the callback
-     to non-NULL in strp_init.
+     to yesn-NULL in strp_init.
 
 Statistics
 ==========

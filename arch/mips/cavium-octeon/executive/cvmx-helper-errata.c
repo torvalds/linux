@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -28,7 +28,7 @@
 /**
  *
  * Fixes and workaround for Octeon chip errata. This file
- * contains functions called by cvmx-helper to workaround known
+ * contains functions called by cvmx-helper to workaround kyeswn
  * chip errata. For the most part, code doesn't need to call
  * these functions directly.
  *

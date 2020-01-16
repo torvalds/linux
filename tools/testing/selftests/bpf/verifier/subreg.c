@@ -3,7 +3,7 @@
  *   - All insns under BPF_ALU class. Their BPF_ALU32 variants or narrow width
  *     forms (BPF_END) could define sub-registers.
  *   - Narrow direct loads, BPF_B/H/W | BPF_LDX.
- *   - BPF_LD is not exposed to JIT back-ends, so no need for testing.
+ *   - BPF_LD is yest exposed to JIT back-ends, so yes need for testing.
  *
  * "get_prandom_u32" is used to initialize low 32-bit of some registers to
  * prevent potential optimizations done by verifier or JIT back-ends which could
@@ -29,7 +29,7 @@
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_prandom_u32),
 	BPF_LD_IMM64(BPF_REG_1, 0x1000000000ULL),
 	BPF_ALU64_REG(BPF_OR, BPF_REG_0, BPF_REG_1),
-	/* An insn could have no effect on the low 32-bit, for example:
+	/* An insn could have yes effect on the low 32-bit, for example:
 	 *   a = a + 0
 	 *   a = a | 0
 	 *   a = a & -1

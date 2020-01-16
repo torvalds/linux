@@ -11,7 +11,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -122,7 +122,7 @@ void __init paging_init(void)
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_DMA] = PFN_DOWN(MAX_DMA_ADDRESS);
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init_yesdes(max_zone_pfns);
 }
 
 void mark_rodata_ro(void)
@@ -191,7 +191,7 @@ void __init mem_init(void)
 	memblock_free_all();
 	setup_zero_pages();	/* Setup zeroed pages. */
 
-	cmma_init_nodat();
+	cmma_init_yesdat();
 
 	mem_init_print_info(NULL);
 }
@@ -240,11 +240,11 @@ static int s390_cma_check_range(struct cma *cma, void *data)
 	return -EBUSY;
 }
 
-static int s390_cma_mem_notifier(struct notifier_block *nb,
+static int s390_cma_mem_yestifier(struct yestifier_block *nb,
 				 unsigned long action, void *data)
 {
 	struct s390_cma_mem_data mem_data;
-	struct memory_notify *arg;
+	struct memory_yestify *arg;
 	int rc = 0;
 
 	arg = data;
@@ -252,16 +252,16 @@ static int s390_cma_mem_notifier(struct notifier_block *nb,
 	mem_data.end = mem_data.start + (arg->nr_pages << PAGE_SHIFT);
 	if (action == MEM_GOING_OFFLINE)
 		rc = cma_for_each_area(s390_cma_check_range, &mem_data);
-	return notifier_from_errno(rc);
+	return yestifier_from_erryes(rc);
 }
 
-static struct notifier_block s390_cma_mem_nb = {
-	.notifier_call = s390_cma_mem_notifier,
+static struct yestifier_block s390_cma_mem_nb = {
+	.yestifier_call = s390_cma_mem_yestifier,
 };
 
 static int __init s390_cma_mem_init(void)
 {
-	return register_memory_notifier(&s390_cma_mem_nb);
+	return register_memory_yestifier(&s390_cma_mem_nb);
 }
 device_initcall(s390_cma_mem_init);
 

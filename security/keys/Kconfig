@@ -46,7 +46,7 @@ config PERSISTENT_KEYRINGS
 	  This option provides a register of persistent per-UID keyrings,
 	  primarily aimed at Kerberos key storage.  The keyrings are persistent
 	  in the sense that they stay around after all processes of that UID
-	  have exited, not that they survive the machine being rebooted.
+	  have exited, yest that they survive the machine being rebooted.
 
 	  A particular keyring may be accessed by either the user whose keyring
 	  it is or by a process with administrative privileges.  The active

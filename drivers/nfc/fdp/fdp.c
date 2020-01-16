@@ -152,8 +152,8 @@ static void fdp_nci_send_patch_cb(struct nci_dev *ndev)
 /**
  * Register a packet sent counter and a callback
  *
- * We have no other way of knowing when all firmware packets were sent out
- * on the i2c bus. We need to know that in order to close the connection and
+ * We have yes other way of kyeswing when all firmware packets were sent out
+ * on the i2c bus. We need to kyesw that in order to close the connection and
  * send the patch end message.
  */
 static void fdp_nci_set_data_pkt_counter(struct nci_dev *ndev,
@@ -390,7 +390,7 @@ static int fdp_nci_patch_otp(struct nci_dev *ndev)
 		goto out;
 	}
 
-	/* If the patch notification didn't arrive yet, wait for it */
+	/* If the patch yestification didn't arrive yet, wait for it */
 	wait_event_interruptible(info->setup_wq, info->setup_patch_ntf);
 
 	/* Check if the patching was successful */
@@ -402,7 +402,7 @@ static int fdp_nci_patch_otp(struct nci_dev *ndev)
 	}
 
 	/*
-	 * We need to wait for the reset notification before we
+	 * We need to wait for the reset yestification before we
 	 * can continue
 	 */
 	wait_event_interruptible(info->setup_wq, info->setup_reset_ntf);
@@ -461,7 +461,7 @@ static int fdp_nci_patch_ram(struct nci_dev *ndev)
 		goto out;
 	}
 
-	/* If the patch notification didn't arrive yet, wait for it */
+	/* If the patch yestification didn't arrive yet, wait for it */
 	wait_event_interruptible(info->setup_wq, info->setup_patch_ntf);
 
 	/* Check if the patching was successful */
@@ -473,7 +473,7 @@ static int fdp_nci_patch_ram(struct nci_dev *ndev)
 	}
 
 	/*
-	 * We need to wait for the reset notification before we
+	 * We need to wait for the reset yestification before we
 	 * can continue
 	 */
 	wait_event_interruptible(info->setup_wq, info->setup_reset_ntf);
@@ -545,7 +545,7 @@ static int fdp_nci_setup(struct nci_dev *ndev)
 
 	/*
 	 * We initialized the devices but the NFC subsystem expects
-	 * it to not be initialized.
+	 * it to yest be initialized.
 	 */
 	return nci_core_reset(ndev);
 
@@ -764,7 +764,7 @@ int fdp_nci_probe(struct fdp_i2c_phy *phy, struct nfc_phy_ops *phy_ops,
 	ndev = nci_allocate_device(&nci_ops, protocols, tx_headroom,
 				   tx_tailroom);
 	if (!ndev) {
-		nfc_err(dev, "Cannot allocate nfc ndev\n");
+		nfc_err(dev, "Canyest allocate nfc ndev\n");
 		return -ENOMEM;
 	}
 

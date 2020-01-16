@@ -6,7 +6,7 @@
  * Copyright (C) 1994 - 2000, 2001, 2003 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2002, 2007  Maciej W. Rozycki
- * Copyright (C) 2001, 2012 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2001, 2012 MIPS Techyeslogies, Inc.  All rights reserved.
  */
 #include <linux/init.h>
 
@@ -32,7 +32,7 @@
  */
 NESTED(except_vec3_generic, 0, sp)
 	.set	push
-	.set	noat
+	.set	yesat
 	mfc0	k1, CP0_CAUSE
 	andi	k1, k1, 0x7c
 #ifdef CONFIG_64BIT
@@ -52,13 +52,13 @@ NESTED(except_vec3_generic, 0, sp)
 NESTED(except_vec3_r4000, 0, sp)
 	.set	push
 	.set	arch=r4000
-	.set	noat
+	.set	yesat
 	mfc0	k1, CP0_CAUSE
 	li	k0, 31<<2
 	andi	k1, k1, 0x7c
 	.set	push
-	.set	noreorder
-	.set	nomacro
+	.set	yesreorder
+	.set	yesmacro
 	beq	k1, k0, handle_vced
 	 li	k0, 14<<2
 	beq	k1, k0, handle_vcei
@@ -70,7 +70,7 @@ NESTED(except_vec3_r4000, 0, sp)
 	jr	k0
 
 	/*
-	 * Big shit, we now may have two dirty primary cache lines for the same
+	 * Big shit, we yesw may have two dirty primary cache lines for the same
 	 * physical address.  We can safely invalidate the line pointed to by
 	 * c0_badvaddr because after return from this exception handler the
 	 * load / store will be re-executed.
@@ -108,34 +108,34 @@ handle_vcei:
 	.align	5	/* 32 byte rollback region */
 LEAF(__r4k_wait)
 	.set	push
-	.set	noreorder
+	.set	yesreorder
 	/* start of rollback region */
 	LONG_L	t0, TI_FLAGS($28)
-	nop
+	yesp
 	andi	t0, _TIF_NEED_RESCHED
 	bnez	t0, 1f
-	 nop
-	nop
-	nop
+	 yesp
+	yesp
+	yesp
 #ifdef CONFIG_CPU_MICROMIPS
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
 #endif
 	.set	MIPS_ISA_ARCH_LEVEL_RAW
 	wait
 	/* end of rollback region (the region size must be power of two) */
 1:
 	jr	ra
-	 nop
+	 yesp
 	.set	pop
 	END(__r4k_wait)
 
 	.macro	BUILD_ROLLBACK_PROLOGUE handler
 	FEXPORT(rollback_\handler)
 	.set	push
-	.set	noat
+	.set	yesat
 	MFC0	k0, CP0_EPC
 	PTR_LA	k1, __r4k_wait
 	ori	k0, 0x1f	/* 32 byte rollback region */
@@ -152,7 +152,7 @@ NESTED(handle_int, PT_SIZE, sp)
 #ifdef CONFIG_TRACE_IRQFLAGS
 	/*
 	 * Check to see if the interrupted code has just disabled
-	 * interrupts and ignore this interrupt for now if so.
+	 * interrupts and igyesre this interrupt for yesw if so.
 	 *
 	 * local_irq_disable() disables interrupts and then calls
 	 * trace_hardirqs_off() to track the state. If an interrupt is taken
@@ -161,14 +161,14 @@ NESTED(handle_int, PT_SIZE, sp)
 	 * interrupts disabled
 	 */
 	.set	push
-	.set	noat
+	.set	yesat
 	mfc0	k0, CP0_STATUS
 #if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 	and	k0, ST0_IEP
 	bnez	k0, 1f
 
 	mfc0	k0, CP0_EPC
-	.set	noreorder
+	.set	yesreorder
 	j	k0
 	 rfe
 #else
@@ -227,7 +227,7 @@ NESTED(handle_int, PT_SIZE, sp)
 
 	j	ret_from_irq
 #ifdef CONFIG_CPU_MICROMIPS
-	nop
+	yesp
 #endif
 	END(handle_int)
 
@@ -249,13 +249,13 @@ NESTED(except_vec4, 0, sp)
 /*
  * EJTAG debug exception handler.
  * The EJTAG debug exception entry point is 0xbfc00480, which
- * normally is in the boot PROM, so the boot PROM must do an
+ * yesrmally is in the boot PROM, so the boot PROM must do an
  * unconditional jump to this vector.
  */
 NESTED(except_vec_ejtag_debug, 0, sp)
 	j	ejtag_debug_handler
 #ifdef CONFIG_CPU_MICROMIPS
-	 nop
+	 yesp
 #endif
 	END(except_vec_ejtag_debug)
 
@@ -271,7 +271,7 @@ NESTED(except_vec_vi, 0, sp)
 	SAVE_SOME docfi=1
 	SAVE_AT docfi=1
 	.set	push
-	.set	noreorder
+	.set	yesreorder
 	PTR_LA	v1, except_vec_vi_handler
 FEXPORT(except_vec_vi_lui)
 	lui	v0, 0		/* Patched */
@@ -345,7 +345,7 @@ NESTED(except_vec_vi_handler, 0, sp)
  */
 NESTED(ejtag_debug_handler, PT_SIZE, sp)
 	.set	push
-	.set	noat
+	.set	yesat
 	MTC0	k0, CP0_DESAVE
 	mfc0	k0, CP0_DEBUG
 
@@ -429,13 +429,13 @@ EXPORT(ejtag_debug_buffer_per_cpu)
 /*
  * NMI debug exception handler for MIPS reference boards.
  * The NMI debug exception entry point is 0xbfc00000, which
- * normally is in the boot PROM, so the boot PROM must do a
+ * yesrmally is in the boot PROM, so the boot PROM must do a
  * unconditional jump to this vector.
  */
 NESTED(except_vec_nmi, 0, sp)
 	j	nmi_handler
 #ifdef CONFIG_CPU_MICROMIPS
-	 nop
+	 yesp
 #endif
 	END(except_vec_nmi)
 
@@ -444,7 +444,7 @@ NESTED(except_vec_nmi, 0, sp)
 NESTED(nmi_handler, PT_SIZE, sp)
 	.cfi_signal_frame
 	.set	push
-	.set	noat
+	.set	yesat
 	/*
 	 * Clear ERL - restore segment mapping
 	 * Clear BEV - required for page fault exception handler to work
@@ -462,7 +462,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.set	pop
 	END(nmi_handler)
 
-	.macro	__build_clear_none
+	.macro	__build_clear_yesne
 	.endm
 
 	.macro	__build_clear_sti
@@ -503,7 +503,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 
 	/* Gas tries to parse the PRINT argument as a string containing
 	   string escapes and emits bogus warnings if it believes to
-	   recognize an unknown escape code.  So make the arguments
+	   recognize an unkyeswn escape code.  So make the arguments
 	   start with an n and gas will believe \n is ok ...  */
 	.macro	__BUILD_verbose nexception
 	LONG_L	a1, PT_EPC(sp)
@@ -526,7 +526,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.align	5
 	NESTED(handle_\exception, PT_SIZE, sp)
 	.cfi_signal_frame
-	.set	noat
+	.set	yesat
 	SAVE_ALL
 	FEXPORT(handle_\exception\ext)
 	__build_clear_\clear
@@ -555,7 +555,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 #ifdef CONFIG_MIPS_FP_SUPPORT
 	BUILD_HANDLER fpe fpe fpe silent		/* #15 */
 #endif
-	BUILD_HANDLER ftlb ftlb none silent		/* #16 */
+	BUILD_HANDLER ftlb ftlb yesne silent		/* #16 */
 	BUILD_HANDLER msa msa sti silent		/* #21 */
 	BUILD_HANDLER mdmx mdmx sti silent		/* #22 */
 #ifdef	CONFIG_HARDWARE_WATCHPOINTS
@@ -575,8 +575,8 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.align	5
 	LEAF(handle_ri_rdhwr_tlbp)
 	.set	push
-	.set	noat
-	.set	noreorder
+	.set	yesat
+	.set	yesreorder
 	/* check if TLB contains a entry for EPC */
 	MFC0	k1, CP0_ENTRYHI
 	andi	k1, MIPS_ENTRYHI_ASID | MIPS_ENTRYHI_ASIDX
@@ -596,8 +596,8 @@ NESTED(nmi_handler, PT_SIZE, sp)
 
 	LEAF(handle_ri_rdhwr)
 	.set	push
-	.set	noat
-	.set	noreorder
+	.set	yesat
+	.set	yesreorder
 	/* MIPS32:    0x7c03e83b: rdhwr v1,$29 */
 	/* microMIPS: 0x007d6b3c: rdhwr v1,$29 */
 	MFC0	k1, CP0_EPC
@@ -624,12 +624,12 @@ NESTED(nmi_handler, PT_SIZE, sp)
 #endif
 	.set	reorder
 docheck:
-	bne	k0, k1, handle_ri	/* if not ours */
+	bne	k0, k1, handle_ri	/* if yest ours */
 
 isrdhwr:
 	/* The insn is rdhwr.  No need to check CAUSE.BD here. */
 	get_saved_sp	/* k1 := current_thread_info */
-	.set	noreorder
+	.set	yesreorder
 	MFC0	k0, CP0_EPC
 #if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 	ori	k1, _THREAD_MASK
@@ -644,10 +644,10 @@ isrdhwr:
 #else
 	.set	at=v1
 	LONG_ADDIU	k0, 4
-	.set	noat
+	.set	yesat
 #endif
 	MTC0	k0, CP0_EPC
-	/* I hope three instructions between MTC0 and ERET are enough... */
+	/* I hope three instructions between MTC0 and ERET are eyesugh... */
 	ori	k1, _THREAD_MASK
 	xori	k1, _THREAD_MASK
 	LONG_L	v1, TI_TP_VALUE(k1)
@@ -664,5 +664,5 @@ isrdhwr:
 
 	__INIT
 
-	BUILD_HANDLER  daddi_ov daddi_ov none silent	/* #12 */
+	BUILD_HANDLER  daddi_ov daddi_ov yesne silent	/* #12 */
 #endif

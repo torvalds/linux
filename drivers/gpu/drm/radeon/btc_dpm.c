@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -1713,7 +1713,7 @@ static void btc_set_at_for_uvd(struct radeon_device *rdev,
 
 }
 
-void btc_notify_uvd_to_smc(struct radeon_device *rdev,
+void btc_yestify_uvd_to_smc(struct radeon_device *rdev,
 			   struct radeon_ps *radeon_new_state)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
@@ -2027,7 +2027,7 @@ static int btc_initialize_mc_reg_table(struct radeon_device *rdev)
 	if (!table)
 		return -ENOMEM;
 
-	/* Program additional LP registers that are no longer programmed by VBIOS */
+	/* Program additional LP registers that are yes longer programmed by VBIOS */
 	WREG32(MC_SEQ_RAS_TIMING_LP, RREG32(MC_SEQ_RAS_TIMING));
 	WREG32(MC_SEQ_CAS_TIMING_LP, RREG32(MC_SEQ_CAS_TIMING));
 	WREG32(MC_SEQ_MISC_TIMING_LP, RREG32(MC_SEQ_MISC_TIMING));
@@ -2316,7 +2316,7 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
+		cypress_yestify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
 
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	ret = rv770_halt_smc(rdev);
@@ -2326,7 +2326,7 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 	}
 	btc_set_at_for_uvd(rdev, new_ps);
 	if (eg_pi->smu_uvd_hs)
-		btc_notify_uvd_to_smc(rdev, new_ps);
+		btc_yestify_uvd_to_smc(rdev, new_ps);
 	ret = cypress_upload_sw_state(rdev, new_ps);
 	if (ret) {
 		DRM_ERROR("cypress_upload_sw_state failed\n");
@@ -2355,7 +2355,7 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
+		cypress_yestify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
 	ret = btc_set_power_state_conditionally_enable_ulv(rdev, new_ps);
 	if (ret) {
@@ -2461,9 +2461,9 @@ int btc_dpm_enable(struct radeon_device *rdev)
 
 	cypress_program_response_times(rdev);
 	r7xx_start_smc(rdev);
-	ret = cypress_notify_smc_display_change(rdev, false);
+	ret = cypress_yestify_smc_display_change(rdev, false);
 	if (ret) {
-		DRM_ERROR("cypress_notify_smc_display_change failed\n");
+		DRM_ERROR("cypress_yestify_smc_display_change failed\n");
 		return ret;
 	}
 	cypress_enable_sclk_control(rdev, true);

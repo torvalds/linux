@@ -10,7 +10,7 @@
 
 #include <linux/linkage.h>
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/time.h>
 #include <linux/signal.h>
 #include <linux/sched.h>	/* for MAX_SCHEDULE_TIMEOUT */
@@ -235,8 +235,8 @@ COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid, unsigned int, len,
 
 /*
  * We currently only need the following fields from the sigevent
- * structure: sigev_value, sigev_signo, sig_notify and (sometimes
- * sigev_notify_thread_id).  The others are handled in user mode.
+ * structure: sigev_value, sigev_sigyes, sig_yestify and (sometimes
+ * sigev_yestify_thread_id).  The others are handled in user mode.
  * We also assume that copying sigev_value.sival_int is sufficient
  * to keep all the bits of sigev_value.sival_ptr intact.
  */
@@ -247,10 +247,10 @@ int get_compat_sigevent(struct sigevent *event,
 	return (!access_ok(u_event, sizeof(*u_event)) ||
 		__get_user(event->sigev_value.sival_int,
 			&u_event->sigev_value.sival_int) ||
-		__get_user(event->sigev_signo, &u_event->sigev_signo) ||
-		__get_user(event->sigev_notify, &u_event->sigev_notify) ||
-		__get_user(event->sigev_notify_thread_id,
-			&u_event->sigev_notify_thread_id))
+		__get_user(event->sigev_sigyes, &u_event->sigev_sigyes) ||
+		__get_user(event->sigev_yestify, &u_event->sigev_yestify) ||
+		__get_user(event->sigev_yestify_thread_id,
+			&u_event->sigev_yestify_thread_id))
 		? -EFAULT : 0;
 }
 

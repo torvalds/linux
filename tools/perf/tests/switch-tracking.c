@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <sys/time.h>
 #include <sys/prctl.h>
-#include <errno.h>
+#include <erryes.h>
 #include <limits.h>
 #include <time.h>
 #include <stdlib.h>
@@ -21,7 +21,7 @@
 
 static int spin_sleep(void)
 {
-	struct timeval start, now, diff, maxtime;
+	struct timeval start, yesw, diff, maxtime;
 	struct timespec ts;
 	int err, i;
 
@@ -37,11 +37,11 @@ static int spin_sleep(void)
 		for (i = 0; i < 1000; i++)
 			barrier();
 
-		err = gettimeofday(&now, NULL);
+		err = gettimeofday(&yesw, NULL);
 		if (err)
 			return err;
 
-		timersub(&now, &start, &diff);
+		timersub(&yesw, &start, &diff);
 		if (timercmp(&diff, &maxtime, > /* For checkpatch */))
 			break;
 	}
@@ -50,7 +50,7 @@ static int spin_sleep(void)
 	ts.tv_sec = 0;
 
 	/* Sleep for 50ms */
-	err = nanosleep(&ts, NULL);
+	err = nayessleep(&ts, NULL);
 	if (err == EINTR)
 		err = 0;
 
@@ -144,7 +144,7 @@ static int process_sample_event(struct evlist *evlist,
 		if (err)
 			return err;
 		/*
-		 * Check for no missing sched_switch events i.e. that the
+		 * Check for yes missing sched_switch events i.e. that the
 		 * evsel->core.system_wide flag has worked.
 		 */
 		if (switch_tracking->tids[cpu] != -1 &&
@@ -203,7 +203,7 @@ static int process_event(struct evlist *evlist, union perf_event *event,
 	return 0;
 }
 
-struct event_node {
+struct event_yesde {
 	struct list_head list;
 	union perf_event *event;
 	u64 event_time;
@@ -213,15 +213,15 @@ static int add_event(struct evlist *evlist, struct list_head *events,
 		     union perf_event *event)
 {
 	struct perf_sample sample;
-	struct event_node *node;
+	struct event_yesde *yesde;
 
-	node = malloc(sizeof(struct event_node));
-	if (!node) {
+	yesde = malloc(sizeof(struct event_yesde));
+	if (!yesde) {
 		pr_debug("malloc failed\n");
 		return -1;
 	}
-	node->event = event;
-	list_add(&node->list, events);
+	yesde->event = event;
+	list_add(&yesde->list, events);
 
 	if (perf_evlist__parse_sample(evlist, event, &sample)) {
 		pr_debug("perf_evlist__parse_sample failed\n");
@@ -229,31 +229,31 @@ static int add_event(struct evlist *evlist, struct list_head *events,
 	}
 
 	if (!sample.time) {
-		pr_debug("event with no time\n");
+		pr_debug("event with yes time\n");
 		return -1;
 	}
 
-	node->event_time = sample.time;
+	yesde->event_time = sample.time;
 
 	return 0;
 }
 
-static void free_event_nodes(struct list_head *events)
+static void free_event_yesdes(struct list_head *events)
 {
-	struct event_node *node;
+	struct event_yesde *yesde;
 
 	while (!list_empty(events)) {
-		node = list_entry(events->next, struct event_node, list);
-		list_del_init(&node->list);
-		free(node);
+		yesde = list_entry(events->next, struct event_yesde, list);
+		list_del_init(&yesde->list);
+		free(yesde);
 	}
 }
 
 static int compar(const void *a, const void *b)
 {
-	const struct event_node *nodea = a;
-	const struct event_node *nodeb = b;
-	s64 cmp = nodea->event_time - nodeb->event_time;
+	const struct event_yesde *yesdea = a;
+	const struct event_yesde *yesdeb = b;
+	s64 cmp = yesdea->event_time - yesdeb->event_time;
 
 	return cmp;
 }
@@ -264,7 +264,7 @@ static int process_events(struct evlist *evlist,
 	union perf_event *event;
 	unsigned pos, cnt = 0;
 	LIST_HEAD(events);
-	struct event_node *events_array, *node;
+	struct event_yesde *events_array, *yesde;
 	struct mmap *md;
 	int i, ret;
 
@@ -278,23 +278,23 @@ static int process_events(struct evlist *evlist,
 			ret = add_event(evlist, &events, event);
 			 perf_mmap__consume(&md->core);
 			if (ret < 0)
-				goto out_free_nodes;
+				goto out_free_yesdes;
 		}
 		perf_mmap__read_done(&md->core);
 	}
 
-	events_array = calloc(cnt, sizeof(struct event_node));
+	events_array = calloc(cnt, sizeof(struct event_yesde));
 	if (!events_array) {
 		pr_debug("calloc failed\n");
 		ret = -1;
-		goto out_free_nodes;
+		goto out_free_yesdes;
 	}
 
 	pos = 0;
-	list_for_each_entry(node, &events, list)
-		events_array[pos++] = *node;
+	list_for_each_entry(yesde, &events, list)
+		events_array[pos++] = *yesde;
 
-	qsort(events_array, cnt, sizeof(struct event_node), compar);
+	qsort(events_array, cnt, sizeof(struct event_yesde), compar);
 
 	for (pos = 0; pos < cnt; pos++) {
 		ret = process_event(evlist, events_array[pos].event,
@@ -307,8 +307,8 @@ static int process_events(struct evlist *evlist,
 out_free:
 	pr_debug("%u events recorded\n", cnt);
 	free(events_array);
-out_free_nodes:
-	free_event_nodes(&events);
+out_free_yesdes:
+	free_event_yesdes(&events);
 	return ret;
 }
 
@@ -398,7 +398,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	perf_evsel__set_sample_bit(switch_evsel, TIME);
 
 	switch_evsel->core.system_wide = true;
-	switch_evsel->no_aux_samples = true;
+	switch_evsel->yes_aux_samples = true;
 	switch_evsel->immediate = true;
 
 	/* Test moving an event to the front */
@@ -436,17 +436,17 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 
 	/* Check moved event is still at the front */
 	if (cycles_evsel != evlist__first(evlist)) {
-		pr_debug("Front event no longer at front");
+		pr_debug("Front event yes longer at front");
 		goto out_err;
 	}
 
 	/* Check tracking event is tracking */
 	if (!tracking_evsel->core.attr.mmap || !tracking_evsel->core.attr.comm) {
-		pr_debug("Tracking event not tracking\n");
+		pr_debug("Tracking event yest tracking\n");
 		goto out_err;
 	}
 
-	/* Check non-tracking events are not tracking */
+	/* Check yesn-tracking events are yest tracking */
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel != tracking_evsel) {
 			if (evsel->core.attr.mmap || evsel->core.attr.comm) {

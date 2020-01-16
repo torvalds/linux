@@ -11,14 +11,14 @@
  * The sh algorithm is to select server by the hash key of source IP
  * address. The pseudo code is as follows:
  *
- *       n <- servernode[src_ip];
+ *       n <- serveryesde[src_ip];
  *       if (n is dead) OR
  *          (n is overloaded) or (n.weight <= 0) then
  *                 return NULL;
  *
  *       return n;
  *
- * Notes that servernode is a 256-bucket hash table that maps the hash
+ * Notes that serveryesde is a 256-bucket hash table that maps the hash
  * index derived from packet source IP address to the current server
  * array. If the sh scheduler is used in cache cluster, it is good to
  * combine it with cache_bypass feature. When the statically assigned
@@ -26,7 +26,7 @@
  * server and send requests to the original server directly.
  *
  * The weight destination attribute can be used to control the
- * distribution of connections to the destinations in servernode. The
+ * distribution of connections to the destinations in serveryesde. The
  * greater the weight, the more connections the destination
  * will receive.
  *
@@ -278,7 +278,7 @@ ip_vs_sh_get_port(const struct sk_buff *skb, struct ip_vs_iphdr *iph)
 {
 	__be16 _ports[2], *ports;
 
-	/* At this point we know that we have a valid packet of some kind.
+	/* At this point we kyesw that we have a valid packet of some kind.
 	 * Because ICMP packets are only guaranteed to have the first 8
 	 * bytes, let's just grab the ports.  Fortunately they're in the
 	 * same position for all three of the protocols we care about.
@@ -329,7 +329,7 @@ ip_vs_sh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		dest = ip_vs_sh_get(svc, s, hash_addr, port);
 
 	if (!dest) {
-		ip_vs_scheduler_err(svc, "no destination available");
+		ip_vs_scheduler_err(svc, "yes destination available");
 		return NULL;
 	}
 

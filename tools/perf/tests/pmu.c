@@ -2,7 +2,7 @@
 #include "parse-events.h"
 #include "pmu.h"
 #include "tests.h"
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <linux/kernel.h>
 #include <linux/limits.h>

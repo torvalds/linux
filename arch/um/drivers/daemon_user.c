@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -54,31 +54,31 @@ static int connect_to_switch(struct daemon_data *pri)
 
 	pri->control = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (pri->control < 0) {
-		err = -errno;
+		err = -erryes;
 		printk(UM_KERN_ERR "daemon_open : control socket failed, "
-		       "errno = %d\n", -err);
+		       "erryes = %d\n", -err);
 		return err;
 	}
 
 	if (connect(pri->control, (struct sockaddr *) ctl_addr,
 		   sizeof(*ctl_addr)) < 0) {
-		err = -errno;
+		err = -erryes;
 		printk(UM_KERN_ERR "daemon_open : control connect failed, "
-		       "errno = %d\n", -err);
+		       "erryes = %d\n", -err);
 		goto out;
 	}
 
 	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (fd < 0) {
-		err = -errno;
+		err = -erryes;
 		printk(UM_KERN_ERR "daemon_open : data socket failed, "
-		       "errno = %d\n", -err);
+		       "erryes = %d\n", -err);
 		goto out;
 	}
 	if (bind(fd, (struct sockaddr *) local_addr, sizeof(*local_addr)) < 0) {
-		err = -errno;
+		err = -erryes;
 		printk(UM_KERN_ERR "daemon_open : data bind failed, "
-		       "errno = %d\n", -err);
+		       "erryes = %d\n", -err);
 		goto out_close;
 	}
 
@@ -97,7 +97,7 @@ static int connect_to_switch(struct daemon_data *pri)
 	n = write(pri->control, &req, sizeof(req));
 	if (n != sizeof(req)) {
 		printk(UM_KERN_ERR "daemon_open : control setup request "
-		       "failed, err = %d\n", -errno);
+		       "failed, err = %d\n", -erryes);
 		err = -ENOTCONN;
 		goto out_free;
 	}
@@ -105,7 +105,7 @@ static int connect_to_switch(struct daemon_data *pri)
 	n = read(pri->control, sun, sizeof(*sun));
 	if (n != sizeof(*sun)) {
 		printk(UM_KERN_ERR "daemon_open : read of data socket failed, "
-		       "err = %d\n", -errno);
+		       "err = %d\n", -erryes);
 		err = -ENOTCONN;
 		goto out_free;
 	}

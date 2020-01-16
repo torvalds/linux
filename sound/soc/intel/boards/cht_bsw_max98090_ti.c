@@ -54,7 +54,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 
 	codec_dai = snd_soc_card_get_codec_dai(card, CHT_CODEC_DAI);
 	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found; Unable to set platform clock\n");
+		dev_err(card->dev, "Codec dai yest found; Unable to set platform clock\n");
 		return -EIO;
 	}
 
@@ -62,7 +62,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		ret = clk_prepare_enable(ctx->mclk);
 		if (ret < 0) {
 			dev_err(card->dev,
-				"could not configure MCLK state");
+				"could yest configure MCLK state");
 			return ret;
 		}
 	} else {
@@ -126,7 +126,7 @@ static int cht_aif1_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cht_ti_jack_event(struct notifier_block *nb,
+static int cht_ti_jack_event(struct yestifier_block *nb,
 		unsigned long event, void *data)
 {
 	struct snd_soc_jack *jack = (struct snd_soc_jack *)data;
@@ -145,8 +145,8 @@ static int cht_ti_jack_event(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block cht_jack_nb = {
-	.notifier_call = cht_ti_jack_event,
+static struct yestifier_block cht_jack_nb = {
+	.yestifier_call = cht_ti_jack_event,
 };
 
 static struct snd_soc_jack_pin hs_jack_pins[] = {
@@ -195,7 +195,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		 * The jack has already been created in the
 		 * cht_max98090_headset_init() function.
 		 */
-		snd_soc_jack_notifier_register(jack, &cht_jack_nb);
+		snd_soc_jack_yestifier_register(jack, &cht_jack_nb);
 		return 0;
 	}
 
@@ -218,7 +218,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		 * due to platform issues or bad BIOS/configuration
 		 */
 		dev_err(runtime->dev,
-			"jack detection gpios not added, error %d\n", ret);
+			"jack detection gpios yest added, error %d\n", ret);
 	}
 
 	/* See the comment in snd_cht_mc_probe() */
@@ -227,12 +227,12 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 
 	/*
 	 * The firmware might enable the clock at
-	 * boot (this information may or may not
+	 * boot (this information may or may yest
 	 * be reflected in the enable clock register).
 	 * To change the rate we must disable the clock
 	 * first to cover these cases. Due to common
-	 * clock framework restrictions that do not allow
-	 * to disable a clock that has not been enabled,
+	 * clock framework restrictions that do yest allow
+	 * to disable a clock that has yest been enabled,
 	 * we need to enable the clock first.
 	 */
 	ret = clk_prepare_enable(ctx->mclk);
@@ -350,7 +350,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -360,7 +360,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &cht_aif1_ops,
@@ -370,7 +370,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	{
 		.name = "SSP2-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 					| SND_SOC_DAIFMT_CBS_CFS,
 		.init = cht_codec_init,
@@ -541,7 +541,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 
 	drv->ts3a227e_present = acpi_dev_found("104C227E");
 	if (!drv->ts3a227e_present) {
-		/* no need probe TI jack detection chip */
+		/* yes need probe TI jack detection chip */
 		snd_soc_card_cht.aux_dev = NULL;
 		snd_soc_card_cht.num_aux_devs = 0;
 
@@ -578,7 +578,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Boards which have the MAX98090's clk connected to clk_0 do not seem
+	 * Boards which have the MAX98090's clk connected to clk_0 do yest seem
 	 * to like it if we muck with the clock. If we disable the clock when
 	 * it is unused we get "max98090 i2c-193C9890:00: PLL unlocked" errors
 	 * and the PLL never seems to lock again.

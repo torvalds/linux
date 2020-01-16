@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syyespsys, Inc. and/or its affiliates.
  *
- * Author: Vitor Soares <vitor.soares@synopsys.com>
+ * Author: Vitor Soares <vitor.soares@syyespsys.com>
  */
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i3c/master.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -217,7 +217,7 @@ struct dw_i3c_cmd {
 };
 
 struct dw_i3c_xfer {
-	struct list_head node;
+	struct list_head yesde;
 	struct completion comp;
 	int ret;
 	unsigned int ncmds;
@@ -363,7 +363,7 @@ dw_i3c_master_alloc_xfer(struct dw_i3c_master *master, unsigned int ncmds)
 	if (!xfer)
 		return NULL;
 
-	INIT_LIST_HEAD(&xfer->node);
+	INIT_LIST_HEAD(&xfer->yesde);
 	xfer->ncmds = ncmds;
 	xfer->ret = -ETIMEDOUT;
 
@@ -411,7 +411,7 @@ static void dw_i3c_master_enqueue_xfer(struct dw_i3c_master *master,
 	init_completion(&xfer->comp);
 	spin_lock_irqsave(&master->xferqueue.lock, flags);
 	if (master->xferqueue.cur) {
-		list_add_tail(&xfer->node, &master->xferqueue.list);
+		list_add_tail(&xfer->yesde, &master->xferqueue.list);
 	} else {
 		master->xferqueue.cur = xfer;
 		dw_i3c_master_start_xfer_locked(master);
@@ -434,7 +434,7 @@ static void dw_i3c_master_dequeue_xfer_locked(struct dw_i3c_master *master,
 		readl_poll_timeout_atomic(master->regs + RESET_CTRL, status,
 					  !status, 10, 1000000);
 	} else {
-		list_del_init(&xfer->node);
+		list_del_init(&xfer->yesde);
 	}
 }
 
@@ -507,9 +507,9 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 
 	xfer = list_first_entry_or_null(&master->xferqueue.list,
 					struct dw_i3c_xfer,
-					node);
+					yesde);
 	if (xfer)
-		list_del_init(&xfer->node);
+		list_del_init(&xfer->yesde);
 
 	master->xferqueue.cur = xfer;
 	dw_i3c_master_start_xfer_locked(master);
@@ -642,7 +642,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_SIR_REQ_REJECT);
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_MR_REQ_REJECT);
 
-	/* For now don't support Hot-Join */
+	/* For yesw don't support Hot-Join */
 	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_HOT_JOIN_NACK,
 	       master->regs + DEVICE_CTRL);
 
@@ -1200,6 +1200,6 @@ static struct platform_driver dw_i3c_driver = {
 };
 module_platform_driver(dw_i3c_driver);
 
-MODULE_AUTHOR("Vitor Soares <vitor.soares@synopsys.com>");
+MODULE_AUTHOR("Vitor Soares <vitor.soares@syyespsys.com>");
 MODULE_DESCRIPTION("DesignWare MIPI I3C driver");
 MODULE_LICENSE("GPL v2");

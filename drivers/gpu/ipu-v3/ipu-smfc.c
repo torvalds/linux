@@ -6,7 +6,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
@@ -16,7 +16,7 @@
 
 struct ipu_smfc {
 	struct ipu_smfc_priv *priv;
-	int chno;
+	int chyes;
 	bool inuse;
 };
 
@@ -41,7 +41,7 @@ int ipu_smfc_set_burstsize(struct ipu_smfc *smfc, int burstsize)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	shift = smfc->chno * 4;
+	shift = smfc->chyes * 4;
 	val = readl(priv->base + SMFC_BS);
 	val &= ~(0xf << shift);
 	val |= burstsize << shift;
@@ -61,7 +61,7 @@ int ipu_smfc_map_channel(struct ipu_smfc *smfc, int csi_id, int mipi_id)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	shift = smfc->chno * 3;
+	shift = smfc->chyes * 3;
 	val = readl(priv->base + SMFC_MAP);
 	val &= ~(0x7 << shift);
 	val |= ((csi_id << 2) | mipi_id) << shift;
@@ -81,7 +81,7 @@ int ipu_smfc_set_watermark(struct ipu_smfc *smfc, u32 set_level, u32 clr_level)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	shift = smfc->chno * 6 + (smfc->chno > 1 ? 4 : 0);
+	shift = smfc->chyes * 6 + (smfc->chyes > 1 ? 4 : 0);
 	val = readl(priv->base + SMFC_WMC);
 	val &= ~(0x3f << shift);
 	val |= ((clr_level << 3) | set_level) << shift;
@@ -132,16 +132,16 @@ int ipu_smfc_disable(struct ipu_smfc *smfc)
 }
 EXPORT_SYMBOL_GPL(ipu_smfc_disable);
 
-struct ipu_smfc *ipu_smfc_get(struct ipu_soc *ipu, unsigned int chno)
+struct ipu_smfc *ipu_smfc_get(struct ipu_soc *ipu, unsigned int chyes)
 {
 	struct ipu_smfc_priv *priv = ipu->smfc_priv;
 	struct ipu_smfc *smfc, *ret;
 	unsigned long flags;
 
-	if (chno >= 4)
+	if (chyes >= 4)
 		return ERR_PTR(-EINVAL);
 
-	smfc = &priv->channel[chno];
+	smfc = &priv->channel[chyes];
 	ret = smfc;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -189,7 +189,7 @@ int ipu_smfc_init(struct ipu_soc *ipu, struct device *dev,
 
 	for (i = 0; i < 4; i++) {
 		priv->channel[i].priv = priv;
-		priv->channel[i].chno = i;
+		priv->channel[i].chyes = i;
 	}
 
 	pr_debug("%s: ioremap 0x%08lx -> %p\n", __func__, base, priv->base);

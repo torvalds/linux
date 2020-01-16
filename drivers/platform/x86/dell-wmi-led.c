@@ -95,8 +95,8 @@ static int led_on(void)
 		INTERFACE_ERROR,	/* Init to  INTERFACE_ERROR */
 		DEVICE_ID_PANEL_BACK,	/* Device ID */
 		CMD_LED_ON,		/* Command */
-		0,			/* not used */
-		0);			/* not used */
+		0,			/* yest used */
+		0);			/* yest used */
 }
 
 static int led_off(void)
@@ -105,8 +105,8 @@ static int led_off(void)
 		INTERFACE_ERROR,	/* Init to  INTERFACE_ERROR */
 		DEVICE_ID_PANEL_BACK,	/* Device ID */
 		CMD_LED_OFF,		/* Command */
-		0,			/* not used */
-		0);			/* not used */
+		0,			/* yest used */
+		0);			/* yest used */
 }
 
 static int led_blink(unsigned char on_eighths, unsigned char off_eighths)

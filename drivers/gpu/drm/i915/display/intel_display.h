@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -609,7 +609,7 @@ void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
- * which may not necessarily be a user visible problem.  This will either
+ * which may yest necessarily be a user visible problem.  This will either
  * WARN() or DRM_ERROR() depending on the verbose_checks moduleparam, to
  * enable distros and users to tailor their preferred amount of i915 abrt
  * spam.

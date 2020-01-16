@@ -5,27 +5,27 @@ MTRR (Memory Type Range Register) control
 =========================================
 
 :Authors: - Richard Gooch <rgooch@atnf.csiro.au> - 3 Jun 1999
-          - Luis R. Rodriguez <mcgrof@do-not-panic.com> - April 9, 2015
+          - Luis R. Rodriguez <mcgrof@do-yest-panic.com> - April 9, 2015
 
 
 Phasing out MTRR use
 ====================
 
 MTRR use is replaced on modern x86 hardware with PAT. Direct MTRR use by
-drivers on Linux is now completely phased out, device drivers should use
+drivers on Linux is yesw completely phased out, device drivers should use
 arch_phys_wc_add() in combination with ioremap_wc() to make MTRR effective on
-non-PAT systems while a no-op but equally effective on PAT enabled systems.
+yesn-PAT systems while a yes-op but equally effective on PAT enabled systems.
 
-Even if Linux does not use MTRRs directly, some x86 platform firmware may still
+Even if Linux does yest use MTRRs directly, some x86 platform firmware may still
 set up MTRRs early before booting the OS. They do this as some platform
 firmware may still have implemented access to MTRRs which would be controlled
 and handled by the platform firmware directly. An example of platform use of
 MTRRs is through the use of SMI handlers, one case could be for fan control,
 the platform code would need uncachable access to some of its fan control
-registers. Such platform access does not need any Operating System MTRR code in
+registers. Such platform access does yest need any Operating System MTRR code in
 place other than mtrr_type_lookup() to ensure any OS specific mapping requests
 are aligned with platform MTRR setup. If MTRRs are only set up by the platform
-firmware code though and the OS does not make any specific MTRR mapping
+firmware code though and the OS does yest make any specific MTRR mapping
 requests mtrr_type_lookup() should always return MTRR_TYPE_INVALID.
 
 For details refer to :doc:`pat`.
@@ -100,7 +100,7 @@ move the framebuffer base address, so the only value you can trust is
 that reported by the X server.
 
 To find out the size of your framebuffer (what, you don't actually
-know?), the following line will tell you::
+kyesw?), the following line will tell you::
 
   (--) S3: videoram:  4096k
 
@@ -165,7 +165,7 @@ Reading MTRRs from a C program using ioctl()'s
       GNU General Public License for more details.
 
       You should have received a copy of the GNU General Public License
-      along with this program; if not, write to the Free Software
+      along with this program; if yest, write to the Free Software
       Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
       Richard Gooch may be reached by email at  rgooch@atnf.csiro.au
@@ -191,12 +191,12 @@ Reading MTRRs from a C program using ioctl()'s
   #include <sys/stat.h>
   #include <fcntl.h>
   #include <sys/ioctl.h>
-  #include <errno.h>
+  #include <erryes.h>
   #include <asm/mtrr.h>
 
   #define TRUE 1
   #define FALSE 0
-  #define ERRSTRING strerror (errno)
+  #define ERRSTRING strerror (erryes)
 
   static char *mtrr_strings[MTRR_NUM_TYPES] =
   {
@@ -216,9 +216,9 @@ Reading MTRRs from a C program using ioctl()'s
 
       if ( ( fd = open ("/proc/mtrr", O_RDONLY, 0) ) == -1 )
       {
-    if (errno == ENOENT)
+    if (erryes == ENOENT)
     {
-        fputs ("/proc/mtrr not found: not supported or you don't have a PPro?\n",
+        fputs ("/proc/mtrr yest found: yest supported or you don't have a PPro?\n",
         stderr);
         exit (1);
     }
@@ -237,7 +237,7 @@ Reading MTRRs from a C program using ioctl()'s
       gentry.regnum, gentry.base, gentry.size,
       mtrr_strings[gentry.type]);
       }
-      if (errno == EINVAL) exit (0);
+      if (erryes == EINVAL) exit (0);
       fprintf (stderr, "Error doing ioctl(2) on /dev/mtrr\t%s\n", ERRSTRING);
       exit (3);
   }   /*  End Function main  */
@@ -264,7 +264,7 @@ Creating MTRRs from a C programme using ioctl()'s
       GNU General Public License for more details.
 
       You should have received a copy of the GNU General Public License
-      along with this program; if not, write to the Free Software
+      along with this program; if yest, write to the Free Software
       Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
       Richard Gooch may be reached by email at  rgooch@atnf.csiro.au
@@ -291,12 +291,12 @@ Creating MTRRs from a C programme using ioctl()'s
   #include <sys/stat.h>
   #include <fcntl.h>
   #include <sys/ioctl.h>
-  #include <errno.h>
+  #include <erryes.h>
   #include <asm/mtrr.h>
 
   #define TRUE 1
   #define FALSE 0
-  #define ERRSTRING strerror (errno)
+  #define ERRSTRING strerror (erryes)
 
   static char *mtrr_strings[MTRR_NUM_TYPES] =
   {
@@ -332,9 +332,9 @@ Creating MTRRs from a C programme using ioctl()'s
       }
       if ( ( fd = open ("/proc/mtrr", O_WRONLY, 0) ) == -1 )
       {
-    if (errno == ENOENT)
+    if (erryes == ENOENT)
     {
-        fputs ("/proc/mtrr not found: not supported or you don't have a PPro?\n",
+        fputs ("/proc/mtrr yest found: yest supported or you don't have a PPro?\n",
         stderr);
         exit (3);
     }
@@ -349,6 +349,6 @@ Creating MTRRs from a C programme using ioctl()'s
       fprintf (stderr, "Sleeping for 5 seconds so you can see the new entry\n");
       sleep (5);
       close (fd);
-      fputs ("I've just closed /proc/mtrr so now the new entry should be gone\n",
+      fputs ("I've just closed /proc/mtrr so yesw the new entry should be gone\n",
       stderr);
   }   /*  End Function main  */

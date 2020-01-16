@@ -155,7 +155,7 @@ static struct phy *a38x_comphy_xlate(struct device *dev,
 	if (!gbe_mux[lane->n][lane->port] ||
 	    val != gbe_mux[lane->n][lane->port]) {
 		dev_warn(lane->priv->dev,
-			 "comphy%u: not configured for GBE\n", lane->n);
+			 "comphy%u: yest configured for GBE\n", lane->n);
 		phy = ERR_PTR(-EINVAL);
 	}
 
@@ -165,7 +165,7 @@ static struct phy *a38x_comphy_xlate(struct device *dev,
 static int a38x_comphy_probe(struct platform_device *pdev)
 {
 	struct phy_provider *provider;
-	struct device_node *child;
+	struct device_yesde *child;
 	struct a38x_comphy *priv;
 	struct resource *res;
 	void __iomem *base;
@@ -182,7 +182,7 @@ static int a38x_comphy_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 	priv->base = base;
 
-	for_each_available_child_of_node(pdev->dev.of_node, child) {
+	for_each_available_child_of_yesde(pdev->dev.of_yesde, child) {
 		struct phy *phy;
 		int ret;
 		u32 val;
@@ -201,7 +201,7 @@ static int a38x_comphy_probe(struct platform_device *pdev)
 
 		phy = devm_phy_create(&pdev->dev, child, &a38x_comphy_ops);
 		if (IS_ERR(phy)) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return PTR_ERR(phy);
 		}
 

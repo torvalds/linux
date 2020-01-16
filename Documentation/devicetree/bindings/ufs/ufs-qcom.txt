@@ -1,10 +1,10 @@
-* Qualcomm Technologies Inc Universal Flash Storage (UFS) PHY
+* Qualcomm Techyeslogies Inc Universal Flash Storage (UFS) PHY
 
-UFSPHY nodes are defined to describe on-chip UFS PHY hardware macro.
-Each UFS PHY node should have its own node.
+UFSPHY yesdes are defined to describe on-chip UFS PHY hardware macro.
+Each UFS PHY yesde should have its own yesde.
 
-To bind UFS PHY with UFS host controller, the controller node should
-contain a phandle reference to UFS PHY node.
+To bind UFS PHY with UFS host controller, the controller yesde should
+contain a phandle reference to UFS PHY yesde.
 
 Required properties:
 - compatible        : compatible list, contains one of the following -

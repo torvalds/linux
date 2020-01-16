@@ -286,7 +286,7 @@ static int wm8903_dcs_event(struct snd_soc_dapm_widget *w,
 #define WM8903_DCS_MODE_WRITE_STOP 0
 #define WM8903_DCS_MODE_START_STOP 2
 
-static void wm8903_seq_notifier(struct snd_soc_component *component,
+static void wm8903_seq_yestifier(struct snd_soc_component *component,
 				enum snd_soc_dapm_type event, int subseq)
 {
 	struct wm8903_priv *wm8903 = snd_soc_component_get_drvdata(component);
@@ -298,7 +298,7 @@ static void wm8903_seq_notifier(struct snd_soc_component *component,
 		dev_dbg(component->dev, "Starting DC servo for %x\n",
 			wm8903->dcs_pending);
 
-		/* If we've no cached values then we need to do startup */
+		/* If we've yes cached values then we need to do startup */
 		for (i = 0; i < ARRAY_SIZE(wm8903->dcs_cache); i++) {
 			if (!(wm8903->dcs_pending & (1 << i)))
 				continue;
@@ -351,7 +351,7 @@ static void wm8903_seq_notifier(struct snd_soc_component *component,
 			break;
 
 		default:
-			pr_warn("DCS mode %d delay not set\n", dcs_mode);
+			pr_warn("DCS mode %d delay yest set\n", dcs_mode);
 			break;
 		}
 
@@ -400,7 +400,7 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 		wm8903->class_w_users--;
 	}
 
-	dev_dbg(component->dev, "Bypass use count now %d\n",
+	dev_dbg(component->dev, "Bypass use count yesw %d\n",
 		wm8903->class_w_users);
 
 	return ret;
@@ -699,7 +699,7 @@ SOC_DOUBLE_R_TLV("Digital Playback Volume", WM8903_DAC_DIGITAL_VOLUME_LEFT,
 		 WM8903_DAC_DIGITAL_VOLUME_RIGHT, 1, 120, 0, digital_tlv),
 SOC_ENUM("DAC Soft Mute Rate", soft_mute),
 SOC_ENUM("DAC Mute Mode", mute_mode),
-SOC_SINGLE("DAC Mono Switch", WM8903_DAC_DIGITAL_1, 12, 1, 0),
+SOC_SINGLE("DAC Moyes Switch", WM8903_DAC_DIGITAL_1, 12, 1, 0),
 SOC_ENUM("DAC Companding Mode", dac_companding),
 SOC_SINGLE("DAC Companding Switch", WM8903_AUDIO_INTERFACE_0, 1, 1, 0),
 SOC_SINGLE_TLV("DAC Boost Volume", WM8903_AUDIO_INTERFACE_0, 9, 3, 0,
@@ -1166,7 +1166,7 @@ static int wm8903_set_bias_level(struct snd_soc_component *component,
 					    WM8903_BIAS_ENA | WM8903_POBCTRL,
 					    WM8903_BIAS_ENA);
 
-			/* By default no bypass paths are enabled so
+			/* By default yes bypass paths are enabled so
 			 * enable Class W support.
 			 */
 			dev_dbg(component->dev, "Enabling Class W\n");
@@ -1268,7 +1268,7 @@ static int wm8903_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion yest valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1504,7 +1504,7 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(component->dev, "MCLK = %dHz, target sample rate = %dHz\n",
 		wm8903->sysclk, fs);
 
-	/* We may not have an MCLK which allows us to generate exactly
+	/* We may yest have an MCLK which allows us to generate exactly
 	 * the clock we want, particularly with USB derived inputs, so
 	 * approximate.
 	 */
@@ -1543,9 +1543,9 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 
 	dev_dbg(component->dev, "Actual CLK_SYS = %dHz\n", clk_sys);
 
-	/* We may not get quite the right frequency if using
+	/* We may yest get quite the right frequency if using
 	 * approximate clocks so look for the closest match that is
-	 * higher than the target (we need to ensure that there enough
+	 * higher than the target (we need to ensure that there eyesugh
 	 * BCLKs to clock out the samples).
 	 */
 	bclk_div = 0;
@@ -1625,7 +1625,7 @@ int wm8903_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *
 			    irq_mask);
 
 	if (det || shrt) {
-		/* Enable mic detection, this may not have been set through
+		/* Enable mic detection, this may yest have been set through
 		 * platform data (eg, if the defaults are OK). */
 		snd_soc_component_update_bits(component, WM8903_WRITE_SEQUENCER_0,
 				    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
@@ -1883,7 +1883,7 @@ static void wm8903_free_gpio(struct wm8903_priv *wm8903)
 static const struct snd_soc_component_driver soc_component_dev_wm8903 = {
 	.resume			= wm8903_resume,
 	.set_bias_level		= wm8903_set_bias_level,
-	.seq_notifier		= wm8903_seq_notifier,
+	.seq_yestifier		= wm8903_seq_yestifier,
 	.controls		= wm8903_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm8903_snd_controls),
 	.dapm_widgets		= wm8903_dapm_widgets,
@@ -1894,7 +1894,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8903 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8903_regmap = {
@@ -1924,7 +1924,7 @@ static int wm8903_set_pdata_irq_trigger(struct i2c_client *i2c,
 	case IRQ_TYPE_NONE:
 	default:
 		/*
-		* We assume the controller imposes no restrictions,
+		* We assume the controller imposes yes restrictions,
 		* so we are able to select active-high
 		*/
 		/* Fall-through */
@@ -1942,7 +1942,7 @@ static int wm8903_set_pdata_irq_trigger(struct i2c_client *i2c,
 static int wm8903_set_pdata_from_of(struct i2c_client *i2c,
 				    struct wm8903_platform_data *pdata)
 {
-	const struct device_node *np = i2c->dev.of_node;
+	const struct device_yesde *np = i2c->dev.of_yesde;
 	u32 val32;
 	int i;
 
@@ -1964,7 +1964,7 @@ static int wm8903_set_pdata_from_of(struct i2c_client *i2c,
 		 * Note: WM8903_GPIO_CONFIG_ZERO == 0x8000.
 		 *
 		 *  Convert from DT to pdata representation here,
-		 * so no other code needs to change.
+		 * so yes other code needs to change.
 		 */
 		for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
 			if (pdata->gpio_cfg[i] == 0) {
@@ -2009,7 +2009,7 @@ static int wm8903_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm8903);
 
-	/* If no platform data was supplied, create storage for defaults */
+	/* If yes platform data was supplied, create storage for defaults */
 	if (pdata) {
 		wm8903->pdata = pdata;
 	} else {
@@ -2024,7 +2024,7 @@ static int wm8903_i2c_probe(struct i2c_client *i2c,
 				return ret;
 		}
 
-		if (i2c->dev.of_node) {
+		if (i2c->dev.of_yesde) {
 			ret = wm8903_set_pdata_from_of(i2c, wm8903->pdata);
 			if (ret != 0)
 				return ret;
@@ -2056,7 +2056,7 @@ static int wm8903_i2c_probe(struct i2c_client *i2c,
 		goto err;
 	}
 	if (val != 0x8903) {
-		dev_err(&i2c->dev, "Device with ID %x is not a WM8903\n", val);
+		dev_err(&i2c->dev, "Device with ID %x is yest a WM8903\n", val);
 		ret = -ENODEV;
 		goto err;
 	}

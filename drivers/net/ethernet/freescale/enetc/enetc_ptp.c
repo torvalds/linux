@@ -33,7 +33,7 @@ static int enetc_ptp_probe(struct pci_dev *pdev,
 	void __iomem *base;
 	int err, len, n;
 
-	if (pdev->dev.of_node && !of_device_is_available(pdev->dev.of_node)) {
+	if (pdev->dev.of_yesde && !of_device_is_available(pdev->dev.of_yesde)) {
 		dev_info(&pdev->dev, "device is disabled, skipping\n");
 		return -ENODEV;
 	}
@@ -97,14 +97,14 @@ static int enetc_ptp_probe(struct pci_dev *pdev,
 
 	err = ptp_qoriq_init(ptp_qoriq, base, &enetc_ptp_caps);
 	if (err)
-		goto err_no_clock;
+		goto err_yes_clock;
 
 	enetc_phc_index = ptp_qoriq->phc_index;
 	pci_set_drvdata(pdev, ptp_qoriq);
 
 	return 0;
 
-err_no_clock:
+err_yes_clock:
 	free_irq(ptp_qoriq->irq, ptp_qoriq);
 err_irq:
 	pci_free_irq_vectors(pdev);

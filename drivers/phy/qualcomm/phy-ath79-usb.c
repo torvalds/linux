@@ -12,10 +12,10 @@
 
 struct ath79_usb_phy {
 	struct reset_control *reset;
-	/* The suspend override logic is inverted, hence the no prefix
+	/* The suspend override logic is inverted, hence the yes prefix
 	 * to make the code a bit easier to understand.
 	 */
-	struct reset_control *no_suspend_override;
+	struct reset_control *yes_suspend_override;
 };
 
 static int ath79_usb_phy_power_on(struct phy *phy)
@@ -23,15 +23,15 @@ static int ath79_usb_phy_power_on(struct phy *phy)
 	struct ath79_usb_phy *priv = phy_get_drvdata(phy);
 	int err = 0;
 
-	if (priv->no_suspend_override) {
-		err = reset_control_assert(priv->no_suspend_override);
+	if (priv->yes_suspend_override) {
+		err = reset_control_assert(priv->yes_suspend_override);
 		if (err)
 			return err;
 	}
 
 	err = reset_control_deassert(priv->reset);
-	if (err && priv->no_suspend_override)
-		reset_control_deassert(priv->no_suspend_override);
+	if (err && priv->yes_suspend_override)
+		reset_control_deassert(priv->yes_suspend_override);
 
 	return err;
 }
@@ -45,8 +45,8 @@ static int ath79_usb_phy_power_off(struct phy *phy)
 	if (err)
 		return err;
 
-	if (priv->no_suspend_override) {
-		err = reset_control_deassert(priv->no_suspend_override);
+	if (priv->yes_suspend_override) {
+		err = reset_control_deassert(priv->yes_suspend_override);
 		if (err)
 			reset_control_deassert(priv->reset);
 	}
@@ -73,10 +73,10 @@ static int ath79_usb_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->reset))
 		return PTR_ERR(priv->reset);
 
-	priv->no_suspend_override = devm_reset_control_get_optional(
+	priv->yes_suspend_override = devm_reset_control_get_optional(
 		&pdev->dev, "usb-suspend-override");
-	if (IS_ERR(priv->no_suspend_override))
-		return PTR_ERR(priv->no_suspend_override);
+	if (IS_ERR(priv->yes_suspend_override))
+		return PTR_ERR(priv->yes_suspend_override);
 
 	phy = devm_phy_create(&pdev->dev, NULL, &ath79_usb_phy_ops);
 	if (IS_ERR(phy))

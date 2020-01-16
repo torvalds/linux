@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/u64_stats_sync.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/device.h>
@@ -444,13 +444,13 @@ static int hinic_tx_offload(struct sk_buff *skb, struct hinic_sq_task *task,
 	if (offload)
 		hinic_task_set_l2hdr(task, skb_network_offset(skb));
 
-	/* payload offset should not more than 221 */
+	/* payload offset should yest more than 221 */
 	if (HINIC_SQ_CTRL_GET(*queue_info, QUEUE_INFO_PLDOFF) >
 	    MAX_PAYLOAD_OFFSET) {
 		return -EPROTONOSUPPORT;
 	}
 
-	/* mss should not less than 80 */
+	/* mss should yest less than 80 */
 	if (HINIC_SQ_CTRL_GET(*queue_info, QUEUE_INFO_MSS) < HINIC_MSS_MIN) {
 		*queue_info = HINIC_SQ_CTRL_CLEAR(*queue_info, QUEUE_INFO_MSS);
 		*queue_info |= HINIC_SQ_CTRL_SET(HINIC_MSS_MIN, QUEUE_INFO_MSS);
@@ -504,7 +504,7 @@ netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (!sq_wqe) {
 		netif_stop_subqueue(netdev, qp->q_id);
 
-		/* Check for the case free_tx_poll is called in another cpu
+		/* Check for the case free_tx_poll is called in ayesther cpu
 		 * and we stopped the subqueue after free_tx_poll check.
 		 */
 		sq_wqe = hinic_sq_get_wqe(txq->sq, wqe_size, &prod_idx);

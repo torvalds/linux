@@ -157,13 +157,13 @@ static int i2c_mux_trylock_bus(struct i2c_adapter *adapter, unsigned int flags)
 	struct i2c_adapter *parent = priv->muxc->parent;
 
 	if (!rt_mutex_trylock(&parent->mux_lock))
-		return 0;	/* mux_lock not locked, failure */
+		return 0;	/* mux_lock yest locked, failure */
 	if (!(flags & I2C_LOCK_ROOT_ADAPTER))
 		return 1;	/* we only want mux_lock, success */
 	if (i2c_trylock_bus(parent, flags))
 		return 1;	/* parent locked too, success */
 	rt_mutex_unlock(&parent->mux_lock);
-	return 0;		/* parent not locked, failure */
+	return 0;		/* parent yest locked, failure */
 }
 
 static void i2c_mux_unlock_bus(struct i2c_adapter *adapter, unsigned int flags)
@@ -193,11 +193,11 @@ static int i2c_parent_trylock_bus(struct i2c_adapter *adapter,
 	struct i2c_adapter *parent = priv->muxc->parent;
 
 	if (!rt_mutex_trylock(&parent->mux_lock))
-		return 0;	/* mux_lock not locked, failure */
+		return 0;	/* mux_lock yest locked, failure */
 	if (i2c_trylock_bus(parent, flags))
 		return 1;	/* parent locked too, success */
 	rt_mutex_unlock(&parent->mux_lock);
-	return 0;		/* parent not locked, failure */
+	return 0;		/* parent yest locked, failure */
 }
 
 static void i2c_parent_unlock_bus(struct i2c_adapter *adapter,
@@ -301,7 +301,7 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 	priv->muxc = muxc;
 	priv->chan_id = chan_id;
 
-	/* Need to do algo dynamically because we don't know ahead
+	/* Need to do algo dynamically because we don't kyesw ahead
 	 * of time what sort of physical adapter we'll be dealing with.
 	 */
 	if (parent->algo->master_xfer) {
@@ -348,36 +348,36 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 		priv->adap.class = class;
 
 	/*
-	 * Try to populate the mux adapter's of_node, expands to
-	 * nothing if !CONFIG_OF.
+	 * Try to populate the mux adapter's of_yesde, expands to
+	 * yesthing if !CONFIG_OF.
 	 */
-	if (muxc->dev->of_node) {
-		struct device_node *dev_node = muxc->dev->of_node;
-		struct device_node *mux_node, *child = NULL;
+	if (muxc->dev->of_yesde) {
+		struct device_yesde *dev_yesde = muxc->dev->of_yesde;
+		struct device_yesde *mux_yesde, *child = NULL;
 		u32 reg;
 
 		if (muxc->arbitrator)
-			mux_node = of_get_child_by_name(dev_node, "i2c-arb");
+			mux_yesde = of_get_child_by_name(dev_yesde, "i2c-arb");
 		else if (muxc->gate)
-			mux_node = of_get_child_by_name(dev_node, "i2c-gate");
+			mux_yesde = of_get_child_by_name(dev_yesde, "i2c-gate");
 		else
-			mux_node = of_get_child_by_name(dev_node, "i2c-mux");
+			mux_yesde = of_get_child_by_name(dev_yesde, "i2c-mux");
 
-		if (mux_node) {
+		if (mux_yesde) {
 			/* A "reg" property indicates an old-style DT entry */
-			if (!of_property_read_u32(mux_node, "reg", &reg)) {
-				of_node_put(mux_node);
-				mux_node = NULL;
+			if (!of_property_read_u32(mux_yesde, "reg", &reg)) {
+				of_yesde_put(mux_yesde);
+				mux_yesde = NULL;
 			}
 		}
 
-		if (!mux_node)
-			mux_node = of_node_get(dev_node);
+		if (!mux_yesde)
+			mux_yesde = of_yesde_get(dev_yesde);
 		else if (muxc->arbitrator || muxc->gate)
-			child = of_node_get(mux_node);
+			child = of_yesde_get(mux_yesde);
 
 		if (!child) {
-			for_each_child_of_node(mux_node, child) {
+			for_each_child_of_yesde(mux_yesde, child) {
 				ret = of_property_read_u32(child, "reg", &reg);
 				if (ret)
 					continue;
@@ -386,12 +386,12 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 			}
 		}
 
-		priv->adap.dev.of_node = child;
-		of_node_put(mux_node);
+		priv->adap.dev.of_yesde = child;
+		of_yesde_put(mux_yesde);
 	}
 
 	/*
-	 * Associate the mux channel with an ACPI node.
+	 * Associate the mux channel with an ACPI yesde.
 	 */
 	if (has_acpi_companion(muxc->dev))
 		acpi_preset_companion(&priv->adap.dev,
@@ -444,7 +444,7 @@ void i2c_mux_del_adapters(struct i2c_mux_core *muxc)
 	while (muxc->num_adapters) {
 		struct i2c_adapter *adap = muxc->adapter[--muxc->num_adapters];
 		struct i2c_mux_priv *priv = adap->algo_data;
-		struct device_node *np = adap->dev.of_node;
+		struct device_yesde *np = adap->dev.of_yesde;
 
 		muxc->adapter[muxc->num_adapters] = NULL;
 
@@ -454,7 +454,7 @@ void i2c_mux_del_adapters(struct i2c_mux_core *muxc)
 
 		sysfs_remove_link(&priv->adap.dev.kobj, "mux_device");
 		i2c_del_adapter(adap);
-		of_node_put(np);
+		of_yesde_put(np);
 		kfree(priv);
 	}
 }

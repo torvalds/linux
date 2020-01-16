@@ -89,7 +89,7 @@ static int ah_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_ah *ahinfo = par->matchinfo;
 
 	if (ahinfo->invflags & ~IP6T_AH_INV_MASK) {
-		pr_debug("unknown flags %X\n", ahinfo->invflags);
+		pr_debug("unkyeswn flags %X\n", ahinfo->invflags);
 		return -EINVAL;
 	}
 	return 0;

@@ -14,13 +14,13 @@
 | UNIMPLEMENTED instructions (exception vector 11) the following
 | applies:
 |
-| - For unnormalized numbers (opclass 0, 2, or 3) the
-| number(s) is normalized and the operand type tag is updated.
+| - For unyesrmalized numbers (opclass 0, 2, or 3) the
+| number(s) is yesrmalized and the operand type tag is updated.
 |
 | - For a packed number (opclass 2) the number is unpacked and the
 | operand type tag is updated.
 |
-| - For denormalized numbers (opclass 0 or 2) the number(s) is not
+| - For deyesrmalized numbers (opclass 0 or 2) the number(s) is yest
 | changed but passed to the next module.  The next module for
 | unimp is do_func, the next module for unsupp is res_func.
 |
@@ -34,20 +34,20 @@
 | '040 is then able to complete the instruction.
 |
 | For example:
-| fadd.x fpm,fpn where the fpm contains an unnormalized number.
+| fadd.x fpm,fpn where the fpm contains an unyesrmalized number.
 | The '040 takes an unsupported data trap and gets to this
-| routine.  The number is normalized, put back on the stack and
+| routine.  The number is yesrmalized, put back on the stack and
 | then an frestore is done to restore the instruction back into
 | the '040.  The '040 then re-executes the fadd.x fpm,fpn with
-| a normalized number in the source and the instruction is
+| a yesrmalized number in the source and the instruction is
 | successful.
 |
-| Next consider if in the process of normalizing the un-
-| normalized number it becomes a denormalized number.  The
-| routine which converts the unnorm to a norm (called mk_norm)
-| detects this and tags the number as a denorm.  The routine
-| res_func sees the denorm tag and converts the denorm to a
-| norm.  The instruction is then restored back into the '040
+| Next consider if in the process of yesrmalizing the un-
+| yesrmalized number it becomes a deyesrmalized number.  The
+| routine which converts the unyesrm to a yesrm (called mk_yesrm)
+| detects this and tags the number as a deyesrm.  The routine
+| res_func sees the deyesrm tag and converts the deyesrm to a
+| yesrm.  The instruction is then restored back into the '040
 | which re_executes the instruction.
 |
 |
@@ -176,37 +176,37 @@ uns_getop:
 	btstb	#direction_bit,CMDREG1B(%a6)
 	bne	opclass3	|branch if a fmove out (any kind)
 	btstb	#6,CMDREG1B(%a6)
-	beqs	uns_notpacked
+	beqs	uns_yestpacked
 
 	bfextu	CMDREG1B(%a6){#3:#3},%d0
 	cmpb	#3,%d0
 	beq	pack_source	|check for a packed src op, branch if so
-uns_notpacked:
+uns_yestpacked:
 	bsr	chk_dy_mo	|set the dyadic/monadic flag
 	tstb	DY_MO_FLG(%a6)
 	beqs	src_op_ck	|if monadic, go check src op
 |				;else, check dst op (fall through)
 
 	btstb	#7,DTAG(%a6)
-	beqs	src_op_ck	|if dst op is norm, check src op
-	bras	dst_ex_dnrm	|else, handle destination unnorm/dnrm
+	beqs	src_op_ck	|if dst op is yesrm, check src op
+	bras	dst_ex_dnrm	|else, handle destination unyesrm/dnrm
 
 uni_getop:
 	bfextu	CMDREG1B(%a6){#0:#6},%d0 |get opclass and src fields
 	cmpil	#0x17,%d0		|if op class and size fields are $17,
-|				;it is FMOVECR; if not, continue
+|				;it is FMOVECR; if yest, continue
 |
 | If the instruction is fmovecr, exit get_op.  It is handled
 | in do_func and smovecr.sa.
 |
-	bne	not_fmovecr	|handle fmovecr as an unimplemented inst
+	bne	yest_fmovecr	|handle fmovecr as an unimplemented inst
 	rts
 
-not_fmovecr:
+yest_fmovecr:
 	btstb	#E1,E_BYTE(%a6)	|if set, there is a packed operand
 	bne	pack_source	|check for packed src op, branch if so
 
-| The following lines of are coded to optimize on normalized operands
+| The following lines of are coded to optimize on yesrmalized operands
 	moveb	STAG(%a6),%d0
 	orb	DTAG(%a6),%d0	|check if either of STAG/DTAG msb set
 	bmis	dest_op_ck	|if so, some op needs to be fixed
@@ -214,28 +214,28 @@ not_fmovecr:
 
 dest_op_ck:
 	btstb	#7,DTAG(%a6)	|check for unsupported data types in
-	beqs	src_op_ck	|the destination, if not, check src op
+	beqs	src_op_ck	|the destination, if yest, check src op
 	bsr	chk_dy_mo	|set dyadic/monadic flag
 	tstb	DY_MO_FLG(%a6)	|
 	beqs	src_op_ck	|if monadic, check src op
 |
-| At this point, destination has an extended denorm or unnorm.
+| At this point, destination has an extended deyesrm or unyesrm.
 |
 dst_ex_dnrm:
 	movew	FPTEMP_EX(%a6),%d0 |get destination exponent
 	andiw	#0x7fff,%d0	|mask sign, check if exp = 0000
-	beqs	src_op_ck	|if denorm then check source op.
-|				;denorms are taken care of in res_func
+	beqs	src_op_ck	|if deyesrm then check source op.
+|				;deyesrms are taken care of in res_func
 |				;(unsupp) or do_func (unimp)
-|				;else unnorm fall through
-	leal	FPTEMP(%a6),%a0	|point a0 to dop - used in mk_norm
-	bsr	mk_norm		|go normalize - mk_norm returns:
+|				;else unyesrm fall through
+	leal	FPTEMP(%a6),%a0	|point a0 to dop - used in mk_yesrm
+	bsr	mk_yesrm		|go yesrmalize - mk_yesrm returns:
 |				;L_SCR1{7:5} = operand tag
-|				;	(000 = norm, 100 = denorm)
+|				;	(000 = yesrm, 100 = deyesrm)
 |				;L_SCR1{4} = fpte15 or ete15
 |				;	0 = exp >  $3fff
 |				;	1 = exp <= $3fff
-|				;and puts the normalized num back
+|				;and puts the yesrmalized num back
 |				;on the fsave stack
 |
 	moveb L_SCR1(%a6),DTAG(%a6) |write the new tag & fpte15
@@ -247,41 +247,41 @@ src_op_ck:
 	beq	end_getop	|check for unsupported data types on the
 |				;source operand
 	btstb	#5,STAG(%a6)
-	bnes	src_sd_dnrm	|if bit 5 set, handle sgl/dbl denorms
+	bnes	src_sd_dnrm	|if bit 5 set, handle sgl/dbl deyesrms
 |
-| At this point only unnorms or extended denorms are possible.
+| At this point only unyesrms or extended deyesrms are possible.
 |
 src_ex_dnrm:
 	movew	ETEMP_EX(%a6),%d0 |get source exponent
 	andiw	#0x7fff,%d0	|mask sign, check if exp = 0000
-	beq	end_getop	|if denorm then exit, denorms are
+	beq	end_getop	|if deyesrm then exit, deyesrms are
 |				;handled in do_func
-	leal	ETEMP(%a6),%a0	|point a0 to sop - used in mk_norm
-	bsr	mk_norm		|go normalize - mk_norm returns:
+	leal	ETEMP(%a6),%a0	|point a0 to sop - used in mk_yesrm
+	bsr	mk_yesrm		|go yesrmalize - mk_yesrm returns:
 |				;L_SCR1{7:5} = operand tag
-|				;	(000 = norm, 100 = denorm)
+|				;	(000 = yesrm, 100 = deyesrm)
 |				;L_SCR1{4} = fpte15 or ete15
 |				;	0 = exp >  $3fff
 |				;	1 = exp <= $3fff
-|				;and puts the normalized num back
+|				;and puts the yesrmalized num back
 |				;on the fsave stack
 |
 	moveb	L_SCR1(%a6),STAG(%a6) |write the new tag & ete15
 	rts			|end_getop
 
 |
-| At this point, only single or double denorms are possible.
-| If the inst is not fmove, normalize the source.  If it is,
-| do nothing to the input.
+| At this point, only single or double deyesrms are possible.
+| If the inst is yest fmove, yesrmalize the source.  If it is,
+| do yesthing to the input.
 |
 src_sd_dnrm:
-	btstb	#4,CMDREG1B(%a6)	|differentiate between sgl/dbl denorm
+	btstb	#4,CMDREG1B(%a6)	|differentiate between sgl/dbl deyesrm
 	bnes	is_double
 is_single:
-	movew	#0x3f81,%d1	|write bias for sgl denorm
+	movew	#0x3f81,%d1	|write bias for sgl deyesrm
 	bras	common		|goto the common code
 is_double:
-	movew	#0x3c01,%d1	|write the bias for a dbl denorm
+	movew	#0x3c01,%d1	|write the bias for a dbl deyesrm
 common:
 	btstb	#sign_bit,ETEMP_EX(%a6) |grab sign bit of mantissa
 	beqs	pos
@@ -297,12 +297,12 @@ pos:
 |				;this is needed to fix unsupp data stack
 	leal	ETEMP(%a6),%a0	|point a0 to sop
 
-	bsr	mk_norm		|convert sgl/dbl denorm to norm
+	bsr	mk_yesrm		|convert sgl/dbl deyesrm to yesrm
 	moveb	L_SCR1(%a6),STAG(%a6) |put tag into source tag reg - d0
 	rts			|end_getop
 |
 | At this point, the source is definitely packed, whether
-| instruction is dyadic or monadic is still unknown
+| instruction is dyadic or monadic is still unkyeswn
 |
 pack_source:
 	movel	FPTEMP_LO(%a6),ETEMP(%a6)	|write ms part of packed
@@ -321,15 +321,15 @@ pack_dya:
 	bsetl	%d1,%d0		|set up d0 as a dynamic register mask
 	fmovemx %d0,FPTEMP(%a6)	|write to FPTEMP
 
-	btstb	#7,DTAG(%a6)	|check dest tag for unnorm or denorm
-	bne	dst_ex_dnrm	|else, handle the unnorm or ext denorm
+	btstb	#7,DTAG(%a6)	|check dest tag for unyesrm or deyesrm
+	bne	dst_ex_dnrm	|else, handle the unyesrm or ext deyesrm
 |
-| Dest is not denormalized.  Check for norm, and set fpte15
+| Dest is yest deyesrmalized.  Check for yesrm, and set fpte15
 | accordingly.
 |
 	moveb	DTAG(%a6),%d0
 	andib	#0xf0,%d0		|strip to only dtag:fpte15
-	tstb	%d0		|check for normalized value
+	tstb	%d0		|check for yesrmalized value
 	bnes	end_getop	|if inf/nan/zero leave get_op
 	movew	FPTEMP_EX(%a6),%d0
 	andiw	#0x7fff,%d0
@@ -339,13 +339,13 @@ pack_dya:
 	bras	end_getop
 
 |
-| At this point, it is either an fmoveout packed, unnorm or denorm
+| At this point, it is either an fmoveout packed, unyesrm or deyesrm
 |
 opclass3:
 	clrb	DY_MO_FLG(%a6)	|set dyadic/monadic flag to monadic
 	bfextu	CMDREG1B(%a6){#4:#2},%d0
 	cmpib	#3,%d0
-	bne	src_ex_dnrm	|if not equal, must be unnorm or denorm
+	bne	src_ex_dnrm	|if yest equal, must be unyesrm or deyesrm
 |				;else it is a packed move out
 |				;exit
 end_getop:
@@ -359,7 +359,7 @@ chk_dy_mo:
 	movew	CMDREG1B(%a6),%d0
 	btstl	#5,%d0		|testing extension command word
 	beqs	set_mon		|if bit 5 = 0 then monadic
-	btstl	#4,%d0		|know that bit 5 = 1
+	btstl	#4,%d0		|kyesw that bit 5 = 1
 	beqs	set_dya		|if bit 4 = 0 then dyadic
 	andiw	#0x007f,%d0	|get rid of all but extension bits {6:0}
 	cmpiw	#0x0038,%d0	|if extension = $38 then fcmp (dyadic)
@@ -373,39 +373,39 @@ set_mon:
 |
 |	MK_NORM
 |
-| Normalizes unnormalized numbers, sets tag to norm or denorm, sets unfl
-| exception if denorm.
+| Normalizes unyesrmalized numbers, sets tag to yesrm or deyesrm, sets unfl
+| exception if deyesrm.
 |
 | CASE opclass 0x0 unsupp
-|	mk_norm till msb set
-|	set tag = norm
+|	mk_yesrm till msb set
+|	set tag = yesrm
 |
 | CASE opclass 0x0 unimp
-|	mk_norm till msb set or exp = 0
+|	mk_yesrm till msb set or exp = 0
 |	if integer bit = 0
-|	   tag = denorm
+|	   tag = deyesrm
 |	else
-|	   tag = norm
+|	   tag = yesrm
 |
 | CASE opclass 011 unsupp
-|	mk_norm till msb set or exp = 0
+|	mk_yesrm till msb set or exp = 0
 |	if integer bit = 0
-|	   tag = denorm
+|	   tag = deyesrm
 |	   set unfl_nmcexe = 1
 |	else
-|	   tag = norm
+|	   tag = yesrm
 |
 | if exp <= $3fff
 |   set ete15 or fpte15 = 1
 | else set ete15 or fpte15 = 0
 
 | input:
-|	a0 = points to operand to be normalized
+|	a0 = points to operand to be yesrmalized
 | output:
-|	L_SCR1{7:5} = operand tag (000 = norm, 100 = denorm)
+|	L_SCR1{7:5} = operand tag (000 = yesrm, 100 = deyesrm)
 |	L_SCR1{4}   = fpte15 or ete15 (0 = exp > $3fff, 1 = exp <=$3fff)
-|	the normalized operand is placed back on the fsave stack
-mk_norm:
+|	the yesrmalized operand is placed back on the fsave stack
+mk_yesrm:
 	clrl	L_SCR1(%a6)
 	bclrb	#sign_bit,LOCAL_EX(%a0)
 	sne	LOCAL_SGN(%a0)	|transform into internal extended format
@@ -428,8 +428,8 @@ reload:
 |				;calling routine actually sets the
 |				;value on the stack (along with the
 |				;tag), since this routine doesn't
-|				;know if it should set ete15 or fpte15
-|				;ie, it doesn't know if this is the
+|				;kyesw if it should set ete15 or fpte15
+|				;ie, it doesn't kyesw if this is the
 |				;src op or dest op.
 end_mk:
 	bfclr	LOCAL_SGN(%a0){#0:#8}
@@ -441,26 +441,26 @@ end_mk_pos:
 |     CASE opclass 011 unsupp
 |
 uns_op3:
-	bsr	nrm_zero	|normalize till msb = 1 or exp = zero
+	bsr	nrm_zero	|yesrmalize till msb = 1 or exp = zero
 	btstb	#7,LOCAL_HI(%a0)	|if msb = 1
-	bnes	no_unfl		|then branch
+	bnes	yes_unfl		|then branch
 set_unfl:
-	orw	#dnrm_tag,L_SCR1(%a6) |set denorm tag
+	orw	#dnrm_tag,L_SCR1(%a6) |set deyesrm tag
 	bsetb	#unfl_bit,FPSR_EXCEPT(%a6) |set unfl exception bit
-no_unfl:
+yes_unfl:
 	rts
 |
 |     CASE opclass 0x0 unsupp
 |
 uns_opx:
-	bsr	nrm_zero	|normalize the number
+	bsr	nrm_zero	|yesrmalize the number
 	btstb	#7,LOCAL_HI(%a0)	|check if integer bit (j-bit) is set
-	beqs	uns_den		|if clear then now have a denorm
+	beqs	uns_den		|if clear then yesw have a deyesrm
 uns_nrm:
-	orb	#norm_tag,L_SCR1(%a6) |set tag to norm
+	orb	#yesrm_tag,L_SCR1(%a6) |set tag to yesrm
 	rts
 uns_den:
-	orb	#dnrm_tag,L_SCR1(%a6) |set tag to denorm
+	orb	#dnrm_tag,L_SCR1(%a6) |set tag to deyesrm
 	rts
 |
 |     CASE opclass 0x0 unimp
@@ -468,19 +468,19 @@ uns_den:
 uni_inst:
 	bsr	nrm_zero
 	btstb	#7,LOCAL_HI(%a0)	|check if integer bit (j-bit) is set
-	beqs	uni_den		|if clear then now have a denorm
+	beqs	uni_den		|if clear then yesw have a deyesrm
 uni_nrm:
-	orb	#norm_tag,L_SCR1(%a6) |set tag to norm
+	orb	#yesrm_tag,L_SCR1(%a6) |set tag to yesrm
 	rts
 uni_den:
-	orb	#dnrm_tag,L_SCR1(%a6) |set tag to denorm
+	orb	#dnrm_tag,L_SCR1(%a6) |set tag to deyesrm
 	rts
 
 |
 |	Decimal to binary conversion
 |
 | Special cases of inf and NaNs are completed outside of decbin.
-| If the input is an snan, the snan bit is not set.
+| If the input is an snan, the snan bit is yest set.
 |
 | input:
 |	ETEMP(a6)	- points to packed decimal string in memory
@@ -495,15 +495,15 @@ unpack:
 	movew	ETEMP(%a6),%d0	|get word with inf information
 	bfextu	%d0{#20:#12},%d1	|get exponent into d1
 	cmpiw	#0x0fff,%d1	|test for inf or NaN
-	bnes	try_zero	|if not equal, it is not special
+	bnes	try_zero	|if yest equal, it is yest special
 	bfextu	%d0{#17:#3},%d1	|get SE and y bits into d1
 	cmpiw	#7,%d1		|SE and y bits must be on for special
-	bnes	try_zero	|if not on, it is not special
+	bnes	try_zero	|if yest on, it is yest special
 |input is of the special cases of inf and NaN
 	tstl	ETEMP_HI(%a6)	|check ms mantissa
-	bnes	fix_nan		|if non-zero, it is a NaN
+	bnes	fix_nan		|if yesn-zero, it is a NaN
 	tstl	ETEMP_LO(%a6)	|check ls mantissa
-	bnes	fix_nan		|if non-zero, it is a NaN
+	bnes	fix_nan		|if yesn-zero, it is a NaN
 	bra	finish		|special already on stack
 fix_nan:
 	btstb	#signan_bit,ETEMP_HI(%a6) |test for snan
@@ -514,11 +514,11 @@ try_zero:
 	movew	ETEMP_EX+2(%a6),%d0 |get word 4
 	andiw	#0x000f,%d0	|clear all but last ni(y)bble
 	tstw	%d0		|check for zero.
-	bne	not_spec
+	bne	yest_spec
 	tstl	ETEMP_HI(%a6)	|check words 3 and 2
-	bne	not_spec
+	bne	yest_spec
 	tstl	ETEMP_LO(%a6)	|check words 1 and 0
-	bne	not_spec
+	bne	yest_spec
 	tstl	ETEMP(%a6)	|test sign of the zero
 	bges	pos_zero
 	movel	#0x80000000,ETEMP(%a6) |write neg zero to etemp
@@ -531,7 +531,7 @@ pos_zero:
 	clrl	ETEMP_LO(%a6)
 	bra	finish
 
-not_spec:
+yest_spec:
 	fmovemx %fp0-%fp1,-(%a7)	|save fp0 - decbin returns in it
 	bsr	decbin
 	fmovex %fp0,ETEMP(%a6)	|put the unpacked sop in the fsave stack
@@ -547,15 +547,15 @@ move_unpack:
 	movew	ETEMP(%a6),%d0	|get word with inf information
 	bfextu	%d0{#20:#12},%d1	|get exponent into d1
 	cmpiw	#0x0fff,%d1	|test for inf or NaN
-	bnes	mtry_zero	|if not equal, it is not special
+	bnes	mtry_zero	|if yest equal, it is yest special
 	bfextu	%d0{#17:#3},%d1	|get SE and y bits into d1
 	cmpiw	#7,%d1		|SE and y bits must be on for special
-	bnes	mtry_zero	|if not on, it is not special
+	bnes	mtry_zero	|if yest on, it is yest special
 |input is of the special cases of inf and NaN
 	tstl	ETEMP_HI(%a6)	|check ms mantissa
-	bnes	mfix_nan		|if non-zero, it is a NaN
+	bnes	mfix_nan		|if yesn-zero, it is a NaN
 	tstl	ETEMP_LO(%a6)	|check ls mantissa
-	bnes	mfix_nan		|if non-zero, it is a NaN
+	bnes	mfix_nan		|if yesn-zero, it is a NaN
 |input is inf
 	orl	#inf_mask,USER_FPSR(%a6) |set I bit
 	tstl	ETEMP(%a6)	|check sign
@@ -581,11 +581,11 @@ mtry_zero:
 	movew	ETEMP_EX+2(%a6),%d0 |get word 4
 	andiw	#0x000f,%d0	|clear all but last ni(y)bble
 	tstw	%d0		|check for zero.
-	bnes	mnot_spec
+	bnes	myest_spec
 	tstl	ETEMP_HI(%a6)	|check words 3 and 2
-	bnes	mnot_spec
+	bnes	myest_spec
 	tstl	ETEMP_LO(%a6)	|check words 1 and 0
-	bnes	mnot_spec
+	bnes	myest_spec
 	tstl	ETEMP(%a6)	|test sign of the zero
 	bges	mpos_zero
 	orl	#neg_mask+z_mask,USER_FPSR(%a6) |set N and Z
@@ -600,7 +600,7 @@ mpos_zero:
 	clrl	ETEMP_LO(%a6)
 	bras	finish
 
-mnot_spec:
+myest_spec:
 	fmovemx %fp0-%fp1,-(%a7)	|save fp0 ,fp1 - decbin returns in fp0
 	bsr	decbin
 	fmovex %fp0,ETEMP(%a6)
@@ -614,10 +614,10 @@ finish:
 	movew	%d0,CMDREG1B(%a6)	|write command word back to fsave stack
 |				;we need to do this so the 040 will
 |				;re-execute the inst. without taking
-|				;another packed trap.
+|				;ayesther packed trap.
 
 fix_stag:
-|Converted result is now in etemp on fsave stack, now set the source
+|Converted result is yesw in etemp on fsave stack, yesw set the source
 |tag (stag)
 |	if (ete =$7fff) then INF or NAN
 |		if (etemp = $x.0----0) then
@@ -658,7 +658,7 @@ is_zro:
 	movel		#0x20,%d0
 	rts
 is_nrm:
-| For a norm, check if the exp <= $3fff; if so, set etemp_15
+| For a yesrm, check if the exp <= $3fff; if so, set etemp_15
 	cmpiw		#0x3fff,%d1
 	bles		set_bit15
 	moveb		#0,STAG(%a6)

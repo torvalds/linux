@@ -205,7 +205,7 @@ static const struct phy_ops phy_meson_gxl_usb3_ops = {
 static int phy_meson_gxl_usb3_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct phy_meson_gxl_usb3_priv *priv;
 	struct resource *res;
 	struct phy *phy;
@@ -243,7 +243,7 @@ static int phy_meson_gxl_usb3_probe(struct platform_device *pdev)
 	 * default to host mode as hardware defaults and/or boot-loader
 	 * behavior can result in this PHY starting up in device mode. this
 	 * default and the initialization in phy_meson_gxl_usb3_init ensure
-	 * that we reproducibly start in a known mode on all devices.
+	 * that we reproducibly start in a kyeswn mode on all devices.
 	 */
 	priv->mode = PHY_MODE_USB_HOST;
 

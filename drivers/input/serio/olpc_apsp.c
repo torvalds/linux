@@ -16,10 +16,10 @@
 #include <linux/delay.h>
 
 /*
- * The OLPC XO-1.75 and XO-4 laptops do not have a hardware PS/2 controller.
+ * The OLPC XO-1.75 and XO-4 laptops do yest have a hardware PS/2 controller.
  * Instead, the OLPC firmware runs a bit-banging PS/2 implementation on an
  * otherwise-unused slow processor which is included in the Marvell MMP2/MMP3
- * SoC, known as the "Security Processor" (SP) or "Wireless Trusted Module"
+ * SoC, kyeswn as the "Security Processor" (SP) or "Wireless Trusted Module"
  * (WTM). This firmware then reports its results via the WTM registers,
  * which we read from the Application Processor (AP, i.e. main CPU) in this
  * driver.
@@ -88,7 +88,7 @@ static int olpc_apsp_write(struct serio *port, unsigned char val)
 			       priv->base + SECURE_PROCESSOR_COMMAND);
 			return 0;
 		}
-		/* SP busy. This has not been seen in practice. */
+		/* SP busy. This has yest been seen in practice. */
 		mdelay(1);
 	}
 
@@ -105,7 +105,7 @@ static irqreturn_t olpc_apsp_rx(int irq, void *dev_id)
 	struct serio *serio;
 
 	/*
-	 * Write 1 to PJ_RST_INTERRUPT to acknowledge and clear the interrupt
+	 * Write 1 to PJ_RST_INTERRUPT to ackyeswledge and clear the interrupt
 	 * Write 0xff00 to SECURE_PROCESSOR_COMMAND.
 	 */
 	tmp = readl(priv->base + PJ_RST_INTERRUPT);
@@ -141,7 +141,7 @@ static int olpc_apsp_open(struct serio *port)
 	if (priv->open_count++ == 0) {
 		l = readl(priv->base + COMMAND_FIFO_STATUS);
 		if (!(l & CMD_STS_MASK)) {
-			dev_err(priv->dev, "SP cannot accept commands.\n");
+			dev_err(priv->dev, "SP canyest accept commands.\n");
 			return -EIO;
 		}
 

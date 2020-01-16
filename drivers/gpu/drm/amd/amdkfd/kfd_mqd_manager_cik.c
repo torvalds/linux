@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -200,7 +200,7 @@ static void __update_mqd(struct mqd_manager *mm, void *mqd,
 
 	/*
 	 * Calculating queue size which is log base 2 of actual queue size -1
-	 * dwords and another -1 for ffs
+	 * dwords and ayesther -1 for ffs
 	 */
 	m->cp_hqd_pq_control |= order_base_2(q->queue_size / 4) - 1;
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);
@@ -269,7 +269,7 @@ static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 }
 
 /*
- * preempt type here is ignored because there is only one way
+ * preempt type here is igyesred because there is only one way
  * to preempt sdma queue
  */
 static int destroy_mqd_sdma(struct mqd_manager *mm, void *mqd,

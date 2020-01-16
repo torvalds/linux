@@ -40,7 +40,7 @@ static inline void clear_page_idle(struct page *page)
 }
 #else /* !CONFIG_64BIT */
 /*
- * If there is not enough space to store Idle and Young bits in page flags, use
+ * If there is yest eyesugh space to store Idle and Young bits in page flags, use
  * page ext flags instead.
  */
 extern struct page_ext_operations page_idle_ops;

@@ -20,7 +20,7 @@
 #include "sclp_rw.h"
 
 /*
- * The room for the SCCB (only for writing) is not equal to a pages size
+ * The room for the SCCB (only for writing) is yest equal to a pages size
  * (as it is specified as the maximum size in the SCLP documentation)
  * because of the additional data structure described above.
  */
@@ -84,7 +84,7 @@ sclp_unmake_buffer(struct sclp_buffer *buffer)
 
 /*
  * Initialize a new message the end of the provided buffer with
- * enough room for max_len characters. Return 0 on success.
+ * eyesugh room for max_len characters. Return 0 on success.
  */
 static int
 sclp_initialize_mto(struct sclp_buffer *buffer, int max_len)
@@ -169,9 +169,9 @@ sclp_finalize_mto(struct sclp_buffer *buffer)
 /*
  * processing of a message including escape characters,
  * returns number of characters written to the output sccb
- * ("processed" means that is not guaranteed that the character have already
+ * ("processed" means that is yest guaranteed that the character have already
  *  been sent to the SCLP but that it will be done at least next time the SCLP
- *  is not busy)
+ *  is yest busy)
  */
 int
 sclp_write(struct sclp_buffer *buffer, const unsigned char *msg, int count)
@@ -183,7 +183,7 @@ sclp_write(struct sclp_buffer *buffer, const unsigned char *msg, int count)
 	 * parse msg for escape sequences (\t,\v ...) and put formated
 	 * msg into an mto (created by sclp_initialize_mto).
 	 *
-	 * We have to do this work ourselfs because there is no support for
+	 * We have to do this work ourselfs because there is yes support for
 	 * these characters on the native machine and only partial support
 	 * under VM (Why does VM interpret \n but the native machine doesn't ?)
 	 *
@@ -194,11 +194,11 @@ sclp_write(struct sclp_buffer *buffer, const unsigned char *msg, int count)
 	 *
 	 * RESTRICTIONS:
 	 *
-	 * \r and \b work within one line because we are not able to modify
+	 * \r and \b work within one line because we are yest able to modify
 	 * previous output that have already been accepted by the SCLP.
 	 *
-	 * \t combined with following \r is not correctly represented because
-	 * \t is expanded to some spaces but \r does not know about a
+	 * \t combined with following \r is yest correctly represented because
+	 * \t is expanded to some spaces but \r does yest kyesw about a
 	 * previous \t and decreases the current position by one column.
 	 * This is in order to a slim and quick implementation.
 	 */
@@ -267,7 +267,7 @@ sclp_write(struct sclp_buffer *buffer, const unsigned char *msg, int count)
 		case '\b':	/* backspace  */
 			/* "go to (actual column - 1, actual line)" */
 			/* decrement counter indicating position, */
-			/* do not remove last character */
+			/* do yest remove last character */
 			if (buffer->current_line != NULL &&
 			    buffer->current_length > 0) {
 				buffer->current_length--;
@@ -281,8 +281,8 @@ sclp_write(struct sclp_buffer *buffer, const unsigned char *msg, int count)
 			/* skip the rest of the message including the 0 byte */
 			i_msg = count - 1;
 			break;
-		default:	/* no escape character	*/
-			/* do not output unprintable characters */
+		default:	/* yes escape character	*/
+			/* do yest output unprintable characters */
 			if (!isprint(msg[i_msg]))
 				break;
 			/* check if new mto needs to be created */
@@ -407,7 +407,7 @@ sclp_writedata_callback(struct sclp_req *request, void *data)
 		}
 		/* remove processed buffers and requeue rest */
 		if (sclp_remove_processed((struct sccb_header *) sccb) > 0) {
-			/* not all buffers were processed */
+			/* yest all buffers were processed */
 			sccb->response_code = 0x0000;
 			buffer->request.status = SCLP_REQ_FILLED;
 			rc = sclp_add_request(request);
@@ -444,7 +444,7 @@ sclp_writedata_callback(struct sclp_req *request, void *data)
 /*
  * Setup the request structure in the struct sclp_buffer to do SCLP Write
  * Event Data and pass the request to the core SCLP loop. Return zero on
- * success, non-zero otherwise.
+ * success, yesn-zero otherwise.
  */
 int
 sclp_emit_buffer(struct sclp_buffer *buffer,

@@ -11,7 +11,7 @@
  * It can be used for drivers that are required to emulate midi when
  * the hardware doesn't.
  *
- * It was written for a AWE64 driver, but there should be no AWE specific
+ * It was written for a AWE64 driver, but there should be yes AWE specific
  * code in here.  If there is it should be reported as a bug.
  */
 
@@ -30,9 +30,9 @@ MODULE_DESCRIPTION("Advanced Linux Sound Architecture sequencer MIDI emulation."
 MODULE_LICENSE("GPL");
 
 /* Prototypes for static functions */
-static void note_off(struct snd_midi_op *ops, void *drv,
+static void yeste_off(struct snd_midi_op *ops, void *drv,
 		     struct snd_midi_channel *chan,
-		     int note, int vel);
+		     int yeste, int vel);
 static void do_control(struct snd_midi_op *ops, void *private,
 		       struct snd_midi_channel_set *chset,
 		       struct snd_midi_channel *chan,
@@ -45,7 +45,7 @@ static void sysex(struct snd_midi_op *ops, void *private, unsigned char *sysex,
 		  int len, struct snd_midi_channel_set *chset);
 static void all_sounds_off(struct snd_midi_op *ops, void *private,
 			   struct snd_midi_channel *chan);
-static void all_notes_off(struct snd_midi_op *ops, void *private,
+static void all_yestes_off(struct snd_midi_op *ops, void *private,
 			  struct snd_midi_channel *chan);
 static void snd_midi_reset_controllers(struct snd_midi_channel *chan);
 static void reset_all_channels(struct snd_midi_channel_set *chset);
@@ -56,7 +56,7 @@ static void reset_all_channels(struct snd_midi_channel_set *chset);
  * with RPN, NRPN, SysEx etc that are defined for common midi applications
  * such as GM, GS and XG.
  * There modes that this module will run in are:
- *   Generic MIDI - no interpretation at all, it will just save current values
+ *   Generic MIDI - yes interpretation at all, it will just save current values
  *                  of controllers etc.
  *   GM - You can use all gm_ prefixed elements of chan.  Controls, RPN, NRPN,
  *        SysEx will be interpreded as defined in General Midi.
@@ -82,7 +82,7 @@ snd_midi_process_event(struct snd_midi_op *ops,
 		return;
 
 	if (snd_seq_ev_is_channel_type(ev)) {
-		dest_channel = ev->data.note.channel;
+		dest_channel = ev->data.yeste.channel;
 		if (dest_channel >= chanset->max_channels) {
 			pr_debug("ALSA: seq_midi_emul: dest channel is %d, max is %d\n",
 				   dest_channel, chanset->max_channels);
@@ -97,38 +97,38 @@ snd_midi_process_event(struct snd_midi_op *ops,
 	if (ev->type == SNDRV_SEQ_EVENT_NOTE)
 		return;
 
-	/* Make sure that we don't have a note on that should really be
-	 * a note off */
-	if (ev->type == SNDRV_SEQ_EVENT_NOTEON && ev->data.note.velocity == 0)
+	/* Make sure that we don't have a yeste on that should really be
+	 * a yeste off */
+	if (ev->type == SNDRV_SEQ_EVENT_NOTEON && ev->data.yeste.velocity == 0)
 		ev->type = SNDRV_SEQ_EVENT_NOTEOFF;
 
-	/* Make sure the note is within array range */
+	/* Make sure the yeste is within array range */
 	if (ev->type == SNDRV_SEQ_EVENT_NOTEON ||
 	    ev->type == SNDRV_SEQ_EVENT_NOTEOFF ||
 	    ev->type == SNDRV_SEQ_EVENT_KEYPRESS) {
-		if (ev->data.note.note >= 128)
+		if (ev->data.yeste.yeste >= 128)
 			return;
 	}
 
 	switch (ev->type) {
 	case SNDRV_SEQ_EVENT_NOTEON:
-		if (chan->note[ev->data.note.note] & SNDRV_MIDI_NOTE_ON) {
-			if (ops->note_off)
-				ops->note_off(drv, ev->data.note.note, 0, chan);
+		if (chan->yeste[ev->data.yeste.yeste] & SNDRV_MIDI_NOTE_ON) {
+			if (ops->yeste_off)
+				ops->yeste_off(drv, ev->data.yeste.yeste, 0, chan);
 		}
-		chan->note[ev->data.note.note] = SNDRV_MIDI_NOTE_ON;
-		if (ops->note_on)
-			ops->note_on(drv, ev->data.note.note, ev->data.note.velocity, chan);
+		chan->yeste[ev->data.yeste.yeste] = SNDRV_MIDI_NOTE_ON;
+		if (ops->yeste_on)
+			ops->yeste_on(drv, ev->data.yeste.yeste, ev->data.yeste.velocity, chan);
 		break;
 	case SNDRV_SEQ_EVENT_NOTEOFF:
-		if (! (chan->note[ev->data.note.note] & SNDRV_MIDI_NOTE_ON))
+		if (! (chan->yeste[ev->data.yeste.yeste] & SNDRV_MIDI_NOTE_ON))
 			break;
-		if (ops->note_off)
-			note_off(ops, drv, chan, ev->data.note.note, ev->data.note.velocity);
+		if (ops->yeste_off)
+			yeste_off(ops, drv, chan, ev->data.yeste.yeste, ev->data.yeste.velocity);
 		break;
 	case SNDRV_SEQ_EVENT_KEYPRESS:
 		if (ops->key_press)
-			ops->key_press(drv, ev->data.note.note, ev->data.note.velocity, chan);
+			ops->key_press(drv, ev->data.yeste.yeste, ev->data.yeste.velocity, chan);
 		break;
 	case SNDRV_SEQ_EVENT_CONTROLLER:
 		do_control(ops, drv, chanset, chan,
@@ -206,7 +206,7 @@ snd_midi_process_event(struct snd_midi_op *ops,
 	case SNDRV_SEQ_EVENT_TEMPO:
 	case SNDRV_SEQ_EVENT_TIMESIGN:
 	case SNDRV_SEQ_EVENT_KEYSIGN:
-		goto not_yet;
+		goto yest_yet;
 	case SNDRV_SEQ_EVENT_SENSING:
 		break;
 	case SNDRV_SEQ_EVENT_CLIENT_START:
@@ -216,7 +216,7 @@ snd_midi_process_event(struct snd_midi_op *ops,
 	case SNDRV_SEQ_EVENT_PORT_EXIT:
 	case SNDRV_SEQ_EVENT_PORT_CHANGE:
 	case SNDRV_SEQ_EVENT_ECHO:
-	not_yet:
+	yest_yet:
 	default:
 		/*pr_debug("ALSA: seq_midi_emul: Unimplemented event %d\n", ev->type);*/
 		break;
@@ -226,23 +226,23 @@ EXPORT_SYMBOL(snd_midi_process_event);
 
 
 /*
- * release note
+ * release yeste
  */
 static void
-note_off(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
-	 int note, int vel)
+yeste_off(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
+	 int yeste, int vel)
 {
 	if (chan->gm_hold) {
-		/* Hold this note until pedal is turned off */
-		chan->note[note] |= SNDRV_MIDI_NOTE_RELEASED;
-	} else if (chan->note[note] & SNDRV_MIDI_NOTE_SOSTENUTO) {
-		/* Mark this note as release; it will be turned off when sostenuto
+		/* Hold this yeste until pedal is turned off */
+		chan->yeste[yeste] |= SNDRV_MIDI_NOTE_RELEASED;
+	} else if (chan->yeste[yeste] & SNDRV_MIDI_NOTE_SOSTENUTO) {
+		/* Mark this yeste as release; it will be turned off when sostenuto
 		 * is turned off */
-		chan->note[note] |= SNDRV_MIDI_NOTE_RELEASED;
+		chan->yeste[yeste] |= SNDRV_MIDI_NOTE_RELEASED;
 	} else {
-		chan->note[note] = 0;
-		if (ops->note_off)
-			ops->note_off(drv, note, vel, chan);
+		chan->yeste[yeste] = 0;
+		if (ops->yeste_off)
+			ops->yeste_off(drv, yeste, vel, chan);
 	}
 }
 
@@ -269,12 +269,12 @@ do_control(struct snd_midi_op *ops, void *drv, struct snd_midi_channel_set *chse
 	switch (control) {
 	case MIDI_CTL_SUSTAIN:
 		if (value == 0) {
-			/* Sustain has been released, turn off held notes */
+			/* Sustain has been released, turn off held yestes */
 			for (i = 0; i < 128; i++) {
-				if (chan->note[i] & SNDRV_MIDI_NOTE_RELEASED) {
-					chan->note[i] = SNDRV_MIDI_NOTE_OFF;
-					if (ops->note_off)
-						ops->note_off(drv, i, 0, chan);
+				if (chan->yeste[i] & SNDRV_MIDI_NOTE_RELEASED) {
+					chan->yeste[i] = SNDRV_MIDI_NOTE_OFF;
+					if (ops->yeste_off)
+						ops->yeste_off(drv, i, 0, chan);
 				}
 			}
 		}
@@ -283,20 +283,20 @@ do_control(struct snd_midi_op *ops, void *drv, struct snd_midi_channel_set *chse
 		break;
 	case MIDI_CTL_SOSTENUTO:
 		if (value) {
-			/* Mark each note that is currently held down */
+			/* Mark each yeste that is currently held down */
 			for (i = 0; i < 128; i++) {
-				if (chan->note[i] & SNDRV_MIDI_NOTE_ON)
-					chan->note[i] |= SNDRV_MIDI_NOTE_SOSTENUTO;
+				if (chan->yeste[i] & SNDRV_MIDI_NOTE_ON)
+					chan->yeste[i] |= SNDRV_MIDI_NOTE_SOSTENUTO;
 			}
 		} else {
-			/* release all notes that were held */
+			/* release all yestes that were held */
 			for (i = 0; i < 128; i++) {
-				if (chan->note[i] & SNDRV_MIDI_NOTE_SOSTENUTO) {
-					chan->note[i] &= ~SNDRV_MIDI_NOTE_SOSTENUTO;
-					if (chan->note[i] & SNDRV_MIDI_NOTE_RELEASED) {
-						chan->note[i] = SNDRV_MIDI_NOTE_OFF;
-						if (ops->note_off)
-							ops->note_off(drv, i, 0, chan);
+				if (chan->yeste[i] & SNDRV_MIDI_NOTE_SOSTENUTO) {
+					chan->yeste[i] &= ~SNDRV_MIDI_NOTE_SOSTENUTO;
+					if (chan->yeste[i] & SNDRV_MIDI_NOTE_RELEASED) {
+						chan->yeste[i] = SNDRV_MIDI_NOTE_OFF;
+						if (ops->yeste_off)
+							ops->yeste_off(drv, i, 0, chan);
 					}
 				}
 			}
@@ -325,7 +325,7 @@ do_control(struct snd_midi_op *ops, void *drv, struct snd_midi_channel_set *chse
 		break;
 
 	case MIDI_CTL_ALL_NOTES_OFF:
-		all_notes_off(ops, drv, chan);
+		all_yestes_off(ops, drv, chan);
 		break;
 
 	case MIDI_CTL_MSB_BANK:
@@ -356,8 +356,8 @@ do_control(struct snd_midi_op *ops, void *drv, struct snd_midi_channel_set *chse
 	case MIDI_CTL_E3_CHORUS_DEPTH:
 	case MIDI_CTL_E4_DETUNE_DEPTH:
 	case MIDI_CTL_E5_PHASER_DEPTH:
-		goto notyet;
-	notyet:
+		goto yestyet;
+	yestyet:
 	default:
 		if (ops->control)
 			ops->control(drv, control, chan);
@@ -379,7 +379,7 @@ snd_midi_channel_set_clear(struct snd_midi_channel_set *chset)
 
 	for (i = 0; i < chset->max_channels; i++) {
 		struct snd_midi_channel *chan = chset->channels + i;
-		memset(chan->note, 0, sizeof(chan->note));
+		memset(chan->yeste, 0, sizeof(chan->yeste));
 
 		chan->midi_aftertouch = 0;
 		chan->midi_pressure = 0;
@@ -431,7 +431,7 @@ rpn(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
 			break;
 
 		case 0x7F7F: /* "lock-in" RPN */
-			/* ignored */
+			/* igyesred */
 			break;
 		}
 	}
@@ -588,29 +588,29 @@ all_sounds_off(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan
 {
 	int n;
 
-	if (! ops->note_terminate)
+	if (! ops->yeste_terminate)
 		return;
 	for (n = 0; n < 128; n++) {
-		if (chan->note[n]) {
-			ops->note_terminate(drv, n, chan);
-			chan->note[n] = 0;
+		if (chan->yeste[n]) {
+			ops->yeste_terminate(drv, n, chan);
+			chan->yeste[n] = 0;
 		}
 	}
 }
 
 /*
- * all notes off
+ * all yestes off
  */
 static void
-all_notes_off(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan)
+all_yestes_off(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan)
 {
 	int n;
 
-	if (! ops->note_off)
+	if (! ops->yeste_off)
 		return;
 	for (n = 0; n < 128; n++) {
-		if (chan->note[n] == SNDRV_MIDI_NOTE_ON)
-			note_off(ops, drv, chan, n, 0);
+		if (chan->yeste[n] == SNDRV_MIDI_NOTE_ON)
+			yeste_off(ops, drv, chan, n, 0);
 	}
 }
 

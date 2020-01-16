@@ -8,7 +8,7 @@
 // to the AP over some bus (such as i2c, lpc, spi).  The EC does debouncing,
 // but everything else (including deghosting) is done here.  The main
 // motivation for this is to keep the EC firmware as simple as possible, since
-// it cannot be easily upgraded and EC flash/IRAM space is relatively
+// it canyest be easily upgraded and EC flash/IRAM space is relatively
 // expensive.
 
 #include <linux/acpi.h>
@@ -309,7 +309,7 @@ static int cros_ec_lpc_readmem(struct cros_ec_device *ec, unsigned int offset,
 	return cnt;
 }
 
-static void cros_ec_lpc_acpi_notify(acpi_handle device, u32 value, void *data)
+static void cros_ec_lpc_acpi_yestify(acpi_handle device, u32 value, void *data)
 {
 	struct cros_ec_device *ec_dev = data;
 	bool ec_has_more_events;
@@ -322,8 +322,8 @@ static void cros_ec_lpc_acpi_notify(acpi_handle device, u32 value, void *data)
 			ret = cros_ec_get_next_event(ec_dev, NULL,
 						     &ec_has_more_events);
 			if (ret > 0)
-				blocking_notifier_call_chain(
-						&ec_dev->event_notifier, 0,
+				blocking_yestifier_call_chain(
+						&ec_dev->event_yestifier, 0,
 						ec_dev);
 		} while (ec_has_more_events);
 
@@ -349,20 +349,20 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	/*
 	 * Read the mapped ID twice, the first one is assuming the
 	 * EC is a Microchip Embedded Controller (MEC) variant, if the
-	 * protocol fails, fallback to the non MEC variant and try to
+	 * protocol fails, fallback to the yesn MEC variant and try to
 	 * read again the ID.
 	 */
 	cros_ec_lpc_ops.read = cros_ec_lpc_mec_read_bytes;
 	cros_ec_lpc_ops.write = cros_ec_lpc_mec_write_bytes;
 	cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2, buf);
 	if (buf[0] != 'E' || buf[1] != 'C') {
-		/* Re-assign read/write operations for the non MEC variant */
+		/* Re-assign read/write operations for the yesn MEC variant */
 		cros_ec_lpc_ops.read = cros_ec_lpc_read_bytes;
 		cros_ec_lpc_ops.write = cros_ec_lpc_write_bytes;
 		cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2,
 				     buf);
 		if (buf[0] != 'E' || buf[1] != 'C') {
-			dev_err(dev, "EC ID not detected\n");
+			dev_err(dev, "EC ID yest detected\n");
 			return -ENODEV;
 		}
 	}
@@ -393,7 +393,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	ec_dev->dout_size = sizeof(struct ec_host_request);
 
 	/*
-	 * Some boards do not have an IRQ allotted for cros_ec_lpc,
+	 * Some boards do yest have an IRQ allotted for cros_ec_lpc,
 	 * which makes ENXIO an expected (and safe) scenario.
 	 */
 	irq = platform_get_irq(pdev, 0);
@@ -411,17 +411,17 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Connect a notify handler to process MKBP messages if we have a
+	 * Connect a yestify handler to process MKBP messages if we have a
 	 * companion ACPI device.
 	 */
 	adev = ACPI_COMPANION(dev);
 	if (adev) {
-		status = acpi_install_notify_handler(adev->handle,
+		status = acpi_install_yestify_handler(adev->handle,
 						     ACPI_ALL_NOTIFY,
-						     cros_ec_lpc_acpi_notify,
+						     cros_ec_lpc_acpi_yestify,
 						     ec_dev);
 		if (ACPI_FAILURE(status))
-			dev_warn(dev, "Failed to register notifier %08x\n",
+			dev_warn(dev, "Failed to register yestifier %08x\n",
 				 status);
 	}
 
@@ -435,8 +435,8 @@ static int cros_ec_lpc_remove(struct platform_device *pdev)
 
 	adev = ACPI_COMPANION(&pdev->dev);
 	if (adev)
-		acpi_remove_notify_handler(adev->handle, ACPI_ALL_NOTIFY,
-					   cros_ec_lpc_acpi_notify);
+		acpi_remove_yestify_handler(adev->handle, ACPI_ALL_NOTIFY,
+					   cros_ec_lpc_acpi_yestify);
 
 	return cros_ec_unregister(ec_dev);
 }
@@ -452,7 +452,7 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 		/*
 		 * Today all Chromebooks/boxes ship with Google_* as version and
 		 * coreboot as bios vendor. No other systems with this
-		 * combination are known to date.
+		 * combination are kyeswn to date.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
@@ -462,7 +462,7 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 	{
 		/*
 		 * If the box is running custom coreboot firmware then the
-		 * DMI BIOS version string will not be matched by "Google_",
+		 * DMI BIOS version string will yest be matched by "Google_",
 		 * but the system vendor string will still be matched by
 		 * "GOOGLE".
 		 */
@@ -493,7 +493,7 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 		},
 	},
 	{
-		/* x86-glimmer, the Lenovo Thinkpad Yoga 11e. */
+		/* x86-glimmer, the Leyesvo Thinkpad Yoga 11e. */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Glimmer"),

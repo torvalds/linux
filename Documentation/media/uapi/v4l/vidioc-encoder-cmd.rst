@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_ENCODER_CMD:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_ENCODER_CMD - VIDIOC_TRY_ENCODER_CMD - Execute an encoder command
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_ENCODER_CMD, struct v4l2_encoder_cmd *argp )
@@ -58,7 +58,7 @@ until the end of the current *Group Of Pictures*, otherwise it will stop
 immediately.
 
 A :ref:`read() <func-read>` or :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
-call sends an implicit START command to the encoder if it has not been
+call sends an implicit START command to the encoder if it has yest been
 started yet. After a STOP command, :ref:`read() <func-read>` calls will read
 the remaining data buffered by the driver. When the buffer is empty,
 :ref:`read() <func-read>` will return zero and the next :ref:`read() <func-read>`
@@ -68,7 +68,7 @@ A :ref:`close() <func-close>` or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
 call of a streaming file descriptor sends an implicit immediate STOP to
 the encoder, and all buffered data is discarded.
 
-These ioctls are optional, not all drivers may support them. They were
+These ioctls are optional, yest all drivers may support them. They were
 introduced in Linux 2.6.21.
 
 
@@ -86,7 +86,7 @@ introduced in Linux 2.6.21.
       - The encoder command, see :ref:`encoder-cmds`.
     * - __u32
       - ``flags``
-      - Flags to go with the command, see :ref:`encoder-flags`. If no
+      - Flags to go with the command, see :ref:`encoder-flags`. If yes
 	flags are defined for this command, drivers and applications must
 	set this field to zero.
     * - __u32
@@ -108,33 +108,33 @@ introduced in Linux 2.6.21.
     * - ``V4L2_ENC_CMD_START``
       - 0
       - Start the encoder. When the encoder is already running or paused,
-	this command does nothing. No flags are defined for this command.
+	this command does yesthing. No flags are defined for this command.
     * - ``V4L2_ENC_CMD_STOP``
       - 1
       - Stop the encoder. When the ``V4L2_ENC_CMD_STOP_AT_GOP_END`` flag
 	is set, encoding will continue until the end of the current *Group
 	Of Pictures*, otherwise encoding will stop immediately. When the
-	encoder is already stopped, this command does nothing. mem2mem
+	encoder is already stopped, this command does yesthing. mem2mem
 	encoders will send a ``V4L2_EVENT_EOS`` event when the last frame
 	has been encoded and all frames are ready to be dequeued and will
 	set the ``V4L2_BUF_FLAG_LAST`` buffer flag on the last buffer of
-	the capture queue to indicate there will be no new buffers
+	the capture queue to indicate there will be yes new buffers
 	produced to dequeue. This buffer may be empty, indicated by the
 	driver setting the ``bytesused`` field to 0. Once the
 	``V4L2_BUF_FLAG_LAST`` flag was set, the
-	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
+	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will yest block anymore,
 	but return an ``EPIPE`` error code.
     * - ``V4L2_ENC_CMD_PAUSE``
       - 2
-      - Pause the encoder. When the encoder has not been started yet, the
+      - Pause the encoder. When the encoder has yest been started yet, the
 	driver will return an ``EPERM`` error code. When the encoder is
-	already paused, this command does nothing. No flags are defined
+	already paused, this command does yesthing. No flags are defined
 	for this command.
     * - ``V4L2_ENC_CMD_RESUME``
       - 3
-      - Resume encoding after a PAUSE command. When the encoder has not
+      - Resume encoding after a PAUSE command. When the encoder has yest
 	been started yet, the driver will return an ``EPERM`` error code. When
-	the encoder is already running, this command does nothing. No
+	the encoder is already running, this command does yesthing. No
 	flags are defined for this command.
 
 
@@ -156,7 +156,7 @@ introduced in Linux 2.6.21.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -165,4 +165,4 @@ EINVAL
 
 EPERM
     The application sent a PAUSE or RESUME command when the encoder was
-    not running.
+    yest running.

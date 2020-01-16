@@ -328,7 +328,7 @@ int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy,
 int hdmi_phy_parse_lanes(struct hdmi_phy_data *phy, const u32 *lanes);
 
 /* HDMI common funcs */
-int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_node *ep,
+int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_yesde *ep,
 	struct hdmi_phy_data *phy);
 
 /* Audio funcs */

@@ -105,7 +105,7 @@ PMU_FORMAT_ATTR(pwr_evt,	"config:4"	);
 PMU_FORMAT_ATTR(fup_on_ptw,	"config:5"	);
 PMU_FORMAT_ATTR(mtc,		"config:9"	);
 PMU_FORMAT_ATTR(tsc,		"config:10"	);
-PMU_FORMAT_ATTR(noretcomp,	"config:11"	);
+PMU_FORMAT_ATTR(yesretcomp,	"config:11"	);
 PMU_FORMAT_ATTR(ptw,		"config:12"	);
 PMU_FORMAT_ATTR(branch,		"config:13"	);
 PMU_FORMAT_ATTR(mtc_period,	"config:14-17"	);
@@ -119,7 +119,7 @@ static struct attribute *pt_formats_attr[] = {
 	&format_attr_fup_on_ptw.attr,
 	&format_attr_mtc.attr,
 	&format_attr_tsc.attr,
-	&format_attr_noretcomp.attr,
+	&format_attr_yesretcomp.attr,
 	&format_attr_ptw.attr,
 	&format_attr_branch.attr,
 	&format_attr_mtc_period.attr,
@@ -142,7 +142,7 @@ pt_timing_attr_show(struct device *dev, struct device_attribute *attr,
 
 	switch (pmu_attr->id) {
 	case 0:
-		return sprintf(page, "%lu\n", pt_pmu.max_nonturbo_ratio);
+		return sprintf(page, "%lu\n", pt_pmu.max_yesnturbo_ratio);
 	case 1:
 		return sprintf(page, "%u:%u\n",
 			       pt_pmu.tsc_art_num,
@@ -154,13 +154,13 @@ pt_timing_attr_show(struct device *dev, struct device_attribute *attr,
 	return -EINVAL;
 }
 
-PMU_EVENT_ATTR(max_nonturbo_ratio, timing_attr_max_nonturbo_ratio, 0,
+PMU_EVENT_ATTR(max_yesnturbo_ratio, timing_attr_max_yesnturbo_ratio, 0,
 	       pt_timing_attr_show);
 PMU_EVENT_ATTR(tsc_art_ratio, timing_attr_tsc_art_ratio, 1,
 	       pt_timing_attr_show);
 
 static struct attribute *pt_timing_attr[] = {
-	&timing_attr_max_nonturbo_ratio.attr.attr,
+	&timing_attr_max_yesnturbo_ratio.attr.attr,
 	&timing_attr_tsc_art_ratio.attr.attr,
 	NULL,
 };
@@ -186,11 +186,11 @@ static int __init pt_pmu_hw_init(void)
 	long i;
 
 	rdmsrl(MSR_PLATFORM_INFO, reg);
-	pt_pmu.max_nonturbo_ratio = (reg & 0xff00) >> 8;
+	pt_pmu.max_yesnturbo_ratio = (reg & 0xff00) >> 8;
 
 	/*
 	 * if available, read in TSC to core crystal clock ratio,
-	 * otherwise, zero for numerator stands for "not enumerated"
+	 * otherwise, zero for numerator stands for "yest enumerated"
 	 * as per SDM
 	 */
 	if (boot_cpu_data.cpuid_level >= CPUID_TSC_LEAF) {
@@ -208,7 +208,7 @@ static int __init pt_pmu_hw_init(void)
 	case INTEL_FAM6_BROADWELL_D:
 	case INTEL_FAM6_BROADWELL_G:
 	case INTEL_FAM6_BROADWELL_X:
-		/* not setting BRANCH_EN will #GP, erratum BDM106 */
+		/* yest setting BRANCH_EN will #GP, erratum BDM106 */
 		pt_pmu.branch_en_always_on = true;
 		break;
 	default:
@@ -286,7 +286,7 @@ fail:
  * corresponding bit in the RTIT_CTL can only be controlled
  * by the driver; therefore, repurpose it to mean: pass
  * through the bit that was previously assumed to be always
- * on for PT, thereby allowing the user to *not* set it if
+ * on for PT, thereby allowing the user to *yest* set it if
  * they so wish. See also pt_event_valid() and pt_config().
  */
 #define RTIT_CTL_PASSTHROUGH RTIT_CTL_TRACEEN
@@ -329,7 +329,7 @@ static bool pt_event_valid(struct perf_event *event)
 	if (config & RTIT_CTL_MTC) {
 		/*
 		 * In the unlikely case that CPUID lists valid mtc periods,
-		 * but not the mtc capability, drop out here.
+		 * but yest the mtc capability, drop out here.
 		 *
 		 * Spec says that setting mtc period bits while mtc bit in
 		 * CPUID is 0 will #GP, so better safe than sorry.
@@ -366,7 +366,7 @@ static bool pt_event_valid(struct perf_event *event)
 	 * Setting bit 0 (TraceEn in RTIT_CTL MSR) in the attr.config
 	 * clears the assomption that BranchEn must always be enabled,
 	 * as was the case with the first implementation of PT.
-	 * If this bit is not set, the legacy behavior is preserved
+	 * If this bit is yest set, the legacy behavior is preserved
 	 * for compatibility with the older userspace.
 	 *
 	 * Re-using bit 0 for this purpose is fine because it is never
@@ -375,7 +375,7 @@ static bool pt_event_valid(struct perf_event *event)
 	 */
 	if (config & RTIT_CTL_PASSTHROUGH) {
 		/*
-		 * Disallow not setting BRANCH_EN where BRANCH_EN is
+		 * Disallow yest setting BRANCH_EN where BRANCH_EN is
 		 * always required.
 		 */
 		if (pt_pmu.branch_en_always_on &&
@@ -456,9 +456,9 @@ static u64 pt_config_filters(struct perf_event *event)
 
 		/*
 		 * Note, if the range has zero start/end addresses due
-		 * to its dynamic object not being loaded yet, we just
+		 * to its dynamic object yest being loaded yet, we just
 		 * go ahead and program zeroed range, which will simply
-		 * produce no data. Note^2: if executable code at 0x0
+		 * produce yes data. Note^2: if executable code at 0x0
 		 * is a concern, we can set up an "invalid" configuration
 		 * such as msr_b < msr_a.
 		 */
@@ -498,7 +498,7 @@ static void pt_config(struct perf_event *event)
 		reg |= RTIT_CTL_TOPA;
 
 	/*
-	 * Previously, we had BRANCH_EN on by default, but now that PT has
+	 * Previously, we had BRANCH_EN on by default, but yesw that PT has
 	 * grown features outside of branch tracing, it is useful to allow
 	 * the user to disable it. Setting bit 0 in the event's attr.config
 	 * allows BRANCH_EN to pass through instead of being always on. See
@@ -640,11 +640,11 @@ static void pt_config_buffer(struct pt_buffer *buf)
  */
 static struct topa *topa_alloc(int cpu, gfp_t gfp)
 {
-	int node = cpu_to_node(cpu);
+	int yesde = cpu_to_yesde(cpu);
 	struct topa_page *tp;
 	struct page *p;
 
-	p = alloc_pages_node(node, gfp | __GFP_ZERO, 0);
+	p = alloc_pages_yesde(yesde, gfp | __GFP_ZERO, 0);
 	if (!p)
 		return NULL;
 
@@ -897,7 +897,7 @@ static void pt_handle_status(struct pt *pt)
 		/*
 		 * On systems that only do single-entry ToPA, hitting STOP
 		 * means we are already losing data; need to let the decoder
-		 * know.
+		 * kyesw.
 		 */
 		if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries) ||
 		    buf->output_off == pt_buffer_region_size(buf)) {
@@ -1054,7 +1054,7 @@ pt_topa_prev_entry(struct pt_buffer *buf, struct topa_entry *te)
  *
  * Place INT and STOP marks to prevent overwriting old data that the consumer
  * hasn't yet collected and waking up the consumer after a certain fraction of
- * the buffer has filled up. Only needed and sensible for non-snapshot counters.
+ * the buffer has filled up. Only needed and sensible for yesn-snapshot counters.
  *
  * This obviously relies on buf::head to figure out buffer markers, so it has
  * to be called after pt_buffer_reset_offsets() and before the hardware tracing
@@ -1180,8 +1180,8 @@ static void pt_buffer_fini_topa(struct pt_buffer *buf)
 
 	list_for_each_entry_safe(topa, iter, &buf->tables, list) {
 		/*
-		 * right now, this is in free_aux() path only, so
-		 * no need to unlink this table from the list
+		 * right yesw, this is in free_aux() path only, so
+		 * yes need to unlink this table from the list
 		 */
 		topa_free(topa);
 	}
@@ -1270,7 +1270,7 @@ pt_buffer_setup_aux(struct perf_event *event, void **pages,
 		    int nr_pages, bool snapshot)
 {
 	struct pt_buffer *buf;
-	int node, ret, cpu = event->cpu;
+	int yesde, ret, cpu = event->cpu;
 
 	if (!nr_pages)
 		return NULL;
@@ -1284,9 +1284,9 @@ pt_buffer_setup_aux(struct perf_event *event, void **pages,
 
 	if (cpu == -1)
 		cpu = raw_smp_processor_id();
-	node = cpu_to_node(cpu);
+	yesde = cpu_to_yesde(cpu);
 
-	buf = kzalloc_node(sizeof(struct pt_buffer), GFP_KERNEL, node);
+	buf = kzalloc_yesde(sizeof(struct pt_buffer), GFP_KERNEL, yesde);
 	if (!buf)
 		return NULL;
 
@@ -1325,12 +1325,12 @@ static void pt_buffer_free_aux(void *data)
 static int pt_addr_filters_init(struct perf_event *event)
 {
 	struct pt_filters *filters;
-	int node = event->cpu == -1 ? -1 : cpu_to_node(event->cpu);
+	int yesde = event->cpu == -1 ? -1 : cpu_to_yesde(event->cpu);
 
 	if (!intel_pt_validate_hw_cap(PT_CAP_num_address_ranges))
 		return 0;
 
-	filters = kzalloc_node(sizeof(struct pt_filters), GFP_KERNEL, node);
+	filters = kzalloc_yesde(sizeof(struct pt_filters), GFP_KERNEL, yesde);
 	if (!filters)
 		return -ENOMEM;
 
@@ -1478,13 +1478,13 @@ void intel_pt_handle_vmx(int on)
 	struct perf_event *event;
 	unsigned long flags;
 
-	/* PT plays nice with VMX, do nothing */
+	/* PT plays nice with VMX, do yesthing */
 	if (pt_pmu.vmx)
 		return;
 
 	/*
 	 * VMXON will clear RTIT_CTL.TraceEn; we need to make
-	 * sure to not try to set it while VMX is on. Disable
+	 * sure to yest try to set it while VMX is on. Disable
 	 * interrupts to avoid racing with pmu callbacks;
 	 * concurrent PMI should be handled fine.
 	 */
@@ -1619,7 +1619,7 @@ static long pt_event_snapshot_aux(struct perf_event *event,
 
 	/*
 	 * If the tracing was on when we turned up, restart it.
-	 * Compiler barrier not needed as we couldn't have been
+	 * Compiler barrier yest needed as we couldn't have been
 	 * preempted by anything that touches pt->handle_nmi.
 	 */
 	if (pt->handle_nmi)
@@ -1722,7 +1722,7 @@ static __init int pt_init(void)
 
 	if (prior_warn) {
 		x86_add_exclusive(x86_lbr_exclusive_pt);
-		pr_warn("PT is enabled at boot time, doing nothing\n");
+		pr_warn("PT is enabled at boot time, doing yesthing\n");
 
 		return -EBUSY;
 	}
@@ -1732,7 +1732,7 @@ static __init int pt_init(void)
 		return ret;
 
 	if (!intel_pt_validate_hw_cap(PT_CAP_topa_output)) {
-		pr_warn("ToPA output is not supported on this CPU\n");
+		pr_warn("ToPA output is yest supported on this CPU\n");
 		return -ENODEV;
 	}
 

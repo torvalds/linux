@@ -6,7 +6,7 @@ Required properties:
  - phys: Contains a phandle to the USB phy.
 
 Optional Properties:
-- monitored-battery: phandle of battery characteristics devicetree node.
+- monitored-battery: phandle of battery characteristics devicetree yesde.
   The charger uses the following battery properties:
 - charge-term-current-microamp: current for charge termination phase.
 - constant-charge-voltage-max-microvolt: maximum constant input voltage.

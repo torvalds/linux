@@ -18,7 +18,7 @@
 #define CAP_TIMEOUT_MS		1000
 
 /*
- * Number of minor devices this driver supports.
+ * Number of miyesr devices this driver supports.
  * There will be exactly one required per Interface.
  */
 #define NUM_MINORS		U8_MAX
@@ -27,7 +27,7 @@ struct gb_cap {
 	struct device		*parent;
 	struct gb_connection	*connection;
 	struct kref		kref;
-	struct list_head	node;
+	struct list_head	yesde;
 	bool			disabled; /* connection getting disabled */
 
 	struct mutex		mutex;
@@ -38,7 +38,7 @@ struct gb_cap {
 
 static struct class *cap_class;
 static dev_t cap_dev_num;
-static DEFINE_IDA(cap_minors_map);
+static DEFINE_IDA(cap_miyesrs_map);
 static LIST_HEAD(cap_list);
 static DEFINE_MUTEX(list_mutex);
 
@@ -66,7 +66,7 @@ static struct gb_cap *get_cap(struct cdev *cdev)
 
 	mutex_lock(&list_mutex);
 
-	list_for_each_entry(cap, &cap_list, node) {
+	list_for_each_entry(cap, &cap_list, yesde) {
 		if (&cap->cdev == cdev) {
 			kref_get(&cap->kref);
 			goto unlock;
@@ -179,9 +179,9 @@ done:
 
 /* Char device fops */
 
-static int cap_open(struct inode *inode, struct file *file)
+static int cap_open(struct iyesde *iyesde, struct file *file)
 {
-	struct gb_cap *cap = get_cap(inode->i_cdev);
+	struct gb_cap *cap = get_cap(iyesde->i_cdev);
 
 	/* cap structure can't get freed until file descriptor is closed */
 	if (cap) {
@@ -192,7 +192,7 @@ static int cap_open(struct inode *inode, struct file *file)
 	return -ENODEV;
 }
 
-static int cap_release(struct inode *inode, struct file *file)
+static int cap_release(struct iyesde *iyesde, struct file *file)
 {
 	struct gb_cap *cap = file->private_data;
 
@@ -298,7 +298,7 @@ static const struct file_operations cap_fops = {
 int gb_cap_connection_init(struct gb_connection *connection)
 {
 	struct gb_cap *cap;
-	int ret, minor;
+	int ret, miyesr;
 
 	if (!connection)
 		return 0;
@@ -314,21 +314,21 @@ int gb_cap_connection_init(struct gb_connection *connection)
 	kref_init(&cap->kref);
 
 	mutex_lock(&list_mutex);
-	list_add(&cap->node, &cap_list);
+	list_add(&cap->yesde, &cap_list);
 	mutex_unlock(&list_mutex);
 
 	ret = gb_connection_enable(connection);
 	if (ret)
 		goto err_list_del;
 
-	minor = ida_simple_get(&cap_minors_map, 0, NUM_MINORS, GFP_KERNEL);
-	if (minor < 0) {
-		ret = minor;
+	miyesr = ida_simple_get(&cap_miyesrs_map, 0, NUM_MINORS, GFP_KERNEL);
+	if (miyesr < 0) {
+		ret = miyesr;
 		goto err_connection_disable;
 	}
 
 	/* Add a char device to allow userspace to interact with cap */
-	cap->dev_num = MKDEV(MAJOR(cap_dev_num), minor);
+	cap->dev_num = MKDEV(MAJOR(cap_dev_num), miyesr);
 	cdev_init(&cap->cdev, &cap_fops);
 
 	ret = cdev_add(&cap->cdev, cap->dev_num, 1);
@@ -337,7 +337,7 @@ int gb_cap_connection_init(struct gb_connection *connection)
 
 	/* Add a soft link to the previously added char-dev within the bundle */
 	cap->class_device = device_create(cap_class, cap->parent, cap->dev_num,
-					  NULL, "gb-authenticate-%d", minor);
+					  NULL, "gb-authenticate-%d", miyesr);
 	if (IS_ERR(cap->class_device)) {
 		ret = PTR_ERR(cap->class_device);
 		goto err_del_cdev;
@@ -348,12 +348,12 @@ int gb_cap_connection_init(struct gb_connection *connection)
 err_del_cdev:
 	cdev_del(&cap->cdev);
 err_remove_ida:
-	ida_simple_remove(&cap_minors_map, minor);
+	ida_simple_remove(&cap_miyesrs_map, miyesr);
 err_connection_disable:
 	gb_connection_disable(connection);
 err_list_del:
 	mutex_lock(&list_mutex);
-	list_del(&cap->node);
+	list_del(&cap->yesde);
 	mutex_unlock(&list_mutex);
 
 	put_cap(cap);
@@ -372,7 +372,7 @@ void gb_cap_connection_exit(struct gb_connection *connection)
 
 	device_destroy(cap_class, cap->dev_num);
 	cdev_del(&cap->cdev);
-	ida_simple_remove(&cap_minors_map, MINOR(cap->dev_num));
+	ida_simple_remove(&cap_miyesrs_map, MINOR(cap->dev_num));
 
 	/*
 	 * Disallow any new ioctl operations on the char device and wait for
@@ -382,17 +382,17 @@ void gb_cap_connection_exit(struct gb_connection *connection)
 	cap->disabled = true;
 	mutex_unlock(&cap->mutex);
 
-	/* All pending greybus operations should have finished by now */
+	/* All pending greybus operations should have finished by yesw */
 	gb_connection_disable(cap->connection);
 
 	/* Disallow new users to get access to the cap structure */
 	mutex_lock(&list_mutex);
-	list_del(&cap->node);
+	list_del(&cap->yesde);
 	mutex_unlock(&list_mutex);
 
 	/*
 	 * All current users of cap would have taken a reference to it by
-	 * now, we can drop our reference and wait the last user will get
+	 * yesw, we can drop our reference and wait the last user will get
 	 * cap freed.
 	 */
 	put_cap(cap);
@@ -422,5 +422,5 @@ void cap_exit(void)
 {
 	unregister_chrdev_region(cap_dev_num, NUM_MINORS);
 	class_destroy(cap_class);
-	ida_destroy(&cap_minors_map);
+	ida_destroy(&cap_miyesrs_map);
 }

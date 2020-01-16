@@ -40,12 +40,12 @@
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
-#define _minor(v)	(((v) >> 16) & 0xff)
+#define _miyesr(v)	(((v) >> 16) & 0xff)
 #define _build(v)	((v) & 0xffff)
 
 /* version in image has weird encoding:
  *  7:0  - major
- * 15:8  - minor
+ * 15:8  - miyesr
  * 31:16 - build (little endian)
  */
 #define NETXEN_DECODE_VERSION(v) \
@@ -81,7 +81,7 @@
 	(((addr) < (high)) && ((addr) >= (low)))
 
 /*
- * normalize a 64MB crb address to 32MB PCI window
+ * yesrmalize a 64MB crb address to 32MB PCI window
  * To use NETXEN_CRB_NORMALIZE, window _must_ be set to 1
  */
 #define NETXEN_CRB_NORMAL(reg)	\
@@ -171,7 +171,7 @@
 #define PHAN_INITIALIZE_FAILED		0xffff
 #define PHAN_INITIALIZE_COMPLETE	0xff01
 
-/* Host writes the following to notify that it has done the init-handshake */
+/* Host writes the following to yestify that it has done the init-handshake */
 #define PHAN_INITIALIZE_ACK	0xf00f
 
 #define NUM_RCV_DESC_RINGS	3
@@ -439,7 +439,7 @@ struct uni_data_desc{
 /* The version of the main data structure */
 #define	NETXEN_BDINFO_VERSION 1
 
-/* Magic number to let user know flash is programmed */
+/* Magic number to let user kyesw flash is programmed */
 #define	NETXEN_BDINFO_MAGIC 0x12345678
 
 /* Max number of Gig ports on a Phantom board */
@@ -546,7 +546,7 @@ struct netxen_cmd_buffer {
 	u32 frag_count;
 };
 
-/* In rx_buffer, we do not need multiple fragments as is a single buffer */
+/* In rx_buffer, we do yest need multiple fragments as is a single buffer */
 struct netxen_rx_buffer {
 	struct list_head list;
 	struct sk_buff *skb;
@@ -604,7 +604,7 @@ struct netxen_adapter_stats {
 
 /*
  * Rcv Descriptor Context. One such per Rcv Descriptor. There may
- * be one Rcv Descriptor for normal packets, one for jumbo and may be others.
+ * be one Rcv Descriptor for yesrmal packets, one for jumbo and may be others.
  */
 struct nx_host_rds_ring {
 	u32 producer;
@@ -971,7 +971,7 @@ typedef struct {
 	uint16_t			rsvd_1;
 	uint32_t			low_threshold;
 	uint32_t			high_threshold;
-	nx_nic_intr_coalesce_data_t	normal;
+	nx_nic_intr_coalesce_data_t	yesrmal;
 	nx_nic_intr_coalesce_data_t	low;
 	nx_nic_intr_coalesce_data_t	high;
 	nx_nic_intr_coalesce_data_t	irq;
@@ -1322,7 +1322,7 @@ struct netxen_minidump_template_hdr {
 /* Common Entry Header:  Common to All Entry Types */
 /*
  * Driver Code is for driver to write some info about the entry.
- * Currently not used.
+ * Currently yest used.
  */
 
 struct netxen_common_entry_hdr {
@@ -1801,7 +1801,7 @@ int nx_dev_request_reset(struct netxen_adapter *adapter);
 #define NETXEN_MAX_SHORT_NAME 32
 struct netxen_brdinfo {
 	int brdtype;	/* type of board */
-	long ports;		/* max no of physical ports */
+	long ports;		/* max yes of physical ports */
 	char short_name[NETXEN_MAX_SHORT_NAME];
 };
 
@@ -1848,7 +1848,7 @@ static inline int netxen_nic_get_brd_name_by_type(u32 type, char *name)
 	}
 
 	if (!found) {
-		strcpy(name, "Unknown");
+		strcpy(name, "Unkyeswn");
 		return -EINVAL;
 	}
 

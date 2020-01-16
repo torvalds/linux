@@ -64,16 +64,16 @@ int cvm_oct_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return phy_mii_ioctl(dev->phydev, rq, cmd);
 }
 
-void cvm_oct_note_carrier(struct octeon_ethernet *priv,
+void cvm_oct_yeste_carrier(struct octeon_ethernet *priv,
 			  union cvmx_helper_link_info li)
 {
 	if (li.s.link_up) {
-		pr_notice_ratelimited("%s: %u Mbps %s duplex, port %d, queue %d\n",
+		pr_yestice_ratelimited("%s: %u Mbps %s duplex, port %d, queue %d\n",
 				      netdev_name(priv->netdev), li.s.speed,
 				      (li.s.full_duplex) ? "Full" : "Half",
 				      priv->port, priv->queue);
 	} else {
-		pr_notice_ratelimited("%s: Link down\n",
+		pr_yestice_ratelimited("%s: Link down\n",
 				      netdev_name(priv->netdev));
 	}
 }
@@ -90,7 +90,7 @@ void cvm_oct_adjust_link(struct net_device *dev)
 	priv->link_info		= link_info.u64;
 
 	/*
-	 * The polling task need to know about link status changes.
+	 * The polling task need to kyesw about link status changes.
 	 */
 	if (priv->poll)
 		priv->poll(dev);
@@ -98,7 +98,7 @@ void cvm_oct_adjust_link(struct net_device *dev)
 	if (priv->last_link != dev->phydev->link) {
 		priv->last_link = dev->phydev->link;
 		cvmx_helper_link_set(priv->port, link_info);
-		cvm_oct_note_carrier(priv, link_info);
+		cvm_oct_yeste_carrier(priv, link_info);
 	}
 }
 
@@ -124,7 +124,7 @@ int cvm_oct_common_stop(struct net_device *dev)
 		priv->last_link = 0;
 
 		cvmx_helper_link_set(priv->port, link_info);
-		cvm_oct_note_carrier(priv, link_info);
+		cvm_oct_yeste_carrier(priv, link_info);
 	}
 	return 0;
 }
@@ -139,28 +139,28 @@ int cvm_oct_common_stop(struct net_device *dev)
 int cvm_oct_phy_setup_device(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 	struct phy_device *phydev = NULL;
 
-	if (!priv->of_node)
-		goto no_phy;
+	if (!priv->of_yesde)
+		goto yes_phy;
 
-	phy_node = of_parse_phandle(priv->of_node, "phy-handle", 0);
-	if (!phy_node && of_phy_is_fixed_link(priv->of_node)) {
+	phy_yesde = of_parse_phandle(priv->of_yesde, "phy-handle", 0);
+	if (!phy_yesde && of_phy_is_fixed_link(priv->of_yesde)) {
 		int rc;
 
-		rc = of_phy_register_fixed_link(priv->of_node);
+		rc = of_phy_register_fixed_link(priv->of_yesde);
 		if (rc)
 			return rc;
 
-		phy_node = of_node_get(priv->of_node);
+		phy_yesde = of_yesde_get(priv->of_yesde);
 	}
-	if (!phy_node)
-		goto no_phy;
+	if (!phy_yesde)
+		goto yes_phy;
 
-	phydev = of_phy_connect(dev, phy_node, cvm_oct_adjust_link, 0,
+	phydev = of_phy_connect(dev, phy_yesde, cvm_oct_adjust_link, 0,
 				priv->phy_mode);
-	of_node_put(phy_node);
+	of_yesde_put(phy_yesde);
 
 	if (!phydev)
 		return -ENODEV;
@@ -169,8 +169,8 @@ int cvm_oct_phy_setup_device(struct net_device *dev)
 	phy_start(phydev);
 
 	return 0;
-no_phy:
-	/* If there is no phy, assume a direct MAC connection and that
+yes_phy:
+	/* If there is yes phy, assume a direct MAC connection and that
 	 * the link is up.
 	 */
 	netif_carrier_on(dev);

@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -27,19 +27,19 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_vblank.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_reg.h"
-#include "nouveau_ttm.h"
-#include "nouveau_bo.h"
-#include "nouveau_gem.h"
-#include "nouveau_encoder.h"
-#include "nouveau_connector.h"
-#include "nouveau_crtc.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_reg.h"
+#include "yesuveau_ttm.h"
+#include "yesuveau_bo.h"
+#include "yesuveau_gem.h"
+#include "yesuveau_encoder.h"
+#include "yesuveau_connector.h"
+#include "yesuveau_crtc.h"
 #include "hw.h"
 #include "nvreg.h"
-#include "nouveau_fbcon.h"
+#include "yesuveau_fbcon.h"
 #include "disp.h"
-#include "nouveau_dma.h"
+#include "yesuveau_dma.h"
 
 #include <subdev/bios/pll.h>
 #include <subdev/clk.h>
@@ -51,13 +51,13 @@ nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 static void
 crtc_wr_cio_state(struct drm_crtc *crtc, struct nv04_crtc_reg *crtcstate, int index)
 {
-	NVWriteVgaCrtc(crtc->dev, nouveau_crtc(crtc)->index, index,
+	NVWriteVgaCrtc(crtc->dev, yesuveau_crtc(crtc)->index, index,
 		       crtcstate->CRTC[index]);
 }
 
 static void nv_crtc_set_digital_vibrance(struct drm_crtc *crtc, int level)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
 
@@ -72,7 +72,7 @@ static void nv_crtc_set_digital_vibrance(struct drm_crtc *crtc, int level)
 
 static void nv_crtc_set_image_sharpening(struct drm_crtc *crtc, int level)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
 
@@ -95,7 +95,7 @@ static void nv_crtc_set_image_sharpening(struct drm_crtc *crtc, int level)
 	 | NV_PRAMDAC_PLL_COEFF_SELECT_TV_VSCLK2	\
 	 | NV_PRAMDAC_PLL_COEFF_SELECT_TV_PCLK2)
 
-/* NV4x 0x40.. pll notes:
+/* NV4x 0x40.. pll yestes:
  * gpu pll: 0x4000 + 0x4004
  * ?gpu? pll: 0x4008 + 0x400c
  * vpll1: 0x4010 + 0x4014
@@ -103,7 +103,7 @@ static void nv_crtc_set_image_sharpening(struct drm_crtc *crtc, int level)
  * mpll: 0x4020 + 0x4024
  * mpll: 0x4038 + 0x403c
  *
- * the first register of each pair has some unknown details:
+ * the first register of each pair has some unkyeswn details:
  * bits 0-7: redirected values from elsewhere? (similar to PLL_SETUP_CONTROL?)
  * bits 20-23: (mpll) something to do with post divider?
  * bits 28-31: related to single stage mode? (bit 8/12)
@@ -112,10 +112,10 @@ static void nv_crtc_set_image_sharpening(struct drm_crtc *crtc, int level)
 static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mode * mode, int dot_clock)
 {
 	struct drm_device *dev = crtc->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_bios *bios = nvxx_bios(&drm->client.device);
 	struct nvkm_clk *clk = nvxx_clk(&drm->client.device);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	struct nv04_mode_state *state = &nv04_display(dev)->mode_reg;
 	struct nv04_crtc_reg *regp = &state->crtc_reg[nv_crtc->index];
 	struct nvkm_pll_vals *pv = &regp->pllvals;
@@ -134,7 +134,7 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 	 * assumed the threshold is given by vco1 maxfreq/2
 	 */
 	/* for early nv4x, specifically nv40 and *some* nv43 (devids 0 and 6,
-	 * not 8, others unknown), the blob always uses both plls.  no problem
+	 * yest 8, others unkyeswn), the blob always uses both plls.  yes problem
 	 * has yet been observed in allowing the use a single stage pll on all
 	 * nv43 however.  the behaviour of single stage use is untested on nv40
 	 */
@@ -169,9 +169,9 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 static void
 nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
 
@@ -232,7 +232,7 @@ static void
 nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
 	struct drm_framebuffer *fb = crtc->primary->fb;
 
@@ -254,7 +254,7 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	bool fp_output = false;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+		struct yesuveau_encoder *nv_encoder = yesuveau_encoder(encoder);
 
 		if (encoder->crtc == crtc &&
 		    (nv_encoder->dcb->type == DCB_OUTPUT_LVDS ||
@@ -367,7 +367,7 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	regp->CRTC[NV_CIO_CR_VRS_INDEX] = vertStart;
 	regp->CRTC[NV_CIO_CR_VRE_INDEX] = 1 << 5 | XLATE(vertEnd, 0, NV_CIO_CR_VRE_3_0);
 	regp->CRTC[NV_CIO_CR_VDE_INDEX] = vertDisplay;
-	/* framebuffer can be larger than crtc scanout area. */
+	/* framebuffer can be larger than crtc scayesut area. */
 	regp->CRTC[NV_CIO_CR_OFFSET_INDEX] = fb->pitches[0] / 8;
 	regp->CRTC[NV_CIO_CR_ULINE_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_VBS_INDEX] = vertBlankStart;
@@ -376,10 +376,10 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	regp->CRTC[NV_CIO_CR_LCOMP_INDEX] = 0xff;
 
 	/*
-	 * Some extended CRTC registers (they are not saved with the rest of the vga regs).
+	 * Some extended CRTC registers (they are yest saved with the rest of the vga regs).
 	 */
 
-	/* framebuffer can be larger than crtc scanout area. */
+	/* framebuffer can be larger than crtc scayesut area. */
 	regp->CRTC[NV_CIO_CRE_RPC0_INDEX] =
 		XLATE(fb->pitches[0] / 8, 8, NV_CIO_CRE_RPC0_OFFSET_10_8);
 	regp->CRTC[NV_CIO_CRE_42] =
@@ -456,8 +456,8 @@ static void
 nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
 	struct nv04_crtc_reg *savep = &nv04_display(dev)->saved_reg.crtc_reg[nv_crtc->index];
 	const struct drm_framebuffer *fb = crtc->primary->fb;
@@ -466,7 +466,7 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 		off_chip_digital = false;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+		struct yesuveau_encoder *nv_encoder = yesuveau_encoder(encoder);
 		bool digital = false;
 
 		if (encoder->crtc != crtc)
@@ -482,7 +482,7 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 			off_chip_digital = true;
 	}
 
-	/* Registers not directly related to the (s)vga mode */
+	/* Registers yest directly related to the (s)vga mode */
 
 	/* What is the meaning of this register? */
 	/* A few popular values are 0x18, 0x1c, 0x38, 0x3c */
@@ -543,7 +543,7 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 		regp->CRTC[NV_CIO_CRE_TVOUT_LATENCY] += 4;
 
 	/* the blob sometimes sets |= 0x10 (which is the same as setting |=
-	 * 1 << 30 on 0x60.830), for no apparent reason */
+	 * 1 << 30 on 0x60.830), for yes apparent reason */
 	regp->CRTC[NV_CIO_CRE_59] = off_chip_digital;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_RANKINE)
@@ -605,15 +605,15 @@ static int
 nv_crtc_swap_fbs(struct drm_crtc *crtc, struct drm_framebuffer *old_fb)
 {
 	struct nv04_display *disp = nv04_display(crtc->dev);
-	struct nouveau_framebuffer *nvfb = nouveau_framebuffer(crtc->primary->fb);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_framebuffer *nvfb = yesuveau_framebuffer(crtc->primary->fb);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	int ret;
 
-	ret = nouveau_bo_pin(nvfb->nvbo, TTM_PL_FLAG_VRAM, false);
+	ret = yesuveau_bo_pin(nvfb->nvbo, TTM_PL_FLAG_VRAM, false);
 	if (ret == 0) {
 		if (disp->image[nv_crtc->index])
-			nouveau_bo_unpin(disp->image[nv_crtc->index]);
-		nouveau_bo_ref(nvfb->nvbo, &disp->image[nv_crtc->index]);
+			yesuveau_bo_unpin(disp->image[nv_crtc->index]);
+		yesuveau_bo_ref(nvfb->nvbo, &disp->image[nv_crtc->index]);
 	}
 
 	return ret;
@@ -633,8 +633,8 @@ nv_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	int ret;
 
 	NV_DEBUG(drm, "CTRC mode on CRTC %d:\n", nv_crtc->index);
@@ -658,7 +658,7 @@ nv_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 
 static void nv_crtc_save(struct drm_crtc *crtc)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct nv04_mode_state *state = &nv04_display(dev)->mode_reg;
 	struct nv04_crtc_reg *crtc_state = &state->crtc_reg[nv_crtc->index];
@@ -668,7 +668,7 @@ static void nv_crtc_save(struct drm_crtc *crtc)
 	if (nv_two_heads(crtc->dev))
 		NVSetOwner(crtc->dev, nv_crtc->index);
 
-	nouveau_hw_save_state(crtc->dev, nv_crtc->index, saved);
+	yesuveau_hw_save_state(crtc->dev, nv_crtc->index, saved);
 
 	/* init some state to saved value */
 	state->sel_clk = saved->sel_clk & ~(0x5 << 16);
@@ -679,7 +679,7 @@ static void nv_crtc_save(struct drm_crtc *crtc)
 
 static void nv_crtc_restore(struct drm_crtc *crtc)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	int head = nv_crtc->index;
 	uint8_t saved_cr21 = nv04_display(dev)->saved_reg.crtc_reg[head].CRTC[NV_CIO_CRE_21];
@@ -687,7 +687,7 @@ static void nv_crtc_restore(struct drm_crtc *crtc)
 	if (nv_two_heads(crtc->dev))
 		NVSetOwner(crtc->dev, head);
 
-	nouveau_hw_load_state(crtc->dev, head, &nv04_display(dev)->saved_reg);
+	yesuveau_hw_load_state(crtc->dev, head, &nv04_display(dev)->saved_reg);
 	nv_lock_vga_crtc_shadow(crtc->dev, head, saved_cr21);
 
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
@@ -696,8 +696,8 @@ static void nv_crtc_restore(struct drm_crtc *crtc)
 static void nv_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	const struct drm_crtc_helper_funcs *funcs = crtc->helper_private;
 
 	if (nv_two_heads(dev))
@@ -720,9 +720,9 @@ static void nv_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	const struct drm_crtc_helper_funcs *funcs = crtc->helper_private;
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 
-	nouveau_hw_load_state(dev, nv_crtc->index, &nv04_display(dev)->mode_reg);
+	yesuveau_hw_load_state(dev, nv_crtc->index, &nv04_display(dev)->mode_reg);
 	nv04_crtc_mode_set_base(crtc, crtc->x, crtc->y, NULL);
 
 #ifdef __BIG_ENDIAN
@@ -741,7 +741,7 @@ static void nv_crtc_commit(struct drm_crtc *crtc)
 static void nv_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct nv04_display *disp = nv04_display(crtc->dev);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 
 	if (!nv_crtc)
 		return;
@@ -749,19 +749,19 @@ static void nv_crtc_destroy(struct drm_crtc *crtc)
 	drm_crtc_cleanup(crtc);
 
 	if (disp->image[nv_crtc->index])
-		nouveau_bo_unpin(disp->image[nv_crtc->index]);
-	nouveau_bo_ref(NULL, &disp->image[nv_crtc->index]);
+		yesuveau_bo_unpin(disp->image[nv_crtc->index]);
+	yesuveau_bo_ref(NULL, &disp->image[nv_crtc->index]);
 
-	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
-	nouveau_bo_unpin(nv_crtc->cursor.nvbo);
-	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
+	yesuveau_bo_unmap(nv_crtc->cursor.nvbo);
+	yesuveau_bo_unpin(nv_crtc->cursor.nvbo);
+	yesuveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
 	kfree(nv_crtc);
 }
 
 static void
 nv_crtc_gamma_load(struct drm_crtc *crtc)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct rgb { uint8_t r, g, b; } __attribute__((packed)) *rgbs;
 	u16 *r, *g, *b;
@@ -778,17 +778,17 @@ nv_crtc_gamma_load(struct drm_crtc *crtc)
 		rgbs[i].b = *b++ >> 8;
 	}
 
-	nouveau_hw_load_state_palette(dev, nv_crtc->index, &nv04_display(dev)->mode_reg);
+	yesuveau_hw_load_state_palette(dev, nv_crtc->index, &nv04_display(dev)->mode_reg);
 }
 
 static void
 nv_crtc_disable(struct drm_crtc *crtc)
 {
 	struct nv04_display *disp = nv04_display(crtc->dev);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	if (disp->image[nv_crtc->index])
-		nouveau_bo_unpin(disp->image[nv_crtc->index]);
-	nouveau_bo_ref(NULL, &disp->image[nv_crtc->index]);
+		yesuveau_bo_unpin(disp->image[nv_crtc->index]);
+	yesuveau_bo_ref(NULL, &disp->image[nv_crtc->index]);
 }
 
 static int
@@ -796,9 +796,9 @@ nv_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 		  uint32_t size,
 		  struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 
-	/* We need to know the depth before we upload, but it's possible to
+	/* We need to kyesw the depth before we upload, but it's possible to
 	 * get called before a framebuffer is bound.  If this is the case,
 	 * mark the lut values as dirty by setting depth==0, and it'll be
 	 * uploaded on the first mode_set_base()
@@ -818,31 +818,31 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 			   struct drm_framebuffer *passed_fb,
 			   int x, int y, bool atomic)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
 	struct drm_framebuffer *drm_fb;
-	struct nouveau_framebuffer *fb;
+	struct yesuveau_framebuffer *fb;
 	int arb_burst, arb_lwm;
 
 	NV_DEBUG(drm, "index %d\n", nv_crtc->index);
 
-	/* no fb bound */
+	/* yes fb bound */
 	if (!atomic && !crtc->primary->fb) {
 		NV_DEBUG(drm, "No FB bound\n");
 		return 0;
 	}
 
 	/* If atomic, we want to switch to the fb we were passed, so
-	 * now we update pointers to do that.
+	 * yesw we update pointers to do that.
 	 */
 	if (atomic) {
 		drm_fb = passed_fb;
-		fb = nouveau_framebuffer(passed_fb);
+		fb = yesuveau_framebuffer(passed_fb);
 	} else {
 		drm_fb = crtc->primary->fb;
-		fb = nouveau_framebuffer(crtc->primary->fb);
+		fb = yesuveau_framebuffer(crtc->primary->fb);
 	}
 
 	nv_crtc->fb.offset = fb->nvbo->bo.offset;
@@ -877,7 +877,7 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	nv_set_crtc_base(dev, nv_crtc->index, regp->fb_start);
 
 	/* Update the arbitration parameters. */
-	nouveau_calc_arb(dev, crtc->mode.clock, drm_fb->format->cpp[0] * 8,
+	yesuveau_calc_arb(dev, crtc->mode.clock, drm_fb->format->cpp[0] * 8,
 			 &arb_burst, &arb_lwm);
 
 	regp->CRTC[NV_CIO_CRE_FF_INDEX] = arb_burst;
@@ -908,19 +908,19 @@ nv04_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 			       struct drm_framebuffer *fb,
 			       int x, int y, enum mode_set_atomic state)
 {
-	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
+	struct yesuveau_drm *drm = yesuveau_drm(crtc->dev);
 	struct drm_device *dev = drm->dev;
 
 	if (state == ENTER_ATOMIC_MODE_SET)
-		nouveau_fbcon_accel_save_disable(dev);
+		yesuveau_fbcon_accel_save_disable(dev);
 	else
-		nouveau_fbcon_accel_restore(dev);
+		yesuveau_fbcon_accel_restore(dev);
 
 	return nv04_crtc_do_mode_set_base(crtc, fb, x, y, true);
 }
 
-static void nv04_cursor_upload(struct drm_device *dev, struct nouveau_bo *src,
-			       struct nouveau_bo *dst)
+static void nv04_cursor_upload(struct drm_device *dev, struct yesuveau_bo *src,
+			       struct yesuveau_bo *dst)
 {
 	int width = nv_cursor_width(dev);
 	uint32_t pixel;
@@ -928,9 +928,9 @@ static void nv04_cursor_upload(struct drm_device *dev, struct nouveau_bo *src,
 
 	for (i = 0; i < width; i++) {
 		for (j = 0; j < width; j++) {
-			pixel = nouveau_bo_rd32(src, i*64 + j);
+			pixel = yesuveau_bo_rd32(src, i*64 + j);
 
-			nouveau_bo_wr16(dst, i*width + j, (pixel & 0x80000000) >> 16
+			yesuveau_bo_wr16(dst, i*width + j, (pixel & 0x80000000) >> 16
 				     | (pixel & 0xf80000) >> 9
 				     | (pixel & 0xf800) >> 6
 				     | (pixel & 0xf8) >> 3);
@@ -938,20 +938,20 @@ static void nv04_cursor_upload(struct drm_device *dev, struct nouveau_bo *src,
 	}
 }
 
-static void nv11_cursor_upload(struct drm_device *dev, struct nouveau_bo *src,
-			       struct nouveau_bo *dst)
+static void nv11_cursor_upload(struct drm_device *dev, struct yesuveau_bo *src,
+			       struct yesuveau_bo *dst)
 {
 	uint32_t pixel;
 	int alpha, i;
 
-	/* nv11+ supports premultiplied (PM), or non-premultiplied (NPM) alpha
-	 * cursors (though NPM in combination with fp dithering may not work on
+	/* nv11+ supports premultiplied (PM), or yesn-premultiplied (NPM) alpha
+	 * cursors (though NPM in combination with fp dithering may yest work on
 	 * nv11, from "nv" driver history)
 	 * NPM mode needs NV_PCRTC_CURSOR_CONFIG_ALPHA_BLEND set and is what the
 	 * blob uses, however we get given PM cursors so we use PM mode
 	 */
 	for (i = 0; i < 64 * 64; i++) {
-		pixel = nouveau_bo_rd32(src, i);
+		pixel = yesuveau_bo_rd32(src, i);
 
 		/* hw gets unhappy if alpha <= rgb values.  for a PM image "less
 		 * than" shouldn't happen; fix "equal to" case by adding one to
@@ -964,7 +964,7 @@ static void nv11_cursor_upload(struct drm_device *dev, struct nouveau_bo *src,
 
 #ifdef __BIG_ENDIAN
 		{
-			struct nouveau_drm *drm = nouveau_drm(dev);
+			struct yesuveau_drm *drm = yesuveau_drm(dev);
 
 			if (drm->client.device.info.chipset == 0x11) {
 				pixel = ((pixel & 0x000000ff) << 24) |
@@ -975,7 +975,7 @@ static void nv11_cursor_upload(struct drm_device *dev, struct nouveau_bo *src,
 		}
 #endif
 
-		nouveau_bo_wr32(dst, i, pixel);
+		yesuveau_bo_wr32(dst, i, pixel);
 	}
 }
 
@@ -983,10 +983,10 @@ static int
 nv04_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		     uint32_t buffer_handle, uint32_t width, uint32_t height)
 {
-	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
+	struct yesuveau_drm *drm = yesuveau_drm(crtc->dev);
 	struct drm_device *dev = drm->dev;
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct nouveau_bo *cursor = NULL;
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
+	struct yesuveau_bo *cursor = NULL;
 	struct drm_gem_object *gem;
 	int ret = 0;
 
@@ -1001,9 +1001,9 @@ nv04_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	gem = drm_gem_object_lookup(file_priv, buffer_handle);
 	if (!gem)
 		return -ENOENT;
-	cursor = nouveau_gem_object(gem);
+	cursor = yesuveau_gem_object(gem);
 
-	ret = nouveau_bo_map(cursor);
+	ret = yesuveau_bo_map(cursor);
 	if (ret)
 		goto out;
 
@@ -1012,7 +1012,7 @@ nv04_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	else
 		nv04_cursor_upload(dev, cursor, nv_crtc->cursor.nvbo);
 
-	nouveau_bo_unmap(cursor);
+	yesuveau_bo_unmap(cursor);
 	nv_crtc->cursor.offset = nv_crtc->cursor.nvbo->bo.offset;
 	nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.offset);
 	nv_crtc->cursor.show(nv_crtc, true);
@@ -1024,7 +1024,7 @@ out:
 static int
 nv04_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 
 	nv_crtc->cursor.set_pos(nv_crtc, x, y);
 	return 0;
@@ -1039,11 +1039,11 @@ struct nv04_page_flip_state {
 };
 
 static int
-nv04_finish_page_flip(struct nouveau_channel *chan,
+nv04_finish_page_flip(struct yesuveau_channel *chan,
 		      struct nv04_page_flip_state *ps)
 {
-	struct nouveau_fence_chan *fctx = chan->fence;
-	struct nouveau_drm *drm = chan->drm;
+	struct yesuveau_fence_chan *fctx = chan->fence;
+	struct yesuveau_drm *drm = chan->drm;
 	struct drm_device *dev = drm->dev;
 	struct nv04_page_flip_state *s;
 	unsigned long flags;
@@ -1074,11 +1074,11 @@ nv04_finish_page_flip(struct nouveau_channel *chan,
 }
 
 int
-nv04_flip_complete(struct nvif_notify *notify)
+nv04_flip_complete(struct nvif_yestify *yestify)
 {
-	struct nouveau_cli *cli = (void *)notify->object->client;
-	struct nouveau_drm *drm = cli->drm;
-	struct nouveau_channel *chan = drm->channel;
+	struct yesuveau_cli *cli = (void *)yestify->object->client;
+	struct yesuveau_drm *drm = cli->drm;
+	struct yesuveau_channel *chan = drm->channel;
 	struct nv04_page_flip_state state;
 
 	if (!nv04_finish_page_flip(chan, &state)) {
@@ -1092,14 +1092,14 @@ nv04_flip_complete(struct nvif_notify *notify)
 }
 
 static int
-nv04_page_flip_emit(struct nouveau_channel *chan,
-		    struct nouveau_bo *old_bo,
-		    struct nouveau_bo *new_bo,
+nv04_page_flip_emit(struct yesuveau_channel *chan,
+		    struct yesuveau_bo *old_bo,
+		    struct yesuveau_bo *new_bo,
 		    struct nv04_page_flip_state *s,
-		    struct nouveau_fence **pfence)
+		    struct yesuveau_fence **pfence)
 {
-	struct nouveau_fence_chan *fctx = chan->fence;
-	struct nouveau_drm *drm = chan->drm;
+	struct yesuveau_fence_chan *fctx = chan->fence;
+	struct yesuveau_drm *drm = chan->drm;
 	struct drm_device *dev = drm->dev;
 	unsigned long flags;
 	int ret;
@@ -1110,7 +1110,7 @@ nv04_page_flip_emit(struct nouveau_channel *chan,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/* Synchronize with the old framebuffer */
-	ret = nouveau_fence_sync(old_bo, chan, false, false);
+	ret = yesuveau_fence_sync(old_bo, chan, false, false);
 	if (ret)
 		goto fail;
 
@@ -1123,7 +1123,7 @@ nv04_page_flip_emit(struct nouveau_channel *chan,
 	OUT_RING  (chan, 0x00000000);
 	FIRE_RING (chan);
 
-	ret = nouveau_fence_new(chan, false, pfence);
+	ret = yesuveau_fence_new(chan, false, pfence);
 	if (ret)
 		goto fail;
 
@@ -1142,15 +1142,15 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 {
 	const int swap_interval = (flags & DRM_MODE_PAGE_FLIP_ASYNC) ? 0 : 1;
 	struct drm_device *dev = crtc->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_bo *old_bo = nouveau_framebuffer(crtc->primary->fb)->nvbo;
-	struct nouveau_bo *new_bo = nouveau_framebuffer(fb)->nvbo;
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
+	struct yesuveau_bo *old_bo = yesuveau_framebuffer(crtc->primary->fb)->nvbo;
+	struct yesuveau_bo *new_bo = yesuveau_framebuffer(fb)->nvbo;
 	struct nv04_page_flip_state *s;
-	struct nouveau_channel *chan;
-	struct nouveau_cli *cli;
-	struct nouveau_fence *fence;
+	struct yesuveau_channel *chan;
+	struct yesuveau_cli *cli;
+	struct yesuveau_fence *fence;
 	struct nv04_display *dispnv04 = nv04_display(dev);
-	int head = nouveau_crtc(crtc)->index;
+	int head = yesuveau_crtc(crtc)->index;
 	int ret;
 
 	chan = drm->channel;
@@ -1163,7 +1163,7 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		return -ENOMEM;
 
 	if (new_bo != old_bo) {
-		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM, true);
+		ret = yesuveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM, true);
 		if (ret)
 			goto fail_free;
 	}
@@ -1174,7 +1174,7 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		goto fail_unpin;
 
 	/* synchronise rendering channel with the kernel's channel */
-	ret = nouveau_fence_sync(new_bo, chan, false, true);
+	ret = yesuveau_fence_sync(new_bo, chan, false, true);
 	if (ret) {
 		ttm_bo_unreserve(&new_bo->bo);
 		goto fail_unpin;
@@ -1212,7 +1212,7 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		OUT_RING  (chan, 0);
 	}
 
-	nouveau_bo_ref(new_bo, &dispnv04->image[head]);
+	yesuveau_bo_ref(new_bo, &dispnv04->image[head]);
 
 	ret = nv04_page_flip_emit(chan, old_bo, new_bo, s, &fence);
 	if (ret)
@@ -1222,11 +1222,11 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Update the crtc struct and cleanup */
 	crtc->primary->fb = fb;
 
-	nouveau_bo_fence(old_bo, fence, false);
+	yesuveau_bo_fence(old_bo, fence, false);
 	ttm_bo_unreserve(&old_bo->bo);
 	if (old_bo != new_bo)
-		nouveau_bo_unpin(old_bo);
-	nouveau_fence_unref(&fence);
+		yesuveau_bo_unpin(old_bo);
+	yesuveau_fence_unref(&fence);
 	return 0;
 
 fail_unreserve:
@@ -1235,7 +1235,7 @@ fail_unreserve:
 fail_unpin:
 	mutex_unlock(&cli->mutex);
 	if (old_bo != new_bo)
-		nouveau_bo_unpin(new_bo);
+		yesuveau_bo_unpin(new_bo);
 fail_free:
 	kfree(s);
 	return ret;
@@ -1295,7 +1295,7 @@ create_primary_plane(struct drm_device *dev)
 int
 nv04_crtc_create(struct drm_device *dev, int crtc_num)
 {
-	struct nouveau_crtc *nv_crtc;
+	struct yesuveau_crtc *nv_crtc;
 	int ret;
 
 	nv_crtc = kzalloc(sizeof(*nv_crtc), GFP_KERNEL);
@@ -1316,18 +1316,18 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 	drm_crtc_helper_add(&nv_crtc->base, &nv04_crtc_helper_funcs);
 	drm_mode_crtc_set_gamma_size(&nv_crtc->base, 256);
 
-	ret = nouveau_bo_new(&nouveau_drm(dev)->client, 64*64*4, 0x100,
+	ret = yesuveau_bo_new(&yesuveau_drm(dev)->client, 64*64*4, 0x100,
 			     TTM_PL_FLAG_VRAM, 0, 0x0000, NULL, NULL,
 			     &nv_crtc->cursor.nvbo);
 	if (!ret) {
-		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, false);
+		ret = yesuveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, false);
 		if (!ret) {
-			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
+			ret = yesuveau_bo_map(nv_crtc->cursor.nvbo);
 			if (ret)
-				nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+				yesuveau_bo_unpin(nv_crtc->cursor.nvbo);
 		}
 		if (ret)
-			nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
+			yesuveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
 	}
 
 	nv04_cursor_init(nv_crtc);

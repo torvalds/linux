@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* drivers/media/platform/s5p-cec/exynos_hdmi_cecctrl.c
+/* drivers/media/platform/s5p-cec/exyyess_hdmi_cecctrl.c
  *
  * Copyright (c) 2009, 2014 Samsung Electronics
  *		http://www.samsung.com/
@@ -10,7 +10,7 @@
 #include <linux/io.h>
 #include <linux/device.h>
 
-#include "exynos_hdmi_cec.h"
+#include "exyyess_hdmi_cec.h"
 #include "regs-cec.h"
 
 #define S5P_HDMI_FIN			24000000

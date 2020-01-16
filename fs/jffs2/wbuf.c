@@ -22,7 +22,7 @@
 #include <linux/sched.h>
 #include <linux/writeback.h>
 
-#include "nodelist.h"
+#include "yesdelist.h"
 
 /* For testing write failures */
 #undef BREAKME
@@ -38,70 +38,70 @@ static unsigned char *brokenbuf;
 /* max. erase failures before we mark a block bad */
 #define MAX_ERASE_FAILURES 	2
 
-struct jffs2_inodirty {
-	uint32_t ino;
-	struct jffs2_inodirty *next;
+struct jffs2_iyesdirty {
+	uint32_t iyes;
+	struct jffs2_iyesdirty *next;
 };
 
-static struct jffs2_inodirty inodirty_nomem;
+static struct jffs2_iyesdirty iyesdirty_yesmem;
 
-static int jffs2_wbuf_pending_for_ino(struct jffs2_sb_info *c, uint32_t ino)
+static int jffs2_wbuf_pending_for_iyes(struct jffs2_sb_info *c, uint32_t iyes)
 {
-	struct jffs2_inodirty *this = c->wbuf_inodes;
+	struct jffs2_iyesdirty *this = c->wbuf_iyesdes;
 
 	/* If a malloc failed, consider _everything_ dirty */
-	if (this == &inodirty_nomem)
+	if (this == &iyesdirty_yesmem)
 		return 1;
 
-	/* If ino == 0, _any_ non-GC writes mean 'yes' */
-	if (this && !ino)
+	/* If iyes == 0, _any_ yesn-GC writes mean 'no' */
+	if (this && !iyes)
 		return 1;
 
-	/* Look to see if the inode in question is pending in the wbuf */
+	/* Look to see if the iyesde in question is pending in the wbuf */
 	while (this) {
-		if (this->ino == ino)
+		if (this->iyes == iyes)
 			return 1;
 		this = this->next;
 	}
 	return 0;
 }
 
-static void jffs2_clear_wbuf_ino_list(struct jffs2_sb_info *c)
+static void jffs2_clear_wbuf_iyes_list(struct jffs2_sb_info *c)
 {
-	struct jffs2_inodirty *this;
+	struct jffs2_iyesdirty *this;
 
-	this = c->wbuf_inodes;
+	this = c->wbuf_iyesdes;
 
-	if (this != &inodirty_nomem) {
+	if (this != &iyesdirty_yesmem) {
 		while (this) {
-			struct jffs2_inodirty *next = this->next;
+			struct jffs2_iyesdirty *next = this->next;
 			kfree(this);
 			this = next;
 		}
 	}
-	c->wbuf_inodes = NULL;
+	c->wbuf_iyesdes = NULL;
 }
 
-static void jffs2_wbuf_dirties_inode(struct jffs2_sb_info *c, uint32_t ino)
+static void jffs2_wbuf_dirties_iyesde(struct jffs2_sb_info *c, uint32_t iyes)
 {
-	struct jffs2_inodirty *new;
+	struct jffs2_iyesdirty *new;
 
 	/* Schedule delayed write-buffer write-out */
 	jffs2_dirty_trigger(c);
 
-	if (jffs2_wbuf_pending_for_ino(c, ino))
+	if (jffs2_wbuf_pending_for_iyes(c, iyes))
 		return;
 
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new) {
-		jffs2_dbg(1, "No memory to allocate inodirty. Fallback to all considered dirty\n");
-		jffs2_clear_wbuf_ino_list(c);
-		c->wbuf_inodes = &inodirty_nomem;
+		jffs2_dbg(1, "No memory to allocate iyesdirty. Fallback to all considered dirty\n");
+		jffs2_clear_wbuf_iyes_list(c);
+		c->wbuf_iyesdes = &iyesdirty_yesmem;
 		return;
 	}
-	new->ino = ino;
-	new->next = c->wbuf_inodes;
-	c->wbuf_inodes = new;
+	new->iyes = iyes;
+	new->next = c->wbuf_iyesdes;
+	c->wbuf_iyesdes = new;
 	return;
 }
 
@@ -147,13 +147,13 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		c->nextblock = NULL;
 	else /* Not sure this should ever happen... need more coffee */
 		list_del(&jeb->list);
-	if (jeb->first_node) {
+	if (jeb->first_yesde) {
 		jffs2_dbg(1, "Refiling block at %08x to bad_used_list\n",
 			  jeb->offset);
 		list_add(&jeb->list, &c->bad_used_list);
 	} else {
 		BUG_ON(allow_empty == REFILE_NOTEMPTY);
-		/* It has to have had some nodes or we couldn't be here */
+		/* It has to have had some yesdes or we couldn't be here */
 		jffs2_dbg(1, "Refiling block at %08x to erase_pending_list\n",
 			  jeb->offset);
 		list_add(&jeb->list, &c->erase_pending_list);
@@ -161,10 +161,10 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		jffs2_garbage_collect_trigger(c);
 	}
 
-	if (!jffs2_prealloc_raw_node_refs(c, jeb, 1)) {
+	if (!jffs2_prealloc_raw_yesde_refs(c, jeb, 1)) {
 		uint32_t oldfree = jeb->free_size;
 
-		jffs2_link_node_ref(c, jeb, 
+		jffs2_link_yesde_ref(c, jeb, 
 				    (jeb->offset+c->sector_size-oldfree) | REF_OBSOLETE,
 				    oldfree, NULL);
 		/* convert to wasted */
@@ -174,53 +174,53 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		jeb->dirty_size -= oldfree;
 	}
 
-	jffs2_dbg_dump_block_lists_nolock(c);
-	jffs2_dbg_acct_sanity_check_nolock(c,jeb);
-	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
+	jffs2_dbg_dump_block_lists_yeslock(c);
+	jffs2_dbg_acct_sanity_check_yeslock(c,jeb);
+	jffs2_dbg_acct_parayesia_check_yeslock(c, jeb);
 }
 
-static struct jffs2_raw_node_ref **jffs2_incore_replace_raw(struct jffs2_sb_info *c,
-							    struct jffs2_inode_info *f,
-							    struct jffs2_raw_node_ref *raw,
-							    union jffs2_node_union *node)
+static struct jffs2_raw_yesde_ref **jffs2_incore_replace_raw(struct jffs2_sb_info *c,
+							    struct jffs2_iyesde_info *f,
+							    struct jffs2_raw_yesde_ref *raw,
+							    union jffs2_yesde_union *yesde)
 {
-	struct jffs2_node_frag *frag;
+	struct jffs2_yesde_frag *frag;
 	struct jffs2_full_dirent *fd;
 
-	dbg_noderef("incore_replace_raw: node at %p is {%04x,%04x}\n",
-		    node, je16_to_cpu(node->u.magic), je16_to_cpu(node->u.nodetype));
+	dbg_yesderef("incore_replace_raw: yesde at %p is {%04x,%04x}\n",
+		    yesde, je16_to_cpu(yesde->u.magic), je16_to_cpu(yesde->u.yesdetype));
 
-	BUG_ON(je16_to_cpu(node->u.magic) != 0x1985 &&
-	       je16_to_cpu(node->u.magic) != 0);
+	BUG_ON(je16_to_cpu(yesde->u.magic) != 0x1985 &&
+	       je16_to_cpu(yesde->u.magic) != 0);
 
-	switch (je16_to_cpu(node->u.nodetype)) {
+	switch (je16_to_cpu(yesde->u.yesdetype)) {
 	case JFFS2_NODETYPE_INODE:
 		if (f->metadata && f->metadata->raw == raw) {
-			dbg_noderef("Will replace ->raw in f->metadata at %p\n", f->metadata);
+			dbg_yesderef("Will replace ->raw in f->metadata at %p\n", f->metadata);
 			return &f->metadata->raw;
 		}
-		frag = jffs2_lookup_node_frag(&f->fragtree, je32_to_cpu(node->i.offset));
+		frag = jffs2_lookup_yesde_frag(&f->fragtree, je32_to_cpu(yesde->i.offset));
 		BUG_ON(!frag);
-		/* Find a frag which refers to the full_dnode we want to modify */
-		while (!frag->node || frag->node->raw != raw) {
+		/* Find a frag which refers to the full_dyesde we want to modify */
+		while (!frag->yesde || frag->yesde->raw != raw) {
 			frag = frag_next(frag);
 			BUG_ON(!frag);
 		}
-		dbg_noderef("Will replace ->raw in full_dnode at %p\n", frag->node);
-		return &frag->node->raw;
+		dbg_yesderef("Will replace ->raw in full_dyesde at %p\n", frag->yesde);
+		return &frag->yesde->raw;
 
 	case JFFS2_NODETYPE_DIRENT:
 		for (fd = f->dents; fd; fd = fd->next) {
 			if (fd->raw == raw) {
-				dbg_noderef("Will replace ->raw in full_dirent at %p\n", fd);
+				dbg_yesderef("Will replace ->raw in full_dirent at %p\n", fd);
 				return &fd->raw;
 			}
 		}
 		BUG();
 
 	default:
-		dbg_noderef("Don't care about replacing raw for nodetype %x\n",
-			    je16_to_cpu(node->u.nodetype));
+		dbg_yesderef("Don't care about replacing raw for yesdetype %x\n",
+			    je16_to_cpu(yesde->u.yesdetype));
 		break;
 	}
 	return NULL;
@@ -240,7 +240,7 @@ static int jffs2_verify_write(struct jffs2_sb_info *c, unsigned char *buf,
 			__func__, c->wbuf_ofs, ret);
 		return ret;
 	} else if (retlen != c->wbuf_pagesize) {
-		pr_warn("%s(): Read back of page at %08x gave short read: %zd not %d\n",
+		pr_warn("%s(): Read back of page at %08x gave short read: %zd yest %d\n",
 			__func__, ofs, retlen, c->wbuf_pagesize);
 		return -EIO;
 	}
@@ -269,13 +269,13 @@ static int jffs2_verify_write(struct jffs2_sb_info *c, unsigned char *buf,
 #define jffs2_verify_write(c,b,o) (0)
 #endif
 
-/* Recover from failure to write wbuf. Recover the nodes up to the
- * wbuf, not the one which we were starting to try to write. */
+/* Recover from failure to write wbuf. Recover the yesdes up to the
+ * wbuf, yest the one which we were starting to try to write. */
 
 static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 {
 	struct jffs2_eraseblock *jeb, *new_jeb;
-	struct jffs2_raw_node_ref *raw, *next, *first_raw = NULL;
+	struct jffs2_raw_yesde_ref *raw, *next, *first_raw = NULL;
 	size_t retlen;
 	int ret;
 	int nr_refile = 0;
@@ -291,22 +291,22 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		jffs2_block_refile(c, jeb, REFILE_ANYWAY);
 	spin_unlock(&c->erase_completion_lock);
 
-	BUG_ON(!ref_obsolete(jeb->last_node));
+	BUG_ON(!ref_obsolete(jeb->last_yesde));
 
-	/* Find the first node to be recovered, by skipping over every
-	   node which ends before the wbuf starts, or which is obsolete. */
-	for (next = raw = jeb->first_node; next; raw = next) {
+	/* Find the first yesde to be recovered, by skipping over every
+	   yesde which ends before the wbuf starts, or which is obsolete. */
+	for (next = raw = jeb->first_yesde; next; raw = next) {
 		next = ref_next(raw);
 
 		if (ref_obsolete(raw) || 
 		    (next && ref_offset(next) <= c->wbuf_ofs)) {
-			dbg_noderef("Skipping node at 0x%08x(%d)-0x%08x which is either before 0x%08x or obsolete\n",
+			dbg_yesderef("Skipping yesde at 0x%08x(%d)-0x%08x which is either before 0x%08x or obsolete\n",
 				    ref_offset(raw), ref_flags(raw),
 				    (ref_offset(raw) + ref_totlen(c, jeb, raw)),
 				    c->wbuf_ofs);
 			continue;
 		}
-		dbg_noderef("First node to be recovered is at 0x%08x(%d)-0x%08x\n",
+		dbg_yesderef("First yesde to be recovered is at 0x%08x(%d)-0x%08x\n",
 			    ref_offset(raw), ref_flags(raw),
 			    (ref_offset(raw) + ref_totlen(c, jeb, raw)));
 
@@ -315,26 +315,26 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	}
 
 	if (!first_raw) {
-		/* All nodes were obsolete. Nothing to recover. */
-		jffs2_dbg(1, "No non-obsolete nodes to be recovered. Just filing block bad\n");
+		/* All yesdes were obsolete. Nothing to recover. */
+		jffs2_dbg(1, "No yesn-obsolete yesdes to be recovered. Just filing block bad\n");
 		c->wbuf_len = 0;
 		return;
 	}
 
 	start = ref_offset(first_raw);
-	end = ref_offset(jeb->last_node);
+	end = ref_offset(jeb->last_yesde);
 	nr_refile = 1;
 
 	/* Count the number of refs which need to be copied */
-	while ((raw = ref_next(raw)) != jeb->last_node)
+	while ((raw = ref_next(raw)) != jeb->last_yesde)
 		nr_refile++;
 
-	dbg_noderef("wbuf recover %08x-%08x (%d bytes in %d nodes)\n",
+	dbg_yesderef("wbuf recover %08x-%08x (%d bytes in %d yesdes)\n",
 		    start, end, end - start, nr_refile);
 
 	buf = NULL;
 	if (start < c->wbuf_ofs) {
-		/* First affected node was already partially written.
+		/* First affected yesde was already partially written.
 		 * Attempt to reread the old data into our buffer. */
 
 		buf = kmalloc(end - start, GFP_KERNEL);
@@ -366,15 +366,15 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 				nr_refile--;
 			}
 
-			/* If this was the only node to be recovered, give up */
+			/* If this was the only yesde to be recovered, give up */
 			if (!first_raw) {
 				c->wbuf_len = 0;
 				return;
 			}
 
-			/* It wasn't. Go on and try to recover nodes complete in the wbuf */
+			/* It wasn't. Go on and try to recover yesdes complete in the wbuf */
 			start = ref_offset(first_raw);
-			dbg_noderef("wbuf now recover %08x-%08x (%d bytes in %d nodes)\n",
+			dbg_yesderef("wbuf yesw recover %08x-%08x (%d bytes in %d yesdes)\n",
 				    start, end, end - start, nr_refile);
 
 		} else {
@@ -393,12 +393,12 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		return;
 	}
 
-	/* The summary is not recovered, so it must be disabled for this erase block */
+	/* The summary is yest recovered, so it must be disabled for this erase block */
 	jffs2_sum_disable_collecting(c->summary);
 
-	ret = jffs2_prealloc_raw_node_refs(c, c->nextblock, nr_refile);
+	ret = jffs2_prealloc_raw_yesde_refs(c, c->nextblock, nr_refile);
 	if (ret) {
-		pr_warn("Failed to allocate node refs for wbuf recovery. Data loss ensues.\n");
+		pr_warn("Failed to allocate yesde refs for wbuf recovery. Data loss ensues.\n");
 		kfree(buf);
 		return;
 	}
@@ -406,9 +406,9 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	ofs = write_ofs(c);
 
 	if (end-start >= c->wbuf_pagesize) {
-		/* Need to do another write immediately, but it's possible
+		/* Need to do ayesther write immediately, but it's possible
 		   that this is just because the wbuf itself is completely
-		   full, and there's nothing earlier read back from the
+		   full, and there's yesthing earlier read back from the
 		   flash. Hence 'buf' isn't necessarily what we're writing
 		   from. */
 		unsigned char *rewrite_buf = buf?:c->wbuf;
@@ -420,7 +420,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 #ifdef BREAKMEHEADER
 		static int breakme;
 		if (breakme++ == 20) {
-			pr_notice("Faking write error at 0x%08x\n", ofs);
+			pr_yestice("Faking write error at 0x%08x\n", ofs);
 			breakme = 0;
 			mtd_write(c->mtd, ofs, towrite, &retlen, brokenbuf);
 			ret = -EIO;
@@ -435,18 +435,18 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 			kfree(buf);
 
 			if (retlen)
-				jffs2_add_physical_node_ref(c, ofs | REF_OBSOLETE, ref_totlen(c, jeb, first_raw), NULL);
+				jffs2_add_physical_yesde_ref(c, ofs | REF_OBSOLETE, ref_totlen(c, jeb, first_raw), NULL);
 
 			return;
 		}
-		pr_notice("Recovery of wbuf succeeded to %08x\n", ofs);
+		pr_yestice("Recovery of wbuf succeeded to %08x\n", ofs);
 
 		c->wbuf_len = (end - start) - towrite;
 		c->wbuf_ofs = ofs + towrite;
 		memmove(c->wbuf, rewrite_buf + towrite, c->wbuf_len);
-		/* Don't muck about with c->wbuf_inodes. False positives are harmless. */
+		/* Don't muck about with c->wbuf_iyesdes. False positives are harmless. */
 	} else {
-		/* OK, now we're left with the dregs in whichever buffer we're using */
+		/* OK, yesw we're left with the dregs in whichever buffer we're using */
 		if (buf) {
 			memcpy(c->wbuf, buf, end-start);
 		} else {
@@ -456,16 +456,16 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		c->wbuf_len = end - start;
 	}
 
-	/* Now sort out the jffs2_raw_node_refs, moving them from the old to the next block */
+	/* Now sort out the jffs2_raw_yesde_refs, moving them from the old to the next block */
 	new_jeb = &c->blocks[ofs / c->sector_size];
 
 	spin_lock(&c->erase_completion_lock);
-	for (raw = first_raw; raw != jeb->last_node; raw = ref_next(raw)) {
+	for (raw = first_raw; raw != jeb->last_yesde; raw = ref_next(raw)) {
 		uint32_t rawlen = ref_totlen(c, jeb, raw);
-		struct jffs2_inode_cache *ic;
-		struct jffs2_raw_node_ref *new_ref;
-		struct jffs2_raw_node_ref **adjust_ref = NULL;
-		struct jffs2_inode_info *f = NULL;
+		struct jffs2_iyesde_cache *ic;
+		struct jffs2_raw_yesde_ref *new_ref;
+		struct jffs2_raw_yesde_ref **adjust_ref = NULL;
+		struct jffs2_iyesde_info *f = NULL;
 
 		jffs2_dbg(1, "Refiling block of %08x at %08x(%d) to %08x\n",
 			  rawlen, ref_offset(raw), ref_flags(raw), ofs);
@@ -475,42 +475,42 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		/* Ick. This XATTR mess should be fixed shortly... */
 		if (ic && ic->class == RAWNODE_CLASS_XATTR_DATUM) {
 			struct jffs2_xattr_datum *xd = (void *)ic;
-			BUG_ON(xd->node != raw);
-			adjust_ref = &xd->node;
-			raw->next_in_ino = NULL;
+			BUG_ON(xd->yesde != raw);
+			adjust_ref = &xd->yesde;
+			raw->next_in_iyes = NULL;
 			ic = NULL;
 		} else if (ic && ic->class == RAWNODE_CLASS_XATTR_REF) {
 			struct jffs2_xattr_datum *xr = (void *)ic;
-			BUG_ON(xr->node != raw);
-			adjust_ref = &xr->node;
-			raw->next_in_ino = NULL;
+			BUG_ON(xr->yesde != raw);
+			adjust_ref = &xr->yesde;
+			raw->next_in_iyes = NULL;
 			ic = NULL;
 		} else if (ic && ic->class == RAWNODE_CLASS_INODE_CACHE) {
-			struct jffs2_raw_node_ref **p = &ic->nodes;
+			struct jffs2_raw_yesde_ref **p = &ic->yesdes;
 
-			/* Remove the old node from the per-inode list */
+			/* Remove the old yesde from the per-iyesde list */
 			while (*p && *p != (void *)ic) {
 				if (*p == raw) {
-					(*p) = (raw->next_in_ino);
-					raw->next_in_ino = NULL;
+					(*p) = (raw->next_in_iyes);
+					raw->next_in_iyes = NULL;
 					break;
 				}
-				p = &((*p)->next_in_ino);
+				p = &((*p)->next_in_iyes);
 			}
 
 			if (ic->state == INO_STATE_PRESENT && !ref_obsolete(raw)) {
-				/* If it's an in-core inode, then we have to adjust any
-				   full_dirent or full_dnode structure to point to the
+				/* If it's an in-core iyesde, then we have to adjust any
+				   full_dirent or full_dyesde structure to point to the
 				   new version instead of the old */
-				f = jffs2_gc_fetch_inode(c, ic->ino, !ic->pino_nlink);
+				f = jffs2_gc_fetch_iyesde(c, ic->iyes, !ic->piyes_nlink);
 				if (IS_ERR(f)) {
 					/* Should never happen; it _must_ be present */
-					JFFS2_ERROR("Failed to iget() ino #%u, err %ld\n",
-						    ic->ino, PTR_ERR(f));
+					JFFS2_ERROR("Failed to iget() iyes #%u, err %ld\n",
+						    ic->iyes, PTR_ERR(f));
 					BUG();
 				}
 				/* We don't lock f->sem. There's a number of ways we could
-				   end up in here with it already being locked, and nobody's
+				   end up in here with it already being locked, and yesbody's
 				   going to modify it on us anyway because we hold the
 				   alloc_sem. We're only changing one ->raw pointer too,
 				   which we can get away with without upsetting readers. */
@@ -519,19 +519,19 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 			} else if (unlikely(ic->state != INO_STATE_PRESENT &&
 					    ic->state != INO_STATE_CHECKEDABSENT &&
 					    ic->state != INO_STATE_GC)) {
-				JFFS2_ERROR("Inode #%u is in strange state %d!\n", ic->ino, ic->state);
+				JFFS2_ERROR("Iyesde #%u is in strange state %d!\n", ic->iyes, ic->state);
 				BUG();
 			}
 		}
 
-		new_ref = jffs2_link_node_ref(c, new_jeb, ofs | ref_flags(raw), rawlen, ic);
+		new_ref = jffs2_link_yesde_ref(c, new_jeb, ofs | ref_flags(raw), rawlen, ic);
 
 		if (adjust_ref) {
 			BUG_ON(*adjust_ref != raw);
 			*adjust_ref = new_ref;
 		}
 		if (f)
-			jffs2_gc_release_inode(c, f);
+			jffs2_gc_release_iyesde(c, f);
 
 		if (!ref_obsolete(raw)) {
 			jeb->dirty_size += rawlen;
@@ -539,27 +539,27 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 			c->dirty_size += rawlen;
 			c->used_size -= rawlen;
 			raw->flash_offset = ref_offset(raw) | REF_OBSOLETE;
-			BUG_ON(raw->next_in_ino);
+			BUG_ON(raw->next_in_iyes);
 		}
 		ofs += rawlen;
 	}
 
 	kfree(buf);
 
-	/* Fix up the original jeb now it's on the bad_list */
-	if (first_raw == jeb->first_node) {
-		jffs2_dbg(1, "Failing block at %08x is now empty. Moving to erase_pending_list\n",
+	/* Fix up the original jeb yesw it's on the bad_list */
+	if (first_raw == jeb->first_yesde) {
+		jffs2_dbg(1, "Failing block at %08x is yesw empty. Moving to erase_pending_list\n",
 			  jeb->offset);
 		list_move(&jeb->list, &c->erase_pending_list);
 		c->nr_erasing_blocks++;
 		jffs2_garbage_collect_trigger(c);
 	}
 
-	jffs2_dbg_acct_sanity_check_nolock(c, jeb);
-	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
+	jffs2_dbg_acct_sanity_check_yeslock(c, jeb);
+	jffs2_dbg_acct_parayesia_check_yeslock(c, jeb);
 
-	jffs2_dbg_acct_sanity_check_nolock(c, new_jeb);
-	jffs2_dbg_acct_paranoia_check_nolock(c, new_jeb);
+	jffs2_dbg_acct_sanity_check_yeslock(c, new_jeb);
+	jffs2_dbg_acct_parayesia_check_yeslock(c, new_jeb);
 
 	spin_unlock(&c->erase_completion_lock);
 
@@ -569,8 +569,8 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 }
 
 /* Meaning of pad argument:
-   0: Do not pad. Probably pointless - we only ever use this when we can't pad anyway.
-   1: Pad, do not adjust nextblock free_size
+   0: Do yest pad. Probably pointless - we only ever use this when we can't pad anyway.
+   1: Pad, do yest adjust nextblock free_size
    2: Pad, adjust nextblock free_size
 */
 #define NOPAD		0
@@ -583,13 +583,13 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	int ret;
 	size_t retlen;
 
-	/* Nothing to do if not write-buffering the flash. In particular, we shouldn't
+	/* Nothing to do if yest write-buffering the flash. In particular, we shouldn't
 	   del_timer() the timer we never initialised. */
 	if (!jffs2_is_writebuffered(c))
 		return 0;
 
 	if (!mutex_is_locked(&c->alloc_sem)) {
-		pr_crit("jffs2_flush_wbuf() called with alloc_sem not locked!\n");
+		pr_crit("jffs2_flush_wbuf() called with alloc_sem yest locked!\n");
 		BUG();
 	}
 
@@ -597,14 +597,14 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 		return 0;
 
 	wbuf_jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
-	if (jffs2_prealloc_raw_node_refs(c, wbuf_jeb, c->nextblock->allocated_refs + 1))
+	if (jffs2_prealloc_raw_yesde_refs(c, wbuf_jeb, c->nextblock->allocated_refs + 1))
 		return -ENOMEM;
 
 	/* claim remaining space on the page
 	   this happens, if we have a change to a new block,
 	   or if fsync forces us to flush the writebuffer.
-	   if we have a switch to next page, we will not have
-	   enough remaining space for this.
+	   if we have a switch to next page, we will yest have
+	   eyesugh remaining space for this.
 	*/
 	if (pad ) {
 		c->wbuf_len = PAD(c->wbuf_len);
@@ -613,21 +613,21 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 		   with 8 byte page size */
 		memset(c->wbuf + c->wbuf_len, 0, c->wbuf_pagesize - c->wbuf_len);
 
-		if ( c->wbuf_len + sizeof(struct jffs2_unknown_node) < c->wbuf_pagesize) {
-			struct jffs2_unknown_node *padnode = (void *)(c->wbuf + c->wbuf_len);
-			padnode->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
-			padnode->nodetype = cpu_to_je16(JFFS2_NODETYPE_PADDING);
-			padnode->totlen = cpu_to_je32(c->wbuf_pagesize - c->wbuf_len);
-			padnode->hdr_crc = cpu_to_je32(crc32(0, padnode, sizeof(*padnode)-4));
+		if ( c->wbuf_len + sizeof(struct jffs2_unkyeswn_yesde) < c->wbuf_pagesize) {
+			struct jffs2_unkyeswn_yesde *padyesde = (void *)(c->wbuf + c->wbuf_len);
+			padyesde->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
+			padyesde->yesdetype = cpu_to_je16(JFFS2_NODETYPE_PADDING);
+			padyesde->totlen = cpu_to_je32(c->wbuf_pagesize - c->wbuf_len);
+			padyesde->hdr_crc = cpu_to_je32(crc32(0, padyesde, sizeof(*padyesde)-4));
 		}
 	}
 	/* else jffs2_flash_writev has actually filled in the rest of the
-	   buffer for us, and will deal with the node refs etc. later. */
+	   buffer for us, and will deal with the yesde refs etc. later. */
 
 #ifdef BREAKME
 	static int breakme;
 	if (breakme++ == 20) {
-		pr_notice("Faking write error at 0x%08x\n", c->wbuf_ofs);
+		pr_yestice("Faking write error at 0x%08x\n", c->wbuf_ofs);
 		breakme = 0;
 		mtd_write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen,
 			  brokenbuf);
@@ -674,7 +674,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 
 		spin_lock(&c->erase_completion_lock);
 
-		jffs2_link_node_ref(c, wbuf_jeb, (c->wbuf_ofs + c->wbuf_len) | REF_OBSOLETE, waste, NULL);
+		jffs2_link_yesde_ref(c, wbuf_jeb, (c->wbuf_ofs + c->wbuf_len) | REF_OBSOLETE, waste, NULL);
 		/* FIXME: that made it count as dirty. Convert to wasted */
 		wbuf_jeb->dirty_size -= waste;
 		c->dirty_size -= waste;
@@ -683,36 +683,36 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	} else
 		spin_lock(&c->erase_completion_lock);
 
-	/* Stick any now-obsoleted blocks on the erase_pending_list */
+	/* Stick any yesw-obsoleted blocks on the erase_pending_list */
 	jffs2_refile_wbuf_blocks(c);
-	jffs2_clear_wbuf_ino_list(c);
+	jffs2_clear_wbuf_iyes_list(c);
 	spin_unlock(&c->erase_completion_lock);
 
 	memset(c->wbuf,0xff,c->wbuf_pagesize);
-	/* adjust write buffer offset, else we get a non contiguous write bug */
+	/* adjust write buffer offset, else we get a yesn contiguous write bug */
 	c->wbuf_ofs += c->wbuf_pagesize;
 	c->wbuf_len = 0;
 	return 0;
 }
 
 /* Trigger garbage collection to flush the write-buffer.
-   If ino arg is zero, do it if _any_ real (i.e. not GC) writes are
-   outstanding. If ino arg non-zero, do it only if a write for the
-   given inode is outstanding. */
-int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino)
+   If iyes arg is zero, do it if _any_ real (i.e. yest GC) writes are
+   outstanding. If iyes arg yesn-zero, do it only if a write for the
+   given iyesde is outstanding. */
+int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t iyes)
 {
 	uint32_t old_wbuf_ofs;
 	uint32_t old_wbuf_len;
 	int ret = 0;
 
-	jffs2_dbg(1, "jffs2_flush_wbuf_gc() called for ino #%u...\n", ino);
+	jffs2_dbg(1, "jffs2_flush_wbuf_gc() called for iyes #%u...\n", iyes);
 
 	if (!c->wbuf)
 		return 0;
 
 	mutex_lock(&c->alloc_sem);
-	if (!jffs2_wbuf_pending_for_ino(c, ino)) {
-		jffs2_dbg(1, "Ino #%d not pending in wbuf. Returning\n", ino);
+	if (!jffs2_wbuf_pending_for_iyes(c, iyes)) {
+		jffs2_dbg(1, "Iyes #%d yest pending in wbuf. Returning\n", iyes);
 		mutex_unlock(&c->alloc_sem);
 		return 0;
 	}
@@ -793,20 +793,20 @@ static size_t jffs2_fill_wbuf(struct jffs2_sb_info *c, const uint8_t *buf,
 
 int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs,
 		       unsigned long count, loff_t to, size_t *retlen,
-		       uint32_t ino)
+		       uint32_t iyes)
 {
 	struct jffs2_eraseblock *jeb;
 	size_t wbuf_retlen, donelen = 0;
 	uint32_t outvec_to = to;
 	int ret, invec;
 
-	/* If not writebuffered flash, don't bother */
+	/* If yest writebuffered flash, don't bother */
 	if (!jffs2_is_writebuffered(c))
 		return jffs2_flash_direct_writev(c, invecs, count, to, retlen);
 
 	down_write(&c->wbuf_sem);
 
-	/* If wbuf_ofs is not initialized, set it to target address */
+	/* If wbuf_ofs is yest initialized, set it to target address */
 	if (c->wbuf_ofs == 0xFFFFFFFF) {
 		c->wbuf_ofs = PAGE_DIV(to);
 		c->wbuf_len = PAGE_MOD(to);
@@ -835,7 +835,7 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs,
 	}
 
 	if (to != PAD(c->wbuf_ofs + c->wbuf_len)) {
-		/* We're not writing immediately after the writebuffer. Bad. */
+		/* We're yest writing immediately after the writebuffer. Bad. */
 		pr_crit("%s(): Non-contiguous write to %08lx\n",
 			__func__, (unsigned long)to);
 		if (c->wbuf_len)
@@ -897,8 +897,8 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs,
 	}
 
 	/*
-	 * If there's a remainder in the wbuf and it's a non-GC write,
-	 * remember that the wbuf affects this ino
+	 * If there's a remainder in the wbuf and it's a yesn-GC write,
+	 * remember that the wbuf affects this iyes
 	 */
 	*retlen = donelen;
 
@@ -908,8 +908,8 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs,
 			return res;
 	}
 
-	if (c->wbuf_len && ino)
-		jffs2_wbuf_dirties_inode(c, ino);
+	if (c->wbuf_len && iyes)
+		jffs2_wbuf_dirties_iyesde(c, iyes);
 
 	ret = 0;
 	up_write(&c->wbuf_sem);
@@ -917,7 +917,7 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs,
 
 outfile:
 	/*
-	 * At this point we have no problem, c->wbuf is empty. However
+	 * At this point we have yes problem, c->wbuf is empty. However
 	 * refile nextblock to avoid writing again to same address.
 	 */
 
@@ -973,9 +973,9 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 		/*
 		 * We have the raw data without ECC correction in the buffer,
 		 * maybe we are lucky and all data or parts are correct. We
-		 * check the node.  If data are corrupted node check will sort
+		 * check the yesde.  If data are corrupted yesde check will sort
 		 * it out.  We keep this block, it will fail on write or erase
-		 * and the we mark it bad. Or should we do that now? But we
+		 * and the we mark it bad. Or should we do that yesw? But we
 		 * should give him a chance.  Maybe we had a system crash or
 		 * power loss before the ecc write or a erase was completed.
 		 * So we return success. :)
@@ -983,7 +983,7 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 		ret = 0;
 	}
 
-	/* if no writebuffer available or write buffer empty, return */
+	/* if yes writebuffer available or write buffer empty, return */
 	if (!c->wbuf_pagesize || !c->wbuf_len)
 		goto exit;
 
@@ -1019,15 +1019,15 @@ exit:
 /* For historical reasons we use only 8 bytes for OOB clean marker */
 #define OOB_CM_SIZE 8
 
-static const struct jffs2_unknown_node oob_cleanmarker =
+static const struct jffs2_unkyeswn_yesde oob_cleanmarker =
 {
 	.magic = constant_cpu_to_je16(JFFS2_MAGIC_BITMASK),
-	.nodetype = constant_cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER),
+	.yesdetype = constant_cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER),
 	.totlen = constant_cpu_to_je32(8)
 };
 
 /*
- * Check, if the out of band area is empty. This function knows about the clean
+ * Check, if the out of band area is empty. This function kyesws about the clean
  * marker and if it is present in OOB, treats the OOB as empty anyway.
  */
 int jffs2_check_oob_empty(struct jffs2_sb_info *c,
@@ -1045,7 +1045,7 @@ int jffs2_check_oob_empty(struct jffs2_sb_info *c,
 
 	ret = mtd_read_oob(c->mtd, jeb->offset, &ops);
 	if ((ret && !mtd_is_bitflip(ret)) || ops.oobretlen != ops.ooblen) {
-		pr_err("cannot read OOB for EB at %08x, requested %zd bytes, read %zd bytes, error %d\n",
+		pr_err("canyest read OOB for EB at %08x, requested %zd bytes, read %zd bytes, error %d\n",
 		       jeb->offset, ops.ooblen, ops.oobretlen, ret);
 		if (!ret || mtd_is_bitflip(ret))
 			ret = -EIO;
@@ -1054,7 +1054,7 @@ int jffs2_check_oob_empty(struct jffs2_sb_info *c,
 
 	for(i = 0; i < ops.ooblen; i++) {
 		if (mode && i < cmlen)
-			/* Yeah, we know about the cleanmarker */
+			/* Yeah, we kyesw about the cleanmarker */
 			continue;
 
 		if (ops.oobbuf[i] != 0xFF) {
@@ -1070,7 +1070,7 @@ int jffs2_check_oob_empty(struct jffs2_sb_info *c,
 /*
  * Check for a valid cleanmarker.
  * Returns: 0 if a valid cleanmarker was found
- *	    1 if no cleanmarker was found
+ *	    1 if yes cleanmarker was found
  *	    negative error code if an error occurred
  */
 int jffs2_check_nand_cleanmarker(struct jffs2_sb_info *c,
@@ -1087,7 +1087,7 @@ int jffs2_check_nand_cleanmarker(struct jffs2_sb_info *c,
 
 	ret = mtd_read_oob(c->mtd, jeb->offset, &ops);
 	if ((ret && !mtd_is_bitflip(ret)) || ops.oobretlen != ops.ooblen) {
-		pr_err("cannot read OOB for EB at %08x, requested %zd bytes, read %zd bytes, error %d\n",
+		pr_err("canyest read OOB for EB at %08x, requested %zd bytes, read %zd bytes, error %d\n",
 		       jeb->offset, ops.ooblen, ops.oobretlen, ret);
 		if (!ret || mtd_is_bitflip(ret))
 			ret = -EIO;
@@ -1112,7 +1112,7 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c,
 
 	ret = mtd_write_oob(c->mtd, jeb->offset, &ops);
 	if (ret || ops.oobretlen != ops.ooblen) {
-		pr_err("cannot write OOB for EB at %08x, requested %zd bytes, read %zd bytes, error %d\n",
+		pr_err("canyest write OOB for EB at %08x, requested %zd bytes, read %zd bytes, error %d\n",
 		       jeb->offset, ops.ooblen, ops.oobretlen, ret);
 		if (!ret)
 			ret = -EIO;
@@ -1126,7 +1126,7 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c,
  * On NAND we try to mark this block bad. If the block was erased more
  * than MAX_ERASE_FAILURES we mark it finally bad.
  * Don't care about failures. This block remains on the erase-pending
- * or badblock list as long as nobody manipulates the flash with
+ * or badblock list as long as yesbody manipulates the flash with
  * a bootloader or something like that.
  */
 
@@ -1245,7 +1245,7 @@ int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
 	/* Find a suitable c->sector_size
 	 * - Not too much sectors
 	 * - Sectors have to be at least 4 K + some bytes
-	 * - All known dataflashes have erase sizes of 528 or 1056
+	 * - All kyeswn dataflashes have erase sizes of 528 or 1056
 	 * - we take at least 8 eraseblocks and want to have at least 8K size
 	 * - The concatenation should be a power of 2
 	*/
@@ -1290,7 +1290,7 @@ void jffs2_dataflash_cleanup(struct jffs2_sb_info *c) {
 	kfree(c->wbuf);
 }
 
-int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c) {
+int jffs2_yesr_wbuf_flash_setup(struct jffs2_sb_info *c) {
 	/* Cleanmarker currently occupies whole programming regions,
 	 * either one or 2 for 8Byte STMicro flashes. */
 	c->cleanmarker_size = max(16u, c->mtd->writesize);
@@ -1316,7 +1316,7 @@ int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c) {
 	return 0;
 }
 
-void jffs2_nor_wbuf_flash_cleanup(struct jffs2_sb_info *c) {
+void jffs2_yesr_wbuf_flash_cleanup(struct jffs2_sb_info *c) {
 #ifdef CONFIG_JFFS2_FS_WBUF_VERIFY
 	kfree(c->wbuf_verify);
 #endif
@@ -1327,7 +1327,7 @@ int jffs2_ubivol_setup(struct jffs2_sb_info *c) {
 	c->cleanmarker_size = 0;
 
 	if (c->mtd->writesize == 1)
-		/* We do not need write-buffer */
+		/* We do yest need write-buffer */
 		return 0;
 
 	init_rwsem(&c->wbuf_sem);

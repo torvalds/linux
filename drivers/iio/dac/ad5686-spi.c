@@ -113,7 +113,7 @@ static const struct spi_device_id ad5686_spi_id[] = {
 	{"ad5683r", ID_AD5683R},
 	{"ad5684", ID_AD5684},
 	{"ad5684r", ID_AD5684R},
-	{"ad5685", ID_AD5685R}, /* Does not exist */
+	{"ad5685", ID_AD5685R}, /* Does yest exist */
 	{"ad5685r", ID_AD5685R},
 	{"ad5686", ID_AD5686},
 	{"ad5686r", ID_AD5686R},

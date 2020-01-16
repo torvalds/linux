@@ -126,20 +126,20 @@ static int lantiq_rcu_reset_of_parse(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	const __be32 *offset;
 
-	priv->regmap = syscon_node_to_regmap(dev->of_node->parent);
+	priv->regmap = syscon_yesde_to_regmap(dev->of_yesde->parent);
 	if (IS_ERR(priv->regmap)) {
 		dev_err(&pdev->dev, "Failed to lookup RCU regmap\n");
 		return PTR_ERR(priv->regmap);
 	}
 
-	offset = of_get_address(dev->of_node, 0, NULL, NULL);
+	offset = of_get_address(dev->of_yesde, 0, NULL, NULL);
 	if (!offset) {
 		dev_err(&pdev->dev, "Failed to get RCU reset offset\n");
 		return -ENOENT;
 	}
 	priv->reset_offset = __be32_to_cpu(*offset);
 
-	offset = of_get_address(dev->of_node, 1, NULL, NULL);
+	offset = of_get_address(dev->of_yesde, 1, NULL, NULL);
 	if (!offset) {
 		dev_err(&pdev->dev, "Failed to get RCU status offset\n");
 		return -ENOENT;
@@ -181,7 +181,7 @@ static int lantiq_rcu_reset_probe(struct platform_device *pdev)
 
 	priv->rcdev.ops = &lantiq_rcu_reset_ops;
 	priv->rcdev.owner = THIS_MODULE;
-	priv->rcdev.of_node = pdev->dev.of_node;
+	priv->rcdev.of_yesde = pdev->dev.of_yesde;
 	priv->rcdev.nr_resets = 32;
 	priv->rcdev.of_xlate = lantiq_rcu_reset_xlate;
 	priv->rcdev.of_reset_n_cells = 2;

@@ -36,7 +36,7 @@ static irqreturn_t panfrost_gpu_irq_handler(int irq, void *data)
 			 address);
 
 		if (state & GPU_IRQ_MULTIPLE_FAULT)
-			dev_warn(pfdev->dev, "There were multiple GPU faults - some have not been reported\n");
+			dev_warn(pfdev->dev, "There were multiple GPU faults - some have yest been reported\n");
 
 		gpu_write(pfdev, GPU_INT_MASK, 0);
 	}
@@ -195,8 +195,8 @@ static const struct panfrost_model gpu_models[] = {
 
 static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 {
-	u32 gpu_id, num_js, major, minor, status, rev;
-	const char *name = "unknown";
+	u32 gpu_id, num_js, major, miyesr, status, rev;
+	const char *name = "unkyeswn";
 	u64 hw_feat = 0;
 	u64 hw_issues = hw_issues_all;
 	const struct panfrost_model *model;
@@ -248,7 +248,7 @@ static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 		pfdev->features.id = 0x0600;
 
 	major = (pfdev->features.revision >> 12) & 0xf;
-	minor = (pfdev->features.revision >> 4) & 0xff;
+	miyesr = (pfdev->features.revision >> 4) & 0xff;
 	status = pfdev->features.revision & 0xf;
 	rev = pfdev->features.revision;
 
@@ -280,8 +280,8 @@ static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 	bitmap_from_u64(pfdev->features.hw_features, hw_feat);
 	bitmap_from_u64(pfdev->features.hw_issues, hw_issues);
 
-	dev_info(pfdev->dev, "mali-%s id 0x%x major 0x%x minor 0x%x status 0x%x",
-		 name, gpu_id, major, minor, status);
+	dev_info(pfdev->dev, "mali-%s id 0x%x major 0x%x miyesr 0x%x status 0x%x",
+		 name, gpu_id, major, miyesr, status);
 	dev_info(pfdev->dev, "features: %64pb, issues: %64pb",
 		 pfdev->features.hw_features,
 		 pfdev->features.hw_issues);
@@ -304,7 +304,7 @@ void panfrost_gpu_power_on(struct panfrost_device *pfdev)
 	int ret;
 	u32 val;
 
-	/* Just turn on everything for now */
+	/* Just turn on everything for yesw */
 	gpu_write(pfdev, L2_PWRON_LO, pfdev->features.l2_present);
 	ret = readl_relaxed_poll_timeout(pfdev->iomem + L2_READY_LO,
 		val, val == pfdev->features.l2_present, 100, 1000);

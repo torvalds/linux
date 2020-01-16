@@ -58,7 +58,7 @@ int rtas_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 		return PCIBIOS_SET_FAILED;
 #endif
 
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, where);
+	addr = rtas_config_addr(pdn->busyes, pdn->devfn, where);
 	buid = pdn->phb->buid;
 	if (buid) {
 		ret = rtas_call(ibm_read_pci_config, 4, 2, &returnval,
@@ -109,7 +109,7 @@ int rtas_write_config(struct pci_dn *pdn, int where, int size, u32 val)
 		return PCIBIOS_SET_FAILED;
 #endif
 
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, where);
+	addr = rtas_config_addr(pdn->busyes, pdn->devfn, where);
 	buid = pdn->phb->buid;
 	if (buid) {
 		ret = rtas_call(ibm_write_pci_config, 5, 1, NULL, addr,
@@ -141,7 +141,7 @@ static struct pci_ops rtas_pci_ops = {
 	.write = rtas_pci_write_config,
 };
 
-static int is_python(struct device_node *dev)
+static int is_python(struct device_yesde *dev)
 {
 	const char *model = of_get_property(dev, "model", NULL);
 
@@ -151,7 +151,7 @@ static int is_python(struct device_node *dev)
 	return 0;
 }
 
-static void python_countermeasures(struct device_node *dev)
+static void python_countermeasures(struct device_yesde *dev)
 {
 	struct resource registers;
 	void __iomem *chip_regs;
@@ -196,7 +196,7 @@ void __init init_pci_config_tokens(void)
 	ibm_write_pci_config = rtas_token("ibm,write-pci-config");
 }
 
-unsigned long get_phb_buid(struct device_node *phb)
+unsigned long get_phb_buid(struct device_yesde *phb)
 {
 	struct resource r;
 
@@ -207,7 +207,7 @@ unsigned long get_phb_buid(struct device_node *phb)
 	return r.start;
 }
 
-static int phb_set_bus_ranges(struct device_node *dev,
+static int phb_set_bus_ranges(struct device_yesde *dev,
 			      struct pci_controller *phb)
 {
 	const __be32 *bus_range;
@@ -218,15 +218,15 @@ static int phb_set_bus_ranges(struct device_node *dev,
 		return 1;
  	}
 
-	phb->first_busno = be32_to_cpu(bus_range[0]);
-	phb->last_busno  = be32_to_cpu(bus_range[1]);
+	phb->first_busyes = be32_to_cpu(bus_range[0]);
+	phb->last_busyes  = be32_to_cpu(bus_range[1]);
 
 	return 0;
 }
 
 int rtas_setup_phb(struct pci_controller *phb)
 {
-	struct device_node *dev = phb->dn;
+	struct device_yesde *dev = phb->dn;
 
 	if (is_python(dev))
 		python_countermeasures(dev);

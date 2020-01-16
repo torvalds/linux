@@ -12,8 +12,8 @@
 How does the Linux gateway page on PA-RISC work?
 ------------------------------------------------
 The Linux gateway page on PA-RISC is "special".
-It actually has PAGE_GATEWAY bits set (this is linux terminology; in parisc
-terminology it's Execute, promote to PL0) in the page map.  So anything
+It actually has PAGE_GATEWAY bits set (this is linux termiyeslogy; in parisc
+termiyeslogy it's Execute, promote to PL0) in the page map.  So anything
 executing on this page executes with kernel level privilege (there's more to it
 than that: to have this happen, you also have to use a branch with a ,gate
 completer to activate the privilege promotion).  The upshot is that everything
@@ -32,7 +32,7 @@ registers).
 
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/page.h>
 #include <asm/psw.h>
 #include <asm/thread_info.h>
@@ -56,7 +56,7 @@ registers).
 	.import syscall_exit_rfi,code
 
 	/* Linux gateway page is aliased to virtual page 0 in the kernel
-	 * address space. Since it is a gateway page it cannot be
+	 * address space. Since it is a gateway page it canyest be
 	 * dereferenced, so null pointers will still fault. We start
 	 * the actual entry point at 0x100. We put break instructions
 	 * at the beginning of the page to trap null indirect function
@@ -150,14 +150,14 @@ linux_gateway_entry:
 
 	mtsp	%r0,%sr7			/* get kernel space into sr7 */
 	ssm	PSW_SM_I, %r0			/* enable interrupts */
-	STREGM	%r1,FRAME_SIZE(%r30)		/* save r1 (usp) here for now */
+	STREGM	%r1,FRAME_SIZE(%r30)		/* save r1 (usp) here for yesw */
 	mfctl	%cr30,%r1			/* get task ptr in %r1 */
 	LDREG	TI_TASK(%r1),%r1
 
 	/* Save some registers for sigcontext and potential task
 	   switch (see entry.S for the details of which ones are
 	   saved/restored).  TASK_PT_PSW is zeroed so we can see whether
-	   a process is on a syscall or not.  For an interrupt the real
+	   a process is on a syscall or yest.  For an interrupt the real
 	   PSW value is stored.  This is needed for gdb and sys_ptrace. */
 	STREG	%r0,  TASK_PT_PSW(%r1)
 	STREG	%r2,  TASK_PT_GR2(%r1)		/* preserve rp */
@@ -199,7 +199,7 @@ linux_gateway_entry:
 	ldo	-16(%r30),%r29			/* Reference param save area */
 	copy	%r19,%r2			/* W bit back to r2 */
 #else
-	/* no need to save these on stack in wide mode because the first 8
+	/* yes need to save these on stack in wide mode because the first 8
 	 * args are passed in registers */
 	stw     %r22, -52(%r30)                 /* 5th argument */
 	stw     %r21, -56(%r30)                 /* 6th argument */
@@ -212,7 +212,7 @@ linux_gateway_entry:
 	and,COND(=) %r1, %r19, %r0
 	b,n	.Ltracesys
 	
-	/* Note!  We cannot use the syscall table that is mapped
+	/* Note!  We canyest use the syscall table that is mapped
 	nearby since the gateway page is mapped execute-only. */
 
 #ifdef CONFIG_64BIT
@@ -226,13 +226,13 @@ linux_gateway_entry:
 	load32	sys_call_table, %r19
 #endif	
 	comiclr,>>	__NR_Linux_syscalls, %r20, %r0
-	b,n	.Lsyscall_nosys
+	b,n	.Lsyscall_yessys
 	
 	LDREGX  %r20(%r19), %r19
 
 	/* If this is a sys_rt_sigreturn call, and the signal was received
-	 * when not in_syscall, then we want to return via syscall_exit_rfi,
-	 * not syscall_exit.  Signal no. in r20, in_syscall in r25 (see
+	 * when yest in_syscall, then we want to return via syscall_exit_rfi,
+	 * yest syscall_exit.  Signal yes. in r20, in_syscall in r25 (see
 	 * trampoline code in signal.c).
 	 */
 	ldi	__NR_rt_sigreturn,%r2
@@ -247,16 +247,16 @@ linux_gateway_entry:
 	be      0(%sr7,%r19)
 	ldo	R%syscall_exit_rfi(%r2),%r2
 
-	/* Note!  Because we are not running where we were linked, any
+	/* Note!  Because we are yest running where we were linked, any
 	calls to functions external to this file must be indirect.  To
 	be safe, we apply the opposite rule to functions within this
 	file, with local labels given to them to ensure correctness. */
 	
-.Lsyscall_nosys:
-syscall_nosys:
+.Lsyscall_yessys:
+syscall_yessys:
 	ldil	L%syscall_exit,%r1
 	be	R%syscall_exit(%sr7,%r1)
-	ldo	-ENOSYS(%r0),%r28		   /* set errno */
+	ldo	-ENOSYS(%r0),%r28		   /* set erryes */
 
 
 /* Warning! This trace code is a virtual duplicate of the code above so be
@@ -269,7 +269,7 @@ tracesys:
 	 * full register save path has been executed.  We check the D
 	 * bit on syscall_return_rfi to determine which registers to
 	 * restore.  An interrupt results in a full PSW saved with the
-	 * C bit set, a non-straced syscall entry results in C and D clear
+	 * C bit set, a yesn-straced syscall entry results in C and D clear
 	 * in the saved PSW.
 	 */
 	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
@@ -321,7 +321,7 @@ tracesys:
 	ldo	R%tracesys_next(%r2),%r2
 	
 tracesys_next:
-	/* do_syscall_trace_enter either returned the syscallno, or -1L,
+	/* do_syscall_trace_enter either returned the syscallyes, or -1L,
 	 *  so we skip restoring the PT_GR20 below, since we pulled it from
 	 *  task->thread.regs.gr[20] above.
 	 */
@@ -345,9 +345,9 @@ tracesys_next:
 
 	cmpib,COND(=),n -1,%r20,tracesys_exit /* seccomp may have returned -1 */
 	comiclr,>>	__NR_Linux_syscalls, %r20, %r0
-	b,n	.Ltracesys_nosys
+	b,n	.Ltracesys_yessys
 
-	/* Note!  We cannot use the syscall table that is mapped
+	/* Note!  We canyest use the syscall table that is mapped
 	nearby since the gateway page is mapped execute-only. */
 
 #ifdef CONFIG_64BIT
@@ -367,8 +367,8 @@ tracesys_next:
 	LDREGX  %r20(%r19), %r19
 
 	/* If this is a sys_rt_sigreturn call, and the signal was received
-	 * when not in_syscall, then we want to return via syscall_exit_rfi,
-	 * not syscall_exit.  Signal no. in r20, in_syscall in r25 (see
+	 * when yest in_syscall, then we want to return via syscall_exit_rfi,
+	 * yest syscall_exit.  Signal yes. in r20, in_syscall in r25 (see
 	 * trampoline code in signal.c).
 	 */
 	ldi	__NR_rt_sigreturn,%r2
@@ -378,10 +378,10 @@ tracesys_next:
 	be      0(%sr7,%r19)
 	ldo	R%tracesys_exit(%r2),%r2
 
-.Ltracesys_nosys:
-	ldo	-ENOSYS(%r0),%r28		/* set errno */
+.Ltracesys_yessys:
+	ldo	-ENOSYS(%r0),%r28		/* set erryes */
 
-	/* Do *not* call this function on the gateway page, because it
+	/* Do *yest* call this function on the gateway page, because it
 	makes a direct call to syscall_trace. */
 	
 tracesys_exit:
@@ -392,7 +392,7 @@ tracesys_exit:
 #endif
 	ldo	TASK_REGS(%r1),%r26
 	BL	do_syscall_trace_exit,%r2
-	STREG   %r28,TASK_PT_GR28(%r1)          /* save return value now */
+	STREG   %r28,TASK_PT_GR28(%r1)          /* save return value yesw */
 	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
 	LDREG	TI_TASK(%r1), %r1
 	LDREG   TASK_PT_GR28(%r1), %r28		/* Restore return val. */
@@ -434,7 +434,7 @@ tracesys_sigexit:
 	        * In asm input.
 
 		Return registers (caller-saves)
-	        - %r28 (return), %r21 (errno)
+	        - %r28 (return), %r21 (erryes)
 	        * In asm output.
 
 		Caller-saves registers
@@ -486,7 +486,7 @@ lws_start:
 
         /* Is the lws entry number valid? */
 	comiclr,>>	__NR_lws_entries, %r20, %r0
-	b,n	lws_exit_nosys
+	b,n	lws_exit_yessys
 
 	/* Load table start */
 	ldil	L%lws_table, %r1
@@ -496,8 +496,8 @@ lws_start:
 	/* Jump to lws, lws table pointers already relocated */
 	be,n	0(%sr2,%r21)
 
-lws_exit_nosys:
-	ldo	-ENOSYS(%r0),%r21		   /* set errno */
+lws_exit_yessys:
+	ldo	-ENOSYS(%r0),%r21		   /* set erryes */
 	/* Fall through: Return to userspace */
 
 lws_exit:
@@ -508,7 +508,7 @@ lws_exit:
 	 * of sp.  Extract it and reset W if it is zero */
 	extrd,u,*<>	%r30,63,1,%r1
 	rsm	PSW_SM_W, %r0
-	/* now reset the lowest bit of sp if it was set */
+	/* yesw reset the lowest bit of sp if it was set */
 	xor	%r30,%r1,%r30
 #endif
 	be,n	0(%sr7, %r31)
@@ -542,7 +542,7 @@ lws_exit:
 
 	****************************************************/
 
-	/* Do not enable LWS debugging */
+	/* Do yest enable LWS debugging */
 #define ENABLE_LWS_DEBUG 0 
 
 	/* ELF64 Process entry path */
@@ -550,11 +550,11 @@ lws_compare_and_swap64:
 #ifdef CONFIG_64BIT
 	b,n	lws_compare_and_swap
 #else
-	/* If we are not a 64-bit kernel, then we don't
+	/* If we are yest a 64-bit kernel, then we don't
 	 * have 64-bit input registers, and calling
 	 * the 64-bit LWS CAS returns ENOSYS.
 	 */
-	b,n	lws_exit_nosys
+	b,n	lws_exit_yessys
 #endif
 
 	/* ELF32 Process entry path */
@@ -595,11 +595,11 @@ lws_compare_and_swap:
 	b	lws_exit				/* Return error! */
 	ldo	-EDEADLOCK(%r0), %r21
 cas_lock:
-	cmpb,=,n	%r0, %r28, cas_nocontend	/* Is nobody using it? */
+	cmpb,=,n	%r0, %r28, cas_yescontend	/* Is yesbody using it? */
 	ldo	1(%r0), %r28				/* 1st case */
 	b	lws_exit				/* Contended... */
 	ldo	-EAGAIN(%r0), %r21			/* Spin in userspace */
-cas_nocontend:
+cas_yescontend:
 # endif
 /* ENABLE_LWS_DEBUG */
 
@@ -651,7 +651,7 @@ cas_action:
 #endif
 	/* Enable interrupts */
 	ssm	PSW_SM_I, %r0
-	/* Return to userspace, set no error */
+	/* Return to userspace, set yes error */
 	b	lws_exit
 	copy	%r0, %r21
 
@@ -668,11 +668,11 @@ cas_action:
 #endif
 	ssm	PSW_SM_I, %r0
 	b	lws_exit
-	ldo	-EFAULT(%r0),%r21	/* set errno */
-	nop
-	nop
-	nop
-	nop
+	ldo	-EFAULT(%r0),%r21	/* set erryes */
+	yesp
+	yesp
+	yesp
+	yesp
 
 	/* Two exception table entries, one for the load,
 	   the other for the store. Either return -EFAULT.
@@ -690,7 +690,7 @@ cas_action:
 		%r25 - Pointer to the value to check (old)
 		%r24 - Pointer to the value to set (new)
 		%r23 - Size of the variable (0/1/2/3 for 8/16/32/64 bit)
-		%r28 - Return non-zero on failure
+		%r28 - Return yesn-zero on failure
 		%r21 - Kernel error code
 
 		%r21 has the following meanings:
@@ -714,43 +714,43 @@ lws_compare_and_swap_2:
 
 	/* Check the validity of the size pointer */
 	subi,>>= 3, %r23, %r0
-	b,n	lws_exit_nosys
+	b,n	lws_exit_yessys
 
 	/* Jump to the functions which will load the old and new values into
 	   registers depending on the their size */
 	shlw	%r23, 2, %r29
 	blr	%r29, %r0
-	nop
+	yesp
 
 	/* 8bit load */
 4:	ldb	0(%r25), %r25
 	b	cas2_lock_start
 5:	ldb	0(%r24), %r24
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	/* 16bit load */
 6:	ldh	0(%r25), %r25
 	b	cas2_lock_start
 7:	ldh	0(%r24), %r24
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	/* 32bit load */
 8:	ldw	0(%r25), %r25
 	b	cas2_lock_start
 9:	ldw	0(%r24), %r24
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	/* 64bit load */
 #ifdef CONFIG_64BIT
@@ -807,7 +807,7 @@ cas2_wouldblock:
 cas2_action:
 	/* Jump to the correct function */
 	blr	%r29, %r0
-	/* Set %r28 as non-zero for now */
+	/* Set %r28 as yesn-zero for yesw */
 	ldo	1(%r0),%r28
 
 	/* 8bit CAS */
@@ -817,8 +817,8 @@ cas2_action:
 14:	stb	%r24, 0(%r26)
 	b	cas2_end
 	copy	%r0, %r28
-	nop
-	nop
+	yesp
+	yesp
 
 	/* 16bit CAS */
 15:	ldh	0(%r26), %r29
@@ -827,8 +827,8 @@ cas2_action:
 16:	sth	%r24, 0(%r26)
 	b	cas2_end
 	copy	%r0, %r28
-	nop
-	nop
+	yesp
+	yesp
 
 	/* 32bit CAS */
 17:	ldw	0(%r26), %r29
@@ -837,8 +837,8 @@ cas2_action:
 18:	stw	%r24, 0(%r26)
 	b	cas2_end
 	copy	%r0, %r28
-	nop
-	nop
+	yesp
+	yesp
 
 	/* 64bit CAS */
 #ifdef CONFIG_64BIT
@@ -870,7 +870,7 @@ cas2_end:
 	stw	%r20, 0(%sr2,%r20)
 	/* Enable interrupts */
 	ssm	PSW_SM_I, %r0
-	/* Return to userspace, set no error */
+	/* Return to userspace, set yes error */
 	b	lws_exit
 	copy	%r0, %r21
 
@@ -885,10 +885,10 @@ cas2_end:
 	ssm	PSW_SM_I, %r0
 	ldo	1(%r0),%r28
 	b	lws_exit
-	ldo	-EFAULT(%r0),%r21	/* set errno */
-	nop
-	nop
-	nop
+	ldo	-EFAULT(%r0),%r21	/* set erryes */
+	yesp
+	yesp
+	yesp
 
 	/* Exception table entries, for the load and store, return EFAULT.
 	   Each of the entries must be relocated. */
@@ -913,7 +913,7 @@ cas2_end:
 	ASM_EXCEPTIONTABLE_ENTRY(21b-linux_gateway_page, 22b-linux_gateway_page)
 #endif
 
-	/* Make sure nothing else is placed on this page */
+	/* Make sure yesthing else is placed on this page */
 	.align PAGE_SIZE
 END(linux_gateway_page)
 ENTRY(end_linux_gateway_page)

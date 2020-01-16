@@ -24,7 +24,7 @@ Optional properties:
 	1 - MICBIAS output is powered to 2.0V,
 	2 - MICBIAS output is powered to 2.5V,
 	3 - MICBIAS output is connected to AVDD,
-	If this node is not mentioned or if the value is incorrect, then MicBias
+	If this yesde is yest mentioned or if the value is incorrect, then MicBias
 	is powered down.
 - ai3x-ocmv - Output Common-Mode Voltage selection:
 	0 - 1.35V,
@@ -61,7 +61,7 @@ CODEC input pins for other compatible codecs:
   * LINE1R
   * LINE2R
 
-The pins can be used in referring sound node's audio-routing property.
+The pins can be used in referring sound yesde's audio-routing property.
 
 Example:
 

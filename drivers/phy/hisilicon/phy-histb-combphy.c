@@ -49,7 +49,7 @@ struct histb_combphy_priv {
 	struct histb_combphy_mode mode;
 };
 
-static void nano_register_write(struct histb_combphy_priv *priv,
+static void nayes_register_write(struct histb_combphy_priv *priv,
 				u32 addr, u32 data)
 {
 	void __iomem *reg = priv->mmio + COMBPHY_CFG_REG;
@@ -131,10 +131,10 @@ static int histb_combphy_init(struct phy *phy)
 	/* Need to wait for EP clock stable */
 	mdelay(5);
 
-	/* Configure nano phy registers as suggested by vendor */
-	nano_register_write(priv, 0x1, 0x8);
-	nano_register_write(priv, 0xc, 0x9);
-	nano_register_write(priv, 0x1a, 0x4);
+	/* Configure nayes phy registers as suggested by vendor */
+	nayes_register_write(priv, 0x1, 0x8);
+	nayes_register_write(priv, 0xc, 0x9);
+	nayes_register_write(priv, 0x1a, 0x4);
 
 	return 0;
 }
@@ -193,7 +193,7 @@ static int histb_combphy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct device *dev = &pdev->dev;
 	struct histb_combphy_priv *priv;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct histb_combphy_mode *mode;
 	u32 vals[3];
 	int ret;
@@ -208,7 +208,7 @@ static int histb_combphy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	priv->syscon = syscon_node_to_regmap(np->parent);
+	priv->syscon = syscon_yesde_to_regmap(np->parent);
 	if (IS_ERR(priv->syscon)) {
 		dev_err(dev, "failed to find peri_ctrl syscon regmap\n");
 		return PTR_ERR(priv->syscon);
@@ -235,7 +235,7 @@ static int histb_combphy_probe(struct platform_device *pdev)
 		dev_dbg(dev, "found mode select bits\n");
 	} else {
 		if (!is_mode_fixed(mode)) {
-			dev_err(dev, "no valid select bits found for non-fixed phy\n");
+			dev_err(dev, "yes valid select bits found for yesn-fixed phy\n");
 			return -ENODEV;
 		}
 	}

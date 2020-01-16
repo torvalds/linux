@@ -1,7 +1,7 @@
 Guest halt polling
 ==================
 
-The cpuidle_haltpoll driver, with the haltpoll governor, allows
+The cpuidle_haltpoll driver, with the haltpoll goveryesr, allows
 the guest vcpus to poll for a specified amount of time before
 halting.
 This provides the following benefits to host side polling:
@@ -26,10 +26,10 @@ in response to events (explained below).
 Module Parameters
 =================
 
-The haltpoll governor has 5 tunable module parameters:
+The haltpoll goveryesr has 5 tunable module parameters:
 
 1) guest_halt_poll_ns:
-Maximum amount of time, in nanoseconds, that polling is
+Maximum amount of time, in nayesseconds, that polling is
 performed before halting.
 
 Default: 200000

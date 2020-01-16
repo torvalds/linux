@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -98,7 +98,7 @@ static void appledisplay_complete(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -213,7 +213,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	/* use only the first interrupt-in endpoint */
 	retval = usb_find_int_in_endpoint(iface->cur_altsetting, &endpoint);
 	if (retval) {
-		dev_err(&iface->dev, "Could not find int-in endpoint\n");
+		dev_err(&iface->dev, "Could yest find int-in endpoint\n");
 		return retval;
 	}
 

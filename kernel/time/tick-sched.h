@@ -14,18 +14,18 @@ struct tick_device {
 	enum tick_device_mode mode;
 };
 
-enum tick_nohz_mode {
+enum tick_yeshz_mode {
 	NOHZ_MODE_INACTIVE,
 	NOHZ_MODE_LOWRES,
 	NOHZ_MODE_HIGHRES,
 };
 
 /**
- * struct tick_sched - sched tick emulation and no idle tick control/stats
+ * struct tick_sched - sched tick emulation and yes idle tick control/stats
  * @sched_timer:	hrtimer to schedule the periodic tick in high
  *			resolution mode
  * @check_clocks:	Notification mechanism about clocksource changes
- * @nohz_mode:		Mode - one state of tick_nohz_mode
+ * @yeshz_mode:		Mode - one state of tick_yeshz_mode
  * @inidle:		Indicator that the CPU is in the tick idle mode
  * @tick_stopped:	Indicator that the idle tick has been stopped
  * @idle_active:	Indicator that the CPU is actively in the tick idle mode;
@@ -33,9 +33,9 @@ enum tick_nohz_mode {
  * @do_timer_lst:	CPU was the last one doing do_timer before going idle
  * @got_idle_tick:	Tick timer function has run with @inidle set
  * @last_tick:		Store the last tick expiry time when the tick
- *			timer is modified for nohz sleeps. This is necessary
+ *			timer is modified for yeshz sleeps. This is necessary
  *			to resume the tick timer operation in the timeline
- *			when the CPU returns from nohz sleep.
+ *			when the CPU returns from yeshz sleep.
  * @next_tick:		Next tick to be fired when in dynticks mode.
  * @idle_jiffies:	jiffies at the entry to idle for idle time accounting
  * @idle_calls:		Total number of idle calls
@@ -46,14 +46,14 @@ enum tick_nohz_mode {
  * @idle_sleeptime:	Sum of the time slept in idle with sched tick stopped
  * @iowait_sleeptime:	Sum of the time slept in idle with sched tick stopped, with IO outstanding
  * @timer_expires:	Anticipated timer expiration time (in case sched tick is stopped)
- * @timer_expires_base:	Base time clock monotonic for @timer_expires
+ * @timer_expires_base:	Base time clock moyestonic for @timer_expires
  * @next_timer:		Expiry time of next expiring timer for debugging purpose only
  * @tick_dep_mask:	Tick dependency mask - is set, if someone needs the tick
  */
 struct tick_sched {
 	struct hrtimer			sched_timer;
 	unsigned long			check_clocks;
-	enum tick_nohz_mode		nohz_mode;
+	enum tick_yeshz_mode		yeshz_mode;
 
 	unsigned int			inidle		: 1;
 	unsigned int			tick_stopped	: 1;

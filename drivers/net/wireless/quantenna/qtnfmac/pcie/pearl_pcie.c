@@ -171,7 +171,7 @@ static void qtnf_deassert_intx(struct qtnf_pcie_pearl_state *ps)
 
 	cfg = readl(reg);
 	cfg &= ~PEARL_ASSERT_INTX;
-	qtnf_non_posted_write(cfg, reg);
+	qtnf_yesn_posted_write(cfg, reg);
 }
 
 static void qtnf_pearl_reset_ep(struct qtnf_pcie_pearl_state *ps)
@@ -180,7 +180,7 @@ static void qtnf_pearl_reset_ep(struct qtnf_pcie_pearl_state *ps)
 	void __iomem *reg = ps->base.sysctl_bar +
 			    QTN_PEARL_SYSCTL_LHOST_IRQ_OFFSET;
 
-	qtnf_non_posted_write(data, reg);
+	qtnf_yesn_posted_write(data, reg);
 	msleep(QTN_EP_RESET_WAIT_MS);
 	pci_restore_state(ps->base.pdev);
 }
@@ -192,7 +192,7 @@ static void qtnf_pcie_pearl_ipc_gen_ep_int(void *arg)
 	void __iomem *reg = ps->base.sysctl_bar +
 			    QTN_PEARL_SYSCTL_LHOST_IRQ_OFFSET;
 
-	qtnf_non_posted_write(data, reg);
+	qtnf_yesn_posted_write(data, reg);
 }
 
 static int qtnf_is_state(__le32 __iomem *reg, u32 state)
@@ -206,14 +206,14 @@ static void qtnf_set_state(__le32 __iomem *reg, u32 state)
 {
 	u32 s = readl(reg);
 
-	qtnf_non_posted_write(state | s, reg);
+	qtnf_yesn_posted_write(state | s, reg);
 }
 
 static void qtnf_clear_state(__le32 __iomem *reg, u32 state)
 {
 	u32 s = readl(reg);
 
-	qtnf_non_posted_write(s & ~state, reg);
+	qtnf_yesn_posted_write(s & ~state, reg);
 }
 
 static int qtnf_poll_state(__le32 __iomem *reg, u32 state, u32 delay_in_ms)
@@ -676,8 +676,8 @@ static irqreturn_t qtnf_pcie_pearl_interrupt(int irq, void *data)
 	}
 
 irq_done:
-	/* H/W workaround: clean all bits, not only enabled */
-	qtnf_non_posted_write(~0U, PCIE_HDP_INT_STATUS(ps->pcie_reg_base));
+	/* H/W workaround: clean all bits, yest only enabled */
+	qtnf_yesn_posted_write(~0U, PCIE_HDP_INT_STATUS(ps->pcie_reg_base));
 
 	if (!priv->msi_enabled)
 		qtnf_deassert_intx(ps);
@@ -1042,7 +1042,7 @@ static void qtnf_pearl_fw_work_handler(struct work_struct *work)
 
 	if (qtnf_poll_state(&ps->bda->bda_ep_state, QTN_EP_FW_LOADRDY,
 			    QTN_FW_DL_TIMEOUT_MS)) {
-		pr_err("card is not ready\n");
+		pr_err("card is yest ready\n");
 
 		if (!ps->base.flashboot)
 			release_firmware(fw);

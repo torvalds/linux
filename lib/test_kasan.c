@@ -24,11 +24,11 @@
 #include <asm/page.h>
 
 /*
- * Note: test functions are marked noinline so that their names appear in
+ * Note: test functions are marked yesinline so that their names appear in
  * reports.
  */
 
-static noinline void __init kmalloc_oob_right(void)
+static yesinline void __init kmalloc_oob_right(void)
 {
 	char *ptr;
 	size_t size = 123;
@@ -44,7 +44,7 @@ static noinline void __init kmalloc_oob_right(void)
 	kfree(ptr);
 }
 
-static noinline void __init kmalloc_oob_left(void)
+static yesinline void __init kmalloc_oob_left(void)
 {
 	char *ptr;
 	size_t size = 15;
@@ -60,13 +60,13 @@ static noinline void __init kmalloc_oob_left(void)
 	kfree(ptr);
 }
 
-static noinline void __init kmalloc_node_oob_right(void)
+static yesinline void __init kmalloc_yesde_oob_right(void)
 {
 	char *ptr;
 	size_t size = 4096;
 
-	pr_info("kmalloc_node(): out-of-bounds to right\n");
-	ptr = kmalloc_node(size, GFP_KERNEL, 0);
+	pr_info("kmalloc_yesde(): out-of-bounds to right\n");
+	ptr = kmalloc_yesde(size, GFP_KERNEL, 0);
 	if (!ptr) {
 		pr_err("Allocation failed\n");
 		return;
@@ -77,12 +77,12 @@ static noinline void __init kmalloc_node_oob_right(void)
 }
 
 #ifdef CONFIG_SLUB
-static noinline void __init kmalloc_pagealloc_oob_right(void)
+static yesinline void __init kmalloc_pagealloc_oob_right(void)
 {
 	char *ptr;
 	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
 
-	/* Allocate a chunk that does not fit into a SLUB cache to trigger
+	/* Allocate a chunk that does yest fit into a SLUB cache to trigger
 	 * the page allocator fallback.
 	 */
 	pr_info("kmalloc pagealloc allocation: out-of-bounds to right\n");
@@ -96,7 +96,7 @@ static noinline void __init kmalloc_pagealloc_oob_right(void)
 	kfree(ptr);
 }
 
-static noinline void __init kmalloc_pagealloc_uaf(void)
+static yesinline void __init kmalloc_pagealloc_uaf(void)
 {
 	char *ptr;
 	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
@@ -112,7 +112,7 @@ static noinline void __init kmalloc_pagealloc_uaf(void)
 	ptr[0] = 0;
 }
 
-static noinline void __init kmalloc_pagealloc_invalid_free(void)
+static yesinline void __init kmalloc_pagealloc_invalid_free(void)
 {
 	char *ptr;
 	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
@@ -128,12 +128,12 @@ static noinline void __init kmalloc_pagealloc_invalid_free(void)
 }
 #endif
 
-static noinline void __init kmalloc_large_oob_right(void)
+static yesinline void __init kmalloc_large_oob_right(void)
 {
 	char *ptr;
 	size_t size = KMALLOC_MAX_CACHE_SIZE - 256;
-	/* Allocate a chunk that is large enough, but still fits into a slab
-	 * and does not trigger the page allocator fallback in SLUB.
+	/* Allocate a chunk that is large eyesugh, but still fits into a slab
+	 * and does yest trigger the page allocator fallback in SLUB.
 	 */
 	pr_info("kmalloc large allocation: out-of-bounds to right\n");
 	ptr = kmalloc(size, GFP_KERNEL);
@@ -146,7 +146,7 @@ static noinline void __init kmalloc_large_oob_right(void)
 	kfree(ptr);
 }
 
-static noinline void __init kmalloc_oob_krealloc_more(void)
+static yesinline void __init kmalloc_oob_krealloc_more(void)
 {
 	char *ptr1, *ptr2;
 	size_t size1 = 17;
@@ -165,7 +165,7 @@ static noinline void __init kmalloc_oob_krealloc_more(void)
 	kfree(ptr2);
 }
 
-static noinline void __init kmalloc_oob_krealloc_less(void)
+static yesinline void __init kmalloc_oob_krealloc_less(void)
 {
 	char *ptr1, *ptr2;
 	size_t size1 = 17;
@@ -183,7 +183,7 @@ static noinline void __init kmalloc_oob_krealloc_less(void)
 	kfree(ptr2);
 }
 
-static noinline void __init kmalloc_oob_16(void)
+static yesinline void __init kmalloc_oob_16(void)
 {
 	struct {
 		u64 words[2];
@@ -203,7 +203,7 @@ static noinline void __init kmalloc_oob_16(void)
 	kfree(ptr2);
 }
 
-static noinline void __init kmalloc_oob_memset_2(void)
+static yesinline void __init kmalloc_oob_memset_2(void)
 {
 	char *ptr;
 	size_t size = 8;
@@ -219,7 +219,7 @@ static noinline void __init kmalloc_oob_memset_2(void)
 	kfree(ptr);
 }
 
-static noinline void __init kmalloc_oob_memset_4(void)
+static yesinline void __init kmalloc_oob_memset_4(void)
 {
 	char *ptr;
 	size_t size = 8;
@@ -236,7 +236,7 @@ static noinline void __init kmalloc_oob_memset_4(void)
 }
 
 
-static noinline void __init kmalloc_oob_memset_8(void)
+static yesinline void __init kmalloc_oob_memset_8(void)
 {
 	char *ptr;
 	size_t size = 8;
@@ -252,7 +252,7 @@ static noinline void __init kmalloc_oob_memset_8(void)
 	kfree(ptr);
 }
 
-static noinline void __init kmalloc_oob_memset_16(void)
+static yesinline void __init kmalloc_oob_memset_16(void)
 {
 	char *ptr;
 	size_t size = 16;
@@ -268,7 +268,7 @@ static noinline void __init kmalloc_oob_memset_16(void)
 	kfree(ptr);
 }
 
-static noinline void __init kmalloc_oob_in_memset(void)
+static yesinline void __init kmalloc_oob_in_memset(void)
 {
 	char *ptr;
 	size_t size = 666;
@@ -284,7 +284,7 @@ static noinline void __init kmalloc_oob_in_memset(void)
 	kfree(ptr);
 }
 
-static noinline void __init kmalloc_uaf(void)
+static yesinline void __init kmalloc_uaf(void)
 {
 	char *ptr;
 	size_t size = 10;
@@ -300,7 +300,7 @@ static noinline void __init kmalloc_uaf(void)
 	*(ptr + 8) = 'x';
 }
 
-static noinline void __init kmalloc_uaf_memset(void)
+static yesinline void __init kmalloc_uaf_memset(void)
 {
 	char *ptr;
 	size_t size = 33;
@@ -316,12 +316,12 @@ static noinline void __init kmalloc_uaf_memset(void)
 	memset(ptr, 0, size);
 }
 
-static noinline void __init kmalloc_uaf2(void)
+static yesinline void __init kmalloc_uaf2(void)
 {
 	char *ptr1, *ptr2;
 	size_t size = 43;
 
-	pr_info("use-after-free after another kmalloc\n");
+	pr_info("use-after-free after ayesther kmalloc\n");
 	ptr1 = kmalloc(size, GFP_KERNEL);
 	if (!ptr1) {
 		pr_err("Allocation failed\n");
@@ -337,11 +337,11 @@ static noinline void __init kmalloc_uaf2(void)
 
 	ptr1[40] = 'x';
 	if (ptr1 == ptr2)
-		pr_err("Could not detect use-after-free: ptr1 == ptr2\n");
+		pr_err("Could yest detect use-after-free: ptr1 == ptr2\n");
 	kfree(ptr2);
 }
 
-static noinline void __init kfree_via_page(void)
+static yesinline void __init kfree_via_page(void)
 {
 	char *ptr;
 	size_t size = 8;
@@ -360,7 +360,7 @@ static noinline void __init kfree_via_page(void)
 	kfree(page_address(page) + offset);
 }
 
-static noinline void __init kfree_via_phys(void)
+static yesinline void __init kfree_via_phys(void)
 {
 	char *ptr;
 	size_t size = 8;
@@ -377,7 +377,7 @@ static noinline void __init kfree_via_phys(void)
 	kfree(phys_to_virt(phys));
 }
 
-static noinline void __init kmem_cache_oob(void)
+static yesinline void __init kmem_cache_oob(void)
 {
 	char *p;
 	size_t size = 200;
@@ -401,7 +401,7 @@ static noinline void __init kmem_cache_oob(void)
 	kmem_cache_destroy(cache);
 }
 
-static noinline void __init memcg_accounted_kmem_cache(void)
+static yesinline void __init memcg_accounted_kmem_cache(void)
 {
 	int i;
 	char *p;
@@ -434,7 +434,7 @@ free_cache:
 
 static char global_array[10];
 
-static noinline void __init kasan_global_oob(void)
+static yesinline void __init kasan_global_oob(void)
 {
 	volatile int i = 3;
 	char *p = &global_array[ARRAY_SIZE(global_array) + i];
@@ -443,7 +443,7 @@ static noinline void __init kasan_global_oob(void)
 	*(volatile char *)p;
 }
 
-static noinline void __init kasan_stack_oob(void)
+static yesinline void __init kasan_stack_oob(void)
 {
 	char stack_array[10];
 	volatile int i = 0;
@@ -453,7 +453,7 @@ static noinline void __init kasan_stack_oob(void)
 	*(volatile char *)p;
 }
 
-static noinline void __init ksize_unpoisons_memory(void)
+static yesinline void __init ksize_unpoisons_memory(void)
 {
 	char *ptr;
 	size_t size = 123, real_size;
@@ -472,7 +472,7 @@ static noinline void __init ksize_unpoisons_memory(void)
 	kfree(ptr);
 }
 
-static noinline void __init copy_user_test(void)
+static yesinline void __init copy_user_test(void)
 {
 	char *kmem;
 	char __user *usermem;
@@ -517,7 +517,7 @@ static noinline void __init copy_user_test(void)
 	kfree(kmem);
 }
 
-static noinline void __init kasan_alloca_oob_left(void)
+static yesinline void __init kasan_alloca_oob_left(void)
 {
 	volatile int i = 10;
 	char alloca_array[i];
@@ -527,7 +527,7 @@ static noinline void __init kasan_alloca_oob_left(void)
 	*(volatile char *)p;
 }
 
-static noinline void __init kasan_alloca_oob_right(void)
+static yesinline void __init kasan_alloca_oob_right(void)
 {
 	volatile int i = 10;
 	char alloca_array[i];
@@ -537,7 +537,7 @@ static noinline void __init kasan_alloca_oob_right(void)
 	*(volatile char *)p;
 }
 
-static noinline void __init kmem_cache_double_free(void)
+static yesinline void __init kmem_cache_double_free(void)
 {
 	char *p;
 	size_t size = 200;
@@ -561,7 +561,7 @@ static noinline void __init kmem_cache_double_free(void)
 	kmem_cache_destroy(cache);
 }
 
-static noinline void __init kmem_cache_invalid_free(void)
+static yesinline void __init kmem_cache_invalid_free(void)
 {
 	char *p;
 	size_t size = 200;
@@ -593,7 +593,7 @@ static noinline void __init kmem_cache_invalid_free(void)
 	kmem_cache_destroy(cache);
 }
 
-static noinline void __init kasan_memchr(void)
+static yesinline void __init kasan_memchr(void)
 {
 	char *ptr;
 	size_t size = 24;
@@ -607,7 +607,7 @@ static noinline void __init kasan_memchr(void)
 	kfree(ptr);
 }
 
-static noinline void __init kasan_memcmp(void)
+static yesinline void __init kasan_memcmp(void)
 {
 	char *ptr;
 	size_t size = 24;
@@ -623,7 +623,7 @@ static noinline void __init kasan_memcmp(void)
 	kfree(ptr);
 }
 
-static noinline void __init kasan_strings(void)
+static yesinline void __init kasan_strings(void)
 {
 	char *ptr;
 	size_t size = 24;
@@ -660,11 +660,11 @@ static noinline void __init kasan_strings(void)
 	strnlen(ptr, 1);
 }
 
-static noinline void __init kasan_bitops(void)
+static yesinline void __init kasan_bitops(void)
 {
 	/*
 	 * Allocate 1 more byte, which causes kzalloc to round up to 16-bytes;
-	 * this way we do not actually corrupt other memory.
+	 * this way we do yest actually corrupt other memory.
 	 */
 	long *bits = kzalloc(sizeof(*bits) + 1, GFP_KERNEL);
 	if (!bits)
@@ -733,7 +733,7 @@ static noinline void __init kasan_bitops(void)
 	kfree(bits);
 }
 
-static noinline void __init kmalloc_double_kzfree(void)
+static yesinline void __init kmalloc_double_kzfree(void)
 {
 	char *ptr;
 	size_t size = 16;
@@ -750,14 +750,14 @@ static noinline void __init kmalloc_double_kzfree(void)
 }
 
 #ifdef CONFIG_KASAN_VMALLOC
-static noinline void __init vmalloc_oob(void)
+static yesinline void __init vmalloc_oob(void)
 {
 	void *area;
 
 	pr_info("vmalloc out-of-bounds\n");
 
 	/*
-	 * We have to be careful not to hit the guard page.
+	 * We have to be careful yest to hit the guard page.
 	 * The MMU will catch that and crash us.
 	 */
 	area = vmalloc(3000);
@@ -783,7 +783,7 @@ static int __init kmalloc_tests_init(void)
 
 	kmalloc_oob_right();
 	kmalloc_oob_left();
-	kmalloc_node_oob_right();
+	kmalloc_yesde_oob_right();
 #ifdef CONFIG_SLUB
 	kmalloc_pagealloc_oob_right();
 	kmalloc_pagealloc_uaf();

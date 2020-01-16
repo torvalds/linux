@@ -443,15 +443,15 @@ static void s5m8767_regulator_config_ext_control(struct s5m8767_info *s5m8767,
 	}
 	if (mode != S5M8767_ENCTRL_USE_GPIO) {
 		dev_warn(s5m8767->dev,
-				"ext-control for %pOFn: mismatched op_mode (%x), ignoring\n",
-				rdata->reg_node, mode);
+				"ext-control for %pOFn: mismatched op_mode (%x), igyesring\n",
+				rdata->reg_yesde, mode);
 		return;
 	}
 
 	if (!rdata->ext_control_gpiod) {
 		dev_warn(s5m8767->dev,
-				"ext-control for %pOFn: GPIO not valid, ignoring\n",
-			 rdata->reg_node);
+				"ext-control for %pOFn: GPIO yest valid, igyesring\n",
+			 rdata->reg_yesde);
 		return;
 	}
 
@@ -483,7 +483,7 @@ static int s5m8767_enable_ext_control(struct s5m8767_info *s5m8767,
 #ifdef CONFIG_OF
 static int s5m8767_pmic_dt_parse_dvs_gpio(struct sec_pmic_dev *iodev,
 			struct sec_platform_data *pdata,
-			struct device_node *pmic_np)
+			struct device_yesde *pmic_np)
 {
 	int i, gpio;
 
@@ -501,7 +501,7 @@ static int s5m8767_pmic_dt_parse_dvs_gpio(struct sec_pmic_dev *iodev,
 
 static int s5m8767_pmic_dt_parse_ds_gpio(struct sec_pmic_dev *iodev,
 			struct sec_platform_data *pdata,
-			struct device_node *pmic_np)
+			struct device_yesde *pmic_np)
 {
 	int i, gpio;
 
@@ -521,20 +521,20 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 					struct sec_platform_data *pdata)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *pmic_np, *regulators_np, *reg_np;
+	struct device_yesde *pmic_np, *regulators_np, *reg_np;
 	struct sec_regulator_data *rdata;
 	struct sec_opmode_data *rmode;
 	unsigned int i, dvs_voltage_nr = 8, ret;
 
-	pmic_np = iodev->dev->of_node;
+	pmic_np = iodev->dev->of_yesde;
 	if (!pmic_np) {
-		dev_err(iodev->dev, "could not find pmic sub-node\n");
+		dev_err(iodev->dev, "could yest find pmic sub-yesde\n");
 		return -ENODEV;
 	}
 
 	regulators_np = of_get_child_by_name(pmic_np, "regulators");
 	if (!regulators_np) {
-		dev_err(iodev->dev, "could not find regulators sub-node\n");
+		dev_err(iodev->dev, "could yest find regulators sub-yesde\n");
 		return -EINVAL;
 	}
 
@@ -555,21 +555,21 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 
 	pdata->regulators = rdata;
 	pdata->opmode = rmode;
-	for_each_child_of_node(regulators_np, reg_np) {
+	for_each_child_of_yesde(regulators_np, reg_np) {
 		for (i = 0; i < ARRAY_SIZE(regulators); i++)
-			if (of_node_name_eq(reg_np, regulators[i].name))
+			if (of_yesde_name_eq(reg_np, regulators[i].name))
 				break;
 
 		if (i == ARRAY_SIZE(regulators)) {
 			dev_warn(iodev->dev,
-			"don't know how to configure regulator %pOFn\n",
+			"don't kyesw how to configure regulator %pOFn\n",
 			reg_np);
 			continue;
 		}
 
-		rdata->ext_control_gpiod = devm_fwnode_gpiod_get(
+		rdata->ext_control_gpiod = devm_fwyesde_gpiod_get(
 			&pdev->dev,
-			of_fwnode_handle(reg_np),
+			of_fwyesde_handle(reg_np),
 			"s5m8767,pmic-ext-control",
 			GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
 			"s5m8767");
@@ -582,13 +582,13 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 		rdata->initdata = of_get_regulator_init_data(
 						&pdev->dev, reg_np,
 						&regulators[i]);
-		rdata->reg_node = reg_np;
+		rdata->reg_yesde = reg_np;
 		rdata++;
 		rmode->id = i;
 		if (of_property_read_u32(reg_np, "op_mode",
 				&rmode->mode)) {
 			dev_warn(iodev->dev,
-				"no op_mode property at %pOF\n",
+				"yes op_mode property at %pOF\n",
 				reg_np);
 
 			rmode->mode = S5M8767_OPMODE_NORMAL_MODE;
@@ -596,7 +596,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 		rmode++;
 	}
 
-	of_node_put(regulators_np);
+	of_yesde_put(regulators_np);
 
 	if (of_get_property(pmic_np, "s5m8767,pmic-buck2-uses-gpio-dvs", NULL)) {
 		pdata->buck2_gpiodvs = true;
@@ -604,7 +604,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 		if (of_property_read_u32_array(pmic_np,
 				"s5m8767,pmic-buck2-dvs-voltage",
 				pdata->buck2_voltage, dvs_voltage_nr)) {
-			dev_err(iodev->dev, "buck2 voltages not specified\n");
+			dev_err(iodev->dev, "buck2 voltages yest specified\n");
 			return -EINVAL;
 		}
 	}
@@ -615,7 +615,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 		if (of_property_read_u32_array(pmic_np,
 				"s5m8767,pmic-buck3-dvs-voltage",
 				pdata->buck3_voltage, dvs_voltage_nr)) {
-			dev_err(iodev->dev, "buck3 voltages not specified\n");
+			dev_err(iodev->dev, "buck3 voltages yest specified\n");
 			return -EINVAL;
 		}
 	}
@@ -626,7 +626,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 		if (of_property_read_u32_array(pmic_np,
 				"s5m8767,pmic-buck4-dvs-voltage",
 				pdata->buck4_voltage, dvs_voltage_nr)) {
-			dev_err(iodev->dev, "buck4 voltages not specified\n");
+			dev_err(iodev->dev, "buck4 voltages yest specified\n");
 			return -EINVAL;
 		}
 	}
@@ -689,11 +689,11 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 	int i, ret, buck_init;
 
 	if (!pdata) {
-		dev_err(pdev->dev.parent, "Platform data not supplied\n");
+		dev_err(pdev->dev.parent, "Platform data yest supplied\n");
 		return -ENODEV;
 	}
 
-	if (iodev->dev->of_node) {
+	if (iodev->dev->of_yesde) {
 		ret = s5m8767_pmic_dt_parse_pdata(pdev, pdata);
 		if (ret)
 			return ret;
@@ -951,7 +951,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = s5m8767;
 		config.regmap = iodev->regmap_pmic;
-		config.of_node = pdata->regulators[i].reg_node;
+		config.of_yesde = pdata->regulators[i].reg_yesde;
 		config.ena_gpiod = NULL;
 		if (pdata->regulators[i].ext_control_gpiod) {
 			/* Assigns config.ena_gpiod */

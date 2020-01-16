@@ -55,12 +55,12 @@ void _p9_debug(enum p9_debug_flags level, const char *func,
 	_p9_debug(level, __func__, fmt, ##__VA_ARGS__)
 #else
 #define p9_debug(level, fmt, ...)			\
-	no_printk(fmt, ##__VA_ARGS__)
+	yes_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /**
  * enum p9_msg_t - 9P message types
- * @P9_TLERROR: not used
+ * @P9_TLERROR: yest used
  * @P9_RLERROR: response for any failed request for 9P2000.L
  * @P9_TSTATFS: file system status request
  * @P9_RSTATFS: file system status response
@@ -80,7 +80,7 @@ void _p9_debug(enum p9_debug_flags level, const char *func,
  * @P9_RAUTH: response with authentication information
  * @P9_TATTACH: establish user access to file service
  * @P9_RATTACH: response with top level handle to file hierarchy
- * @P9_TERROR: not used
+ * @P9_TERROR: yest used
  * @P9_RERROR: response for any failed request
  * @P9_TFLUSH: request to abort a previous request
  * @P9_RFLUSH: response when previous request has been cancelled
@@ -105,7 +105,7 @@ void _p9_debug(enum p9_debug_flags level, const char *func,
  *
  * There are 14 basic operations in 9P2000, paired as
  * requests and responses.  The one special case is ERROR
- * as there is no @P9_TERROR request for clients to transmit to
+ * as there is yes @P9_TERROR request for clients to transmit to
  * the server, but the server may respond to any other request
  * with an @P9_RERROR.
  *
@@ -193,13 +193,13 @@ enum p9_msg_t {
  * @P9_OREXEC: close the file when an exec(2) system call is made
  * @P9_ORCLOSE: remove the file when the file is closed
  * @P9_OAPPEND: open the file and seek to the end
- * @P9_OEXCL: only create a file, do not open it
+ * @P9_OEXCL: only create a file, do yest open it
  *
  * 9P open modes differ slightly from Posix standard modes.
  * In particular, there are extra modes which specify different
  * semantic behaviors than may be available on standard Posix
  * systems.  For example, @P9_OREXEC and @P9_ORCLOSE are modes that
- * most likely will not be issued from the Linux VFS client, but may
+ * most likely will yest be issued from the Linux VFS client, but may
  * be supported by servers.
  *
  * See Also: http://plan9.bell-labs.com/magic/man2html/2/open
@@ -224,7 +224,7 @@ enum p9_open_mode_t {
  * @P9_DMEXCL: mode bit for excluse use (only one open handle allowed)
  * @P9_DMMOUNT: mode bit for mount points
  * @P9_DMAUTH: mode bit for authentication file
- * @P9_DMTMP: mode bit for non-backed-up files
+ * @P9_DMTMP: mode bit for yesn-backed-up files
  * @P9_DMSYMLINK: mode bit for symbolic links (9P2000.u)
  * @P9_DMLINK: mode bit for hard-link (9P2000.u)
  * @P9_DMDEVICE: mode bit for device files (9P2000.u)
@@ -292,10 +292,10 @@ enum p9_perm_t {
  * @P9_QTEXCL: excluse use (only one open handle allowed)
  * @P9_QTMOUNT: mount points
  * @P9_QTAUTH: authentication file
- * @P9_QTTMP: non-backed-up files
+ * @P9_QTTMP: yesn-backed-up files
  * @P9_QTSYMLINK: symbolic links (9P2000.u)
  * @P9_QTLINK: hard-link (9P2000.u)
- * @P9_QTFILE: normal files
+ * @P9_QTFILE: yesrmal files
  *
  * QID types are a subset of permissions - they are primarily
  * used to differentiate semantics for a file system entity via
@@ -336,19 +336,19 @@ enum p9_qid_t {
 /**
  * struct p9_qid - file system entity information
  * @type: 8-bit type &p9_qid_t
- * @version: 16-bit monotonically incrementing version number
+ * @version: 16-bit moyestonically incrementing version number
  * @path: 64-bit per-server-unique ID for a file system element
  *
  * qids are identifiers used by 9P servers to track file system
  * entities.  The type is used to differentiate semantics for operations
  * on the entity (ie. read means something different on a directory than
  * on a file).  The path provides a server unique index for an entity
- * (roughly analogous to an inode number), while the version is updated
+ * (roughly analogous to an iyesde number), while the version is updated
  * every time a file is modified and can be used to maintain cache
  * coherency between clients and serves.
  * Servers will often differentiate purely synthetic entities by setting
  * their version to 0, signaling that they should never be cached and
- * should be accessed synchronously.
+ * should be accessed synchroyesusly.
  *
  * See Also://plan9.bell-labs.com/magic/man2html/2/stat
  */
@@ -363,7 +363,7 @@ struct p9_qid {
  * struct p9_wstat - file system metadata information
  * @size: length prefix for this stat structure instance
  * @type: the type of the server (equivalent to a major number)
- * @dev: the sub-type of the server (equivalent to a minor number)
+ * @dev: the sub-type of the server (equivalent to a miyesr number)
  * @qid: unique id from the server of type &p9_qid
  * @mode: Plan 9 format permissions of type &p9_perm_t
  * @atime: Last access/read time
@@ -443,7 +443,7 @@ struct p9_stat_dotl {
 #define P9_STATS_ALL		0x00003fffULL /* Mask for All fields above */
 
 /**
- * struct p9_iattr_dotl - P9 inode attribute for setattr
+ * struct p9_iattr_dotl - P9 iyesde attribute for setattr
  * @valid: bitfield specifying which fields are valid
  *         same as in struct iattr
  * @mode: File permission bits
@@ -451,9 +451,9 @@ struct p9_stat_dotl {
  * @gid: group id
  * @size: File size
  * @atime_sec: Last access time, seconds
- * @atime_nsec: Last access time, nanoseconds
+ * @atime_nsec: Last access time, nayesseconds
  * @mtime_sec: Last modification time, seconds
- * @mtime_nsec: Last modification time, nanoseconds
+ * @mtime_nsec: Last modification time, nayesseconds
  */
 
 struct p9_iattr_dotl {
@@ -550,7 +550,7 @@ struct p9_fcall {
 	u8 *sdata;
 };
 
-int p9_errstr2errno(char *errstr, int len);
+int p9_errstr2erryes(char *errstr, int len);
 
 int p9_error_init(void);
 int p9_trans_fd_init(void);

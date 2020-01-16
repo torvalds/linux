@@ -11,15 +11,15 @@
  */
 
 /*
- * Copyright 1993 by OpenVision Technologies, Inc.
+ * Copyright 1993 by OpenVision Techyeslogies, Inc.
  *
  * Permission to use, copy, modify, distribute, and sell this software
  * and its documentation for any purpose is hereby granted without fee,
- * provided that the above copyright notice appears in all copies and
- * that both that copyright notice and this permission notice appear in
- * supporting documentation, and that the name of OpenVision not be used
+ * provided that the above copyright yestice appears in all copies and
+ * that both that copyright yestice and this permission yestice appear in
+ * supporting documentation, and that the name of OpenVision yest be used
  * in advertising or publicity pertaining to distribution of the software
- * without specific, written prior permission. OpenVision makes no
+ * without specific, written prior permission. OpenVision makes yes
  * representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied warranty.
  *
@@ -45,11 +45,11 @@
  * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
  * distribute this software and its documentation for any purpose and
  * without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright notice and
- * this permission notice appear in supporting documentation, and that
- * the name of FundsXpress. not be used in advertising or publicity pertaining
+ * yestice appear in all copies and that both that copyright yestice and
+ * this permission yestice appear in supporting documentation, and that
+ * the name of FundsXpress. yest be used in advertising or publicity pertaining
  * to distribution of the software without specific, written prior
- * permission.  FundsXpress makes no representations about the suitability of
+ * permission.  FundsXpress makes yes representations about the suitability of
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  *
@@ -81,7 +81,7 @@ setup_token(struct krb5_ctx *ctx, struct xdr_netobj *token)
 	ptr = (u16 *)token->data;
 	g_make_token_header(&ctx->mech_used, body_size, (unsigned char **)&ptr);
 
-	/* ptr now at start of header described in rfc 1964, section 1.2.1: */
+	/* ptr yesw at start of header described in rfc 1964, section 1.2.1: */
 	krb5_hdr = ptr;
 	*ptr++ = KG_TOK_MIC_MSG;
 	/*
@@ -107,7 +107,7 @@ setup_token_v2(struct krb5_ctx *ctx, struct xdr_netobj *token)
 	if (ctx->flags & KRB5_CTX_FLAG_ACCEPTOR_SUBKEY)
 		flags |= 0x04;
 
-	/* Per rfc 4121, sec 4.2.6.1, there is no header,
+	/* Per rfc 4121, sec 4.2.6.1, there is yes header,
 	 * just start the token */
 	krb5_hdr = ptr = (u16 *)token->data;
 
@@ -131,14 +131,14 @@ gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 	struct xdr_netobj	md5cksum = {.len = sizeof(cksumdata),
 					    .data = cksumdata};
 	void			*ptr;
-	s32			now;
+	s32			yesw;
 	u32			seq_send;
 	u8			*cksumkey;
 
 	dprintk("RPC:       %s\n", __func__);
 	BUG_ON(ctx == NULL);
 
-	now = get_seconds();
+	yesw = get_seconds();
 
 	ptr = setup_token(ctx, token);
 
@@ -159,7 +159,7 @@ gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 			      seq_send, ptr + GSS_KRB5_TOK_HDR_LEN, ptr + 8))
 		return GSS_S_FAILURE;
 
-	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
+	return (ctx->endtime < yesw) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 
 static u32
@@ -170,7 +170,7 @@ gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 	struct xdr_netobj cksumobj = { .len = sizeof(cksumdata),
 				       .data = cksumdata};
 	void *krb5_hdr;
-	s32 now;
+	s32 yesw;
 	u8 *cksumkey;
 	unsigned int cksum_usage;
 	__be64 seq_send_be64;
@@ -198,9 +198,9 @@ gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 
 	memcpy(krb5_hdr + GSS_KRB5_TOK_HDR_LEN, cksumobj.data, cksumobj.len);
 
-	now = get_seconds();
+	yesw = get_seconds();
 
-	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
+	return (ctx->endtime < yesw) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 
 u32

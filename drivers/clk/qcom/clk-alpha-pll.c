@@ -497,7 +497,7 @@ static int __clk_alpha_pll_update_latch(struct clk_alpha_pll *pll)
 	 * PLL will latch the new L, Alpha and freq control word.
 	 * PLL will respond by raising PLL_ACK_LATCH output when new programming
 	 * has been latched in and PLL is being updated. When
-	 * UPDATE_LOGIC_BYPASS bit is not set, PLL_UPDATE will be cleared
+	 * UPDATE_LOGIC_BYPASS bit is yest set, PLL_UPDATE will be cleared
 	 * automatically by hardware when PLL_ACK_LATCH is asserted by PLL.
 	 */
 	if (mode & PLL_UPDATE_BYPASS) {
@@ -544,7 +544,7 @@ static int __clk_alpha_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	rate = alpha_pll_round_rate(rate, prate, &l, &a, alpha_width);
 	vco = alpha_pll_find_vco(pll, rate);
 	if (pll->vco_table && !vco) {
-		pr_err("alpha pll not in a valid vco range\n");
+		pr_err("alpha pll yest in a valid vco range\n");
 		return -EINVAL;
 	}
 
@@ -1287,7 +1287,7 @@ static int clk_alpha_pll_postdiv_fabia_set_rate(struct clk_hw *hw,
 
 	/*
 	 * If the PLL is in FSM mode, then treat set_rate callback as a
-	 * no-operation.
+	 * yes-operation.
 	 */
 	ret = regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
 	if (ret)

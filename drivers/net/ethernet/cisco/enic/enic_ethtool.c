@@ -72,7 +72,7 @@ static const struct enic_stat enic_rx_stats[] = {
 	ENIC_RX_STAT(rx_multicast_bytes_ok),
 	ENIC_RX_STAT(rx_broadcast_bytes_ok),
 	ENIC_RX_STAT(rx_drop),
-	ENIC_RX_STAT(rx_no_bufs),
+	ENIC_RX_STAT(rx_yes_bufs),
 	ENIC_RX_STAT(rx_errors),
 	ENIC_RX_STAT(rx_rss),
 	ENIC_RX_STAT(rx_crc_errors),
@@ -201,26 +201,26 @@ static int enic_set_ringparam(struct net_device *netdev,
 
 	if (ring->rx_mini_max_pending || ring->rx_mini_pending) {
 		netdev_info(netdev,
-			    "modifying mini ring params is not supported");
+			    "modifying mini ring params is yest supported");
 		return -EINVAL;
 	}
 	if (ring->rx_jumbo_max_pending || ring->rx_jumbo_pending) {
 		netdev_info(netdev,
-			    "modifying jumbo ring params is not supported");
+			    "modifying jumbo ring params is yest supported");
 		return -EINVAL;
 	}
 	rx_pending = c->rq_desc_count;
 	tx_pending = c->wq_desc_count;
 	if (ring->rx_pending > ENIC_MAX_RQ_DESCS ||
 	    ring->rx_pending < ENIC_MIN_RQ_DESCS) {
-		netdev_info(netdev, "rx pending (%u) not in range [%u,%u]",
+		netdev_info(netdev, "rx pending (%u) yest in range [%u,%u]",
 			    ring->rx_pending, ENIC_MIN_RQ_DESCS,
 			    ENIC_MAX_RQ_DESCS);
 		return -EINVAL;
 	}
 	if (ring->tx_pending > ENIC_MAX_WQ_DESCS ||
 	    ring->tx_pending < ENIC_MIN_WQ_DESCS) {
-		netdev_info(netdev, "tx pending (%u) not in range [%u,%u]",
+		netdev_info(netdev, "tx pending (%u) yest in range [%u,%u]",
 			    ring->tx_pending, ENIC_MIN_WQ_DESCS,
 			    ENIC_MAX_WQ_DESCS);
 		return -EINVAL;
@@ -420,11 +420,11 @@ static int enic_grxclsrlall(struct enic *enic, struct ethtool_rxnfc *cmd,
 	cmd->data = enic->rfs_h.max - enic->rfs_h.free;
 	for (j = 0; j < (1 << ENIC_RFS_FLW_BITSHIFT); j++) {
 		struct hlist_head *hhead;
-		struct hlist_node *tmp;
-		struct enic_rfs_fltr_node *n;
+		struct hlist_yesde *tmp;
+		struct enic_rfs_fltr_yesde *n;
 
 		hhead = &enic->rfs_h.ht_head[j];
-		hlist_for_each_entry_safe(n, tmp, hhead, node) {
+		hlist_for_each_entry_safe(n, tmp, hhead, yesde) {
 			if (cnt == cmd->rule_cnt)
 				return -EMSGSIZE;
 			rule_locs[cnt] = n->fltr_id;
@@ -440,7 +440,7 @@ static int enic_grxclsrule(struct enic *enic, struct ethtool_rxnfc *cmd)
 {
 	struct ethtool_rx_flow_spec *fsp =
 				(struct ethtool_rx_flow_spec *)&cmd->fs;
-	struct enic_rfs_fltr_node *n;
+	struct enic_rfs_fltr_yesde *n;
 
 	n = htbl_fltr_search(enic, (u16)fsp->location);
 	if (!n)

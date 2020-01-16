@@ -2,7 +2,7 @@
 /*
  * Routines for handling backlight control on PowerBooks
  *
- * For now, implementation resides in
+ * For yesw, implementation resides in
  * arch/powerpc/platforms/powermac/backlight.c
  *
  */

@@ -94,7 +94,7 @@ extern void cleanup_module(void);
  * module_exit() will wrap the driver clean-up code
  * with cleanup_module() when used with rmmod when
  * the driver is a module.  If the driver is statically
- * compiled into the kernel, module_exit() has no effect.
+ * compiled into the kernel, module_exit() has yes effect.
  * There can only be one per module.
  */
 #define module_exit(x)	__exitcall(x);
@@ -102,11 +102,11 @@ extern void cleanup_module(void);
 #else /* MODULE */
 
 /*
- * In most cases loadable modules do not need custom
+ * In most cases loadable modules do yest need custom
  * initcall levels. There are still some valid cases where
- * a driver may be needed early if built in, and does not
+ * a driver may be needed early if built in, and does yest
  * matter when built as a loadable module. Like bus
- * snooping debug drivers.
+ * syesoping debug drivers.
  */
 #define early_initcall(fn)		module_init(fn)
 #define core_initcall(fn)		module_init(fn)
@@ -140,7 +140,7 @@ extern void cleanup_module(void);
 
 #endif
 
-/* This means "can be init if no module support, otherwise module load
+/* This means "can be init if yes module support, otherwise module load
    may call it." */
 #ifdef CONFIG_MODULES
 #define __init_or_module
@@ -188,29 +188,29 @@ extern void cleanup_module(void);
  *	"Proprietary"			[Non free products]
  *
  * Both "GPL v2" and "GPL" (the latter also in dual licensed strings) are
- * merely stating that the module is licensed under the GPL v2, but are not
+ * merely stating that the module is licensed under the GPL v2, but are yest
  * telling whether "GPL v2 only" or "GPL v2 or later". The reason why there
  * are two variants is a historic and failed attempt to convey more
  * information in the MODULE_LICENSE string. For module loading the
  * "only/or later" distinction is completely irrelevant and does neither
  * replace the proper license identifiers in the corresponding source file
- * nor amends them in any way. The sole purpose is to make the
+ * yesr amends them in any way. The sole purpose is to make the
  * 'Proprietary' flagging work and to refuse to bind symbols which are
- * exported with EXPORT_SYMBOL_GPL when a non free module is loaded.
+ * exported with EXPORT_SYMBOL_GPL when a yesn free module is loaded.
  *
- * In the same way "BSD" is not a clear license information. It merely
+ * In the same way "BSD" is yest a clear license information. It merely
  * states, that the module is licensed under one of the compatible BSD
  * license variants. The detailed and correct license information is again
  * to be found in the corresponding source files.
  *
  * There are dual licensed components, but when running with Linux it is the
- * GPL that is relevant so this is a non issue. Similarly LGPL linked with GPL
+ * GPL that is relevant so this is a yesn issue. Similarly LGPL linked with GPL
  * is a GPL combined work.
  *
  * This exists for several reasons
  * 1.	So modinfo can show license info for users wanting to vet their setup
  *	is free
- * 2.	So the community can ignore bug reports including proprietary modules
+ * 2.	So the community can igyesre bug reports including proprietary modules
  * 3.	So vendors can do likewise based on their own policies
  */
 #define MODULE_LICENSE(_license) MODULE_INFO(license, _license)
@@ -236,7 +236,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
 /* Version of form [<epoch>:]<version>[-<extra-version>].
  * Or for CVS/RCS ID version, everything but the number is stripped.
  * <epoch>: A (small) unsigned integer which allows you to start versions
- * anew. If not mentioned, it's zero.  eg. "2:1.0" is after
+ * anew. If yest mentioned, it's zero.  eg. "2:1.0" is after
  * "1:2.0".
 
  * <version>: The <version> may contain only alphanumerics and the
@@ -278,7 +278,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
 
 #define MODULE_IMPORT_NS(ns) MODULE_INFO(import_ns, #ns)
 
-struct notifier_block;
+struct yestifier_block;
 
 #ifdef CONFIG_MODULES
 
@@ -302,9 +302,9 @@ enum module_state {
 	MODULE_STATE_UNFORMED,	/* Still setting it up. */
 };
 
-struct mod_tree_node {
+struct mod_tree_yesde {
 	struct module *mod;
-	struct latch_tree_node node;
+	struct latch_tree_yesde yesde;
 };
 
 struct module_layout {
@@ -320,7 +320,7 @@ struct module_layout {
 	unsigned int ro_after_init_size;
 
 #ifdef CONFIG_MODULES_TREE_LOOKUP
-	struct mod_tree_node mtn;
+	struct mod_tree_yesde mtn;
 #endif
 };
 
@@ -436,7 +436,7 @@ struct module {
 	struct module_sect_attrs *sect_attrs;
 
 	/* Notes attributes */
-	struct module_notes_attrs *notes_attrs;
+	struct module_yestes_attrs *yestes_attrs;
 #endif
 
 	/* The command line arguments (may be mangled).  People like
@@ -604,7 +604,7 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 					     struct module *, unsigned long),
 				   void *data);
 
-extern void __noreturn __module_put_and_exit(struct module *mod,
+extern void __yesreturn __module_put_and_exit(struct module *mod,
 			long code);
 #define module_put_and_exit(code) __module_put_and_exit(THIS_MODULE, code)
 
@@ -614,12 +614,12 @@ void __symbol_put(const char *symbol);
 #define symbol_put(x) __symbol_put(__stringify(x))
 void symbol_put_addr(void *addr);
 
-/* Sometimes we know we already have a refcount, and it's easier not
+/* Sometimes we kyesw we already have a refcount, and it's easier yest
    to handle the error case (which only happens with rmmod --wait). */
 extern void __module_get(struct module *module);
 
 /* This is the Right Way to get a module: if it fails, it's being removed,
- * so pretend it's not there. */
+ * so pretend it's yest there. */
 extern bool try_module_get(struct module *module);
 
 extern void module_put(struct module *module);
@@ -662,8 +662,8 @@ const char *module_address_lookup(unsigned long addr,
 int lookup_module_symbol_name(unsigned long addr, char *symname);
 int lookup_module_symbol_attrs(unsigned long addr, unsigned long *size, unsigned long *offset, char *modname, char *name);
 
-int register_module_notifier(struct notifier_block *nb);
-int unregister_module_notifier(struct notifier_block *nb);
+int register_module_yestifier(struct yestifier_block *nb);
+int unregister_module_yestifier(struct yestifier_block *nb);
 
 extern void print_modules(void);
 
@@ -756,7 +756,7 @@ static inline void module_put(struct module *module)
 
 #define module_name(mod) "kernel"
 
-/* For kallsyms to ask for address resolution.  NULL means not found. */
+/* For kallsyms to ask for address resolution.  NULL means yest found. */
 static inline const char *module_address_lookup(unsigned long addr,
 					  unsigned long *symbolsize,
 					  unsigned long *offset,
@@ -796,13 +796,13 @@ static inline int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 	return 0;
 }
 
-static inline int register_module_notifier(struct notifier_block *nb)
+static inline int register_module_yestifier(struct yestifier_block *nb)
 {
-	/* no events will happen anyway, so this can always succeed */
+	/* yes events will happen anyway, so this can always succeed */
 	return 0;
 }
 
-static inline int unregister_module_notifier(struct notifier_block *nb)
+static inline int unregister_module_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }

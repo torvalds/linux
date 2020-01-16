@@ -226,7 +226,7 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
 /*
  * On 64 bits, sign-extend the 48 bit address to 64 bit
  */
-static unsigned long normalize_addr(unsigned long u)
+static unsigned long yesrmalize_addr(unsigned long u)
 {
 	int shift;
 	if (!IS_ENABLED(CONFIG_X86_64))
@@ -236,7 +236,7 @@ static unsigned long normalize_addr(unsigned long u)
 	return (signed long)(u << shift) >> shift;
 }
 
-static void note_wx(struct pg_state *st)
+static void yeste_wx(struct pg_state *st)
 {
 	unsigned long npages;
 
@@ -265,7 +265,7 @@ static void note_wx(struct pg_state *st)
  * of PTE entries; the next one is different so we need to
  * print what we collected so far.
  */
-static void note_page(struct seq_file *m, struct pg_state *st,
+static void yeste_page(struct seq_file *m, struct pg_state *st,
 		      pgprot_t new_prot, pgprotval_t new_eff, int level)
 {
 	pgprotval_t prot, cur, eff;
@@ -273,7 +273,7 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 
 	/*
 	 * If we have a "break" in the series, we need to flush the state that
-	 * we have now. "break" is either changing perms, levels or
+	 * we have yesw. "break" is either changing perms, levels or
 	 * address space marker.
 	 */
 	prot = pgprot_val(new_prot);
@@ -296,7 +296,7 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 		int width = sizeof(unsigned long) * 2;
 
 		if (st->check_wx && (eff & _PAGE_RW) && !(eff & _PAGE_NX))
-			note_wx(st);
+			yeste_wx(st);
 
 		/*
 		 * Now print the actual finished series
@@ -362,11 +362,11 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
 	pgprotval_t prot, eff;
 
 	for (i = 0; i < PTRS_PER_PTE; i++) {
-		st->current_address = normalize_addr(P + i * PTE_LEVEL_MULT);
+		st->current_address = yesrmalize_addr(P + i * PTE_LEVEL_MULT);
 		pte = pte_offset_map(&addr, st->current_address);
 		prot = pte_flags(*pte);
 		eff = effective_prot(eff_in, prot);
-		note_page(m, st, __pgprot(prot), eff, 5);
+		yeste_page(m, st, __pgprot(prot), eff, 5);
 		pte_unmap(pte);
 	}
 }
@@ -374,7 +374,7 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
 
 /*
  * This is an optimization for KASAN=y case. Since all kasan page tables
- * eventually point to the kasan_early_shadow_page we could call note_page()
+ * eventually point to the kasan_early_shadow_page we could call yeste_page()
  * right away without walking through lower level page tables. This saves
  * us dozens of seconds (minutes for 5-level config) while checking for
  * W+X mapping or reading kernel_page_tables debugfs file.
@@ -387,7 +387,7 @@ static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
 			__pa(pt) == __pa(kasan_early_shadow_p4d)) ||
 	    __pa(pt) == __pa(kasan_early_shadow_pud)) {
 		pgprotval_t prot = pte_flags(kasan_early_shadow_pte[0]);
-		note_page(m, st, __pgprot(prot), 0, 5);
+		yeste_page(m, st, __pgprot(prot), 0, 5);
 		return true;
 	}
 	return false;
@@ -411,18 +411,18 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
 
 	pmd_start = start = (pmd_t *)pud_page_vaddr(addr);
 	for (i = 0; i < PTRS_PER_PMD; i++) {
-		st->current_address = normalize_addr(P + i * PMD_LEVEL_MULT);
-		if (!pmd_none(*start)) {
+		st->current_address = yesrmalize_addr(P + i * PMD_LEVEL_MULT);
+		if (!pmd_yesne(*start)) {
 			prot = pmd_flags(*start);
 			eff = effective_prot(eff_in, prot);
 			if (pmd_large(*start) || !pmd_present(*start)) {
-				note_page(m, st, __pgprot(prot), eff, 4);
+				yeste_page(m, st, __pgprot(prot), eff, 4);
 			} else if (!kasan_page_table(m, st, pmd_start)) {
 				walk_pte_level(m, st, *start, eff,
 					       P + i * PMD_LEVEL_MULT);
 			}
 		} else
-			note_page(m, st, __pgprot(0), 0, 4);
+			yeste_page(m, st, __pgprot(0), 0, 4);
 		start++;
 	}
 }
@@ -430,7 +430,7 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
 #else
 #define walk_pmd_level(m,s,a,e,p) walk_pte_level(m,s,__pmd(pud_val(a)),e,p)
 #define pud_large(a) pmd_large(__pmd(pud_val(a)))
-#define pud_none(a)  pmd_none(__pmd(pud_val(a)))
+#define pud_yesne(a)  pmd_yesne(__pmd(pud_val(a)))
 #endif
 
 #if PTRS_PER_PUD > 1
@@ -445,18 +445,18 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
 	pud_start = start = (pud_t *)p4d_page_vaddr(addr);
 
 	for (i = 0; i < PTRS_PER_PUD; i++) {
-		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
-		if (!pud_none(*start)) {
+		st->current_address = yesrmalize_addr(P + i * PUD_LEVEL_MULT);
+		if (!pud_yesne(*start)) {
 			prot = pud_flags(*start);
 			eff = effective_prot(eff_in, prot);
 			if (pud_large(*start) || !pud_present(*start)) {
-				note_page(m, st, __pgprot(prot), eff, 3);
+				yeste_page(m, st, __pgprot(prot), eff, 3);
 			} else if (!kasan_page_table(m, st, pud_start)) {
 				walk_pmd_level(m, st, *start, eff,
 					       P + i * PUD_LEVEL_MULT);
 			}
 		} else
-			note_page(m, st, __pgprot(0), 0, 3);
+			yeste_page(m, st, __pgprot(0), 0, 3);
 
 		start++;
 	}
@@ -465,7 +465,7 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
 #else
 #define walk_pud_level(m,s,a,e,p) walk_pmd_level(m,s,__pud(p4d_val(a)),e,p)
 #define p4d_large(a) pud_large(__pud(p4d_val(a)))
-#define p4d_none(a)  pud_none(__pud(p4d_val(a)))
+#define p4d_yesne(a)  pud_yesne(__pud(p4d_val(a)))
 #endif
 
 static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
@@ -481,25 +481,25 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
 	p4d_start = start = (p4d_t *)pgd_page_vaddr(addr);
 
 	for (i = 0; i < PTRS_PER_P4D; i++) {
-		st->current_address = normalize_addr(P + i * P4D_LEVEL_MULT);
-		if (!p4d_none(*start)) {
+		st->current_address = yesrmalize_addr(P + i * P4D_LEVEL_MULT);
+		if (!p4d_yesne(*start)) {
 			prot = p4d_flags(*start);
 			eff = effective_prot(eff_in, prot);
 			if (p4d_large(*start) || !p4d_present(*start)) {
-				note_page(m, st, __pgprot(prot), eff, 2);
+				yeste_page(m, st, __pgprot(prot), eff, 2);
 			} else if (!kasan_page_table(m, st, p4d_start)) {
 				walk_pud_level(m, st, *start, eff,
 					       P + i * P4D_LEVEL_MULT);
 			}
 		} else
-			note_page(m, st, __pgprot(0), 0, 2);
+			yeste_page(m, st, __pgprot(0), 0, 2);
 
 		start++;
 	}
 }
 
 #define pgd_large(a) (pgtable_l5_enabled() ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
-#define pgd_none(a)  (pgtable_l5_enabled() ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
+#define pgd_yesne(a)  (pgtable_l5_enabled() ? pgd_yesne(a) : p4d_yesne(__p4d(pgd_val(a))))
 
 static inline bool is_hypervisor_range(int idx)
 {
@@ -533,8 +533,8 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 		st.wx_pages = 0;
 
 	for (i = 0; i < PTRS_PER_PGD; i++) {
-		st.current_address = normalize_addr(i * PGD_LEVEL_MULT);
-		if (!pgd_none(*start) && !is_hypervisor_range(i)) {
+		st.current_address = yesrmalize_addr(i * PGD_LEVEL_MULT);
+		if (!pgd_yesne(*start) && !is_hypervisor_range(i)) {
 			prot = pgd_flags(*start);
 #ifdef CONFIG_X86_PAE
 			eff = _PAGE_USER | _PAGE_RW;
@@ -542,28 +542,28 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 			eff = prot;
 #endif
 			if (pgd_large(*start) || !pgd_present(*start)) {
-				note_page(m, &st, __pgprot(prot), eff, 1);
+				yeste_page(m, &st, __pgprot(prot), eff, 1);
 			} else {
 				walk_p4d_level(m, &st, *start, eff,
 					       i * PGD_LEVEL_MULT);
 			}
 		} else
-			note_page(m, &st, __pgprot(0), 0, 1);
+			yeste_page(m, &st, __pgprot(0), 0, 1);
 
 		cond_resched();
 		start++;
 	}
 
 	/* Flush out the last page */
-	st.current_address = normalize_addr(PTRS_PER_PGD*PGD_LEVEL_MULT);
-	note_page(m, &st, __pgprot(0), 0, 0);
+	st.current_address = yesrmalize_addr(PTRS_PER_PGD*PGD_LEVEL_MULT);
+	yeste_page(m, &st, __pgprot(0), 0, 0);
 	if (!checkwx)
 		return;
 	if (st.wx_pages)
 		pr_info("x86/mm: Checked W+X mappings: FAILED, %lu W+X pages found.\n",
 			st.wx_pages);
 	else
-		pr_info("x86/mm: Checked W+X mappings: passed, no W+X pages found.\n");
+		pr_info("x86/mm: Checked W+X mappings: passed, yes W+X pages found.\n");
 }
 
 void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
@@ -604,7 +604,7 @@ void ptdump_walk_pgd_level_checkwx(void)
 static int __init pt_dump_init(void)
 {
 	/*
-	 * Various markers are not compile-time constants, so assign them
+	 * Various markers are yest compile-time constants, so assign them
 	 * here.
 	 */
 #ifdef CONFIG_X86_64

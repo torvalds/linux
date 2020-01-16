@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2015 Microchip Technology
+ * Copyright (C) 2015 Microchip Techyeslogy
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -60,7 +60,7 @@ static int lan88xx_suspend(struct phy_device *phydev)
 {
 	struct lan88xx_priv *priv = phydev->priv;
 
-	/* do not power down PHY when WOL is enabled */
+	/* do yest power down PHY when WOL is enabled */
 	if (!priv->wolopts)
 		genphy_suspend(phydev);
 
@@ -225,7 +225,7 @@ static int lan88xx_probe(struct phy_device *phydev)
 
 	priv->wolopts = 0;
 
-	len = of_property_read_variable_u32_array(dev->of_node,
+	len = of_property_read_variable_u32_array(dev->of_yesde,
 						  "microchip,led-modes",
 						  led_modes,
 						  0,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef _ASM_ARC_ARCREGS_H
@@ -107,7 +107,7 @@
 
 /*
  * Floating Pt Registers
- * Status regs are read-only (build-time) so need not be saved/restored
+ * Status regs are read-only (build-time) so need yest be saved/restored
  */
 #define ARC_AUX_FP_STAT         0x300
 #define ARC_AUX_DPFP_1L         0x301
@@ -306,7 +306,7 @@ struct cpuinfo_arc {
 	unsigned int vec_base;
 	struct cpuinfo_arc_ccm iccm, dccm;
 	struct {
-		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, swape:1, pad1:2,
+		unsigned int swap:1, yesrm:1, minmax:1, barrel:1, crc:1, swape:1, pad1:2,
 			     fpu_sp:1, fpu_dp:1, dual:1, dual_enb:1, pad2:4,
 			     ap_num:4, ap_full:1, smart:1, rtt:1, pad3:1,
 			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;

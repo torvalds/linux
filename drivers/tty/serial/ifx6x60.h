@@ -63,7 +63,7 @@ struct ifx_spi_device {
 	/* TTY Layer logic */
 	struct tty_port tty_port;
 	struct device *tty_dev;
-	int minor;
+	int miyesr;
 
 	/* Low level I/O work */
 	struct tasklet_struct io_work_tasklet;

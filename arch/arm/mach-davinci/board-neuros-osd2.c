@@ -1,8 +1,8 @@
 /*
- * Neuros Technologies OSD2 board support
+ * Neuros Techyeslogies OSD2 board support
  *
  * Modified from original 644X-EVM board support.
- * 2008 (c) Neuros Technology, LLC.
+ * 2008 (c) Neuros Techyeslogy, LLC.
  * 2009 (c) Jorge Luis Zapata Muga <jorgeluis.zapata@gmail.com>
  * 2009 (c) Andrey A. Porodko <Andrey.Porodko@gmail.com>
  *
@@ -17,7 +17,7 @@
  * 	with PATA interface, two muxed red-green leds.
  *
  * For more information please refer to
- * 		http://wiki.neurostechnology.com/index.php/OSD_2.0_HD
+ * 		http://wiki.neurostechyeslogy.com/index.php/OSD_2.0_HD
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -228,7 +228,7 @@ static __init void davinci_ntosd2_init(void)
 }
 
 MACHINE_START(NEUROS_OSD2, "Neuros OSD2")
-	/* Maintainer: Neuros Technologies <neuros@groups.google.com> */
+	/* Maintainer: Neuros Techyeslogies <neuros@groups.google.com> */
 	.atag_offset	= 0x100,
 	.map_io		 = davinci_ntosd2_map_io,
 	.init_irq	= dm644x_init_irq,

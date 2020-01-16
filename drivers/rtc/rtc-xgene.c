@@ -158,7 +158,7 @@ static int xgene_rtc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, xgene_rtc_interrupt, 0,
 			       dev_name(&pdev->dev), pdata);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request IRQ\n");
+		dev_err(&pdev->dev, "Could yest request IRQ\n");
 		return ret;
 	}
 
@@ -180,7 +180,7 @@ static int xgene_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* HW does not support update faster than 1 seconds */
+	/* HW does yest support update faster than 1 seconds */
 	pdata->rtc->uie_unsupported = 1;
 	pdata->rtc->ops = &xgene_rtc_ops;
 	pdata->rtc->range_max = U32_MAX;

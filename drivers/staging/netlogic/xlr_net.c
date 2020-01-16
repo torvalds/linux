@@ -482,7 +482,7 @@ static int xlr_config_common(struct xlr_net_priv *priv)
 	int *bucket_size = priv->nd->bucket_size;
 	int i, j, err;
 
-	/* Setting non-core MsgBktSize(0x321 - 0x325) */
+	/* Setting yesn-core MsgBktSize(0x321 - 0x325) */
 	for (i = start_stn_id; i <= end_stn_id; i++) {
 		xlr_nae_wreg(priv->base_addr,
 			     R_GMAC_RFR0_BUCKET_SIZE + i - start_stn_id,
@@ -490,7 +490,7 @@ static int xlr_config_common(struct xlr_net_priv *priv)
 	}
 
 	/*
-	 * Setting non-core Credit counter register
+	 * Setting yesn-core Credit counter register
 	 * Distributing Gmac's credit to CPU's
 	 */
 	for (i = 0; i < 8; i++) {
@@ -571,7 +571,7 @@ static void xlr_config_parser(struct xlr_net_priv *priv)
 	/* Mark it as ETHERNET type */
 	xlr_nae_wreg(priv->base_addr, R_L2TYPE_0, 0x01);
 
-	/* Use 7bit CRChash for flow classification with 127 as CRC polynomial*/
+	/* Use 7bit CRChash for flow classification with 127 as CRC polyyesmial*/
 	xlr_nae_wreg(priv->base_addr, R_PARSERCONFIGREG,
 		     ((0x7f << 8) | (1 << 1)));
 
@@ -785,7 +785,7 @@ static int xlr_mii_probe(struct xlr_net_priv *priv)
 	struct phy_device *phydev = xlr_get_phydev(priv);
 
 	if (!phydev) {
-		pr_err("no PHY found on phy_addr %d\n", priv->phy_addr);
+		pr_err("yes PHY found on phy_addr %d\n", priv->phy_addr);
 		return -ENODEV;
 	}
 
@@ -794,7 +794,7 @@ static int xlr_mii_probe(struct xlr_net_priv *priv)
 			     xlr_gmac_link_adjust, priv->nd->phy_interface);
 
 	if (IS_ERR(phydev)) {
-		pr_err("could not attach PHY\n");
+		pr_err("could yest attach PHY\n");
 		return PTR_ERR(phydev);
 	}
 	phydev->supported &= (ADVERTISED_10baseT_Full

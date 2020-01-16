@@ -342,7 +342,7 @@ static int adau1701_reset(struct snd_soc_component *component, unsigned int clkd
 
 	/*
 	 * Postpone the firmware download to a point in time when we
-	 * know the correct PLL setup
+	 * kyesw the correct PLL setup
 	 */
 	if (clkdiv != ADAU1707_CLKDIV_UNSET) {
 		ret = sigmadsp_setup(adau1701->sigmadsp, rate);
@@ -683,7 +683,7 @@ static int adau1701_probe(struct snd_soc_component *component)
 	/*
 	 * Let the pll_clkdiv variable default to something that won't happen
 	 * at runtime. That way, we can postpone the firmware download from
-	 * adau1701_reset() to a point in time when we know the correct PLL
+	 * adau1701_reset() to a point in time when we kyesw the correct PLL
 	 * mode parameters.
 	 */
 	adau1701->pll_clkdiv = ADAU1707_CLKDIV_UNSET;
@@ -769,7 +769,7 @@ static const struct snd_soc_component_driver adau1701_component_drv = {
 	.set_sysclk		= adau1701_set_sysclk,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config adau1701_regmap = {
@@ -821,31 +821,31 @@ static int adau1701_i2c_probe(struct i2c_client *client,
 	}
 
 
-	if (dev->of_node) {
-		gpio_nreset = of_get_named_gpio(dev->of_node, "reset-gpio", 0);
+	if (dev->of_yesde) {
+		gpio_nreset = of_get_named_gpio(dev->of_yesde, "reset-gpio", 0);
 		if (gpio_nreset < 0 && gpio_nreset != -ENOENT) {
 			ret = gpio_nreset;
 			goto exit_regulators_disable;
 		}
 
-		gpio_pll_mode[0] = of_get_named_gpio(dev->of_node,
+		gpio_pll_mode[0] = of_get_named_gpio(dev->of_yesde,
 						   "adi,pll-mode-gpios", 0);
 		if (gpio_pll_mode[0] < 0 && gpio_pll_mode[0] != -ENOENT) {
 			ret = gpio_pll_mode[0];
 			goto exit_regulators_disable;
 		}
 
-		gpio_pll_mode[1] = of_get_named_gpio(dev->of_node,
+		gpio_pll_mode[1] = of_get_named_gpio(dev->of_yesde,
 						   "adi,pll-mode-gpios", 1);
 		if (gpio_pll_mode[1] < 0 && gpio_pll_mode[1] != -ENOENT) {
 			ret = gpio_pll_mode[1];
 			goto exit_regulators_disable;
 		}
 
-		of_property_read_u32(dev->of_node, "adi,pll-clkdiv",
+		of_property_read_u32(dev->of_yesde, "adi,pll-clkdiv",
 				     &adau1701->pll_clkdiv);
 
-		of_property_read_u8_array(dev->of_node, "adi,pin-config",
+		of_property_read_u8_array(dev->of_yesde, "adi,pin-config",
 					  adau1701->pin_config,
 					  ARRAY_SIZE(adau1701->pin_config));
 	}

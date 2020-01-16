@@ -7,7 +7,7 @@
  * Generic x86 APIC driver probe layer.
  */
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/smp.h>
 
 #include <asm/apic.h>
@@ -158,7 +158,7 @@ void __init default_setup_apic_routing(void)
 #ifdef CONFIG_X86_BIGSMP
 	/*
 	 * This is used to switch to bigsmp mode when
-	 * - There is no apic= option specified by the user
+	 * - There is yes apic= option specified by the user
 	 * - generic_apic_probe() has chosen apic_default as the sub_arch
 	 * - we find more than 8 CPUs in acpi LAPIC listing with xAPIC support
 	 */

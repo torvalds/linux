@@ -12,7 +12,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/security.h>
@@ -309,8 +309,8 @@ static inline void __poke_user_per(struct task_struct *child,
 	 * 3) ending_addr: the debugger wants to set a new ending
 	 *    address to use with the PER event mask.
 	 * The user specified PER event mask and the start and end
-	 * addresses are used only if single stepping is not in effect.
-	 * Writes to any other field in per_info are ignored.
+	 * addresses are used only if single stepping is yest in effect.
+	 * Writes to any other field in per_info are igyesred.
 	 */
 	if (addr == (addr_t) &dummy->cr9)
 		/* PER event mask of the user specified per set. */
@@ -362,7 +362,7 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		offset = addr - (addr_t) &dummy->regs.acrs;
 		/*
 		 * Very special case: old & broken 64 bit gdb writing
-		 * to acrs[15] with a 64 bit value. Ignore the lower
+		 * to acrs[15] with a 64 bit value. Igyesre the lower
 		 * half of the value and write the upper 32 bit to
 		 * acrs[15]. Sick...
 		 */
@@ -518,7 +518,7 @@ long arch_ptrace(struct task_struct *child, long request,
 #ifdef CONFIG_COMPAT
 /*
  * Now the fun part starts... a 31 bit program running in the
- * 31 bit emulation tracing another program. PTRACE_PEEKTEXT,
+ * 31 bit emulation tracing ayesther program. PTRACE_PEEKTEXT,
  * PTRACE_PEEKDATA, PTRACE_POKETEXT and PTRACE_POKEDATA are easy
  * to handle, the difference to the 64 bit versions of the requests
  * is that the access is done in multiples of 4 byte instead of
@@ -527,7 +527,7 @@ long arch_ptrace(struct task_struct *child, long request,
  * PTRACE_POKEUSR and PTRACE_POKEUSR_AREA. If the traced program
  * is a 31 bit program too, the content of struct user can be
  * emulated. A 31 bit program peeking into the struct user of
- * a 64 bit program is a no-no.
+ * a 64 bit program is a yes-yes.
  */
 
 /*
@@ -847,7 +847,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	    (tracehook_report_syscall_entry(regs) ||
 	     regs->gprs[2] >= NR_syscalls)) {
 		/*
-		 * Tracing decided this syscall should not happen or the
+		 * Tracing decided this syscall should yest happen or the
 		 * debugger stored an invalid system call number. Skip
 		 * the system call and the system call restart handling.
 		 */
@@ -1334,7 +1334,7 @@ static int s390_runtime_instr_set(struct task_struct *target,
 
 static const struct user_regset s390_regsets[] = {
 	{
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = sizeof(s390_regs) / sizeof(long),
 		.size = sizeof(long),
 		.align = sizeof(long),
@@ -1342,7 +1342,7 @@ static const struct user_regset s390_regsets[] = {
 		.set = s390_regs_set,
 	},
 	{
-		.core_note_type = NT_PRFPREG,
+		.core_yeste_type = NT_PRFPREG,
 		.n = sizeof(s390_fp_regs) / sizeof(long),
 		.size = sizeof(long),
 		.align = sizeof(long),
@@ -1350,7 +1350,7 @@ static const struct user_regset s390_regsets[] = {
 		.set = s390_fpregs_set,
 	},
 	{
-		.core_note_type = NT_S390_SYSTEM_CALL,
+		.core_yeste_type = NT_S390_SYSTEM_CALL,
 		.n = 1,
 		.size = sizeof(unsigned int),
 		.align = sizeof(unsigned int),
@@ -1358,7 +1358,7 @@ static const struct user_regset s390_regsets[] = {
 		.set = s390_system_call_set,
 	},
 	{
-		.core_note_type = NT_S390_LAST_BREAK,
+		.core_yeste_type = NT_S390_LAST_BREAK,
 		.n = 1,
 		.size = sizeof(long),
 		.align = sizeof(long),
@@ -1366,7 +1366,7 @@ static const struct user_regset s390_regsets[] = {
 		.set = s390_last_break_set,
 	},
 	{
-		.core_note_type = NT_S390_TDB,
+		.core_yeste_type = NT_S390_TDB,
 		.n = 1,
 		.size = 256,
 		.align = 1,
@@ -1374,7 +1374,7 @@ static const struct user_regset s390_regsets[] = {
 		.set = s390_tdb_set,
 	},
 	{
-		.core_note_type = NT_S390_VXRS_LOW,
+		.core_yeste_type = NT_S390_VXRS_LOW,
 		.n = __NUM_VXRS_LOW,
 		.size = sizeof(__u64),
 		.align = sizeof(__u64),
@@ -1382,7 +1382,7 @@ static const struct user_regset s390_regsets[] = {
 		.set = s390_vxrs_low_set,
 	},
 	{
-		.core_note_type = NT_S390_VXRS_HIGH,
+		.core_yeste_type = NT_S390_VXRS_HIGH,
 		.n = __NUM_VXRS_HIGH,
 		.size = sizeof(__vector128),
 		.align = sizeof(__vector128),
@@ -1390,7 +1390,7 @@ static const struct user_regset s390_regsets[] = {
 		.set = s390_vxrs_high_set,
 	},
 	{
-		.core_note_type = NT_S390_GS_CB,
+		.core_yeste_type = NT_S390_GS_CB,
 		.n = sizeof(struct gs_cb) / sizeof(__u64),
 		.size = sizeof(__u64),
 		.align = sizeof(__u64),
@@ -1398,7 +1398,7 @@ static const struct user_regset s390_regsets[] = {
 		.set = s390_gs_cb_set,
 	},
 	{
-		.core_note_type = NT_S390_GS_BC,
+		.core_yeste_type = NT_S390_GS_BC,
 		.n = sizeof(struct gs_cb) / sizeof(__u64),
 		.size = sizeof(__u64),
 		.align = sizeof(__u64),
@@ -1406,7 +1406,7 @@ static const struct user_regset s390_regsets[] = {
 		.set = s390_gs_bc_set,
 	},
 	{
-		.core_note_type = NT_S390_RI_CB,
+		.core_yeste_type = NT_S390_RI_CB,
 		.n = sizeof(struct runtime_instr_cb) / sizeof(__u64),
 		.size = sizeof(__u64),
 		.align = sizeof(__u64),
@@ -1578,7 +1578,7 @@ static int s390_compat_last_break_set(struct task_struct *target,
 
 static const struct user_regset s390_compat_regsets[] = {
 	{
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = sizeof(s390_compat_regs) / sizeof(compat_long_t),
 		.size = sizeof(compat_long_t),
 		.align = sizeof(compat_long_t),
@@ -1586,7 +1586,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_compat_regs_set,
 	},
 	{
-		.core_note_type = NT_PRFPREG,
+		.core_yeste_type = NT_PRFPREG,
 		.n = sizeof(s390_fp_regs) / sizeof(compat_long_t),
 		.size = sizeof(compat_long_t),
 		.align = sizeof(compat_long_t),
@@ -1594,7 +1594,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_fpregs_set,
 	},
 	{
-		.core_note_type = NT_S390_SYSTEM_CALL,
+		.core_yeste_type = NT_S390_SYSTEM_CALL,
 		.n = 1,
 		.size = sizeof(compat_uint_t),
 		.align = sizeof(compat_uint_t),
@@ -1602,7 +1602,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_system_call_set,
 	},
 	{
-		.core_note_type = NT_S390_LAST_BREAK,
+		.core_yeste_type = NT_S390_LAST_BREAK,
 		.n = 1,
 		.size = sizeof(long),
 		.align = sizeof(long),
@@ -1610,7 +1610,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_compat_last_break_set,
 	},
 	{
-		.core_note_type = NT_S390_TDB,
+		.core_yeste_type = NT_S390_TDB,
 		.n = 1,
 		.size = 256,
 		.align = 1,
@@ -1618,7 +1618,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_tdb_set,
 	},
 	{
-		.core_note_type = NT_S390_VXRS_LOW,
+		.core_yeste_type = NT_S390_VXRS_LOW,
 		.n = __NUM_VXRS_LOW,
 		.size = sizeof(__u64),
 		.align = sizeof(__u64),
@@ -1626,7 +1626,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_vxrs_low_set,
 	},
 	{
-		.core_note_type = NT_S390_VXRS_HIGH,
+		.core_yeste_type = NT_S390_VXRS_HIGH,
 		.n = __NUM_VXRS_HIGH,
 		.size = sizeof(__vector128),
 		.align = sizeof(__vector128),
@@ -1634,7 +1634,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_vxrs_high_set,
 	},
 	{
-		.core_note_type = NT_S390_HIGH_GPRS,
+		.core_yeste_type = NT_S390_HIGH_GPRS,
 		.n = sizeof(s390_compat_regs_high) / sizeof(compat_long_t),
 		.size = sizeof(compat_long_t),
 		.align = sizeof(compat_long_t),
@@ -1642,7 +1642,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_compat_regs_high_set,
 	},
 	{
-		.core_note_type = NT_S390_GS_CB,
+		.core_yeste_type = NT_S390_GS_CB,
 		.n = sizeof(struct gs_cb) / sizeof(__u64),
 		.size = sizeof(__u64),
 		.align = sizeof(__u64),
@@ -1650,7 +1650,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_gs_cb_set,
 	},
 	{
-		.core_note_type = NT_S390_GS_BC,
+		.core_yeste_type = NT_S390_GS_BC,
 		.n = sizeof(struct gs_cb) / sizeof(__u64),
 		.size = sizeof(__u64),
 		.align = sizeof(__u64),
@@ -1658,7 +1658,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_gs_bc_set,
 	},
 	{
-		.core_note_type = NT_S390_RI_CB,
+		.core_yeste_type = NT_S390_RI_CB,
 		.n = sizeof(struct runtime_instr_cb) / sizeof(__u64),
 		.size = sizeof(__u64),
 		.align = sizeof(__u64),

@@ -103,10 +103,10 @@ static int cavium_ptp_adjfine(struct ptp_clock_info *ptp_info, long scaled_ppm)
 
 	/* The hardware adds the clock compensation value to the PTP clock
 	 * on every coprocessor clock cycle. Typical convention is that it
-	 * represent number of nanosecond betwen each cycle. In this
+	 * represent number of nayessecond betwen each cycle. In this
 	 * convention compensation value is in 64 bit fixed-point
-	 * representation where upper 32 bits are number of nanoseconds
-	 * and lower is fractions of nanosecond.
+	 * representation where upper 32 bits are number of nayesseconds
+	 * and lower is fractions of nayessecond.
 	 * The scaled_ppm represent the ratio in "parts per bilion" by which the
 	 * compensation value should be corrected.
 	 * To calculate new compenstation value we use 64bit fixed point
@@ -132,7 +132,7 @@ static int cavium_ptp_adjfine(struct ptp_clock_info *ptp_info, long scaled_ppm)
 /**
  * cavium_ptp_adjtime() - Adjust ptp time
  * @ptp:   PTP clock info
- * @delta: how much to adjust by, in nanosecs
+ * @delta: how much to adjust by, in nayessecs
  */
 static int cavium_ptp_adjtime(struct ptp_clock_info *ptp_info, s64 delta)
 {
@@ -296,7 +296,7 @@ error_free:
 
 error:
 	/* For `cavium_ptp_get()` we need to differentiate between the case
-	 * when the core has not tried to probe this device and the case when
+	 * when the core has yest tried to probe this device and the case when
 	 * the probe failed.  In the later case we pretend that the
 	 * initialization was successful and keep the error in
 	 * `dev->driver_data`.

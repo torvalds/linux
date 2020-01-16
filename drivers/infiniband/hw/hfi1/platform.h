@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -216,9 +216,9 @@ enum platform_config_link_speed_supported_encoding {
 };
 
 /*
- * This is a subset (not strict) of the link downgrades
+ * This is a subset (yest strict) of the link downgrades
  * supported. The link downgrades supported are expected
- * to be supplied to the driver by another entity such as
+ * to be supplied to the driver by ayesther entity such as
  * the fabric manager
  */
 enum platform_config_link_width_supported_encoding {

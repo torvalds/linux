@@ -171,7 +171,7 @@ struct fsl_sai {
 	bool is_slave_mode;
 	bool is_lsb_first;
 	bool is_dsp_mode;
-	bool synchronous[2];
+	bool synchroyesus[2];
 
 	unsigned int mclk_id[2];
 	unsigned int mclk_streams;

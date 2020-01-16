@@ -4,7 +4,7 @@
 
  *  Copyright (C) 2013 Maxim Levitsky <maximlevitsky@gmail.com>
  *
- * Minor portions of the driver were copied from mspro_block.c which is
+ * Miyesr portions of the driver were copied from mspro_block.c which is
  * Copyright (C) 2007 Alex Dubov <oakad@yahoo.com>
  */
 #define DRIVER_NAME "ms_block"
@@ -31,7 +31,7 @@ static bool verify_writes;
 
 /*
  * Copies section of 'sg_from' starting from offset 'offset' and with length
- * 'len' To another scatterlist of to_nents enties
+ * 'len' To ayesther scatterlist of to_nents enties
  */
 static size_t msb_sg_copy(struct scatterlist *sg_from,
 	struct scatterlist *sg_to, int to_nents, size_t offset, size_t len)
@@ -341,7 +341,7 @@ static int h_msb_read_page(struct memstick_dev *card,
 	u8 command, intreg;
 
 	if (mrq->error) {
-		dbg("read_page, unknown error");
+		dbg("read_page, unkyeswn error");
 		return msb_exit_state_machine(msb, mrq->error);
 	}
 again:
@@ -452,7 +452,7 @@ again:
 			msb->current_sg_offset += msb->page_size;
 			return msb_exit_state_machine(msb, -EUCLEAN);
 		} else {
-			dbg("read_page: INT error, but no status error bits");
+			dbg("read_page: INT error, but yes status error bits");
 			return msb_exit_state_machine(msb, -EIO);
 		}
 	}
@@ -541,7 +541,7 @@ again:
 
 		}
 
-		/* for non-last page we need BREQ before writing next chunk */
+		/* for yesn-last page we need BREQ before writing next chunk */
 		if (!(intreg & MEMSTICK_INT_BREQ)) {
 			msb->state = MSB_WB_SEND_INT_REQ;
 			goto again;
@@ -588,7 +588,7 @@ static int h_msb_send_command(struct memstick_dev *card,
 	u8 intreg;
 
 	if (mrq->error) {
-		dbg("send_command: unknown error");
+		dbg("send_command: unkyeswn error");
 		return msb_exit_state_machine(msb, mrq->error);
 	}
 again:
@@ -803,7 +803,7 @@ static int msb_set_overwrite_flag(struct msb_data *msb,
 
 static int msb_mark_bad(struct msb_data *msb, int pba)
 {
-	pr_notice("marking pba %d as bad", pba);
+	pr_yestice("marking pba %d as bad", pba);
 	msb_reset(msb, true);
 	return msb_set_overwrite_flag(
 			msb, pba, 0, 0xFF & ~MEMSTICK_OVERWRITE_BKST);
@@ -910,7 +910,7 @@ static int msb_read_page(struct msb_data *msb,
 
 
 		if (error == -EUCLEAN) {
-			pr_notice("correctable error on pba %d, page %d",
+			pr_yestice("correctable error on pba %d, page %d",
 				pba, page);
 			error = 0;
 		}
@@ -960,7 +960,7 @@ static int msb_read_oob(struct msb_data *msb, u16 pba, u16 page,
 	*extra = msb->regs.extra_data;
 
 	if (error == -EUCLEAN) {
-		pr_notice("correctable error on pba %d, page %d",
+		pr_yestice("correctable error on pba %d, page %d",
 			pba, page);
 		return 0;
 	}
@@ -1393,13 +1393,13 @@ static int msb_ftl_scan(struct msb_data *msb)
 
 		/* can't trust the page if we can't read the oob */
 		if (error == -EBADMSG) {
-			pr_notice(
+			pr_yestice(
 			"oob of pba %d damaged, will try to erase it", pba);
 			msb_mark_block_used(msb, pba);
 			msb_erase_block(msb, pba);
 			continue;
 		} else if (error) {
-			pr_err("unknown error %d on read of oob of pba %d - aborting",
+			pr_err("unkyeswn error %d on read of oob of pba %d - aborting",
 				error, pba);
 
 			kfree(overwrite_flags);
@@ -1443,9 +1443,9 @@ static int msb_ftl_scan(struct msb_data *msb)
 
 		msb_mark_block_used(msb, pba);
 
-		/* Block has LBA not according to zoning*/
+		/* Block has LBA yest according to zoning*/
 		if (msb_get_zone_from_lba(lba) != msb_get_zone_from_pba(pba)) {
-			pr_notice("pba %05d -> [bad lba %05d] - will erase",
+			pr_yestice("pba %05d -> [bad lba %05d] - will erase",
 								pba, lba);
 			msb_erase_block(msb, pba);
 			continue;
@@ -1461,24 +1461,24 @@ static int msb_ftl_scan(struct msb_data *msb)
 		other_block = msb->lba_to_pba_table[lba];
 		other_overwrite_flag = overwrite_flags[other_block];
 
-		pr_notice("Collision between pba %d and pba %d",
+		pr_yestice("Collision between pba %d and pba %d",
 			pba, other_block);
 
 		if (!(overwrite_flag & MEMSTICK_OVERWRITE_UDST)) {
-			pr_notice("pba %d is marked as stable, use it", pba);
+			pr_yestice("pba %d is marked as stable, use it", pba);
 			msb_erase_block(msb, other_block);
 			msb->lba_to_pba_table[lba] = pba;
 			continue;
 		}
 
 		if (!(other_overwrite_flag & MEMSTICK_OVERWRITE_UDST)) {
-			pr_notice("pba %d is marked as stable, use it",
+			pr_yestice("pba %d is marked as stable, use it",
 								other_block);
 			msb_erase_block(msb, pba);
 			continue;
 		}
 
-		pr_notice("collision between blocks %d and %d, without stable flag set on both, erasing pba %d",
+		pr_yestice("collision between blocks %d and %d, without stable flag set on both, erasing pba %d",
 				pba, other_block, other_block);
 
 		msb_erase_block(msb, other_block);
@@ -1552,7 +1552,7 @@ static int msb_cache_flush(struct msb_data *msb)
 
 		offset = page * msb->page_size;
 
-		dbg_verbose("reading non-present sector %d of cache block %d",
+		dbg_verbose("reading yesn-present sector %d of cache block %d",
 			page, lba);
 		error = msb_read_page(msb, pba, page, &extra, &sg, offset);
 
@@ -1574,7 +1574,7 @@ static int msb_cache_flush(struct msb_data *msb)
 		set_bit(page, &msb->valid_cache_bitmap);
 	}
 
-	/* Write the cache now */
+	/* Write the cache yesw */
 	error = msb_update_block(msb, msb->cache_block_lba, &sg, 0);
 	pba = msb->lba_to_pba_table[msb->cache_block_lba];
 
@@ -1886,7 +1886,7 @@ static void msb_io_work(struct work_struct *work)
 
 		req = msb->req;
 		if (!req) {
-			dbg_verbose("IO: no more requests exiting");
+			dbg_verbose("IO: yes more requests exiting");
 			spin_unlock_irq(&msb->q_lock);
 			return;
 		}
@@ -1917,7 +1917,7 @@ static void msb_io_work(struct work_struct *work)
 		}
 
 		if (error && msb->req) {
-			blk_status_t ret = errno_to_blk_status(error);
+			blk_status_t ret = erryes_to_blk_status(error);
 
 			dbg_verbose("IO: ending one sector of the request with error");
 			blk_mq_end_request(req, ret);
@@ -2205,7 +2205,7 @@ static void msb_remove(struct memstick_dev *card)
 
 	dbg("Removing the disk device");
 
-	/* Take care of unhandled + new requests from now on */
+	/* Take care of unhandled + new requests from yesw on */
 	spin_lock_irqsave(&msb->q_lock, flags);
 	msb->card_dead = true;
 	spin_unlock_irqrestore(&msb->q_lock, flags);

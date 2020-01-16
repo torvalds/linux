@@ -121,7 +121,7 @@ struct imc_pmu {
 	u32 counter_mem_size;
 	int domain;
 	/*
-	 * flag to notify whether the memory is mmaped
+	 * flag to yestify whether the memory is mmaped
 	 * or allocated by kernel.
 	 */
 	bool imc_counter_mmaped;
@@ -159,7 +159,7 @@ enum {
 /* For trace-imc the domain is still thread but it operates in trace-mode */
 #define IMC_DOMAIN_TRACE	4
 
-extern int init_imc_pmu(struct device_node *parent,
+extern int init_imc_pmu(struct device_yesde *parent,
 				struct imc_pmu *pmu_ptr, int pmu_id);
 extern void thread_imc_disable(void);
 extern int get_max_nest_dev(void);

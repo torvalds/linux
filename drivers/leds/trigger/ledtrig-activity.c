@@ -49,7 +49,7 @@ static void led_activity_function(struct timer_list *t)
 
 	if (unlikely(panic_detected)) {
 		/* full brightness in case of panic */
-		led_set_brightness_nosleep(led_cdev, led_cdev->blink_brightness);
+		led_set_brightness_yessleep(led_cdev, led_cdev->blink_brightness);
 		return;
 	}
 
@@ -88,17 +88,17 @@ static void led_activity_function(struct timer_list *t)
 		usage = 100 * diff_used / diff_boot;
 
 	/*
-	 * Now we know the total boot_time multiplied by the number of CPUs, and
+	 * Now we kyesw the total boot_time multiplied by the number of CPUs, and
 	 * the total idle+wait time for all CPUs. We'll compare how they evolved
 	 * since last call. The % of overall CPU usage is :
 	 *
 	 *      1 - delta_idle / delta_boot
 	 *
 	 * What we want is that when the CPU usage is zero, the LED must blink
-	 * slowly with very faint flashes that are detectable but not disturbing
+	 * slowly with very faint flashes that are detectable but yest disturbing
 	 * (typically 10ms every second, or 10ms ON, 990ms OFF). Then we want
 	 * blinking frequency to increase up to the point where the load is
-	 * enough to saturate one core in multi-core systems or 50% in single
+	 * eyesugh to saturate one core in multi-core systems or 50% in single
 	 * core systems. At this point it should reach 10 Hz with a 10/90 duty
 	 * cycle (10ms ON, 90ms OFF). After this point, the blinking frequency
 	 * remains stable (10 Hz) and only the duty cycle increases to report
@@ -126,7 +126,7 @@ static void led_activity_function(struct timer_list *t)
 	if (activity_data->time_left <= 0) {
 		activity_data->time_left = 0;
 		activity_data->state = !activity_data->state;
-		led_set_brightness_nosleep(led_cdev,
+		led_set_brightness_yessleep(led_cdev,
 			(activity_data->state ^ activity_data->invert) ?
 			led_cdev->blink_brightness : LED_OFF);
 	}
@@ -219,26 +219,26 @@ static struct led_trigger activity_led_trigger = {
 	.groups     = activity_led_groups,
 };
 
-static int activity_reboot_notifier(struct notifier_block *nb,
+static int activity_reboot_yestifier(struct yestifier_block *nb,
                                     unsigned long code, void *unused)
 {
 	led_trigger_unregister(&activity_led_trigger);
 	return NOTIFY_DONE;
 }
 
-static int activity_panic_notifier(struct notifier_block *nb,
+static int activity_panic_yestifier(struct yestifier_block *nb,
                                    unsigned long code, void *unused)
 {
 	panic_detected = 1;
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block activity_reboot_nb = {
-	.notifier_call = activity_reboot_notifier,
+static struct yestifier_block activity_reboot_nb = {
+	.yestifier_call = activity_reboot_yestifier,
 };
 
-static struct notifier_block activity_panic_nb = {
-	.notifier_call = activity_panic_notifier,
+static struct yestifier_block activity_panic_nb = {
+	.yestifier_call = activity_panic_yestifier,
 };
 
 static int __init activity_init(void)
@@ -246,17 +246,17 @@ static int __init activity_init(void)
 	int rc = led_trigger_register(&activity_led_trigger);
 
 	if (!rc) {
-		atomic_notifier_chain_register(&panic_notifier_list,
+		atomic_yestifier_chain_register(&panic_yestifier_list,
 					       &activity_panic_nb);
-		register_reboot_notifier(&activity_reboot_nb);
+		register_reboot_yestifier(&activity_reboot_nb);
 	}
 	return rc;
 }
 
 static void __exit activity_exit(void)
 {
-	unregister_reboot_notifier(&activity_reboot_nb);
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	unregister_reboot_yestifier(&activity_reboot_nb);
+	atomic_yestifier_chain_unregister(&panic_yestifier_list,
 					 &activity_panic_nb);
 	led_trigger_unregister(&activity_led_trigger);
 }

@@ -329,7 +329,7 @@ static inline void set_bfs(struct i2s_dai *i2s, unsigned bfs)
 	int tdm = priv->quirks & QUIRK_SUPPORTS_TDM;
 	int bfs_shift = priv->variant_regs->bfs_off;
 
-	/* Non-TDM I2S controllers do not support BCLK > 48 * FS */
+	/* Non-TDM I2S controllers do yest support BCLK > 48 * FS */
 	if (!tdm && bfs > 48) {
 		dev_err(&i2s->pdev->dev, "Unsupported BCLK divider\n");
 		return;
@@ -649,7 +649,7 @@ static int i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		tmp |= (MOD_SDF_IIS << sdf_shift);
 		break;
 	default:
-		dev_err(&i2s->pdev->dev, "Format not supported\n");
+		dev_err(&i2s->pdev->dev, "Format yest supported\n");
 		return -EINVAL;
 	}
 
@@ -667,7 +667,7 @@ static int i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			tmp |= lrp_rlow;
 		break;
 	default:
-		dev_err(&i2s->pdev->dev, "Polarity not supported\n");
+		dev_err(&i2s->pdev->dev, "Polarity yest supported\n");
 		return -EINVAL;
 	}
 
@@ -678,15 +678,15 @@ static int i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_CBS_CFS:
 		/*
 		 * Set default source clock in Master mode, only when the
-		 * CLK_I2S_RCLK_SRC clock is not exposed so we ensure any
-		 * clock configuration assigned in DT is not overwritten.
+		 * CLK_I2S_RCLK_SRC clock is yest exposed so we ensure any
+		 * clock configuration assigned in DT is yest overwritten.
 		 */
 		if (priv->rclk_srcrate == 0 && priv->clk_data.clks == NULL)
 			i2s_set_sysclk(dai, SAMSUNG_I2S_RCLKSRC_0,
 							0, SND_SOC_CLOCK_IN);
 		break;
 	default:
-		dev_err(&i2s->pdev->dev, "master/slave format not supported\n");
+		dev_err(&i2s->pdev->dev, "master/slave format yest supported\n");
 		return -EINVAL;
 	}
 
@@ -751,7 +751,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 
 		break;
 	default:
-		dev_err(&i2s->pdev->dev, "%d channels not supported\n",
+		dev_err(&i2s->pdev->dev, "%d channels yest supported\n",
 				params_channels(params));
 		return -EINVAL;
 	}
@@ -790,7 +790,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 			val |= MOD_BLC_24BIT;
 		break;
 	default:
-		dev_err(&i2s->pdev->dev, "Format(%d) not supported\n",
+		dev_err(&i2s->pdev->dev, "Format(%d) yest supported\n",
 				params_format(params));
 		return -EINVAL;
 	}
@@ -879,7 +879,7 @@ static int config_setup(struct i2s_dai *i2s)
 	if (!bfs && other)
 		bfs = other->bfs;
 
-	/* Select least possible multiple(2) if no constraint set */
+	/* Select least possible multiple(2) if yes constraint set */
 	if (!bfs)
 		bfs = blc * 2;
 
@@ -890,7 +890,7 @@ static int config_setup(struct i2s_dai *i2s)
 
 	if ((rfs == 256 || rfs == 512) && (blc == 24)) {
 		dev_err(&i2s->pdev->dev,
-			"%d-RFS not supported for 24-blc\n", rfs);
+			"%d-RFS yest supported for 24-blc\n", rfs);
 		return -EINVAL;
 	}
 
@@ -1255,7 +1255,7 @@ static void i2s_unregister_clocks(struct samsung_i2s_priv *priv)
 
 static void i2s_unregister_clock_provider(struct samsung_i2s_priv *priv)
 {
-	of_clk_del_provider(priv->pdev->dev.of_node);
+	of_clk_del_provider(priv->pdev->dev.of_yesde);
 	i2s_unregister_clocks(priv);
 }
 
@@ -1273,7 +1273,7 @@ static int i2s_register_clock_provider(struct samsung_i2s_priv *priv)
 	int ret, i;
 
 	/* Register the clock provider only if it's expected in the DTB */
-	if (!of_find_property(dev->of_node, "#clock-cells", NULL))
+	if (!of_find_property(dev->of_yesde, "#clock-cells", NULL))
 		return 0;
 
 	/* Get the RCLKSRC mux clock parent clock names */
@@ -1323,7 +1323,7 @@ static int i2s_register_clock_provider(struct samsung_i2s_priv *priv)
 	priv->clk_data.clk_num += 1;
 	priv->clk_data.clks = priv->clk_table;
 
-	ret = of_clk_add_provider(dev->of_node, of_clk_src_onecell_get,
+	ret = of_clk_add_provider(dev->of_yesde, of_clk_src_onecell_get,
 				  &priv->clk_data);
 	if (ret < 0) {
 		dev_err(dev, "failed to add clock provider: %d\n", ret);
@@ -1380,14 +1380,14 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 	struct i2s_dai *pri_dai, *sec_dai = NULL;
 	struct s3c_audio_pdata *i2s_pdata = pdev->dev.platform_data;
 	u32 regs_base, idma_addr = 0;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct samsung_i2s_dai_data *i2s_dai_data;
 	const struct platform_device_id *id;
 	struct samsung_i2s_priv *priv;
 	struct resource *res;
 	int num_dais, ret;
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_yesde) {
 		i2s_dai_data = of_device_get_match_data(&pdev->dev);
 	} else {
 		id = platform_get_device_id(pdev);
@@ -1436,7 +1436,7 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		if (of_property_read_u32(np, "samsung,idma-addr",
 					 &idma_addr)) {
 			if (priv->quirks & QUIRK_SUPPORTS_IDMA) {
-				dev_info(&pdev->dev, "idma address is not"\
+				dev_info(&pdev->dev, "idma address is yest"\
 						"specified");
 			}
 		}
@@ -1543,7 +1543,7 @@ static int samsung_i2s_remove(struct platform_device *pdev)
 {
 	struct samsung_i2s_priv *priv = dev_get_drvdata(&pdev->dev);
 
-	/* The secondary device has no driver data assigned */
+	/* The secondary device has yes driver data assigned */
 	if (!priv)
 		return 0;
 
@@ -1554,7 +1554,7 @@ static int samsung_i2s_remove(struct platform_device *pdev)
 	i2s_delete_secondary_device(priv);
 	clk_disable_unprepare(priv->clk);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	return 0;
 }
@@ -1658,7 +1658,7 @@ static const struct platform_device_id samsung_i2s_driver_ids[] = {
 MODULE_DEVICE_TABLE(platform, samsung_i2s_driver_ids);
 
 #ifdef CONFIG_OF
-static const struct of_device_id exynos_i2s_match[] = {
+static const struct of_device_id exyyess_i2s_match[] = {
 	{
 		.compatible = "samsung,s3c6410-i2s",
 		.data = &i2sv3_dai_type,
@@ -1666,18 +1666,18 @@ static const struct of_device_id exynos_i2s_match[] = {
 		.compatible = "samsung,s5pv210-i2s",
 		.data = &i2sv5_dai_type,
 	}, {
-		.compatible = "samsung,exynos5420-i2s",
+		.compatible = "samsung,exyyess5420-i2s",
 		.data = &i2sv6_dai_type,
 	}, {
-		.compatible = "samsung,exynos7-i2s",
+		.compatible = "samsung,exyyess7-i2s",
 		.data = &i2sv7_dai_type,
 	}, {
-		.compatible = "samsung,exynos7-i2s1",
+		.compatible = "samsung,exyyess7-i2s1",
 		.data = &i2sv5_dai_type_i2s1,
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_i2s_match);
+MODULE_DEVICE_TABLE(of, exyyess_i2s_match);
 #endif
 
 static const struct dev_pm_ops samsung_i2s_pm = {
@@ -1693,7 +1693,7 @@ static struct platform_driver samsung_i2s_driver = {
 	.id_table = samsung_i2s_driver_ids,
 	.driver = {
 		.name = "samsung-i2s",
-		.of_match_table = of_match_ptr(exynos_i2s_match),
+		.of_match_table = of_match_ptr(exyyess_i2s_match),
 		.pm = &samsung_i2s_pm,
 	},
 };

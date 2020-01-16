@@ -24,15 +24,15 @@ struct cpu_cache_level {
 	char	*map;
 };
 
-struct numa_node {
-	u32		 node;
+struct numa_yesde {
+	u32		 yesde;
 	u64		 mem_total;
 	u64		 mem_free;
 	struct perf_cpu_map	*map;
 };
 
-struct memory_node {
-	u64		 node;
+struct memory_yesde {
+	u64		 yesde;
 	u64		 size;
 	unsigned long	*set;
 };
@@ -53,8 +53,8 @@ struct perf_env {
 	int			nr_sibling_cores;
 	int			nr_sibling_dies;
 	int			nr_sibling_threads;
-	int			nr_numa_nodes;
-	int			nr_memory_nodes;
+	int			nr_numa_yesdes;
+	int			nr_memory_yesdes;
 	int			nr_pmu_mappings;
 	int			nr_groups;
 	char			*cmdline;
@@ -71,8 +71,8 @@ struct perf_env {
 	u32			comp_type;
 	u32			comp_level;
 	u32			comp_mmap_len;
-	struct numa_node	*numa_nodes;
-	struct memory_node	*memory_nodes;
+	struct numa_yesde	*numa_yesdes;
+	struct memory_yesde	*memory_yesdes;
 	unsigned long long	 memory_bsize;
 	u64                     clockid_res_ns;
 
@@ -88,7 +88,7 @@ struct perf_env {
 		u32			btfs_cnt;
 	} bpf_progs;
 
-	/* For fast cpu to numa node lookup via perf_env__numa_node */
+	/* For fast cpu to numa yesde lookup via perf_env__numa_yesde */
 	int			*numa_map;
 	int			 nr_numa_map;
 };
@@ -99,8 +99,8 @@ enum perf_compress_type {
 	PERF_COMP_MAX
 };
 
-struct bpf_prog_info_node;
-struct btf_node;
+struct bpf_prog_info_yesde;
+struct btf_yesde;
 
 extern struct perf_env perf_env;
 
@@ -119,11 +119,11 @@ int perf_env__nr_cpus_avail(struct perf_env *env);
 
 void perf_env__init(struct perf_env *env);
 void perf_env__insert_bpf_prog_info(struct perf_env *env,
-				    struct bpf_prog_info_node *info_node);
-struct bpf_prog_info_node *perf_env__find_bpf_prog_info(struct perf_env *env,
+				    struct bpf_prog_info_yesde *info_yesde);
+struct bpf_prog_info_yesde *perf_env__find_bpf_prog_info(struct perf_env *env,
 							__u32 prog_id);
-void perf_env__insert_btf(struct perf_env *env, struct btf_node *btf_node);
-struct btf_node *perf_env__find_btf(struct perf_env *env, __u32 btf_id);
+void perf_env__insert_btf(struct perf_env *env, struct btf_yesde *btf_yesde);
+struct btf_yesde *perf_env__find_btf(struct perf_env *env, __u32 btf_id);
 
-int perf_env__numa_node(struct perf_env *env, int cpu);
+int perf_env__numa_yesde(struct perf_env *env, int cpu);
 #endif /* __PERF_ENV_H */

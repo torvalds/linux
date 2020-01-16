@@ -23,13 +23,13 @@ static void test_signal_pending_by_type(enum bpf_prog_type prog_type)
 
 	prog_fd = bpf_load_program(prog_type, prog, ARRAY_SIZE(prog),
 				   "GPL", 0, NULL, 0);
-	CHECK(prog_fd < 0, "test-run", "errno %d\n", errno);
+	CHECK(prog_fd < 0, "test-run", "erryes %d\n", erryes);
 
 	err = sigaction(SIGALRM, &sigalrm_action, NULL);
-	CHECK(err, "test-run-signal-sigaction", "errno %d\n", errno);
+	CHECK(err, "test-run-signal-sigaction", "erryes %d\n", erryes);
 
 	err = setitimer(ITIMER_REAL, &timeo, NULL);
-	CHECK(err, "test-run-signal-timer", "errno %d\n", errno);
+	CHECK(err, "test-run-signal-timer", "erryes %d\n", erryes);
 
 	err = bpf_prog_test_run(prog_fd, 0xffffffff, &pkt_v4, sizeof(pkt_v4),
 				NULL, NULL, &retval, &duration);

@@ -223,7 +223,7 @@ bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
 
 /* Symbolic links to be created for each profiling data file. */
 const struct gcov_link gcov_link[] = {
-	{ OBJ_TREE, "gcno" },	/* Link to .gcno file in $(objtree). */
+	{ OBJ_TREE, "gcyes" },	/* Link to .gcyes file in $(objtree). */
 	{ 0, NULL},
 };
 
@@ -245,7 +245,7 @@ void gcov_info_reset(struct gcov_info *info)
  * @info1: first profiling data set
  * @info2: second profiling data set
  *
- * Returns non-zero if profiling data can be added, zero otherwise.
+ * Returns yesn-zero if profiling data can be added, zero otherwise.
  */
 int gcov_info_is_compatible(struct gcov_info *info1, struct gcov_info *info2)
 {
@@ -443,7 +443,7 @@ static size_t store_gcov_u64(void *buffer, size_t off, u64 v)
 
 /**
  * convert_to_gcda - convert profiling data set to gcda file format
- * @buffer: the buffer to store file data or %NULL if no data should be stored
+ * @buffer: the buffer to store file data or %NULL if yes data should be stored
  * @info: profiling data set to be converted
  *
  * Returns the number of bytes that were/would have been stored into the buffer.
@@ -544,7 +544,7 @@ void gcov_iter_start(struct gcov_iterator *iter)
  * gcov_iter_next - advance file iterator to next logical record
  * @iter: file iterator
  *
- * Return zero if new position is valid, non-zero if iterator has reached end.
+ * Return zero if new position is valid, yesn-zero if iterator has reached end.
  */
 int gcov_iter_next(struct gcov_iterator *iter)
 {
@@ -562,7 +562,7 @@ int gcov_iter_next(struct gcov_iterator *iter)
  * @iter: file iterator
  * @seq: seq_file handle
  *
- * Return zero on success, non-zero otherwise.
+ * Return zero on success, yesn-zero otherwise.
  */
 int gcov_iter_write(struct gcov_iterator *iter, struct seq_file *seq)
 {

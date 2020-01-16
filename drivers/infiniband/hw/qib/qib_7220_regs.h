@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -49,8 +49,8 @@
 #define QIB_7220_Revision_R_Arch_RMASK 0xFF
 #define QIB_7220_Revision_R_ChipRevMajor_LSB 0x8
 #define QIB_7220_Revision_R_ChipRevMajor_RMASK 0xFF
-#define QIB_7220_Revision_R_ChipRevMinor_LSB 0x0
-#define QIB_7220_Revision_R_ChipRevMinor_RMASK 0xFF
+#define QIB_7220_Revision_R_ChipRevMiyesr_LSB 0x0
+#define QIB_7220_Revision_R_ChipRevMiyesr_RMASK 0xFF
 
 #define QIB_7220_Control_OFFS 0x8
 #define QIB_7220_Control_SyncResetExceptPcieIRAMRST_LSB 0x7
@@ -1043,8 +1043,8 @@
 #define QIB_7220_IBNCModeCtrl_TSMCode_TS1_RMASK 0x1FF
 #define QIB_7220_IBNCModeCtrl_Reserved1_LSB 0x3
 #define QIB_7220_IBNCModeCtrl_Reserved1_RMASK 0x1F
-#define QIB_7220_IBNCModeCtrl_TSMEnable_ignore_TSM_on_rx_LSB 0x2
-#define QIB_7220_IBNCModeCtrl_TSMEnable_ignore_TSM_on_rx_RMASK 0x1
+#define QIB_7220_IBNCModeCtrl_TSMEnable_igyesre_TSM_on_rx_LSB 0x2
+#define QIB_7220_IBNCModeCtrl_TSMEnable_igyesre_TSM_on_rx_RMASK 0x1
 #define QIB_7220_IBNCModeCtrl_TSMEnable_send_TS2_LSB 0x1
 #define QIB_7220_IBNCModeCtrl_TSMEnable_send_TS2_RMASK 0x1
 #define QIB_7220_IBNCModeCtrl_TSMEnable_send_TS1_LSB 0x0

@@ -110,7 +110,7 @@ static const struct regulator_ops hi655x_ldo_linear_ops = {
 		.name            = #_ID,                         \
 		.of_match        = of_match_ptr(#_ID),           \
 		.ops             = &hi655x_regulator_ops,        \
-		.regulators_node = of_match_ptr("regulators"),   \
+		.regulators_yesde = of_match_ptr("regulators"),   \
 		.type            = REGULATOR_VOLTAGE,            \
 		.id              = HI655X_##_ID,                 \
 		.owner           = THIS_MODULE,                  \
@@ -131,7 +131,7 @@ static const struct regulator_ops hi655x_ldo_linear_ops = {
 		.name            = #_ID,                         \
 		.of_match        = of_match_ptr(#_ID),           \
 		.ops             = &hi655x_ldo_linear_ops,       \
-		.regulators_node = of_match_ptr("regulators"),   \
+		.regulators_yesde = of_match_ptr("regulators"),   \
 		.type            = REGULATOR_VOLTAGE,            \
 		.id              = HI655X_##_ID,                 \
 		.owner           = THIS_MODULE,                  \
@@ -176,7 +176,7 @@ static int hi655x_regulator_probe(struct platform_device *pdev)
 
 	pmic = dev_get_drvdata(pdev->dev.parent);
 	if (!pmic) {
-		dev_err(&pdev->dev, "no pmic in the regulator parent node\n");
+		dev_err(&pdev->dev, "yes pmic in the regulator parent yesde\n");
 		return -ENODEV;
 	}
 

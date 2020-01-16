@@ -17,7 +17,7 @@
 #include "alloc.h"
 #include "dlmglue.h"
 #include "file.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "journal.h"
 
 #include "ocfs2_fs.h"
@@ -61,82 +61,82 @@ static inline int o2info_coherent(struct ocfs2_info_request *req)
 	return (!(req->ir_flags & OCFS2_INFO_FL_NON_COHERENT));
 }
 
-static int ocfs2_get_inode_attr(struct inode *inode, unsigned *flags)
+static int ocfs2_get_iyesde_attr(struct iyesde *iyesde, unsigned *flags)
 {
 	int status;
 
-	status = ocfs2_inode_lock(inode, NULL, 0);
+	status = ocfs2_iyesde_lock(iyesde, NULL, 0);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		return status;
 	}
-	ocfs2_get_inode_flags(OCFS2_I(inode));
-	*flags = OCFS2_I(inode)->ip_attr;
-	ocfs2_inode_unlock(inode, 0);
+	ocfs2_get_iyesde_flags(OCFS2_I(iyesde));
+	*flags = OCFS2_I(iyesde)->ip_attr;
+	ocfs2_iyesde_unlock(iyesde, 0);
 
 	return status;
 }
 
-static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
+static int ocfs2_set_iyesde_attr(struct iyesde *iyesde, unsigned flags,
 				unsigned mask)
 {
-	struct ocfs2_inode_info *ocfs2_inode = OCFS2_I(inode);
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_iyesde_info *ocfs2_iyesde = OCFS2_I(iyesde);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 	handle_t *handle = NULL;
 	struct buffer_head *bh = NULL;
 	unsigned oldflags;
 	int status;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
-	status = ocfs2_inode_lock(inode, &bh, 1);
+	status = ocfs2_iyesde_lock(iyesde, &bh, 1);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto bail;
 	}
 
 	status = -EACCES;
-	if (!inode_owner_or_capable(inode))
+	if (!iyesde_owner_or_capable(iyesde))
 		goto bail_unlock;
 
-	if (!S_ISDIR(inode->i_mode))
+	if (!S_ISDIR(iyesde->i_mode))
 		flags &= ~OCFS2_DIRSYNC_FL;
 
-	oldflags = ocfs2_inode->ip_attr;
+	oldflags = ocfs2_iyesde->ip_attr;
 	flags = flags & mask;
 	flags |= oldflags & ~mask;
 
-	status = vfs_ioc_setflags_prepare(inode, oldflags, flags);
+	status = vfs_ioc_setflags_prepare(iyesde, oldflags, flags);
 	if (status)
 		goto bail_unlock;
 
 	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto bail_unlock;
 	}
 
-	ocfs2_inode->ip_attr = flags;
-	ocfs2_set_inode_flags(inode);
+	ocfs2_iyesde->ip_attr = flags;
+	ocfs2_set_iyesde_flags(iyesde);
 
-	status = ocfs2_mark_inode_dirty(handle, inode, bh);
+	status = ocfs2_mark_iyesde_dirty(handle, iyesde, bh);
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erryes(status);
 
 	ocfs2_commit_trans(osb, handle);
 
 bail_unlock:
-	ocfs2_inode_unlock(inode, 1);
+	ocfs2_iyesde_unlock(iyesde, 1);
 bail:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 
 	brelse(bh);
 
 	return status;
 }
 
-static int ocfs2_info_handle_blocksize(struct inode *inode,
+static int ocfs2_info_handle_blocksize(struct iyesde *iyesde,
 				       struct ocfs2_info_request __user *req)
 {
 	struct ocfs2_info_blocksize oib;
@@ -144,7 +144,7 @@ static int ocfs2_info_handle_blocksize(struct inode *inode,
 	if (o2info_from_user(oib, req))
 		return -EFAULT;
 
-	oib.ib_blocksize = inode->i_sb->s_blocksize;
+	oib.ib_blocksize = iyesde->i_sb->s_blocksize;
 
 	o2info_set_request_filled(&oib.ib_req);
 
@@ -154,11 +154,11 @@ static int ocfs2_info_handle_blocksize(struct inode *inode,
 	return 0;
 }
 
-static int ocfs2_info_handle_clustersize(struct inode *inode,
+static int ocfs2_info_handle_clustersize(struct iyesde *iyesde,
 					 struct ocfs2_info_request __user *req)
 {
 	struct ocfs2_info_clustersize oic;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
 	if (o2info_from_user(oic, req))
 		return -EFAULT;
@@ -173,11 +173,11 @@ static int ocfs2_info_handle_clustersize(struct inode *inode,
 	return 0;
 }
 
-static int ocfs2_info_handle_maxslots(struct inode *inode,
+static int ocfs2_info_handle_maxslots(struct iyesde *iyesde,
 				      struct ocfs2_info_request __user *req)
 {
 	struct ocfs2_info_maxslots oim;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
 	if (o2info_from_user(oim, req))
 		return -EFAULT;
@@ -192,11 +192,11 @@ static int ocfs2_info_handle_maxslots(struct inode *inode,
 	return 0;
 }
 
-static int ocfs2_info_handle_label(struct inode *inode,
+static int ocfs2_info_handle_label(struct iyesde *iyesde,
 				   struct ocfs2_info_request __user *req)
 {
 	struct ocfs2_info_label oil;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
 	if (o2info_from_user(oil, req))
 		return -EFAULT;
@@ -211,11 +211,11 @@ static int ocfs2_info_handle_label(struct inode *inode,
 	return 0;
 }
 
-static int ocfs2_info_handle_uuid(struct inode *inode,
+static int ocfs2_info_handle_uuid(struct iyesde *iyesde,
 				  struct ocfs2_info_request __user *req)
 {
 	struct ocfs2_info_uuid oiu;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
 	if (o2info_from_user(oiu, req))
 		return -EFAULT;
@@ -230,11 +230,11 @@ static int ocfs2_info_handle_uuid(struct inode *inode,
 	return 0;
 }
 
-static int ocfs2_info_handle_fs_features(struct inode *inode,
+static int ocfs2_info_handle_fs_features(struct iyesde *iyesde,
 					 struct ocfs2_info_request __user *req)
 {
 	struct ocfs2_info_fs_features oif;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
 	if (o2info_from_user(oif, req))
 		return -EFAULT;
@@ -251,16 +251,16 @@ static int ocfs2_info_handle_fs_features(struct inode *inode,
 	return 0;
 }
 
-static int ocfs2_info_handle_journal_size(struct inode *inode,
+static int ocfs2_info_handle_journal_size(struct iyesde *iyesde,
 					  struct ocfs2_info_request __user *req)
 {
 	struct ocfs2_info_journal_size oij;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
 	if (o2info_from_user(oij, req))
 		return -EFAULT;
 
-	oij.ij_journal_size = i_size_read(osb->journal->j_inode);
+	oij.ij_journal_size = i_size_read(osb->journal->j_iyesde);
 
 	o2info_set_request_filled(&oij.ij_req);
 
@@ -270,69 +270,69 @@ static int ocfs2_info_handle_journal_size(struct inode *inode,
 	return 0;
 }
 
-static int ocfs2_info_scan_inode_alloc(struct ocfs2_super *osb,
-				       struct inode *inode_alloc, u64 blkno,
-				       struct ocfs2_info_freeinode *fi,
+static int ocfs2_info_scan_iyesde_alloc(struct ocfs2_super *osb,
+				       struct iyesde *iyesde_alloc, u64 blkyes,
+				       struct ocfs2_info_freeiyesde *fi,
 				       u32 slot)
 {
 	int status = 0, unlock = 0;
 
 	struct buffer_head *bh = NULL;
-	struct ocfs2_dinode *dinode_alloc = NULL;
+	struct ocfs2_diyesde *diyesde_alloc = NULL;
 
-	if (inode_alloc)
-		inode_lock(inode_alloc);
+	if (iyesde_alloc)
+		iyesde_lock(iyesde_alloc);
 
-	if (inode_alloc && o2info_coherent(&fi->ifi_req)) {
-		status = ocfs2_inode_lock(inode_alloc, &bh, 0);
+	if (iyesde_alloc && o2info_coherent(&fi->ifi_req)) {
+		status = ocfs2_iyesde_lock(iyesde_alloc, &bh, 0);
 		if (status < 0) {
-			mlog_errno(status);
+			mlog_erryes(status);
 			goto bail;
 		}
 		unlock = 1;
 	} else {
-		status = ocfs2_read_blocks_sync(osb, blkno, 1, &bh);
+		status = ocfs2_read_blocks_sync(osb, blkyes, 1, &bh);
 		if (status < 0) {
-			mlog_errno(status);
+			mlog_erryes(status);
 			goto bail;
 		}
 	}
 
-	dinode_alloc = (struct ocfs2_dinode *)bh->b_data;
+	diyesde_alloc = (struct ocfs2_diyesde *)bh->b_data;
 
 	fi->ifi_stat[slot].lfi_total =
-		le32_to_cpu(dinode_alloc->id1.bitmap1.i_total);
+		le32_to_cpu(diyesde_alloc->id1.bitmap1.i_total);
 	fi->ifi_stat[slot].lfi_free =
-		le32_to_cpu(dinode_alloc->id1.bitmap1.i_total) -
-		le32_to_cpu(dinode_alloc->id1.bitmap1.i_used);
+		le32_to_cpu(diyesde_alloc->id1.bitmap1.i_total) -
+		le32_to_cpu(diyesde_alloc->id1.bitmap1.i_used);
 
 bail:
 	if (unlock)
-		ocfs2_inode_unlock(inode_alloc, 0);
+		ocfs2_iyesde_unlock(iyesde_alloc, 0);
 
-	if (inode_alloc)
-		inode_unlock(inode_alloc);
+	if (iyesde_alloc)
+		iyesde_unlock(iyesde_alloc);
 
 	brelse(bh);
 
 	return status;
 }
 
-static int ocfs2_info_handle_freeinode(struct inode *inode,
+static int ocfs2_info_handle_freeiyesde(struct iyesde *iyesde,
 				       struct ocfs2_info_request __user *req)
 {
 	u32 i;
-	u64 blkno = -1;
+	u64 blkyes = -1;
 	char namebuf[40];
 	int status, type = INODE_ALLOC_SYSTEM_INODE;
-	struct ocfs2_info_freeinode *oifi = NULL;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct inode *inode_alloc = NULL;
+	struct ocfs2_info_freeiyesde *oifi = NULL;
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
+	struct iyesde *iyesde_alloc = NULL;
 
-	oifi = kzalloc(sizeof(struct ocfs2_info_freeinode), GFP_KERNEL);
+	oifi = kzalloc(sizeof(struct ocfs2_info_freeiyesde), GFP_KERNEL);
 	if (!oifi) {
 		status = -ENOMEM;
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto out_err;
 	}
 
@@ -345,31 +345,31 @@ static int ocfs2_info_handle_freeinode(struct inode *inode,
 
 	for (i = 0; i < oifi->ifi_slotnum; i++) {
 		if (o2info_coherent(&oifi->ifi_req)) {
-			inode_alloc = ocfs2_get_system_file_inode(osb, type, i);
-			if (!inode_alloc) {
-				mlog(ML_ERROR, "unable to get alloc inode in "
+			iyesde_alloc = ocfs2_get_system_file_iyesde(osb, type, i);
+			if (!iyesde_alloc) {
+				mlog(ML_ERROR, "unable to get alloc iyesde in "
 				    "slot %u\n", i);
 				status = -EIO;
 				goto bail;
 			}
 		} else {
-			ocfs2_sprintf_system_inode_name(namebuf,
+			ocfs2_sprintf_system_iyesde_name(namebuf,
 							sizeof(namebuf),
 							type, i);
-			status = ocfs2_lookup_ino_from_name(osb->sys_root_inode,
+			status = ocfs2_lookup_iyes_from_name(osb->sys_root_iyesde,
 							    namebuf,
 							    strlen(namebuf),
-							    &blkno);
+							    &blkyes);
 			if (status < 0) {
 				status = -ENOENT;
 				goto bail;
 			}
 		}
 
-		status = ocfs2_info_scan_inode_alloc(osb, inode_alloc, blkno, oifi, i);
+		status = ocfs2_info_scan_iyesde_alloc(osb, iyesde_alloc, blkyes, oifi, i);
 
-		iput(inode_alloc);
-		inode_alloc = NULL;
+		iput(iyesde_alloc);
+		iyesde_alloc = NULL;
 
 		if (status < 0)
 			goto bail;
@@ -426,14 +426,14 @@ static void ocfs2_info_update_ffg(struct ocfs2_info_freefrag *ffg,
 }
 
 static int ocfs2_info_freefrag_scan_chain(struct ocfs2_super *osb,
-					  struct inode *gb_inode,
-					  struct ocfs2_dinode *gb_dinode,
+					  struct iyesde *gb_iyesde,
+					  struct ocfs2_diyesde *gb_diyesde,
 					  struct ocfs2_chain_rec *rec,
 					  struct ocfs2_info_freefrag *ffg,
 					  u32 chunks_in_group)
 {
 	int status = 0, used;
-	u64 blkno;
+	u64 blkyes;
 
 	struct buffer_head *bh = NULL;
 	struct ocfs2_group_desc *bg = NULL;
@@ -447,9 +447,9 @@ static int ocfs2_info_freefrag_scan_chain(struct ocfs2_super *osb,
 
 	do {
 		if (!bg)
-			blkno = le64_to_cpu(rec->c_blkno);
+			blkyes = le64_to_cpu(rec->c_blkyes);
 		else
-			blkno = le64_to_cpu(bg->bg_next_group);
+			blkyes = le64_to_cpu(bg->bg_next_group);
 
 		if (bh) {
 			brelse(bh);
@@ -457,15 +457,15 @@ static int ocfs2_info_freefrag_scan_chain(struct ocfs2_super *osb,
 		}
 
 		if (o2info_coherent(&ffg->iff_req))
-			status = ocfs2_read_group_descriptor(gb_inode,
-							     gb_dinode,
-							     blkno, &bh);
+			status = ocfs2_read_group_descriptor(gb_iyesde,
+							     gb_diyesde,
+							     blkyes, &bh);
 		else
-			status = ocfs2_read_blocks_sync(osb, blkno, 1, &bh);
+			status = ocfs2_read_blocks_sync(osb, blkyes, 1, &bh);
 
 		if (status < 0) {
 			mlog(ML_ERROR, "Can't read the group descriptor # "
-			     "%llu from device.", (unsigned long long)blkno);
+			     "%llu from device.", (unsigned long long)blkyes);
 			status = -EIO;
 			goto bail;
 		}
@@ -480,7 +480,7 @@ static int ocfs2_info_freefrag_scan_chain(struct ocfs2_super *osb,
 
 		for (chunk = 0; chunk < chunks_in_group; chunk++) {
 			/*
-			 * last chunk may be not an entire one.
+			 * last chunk may be yest an entire one.
 			 */
 			if ((offset + ffg->iff_chunksize) > max_bits)
 				num_clusters = max_bits - offset;
@@ -529,7 +529,7 @@ bail:
 }
 
 static int ocfs2_info_freefrag_scan_bitmap(struct ocfs2_super *osb,
-					   struct inode *gb_inode, u64 blkno,
+					   struct iyesde *gb_iyesde, u64 blkyes,
 					   struct ocfs2_info_freefrag *ffg)
 {
 	u32 chunks_in_group;
@@ -538,28 +538,28 @@ static int ocfs2_info_freefrag_scan_bitmap(struct ocfs2_super *osb,
 	struct buffer_head *bh = NULL;
 	struct ocfs2_chain_list *cl = NULL;
 	struct ocfs2_chain_rec *rec = NULL;
-	struct ocfs2_dinode *gb_dinode = NULL;
+	struct ocfs2_diyesde *gb_diyesde = NULL;
 
-	if (gb_inode)
-		inode_lock(gb_inode);
+	if (gb_iyesde)
+		iyesde_lock(gb_iyesde);
 
 	if (o2info_coherent(&ffg->iff_req)) {
-		status = ocfs2_inode_lock(gb_inode, &bh, 0);
+		status = ocfs2_iyesde_lock(gb_iyesde, &bh, 0);
 		if (status < 0) {
-			mlog_errno(status);
+			mlog_erryes(status);
 			goto bail;
 		}
 		unlock = 1;
 	} else {
-		status = ocfs2_read_blocks_sync(osb, blkno, 1, &bh);
+		status = ocfs2_read_blocks_sync(osb, blkyes, 1, &bh);
 		if (status < 0) {
-			mlog_errno(status);
+			mlog_erryes(status);
 			goto bail;
 		}
 	}
 
-	gb_dinode = (struct ocfs2_dinode *)bh->b_data;
-	cl = &(gb_dinode->id2.i_chain);
+	gb_diyesde = (struct ocfs2_diyesde *)bh->b_data;
+	cl = &(gb_diyesde->id2.i_chain);
 
 	/*
 	 * Chunksize(in) clusters from userspace should be
@@ -574,16 +574,16 @@ static int ocfs2_info_freefrag_scan_bitmap(struct ocfs2_super *osb,
 
 	ffg->iff_ffs.ffs_min = ~0U;
 	ffg->iff_ffs.ffs_clusters =
-			le32_to_cpu(gb_dinode->id1.bitmap1.i_total);
+			le32_to_cpu(gb_diyesde->id1.bitmap1.i_total);
 	ffg->iff_ffs.ffs_free_clusters = ffg->iff_ffs.ffs_clusters -
-			le32_to_cpu(gb_dinode->id1.bitmap1.i_used);
+			le32_to_cpu(gb_diyesde->id1.bitmap1.i_used);
 
 	chunks_in_group = le16_to_cpu(cl->cl_cpg) / ffg->iff_chunksize + 1;
 
 	for (i = 0; i < le16_to_cpu(cl->cl_next_free_rec); i++) {
 		rec = &(cl->cl_recs[i]);
-		status = ocfs2_info_freefrag_scan_chain(osb, gb_inode,
-							gb_dinode,
+		status = ocfs2_info_freefrag_scan_chain(osb, gb_iyesde,
+							gb_diyesde,
 							rec, ffg,
 							chunks_in_group);
 		if (status)
@@ -595,32 +595,32 @@ static int ocfs2_info_freefrag_scan_bitmap(struct ocfs2_super *osb,
 					ffg->iff_ffs.ffs_free_chunks_real);
 bail:
 	if (unlock)
-		ocfs2_inode_unlock(gb_inode, 0);
+		ocfs2_iyesde_unlock(gb_iyesde, 0);
 
-	if (gb_inode)
-		inode_unlock(gb_inode);
+	if (gb_iyesde)
+		iyesde_unlock(gb_iyesde);
 
-	iput(gb_inode);
+	iput(gb_iyesde);
 	brelse(bh);
 
 	return status;
 }
 
-static int ocfs2_info_handle_freefrag(struct inode *inode,
+static int ocfs2_info_handle_freefrag(struct iyesde *iyesde,
 				      struct ocfs2_info_request __user *req)
 {
-	u64 blkno = -1;
+	u64 blkyes = -1;
 	char namebuf[40];
 	int status, type = GLOBAL_BITMAP_SYSTEM_INODE;
 
 	struct ocfs2_info_freefrag *oiff;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct inode *gb_inode = NULL;
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
+	struct iyesde *gb_iyesde = NULL;
 
 	oiff = kzalloc(sizeof(struct ocfs2_info_freefrag), GFP_KERNEL);
 	if (!oiff) {
 		status = -ENOMEM;
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto out_err;
 	}
 
@@ -638,27 +638,27 @@ static int ocfs2_info_handle_freefrag(struct inode *inode,
 	}
 
 	if (o2info_coherent(&oiff->iff_req)) {
-		gb_inode = ocfs2_get_system_file_inode(osb, type,
+		gb_iyesde = ocfs2_get_system_file_iyesde(osb, type,
 						       OCFS2_INVALID_SLOT);
-		if (!gb_inode) {
-			mlog(ML_ERROR, "unable to get global_bitmap inode\n");
+		if (!gb_iyesde) {
+			mlog(ML_ERROR, "unable to get global_bitmap iyesde\n");
 			status = -EIO;
 			goto bail;
 		}
 	} else {
-		ocfs2_sprintf_system_inode_name(namebuf, sizeof(namebuf), type,
+		ocfs2_sprintf_system_iyesde_name(namebuf, sizeof(namebuf), type,
 						OCFS2_INVALID_SLOT);
-		status = ocfs2_lookup_ino_from_name(osb->sys_root_inode,
+		status = ocfs2_lookup_iyes_from_name(osb->sys_root_iyesde,
 						    namebuf,
 						    strlen(namebuf),
-						    &blkno);
+						    &blkyes);
 		if (status < 0) {
 			status = -ENOENT;
 			goto bail;
 		}
 	}
 
-	status = ocfs2_info_freefrag_scan_bitmap(osb, gb_inode, blkno, oiff);
+	status = ocfs2_info_freefrag_scan_bitmap(osb, gb_iyesde, blkyes, oiff);
 	if (status < 0)
 		goto bail;
 
@@ -679,7 +679,7 @@ out_err:
 	return status;
 }
 
-static int ocfs2_info_handle_unknown(struct inode *inode,
+static int ocfs2_info_handle_unkyeswn(struct iyesde *iyesde,
 				     struct ocfs2_info_request __user *req)
 {
 	struct ocfs2_info_request oir;
@@ -702,7 +702,7 @@ static int ocfs2_info_handle_unknown(struct inode *inode,
  * - distinguish different requests.
  * - validate size of different requests.
  */
-static int ocfs2_info_handle_request(struct inode *inode,
+static int ocfs2_info_handle_request(struct iyesde *iyesde,
 				     struct ocfs2_info_request __user *req)
 {
 	int status = -EFAULT;
@@ -718,42 +718,42 @@ static int ocfs2_info_handle_request(struct inode *inode,
 	switch (oir.ir_code) {
 	case OCFS2_INFO_BLOCKSIZE:
 		if (oir.ir_size == sizeof(struct ocfs2_info_blocksize))
-			status = ocfs2_info_handle_blocksize(inode, req);
+			status = ocfs2_info_handle_blocksize(iyesde, req);
 		break;
 	case OCFS2_INFO_CLUSTERSIZE:
 		if (oir.ir_size == sizeof(struct ocfs2_info_clustersize))
-			status = ocfs2_info_handle_clustersize(inode, req);
+			status = ocfs2_info_handle_clustersize(iyesde, req);
 		break;
 	case OCFS2_INFO_MAXSLOTS:
 		if (oir.ir_size == sizeof(struct ocfs2_info_maxslots))
-			status = ocfs2_info_handle_maxslots(inode, req);
+			status = ocfs2_info_handle_maxslots(iyesde, req);
 		break;
 	case OCFS2_INFO_LABEL:
 		if (oir.ir_size == sizeof(struct ocfs2_info_label))
-			status = ocfs2_info_handle_label(inode, req);
+			status = ocfs2_info_handle_label(iyesde, req);
 		break;
 	case OCFS2_INFO_UUID:
 		if (oir.ir_size == sizeof(struct ocfs2_info_uuid))
-			status = ocfs2_info_handle_uuid(inode, req);
+			status = ocfs2_info_handle_uuid(iyesde, req);
 		break;
 	case OCFS2_INFO_FS_FEATURES:
 		if (oir.ir_size == sizeof(struct ocfs2_info_fs_features))
-			status = ocfs2_info_handle_fs_features(inode, req);
+			status = ocfs2_info_handle_fs_features(iyesde, req);
 		break;
 	case OCFS2_INFO_JOURNAL_SIZE:
 		if (oir.ir_size == sizeof(struct ocfs2_info_journal_size))
-			status = ocfs2_info_handle_journal_size(inode, req);
+			status = ocfs2_info_handle_journal_size(iyesde, req);
 		break;
 	case OCFS2_INFO_FREEINODE:
-		if (oir.ir_size == sizeof(struct ocfs2_info_freeinode))
-			status = ocfs2_info_handle_freeinode(inode, req);
+		if (oir.ir_size == sizeof(struct ocfs2_info_freeiyesde))
+			status = ocfs2_info_handle_freeiyesde(iyesde, req);
 		break;
 	case OCFS2_INFO_FREEFRAG:
 		if (oir.ir_size == sizeof(struct ocfs2_info_freefrag))
-			status = ocfs2_info_handle_freefrag(inode, req);
+			status = ocfs2_info_handle_freefrag(iyesde, req);
 		break;
 	default:
-		status = ocfs2_info_handle_unknown(inode, req);
+		status = ocfs2_info_handle_unkyeswn(iyesde, req);
 		break;
 	}
 
@@ -795,11 +795,11 @@ bail:
  * validate the request count from header, then break it into small
  * pieces, later specific handlers can handle them one by one.
  *
- * Idea here is to make each separate request small enough to ensure
+ * Idea here is to make each separate request small eyesugh to ensure
  * a better backward&forward compatibility, since a small piece of
  * request will be less likely to be broken if disk layout get changed.
  */
-static int ocfs2_info_handle(struct inode *inode, struct ocfs2_info *info,
+static int ocfs2_info_handle(struct iyesde *iyesde, struct ocfs2_info *info,
 			     int compat_flag)
 {
 	int i, status = 0;
@@ -824,7 +824,7 @@ static int ocfs2_info_handle(struct inode *inode, struct ocfs2_info *info,
 			goto bail;
 		}
 
-		status = ocfs2_info_handle_request(inode, reqp);
+		status = ocfs2_info_handle_request(iyesde, reqp);
 		if (status)
 			break;
 	}
@@ -835,7 +835,7 @@ bail:
 
 long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 	unsigned int flags;
 	int new_clusters;
 	int status;
@@ -850,7 +850,7 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case OCFS2_IOC_GETFLAGS:
-		status = ocfs2_get_inode_attr(inode, &flags);
+		status = ocfs2_get_iyesde_attr(iyesde, &flags);
 		if (status < 0)
 			return status;
 
@@ -863,7 +863,7 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		status = mnt_want_write_file(filp);
 		if (status)
 			return status;
-		status = ocfs2_set_inode_attr(inode, flags,
+		status = ocfs2_set_iyesde_attr(iyesde, flags,
 			OCFS2_FL_MODIFIABLE);
 		mnt_drop_write_file(filp);
 		return status;
@@ -885,7 +885,7 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		status = mnt_want_write_file(filp);
 		if (status)
 			return status;
-		status = ocfs2_group_extend(inode, new_clusters);
+		status = ocfs2_group_extend(iyesde, new_clusters);
 		mnt_drop_write_file(filp);
 		return status;
 	case OCFS2_IOC_GROUP_ADD:
@@ -899,7 +899,7 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		status = mnt_want_write_file(filp);
 		if (status)
 			return status;
-		status = ocfs2_group_add(inode, &input);
+		status = ocfs2_group_add(iyesde, &input);
 		mnt_drop_write_file(filp);
 		return status;
 	case OCFS2_IOC_REFLINK:
@@ -909,15 +909,15 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		new_path = (const char __user *)(unsigned long)args.new_path;
 		preserve = (args.preserve != 0);
 
-		return ocfs2_reflink_ioctl(inode, old_path, new_path, preserve);
+		return ocfs2_reflink_ioctl(iyesde, old_path, new_path, preserve);
 	case OCFS2_IOC_INFO:
 		if (copy_from_user(&info, argp, sizeof(struct ocfs2_info)))
 			return -EFAULT;
 
-		return ocfs2_info_handle(inode, &info, 0);
+		return ocfs2_info_handle(iyesde, &info, 0);
 	case FITRIM:
 	{
-		struct super_block *sb = inode->i_sb;
+		struct super_block *sb = iyesde->i_sb;
 		struct request_queue *q = bdev_get_queue(sb->s_bdev);
 		struct fstrim_range range;
 		int ret = 0;
@@ -954,7 +954,7 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	bool preserve;
 	struct reflink_arguments args;
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct ocfs2_info info;
 	void __user *argp = (void __user *)arg;
 
@@ -978,13 +978,13 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			return -EFAULT;
 		preserve = (args.preserve != 0);
 
-		return ocfs2_reflink_ioctl(inode, compat_ptr(args.old_path),
+		return ocfs2_reflink_ioctl(iyesde, compat_ptr(args.old_path),
 					   compat_ptr(args.new_path), preserve);
 	case OCFS2_IOC_INFO:
 		if (copy_from_user(&info, argp, sizeof(struct ocfs2_info)))
 			return -EFAULT;
 
-		return ocfs2_info_handle(inode, &info, 1);
+		return ocfs2_info_handle(iyesde, &info, 1);
 	case FITRIM:
 	case OCFS2_IOC_MOVE_EXT:
 		break;

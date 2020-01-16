@@ -42,7 +42,7 @@ struct sd {
 	struct v4l2_ctrl *lighting;
 	u8 model;
 #define CIT_MODEL0 0 /* bcd version 0.01 cams ie the xvp-500 */
-#define CIT_MODEL1 1 /* The model 1 - 4 nomenclature comes from the old */
+#define CIT_MODEL1 1 /* The model 1 - 4 yesmenclature comes from the old */
 #define CIT_MODEL2 2 /* ibmcam driver */
 #define CIT_MODEL3 3
 #define CIT_MODEL4 4
@@ -659,7 +659,7 @@ static const u16 rca_initdata[][3] = {
 };
 
 /* TESTME the old ibmcam driver repeats certain commands to Model1 cameras, we
-   do the same for now (testing needed to see if this is really necessary) */
+   do the same for yesw (testing needed to see if this is really necessary) */
 static const int cit_model1_ntries = 5;
 static const int cit_model1_ntries2 = 2;
 
@@ -704,7 +704,7 @@ static int cit_read_reg(struct gspca_dev *gspca_dev, u16 index, int verbose)
  * cit_send_FF_04_02()
  *
  * This procedure sends magic 3-command prefix to the camera.
- * The purpose of this prefix is not known.
+ * The purpose of this prefix is yest kyeswn.
  *
  * History:
  * 1/2/00   Created.
@@ -874,7 +874,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		sd->sof_len = 4;
 		break;
 	case CIT_MODEL2:
-		cam->cam_mode = model2_mode + 1; /* no 160x120 */
+		cam->cam_mode = model2_mode + 1; /* yes 160x120 */
 		cam->nmodes = 3;
 		break;
 	case CIT_MODEL3:
@@ -889,7 +889,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		break;
 	case CIT_IBM_NETCAM_PRO:
 		cam->cam_mode = vga_yuv_mode;
-		cam->nmodes = 2; /* no 640 x 480 */
+		cam->nmodes = 2; /* yes 640 x 480 */
 		cam->input_flags = V4L2_IN_ST_VFLIP;
 		sd->stop_on_control_change = 1;
 		sd->sof_len = 4;
@@ -1146,7 +1146,7 @@ static int cit_set_brightness(struct gspca_dev *gspca_dev, s32 val)
 	switch (sd->model) {
 	case CIT_MODEL0:
 	case CIT_IBM_NETCAM_PRO:
-		/* No (known) brightness control for these */
+		/* No (kyeswn) brightness control for these */
 		break;
 	case CIT_MODEL1:
 		/* Model 1: Brightness range 0 - 63 */
@@ -1188,20 +1188,20 @@ static int cit_set_contrast(struct gspca_dev *gspca_dev, s32 val)
 		/* gain 0-15, 0-20 -> 0-15 */
 		i = val * 1000 / 1333;
 		cit_write_reg(gspca_dev, i, 0x0422);
-		/* gain 0-31, may not be lower then 0x0422, 0-20 -> 0-31 */
+		/* gain 0-31, may yest be lower then 0x0422, 0-20 -> 0-31 */
 		i = val * 2000 / 1333;
 		cit_write_reg(gspca_dev, i, 0x0423);
-		/* gain 0-127, may not be lower then 0x0423, 0-20 -> 0-63  */
+		/* gain 0-127, may yest be lower then 0x0423, 0-20 -> 0-63  */
 		i = val * 4000 / 1333;
 		cit_write_reg(gspca_dev, i, 0x0424);
-		/* gain 0-127, may not be lower then 0x0424, , 0-20 -> 0-127 */
+		/* gain 0-127, may yest be lower then 0x0424, , 0-20 -> 0-127 */
 		i = val * 8000 / 1333;
 		cit_write_reg(gspca_dev, i, 0x0425);
 		break;
 	}
 	case CIT_MODEL2:
 	case CIT_MODEL4:
-		/* These models do not have this control. */
+		/* These models do yest have this control. */
 		break;
 	case CIT_MODEL1:
 	{
@@ -1257,7 +1257,7 @@ static int cit_set_hue(struct gspca_dev *gspca_dev, s32 val)
 		break;
 	case CIT_MODEL3: {
 		/* Model 3: Brightness range 'i' in [0x05..0x37] */
-		/* TESTME according to the ibmcam driver this does not work */
+		/* TESTME according to the ibmcam driver this does yest work */
 		if (0) {
 			/* Scale 0 - 127 to 0x05 - 0x37 */
 			int i = 0x05 + val * 1000 / 2540;
@@ -1266,10 +1266,10 @@ static int cit_set_hue(struct gspca_dev *gspca_dev, s32 val)
 		break;
 	}
 	case CIT_MODEL4:
-		/* HDG: taken from ibmcam, setting the color gains does not
+		/* HDG: taken from ibmcam, setting the color gains does yest
 		 * really belong here.
 		 *
-		 * I am not sure r/g/b_gain variables exactly control gain
+		 * I am yest sure r/g/b_gain variables exactly control gain
 		 * of those channels. Most likely they subtly change some
 		 * very internal image processing settings in the camera.
 		 * In any case, here is what they do, and feel free to tweak:
@@ -1302,7 +1302,7 @@ static int cit_set_sharpness(struct gspca_dev *gspca_dev, s32 val)
 	case CIT_MODEL2:
 	case CIT_MODEL4:
 	case CIT_IBM_NETCAM_PRO:
-		/* These models do not have this control */
+		/* These models do yest have this control */
 		break;
 	case CIT_MODEL1: {
 		int i;
@@ -1352,7 +1352,7 @@ static int cit_set_sharpness(struct gspca_dev *gspca_dev, s32 val)
  * Camera model 2:
  * We have 16 levels of lighting, 0 for bright light and up to 15 for
  * low light. But values above 5 or so are useless because camera is
- * not really capable to produce anything worth viewing at such light.
+ * yest really capable to produce anything worth viewing at such light.
  * This setting may be altered only in certain camera state.
  *
  * Low lighting forces slower FPS.
@@ -1420,7 +1420,7 @@ static int cit_restart_stream(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, 0x0001, 0x0114);
 		cit_write_reg(gspca_dev, 0x00c0, 0x010c); /* Go! */
 		usb_clear_halt(gspca_dev->dev, gspca_dev->urb[0]->pipe);
-		/* Clear button events from while we were not streaming */
+		/* Clear button events from while we were yest streaming */
 		cit_write_reg(gspca_dev, 0x0001, 0x0113);
 		break;
 	}
@@ -1473,7 +1473,7 @@ static int cit_get_clock_div(struct gspca_dev *gspca_dev)
 
 static int cit_start_model0(struct gspca_dev *gspca_dev)
 {
-	const unsigned short compression = 0; /* 0=none, 7=best frame rate */
+	const unsigned short compression = 0; /* 0=yesne, 7=best frame rate */
 	int clock_div;
 
 	clock_div = cit_get_clock_div(gspca_dev);
@@ -1666,7 +1666,7 @@ static int cit_start_model1(struct gspca_dev *gspca_dev)
 	/* TESTME These are handled through controls
 	   KEEP until someone can test leaving this out is ok */
 	if (0) {
-		/* This is another brightness - don't know why */
+		/* This is ayesther brightness - don't kyesw why */
 		for (i = 0; i < cit_model1_ntries; i++)
 			cit_Packet_Format1(gspca_dev, 0x31, 0xc3);
 		for (i = 0; i < cit_model1_ntries; i++)
@@ -1748,7 +1748,7 @@ static int cit_start_model2(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, 0x0024, 0x0105);	/* 176x144, 352x288 */
 		cit_write_reg(gspca_dev, 0x00b9, 0x010a);	/* Unique to this mode */
 		cit_write_reg(gspca_dev, 0x0038, 0x0119);	/* Unique to this mode */
-		/* TESTME HDG: this does not seem right
+		/* TESTME HDG: this does yest seem right
 		   (it is 2 for all other resolutions) */
 		sd->sof_len = 10;
 		break;
@@ -1797,15 +1797,15 @@ static int cit_start_model2(struct gspca_dev *gspca_dev)
 	cit_write_reg(gspca_dev, 0x00bb, 0x010f);
 
 	/*
-	 * Hardware settings, may affect CMOS sensor; not user controls!
+	 * Hardware settings, may affect CMOS sensor; yest user controls!
 	 * -------------------------------------------------------------
-	 * 0x0004: no effect
+	 * 0x0004: yes effect
 	 * 0x0006: hardware effect
-	 * 0x0008: no effect
+	 * 0x0008: yes effect
 	 * 0x000a: stops video stream, probably important h/w setting
-	 * 0x000c: changes color in hardware manner (not user setting)
-	 * 0x0012: changes number of colors (does not affect speed)
-	 * 0x002a: no effect
+	 * 0x000c: changes color in hardware manner (yest user setting)
+	 * 0x0012: changes number of colors (does yest affect speed)
+	 * 0x002a: yes effect
 	 * 0x002c: hardware setting (related to scan lines)
 	 * 0x002e: stops video stream, probably important h/w setting
 	 */
@@ -1834,13 +1834,13 @@ static int cit_start_model2(struct gspca_dev *gspca_dev)
 	case 176: /* 176x144 */
 		cit_model2_Packet1(gspca_dev, 0x0014, 0x0002);
 		cit_model2_Packet1(gspca_dev, 0x0016, 0x0002); /* Horizontal shift */
-		cit_model2_Packet1(gspca_dev, 0x0018, 0x004a); /* Another hardware setting */
+		cit_model2_Packet1(gspca_dev, 0x0018, 0x004a); /* Ayesther hardware setting */
 		clock_div = 6;
 		break;
 	case 320: /* 320x240 */
 		cit_model2_Packet1(gspca_dev, 0x0014, 0x0009);
 		cit_model2_Packet1(gspca_dev, 0x0016, 0x0005); /* Horizontal shift */
-		cit_model2_Packet1(gspca_dev, 0x0018, 0x0044); /* Another hardware setting */
+		cit_model2_Packet1(gspca_dev, 0x0018, 0x0044); /* Ayesther hardware setting */
 		clock_div = 8;
 		break;
 #if 0
@@ -1855,7 +1855,7 @@ static int cit_start_model2(struct gspca_dev *gspca_dev)
 	case 352: /* 352x288 */
 		cit_model2_Packet1(gspca_dev, 0x0014, 0x0003);
 		cit_model2_Packet1(gspca_dev, 0x0016, 0x0002); /* Horizontal shift */
-		cit_model2_Packet1(gspca_dev, 0x0018, 0x004a); /* Another hardware setting */
+		cit_model2_Packet1(gspca_dev, 0x0018, 0x004a); /* Ayesther hardware setting */
 		clock_div = 16;
 		break;
 	}
@@ -1869,7 +1869,7 @@ static int cit_start_model2(struct gspca_dev *gspca_dev)
 	 * We have our own frame rate setting varying from 0 (slowest) to 6
 	 * (fastest). The camera model 2 allows frame rate in range [0..0x1F]
 	 # where 0 is also the slowest setting. However for all practical
-	 # reasons high settings make no sense because USB is not fast enough
+	 # reasons high settings make yes sense because USB is yest fast eyesugh
 	 # to support high FPS. Be aware that the picture datastream will be
 	 # severely disrupted if you ask for frame rate faster than allowed
 	 # for the video size - see below:
@@ -1886,9 +1886,9 @@ static int cit_start_model2(struct gspca_dev *gspca_dev)
 	cit_model2_Packet1(gspca_dev, 0x001c, clock_div);
 
 	/*
-	 * This setting does not visibly affect pictures; left it here
+	 * This setting does yest visibly affect pictures; left it here
 	 * because it was present in Windows USB data stream. This function
-	 * does not allow arbitrary values and apparently is a bit mask, to
+	 * does yest allow arbitrary values and apparently is a bit mask, to
 	 * be activated only at appropriate time. Don't change it randomly!
 	 */
 	switch (gspca_dev->pixfmt.width) {
@@ -1909,7 +1909,7 @@ static int cit_start_model2(struct gspca_dev *gspca_dev)
 	}
 
 	cit_model2_Packet1(gspca_dev, 0x0028, v4l2_ctrl_g_ctrl(sd->lighting));
-	/* model2 cannot change the backlight compensation while streaming */
+	/* model2 canyest change the backlight compensation while streaming */
 	v4l2_ctrl_grab(sd->lighting, true);
 
 	/* color balance rg2 */
@@ -1927,10 +1927,10 @@ static int cit_start_model2(struct gspca_dev *gspca_dev)
 
 static int cit_start_model3(struct gspca_dev *gspca_dev)
 {
-	const unsigned short compression = 0; /* 0=none, 7=best frame rate */
+	const unsigned short compression = 0; /* 0=yesne, 7=best frame rate */
 	int i, clock_div = 0;
 
-	/* HDG not in ibmcam driver, added to see if it helps with
+	/* HDG yest in ibmcam driver, added to see if it helps with
 	   auto-detecting between model3 and ibm netcamera pro */
 	cit_read_reg(gspca_dev, 0x128, 1);
 
@@ -1948,7 +1948,7 @@ static int cit_start_model3(struct gspca_dev *gspca_dev)
 	cit_read_reg(gspca_dev, 0x0115, 0);
 	cit_write_reg(gspca_dev, 0x000b, 0x0115);
 
-	/* TESTME HDG not in ibmcam driver, added to see if it helps with
+	/* TESTME HDG yest in ibmcam driver, added to see if it helps with
 	   auto-detecting between model3 and ibm netcamera pro */
 	if (0) {
 		cit_write_reg(gspca_dev, 0x0078, 0x012d);
@@ -2369,7 +2369,7 @@ static int cit_start_model4(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, 0xd145, 0x0124);
 		cit_write_reg(gspca_dev, 0x0001, 0x0127);
 		cit_write_reg(gspca_dev, 0xfea8, 0x0124);
-		/* TESTME HDG: this does not seem right
+		/* TESTME HDG: this does yest seem right
 		   (it is 2 for all other resolutions) */
 		sd->sof_len = 10;
 		break;
@@ -2492,7 +2492,7 @@ static int cit_start_model4(struct gspca_dev *gspca_dev)
 
 static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 {
-	const unsigned short compression = 0; /* 0=none, 7=best frame rate */
+	const unsigned short compression = 0; /* 0=yesne, 7=best frame rate */
 	int i, clock_div;
 
 	clock_div = cit_get_clock_div(gspca_dev);
@@ -2697,7 +2697,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	switch (sd->model) {
 	case CIT_MODEL0:
 		/* HDG windows does this, but it causes the cams autogain to
-		   restart from a gain of 0, which does not look good when
+		   restart from a gain of 0, which does yest look good when
 		   changing resolutions. */
 		/* cit_write_reg(gspca_dev, 0x0000, 0x0112); */
 		cit_write_reg(gspca_dev, 0x00c0, 0x0100); /* LED Off */
@@ -2738,7 +2738,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		cit_model3_Packet1(gspca_dev, 0x0049, 0x00ff);
 		cit_write_reg(gspca_dev, 0x0006, 0x012c);
 		cit_write_reg(gspca_dev, 0x0000, 0x0116);
-		/* HDG windows does this, but I cannot get the camera
+		/* HDG windows does this, but I canyest get the camera
 		   to restart with this without redoing the entire init
 		   sequence which makes switching modes really slow */
 		/* cit_write_reg(gspca_dev, 0x0006, 0x0115); */
@@ -2754,7 +2754,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	}
 
 #if IS_ENABLED(CONFIG_INPUT)
-	/* If the last button state is pressed, release it now! */
+	/* If the last button state is pressed, release it yesw! */
 	if (sd->button_state) {
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
 		input_sync(gspca_dev->input_dev);
@@ -2803,7 +2803,7 @@ static u8 *cit_find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 
 		for (i = 0; i < len; i++) {
 			/* For this model the SOF always starts at offset 0
-			   so no need to search the entire frame */
+			   so yes need to search the entire frame */
 			if (sd->model == CIT_MODEL0 && sd->sof_read != i)
 				break;
 
@@ -2914,7 +2914,7 @@ static void cit_check_button(struct gspca_dev *gspca_dev)
 	case CIT_MODEL3:
 	case CIT_IBM_NETCAM_PRO:
 		break;
-	default: /* TEST ME unknown if this works on other models too */
+	default: /* TEST ME unkyeswn if this works on other models too */
 		return;
 	}
 
@@ -2922,8 +2922,8 @@ static void cit_check_button(struct gspca_dev *gspca_dev)
 	cit_read_reg(gspca_dev, 0x0113, 0);
 	new_button_state = !gspca_dev->usb_buf[0];
 
-	/* Tell the cam we've seen the button press, notice that this
-	   is a nop (iow the cam keeps reporting pressed) until the
+	/* Tell the cam we've seen the button press, yestice that this
+	   is a yesp (iow the cam keeps reporting pressed) until the
 	   button is actually released. */
 	if (new_button_state)
 		cit_write_reg(gspca_dev, 0x01, 0x0113);
@@ -3036,7 +3036,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_HFLIP, 0, 1, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

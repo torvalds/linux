@@ -3,7 +3,7 @@
 
 	.text
 	.section .text..start, "ax"
-	.set noreorder
+	.set yesreorder
 	.set mips3
 
 	/* Magic words identifying a software image */

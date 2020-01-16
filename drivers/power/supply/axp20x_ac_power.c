@@ -251,11 +251,11 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 		NULL };
 	int i, irq, ret;
 
-	if (!of_device_is_available(pdev->dev.of_node))
+	if (!of_device_is_available(pdev->dev.of_yesde))
 		return -ENODEV;
 
 	if (!axp20x) {
-		dev_err(&pdev->dev, "Parent drvdata not set\n");
+		dev_err(&pdev->dev, "Parent drvdata yest set\n");
 		return -EINVAL;
 	}
 
@@ -285,7 +285,7 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, power);
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_yesde = pdev->dev.of_yesde;
 	psy_cfg.drv_data = power;
 
 	power->supply = devm_power_supply_register(&pdev->dev,

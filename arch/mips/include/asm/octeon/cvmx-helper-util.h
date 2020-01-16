@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -119,7 +119,7 @@ static inline int cvmx_helper_get_last_ipd_port(int interface)
 
 /**
  * Free the packet buffers contained in a work queue entry.
- * The work queue entry is not freed.
+ * The work queue entry is yest freed.
  *
  * @work:   Work queue entry with packet to free
  */
@@ -136,8 +136,8 @@ static inline void cvmx_helper_free_packet_data(cvmx_wqe_t *work)
 	buffer_ptr = work->packet_ptr;
 
 	/*
-	 * Since the number of buffers is not zero, we know this is
-	 * not a dynamic short packet. We need to check if it is a
+	 * Since the number of buffers is yest zero, we kyesw this is
+	 * yest a dynamic short packet. We need to check if it is a
 	 * packet received with IPD_CTL_STATUS[NO_WPTR]. If this is
 	 * true, we need to free all buffers except for the first
 	 * one. The caller doesn't expect their WQE pointer to be
@@ -153,7 +153,7 @@ static inline void cvmx_helper_free_packet_data(cvmx_wqe_t *work)
 
 	while (number_buffers--) {
 		/*
-		 * Remember the back pointer is in cache lines, not
+		 * Remember the back pointer is in cache lines, yest
 		 * 64bit words
 		 */
 		start_of_buffer =

@@ -5,7 +5,7 @@ Contact:        linux-iio@vger.kernel.org
 Description:
                 Current configuration and available configurations
 		for the bias current.
-		normal		- Normal measurement configurations (default)
+		yesrmal		- Normal measurement configurations (default)
 		positivebias	- Positive bias configuration
 		negativebias	- Negative bias configuration
 		disabled	- Only available on HMC5983. Disables magnetic

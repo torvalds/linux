@@ -11,7 +11,7 @@ maintainers:
   - Yannick Fertre <yannick.fertre@st.com>
 
 description:
-  The STMicroelectronics STM32 DSI controller uses the Synopsys DesignWare MIPI-DSI host controller.
+  The STMicroelectronics STM32 DSI controller uses the Syyespsys DesignWare MIPI-DSI host controller.
 
 properties:
   compatible:
@@ -50,7 +50,7 @@ properties:
   ports:
     type: object
     description:
-      A node containing DSI input & output port nodes with endpoint
+      A yesde containing DSI input & output port yesdes with endpoint
       definitions as documented in
       Documentation/devicetree/bindings/media/video-interfaces.txt
       Documentation/devicetree/bindings/graph.txt
@@ -58,24 +58,24 @@ properties:
       port@0:
         type: object
         description:
-          DSI input port node, connected to the ltdc rgb output port.
+          DSI input port yesde, connected to the ltdc rgb output port.
 
       port@1:
         type: object
         description:
-          DSI output port node, connected to a panel or a bridge input port"
+          DSI output port yesde, connected to a panel or a bridge input port"
 
 patternProperties:
   "^(panel|panel-dsi)@[0-9]$":
     type: object
     description:
-      A node containing the panel or bridge description as documented in
+      A yesde containing the panel or bridge description as documented in
       Documentation/devicetree/bindings/display/mipi-dsi-bus.txt
     properties:
       port:
         type: object
         description:
-          Panel or bridge port node, connected to the DSI output port (port@1)
+          Panel or bridge port yesde, connected to the DSI output port (port@1)
 
   "#address-cells":
     const: 1

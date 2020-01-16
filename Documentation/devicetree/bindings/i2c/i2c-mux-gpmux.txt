@@ -24,7 +24,7 @@ Required properties:
 - mux-controls: The phandle of the mux controller to use for operating the
   mux.
 * Standard I2C mux properties. See i2c-mux.txt in this directory.
-* I2C child bus nodes. See i2c-mux.txt in this directory. The sub-bus number
+* I2C child bus yesdes. See i2c-mux.txt in this directory. The sub-bus number
   is also the mux-controller state described in ../mux/mux-controller.txt
 
 Optional properties:
@@ -38,17 +38,17 @@ Optional properties:
   to the same parent adapter that this multiplexer is connected to are blocked
   for the full duration of the complete multiplexed I2C transaction (i.e.
   including the times covered by the above list).
-  If mux-locked is not present, the multiplexer is assumed to be parent-locked.
-  This means that no unrelated I2C transactions are allowed on the parent I2C
+  If mux-locked is yest present, the multiplexer is assumed to be parent-locked.
+  This means that yes unrelated I2C transactions are allowed on the parent I2C
   adapter for the complete multiplexed I2C transaction.
   The properties of mux-locked and parent-locked multiplexers are discussed
   in more detail in Documentation/i2c/i2c-topology.rst.
 
-For each i2c child node, an I2C child bus will be created. They will
+For each i2c child yesde, an I2C child bus will be created. They will
 be numbered based on their order in the device tree.
 
 Whenever an access is made to a device on a child bus, the value set
-in the relevant node's reg property will be set as the state in the
+in the relevant yesde's reg property will be set as the state in the
 mux controller.
 
 Example:

@@ -18,7 +18,7 @@
 #include <linux/stringify.h>
 #include <linux/kernel.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -161,13 +161,13 @@ static const struct flash_spec flash_table[] =
 	 NONBUFFERED_FLAGS, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
 	 SAIFUN_FLASH_BYTE_ADDR_MASK, 0,
 	 "Entry 0001"},
-	/* Saifun SA25F010 (non-buffered flash) */
+	/* Saifun SA25F010 (yesn-buffered flash) */
 	/* strap, cfg1, & write1 need updates */
 	{0x04000001, 0x47808201, 0x00050081, 0x03840253, 0xaf020406,
 	 NONBUFFERED_FLAGS, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
 	 SAIFUN_FLASH_BYTE_ADDR_MASK, SAIFUN_FLASH_BASE_TOTAL_SIZE*2,
 	 "Non-buffered flash (128kB)"},
-	/* Saifun SA25F020 (non-buffered flash) */
+	/* Saifun SA25F020 (yesn-buffered flash) */
 	/* strap, cfg1, & write1 need updates */
 	{0x0c000003, 0x4f808201, 0x00050081, 0x03840253, 0xaf020406,
 	 NONBUFFERED_FLAGS, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
@@ -178,17 +178,17 @@ static const struct flash_spec flash_table[] =
 	 NONBUFFERED_FLAGS, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
 	 SAIFUN_FLASH_BYTE_ADDR_MASK, 0,
 	 "Entry 0100"},
-	/* Entry 0101: ST M45PE10 (non-buffered flash, TetonII B0) */
+	/* Entry 0101: ST M45PE10 (yesn-buffered flash, TetonII B0) */
 	{0x19000002, 0x5b808201, 0x000500db, 0x03840253, 0xaf020406,
 	 NONBUFFERED_FLAGS, ST_MICRO_FLASH_PAGE_BITS, ST_MICRO_FLASH_PAGE_SIZE,
 	 ST_MICRO_FLASH_BYTE_ADDR_MASK, ST_MICRO_FLASH_BASE_TOTAL_SIZE*2,
-	 "Entry 0101: ST M45PE10 (128kB non-bufferred)"},
-	/* Entry 0110: ST M45PE20 (non-buffered flash)*/
+	 "Entry 0101: ST M45PE10 (128kB yesn-bufferred)"},
+	/* Entry 0110: ST M45PE20 (yesn-buffered flash)*/
 	{0x15000001, 0x57808201, 0x000500db, 0x03840253, 0xaf020406,
 	 NONBUFFERED_FLAGS, ST_MICRO_FLASH_PAGE_BITS, ST_MICRO_FLASH_PAGE_SIZE,
 	 ST_MICRO_FLASH_BYTE_ADDR_MASK, ST_MICRO_FLASH_BASE_TOTAL_SIZE*4,
-	 "Entry 0110: ST M45PE20 (256kB non-bufferred)"},
-	/* Saifun SA25F005 (non-buffered flash) */
+	 "Entry 0110: ST M45PE20 (256kB yesn-bufferred)"},
+	/* Saifun SA25F005 (yesn-buffered flash) */
 	/* strap, cfg1, & write1 need updates */
 	{0x1d000003, 0x5f808201, 0x00050081, 0x03840253, 0xaf020406,
 	 NONBUFFERED_FLAGS, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
@@ -1379,7 +1379,7 @@ bnx2_set_mac_link(struct bnx2 *bp)
 		val |= BNX2_EMAC_TX_MODE_FLOW_EN;
 	BNX2_WR(bp, BNX2_EMAC_TX_MODE, val);
 
-	/* Acknowledge the interrupt. */
+	/* Ackyeswledge the interrupt. */
 	BNX2_WR(bp, BNX2_EMAC_STATUS, BNX2_EMAC_STATUS_LINK_CHANGE);
 
 	bnx2_init_all_rx_contexts(bp);
@@ -1856,12 +1856,12 @@ __acquires(&bp->phy_lock)
 		bnx2_write_phy(bp, bp->mii_bmcr, bmcr | BMCR_ANRESTART |
 			BMCR_ANENABLE);
 		/* Speed up link-up time when the link partner
-		 * does not autonegotiate which is very common
+		 * does yest autonegotiate which is very common
 		 * in blade servers. Some blade servers use
 		 * IPMI for kerboard input and it's important
 		 * to minimize link disruptions. Autoneg. involves
 		 * exchanging base pages plus 3 next pages and
-		 * normally completes in about 120 msec.
+		 * yesrmally completes in about 120 msec.
 		 */
 		bp->current_interval = BNX2_SERDES_AN_TIMEOUT;
 		bp->serdes_an_pending = 1;
@@ -2120,7 +2120,7 @@ __acquires(&bp->phy_lock)
 		return 0;
 	}
 
-	/* advertise nothing when forcing speed */
+	/* advertise yesthing when forcing speed */
 	if (adv_reg != new_adv)
 		bnx2_write_phy(bp, bp->mii_adv, new_adv);
 
@@ -2151,7 +2151,7 @@ __acquires(&bp->phy_lock)
 		bnx2_write_phy(bp, bp->mii_bmcr, new_bmcr);
 
 		/* Normally, the new speed is setup after the link has
-		 * gone down and up again. In some cases, link will not go
+		 * gone down and up again. In some cases, link will yest go
 		 * down so we need to set up the new speed here.
 		 */
 		if (bmsr & BMSR_LSTATUS) {
@@ -2537,7 +2537,7 @@ bnx2_fw_sync(struct bnx2 *bp, u32 msg_data, int ack, int silent)
 	if (!ack)
 		return 0;
 
-	/* wait for an acknowledgement. */
+	/* wait for an ackyeswledgement. */
 	for (i = 0; i < (BNX2_FW_ACK_TIME_OUT_MS / 10); i++) {
 		msleep(10);
 
@@ -3263,7 +3263,7 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 
 		}
 
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 		if ((bp->dev->features & NETIF_F_RXCSUM) &&
 			(status & (L2_FHDR_STATUS_TCP_SEGMENT |
 			L2_FHDR_STATUS_UDP_DATAGRAM))) {
@@ -3665,14 +3665,14 @@ bnx2_set_rx_mode(struct net_device *dev)
 static int
 check_fw_section(const struct firmware *fw,
 		 const struct bnx2_fw_file_section *section,
-		 u32 alignment, bool non_empty)
+		 u32 alignment, bool yesn_empty)
 {
 	u32 offset = be32_to_cpu(section->offset);
 	u32 len = be32_to_cpu(section->len);
 
 	if ((offset == 0 && len != 0) || offset >= fw->size || offset & 3)
 		return -EINVAL;
-	if ((non_empty && len == 0) || len > fw->size - offset ||
+	if ((yesn_empty && len == 0) || len > fw->size - offset ||
 	    len & (alignment - 1))
 		return -EINVAL;
 	return 0;
@@ -4030,7 +4030,7 @@ bnx2_setup_wol(struct bnx2 *bp)
 			bnx2_fw_sync(bp, wol_msg, 1, 0);
 			return;
 		}
-		/* Tell firmware not to power down the PHY yet, otherwise
+		/* Tell firmware yest to power down the PHY yet, otherwise
 		 * the chip will take a long time to respond to MMIO reads.
 		 */
 		val = bnx2_shmem_rd(bp, BNX2_PORT_FEATURE);
@@ -4076,8 +4076,8 @@ bnx2_set_power_state(struct bnx2 *bp, pci_power_t state)
 		if (!bp->fw_last_msg && BNX2_CHIP(bp) == BNX2_CHIP_5709) {
 			u32 val;
 
-			/* Tell firmware not to power down the PHY yet,
-			 * otherwise the other port may not respond to
+			/* Tell firmware yest to power down the PHY yet,
+			 * otherwise the other port may yest respond to
 			 * MMIO reads.
 			 */
 			val = bnx2_shmem_rd(bp, BNX2_BC_STATE_CONDITION);
@@ -4213,7 +4213,7 @@ bnx2_nvram_erase_page(struct bnx2 *bp, u32 offset)
 	int j;
 
 	if (bp->flash_info->flags & BNX2_NV_BUFFERED)
-		/* Buffered flash, no erase needed */
+		/* Buffered flash, yes erase needed */
 		return 0;
 
 	/* Build an erase command */
@@ -4255,7 +4255,7 @@ bnx2_nvram_read_dword(struct bnx2 *bp, u32 offset, u8 *ret_val, u32 cmd_flags)
 	/* Build the command word. */
 	cmd = BNX2_NVM_COMMAND_DOIT | cmd_flags;
 
-	/* Calculate an offset of a buffered flash, not needed for 5709. */
+	/* Calculate an offset of a buffered flash, yest needed for 5709. */
 	if (bp->flash_info->flags & BNX2_NV_TRANSLATE) {
 		offset = ((offset / bp->flash_info->page_size) <<
 			   bp->flash_info->page_bits) +
@@ -4301,7 +4301,7 @@ bnx2_nvram_write_dword(struct bnx2 *bp, u32 offset, u8 *val, u32 cmd_flags)
 	/* Build the command word. */
 	cmd = BNX2_NVM_COMMAND_DOIT | BNX2_NVM_COMMAND_WR | cmd_flags;
 
-	/* Calculate an offset of a buffered flash, not needed for 5709. */
+	/* Calculate an offset of a buffered flash, yest needed for 5709. */
 	if (bp->flash_info->flags & BNX2_NV_TRANSLATE) {
 		offset = ((offset / bp->flash_info->page_size) <<
 			  bp->flash_info->page_bits) +
@@ -4403,7 +4403,7 @@ bnx2_init_nvram(struct bnx2 *bp)
 
 	if (j == entry_count) {
 		bp->flash_info = NULL;
-		pr_alert("Unknown flash/EEPROM type\n");
+		pr_alert("Unkyeswn flash/EEPROM type\n");
 		return -ENODEV;
 	}
 
@@ -4609,7 +4609,7 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 			int j;
 
 			/* Read the whole page into the buffer
-			 * (non-buffer flash only) */
+			 * (yesn-buffer flash only) */
 			for (j = 0; j < bp->flash_info->page_size; j += 4) {
 				if (j == (bp->flash_info->page_size - 4)) {
 					cmd_flags |= BNX2_NVM_COMMAND_LAST;
@@ -4808,7 +4808,7 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 	/* Wait for the firmware to tell us it is ok to issue a reset. */
 	bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT0 | reset_code, 1, 1);
 
-	/* Deposit a driver reset signature so the firmware knows that
+	/* Deposit a driver reset signature so the firmware kyesws that
 	 * this is a soft reset. */
 	bnx2_shmem_wr(bp, BNX2_DRV_RESET_SIGNATURE,
 		      BNX2_DRV_RESET_SIGNATURE_MAGIC);
@@ -4854,7 +4854,7 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 
 		if (val & (BNX2_PCICFG_MISC_CONFIG_CORE_RST_REQ |
 			   BNX2_PCICFG_MISC_CONFIG_CORE_RST_BSY)) {
-			pr_err("Chip reset did not complete\n");
+			pr_err("Chip reset did yest complete\n");
 			return -EBUSY;
 		}
 	}
@@ -4862,7 +4862,7 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 	/* Make sure byte swapping is properly configured. */
 	val = BNX2_RD(bp, BNX2_PCI_SWAP_DIAG0);
 	if (val != 0x01020304) {
-		pr_err("Chip not in correct endian mode\n");
+		pr_err("Chip yest in correct endian mode\n");
 		return -ENODEV;
 	}
 
@@ -4904,7 +4904,7 @@ bnx2_init_chip(struct bnx2 *bp)
 	u32 val, mtu;
 	int rc, i;
 
-	/* Make sure the interrupt is not active. */
+	/* Make sure the interrupt is yest active. */
 	BNX2_WR(bp, BNX2_PCICFG_INT_ACK_CMD, BNX2_PCICFG_INT_ACK_CMD_MASK_INT);
 
 	val = BNX2_DMA_CONFIG_DATA_BYTE_SWAP |
@@ -6035,7 +6035,7 @@ bnx2_test_intr(struct bnx2 *bp)
 
 	status_idx = BNX2_RD(bp, BNX2_PCICFG_INT_ACK_CMD) & 0xffff;
 
-	/* This register is not touched during run-time. */
+	/* This register is yest touched during run-time. */
 	BNX2_WR(bp, BNX2_HC_COMMAND, bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW);
 	BNX2_RD(bp, BNX2_HC_COMMAND);
 
@@ -7380,7 +7380,7 @@ bnx2_change_ring_size(struct bnx2 *bp, u32 rx, u32 tx, bool reset_irq)
 		}
 #ifdef BCM_CNIC
 		mutex_lock(&bp->cnic_lock);
-		/* Let cnic know about the new status block. */
+		/* Let cnic kyesw about the new status block. */
 		if (bp->cnic_eth_dev.drv_state & CNIC_DRV_STATE_REGD)
 			bnx2_setup_cnic_irq_info(bp);
 		mutex_unlock(&bp->cnic_lock);
@@ -7891,7 +7891,7 @@ bnx2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return err;
 
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 	return -EOPNOTSUPP;
@@ -8126,20 +8126,20 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	/* enable device (incl. PCI PM wakeup), and bus-mastering */
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		dev_err(&pdev->dev, "Cannot enable PCI device, aborting\n");
+		dev_err(&pdev->dev, "Canyest enable PCI device, aborting\n");
 		goto err_out;
 	}
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev,
-			"Cannot find PCI device base address, aborting\n");
+			"Canyest find PCI device base address, aborting\n");
 		rc = -ENODEV;
 		goto err_out_disable;
 	}
 
 	rc = pci_request_regions(pdev, DRV_MODULE_NAME);
 	if (rc) {
-		dev_err(&pdev->dev, "Cannot obtain PCI resources, aborting\n");
+		dev_err(&pdev->dev, "Canyest obtain PCI resources, aborting\n");
 		goto err_out_disable;
 	}
 
@@ -8148,7 +8148,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->pm_cap = pdev->pm_cap;
 	if (bp->pm_cap == 0) {
 		dev_err(&pdev->dev,
-			"Cannot find power management capability, aborting\n");
+			"Canyest find power management capability, aborting\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
@@ -8166,14 +8166,14 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->regview = pci_iomap(pdev, 0, MB_GET_CID_ADDR(TX_TSS_CID +
 							 TX_MAX_TSS_RINGS + 1));
 	if (!bp->regview) {
-		dev_err(&pdev->dev, "Cannot map register space, aborting\n");
+		dev_err(&pdev->dev, "Canyest map register space, aborting\n");
 		rc = -ENOMEM;
 		goto err_out_release;
 	}
 
 	/* Configure byte swap and enable write to the reg_window registers.
 	 * Rely on CPU to do target byte swapping on big endian systems
-	 * The chip's target access swapping will not swap all accesses
+	 * The chip's target access swapping will yest swap all accesses
 	 */
 	BNX2_WR(bp, BNX2_PCICFG_MISC_CONFIG,
 		BNX2_PCICFG_MISC_CONFIG_REG_WINDOW_ENA |
@@ -8200,7 +8200,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		bp->pcix_cap = pci_find_capability(pdev, PCI_CAP_ID_PCIX);
 		if (bp->pcix_cap == 0) {
 			dev_err(&pdev->dev,
-				"Cannot find PCIX capability, aborting\n");
+				"Canyest find PCIX capability, aborting\n");
 			rc = -EIO;
 			goto err_out_unmap;
 		}
@@ -8219,7 +8219,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			bp->flags |= BNX2_FLAG_MSI_CAP;
 	}
 
-	/* 5708 cannot support DMA addresses > 40-bit.  */
+	/* 5708 canyest support DMA addresses > 40-bit.  */
 	if (BNX2_CHIP(bp) == BNX2_CHIP_5708)
 		persist_dma_mask = dma_mask = DMA_BIT_MASK(40);
 	else
@@ -8235,7 +8235,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			goto err_out_unmap;
 		}
 	} else if ((rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) != 0) {
-		dev_err(&pdev->dev, "System does not support DMA, aborting\n");
+		dev_err(&pdev->dev, "System does yest support DMA, aborting\n");
 		goto err_out_unmap;
 	}
 
@@ -8277,7 +8277,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	if ((reg & BNX2_DEV_INFO_SIGNATURE_MAGIC_MASK) !=
 	    BNX2_DEV_INFO_SIGNATURE_MAGIC) {
-		dev_err(&pdev->dev, "Firmware not running, aborting\n");
+		dev_err(&pdev->dev, "Firmware yest running, aborting\n");
 		rc = -ENODEV;
 		goto err_out_unmap;
 	}
@@ -8384,7 +8384,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		}
 		if (BNX2_CHIP(bp) == BNX2_CHIP_5706) {
 			/* Don't do parallel detect on this board because of
-			 * some board problems.  The link will not go down
+			 * some board problems.  The link will yest go down
 			 * if we do parallel detect.
 			 */
 			if (pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
@@ -8617,12 +8617,12 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_RX;
 
 	if ((rc = register_netdev(dev))) {
-		dev_err(&pdev->dev, "Cannot register net device\n");
+		dev_err(&pdev->dev, "Canyest register net device\n");
 		goto error;
 	}
 
 	netdev_info(dev, "%s (%c%d) %s found at mem %lx, IRQ %d, "
-		    "node addr %pM\n", board_info[ent->driver_data].name,
+		    "yesde addr %pM\n", board_info[ent->driver_data].name,
 		    ((BNX2_CHIP_ID(bp) & 0xf000) >> 12) + 'A',
 		    ((BNX2_CHIP_ID(bp) & 0x0ff0) >> 4),
 		    bnx2_bus_string(bp, str), (long)pci_resource_start(pdev, 0),
@@ -8765,7 +8765,7 @@ static pci_ers_result_t bnx2_io_slot_reset(struct pci_dev *pdev)
 	rtnl_lock();
 	if (pci_enable_device(pdev)) {
 		dev_err(&pdev->dev,
-			"Cannot re-enable PCI device after reset\n");
+			"Canyest re-enable PCI device after reset\n");
 	} else {
 		pci_set_master(pdev);
 		pci_restore_state(pdev);
@@ -8795,7 +8795,7 @@ static pci_ers_result_t bnx2_io_slot_reset(struct pci_dev *pdev)
  * @pdev: Pointer to PCI device
  *
  * This callback is called when the error recovery driver tells us that
- * its OK to resume normal operation.
+ * its OK to resume yesrmal operation.
  */
 static void bnx2_io_resume(struct pci_dev *pdev)
 {

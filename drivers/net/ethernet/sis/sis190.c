@@ -11,7 +11,7 @@
    This software may be used and distributed according to the terms of
    the GNU General Public License (GPL), incorporated herein by reference.
    Drivers based on or derived from this code fall under the GPL and must
-   retain the authorship, copyright and license notice.  This file is not
+   retain the authorship, copyright and license yestice.  This file is yest
    a complete program and may only be used when the entire operating
    system is licensed under the GPL.
 
@@ -68,7 +68,7 @@
 #define EhnMIIpmdShift		6	/* 7016 only */
 #define EhnMIIregShift		11
 #define EhnMIIreq		0x0010
-#define EhnMIInotDone		0x0010
+#define EhnMIIyestDone		0x0010
 
 /* Write/read MMIO register */
 #define SIS_W8(reg, val)	writeb ((val), ioaddr + (reg))
@@ -348,7 +348,7 @@ MODULE_DESCRIPTION("SiS sis190/191 Gigabit Ethernet driver");
 module_param(rx_copybreak, int, 0);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 module_param_named(debug, debug.msg_enable, int, 0);
-MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
+MODULE_PARM_DESC(debug, "Debug verbosity level (0=yesne, ..., 16=all)");
 MODULE_AUTHOR("K.M. Liu <kmliu@sis.com>, Ueimor <romieu@fr.zoreil.com>");
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
@@ -371,7 +371,7 @@ static void __mdio_cmd(void __iomem *ioaddr, u32 ctl)
 	msleep(1);
 
 	for (i = 0; i < 100; i++) {
-		if (!(SIS_R32(GMIIControl) & EhnMIInotDone))
+		if (!(SIS_R32(GMIIControl) & EhnMIIyestDone))
 			break;
 		msleep(1);
 	}
@@ -638,7 +638,7 @@ static int sis190_rx_interrupt(struct net_device *dev,
 
 	delta = sis190_rx_fill(tp, dev, tp->dirty_rx, tp->cur_rx);
 	if (!delta && count)
-		netif_info(tp, intr, dev, "no Rx buffer allocated\n");
+		netif_info(tp, intr, dev, "yes Rx buffer allocated\n");
 	tp->dirty_rx += delta;
 
 	if ((tp->dirty_rx + NUM_RX_DESC) == tp->cur_rx)
@@ -686,7 +686,7 @@ static void sis190_tx_interrupt(struct net_device *dev,
 	struct net_device_stats *stats = &dev->stats;
 	u32 pending, dirty_tx = tp->dirty_tx;
 	/*
-	 * It would not be needed if queueing was allowed to be enabled
+	 * It would yest be needed if queueing was allowed to be enabled
 	 * again too early (hint: think preempt and unclocked smp systems).
 	 */
 	unsigned int queue_stopped;
@@ -901,7 +901,7 @@ static void sis190_hw_start(struct net_device *dev)
 
 	sis190_set_rx_mode(dev);
 
-	/* Enable all known interrupts by setting the interrupt mask. */
+	/* Enable all kyeswn interrupts by setting the interrupt mask. */
 	SIS_W32(IntrMask, sis190_intr_mask);
 
 	SIS_W32(TxControl, 0x1a00 | CmdTxEnb);
@@ -955,7 +955,7 @@ static void sis190_phy_task(struct work_struct *work)
 				"10 Mbps Full Duplex" },
 			{ LPA_10HALF, 0x04000400,
 				"10 Mbps Half Duplex" },
-			{ 0, 0x04000400, "unknown" }
+			{ 0, 0x04000400, "unkyeswn" }
 		}, *p = NULL;
 		u16 adv, autoexp, gigadv, gigrec;
 
@@ -1254,7 +1254,7 @@ static void sis190_free_phy(struct list_head *first_phy)
  *	@dev: the net device to probe for
  *
  *	Select first detected PHY with link as default.
- *	If no one is link on, select PHY whose types is HOME as default.
+ *	If yes one is link on, select PHY whose types is HOME as default.
  *	If HOME doesn't exist, select LAN.
  */
 static u16 sis190_default_phy(struct net_device *dev)
@@ -1270,7 +1270,7 @@ static u16 sis190_default_phy(struct net_device *dev)
 	list_for_each_entry(phy, &tp->first_phy, list) {
 		status = mdio_read_latched(ioaddr, phy->phy_id, MII_BMSR);
 
-		// Link ON & Not select default PHY & not ghost PHY.
+		// Link ON & Not select default PHY & yest ghost PHY.
 		if ((status & BMSR_LSTATUS) &&
 		    !phy_default &&
 		    (phy->type != UNKNOWN)) {
@@ -1344,7 +1344,7 @@ static void sis190_init_phy(struct net_device *dev, struct sis190_private *tp,
 	} else {
 		phy->type = UNKNOWN;
 		if (netif_msg_probe(tp))
-			pr_info("%s: unknown PHY 0x%x:0x%x transceiver at address %d\n",
+			pr_info("%s: unkyeswn PHY 0x%x:0x%x transceiver at address %d\n",
 				pci_name(tp->pci_dev),
 				phy->id[0], (phy->id[1] & 0xfff0), phy_id);
 	}
@@ -1393,7 +1393,7 @@ static int sis190_mii_probe(struct net_device *dev)
 
 		status = mdio_read_latched(ioaddr, phy_id, MII_BMSR);
 
-		// Try next mii if the current one is not accessible.
+		// Try next mii if the current one is yest accessible.
 		if (status == 0xffff || status == 0x0000)
 			continue;
 
@@ -1479,7 +1479,7 @@ static struct net_device *sis190_init_board(struct pci_dev *pdev)
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		if (netif_msg_probe(tp))
-			pr_err("%s: region #0 is no MMIO resource\n",
+			pr_err("%s: region #0 is yes MMIO resource\n",
 			       pci_name(pdev));
 		goto err_pci_disable_2;
 	}
@@ -1493,7 +1493,7 @@ static struct net_device *sis190_init_board(struct pci_dev *pdev)
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc < 0) {
 		if (netif_msg_probe(tp))
-			pr_err("%s: could not request regions\n",
+			pr_err("%s: could yest request regions\n",
 			       pci_name(pdev));
 		goto err_pci_disable_2;
 	}
@@ -1511,7 +1511,7 @@ static struct net_device *sis190_init_board(struct pci_dev *pdev)
 	ioaddr = ioremap(pci_resource_start(pdev, 0), SIS190_REGS_SIZE);
 	if (!ioaddr) {
 		if (netif_msg_probe(tp))
-			pr_err("%s: cannot remap MMIO, aborting\n",
+			pr_err("%s: canyest remap MMIO, aborting\n",
 			       pci_name(pdev));
 		rc = -EIO;
 		goto err_free_res_3;
@@ -1544,7 +1544,7 @@ static void sis190_tx_timeout(struct net_device *dev)
 	void __iomem *ioaddr = tp->mmio_addr;
 	u8 tmp8;
 
-	/* Disable Tx, if not already */
+	/* Disable Tx, if yest already */
 	tmp8 = SIS_R8(TxControl);
 	if (tmp8 & CmdTxEnb)
 		SIS_W8(TxControl, tmp8 & ~CmdTxEnb);
@@ -1633,7 +1633,7 @@ static int sis190_get_mac_addr_from_apc(struct pci_dev *pdev,
 
 	if (!isa_bridge) {
 		if (netif_msg_probe(tp))
-			pr_info("%s: Can not find ISA bridge\n",
+			pr_info("%s: Can yest find ISA bridge\n",
 				pci_name(pdev));
 		return -EIO;
 	}

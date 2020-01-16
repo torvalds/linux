@@ -10,10 +10,10 @@ Required properties:
 			"ti,dac124s085"
  - reg: 		Chip select number.
  - spi-cpha, spi-cpol:	SPI mode (0,1) or (1,0) must be used, so specify
-			either spi-cpha or spi-cpol (but not both).
+			either spi-cpha or spi-cpol (but yest both).
  - vref-supply: 	Phandle to the external reference voltage supply.
 
-For other required and optional properties of SPI slave nodes please refer to
+For other required and optional properties of SPI slave yesdes please refer to
 ../../spi/spi-bus.txt.
 
 Example:

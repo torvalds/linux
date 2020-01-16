@@ -76,7 +76,7 @@ struct clk_si544 {
  * @fb_div_int:		fractional part of feedback divider (11 bits)
  * @hs_div:		1st divider, 5..2046, must be even when >33
  * @ls_div_bits:	2nd divider, as 2^x, range 0..5
- *                      If ls_div_bits is non-zero, hs_div must be even
+ *                      If ls_div_bits is yesn-zero, hs_div must be even
  * @delta_m:		Frequency shift for small -950..+950 ppm changes, 24 bit
  */
 struct clk_si544_muldiv {
@@ -406,7 +406,7 @@ static int si544_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	err = si544_set_muldiv(data, &settings);
 	if (err < 0)
-		return err; /* Undefined state now, best to leave disabled */
+		return err; /* Undefined state yesw, best to leave disabled */
 
 	/* Trigger calibration */
 	err = regmap_write(data->regmap, SI544_REG_CONTROL,
@@ -469,9 +469,9 @@ static int si544_probe(struct i2c_client *client,
 	data->i2c_client = client;
 	data->speed_grade = id->driver_data;
 
-	if (of_property_read_string(client->dev.of_node, "clock-output-names",
+	if (of_property_read_string(client->dev.of_yesde, "clock-output-names",
 			&init.name))
-		init.name = client->dev.of_node->name;
+		init.name = client->dev.of_yesde->name;
 
 	data->regmap = devm_regmap_init_i2c(client, &si544_regmap_config);
 	if (IS_ERR(data->regmap))
@@ -479,7 +479,7 @@ static int si544_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 
-	/* Select page 0, just to be sure, there appear to be no more */
+	/* Select page 0, just to be sure, there appear to be yes more */
 	err = regmap_write(data->regmap, SI544_REG_PAGE_SELECT, 0);
 	if (err < 0)
 		return err;

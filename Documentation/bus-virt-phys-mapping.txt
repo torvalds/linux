@@ -10,7 +10,7 @@ How to access I/O mapped memory from within device drivers
 	superseded by the functionality provided by the PCI DMA interface
 	(see Documentation/DMA-API-HOWTO.txt).  They continue
 	to be documented below for historical purposes, but new code
-	must not use them. --davidm 00/12/12
+	must yest use them. --davidm 00/12/12
 
 ::
 
@@ -26,7 +26,7 @@ at memory addresses, and in this case we actually want the third, the
 so-called "bus address". 
 
 Essentially, the three ways of addressing memory are (this is "real memory",
-that is, normal RAM--see later about other details): 
+that is, yesrmal RAM--see later about other details): 
 
  - CPU untranslated.  This is the "physical" address.  Physical address 
    0 is what the CPU sees when it drives zeroes on the memory bus.
@@ -36,16 +36,16 @@ that is, normal RAM--see later about other details):
    translations into "CPU untranslated". 
 
  - bus address. This is the address of memory as seen by OTHER devices, 
-   not the CPU. Now, in theory there could be many different bus 
+   yest the CPU. Now, in theory there could be many different bus 
    addresses, with each device seeing memory in some device-specific way, but
    happily most hardware designers aren't actually actively trying to make
    things any more complex than necessary, so you can assume that all 
    external hardware sees the memory the same way. 
 
-Now, on normal PCs the bus address is exactly the same as the physical
+Now, on yesrmal PCs the bus address is exactly the same as the physical
 address, and things are very simple indeed. However, they are that simple
 because the memory and the devices share the same address space, and that is
-not generally necessarily true on other PCI/ISA setups. 
+yest generally necessarily true on other PCI/ISA setups. 
 
 Now, just as an example, on the PReP (PowerPC Reference Platform), the 
 CPU sees a memory map something like this (this is from memory)::
@@ -54,7 +54,7 @@ CPU sees a memory map something like this (this is from memory)::
 	2 GB-3 GB	"system IO" (inb/out and similar accesses on x86)
 	3 GB-4 GB 	"IO memory" (shared memory over the IO bus)
 
-Now, that looks simple enough. However, when you look at the same thing from
+Now, that looks simple eyesugh. However, when you look at the same thing from
 the viewpoint of the devices, you have the reverse, and the physical memory
 address 0 actually shows up as address 2 GB for any IO master.
 
@@ -71,7 +71,7 @@ PPC, you can end up with a setup like this::
 where all the addresses actually point to the same thing.  It's just seen 
 through different translations..
 
-Similarly, on the Alpha, the normal translation is::
+Similarly, on the Alpha, the yesrmal translation is::
 
  physical address:	0
  virtual address:	0xfffffc0000000000
@@ -120,37 +120,37 @@ you want to give to the controller::
 	mbox.bufstart = virt_to_bus(&sense_buffer);
 	mbox.buflen = sizeof(sense_buffer);
 	mbox.status = 0;
-	notify_controller(&mbox);
+	yestify_controller(&mbox);
 
 And you generally **never** want to use the physical address, because you can't
 use that from the CPU (the CPU only uses translated virtual addresses), and
 you can't use it from the bus master. 
 
 So why do we care about the physical address at all? We do need the physical
-address in some cases, it's just not very often in normal code.  The physical
+address in some cases, it's just yest very often in yesrmal code.  The physical
 address is needed if you use memory mappings, for example, because the
 "remap_pfn_range()" mm function wants the physical address of the memory to
 be remapped as measured in units of pages, a.k.a. the pfn (the memory
-management layer doesn't know about devices outside the CPU, so it
-shouldn't need to know about "bus addresses" etc).
+management layer doesn't kyesw about devices outside the CPU, so it
+shouldn't need to kyesw about "bus addresses" etc).
 
-.. note::
+.. yeste::
 
 	The above is only one part of the whole equation. The above
 	only talks about "real memory", that is, CPU memory (RAM).
 
 There is a completely different type of memory too, and that's the "shared
-memory" on the PCI or ISA bus. That's generally not RAM (although in the case
-of a video graphics card it can be normal DRAM that is just used for a frame
+memory" on the PCI or ISA bus. That's generally yest RAM (although in the case
+of a video graphics card it can be yesrmal DRAM that is just used for a frame
 buffer), but can be things like a packet buffer in a network card etc. 
 
 This memory is called "PCI memory" or "shared memory" or "IO memory" or
 whatever, and there is only one way to access it: the readb/writeb and
 related functions. You should never take the address of such memory, because
-there is really nothing you can do with such an address: it's not
-conceptually in the same memory space as "real memory" at all, so you cannot
+there is really yesthing you can do with such an address: it's yest
+conceptually in the same memory space as "real memory" at all, so you canyest
 just dereference a pointer. (Sadly, on x86 it **is** in the same memory space,
-so on x86 it actually works to just deference a pointer, but it's not
+so on x86 it actually works to just deference a pointer, but it's yest
 portable). 
 
 For such memory, you can do things like:
@@ -208,13 +208,13 @@ at the top of their source files, and then they can use the right names
 even on 2.0.x systems. 
 
 And the above sounds worse than it really is.  Most real drivers really
-don't do all that complex things (or rather: the complexity is not so
+don't do all that complex things (or rather: the complexity is yest so
 much in the actual IO accesses as in error handling and timeouts etc). 
-It's generally not hard to fix drivers, and in many cases the code
+It's generally yest hard to fix drivers, and in many cases the code
 actually looks better afterwards::
 
 	unsigned long signature = *(unsigned int *) 0xC0000;
 		vs
 	unsigned long signature = readl(0xC0000);
 
-I think the second version actually is more readable, no?
+I think the second version actually is more readable, yes?

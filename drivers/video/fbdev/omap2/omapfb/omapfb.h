@@ -3,7 +3,7 @@
  * linux/drivers/video/omap2/omapfb.h
  *
  * Copyright (C) 2008 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@yeskia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -100,7 +100,7 @@ struct omapfb2_device {
 struct omapfb_colormode {
 	enum omap_color_mode dssmode;
 	u32 bits_per_pixel;
-	u32 nonstd;
+	u32 yesnstd;
 	struct fb_bitfield red;
 	struct fb_bitfield green;
 	struct fb_bitfield blue;

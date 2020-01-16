@@ -356,7 +356,7 @@ void rtsx_pci_add_cmd(struct rtsx_pcr *pcr,
 }
 EXPORT_SYMBOL_GPL(rtsx_pci_add_cmd);
 
-void rtsx_pci_send_cmd_no_wait(struct rtsx_pcr *pcr)
+void rtsx_pci_send_cmd_yes_wait(struct rtsx_pcr *pcr)
 {
 	u32 val = 1 << 31;
 
@@ -367,7 +367,7 @@ void rtsx_pci_send_cmd_no_wait(struct rtsx_pcr *pcr)
 	val |= 0x40000000;
 	rtsx_pci_writel(pcr, RTSX_HCBCTLR, val);
 }
-EXPORT_SYMBOL_GPL(rtsx_pci_send_cmd_no_wait);
+EXPORT_SYMBOL_GPL(rtsx_pci_send_cmd_yes_wait);
 
 int rtsx_pci_send_cmd(struct rtsx_pcr *pcr, int timeout)
 {
@@ -787,7 +787,7 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 	if (mcu_cnt > 15)
 		mcu_cnt = 15;
 
-	/* Make sure that the SSC clock div_n is not less than MIN_DIV_N_PCR */
+	/* Make sure that the SSC clock div_n is yest less than MIN_DIV_N_PCR */
 	div = CLK_DIV_1;
 	while ((n < MIN_DIV_N_PCR) && (div < CLK_DIV_8)) {
 		if (pcr->ops->conv_clk_and_div_n) {
@@ -867,8 +867,8 @@ int rtsx_pci_card_exclusive_check(struct rtsx_pcr *pcr, int card)
 	};
 
 	if (!(pcr->flags & PCR_MS_PMOS)) {
-		/* When using single PMOS, accessing card is not permitted
-		 * if the existing card is not the designated one.
+		/* When using single PMOS, accessing card is yest permitted
+		 * if the existing card is yest the designated one.
 		 */
 		if (pcr->card_exist & (~cd_mask[card]))
 			return -EIO;
@@ -1095,7 +1095,7 @@ static void rtsx_comm_pm_power_saving(struct rtsx_pcr *pcr)
 		u32 latency = option->ltr_l1off_latency;
 
 		if (rtsx_check_dev_flag(pcr, L1_SNOOZE_TEST_EN))
-			mdelay(option->l1_snooze_delay);
+			mdelay(option->l1_syesoze_delay);
 
 		rtsx_set_ltr_latency(pcr, latency);
 	}
@@ -1512,7 +1512,7 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 		bar = 1;
 	len = pci_resource_len(pcidev, bar);
 	base = pci_resource_start(pcidev, bar);
-	pcr->remap_addr = ioremap_nocache(base, len);
+	pcr->remap_addr = ioremap_yescache(base, len);
 	if (!pcr->remap_addr) {
 		ret = -ENOMEM;
 		goto free_handle;

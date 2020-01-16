@@ -118,8 +118,8 @@ static void __init init_port(struct earlycon_device *device)
 
 	serial8250_early_out(port, UART_LCR, 0x3);	/* 8n1 */
 	ier = serial8250_early_in(port, UART_IER);
-	serial8250_early_out(port, UART_IER, ier & UART_IER_UUE); /* no interrupt */
-	serial8250_early_out(port, UART_FCR, 0);	/* no fifo */
+	serial8250_early_out(port, UART_IER, ier & UART_IER_UUE); /* yes interrupt */
+	serial8250_early_out(port, UART_FCR, 0);	/* yes fifo */
 	serial8250_early_out(port, UART_MCR, 0x3);	/* DTR + RTS */
 
 	if (port->uartclk) {

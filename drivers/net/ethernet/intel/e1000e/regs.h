@@ -31,7 +31,7 @@
 #define E1000_ICS	0x000C8	/* Interrupt Cause Set - WO */
 #define E1000_IMS	0x000D0	/* Interrupt Mask Set - RW */
 #define E1000_IMC	0x000D8	/* Interrupt Mask Clear - WO */
-#define E1000_IAM	0x000E0	/* Interrupt Acknowledge Auto Mask */
+#define E1000_IAM	0x000E0	/* Interrupt Ackyeswledge Auto Mask */
 #define E1000_IVAR	0x000E4	/* Interrupt Vector Allocation Register - RW */
 #define E1000_SVCR	0x000F0
 #define E1000_SVT	0x000F4
@@ -210,7 +210,7 @@
 #define E1000_FACTPS	0x05B30	/* Function Active and Power State to MNG */
 #define E1000_SWSM	0x05B50	/* SW Semaphore */
 #define E1000_FWSM	0x05B54	/* FW Semaphore */
-/* Driver-only SW semaphore (not used by BOOT agents) */
+/* Driver-only SW semaphore (yest used by BOOT agents) */
 #define E1000_SWSM2	0x05B58
 #define E1000_FFLT_DBG	0x05F04	/* Debug Register */
 #define E1000_HICR	0x08F00	/* Host Interface Control */

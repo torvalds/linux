@@ -38,10 +38,10 @@
 
 
 /*
- * ext4_inode has i_block array (60 bytes total).
+ * ext4_iyesde has i_block array (60 bytes total).
  * The first 12 bytes store ext4_extent_header;
  * the remainder stores an array of ext4_extent.
- * For non-inode extent blocks, ext4_extent_tail
+ * For yesn-iyesde extent blocks, ext4_extent_tail
  * follows the array.
  */
 
@@ -80,7 +80,7 @@ struct ext4_extent_idx {
 };
 
 /*
- * Each block (leaves and indexes), even inode-stored has header.
+ * Each block (leaves and indexes), even iyesde-stored has header.
  */
 struct ext4_extent_header {
 	__le16	eh_magic;	/* probably will support different formats */
@@ -122,14 +122,14 @@ struct ext4_ext_path {
 /*
  * Used to record a portion of a cluster found at the beginning or end
  * of an extent while traversing the extent tree during space removal.
- * A partial cluster may be removed if it does not contain blocks shared
+ * A partial cluster may be removed if it does yest contain blocks shared
  * with extents that aren't being deleted (tofree state).  Otherwise,
- * it cannot be removed (nofree state).
+ * it canyest be removed (yesfree state).
  */
 struct partial_cluster {
 	ext4_fsblk_t pclu;  /* physical cluster number */
 	ext4_lblk_t lblk;   /* logical block number within logical cluster */
-	enum {initial, tofree, nofree} state;
+	enum {initial, tofree, yesfree} state;
 };
 
 /*
@@ -138,7 +138,7 @@ struct partial_cluster {
 
 /*
  * EXT_INIT_MAX_LEN is the maximum number of blocks we can have in an
- * initialized extent. This is 2^15 and not (2^16 - 1), since we use the
+ * initialized extent. This is 2^15 and yest (2^16 - 1), since we use the
  * MSB of ee_len field in the extent datastructure to signify if this
  * particular extent is an initialized extent or an unwritten (i.e.
  * preallocated).
@@ -147,7 +147,7 @@ struct partial_cluster {
  * If ee_len is <= 0x8000, it is an initialized extent. Otherwise, it is an
  * unwritten one. In other words, if MSB of ee_len is set, it is an
  * unwritten extent with only one special scenario when ee_len = 0x8000.
- * In this case we can not have an unwritten extent of zero length and
+ * In this case we can yest have an unwritten extent of zero length and
  * thus we make it as a special case of initialized extent with 0x8000 length.
  * This way we get better extent-to-group alignment for initialized extents.
  * Hence, the maximum number of blocks we can have in an *initialized*
@@ -175,9 +175,9 @@ struct partial_cluster {
 #define EXT_MAX_INDEX(__hdr__) \
 	(EXT_FIRST_INDEX((__hdr__)) + le16_to_cpu((__hdr__)->eh_max) - 1)
 
-static inline struct ext4_extent_header *ext_inode_hdr(struct inode *inode)
+static inline struct ext4_extent_header *ext_iyesde_hdr(struct iyesde *iyesde)
 {
-	return (struct ext4_extent_header *) EXT4_I(inode)->i_data;
+	return (struct ext4_extent_header *) EXT4_I(iyesde)->i_data;
 }
 
 static inline struct ext4_extent_header *ext_block_hdr(struct buffer_head *bh)
@@ -185,14 +185,14 @@ static inline struct ext4_extent_header *ext_block_hdr(struct buffer_head *bh)
 	return (struct ext4_extent_header *) bh->b_data;
 }
 
-static inline unsigned short ext_depth(struct inode *inode)
+static inline unsigned short ext_depth(struct iyesde *iyesde)
 {
-	return le16_to_cpu(ext_inode_hdr(inode)->eh_depth);
+	return le16_to_cpu(ext_iyesde_hdr(iyesde)->eh_depth);
 }
 
 static inline void ext4_ext_mark_unwritten(struct ext4_extent *ext)
 {
-	/* We can not have an unwritten extent of zero length! */
+	/* We can yest have an unwritten extent of zero length! */
 	BUG_ON((le16_to_cpu(ext->ee_len) & ~EXT_INIT_MAX_LEN) == 0);
 	ext->ee_len |= cpu_to_le16(EXT_INIT_MAX_LEN);
 }
@@ -267,10 +267,10 @@ static inline void ext4_idx_store_pblock(struct ext4_extent_idx *ix,
 				     0xffff);
 }
 
-#define ext4_ext_dirty(handle, inode, path) \
-		__ext4_ext_dirty(__func__, __LINE__, (handle), (inode), (path))
+#define ext4_ext_dirty(handle, iyesde, path) \
+		__ext4_ext_dirty(__func__, __LINE__, (handle), (iyesde), (path))
 int __ext4_ext_dirty(const char *where, unsigned int line, handle_t *handle,
-		     struct inode *inode, struct ext4_ext_path *path);
+		     struct iyesde *iyesde, struct ext4_ext_path *path);
 
 #endif /* _EXT4_EXTENTS */
 

@@ -8,7 +8,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ctype.h>
 #include <linux/sysctl.h>
 #include <linux/module.h>

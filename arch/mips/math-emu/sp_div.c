@@ -111,7 +111,7 @@ union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y)
 	xm <<= 3;
 	ym <<= 3;
 
-	/* now the dirty work */
+	/* yesw the dirty work */
 
 	rm = 0;
 	re = xe - ye;
@@ -132,7 +132,7 @@ union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y)
 
 	assert(rm);
 
-	/* normalise rm to rounding precision ?
+	/* yesrmalise rm to rounding precision ?
 	 */
 	while ((rm >> (SP_FBITS + 3)) == 0) {
 		rm <<= 1;

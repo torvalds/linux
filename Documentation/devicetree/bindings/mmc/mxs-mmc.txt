@@ -1,6 +1,6 @@
 * Freescale MXS MMC controller
 
-The Freescale MXS Synchronous Serial Ports (SSP) can act as a MMC controller
+The Freescale MXS Synchroyesus Serial Ports (SSP) can act as a MMC controller
 to support MMC, SD, and SDIO types of memory cards.
 
 This file documents differences between the core properties in mmc.txt
@@ -10,7 +10,7 @@ Required properties:
 - compatible: Should be "fsl,<chip>-mmc".  The supported chips include
   imx23 and imx28.
 - interrupts: Should contain ERROR interrupt number
-- dmas: DMA specifier, consisting of a phandle to DMA controller node
+- dmas: DMA specifier, consisting of a phandle to DMA controller yesde
   and SSP DMA channel ID.
   Refer to dma.txt and fsl-mxs-dma.txt for details.
 - dma-names: Must be "rx-tx".

@@ -33,7 +33,7 @@ static int a6xx_hfi_queue_read(struct a6xx_hfi_queue *queue, u32 *data,
 
 	/*
 	 * If we are to assume that the GMU firmware is in fact a rational actor
-	 * and is programmed to not send us a larger response than we expect
+	 * and is programmed to yest send us a larger response than we expect
 	 * then we can also assume that if the header size is unexpectedly large
 	 * that it is due to memory corruption and/or hardware failure. In this
 	 * case the only reasonable course of action is to BUG() to help harden
@@ -241,23 +241,23 @@ static int a6xx_hfi_send_bw_table(struct a6xx_gmu *gmu)
 
 	/*
 	 * These are the CX (CNOC) votes.  This is used but the values for the
-	 * sdm845 GMU are known and fixed so we can hard code them.
+	 * sdm845 GMU are kyeswn and fixed so we can hard code them.
 	 */
 
-	msg.cnoc_cmds_num = 3;
-	msg.cnoc_wait_bitmask = 0x05;
+	msg.cyesc_cmds_num = 3;
+	msg.cyesc_wait_bitmask = 0x05;
 
-	msg.cnoc_cmds_addrs[0] = 0x50034;
-	msg.cnoc_cmds_addrs[1] = 0x5007c;
-	msg.cnoc_cmds_addrs[2] = 0x5004c;
+	msg.cyesc_cmds_addrs[0] = 0x50034;
+	msg.cyesc_cmds_addrs[1] = 0x5007c;
+	msg.cyesc_cmds_addrs[2] = 0x5004c;
 
-	msg.cnoc_cmds_data[0][0] =  0x40000000;
-	msg.cnoc_cmds_data[0][1] =  0x00000000;
-	msg.cnoc_cmds_data[0][2] =  0x40000000;
+	msg.cyesc_cmds_data[0][0] =  0x40000000;
+	msg.cyesc_cmds_data[0][1] =  0x00000000;
+	msg.cyesc_cmds_data[0][2] =  0x40000000;
 
-	msg.cnoc_cmds_data[1][0] =  0x60000001;
-	msg.cnoc_cmds_data[1][1] =  0x20000001;
-	msg.cnoc_cmds_data[1][2] =  0x60000001;
+	msg.cyesc_cmds_data[1][0] =  0x60000001;
+	msg.cyesc_cmds_data[1][1] =  0x20000001;
+	msg.cyesc_cmds_data[1][2] =  0x60000001;
 
 	return a6xx_hfi_send_msg(gmu, HFI_H2F_MSG_BW_TABLE, &msg, sizeof(msg),
 		NULL, 0);
@@ -285,7 +285,7 @@ int a6xx_hfi_start(struct a6xx_gmu *gmu, int boot_state)
 
 	/*
 	 * We have to get exchange version numbers per the sequence but at this
-	 * point th kernel driver doesn't need to know the exact version of
+	 * point th kernel driver doesn't need to kyesw the exact version of
 	 * the GMU firmware
 	 */
 
@@ -298,7 +298,7 @@ int a6xx_hfi_start(struct a6xx_gmu *gmu, int boot_state)
 		return ret;
 
 	/*
-	 * Let the GMU know that there won't be any more HFI messages until next
+	 * Let the GMU kyesw that there won't be any more HFI messages until next
 	 * boot
 	 */
 	a6xx_hfi_send_test(gmu);
@@ -317,7 +317,7 @@ void a6xx_hfi_stop(struct a6xx_gmu *gmu)
 			continue;
 
 		if (queue->header->read_index != queue->header->write_index)
-			DRM_DEV_ERROR(gmu->dev, "HFI queue %d is not empty\n", i);
+			DRM_DEV_ERROR(gmu->dev, "HFI queue %d is yest empty\n", i);
 
 		queue->header->read_index = 0;
 		queue->header->write_index = 0;

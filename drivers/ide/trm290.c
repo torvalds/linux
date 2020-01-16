@@ -14,7 +14,7 @@
  * of the Tekram TRM290 chip, used on a variety of PCI IDE add-on boards,
  * including a "Precision Instruments" board.  The TRM290 pre-dates
  * the sff-8038 standard (ide-dma.c) by a few months, and differs
- * significantly enough to warrant separate routines for some functions,
+ * significantly eyesugh to warrant separate routines for some functions,
  * while re-using others from ide-dma.c.
  *
  * EXPERIMENTAL!  It works for me (a sample of one).
@@ -22,12 +22,12 @@
  * Works reliably for me in DMA mode (READs only),
  * DMA WRITEs are disabled by default (see #define below);
  *
- * DMA is not enabled automatically for this chipset,
+ * DMA is yest enabled automatically for this chipset,
  * but can be turned on manually (with "hdparm -d1") at run time.
  *
  * I need volunteers with "spare" drives for further testing
  * and development, and maybe to help figure out the peculiarities.
- * Even knowing the registers (below), some things behave strangely.
+ * Even kyeswing the registers (below), some things behave strangely.
  */
 
 #define TRM290_NO_DMA_WRITES	/* DMA writes seem unreliable sometimes */
@@ -35,7 +35,7 @@
 /*
  * TRM-290 PCI-IDE2 Bus Master Chip
  * ================================
- * The configuration registers are addressed in normal I/O port space
+ * The configuration registers are addressed in yesrmal I/O port space
  * and are used as follows:
  *
  * trm290_base depends on jumper settings, and is probed for by ide-dma.c
@@ -44,18 +44,18 @@
  *	bit7 must always be written as "1"
  *	bits6-2 undefined
  *	bit1 1=legacy_compatible_mode, 0=native_pci_mode
- *	bit0 1=test_mode, 0=normal(default)
+ *	bit0 1=test_mode, 0=yesrmal(default)
  *
  * trm290_base+2 when READ: status register (byte, read-only)
  *	bits7-2 undefined
- *	bit1 channel0 busmaster interrupt status 0=none, 1=asserted
- *	bit0 channel0 interrupt status 0=none, 1=asserted
+ *	bit1 channel0 busmaster interrupt status 0=yesne, 1=asserted
+ *	bit0 channel0 interrupt status 0=yesne, 1=asserted
  *
  * trm290_base+3 Interrupt mask register
  *	bits7-5 undefined
  *	bit4 legacy_header: 1=present, 0=absent
- *	bit3 channel1 busmaster interrupt status 0=none, 1=asserted (read only)
- *	bit2 channel1 interrupt status 0=none, 1=asserted (read only)
+ *	bit3 channel1 busmaster interrupt status 0=yesne, 1=asserted (read only)
+ *	bit2 channel1 interrupt status 0=yesne, 1=asserted (read only)
  *	bit1 channel1 interrupt mask: 1=masked, 0=unmasked(default)
  *	bit0 channel0 interrupt mask: 1=masked, 0=unmasked(default)
  *
@@ -77,7 +77,7 @@
  *
  * Index-1 general config register (byte)
  *	bit7 1=DMA enable, 0=DMA disable
- *	bit6 1=activate IDE_RESET, 0=no action (default)
+ *	bit6 1=activate IDE_RESET, 0=yes action (default)
  *	bit5 1=enable IORDY, 0=disable IORDY (default)
  *	bit4 0=16-bit data port(default), 1=8-bit (XT) data port
  *	bit3 interrupt polarity: 1=active_low, 0=active_high(default)
@@ -90,7 +90,7 @@
  *
  * Index-3 read-ahead config register (byte, write only)
  *	bit7 1=enable_readahead, 0=disable_readahead(default)
- *	bit6 1=clear_FIFO, 0=no_action
+ *	bit6 1=clear_FIFO, 0=yes_action
  *	bit5 undefined
  *	bit4 mode4 timing control: 1=enable, 0=disable(default)
  *	bit3 undefined
@@ -160,7 +160,7 @@ static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 		outw(reg & 0xff, hwif->config_data);
 	}
 
-	/* enable IRQ if not probing */
+	/* enable IRQ if yest probing */
 	if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 		reg = inw(hwif->config_data + 3);
 		reg &= 0x13;
@@ -276,7 +276,7 @@ static void init_hwif_trm290(ide_hwif_t *hwif)
 	/*
 	 * My trm290-based card doesn't seem to work with all possible values
 	 * for the control basereg, so this kludge ensures that we use only
-	 * values that are known to work.  Ugh.		-ml
+	 * values that are kyeswn to work.  Ugh.		-ml
 	 */
 		u16 new, old, compat = hwif->channel ? 0x374 : 0x3f4;
 		static u16 next_offset = 0;
@@ -331,7 +331,7 @@ static const struct ide_port_info trm290_chipset = {
 	.dma_ops	= &trm290_dma_ops,
 	.host_flags	= IDE_HFLAG_TRM290 |
 			  IDE_HFLAG_NO_ATAPI_DMA |
-#if 0 /* play it safe for now */
+#if 0 /* play it safe for yesw */
 			  IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 #endif
 			  IDE_HFLAG_NO_AUTODMA |

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * QNAP Turbo NAS Board power off. Can also be used on Synology devices.
+ * QNAP Turbo NAS Board power off. Can also be used on Syyeslogy devices.
  *
  * Copyright (C) 2012 Andrew Lunn <andrew@lunn.ch>
  *
@@ -31,7 +31,7 @@ static const struct power_off_cfg qnap_power_off_cfg = {
 	.cmd = 'A',
 };
 
-static const struct power_off_cfg synology_power_off_cfg = {
+static const struct power_off_cfg syyeslogy_power_off_cfg = {
 	.baud = 9600,
 	.cmd = '1',
 };
@@ -40,8 +40,8 @@ static const struct of_device_id qnap_power_off_of_match_table[] = {
 	{ .compatible = "qnap,power-off",
 	  .data = &qnap_power_off_cfg,
 	},
-	{ .compatible = "synology,power-off",
-	  .data = &synology_power_off_cfg,
+	{ .compatible = "syyeslogy,power-off",
+	  .data = &syyeslogy_power_off_cfg,
 	},
 	{}
 };
@@ -72,13 +72,13 @@ static void qnap_power_off(void)
 
 static int qnap_power_off_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *res;
 	struct clk *clk;
 	char symname[KSYM_NAME_LEN];
 
 	const struct of_device_id *match =
-		of_match_node(qnap_power_off_of_match_table, np);
+		of_match_yesde(qnap_power_off_of_match_table, np);
 	cfg = match->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -93,7 +93,7 @@ static int qnap_power_off_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/* We need to know tclk in order to calculate the UART divisor */
+	/* We need to kyesw tclk in order to calculate the UART divisor */
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "Clk missing");
@@ -102,7 +102,7 @@ static int qnap_power_off_probe(struct platform_device *pdev)
 
 	tclk = clk_get_rate(clk);
 
-	/* Check that nothing else has already setup a handler */
+	/* Check that yesthing else has already setup a handler */
 	if (pm_power_off) {
 		lookup_symbol_name((ulong)pm_power_off, symname);
 		dev_err(&pdev->dev,

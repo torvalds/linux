@@ -49,7 +49,7 @@ typedef enum {
 } tb0219_type_t;
 
 /*
- * Minor device number
+ * Miyesr device number
  *	 0 = 7 segment LED
  *
  *	16 = GPIO IN 0
@@ -149,22 +149,22 @@ static inline int set_gpio_output_pin(unsigned int pin, char command)
 static ssize_t tanbac_tb0219_read(struct file *file, char __user *buf, size_t len,
                                   loff_t *ppos)
 {
-	unsigned int minor;
+	unsigned int miyesr;
 	char value;
 
-	minor = iminor(file_inode(file));
-	switch (minor) {
+	miyesr = imiyesr(file_iyesde(file));
+	switch (miyesr) {
 	case 0:
 		value = get_led();
 		break;
 	case 16 ... 23:
-		value = get_gpio_input_pin(minor - 16);
+		value = get_gpio_input_pin(miyesr - 16);
 		break;
 	case 32 ... 39:
-		value = get_gpio_output_pin(minor - 32);
+		value = get_gpio_output_pin(miyesr - 32);
 		break;
 	case 48 ... 55:
-		value = get_dip_switch(minor - 48);
+		value = get_dip_switch(miyesr - 48);
 		break;
 	default:
 		return -EBADF;
@@ -182,14 +182,14 @@ static ssize_t tanbac_tb0219_read(struct file *file, char __user *buf, size_t le
 static ssize_t tanbac_tb0219_write(struct file *file, const char __user *data,
                                    size_t len, loff_t *ppos)
 {
-	unsigned int minor;
+	unsigned int miyesr;
 	tb0219_type_t type;
 	size_t i;
 	int retval = 0;
 	char c;
 
-	minor = iminor(file_inode(file));
-	switch (minor) {
+	miyesr = imiyesr(file_iyesde(file));
+	switch (miyesr) {
 	case 0:
 		type = TYPE_LED;
 		break;
@@ -209,7 +209,7 @@ static ssize_t tanbac_tb0219_write(struct file *file, const char __user *data,
 			retval = set_led(c);
 			break;
 		case TYPE_GPIO_OUTPUT:
-			retval = set_gpio_output_pin(minor - 32, c);
+			retval = set_gpio_output_pin(miyesr - 32, c);
 			break;
 		}
 
@@ -220,17 +220,17 @@ static ssize_t tanbac_tb0219_write(struct file *file, const char __user *data,
 	return i;
 }
 
-static int tanbac_tb0219_open(struct inode *inode, struct file *file)
+static int tanbac_tb0219_open(struct iyesde *iyesde, struct file *file)
 {
-	unsigned int minor;
+	unsigned int miyesr;
 
-	minor = iminor(inode);
-	switch (minor) {
+	miyesr = imiyesr(iyesde);
+	switch (miyesr) {
 	case 0:
 	case 16 ... 23:
 	case 32 ... 39:
 	case 48 ... 55:
-		return stream_open(inode, file);
+		return stream_open(iyesde, file);
 	default:
 		break;
 	}
@@ -238,7 +238,7 @@ static int tanbac_tb0219_open(struct inode *inode, struct file *file)
 	return -EBADF;
 }
 
-static int tanbac_tb0219_release(struct inode *inode, struct file *file)
+static int tanbac_tb0219_release(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
@@ -249,7 +249,7 @@ static const struct file_operations tb0219_fops = {
 	.write		= tanbac_tb0219_write,
 	.open		= tanbac_tb0219_open,
 	.release	= tanbac_tb0219_release,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static void tb0219_restart(char *command)

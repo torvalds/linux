@@ -8,7 +8,7 @@
 
 #include <acpi/acpi.h>
 
-/* Headers not included by include/acpi/platform/aclinux.h */
+/* Headers yest included by include/acpi/platform/aclinux.h */
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>

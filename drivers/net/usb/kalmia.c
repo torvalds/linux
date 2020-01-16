@@ -71,7 +71,7 @@ kalmia_send_init_packet(struct usbnet *dev, u8 *init_msg, u8 init_msg_len,
 	}
 	else if (act_len != init_msg_len) {
 		netdev_err(dev->net,
-			"Did not send all of init packet. Bytes sent: %i",
+			"Did yest send all of init packet. Bytes sent: %i",
 			act_len);
 	}
 	else {
@@ -252,13 +252,13 @@ kalmia_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 				header_start, EXPECTED_UNKNOWN_HEADER_2,
 				sizeof(EXPECTED_UNKNOWN_HEADER_2))) {
 				netdev_dbg(dev->net,
-					"Received expected unknown frame header: %6phC. Package length: %i\n",
+					"Received expected unkyeswn frame header: %6phC. Package length: %i\n",
 					header_start,
 					skb->len - KALMIA_HEADER_LENGTH);
 			}
 			else {
 				netdev_err(dev->net,
-					"Received unknown frame header: %6phC. Package length: %i\n",
+					"Received unkyeswn frame header: %6phC. Package length: %i\n",
 					header_start,
 					skb->len - KALMIA_HEADER_LENGTH);
 				return 0;

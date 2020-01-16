@@ -170,7 +170,7 @@ static int stm32_ipcc_startup(struct mbox_chan *link)
 
 	ret = clk_prepare_enable(ipcc->clk);
 	if (ret) {
-		dev_err(ipcc->controller.dev, "can not enable the clock\n");
+		dev_err(ipcc->controller.dev, "can yest enable the clock\n");
 		return ret;
 	}
 
@@ -203,7 +203,7 @@ static const struct mbox_chan_ops stm32_ipcc_ops = {
 static int stm32_ipcc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct stm32_ipcc *ipcc;
 	struct resource *res;
 	unsigned int i;
@@ -249,7 +249,7 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(ipcc->clk);
 	if (ret) {
-		dev_err(dev, "can not enable the clock\n");
+		dev_err(dev, "can yest enable the clock\n");
 		return ret;
 	}
 
@@ -258,7 +258,7 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 		ipcc->irqs[i] = platform_get_irq_byname(pdev, irq_name[i]);
 		if (ipcc->irqs[i] < 0) {
 			if (ipcc->irqs[i] != -EPROBE_DEFER)
-				dev_err(dev, "no IRQ specified %s\n",
+				dev_err(dev, "yes IRQ specified %s\n",
 					irq_name[i]);
 			ret = ipcc->irqs[i];
 			goto err_clk;
@@ -339,7 +339,7 @@ static int stm32_ipcc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	if (of_property_read_bool(dev->of_node, "wakeup-source"))
+	if (of_property_read_bool(dev->of_yesde, "wakeup-source"))
 		dev_pm_clear_wake_irq(&pdev->dev);
 
 	device_set_wakeup_capable(dev, false);

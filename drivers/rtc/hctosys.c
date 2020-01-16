@@ -2,7 +2,7 @@
 /*
  * RTC subsystem, initialize system time on startup
  *
- * Copyright (C) 2005 Tower Technologies
+ * Copyright (C) 2005 Tower Techyeslogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  */
 
@@ -16,7 +16,7 @@
  * the truncated value. This is because otherwise it is necessary,
  * in an rtc sync function, to read both xtime.tv_sec and
  * xtime.tv_nsec. On some processors (i.e. ARM), an atomic read
- * of >32bits is not possible. So storing the most close value would
+ * of >32bits is yest possible. So storing the most close value would
  * slow down the sync API. So here we have the truncated value and
  * the best guess is to add 0.5s.
  */

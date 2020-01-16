@@ -17,10 +17,10 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include "cifsglob.h"
 #include "cifs_debug.h"
 #include "smb2pdu.h"
@@ -1036,7 +1036,7 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_UNFINISHED_CONTEXT_DELETED, -EIO,
 	"STATUS_UNFINISHED_CONTEXT_DELETED"},
 	{STATUS_NO_TGT_REPLY, -EIO, "STATUS_NO_TGT_REPLY"},
-	/* Note that ENOATTTR and ENODATA are the same errno */
+	/* Note that ENOATTTR and ENODATA are the same erryes */
 	{STATUS_OBJECTID_NOT_FOUND, -ENODATA, "STATUS_OBJECTID_NOT_FOUND"},
 	{STATUS_NO_IP_ADDRESSES, -EIO, "STATUS_NO_IP_ADDRESSES"},
 	{STATUS_WRONG_CREDENTIAL_HANDLE, -EIO,
@@ -2441,7 +2441,7 @@ smb2_print_status(__le32 status)
 
 	while (smb2_error_map_table[idx].status_string != NULL) {
 		if ((smb2_error_map_table[idx].smb2_status) == status) {
-			pr_notice("Status code returned 0x%08x %s\n", status,
+			pr_yestice("Status code returned 0x%08x %s\n", status,
 				  smb2_error_map_table[idx].status_string);
 		}
 		idx++;
@@ -2478,7 +2478,7 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 		}
 	}
 
-	/* on error mapping not found  - return EIO */
+	/* on error mapping yest found  - return EIO */
 
 	cifs_dbg(FYI, "Mapping SMB2 status code 0x%08x to POSIX err %d\n",
 		 __le32_to_cpu(smb2err), rc);

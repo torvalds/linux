@@ -6,11 +6,11 @@
  * the PnP BIOS firmware, described in the following documents:
  *   Plug and Play BIOS Specification, Version 1.0A, 5 May 1994
  *   Plug and Play BIOS Clarification Paper, 6 October 1994
- *     Compaq Computer Corporation, Phoenix Technologies Ltd., Intel Corp.
+ *     Compaq Computer Corporation, Phoenix Techyeslogies Ltd., Intel Corp.
  * 
  * Originally (C) 1998 Christian Schmidt <schmidt@digadd.de>
  * Modifications (C) 1998 Tom Lees <tom@lpsg.demon.co.uk>
- * Minor reorganizations by David Hinds <dahinds@users.sourceforge.net>
+ * Miyesr reorganizations by David Hinds <dahinds@users.sourceforge.net>
  * Further modifications (C) 2001, 2002 by:
  *   Alan Cox <alan@redhat.com>
  *   Thomas Hood
@@ -23,7 +23,7 @@
 /* Change Log
  *
  * Adam Belay - <ambx1@neo.rr.com> - March 16, 2003
- * rev 1.01	Only call pnp_bios_dev_node_info once
+ * rev 1.01	Only call pnp_bios_dev_yesde_info once
  *		Added pnpbios_print_status
  *		Added several new error messages and info messages
  *		Added pnpbios_interface_attach_device
@@ -70,7 +70,7 @@ int pnp_bios_present(void)
 	return (pnp_bios_install != NULL);
 }
 
-struct pnp_dev_node_info node_info;
+struct pnp_dev_yesde_info yesde_info;
 
 /*
  *
@@ -109,7 +109,7 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 	envp[i++] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
 
 #ifdef	DEBUG
-	/* hint that policy agent should enter no-stdout debug mode */
+	/* hint that policy agent should enter yes-stdout debug mode */
 	envp[i++] = "DEBUG=kernel";
 #endif
 	/* extensible set of named bus-specific parameters,
@@ -138,7 +138,7 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
  */
 static int pnp_dock_thread(void *unused)
 {
-	static struct pnp_docking_station_info now;
+	static struct pnp_docking_station_info yesw;
 	int docked = -1, d = 0;
 
 	set_freezable();
@@ -153,7 +153,7 @@ static int pnp_dock_thread(void *unused)
 		if (try_to_freeze())
 			continue;
 
-		status = pnp_bios_dock_station_info(&now);
+		status = pnp_bios_dock_station_info(&yesw);
 
 		switch (status) {
 			/*
@@ -173,7 +173,7 @@ static int pnp_dock_thread(void *unused)
 			complete_and_exit(&unload_sem, 0);
 		}
 		if (d != docked) {
-			if (pnp_dock_event(d, &now) == 0) {
+			if (pnp_dock_event(d, &yesw) == 0) {
 				docked = d;
 #if 0
 				printk(KERN_INFO
@@ -188,58 +188,58 @@ static int pnp_dock_thread(void *unused)
 
 static int pnpbios_get_resources(struct pnp_dev *dev)
 {
-	u8 nodenum = dev->number;
-	struct pnp_bios_node *node;
+	u8 yesdenum = dev->number;
+	struct pnp_bios_yesde *yesde;
 
 	if (!pnpbios_is_dynamic(dev))
 		return -EPERM;
 
 	pnp_dbg(&dev->dev, "get resources\n");
-	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(yesde_info.max_yesde_size, GFP_KERNEL);
+	if (!yesde)
 		return -1;
-	if (pnp_bios_get_dev_node(&nodenum, (char)PNPMODE_DYNAMIC, node)) {
-		kfree(node);
+	if (pnp_bios_get_dev_yesde(&yesdenum, (char)PNPMODE_DYNAMIC, yesde)) {
+		kfree(yesde);
 		return -ENODEV;
 	}
-	pnpbios_read_resources_from_node(dev, node);
+	pnpbios_read_resources_from_yesde(dev, yesde);
 	dev->active = pnp_is_active(dev);
-	kfree(node);
+	kfree(yesde);
 	return 0;
 }
 
 static int pnpbios_set_resources(struct pnp_dev *dev)
 {
-	u8 nodenum = dev->number;
-	struct pnp_bios_node *node;
+	u8 yesdenum = dev->number;
+	struct pnp_bios_yesde *yesde;
 	int ret;
 
 	if (!pnpbios_is_dynamic(dev))
 		return -EPERM;
 
 	pnp_dbg(&dev->dev, "set resources\n");
-	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(yesde_info.max_yesde_size, GFP_KERNEL);
+	if (!yesde)
 		return -1;
-	if (pnp_bios_get_dev_node(&nodenum, (char)PNPMODE_DYNAMIC, node)) {
-		kfree(node);
+	if (pnp_bios_get_dev_yesde(&yesdenum, (char)PNPMODE_DYNAMIC, yesde)) {
+		kfree(yesde);
 		return -ENODEV;
 	}
-	if (pnpbios_write_resources_to_node(dev, node) < 0) {
-		kfree(node);
+	if (pnpbios_write_resources_to_yesde(dev, yesde) < 0) {
+		kfree(yesde);
 		return -1;
 	}
-	ret = pnp_bios_set_dev_node(node->handle, (char)PNPMODE_DYNAMIC, node);
-	kfree(node);
+	ret = pnp_bios_set_dev_yesde(yesde->handle, (char)PNPMODE_DYNAMIC, yesde);
+	kfree(yesde);
 	if (ret > 0)
 		ret = -1;
 	return ret;
 }
 
-static void pnpbios_zero_data_stream(struct pnp_bios_node *node)
+static void pnpbios_zero_data_stream(struct pnp_bios_yesde *yesde)
 {
-	unsigned char *p = (char *)node->data;
-	unsigned char *end = (char *)(node->data + node->size);
+	unsigned char *p = (char *)yesde->data;
+	unsigned char *end = (char *)(yesde->data + yesde->size);
 	unsigned int len;
 	int i;
 
@@ -258,30 +258,30 @@ static void pnpbios_zero_data_stream(struct pnp_bios_node *node)
 		p += len;
 	}
 	printk(KERN_ERR
-	       "PnPBIOS: Resource structure did not contain an end tag.\n");
+	       "PnPBIOS: Resource structure did yest contain an end tag.\n");
 }
 
 static int pnpbios_disable_resources(struct pnp_dev *dev)
 {
-	struct pnp_bios_node *node;
-	u8 nodenum = dev->number;
+	struct pnp_bios_yesde *yesde;
+	u8 yesdenum = dev->number;
 	int ret;
 
 	if (dev->flags & PNPBIOS_NO_DISABLE || !pnpbios_is_dynamic(dev))
 		return -EPERM;
 
-	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(yesde_info.max_yesde_size, GFP_KERNEL);
+	if (!yesde)
 		return -ENOMEM;
 
-	if (pnp_bios_get_dev_node(&nodenum, (char)PNPMODE_DYNAMIC, node)) {
-		kfree(node);
+	if (pnp_bios_get_dev_yesde(&yesdenum, (char)PNPMODE_DYNAMIC, yesde)) {
+		kfree(yesde);
 		return -ENODEV;
 	}
-	pnpbios_zero_data_stream(node);
+	pnpbios_zero_data_stream(yesde);
 
-	ret = pnp_bios_set_dev_node(dev->number, (char)PNPMODE_DYNAMIC, node);
-	kfree(node);
+	ret = pnp_bios_set_dev_yesde(dev->number, (char)PNPMODE_DYNAMIC, yesde);
+	kfree(yesde);
 	if (ret > 0)
 		ret = -1;
 	return ret;
@@ -296,7 +296,7 @@ struct pnp_protocol pnpbios_protocol = {
 	.disable = pnpbios_disable_resources,
 };
 
-static int __init insert_device(struct pnp_bios_node *node)
+static int __init insert_device(struct pnp_bios_yesde *yesde)
 {
 	struct list_head *pos;
 	struct pnp_dev *dev;
@@ -306,18 +306,18 @@ static int __init insert_device(struct pnp_bios_node *node)
 	/* check if the device is already added */
 	list_for_each(pos, &pnpbios_protocol.devices) {
 		dev = list_entry(pos, struct pnp_dev, protocol_list);
-		if (dev->number == node->handle)
+		if (dev->number == yesde->handle)
 			return -EEXIST;
 	}
 
-	pnp_eisa_id_to_string(node->eisa_id & PNP_EISA_ID_MASK, id);
-	dev = pnp_alloc_dev(&pnpbios_protocol, node->handle, id);
+	pnp_eisa_id_to_string(yesde->eisa_id & PNP_EISA_ID_MASK, id);
+	dev = pnp_alloc_dev(&pnpbios_protocol, yesde->handle, id);
 	if (!dev)
 		return -ENOMEM;
 
-	pnpbios_parse_data_stream(dev, node);
+	pnpbios_parse_data_stream(dev, yesde);
 	dev->active = pnp_is_active(dev);
-	dev->flags = node->flags;
+	dev->flags = yesde->flags;
 	if (!(dev->flags & PNPBIOS_NO_CONFIG))
 		dev->capabilities |= PNP_CONFIGURABLE;
 	if (!(dev->flags & PNPBIOS_NO_DISABLE) && pnpbios_is_dynamic(dev))
@@ -338,52 +338,52 @@ static int __init insert_device(struct pnp_bios_node *node)
 		return error;
 	}
 
-	pnpbios_interface_attach_device(node);
+	pnpbios_interface_attach_device(yesde);
 
 	return 0;
 }
 
 static void __init build_devlist(void)
 {
-	u8 nodenum;
-	unsigned int nodes_got = 0;
+	u8 yesdenum;
+	unsigned int yesdes_got = 0;
 	unsigned int devs = 0;
-	struct pnp_bios_node *node;
+	struct pnp_bios_yesde *yesde;
 
-	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(yesde_info.max_yesde_size, GFP_KERNEL);
+	if (!yesde)
 		return;
 
-	for (nodenum = 0; nodenum < 0xff;) {
-		u8 thisnodenum = nodenum;
-		/* eventually we will want to use PNPMODE_STATIC here but for now
+	for (yesdenum = 0; yesdenum < 0xff;) {
+		u8 thisyesdenum = yesdenum;
+		/* eventually we will want to use PNPMODE_STATIC here but for yesw
 		 * dynamic will help us catch buggy bioses to add to the blacklist.
 		 */
 		if (!pnpbios_dont_use_current_config) {
-			if (pnp_bios_get_dev_node
-			    (&nodenum, (char)PNPMODE_DYNAMIC, node))
+			if (pnp_bios_get_dev_yesde
+			    (&yesdenum, (char)PNPMODE_DYNAMIC, yesde))
 				break;
 		} else {
-			if (pnp_bios_get_dev_node
-			    (&nodenum, (char)PNPMODE_STATIC, node))
+			if (pnp_bios_get_dev_yesde
+			    (&yesdenum, (char)PNPMODE_STATIC, yesde))
 				break;
 		}
-		nodes_got++;
-		if (insert_device(node) == 0)
+		yesdes_got++;
+		if (insert_device(yesde) == 0)
 			devs++;
-		if (nodenum <= thisnodenum) {
+		if (yesdenum <= thisyesdenum) {
 			printk(KERN_ERR
-			       "PnPBIOS: build_devlist: Node number 0x%x is out of sequence following node 0x%x. Aborting.\n",
-			       (unsigned int)nodenum,
-			       (unsigned int)thisnodenum);
+			       "PnPBIOS: build_devlist: Node number 0x%x is out of sequence following yesde 0x%x. Aborting.\n",
+			       (unsigned int)yesdenum,
+			       (unsigned int)thisyesdenum);
 			break;
 		}
 	}
-	kfree(node);
+	kfree(yesde);
 
 	printk(KERN_INFO
-	       "PnPBIOS: %i node%s reported by PnP BIOS; %i recorded by driver\n",
-	       nodes_got, nodes_got != 1 ? "s" : "", devs);
+	       "PnPBIOS: %i yesde%s reported by PnP BIOS; %i recorded by driver\n",
+	       yesdes_got, yesdes_got != 1 ? "s" : "", devs);
 }
 
 /*
@@ -404,7 +404,7 @@ static int __init pnpbios_setup(char *str)
 			pnpbios_disabled = 1;
 		if (strncmp(str, "on", 2) == 0)
 			pnpbios_disabled = 0;
-		invert = (strncmp(str, "no-", 3) == 0);
+		invert = (strncmp(str, "yes-", 3) == 0);
 		if (invert)
 			str += 3;
 		if (strncmp(str, "curr", 4) == 0)
@@ -458,7 +458,7 @@ static int __init pnpbios_probe_system(void)
 		}
 		if (check->fields.version < 0x10) {
 			printk(KERN_WARNING
-			       "PnPBIOS: PnP BIOS version %d.%d is not supported\n",
+			       "PnPBIOS: PnP BIOS version %d.%d is yest supported\n",
 			       check->fields.version >> 4,
 			       check->fields.version & 15);
 			continue;
@@ -472,7 +472,7 @@ static int __init pnpbios_probe_system(void)
 		return 1;
 	}
 
-	printk(KERN_INFO "PnPBIOS: PnP BIOS support was not detected.\n");
+	printk(KERN_INFO "PnPBIOS: PnP BIOS support was yest detected.\n");
 	return 0;
 }
 
@@ -529,11 +529,11 @@ static int __init pnpbios_init(void)
 	/* make preparations for bios calls */
 	pnpbios_calls_init(pnp_bios_install);
 
-	/* read the node info */
-	ret = pnp_bios_dev_node_info(&node_info);
+	/* read the yesde info */
+	ret = pnp_bios_dev_yesde_info(&yesde_info);
 	if (ret) {
 		printk(KERN_ERR
-		       "PnPBIOS: Unable to get node info.  Aborting.\n");
+		       "PnPBIOS: Unable to get yesde info.  Aborting.\n");
 		return ret;
 	}
 

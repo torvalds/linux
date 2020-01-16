@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * ocfs2_lockid.h
  *
@@ -14,7 +14,7 @@
 
 /* lock ids are made up in the following manner:
  * name[0]     --> type
- * name[1-6]   --> 6 pad characters, reserved for now
+ * name[1-6]   --> 6 pad characters, reserved for yesw
  * name[7-22]  --> block number, expressed in hex as 16 chars
  * name[23-30] --> i_generation, expressed in hex 8 chars
  * name[31]    --> '\0' */

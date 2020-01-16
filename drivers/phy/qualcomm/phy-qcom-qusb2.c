@@ -90,7 +90,7 @@ struct qusb2_phy_init_tbl {
 	unsigned int val;
 	/*
 	 * register part of layout ?
-	 * if yes, then offset gives index in the reg-layout
+	 * if no, then offset gives index in the reg-layout
 	 */
 	int in_layout;
 };
@@ -440,7 +440,7 @@ static void qusb2_phy_set_tune2_param(struct qusb2_phy *qphy)
 
 	/*
 	 * Read efuse register having TUNE2/1 parameter's high nibble.
-	 * If efuse register shows value as 0x0 (indicating value is not
+	 * If efuse register shows value as 0x0 (indicating value is yest
 	 * fused), or if we fail to find a valid efuse register setting,
 	 * then use default value for high nibble that we have already
 	 * set while configuring the phy.
@@ -481,7 +481,7 @@ static int __maybe_unused qusb2_phy_runtime_suspend(struct device *dev)
 	dev_vdbg(dev, "Suspending QUSB2 Phy, mode:%d\n", qphy->mode);
 
 	if (!qphy->phy_initialized) {
-		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		dev_vdbg(dev, "PHY yest initialized, bailing out\n");
 		return 0;
 	}
 
@@ -547,7 +547,7 @@ static int __maybe_unused qusb2_phy_runtime_resume(struct device *dev)
 	dev_vdbg(dev, "Resuming QUSB2 phy, mode:%d\n", qphy->mode);
 
 	if (!qphy->phy_initialized) {
-		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		dev_vdbg(dev, "PHY yest initialized, bailing out\n");
 		return 0;
 	}
 
@@ -663,7 +663,7 @@ static int qusb2_phy_init(struct phy *phy)
 	qphy->has_se_clk_scheme = true;
 	/*
 	 * read TCSR_PHY_CLK_SCHEME register to check if single-ended
-	 * clock scheme is selected. If yes, then disable differential
+	 * clock scheme is selected. If no, then disable differential
 	 * ref_clk and use single-ended clock, otherwise use differential
 	 * ref_clk only.
 	 */
@@ -847,7 +847,7 @@ static int qusb2_phy_probe(struct platform_device *pdev)
 	/* Get the specific init parameters of QMP phy */
 	qphy->cfg = of_device_get_match_data(dev);
 
-	qphy->tcsr = syscon_regmap_lookup_by_phandle(dev->of_node,
+	qphy->tcsr = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 							"qcom,tcsr-syscon");
 	if (IS_ERR(qphy->tcsr)) {
 		dev_dbg(dev, "failed to lookup TCSR regmap\n");
@@ -862,25 +862,25 @@ static int qusb2_phy_probe(struct platform_device *pdev)
 		dev_dbg(dev, "failed to lookup tune2 hstx trim value\n");
 	}
 
-	if (!of_property_read_u32(dev->of_node, "qcom,imp-res-offset-value",
+	if (!of_property_read_u32(dev->of_yesde, "qcom,imp-res-offset-value",
 				  &value)) {
 		qphy->imp_res_offset_value = (u8)value;
 		qphy->override_imp_res_offset = true;
 	}
 
-	if (!of_property_read_u32(dev->of_node, "qcom,hstx-trim-value",
+	if (!of_property_read_u32(dev->of_yesde, "qcom,hstx-trim-value",
 				  &value)) {
 		qphy->hstx_trim_value = (u8)value;
 		qphy->override_hstx_trim = true;
 	}
 
-	if (!of_property_read_u32(dev->of_node, "qcom,preemphasis-level",
+	if (!of_property_read_u32(dev->of_yesde, "qcom,preemphasis-level",
 				     &value)) {
 		qphy->preemphasis_level = (u8)value;
 		qphy->override_preemphasis = true;
 	}
 
-	if (!of_property_read_u32(dev->of_node, "qcom,preemphasis-width",
+	if (!of_property_read_u32(dev->of_yesde, "qcom,preemphasis-width",
 				     &value)) {
 		qphy->preemphasis_width = (u8)value;
 		qphy->override_preemphasis_width = true;

@@ -31,12 +31,12 @@ KernelVersion:	2.6.30
 Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
 		Space separated list of supported guest system types. Each type
-		is in the format: <class>-<major>.<minor>-<arch>
+		is in the format: <class>-<major>.<miyesr>-<arch>
 		With:
 			<class>: "xen" -- x86: paravirtualized, arm: standard
 				 "hvm" -- x86 only: fully virtualized
 			<major>: major guest interface version
-			<minor>: minor guest interface version
+			<miyesr>: miyesr guest interface version
 			<arch>:  architecture, e.g.:
 				 "x86_32": 32 bit x86 guest without PAE
 				 "x86_32p": 32 bit x86 guest with PAE
@@ -90,14 +90,14 @@ Date:		March 2009
 KernelVersion:	2.6.30
 Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
-		UUID of the guest as known to the Xen hypervisor.
+		UUID of the guest as kyeswn to the Xen hypervisor.
 
 What:		/sys/hypervisor/version/extra
 Date:		March 2009
 KernelVersion:	2.6.30
 Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
-		The Xen version is in the format <major>.<minor><extra>
+		The Xen version is in the format <major>.<miyesr><extra>
 		This is the <extra> part of it.
 		Might return "<denied>" in case of special security settings
 		in the hypervisor.
@@ -107,13 +107,13 @@ Date:		March 2009
 KernelVersion:	2.6.30
 Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
-		The Xen version is in the format <major>.<minor><extra>
+		The Xen version is in the format <major>.<miyesr><extra>
 		This is the <major> part of it.
 
-What:		/sys/hypervisor/version/minor
+What:		/sys/hypervisor/version/miyesr
 Date:		March 2009
 KernelVersion:	2.6.30
 Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
-		The Xen version is in the format <major>.<minor><extra>
-		This is the <minor> part of it.
+		The Xen version is in the format <major>.<miyesr><extra>
+		This is the <miyesr> part of it.

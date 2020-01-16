@@ -34,7 +34,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/cdrom.h>
 #include <linux/ide.h>
 #include <linux/completion.h>
@@ -119,7 +119,7 @@ static int cdrom_log_sense(ide_drive_t *drive, struct request *rq)
 		break;
 	case ILLEGAL_REQUEST:
 		/*
-		 * don't log START_STOP unit with LoEj set, since we cannot
+		 * don't log START_STOP unit with LoEj set, since we canyest
 		 * reliably check if drive can auto-close
 		 */
 		if (scsi_req(rq)->cmd[0] == GPCMD_START_STOP_UNIT && sense->asc == 0x24)
@@ -161,7 +161,7 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 
 	/*
 	 * If a read toc is executed for a CD-R or CD-RW medium where the first
-	 * toc has not been recorded yet, it will fail with 05/24/00 (which is a
+	 * toc has yest been recorded yet, it will fail with 05/24/00 (which is a
 	 * confusing error)
 	 */
 	if (failed_command && scsi_req(failed_command)->cmd[0] == GPCMD_READ_TOC_PMA_ATIP)
@@ -308,7 +308,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 	if (blk_rq_is_scsi(rq) && !scsi_req(rq)->result)
 		scsi_req(rq)->result = SAM_STAT_CHECK_CONDITION;
 
-	if (blk_noretry_request(rq))
+	if (blk_yesretry_request(rq))
 		do_end_request = 1;
 
 	switch (sense_key) {
@@ -345,7 +345,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 		 * indicates that 5/24/00 is the correct response to a request
 		 * to close the tray if the drive doesn't have that capability.
 		 *
-		 * cdrom_log_sense() knows this!
+		 * cdrom_log_sense() kyesws this!
 		 */
 		if (scsi_req(rq)->cmd[0] == GPCMD_START_STOP_UNIT)
 			break;
@@ -362,7 +362,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 	case MEDIUM_ERROR:
 		/*
 		 * No point in re-trying a zillion times on a bad sector.
-		 * If we got here the error is not correctable.
+		 * If we got here the error is yest correctable.
 		 */
 		if (!(rq->rq_flags & RQF_QUIET))
 			ide_dump_status(drive, "media error "
@@ -471,7 +471,7 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 
 		if (buffer)
 			*bufflen = scsi_req(rq)->resid_len;
-		scsi_normalize_sense(scsi_req(rq)->sense,
+		scsi_yesrmalize_sense(scsi_req(rq)->sense,
 				     scsi_req(rq)->sense_len, sshdr);
 
 		/*
@@ -644,7 +644,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		}
 	}
 
-	/* using dma, transfer is complete now */
+	/* using dma, transfer is complete yesw */
 	if (dma) {
 		if (dma_error)
 			return ide_error(drive, "dma error", stat);
@@ -666,8 +666,8 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		switch (req_op(rq)) {
 		default:
 			/*
-			 * If we're not done reading/writing, complain.
-			 * Otherwise, complete the command normally.
+			 * If we're yest done reading/writing, complain.
+			 * Otherwise, complete the command yesrmally.
 			 */
 			uptodate = 1;
 			if (cmd->nleft > 0) {
@@ -901,7 +901,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 	case REQ_OP_DRV_OUT:
 		switch (ide_req(rq)->type) {
 		case ATA_PRIV_MISC:
-			/* right now this can only be a reset... */
+			/* right yesw this can only be a reset... */
 			uptodate = 1;
 			goto out_end;
 		case ATA_PRIV_SENSE:
@@ -946,7 +946,7 @@ out_end:
  * request_sense struct. If execution of the command results in an error with a
  * CHECK CONDITION status, this structure will be filled with the results of the
  * subsequent request sense command. The pointer can also be NULL, in which case
- * no sense information is returned.
+ * yes sense information is returned.
  */
 static void msf_from_bcd(struct atapi_msf *msf)
 {
@@ -1033,7 +1033,7 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 	return 0;
 }
 
-static int cdrom_read_tocentry(ide_drive_t *drive, int trackno, int msf_flag,
+static int cdrom_read_tocentry(ide_drive_t *drive, int trackyes, int msf_flag,
 				int format, char *buf, int buflen)
 {
 	unsigned char cmd[BLK_MAX_CDB];
@@ -1043,7 +1043,7 @@ static int cdrom_read_tocentry(ide_drive_t *drive, int trackno, int msf_flag,
 	memset(cmd, 0, BLK_MAX_CDB);
 
 	cmd[0] = GPCMD_READ_TOC_PMA_ATIP;
-	cmd[6] = trackno;
+	cmd[6] = trackyes;
 	cmd[7] = (buflen >> 8);
 	cmd[8] = (buflen & 0xff);
 	cmd[9] = (format << 6);
@@ -1102,7 +1102,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 	blk_queue_logical_block_size(drive->queue,
 				     sectors_per_frame << SECTOR_SHIFT);
 
-	/* first read just the header, so we know how long the TOC is */
+	/* first read just the header, so we kyesw how long the TOC is */
 	stat = cdrom_read_tocentry(drive, 0, 1, 0, (char *) &toc->hdr,
 				    sizeof(struct atapi_toc_header));
 	if (stat)
@@ -1119,7 +1119,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 	if (ntracks > MAX_TRACKS)
 		ntracks = MAX_TRACKS;
 
-	/* now read the whole schmeer */
+	/* yesw read the whole schmeer */
 	stat = cdrom_read_tocentry(drive, toc->hdr.first_track, 1, 0,
 				  (char *)&toc->hdr,
 				   sizeof(struct atapi_toc_header) +
@@ -1135,7 +1135,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 		 * plus an additional audio track. If we get an error for the
 		 * regular case, we assume a CDI without additional audio
 		 * tracks. In this case the readable TOC is empty (CDI tracks
-		 * are not included) and only holds the Leadout entry.
+		 * are yest included) and only holds the Leadout entry.
 		 *
 		 * Heiko Eißfeldt.
 		 */
@@ -1207,7 +1207,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 
 	toc->xa_flag = (ms_tmp.hdr.first_track != ms_tmp.hdr.last_track);
 
-	/* now try to get the total cdrom capacity */
+	/* yesw try to get the total cdrom capacity */
 	stat = cdrom_get_last_written(cdi, &last_written);
 	if (!stat && (last_written > toc->capacity)) {
 		toc->capacity = last_written;
@@ -1456,7 +1456,7 @@ static const struct ide_proc_devset *ide_cd_proc_devsets(ide_drive_t *drive)
 static const struct cd_list_entry ide_cd_quirks_list[] = {
 	/* SCR-3231 doesn't support the SET_CD_SPEED command. */
 	{ "SAMSUNG CD-ROM SCR-3231", NULL,   IDE_AFLAG_NO_SPEED_SELECT	     },
-	/* Old NEC260 (not R) was released before ATAPI 1.2 spec. */
+	/* Old NEC260 (yest R) was released before ATAPI 1.2 spec. */
 	{ "NEC CD-ROM DRIVE:260",    "1.01", IDE_AFLAG_TOCADDR_AS_BCD |
 					     IDE_AFLAG_PRE_ATAPI12,	     },
 	/* Vertos 300, some versions of this drive like to talk BCD. */
@@ -1464,7 +1464,7 @@ static const struct cd_list_entry ide_cd_quirks_list[] = {
 	/* Vertos 600 ESD. */
 	{ "V006E0DS",		     NULL,   IDE_AFLAG_VERTOS_600_ESD,	     },
 	/*
-	 * Sanyo 3 CD changer uses a non-standard command for CD changing
+	 * Sanyo 3 CD changer uses a yesn-standard command for CD changing
 	 * (by default standard ATAPI support for CD changers is used).
 	 */
 	{ "CD-ROM CDR-C3 G",	     NULL,   IDE_AFLAG_SANYO_3CD	     },
@@ -1787,7 +1787,7 @@ static int ide_cd_probe(ide_drive_t *drive)
 
 	drive->driver_data = info;
 
-	g->minors = 1;
+	g->miyesrs = 1;
 	g->flags = GENHD_FL_CD | GENHD_FL_REMOVABLE;
 	if (ide_cdrom_setup(drive)) {
 		put_device(&info->dev);

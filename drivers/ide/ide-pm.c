@@ -135,7 +135,7 @@ ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *rq)
 	case IDE_PM_FLUSH_CACHE:	/* Suspend step 1 (flush cache) */
 		if (drive->media != ide_disk)
 			break;
-		/* Not supported? Switch to next step now. */
+		/* Not supported? Switch to next step yesw. */
 		if (ata_id_flush_enabled(drive->id) == 0 ||
 		    (drive->dev_flags & IDE_DFLAG_WCACHE) == 0) {
 			ide_complete_power_step(drive, rq);
@@ -164,7 +164,7 @@ ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *rq)
 		goto out_do_tf;
 	case IDE_PM_RESTORE_DMA:	/* Resume step 3 (restore DMA) */
 		/*
-		 * Right now, all we do is call ide_set_dma(drive),
+		 * Right yesw, all we do is call ide_set_dma(drive),
 		 * we could be smarter and check for current xfer_speed
 		 * in struct drive etc...
 		 */
@@ -237,7 +237,7 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		 * go away (with a looong timeout) as a drive on this hwif may
 		 * just be POSTing itself.
 		 * We do that before even selecting as the "other" device on
-		 * the bus may be broken enough to walk on our toes at this
+		 * the bus may be broken eyesugh to walk on our toes at this
 		 * point.
 		 */
 		ide_hwif_t *hwif = drive->hwif;
@@ -247,14 +247,14 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 #ifdef DEBUG_PM
 		printk("%s: Wakeup request inited, waiting for !BSY...\n", drive->name);
 #endif
-		rc = ide_wait_not_busy(hwif, 35000);
+		rc = ide_wait_yest_busy(hwif, 35000);
 		if (rc)
-			printk(KERN_WARNING "%s: bus not ready on wakeup\n", drive->name);
+			printk(KERN_WARNING "%s: bus yest ready on wakeup\n", drive->name);
 		tp_ops->dev_select(drive);
 		tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
-		rc = ide_wait_not_busy(hwif, 100000);
+		rc = ide_wait_yest_busy(hwif, 100000);
 		if (rc)
-			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);
+			printk(KERN_WARNING "%s: drive yest ready on wakeup\n", drive->name);
 
 		blk_mq_start_hw_queues(q);
 	}

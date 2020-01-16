@@ -23,7 +23,7 @@
  *
  * Documentation:
  *	SiS chipset documentation available under NDA to companies only
- *      (not to individuals).
+ *      (yest to individuals).
  */
 
 /*
@@ -37,8 +37,8 @@
  * for the respective NorthBridge IDs.
  *
  * Even later (96x family) SiS chipsets use the MuTIOL link and place the 5513
- * into the SouthBrige. Here we cannot rely on looking up the NorthBridge PCI
- * ID, while the now ATA-133 capable 5513 still has the same PCI ID.
+ * into the SouthBrige. Here we canyest rely on looking up the NorthBridge PCI
+ * ID, while the yesw ATA-133 capable 5513 still has the same PCI ID.
  * Fortunately the 5513 can be 'unmasked' by fiddling with some config space
  * bits, changing its device id to the true one - 5517 for 961 and 5518 for
  * 962/963.
@@ -113,8 +113,8 @@ static const struct {
 static u8 cycle_time_offset[] = { 0, 0, 5, 4, 4, 0, 0 };
 static u8 cycle_time_range[]  = { 0, 0, 2, 3, 3, 4, 4 };
 static u8 cycle_time_value[][XFER_UDMA_6 - XFER_UDMA_0 + 1] = {
-	{  0,  0, 0, 0, 0, 0, 0 }, /* no UDMA */
-	{  0,  0, 0, 0, 0, 0, 0 }, /* no UDMA */
+	{  0,  0, 0, 0, 0, 0, 0 }, /* yes UDMA */
+	{  0,  0, 0, 0, 0, 0, 0 }, /* yes UDMA */
 	{  3,  2, 1, 0, 0, 0, 0 }, /* ATA_33 */
 	{  7,  5, 3, 2, 1, 0, 0 }, /* ATA_66 */
 	{  7,  5, 3, 2, 1, 0, 0 }, /* ATA_100a (730 specific),
@@ -126,8 +126,8 @@ static u8 cycle_time_value[][XFER_UDMA_6 - XFER_UDMA_0 + 1] = {
 /* CRC Valid Setup Time vary across IDE clock setting 33/66/100/133
    See SiS962 data sheet for more detail */
 static u8 cvs_time_value[][XFER_UDMA_6 - XFER_UDMA_0 + 1] = {
-	{ 0, 0, 0, 0, 0, 0, 0 }, /* no UDMA */
-	{ 0, 0, 0, 0, 0, 0, 0 }, /* no UDMA */
+	{ 0, 0, 0, 0, 0, 0, 0 }, /* yes UDMA */
+	{ 0, 0, 0, 0, 0, 0, 0 }, /* yes UDMA */
 	{ 2, 1, 1, 0, 0, 0, 0 },
 	{ 4, 3, 2, 1, 0, 0, 0 },
 	{ 4, 3, 2, 1, 0, 0, 0 },
@@ -358,7 +358,7 @@ static u8 sis_ata133_udma_filter(ide_drive_t *drive)
 
 	pci_read_config_dword(dev, drive_pci, &regdw);
 
-	/* if ATA133 disable, we should not set speed above UDMA5 */
+	/* if ATA133 disable, we should yest set speed above UDMA5 */
 	return (regdw & 0x08) ? ATA_UDMA6 : ATA_UDMA5;
 }
 

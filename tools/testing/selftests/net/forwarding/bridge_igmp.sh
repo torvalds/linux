@@ -3,7 +3,7 @@
 
 ALL_TESTS="reportleave_test"
 NUM_NETIFS=4
-CHECK_TC="yes"
+CHECK_TC="no"
 TEST_GROUP="239.10.10.10"
 TEST_GROUP_MAC="01:00:5e:0a:0a:0a"
 source lib.sh
@@ -30,7 +30,7 @@ h2_destroy()
 
 switch_create()
 {
-	ip link add dev br0 type bridge mcast_snooping 1 mcast_querier 1
+	ip link add dev br0 type bridge mcast_syesoping 1 mcast_querier 1
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br0
@@ -89,7 +89,7 @@ mcast_packet_test()
 	local seen=0
 
 	# Add an ACL on `host2_if` which will tell us whether the packet
-	# was received by it or not.
+	# was received by it or yest.
 	tc qdisc add dev $host2_if ingress
 	tc filter add dev $host2_if ingress protocol ip pref 1 handle 101 \
 		flower dst_mac $mac action drop
@@ -114,7 +114,7 @@ reportleave_test()
 {
 	RET=0
 	ip address add dev $h2 $TEST_GROUP/32 autojoin
-	check_err $? "Could not join $TEST_GROUP"
+	check_err $? "Could yest join $TEST_GROUP"
 
 	sleep 5
 	bridge mdb show dev br0 | grep $TEST_GROUP 1>/dev/null
@@ -130,7 +130,7 @@ reportleave_test()
 	check_err $? "mdb entry for $TEST_GROUP is missing"
 
 	ip address del dev $h2 $TEST_GROUP/32
-	check_err $? "Could not leave $TEST_GROUP"
+	check_err $? "Could yest leave $TEST_GROUP"
 
 	sleep 5
 	bridge mdb show dev br0 | grep $TEST_GROUP 1>/dev/null

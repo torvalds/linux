@@ -77,7 +77,7 @@ static bool hsr_check_carrier(struct hsr_port *master)
 	return has_carrier;
 }
 
-static void hsr_check_announce(struct net_device *hsr_dev,
+static void hsr_check_anyesunce(struct net_device *hsr_dev,
 			       unsigned char old_operstate)
 {
 	struct hsr_priv *hsr;
@@ -86,14 +86,14 @@ static void hsr_check_announce(struct net_device *hsr_dev,
 
 	if (hsr_dev->operstate == IF_OPER_UP && old_operstate != IF_OPER_UP) {
 		/* Went up */
-		hsr->announce_count = 0;
-		mod_timer(&hsr->announce_timer,
+		hsr->anyesunce_count = 0;
+		mod_timer(&hsr->anyesunce_timer,
 			  jiffies + msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL));
 	}
 
 	if (hsr_dev->operstate != IF_OPER_UP && old_operstate == IF_OPER_UP)
 		/* Went down */
-		del_timer(&hsr->announce_timer);
+		del_timer(&hsr->anyesunce_timer);
 }
 
 void hsr_check_carrier_and_operstate(struct hsr_priv *hsr)
@@ -103,13 +103,13 @@ void hsr_check_carrier_and_operstate(struct hsr_priv *hsr)
 	bool has_carrier;
 
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-	/* netif_stacked_transfer_operstate() cannot be used here since
+	/* netif_stacked_transfer_operstate() canyest be used here since
 	 * it doesn't set IF_OPER_LOWERLAYERDOWN (?)
 	 */
 	old_operstate = master->dev->operstate;
 	has_carrier = hsr_check_carrier(master);
 	hsr_set_operstate(master, has_carrier);
-	hsr_check_announce(master->dev, old_operstate);
+	hsr_check_anyesunce(master->dev, old_operstate);
 }
 
 int hsr_get_max_mtu(struct hsr_priv *hsr)
@@ -138,7 +138,7 @@ static int hsr_dev_change_mtu(struct net_device *dev, int new_mtu)
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 
 	if (new_mtu > hsr_get_max_mtu(hsr)) {
-		netdev_info(master->dev, "A HSR master's MTU cannot be greater than the smallest MTU of its slaves minus the HSR Tag length (%d octets).\n",
+		netdev_info(master->dev, "A HSR master's MTU canyest be greater than the smallest MTU of its slaves minus the HSR Tag length (%d octets).\n",
 			    HSR_HLEN);
 		return -EINVAL;
 	}
@@ -172,7 +172,7 @@ static int hsr_dev_open(struct net_device *dev)
 			designation = '?';
 		}
 		if (!is_slave_up(port->dev))
-			netdev_warn(dev, "Slave %c (%s) is not up; please bring it up to get a fully working HSR network\n",
+			netdev_warn(dev, "Slave %c (%s) is yest up; please bring it up to get a fully working HSR network\n",
 				    designation, port->dev->name);
 	}
 	rcu_read_unlock();
@@ -200,7 +200,7 @@ static netdev_features_t hsr_features_recompute(struct hsr_priv *hsr,
 	/* Mask out all features that, if supported by one device, should be
 	 * enabled for all devices (see NETIF_F_ONE_FOR_ALL).
 	 *
-	 * Anything that's off in mask will not be enabled - so only things
+	 * Anything that's off in mask will yest be enabled - so only things
 	 * that were in features originally, and also is in NETIF_F_ONE_FOR_ALL,
 	 * may become enabled.
 	 */
@@ -314,27 +314,27 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 	return;
 
 out:
-	WARN_ONCE(1, "HSR: Could not send supervision frame\n");
+	WARN_ONCE(1, "HSR: Could yest send supervision frame\n");
 	kfree_skb(skb);
 }
 
-/* Announce (supervision frame) timer function
+/* Anyesunce (supervision frame) timer function
  */
-static void hsr_announce(struct timer_list *t)
+static void hsr_anyesunce(struct timer_list *t)
 {
 	struct hsr_priv *hsr;
 	struct hsr_port *master;
 	unsigned long interval;
 
-	hsr = from_timer(hsr, t, announce_timer);
+	hsr = from_timer(hsr, t, anyesunce_timer);
 
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 
-	if (hsr->announce_count < 3 && hsr->prot_version == 0) {
+	if (hsr->anyesunce_count < 3 && hsr->prot_version == 0) {
 		send_hsr_supervision_frame(master, HSR_TLV_ANNOUNCE,
 					   hsr->prot_version);
-		hsr->announce_count++;
+		hsr->anyesunce_count++;
 
 		interval = msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL);
 	} else {
@@ -345,7 +345,7 @@ static void hsr_announce(struct timer_list *t)
 	}
 
 	if (is_admin_up(master->dev))
-		mod_timer(&hsr->announce_timer, jiffies + interval);
+		mod_timer(&hsr->anyesunce_timer, jiffies + interval);
 
 	rcu_read_unlock();
 }
@@ -368,10 +368,10 @@ static void hsr_dev_destroy(struct net_device *hsr_dev)
 		hsr_del_port(port);
 
 	del_timer_sync(&hsr->prune_timer);
-	del_timer_sync(&hsr->announce_timer);
+	del_timer_sync(&hsr->anyesunce_timer);
 
-	hsr_del_self_node(hsr);
-	hsr_del_nodes(&hsr->node_db);
+	hsr_del_self_yesde(hsr);
+	hsr_del_yesdes(&hsr->yesde_db);
 }
 
 static const struct net_device_ops hsr_device_ops = {
@@ -413,7 +413,7 @@ void hsr_dev_setup(struct net_device *dev)
 	 */
 	dev->features |= NETIF_F_VLAN_CHALLENGED;
 	/* Not sure about this. Taken from bridge code. netdev_features.h says
-	 * it means "Does not change network namespaces".
+	 * it means "Does yest change network namespaces".
 	 */
 	dev->features |= NETIF_F_NETNS_LOCAL;
 }
@@ -440,14 +440,14 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 
 	hsr = netdev_priv(hsr_dev);
 	INIT_LIST_HEAD(&hsr->ports);
-	INIT_LIST_HEAD(&hsr->node_db);
-	INIT_LIST_HEAD(&hsr->self_node_db);
+	INIT_LIST_HEAD(&hsr->yesde_db);
+	INIT_LIST_HEAD(&hsr->self_yesde_db);
 	spin_lock_init(&hsr->list_lock);
 
 	ether_addr_copy(hsr_dev->dev_addr, slave[0]->dev_addr);
 
 	/* Make sure we recognize frames from ourselves in hsr_rcv() */
-	res = hsr_create_self_node(hsr, hsr_dev->dev_addr,
+	res = hsr_create_self_yesde(hsr, hsr_dev->dev_addr,
 				   slave[1]->dev_addr);
 	if (res < 0)
 		return res;
@@ -457,8 +457,8 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	hsr->sequence_nr = HSR_SEQNR_START;
 	hsr->sup_sequence_nr = HSR_SUP_SEQNR_START;
 
-	timer_setup(&hsr->announce_timer, hsr_announce, 0);
-	timer_setup(&hsr->prune_timer, hsr_prune_nodes, 0);
+	timer_setup(&hsr->anyesunce_timer, hsr_anyesunce, 0);
+	timer_setup(&hsr->prune_timer, hsr_prune_yesdes, 0);
 
 	ether_addr_copy(hsr->sup_multicast_addr, def_multicast_addr);
 	hsr->sup_multicast_addr[ETH_ALEN - 1] = multicast_spec;
@@ -505,7 +505,7 @@ err_unregister:
 	list_for_each_entry_safe(port, tmp, &hsr->ports, port_list)
 		hsr_del_port(port);
 err_add_master:
-	hsr_del_self_node(hsr);
+	hsr_del_self_yesde(hsr);
 
 	return res;
 }

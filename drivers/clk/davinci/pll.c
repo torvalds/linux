@@ -2,7 +2,7 @@
 /*
  * PLL clock driver for TI Davinci SoCs
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechyeslogy.com>
  *
  * Based on arch/arm/mach-davinci/clock.c
  * Copyright (C) 2006-2007 Texas Instruments.
@@ -17,7 +17,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of.h>
@@ -143,7 +143,7 @@ static int davinci_pll_determine_rate(struct clk_hw *hw,
 	mult = rate / parent_rate;
 	best_rate = parent_rate * mult;
 
-	/* easy case when there is no PREDIV */
+	/* easy case when there is yes PREDIV */
 	if (!(clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT)) {
 		if (best_rate < req->min_rate)
 			return -EINVAL;
@@ -294,7 +294,7 @@ struct davinci_pllen_clk {
 	container_of((_hw), struct davinci_pllen_clk, hw)
 
 static const struct clk_ops davinci_pllen_ops = {
-	/* this clocks just uses the clock notification feature */
+	/* this clocks just uses the clock yestification feature */
 };
 
 /*
@@ -303,10 +303,10 @@ static const struct clk_ops davinci_pllen_ops = {
  * switch to bypass before any of the parent clocks (PREDIV, PLL, POSTDIV) are
  * changed and will switch back to the PLL after the changes have been made.
  */
-static int davinci_pllen_rate_change(struct notifier_block *nb,
+static int davinci_pllen_rate_change(struct yestifier_block *nb,
 				     unsigned long flags, void *data)
 {
-	struct clk_notifier_data *cnd = data;
+	struct clk_yestifier_data *cnd = data;
 	struct clk_hw *hw = __clk_get_hw(cnd->clk);
 	struct davinci_pllen_clk *pll = to_davinci_pllen_clk(hw);
 	u32 ctrl;
@@ -340,8 +340,8 @@ static int davinci_pllen_rate_change(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block davinci_pllen_notifier = {
-	.notifier_call = davinci_pllen_rate_change,
+static struct yestifier_block davinci_pllen_yestifier = {
+	.yestifier_call = davinci_pllen_rate_change,
 };
 
 /**
@@ -514,7 +514,7 @@ struct clk *davinci_pll_clk_register(struct device *dev,
 		goto err_free_pllen;
 	}
 
-	clk_notifier_register(pllen_clk, &davinci_pllen_notifier);
+	clk_yestifier_register(pllen_clk, &davinci_pllen_yestifier);
 
 	return pllout_clk;
 
@@ -637,10 +637,10 @@ err_free_mux:
 }
 
 /* The PLL SYSCLKn clocks have a mechanism for synchronizing rate changes. */
-static int davinci_pll_sysclk_rate_change(struct notifier_block *nb,
+static int davinci_pll_sysclk_rate_change(struct yestifier_block *nb,
 					  unsigned long flags, void *data)
 {
-	struct clk_notifier_data *cnd = data;
+	struct clk_yestifier_data *cnd = data;
 	struct clk_hw *hw = __clk_get_hw(clk_get_parent(cnd->clk));
 	struct davinci_pllen_clk *pll = to_davinci_pllen_clk(hw);
 	u32 pllcmd, pllstat;
@@ -663,8 +663,8 @@ static int davinci_pll_sysclk_rate_change(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block davinci_pll_sysclk_notifier = {
-	.notifier_call = davinci_pll_sysclk_rate_change,
+static struct yestifier_block davinci_pll_sysclk_yestifier = {
+	.yestifier_call = davinci_pll_sysclk_rate_change,
 };
 
 /**
@@ -686,7 +686,7 @@ davinci_pll_sysclk_register(struct device *dev,
 	u32 flags = 0;
 	int ret;
 
-	/* PLLDIVn registers are not entirely consecutive */
+	/* PLLDIVn registers are yest entirely consecutive */
 	if (info->id < 4)
 		reg = PLLDIV1 + 4 * (info->id - 1);
 	else
@@ -730,7 +730,7 @@ davinci_pll_sysclk_register(struct device *dev,
 		goto err_free_divider;
 	}
 
-	clk_notifier_register(clk, &davinci_pll_sysclk_notifier);
+	clk_yestifier_register(clk, &davinci_pll_sysclk_yestifier);
 
 	return clk;
 
@@ -742,7 +742,7 @@ err_free_gate:
 	return ERR_PTR(ret);
 }
 
-int of_davinci_pll_init(struct device *dev, struct device_node *node,
+int of_davinci_pll_init(struct device *dev, struct device_yesde *yesde,
 			const struct davinci_pll_clk_info *info,
 			const struct davinci_pll_obsclk_info *obsclk_info,
 			const struct davinci_pll_sysclk_info **div_info,
@@ -750,12 +750,12 @@ int of_davinci_pll_init(struct device *dev, struct device_node *node,
 			void __iomem *base,
 			struct regmap *cfgchip)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	const char *parent_name;
 	struct clk *clk;
 
 	if (info->flags & PLL_HAS_CLKMODE)
-		parent_name = of_clk_get_parent_name(node, 0);
+		parent_name = of_clk_get_parent_name(yesde, 0);
 	else
 		parent_name = OSCIN_CLK_NAME;
 
@@ -765,12 +765,12 @@ int of_davinci_pll_init(struct device *dev, struct device_node *node,
 		return PTR_ERR(clk);
 	}
 
-	child = of_get_child_by_name(node, "pllout");
+	child = of_get_child_by_name(yesde, "pllout");
 	if (of_device_is_available(child))
 		of_clk_add_provider(child, of_clk_src_simple_get, clk);
-	of_node_put(child);
+	of_yesde_put(child);
 
-	child = of_get_child_by_name(node, "sysclk");
+	child = of_get_child_by_name(yesde, "sysclk");
 	if (of_device_is_available(child)) {
 		struct clk_onecell_data *clk_data;
 		struct clk **clks;
@@ -779,14 +779,14 @@ int of_davinci_pll_init(struct device *dev, struct device_node *node,
 
 		clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
 		if (!clk_data) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return -ENOMEM;
 		}
 
 		clks = kmalloc_array(n_clks, sizeof(*clks), GFP_KERNEL);
 		if (!clks) {
 			kfree(clk_data);
-			of_node_put(child);
+			of_yesde_put(child);
 			return -ENOMEM;
 		}
 
@@ -806,9 +806,9 @@ int of_davinci_pll_init(struct device *dev, struct device_node *node,
 		}
 		of_clk_add_provider(child, of_clk_src_onecell_get, clk_data);
 	}
-	of_node_put(child);
+	of_yesde_put(child);
 
-	child = of_get_child_by_name(node, "auxclk");
+	child = of_get_child_by_name(yesde, "auxclk");
 	if (of_device_is_available(child)) {
 		char child_name[MAX_NAME_SIZE];
 
@@ -821,9 +821,9 @@ int of_davinci_pll_init(struct device *dev, struct device_node *node,
 		else
 			of_clk_add_provider(child, of_clk_src_simple_get, clk);
 	}
-	of_node_put(child);
+	of_yesde_put(child);
 
-	child = of_get_child_by_name(node, "obsclk");
+	child = of_get_child_by_name(yesde, "obsclk");
 	if (of_device_is_available(child)) {
 		if (obsclk_info)
 			clk = davinci_pll_obsclk_register(dev, obsclk_info, base);
@@ -836,7 +836,7 @@ int of_davinci_pll_init(struct device *dev, struct device_node *node,
 		else
 			of_clk_add_provider(child, of_clk_src_simple_get, clk);
 	}
-	of_node_put(child);
+	of_yesde_put(child);
 
 	return 0;
 }
@@ -846,7 +846,7 @@ static struct davinci_pll_platform_data *davinci_pll_get_pdata(struct device *de
 	struct davinci_pll_platform_data *pdata = dev_get_platdata(dev);
 
 	/*
-	 * Platform data is optional, so allocate a new struct if one was not
+	 * Platform data is optional, so allocate a new struct if one was yest
 	 * provided. For device tree, this will always be the case.
 	 */
 	if (!pdata)
@@ -855,7 +855,7 @@ static struct davinci_pll_platform_data *davinci_pll_get_pdata(struct device *de
 		return NULL;
 
 	/* for device tree, we need to fill in the struct */
-	if (dev->of_node)
+	if (dev->of_yesde)
 		pdata->cfgchip =
 			syscon_regmap_lookup_by_compatible("ti,da830-cfgchip");
 

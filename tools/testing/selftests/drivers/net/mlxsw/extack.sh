@@ -34,10 +34,10 @@ netdev_pre_up_test()
 {
 	RET=0
 
-	ip link add name br1 up type bridge vlan_filtering 0 mcast_snooping 0
+	ip link add name br1 up type bridge vlan_filtering 0 mcast_syesoping 0
 	ip link add name vx1 up type vxlan id 1000 \
 		local 192.0.2.17 remote 192.0.2.18 \
-		dstport 4789 nolearning noudpcsum tos inherit ttl 100
+		dstport 4789 yeslearning yesudpcsum tos inherit ttl 100
 
 	ip link set dev vx1 master br1
 	check_err $?
@@ -45,10 +45,10 @@ netdev_pre_up_test()
 	ip link set dev $swp1 master br1
 	check_err $?
 
-	ip link add name br2 up type bridge vlan_filtering 0 mcast_snooping 0
+	ip link add name br2 up type bridge vlan_filtering 0 mcast_syesoping 0
 	ip link add name vx2 up type vxlan id 2000 \
 		local 192.0.2.17 remote 192.0.2.18 \
-		dstport 4789 nolearning noudpcsum tos inherit ttl 100
+		dstport 4789 yeslearning yesudpcsum tos inherit ttl 100
 
 	ip link set dev vx2 master br2
 	check_err $?
@@ -80,9 +80,9 @@ vxlan_vlan_add_test()
 {
 	RET=0
 
-	ip link add name br1 up type bridge vlan_filtering 1 mcast_snooping 0
+	ip link add name br1 up type bridge vlan_filtering 1 mcast_syesoping 0
 
-	# Unsupported configuration: mlxsw demands VXLAN with "noudpcsum".
+	# Unsupported configuration: mlxsw demands VXLAN with "yesudpcsum".
 	ip link add name vx1 up type vxlan id 1000 \
 		local 192.0.2.17 remote 192.0.2.18 \
 		dstport 4789 tos inherit ttl 100
@@ -110,9 +110,9 @@ port_vlan_add_test()
 {
 	RET=0
 
-	ip link add name br1 up type bridge vlan_filtering 1 mcast_snooping 0
+	ip link add name br1 up type bridge vlan_filtering 1 mcast_syesoping 0
 
-	# Unsupported configuration: mlxsw demands VXLAN with "noudpcsum".
+	# Unsupported configuration: mlxsw demands VXLAN with "yesudpcsum".
 	ip link add name vx1 up type vxlan id 1000 \
 		local 192.0.2.17 remote 192.0.2.18 \
 		dstport 4789 tos inherit ttl 100

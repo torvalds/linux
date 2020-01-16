@@ -23,7 +23,7 @@
  * For STR and STM instructions, an ARM core may choose to use either
  * a +8 or a +12 displacement from the current instruction's address.
  * Whichever value is chosen for a given core, it must be the same for
- * both instructions and may not change.  This function measures it.
+ * both instructions and may yest change.  This function measures it.
  */
 
 int str_pc_offset;
@@ -172,13 +172,13 @@ probes_check_cc * const probes_condition_checks[16] = {
 };
 
 
-void __kprobes probes_simulate_nop(probes_opcode_t opcode,
+void __kprobes probes_simulate_yesp(probes_opcode_t opcode,
 	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
 }
 
-void __kprobes probes_emulate_none(probes_opcode_t opcode,
+void __kprobes probes_emulate_yesne(probes_opcode_t opcode,
 	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
@@ -252,7 +252,7 @@ set_emulated_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
  * Validate and modify each of the registers encoded in an instruction.
  *
  * Each nibble in regs contains a value from enum decode_reg_type. For each
- * non-zero value, the corresponding nibble in pinsn is validated and modified
+ * yesn-zero value, the corresponding nibble in pinsn is validated and modified
  * according to the type.
  */
 static bool __kprobes decode_regs(probes_opcode_t *pinsn, u32 regs, bool modify)
@@ -267,7 +267,7 @@ static bool __kprobes decode_regs(probes_opcode_t *pinsn, u32 regs, bool modify)
 		switch (regs & 0xf) {
 
 		case REG_TYPE_NONE:
-			/* Nibble not a register, skip to next */
+			/* Nibble yest a register, skip to next */
 			continue;
 
 		case REG_TYPE_ANY:
@@ -395,7 +395,7 @@ static int run_checkers(const struct decode_checker *checkers[],
  *
  *	(insn & mask) == value
  *
- * If no match is found before the end of the table is reached then decoding
+ * If yes match is found before the end of the table is reached then decoding
  * fails with INSN_REJECTED.
  *
  * When a match is found, decode_regs() is called to validate and modify each
@@ -428,7 +428,7 @@ probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 	 * instruction: positive value means bytes of stack usage,
 	 * negitive value means unable to determine stack usage
 	 * statically. For instruction doesn't store to stack, checker
-	 * do nothing with it.
+	 * do yesthing with it.
 	 */
 	asi->stack_space = 0;
 

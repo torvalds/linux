@@ -66,7 +66,7 @@ struct mousedev {
 	struct cdev cdev;
 	bool exist;
 
-	struct list_head mixdev_node;
+	struct list_head mixdev_yesde;
 	bool opened_by_mixdev;
 
 	struct mousedev_hw_data packet;
@@ -94,7 +94,7 @@ struct mousedev_motion {
 struct mousedev_client {
 	struct fasync_struct *fasync;
 	struct mousedev *mousedev;
-	struct list_head node;
+	struct list_head yesde;
 
 	struct mousedev_motion packets[PACKET_QUEUE_LEN];
 	unsigned int head, tail;
@@ -258,7 +258,7 @@ static void mousedev_key_event(struct mousedev *mousedev,
 	}
 }
 
-static void mousedev_notify_readers(struct mousedev *mousedev,
+static void mousedev_yestify_readers(struct mousedev *mousedev,
 				    struct mousedev_hw_data *packet)
 {
 	struct mousedev_client *client;
@@ -267,7 +267,7 @@ static void mousedev_notify_readers(struct mousedev *mousedev,
 	int wake_readers = 0;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(client, &mousedev->client_list, node) {
+	list_for_each_entry_rcu(client, &mousedev->client_list, yesde) {
 
 		/* Just acquire the lock, interrupts already disabled */
 		spin_lock(&client->packet_lock);
@@ -329,8 +329,8 @@ static void mousedev_touchpad_touch(struct mousedev *mousedev, int value)
 			 */
 			set_bit(0, &mousedev->packet.buttons);
 			set_bit(0, &mousedev_mix->packet.buttons);
-			mousedev_notify_readers(mousedev, &mousedev_mix->packet);
-			mousedev_notify_readers(mousedev_mix,
+			mousedev_yestify_readers(mousedev, &mousedev_mix->packet);
+			mousedev_yestify_readers(mousedev_mix,
 						&mousedev_mix->packet);
 			clear_bit(0, &mousedev->packet.buttons);
 			clear_bit(0, &mousedev_mix->packet.buttons);
@@ -351,7 +351,7 @@ static void mousedev_event(struct input_handle *handle,
 	switch (type) {
 
 	case EV_ABS:
-		/* Ignore joysticks */
+		/* Igyesre joysticks */
 		if (test_bit(BTN_TRIGGER, handle->dev->keybit))
 			return;
 
@@ -390,8 +390,8 @@ static void mousedev_event(struct input_handle *handle,
 				fy(0) = fy(1);
 			}
 
-			mousedev_notify_readers(mousedev, &mousedev->packet);
-			mousedev_notify_readers(mousedev_mix, &mousedev->packet);
+			mousedev_yestify_readers(mousedev, &mousedev->packet);
+			mousedev_yestify_readers(mousedev_mix, &mousedev->packet);
 
 			mousedev->packet.dx = mousedev->packet.dy =
 				mousedev->packet.dz = 0;
@@ -462,7 +462,7 @@ static int mixdev_open_devices(struct mousedev *mixdev)
 	if (!mixdev->open++) {
 		struct mousedev *mousedev;
 
-		list_for_each_entry(mousedev, &mousedev_mix_list, mixdev_node) {
+		list_for_each_entry(mousedev, &mousedev_mix_list, mixdev_yesde) {
 			if (!mousedev->opened_by_mixdev) {
 				if (mousedev_open_device(mousedev))
 					continue;
@@ -488,7 +488,7 @@ static void mixdev_close_devices(struct mousedev *mixdev)
 	if (!--mixdev->open) {
 		struct mousedev *mousedev;
 
-		list_for_each_entry(mousedev, &mousedev_mix_list, mixdev_node) {
+		list_for_each_entry(mousedev, &mousedev_mix_list, mixdev_yesde) {
 			if (mousedev->opened_by_mixdev) {
 				mousedev->opened_by_mixdev = false;
 				mousedev_close_device(mousedev);
@@ -504,7 +504,7 @@ static void mousedev_attach_client(struct mousedev *mousedev,
 				   struct mousedev_client *client)
 {
 	spin_lock(&mousedev->client_lock);
-	list_add_tail_rcu(&client->node, &mousedev->client_list);
+	list_add_tail_rcu(&client->yesde, &mousedev->client_list);
 	spin_unlock(&mousedev->client_lock);
 }
 
@@ -512,12 +512,12 @@ static void mousedev_detach_client(struct mousedev *mousedev,
 				   struct mousedev_client *client)
 {
 	spin_lock(&mousedev->client_lock);
-	list_del_rcu(&client->node);
+	list_del_rcu(&client->yesde);
 	spin_unlock(&mousedev->client_lock);
 	synchronize_rcu();
 }
 
-static int mousedev_release(struct inode *inode, struct file *file)
+static int mousedev_release(struct iyesde *iyesde, struct file *file)
 {
 	struct mousedev_client *client = file->private_data;
 	struct mousedev *mousedev = client->mousedev;
@@ -530,18 +530,18 @@ static int mousedev_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int mousedev_open(struct inode *inode, struct file *file)
+static int mousedev_open(struct iyesde *iyesde, struct file *file)
 {
 	struct mousedev_client *client;
 	struct mousedev *mousedev;
 	int error;
 
 #ifdef CONFIG_INPUT_MOUSEDEV_PSAUX
-	if (imajor(inode) == MISC_MAJOR)
+	if (imajor(iyesde) == MISC_MAJOR)
 		mousedev = mousedev_mix;
 	else
 #endif
-		mousedev = container_of(inode->i_cdev, struct mousedev, cdev);
+		mousedev = container_of(iyesde->i_cdev, struct mousedev, cdev);
 
 	client = kzalloc(sizeof(struct mousedev_client), GFP_KERNEL);
 	if (!client)
@@ -558,7 +558,7 @@ static int mousedev_open(struct inode *inode, struct file *file)
 		goto err_free_client;
 
 	file->private_data = client;
-	stream_open(inode, file);
+	stream_open(iyesde, file);
 
 	return 0;
 
@@ -778,11 +778,11 @@ static const struct file_operations mousedev_fops = {
 	.open		= mousedev_open,
 	.release	= mousedev_release,
 	.fasync		= mousedev_fasync,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 /*
- * Mark device non-existent. This disables writes, ioctls and
+ * Mark device yesn-existent. This disables writes, ioctls and
  * prevents new users from opening the device. Already posted
  * blocking reads will stay, however new ones will fail.
  */
@@ -802,7 +802,7 @@ static void mousedev_hangup(struct mousedev *mousedev)
 	struct mousedev_client *client;
 
 	spin_lock(&mousedev->client_lock);
-	list_for_each_entry(client, &mousedev->client_list, node)
+	list_for_each_entry(client, &mousedev->client_list, yesde)
 		kill_fasync(&client->fasync, SIGIO, POLL_HUP);
 	spin_unlock(&mousedev->client_lock);
 
@@ -816,27 +816,27 @@ static void mousedev_cleanup(struct mousedev *mousedev)
 	mousedev_mark_dead(mousedev);
 	mousedev_hangup(mousedev);
 
-	/* mousedev is marked dead so no one else accesses mousedev->open */
+	/* mousedev is marked dead so yes one else accesses mousedev->open */
 	if (mousedev->open)
 		input_close_device(handle);
 }
 
-static int mousedev_reserve_minor(bool mixdev)
+static int mousedev_reserve_miyesr(bool mixdev)
 {
-	int minor;
+	int miyesr;
 
 	if (mixdev) {
-		minor = input_get_new_minor(MOUSEDEV_MIX, 1, false);
-		if (minor < 0)
-			pr_err("failed to reserve mixdev minor: %d\n", minor);
+		miyesr = input_get_new_miyesr(MOUSEDEV_MIX, 1, false);
+		if (miyesr < 0)
+			pr_err("failed to reserve mixdev miyesr: %d\n", miyesr);
 	} else {
-		minor = input_get_new_minor(MOUSEDEV_MINOR_BASE,
+		miyesr = input_get_new_miyesr(MOUSEDEV_MINOR_BASE,
 					    MOUSEDEV_MINORS, true);
-		if (minor < 0)
-			pr_err("failed to reserve new minor: %d\n", minor);
+		if (miyesr < 0)
+			pr_err("failed to reserve new miyesr: %d\n", miyesr);
 	}
 
-	return minor;
+	return miyesr;
 }
 
 static struct mousedev *mousedev_create(struct input_dev *dev,
@@ -844,23 +844,23 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 					bool mixdev)
 {
 	struct mousedev *mousedev;
-	int minor;
+	int miyesr;
 	int error;
 
-	minor = mousedev_reserve_minor(mixdev);
-	if (minor < 0) {
-		error = minor;
+	miyesr = mousedev_reserve_miyesr(mixdev);
+	if (miyesr < 0) {
+		error = miyesr;
 		goto err_out;
 	}
 
 	mousedev = kzalloc(sizeof(struct mousedev), GFP_KERNEL);
 	if (!mousedev) {
 		error = -ENOMEM;
-		goto err_free_minor;
+		goto err_free_miyesr;
 	}
 
 	INIT_LIST_HEAD(&mousedev->client_list);
-	INIT_LIST_HEAD(&mousedev->mixdev_node);
+	INIT_LIST_HEAD(&mousedev->mixdev_yesde);
 	spin_lock_init(&mousedev->client_lock);
 	mutex_init(&mousedev->mutex);
 	lockdep_set_subclass(&mousedev->mutex,
@@ -873,11 +873,11 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 		mousedev->open_device = mixdev_open_devices;
 		mousedev->close_device = mixdev_close_devices;
 	} else {
-		int dev_no = minor;
+		int dev_yes = miyesr;
 		/* Normalize device number if it falls into legacy range */
-		if (dev_no < MOUSEDEV_MINOR_BASE + MOUSEDEV_MINORS)
-			dev_no -= MOUSEDEV_MINOR_BASE;
-		dev_set_name(&mousedev->dev, "mouse%d", dev_no);
+		if (dev_yes < MOUSEDEV_MINOR_BASE + MOUSEDEV_MINORS)
+			dev_yes -= MOUSEDEV_MINOR_BASE;
+		dev_set_name(&mousedev->dev, "mouse%d", dev_yes);
 
 		mousedev->open_device = mousedev_open_device;
 		mousedev->close_device = mousedev_close_device;
@@ -892,7 +892,7 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 	mousedev->dev.class = &input_class;
 	if (dev)
 		mousedev->dev.parent = &dev->dev;
-	mousedev->dev.devt = MKDEV(INPUT_MAJOR, minor);
+	mousedev->dev.devt = MKDEV(INPUT_MAJOR, miyesr);
 	mousedev->dev.release = mousedev_free;
 	device_initialize(&mousedev->dev);
 
@@ -916,8 +916,8 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 		input_unregister_handle(&mousedev->handle);
  err_free_mousedev:
 	put_device(&mousedev->dev);
- err_free_minor:
-	input_free_minor(minor);
+ err_free_miyesr:
+	input_free_miyesr(miyesr);
  err_out:
 	return ERR_PTR(error);
 }
@@ -926,7 +926,7 @@ static void mousedev_destroy(struct mousedev *mousedev)
 {
 	cdev_device_del(&mousedev->cdev, &mousedev->dev);
 	mousedev_cleanup(mousedev);
-	input_free_minor(MINOR(mousedev->dev.devt));
+	input_free_miyesr(MINOR(mousedev->dev.devt));
 	if (mousedev != mousedev_mix)
 		input_unregister_handle(&mousedev->handle);
 	put_device(&mousedev->dev);
@@ -949,7 +949,7 @@ static int mixdev_add_device(struct mousedev *mousedev)
 	}
 
 	get_device(&mousedev->dev);
-	list_add_tail(&mousedev->mixdev_node, &mousedev_mix_list);
+	list_add_tail(&mousedev->mixdev_yesde, &mousedev_mix_list);
 
  out:
 	mutex_unlock(&mousedev_mix->mutex);
@@ -965,7 +965,7 @@ static void mixdev_remove_device(struct mousedev *mousedev)
 		mousedev_close_device(mousedev);
 	}
 
-	list_del_init(&mousedev->mixdev_node);
+	list_del_init(&mousedev->mixdev_yesde);
 	mutex_unlock(&mousedev_mix->mutex);
 
 	put_device(&mousedev->dev);
@@ -1054,8 +1054,8 @@ static struct input_handler mousedev_handler = {
 	.event		= mousedev_event,
 	.connect	= mousedev_connect,
 	.disconnect	= mousedev_disconnect,
-	.legacy_minors	= true,
-	.minor		= MOUSEDEV_MINOR_BASE,
+	.legacy_miyesrs	= true,
+	.miyesr		= MOUSEDEV_MINOR_BASE,
 	.name		= "mousedev",
 	.id_table	= mousedev_ids,
 };
@@ -1064,7 +1064,7 @@ static struct input_handler mousedev_handler = {
 #include <linux/miscdevice.h>
 
 static struct miscdevice psaux_mouse = {
-	.minor	= PSMOUSE_MINOR,
+	.miyesr	= PSMOUSE_MINOR,
 	.name	= "psaux",
 	.fops	= &mousedev_fops,
 };
@@ -1077,7 +1077,7 @@ static void __init mousedev_psaux_register(void)
 
 	error = misc_register(&psaux_mouse);
 	if (error)
-		pr_warn("could not register psaux device, error: %d\n",
+		pr_warn("could yest register psaux device, error: %d\n",
 			   error);
 	else
 		psaux_registered = true;

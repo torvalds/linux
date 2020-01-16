@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * message.c - synchronous message handling
+ * message.c - synchroyesus message handling
  *
  * Released under the GPLv2 only.
  */
@@ -124,7 +124,7 @@ static int usb_internal_control_msg(struct usb_device *usb_dev,
  * waits for the message to complete, or timeout.
  *
  * Don't use this function from within an interrupt context. If you need
- * an asynchronous message, or need to send a message from within interrupt
+ * an asynchroyesus message, or need to send a message from within interrupt
  * context, use usb_submit_urb(). If a thread in your driver uses this call,
  * make sure your disconnect() method can wait for it to complete. Since you
  * don't have a handle on the URB used, you can't cancel the request.
@@ -178,7 +178,7 @@ EXPORT_SYMBOL_GPL(usb_control_msg);
  * waits for the message to complete, or timeout.
  *
  * Don't use this function from within an interrupt context. If you need
- * an asynchronous message, or need to send a message from within interrupt
+ * an asynchroyesus message, or need to send a message from within interrupt
  * context, use usb_submit_urb() If a thread in your driver uses this call,
  * make sure your disconnect() method can wait for it to complete. Since you
  * don't have a handle on the URB used, you can't cancel the request.
@@ -211,12 +211,12 @@ EXPORT_SYMBOL_GPL(usb_interrupt_msg);
  * and waits for the message to complete, or timeout.
  *
  * Don't use this function from within an interrupt context. If you need
- * an asynchronous message, or need to send a message from within interrupt
+ * an asynchroyesus message, or need to send a message from within interrupt
  * context, use usb_submit_urb() If a thread in your driver uses this call,
  * make sure your disconnect() method can wait for it to complete. Since you
  * don't have a handle on the URB used, you can't cancel the request.
  *
- * Because there is no usb_interrupt_msg() and no USBDEVFS_INTERRUPT ioctl,
+ * Because there is yes usb_interrupt_msg() and yes USBDEVFS_INTERRUPT ioctl,
  * users are forced to abuse this routine by using it to submit URBs for
  * interrupt endpoints.  We will take the liberty of creating an interrupt URB
  * (with the default interval) if the target is an interrupt endpoint.
@@ -275,11 +275,11 @@ static void sg_complete(struct urb *urb)
 
 	spin_lock_irqsave(&io->lock, flags);
 
-	/* In 2.5 we require hcds' endpoint queues not to progress after fault
+	/* In 2.5 we require hcds' endpoint queues yest to progress after fault
 	 * reports, until the completion callback (this!) returns.  That lets
 	 * device driver code (like this routine) unlink queued urbs first,
 	 * if it needs to, since the HC won't work on them at all.  So it's
-	 * not possible for page N+1 to overwrite page N, and so on.
+	 * yest possible for page N+1 to overwrite page N, and so on.
 	 *
 	 * That's only for "hard" faults; "soft" faults (unlinks) sometimes
 	 * complete before the HCD can get requests away from hardware,
@@ -305,7 +305,7 @@ static void sg_complete(struct urb *urb)
 
 		/* the previous urbs, and this one, completed already.
 		 * unlink pending urbs so they won't rx/tx bad data.
-		 * careful: unlink can sometimes be synchronous...
+		 * careful: unlink can sometimes be synchroyesus...
 		 */
 		spin_unlock_irqrestore(&io->lock, flags);
 		for (i = 0, found = 0; i < io->entries; i++) {
@@ -344,7 +344,7 @@ static void sg_complete(struct urb *urb)
  * @dev: the usb device that will send or receive the data
  * @pipe: endpoint "pipe" used to transfer the data
  * @period: polling rate for interrupt endpoints, in frames or
- * 	(for high speed endpoints) microframes; ignored for bulk
+ * 	(for high speed endpoints) microframes; igyesred for bulk
  * @sg: scatterlist entries
  * @nents: how many entries in the scatterlist
  * @length: how many bytes to send from the scatterlist, or zero to
@@ -362,7 +362,7 @@ static void sg_complete(struct urb *urb)
  * The request may be canceled with usb_sg_cancel(), either before or after
  * usb_sg_wait() is called.
  *
- * Return: Zero for success, else a negative errno value.
+ * Return: Zero for success, else a negative erryes value.
  */
 int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 		unsigned pipe, unsigned	period, struct scatterlist *sg,
@@ -393,7 +393,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	/* initialize all the urbs we'll use */
 	io->urbs = kmalloc_array(io->entries, sizeof(*io->urbs), mem_flags);
 	if (!io->urbs)
-		goto nomem;
+		goto yesmem;
 
 	urb_flags = URB_NO_INTERRUPT;
 	if (usb_pipein(pipe))
@@ -406,7 +406,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 		urb = usb_alloc_urb(0, mem_flags);
 		if (!urb) {
 			io->entries = i;
-			goto nomem;
+			goto yesmem;
 		}
 		io->urbs[i] = urb;
 
@@ -419,7 +419,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 		urb->sg = sg;
 
 		if (use_sg) {
-			/* There is no single transfer buffer */
+			/* There is yes single transfer buffer */
 			urb->transfer_buffer = NULL;
 			urb->num_sgs = nents;
 
@@ -462,14 +462,14 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	init_completion(&io->complete);
 	return 0;
 
-nomem:
+yesmem:
 	sg_clean(io);
 	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(usb_sg_init);
 
 /**
- * usb_sg_wait - synchronously execute scatter/gather request
+ * usb_sg_wait - synchroyesusly execute scatter/gather request
  * @io: request block handle, as initialized with usb_sg_init().
  * 	some fields become accessible when this call returns.
  * Context: !in_interrupt ()
@@ -483,9 +483,9 @@ EXPORT_SYMBOL_GPL(usb_sg_init);
  *
  * (1) success, where io->status is zero.  The number of io->bytes
  *     transferred is as requested.
- * (2) error, where io->status is a negative errno value.  The number
+ * (2) error, where io->status is a negative erryes value.  The number
  *     of io->bytes transferred before the error is usually less
- *     than requested, and can be nonzero.
+ *     than requested, and can be yesnzero.
  * (3) cancellation, a type of error with status -ECONNRESET that
  *     is initiated by usb_sg_cancel().
  *
@@ -508,7 +508,7 @@ EXPORT_SYMBOL_GPL(usb_sg_init);
  * speed interrupt endpoints, which allow at most one packet per millisecond,
  * of at most 8 or 64 bytes (respectively).
  *
- * It is not necessary to call this function to reserve bandwidth for devices
+ * It is yest necessary to call this function to reserve bandwidth for devices
  * under an xHCI host controller, as the bandwidth is reserved when the
  * configuration or interface alt setting is selected.
  */
@@ -537,7 +537,7 @@ void usb_sg_wait(struct usb_sg_request *io)
 			yield();
 			break;
 
-			/* no error? continue immediately.
+			/* yes error? continue immediately.
 			 *
 			 * NOTE: to work better with UHCI (4K I/O buffer may
 			 * need 3K of TDs) it may be good to limit how many
@@ -564,7 +564,7 @@ void usb_sg_wait(struct usb_sg_request *io)
 		complete(&io->complete);
 	spin_unlock_irq(&io->lock);
 
-	/* OK, yes, this could be packaged as non-blocking.
+	/* OK, no, this could be packaged as yesn-blocking.
 	 * So could the submit loop above ... but it's easier to
 	 * solve neither problem than to solve both!
 	 */
@@ -629,7 +629,7 @@ EXPORT_SYMBOL_GPL(usb_sg_cancel);
  * In addition to a number of USB-standard descriptors, some
  * devices also use class-specific or vendor-specific descriptors.
  *
- * This call is synchronous, and may not be used in an interrupt context.
+ * This call is synchroyesus, and may yest be used in an interrupt context.
  *
  * Return: The number of bytes received on success, or else the status code
  * returned by the underlying usb_control_msg() call.
@@ -677,7 +677,7 @@ EXPORT_SYMBOL_GPL(usb_get_descriptor);
  * Strings may be referenced in device, configuration, interface, or other
  * descriptors, and could also be used in vendor-specific ways.
  *
- * This call is synchronous, and may not be used in an interrupt context.
+ * This call is synchroyesus, and may yest be used in an interrupt context.
  *
  * Return: The number of bytes received on success, or else the status code
  * returned by the underlying usb_control_msg() call.
@@ -774,11 +774,11 @@ static int usb_get_langid(struct usb_device *dev, unsigned char *tbuf)
 		dev->string_langid = 0x0409;
 		dev->have_langid = 1;
 		dev_err(&dev->dev,
-			"language id specifier not provided by device, defaulting to English\n");
+			"language id specifier yest provided by device, defaulting to English\n");
 		return 0;
 	}
 
-	/* In case of all other errors, we assume the device is not able to
+	/* In case of all other errors, we assume the device is yest able to
 	 * deal with strings at all. Set string_langid to -1 in order to
 	 * prevent any string to be retrieved from the device */
 	if (err < 0) {
@@ -809,7 +809,7 @@ static int usb_get_langid(struct usb_device *dev, unsigned char *tbuf)
  * that are more usable in most kernel contexts.  Note that this function
  * chooses strings in the first language supported by the device.
  *
- * This call is synchronous, and may not be used in an interrupt context.
+ * This call is synchroyesus, and may yest be used in an interrupt context.
  *
  * Return: length of the string (>= 0) or usb_control_msg status (< 0).
  */
@@ -862,7 +862,7 @@ EXPORT_SYMBOL_GPL(usb_string);
  * @index: the descriptor index
  *
  * Return: A pointer to a kmalloc'ed buffer containing the descriptor string,
- * or %NULL if the index is 0 or the string could not be read.
+ * or %NULL if the index is 0 or the string could yest be read.
  */
 char *usb_cache_string(struct usb_device *udev, int index)
 {
@@ -900,7 +900,7 @@ char *usb_cache_string(struct usb_device *udev, int index)
  * the device descriptor directly, they can call usb_get_descriptor() with
  * type = USB_DT_DEVICE and index = 0.
  *
- * This call is synchronous, and may not be used in an interrupt context.
+ * This call is synchroyesus, and may yest be used in an interrupt context.
  *
  * Return: The number of bytes received on success, or else the status code
  * returned by the underlying usb_control_msg() call.
@@ -936,7 +936,7 @@ int usb_set_isoch_delay(struct usb_device *dev)
 	if (dev->descriptor.bDeviceClass == USB_CLASS_HUB)
 		return 0;
 
-	/* skip non-SS/non-SSP devices */
+	/* skip yesn-SS/yesn-SSP devices */
 	if (dev->speed < USB_SPEED_SUPER)
 		return 0;
 
@@ -965,7 +965,7 @@ int usb_set_isoch_delay(struct usb_device *dev)
  * and cleared using the CLEAR_FEATURE request.  The usb_clear_halt()
  * function should be used to clear halt ("stall") status.
  *
- * This call is synchronous, and may not be used in an interrupt context.
+ * This call is synchroyesus, and may yest be used in an interrupt context.
  *
  * Returns 0 and the status value in *@data (in host byte order) on success,
  * or else the status code from the underlying usb_control_msg() call.
@@ -1037,15 +1037,15 @@ EXPORT_SYMBOL_GPL(usb_get_status);
  * as reported by URB completion status.  Endpoints that are halted are
  * sometimes referred to as being "stalled".  Such endpoints are unable
  * to transmit or receive data until the halt status is cleared.  Any URBs
- * queued for such an endpoint should normally be unlinked by the driver
+ * queued for such an endpoint should yesrmally be unlinked by the driver
  * before clearing the halt condition, as described in sections 5.7.5
  * and 5.8.5 of the USB 2.0 spec.
  *
- * Note that control and isochronous endpoints don't halt, although control
+ * Note that control and isochroyesus endpoints don't halt, although control
  * endpoints report "protocol stall" (for unsupported requests) using the
  * same status code used to report a true stall.
  *
- * This call is synchronous, and may not be used in an interrupt context.
+ * This call is synchroyesus, and may yest be used in an interrupt context.
  *
  * Return: Zero on success, or else the status code returned by the
  * underlying usb_control_msg() call.
@@ -1237,7 +1237,7 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			device_del(&interface->dev);
 		}
 
-		/* Now that the interfaces are unbound, nobody should
+		/* Now that the interfaces are unbound, yesbody should
 		 * try to access them.
 		 */
 		for (i = 0; i < dev->actconfig->desc.bNumInterfaces; i++) {
@@ -1255,7 +1255,7 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 	}
 
 	dev_dbg(&dev->dev, "%s nuking %s URBs\n", __func__,
-		skip_ep0 ? "non-ep0" : "all");
+		skip_ep0 ? "yesn-ep0" : "all");
 	if (hcd->driver->check_bandwidth) {
 		/* First pass: Cancel URBs, leave endpoint pointers intact. */
 		for (i = skip_ep0; i < 16; ++i) {
@@ -1324,31 +1324,31 @@ void usb_enable_interface(struct usb_device *dev,
  * @alternate: the setting being chosen.
  * Context: !in_interrupt ()
  *
- * This is used to enable data transfers on interfaces that may not
+ * This is used to enable data transfers on interfaces that may yest
  * be enabled by default.  Not all devices support such configurability.
  * Only the driver bound to an interface may change its setting.
  *
  * Within any given configuration, each interface may have several
  * alternative settings.  These are often used to control levels of
  * bandwidth consumption.  For example, the default setting for a high
- * speed interrupt endpoint may not send more than 64 bytes per microframe,
+ * speed interrupt endpoint may yest send more than 64 bytes per microframe,
  * while interrupt transfers of up to 3KBytes per microframe are legal.
- * Also, isochronous endpoints may never be part of an
+ * Also, isochroyesus endpoints may never be part of an
  * interface's default setting.  To access such bandwidth, alternate
  * interface settings must be made current.
  *
  * Note that in the Linux USB subsystem, bandwidth associated with
- * an endpoint in a given alternate setting is not reserved until an URB
+ * an endpoint in a given alternate setting is yest reserved until an URB
  * is submitted that needs that bandwidth.  Some other operating systems
  * allocate bandwidth early, when a configuration is chosen.
  *
  * xHCI reserves bandwidth and configures the alternate setting in
  * usb_hcd_alloc_bandwidth(). If it fails the original interface altsetting
- * may be disabled. Drivers cannot rely on any particular alternate
+ * may be disabled. Drivers canyest rely on any particular alternate
  * setting being in effect after a failure.
  *
- * This call is synchronous, and may not be used in an interrupt context.
- * Also, drivers must not change altsettings while urbs are scheduled for
+ * This call is synchroyesus, and may yest be used in an interrupt context.
+ * Also, drivers must yest change altsettings while urbs are scheduled for
  * endpoints in that interface; all such urbs must first be completed
  * (perhaps forced by unlinking).
  *
@@ -1389,7 +1389,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 */
 	usb_disable_interface(dev, iface, false);
 
-	/* Make sure we have enough bandwidth for this alternate interface.
+	/* Make sure we have eyesugh bandwidth for this alternate interface.
 	 * Remove the current alt setting and add the new alt setting.
 	 */
 	mutex_lock(hcd->bandwidth_mutex);
@@ -1407,7 +1407,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 
 	ret = usb_hcd_alloc_bandwidth(dev, NULL, iface->cur_altsetting, alt);
 	if (ret < 0) {
-		dev_info(&dev->dev, "Not enough bandwidth for altsetting %d\n",
+		dev_info(&dev->dev, "Not eyesugh bandwidth for altsetting %d\n",
 				alternate);
 		usb_enable_lpm(dev);
 		mutex_unlock(hcd->bandwidth_mutex);
@@ -1477,7 +1477,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 *
 	 * Note:
 	 * Despite EP0 is always present in all interfaces/AS, the list of
-	 * endpoints from the descriptor does not contain EP0. Due to its
+	 * endpoints from the descriptor does yest contain EP0. Due to its
 	 * omnipresence one might expect EP0 being considered "affected" by
 	 * any SetInterface request and hence assume toggles need to be reset.
 	 * However, EP0 toggles are re-synced for every individual transfer
@@ -1508,7 +1508,7 @@ EXPORT_SYMBOL_GPL(usb_set_interface);
  * (multi-interface) devices.  Instead, the driver for each interface may
  * use usb_set_interface() on the interfaces it claims.  Be careful though;
  * some devices don't support the SET_INTERFACE request, and others won't
- * reset all the interface state (notably endpoint state).  Resetting the whole
+ * reset all the interface state (yestably endpoint state).  Resetting the whole
  * configuration would affect other drivers' interfaces.
  *
  * The caller must own the device lock.
@@ -1545,7 +1545,7 @@ int usb_reset_configuration(struct usb_device *dev)
 		mutex_unlock(hcd->bandwidth_mutex);
 		return -ENOMEM;
 	}
-	/* Make sure we have enough bandwidth for each alternate setting 0 */
+	/* Make sure we have eyesugh bandwidth for each alternate setting 0 */
 	for (i = 0; i < config->desc.bNumInterfaces; i++) {
 		struct usb_interface *intf = config->interface[i];
 		struct usb_host_interface *alt;
@@ -1559,7 +1559,7 @@ int usb_reset_configuration(struct usb_device *dev)
 		if (retval < 0)
 			break;
 	}
-	/* If not, reinstate the old alternate settings */
+	/* If yest, reinstate the old alternate settings */
 	if (retval < 0) {
 reset_old_alts:
 		for (i--; i >= 0; i--) {
@@ -1594,7 +1594,7 @@ reset_old_alts:
 
 		/* No altsetting 0?  We'll assume the first altsetting.
 		 * We could use a GetInterface call, but if a device is
-		 * so non-compliant that it doesn't have altsetting 0
+		 * so yesn-compliant that it doesn't have altsetting 0
 		 * then I wouldn't trust its reply anyway.
 		 */
 		if (!alt)
@@ -1625,7 +1625,7 @@ static void usb_release_interface(struct device *dev)
 
 	kref_put(&intfc->ref, usb_release_interface_cache);
 	usb_put_dev(interface_to_usbdev(intf));
-	of_node_put(dev->of_node);
+	of_yesde_put(dev->of_yesde);
 	kfree(intf);
 }
 
@@ -1763,13 +1763,13 @@ static void __usb_queue_reset_device(struct work_struct *ws)
  * @configuration: the configuration being chosen.
  * Context: !in_interrupt(), caller owns the device lock
  *
- * This is used to enable non-default device modes.  Not all devices
+ * This is used to enable yesn-default device modes.  Not all devices
  * use this kind of configurability; many devices only have one
  * configuration.
  *
  * @configuration is the value of the configuration to be installed.
  * According to the USB spec (e.g. section 9.1.1.5), configuration values
- * must be non-zero; a value of zero indicates that the device in
+ * must be yesn-zero; a value of zero indicates that the device in
  * unconfigured.  However some devices erroneously use 0 as one of their
  * configuration values.  To help manage such devices, this routine will
  * accept @configuration = -1 as indicating the device should be put in
@@ -1780,27 +1780,27 @@ static void __usb_queue_reset_device(struct work_struct *ws)
  * the default configuration is limited to using 100mA of bus power,
  * so that when certain device functionality requires more power,
  * and the device is bus powered, that functionality should be in some
- * non-default device configuration.  Other device modes may also be
+ * yesn-default device configuration.  Other device modes may also be
  * reflected as configuration options, such as whether two ISDN
  * channels are available independently; and choosing between open
  * standard device protocols (like CDC) or proprietary ones.
  *
- * Note that a non-authorized device (dev->authorized == 0) will only
+ * Note that a yesn-authorized device (dev->authorized == 0) will only
  * be put in unconfigured mode.
  *
  * Note that USB has an additional level of device configurability,
  * associated with interfaces.  That configurability is accessed using
  * usb_set_interface().
  *
- * This call is synchronous. The calling context must be able to sleep,
- * must own the device lock, and must not hold the driver model's USB
- * bus mutex; usb interface driver probe() methods cannot use this routine.
+ * This call is synchroyesus. The calling context must be able to sleep,
+ * must own the device lock, and must yest hold the driver model's USB
+ * bus mutex; usb interface driver probe() methods canyest use this routine.
  *
  * Returns zero on success, or else the status code returned by the
  * underlying call that failed.  On successful completion, each interface
  * in the original device configuration has been destroyed, and each one
  * in the new configuration has been probed by all relevant usb device
- * drivers currently known to the kernel.
+ * drivers currently kyeswn to the kernel.
  */
 int usb_set_configuration(struct usb_device *dev, int configuration)
 {
@@ -1833,7 +1833,7 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 		dev_warn(&dev->dev, "config 0 descriptor??\n");
 
 	/* Allocate memory for new interfaces before doing anything else,
-	 * so that if we run out then nothing will have changed. */
+	 * so that if we run out then yesthing will have changed. */
 	n = nintf = 0;
 	if (cp) {
 		nintf = cp->desc.bNumInterfaces;
@@ -1880,7 +1880,7 @@ free_interfaces:
 	/* Make sure we have bandwidth (and available HCD resources) for this
 	 * configuration.  Remove endpoints from the schedule if we're dropping
 	 * this configuration to set configuration 0.  After this point, the
-	 * host controller will not allow submissions to dropped endpoints.  If
+	 * host controller will yest allow submissions to dropped endpoints.  If
 	 * this call fails, the device state is unchanged.
 	 */
 	mutex_lock(hcd->bandwidth_mutex);
@@ -1924,7 +1924,7 @@ free_interfaces:
 
 		/* No altsetting 0?  We'll assume the first altsetting.
 		 * We could use a GetInterface call, but if a device is
-		 * so non-compliant that it doesn't have altsetting 0
+		 * so yesn-compliant that it doesn't have altsetting 0
 		 * then I wouldn't trust its reply anyway.
 		 */
 		if (!alt)
@@ -1935,10 +1935,10 @@ free_interfaces:
 		intf->cur_altsetting = alt;
 		usb_enable_interface(dev, intf, true);
 		intf->dev.parent = &dev->dev;
-		if (usb_of_has_combined_node(dev)) {
-			device_set_of_node_from_dev(&intf->dev, &dev->dev);
+		if (usb_of_has_combined_yesde(dev)) {
+			device_set_of_yesde_from_dev(&intf->dev, &dev->dev);
 		} else {
-			intf->dev.of_node = usb_of_get_interface_node(dev,
+			intf->dev.of_yesde = usb_of_get_interface_yesde(dev,
 					configuration, ifnum);
 		}
 		intf->dev.driver = NULL;
@@ -1952,9 +1952,9 @@ free_interfaces:
 		intf->dev.dma_mask = dev->dev.dma_mask;
 		intf->dev.dma_pfn_offset = dev->dev.dma_pfn_offset;
 		INIT_WORK(&intf->reset_ws, __usb_queue_reset_device);
-		intf->minor = -1;
+		intf->miyesr = -1;
 		device_initialize(&intf->dev);
-		pm_runtime_no_callbacks(&intf->dev);
+		pm_runtime_yes_callbacks(&intf->dev);
 		dev_set_name(&intf->dev, "%d-%s:%d.%d", dev->bus->busnum,
 				dev->devpath, configuration, ifnum);
 		usb_get_dev(dev);
@@ -1967,7 +1967,7 @@ free_interfaces:
 	if (ret < 0 && cp) {
 		/*
 		 * All the old state is gone, so what else can we do?
-		 * The device is probably useless now anyway.
+		 * The device is probably useless yesw anyway.
 		 */
 		usb_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
 		for (i = 0; i < nintf; ++i) {
@@ -2002,14 +2002,14 @@ free_interfaces:
 	/* Now that all the interfaces are set up, register them
 	 * to trigger binding of drivers to interfaces.  probe()
 	 * routines may install different altsettings and may
-	 * claim() any interfaces not yet bound.  Many class drivers
+	 * claim() any interfaces yest yet bound.  Many class drivers
 	 * need that: CDC, audio, video, etc.
 	 */
 	for (i = 0; i < nintf; ++i) {
 		struct usb_interface *intf = cp->interface[i];
 
-		if (intf->dev.of_node &&
-		    !of_device_is_available(intf->dev.of_node)) {
+		if (intf->dev.of_yesde &&
+		    !of_device_is_available(intf->dev.of_yesde)) {
 			dev_info(&dev->dev, "skipping disabled interface %d\n",
 				 intf->cur_altsetting->desc.bInterfaceNumber);
 			continue;
@@ -2041,7 +2041,7 @@ struct set_config_request {
 	struct usb_device	*udev;
 	int			config;
 	struct work_struct	work;
-	struct list_head	node;
+	struct list_head	yesde;
 };
 
 /* Worker routine for usb_driver_set_configuration() */
@@ -2053,7 +2053,7 @@ static void driver_set_config_work(struct work_struct *work)
 
 	usb_lock_device(udev);
 	spin_lock(&set_config_lock);
-	list_del(&req->node);
+	list_del(&req->yesde);
 	spin_unlock(&set_config_lock);
 
 	if (req->config >= -1)		/* Is req still valid? */
@@ -2071,7 +2071,7 @@ static void cancel_async_set_config(struct usb_device *udev)
 	struct set_config_request *req;
 
 	spin_lock(&set_config_lock);
-	list_for_each_entry(req, &set_config_list, node) {
+	list_for_each_entry(req, &set_config_list, yesde) {
 		if (req->udev == udev)
 			req->config = -999;	/* Mark as cancelled */
 	}
@@ -2084,18 +2084,18 @@ static void cancel_async_set_config(struct usb_device *udev)
  * @config: the configuration being chosen.
  * Context: In process context, must be able to sleep
  *
- * Device interface drivers are not allowed to change device configurations.
+ * Device interface drivers are yest allowed to change device configurations.
  * This is because changing configurations will destroy the interface the
  * driver is bound to and create new ones; it would be like a floppy-disk
  * driver telling the computer to replace the floppy-disk drive with a
  * tape drive!
  *
  * Still, in certain specialized circumstances the need may arise.  This
- * routine gets around the normal restrictions by using a work thread to
+ * routine gets around the yesrmal restrictions by using a work thread to
  * submit the change-config request.
  *
  * Return: 0 if the request was successfully queued, error code otherwise.
- * The caller has no way to know whether the queued request will eventually
+ * The caller has yes way to kyesw whether the queued request will eventually
  * succeed.
  */
 int usb_driver_set_configuration(struct usb_device *udev, int config)
@@ -2110,7 +2110,7 @@ int usb_driver_set_configuration(struct usb_device *udev, int config)
 	INIT_WORK(&req->work, driver_set_config_work);
 
 	spin_lock(&set_config_lock);
-	list_add(&req->node, &set_config_list);
+	list_add(&req->yesde, &set_config_list);
 	spin_unlock(&set_config_lock);
 
 	usb_get_dev(udev);
@@ -2139,10 +2139,10 @@ int cdc_parse_cdc_header(struct usb_cdc_parsed_header *hdr,
 				u8 *buffer,
 				int buflen)
 {
-	/* duplicates are ignored */
+	/* duplicates are igyesred */
 	struct usb_cdc_union_desc *union_header = NULL;
 
-	/* duplicates are not tolerated */
+	/* duplicates are yest tolerated */
 	struct usb_cdc_header_desc *header = NULL;
 	struct usb_cdc_ether_desc *ether = NULL;
 	struct usb_cdc_mdlm_detail_desc *detail = NULL;
@@ -2256,7 +2256,7 @@ int cdc_parse_cdc_header(struct usb_cdc_parsed_header *hdr,
 			 * there are LOTS more CDC descriptors that
 			 * could legitimately be found here.
 			 */
-			dev_dbg(&intf->dev, "Ignoring descriptor: type %02x, length %ud\n",
+			dev_dbg(&intf->dev, "Igyesring descriptor: type %02x, length %ud\n",
 					buffer[2], elength);
 			goto next_desc;
 		}

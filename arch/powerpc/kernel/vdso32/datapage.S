@@ -42,7 +42,7 @@ V_FUNCTION_END(__get_datapage)
 /*
  * void *__kernel_get_syscall_map(unsigned int *syscall_count) ;
  *
- * returns a pointer to the syscall map. the map is agnostic to the
+ * returns a pointer to the syscall map. the map is agyesstic to the
  * size of "long", unlike kernel bitops, it stores bits from top to
  * bottom so that memory actually contains a linear bitmap
  * check for syscall N by testing bit (0x80000000 >> (N & 0x1f)) of

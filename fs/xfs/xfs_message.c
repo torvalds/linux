@@ -53,7 +53,7 @@ define_xfs_printk_level(xfs_alert, KERN_ALERT);
 define_xfs_printk_level(xfs_crit, KERN_CRIT);
 define_xfs_printk_level(xfs_err, KERN_ERR);
 define_xfs_printk_level(xfs_warn, KERN_WARNING);
-define_xfs_printk_level(xfs_notice, KERN_NOTICE);
+define_xfs_printk_level(xfs_yestice, KERN_NOTICE);
 define_xfs_printk_level(xfs_info, KERN_INFO);
 #ifdef DEBUG
 define_xfs_printk_level(xfs_debug, KERN_DEBUG);

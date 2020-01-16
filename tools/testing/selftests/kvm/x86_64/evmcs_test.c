@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 
 	if (!kvm_check_cap(KVM_CAP_NESTED_STATE) ||
 	    !kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
-		printf("capabilities not available, skipping test\n");
+		printf("capabilities yest available, skipping test\n");
 		exit(KSFT_SKIP);
 	}
 
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
+			TEST_ASSERT(false, "Unkyeswn ucall 0x%x.", uc.cmd);
 		}
 
 		/* UCALL_SYNC is handled here.  */

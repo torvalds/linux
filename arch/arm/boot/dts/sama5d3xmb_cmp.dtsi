@@ -23,7 +23,7 @@
 			};
 
 			spi0: spi@f0004000 {
-				dmas = <0>, <0>;	/*  Do not use DMA for spi0 */
+				dmas = <0>, <0>;	/*  Do yest use DMA for spi0 */
 
 				m25p80@0 {
 					compatible = "atmel,at25df321a";
@@ -39,7 +39,7 @@
 			/*
 			 * i2c0 conflicts with ISI:
 			 * disable it to allow the use of ISI
-			 * can not enable audio when i2c0 disabled
+			 * can yest enable audio when i2c0 disabled
 			 */
 			i2c0: i2c@f0014000 {
 				wm8904: wm8904@1a {
@@ -74,7 +74,7 @@
 			};
 
 			usart1: serial@f0020000 {
-				dmas = <0>, <0>;	/*  Do not use DMA for usart1 */
+				dmas = <0>, <0>;	/*  Do yest use DMA for usart1 */
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart1 &pinctrl_usart1_rts_cts>;
 				status = "okay";
@@ -207,7 +207,7 @@
 			};
 
 			dbgu: serial@ffffee00 {
-				dmas = <0>, <0>;	/*  Do not use DMA for dbgu */
+				dmas = <0>, <0>;	/*  Do yest use DMA for dbgu */
 				status = "okay";
 			};
 

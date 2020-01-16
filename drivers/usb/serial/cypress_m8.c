@@ -3,7 +3,7 @@
  * USB Cypress M8 driver
  *
  * 	Copyright (C) 2004
- * 	    Lonnie Mendez (dignome@gmail.com)
+ * 	    Lonnie Mendez (digyesme@gmail.com)
  *	Copyright (C) 2003,2004
  *	    Neil Whelchel (koyama@firstlight.net)
  *
@@ -22,7 +22,7 @@
 
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -45,7 +45,7 @@ static bool stats;
 static int interval;
 static bool unstable_bauds;
 
-#define DRIVER_AUTHOR "Lonnie Mendez <dignome@gmail.com>, Neil Whelchel <koyama@firstlight.net>"
+#define DRIVER_AUTHOR "Lonnie Mendez <digyesme@gmail.com>, Neil Whelchel <koyama@firstlight.net>"
 #define DRIVER_DESC "Cypress USB to Serial Driver"
 
 /* write buffer size defines */
@@ -64,7 +64,7 @@ static const struct usb_device_id id_table_cyphidcomrs232[] = {
 	{ }						/* Terminating entry */
 };
 
-static const struct usb_device_id id_table_nokiaca42v2[] = {
+static const struct usb_device_id id_table_yeskiaca42v2[] = {
 	{ USB_DEVICE(VENDOR_ID_DAZZLE, PRODUCT_ID_CA42) },
 	{ }						/* Terminating entry */
 };
@@ -190,10 +190,10 @@ static struct usb_serial_driver cypress_hidcom_device = {
 static struct usb_serial_driver cypress_ca42v2_device = {
 	.driver = {
 		.owner =		THIS_MODULE,
-		.name =			"nokiaca42v2",
+		.name =			"yeskiaca42v2",
 	},
 	.description =			"Nokia CA-42 V2 Adapter",
-	.id_table =			id_table_nokiaca42v2,
+	.id_table =			id_table_yeskiaca42v2,
 	.num_ports =			1,
 	.port_probe =			cypress_ca42v2_port_probe,
 	.port_remove =			cypress_port_remove,
@@ -243,8 +243,8 @@ static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 
 	/*
 	 * The general purpose firmware for the Cypress M8 allows for
-	 * a maximum speed of 57600bps (I have no idea whether DeLorme
-	 * chose to use the general purpose firmware or not), if you
+	 * a maximum speed of 57600bps (I have yes idea whether DeLorme
+	 * chose to use the general purpose firmware or yest), if you
 	 * need to modify this speed setting for your own project
 	 * please add your own chiptype and modify the code likewise.
 	 * The Cypress HID->COM device will work successfully up to
@@ -253,7 +253,7 @@ static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 	if (port->serial->dev->speed == USB_SPEED_LOW) {
 		/*
 		 * Mike Isely <isely@pobox.com> 2-Feb-2008: The
-		 * Cypress app note that describes this mechanism
+		 * Cypress app yeste that describes this mechanism
 		 * states the the low-speed part can't handle more
 		 * than 800 bytes/sec, in which case 4800 baud is the
 		 * safest speed for a part like that.
@@ -269,7 +269,7 @@ static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 	case CT_EARTHMATE:
 		if (new_rate <= 600) {
 			/* 300 and 600 baud rates are supported under
-			 * the generic firmware, but are not used with
+			 * the generic firmware, but are yest used with
 			 * NMEA and SiRF protocols */
 			dev_dbg(&port->dev,
 				"%s - failed setting baud rate, unsupported speed of %d on Earthmate GPS\n",
@@ -470,7 +470,7 @@ static int cypress_generic_port_probe(struct usb_serial_port *port)
 	   count field since the 3 bit count field is otherwise too
 	   small.  Otherwise we can use the slightly more compact
 	   format.  This is in accordance with the cypress_m8 serial
-	   converter app note. */
+	   converter app yeste. */
 	if (port->interrupt_out_size > 9)
 		priv->pkt_fmt = packet_format_1;
 	else
@@ -661,7 +661,7 @@ static int cypress_write(struct tty_struct *tty, struct usb_serial_port *port,
 	dev_dbg(&port->dev, "%s - %d bytes\n", __func__, count);
 
 	/* line control commands, which need to be executed immediately,
-	   are not put into the buffer for obvious reasons.
+	   are yest put into the buffer for obvious reasons.
 	 */
 	if (priv->cmd_ctrl) {
 		count = 0;
@@ -780,7 +780,7 @@ send:
 	if (priv->cmd_ctrl)
 		priv->cmd_ctrl = 0;
 
-	/* do not count the line control and size bytes */
+	/* do yest count the line control and size bytes */
 	priv->bytes_out += count;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -875,7 +875,7 @@ static void cypress_set_termios(struct tty_struct *tty,
 	cflag = tty->termios.c_cflag;
 
 	/* set number of data bits, parity, stop bits */
-	/* when parity is disabled the parity type bit is ignored */
+	/* when parity is disabled the parity type bit is igyesred */
 
 	/* 1 means 2 stop bits, 0 means 1 stop bit */
 	stop_bits = cflag & CSTOPB ? 1 : 0;
@@ -901,7 +901,7 @@ static void cypress_set_termios(struct tty_struct *tty,
 		data_bits = 3;
 		break;
 	default:
-		dev_err(dev, "%s - CSIZE was set, but not CS5-CS8\n", __func__);
+		dev_err(dev, "%s - CSIZE was set, but yest CS5-CS8\n", __func__);
 		data_bits = 3;
 	}
 	spin_lock_irqsave(&priv->lock, flags);
@@ -936,12 +936,12 @@ static void cypress_set_termios(struct tty_struct *tty,
 		/* define custom termios settings for NMEA protocol */
 
 		tty->termios.c_iflag /* input modes - */
-			&= ~(IGNBRK  /* disable ignore break */
+			&= ~(IGNBRK  /* disable igyesre break */
 			| BRKINT     /* disable break causes interrupt */
 			| PARMRK     /* disable mark parity errors */
 			| ISTRIP     /* disable clear high bit of input char */
 			| INLCR      /* disable translate NL to CR */
-			| IGNCR      /* disable ignore CR */
+			| IGNCR      /* disable igyesre CR */
 			| ICRNL      /* disable translate CR to NL */
 			| IXON);     /* disable enable XON/XOFF flow control */
 
@@ -955,7 +955,7 @@ static void cypress_set_termios(struct tty_struct *tty,
 					 special characters */
 			| ISIG        /* disable interrupt, quit, and suspend
 					 special characters */
-			| IEXTEN);    /* disable non-POSIX special characters */
+			| IEXTEN);    /* disable yesn-POSIX special characters */
 	} /* CT_CYPHIDCOM: Application should handle this for device */
 
 	linechange = (priv->line_control != oldlines);
@@ -1049,7 +1049,7 @@ static void cypress_read_int_callback(struct urb *urb)
 		/* FALLS THROUGH */
 	default:
 		/* something ugly is going on... */
-		dev_err(dev, "%s - unexpected nonzero read status received: %d\n",
+		dev_err(dev, "%s - unexpected yesnzero read status received: %d\n",
 			__func__, status);
 		cypress_set_dead(port);
 		return;
@@ -1057,7 +1057,7 @@ static void cypress_read_int_callback(struct urb *urb)
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->rx_flags & THROTTLED) {
-		dev_dbg(dev, "%s - now throttling\n", __func__);
+		dev_dbg(dev, "%s - yesw throttling\n", __func__);
 		priv->rx_flags |= ACTUALLY_THROTTLED;
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return;
@@ -1130,7 +1130,7 @@ static void cypress_read_int_callback(struct urb *urb)
 	/* There is one error bit... I'm assuming it is a parity error
 	 * indicator as the generic firmware will set this bit to 1 if a
 	 * parity error occurs.
-	 * I can not find reference to any other error events. */
+	 * I can yest find reference to any other error events. */
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->current_status & CYP_ERROR) {
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -1194,10 +1194,10 @@ static void cypress_write_int_callback(struct urb *urb)
 		priv->write_urb_in_use = 0;
 		return;
 	case -EPIPE:
-		/* Cannot call usb_clear_halt while in_interrupt */
+		/* Canyest call usb_clear_halt while in_interrupt */
 		/* FALLTHROUGH */
 	default:
-		dev_err(dev, "%s - unexpected nonzero write status received: %d\n",
+		dev_err(dev, "%s - unexpected yesnzero write status received: %d\n",
 			__func__, status);
 		cypress_set_dead(port);
 		break;
@@ -1215,7 +1215,7 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 module_param(stats, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(stats, "Enable statistics or not");
+MODULE_PARM_DESC(stats, "Enable statistics or yest");
 module_param(interval, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(interval, "Overrides interrupt interval");
 module_param(unstable_bauds, bool, S_IRUGO | S_IWUSR);

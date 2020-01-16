@@ -56,8 +56,8 @@ struct ip6_tnl {
 	unsigned long err_time;
 
 	/* These fields used only by GRE */
-	__u32 i_seqno;	/* The last seen seqno	*/
-	__u32 o_seqno;	/* The last output seqno */
+	__u32 i_seqyes;	/* The last seen seqyes	*/
+	__u32 o_seqyes;	/* The last output seqyes */
 	int hlen;       /* tun_hlen + encap_hlen */
 	int tun_hlen;	/* Precalculated header length */
 	int encap_hlen; /* Encap header length (FOU,GUE) */

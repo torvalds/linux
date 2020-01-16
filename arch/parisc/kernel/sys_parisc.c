@@ -29,7 +29,7 @@
 #define GET_LAST_MMAP(filp)		\
 	(filp ? ((unsigned long) filp->f_mapping) >> 8 : 0UL)
 #define SET_LAST_MMAP(filp, val)	\
-	 { /* nothing */ }
+	 { /* yesthing */ }
 
 static int get_offset(unsigned int last_mmap)
 {
@@ -206,7 +206,7 @@ static int mmap_is_legacy(void)
 		return 1;
 
 	/* parisc stack always grows up - so a unlimited stack should
-	 * not be an indicator to use the legacy memory layout.
+	 * yest be an indicator to use the legacy memory layout.
 	 * if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
 	 *	return 1;
 	 */
@@ -256,7 +256,7 @@ asmlinkage unsigned long sys_mmap2(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags, unsigned long fd,
 	unsigned long pgoff)
 {
-	/* Make sure the shift for mmap2 is constant (12), no matter what PAGE_SIZE
+	/* Make sure the shift for mmap2 is constant (12), yes matter what PAGE_SIZE
 	   we have. */
 	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
 			       pgoff >> (PAGE_SHIFT - 12));

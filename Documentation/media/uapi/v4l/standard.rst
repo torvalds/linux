@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _standard:
 
@@ -14,7 +14,7 @@ Video Standards
 ***************
 
 Video devices typically support one or more different video standards or
-variations of standards. Each video input and output may support another
+variations of standards. Each video input and output may support ayesther
 set of standards. This set is reported by the ``std`` field of struct
 :c:type:`v4l2_input` and struct
 :c:type:`v4l2_output` returned by the
@@ -31,7 +31,7 @@ standards applications use the :ref:`VIDIOC_ENUMSTD`
 ioctl.
 
 Many of the defined standards are actually just variations of a few
-major standards. The hardware may in fact not distinguish between them,
+major standards. The hardware may in fact yest distinguish between them,
 or do so internal and switch automatically. Therefore enumerated
 standards also contain sets of one or more standard bits.
 
@@ -48,21 +48,21 @@ output applications call the :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` and
 *received* standard can be sensed with the
 :ref:`VIDIOC_QUERYSTD` ioctl.
 
-.. note::
+.. yeste::
 
    The parameter of all these ioctls is a pointer to a
-   :ref:`v4l2_std_id <v4l2-std-id>` type (a standard set), *not* an
+   :ref:`v4l2_std_id <v4l2-std-id>` type (a standard set), *yest* an
    index into the standard enumeration. Drivers must implement all video
    standard ioctls when the device has one or more video inputs or outputs.
 
-Special rules apply to devices such as USB cameras where the notion of
+Special rules apply to devices such as USB cameras where the yestion of
 video standards makes little sense. More generally for any capture or
 output device which is:
 
--  incapable of capturing fields or frames at the nominal rate of the
+-  incapable of capturing fields or frames at the yesminal rate of the
    video standard, or
 
--  that does not support the video standard formats at all.
+-  that does yest support the video standard formats at all.
 
 Here the driver shall set the ``std`` field of struct
 :c:type:`v4l2_input` and struct
@@ -84,8 +84,8 @@ Example: Information about the current video standard
 
     if (-1 == ioctl(fd, VIDIOC_G_STD, &std_id)) {
 	/* Note when VIDIOC_ENUMSTD always returns ENOTTY this
-	   is no video device or it falls under the USB exception,
-	   and VIDIOC_G_STD returning ENOTTY is no error. */
+	   is yes video device or it falls under the USB exception,
+	   and VIDIOC_G_STD returning ENOTTY is yes error. */
 
 	perror("VIDIOC_G_STD");
 	exit(EXIT_FAILURE);
@@ -103,10 +103,10 @@ Example: Information about the current video standard
 	standard.index++;
     }
 
-    /* EINVAL indicates the end of the enumeration, which cannot be
+    /* EINVAL indicates the end of the enumeration, which canyest be
        empty unless this device falls under the USB exception. */
 
-    if (errno == EINVAL || standard.index == 0) {
+    if (erryes == EINVAL || standard.index == 0) {
 	perror("VIDIOC_ENUMSTD");
 	exit(EXIT_FAILURE);
     }
@@ -143,10 +143,10 @@ Example: Listing the video standards supported by the current input
 	standard.index++;
     }
 
-    /* EINVAL indicates the end of the enumeration, which cannot be
+    /* EINVAL indicates the end of the enumeration, which canyest be
        empty unless this device falls under the USB exception. */
 
-    if (errno != EINVAL || standard.index == 0) {
+    if (erryes != EINVAL || standard.index == 0) {
 	perror("VIDIOC_ENUMSTD");
 	exit(EXIT_FAILURE);
     }
@@ -172,7 +172,7 @@ Example: Selecting a new video standard
     }
 
     if (0 == (input.std & V4L2_STD_PAL_BG)) {
-	fprintf(stderr, "Oops. B/G PAL is not supported.\\n");
+	fprintf(stderr, "Oops. B/G PAL is yest supported.\\n");
 	exit(EXIT_FAILURE);
     }
 
@@ -188,5 +188,5 @@ Example: Selecting a new video standard
 
 .. [#f1]
    Some users are already confused by technical terms PAL, NTSC and
-   SECAM. There is no point asking them to distinguish between B, G, D,
+   SECAM. There is yes point asking them to distinguish between B, G, D,
    or K when the software or hardware can do that automatically.

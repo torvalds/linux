@@ -16,7 +16,7 @@
 
 static int simple_pm_bus_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 

@@ -13,7 +13,7 @@
 
 #define	ADI_AXI_REG_VERSION			0x0000
 
-#define ADI_AXI_PCORE_VER(major, minor, patch)	\
-	(((major) << 16) | ((minor) << 8) | (patch))
+#define ADI_AXI_PCORE_VER(major, miyesr, patch)	\
+	(((major) << 16) | ((miyesr) << 8) | (patch))
 
 #endif /* ADI_AXI_COMMON_H_ */

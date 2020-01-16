@@ -15,7 +15,7 @@
 
 static struct nhlt_specific_cfg *skl_get_specific_cfg(
 		struct device *dev, struct nhlt_fmt *fmt,
-		u8 no_ch, u32 rate, u16 bps, u8 linktype)
+		u8 yes_ch, u32 rate, u16 bps, u8 linktype)
 {
 	struct nhlt_specific_cfg *sp_config;
 	struct wav_fmt *wfmt;
@@ -28,9 +28,9 @@ static struct nhlt_specific_cfg *skl_get_specific_cfg(
 		wfmt = &fmt_config->fmt_ext.fmt;
 		dev_dbg(dev, "ch=%d fmt=%d s_rate=%d\n", wfmt->channels,
 			 wfmt->bits_per_sample, wfmt->samples_per_sec);
-		if (wfmt->channels == no_ch && wfmt->bits_per_sample == bps) {
+		if (wfmt->channels == yes_ch && wfmt->bits_per_sample == bps) {
 			/*
-			 * if link type is dmic ignore rate check as the blob is
+			 * if link type is dmic igyesre rate check as the blob is
 			 * generic for all rates
 			 */
 			sp_config = &fmt_config->config;
@@ -67,7 +67,7 @@ static bool skl_check_ep_match(struct device *dev, struct nhlt_endpoint *epnt,
 	if ((epnt->virtual_bus_id == instance_id) &&
 			(epnt->linktype == link_type) &&
 			(epnt->direction == dirn)) {
-		/* do not check dev_type for DMIC link type */
+		/* do yest check dev_type for DMIC link type */
 		if (epnt->linktype == NHLT_LINK_DMIC)
 			return true;
 
@@ -270,7 +270,7 @@ static void skl_get_ssp_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks,
 			parent = skl_get_parent_clk(clk_src);
 
 			/*
-			 * Do not copy the config data if there is no parent
+			 * Do yest copy the config data if there is yes parent
 			 * clock available for this clock source select
 			 */
 			if (!parent)

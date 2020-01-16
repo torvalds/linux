@@ -1,4 +1,4 @@
-/* main.c - (formerly known as dldwd_cs.c, orinoco_cs.c and orinoco.c)
+/* main.c - (formerly kyeswn as dldwd_cs.c, oriyesco_cs.c and oriyesco.c)
  *
  * A driver for Hermes or Prism 2 chipset based PCMCIA wireless
  * adaptors, with Lucent/Agere, Intersil or Symbol firmware.
@@ -20,7 +20,7 @@
  *      http://www.stud.fh-dortmund.de/~andy/wvlan/
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may yest use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -38,10 +38,10 @@
  * terms of the GNU General Public License version 2 (the "GPL"), in
  * which case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use your
+ * only under the terms of the GPL and yest to allow others to use your
  * version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
+ * deleting the provisions above and replace them with the yestice and
+ * other provisions required by the GPL.  If you do yest delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.  */
 
@@ -51,7 +51,7 @@
  *	  headers (patch from Thomas 'Dent' Mirlacher)
  *	o Fix possible races in SPY handling.
  *	o Disconnect wireless extensions from fundamental configuration.
- *	o (maybe) Software WEP support (patch from Stano Meduna).
+ *	o (maybe) Software WEP support (patch from Stayes Meduna).
  *	o (maybe) Use multiple Tx buffers - driver handling queue
  *	  rather than firmware.
  */
@@ -62,19 +62,19 @@
  * single spinlock, priv->lock.  The lock is used in user, bh and irq
  * context, so when taken outside hardirq context it should always be
  * taken with interrupts disabled.  The lock protects both the
- * hardware and the struct orinoco_private.
+ * hardware and the struct oriyesco_private.
  *
- * Another flag, priv->hw_unavailable indicates that the hardware is
+ * Ayesther flag, priv->hw_unavailable indicates that the hardware is
  * unavailable for an extended period of time (e.g. suspended, or in
  * the middle of a hard reset).  This flag is protected by the
  * spinlock.  All code which touches the hardware should check the
  * flag after taking the lock, and if it is set, give up on whatever
- * they are doing and drop the lock again.  The orinoco_lock()
+ * they are doing and drop the lock again.  The oriyesco_lock()
  * function handles this (it unlocks and returns -EBUSY if
- * hw_unavailable is non-zero).
+ * hw_unavailable is yesn-zero).
  */
 
-#define DRIVER_NAME "orinoco"
+#define DRIVER_NAME "oriyesco"
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -101,7 +101,7 @@
 #include "cfg.h"
 #include "main.h"
 
-#include "orinoco.h"
+#include "oriyesco.h"
 
 /********************************************************************/
 /* Module information                                               */
@@ -109,25 +109,25 @@
 
 MODULE_AUTHOR("Pavel Roskin <proski@gnu.org> & "
 	      "David Gibson <hermes@gibson.dropbear.id.au>");
-MODULE_DESCRIPTION("Driver for Lucent Orinoco, Prism II based "
+MODULE_DESCRIPTION("Driver for Lucent Oriyesco, Prism II based "
 		   "and similar wireless cards");
 MODULE_LICENSE("Dual MPL/GPL");
 
-/* Level of debugging. Used in the macros in orinoco.h */
+/* Level of debugging. Used in the macros in oriyesco.h */
 #ifdef ORINOCO_DEBUG
-int orinoco_debug = ORINOCO_DEBUG;
-EXPORT_SYMBOL(orinoco_debug);
-module_param(orinoco_debug, int, 0644);
-MODULE_PARM_DESC(orinoco_debug, "Debug level");
+int oriyesco_debug = ORINOCO_DEBUG;
+EXPORT_SYMBOL(oriyesco_debug);
+module_param(oriyesco_debug, int, 0644);
+MODULE_PARM_DESC(oriyesco_debug, "Debug level");
 #endif
 
 static bool suppress_linkstatus; /* = 0 */
 module_param(suppress_linkstatus, bool, 0644);
 MODULE_PARM_DESC(suppress_linkstatus, "Don't log link status changes");
 
-static int ignore_disconnect; /* = 0 */
-module_param(ignore_disconnect, int, 0644);
-MODULE_PARM_DESC(ignore_disconnect,
+static int igyesre_disconnect; /* = 0 */
+module_param(igyesre_disconnect, int, 0644);
+MODULE_PARM_DESC(igyesre_disconnect,
 		 "Don't report lost link to the network layer");
 
 int force_monitor; /* = 0 */
@@ -198,13 +198,13 @@ struct hermes_rx_descriptor {
 	__le16 data_len;
 } __packed;
 
-struct orinoco_rx_data {
+struct oriyesco_rx_data {
 	struct hermes_rx_descriptor *desc;
 	struct sk_buff *skb;
 	struct list_head list;
 };
 
-struct orinoco_scan_data {
+struct oriyesco_scan_data {
 	void *buf;
 	size_t len;
 	int type;
@@ -215,16 +215,16 @@ struct orinoco_scan_data {
 /* Function prototypes                                              */
 /********************************************************************/
 
-static int __orinoco_set_multicast_list(struct net_device *dev);
-static int __orinoco_up(struct orinoco_private *priv);
-static int __orinoco_down(struct orinoco_private *priv);
-static int __orinoco_commit(struct orinoco_private *priv);
+static int __oriyesco_set_multicast_list(struct net_device *dev);
+static int __oriyesco_up(struct oriyesco_private *priv);
+static int __oriyesco_down(struct oriyesco_private *priv);
+static int __oriyesco_commit(struct oriyesco_private *priv);
 
 /********************************************************************/
 /* Internal helper functions                                        */
 /********************************************************************/
 
-void set_port_type(struct orinoco_private *priv)
+void set_port_type(struct oriyesco_private *priv)
 {
 	switch (priv->iw_mode) {
 	case NL80211_IFTYPE_STATION:
@@ -254,65 +254,65 @@ void set_port_type(struct orinoco_private *priv)
 /* Device methods                                                   */
 /********************************************************************/
 
-int orinoco_open(struct net_device *dev)
+int oriyesco_open(struct net_device *dev)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	unsigned long flags;
 	int err;
 
-	if (orinoco_lock(priv, &flags) != 0)
+	if (oriyesco_lock(priv, &flags) != 0)
 		return -EBUSY;
 
-	err = __orinoco_up(priv);
+	err = __oriyesco_up(priv);
 
 	if (!err)
 		priv->open = 1;
 
-	orinoco_unlock(priv, &flags);
+	oriyesco_unlock(priv, &flags);
 
 	return err;
 }
-EXPORT_SYMBOL(orinoco_open);
+EXPORT_SYMBOL(oriyesco_open);
 
-int orinoco_stop(struct net_device *dev)
+int oriyesco_stop(struct net_device *dev)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	int err = 0;
 
-	/* We mustn't use orinoco_lock() here, because we need to be
+	/* We mustn't use oriyesco_lock() here, because we need to be
 	   able to close the interface even if hw_unavailable is set
 	   (e.g. as we're released after a PC Card removal) */
-	orinoco_lock_irq(priv);
+	oriyesco_lock_irq(priv);
 
 	priv->open = 0;
 
-	err = __orinoco_down(priv);
+	err = __oriyesco_down(priv);
 
-	orinoco_unlock_irq(priv);
+	oriyesco_unlock_irq(priv);
 
 	return err;
 }
-EXPORT_SYMBOL(orinoco_stop);
+EXPORT_SYMBOL(oriyesco_stop);
 
-void orinoco_set_multicast_list(struct net_device *dev)
+void oriyesco_set_multicast_list(struct net_device *dev)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	unsigned long flags;
 
-	if (orinoco_lock(priv, &flags) != 0) {
-		printk(KERN_DEBUG "%s: orinoco_set_multicast_list() "
+	if (oriyesco_lock(priv, &flags) != 0) {
+		printk(KERN_DEBUG "%s: oriyesco_set_multicast_list() "
 		       "called when hw_unavailable\n", dev->name);
 		return;
 	}
 
-	__orinoco_set_multicast_list(dev);
-	orinoco_unlock(priv, &flags);
+	__oriyesco_set_multicast_list(dev);
+	oriyesco_unlock(priv, &flags);
 }
-EXPORT_SYMBOL(orinoco_set_multicast_list);
+EXPORT_SYMBOL(oriyesco_set_multicast_list);
 
-int orinoco_change_mtu(struct net_device *dev, int new_mtu)
+int oriyesco_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 
 	/* MTU + encapsulation + header length */
 	if ((new_mtu + ENCAPS_OVERHEAD + sizeof(struct ieee80211_hdr)) >
@@ -323,7 +323,7 @@ int orinoco_change_mtu(struct net_device *dev, int new_mtu)
 
 	return 0;
 }
-EXPORT_SYMBOL(orinoco_change_mtu);
+EXPORT_SYMBOL(oriyesco_change_mtu);
 
 /********************************************************************/
 /* Tx path                                                          */
@@ -353,17 +353,17 @@ EXPORT_SYMBOL(orinoco_change_mtu);
  *
  * returns 0 on success, -ENOMEM on error.
  */
-int orinoco_process_xmit_skb(struct sk_buff *skb,
+int oriyesco_process_xmit_skb(struct sk_buff *skb,
 			     struct net_device *dev,
-			     struct orinoco_private *priv,
+			     struct oriyesco_private *priv,
 			     int *tx_control,
 			     u8 *mic_buf)
 {
-	struct orinoco_tkip_key *key;
+	struct oriyesco_tkip_key *key;
 	struct ethhdr *eh;
 	int do_mic;
 
-	key = (struct orinoco_tkip_key *) priv->keys[priv->tx_key].key;
+	key = (struct oriyesco_tkip_key *) priv->keys[priv->tx_key].key;
 
 	do_mic = ((priv->encode_alg == ORINOCO_ALG_TKIP) &&
 		  (key != NULL));
@@ -385,7 +385,7 @@ int orinoco_process_xmit_skb(struct sk_buff *skb,
 		if (skb_headroom(skb) < ENCAPS_OVERHEAD) {
 			if (net_ratelimit())
 				printk(KERN_ERR
-				       "%s: Not enough headroom for 802.2 headers %d\n",
+				       "%s: Not eyesugh headroom for 802.2 headers %d\n",
 				       dev->name, skb_headroom(skb));
 			return -ENOMEM;
 		}
@@ -412,7 +412,7 @@ int orinoco_process_xmit_skb(struct sk_buff *skb,
 			mic++;
 		}
 
-		orinoco_mic(priv->tx_tfm_mic, key->tx_mic,
+		oriyesco_mic(priv->tx_tfm_mic, key->tx_mic,
 			    eh->h_dest, eh->h_source, 0 /* priority */,
 			    skb->data + ETH_HLEN,
 			    len, mic);
@@ -420,11 +420,11 @@ int orinoco_process_xmit_skb(struct sk_buff *skb,
 
 	return 0;
 }
-EXPORT_SYMBOL(orinoco_process_xmit_skb);
+EXPORT_SYMBOL(oriyesco_process_xmit_skb);
 
-static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t oriyesco_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	struct hermes *hw = &priv->hw;
 	int err = 0;
@@ -445,8 +445,8 @@ static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	if (orinoco_lock(priv, &flags) != 0) {
-		printk(KERN_ERR "%s: orinoco_xmit() called while hw_unavailable\n",
+	if (oriyesco_lock(priv, &flags) != 0) {
+		printk(KERN_ERR "%s: oriyesco_xmit() called while hw_unavailable\n",
 		       dev->name);
 		return NETDEV_TX_BUSY;
 	}
@@ -465,7 +465,7 @@ static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_control = HERMES_TXCTRL_TX_OK | HERMES_TXCTRL_TX_EX;
 
-	err = orinoco_process_xmit_skb(skb, dev, priv, &tx_control,
+	err = oriyesco_process_xmit_skb(skb, dev, priv, &tx_control,
 				       &mic_buf[0]);
 	if (err)
 		goto drop;
@@ -557,20 +557,20 @@ static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	stats->tx_dropped++;
 
  ok:
-	orinoco_unlock(priv, &flags);
+	oriyesco_unlock(priv, &flags);
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 
  busy:
 	if (err == -EIO)
 		schedule_work(&priv->reset_work);
-	orinoco_unlock(priv, &flags);
+	oriyesco_unlock(priv, &flags);
 	return NETDEV_TX_BUSY;
 }
 
-static void __orinoco_ev_alloc(struct net_device *dev, struct hermes *hw)
+static void __oriyesco_ev_alloc(struct net_device *dev, struct hermes *hw)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	u16 fid = hermes_read_regn(hw, ALLOCFID);
 
 	if (fid != priv->txfid) {
@@ -583,7 +583,7 @@ static void __orinoco_ev_alloc(struct net_device *dev, struct hermes *hw)
 	hermes_write_regn(hw, ALLOCFID, DUMMY_FID);
 }
 
-static void __orinoco_ev_tx(struct net_device *dev, struct hermes *hw)
+static void __oriyesco_ev_tx(struct net_device *dev, struct hermes *hw)
 {
 	dev->stats.tx_packets++;
 
@@ -592,7 +592,7 @@ static void __orinoco_ev_tx(struct net_device *dev, struct hermes *hw)
 	hermes_write_regn(hw, TXCOMPLFID, DUMMY_FID);
 }
 
-static void __orinoco_ev_txexc(struct net_device *dev, struct hermes *hw)
+static void __oriyesco_ev_txexc(struct net_device *dev, struct hermes *hw)
 {
 	struct net_device_stats *stats = &dev->stats;
 	u16 fid = hermes_read_regn(hw, TXCOMPLFID);
@@ -623,7 +623,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, struct hermes *hw)
 
 	/* We produce a TXDROP event only for retry or lifetime
 	 * exceeded, because that's the only status that really mean
-	 * that this particular node went away.
+	 * that this particular yesde went away.
 	 * Other errors means that *we* screwed up. - Jean II */
 	status = le16_to_cpu(hdr.desc.status);
 	if (status & (HERMES_TXSTAT_RETRYERR | HERMES_TXSTAT_AGEDERR)) {
@@ -631,8 +631,8 @@ static void __orinoco_ev_txexc(struct net_device *dev, struct hermes *hw)
 
 		/* Copy 802.11 dest address.
 		 * We use the 802.11 header because the frame may
-		 * not be 802.3 or may be mangled...
-		 * In Ad-Hoc mode, it will be the node address.
+		 * yest be 802.3 or may be mangled...
+		 * In Ad-Hoc mode, it will be the yesde address.
 		 * In managed mode, it will be most likely the AP addr
 		 * User space will figure out how to convert it to
 		 * whatever it needs (IP address or else).
@@ -647,9 +647,9 @@ static void __orinoco_ev_txexc(struct net_device *dev, struct hermes *hw)
 	netif_wake_queue(dev);
 }
 
-void orinoco_tx_timeout(struct net_device *dev)
+void oriyesco_tx_timeout(struct net_device *dev)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	struct hermes *hw = &priv->hw;
 
@@ -662,7 +662,7 @@ void orinoco_tx_timeout(struct net_device *dev)
 
 	schedule_work(&priv->reset_work);
 }
-EXPORT_SYMBOL(orinoco_tx_timeout);
+EXPORT_SYMBOL(oriyesco_tx_timeout);
 
 /********************************************************************/
 /* Rx path (data frames)                                            */
@@ -683,23 +683,23 @@ static inline int is_ethersnap(void *_hdr)
 		&& ((hdr[5] == 0x00) || (hdr[5] == 0xf8));
 }
 
-static inline void orinoco_spy_gather(struct net_device *dev, u_char *mac,
-				      int level, int noise)
+static inline void oriyesco_spy_gather(struct net_device *dev, u_char *mac,
+				      int level, int yesise)
 {
 	struct iw_quality wstats;
 	wstats.level = level - 0x95;
-	wstats.noise = noise - 0x95;
-	wstats.qual = (level > noise) ? (level - noise) : 0;
+	wstats.yesise = yesise - 0x95;
+	wstats.qual = (level > yesise) ? (level - yesise) : 0;
 	wstats.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	/* Update spy records */
 	wireless_spy_update(dev, mac, &wstats);
 }
 
-static void orinoco_stat_gather(struct net_device *dev,
+static void oriyesco_stat_gather(struct net_device *dev,
 				struct sk_buff *skb,
 				struct hermes_rx_descriptor *desc)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 
 	/* Using spy support with lots of Rx packets, like in an
 	 * infrastructure (AP), will really slow down everything, because
@@ -710,15 +710,15 @@ static void orinoco_stat_gather(struct net_device *dev,
 	 * compiled in AND some addresses in the list !!!
 	 */
 	/* Note : gcc will optimise the whole section away if
-	 * WIRELESS_SPY is not defined... - Jean II */
+	 * WIRELESS_SPY is yest defined... - Jean II */
 	if (SPY_NUMBER(priv)) {
-		orinoco_spy_gather(dev, skb_mac_header(skb) + ETH_ALEN,
+		oriyesco_spy_gather(dev, skb_mac_header(skb) + ETH_ALEN,
 				   desc->signal, desc->silence);
 	}
 }
 
 /*
- * orinoco_rx_monitor - handle received monitor frames.
+ * oriyesco_rx_monitor - handle received monitor frames.
  *
  * Arguments:
  *	dev		network device
@@ -727,7 +727,7 @@ static void orinoco_stat_gather(struct net_device *dev,
  *
  * Call context: interrupt
  */
-static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
+static void oriyesco_rx_monitor(struct net_device *dev, u16 rxfid,
 			       struct hermes_rx_descriptor *desc)
 {
 	u32 hdrlen = 30;	/* return full header by default */
@@ -736,7 +736,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	int err;
 	int len;
 	struct sk_buff *skb;
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	struct hermes *hw = &priv->hw;
 
@@ -772,7 +772,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 		}
 		break;
 	default:
-		/* Unknown frame type */
+		/* Unkyeswn frame type */
 		break;
 	}
 
@@ -786,7 +786,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 
 	skb = dev_alloc_skb(hdrlen + datalen);
 	if (!skb) {
-		printk(KERN_WARNING "%s: Cannot allocate skb for monitor frame\n",
+		printk(KERN_WARNING "%s: Canyest allocate skb for monitor frame\n",
 		       dev->name);
 		goto update_stats;
 	}
@@ -825,16 +825,16 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	stats->rx_dropped++;
 }
 
-void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw)
+void __oriyesco_ev_rx(struct net_device *dev, struct hermes *hw)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	struct iw_statistics *wstats = &priv->wstats;
 	struct sk_buff *skb = NULL;
 	u16 rxfid, status;
 	int length;
 	struct hermes_rx_descriptor *desc;
-	struct orinoco_rx_data *rx_data;
+	struct oriyesco_rx_data *rx_data;
 	int err;
 
 	desc = kmalloc(sizeof(*desc), GFP_ATOMIC);
@@ -862,7 +862,7 @@ void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw)
 
 	/* Handle frames in monitor mode */
 	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
-		orinoco_rx_monitor(dev, rxfid, desc);
+		oriyesco_rx_monitor(dev, rxfid, desc);
 		goto out;
 	}
 
@@ -878,7 +878,7 @@ void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw)
 	/* Sanity checks */
 	if (length < 3) { /* No for even an 802.2 LLC header */
 		/* At least on Symbol firmware with PCF we get quite a
-		   lot of these legitimately - Poll frames with no
+		   lot of these legitimately - Poll frames with yes
 		   data. */
 		goto out;
 	}
@@ -889,7 +889,7 @@ void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw)
 		goto update_stats;
 	}
 
-	/* Payload size does not include Michael MIC. Increase payload
+	/* Payload size does yest include Michael MIC. Increase payload
 	 * size to read it together with the data. */
 	if (status & HERMES_RXSTAT_MIC)
 		length += MICHAEL_MIC_LEN;
@@ -907,8 +907,8 @@ void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw)
 	}
 
 	/* We'll prepend the header, so reserve space for it.  The worst
-	   case is no decapsulation, when 802.3 header is prepended and
-	   nothing is removed.  2 is for aligning the IP header.  */
+	   case is yes decapsulation, when 802.3 header is prepended and
+	   yesthing is removed.  2 is for aligning the IP header.  */
 	skb_reserve(skb, ETH_HLEN + 2);
 
 	err = hw->ops->bap_pread(hw, IRQ_BAP, skb_put(skb, length),
@@ -940,13 +940,13 @@ update_stats:
 out:
 	kfree(desc);
 }
-EXPORT_SYMBOL(__orinoco_ev_rx);
+EXPORT_SYMBOL(__oriyesco_ev_rx);
 
-static void orinoco_rx(struct net_device *dev,
+static void oriyesco_rx(struct net_device *dev,
 		       struct hermes_rx_descriptor *desc,
 		       struct sk_buff *skb)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	u16 status, fc;
 	int length;
@@ -958,7 +958,7 @@ static void orinoco_rx(struct net_device *dev,
 
 	/* Calculate and check MIC */
 	if (status & HERMES_RXSTAT_MIC) {
-		struct orinoco_tkip_key *key;
+		struct oriyesco_tkip_key *key;
 		int key_id = ((status & HERMES_RXSTAT_MIC_KEY_ID) >>
 			      HERMES_MIC_KEY_ID_SHIFT);
 		u8 mic[MICHAEL_MIC_LEN];
@@ -972,16 +972,16 @@ static void orinoco_rx(struct net_device *dev,
 		skb_trim(skb, skb->len - MICHAEL_MIC_LEN);
 		length -= MICHAEL_MIC_LEN;
 
-		key = (struct orinoco_tkip_key *) priv->keys[key_id].key;
+		key = (struct oriyesco_tkip_key *) priv->keys[key_id].key;
 
 		if (!key) {
 			printk(KERN_WARNING "%s: Received encrypted frame from "
-			       "%pM using key %i, but key is not installed\n",
+			       "%pM using key %i, but key is yest installed\n",
 			       dev->name, src, key_id);
 			goto drop;
 		}
 
-		orinoco_mic(priv->rx_tfm_mic, key->rx_mic, desc->addr1, src,
+		oriyesco_mic(priv->rx_tfm_mic, key->rx_mic, desc->addr1, src,
 			    0, /* priority or QoS? */
 			    skb->data, skb->len, &mic[0]);
 
@@ -1005,7 +1005,7 @@ static void orinoco_rx(struct net_device *dev,
 			wxmic.src_addr.sa_family = ARPHRD_ETHER;
 			memcpy(wxmic.src_addr.sa_data, src, ETH_ALEN);
 
-			(void) orinoco_hw_get_tkip_iv(priv, key_id,
+			(void) oriyesco_hw_get_tkip_iv(priv, key_id,
 						      &wxmic.tsc[0]);
 
 			memset(&wrqu, 0, sizeof(wrqu));
@@ -1020,7 +1020,7 @@ static void orinoco_rx(struct net_device *dev,
 	/* Handle decapsulation
 	 * In most cases, the firmware tell us about SNAP frames.
 	 * For some reason, the SNAP frames sent by LinkSys APs
-	 * are not properly recognised by most firmwares.
+	 * are yest properly recognised by most firmwares.
 	 * So, check ourselves */
 	if (length >= ENCAPS_OVERHEAD &&
 	    (((status & HERMES_RXSTAT_MSGTYPE) == HERMES_RXSTAT_1042) ||
@@ -1047,7 +1047,7 @@ static void orinoco_rx(struct net_device *dev,
 		skb->pkt_type = PACKET_OTHERHOST;
 
 	/* Process the wireless stats if needed */
-	orinoco_stat_gather(dev, skb, desc);
+	oriyesco_stat_gather(dev, skb, desc);
 
 	/* Pass the packet to the networking stack */
 	netif_rx(skb);
@@ -1062,22 +1062,22 @@ static void orinoco_rx(struct net_device *dev,
 	stats->rx_dropped++;
 }
 
-static void orinoco_rx_isr_tasklet(unsigned long data)
+static void oriyesco_rx_isr_tasklet(unsigned long data)
 {
-	struct orinoco_private *priv = (struct orinoco_private *) data;
+	struct oriyesco_private *priv = (struct oriyesco_private *) data;
 	struct net_device *dev = priv->ndev;
-	struct orinoco_rx_data *rx_data, *temp;
+	struct oriyesco_rx_data *rx_data, *temp;
 	struct hermes_rx_descriptor *desc;
 	struct sk_buff *skb;
 	unsigned long flags;
 
-	/* orinoco_rx requires the driver lock, and we also need to
+	/* oriyesco_rx requires the driver lock, and we also need to
 	 * protect priv->rx_list, so just hold the lock over the
 	 * lot.
 	 *
-	 * If orinoco_lock fails, we've unplugged the card. In this
+	 * If oriyesco_lock fails, we've unplugged the card. In this
 	 * case just abort. */
-	if (orinoco_lock(priv, &flags) != 0)
+	if (oriyesco_lock(priv, &flags) != 0)
 		return;
 
 	/* extract desc and skb from queue */
@@ -1087,12 +1087,12 @@ static void orinoco_rx_isr_tasklet(unsigned long data)
 		list_del(&rx_data->list);
 		kfree(rx_data);
 
-		orinoco_rx(dev, desc, skb);
+		oriyesco_rx(dev, desc, skb);
 
 		kfree(desc);
 	}
 
-	orinoco_unlock(priv, &flags);
+	oriyesco_unlock(priv, &flags);
 }
 
 /********************************************************************/
@@ -1137,10 +1137,10 @@ static void print_linkstatus(struct net_device *dev, u16 status)
 }
 
 /* Search scan results for requested BSSID, join it if found */
-static void orinoco_join_ap(struct work_struct *work)
+static void oriyesco_join_ap(struct work_struct *work)
 {
-	struct orinoco_private *priv =
-		container_of(work, struct orinoco_private, join_work);
+	struct oriyesco_private *priv =
+		container_of(work, struct oriyesco_private, join_work);
 	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
 	int err;
@@ -1161,7 +1161,7 @@ static void orinoco_join_ap(struct work_struct *work)
 	if (!buf)
 		return;
 
-	if (orinoco_lock(priv, &flags) != 0)
+	if (oriyesco_lock(priv, &flags) != 0)
 		goto fail_lock;
 
 	/* Sanity checks in case user changed something in the meantime */
@@ -1176,7 +1176,7 @@ static void orinoco_join_ap(struct work_struct *work)
 				HERMES_RID_SCANRESULTSTABLE,
 				MAX_SCAN_LEN, &len, buf);
 	if (err) {
-		printk(KERN_ERR "%s: Cannot read scan results\n",
+		printk(KERN_ERR "%s: Canyest read scan results\n",
 		       dev->name);
 		goto out;
 	}
@@ -1194,7 +1194,7 @@ static void orinoco_join_ap(struct work_struct *work)
 	}
 
 	if (!found) {
-		DEBUG(1, "%s: Requested AP not found in scan results\n",
+		DEBUG(1, "%s: Requested AP yest found in scan results\n",
 		      dev->name);
 		goto out;
 	}
@@ -1207,14 +1207,14 @@ static void orinoco_join_ap(struct work_struct *work)
 		printk(KERN_ERR "%s: Error issuing join request\n", dev->name);
 
  out:
-	orinoco_unlock(priv, &flags);
+	oriyesco_unlock(priv, &flags);
 
  fail_lock:
 	kfree(buf);
 }
 
 /* Send new BSSID to userspace */
-static void orinoco_send_bssid_wevent(struct orinoco_private *priv)
+static void oriyesco_send_bssid_wevent(struct oriyesco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
@@ -1232,7 +1232,7 @@ static void orinoco_send_bssid_wevent(struct orinoco_private *priv)
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 }
 
-static void orinoco_send_assocreqie_wevent(struct orinoco_private *priv)
+static void oriyesco_send_assocreqie_wevent(struct oriyesco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
@@ -1249,7 +1249,7 @@ static void orinoco_send_assocreqie_wevent(struct orinoco_private *priv)
 	if (err != 0)
 		return;
 
-	ie = orinoco_get_wpa_ie(buf, sizeof(buf));
+	ie = oriyesco_get_wpa_ie(buf, sizeof(buf));
 	if (ie) {
 		int rem = sizeof(buf) - (ie - &buf[0]);
 		wrqu.data.length = ie[1] + 2;
@@ -1262,7 +1262,7 @@ static void orinoco_send_assocreqie_wevent(struct orinoco_private *priv)
 	}
 }
 
-static void orinoco_send_assocrespie_wevent(struct orinoco_private *priv)
+static void oriyesco_send_assocrespie_wevent(struct oriyesco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
@@ -1280,7 +1280,7 @@ static void orinoco_send_assocrespie_wevent(struct orinoco_private *priv)
 	if (err != 0)
 		return;
 
-	ie = orinoco_get_wpa_ie(buf, sizeof(buf));
+	ie = oriyesco_get_wpa_ie(buf, sizeof(buf));
 	if (ie) {
 		int rem = sizeof(buf) - (ie - &buf[0]);
 		wrqu.data.length = ie[1] + 2;
@@ -1293,26 +1293,26 @@ static void orinoco_send_assocrespie_wevent(struct orinoco_private *priv)
 	}
 }
 
-static void orinoco_send_wevents(struct work_struct *work)
+static void oriyesco_send_wevents(struct work_struct *work)
 {
-	struct orinoco_private *priv =
-		container_of(work, struct orinoco_private, wevent_work);
+	struct oriyesco_private *priv =
+		container_of(work, struct oriyesco_private, wevent_work);
 	unsigned long flags;
 
-	if (orinoco_lock(priv, &flags) != 0)
+	if (oriyesco_lock(priv, &flags) != 0)
 		return;
 
-	orinoco_send_assocreqie_wevent(priv);
-	orinoco_send_assocrespie_wevent(priv);
-	orinoco_send_bssid_wevent(priv);
+	oriyesco_send_assocreqie_wevent(priv);
+	oriyesco_send_assocrespie_wevent(priv);
+	oriyesco_send_bssid_wevent(priv);
 
-	orinoco_unlock(priv, &flags);
+	oriyesco_unlock(priv, &flags);
 }
 
-static void qbuf_scan(struct orinoco_private *priv, void *buf,
+static void qbuf_scan(struct oriyesco_private *priv, void *buf,
 		      int len, int type)
 {
-	struct orinoco_scan_data *sd;
+	struct oriyesco_scan_data *sd;
 	unsigned long flags;
 
 	sd = kmalloc(sizeof(*sd), GFP_ATOMIC);
@@ -1330,9 +1330,9 @@ static void qbuf_scan(struct orinoco_private *priv, void *buf,
 	schedule_work(&priv->process_scan);
 }
 
-static void qabort_scan(struct orinoco_private *priv)
+static void qabort_scan(struct oriyesco_private *priv)
 {
-	struct orinoco_scan_data *sd;
+	struct oriyesco_scan_data *sd;
 	unsigned long flags;
 
 	sd = kmalloc(sizeof(*sd), GFP_ATOMIC);
@@ -1348,11 +1348,11 @@ static void qabort_scan(struct orinoco_private *priv)
 	schedule_work(&priv->process_scan);
 }
 
-static void orinoco_process_scan_results(struct work_struct *work)
+static void oriyesco_process_scan_results(struct work_struct *work)
 {
-	struct orinoco_private *priv =
-		container_of(work, struct orinoco_private, process_scan);
-	struct orinoco_scan_data *sd, *temp;
+	struct oriyesco_private *priv =
+		container_of(work, struct oriyesco_private, process_scan);
+	struct oriyesco_scan_data *sd, *temp;
 	unsigned long flags;
 	void *buf;
 	int len;
@@ -1371,14 +1371,14 @@ static void orinoco_process_scan_results(struct work_struct *work)
 
 		if (len > 0) {
 			if (type == HERMES_INQ_CHANNELINFO)
-				orinoco_add_extscan_result(priv, buf, len);
+				oriyesco_add_extscan_result(priv, buf, len);
 			else
-				orinoco_add_hostscan_results(priv, buf, len);
+				oriyesco_add_hostscan_results(priv, buf, len);
 
 			kfree(buf);
 		} else {
 			/* Either abort or complete the scan */
-			orinoco_scan_done(priv, (len < 0));
+			oriyesco_scan_done(priv, (len < 0));
 		}
 
 		spin_lock_irqsave(&priv->scan_lock, flags);
@@ -1386,9 +1386,9 @@ static void orinoco_process_scan_results(struct work_struct *work)
 	spin_unlock_irqrestore(&priv->scan_lock, flags);
 }
 
-void __orinoco_ev_info(struct net_device *dev, struct hermes *hw)
+void __oriyesco_ev_info(struct net_device *dev, struct hermes *hw)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	u16 infofid;
 	struct {
 		__le16 len;
@@ -1432,7 +1432,7 @@ void __orinoco_ev_info(struct net_device *dev, struct hermes *hw)
 			break;
 
 		/* Increment our various counters */
-		/* wstats->discard.nwid - no wrong BSSID stuff */
+		/* wstats->discard.nwid - yes wrong BSSID stuff */
 		wstats->discard.code +=
 			le16_to_cpu(tallies.RxWEPUndecryptable);
 		if (len == sizeof(tallies))
@@ -1445,7 +1445,7 @@ void __orinoco_ev_info(struct net_device *dev, struct hermes *hw)
 			le16_to_cpu(tallies.RxMsgInBadMsgFragments);
 		wstats->discard.retries +=
 			le16_to_cpu(tallies.TxRetryLimitExceeded);
-		/* wstats->miss.beacon - no match */
+		/* wstats->miss.beacon - yes match */
 	}
 	break;
 	case HERMES_INQ_LINKSTATUS: {
@@ -1483,7 +1483,7 @@ void __orinoco_ev_info(struct net_device *dev, struct hermes *hw)
 
 		if (connected)
 			netif_carrier_on(dev);
-		else if (!ignore_disconnect)
+		else if (!igyesre_disconnect)
 			netif_carrier_off(dev);
 
 		if (newstatus != priv->last_linkstatus) {
@@ -1567,7 +1567,7 @@ void __orinoco_ev_info(struct net_device *dev, struct hermes *hw)
 		/* Sanity check */
 		else if (len < (offsetof(struct agere_ext_scan_info,
 					   data) + 2)) {
-			/* Drop this result now so we don't have to
+			/* Drop this result yesw so we don't have to
 			 * keep checking later */
 			printk(KERN_WARNING
 			       "%s: Ext scan results too short (%d bytes)\n",
@@ -1591,20 +1591,20 @@ void __orinoco_ev_info(struct net_device *dev, struct hermes *hw)
 	}
 	case HERMES_INQ_SEC_STAT_AGERE:
 		/* Security status (Agere specific) */
-		/* Ignore this frame for now */
+		/* Igyesre this frame for yesw */
 		if (priv->firmware_type == FIRMWARE_TYPE_AGERE)
 			break;
 		/* fall through */
 	default:
-		printk(KERN_DEBUG "%s: Unknown information frame received: "
+		printk(KERN_DEBUG "%s: Unkyeswn information frame received: "
 		       "type 0x%04x, length %d\n", dev->name, type, len);
 		/* We don't actually do anything about it */
 		break;
 	}
 }
-EXPORT_SYMBOL(__orinoco_ev_info);
+EXPORT_SYMBOL(__oriyesco_ev_info);
 
-static void __orinoco_ev_infdrop(struct net_device *dev, struct hermes *hw)
+static void __oriyesco_ev_infdrop(struct net_device *dev, struct hermes *hw)
 {
 	if (net_ratelimit())
 		printk(KERN_DEBUG "%s: Information frame lost.\n", dev->name);
@@ -1614,7 +1614,7 @@ static void __orinoco_ev_infdrop(struct net_device *dev, struct hermes *hw)
 /* Internal hardware control routines                               */
 /********************************************************************/
 
-static int __orinoco_up(struct orinoco_private *priv)
+static int __oriyesco_up(struct oriyesco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
@@ -1622,7 +1622,7 @@ static int __orinoco_up(struct orinoco_private *priv)
 
 	netif_carrier_off(dev); /* just to make sure */
 
-	err = __orinoco_commit(priv);
+	err = __oriyesco_commit(priv);
 	if (err) {
 		printk(KERN_ERR "%s: Error %d configuring card\n",
 		       dev->name, err);
@@ -1643,7 +1643,7 @@ static int __orinoco_up(struct orinoco_private *priv)
 	return 0;
 }
 
-static int __orinoco_down(struct orinoco_private *priv)
+static int __oriyesco_down(struct oriyesco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
@@ -1667,7 +1667,7 @@ static int __orinoco_down(struct orinoco_private *priv)
 		hermes_write_regn(hw, EVACK, 0xffff);
 	}
 
-	orinoco_scan_done(priv, true);
+	oriyesco_scan_done(priv, true);
 
 	/* firmware will have to reassociate */
 	netif_carrier_off(dev);
@@ -1676,27 +1676,27 @@ static int __orinoco_down(struct orinoco_private *priv)
 	return 0;
 }
 
-static int orinoco_reinit_firmware(struct orinoco_private *priv)
+static int oriyesco_reinit_firmware(struct oriyesco_private *priv)
 {
 	struct hermes *hw = &priv->hw;
 	int err;
 
 	err = hw->ops->init(hw);
 	if (priv->do_fw_download && !err) {
-		err = orinoco_download(priv);
+		err = oriyesco_download(priv);
 		if (err)
 			priv->do_fw_download = 0;
 	}
 	if (!err)
-		err = orinoco_hw_allocate_fid(priv);
+		err = oriyesco_hw_allocate_fid(priv);
 
 	return err;
 }
 
 static int
-__orinoco_set_multicast_list(struct net_device *dev)
+__oriyesco_set_multicast_list(struct net_device *dev)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	int err = 0;
 	int promisc, mc_count;
 
@@ -1711,32 +1711,32 @@ __orinoco_set_multicast_list(struct net_device *dev)
 		mc_count = netdev_mc_count(dev);
 	}
 
-	err = __orinoco_hw_set_multicast_list(priv, dev, mc_count, promisc);
+	err = __oriyesco_hw_set_multicast_list(priv, dev, mc_count, promisc);
 
 	return err;
 }
 
 /* This must be called from user context, without locks held - use
  * schedule_work() */
-void orinoco_reset(struct work_struct *work)
+void oriyesco_reset(struct work_struct *work)
 {
-	struct orinoco_private *priv =
-		container_of(work, struct orinoco_private, reset_work);
+	struct oriyesco_private *priv =
+		container_of(work, struct oriyesco_private, reset_work);
 	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
 	int err;
 	unsigned long flags;
 
-	if (orinoco_lock(priv, &flags) != 0)
+	if (oriyesco_lock(priv, &flags) != 0)
 		/* When the hardware becomes available again, whatever
 		 * detects that is responsible for re-initializing
-		 * it. So no need for anything further */
+		 * it. So yes need for anything further */
 		return;
 
 	netif_stop_queue(dev);
 
 	/* Shut off interrupts.  Depending on what state the hardware
-	 * is in, this might not work, but we'll try anyway */
+	 * is in, this might yest work, but we'll try anyway */
 	hermes_set_irqmask(hw, 0);
 	hermes_write_regn(hw, EVACK, 0xffff);
 
@@ -1744,44 +1744,44 @@ void orinoco_reset(struct work_struct *work)
 	priv->last_linkstatus = 0xffff; /* firmware will have to reassociate */
 	netif_carrier_off(dev);
 
-	orinoco_unlock(priv, &flags);
+	oriyesco_unlock(priv, &flags);
 
 	/* Scanning support: Notify scan cancellation */
-	orinoco_scan_done(priv, true);
+	oriyesco_scan_done(priv, true);
 
 	if (priv->hard_reset) {
 		err = (*priv->hard_reset)(priv);
 		if (err) {
-			printk(KERN_ERR "%s: orinoco_reset: Error %d "
+			printk(KERN_ERR "%s: oriyesco_reset: Error %d "
 			       "performing hard reset\n", dev->name, err);
 			goto disable;
 		}
 	}
 
-	err = orinoco_reinit_firmware(priv);
+	err = oriyesco_reinit_firmware(priv);
 	if (err) {
-		printk(KERN_ERR "%s: orinoco_reset: Error %d re-initializing firmware\n",
+		printk(KERN_ERR "%s: oriyesco_reset: Error %d re-initializing firmware\n",
 		       dev->name, err);
 		goto disable;
 	}
 
 	/* This has to be called from user context */
-	orinoco_lock_irq(priv);
+	oriyesco_lock_irq(priv);
 
 	priv->hw_unavailable--;
 
 	/* priv->open or priv->hw_unavailable might have changed while
 	 * we dropped the lock */
 	if (priv->open && (!priv->hw_unavailable)) {
-		err = __orinoco_up(priv);
+		err = __oriyesco_up(priv);
 		if (err) {
-			printk(KERN_ERR "%s: orinoco_reset: Error %d reenabling card\n",
+			printk(KERN_ERR "%s: oriyesco_reset: Error %d reenabling card\n",
 			       dev->name, err);
 		} else
 			netif_trans_update(dev);
 	}
 
-	orinoco_unlock_irq(priv);
+	oriyesco_unlock_irq(priv);
 
 	return;
  disable:
@@ -1790,21 +1790,21 @@ void orinoco_reset(struct work_struct *work)
 	printk(KERN_ERR "%s: Device has been disabled!\n", dev->name);
 }
 
-static int __orinoco_commit(struct orinoco_private *priv)
+static int __oriyesco_commit(struct oriyesco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	int err = 0;
 
 	/* If we've called commit, we are reconfiguring or bringing the
 	 * interface up. Maintaining countermeasures across this would
-	 * be confusing, so note that we've disabled them. The port will
-	 * be enabled later in orinoco_commit or __orinoco_up. */
+	 * be confusing, so yeste that we've disabled them. The port will
+	 * be enabled later in oriyesco_commit or __oriyesco_up. */
 	priv->tkip_cm_active = 0;
 
-	err = orinoco_hw_program_rids(priv);
+	err = oriyesco_hw_program_rids(priv);
 
 	/* FIXME: what about netif_tx_lock */
-	(void) __orinoco_set_multicast_list(dev);
+	(void) __oriyesco_set_multicast_list(dev);
 
 	return err;
 }
@@ -1812,7 +1812,7 @@ static int __orinoco_commit(struct orinoco_private *priv)
 /* Ensures configuration changes are applied. May result in a reset.
  * The caller should hold priv->lock
  */
-int orinoco_commit(struct orinoco_private *priv)
+int oriyesco_commit(struct oriyesco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
@@ -1831,7 +1831,7 @@ int orinoco_commit(struct orinoco_private *priv)
 		goto out;
 	}
 
-	err = __orinoco_commit(priv);
+	err = __oriyesco_commit(priv);
 	if (err) {
 		printk(KERN_WARNING "%s: Unable to reconfigure card\n",
 		       dev->name);
@@ -1858,22 +1858,22 @@ int orinoco_commit(struct orinoco_private *priv)
 /* Interrupt handler                                                */
 /********************************************************************/
 
-static void __orinoco_ev_tick(struct net_device *dev, struct hermes *hw)
+static void __oriyesco_ev_tick(struct net_device *dev, struct hermes *hw)
 {
 	printk(KERN_DEBUG "%s: TICK\n", dev->name);
 }
 
-static void __orinoco_ev_wterr(struct net_device *dev, struct hermes *hw)
+static void __oriyesco_ev_wterr(struct net_device *dev, struct hermes *hw)
 {
-	/* This seems to happen a fair bit under load, but ignoring it
+	/* This seems to happen a fair bit under load, but igyesring it
 	   seems to work fine...*/
-	printk(KERN_DEBUG "%s: MAC controller error (WTERR). Ignoring.\n",
+	printk(KERN_DEBUG "%s: MAC controller error (WTERR). Igyesring.\n",
 	       dev->name);
 }
 
-irqreturn_t orinoco_interrupt(int irq, void *dev_id)
+irqreturn_t oriyesco_interrupt(int irq, void *dev_id)
 {
-	struct orinoco_private *priv = dev_id;
+	struct oriyesco_private *priv = dev_id;
 	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
 	int count = MAX_IRQLOOPS_PER_IRQ;
@@ -1888,16 +1888,16 @@ irqreturn_t orinoco_interrupt(int irq, void *dev_id)
 	static int loops_this_jiffy; /* = 0 */
 	unsigned long flags;
 
-	if (orinoco_lock(priv, &flags) != 0) {
-		/* If hw is unavailable - we don't know if the irq was
-		 * for us or not */
+	if (oriyesco_lock(priv, &flags) != 0) {
+		/* If hw is unavailable - we don't kyesw if the irq was
+		 * for us or yest */
 		return IRQ_HANDLED;
 	}
 
 	evstat = hermes_read_regn(hw, EVSTAT);
 	events = evstat & hw->inten;
 	if (!events) {
-		orinoco_unlock(priv, &flags);
+		oriyesco_unlock(priv, &flags);
 		return IRQ_NONE;
 	}
 
@@ -1909,7 +1909,7 @@ irqreturn_t orinoco_interrupt(int irq, void *dev_id)
 		if (++loops_this_jiffy > MAX_IRQLOOPS_PER_JIFFY) {
 			printk(KERN_WARNING "%s: IRQ handler is looping too "
 			       "much! Resetting.\n", dev->name);
-			/* Disable interrupts for now */
+			/* Disable interrupts for yesw */
 			hermes_set_irqmask(hw, 0);
 			schedule_work(&priv->reset_work);
 			break;
@@ -1917,26 +1917,26 @@ irqreturn_t orinoco_interrupt(int irq, void *dev_id)
 
 		/* Check the card hasn't been removed */
 		if (!hermes_present(hw)) {
-			DEBUG(0, "orinoco_interrupt(): card removed\n");
+			DEBUG(0, "oriyesco_interrupt(): card removed\n");
 			break;
 		}
 
 		if (events & HERMES_EV_TICK)
-			__orinoco_ev_tick(dev, hw);
+			__oriyesco_ev_tick(dev, hw);
 		if (events & HERMES_EV_WTERR)
-			__orinoco_ev_wterr(dev, hw);
+			__oriyesco_ev_wterr(dev, hw);
 		if (events & HERMES_EV_INFDROP)
-			__orinoco_ev_infdrop(dev, hw);
+			__oriyesco_ev_infdrop(dev, hw);
 		if (events & HERMES_EV_INFO)
-			__orinoco_ev_info(dev, hw);
+			__oriyesco_ev_info(dev, hw);
 		if (events & HERMES_EV_RX)
-			__orinoco_ev_rx(dev, hw);
+			__oriyesco_ev_rx(dev, hw);
 		if (events & HERMES_EV_TXEXC)
-			__orinoco_ev_txexc(dev, hw);
+			__oriyesco_ev_txexc(dev, hw);
 		if (events & HERMES_EV_TX)
-			__orinoco_ev_tx(dev, hw);
+			__oriyesco_ev_tx(dev, hw);
 		if (events & HERMES_EV_ALLOC)
-			__orinoco_ev_alloc(dev, hw);
+			__oriyesco_ev_alloc(dev, hw);
 
 		hermes_write_regn(hw, EVACK, evstat);
 
@@ -1944,22 +1944,22 @@ irqreturn_t orinoco_interrupt(int irq, void *dev_id)
 		events = evstat & hw->inten;
 	}
 
-	orinoco_unlock(priv, &flags);
+	oriyesco_unlock(priv, &flags);
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL(orinoco_interrupt);
+EXPORT_SYMBOL(oriyesco_interrupt);
 
 /********************************************************************/
 /* Power management                                                 */
 /********************************************************************/
 #if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_HERMES_CACHE_FW_ON_INIT)
-static int orinoco_pm_notifier(struct notifier_block *notifier,
+static int oriyesco_pm_yestifier(struct yestifier_block *yestifier,
 			       unsigned long pm_event,
 			       void *unused)
 {
-	struct orinoco_private *priv = container_of(notifier,
-						    struct orinoco_private,
-						    pm_notifier);
+	struct oriyesco_private *priv = container_of(yestifier,
+						    struct oriyesco_private,
+						    pm_yestifier);
 
 	/* All we need to do is cache the firmware before suspend, and
 	 * release it when we come out.
@@ -1971,7 +1971,7 @@ static int orinoco_pm_notifier(struct notifier_block *notifier,
 	switch (pm_event) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
-		orinoco_cache_fw(priv, 0);
+		oriyesco_cache_fw(priv, 0);
 		break;
 
 	case PM_POST_RESTORE:
@@ -1979,7 +1979,7 @@ static int orinoco_pm_notifier(struct notifier_block *notifier,
 		 * up in exactly the same way, so fall through. */
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
-		orinoco_uncache_fw(priv);
+		oriyesco_uncache_fw(priv);
 		break;
 
 	case PM_RESTORE_PREPARE:
@@ -1990,26 +1990,26 @@ static int orinoco_pm_notifier(struct notifier_block *notifier,
 	return NOTIFY_DONE;
 }
 
-static void orinoco_register_pm_notifier(struct orinoco_private *priv)
+static void oriyesco_register_pm_yestifier(struct oriyesco_private *priv)
 {
-	priv->pm_notifier.notifier_call = orinoco_pm_notifier;
-	register_pm_notifier(&priv->pm_notifier);
+	priv->pm_yestifier.yestifier_call = oriyesco_pm_yestifier;
+	register_pm_yestifier(&priv->pm_yestifier);
 }
 
-static void orinoco_unregister_pm_notifier(struct orinoco_private *priv)
+static void oriyesco_unregister_pm_yestifier(struct oriyesco_private *priv)
 {
-	unregister_pm_notifier(&priv->pm_notifier);
+	unregister_pm_yestifier(&priv->pm_yestifier);
 }
 #else /* !PM_SLEEP || HERMES_CACHE_FW_ON_INIT */
-#define orinoco_register_pm_notifier(priv) do { } while (0)
-#define orinoco_unregister_pm_notifier(priv) do { } while (0)
+#define oriyesco_register_pm_yestifier(priv) do { } while (0)
+#define oriyesco_unregister_pm_yestifier(priv) do { } while (0)
 #endif
 
 /********************************************************************/
 /* Initialization                                                   */
 /********************************************************************/
 
-int orinoco_init(struct orinoco_private *priv)
+int oriyesco_init(struct oriyesco_private *priv)
 {
 	struct device *dev = priv->dev;
 	struct wiphy *wiphy = priv_to_wiphy(priv);
@@ -2017,7 +2017,7 @@ int orinoco_init(struct orinoco_private *priv)
 	int err = 0;
 
 	/* No need to lock, the hw_unavailable flag is already set in
-	 * alloc_orinocodev() */
+	 * alloc_oriyescodev() */
 	priv->nicbuf_size = IEEE80211_MAX_FRAME_LEN + ETH_HLEN;
 
 	/* Initialize the firmware */
@@ -2038,10 +2038,10 @@ int orinoco_init(struct orinoco_private *priv)
 
 	if (priv->do_fw_download) {
 #ifdef CONFIG_HERMES_CACHE_FW_ON_INIT
-		orinoco_cache_fw(priv, 0);
+		oriyesco_cache_fw(priv, 0);
 #endif
 
-		err = orinoco_download(priv);
+		err = oriyesco_download(priv);
 		if (err)
 			priv->do_fw_download = 0;
 
@@ -2064,18 +2064,18 @@ int orinoco_init(struct orinoco_private *priv)
 			 priv->has_big_wep ? "104" : "40");
 	if (priv->has_wpa) {
 		dev_info(dev, "WPA-PSK supported\n");
-		if (orinoco_mic_init(priv)) {
+		if (oriyesco_mic_init(priv)) {
 			dev_err(dev, "Failed to setup MIC crypto algorithm. "
 				"Disabling WPA support\n");
 			priv->has_wpa = 0;
 		}
 	}
 
-	err = orinoco_hw_read_card_settings(priv, wiphy->perm_addr);
+	err = oriyesco_hw_read_card_settings(priv, wiphy->perm_addr);
 	if (err)
 		goto out;
 
-	err = orinoco_hw_allocate_fid(priv);
+	err = oriyesco_hw_allocate_fid(priv);
 	if (err) {
 		dev_err(dev, "Failed to allocate NIC buffer!\n");
 		goto out;
@@ -2097,33 +2097,33 @@ int orinoco_init(struct orinoco_private *priv)
 	priv->wpa_ie_len = 0;
 	priv->wpa_ie = NULL;
 
-	if (orinoco_wiphy_register(wiphy)) {
+	if (oriyesco_wiphy_register(wiphy)) {
 		err = -ENODEV;
 		goto out;
 	}
 
 	/* Make the hardware available, as long as it hasn't been
 	 * removed elsewhere (e.g. by PCMCIA hot unplug) */
-	orinoco_lock_irq(priv);
+	oriyesco_lock_irq(priv);
 	priv->hw_unavailable--;
-	orinoco_unlock_irq(priv);
+	oriyesco_unlock_irq(priv);
 
 	dev_dbg(dev, "Ready\n");
 
  out:
 	return err;
 }
-EXPORT_SYMBOL(orinoco_init);
+EXPORT_SYMBOL(oriyesco_init);
 
-static const struct net_device_ops orinoco_netdev_ops = {
-	.ndo_open		= orinoco_open,
-	.ndo_stop		= orinoco_stop,
-	.ndo_start_xmit		= orinoco_xmit,
-	.ndo_set_rx_mode	= orinoco_set_multicast_list,
-	.ndo_change_mtu		= orinoco_change_mtu,
+static const struct net_device_ops oriyesco_netdev_ops = {
+	.ndo_open		= oriyesco_open,
+	.ndo_stop		= oriyesco_stop,
+	.ndo_start_xmit		= oriyesco_xmit,
+	.ndo_set_rx_mode	= oriyesco_set_multicast_list,
+	.ndo_change_mtu		= oriyesco_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_tx_timeout		= orinoco_tx_timeout,
+	.ndo_tx_timeout		= oriyesco_tx_timeout,
 };
 
 /* Allocate private data.
@@ -2134,8 +2134,8 @@ static const struct net_device_ops orinoco_netdev_ops = {
  *  wireless_dev (wdev) - structure for each wireless interface
  *  hw - structure for hermes chip info
  *  card - card specific structure for use by the card driver
- *         (airport, orinoco_cs)
- *  priv - orinoco private data
+ *         (airport, oriyesco_cs)
+ *  priv - oriyesco private data
  *  device - generic linux device structure
  *
  *  +---------+    +---------+
@@ -2151,21 +2151,21 @@ static const struct net_device_ops orinoco_netdev_ops = {
  * priv has a link to netdev and device
  * wdev has a link to wiphy
  */
-struct orinoco_private
-*alloc_orinocodev(int sizeof_card,
+struct oriyesco_private
+*alloc_oriyescodev(int sizeof_card,
 		  struct device *device,
-		  int (*hard_reset)(struct orinoco_private *),
-		  int (*stop_fw)(struct orinoco_private *, int))
+		  int (*hard_reset)(struct oriyesco_private *),
+		  int (*stop_fw)(struct oriyesco_private *, int))
 {
-	struct orinoco_private *priv;
+	struct oriyesco_private *priv;
 	struct wiphy *wiphy;
 
 	/* allocate wiphy
 	 * NOTE: We only support a single virtual interface
 	 *       but this may change when monitor mode is added
 	 */
-	wiphy = wiphy_new(&orinoco_cfg_ops,
-			  sizeof(struct orinoco_private) + sizeof_card);
+	wiphy = wiphy_new(&oriyesco_cfg_ops,
+			  sizeof(struct oriyesco_private) + sizeof_card);
 	if (!wiphy)
 		return NULL;
 
@@ -2174,11 +2174,11 @@ struct orinoco_private
 
 	if (sizeof_card)
 		priv->card = (void *)((unsigned long)priv
-				      + sizeof(struct orinoco_private));
+				      + sizeof(struct oriyesco_private));
 	else
 		priv->card = NULL;
 
-	orinoco_wiphy_init(wiphy);
+	oriyesco_wiphy_init(wiphy);
 
 #ifdef WIRELESS_SPY
 	priv->wireless_data.spy_data = &priv->spy_data;
@@ -2190,20 +2190,20 @@ struct orinoco_private
 
 	spin_lock_init(&priv->lock);
 	priv->open = 0;
-	priv->hw_unavailable = 1; /* orinoco_init() must clear this
+	priv->hw_unavailable = 1; /* oriyesco_init() must clear this
 				   * before anything else touches the
 				   * hardware */
-	INIT_WORK(&priv->reset_work, orinoco_reset);
-	INIT_WORK(&priv->join_work, orinoco_join_ap);
-	INIT_WORK(&priv->wevent_work, orinoco_send_wevents);
+	INIT_WORK(&priv->reset_work, oriyesco_reset);
+	INIT_WORK(&priv->join_work, oriyesco_join_ap);
+	INIT_WORK(&priv->wevent_work, oriyesco_send_wevents);
 
 	INIT_LIST_HEAD(&priv->rx_list);
-	tasklet_init(&priv->rx_tasklet, orinoco_rx_isr_tasklet,
+	tasklet_init(&priv->rx_tasklet, oriyesco_rx_isr_tasklet,
 		     (unsigned long) priv);
 
 	spin_lock_init(&priv->scan_lock);
 	INIT_LIST_HEAD(&priv->scan_list);
-	INIT_WORK(&priv->process_scan, orinoco_process_scan_results);
+	INIT_WORK(&priv->process_scan, oriyesco_process_scan_results);
 
 	priv->last_linkstatus = 0xffff;
 
@@ -2212,12 +2212,12 @@ struct orinoco_private
 	priv->cached_fw = NULL;
 #endif
 
-	/* Register PM notifiers */
-	orinoco_register_pm_notifier(priv);
+	/* Register PM yestifiers */
+	oriyesco_register_pm_yestifier(priv);
 
 	return priv;
 }
-EXPORT_SYMBOL(alloc_orinocodev);
+EXPORT_SYMBOL(alloc_oriyescodev);
 
 /* We can only support a single interface. We provide a separate
  * function to set it up to distinguish between hardware
@@ -2226,7 +2226,7 @@ EXPORT_SYMBOL(alloc_orinocodev);
  * The base_addr and irq parameters are passed on to netdev for use
  * with SIOCGIFMAP.
  */
-int orinoco_if_add(struct orinoco_private *priv,
+int oriyesco_if_add(struct oriyesco_private *priv,
 		   unsigned long base_addr,
 		   unsigned int irq,
 		   const struct net_device_ops *ops)
@@ -2249,15 +2249,15 @@ int orinoco_if_add(struct orinoco_private *priv,
 	/* Setup / override net_device fields */
 	dev->ieee80211_ptr = wdev;
 	dev->watchdog_timeo = HZ; /* 1 second timeout */
-	dev->wireless_handlers = &orinoco_handler_def;
+	dev->wireless_handlers = &oriyesco_handler_def;
 #ifdef WIRELESS_SPY
 	dev->wireless_data = &priv->wireless_data;
 #endif
-	/* Default to standard ops if not set */
+	/* Default to standard ops if yest set */
 	if (ops)
 		dev->netdev_ops = ops;
 	else
-		dev->netdev_ops = &orinoco_netdev_ops;
+		dev->netdev_ops = &oriyesco_netdev_ops;
 
 	/* we use the default eth_mac_addr for setting the MAC addr */
 
@@ -2290,22 +2290,22 @@ int orinoco_if_add(struct orinoco_private *priv,
 	free_netdev(dev);
 	return ret;
 }
-EXPORT_SYMBOL(orinoco_if_add);
+EXPORT_SYMBOL(oriyesco_if_add);
 
-void orinoco_if_del(struct orinoco_private *priv)
+void oriyesco_if_del(struct oriyesco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 
 	unregister_netdev(dev);
 	free_netdev(dev);
 }
-EXPORT_SYMBOL(orinoco_if_del);
+EXPORT_SYMBOL(oriyesco_if_del);
 
-void free_orinocodev(struct orinoco_private *priv)
+void free_oriyescodev(struct oriyesco_private *priv)
 {
 	struct wiphy *wiphy = priv_to_wiphy(priv);
-	struct orinoco_rx_data *rx_data, *temp;
-	struct orinoco_scan_data *sd, *sdtemp;
+	struct oriyesco_rx_data *rx_data, *temp;
+	struct oriyesco_scan_data *sd, *sdtemp;
 
 	/* If the tasklet is scheduled when we call tasklet_kill it
 	 * will run one final time. However the tasklet will only
@@ -2331,17 +2331,17 @@ void free_orinocodev(struct orinoco_private *priv)
 		kfree(sd);
 	}
 
-	orinoco_unregister_pm_notifier(priv);
-	orinoco_uncache_fw(priv);
+	oriyesco_unregister_pm_yestifier(priv);
+	oriyesco_uncache_fw(priv);
 
 	priv->wpa_ie_len = 0;
 	kfree(priv->wpa_ie);
-	orinoco_mic_free(priv);
+	oriyesco_mic_free(priv);
 	wiphy_free(wiphy);
 }
-EXPORT_SYMBOL(free_orinocodev);
+EXPORT_SYMBOL(free_oriyescodev);
 
-int orinoco_up(struct orinoco_private *priv)
+int oriyesco_up(struct oriyesco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	unsigned long flags;
@@ -2349,7 +2349,7 @@ int orinoco_up(struct orinoco_private *priv)
 
 	priv->hw.ops->lock_irqsave(&priv->lock, &flags);
 
-	err = orinoco_reinit_firmware(priv);
+	err = oriyesco_reinit_firmware(priv);
 	if (err) {
 		printk(KERN_ERR "%s: Error %d re-initializing firmware\n",
 		       dev->name, err);
@@ -2360,7 +2360,7 @@ int orinoco_up(struct orinoco_private *priv)
 	priv->hw_unavailable--;
 
 	if (priv->open && !priv->hw_unavailable) {
-		err = __orinoco_up(priv);
+		err = __oriyesco_up(priv);
 		if (err)
 			printk(KERN_ERR "%s: Error %d restarting card\n",
 			       dev->name, err);
@@ -2371,16 +2371,16 @@ exit:
 
 	return 0;
 }
-EXPORT_SYMBOL(orinoco_up);
+EXPORT_SYMBOL(oriyesco_up);
 
-void orinoco_down(struct orinoco_private *priv)
+void oriyesco_down(struct oriyesco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	unsigned long flags;
 	int err;
 
 	priv->hw.ops->lock_irqsave(&priv->lock, &flags);
-	err = __orinoco_down(priv);
+	err = __oriyesco_down(priv);
 	if (err)
 		printk(KERN_WARNING "%s: Error %d downing interface\n",
 		       dev->name, err);
@@ -2389,7 +2389,7 @@ void orinoco_down(struct orinoco_private *priv)
 	priv->hw_unavailable++;
 	priv->hw.ops->unlock_irqrestore(&priv->lock, &flags);
 }
-EXPORT_SYMBOL(orinoco_down);
+EXPORT_SYMBOL(oriyesco_down);
 
 /********************************************************************/
 /* Module initialization                                            */
@@ -2401,15 +2401,15 @@ static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
 	" (David Gibson <hermes@gibson.dropbear.id.au>, "
 	"Pavel Roskin <proski@gnu.org>, et al)";
 
-static int __init init_orinoco(void)
+static int __init init_oriyesco(void)
 {
 	printk(KERN_DEBUG "%s\n", version);
 	return 0;
 }
 
-static void __exit exit_orinoco(void)
+static void __exit exit_oriyesco(void)
 {
 }
 
-module_init(init_orinoco);
-module_exit(exit_orinoco);
+module_init(init_oriyesco);
+module_exit(exit_oriyesco);

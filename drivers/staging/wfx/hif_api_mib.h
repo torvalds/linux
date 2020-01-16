@@ -253,7 +253,7 @@ struct hif_mib_rx_filter {
 struct hif_ie_table_entry {
 	u8    ie_id;
 	u8    has_changed:1;
-	u8    no_longer:1;
+	u8    yes_longer:1;
 	u8    has_appeared:1;
 	u8    reserved:1;
 	u8    num_match_data:4;
@@ -302,7 +302,7 @@ struct hif_mib_extended_count_table {
 	u32   count_rx_packet_errors;
 	u32   count_rx_decryption_failures;
 	u32   count_rx_mic_failures;
-	u32   count_rx_no_key_failures;
+	u32   count_rx_yes_key_failures;
 	u32   count_tx_multicast_frames;
 	u32   count_tx_frames_success;
 	u32   count_tx_frame_failures;
@@ -331,7 +331,7 @@ struct hif_mib_count_table {
 	u32   count_rx_packet_errors;
 	u32   count_rx_decryption_failures;
 	u32   count_rx_mic_failures;
-	u32   count_rx_no_key_failures;
+	u32   count_rx_yes_key_failures;
 	u32   count_tx_multicast_frames;
 	u32   count_tx_frames_success;
 	u32   count_tx_frame_failures;
@@ -389,7 +389,7 @@ struct hif_mib_current_tx_power_level {
 	s32   power_level;
 } __packed;
 
-struct hif_mib_non_erp_protection {
+struct hif_mib_yesn_erp_protection {
 	u8   use_cts_to_self:1;
 	u8   reserved1:7;
 	u8   reserved2[3];
@@ -451,7 +451,7 @@ struct hif_mib_block_ack_policy {
 
 struct hif_mib_override_int_rate {
 	u8    internal_tx_rate;
-	u8    non_erp_internal_tx_rate;
+	u8    yesn_erp_internal_tx_rate;
 	u8    reserved[2];
 } __packed;
 

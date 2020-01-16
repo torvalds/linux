@@ -434,18 +434,18 @@ static inline int drv_set_coverage_class(struct ieee80211_local *local,
 	return ret;
 }
 
-static inline void drv_sta_notify(struct ieee80211_local *local,
+static inline void drv_sta_yestify(struct ieee80211_local *local,
 				  struct ieee80211_sub_if_data *sdata,
-				  enum sta_notify_cmd cmd,
+				  enum sta_yestify_cmd cmd,
 				  struct ieee80211_sta *sta)
 {
 	sdata = get_bss_sdata(sdata);
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_sta_notify(local, sdata, cmd, sta);
-	if (local->ops->sta_notify)
-		local->ops->sta_notify(&local->hw, &sdata->vif, cmd, sta);
+	trace_drv_sta_yestify(local, sdata, cmd, sta);
+	if (local->ops->sta_yestify)
+		local->ops->sta_yestify(&local->hw, &sdata->vif, cmd, sta);
 	trace_drv_return_void(local);
 }
 

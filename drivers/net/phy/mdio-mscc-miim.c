@@ -151,9 +151,9 @@ static int mscc_miim_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = of_mdiobus_register(bus, pdev->dev.of_node);
+	ret = of_mdiobus_register(bus, pdev->dev.of_yesde);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot register MDIO bus (%d)\n", ret);
+		dev_err(&pdev->dev, "Canyest register MDIO bus (%d)\n", ret);
 		return ret;
 	}
 

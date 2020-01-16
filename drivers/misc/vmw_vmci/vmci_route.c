@@ -30,12 +30,12 @@ int vmci_route(struct vmci_handle *src,
 	/*
 	 * "from_guest" is only ever set to true by
 	 * IOCTL_VMCI_DATAGRAM_SEND (or by the vmkernel equivalent),
-	 * which comes from the VMX, so we know it is coming from a
+	 * which comes from the VMX, so we kyesw it is coming from a
 	 * guest.
 	 *
 	 * To avoid inconsistencies, test these once.  We will test
 	 * them again when we do the actual send to ensure that we do
-	 * not touch a non-existent device.
+	 * yest touch a yesn-existent device.
 	 */
 
 	/* Must have a valid destination context. */
@@ -47,7 +47,7 @@ int vmci_route(struct vmci_handle *src,
 
 		/*
 		 * If this message already came from a guest then we
-		 * cannot send it to the hypervisor.  It must come
+		 * canyest send it to the hypervisor.  It must come
 		 * from a local client.
 		 */
 		if (from_guest)
@@ -60,7 +60,7 @@ int vmci_route(struct vmci_handle *src,
 		if (!has_guest_device)
 			return VMCI_ERROR_DEVICE_NOT_FOUND;
 
-		/* And we cannot send if the source is the host context. */
+		/* And we canyest send if the source is the host context. */
 		if (VMCI_HOST_CONTEXT_ID == src->context)
 			return VMCI_ERROR_INVALID_ARGS;
 
@@ -84,7 +84,7 @@ int vmci_route(struct vmci_handle *src,
 	/* Anywhere to local client on host. */
 	if (VMCI_HOST_CONTEXT_ID == dst->context) {
 		/*
-		 * If it is not from a guest but we are acting as a
+		 * If it is yest from a guest but we are acting as a
 		 * guest, then we need to send it down to the host.
 		 * Note that if we are also acting as a host then this
 		 * will prevent us from sending from local client to
@@ -109,7 +109,7 @@ int vmci_route(struct vmci_handle *src,
 		}
 
 		if (!from_guest && has_guest_device) {
-			/* If no source context then use the current. */
+			/* If yes source context then use the current. */
 			if (VMCI_INVALID_ID == src->context)
 				src->context = vmci_get_context_id();
 
@@ -121,7 +121,7 @@ int vmci_route(struct vmci_handle *src,
 		/*
 		 * Otherwise we already received it from a guest and
 		 * it is destined for a local client on this host, or
-		 * it is from another local client on this host.  We
+		 * it is from ayesther local client on this host.  We
 		 * must be acting as a host to service it.
 		 */
 		if (!has_host_device)
@@ -166,7 +166,7 @@ int vmci_route(struct vmci_handle *src,
 			} else if (VMCI_CONTEXT_IS_VM(src->context) &&
 				   src->context != dst->context) {
 				/*
-				 * VM to VM communication is not
+				 * VM to VM communication is yest
 				 * allowed. Since we catch all
 				 * communication destined for the host
 				 * above, this must be destined for a
@@ -183,7 +183,7 @@ int vmci_route(struct vmci_handle *src,
 			/*
 			 * The host is attempting to reach a CID
 			 * without an active context, and we can't
-			 * send it down, since we have no guest
+			 * send it down, since we have yes guest
 			 * device.
 			 */
 
@@ -192,20 +192,20 @@ int vmci_route(struct vmci_handle *src,
 	}
 
 	/*
-	 * We must be a guest trying to send to another guest, which means
-	 * we need to send it down to the host. We do not filter out VM to
+	 * We must be a guest trying to send to ayesther guest, which means
+	 * we need to send it down to the host. We do yest filter out VM to
 	 * VM communication here, since we want to be able to use the guest
 	 * driver on older versions that do support VM to VM communication.
 	 */
 	if (!has_guest_device) {
 		/*
-		 * Ending up here means we have neither guest nor host
+		 * Ending up here means we have neither guest yesr host
 		 * device.
 		 */
 		return VMCI_ERROR_DEVICE_NOT_FOUND;
 	}
 
-	/* If no source context then use the current context. */
+	/* If yes source context then use the current context. */
 	if (VMCI_INVALID_ID == src->context)
 		src->context = vmci_get_context_id();
 

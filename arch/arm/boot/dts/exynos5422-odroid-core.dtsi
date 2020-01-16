@@ -10,8 +10,8 @@
 #include <dt-bindings/clock/samsung,s2mps11.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "exynos5800.dtsi"
-#include "exynos5422-cpus.dtsi"
+#include "exyyess5800.dtsi"
+#include "exyyess5422-cpus.dtsi"
 
 / {
 	memory@40000000 {
@@ -30,7 +30,7 @@
 
 	fixed-rate-clocks {
 		oscclk {
-			compatible = "samsung,exynos5420-oscclk";
+			compatible = "samsung,exyyess5420-oscclk";
 			clock-frequency = <24000000>;
 		};
 	};
@@ -134,14 +134,14 @@
 };
 
 &bus_wcore {
-	devfreq-events = <&nocp_mem0_0>, <&nocp_mem0_1>,
-			<&nocp_mem1_0>, <&nocp_mem1_1>;
+	devfreq-events = <&yescp_mem0_0>, <&yescp_mem0_1>,
+			<&yescp_mem1_0>, <&yescp_mem1_1>;
 	vdd-supply = <&buck3_reg>;
-	exynos,saturation-ratio = <100>;
+	exyyess,saturation-ratio = <100>;
 	status = "okay";
 };
 
-&bus_noc {
+&bus_yesc {
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
@@ -710,19 +710,19 @@
 	sd-uhs-ddr50;
 };
 
-&nocp_mem0_0 {
+&yescp_mem0_0 {
 	status = "okay";
 };
 
-&nocp_mem0_1 {
+&yescp_mem0_1 {
 	status = "okay";
 };
 
-&nocp_mem1_0 {
+&yescp_mem1_0 {
 	status = "okay";
 };
 
-&nocp_mem1_1 {
+&yescp_mem1_1 {
 	status = "okay";
 };
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* 
  *  Copyright (C) 1997	Wu Ching Chen
- *  2.1.x update (C) 1998  Krzysztof G. Baranowski
+ *  2.1.x update (C) 1998  Krzysztof G. Barayeswski
  *  2.5.x update (C) 2002  Red Hat
  *  2.6.x update (C) 2004  Red Hat
  *
@@ -500,7 +500,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 					atp_writeb_io(dev, c, 0x1b, 0x01);
 			} 
 			/*
-			 *	If there is stuff to send and nothing going then send it
+			 *	If there is stuff to send and yesthing going then send it
 			 */
 			spin_lock_irqsave(dev->host->host_lock, flags);
 			if (((dev->last_cmd[c] != 0xff) || (dev->quhd[c] != dev->quend[c])) &&
@@ -950,7 +950,7 @@ static unsigned char fun_scam(struct atp_unit *dev, unsigned short int *val)
 		if ((atp_readw_io(dev, 0, 0x1c) & 0x2000) != 0)	/* DB5 all release?       */
 			i = 0;
 	}
-	*val |= 0x8000;		/* no DB4-0, assert DB7    */
+	*val |= 0x8000;		/* yes DB4-0, assert DB7    */
 	*val &= 0xe0ff;
 	atp_writew_io(dev, 0, 0x1c, *val);
 	*val &= 0xbfff;		/* release DB6             */
@@ -1053,10 +1053,10 @@ static void tscam(struct Scsi_Host *host, bool wide_chip, u8 scam_on)
 	val |= 0x0004;		/* msg  */
 	atp_writew_io(dev, 0, 0x1c, val);
 	udelay(2);		/* 2 deskew delay(45ns*2=90ns) */
-	val &= 0x007f;		/* no bsy  */
+	val &= 0x007f;		/* yes bsy  */
 	atp_writew_io(dev, 0, 0x1c, val);
 	msleep(128);
-	val &= 0x00fb;		/* after 1ms no msg */
+	val &= 0x00fb;		/* after 1ms yes msg */
 	atp_writew_io(dev, 0, 0x1c, val);
 	while ((atp_readb_io(dev, 0, 0x1c) & 0x04) != 0)
 		;
@@ -1072,7 +1072,7 @@ static void tscam(struct Scsi_Host *host, bool wide_chip, u8 scam_on)
 				val |= 0x8003;		/* io,cd,db7  */
 				atp_writew_io(dev, 0, 0x1c, val);
 				udelay(2);
-				val &= 0x00bf;		/* no sel     */
+				val &= 0x00bf;		/* yes sel     */
 				atp_writew_io(dev, 0, 0x1c, val);
 				udelay(2);
 				break;
@@ -1493,7 +1493,7 @@ static void atp885_init(struct Scsi_Host *shpnt)
 	shpnt->this_id = atpdev->host_id[0];
 }
 
-/* return non-zero on detection */
+/* return yesn-zero on detection */
 static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct Scsi_Host *shpnt = NULL;
@@ -1501,7 +1501,7 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int err;
 
 	if (ent->device == PCI_DEVICE_ID_ARTOP_AEC7610 && pdev->revision < 2) {
-		dev_err(&pdev->dev, "ATP850S chips (AEC6710L/F cards) are not supported.\n");
+		dev_err(&pdev->dev, "ATP850S chips (AEC6710L/F cards) are yest supported.\n");
 		return -ENODEV;
 	}
 
@@ -1510,7 +1510,7 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto fail;
 
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-                printk(KERN_ERR "atp870u: DMA mask required but not available.\n");
+                printk(KERN_ERR "atp870u: DMA mask required but yest available.\n");
                 err = -EIO;
                 goto disable_device;
         }
@@ -1578,7 +1578,7 @@ fail:
 	return err;
 }
 
-/* The abort command does not leave the device in a clean state where
+/* The abort command does yest leave the device in a clean state where
    it is available to be used again.  Until this gets worked out, we will
    leave it commented out.  */
 
@@ -1615,7 +1615,7 @@ static int atp870u_abort(struct scsi_cmnd * SCpnt)
 	return SUCCESS;
 }
 
-static const char *atp870u_info(struct Scsi_Host *notused)
+static const char *atp870u_info(struct Scsi_Host *yestused)
 {
 	static char buffer[128];
 
@@ -1845,16 +1845,16 @@ inq_ok:
 		rmb = mbuf[1];
 		n = mbuf[7];
 		if (!wide_chip)
-			goto not_wide;
+			goto yest_wide;
 		if ((mbuf[7] & 0x60) == 0) {
-			goto not_wide;
+			goto yest_wide;
 		}
 		if (is885(dev) || is880(dev)) {
 			if ((i < 8) && ((dev->global_map[c] & 0x20) == 0))
-				goto not_wide;
+				goto yest_wide;
 		} else { /* result of is870() merge - is this a bug? */
 			if ((dev->global_map[c] & 0x20) == 0)
-				goto not_wide;
+				goto yest_wide;
 		}
 		if (lvdmode == 0) {
 			goto chg_wide;
@@ -2094,21 +2094,21 @@ widep_cmd:
 			continue;
 		}
 		if (mbuf[0] != 0x01) {
-			goto not_wide;
+			goto yest_wide;
 		}
 		if (mbuf[1] != 0x02) {
-			goto not_wide;
+			goto yest_wide;
 		}
 		if (mbuf[2] != 0x03) {
-			goto not_wide;
+			goto yest_wide;
 		}
 		if (mbuf[3] != 0x01) {
-			goto not_wide;
+			goto yest_wide;
 		}
 		m = 1;
 		m = m << i;
 		dev->wide_id[c] |= m;
-not_wide:
+yest_wide:
 		if ((dev->id[c][i].devtype == 0x00) || (dev->id[c][i].devtype == 0x07) || ((dev->id[c][i].devtype == 0x05) && ((n & 0x10) != 0))) {
 			m = 1;
 			m = m << i;

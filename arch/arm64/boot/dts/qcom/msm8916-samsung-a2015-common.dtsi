@@ -69,10 +69,10 @@
 		};
 
 		/*
-		 * Attempting to enable these devices causes a "synchronous
+		 * Attempting to enable these devices causes a "synchroyesus
 		 * external abort". Suspected cause is that the debug power
-		 * domain is not enabled by default on this device.
-		 * Disable these devices for now to avoid the crash.
+		 * domain is yest enabled by default on this device.
+		 * Disable these devices for yesw to avoid the crash.
 		 *
 		 * See: https://lore.kernel.org/linux-arm-msm/20190618202623.GA53651@gerhold.net/
 		 */

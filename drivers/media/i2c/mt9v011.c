@@ -198,7 +198,7 @@ static void set_balance(struct v4l2_subdev *sd)
 	mt9v011_write(sd, R09_MT9V011_SHUTTER_WIDTH, exposure);
 }
 
-static void calc_fps(struct v4l2_subdev *sd, u32 *numerator, u32 *denominator)
+static void calc_fps(struct v4l2_subdev *sd, u32 *numerator, u32 *deyesminator)
 {
 	struct mt9v011 *core = to_mt9v011(sd);
 	unsigned height, width, hblank, vblank, speed;
@@ -222,13 +222,13 @@ static void calc_fps(struct v4l2_subdev *sd, u32 *numerator, u32 *denominator)
 	v4l2_dbg(1, debug, sd, "Programmed to %u.%03u fps (%d pixel clcks)\n",
 		tmp / 1000, tmp % 1000, t_time);
 
-	if (numerator && denominator) {
+	if (numerator && deyesminator) {
 		*numerator = 1000;
-		*denominator = (u32)frames_per_ms;
+		*deyesminator = (u32)frames_per_ms;
 	}
 }
 
-static u16 calc_speed(struct v4l2_subdev *sd, u32 numerator, u32 denominator)
+static u16 calc_speed(struct v4l2_subdev *sd, u32 numerator, u32 deyesminator)
 {
 	struct mt9v011 *core = to_mt9v011(sd);
 	unsigned height, width, hblank, vblank;
@@ -236,7 +236,7 @@ static u16 calc_speed(struct v4l2_subdev *sd, u32 numerator, u32 denominator)
 	u64 t_time, speed;
 
 	/* Avoid bogus calculus */
-	if (!numerator || !denominator)
+	if (!numerator || !deyesminator)
 		return 0;
 
 	height = mt9v011_read(sd, R03_MT9V011_HEIGHT);
@@ -249,8 +249,8 @@ static u16 calc_speed(struct v4l2_subdev *sd, u32 numerator, u32 denominator)
 
 	t_time = core->xtal * ((u64)numerator);
 	/* round to the closest value */
-	t_time += denominator / 2;
-	do_div(t_time, denominator);
+	t_time += deyesminator / 2;
+	do_div(t_time, deyesminator);
 
 	speed = t_time;
 	do_div(speed, row_time * line_time);
@@ -277,7 +277,7 @@ static void set_res(struct v4l2_subdev *sd)
 	 * The mt9v011 doesn't have scaling. So, in order to select the desired
 	 * resolution, we're cropping at the middle of the sensor.
 	 * hblank and vblank should be adjusted, in order to warrant that
-	 * we'll preserve the line timings for 30 fps, no matter what resolution
+	 * we'll preserve the line timings for 30 fps, yes matter what resolution
 	 * is selected.
 	 * NOTE: datasheet says that width (and height) should be filled with
 	 * width-1. However, this doesn't work, since one pixel per line will
@@ -369,7 +369,7 @@ static int mt9v011_g_frame_interval(struct v4l2_subdev *sd,
 {
 	calc_fps(sd,
 		 &ival->interval.numerator,
-		 &ival->interval.denominator);
+		 &ival->interval.deyesminator);
 
 	return 0;
 }
@@ -380,13 +380,13 @@ static int mt9v011_s_frame_interval(struct v4l2_subdev *sd,
 	struct v4l2_fract *tpf = &ival->interval;
 	u16 speed;
 
-	speed = calc_speed(sd, tpf->numerator, tpf->denominator);
+	speed = calc_speed(sd, tpf->numerator, tpf->deyesminator);
 
 	mt9v011_write(sd, R0A_MT9V011_CLK_SPEED, speed);
 	v4l2_dbg(1, debug, sd, "Setting speed to %d\n", speed);
 
 	/* Recalculate and update fps info */
-	calc_fps(sd, &tpf->numerator, &tpf->denominator);
+	calc_fps(sd, &tpf->numerator, &tpf->deyesminator);
 
 	return 0;
 }
@@ -513,7 +513,7 @@ static int mt9v011_probe(struct i2c_client *c,
 	version = mt9v011_read(sd, R00_MT9V011_CHIP_VERSION);
 	if ((version != MT9V011_VERSION) &&
 	    (version != MT9V011_REV_B_VERSION)) {
-		v4l2_info(sd, "*** unknown micron chip detected (0x%04x).\n",
+		v4l2_info(sd, "*** unkyeswn micron chip detected (0x%04x).\n",
 			  version);
 		return -EINVAL;
 	}

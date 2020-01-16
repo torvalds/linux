@@ -570,7 +570,7 @@ TRACE_EVENT(xprtrdma_mr_get,
 	)
 );
 
-TRACE_EVENT(xprtrdma_nomrs,
+TRACE_EVENT(xprtrdma_yesmrs,
 	TP_PROTO(
 		const struct rpcrdma_req *req
 	),
@@ -603,9 +603,9 @@ DEFINE_RDCH_EVENT(read);
 DEFINE_WRCH_EVENT(write);
 DEFINE_WRCH_EVENT(reply);
 
-TRACE_DEFINE_ENUM(rpcrdma_noch);
-TRACE_DEFINE_ENUM(rpcrdma_noch_pullup);
-TRACE_DEFINE_ENUM(rpcrdma_noch_mapped);
+TRACE_DEFINE_ENUM(rpcrdma_yesch);
+TRACE_DEFINE_ENUM(rpcrdma_yesch_pullup);
+TRACE_DEFINE_ENUM(rpcrdma_yesch_mapped);
 TRACE_DEFINE_ENUM(rpcrdma_readch);
 TRACE_DEFINE_ENUM(rpcrdma_areadch);
 TRACE_DEFINE_ENUM(rpcrdma_writech);
@@ -613,9 +613,9 @@ TRACE_DEFINE_ENUM(rpcrdma_replych);
 
 #define xprtrdma_show_chunktype(x)					\
 		__print_symbolic(x,					\
-				{ rpcrdma_noch, "inline" },		\
-				{ rpcrdma_noch_pullup, "pullup" },	\
-				{ rpcrdma_noch_mapped, "mapped" },	\
+				{ rpcrdma_yesch, "inline" },		\
+				{ rpcrdma_yesch_pullup, "pullup" },	\
+				{ rpcrdma_yesch_mapped, "mapped" },	\
 				{ rpcrdma_readch, "read list" },	\
 				{ rpcrdma_areadch, "*read list" },	\
 				{ rpcrdma_writech, "write list" },	\

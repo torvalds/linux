@@ -19,26 +19,26 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -62,11 +62,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -82,23 +82,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -120,7 +120,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include "xgbe.h"
 #include "xgbe-common.h"
@@ -218,7 +218,7 @@ void xgbe_set_counts(struct xgbe_prv_data *pdata)
 	/* Populate the hardware features */
 	xgbe_get_all_hw_features(pdata);
 
-	/* Set default max values if not provided */
+	/* Set default max values if yest provided */
 	if (!pdata->tx_max_channel_count)
 		pdata->tx_max_channel_count = pdata->hw_feat.tx_ch_cnt;
 	if (!pdata->rx_max_channel_count)
@@ -233,7 +233,7 @@ void xgbe_set_counts(struct xgbe_prv_data *pdata)
 	 *  -Tx (DMA) Channels map 1-to-1 to Tx Queues so set
 	 *   the number of Tx queues to the number of Tx channels
 	 *   enabled
-	 *  -Rx (DMA) Channels do not map 1-to-1 so use the actual
+	 *  -Rx (DMA) Channels do yest map 1-to-1 so use the actual
 	 *   number of Rx queues or maximum allowed
 	 */
 	pdata->tx_ring_count = min_t(unsigned int, num_online_cpus(),
@@ -297,7 +297,7 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 		return ret;
 	}
 
-	/* Set default max values if not provided */
+	/* Set default max values if yest provided */
 	if (!pdata->tx_max_fifo_size)
 		pdata->tx_max_fifo_size = pdata->hw_feat.tx_fifo_size;
 	if (!pdata->rx_max_fifo_size)
@@ -433,10 +433,10 @@ void xgbe_deconfig_netdev(struct xgbe_prv_data *pdata)
 	pdata->phy_if.phy_exit(pdata);
 }
 
-static int xgbe_netdev_event(struct notifier_block *nb, unsigned long event,
+static int xgbe_netdev_event(struct yestifier_block *nb, unsigned long event,
 			     void *data)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(data);
+	struct net_device *netdev = netdev_yestifier_info_to_dev(data);
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 
 	if (netdev->netdev_ops != xgbe_get_netdev_ops())
@@ -455,15 +455,15 @@ out:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block xgbe_netdev_notifier = {
-	.notifier_call = xgbe_netdev_event,
+static struct yestifier_block xgbe_netdev_yestifier = {
+	.yestifier_call = xgbe_netdev_event,
 };
 
 static int __init xgbe_mod_init(void)
 {
 	int ret;
 
-	ret = register_netdevice_notifier(&xgbe_netdev_notifier);
+	ret = register_netdevice_yestifier(&xgbe_netdev_yestifier);
 	if (ret)
 		return ret;
 
@@ -480,7 +480,7 @@ static int __init xgbe_mod_init(void)
 err_pci_init:
 	xgbe_platform_exit();
 err_platform_init:
-	unregister_netdevice_notifier(&xgbe_netdev_notifier);
+	unregister_netdevice_yestifier(&xgbe_netdev_yestifier);
 	return ret;
 }
 
@@ -490,7 +490,7 @@ static void __exit xgbe_mod_exit(void)
 
 	xgbe_platform_exit();
 
-	unregister_netdevice_notifier(&xgbe_netdev_notifier);
+	unregister_netdevice_yestifier(&xgbe_netdev_yestifier);
 }
 
 module_init(xgbe_mod_init);

@@ -5,7 +5,7 @@
  * on Conexant 2388x based TV/DVB cards.
  *
  * Copyright (c) 2003 Pavel Machek
- * Copyright (c) 2004 Gerd Knorr
+ * Copyright (c) 2004 Gerd Kyesrr
  * Copyright (c) 2004, 2005 Chris Pascoe
  */
 
@@ -137,7 +137,7 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 		scancode = RC_SCANCODE_NECX(addr, cmd);
 
 		if (0 == (gpio & ir->mask_keyup))
-			rc_keydown_notimeout(ir->dev, RC_PROTO_NECX, scancode,
+			rc_keydown_yestimeout(ir->dev, RC_PROTO_NECX, scancode,
 					     0);
 		else
 			rc_keyup(ir->dev);
@@ -145,7 +145,7 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 	} else if (ir->mask_keydown) {
 		/* bit set on keydown */
 		if (gpio & ir->mask_keydown)
-			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+			rc_keydown_yestimeout(ir->dev, RC_PROTO_UNKNOWN, data,
 					     0);
 		else
 			rc_keyup(ir->dev);
@@ -153,14 +153,14 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 	} else if (ir->mask_keyup) {
 		/* bit cleared on keydown */
 		if (0 == (gpio & ir->mask_keyup))
-			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+			rc_keydown_yestimeout(ir->dev, RC_PROTO_UNKNOWN, data,
 					     0);
 		else
 			rc_keyup(ir->dev);
 
 	} else {
 		/* can't distinguish keydown/up :-/ */
-		rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data, 0);
+		rc_keydown_yestimeout(ir->dev, RC_PROTO_UNKNOWN, data, 0);
 		rc_keyup(ir->dev);
 	}
 }
@@ -171,7 +171,7 @@ static enum hrtimer_restart cx88_ir_work(struct hrtimer *timer)
 	struct cx88_IR *ir = container_of(timer, struct cx88_IR, timer);
 
 	cx88_ir_handle_key(ir);
-	missed = hrtimer_forward_now(&ir->timer,
+	missed = hrtimer_forward_yesw(&ir->timer,
 				     ktime_set(0, ir->polling * 1000000));
 	if (missed > 1)
 		ir_dprintk("Missed ticks %llu\n", missed - 1);
@@ -446,9 +446,9 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	 * as the index elements. So, the less bits it was used, the smaller
 	 * the table were stored. After the input changes, the better is to use
 	 * the full scancodes, since it allows replacing the IR remote by
-	 * another one. Unfortunately, there are still some hardware, like
+	 * ayesther one. Unfortunately, there are still some hardware, like
 	 * Pixelview Ultra Pro, where only part of the scancode is sent via
-	 * GPIO. So, there's no way to get the full scancode. Due to that,
+	 * GPIO. So, there's yes way to get the full scancode. Due to that,
 	 * hardware_mask were introduced here: it represents those hardware
 	 * that has such limits.
 	 */
@@ -506,7 +506,7 @@ int cx88_ir_fini(struct cx88_core *core)
 {
 	struct cx88_IR *ir = core->ir;
 
-	/* skip detach on non attached boards */
+	/* skip detach on yesn attached boards */
 	if (!ir)
 		return 0;
 
@@ -617,7 +617,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 	 * quick writes for probing and at least some RC receiver
 	 * devices only reply to reads.
 	 * Also, Hauppauge XVR needs to be specified, as address 0x71
-	 * conflicts with another remote type used with saa7134
+	 * conflicts with ayesther remote type used with saa7134
 	 */
 	for (addrp = addr_list; *addrp != I2C_CLIENT_END; addrp++) {
 		info.platform_data = NULL;
@@ -646,6 +646,6 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 
 /* ---------------------------------------------------------------------- */
 
-MODULE_AUTHOR("Gerd Knorr, Pavel Machek, Chris Pascoe");
+MODULE_AUTHOR("Gerd Kyesrr, Pavel Machek, Chris Pascoe");
 MODULE_DESCRIPTION("input driver for cx88 GPIO-based IR remote controls");
 MODULE_LICENSE("GPL");

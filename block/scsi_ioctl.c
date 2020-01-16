@@ -4,7 +4,7 @@
  */
 #include <linux/compat.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
@@ -100,7 +100,7 @@ static int sg_set_reserved_size(struct request_queue *q, int __user *p)
 }
 
 /*
- * will always return that we are ATAPI even for a real SCSI drive, I'm not
+ * will always return that we are ATAPI even for a real SCSI drive, I'm yest
  * so sure this is worth doing anything about (why would you care??)
  */
 static int sg_emulated_host(struct request_queue *q, int __user *p)
@@ -358,9 +358,9 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 
 	start_time = jiffies;
 
-	/* ignore return value. All information is passed back to caller
+	/* igyesre return value. All information is passed back to caller
 	 * (if he doesn't check that is his problem).
-	 * N.B. a non-zero SCSI status is _not_ necessarily an error.
+	 * N.B. a yesn-zero SCSI status is _yest_ necessarily an error.
 	 */
 	blk_execute_rq(q, bd_disk, rq, at_head);
 
@@ -384,12 +384,12 @@ out_put_request:
  * @sic:	userspace structure describing the command to perform
  *
  * Send down the scsi command described by @sic to the device below
- * the request queue @q.  If @file is non-NULL it's used to perform
+ * the request queue @q.  If @file is yesn-NULL it's used to perform
  * fine-grained permission checks that allow users to send down
- * non-destructive SCSI commands.  If the caller has a struct gendisk
+ * yesn-destructive SCSI commands.  If the caller has a struct gendisk
  * available it should be passed in as @disk to allow the low level
- * driver to use the information contained in it.  A non-NULL @disk
- * is only allowed if the caller knows that the low level driver doesn't
+ * driver to use the information contained in it.  A yesn-NULL @disk
+ * is only allowed if the caller kyesws that the low level driver doesn't
  * need it (e.g. in the scsi subsystem).
  *
  * Notes:
@@ -397,14 +397,14 @@ out_put_request:
  *      interface instead, as this is a more flexible approach to
  *      performing SCSI commands on a device.
  *   -  The SCSI command length is determined by examining the 1st byte
- *      of the given command. There is no way to override this.
+ *      of the given command. There is yes way to override this.
  *   -  Data transfers are limited to PAGE_SIZE
  *   -  The length (x + y) must be at least OMAX_SB_LEN bytes long to
  *      accommodate the sense buffer when an error occurs.
  *      The sense buffer is truncated to OMAX_SB_LEN (16) bytes so that
- *      old code will not be surprised.
+ *      old code will yest be surprised.
  *   -  If a Unix error occurs (e.g. ENOMEM) then the user will receive
- *      a negative return and the Unix error code in 'errno'.
+ *      a negative return and the Unix error code in 'erryes'.
  *      If the SCSI command succeeds then 0 is returned.
  *      Positive numbers returned are the compacted SCSI error codes (4
  *      bytes in one int) where the lowest byte is the SCSI status.
@@ -556,15 +556,15 @@ struct compat_sg_io_hdr {
 	compat_int_t dxfer_direction;	/* [i] data transfer direction  */
 	unsigned char cmd_len;		/* [i] SCSI command length ( <= 16 bytes) */
 	unsigned char mx_sb_len;	/* [i] max length to write to sbp */
-	unsigned short iovec_count;	/* [i] 0 implies no scatter gather */
+	unsigned short iovec_count;	/* [i] 0 implies yes scatter gather */
 	compat_uint_t dxfer_len;	/* [i] byte count of data transfer */
 	compat_uint_t dxferp;		/* [i], [*io] points to data transfer memory
 						or scatter gather list */
 	compat_uptr_t cmdp;		/* [i], [*i] points to command to perform */
 	compat_uptr_t sbp;		/* [i], [*o] points to sense_buffer memory */
-	compat_uint_t timeout;		/* [i] MAX_UINT->no timeout (unit: millisec) */
+	compat_uint_t timeout;		/* [i] MAX_UINT->yes timeout (unit: millisec) */
 	compat_uint_t flags;		/* [i] 0 -> default, see SG_FLAG... */
-	compat_int_t pack_id;		/* [i->o] unused internally (normally) */
+	compat_int_t pack_id;		/* [i->o] unused internally (yesrmally) */
 	compat_uptr_t usr_ptr;		/* [i->o] unused internally */
 	unsigned char status;		/* [o] scsi status */
 	unsigned char masked_status;	/* [o] shifted, masked scsi status */
@@ -824,7 +824,7 @@ EXPORT_SYMBOL(scsi_cmd_blk_ioctl);
 /**
  * scsi_req_init - initialize certain fields of a scsi_request structure
  * @req: Pointer to a scsi_request structure.
- * Initializes .__cmd[], .cmd, .cmd_len and .sense_len but no other members
+ * Initializes .__cmd[], .cmd, .cmd_len and .sense_len but yes other members
  * of struct scsi_request.
  */
 void scsi_req_init(struct scsi_request *req)

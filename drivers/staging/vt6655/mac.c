@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: mac.c
@@ -51,7 +51,7 @@
  *      byRegOfs    - Offset of MAC Register
  *      byTestBits  - Test bits
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if all test bits Off; otherwise false
  *
@@ -72,7 +72,7 @@ bool MACbIsRegBitsOff(struct vnt_private *priv, unsigned char byRegOfs,
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if interrupt is disable; otherwise false
  *
@@ -96,9 +96,9 @@ bool MACbIsIntDisable(struct vnt_private *priv)
  *      io_base    - Base Address for MAC
  *      byRetryLimit- Retry Limit
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvSetShortRetryLimit(struct vnt_private *priv,
@@ -118,9 +118,9 @@ void MACvSetShortRetryLimit(struct vnt_private *priv,
  *      io_base    - Base Address for MAC
  *      byRetryLimit- Retry Limit
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvSetLongRetryLimit(struct vnt_private *priv,
@@ -140,9 +140,9 @@ void MACvSetLongRetryLimit(struct vnt_private *priv,
  *      io_base        - Base Address for MAC
  *      byLoopbackMode  - Loopback Mode
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvSetLoopbackMode(struct vnt_private *priv, unsigned char byLoopbackMode)
@@ -165,7 +165,7 @@ void MACvSetLoopbackMode(struct vnt_private *priv, unsigned char byLoopbackMode)
  *  Out:
  *      cxt_buf   - Context buffer
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvSaveContext(struct vnt_private *priv, unsigned char *cxt_buf)
@@ -193,9 +193,9 @@ void MACvSaveContext(struct vnt_private *priv, unsigned char *cxt_buf)
  *      io_base    - Base Address for MAC
  *      cxt_buf   - Context buffer
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvRestoreContext(struct vnt_private *priv, unsigned char *cxt_buf)
@@ -244,7 +244,7 @@ void MACvRestoreContext(struct vnt_private *priv, unsigned char *cxt_buf)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if Reset Success; otherwise false
  *
@@ -275,7 +275,7 @@ bool MACbSoftwareReset(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if success; otherwise false
  *
@@ -307,7 +307,7 @@ bool MACbSafeSoftwareReset(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if success; otherwise false
  *
@@ -361,7 +361,7 @@ bool MACbSafeRxOff(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if success; otherwise false
  *
@@ -417,7 +417,7 @@ bool MACbSafeTxOff(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if success; otherwise false
  *
@@ -452,7 +452,7 @@ bool MACbSafeStop(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if success; otherwise false
  *
@@ -480,9 +480,9 @@ bool MACbShutdown(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvInitialize(struct vnt_private *priv)
@@ -512,9 +512,9 @@ void MACvInitialize(struct vnt_private *priv)
  *      io_base        - Base Address for MAC
  *      curr_desc_addr  - Descriptor Address
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvSetCurrRx0DescAddr(struct vnt_private *priv, u32 curr_desc_addr)
@@ -546,9 +546,9 @@ void MACvSetCurrRx0DescAddr(struct vnt_private *priv, u32 curr_desc_addr)
  *      io_base        - Base Address for MAC
  *      curr_desc_addr  - Descriptor Address
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvSetCurrRx1DescAddr(struct vnt_private *priv, u32 curr_desc_addr)
@@ -580,9 +580,9 @@ void MACvSetCurrRx1DescAddr(struct vnt_private *priv, u32 curr_desc_addr)
  *      io_base        - Base Address for MAC
  *      curr_desc_addr  - Descriptor Address
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvSetCurrTx0DescAddrEx(struct vnt_private *priv,
@@ -615,9 +615,9 @@ void MACvSetCurrTx0DescAddrEx(struct vnt_private *priv,
  *      io_base        - Base Address for MAC
  *      curr_desc_addr  - Descriptor Address
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 /* TxDMA1 = AC0DMA */
@@ -661,9 +661,9 @@ void MACvSetCurrTXDescAddr(int iTxType, struct vnt_private *priv,
  *      io_base    - Base Address for MAC
  *      uDelay      - Delay time (timer resolution is 4 us)
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvTimer0MicroSDelay(struct vnt_private *priv, unsigned int uDelay)
@@ -697,9 +697,9 @@ void MACvTimer0MicroSDelay(struct vnt_private *priv, unsigned int uDelay)
  *      io_base    - Base Address for MAC
  *      uDelay      - Delay time
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvOneShotTimer1MicroSec(struct vnt_private *priv,
@@ -756,9 +756,9 @@ bool MACbPSWakeup(struct vnt_private *priv)
  *      io_base        - Base Address for MAC
  *
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 
@@ -826,9 +826,9 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
  *      io_base        - Base Address for MAC
  *
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void MACvDisableKeyEntry(struct vnt_private *priv, unsigned int uEntryIdx)

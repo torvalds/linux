@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Synopsys DWC Ethernet Quality-of-Service v4.10a linux driver
+ * Syyespsys DWC Ethernet Quality-of-Service v4.10a linux driver
  *
- * Copyright (C) 2016 Joao Pinto <jpinto@synopsys.com>
+ * Copyright (C) 2016 Joao Pinto <jpinto@syyespsys.com>
  */
 
 #include <linux/clk.h>
@@ -40,7 +40,7 @@ struct tegra_eqos {
 static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 				   struct plat_stmmacenet_data *plat_dat)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	u32 burst_map = 0;
 	u32 bit_index = 0;
 	u32 a_index = 0;
@@ -126,7 +126,7 @@ static void *dwc_qos_probe(struct platform_device *pdev,
 
 	plat_dat->stmmac_clk = devm_clk_get(&pdev->dev, "apb_pclk");
 	if (IS_ERR(plat_dat->stmmac_clk)) {
-		dev_err(&pdev->dev, "apb_pclk clock not found.\n");
+		dev_err(&pdev->dev, "apb_pclk clock yest found.\n");
 		return ERR_CAST(plat_dat->stmmac_clk);
 	}
 
@@ -139,7 +139,7 @@ static void *dwc_qos_probe(struct platform_device *pdev,
 
 	plat_dat->pclk = devm_clk_get(&pdev->dev, "phy_ref_clk");
 	if (IS_ERR(plat_dat->pclk)) {
-		dev_err(&pdev->dev, "phy_ref_clk clock not found.\n");
+		dev_err(&pdev->dev, "phy_ref_clk clock yest found.\n");
 		err = PTR_ERR(plat_dat->pclk);
 		goto disable;
 	}
@@ -224,7 +224,7 @@ static void tegra_eqos_fix_speed(void *priv, unsigned int speed)
 						value & AUTO_CAL_STATUS_ACTIVE,
 						1, 10);
 		if (err < 0) {
-			dev_err(eqos->dev, "calibration did not start\n");
+			dev_err(eqos->dev, "calibration did yest start\n");
 			goto failed;
 		}
 
@@ -511,6 +511,6 @@ static struct platform_driver dwc_eth_dwmac_driver = {
 };
 module_platform_driver(dwc_eth_dwmac_driver);
 
-MODULE_AUTHOR("Joao Pinto <jpinto@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys DWC Ethernet Quality-of-Service v4.10a driver");
+MODULE_AUTHOR("Joao Pinto <jpinto@syyespsys.com>");
+MODULE_DESCRIPTION("Syyespsys DWC Ethernet Quality-of-Service v4.10a driver");
 MODULE_LICENSE("GPL v2");

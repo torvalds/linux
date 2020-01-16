@@ -55,7 +55,7 @@ enum rapl_primitives {
 	THROTTLED_TIME,
 	PRIORITY_LEVEL,
 
-	/* below are not raw primitive data */
+	/* below are yest raw primitive data */
 	AVERAGE_POWER,
 	NR_RAPL_PRIMITIVES,
 };
@@ -135,7 +135,7 @@ struct rapl_package {
 	struct rapl_domain *domains;	/* array of domains, sized at runtime */
 	struct powercap_zone *power_zone;	/* keep track of parent zone */
 	unsigned long power_limit_irq;	/* keep track of package power limit
-					 * notify interrupt enable status.
+					 * yestify interrupt enable status.
 					 */
 	struct list_head plist;
 	int lead_cpu;		/* one active cpu per package for access */

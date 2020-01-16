@@ -3,7 +3,7 @@
  * PIC32 deadman timer driver
  *
  * Purna Chandra Mandal <purna.mandal@microchip.com>
- * Copyright (c) 2016, Microchip Technology Inc.
+ * Copyright (c) 2016, Microchip Techyeslogy Inc.
  */
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -54,10 +54,10 @@ static inline void dmt_disable(struct pic32_dmt *dmt)
 {
 	writel(DMT_ON, PIC32_CLR(dmt->regs + DMTCON_REG));
 	/*
-	 * Cannot touch registers in the CPU cycle following clearing the
+	 * Canyest touch registers in the CPU cycle following clearing the
 	 * ON bit.
 	 */
-	nop();
+	yesp();
 }
 
 static inline int dmt_bad_status(struct pic32_dmt *dmt)
@@ -186,7 +186,7 @@ static int pic32_dmt_probe(struct platform_device *pdev)
 
 	dmt->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(dmt->clk)) {
-		dev_err(dev, "clk not found\n");
+		dev_err(dev, "clk yest found\n");
 		return PTR_ERR(dmt->clk);
 	}
 
@@ -208,7 +208,7 @@ static int pic32_dmt_probe(struct platform_device *pdev)
 
 	wdd->bootstatus = pic32_dmt_bootstatus(dmt) ? WDIOF_CARDRESET : 0;
 
-	watchdog_set_nowayout(wdd, WATCHDOG_NOWAYOUT);
+	watchdog_set_yeswayout(wdd, WATCHDOG_NOWAYOUT);
 	watchdog_set_drvdata(wdd, dmt);
 
 	ret = devm_watchdog_register_device(dev, wdd);

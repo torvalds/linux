@@ -7,9 +7,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -38,7 +38,7 @@
 #include <linux/string.h>
 
 #include "vxfs.h"
-#include "vxfs_inode.h"
+#include "vxfs_iyesde.h"
 #include "vxfs_extern.h"
 #include "vxfs_fshead.h"
 
@@ -51,19 +51,19 @@ vxfs_dumpfsh(struct vxfs_fsh *fhp)
 	printk("----------------------------\n");
 	printk("version: %u\n", fhp->fsh_version);
 	printk("fsindex: %u\n", fhp->fsh_fsindex);
-	printk("iauino: %u\tninodes:%u\n",
-			fhp->fsh_iauino, fhp->fsh_ninodes);
-	printk("maxinode: %u\tlctino: %u\n",
-			fhp->fsh_maxinode, fhp->fsh_lctino);
+	printk("iauiyes: %u\tniyesdes:%u\n",
+			fhp->fsh_iauiyes, fhp->fsh_niyesdes);
+	printk("maxiyesde: %u\tlctiyes: %u\n",
+			fhp->fsh_maxiyesde, fhp->fsh_lctiyes);
 	printk("nau: %u\n", fhp->fsh_nau);
-	printk("ilistino[0]: %u\tilistino[1]: %u\n",
-			fhp->fsh_ilistino[0], fhp->fsh_ilistino[1]);
+	printk("ilistiyes[0]: %u\tilistiyes[1]: %u\n",
+			fhp->fsh_ilistiyes[0], fhp->fsh_ilistiyes[1]);
 }
 #endif
 
 /**
  * vxfs_getfsh - read fileset header into memory
- * @ip:		the (fake) fileset header inode
+ * @ip:		the (fake) fileset header iyesde
  * @which:	0 for the structural, 1 for the primary fsh.
  *
  * Description:
@@ -74,7 +74,7 @@ vxfs_dumpfsh(struct vxfs_fsh *fhp)
  *   The fileset header structure on success, else Zero.
  */
 static struct vxfs_fsh *
-vxfs_getfsh(struct inode *ip, int which)
+vxfs_getfsh(struct iyesde *ip, int which)
 {
 	struct buffer_head		*bp;
 
@@ -99,7 +99,7 @@ out:
  * @sbp:	superblock to which the fileset belongs
  *
  * Description:
- *   vxfs_read_fshead will fill the inode and structural inode list in @sb.
+ *   vxfs_read_fshead will fill the iyesde and structural iyesde list in @sb.
  *
  * Returns:
  *   Zero on success, else a negative error code (-EINVAL).
@@ -109,24 +109,24 @@ vxfs_read_fshead(struct super_block *sbp)
 {
 	struct vxfs_sb_info		*infp = VXFS_SBI(sbp);
 	struct vxfs_fsh			*pfp, *sfp;
-	struct vxfs_inode_info		*vip;
+	struct vxfs_iyesde_info		*vip;
 
-	infp->vsi_fship = vxfs_blkiget(sbp, infp->vsi_iext, infp->vsi_fshino);
+	infp->vsi_fship = vxfs_blkiget(sbp, infp->vsi_iext, infp->vsi_fshiyes);
 	if (!infp->vsi_fship) {
-		printk(KERN_ERR "vxfs: unable to read fsh inode\n");
+		printk(KERN_ERR "vxfs: unable to read fsh iyesde\n");
 		return -EINVAL;
 	}
 
 	vip = VXFS_INO(infp->vsi_fship);
 	if (!VXFS_ISFSH(vip)) {
-		printk(KERN_ERR "vxfs: fsh list inode is of wrong type (%x)\n",
+		printk(KERN_ERR "vxfs: fsh list iyesde is of wrong type (%x)\n",
 				vip->vii_mode & VXFS_TYPE_MASK); 
 		goto out_iput_fship;
 	}
 
 #ifdef DIAGNOSTIC
-	printk("vxfs: fsh inode dump:\n");
-	vxfs_dumpi(vip, infp->vsi_fshino);
+	printk("vxfs: fsh iyesde dump:\n");
+	vxfs_dumpi(vip, infp->vsi_fshiyes);
 #endif
 
 	sfp = vxfs_getfsh(infp->vsi_fship, 0);
@@ -150,24 +150,24 @@ vxfs_read_fshead(struct super_block *sbp)
 #endif
 
 	infp->vsi_stilist = vxfs_blkiget(sbp, infp->vsi_iext,
-			fs32_to_cpu(infp, sfp->fsh_ilistino[0]));
+			fs32_to_cpu(infp, sfp->fsh_ilistiyes[0]));
 	if (!infp->vsi_stilist) {
-		printk(KERN_ERR "vxfs: unable to get structural list inode\n");
+		printk(KERN_ERR "vxfs: unable to get structural list iyesde\n");
 		goto out_free_pfp;
 	}
 	if (!VXFS_ISILT(VXFS_INO(infp->vsi_stilist))) {
-		printk(KERN_ERR "vxfs: structural list inode is of wrong type (%x)\n",
+		printk(KERN_ERR "vxfs: structural list iyesde is of wrong type (%x)\n",
 				VXFS_INO(infp->vsi_stilist)->vii_mode & VXFS_TYPE_MASK); 
 		goto out_iput_stilist;
 	}
 
-	infp->vsi_ilist = vxfs_stiget(sbp, fs32_to_cpu(infp, pfp->fsh_ilistino[0]));
+	infp->vsi_ilist = vxfs_stiget(sbp, fs32_to_cpu(infp, pfp->fsh_ilistiyes[0]));
 	if (!infp->vsi_ilist) {
-		printk(KERN_ERR "vxfs: unable to get inode list inode\n");
+		printk(KERN_ERR "vxfs: unable to get iyesde list iyesde\n");
 		goto out_iput_stilist;
 	}
 	if (!VXFS_ISILT(VXFS_INO(infp->vsi_ilist))) {
-		printk(KERN_ERR "vxfs: inode list inode is of wrong type (%x)\n",
+		printk(KERN_ERR "vxfs: iyesde list iyesde is of wrong type (%x)\n",
 				VXFS_INO(infp->vsi_ilist)->vii_mode & VXFS_TYPE_MASK);
 		goto out_iput_ilist;
 	}

@@ -49,7 +49,7 @@ struct sta2x11_gpio_pdata {
 	unsigned pinconfig[GSTA_NR_GPIO];
 };
 
-/* Macros below lifted from sh_pfc.h, with minor differences */
+/* Macros below lifted from sh_pfc.h, with miyesr differences */
 #define PINMUX_TYPE_NONE		0
 #define PINMUX_TYPE_FUNCTION		1
 #define PINMUX_TYPE_OUTPUT_LOW		2

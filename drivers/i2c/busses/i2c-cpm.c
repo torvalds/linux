@@ -21,7 +21,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/stddef.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
@@ -41,7 +41,7 @@
 #define CPM_MAXBD       4
 
 #define I2C_EB			(0x10) /* Big endian mode */
-#define I2C_EB_CPM2		(0x30) /* Big endian mode, memory snoop */
+#define I2C_EB_CPM2		(0x30) /* Big endian mode, memory syesop */
 
 #define DPRAM_BASE		((u8 __iomem __force *)cpm_muram_addr(0))
 
@@ -330,7 +330,7 @@ static int cpm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			rptr++;
 		tptr++;
 	}
-	/* Start transfer now */
+	/* Start transfer yesw */
 	/* Enable RX/TX/Error interupts */
 	out_8(&i2c_reg->i2cmr, I2CER_TXE | I2CER_TXB | I2CER_RXB);
 	out_8(&i2c_reg->i2cer, 0xff);	/* Clear interrupt status */
@@ -372,7 +372,7 @@ static int cpm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	}
 #ifdef I2C_CHIP_ERRATA
 	/*
-	 * Chip errata, clear enable. This is not needed on rev D4 CPUs.
+	 * Chip errata, clear enable. This is yest needed on rev D4 CPUs.
 	 * Disabling I2C too early may cause too short stop condition
 	 */
 	udelay(4);
@@ -384,7 +384,7 @@ out_err:
 	cpm_i2c_force_close(adap);
 #ifdef I2C_CHIP_ERRATA
 	/*
-	 * Chip errata, clear enable. This is not needed on rev D4 CPUs.
+	 * Chip errata, clear enable. This is yest needed on rev D4 CPUs.
 	 */
 	clrbits8(&i2c_reg->i2mod, I2MOD_EN);
 #endif
@@ -431,7 +431,7 @@ static int cpm_i2c_setup(struct cpm_i2c *cpm)
 
 	init_waitqueue_head(&cpm->i2c_wait);
 
-	cpm->irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	cpm->irq = irq_of_parse_and_map(ofdev->dev.of_yesde, 0);
 	if (!cpm->irq)
 		return -EINVAL;
 
@@ -442,13 +442,13 @@ static int cpm_i2c_setup(struct cpm_i2c *cpm)
 		return ret;
 
 	/* I2C parameter RAM */
-	i2c_base = of_iomap(ofdev->dev.of_node, 1);
+	i2c_base = of_iomap(ofdev->dev.of_yesde, 1);
 	if (i2c_base == NULL) {
 		ret = -EINVAL;
 		goto out_irq;
 	}
 
-	if (of_device_is_compatible(ofdev->dev.of_node, "fsl,cpm1-i2c")) {
+	if (of_device_is_compatible(ofdev->dev.of_yesde, "fsl,cpm1-i2c")) {
 
 		/* Check for and use a microcode relocation patch. */
 		cpm->i2c_ram = i2c_base;
@@ -465,7 +465,7 @@ static int cpm_i2c_setup(struct cpm_i2c *cpm)
 
 		cpm->version = 1;
 
-	} else if (of_device_is_compatible(ofdev->dev.of_node, "fsl,cpm2-i2c")) {
+	} else if (of_device_is_compatible(ofdev->dev.of_yesde, "fsl,cpm2-i2c")) {
 		cpm->i2c_addr = cpm_muram_alloc(sizeof(struct i2c_ram), 64);
 		cpm->i2c_ram = cpm_muram_addr(cpm->i2c_addr);
 		out_be16(i2c_base, cpm->i2c_addr);
@@ -480,24 +480,24 @@ static int cpm_i2c_setup(struct cpm_i2c *cpm)
 	}
 
 	/* I2C control/status registers */
-	cpm->i2c_reg = of_iomap(ofdev->dev.of_node, 0);
+	cpm->i2c_reg = of_iomap(ofdev->dev.of_yesde, 0);
 	if (cpm->i2c_reg == NULL) {
 		ret = -EINVAL;
 		goto out_ram;
 	}
 
-	data = of_get_property(ofdev->dev.of_node, "fsl,cpm-command", &len);
+	data = of_get_property(ofdev->dev.of_yesde, "fsl,cpm-command", &len);
 	if (!data || len != 4) {
 		ret = -EINVAL;
 		goto out_reg;
 	}
 	cpm->cp_command = *data;
 
-	data = of_get_property(ofdev->dev.of_node, "linux,i2c-class", &len);
+	data = of_get_property(ofdev->dev.of_yesde, "linux,i2c-class", &len);
 	if (data && len == 4)
 		cpm->adap.class = *data;
 
-	data = of_get_property(ofdev->dev.of_node, "clock-frequency", &len);
+	data = of_get_property(ofdev->dev.of_yesde, "clock-frequency", &len);
 	if (data && len == 4)
 		cpm->freq = *data;
 	else
@@ -644,7 +644,7 @@ static int cpm_i2c_probe(struct platform_device *ofdev)
 	cpm->adap = cpm_ops;
 	i2c_set_adapdata(&cpm->adap, cpm);
 	cpm->adap.dev.parent = &ofdev->dev;
-	cpm->adap.dev.of_node = of_node_get(ofdev->dev.of_node);
+	cpm->adap.dev.of_yesde = of_yesde_get(ofdev->dev.of_yesde);
 
 	result = cpm_i2c_setup(cpm);
 	if (result) {
@@ -654,7 +654,7 @@ static int cpm_i2c_probe(struct platform_device *ofdev)
 
 	/* register new adapter to i2c module... */
 
-	data = of_get_property(ofdev->dev.of_node, "linux,i2c-index", &len);
+	data = of_get_property(ofdev->dev.of_yesde, "linux,i2c-index", &len);
 	cpm->adap.nr = (data && len == 4) ? be32_to_cpup(data) : -1;
 	result = i2c_add_numbered_adapter(&cpm->adap);
 

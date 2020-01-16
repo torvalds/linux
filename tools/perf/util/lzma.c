@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <lzma.h>
 #include <stdio.h>
 #include <linux/compiler.h>
@@ -22,13 +22,13 @@ static const char *lzma_strerror(lzma_ret ret)
 	case LZMA_OPTIONS_ERROR:
 		return "Unsupported decompressor flags";
 	case LZMA_FORMAT_ERROR:
-		return "The input is not in the .xz format";
+		return "The input is yest in the .xz format";
 	case LZMA_DATA_ERROR:
 		return "Compressed file is corrupt";
 	case LZMA_BUF_ERROR:
 		return "Compressed file is truncated or otherwise corrupt";
 	default:
-		return "Unknown error, possibly a bug";
+		return "Unkyeswn error, possibly a bug";
 	}
 }
 
@@ -46,7 +46,7 @@ int lzma_decompress_to_file(const char *input, int output_fd)
 	infile = fopen(input, "rb");
 	if (!infile) {
 		pr_err("lzma: fopen failed on %s: '%s'\n",
-		       input, strerror(errno));
+		       input, strerror(erryes));
 		return -1;
 	}
 
@@ -68,7 +68,7 @@ int lzma_decompress_to_file(const char *input, int output_fd)
 			strm.avail_in = fread(buf_in, 1, sizeof(buf_in), infile);
 
 			if (ferror(infile)) {
-				pr_err("lzma: read error: %s\n", strerror(errno));
+				pr_err("lzma: read error: %s\n", strerror(erryes));
 				goto err_fclose;
 			}
 
@@ -82,7 +82,7 @@ int lzma_decompress_to_file(const char *input, int output_fd)
 			ssize_t write_size = sizeof(buf_out) - strm.avail_out;
 
 			if (writen(output_fd, buf_out, write_size) != write_size) {
-				pr_err("lzma: write error: %s\n", strerror(errno));
+				pr_err("lzma: write error: %s\n", strerror(erryes));
 				goto err_fclose;
 			}
 

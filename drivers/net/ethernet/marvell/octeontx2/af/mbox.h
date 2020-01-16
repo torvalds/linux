@@ -63,7 +63,7 @@ struct otx2_mbox {
 	struct pci_dev *pdev;
 	void   *hwbase;  /* Mbox region advertised by HW */
 	void   *reg_base;/* CSR base for this dev */
-	u64    trigger;  /* Trigger mbox notification */
+	u64    trigger;  /* Trigger mbox yestification */
 	u16    tr_shift; /* Mbox trigger shift */
 	u64    rx_start; /* Offset of Rx region in mbox memory */
 	u64    tx_start; /* Offset of Tx region in mbox memory */
@@ -107,7 +107,7 @@ struct mbox_msghdr *otx2_mbox_get_rsp(struct otx2_mbox *mbox, int devid,
 int otx2_mbox_check_rsp_msgs(struct otx2_mbox *mbox, int devid);
 int otx2_reply_invalid_msg(struct otx2_mbox *mbox, int devid,
 			   u16 pcifunc, u16 id);
-bool otx2_mbox_nonempty(struct otx2_mbox *mbox, int devid);
+bool otx2_mbox_yesnempty(struct otx2_mbox *mbox, int devid);
 const char *otx2_mbox_id2name(u16 id);
 static inline struct mbox_msghdr *otx2_mbox_alloc_msg(struct otx2_mbox *mbox,
 						      int devid, int size)
@@ -272,7 +272,7 @@ struct rsrc_attach {
 
 /* Structure for relinquishing resources.
  * 'partial' flag to be used when relinquishing all resources
- * but only of a certain type. If not set, all resources of all
+ * but only of a certain type. If yest set, all resources of all
  * types provisioned to the RVU function will be detached.
  */
 struct rsrc_detach {
@@ -358,7 +358,7 @@ enum npa_af_status {
 /* For NPA LF context alloc and init */
 struct npa_lf_alloc_req {
 	struct mbox_msghdr hdr;
-	int node;
+	int yesde;
 	int aura_sz;  /* No of auras */
 	u32 nr_pools; /* No of pools */
 	u64 way_mask;
@@ -442,7 +442,7 @@ enum nix_af_status {
 /* For NIX LF context alloc and init */
 struct nix_lf_alloc_req {
 	struct mbox_msghdr hdr;
-	int node;
+	int yesde;
 	u32 rq_cnt;   /* No of receive queues */
 	u32 sq_cnt;   /* No of send queues */
 	u32 cq_cnt;   /* No of completion queues */
@@ -512,7 +512,7 @@ struct nix_txsch_alloc_req {
 	struct mbox_msghdr hdr;
 	/* Scheduler queue count request at each level */
 	u16 schq_contig[NIX_TXSCH_LVL_CNT]; /* No of contiguous queues */
-	u16 schq[NIX_TXSCH_LVL_CNT]; /* No of non-contiguous queues */
+	u16 schq[NIX_TXSCH_LVL_CNT]; /* No of yesn-contiguous queues */
 };
 
 struct nix_txsch_alloc_rsp {
@@ -700,7 +700,7 @@ struct npc_mcam_alloc_entry_req {
 struct npc_mcam_alloc_entry_rsp {
 	struct mbox_msghdr hdr;
 	u16 entry; /* Entry allocated or start index if contiguous.
-		    * Invalid incase of non-contiguous.
+		    * Invalid incase of yesn-contiguous.
 		    */
 	u16 count; /* Number of entries allocated */
 	u16 free_count; /* Number of entries available */
@@ -747,7 +747,7 @@ struct npc_mcam_shift_entry_req {
 
 struct npc_mcam_shift_entry_rsp {
 	struct mbox_msghdr hdr;
-	u16 failed_entry_idx; /* Index in 'curr_entry', not entry itself */
+	u16 failed_entry_idx; /* Index in 'curr_entry', yest entry itself */
 };
 
 struct npc_mcam_alloc_counter_req {
@@ -760,7 +760,7 @@ struct npc_mcam_alloc_counter_req {
 struct npc_mcam_alloc_counter_rsp {
 	struct mbox_msghdr hdr;
 	u16 cntr;   /* Counter allocated or start index if contiguous.
-		     * Invalid incase of non-contiguous.
+		     * Invalid incase of yesn-contiguous.
 		     */
 	u16 count;  /* Number of counters allocated */
 	u16 cntr_list[NPC_MAX_NONCONTIG_COUNTERS];

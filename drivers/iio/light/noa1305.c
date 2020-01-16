@@ -41,15 +41,15 @@
 #define NOA1305_REG_DEVICE_ID_MSB	0x9
 
 #define NOA1305_DEVICE_ID	0x0519
-#define NOA1305_DRIVER_NAME	"noa1305"
+#define NOA1305_DRIVER_NAME	"yesa1305"
 
-struct noa1305_priv {
+struct yesa1305_priv {
 	struct i2c_client *client;
 	struct regmap *regmap;
 	struct regulator *vin_reg;
 };
 
-static int noa1305_measure(struct noa1305_priv *priv)
+static int yesa1305_measure(struct yesa1305_priv *priv)
 {
 	__le16 data;
 	int ret;
@@ -62,7 +62,7 @@ static int noa1305_measure(struct noa1305_priv *priv)
 	return le16_to_cpu(data);
 }
 
-static int noa1305_scale(struct noa1305_priv *priv, int *val, int *val2)
+static int yesa1305_scale(struct yesa1305_priv *priv, int *val, int *val2)
 {
 	int data;
 	int ret;
@@ -117,7 +117,7 @@ static int noa1305_scale(struct noa1305_priv *priv, int *val, int *val2)
 	return IIO_VAL_FRACTIONAL;
 }
 
-static const struct iio_chan_spec noa1305_channels[] = {
+static const struct iio_chan_spec yesa1305_channels[] = {
 	{
 		.type = IIO_LIGHT,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
@@ -125,18 +125,18 @@ static const struct iio_chan_spec noa1305_channels[] = {
 	}
 };
 
-static int noa1305_read_raw(struct iio_dev *indio_dev,
+static int yesa1305_read_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan,
 				int *val, int *val2, long mask)
 {
 	int ret = -EINVAL;
-	struct noa1305_priv *priv = iio_priv(indio_dev);
+	struct yesa1305_priv *priv = iio_priv(indio_dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		switch (chan->type) {
 		case IIO_LIGHT:
-			ret = noa1305_measure(priv);
+			ret = yesa1305_measure(priv);
 			if (ret < 0)
 				return ret;
 			*val = ret;
@@ -148,7 +148,7 @@ static int noa1305_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_LIGHT:
-			return noa1305_scale(priv, val, val2);
+			return yesa1305_scale(priv, val, val2);
 		default:
 			break;
 		}
@@ -160,11 +160,11 @@ static int noa1305_read_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static const struct iio_info noa1305_info = {
-	.read_raw = noa1305_read_raw,
+static const struct iio_info yesa1305_info = {
+	.read_raw = yesa1305_read_raw,
 };
 
-static bool noa1305_writable_reg(struct device *dev, unsigned int reg)
+static bool yesa1305_writable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case NOA1305_REG_POWER_CONTROL:
@@ -179,25 +179,25 @@ static bool noa1305_writable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct regmap_config noa1305_regmap_config = {
+static const struct regmap_config yesa1305_regmap_config = {
 	.name = NOA1305_DRIVER_NAME,
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = NOA1305_REG_DEVICE_ID_MSB,
-	.writeable_reg = noa1305_writable_reg,
+	.writeable_reg = yesa1305_writable_reg,
 };
 
-static void noa1305_reg_remove(void *data)
+static void yesa1305_reg_remove(void *data)
 {
-	struct noa1305_priv *priv = data;
+	struct yesa1305_priv *priv = data;
 
 	regulator_disable(priv->vin_reg);
 }
 
-static int noa1305_probe(struct i2c_client *client,
+static int yesa1305_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	struct noa1305_priv *priv;
+	struct yesa1305_priv *priv;
 	struct iio_dev *indio_dev;
 	struct regmap *regmap;
 	__le16 data;
@@ -208,7 +208,7 @@ static int noa1305_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 
-	regmap = devm_regmap_init_i2c(client, &noa1305_regmap_config);
+	regmap = devm_regmap_init_i2c(client, &yesa1305_regmap_config);
 	if (IS_ERR(regmap)) {
 		dev_err(&client->dev, "Regmap initialization failed.\n");
 		return PTR_ERR(regmap);
@@ -228,7 +228,7 @@ static int noa1305_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(&client->dev, noa1305_reg_remove, priv);
+	ret = devm_add_action_or_reset(&client->dev, yesa1305_reg_remove, priv);
 	if (ret) {
 		dev_err(&client->dev, "addition of devm action failed\n");
 		return ret;
@@ -246,7 +246,7 @@ static int noa1305_probe(struct i2c_client *client,
 
 	dev_id = le16_to_cpu(data);
 	if (dev_id != NOA1305_DEVICE_ID) {
-		dev_err(&client->dev, "Unknown device ID: 0x%x\n", dev_id);
+		dev_err(&client->dev, "Unkyeswn device ID: 0x%x\n", dev_id);
 		return -ENODEV;
 	}
 
@@ -271,9 +271,9 @@ static int noa1305_probe(struct i2c_client *client,
 	}
 
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->info = &noa1305_info;
-	indio_dev->channels = noa1305_channels;
-	indio_dev->num_channels = ARRAY_SIZE(noa1305_channels);
+	indio_dev->info = &yesa1305_info;
+	indio_dev->channels = yesa1305_channels;
+	indio_dev->num_channels = ARRAY_SIZE(yesa1305_channels);
 	indio_dev->name = NOA1305_DRIVER_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -284,28 +284,28 @@ static int noa1305_probe(struct i2c_client *client,
 	return ret;
 }
 
-static const struct of_device_id noa1305_of_match[] = {
-	{ .compatible = "onnn,noa1305" },
+static const struct of_device_id yesa1305_of_match[] = {
+	{ .compatible = "onnn,yesa1305" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, noa1305_of_match);
+MODULE_DEVICE_TABLE(of, yesa1305_of_match);
 
-static const struct i2c_device_id noa1305_ids[] = {
-	{ "noa1305", 0 },
+static const struct i2c_device_id yesa1305_ids[] = {
+	{ "yesa1305", 0 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, noa1305_ids);
+MODULE_DEVICE_TABLE(i2c, yesa1305_ids);
 
-static struct i2c_driver noa1305_driver = {
+static struct i2c_driver yesa1305_driver = {
 	.driver = {
 		.name		= NOA1305_DRIVER_NAME,
-		.of_match_table	= noa1305_of_match,
+		.of_match_table	= yesa1305_of_match,
 	},
-	.probe		= noa1305_probe,
-	.id_table	= noa1305_ids,
+	.probe		= yesa1305_probe,
+	.id_table	= yesa1305_ids,
 };
 
-module_i2c_driver(noa1305_driver);
+module_i2c_driver(yesa1305_driver);
 
 MODULE_AUTHOR("Sergei Miroshnichenko <sergeimir@emcraft.com>");
 MODULE_AUTHOR("Martyn Welch <martyn.welch@collabora.com");

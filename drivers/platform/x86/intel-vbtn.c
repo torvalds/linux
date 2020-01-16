@@ -2,8 +2,8 @@
 /*
  *  Intel Virtual Button driver for Windows 8.1+
  *
- *  Copyright (C) 2016 AceLan Kao <acelan.kao@canonical.com>
- *  Copyright (C) 2016 Alex Hung <alex.hung@canonical.com>
+ *  Copyright (C) 2016 AceLan Kao <acelan.kao@cayesnical.com>
+ *  Copyright (C) 2016 Alex Hung <alex.hung@cayesnical.com>
  */
 
 #include <linux/acpi.h>
@@ -71,7 +71,7 @@ static int intel_vbtn_input_setup(struct platform_device *device)
 	return input_register_device(priv->input_dev);
 }
 
-static void notify_handler(acpi_handle handle, u32 event, void *context)
+static void yestify_handler(acpi_handle handle, u32 event, void *context)
 {
 	struct platform_device *device = context;
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
@@ -96,11 +96,11 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 							   0);
 			return;
 		}
-		goto out_unknown;
+		goto out_unkyeswn;
 	}
 
 	/*
-	 * Even press events are autorelease if there is no corresponding odd
+	 * Even press events are autorelease if there is yes corresponding odd
 	 * release event, or if the odd event is KE_IGNORE.
 	 */
 	ke_rel = sparse_keymap_entry_from_scancode(priv->input_dev, event | 1);
@@ -109,8 +109,8 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	if (sparse_keymap_report_event(priv->input_dev, event, val, autorelease))
 		return;
 
-out_unknown:
-	dev_dbg(&device->dev, "unknown event index 0x%x\n", event);
+out_unkyeswn:
+	dev_dbg(&device->dev, "unkyeswn event index 0x%x\n", event);
 }
 
 static void detect_tablet_mode(struct platform_device *device)
@@ -168,9 +168,9 @@ static int intel_vbtn_probe(struct platform_device *device)
 
 	detect_tablet_mode(device);
 
-	status = acpi_install_notify_handler(handle,
+	status = acpi_install_yestify_handler(handle,
 					     ACPI_DEVICE_NOTIFY,
-					     notify_handler,
+					     yestify_handler,
 					     device);
 	if (ACPI_FAILURE(status))
 		return -EBUSY;
@@ -179,7 +179,7 @@ static int intel_vbtn_probe(struct platform_device *device)
 	/*
 	 * In order for system wakeup to work, the EC GPE has to be marked as
 	 * a wakeup one, so do that here (this setting will persist, but it has
-	 * no effect until the wakeup mask is set for the EC GPE).
+	 * yes effect until the wakeup mask is set for the EC GPE).
 	 */
 	acpi_ec_mark_gpe_for_wake();
 	return 0;
@@ -190,7 +190,7 @@ static int intel_vbtn_remove(struct platform_device *device)
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
 	device_init_wakeup(&device->dev, false);
-	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
+	acpi_remove_yestify_handler(handle, ACPI_DEVICE_NOTIFY, yestify_handler);
 
 	/*
 	 * Even if we failed to shut off the event stream, we can still

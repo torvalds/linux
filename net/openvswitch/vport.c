@@ -96,7 +96,7 @@ struct vport *ovs_vport_locate(const struct net *net, const char *name)
 	struct hlist_head *bucket = hash_bucket(net, name);
 	struct vport *vport;
 
-	hlist_for_each_entry_rcu(vport, bucket, hash_node)
+	hlist_for_each_entry_rcu(vport, bucket, hash_yesde)
 		if (!strcmp(name, ovs_vport_name(vport)) &&
 		    net_eq(ovs_dp_get_net(vport->dp), net))
 			return vport;
@@ -112,7 +112,7 @@ struct vport *ovs_vport_locate(const struct net *net, const char *name)
  *
  * Allocate and initialize a new vport defined by @ops.  The vport will contain
  * a private data area of size @priv_size that can be accessed using
- * vport_priv().  vports that are no longer needed should be released with
+ * vport_priv().  vports that are yes longer needed should be released with
  * vport_free().
  */
 struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
@@ -132,9 +132,9 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 		return ERR_PTR(-ENOMEM);
 
 	vport->dp = parms->dp;
-	vport->port_no = parms->port_no;
+	vport->port_yes = parms->port_yes;
 	vport->ops = ops;
-	INIT_HLIST_NODE(&vport->dp_hash_node);
+	INIT_HLIST_NODE(&vport->dp_hash_yesde);
 
 	if (ovs_vport_set_upcall_portids(vport, parms->upcall_portids)) {
 		kfree(vport);
@@ -150,7 +150,7 @@ EXPORT_SYMBOL_GPL(ovs_vport_alloc);
  *
  * @vport: vport to free
  *
- * Frees a vport allocated with vport_alloc() when it is no longer needed.
+ * Frees a vport allocated with vport_alloc() when it is yes longer needed.
  *
  * The caller must ensure that an RCU grace period has passed since the last
  * time @vport was in a datapath.
@@ -204,7 +204,7 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
 
 		bucket = hash_bucket(ovs_dp_get_net(vport->dp),
 				     ovs_vport_name(vport));
-		hlist_add_head_rcu(&vport->hash_node, bucket);
+		hlist_add_head_rcu(&vport->hash_yesde, bucket);
 		return vport;
 	}
 
@@ -248,7 +248,7 @@ int ovs_vport_set_options(struct vport *vport, struct nlattr *options)
  */
 void ovs_vport_del(struct vport *vport)
 {
-	hlist_del_rcu(&vport->hash_node);
+	hlist_del_rcu(&vport->hash_yesde);
 	module_put(vport->ops->owner);
 	vport->ops->destroy(vport);
 }
@@ -290,7 +290,7 @@ void ovs_vport_get_stats(struct vport *vport, struct ovs_vport_stats *stats)
  * %OVS_VPORT_ATTR_OPTIONS attribute that in turn contains nested
  * vport-specific attributes to @skb.
  *
- * Returns 0 if successful, -EMSGSIZE if @skb has insufficient room, or another
+ * Returns 0 if successful, -EMSGSIZE if @skb has insufficient room, or ayesther
  * negative error code if a real error occurred.  If an error occurs, @skb is
  * left unmodified.
  *
@@ -304,7 +304,7 @@ int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
 	if (!vport->ops->get_options)
 		return 0;
 
-	nla = nla_nest_start_noflag(skb, OVS_VPORT_ATTR_OPTIONS);
+	nla = nla_nest_start_yesflag(skb, OVS_VPORT_ATTR_OPTIONS);
 	if (!nla)
 		return -EMSGSIZE;
 
@@ -326,7 +326,7 @@ int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
  *
  * Sets the vport's upcall_portids to @ids.
  *
- * Returns 0 if successful, -EINVAL if @ids is zero length or cannot be parsed
+ * Returns 0 if successful, -EINVAL if @ids is zero length or canyest be parsed
  * as an array of U32.
  *
  * Must be called with ovs_mutex.
@@ -419,7 +419,7 @@ u32 ovs_vport_find_upcall_portid(const struct vport *vport, struct sk_buff *skb)
  * @skb: skb that was received
  * @tun_key: tunnel (if any) that carried packet
  *
- * Must be called with rcu_read_lock.  The packet cannot be shared and
+ * Must be called with rcu_read_lock.  The packet canyest be shared and
  * skb->data should point to the Ethernet header.
  */
 int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
@@ -460,7 +460,7 @@ static int packet_length(const struct sk_buff *skb,
 		length -= VLAN_HLEN;
 
 	/* Don't subtract for multiple VLAN tags. Most (all?) drivers allow
-	 * (ETH_LEN + VLAN_HLEN) in addition to the mtu value, but almost none
+	 * (ETH_LEN + VLAN_HLEN) in addition to the mtu value, but almost yesne
 	 * account for 802.1ad. e.g. is_skb_forwardable().
 	 */
 

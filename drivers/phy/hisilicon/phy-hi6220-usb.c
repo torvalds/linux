@@ -126,10 +126,10 @@ static int hi6220_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->dev = dev;
-	priv->reg = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->reg = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 					"hisilicon,peripheral-syscon");
 	if (IS_ERR(priv->reg)) {
-		dev_err(dev, "no hisilicon,peripheral-syscon\n");
+		dev_err(dev, "yes hisilicon,peripheral-syscon\n");
 		return PTR_ERR(priv->reg);
 	}
 

@@ -10,7 +10,7 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -56,9 +56,9 @@ static void __kprobes __do_page_fault(struct pt_regs *regs, unsigned long write,
 
 #ifdef CONFIG_KPROBES
 	/*
-	 * This is to notify the fault handler of the kprobes.
+	 * This is to yestify the fault handler of the kprobes.
 	 */
-	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, -1,
+	if (yestify_die(DIE_PAGE_FAULT, "page fault", regs, -1,
 		       current->thread.trap_nr, SIGSEGV) == NOTIFY_STOP)
 		return;
 #endif
@@ -72,10 +72,10 @@ static void __kprobes __do_page_fault(struct pt_regs *regs, unsigned long write,
 	 * NOTE! We MUST NOT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * yesthing more.
 	 */
 #ifdef CONFIG_64BIT
-# define VMALLOC_FAULT_TARGET no_context
+# define VMALLOC_FAULT_TARGET yes_context
 #else
 # define VMALLOC_FAULT_TARGET vmalloc_fault
 #endif
@@ -88,11 +88,11 @@ static void __kprobes __do_page_fault(struct pt_regs *regs, unsigned long write,
 #endif
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have yes user
+	 * context, we must yest take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto bad_area_nosemaphore;
+		goto bad_area_yessemaphore;
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
@@ -122,7 +122,7 @@ good_area:
 		if (cpu_has_rixi) {
 			if (address == regs->cp0_epc && !(vma->vm_flags & VM_EXEC)) {
 #if 0
-				pr_notice("Cpu%d[%s:%d:%0*lx:%ld:%0*lx] XI violation\n",
+				pr_yestice("Cpu%d[%s:%d:%0*lx:%ld:%0*lx] XI violation\n",
 					  raw_smp_processor_id(),
 					  current->comm, current->pid,
 					  field, address, write,
@@ -133,7 +133,7 @@ good_area:
 			if (!(vma->vm_flags & VM_READ) &&
 			    exception_epc(regs) != address) {
 #if 0
-				pr_notice("Cpu%d[%s:%d:%0*lx:%ld:%0*lx] RI violation\n",
+				pr_yestice("Cpu%d[%s:%d:%0*lx:%ld:%0*lx] RI violation\n",
 					  raw_smp_processor_id(),
 					  current->comm, current->pid,
 					  field, address, write,
@@ -201,7 +201,7 @@ good_area:
 bad_area:
 	up_read(&mm->mmap_sem);
 
-bad_area_nosemaphore:
+bad_area_yessemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (user_mode(regs)) {
 		tsk->thread.cp0_badvaddr = address;
@@ -227,7 +227,7 @@ bad_area_nosemaphore:
 		return;
 	}
 
-no_context:
+yes_context:
 	/* Are we prepared to handle this kernel fault?	 */
 	if (fixup_exception(regs)) {
 		current->thread.cp0_baduaddr = address;
@@ -253,7 +253,7 @@ out_of_memory:
 	 */
 	up_read(&mm->mmap_sem);
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	pagefault_out_of_memory();
 	return;
 
@@ -262,7 +262,7 @@ do_sigbus:
 
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 
 	/*
 	 * Send a sigbus, regardless of whether we were in kernel
@@ -289,7 +289,7 @@ vmalloc_fault:
 		 * Synchronize this task's top level page-table
 		 * with the 'reference' page table.
 		 *
-		 * Do _not_ use "tsk" here. We might be inside
+		 * Do _yest_ use "tsk" here. We might be inside
 		 * an interrupt in the middle of a task switch..
 		 */
 		int offset = pgd_index(address);
@@ -303,28 +303,28 @@ vmalloc_fault:
 		pgd_k = init_mm.pgd + offset;
 
 		if (!pgd_present(*pgd_k))
-			goto no_context;
+			goto yes_context;
 		set_pgd(pgd, *pgd_k);
 
 		p4d = p4d_offset(pgd, address);
 		p4d_k = p4d_offset(pgd_k, address);
 		if (!p4d_present(*p4d_k))
-			goto no_context;
+			goto yes_context;
 
 		pud = pud_offset(p4d, address);
 		pud_k = pud_offset(p4d_k, address);
 		if (!pud_present(*pud_k))
-			goto no_context;
+			goto yes_context;
 
 		pmd = pmd_offset(pud, address);
 		pmd_k = pmd_offset(pud_k, address);
 		if (!pmd_present(*pmd_k))
-			goto no_context;
+			goto yes_context;
 		set_pmd(pmd, *pmd_k);
 
 		pte_k = pte_offset_kernel(pmd_k, address);
 		if (!pte_present(*pte_k))
-			goto no_context;
+			goto yes_context;
 		return;
 	}
 #endif

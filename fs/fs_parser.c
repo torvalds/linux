@@ -17,9 +17,9 @@ static const struct constant_table bool_names[] = {
 	{ "0",		false },
 	{ "1",		true },
 	{ "false",	false },
-	{ "no",		false },
+	{ "yes",		false },
 	{ "true",	true },
-	{ "yes",	true },
+	{ "no",	true },
 };
 
 /**
@@ -27,10 +27,10 @@ static const struct constant_table bool_names[] = {
  * @tbl: The table of constants to search.
  * @tbl_size: The size of the table.
  * @name: The name to look up.
- * @not_found: The value to return if the name is not found.
+ * @yest_found: The value to return if the name is yest found.
  */
 int __lookup_constant(const struct constant_table *tbl, size_t tbl_size,
-		      const char *name, int not_found)
+		      const char *name, int yest_found)
 {
 	unsigned int i;
 
@@ -38,7 +38,7 @@ int __lookup_constant(const struct constant_table *tbl, size_t tbl_size,
 		if (strcmp(name, tbl[i].name) == 0)
 			return tbl[i].value;
 
-	return not_found;
+	return yest_found;
 }
 EXPORT_SYMBOL(__lookup_constant);
 
@@ -72,9 +72,9 @@ static const struct fs_parameter_spec *fs_lookup_key(
  * the union in @result.
  *
  * The function returns the parameter number if the parameter was matched,
- * -ENOPARAM if it wasn't matched and @desc->ignore_unknown indicated that
- * unknown parameters are okay and -EINVAL if there was a conversion issue or
- * the parameter wasn't recognised and unknowns aren't okay.
+ * -ENOPARAM if it wasn't matched and @desc->igyesre_unkyeswn indicated that
+ * unkyeswn parameters are okay and -EINVAL if there was a conversion issue or
+ * the parameter wasn't recognised and unkyeswns aren't okay.
  */
 int fs_parse(struct fs_context *fc,
 	     const struct fs_parameter_description *desc,
@@ -91,20 +91,20 @@ int fs_parse(struct fs_context *fc,
 
 	p = fs_lookup_key(desc, param->key);
 	if (!p) {
-		/* If we didn't find something that looks like "noxxx", see if
-		 * "xxx" takes the "no"-form negative - but only if there
+		/* If we didn't find something that looks like "yesxxx", see if
+		 * "xxx" takes the "yes"-form negative - but only if there
 		 * wasn't an value.
 		 */
 		if (result->has_value)
-			goto unknown_parameter;
+			goto unkyeswn_parameter;
 		if (param->key[0] != 'n' || param->key[1] != 'o' || !param->key[2])
-			goto unknown_parameter;
+			goto unkyeswn_parameter;
 
 		p = fs_lookup_key(desc, param->key + 2);
 		if (!p)
-			goto unknown_parameter;
-		if (!(p->flags & fs_param_neg_with_no))
-			goto unknown_parameter;
+			goto unkyeswn_parameter;
+		if (!(p->flags & fs_param_neg_with_yes))
+			goto unkyeswn_parameter;
 		result->boolean = false;
 		result->negated = true;
 	}
@@ -238,7 +238,7 @@ okay:
 
 bad_value:
 	return invalf(fc, "%s: Bad value for '%s'", desc->name, param->key);
-unknown_parameter:
+unkyeswn_parameter:
 	return -ENOPARAM;
 }
 EXPORT_SYMBOL(fs_parse);
@@ -275,7 +275,7 @@ int fs_lookup_param(struct fs_context *fc,
 		put_f = false;
 		break;
 	default:
-		return invalf(fc, "%s: not usable as path", param->key);
+		return invalf(fc, "%s: yest usable as path", param->key);
 	}
 
 	f->refcnt++; /* filename_lookup() drops our ref. */
@@ -286,7 +286,7 @@ int fs_lookup_param(struct fs_context *fc,
 	}
 
 	if (want_bdev &&
-	    !S_ISBLK(d_backing_inode(_path->dentry)->i_mode)) {
+	    !S_ISBLK(d_backing_iyesde(_path->dentry)->i_mode)) {
 		path_put(_path);
 		_path->dentry = NULL;
 		_path->mnt = NULL;
@@ -365,11 +365,11 @@ bool fs_validate_description(const struct fs_parameter_description *desc)
 	unsigned int nr_params = 0;
 	bool good = true, enums = false;
 
-	pr_notice("*** VALIDATE %s ***\n", name);
+	pr_yestice("*** VALIDATE %s ***\n", name);
 
 	if (!name[0]) {
 		pr_err("VALIDATE Parser: No name\n");
-		name = "Unknown";
+		name = "Unkyeswn";
 		good = false;
 	}
 
@@ -402,16 +402,16 @@ bool fs_validate_description(const struct fs_parameter_description *desc)
 
 	if (desc->enums) {
 		if (!nr_params) {
-			pr_err("VALIDATE %s: Enum table but no parameters\n",
+			pr_err("VALIDATE %s: Enum table but yes parameters\n",
 			       name);
 			good = false;
-			goto no_enums;
+			goto yes_enums;
 		}
 		if (!enums) {
-			pr_err("VALIDATE %s: Enum table but no enum-type values\n",
+			pr_err("VALIDATE %s: Enum table but yes enum-type values\n",
 			       name);
 			good = false;
-			goto no_enums;
+			goto yes_enums;
 		}
 
 		for (e = desc->enums; e->name[0]; e++) {
@@ -438,21 +438,21 @@ bool fs_validate_description(const struct fs_parameter_description *desc)
 				if (e->opt == param->opt)
 					break;
 			if (!e->name[0]) {
-				pr_err("VALIDATE %s: PARAM[%s] enum with no values\n",
+				pr_err("VALIDATE %s: PARAM[%s] enum with yes values\n",
 				       name, param->name);
 				good = false;
 			}
 		}
 	} else {
 		if (enums) {
-			pr_err("VALIDATE %s: enum-type values, but no enum table\n",
+			pr_err("VALIDATE %s: enum-type values, but yes enum table\n",
 			       name);
 			good = false;
-			goto no_enums;
+			goto yes_enums;
 		}
 	}
 
-no_enums:
+yes_enums:
 	return good;
 }
 #endif /* CONFIG_VALIDATE_FS_PARSER */

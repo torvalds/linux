@@ -5,7 +5,7 @@
  * Copyright (C) 2011 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
  *
  * Based on crypto/serpent.c by
- *  Copyright (C) 2002 Dag Arne Osvik <osvik@ii.uib.no>
+ *  Copyright (C) 2002 Dag Arne Osvik <osvik@ii.uib.yes>
  *                2003 Herbert Valerio Riedel <hvr@gnu.org>
  */
 

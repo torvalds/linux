@@ -145,7 +145,7 @@ enum iwl_antenna_ok iwl_rx_ant_restriction(struct iwl_priv *priv)
 /*
  * toggle the bit to wake up uCode and check the temperature
  * if the temperature is below CT, uCode will stay awake and send card
- * state notification with CT_KILL bit clear to inform Thermal Throttling
+ * state yestification with CT_KILL bit clear to inform Thermal Throttling
  * Management to change state. Otherwise, uCode will go back to sleep
  * without doing anything, driver should continue the 5 seconds timer
  * to wake up uCode for temperature check until temperature drop below CT
@@ -240,7 +240,7 @@ static void iwl_prepare_ct_kill_task(struct iwl_priv *priv)
  *	Chip will identify dangerously high temperatures that can
  *	harm the device and will power down
  * 2) Avoid the NIC power down due to high temperature
- *	Throttle early enough to lower the power consumption before
+ *	Throttle early eyesugh to lower the power consumption before
  *	drastic steps are needed
  */
 static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
@@ -298,14 +298,14 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 			clear_bit(STATUS_CT_KILL, &priv->status);
 		if (tt->state != IWL_TI_CT_KILL &&
 		    iwl_power_update_mode(priv, true)) {
-			/* TT state not updated
+			/* TT state yest updated
 			 * try again during next temperature read
 			 */
 			if (old_state == IWL_TI_CT_KILL)
 				set_bit(STATUS_CT_KILL, &priv->status);
 			tt->state = old_state;
-			IWL_ERR(priv, "Cannot update power mode, "
-					"TT state not updated\n");
+			IWL_ERR(priv, "Canyest update power mode, "
+					"TT state yest updated\n");
 		} else {
 			if (tt->state == IWL_TI_CT_KILL) {
 				if (force) {
@@ -333,7 +333,7 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
  *	Chip will identify dangerously high temperatures that can
  *	harm the device and will power down
  * 2) Avoid the NIC power down due to high temperature
- *	Throttle early enough to lower the power consumption before
+ *	Throttle early eyesugh to lower the power consumption before
  *	drastic steps are needed
  *	Actions include relaxing the power down sleep thresholds and
  *	decreasing the number of TX streams
@@ -438,11 +438,11 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 			clear_bit(STATUS_CT_KILL, &priv->status);
 		if (tt->state != IWL_TI_CT_KILL &&
 		    iwl_power_update_mode(priv, true)) {
-			/* TT state not updated
+			/* TT state yest updated
 			 * try again during next temperature read
 			 */
-			IWL_ERR(priv, "Cannot update power mode, "
-					"TT state not updated\n");
+			IWL_ERR(priv, "Canyest update power mode, "
+					"TT state yest updated\n");
 			if (old_state == IWL_TI_CT_KILL)
 				set_bit(STATUS_CT_KILL, &priv->status);
 			tt->state = old_state;
@@ -472,10 +472,10 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 }
 
 /* Card State Notification indicated reach critical temperature
- * if PSP not enable, no Thermal Throttling function will be performed
- * just set the GP1 bit to acknowledge the event
+ * if PSP yest enable, yes Thermal Throttling function will be performed
+ * just set the GP1 bit to ackyeswledge the event
  * otherwise, go into IWL_TI_CT_KILL state
- * since Card State Notification will not provide any temperature reading
+ * since Card State Notification will yest provide any temperature reading
  * for Legacy mode
  * so just pass the CT_KILL temperature to iwl_legacy_tt_handler()
  * for advance mode
@@ -506,7 +506,7 @@ static void iwl_bg_ct_enter(struct work_struct *work)
 }
 
 /* Card State Notification indicated out of critical temperature
- * since Card State Notification will not provide any temperature reading
+ * since Card State Notification will yest provide any temperature reading
  * so pass the IWL_REDUCED_PERFORMANCE_THRESHOLD_2 temperature
  * to iwl_legacy_tt_handler() to get out of IWL_CT_KILL state
  */

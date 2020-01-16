@@ -19,7 +19,7 @@ extern void *sys_call_table[];
 
 /*
  * Only the low 32 bits of orig_r0 are meaningful, so we return int.
- * This importantly ignores the high bits on 64-bit, so comparisons
+ * This importantly igyesres the high bits on 64-bit, so comparisons
  * sign-extend the low 32 bits.
  */
 static inline int syscall_get_nr(struct task_struct *task,
@@ -30,9 +30,9 @@ static inline int syscall_get_nr(struct task_struct *task,
 
 static inline void syscall_set_nr(struct task_struct *task,
 				  struct pt_regs *regs,
-				  int sysno)
+				  int sysyes)
 {
-	regs->a7 = sysno;
+	regs->a7 = sysyes;
 }
 
 static inline void syscall_rollback(struct task_struct *task,

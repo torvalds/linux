@@ -67,7 +67,7 @@
 
 #define COMPAT_SYSCALL_DEFINEx(x, name, ...)					\
 	__diag_push();								\
-	__diag_ignore(GCC, 8, "-Wattribute-alias",				\
+	__diag_igyesre(GCC, 8, "-Wattribute-alias",				\
 		      "Type aliasing is used to sanitize syscall arguments");\
 	asmlinkage long __s390_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
 	asmlinkage long __s390_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
@@ -85,7 +85,7 @@
 	static inline long __do_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
 /*
- * As some compat syscalls may not be implemented, we need to expand
+ * As some compat syscalls may yest be implemented, we need to expand
  * COND_SYSCALL_COMPAT in kernel/sys_ni.c and COMPAT_SYS_NI in
  * kernel/time/posix-stubs.c to cover this case as well.
  */
@@ -115,7 +115,7 @@
 
 #define __SYSCALL_DEFINEx(x, name, ...)						\
 	__diag_push();								\
-	__diag_ignore(GCC, 8, "-Wattribute-alias",				\
+	__diag_igyesre(GCC, 8, "-Wattribute-alias",				\
 		      "Type aliasing is used to sanitize syscall arguments");\
 	asmlinkage long __s390x_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
 		__attribute__((alias(__stringify(__se_sys##name))));		\

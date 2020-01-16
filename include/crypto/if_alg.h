@@ -30,7 +30,7 @@ struct alg_sock {
 	struct sock *parent;
 
 	unsigned int refcnt;
-	unsigned int nokey_refcnt;
+	unsigned int yeskey_refcnt;
 
 	const struct af_alg_type *type;
 	void *private;
@@ -47,11 +47,11 @@ struct af_alg_type {
 	void (*release)(void *private);
 	int (*setkey)(void *private, const u8 *key, unsigned int keylen);
 	int (*accept)(void *private, struct sock *sk);
-	int (*accept_nokey)(void *private, struct sock *sk);
+	int (*accept_yeskey)(void *private, struct sock *sk);
 	int (*setauthsize)(void *private, unsigned int authsize);
 
 	struct proto_ops *ops;
-	struct proto_ops *ops_nokey;
+	struct proto_ops *ops_yeskey;
 	struct module *owner;
 	char name[14];
 };
@@ -123,12 +123,12 @@ struct af_alg_async_req {
  * @tsgl_list:		Link to TX SGL
  * @iv:			IV for cipher operation
  * @aead_assoclen:	Length of AAD for AEAD cipher operations
- * @completion:		Work queue for synchronous operation
+ * @completion:		Work queue for synchroyesus operation
  * @used:		TX bytes sent to kernel. This variable is used to
- *			ensure that user space cannot cause the kernel
+ *			ensure that user space canyest cause the kernel
  *			to allocate too much memory in sendmsg operation.
  * @rcvused:		Total RX bytes to be filled by kernel. This variable
- *			is used to ensure user space cannot cause the kernel
+ *			is used to ensure user space canyest cause the kernel
  *			to allocate too much memory in a recvmsg operation.
  * @more:		More data to be expected from user space?
  * @merge:		Shall new data from user space be merged into existing
@@ -189,7 +189,7 @@ static inline int af_alg_sndbuf(struct sock *sk)
  * Can the send buffer still be written to?
  *
  * @sk socket of connection to user space
- * @return true => writable, false => not writable
+ * @return true => writable, false => yest writable
  */
 static inline bool af_alg_writable(struct sock *sk)
 {
@@ -215,7 +215,7 @@ static inline int af_alg_rcvbuf(struct sock *sk)
  * Can the RX buffer still be written to?
  *
  * @sk socket of connection to user space
- * @return true => writable, false => not writable
+ * @return true => writable, false => yest writable
  */
 static inline bool af_alg_readable(struct sock *sk)
 {

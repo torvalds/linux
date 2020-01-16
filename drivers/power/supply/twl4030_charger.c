@@ -2,7 +2,7 @@
 /*
  * TWL4030/TPS65950 BCI (Battery Charger Interface) driver
  *
- * Copyright (C) 2010 Gražvydas Ignotas <notasas@gmail.com>
+ * Copyright (C) 2010 Gražvydas Igyestas <yestasas@gmail.com>
  *
  * based on twl4030_bci_battery.c by TI
  * Copyright (C) 2008 Texas Instruments, Inc.
@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/twl.h>
 #include <linux/power_supply.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/usb/otg.h>
 #include <linux/iio/consumer.h>
 
@@ -113,7 +113,7 @@ struct twl4030_bci {
 	struct power_supply	*ac;
 	struct power_supply	*usb;
 	struct usb_phy		*transceiver;
-	struct notifier_block	usb_nb;
+	struct yestifier_block	usb_nb;
 	struct work_struct	work;
 	int			irq_chg;
 	int			irq_bci;
@@ -154,19 +154,19 @@ static const char *modes[] = { "off", "auto", "continuous" };
 /*
  * clear and set bits on an given register on a given module
  */
-static int twl4030_clear_set(u8 mod_no, u8 clear, u8 set, u8 reg)
+static int twl4030_clear_set(u8 mod_yes, u8 clear, u8 set, u8 reg)
 {
 	u8 val = 0;
 	int ret;
 
-	ret = twl_i2c_read_u8(mod_no, &val, reg);
+	ret = twl_i2c_read_u8(mod_yes, &val, reg);
 	if (ret)
 		return ret;
 
 	val &= ~clear;
 	val |= set;
 
-	return twl_i2c_write_u8(mod_no, val, reg);
+	return twl_i2c_write_u8(mod_yes, val, reg);
 }
 
 static int twl4030_bci_read(u8 reg, u8 *val)
@@ -451,7 +451,7 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 		}
 
 		if (bci->usb_mode == CHARGE_AUTO) {
-			/* Enable interrupts now. */
+			/* Enable interrupts yesw. */
 			reg = ~(u32)(TWL4030_ICHGLOW | TWL4030_ICHGEOC |
 					TWL4030_TBATOR2 | TWL4030_TBATOR1 |
 					TWL4030_BATSTS);
@@ -471,7 +471,7 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 		ret = twl4030_clear_set(TWL_MODULE_MAIN_CHARGE, 0,
 			TWL4030_USBFASTMCHG, TWL4030_BCIMFSTS4);
 		if (bci->usb_mode == CHARGE_LINEAR) {
-			/* Enable interrupts now. */
+			/* Enable interrupts yesw. */
 			reg = ~(u32)(TWL4030_ICHGLOW | TWL4030_TBATOR2 |
 					TWL4030_TBATOR1 | TWL4030_BATSTS);
 			ret = twl_i2c_write_u8(TWL4030_MODULE_INTERRUPTS, reg,
@@ -483,7 +483,7 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 				return ret;
 			}
 			twl4030_clear_set_boot_bci(TWL4030_BCIAUTOAC|TWL4030_CVENAC, 0);
-			/* Watch dog key: WOVF acknowledge */
+			/* Watch dog key: WOVF ackyeswledge */
 			ret = twl_i2c_write_u8(TWL_MODULE_MAIN_CHARGE, 0x33,
 					       TWL4030_BCIWDKEY);
 			/* 0x24 + EKEY6: off mode */
@@ -627,7 +627,7 @@ static irqreturn_t twl4030_bci_interrupt(int irq, void *arg)
 	}
 	twl4030_charger_update_current(bci);
 
-	/* various monitoring events, for now we just log them here */
+	/* various monitoring events, for yesw we just log them here */
 	if (irqs1 & (TWL4030_TBATOR2 | TWL4030_TBATOR1))
 		dev_warn(bci->dev, "battery temperature out of range\n");
 
@@ -661,12 +661,12 @@ static void twl4030_bci_usb_work(struct work_struct *data)
 	}
 }
 
-static int twl4030_bci_usb_ncb(struct notifier_block *nb, unsigned long val,
+static int twl4030_bci_usb_ncb(struct yestifier_block *nb, unsigned long val,
 			       void *priv)
 {
 	struct twl4030_bci *bci = container_of(nb, struct twl4030_bci, usb_nb);
 
-	dev_dbg(bci->dev, "OTG notify %lu\n", val);
+	dev_dbg(bci->dev, "OTG yestify %lu\n", val);
 
 	/* reset current on each 'plug' event */
 	if (allow_usb)
@@ -929,7 +929,7 @@ static enum power_supply_property twl4030_charger_props[] = {
 static const struct twl4030_bci_platform_data *
 twl4030_bci_parse_dt(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct twl4030_bci_platform_data *pdata;
 	u32 num;
 
@@ -1011,27 +1011,27 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 	if (IS_ERR(bci->channel_vac)) {
 		ret = PTR_ERR(bci->channel_vac);
 		if (ret == -EPROBE_DEFER)
-			return ret;	/* iio not ready */
-		dev_warn(&pdev->dev, "could not request vac iio channel (%d)",
+			return ret;	/* iio yest ready */
+		dev_warn(&pdev->dev, "could yest request vac iio channel (%d)",
 			ret);
 		bci->channel_vac = NULL;
 	}
 
-	if (bci->dev->of_node) {
-		struct device_node *phynode;
+	if (bci->dev->of_yesde) {
+		struct device_yesde *phyyesde;
 
-		phynode = of_get_compatible_child(bci->dev->of_node->parent,
+		phyyesde = of_get_compatible_child(bci->dev->of_yesde->parent,
 						  "ti,twl4030-usb");
-		if (phynode) {
-			bci->usb_nb.notifier_call = twl4030_bci_usb_ncb;
-			bci->transceiver = devm_usb_get_phy_by_node(
-				bci->dev, phynode, &bci->usb_nb);
-			of_node_put(phynode);
+		if (phyyesde) {
+			bci->usb_nb.yestifier_call = twl4030_bci_usb_ncb;
+			bci->transceiver = devm_usb_get_phy_by_yesde(
+				bci->dev, phyyesde, &bci->usb_nb);
+			of_yesde_put(phyyesde);
 			if (IS_ERR(bci->transceiver)) {
 				ret = PTR_ERR(bci->transceiver);
 				if (ret == -EPROBE_DEFER)
-					return ret;	/* phy not ready */
-				dev_warn(&pdev->dev, "could not request transceiver (%d)",
+					return ret;	/* phy yest ready */
+				dev_warn(&pdev->dev, "could yest request transceiver (%d)",
 					ret);
 				bci->transceiver = NULL;
 			}
@@ -1058,7 +1058,7 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 			twl4030_charger_interrupt, IRQF_ONESHOT, pdev->name,
 			bci);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not request irq %d, status %d\n",
+		dev_err(&pdev->dev, "could yest request irq %d, status %d\n",
 			bci->irq_chg, ret);
 		return ret;
 	}
@@ -1066,12 +1066,12 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(&pdev->dev, bci->irq_bci, NULL,
 			twl4030_bci_interrupt, IRQF_ONESHOT, pdev->name, bci);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not request irq %d, status %d\n",
+		dev_err(&pdev->dev, "could yest request irq %d, status %d\n",
 			bci->irq_bci, ret);
 		return ret;
 	}
 
-	/* Enable interrupts now. */
+	/* Enable interrupts yesw. */
 	reg = ~(u32)(TWL4030_ICHGLOW | TWL4030_ICHGEOC | TWL4030_TBATOR2 |
 		TWL4030_TBATOR1 | TWL4030_BATSTS);
 	ret = twl_i2c_write_u8(TWL4030_MODULE_INTERRUPTS, reg,
@@ -1089,9 +1089,9 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 
 	twl4030_charger_update_current(bci);
 	if (device_create_file(&bci->usb->dev, &dev_attr_mode))
-		dev_warn(&pdev->dev, "could not create sysfs file\n");
+		dev_warn(&pdev->dev, "could yest create sysfs file\n");
 	if (device_create_file(&bci->ac->dev, &dev_attr_mode))
-		dev_warn(&pdev->dev, "could not create sysfs file\n");
+		dev_warn(&pdev->dev, "could yest create sysfs file\n");
 
 	twl4030_charger_enable_ac(bci, true);
 	if (!IS_ERR_OR_NULL(bci->transceiver))
@@ -1144,7 +1144,7 @@ static struct platform_driver twl4030_bci_driver = {
 };
 module_platform_driver(twl4030_bci_driver);
 
-MODULE_AUTHOR("Gražvydas Ignotas");
+MODULE_AUTHOR("Gražvydas Igyestas");
 MODULE_DESCRIPTION("TWL4030 Battery Charger Interface driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:twl4030_bci");

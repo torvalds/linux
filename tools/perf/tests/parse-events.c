@@ -7,7 +7,7 @@
 #include "debug.h"
 #include "pmu.h"
 #include <dirent.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -528,7 +528,7 @@ static int test__checkevent_pmu_partial_time_callgraph(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong callgraph",  !evsel__has_callchain(evsel));
 	TEST_ASSERT_VAL("wrong time",  !(PERF_SAMPLE_TIME & evsel->core.attr.sample_type));
 
-	/* cpu/config=2,call-graph=no,time=0,period=2000/ */
+	/* cpu/config=2,call-graph=yes,time=0,period=2000/ */
 	evsel = perf_evsel__next(evsel);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config",  2 == evsel->core.attr.config);
@@ -1134,7 +1134,7 @@ static int test__leader_sample1(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong leader", evsel->leader == leader);
 	TEST_ASSERT_VAL("wrong sample_read", evsel->sample_read);
 
-	/* cache-misses - not sampling */
+	/* cache-misses - yest sampling */
 	evsel = perf_evsel__next(evsel);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config",
@@ -1148,7 +1148,7 @@ static int test__leader_sample1(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong leader", evsel->leader == leader);
 	TEST_ASSERT_VAL("wrong sample_read", evsel->sample_read);
 
-	/* branch-misses - not sampling */
+	/* branch-misses - yest sampling */
 	evsel = perf_evsel__next(evsel);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config",
@@ -1187,7 +1187,7 @@ static int test__leader_sample2(struct evlist *evlist __maybe_unused)
 	TEST_ASSERT_VAL("wrong leader", evsel->leader == leader);
 	TEST_ASSERT_VAL("wrong sample_read", evsel->sample_read);
 
-	/* branch-misses - not sampling */
+	/* branch-misses - yest sampling */
 	evsel = perf_evsel__next(evsel);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config",
@@ -1233,7 +1233,7 @@ static int test__pinned_group(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong leader", evsel->leader == leader);
 	TEST_ASSERT_VAL("wrong pinned", evsel->core.attr.pinned);
 
-	/* cache-misses - can not be pinned, but will go on with the leader */
+	/* cache-misses - can yest be pinned, but will go on with the leader */
 	evsel = perf_evsel__next(evsel);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config",
@@ -1742,7 +1742,7 @@ static struct evlist_test test__events_pmu[] = {
 		.id    = 1,
 	},
 	{
-		.name  = "cpu/config=1,call-graph=fp,time,period=100000/,cpu/config=2,call-graph=no,time=0,period=2000/",
+		.name  = "cpu/config=1,call-graph=fp,time,period=100000/,cpu/config=2,call-graph=yes,time=0,period=2000/",
 		.check = test__checkevent_pmu_partial_time_callgraph,
 		.id    = 2,
 	},
@@ -1893,7 +1893,7 @@ static int test_pmu_events(void)
 		struct evlist_test e = { .id = 0, };
 		char name[2 * NAME_MAX + 1 + 12 + 3];
 
-		/* Names containing . are special and cannot be used directly */
+		/* Names containing . are special and canyest be used directly */
 		if (strchr(ent->d_name, '.'))
 			continue;
 

@@ -24,7 +24,7 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc);
  *
  * Each WR chain handles a single contiguous server-side buffer,
  * because scatterlist entries after the first have to start on
- * page alignment. xdr_buf iovecs cannot guarantee alignment.
+ * page alignment. xdr_buf iovecs canyest guarantee alignment.
  *
  * Each WR chain handles only one R_key. Each RPC-over-RDMA segment
  * from a client may contain a unique R_key, so each WR chain moves
@@ -112,8 +112,8 @@ void svc_rdma_destroy_rw_ctxts(struct svcxprt_rdma *rdma)
  * for all segments of one chunk.
  *
  * These are small, acquired with a single allocator call, and
- * no more than one is needed per chunk. They are allocated on
- * demand, and not cached.
+ * yes more than one is needed per chunk. They are allocated on
+ * demand, and yest cached.
  */
 struct svc_rdma_chunk_ctxt {
 	struct ib_cqe		cc_cqe;
@@ -156,7 +156,7 @@ static void svc_rdma_cc_release(struct svc_rdma_chunk_ctxt *cc,
 struct svc_rdma_write_info {
 	/* write state of this chunk */
 	unsigned int		wi_seg_off;
-	unsigned int		wi_seg_no;
+	unsigned int		wi_seg_yes;
 	unsigned int		wi_nsegs;
 	__be32			*wi_segs;
 
@@ -178,7 +178,7 @@ svc_rdma_write_info_alloc(struct svcxprt_rdma *rdma, __be32 *chunk)
 		return info;
 
 	info->wi_seg_off = 0;
-	info->wi_seg_no = 0;
+	info->wi_seg_yes = 0;
 	info->wi_nsegs = be32_to_cpup(++chunk);
 	info->wi_segs = ++chunk;
 	svc_rdma_cc_init(rdma, &info->wi_cc);
@@ -224,7 +224,7 @@ static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 struct svc_rdma_read_info {
 	struct svc_rdma_recv_ctxt	*ri_readctxt;
 	unsigned int			ri_position;
-	unsigned int			ri_pageno;
+	unsigned int			ri_pageyes;
 	unsigned int			ri_pageoff;
 	unsigned int			ri_chunklen;
 
@@ -368,18 +368,18 @@ static void svc_rdma_pagelist_to_sg(struct svc_rdma_write_info *info,
 				    unsigned int remaining,
 				    struct svc_rdma_rw_ctxt *ctxt)
 {
-	unsigned int sge_no, sge_bytes, page_off, page_no;
+	unsigned int sge_yes, sge_bytes, page_off, page_yes;
 	struct xdr_buf *xdr = info->wi_xdr;
 	struct scatterlist *sg;
 	struct page **page;
 
 	page_off = info->wi_next_off + xdr->page_base;
-	page_no = page_off >> PAGE_SHIFT;
+	page_yes = page_off >> PAGE_SHIFT;
 	page_off = offset_in_page(page_off);
-	page = xdr->pages + page_no;
+	page = xdr->pages + page_yes;
 	info->wi_next_off += remaining;
 	sg = ctxt->rw_sg_table.sgl;
-	sge_no = 0;
+	sge_yes = 0;
 	do {
 		sge_bytes = min_t(unsigned int, remaining,
 				  PAGE_SIZE - page_off);
@@ -388,11 +388,11 @@ static void svc_rdma_pagelist_to_sg(struct svc_rdma_write_info *info,
 		remaining -= sge_bytes;
 		sg = sg_next(sg);
 		page_off = 0;
-		sge_no++;
+		sge_yes++;
 		page++;
 	} while (remaining);
 
-	ctxt->rw_nents = sge_no;
+	ctxt->rw_nents = sge_yes;
 }
 
 /* Construct RDMA Write WRs to send a portion of an xdr_buf containing
@@ -411,13 +411,13 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 	__be32 *seg;
 	int ret;
 
-	seg = info->wi_segs + info->wi_seg_no * rpcrdma_segment_maxsz;
+	seg = info->wi_segs + info->wi_seg_yes * rpcrdma_segment_maxsz;
 	do {
 		unsigned int write_len;
 		u32 seg_length, seg_handle;
 		u64 seg_offset;
 
-		if (info->wi_seg_no >= info->wi_nsegs)
+		if (info->wi_seg_yes >= info->wi_nsegs)
 			goto out_overflow;
 
 		seg_handle = be32_to_cpup(seg);
@@ -429,7 +429,7 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 		ctxt = svc_rdma_get_rw_ctxt(rdma,
 					    (write_len >> PAGE_SHIFT) + 2);
 		if (!ctxt)
-			goto out_noctx;
+			goto out_yesctx;
 
 		constructor(info, write_len, ctxt);
 		ret = rdma_rw_ctx_init(&ctxt->rw_ctx, rdma->sc_qp,
@@ -444,7 +444,7 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 		cc->cc_sqecount += ret;
 		if (write_len == seg_length - info->wi_seg_off) {
 			seg += 4;
-			info->wi_seg_no++;
+			info->wi_seg_yes++;
 			info->wi_seg_off = 0;
 		} else {
 			info->wi_seg_off += write_len;
@@ -459,8 +459,8 @@ out_overflow:
 		info->wi_nsegs);
 	return -E2BIG;
 
-out_noctx:
-	dprintk("svcrdma: no R/W ctxs available\n");
+out_yesctx:
+	dprintk("svcrdma: yes R/W ctxs available\n");
 	return -ENOMEM;
 
 out_initerr:
@@ -502,7 +502,7 @@ static int svc_rdma_send_xdr_pagelist(struct svc_rdma_write_info *info,
  * @wr_ch: Write chunk provided by client
  * @xdr: xdr_buf containing the data payload
  *
- * Returns a non-negative number of bytes the chunk consumed, or
+ * Returns a yesn-negative number of bytes the chunk consumed, or
  *	%-E2BIG if the payload was larger than the Write chunk,
  *	%-EINVAL if client provided too many segments,
  *	%-ENOMEM if rdma_rw context pool was exhausted,
@@ -545,7 +545,7 @@ out_err:
  * @writelist: true if client provided a Write list
  * @xdr: xdr_buf containing an RPC Reply
  *
- * Returns a non-negative number of bytes the chunk consumed, or
+ * Returns a yesn-negative number of bytes the chunk consumed, or
  *	%-E2BIG if the payload was larger than the Reply chunk,
  *	%-EINVAL if client provided too many segments,
  *	%-ENOMEM if rdma_rw context pool was exhausted,
@@ -568,7 +568,7 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma, __be32 *rp_ch,
 	consumed = xdr->head[0].iov_len;
 
 	/* Send the page list in the Reply chunk only if the
-	 * client did not provide Write chunks.
+	 * client did yest provide Write chunks.
 	 */
 	if (!writelist && xdr->page_len) {
 		ret = svc_rdma_send_xdr_pagelist(info, xdr);
@@ -603,40 +603,40 @@ static int svc_rdma_build_read_segment(struct svc_rdma_read_info *info,
 	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
 	struct svc_rdma_chunk_ctxt *cc = &info->ri_cc;
 	struct svc_rdma_rw_ctxt *ctxt;
-	unsigned int sge_no, seg_len;
+	unsigned int sge_yes, seg_len;
 	struct scatterlist *sg;
 	int ret;
 
-	sge_no = PAGE_ALIGN(info->ri_pageoff + len) >> PAGE_SHIFT;
-	ctxt = svc_rdma_get_rw_ctxt(cc->cc_rdma, sge_no);
+	sge_yes = PAGE_ALIGN(info->ri_pageoff + len) >> PAGE_SHIFT;
+	ctxt = svc_rdma_get_rw_ctxt(cc->cc_rdma, sge_yes);
 	if (!ctxt)
-		goto out_noctx;
-	ctxt->rw_nents = sge_no;
+		goto out_yesctx;
+	ctxt->rw_nents = sge_yes;
 
 	sg = ctxt->rw_sg_table.sgl;
-	for (sge_no = 0; sge_no < ctxt->rw_nents; sge_no++) {
+	for (sge_yes = 0; sge_yes < ctxt->rw_nents; sge_yes++) {
 		seg_len = min_t(unsigned int, len,
 				PAGE_SIZE - info->ri_pageoff);
 
-		head->rc_arg.pages[info->ri_pageno] =
-			rqstp->rq_pages[info->ri_pageno];
+		head->rc_arg.pages[info->ri_pageyes] =
+			rqstp->rq_pages[info->ri_pageyes];
 		if (!info->ri_pageoff)
 			head->rc_page_count++;
 
-		sg_set_page(sg, rqstp->rq_pages[info->ri_pageno],
+		sg_set_page(sg, rqstp->rq_pages[info->ri_pageyes],
 			    seg_len, info->ri_pageoff);
 		sg = sg_next(sg);
 
 		info->ri_pageoff += seg_len;
 		if (info->ri_pageoff == PAGE_SIZE) {
-			info->ri_pageno++;
+			info->ri_pageyes++;
 			info->ri_pageoff = 0;
 		}
 		len -= seg_len;
 
 		/* Safety check */
 		if (len &&
-		    &rqstp->rq_pages[info->ri_pageno + 1] > rqstp->rq_page_end)
+		    &rqstp->rq_pages[info->ri_pageyes + 1] > rqstp->rq_page_end)
 			goto out_overrun;
 	}
 
@@ -651,8 +651,8 @@ static int svc_rdma_build_read_segment(struct svc_rdma_read_info *info,
 	cc->cc_sqecount += ret;
 	return 0;
 
-out_noctx:
-	dprintk("svcrdma: no R/W ctxs available\n");
+out_yesctx:
+	dprintk("svcrdma: yes R/W ctxs available\n");
 	return -ENOMEM;
 
 out_overrun:
@@ -704,14 +704,14 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 	return ret;
 }
 
-/* Construct RDMA Reads to pull over a normal Read chunk. The chunk
+/* Construct RDMA Reads to pull over a yesrmal Read chunk. The chunk
  * data lands in the page list of head->rc_arg.pages.
  *
- * Currently NFSD does not look at the head->rc_arg.tail[0] iovec.
+ * Currently NFSD does yest look at the head->rc_arg.tail[0] iovec.
  * Therefore, XDR round-up of the Read chunk and trailing
  * inline content must both be added at the end of the pagelist.
  */
-static int svc_rdma_build_normal_read_chunk(struct svc_rqst *rqstp,
+static int svc_rdma_build_yesrmal_read_chunk(struct svc_rqst *rqstp,
 					    struct svc_rdma_read_info *info,
 					    __be32 *p)
 {
@@ -728,7 +728,7 @@ static int svc_rdma_build_normal_read_chunk(struct svc_rqst *rqstp,
 
 	/* Split the Receive buffer between the head and tail
 	 * buffers at Read chunk's position. XDR roundup of the
-	 * chunk is not included in either the pagelist or in
+	 * chunk is yest included in either the pagelist or in
 	 * the tail.
 	 */
 	head->rc_arg.tail[0].iov_base =
@@ -740,7 +740,7 @@ static int svc_rdma_build_normal_read_chunk(struct svc_rqst *rqstp,
 	/* Read chunk may need XDR roundup (see RFC 8166, s. 3.4.5.2).
 	 *
 	 * If the client already rounded up the chunk length, the
-	 * length does not change. Otherwise, the length of the page
+	 * length does yest change. Otherwise, the length of the page
 	 * list is increased to include XDR round-up.
 	 *
 	 * Currently these chunks always start at page offset 0,
@@ -762,8 +762,8 @@ out:
  * head->rc_arg.pages.
  *
  * Assumptions:
- *	- A PZRC has an XDR-aligned length (no implicit round-up).
- *	- There can be no trailing inline content (IOW, we assume
+ *	- A PZRC has an XDR-aligned length (yes implicit round-up).
+ *	- There can be yes trailing inline content (IOW, we assume
  *	  a PZRC is never sent in an RDMA_MSG message, though it's
  *	  allowed by spec).
  */
@@ -834,12 +834,12 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 	if (!info)
 		return -ENOMEM;
 	info->ri_readctxt = head;
-	info->ri_pageno = 0;
+	info->ri_pageyes = 0;
 	info->ri_pageoff = 0;
 
 	info->ri_position = be32_to_cpup(p + 1);
 	if (info->ri_position)
-		ret = svc_rdma_build_normal_read_chunk(rqstp, info, p);
+		ret = svc_rdma_build_yesrmal_read_chunk(rqstp, info, p);
 	else
 		ret = svc_rdma_build_pz_read_chunk(rqstp, info, p);
 	if (ret < 0)

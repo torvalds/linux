@@ -34,7 +34,7 @@ static int w1_ds2405_select(struct w1_slave *sl, bool only_active)
 		return 0;
 
 	/*
-	 * We cannot use a normal Match ROM command
+	 * We canyest use a yesrmal Match ROM command
 	 * since doing so would toggle PIO state
 	 */
 	w1_write_8(dev, only_active ? W1_ALARM_SEARCH : W1_SEARCH);
@@ -46,11 +46,11 @@ static int w1_ds2405_select(struct w1_slave *sl, bool only_active)
 		ret = w1_triplet(dev, bit2send);
 
 		if ((ret & (BIT(0) | BIT(1))) ==
-		    (BIT(0) | BIT(1))) /* no devices found */
+		    (BIT(0) | BIT(1))) /* yes devices found */
 			return 0;
 
 		if (!!(ret & BIT(2)) != bit2send)
-			/* wrong direction taken - no such device */
+			/* wrong direction taken - yes such device */
 			return 0;
 	}
 
@@ -90,7 +90,7 @@ static ssize_t state_show(struct device *device,
 	state = w1_read_8(dev);
 	if (state != 0 &&
 	    state != 0xff) {
-		dev_err(device, "non-consistent state %x\n", state);
+		dev_err(device, "yesn-consistent state %x\n", state);
 		f_retval = -EIO;
 		goto out_unlock;
 	}

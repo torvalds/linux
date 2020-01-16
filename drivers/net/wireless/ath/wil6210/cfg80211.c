@@ -431,13 +431,13 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 		       struct station_info *sinfo)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
-	struct wmi_notify_req_cmd cmd = {
+	struct wmi_yestify_req_cmd cmd = {
 		.cid = cid,
 		.interval_usec = 0,
 	};
 	struct {
 		struct wmi_cmd_hdr wmi;
-		struct wmi_notify_req_done_event evt;
+		struct wmi_yestify_req_done_event evt;
 	} __packed reply;
 	struct wil_net_stats *stats = &wil->sta[cid].stats;
 	int rc;
@@ -659,7 +659,7 @@ wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 
 	wil_dbg_misc(wil, "add_iface, type %d\n", type);
 
-	/* P2P device is not a real virtual interface, it is a management-only
+	/* P2P device is yest a real virtual interface, it is a management-only
 	 * interface that shares the main interface.
 	 * Skip concurrency checks here.
 	 */
@@ -684,7 +684,7 @@ wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 	}
 
 	if (!wil->wiphy->n_iface_combinations) {
-		wil_err(wil, "virtual interfaces not supported\n");
+		wil_err(wil, "virtual interfaces yest supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -769,7 +769,7 @@ static int wil_cfg80211_del_iface(struct wiphy *wiphy,
 	}
 
 	if (vif->mid == 0) {
-		wil_err(wil, "cannot remove the main interface\n");
+		wil_err(wil, "canyest remove the main interface\n");
 		return -EINVAL;
 	}
 
@@ -816,7 +816,7 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 		}
 	}
 
-	/* do not reset FW when there are active VIFs,
+	/* do yest reset FW when there are active VIFs,
 	 * because it can cause significant disruption
 	 */
 	if (!wil_has_other_active_ifaces(wil, ndev, true, false) &&
@@ -890,7 +890,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 	/* FW don't support scan after connection attempt */
 	if (test_bit(wil_status_dontscan, wil->status)) {
-		wil_err(wil, "Can't scan now\n");
+		wil_err(wil, "Can't scan yesw\n");
 		return -EBUSY;
 	}
 
@@ -962,7 +962,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 		if (ch == 0) {
 			wil_err(wil,
-				"Scan requested for unknown frequency %dMhz\n",
+				"Scan requested for unkyeswn frequency %dMhz\n",
 				request->channels[i]->center_freq);
 			continue;
 		}
@@ -976,7 +976,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 		wil_hex_dump_misc("Scan IE ", DUMP_PREFIX_OFFSET, 16, 1,
 				  request->ie, request->ie_len, true);
 	else
-		wil_dbg_misc(wil, "Scan has no IE's\n");
+		wil_dbg_misc(wil, "Scan has yes IE's\n");
 
 	rc = wmi_set_ie(vif, WMI_FRAME_PROBE_REQ,
 			request->ie_len, request->ie);
@@ -1054,9 +1054,9 @@ static void wil_print_crypto(struct wil6210_priv *wil,
 		wil_dbg_misc(wil, "  [%d] = 0x%08x\n", i,
 			     c->akm_suites[i]);
 	wil_dbg_misc(wil, "}\n");
-	wil_dbg_misc(wil, "Control port : %d, eth_type 0x%04x no_encrypt %d\n",
+	wil_dbg_misc(wil, "Control port : %d, eth_type 0x%04x yes_encrypt %d\n",
 		     c->control_port, be16_to_cpu(c->control_port_ethertype),
-		     c->control_port_no_encrypt);
+		     c->control_port_yes_encrypt);
 }
 
 static const char *
@@ -1076,7 +1076,7 @@ wil_get_auth_type_name(enum nl80211_auth_type auth_type)
 	case NL80211_AUTHTYPE_AUTOMATIC:
 		return "AUTOMATIC";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 static void wil_print_connect_params(struct wil6210_priv *wil,
@@ -1111,22 +1111,22 @@ static int wil_ft_connect(struct wiphy *wiphy,
 	int rc;
 
 	if (!test_bit(WMI_FW_CAPABILITY_FT_ROAMING, wil->fw_capabilities)) {
-		wil_err(wil, "FT: FW does not support FT roaming\n");
+		wil_err(wil, "FT: FW does yest support FT roaming\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (!sme->prev_bssid) {
-		wil_err(wil, "FT: prev_bssid was not set\n");
+		wil_err(wil, "FT: prev_bssid was yest set\n");
 		return -EINVAL;
 	}
 
 	if (ether_addr_equal(sme->prev_bssid, sme->bssid)) {
-		wil_err(wil, "FT: can not roam to same AP\n");
+		wil_err(wil, "FT: can yest roam to same AP\n");
 		return -EINVAL;
 	}
 
 	if (!test_bit(wil_vif_fwconnected, vif->status)) {
-		wil_err(wil, "FT: roam while not connected\n");
+		wil_err(wil, "FT: roam while yest connected\n");
 		return -EINVAL;
 	}
 
@@ -1137,7 +1137,7 @@ static int wil_ft_connect(struct wiphy *wiphy,
 	}
 
 	if (sme->pbss) {
-		wil_err(wil, "FT: roam is not valid for PBSS\n");
+		wil_err(wil, "FT: roam is yest valid for PBSS\n");
 		return -EINVAL;
 	}
 
@@ -1272,7 +1272,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 
 	ch = bss->channel->hw_value;
 	if (ch == 0) {
-		wil_err(wil, "BSS at unknown frequency %dMhz\n",
+		wil_err(wil, "BSS at unkyeswn frequency %dMhz\n",
 			bss->channel->center_freq);
 		rc = -EOPNOTSUPP;
 		goto out;
@@ -1392,7 +1392,7 @@ static int wil_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	int rc;
 
-	/* these parameters are explicitly not supported */
+	/* these parameters are explicitly yest supported */
 	if (changed & (WIPHY_PARAM_RETRY_LONG |
 		       WIPHY_PARAM_FRAG_THRESHOLD |
 		       WIPHY_PARAM_RTS_THRESHOLD))
@@ -1435,7 +1435,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	if (wdev->iftype != NL80211_IFTYPE_AP) {
 		wil_dbg_misc(wil,
-			     "send WMI_SW_TX_REQ_CMDID on non-AP interfaces\n");
+			     "send WMI_SW_TX_REQ_CMDID on yesn-AP interfaces\n");
 		rc = wmi_mgmt_tx(vif, buf, len);
 		goto out;
 	}
@@ -1449,7 +1449,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	if (params->offchan == 0) {
 		wil_err(wil,
-			"invalid channel params: current %d requested %d, off-channel not allowed\n",
+			"invalid channel params: current %d requested %d, off-channel yest allowed\n",
 			vif->channel, params->chan->hw_value);
 		return -EBUSY;
 	}
@@ -1459,7 +1459,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			     params->wait);
 
 out:
-	/* when the sent packet was not acked by receiver(ACK=0), rc will
+	/* when the sent packet was yest acked by receiver(ACK=0), rc will
 	 * be -EAGAIN. In this case this function needs to return success,
 	 * the ACK=0 will be reflected in tx_status.
 	 */
@@ -1518,7 +1518,7 @@ wil_find_sta_by_key_usage(struct wil6210_priv *wil, u8 mid,
 	int cid = -EINVAL;
 
 	if (key_usage == WMI_KEY_USE_TX_GROUP)
-		return NULL; /* not needed */
+		return NULL; /* yest needed */
 
 	/* supplicant provides Rx group key in STA mode with NULL MAC address */
 	if (mac_addr)
@@ -1620,7 +1620,7 @@ static int wil_cfg80211_add_key(struct wiphy *wiphy,
 		     params->seq_len, params->seq);
 
 	if (IS_ERR(cs)) {
-		/* in FT, sta info may not be available as add_key may be
+		/* in FT, sta info may yest be available as add_key may be
 		 * sent by host before FW sends WMI_CONNECT_EVENT
 		 */
 		if (!test_bit(wil_vif_ft_roam, vif->status)) {
@@ -1742,7 +1742,7 @@ static int wil_cancel_remain_on_channel(struct wiphy *wiphy,
 /**
  * find a specific IE in a list of IEs
  * return a pointer to the beginning of IE in the list
- * or NULL if not found
+ * or NULL if yest found
  */
 static const u8 *_wil_cfg80211_find_ie(const u8 *ies, u16 ies_len, const u8 *ie,
 				       u16 ie_len)
@@ -1768,7 +1768,7 @@ static const u8 *_wil_cfg80211_find_ie(const u8 *ies, u16 ies_len, const u8 *ie,
 
 /**
  * merge the IEs in two lists into a single list.
- * do not include IEs from the second list which exist in the first list.
+ * do yest include IEs from the second list which exist in the first list.
  * add only vendor specific IEs from second list to keep
  * the merged list sorted (since vendor-specific IE has the
  * highest tag number)
@@ -1946,7 +1946,7 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (ft) {
 		if (!test_bit(WMI_FW_CAPABILITY_FT_ROAMING,
 			      wil->fw_capabilities)) {
-			wil_err(wil, "FW does not support FT roaming\n");
+			wil_err(wil, "FW does yest support FT roaming\n");
 			return -ENOTSUPP;
 		}
 		set_bit(wil_vif_ft_roam, vif->status);
@@ -2213,7 +2213,7 @@ static int wil_cfg80211_add_station(struct wiphy *wiphy,
 		     params->sta_flags_mask, params->sta_flags_set);
 
 	if (!disable_ap_sme) {
-		wil_err(wil, "not supported with AP SME enabled\n");
+		wil_err(wil, "yest supported with AP SME enabled\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -2258,7 +2258,7 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 		     vif->mid);
 
 	if (!disable_ap_sme) {
-		wil_dbg_misc(wil, "not supported with AP SME enabled\n");
+		wil_dbg_misc(wil, "yest supported with AP SME enabled\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -2267,7 +2267,7 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 
 	cid = wil_find_cid(wil, vif->mid, mac);
 	if (cid < 0) {
-		wil_err(wil, "station not found\n");
+		wil_err(wil, "station yest found\n");
 		return -ENOLINK;
 	}
 
@@ -2278,7 +2278,7 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 		}
 
 	if (!txdata) {
-		wil_err(wil, "ring data not found\n");
+		wil_err(wil, "ring data yest found\n");
 		return -ENOLINK;
 	}
 
@@ -2524,7 +2524,7 @@ wil_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev,
 
 	rc = wmi_stop_sched_scan(wil);
 	/* device would return error if it thinks PNO is already stopped.
-	 * ignore the return code so user space and driver gets back in-sync
+	 * igyesre the return code so user space and driver gets back in-sync
 	 */
 	wil_dbg_misc(wil, "sched scan stopped (%d)\n", rc);
 
@@ -2546,7 +2546,7 @@ wil_cfg80211_update_ft_ies(struct wiphy *wiphy, struct net_device *dev,
 			  ftie->ie, ftie->ie_len, true);
 
 	if (!test_bit(WMI_FW_CAPABILITY_FT_ROAMING, wil->fw_capabilities)) {
-		wil_err(wil, "FW does not support FT roaming\n");
+		wil_err(wil, "FW does yest support FT roaming\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -2555,7 +2555,7 @@ wil_cfg80211_update_ft_ies(struct wiphy *wiphy, struct net_device *dev,
 		return rc;
 
 	if (!test_bit(wil_vif_ft_roam, vif->status))
-		/* vif is not roaming */
+		/* vif is yest roaming */
 		return 0;
 
 	/* wil_vif_ft_roam is set. wil_cfg80211_update_ft_ies is used as
@@ -2739,7 +2739,7 @@ struct wil6210_priv *wil_cfg80211_init(struct device *dev)
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	/* Note: the wireless_dev structure is no longer allocated here.
+	/* Note: the wireless_dev structure is yes longer allocated here.
 	 * Instead, it is allocated as part of the net_device structure
 	 * for main interface and each VIF.
 	 */
@@ -2773,7 +2773,7 @@ void wil_cfg80211_deinit(struct wil6210_priv *wil)
 	wiphy->iface_combinations = NULL;
 
 	wiphy_free(wiphy);
-	/* do not access wil6210_priv after returning from here */
+	/* do yest access wil6210_priv after returning from here */
 }
 
 void wil_p2p_wdev_free(struct wil6210_priv *wil)
@@ -2892,13 +2892,13 @@ static int wil_rf_sector_get_cfg(struct wiphy *wiphy,
 			      QCA_ATTR_PAD))
 		goto nla_put_failure;
 
-	nl_cfgs = nla_nest_start_noflag(msg, QCA_ATTR_DMG_RF_SECTOR_CFG);
+	nl_cfgs = nla_nest_start_yesflag(msg, QCA_ATTR_DMG_RF_SECTOR_CFG);
 	if (!nl_cfgs)
 		goto nla_put_failure;
 	for (i = 0; i < WMI_MAX_RF_MODULES_NUM; i++) {
 		if (!(rf_modules_vec & BIT(i)))
 			continue;
-		nl_cfg = nla_nest_start_noflag(msg, i);
+		nl_cfg = nla_nest_start_yesflag(msg, i);
 		if (!nl_cfg)
 			goto nla_put_failure;
 		si = &reply.evt.sectors_info[i];
@@ -3237,7 +3237,7 @@ static int wil_rf_sector_set_selected(struct wiphy *wiphy,
 					wil, vif->mid,
 					WMI_INVALID_RF_SECTOR_INDEX,
 					sector_type, i);
-				/* the FW will silently ignore and return
+				/* the FW will silently igyesre and return
 				 * success for unused cid, so abort the loop
 				 * on any other error
 				 */

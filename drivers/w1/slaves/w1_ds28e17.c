@@ -108,7 +108,7 @@ static int w1_f19_i2c_busy_wait(struct w1_slave *sl, size_t count)
 		if (w1_touch_bit(sl->master, 1) == 0)
 			return 0;
 
-		/* Wait one non-streched byte timeslot. */
+		/* Wait one yesn-streched byte timeslot. */
 		udelay(timebases[data->speed]);
 	}
 
@@ -125,10 +125,10 @@ static size_t w1_f19_error(struct w1_slave *sl, u8 w1_buf[])
 	if (w1_buf[0] & W1_F19_STATUS_CRC)
 		dev_warn(&sl->dev, "crc16 mismatch\n");
 	if (w1_buf[0] & W1_F19_STATUS_ADDRESS)
-		dev_warn(&sl->dev, "i2c device not responding\n");
+		dev_warn(&sl->dev, "i2c device yest responding\n");
 	if ((w1_buf[0] & (W1_F19_STATUS_CRC | W1_F19_STATUS_ADDRESS)) == 0
 			&& w1_buf[1] != 0) {
-		dev_warn(&sl->dev, "i2c short write, %d bytes not acknowledged\n",
+		dev_warn(&sl->dev, "i2c short write, %d bytes yest ackyeswledged\n",
 			w1_buf[1]);
 	}
 
@@ -385,8 +385,8 @@ static int w1_f19_i2c_master_transfer(struct i2c_adapter *adapter,
 			/*
 			 * Check if we should interpret the read data
 			 * as a length byte. The DS28E17 unfortunately
-			 * has no read without stop, so we can just do
-			 * another simple read in that case.
+			 * has yes read without stop, so we can just do
+			 * ayesther simple read in that case.
 			 */
 			if (msgs[i+1].flags & I2C_M_RECV_LEN) {
 				result = w1_f19_i2c_read(sl, msgs[i+1].addr,
@@ -411,8 +411,8 @@ static int w1_f19_i2c_master_transfer(struct i2c_adapter *adapter,
 			/*
 			 * Check if we should interpret the read data
 			 * as a length byte. The DS28E17 unfortunately
-			 * has no read without stop, so we can just do
-			 * another simple read in that case.
+			 * has yes read without stop, so we can just do
+			 * ayesther simple read in that case.
 			 */
 			if (msgs[i].flags & I2C_M_RECV_LEN) {
 				result = w1_f19_i2c_read(sl,
@@ -702,7 +702,7 @@ static int w1_f19_add_slave(struct w1_slave *sl)
 	default:
 		/*
 		 * A i2c_speed module parameter of anything else
-		 * than 100, 400, 900 means not to touch the
+		 * than 100, 400, 900 means yest to touch the
 		 * speed of the DS28E17.
 		 * We assume 400kBaud, the power-on value.
 		 */

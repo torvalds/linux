@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	int rc;
 
-	/* Tell stdout not to buffer its content */
+	/* Tell stdout yest to buffer its content */
 	setbuf(stdout, NULL);
 
 	/* Create VM */

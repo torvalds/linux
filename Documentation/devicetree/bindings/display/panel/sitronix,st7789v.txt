@@ -11,9 +11,9 @@ Optional properties:
 
 The generic bindings for the SPI slaves documented in [1] also applies
 
-The device node can contain one 'port' child node with one child
-'endpoint' node, according to the bindings defined in [2]. This
-node should describe panel's video bus.
+The device yesde can contain one 'port' child yesde with one child
+'endpoint' yesde, according to the bindings defined in [2]. This
+yesde should describe panel's video bus.
 
 [1]: Documentation/devicetree/bindings/spi/spi-bus.txt
 [2]: Documentation/devicetree/bindings/graph.txt

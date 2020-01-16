@@ -61,14 +61,14 @@ static int bfs_move_blocks(struct super_block *sb, unsigned long start,
 	return 0;
 }
 
-static int bfs_get_block(struct inode *inode, sector_t block,
+static int bfs_get_block(struct iyesde *iyesde, sector_t block,
 			struct buffer_head *bh_result, int create)
 {
 	unsigned long phys;
 	int err;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct bfs_sb_info *info = BFS_SB(sb);
-	struct bfs_inode_info *bi = BFS_I(inode);
+	struct bfs_iyesde_info *bi = BFS_I(iyesde);
 
 	phys = bi->i_sblock + block;
 	if (!create) {
@@ -81,7 +81,7 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	}
 
 	/*
-	 * If the file is not empty and the requested block is within the
+	 * If the file is yest empty and the requested block is within the
 	 * range of blocks allocated for this file, we can grant it.
 	 */
 	if (bi->i_sblock && (phys <= bi->i_eblock)) {
@@ -91,7 +91,7 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 		return 0;
 	}
 
-	/* The file will be extended, so let's see if there is enough space. */
+	/* The file will be extended, so let's see if there is eyesugh space. */
 	if (phys >= info->si_blocks)
 		return -ENOSPC;
 
@@ -109,7 +109,7 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 		map_bh(bh_result, sb, phys);
 		info->si_freeb -= phys - bi->i_eblock;
 		info->si_lf_eblk = bi->i_eblock = phys;
-		mark_inode_dirty(inode);
+		mark_iyesde_dirty(iyesde);
 		err = 0;
 		goto out;
 	}
@@ -122,11 +122,11 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	}
 
 	if (bi->i_sblock) {
-		err = bfs_move_blocks(inode->i_sb, bi->i_sblock, 
+		err = bfs_move_blocks(iyesde->i_sb, bi->i_sblock, 
 						bi->i_eblock, phys);
 		if (err) {
-			dprintf("failed to move ino=%08lx -> fs corruption\n",
-								inode->i_ino);
+			dprintf("failed to move iyes=%08lx -> fs corruption\n",
+								iyesde->i_iyes);
 			goto out;
 		}
 	} else
@@ -139,11 +139,11 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	info->si_lf_eblk = bi->i_eblock = phys;
 
 	/*
-	 * This assumes nothing can write the inode back while we are here
-	 * and thus update inode->i_blocks! (XXX)
+	 * This assumes yesthing can write the iyesde back while we are here
+	 * and thus update iyesde->i_blocks! (XXX)
 	 */
-	info->si_freeb -= bi->i_eblock - bi->i_sblock + 1 - inode->i_blocks;
-	mark_inode_dirty(inode);
+	info->si_freeb -= bi->i_eblock - bi->i_sblock + 1 - iyesde->i_blocks;
+	mark_iyesde_dirty(iyesde);
 	map_bh(bh_result, sb, phys);
 out:
 	mutex_unlock(&info->bfs_lock);
@@ -162,10 +162,10 @@ static int bfs_readpage(struct file *file, struct page *page)
 
 static void bfs_write_failed(struct address_space *mapping, loff_t to)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 
-	if (to > inode->i_size)
-		truncate_pagecache(inode, inode->i_size);
+	if (to > iyesde->i_size)
+		truncate_pagecache(iyesde, iyesde->i_size);
 }
 
 static int bfs_write_begin(struct file *file, struct address_space *mapping,
@@ -195,4 +195,4 @@ const struct address_space_operations bfs_aops = {
 	.bmap		= bfs_bmap,
 };
 
-const struct inode_operations bfs_file_inops;
+const struct iyesde_operations bfs_file_iyesps;

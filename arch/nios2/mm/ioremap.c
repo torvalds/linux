@@ -36,7 +36,7 @@ static inline void remap_area_pte(pte_t *pte, unsigned long address,
 		BUG();
 	pfn = PFN_DOWN(phys_addr);
 	do {
-		if (!pte_none(*pte)) {
+		if (!pte_yesne(*pte)) {
 			pr_err("remap_area_pte: page already exists\n");
 			BUG();
 		}
@@ -125,7 +125,7 @@ void __iomem *ioremap(unsigned long phys_addr, unsigned long size)
 	if (!size || last_addr < phys_addr)
 		return NULL;
 
-	/* Don't allow anybody to remap normal RAM that we're using */
+	/* Don't allow anybody to remap yesrmal RAM that we're using */
 	if (phys_addr > PHYS_OFFSET && phys_addr < virt_to_phys(high_memory)) {
 		char *t_addr, *t_end;
 		struct page *page;

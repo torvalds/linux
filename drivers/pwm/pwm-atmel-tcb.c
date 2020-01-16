@@ -242,7 +242,7 @@ static int atmel_tcb_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	}
 
 	/*
-	 * If duty is 0 or equal to period there's no need to register
+	 * If duty is 0 or equal to period there's yes need to register
 	 * a specific action on RA/RB and RC compare.
 	 * The output will be configured on software trigger and keep
 	 * this config till next config call.
@@ -313,7 +313,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/*
-	 * If none of the divisor are small enough to represent period_ns
+	 * If yesne of the divisor are small eyesugh to represent period_ns
 	 * take slow clock (32KHz).
 	 */
 	if (i == 5) {
@@ -379,7 +379,7 @@ static const struct pwm_ops atmel_tcb_pwm_ops = {
 static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 {
 	struct atmel_tcb_pwm_chip *tcbpwm;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct atmel_tc *tc;
 	int err;
 	int tcblock;

@@ -111,7 +111,7 @@ static int dsi_10nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 					status, (status & BIT(0)),
 					delay_us, timeout_us);
 	if (ret) {
-		pr_err("Ref gen not ready. Aborting\n");
+		pr_err("Ref gen yest ready. Aborting\n");
 		return -EINVAL;
 	}
 

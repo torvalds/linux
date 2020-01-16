@@ -23,7 +23,7 @@
  * registers.
  *
  * DSB HW can support only register writes (both indexed and direct MMIO
- * writes). There are no registers reads possible with DSB HW engine.
+ * writes). There are yes registers reads possible with DSB HW engine.
  */
 
 /* DSB opcodes. */
@@ -213,7 +213,7 @@ void intel_dsb_indexed_reg_write(struct intel_dsb *dsb, i915_reg_t reg,
 	 *
 	 * As every instruction is 8 byte aligned the index of dsb instruction
 	 * will start always from even number while dealing with u32 array. If
-	 * we are writing odd no of dwords, Zeros will be added in the end for
+	 * we are writing odd yes of dwords, Zeros will be added in the end for
 	 * padding.
 	 */
 	reg_val = buf[dsb->ins_start_offset + 1] & DSB_REG_VALUE_MASK;
@@ -247,7 +247,7 @@ void intel_dsb_indexed_reg_write(struct intel_dsb *dsb, i915_reg_t reg,
 }
 
 /**
- * intel_dsb_reg_write() -Write to the DSB context for normal
+ * intel_dsb_reg_write() -Write to the DSB context for yesrmal
  * register.
  * @dsb: intel_dsb structure.
  * @reg: register address.

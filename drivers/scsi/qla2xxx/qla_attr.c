@@ -72,7 +72,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 			break;
 
 		ql_log(ql_log_info, vha, 0x705d,
-		    "Firmware dump cleared on (%ld).\n", vha->host_no);
+		    "Firmware dump cleared on (%ld).\n", vha->host_yes);
 
 		if (IS_P3P_TYPE(ha)) {
 			qla82xx_md_free(vha);
@@ -87,7 +87,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 
 			ql_log(ql_log_info, vha, 0x705e,
 			    "Raw firmware dump ready for read on (%ld).\n",
-			    vha->host_no);
+			    vha->host_yes);
 		}
 		break;
 	case 2:
@@ -114,7 +114,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 				    "MiniDump supported with this firmware.\n");
 			else
 				ql_dbg(ql_dbg_user, vha, 0x709d,
-				    "MiniDump not supported with this firmware.\n");
+				    "MiniDump yest supported with this firmware.\n");
 		}
 		break;
 	case 5:
@@ -125,7 +125,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 		if (!ha->mctp_dump_reading)
 			break;
 		ql_log(ql_log_info, vha, 0x70c1,
-		    "MCTP dump cleared on (%ld).\n", vha->host_no);
+		    "MCTP dump cleared on (%ld).\n", vha->host_yes);
 		ha->mctp_dump_reading = 0;
 		ha->mctp_dumped = 0;
 		break;
@@ -134,7 +134,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 			ha->mctp_dump_reading = 1;
 			ql_log(ql_log_info, vha, 0x70c2,
 			    "Raw mctp dump ready for read on (%ld).\n",
-			    vha->host_no);
+			    vha->host_yes);
 		}
 		break;
 	}
@@ -230,7 +230,7 @@ qla2x00_sysfs_write_nvram(struct file *filp, struct kobject *kobj,
 
 	if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x705f,
-		    "HBA not online, failing NVRAM update.\n");
+		    "HBA yest online, failing NVRAM update.\n");
 		return -EAGAIN;
 	}
 
@@ -398,7 +398,7 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 
 		if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x7063,
-			    "HBA not online, failing NVRAM update.\n");
+			    "HBA yest online, failing NVRAM update.\n");
 			rval = -EAGAIN;
 			goto out;
 		}
@@ -480,7 +480,7 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 
 		if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x7068,
-			    "HBA not online, failing flash update.\n");
+			    "HBA yest online, failing flash update.\n");
 			rval = -EAGAIN;
 			goto out;
 		}
@@ -581,7 +581,7 @@ qla2x00_sysfs_write_vpd(struct file *filp, struct kobject *kobj,
 
 	if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x706a,
-		    "HBA not online, failing VPD update.\n");
+		    "HBA yest online, failing VPD update.\n");
 		return -EAGAIN;
 	}
 
@@ -686,7 +686,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 
 		scsi_block_requests(vha->host);
 		if (IS_QLA82XX(ha)) {
-			ha->flags.isp82xx_no_md_cap = 1;
+			ha->flags.isp82xx_yes_md_cap = 1;
 			qla82xx_idc_lock(ha);
 			qla82xx_set_reset_owner(vha);
 			qla82xx_idc_unlock(ha);
@@ -725,7 +725,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 			qla83xx_idc_unlock(vha, 0);
 			break;
 		} else {
-			/* Make sure FC side is not in reset */
+			/* Make sure FC side is yest in reset */
 			WARN_ON_ONCE(qla2x00_wait_for_hba_online(vha) !=
 				     QLA_SUCCESS);
 
@@ -740,7 +740,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 	case 0x2025e:
 		if (!IS_P3P_TYPE(ha) || vha != base_vha) {
 			ql_log(ql_log_info, vha, 0x7071,
-			    "FCoE ctx reset not supported.\n");
+			    "FCoE ctx reset yest supported.\n");
 			return -EPERM;
 		}
 
@@ -1145,7 +1145,7 @@ qla2x00_link_state_show(struct device *dev, struct device_attribute *attr,
 		len = scnprintf(buf, PAGE_SIZE, "Link Down\n");
 	else if (atomic_read(&vha->loop_state) != LOOP_READY ||
 	    qla2x00_chip_is_down(vha))
-		len = scnprintf(buf, PAGE_SIZE, "Unknown Link State\n");
+		len = scnprintf(buf, PAGE_SIZE, "Unkyeswn Link State\n");
 	else {
 		len = scnprintf(buf, PAGE_SIZE, "Link Up - ");
 
@@ -1306,7 +1306,7 @@ qla2x00_beacon_store(struct device *dev, struct device_attribute *attr,
 	if (qla2x00_chip_is_down(vha)) {
 		mutex_unlock(&vha->hw->optrom_mutex);
 		ql_log(ql_log_warn, vha, 0x707a,
-		    "Abort ISP active -- ignoring beacon request.\n");
+		    "Abort ISP active -- igyesring beacon request.\n");
 		return -EBUSY;
 	}
 
@@ -1676,7 +1676,7 @@ qla2x00_min_supported_speed_show(struct device *dev,
 	    ha->min_supported_speed == 4 ? "16Gps" :
 	    ha->min_supported_speed == 3 ? "8Gps" :
 	    ha->min_supported_speed == 2 ? "4Gps" :
-	    ha->min_supported_speed != 0 ? "unknown" : "");
+	    ha->min_supported_speed != 0 ? "unkyeswn" : "");
 }
 
 static ssize_t
@@ -1692,7 +1692,7 @@ qla2x00_max_supported_speed_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%s\n",
 	    ha->max_supported_speed  == 2 ? "64Gps" :
 	    ha->max_supported_speed  == 1 ? "32Gps" :
-	    ha->max_supported_speed  == 0 ? "16Gps" : "unknown");
+	    ha->max_supported_speed  == 0 ? "16Gps" : "unkyeswn");
 }
 
 static ssize_t
@@ -1707,7 +1707,7 @@ qla2x00_port_speed_store(struct device *dev, struct device_attribute *attr,
 
 	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha)) {
 		ql_log(ql_log_warn, vha, 0x70d8,
-		    "Speed setting not supported \n");
+		    "Speed setting yest supported \n");
 		return -EINVAL;
 	}
 
@@ -2149,7 +2149,7 @@ ql2xexchoffld_show(struct device *dev, struct device_attribute *attr,
 
 	len += scnprintf(buf + len, PAGE_SIZE-len,
 	    "Please (re)set operating mode via \"/sys/class/scsi_host/host%ld/qlini_mode\" to load new setting.\n",
-	    vha->host_no);
+	    vha->host_yes);
 
 	return len;
 }
@@ -2186,7 +2186,7 @@ ql2xiniexchg_show(struct device *dev, struct device_attribute *attr,
 
 	len += scnprintf(buf + len, PAGE_SIZE-len,
 	    "Please (re)set operating mode via \"/sys/class/scsi_host/host%ld/qlini_mode\" to load new setting.\n",
-	    vha->host_no);
+	    vha->host_yes);
 
 	return len;
 }
@@ -2242,12 +2242,12 @@ qla2x00_fw_attr_show(struct device *dev,
 }
 
 static ssize_t
-qla2x00_port_no_show(struct device *dev, struct device_attribute *attr,
+qla2x00_port_yes_show(struct device *dev, struct device_attribute *attr,
     char *buf)
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", vha->hw->port_no);
+	return scnprintf(buf, PAGE_SIZE, "%u\n", vha->hw->port_yes);
 }
 
 static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_driver_version_show, NULL);
@@ -2310,7 +2310,7 @@ static DEVICE_ATTR(dif_bundle_statistics, 0444,
     qla2x00_dif_bundle_statistics_show, NULL);
 static DEVICE_ATTR(port_speed, 0644, qla2x00_port_speed_show,
     qla2x00_port_speed_store);
-static DEVICE_ATTR(port_no, 0444, qla2x00_port_no_show, NULL);
+static DEVICE_ATTR(port_yes, 0444, qla2x00_port_yes_show, NULL);
 static DEVICE_ATTR(fw_attr, 0444, qla2x00_fw_attr_show, NULL);
 
 
@@ -2353,7 +2353,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_zio_threshold,
 	&dev_attr_dif_bundle_statistics,
 	&dev_attr_port_speed,
-	&dev_attr_port_no,
+	&dev_attr_port_yes,
 	&dev_attr_fw_attr,
 	NULL, /* reserve for qlini_mode */
 	NULL, /* reserve for ql2xiniexchg */
@@ -2463,22 +2463,22 @@ qla2x00_get_host_port_type(struct Scsi_Host *shost)
 }
 
 static void
-qla2x00_get_starget_node_name(struct scsi_target *starget)
+qla2x00_get_starget_yesde_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *host = dev_to_shost(starget->dev.parent);
 	scsi_qla_host_t *vha = shost_priv(host);
 	fc_port_t *fcport;
-	u64 node_name = 0;
+	u64 yesde_name = 0;
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 		if (fcport->rport &&
 		    starget->id == fcport->rport->scsi_target_id) {
-			node_name = wwn_to_u64(fcport->node_name);
+			yesde_name = wwn_to_u64(fcport->yesde_name);
 			break;
 		}
 	}
 
-	fc_starget_node_name(starget) = node_name;
+	fc_starget_yesde_name(starget) = yesde_name;
 }
 
 static void
@@ -2659,7 +2659,7 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 		p->tx_frames = stats->tx_frames;
 		p->rx_frames = stats->rx_frames;
 		p->dumped_frames = stats->discarded_frames;
-		p->nos_count = stats->nos_rcvd;
+		p->yess_count = stats->yess_rcvd;
 		p->error_frames =
 			stats->dropped_frames + stats->discarded_frames;
 		p->rx_words = vha->qla_stats.input_bytes;
@@ -2717,7 +2717,7 @@ qla2x00_get_host_symbolic_name(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
 
-	qla2x00_get_sym_node_name(vha, fc_host_symbolic_name(shost),
+	qla2x00_get_sym_yesde_name(vha, fc_host_symbolic_name(shost),
 	    sizeof(fc_host_symbolic_name(shost)));
 }
 
@@ -2733,13 +2733,13 @@ static void
 qla2x00_get_host_fabric_name(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
-	static const uint8_t node_name[WWN_SIZE] = {
+	static const uint8_t yesde_name[WWN_SIZE] = {
 		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 	};
-	u64 fabric_name = wwn_to_u64(node_name);
+	u64 fabric_name = wwn_to_u64(yesde_name);
 
 	if (vha->device_flags & SWITCH_FOUND)
-		fabric_name = wwn_to_u64(vha->fabric_node_name);
+		fabric_name = wwn_to_u64(vha->fabric_yesde_name);
 
 	fc_host_fabric_name(shost) = fabric_name;
 }
@@ -2820,7 +2820,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	    atomic_read(&base_vha->loop_state) == LOOP_DEAD) {
 		/* Don't retry or attempt login of this virtual port */
 		ql_dbg(ql_dbg_user, vha, 0x7081,
-		    "Vport loop state is not UP.\n");
+		    "Vport loop state is yest UP.\n");
 		atomic_set(&vha->loop_state, LOOP_DEAD);
 		if (!disable)
 			fc_vport_set_state(fc_vport, FC_VPORT_LINKDOWN);
@@ -2863,7 +2863,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 
 	/* initialize attributes */
 	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
-	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
+	fc_host_yesde_name(vha->host) = wwn_to_u64(vha->yesde_name);
 	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
 	fc_host_supported_classes(vha->host) =
 		fc_host_supported_classes(base_vha->host);
@@ -2879,7 +2879,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	/* Create a request queue in QoS mode for the vport */
 	for (cnt = 0; cnt < ha->nvram_npiv_size; cnt++) {
 		if (memcmp(ha->npiv_info[cnt].port_name, vha->port_name, 8) == 0
-			&& memcmp(ha->npiv_info[cnt].node_name, vha->node_name,
+			&& memcmp(ha->npiv_info[cnt].yesde_name, vha->yesde_name,
 					8) == 0) {
 			qos = ha->npiv_info[cnt].q_qos;
 			break;
@@ -2990,7 +2990,7 @@ qla24xx_vport_disable(struct fc_vport *fc_vport, bool disable)
 
 struct fc_function_template qla2xxx_transport_functions = {
 
-	.show_host_node_name = 1,
+	.show_host_yesde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_speeds = 1,
@@ -3013,8 +3013,8 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.dd_fcrport_size = sizeof(struct fc_port *),
 	.show_rport_supported_classes = 1,
 
-	.get_starget_node_name = qla2x00_get_starget_node_name,
-	.show_starget_node_name = 1,
+	.get_starget_yesde_name = qla2x00_get_starget_yesde_name,
+	.show_starget_yesde_name = 1,
 	.get_starget_port_name = qla2x00_get_starget_port_name,
 	.show_starget_port_name = 1,
 	.get_starget_port_id  = qla2x00_get_starget_port_id,
@@ -3038,7 +3038,7 @@ struct fc_function_template qla2xxx_transport_functions = {
 
 struct fc_function_template qla2xxx_transport_vport_functions = {
 
-	.show_host_node_name = 1,
+	.show_host_yesde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 
@@ -3060,8 +3060,8 @@ struct fc_function_template qla2xxx_transport_vport_functions = {
 	.dd_fcrport_size = sizeof(struct fc_port *),
 	.show_rport_supported_classes = 1,
 
-	.get_starget_node_name = qla2x00_get_starget_node_name,
-	.show_starget_node_name = 1,
+	.get_starget_yesde_name = qla2x00_get_starget_yesde_name,
+	.show_starget_yesde_name = 1,
 	.get_starget_port_name = qla2x00_get_starget_port_name,
 	.show_starget_port_name = 1,
 	.get_starget_port_id  = qla2x00_get_starget_port_id,
@@ -3087,7 +3087,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	u32 speeds = FC_PORTSPEED_UNKNOWN;
 
 	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
-	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
+	fc_host_yesde_name(vha->host) = wwn_to_u64(vha->yesde_name);
 	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
 	fc_host_supported_classes(vha->host) = ha->base_qpair->enable_class_2 ?
 			(FC_COS_CLASS2|FC_COS_CLASS3) : FC_COS_CLASS3;

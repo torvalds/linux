@@ -905,7 +905,7 @@ static struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
 	}
 
 	if (ctrl == NULL && !next)
-		uvc_trace(UVC_TRACE_CONTROL, "Control 0x%08x not found.\n",
+		uvc_trace(UVC_TRACE_CONTROL, "Control 0x%08x yest found.\n",
 				v4l2_id);
 
 	return ctrl;
@@ -952,11 +952,11 @@ static int uvc_ctrl_populate_cache(struct uvc_video_chain *chain,
 				return ret;
 
 			/* GET_RES is mandatory for XU controls, but some
-			 * cameras still choke on it. Ignore errors and set the
+			 * cameras still choke on it. Igyesre errors and set the
 			 * resolution value to zero.
 			 */
 			uvc_warn_once(chain->dev, UVC_WARN_XU_GET_RES,
-				      "UVC non compliance - GET_RES failed on "
+				      "UVC yesn compliance - GET_RES failed on "
 				      "an XU control. Enabling workaround.\n");
 			memset(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES), 0,
 			       ctrl->info.size);
@@ -1223,9 +1223,9 @@ static void uvc_ctrl_fill_event(struct uvc_video_chain *chain,
 /*
  * Send control change events to all subscribers for the @ctrl control. By
  * default the subscriber that generated the event, as identified by @handle,
- * is not notified unless it has set the V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK flag.
- * @handle can be NULL for asynchronous events related to auto-update controls,
- * in which case all subscribers are notified.
+ * is yest yestified unless it has set the V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK flag.
+ * @handle can be NULL for asynchroyesus events related to auto-update controls,
+ * in which case all subscribers are yestified.
  */
 static void uvc_ctrl_send_event(struct uvc_video_chain *chain,
 	struct uvc_fh *handle, struct uvc_control *ctrl,
@@ -1240,7 +1240,7 @@ static void uvc_ctrl_send_event(struct uvc_video_chain *chain,
 
 	uvc_ctrl_fill_event(chain, &ev, ctrl, mapping, value, changes);
 
-	list_for_each_entry(sev, &mapping->ev_subs, node) {
+	list_for_each_entry(sev, &mapping->ev_subs, yesde) {
 		if (sev->fh != originator ||
 		    (sev->flags & V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK) ||
 		    (changes & V4L2_EVENT_CTRL_CH_FLAGS))
@@ -1416,7 +1416,7 @@ static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 		goto done;
 	}
 
-	list_add_tail(&sev->node, &mapping->ev_subs);
+	list_add_tail(&sev->yesde, &mapping->ev_subs);
 	if (sev->flags & V4L2_EVENT_SUB_FL_SEND_INITIAL) {
 		struct v4l2_event ev;
 		u32 changes = V4L2_EVENT_CTRL_CH_FLAGS;
@@ -1443,7 +1443,7 @@ static void uvc_ctrl_del_event(struct v4l2_subscribed_event *sev)
 	struct uvc_fh *handle = container_of(sev->fh, struct uvc_fh, vfh);
 
 	mutex_lock(&handle->chain->ctrl_mutex);
-	list_del(&sev->node);
+	list_del(&sev->yesde);
 	mutex_unlock(&handle->chain->ctrl_mutex);
 }
 
@@ -1501,7 +1501,7 @@ static int uvc_ctrl_commit_entity(struct uvc_device *dev,
 		/* Reset the loaded flag for auto-update controls that were
 		 * marked as loaded in uvc_ctrl_get/uvc_ctrl_set to prevent
 		 * uvc_ctrl_get from using the cached value, and for write-only
-		 * controls to prevent uvc_ctrl_set from setting bits not
+		 * controls to prevent uvc_ctrl_set from setting bits yest
 		 * explicitly set by the user.
 		 */
 		if (ctrl->info.flags & UVC_CTRL_FLAG_AUTO_UPDATE ||
@@ -1858,7 +1858,7 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 	}
 
 	if (entity->id != xqry->unit) {
-		uvc_trace(UVC_TRACE_CONTROL, "Extension unit %u not found.\n",
+		uvc_trace(UVC_TRACE_CONTROL, "Extension unit %u yest found.\n",
 			xqry->unit);
 		return -ENOENT;
 	}
@@ -1873,7 +1873,7 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 	}
 
 	if (!found) {
-		uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u not found.\n",
+		uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u yest found.\n",
 			entity->extension.guidExtensionCode, xqry->selector);
 		return -ENOENT;
 	}
@@ -2025,7 +2025,7 @@ static int uvc_ctrl_add_info(struct uvc_device *dev, struct uvc_control *ctrl,
 	}
 
 	/*
-	 * Retrieve control flags from the device. Ignore errors and work with
+	 * Retrieve control flags from the device. Igyesre errors and work with
 	 * default flag values from the uvc_ctrl array when the device doesn't
 	 * properly implement GET_INFO on standard controls.
 	 */

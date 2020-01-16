@@ -20,7 +20,7 @@ Optional properties:
                  for the VSP. Not needed on Gen2, mandatory on Gen3.
 
 
-Example: R8A7790 (R-Car H2) VSP1-S node
+Example: R8A7790 (R-Car H2) VSP1-S yesde
 
 	vsp@fe928000 {
 		compatible = "renesas,vsp1";

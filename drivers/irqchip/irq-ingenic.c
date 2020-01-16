@@ -4,7 +4,7 @@
  *  Ingenic XBurst platform IRQ support
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -64,7 +64,7 @@ static struct irqaction intc_cascade_action = {
 	.name = "SoC intc cascade interrupt",
 };
 
-static int __init ingenic_intc_of_init(struct device_node *node,
+static int __init ingenic_intc_of_init(struct device_yesde *yesde,
 				       unsigned num_chips)
 {
 	struct ingenic_intc_data *intc;
@@ -80,7 +80,7 @@ static int __init ingenic_intc_of_init(struct device_node *node,
 		goto out_err;
 	}
 
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(yesde, 0);
 	if (!parent_irq) {
 		err = -EINVAL;
 		goto out_free;
@@ -91,13 +91,13 @@ static int __init ingenic_intc_of_init(struct device_node *node,
 		goto out_unmap_irq;
 
 	intc->num_chips = num_chips;
-	intc->base = of_iomap(node, 0);
+	intc->base = of_iomap(yesde, 0);
 	if (!intc->base) {
 		err = -ENODEV;
 		goto out_unmap_irq;
 	}
 
-	domain = irq_domain_add_legacy(node, num_chips * 32,
+	domain = irq_domain_add_legacy(yesde, num_chips * 32,
 				       JZ4740_IRQ_BASE, 0,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
@@ -147,18 +147,18 @@ out_err:
 	return err;
 }
 
-static int __init intc_1chip_of_init(struct device_node *node,
-				     struct device_node *parent)
+static int __init intc_1chip_of_init(struct device_yesde *yesde,
+				     struct device_yesde *parent)
 {
-	return ingenic_intc_of_init(node, 1);
+	return ingenic_intc_of_init(yesde, 1);
 }
 IRQCHIP_DECLARE(jz4740_intc, "ingenic,jz4740-intc", intc_1chip_of_init);
 IRQCHIP_DECLARE(jz4725b_intc, "ingenic,jz4725b-intc", intc_1chip_of_init);
 
-static int __init intc_2chip_of_init(struct device_node *node,
-	struct device_node *parent)
+static int __init intc_2chip_of_init(struct device_yesde *yesde,
+	struct device_yesde *parent)
 {
-	return ingenic_intc_of_init(node, 2);
+	return ingenic_intc_of_init(yesde, 2);
 }
 IRQCHIP_DECLARE(jz4770_intc, "ingenic,jz4770-intc", intc_2chip_of_init);
 IRQCHIP_DECLARE(jz4775_intc, "ingenic,jz4775-intc", intc_2chip_of_init);

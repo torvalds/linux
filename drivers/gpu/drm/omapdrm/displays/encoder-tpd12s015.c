@@ -169,7 +169,7 @@ static int tpd_probe(struct platform_device *pdev)
 	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_DETECT
 			  | OMAP_DSS_DEVICE_OP_HPD;
 
-	dssdev->next = omapdss_of_find_connected_device(pdev->dev.of_node, 1);
+	dssdev->next = omapdss_of_find_connected_device(pdev->dev.of_yesde, 1);
 	if (IS_ERR(dssdev->next)) {
 		if (PTR_ERR(dssdev->next) != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "failed to find video sink\n");

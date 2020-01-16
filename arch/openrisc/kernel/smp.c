@@ -4,7 +4,7 @@
  *
  * Based on arm64 and arc implementations
  * Copyright (C) 2013 ARM Ltd.
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -47,7 +47,7 @@ static void boot_secondary(unsigned int cpu, struct task_struct *idle)
 	smp_cross_call(cpumask_of(cpu), IPI_WAKEUP);
 
 	/*
-	 * now the secondary core is starting up let it run its
+	 * yesw the secondary core is starting up let it run its
 	 * calibrations, then wait for it to finish
 	 */
 	spin_unlock(&boot_lock);
@@ -122,10 +122,10 @@ asmlinkage __init void secondary_start_kernel(void)
 	setup_cpuinfo();
 	openrisc_clockevent_init();
 
-	notify_cpu_starting(cpu);
+	yestify_cpu_starting(cpu);
 
 	/*
-	 * OK, now it's safe to let the boot CPU continue
+	 * OK, yesw it's safe to let the boot CPU continue
 	 */
 	complete(&cpu_running);
 
@@ -162,7 +162,7 @@ void handle_IPI(unsigned int ipi_msg)
 		break;
 
 	default:
-		WARN(1, "CPU%u: Unknown IPI message 0x%x\n", cpu, ipi_msg);
+		WARN(1, "CPU%u: Unkyeswn IPI message 0x%x\n", cpu, ipi_msg);
 		break;
 	}
 }
@@ -191,7 +191,7 @@ void smp_send_stop(void)
 	smp_call_function(stop_this_cpu, NULL, 0);
 }
 
-/* not supported, yet */
+/* yest supported, yet */
 int setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
@@ -213,7 +213,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 }
 
 /* TLB flush operations - Performed on each CPU*/
-static inline void ipi_flush_tlb_all(void *ignored)
+static inline void ipi_flush_tlb_all(void *igyesred)
 {
 	local_flush_tlb_all();
 }

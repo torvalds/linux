@@ -953,7 +953,7 @@ static const struct ath10k_mem_region qca4019_hw10_mem_regions[] = {
 
 static const struct ath10k_mem_region wcn399x_hw10_mem_regions[] = {
 	{
-		/* MSA region start is not fixed, hence it is assigned at runtime */
+		/* MSA region start is yest fixed, hence it is assigned at runtime */
 		.type = ATH10K_MEM_REGION_TYPE_MSA,
 		.len = 0x100000,
 		.name = "DRAM",
@@ -1181,7 +1181,7 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar)
 	dump_data->bus_type = cpu_to_le32(0);
 	dump_data->target_version = cpu_to_le32(ar->target_version);
 	dump_data->fw_version_major = cpu_to_le32(ar->fw_version_major);
-	dump_data->fw_version_minor = cpu_to_le32(ar->fw_version_minor);
+	dump_data->fw_version_miyesr = cpu_to_le32(ar->fw_version_miyesr);
 	dump_data->fw_version_release = cpu_to_le32(ar->fw_version_release);
 	dump_data->fw_version_build = cpu_to_le32(ar->fw_version_build);
 	dump_data->phy_capability = cpu_to_le32(ar->phy_capability);
@@ -1251,7 +1251,7 @@ int ath10k_coredump_submit(struct ath10k *ar)
 
 	dump = ath10k_coredump_build(ar);
 	if (!dump) {
-		ath10k_warn(ar, "no crash dump data found for devcoredump");
+		ath10k_warn(ar, "yes crash dump data found for devcoredump");
 		return -ENODATA;
 	}
 

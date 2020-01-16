@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techyeslogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -208,7 +208,7 @@ static int wilc_sdio_suspend(struct device *dev)
 		clk_disable_unprepare(wilc->rtc_clk);
 
 	if (wilc->suspend_event) {
-		host_sleep_notify(wilc);
+		host_sleep_yestify(wilc);
 		chip_allow_sleep(wilc);
 	}
 
@@ -734,7 +734,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	} while (loop--);
 
 	if (loop <= 0) {
-		dev_err(&func->dev, "Fail func 1 is not ready...\n");
+		dev_err(&func->dev, "Fail func 1 is yest ready...\n");
 		goto fail;
 	}
 
@@ -917,7 +917,7 @@ static int wilc_sdio_clear_int_ext(struct wilc *wilc, u32 val)
 	if (sdio_priv->irq_gpio) {
 		/* has_thrpt_enh2 uses register 0xf8 to clear interrupts. */
 		/*
-		 * Cannot clear multiple interrupts.
+		 * Canyest clear multiple interrupts.
 		 * Must clear each interrupt individually.
 		 */
 		u32 flags;
@@ -1005,7 +1005,7 @@ static int wilc_sdio_sync_ext(struct wilc *wilc, int nint)
 	}
 	if (nint > MAX_NUN_INT_THRPT_ENH2) {
 		dev_err(&func->dev,
-			"Cannot support more than 5 interrupts when has_thrpt_enh2=1.\n");
+			"Canyest support more than 5 interrupts when has_thrpt_enh2=1.\n");
 		return 0;
 	}
 
@@ -1117,7 +1117,7 @@ static int wilc_sdio_resume(struct device *dev)
 	wilc_sdio_init(wilc, true);
 
 	if (wilc->suspend_event)
-		host_wakeup_notify(wilc);
+		host_wakeup_yestify(wilc);
 
 	chip_allow_sleep(wilc);
 

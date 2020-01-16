@@ -2,7 +2,7 @@
 /*
  * IMG SPDIF input controller driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techyeslogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -146,13 +146,13 @@ static int img_spdif_in_check_max_rate(struct img_spdif_in *spdif,
 	return 0;
 }
 
-static int img_spdif_in_do_clkgen_calc(unsigned int rate, unsigned int *pnom,
+static int img_spdif_in_do_clkgen_calc(unsigned int rate, unsigned int *pyesm,
 		unsigned int *phld, unsigned long clk_rate)
 {
-	unsigned int ori, nom, hld;
+	unsigned int ori, yesm, hld;
 
 	/*
-	 * Calculate oversampling ratio, nominal phase increment and hold
+	 * Calculate oversampling ratio, yesminal phase increment and hold
 	 * increment for the given rate / frequency
 	 */
 
@@ -164,12 +164,12 @@ static int img_spdif_in_do_clkgen_calc(unsigned int rate, unsigned int *pnom,
 	if (!ori)
 		return -EINVAL;
 
-	nom = (4096 / ori) + 1;
+	yesm = (4096 / ori) + 1;
 	do
-		hld = 4096 - (--nom * (ori - 1));
+		hld = 4096 - (--yesm * (ori - 1));
 	while (hld < 120);
 
-	*pnom = nom;
+	*pyesm = yesm;
 	*phld = hld;
 
 	return 0;
@@ -178,7 +178,7 @@ static int img_spdif_in_do_clkgen_calc(unsigned int rate, unsigned int *pnom,
 static int img_spdif_in_do_clkgen_single(struct img_spdif_in *spdif,
 		unsigned int rate)
 {
-	unsigned int nom, hld;
+	unsigned int yesm, hld;
 	unsigned long flags, clk_rate;
 	int ret = 0;
 	u32 reg;
@@ -187,11 +187,11 @@ static int img_spdif_in_do_clkgen_single(struct img_spdif_in *spdif,
 	if (ret)
 		return ret;
 
-	ret = img_spdif_in_do_clkgen_calc(rate, &nom, &hld, clk_rate);
+	ret = img_spdif_in_do_clkgen_calc(rate, &yesm, &hld, clk_rate);
 	if (ret)
 		return ret;
 
-	reg = (nom << IMG_SPDIF_IN_CLKGEN_NOM_SHIFT) &
+	reg = (yesm << IMG_SPDIF_IN_CLKGEN_NOM_SHIFT) &
 		IMG_SPDIF_IN_CLKGEN_NOM_MASK;
 	reg |= (hld << IMG_SPDIF_IN_CLKGEN_HLD_SHIFT) &
 		IMG_SPDIF_IN_CLKGEN_HLD_MASK;
@@ -215,7 +215,7 @@ static int img_spdif_in_do_clkgen_single(struct img_spdif_in *spdif,
 static int img_spdif_in_do_clkgen_multi(struct img_spdif_in *spdif,
 		unsigned int multi_freqs[])
 {
-	unsigned int nom, hld, rate, max_rate = 0;
+	unsigned int yesm, hld, rate, max_rate = 0;
 	unsigned long flags, clk_rate;
 	int i, ret = 0;
 	u32 reg, trk_reg, temp_regs[IMG_SPDIF_IN_NUM_ACLKGEN];
@@ -231,11 +231,11 @@ static int img_spdif_in_do_clkgen_multi(struct img_spdif_in *spdif,
 	for (i = 0; i < IMG_SPDIF_IN_NUM_ACLKGEN; i++) {
 		rate = multi_freqs[i];
 
-		ret = img_spdif_in_do_clkgen_calc(rate, &nom, &hld, clk_rate);
+		ret = img_spdif_in_do_clkgen_calc(rate, &yesm, &hld, clk_rate);
 		if (ret)
 			return ret;
 
-		reg = (nom << IMG_SPDIF_IN_ACLKGEN_NOM_SHIFT) &
+		reg = (yesm << IMG_SPDIF_IN_ACLKGEN_NOM_SHIFT) &
 			IMG_SPDIF_IN_ACLKGEN_NOM_MASK;
 		reg |= (hld << IMG_SPDIF_IN_ACLKGEN_HLD_SHIFT) &
 			IMG_SPDIF_IN_ACLKGEN_HLD_MASK;

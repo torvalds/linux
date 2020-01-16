@@ -48,7 +48,7 @@ static void ef4_mtd_remove_partition(struct ef4_mtd_partition *part)
 		ssleep(1);
 	}
 	WARN_ON(rc);
-	list_del(&part->node);
+	list_del(&part->yesde);
 }
 
 int ef4_mtd_add(struct ef4_nic *efx, struct ef4_mtd_partition *parts,
@@ -77,7 +77,7 @@ int ef4_mtd_add(struct ef4_nic *efx, struct ef4_mtd_partition *parts,
 			goto fail;
 
 		/* Add to list in order - ef4_mtd_remove() depends on this */
-		list_add_tail(&part->node, &efx->mtd_list);
+		list_add_tail(&part->yesde, &efx->mtd_list);
 	}
 
 	return 0;
@@ -102,9 +102,9 @@ void ef4_mtd_remove(struct ef4_nic *efx)
 		return;
 
 	parts = list_first_entry(&efx->mtd_list, struct ef4_mtd_partition,
-				 node);
+				 yesde);
 
-	list_for_each_entry_safe(part, next, &efx->mtd_list, node)
+	list_for_each_entry_safe(part, next, &efx->mtd_list, yesde)
 		ef4_mtd_remove_partition(part);
 
 	kfree(parts);
@@ -116,6 +116,6 @@ void ef4_mtd_rename(struct ef4_nic *efx)
 
 	ASSERT_RTNL();
 
-	list_for_each_entry(part, &efx->mtd_list, node)
+	list_for_each_entry(part, &efx->mtd_list, yesde)
 		efx->type->mtd_rename(part);
 }

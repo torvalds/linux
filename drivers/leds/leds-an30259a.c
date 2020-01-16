@@ -63,7 +63,7 @@ struct an30259a;
 
 struct an30259a_led {
 	struct an30259a *chip;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct led_classdev cdev;
 	u32 num;
 	u32 default_state;
@@ -149,7 +149,7 @@ static int an30259a_blink_set(struct led_classdev *cdev,
 		goto error;
 	}
 
-	/* if no blink specified, default to 1 Hz. */
+	/* if yes blink specified, default to 1 Hz. */
 	if (!off && !on) {
 		*delay_off = off = 500;
 		*delay_on = on = 500;
@@ -165,7 +165,7 @@ static int an30259a_blink_set(struct led_classdev *cdev,
 	if (ret)
 		goto error;
 
-	/* reset detention time (no "breathing" effect). */
+	/* reset detention time (yes "breathing" effect). */
 	ret = regmap_write(led->chip->regmap, AN30259A_REG_LEDCNT3(num),
 			   AN30259A_LED_DT1(0) | AN30259A_LED_DT2(0));
 	if (ret)
@@ -202,7 +202,7 @@ error:
 static int an30259a_dt_init(struct i2c_client *client,
 			    struct an30259a *chip)
 {
-	struct device_node *np = client->dev.of_node, *child;
+	struct device_yesde *np = client->dev.of_yesde, *child;
 	int count, ret;
 	int i = 0;
 	const char *str;
@@ -212,7 +212,7 @@ static int an30259a_dt_init(struct i2c_client *client,
 	if (!count || count > AN30259A_MAX_LEDS)
 		return -EINVAL;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		u32 source;
 
 		ret = of_property_read_u32(child, "reg", &source);
@@ -227,7 +227,7 @@ static int an30259a_dt_init(struct i2c_client *client,
 
 		led->num = source;
 		led->chip = chip;
-		led->fwnode = of_fwnode_handle(child);
+		led->fwyesde = of_fwyesde_handle(child);
 
 		if (!of_property_read_string(child, "default-state", &str)) {
 			if (!strcmp(str, "on"))
@@ -320,7 +320,7 @@ static int an30259a_probe(struct i2c_client *client)
 			an30259a_brightness_set;
 		chip->leds[i].cdev.blink_set = an30259a_blink_set;
 
-		init_data.fwnode = chip->leds[i].fwnode;
+		init_data.fwyesde = chip->leds[i].fwyesde;
 		init_data.devicename = AN30259A_NAME;
 		init_data.default_label = ":";
 

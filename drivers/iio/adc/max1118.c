@@ -2,7 +2,7 @@
 /*
  * MAX1117/MAX1118/MAX1119 8-bit, dual-channel ADCs driver
  *
- * Copyright (c) 2017 Akinobu Mita <akinobu.mita@gmail.com>
+ * Copyright (c) 2017 Akiyesbu Mita <akiyesbu.mita@gmail.com>
  *
  * Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX1117-MAX1119.pdf
  *
@@ -185,7 +185,7 @@ static irqreturn_t max1118_trigger_handler(int irq, void *p)
 out:
 	mutex_unlock(&adc->lock);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -298,6 +298,6 @@ static struct spi_driver max1118_spi_driver = {
 };
 module_spi_driver(max1118_spi_driver);
 
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akiyesbu Mita <akiyesbu.mita@gmail.com>");
 MODULE_DESCRIPTION("MAXIM MAX1117/MAX1118/MAX1119 ADCs driver");
 MODULE_LICENSE("GPL v2");

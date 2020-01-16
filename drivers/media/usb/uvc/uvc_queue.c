@@ -90,7 +90,7 @@ static int uvc_queue_setup(struct vb2_queue *vq,
 
 	/*
 	 * When called with plane sizes, validate them. The driver supports
-	 * single planar formats only, and requires buffers to be large enough
+	 * single planar formats only, and requires buffers to be large eyesugh
 	 * to store a complete frame.
 	 */
 	if (*nplanes)
@@ -323,12 +323,12 @@ int uvc_export_buffer(struct uvc_video_queue *queue,
 }
 
 int uvc_dequeue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf,
-		       int nonblocking)
+		       int yesnblocking)
 {
 	int ret;
 
 	mutex_lock(&queue->mutex);
-	ret = vb2_dqbuf(&queue->queue, buf, nonblocking);
+	ret = vb2_dqbuf(&queue->queue, buf, yesnblocking);
 	mutex_unlock(&queue->mutex);
 
 	return ret;
@@ -419,7 +419,7 @@ void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect)
 	uvc_queue_return_buffers(queue, UVC_BUF_STATE_ERROR);
 	/* This must be protected by the irqlock spinlock to avoid race
 	 * conditions between uvc_buffer_queue and the disconnection event that
-	 * could result in an interruptible wait in uvc_dequeue_buffer. Do not
+	 * could result in an interruptible wait in uvc_dequeue_buffer. Do yest
 	 * blindly replace this logic by checking for the UVC_QUEUE_DISCONNECTED
 	 * state outside the queue code.
 	 */

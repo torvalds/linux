@@ -1,16 +1,16 @@
 /*
- * P1021 RDB Device Tree Source stub (no addresses or top-level ranges)
+ * P1021 RDB Device Tree Source stub (yes addresses or top-level ranges)
  *
  * Copyright 2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -33,7 +33,7 @@
  */
 
 &lbc {
-	nor@0,0 {
+	yesr@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "cfi-flash";
@@ -42,7 +42,7 @@
 		device-width = <1>;
 
 		partition@0 {
-			/* This location must not be altered  */
+			/* This location must yest be altered  */
 			/* 256KB for Vitesse 7385 Switch firmware */
 			reg = <0x0 0x00040000>;
 			label = "NOR Vitesse-7385 Firmware";
@@ -68,7 +68,7 @@
 		};
 
 		partition@ec0000 {
-			/* This location must not be altered  */
+			/* This location must yest be altered  */
 			/* 256KB for QE ucode firmware*/
 			reg = <0x00ec0000 0x00040000>;
 			label = "NOR QE microcode firmware";
@@ -76,7 +76,7 @@
 		};
 
 		partition@f00000 {
-			/* This location must not be altered  */
+			/* This location must yest be altered  */
 			/* 512KB for u-boot Bootloader Image */
 			/* 512KB for u-boot Environment Variables */
 			reg = <0x00f00000 0x00100000>;
@@ -92,7 +92,7 @@
 		reg = <0x1 0x0 0x40000>;
 
 		partition@0 {
-			/* This location must not be altered  */
+			/* This location must yest be altered  */
 			/* 1MB for u-boot Bootloader Image */
 			reg = <0x0 0x00100000>;
 			label = "NAND U-Boot Image";
@@ -150,7 +150,7 @@
 		flash@0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "spansion,s25sl12801", "jedec,spi-nor";
+			compatible = "spansion,s25sl12801", "jedec,spi-yesr";
 			reg = <0>;
 			spi-max-frequency = <40000000>; /* input clock */
 

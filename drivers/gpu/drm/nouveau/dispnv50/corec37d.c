@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,7 +22,7 @@
 #include "core.h"
 #include "head.h"
 
-#include <nouveau_bo.h>
+#include <yesuveau_bo.h>
 
 void
 corec37d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
@@ -49,12 +49,12 @@ corec37d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
 }
 
 int
-corec37d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
+corec37d_ntfy_wait_done(struct yesuveau_bo *bo, u32 offset,
 			struct nvif_device *device)
 {
 	u32 data;
 	s64 time = nvif_msec(device, 2000ULL,
-		data = nouveau_bo_rd32(bo, offset / 4 + 0);
+		data = yesuveau_bo_rd32(bo, offset / 4 + 0);
 		if ((data & 0xc0000000) == 0x80000000)
 			break;
 		usleep_range(1, 2);
@@ -63,12 +63,12 @@ corec37d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
 }
 
 void
-corec37d_ntfy_init(struct nouveau_bo *bo, u32 offset)
+corec37d_ntfy_init(struct yesuveau_bo *bo, u32 offset)
 {
-	nouveau_bo_wr32(bo, offset / 4 + 0, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 1, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 2, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 3, 0x00000000);
+	yesuveau_bo_wr32(bo, offset / 4 + 0, 0x00000000);
+	yesuveau_bo_wr32(bo, offset / 4 + 1, 0x00000000);
+	yesuveau_bo_wr32(bo, offset / 4 + 2, 0x00000000);
+	yesuveau_bo_wr32(bo, offset / 4 + 3, 0x00000000);
 }
 
 static void
@@ -104,7 +104,7 @@ corec37d = {
 };
 
 int
-corec37d_new(struct nouveau_drm *drm, s32 oclass, struct nv50_core **pcore)
+corec37d_new(struct yesuveau_drm *drm, s32 oclass, struct nv50_core **pcore)
 {
 	return core507d_new_(&corec37d, drm, oclass, pcore);
 }

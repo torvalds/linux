@@ -96,7 +96,7 @@ static irqreturn_t icn8318_irq(int irq, void *dev_id)
 		/*
 		 * Other data is invalid when a softbutton is pressed.
 		 * This needs some extra devicetree bindings to map the icn8318
-		 * softbutton codes to evdev codes. Currently no known devices
+		 * softbutton codes to evdev codes. Currently yes kyeswn devices
 		 * use this.
 		 */
 		return IRQ_HANDLED;
@@ -185,7 +185,7 @@ static int icn8318_probe(struct i2c_client *client,
 	int error;
 
 	if (!client->irq) {
-		dev_err(dev, "Error no irq specified\n");
+		dev_err(dev, "Error yes irq specified\n");
 		return -EINVAL;
 	}
 

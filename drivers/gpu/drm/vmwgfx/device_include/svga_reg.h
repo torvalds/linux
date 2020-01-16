@@ -10,7 +10,7 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright yestice and this permission yestice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -54,7 +54,7 @@ typedef enum {
 typedef uint32 SVGAMobId;
 
 /*
- * Arbitrary and meaningless limits. Please ignore these when writing
+ * Arbitrary and meaningless limits. Please igyesre these when writing
  * new drivers.
  */
 #define SVGA_MAX_WIDTH                  2560
@@ -70,7 +70,7 @@ typedef uint32 SVGAMobId;
 
 /*
  * Legal values for the SVGA_REG_CURSOR_ON register in old-fashioned
- * cursor bypass mode. This is still supported, but no new guest
+ * cursor bypass mode. This is still supported, but yes new guest
  * drivers should use it.
  */
 #define SVGA_CURSOR_ON_HIDE            0x0
@@ -241,7 +241,7 @@ enum {
  * new alternative to framebuffer memory, usable for both 2D and 3D
  * graphics operations.
  *
- * Since GMR mapping must be done synchronously with guest CPU
+ * Since GMR mapping must be done synchroyesusly with guest CPU
  * execution, we use a new pair of SVGA registers:
  *
  *   SVGA_REG_GMR_ID --
@@ -249,7 +249,7 @@ enum {
  *     Read/write.
  *     This register holds the 32-bit ID (a small positive integer)
  *     of a GMR to create, delete, or redefine. Writing this register
- *     has no side-effects.
+ *     has yes side-effects.
  *
  *   SVGA_REG_GMR_DESCRIPTOR --
  *
@@ -258,13 +258,13 @@ enum {
  *     specified by the above ID register. If this register is zero,
  *     the GMR is deleted. Any pointers into this GMR (including those
  *     currently being processed by FIFO commands) will be
- *     synchronously invalidated.
+ *     synchroyesusly invalidated.
  *
- *     If this register is nonzero, it must be the physical page
+ *     If this register is yesnzero, it must be the physical page
  *     number (PPN) of a data structure which describes the physical
  *     layout of the memory region this GMR should describe. The
- *     descriptor structure will be read synchronously by the SVGA
- *     device when this register is written. The descriptor need not
+ *     descriptor structure will be read synchroyesusly by the SVGA
+ *     device when this register is written. The descriptor need yest
  *     remain allocated for the lifetime of the GMR.
  *
  *     The guest driver should write SVGA_REG_GMR_ID first, then
@@ -367,7 +367,7 @@ SVGAGuestPtr;
  * SVGA_CB_MAX_QUEUED_PER_CONTEXT command buffers that can be queued
  * per context and if that limit is reached the device will write the
  * status SVGA_CB_STATUS_QUEUE_FULL to the status value of the command
- * buffer header synchronously and not raise any IRQs.
+ * buffer header synchroyesusly and yest raise any IRQs.
  *
  * It is invalid to submit a command buffer without a valid physical
  * address and results are undefined.
@@ -379,22 +379,22 @@ SVGAGuestPtr;
  *
  * The device guarantees that any individual command in a command
  * buffer can be up to SVGA_CB_MAX_COMMAND_SIZE in size which is
- * enough to fit a 64x64 color-cursor definition.  If the command is
+ * eyesugh to fit a 64x64 color-cursor definition.  If the command is
  * too large the device is allowed to process the command or return an
  * error.
  *
  * The device context is a special SVGACBContext that allows for
- * synchronous register like accesses with the flexibility of
+ * synchroyesus register like accesses with the flexibility of
  * commands.  There is a different command set defined by
- * SVGADeviceContextCmdId.  The commands in each command buffer is not
+ * SVGADeviceContextCmdId.  The commands in each command buffer is yest
  * allowed to straddle physical pages.
  *
  * The offset field which is available starting with the
  * SVGA_CAP_CMD_BUFFERS_2 cap bit can be set by the guest to bias the
  * start of command processing into the buffer.  If an error is
  * encountered the errorOffset will still be relative to the specific
- * PA, not biased by the offset.  When the command buffer is finished
- * the guest should not read the offset field as there is no guarantee
+ * PA, yest biased by the offset.  When the command buffer is finished
+ * the guest should yest read the offset field as there is yes guarantee
  * what it will set to.
  *
  * When the SVGA_CAP_HP_CMD_QUEUE cap bit is set a new command queue
@@ -436,8 +436,8 @@ typedef enum {
    SVGA_CB_STATUS_COMPLETED        = 1,
 
    /*
-    * Written by the host synchronously with the command buffer
-    * submission to indicate the command buffer was not submitted.  No
+    * Written by the host synchroyesusly with the command buffer
+    * submission to indicate the command buffer was yest submitted.  No
     * IRQ is raised.
     */
    SVGA_CB_STATUS_QUEUE_FULL       = 2,
@@ -456,20 +456,20 @@ typedef enum {
     * Written by the host if there is an error parsing the command
     * buffer header.  The device raises the IRQ with both
     * SVGA_IRQFLAG_ERROR and SVGA_IRQFLAG_COMMAND_BUFFER.  The device
-    * did not processes any of the command buffer.
+    * did yest processes any of the command buffer.
     */
    SVGA_CB_STATUS_CB_HEADER_ERROR  = 4,
 
    /*
     * Written by the host if the guest requested the host to preempt
-    * the command buffer.  The device will not raise any IRQs and the
-    * command buffer was not processed.
+    * the command buffer.  The device will yest raise any IRQs and the
+    * command buffer was yest processed.
     */
    SVGA_CB_STATUS_PREEMPTED        = 5,
 
    /*
-    * Written by the host synchronously with the command buffer
-    * submission to indicate the the command buffer was not submitted
+    * Written by the host synchroyesusly with the command buffer
+    * submission to indicate the the command buffer was yest submitted
     * due to an error.  No IRQ is raised.
     */
    SVGA_CB_STATUS_SUBMISSION_ERROR = 6,
@@ -477,12 +477,12 @@ typedef enum {
    /*
     * Written by the host when the host finished a
     * SVGA_DC_CMD_ASYNC_STOP_QUEUE request for this command buffer
-    * queue.  The offset of the first byte not processed is stored in
+    * queue.  The offset of the first byte yest processed is stored in
     * the errorOffset field of the command buffer header.  All guest
     * visible side effects of commands till that point are guaranteed
     * to be finished before this is written.  The
     * SVGA_IRQFLAG_COMMAND_BUFFER IRQ is raised as long as the
-    * SVGA_CB_FLAG_NO_IRQ is not set.
+    * SVGA_CB_FLAG_NO_IRQ is yest set.
     */
    SVGA_CB_STATUS_PARTIAL_COMPLETE = 7,
 } SVGACBStatus;
@@ -546,14 +546,14 @@ typedef struct SVGADCCmdStartStop {
  * already have SVGA_CB_STATUS_PREEMPTED written into the status
  * field.  The device might still be processing a command buffer,
  * assuming execution of it started before the preemption request was
- * received.  Specifying the ignoreIDZero flag to TRUE will cause the
- * device to not preempt command buffers with the id field in the
+ * received.  Specifying the igyesreIDZero flag to TRUE will cause the
+ * device to yest preempt command buffers with the id field in the
  * command buffer header set to zero.
  */
 
 typedef struct SVGADCCmdPreempt {
    SVGACBContext context; /* Must be zero */
-   uint32 ignoreIDZero;
+   uint32 igyesreIDZero;
 } SVGADCCmdPreempt;
 
 /*
@@ -574,19 +574,19 @@ typedef struct SVGADCCmdStartQueue {
 
 /*
  * Requests the SVGA device to stop processing the requested command
- * buffer queue as soon as possible.  The guest knows the stop has
+ * buffer queue as soon as possible.  The guest kyesws the stop has
  * completed when one of the following happens.
  *
  * 1) A command buffer status of SVGA_CB_STATUS_PARTIAL_COMPLETE is returned
  * 2) A command buffer error is encountered with would stop the queue
  *    regardless of the async stop request.
  * 3) All command buffers that have been submitted complete successfully.
- * 4) The stop completes synchronously if no command buffers are
+ * 4) The stop completes synchroyesusly if yes command buffers are
  *    active on the queue when it is issued.
  *
- * If the command queue is not in a runnable state there is no
+ * If the command queue is yest in a runnable state there is yes
  * guarentee this async stop will finish.  For instance if the high
- * priority queue is not enabled and a stop is requested on the low
+ * priority queue is yest enabled and a stop is requested on the low
  * priority queue, the high priority queue must be reenabled to
  * guarantee that the async stop will finish.
  *
@@ -602,8 +602,8 @@ typedef struct SVGADCCmdAsyncStopQueue {
 
 /*
  * Requests the SVGA device to throw away any full command buffers on
- * the requested command queue that have not been started.  For a
- * driver to know which command buffers were thrown away a driver
+ * the requested command queue that have yest been started.  For a
+ * driver to kyesw which command buffers were thrown away a driver
  * should only issue this command when the queue is stopped, for
  * whatever reason.
  */
@@ -651,7 +651,7 @@ struct SVGAGuestImage {
    SVGAGuestPtr         ptr;
 
    /*
-    * A note on interpretation of pitch: This value of pitch is the
+    * A yeste on interpretation of pitch: This value of pitch is the
     * number of bytes between vertically adjacent image
     * blocks. Normally this is the number of bytes between the first
     * pixel of two adjacent scanlines. With compressed textures,
@@ -660,7 +660,7 @@ struct SVGAGuestImage {
     *
     * XXX: Compressed textures currently must be tightly packed in guest memory.
     *
-    * If the image is 1-dimensional, pitch is ignored.
+    * If the image is 1-dimensional, pitch is igyesred.
     *
     * If 'pitch' is zero, the SVGA3D device calculates a pitch value
     * assuming each row of blocks is tightly packed.
@@ -673,7 +673,7 @@ SVGAGuestImage;
 /*
  * SVGAColorBGRX --
  *
- *    A 24-bit color format (BGRX), which does not depend on the
+ *    A 24-bit color format (BGRX), which does yest depend on the
  *    format of the legacy guest framebuffer (GFB) or the current
  *    GMRFB state.
  */
@@ -702,7 +702,7 @@ typedef struct SVGAColorBGRX {
  *
  *    SVGASignedRect specifies a half-open interval: the (left, top)
  *    pixel is part of the rectangle, but the (right, bottom) pixel is
- *    not.
+ *    yest.
  */
 
 typedef
@@ -730,7 +730,7 @@ SVGASignedPoint;
  * SVGA Device Capabilities
  *
  * Note the holes in the bitfield. Missing bits have been deprecated,
- * and must not be reused. Those capabilities will never be reported
+ * and must yest be reused. Those capabilities will never be reported
  * by new versions of the SVGA device.
  *
  * XXX: Add longer descriptions for each capability, including a list
@@ -742,7 +742,7 @@ SVGASignedPoint;
  *    set/clear pending interrupts.
  *
  * SVGA_CAP_GMR --
- *    Provides synchronous mapping of guest memory regions (GMR).
+ *    Provides synchroyesus mapping of guest memory regions (GMR).
  *    Adds device registers SVGA_REG_GMR_ID, SVGA_REG_GMR_DESCRIPTOR,
  *    SVGA_REG_GMR_MAX_IDS, and SVGA_REG_GMR_MAX_DESCRIPTOR_LENGTH.
  *
@@ -751,7 +751,7 @@ SVGASignedPoint;
  *    Adds device register SVGA_REG_TRACES.
  *
  * SVGA_CAP_GMR2 --
- *    Provides asynchronous commands to define and remap guest memory
+ *    Provides asynchroyesus commands to define and remap guest memory
  *    regions.  Adds device registers SVGA_REG_GMRS_MAX_PAGES and
  *    SVGA_REG_MEMORY_SIZE.
  *
@@ -763,7 +763,7 @@ SVGASignedPoint;
  *    Enable register based command buffer submission.
  *
  * SVGA_CAP_DEAD1 --
- *    This cap was incorrectly used by old drivers and should not be
+ *    This cap was incorrectly used by old drivers and should yest be
  *    reused.
  *
  * SVGA_CAP_CMD_BUFFERS_2 --
@@ -789,7 +789,7 @@ SVGASignedPoint;
  *    32-bpp) must always be less than the value of the
  *    SVGA_REG_MAX_PRIMARY_MEM register.
  *
- *    If this cap is not present, the 32-bpp bounding box around all screens
+ *    If this cap is yest present, the 32-bpp bounding box around all screens
  *    must additionally be under the value of the SVGA_REG_MAX_PRIMARY_MEM
  *    register.
  *
@@ -799,7 +799,7 @@ SVGASignedPoint;
  *    (Note that this is a slight lie... there is still a sanity limit on any
  *     dimension of the topology to be less than SVGA_SCREEN_ROOT_LIMIT, even
  *     when SVGA_CAP_NO_BB_RESTRICTION is present, but that should be
- *     large enough to express any possible topology without holes between
+ *     large eyesugh to express any possible topology without holes between
  *     monitors.)
  *
  * SVGA_CAP_CAP2_REGISTER --
@@ -862,7 +862,7 @@ SVGASignedPoint;
  * is requesting from the SVGABackdoorCapType enum should be placed in
  * the upper 16 bits of the backdoor command id (ECX).  On success the
  * the value of EBX will be set to BDOOR_MAGIC and EAX will be set to
- * the requested capability.  If the command is not supported then EBX
+ * the requested capability.  If the command is yest supported then EBX
  * will be left unchanged and EAX will be set to -1.  Because it is
  * possible that -1 is the value of the requested cap the correct way
  * to check if the command was successful is to check if EBX was changed
@@ -927,7 +927,7 @@ enum {
    /*
     * Block 3a (optional extended registers): Additional registers for the
     * extended FIFO, whose presence isn't actually implied by
-    * SVGA_CAP_EXTENDED_FIFO; these exist if SVGA_FIFO_MIN is high enough to
+    * SVGA_CAP_EXTENDED_FIFO; these exist if SVGA_FIFO_MIN is high eyesugh to
     * leave room for them.
     *
     * These in block 3a, the VMX currently considers mandatory for the
@@ -962,7 +962,7 @@ enum {
    /*
     * Valid with SVGA_FIFO_CAP_DEAD
     *
-    * An arbitrary value written by the host, drivers should not use it.
+    * An arbitrary value written by the host, drivers should yest use it.
     */
    SVGA_FIFO_DEAD,
 
@@ -978,14 +978,14 @@ enum {
     * XXX: The gap here, up until SVGA_FIFO_3D_CAPS, can be used for new
     * registers, but this must be done carefully and with judicious use of
     * capability bits, since comparisons based on SVGA_FIFO_MIN aren't
-    * enough to tell you whether the register exists: we've shipped drivers
-    * and products that used SVGA_FIFO_3D_CAPS but didn't know about some of
+    * eyesugh to tell you whether the register exists: we've shipped drivers
+    * and products that used SVGA_FIFO_3D_CAPS but didn't kyesw about some of
     * the earlier ones.  The actual order of introduction was:
     * - PITCHLOCK
     * - 3D_CAPS
     * - CURSOR_* (cursor bypass 3)
     * - RESERVED
-    * So, code that wants to know whether it can use any of the
+    * So, code that wants to kyesw whether it can use any of the
     * aforementioned registers, or anything else added after PITCHLOCK and
     * before 3D_CAPS, needs to reason about something other than
     * SVGA_FIFO_MIN.
@@ -1005,11 +1005,11 @@ enum {
     * it's disabled entirely.
     *
     * Block 3b (truly optional extended registers): Additional registers for
-    * the extended FIFO, which the VMX already knows how to enable and
+    * the extended FIFO, which the VMX already kyesws how to enable and
     * disable with correct granularity.
     *
     * Registers after here exist if and only if the guest SVGA driver
-    * sets SVGA_FIFO_MIN high enough to leave room for them.
+    * sets SVGA_FIFO_MIN high eyesugh to leave room for them.
     */
 
    /* Valid if register exists: */
@@ -1019,7 +1019,7 @@ enum {
 
    /*
     * Always keep this last.  This defines the maximum number of
-    * registers we know about.  At power-on, this value is placed in
+    * registers we kyesw about.  At power-on, this value is placed in
     * the SVGA_REG_MEM_REGS register, and we expect the guest driver
     * to allocate this much space in FIFO memory for registers.
     */
@@ -1035,11 +1035,11 @@ enum {
  * drivers stopped there.
  *
  * The VMX will enable extended FIFO support if and only if the guest
- * left enough room for all registers defined as part of the mandatory
+ * left eyesugh room for all registers defined as part of the mandatory
  * set for the extended FIFO.
  *
  * Note that the guest drivers typically allocate the FIFO only at
- * initialization time, not at mode switches, so it's likely that the
+ * initialization time, yest at mode switches, so it's likely that the
  * number of FIFO registers won't change without a reboot.
  *
  * All registers less than this value are guaranteed to be present if
@@ -1066,7 +1066,7 @@ enum {
  *            it will write once to SYNC then poll on the BUSY
  *            register. The FIFO is sync'ed once BUSY is zero.
  *
- *         2. If the guest wants to asynchronously wake up the host,
+ *         2. If the guest wants to asynchroyesusly wake up the host,
  *            it will write once to SYNC without polling on BUSY.
  *            Ideally it will do this after some new commands have
  *            been placed in the FIFO, and after reading a zero
@@ -1074,12 +1074,12 @@ enum {
  *
  *       (1) is the original behaviour that SYNC was designed to
  *       support.  Originally, a write to SYNC would implicitly
- *       trigger a read from BUSY. This causes us to synchronously
+ *       trigger a read from BUSY. This causes us to synchroyesusly
  *       process the FIFO.
  *
  *       This behaviour has since been changed so that writing SYNC
- *       will *not* implicitly cause a read from BUSY. Instead, it
- *       makes a channel call which asynchronously wakes up the MKS
+ *       will *yest* implicitly cause a read from BUSY. Instead, it
+ *       makes a channel call which asynchroyesusly wakes up the MKS
  *       thread.
  *
  *       New guests can use this new behaviour to implement (2)
@@ -1088,7 +1088,7 @@ enum {
  *       better CPU utilization on SMP hosts and on UP hosts while
  *       we're blocked on the host GPU.
  *
- *       Old guests shouldn't notice the behaviour change. SYNC was
+ *       Old guests shouldn't yestice the behaviour change. SYNC was
  *       never guaranteed to process the entire FIFO, since it was
  *       bounded to a particular number of CPU cycles. Old guests will
  *       still loop on the BUSY register until the FIFO is empty.
@@ -1096,7 +1096,7 @@ enum {
  *       Writing to SYNC currently has the following side-effects:
  *
  *         - Sets SVGA_REG_BUSY to TRUE (in the monitor)
- *         - Asynchronously wakes up the MKS thread for FIFO processing
+ *         - Asynchroyesusly wakes up the MKS thread for FIFO processing
  *         - The value written to SYNC is recorded as a "reason", for
  *           stats purposes.
  *
@@ -1104,7 +1104,7 @@ enum {
  *       write to SYNC if SVGA_FIFO_BUSY is FALSE. Drivers should set
  *       SVGA_FIFO_BUSY to TRUE after writing to SYNC. The MKS will
  *       eventually set SVGA_FIFO_BUSY on its own, but this approach
- *       lets the driver avoid sending multiple asynchronous wakeup
+ *       lets the driver avoid sending multiple asynchroyesus wakeup
  *       messages to the MKS thread.
  *
  *  SVGA_REG_BUSY --
@@ -1113,8 +1113,8 @@ enum {
  *       and it reads as FALSE when the FIFO has been completely
  *       drained.
  *
- *       Every read from this register causes us to synchronously
- *       process FIFO commands. There is no guarantee as to how many
+ *       Every read from this register causes us to synchroyesusly
+ *       process FIFO commands. There is yes guarantee as to how many
  *       commands each read will process.
  *
  *       CPU time spent processing FIFO commands will be billed to
@@ -1129,21 +1129,21 @@ enum {
  *
  *       This register is a fast way for the guest driver to check
  *       whether the FIFO is already being processed. It reads and
- *       writes at normal RAM speeds, with no monitor intervention.
+ *       writes at yesrmal RAM speeds, with yes monitor intervention.
  *
  *       If this register reads as TRUE, the host is guaranteeing that
- *       any new commands written into the FIFO will be noticed before
+ *       any new commands written into the FIFO will be yesticed before
  *       the MKS goes back to sleep.
  *
- *       If this register reads as FALSE, no such guarantee can be
+ *       If this register reads as FALSE, yes such guarantee can be
  *       made.
  *
  *       The guest should use this register to quickly determine
- *       whether or not it needs to wake up the host. If the guest
+ *       whether or yest it needs to wake up the host. If the guest
  *       just wrote a command or group of commands that it would like
  *       the host to begin processing, it should:
  *
- *         1. Read SVGA_FIFO_BUSY. If it reads as TRUE, no further
+ *         1. Read SVGA_FIFO_BUSY. If it reads as TRUE, yes further
  *            action is necessary.
  *
  *         2. Write TRUE to SVGA_FIFO_BUSY. This informs future guest
@@ -1151,7 +1151,7 @@ enum {
  *            don't need to send a duplicate.
  *
  *         3. Write a reason to SVGA_REG_SYNC. This will send an
- *            asynchronous wakeup to the MKS thread.
+ *            asynchroyesus wakeup to the MKS thread.
  */
 
 
@@ -1189,7 +1189,7 @@ enum {
  *
  *    New guarantees:
  *
- *       - The host will not read or write guest memory, including the GFB,
+ *       - The host will yest read or write guest memory, including the GFB,
  *         except when explicitly initiated by a DMA command.
  *
  *       - All DMA, including legacy DMA like UPDATE and PRESENT_READBACK,
@@ -1203,10 +1203,10 @@ enum {
  *         For example, if you PRESENT from one SVGA3D surface to multiple
  *         places on the screen, the data copied will always be from the
  *         SVGA3D surface at the time the PRESENT was issued in the FIFO.
- *         This was not necessarily true on devices without Screen Object.
+ *         This was yest necessarily true on devices without Screen Object.
  *
  *         This means that on devices that support Screen Object, the
- *         PRESENT_READBACK command should not be necessary unless you
+ *         PRESENT_READBACK command should yest be necessary unless you
  *         actually want to read back the results of 3D rendering into
  *         system memory. (And for that, the BLIT_SCREEN_TO_GMRFB
  *         command provides a strict superset of functionality.)
@@ -1227,7 +1227,7 @@ enum {
  *    This register may replace SVGA_FIFO_3D_HWVERSION on platforms
  *    that enforce graphics resource limits.  This allows the platform
  *    to clear SVGA_FIFO_3D_HWVERSION and disable 3D in legacy guest
- *    drivers that do not limit their resources.
+ *    drivers that do yest limit their resources.
  *
  *    Note this is an alias to SVGA_FIFO_CAP_GMR2 because these indicators
  *    are codependent (and thus we use a single capability bit).
@@ -1242,7 +1242,7 @@ enum {
  *
  * SVGA_FIFO_CAP_DEAD --
  *
- *    Drivers should not use this cap bit.  This cap bit can not be
+ *    Drivers should yest use this cap bit.  This cap bit can yest be
  *    reused since some hosts already expose it.
  */
 
@@ -1361,7 +1361,7 @@ SVGAOverlayUnit;
 /*
  * Guest display topology
  *
- * XXX: This structure is not part of the SVGA device's interface, and
+ * XXX: This structure is yest part of the SVGA device's interface, and
  * doesn't really belong here.
  */
 #define SVGA_INVALID_DISPLAY_ID ((uint32)-1)
@@ -1393,19 +1393,19 @@ typedef struct SVGADisplayTopology {
  *
  *    Added with SVGA_FIFO_CAP_SCREEN_OBJECT_2 are required fields of
  *    a SVGAGuestPtr that is used to back the screen contents.  This
- *    memory must come from the GFB.  The guest is not allowed to
+ *    memory must come from the GFB.  The guest is yest allowed to
  *    access the memory and doing so will have undefined results.  The
  *    backing store is required to be page aligned and the size is
  *    padded to the next page boundry.  The number of pages is:
  *       (bytesPerLine * size.width * 4 + PAGE_SIZE - 1) / PAGE_SIZE
  *
  *    The pitch in the backingStore is required to be at least large
- *    enough to hold a 32bbp scanline.  It is recommended that the
+ *    eyesugh to hold a 32bbp scanline.  It is recommended that the
  *    driver pad bytesPerLine for a potential performance win.
  *
  *    The cloneCount field is treated as a hint from the guest that
  *    the user wants this display to be cloned, countCount times.  A
- *    value of zero means no cloning should happen.
+ *    value of zero means yes cloning should happen.
  */
 
 #define SVGA_SCREEN_MUST_BE_SET     (1 << 0)
@@ -1417,7 +1417,7 @@ typedef struct SVGADisplayTopology {
  * Added with SVGA_FIFO_CAP_SCREEN_OBJECT_2.  When the screen is
  * deactivated the base layer is defined to lose all contents and
  * become black.  When a screen is deactivated the backing store is
- * optional.  When set backingPtr and bytesPerLine will be ignored.
+ * optional.  When set backingPtr and bytesPerLine will be igyesred.
  */
 #define SVGA_SCREEN_DEACTIVATE  (1 << 3)
 
@@ -1425,11 +1425,11 @@ typedef struct SVGADisplayTopology {
  * Added with SVGA_FIFO_CAP_SCREEN_OBJECT_2.  When this flag is set
  * the screen contents will be outputted as all black to the user
  * though the base layer contents is preserved.  The screen base layer
- * can still be read and written to like normal though the no visible
+ * can still be read and written to like yesrmal though the yes visible
  * effect will be seen by the user.  When the flag is changed the
  * screen will be blanked or redrawn to the current contents as needed
  * without any extra commands from the driver.  This flag only has an
- * effect when the screen is not deactivated.
+ * effect when the screen is yest deactivated.
  */
 #define SVGA_SCREEN_BLANKING (1 << 4)
 
@@ -1458,7 +1458,7 @@ struct {
     * The cloneCount field is treated as a hint from the guest that
     * the user wants this display to be cloned, cloneCount times.
     *
-    * A value of zero means no cloning should happen.
+    * A value of zero means yes cloning should happen.
     */
    uint32 cloneCount;
 }
@@ -1470,11 +1470,11 @@ SVGAScreenObject;
  *  Commands in the command FIFO:
  *
  *  Command IDs defined below are used for the traditional 2D FIFO
- *  communication (not all commands are available for all versions of the
+ *  communication (yest all commands are available for all versions of the
  *  SVGA FIFO protocol).
  *
  *  Note the holes in the command ID numbers: These commands have been
- *  deprecated, and the old IDs must not be reused.
+ *  deprecated, and the old IDs must yest be reused.
  *
  *  Command IDs from 1000 to 2999 are reserved for use by the SVGA3D
  *  protocol.
@@ -1521,14 +1521,14 @@ typedef enum {
  *    (GFB) at BAR1 + SVGA_REG_FB_OFFSET to any screens which
  *    intersect with the provided virtual rectangle.
  *
- *    This command does not support using arbitrary guest memory as a
+ *    This command does yest support using arbitrary guest memory as a
  *    data source- it only works with the pre-defined GFB memory.
- *    This command also does not support signed virtual coordinates.
+ *    This command also does yest support signed virtual coordinates.
  *    If you have defined screens (using SVGA_CMD_DEFINE_SCREEN) with
  *    negative root x/y coordinates, the negative portion of those
- *    screens will not be reachable by this command.
+ *    screens will yest be reachable by this command.
  *
- *    This command is not necessary when using framebuffer
+ *    This command is yest necessary when using framebuffer
  *    traces. Traces are automatically enabled if the SVGA FIFO is
  *    disabled, and you may explicitly enable/disable traces using
  *    SVGA_REG_TRACES. With traces enabled, any write to the GFB will
@@ -1558,7 +1558,7 @@ SVGAFifoCmdUpdate;
  * SVGA_CMD_RECT_COPY --
  *
  *    Perform a rectangular DMA transfer from one area of the GFB to
- *    another, and copy the result to any screens which intersect it.
+ *    ayesther, and copy the result to any screens which intersect it.
  *
  * Availability:
  *    SVGA_CAP_RECT_COPY
@@ -1582,7 +1582,7 @@ SVGAFifoCmdRectCopy;
  * SVGA_CMD_RECT_ROP_COPY --
  *
  *    Perform a rectangular DMA transfer from one area of the GFB to
- *    another, and copy the result to any screens which intersect it.
+ *    ayesther, and copy the result to any screens which intersect it.
  *    The value of ROP may only be SVGA_ROP_COPY, and this command is
  *    only supported for backwards compatibility reasons.
  *
@@ -1669,7 +1669,7 @@ SVGAFifoCmdDefineAlphaCursor;
  *
  *    Just like SVGA_CMD_UPDATE, but also provide a per-rectangle
  *    'reason' value, an opaque cookie which is used by internal
- *    debugging tools. Third party drivers should not use this
+ *    debugging tools. Third party drivers should yest use this
  *    command.
  *
  * Availability:
@@ -1783,7 +1783,7 @@ SVGAFifoCmdEscape;
  *    #0 according to the specified mode. Drivers that use
  *    SVGA_CMD_DEFINE_SCREEN should destroy or redefine screen #0.
  *
- *    If you use screen objects, do not use the legacy multi-mon
+ *    If you use screen objects, do yest use the legacy multi-mon
  *    registers (SVGA_REG_NUM_GUEST_DISPLAYS, SVGA_REG_DISPLAY_*).
  *
  * Availability:
@@ -1836,13 +1836,13 @@ SVGAFifoCmdDestroyScreen;
  *    There are multiple ways to use this command. The simplest way is
  *    to use it to move the framebuffer either to elsewhere in the GFB
  *    (BAR1) memory region, or to a user-defined GMR. This lets a
- *    driver use a framebuffer allocated entirely out of normal system
+ *    driver use a framebuffer allocated entirely out of yesrmal system
  *    memory, which we encourage.
  *
- *    Another way to use this command is to set up a ring buffer of
- *    updates in GFB memory. If a driver wants to ensure that no
+ *    Ayesther way to use this command is to set up a ring buffer of
+ *    updates in GFB memory. If a driver wants to ensure that yes
  *    frames are skipped by the SVGA device, it is important that the
- *    driver not modify the source data for a blit until the device is
+ *    driver yest modify the source data for a blit until the device is
  *    done processing the command. One efficient way to accomplish
  *    this is to use a ring of small DMA buffers. Each buffer is used
  *    for one blit, then we move on to the next buffer in the
@@ -1850,9 +1850,9 @@ SVGAFifoCmdDestroyScreen;
  *    re-use until the device is finished with that buffer's
  *    corresponding blit.
  *
- *    This command does not affect the meaning of SVGA_CMD_UPDATE.
+ *    This command does yest affect the meaning of SVGA_CMD_UPDATE.
  *    UPDATEs always occur from the legacy GFB memory area. This
- *    command has no support for pseudocolor GMRFBs. Currently only
+ *    command has yes support for pseudocolor GMRFBs. Currently only
  *    true-color 15, 16, and 24-bit depths are supported. Future
  *    devices may expose capabilities for additional framebuffer
  *    formats.
@@ -1889,7 +1889,7 @@ SVGAFifoCmdDefineGMRFB;
  *    The SVGA device is guaranteed to finish reading from the GMRFB
  *    by the time any subsequent FENCE commands are reached.
  *
- *    This command consumes an annotation. See the
+ *    This command consumes an anyestation. See the
  *    SVGA_CMD_ANNOTATION_* commands for details.
  *
  * Availability:
@@ -1939,10 +1939,10 @@ SVGAFifoCmdBlitScreenToGMRFB;
 /*
  * SVGA_CMD_ANNOTATION_FILL --
  *
- *    The annotation commands have been deprecated, should not be used
+ *    The anyestation commands have been deprecated, should yest be used
  *    by new drivers.  They used to provide performance hints to the SVGA
  *    device about the content of screen updates, but newer SVGA devices
- *    ignore these.
+ *    igyesre these.
  *
  * Availability:
  *    SVGA_FIFO_CAP_SCREEN_OBJECT or SVGA_FIFO_CAP_SCREEN_OBJECT_2
@@ -1954,16 +1954,16 @@ struct {
    SVGAColorBGRX  color;
 }
 #include "vmware_pack_end.h"
-SVGAFifoCmdAnnotationFill;
+SVGAFifoCmdAnyestationFill;
 
 
 /*
  * SVGA_CMD_ANNOTATION_COPY --
  *
- *    The annotation commands have been deprecated, should not be used
+ *    The anyestation commands have been deprecated, should yest be used
  *    by new drivers.  They used to provide performance hints to the SVGA
  *    device about the content of screen updates, but newer SVGA devices
- *    ignore these.
+ *    igyesre these.
  *
  * Availability:
  *    SVGA_FIFO_CAP_SCREEN_OBJECT or SVGA_FIFO_CAP_SCREEN_OBJECT_2
@@ -1976,7 +1976,7 @@ struct {
    uint32           srcScreenId;
 }
 #include "vmware_pack_end.h"
-SVGAFifoCmdAnnotationCopy;
+SVGAFifoCmdAnyestationCopy;
 
 
 /*
@@ -2011,7 +2011,7 @@ SVGAFifoCmdDefineGMR2;
  *    Description of command flags:
  *
  *    SVGA_REMAP_GMR2_VIA_GMR: If enabled, references a PPN list in a GMR.
- *       The PPN list must not overlap with the remap region (this can be
+ *       The PPN list must yest overlap with the remap region (this can be
  *       handled trivially by referencing a separate GMR).  If flag is
  *       disabled, PPN list is appended to SVGARemapGMR command.
  *

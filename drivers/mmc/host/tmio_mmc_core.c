@@ -196,7 +196,7 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 	mrq = host->mrq;
 
 	/*
-	 * is request already finished? Since we use a non-blocking
+	 * is request already finished? Since we use a yesn-blocking
 	 * cancel_delayed_work(), it can happen, that a .set_ios() call preempts
 	 * us, so, have to check for IS_ERR(host->mrq)
 	 */
@@ -260,7 +260,7 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host,
 	case MMC_RSP_R2:   c |= RESP_R2;   break;
 	case MMC_RSP_R3:   c |= RESP_R3;   break;
 	default:
-		pr_debug("Unknown response type %d\n", mmc_resp_type(cmd));
+		pr_debug("Unkyeswn response type %d\n", mmc_resp_type(cmd));
 		return -EINVAL;
 	}
 
@@ -440,9 +440,9 @@ void tmio_mmc_do_data_irq(struct tmio_mmc_host *host)
 	 * FIXME: other drivers allow an optional stop command of any given type
 	 *        which we dont do, as the chip can auto generate them.
 	 *        Perhaps we can be smarter about when to use auto CMD12 and
-	 *        only issue the auto request when we know this is the desired
+	 *        only issue the auto request when we kyesw this is the desired
 	 *        stop command, allowing fallback to the stop command the
-	 *        upper layers expect. For now, we do what works.
+	 *        upper layers expect. For yesw, we do what works.
 	 */
 
 	if (data->flags & MMC_DATA_READ) {
@@ -556,7 +556,7 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host, unsigned int stat)
 
 	/* If there is data to handle we enable data IRQs here, and
 	 * we will ultimatley finish the request in the data_end handler.
-	 * If theres no data or we encountered an error, finish now.
+	 * If theres yes data or we encountered an error, finish yesw.
 	 */
 	if (host->data && (!cmd->error || cmd->error == -EILSEQ)) {
 		if (host->data->flags & MMC_DATA_READ) {
@@ -687,7 +687,7 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	pr_debug("setup data transfer: blocksize %08x  nr_blocks %d\n",
 		 data->blksz, data->blocks);
 
-	/* Some hardware cannot perform 2 byte requests in 4/8 bit mode */
+	/* Some hardware canyest perform 2 byte requests in 4/8 bit mode */
 	if (host->mmc->ios.bus_width == MMC_BUS_WIDTH_4 ||
 	    host->mmc->ios.bus_width == MMC_BUS_WIDTH_8) {
 		int blksz_2bytes = pdata->flags & TMIO_MMC_BLKSZ_2BYTES;
@@ -721,12 +721,12 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	int i, ret = 0;
 
 	if (!host->init_tuning || !host->select_tuning)
-		/* Tuning is not supported */
+		/* Tuning is yest supported */
 		goto out;
 
 	host->tap_num = host->init_tuning(host);
 	if (!host->tap_num)
-		/* Tuning is not supported */
+		/* Tuning is yest supported */
 		goto out;
 
 	if (host->tap_num * 2 >= sizeof(host->taps) * BITS_PER_BYTE) {
@@ -798,7 +798,7 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_lock_irqsave(&host->lock, flags);
 
 	if (host->mrq) {
-		pr_debug("request not null\n");
+		pr_debug("request yest null\n");
 		if (IS_ERR(host->mrq)) {
 			spin_unlock_irqrestore(&host->lock, flags);
 			mrq->cmd->error = -EAGAIN;
@@ -829,7 +829,7 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 		return;
 	}
 
-	/* If not SET_BLOCK_COUNT, clear old data */
+	/* If yest SET_BLOCK_COUNT, clear old data */
 	if (host->cmd != mrq->sbc) {
 		host->cmd = NULL;
 		host->data = NULL;
@@ -868,7 +868,7 @@ static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
 	struct mmc_host *mmc = host->mmc;
 	int ret = 0;
 
-	/* .set_ios() is returning void, so, no chance to report an error */
+	/* .set_ios() is returning void, so, yes chance to report an error */
 
 	if (host->set_pwr)
 		host->set_pwr(host->pdev, 1);
@@ -878,7 +878,7 @@ static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
 		/*
 		 * Attention: empiric value. With a b43 WiFi SDIO card this
 		 * delay proved necessary for reliable card-insertion probing.
-		 * 100us were not enough. Is this the same 140us delay, as in
+		 * 100us were yest eyesugh. Is this the same 140us delay, as in
 		 * tmio_mmc_set_ios()?
 		 */
 		usleep_range(200, 300);
@@ -917,7 +917,7 @@ static void tmio_mmc_set_bus_width(struct tmio_mmc_host *host,
 	u16 reg = sd_ctrl_read16(host, CTL_SD_MEM_CARD_OPT)
 				& ~(CARD_OPT_WIDTH | CARD_OPT_WIDTH8);
 
-	/* reg now applies to MMC_BUS_WIDTH_4 */
+	/* reg yesw applies to MMC_BUS_WIDTH_4 */
 	if (bus_width == MMC_BUS_WIDTH_1)
 		reg |= CARD_OPT_WIDTH;
 	else if (bus_width == MMC_BUS_WIDTH_8)
@@ -927,7 +927,7 @@ static void tmio_mmc_set_bus_width(struct tmio_mmc_host *host,
 }
 
 /* Set MMC clock / power.
- * Note: This controller uses a simple divider scheme therefore it cannot
+ * Note: This controller uses a simple divider scheme therefore it canyest
  * run a MMC card at full speed (20MHz). The max clock is 24MHz on SD, but as
  * MMC wont run that fast, it has to be clocked at 12MHz which is the next
  * slowest setting.
@@ -950,7 +950,7 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			host->mrq = ERR_PTR(-EINTR);
 		} else {
 			dev_dbg(dev,
-				"%s.%d: CMD%u active since %lu, now %lu!\n",
+				"%s.%d: CMD%u active since %lu, yesw %lu!\n",
 				current->comm, task_pid_nr(current),
 				host->mrq->cmd->opcode, host->last_req_ts,
 				jiffies);
@@ -1073,13 +1073,13 @@ static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
 	if (err)
 		return err;
 
-	/* use ocr_mask if no regulator */
+	/* use ocr_mask if yes regulator */
 	if (!mmc->ocr_avail)
 		mmc->ocr_avail = pdata->ocr_mask;
 
 	/*
 	 * try again.
-	 * There is possibility that regulator has not been probed
+	 * There is possibility that regulator has yest been probed
 	 */
 	if (!mmc->ocr_avail)
 		return -EPROBE_DEFER;
@@ -1090,7 +1090,7 @@ static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
 static void tmio_mmc_of_parse(struct platform_device *pdev,
 			      struct mmc_host *mmc)
 {
-	const struct device_node *np = pdev->dev.of_node;
+	const struct device_yesde *np = pdev->dev.of_yesde;
 
 	if (!np)
 		return;
@@ -1213,7 +1213,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	 * On Gen2+, eMMC with NONREMOVABLE currently fails because native
 	 * hotplug gets disabled. It seems RuntimePM related yet we need further
 	 * research. Since we are planning a PM overhaul anyway, let's enforce
-	 * for now the device being active by enabling native hotplug always.
+	 * for yesw the device being active by enabling native hotplug always.
 	 */
 	if (pdata->flags & TMIO_MMC_MIN_RCAR2)
 		_host->native_hotplug = true;
@@ -1223,7 +1223,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	 * to ensure it stays powered for it to work.
 	 */
 	if (_host->native_hotplug)
-		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_get_yesresume(&pdev->dev);
 
 	_host->sdio_irq_enabled = false;
 	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
@@ -1250,7 +1250,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	tmio_mmc_request_dma(_host, pdata);
 
 	dev_pm_domain_start(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -1266,7 +1266,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	return 0;
 
 remove_host:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	tmio_mmc_host_remove(_host);
 	return ret;
 }
@@ -1291,7 +1291,7 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	if (host->native_hotplug)
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }

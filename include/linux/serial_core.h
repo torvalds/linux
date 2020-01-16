@@ -156,7 +156,7 @@ struct uart_port {
 #define UPQ_NO_TXEN_TEST	BIT(0)
 
 	unsigned int		read_status_mask;	/* driver specific */
-	unsigned int		ignore_status_mask;	/* driver specific */
+	unsigned int		igyesre_status_mask;	/* driver specific */
 	struct uart_state	*state;			/* pointer to parent state */
 	struct uart_icount	icount;			/* statistics */
 
@@ -176,7 +176,7 @@ struct uart_port {
 	 * [for bit definitions in the UPF_CHANGE_MASK]
 	 *
 	 * Bits [0..UPF_LAST_USER] are userspace defined/visible/changeable
-	 * The remaining bits are serial-core specific and not modifiable by
+	 * The remaining bits are serial-core specific and yest modifiable by
 	 * userspace.
 	 */
 #define UPF_FOURPORT		((__force upf_t) ASYNC_FOURPORT       /* 1  */ )
@@ -205,7 +205,7 @@ struct uart_port {
 #define UPF_SHARE_IRQ		((__force upf_t) (1 << 24))
 #define UPF_EXAR_EFR		((__force upf_t) (1 << 25))
 #define UPF_BUG_THRE		((__force upf_t) (1 << 26))
-/* The exact UART type is known and should not be probed.  */
+/* The exact UART type is kyeswn and should yest be probed.  */
 #define UPF_FIXED_TYPE		((__force upf_t) (1 << 27))
 #define UPF_BOOT_AUTOCONF	((__force upf_t) (1 << 28))
 #define UPF_FIXED_PORT		((__force upf_t) (1 << 29))
@@ -217,7 +217,7 @@ struct uart_port {
 #define UPF_USR_MASK		((__force upf_t) (UPF_SPD_MASK|UPF_LOW_LATENCY))
 
 #if __UPF_CHANGE_MASK > ASYNC_FLAGS
-#error Change mask not equivalent to userspace-visible bit defines
+#error Change mask yest equivalent to userspace-visible bit defines
 #endif
 
 	/*
@@ -240,7 +240,7 @@ struct uart_port {
 	const struct uart_ops	*ops;
 	unsigned int		custom_divisor;
 	unsigned int		line;			/* port index */
-	unsigned int		minor;
+	unsigned int		miyesr;
 	resource_size_t		mapbase;		/* for ioremap */
 	resource_size_t		mapsize;
 	struct device		*dev;			/* parent device */
@@ -305,12 +305,12 @@ struct uart_driver {
 	const char		*driver_name;
 	const char		*dev_name;
 	int			 major;
-	int			 minor;
+	int			 miyesr;
 	int			 nr;
 	struct console		*cons;
 
 	/*
-	 * these are private; the low level driver should not
+	 * these are private; the low level driver should yest
 	 * touch these; they should be initialised to NULL
 	 */
 	struct uart_state	*state;
@@ -380,7 +380,7 @@ extern const struct earlycon_id *__earlycon_table_end[];
 #define EARLYCON_DECLARE(_name, fn)	OF_EARLYCON_DECLARE(_name, "", fn)
 
 extern int of_setup_earlycon(const struct earlycon_id *match,
-			     unsigned long node,
+			     unsigned long yesde,
 			     const char *options);
 
 #ifdef CONFIG_SERIAL_EARLYCON

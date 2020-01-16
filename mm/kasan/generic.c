@@ -6,7 +6,7 @@
  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
  *
  * Some code borrowed from https://github.com/xairy/kasan-prototype by
- *        Andrey Konovalov <andreyknvl@gmail.com>
+ *        Andrey Koyesvalov <andreyknvl@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -85,7 +85,7 @@ static __always_inline bool memory_is_poisoned_16(unsigned long addr)
 	return *shadow_addr;
 }
 
-static __always_inline unsigned long bytes_is_nonzero(const u8 *start,
+static __always_inline unsigned long bytes_is_yesnzero(const u8 *start,
 					size_t size)
 {
 	while (size) {
@@ -98,7 +98,7 @@ static __always_inline unsigned long bytes_is_nonzero(const u8 *start,
 	return 0;
 }
 
-static __always_inline unsigned long memory_is_nonzero(const void *start,
+static __always_inline unsigned long memory_is_yesnzero(const void *start,
 						const void *end)
 {
 	unsigned int words;
@@ -106,11 +106,11 @@ static __always_inline unsigned long memory_is_nonzero(const void *start,
 	unsigned int prefix = (unsigned long)start % 8;
 
 	if (end - start <= 16)
-		return bytes_is_nonzero(start, end - start);
+		return bytes_is_yesnzero(start, end - start);
 
 	if (prefix) {
 		prefix = 8 - prefix;
-		ret = bytes_is_nonzero(start, prefix);
+		ret = bytes_is_yesnzero(start, prefix);
 		if (unlikely(ret))
 			return ret;
 		start += prefix;
@@ -119,12 +119,12 @@ static __always_inline unsigned long memory_is_nonzero(const void *start,
 	words = (end - start) / 8;
 	while (words) {
 		if (unlikely(*(u64 *)start))
-			return bytes_is_nonzero(start, 8);
+			return bytes_is_yesnzero(start, 8);
 		start += 8;
 		words--;
 	}
 
-	return bytes_is_nonzero(start, (end - start) % 8);
+	return bytes_is_yesnzero(start, (end - start) % 8);
 }
 
 static __always_inline bool memory_is_poisoned_n(unsigned long addr,
@@ -132,7 +132,7 @@ static __always_inline bool memory_is_poisoned_n(unsigned long addr,
 {
 	unsigned long ret;
 
-	ret = memory_is_nonzero(kasan_mem_to_shadow((void *)addr),
+	ret = memory_is_yesnzero(kasan_mem_to_shadow((void *)addr),
 			kasan_mem_to_shadow((void *)addr + size - 1) + 1);
 
 	if (unlikely(ret)) {
@@ -235,16 +235,16 @@ EXPORT_SYMBOL(__asan_unregister_globals);
 	}								\
 	EXPORT_SYMBOL(__asan_load##size);				\
 	__alias(__asan_load##size)					\
-	void __asan_load##size##_noabort(unsigned long);		\
-	EXPORT_SYMBOL(__asan_load##size##_noabort);			\
+	void __asan_load##size##_yesabort(unsigned long);		\
+	EXPORT_SYMBOL(__asan_load##size##_yesabort);			\
 	void __asan_store##size(unsigned long addr)			\
 	{								\
 		check_memory_region_inline(addr, size, true, _RET_IP_);	\
 	}								\
 	EXPORT_SYMBOL(__asan_store##size);				\
 	__alias(__asan_store##size)					\
-	void __asan_store##size##_noabort(unsigned long);		\
-	EXPORT_SYMBOL(__asan_store##size##_noabort)
+	void __asan_store##size##_yesabort(unsigned long);		\
+	EXPORT_SYMBOL(__asan_store##size##_yesabort)
 
 DEFINE_ASAN_LOAD_STORE(1);
 DEFINE_ASAN_LOAD_STORE(2);
@@ -259,8 +259,8 @@ void __asan_loadN(unsigned long addr, size_t size)
 EXPORT_SYMBOL(__asan_loadN);
 
 __alias(__asan_loadN)
-void __asan_loadN_noabort(unsigned long, size_t);
-EXPORT_SYMBOL(__asan_loadN_noabort);
+void __asan_loadN_yesabort(unsigned long, size_t);
+EXPORT_SYMBOL(__asan_loadN_yesabort);
 
 void __asan_storeN(unsigned long addr, size_t size)
 {
@@ -269,12 +269,12 @@ void __asan_storeN(unsigned long addr, size_t size)
 EXPORT_SYMBOL(__asan_storeN);
 
 __alias(__asan_storeN)
-void __asan_storeN_noabort(unsigned long, size_t);
-EXPORT_SYMBOL(__asan_storeN_noabort);
+void __asan_storeN_yesabort(unsigned long, size_t);
+EXPORT_SYMBOL(__asan_storeN_yesabort);
 
 /* to shut up compiler complaints */
-void __asan_handle_no_return(void) {}
-EXPORT_SYMBOL(__asan_handle_no_return);
+void __asan_handle_yes_return(void) {}
+EXPORT_SYMBOL(__asan_handle_yes_return);
 
 /* Emitted by compiler to poison alloca()ed objects. */
 void __asan_alloca_poison(unsigned long addr, size_t size)

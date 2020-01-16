@@ -37,7 +37,7 @@ static const char *clcd_name = "CLCD FB";
 
 /*
  * Unfortunately, the enable/disable functions may be called either from
- * process or IRQ context, and we _need_ to delay.  This is _not_ good.
+ * process or IRQ context, and we _need_ to delay.  This is _yest_ good.
  */
 static inline void clcdfb_sleep(unsigned int ms)
 {
@@ -112,7 +112,7 @@ static void clcdfb_enable(struct clcd_fb *fb, u32 cntl)
 	clcdfb_sleep(20);
 
 	/*
-	 * and now apply power.
+	 * and yesw apply power.
 	 */
 	cntl |= CNTL_LCDPWR;
 	writel(cntl, fb->regs + fb->off_cntl);
@@ -250,7 +250,7 @@ clcdfb_set_bitfields(struct clcd_fb *fb, struct fb_var_screeninfo *var)
 
 		if (!bgr && !rgb)
 			/*
-			 * The requested format was not possible, try just
+			 * The requested format was yest possible, try just
 			 * our capabilities.  One of BGR or RGB must be
 			 * supported.
 			 */
@@ -342,22 +342,22 @@ static inline u32 convert_bitfield(int val, struct fb_bitfield *bf)
 
 /*
  *  Set a single color register. The values supplied have a 16 bit
- *  magnitude.  Return != 0 for invalid regno.
+ *  magnitude.  Return != 0 for invalid regyes.
  */
 static int
-clcdfb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
+clcdfb_setcolreg(unsigned int regyes, unsigned int red, unsigned int green,
 		 unsigned int blue, unsigned int transp, struct fb_info *info)
 {
 	struct clcd_fb *fb = to_clcd(info);
 
-	if (regno < 16)
-		fb->cmap[regno] = convert_bitfield(transp, &fb->fb.var.transp) |
+	if (regyes < 16)
+		fb->cmap[regyes] = convert_bitfield(transp, &fb->fb.var.transp) |
 				  convert_bitfield(blue, &fb->fb.var.blue) |
 				  convert_bitfield(green, &fb->fb.var.green) |
 				  convert_bitfield(red, &fb->fb.var.red);
 
-	if (fb->fb.fix.visual == FB_VISUAL_PSEUDOCOLOR && regno < 256) {
-		int hw_reg = CLCD_PALETTE + ((regno * 2) & ~3);
+	if (fb->fb.fix.visual == FB_VISUAL_PSEUDOCOLOR && regyes < 256) {
+		int hw_reg = CLCD_PALETTE + ((regyes * 2) & ~3);
 		u32 val, mask, newval;
 
 		newval  = (red >> 11)  & 0x001f;
@@ -369,9 +369,9 @@ clcdfb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
 		 * byte order, the palette entries are swapped.
 		 */
 		if (fb->clcd_cntl & CNTL_BEBO)
-			regno ^= 1;
+			regyes ^= 1;
 
-		if (regno & 1) {
+		if (regyes & 1) {
 			newval <<= 16;
 			mask = 0x0000ffff;
 		} else {
@@ -382,7 +382,7 @@ clcdfb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
 		writel(val | newval, fb->regs + hw_reg);
 	}
 
-	return regno > 255;
+	return regyes > 255;
 }
 
 /*
@@ -501,7 +501,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 	fb->fb.var.sync		= fb->panel->mode.sync;
 	fb->fb.var.vmode	= fb->panel->mode.vmode;
 	fb->fb.var.activate	= FB_ACTIVATE_NOW;
-	fb->fb.var.nonstd	= 0;
+	fb->fb.var.yesnstd	= 0;
 	fb->fb.var.height	= fb->panel->height;
 	fb->fb.var.width	= fb->panel->width;
 	fb->fb.var.accel_flags	= 0;
@@ -539,7 +539,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 	if (ret == 0)
 		goto out;
 
-	printk(KERN_ERR "CLCD: cannot register framebuffer (%d)\n", ret);
+	printk(KERN_ERR "CLCD: canyest register framebuffer (%d)\n", ret);
 
 	fb_dealloc_cmap(&fb->fb.cmap);
  unmap:
@@ -553,16 +553,16 @@ static int clcdfb_register(struct clcd_fb *fb)
 }
 
 #ifdef CONFIG_OF
-static int clcdfb_of_get_dpi_panel_mode(struct device_node *node,
+static int clcdfb_of_get_dpi_panel_mode(struct device_yesde *yesde,
 		struct clcd_panel *clcd_panel)
 {
 	int err;
 	struct display_timing timing;
 	struct videomode video;
 
-	err = of_get_display_timing(node, "panel-timing", &timing);
+	err = of_get_display_timing(yesde, "panel-timing", &timing);
 	if (err) {
-		pr_err("%pOF: problems parsing panel-timing (%d)\n", node, err);
+		pr_err("%pOF: problems parsing panel-timing (%d)\n", yesde, err);
 		return err;
 	}
 
@@ -602,16 +602,16 @@ static int clcdfb_snprintf_mode(char *buf, int size, struct fb_videomode *mode)
 			mode->refresh);
 }
 
-static int clcdfb_of_get_backlight(struct device_node *panel,
+static int clcdfb_of_get_backlight(struct device_yesde *panel,
 				   struct clcd_panel *clcd_panel)
 {
-	struct device_node *backlight;
+	struct device_yesde *backlight;
 
 	/* Look up the optional backlight phandle */
 	backlight = of_parse_phandle(panel, "backlight", 0);
 	if (backlight) {
-		clcd_panel->backlight = of_find_backlight_by_node(backlight);
-		of_node_put(backlight);
+		clcd_panel->backlight = of_find_backlight_by_yesde(backlight);
+		of_yesde_put(backlight);
 
 		if (!clcd_panel->backlight)
 			return -EPROBE_DEFER;
@@ -619,7 +619,7 @@ static int clcdfb_of_get_backlight(struct device_node *panel,
 	return 0;
 }
 
-static int clcdfb_of_get_mode(struct device *dev, struct device_node *panel,
+static int clcdfb_of_get_mode(struct device *dev, struct device_yesde *panel,
 			      struct clcd_panel *clcd_panel)
 {
 	int err;
@@ -627,7 +627,7 @@ static int clcdfb_of_get_mode(struct device *dev, struct device_node *panel,
 	char *name;
 	int len;
 
-	/* Only directly connected DPI panels supported for now */
+	/* Only directly connected DPI panels supported for yesw */
 	if (of_device_is_compatible(panel, "panel-dpi"))
 		err = clcdfb_of_get_dpi_panel_mode(panel, clcd_panel);
 	else
@@ -674,7 +674,7 @@ static int clcdfb_of_init_tft_panel(struct clcd_fb *fb, u32 r0, u32 g0, u32 b0)
 
 	fb->panel->caps = 0;
 
-	/* Match the setup with known variants */
+	/* Match the setup with kyeswn variants */
 	for (i = 0; i < ARRAY_SIZE(panels) && !fb->panel->caps; i++) {
 		if (amba_part(fb->dev) != panels[i].part)
 			continue;
@@ -696,7 +696,7 @@ static int clcdfb_of_init_tft_panel(struct clcd_fb *fb, u32 r0, u32 g0, u32 b0)
 
 static int clcdfb_of_init_display(struct clcd_fb *fb)
 {
-	struct device_node *endpoint, *panel;
+	struct device_yesde *endpoint, *panel;
 	int err;
 	unsigned int bpp;
 	u32 max_bandwidth;
@@ -709,7 +709,7 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 	/*
 	 * Fetch the panel endpoint.
 	 */
-	endpoint = of_graph_get_next_endpoint(fb->dev->dev.of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(fb->dev->dev.of_yesde, NULL);
 	if (!endpoint)
 		return -ENODEV;
 
@@ -725,7 +725,7 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 	if (err)
 		return err;
 
-	err = of_property_read_u32(fb->dev->dev.of_node, "max-memory-bandwidth",
+	err = of_property_read_u32(fb->dev->dev.of_yesde, "max-memory-bandwidth",
 			&max_bandwidth);
 	if (!err) {
 		/*
@@ -762,14 +762,14 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 static int clcdfb_of_vram_setup(struct clcd_fb *fb)
 {
 	int err;
-	struct device_node *memory;
+	struct device_yesde *memory;
 	u64 size;
 
 	err = clcdfb_of_init_display(fb);
 	if (err)
 		return err;
 
-	memory = of_parse_phandle(fb->dev->dev.of_node, "memory-region", 0);
+	memory = of_parse_phandle(fb->dev->dev.of_yesde, "memory-region", 0);
 	if (!memory)
 		return -ENODEV;
 
@@ -846,16 +846,16 @@ static struct clcd_board *clcdfb_of_get_board(struct amba_device *dev)
 {
 	struct clcd_board *board = devm_kzalloc(&dev->dev, sizeof(*board),
 			GFP_KERNEL);
-	struct device_node *node = dev->dev.of_node;
+	struct device_yesde *yesde = dev->dev.of_yesde;
 
 	if (!board)
 		return NULL;
 
-	board->name = of_node_full_name(node);
+	board->name = of_yesde_full_name(yesde);
 	board->caps = CLCD_CAP_ALL;
 	board->check = clcdfb_check;
 	board->decode = clcdfb_decode;
-	if (of_find_property(node, "memory-region", NULL)) {
+	if (of_find_property(yesde, "memory-region", NULL)) {
 		board->setup = clcdfb_of_vram_setup;
 		board->mmap = clcdfb_of_vram_mmap;
 		board->remove = clcdfb_of_vram_remove;

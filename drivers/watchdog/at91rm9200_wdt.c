@@ -10,7 +10,7 @@
 
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -33,7 +33,7 @@
 #define WDT_MAX_TIME		256	/* seconds */
 
 static int wdt_time = WDT_DEFAULT_TIME;
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 static struct regmap *regmap_st;
 
 module_param(wdt_time, int, 0);
@@ -41,9 +41,9 @@ MODULE_PARM_DESC(wdt_time, "Watchdog time in seconds. (default="
 				__MODULE_STRING(WDT_DEFAULT_TIME) ")");
 
 #ifdef CONFIG_WATCHDOG_NOWAYOUT
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 #endif
 
@@ -52,7 +52,7 @@ static unsigned long at91wdt_busy;
 
 /* ......................................................................... */
 
-static int at91rm9200_restart(struct notifier_block *this,
+static int at91rm9200_restart(struct yestifier_block *this,
 					unsigned long mode, void *cmd)
 {
 	/*
@@ -68,8 +68,8 @@ static int at91rm9200_restart(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block at91rm9200_restart_nb = {
-	.notifier_call = at91rm9200_restart,
+static struct yestifier_block at91rm9200_restart_nb = {
+	.yestifier_call = at91rm9200_restart,
 	.priority = 192,
 };
 
@@ -104,13 +104,13 @@ static inline void at91_wdt_reload(void)
 /*
  * Watchdog device is opened, and watchdog starts running.
  */
-static int at91_wdt_open(struct inode *inode, struct file *file)
+static int at91_wdt_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(0, &at91wdt_busy))
 		return -EBUSY;
 
 	at91_wdt_start();
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 /*
@@ -118,10 +118,10 @@ static int at91_wdt_open(struct inode *inode, struct file *file)
  * If CONFIG_WATCHDOG_NOWAYOUT is NOT defined then the watchdog is also
  *  disabled.
  */
-static int at91_wdt_close(struct inode *inode, struct file *file)
+static int at91_wdt_close(struct iyesde *iyesde, struct file *file)
 {
 	/* Disable the watchdog when file is closed */
-	if (!nowayout)
+	if (!yeswayout)
 		at91_wdt_stop();
 
 	clear_bit(0, &at91wdt_busy);
@@ -211,7 +211,7 @@ static ssize_t at91_wdt_write(struct file *file, const char *data,
 
 static const struct file_operations at91wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.unlocked_ioctl	= at91_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= at91_wdt_open,
@@ -220,7 +220,7 @@ static const struct file_operations at91wdt_fops = {
 };
 
 static struct miscdevice at91wdt_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.miyesr		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &at91wdt_fops,
 };
@@ -237,11 +237,11 @@ static int at91wdt_probe(struct platform_device *pdev)
 
 	parent = dev->parent;
 	if (!parent) {
-		dev_err(dev, "no parent\n");
+		dev_err(dev, "yes parent\n");
 		return -ENODEV;
 	}
 
-	regmap_st = syscon_node_to_regmap(parent->of_node);
+	regmap_st = syscon_yesde_to_regmap(parent->of_yesde);
 	if (IS_ERR(regmap_st))
 		return -ENODEV;
 
@@ -254,7 +254,7 @@ static int at91wdt_probe(struct platform_device *pdev)
 		dev_warn(dev, "failed to register restart handler\n");
 
 	pr_info("AT91 Watchdog Timer enabled (%d seconds%s)\n",
-		wdt_time, nowayout ? ", nowayout" : "");
+		wdt_time, yeswayout ? ", yeswayout" : "");
 	return 0;
 }
 
@@ -319,7 +319,7 @@ static struct platform_driver at91wdt_driver = {
 static int __init at91_wdt_init(void)
 {
 	/* Check that the heartbeat value is within range;
-	   if not reset to the default */
+	   if yest reset to the default */
 	if (at91_wdt_settimeout(wdt_time)) {
 		at91_wdt_settimeout(WDT_DEFAULT_TIME);
 		pr_info("wdt_time value must be 1 <= wdt_time <= 256, using %d\n",

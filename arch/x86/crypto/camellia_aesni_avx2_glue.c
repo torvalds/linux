@@ -265,13 +265,13 @@ static int __init camellia_aesni_init(void)
 	    !boot_cpu_has(X86_FEATURE_AVX2) ||
 	    !boot_cpu_has(X86_FEATURE_AES) ||
 	    !boot_cpu_has(X86_FEATURE_OSXSAVE)) {
-		pr_info("AVX2 or AES-NI instructions are not detected.\n");
+		pr_info("AVX2 or AES-NI instructions are yest detected.\n");
 		return -ENODEV;
 	}
 
 	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM,
 				&feature_name)) {
-		pr_info("CPU feature '%s' is not supported.\n", feature_name);
+		pr_info("CPU feature '%s' is yest supported.\n", feature_name);
 		return -ENODEV;
 	}
 

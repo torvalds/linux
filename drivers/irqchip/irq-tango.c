@@ -170,7 +170,7 @@ static void __init tangox_irq_domain_init(struct irq_domain *dom)
 }
 
 static int __init tangox_irq_init(void __iomem *base, struct resource *baseres,
-				  struct device_node *node)
+				  struct device_yesde *yesde)
 {
 	struct tangox_irq_chip *chip;
 	struct irq_domain *dom;
@@ -178,26 +178,26 @@ static int __init tangox_irq_init(void __iomem *base, struct resource *baseres,
 	int irq;
 	int err;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (!irq)
-		panic("%pOFn: failed to get IRQ", node);
+		panic("%pOFn: failed to get IRQ", yesde);
 
-	err = of_address_to_resource(node, 0, &res);
+	err = of_address_to_resource(yesde, 0, &res);
 	if (err)
-		panic("%pOFn: failed to get address", node);
+		panic("%pOFn: failed to get address", yesde);
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	chip->ctl = res.start - baseres->start;
 	chip->base = base;
 
-	dom = irq_domain_add_linear(node, 64, &irq_generic_chip_ops, chip);
+	dom = irq_domain_add_linear(yesde, 64, &irq_generic_chip_ops, chip);
 	if (!dom)
-		panic("%pOFn: failed to create irqdomain", node);
+		panic("%pOFn: failed to create irqdomain", yesde);
 
-	err = irq_alloc_domain_generic_chips(dom, 32, 2, node->name,
+	err = irq_alloc_domain_generic_chips(dom, 32, 2, yesde->name,
 					     handle_level_irq, 0, 0, 0);
 	if (err)
-		panic("%pOFn: failed to allocate irqchip", node);
+		panic("%pOFn: failed to allocate irqchip", yesde);
 
 	tangox_irq_domain_init(dom);
 
@@ -206,20 +206,20 @@ static int __init tangox_irq_init(void __iomem *base, struct resource *baseres,
 	return 0;
 }
 
-static int __init tangox_of_irq_init(struct device_node *node,
-				     struct device_node *parent)
+static int __init tangox_of_irq_init(struct device_yesde *yesde,
+				     struct device_yesde *parent)
 {
-	struct device_node *c;
+	struct device_yesde *c;
 	struct resource res;
 	void __iomem *base;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base)
-		panic("%pOFn: of_iomap failed", node);
+		panic("%pOFn: of_iomap failed", yesde);
 
-	of_address_to_resource(node, 0, &res);
+	of_address_to_resource(yesde, 0, &res);
 
-	for_each_child_of_node(node, c)
+	for_each_child_of_yesde(yesde, c)
 		tangox_irq_init(base, &res, c);
 
 	return 0;

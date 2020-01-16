@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Generic mm no-op hooks.
+ * Generic mm yes-op hooks.
  *
  * Copyright (C) 2015, IBM Corporation
  * Author: Laurent Dufour <ldufour@linux.vnet.ibm.com>

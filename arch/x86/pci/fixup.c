@@ -16,18 +16,18 @@ static void pci_fixup_i450nx(struct pci_dev *d)
 	 * i450NX -- Find and scan all secondary buses on all PXB's.
 	 */
 	int pxb, reg;
-	u8 busno, suba, subb;
+	u8 busyes, suba, subb;
 
 	dev_warn(&d->dev, "Searching for i450NX host bridges\n");
 	reg = 0xd0;
 	for(pxb = 0; pxb < 2; pxb++) {
-		pci_read_config_byte(d, reg++, &busno);
+		pci_read_config_byte(d, reg++, &busyes);
 		pci_read_config_byte(d, reg++, &suba);
 		pci_read_config_byte(d, reg++, &subb);
-		dev_dbg(&d->dev, "i450NX PXB %d: %02x/%02x/%02x\n", pxb, busno,
+		dev_dbg(&d->dev, "i450NX PXB %d: %02x/%02x/%02x\n", pxb, busyes,
 			suba, subb);
-		if (busno)
-			pcibios_scan_root(busno);	/* Bus A */
+		if (busyes)
+			pcibios_scan_root(busyes);	/* Bus A */
 		if (suba < subb)
 			pcibios_scan_root(suba+1);	/* Bus B */
 	}
@@ -41,10 +41,10 @@ static void pci_fixup_i450gx(struct pci_dev *d)
 	 * i450GX and i450KX -- Find and scan all secondary buses.
 	 * (called separately for each PCI bridge found)
 	 */
-	u8 busno;
-	pci_read_config_byte(d, 0x4a, &busno);
-	dev_info(&d->dev, "i440KX/GX host bridge; secondary bus %02x\n", busno);
-	pcibios_scan_root(busno);
+	u8 busyes;
+	pci_read_config_byte(d, 0x4a, &busyes);
+	dev_info(&d->dev, "i440KX/GX host bridge; secondary bus %02x\n", busyes);
+	pcibios_scan_root(busyes);
 	pcibios_last_bus = -1;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454GX, pci_fixup_i450gx);
@@ -104,7 +104,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3, pci
 #define VIA_8363_KL133_REVISION_ID 0x81
 #define VIA_8363_KM133_REVISION_ID 0x84
 
-static void pci_fixup_via_northbridge_bug(struct pci_dev *d)
+static void pci_fixup_via_yesrthbridge_bug(struct pci_dev *d)
 {
 	u8 v;
 	int where = 0x55;
@@ -117,7 +117,7 @@ static void pci_fixup_via_northbridge_bug(struct pci_dev *d)
 		pci_write_config_byte(d, PCI_LATENCY_TIMER, 0);
 
 		where = 0x95; /* the memory write queue timer register is
-				different for the KT266x's: 0x95 not 0x55 */
+				different for the KT266x's: 0x95 yest 0x55 */
 	} else if (d->device == PCI_DEVICE_ID_VIA_8363_0 &&
 			(d->revision == VIA_8363_KL133_REVISION_ID ||
 			d->revision == VIA_8363_KM133_REVISION_ID)) {
@@ -133,22 +133,22 @@ static void pci_fixup_via_northbridge_bug(struct pci_dev *d)
 		pci_write_config_byte(d, where, v);
 	}
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8363_0, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8622, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8361, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8367_0, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8363_0, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8622, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8361, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8367_0, pci_fixup_via_northbridge_bug);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8363_0, pci_fixup_via_yesrthbridge_bug);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8622, pci_fixup_via_yesrthbridge_bug);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8361, pci_fixup_via_yesrthbridge_bug);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8367_0, pci_fixup_via_yesrthbridge_bug);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8363_0, pci_fixup_via_yesrthbridge_bug);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8622, pci_fixup_via_yesrthbridge_bug);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8361, pci_fixup_via_yesrthbridge_bug);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8367_0, pci_fixup_via_yesrthbridge_bug);
 
 /*
  * For some reasons Intel decided that certain parts of their
  * 815, 845 and some other chipsets must look like PCI-to-PCI bridges
- * while they are obviously not. The 82801 family (AA, AB, BAM/CAM,
+ * while they are obviously yest. The 82801 family (AA, AB, BAM/CAM,
  * BA/CA/DB and E) PCI bridges are actually HUB-to-PCI ones, according
- * to Intel terminology. These devices do forward all addresses from
- * system to PCI bus no matter what are their window settings, so they are
+ * to Intel termiyeslogy. These devices do forward all addresses from
+ * system to PCI bus yes matter what are their window settings, so they are
  * "transparent" (or subtractive decoding) from programmers point of view.
  */
 static void pci_fixup_transparent_bridge(struct pci_dev *dev)
@@ -167,8 +167,8 @@ DECLARE_PCI_FIXUP_CLASS_HEADER(PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
  * A hang is caused when the CPU generates a very fast CONNECT/HALT cycle
  * sequence.  Workaround is to set the SYSTEM_IDLE_TIMEOUT to 80 ns.
  * This allows the state-machine and timer to return to a proper state within
- * 80 ns of the CONNECT and probe appearing together.  Since the CPU will not
- * issue another HALT within 80 ns of the initial HALT, the failure condition
+ * 80 ns of the CONNECT and probe appearing together.  Since the CPU will yest
+ * issue ayesther HALT within 80 ns of the initial HALT, the failure condition
  * is avoided.
  */
 static void pci_fixup_nforce2(struct pci_dev *dev)
@@ -210,7 +210,7 @@ static int quirk_pcie_aspm_read(struct pci_bus *bus, unsigned int devfn, int whe
 
 /*
  * Replace the original pci bus ops for write with a new one that will filter
- * the request to insure ASPM cannot be enabled.
+ * the request to insure ASPM canyest be enabled.
  */
 static int quirk_pcie_aspm_write(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 value)
 {
@@ -258,7 +258,7 @@ static void pcie_rootport_aspm_quirk(struct pci_dev *pdev)
 
 	if (list_empty(&pbus->devices)) {
 		/*
-		 * If no device is attached to the root port at power-up or
+		 * If yes device is attached to the root port at power-up or
 		 * after hot-remove, the pbus->devices is empty and this code
 		 * will set the offsets to zero and the bus ops to parent's bus
 		 * ops, which is unmodified.
@@ -280,7 +280,7 @@ static void pcie_rootport_aspm_quirk(struct pci_dev *pdev)
 				dev->pcie_cap + PCI_EXP_LNKCTL;
 
 		pci_bus_set_ops(pbus, &quirk_pcie_aspm_ops);
-		dev_info(&pbus->dev, "writes to ASPM control bits will be ignored\n");
+		dev_info(&pbus->dev, "writes to ASPM control bits will be igyesred\n");
 	}
 
 }
@@ -301,7 +301,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PC1,	pcie_r
  * card will have its BIOS copied to 0xC0000 in system RAM.
  * IORESOURCE_ROM_SHADOW is used to associate the boot video
  * card with this copy. On laptops this copy has to be used since
- * the main ROM may be compressed or combined with another image.
+ * the main ROM may be compressed or combined with ayesther image.
  * See pci_map_rom() for use of this flag. Before marking the device
  * with IORESOURCE_ROM_SHADOW check if a vga_default_device is already set
  * by either arch code or vga-arbitration; if so only apply the fixup to this
@@ -486,7 +486,7 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_LEGACY,
 
 /*
  * Siemens Nixdorf AG FSC Multiprocessor Interrupt Controller:
- * prevent update of the BAR0, which doesn't look like a normal BAR.
+ * prevent update of the BAR0, which doesn't look like a yesrmal BAR.
  */
 static void pci_siemens_interrupt_controller(struct pci_dev *dev)
 {
@@ -566,7 +566,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x27B9, twinhead_reserve_killing_z
  */
 static void pci_invalid_bar(struct pci_dev *dev)
 {
-	dev->non_compliant_bars = 1;
+	dev->yesn_compliant_bars = 1;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2fc0, pci_invalid_bar);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x6f60, pci_invalid_bar);
@@ -582,7 +582,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x6fc0, pci_invalid_bar);
  */
 static void pci_fixup_amd_ehci_pme(struct pci_dev *dev)
 {
-	dev_info(&dev->dev, "PME# does not work under D3, disabling it\n");
+	dev_info(&dev->dev, "PME# does yest work under D3, disabling it\n");
 	dev->pme_support &= ~((PCI_PM_CAP_PME_D3 | PCI_PM_CAP_PME_D3cold)
 		>> PCI_PM_CAP_PME_SHIFT);
 }
@@ -594,7 +594,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x7808, pci_fixup_amd_ehci_pme);
  */
 static void pci_fixup_amd_fch_xhci_pme(struct pci_dev *dev)
 {
-	dev_info(&dev->dev, "PME# does not work under D0, disabling it\n");
+	dev_info(&dev->dev, "PME# does yest work under D0, disabling it\n");
 	dev->pme_support &= ~(PCI_PM_CAP_PME_D0 >> PCI_PM_CAP_PME_SHIFT);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x7914, pci_fixup_amd_fch_xhci_pme);
@@ -606,7 +606,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x7914, pci_fixup_amd_fch_xhci_pme);
  * the 00:1c.0 Root Port, causes a conflict with [io 0x1804], which is used
  * for soft poweroff and suspend-to-RAM.
  *
- * As far as we know, this is related to the address space, not to the Root
+ * As far as we kyesw, this is related to the address space, yest to the Root
  * Port itself.  Attaching the quirk to the Root Port is a convenience, but
  * it could probably also be a standalone DMI quirk.
  *
@@ -637,14 +637,14 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x8c10, quirk_apple_mbp_poweroff);
  * ID, the AER driver should traverse the child device tree, reading
  * AER registers to find the faulting device.
  */
-static void quirk_no_aersid(struct pci_dev *pdev)
+static void quirk_yes_aersid(struct pci_dev *pdev)
 {
 	/* VMD Domain */
 	if (is_vmd(pdev->bus) && pci_is_root_bus(pdev->bus))
 		pdev->bus->bus_flags |= PCI_BUS_FLAGS_NO_AERSID;
 }
 DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
-			      PCI_CLASS_BRIDGE_PCI, 8, quirk_no_aersid);
+			      PCI_CLASS_BRIDGE_PCI, 8, quirk_yes_aersid);
 
 static void quirk_intel_th_dnv(struct pci_dev *dev)
 {
@@ -678,7 +678,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x19e1, quirk_intel_th_dnv);
 #define AMD_141b_MMIO_HIGH_MMIOLIMIT_MASK	GENMASK(23,16)
 
 /*
- * The PCI Firmware Spec, rev 3.2, notes that ACPI should optionally allow
+ * The PCI Firmware Spec, rev 3.2, yestes that ACPI should optionally allow
  * configuring host bridge windows using the _PRS and _SRS methods.
  *
  * But this is rarely implemented, so we manually enable a large 64bit BAR for
@@ -700,7 +700,7 @@ static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
 	other = pci_get_device(dev->vendor, dev->device, NULL);
 	if (other != dev ||
 	    (other = pci_get_device(dev->vendor, dev->device, other))) {
-		/* This is a multi-socket system, don't touch it for now */
+		/* This is a multi-socket system, don't touch it for yesw */
 		pci_dev_put(other);
 		return;
 	}

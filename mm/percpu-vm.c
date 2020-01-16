@@ -12,7 +12,7 @@
 static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
 				    unsigned int cpu, int page_idx)
 {
-	/* must not be used on pre-mapped chunk */
+	/* must yest be used on pre-mapped chunk */
 	WARN_ON(chunk->immutable);
 
 	return vmalloc_to_page((void *)pcpu_chunk_addr(chunk, cpu, page_idx));
@@ -91,7 +91,7 @@ static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
 		for (i = page_start; i < page_end; i++) {
 			struct page **pagep = &pages[pcpu_page_idx(cpu, i)];
 
-			*pagep = alloc_pages_node(cpu_to_node(cpu), gfp, 0);
+			*pagep = alloc_pages_yesde(cpu_to_yesde(cpu), gfp, 0);
 			if (!*pagep)
 				goto err;
 		}
@@ -133,7 +133,7 @@ static void pcpu_pre_unmap_flush(struct pcpu_chunk *chunk,
 
 static void __pcpu_unmap_pages(unsigned long addr, int nr_pages)
 {
-	unmap_kernel_range_noflush(addr, nr_pages << PAGE_SHIFT);
+	unmap_kernel_range_yesflush(addr, nr_pages << PAGE_SHIFT);
 }
 
 /**
@@ -192,7 +192,7 @@ static void pcpu_post_unmap_tlb_flush(struct pcpu_chunk *chunk,
 static int __pcpu_map_pages(unsigned long addr, struct page **pages,
 			    int nr_pages)
 {
-	return map_kernel_range_noflush(addr, nr_pages << PAGE_SHIFT,
+	return map_kernel_range_yesflush(addr, nr_pages << PAGE_SHIFT,
 					PAGE_KERNEL, pages);
 }
 
@@ -313,7 +313,7 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 	/*
 	 * If control reaches here, there must have been at least one
 	 * successful population attempt so the temp pages array must
-	 * be available now.
+	 * be available yesw.
 	 */
 	pages = pcpu_get_pages();
 	BUG_ON(!pages);
@@ -323,7 +323,7 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 
 	pcpu_unmap_pages(chunk, pages, page_start, page_end);
 
-	/* no need to flush tlb, vmalloc will handle it lazily */
+	/* yes need to flush tlb, vmalloc will handle it lazily */
 
 	pcpu_free_pages(chunk, pages, page_start, page_end);
 }
@@ -373,6 +373,6 @@ static struct page *pcpu_addr_to_page(void *addr)
 
 static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai)
 {
-	/* no extra restriction */
+	/* yes extra restriction */
 	return 0;
 }

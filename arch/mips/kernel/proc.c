@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1995, 1996, 2001  Ralf Baechle
- *  Copyright (C) 2001, 2004  MIPS Technologies, Inc.
+ *  Copyright (C) 2001, 2004  MIPS Techyeslogies, Inc.
  *  Copyright (C) 2004	Maciej W. Rozycki
  */
 #include <linux/delay.h>
@@ -23,19 +23,19 @@ unsigned int vced_count, vcei_count;
  *   */
 static RAW_NOTIFIER_HEAD(proc_cpuinfo_chain);
 
-int __ref register_proc_cpuinfo_notifier(struct notifier_block *nb)
+int __ref register_proc_cpuinfo_yestifier(struct yestifier_block *nb)
 {
-	return raw_notifier_chain_register(&proc_cpuinfo_chain, nb);
+	return raw_yestifier_chain_register(&proc_cpuinfo_chain, nb);
 }
 
-int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v)
+int proc_cpuinfo_yestifier_call_chain(unsigned long val, void *v)
 {
-	return raw_notifier_call_chain(&proc_cpuinfo_chain, val, v);
+	return raw_yestifier_call_chain(&proc_cpuinfo_chain, val, v);
 }
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	struct proc_cpuinfo_notifier_args proc_cpuinfo_notifier_args;
+	struct proc_cpuinfo_yestifier_args proc_cpuinfo_yestifier_args;
 	unsigned long n = (unsigned long) v - 1;
 	unsigned int version = cpu_data[n].processor_id;
 	unsigned int fp_vers = cpu_data[n].fpu_id;
@@ -66,14 +66,14 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "BogoMIPS\t\t: %u.%02u\n",
 		      cpu_data[n].udelay_val / (500000/HZ),
 		      (cpu_data[n].udelay_val / (5000/HZ)) % 100);
-	seq_printf(m, "wait instruction\t: %s\n", cpu_wait ? "yes" : "no");
+	seq_printf(m, "wait instruction\t: %s\n", cpu_wait ? "no" : "yes");
 	seq_printf(m, "microsecond timers\t: %s\n",
-		      cpu_has_counter ? "yes" : "no");
+		      cpu_has_counter ? "no" : "yes");
 	seq_printf(m, "tlb_entries\t\t: %d\n", cpu_data[n].tlbsize);
 	seq_printf(m, "extra interrupt vector\t: %s\n",
-		      cpu_has_divec ? "yes" : "no");
+		      cpu_has_divec ? "no" : "yes");
 	seq_printf(m, "hardware watchpoint\t: %s",
-		      cpu_has_watch ? "yes, " : "no\n");
+		      cpu_has_watch ? "no, " : "yes\n");
 	if (cpu_has_watch) {
 		seq_printf(m, "count: %d, address/irw mask: [",
 		      cpu_data[n].watch_reg_count);
@@ -132,7 +132,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	if (cpu_has_mmips) {
 		seq_printf(m, "micromips kernel\t: %s\n",
-		      (read_c0_config3() & MIPS_CONF3_ISA_OE) ?  "yes" : "no");
+		      (read_c0_config3() & MIPS_CONF3_ISA_OE) ?  "no" : "yes");
 	}
 	seq_printf(m, "shadow register sets\t: %d\n",
 		      cpu_data[n].srsets);
@@ -149,15 +149,15 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #endif
 
 	sprintf(fmt, "VCE%%c exceptions\t\t: %s\n",
-		      cpu_has_vce ? "%u" : "not available");
+		      cpu_has_vce ? "%u" : "yest available");
 	seq_printf(m, fmt, 'D', vced_count);
 	seq_printf(m, fmt, 'I', vcei_count);
 
-	proc_cpuinfo_notifier_args.m = m;
-	proc_cpuinfo_notifier_args.n = n;
+	proc_cpuinfo_yestifier_args.m = m;
+	proc_cpuinfo_yestifier_args.n = n;
 
-	raw_notifier_call_chain(&proc_cpuinfo_chain, 0,
-				&proc_cpuinfo_notifier_args);
+	raw_yestifier_call_chain(&proc_cpuinfo_chain, 0,
+				&proc_cpuinfo_yestifier_args);
 
 	seq_printf(m, "\n");
 

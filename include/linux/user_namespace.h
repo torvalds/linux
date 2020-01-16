@@ -89,7 +89,7 @@ struct user_namespace {
 } __randomize_layout;
 
 struct ucounts {
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 	struct user_namespace *ns;
 	kuid_t uid;
 	int count;

@@ -28,7 +28,7 @@ struct fsl_soc_die_attr {
 static struct guts *guts;
 static struct soc_device_attribute soc_dev_attr;
 static struct soc_device *soc_dev;
-static struct device_node *root;
+static struct device_yesde *root;
 
 
 /* SoC die attribute definition for QorIQ platform */
@@ -138,7 +138,7 @@ static u32 fsl_guts_get_svr(void)
 
 static int fsl_guts_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	const struct fsl_soc_die_attr *soc_die;
@@ -158,7 +158,7 @@ static int fsl_guts_probe(struct platform_device *pdev)
 		return PTR_ERR(guts->regs);
 
 	/* Register soc device */
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (of_property_read_string(root, "model", &machine))
 		of_property_read_string_index(root, "compatible", 0, &machine);
 	if (machine)
@@ -197,13 +197,13 @@ static int fsl_guts_probe(struct platform_device *pdev)
 static int fsl_guts_remove(struct platform_device *dev)
 {
 	soc_device_unregister(soc_dev);
-	of_node_put(root);
+	of_yesde_put(root);
 	return 0;
 }
 
 /*
  * Table for matching compatible strings, for device tree
- * guts node, for Freescale QorIQ SOCs.
+ * guts yesde, for Freescale QorIQ SOCs.
  */
 static const struct of_device_id fsl_guts_of_match[] = {
 	{ .compatible = "fsl,qoriq-device-config-1.0", },

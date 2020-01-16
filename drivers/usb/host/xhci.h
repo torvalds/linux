@@ -16,7 +16,7 @@
 #include <linux/timer.h>
 #include <linux/kernel.h>
 #include <linux/usb/hcd.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 /* Code sharing between pci-quirks and xhci hcd */
 #include	"xhci-ext-caps.h"
@@ -81,7 +81,7 @@ struct xhci_cap_regs {
 /* bits 4:7, max number of Event Ring segments */
 #define HCS_ERST_MAX(p)		(((p) >> 4) & 0xf)
 /* bits 21:25 Hi 5 bits of Scratchpad buffers SW must allocate for the HW */
-/* bit 26 Scratchpad restore - for save/restore HW state - not used yet */
+/* bit 26 Scratchpad restore - for save/restore HW state - yest used yet */
 /* bits 27:31 Lo 5 bits of Scratchpad buffers SW must allocate for the HW */
 #define HCS_MAX_SCRATCHPAD(p)   ((((p) >> 16) & 0x3e0) | (((p) >> 27) & 0x1f))
 
@@ -108,7 +108,7 @@ struct xhci_cap_regs {
 #define HCC_LIGHT_RESET(p)	((p) & (1 << 5))
 /* true: HC supports latency tolerance messaging */
 #define HCC_LTC(p)		((p) & (1 << 6))
-/* true: no secondary Stream ID Support */
+/* true: yes secondary Stream ID Support */
 #define HCC_NSS(p)		((p) & (1 << 7))
 /* true: HC supports Stopped - Short Packet */
 #define HCC_SPC(p)		((p) & (1 << 9))
@@ -179,7 +179,7 @@ struct xhci_op_regs {
 	__le32	page_size;
 	__le32	reserved1;
 	__le32	reserved2;
-	__le32	dev_notification;
+	__le32	dev_yestification;
 	__le64	cmd_ring;
 	/* rsvd: offset 0x20-2F */
 	__le32	reserved3[4];
@@ -197,7 +197,7 @@ struct xhci_op_regs {
 };
 
 /* USBCMD - USB command - command bitmasks */
-/* start/stop HC execution - do not write unless HC is halted*/
+/* start/stop HC execution - do yest write unless HC is halted*/
 #define CMD_RUN		XHCI_CMD_RUN
 /* Reset HC - resets internal HC state machine and all registers (except
  * PCI config regs).  HC does NOT drive a USB reset on the downstream ports.
@@ -231,7 +231,7 @@ struct xhci_op_regs {
 #define IMAN_IP		(1 << 0)
 
 /* USBSTS - USB status - status bitmasks */
-/* HC not running - set to 1 when run/stop bit is cleared. */
+/* HC yest running - set to 1 when run/stop bit is cleared. */
 #define STS_HALT	XHCI_STS_HALT
 /* serious error, e.g. PCI parity error.  The HC will clear the run/stop bit. */
 #define STS_FATAL	(1 << 2)
@@ -253,14 +253,14 @@ struct xhci_op_regs {
 /* bits 13:31 reserved and should be preserved */
 
 /*
- * DNCTRL - Device Notification Control Register - dev_notification bitmasks
- * Generate a device notification event when the HC sees a transaction with a
- * notification type that matches a bit set in this bit field.
+ * DNCTRL - Device Notification Control Register - dev_yestification bitmasks
+ * Generate a device yestification event when the HC sees a transaction with a
+ * yestification type that matches a bit set in this bit field.
  */
 #define	DEV_NOTE_MASK		(0xffff)
 #define ENABLE_DEV_NOTE(x)	(1 << (x))
-/* Most of the device notification types should only be used for debug.
- * SW does need to pay attention to function wake notifications.
+/* Most of the device yestification types should only be used for debug.
+ * SW does need to pay attention to function wake yestifications.
  */
 #define	DEV_NOTE_FWAKE		ENABLE_DEV_NOTE(1)
 
@@ -398,7 +398,7 @@ struct xhci_op_regs {
 /* wake on over-current (enable) */
 #define PORT_WKOC_E	(1 << 27)
 /* bits 28:29 reserved */
-/* true: device is non-removable - for USB 3.0 roothub emulation */
+/* true: device is yesn-removable - for USB 3.0 roothub emulation */
 #define PORT_DEV_REMOVE	(1 << 30)
 /* Initiate a warm port reset - complete when PORT_WRC is '1' */
 #define PORT_WR		(1 << 31)
@@ -444,11 +444,11 @@ struct xhci_op_regs {
  * Safe to use with mixed HIRD and BESL systems (host and device) and is used
  * by other operating systems.
  *
- * XHCI 1.0 errata 8/14/12 Table 13 notes:
- * "Software should choose xHC BESL/BESLD field values that do not violate a
+ * XHCI 1.0 errata 8/14/12 Table 13 yestes:
+ * "Software should choose xHC BESL/BESLD field values that do yest violate a
  * device's resume latency requirements,
- * e.g. not program values > '4' if BLC = '1' and a HIRD device is attached,
- * or not program values < '4' if BLC = '0' and a BESL device is attached.
+ * e.g. yest program values > '4' if BLC = '1' and a HIRD device is attached,
+ * or yest program values < '4' if BLC = '0' and a BESL device is attached.
  */
 #define XHCI_DEFAULT_BESL	4
 
@@ -496,7 +496,7 @@ struct xhci_intr_reg {
 
 /* irq_control bitmasks */
 /* Minimum interval between interrupts (in 250ns intervals).  The interval
- * between interrupts will be longer if there are no events on the event ring.
+ * between interrupts will be longer if there are yes events on the event ring.
  * Default is 4000 (1 ms).
  */
 #define ER_IRQ_INTERVAL_MASK	(0xffff)
@@ -551,7 +551,7 @@ struct xhci_doorbell_array {
 
 /**
  * struct xhci_protocol_caps
- * @revision:		major revision, minor revision, capability ID,
+ * @revision:		major revision, miyesr revision, capability ID,
  *			and next capability pointer.
  * @name_string:	Four ASCII characters to say which spec this xHC
  *			follows, typically "USB ".
@@ -659,7 +659,7 @@ struct xhci_slot_ctx {
 #define TT_SLOT		(0xff)
 /*
  * The number of the downstream facing port of the high-speed hub
- * '0' if the device is not low or full speed.
+ * '0' if the device is yest low or full speed.
  */
 #define TT_PORT		(0xff << 8)
 #define TT_THINK_TIME(p)	(((p) & 0x3) << 16)
@@ -744,7 +744,7 @@ struct xhci_ep_ctx {
 /* ep_info2 bitmasks */
 /*
  * Force Event - generate transfer events for all TRBs for this endpoint
- * This will tell the HC to ignore the IOC and ISP flags (for debugging only).
+ * This will tell the HC to igyesre the IOC and ISP flags (for debugging only).
  */
 #define	FORCE_EVENT	(0x1)
 #define ERROR_COUNT(p)	(((p) & 0x3) << 1)
@@ -795,7 +795,7 @@ struct xhci_input_control_ctx {
 	(le32_to_cpu(ctrl_ctx->drop_flags) & (1 << (i + 1)))
 
 /* Represents everything that is needed to issue a command on the command ring.
- * It's useful to pre-allocate these for commands that cannot fail due to
+ * It's useful to pre-allocate these for commands that canyest fail due to
  * out-of-memory errors, like freeing streams.
  */
 struct xhci_command {
@@ -803,7 +803,7 @@ struct xhci_command {
 	struct xhci_container_ctx	*in_ctx;
 	u32				status;
 	int				slot_id;
-	/* If completion is null, no one is waiting on this command
+	/* If completion is null, yes one is waiting on this command
 	 * and the structure can be freed after the command completes.
 	 */
 	struct completion		*completion;
@@ -837,7 +837,7 @@ struct xhci_stream_ctx {
 #define SCT_SSA_128		6
 #define SCT_SSA_256		7
 
-/* Assume no secondary streams for now */
+/* Assume yes secondary streams for yesw */
 struct xhci_stream_info {
 	struct xhci_ring		**stream_rings;
 	/* Number of streams, including stream 0 (which drivers can't use) */
@@ -912,7 +912,7 @@ struct xhci_bw_info {
 #define SS_BW_LIMIT_OUT		3906
 #define DMI_BW_LIMIT_OUT	3906
 
-/* Percentage of bus bandwidth reserved for non-periodic transfers */
+/* Percentage of bus bandwidth reserved for yesn-periodic transfers */
 #define FS_BW_RESERVED		10
 #define HS_BW_RESERVED		20
 #define SS_BW_RESERVED		10
@@ -932,7 +932,7 @@ struct xhci_virt_ep {
 /* Transitioning the endpoint to using streams, don't enqueue URBs */
 #define EP_GETTING_STREAMS	(1 << 3)
 #define EP_HAS_STREAMS		(1 << 4)
-/* Transitioning the endpoint to not using streams, don't enqueue URBs */
+/* Transitioning the endpoint to yest using streams, don't enqueue URBs */
 #define EP_GETTING_NO_STREAMS	(1 << 5)
 #define EP_HARD_CLEAR_TOGGLE	(1 << 6)
 #define EP_SOFT_CLEAR_TOGGLE	(1 << 7)
@@ -950,8 +950,8 @@ struct xhci_virt_ep {
 	struct xhci_segment	*queued_deq_seg;
 	union xhci_trb		*queued_deq_ptr;
 	/*
-	 * Sometimes the xHC can not process isochronous endpoint ring quickly
-	 * enough, and it will miss some isoc tds on the ring and generate
+	 * Sometimes the xHC can yest process isochroyesus endpoint ring quickly
+	 * eyesugh, and it will miss some isoc tds on the ring and generate
 	 * a Missed Service Error Event.
 	 * Set skip flag when receive a Missed Service Error Event and
 	 * process the missed tds on the endpoint ring.
@@ -1014,7 +1014,7 @@ struct xhci_virt_device {
 	struct xhci_tt_bw_info		*tt_info;
 	/*
 	 * flags for state tracking based on events and issued commands.
-	 * Software can not rely on states from output contexts because of
+	 * Software can yest rely on states from output contexts because of
 	 * latency between events and xHC updating output context values.
 	 * See xhci 1.1 section 4.8.3 for more details
 	 */
@@ -1063,7 +1063,7 @@ struct xhci_device_context_array {
 /* TODO: write function to set the 64-bit device DMA address */
 /*
  * TODO: change this to be dynamically sized at HC mem init time since the HC
- * might not be able to handle the maximum number of devices possible.
+ * might yest be able to handle the maximum number of devices possible.
  */
 
 
@@ -1198,7 +1198,7 @@ static inline const char *xhci_trb_comp_code_string(u8 status)
 	case COMP_SPLIT_TRANSACTION_ERROR:
 		return "Split Transaction Error";
 	default:
-		return "Unknown!!";
+		return "Unkyeswn!!";
 	}
 }
 
@@ -1306,7 +1306,7 @@ enum xhci_setup_dev {
 #define TRB_ENT			(1<<1)
 /* Interrupt on short packet */
 #define TRB_ISP			(1<<2)
-/* Set PCIe no snoop attribute */
+/* Set PCIe yes syesop attribute */
 #define TRB_NO_SNOOP		(1<<3)
 /* Chain multiple TRBs into a TD */
 #define TRB_CHAIN		(1<<4)
@@ -1326,7 +1326,7 @@ enum xhci_setup_dev {
 #define	TRB_DATA_OUT		2
 #define	TRB_DATA_IN		3
 
-/* Isochronous TRB specific fields */
+/* Isochroyesus TRB specific fields */
 #define TRB_SIA			(1<<31)
 #define TRB_FRAME_ID(p)		(((p) & 0x7ff) << 20)
 
@@ -1359,7 +1359,7 @@ union xhci_trb {
 /* TRB for linking ring segments */
 #define TRB_LINK		6
 #define TRB_EVENT_DATA		7
-/* Transfer Ring No-op (not for the command ring) */
+/* Transfer Ring No-op (yest for the command ring) */
 #define TRB_TR_NOOP		8
 /* Command TRBs */
 /* Enable Slot Command */
@@ -1390,7 +1390,7 @@ union xhci_trb {
 #define TRB_GET_BW		21
 /* Force Header Command - generate a transaction or link management packet */
 #define TRB_FORCE_HEADER	22
-/* No-op Command - not for transfer rings */
+/* No-op Command - yest for transfer rings */
 #define TRB_CMD_NOOP		23
 /* TRB IDs 24-31 reserved */
 /* Event TRBS */
@@ -1406,7 +1406,7 @@ union xhci_trb {
 #define TRB_DOORBELL		36
 /* Host Controller Event */
 #define TRB_HC_EVENT		37
-/* Device Notification Event - device sent function wake notification */
+/* Device Notification Event - device sent function wake yestification */
 #define TRB_DEV_NOTE		38
 /* MFINDEX Wrap Event - microframe counter wrapped */
 #define TRB_MFINDEX_WRAP	39
@@ -1784,7 +1784,7 @@ struct xhci_hcd {
 	struct list_head	lpm_failed_devs;
 
 	/* slot enabling and address device helpers */
-	/* these are not thread safe so use mutex */
+	/* these are yest thread safe so use mutex */
 	struct mutex mutex;
 	/* For USB 3.0 LPM enable/disable. */
 	struct xhci_command		*lpm_command;
@@ -1804,7 +1804,7 @@ struct xhci_hcd {
 
 	u32			command;
 	struct s3_save		s3;
-/* Host controller is dying - not responding to commands. "I'm not dead yet!"
+/* Host controller is dying - yest responding to commands. "I'm yest dead yet!"
  *
  * xHC interrupts have been disabled and a watchdog timer will (or has already)
  * halt the xHCI host, and complete all URBs with an -ESHUTDOWN code.  Any code
@@ -1814,7 +1814,7 @@ struct xhci_hcd {
  * xhci_urb_dequeue() should call usb_hcd_check_unlink_urb() and return without
  * putting the TD on the canceled list, etc.
  *
- * There are no reports of xHCI host controllers that display this issue.
+ * There are yes reports of xHCI host controllers that display this issue.
  */
 #define XHCI_STATE_DYING	(1 << 0)
 #define XHCI_STATE_HALTED	(1 << 1)
@@ -1940,7 +1940,7 @@ static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
  * Some xHCI implementations may support 64-bit address pointers.  Registers
  * with 64-bit address pointers should be written to with dword accesses by
  * writing the low dword first (ptr[0]), then the high dword (ptr[1]) second.
- * xHCI implementations that do not support 64-bit address pointers will ignore
+ * xHCI implementations that do yest support 64-bit address pointers will igyesre
  * the high dword, and write order is irrelevant.
  */
 static inline u64 xhci_read_64(const struct xhci_hcd *xhci,
@@ -2018,7 +2018,7 @@ void xhci_free_stream_info(struct xhci_hcd *xhci,
 void xhci_setup_streams_ep_input_ctx(struct xhci_hcd *xhci,
 		struct xhci_ep_ctx *ep_ctx,
 		struct xhci_stream_info *stream_info);
-void xhci_setup_no_streams_ep_input_ctx(struct xhci_ep_ctx *ep_ctx,
+void xhci_setup_yes_streams_ep_input_ctx(struct xhci_ep_ctx *ep_ctx,
 		struct xhci_virt_ep *ep);
 void xhci_free_device_endpoint_resources(struct xhci_hcd *xhci,
 	struct xhci_virt_device *virt_dev, bool drop_control_ep);
@@ -2167,7 +2167,7 @@ static inline struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
 }
 
 /*
- * TODO: As per spec Isochronous IDT transmissions are supported. We bypass
+ * TODO: As per spec Isochroyesus IDT transmissions are supported. We bypass
  * them anyways as we where unable to find a device that matches the
  * constraints.
  */
@@ -2532,7 +2532,7 @@ static inline const char *xhci_portsc_link_state_string(u32 portsc)
 	default:
 		break;
 	}
-	return "Unknown";
+	return "Unkyeswn";
 }
 
 static inline const char *xhci_decode_portsc(u32 portsc)

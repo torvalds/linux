@@ -44,13 +44,13 @@
  * shmem are left in the list at Stage 5, they must correspond to each
  * other.
  *
- * This is undefined by default because it might not always be true, and the
+ * This is undefined by default because it might yest always be true, and the
  * extra check makes the autoprobe even more careful.  Speed demons can turn
  * it on - I think it should be fine if you only have one ARCnet card
  * installed.
  *
- * If no ARCnet cards are installed, this delay never happens anyway and thus
- * the option has no effect.
+ * If yes ARCnet cards are installed, this delay never happens anyway and thus
+ * the option has yes effect.
  */
 #undef FAST_PROBE
 
@@ -65,7 +65,7 @@ static void com90xx_copy_to_card(struct net_device *dev, int bufnum, int offset,
 static void com90xx_copy_from_card(struct net_device *dev, int bufnum,
 				   int offset, void *buf, int count);
 
-/* Known ARCnet cards */
+/* Kyeswn ARCnet cards */
 
 static struct net_device *cards[16];
 static int numcards;
@@ -183,7 +183,7 @@ static void __init com90xx_probe(void)
 		kfree(iomem);
 		return;
 	}
-	/* Stage 2: we have now reset any possible ARCnet cards, so we can't
+	/* Stage 2: we have yesw reset any possible ARCnet cards, so we can't
 	 * do anything until they finish.  If D_INIT, print the list of
 	 * cards that are left.
 	 */
@@ -240,8 +240,8 @@ static void __init com90xx_probe(void)
 			goto out2;
 		}
 		/* By writing 0x42 to the TESTvalue location, we also make
-		 * sure no "mirror" shmem areas show up - if they occur
-		 * in another pass through this loop, they will be discarded
+		 * sure yes "mirror" shmem areas show up - if they occur
+		 * in ayesther pass through this loop, they will be discarded
 		 * because *cptr != TESTvalue.
 		 */
 		arcnet_writeb(0x42, base, COM9026_REG_W_INTMASK);
@@ -290,7 +290,7 @@ static void __init com90xx_probe(void)
 	arc_cont(D_INIT, "\n");
 
 	/* Stage 5: for any ports that have the correct status, can disable
-	 * the RESET flag, and (if no irq is given) generate an autoirq,
+	 * the RESET flag, and (if yes irq is given) generate an autoirq,
 	 * register an ARCnet device.
 	 *
 	 * Currently, we can only register one device per probe, so quit
@@ -409,7 +409,7 @@ static void __init com90xx_probe(void)
 
 		if (openparen) {
 			if (BUGLVL(D_INIT))
-				pr_cont("no matching shmem)\n");
+				pr_cont("yes matching shmem)\n");
 			if (BUGLVL(D_INIT_REASONS)) {
 				pr_cont("S5: ");
 				numprint = 0;
@@ -478,7 +478,7 @@ static int __init com90xx_found(int ioaddr, int airq, u_long shmem,
 
 	/* guess the actual size of one "memory mirror" - the number of
 	 * bytes between copies of the shared memory.  On most cards, it's
-	 * 2k (or there are no mirrors at all) but on some, it's 4k.
+	 * 2k (or there are yes mirrors at all) but on some, it's 4k.
 	 */
 	mirror_size = MIRROR_SIZE;
 	if (arcnet_readb(p, COM9026_REG_R_STATUS) == TESTvalue &&
@@ -612,7 +612,7 @@ static int com90xx_reset(struct net_device *dev, int really_reset)
 	/* verify that the ARCnet signature byte is present */
 	if (arcnet_readb(lp->mem_start, COM9026_REG_R_STATUS) != TESTvalue) {
 		if (really_reset)
-			arc_printk(D_NORMAL, dev, "reset failed: TESTvalue not present.\n");
+			arc_printk(D_NORMAL, dev, "reset failed: TESTvalue yest present.\n");
 		return 1;
 	}
 	/* enable extended (512-byte) packets */
@@ -686,7 +686,7 @@ static int __init com90xx_setup(char *s)
 
 	s = get_options(s, 8, ints);
 	if (!ints[0] && !*s) {
-		pr_notice("Disabled\n");
+		pr_yestice("Disabled\n");
 		return 1;
 	}
 

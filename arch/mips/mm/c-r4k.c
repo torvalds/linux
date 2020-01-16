@@ -73,7 +73,7 @@ static inline bool r4k_op_needs_ipi(unsigned int type)
 
 	/*
 	 * Hardware doesn't globalize the required cache ops, so SMP calls may
-	 * be needed, but only if there are foreign CPUs (non-siblings with
+	 * be needed, but only if there are foreign CPUs (yesn-siblings with
 	 * separate caches).
 	 */
 	/* cpu_foreign_map[] undeclared when !CONFIG_SMP */
@@ -88,8 +88,8 @@ static inline bool r4k_op_needs_ipi(unsigned int type)
  * Special Variant of smp_call_function for use by cache functions:
  *
  *  o No return value
- *  o collapses to normal function call on UP kernels
- *  o collapses to normal function call on systems with a single shared
+ *  o collapses to yesrmal function call on UP kernels
+ *  o collapses to yesrmal function call on systems with a single shared
  *    primary cache.
  *  o doesn't disable interrupts on the local CPU
  */
@@ -115,16 +115,16 @@ static unsigned long scache_size __read_mostly;
 /*
  * Dummy cache handling routines for machines without boardcaches
  */
-static void cache_noop(void) {}
+static void cache_yesop(void) {}
 
-static struct bcache_ops no_sc_ops = {
-	.bc_enable = (void *)cache_noop,
-	.bc_disable = (void *)cache_noop,
-	.bc_wback_inv = (void *)cache_noop,
-	.bc_inv = (void *)cache_noop
+static struct bcache_ops yes_sc_ops = {
+	.bc_enable = (void *)cache_yesop,
+	.bc_disable = (void *)cache_yesop,
+	.bc_wback_inv = (void *)cache_yesop,
+	.bc_inv = (void *)cache_yesop
 };
 
-struct bcache_ops *bcops = &no_sc_ops;
+struct bcache_ops *bcops = &yes_sc_ops;
 
 #define cpu_is_r4600_v1_x()	((read_c0_prid() & 0xfffffff0) == 0x00002010)
 #define cpu_is_r4600_v2_x()	((read_c0_prid() & 0xfffffff0) == 0x00002020)
@@ -134,7 +134,7 @@ do {									\
 	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())		\
 		*(volatile unsigned long *)CKSEG1;			\
 	if (R4600_V1_HIT_CACHEOP_WAR)					\
-		__asm__ __volatile__("nop;nop;nop;nop");		\
+		__asm__ __volatile__("yesp;yesp;yesp;yesp");		\
 } while (0)
 
 static void (*r4k_blast_dcache_page)(unsigned long addr);
@@ -161,7 +161,7 @@ static void r4k_blast_dcache_page_setup(void)
 
 	switch (dc_lsize) {
 	case 0:
-		r4k_blast_dcache_page = (void *)cache_noop;
+		r4k_blast_dcache_page = (void *)cache_yesop;
 		break;
 	case 16:
 		r4k_blast_dcache_page = blast_dcache16_page;
@@ -191,7 +191,7 @@ static void r4k_blast_dcache_user_page_setup(void)
 	unsigned long  dc_lsize = cpu_dcache_line_size();
 
 	if (dc_lsize == 0)
-		r4k_blast_dcache_user_page = (void *)cache_noop;
+		r4k_blast_dcache_user_page = (void *)cache_yesop;
 	else if (dc_lsize == 16)
 		r4k_blast_dcache_user_page = blast_dcache16_user_page;
 	else if (dc_lsize == 32)
@@ -209,7 +209,7 @@ static void r4k_blast_dcache_page_indexed_setup(void)
 	unsigned long dc_lsize = cpu_dcache_line_size();
 
 	if (dc_lsize == 0)
-		r4k_blast_dcache_page_indexed = (void *)cache_noop;
+		r4k_blast_dcache_page_indexed = (void *)cache_yesop;
 	else if (dc_lsize == 16)
 		r4k_blast_dcache_page_indexed = blast_dcache16_page_indexed;
 	else if (dc_lsize == 32)
@@ -228,7 +228,7 @@ static void r4k_blast_dcache_setup(void)
 	unsigned long dc_lsize = cpu_dcache_line_size();
 
 	if (dc_lsize == 0)
-		r4k_blast_dcache = (void *)cache_noop;
+		r4k_blast_dcache = (void *)cache_yesop;
 	else if (dc_lsize == 16)
 		r4k_blast_dcache = blast_dcache16;
 	else if (dc_lsize == 32)
@@ -321,7 +321,7 @@ static void r4k_blast_icache_page_setup(void)
 	unsigned long ic_lsize = cpu_icache_line_size();
 
 	if (ic_lsize == 0)
-		r4k_blast_icache_page = (void *)cache_noop;
+		r4k_blast_icache_page = (void *)cache_yesop;
 	else if (ic_lsize == 16)
 		r4k_blast_icache_page = blast_icache16_page;
 	else if (ic_lsize == 32 && current_cpu_type() == CPU_LOONGSON2EF)
@@ -345,7 +345,7 @@ static void r4k_blast_icache_user_page_setup(void)
 	unsigned long ic_lsize = cpu_icache_line_size();
 
 	if (ic_lsize == 0)
-		r4k_blast_icache_user_page = (void *)cache_noop;
+		r4k_blast_icache_user_page = (void *)cache_yesop;
 	else if (ic_lsize == 16)
 		r4k_blast_icache_user_page = blast_icache16_user_page;
 	else if (ic_lsize == 32)
@@ -363,7 +363,7 @@ static void r4k_blast_icache_page_indexed_setup(void)
 	unsigned long ic_lsize = cpu_icache_line_size();
 
 	if (ic_lsize == 0)
-		r4k_blast_icache_page_indexed = (void *)cache_noop;
+		r4k_blast_icache_page_indexed = (void *)cache_yesop;
 	else if (ic_lsize == 16)
 		r4k_blast_icache_page_indexed = blast_icache16_page_indexed;
 	else if (ic_lsize == 32) {
@@ -391,7 +391,7 @@ static void r4k_blast_icache_setup(void)
 	unsigned long ic_lsize = cpu_icache_line_size();
 
 	if (ic_lsize == 0)
-		r4k_blast_icache = (void *)cache_noop;
+		r4k_blast_icache = (void *)cache_yesop;
 	else if (ic_lsize == 16)
 		r4k_blast_icache = blast_icache16;
 	else if (ic_lsize == 32) {
@@ -416,7 +416,7 @@ static void r4k_blast_scache_page_setup(void)
 	unsigned long sc_lsize = cpu_scache_line_size();
 
 	if (scache_size == 0)
-		r4k_blast_scache_page = (void *)cache_noop;
+		r4k_blast_scache_page = (void *)cache_yesop;
 	else if (sc_lsize == 16)
 		r4k_blast_scache_page = blast_scache16_page;
 	else if (sc_lsize == 32)
@@ -434,7 +434,7 @@ static void r4k_blast_scache_page_indexed_setup(void)
 	unsigned long sc_lsize = cpu_scache_line_size();
 
 	if (scache_size == 0)
-		r4k_blast_scache_page_indexed = (void *)cache_noop;
+		r4k_blast_scache_page_indexed = (void *)cache_yesop;
 	else if (sc_lsize == 16)
 		r4k_blast_scache_page_indexed = blast_scache16_page_indexed;
 	else if (sc_lsize == 32)
@@ -452,7 +452,7 @@ static void r4k_blast_scache_setup(void)
 	unsigned long sc_lsize = cpu_scache_line_size();
 
 	if (scache_size == 0)
-		r4k_blast_scache = (void *)cache_noop;
+		r4k_blast_scache = (void *)cache_yesop;
 	else if (sc_lsize == 16)
 		r4k_blast_scache = blast_scache16;
 	else if (sc_lsize == 32)
@@ -463,22 +463,22 @@ static void r4k_blast_scache_setup(void)
 		r4k_blast_scache = blast_scache128;
 }
 
-static void (*r4k_blast_scache_node)(long node);
+static void (*r4k_blast_scache_yesde)(long yesde);
 
-static void r4k_blast_scache_node_setup(void)
+static void r4k_blast_scache_yesde_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
 	if (current_cpu_type() != CPU_LOONGSON64)
-		r4k_blast_scache_node = (void *)cache_noop;
+		r4k_blast_scache_yesde = (void *)cache_yesop;
 	else if (sc_lsize == 16)
-		r4k_blast_scache_node = blast_scache16_node;
+		r4k_blast_scache_yesde = blast_scache16_yesde;
 	else if (sc_lsize == 32)
-		r4k_blast_scache_node = blast_scache32_node;
+		r4k_blast_scache_yesde = blast_scache32_yesde;
 	else if (sc_lsize == 64)
-		r4k_blast_scache_node = blast_scache64_node;
+		r4k_blast_scache_yesde = blast_scache64_yesde;
 	else if (sc_lsize == 128)
-		r4k_blast_scache_node = blast_scache128_node;
+		r4k_blast_scache_yesde = blast_scache128_yesde;
 }
 
 static inline void local_r4k___flush_cache_all(void * args)
@@ -495,7 +495,7 @@ static inline void local_r4k___flush_cache_all(void * args)
 	case CPU_R16000:
 		/*
 		 * These caches are inclusive caches, that is, if something
-		 * is not cached in the S-cache, we know it also won't be
+		 * is yest cached in the S-cache, we kyesw it also won't be
 		 * in one of the primary caches.
 		 */
 		r4k_blast_scache();
@@ -503,7 +503,7 @@ static inline void local_r4k___flush_cache_all(void * args)
 
 	case CPU_LOONGSON64:
 		/* Use get_ebase_cpunum() for both NUMA=y/n */
-		r4k_blast_scache_node(get_ebase_cpunum() >> 2);
+		r4k_blast_scache_yesde(get_ebase_cpunum() >> 2);
 		break;
 
 	case CPU_BMIPS5000:
@@ -534,7 +534,7 @@ static void r4k___flush_cache_all(void)
  * scope of the operation is confined to sibling CPUs, otherwise all online CPUs
  * will need to be checked.
  *
- * Must be called in non-preemptive context.
+ * Must be called in yesn-preemptive context.
  *
  * Returns:	1 if the CPUs affected by @type cache ops have an ASID for @mm.
  *		0 otherwise.
@@ -588,7 +588,7 @@ static inline void local_r4k_flush_cache_range(void * args)
 	/*
 	 * If dcache can alias, we must blast it since mapping is changing.
 	 * If executable, we must ensure any dirty lines are written back far
-	 * enough to be visible to icache.
+	 * eyesugh to be visible to icache.
 	 */
 	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc))
 		r4k_blast_dcache();
@@ -661,7 +661,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	void *vaddr;
 
 	/*
-	 * If owns no valid ASID yet, cannot possibly have gotten
+	 * If owns yes valid ASID yet, canyest possibly have gotten
 	 * this page into the cache.
 	 */
 	if (!has_valid_asid(mm, R4K_HIT))
@@ -675,7 +675,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	ptep = pte_offset(pmdp, addr);
 
 	/*
-	 * If the page isn't marked valid, the page cannot possibly be
+	 * If the page isn't marked valid, the page canyest possibly be
 	 * in the cache.
 	 */
 	if (!(pte_present(*ptep)))
@@ -686,7 +686,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	else {
 		/*
 		 * Use kmap_coherent or kmap_atomic to do flushes for
-		 * another ASID than the current one.
+		 * ayesther ASID than the current one.
 		 */
 		map_coherent = (cpu_has_dc_aliases &&
 				page_mapcount(page) &&
@@ -701,7 +701,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc)) {
 		vaddr ? r4k_blast_dcache_page(addr) :
 			r4k_blast_dcache_user_page(addr);
-		if (exec && !cpu_icache_snoops_remote_store)
+		if (exec && !cpu_icache_syesops_remote_store)
 			r4k_blast_scache_page(addr);
 	}
 	if (exec) {
@@ -872,7 +872,7 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 			if (current_cpu_type() != CPU_LOONGSON64)
 				r4k_blast_scache();
 			else
-				r4k_blast_scache_node(pa_to_nid(addr));
+				r4k_blast_scache_yesde(pa_to_nid(addr));
 		} else {
 			blast_scache_range(addr, addr + size);
 		}
@@ -882,11 +882,11 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	}
 
 	/*
-	 * Either no secondary cache or the available caches don't have the
+	 * Either yes secondary cache or the available caches don't have the
 	 * subset property so we have to flush the primary caches
 	 * explicitly.
 	 * If we would need IPI to perform an INDEX-type operation, then
-	 * we have to use the HIT-type alternative as IPI cannot be used
+	 * we have to use the HIT-type alternative as IPI canyest be used
 	 * here due to interrupts possibly being disabled.
 	 */
 	if (!r4k_op_needs_ipi(R4K_INDEX) && size >= dcache_size) {
@@ -913,10 +913,10 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 			if (current_cpu_type() != CPU_LOONGSON64)
 				r4k_blast_scache();
 			else
-				r4k_blast_scache_node(pa_to_nid(addr));
+				r4k_blast_scache_yesde(pa_to_nid(addr));
 		} else {
 			/*
-			 * There is no clearly documented alignment requirement
+			 * There is yes clearly documented alignment requirement
 			 * for the cache instruction on MIPS processors and
 			 * some processors, among them the RM5200 and RM7000
 			 * QED processors will throw an address error for cache
@@ -1004,7 +1004,7 @@ static inline void rm7k_erratum31(void)
 	for (addr = INDEX_BASE; addr <= INDEX_BASE + 4096; addr += ic_lsize) {
 		__asm__ __volatile__ (
 			".set push\n\t"
-			".set noreorder\n\t"
+			".set yesreorder\n\t"
 			".set mips3\n\t"
 			"cache\t%1, 0(%0)\n\t"
 			"cache\t%1, 0x1000(%0)\n\t"
@@ -1031,11 +1031,11 @@ static inline int alias_74k_erratum(struct cpuinfo_mips *c)
 	int present = 0;
 
 	/*
-	 * Early versions of the 74K do not update the cache tags on a
+	 * Early versions of the 74K do yest update the cache tags on a
 	 * vtag miss/ptag hit which can occur in the case of KSEG0/KUSEG
 	 * aliases.  In this case it is better to treat the cache as always
-	 * having aliases.  Also disable the synonym tag update feature
-	 * where available.  In this case no opportunistic tag update will
+	 * having aliases.  Also disable the syyesnym tag update feature
+	 * where available.  In this case yes opportunistic tag update will
 	 * happen where a load causes a virtual address miss but a physical
 	 * address hit during a D-cache look-up.
 	 */
@@ -1064,10 +1064,10 @@ static void b5k_instruction_hazard(void)
 	__sync();
 	__sync();
 	__asm__ __volatile__(
-	"       nop; nop; nop; nop; nop; nop; nop; nop\n"
-	"       nop; nop; nop; nop; nop; nop; nop; nop\n"
-	"       nop; nop; nop; nop; nop; nop; nop; nop\n"
-	"       nop; nop; nop; nop; nop; nop; nop; nop\n"
+	"       yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp\n"
+	"       yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp\n"
+	"       yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp\n"
+	"       yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp\n"
 	: : : "memory");
 }
 
@@ -1147,7 +1147,7 @@ static void probe_pcache(void)
 		dcache_size = 1 << (12 + ((config & CONF_DC) >> 6));
 		c->dcache.linesz = 16 << ((config & CONF_DB) >> 4);
 		c->dcache.ways = 1;
-		c->dcache.waybit = 0;	/* does not matter */
+		c->dcache.waybit = 0;	/* does yest matter */
 
 		c->options |= MIPS_CPU_CACHE_CDEX_P;
 		break;
@@ -1208,7 +1208,7 @@ static void probe_pcache(void)
 		dcache_size = 1 << (10 + ((config & CONF_DC) >> 6));
 		c->dcache.linesz = 16 << ((config & CONF_DB) >> 4);
 		c->dcache.ways = 1;
-		c->dcache.waybit = 0;	/* does not matter */
+		c->dcache.waybit = 0;	/* does yest matter */
 
 		c->options |= MIPS_CPU_CACHE_CDEX_P;
 		break;
@@ -1279,7 +1279,7 @@ static void probe_pcache(void)
 		break;
 
 	case CPU_CAVIUM_OCTEON3:
-		/* For now lie about the number of ways. */
+		/* For yesw lie about the number of ways. */
 		c->icache.linesz = 128;
 		c->icache.sets = 16;
 		c->icache.ways = 8;
@@ -1295,7 +1295,7 @@ static void probe_pcache(void)
 
 	default:
 		if (!(config & MIPS_CONF_M))
-			panic("Don't know how to probe P-caches on this cpu.");
+			panic("Don't kyesw how to probe P-caches on this cpu.");
 
 		/*
 		 * So we seem to be a MIPS32 or MIPS64 CPU
@@ -1349,10 +1349,10 @@ static void probe_pcache(void)
 
 	/*
 	 * Processor configuration sanity check for the R4000SC erratum
-	 * #5.	With page sizes larger than 32kB there is no possibility
+	 * #5.	With page sizes larger than 32kB there is yes possibility
 	 * to get a VCE exception anymore so we don't care about this
 	 * misconfiguration.  The case is rather theoretical anyway;
-	 * presumably no vendor is shipping his hardware in the "bad"
+	 * presumably yes vendor is shipping his hardware in the "bad"
 	 * configuration.
 	 */
 	if ((prid & PRID_IMP_MASK) == PRID_IMP_R4000 &&
@@ -1372,8 +1372,8 @@ static void probe_pcache(void)
 
 	/*
 	 * R1x000 P-caches are odd in a positive way.  They're 32kB 2-way
-	 * virtually indexed so normally would suffer from aliases.  So
-	 * normally they'd suffer from aliases but magic in the hardware deals
+	 * virtually indexed so yesrmally would suffer from aliases.  So
+	 * yesrmally they'd suffer from aliases but magic in the hardware deals
 	 * with that for us so we don't need to take care ourselves.
 	 */
 	switch (current_cpu_type()) {
@@ -1415,7 +1415,7 @@ static void probe_pcache(void)
 		if (!has_74k_erratum && (read_c0_config7() & MIPS_CONF7_AR)) {
 			/*
 			 * Effectively physically indexed dcache,
-			 * thus no virtual aliases.
+			 * thus yes virtual aliases.
 			*/
 			c->dcache.flags |= MIPS_CACHE_PINDEX;
 			break;
@@ -1476,7 +1476,7 @@ static void probe_pcache(void)
 	       dcache_size >> 10, way_string[c->dcache.ways],
 	       (c->dcache.flags & MIPS_CACHE_PINDEX) ? "PIPT" : "VIPT",
 	       (c->dcache.flags & MIPS_CACHE_ALIASES) ?
-			"cache aliases" : "no aliases",
+			"cache aliases" : "yes aliases",
 	       c->dcache.linesz);
 }
 
@@ -1508,7 +1508,7 @@ static void probe_vcache(void)
 
 /*
  * If you even _breathe_ on this function, look at the gcc output and make sure
- * it does not pop things on and off the stack for the cache sizing loop that
+ * it does yest pop things on and off the stack for the cache sizing loop that
  * executes in KSEG1 space or else you will crash and burn badly.  You have
  * been warned.
  */
@@ -1535,14 +1535,14 @@ static int probe_scache(void)
 	pow2 = (64 * 1024);
 	for (addr = begin; addr < end; addr = (begin + pow2)) {
 		unsigned long *p = (unsigned long *) addr;
-		__asm__ __volatile__("nop" : : "r" (*p)); /* whee... */
+		__asm__ __volatile__("yesp" : : "r" (*p)); /* whee... */
 		pow2 <<= 1;
 	}
 
 	/* Load first line with zero (therefore invalid) tag. */
 	write_c0_taglo(0);
 	write_c0_taghi(0);
-	__asm__ __volatile__("nop; nop; nop; nop;"); /* avoid the hazard */
+	__asm__ __volatile__("yesp; yesp; yesp; yesp;"); /* avoid the hazard */
 	cache_op(Index_Store_Tag_I, begin);
 	cache_op(Index_Store_Tag_D, begin);
 	cache_op(Index_Store_Tag_SD, begin);
@@ -1551,7 +1551,7 @@ static int probe_scache(void)
 	pow2 = (128 * 1024);
 	for (addr = begin + (128 * 1024); addr < end; addr = begin + pow2) {
 		cache_op(Index_Load_Tag_SD, addr);
-		__asm__ __volatile__("nop; nop; nop; nop;"); /* hazard... */
+		__asm__ __volatile__("yesp; yesp; yesp; yesp;"); /* hazard... */
 		if (!read_c0_taglo())
 			break;
 		pow2 <<= 1;
@@ -1562,7 +1562,7 @@ static int probe_scache(void)
 	scache_size = addr;
 	c->scache.linesz = 16 << ((config & R4K_CONF_SB) >> 22);
 	c->scache.ways = 1;
-	c->scache.waybit = 0;		/* does not matter */
+	c->scache.waybit = 0;		/* does yest matter */
 
 	return 1;
 }
@@ -1686,7 +1686,7 @@ static void setup_scache(void)
 			}
 #else
 			if (!(c->scache.flags & MIPS_CACHE_NOT_PRESENT))
-				panic("Dunno how to handle MIPS32 / MIPS64 second level cache");
+				panic("Dunyes how to handle MIPS32 / MIPS64 second level cache");
 #endif
 			return;
 		}
@@ -1722,7 +1722,7 @@ void au1x00_fixup_config_od(void)
 	/*
 	 * Au1100 errata actually keeps silence about this bit, so we set it
 	 * just in case for those revisions that require it to be set according
-	 * to the (now gone) cpu table.
+	 * to the (yesw gone) cpu table.
 	 */
 	case 0x02030200: /* Au1100 AB */
 	case 0x02030201: /* Au1100 BA */
@@ -1735,8 +1735,8 @@ void au1x00_fixup_config_od(void)
 /* CP0 hazard avoidance. */
 #define NXP_BARRIER()							\
 	 __asm__ __volatile__(						\
-	".set noreorder\n\t"						\
-	"nop; nop; nop; nop; nop; nop;\n\t"				\
+	".set yesreorder\n\t"						\
+	"yesp; yesp; yesp; yesp; yesp; yesp;\n\t"				\
 	".set reorder\n\t")
 
 static void nxp_pr4450_fixup_config(void)
@@ -1841,7 +1841,7 @@ void r4k_cache_init(void)
 	r4k_blast_scache_page_setup();
 	r4k_blast_scache_page_indexed_setup();
 	r4k_blast_scache_setup();
-	r4k_blast_scache_node_setup();
+	r4k_blast_scache_yesde_setup();
 #ifdef CONFIG_EVA
 	r4k_blast_dcache_user_page_setup();
 	r4k_blast_icache_user_page_setup();
@@ -1862,7 +1862,7 @@ void r4k_cache_init(void)
 	__flush_cache_vmap	= r4k__flush_cache_vmap;
 	__flush_cache_vunmap	= r4k__flush_cache_vunmap;
 
-	flush_cache_all		= cache_noop;
+	flush_cache_all		= cache_yesop;
 	__flush_cache_all	= r4k___flush_cache_all;
 	flush_cache_mm		= r4k_flush_cache_mm;
 	flush_cache_page	= r4k_flush_cache_page;
@@ -1882,9 +1882,9 @@ void r4k_cache_init(void)
 #ifdef CONFIG_DMA_MAYBE_COHERENT
 	if (coherentio == IO_COHERENCE_ENABLED ||
 	    (coherentio == IO_COHERENCE_DEFAULT && hw_coherentio)) {
-		_dma_cache_wback_inv	= (void *)cache_noop;
-		_dma_cache_wback	= (void *)cache_noop;
-		_dma_cache_inv		= (void *)cache_noop;
+		_dma_cache_wback_inv	= (void *)cache_yesop;
+		_dma_cache_wback	= (void *)cache_yesop;
+		_dma_cache_inv		= (void *)cache_yesop;
 	} else
 #endif /* CONFIG_DMA_MAYBE_COHERENT */
 	{
@@ -1899,8 +1899,8 @@ void r4k_cache_init(void)
 
 	/*
 	 * We want to run CMP kernels on core with and without coherent
-	 * caches. Therefore, do not use CONFIG_MIPS_CMP to decide whether
-	 * or not to flush caches.
+	 * caches. Therefore, do yest use CONFIG_MIPS_CMP to decide whether
+	 * or yest to flush caches.
 	 */
 	local_r4k___flush_cache_all(NULL);
 
@@ -1935,21 +1935,21 @@ void r4k_cache_init(void)
 		break;
 	case CPU_LOONGSON64:
 		/* Loongson-3 maintains cache coherency by hardware */
-		__flush_cache_all	= cache_noop;
-		__flush_cache_vmap	= cache_noop;
-		__flush_cache_vunmap	= cache_noop;
-		__flush_kernel_vmap_range = (void *)cache_noop;
-		flush_cache_mm		= (void *)cache_noop;
-		flush_cache_page	= (void *)cache_noop;
-		flush_cache_range	= (void *)cache_noop;
-		flush_icache_all	= (void *)cache_noop;
-		flush_data_cache_page	= (void *)cache_noop;
-		local_flush_data_cache_page	= (void *)cache_noop;
+		__flush_cache_all	= cache_yesop;
+		__flush_cache_vmap	= cache_yesop;
+		__flush_cache_vunmap	= cache_yesop;
+		__flush_kernel_vmap_range = (void *)cache_yesop;
+		flush_cache_mm		= (void *)cache_yesop;
+		flush_cache_page	= (void *)cache_yesop;
+		flush_cache_range	= (void *)cache_yesop;
+		flush_icache_all	= (void *)cache_yesop;
+		flush_data_cache_page	= (void *)cache_yesop;
+		local_flush_data_cache_page	= (void *)cache_yesop;
 		break;
 	}
 }
 
-static int r4k_cache_pm_notifier(struct notifier_block *self, unsigned long cmd,
+static int r4k_cache_pm_yestifier(struct yestifier_block *self, unsigned long cmd,
 			       void *v)
 {
 	switch (cmd) {
@@ -1962,12 +1962,12 @@ static int r4k_cache_pm_notifier(struct notifier_block *self, unsigned long cmd,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block r4k_cache_pm_notifier_block = {
-	.notifier_call = r4k_cache_pm_notifier,
+static struct yestifier_block r4k_cache_pm_yestifier_block = {
+	.yestifier_call = r4k_cache_pm_yestifier,
 };
 
 int __init r4k_cache_init_pm(void)
 {
-	return cpu_pm_register_notifier(&r4k_cache_pm_notifier_block);
+	return cpu_pm_register_yestifier(&r4k_cache_pm_yestifier_block);
 }
 arch_initcall(r4k_cache_init_pm);

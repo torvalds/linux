@@ -153,7 +153,7 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 			spin_unlock_bh(&pstapriv->asoc_list_lock);
 
 			/* Caller shall tx this multicast frame
-			 * via normal way.
+			 * via yesrmal way.
 			 */
 			return false;
 		}
@@ -203,7 +203,7 @@ int rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 drop_packet:
 	pxmitpriv->tx_drop++;
 	dev_kfree_skb_any(pkt);
-	RT_TRACE(_module_xmit_osdep_c_, _drv_notice_,
+	RT_TRACE(_module_xmit_osdep_c_, _drv_yestice_,
 		 ("%s: drop, tx_drop=%d\n", __func__, (u32)pxmitpriv->tx_drop));
 
 exit:

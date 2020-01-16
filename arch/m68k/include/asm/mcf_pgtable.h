@@ -32,15 +32,15 @@
 #define CF_PAGE_SHARED		(MMUTR_SG << CF_PAGE_MMUTR_SHIFT)
 
 /*
- * Fake bits, not implemented in CF, will get masked out before
+ * Fake bits, yest implemented in CF, will get masked out before
  * hitting hardware.
  */
 #define CF_PAGE_DIRTY		0x00000001
 #define CF_PAGE_ACCESSED	0x00001000
 
 #define _PAGE_CACHE040		0x020   /* 68040 cache mode, cachable, copyback */
-#define _PAGE_NOCACHE_S		0x040   /* 68040 no-cache mode, serialized */
-#define _PAGE_NOCACHE		0x060   /* 68040 cache mode, non-serialized */
+#define _PAGE_NOCACHE_S		0x040   /* 68040 yes-cache mode, serialized */
+#define _PAGE_NOCACHE		0x060   /* 68040 cache mode, yesn-serialized */
 #define _PAGE_CACHE040W		0x000   /* 68040 cache mode, cachable, write-through */
 #define _DESCTYPE_MASK		0x003
 #define _CACHEMASK040		(~0x060)
@@ -172,7 +172,7 @@ static inline void pgd_set(pgd_t *pgdp, pmd_t *pmdp)
 #define __pte_page(pte)	((unsigned long) (pte_val(pte) & PAGE_MASK))
 #define __pmd_page(pmd)	((unsigned long) (pmd_val(pmd)))
 
-static inline int pte_none(pte_t pte)
+static inline int pte_yesne(pte_t pte)
 {
 	return !pte_val(pte);
 }
@@ -191,11 +191,11 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 #define pte_pagenr(pte)	((__pte_page(pte) - PAGE_OFFSET) >> PAGE_SHIFT)
 #define pte_page(pte)	virt_to_page(__pte_page(pte))
 
-static inline int pmd_none2(pmd_t *pmd) { return !pmd_val(*pmd); }
-#define pmd_none(pmd) pmd_none2(&(pmd))
+static inline int pmd_yesne2(pmd_t *pmd) { return !pmd_val(*pmd); }
+#define pmd_yesne(pmd) pmd_yesne2(&(pmd))
 static inline int pmd_bad2(pmd_t *pmd) { return 0; }
 #define pmd_bad(pmd) pmd_bad2(&(pmd))
-#define pmd_present(pmd) (!pmd_none2(&(pmd)))
+#define pmd_present(pmd) (!pmd_yesne2(&(pmd)))
 static inline void pmd_clear(pmd_t *pmdp) { pmd_val(*pmdp) = 0; }
 
 #define pte_ERROR(e) \
@@ -207,7 +207,7 @@ static inline void pmd_clear(pmd_t *pmdp) { pmd_val(*pmdp) = 0; }
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not...
+ * Undefined behaviour if yest...
  * [we have the full set here even if they don't change from m68k]
  */
 static inline int pte_read(pte_t pte)
@@ -300,7 +300,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mknocache(pte_t pte)
+static inline pte_t pte_mkyescache(pte_t pte)
 {
 	pte_val(pte) |= 0x80 | (pte_val(pte) & ~0x40);
 	return pte;
@@ -341,7 +341,7 @@ extern pgd_t kernel_pg_dir[PTRS_PER_PGD];
 /*
  * Disable caching for page at given kernel virtual address.
  */
-static inline void nocache_page(void *vaddr)
+static inline void yescache_page(void *vaddr)
 {
 	pgd_t *dir;
 	p4d_t *p4dp;
@@ -355,7 +355,7 @@ static inline void nocache_page(void *vaddr)
 	pudp = pud_offset(p4dp, addr);
 	pmdp = pmd_offset(pudp, addr);
 	ptep = pte_offset_kernel(pmdp, addr);
-	*ptep = pte_mknocache(*ptep);
+	*ptep = pte_mkyescache(*ptep);
 }
 
 /*
@@ -379,7 +379,7 @@ static inline void cache_page(void *vaddr)
 }
 
 /*
- * Encode and de-code a swap entry (must be !pte_none(e) && !pte_present(e))
+ * Encode and de-code a swap entry (must be !pte_yesne(e) && !pte_present(e))
  */
 #define __swp_type(x)		((x).val & 0xFF)
 #define __swp_offset(x)		((x).val >> 11)

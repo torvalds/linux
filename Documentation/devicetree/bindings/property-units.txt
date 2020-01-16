@@ -2,11 +2,11 @@ Standard Unit Suffixes for Property names
 
 Properties which have a unit of measure are recommended to have a unit
 suffix appended to the property name. The list below contains the
-recommended suffixes. Other variations exist in bindings, but should not
+recommended suffixes. Other variations exist in bindings, but should yest
 be used in new bindings or added here. The inconsistency in the unit
 prefixes is due to selecting the most commonly used variants.
 
-It is also recommended to use the units listed here and not add additional
+It is also recommended to use the units listed here and yest add additional
 unit prefixes.
 
 Time/Frequency
@@ -16,7 +16,7 @@ Time/Frequency
 -sec		: second
 -ms		: millisecond
 -us		: microsecond
--ns		: nanosecond
+-ns		: nayessecond
 
 Distance
 ----------------------------------------

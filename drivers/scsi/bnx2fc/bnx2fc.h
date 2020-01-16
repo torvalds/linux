@@ -30,7 +30,7 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>

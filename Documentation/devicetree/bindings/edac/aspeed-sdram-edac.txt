@@ -1,4 +1,4 @@
-Aspeed AST2500 SoC EDAC node
+Aspeed AST2500 SoC EDAC yesde
 
 The Aspeed AST2500 SoC supports DDR3 and DDR4 memory with and without ECC (error
 correction check).

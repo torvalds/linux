@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -33,14 +33,14 @@
 
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <net/net_namespace.h>
 #include <linux/security.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/hashtable.h>
 #include <rdma/rdma_netlink.h>
 #include <rdma/ib_addr.h>
@@ -62,7 +62,7 @@ EXPORT_SYMBOL_GPL(ib_wq);
 /*
  * Each of the three rwsem locks (devices, clients, client_data) protects the
  * xarray of the same name. Specifically it allows the caller to assert that
- * the MARK will/will not be changing under the lock, and for devices and
+ * the MARK will/will yest be changing under the lock, and for devices and
  * clients, that the value in the xarray is still a valid pointer. Change of
  * the MARK is linked to the object state, so holding the lock and testing the
  * MARK also asserts that the contained object is in a certain state.
@@ -74,7 +74,7 @@ EXPORT_SYMBOL_GPL(ib_wq);
  * The xarray itself provides additional locking, and restartable iteration,
  * which is also relied on.
  *
- * Locks should not be nested, with the exception of client_data, which is
+ * Locks should yest be nested, with the exception of client_data, which is
  * allowed to nest under the read side of the other two locks.
  *
  * The devices_rwsem also protects the device name list, any change or
@@ -84,7 +84,7 @@ EXPORT_SYMBOL_GPL(ib_wq);
 
 /*
  * devices contains devices that have had their names assigned. The
- * devices may not be registered. Users that care about the registration
+ * devices may yest be registered. Users that care about the registration
  * status need to call ib_device_try_get() on the device to ensure it is
  * registered, and keep it registered, for the required duration.
  *
@@ -129,11 +129,11 @@ MODULE_PARM_DESC(netns_mode,
 		 "Share device among net namespaces; default=1 (shared)");
 /**
  * rdma_dev_access_netns() - Return whether an rdma device can be accessed
- *			     from a specified net namespace or not.
+ *			     from a specified net namespace or yest.
  * @dev:	Pointer to rdma device which needs to be checked
  * @net:	Pointer to net namesapce for which access to be checked
  *
- * When the rdma device is in shared mode, it ignores the net namespace.
+ * When the rdma device is in shared mode, it igyesres the net namespace.
  * When the rdma device is exclusive to a net namespace, rdma device net
  * namespace is checked against the specified one.
  */
@@ -185,7 +185,7 @@ static DECLARE_HASHTABLE(ndev_hash, 5);
 static void free_netdevs(struct ib_device *ib_dev);
 static void ib_unregister_work(struct work_struct *work);
 static void __ib_unregister_device(struct ib_device *device);
-static int ib_security_change(struct notifier_block *nb, unsigned long event,
+static int ib_security_change(struct yestifier_block *nb, unsigned long event,
 			      void *lsm_data);
 static void ib_policy_change_task(struct work_struct *work);
 static DECLARE_WORK(ib_policy_change_work, ib_policy_change_task);
@@ -247,11 +247,11 @@ define_ibdev_printk_level(ibdev_alert, KERN_ALERT);
 define_ibdev_printk_level(ibdev_crit, KERN_CRIT);
 define_ibdev_printk_level(ibdev_err, KERN_ERR);
 define_ibdev_printk_level(ibdev_warn, KERN_WARNING);
-define_ibdev_printk_level(ibdev_notice, KERN_NOTICE);
+define_ibdev_printk_level(ibdev_yestice, KERN_NOTICE);
 define_ibdev_printk_level(ibdev_info, KERN_INFO);
 
-static struct notifier_block ibdev_lsm_nb = {
-	.notifier_call = ib_security_change,
+static struct yestifier_block ibdev_lsm_nb = {
+	.yestifier_call = ib_security_change,
 };
 
 static int rdma_dev_change_netns(struct ib_device *device, struct net *cur_net,
@@ -283,7 +283,7 @@ static void ib_device_check_mandatory(struct ib_device *device)
 		IB_MANDATORY_FUNC(create_cq),
 		IB_MANDATORY_FUNC(destroy_cq),
 		IB_MANDATORY_FUNC(poll_cq),
-		IB_MANDATORY_FUNC(req_notify_cq),
+		IB_MANDATORY_FUNC(req_yestify_cq),
 		IB_MANDATORY_FUNC(get_dma_mr),
 		IB_MANDATORY_FUNC(dereg_mr),
 		IB_MANDATORY_FUNC(get_port_immutable)
@@ -515,7 +515,7 @@ static int ib_device_uevent(struct device *device,
 		return -ENOMEM;
 
 	/*
-	 * It would be nice to pass the node GUID with the event...
+	 * It would be nice to pass the yesde GUID with the event...
 	 */
 
 	return 0;
@@ -643,7 +643,7 @@ EXPORT_SYMBOL(ib_dealloc_device);
  * parallel calls on the same device - registration/unregistration of both the
  * device and client can be occurring in parallel.
  *
- * The routines need to be a fence, any caller must not return until the add
+ * The routines need to be a fence, any caller must yest return until the add
  * or remove is fully completed.
  */
 static int add_client_context(struct ib_device *device,
@@ -651,7 +651,7 @@ static int add_client_context(struct ib_device *device,
 {
 	int ret = 0;
 
-	if (!device->kverbs_provider && !client->no_kverbs_req)
+	if (!device->kverbs_provider && !client->yes_kverbs_req)
 		return 0;
 
 	down_write(&device->client_data_rwsem);
@@ -659,12 +659,12 @@ static int add_client_context(struct ib_device *device,
 	 * So long as the client is registered hold both the client and device
 	 * unregistration locks.
 	 */
-	if (!refcount_inc_not_zero(&client->uses))
+	if (!refcount_inc_yest_zero(&client->uses))
 		goto out_unlock;
 	refcount_inc(&device->refcount);
 
 	/*
-	 * Another caller to add_client_context got here first and has already
+	 * Ayesther caller to add_client_context got here first and has already
 	 * completely initialized context.
 	 */
 	if (xa_get_mark(&device->client_data, client->client_id,
@@ -679,7 +679,7 @@ static int add_client_context(struct ib_device *device,
 	if (client->add)
 		client->add(device);
 
-	/* Readers shall not see a client until add has been completed */
+	/* Readers shall yest see a client until add has been completed */
 	xa_set_mark(&device->client_data, client->client_id,
 		    CLIENT_DATA_REGISTERED);
 	up_read(&device->client_data_rwsem);
@@ -711,12 +711,12 @@ static void remove_client_context(struct ib_device *device,
 	up_write(&device->client_data_rwsem);
 
 	/*
-	 * Notice we cannot be holding any exclusive locks when calling the
+	 * Notice we canyest be holding any exclusive locks when calling the
 	 * remove callback as the remove callback can recurse back into any
 	 * public functions in this module and thus try for any locks those
 	 * functions take.
 	 *
-	 * For this reason clients and drivers should not call the
+	 * For this reason clients and drivers should yest call the
 	 * unregistration functions will holdling any locks.
 	 */
 	if (client->remove)
@@ -833,7 +833,7 @@ static void ib_policy_change_task(struct work_struct *work)
 	up_read(&devices_rwsem);
 }
 
-static int ib_security_change(struct notifier_block *nb, unsigned long event,
+static int ib_security_change(struct yestifier_block *nb, unsigned long event,
 			      void *lsm_data)
 {
 	if (event != LSM_POLICY_CHANGE)
@@ -1027,7 +1027,7 @@ int rdma_compatdev_set(u8 enable)
 		return 0;
 	}
 
-	/* enable/disable of compat devices is not supported
+	/* enable/disable of compat devices is yest supported
 	 * when more than default init_net exists.
 	 */
 	xa_for_each (&rdma_nets, index, rnet) {
@@ -1112,7 +1112,7 @@ static __net_init int rdma_dev_init_net(struct net *net)
 
 	down_read(&devices_rwsem);
 	xa_for_each_marked (&devices, index, dev, DEVICE_REGISTERED) {
-		/* Hold nets_rwsem so that netlink command cannot change
+		/* Hold nets_rwsem so that netlink command canyest change
 		 * system configuration for device sharing mode.
 		 */
 		down_read(&rdma_nets_rwsem);
@@ -1190,7 +1190,7 @@ static void setup_dma_device(struct ib_device *device)
 		}
 	} else {
 		/*
-		 * The caller did not provide custom DMA operations. Use the
+		 * The caller did yest provide custom DMA operations. Use the
 		 * DMA mapping operations of the parent device.
 		 */
 		WARN_ON_ONCE(!parent);
@@ -1200,7 +1200,7 @@ static void setup_dma_device(struct ib_device *device)
 	if (!device->dev.dma_parms) {
 		if (parent) {
 			/*
-			 * The caller did not provide DMA parameters, so
+			 * The caller did yest provide DMA parameters, so
 			 * 'parent' probably represents a PCI device. The PCI
 			 * core sets the maximum segment size to 64
 			 * KB. Increase this parameter to 2 GB.
@@ -1215,7 +1215,7 @@ static void setup_dma_device(struct ib_device *device)
 
 /*
  * setup_device() allocates memory and sets up data that requires calling the
- * device ops, this is the only reason these actions are not done during
+ * device ops, this is the only reason these actions are yest done during
  * ib_alloc_device. It is undone by ib_dealloc_device().
  */
 static int setup_device(struct ib_device *device)
@@ -1255,7 +1255,7 @@ static void disable_device(struct ib_device *device)
 
 	/*
 	 * Remove clients in LIFO order, see assign_client_id. This could be
-	 * more efficient if xarray learns to reverse iterate. Since no new
+	 * more efficient if xarray learns to reverse iterate. Since yes new
 	 * clients can be added to this ib_device past this point we only need
 	 * the maximum possible client_id value here.
 	 */
@@ -1299,7 +1299,7 @@ static int enable_device_and_get(struct ib_device *device)
 	xa_set_mark(&devices, device->index, DEVICE_REGISTERED);
 
 	/*
-	 * By using downgrade_write() we ensure that no other thread can clear
+	 * By using downgrade_write() we ensure that yes other thread can clear
 	 * DEVICE_REGISTERED while we are completing the client setup.
 	 */
 	downgrade_write(&devices_rwsem);
@@ -1336,7 +1336,7 @@ out:
  * with ib_alloc_device().
  *
  * If the driver uses ops.dealloc_driver and calls any ib_unregister_device()
- * asynchronously then the device pointer may become freed as soon as this
+ * asynchroyesusly then the device pointer may become freed as soon as this
  * function returns.
  */
 int ib_register_device(struct ib_device *device, const char *name)
@@ -1363,8 +1363,8 @@ int ib_register_device(struct ib_device *device, const char *name)
 	rdma_counter_init(device);
 
 	/*
-	 * Ensure that ADD uevent is not fired because it
-	 * is too early amd device is not initialized yet.
+	 * Ensure that ADD uevent is yest fired because it
+	 * is too early amd device is yest initialized yet.
 	 */
 	dev_set_uevent_suppress(&device->dev, true);
 	ret = device_add(&device->dev);
@@ -1391,7 +1391,7 @@ int ib_register_device(struct ib_device *device, const char *name)
 		 * expected to call ib_dealloc_device() after
 		 * ib_register_device() fails. This is tricky due to the
 		 * possibility for a parallel unregistration along with this
-		 * error flow. Since we have a refcount here we know any
+		 * error flow. Since we have a refcount here we kyesw any
 		 * parallel flow is stopped in disable_device and will see the
 		 * NULL pointers, causing the responsibility to
 		 * ib_dealloc_device() to revert back to this thread.
@@ -1442,7 +1442,7 @@ static void __ib_unregister_device(struct ib_device *ib_dev)
 	ib_cache_cleanup_one(ib_dev);
 
 	/*
-	 * Drivers using the new flow may not call ib_dealloc_device except
+	 * Drivers using the new flow may yest call ib_dealloc_device except
 	 * in error unwind prior to registration success.
 	 */
 	if (ib_dev->ops.dealloc_driver) {
@@ -1507,10 +1507,10 @@ EXPORT_SYMBOL(ib_unregister_device_and_put);
  * devices associated with the driver_id have fully completed their
  * unregistration and returned from ib_unregister_device*().
  *
- * If device's are not yet unregistered it goes ahead and starts unregistering
+ * If device's are yest yet unregistered it goes ahead and starts unregistering
  * them.
  *
- * This does not block creation of new devices with the given driver_id, that
+ * This does yest block creation of new devices with the given driver_id, that
  * is the responsibility of the caller.
  */
 void ib_unregister_driver(enum rdma_driver_id driver_id)
@@ -1549,7 +1549,7 @@ static void ib_unregister_work(struct work_struct *work)
  * ib_unregister_device_queued - Unregister a device using a work queue
  * @ib_dev: The device to unregister
  *
- * This schedules an asynchronous unregistration using a WQ for the device. A
+ * This schedules an asynchroyesus unregistration using a WQ for the device. A
  * driver should use this to avoid holding locks while doing unregistration,
  * such as holding the RTNL lock.
  *
@@ -1580,8 +1580,8 @@ static int rdma_dev_change_netns(struct ib_device *device, struct net *cur_net,
 	mutex_lock(&device->unregistration_lock);
 
 	/*
-	 * If a device not under ib_device_get() or if the unregistration_lock
-	 * is not held, the namespace can be changed, or it can be unregistered.
+	 * If a device yest under ib_device_get() or if the unregistration_lock
+	 * is yest held, the namespace can be changed, or it can be unregistered.
 	 * Check again under the lock.
 	 */
 	if (refcount_read(&device->refcount) == 0 ||
@@ -1594,7 +1594,7 @@ static int rdma_dev_change_netns(struct ib_device *device, struct net *cur_net,
 	disable_device(device);
 
 	/*
-	 * At this point no one can be using the device, so it is safe to
+	 * At this point yes one can be using the device, so it is safe to
 	 * change the namespace.
 	 */
 	write_pnet(&device->coredev.rdma_net, net);
@@ -1766,8 +1766,8 @@ EXPORT_SYMBOL(ib_register_client);
  * registration.  When ib_unregister_client() is called, the client
  * will receive a remove callback for each IB device still registered.
  *
- * This is a full fence, once it returns no client callbacks will be called,
- * or are running in another thread.
+ * This is a full fence, once it returns yes client callbacks will be called,
+ * or are running in ayesther thread.
  */
 void ib_unregister_client(struct ib_client *client)
 {
@@ -1779,7 +1779,7 @@ void ib_unregister_client(struct ib_client *client)
 	xa_clear_mark(&clients, client->client_id, CLIENT_REGISTERED);
 	up_write(&clients_rwsem);
 
-	/* We do not want to have locks while calling client->remove() */
+	/* We do yest want to have locks while calling client->remove() */
 	rcu_read_lock();
 	xa_for_each (&devices, index, device) {
 		if (!ib_device_try_get(device))
@@ -1794,7 +1794,7 @@ void ib_unregister_client(struct ib_client *client)
 	rcu_read_unlock();
 
 	/*
-	 * remove_client_context() is not a fence, it can return even though a
+	 * remove_client_context() is yest a fence, it can return even though a
 	 * removal is ongoing. Wait until all removals are completed.
 	 */
 	wait_for_completion(&client->uses_zero);
@@ -1909,7 +1909,7 @@ int ib_get_client_nl_info(struct ib_device *ibdev, const char *client_name,
  * ib_set_client_data() sets client context data that can be retrieved with
  * ib_get_client_data(). This can only be called while the client is
  * registered to the device, once the ib_client remove() callback returns this
- * cannot be called.
+ * canyest be called.
  */
 void ib_set_client_data(struct ib_device *device, struct ib_client *client,
 			void *data)
@@ -1930,7 +1930,7 @@ EXPORT_SYMBOL(ib_set_client_data);
  * @event_handler:Handler to register
  *
  * ib_register_event_handler() registers an event handler that will be
- * called back when asynchronous IB events occur (as defined in
+ * called back when asynchroyesus IB events occur (as defined in
  * chapter 11 of the InfiniBand Architecture Specification).  This
  * callback may occur in interrupt context.
  */
@@ -1963,11 +1963,11 @@ void ib_unregister_event_handler(struct ib_event_handler *event_handler)
 EXPORT_SYMBOL(ib_unregister_event_handler);
 
 /**
- * ib_dispatch_event - Dispatch an asynchronous event
+ * ib_dispatch_event - Dispatch an asynchroyesus event
  * @event:Event to dispatch
  *
  * Low-level drivers must call ib_dispatch_event() to dispatch the
- * event to all registered event handlers when an asynchronous event
+ * event to all registered event handlers when an asynchroyesus event
  * occurs.
  */
 void ib_dispatch_event(struct ib_event *event)
@@ -2087,7 +2087,7 @@ static void add_ndev_hash(struct ib_port_data *pdata)
 		hash_del_rcu(&pdata->ndev_hash_link);
 		spin_unlock_irqrestore(&ndev_hash_lock, flags);
 		/*
-		 * We cannot do hash_add_rcu after a hash_del_rcu until the
+		 * We canyest do hash_add_rcu after a hash_del_rcu until the
 		 * grace period
 		 */
 		synchronize_rcu();
@@ -2109,7 +2109,7 @@ static void add_ndev_hash(struct ib_port_data *pdata)
  * shows up in interfaces like ib_enum_roce_netdev. Only one netdev may be
  * affiliated with any port.
  *
- * The caller must ensure that the given ndev is not unregistered or
+ * The caller must ensure that the given ndev is yest unregistered or
  * unregistering, and that either the ib_device is unregistered or
  * ib_device_set_netdev() is called with NULL when the ndev sends a
  * NETDEV_UNREGISTER event.
@@ -2200,7 +2200,7 @@ struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 	pdata = &ib_dev->port_data[port];
 
 	/*
-	 * New drivers should use ib_device_set_netdev() not the legacy
+	 * New drivers should use ib_device_set_netdev() yest the legacy
 	 * get_netdev().
 	 */
 	if (ib_dev->ops.get_netdev)
@@ -2268,7 +2268,7 @@ EXPORT_SYMBOL(ib_device_get_by_netdev);
  *
  * Enumerates all of the physical RoCE ports of ib_dev
  * which are related to netdevice and calls callback() on each
- * device for which filter() function returns non zero.
+ * device for which filter() function returns yesn zero.
  */
 void ib_enum_roce_netdev(struct ib_device *ib_dev,
 			 roce_netdev_filter filter,
@@ -2300,7 +2300,7 @@ void ib_enum_roce_netdev(struct ib_device *ib_dev,
  *
  * Enumerates all RoCE devices' physical ports which are related
  * to netdevices and calls callback() on each device for which
- * filter() function returns non zero.
+ * filter() function returns yesn zero.
  */
 void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
 			      void *filter_cookie,
@@ -2487,7 +2487,7 @@ int ib_find_pkey(struct ib_device *device,
 		}
 	}
 
-	/*no full-member, if exists take the limited*/
+	/*yes full-member, if exists take the limited*/
 	if (partial_ix >= 0) {
 		*index = partial_ix;
 		return 0;
@@ -2521,7 +2521,7 @@ struct net_device *ib_get_net_dev_by_params(struct ib_device *dev,
 		return NULL;
 
 	/*
-	 * Holding the read side guarantees that the client will not become
+	 * Holding the read side guarantees that the client will yest become
 	 * unregistered while we are calling get_net_dev_by_params()
 	 */
 	down_read(&dev->client_data_rwsem);
@@ -2567,8 +2567,8 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	if (ops->uverbs_abi_ver)
 		dev_ops->uverbs_abi_ver = ops->uverbs_abi_ver;
 
-	dev_ops->uverbs_no_driver_id_binding |=
-		ops->uverbs_no_driver_id_binding;
+	dev_ops->uverbs_yes_driver_id_binding |=
+		ops->uverbs_yes_driver_id_binding;
 
 	SET_DEVICE_OP(dev_ops, add_gid);
 	SET_DEVICE_OP(dev_ops, advise_mr);
@@ -2672,8 +2672,8 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, read_counters);
 	SET_DEVICE_OP(dev_ops, reg_dm_mr);
 	SET_DEVICE_OP(dev_ops, reg_user_mr);
-	SET_DEVICE_OP(dev_ops, req_ncomp_notif);
-	SET_DEVICE_OP(dev_ops, req_notify_cq);
+	SET_DEVICE_OP(dev_ops, req_ncomp_yestif);
+	SET_DEVICE_OP(dev_ops, req_yestify_cq);
 	SET_DEVICE_OP(dev_ops, rereg_user_mr);
 	SET_DEVICE_OP(dev_ops, resize_cq);
 	SET_DEVICE_OP(dev_ops, set_vf_guid);
@@ -2753,9 +2753,9 @@ static int __init ib_core_init(void)
 		goto err_mad;
 	}
 
-	ret = register_blocking_lsm_notifier(&ibdev_lsm_nb);
+	ret = register_blocking_lsm_yestifier(&ibdev_lsm_nb);
 	if (ret) {
-		pr_warn("Couldn't register LSM notifier. ret %d\n", ret);
+		pr_warn("Couldn't register LSM yestifier. ret %d\n", ret);
 		goto err_sa;
 	}
 
@@ -2772,7 +2772,7 @@ static int __init ib_core_init(void)
 	return 0;
 
 err_compat:
-	unregister_blocking_lsm_notifier(&ibdev_lsm_nb);
+	unregister_blocking_lsm_yestifier(&ibdev_lsm_nb);
 err_sa:
 	ib_sa_cleanup();
 err_mad:
@@ -2796,7 +2796,7 @@ static void __exit ib_core_cleanup(void)
 	nldev_exit();
 	rdma_nl_unregister(RDMA_NL_LS);
 	unregister_pernet_device(&rdma_dev_net_ops);
-	unregister_blocking_lsm_notifier(&ibdev_lsm_nb);
+	unregister_blocking_lsm_yestifier(&ibdev_lsm_nb);
 	ib_sa_cleanup();
 	ib_mad_cleanup();
 	addr_cleanup();

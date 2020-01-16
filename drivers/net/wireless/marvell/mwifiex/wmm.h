@@ -80,7 +80,7 @@ mwifiex_wmm_list_len(struct list_head *head)
 }
 
 /*
- * This function checks if a RA list is empty or not.
+ * This function checks if a RA list is empty or yest.
  */
 static inline u8
 mwifiex_wmm_is_ra_list_empty(struct list_head *ra_list_hhead)
@@ -135,6 +135,6 @@ void mwifiex_update_ralist_tx_pause(struct mwifiex_private *priv, u8 *mac,
 void mwifiex_update_ralist_tx_pause_in_tdls_cs(struct mwifiex_private *priv,
 					       u8 *mac, u8 tx_pause);
 
-struct mwifiex_ra_list_tbl *mwifiex_wmm_get_ralist_node(struct mwifiex_private
+struct mwifiex_ra_list_tbl *mwifiex_wmm_get_ralist_yesde(struct mwifiex_private
 					*priv, u8 tid, const u8 *ra_addr);
 #endif /* !_MWIFIEX_WMM_H_ */

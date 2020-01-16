@@ -9,7 +9,7 @@
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -37,19 +37,19 @@ static int syscon_poweroff_probe(struct platform_device *pdev)
 	char symname[KSYM_NAME_LEN];
 	int mask_err, value_err;
 
-	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "regmap");
+	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde, "regmap");
 	if (IS_ERR(map)) {
 		dev_err(&pdev->dev, "unable to get syscon");
 		return PTR_ERR(map);
 	}
 
-	if (of_property_read_u32(pdev->dev.of_node, "offset", &offset)) {
+	if (of_property_read_u32(pdev->dev.of_yesde, "offset", &offset)) {
 		dev_err(&pdev->dev, "unable to read 'offset'");
 		return -EINVAL;
 	}
 
-	value_err = of_property_read_u32(pdev->dev.of_node, "value", &value);
-	mask_err = of_property_read_u32(pdev->dev.of_node, "mask", &mask);
+	value_err = of_property_read_u32(pdev->dev.of_yesde, "value", &value);
+	mask_err = of_property_read_u32(pdev->dev.of_yesde, "mask", &mask);
 	if (value_err && mask_err) {
 		dev_err(&pdev->dev, "unable to read 'value' and 'mask'");
 		return -EINVAL;

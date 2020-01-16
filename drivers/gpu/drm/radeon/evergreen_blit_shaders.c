@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -31,7 +31,7 @@
 /*
  * evergreen cards need to use the 3D engine to blit data which requires
  * quite a bit of hw state setup.  Rather than pull the whole 3D driver
- * (which normally generates the 3D state) into the DRM, we opt to use
+ * (which yesrmally generates the 3D state) into the DRM, we opt to use
  * statically generated state tables.  The register state and shaders
  * were hand generated to support blitting functionality.  See the 3D
  * driver or documentation for descriptions of the registers and

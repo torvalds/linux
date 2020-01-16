@@ -3,7 +3,7 @@
  *  compress_driver.h - compress offload driver definations
  *
  *  Copyright (C) 2011 Intel Corporation
- *  Authors:	Vinod Koul <vinod.koul@linux.intel.com>
+ *  Authors:	Viyesd Koul <viyesd.koul@linux.intel.com>
  *		Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
  */
 
@@ -24,7 +24,7 @@ struct snd_compr_ops;
  * @state: stream state
  * @ops: pointer to DSP callbacks
  * @dma_buffer_p: runtime dma buffer pointer
- * @buffer: pointer to kernel buffer, valid only when not in mmap mode or
+ * @buffer: pointer to kernel buffer, valid only when yest in mmap mode or
  *	DSP doesn't implement copy
  * @buffer_size: size of the above buffer
  * @fragment_size: size of buffer fragment in bytes
@@ -157,9 +157,9 @@ int snd_compress_new(struct snd_card *card, int device,
 
 /* dsp driver callback apis
  * For playback: driver should call snd_compress_fragment_elapsed() to let the
- * framework know that a fragment has been consumed from the ring buffer
+ * framework kyesw that a fragment has been consumed from the ring buffer
  *
- * For recording: we want to know when a frame is available or when
+ * For recording: we want to kyesw when a frame is available or when
  * at least one frame is available so snd_compress_frame_elapsed()
  * callback should be called when a encodeded frame is available
  */
@@ -168,7 +168,7 @@ static inline void snd_compr_fragment_elapsed(struct snd_compr_stream *stream)
 	wake_up(&stream->runtime->sleep);
 }
 
-static inline void snd_compr_drain_notify(struct snd_compr_stream *stream)
+static inline void snd_compr_drain_yestify(struct snd_compr_stream *stream)
 {
 	if (snd_BUG_ON(!stream))
 		return;
@@ -183,7 +183,7 @@ static inline void snd_compr_drain_notify(struct snd_compr_stream *stream)
  * @substream: compress substream to set
  * @bufp: the buffer information, NULL to clear
  *
- * Copy the buffer information to runtime buffer when @bufp is non-NULL.
+ * Copy the buffer information to runtime buffer when @bufp is yesn-NULL.
  * Otherwise it clears the current buffer information.
  */
 static inline void snd_compr_set_runtime_buffer(

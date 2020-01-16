@@ -6,7 +6,7 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(yesw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  *

@@ -199,18 +199,18 @@ static void commit_work(struct work_struct *work)
  * vc4_atomic_commit - commit validated state object
  * @dev: DRM device
  * @state: the driver state object
- * @nonblock: nonblocking commit
+ * @yesnblock: yesnblocking commit
  *
  * This function commits a with drm_atomic_helper_check() pre-validated state
  * object. This can still fail when e.g. the framebuffer reservation fails. For
- * now this doesn't implement asynchronous commits.
+ * yesw this doesn't implement asynchroyesus commits.
  *
  * RETURNS
- * Zero for success or -errno.
+ * Zero for success or -erryes.
  */
 static int vc4_atomic_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
-			     bool nonblock)
+			     bool yesnblock)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int ret;
@@ -235,13 +235,13 @@ static int vc4_atomic_commit(struct drm_device *dev,
 		return 0;
 	}
 
-	/* We know for sure we don't want an async update here. Set
+	/* We kyesw for sure we don't want an async update here. Set
 	 * state->legacy_cursor_update to false to prevent
 	 * drm_atomic_helper_setup_commit() from auto-completing
 	 * commit->flip_done.
 	 */
 	state->legacy_cursor_update = false;
-	ret = drm_atomic_helper_setup_commit(state, nonblock);
+	ret = drm_atomic_helper_setup_commit(state, yesnblock);
 	if (ret)
 		return ret;
 
@@ -257,7 +257,7 @@ static int vc4_atomic_commit(struct drm_device *dev,
 		return ret;
 	}
 
-	if (!nonblock) {
+	if (!yesnblock) {
 		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
 		if (ret) {
 			drm_atomic_helper_cleanup_planes(dev, state);
@@ -267,31 +267,31 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	}
 
 	/*
-	 * This is the point of no return - everything below never fails except
+	 * This is the point of yes return - everything below never fails except
 	 * when the hw goes bonghits. Which means we can commit the new state on
-	 * the software side now.
+	 * the software side yesw.
 	 */
 
 	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
 
 	/*
-	 * Everything below can be run asynchronously without the need to grab
+	 * Everything below can be run asynchroyesusly without the need to grab
 	 * any modeset locks at all under one condition: It must be guaranteed
-	 * that the asynchronous work has either been cancelled (if the driver
+	 * that the asynchroyesus work has either been cancelled (if the driver
 	 * supports it, which at least requires that the framebuffers get
 	 * cleaned up with drm_atomic_helper_cleanup_planes()) or completed
 	 * before the new state gets committed on the software side with
 	 * drm_atomic_helper_swap_state().
 	 *
 	 * This scheme allows new atomic state updates to be prepared and
-	 * checked in parallel to the asynchronous completion of the previous
+	 * checked in parallel to the asynchroyesus completion of the previous
 	 * update. Which is important since compositors need to figure out the
 	 * composition of the next frame right after having submitted the
 	 * current layout.
 	 */
 
 	drm_atomic_state_get(state);
-	if (nonblock)
+	if (yesnblock)
 		queue_work(system_unbound_wq, &state->commit_work);
 	else
 		vc4_atomic_complete_commit(state);
@@ -340,7 +340,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 
 /* Our CTM has some peculiar limitations: we can only enable it for one CRTC
  * at a time and the HW only supports S0.9 scalars. To account for the latter,
- * we don't allow userland to set a CTM that we have no hope of approximating.
+ * we don't allow userland to set a CTM that we have yes hope of approximating.
  */
 static int
 vc4_ctm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
@@ -387,7 +387,7 @@ vc4_ctm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 
 			/* Check we can approximate the specified CTM.
 			 * We disallow scalars |c| > 1.0 since the HW has
-			 * no integer bits.
+			 * yes integer bits.
 			 */
 			ctm = new_crtc_state->ctm->data;
 			for (i = 0; i < ARRAY_SIZE(ctm->matrix); i++) {

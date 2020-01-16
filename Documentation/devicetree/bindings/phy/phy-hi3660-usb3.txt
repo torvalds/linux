@@ -9,7 +9,7 @@ Required properties:
 - hisilicon,eye-diagram-param: parameter set for phy
 Refer to phy/phy-bindings.txt for the generic PHY binding properties
 
-This is a subnode of usb3_otg_bc register node.
+This is a subyesde of usb3_otg_bc register yesde.
 
 Example:
 	usb3_otg_bc: usb3_otg_bc@ff200000 {

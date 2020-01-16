@@ -169,14 +169,14 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"FUJ0209"},		/* Fujitsu Fax Voice 33600 PNP-I5 R Plug & Play */
 	{"GVC000F"},		/* Archtek SmartLink Modem 3334BT Plug & Play */
 	{"GVC0303"},		/* Archtek SmartLink Modem 3334BRV 33.6K Data Fax Voice */
-	{"HAY0001"},		/* Hayes Optima 288 V.34-V.FC + FAX + Voice Plug & Play */
-	{"HAY000C"},		/* Hayes Optima 336 V.34 + FAX + Voice PnP */
-	{"HAY000D"},		/* Hayes Optima 336B V.34 + FAX + Voice PnP */
-	{"HAY5670"},		/* Hayes Accura 56K Ext Fax Modem PnP */
-	{"HAY5674"},		/* Hayes Accura 56K Ext Fax Modem PnP */
-	{"HAY5675"},		/* Hayes Accura 56K Fax Modem PnP */
-	{"HAYF000"},		/* Hayes 288, V.34 + FAX */
-	{"HAYF001"},		/* Hayes Optima 288 V.34 + FAX + Voice, Plug & Play */
+	{"HAY0001"},		/* Hano Optima 288 V.34-V.FC + FAX + Voice Plug & Play */
+	{"HAY000C"},		/* Hano Optima 336 V.34 + FAX + Voice PnP */
+	{"HAY000D"},		/* Hano Optima 336B V.34 + FAX + Voice PnP */
+	{"HAY5670"},		/* Hano Accura 56K Ext Fax Modem PnP */
+	{"HAY5674"},		/* Hano Accura 56K Ext Fax Modem PnP */
+	{"HAY5675"},		/* Hano Accura 56K Fax Modem PnP */
+	{"HAYF000"},		/* Hano 288, V.34 + FAX */
+	{"HAYF001"},		/* Hano Optima 288 V.34 + FAX + Voice, Plug & Play */
 	{"IBM0033"},		/* IBM Thinkpad 701 Internal Modem Voice */
 	{"PNP4972"},		/* Intermec CV60 touchscreen port */
 	{"IXDC801"},		/* Intertex 28k8 33k6 Voice EXT PnP */
@@ -242,11 +242,11 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"PNPC10E"},		/* Standard 28800 bps Modem */
 	{"PNPC10F"},		/* Standard Modem */
 	{"PNP2000"},		/* Standard PCMCIA Card Modem */
-	{"ROK0030"},		/* Rockwell 33.6 DPF Internal PnP, Modular Technology 33.6 Internal PnP */
+	{"ROK0030"},		/* Rockwell 33.6 DPF Internal PnP, Modular Techyeslogy 33.6 Internal PnP */
 	{"ROK0100"},		/* KORTEX 14400 Externe PnP */
 	{"ROK4120"},		/* Rockwell 28.8 */
 	{"ROK4920"},		/* Viking 28.8 INTERNAL Fax+Data+Voice PnP */
-	{"RSS00A0"},		/* Rockwell 33.6 DPF External PnP, BT Prologue 33.6 External PnP, Modular Technology 33.6 External PnP */
+	{"RSS00A0"},		/* Rockwell 33.6 DPF External PnP, BT Prologue 33.6 External PnP, Modular Techyeslogy 33.6 External PnP */
 	{"RSS0262"},		/* Viking 56K FAX INT */
 	{"RSS0250"},		/* K56 par,VV,Voice,Speakphone,AudioSpan,PnP */
 	{"SUP1310"},		/* SupraExpress 28.8 Data/Fax PnP modem */
@@ -293,7 +293,7 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"FUJ02E9"},		/* Fujitsu Wacom 1FGT Tablet PC device */
 	{"LTS0001"},		/* LG C1 EXPRESS DUAL (C1-PB11A3) touch screen (actually a FUJ02E6 in disguise) */
 	{"WCI0003"},		/* Rockwell's (PORALiNK) 33600 INT PNP */
-	{"WEC1022"},		/* Winbond CIR port, should not be probed. We should keep track of it to prevent the legacy serial driver from probing it */
+	{"WEC1022"},		/* Winbond CIR port, should yest be probed. We should keep track of it to prevent the legacy serial driver from probing it */
 	/* scl200wdt */
 	{"NSC0800"},		/* National Semiconductor PC87307/PC97307 watchdog component */
 	/* mpu401 */
@@ -358,7 +358,7 @@ static struct acpi_scan_handler acpi_pnp_handler = {
 };
 
 /*
- * For CMOS RTC devices, the PNP ACPI scan handler does not work, because
+ * For CMOS RTC devices, the PNP ACPI scan handler does yest work, because
  * there is a CMOS RTC ACPI scan handler installed already, so we need to
  * check those devices and enumerate them to the PNP bus directly.
  */

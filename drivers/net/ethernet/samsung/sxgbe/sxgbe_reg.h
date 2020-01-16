@@ -452,8 +452,8 @@ enum vlan_tag_ctl_tx {
 	(SXGBE_DMA_INT_ENA_NIE | SXGBE_DMA_INT_ENA_RIE |	\
 	 SXGBE_DMA_INT_ENA_TIE | SXGBE_DMA_INT_ENA_TUE)
 
-/* DMA Abnormal interrupt */
-#define SXGBE_DMA_INT_ENA_AIE	BIT(15)	/* Abnormal Summary */
+/* DMA Abyesrmal interrupt */
+#define SXGBE_DMA_INT_ENA_AIE	BIT(15)	/* Abyesrmal Summary */
 #define SXGBE_DMA_INT_ENA_TSE	BIT(1)	/* Transmit Stopped */
 #define SXGBE_DMA_INT_ENA_RUE	BIT(7)	/* Receive Buffer Unavailable */
 #define SXGBE_DMA_INT_ENA_RSE	BIT(8)	/* Receive Stopped */

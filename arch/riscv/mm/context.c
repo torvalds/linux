@@ -11,11 +11,11 @@
 
 /*
  * When necessary, performs a deferred icache flush for the given MM context,
- * on the local CPU.  RISC-V has no direct mechanism for instruction cache
+ * on the local CPU.  RISC-V has yes direct mechanism for instruction cache
  * shoot downs, so instead we send an IPI that informs the remote harts they
  * need to flush their local instruction caches.  To avoid pathologically slow
  * behavior in a common case (a bunch of single-hart processes on a many-hart
- * machine, ie 'make -j') we avoid the IPIs for harts that are not currently
+ * machine, ie 'make -j') we avoid the IPIs for harts that are yest currently
  * executing a MM context and instead schedule a deferred local instruction
  * cache flush to be performed before execution resumes on each hart.  This
  * actually performs that local instruction cache flush, which implicitly only

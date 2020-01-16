@@ -4,7 +4,7 @@
  *
  *  (c) 2001 Michael Eskin, Tom Zakrajsek [Windows version]
  *  (c) 2002 Yurij Sysoev <yurij@naturesoft.net>
- *  (c) 2003 Gerd Knorr <kraxel@bytesex.org>
+ *  (c) 2003 Gerd Kyesrr <kraxel@bytesex.org>
  *
  * -----------------------------------------------------------------------
  *
@@ -24,7 +24,7 @@
 #include "cx88.h"
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/freezer.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -257,12 +257,12 @@ static void set_audio_standard_BTSC(struct cx88_core *core, unsigned int sap,
 	mode |= EN_FMRADIO_EN_RDS;
 
 	if (sap) {
-		dprintk("%s SAP (status: unknown)\n", __func__);
+		dprintk("%s SAP (status: unkyeswn)\n", __func__);
 		set_audio_start(core, SEL_SAP);
 		set_audio_registers(core, btsc_sap);
 		set_audio_finish(core, mode);
 	} else {
-		dprintk("%s (status: known-good)\n", __func__);
+		dprintk("%s (status: kyeswn-good)\n", __func__);
 		set_audio_start(core, SEL_BTSC);
 		set_audio_registers(core, btsc);
 		set_audio_finish(core, mode);
@@ -347,7 +347,7 @@ static void set_audio_standard_NICAM(struct cx88_core *core, u32 mode)
 		set_audio_registers(core, nicam_l);
 		break;
 	case WW_I:
-		dprintk("%s PAL-I NICAM (status: known-good)\n", __func__);
+		dprintk("%s PAL-I NICAM (status: kyeswn-good)\n", __func__);
 		set_audio_registers(core, nicam_bgdki_common);
 		set_audio_registers(core, nicam_i);
 		break;
@@ -360,7 +360,7 @@ static void set_audio_standard_NICAM(struct cx88_core *core, u32 mode)
 	case WW_FM:
 	case WW_I2SADC:
 	case WW_M:
-		dprintk("%s PAL-BGDK NICAM (status: known-good)\n", __func__);
+		dprintk("%s PAL-BGDK NICAM (status: kyeswn-good)\n", __func__);
 		set_audio_registers(core, nicam_bgdki_common);
 		set_audio_registers(core, nicam_default);
 		break;
@@ -600,19 +600,19 @@ static void set_audio_standard_A2(struct cx88_core *core, u32 mode)
 	set_audio_start(core, SEL_A2);
 	switch (core->tvaudio) {
 	case WW_BG:
-		dprintk("%s PAL-BG A1/2 (status: known-good)\n", __func__);
+		dprintk("%s PAL-BG A1/2 (status: kyeswn-good)\n", __func__);
 		set_audio_registers(core, a2_bgdk_common);
 		set_audio_registers(core, a2_bg);
 		set_audio_registers(core, a2_deemph50);
 		break;
 	case WW_DK:
-		dprintk("%s PAL-DK A1/2 (status: known-good)\n", __func__);
+		dprintk("%s PAL-DK A1/2 (status: kyeswn-good)\n", __func__);
 		set_audio_registers(core, a2_bgdk_common);
 		set_audio_registers(core, a2_dk);
 		set_audio_registers(core, a2_deemph50);
 		break;
 	case WW_I:
-		dprintk("%s PAL-I A1 (status: known-good)\n", __func__);
+		dprintk("%s PAL-I A1 (status: kyeswn-good)\n", __func__);
 		set_audio_registers(core, a1_i);
 		set_audio_registers(core, a2_deemph50);
 		break;
@@ -638,11 +638,11 @@ static void set_audio_standard_A2(struct cx88_core *core, u32 mode)
 static void set_audio_standard_EIAJ(struct cx88_core *core)
 {
 	static const struct rlist eiaj[] = {
-		/* TODO: eiaj register settings are not there yet ... */
+		/* TODO: eiaj register settings are yest there yet ... */
 
 		{ /* end of list */ },
 	};
-	dprintk("%s (status: unknown)\n", __func__);
+	dprintk("%s (status: unkyeswn)\n", __func__);
 
 	set_audio_start(core, SEL_EIAJ);
 	set_audio_registers(core, eiaj);
@@ -686,25 +686,25 @@ static void set_audio_standard_FM(struct cx88_core *core,
 	};
 
 	/*
-	 * It is enough to leave default values?
+	 * It is eyesugh to leave default values?
 	 *
-	 * No, it's not!  The deemphasis registers are reset to the 75us
+	 * No, it's yest!  The deemphasis registers are reset to the 75us
 	 * values by default.  Analyzing the spectrum of the decoded audio
-	 * reveals that "no deemphasis" is the same as 75 us, while the 50 us
+	 * reveals that "yes deemphasis" is the same as 75 us, while the 50 us
 	 * setting results in less deemphasis.
 	 */
-	static const struct rlist fm_no_deemph[] = {
+	static const struct rlist fm_yes_deemph[] = {
 		{AUD_POLYPH80SCALEFAC, 0x0003},
 		{ /* end of list */ },
 	};
 
-	dprintk("%s (status: unknown)\n", __func__);
+	dprintk("%s (status: unkyeswn)\n", __func__);
 	set_audio_start(core, SEL_FMRADIO);
 
 	switch (deemph) {
 	default:
 	case FM_NO_DEEMPH:
-		set_audio_registers(core, fm_no_deemph);
+		set_audio_registers(core, fm_yes_deemph);
 		break;
 
 	case FM_DEEMPH_50:
@@ -740,7 +740,7 @@ static int cx88_detect_nicam(struct cx88_core *core)
 		usleep_range(10000, 20000);
 	}
 
-	dprintk("nicam is not detected.\n");
+	dprintk("nicam is yest detected.\n");
 	return 0;
 }
 
@@ -764,7 +764,7 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		 */
 		set_audio_standard_NICAM(core, EN_NICAM_AUTO_STEREO);
 		if (cx88_detect_nicam(core) == 0) {
-			/* fall back to fm / am mono */
+			/* fall back to fm / am moyes */
 			set_audio_standard_A2(core, EN_A2_FORCE_MONO1);
 			core->audiomode_current = V4L2_TUNER_MODE_MONO;
 			core->use_nicam = 0;
@@ -792,7 +792,7 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		break;
 	case WW_NONE:
 	case WW_I2SPT:
-		pr_info("unknown tv audio mode [%d]\n", core->tvaudio);
+		pr_info("unkyeswn tv audio mode [%d]\n", core->tvaudio);
 		break;
 	}
 }
@@ -807,9 +807,9 @@ EXPORT_SYMBOL(cx88_newstation);
 
 void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 {
-	static const char * const m[] = { "stereo", "dual mono",
-					  "mono",   "sap" };
-	static const char * const p[] = { "no pilot", "pilot c1",
+	static const char * const m[] = { "stereo", "dual moyes",
+					  "moyes",   "sap" };
+	static const char * const p[] = { "yes pilot", "pilot c1",
 					  "pilot c2", "?" };
 	u32 reg, mode, pilot;
 
@@ -860,11 +860,11 @@ void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 	case WW_I2SPT:
 	case WW_FM:
 	case WW_I2SADC:
-		/* nothing */
+		/* yesthing */
 		break;
 	}
 
-	/* If software stereo detection is not supported... */
+	/* If software stereo detection is yest supported... */
 	if (t->rxsubchans == UNSET) {
 		t->rxsubchans = V4L2_TUNER_SUB_MONO;
 		/*
@@ -934,7 +934,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 		} else {
 			if ((core->tvaudio == WW_I) ||
 			    (core->tvaudio == WW_L)) {
-				/* fall back to fm / am mono */
+				/* fall back to fm / am moyes */
 				set_audio_standard_A2(core, EN_A2_FORCE_MONO1);
 			} else {
 				/* TODO: Add A2 autodection */
@@ -1007,7 +1007,7 @@ int cx88_audio_thread(void *data)
 			if (core->use_nicam)
 				goto hw_autodetect;
 
-			/* just monitor the audio status for now ... */
+			/* just monitor the audio status for yesw ... */
 			memset(&t, 0, sizeof(t));
 			cx88_get_stereo(core, &t);
 
@@ -1034,7 +1034,7 @@ int cx88_audio_thread(void *data)
 hw_autodetect:
 			/*
 			 * stereo autodetection is supported by hardware so
-			 * we don't need to do it manually. Do nothing.
+			 * we don't need to do it manually. Do yesthing.
 			 */
 			break;
 		}

@@ -5,7 +5,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License and no later version.
+ * Free Software Foundation; version 2 of the License and yes later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,7 +14,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * The full GNU General Public License is included in this distribution in
@@ -56,7 +56,7 @@ struct UPT1_RxStats {
 
 /* interrupt moderation level */
 enum {
-	UPT1_IML_NONE		= 0, /* no interrupt moderation */
+	UPT1_IML_NONE		= 0, /* yes interrupt moderation */
 	UPT1_IML_HIGHEST	= 7, /* least intr generated */
 	UPT1_IML_ADAPTIVE	= 8, /* adpative intr moderation */
 };

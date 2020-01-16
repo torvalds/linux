@@ -142,7 +142,7 @@ static inline void access_error060 (struct frame *fp)
 				      "orl   #0x00400000,%/d0\n\t"
 				      "movec %/d0,%/cacr"
 				      : : : "d0" );
-		/* return if there's no other error */
+		/* return if there's yes other error */
 		if (!(fslw & MMU060_ERR_BITS) && !(fslw & MMU060_SEE))
 			return;
 	}
@@ -204,7 +204,7 @@ static inline int do_040writeback1(unsigned short wbs, unsigned long wba,
 	int res = 0;
 	mm_segment_t old_fs = get_fs();
 
-	/* set_fs can not be moved, otherwise put_user() may oops */
+	/* set_fs can yest be moved, otherwise put_user() may oops */
 	set_fs(MAKE_MM_SEG(wbs));
 
 	switch (wbs & WBSIZ_040) {
@@ -219,7 +219,7 @@ static inline int do_040writeback1(unsigned short wbs, unsigned long wba,
 		break;
 	}
 
-	/* set_fs can not be moved, otherwise put_user() may oops */
+	/* set_fs can yest be moved, otherwise put_user() may oops */
 	set_fs(old_fs);
 
 
@@ -245,7 +245,7 @@ static inline void do_040writebacks(struct frame *fp)
 	int res = 0;
 #if 0
 	if (fp->un.fmt7.wb1s & WBV_040)
-		pr_err("access_error040: cannot handle 1st writeback. oops.\n");
+		pr_err("access_error040: canyest handle 1st writeback. oops.\n");
 #endif
 
 	if ((fp->un.fmt7.wb2s & WBV_040) &&
@@ -354,7 +354,7 @@ disable_wb:
 		 * the kernel to catch the fault, which then is also responsible
 		 * for cleaning up the mess.
 		 */
-		current->thread.signo = SIGBUS;
+		current->thread.sigyes = SIGBUS;
 		current->thread.faddr = fp->un.fmt7.faddr;
 		if (send_fault_sig(&fp->ptregs) >= 0)
 			pr_err("68040 bus error (ssw=%x, faddr=%lx)\n", ssw,
@@ -437,7 +437,7 @@ static inline void bus_error030 (struct frame *fp)
 	} else {
 		/* user fault */
 		if (!(ssw & (FC | FB)) && !(ssw & DF))
-			/* not an instruction fault or data fault! BAD */
+			/* yest an instruction fault or data fault! BAD */
 			panic ("USER BUSERR w/o instruction or data fault");
 	}
 
@@ -446,7 +446,7 @@ static inline void bus_error030 (struct frame *fp)
 	if (ssw & DF) {
 		addr = fp->un.fmtb.daddr;
 
-// errorcode bit 0:	0 -> no page		1 -> protection fault
+// errorcode bit 0:	0 -> yes page		1 -> protection fault
 // errorcode bit 1:	0 -> read fault		1 -> write fault
 
 // (buserr_type & SUN3_BUSERR_PROTERR)	-> protection fault
@@ -474,7 +474,7 @@ static inline void bus_error030 (struct frame *fp)
 		/* Handle page fault. */
 		do_page_fault (&fp->ptregs, addr, errorcode);
 
-		/* Retry the data fault now. */
+		/* Retry the data fault yesw. */
 		return;
 	}
 
@@ -596,7 +596,7 @@ static inline void bus_error030 (struct frame *fp)
 				      : "=m" (tlong));
 			pr_debug("tt1 is %#lx\n", tlong);
 #endif
-			pr_debug("Unknown SIGSEGV - 1\n");
+			pr_debug("Unkyeswn SIGSEGV - 1\n");
 			die_if_kernel("Oops",&fp->ptregs,mmusr);
 			force_sig(SIGSEGV);
 			return;
@@ -604,10 +604,10 @@ static inline void bus_error030 (struct frame *fp)
 
 		/* setup an ATC entry for the access about to be retried */
 		if (!(ssw & RW) || (ssw & RM))
-			asm volatile ("ploadw %1,%0@" : /* no outputs */
+			asm volatile ("ploadw %1,%0@" : /* yes outputs */
 				      : "a" (addr), "d" (ssw));
 		else
-			asm volatile ("ploadr %1,%0@" : /* no outputs */
+			asm volatile ("ploadr %1,%0@" : /* yes outputs */
 				      : "a" (addr), "d" (ssw));
 	}
 
@@ -658,7 +658,7 @@ static inline void bus_error030 (struct frame *fp)
 	else if (mmusr & (MMU_B|MMU_L|MMU_S)) {
 		pr_err("invalid insn access at %#lx from pc %#lx\n",
 			addr, fp->ptregs.pc);
-		pr_debug("Unknown SIGSEGV - 2\n");
+		pr_debug("Unkyeswn SIGSEGV - 2\n");
 		die_if_kernel("Oops",&fp->ptregs,mmusr);
 		force_sig(SIGSEGV);
 		return;
@@ -666,7 +666,7 @@ static inline void bus_error030 (struct frame *fp)
 
 create_atc_entry:
 	/* setup an ATC entry for the access about to be retried */
-	asm volatile ("ploadr #2,%0@" : /* no outputs */
+	asm volatile ("ploadr #2,%0@" : /* yes outputs */
 		      : "a" (addr));
 }
 #endif /* CPU_M68020_OR_M68030 */
@@ -710,7 +710,7 @@ static inline void access_errorcf(unsigned int fs, struct frame *fp)
 
 	/*
 	 * error_code:
-	 *	bit 0 == 0 means no page found, 1 means protection fault
+	 *	bit 0 == 0 means yes page found, 1 means protection fault
 	 *	bit 1 == 0 means read, 1 means write
 	 */
 	switch (fs) {
@@ -803,7 +803,7 @@ asmlinkage void buserr_c(struct frame *fp)
 #endif
 	default:
 	  die_if_kernel("bad frame format",&fp->ptregs,0);
-	  pr_debug("Unknown SIGSEGV - 4\n");
+	  pr_debug("Unkyeswn SIGSEGV - 4\n");
 	  force_sig(SIGSEGV);
 	}
 }

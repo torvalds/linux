@@ -168,7 +168,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_printf(p, "%*s: ", prec, "PIN");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->kvm_posted_intr_ipis);
-	seq_puts(p, "  Posted-interrupt notification event\n");
+	seq_puts(p, "  Posted-interrupt yestification event\n");
 
 	seq_printf(p, "%*s: ", prec, "NPI");
 	for_each_online_cpu(j)
@@ -226,7 +226,7 @@ u64 arch_irq_stat(void)
 
 
 /*
- * do_IRQ handles all normal device IRQ's (the special
+ * do_IRQ handles all yesrmal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
  * handlers).
  */
@@ -239,7 +239,7 @@ __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 
 	entering_irq();
 
-	/* entering_irq() tells RCU that we're not quiescent.  Check it. */
+	/* entering_irq() tells RCU that we're yest quiescent.  Check it. */
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "IRQ failed to wake up RCU");
 
 	desc = __this_cpu_read(vector_irq[vector]);
@@ -357,9 +357,9 @@ void fixup_irqs(void)
 	 * We can remove mdelay() and then send spuriuous interrupts to
 	 * new cpu targets for all the irqs that were handled previously by
 	 * this cpu. While it works, I have seen spurious interrupt messages
-	 * (nothing wrong but still...).
+	 * (yesthing wrong but still...).
 	 *
-	 * So for now, retain mdelay(1) and check the IRR and then send those
+	 * So for yesw, retain mdelay(1) and check the IRR and then send those
 	 * interrupts to new targets as this cpu is already offlined...
 	 */
 	mdelay(1);
@@ -367,7 +367,7 @@ void fixup_irqs(void)
 	/*
 	 * We can walk the vector array of this cpu without holding
 	 * vector_lock because the cpu is already marked !online, so
-	 * nothing else will touch it.
+	 * yesthing else will touch it.
 	 */
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		if (IS_ERR_OR_NULL(__this_cpu_read(vector_irq[vector])))

@@ -50,10 +50,10 @@ static void test_global_data_string(struct bpf_object *obj, __u32 duration)
 		uint32_t key;
 		char str[32];
 	} tests[] = {
-		{ "relocate .rodata reference", 0, "abcdefghijklmnopqrstuvwxyz" },
-		{ "relocate .data reference",   1, "abcdefghijklmnopqrstuvwxyz" },
+		{ "relocate .rodata reference", 0, "abcdefghijklmyespqrstuvwxyz" },
+		{ "relocate .data reference",   1, "abcdefghijklmyespqrstuvwxyz" },
 		{ "relocate .bss reference",    2, "" },
-		{ "relocate .data reference",   3, "abcdexghijklmnopqrstuvwxyz" },
+		{ "relocate .data reference",   3, "abcdexghijklmyespqrstuvwxyz" },
 		{ "relocate .bss reference",    4, "\0\0hello" },
 	};
 
@@ -117,8 +117,8 @@ static void test_global_data_rdonly(struct bpf_object *obj, __u32 duration)
 	if (buff)
 		err = bpf_map_update_elem(map_fd, &zero, buff, 0);
 	free(buff);
-	CHECK(!err || errno != EPERM, "test .rodata read-only map",
-	      "err %d errno %d\n", err, errno);
+	CHECK(!err || erryes != EPERM, "test .rodata read-only map",
+	      "err %d erryes %d\n", err, erryes);
 }
 
 void test_global_data(void)
@@ -135,8 +135,8 @@ void test_global_data(void)
 	err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4),
 				NULL, NULL, &retval, &duration);
 	CHECK(err || retval, "pass global data run",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+	      "err %d erryes %d retval %d duration %d\n",
+	      err, erryes, retval, duration);
 
 	test_global_data_number(obj, duration);
 	test_global_data_string(obj, duration);

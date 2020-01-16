@@ -37,7 +37,7 @@ Kernel bug reports often come with a stack dump like the one below::
 	 [<c1549f43>] ? sysenter_past_esp+0x40/0x6a
 	---[ end trace 6ebc60ef3981792f ]---
 
-Such stack traces provide enough information to identify the line inside the
+Such stack traces provide eyesugh information to identify the line inside the
 Kernel's source code where the bug happened. Depending on the severity of
 the issue, it may also contain the word **Oops**, as on this one::
 
@@ -51,10 +51,10 @@ Despite being an **Oops** or some other sort of stack trace, the offended
 line is usually required to identify and handle the bug. Along this chapter,
 we'll refer to "Oops" for all kinds of stack traces that need to be analized.
 
-.. note::
+.. yeste::
 
   ``ksymoops`` is useless on 2.6 or upper.  Please use the Oops in its original
-  format (from ``dmesg``, etc).  Ignore any references in this or other docs to
+  format (from ``dmesg``, etc).  Igyesre any references in this or other docs to
   "decoding the Oops" or "running it through ksymoops".
   If you post an Oops from 2.6+ that has been run through ``ksymoops``,
   people will just tell you to repost it.
@@ -73,14 +73,14 @@ read the data from the kernel buffers and save it.  Or you can
 ``cat /proc/kmsg > file``, however you have to break in to stop the transfer,
 ``kmsg`` is a "never ending file".
 
-If the machine has crashed so badly that you cannot enter commands or
-the disk is not available then you have three options:
+If the machine has crashed so badly that you canyest enter commands or
+the disk is yest available then you have three options:
 
 (1) Hand copy the text from the screen and type it in after the machine
-    has restarted.  Messy but it is the only option if you have not
+    has restarted.  Messy but it is the only option if you have yest
     planned for a crash. Alternatively, you can take a picture of
-    the screen with a digital camera - not nice, but better than
-    nothing.  If the messages scroll off the top of the console, you
+    the screen with a digital camera - yest nice, but better than
+    yesthing.  If the messages scroll off the top of the console, you
     may find that booting with a higher resolution (eg, ``vga=791``)
     will allow you to read more of the text. (Caveat: This needs ``vesafb``,
     so won't help for 'early' oopses)
@@ -171,7 +171,7 @@ in gdb and list the relevant code::
   $ gdb fs/jbd/jbd.ko
   (gdb) l *log_wait_commit+0xa3
 
-.. note::
+.. yeste::
 
      You can also do the same for any function call at the stack trace,
      like this one::
@@ -194,7 +194,7 @@ in the kernel hacking menu of the menu configuration.) For example::
 
     $ objdump -r -S -l --disassemble net/dccp/ipv4.o
 
-.. note::
+.. yeste::
 
    You need to be at the top level of the kernel tree for this to pick up
    your C files.
@@ -251,10 +251,10 @@ their maintainers with::
 	linux-media@vger.kernel.org (open list:GSPCA USB WEBCAM DRIVER)
 	linux-kernel@vger.kernel.org (open list)
 
-Please notice that it will point to:
+Please yestice that it will point to:
 
 - The last developers that touched on the source code. On the above example,
-  Tejun and Bhaktipriya (in this specific case, none really envolved on the
+  Tejun and Bhaktipriya (in this specific case, yesne really envolved on the
   development of this file);
 - The driver maintainer (Hans Verkuil);
 - The subsystem maintainer (Mauro Carvalho Chehab);
@@ -273,7 +273,7 @@ Thanks for your help in making Linux as stable as humanly possible.
 Fixing the bug
 --------------
 
-If you know programming, you could help us by not only reporting the bug,
+If you kyesw programming, you could help us by yest only reporting the bug,
 but also providing us with a solution. After all, open source is about
 sharing what you do and don't you want to be recognised for your genius?
 
@@ -312,7 +312,7 @@ files.
 
 Dynamic address translation is important when kernel loadable modules
 are being used.  Since memory for kernel modules is allocated from the
-kernel's dynamic memory pools there are no fixed locations for either
+kernel's dynamic memory pools there are yes fixed locations for either
 the start of the module or for functions and symbols in the module.
 
 The kernel supports system calls which allow a program to determine
@@ -326,7 +326,7 @@ information available if the developer of the loadable module chose to
 export symbol information from the module.
 
 Since the kernel module environment can be dynamic there must be a
-mechanism for notifying the ``klogd`` daemon when a change in module
+mechanism for yestifying the ``klogd`` daemon when a change in module
 environment occurs.  There are command line options available which
 allow klogd to signal the currently executing daemon that symbol
 information should be refreshed.  See the ``klogd`` manual page for more

@@ -131,7 +131,7 @@
 #define FSF_STATUS_READ_SUB_FDISC_FAILED	0x00000001
 #define FSF_STATUS_READ_SUB_FIRMWARE_UPDATE	0x00000002
 
-/* status subtypes for unsolicited status notification lost */
+/* status subtypes for unsolicited status yestification lost */
 #define FSF_STATUS_READ_SUB_INCOMING_ELS	0x00000001
 
 /* topologie that is detected by the adapter */
@@ -236,7 +236,7 @@ struct fsf_qual_version_error {
 } __attribute__ ((packed));
 
 struct fsf_qual_sequence_error {
-	u32 exp_req_seq_no;
+	u32 exp_req_seq_yes;
 	u32 res1[3];
 } __attribute__ ((packed));
 
@@ -260,7 +260,7 @@ struct fsf_qtcb_prefix {
 	u32 qtcb_version;
 	u32 ulp_info;
 	u32 qtcb_type;
-	u32 req_seq_no;
+	u32 req_seq_yes;
 	u32 prot_status;
 	union fsf_prot_status_qual prot_status_qual;
 	u8  res1[20];
@@ -392,7 +392,7 @@ struct fsf_qtcb_bottom_port {
 	u64 rx_frames;
 	u64 rx_words;
 	u64 lip;		/* 0 */
-	u64 nos;		/* currently 0 */
+	u64 yess;		/* currently 0 */
 	u64 error_frames;	/* currently 0 */
 	u64 dumped_frames;	/* currently 0 */
 	u64 link_failure;

@@ -8,7 +8,7 @@ struct pt_regs;
 struct task_struct;
 
 struct undef_hook {
-	struct list_head node;
+	struct list_head yesde;
 	u32 instr_mask;
 	u32 instr_val;
 	u32 cpsr_mask;

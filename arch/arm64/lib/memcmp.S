@@ -53,7 +53,7 @@ WEAK(memcmp)
 	b.ne	.Lmisaligned8
 	ands	tmp1, src1, #7
 	b.ne	.Lmutual_align
-	sub	limit_wd, limit, #1 /* limit != 0, so no underflow.  */
+	sub	limit_wd, limit, #1 /* limit != 0, so yes underflow.  */
 	lsr	limit_wd, limit_wd, #3 /* Convert to Dwords.  */
 	/*
 	* The input source addresses are at alignment boundary.
@@ -69,11 +69,11 @@ WEAK(memcmp)
 	cbz	endloop, .Lloop_aligned
 
 	/* Not reached the limit, must have found a diff.  */
-	tbz	limit_wd, #63, .Lnot_limit
+	tbz	limit_wd, #63, .Lyest_limit
 
 	/* Limit % 8 == 0 => the diff is in the last 8 bytes. */
 	ands	limit, limit, #7
-	b.eq	.Lnot_limit
+	b.eq	.Lyest_limit
 	/*
 	* The remained bytes less than 8. It is needed to extract valid data
 	* from last eight bytes of the intended memory range.
@@ -86,11 +86,11 @@ CPU_LE( lsl	mask, mask, limit )
 	bic	data2, data2, mask
 
 	orr	diff, diff, mask
-	b	.Lnot_limit
+	b	.Lyest_limit
 
 .Lmutual_align:
 	/*
-	* Sources are mutually aligned, but are not currently at an
+	* Sources are mutually aligned, but are yest currently at an
 	* alignment boundary. Round down the addresses and then mask off
 	* the bytes that precede the start point.
 	*/
@@ -99,10 +99,10 @@ CPU_LE( lsl	mask, mask, limit )
 	ldr	data1, [src1], #8
 	ldr	data2, [src2], #8
 	/*
-	* We can not add limit with alignment offset(tmp1) here. Since the
+	* We can yest add limit with alignment offset(tmp1) here. Since the
 	* addition probably make the limit overflown.
 	*/
-	sub	limit_wd, limit, #1/*limit != 0, so no underflow.*/
+	sub	limit_wd, limit, #1/*limit != 0, so yes underflow.*/
 	and	tmp3, limit_wd, #7
 	lsr	limit_wd, limit_wd, #3
 	add	tmp3, tmp3, tmp1
@@ -112,7 +112,7 @@ CPU_LE( lsl	mask, mask, limit )
 	lsl	tmp1, tmp1, #3/* Bytes beyond alignment -> bits.*/
 	neg	tmp1, tmp1/* Bits to alignment -64.  */
 	mov	tmp2, #~0
-	/*mask off the non-intended bytes before the start address.*/
+	/*mask off the yesn-intended bytes before the start address.*/
 CPU_BE( lsl	tmp2, tmp2, tmp1 )/*Big-endian.Early bytes are at MSB*/
 	/* Little-endian.  Early bytes are at LSB.  */
 CPU_LE( lsr	tmp2, tmp2, tmp1 )
@@ -173,7 +173,7 @@ CPU_LE( lsr	tmp2, tmp2, tmp1 )
 	/*How far is the current SRC2 from the alignment boundary...*/
 	and	tmp3, tmp3, #7
 
-.Lrecal_offset:/*src1 is aligned now..*/
+.Lrecal_offset:/*src1 is aligned yesw..*/
 	neg	pos, tmp3
 .Lloopcmp_proc:
 	/*
@@ -187,7 +187,7 @@ CPU_LE( lsr	tmp2, tmp2, tmp1 )
 	ldr	data1, [src1,pos]
 	ldr	data2, [src2,pos]
 	eor	diff, data1, data2  /* Non-zero if differences found.  */
-	cbnz	diff, .Lnot_limit
+	cbnz	diff, .Lyest_limit
 
 	/*The second part process*/
 	ldr	data1, [src1], #8
@@ -200,7 +200,7 @@ CPU_LE( lsr	tmp2, tmp2, tmp1 )
 	cbz	diff, .Lremain8
 
 /* There is difference occurred in the latest comparison. */
-.Lnot_limit:
+.Lyest_limit:
 /*
 * For little endian,reverse the low significant equal bits into MSB,then
 * following CLZ can find how many equal bits exist.
@@ -210,9 +210,9 @@ CPU_LE( rev	data1, data1 )
 CPU_LE( rev	data2, data2 )
 
 	/*
-	* The MS-non-zero bit of DIFF marks either the first bit
+	* The MS-yesn-zero bit of DIFF marks either the first bit
 	* that is different, or the end of the significant data.
-	* Shifting left now will bring the critical information into the
+	* Shifting left yesw will bring the critical information into the
 	* top bits.
 	*/
 	clz	pos, diff

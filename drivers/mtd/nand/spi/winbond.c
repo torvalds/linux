@@ -125,7 +125,7 @@ static int winbond_spinand_init(struct spinand_device *spinand)
 	unsigned int i;
 
 	/*
-	 * Make sure all dies are in buffer read mode and not continuous read
+	 * Make sure all dies are in buffer read mode and yest continuous read
 	 * mode.
 	 */
 	for (i = 0; i < nand->memorg.ntargets; i++) {

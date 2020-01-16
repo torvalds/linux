@@ -27,7 +27,7 @@
 
 /*
  * These are items that the Host may need to access via BMI or via the
- * Diagnostic Window. The position of items in this structure must remain
+ * Diagyesstic Window. The position of items in this structure must remain
  * constant across firmware revisions! Types for each item must be fixed
  * size across target and host platforms. More items may be added at the end.
  */
@@ -53,7 +53,7 @@ struct host_interest {
 	u32 hi_option_flag;				/* 0x10 */
 
 	/*
-	 * Boolean that determines whether or not to
+	 * Boolean that determines whether or yest to
 	 * display messages on the serial port.
 	 */
 	u32 hi_serial_enable;				/* 0x14 */
@@ -75,10 +75,10 @@ struct host_interest {
 	u32 hi_ref_voltage_trim_setting;		/* 0x3c */
 	u32 hi_clock_info;				/* 0x40 */
 
-	/* Host uses BE CPU or not */
+	/* Host uses BE CPU or yest */
 	u32 hi_be;					/* 0x44 */
 
-	u32 hi_stack;	/* normal stack */			/* 0x48 */
+	u32 hi_stack;	/* yesrmal stack */			/* 0x48 */
 	u32 hi_err_stack; /* error stack */		/* 0x4c */
 	u32 hi_desired_cpu_speed_hz;			/* 0x50 */
 
@@ -87,8 +87,8 @@ struct host_interest {
 
 	/*
 	 * Indication of Board Data state:
-	 *    0: board data is not yet initialized.
-	 *    1: board data is initialized; unknown size
+	 *    0: board data is yest yet initialized.
+	 *    1: board data is initialized; unkyeswn size
 	 *   >1: number of bytes of initialized board data
 	 */
 	u32 hi_board_data_initialized;			/* 0x58 */
@@ -147,7 +147,7 @@ struct host_interest {
 	u32 hi_nvram_state;				/* 0xc8 */
 	u32 hi_option_flag2;				/* 0xcc */
 
-	/* If non-zero, override values sent to Host in WMI_READY event. */
+	/* If yesn-zero, override values sent to Host in WMI_READY event. */
 	u32 hi_sw_version_override;			/* 0xd0 */
 	u32 hi_abi_version_override;			/* 0xd4 */
 
@@ -188,8 +188,8 @@ struct host_interest {
 	 * instruction to FW
 	 */
 	/*
-	 * Bit 0 -- AP Nart descriptor no swap. When this bit is set
-	 * FW will not swap TX descriptor. Meaning packets are formed
+	 * Bit 0 -- AP Nart descriptor yes swap. When this bit is set
+	 * FW will yest swap TX descriptor. Meaning packets are formed
 	 * on the target processor.
 	 */
 	/* Bit 1 - unused */
@@ -250,7 +250,7 @@ struct host_interest {
  */
 #define HI_OPTION_INIT_REG_SCAN     0x40000000
 
-/* REV6: Do not adjust memory map */
+/* REV6: Do yest adjust memory map */
 #define HI_OPTION_SKIP_MEMMAP       0x80000000
 
 #define HI_OPTION_MAC_ADDR_METHOD_SHIFT 3
@@ -419,7 +419,7 @@ struct host_interest {
  *    would consider the bits[0:15] are valid and base on that to calculate
  *    the end of DRAM. Early allocation would be located at that area and
  *    may be reclaimed when necessary
- * 2. if no magic number is found, early allocation would happen at "_end"
+ * 2. if yes magic number is found, early allocation would happen at "_end"
  *    symbol of ROM which is located before the app-data and might NOT be
  *    re-claimable. If this is adopted, link script should keep this in
  *    mind to avoid data corruption.
@@ -440,7 +440,7 @@ struct host_interest {
 /*power save flag bit definitions*/
 #define HI_PWR_SAVE_LPL_ENABLED   0x1
 /*b1-b3 reserved*/
-/*b4-b5 : dev0 LPL type : 0 - none
+/*b4-b5 : dev0 LPL type : 0 - yesne
  *			  1- Reduce Pwr Search
  *			  2- Reduce Pwr Listen
  */

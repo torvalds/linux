@@ -109,7 +109,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 {
 	struct tb10x_gpio *tb10x_gpio;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int ret = -EBUSY;
 	u32 ngpio;
 
@@ -128,13 +128,13 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(tb10x_gpio->base);
 
 	tb10x_gpio->gc.label =
-		devm_kasprintf(dev, GFP_KERNEL, "%pOF", pdev->dev.of_node);
+		devm_kasprintf(dev, GFP_KERNEL, "%pOF", pdev->dev.of_yesde);
 	if (!tb10x_gpio->gc.label)
 		return -ENOMEM;
 
 	/*
 	 * Initialize generic GPIO with one single register for reading and setting
-	 * the lines, no special set or clear registers and a data direction register
+	 * the lines, yes special set or clear registers and a data direction register
 	 * wher 1 means "output".
 	 */
 	ret = bgpio_init(&tb10x_gpio->gc, dev, 4,
@@ -161,7 +161,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(dev, &tb10x_gpio->gc, tb10x_gpio);
 	if (ret < 0) {
-		dev_err(dev, "Could not add gpiochip.\n");
+		dev_err(dev, "Could yest add gpiochip.\n");
 		return ret;
 	}
 

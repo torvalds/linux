@@ -16,7 +16,7 @@
 #define __KERNEL_SYSCALLS__
 #include <stdarg.h>
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
@@ -53,25 +53,25 @@ struct thread_info *current_thread_info_set[NR_CPUS] = { &init_thread_info, };
 void machine_restart(void)
 {
 	printk(KERN_INFO "*** MACHINE RESTART ***\n");
-	__asm__("l.nop 1");
+	__asm__("l.yesp 1");
 }
 
 /*
  * Similar to machine_power_off, but don't shut off power.  Add code
  * here to freeze the system for e.g. post-mortem debug purpose when
- * possible.  This halt has nothing to do with the idle halt.
+ * possible.  This halt has yesthing to do with the idle halt.
  */
 void machine_halt(void)
 {
 	printk(KERN_INFO "*** MACHINE HALT ***\n");
-	__asm__("l.nop 1");
+	__asm__("l.yesp 1");
 }
 
 /* If or when software power-off is implemented, add code here.  */
 void machine_power_off(void)
 {
 	printk(KERN_INFO "*** MACHINE POWER OFF ***\n");
-	__asm__("l.nop 1");
+	__asm__("l.yesp 1");
 }
 
 /*
@@ -128,7 +128,7 @@ extern asmlinkage void ret_from_fork(void);
  * structures.  The first (topmost) is the userspace context of the thread.
  * The second is the kernelspace context of the thread.
  *
- * A kernel thread will not be returning to userspace, so the topmost pt_regs
+ * A kernel thread will yest be returning to userspace, so the topmost pt_regs
  * struct can be uninitialized; it _does_ need to exist, though, because
  * a kernel thread can become a userspace thread by doing a kernel_execve, in
  * which case the topmost context will be initialized and used for 'returning'

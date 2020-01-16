@@ -45,12 +45,12 @@ static inline bool on_irq_stack(int cpu, unsigned long sp)
 }
 
 #ifdef CONFIG_I8259
-static inline int irq_canonicalize(int irq)
+static inline int irq_cayesnicalize(int irq)
 {
 	return ((irq == I8259A_IRQ_BASE + 2) ? I8259A_IRQ_BASE + 9 : irq);
 }
 #else
-#define irq_canonicalize(irq) (irq)	/* Sane hardware, sane code ... */
+#define irq_cayesnicalize(irq) (irq)	/* Sane hardware, sane code ... */
 #endif
 
 asmlinkage void plat_irq_dispatch(void);
@@ -60,9 +60,9 @@ extern void do_IRQ(unsigned int irq);
 extern void arch_init_irq(void);
 extern void spurious_interrupt(void);
 
-extern int allocate_irqno(void);
-extern void alloc_legacy_irqno(void);
-extern void free_irqno(unsigned int irq);
+extern int allocate_irqyes(void);
+extern void alloc_legacy_irqyes(void);
+extern void free_irqyes(unsigned int irq);
 
 /*
  * Before R2 the timer and performance counter interrupts were both fixed to

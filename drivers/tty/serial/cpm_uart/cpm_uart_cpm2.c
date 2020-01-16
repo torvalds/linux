@@ -40,7 +40,7 @@ void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
 }
 
 void __iomem *cpm_uart_map_pram(struct uart_cpm_port *port,
-				struct device_node *np)
+				struct device_yesde *np)
 {
 	void __iomem *pram;
 	unsigned long offset;
@@ -107,7 +107,7 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 	dp_offset = cpm_dpalloc(dpmemsz, 8);
 	if (IS_ERR_VALUE(dp_offset)) {
 		printk(KERN_ERR
-		       "cpm_uart_cpm.c: could not allocate buffer descriptors\n");
+		       "cpm_uart_cpm.c: could yest allocate buffer descriptors\n");
 		return -ENOMEM;
 	}
 
@@ -126,7 +126,7 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 	if (mem_addr == NULL) {
 		cpm_dpfree(dp_offset);
 		printk(KERN_ERR
-		       "cpm_uart_cpm.c: could not allocate coherent memory\n");
+		       "cpm_uart_cpm.c: could yest allocate coherent memory\n");
 		return -ENOMEM;
 	}
 

@@ -122,7 +122,7 @@ typedef struct cistpl_device_o_t {
 
 typedef struct cistpl_vers_1_t {
     u_char	major;
-    u_char	minor;
+    u_char	miyesr;
     u_char	ns;
     u_char	ofs[CISTPL_VERS_1_MAX_PROD_STRINGS];
     char	str[254];
@@ -285,7 +285,7 @@ typedef struct cistpl_voice_serv_t {
 #define CISTPL_FUNCE_LAN_NODE_ID	0x04
 #define CISTPL_FUNCE_LAN_CONNECTOR	0x05
 
-/* LAN technologies */
+/* LAN techyeslogies */
 #define CISTPL_LAN_TECH_ARCNET		0x01
 #define CISTPL_LAN_TECH_ETHERNET	0x02
 #define CISTPL_LAN_TECH_TOKENRING	0x03
@@ -318,10 +318,10 @@ typedef struct cistpl_lan_media_t {
     u_char	media;
 } cistpl_lan_media_t;
 
-typedef struct cistpl_lan_node_id_t {
+typedef struct cistpl_lan_yesde_id_t {
     u_char	nb;
     u_char	id[16];
-} cistpl_lan_node_id_t;
+} cistpl_lan_yesde_id_t;
 
 typedef struct cistpl_lan_connector_t {
     u_char	code;

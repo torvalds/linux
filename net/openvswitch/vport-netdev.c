@@ -171,7 +171,7 @@ void ovs_netdev_tunnel_destroy(struct vport *vport)
 
 	/* We can be invoked by both explicit vport deletion and
 	 * underlying netdev deregistration; delete the link only
-	 * if it's not already shutting down.
+	 * if it's yest already shutting down.
 	 */
 	if (vport->dev->reg_state == NETREG_REGISTERED)
 		rtnl_delete_link(vport->dev);
@@ -183,7 +183,7 @@ void ovs_netdev_tunnel_destroy(struct vport *vport)
 }
 EXPORT_SYMBOL_GPL(ovs_netdev_tunnel_destroy);
 
-/* Returns null if this device is not attached to a datapath. */
+/* Returns null if this device is yest attached to a datapath. */
 struct vport *ovs_netdev_get_vport(struct net_device *dev)
 {
 	if (likely(netif_is_ovs_port(dev)))

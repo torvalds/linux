@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -65,7 +65,7 @@ MODULE_PARM_DESC(debug, "debug flags: 0=disabled (default), 0x7fffffff=all");
 static int resource_profile;
 module_param(resource_profile, int, 0644);
 MODULE_PARM_DESC(resource_profile,
-		 "Resource Profile: 0=no VF RDMA support (default), 1=Weighted VF, 2=Even Distribution");
+		 "Resource Profile: 0=yes VF RDMA support (default), 1=Weighted VF, 2=Even Distribution");
 
 static int max_rdma_vfs = 32;
 module_param(max_rdma_vfs, int, 0644);
@@ -87,20 +87,20 @@ static spinlock_t i40iw_handler_lock;
 static enum i40iw_status_code i40iw_virtchnl_send(struct i40iw_sc_dev *dev,
 						  u32 vf_id, u8 *msg, u16 len);
 
-static struct notifier_block i40iw_inetaddr_notifier = {
-	.notifier_call = i40iw_inetaddr_event
+static struct yestifier_block i40iw_inetaddr_yestifier = {
+	.yestifier_call = i40iw_inetaddr_event
 };
 
-static struct notifier_block i40iw_inetaddr6_notifier = {
-	.notifier_call = i40iw_inet6addr_event
+static struct yestifier_block i40iw_inetaddr6_yestifier = {
+	.yestifier_call = i40iw_inet6addr_event
 };
 
-static struct notifier_block i40iw_net_notifier = {
-	.notifier_call = i40iw_net_event
+static struct yestifier_block i40iw_net_yestifier = {
+	.yestifier_call = i40iw_net_event
 };
 
-static struct notifier_block i40iw_netdevice_notifier = {
-	.notifier_call = i40iw_netdevice_event
+static struct yestifier_block i40iw_netdevice_yestifier = {
+	.yestifier_call = i40iw_netdevice_event
 };
 
 /**
@@ -424,7 +424,7 @@ static void i40iw_close_hmc_objects_type(struct i40iw_sc_dev *dev,
  * i40iw_del_hmc_objects - remove all device hmc objects
  * @dev: iwarp device
  * @hmc_info: hmc_info to free
- * @is_pf: true if hmc_info belongs to PF, not vf nor allocated
+ * @is_pf: true if hmc_info belongs to PF, yest vf yesr allocated
  *	   by PF on behalf of VF
  * @reset: true if called before reset
  */
@@ -521,7 +521,7 @@ static enum i40iw_status_code i40iw_create_hmc_objs(struct i40iw_device *iwdev,
  *
  * Get aligned memory of the requested size and
  * update the memptr to point to the new aligned memory
- * Return 0 if successful, otherwise return no memory error
+ * Return 0 if successful, otherwise return yes memory error
  */
 enum i40iw_status_code i40iw_obj_aligned_mem(struct i40iw_device *iwdev,
 					     struct i40iw_dma_mem *memptr,
@@ -1059,7 +1059,7 @@ static void i40iw_del_macip_entry(struct i40iw_device *iwdev, u8 idx)
 	cqp_info->in.u.del_local_mac_ipaddr_entry.cqp = &iwcqp->sc_cqp;
 	cqp_info->in.u.del_local_mac_ipaddr_entry.scratch = (uintptr_t)cqp_request;
 	cqp_info->in.u.del_local_mac_ipaddr_entry.entry_idx = idx;
-	cqp_info->in.u.del_local_mac_ipaddr_entry.ignore_ref_count = 0;
+	cqp_info->in.u.del_local_mac_ipaddr_entry.igyesre_ref_count = 0;
 	status = i40iw_handle_cqp_op(iwdev, cqp_request);
 	if (status)
 		i40iw_pr_err("CQP-OP Del MAC Ip entry fail");
@@ -1139,7 +1139,7 @@ static enum i40iw_status_code i40iw_alloc_local_mac_ipaddr_entry(struct i40iw_de
 		*mac_ip_tbl_idx = cqp_request->compl_info.op_ret_val;
 	else
 		i40iw_pr_err("CQP-OP Alloc MAC Ip entry fail");
-	/* decrement refcount and free the cqp request, if no longer used */
+	/* decrement refcount and free the cqp request, if yes longer used */
 	i40iw_put_cqp_request(iwcqp, cqp_request);
 	return status;
 }
@@ -1185,7 +1185,7 @@ static void i40iw_add_ipv6_addr(struct i40iw_device *iwdev)
 		     (ip_dev == iwdev->netdev)) && (ip_dev->flags & IFF_UP)) {
 			idev = __in6_dev_get(ip_dev);
 			if (!idev) {
-				i40iw_pr_err("ipv6 inet device not found\n");
+				i40iw_pr_err("ipv6 inet device yest found\n");
 				break;
 			}
 			list_for_each_entry_safe(ifp, tmp, &idev->addr_list, if_list) {
@@ -1392,26 +1392,26 @@ error:
 }
 
 /**
- * i40iw_register_notifiers - register tcp ip notifiers
+ * i40iw_register_yestifiers - register tcp ip yestifiers
  */
-static void i40iw_register_notifiers(void)
+static void i40iw_register_yestifiers(void)
 {
-	register_inetaddr_notifier(&i40iw_inetaddr_notifier);
-	register_inet6addr_notifier(&i40iw_inetaddr6_notifier);
-	register_netevent_notifier(&i40iw_net_notifier);
-	register_netdevice_notifier(&i40iw_netdevice_notifier);
+	register_inetaddr_yestifier(&i40iw_inetaddr_yestifier);
+	register_inet6addr_yestifier(&i40iw_inetaddr6_yestifier);
+	register_netevent_yestifier(&i40iw_net_yestifier);
+	register_netdevice_yestifier(&i40iw_netdevice_yestifier);
 }
 
 /**
- * i40iw_unregister_notifiers - unregister tcp ip notifiers
+ * i40iw_unregister_yestifiers - unregister tcp ip yestifiers
  */
 
-static void i40iw_unregister_notifiers(void)
+static void i40iw_unregister_yestifiers(void)
 {
-	unregister_netevent_notifier(&i40iw_net_notifier);
-	unregister_inetaddr_notifier(&i40iw_inetaddr_notifier);
-	unregister_inet6addr_notifier(&i40iw_inetaddr6_notifier);
-	unregister_netdevice_notifier(&i40iw_netdevice_notifier);
+	unregister_netevent_yestifier(&i40iw_net_yestifier);
+	unregister_inetaddr_yestifier(&i40iw_inetaddr_yestifier);
+	unregister_inet6addr_yestifier(&i40iw_inetaddr6_yestifier);
+	unregister_netdevice_yestifier(&i40iw_netdevice_yestifier);
 }
 
 /**
@@ -2040,14 +2040,14 @@ static int __init i40iw_init_module(void)
 
 	memset(&i40iw_client, 0, sizeof(i40iw_client));
 	i40iw_client.version.major = CLIENT_IW_INTERFACE_VERSION_MAJOR;
-	i40iw_client.version.minor = CLIENT_IW_INTERFACE_VERSION_MINOR;
+	i40iw_client.version.miyesr = CLIENT_IW_INTERFACE_VERSION_MINOR;
 	i40iw_client.version.build = CLIENT_IW_INTERFACE_VERSION_BUILD;
 	i40iw_client.ops = &i40e_ops;
 	memcpy(i40iw_client.name, i40iw_client_name, I40E_CLIENT_STR_LENGTH);
 	i40iw_client.type = I40E_CLIENT_IWARP;
 	spin_lock_init(&i40iw_handler_lock);
 	ret = i40e_register_client(&i40iw_client);
-	i40iw_register_notifiers();
+	i40iw_register_yestifiers();
 
 	return ret;
 }
@@ -2060,7 +2060,7 @@ static int __init i40iw_init_module(void)
  */
 static void __exit i40iw_exit_module(void)
 {
-	i40iw_unregister_notifiers();
+	i40iw_unregister_yestifiers();
 	i40e_unregister_client(&i40iw_client);
 }
 

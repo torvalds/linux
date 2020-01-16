@@ -3,7 +3,7 @@
  *
  * 2006-2009 (C) DENX Software Engineering.
  *
- * Author: Yuri Tikhonov <yur@emcraft.com>
+ * Author: Yuri Tikhoyesv <yur@emcraft.com>
  *
  * This file is licensed under the term of  the GNU General Public License
  * version 2. The program licensed "as is" without any warranty of any

@@ -76,13 +76,13 @@
  * The internal activity level must be stable for ACTTHD samples before
  * ACTIVITY is updated. The ACTIVITY variable contains the current activity
  * level and is updated every time a step is detected or once a second
- * if there are no steps.
+ * if there are yes steps.
  */
 #define MMA9553_ACTIVITY_THD_TO_SEC(thd) ((thd) / MMA9553_DEFAULT_SAMPLE_RATE)
 #define MMA9553_ACTIVITY_SEC_TO_THD(sec) ((sec) * MMA9553_DEFAULT_SAMPLE_RATE)
 
 /*
- * Autonomously suspend pedometer if acceleration vector magnitude
+ * Autoyesmously suspend pedometer if acceleration vector magnitude
  * is near 1g (4096 at 0.244 mg/LSB resolution) for 30 seconds.
  */
 #define MMA9553_DEFAULT_SLEEPMIN	3688	/* 0,9 g */
@@ -498,7 +498,7 @@ static int mma9553_read_raw(struct iio_dev *indio_dev,
 			    mma9553_get_bits(tmp, MMA9553_MASK_STATUS_ACTIVITY);
 
 			/*
-			 * The device does not support confidence value levels,
+			 * The device does yest support confidence value levels,
 			 * so we will always have 100% for current activity and
 			 * 0% for the others.
 			 */
@@ -685,7 +685,7 @@ static int mma9553_write_raw(struct iio_dev *indio_dev,
 				return -EINVAL;
 			/*
 			 * If set to a value greater than 5, then 5 will be
-			 * used. Warning: Do not set SPDPRD to 0 or 1 as
+			 * used. Warning: Do yest set SPDPRD to 0 or 1 as
 			 * this may cause undesirable behavior.
 			 */
 			if (val < 2)
@@ -782,7 +782,7 @@ static int mma9553_read_event_value(struct iio_dev *indio_dev,
 			return IIO_VAL_INT;
 		case IIO_ACTIVITY:
 			/*
-			 * The device does not support confidence value levels.
+			 * The device does yest support confidence value levels.
 			 * We set an average of 50%.
 			 */
 			*val = 50;
@@ -1155,7 +1155,7 @@ static int mma9553_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	mutex_lock(&data->mutex);
 	mma9551_set_device_state(data->client, false);

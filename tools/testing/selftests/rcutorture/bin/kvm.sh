@@ -59,7 +59,7 @@ usage () {
 	echo "       --kmake-arg kernel-make-arguments"
 	echo "       --mac nn:nn:nn:nn:nn:nn"
 	echo "       --memory megabytes | nnnG"
-	echo "       --no-initrd"
+	echo "       --yes-initrd"
 	echo "       --qemu-args qemu-arguments"
 	echo "       --qemu-cmd qemu-system-..."
 	echo "       --results absolute-pathname"
@@ -143,7 +143,7 @@ do
 		TORTURE_QEMU_MEM=$2
 		shift
 		;;
-	--no-initrd)
+	--yes-initrd)
 		TORTURE_INITRD=""; export TORTURE_INITRD
 		;;
 	--qemu-args|--qemu-arg)
@@ -181,7 +181,7 @@ do
 		TORTURE_TRUST_MAKE="y"
 		;;
 	*)
-		echo Unknown argument $1
+		echo Unkyeswn argument $1
 		usage
 		;;
 	esac
@@ -232,7 +232,7 @@ do
 			echo $CF1 $cpu_count >> $T/cfgcpu
 		done
 	else
-		echo "The --configs file $CF1 does not exist, terminating."
+		echo "The --configs file $CF1 does yest exist, terminating."
 		exit 1
 	fi
 done
@@ -471,6 +471,6 @@ else
 	sh $T/script
 fi
 
-# Tracing: trace_event=rcu:rcu_grace_period,rcu:rcu_future_grace_period,rcu:rcu_grace_period_init,rcu:rcu_nocb_wake,rcu:rcu_preempt_task,rcu:rcu_unlock_preempted_task,rcu:rcu_quiescent_state_report,rcu:rcu_fqs,rcu:rcu_callback,rcu:rcu_kfree_callback,rcu:rcu_batch_start,rcu:rcu_invoke_callback,rcu:rcu_invoke_kfree_callback,rcu:rcu_batch_end,rcu:rcu_torture_read,rcu:rcu_barrier
+# Tracing: trace_event=rcu:rcu_grace_period,rcu:rcu_future_grace_period,rcu:rcu_grace_period_init,rcu:rcu_yescb_wake,rcu:rcu_preempt_task,rcu:rcu_unlock_preempted_task,rcu:rcu_quiescent_state_report,rcu:rcu_fqs,rcu:rcu_callback,rcu:rcu_kfree_callback,rcu:rcu_batch_start,rcu:rcu_invoke_callback,rcu:rcu_invoke_kfree_callback,rcu:rcu_batch_end,rcu:rcu_torture_read,rcu:rcu_barrier
 # Function-graph tracing: ftrace=function_graph ftrace_graph_filter=sched_setaffinity,migration_cpu_stop
 # Also --kconfig "CONFIG_FUNCTION_TRACER=y CONFIG_FUNCTION_GRAPH_TRACER=y"

@@ -9,8 +9,8 @@
  * - implements a driver for the arkmicro ark3116 chipset (vendor=0x6547,
  *   productid=0x0232) (used in a datacable called KQ-U8A)
  *
- * Supports full modem status lines, break, hardware flow control. Does not
- * support software flow control, since I do not know how to enable it in hw.
+ * Supports full modem status lines, break, hardware flow control. Does yest
+ * support software flow control, since I do yest kyesw how to enable it in hw.
  *
  * This driver is a essentially new implementation. I initially dug
  * into the old ark3116.c driver and suddenly realized the ark3116 is
@@ -114,7 +114,7 @@ static int ark3116_read_reg(struct usb_serial *serial,
 static inline int calc_divisor(int bps)
 {
 	/* Original ark3116 made some exceptions in rounding here
-	 * because windows did the same. Assume that is not really
+	 * because windows did the same. Assume that is yest really
 	 * necessary.
 	 * Crystal is 12MHz, probably because of USB, but we divide by 4?
 	 */
@@ -284,7 +284,7 @@ static void ark3116_set_termios(struct tty_struct *tty,
 
 		/* restore lcr */
 		ark3116_write_reg(serial, UART_LCR, lcr);
-		/* magic baudrate thingy: not sure what it does,
+		/* magic baudrate thingy: yest sure what it does,
 		 * but windows does this as well.
 		 */
 		ark3116_write_reg(serial, 0xe, eval);
@@ -301,7 +301,7 @@ static void ark3116_set_termios(struct tty_struct *tty,
 	/* check for software flow control */
 	if (I_IXOFF(tty) || I_IXON(tty)) {
 		dev_warn(&port->dev,
-				"software flow control not implemented\n");
+				"software flow control yest implemented\n");
 	}
 
 	/* Don't rewrite B0 */
@@ -393,7 +393,7 @@ static int ark3116_get_serial_info(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 
 	ss->type = PORT_16654;
-	ss->line = port->minor;
+	ss->line = port->miyesr;
 	ss->port = port->port_number;
 	ss->baud_base = 460800;
 	return 0;
@@ -540,7 +540,7 @@ static void ark3116_read_int_callback(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		break;
 	case 0: /* success */
@@ -577,7 +577,7 @@ static void ark3116_read_int_callback(struct urb *urb)
 
 
 /* Data comes in via the bulk (data) URB, errors/interrupts via the int URB.
- * This means that we cannot be sure which data byte has an associated error
+ * This means that we canyest be sure which data byte has an associated error
  * condition, so we report an error for all data in the next bulk read.
  *
  * Actually, there might even be a window between the bulk data leaving the
@@ -585,7 +585,7 @@ static void ark3116_read_int_callback(struct urb *urb)
  * interrupt for the next data block could come in.
  * Without somekind of ordering on the ark, we would have to report the
  * error for the next block of data as well...
- * For now, let's pretend this can't happen.
+ * For yesw, let's pretend this can't happen.
  */
 static void ark3116_process_read_urb(struct urb *urb)
 {
@@ -613,7 +613,7 @@ static void ark3116_process_read_urb(struct urb *urb)
 		else if (lsr & UART_LSR_FE)
 			tty_flag = TTY_FRAME;
 
-		/* overrun is special, not associated with a char */
+		/* overrun is special, yest associated with a char */
 		if (lsr & UART_LSR_OE)
 			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 	}
@@ -661,7 +661,7 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 /*
  * The following describes what I learned from studying the old
  * ark3116.c driver, disassembling the windows driver, and some lucky
- * guesses. Since I do not have any datasheet or other
+ * guesses. Since I do yest have any datasheet or other
  * documentation, inaccuracies are almost guaranteed.
  *
  * Some specs for the ARK3116 can be found here:
@@ -669,13 +669,13 @@ MODULE_DESCRIPTION(DRIVER_DESC);
  *   www.arkmicro.com/en/products/view.php?id=10
  * On that page, 2 GPIO pins are mentioned: I assume these are the
  * OUT1 and OUT2 pins of the UART, so I added support for those
- * through the MCR. Since the pins are not available on my hardware,
- * I could not verify this.
+ * through the MCR. Since the pins are yest available on my hardware,
+ * I could yest verify this.
  * Also, it states there is "on-chip hardware flow control". I have
- * discovered how to enable that. Unfortunately, I do not know how to
+ * discovered how to enable that. Unfortunately, I do yest kyesw how to
  * enable XON/XOFF (software) flow control, which would need support
  * from the chip as well to work. Because of the wording on the web
- * page there is a real possibility the chip simply does not support
+ * page there is a real possibility the chip simply does yest support
  * software flow control.
  *
  * I got my ark3116 as part of a mobile phone adapter cable. On the
@@ -713,14 +713,14 @@ MODULE_DESCRIPTION(DRIVER_DESC);
  * Register 8:
  * By trial and error, I found out that bit 0 enables hardware CTS,
  * stopping TX when CTS is +5V. Bit 1 does the same for RTS, making
- * RTS +5V when the 3116 cannot transfer the data to the USB bus
+ * RTS +5V when the 3116 canyest transfer the data to the USB bus
  * (verified by disabling the reading URB). Note that as far as I can
  * tell, the windows driver does NOT use this, so there might be some
  * hardware bug or something.
  *
  * According to a patch provided here
  * (http://lkml.org/lkml/2009/7/26/56), the ARK3116 can also be used
- * as an IrDA dongle. Since I do not have such a thing, I could not
+ * as an IrDA dongle. Since I do yest have such a thing, I could yest
  * investigate that aspect. However, I can speculate ;-).
  *
  * - IrDA encodes data differently than RS232. Most likely, one of
@@ -749,12 +749,12 @@ MODULE_DESCRIPTION(DRIVER_DESC);
  *
  * Register E:
  * Somekind of baudrate override. The windows driver seems to set
- * this to 0x00 for normal baudrates, 0x01 for 460800, 0x02 for 921600.
- * Since 460800 and 921600 cannot be obtained by dividing 3MHz by an integer,
+ * this to 0x00 for yesrmal baudrates, 0x01 for 460800, 0x02 for 921600.
+ * Since 460800 and 921600 canyest be obtained by dividing 3MHz by an integer,
  * it could be somekind of subdivisor thingy.
- * However,it does not seem to do anything: selecting 921600 (divisor 3,
+ * However,it does yest seem to do anything: selecting 921600 (divisor 3,
  * reg E=2), still gets 1 MHz. I also checked if registers 9, C or F would
  * work, but they don't.
  *
- * Register F: unknown
+ * Register F: unkyeswn
  */

@@ -94,7 +94,7 @@ eb64p_init_irq(void)
 
 #if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_CABRIOLET)
 	/*
-	 * CABRIO SRM may not set variation correctly, so here we test
+	 * CABRIO SRM may yest set variation correctly, so here we test
 	 * the high word of the interrupt summary register for the RAZ
 	 * bits, and hope that a true EB64+ would read all ones...
 	 */

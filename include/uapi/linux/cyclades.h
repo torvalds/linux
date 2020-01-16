@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /* $Revision: 3.0 $$Date: 1998/11/02 14:20:59 $
  * linux/include/linux/cyclades.h
  *
@@ -10,7 +10,7 @@
  *$Log: cyclades.h,v $
  *Revision 3.1  2002/01/29 11:36:16  henrique
  *added throttle field on struct cyclades_port to indicate whether the
- *port is throttled or not
+ *port is throttled or yest
  *
  *Revision 3.1  2000/04/19 18:52:52  ivan
  *converted address fields to unsigned long and added fields for physical
@@ -60,7 +60,7 @@
  *
  *Revision 1.5  1995/11/13 21:13:31  bentson
  *changes suggested by Michael Chastain <mec@duracef.shout.net>
- *to support use of this file in non-kernel applications
+ *to support use of this file in yesn-kernel applications
  *
  *
  */
@@ -79,7 +79,7 @@ struct cyclades_monitor {
 
 /*
  * These stats all reflect activity since the device was last initialized.
- * (i.e., since the port was opened with no other processes already having it
+ * (i.e., since the port was opened with yes other processes already having it
  * open)
  */
 struct cyclades_idle_stats {
@@ -154,7 +154,7 @@ struct CYZ_BOOT_CTRL {
 
 /*
  *	CUSTOM_REG - Cyclom-Z/PCI Custom Registers Set. The driver
- *	normally will access only interested on the fpga_id, fpga_version,
+ *	yesrmally will access only interested on the fpga_id, fpga_version,
  *	start_cpu and stop_cpu.
  */
 
@@ -281,7 +281,7 @@ struct	FIRM_ID {
 #define C_PR_PARITY	0x000000ff
 
 #define	C_PR_DISCARD	0x00000100	/* discard char with frame/par error */
-#define C_PR_IGNORE	0x00000200	/* ignore frame/par error */
+#define C_PR_IGNORE	0x00000200	/* igyesre frame/par error */
 
 /* comm_data_l - data length and stop bits */
 
@@ -301,7 +301,7 @@ struct	FIRM_ID {
 #define	C_IN_TXBEMPTY	0x00000001	/* tx buffer empty */
 #define	C_IN_TXLOWWM	0x00000002	/* tx buffer below LWM */
 #define	C_IN_RXHIWM	0x00000010	/* rx buffer above HWM */
-#define	C_IN_RXNNDT	0x00000020	/* rx no new data timeout */
+#define	C_IN_RXNNDT	0x00000020	/* rx yes new data timeout */
 #define	C_IN_MDCD	0x00000100	/* modem DCD change */
 #define	C_IN_MDSR	0x00000200	/* modem DSR change */
 #define	C_IN_MRI	0x00000400	/* modem RI change */
@@ -324,7 +324,7 @@ struct	FIRM_ID {
 
 /* flow status */
 
-#define	C_FS_TXIDLE	0x00000000	/* no Tx data in the buffer or UART */
+#define	C_FS_TXIDLE	0x00000000	/* yes Tx data in the buffer or UART */
 #define	C_FS_SENDING	0x00000001	/* UART is sending data */
 #define	C_FS_SWFLOW	0x00000002	/* Tx is stopped by received Xoff */
 
@@ -357,8 +357,8 @@ struct	FIRM_ID {
 #define	C_CM_TINACT	0x51		/* set inactivity detection */
 #define	C_CM_IRQ_ENBL	0x52		/* enable generation of interrupts */
 #define	C_CM_IRQ_DSBL	0x53		/* disable generation of interrupts */
-#define	C_CM_ACK_ENBL	0x54		/* enable acknowledged interrupt mode */
-#define	C_CM_ACK_DSBL	0x55		/* disable acknowledged intr mode */
+#define	C_CM_ACK_ENBL	0x54		/* enable ackyeswledged interrupt mode */
+#define	C_CM_ACK_DSBL	0x55		/* disable ackyeswledged intr mode */
 #define	C_CM_FLUSH_RX	0x56		/* flushes Rx buffer */
 #define	C_CM_FLUSH_TX	0x57		/* flushes Tx buffer */
 #define C_CM_Q_ENABLE	0x58		/* enables queue access from the 
@@ -369,7 +369,7 @@ struct	FIRM_ID {
 #define	C_CM_TXBEMPTY	0x60		/* Tx buffer is empty */
 #define	C_CM_TXLOWWM	0x61		/* Tx buffer low water mark */
 #define	C_CM_RXHIWM	0x62		/* Rx buffer high water mark */
-#define	C_CM_RXNNDT	0x63		/* rx no new data timeout */
+#define	C_CM_RXNNDT	0x63		/* rx yes new data timeout */
 #define	C_CM_TXFEMPTY	0x64
 #define	C_CM_ICHAR	0x65
 #define	C_CM_MDCD	0x70		/* modem DCD change */

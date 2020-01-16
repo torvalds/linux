@@ -156,7 +156,7 @@ static int d40_phy_fill_lli(struct d40_phy_lli *lli,
 	if (data_size < num_elems * data_width)
 		return -EINVAL;
 
-	/* The number of elements. IE now many chunks */
+	/* The number of elements. IE yesw many chunks */
 	lli->reg_elt = (data_size / data_width) << D40_SREG_ELEM_PHY_ECNT_POS;
 
 	/*
@@ -170,7 +170,7 @@ static int d40_phy_fill_lli(struct d40_phy_lli *lli,
 	lli->reg_ptr = data;
 	lli->reg_cfg = reg_cfg;
 
-	/* If this scatter list entry is the last one, no next link */
+	/* If this scatter list entry is the last one, yes next link */
 	if (next_lli == 0)
 		lli->reg_lnk = BIT(D40_SREG_LNK_PHY_TCP_POS);
 	else

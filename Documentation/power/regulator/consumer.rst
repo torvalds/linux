@@ -52,12 +52,12 @@ A consumer can determine if a regulator is enabled by calling::
 This will return > zero when the regulator is enabled.
 
 
-A consumer can disable its supply when no longer needed by calling::
+A consumer can disable its supply when yes longer needed by calling::
 
 	int regulator_disable(regulator);
 
 NOTE:
-  This may not disable the supply if it's shared with other consumers. The
+  This may yest disable the supply if it's shared with other consumers. The
   regulator will only be disabled when the enabled reference count is zero.
 
 Finally, a regulator can be forcefully disabled in the case of an emergency::
@@ -127,7 +127,7 @@ A regulators current limit can be found by calling::
 
 NOTE:
   get_current_limit() will return the current limit whether the regulator
-  is enabled or disabled and should not be used to determine regulator current
+  is enabled or disabled and should yest be used to determine regulator current
   load.
 
 
@@ -155,8 +155,8 @@ The load_uA value can be determined from the consumer's datasheet. e.g. most
 datasheets have tables showing the maximum current consumed in certain
 situations.
 
-Most consumers will use indirect operating mode control since they have no
-knowledge of the regulator or whether the regulator is shared with other
+Most consumers will use indirect operating mode control since they have yes
+kyeswledge of the regulator or whether the regulator is shared with other
 consumers.
 
 Direct operating mode control.
@@ -169,34 +169,34 @@ calling::
 	int regulator_set_mode(struct regulator *regulator, unsigned int mode);
 	unsigned int regulator_get_mode(struct regulator *regulator);
 
-Direct mode will only be used by consumers that *know* about the regulator and
-are not sharing the regulator with other consumers.
+Direct mode will only be used by consumers that *kyesw* about the regulator and
+are yest sharing the regulator with other consumers.
 
 
 6. Regulator Events
 ===================
 
-Regulators can notify consumers of external events. Events could be received by
+Regulators can yestify consumers of external events. Events could be received by
 consumers under regulator stress or failure conditions.
 
 Consumers can register interest in regulator events by calling::
 
-	int regulator_register_notifier(struct regulator *regulator,
-					struct notifier_block *nb);
+	int regulator_register_yestifier(struct regulator *regulator,
+					struct yestifier_block *nb);
 
 Consumers can unregister interest by calling::
 
-	int regulator_unregister_notifier(struct regulator *regulator,
-					  struct notifier_block *nb);
+	int regulator_unregister_yestifier(struct regulator *regulator,
+					  struct yestifier_block *nb);
 
-Regulators use the kernel notifier framework to send event to their interested
+Regulators use the kernel yestifier framework to send event to their interested
 consumers.
 
 7. Regulator Direct Register Access
 ===================================
 
 Some kinds of power management hardware or firmware are designed such that
-they need to do low-level hardware access to regulators, with no involvement
+they need to do low-level hardware access to regulators, with yes involvement
 from the kernel. Examples of such devices are:
 
 - clocksource with a voltage-controlled oscillator and control logic to change

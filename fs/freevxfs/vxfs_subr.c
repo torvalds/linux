@@ -6,9 +6,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -55,7 +55,7 @@ vxfs_put_page(struct page *pp)
 
 /**
  * vxfs_get_page - read a page into memory.
- * @ip:		inode to read from
+ * @ip:		iyesde to read from
  * @n:		page number
  *
  * Description:
@@ -87,19 +87,19 @@ fail:
 }
 
 /**
- * vxfs_bread - read buffer for a give inode,block tuple
- * @ip:		inode
+ * vxfs_bread - read buffer for a give iyesde,block tuple
+ * @ip:		iyesde
  * @block:	logical block
  *
  * Description:
- *   The vxfs_bread function reads block no @block  of
+ *   The vxfs_bread function reads block yes @block  of
  *   @ip into the buffercache.
  *
  * Returns:
  *   The resulting &struct buffer_head.
  */
 struct buffer_head *
-vxfs_bread(struct inode *ip, int block)
+vxfs_bread(struct iyesde *ip, int block)
 {
 	struct buffer_head	*bp;
 	daddr_t			pblock;
@@ -111,8 +111,8 @@ vxfs_bread(struct inode *ip, int block)
 }
 
 /**
- * vxfs_get_block - locate buffer for given inode,block tuple 
- * @ip:		inode
+ * vxfs_get_block - locate buffer for given iyesde,block tuple 
+ * @ip:		iyesde
  * @iblock:	logical block
  * @bp:		buffer skeleton
  * @create:	%TRUE if blocks may be newly allocated.
@@ -126,7 +126,7 @@ vxfs_bread(struct inode *ip, int block)
  *   Zero on success, else a negativ error code (-EIO).
  */
 static int
-vxfs_getblk(struct inode *ip, sector_t iblock,
+vxfs_getblk(struct iyesde *ip, sector_t iblock,
 	    struct buffer_head *bp, int create)
 {
 	daddr_t			pblock;
@@ -141,12 +141,12 @@ vxfs_getblk(struct inode *ip, sector_t iblock,
 }
 
 /**
- * vxfs_readpage - read one page synchronously into the pagecache
+ * vxfs_readpage - read one page synchroyesusly into the pagecache
  * @file:	file context (unused)
  * @page:	page frame to fill in.
  *
  * Description:
- *   The vxfs_readpage routine reads @page synchronously into the
+ *   The vxfs_readpage routine reads @page synchroyesusly into the
  *   pagecache.
  *
  * Returns:

@@ -51,7 +51,7 @@ TODO:
 Implement pci_driver::suspend() and pci_driver::resume() power management methods.
 Check on 64 bit boxes.
 Check and fix on big endian boxes.
-Test and make sure PCI latency is now correct for all cases.
+Test and make sure PCI latency is yesw correct for all cases.
 
 
 Authors:

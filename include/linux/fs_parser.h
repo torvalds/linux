@@ -50,7 +50,7 @@ struct fs_parameter_spec {
 	enum fs_parameter_type	type:8;	/* The desired parameter type */
 	unsigned short		flags;
 #define fs_param_v_optional	0x0001	/* The value is optional */
-#define fs_param_neg_with_no	0x0002	/* "noxxx" is negative param */
+#define fs_param_neg_with_yes	0x0002	/* "yesxxx" is negative param */
 #define fs_param_neg_with_empty	0x0004	/* "xxx=" is negative param */
 #define fs_param_deprecated	0x0008	/* The param is deprecated */
 };
@@ -71,7 +71,7 @@ struct fs_parameter_description {
  * Result of parse.
  */
 struct fs_parse_result {
-	bool			negated;	/* T if param was "noxxx" */
+	bool			negated;	/* T if param was "yesxxx" */
 	bool			has_value;	/* T if value supplied to param */
 	union {
 		bool		boolean;	/* For spec_bool */
@@ -91,7 +91,7 @@ extern int fs_lookup_param(struct fs_context *fc,
 			   struct path *_path);
 
 extern int __lookup_constant(const struct constant_table tbl[], size_t tbl_size,
-			     const char *name, int not_found);
+			     const char *name, int yest_found);
 #define lookup_constant(t, n, nf) __lookup_constant(t, ARRAY_SIZE(t), (n), (nf))
 
 #ifdef CONFIG_VALIDATE_FS_PARSER
@@ -111,7 +111,7 @@ static inline bool fs_validate_description(const struct fs_parameter_description
  *
  *  fsparam_xxxx("foo", Opt_foo)
  *
- * If existing helpers are not enough, direct use of __fsparam() would
+ * If existing helpers are yest eyesugh, direct use of __fsparam() would
  * work, but any such case is probably a sign that new helper is needed.
  * Helpers will remain stable; low-level implementation may change.
  */
@@ -124,9 +124,9 @@ static inline bool fs_validate_description(const struct fs_parameter_description
 	}
 
 #define fsparam_flag(NAME, OPT)	__fsparam(fs_param_is_flag, NAME, OPT, 0)
-#define fsparam_flag_no(NAME, OPT) \
+#define fsparam_flag_yes(NAME, OPT) \
 				__fsparam(fs_param_is_flag, NAME, OPT, \
-					    fs_param_neg_with_no)
+					    fs_param_neg_with_yes)
 #define fsparam_bool(NAME, OPT)	__fsparam(fs_param_is_bool, NAME, OPT, 0)
 #define fsparam_u32(NAME, OPT)	__fsparam(fs_param_is_u32, NAME, OPT, 0)
 #define fsparam_u32oct(NAME, OPT) \

@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
  *
@@ -123,10 +123,10 @@ struct usb_rpipe_descriptor {
 /**
  * Wire Adapter Notification types ([WUSB] sections 8.4.5 & 8.5.4)
  *
- * These are the notifications coming on the notification endpoint of
+ * These are the yestifications coming on the yestification endpoint of
  * an HWA and a DWA.
  */
-enum wa_notif_type {
+enum wa_yestif_type {
 	DWA_NOTIF_RWAKE = 0x91,
 	DWA_NOTIF_PORTSTATUS = 0x92,
 	WA_NOTIF_TRANSFER = 0x93,
@@ -135,27 +135,27 @@ enum wa_notif_type {
 };
 
 /**
- * Wire Adapter notification header
+ * Wire Adapter yestification header
  *
  * Notifications coming from a wire adapter use a common header
  * defined in [WUSB] sections 8.4.5 & 8.5.4.
  */
-struct wa_notif_hdr {
+struct wa_yestif_hdr {
 	u8 bLength;
-	u8 bNotifyType;			/* enum wa_notif_type */
+	u8 bNotifyType;			/* enum wa_yestif_type */
 } __packed;
 
 /**
- * HWA DN Received notification [(WUSB] section 8.5.4.2)
+ * HWA DN Received yestification [(WUSB] section 8.5.4.2)
  *
  * The DNData is specified in WUSB1.0[7.6]. For each device
- * notification we received, we just need to dispatch it.
+ * yestification we received, we just need to dispatch it.
  *
- * @dndata:  this is really an array of notifications, but all start
+ * @dndata:  this is really an array of yestifications, but all start
  *           with the same header.
  */
-struct hwa_notif_dn {
-	struct wa_notif_hdr hdr;
+struct hwa_yestif_dn {
+	struct wa_yestif_hdr hdr;
 	u8 bSourceDeviceAddr;		/* from errata 2005/07 */
 	u8 bmAttributes;
 	struct wusb_dn_hdr dndata[];
@@ -231,11 +231,11 @@ struct wa_xfer_abort {
 } __packed;
 
 /**
- * WA Transfer Complete notification ([WUSB] section 8.3.3.3)
+ * WA Transfer Complete yestification ([WUSB] section 8.3.3.3)
  *
  */
-struct wa_notif_xfer {
-	struct wa_notif_hdr hdr;
+struct wa_yestif_xfer {
+	struct wa_yestif_hdr hdr;
 	u8 bEndpoint;
 	u8 Reserved;
 } __packed;
@@ -259,7 +259,7 @@ enum {
 
 /** [WUSB] section 8.3.3.4 */
 struct wa_xfer_result {
-	struct wa_notif_hdr hdr;
+	struct wa_yestif_hdr hdr;
 	__le32 dwTransferID;
 	__le32 dwTransferLength;
 	u8     bTransferSegment;
@@ -295,7 +295,7 @@ struct usb_wa_descriptor {
  * HWA Device Information Buffer (WUSB1.0[T8.54])
  */
 struct hwa_dev_info {
-	u8	bmDeviceAvailability[32];       /* FIXME: ignored for now */
+	u8	bmDeviceAvailability[32];       /* FIXME: igyesred for yesw */
 	u8	bDeviceAddress;
 	__le16	wPHYRates;
 	u8	bmDeviceAttribute;

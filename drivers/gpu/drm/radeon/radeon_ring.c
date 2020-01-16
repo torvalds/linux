@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -56,7 +56,7 @@ static int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ri
  * @ring: radeon_ring structure holding ring information
  *
  * Check if a specific ring supports writing to scratch registers (all asics).
- * Returns true if the ring supports writing to scratch regs, false if not.
+ * Returns true if the ring supports writing to scratch regs, false if yest.
  */
 bool radeon_ring_supports_scratch_reg(struct radeon_device *rdev,
 				      struct radeon_ring *ring)
@@ -160,7 +160,7 @@ int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *ring, unsig
  *
  * @rdev: radeon_device pointer
  * @ring: radeon_ring structure holding ring information
- * @hdp_flush: Whether or not to perform an HDP cache flush
+ * @hdp_flush: Whether or yest to perform an HDP cache flush
  *
  * Update the wptr (write pointer) to tell the GPU to
  * execute new commands on the ring buffer (all asics).
@@ -175,7 +175,7 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring,
 		rdev->asic->ring[ring->idx]->hdp_flush(rdev, ring);
 	/* We pad to match fetch size */
 	while (ring->wptr & ring->align_mask) {
-		radeon_ring_write(ring, ring->nop);
+		radeon_ring_write(ring, ring->yesp);
 	}
 	mb();
 	/* If we are emitting the HDP flush via MMIO, we need to do it after
@@ -192,7 +192,7 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring,
  *
  * @rdev: radeon_device pointer
  * @ring: radeon_ring structure holding ring information
- * @hdp_flush: Whether or not to perform an HDP cache flush
+ * @hdp_flush: Whether or yest to perform an HDP cache flush
  *
  * Call radeon_ring_commit() then unlock the ring (all asics).
  */
@@ -255,7 +255,7 @@ bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 	uint64_t elapsed;
 
 	if (rptr != atomic_read(&ring->last_rptr)) {
-		/* ring is still working, no lockup */
+		/* ring is still working, yes lockup */
 		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
@@ -304,7 +304,7 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 	else if (rdev->wb.enabled)
 		ptr = le32_to_cpu(*ring->next_rptr_cpu_addr);
 	else {
-		/* no way to read back the next rptr */
+		/* yes way to read back the next rptr */
 		mutex_unlock(&rdev->ring_lock);
 		return 0;
 	}
@@ -371,19 +371,19 @@ int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
  * @ring: radeon_ring structure holding ring information
  * @ring_size: size of the ring
  * @rptr_offs: offset of the rptr writeback location in the WB buffer
- * @nop: nop packet for this ring
+ * @yesp: yesp packet for this ring
  *
  * Initialize the driver information for the selected ring (all asics).
  * Returns 0 on success, error on failure.
  */
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size,
-		     unsigned rptr_offs, u32 nop)
+		     unsigned rptr_offs, u32 yesp)
 {
 	int r;
 
 	ring->ring_size = ring_size;
 	ring->rptr_offs = rptr_offs;
-	ring->nop = nop;
+	ring->yesp = yesp;
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
 		r = radeon_bo_create(rdev, ring->ring_size, PAGE_SIZE, true,
@@ -463,10 +463,10 @@ void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *ring)
 
 static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	int ridx = *(int*)node->info_ent->data;
+	int ridx = *(int*)yesde->info_ent->data;
 	struct radeon_ring *ring = &rdev->ring[ridx];
 
 	uint32_t rptr, wptr, rptr_next;

@@ -14,11 +14,11 @@
 #include <sound/pcm.h>
 
 /*
- * define the following if you want to use this pcm with non-interleaved mode
+ * define the following if you want to use this pcm with yesn-interleaved mode
  */
 /* #define USE_NONINTERLEAVE */
 
-/* NOTE: for using the non-interleaved mode with alsa-lib, you have to set
+/* NOTE: for using the yesn-interleaved mode with alsa-lib, you have to set
  * mmap_emulation flag to 1 in your .asoundrc, such like
  *
  *	pcm.emu8k {
@@ -31,7 +31,7 @@
  *		}
  *	}
  *
- * besides, for the time being, the non-interleaved mode doesn't work well on
+ * besides, for the time being, the yesn-interleaved mode doesn't work well on
  * alsa-lib...
  */
 
@@ -311,7 +311,7 @@ static void setup_voice(struct snd_emu8k_pcm *rec, int ch)
 	temp = 0; // filterQ
 	temp = (temp << 28) | ((unsigned int)rec->loop_start[ch] - 1);
 	EMU8000_CCCA_WRITE(hw, ch, temp);
-	/* clear unknown registers */
+	/* clear unkyeswn registers */
 	EMU8000_00A0_WRITE(hw, ch, 0);
 	EMU8000_0080_WRITE(hw, ch, 0);
 }
@@ -575,7 +575,7 @@ static int emu8k_pcm_hw_params(struct snd_pcm_substream *subs,
 	if (! rec->block)
 		return -ENOMEM;
 	rec->offset = EMU8000_DRAM_OFFSET + (rec->block->offset >> 1); /* in word */
-	/* at least dma_bytes must be set for non-interleaved mode */
+	/* at least dma_bytes must be set for yesn-interleaved mode */
 	subs->dma_buffer.bytes = params_buffer_bytes(hw_params);
 
 	return 0;

@@ -18,7 +18,7 @@ static int vbi_workaround(struct saa7146_dev *dev)
 	DEB_VBI("dev:%p\n", dev);
 
 	/* once again, a bug in the saa7146: the brs acquisition
-	   is buggy and especially the BXO-counter does not work
+	   is buggy and especially the BXO-counter does yest work
 	   as specified. there is this workaround, but please
 	   don't let me explain it. ;-) */
 
@@ -67,7 +67,7 @@ static int vbi_workaround(struct saa7146_dev *dev)
 	WRITE_RPS1((2 << 16) | (vbi_pixel_to_capture));
 	/* load brs-control register */
 	WRITE_RPS1(CMD_WR_REG | (1 << 8) | (BRS_CTRL/4));
-	/* Set BRS right: note: this is an experimental value for BXO (=> PAL!) */
+	/* Set BRS right: yeste: this is an experimental value for BXO (=> PAL!) */
 	WRITE_RPS1((540 << 7) | (5 << 19));  // 5 == vbi_start
 	/* wait for brs_done */
 	WRITE_RPS1(CMD_PAUSE | MASK_08);
@@ -162,11 +162,11 @@ static void saa7146_set_vbi_capture(struct saa7146_dev *dev, struct saa7146_buf 
 	/* write beginning of rps-program */
 	count = 0;
 
-	/* wait for o_fid_a/b / e_fid_a/b toggle only if bit 1 is not set */
+	/* wait for o_fid_a/b / e_fid_a/b toggle only if bit 1 is yest set */
 
 	/* we don't wait here for the first field anymore. this is different from the video
 	   capture and might cause that the first buffer is only half filled (with only
-	   one field). but since this is some sort of streaming data, this is not that negative.
+	   one field). but since this is some sort of streaming data, this is yest that negative.
 	   but by doing this, we can use the whole engine from videobuf-dma-sg.c... */
 
 /*
@@ -385,7 +385,7 @@ static int vbi_open(struct saa7146_dev *dev, struct file *file)
 
 	ret = saa7146_res_get(fh, RESOURCE_DMA3_BRS);
 	if (0 == ret) {
-		DEB_S("cannot get vbi RESOURCE_DMA3_BRS resource\n");
+		DEB_S("canyest get vbi RESOURCE_DMA3_BRS resource\n");
 		return -EBUSY;
 	}
 

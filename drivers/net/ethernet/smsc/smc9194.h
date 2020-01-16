@@ -69,7 +69,7 @@ typedef unsigned long int 		dword;
 #define	TCR_PAD_ENABLE	0x0080	/* pads short packets to 64 bytes */
 
 #define	TCR_CLEAR	0	/* do NOTHING */
-/* the normal settings for the TCR register : */
+/* the yesrmal settings for the TCR register : */
 /* QUESTION: do I want to enable padding of short packets ? */
 #define	TCR_NORMAL  	TCR_ENABLE
 
@@ -84,7 +84,7 @@ typedef unsigned long int 		dword;
 #define RCR_ALMUL	0x4 	/* receive all multicast packets */
 #define	RCR_PROMISC	0x2	/* enable promiscuous mode */
 
-/* the normal settings for the RCR register : */
+/* the yesrmal settings for the RCR register : */
 #define	RCR_NORMAL	(RCR_STRIP_CRC | RCR_ENABLE)
 #define RCR_CLEAR	0x0		/* set it to a base state */
 
@@ -143,7 +143,7 @@ typedef unsigned long int 		dword;
 #define	IM_ALLOC_INT	0x8
 #define	IM_RX_OVRN_INT	0x10
 #define	IM_EPH_INT	0x20
-#define	IM_ERCV_INT	0x40 /* not on SMC9192 */
+#define	IM_ERCV_INT	0x40 /* yest on SMC9192 */
 
 /* BANK 3 */
 #define	MULTICAST1	0

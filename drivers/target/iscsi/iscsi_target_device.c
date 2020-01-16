@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * This file contains the iSCSI Virtual Device and Disk Transport
- * agnostic related functions.
+ * agyesstic related functions.
  *
  * (c) Copyright 2007-2013 Datera, Inc.
  *
@@ -19,24 +19,24 @@
 
 void iscsit_determine_maxcmdsn(struct iscsi_session *sess)
 {
-	struct se_node_acl *se_nacl;
+	struct se_yesde_acl *se_nacl;
 
 	/*
 	 * This is a discovery session, the single queue slot was already
 	 * assigned in iscsi_login_zero_tsih().  Since only Logout and
-	 * Text Opcodes are allowed during discovery we do not have to worry
+	 * Text Opcodes are allowed during discovery we do yest have to worry
 	 * about the HBA's queue depth here.
 	 */
 	if (sess->sess_ops->SessionType)
 		return;
 
-	se_nacl = sess->se_sess->se_node_acl;
+	se_nacl = sess->se_sess->se_yesde_acl;
 
 	/*
-	 * This is a normal session, set the Session's CmdSN window to the
-	 * struct se_node_acl->queue_depth.  The value in struct se_node_acl->queue_depth
+	 * This is a yesrmal session, set the Session's CmdSN window to the
+	 * struct se_yesde_acl->queue_depth.  The value in struct se_yesde_acl->queue_depth
 	 * has already been validated as a legal value in
-	 * core_set_queue_depth_for_node().
+	 * core_set_queue_depth_for_yesde().
 	 */
 	sess->cmdsn_window = se_nacl->queue_depth;
 	atomic_add(se_nacl->queue_depth - 1, &sess->max_cmd_sn);

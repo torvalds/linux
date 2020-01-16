@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/of_fdt.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/cache.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -92,7 +92,7 @@ static void __init get_cpuinfo(void)
 	unsigned long core_khz;
 	u64 tmp;
 	struct cpuinfo_c6x *p;
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	p = &per_cpu(cpu_data, smp_processor_id());
 
@@ -100,7 +100,7 @@ static void __init get_cpuinfo(void)
 		c6x_core_freq = clk_get_rate(coreclk);
 	else {
 		printk(KERN_WARNING
-		       "Cannot find core clock frequency. Using 700MHz\n");
+		       "Canyest find core clock frequency. Using 700MHz\n");
 		c6x_core_freq = 700000000;
 	}
 
@@ -114,14 +114,14 @@ static void __init get_cpuinfo(void)
 	cpu_id = csr >> 24;
 	rev_id = (csr >> 16) & 0xff;
 
-	p->mmu = "none";
-	p->fpu = "none";
-	p->cpu_voltage = "unknown";
+	p->mmu = "yesne";
+	p->fpu = "yesne";
+	p->cpu_voltage = "unkyeswn";
 
 	switch (cpu_id) {
 	case 0:
 		p->cpu_name = "C67x";
-		p->fpu = "yes";
+		p->fpu = "no";
 		break;
 	case 2:
 		p->cpu_name = "C62x";
@@ -141,7 +141,7 @@ static void __init get_cpuinfo(void)
 		p->cpu_voltage = "1.2";
 		break;
 	default:
-		p->cpu_name = "unknown";
+		p->cpu_name = "unkyeswn";
 		break;
 	}
 
@@ -177,7 +177,7 @@ static void __init get_cpuinfo(void)
 			p->cpu_voltage = "1.5";
 			break;
 		default:
-			p->cpu_rev = "unknown";
+			p->cpu_rev = "unkyeswn";
 		}
 	} else {
 		p->cpu_rev = p->__cpu_rev;
@@ -186,16 +186,16 @@ static void __init get_cpuinfo(void)
 
 	p->core_id = get_coreid();
 
-	for_each_of_cpu_node(node)
+	for_each_of_cpu_yesde(yesde)
 		++c6x_num_cores;
 
-	node = of_find_node_by_name(NULL, "soc");
-	if (node) {
-		if (of_property_read_string(node, "model", &c6x_soc_name))
-			c6x_soc_name = "unknown";
-		of_node_put(node);
+	yesde = of_find_yesde_by_name(NULL, "soc");
+	if (yesde) {
+		if (of_property_read_string(yesde, "model", &c6x_soc_name))
+			c6x_soc_name = "unkyeswn";
+		of_yesde_put(yesde);
 	} else
-		c6x_soc_name = "unknown";
+		c6x_soc_name = "unkyeswn";
 
 	printk(KERN_INFO "CPU%d: %s rev %s, %s volts, %uMHz\n",
 	       p->core_id, p->cpu_name, p->cpu_rev,
@@ -240,7 +240,7 @@ int __init c6x_add_memory(phys_addr_t start, unsigned long size)
 {
 	static int ram_found __initdata;
 
-	/* We only handle one bank (the one with PAGE_OFFSET) for now */
+	/* We only handle one bank (the one with PAGE_OFFSET) for yesw */
 	if (ram_found)
 		return -EINVAL;
 
@@ -258,7 +258,7 @@ int __init c6x_add_memory(phys_addr_t start, unsigned long size)
  * Do early machine setup and device tree parsing. This is called very
  * early on the boot process.
  */
-notrace void __init machine_init(unsigned long dt_ptr)
+yestrace void __init machine_init(unsigned long dt_ptr)
 {
 	void *dtb = __va(dt_ptr);
 	void *fdt = __dtb_start;
@@ -347,7 +347,7 @@ void __init setup_arch(char **cmdline_p)
 
 	c6x_cache_init();
 
-	/* Set the whole external memory as non-cacheable */
+	/* Set the whole external memory as yesn-cacheable */
 	disable_caching(ram_start, ram_end - 1);
 
 	/* Set caching of external RAM used by Linux */

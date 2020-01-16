@@ -22,10 +22,10 @@
  * This driver supports various Lineage Compact Power Line DC/DC and AC/DC
  * converters such as CP1800, CP2000AC, CP2000DC, CP2100DC, and others.
  *
- * The devices are nominally PMBus compliant. However, most standard PMBus
- * commands are not supported. Specifically, all hardware monitoring and
- * status reporting commands are non-standard. For this reason, a standard
- * PMBus driver can not be used.
+ * The devices are yesminally PMBus compliant. However, most standard PMBus
+ * commands are yest supported. Specifically, all hardware monitoring and
+ * status reporting commands are yesn-standard. For this reason, a standard
+ * PMBus driver can yest be used.
  *
  * All Lineage CPL devices have a built-in I2C bus master selector (PCA9541).
  * To ensure device access, this driver should only be used as client driver
@@ -460,7 +460,7 @@ static int pem_probe(struct i2c_client *client,
 	/*
 	 * Check if input readings are supported.
 	 * This is the case if we can read input data,
-	 * and if the returned data is not all zeros.
+	 * and if the returned data is yest all zeros.
 	 * Note that input alarms are always supported.
 	 */
 	ret = pem_read_block(client, PEM_READ_INPUT_STRING,
@@ -485,7 +485,7 @@ static int pem_probe(struct i2c_client *client,
 	/*
 	 * Check if fan speed readings are supported.
 	 * This is the case if we can read fan speed data,
-	 * and if the returned data is not all zeros.
+	 * and if the returned data is yest all zeros.
 	 * Note that the fan alarm is always supported.
 	 */
 	ret = pem_read_block(client, PEM_READ_FAN_SPEED,

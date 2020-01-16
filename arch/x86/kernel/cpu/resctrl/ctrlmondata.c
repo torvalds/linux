@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Resource Director Technology(RDT)
+ * Resource Director Techyeslogy(RDT)
  * - Cache Allocation code.
  *
  * Copyright (C) 2016 Intel Corporation
@@ -83,7 +83,7 @@ static bool bw_validate(char *buf, unsigned long *data, struct rdt_resource *r)
 	 * Only linear delay values is supported for current Intel SKUs.
 	 */
 	if (!r->membw.delay_linear) {
-		rdt_last_cmd_puts("No support for non-linear MB domains\n");
+		rdt_last_cmd_puts("No support for yesn-linear MB domains\n");
 		return false;
 	}
 
@@ -124,7 +124,7 @@ int parse_bw_intel(struct rdt_parse_data *data, struct rdt_resource *r,
 
 /*
  * Check whether a cache bit mask is valid. The SDM says:
- *	Please note that all (and only) contiguous '1' combinations
+ *	Please yeste that all (and only) contiguous '1' combinations
  *	are allowed (e.g. FFFFH, 0FF0H, 003CH, etc.).
  * Additionally Haswell requires at least two bits set.
  */
@@ -149,7 +149,7 @@ bool cbm_validate_intel(char *buf, u32 *data, struct rdt_resource *r)
 	zero_bit = find_next_zero_bit(&val, cbm_len, first_bit);
 
 	if (find_next_bit(&val, cbm_len, zero_bit) < cbm_len) {
-		rdt_last_cmd_printf("The mask %lx has non-consecutive 1-bits\n", val);
+		rdt_last_cmd_printf("The mask %lx has yesn-consecutive 1-bits\n", val);
 		return false;
 	}
 
@@ -164,7 +164,7 @@ bool cbm_validate_intel(char *buf, u32 *data, struct rdt_resource *r)
 }
 
 /*
- * Check whether a cache bit mask is valid. AMD allows non-contiguous
+ * Check whether a cache bit mask is valid. AMD allows yesn-contiguous
  * bitmasks
  */
 bool cbm_validate_amd(char *buf, u32 *data, struct rdt_resource *r)
@@ -203,7 +203,7 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	}
 
 	/*
-	 * Cannot set up more than one pseudo-locked region in a cache
+	 * Canyest set up more than one pseudo-locked region in a cache
 	 * hierarchy.
 	 */
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP &&
@@ -223,7 +223,7 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	}
 
 	/*
-	 * The CBM may not overlap with the CBM of another closid if
+	 * The CBM may yest overlap with the CBM of ayesther closid if
 	 * either is exclusive.
 	 */
 	if (rdtgroup_cbm_overlaps(r, d, cbm_val, rdtgrp->closid, true)) {
@@ -261,7 +261,7 @@ static int parse_line(char *line, struct rdt_resource *r,
 
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP &&
 	    r->rid == RDT_RESOURCE_MBA) {
-		rdt_last_cmd_puts("Cannot pseudo-lock MBA resource\n");
+		rdt_last_cmd_puts("Canyest pseudo-lock MBA resource\n");
 		return -EINVAL;
 	}
 
@@ -271,7 +271,7 @@ next:
 	dom = strsep(&line, ";");
 	id = strsep(&dom, "=");
 	if (!dom || kstrtoul(id, 10, &dom_id)) {
-		rdt_last_cmd_puts("Missing '=' or non-numeric domain\n");
+		rdt_last_cmd_puts("Missing '=' or yesn-numeric domain\n");
 		return -EINVAL;
 	}
 	dom = strim(dom);
@@ -356,7 +356,7 @@ static int rdtgroup_parse_resource(char *resname, char *tok,
 		if (!strcmp(resname, r->name) && rdtgrp->closid < r->num_closid)
 			return parse_line(tok, r, rdtgrp);
 	}
-	rdt_last_cmd_printf("Unknown or unsupported resource name '%s'\n", resname);
+	rdt_last_cmd_printf("Unkyeswn or unsupported resource name '%s'\n", resname);
 	return -EINVAL;
 }
 

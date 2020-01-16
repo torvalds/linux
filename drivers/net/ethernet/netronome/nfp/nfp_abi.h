@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroyesme Systems, Inc. */
 
 #ifndef __NFP_ABI__
 #define __NFP_ABI__ 1
@@ -7,7 +7,7 @@
 #include <linux/types.h>
 
 #define NFP_MBOX_SYM_NAME		"_abi_nfd_pf%u_mbox"
-#define NFP_MBOX_SYM_MIN_SIZE		16 /* When no data needed */
+#define NFP_MBOX_SYM_MIN_SIZE		16 /* When yes data needed */
 
 #define NFP_MBOX_CMD		0x00
 #define NFP_MBOX_RET		0x04

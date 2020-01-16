@@ -53,15 +53,15 @@ Required properties:
 
 Optional properties:
 - ranges: Allows valid translation between child's address space and
-	parent's. Must be present if the device has sub-nodes.
+	parent's. Must be present if the device has sub-yesdes.
 - #address-cells: Specifies the number of cells used to represent
 	physical base addresses.  Must be present if the device has
-	sub-nodes and set to 1 if present
+	sub-yesdes and set to 1 if present
 - #size-cells: Specifies the number of cells used to represent
 	the size of an address. Must be present if the device has
-	sub-nodes and set to 1 if present
+	sub-yesdes and set to 1 if present
 - clock-frequency: Input system clock frequency (SYSCLK)
-- clocks: If clock-frequency is not specified, sysclk may be provided
+- clocks: If clock-frequency is yest specified, sysclk may be provided
 	as an input clock.  Either clock-frequency or clocks must be
 	provided.
 	A second input clock, called "coreclk", may be provided if
@@ -72,10 +72,10 @@ Optional properties:
 
 2. Clock Provider
 
-The clockgen node should act as a clock provider, though in older device
-trees the children of the clockgen node are the clock providers.
+The clockgen yesde should act as a clock provider, though in older device
+trees the children of the clockgen yesde are the clock providers.
 
-When the clockgen node is a clock provider, #clock-cells = <2>.
+When the clockgen yesde is a clock provider, #clock-cells = <2>.
 The first cell of the clock specifier is the clock type, and the
 second cell is the clock index for the specified type.
 
@@ -105,8 +105,8 @@ second cell is the clock index for the specified type.
 }
 4. Legacy Child Nodes
 
-NOTE: These nodes are deprecated.  Kernels should continue to support
-device trees with these nodes, but new device trees should not use them.
+NOTE: These yesdes are deprecated.  Kernels should continue to support
+device trees with these yesdes, but new device trees should yest use them.
 
 Most of the bindings are from the common clock binding[1].
  [1] Documentation/devicetree/bindings/clock/clock-bindings.txt

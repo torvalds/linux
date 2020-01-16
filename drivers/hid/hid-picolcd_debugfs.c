@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
- *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
+ *   Copyright (C) 2010-2012 by Bruyes Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
@@ -29,9 +29,9 @@ static int picolcd_debug_reset_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int picolcd_debug_reset_open(struct inode *inode, struct file *f)
+static int picolcd_debug_reset_open(struct iyesde *iyesde, struct file *f)
 {
-	return single_open(f, picolcd_debug_reset_show, inode->i_private);
+	return single_open(f, picolcd_debug_reset_show, iyesde->i_private);
 }
 
 static ssize_t picolcd_debug_reset_write(struct file *f, const char __user *user_buf,
@@ -361,7 +361,7 @@ static const struct file_operations picolcd_debug_flash_fops = {
  */
 static const char * const error_codes[] = {
 	"success", "parameter missing", "data_missing", "block readonly",
-	"block not erasable", "block too big", "section overflow",
+	"block yest erasable", "block too big", "section overflow",
 	"invalid command length", "invalid data length",
 };
 
@@ -403,7 +403,7 @@ void picolcd_debug_out_report(struct picolcd_data *data,
 		return;
 	}
 
-	snprintf(buff, BUFF_SZ, "\nout report %d (size %d) =  ",
+	snprintf(buff, BUFF_SZ, "\yesut report %d (size %d) =  ",
 			report->id, raw_size);
 	hid_debug_event(hdev, buff);
 	raw_data[0] = report->id;
@@ -629,7 +629,7 @@ void picolcd_debug_out_report(struct picolcd_data *data,
 		break;
 	default:
 		snprintf(buff, BUFF_SZ, "out report %s (%d, size=%d)\n",
-			"<unknown>", report->id, raw_size-1);
+			"<unkyeswn>", report->id, raw_size-1);
 		hid_debug_event(hdev, buff);
 		break;
 	}
@@ -683,7 +683,7 @@ void picolcd_debug_raw_event(struct picolcd_data *data,
 		hid_debug_event(hdev, buff);
 		break;
 	case REPORT_IR_DATA:
-		/* Up to 20 byes of IR scancode data */
+		/* Up to 20 bno of IR scancode data */
 		snprintf(buff, BUFF_SZ, "report %s (%d, size=%d)\n",
 			"REPORT_IR_DATA", report->id, size-1);
 		hid_debug_event(hdev, buff);
@@ -826,7 +826,7 @@ void picolcd_debug_raw_event(struct picolcd_data *data,
 		break;
 	default:
 		snprintf(buff, BUFF_SZ, "report %s (%d, size=%d)\n",
-			"<unknown>", report->id, size-1);
+			"<unkyeswn>", report->id, size-1);
 		hid_debug_event(hdev, buff);
 		break;
 	}

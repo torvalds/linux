@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -49,13 +49,13 @@
 #include <asm/netlogic/xlp-hal/sys.h>
 
 uint64_t nlm_io_base;
-struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
+struct nlm_soc_info nlm_yesdes[NLM_NR_NODES];
 cpumask_t nlm_cpumask = CPU_MASK_CPU0;
 unsigned int nlm_threads_per_core;
 
 static void nlm_linux_exit(void)
 {
-	uint64_t sysbase = nlm_get_node(0)->sysbase;
+	uint64_t sysbase = nlm_get_yesde(0)->sysbase;
 
 	if (cpu_is_xlp9xx())
 		nlm_write_sys_reg(sysbase, SYS_9XX_CHIP_RESET, 1);
@@ -81,7 +81,7 @@ static void __init xlp_init_mem_from_bars(void)
 	uint64_t map[16];
 	int i, n;
 
-	n = nlm_get_dram_map(-1, map, ARRAY_SIZE(map));	/* -1 : all nodes */
+	n = nlm_get_dram_map(-1, map, ARRAY_SIZE(map));	/* -1 : all yesdes */
 	for (i = 0; i < n; i += 2) {
 		/* exclude 0x1000_0000-0x2000_0000, u-boot device */
 		if (map[i] <= 0x10000000 && map[i+1] > 0x10000000)
@@ -164,7 +164,7 @@ void __init prom_init(void)
 	nlm_io_base = CKSEG1ADDR(XLP_DEFAULT_IO_BASE);
 	nlm_init_boot_cpu();
 	xlp_mmu_init();
-	nlm_node_init(0);
+	nlm_yesde_init(0);
 	xlp_dt_init((void *)(long)fw_arg0);
 
 	/* Update reset entry point with CPU init code */

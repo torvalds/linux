@@ -39,7 +39,7 @@ struct ad7476_state {
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
-	 * Make the buffer large enough for one 16 bit sample and one 64 bit
+	 * Make the buffer large eyesugh for one 16 bit sample and one 64 bit
 	 * aligned 64 bit timestamp.
 	 */
 	unsigned char data[ALIGN(2, sizeof(s64)) + sizeof(s64)]
@@ -78,7 +78,7 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, st->data,
 		iio_get_time_ns(indio_dev));
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -260,7 +260,7 @@ static int ad7476_probe(struct spi_device *spi)
 
 	/* Establish that the iio_dev is a child of the spi device */
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channel;

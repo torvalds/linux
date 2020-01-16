@@ -265,7 +265,7 @@ static int h264_enc_alloc_work_buf(struct venc_h264_inst *inst)
 						   &inst->work_bufs[i]);
 			if (ret) {
 				mtk_vcodec_err(inst,
-					       "cannot allocate buf %d", i);
+					       "canyest allocate buf %d", i);
 				goto err_alloc;
 			}
 			/*
@@ -296,7 +296,7 @@ static int h264_enc_alloc_work_buf(struct venc_h264_inst *inst)
 	inst->pps_buf.size = 128;
 	ret = mtk_vcodec_mem_alloc(inst->ctx, &inst->pps_buf);
 	if (ret) {
-		mtk_vcodec_err(inst, "cannot allocate pps_buf");
+		mtk_vcodec_err(inst, "canyest allocate pps_buf");
 		goto err_alloc;
 	}
 
@@ -416,7 +416,7 @@ static int h264_encode_frame(struct venc_h264_inst *inst,
 
 	/*
 	 * skip frame case: The skip frame buffer is composed by vpu side only,
-	 * it does not trigger the hw, so skip the wait interrupt operation.
+	 * it does yest trigger the hw, so skip the wait interrupt operation.
 	 */
 	if (inst->vpu_inst.state == VEN_IPI_MSG_ENC_STATE_SKIP) {
 		*bs_size = inst->vpu_inst.bs_size;
@@ -571,7 +571,7 @@ static int h264_enc_encode(void *handle,
 	}
 
 	default:
-		mtk_vcodec_err(inst, "venc_start_opt %d not supported", opt);
+		mtk_vcodec_err(inst, "venc_start_opt %d yest supported", opt);
 		ret = -EINVAL;
 		break;
 	}

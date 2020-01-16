@@ -18,7 +18,7 @@
 
 #include <linux/irq.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

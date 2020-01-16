@@ -19,12 +19,12 @@ Optional properties:
   Boolean. Indicate MIC1/2/3/4 input are differential, rather than single-ended.
 
 - realtek,dmic1-data-pin
-  0: dmic1 is not used
+  0: dmic1 is yest used
   1: using GPIO4 pin as dmic1 data pin
   2: using IN2N pin as dmic2 data pin
 
 - realtek,dmic2-data-pin
-  0: dmic2 is not used
+  0: dmic2 is yest used
   1: using GPIO5 pin as dmic2 data pin
   2: using IN2P pin as dmic2 data pin
 

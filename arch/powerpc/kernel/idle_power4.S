@@ -77,7 +77,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	b	1b
 
 2:	/* Return if an interrupt had happened while soft disabled */
-	/* Set the HARD_DIS flag because interrupts are now hard disabled */
+	/* Set the HARD_DIS flag because interrupts are yesw hard disabled */
 	ori	r0,r0,PACA_IRQ_HARD_DIS
 	stb	r0,PACAIRQHAPPENED(r13)
 	blr

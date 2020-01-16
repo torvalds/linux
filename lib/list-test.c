@@ -82,7 +82,7 @@ static void list_test_list_del(struct kunit *test)
 	/* before: [list] -> a -> b */
 	list_del(&a);
 
-	/* now: [list] -> b */
+	/* yesw: [list] -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.next, &b);
 	KUNIT_EXPECT_PTR_EQ(test, b.prev, &list);
 }
@@ -98,7 +98,7 @@ static void list_test_list_replace(struct kunit *test)
 	/* before: [list] -> a_old -> b */
 	list_replace(&a_old, &a_new);
 
-	/* now: [list] -> a_new -> b */
+	/* yesw: [list] -> a_new -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.next, &a_new);
 	KUNIT_EXPECT_PTR_EQ(test, b.prev, &a_new);
 }
@@ -114,7 +114,7 @@ static void list_test_list_replace_init(struct kunit *test)
 	/* before: [list] -> a_old -> b */
 	list_replace_init(&a_old, &a_new);
 
-	/* now: [list] -> a_new -> b */
+	/* yesw: [list] -> a_new -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.next, &a_new);
 	KUNIT_EXPECT_PTR_EQ(test, b.prev, &a_new);
 

@@ -172,7 +172,7 @@ static int serverworks_create_gatt_table(struct agp_bridge_data *bridge)
 
 	/* Get the address for the gart region.
 	 * This is a bus address even on the alpha, b/c its
-	 * used to program the agp master not the cpu
+	 * used to program the agp master yest the cpu
 	 */
 
 	pci_read_config_dword(agp_bridge->dev,serverworks_private.gart_addr_ofs,&temp);
@@ -490,7 +490,7 @@ static int agp_serverworks_probe(struct pci_dev *pdev,
 		pci_read_config_dword(pdev, SVWRKS_APSIZE + 4, &temp2);
 		if (temp2 != 0) {
 			dev_info(&pdev->dev, "64 bit aperture address, "
-				 "but top bits are not zero; disabling AGP\n");
+				 "but top bits are yest zero; disabling AGP\n");
 			return -ENODEV;
 		}
 		serverworks_private.mm_addr_ofs = 0x18;
@@ -503,7 +503,7 @@ static int agp_serverworks_probe(struct pci_dev *pdev,
 				serverworks_private.mm_addr_ofs + 4, &temp2);
 		if (temp2 != 0) {
 			dev_info(&pdev->dev, "64 bit MMIO address, but top "
-				 "bits are not zero; disabling AGP\n");
+				 "bits are yest zero; disabling AGP\n");
 			return -ENODEV;
 		}
 	}

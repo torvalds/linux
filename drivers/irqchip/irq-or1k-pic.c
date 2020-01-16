@@ -139,13 +139,13 @@ static const struct irq_domain_ops or1k_irq_domain_ops = {
  * 1000 CPU.  This is the "root" domain as these are the interrupts
  * that directly trigger an exception in the CPU.
  */
-static int __init or1k_pic_init(struct device_node *node,
+static int __init or1k_pic_init(struct device_yesde *yesde,
 				 struct or1k_pic_dev *pic)
 {
 	/* Disable all interrupts until explicitly requested */
 	mtspr(SPR_PICMR, (0UL));
 
-	root_domain = irq_domain_add_linear(node, 32, &or1k_irq_domain_ops,
+	root_domain = irq_domain_add_linear(yesde, 32, &or1k_irq_domain_ops,
 					    pic);
 
 	set_handle_irq(or1k_pic_handle_irq);
@@ -153,25 +153,25 @@ static int __init or1k_pic_init(struct device_node *node,
 	return 0;
 }
 
-static int __init or1k_pic_or1200_init(struct device_node *node,
-				       struct device_node *parent)
+static int __init or1k_pic_or1200_init(struct device_yesde *yesde,
+				       struct device_yesde *parent)
 {
-	return or1k_pic_init(node, &or1k_pic_or1200);
+	return or1k_pic_init(yesde, &or1k_pic_or1200);
 }
 IRQCHIP_DECLARE(or1k_pic_or1200, "opencores,or1200-pic", or1k_pic_or1200_init);
 IRQCHIP_DECLARE(or1k_pic, "opencores,or1k-pic", or1k_pic_or1200_init);
 
-static int __init or1k_pic_level_init(struct device_node *node,
-				      struct device_node *parent)
+static int __init or1k_pic_level_init(struct device_yesde *yesde,
+				      struct device_yesde *parent)
 {
-	return or1k_pic_init(node, &or1k_pic_level);
+	return or1k_pic_init(yesde, &or1k_pic_level);
 }
 IRQCHIP_DECLARE(or1k_pic_level, "opencores,or1k-pic-level",
 		or1k_pic_level_init);
 
-static int __init or1k_pic_edge_init(struct device_node *node,
-				     struct device_node *parent)
+static int __init or1k_pic_edge_init(struct device_yesde *yesde,
+				     struct device_yesde *parent)
 {
-	return or1k_pic_init(node, &or1k_pic_edge);
+	return or1k_pic_init(yesde, &or1k_pic_edge);
 }
 IRQCHIP_DECLARE(or1k_pic_edge, "opencores,or1k-pic-edge", or1k_pic_edge_init);

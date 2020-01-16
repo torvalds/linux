@@ -68,7 +68,7 @@ static bfa_ioc_mbox_mcfunc_t  bfa_mbox_isrs[BFI_MC_MAX] = {
 
 
 void
-__bfa_trc(struct bfa_trc_mod_s *trcm, int fileno, int line, u64 data)
+__bfa_trc(struct bfa_trc_mod_s *trcm, int fileyes, int line, u64 data)
 {
 	int		tail = trcm->tail;
 	struct bfa_trc_s	*trc = &trcm->trc[tail];
@@ -76,7 +76,7 @@ __bfa_trc(struct bfa_trc_mod_s *trcm, int fileno, int line, u64 data)
 	if (trcm->stopped)
 		return;
 
-	trc->fileno = (u16) fileno;
+	trc->fileyes = (u16) fileyes;
 	trc->line = (u16) line;
 	trc->data.u64 = data;
 	trc->timestamp = BFA_TRC_TS(trcm);
@@ -730,7 +730,7 @@ bfa_isr_rspq(struct bfa_s *bfa, int qid)
 	}
 
 	/*
-	 * acknowledge RME completions and update CI
+	 * ackyeswledge RME completions and update CI
 	 */
 	bfa_isr_rspq_ack(bfa, qid, ci);
 
@@ -1016,7 +1016,7 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 
 	/*
 	 * Enable interrupt coalescing if it is driver init path
-	 * and not ioc disable/enable path.
+	 * and yest ioc disable/enable path.
 	 */
 	if (bfa_fsm_cmp_state(iocfc, bfa_iocfc_sm_init_cfg_wait))
 		cfg_info->intr_attr.coalesce = BFA_TRUE;
@@ -1170,7 +1170,7 @@ bfa_iocfc_start_submod(struct bfa_s *bfa)
 	bfa_fcport_start(bfa);
 	bfa_uf_start(bfa);
 	/*
-	 * bfa_init() with flash read is complete. now invalidate the stale
+	 * bfa_init() with flash read is complete. yesw invalidate the stale
 	 * content of lun mask like unit attention, rp tag and lp tag.
 	 */
 	bfa_ioim_lm_init(BFA_FCP_MOD(bfa)->bfa);
@@ -1653,12 +1653,12 @@ bfa_iocfc_israttr_set(struct bfa_s *bfa, struct bfa_iocfc_intr_attr_s *attr)
 }
 
 void
-bfa_iocfc_set_snsbase(struct bfa_s *bfa, int seg_no, u64 snsbase_pa)
+bfa_iocfc_set_snsbase(struct bfa_s *bfa, int seg_yes, u64 snsbase_pa)
 {
 	struct bfa_iocfc_s	*iocfc = &bfa->iocfc;
 
 	iocfc->cfginfo->sense_buf_len = (BFI_IOIM_SNSLEN - 1);
-	bfa_dma_be_addr_set(iocfc->cfginfo->ioim_snsbase[seg_no], snsbase_pa);
+	bfa_dma_be_addr_set(iocfc->cfginfo->ioim_snsbase[seg_yes], snsbase_pa);
 }
 /*
  * Enable IOC after it is disabled.
@@ -1751,7 +1751,7 @@ bfa_iocfc_get_pbc_vports(struct bfa_s *bfa, struct bfi_pbc_vport_s *pbc_vport)
  *
  * @return void
  *
- * Special Considerations: @note
+ * Special Considerations: @yeste
  */
 void
 bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
@@ -1800,7 +1800,7 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 
 /*
  * Use this function to do attach the driver instance with the BFA
- * library. This function will not trigger any HW initialization
+ * library. This function will yest trigger any HW initialization
  * process (which will be done in bfa_init() call)
  *
  * This call will fail, if the cap is out of range compared to
@@ -1821,7 +1821,7 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
  *
  * Special Considerations:
  *
- * @note
+ * @yeste
  *
  */
 void
@@ -1886,7 +1886,7 @@ bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
  *
  * Special Considerations:
  *
- * @note
+ * @yeste
  */
 void
 bfa_detach(struct bfa_s *bfa)
@@ -1964,7 +1964,7 @@ bfa_get_pciids(struct bfa_pciid_s **pciids, int *npciids)
  *	void
  *
  * Special Considerations:
- * note
+ * yeste
  */
 void
 bfa_cfg_get_default(struct bfa_iocfc_cfg_s *cfg)

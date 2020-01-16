@@ -72,27 +72,27 @@ static int mpx_write(struct i2c_client *client, int dev, int addr, int val)
  * Auto     1003    0020    0100    2603    5000    XXXX    0001    7500
  *
  * B/G
- *  Mono    1003    0020    0100    2603    5000    XXXX    0003    7500
+ *  Moyes    1003    0020    0100    2603    5000    XXXX    0003    7500
  *  A2      1003    0020    0100    2601    5000    XXXX    0003    7500
  *  NICAM   1003    0120    0100    2603    5000    XXXX    0008    7500
  *
  * I
- *  Mono    1003    0020    0100    2603    7900    XXXX    000A    7500
+ *  Moyes    1003    0020    0100    2603    7900    XXXX    000A    7500
  *  NICAM   1003    0120    0100    2603    7900    XXXX    000A    7500
  *
  * D/K
- *  Mono    1003    0020    0100    2603    5000    XXXX    0004    7500
+ *  Moyes    1003    0020    0100    2603    5000    XXXX    0004    7500
  *  A2-1    1003    0020    0100    2601    5000    XXXX    0004    7500
  *  A2-2    1003    0020    0100    2601    5000    XXXX    0005    7500
  *  A2-3    1003    0020    0100    2601    5000    XXXX    0007    7500
  *  NICAM   1003    0120    0100    2603    5000    XXXX    000B    7500
  *
  * L/L'
- *  Mono    0003    0200    0100    7C03    5000    2200    0009    7500
+ *  Moyes    0003    0200    0100    7C03    5000    2200    0009    7500
  *  NICAM   0003    0120    0100    7C03    5000    XXXX    0009    7500
  *
  * M
- *  Mono    1003    0200    0100    2B03    5000    2B00    0002    7500
+ *  Moyes    1003    0200    0100    2B03    5000    2B00    0002    7500
  *
  * For Asia, replace the 0x26XX in FM_PRESCALE with 0x14XX.
  *
@@ -103,14 +103,14 @@ static int mpx_write(struct i2c_client *client, int dev, int addr, int val)
  *                 0x03              MAIN         MAIN
  *                 0x04              SUB          SUB
  *
- * Force mono in NICAM by setting the high byte of SOURCE to 0x02 (L/L') or
- * 0x00 (all other bands).  Force mono in A2 with FMONO_A2:
+ * Force moyes in NICAM by setting the high byte of SOURCE to 0x02 (L/L') or
+ * 0x00 (all other bands).  Force moyes in A2 with FMONO_A2:
  *
  *                      FMONO_A2
  *                      10/0022
  *                      --------
- *     Forced mono ON     07F0
- *     Forced mono OFF    0190
+ *     Forced moyes ON     07F0
+ *     Forced moyes OFF    0190
  */
 
 static const struct {
@@ -126,17 +126,17 @@ static const struct {
 } mpx_audio_modes[] = {
 	/* Auto */	{ AUD_MONO,	0x1003, 0x0020, 0x0100, 0x2603,
 					0x5000, 0x0000, 0x0001, 0x7500 },
-	/* B/G Mono */	{ AUD_MONO,	0x1003, 0x0020, 0x0100, 0x2603,
+	/* B/G Moyes */	{ AUD_MONO,	0x1003, 0x0020, 0x0100, 0x2603,
 					0x5000, 0x0000, 0x0003, 0x7500 },
 	/* B/G A2 */	{ AUD_A2,	0x1003, 0x0020, 0x0100, 0x2601,
 					0x5000, 0x0000, 0x0003, 0x7500 },
 	/* B/G NICAM */ { AUD_NICAM,	0x1003, 0x0120, 0x0100, 0x2603,
 					0x5000, 0x0000, 0x0008, 0x7500 },
-	/* I Mono */	{ AUD_MONO,	0x1003, 0x0020, 0x0100, 0x2603,
+	/* I Moyes */	{ AUD_MONO,	0x1003, 0x0020, 0x0100, 0x2603,
 					0x7900, 0x0000, 0x000A, 0x7500 },
 	/* I NICAM */	{ AUD_NICAM,	0x1003, 0x0120, 0x0100, 0x2603,
 					0x7900, 0x0000, 0x000A, 0x7500 },
-	/* D/K Mono */	{ AUD_MONO,	0x1003, 0x0020, 0x0100, 0x2603,
+	/* D/K Moyes */	{ AUD_MONO,	0x1003, 0x0020, 0x0100, 0x2603,
 					0x5000, 0x0000, 0x0004, 0x7500 },
 	/* D/K A2-1 */	{ AUD_A2,	0x1003, 0x0020, 0x0100, 0x2601,
 					0x5000, 0x0000, 0x0004, 0x7500 },
@@ -146,7 +146,7 @@ static const struct {
 					0x5000, 0x0000, 0x0007, 0x7500 },
 	/* D/K NICAM */	{ AUD_NICAM,	0x1003, 0x0120, 0x0100, 0x2603,
 					0x5000, 0x0000, 0x000B, 0x7500 },
-	/* L/L' Mono */	{ AUD_MONO,	0x0003, 0x0200, 0x0100, 0x7C03,
+	/* L/L' Moyes */	{ AUD_MONO,	0x0003, 0x0200, 0x0100, 0x7C03,
 					0x5000, 0x2200, 0x0009, 0x7500 },
 	/* L/L' NICAM */{ AUD_NICAM_L,	0x0003, 0x0120, 0x0100, 0x7C03,
 					0x5000, 0x0000, 0x0009, 0x7500 },

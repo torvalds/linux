@@ -29,8 +29,8 @@ extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 
 /*
  * If we store section details in page->flags we can't increase the MAX_PHYSMEM_BITS
- * if we increase SECTIONS_WIDTH we will not store node details in page->flags and
- * page_to_nid does a page->section->node lookup
+ * if we increase SECTIONS_WIDTH we will yest store yesde details in page->flags and
+ * page_to_nid does a page->section->yesde lookup
  * Hence only increase for VMEMMAP. Further depending on SPARSEMEM_EXTREME reduce
  * memory requirements with large number of sections.
  * 51 bits is the max physical real address on POWER9

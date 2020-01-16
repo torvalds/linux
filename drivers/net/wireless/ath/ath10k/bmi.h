@@ -30,7 +30,7 @@
  * Flow control:
  * The Host can only issue a command once the Target gives it a
  * "BMI Command Credit", using AR8K Counter #4.  As soon as the
- * Target has completed a command, it issues another BMI Command
+ * Target has completed a command, it issues ayesther BMI Command
  * Credit (so the Host can issue the next command).
  *
  * BMI handles all required Target-side cache flushing.
@@ -171,7 +171,7 @@ union bmi_resp {
 		__le32 patch_id;
 	} rompatch_uninstall;
 	struct {
-		/* 0 = nothing executed
+		/* 0 = yesthing executed
 		 * otherwise = NVRAM segment return value
 		 */
 		__le32 result;

@@ -9,7 +9,7 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
-const struct inode_operations orangefs_symlink_inode_operations = {
+const struct iyesde_operations orangefs_symlink_iyesde_operations = {
 	.get_link = simple_get_link,
 	.setattr = orangefs_setattr,
 	.getattr = orangefs_getattr,

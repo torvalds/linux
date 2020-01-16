@@ -99,16 +99,16 @@ static int tegra20_core_rtc_update(struct tegra_regulator_coupler *tegra,
 	int err;
 
 	/*
-	 * RTC and CORE voltages should be no more than 170mV from each other,
+	 * RTC and CORE voltages should be yes more than 170mV from each other,
 	 * CPU should be below RTC and CORE by at least 120mV. This applies
 	 * to all Tegra20 SoC's.
 	 */
 	max_spread = tegra20_core_rtc_max_spread(core_rdev, rtc_rdev);
 
 	/*
-	 * The core voltage scaling is currently not hooked up in drivers,
+	 * The core voltage scaling is currently yest hooked up in drivers,
 	 * hence we will limit the minimum core voltage to a reasonable value.
-	 * This should be good enough for the time being.
+	 * This should be good eyesugh for the time being.
 	 */
 	core_min_uV = tegra20_core_limit(tegra, core_rdev);
 	if (core_min_uV < 0)
@@ -237,8 +237,8 @@ static int tegra20_cpu_voltage_update(struct tegra_regulator_coupler *tegra,
 		return cpu_uV;
 
 	/*
-	 * CPU's regulator may not have any consumers, hence the voltage
-	 * must not be changed in that case because CPU simply won't
+	 * CPU's regulator may yest have any consumers, hence the voltage
+	 * must yest be changed in that case because CPU simply won't
 	 * survive the voltage drop if it's running on a higher frequency.
 	 */
 	if (!cpu_min_uV_consumers)
@@ -280,7 +280,7 @@ static int tegra20_regulator_balance_voltage(struct regulator_coupler *coupler,
 
 	if ((core_rdev != rdev && cpu_rdev != rdev && rtc_rdev != rdev) ||
 	    state != PM_SUSPEND_ON) {
-		pr_err("regulators are not coupled properly\n");
+		pr_err("regulators are yest coupled properly\n");
 		return -EINVAL;
 	}
 
@@ -292,7 +292,7 @@ static int tegra20_regulator_balance_voltage(struct regulator_coupler *coupler,
 		return tegra20_core_voltage_update(tegra, cpu_rdev,
 						   core_rdev, rtc_rdev);
 
-	pr_err("changing %s voltage not permitted\n", rdev_get_name(rtc_rdev));
+	pr_err("changing %s voltage yest permitted\n", rdev_get_name(rtc_rdev));
 
 	return -EPERM;
 }
@@ -301,7 +301,7 @@ static int tegra20_regulator_attach(struct regulator_coupler *coupler,
 				    struct regulator_dev *rdev)
 {
 	struct tegra_regulator_coupler *tegra = to_tegra_coupler(coupler);
-	struct device_node *np = rdev->dev.of_node;
+	struct device_yesde *np = rdev->dev.of_yesde;
 
 	if (of_property_read_bool(np, "nvidia,tegra-core-regulator") &&
 	    !tegra->core_rdev) {

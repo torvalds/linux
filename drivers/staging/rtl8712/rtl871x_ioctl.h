@@ -47,11 +47,11 @@ enum oid_type {
 	SET_OID
 };
 
-struct oid_funs_node {
+struct oid_funs_yesde {
 	unsigned int oid_start; /*the starting number for OID*/
 	unsigned int oid_end; /*the ending number for OID*/
-	struct oid_obj_priv *node_array;
-	unsigned int array_sz; /*the size of node_array*/
+	struct oid_obj_priv *yesde_array;
+	unsigned int array_sz; /*the size of yesde_array*/
 	int query_counter; /*count the number of query hits for this segment*/
 	int set_counter; /*count the number of set hits for this segment*/
 };

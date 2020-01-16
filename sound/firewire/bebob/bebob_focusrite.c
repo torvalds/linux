@@ -18,7 +18,7 @@
 #define SAFFIRE_OFFSET_CLOCK_SOURCE		0x00f8
 #define SAFFIREPRO_OFFSET_CLOCK_SOURCE		0x0174
 
-/* whether sync to external device or not */
+/* whether sync to external device or yest */
 #define SAFFIRE_OFFSET_CLOCK_SYNC_EXT		0x013c
 #define SAFFIRE_LE_OFFSET_CLOCK_SYNC_EXT	0x0432
 #define SAFFIREPRO_OFFSET_CLOCK_SYNC_EXT	0x0164
@@ -32,12 +32,12 @@
 #define SAFFIREPRO_CLOCK_SOURCE_INTERNAL	0
 #define SAFFIREPRO_CLOCK_SOURCE_SKIP		1 /* never used on hardware */
 #define SAFFIREPRO_CLOCK_SOURCE_SPDIF		2
-#define SAFFIREPRO_CLOCK_SOURCE_ADAT1		3 /* not used on s.pro. 10 */
-#define SAFFIREPRO_CLOCK_SOURCE_ADAT2		4 /* not used on s.pro. 10 */
+#define SAFFIREPRO_CLOCK_SOURCE_ADAT1		3 /* yest used on s.pro. 10 */
+#define SAFFIREPRO_CLOCK_SOURCE_ADAT2		4 /* yest used on s.pro. 10 */
 #define SAFFIREPRO_CLOCK_SOURCE_WORDCLOCK	5
 #define SAFFIREPRO_CLOCK_SOURCE_COUNT		6
 
-/* S/PDIF, ADAT1, ADAT2 is enabled or not. three quadlets */
+/* S/PDIF, ADAT1, ADAT2 is enabled or yest. three quadlets */
 #define SAFFIREPRO_ENABLE_DIG_IFACES		0x01a4
 
 /* saffirepro has its own parameter for sampling frequency */
@@ -53,7 +53,7 @@ static const unsigned int rates[] = {
 	[6] = 192000
 };
 
-/* saffire(no label)/saffire LE has metering */
+/* saffire(yes label)/saffire LE has metering */
 #define SAFFIRE_OFFSET_METER			0x0100
 #define SAFFIRE_LE_OFFSET_METER			0x0168
 
@@ -121,16 +121,16 @@ static const signed char saffirepro_clk_maps[][SAFFIREPRO_CLOCK_SOURCE_COUNT] = 
 	/* SaffirePro 10 */
 	[0] = {
 		[SAFFIREPRO_CLOCK_SOURCE_INTERNAL]  =  0,
-		[SAFFIREPRO_CLOCK_SOURCE_SKIP]      = -1, /* not supported */
+		[SAFFIREPRO_CLOCK_SOURCE_SKIP]      = -1, /* yest supported */
 		[SAFFIREPRO_CLOCK_SOURCE_SPDIF]     =  1,
-		[SAFFIREPRO_CLOCK_SOURCE_ADAT1]     = -1, /* not supported */
-		[SAFFIREPRO_CLOCK_SOURCE_ADAT2]     = -1, /* not supported */
+		[SAFFIREPRO_CLOCK_SOURCE_ADAT1]     = -1, /* yest supported */
+		[SAFFIREPRO_CLOCK_SOURCE_ADAT2]     = -1, /* yest supported */
 		[SAFFIREPRO_CLOCK_SOURCE_WORDCLOCK] =  2,
 	},
 	/* SaffirePro 26 */
 	[1] = {
 		[SAFFIREPRO_CLOCK_SOURCE_INTERNAL]  =  0,
-		[SAFFIREPRO_CLOCK_SOURCE_SKIP]      = -1, /* not supported */
+		[SAFFIREPRO_CLOCK_SOURCE_SKIP]      = -1, /* yest supported */
 		[SAFFIREPRO_CLOCK_SOURCE_SPDIF]     =  1,
 		[SAFFIREPRO_CLOCK_SOURCE_ADAT1]     =  2,
 		[SAFFIREPRO_CLOCK_SOURCE_ADAT2]     =  3,
@@ -190,7 +190,7 @@ saffirepro_both_clk_src_get(struct snd_bebob *bebob, unsigned int *id)
 	else
 		map = saffirepro_clk_maps[1];
 
-	/* In a case that this driver cannot handle the value of register. */
+	/* In a case that this driver canyest handle the value of register. */
 	value &= SAFFIREPRO_CLOCK_SOURCE_SELECT_MASK;
 	if (value >= SAFFIREPRO_CLOCK_SOURCE_COUNT || map[value] < 0) {
 		err = -EIO;

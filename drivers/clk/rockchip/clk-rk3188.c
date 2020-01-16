@@ -277,7 +277,7 @@ static struct rockchip_clk_branch common_clk_branches[] __initdata = {
 
 	GATE(0, "gpll_armclk", "gpll", 0, RK2928_CLKGATE_CON(0), 1, GFLAGS),
 
-	/* these two are set by the cpuclk and should not be changed */
+	/* these two are set by the cpuclk and should yest be changed */
 	COMPOSITE_NOMUX_DIVTBL(CORE_PERI, "core_peri", "armclk", 0,
 			RK2928_CLKSEL_CON(0), 6, 2, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			div_core_peri_t, RK2928_CLKGATE_CON(0), 0, GFLAGS),
@@ -675,7 +675,7 @@ static struct rockchip_clk_branch rk3188_clk_branches[] __initdata = {
 			RK2928_CLKSEL_CON(1), 3, 3, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			div_rk3188_aclk_core_t, RK2928_CLKGATE_CON(0), 7, GFLAGS),
 
-	/* do not source aclk_cpu_pre from the apll, to keep complexity down */
+	/* do yest source aclk_cpu_pre from the apll, to keep complexity down */
 	COMPOSITE_NOGATE(0, "aclk_cpu_pre", mux_aclk_cpu_p, CLK_SET_RATE_NO_REPARENT,
 			RK2928_CLKSEL_CON(0), 5, 1, MFLAGS, 0, 5, DFLAGS),
 	DIV(0, "pclk_cpu_pre", "aclk_cpu_pre", 0,
@@ -753,14 +753,14 @@ static const char *const rk3188_critical_clocks[] __initconst = {
 	"hclk_vio_bus",
 };
 
-static struct rockchip_clk_provider *__init rk3188_common_clk_init(struct device_node *np)
+static struct rockchip_clk_provider *__init rk3188_common_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
-		pr_err("%s: could not map cru region\n", __func__);
+		pr_err("%s: could yest map cru region\n", __func__);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -777,12 +777,12 @@ static struct rockchip_clk_provider *__init rk3188_common_clk_init(struct device
 	rockchip_register_softrst(np, 9, reg_base + RK2928_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(ctx, RK2928_GLB_SRST_FST, NULL);
+	rockchip_register_restart_yestifier(ctx, RK2928_GLB_SRST_FST, NULL);
 
 	return ctx;
 }
 
-static void __init rk3066a_clk_init(struct device_node *np)
+static void __init rk3066a_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 
@@ -805,7 +805,7 @@ static void __init rk3066a_clk_init(struct device_node *np)
 }
 CLK_OF_DECLARE(rk3066a_cru, "rockchip,rk3066a-cru", rk3066a_clk_init);
 
-static void __init rk3188a_clk_init(struct device_node *np)
+static void __init rk3188a_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 	struct clk *clk1, *clk2;
@@ -834,7 +834,7 @@ static void __init rk3188a_clk_init(struct device_node *np)
 
 		ret = clk_set_parent(clk1, clk2);
 		if (ret < 0)
-			pr_warn("%s: could not reparent aclk_cpu_pre to gpll\n",
+			pr_warn("%s: could yest reparent aclk_cpu_pre to gpll\n",
 				__func__);
 
 		clk_set_rate(clk1, rate);
@@ -849,7 +849,7 @@ static void __init rk3188a_clk_init(struct device_node *np)
 }
 CLK_OF_DECLARE(rk3188a_cru, "rockchip,rk3188a-cru", rk3188a_clk_init);
 
-static void __init rk3188_clk_init(struct device_node *np)
+static void __init rk3188_clk_init(struct device_yesde *np)
 {
 	int i;
 

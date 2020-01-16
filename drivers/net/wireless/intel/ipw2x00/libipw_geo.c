@@ -10,7 +10,7 @@
 
 ******************************************************************************/
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
 #include <linux/in.h>

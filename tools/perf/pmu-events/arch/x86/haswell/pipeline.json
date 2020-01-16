@@ -1,6 +1,6 @@
 [
     {
-        "PublicDescription": "This event counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, this event counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers. INST_RETIRED.ANY is counted by a designated fixed counter, leaving the programmable counters available for other events. Faulting executions of GETSEC/VM entry/VM Exit/MWait will not count as retired instructions.",
+        "PublicDescription": "This event counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, this event counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers. INST_RETIRED.ANY is counted by a designated fixed counter, leaving the programmable counters available for other events. Faulting executions of GETSEC/VM entry/VM Exit/MWait will yest count as retired instructions.",
         "Counter": "Fixed counter 0",
         "UMask": "0x1",
         "Errata": "HSD140, HSD143",
@@ -10,12 +10,12 @@
         "CounterHTOff": "Fixed counter 0"
     },
     {
-        "PublicDescription": "This event counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling.",
+        "PublicDescription": "This event counts the number of thread cycles while the thread is yest in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling.",
         "Counter": "Fixed counter 1",
         "UMask": "0x2",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Core cycles when the thread is not in halt state.",
+        "BriefDescription": "Core cycles when the thread is yest in halt state.",
         "CounterHTOff": "Fixed counter 1"
     },
     {
@@ -24,26 +24,26 @@
         "AnyThread": "1",
         "EventName": "CPU_CLK_UNHALTED.THREAD_ANY",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is yest in halt state.",
         "CounterHTOff": "Fixed counter 1"
     },
     {
-        "PublicDescription": "This event counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state.",
+        "PublicDescription": "This event counts the number of reference cycles when the core is yest in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is yest affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was yest in a halt state.",
         "Counter": "Fixed counter 2",
         "UMask": "0x3",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Reference cycles when the core is not in halt state.",
+        "BriefDescription": "Reference cycles when the core is yest in halt state.",
         "CounterHTOff": "Fixed counter 2"
     },
     {
-        "PublicDescription": "This event counts loads that followed a store to the same address, where the data could not be forwarded inside the pipeline from the store to the load.  The most common reason why store forwarding would be blocked is when a load's address range overlaps with a preceding smaller uncompleted store. The penalty for blocked store forwarding is that the load must wait for the store to write its value to the cache before it can be issued.",
+        "PublicDescription": "This event counts loads that followed a store to the same address, where the data could yest be forwarded inside the pipeline from the store to the load.  The most common reason why store forwarding would be blocked is when a load's address range overlaps with a preceding smaller uncompleted store. The penalty for blocked store forwarding is that the load must wait for the store to write its value to the cache before it can be issued.",
         "EventCode": "0x03",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
         "SampleAfterValue": "100003",
-        "BriefDescription": "loads blocked by overlapping with store buffer that cannot be forwarded",
+        "BriefDescription": "loads blocked by overlapping with store buffer that canyest be forwarded",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -90,7 +90,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the number of uops issued by the Front-end of the pipeline to the Back-end. This event is counted at the allocation stage and will count both retired and non-retired uops.",
+        "PublicDescription": "This event counts the number of uops issued by the Front-end of the pipeline to the Back-end. This event is counted at the allocation stage and will count both retired and yesn-retired uops.",
         "EventCode": "0x0E",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -106,7 +106,7 @@
         "UMask": "0x1",
         "EventName": "UOPS_ISSUED.STALL_CYCLES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for the thread.",
+        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does yest issue Uops to Reservation Station (RS) for the thread.",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3"
     },
@@ -118,7 +118,7 @@
         "AnyThread": "1",
         "EventName": "UOPS_ISSUED.CORE_STALL_CYCLES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for all threads.",
+        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does yest issue Uops to Reservation Station (RS) for all threads.",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3"
     },
@@ -133,13 +133,13 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Number of slow LEA or similar uops allocated. Such uop has 3 sources (for example, 2 sources + immediate) regardless of whether it is a result of LEA instruction or not.",
+        "PublicDescription": "Number of slow LEA or similar uops allocated. Such uop has 3 sources (for example, 2 sources + immediate) regardless of whether it is a result of LEA instruction or yest.",
         "EventCode": "0x0E",
         "Counter": "0,1,2,3",
         "UMask": "0x20",
         "EventName": "UOPS_ISSUED.SLOW_LEA",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of slow LEA uops being allocated. A uop is generally considered SlowLea if it has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or not.",
+        "BriefDescription": "Number of slow LEA uops being allocated. A uop is generally considered SlowLea if it has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or yest.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -162,13 +162,13 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling.",
+        "PublicDescription": "Counts the number of thread cycles while the thread is yest in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling.",
         "EventCode": "0x3C",
         "Counter": "0,1,2,3",
         "UMask": "0x0",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Thread cycles when thread is not in halt state",
+        "BriefDescription": "Thread cycles when thread is yest in halt state",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -178,11 +178,11 @@
         "AnyThread": "1",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P_ANY",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is yest in halt state.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Increments at the frequency of XCLK (100 MHz) when not halted.",
+        "PublicDescription": "Increments at the frequency of XCLK (100 MHz) when yest halted.",
         "EventCode": "0x3C",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -282,23 +282,23 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Number of integer move elimination candidate uops that were not eliminated.",
+        "PublicDescription": "Number of integer move elimination candidate uops that were yest eliminated.",
         "EventCode": "0x58",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
         "EventName": "MOVE_ELIMINATION.INT_NOT_ELIMINATED",
         "SampleAfterValue": "1000003",
-        "BriefDescription": "Number of integer Move Elimination candidate uops that were not eliminated.",
+        "BriefDescription": "Number of integer Move Elimination candidate uops that were yest eliminated.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Number of SIMD move elimination candidate uops that were not eliminated.",
+        "PublicDescription": "Number of SIMD move elimination candidate uops that were yest eliminated.",
         "EventCode": "0x58",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "EventName": "MOVE_ELIMINATION.SIMD_NOT_ELIMINATED",
         "SampleAfterValue": "1000003",
-        "BriefDescription": "Number of SIMD Move Elimination candidate uops that were not eliminated.",
+        "BriefDescription": "Number of SIMD Move Elimination candidate uops that were yest eliminated.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -452,7 +452,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts all near executed branches (not necessarily retired).",
+        "PublicDescription": "Counts all near executed branches (yest necessarily retired).",
         "EventCode": "0x88",
         "Counter": "0,1,2,3",
         "UMask": "0xff",
@@ -525,7 +525,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts all near executed branches (not necessarily retired).",
+        "PublicDescription": "Counts all near executed branches (yest necessarily retired).",
         "EventCode": "0x89",
         "Counter": "0,1,2,3",
         "UMask": "0xff",
@@ -788,17 +788,17 @@
         "UMask": "0x4",
         "EventName": "RESOURCE_STALLS.RS",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles stalled due to no eligible RS entry available.",
+        "BriefDescription": "Cycles stalled due to yes eligible RS entry available.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts cycles during which no instructions were allocated because no Store Buffers (SB) were available.",
+        "PublicDescription": "This event counts cycles during which yes instructions were allocated because yes Store Buffers (SB) were available.",
         "EventCode": "0xA2",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "EventName": "RESOURCE_STALLS.SB",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles stalled due to no store buffers available. (not including draining form sync).",
+        "BriefDescription": "Cycles stalled due to yes store buffers available. (yest including draining form sync).",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -834,13 +834,13 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
-        "PublicDescription": "This event counts cycles during which no instructions were executed in the execution stage of the pipeline.",
+        "PublicDescription": "This event counts cycles during which yes instructions were executed in the execution stage of the pipeline.",
         "EventCode": "0xA3",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
         "EventName": "CYCLE_ACTIVITY.CYCLES_NO_EXECUTE",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "This event increments by 1 for every cycle where there was no execute for this thread.",
+        "BriefDescription": "This event increments by 1 for every cycle where there was yes execute for this thread.",
         "CounterMask": "4",
         "CounterHTOff": "0,1,2,3"
     },
@@ -856,7 +856,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
-        "PublicDescription": "This event counts cycles during which no instructions were executed in the execution stage of the pipeline and there were memory instructions pending (waiting for data).",
+        "PublicDescription": "This event counts cycles during which yes instructions were executed in the execution stage of the pipeline and there were memory instructions pending (waiting for data).",
         "EventCode": "0xA3",
         "Counter": "0,1,2,3",
         "UMask": "0x6",
@@ -926,7 +926,7 @@
         "Errata": "HSD144, HSD30, HSM31",
         "EventName": "UOPS_EXECUTED.STALL_CYCLES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Counts number of cycles no uops were dispatched to be executed on this thread.",
+        "BriefDescription": "Counts number of cycles yes uops were dispatched to be executed on this thread.",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1040,7 +1040,7 @@
         "Errata": "HSD30, HSM31",
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_NONE",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles with no micro-ops executed from any thread on physical core.",
+        "BriefDescription": "Cycles with yes micro-ops executed from any thread on physical core.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -1068,13 +1068,13 @@
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts FP operations retired. For X87 FP operations that have no exceptions counting also includes flows that have several X87, or flows that use X87 uops in the exception handling.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts FP operations retired. For X87 FP operations that have yes exceptions counting also includes flows that have several X87, or flows that use X87 uops in the exception handling.",
         "EventCode": "0xC0",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "EventName": "INST_RETIRED.X87",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "FP operations retired. X87 FP operations that have no exceptions: Counts also flows that have several X87 or flows that use X87 uops in the exception handling.",
+        "BriefDescription": "FP operations retired. X87 FP operations that have yes exceptions: Counts also flows that have several X87 or flows that use X87 uops in the exception handling.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -1107,7 +1107,7 @@
         "UMask": "0x1",
         "EventName": "UOPS_RETIRED.STALL_CYCLES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles no executable uops retired",
+        "BriefDescription": "Cycles yes executable uops retired",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1134,7 +1134,7 @@
         "AnyThread": "1",
         "EventName": "UOPS_RETIRED.CORE_STALL_CYCLES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles no executable uops retired on core",
+        "BriefDescription": "Cycles yes executable uops retired on core",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1255,7 +1255,7 @@
         "UMask": "0x10",
         "EventName": "BR_INST_RETIRED.NOT_TAKEN",
         "SampleAfterValue": "400009",
-        "BriefDescription": "Counts all not taken macro branch instructions retired.",
+        "BriefDescription": "Counts all yest taken macro branch instructions retired.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -1337,7 +1337,7 @@
         "UMask": "0x1f",
         "EventName": "BACLEARS.ANY",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU cannot provide a correct prediction and this is corrected by other branch handling mechanisms at the front end.",
+        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU canyest provide a correct prediction and this is corrected by other branch handling mechanisms at the front end.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     }
 ]

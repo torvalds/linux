@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -365,7 +365,7 @@ static void __cache_work_func(struct mlx5_cache_ent *ent)
 	} else if (ent->cur > 2 * ent->limit) {
 		/*
 		 * The remove_keys() logic is performed as garbage collection
-		 * task. Such task is intended to be run when no other active
+		 * task. Such task is intended to be run when yes other active
 		 * processes are running.
 		 *
 		 * The need_resched() will return TRUE if there are user tasks
@@ -1275,7 +1275,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	} else if (!MLX5_CAP_GEN(dev->mdev, umr_extended_translation_offset)) {
 		if (access_flags & IB_ACCESS_ON_DEMAND) {
 			err = -EINVAL;
-			pr_err("Got MR registration for ODP MR > 512MB, not supported for Connect-IB\n");
+			pr_err("Got MR registration for ODP MR > 512MB, yest supported for Connect-IB\n");
 			goto error;
 		}
 		use_umr = false;
@@ -1335,7 +1335,7 @@ error:
  * mlx5_mr_cache_invalidate - Fence all DMA on the MR
  * @mr: The MR to fence
  *
- * Upon return the NIC will not be doing any DMA to the pages under the MR,
+ * Upon return the NIC will yest be doing any DMA to the pages under the MR,
  * and any DMA inprogress will be completed. Failure of this function
  * indicates the HW has failed catastrophically.
  */
@@ -1351,7 +1351,7 @@ int mlx5_mr_cache_invalidate(struct mlx5_ib_mr *mr)
 	umrwr.wr.opcode = MLX5_IB_WR_UMR;
 	umrwr.pd = mr->dev->umrc.pd;
 	umrwr.mkey = mr->mmkey.key;
-	umrwr.ignore_free_state = 1;
+	umrwr.igyesre_free_state = 1;
 
 	return mlx5_ib_post_send_wait(mr->dev, &umrwr);
 }
@@ -1418,7 +1418,7 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 
 	if (flags != IB_MR_REREG_PD) {
 		/*
-		 * Replace umem. This needs to be done whether or not UMR is
+		 * Replace umem. This needs to be done whether or yest UMR is
 		 * used.
 		 */
 		flags |= IB_MR_REREG_TRANS;
@@ -1977,7 +1977,7 @@ int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 	if (check_mask & IB_MR_CHECK_SIG_STATUS) {
 		if (!mmr->sig) {
 			ret = -EINVAL;
-			pr_err("signature status check requested on a non-signature enabled MR\n");
+			pr_err("signature status check requested on a yesn-signature enabled MR\n");
 			goto done;
 		}
 
@@ -2241,7 +2241,7 @@ int mlx5_ib_map_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 	mr->meta_ndescs = 0;
 	mr->pi_iova = 0;
 	/*
-	 * As a performance optimization, if possible, there is no need to
+	 * As a performance optimization, if possible, there is yes need to
 	 * perform UMR operation to register the data/metadata buffers.
 	 * First try to map the sg lists to PA descriptors with local_dma_lkey.
 	 * Fallback to UMR only in case of a failure.
@@ -2252,7 +2252,7 @@ int mlx5_ib_map_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 	if (n == data_sg_nents + meta_sg_nents)
 		goto out;
 	/*
-	 * As a performance optimization, if possible, there is no need to map
+	 * As a performance optimization, if possible, there is yes need to map
 	 * the sg lists to KLM descriptors. First try to map the sg lists to MTT
 	 * descriptors and fallback to KLM only in case of a failure.
 	 * It's more efficient for the HW to work with MTT descriptors

@@ -23,7 +23,7 @@
 		secure_ddr: optee@9e800000 {
 			reg = <0x00 0x9e800000 0x00 0x01800000>;
 			alignment = <0x1000>;
-			no-map;
+			yes-map;
 		};
 	};
 };

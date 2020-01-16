@@ -5,7 +5,7 @@
 #ifdef CONFIG_DMA_NONCOHERENT
 /*
  * Total overkill for most systems but need as a safe default.
- * Set this one if any device in the system might do non-coherent DMA.
+ * Set this one if any device in the system might do yesn-coherent DMA.
  */
 #define ARCH_DMA_MINALIGN	128
 #endif

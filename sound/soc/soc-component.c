@@ -3,7 +3,7 @@
 // soc-component.c
 //
 // Copyright (C) 2019 Renesas Electronics Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 //
 #include <linux/module.h>
 #include <sound/soc.h>
@@ -52,11 +52,11 @@ int snd_soc_component_set_pll(struct snd_soc_component *component, int pll_id,
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_set_pll);
 
-void snd_soc_component_seq_notifier(struct snd_soc_component *component,
+void snd_soc_component_seq_yestifier(struct snd_soc_component *component,
 				    enum snd_soc_dapm_type type, int subseq)
 {
-	if (component->driver->seq_notifier)
-		component->driver->seq_notifier(component, type, subseq);
+	if (component->driver->seq_yestifier)
+		component->driver->seq_yestifier(component, type, subseq);
 }
 
 int snd_soc_component_stream_event(struct snd_soc_component *component,
@@ -396,7 +396,7 @@ void snd_soc_component_remove(struct snd_soc_component *component)
 }
 
 int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
-				      struct device_node *ep)
+				      struct device_yesde *ep)
 {
 	if (component->driver->of_xlate_dai_id)
 		return component->driver->of_xlate_dai_id(component, ep);
@@ -471,7 +471,7 @@ int snd_soc_pcm_component_copy_user(struct snd_pcm_substream *substream,
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_component *component;
 
-	/* FIXME. it returns 1st copy now */
+	/* FIXME. it returns 1st copy yesw */
 	for_each_rtd_components(rtd, rtdcom, component)
 		if (component->driver->copy_user)
 			return component->driver->copy_user(
@@ -488,7 +488,7 @@ struct page *snd_soc_pcm_component_page(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component;
 	struct page *page;
 
-	/* FIXME. it returns 1st page now */
+	/* FIXME. it returns 1st page yesw */
 	for_each_rtd_components(rtd, rtdcom, component) {
 		if (component->driver->page) {
 			page = component->driver->page(component,
@@ -508,7 +508,7 @@ int snd_soc_pcm_component_mmap(struct snd_pcm_substream *substream,
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_component *component;
 
-	/* FIXME. it returns 1st mmap now */
+	/* FIXME. it returns 1st mmap yesw */
 	for_each_rtd_components(rtd, rtdcom, component)
 		if (component->driver->mmap)
 			return component->driver->mmap(component,

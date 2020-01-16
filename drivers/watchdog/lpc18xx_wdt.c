@@ -43,9 +43,9 @@ module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds (default="
 		 __MODULE_STRING(LPC18XX_WDT_DEF_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct lpc18xx_wdt_dev {
@@ -88,7 +88,7 @@ static void lpc18xx_wdt_timer_feed(struct timer_list *t)
 }
 
 /*
- * Since LPC18xx Watchdog cannot be disabled in hardware, we must keep feeding
+ * Since LPC18xx Watchdog canyest be disabled in hardware, we must keep feeding
  * it with a timer until userspace watchdog software takes over.
  */
 static int lpc18xx_wdt_stop(struct watchdog_device *wdt_dev)
@@ -143,7 +143,7 @@ static int lpc18xx_wdt_start(struct watchdog_device *wdt_dev)
 	writel(val, lpc18xx_wdt->base + LPC18XX_WDT_MOD);
 
 	/*
-	 * Setting the WDEN bit in the WDMOD register is not sufficient to
+	 * Setting the WDEN bit in the WDMOD register is yest sufficient to
 	 * enable the Watchdog. A valid feed sequence must be completed after
 	 * setting WDEN before the Watchdog is capable of generating a reset.
 	 */
@@ -230,7 +230,7 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(lpc18xx_wdt->reg_clk);
 	if (ret) {
-		dev_err(dev, "could not prepare or enable sys clock\n");
+		dev_err(dev, "could yest prepare or enable sys clock\n");
 		return ret;
 	}
 	ret = devm_add_action_or_reset(dev, lpc18xx_clk_disable_unprepare,
@@ -240,7 +240,7 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(lpc18xx_wdt->wdt_clk);
 	if (ret) {
-		dev_err(dev, "could not prepare or enable wdt clock\n");
+		dev_err(dev, "could yest prepare or enable wdt clock\n");
 		return ret;
 	}
 	ret = devm_add_action_or_reset(dev, lpc18xx_clk_disable_unprepare,
@@ -278,7 +278,7 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 
 	timer_setup(&lpc18xx_wdt->timer, lpc18xx_wdt_timer_feed, 0);
 
-	watchdog_set_nowayout(&lpc18xx_wdt->wdt_dev, nowayout);
+	watchdog_set_yeswayout(&lpc18xx_wdt->wdt_dev, yeswayout);
 	watchdog_set_restart_priority(&lpc18xx_wdt->wdt_dev, 128);
 
 	platform_set_drvdata(pdev, lpc18xx_wdt);
@@ -291,7 +291,7 @@ static int lpc18xx_wdt_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_wdt_dev *lpc18xx_wdt = platform_get_drvdata(pdev);
 
-	dev_warn(&pdev->dev, "I quit now, hardware will probably reboot!\n");
+	dev_warn(&pdev->dev, "I quit yesw, hardware will probably reboot!\n");
 	del_timer(&lpc18xx_wdt->timer);
 
 	return 0;

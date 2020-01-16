@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 1998-2009 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2009 VIA Techyeslogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
  * Copyright 2009-2010 Jonathan Corbet <corbet@lwn.net>
  * Copyright 2010 Florian Tobias Schandinat <FlorianSchandinat@gmx.de>
@@ -14,7 +14,7 @@
 #include <linux/pci.h>
 
 /*
- * A description of each known serial I2C/GPIO port.
+ * A description of each kyeswn serial I2C/GPIO port.
  */
 enum via_port_type {
 	VIA_PORT_NONE = 0,
@@ -74,7 +74,7 @@ struct viafb_dev {
 	spinlock_t reg_lock;
 	/*
 	 * The framebuffer MMIO region.  Little, if anything, touches
-	 * this memory directly, and certainly nothing outside of the
+	 * this memory directly, and certainly yesthing outside of the
 	 * framebuffer device itself.  We *do* have to be able to allocate
 	 * chunks of this memory for other devices, though.
 	 */
@@ -177,7 +177,7 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg);
 
 /*
  * Indexed port operations.  Note that these are all multi-op
- * functions; every invocation will be racy if you're not holding
+ * functions; every invocation will be racy if you're yest holding
  * reg_lock.
  */
 

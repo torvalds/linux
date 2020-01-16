@@ -6,9 +6,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -42,8 +42,8 @@
 static inline void
 vxfs_get_fshead(struct vxfs_oltfshead *fshp, struct vxfs_sb_info *infp)
 {
-	BUG_ON(infp->vsi_fshino);
-	infp->vsi_fshino = fs32_to_cpu(infp, fshp->olt_fsino[0]);
+	BUG_ON(infp->vsi_fshiyes);
+	infp->vsi_fshiyes = fs32_to_cpu(infp, fshp->olt_fsiyes[0]);
 }
 
 static inline void
@@ -93,11 +93,11 @@ vxfs_read_olt(struct super_block *sbp, u_long bsize)
 
 	/*
 	 * It is in theory possible that vsi_oltsize is > 1.
-	 * I've not seen any such filesystem yet and I'm lazy..  --hch
+	 * I've yest seen any such filesystem yet and I'm lazy..  --hch
 	 */
 	if (infp->vsi_oltsize > 1) {
 		printk(KERN_NOTICE "vxfs: oltsize > 1 detected.\n");
-		printk(KERN_NOTICE "vxfs: please notify hch@infradead.org\n");
+		printk(KERN_NOTICE "vxfs: please yestify hch@infradead.org\n");
 		goto fail;
 	}
 
@@ -121,7 +121,7 @@ vxfs_read_olt(struct super_block *sbp, u_long bsize)
 	}
 
 	brelse(bp);
-	return (infp->vsi_fshino && infp->vsi_iext) ? 0 : -EINVAL;
+	return (infp->vsi_fshiyes && infp->vsi_iext) ? 0 : -EINVAL;
 
 fail:
 	brelse(bp);

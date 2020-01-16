@@ -36,7 +36,7 @@ static struct platform_device da8xx_usb_phy = {
 	.dev		= {
 		/*
 		 * Setting init_name so that clock lookup will work in
-		 * da8xx_register_usb11_phy_clk() even if this device is not
+		 * da8xx_register_usb11_phy_clk() even if this device is yest
 		 * registered yet.
 		 */
 		.init_name	= "da8xx-usb-phy",

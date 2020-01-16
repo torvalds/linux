@@ -214,7 +214,7 @@ struct test tests[] = {
 		.flags = BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG,
 	},
 	{
-		.name = "ipv4-no-frag",
+		.name = "ipv4-yes-frag",
 		.pkt.ipv4 = {
 			.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
 			.iph.ihl = 5,
@@ -262,7 +262,7 @@ struct test tests[] = {
 		.flags = BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG,
 	},
 	{
-		.name = "ipv6-no-frag",
+		.name = "ipv6-yes-frag",
 		.pkt.ipv6_frag = {
 			.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
 			.iph.nexthdr = IPPROTO_FRAGMENT,
@@ -306,7 +306,7 @@ struct test tests[] = {
 		},
 	},
 	{
-		.name = "ipv6-no-flow-label",
+		.name = "ipv6-yes-flow-label",
 		.pkt.ipv6 = {
 			.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
 			.iph.nexthdr = IPPROTO_TCP,
@@ -356,7 +356,7 @@ struct test tests[] = {
 		},
 	},
 	{
-		.name = "ipip-no-encap",
+		.name = "ipip-yes-encap",
 		.pkt.ipip = {
 			.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
 			.iph.ihl = 5,
@@ -474,25 +474,25 @@ void test_flow_dissector(void)
 		CHECK_ATTR(tattr.data_size_out != sizeof(flow_keys) ||
 			   err || tattr.retval != 1,
 			   tests[i].name,
-			   "err %d errno %d retval %d duration %d size %u/%lu\n",
-			   err, errno, tattr.retval, tattr.duration,
+			   "err %d erryes %d retval %d duration %d size %u/%lu\n",
+			   err, erryes, tattr.retval, tattr.duration,
 			   tattr.data_size_out, sizeof(flow_keys));
 		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
 	}
 
 	/* Do the same tests but for skb-less flow dissector.
-	 * We use a known path in the net/tun driver that calls
+	 * We use a kyeswn path in the net/tun driver that calls
 	 * eth_get_headlen and we manually export bpf_flow_keys
 	 * via BPF map in this case.
 	 */
 
 	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
-	CHECK(err, "bpf_prog_attach", "err %d errno %d\n", err, errno);
+	CHECK(err, "bpf_prog_attach", "err %d erryes %d\n", err, erryes);
 
 	tap_fd = create_tap("tap0");
-	CHECK(tap_fd < 0, "create_tap", "tap_fd %d errno %d\n", tap_fd, errno);
+	CHECK(tap_fd < 0, "create_tap", "tap_fd %d erryes %d\n", tap_fd, erryes);
 	err = ifup("tap0");
-	CHECK(err, "ifup", "err %d errno %d\n", err, errno);
+	CHECK(err, "ifup", "err %d erryes %d\n", err, erryes);
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		/* Keep in sync with 'flags' from eth_get_headlen. */
@@ -511,7 +511,7 @@ void test_flow_dissector(void)
 			continue;
 
 		err = tx_tap(tap_fd, &tests[i].pkt, sizeof(tests[i].pkt));
-		CHECK(err < 0, "tx_tap", "err %d errno %d\n", err, errno);
+		CHECK(err < 0, "tx_tap", "err %d erryes %d\n", err, erryes);
 
 		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
 		CHECK_ATTR(err, tests[i].name, "bpf_map_lookup_elem %d\n", err);

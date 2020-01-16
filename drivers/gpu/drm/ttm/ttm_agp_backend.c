@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -52,7 +52,7 @@ static int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 {
 	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
 	struct page *dummy_read_page = ttm_bo_glob.dummy_read_page;
-	struct drm_mm_node *node = bo_mem->mm_node;
+	struct drm_mm_yesde *yesde = bo_mem->mm_yesde;
 	struct agp_memory *mem;
 	int ret, cached = (bo_mem->placement & TTM_PL_FLAG_CACHED);
 	unsigned i;
@@ -75,7 +75,7 @@ static int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 	mem->is_flushed = 1;
 	mem->type = (cached) ? AGP_USER_CACHED_MEMORY : AGP_USER_MEMORY;
 
-	ret = agp_bind_memory(mem, node->start);
+	ret = agp_bind_memory(mem, yesde->start);
 	if (ret)
 		pr_err("AGP Bind memory failed\n");
 

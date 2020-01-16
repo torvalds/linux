@@ -6,7 +6,7 @@
  * Jonas Jensen <jonas.jensen@gmail.com>
  *
  * Based on code from
- * Moxa Technologies Co., Ltd. <www.moxa.com>
+ * Moxa Techyeslogies Co., Ltd. <www.moxa.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/dma-mapping.h>
@@ -555,7 +555,7 @@ static const struct mmc_host_ops moxart_ops = {
 static int moxart_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct resource res_mmc;
 	struct mmc_host *mmc;
 	struct moxart_host *host = NULL;
@@ -572,13 +572,13 @@ static int moxart_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	ret = of_address_to_resource(node, 0, &res_mmc);
+	ret = of_address_to_resource(yesde, 0, &res_mmc);
 	if (ret) {
 		dev_err(dev, "of_address_to_resource failed\n");
 		goto out;
 	}
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (irq <= 0) {
 		dev_err(dev, "irq_of_parse_and_map failed\n");
 		ret = -EINVAL;

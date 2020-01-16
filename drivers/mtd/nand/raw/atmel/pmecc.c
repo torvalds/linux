@@ -17,7 +17,7 @@
  *	Copyright 2000 Steven J. Hill (sjhill@cotw.com)
  *
  *   Add Hardware ECC support for AT91SAM9260 / AT91SAM9263
- *	Richard Genoud (richard.genoud@gmail.com), Adeneo Copyright 2007
+ *	Richard Geyesud (richard.geyesud@gmail.com), Adeneo Copyright 2007
  *
  *   Derived from Das U-Boot source code
  *	(u-boot-1.1.5/board/atmel/at91sam9263ek/nand.c)
@@ -56,7 +56,7 @@
 #define PMECC_GF_DIMENSION_13			13
 #define PMECC_GF_DIMENSION_14			14
 
-/* Primitive Polynomial used by PMECC */
+/* Primitive Polyyesmial used by PMECC */
 #define PMECC_GF_13_PRIMITIVE_POLY		0x201b
 #define PMECC_GF_14_PRIMITIVE_POLY		0x4443
 
@@ -185,7 +185,7 @@ static const struct atmel_pmecc_gf_tables *pmecc_gf_tables_1024;
 
 static inline int deg(unsigned int poly)
 {
-	/* polynomial degree is the most-significant bit index */
+	/* polyyesmial degree is the most-significant bit index */
 	return fls(poly) - 1;
 }
 
@@ -196,7 +196,7 @@ static int atmel_pmecc_build_gf_tables(int mm, unsigned int poly,
 	const unsigned int k = BIT(deg(poly));
 	unsigned int nn = BIT(mm) - 1;
 
-	/* primitive polynomial must be of degree m */
+	/* primitive polyyesmial must be of degree m */
 	if (k != (1u << mm))
 		return -EINVAL;
 
@@ -204,7 +204,7 @@ static int atmel_pmecc_build_gf_tables(int mm, unsigned int poly,
 		gf_tables->alpha_to[i] = x;
 		gf_tables->index_of[x] = i;
 		if (i && (x == 1))
-			/* polynomial is not primitive (a^i=1 with 0<i<2^m-1) */
+			/* polyyesmial is yest primitive (a^i=1 with 0<i<2^m-1) */
 			return -EINVAL;
 		x <<= 1;
 		if (x & k)
@@ -518,7 +518,7 @@ static void atmel_pmecc_get_sigma(struct atmel_pmecc_user *user)
 
 	/* discrepancy set to 1 */
 	dmu[0] = 1;
-	/* polynom order set to 0 */
+	/* polyyesm order set to 0 */
 	lmu[0] = 0;
 	delta[0] = (mu[0] * 2 - lmu[0]) >> 1;
 
@@ -533,7 +533,7 @@ static void atmel_pmecc_get_sigma(struct atmel_pmecc_user *user)
 	/* discrepancy set to S1 */
 	dmu[1] = si[1];
 
-	/* polynom order set to 0 */
+	/* polyyesm order set to 0 */
 	lmu[1] = 0;
 
 	delta[1] = (mu[1] * 2 - lmu[1]) >> 1;
@@ -563,11 +563,11 @@ static void atmel_pmecc_get_sigma(struct atmel_pmecc_user *user)
 				return;
 			}
 
-			/* copy polynom */
+			/* copy polyyesm */
 			for (j = 0; j <= lmu[i] >> 1; j++)
 				smu[(i + 1) * num + j] = smu[i * num + j];
 
-			/* copy previous polynom order to the next */
+			/* copy previous polyyesm order to the next */
 			lmu[i + 1] = lmu[i];
 		} else {
 			ro = 0;
@@ -583,7 +583,7 @@ static void atmel_pmecc_get_sigma(struct atmel_pmecc_user *user)
 			/* compute difference */
 			diff = (mu[i] - mu[ro]);
 
-			/* Compute degree of the new smu polynomial */
+			/* Compute degree of the new smu polyyesmial */
 			if ((lmu[i] >> 1) > ((lmu[ro] >> 1) + diff))
 				lmu[i + 1] = lmu[i];
 			else
@@ -616,7 +616,7 @@ static void atmel_pmecc_get_sigma(struct atmel_pmecc_user *user)
 		/* In either case compute delta */
 		delta[i + 1] = (mu[i + 1] * 2 - lmu[i + 1]) >> 1;
 
-		/* Do not compute discrepancy for the last iteration */
+		/* Do yest compute discrepancy for the last iteration */
 		if (i >= strength)
 			continue;
 
@@ -681,7 +681,7 @@ static int atmel_pmecc_err_location(struct atmel_pmecc_user *user)
 		return err_nbr - 1;
 
 	/*
-	 * Number of roots does not match the degree of smu
+	 * Number of roots does yest match the degree of smu
 	 * unable to correct error.
 	 */
 	return -EBADMSG;
@@ -868,14 +868,14 @@ static void devm_atmel_pmecc_put(struct device *dev, void *res)
 	put_device((*pmecc)->dev);
 }
 
-static struct atmel_pmecc *atmel_pmecc_get_by_node(struct device *userdev,
-						   struct device_node *np)
+static struct atmel_pmecc *atmel_pmecc_get_by_yesde(struct device *userdev,
+						   struct device_yesde *np)
 {
 	struct platform_device *pdev;
 	struct atmel_pmecc *pmecc, **ptr;
 	int ret;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev)
 		return ERR_PTR(-EPROBE_DEFER);
 	pmecc = platform_get_drvdata(pdev);
@@ -932,18 +932,18 @@ static const struct of_device_id atmel_pmecc_legacy_match[] = {
 struct atmel_pmecc *devm_atmel_pmecc_get(struct device *userdev)
 {
 	struct atmel_pmecc *pmecc;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	if (!userdev)
 		return ERR_PTR(-EINVAL);
 
-	if (!userdev->of_node)
+	if (!userdev->of_yesde)
 		return NULL;
 
-	np = of_parse_phandle(userdev->of_node, "ecc-engine", 0);
+	np = of_parse_phandle(userdev->of_yesde, "ecc-engine", 0);
 	if (np) {
-		pmecc = atmel_pmecc_get_by_node(userdev, np);
-		of_node_put(np);
+		pmecc = atmel_pmecc_get_by_yesde(userdev, np);
+		of_yesde_put(np);
 	} else {
 		/*
 		 * Support old DT bindings: in this case the PMECC iomem
@@ -955,15 +955,15 @@ struct atmel_pmecc *devm_atmel_pmecc_get(struct device *userdev)
 		const struct of_device_id *match;
 
 		/* No PMECC engine available. */
-		if (!of_property_read_bool(userdev->of_node,
+		if (!of_property_read_bool(userdev->of_yesde,
 					   "atmel,has-pmecc"))
 			return NULL;
 
 		caps = &at91sam9g45_caps;
 
-		/* Find the caps associated to the NAND dev node. */
-		match = of_match_node(atmel_pmecc_legacy_match,
-				      userdev->of_node);
+		/* Find the caps associated to the NAND dev yesde. */
+		match = of_match_yesde(atmel_pmecc_legacy_match,
+				      userdev->of_yesde);
 		if (match && match->data)
 			caps = match->data;
 

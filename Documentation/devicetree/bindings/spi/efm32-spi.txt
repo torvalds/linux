@@ -13,7 +13,7 @@ Recommended properties :
 - energymicro,location: Value to write to the ROUTE register's LOCATION
                         bitfield to configure the pinmux for the device, see
                         datasheet for values.
-                        If this property is not provided, keeping what is
+                        If this property is yest provided, keeping what is
                         already configured in the hardware, so its either the
                         reset default 0 or whatever the bootloader did.
 

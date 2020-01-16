@@ -39,7 +39,7 @@ enum fixed_addresses {
 	/*
 	 * Reserve a virtual window for the FDT that is 2 MB larger than the
 	 * maximum supported size, and put it at the top of the fixmap region.
-	 * The additional space ensures that any FDT that does not exceed
+	 * The additional space ensures that any FDT that does yest exceed
 	 * MAX_FDT_SIZE can be mapped regardless of whether it crosses any
 	 * 2 MB alignment boundaries.
 	 *

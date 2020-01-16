@@ -29,9 +29,9 @@ void hantro_mpeg2_dec_copy_qtable(u8 *qtable,
 	for (i = 0; i < ARRAY_SIZE(zigzag); i++) {
 		n = zigzag[i];
 		qtable[n + 0] = ctrl->intra_quantiser_matrix[i];
-		qtable[n + 64] = ctrl->non_intra_quantiser_matrix[i];
+		qtable[n + 64] = ctrl->yesn_intra_quantiser_matrix[i];
 		qtable[n + 128] = ctrl->chroma_intra_quantiser_matrix[i];
-		qtable[n + 192] = ctrl->chroma_non_intra_quantiser_matrix[i];
+		qtable[n + 192] = ctrl->chroma_yesn_intra_quantiser_matrix[i];
 	}
 }
 

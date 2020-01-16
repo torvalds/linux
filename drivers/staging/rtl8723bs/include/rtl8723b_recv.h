@@ -74,7 +74,7 @@ typedef struct rxreport_8723b
 	u32 splcp:1;	/* Ofdm sgi or cck_splcp */
 	u32 ldpc:1;
 	u32 stbc:1;
-	u32 not_sounding:1;
+	u32 yest_sounding:1;
 	u32 bw:2;
 	u32 rsvd1606:26;
 
@@ -95,7 +95,7 @@ typedef struct phystatus_8723b
 	u32 cfo_b:8;
 	u32 chcorr_h:8;
 
-	u32 noisepwrdb_h:8;
+	u32 yesisepwrdb_h:8;
 	u32 cfo_tail_a:8;
 	u32 cfo_tail_b:8;
 	u32 rsvd0824:8;
@@ -106,7 +106,7 @@ typedef struct phystatus_8723b
 	u32 rxsnr_a:8;
 
 	u32 rxsnr_b:8;
-	u32 noisepwrdb_l:8;
+	u32 yesisepwrdb_l:8;
 	u32 rsvd1616:8;
 	u32 postsnr_a:8;
 

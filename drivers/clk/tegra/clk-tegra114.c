@@ -660,7 +660,7 @@ static struct tegra_clk tegra114_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_kbc] = { .dt_id = TEGRA114_CLK_KBC, .present = true },
 	[tegra_clk_kfuse] = { .dt_id = TEGRA114_CLK_KFUSE, .present = true },
 	[tegra_clk_sbc1_8] = { .dt_id = TEGRA114_CLK_SBC1, .present = true },
-	[tegra_clk_nor] = { .dt_id = TEGRA114_CLK_NOR, .present = true },
+	[tegra_clk_yesr] = { .dt_id = TEGRA114_CLK_NOR, .present = true },
 	[tegra_clk_sbc2_8] = { .dt_id = TEGRA114_CLK_SBC2, .present = true },
 	[tegra_clk_sbc3_8] = { .dt_id = TEGRA114_CLK_SBC3, .present = true },
 	[tegra_clk_i2c5] = { .dt_id = TEGRA114_CLK_I2C5, .present = true },
@@ -1096,7 +1096,7 @@ static void tegra114_wait_cpu_in_reset(u32 cpu)
 	do {
 		reg = readl(clk_base + CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
 		cpu_relax();
-	} while (!(reg & (1 << cpu)));  /* check CPU been reset or not */
+	} while (!(reg & (1 << cpu)));  /* check CPU been reset or yest */
 }
 
 static void tegra114_disable_cpu_clock(u32 cpu)
@@ -1319,9 +1319,9 @@ void tegra114_clock_deassert_dfll_dvco_reset(void)
 }
 EXPORT_SYMBOL(tegra114_clock_deassert_dfll_dvco_reset);
 
-static void __init tegra114_clock_init(struct device_node *np)
+static void __init tegra114_clock_init(struct device_yesde *np)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	clk_base = of_iomap(np, 0);
 	if (!clk_base) {
@@ -1329,14 +1329,14 @@ static void __init tegra114_clock_init(struct device_node *np)
 		return;
 	}
 
-	node = of_find_matching_node(NULL, pmc_match);
-	if (!node) {
-		pr_err("Failed to find pmc node\n");
+	yesde = of_find_matching_yesde(NULL, pmc_match);
+	if (!yesde) {
+		pr_err("Failed to find pmc yesde\n");
 		WARN_ON(1);
 		return;
 	}
 
-	pmc_base = of_iomap(node, 0);
+	pmc_base = of_iomap(yesde, 0);
 	if (!pmc_base) {
 		pr_err("Can't map pmc registers\n");
 		WARN_ON(1);

@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
@@ -141,7 +141,7 @@ unsigned long omap4_dpll_regm4xen_recalc(struct clk_hw *hw,
  * for @clk if set_rate() were to be provided with the rate
  * @target_rate.  Takes the REGM4XEN bit into consideration, which is
  * needed for the OMAP4 ABE DPLL.  Returns the rounded rate (before
- * M-dividers) upon success, -EINVAL if @clk is null or not a DPLL, or
+ * M-dividers) upon success, -EINVAL if @clk is null or yest a DPLL, or
  * ~0 if an error occurred in omap2_dpll_round_rate().
  */
 long omap4_dpll_regm4xen_round_rate(struct clk_hw *hw,
@@ -168,7 +168,7 @@ long omap4_dpll_regm4xen_round_rate(struct clk_hw *hw,
 		goto out;
 
 	/*
-	 * If we did not find a valid DPLL configuration, try again, but
+	 * If we did yest find a valid DPLL configuration, try again, but
 	 * this time see if using the 4X multiplier can help. Enabling the
 	 * 4X multiplier is equivalent to dividing the target rate by 4.
 	 */

@@ -220,7 +220,7 @@ static int __init sha256_sparc64_mod_init(void)
 		pr_info("Using sparc64 sha256 opcode optimized SHA-256/SHA-224 implementation\n");
 		return 0;
 	}
-	pr_info("sparc64 sha256 opcode not available.\n");
+	pr_info("sparc64 sha256 opcode yest available.\n");
 	return -ENODEV;
 }
 

@@ -212,7 +212,7 @@ static void bank_reads8(void __iomem *src_base, u32 src_offset, u32 bank_addr,
 	if (!bytes)
 		return;
 
-	/* in case we have 3, 2 or 1 by left. The dst buffer may not be fully
+	/* in case we have 3, 2 or 1 by left. The dst buffer may yest be fully
 	 * allocated.
 	 */
 	if (src_offset < PAYLOAD_OFFSET)
@@ -264,7 +264,7 @@ static void mem_writes8(void __iomem *dst_base, u32 dst_offset,
 	if (!bytes)
 		return;
 	/* in case we have 3, 2 or 1 bytes left. The buffer is allocated and the
-	 * extra bytes should not be read by the HW.
+	 * extra bytes should yest be read by the HW.
 	 */
 
 	if (dst_offset < PAYLOAD_OFFSET)
@@ -394,7 +394,7 @@ static int handshake(struct usb_hcd *hcd, u32 reg,
 	return -ETIMEDOUT;
 }
 
-/* reset a non-running (STS_HALT == 1) controller */
+/* reset a yesn-running (STS_HALT == 1) controller */
 static int ehci_reset(struct usb_hcd *hcd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
@@ -542,7 +542,7 @@ static void create_ptd_atl(struct isp1760_qh *qh,
 
 	memset(ptd, 0, sizeof(*ptd));
 
-	/* according to 3.6.2, max packet len can not be > 0x400 */
+	/* according to 3.6.2, max packet len can yest be > 0x400 */
 	maxpacket = usb_maxpacket(qtd->urb->dev, qtd->urb->pipe,
 						usb_pipeout(qtd->urb->pipe));
 	multi =  1 + ((maxpacket >> 11) & 0x3);
@@ -730,7 +730,7 @@ static void start_bus_transfer(struct usb_hcd *hcd, u32 ptd_offset, int slot,
 	WARN_ON(slots[slot].qh);
 	WARN_ON(qtd->status != QTD_PAYLOAD_ALLOC);
 
-	/* Make sure done map has not triggered from some unlinked transfer */
+	/* Make sure done map has yest triggered from some unlinked transfer */
 	if (ptd_offset == ATL_PTD_OFFSET) {
 		priv->atl_done_map |= reg_read32(hcd->regs,
 						HC_ATL_PTD_DONEMAP_REG);
@@ -888,7 +888,7 @@ static void enqueue_qtds(struct usb_hcd *hcd, struct isp1760_qh *qh)
 				dev_dbg(hcd->self.controller, "%s: No slot "
 					"available for transfer\n", __func__);
 */
-			/* Start xfer for this endpoint if not already done */
+			/* Start xfer for this endpoint if yest already done */
 			if ((curr_slot > 31) && (free_slot > -1)) {
 				if (usb_pipeint(qtd->urb->pipe))
 					create_ptd_int(qh, qtd, &ptd);
@@ -985,12 +985,12 @@ static int check_int_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 	dw4 = ptd->dw4;
 	dw4 >>= 8;
 
-	/* FIXME: ISP1761 datasheet does not say what to do with these. Do we
+	/* FIXME: ISP1761 datasheet does yest say what to do with these. Do we
 	   need to handle these errors? Is it done in hardware? */
 
 	if (ptd->dw3 & DW3_HALT_BIT) {
 
-		urb->status = -EPROTO; /* Default unknown error */
+		urb->status = -EPROTO; /* Default unkyeswn error */
 
 		for (i = 0; i < 8; i++) {
 			switch (dw4 & 0x7) {
@@ -998,7 +998,7 @@ static int check_int_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 				dev_dbg(hcd->self.controller, "%s: underrun "
 						"during uFrame %d\n",
 						__func__, i);
-				urb->status = -ECOMM; /* Could not write data */
+				urb->status = -ECOMM; /* Could yest write data */
 				break;
 			case INT_EXACT:
 				dev_dbg(hcd->self.controller, "%s: transaction "
@@ -1033,7 +1033,7 @@ static int check_atl_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 		else if (FROM_DW3_CERR(ptd->dw3))
 			urb->status = -EPIPE;  /* Stall */
 		else
-			urb->status = -EPROTO; /* Unknown */
+			urb->status = -EPROTO; /* Unkyeswn */
 /*
 		dev_dbg(hcd->self.controller, "%s: ptd error:\n"
 			"        dw0: %08x dw1: %08x dw2: %08x dw3: %08x\n"
@@ -1046,7 +1046,7 @@ static int check_atl_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 	}
 
 	if ((ptd->dw3 & DW3_ERROR_BIT) && (ptd->dw3 & DW3_ACTIVE_BIT)) {
-		/* Transfer Error, *but* active and no HALT -> reload */
+		/* Transfer Error, *but* active and yes HALT -> reload */
 		dev_dbg(hcd->self.controller, "PID error; reloading ptd\n");
 		return PTD_STATE_QTD_RELOAD;
 	}
@@ -1054,7 +1054,7 @@ static int check_atl_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 	if (!FROM_DW3_NAKCOUNT(ptd->dw3) && (ptd->dw3 & DW3_ACTIVE_BIT)) {
 		/*
 		 * NAKs are handled in HW by the chip. Usually if the
-		 * device is not able to send data fast enough.
+		 * device is yest able to send data fast eyesugh.
 		 * This happens mostly on slower hardware.
 		 */
 		return PTD_STATE_QTD_RELOAD;
@@ -1089,8 +1089,8 @@ static void handle_done_ptds(struct usb_hcd *hcd)
 			slot = __ffs(priv->int_done_map);
 			priv->int_done_map &= ~(1 << slot);
 			slots = priv->int_slots;
-			/* This should not trigger, and could be removed if
-			   noone have any problems with it triggering: */
+			/* This should yest trigger, and could be removed if
+			   yesone have any problems with it triggering: */
 			if (!slots[slot].qh) {
 				WARN_ON(1);
 				continue;
@@ -1104,8 +1104,8 @@ static void handle_done_ptds(struct usb_hcd *hcd)
 			slot = __ffs(priv->atl_done_map);
 			priv->atl_done_map &= ~(1 << slot);
 			slots = priv->atl_slots;
-			/* This should not trigger, and could be removed if
-			   noone have any problems with it triggering: */
+			/* This should yest trigger, and could be removed if
+			   yesone have any problems with it triggering: */
 			if (!slots[slot].qh) {
 				WARN_ON(1);
 				continue;
@@ -1232,27 +1232,27 @@ leave:
 /*
  * Workaround for problem described in chip errata 2:
  *
- * Sometimes interrupts are not generated when ATL (not INT?) completion occurs.
+ * Sometimes interrupts are yest generated when ATL (yest INT?) completion occurs.
  * One solution suggested in the errata is to use SOF interrupts _instead_of_
  * ATL done interrupts (the "instead of" might be important since it seems
  * enabling ATL interrupts also causes the chip to sometimes - rarely - "forget"
- * to set the PTD's done bit in addition to not generating an interrupt!).
+ * to set the PTD's done bit in addition to yest generating an interrupt!).
  *
  * So if we use SOF + ATL interrupts, we sometimes get stale PTDs since their
- * done bit is not being set. This is bad - it blocks the endpoint until reboot.
+ * done bit is yest being set. This is bad - it blocks the endpoint until reboot.
  *
  * If we use SOF interrupts only, we get latency between ptd completion and the
- * actual handling. This is very noticeable in testusb runs which takes several
+ * actual handling. This is very yesticeable in testusb runs which takes several
  * minutes longer without ATL interrupts.
  *
  * A better solution is to run the code below every SLOT_CHECK_PERIOD ms. If it
  * finds active ATL slots which are older than SLOT_TIMEOUT ms, it checks the
- * slot's ACTIVE and VALID bits. If these are not set, the ptd is considered
+ * slot's ACTIVE and VALID bits. If these are yest set, the ptd is considered
  * completed and its done map bit is set.
  *
  * The values of SLOT_TIMEOUT and SLOT_CHECK_PERIOD have been arbitrarily chosen
- * not to cause too much lag when this HW bug occurs, while still hopefully
- * ensuring that the check does not falsely trigger.
+ * yest to cause too much lag when this HW bug occurs, while still hopefully
+ * ensuring that the check does yest falsely trigger.
  */
 #define SLOT_TIMEOUT 300
 #define SLOT_CHECK_PERIOD 200
@@ -1513,12 +1513,12 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		ep_queue = &priv->qh_list[QH_INTERRUPT];
 		break;
 	case PIPE_ISOCHRONOUS:
-		dev_err(hcd->self.controller, "%s: isochronous USB packets "
-							"not yet supported\n",
+		dev_err(hcd->self.controller, "%s: isochroyesus USB packets "
+							"yest yet supported\n",
 							__func__);
 		return -EPIPE;
 	default:
-		dev_err(hcd->self.controller, "%s: unknown pipe type\n",
+		dev_err(hcd->self.controller, "%s: unkyeswn pipe type\n",
 							__func__);
 		return -EPIPE;
 	}
@@ -1716,7 +1716,7 @@ static int isp1760_hub_status_data(struct usb_hcd *hcd, char *buf)
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 
-	/* init status to no-changes */
+	/* init status to yes-changes */
 	buf[0] = 0;
 	mask = PORT_CSC;
 
@@ -1776,7 +1776,7 @@ static void isp1760_hub_descriptor(struct isp1760_hcd *priv,
 		/* per-port power control */
 		temp |= HUB_CHAR_INDV_PORT_LPSM;
 	else
-		/* no power switching */
+		/* yes power switching */
 		temp |= HUB_CHAR_NO_LPSM;
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 }
@@ -1789,7 +1789,7 @@ static int check_reset_complete(struct usb_hcd *hcd, int index,
 	if (!(port_status & PORT_CONNECT))
 		return port_status;
 
-	/* if reset finished and it's still not enabled -- handoff */
+	/* if reset finished and it's still yest enabled -- handoff */
 	if (!(port_status & PORT_PE)) {
 
 		dev_info(hcd->self.controller,
@@ -1819,7 +1819,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 	/*
 	 * FIXME:  support SetPortFeatures USB_PORT_FEAT_INDICATOR.
 	 * HCS_INDICATOR may say we can change LEDs to off/amber/green.
-	 * (track current state ourselves) ... blink for diagnostics,
+	 * (track current state ourselves) ... blink for diagyesstics,
 	 * power, "this is the one", etc.  EHCI spec supports this.
 	 */
 
@@ -1829,7 +1829,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		switch (wValue) {
 		case C_HUB_LOCAL_POWER:
 		case C_HUB_OVER_CURRENT:
-			/* no hub-wide feature/status flags */
+			/* yes hub-wide feature/status flags */
 			break;
 		default:
 			goto error;
@@ -1897,7 +1897,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			buf);
 		break;
 	case GetHubStatus:
-		/* no hub-wide feature/status flags */
+		/* yes hub-wide feature/status flags */
 		memset(buf, 0, 4);
 		break;
 	case GetPortStatus:
@@ -1972,7 +1972,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 					reg_read32(hcd->regs, HC_PORTSC1));
 		}
 		/*
-		 * Even if OWNER is set, there's no harm letting hub_wq
+		 * Even if OWNER is set, there's yes harm letting hub_wq
 		 * see the wPortStatus values (they should all be 0 except
 		 * for PORT_POWER anyway).
 		 */
@@ -2000,7 +2000,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		switch (wValue) {
 		case C_HUB_LOCAL_POWER:
 		case C_HUB_OVER_CURRENT:
-			/* no hub-wide feature/status flags */
+			/* yes hub-wide feature/status flags */
 			break;
 		default:
 			goto error;

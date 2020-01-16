@@ -38,9 +38,9 @@
  * enum knav_queue_ctrl_cmd -	queue operations.
  * @KNAV_QUEUE_GET_ID:		Get the ID number for an open queue
  * @KNAV_QUEUE_FLUSH:		forcibly empty a queue if possible
- * @KNAV_QUEUE_SET_NOTIFIER:	Set a notifier callback to a queue handle.
- * @KNAV_QUEUE_ENABLE_NOTIFY:	Enable notifier callback for a queue handle.
- * @KNAV_QUEUE_DISABLE_NOTIFY:	Disable notifier callback for a queue handle.
+ * @KNAV_QUEUE_SET_NOTIFIER:	Set a yestifier callback to a queue handle.
+ * @KNAV_QUEUE_ENABLE_NOTIFY:	Enable yestifier callback for a queue handle.
+ * @KNAV_QUEUE_DISABLE_NOTIFY:	Disable yestifier callback for a queue handle.
  * @KNAV_QUEUE_GET_COUNT:	Get number of queues.
  */
 enum knav_queue_ctrl_cmd {
@@ -52,16 +52,16 @@ enum knav_queue_ctrl_cmd {
 	KNAV_QUEUE_GET_COUNT
 };
 
-/* Queue notifier callback prototype */
-typedef void (*knav_queue_notify_fn)(void *arg);
+/* Queue yestifier callback prototype */
+typedef void (*knav_queue_yestify_fn)(void *arg);
 
 /**
- * struct knav_queue_notify_config:	Notifier configuration
+ * struct knav_queue_yestify_config:	Notifier configuration
  * @fn:					Notifier function
  * @fn_arg:				Notifier function arguments
  */
-struct knav_queue_notify_config {
-	knav_queue_notify_fn fn;
+struct knav_queue_yestify_config {
+	knav_queue_yestify_fn fn;
 	void *fn_arg;
 };
 

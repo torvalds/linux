@@ -219,13 +219,13 @@ static int ad193x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-	case SND_SOC_DAIFMT_NB_NF: /* normal bit clock + frame */
+	case SND_SOC_DAIFMT_NB_NF: /* yesrmal bit clock + frame */
 		break;
-	case SND_SOC_DAIFMT_NB_IF: /* normal bclk + invert frm */
+	case SND_SOC_DAIFMT_NB_IF: /* yesrmal bclk + invert frm */
 		adc_fmt |= AD193X_ADC_LEFT_HIGH;
 		dac_fmt |= AD193X_DAC_LEFT_HIGH;
 		break;
-	case SND_SOC_DAIFMT_IB_NF: /* invert bclk + normal frm */
+	case SND_SOC_DAIFMT_IB_NF: /* invert bclk + yesrmal frm */
 		adc_fmt |= AD193X_ADC_BCLK_INV;
 		dac_fmt |= AD193X_DAC_BCLK_INV;
 		break;
@@ -400,7 +400,7 @@ static struct snd_soc_dai_driver ad193x_dai = {
 };
 
 /* codec DAI instance for DAC only */
-static struct snd_soc_dai_driver ad193x_no_adc_dai = {
+static struct snd_soc_dai_driver ad193x_yes_adc_dai = {
 	.name = "ad193x-hifi",
 	.playback = {
 		.stream_name = "Playback",
@@ -418,19 +418,19 @@ static void ad193x_reg_default_init(struct ad193x_priv *ad193x)
 {
 	static const struct reg_sequence reg_init[] = {
 		{  0, 0x99 },	/* PLL_CLK_CTRL0: pll input: mclki/xi 12.288Mhz */
-		{  1, 0x04 },	/* PLL_CLK_CTRL1: no on-chip Vref */
+		{  1, 0x04 },	/* PLL_CLK_CTRL1: yes on-chip Vref */
 		{  2, 0x40 },	/* DAC_CTRL0: TDM mode */
 		{  3, 0x00 },	/* DAC_CTRL1: reset */
 		{  4, 0x1A },	/* DAC_CTRL2: 48kHz de-emphasis, unmute dac */
 		{  5, 0x00 },	/* DAC_CHNL_MUTE: unmute DAC channels */
-		{  6, 0x00 },	/* DAC_L1_VOL: no attenuation */
-		{  7, 0x00 },	/* DAC_R1_VOL: no attenuation */
-		{  8, 0x00 },	/* DAC_L2_VOL: no attenuation */
-		{  9, 0x00 },	/* DAC_R2_VOL: no attenuation */
-		{ 10, 0x00 },	/* DAC_L3_VOL: no attenuation */
-		{ 11, 0x00 },	/* DAC_R3_VOL: no attenuation */
-		{ 12, 0x00 },	/* DAC_L4_VOL: no attenuation */
-		{ 13, 0x00 },	/* DAC_R4_VOL: no attenuation */
+		{  6, 0x00 },	/* DAC_L1_VOL: yes attenuation */
+		{  7, 0x00 },	/* DAC_R1_VOL: yes attenuation */
+		{  8, 0x00 },	/* DAC_L2_VOL: yes attenuation */
+		{  9, 0x00 },	/* DAC_R2_VOL: yes attenuation */
+		{ 10, 0x00 },	/* DAC_L3_VOL: yes attenuation */
+		{ 11, 0x00 },	/* DAC_R3_VOL: yes attenuation */
+		{ 12, 0x00 },	/* DAC_L4_VOL: yes attenuation */
+		{ 13, 0x00 },	/* DAC_R4_VOL: yes attenuation */
 	};
 	static const struct reg_sequence reg_adc_init[] = {
 		{ 14, 0x03 },	/* ADC_CTRL0: high-pass filter enable */
@@ -496,7 +496,7 @@ static const struct snd_soc_component_driver soc_component_dev_ad193x = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 const struct regmap_config ad193x_regmap_config = {
@@ -525,7 +525,7 @@ int ad193x_probe(struct device *dev, struct regmap *regmap,
 		return devm_snd_soc_register_component(dev, &soc_component_dev_ad193x,
 						       &ad193x_dai, 1);
 	return devm_snd_soc_register_component(dev, &soc_component_dev_ad193x,
-		&ad193x_no_adc_dai, 1);
+		&ad193x_yes_adc_dai, 1);
 }
 EXPORT_SYMBOL_GPL(ad193x_probe);
 

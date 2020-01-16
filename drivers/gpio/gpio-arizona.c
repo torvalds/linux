@@ -155,7 +155,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 	arizona_gpio->gpio_chip = template_chip;
 	arizona_gpio->gpio_chip.parent = &pdev->dev;
 #ifdef CONFIG_OF_GPIO
-	arizona_gpio->gpio_chip.of_node = arizona->dev->of_node;
+	arizona_gpio->gpio_chip.of_yesde = arizona->dev->of_yesde;
 #endif
 
 	switch (arizona->type) {
@@ -172,7 +172,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 		arizona_gpio->gpio_chip.ngpio = 2;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown chip variant %d\n",
+		dev_err(&pdev->dev, "Unkyeswn chip variant %d\n",
 			arizona->type);
 		return -EINVAL;
 	}
@@ -187,7 +187,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 	ret = devm_gpiochip_add_data(&pdev->dev, &arizona_gpio->gpio_chip,
 				     arizona_gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n",
+		dev_err(&pdev->dev, "Could yest register gpiochip, %d\n",
 			ret);
 		return ret;
 	}

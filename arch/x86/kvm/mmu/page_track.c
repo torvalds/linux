@@ -161,104 +161,104 @@ bool kvm_page_track_is_active(struct kvm_vcpu *vcpu, gfn_t gfn,
 
 void kvm_page_track_cleanup(struct kvm *kvm)
 {
-	struct kvm_page_track_notifier_head *head;
+	struct kvm_page_track_yestifier_head *head;
 
-	head = &kvm->arch.track_notifier_head;
+	head = &kvm->arch.track_yestifier_head;
 	cleanup_srcu_struct(&head->track_srcu);
 }
 
 void kvm_page_track_init(struct kvm *kvm)
 {
-	struct kvm_page_track_notifier_head *head;
+	struct kvm_page_track_yestifier_head *head;
 
-	head = &kvm->arch.track_notifier_head;
+	head = &kvm->arch.track_yestifier_head;
 	init_srcu_struct(&head->track_srcu);
-	INIT_HLIST_HEAD(&head->track_notifier_list);
+	INIT_HLIST_HEAD(&head->track_yestifier_list);
 }
 
 /*
- * register the notifier so that event interception for the tracked guest
+ * register the yestifier so that event interception for the tracked guest
  * pages can be received.
  */
 void
-kvm_page_track_register_notifier(struct kvm *kvm,
-				 struct kvm_page_track_notifier_node *n)
+kvm_page_track_register_yestifier(struct kvm *kvm,
+				 struct kvm_page_track_yestifier_yesde *n)
 {
-	struct kvm_page_track_notifier_head *head;
+	struct kvm_page_track_yestifier_head *head;
 
-	head = &kvm->arch.track_notifier_head;
+	head = &kvm->arch.track_yestifier_head;
 
 	spin_lock(&kvm->mmu_lock);
-	hlist_add_head_rcu(&n->node, &head->track_notifier_list);
+	hlist_add_head_rcu(&n->yesde, &head->track_yestifier_list);
 	spin_unlock(&kvm->mmu_lock);
 }
-EXPORT_SYMBOL_GPL(kvm_page_track_register_notifier);
+EXPORT_SYMBOL_GPL(kvm_page_track_register_yestifier);
 
 /*
  * stop receiving the event interception. It is the opposed operation of
- * kvm_page_track_register_notifier().
+ * kvm_page_track_register_yestifier().
  */
 void
-kvm_page_track_unregister_notifier(struct kvm *kvm,
-				   struct kvm_page_track_notifier_node *n)
+kvm_page_track_unregister_yestifier(struct kvm *kvm,
+				   struct kvm_page_track_yestifier_yesde *n)
 {
-	struct kvm_page_track_notifier_head *head;
+	struct kvm_page_track_yestifier_head *head;
 
-	head = &kvm->arch.track_notifier_head;
+	head = &kvm->arch.track_yestifier_head;
 
 	spin_lock(&kvm->mmu_lock);
-	hlist_del_rcu(&n->node);
+	hlist_del_rcu(&n->yesde);
 	spin_unlock(&kvm->mmu_lock);
 	synchronize_srcu(&head->track_srcu);
 }
-EXPORT_SYMBOL_GPL(kvm_page_track_unregister_notifier);
+EXPORT_SYMBOL_GPL(kvm_page_track_unregister_yestifier);
 
 /*
- * Notify the node that write access is intercepted and write emulation is
+ * Notify the yesde that write access is intercepted and write emulation is
  * finished at this time.
  *
- * The node should figure out if the written page is the one that node is
+ * The yesde should figure out if the written page is the one that yesde is
  * interested in by itself.
  */
 void kvm_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
 			  int bytes)
 {
-	struct kvm_page_track_notifier_head *head;
-	struct kvm_page_track_notifier_node *n;
+	struct kvm_page_track_yestifier_head *head;
+	struct kvm_page_track_yestifier_yesde *n;
 	int idx;
 
-	head = &vcpu->kvm->arch.track_notifier_head;
+	head = &vcpu->kvm->arch.track_yestifier_head;
 
-	if (hlist_empty(&head->track_notifier_list))
+	if (hlist_empty(&head->track_yestifier_list))
 		return;
 
 	idx = srcu_read_lock(&head->track_srcu);
-	hlist_for_each_entry_rcu(n, &head->track_notifier_list, node)
+	hlist_for_each_entry_rcu(n, &head->track_yestifier_list, yesde)
 		if (n->track_write)
 			n->track_write(vcpu, gpa, new, bytes, n);
 	srcu_read_unlock(&head->track_srcu, idx);
 }
 
 /*
- * Notify the node that memory slot is being removed or moved so that it can
+ * Notify the yesde that memory slot is being removed or moved so that it can
  * drop write-protection for the pages in the memory slot.
  *
- * The node should figure out it has any write-protected pages in this slot
+ * The yesde should figure out it has any write-protected pages in this slot
  * by itself.
  */
 void kvm_page_track_flush_slot(struct kvm *kvm, struct kvm_memory_slot *slot)
 {
-	struct kvm_page_track_notifier_head *head;
-	struct kvm_page_track_notifier_node *n;
+	struct kvm_page_track_yestifier_head *head;
+	struct kvm_page_track_yestifier_yesde *n;
 	int idx;
 
-	head = &kvm->arch.track_notifier_head;
+	head = &kvm->arch.track_yestifier_head;
 
-	if (hlist_empty(&head->track_notifier_list))
+	if (hlist_empty(&head->track_yestifier_list))
 		return;
 
 	idx = srcu_read_lock(&head->track_srcu);
-	hlist_for_each_entry_rcu(n, &head->track_notifier_list, node)
+	hlist_for_each_entry_rcu(n, &head->track_yestifier_list, yesde)
 		if (n->track_flush_slot)
 			n->track_flush_slot(kvm, slot, n);
 	srcu_read_unlock(&head->track_srcu, idx);

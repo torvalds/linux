@@ -26,7 +26,7 @@ int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset);
 int batadv_tt_local_dump(struct sk_buff *msg, struct netlink_callback *cb);
 int batadv_tt_global_dump(struct sk_buff *msg, struct netlink_callback *cb);
 void batadv_tt_global_del_orig(struct batadv_priv *bat_priv,
-			       struct batadv_orig_node *orig_node,
+			       struct batadv_orig_yesde *orig_yesde,
 			       s32 match_vid, const char *message);
 struct batadv_tt_global_entry *
 batadv_tt_global_hash_find(struct batadv_priv *bat_priv, const u8 *addr,
@@ -34,7 +34,7 @@ batadv_tt_global_hash_find(struct batadv_priv *bat_priv, const u8 *addr,
 void batadv_tt_global_entry_put(struct batadv_tt_global_entry *tt_global_entry);
 int batadv_tt_global_hash_count(struct batadv_priv *bat_priv,
 				const u8 *addr, unsigned short vid);
-struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
+struct batadv_orig_yesde *batadv_transtable_search(struct batadv_priv *bat_priv,
 						  const u8 *src, const u8 *addr,
 						  unsigned short vid);
 void batadv_tt_free(struct batadv_priv *bat_priv);
@@ -49,7 +49,7 @@ bool batadv_tt_local_client_is_roaming(struct batadv_priv *bat_priv,
 				       u8 *addr, unsigned short vid);
 void batadv_tt_local_resize_to_mtu(struct net_device *soft_iface);
 bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
-					  struct batadv_orig_node *orig_node,
+					  struct batadv_orig_yesde *orig_yesde,
 					  const unsigned char *addr,
 					  unsigned short vid);
 bool batadv_tt_global_is_isolated(struct batadv_priv *bat_priv,

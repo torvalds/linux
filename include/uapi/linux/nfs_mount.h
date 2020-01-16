@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_NFS_MOUNT_H
 #define _LINUX_NFS_MOUNT_H
 
@@ -15,7 +15,7 @@
 #include <linux/nfs3.h>
 
 /*
- * WARNING!  Do not delete or change the order of these fields.  If
+ * WARNING!  Do yest delete or change the order of these fields.  If
  * a new field is required then add it to the end.  The version field
  * tracks which fields are present.  This will ensure some measure of
  * mount-to-kernel version compatibility.  Some of these aren't used yet
@@ -49,7 +49,7 @@ struct nfs_mount_data {
 /* bits in the flags field visible to user space */
 
 #define NFS_MOUNT_SOFT		0x0001	/* 1 */
-#define NFS_MOUNT_INTR		0x0002	/* 1 */ /* now unused, but ABI */
+#define NFS_MOUNT_INTR		0x0002	/* 1 */ /* yesw unused, but ABI */
 #define NFS_MOUNT_SECURE	0x0004	/* 1 */
 #define NFS_MOUNT_POSIX		0x0008	/* 1 */
 #define NFS_MOUNT_NOCTO		0x0010	/* 1 */
@@ -61,7 +61,7 @@ struct nfs_mount_data {
 #define NFS_MOUNT_BROKEN_SUID	0x0400	/* 4 */
 #define NFS_MOUNT_NOACL		0x0800	/* 4 */
 #define NFS_MOUNT_STRICTLOCK	0x1000	/* reserved for NFSv4 */
-#define NFS_MOUNT_SECFLAVOUR	0x2000	/* 5 non-text parsed mount data only */
+#define NFS_MOUNT_SECFLAVOUR	0x2000	/* 5 yesn-text parsed mount data only */
 #define NFS_MOUNT_NORDIRPLUS	0x4000	/* 5 */
 #define NFS_MOUNT_UNSHARED	0x8000	/* 5 */
 #define NFS_MOUNT_FLAGMASK	0xFFFF

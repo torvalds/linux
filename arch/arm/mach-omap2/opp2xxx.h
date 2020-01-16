@@ -15,7 +15,7 @@
  * setting. All configurations can be described by a DPLL setting and a ratio
  * There are 3 ratio sets for the 2430 and X ratio sets for 2420.
  *
- * 2430 differs from 2420 in that there are no more phase synchronizers used.
+ * 2430 differs from 2420 in that there are yes more phase synchronizers used.
  * They both have a slightly different clock domain setup. 2420(iva1,dsp) vs
  * 2430 (iva2.1, NOdsp, mdm)
  *
@@ -56,7 +56,7 @@ struct prcm_config {
 };
 
 
-/* Core fields for cm_clksel, not ratio governed */
+/* Core fields for cm_clksel, yest ratio governed */
 #define RX_CLKSEL_DSS1			(0x10 << 8)
 #define RX_CLKSEL_DSS2			(0x0 << 13)
 #define RX_CLKSEL_SSI			(0x5 << 20)
@@ -226,7 +226,7 @@ struct prcm_config {
 #define MX_APLLS_CLIKIN_19_2		(0 << 23)
 
 /*
- * 2430 - standalone, 2*ref*M/(n+1), M/N is for exactness not relock speed
+ * 2430 - standalone, 2*ref*M/(n+1), M/N is for exactness yest relock speed
  * #5a	(ratio1) baseport-target, target DPLL = 266*2 = 532MHz
  */
 #define M5A_DPLL_MULT_12		(133 << 12)

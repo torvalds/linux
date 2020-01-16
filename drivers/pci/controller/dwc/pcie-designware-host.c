@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Synopsys DesignWare PCIe host controller driver
+ * Syyespsys DesignWare PCIe host controller driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -255,16 +255,16 @@ static const struct irq_domain_ops dw_pcie_msi_domain_ops = {
 int dw_pcie_allocate_domains(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct fwnode_handle *fwnode = of_node_to_fwnode(pci->dev->of_node);
+	struct fwyesde_handle *fwyesde = of_yesde_to_fwyesde(pci->dev->of_yesde);
 
-	pp->irq_domain = irq_domain_create_linear(fwnode, pp->num_vectors,
+	pp->irq_domain = irq_domain_create_linear(fwyesde, pp->num_vectors,
 					       &dw_pcie_msi_domain_ops, pp);
 	if (!pp->irq_domain) {
 		dev_err(pci->dev, "Failed to create IRQ domain\n");
 		return -ENOMEM;
 	}
 
-	pp->msi_domain = pci_msi_create_irq_domain(fwnode,
+	pp->msi_domain = pci_msi_create_irq_domain(fwyesde,
 						   &dw_pcie_msi_domain_info,
 						   pp->irq_domain);
 	if (!pp->msi_domain) {
@@ -319,7 +319,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct device *dev = pci->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource_entry *win;
 	struct pci_bus *child;
@@ -460,12 +460,12 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	if (ret != PCIBIOS_SUCCESSFUL) {
 		dev_err(pci->dev, "Failed reading PCI_HEADER_TYPE cfg space reg (ret: 0x%x)\n",
 			ret);
-		ret = pcibios_err_to_errno(ret);
+		ret = pcibios_err_to_erryes(ret);
 		goto err_free_msi;
 	}
 	if (hdr_type != PCI_HEADER_TYPE_BRIDGE) {
 		dev_err(pci->dev,
-			"PCIe controller is not set to bridge type (hdr_type: 0x%x)!\n",
+			"PCIe controller is yest set to bridge type (hdr_type: 0x%x)!\n",
 			hdr_type);
 		ret = -EIO;
 		goto err_free_msi;
@@ -492,7 +492,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	pci_bus_size_bridges(pp->root_bus);
 	pci_bus_assign_resources(pp->root_bus);
 
-	list_for_each_entry(child, &pp->root_bus->children, node)
+	list_for_each_entry(child, &pp->root_bus->children, yesde)
 		pcie_bus_configure_settings(child);
 
 	pci_bus_add_devices(pp->root_bus);
@@ -582,7 +582,7 @@ static int dw_pcie_valid_device(struct pcie_port *pp, struct pci_bus *bus,
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
-	/* If there is no link, then there is no device */
+	/* If there is yes link, then there is yes device */
 	if (bus->number != pp->root_bus_nr) {
 		if (!dw_pcie_link_up(pci))
 			return 0;
@@ -684,7 +684,7 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	/*
 	 * If the platform provides ->rd_other_conf, it means the platform
 	 * uses its own address translation component rather than ATU, so
-	 * we should not program the ATU here.
+	 * we should yest program the ATU here.
 	 */
 	if (!pp->ops->rd_other_conf) {
 		dw_pcie_prog_outbound_atu(pci, PCIE_ATU_REGION_INDEX0,

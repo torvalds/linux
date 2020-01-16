@@ -18,7 +18,7 @@
 
 /*
  * RNDIS is NDIS remoted over USB.  It's a MSFT variant of CDC ACM ... of
- * course ACM was intended for modems, not Ethernet links!  USB's standard
+ * course ACM was intended for modems, yest Ethernet links!  USB's standard
  * for Ethernet links is "CDC Ethernet", which is significantly simpler.
  *
  * NOTE that Microsoft's "RNDIS 1.0" specification is incomplete.  Issues
@@ -31,23 +31,23 @@
  *    - In some cases, MS-Windows will emit undocumented requests; this
  *	matters more to peripheral implementations than host ones.
  *
- * Moreover there's a no-open-specs variant of RNDIS called "ActiveSync".
+ * Moreover there's a yes-open-specs variant of RNDIS called "ActiveSync".
  *
  * For these reasons and others, ** USE OF RNDIS IS STRONGLY DISCOURAGED ** in
- * favor of such non-proprietary alternatives as CDC Ethernet or the newer (and
+ * favor of such yesn-proprietary alternatives as CDC Ethernet or the newer (and
  * currently rare) "Ethernet Emulation Model" (EEM).
  */
 
 /*
- * RNDIS notifications from device: command completion; "reverse"
+ * RNDIS yestifications from device: command completion; "reverse"
  * keepalives; etc
  */
 void rndis_status(struct usbnet *dev, struct urb *urb)
 {
 	netdev_dbg(dev->net, "rndis status urb, len %d stat %d\n",
 		   urb->actual_length, urb->status);
-	// FIXME for keepalives, respond immediately (asynchronously)
-	// if not an RNDIS status, do like cdc_status(dev,urb) does
+	// FIXME for keepalives, respond immediately (asynchroyesusly)
+	// if yest an RNDIS status, do like cdc_status(dev,urb) does
 }
 EXPORT_SYMBOL_GPL(rndis_status);
 
@@ -81,17 +81,17 @@ static void rndis_msg_indicate(struct usbnet *dev, struct rndis_indicate *msg,
 /*
  * RPC done RNDIS-style.  Caller guarantees:
  * - message is properly byteswapped
- * - there's no other request pending
+ * - there's yes other request pending
  * - buf can hold up to 1KB response (required by RNDIS spec)
  * On return, the first few entries are already byteswapped.
  *
- * Call context is likely probe(), before interface name is known,
- * which is why we won't try to use it in the diagnostics.
+ * Call context is likely probe(), before interface name is kyeswn,
+ * which is why we won't try to use it in the diagyesstics.
  */
 int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 {
 	struct cdc_state	*info = (void *) &dev->data;
-	struct usb_cdc_notification notification;
+	struct usb_cdc_yestification yestification;
 	int			master_ifnum;
 	int			retval;
 	int			partial;
@@ -130,7 +130,7 @@ int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 			dev->udev,
 			usb_rcvintpipe(dev->udev,
 				       dev->status->desc.bEndpointAddress),
-			&notification, sizeof(notification), &partial,
+			&yestification, sizeof(yestification), &partial,
 			RNDIS_CONTROL_TIMEOUT_MS);
 		if (unlikely(retval < 0))
 			return retval;
@@ -197,7 +197,7 @@ int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 					le32_to_cpu(buf->msg_type), msg_len);
 			}
 		} else {
-			/* device probably issued a protocol stall; ignore */
+			/* device probably issued a protocol stall; igyesre */
 			dev_dbg(&info->control->dev,
 				"rndis response error, code %d\n", retval);
 		}
@@ -212,7 +212,7 @@ EXPORT_SYMBOL_GPL(rndis_command);
  * rndis_query:
  *
  * Performs a query for @oid along with 0 or more bytes of payload as
- * specified by @in_len. If @reply_len is not set to -1 then the reply
+ * specified by @in_len. If @reply_len is yest set to -1 then the reply
  * length is checked against this value, resulting in an error if it
  * doesn't match.
  *
@@ -220,8 +220,8 @@ EXPORT_SYMBOL_GPL(rndis_command);
  * response payload is an evident requirement MSFT added for ActiveSync.
  *
  * The only exception is for OIDs that return a variably sized response,
- * in which case no payload should be added.  This undocumented (and
- * nonsensical!) issue was found by sniffing protocol requests from the
+ * in which case yes payload should be added.  This undocumented (and
+ * yesnsensical!) issue was found by sniffing protocol requests from the
  * ActiveSync 4.1 Windows driver.
  */
 static int rndis_query(struct usbnet *dev, struct usb_interface *intf,
@@ -273,7 +273,7 @@ response_error:
 	return -EDOM;
 }
 
-/* same as usbnet_netdev_ops but MTU change not allowed */
+/* same as usbnet_netdev_ops but MTU change yest allowed */
 static const struct net_device_ops rndis_netdev_ops = {
 	.ndo_open		= usbnet_open,
 	.ndo_stop		= usbnet_stop,
@@ -317,7 +317,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	u.init->msg_type = cpu_to_le32(RNDIS_MSG_INIT);
 	u.init->msg_len = cpu_to_le32(sizeof *u.init);
 	u.init->major_version = cpu_to_le32(1);
-	u.init->minor_version = cpu_to_le32(0);
+	u.init->miyesr_version = cpu_to_le32(0);
 
 	/* max transfer (in spec) is 0x4000 at full speed, but for
 	 * TX we'll stick to one Ethernet packet plus RNDIS framing.
@@ -349,7 +349,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 
 	retval = rndis_command(dev, u.header, CONTROL_BUFFER_SIZE);
 	if (unlikely(retval < 0)) {
-		/* it might not even be an RNDIS device!! */
+		/* it might yest even be an RNDIS device!! */
 		dev_err(&intf->dev, "RNDIS init failed, %d\n", retval);
 		goto fail_and_release;
 	}
@@ -370,7 +370,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 		net->mtu = dev->hard_mtu - net->hard_header_len;
 	}
 
-	/* REVISIT:  peripheral "alignment" request is ignored ... */
+	/* REVISIT:  peripheral "alignment" request is igyesred ... */
 	dev_dbg(&intf->dev,
 		"hard mtu %u (%u from dev), rx buflen %zu, align %d\n",
 		dev->hard_mtu, tmp, dev->rx_urb_size,
@@ -396,14 +396,14 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	if ((flags & FLAG_RNDIS_PHYM_WIRELESS) &&
 	    le32_to_cpup(phym) != RNDIS_PHYSICAL_MEDIUM_WIRELESS_LAN) {
 		netif_dbg(dev, probe, dev->net,
-			  "driver requires wireless physical medium, but device is not\n");
+			  "driver requires wireless physical medium, but device is yest\n");
 		retval = -ENODEV;
 		goto halt_fail_and_release;
 	}
 	if ((flags & FLAG_RNDIS_PHYM_NOT_WIRELESS) &&
 	    le32_to_cpup(phym) == RNDIS_PHYSICAL_MEDIUM_WIRELESS_LAN) {
 		netif_dbg(dev, probe, dev->net,
-			  "driver requires non-wireless physical medium, but device is wireless.\n");
+			  "driver requires yesn-wireless physical medium, but device is wireless.\n");
 		retval = -ENODEV;
 		goto halt_fail_and_release;
 	}
@@ -423,7 +423,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	else
 		ether_addr_copy(net->dev_addr, bp);
 
-	/* set a nonzero filter to enable data transfers */
+	/* set a yesnzero filter to enable data transfers */
 	memset(u.set, 0, sizeof *u.set);
 	u.set->msg_type = cpu_to_le32(RNDIS_MSG_SET);
 	u.set->msg_len = cpu_to_le32(4 + sizeof *u.set);
@@ -467,7 +467,7 @@ void rndis_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct rndis_halt	*halt;
 
-	/* try to clear any rndis state/activity (no i/o from stack!) */
+	/* try to clear any rndis state/activity (yes i/o from stack!) */
 	halt = kzalloc(CONTROL_BUFFER_SIZE, GFP_KERNEL);
 	if (halt) {
 		halt->msg_type = cpu_to_le32(RNDIS_MSG_HALT);
@@ -481,11 +481,11 @@ void rndis_unbind(struct usbnet *dev, struct usb_interface *intf)
 EXPORT_SYMBOL_GPL(rndis_unbind);
 
 /*
- * DATA -- host must not write zlps
+ * DATA -- host must yest write zlps
  */
 int rndis_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
-	/* This check is no longer done by usbnet */
+	/* This check is yes longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
 
@@ -541,11 +541,11 @@ rndis_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	if (likely(!skb_cloned(skb))) {
 		int	room = skb_headroom(skb);
 
-		/* enough head room as-is? */
+		/* eyesugh head room as-is? */
 		if (unlikely((sizeof *hdr) <= room))
 			goto fill;
 
-		/* enough room, but needs to be readjusted? */
+		/* eyesugh room, but needs to be readjusted? */
 		room += skb_tailroom(skb);
 		if (likely((sizeof *hdr) <= room)) {
 			skb->data = memmove(skb->head + sizeof *hdr,

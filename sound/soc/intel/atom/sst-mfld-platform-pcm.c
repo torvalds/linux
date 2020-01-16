@@ -3,7 +3,7 @@
  *  sst_mfld_platform.c - Intel MID Platform driver
  *
  *  Copyright (C) 2010-2014 Intel Corp
- *  Author: Vinod Koul <vinod.koul@intel.com>
+ *  Author: Viyesd Koul <viyesd.koul@intel.com>
  *  Author: Harsha Priya <priya.harsha@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -86,7 +86,7 @@ static const struct snd_pcm_hardware sst_platform_pcm_hw = {
 };
 
 static struct sst_dev_stream_map dpcm_strm_map[] = {
-	{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, /* Reserved, not in use */
+	{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, /* Reserved, yest in use */
 	{MERR_DPCM_AUDIO, 0, SNDRV_PCM_STREAM_PLAYBACK, PIPE_MEDIA1_IN, SST_TASK_ID_MEDIA, 0},
 	{MERR_DPCM_COMPR, 0, SNDRV_PCM_STREAM_PLAYBACK, PIPE_MEDIA0_IN, SST_TASK_ID_MEDIA, 0},
 	{MERR_DPCM_AUDIO, 0, SNDRV_PCM_STREAM_CAPTURE, PIPE_PCM1_OUT, SST_TASK_ID_MEDIA, 0},
@@ -162,7 +162,7 @@ static int sst_get_stream_mapping(int dev, int sdev, int dir,
 		return -EINVAL;
 
 
-	/* index 0 is not used in stream map */
+	/* index 0 is yest used in stream map */
 	for (i = 1; i < size; i++) {
 		if ((map[i].dev_num == dev) && (map[i].direction == dir))
 			return i;
@@ -316,7 +316,7 @@ static int sst_media_open(struct snd_pcm_substream *substream,
 	mutex_lock(&sst_lock);
 	if (!sst ||
 	    !try_module_get(sst->dev->driver->owner)) {
-		dev_err(dai->dev, "no device available to run\n");
+		dev_err(dai->dev, "yes device available to run\n");
 		ret_val = -ENODEV;
 		goto out_ops;
 	}
@@ -821,7 +821,7 @@ static struct platform_driver sst_platform_driver = {
 module_platform_driver(sst_platform_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) MID Platform driver");
-MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");
+MODULE_AUTHOR("Viyesd Koul <viyesd.koul@intel.com>");
 MODULE_AUTHOR("Harsha Priya <priya.harsha@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:sst-atom-hifi2-platform");

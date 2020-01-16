@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <net/devlink.h>
@@ -569,7 +569,7 @@ start_again:
 				continue;
 
 			if (neigh_type == AF_INET6 &&
-			    mlxsw_sp_neigh_ipv6_ignore(neigh_entry))
+			    mlxsw_sp_neigh_ipv6_igyesre(neigh_entry))
 				continue;
 
 			if (rif_neigh_count < rif_neigh_skip)
@@ -675,7 +675,7 @@ mlxsw_sp_dpipe_table_host_counters_update(struct mlxsw_sp *mlxsw_sp,
 				continue;
 
 			if (neigh_type == AF_INET6 &&
-			    mlxsw_sp_neigh_ipv6_ignore(neigh_entry))
+			    mlxsw_sp_neigh_ipv6_igyesre(neigh_entry))
 				continue;
 
 			mlxsw_sp_neigh_entry_counter_update(mlxsw_sp,
@@ -714,7 +714,7 @@ mlxsw_sp_dpipe_table_host_size_get(struct mlxsw_sp *mlxsw_sp, int type)
 				continue;
 
 			if (neigh_type == AF_INET6 &&
-			    mlxsw_sp_neigh_ipv6_ignore(neigh_entry))
+			    mlxsw_sp_neigh_ipv6_igyesre(neigh_entry))
 				continue;
 
 			size++;

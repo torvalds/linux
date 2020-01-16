@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Microchip switch driver common header
  *
- * Copyright (C) 2017-2019 Microchip Technology Inc.
+ * Copyright (C) 2017-2019 Microchip Techyeslogy Inc.
  */
 
 #ifndef __KSZ_COMMON_H
@@ -30,7 +30,7 @@ struct ksz_port {
 	int stp_state;
 	struct phy_device phydev;
 
-	u32 on:1;			/* port is not disabled by hardware */
+	u32 on:1;			/* port is yest disabled by hardware */
 	u32 phy:1;			/* port has a PHY */
 	u32 fiber:1;			/* port is fiber */
 	u32 sgmii:1;			/* port is SGMII */
@@ -71,7 +71,7 @@ struct ksz_device {
 	int reg_mib_cnt;
 	int mib_cnt;
 	int mib_port_cnt;
-	int last_port;			/* ports after that not used */
+	int last_port;			/* ports after that yest used */
 	phy_interface_t interface;
 	u32 regs_size;
 	bool phy_errata_9477;
@@ -306,7 +306,7 @@ static inline void ksz_regmap_unlock(void *__mtx)
 #define KSZ_SPI_OP_RD		3
 #define KSZ_SPI_OP_WR		2
 
-#define swabnot_used(x)		0
+#define swabyest_used(x)		0
 
 #define KSZ_SPI_OP_FLAG_MASK(opcode, swp, regbits, regpad)		\
 	swab##swp((opcode) << ((regbits) + (regpad)))

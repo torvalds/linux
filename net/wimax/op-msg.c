@@ -79,7 +79,7 @@
  * @size: size of the message to send (in bytes), including the header.
  * @gfp_flags: flags for memory allocation.
  *
- * Returns: %0 if ok, negative errno code on error
+ * Returns: %0 if ok, negative erryes code on error
  *
  * Description:
  *
@@ -123,26 +123,26 @@ struct sk_buff *wimax_msg_alloc(struct wimax_dev *wimax_dev,
 	genl_msg = genlmsg_put(skb, 0, 0, &wimax_gnl_family,
 			       0, WIMAX_GNL_OP_MSG_TO_USER);
 	if (genl_msg == NULL) {
-		dev_err(dev, "no memory to create generic netlink message\n");
+		dev_err(dev, "yes memory to create generic netlink message\n");
 		goto error_genlmsg_put;
 	}
 	result = nla_put_u32(skb, WIMAX_GNL_MSG_IFIDX,
 			     wimax_dev->net_dev->ifindex);
 	if (result < 0) {
-		dev_err(dev, "no memory to add ifindex attribute\n");
+		dev_err(dev, "yes memory to add ifindex attribute\n");
 		goto error_nla_put;
 	}
 	if (pipe_name) {
 		result = nla_put_string(skb, WIMAX_GNL_MSG_PIPE_NAME,
 					pipe_name);
 		if (result < 0) {
-			dev_err(dev, "no memory to add pipe_name attribute\n");
+			dev_err(dev, "yes memory to add pipe_name attribute\n");
 			goto error_nla_put;
 		}
 	}
 	result = nla_put(skb, WIMAX_GNL_MSG_DATA, size, msg);
 	if (result < 0) {
-		dev_err(dev, "no memory to add payload (msg %p size %zu) in "
+		dev_err(dev, "yes memory to add payload (msg %p size %zu) in "
 			"attribute: %d\n", msg, size, result);
 		goto error_nla_put;
 	}
@@ -174,7 +174,7 @@ const void *wimax_msg_data_len(struct sk_buff *msg, size_t *size)
 	nla = nlmsg_find_attr(nlh, sizeof(struct genlmsghdr),
 			      WIMAX_GNL_MSG_DATA);
 	if (nla == NULL) {
-		pr_err("Cannot find attribute WIMAX_GNL_MSG_DATA\n");
+		pr_err("Canyest find attribute WIMAX_GNL_MSG_DATA\n");
 		return NULL;
 	}
 	*size = nla_len(nla);
@@ -196,7 +196,7 @@ const void *wimax_msg_data(struct sk_buff *msg)
 	nla = nlmsg_find_attr(nlh, sizeof(struct genlmsghdr),
 			      WIMAX_GNL_MSG_DATA);
 	if (nla == NULL) {
-		pr_err("Cannot find attribute WIMAX_GNL_MSG_DATA\n");
+		pr_err("Canyest find attribute WIMAX_GNL_MSG_DATA\n");
 		return NULL;
 	}
 	return nla_data(nla);
@@ -217,7 +217,7 @@ ssize_t wimax_msg_len(struct sk_buff *msg)
 	nla = nlmsg_find_attr(nlh, sizeof(struct genlmsghdr),
 			      WIMAX_GNL_MSG_DATA);
 	if (nla == NULL) {
-		pr_err("Cannot find attribute WIMAX_GNL_MSG_DATA\n");
+		pr_err("Canyest find attribute WIMAX_GNL_MSG_DATA\n");
 		return -EINVAL;
 	}
 	return nla_len(nla);
@@ -233,7 +233,7 @@ EXPORT_SYMBOL_GPL(wimax_msg_len);
  * @skb: &struct sk_buff returned by wimax_msg_alloc(). Note the
  *     ownership of @skb is transferred to this function.
  *
- * Returns: 0 if ok, < 0 errno code on error
+ * Returns: 0 if ok, < 0 erryes code on error
  *
  * Description:
  *
@@ -280,7 +280,7 @@ EXPORT_SYMBOL_GPL(wimax_msg_send);
  * @size: size of the buffer pointed to by @buf (in bytes).
  * @gfp_flags: flags for memory allocation.
  *
- * Returns: %0 if ok, negative errno code on error.
+ * Returns: %0 if ok, negative erryes code on error.
  *
  * Description:
  *
@@ -329,12 +329,12 @@ int wimax_gnl_doit_msg_from_user(struct sk_buff *skb, struct genl_info *info)
 	result = -ENODEV;
 	if (info->attrs[WIMAX_GNL_MSG_IFIDX] == NULL) {
 		pr_err("WIMAX_GNL_MSG_FROM_USER: can't find IFIDX attribute\n");
-		goto error_no_wimax_dev;
+		goto error_yes_wimax_dev;
 	}
 	ifindex = nla_get_u32(info->attrs[WIMAX_GNL_MSG_IFIDX]);
 	wimax_dev = wimax_dev_get_by_genl_info(info, ifindex);
 	if (wimax_dev == NULL)
-		goto error_no_wimax_dev;
+		goto error_yes_wimax_dev;
 	dev = wimax_dev_to_dev(wimax_dev);
 
 	/* Unpack arguments */
@@ -342,7 +342,7 @@ int wimax_gnl_doit_msg_from_user(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[WIMAX_GNL_MSG_DATA] == NULL) {
 		dev_err(dev, "WIMAX_GNL_MSG_FROM_USER: can't find MSG_DATA "
 			"attribute\n");
-		goto error_no_data;
+		goto error_yes_data;
 	}
 	msg_buf = nla_data(info->attrs[WIMAX_GNL_MSG_DATA]);
 	msg_len = nla_len(info->attrs[WIMAX_GNL_MSG_DATA]);
@@ -352,7 +352,7 @@ int wimax_gnl_doit_msg_from_user(struct sk_buff *skb, struct genl_info *info)
 	else {
 		struct nlattr *attr = info->attrs[WIMAX_GNL_MSG_PIPE_NAME];
 		size_t attr_len = nla_len(attr);
-		/* libnl-1.1 does not yet support NLA_NUL_STRING */
+		/* libnl-1.1 does yest yet support NLA_NUL_STRING */
 		result = -ENOMEM;
 		pipe_name = kstrndup(nla_data(attr), attr_len + 1, GFP_KERNEL);
 		if (pipe_name == NULL)
@@ -364,10 +364,10 @@ int wimax_gnl_doit_msg_from_user(struct sk_buff *skb, struct genl_info *info)
 	if (result == -ENOMEDIUM)
 		result = 0;
 	if (result < 0)
-		goto error_not_ready;
+		goto error_yest_ready;
 	result = -ENOSYS;
 	if (wimax_dev->op_msg_from_user == NULL)
-		goto error_noop;
+		goto error_yesop;
 
 	d_printf(1, dev,
 		 "CRX: nlmsghdr len %u type %u flags 0x%04x seq 0x%x pid %u\n",
@@ -378,14 +378,14 @@ int wimax_gnl_doit_msg_from_user(struct sk_buff *skb, struct genl_info *info)
 
 	result = wimax_dev->op_msg_from_user(wimax_dev, pipe_name,
 					     msg_buf, msg_len, info);
-error_noop:
-error_not_ready:
+error_yesop:
+error_yest_ready:
 	mutex_unlock(&wimax_dev->mutex);
 error_alloc:
 	kfree(pipe_name);
-error_no_data:
+error_yes_data:
 	dev_put(wimax_dev->net_dev);
-error_no_wimax_dev:
+error_yes_wimax_dev:
 	d_fnend(3, NULL, "(skb %p info %p) = %d\n", skb, info, result);
 	return result;
 }

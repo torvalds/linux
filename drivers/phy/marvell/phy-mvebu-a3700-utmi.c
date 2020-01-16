@@ -92,7 +92,7 @@ static int mvebu_a3700_utmi_phy_power_on(struct phy *phy)
 	u32 reg;
 
 	/*
-	 * Setup PLL. 40MHz clock used to be the default, being 25MHz now.
+	 * Setup PLL. 40MHz clock used to be the default, being 25MHz yesw.
 	 * See "PLL Settings for Typical REFCLK" table.
 	 */
 	reg = readl(utmi->regs + USB2_PHY_PLL_CTRL_REG0);
@@ -147,7 +147,7 @@ static int mvebu_a3700_utmi_phy_power_on(struct phy *phy)
 				 reg & USB2PHY_SQCAL_DONE,
 				 PLL_LOCK_DELAY_US, PLL_LOCK_TIMEOUT_US);
 	if (ret) {
-		dev_err(dev, "Failed to end USB2 unknown calibration\n");
+		dev_err(dev, "Failed to end USB2 unkyeswn calibration\n");
 		return ret;
 	}
 
@@ -227,7 +227,7 @@ static int mvebu_a3700_utmi_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(utmi->regs);
 
 	/* Get miscellaneous Host/PHY region */
-	utmi->usb_misc = syscon_regmap_lookup_by_phandle(dev->of_node,
+	utmi->usb_misc = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 							 "marvell,usb-misc-reg");
 	if (IS_ERR(utmi->usb_misc)) {
 		dev_err(dev,

@@ -220,7 +220,7 @@ ENTRY(chacha_4block_xor_neon)
 	// This function encrypts four consecutive ChaCha blocks by loading
 	// the state matrix in NEON registers four times. The algorithm performs
 	// each operation on the corresponding word of each state matrix, hence
-	// requires no word shuffling. The words are re-interleaved before the
+	// requires yes word shuffling. The words are re-interleaved before the
 	// final addition of the original state and the XORing step.
 	//
 

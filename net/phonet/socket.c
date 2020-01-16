@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2008 Nokia Corporation.
  *
- * Authors: Sakari Ailus <sakari.ailus@nokia.com>
+ * Authors: Sakari Ailus <sakari.ailus@yeskia.com>
  *          Rémi Denis-Courmont
  */
 
@@ -65,18 +65,18 @@ static struct hlist_head *pn_hash_list(u16 obj)
  */
 struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 {
-	struct sock *sknode;
+	struct sock *skyesde;
 	struct sock *rval = NULL;
 	u16 obj = pn_sockaddr_get_object(spn);
 	u8 res = spn->spn_resource;
 	struct hlist_head *hlist = pn_hash_list(obj);
 
 	rcu_read_lock();
-	sk_for_each_rcu(sknode, hlist) {
-		struct pn_sock *pn = pn_sk(sknode);
+	sk_for_each_rcu(skyesde, hlist) {
+		struct pn_sock *pn = pn_sk(skyesde);
 		BUG_ON(!pn->sobject); /* unbound socket */
 
-		if (!net_eq(sock_net(sknode), net))
+		if (!net_eq(sock_net(skyesde), net))
 			continue;
 		if (pn_port(obj)) {
 			/* Look up socket by port */
@@ -91,8 +91,8 @@ struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 		    pn_addr(pn->sobject) != pn_addr(obj))
 			continue;
 
-		rval = sknode;
-		sock_hold(sknode);
+		rval = skyesde;
+		sock_hold(skyesde);
 		break;
 	}
 	rcu_read_unlock();
@@ -108,20 +108,20 @@ void pn_deliver_sock_broadcast(struct net *net, struct sk_buff *skb)
 
 	rcu_read_lock();
 	for (h = 0; h < PN_HASHSIZE; h++) {
-		struct sock *sknode;
+		struct sock *skyesde;
 
-		sk_for_each(sknode, hlist) {
+		sk_for_each(skyesde, hlist) {
 			struct sk_buff *clone;
 
-			if (!net_eq(sock_net(sknode), net))
+			if (!net_eq(sock_net(skyesde), net))
 				continue;
-			if (!sock_flag(sknode, SOCK_BROADCAST))
+			if (!sock_flag(skyesde, SOCK_BROADCAST))
 				continue;
 
 			clone = skb_clone(skb, GFP_ATOMIC);
 			if (clone) {
-				sock_hold(sknode);
-				sk_receive_skb(sknode, clone, 0);
+				sock_hold(skyesde);
+				sk_receive_skb(skyesde, clone, 0);
 			}
 		}
 		hlist++;
@@ -134,7 +134,7 @@ int pn_sock_hash(struct sock *sk)
 	struct hlist_head *hlist = pn_hash_list(pn_sk(sk)->sobject);
 
 	mutex_lock(&pnsocks.lock);
-	sk_add_node_rcu(sk, hlist);
+	sk_add_yesde_rcu(sk, hlist);
 	mutex_unlock(&pnsocks.lock);
 
 	return 0;
@@ -144,7 +144,7 @@ EXPORT_SYMBOL(pn_sock_hash);
 void pn_sock_unhash(struct sock *sk)
 {
 	mutex_lock(&pnsocks.lock);
-	sk_del_node_init_rcu(sk);
+	sk_del_yesde_init_rcu(sk);
 	mutex_unlock(&pnsocks.lock);
 	pn_sock_unbind_all_res(sk);
 	synchronize_rcu();
@@ -267,7 +267,7 @@ static int pn_socket_connect(struct socket *sock, struct sockaddr *addr,
 			goto out;
 		}
 		if (signal_pending(tsk)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erryes(timeo);
 			goto out;
 		}
 
@@ -431,24 +431,24 @@ const struct proto_ops phonet_dgram_ops = {
 	.owner		= THIS_MODULE,
 	.release	= pn_socket_release,
 	.bind		= pn_socket_bind,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
+	.connect	= sock_yes_connect,
+	.socketpair	= sock_yes_socketpair,
+	.accept		= sock_yes_accept,
 	.getname	= pn_socket_getname,
 	.poll		= datagram_poll,
 	.ioctl		= pn_socket_ioctl,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
-	.setsockopt	= sock_no_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
+	.listen		= sock_yes_listen,
+	.shutdown	= sock_yes_shutdown,
+	.setsockopt	= sock_yes_setsockopt,
+	.getsockopt	= sock_yes_getsockopt,
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt = sock_no_setsockopt,
-	.compat_getsockopt = sock_no_getsockopt,
+	.compat_setsockopt = sock_yes_setsockopt,
+	.compat_getsockopt = sock_yes_getsockopt,
 #endif
 	.sendmsg	= pn_socket_sendmsg,
 	.recvmsg	= sock_common_recvmsg,
-	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
+	.mmap		= sock_yes_mmap,
+	.sendpage	= sock_yes_sendpage,
 };
 
 const struct proto_ops phonet_stream_ops = {
@@ -457,13 +457,13 @@ const struct proto_ops phonet_stream_ops = {
 	.release	= pn_socket_release,
 	.bind		= pn_socket_bind,
 	.connect	= pn_socket_connect,
-	.socketpair	= sock_no_socketpair,
+	.socketpair	= sock_yes_socketpair,
 	.accept		= pn_socket_accept,
 	.getname	= pn_socket_getname,
 	.poll		= pn_socket_poll,
 	.ioctl		= pn_socket_ioctl,
 	.listen		= pn_socket_listen,
-	.shutdown	= sock_no_shutdown,
+	.shutdown	= sock_yes_shutdown,
 	.setsockopt	= sock_common_setsockopt,
 	.getsockopt	= sock_common_getsockopt,
 #ifdef CONFIG_COMPAT
@@ -472,8 +472,8 @@ const struct proto_ops phonet_stream_ops = {
 #endif
 	.sendmsg	= pn_socket_sendmsg,
 	.recvmsg	= sock_common_recvmsg,
-	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
+	.mmap		= sock_yes_mmap,
+	.sendpage	= sock_yes_sendpage,
 };
 EXPORT_SYMBOL(phonet_stream_ops);
 
@@ -531,15 +531,15 @@ static struct sock *pn_sock_get_idx(struct seq_file *seq, loff_t pos)
 {
 	struct net *net = seq_file_net(seq);
 	struct hlist_head *hlist = pnsocks.hlist;
-	struct sock *sknode;
+	struct sock *skyesde;
 	unsigned int h;
 
 	for (h = 0; h < PN_HASHSIZE; h++) {
-		sk_for_each_rcu(sknode, hlist) {
-			if (!net_eq(net, sock_net(sknode)))
+		sk_for_each_rcu(skyesde, hlist) {
+			if (!net_eq(net, sock_net(skyesde)))
 				continue;
 			if (!pos)
-				return sknode;
+				return skyesde;
 			pos--;
 		}
 		hlist++;
@@ -588,7 +588,7 @@ static int pn_sock_seq_show(struct seq_file *seq, void *v)
 	seq_setwidth(seq, 127);
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "pt  loc  rem rs st tx_queue rx_queue "
-			"  uid inode ref pointer drops");
+			"  uid iyesde ref pointer drops");
 	else {
 		struct sock *sk = v;
 		struct pn_sock *pn = pn_sk(sk);
@@ -599,7 +599,7 @@ static int pn_sock_seq_show(struct seq_file *seq, void *v)
 			pn->resource, sk->sk_state,
 			sk_wmem_alloc_get(sk), sk_rmem_alloc_get(sk),
 			from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
-			sock_i_ino(sk),
+			sock_i_iyes(sk),
 			refcount_read(&sk->sk_refcnt), sk,
 			atomic_read(&sk->sk_drops));
 	}
@@ -762,7 +762,7 @@ static int pn_res_seq_show(struct seq_file *seq, void *v)
 {
 	seq_setwidth(seq, 63);
 	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, "rs   uid inode");
+		seq_puts(seq, "rs   uid iyesde");
 	else {
 		struct sock **psk = v;
 		struct sock *sk = *psk;
@@ -770,7 +770,7 @@ static int pn_res_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "%02X %5u %lu",
 			   (int) (psk - pnres.sk),
 			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
-			   sock_i_ino(sk));
+			   sock_i_iyes(sk));
 	}
 	seq_pad(seq, '\n');
 	return 0;

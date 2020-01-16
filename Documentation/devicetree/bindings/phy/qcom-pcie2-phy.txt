@@ -1,7 +1,7 @@
 Qualcomm PCIe2 PHY controller
 =============================
 
-The Qualcomm PCIe2 PHY is a Synopsys based phy found in a number of Qualcomm
+The Qualcomm PCIe2 PHY is a Syyespsys based phy found in a number of Qualcomm
 platforms.
 
 Required properties:

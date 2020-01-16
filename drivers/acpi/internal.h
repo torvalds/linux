@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * acpi/internal.h
- * For use by Linux/ACPI infrastructure, not drivers
+ * For use by Linux/ACPI infrastructure, yest drivers
  *
  * Copyright (c) 2009, Intel Corporation.
  */
@@ -45,12 +45,12 @@ static inline int acpi_ioapic_remove(struct acpi_pci_root *root) { return 0; }
 #ifdef CONFIG_ACPI_DOCK
 void register_dock_dependent_device(struct acpi_device *adev,
 				    acpi_handle dshandle);
-int dock_notify(struct acpi_device *adev, u32 event);
+int dock_yestify(struct acpi_device *adev, u32 event);
 void acpi_dock_add(struct acpi_device *adev);
 #else
 static inline void register_dock_dependent_device(struct acpi_device *adev,
 						  acpi_handle dshandle) {}
-static inline int dock_notify(struct acpi_device *adev, u32 event) { return -ENODEV; }
+static inline int dock_yestify(struct acpi_device *adev, u32 event) { return -ENODEV; }
 static inline void acpi_dock_add(struct acpi_device *adev) {}
 #endif
 #ifdef CONFIG_X86
@@ -98,8 +98,8 @@ extern struct list_head acpi_bus_id_list;
 
 struct acpi_device_bus_id {
 	char bus_id[15];
-	unsigned int instance_no;
-	struct list_head node;
+	unsigned int instance_yes;
+	struct list_head yesde;
 };
 
 int acpi_device_add(struct acpi_device *device,
@@ -112,7 +112,7 @@ void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
 bool acpi_device_is_present(const struct acpi_device *adev);
 bool acpi_device_is_battery(struct acpi_device *adev);
-bool acpi_device_is_first_physical_node(struct acpi_device *adev,
+bool acpi_device_is_first_physical_yesde(struct acpi_device *adev,
 					const struct device *dev);
 int acpi_bus_register_early_device(int type);
 

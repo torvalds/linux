@@ -7,7 +7,7 @@
  *	in0:	address of target page
  *	in1:	address of source page
  * Output:
- *	no return value
+ *	yes return value
  *
  * Copyright (C) 1999, 2001 Hewlett-Packard Co
  *	Stephane Eranian <eranian@hpl.hp.com>

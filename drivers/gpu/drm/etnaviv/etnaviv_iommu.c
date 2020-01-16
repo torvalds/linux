@@ -128,7 +128,7 @@ etnaviv_iommuv1_context_alloc(struct etnaviv_iommu_global *global)
 	mutex_lock(&global->lock);
 
 	/*
-	 * MMUv1 does not support switching between different contexts without
+	 * MMUv1 does yest support switching between different contexts without
 	 * a stop the world operation, so we only support a single shared
 	 * context with this version.
 	 */

@@ -12,7 +12,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/fb.h>
 #include <linux/init.h>
@@ -55,7 +55,7 @@ struct gbefb_par {
  *  size
  */
 #if CONFIG_FB_GBE_MEM > 8
-#error GBE Framebuffer cannot use more than 8MB of memory
+#error GBE Framebuffer canyest use more than 8MB of memory
 #endif
 
 #define TILE_SHIFT 16
@@ -97,7 +97,7 @@ static struct fb_var_screeninfo default_var_CRT = {
 	.green		= { 0, 8, 0 },
 	.blue		= { 0, 8, 0 },
 	.transp		= { 0, 0, 0 },
-	.nonstd		= 0,
+	.yesnstd		= 0,
 	.activate	= 0,
 	.height		= -1,
 	.width		= -1,
@@ -128,7 +128,7 @@ static struct fb_var_screeninfo default_var_LCD = {
 	.green		= { 0, 8, 0 },
 	.blue		= { 0, 8, 0 },
 	.transp		= { 0, 0, 0 },
-	.nonstd		= 0,
+	.yesnstd		= 0,
 	.activate	= 0,
 	.height		= -1,
 	.width		= -1,
@@ -312,7 +312,7 @@ static void gbe_turn_on(void)
 	unsigned int val, i;
 
 	/*
-	 * Check if pixel counter is off, for unknown reason this
+	 * Check if pixel counter is off, for unkyeswn reason this
 	 * code hangs Visual Workstations
 	 */
 	if (gbe_revision < 2) {
@@ -388,7 +388,7 @@ static void gbe_loadcmap(void)
  */
 static int gbefb_blank(int blank, struct fb_info *info)
 {
-	/* 0 unblank, 1 blank, 2 no vsync, 3 no hsync, 4 off */
+	/* 0 unblank, 1 blank, 2 yes vsync, 3 yes hsync, 4 off */
 	switch (blank) {
 	case FB_BLANK_UNBLANK:		/* unblank */
 		gbe_turn_on();
@@ -539,7 +539,7 @@ static void gbe_set_timing_info(struct gbe_timing_info *timing)
 	SET_GBE_FIELD(DOTCLK, M, val, timing->pll_m - 1);
 	SET_GBE_FIELD(DOTCLK, N, val, timing->pll_n - 1);
 	SET_GBE_FIELD(DOTCLK, P, val, timing->pll_p);
-	SET_GBE_FIELD(DOTCLK, RUN, val, 0);	/* do not start yet */
+	SET_GBE_FIELD(DOTCLK, RUN, val, 0);	/* do yest start yet */
 	gbe->dotclock = val;
 	mdelay(10);
 
@@ -709,7 +709,7 @@ static int gbefb_set_par(struct fb_info *info)
 	   32 offscreen
 
 	   Tiles have the advantage that they can be allocated individually in
-	   memory. However, this mapping is not linear at all, which is not
+	   memory. However, this mapping is yest linear at all, which is yest
 	   really convenient. In order to support linear addressing, the GBE
 	   DMA hardware is fooled into thinking the screen is only one tile
 	   large and but has a greater height, so that the DMA transfer covers
@@ -733,7 +733,7 @@ static int gbefb_set_par(struct fb_info *info)
 
 	   Here is what would happen at 640x480 8bit:
 
-	   normal tiling               linear
+	   yesrmal tiling               linear
 	   ^   11111111111111112222    11111111111111111111  ^
 	   128 11111111111111112222    11111111111111111111 102 lines
 	       11111111111111112222    11111111111111111111  v
@@ -742,10 +742,10 @@ static int gbefb_set_par(struct fb_info *info)
 	       33333333333333334444    22222222222222222222
 	       <      512     >        <  256 >               102*640+256 = 64k
 
-	   NOTE: The only mode for which this is not working is 800x600 8bit,
-	   as 800*600/512 = 937.5 which is not integer and thus causes
+	   NOTE: The only mode for which this is yest working is 800x600 8bit,
+	   as 800*600/512 = 937.5 which is yest integer and thus causes
 	   flickering.
-	   I guess this is not so important as one can use 640x480 8bit or
+	   I guess this is yest so important as one can use 640x480 8bit or
 	   800x600 16bit anyway.
 	 */
 
@@ -755,7 +755,7 @@ static int gbefb_set_par(struct fb_info *info)
 	/*               ...                */
 	val = 0;
 	SET_GBE_FIELD(FRM_CONTROL, FRM_TILE_PTR, val, gbe_tiles.dma >> 9);
-	SET_GBE_FIELD(FRM_CONTROL, FRM_DMA_ENABLE, val, 0); /* do not start */
+	SET_GBE_FIELD(FRM_CONTROL, FRM_DMA_ENABLE, val, 0); /* do yest start */
 	SET_GBE_FIELD(FRM_CONTROL, FRM_LINEAR, val, 0);
 	gbe->frm_control = val;
 
@@ -844,23 +844,23 @@ static void gbefb_encode_fix(struct fb_fix_screeninfo *fix,
 /*
  *  Set a single color register. The values supplied are already
  *  rounded down to the hardware's capabilities (according to the
- *  entries in the var structure). Return != 0 for invalid regno.
+ *  entries in the var structure). Return != 0 for invalid regyes.
  */
 
-static int gbefb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int gbefb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			     unsigned blue, unsigned transp,
 			     struct fb_info *info)
 {
 	int i;
 
-	if (regno > 255)
+	if (regyes > 255)
 		return 1;
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
 
 	if (info->var.bits_per_pixel <= 8) {
-		gbe_cmap[regno] = (red << 24) | (green << 16) | (blue << 8);
+		gbe_cmap[regyes] = (red << 24) | (green << 16) | (blue << 8);
 		if (gbe_turned_on) {
 			/* wait for the color map FIFO to have a free entry */
 			for (i = 0; i < 1000 && gbe->cm_fifo >= 63; i++)
@@ -869,22 +869,22 @@ static int gbefb_setcolreg(unsigned regno, unsigned red, unsigned green,
 				printk(KERN_ERR "gbefb: cmap FIFO timeout\n");
 				return 1;
 			}
-			gbe->cmap[regno] = gbe_cmap[regno];
+			gbe->cmap[regyes] = gbe_cmap[regyes];
 		}
-	} else if (regno < 16) {
+	} else if (regyes < 16) {
 		switch (info->var.bits_per_pixel) {
 		case 15:
 		case 16:
 			red >>= 3;
 			green >>= 3;
 			blue >>= 3;
-			pseudo_palette[regno] =
+			pseudo_palette[regyes] =
 				(red << info->var.red.offset) |
 				(green << info->var.green.offset) |
 				(blue << info->var.blue.offset);
 			break;
 		case 32:
-			pseudo_palette[regno] =
+			pseudo_palette[regyes] =
 				(red << info->var.red.offset) |
 				(green << info->var.green.offset) |
 				(blue << info->var.blue.offset);
@@ -919,7 +919,7 @@ static int gbefb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	if ((var->xres * var->yres * var->bits_per_pixel) & 4095)
 		return -EINVAL;
 
-	var->grayscale = 0;	/* No grayscale for now */
+	var->grayscale = 0;	/* No grayscale for yesw */
 
 	ret = compute_gbe_timing(var, &timing);
 	var->pixclock = ret;
@@ -938,7 +938,7 @@ static int gbefb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->yoffset = info->var.yoffset;
 	}
 
-	/* No grayscale for now */
+	/* No grayscale for yesw */
 	var->grayscale = 0;
 
 	/* Memory limit */
@@ -1011,7 +1011,7 @@ static int gbefb_mmap(struct fb_info *info,
 		return -EINVAL;
 
 	/* remap using the fastest write-through mode on architecture */
-	/* try not polluting the cache when possible */
+	/* try yest polluting the cache when possible */
 #ifdef CONFIG_MIPS
 	pgprot_val(vma->vm_page_prot) =
 		pgprot_fb(pgprot_val(vma->vm_page_prot));

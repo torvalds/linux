@@ -41,7 +41,7 @@ struct microread_i2c_phy {
 
 	int hard_fault;		/*
 				 * < 0 if hardware error occured (e.g. i2c err)
-				 * and prevents normal operation.
+				 * and prevents yesrmal operation.
 				 */
 };
 
@@ -145,7 +145,7 @@ static int microread_i2c_read(struct microread_i2c_phy *phy,
 
 	r = i2c_master_recv(client, &len, 1);
 	if (r != 1) {
-		nfc_err(&client->dev, "cannot read len byte\n");
+		nfc_err(&client->dev, "canyest read len byte\n");
 		return -EREMOTEIO;
 	}
 

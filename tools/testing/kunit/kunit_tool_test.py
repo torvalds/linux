@@ -59,7 +59,7 @@ class KconfigTest(unittest.TestCase):
 		expected_kconfig.add_entry(
 			kunit_config.KconfigEntry('CONFIG_EXAMPLE_TEST=y'))
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('# CONFIG_MK8 is not set'))
+			kunit_config.KconfigEntry('# CONFIG_MK8 is yest set'))
 
 		self.assertEqual(kconfig.entries(), expected_kconfig.entries())
 
@@ -76,7 +76,7 @@ class KconfigTest(unittest.TestCase):
 		expected_kconfig.add_entry(
 			kunit_config.KconfigEntry('CONFIG_EXAMPLE_TEST=y'))
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('# CONFIG_MK8 is not set'))
+			kunit_config.KconfigEntry('# CONFIG_MK8 is yest set'))
 
 		expected_kconfig.write_to_file(kconfig_path)
 
@@ -93,7 +93,7 @@ class KUnitParserTest(unittest.TestCase):
 			if needle in line:
 				return
 		raise AssertionError('"' +
-			str(needle) + '" not found in "' + str(haystack) + '"!')
+			str(needle) + '" yest found in "' + str(haystack) + '"!')
 
 	def test_output_isolated_correctly(self):
 		log_path = get_absolute_path(
@@ -128,9 +128,9 @@ class KUnitParserTest(unittest.TestCase):
 			result.status)
 		file.close()
 
-	def test_no_tests(self):
+	def test_yes_tests(self):
 		empty_log = get_absolute_path(
-			'test_data/test_is_test_passed-no_tests_run.log')
+			'test_data/test_is_test_passed-yes_tests_run.log')
 		file = open(empty_log)
 		result = kunit_parser.parse_run_tests(
 			kunit_parser.isolate_kunit_output(file.readlines()))

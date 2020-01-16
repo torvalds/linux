@@ -6,7 +6,7 @@
  *
  * There are numerous real drivers to illustrate the finer points.
  * The purpose of this driver is to provide a driver with far more comments
- * and explanatory notes than any 'real' driver would have.
+ * and explanatory yestes than any 'real' driver would have.
  * Anyone starting out writing an IIO driver should first make sure they
  * understand all of this driver except those bits specifically marked
  * as being present to allow us to 'fake' the presence of hardware.
@@ -104,7 +104,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.info_mask_separate =
 		/*
 		 * in_voltage0_raw
-		 * Raw (unscaled no bias removal etc) measurement
+		 * Raw (unscaled yes bias removal etc) measurement
 		 * from the device.
 		 */
 		BIT(IIO_CHAN_INFO_RAW) |
@@ -151,7 +151,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.channel2 = 2,
 		/*
 		 * in_voltage1-voltage2_raw
-		 * Raw (unscaled no bias removal etc) measurement
+		 * Raw (unscaled yes bias removal etc) measurement
 		 * from the device.
 		 */
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
@@ -436,7 +436,7 @@ static int iio_dummy_write_raw(struct iio_dev *indio_dev,
 			if (chan->output == 0)
 				return -EINVAL;
 
-			/* Locking not required as writing single value */
+			/* Locking yest required as writing single value */
 			mutex_lock(&st->lock);
 			st->dac_val = val;
 			mutex_unlock(&st->lock);
@@ -531,7 +531,7 @@ static const struct iio_info iio_dummy_info = {
  * @indio_dev: the iio device structure
  *
  * Most drivers have one of these to set up default values,
- * reset the device to known state etc.
+ * reset the device to kyeswn state etc.
  */
 static int iio_dummy_init_device(struct iio_dev *indio_dev)
 {
@@ -690,7 +690,7 @@ static int iio_dummy_remove(struct iio_sw_device *swd)
 /**
  * module_iio_sw_device_driver() -  device driver registration
  *
- * Varies depending on bus type of the device. As there is no device
+ * Varies depending on bus type of the device. As there is yes device
  * here, call probe directly. For information on device registration
  * i2c:
  * Documentation/i2c/writing-clients.rst

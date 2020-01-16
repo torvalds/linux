@@ -25,7 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/memblock.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -114,7 +114,7 @@ static struct brcmstb_pm_control ctrl;
 static int (*brcmstb_pm_do_s2_sram)(void __iomem *aon_ctrl_base,
 		void __iomem *ddr_phy_pll_status);
 
-static int brcmstb_init_sram(struct device_node *dn)
+static int brcmstb_init_sram(struct device_yesde *dn)
 {
 	void __iomem *sram;
 	struct resource res;
@@ -356,7 +356,7 @@ static void *brcmstb_pm_copy_to_sram(void *fn, size_t len)
 	unsigned int size = ALIGN(len, FNCPY_ALIGN);
 
 	if (ctrl.boot_sram_len < size) {
-		pr_err("standby code will not fit in SRAM\n");
+		pr_err("standby code will yest fit in SRAM\n");
 		return NULL;
 	}
 
@@ -389,10 +389,10 @@ static int brcmstb_pm_s2(void)
 
 /*
  * This function is called on a new stack, so don't allow inlining (which will
- * generate stack references on the old stack). It cannot be made static because
+ * generate stack references on the old stack). It canyest be made static because
  * it is referenced from brcmstb_pm_s3()
  */
-noinline int brcmstb_pm_s3_finish(void)
+yesinline int brcmstb_pm_s3_finish(void)
 {
 	struct brcmstb_s3_params *params = ctrl.s3_params;
 	dma_addr_t params_pa = ctrl.s3_params_pa;
@@ -401,8 +401,8 @@ noinline int brcmstb_pm_s3_finish(void)
 	u32 flags;
 
 	/*
-	 * Clear parameter structure, but not DTU area, which has already been
-	 * filled in. We know DTU is a the end, so we can just subtract its
+	 * Clear parameter structure, but yest DTU area, which has already been
+	 * filled in. We kyesw DTU is a the end, so we can just subtract its
 	 * size.
 	 */
 	memset(params, 0, sizeof(*params) - sizeof(params->dtu));
@@ -649,10 +649,10 @@ static const struct of_device_id brcmstb_memc_of_match[] = {
 static void __iomem *brcmstb_ioremap_match(const struct of_device_id *matches,
 					   int index, const void **ofdata)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	const struct of_device_id *match;
 
-	dn = of_find_matching_node_and_match(NULL, matches, &match);
+	dn = of_find_matching_yesde_and_match(NULL, matches, &match);
 	if (!dn)
 		return ERR_PTR(-EINVAL);
 
@@ -662,7 +662,7 @@ static void __iomem *brcmstb_ioremap_match(const struct of_device_id *matches,
 	return of_io_request_and_map(dn, index, dn->full_name);
 }
 
-static int brcmstb_pm_panic_notify(struct notifier_block *nb,
+static int brcmstb_pm_panic_yestify(struct yestifier_block *nb,
 		unsigned long action, void *data)
 {
 	writel_relaxed(BRCMSTB_PANIC_MAGIC, ctrl.aon_sram + AON_REG_PANIC);
@@ -670,8 +670,8 @@ static int brcmstb_pm_panic_notify(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block brcmstb_pm_panic_nb = {
-	.notifier_call = brcmstb_pm_panic_notify,
+static struct yestifier_block brcmstb_pm_panic_nb = {
+	.yestifier_call = brcmstb_pm_panic_yestify,
 };
 
 static int brcmstb_pm_probe(struct platform_device *pdev)
@@ -679,7 +679,7 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 	const struct ddr_phy_ofdata *ddr_phy_data;
 	const struct ddr_seq_ofdata *ddr_seq_data;
 	const struct of_device_id *of_id = NULL;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	void __iomem *base;
 	int ret, i;
 
@@ -712,7 +712,7 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 	}
 	ctrl.support_warm_boot = ddr_phy_data->supports_warm_boot;
 	ctrl.pll_status_offset = ddr_phy_data->pll_status_offset;
-	/* Only need DDR PHY 0 for now? */
+	/* Only need DDR PHY 0 for yesw? */
 	ctrl.memcs[0].ddr_phy_base = base;
 	ctrl.s3entry_method = ddr_phy_data->s3entry_method;
 	ctrl.phy_a_standby_ctrl_offs = ddr_phy_data->phy_a_standby_ctrl_offs;
@@ -725,7 +725,7 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 	ctrl.warm_boot_offset = ddr_phy_data->warm_boot_offset;
 
 	/* DDR SHIM-PHY registers */
-	for_each_matching_node(dn, ddr_shimphy_dt_ids) {
+	for_each_matching_yesde(dn, ddr_shimphy_dt_ids) {
 		i = ctrl.num_memc;
 		if (i >= MAX_NUM_MEMC) {
 			pr_warn("too many MEMCs (max %d)\n", MAX_NUM_MEMC);
@@ -746,14 +746,14 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 
 	/* Sequencer DRAM Param and Control Registers */
 	i = 0;
-	for_each_matching_node(dn, brcmstb_memc_of_match) {
+	for_each_matching_yesde(dn, brcmstb_memc_of_match) {
 		base = of_iomap(dn, 0);
 		if (!base) {
 			pr_err("error mapping DDR Sequencer %d\n", i);
 			return -ENOMEM;
 		}
 
-		of_id = of_match_node(brcmstb_memc_of_match, dn);
+		of_id = of_match_yesde(brcmstb_memc_of_match, dn);
 		if (!of_id) {
 			iounmap(base);
 			return -EINVAL;
@@ -773,9 +773,9 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 		ctrl.support_warm_boot, ctrl.s3entry_method,
 		ctrl.warm_boot_offset);
 
-	dn = of_find_matching_node(NULL, sram_dt_ids);
+	dn = of_find_matching_yesde(NULL, sram_dt_ids);
 	if (!dn) {
-		pr_err("SRAM not found\n");
+		pr_err("SRAM yest found\n");
 		return -EINVAL;
 	}
 
@@ -799,7 +799,7 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_yestifier_chain_register(&panic_yestifier_list,
 				       &brcmstb_pm_panic_nb);
 
 	pm_power_off = brcmstb_pm_poweroff;

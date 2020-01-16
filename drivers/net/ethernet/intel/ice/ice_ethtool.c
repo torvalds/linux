@@ -54,7 +54,7 @@ static const struct ice_stats ice_gstrings_vsi_stats[] = {
 	ICE_VSI_STAT("rx_bytes", eth_stats.rx_bytes),
 	ICE_VSI_STAT("tx_bytes", eth_stats.tx_bytes),
 	ICE_VSI_STAT("rx_dropped", eth_stats.rx_discards),
-	ICE_VSI_STAT("rx_unknown_protocol", eth_stats.rx_unknown_protocol),
+	ICE_VSI_STAT("rx_unkyeswn_protocol", eth_stats.rx_unkyeswn_protocol),
 	ICE_VSI_STAT("rx_alloc_fail", rx_buf_failed),
 	ICE_VSI_STAT("rx_pg_alloc_fail", rx_page_failed),
 	ICE_VSI_STAT("tx_errors", eth_stats.tx_errors),
@@ -145,12 +145,12 @@ static const u32 ice_regs_dump_list[] = {
 
 struct ice_priv_flag {
 	char name[ETH_GSTRING_LEN];
-	u32 bitno;			/* bit position in pf->flags */
+	u32 bityes;			/* bit position in pf->flags */
 };
 
-#define ICE_PRIV_FLAG(_name, _bitno) { \
+#define ICE_PRIV_FLAG(_name, _bityes) { \
 	.name = _name, \
-	.bitno = _bitno, \
+	.bityes = _bityes, \
 }
 
 static const struct ice_priv_flag ice_gstrings_priv_flags[] = {
@@ -297,7 +297,7 @@ static bool ice_active_vfs(struct ice_pf *pf)
  * @netdev: network interface device structure
  *
  * This function performs one of the self-tests required by ethtool.
- * Returns 0 on success, non-zero on failure.
+ * Returns 0 on success, yesn-zero on failure.
  */
 static u64 ice_link_test(struct net_device *netdev)
 {
@@ -323,7 +323,7 @@ static u64 ice_link_test(struct net_device *netdev)
  * @netdev: network interface device structure
  *
  * This function performs one of the self-tests required by ethtool.
- * Returns 0 on success, non-zero on failure.
+ * Returns 0 on success, yesn-zero on failure.
  */
 static u64 ice_eeprom_test(struct net_device *netdev)
 {
@@ -382,7 +382,7 @@ static int ice_reg_pattern_test(struct ice_hw *hw, u32 reg, u32 mask)
  * @netdev: network interface device structure
  *
  * This function performs one of the self-tests required by ethtool.
- * Returns 0 on success, non-zero on failure.
+ * Returns 0 on success, yesn-zero on failure.
  */
 static u64 ice_reg_test(struct net_device *netdev)
 {
@@ -415,7 +415,7 @@ static u64 ice_reg_test(struct net_device *netdev)
 			u32 reg = ice_reg_list[i].address +
 				(j * ice_reg_list[i].elem_size);
 
-			/* bail on failure (non-zero return) */
+			/* bail on failure (yesn-zero return) */
 			if (ice_reg_pattern_test(hw, reg, mask))
 				return 1;
 		}
@@ -499,7 +499,7 @@ static int ice_lbtest_disable_rings(struct ice_vsi *vsi)
  * @size: size of the packet data
  *
  * Function allocates a frame with a test pattern on specific offsets.
- * Returns 0 on success, non-zero on failure.
+ * Returns 0 on success, yesn-zero on failure.
  */
 static int ice_lbtest_create_frame(struct ice_pf *pf, u8 **ret_data, u16 size)
 {
@@ -581,7 +581,7 @@ static int ice_diag_send(struct ice_ring *tx_ring, u8 *data, u16 size)
 
 	tx_buf->next_to_watch = tx_desc;
 
-	/* Force memory write to complete before letting h/w know
+	/* Force memory write to complete before letting h/w kyesw
 	 * there are new descriptors to fetch.
 	 */
 	wmb();
@@ -639,7 +639,7 @@ static int ice_lbtest_receive_frames(struct ice_ring *rx_ring)
  * @netdev: network interface device structure
  *
  * This function performs one of the self-tests required by ethtool.
- * Returns 0 on success, non-zero on failure.
+ * Returns 0 on success, yesn-zero on failure.
  */
 static u64 ice_loopback_test(struct net_device *netdev)
 {
@@ -718,16 +718,16 @@ lbtest_free_frame:
 	devm_kfree(dev, tx_frame);
 remove_mac_filters:
 	if (ice_remove_mac(&pf->hw, &tmp_list))
-		netdev_err(netdev, "Could not remove MAC filter for the test VSI");
+		netdev_err(netdev, "Could yest remove MAC filter for the test VSI");
 free_mac_list:
 	ice_free_fltr_list(dev, &tmp_list);
 lbtest_mac_dis:
 	/* Disable MAC loopback after the test is completed. */
 	if (ice_aq_set_mac_loopback(&pf->hw, false, NULL))
-		netdev_err(netdev, "Could not disable MAC loopback\n");
+		netdev_err(netdev, "Could yest disable MAC loopback\n");
 lbtest_rings_dis:
 	if (ice_lbtest_disable_rings(test_vsi))
-		netdev_err(netdev, "Could not disable test rings\n");
+		netdev_err(netdev, "Could yest disable test rings\n");
 lbtest_vsi_close:
 	test_vsi->netdev = NULL;
 	if (ice_vsi_release(test_vsi))
@@ -741,7 +741,7 @@ lbtest_vsi_close:
  * @netdev: network interface device structure
  *
  * This function performs one of the self-tests required by ethtool.
- * Returns 0 on success, non-zero on failure.
+ * Returns 0 on success, yesn-zero on failure.
  */
 static u64 ice_intr_test(struct net_device *netdev)
 {
@@ -788,7 +788,7 @@ ice_self_test(struct net_device *netdev, struct ethtool_test *eth_test,
 
 		if (ice_active_vfs(pf)) {
 			dev_warn(dev,
-				 "Please take active VFs and Netqueues offline and restart the adapter before running NIC diagnostics\n");
+				 "Please take active VFs and Netqueues offline and restart the adapter before running NIC diagyesstics\n");
 			data[ICE_ETH_TEST_REG] = 1;
 			data[ICE_ETH_TEST_EEPROM] = 1;
 			data[ICE_ETH_TEST_INTR] = 1;
@@ -822,7 +822,7 @@ ice_self_test(struct net_device *netdev, struct ethtool_test *eth_test,
 			int status = ice_open(netdev);
 
 			if (status) {
-				dev_err(dev, "Could not open device %s, err %d",
+				dev_err(dev, "Could yest open device %s, err %d",
 					pf->int_name, status);
 			}
 		}
@@ -834,7 +834,7 @@ ice_self_test(struct net_device *netdev, struct ethtool_test *eth_test,
 		if (data[ICE_ETH_TEST_LINK])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		/* Offline only tests, not run in online; pass by default */
+		/* Offline only tests, yest run in online; pass by default */
 		data[ICE_ETH_TEST_REG] = 0;
 		data[ICE_ETH_TEST_EEPROM] = 0;
 		data[ICE_ETH_TEST_INTR] = 0;
@@ -960,7 +960,7 @@ static int ice_set_fec_cfg(struct net_device *netdev, enum ice_fec_mode req_fec)
 	if (!pi)
 		return -EOPNOTSUPP;
 
-	/* Changing the FEC parameters is not supported if not the PF VSI */
+	/* Changing the FEC parameters is yest supported if yest the PF VSI */
 	if (vsi->type != ICE_VSI_PF) {
 		netdev_info(netdev, "Changing FEC parameters only supported for PF VSI\n");
 		return -EOPNOTSUPP;
@@ -1141,7 +1141,7 @@ static u32 ice_get_priv_flags(struct net_device *netdev)
 
 		priv_flag = &ice_gstrings_priv_flags[i];
 
-		if (test_bit(priv_flag->bitno, pf->flags))
+		if (test_bit(priv_flag->bityes, pf->flags))
 			ret_flags |= BIT(i);
 	}
 
@@ -1177,9 +1177,9 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 		priv_flag = &ice_gstrings_priv_flags[i];
 
 		if (flags & BIT(i))
-			set_bit(priv_flag->bitno, pf->flags);
+			set_bit(priv_flag->bityes, pf->flags);
 		else
-			clear_bit(priv_flag->bitno, pf->flags);
+			clear_bit(priv_flag->bityes, pf->flags);
 	}
 
 	bitmap_xor(change_flags, pf->flags, orig_flags, ICE_PF_FLAGS_NBITS);
@@ -1192,7 +1192,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			status = ice_cfg_lldp_mib_change(&pf->hw, false);
 
 			/* If unregistering for LLDP events fails, this is
-			 * not an error state, as there shouldn't be any
+			 * yest an error state, as there shouldn't be any
 			 * events to respond to.
 			 */
 			if (status)
@@ -1206,8 +1206,8 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			if (status)
 				dev_warn(dev, "Fail to stop LLDP agent\n");
 			/* Use case for having the FW LLDP agent stopped
-			 * will likely not need DCB, so failure to init is
-			 * not a concern of ethtool
+			 * will likely yest need DCB, so failure to init is
+			 * yest a concern of ethtool
 			 */
 			status = ice_init_pf_dcb(pf, true);
 			if (status)
@@ -1235,9 +1235,9 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			dev_info(dev, "FW DCBX agent is %s\n",
 				 dcbx_agent_status ? "ACTIVE" : "DISABLED");
 
-			/* Failure to configure MIB change or init DCB is not
-			 * relevant to ethtool.  Print notification that
-			 * registration/init failed but do not return error
+			/* Failure to configure MIB change or init DCB is yest
+			 * relevant to ethtool.  Print yestification that
+			 * registration/init failed but do yest return error
 			 * state to ethtool
 			 */
 			status = ice_init_pf_dcb(pf, true);
@@ -1245,7 +1245,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 				dev_dbg(dev, "Fail to init DCB\n");
 
 			/* Remove rule to direct LLDP packets to default VSI.
-			 * The FW LLDP engine will now be consuming them.
+			 * The FW LLDP engine will yesw be consuming them.
 			 */
 			ice_cfg_sw_lldp(vsi, false, false);
 
@@ -1270,7 +1270,7 @@ static int ice_get_sset_count(struct net_device *netdev, int sset)
 	switch (sset) {
 	case ETH_SS_STATS:
 		/* The number (and order) of strings reported *must* remain
-		 * constant for a given netdevice. This function must not
+		 * constant for a given netdevice. This function must yest
 		 * report a different number based on run time parameters
 		 * (such as the number of queues in use, or the setting of
 		 * a private ethtool flag). This is due to the nature of the
@@ -1285,7 +1285,7 @@ static int ice_get_sset_count(struct net_device *netdev, int sset)
 		 *
 		 * Even if it appears to be safe, changes to the size or
 		 * order of strings will suffer from race conditions and are
-		 * not safe.
+		 * yest safe.
 		 */
 		return ICE_ALL_STATS_LEN(netdev);
 	case ETH_SS_TEST:
@@ -2075,7 +2075,7 @@ ice_get_settings_link_down(struct ethtool_link_ksettings *ks,
 	 */
 	ice_phy_type_to_ethtool(netdev, ks);
 
-	/* With no link, speed and duplex are unknown */
+	/* With yes link, speed and duplex are unkyeswn */
 	ks->base.speed = SPEED_UNKNOWN;
 	ks->base.duplex = DUPLEX_UNKNOWN;
 }
@@ -2288,7 +2288,7 @@ ice_ksettings_find_adv_link_speed(const struct ethtool_link_ksettings *ks)
  * @p: port info
  * @ks: ethtool_link_ksettings
  * @config: configuration that will be sent down to FW
- * @autoneg_enabled: autonegotiation is enabled or not
+ * @autoneg_enabled: autonegotiation is enabled or yest
  * @autoneg_changed: will there a change in autonegotiation
  * @netdev: network interface device structure
  *
@@ -2306,13 +2306,13 @@ ice_setup_autoneg(struct ice_port_info *p, struct ethtool_link_ksettings *ks,
 
 	/* Check autoneg */
 	if (autoneg_enabled == AUTONEG_ENABLE) {
-		/* If autoneg was not already enabled */
+		/* If autoneg was yest already enabled */
 		if (!(p->phy.link_info.an_info & ICE_AQ_AN_COMPLETED)) {
-			/* If autoneg is not supported, return error */
+			/* If autoneg is yest supported, return error */
 			if (!ethtool_link_ksettings_test_link_mode(ks,
 								   supported,
 								   Autoneg)) {
-				netdev_info(netdev, "Autoneg not supported on this phy.\n");
+				netdev_info(netdev, "Autoneg yest supported on this phy.\n");
 				err = -EINVAL;
 			} else {
 				/* Autoneg is allowed to change */
@@ -2329,7 +2329,7 @@ ice_setup_autoneg(struct ice_port_info *p, struct ethtool_link_ksettings *ks,
 			if (ethtool_link_ksettings_test_link_mode(ks,
 								  supported,
 								  Autoneg)) {
-				netdev_info(netdev, "Autoneg cannot be disabled on this phy\n");
+				netdev_info(netdev, "Autoneg canyest be disabled on this phy\n");
 				err = -EINVAL;
 			} else {
 				/* Autoneg is allowed to change */
@@ -2419,8 +2419,8 @@ ice_set_link_ksettings(struct net_device *netdev,
 	/* we don't compare the speed */
 	copy_ks.base.speed = safe_ks.base.speed;
 
-	/* If copy_ks.base and safe_ks.base are not the same now, then they are
-	 * trying to set something that we do not support.
+	/* If copy_ks.base and safe_ks.base are yest the same yesw, then they are
+	 * trying to set something that we do yest support.
 	 */
 	if (memcmp(&copy_ks.base, &safe_ks.base, sizeof(copy_ks.base)))
 		return -EOPNOTSUPP;
@@ -2444,7 +2444,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 		goto done;
 	}
 
-	/* Copy abilities to config in case autoneg is not set below */
+	/* Copy abilities to config in case autoneg is yest set below */
 	memset(&config, 0, sizeof(config));
 	config.caps = abilities->caps & ~ICE_AQC_PHY_AN_MODE;
 	if (abilities->caps & ICE_AQC_PHY_AN_MODE)
@@ -2509,7 +2509,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 	/* If link is up put link down */
 	if (p->phy.link_info.link_info & ICE_AQ_LINK_UP) {
 		/* Tell the OS link is going down, the link will go
-		 * back up when fw says it is ready asynchronously
+		 * back up when fw says it is ready asynchroyesusly
 		 */
 		ice_print_link_msg(np->vsi, false);
 		netif_carrier_off(netdev);
@@ -2569,7 +2569,7 @@ ice_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 	ring->rx_pending = vsi->rx_rings[0]->count;
 	ring->tx_pending = vsi->tx_rings[0]->count;
 
-	/* Rx mini and jumbo rings are not supported */
+	/* Rx mini and jumbo rings are yest supported */
 	ring->rx_mini_max_pending = 0;
 	ring->rx_jumbo_max_pending = 0;
 	ring->rx_mini_pending = 0;
@@ -2609,7 +2609,7 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 			    "Requested Rx descriptor count rounded up to %d\n",
 			    new_rx_cnt);
 
-	/* if nothing to do return success */
+	/* if yesthing to do return success */
 	if (new_tx_cnt == vsi->tx_rings[0]->count &&
 	    new_rx_cnt == vsi->rx_rings[0]->count) {
 		netdev_dbg(netdev, "Nothing to change, descriptor count is same as requested\n");
@@ -2618,7 +2618,7 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 
 	/* If there is a AF_XDP UMEM attached to any of Rx rings,
 	 * disallow changing the number of descriptors -- regardless
-	 * if the netdev is running or not.
+	 * if the netdev is running or yest.
 	 */
 	if (ice_xsk_any_rx_ring_ena(vsi))
 		return -EBUSY;
@@ -2908,7 +2908,7 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	dcbx_cfg = &pi->local_dcbx_cfg;
 	link_up = hw_link_info->link_info & ICE_AQ_LINK_UP;
 
-	/* Changing the port's flow control is not supported if this isn't the
+	/* Changing the port's flow control is yest supported if this isn't the
 	 * PF VSI
 	 */
 	if (vsi->type != ICE_VSI_PF) {
@@ -2947,12 +2947,12 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	/* If we have link and don't have autoneg */
 	if (!test_bit(__ICE_DOWN, pf->state) &&
 	    !(hw_link_info->an_info & ICE_AQ_AN_COMPLETED)) {
-		/* Send message that it might not necessarily work*/
-		netdev_info(netdev, "Autoneg did not complete so changing settings may not result in an actual change.\n");
+		/* Send message that it might yest necessarily work*/
+		netdev_info(netdev, "Autoneg did yest complete so changing settings may yest result in an actual change.\n");
 	}
 
 	if (dcbx_cfg->pfc.pfcena) {
-		netdev_info(netdev, "Priority flow control enabled. Cannot set link flow control.\n");
+		netdev_info(netdev, "Priority flow control enabled. Canyest set link flow control.\n");
 		return -EOPNOTSUPP;
 	}
 	if (pause->rx_pause && pause->tx_pause)
@@ -2967,7 +2967,7 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 		return -EINVAL;
 
 	/* Tell the OS link is going down, the link will go back up when fw
-	 * says it is ready asynchronously
+	 * says it is ready asynchroyesusly
 	 */
 	ice_print_link_msg(vsi, false);
 	netif_carrier_off(netdev);
@@ -3054,8 +3054,8 @@ ice_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key, u8 *hfunc)
 		return 0;
 
 	if (!test_bit(ICE_FLAG_RSS_ENA, pf->flags)) {
-		/* RSS not supported return error here */
-		netdev_warn(netdev, "RSS is not configured on this VSI!\n");
+		/* RSS yest supported return error here */
+		netdev_warn(netdev, "RSS is yest configured on this VSI!\n");
 		return -EIO;
 	}
 
@@ -3101,8 +3101,8 @@ ice_set_rxfh(struct net_device *netdev, const u32 *indir, const u8 *key,
 		return -EOPNOTSUPP;
 
 	if (!test_bit(ICE_FLAG_RSS_ENA, pf->flags)) {
-		/* RSS not supported return error here */
-		netdev_warn(netdev, "RSS is not configured on this VSI!\n");
+		/* RSS yest supported return error here */
+		netdev_warn(netdev, "RSS is yest configured on this VSI!\n");
 		return -EIO;
 	}
 
@@ -3252,7 +3252,7 @@ static int ice_vsi_set_dflt_rss_lut(struct ice_vsi *vsi, int req_rss_size)
 	status = ice_aq_set_rss_lut(hw, vsi->idx, vsi->rss_lut_type, lut,
 				    vsi->rss_table_size);
 	if (status) {
-		dev_err(dev, "Cannot set RSS lut, err %d aq_err %d\n",
+		dev_err(dev, "Canyest set RSS lut, err %d aq_err %d\n",
 			status, hw->adminq.rq_last_status);
 		err = -EIO;
 	}
@@ -3274,19 +3274,19 @@ static int ice_set_channels(struct net_device *dev, struct ethtool_channels *ch)
 	int new_rx = 0, new_tx = 0;
 	u32 curr_combined;
 
-	/* do not support changing channels in Safe Mode */
+	/* do yest support changing channels in Safe Mode */
 	if (ice_is_safe_mode(pf)) {
-		netdev_err(dev, "Changing channel in Safe Mode is not supported\n");
+		netdev_err(dev, "Changing channel in Safe Mode is yest supported\n");
 		return -EOPNOTSUPP;
 	}
-	/* do not support changing other_count */
+	/* do yest support changing other_count */
 	if (ch->other_count)
 		return -EINVAL;
 
 	curr_combined = ice_get_combined_cnt(vsi);
 
 	/* these checks are for cases where user didn't specify a particular
-	 * value on cmd line but we get non-zero value anyway via
+	 * value on cmd line but we get yesn-zero value anyway via
 	 * get_channels(); look at ethtool.c in ethtool repository (the user
 	 * space part), particularly, do_schannels() routine
 	 */
@@ -3378,7 +3378,7 @@ ice_get_rc_coalesce(struct ethtool_coalesce *ec, enum ice_container_type c_type,
  *
  * Return 0 on success, and negative under the following conditions:
  * 1. Getting Tx or Rx ITR/INTRL (coalesce) settings failed.
- * 2. The q_num passed in is not a valid number/index for Tx and Rx rings.
+ * 2. The q_num passed in is yest a valid number/index for Tx and Rx rings.
  */
 static int
 ice_get_q_coalesce(struct ice_vsi *vsi, struct ethtool_coalesce *ec, int q_num)
@@ -3493,7 +3493,7 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 	case ICE_TX_CONTAINER:
 		if (ec->tx_coalesce_usecs_high) {
 			netdev_info(vsi->netdev,
-				    "setting %s-usecs-high is not supported\n",
+				    "setting %s-usecs-high is yest supported\n",
 				    c_type_str);
 			return -EINVAL;
 		}
@@ -3511,7 +3511,7 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 	itr_setting = rc->itr_setting & ~ICE_ITR_DYNAMIC;
 	if (coalesce_usecs != itr_setting && use_adaptive_coalesce) {
 		netdev_info(vsi->netdev,
-			    "%s interrupt throttling cannot be changed if adaptive-%s is enabled\n",
+			    "%s interrupt throttling canyest be changed if adaptive-%s is enabled\n",
 			    c_type_str, c_type_str);
 		return -EINVAL;
 	}
@@ -3552,7 +3552,7 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
  *
  * Return 0 on success, and negative under the following conditions:
  * 1. Setting Tx or Rx ITR/INTRL (coalesce) settings failed.
- * 2. The q_num passed in is not a valid number/index for Tx and Rx rings.
+ * 2. The q_num passed in is yest a valid number/index for Tx and Rx rings.
  */
 static int
 ice_set_q_coalesce(struct ice_vsi *vsi, struct ethtool_coalesce *ec, int q_num)
@@ -3718,7 +3718,7 @@ ice_get_module_info(struct net_device *netdev,
 		break;
 	default:
 		netdev_warn(netdev,
-			    "SFF Module Type not recognized.\n");
+			    "SFF Module Type yest recognized.\n");
 		return -EINVAL;
 	}
 	return 0;

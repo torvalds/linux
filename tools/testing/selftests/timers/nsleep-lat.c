@@ -1,4 +1,4 @@
-/* Measure nanosleep timer latency
+/* Measure nayessleep timer latency
  *              by: john stultz (john.stultz@linaro.org)
  *		(C) Copyright Linaro 2013
  *              Licensed under the GPLv2
@@ -28,7 +28,7 @@
 
 #define NSEC_PER_SEC 1000000000ULL
 
-#define UNRESONABLE_LATENCY 40000000 /* 40ms in nanosecs */
+#define UNRESONABLE_LATENCY 40000000 /* 40ms in nayessecs */
 
 
 #define CLOCK_REALTIME			0
@@ -95,7 +95,7 @@ long long timespec_sub(struct timespec a, struct timespec b)
 	return ret;
 }
 
-int nanosleep_lat_test(int clockid, long long ns)
+int nayessleep_lat_test(int clockid, long long ns)
 {
 	struct timespec start, end, target;
 	long long latency = 0;
@@ -106,7 +106,7 @@ int nanosleep_lat_test(int clockid, long long ns)
 
 	if (clock_gettime(clockid, &start))
 		return UNSUPPORTED;
-	if (clock_nanosleep(clockid, 0, &target, NULL))
+	if (clock_nayessleep(clockid, 0, &target, NULL))
 		return UNSUPPORTED;
 
 	count = 10;
@@ -114,7 +114,7 @@ int nanosleep_lat_test(int clockid, long long ns)
 	/* First check relative latency */
 	clock_gettime(clockid, &start);
 	for (i = 0; i < count; i++)
-		clock_nanosleep(clockid, 0, &target, NULL);
+		clock_nayessleep(clockid, 0, &target, NULL);
 	clock_gettime(clockid, &end);
 
 	if (((timespec_sub(start, end)/count)-ns) > UNRESONABLE_LATENCY) {
@@ -126,7 +126,7 @@ int nanosleep_lat_test(int clockid, long long ns)
 	for (i = 0; i < count; i++) {
 		clock_gettime(clockid, &start);
 		target = timespec_add(start, ns);
-		clock_nanosleep(clockid, TIMER_ABSTIME, &target, NULL);
+		clock_nayessleep(clockid, TIMER_ABSTIME, &target, NULL);
 		clock_gettime(clockid, &end);
 		latency += timespec_sub(target, end);
 	}
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
 
 	for (clockid = CLOCK_REALTIME; clockid < NR_CLOCKIDS; clockid++) {
 
-		/* Skip cputime clockids since nanosleep won't increment cputime */
+		/* Skip cputime clockids since nayessleep won't increment cputime */
 		if (clockid == CLOCK_PROCESS_CPUTIME_ID ||
 				clockid == CLOCK_THREAD_CPUTIME_ID ||
 				clockid == CLOCK_HWSPECIFIC)
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
 
 		length = 10;
 		while (length <= (NSEC_PER_SEC * 10)) {
-			ret = nanosleep_lat_test(clockid, length);
+			ret = nayessleep_lat_test(clockid, length);
 			if (ret)
 				break;
 			length *= 100;

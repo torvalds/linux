@@ -25,9 +25,9 @@ struct swap_cgroup {
  * against SwapCache. At swap_free(), this is accessed directly from swap.
  *
  * This means,
- *  - we have no race in "exchange" when we're accessed via SwapCache because
+ *  - we have yes race in "exchange" when we're accessed via SwapCache because
  *    SwapCache(and its swp_entry) is under lock.
- *  - When called via swap_free(), there is no user of this entry and no race.
+ *  - When called via swap_free(), there is yes user of this entry and yes race.
  * Then, we don't need lock around "exchange".
  *
  * TODO: we can push these buffers out to HIGHMEM.
@@ -47,14 +47,14 @@ static int swap_cgroup_prepare(int type)
 	for (idx = 0; idx < ctrl->length; idx++) {
 		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 		if (!page)
-			goto not_enough_page;
+			goto yest_eyesugh_page;
 		ctrl->map[idx] = page;
 
 		if (!(idx % SWAP_CLUSTER_MAX))
 			cond_resched();
 	}
 	return 0;
-not_enough_page:
+yest_eyesugh_page:
 	max = idx;
 	for (idx = 0; idx < max; idx++)
 		__free_page(ctrl->map[idx]);
@@ -92,7 +92,7 @@ static struct swap_cgroup *lookup_swap_cgroup(swp_entry_t ent,
  * @new: new id
  *
  * Returns old id at success, 0 at failure.
- * (There is no mem_cgroup using 0 as its id)
+ * (There is yes mem_cgroup using 0 as its id)
  */
 unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
 					unsigned short old, unsigned short new)
@@ -179,7 +179,7 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
 
 	array = vzalloc(array_size);
 	if (!array)
-		goto nomem;
+		goto yesmem;
 
 	ctrl = &swap_cgroup_ctrl[type];
 	mutex_lock(&swap_cgroup_mutex);
@@ -192,13 +192,13 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
 		ctrl->length = 0;
 		mutex_unlock(&swap_cgroup_mutex);
 		vfree(array);
-		goto nomem;
+		goto yesmem;
 	}
 	mutex_unlock(&swap_cgroup_mutex);
 
 	return 0;
-nomem:
-	pr_info("couldn't allocate enough memory for swap_cgroup\n");
+yesmem:
+	pr_info("couldn't allocate eyesugh memory for swap_cgroup\n");
 	pr_info("swap_cgroup can be disabled by swapaccount=0 boot option\n");
 	return -ENOMEM;
 }

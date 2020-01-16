@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -40,7 +40,7 @@ MODULE_PARM_DESC(bit_test, "lines testing - 0 off; 1 report; 2 fail if stuck");
 static int i2c_debug = 1;
 module_param(i2c_debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(i2c_debug,
-		 "debug level - 0 off; 1 normal; 2 verbose; 3 very verbose");
+		 "debug level - 0 off; 1 yesrmal; 2 verbose; 3 very verbose");
 #endif
 
 /* --- setting states on the bus with the right timing: ---------------	*/
@@ -84,7 +84,7 @@ static int sclhi(struct i2c_algo_bit_data *adap)
 
 	start = jiffies;
 	while (!getscl(adap)) {
-		/* This hw knows how to read the clock line, so we wait
+		/* This hw kyesws how to read the clock line, so we wait
 		 * until it actually gets high.  This is safer as some
 		 * chips may hold it low ("clock stretching") while they
 		 * are processing data internally.
@@ -145,8 +145,8 @@ static void i2c_stop(struct i2c_algo_bit_data *adap)
 /* send a byte without start cond., look for arbitration,
    check ackn. from slave */
 /* returns:
- * 1 if the device acknowledged
- * 0 if the device did not ack
+ * 1 if the device ackyeswledged
+ * 0 if the device did yest ack
  * -ETIMEDOUT if an error occurred (while raising the scl line)
  */
 static int i2c_outb(struct i2c_adapter *i2c_adap, unsigned char c)
@@ -198,7 +198,7 @@ static int i2c_outb(struct i2c_adapter *i2c_adap, unsigned char c)
 static int i2c_inb(struct i2c_adapter *i2c_adap)
 {
 	/* read byte via i2c port, without start/stop sequence	*/
-	/* acknowledge is sent in i2c_read.			*/
+	/* ackyeswledge is sent in i2c_read.			*/
 	int i;
 	unsigned char indata = 0;
 	struct i2c_algo_bit_data *adap = i2c_adap->algo_data;
@@ -239,7 +239,7 @@ static int test_bus(struct i2c_adapter *i2c_adap)
 	}
 
 	if (adap->getscl == NULL)
-		pr_info("%s: Testing SDA only, SCL is not readable\n", name);
+		pr_info("%s: Testing SDA only, SCL is yest readable\n", name);
 
 	sda = getsda(adap);
 	scl = (adap->getscl == NULL) ? 1 : getscl(adap);
@@ -328,7 +328,7 @@ bailout:
  * times before it gives up.
  * return values:
  * 1 chip answered
- * 0 chip did not answer
+ * 0 chip did yest answer
  * -x transmission error
  */
 static int try_address(struct i2c_adapter *i2c_adap,
@@ -367,7 +367,7 @@ static int sendbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 	while (count > 0) {
 		retval = i2c_outb(i2c_adap, *temp);
 
-		/* OK/ACK; or ignored NAK */
+		/* OK/ACK; or igyesred NAK */
 		if ((retval > 0) || (nak_ok && (retval == 0))) {
 			count--;
 			temp++;
@@ -385,8 +385,8 @@ static int sendbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 		 *
 		 * FIXME Lost ARB implies retrying the transaction from
 		 * the first message, after the "winning" master issues
-		 * its STOP.  As a rule, upper layer code has no reason
-		 * to know or care about this ... it is *NOT* an error.
+		 * its STOP.  As a rule, upper layer code has yes reason
+		 * to kyesw or care about this ... it is *NOT* an error.
 		 */
 		} else {
 			dev_err(&i2c_adap->dev, "sendbytes: error %d\n",
@@ -454,7 +454,7 @@ static int readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 		bit_dbg(2, &i2c_adap->dev, "readbytes: 0x%02x %s\n",
 			inval,
 			(flags & I2C_M_NO_RD_ACK)
-				? "(no ack/nak)"
+				? "(yes ack/nak)"
 				: (count ? "A" : "NA"));
 
 		if (!(flags & I2C_M_NO_RD_ACK)) {
@@ -471,7 +471,7 @@ static int readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
  * reads, writes as well as 10bit-addresses.
  * returns:
  *  0 everything went okay, the chip ack'ed, or IGNORE_NAK flag was set
- * -x an error occurred (like: -ENXIO if the device did not answer, or
+ * -x an error occurred (like: -ENXIO if the device did yest answer, or
  *	-ETIMEDOUT, for example if the lines are stuck...)
  */
 static int bit_doAddress(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
@@ -499,7 +499,7 @@ static int bit_doAddress(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 		/* the remaining 8 bit address */
 		ret = i2c_outb(i2c_adap, msg->addr & 0xff);
 		if ((ret != 1) && !nak_ok) {
-			/* the chip did not ack / xmission error occurred */
+			/* the chip did yest ack / xmission error occurred */
 			dev_err(&i2c_adap->dev, "died at 2nd address code\n");
 			return -ENXIO;
 		}
@@ -507,7 +507,7 @@ static int bit_doAddress(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 			bit_dbg(3, &i2c_adap->dev,
 				"emitting repeated start condition\n");
 			i2c_repstart(adap);
-			/* okay, now switch into reading mode */
+			/* okay, yesw switch into reading mode */
 			addr |= 0x01;
 			ret = try_address(i2c_adap, addr, retries);
 			if ((ret != 1) && !nak_ok) {
@@ -516,7 +516,7 @@ static int bit_doAddress(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 				return -EIO;
 			}
 		}
-	} else {		/* normal 7bit address	*/
+	} else {		/* yesrmal 7bit address	*/
 		addr = i2c_8bit_addr_from_msg(msg);
 		if (flags & I2C_M_REV_DIR_ADDR)
 			addr ^= 1;
@@ -604,7 +604,7 @@ bailout:
 }
 
 /*
- * We print a warning when we are not flagged to support atomic transfers but
+ * We print a warning when we are yest flagged to support atomic transfers but
  * will try anyhow. That's what the I2C core would do as well. Sadly, we can't
  * modify the algorithm struct at probe time because this struct is exported
  * 'const'.
@@ -615,7 +615,7 @@ static int bit_xfer_atomic(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[],
 	struct i2c_algo_bit_data *adap = i2c_adap->algo_data;
 
 	if (!adap->can_do_atomic)
-		dev_warn(&i2c_adap->dev, "not flagged for atomic transfers\n");
+		dev_warn(&i2c_adap->dev, "yest flagged for atomic transfers\n");
 
 	return bit_xfer(i2c_adap, msgs, num);
 }
@@ -638,7 +638,7 @@ const struct i2c_algorithm i2c_bit_algo = {
 };
 EXPORT_SYMBOL(i2c_bit_algo);
 
-static const struct i2c_adapter_quirks i2c_bit_quirk_no_clk_stretch = {
+static const struct i2c_adapter_quirks i2c_bit_quirk_yes_clk_stretch = {
 	.flags = I2C_AQ_NO_CLK_STRETCH,
 };
 
@@ -661,7 +661,7 @@ static int __i2c_bit_add_bus(struct i2c_adapter *adap,
 	adap->algo = &i2c_bit_algo;
 	adap->retries = 3;
 	if (bit_adap->getscl == NULL)
-		adap->quirks = &i2c_bit_quirk_no_clk_stretch;
+		adap->quirks = &i2c_bit_quirk_yes_clk_stretch;
 
 	/*
 	 * We tried forcing SCL/SDA to an initial state here. But that caused a

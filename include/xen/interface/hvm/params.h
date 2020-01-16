@@ -6,7 +6,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -29,16 +29,16 @@
 
 #define HVM_PARAM_CALLBACK_IRQ 0
 /*
- * How should CPU0 event-channel notifications be delivered?
+ * How should CPU0 event-channel yestifications be delivered?
  *
- * If val == 0 then CPU0 event-channel notifications are not delivered.
+ * If val == 0 then CPU0 event-channel yestifications are yest delivered.
  * If val != 0, val[63:56] encodes the type, as follows:
  */
 
 #define HVM_PARAM_CALLBACK_TYPE_GSI      0
 /*
- * val[55:0] is a delivery GSI.  GSI 0 cannot be used, as it aliases val == 0,
- * and disables all notifications.
+ * val[55:0] is a delivery GSI.  GSI 0 canyest be used, as it aliases val == 0,
+ * and disables all yestifications.
  */
 
 #define HVM_PARAM_CALLBACK_TYPE_PCI_INTX 1
@@ -50,7 +50,7 @@
 #if defined(__i386__) || defined(__x86_64__)
 #define HVM_PARAM_CALLBACK_TYPE_VECTOR   2
 /*
- * val[7:0] is a vector number.  Check for XENFEAT_hvm_callback_vector to know
+ * val[7:0] is a vector number.  Check for XENFEAT_hvm_callback_vector to kyesw
  * if this delivery method is available.
  */
 #elif defined(__arm__) || defined(__aarch64__)
@@ -62,7 +62,7 @@
  *  bit 9: the PPI is active low(1) or high(0)
  * val[7:0] is a PPI number used by event-channel.
  * This is only used by ARM/ARM64 and masking/eoi the interrupt associated to
- * the notification is handled by the interrupt controller.
+ * the yestification is handled by the interrupt controller.
  */
 #endif
 
@@ -78,17 +78,17 @@
 /*
  * Set mode for virtual timers (currently x86 only):
  *  delay_for_missed_ticks (default):
- *   Do not advance a vcpu's time beyond the correct delivery time for
+ *   Do yest advance a vcpu's time beyond the correct delivery time for
  *   interrupts that have been missed due to preemption. Deliver missed
  *   interrupts when the vcpu is rescheduled and advance the vcpu's virtual
  *   time stepwise for each one.
- *  no_delay_for_missed_ticks:
+ *  yes_delay_for_missed_ticks:
  *   As above, missed interrupts are delivered, but guest time always tracks
  *   wallclock (i.e., real) time while doing so.
- *  no_missed_ticks_pending:
+ *  yes_missed_ticks_pending:
  *   No missed interrupts are held pending. Instead, to ensure ticks are
- *   delivered at some non-zero rate, if we detect missed ticks then the
- *   internal tick alarm is not disabled if the VCPU is preempted during the
+ *   delivered at some yesn-zero rate, if we detect missed ticks then the
+ *   internal tick alarm is yest disabled if the VCPU is preempted during the
  *   next tick period.
  *  one_missed_tick_pending:
  *   Missed interrupts are collapsed together and delivered as one 'late tick'.
@@ -96,8 +96,8 @@
  */
 #define HVM_PARAM_TIMER_MODE   10
 #define HVMPTM_delay_for_missed_ticks    0
-#define HVMPTM_no_delay_for_missed_ticks 1
-#define HVMPTM_no_missed_ticks_pending   2
+#define HVMPTM_yes_delay_for_missed_ticks 1
+#define HVMPTM_yes_missed_ticks_pending   2
 #define HVMPTM_one_missed_tick_pending   3
 
 /* Boolean: Enable virtual HPET (high-precision event timer)? (x86-only) */

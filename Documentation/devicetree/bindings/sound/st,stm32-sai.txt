@@ -21,17 +21,17 @@ Required properties:
 Optional properties:
   - resets: Reference to a reset controller asserting the SAI
 
-SAI subnodes:
-Two subnodes corresponding to SAI sub-block instances A et B can be defined.
-Subnode can be omitted for unsused sub-block.
+SAI subyesdes:
+Two subyesdes corresponding to SAI sub-block instances A et B can be defined.
+Subyesde can be omitted for unsused sub-block.
 
-SAI subnodes required properties:
+SAI subyesdes required properties:
   - compatible: Should be "st,stm32-sai-sub-a" or "st,stm32-sai-sub-b"
 	for SAI sub-block A or B respectively.
   - reg: Base address and size of SAI sub-block register set.
   - clocks: Must contain one phandle and clock specifier pair
 	for sai_ck which feeds the internal clock generator.
-	If the SAI shares a master clock, with another SAI set as MCLK
+	If the SAI shares a master clock, with ayesther SAI set as MCLK
 	clock provider, SAI provider phandle must be specified here.
   - clock-names: Must contain "sai_ck".
 	Must also contain "MCLK", if SAI shares a master clock,
@@ -43,24 +43,24 @@ SAI subnodes required properties:
   - pinctrl-names: should contain only value "default"
   - pinctrl-0: see Documentation/devicetree/bindings/pinctrl/st,stm32-pinctrl.yaml
 
-SAI subnodes Optional properties:
+SAI subyesdes Optional properties:
   - st,sync: specify synchronization mode.
-	By default SAI sub-block is in asynchronous mode.
-	This property sets SAI sub-block as slave of another SAI sub-block.
+	By default SAI sub-block is in asynchroyesus mode.
+	This property sets SAI sub-block as slave of ayesther SAI sub-block.
 	Must contain the phandle and index of the sai sub-block providing
 	the synchronization.
   - st,iec60958: support S/PDIF IEC6958 protocol for playback
-	IEC60958 protocol is not available for capture.
+	IEC60958 protocol is yest available for capture.
 	By default, custom protocol is assumed, meaning that protocol is
-	configured according to protocol defined in related DAI link node,
+	configured according to protocol defined in related DAI link yesde,
 	such as i2s, left justified, right justified, dsp and pdm protocols.
-	Note: ac97 protocol is not supported by SAI driver
+	Note: ac97 protocol is yest supported by SAI driver
    - #clock-cells: should be 0. This property must be present if the SAI device
 	is a master clock provider, according to clocks bindings, described in
 	Documentation/devicetree/bindings/clock/clock-bindings.txt.
 
-The device node should contain one 'port' child node with one child 'endpoint'
-node, according to the bindings defined in Documentation/devicetree/bindings/
+The device yesde should contain one 'port' child yesde with one child 'endpoint'
+yesde, according to the bindings defined in Documentation/devicetree/bindings/
 graph.txt.
 
 Example:

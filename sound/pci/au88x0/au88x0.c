@@ -4,7 +4,7 @@
  * Author: Manuel Jander (mjander@embedded.cl)
  *
  *   This driver is the result of the OpenVortex Project from Savannah
- * (savannah.nongnu.org/projects/openvortex). I would like to thank
+ * (savannah.yesngnu.org/projects/openvortex). I would like to thank
  * the developers of OpenVortex, Jeff Muizelaar and Kester Maddock, from
  * whom i got plenty of help, and their codebase was invaluable.
  *   Thanks to the ALSA developers, they helped a lot working out
@@ -52,7 +52,7 @@ static void vortex_fix_latency(struct pci_dev *vortex)
 			dev_info(&vortex->dev, "vortex latency is 0xff\n");
 	} else {
 		dev_warn(&vortex->dev,
-			 "could not set vortex latency: pci error 0x%x\n", rc);
+			 "could yest set vortex latency: pci error 0x%x\n", rc);
 	}
 }
 
@@ -64,7 +64,7 @@ static void vortex_fix_agp_bridge(struct pci_dev *via)
 	/*
 	 * only set the bit (Extend PCI#2 Internal Master for
 	 * Efficient Handling of Dummy Requests) if the can
-	 * read the config and it is not already set
+	 * read the config and it is yest already set
 	 */
 
 	if (!(rc = pci_read_config_byte(via, 0x42, &value))
@@ -73,7 +73,7 @@ static void vortex_fix_agp_bridge(struct pci_dev *via)
 		dev_info(&via->dev, "bridge config is 0x%x\n", value | 0x10);
 	} else {
 		dev_warn(&via->dev,
-			 "could not set vortex latency: pci error 0x%x\n", rc);
+			 "could yest set vortex latency: pci error 0x%x\n", rc);
 	}
 }
 
@@ -189,7 +189,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 
 	/* Init audio core.
 	 * This must be done before we do request_irq otherwise we can get spurious
-	 * interrupts that we do not handle properly and make a mess of things */
+	 * interrupts that we do yest handle properly and make a mess of things */
 	if ((err = vortex_core_init(chip)) != 0) {
 		dev_err(card->dev, "hw core init failed\n");
 		goto core_out;
@@ -198,7 +198,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 	if ((err = request_irq(pci->irq, vortex_interrupt,
 			       IRQF_SHARED, KBUILD_MODNAME,
 	                       chip)) != 0) {
-		dev_err(card->dev, "cannot grab irq\n");
+		dev_err(card->dev, "canyest grab irq\n");
 		goto irq_out;
 	}
 	chip->irq = pci->irq;
@@ -225,7 +225,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 	pci_release_regions(chip->pci_dev);
       regions_out:
 	pci_disable_device(chip->pci_dev);
-	//FIXME: this not the right place to unregister the gameport
+	//FIXME: this yest the right place to unregister the gameport
 	vortex_gameport_unregister(chip);
 	kfree(chip);
 	return err;
@@ -343,10 +343,10 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 #ifdef CHIP_AU8830
 	if ((chip->rev) != 0xfe && (chip->rev) != 0xfa) {
 		dev_alert(card->dev,
-			  "The revision (%x) of your card has not been seen before.\n",
+			  "The revision (%x) of your card has yest been seen before.\n",
 		       chip->rev);
 		dev_alert(card->dev,
-			  "Please email the results of 'lspci -vv' to openvortex-dev@nongnu.org.\n");
+			  "Please email the results of 'lspci -vv' to openvortex-dev@yesngnu.org.\n");
 		snd_card_free(card);
 		err = -ENODEV;
 		return err;

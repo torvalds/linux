@@ -77,7 +77,7 @@ struct posix_clock_operations {
  * structure, obtaining a reference to it during callbacks using
  * container_of().
  *
- * Drivers should supply an initialized but not exposed struct device
+ * Drivers should supply an initialized but yest exposed struct device
  * to posix_clock_register(). It is used to manage lifetime of the
  * driver's private structure. It's 'release' field should be set to
  * a release function for this private structure.
@@ -101,7 +101,7 @@ struct posix_clock {
  * memory, then the caller must provide a 'release' function to free
  * that memory.
  *
- * Returns zero on success, non-zero otherwise.
+ * Returns zero on success, yesn-zero otherwise.
  */
 int posix_clock_register(struct posix_clock *clk, struct device *dev);
 

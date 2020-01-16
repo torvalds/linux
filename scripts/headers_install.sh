@@ -23,9 +23,9 @@ TMPFILE=$OUTFILE.tmp
 
 trap 'rm -f $OUTFILE $TMPFILE' EXIT
 
-# SPDX-License-Identifier with GPL variants must have "WITH Linux-syscall-note"
-if [ -n "$(sed -n -e "/SPDX-License-Identifier:.*GPL-/{/WITH Linux-syscall-note/!p}" $INFILE)" ]; then
-	echo "error: $INFILE: missing \"WITH Linux-syscall-note\" for SPDX-License-Identifier" >&2
+# SPDX-License-Identifier with GPL variants must have "WITH Linux-syscall-yeste"
+if [ -n "$(sed -n -e "/SPDX-License-Identifier:.*GPL-/{/WITH Linux-syscall-yeste/!p}" $INFILE)" ]; then
+	echo "error: $INFILE: missing \"WITH Linux-syscall-yeste\" for SPDX-License-Identifier" >&2
 	exit 1
 fi
 
@@ -64,12 +64,12 @@ configs=$(sed -e '
 	d
 ' $OUTFILE)
 
-# The entries in the following list are not warned.
-# Please do not add a new entry. This list is only for existing ones.
+# The entries in the following list are yest warned.
+# Please do yest add a new entry. This list is only for existing ones.
 # The list will be reduced gradually, and deleted eventually. (hopefully)
 #
 # The format is <file-name>:<CONFIG-option> in each line.
-config_leak_ignores="
+config_leak_igyesres="
 arch/alpha/include/uapi/asm/setup.h:CONFIG_ALPHA_LEGACY_START_ADDRESS
 arch/arc/include/uapi/asm/page.h:CONFIG_ARC_PAGE_SIZE_16K
 arch/arc/include/uapi/asm/page.h:CONFIG_ARC_PAGE_SIZE_4K
@@ -100,9 +100,9 @@ for c in $configs
 do
 	warn=1
 
-	for ignore in $config_leak_ignores
+	for igyesre in $config_leak_igyesres
 	do
-		if echo "$INFILE:$c" | grep -q "$ignore$"; then
+		if echo "$INFILE:$c" | grep -q "$igyesre$"; then
 			warn=
 			break
 		fi

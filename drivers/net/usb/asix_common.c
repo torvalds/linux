@@ -20,7 +20,7 @@ int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	if (!in_pm)
 		fn = usbnet_read_cmd;
 	else
-		fn = usbnet_read_cmd_nopm;
+		fn = usbnet_read_cmd_yespm;
 
 	ret = fn(dev, cmd, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 value, index, data, size);
@@ -43,7 +43,7 @@ int asix_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	if (!in_pm)
 		fn = usbnet_write_cmd;
 	else
-		fn = usbnet_write_cmd_nopm;
+		fn = usbnet_write_cmd_yespm;
 
 	ret = fn(dev, cmd, USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 value, index, data, size);
@@ -67,7 +67,7 @@ static void reset_asix_rx_fixup_info(struct asix_rx_fixup_info *rx)
 {
 	/* Reset the variables that have a lifetime outside of
 	 * asix_rx_fixup_internal() so that future processing starts from a
-	 * known set of initial conditions.
+	 * kyeswn set of initial conditions.
 	 */
 
 	if (rx->ax_skb) {
@@ -240,7 +240,7 @@ struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	if (!skb_header_cloned(skb) &&
 	    !(padlen && skb_cloned(skb)) &&
 	    headroom + tailroom >= 4 + padlen) {
-		/* following should not happen, but better be safe */
+		/* following should yest happen, but better be safe */
 		if (headroom < 4 ||
 		    tailroom < padlen) {
 			skb->data = memmove(skb->head + 4, skb->data, skb->len);
@@ -362,7 +362,7 @@ u16 asix_read_medium_status(struct usbnet *dev, int in_pm)
 	if (ret < 0) {
 		netdev_err(dev->net, "Error reading Medium Status register: %02x\n",
 			   ret);
-		return ret;	/* TODO: callers not checking for error ret */
+		return ret;	/* TODO: callers yest checking for error ret */
 	}
 
 	return le16_to_cpu(v);
@@ -505,7 +505,7 @@ void asix_mdio_write(struct net_device *netdev, int phy_id, int loc, int val)
 	mutex_unlock(&dev->phy_mutex);
 }
 
-int asix_mdio_read_nopm(struct net_device *netdev, int phy_id, int loc)
+int asix_mdio_read_yespm(struct net_device *netdev, int phy_id, int loc)
 {
 	struct usbnet *dev = netdev_priv(netdev);
 	__le16 res;
@@ -532,14 +532,14 @@ int asix_mdio_read_nopm(struct net_device *netdev, int phy_id, int loc)
 	asix_set_hw_mii(dev, 1);
 	mutex_unlock(&dev->phy_mutex);
 
-	netdev_dbg(dev->net, "asix_mdio_read_nopm() phy_id=0x%02x, loc=0x%02x, returns=0x%04x\n",
+	netdev_dbg(dev->net, "asix_mdio_read_yespm() phy_id=0x%02x, loc=0x%02x, returns=0x%04x\n",
 			phy_id, loc, le16_to_cpu(res));
 
 	return le16_to_cpu(res);
 }
 
 void
-asix_mdio_write_nopm(struct net_device *netdev, int phy_id, int loc, int val)
+asix_mdio_write_yespm(struct net_device *netdev, int phy_id, int loc, int val)
 {
 	struct usbnet *dev = netdev_priv(netdev);
 	__le16 res = cpu_to_le16(val);

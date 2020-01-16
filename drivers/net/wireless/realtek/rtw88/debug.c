@@ -62,12 +62,12 @@ static ssize_t rtw_debugfs_single_write(struct file *filp,
 	return debugfs_priv->cb_write(filp, buffer, count, loff);
 }
 
-static int rtw_debugfs_single_open_rw(struct inode *inode, struct file *filp)
+static int rtw_debugfs_single_open_rw(struct iyesde *iyesde, struct file *filp)
 {
-	return single_open(filp, rtw_debugfs_single_show, inode->i_private);
+	return single_open(filp, rtw_debugfs_single_show, iyesde->i_private);
 }
 
-static int rtw_debugfs_close(struct inode *inode, struct file *filp)
+static int rtw_debugfs_close(struct iyesde *iyesde, struct file *filp)
 {
 	return 0;
 }
@@ -514,7 +514,7 @@ static void rtw_print_rate(struct seq_file *m, u8 rate)
 		rtw_print_vht_rate_txt(m, rate);
 		break;
 	default:
-		seq_printf(m, " Unknown rate=0x%x\n", rate);
+		seq_printf(m, " Unkyeswn rate=0x%x\n", rate);
 		break;
 	}
 }
@@ -535,15 +535,15 @@ static int rtw_debugfs_get_tx_pwr_tbl(struct seq_file *m, void *v)
 
 	mutex_lock(&hal->tx_power_mutex);
 	for (path = RF_PATH_A; path <= RF_PATH_B; path++) {
-		/* there is no CCK rates used in 5G */
+		/* there is yes CCK rates used in 5G */
 		if (hal->current_band_type == RTW_BAND_5G)
 			rate = DESC_RATE6M;
 		else
 			rate = DESC_RATE1M;
 
-		/* now, not support vht 3ss and vht 4ss*/
+		/* yesw, yest support vht 3ss and vht 4ss*/
 		for (; rate <= DESC_RATEVHT2SS_MCS9; rate++) {
-			/* now, not support ht 3ss and ht 4ss*/
+			/* yesw, yest support ht 3ss and ht 4ss*/
 			if (rate > DESC_RATEMCS15 &&
 			    rate < DESC_RATEVHT1SS_MCS0)
 				continue;

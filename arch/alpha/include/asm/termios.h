@@ -20,7 +20,7 @@
 ({										\
 	struct ktermios *k_termios = (a_termios);				\
 	struct termio k_termio;							\
-	int canon, ret;								\
+	int cayesn, ret;								\
 										\
 	ret = copy_from_user(&k_termio, u_termio, sizeof(k_termio));		\
 	if (!ret) {								\
@@ -29,7 +29,7 @@
 		*(unsigned short *)&k_termios->c_oflag = k_termio.c_oflag;	\
 		*(unsigned short *)&k_termios->c_cflag = k_termio.c_cflag;	\
 		*(unsigned short *)&k_termios->c_lflag = k_termio.c_lflag;	\
-		canon = k_termio.c_lflag & ICANON;				\
+		cayesn = k_termio.c_lflag & ICANON;				\
 										\
 		k_termios->c_cc[VINTR]  = k_termio.c_cc[_VINTR];		\
 		k_termios->c_cc[VQUIT]  = k_termio.c_cc[_VQUIT];		\
@@ -37,8 +37,8 @@
 		k_termios->c_cc[VKILL]  = k_termio.c_cc[_VKILL];		\
 		k_termios->c_cc[VEOL2]  = k_termio.c_cc[_VEOL2];		\
 		k_termios->c_cc[VSWTC]  = k_termio.c_cc[_VSWTC];		\
-		k_termios->c_cc[canon ? VEOF : VMIN]  = k_termio.c_cc[_VEOF];	\
-		k_termios->c_cc[canon ? VEOL : VTIME] = k_termio.c_cc[_VEOL];	\
+		k_termios->c_cc[cayesn ? VEOF : VMIN]  = k_termio.c_cc[_VEOF];	\
+		k_termios->c_cc[cayesn ? VEOL : VTIME] = k_termio.c_cc[_VEOL];	\
 	}									\
 	ret;									\
 })
@@ -52,20 +52,20 @@
 ({									\
 	struct ktermios *k_termios = (a_termios);			\
 	struct termio k_termio;						\
-	int canon;							\
+	int cayesn;							\
 									\
 	k_termio.c_iflag = k_termios->c_iflag;				\
 	k_termio.c_oflag = k_termios->c_oflag;				\
 	k_termio.c_cflag = k_termios->c_cflag;				\
-	canon = (k_termio.c_lflag = k_termios->c_lflag) & ICANON;	\
+	cayesn = (k_termio.c_lflag = k_termios->c_lflag) & ICANON;	\
 									\
 	k_termio.c_line = k_termios->c_line;				\
 	k_termio.c_cc[_VINTR]  = k_termios->c_cc[VINTR];		\
 	k_termio.c_cc[_VQUIT]  = k_termios->c_cc[VQUIT];		\
 	k_termio.c_cc[_VERASE] = k_termios->c_cc[VERASE];		\
 	k_termio.c_cc[_VKILL]  = k_termios->c_cc[VKILL];		\
-	k_termio.c_cc[_VEOF]   = k_termios->c_cc[canon ? VEOF : VMIN];	\
-	k_termio.c_cc[_VEOL]   = k_termios->c_cc[canon ? VEOL : VTIME];	\
+	k_termio.c_cc[_VEOF]   = k_termios->c_cc[cayesn ? VEOF : VMIN];	\
+	k_termio.c_cc[_VEOL]   = k_termios->c_cc[cayesn ? VEOL : VTIME];	\
 	k_termio.c_cc[_VEOL2]  = k_termios->c_cc[VEOL2];		\
 	k_termio.c_cc[_VSWTC]  = k_termios->c_cc[VSWTC];		\
 									\

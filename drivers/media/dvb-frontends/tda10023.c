@@ -14,7 +14,7 @@
 */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -533,7 +533,7 @@ struct dvb_frontend *tda10023_attach(const struct tda10023_config *config,
 		state->pll_p = state->config->pll_p;
 		state->pll_n = state->config->pll_n;
 	} else {
-		/* set default values if not defined in config */
+		/* set default values if yest defined in config */
 		state->xtal  = 28920000;
 		state->pll_m = 8;
 		state->pll_p = 4;

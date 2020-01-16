@@ -202,7 +202,7 @@ static int sprd_pcm_hw_params(struct snd_soc_component *component,
 
 	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 	if (!dma_params) {
-		dev_warn(component->dev, "no dma parameters setting\n");
+		dev_warn(component->dev, "yes dma parameters setting\n");
 		dma_private->params = NULL;
 		snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 		runtime->dma_bytes = totsize;
@@ -290,7 +290,7 @@ static int sprd_pcm_hw_params(struct snd_soc_component *component,
 			goto config_err;
 		}
 
-		if (!runtime->no_period_wakeup) {
+		if (!runtime->yes_period_wakeup) {
 			data->desc->callback = sprd_pcm_dma_complete;
 			data->desc->callback_param = dma_private;
 		}
@@ -521,18 +521,18 @@ static const struct snd_soc_component_driver sprd_soc_component = {
 
 static int sprd_soc_platform_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	ret = of_reserved_mem_device_init_by_idx(&pdev->dev, np, 0);
 	if (ret)
 		dev_warn(&pdev->dev,
-			 "no reserved DMA memory for audio platform device\n");
+			 "yes reserved DMA memory for audio platform device\n");
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &sprd_soc_component,
 					      NULL, 0);
 	if (ret)
-		dev_err(&pdev->dev, "could not register platform:%d\n", ret);
+		dev_err(&pdev->dev, "could yest register platform:%d\n", ret);
 
 	return ret;
 }

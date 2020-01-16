@@ -45,7 +45,7 @@ struct safexcel_ahash_req {
 	bool needs_inv;
 	bool hmac_zlen;
 	bool len_is_le;
-	bool not_first;
+	bool yest_first;
 	bool xcbcmac;
 
 	int nents;
@@ -114,7 +114,7 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 
 	/*
 	 * Copy the input digest if needed, and setup the context
-	 * fields. Do this now as we need it to setup the first command
+	 * fields. Do this yesw as we need it to setup the first command
 	 * descriptor.
 	 */
 	if (unlikely(req->digest == CONTEXT_CONTROL_DIGEST_XCM)) {
@@ -143,14 +143,14 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 			cdesc->control_data.control0 |= req->digest |
 				CONTEXT_CONTROL_TYPE_HASH_OUT |
 				CONTEXT_CONTROL_RESTART_HASH  |
-				/* ensure its not 0! */
+				/* ensure its yest 0! */
 				CONTEXT_CONTROL_SIZE(1);
 		else
 			cdesc->control_data.control0 |= req->digest |
 				CONTEXT_CONTROL_TYPE_HASH_OUT  |
 				CONTEXT_CONTROL_RESTART_HASH   |
 				CONTEXT_CONTROL_NO_FINISH_HASH |
-				/* ensure its not 0! */
+				/* ensure its yest 0! */
 				CONTEXT_CONTROL_SIZE(1);
 		return;
 	}
@@ -179,7 +179,7 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 		if ((req->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED) ||
 		    /* Special case: zero length HMAC */
 		    req->hmac_zlen ||
-		    /* PE HW < 4.4 cannot do HMAC continue, fake using hash */
+		    /* PE HW < 4.4 canyest do HMAC continue, fake using hash */
 		    (req->processed != req->block_sz)) {
 			/* Basic hash continue operation, need digest + cnt */
 			cdesc->control_data.control0 |=
@@ -203,13 +203,13 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 			memcpy(ctx->base.ctxr->data + (req->state_sz >> 2),
 			       ctx->opad, req->state_sz);
 
-			/* Single pass HMAC - no digest count */
+			/* Single pass HMAC - yes digest count */
 			cdesc->control_data.control0 |=
 				CONTEXT_CONTROL_SIZE(req->state_sz >> 1) |
 				CONTEXT_CONTROL_TYPE_HASH_OUT |
 				CONTEXT_CONTROL_DIGEST_HMAC;
 		}
-	} else { /* Hash continuation, do not finish yet */
+	} else { /* Hash continuation, do yest finish yet */
 		cdesc->control_data.control0 |=
 			CONTEXT_CONTROL_SIZE(req->state_sz >> 2) |
 			CONTEXT_CONTROL_DIGEST_PRECOMPUTED |
@@ -237,7 +237,7 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv,
 	rdesc = safexcel_ring_next_rptr(priv, &priv->ring[ring].rdr);
 	if (IS_ERR(rdesc)) {
 		dev_err(priv->dev,
-			"hash: result: could not retrieve the result descriptor\n");
+			"hash: result: could yest retrieve the result descriptor\n");
 		*ret = PTR_ERR(rdesc);
 	} else {
 		*ret = safexcel_rdesc_check_errors(priv, rdesc);
@@ -324,13 +324,13 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 		cache_len = queued - areq->nbytes;
 
 	if (!req->finish && !req->last_req) {
-		/* If this is not the last request and the queued data does not
+		/* If this is yest the last request and the queued data does yest
 		 * fit into full cache blocks, cache it for the next send call.
 		 */
 		extra = queued & (HASH_CACHE_SIZE - 1);
 
-		/* If this is not the last request and the queued data
-		 * is a multiple of a block, cache the last one for now.
+		/* If this is yest the last request and the queued data
+		 * is a multiple of a block, cache the last one for yesw.
 		 */
 		if (!extra)
 			extra = HASH_CACHE_SIZE;
@@ -427,7 +427,7 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 			continue;
 		}
 
-		/* Do not overflow the request */
+		/* Do yest overflow the request */
 		if ((queued + skip) <= sglen)
 			sglen = queued;
 		else
@@ -520,7 +520,7 @@ static int safexcel_handle_inv_result(struct safexcel_crypto_priv *priv,
 	rdesc = safexcel_ring_next_rptr(priv, &priv->ring[ring].rdr);
 	if (IS_ERR(rdesc)) {
 		dev_err(priv->dev,
-			"hash: invalidate: could not retrieve the result descriptor\n");
+			"hash: invalidate: could yest retrieve the result descriptor\n");
 		*ret = PTR_ERR(rdesc);
 	} else {
 		*ret = safexcel_rdesc_check_errors(priv, rdesc);
@@ -656,14 +656,14 @@ static int safexcel_ahash_cache(struct ahash_request *areq)
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	u64 cache_len;
 
-	/* cache_len: everything accepted by the driver but not sent yet,
+	/* cache_len: everything accepted by the driver but yest sent yet,
 	 * tot sz handled by update() - last req sz - tot sz handled by send()
 	 */
 	cache_len = safexcel_queued_len(req);
 
 	/*
-	 * In case there isn't enough bytes to proceed (less than a
-	 * block size), cache the data until we have enough.
+	 * In case there isn't eyesugh bytes to proceed (less than a
+	 * block size), cache the data until we have eyesugh.
 	 */
 	if (cache_len + areq->nbytes <= HASH_CACHE_SIZE) {
 		sg_pcopy_to_buffer(areq->src, sg_nents(areq->src),
@@ -687,8 +687,8 @@ static int safexcel_ahash_enqueue(struct ahash_request *areq)
 
 	if (ctx->base.ctxr) {
 		if (priv->flags & EIP197_TRC_CACHE && !ctx->base.needs_inv &&
-		     /* invalidate for *any* non-XCBC continuation */
-		   ((req->not_first && !req->xcbcmac) ||
+		     /* invalidate for *any* yesn-XCBC continuation */
+		   ((req->yest_first && !req->xcbcmac) ||
 		     /* invalidate if (i)digest changed */
 		     memcmp(ctx->base.ctxr->data, req->state, req->state_sz) ||
 		     /* invalidate for HMAC finish with odigest changed */
@@ -715,7 +715,7 @@ static int safexcel_ahash_enqueue(struct ahash_request *areq)
 		if (!ctx->base.ctxr)
 			return -ENOMEM;
 	}
-	req->not_first = true;
+	req->yest_first = true;
 
 	ring = ctx->base.ring;
 
@@ -734,7 +734,7 @@ static int safexcel_ahash_update(struct ahash_request *areq)
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	int ret;
 
-	/* If the request is 0 length, do nothing */
+	/* If the request is 0 length, do yesthing */
 	if (!areq->nbytes)
 		return 0;
 
@@ -744,7 +744,7 @@ static int safexcel_ahash_update(struct ahash_request *areq)
 	/* Update total request length */
 	req->len += areq->nbytes;
 
-	/* If not all data could fit into the cache, go process the excess.
+	/* If yest all data could fit into the cache, go process the excess.
 	 * Also go process immediately for an HMAC IV precompute, which
 	 * will never be finished at all, but needs to be processed anyway.
 	 */
@@ -764,7 +764,7 @@ static int safexcel_ahash_final(struct ahash_request *areq)
 	if (unlikely(!req->len && !areq->nbytes)) {
 		/*
 		 * If we have an overall 0 length *hash* request:
-		 * The HW cannot do 0 length hash, so we provide the correct
+		 * The HW canyest do 0 length hash, so we provide the correct
 		 * result directly here.
 		 */
 		if (ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_MD5)
@@ -951,7 +951,7 @@ static void safexcel_ahash_cra_exit(struct crypto_tfm *tfm)
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	int ret;
 
-	/* context not allocated, skip invalidation */
+	/* context yest allocated, skip invalidation */
 	if (!ctx->base.ctxr)
 		return;
 
@@ -1004,7 +1004,7 @@ static int safexcel_hmac_sha1_init(struct ahash_request *areq)
 
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, SHA1_DIGEST_SIZE);
-	/* Already processed the key^ipad part now! */
+	/* Already processed the key^ipad part yesw! */
 	req->len	= SHA1_BLOCK_SIZE;
 	req->processed	= SHA1_BLOCK_SIZE;
 
@@ -1366,7 +1366,7 @@ static int safexcel_hmac_sha224_init(struct ahash_request *areq)
 
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, SHA256_DIGEST_SIZE);
-	/* Already processed the key^ipad part now! */
+	/* Already processed the key^ipad part yesw! */
 	req->len	= SHA256_BLOCK_SIZE;
 	req->processed	= SHA256_BLOCK_SIZE;
 
@@ -1437,7 +1437,7 @@ static int safexcel_hmac_sha256_init(struct ahash_request *areq)
 
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, SHA256_DIGEST_SIZE);
-	/* Already processed the key^ipad part now! */
+	/* Already processed the key^ipad part yesw! */
 	req->len	= SHA256_BLOCK_SIZE;
 	req->processed	= SHA256_BLOCK_SIZE;
 
@@ -1620,7 +1620,7 @@ static int safexcel_hmac_sha512_init(struct ahash_request *areq)
 
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, SHA512_DIGEST_SIZE);
-	/* Already processed the key^ipad part now! */
+	/* Already processed the key^ipad part yesw! */
 	req->len	= SHA512_BLOCK_SIZE;
 	req->processed	= SHA512_BLOCK_SIZE;
 
@@ -1691,7 +1691,7 @@ static int safexcel_hmac_sha384_init(struct ahash_request *areq)
 
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, SHA512_DIGEST_SIZE);
-	/* Already processed the key^ipad part now! */
+	/* Already processed the key^ipad part yesw! */
 	req->len	= SHA512_BLOCK_SIZE;
 	req->processed	= SHA512_BLOCK_SIZE;
 
@@ -1811,7 +1811,7 @@ static int safexcel_hmac_md5_init(struct ahash_request *areq)
 
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, MD5_DIGEST_SIZE);
-	/* Already processed the key^ipad part now! */
+	/* Already processed the key^ipad part yesw! */
 	req->len	= MD5_HMAC_BLOCK_SIZE;
 	req->processed	= MD5_HMAC_BLOCK_SIZE;
 
@@ -1893,7 +1893,7 @@ static int safexcel_crc32_init(struct ahash_request *areq)
 
 	/* Start from loaded key */
 	req->state[0]	= (__force __le32)le32_to_cpu(~ctx->ipad[0]);
-	/* Set processed to non-zero to enable invalidation detection */
+	/* Set processed to yesn-zero to enable invalidation detection */
 	req->len	= sizeof(u32);
 	req->processed	= sizeof(u32);
 
@@ -1966,7 +1966,7 @@ static int safexcel_cbcmac_init(struct ahash_request *areq)
 
 	/* Start from loaded keys */
 	memcpy(req->state, ctx->ipad, ctx->key_sz);
-	/* Set processed to non-zero to enable invalidation detection */
+	/* Set processed to yesn-zero to enable invalidation detection */
 	req->len	= AES_BLOCK_SIZE;
 	req->processed	= AES_BLOCK_SIZE;
 
@@ -2321,7 +2321,7 @@ static int safexcel_hmac_sm3_init(struct ahash_request *areq)
 
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, SM3_DIGEST_SIZE);
-	/* Already processed the key^ipad part now! */
+	/* Already processed the key^ipad part yesw! */
 	req->len	= SM3_BLOCK_SIZE;
 	req->processed	= SM3_BLOCK_SIZE;
 
@@ -2459,7 +2459,7 @@ static int safexcel_sha3_finup(struct ahash_request *req)
 
 	ctx->do_fallback |= !req->nbytes;
 	if (ctx->do_fallback)
-		/* Update or ex/import happened or len 0, cannot use the HW */
+		/* Update or ex/import happened or len 0, canyest use the HW */
 		return safexcel_sha3_fbcheck(req) ?:
 		       crypto_ahash_finup(subreq);
 	else
@@ -2482,7 +2482,7 @@ static int safexcel_sha3_224_digest(struct ahash_request *req)
 	if (req->nbytes)
 		return safexcel_sha3_224_init(req) ?: safexcel_ahash_finup(req);
 
-	/* HW cannot do zero length hash, use fallback instead */
+	/* HW canyest do zero length hash, use fallback instead */
 	return safexcel_sha3_digest_fallback(req);
 }
 
@@ -2592,7 +2592,7 @@ static int safexcel_sha3_256_digest(struct ahash_request *req)
 	if (req->nbytes)
 		return safexcel_sha3_256_init(req) ?: safexcel_ahash_finup(req);
 
-	/* HW cannot do zero length hash, use fallback instead */
+	/* HW canyest do zero length hash, use fallback instead */
 	return safexcel_sha3_digest_fallback(req);
 }
 
@@ -2650,7 +2650,7 @@ static int safexcel_sha3_384_digest(struct ahash_request *req)
 	if (req->nbytes)
 		return safexcel_sha3_384_init(req) ?: safexcel_ahash_finup(req);
 
-	/* HW cannot do zero length hash, use fallback instead */
+	/* HW canyest do zero length hash, use fallback instead */
 	return safexcel_sha3_digest_fallback(req);
 }
 
@@ -2708,7 +2708,7 @@ static int safexcel_sha3_512_digest(struct ahash_request *req)
 	if (req->nbytes)
 		return safexcel_sha3_512_init(req) ?: safexcel_ahash_finup(req);
 
-	/* HW cannot do zero length hash, use fallback instead */
+	/* HW canyest do zero length hash, use fallback instead */
 	return safexcel_sha3_digest_fallback(req);
 }
 
@@ -2865,7 +2865,7 @@ static int safexcel_hmac_sha3_224_digest(struct ahash_request *req)
 		return safexcel_hmac_sha3_224_init(req) ?:
 		       safexcel_ahash_finup(req);
 
-	/* HW cannot do zero length HMAC, use fallback instead */
+	/* HW canyest do zero length HMAC, use fallback instead */
 	return safexcel_sha3_digest_fallback(req);
 }
 
@@ -2936,7 +2936,7 @@ static int safexcel_hmac_sha3_256_digest(struct ahash_request *req)
 		return safexcel_hmac_sha3_256_init(req) ?:
 		       safexcel_ahash_finup(req);
 
-	/* HW cannot do zero length HMAC, use fallback instead */
+	/* HW canyest do zero length HMAC, use fallback instead */
 	return safexcel_sha3_digest_fallback(req);
 }
 
@@ -3007,7 +3007,7 @@ static int safexcel_hmac_sha3_384_digest(struct ahash_request *req)
 		return safexcel_hmac_sha3_384_init(req) ?:
 		       safexcel_ahash_finup(req);
 
-	/* HW cannot do zero length HMAC, use fallback instead */
+	/* HW canyest do zero length HMAC, use fallback instead */
 	return safexcel_sha3_digest_fallback(req);
 }
 
@@ -3078,7 +3078,7 @@ static int safexcel_hmac_sha3_512_digest(struct ahash_request *req)
 		return safexcel_hmac_sha3_512_init(req) ?:
 		       safexcel_ahash_finup(req);
 
-	/* HW cannot do zero length HMAC, use fallback instead */
+	/* HW canyest do zero length HMAC, use fallback instead */
 	return safexcel_sha3_digest_fallback(req);
 }
 

@@ -93,7 +93,7 @@ static const struct regulator_ops max14577_charger_ops = {
 #define MAX14577_SAFEOUT_REG	{ \
 	.name		= "SAFEOUT", \
 	.of_match	= of_match_ptr("SAFEOUT"), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_yesde = of_match_ptr("regulators"), \
 	.id		= MAX14577_SAFEOUT, \
 	.ops		= &max14577_safeout_ops, \
 	.type		= REGULATOR_VOLTAGE, \
@@ -106,7 +106,7 @@ static const struct regulator_ops max14577_charger_ops = {
 #define MAX14577_CHARGER_REG	{ \
 	.name		= "CHARGER", \
 	.of_match	= of_match_ptr("CHARGER"), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_yesde = of_match_ptr("regulators"), \
 	.id		= MAX14577_CHARGER, \
 	.ops		= &max14577_charger_ops, \
 	.type		= REGULATOR_CURRENT, \
@@ -134,7 +134,7 @@ static const struct regulator_ops max77836_ldo_ops = {
 #define MAX77836_LDO_REG(num)	{ \
 	.name		= "LDO" # num, \
 	.of_match	= of_match_ptr("LDO" # num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_yesde = of_match_ptr("regulators"), \
 	.id		= MAX77836_LDO ## num, \
 	.ops		= &max77836_ldo_ops, \
 	.type		= REGULATOR_VOLTAGE, \
@@ -212,7 +212,7 @@ static int max14577_regulator_probe(struct platform_device *pdev)
 		 */
 		if (pdata && pdata->regulators) {
 			config.init_data = pdata->regulators[i].initdata;
-			config.of_node = pdata->regulators[i].of_node;
+			config.of_yesde = pdata->regulators[i].of_yesde;
 		}
 		config.regmap = max14577_get_regmap(max14577,
 				supported_regulators[i].id);

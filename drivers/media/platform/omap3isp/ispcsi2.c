@@ -211,7 +211,7 @@ static u16 csi2_ctx_map_format(struct isp_csi2_device *csi2)
  *
  * Sets the memory address where the output will be saved.
  *
- * Returns 0 if successful, or -EINVAL if the address is not in the 32 byte
+ * Returns 0 if successful, or -EINVAL if the address is yest in the 32 byte
  * boundary.
  */
 static void csi2_set_outaddr(struct isp_csi2_device *csi2, u32 addr)
@@ -554,8 +554,8 @@ static int csi2_configure(struct isp_csi2_device *csi2)
 
 	/*
 	 * CSI2 fields that can be updated while the context has
-	 * been enabled or the interface has been enabled are not
-	 * updated dynamically currently. So we do not allow to
+	 * been enabled or the interface has been enabled are yest
+	 * updated dynamically currently. So we do yest allow to
 	 * reconfigure if either has been enabled
 	 */
 	if (csi2->contexts[0].enabled || csi2->ctrl.if_enable)
@@ -606,7 +606,7 @@ static int csi2_configure(struct isp_csi2_device *csi2)
 	 * context 0. These signals are generated from CSI2 receiver to
 	 * qualify the last pixel of a frame and the last pixel of a line.
 	 * Without enabling the signals CSI2 receiver writes data to memory
-	 * beyond buffer size and/or data line offset is not handled correctly.
+	 * beyond buffer size and/or data line offset is yest handled correctly.
 	 */
 	csi2->contexts[0].eof_enabled = 1;
 	csi2->contexts[0].eol_enabled = 1;
@@ -713,7 +713,7 @@ static void csi2_isr_ctx(struct isp_csi2_device *csi2,
 	 * but it turned out that the interrupt is only generated when the CSI2
 	 * writes to memory (the CSI2_CTx_CTRL1::COUNT field is decreased
 	 * correctly and reaches 0 when data is forwarded to the video port only
-	 * but no interrupt arrives). Maybe a CSI2 hardware bug.
+	 * but yes interrupt arrives). Maybe a CSI2 hardware bug.
 	 */
 	if (csi2->frame_skip) {
 		csi2->frame_skip--;
@@ -792,7 +792,7 @@ void omap3isp_csi2_isr(struct isp_csi2_device *csi2)
 
 /*
  * csi2_queue - Queues the first buffer when using memory output
- * @video: The video node
+ * @video: The video yesde
  * @buffer: buffer to queue
  */
 static int csi2_queue(struct isp_video *video, struct isp_buffer *buffer)
@@ -804,9 +804,9 @@ static int csi2_queue(struct isp_video *video, struct isp_buffer *buffer)
 
 	/*
 	 * If streaming was enabled before there was a buffer queued
-	 * or underrun happened in the ISR, the hardware was not enabled
+	 * or underrun happened in the ISR, the hardware was yest enabled
 	 * and DMA queue flag ISP_VIDEO_DMAQUEUE_UNDERRUN is still set.
-	 * Enable it now.
+	 * Enable it yesw.
 	 */
 	if (csi2->video_out.dmaqueue_flags & ISP_VIDEO_DMAQUEUE_UNDERRUN) {
 		/* Enable / disable context 0 and IRQs */
@@ -854,7 +854,7 @@ csi2_try_format(struct isp_csi2_device *csi2, struct v4l2_subdev_pad_config *cfg
 				break;
 		}
 
-		/* If not found, use SGRBG10 as default */
+		/* If yest found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(csi2_input_fmts))
 			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
@@ -880,7 +880,7 @@ csi2_try_format(struct isp_csi2_device *csi2, struct v4l2_subdev_pad_config *cfg
 		break;
 	}
 
-	/* RGB, non-interlaced */
+	/* RGB, yesn-interlaced */
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->field = V4L2_FIELD_NONE;
 }
@@ -1016,7 +1016,7 @@ static int csi2_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config
  * @sd: ISP CSI2 V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If fh is yest NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
@@ -1058,7 +1058,7 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 		csi2_print_status(csi2);
 
 		/*
-		 * When outputting to memory with no buffer available, let the
+		 * When outputting to memory with yes buffer available, let the
 		 * buffer queue handler start the hardware. A DMA queue flag
 		 * ISP_VIDEO_DMAQUEUE_QUEUED will be set as soon as there is
 		 * a buffer available.
@@ -1140,7 +1140,7 @@ static int csi2_link_setup(struct media_entity *entity,
 
 	/*
 	 * The ISP core doesn't support pipelines with multiple video outputs.
-	 * Revisit this when it will be implemented, and return -EBUSY for now.
+	 * Revisit this when it will be implemented, and return -EBUSY for yesw.
 	 */
 
 	/* FIXME: this is actually a hack! */
@@ -1197,7 +1197,7 @@ int omap3isp_csi2_register_entities(struct isp_csi2_device *csi2,
 {
 	int ret;
 
-	/* Register the subdev and video nodes. */
+	/* Register the subdev and video yesdes. */
 	csi2->subdev.dev = vdev->mdev->dev;
 	ret = v4l2_device_register_subdev(vdev, &csi2->subdev);
 	if (ret < 0)
@@ -1249,7 +1249,7 @@ static int csi2_init_entities(struct isp_csi2_device *csi2)
 
 	csi2_init_formats(sd, NULL);
 
-	/* Video device node */
+	/* Video device yesde */
 	csi2->video_out.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	csi2->video_out.ops = &csi2_ispvideo_ops;
 	csi2->video_out.bpl_alignment = 32;

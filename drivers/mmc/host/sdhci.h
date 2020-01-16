@@ -359,7 +359,7 @@ struct sdhci_adma2_64_desc {
  * 48bit command and 136 bit response in 100KHz clock could take upto 2.48ms.
  * However since the start time of the command, the time between
  * command and response, and the time between response and start of data is
- * not known, set the command transfer time to 10ms.
+ * yest kyeswn, set the command transfer time to 10ms.
  */
 #define MMC_CMD_TRANSFER_TIME	(10 * NSEC_PER_MSEC) /* max 10 ms */
 
@@ -375,11 +375,11 @@ struct sdhci_host {
 
 	unsigned int quirks;	/* Deviations from spec. */
 
-/* Controller doesn't honor resets unless we touch the clock register */
+/* Controller doesn't hoyesr resets unless we touch the clock register */
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
 /* Controller has bad caps bits, but really supports DMA */
 #define SDHCI_QUIRK_FORCE_DMA				(1<<1)
-/* Controller doesn't like to be reset when there is no card inserted. */
+/* Controller doesn't like to be reset when there is yes card inserted. */
 #define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
 /* Controller doesn't like clearing the power reg before a change */
 #define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
@@ -403,7 +403,7 @@ struct sdhci_host {
 #define SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<12)
 /* Controller has an issue with buffer bits for small transfers */
 #define SDHCI_QUIRK_BROKEN_SMALL_PIO			(1<<13)
-/* Controller does not provide transfer-complete interrupt when not busy */
+/* Controller does yest provide transfer-complete interrupt when yest busy */
 #define SDHCI_QUIRK_NO_BUSY_IRQ				(1<<14)
 /* Controller has unreliable card detection */
 #define SDHCI_QUIRK_BROKEN_CARD_DETECTION		(1<<15)
@@ -411,13 +411,13 @@ struct sdhci_host {
 #define SDHCI_QUIRK_INVERTED_WRITE_PROTECT		(1<<16)
 /* Controller has unusable command queue engine */
 #define SDHCI_QUIRK_BROKEN_CQE				(1<<17)
-/* Controller does not like fast PIO transfers */
+/* Controller does yest like fast PIO transfers */
 #define SDHCI_QUIRK_PIO_NEEDS_DELAY			(1<<18)
-/* Controller does not have a LED */
+/* Controller does yest have a LED */
 #define SDHCI_QUIRK_NO_LED				(1<<19)
 /* Controller has to be forced to use block size of 2048 bytes */
 #define SDHCI_QUIRK_FORCE_BLK_SZ_2048			(1<<20)
-/* Controller cannot do multi-block transfers */
+/* Controller canyest do multi-block transfers */
 #define SDHCI_QUIRK_NO_MULTIBLOCK			(1<<21)
 /* Controller can only handle 1-bit data transfers */
 #define SDHCI_QUIRK_FORCE_1_BIT_DATA			(1<<22)
@@ -427,7 +427,7 @@ struct sdhci_host {
 #define SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK		(1<<24)
 /* Controller reports wrong base clock capability */
 #define SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN		(1<<25)
-/* Controller cannot support End Attribute in NOP ADMA descriptor */
+/* Controller canyest support End Attribute in NOP ADMA descriptor */
 #define SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC		(1<<26)
 /* Controller is missing device caps. Use caps provided by host */
 #define SDHCI_QUIRK_MISSING_CAPS			(1<<27)
@@ -448,15 +448,15 @@ struct sdhci_host {
 #define SDHCI_QUIRK2_NO_1_8_V				(1<<2)
 #define SDHCI_QUIRK2_PRESET_VALUE_BROKEN		(1<<3)
 #define SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON		(1<<4)
-/* Controller has a non-standard host control register */
+/* Controller has a yesn-standard host control register */
 #define SDHCI_QUIRK2_BROKEN_HOST_CONTROL		(1<<5)
-/* Controller does not support HS200 */
+/* Controller does yest support HS200 */
 #define SDHCI_QUIRK2_BROKEN_HS200			(1<<6)
-/* Controller does not support DDR50 */
+/* Controller does yest support DDR50 */
 #define SDHCI_QUIRK2_BROKEN_DDR50			(1<<7)
-/* Stop command (CMD12) can set Transfer Complete when not using MMC_RSP_BUSY */
+/* Stop command (CMD12) can set Transfer Complete when yest using MMC_RSP_BUSY */
 #define SDHCI_QUIRK2_STOP_WITH_TC			(1<<8)
-/* Controller does not support 64-bit DMA */
+/* Controller does yest support 64-bit DMA */
 #define SDHCI_QUIRK2_BROKEN_64_BIT_DMA			(1<<9)
 /* need clear transfer mode register before send cmd */
 #define SDHCI_QUIRK2_CLEAR_TRANSFERMODE_REG_BEFORE_CMD	(1<<10)
@@ -478,7 +478,7 @@ struct sdhci_host {
  */
 #define SDHCI_QUIRK2_DISABLE_HW_TIMEOUT			(1<<17)
 /*
- * 32-bit block count may not support eMMC where upper bits of CMD23 are used
+ * 32-bit block count may yest support eMMC where upper bits of CMD23 are used
  * for other purposes.  Consequently we support 16-bit block count by default.
  * Otherwise, SDHCI_QUIRK2_USE_32BIT_BLK_CNT can be selected to use 32-bit
  * block count.
@@ -761,7 +761,7 @@ void sdhci_set_clock(struct sdhci_host *host, unsigned int clock);
 void sdhci_enable_clk(struct sdhci_host *host, u16 clk);
 void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
 		     unsigned short vdd);
-void sdhci_set_power_noreg(struct sdhci_host *host, unsigned char mode,
+void sdhci_set_power_yesreg(struct sdhci_host *host, unsigned char mode,
 			   unsigned short vdd);
 void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq);
 void sdhci_set_bus_width(struct sdhci_host *host, int width);

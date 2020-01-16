@@ -45,7 +45,7 @@ acpi_install_address_space_handler(acpi_handle device,
 				   acpi_adr_space_handler handler,
 				   acpi_adr_space_setup setup, void *context)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_install_address_space_handler);
@@ -63,8 +63,8 @@ acpi_install_address_space_handler(acpi_handle device,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_validate_handle(device);
-	if (!node) {
+	yesde = acpi_ns_validate_handle(device);
+	if (!yesde) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
@@ -72,7 +72,7 @@ acpi_install_address_space_handler(acpi_handle device,
 	/* Install the handler for all Regions for this Space ID */
 
 	status =
-	    acpi_ev_install_space_handler(node, space_id, handler, setup,
+	    acpi_ev_install_space_handler(yesde, space_id, handler, setup,
 					  context);
 	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
@@ -80,7 +80,7 @@ acpi_install_address_space_handler(acpi_handle device,
 
 	/* Run all _REG methods for this address space */
 
-	acpi_ev_execute_reg_methods(node, space_id, ACPI_REG_CONNECT);
+	acpi_ev_execute_reg_methods(yesde, space_id, ACPI_REG_CONNECT);
 
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
@@ -111,7 +111,7 @@ acpi_remove_address_space_handler(acpi_handle device,
 	union acpi_operand_object *handler_obj;
 	union acpi_operand_object *region_obj;
 	union acpi_operand_object **last_obj_ptr;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_remove_address_space_handler);
@@ -129,19 +129,19 @@ acpi_remove_address_space_handler(acpi_handle device,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_validate_handle(device);
-	if (!node ||
-	    ((node->type != ACPI_TYPE_DEVICE) &&
-	     (node->type != ACPI_TYPE_PROCESSOR) &&
-	     (node->type != ACPI_TYPE_THERMAL) &&
-	     (node != acpi_gbl_root_node))) {
+	yesde = acpi_ns_validate_handle(device);
+	if (!yesde ||
+	    ((yesde->type != ACPI_TYPE_DEVICE) &&
+	     (yesde->type != ACPI_TYPE_PROCESSOR) &&
+	     (yesde->type != ACPI_TYPE_THERMAL) &&
+	     (yesde != acpi_gbl_root_yesde))) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
 
 	/* Make sure the internal object exists */
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(yesde);
 	if (!obj_desc) {
 		status = AE_NOT_EXIST;
 		goto unlock_and_exit;
@@ -149,8 +149,8 @@ acpi_remove_address_space_handler(acpi_handle device,
 
 	/* Find the address handler the user requested */
 
-	handler_obj = obj_desc->common_notify.handler;
-	last_obj_ptr = &obj_desc->common_notify.handler;
+	handler_obj = obj_desc->common_yestify.handler;
+	last_obj_ptr = &obj_desc->common_yestify.handler;
 	while (handler_obj) {
 
 		/* We have a handler, see if user requested this one */
@@ -171,7 +171,7 @@ acpi_remove_address_space_handler(acpi_handle device,
 					  "on Device %p(%p)\n",
 					  handler_obj, handler,
 					  acpi_ut_get_region_name(space_id),
-					  node, obj_desc));
+					  yesde, obj_desc));
 
 			region_obj = handler_obj->address_space.region_list;
 
@@ -211,12 +211,12 @@ acpi_remove_address_space_handler(acpi_handle device,
 		handler_obj = handler_obj->address_space.next;
 	}
 
-	/* The handler does not exist */
+	/* The handler does yest exist */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
 			  "Unable to remove address handler %p for %s(%X), DevNode %p, obj %p\n",
 			  handler, acpi_ut_get_region_name(space_id), space_id,
-			  node, obj_desc));
+			  yesde, obj_desc));
 
 	status = AE_NOT_EXIST;
 

@@ -239,7 +239,7 @@ static bool mt76u_check_sg(struct mt76_dev *dev)
 	struct usb_device *udev = interface_to_usbdev(uintf);
 
 	return (!disable_usb_sg && udev->bus->sg_tablesize > 0 &&
-		(udev->bus->no_sg_constraint ||
+		(udev->bus->yes_sg_constraint ||
 		 udev->speed == USB_SPEED_WIRELESS));
 }
 
@@ -427,7 +427,7 @@ mt76u_build_rx_skb(void *data, int len, int buf_size)
 	if (SKB_WITH_OVERHEAD(buf_size) < MT_DMA_HDR_LEN + len) {
 		struct page *page;
 
-		/* slow path, not enough space for data and
+		/* slow path, yest eyesugh space for data and
 		 * skb_shared_info
 		 */
 		skb = alloc_skb(MT_SKB_HEAD_LEN, GFP_ATOMIC);

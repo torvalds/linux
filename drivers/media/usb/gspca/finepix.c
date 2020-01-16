@@ -66,7 +66,7 @@ static int command(struct gspca_dev *gspca_dev,
 /*
  * This function is called as a workqueue function and runs whenever the camera
  * is streaming data. Because it is a workqueue function it is allowed to sleep
- * so we can use synchronous USB calls. To avoid possible collisions with other
+ * so we can use synchroyesus USB calls. To avoid possible collisions with other
  * threads attempting to use gspca_dev->usb_buf we take the usb_lock when
  * performing USB operations using it. In practice we don't really need this
  * as the camera doesn't provide any controls.
@@ -127,8 +127,8 @@ again:
 
 				/* If the result is less than what was asked
 				 * for, then it's the end of the
-				 * frame. Sometimes the jpeg is not complete,
-				 * but there's nothing we can do. We also end
+				 * frame. Sometimes the jpeg is yest complete,
+				 * but there's yesthing we can do. We also end
 				 * here if the the jpeg ends right at the end
 				 * of the frame. */
 				gspca_frame_add(gspca_dev, LAST_PACKET,
@@ -190,7 +190,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return ret;
 	}
 
-	/* Read the result of the command. Ignore the result, for it
+	/* Read the result of the command. Igyesre the result, for it
 	 * varies with the device. */
 	ret = usb_bulk_msg(gspca_dev->dev,
 			gspca_dev->urb[0]->pipe,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Implementation of s390 diagnose codes
+ * Implementation of s390 diagyesse codes
  *
  * Copyright IBM Corp. 2007
  * Author(s): Michael Holzheu <holzheu@de.ibm.com>
@@ -104,7 +104,7 @@ static const struct seq_operations show_diag_stat_sops = {
 	.show	= show_diag_stat,
 };
 
-static int show_diag_stat_open(struct inode *inode, struct file *file)
+static int show_diag_stat_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &show_diag_stat_sops);
 }
@@ -129,19 +129,19 @@ device_initcall(show_diag_stat_init);
 void diag_stat_inc(enum diag_stat_enum nr)
 {
 	this_cpu_inc(diag_stat.counter[nr]);
-	trace_s390_diagnose(diag_map[nr].code);
+	trace_s390_diagyesse(diag_map[nr].code);
 }
 EXPORT_SYMBOL(diag_stat_inc);
 
-void diag_stat_inc_norecursion(enum diag_stat_enum nr)
+void diag_stat_inc_yesrecursion(enum diag_stat_enum nr)
 {
 	this_cpu_inc(diag_stat.counter[nr]);
-	trace_s390_diagnose_norecursion(diag_map[nr].code);
+	trace_s390_diagyesse_yesrecursion(diag_map[nr].code);
 }
-EXPORT_SYMBOL(diag_stat_inc_norecursion);
+EXPORT_SYMBOL(diag_stat_inc_yesrecursion);
 
 /*
- * Diagnose 14: Input spool file manipulation
+ * Diagyesse 14: Input spool file manipulation
  */
 int diag14(unsigned long rx, unsigned long ry1, unsigned long subcode)
 {
@@ -157,7 +157,7 @@ static inline int __diag204(unsigned long *subcode, unsigned long size, void *ad
 
 	asm volatile(
 		"	diag	%2,%0,0x204\n"
-		"0:	nopr	%%r7\n"
+		"0:	yespr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: "+d" (_subcode), "+d" (_size) : "d" (addr) : "memory");
 	*subcode = _subcode;
@@ -175,7 +175,7 @@ int diag204(unsigned long subcode, unsigned long size, void *addr)
 EXPORT_SYMBOL(diag204);
 
 /*
- * Diagnose 210: Get information about a virtual device
+ * Diagyesse 210: Get information about a virtual device
  */
 int diag210(struct diag210 *addr)
 {
@@ -212,7 +212,7 @@ int diag224(void *ptr)
 EXPORT_SYMBOL(diag224);
 
 /*
- * Diagnose 26C: Access Certain System Information
+ * Diagyesse 26C: Access Certain System Information
  */
 int diag26c(void *req, void *resp, enum diag26c_sc subcode)
 {

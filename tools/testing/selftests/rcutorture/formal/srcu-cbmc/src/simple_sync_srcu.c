@@ -2,7 +2,7 @@
 #include <config.h>
 
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <stddef.h>
@@ -25,19 +25,19 @@
 bool try_check_zero(struct srcu_struct *sp, int idx, int trycount);
 void srcu_flip(struct srcu_struct *sp);
 
-/* Simpler implementation of synchronize_srcu that ignores batching. */
+/* Simpler implementation of synchronize_srcu that igyesres batching. */
 void synchronize_srcu(struct srcu_struct *sp)
 {
 	int idx;
 	/*
 	 * This code assumes that try_check_zero will succeed anyway,
-	 * so there is no point in multiple tries.
+	 * so there is yes point in multiple tries.
 	 */
 	const int trycount = 1;
 
 	might_sleep();
 
-	/* Ignore the lock, as multiple writers aren't working yet anyway. */
+	/* Igyesre the lock, as multiple writers aren't working yet anyway. */
 
 	idx = 1 ^ (sp->completed & 1);
 

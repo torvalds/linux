@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -325,7 +325,7 @@ err:
  * an interface to be created exclusively, while mac80211 doesn't associate
  * an interface with the mode.
  *
- * So, for now, only one monitor interface can be configured.
+ * So, for yesw, only one monitor interface can be configured.
  */
 static void __ath9k_htc_remove_monitor_interface(struct ath9k_htc_priv *priv)
 {
@@ -388,7 +388,7 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 	priv->vif_slot |= (1 << hvif.index);
 
 	/*
-	 * Set the hardware mode to monitor only if there are no
+	 * Set the hardware mode to monitor only if there are yes
 	 * other interfaces.
 	 */
 	if (!priv->nvifs)
@@ -718,7 +718,7 @@ static int ath9k_htc_tx_aggr_oper(struct ath9k_htc_priv *priv,
 	ista = (struct ath9k_htc_sta *) sta->drv_priv;
 
 	aggr.sta_index = ista->index;
-	aggr.tidno = tid & 0xf;
+	aggr.tidyes = tid & 0xf;
 	aggr.aggr_enable = (action == IEEE80211_AMPDU_TX_START) ? true : false;
 
 	WMI_CMD_BUF(WMI_TX_AGGR_ENABLE_CMDID, &aggr);
@@ -818,7 +818,7 @@ void ath9k_htc_ani_work(struct work_struct *work)
 		common->ani.checkani_timer = timestamp;
 	}
 
-	/* Skip all processing if there's nothing to do. */
+	/* Skip all processing if there's yesthing to do. */
 	if (longcal || shortcal || aniflag) {
 
 		ath9k_htc_ps_wakeup(priv);
@@ -870,7 +870,7 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw,
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 
-	/* Add the padding after the header if this is not already done */
+	/* Add the padding after the header if this is yest already done */
 	padpos = ieee80211_hdrlen(hdr->frame_control);
 	padsize = padpos & 3;
 	if (padsize && skb->len > padpos) {
@@ -984,7 +984,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	mutex_lock(&priv->mutex);
 
 	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
-		ath_dbg(common, ANY, "Device not present\n");
+		ath_dbg(common, ANY, "Device yest present\n");
 		mutex_unlock(&priv->mutex);
 		return;
 	}
@@ -1058,11 +1058,11 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 		hvif.opmode = HTC_M_HOSTAP;
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
-		hvif.opmode = HTC_M_WDS;	/* close enough */
+		hvif.opmode = HTC_M_WDS;	/* close eyesugh */
 		break;
 	default:
 		ath_err(common,
-			"Interface type %d not yet supported\n", vif->type);
+			"Interface type %d yest yet supported\n", vif->type);
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1075,7 +1075,7 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 		goto out;
 
 	/*
-	 * We need a node in target to tx mgmt frames
+	 * We need a yesde in target to tx mgmt frames
 	 * before association.
 	 */
 	ret = ath9k_htc_add_station(priv, vif, NULL);
@@ -1155,7 +1155,7 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	ath9k_htc_set_mac_bssid_mask(priv, vif);
 
 	/*
-	 * Stop ANI only if there are no associated station interfaces.
+	 * Stop ANI only if there are yes associated station interfaces.
 	 */
 	if ((vif->type == NL80211_IFTYPE_AP) && (priv->num_ap_vif == 0)) {
 		priv->rearm_ani = false;
@@ -1422,7 +1422,7 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	int ret = 0;
 
-	if (htc_modparam_nohwcrypt)
+	if (htc_modparam_yeshwcrypt)
 		return -ENOSPC;
 
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
@@ -1431,7 +1431,7 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
 		/*
-		 * For now, disable hw crypto for the RSN IBSS group keys. This
+		 * For yesw, disable hw crypto for the RSN IBSS group keys. This
 		 * could be optimized in the future to use a modified key cache
 		 * design to support per-STA RX GTK, but until that gets
 		 * implemented, use of software crypto for group addressed
@@ -1555,7 +1555,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) && !bss_conf->enable_beacon) {
 		/*
-		 * Disable SWBA interrupt only if there are no
+		 * Disable SWBA interrupt only if there are yes
 		 * concurrent AP/mesh or IBSS interfaces.
 		 */
 		if ((priv->num_ap_vif + priv->num_mbss_vif <= 1) ||
@@ -1693,7 +1693,7 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 		spin_unlock_bh(&priv->tx.tx_lock);
 		break;
 	default:
-		ath_err(ath9k_hw_common(priv->ah), "Unknown AMPDU action\n");
+		ath_err(ath9k_hw_common(priv->ah), "Unkyeswn AMPDU action\n");
 	}
 
 	ath9k_htc_ps_restore(priv);
@@ -1859,7 +1859,7 @@ static void ath9k_htc_channel_switch_beacon(struct ieee80211_hw *hw,
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 
-	/* mac80211 does not support CSA in multi-if cases (yet) */
+	/* mac80211 does yest support CSA in multi-if cases (yet) */
 	if (WARN_ON(priv->csa_vif))
 		return;
 

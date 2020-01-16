@@ -100,7 +100,7 @@ static struct zl10353_config leadtek_dvr3100h_demod = {
 	.demod_address         = 0x1e >> 1, /* Datasheet suggested straps */
 	.if2                   = 45600,     /* 4.560 MHz IF from the XC3028 */
 	.parallel_ts           = 1,         /* Not a serial TS */
-	.no_tuner              = 1,         /* XC3028 is not behind the gate */
+	.yes_tuner              = 1,         /* XC3028 is yest behind the gate */
 	.disable_i2c_gate_ctrl = 1,         /* Disable the I2C gate */
 };
 
@@ -117,7 +117,7 @@ static struct zl10353_config leadtek_dvr3100h_demod = {
  * driver (yuanrap.sys) and which we load as a firmware.
  *
  * If someone can provide me with a Zarlink MT352 (Intel CE6352?) Design Manual
- * with chip programming details, then I can remove this annoyance.
+ * with chip programming details, then I can remove this anyesyance.
  */
 static int yuan_mpc718_mt352_reqfw(struct cx18_stream *stream,
 				   const struct firmware **fw)
@@ -141,7 +141,7 @@ static int yuan_mpc718_mt352_reqfw(struct cx18_stream *stream,
 	}
 
 	if (ret) {
-		CX18_ERR("The MPC718 board variant with the MT352 DVB-T demodulator will not work without it\n");
+		CX18_ERR("The MPC718 board variant with the MT352 DVB-T demodulator will yest work without it\n");
 		CX18_ERR("Run 'linux/scripts/get_dvb_firmware mpc718' if you need the firmware\n");
 	}
 	return ret;
@@ -205,7 +205,7 @@ static struct mt352_config yuan_mpc718_mt352_demod = {
 	.demod_address = 0x1e >> 1,
 	.adc_clock     = 20480,     /* 20.480 MHz */
 	.if2           =  4560,     /*  4.560 MHz */
-	.no_tuner      = 1,         /* XC3028 is not behind the gate */
+	.yes_tuner      = 1,         /* XC3028 is yest behind the gate */
 	.demod_init    = yuan_mpc718_mt352_init,
 };
 
@@ -213,7 +213,7 @@ static struct zl10353_config yuan_mpc718_zl10353_demod = {
 	.demod_address         = 0x1e >> 1, /* Datasheet suggested straps */
 	.if2                   = 45600,     /* 4.560 MHz IF from the XC3028 */
 	.parallel_ts           = 1,         /* Not a serial TS */
-	.no_tuner              = 1,         /* XC3028 is not behind the gate */
+	.yes_tuner              = 1,         /* XC3028 is yest behind the gate */
 	.disable_i2c_gate_ctrl = 1,         /* Disable the I2C gate */
 };
 
@@ -221,7 +221,7 @@ static struct zl10353_config gotview_dvd3_zl10353_demod = {
 	.demod_address         = 0x1e >> 1, /* Datasheet suggested straps */
 	.if2                   = 45600,     /* 4.560 MHz IF from the XC3028 */
 	.parallel_ts           = 1,         /* Not a serial TS */
-	.no_tuner              = 1,         /* XC3028 is not behind the gate */
+	.yes_tuner              = 1,         /* XC3028 is yest behind the gate */
 	.disable_i2c_gate_ctrl = 1,         /* Disable the I2C gate */
 };
 
@@ -264,7 +264,7 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 		v |= 0x00002000; /* Data Length - Byte */
 		v |= 0x00010000; /* Error - Polarity */
 		v |= 0x00020000; /* Error - Passthru */
-		v |= 0x000c0000; /* Error - Ignore */
+		v |= 0x000c0000; /* Error - Igyesre */
 		cx18_write_reg(cx, v, CX18_REG_DMUX_NUM_PORT_0_CONTROL);
 		break;
 
@@ -578,7 +578,7 @@ static int dvb_register(struct cx18_stream *stream)
 
 	/*
 	 * The firmware seems to enable the TS DMUX clock
-	 * under various circumstances.  However, since we know we
+	 * under various circumstances.  However, since we kyesw we
 	 * might use it, let's just turn it on ourselves here.
 	 */
 	cx18_write_reg_expect(cx,

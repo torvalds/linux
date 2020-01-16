@@ -7,7 +7,7 @@
  */
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -106,7 +106,7 @@ jornada720_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_s
 	}
 
 	if (state->Vpp != state->Vcc && state->Vpp != 0) {
-		printk(KERN_ERR "%s(): slot cannot support VPP %u\n",
+		printk(KERN_ERR "%s(): slot canyest support VPP %u\n",
 			__func__, state->Vpp);
 		return -EPERM;
 	}

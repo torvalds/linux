@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * PCIe RC driver for Synopsys DesignWare Core
+ * PCIe RC driver for Syyespsys DesignWare Core
  *
- * Copyright (C) 2015-2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2015-2016 Syyespsys, Inc. (www.syyespsys.com)
  *
- * Authors: Joao Pinto <Joao.Pinto@synopsys.com>
+ * Authors: Joao Pinto <Joao.Pinto@syyespsys.com>
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -68,13 +68,13 @@ static const struct dw_pcie_ops dw_pcie_ops = {
 static void dw_plat_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
-	enum pci_barno bar;
+	enum pci_baryes bar;
 
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		dw_pcie_ep_reset_bar(pci, bar);
 }
 
-static int dw_plat_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int dw_plat_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_yes,
 				     enum pci_epc_irq_type type,
 				     u16 interrupt_num)
 {
@@ -82,11 +82,11 @@ static int dw_plat_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 
 	switch (type) {
 	case PCI_EPC_IRQ_LEGACY:
-		return dw_pcie_ep_raise_legacy_irq(ep, func_no);
+		return dw_pcie_ep_raise_legacy_irq(ep, func_yes);
 	case PCI_EPC_IRQ_MSI:
-		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msi_irq(ep, func_yes, interrupt_num);
 	case PCI_EPC_IRQ_MSIX:
-		return dw_pcie_ep_raise_msix_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msix_irq(ep, func_yes, interrupt_num);
 	default:
 		dev_err(pci->dev, "UNKNOWN IRQ type\n");
 	}
@@ -95,7 +95,7 @@ static int dw_plat_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 }
 
 static const struct pci_epc_features dw_plat_pcie_epc_features = {
-	.linkup_notifier = false,
+	.linkup_yestifier = false,
 	.msi_capable = true,
 	.msix_capable = true,
 };

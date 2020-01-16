@@ -32,7 +32,7 @@ static u32 reg_max;
 #ifdef CONFIG_DEBUG_FS
 static struct dentry *audmux_debugfs_root;
 
-/* There is an annoying discontinuity in the SSI numbering with regard
+/* There is an anyesying discontinuity in the SSI numbering with regard
  * to the Linux number of the devices */
 static const char *audmux_port_string(int port)
 {
@@ -239,11 +239,11 @@ int imx_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 EXPORT_SYMBOL_GPL(imx_audmux_v2_configure_port);
 
 static int imx_audmux_parse_dt_defaults(struct platform_device *pdev,
-		struct device_node *of_node)
+		struct device_yesde *of_yesde)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 
-	for_each_available_child_of_node(of_node, child) {
+	for_each_available_child_of_yesde(of_yesde, child) {
 		unsigned int port;
 		unsigned int ptcr = 0;
 		unsigned int pdcr = 0;
@@ -254,12 +254,12 @@ static int imx_audmux_parse_dt_defaults(struct platform_device *pdev,
 
 		ret = of_property_read_u32(child, "fsl,audmux-port", &port);
 		if (ret) {
-			dev_warn(&pdev->dev, "Failed to get fsl,audmux-port of child node \"%pOF\"\n",
+			dev_warn(&pdev->dev, "Failed to get fsl,audmux-port of child yesde \"%pOF\"\n",
 					child);
 			continue;
 		}
 		if (!of_property_read_bool(child, "fsl,port-config")) {
-			dev_warn(&pdev->dev, "child node \"%pOF\" does not have property fsl,port-config\n",
+			dev_warn(&pdev->dev, "child yesde \"%pOF\" does yest have property fsl,port-config\n",
 					child);
 			continue;
 		}
@@ -285,7 +285,7 @@ static int imx_audmux_parse_dt_defaults(struct platform_device *pdev,
 
 		if (audmux_type == IMX31_AUDMUX) {
 			if (i % 2) {
-				dev_err(&pdev->dev, "One pdcr value is missing in child node %pOF\n",
+				dev_err(&pdev->dev, "One pdcr value is missing in child yesde %pOF\n",
 						child);
 				continue;
 			}
@@ -309,7 +309,7 @@ static int imx_audmux_probe(struct platform_device *pdev)
 
 	audmux_clk = devm_clk_get(&pdev->dev, "audmux");
 	if (IS_ERR(audmux_clk)) {
-		dev_dbg(&pdev->dev, "cannot get clock: %ld\n",
+		dev_dbg(&pdev->dev, "canyest get clock: %ld\n",
 				PTR_ERR(audmux_clk));
 		audmux_clk = NULL;
 	}
@@ -336,7 +336,7 @@ static int imx_audmux_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (of_id)
-		imx_audmux_parse_dt_defaults(pdev, pdev->dev.of_node);
+		imx_audmux_parse_dt_defaults(pdev, pdev->dev.of_yesde);
 
 	return 0;
 }

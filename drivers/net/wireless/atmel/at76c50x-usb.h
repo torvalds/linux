@@ -105,7 +105,7 @@ struct hwcfg_rfmd {
 	u8 mac_addr[ETH_ALEN];
 	u8 regulatory_domain;
 	u8 low_power_values[14];
-	u8 normal_power_values[14];
+	u8 yesrmal_power_values[14];
 	u8 reserved1[3];
 } __packed;
 
@@ -164,7 +164,7 @@ struct at76_rx_buffer {
 	u8 fragmentation;
 	u8 rssi;
 	u8 link_quality;
-	u8 noise_level;
+	u8 yesise_level;
 	__le32 rx_time;
 	u8 packet[IEEE80211_MAX_FRAG_THRESHOLD];
 } __packed;
@@ -308,7 +308,7 @@ struct mib_phy {
 
 struct mib_fw_version {
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	u8 patch;
 	u8 build;
 } __packed;
@@ -336,7 +336,7 @@ struct at76_fw_header {
 	__le32 board_type;	/* firmware compatibility code */
 	u8 build;		/* firmware build number */
 	u8 patch;		/* firmware patch level */
-	u8 minor;		/* firmware minor version */
+	u8 miyesr;		/* firmware miyesr version */
 	u8 major;		/* firmware major version */
 	__le32 str_offset;	/* offset of the copyright string */
 	__le32 int_fw_offset;	/* internal firmware image offset */
@@ -358,7 +358,7 @@ struct fwentry {
 	const struct firmware *fw;
 	int extfw_size;
 	int intfw_size;
-	/* pointer to loaded firmware, no need to free */
+	/* pointer to loaded firmware, yes need to free */
 	u8 *extfw;		/* external firmware, extfw_size bytes long */
 	u8 *intfw;		/* internal firmware, intfw_size bytes long */
 	enum board_type board_type;	/* board type */
@@ -423,7 +423,7 @@ struct at76_priv {
 
 	struct reg_domain const *domain;	/* reg domain description */
 
-	/* These fields contain HW config provided by the device (not all of
+	/* These fields contain HW config provided by the device (yest all of
 	 * these fields are used by all board types) */
 	u8 mac_addr[ETH_ALEN];
 	u8 regulatory_domain;

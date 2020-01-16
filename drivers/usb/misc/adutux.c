@@ -2,9 +2,9 @@
 /*
  * adutux - driver for ADU devices from Ontrak Control Systems
  * This is an experimental driver. Use at your own risk.
- * This driver is not supported by Ontrak Control Systems.
+ * This driver is yest supported by Ontrak Control Systems.
  *
- * Copyright (c) 2003 John Homppi (SCO, leave this notice here)
+ * Copyright (c) 2003 John Homppi (SCO, leave this yestice here)
  *
  * derived from the Lego USB Tower driver 0.56:
  * Copyright (c) 2003 David Glance <davidgsf@sourceforge.net>
@@ -18,7 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -71,7 +71,7 @@ struct adu_device {
 	struct mutex		mtx;
 	struct usb_device *udev; /* save off the usb device pointer */
 	struct usb_interface *interface;
-	unsigned int		minor; /* the starting minor number for this device */
+	unsigned int		miyesr; /* the starting miyesr number for this device */
 	char			serial_number[8];
 
 	int			open_count; /* number of times this port has been opened */
@@ -168,7 +168,7 @@ static void adu_interrupt_in_callback(struct urb *urb)
 		if ((status != -ENOENT) && (status != -ECONNRESET) &&
 			(status != -ESHUTDOWN)) {
 			dev_dbg(&dev->udev->dev,
-				"%s : nonzero status received: %d\n",
+				"%s : yesnzero status received: %d\n",
 				__func__, status);
 		}
 		goto exit;
@@ -211,7 +211,7 @@ static void adu_interrupt_out_callback(struct urb *urb)
 		if ((status != -ENOENT) &&
 		    (status != -ECONNRESET)) {
 			dev_dbg(&dev->udev->dev,
-				"%s :nonzero status received: %d\n", __func__,
+				"%s :yesnzero status received: %d\n", __func__,
 				status);
 		}
 		return;
@@ -223,37 +223,37 @@ static void adu_interrupt_out_callback(struct urb *urb)
 	spin_unlock_irqrestore(&dev->buflock, flags);
 }
 
-static int adu_open(struct inode *inode, struct file *file)
+static int adu_open(struct iyesde *iyesde, struct file *file)
 {
 	struct adu_device *dev = NULL;
 	struct usb_interface *interface;
-	int subminor;
+	int submiyesr;
 	int retval;
 
-	subminor = iminor(inode);
+	submiyesr = imiyesr(iyesde);
 
 	retval = mutex_lock_interruptible(&adutux_mutex);
 	if (retval)
-		goto exit_no_lock;
+		goto exit_yes_lock;
 
-	interface = usb_find_interface(&adu_driver, subminor);
+	interface = usb_find_interface(&adu_driver, submiyesr);
 	if (!interface) {
-		pr_err("%s - error, can't find device for minor %d\n",
-		       __func__, subminor);
+		pr_err("%s - error, can't find device for miyesr %d\n",
+		       __func__, submiyesr);
 		retval = -ENODEV;
-		goto exit_no_device;
+		goto exit_yes_device;
 	}
 
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
 		retval = -ENODEV;
-		goto exit_no_device;
+		goto exit_yes_device;
 	}
 
-	/* check that nobody else is using the device */
+	/* check that yesbody else is using the device */
 	if (dev->open_count) {
 		retval = -EBUSY;
-		goto exit_no_device;
+		goto exit_yes_device;
 	}
 
 	++dev->open_count;
@@ -277,7 +277,7 @@ static int adu_open(struct inode *inode, struct file *file)
 	dev->read_urb_finished = 0;
 	if (usb_submit_urb(dev->interrupt_in_urb, GFP_KERNEL))
 		dev->read_urb_finished = 1;
-	/* we ignore failure */
+	/* we igyesre failure */
 	/* end of fixup for first read */
 
 	/* initialize out direction */
@@ -285,9 +285,9 @@ static int adu_open(struct inode *inode, struct file *file)
 
 	retval = 0;
 
-exit_no_device:
+exit_yes_device:
 	mutex_unlock(&adutux_mutex);
-exit_no_lock:
+exit_yes_lock:
 	return retval;
 }
 
@@ -303,7 +303,7 @@ static void adu_release_internal(struct adu_device *dev)
 	}
 }
 
-static int adu_release(struct inode *inode, struct file *file)
+static int adu_release(struct iyesde *iyesde, struct file *file)
 {
 	struct adu_device *dev;
 	int retval = 0;
@@ -319,10 +319,10 @@ static int adu_release(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
-	mutex_lock(&adutux_mutex); /* not interruptible */
+	mutex_lock(&adutux_mutex); /* yest interruptible */
 
 	if (dev->open_count <= 0) {
-		dev_dbg(&dev->udev->dev, "%s : device not opened\n", __func__);
+		dev_dbg(&dev->udev->dev, "%s : device yest opened\n", __func__);
 		retval = -ENODEV;
 		goto unlock;
 	}
@@ -490,7 +490,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 				dev->interrupt_in_endpoint->bInterval);
 		if (usb_submit_urb(dev->interrupt_in_urb, GFP_KERNEL) != 0)
 			dev->read_urb_finished = 1;
-		/* we ignore failure */
+		/* we igyesre failure */
 	} else {
 		spin_unlock_irqrestore(&dev->buflock, flags);
 	}
@@ -517,7 +517,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 
 	retval = mutex_lock_interruptible(&dev->mtx);
 	if (retval)
-		goto exit_nolock;
+		goto exit_yeslock;
 
 	/* verify that the device wasn't unplugged */
 	if (dev->disconnected) {
@@ -558,7 +558,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 			retval = mutex_lock_interruptible(&dev->mtx);
 			if (retval) {
 				retval = bytes_written ? bytes_written : retval;
-				goto exit_nolock;
+				goto exit_yeslock;
 			}
 
 			dev_dbg(&dev->udev->dev,
@@ -614,7 +614,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 
 exit:
 	mutex_unlock(&dev->mtx);
-exit_nolock:
+exit_yeslock:
 	return retval;
 
 exit_onqueue:
@@ -629,17 +629,17 @@ static const struct file_operations adu_fops = {
 	.write = adu_write,
 	.open = adu_open,
 	.release = adu_release,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 /*
- * usb class driver info in order to get a minor number from the usb core,
+ * usb class driver info in order to get a miyesr number from the usb core,
  * and to have the device registered with devfs and the driver core
  */
 static struct usb_class_driver adu_class = {
 	.name = "usb/adutux%d",
 	.fops = &adu_fops,
-	.minor_base = ADU_MINOR_BASE,
+	.miyesr_base = ADU_MINOR_BASE,
 };
 
 /**
@@ -674,7 +674,7 @@ static int adu_probe(struct usb_interface *interface,
 			&dev->interrupt_in_endpoint,
 			&dev->interrupt_out_endpoint);
 	if (res) {
-		dev_err(&interface->dev, "interrupt endpoints not found\n");
+		dev_err(&interface->dev, "interrupt endpoints yest found\n");
 		retval = res;
 		goto error;
 	}
@@ -721,30 +721,30 @@ static int adu_probe(struct usb_interface *interface,
 
 	if (!usb_string(udev, udev->descriptor.iSerialNumber, dev->serial_number,
 			sizeof(dev->serial_number))) {
-		dev_err(&interface->dev, "Could not retrieve serial number\n");
+		dev_err(&interface->dev, "Could yest retrieve serial number\n");
 		retval = -EIO;
 		goto error;
 	}
 	dev_dbg(&interface->dev,"serial_number=%s", dev->serial_number);
 
-	/* we can register the device now, as it is ready */
+	/* we can register the device yesw, as it is ready */
 	usb_set_intfdata(interface, dev);
 
 	retval = usb_register_dev(interface, &adu_class);
 
 	if (retval) {
 		/* something prevented us from registering this driver */
-		dev_err(&interface->dev, "Not able to get a minor for this device.\n");
+		dev_err(&interface->dev, "Not able to get a miyesr for this device.\n");
 		usb_set_intfdata(interface, NULL);
 		goto error;
 	}
 
-	dev->minor = interface->minor;
+	dev->miyesr = interface->miyesr;
 
-	/* let the user know what node this device is now attached to */
-	dev_info(&interface->dev, "ADU%d %s now attached to /dev/usb/adutux%d\n",
+	/* let the user kyesw what yesde this device is yesw attached to */
+	dev_info(&interface->dev, "ADU%d %s yesw attached to /dev/usb/adutux%d\n",
 		 le16_to_cpu(udev->descriptor.idProduct), dev->serial_number,
-		 (dev->minor - ADU_MINOR_BASE));
+		 (dev->miyesr - ADU_MINOR_BASE));
 
 	return 0;
 
@@ -772,11 +772,11 @@ static void adu_disconnect(struct usb_interface *interface)
 	mutex_lock(&adutux_mutex);
 	usb_set_intfdata(interface, NULL);
 
-	mutex_lock(&dev->mtx);	/* not interruptible */
+	mutex_lock(&dev->mtx);	/* yest interruptible */
 	dev->disconnected = 1;
 	mutex_unlock(&dev->mtx);
 
-	/* if the device is not opened, then we clean up right now */
+	/* if the device is yest opened, then we clean up right yesw */
 	if (!dev->open_count)
 		adu_delete(dev);
 

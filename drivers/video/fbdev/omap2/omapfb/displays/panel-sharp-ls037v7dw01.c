@@ -211,7 +211,7 @@ static  int sharp_ls_get_gpio_of(struct device *dev, int index, int val,
 static int sharp_ls_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct omap_dss_device *in;
 	int r;
 
@@ -246,7 +246,7 @@ static int sharp_ls_probe_of(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(yesde);
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -263,7 +263,7 @@ static int sharp_ls_probe(struct platform_device *pdev)
 	struct omap_dss_device *dssdev;
 	int r;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);

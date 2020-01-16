@@ -144,7 +144,7 @@ static int asm9260_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	if (ctime1 != ioread32(priv->iobase + HW_CTIME1)) {
 		/*
-		 * woops, counter flipped right now. Now we are safe
+		 * woops, counter flipped right yesw. Now we are safe
 		 * to reread.
 		 */
 		ctime0 = ioread32(priv->iobase + HW_CTIME0);
@@ -171,7 +171,7 @@ static int asm9260_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	struct asm9260_rtc_priv *priv = dev_get_drvdata(dev);
 
 	/*
-	 * make sure SEC counter will not flip other counter on write time,
+	 * make sure SEC counter will yest flip other counter on write time,
 	 * real value will be written at the enf of sequence.
 	 */
 	iowrite32(0, priv->iobase + HW_SEC);
@@ -271,7 +271,7 @@ static int asm9260_rtc_probe(struct platform_device *pdev)
 	}
 
 	ccr = ioread32(priv->iobase + HW_CCR);
-	/* if dev is not enabled, reset it */
+	/* if dev is yest enabled, reset it */
 	if ((ccr & (BM_CLKEN | BM_CTCRST)) != BM_CLKEN) {
 		iowrite32(BM_CTCRST, priv->iobase + HW_CCR);
 		ccr = 0;

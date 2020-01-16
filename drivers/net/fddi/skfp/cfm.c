@@ -167,7 +167,7 @@ static void cem_priv_state(struct s_smc *smc, int event)
 	if (smc->y[np].cf_join) {
 		smc->y[np].cem_pst = CEM_PST_UP ;
 	} else if (!smc->y[np].wc_flag) {
-		/* set the port to done only if it is not withheld */
+		/* set the port to done only if it is yest withheld */
 		smc->y[np].cem_pst = CEM_PST_DOWN ;
 	}
 
@@ -175,7 +175,7 @@ static void cem_priv_state(struct s_smc *smc, int event)
 
 	/* Check all ports of restart conditions */
 	for (i = 0 ; i < 2 ; i ++ ) {
-		/* Check all port for PORT is on hold and no withhold is done */
+		/* Check all port for PORT is on hold and yes withhold is done */
 		if ( smc->y[i].cem_pst == CEM_PST_HOLD && !smc->y[i].wc_flag ) {
 			smc->y[i].cem_pst = CEM_PST_DOWN;
 			queue_event(smc,(int)(EVENT_PCM+i),PC_START) ;
@@ -218,7 +218,7 @@ void cfm(struct s_smc *smc, int event)
 
 	all_selection_criteria (smc);
 
-	/* We will check now whether a state transition is allowed or not */
+	/* We will check yesw whether a state transition is allowed or yest */
 	/*  - change the portstates */
 	cem_priv_state (smc, event);
 
@@ -262,7 +262,7 @@ void cfm(struct s_smc *smc, int event)
 		smt_srf_event(smc,SMT_EVENT_MAC_PATH_CHANGE,INDEX_MAC,0) ;
 	}
 #endif
-#endif	/* no SLIM_SMT */
+#endif	/* yes SLIM_SMT */
 
 	/*
 	 * set MAC port type

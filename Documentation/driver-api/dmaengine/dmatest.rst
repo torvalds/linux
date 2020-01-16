@@ -6,12 +6,12 @@ Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 
 This small document introduces how to test DMA drivers using dmatest module.
 
-.. note::
+.. yeste::
   The test suite works only on the channels that have at least one
   capability of the following: DMA_MEMCPY (memory-to-memory), DMA_MEMSET
   (const-to-memory or memory-to-memory, when emulated), DMA_XOR, DMA_PQ.
 
-.. note::
+.. yeste::
   In case of any related questions use the official mailing list
   dmaengine@vger.kernel.org.
 
@@ -54,7 +54,7 @@ Example of multi-channel test usage (new in the 5.0 kernel)::
     % echo dma0chan2 > /sys/module/dmatest/parameters/channel
     % echo 1 > /sys/module/dmatest/parameters/run
 
-.. note::
+.. yeste::
   For all tests, starting in the 5.0 kernel, either single- or multi-channel,
   the channel parameter(s) must be set after all other parameters. It is at
   that time that the existing parameter values are acquired for use by the
@@ -70,10 +70,10 @@ Example of multi-channel test usage (new in the 5.0 kernel)::
     % ls -1 /sys/class/dma/
 
 Once started a message like " dmatest: Added 1 threads using dma0chan0" is
-emitted. A thread for that specific channel is created and is now pending, the
+emitted. A thread for that specific channel is created and is yesw pending, the
 pending thread is started once run is to 1.
 
-Note that running a new test will not stop any in progress test.
+Note that running a new test will yest stop any in progress test.
 
 The following command returns the state of the test. ::
 
@@ -134,7 +134,7 @@ Example::
     % dmesg | tail -n 1
     dmatest: dma0chan0-copy0: summary 1 test, 0 failures 1000 iops 100000 KB/s (0)
 
-The details of a data miscompare error are also emitted, but do not follow the
+The details of a data miscompare error are also emitted, but do yest follow the
 above format.
 
 Part 5 - Handling channel allocation
@@ -149,7 +149,7 @@ Attempting to run the test without configuring the channels will fail.
 Example::
 
     % echo 1 > /sys/module/dmatest/parameters/run
-    dmatest: Could not start test, no channels configured
+    dmatest: Could yest start test, yes channels configured
 
 Channels are registered using the "channel" parameter. Channels can be requested by their
 name, once requested, the channel is registered and a pending thread is added to the test list.
@@ -171,7 +171,7 @@ Example::
     % cat /sys/module/dmatest/parameters/channel
     dma0chan2
 
-Another method of requesting channels is to request a channel with an empty string, Doing so
+Ayesther method of requesting channels is to request a channel with an empty string, Doing so
 will request all channels available to be tested:
 
 Example::
@@ -199,7 +199,7 @@ Example::
     dmatest: 1 threads using dma0chan7
     dmatest: 1 threads using dma0chan8
 
-Note: Channels will have to be configured for each test run as channel configurations do not
+Note: Channels will have to be configured for each test run as channel configurations do yest
 carry across to the next test run.
 
 Releasing Channels

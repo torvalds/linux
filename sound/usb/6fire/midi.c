@@ -40,7 +40,7 @@ static void usb6fire_midi_out_handler(struct urb *urb)
 				dev_err(&urb->dev->dev,
 					"midi out urb submit failed: %d\n",
 					ret);
-		} else /* no more data to transmit */
+		} else /* yes more data to transmit */
 			rt->out = NULL;
 	}
 	spin_unlock_irqrestore(&rt->out_lock, flags);

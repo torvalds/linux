@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -86,7 +86,7 @@ static struct intel_gvt_mmio_info *find_mmio_info(struct intel_gvt *gvt,
 {
 	struct intel_gvt_mmio_info *e;
 
-	hash_for_each_possible(gvt->mmio.mmio_info_table, e, node, offset) {
+	hash_for_each_possible(gvt->mmio.mmio_info_table, e, yesde, offset) {
 		if (e->offset == offset)
 			return e;
 	}
@@ -134,8 +134,8 @@ static int new_mmio_info(struct intel_gvt *gvt,
 		info->read = read ? read : intel_vgpu_default_mmio_read;
 		info->write = write ? write : intel_vgpu_default_mmio_write;
 		gvt->mmio.mmio_attribute[info->offset / 4] = flags;
-		INIT_HLIST_NODE(&info->node);
-		hash_add(gvt->mmio.mmio_info_table, &info->node, info->offset);
+		INIT_HLIST_NODE(&info->yesde);
+		hash_add(gvt->mmio.mmio_info_table, &info->yesde, info->offset);
 		gvt->mmio.num_tracked_mmio++;
 	}
 	return 0;
@@ -177,7 +177,7 @@ void enter_failsafe_mode(struct intel_vgpu *vgpu, int reason)
 		pr_err("Detected your guest driver doesn't support GVT-g.\n");
 		break;
 	case GVT_FAILSAFE_INSUFFICIENT_RESOURCE:
-		pr_err("Graphics resource is not enough for the guest\n");
+		pr_err("Graphics resource is yest eyesugh for the guest\n");
 		break;
 	case GVT_FAILSAFE_GUEST_ERR:
 		pr_err("GVT Internal error  for the guest\n");
@@ -199,10 +199,10 @@ static int sanitize_fence_mmio_access(struct intel_vgpu *vgpu,
 			     fence_num, max_fence);
 
 		/* When guest access oob fence regs without access
-		 * pv_info first, we treat guest not supporting GVT,
+		 * pv_info first, we treat guest yest supporting GVT,
 		 * and we will let vgpu enter failsafe mode.
 		 */
-		if (!vgpu->pv_notified)
+		if (!vgpu->pv_yestified)
 			enter_failsafe_mode(vgpu,
 					GVT_FAILSAFE_UNSUPPORTED_GUEST);
 
@@ -224,10 +224,10 @@ static int gamw_echo_dev_rw_ia_write(struct intel_vgpu *vgpu,
 			gvt_dbg_core("vgpu%d: ips disabled\n", vgpu->id);
 		else {
 			/* All engines must be enabled together for vGPU,
-			 * since we don't know which engine the ppgtt will
+			 * since we don't kyesw which engine the ppgtt will
 			 * bind to when shadowing.
 			 */
-			gvt_vgpu_err("Unsupported IPS setting %x, cannot enable 64K gtt.\n",
+			gvt_vgpu_err("Unsupported IPS setting %x, canyest enable 64K gtt.\n",
 				     ips);
 			return -EINVAL;
 		}
@@ -295,7 +295,7 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 			ack_reg_offset = FORCEWAKE_ACK_MEDIA_GEN9_REG;
 			break;
 		default:
-			/*should not hit here*/
+			/*should yest hit here*/
 			gvt_vgpu_err("invalid forcewake offset 0x%x\n", offset);
 			return -EINVAL;
 		}
@@ -461,7 +461,7 @@ static int pipeconf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 }
 
 /* ascendingly sorted */
-static i915_reg_t force_nonpriv_white_list[] = {
+static i915_reg_t force_yesnpriv_white_list[] = {
 	GEN9_CS_DEBUG_MODE1, //_MMIO(0x20ec)
 	GEN9_CTX_PREEMPT_REG,//_MMIO(0x2248)
 	PS_INVOCATION_COUNT,//_MMIO(0x2348)
@@ -494,8 +494,8 @@ static i915_reg_t force_nonpriv_white_list[] = {
 /* a simple bsearch */
 static inline bool in_whitelist(unsigned int reg)
 {
-	int left = 0, right = ARRAY_SIZE(force_nonpriv_white_list);
-	i915_reg_t *array = force_nonpriv_white_list;
+	int left = 0, right = ARRAY_SIZE(force_yesnpriv_white_list);
+	i915_reg_t *array = force_yesnpriv_white_list;
 
 	while (left < right) {
 		int mid = (left + right)/2;
@@ -510,10 +510,10 @@ static inline bool in_whitelist(unsigned int reg)
 	return false;
 }
 
-static int force_nonpriv_write(struct intel_vgpu *vgpu,
+static int force_yesnpriv_write(struct intel_vgpu *vgpu,
 	unsigned int offset, void *p_data, unsigned int bytes)
 {
-	u32 reg_nonpriv = (*(u32 *)p_data) & REG_GENMASK(25, 2);
+	u32 reg_yesnpriv = (*(u32 *)p_data) & REG_GENMASK(25, 2);
 	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
 	u32 ring_base;
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
@@ -527,8 +527,8 @@ static int force_nonpriv_write(struct intel_vgpu *vgpu,
 
 	ring_base = dev_priv->engine[ring_id]->mmio_base;
 
-	if (in_whitelist(reg_nonpriv) ||
-		reg_nonpriv == i915_mmio_reg_offset(RING_NOPID(ring_base))) {
+	if (in_whitelist(reg_yesnpriv) ||
+		reg_yesnpriv == i915_mmio_reg_offset(RING_NOPID(ring_base))) {
 		ret = intel_vgpu_default_mmio_write(vgpu, offset, p_data,
 			bytes);
 	} else
@@ -958,7 +958,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 			/*
 			 * Write request exceeds what we supported,
 			 * DCPD spec: When a Source Device is writing a DPCD
-			 * address not supported by the Sink Device, the Sink
+			 * address yest supported by the Sink Device, the Sink
 			 * Device shall reply with AUX NACK and “M” equal to
 			 * zero.
 			 */
@@ -1210,11 +1210,11 @@ static int pvinfo_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 	if (invalid_read)
 		gvt_vgpu_err("invalid pvinfo read: [%x:%x] = %x\n",
 				offset, bytes, *(u32 *)p_data);
-	vgpu->pv_notified = true;
+	vgpu->pv_yestified = true;
 	return 0;
 }
 
-static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
+static int handle_g2v_yestification(struct intel_vgpu *vgpu, int yestification)
 {
 	enum intel_gvt_gtt_type root_entry_type = GTT_TYPE_PPGTT_ROOT_L4_ENTRY;
 	struct intel_vgpu_mm *mm;
@@ -1222,7 +1222,7 @@ static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
 
 	pdps = (u64 *)&vgpu_vreg64_t(vgpu, vgtif_reg(pdp[0]));
 
-	switch (notification) {
+	switch (yestification) {
 	case VGT_G2V_PPGTT_L3_PAGE_TABLE_CREATE:
 		root_entry_type = GTT_TYPE_PPGTT_ROOT_L3_ENTRY;
 		/* fall through */
@@ -1237,7 +1237,7 @@ static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
 	case 1:	/* Remove this in guest driver. */
 		break;
 	default:
-		gvt_vgpu_err("Invalid PV notification %d\n", notification);
+		gvt_vgpu_err("Invalid PV yestification %d\n", yestification);
 	}
 	return 0;
 }
@@ -1269,8 +1269,8 @@ static int pvinfo_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	case _vgtif_reg(display_ready):
 		send_display_ready_uevent(vgpu, data ? 1 : 0);
 		break;
-	case _vgtif_reg(g2v_notify):
-		handle_g2v_notification(vgpu, data);
+	case _vgtif_reg(g2v_yestify):
+		handle_g2v_yestification(vgpu, data);
 		break;
 	/* add xhot and yhot to handled list to avoid error log */
 	case _vgtif_reg(cursor_x_hot):
@@ -1466,7 +1466,7 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 		     vgpu->id, value, *data0);
 	/**
 	 * PCODE_READY clear means ready for pcode read/write,
-	 * PCODE_ERROR_MASK clear means no error happened. In GVT-g we
+	 * PCODE_ERROR_MASK clear means yes error happened. In GVT-g we
 	 * always emulate as pcode read/write success and ready for access
 	 * anytime, since we don't touch real physical registers here.
 	 */
@@ -1491,7 +1491,7 @@ static int hws_pga_write(struct intel_vgpu *vgpu, unsigned int offset,
 	 * support BDW, SKL or other platforms with same HWSP registers.
 	 */
 	if (unlikely(ring_id < 0 || ring_id >= I915_NUM_ENGINES)) {
-		gvt_vgpu_err("access unknown hardware status page register:0x%x\n",
+		gvt_vgpu_err("access unkyeswn hardware status page register:0x%x\n",
 			     offset);
 		return -EINVAL;
 	}
@@ -1730,12 +1730,12 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	}
 
 	/* when PPGTT mode enabled, we will check if guest has called
-	 * pvinfo, if not, we will treat this guest as non-gvtg-aware
+	 * pvinfo, if yest, we will treat this guest as yesn-gvtg-aware
 	 * guest, and stop emulating its cfg space, mmio, gtt, etc.
 	 */
 	if (((data & _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE)) ||
 			(data & _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE)))
-			&& !vgpu->pv_notified) {
+			&& !vgpu->pv_yestified) {
 		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
 		return 0;
 	}
@@ -2843,7 +2843,7 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_MMIO(0xb110), D_BDW);
 
 	MMIO_F(_MMIO(0x24d0), 48, F_CMD_ACCESS, 0, 0, D_BDW_PLUS,
-		NULL, force_nonpriv_write);
+		NULL, force_yesnpriv_write);
 
 	MMIO_D(_MMIO(0x44484), D_BDW_PLUS);
 	MMIO_D(_MMIO(0x4448c), D_BDW_PLUS);
@@ -3332,11 +3332,11 @@ static struct gvt_mmio_block *find_mmio_block(struct intel_gvt *gvt,
  */
 void intel_gvt_clean_mmio_info(struct intel_gvt *gvt)
 {
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct intel_gvt_mmio_info *e;
 	int i;
 
-	hash_for_each_safe(gvt->mmio.mmio_info_table, i, tmp, e, node)
+	hash_for_each_safe(gvt->mmio.mmio_info_table, i, tmp, e, yesde)
 		kfree(e);
 
 	vfree(gvt->mmio.mmio_attribute);
@@ -3430,7 +3430,7 @@ int intel_gvt_for_each_tracked_mmio(struct intel_gvt *gvt,
 	struct intel_gvt_mmio_info *e;
 	int i, j, ret;
 
-	hash_for_each(gvt->mmio.mmio_info_table, i, e, node) {
+	hash_for_each(gvt->mmio.mmio_info_table, i, e, yesde) {
 		ret = handler(gvt, e->offset, data);
 		if (ret)
 			return ret;
@@ -3511,17 +3511,17 @@ int intel_vgpu_mask_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 }
 
 /**
- * intel_gvt_in_force_nonpriv_whitelist - if a mmio is in whitelist to be
- * force-nopriv register
+ * intel_gvt_in_force_yesnpriv_whitelist - if a mmio is in whitelist to be
+ * force-yespriv register
  *
  * @gvt: a GVT device
  * @offset: register offset
  *
  * Returns:
- * True if the register is in force-nonpriv whitelist;
+ * True if the register is in force-yesnpriv whitelist;
  * False if outside;
  */
-bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
+bool intel_gvt_in_force_yesnpriv_whitelist(struct intel_gvt *gvt,
 					  unsigned int offset)
 {
 	return in_whitelist(offset);

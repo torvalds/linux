@@ -17,7 +17,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
+ * this program; if yest, write to the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
@@ -90,9 +90,9 @@ static void padata_parallel_worker(struct work_struct *parallel_work)
  * @pinst: padata instance
  * @padata: object to be parallelized
  * @cb_cpu: pointer to the CPU that the serialization callback function should
- *          run on.  If it's not in the serial cpumask of @pinst
+ *          run on.  If it's yest in the serial cpumask of @pinst
  *          (i.e. cpumask.cbcpu), this function selects a fallback CPU and if
- *          none found, returns -EINVAL.
+ *          yesne found, returns -EINVAL.
  *
  * The parallelization callback function will run with BHs off.
  * Note: Every object which is parallelized by padata_do_parallel
@@ -117,7 +117,7 @@ int padata_do_parallel(struct padata_instance *pinst,
 		if (!cpumask_weight(pd->cpumask.cbcpu))
 			goto out;
 
-		/* Select an alternate fallback CPU and notify the caller. */
+		/* Select an alternate fallback CPU and yestify the caller. */
 		cpu_index = *cb_cpu % cpumask_weight(pd->cpumask.cbcpu);
 
 		cpu = cpumask_first(pd->cpumask.cbcpu);
@@ -166,7 +166,7 @@ EXPORT_SYMBOL(padata_do_parallel);
  * serialization, if present in one of the percpu reorder queues.
  *
  * NULL, if the next object that needs serialization will
- *  be parallel processed by another cpu and is not yet present in
+ *  be parallel processed by ayesther cpu and is yest yet present in
  *  the cpu's reorder queue.
  */
 static struct padata_priv *padata_find_next(struct parallel_data *pd,
@@ -220,9 +220,9 @@ static void padata_reorder(struct parallel_data *pd)
 	 * We need to ensure that only one cpu can work on dequeueing of
 	 * the reorder queue the time. Calculating in which percpu reorder
 	 * queue the next object will arrive takes some time. A spinlock
-	 * would be highly contended. Also it is not clear in which order
+	 * would be highly contended. Also it is yest clear in which order
 	 * the objects arrive to the reorder queues. So a cpu could wait to
-	 * get the lock just to notice that there is nothing to do at the
+	 * get the lock just to yestice that there is yesthing to do at the
 	 * moment. Therefore we use a trylock and let the holder of the lock
 	 * care for all the objects enqueued during the holdtime of the lock.
 	 */
@@ -234,8 +234,8 @@ static void padata_reorder(struct parallel_data *pd)
 
 		/*
 		 * If the next object that needs serialization is parallel
-		 * processed by another cpu and is still on it's way to the
-		 * cpu's reorder queue, nothing to do for now.
+		 * processed by ayesther cpu and is still on it's way to the
+		 * cpu's reorder queue, yesthing to do for yesw.
 		 */
 		if (!padata)
 			break;
@@ -257,7 +257,7 @@ static void padata_reorder(struct parallel_data *pd)
 	 * the reorder queues in the meantime.
 	 *
 	 * Ensure reorder queue is read after pd->lock is dropped so we see
-	 * new objects from another task in padata_do_serial.  Pairs with
+	 * new objects from ayesther task in padata_do_serial.  Pairs with
 	 * smp_mb__after_atomic in padata_do_serial.
 	 */
 	smp_mb();
@@ -513,7 +513,7 @@ static void padata_replace(struct padata_instance *pinst,
 			   struct parallel_data *pd_new)
 {
 	struct parallel_data *pd_old = pinst->pd;
-	int notification_mask = 0;
+	int yestification_mask = 0;
 
 	pinst->flags |= PADATA_RESET;
 
@@ -522,54 +522,54 @@ static void padata_replace(struct padata_instance *pinst,
 	synchronize_rcu();
 
 	if (!cpumask_equal(pd_old->cpumask.pcpu, pd_new->cpumask.pcpu))
-		notification_mask |= PADATA_CPU_PARALLEL;
+		yestification_mask |= PADATA_CPU_PARALLEL;
 	if (!cpumask_equal(pd_old->cpumask.cbcpu, pd_new->cpumask.cbcpu))
-		notification_mask |= PADATA_CPU_SERIAL;
+		yestification_mask |= PADATA_CPU_SERIAL;
 
 	padata_flush_queues(pd_old);
 	padata_free_pd(pd_old);
 
-	if (notification_mask)
-		blocking_notifier_call_chain(&pinst->cpumask_change_notifier,
-					     notification_mask,
+	if (yestification_mask)
+		blocking_yestifier_call_chain(&pinst->cpumask_change_yestifier,
+					     yestification_mask,
 					     &pd_new->cpumask);
 
 	pinst->flags &= ~PADATA_RESET;
 }
 
 /**
- * padata_register_cpumask_notifier - Registers a notifier that will be called
+ * padata_register_cpumask_yestifier - Registers a yestifier that will be called
  *                             if either pcpu or cbcpu or both cpumasks change.
  *
  * @pinst: A poineter to padata instance
- * @nblock: A pointer to notifier block.
+ * @nblock: A pointer to yestifier block.
  */
-int padata_register_cpumask_notifier(struct padata_instance *pinst,
-				     struct notifier_block *nblock)
+int padata_register_cpumask_yestifier(struct padata_instance *pinst,
+				     struct yestifier_block *nblock)
 {
-	return blocking_notifier_chain_register(&pinst->cpumask_change_notifier,
+	return blocking_yestifier_chain_register(&pinst->cpumask_change_yestifier,
 						nblock);
 }
-EXPORT_SYMBOL(padata_register_cpumask_notifier);
+EXPORT_SYMBOL(padata_register_cpumask_yestifier);
 
 /**
- * padata_unregister_cpumask_notifier - Unregisters cpumask notifier
- *        registered earlier  using padata_register_cpumask_notifier
+ * padata_unregister_cpumask_yestifier - Unregisters cpumask yestifier
+ *        registered earlier  using padata_register_cpumask_yestifier
  *
  * @pinst: A pointer to data instance.
- * @nlock: A pointer to notifier block.
+ * @nlock: A pointer to yestifier block.
  */
-int padata_unregister_cpumask_notifier(struct padata_instance *pinst,
-				       struct notifier_block *nblock)
+int padata_unregister_cpumask_yestifier(struct padata_instance *pinst,
+				       struct yestifier_block *nblock)
 {
-	return blocking_notifier_chain_unregister(
-		&pinst->cpumask_change_notifier,
+	return blocking_yestifier_chain_unregister(
+		&pinst->cpumask_change_yestifier,
 		nblock);
 }
-EXPORT_SYMBOL(padata_unregister_cpumask_notifier);
+EXPORT_SYMBOL(padata_unregister_cpumask_yestifier);
 
 
-/* If cpumask contains no active cpu, we mark the instance as invalid. */
+/* If cpumask contains yes active cpu, we mark the instance as invalid. */
 static bool padata_validate_cpumask(struct padata_instance *pinst,
 				    const struct cpumask *cpumask)
 {
@@ -778,12 +778,12 @@ static inline int pinst_has_cpu(struct padata_instance *pinst, int cpu)
 		cpumask_test_cpu(cpu, pinst->cpumask.cbcpu);
 }
 
-static int padata_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int padata_cpu_online(unsigned int cpu, struct hlist_yesde *yesde)
 {
 	struct padata_instance *pinst;
 	int ret;
 
-	pinst = hlist_entry_safe(node, struct padata_instance, node);
+	pinst = hlist_entry_safe(yesde, struct padata_instance, yesde);
 	if (!pinst_has_cpu(pinst, cpu))
 		return 0;
 
@@ -793,12 +793,12 @@ static int padata_cpu_online(unsigned int cpu, struct hlist_node *node)
 	return ret;
 }
 
-static int padata_cpu_prep_down(unsigned int cpu, struct hlist_node *node)
+static int padata_cpu_prep_down(unsigned int cpu, struct hlist_yesde *yesde)
 {
 	struct padata_instance *pinst;
 	int ret;
 
-	pinst = hlist_entry_safe(node, struct padata_instance, node);
+	pinst = hlist_entry_safe(yesde, struct padata_instance, yesde);
 	if (!pinst_has_cpu(pinst, cpu))
 		return 0;
 
@@ -814,7 +814,7 @@ static enum cpuhp_state hp_online;
 static void __padata_free(struct padata_instance *pinst)
 {
 #ifdef CONFIG_HOTPLUG_CPU
-	cpuhp_state_remove_instance_nocalls(hp_online, &pinst->node);
+	cpuhp_state_remove_instance_yescalls(hp_online, &pinst->yesde);
 #endif
 
 	padata_stop(pinst);
@@ -1004,12 +1004,12 @@ static struct padata_instance *padata_alloc(const char *name,
 
 	pinst->flags = 0;
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&pinst->cpumask_change_notifier);
+	BLOCKING_INIT_NOTIFIER_HEAD(&pinst->cpumask_change_yestifier);
 	kobject_init(&pinst->kobj, &padata_attr_type);
 	mutex_init(&pinst->lock);
 
 #ifdef CONFIG_HOTPLUG_CPU
-	cpuhp_state_add_instance_nocalls_cpuslocked(hp_online, &pinst->node);
+	cpuhp_state_add_instance_yescalls_cpuslocked(hp_online, &pinst->yesde);
 #endif
 
 	put_online_cpus();

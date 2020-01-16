@@ -35,12 +35,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -120,7 +120,7 @@ struct iwl_fwrt_wk_data  {
  * @fifo: fifo number
  * @lmac: lmac number
  * @fifo_size: fifo size
- * @internal_txf: non zero if fifo is  internal Tx fifo
+ * @internal_txf: yesn zero if fifo is  internal Tx fifo
  */
 struct iwl_txf_iter_data {
 	int fifo;
@@ -182,8 +182,8 @@ struct iwl_fw_runtime {
 
 		u8 conf;
 
-		/* ts of the beginning of a non-collect fw dbg data period */
-		unsigned long non_collect_ts_start[IWL_FW_INI_TIME_POINT_NUM];
+		/* ts of the beginning of a yesn-collect fw dbg data period */
+		unsigned long yesn_collect_ts_start[IWL_FW_INI_TIME_POINT_NUM];
 		u32 *d3_debug_data;
 		u32 lmac_err_id[MAX_NUM_LMAC];
 		u32 umac_err_id;
@@ -194,9 +194,9 @@ struct iwl_fw_runtime {
 			u8 type;
 			u8 subtype;
 			u32 lmac_major;
-			u32 lmac_minor;
+			u32 lmac_miyesr;
 			u32 umac_major;
-			u32 umac_minor;
+			u32 umac_miyesr;
 		} fw_ver;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS

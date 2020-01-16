@@ -32,7 +32,7 @@ struct host1x_client_ops {
 
 /**
  * struct host1x_client - host1x client structure
- * @list: list node for the host1x client
+ * @list: list yesde for the host1x client
  * @parent: pointer to struct device representing the host1x controller
  * @dev: pointer to struct device backing this host1x client
  * @group: IOMMU group that this client is a member of
@@ -265,7 +265,7 @@ struct host1x_device;
  * struct host1x_driver - host1x logical device driver
  * @driver: core driver
  * @subdevs: table of OF device IDs matching subdevices for this driver
- * @list: list node for the driver
+ * @list: list yesde for the driver
  * @probe: called when the host1x logical device is probed
  * @remove: called when the host1x logical device is removed
  * @shutdown: called when the host1x logical device is shut down

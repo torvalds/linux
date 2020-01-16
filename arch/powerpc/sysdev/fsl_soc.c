@@ -11,7 +11,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
@@ -45,12 +45,12 @@ static phys_addr_t immrbase = -1;
 
 phys_addr_t get_immrbase(void)
 {
-	struct device_node *soc;
+	struct device_yesde *soc;
 
 	if (immrbase != -1)
 		return immrbase;
 
-	soc = of_find_node_by_type(NULL, "soc");
+	soc = of_find_yesde_by_type(NULL, "soc");
 	if (soc) {
 		int size;
 		u32 naddr;
@@ -65,7 +65,7 @@ phys_addr_t get_immrbase(void)
 		if (prop)
 			immrbase = of_translate_address(soc, prop + naddr);
 
-		of_node_put(soc);
+		of_yesde_put(soc);
 	}
 
 	return immrbase;
@@ -76,12 +76,12 @@ EXPORT_SYMBOL(get_immrbase);
 u32 fsl_get_sys_freq(void)
 {
 	static u32 sysfreq = -1;
-	struct device_node *soc;
+	struct device_yesde *soc;
 
 	if (sysfreq != -1)
 		return sysfreq;
 
-	soc = of_find_node_by_type(NULL, "soc");
+	soc = of_find_yesde_by_type(NULL, "soc");
 	if (!soc)
 		return -1;
 
@@ -89,7 +89,7 @@ u32 fsl_get_sys_freq(void)
 	if (sysfreq == -1 || !sysfreq)
 		of_property_read_u32(soc, "bus-frequency", &sysfreq);
 
-	of_node_put(soc);
+	of_yesde_put(soc);
 	return sysfreq;
 }
 EXPORT_SYMBOL(fsl_get_sys_freq);
@@ -99,32 +99,32 @@ EXPORT_SYMBOL(fsl_get_sys_freq);
 u32 get_brgfreq(void)
 {
 	static u32 brgfreq = -1;
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	if (brgfreq != -1)
 		return brgfreq;
 
-	node = of_find_compatible_node(NULL, NULL, "fsl,cpm-brg");
-	if (node) {
-		of_property_read_u32(node, "clock-frequency", &brgfreq);
-		of_node_put(node);
+	yesde = of_find_compatible_yesde(NULL, NULL, "fsl,cpm-brg");
+	if (yesde) {
+		of_property_read_u32(yesde, "clock-frequency", &brgfreq);
+		of_yesde_put(yesde);
 		return brgfreq;
 	}
 
-	/* Legacy device binding -- will go away when no users are left. */
-	node = of_find_node_by_type(NULL, "cpm");
-	if (!node)
-		node = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!node)
-		node = of_find_node_by_type(NULL, "qe");
+	/* Legacy device binding -- will go away when yes users are left. */
+	yesde = of_find_yesde_by_type(NULL, "cpm");
+	if (!yesde)
+		yesde = of_find_compatible_yesde(NULL, NULL, "fsl,qe");
+	if (!yesde)
+		yesde = of_find_yesde_by_type(NULL, "qe");
 
-	if (node) {
-		of_property_read_u32(node, "brg-frequency", &brgfreq);
+	if (yesde) {
+		of_property_read_u32(yesde, "brg-frequency", &brgfreq);
 		if (brgfreq == -1 || !brgfreq)
-			if (!of_property_read_u32(node, "bus-frequency",
+			if (!of_property_read_u32(yesde, "bus-frequency",
 						  &brgfreq))
 				brgfreq /= 2;
-		of_node_put(node);
+		of_yesde_put(yesde);
 	}
 
 	return brgfreq;
@@ -135,15 +135,15 @@ EXPORT_SYMBOL(get_brgfreq);
 u32 get_baudrate(void)
 {
 	static u32 fs_baudrate = -1;
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	if (fs_baudrate != -1)
 		return fs_baudrate;
 
-	node = of_find_node_by_type(NULL, "serial");
-	if (node) {
-		of_property_read_u32(node, "current-speed", &fs_baudrate);
-		of_node_put(node);
+	yesde = of_find_yesde_by_type(NULL, "serial");
+	if (yesde) {
+		of_property_read_u32(yesde, "current-speed", &fs_baudrate);
+		of_yesde_put(yesde);
 	}
 
 	return fs_baudrate;
@@ -155,7 +155,7 @@ EXPORT_SYMBOL(get_baudrate);
 #if defined(CONFIG_FSL_SOC_BOOKE) || defined(CONFIG_PPC_86xx)
 static __be32 __iomem *rstcr;
 
-static int fsl_rstcr_restart(struct notifier_block *this,
+static int fsl_rstcr_restart(struct yestifier_block *this,
 			     unsigned long mode, void *cmd)
 {
 	local_irq_disable();
@@ -167,19 +167,19 @@ static int fsl_rstcr_restart(struct notifier_block *this,
 
 static int __init setup_rstcr(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	static struct notifier_block restart_handler = {
-		.notifier_call = fsl_rstcr_restart,
+	static struct yestifier_block restart_handler = {
+		.yestifier_call = fsl_rstcr_restart,
 		.priority = 128,
 	};
 
-	for_each_node_by_name(np, "global-utilities") {
+	for_each_yesde_by_name(np, "global-utilities") {
 		if ((of_get_property(np, "fsl,has-rstcr", NULL))) {
 			rstcr = of_iomap(np, 0) + 0xb0;
 			if (!rstcr) {
 				printk (KERN_ERR "Error: reset control "
-						"register not mapped!\n");
+						"register yest mapped!\n");
 			} else {
 				register_restart_handler(&restart_handler);
 			}
@@ -187,7 +187,7 @@ static int __init setup_rstcr(void)
 		}
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 }
@@ -209,7 +209,7 @@ EXPORT_SYMBOL(diu_ops);
  * to initiate a partition restart when we're running under the Freescale
  * hypervisor.
  */
-void __noreturn fsl_hv_restart(char *cmd)
+void __yesreturn fsl_hv_restart(char *cmd)
 {
 	pr_info("hv restart\n");
 	fh_partition_restart(-1);
@@ -223,7 +223,7 @@ void __noreturn fsl_hv_restart(char *cmd)
  * function pointers, to shut down the partition when we're running under
  * the Freescale hypervisor.
  */
-void __noreturn fsl_hv_halt(void)
+void __yesreturn fsl_hv_halt(void)
 {
 	pr_info("hv exit\n");
 	fh_partition_stop(-1);

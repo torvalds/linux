@@ -157,7 +157,7 @@ static int s390__cpuid_parse(struct arch *arch, char *cpuid)
 	return -1;
 }
 
-static int s390__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+static int s390__anyestate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	int err = 0;
 

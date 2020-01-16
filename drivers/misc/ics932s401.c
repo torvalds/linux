@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x69, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x69, I2C_CLIENT_END };
 
 /* ICS932S401 registers */
 #define ICS932S401_REG_CFG2			0x01
@@ -110,7 +110,7 @@ static struct i2c_driver ics932s401_driver = {
 	.remove		= ics932s401_remove,
 	.id_table	= ics932s401_id,
 	.detect		= ics932s401_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 static struct ics932s401_data *ics932s401_update_device(struct device *dev)
@@ -129,7 +129,7 @@ static struct ics932s401_data *ics932s401_update_device(struct device *dev)
 	/*
 	 * Each register must be read as a word and then right shifted 8 bits.
 	 * Not really sure why this is; setting the "byte count programming"
-	 * register to 1 does not fix this problem.
+	 * register to 1 does yest fix this problem.
 	 */
 	for (i = 0; i < NUM_MIRRORED_REGS; i++) {
 		temp = i2c_smbus_read_word_data(client, regs_to_copy[i]);
@@ -422,7 +422,7 @@ static int ics932s401_detect(struct i2c_client *client,
 		return -ENODEV;
 
 	if (revision != ICS932S401_REV)
-		dev_info(&adapter->dev, "Unknown revision %d\n", revision);
+		dev_info(&adapter->dev, "Unkyeswn revision %d\n", revision);
 
 	strlcpy(info->type, "ics932s401", I2C_NAME_SIZE);
 

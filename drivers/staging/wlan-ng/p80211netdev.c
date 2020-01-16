@@ -9,7 +9,7 @@
  * linux-wlan
  *
  *   The contents of this file are subject to the Mozilla Public
- *   License Version 1.1 (the "License"); you may not use this file
+ *   License Version 1.1 (the "License"); you may yest use this file
  *   except in compliance with the License. You may obtain a copy of
  *   the License at http://www.mozilla.org/MPL/
  *
@@ -22,10 +22,10 @@
  *   terms of the GNU Public License version 2 (the "GPL"), in which
  *   case the provisions of the GPL are applicable instead of the
  *   above.  If you wish to allow the use of your version of this file
- *   only under the terms of the GPL and not to allow others to use
+ *   only under the terms of the GPL and yest to allow others to use
  *   your version of this file under the MPL, indicate your decision
- *   by deleting the provisions above and replace them with the notice
- *   and other provisions required by the GPL.  If you do not delete
+ *   by deleting the provisions above and replace them with the yestice
+ *   and other provisions required by the GPL.  If you do yest delete
  *   the provisions above, a recipient may use your version of this
  *   file under either the MPL or the GPL.
  *
@@ -119,10 +119,10 @@ MODULE_PARM_DESC(wlan_wext_write, "enable write wireless extensions");
  * register_netdev.
  *
  * Arguments:
- *	none
+ *	yesne
  *
  * Returns:
- *	nothing
+ *	yesthing
  *----------------------------------------------------------------
  */
 static int p80211knetdev_init(struct net_device *netdev)
@@ -139,14 +139,14 @@ static int p80211knetdev_init(struct net_device *netdev)
  *
  * Linux netdevice open method.  Following a successful call here,
  * the device is supposed to be ready for tx and rx.  In our
- * situation that may not be entirely true due to the state of the
+ * situation that may yest be entirely true due to the state of the
  * MAC below.
  *
  * Arguments:
  *	netdev		Linux network device structure
  *
  * Returns:
- *	zero on success, non-zero otherwise
+ *	zero on success, yesn-zero otherwise
  *----------------------------------------------------------------
  */
 static int p80211knetdev_open(struct net_device *netdev)
@@ -176,13 +176,13 @@ static int p80211knetdev_open(struct net_device *netdev)
  * p80211knetdev_stop
  *
  * Linux netdevice stop (close) method.  Following this call,
- * no frames should go up or down through this interface.
+ * yes frames should go up or down through this interface.
  *
  * Arguments:
  *	netdev		Linux network device structure
  *
  * Returns:
- *	zero on success, non-zero otherwise
+ *	zero on success, yesn-zero otherwise
  *----------------------------------------------------------------
  */
 static int p80211knetdev_stop(struct net_device *netdev)
@@ -208,7 +208,7 @@ static int p80211knetdev_stop(struct net_device *netdev)
  *	wlandev		WLAN network device structure
  *	skb		skbuff containing a full 802.11 frame.
  * Returns:
- *	nothing
+ *	yesthing
  * Side effects:
  *
  *----------------------------------------------------------------
@@ -230,7 +230,7 @@ void p80211netdev_rx(struct wlandevice *wlandev, struct sk_buff *skb)
  *
  * Returns: 0 if conversion succeeded
  *	    CONV_TO_ETHER_FAILED if conversion failed
- *	    CONV_TO_ETHER_SKIPPED if frame is ignored
+ *	    CONV_TO_ETHER_SKIPPED if frame is igyesred
  */
 static int p80211_convert_to_ether(struct wlandevice *wlandev,
 				   struct sk_buff *skb)
@@ -314,11 +314,11 @@ static void p80211netdev_rx_bh(unsigned long arg)
  *	If the lower layers report that buffers are full. netdev->tbusy
  *	will be set to prevent higher layers from sending more traffic.
  *
- *	Note: If this function returns non-zero, higher layers retain
+ *	Note: If this function returns yesn-zero, higher layers retain
  *	      ownership of the skb.
  *
  * Returns:
- *	zero on success, non-zero on failure.
+ *	zero on success, yesn-zero on failure.
  *----------------------------------------------------------------
  */
 static netdev_tx_t p80211knetdev_hard_start_xmit(struct sk_buff *skb,
@@ -364,7 +364,7 @@ static netdev_tx_t p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 		 */
 		if (be16_to_cpu(skb->protocol) != ETH_P_80211_RAW) {
 			netif_start_queue(wlandev->netdev);
-			netdev_notice(netdev, "Tx attempt prior to association, frame dropped.\n");
+			netdev_yestice(netdev, "Tx attempt prior to association, frame dropped.\n");
 			netdev->stats.tx_dropped++;
 			result = 0;
 			goto failed;
@@ -411,8 +411,8 @@ static netdev_tx_t p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 		netif_wake_queue(wlandev->netdev);
 		result = NETDEV_TX_OK;
 	} else if (txresult == 1) {
-		/* success, no more avail */
-		netdev_dbg(netdev, "txframe success, no more bufs\n");
+		/* success, yes more avail */
+		netdev_dbg(netdev, "txframe success, yes more bufs\n");
 		/* netdev->tbusy = 1;  don't set here, irqhdlr */
 		/*   may have already cleared it */
 		result = NETDEV_TX_OK;
@@ -427,7 +427,7 @@ static netdev_tx_t p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 	}
 
 failed:
-	/* Free up the WEP buffer if it's not the same as the skb */
+	/* Free up the WEP buffer if it's yest the same as the skb */
 	if ((p80211_wep.data) && (p80211_wep.data != skb->data))
 		kzfree(p80211_wep.data);
 
@@ -445,10 +445,10 @@ failed:
  * promiscuous mode or rewrite the multicast list.
  *
  * Arguments:
- *	none
+ *	yesne
  *
  * Returns:
- *	nothing
+ *	yesthing
  *----------------------------------------------------------------
  */
 static void p80211knetdev_set_multicast_list(struct net_device *dev)
@@ -523,7 +523,7 @@ static int p80211netdev_ethtool(struct wlandevice *wlandev,
  *		w/o cast.
  *
  * Returns:
- *	zero on success, a negative errno on failure.  Possible values:
+ *	zero on success, a negative erryes on failure.  Possible values:
  *		-ENETDOWN Device isn't up.
  *		-EBUSY	cmd already in progress
  *		-ETIME	p80211 cmd timed out (MSD may have its own timers)
@@ -588,7 +588,7 @@ static int p80211knetdev_do_ioctl(struct net_device *dev,
 		result = -ENOMEM;
 	}
 bail:
-	/* If allocate,copyfrom or copyto fails, return errno */
+	/* If allocate,copyfrom or copyto fails, return erryes */
 	return result;
 }
 
@@ -611,8 +611,8 @@ bail:
  *	addr	the new MACAddress (a struct)
  *
  * Returns:
- *	zero on success, a negative errno on failure.  Possible values:
- *		-EBUSY	device is bussy (cmd not possible)
+ *	zero on success, a negative erryes on failure.  Possible values:
+ *		-EBUSY	device is bussy (cmd yest possible)
  *		-and errors returned by: p80211req_dorequest(..)
  *
  * by: Collin R. Mulliner <collin@mulliner.org>
@@ -657,11 +657,11 @@ static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 
 	/* Set up the resultcode argument */
 	resultcode->did = DIDMSG_DOT11REQ_MIBSET_RESULTCODE;
-	resultcode->status = P80211ENUM_msgitem_status_no_value;
+	resultcode->status = P80211ENUM_msgitem_status_yes_value;
 	resultcode->len = sizeof(resultcode->data);
 	resultcode->data = 0;
 
-	/* now fire the request */
+	/* yesw fire the request */
 	result = p80211req_dorequest(dev->ml_priv, (u8 *)&dot11req);
 
 	/* If the request wasn't successful, report an error and don't
@@ -706,7 +706,7 @@ static const struct net_device_ops p80211_netdev_ops = {
  *			interface.
  *	physdev		ptr to usb device
  * Returns:
- *	zero on success, non-zero otherwise.
+ *	zero on success, yesn-zero otherwise.
  * Call Context:
  *	Should be process thread.  We'll assume it might be
  *	interrupt though.  When we add support for statically
@@ -755,7 +755,7 @@ int wlan_setup(struct wlandevice *wlandev, struct device *physdev)
 		netdev->ieee80211_ptr = wdev;
 		netdev->min_mtu = 68;
 		/* 2312 is max 802.11 payload, 20 is overhead,
-		 * (ether + llc + snap) and another 8 for wep.
+		 * (ether + llc + snap) and ayesther 8 for wep.
 		 */
 		netdev->max_mtu = (2312 - 20 - 8);
 
@@ -806,19 +806,19 @@ void wlan_unsetup(struct wlandevice *wlandev)
  *
  * Roughly matches the functionality of register_netdev.  This function
  * is called after the driver has successfully probed and set up the
- * resources for the device.  It's now ready to become a named device
+ * resources for the device.  It's yesw ready to become a named device
  * in the Linux system.
  *
- * First we allocate a name for the device (if not already set), then
+ * First we allocate a name for the device (if yest already set), then
  * we call the Linux function register_netdevice.
  *
  * Arguments:
  *	wlandev		ptr to the wlandev structure for the
  *			interface.
  * Returns:
- *	zero on success, non-zero otherwise.
+ *	zero on success, yesn-zero otherwise.
  * Call Context:
- *	Can be either interrupt or not.
+ *	Can be either interrupt or yest.
  *----------------------------------------------------------------
  */
 int register_wlandev(struct wlandevice *wlandev)
@@ -832,16 +832,16 @@ int register_wlandev(struct wlandevice *wlandev)
  * Roughly matches the functionality of unregister_netdev.  This
  * function is called to remove a named device from the system.
  *
- * First we tell linux that the device should no longer exist.
- * Then we remove it from the list of known wlan devices.
+ * First we tell linux that the device should yes longer exist.
+ * Then we remove it from the list of kyeswn wlan devices.
  *
  * Arguments:
  *	wlandev		ptr to the wlandev structure for the
  *			interface.
  * Returns:
- *	zero on success, non-zero otherwise.
+ *	zero on success, yesn-zero otherwise.
  * Call Context:
- *	Can be either interrupt or not.
+ *	Can be either interrupt or yest.
  *----------------------------------------------------------------
  */
 int unregister_wlandev(struct wlandevice *wlandev)
@@ -860,7 +860,7 @@ int unregister_wlandev(struct wlandevice *wlandev)
 /*----------------------------------------------------------------
  * p80211netdev_hwremoved
  *
- * Hardware removed notification. This function should be called
+ * Hardware removed yestification. This function should be called
  * immediately after an MSD has detected that the underlying hardware
  * has been yanked out from under us.  The primary things we need
  * to do are:
@@ -881,7 +881,7 @@ int unregister_wlandev(struct wlandevice *wlandev)
  * Arguments:
  *	wlandev		WLAN network device structure
  * Returns:
- *	nothing
+ *	yesthing
  * Side effects:
  *
  * Call context:
@@ -901,7 +901,7 @@ void p80211netdev_hwremoved(struct wlandevice *wlandev)
  * p80211_rx_typedrop
  *
  * Classifies the frame, increments the appropriate counter, and
- * returns 0|1|2 indicating whether the driver should handle, ignore, or
+ * returns 0|1|2 indicating whether the driver should handle, igyesre, or
  * drop the frame
  *
  * Arguments:
@@ -910,7 +910,7 @@ void p80211netdev_hwremoved(struct wlandevice *wlandev)
  *
  * Returns:
  *	zero if the frame should be handled by the driver,
- *       one if the frame should be ignored
+ *       one if the frame should be igyesred
  *       anything else means we drop it.
  *
  * Side effects:
@@ -982,8 +982,8 @@ static int p80211_rx_typedrop(struct wlandevice *wlandev, u16 fc)
 			wlandev->rx.deauthen++;
 			break;
 		default:
-			/* printk("unknown"); */
-			wlandev->rx.mgmt_unknown++;
+			/* printk("unkyeswn"); */
+			wlandev->rx.mgmt_unkyeswn++;
 			break;
 		}
 		/* printk("\n"); */
@@ -1024,8 +1024,8 @@ static int p80211_rx_typedrop(struct wlandevice *wlandev, u16 fc)
 			wlandev->rx.cfendcfack++;
 			break;
 		default:
-			/* printk("unknown"); */
-			wlandev->rx.ctl_unknown++;
+			/* printk("unkyeswn"); */
+			wlandev->rx.ctl_unkyeswn++;
 			break;
 		}
 		/* printk("\n"); */
@@ -1064,8 +1064,8 @@ static int p80211_rx_typedrop(struct wlandevice *wlandev, u16 fc)
 			wlandev->rx.cfack_cfpoll++;
 			break;
 		default:
-			/* printk("unknown"); */
-			wlandev->rx.data_unknown++;
+			/* printk("unkyeswn"); */
+			wlandev->rx.data_unkyeswn++;
 			break;
 		}
 

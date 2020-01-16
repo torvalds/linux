@@ -24,7 +24,7 @@
 #include <media/v4l2-ioctl.h>
 
 /**
- * assign_in_user() - Copy from one __user var to another one
+ * assign_in_user() - Copy from one __user var to ayesther one
  *
  * @to: __user var where data will be stored
  * @from: __user var where data will be retrieved.
@@ -44,7 +44,7 @@
 
 /**
  * get_user_cast() - Stores at a kernelspace local var the contents from a
- *		pointer with userspace data that is not tagged with __user.
+ *		pointer with userspace data that is yest tagged with __user.
  *
  * @__x: var where data will be stored
  * @__ptr: var where data will be retrieved.
@@ -78,7 +78,7 @@
 })
 
 /**
- * assign_in_user_cast() - Copy from one __user var to another one
+ * assign_in_user_cast() - Copy from one __user var to ayesther one
  *
  * @to: __user var where data will be stored
  * @from: var where data will be retrieved that needs to be cast to __user.
@@ -87,7 +87,7 @@
  * to have a macro that will do both get_user_cast() and put_user() at once.
  *
  * This function should be used instead of assign_in_user() when the @from
- * variable was not declared as __user. See get_user_cast() for more details.
+ * variable was yest declared as __user. See get_user_cast() for more details.
  *
  * This function complements the macros defined at asm-generic/uaccess.h.
  * It uses the same argument order as copy_in_user()
@@ -426,7 +426,7 @@ struct v4l2_standard32 {
 	__u32		     index;
 	compat_u64	     id;
 	__u8		     name[24];
-	struct v4l2_fract    frameperiod; /* Frames, not fields */
+	struct v4l2_fract    frameperiod; /* Frames, yest fields */
 	__u32		     framelines;
 	__u32		     reserved[4];
 };
@@ -434,7 +434,7 @@ struct v4l2_standard32 {
 static int get_v4l2_standard32(struct v4l2_standard __user *p64,
 			       struct v4l2_standard32 __user *p32)
 {
-	/* other fields are not set by the user, nor used by the driver */
+	/* other fields are yest set by the user, yesr used by the driver */
 	if (!access_ok(p32, sizeof(*p32)) ||
 	    assign_in_user(&p64->index, &p32->index))
 		return -EFAULT;
@@ -1011,8 +1011,8 @@ static int put_v4l2_ext_controls32(struct file *file,
 			return -EFAULT;
 
 		/*
-		 * Do not modify the pointer when copying a pointer control.
-		 * The contents of the pointer was changed, not the pointer
+		 * Do yest modify the pointer when copying a pointer control.
+		 * The contents of the pointer was changed, yest the pointer
 		 * itself.
 		 */
 		if (ctrl_is_pointer(file, id))
@@ -1169,7 +1169,7 @@ static int alloc_userspace(unsigned int size, u32 aux_space,
  * and the Kernel is compiled with 64 bits.
  *
  * This function is called by v4l2_compat_ioctl32() when the function is
- * not private to some specific driver.
+ * yest private to some specific driver.
  *
  * It converts a 32-bits struct into a 64 bits one, calls the native 64-bits
  * ioctl handler and fills back the 32-bits struct with the results of the
@@ -1345,7 +1345,7 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	/*
 	 * 3. Calls the native 64-bits ioctl handler.
 	 *
-	 * For the functions where a conversion was not needed,
+	 * For the functions where a conversion was yest needed,
 	 * compatible_arg is true, and it will call it with the arguments
 	 * provided by userspace and stored at @p32 var.
 	 *
@@ -1448,7 +1448,7 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
  * This function is meant to be used as .compat_ioctl fops at v4l2-dev.c
  * in order to deal with 32-bit calls on a 64-bits Kernel.
  *
- * This function calls do_video_ioctl() for non-private V4L2 ioctls.
+ * This function calls do_video_ioctl() for yesn-private V4L2 ioctls.
  * If the function is a private one it calls vdev->fops->compat_ioctl32
  * instead.
  */
@@ -1466,7 +1466,7 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = vdev->fops->compat_ioctl32(file, cmd, arg);
 
 	if (ret == -ENOIOCTLCMD)
-		pr_debug("compat_ioctl32: unknown ioctl '%c', dir=%d, #%d (0x%08x)\n",
+		pr_debug("compat_ioctl32: unkyeswn ioctl '%c', dir=%d, #%d (0x%08x)\n",
 			 _IOC_TYPE(cmd), _IOC_DIR(cmd), _IOC_NR(cmd), cmd);
 	return ret;
 }

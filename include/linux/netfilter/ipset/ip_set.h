@@ -40,7 +40,7 @@ enum ip_set_feature {
 	IPSET_TYPE_MARK = (1 << IPSET_TYPE_MARK_FLAG),
 	IPSET_TYPE_NOMATCH_FLAG = 7,
 	IPSET_TYPE_NOMATCH = (1 << IPSET_TYPE_NOMATCH_FLAG),
-	/* Strictly speaking not a feature, but a flag for dumping:
+	/* Strictly speaking yest a feature, but a flag for dumping:
 	 * this settype must be dumped last */
 	IPSET_DUMP_LAST_FLAG = 8,
 	IPSET_DUMP_LAST = (1 << IPSET_DUMP_LAST_FLAG),
@@ -151,7 +151,7 @@ struct ip_set_adt_opt {
 struct ip_set_type_variant {
 	/* Kernelspace: test/add/del entries
 	 *		returns negative error code,
-	 *			zero for no match/success to add/delete
+	 *			zero for yes match/success to add/delete
 	 *			positive for matching element */
 	int (*kadt)(struct ip_set *set, const struct sk_buff *skb,
 		    const struct xt_action_param *par,
@@ -159,10 +159,10 @@ struct ip_set_type_variant {
 
 	/* Userspace: test/add/del entries
 	 *		returns negative error code,
-	 *			zero for no match/success to add/delete
+	 *			zero for yes match/success to add/delete
 	 *			positive for matching element */
 	int (*uadt)(struct ip_set *set, struct nlattr *tb[],
-		    enum ipset_adt adt, u32 *lineno, u32 flags, bool retried);
+		    enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried);
 
 	/* Low level add/del/test functions */
 	ipset_adtfn adt[IPSET_ADT_MAX];
@@ -336,16 +336,16 @@ ip_set_get_hostipaddr4(struct nlattr *nla, u32 *ipaddr)
 	return 0;
 }
 
-/* Ignore IPSET_ERR_EXIST errors if asked to do so? */
+/* Igyesre IPSET_ERR_EXIST errors if asked to do so? */
 static inline bool
 ip_set_eexist(int ret, u32 flags)
 {
 	return ret == -IPSET_ERR_EXIST && (flags & IPSET_FLAG_EXIST);
 }
 
-/* Match elements marked with nomatch */
+/* Match elements marked with yesmatch */
 static inline bool
-ip_set_enomatch(int ret, u32 flags, enum ipset_adt adt, struct ip_set *set)
+ip_set_eyesmatch(int ret, u32 flags, enum ipset_adt adt, struct ip_set *set)
 {
 	return adt == IPSET_TEST &&
 	       (set->type->features & IPSET_TYPE_NOMATCH) &&
@@ -440,7 +440,7 @@ bitmap_bytes(u32 a, u32 b)
 #define IPSET_GC_PERIOD(timeout) \
 	((timeout/3) ? min_t(u32, (timeout)/3, IPSET_GC_TIME) : 1)
 
-/* Entry is set with no timeout value */
+/* Entry is set with yes timeout value */
 #define IPSET_ELEM_PERMANENT	0
 
 /* Set is defined with timeout support: timeout value may be 0 */

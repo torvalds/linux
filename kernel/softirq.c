@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/percpu.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>
@@ -35,11 +35,11 @@
      by its own spinlocks.
    - Even if softirq is serialized, only local cpu is marked for
      execution. Hence, we get something sort of weak cpu binding.
-     Though it is still not clear, will it result in better locality
-     or will not.
+     Though it is still yest clear, will it result in better locality
+     or will yest.
 
    Examples:
-   - NET RX softirq. It is multithreaded and does not require
+   - NET RX softirq. It is multithreaded and does yest require
      any global serialization.
    - NET TX softirq. It kicks software netdevice queues, hence
      it is logically serialized per device, but this serialization
@@ -62,14 +62,14 @@ const char * const softirq_to_name[NR_SOFTIRQS] = {
 };
 
 /*
- * we cannot loop indefinitely here to avoid userspace starvation,
+ * we canyest loop indefinitely here to avoid userspace starvation,
  * but we also don't want to introduce a worst case 1/HZ latency
  * to the pending events, so lets the scheduler to balance
  * the softirq load for us.
  */
 static void wakeup_softirqd(void)
 {
-	/* Interrupts are disabled: no need to stop preemption */
+	/* Interrupts are disabled: yes need to stop preemption */
 	struct task_struct *tsk = __this_cpu_read(ksoftirqd);
 
 	if (tsk && tsk->state != TASK_RUNNING)
@@ -77,9 +77,9 @@ static void wakeup_softirqd(void)
 }
 
 /*
- * If ksoftirqd is scheduled, we do not want to process pending softirqs
- * right now. Let ksoftirqd handle this at its own rate, to get fairness,
- * unless we're doing some of the synchronous softirqs.
+ * If ksoftirqd is scheduled, we do yest want to process pending softirqs
+ * right yesw. Let ksoftirqd handle this at its own rate, to get fairness,
+ * unless we're doing some of the synchroyesus softirqs.
  */
 #define SOFTIRQ_NOW_MASK ((1 << HI_SOFTIRQ) | (1 << TASKLET_SOFTIRQ))
 static bool ksoftirqd_running(unsigned long pending)
@@ -171,7 +171,7 @@ void __local_bh_enable_ip(unsigned long ip, unsigned int cnt)
 	local_irq_disable();
 #endif
 	/*
-	 * Are softirqs going to be turned on now:
+	 * Are softirqs going to be turned on yesw:
 	 */
 	if (softirq_count() == SOFTIRQ_DISABLE_OFFSET)
 		trace_softirqs_on(ip);
@@ -208,7 +208,7 @@ EXPORT_SYMBOL(__local_bh_enable_ip);
  * These limits have been established via experimentation.
  * The two things to balance is latency against fairness -
  * we want to handle softirqs as soon as possible, but they
- * should not be able to lock up the box.
+ * should yest be able to lock up the box.
  */
 #define MAX_SOFTIRQ_TIME  msecs_to_jiffies(2)
 #define MAX_SOFTIRQ_RESTART 10
@@ -217,7 +217,7 @@ EXPORT_SYMBOL(__local_bh_enable_ip);
 /*
  * When we run softirqs from irq_exit() and thus on the hardirq stack we need
  * to keep the lockdep irq context tracking as tight as possible in order to
- * not miss-qualify lock contexts and miss possible deadlocks.
+ * yest miss-qualify lock contexts and miss possible deadlocks.
  */
 
 static inline bool lockdep_softirq_start(void)
@@ -390,9 +390,9 @@ static inline void tick_irq_exit(void)
 	int cpu = smp_processor_id();
 
 	/* Make sure that timer wheel updates are propagated */
-	if ((idle_cpu(cpu) && !need_resched()) || tick_nohz_full_cpu(cpu)) {
+	if ((idle_cpu(cpu) && !need_resched()) || tick_yeshz_full_cpu(cpu)) {
 		if (!in_irq())
-			tick_nohz_irq_exit();
+			tick_yeshz_irq_exit();
 	}
 #endif
 }
@@ -560,7 +560,7 @@ EXPORT_SYMBOL(tasklet_init);
 void tasklet_kill(struct tasklet_struct *t)
 {
 	if (in_interrupt())
-		pr_notice("Attempt to kill tasklet from interrupt\n");
+		pr_yestice("Attempt to kill tasklet from interrupt\n");
 
 	while (test_and_set_bit(TASKLET_STATE_SCHED, &t->state)) {
 		do {
@@ -597,7 +597,7 @@ static void run_ksoftirqd(unsigned int cpu)
 	local_irq_disable();
 	if (local_softirq_pending()) {
 		/*
-		 * We can safely run softirq on inline stack, as we are not deep
+		 * We can safely run softirq on inline stack, as we are yest deep
 		 * in the task stack here.
 		 */
 		__do_softirq();
@@ -628,7 +628,7 @@ void tasklet_kill_immediate(struct tasklet_struct *t, unsigned int cpu)
 	if (!test_bit(TASKLET_STATE_SCHED, &t->state))
 		return;
 
-	/* CPU is dead, so no lock needed. */
+	/* CPU is dead, so yes lock needed. */
 	for (i = &per_cpu(tasklet_vec, cpu).head; *i; i = &(*i)->next) {
 		if (*i == t) {
 			*i = t->next;
@@ -643,7 +643,7 @@ void tasklet_kill_immediate(struct tasklet_struct *t, unsigned int cpu)
 
 static int takeover_tasklets(unsigned int cpu)
 {
-	/* CPU is dead, so no lock needed. */
+	/* CPU is dead, so yes lock needed. */
 	local_irq_disable();
 
 	/* Find end, append list for that CPU. */
@@ -679,7 +679,7 @@ static struct smp_hotplug_thread softirq_threads = {
 
 static __init int spawn_ksoftirqd(void)
 {
-	cpuhp_setup_state_nocalls(CPUHP_SOFTIRQ_DEAD, "softirq:dead", NULL,
+	cpuhp_setup_state_yescalls(CPUHP_SOFTIRQ_DEAD, "softirq:dead", NULL,
 				  takeover_tasklets);
 	BUG_ON(smpboot_register_percpu_thread(&softirq_threads));
 
@@ -689,7 +689,7 @@ early_initcall(spawn_ksoftirqd);
 
 /*
  * [ These __weak aliases are kept in a separate compilation unit, so that
- *   GCC does not inline them incorrectly. ]
+ *   GCC does yest inline them incorrectly. ]
  */
 
 int __init __weak early_irq_init(void)

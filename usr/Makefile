@@ -11,7 +11,7 @@ datafile_y = initramfs_data.cpio$(suffix_y)
 datafile_d_y = .$(datafile_y).d
 AFLAGS_initramfs_data.o += -DINITRAMFS_IMAGE="usr/$(datafile_y)"
 
-# clean rules do not have CONFIG_INITRAMFS_COMPRESSION.  So clean up after all
+# clean rules do yest have CONFIG_INITRAMFS_COMPRESSION.  So clean up after all
 # possible compression formats.
 clean-files += initramfs_data.cpio*
 
@@ -19,7 +19,7 @@ clean-files += initramfs_data.cpio*
 obj-$(CONFIG_BLK_DEV_INITRD) := initramfs_data.o
 
 # initramfs_data.o contains the compressed initramfs_data.cpio image.
-# The image is included using .incbin, a dependency which is not
+# The image is included using .incbin, a dependency which is yest
 # tracked automatically.
 $(obj)/initramfs_data.o: $(obj)/$(datafile_y) FORCE
 
@@ -47,7 +47,7 @@ quiet_cmd_initfs = GEN     $@
 
 targets := $(datafile_y)
 
-# do not try to update files included in initramfs
+# do yest try to update files included in initramfs
 $(deps_initramfs): ;
 
 $(deps_initramfs): klibcdirs

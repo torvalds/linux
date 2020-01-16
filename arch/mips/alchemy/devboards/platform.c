@@ -166,7 +166,7 @@ out:
 #define YAMON_SIZE	0x00100000
 #define YAMON_ENV_SIZE	0x00040000
 
-int __init db1x_register_norflash(unsigned long size, int width,
+int __init db1x_register_yesrflash(unsigned long size, int width,
 				  int swapped)
 {
 	struct physmap_flash_data *pfd;

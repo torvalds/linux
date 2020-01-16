@@ -49,7 +49,7 @@ struct drm_gem_shmem_object {
 	 *
 	 * 0 is active/inuse.
 	 * A negative value is the object is purged.
-	 * Positive values are driver specific and not used by the helpers.
+	 * Positive values are driver specific and yest used by the helpers.
 	 */
 	int madv;
 

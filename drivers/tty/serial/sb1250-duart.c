@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *	Support for the asynchronous serial interface (DUART) included
+ *	Support for the asynchroyesus serial interface (DUART) included
  *	in the BCM1250 and derived System-On-a-Chip (SOC) devices.
  *
  *	Copyright (c) 2007  Maciej W. Rozycki
@@ -22,7 +22,7 @@
 #include <linux/compiler.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -116,7 +116,7 @@ static struct sbd_duart sbd_duarts[DUART_MAX_CHIP];
  * registers only define 8 least significant bits.  There is
  * also a workaround to take into account.  Raw accessors use
  * the full register width, but cooked ones truncate it
- * intentionally so that the rest of the driver does not care.
+ * intentionally so that the rest of the driver does yest care.
  */
 static u64 __read_sbdchn(struct sbd_port *sport, int reg)
 {
@@ -398,7 +398,7 @@ static void sbd_transmit_chars(struct sbd_port *sport)
 		return;
 	}
 
-	/* If nothing to do or stopped or hardware stopped.  */
+	/* If yesthing to do or stopped or hardware stopped.  */
 	stop_tx = (uart_circ_empty(xmit) || uart_tx_stopped(&sport->port));
 
 	/* Send char.  */
@@ -521,7 +521,7 @@ static void sbd_init_port(struct sbd_port *sport)
 	if (sport->initialised)
 		return;
 
-	/* There is no DUART reset feature, so just set some sane defaults.  */
+	/* There is yes DUART reset feature, so just set some sane defaults.  */
 	write_sbdchn(sport, R_DUART_CMD, V_DUART_MISC_CMD_RESET_TX);
 	write_sbdchn(sport, R_DUART_CMD, V_DUART_MISC_CMD_RESET_RX);
 	write_sbdchn(sport, R_DUART_MODE_REG_1, V_DUART_BITS_PER_CHAR_8);
@@ -595,14 +595,14 @@ static void sbd_set_termios(struct uart_port *uport, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		uport->read_status_mask |= M_DUART_RCVD_BRK;
 
-	uport->ignore_status_mask = 0;
+	uport->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		uport->ignore_status_mask |= M_DUART_FRM_ERR |
+		uport->igyesre_status_mask |= M_DUART_FRM_ERR |
 					     M_DUART_PARITY_ERR;
 	if (termios->c_iflag & IGNBRK) {
-		uport->ignore_status_mask |= M_DUART_RCVD_BRK;
+		uport->igyesre_status_mask |= M_DUART_RCVD_BRK;
 		if (termios->c_iflag & IGNPAR)
-			uport->ignore_status_mask |= M_DUART_OVRUN_ERR;
+			uport->igyesre_status_mask |= M_DUART_OVRUN_ERR;
 	}
 
 	if (termios->c_cflag & CREAD)
@@ -663,12 +663,12 @@ static void sbd_release_port(struct uart_port *uport)
 
 static int sbd_map_port(struct uart_port *uport)
 {
-	const char *err = KERN_ERR "sbd: Cannot map MMIO\n";
+	const char *err = KERN_ERR "sbd: Canyest map MMIO\n";
 	struct sbd_port *sport = to_sport(uport);
 	struct sbd_duart *duart = sport->duart;
 
 	if (!uport->membase)
-		uport->membase = ioremap_nocache(uport->mapbase,
+		uport->membase = ioremap_yescache(uport->mapbase,
 						 DUART_CHANREG_SPACING);
 	if (!uport->membase) {
 		printk(err);
@@ -676,7 +676,7 @@ static int sbd_map_port(struct uart_port *uport)
 	}
 
 	if (!sport->memctrl)
-		sport->memctrl = ioremap_nocache(duart->mapctrl,
+		sport->memctrl = ioremap_yescache(duart->mapctrl,
 						 DUART_CHANREG_SPACING);
 	if (!sport->memctrl) {
 		printk(err);
@@ -787,7 +787,7 @@ static void __init sbd_probe_duarts(void)
 		max_lines = 4;
 		break;
 	default:
-		/* Assume at least two serial ports at the normal address.  */
+		/* Assume at least two serial ports at the yesrmal address.  */
 		max_lines = 2;
 		break;
 	}
@@ -919,7 +919,7 @@ static struct uart_driver sbd_reg = {
 	.driver_name	= "sb1250_duart",
 	.dev_name	= "duart",
 	.major		= TTY_MAJOR,
-	.minor		= SB1250_DUART_MINOR_BASE,
+	.miyesr		= SB1250_DUART_MINOR_BASE,
 	.nr		= DUART_MAX_CHIP * DUART_MAX_SIDE,
 	.cons		= SERIAL_SB1250_DUART_CONSOLE,
 };

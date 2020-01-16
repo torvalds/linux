@@ -74,8 +74,8 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	 * Right yesw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for yesw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	retval = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));

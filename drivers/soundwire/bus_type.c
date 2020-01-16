@@ -94,7 +94,7 @@ static int sdw_drv_probe(struct device *dev)
 		return ret;
 	}
 
-	/* device is probed so let's read the properties now */
+	/* device is probed so let's read the properties yesw */
 	if (slave->ops && slave->ops->read_prop)
 		slave->ops->read_prop(slave);
 

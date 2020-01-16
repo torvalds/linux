@@ -123,7 +123,7 @@ static irqreturn_t wm831x_ts_data_irq(int irq, void *irq_data)
 		/* Switch from data to pen down */
 		dev_dbg(wm831x->dev, "IRQ DATA->PD\n");
 
-		disable_irq_nosync(wm831x_ts->data_irq);
+		disable_irq_yessync(wm831x_ts->data_irq);
 
 		/* Don't need data any more */
 		wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_1,
@@ -161,7 +161,7 @@ static irqreturn_t wm831x_ts_pen_down_irq(int irq, void *irq_data)
 	if (wm831x_ts->pen_down)
 		return IRQ_HANDLED;
 
-	disable_irq_nosync(wm831x_ts->pd_irq);
+	disable_irq_yessync(wm831x_ts->pd_irq);
 
 	/* Start collecting data */
 	if (wm831x_ts->pressure)
@@ -277,7 +277,7 @@ static int wm831x_ts_probe(struct platform_device *pdev)
 		wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_2,
 				WM831X_TCH_5WIRE, WM831X_TCH_5WIRE);
 
-		/* Pressure measurements are not possible for five wire mode */
+		/* Pressure measurements are yest possible for five wire mode */
 		WARN_ON(pdata->pressure && pdata->fivewire);
 		wm831x_ts->pressure = false;
 	} else {

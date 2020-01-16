@@ -5,7 +5,7 @@
 *  A rewrite of the pcmcia-cs add-on driver for newer (circa 1997)
 *  New Media Bus Toaster PCMCIA SCSI cards using the Symbios Logic
 *  53c500 controller: intended for use with 2.6 and later kernels.
-*  The pcmcia-cs add-on version of this driver is not supported
+*  The pcmcia-cs add-on version of this driver is yest supported
 *  beyond 2.4.  It consisted of three files with history/copyright
 *  information as follows:
 *
@@ -13,13 +13,13 @@
 *	Bob Tracy (rct@frus.com)
 *	Original by Tom Corner (tcorner@via.at).
 *	Adapted from NCR53c406a.h which is Copyrighted (C) 1994
-*	Normunds Saumanis (normunds@rx.tech.swh.lv)
+*	Normunds Saumanis (yesrmunds@rx.tech.swh.lv)
 *
 *  SYM53C500.c
 *	Bob Tracy (rct@frus.com)
 *	Original driver by Tom Corner (tcorner@via.at) was adapted
 *	from NCR53c406a.c which is Copyrighted (C) 1994, 1995, 1996 
-*	Normunds Saumanis (normunds@fi.ibm.com)
+*	Normunds Saumanis (yesrmunds@fi.ibm.com)
 *
 *  sym53c500.c
 *	Bob Tracy (rct@frus.com)
@@ -41,7 +41,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -69,7 +69,7 @@
 
 /* ================================================================== */
 
-#define SYNC_MODE 0 		/* Synchronous transfer mode */
+#define SYNC_MODE 0 		/* Synchroyesus transfer mode */
 
 /* Default configuration */
 #define C1_IMG   0x07		/* ID=7 */
@@ -91,9 +91,9 @@
 #define INT_REG		0x05		/* interrupt status register */
 #define SRTIMOUT	0x05		/* select/reselect timeout reg */
 #define SEQ_REG		0x06		/* sequence step register */
-#define SYNCPRD		0x06		/* synchronous transfer period */
+#define SYNCPRD		0x06		/* synchroyesus transfer period */
 #define FIFO_FLAGS	0x07		/* indicates # of bytes in fifo */
-#define SYNCOFF		0x07		/* synchronous offset register */
+#define SYNCOFF		0x07		/* synchroyesus offset register */
 #define CONFIG1		0x08		/* configuration register */
 #define CLKCONV		0x09		/* clock conversion register */
 /* #define TESTREG	0x0A */		/* test mode register */
@@ -218,8 +218,8 @@ chip_init(int io_port)
 
 	outb(0x05, io_port + CLKCONV);	/* clock conversion factor */
 	outb(0x9C, io_port + SRTIMOUT);	/* Selection timeout */
-	outb(0x05, io_port + SYNCPRD);	/* Synchronous transfer period */
-	outb(SYNC_MODE, io_port + SYNCOFF);	/* synchronous mode */  
+	outb(0x05, io_port + SYNCPRD);	/* Synchroyesus transfer period */
+	outb(SYNC_MODE, io_port + SYNCOFF);	/* synchroyesus mode */  
 }
 
 static void
@@ -447,7 +447,7 @@ SYM53C500_intr(int irq, void *dev_id)
 
 	case 0x02:		/* COMMAND */
 		curSC->SCp.phase = command_ph;
-		printk("SYM53C500: Warning: Unknown interrupt occurred in command phase!\n");
+		printk("SYM53C500: Warning: Unkyeswn interrupt occurred in command phase!\n");
 		break;
 
 	case 0x03:		/* STATUS */
@@ -712,7 +712,7 @@ SYM53C500_config(struct pcmcia_device *link)
 		goto failed;
 
 	/*
-	*  That's the trouble with copying liberally from another driver.
+	*  That's the trouble with copying liberally from ayesther driver.
 	*  Some things probably aren't relevant, and I suspect this entire
 	*  section dealing with manufacturer IDs can be scrapped.	--rct
 	*/
@@ -727,7 +727,7 @@ SYM53C500_config(struct pcmcia_device *link)
 
 	/*
 	*  irq_level == 0 implies tpnt->can_queue == 0, which
-	*  is not supported in 2.6.  Thus, only irq_level > 0
+	*  is yest supported in 2.6.  Thus, only irq_level > 0
 	*  will be allowed.
 	*
 	*  Possible port_base values are as follows:
@@ -792,7 +792,7 @@ err_free_scsi:
 	scsi_host_put(host);
 err_release:
 	release_region(port_base, 0x10);
-	printk(KERN_INFO "sym53c500_cs: no SCSI devices found\n");
+	printk(KERN_INFO "sym53c500_cs: yes SCSI devices found\n");
 	return -ENODEV;
 
 failed:

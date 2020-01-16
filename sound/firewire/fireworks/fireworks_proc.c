@@ -192,7 +192,7 @@ proc_read_queues_state(struct snd_info_entry *entry,
 }
 
 static void
-add_node(struct snd_efw *efw, struct snd_info_entry *root, const char *name,
+add_yesde(struct snd_efw *efw, struct snd_info_entry *root, const char *name,
 	 void (*op)(struct snd_info_entry *e, struct snd_info_buffer *b))
 {
 	struct snd_info_entry *entry;
@@ -207,7 +207,7 @@ void snd_efw_proc_init(struct snd_efw *efw)
 	struct snd_info_entry *root;
 
 	/*
-	 * All nodes are automatically removed at snd_card_disconnect(),
+	 * All yesdes are automatically removed at snd_card_disconnect(),
 	 * by following to link list.
 	 */
 	root = snd_info_create_card_entry(efw->card, "firewire",
@@ -216,8 +216,8 @@ void snd_efw_proc_init(struct snd_efw *efw)
 		return;
 	root->mode = S_IFDIR | 0555;
 
-	add_node(efw, root, "clock", proc_read_clock);
-	add_node(efw, root, "firmware", proc_read_hwinfo);
-	add_node(efw, root, "meters", proc_read_phys_meters);
-	add_node(efw, root, "queues", proc_read_queues_state);
+	add_yesde(efw, root, "clock", proc_read_clock);
+	add_yesde(efw, root, "firmware", proc_read_hwinfo);
+	add_yesde(efw, root, "meters", proc_read_phys_meters);
+	add_yesde(efw, root, "queues", proc_read_queues_state);
 }

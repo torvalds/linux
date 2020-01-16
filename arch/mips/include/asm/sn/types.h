@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 typedef unsigned long	cpuid_t;
-typedef signed short	nasid_t;	/* node id in numa-as-id space */
+typedef signed short	nasid_t;	/* yesde id in numa-as-id space */
 typedef signed char	partid_t;	/* partition ID type */
 typedef signed short	moduleid_t;	/* user-visible module number type */
 

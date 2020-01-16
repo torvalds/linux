@@ -32,8 +32,8 @@
  *
  * By having all behavior of the kprobe'd instruction completed before
  * returning from the kprobe_handler(), all locks (scheduler and
- * interrupt) can safely be released.  There is no need for secondary
- * breakpoints, no race with MP or preemptable kernels, nor having to
+ * interrupt) can safely be released.  There is yes need for secondary
+ * breakpoints, yes race with MP or preemptable kernels, yesr having to
  * clean up resources counts at a later time impacting overall system
  * performance.  By rewriting the instruction, only the minimum registers
  * need to be loaded and saved back optimizing performance.
@@ -41,7 +41,7 @@
  * Calling the insnslot_*_rwflags version of a function doesn't hurt
  * anything even when the CPSR flags aren't updated by the
  * instruction.  It's just a little slower in return for saving
- * a little space by not having a duplicate function that doesn't
+ * a little space by yest having a duplicate function that doesn't
  * update the flags.  (The same optimization can be said for
  * instructions that do or don't perform register writeback)
  * Also, instructions can either read the flags, only write the
@@ -104,7 +104,7 @@ void __kprobes simulate_mov_ipsp(probes_opcode_t insn,
 
 /*
  * For the instruction masking and comparisons in all the "space_*"
- * functions below, Do _not_ rearrange the order of tests unless
+ * functions below, Do _yest_ rearrange the order of tests unless
  * you're very, very sure of what you are doing.  For the sake of
  * efficiency, the masks for some tests sometimes assume other test
  * have been done prior to them so the number of patterns to test
@@ -705,7 +705,7 @@ static void __kprobes arm_singlestep(probes_opcode_t insn,
 }
 
 /* Return:
- *   INSN_REJECTED     If instruction is one not allowed to kprobe,
+ *   INSN_REJECTED     If instruction is one yest allowed to kprobe,
  *   INSN_GOOD         If instruction is supported and uses instruction slot,
  *   INSN_GOOD_NO_SLOT If instruction is supported but doesn't use its slot.
  *

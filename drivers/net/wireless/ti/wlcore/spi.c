@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2008-2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #include <linux/interrupt.h>
@@ -97,7 +97,7 @@ static void wl12xx_spi_reset(struct device *child)
 	cmd = kzalloc(WSPI_INIT_CMD_LEN, GFP_KERNEL);
 	if (!cmd) {
 		dev_err(child->parent,
-			"could not allocate cmd for spi reset\n");
+			"could yest allocate cmd for spi reset\n");
 		return;
 	}
 
@@ -125,7 +125,7 @@ static void wl12xx_spi_init(struct device *child)
 
 	if (!cmd) {
 		dev_err(child->parent,
-			"could not allocate cmd for spi init\n");
+			"could yest allocate cmd for spi init\n");
 		return;
 	}
 
@@ -186,7 +186,7 @@ static void wl12xx_spi_init(struct device *child)
 
 	spi_sync(to_spi_device(glue->dev), &m);
 
-	/* Restore chip select configuration to normal */
+	/* Restore chip select configuration to yesrmal */
 	spi->mode ^= SPI_CS_HIGH;
 	kfree(cmd);
 }
@@ -203,7 +203,7 @@ static int wl12xx_spi_read_busy(struct device *child)
 	int num_busy_bytes = 0;
 
 	/*
-	 * Read further busy words from SPI until a non-busy word is
+	 * Read further busy words from SPI until a yesn-busy word is
 	 * encountered, then read the data itself into the buffer.
 	 */
 
@@ -262,7 +262,7 @@ static int __must_check wl12xx_spi_raw_read(struct device *child, int addr,
 		t[0].cs_change = true;
 		spi_message_add_tail(&t[0], &m);
 
-		/* Busy and non busy words read */
+		/* Busy and yesn busy words read */
 		t[1].rx_buf = busy_buf;
 		t[1].len = WL1271_BUSY_WORD_LEN;
 		t[1].cs_change = true;
@@ -394,7 +394,7 @@ static int wl12xx_spi_set_power(struct device *child, bool enable)
 /**
  * wl12xx_spi_set_block_size
  *
- * This function is not needed for spi mode, but need to be present.
+ * This function is yest needed for spi mode, but need to be present.
  * Without it defined the wlcore fallback to use the wrong packet
  * allignment on tx.
  */
@@ -429,7 +429,7 @@ static const struct of_device_id wlcore_spi_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, wlcore_spi_of_match_table);
 
 /**
- * wlcore_probe_of - DT node parsing.
+ * wlcore_probe_of - DT yesde parsing.
  * @spi: SPI slave device parameters.
  * @res: resource parameters.
  * @glue: wl12xx SPI bus to slave device glue parameters.
@@ -438,10 +438,10 @@ MODULE_DEVICE_TABLE(of, wlcore_spi_of_match_table);
 static int wlcore_probe_of(struct spi_device *spi, struct wl12xx_spi_glue *glue,
 			   struct wlcore_platdev_data *pdev_data)
 {
-	struct device_node *dt_node = spi->dev.of_node;
+	struct device_yesde *dt_yesde = spi->dev.of_yesde;
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(wlcore_spi_of_match_table, dt_node);
+	of_id = of_match_yesde(wlcore_spi_of_match_table, dt_yesde);
 	if (!of_id)
 		return -ENODEV;
 
@@ -449,13 +449,13 @@ static int wlcore_probe_of(struct spi_device *spi, struct wl12xx_spi_glue *glue,
 	dev_info(&spi->dev, "selected chip family is %s\n",
 		 pdev_data->family->name);
 
-	if (of_find_property(dt_node, "clock-xtal", NULL))
+	if (of_find_property(dt_yesde, "clock-xtal", NULL))
 		pdev_data->ref_clock_xtal = true;
 
 	/* optional clock frequency params */
-	of_property_read_u32(dt_node, "ref-clock-frequency",
+	of_property_read_u32(dt_yesde, "ref-clock-frequency",
 			     &pdev_data->ref_clock_freq);
-	of_property_read_u32(dt_node, "tcxo-clock-frequency",
+	of_property_read_u32(dt_yesde, "tcxo-clock-frequency",
 			     &pdev_data->tcxo_clock_freq);
 
 	return 0;
@@ -571,6 +571,6 @@ static struct spi_driver wl1271_spi_driver = {
 
 module_spi_driver(wl1271_spi_driver);
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
-MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
+MODULE_AUTHOR("Luciayes Coelho <coelho@ti.com>");
+MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@yeskia.com>");
 MODULE_ALIAS("spi:wl1271");

@@ -22,12 +22,12 @@
  * interconnect) bus to the encoder side for insertion into the video
  * blank regions.
  *
- * The driver's HDMI encoder does not yet support power management.
+ * The driver's HDMI encoder does yest yet support power management.
  * The HDMI encoder's power domain and the HSM/pixel clocks are kept
  * continuously running, and only the HDMI logic and packet ram are
  * powered off/on at disable/enable time.
  *
- * The driver does not yet support CEC control, though the HDMI
+ * The driver does yest yet support CEC control, though the HDMI
  * encoder block has CEC support.
  */
 
@@ -181,8 +181,8 @@ static const struct debugfs_reg32 hd_regs[] = {
 
 static int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_hdmi *hdmi = vc4->hdmi;
 	struct drm_printer p = drm_seq_file_printer(m);
@@ -985,7 +985,7 @@ static const struct snd_soc_component_driver vc4_hdmi_audio_component_drv = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_dai_ops vc4_hdmi_audio_dai_ops = {
@@ -1052,34 +1052,34 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *hdmi)
 	const __be32 *addr;
 	int ret;
 
-	if (!of_find_property(dev->of_node, "dmas", NULL)) {
+	if (!of_find_property(dev->of_yesde, "dmas", NULL)) {
 		dev_warn(dev,
-			 "'dmas' DT property is missing, no HDMI audio\n");
+			 "'dmas' DT property is missing, yes HDMI audio\n");
 		return 0;
 	}
 
 	/*
 	 * Get the physical address of VC4_HD_MAI_DATA. We need to retrieve
 	 * the bus address specified in the DT, because the physical address
-	 * (the one returned by platform_get_resource()) is not appropriate
+	 * (the one returned by platform_get_resource()) is yest appropriate
 	 * for DMA transfers.
 	 * This VC/MMU should probably be exposed to avoid this kind of hacks.
 	 */
-	addr = of_get_address(dev->of_node, 1, NULL, NULL);
+	addr = of_get_address(dev->of_yesde, 1, NULL, NULL);
 	hdmi->audio.dma_data.addr = be32_to_cpup(addr) + VC4_HD_MAI_DATA;
 	hdmi->audio.dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	hdmi->audio.dma_data.maxburst = 2;
 
 	ret = devm_snd_dmaengine_pcm_register(dev, &pcm_conf, 0);
 	if (ret) {
-		dev_err(dev, "Could not register PCM component: %d\n", ret);
+		dev_err(dev, "Could yest register PCM component: %d\n", ret);
 		return ret;
 	}
 
 	ret = devm_snd_soc_register_component(dev, &vc4_hdmi_audio_cpu_dai_comp,
 					      &vc4_hdmi_audio_cpu_dai_drv, 1);
 	if (ret) {
-		dev_err(dev, "Could not register CPU DAI: %d\n", ret);
+		dev_err(dev, "Could yest register CPU DAI: %d\n", ret);
 		return ret;
 	}
 
@@ -1087,7 +1087,7 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *hdmi)
 	ret = devm_snd_soc_register_component(dev, &vc4_hdmi_audio_component_drv,
 				     &vc4_hdmi_audio_codec_dai_drv, 1);
 	if (ret) {
-		dev_err(dev, "Could not register component: %d\n", ret);
+		dev_err(dev, "Could yest register component: %d\n", ret);
 		return ret;
 	}
 
@@ -1114,14 +1114,14 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *hdmi)
 	/*
 	 * Be careful, snd_soc_register_card() calls dev_set_drvdata() and
 	 * stores a pointer to the snd card object in dev->driver_data. This
-	 * means we cannot use it for something else. The hdmi back-pointer is
-	 * now stored in card->drvdata and should be retrieved with
+	 * means we canyest use it for something else. The hdmi back-pointer is
+	 * yesw stored in card->drvdata and should be retrieved with
 	 * snd_soc_card_get_drvdata() if needed.
 	 */
 	snd_soc_card_set_drvdata(card, hdmi);
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret)
-		dev_err(dev, "Could not register sound card: %d\n", ret);
+		dev_err(dev, "Could yest register sound card: %d\n", ret);
 
 	return ret;
 
@@ -1290,7 +1290,7 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct vc4_dev *vc4 = drm->dev_private;
 	struct vc4_hdmi *hdmi;
 	struct vc4_hdmi_encoder *vc4_hdmi_encoder;
-	struct device_node *ddc_node;
+	struct device_yesde *ddc_yesde;
 	u32 value;
 	int ret;
 
@@ -1332,16 +1332,16 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 		return PTR_ERR(hdmi->hsm_clock);
 	}
 
-	ddc_node = of_parse_phandle(dev->of_node, "ddc", 0);
-	if (!ddc_node) {
-		DRM_ERROR("Failed to find ddc node in device tree\n");
+	ddc_yesde = of_parse_phandle(dev->of_yesde, "ddc", 0);
+	if (!ddc_yesde) {
+		DRM_ERROR("Failed to find ddc yesde in device tree\n");
 		return -ENODEV;
 	}
 
-	hdmi->ddc = of_find_i2c_adapter_by_node(ddc_node);
-	of_node_put(ddc_node);
+	hdmi->ddc = of_find_i2c_adapter_by_yesde(ddc_yesde);
+	of_yesde_put(ddc_yesde);
 	if (!hdmi->ddc) {
-		DRM_DEBUG("Failed to get ddc i2c adapter by node\n");
+		DRM_DEBUG("Failed to get ddc i2c adapter by yesde\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -1365,10 +1365,10 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	/* Only use the GPIO HPD pin if present in the DT, otherwise
 	 * we'll use the HDMI core's register.
 	 */
-	if (of_find_property(dev->of_node, "hpd-gpios", &value)) {
+	if (of_find_property(dev->of_yesde, "hpd-gpios", &value)) {
 		enum of_gpio_flags hpd_gpio_flags;
 
-		hdmi->hpd_gpio = of_get_named_gpio_flags(dev->of_node,
+		hdmi->hpd_gpio = of_get_named_gpio_flags(dev->of_yesde,
 							 "hpd-gpios", 0,
 							 &hpd_gpio_flags);
 		if (hdmi->hpd_gpio < 0) {

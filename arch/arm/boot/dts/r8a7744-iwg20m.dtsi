@@ -54,7 +54,7 @@
 
 	vmmc-supply = <&reg_3p3v>;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 
@@ -68,7 +68,7 @@
 	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		spi-tx-bus-width = <2>;

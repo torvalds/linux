@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -75,7 +75,7 @@ struct vmw_view {
 static int vmw_view_create(struct vmw_resource *res);
 static int vmw_view_destroy(struct vmw_resource *res);
 static void vmw_hw_view_destroy(struct vmw_resource *res);
-static void vmw_view_commit_notify(struct vmw_resource *res,
+static void vmw_view_commit_yestify(struct vmw_resource *res,
 				   enum vmw_cmdbuf_res_state state);
 
 static const struct vmw_res_func vmw_view_func = {
@@ -85,7 +85,7 @@ static const struct vmw_res_func vmw_view_func = {
 	.type_name = "DX view",
 	.backup_placement = NULL,
 	.create = vmw_view_create,
-	.commit_notify = vmw_view_commit_notify,
+	.commit_yestify = vmw_view_commit_yestify,
 };
 
 /**
@@ -115,14 +115,14 @@ static struct vmw_view *vmw_view(struct vmw_resource *res)
 }
 
 /**
- * vmw_view_commit_notify - Notify that a view operation has been committed to
+ * vmw_view_commit_yestify - Notify that a view operation has been committed to
  * hardware from a user-supplied command stream.
  *
  * @res: Pointer to the view resource.
  * @state: Indicating whether a creation or removal has been committed.
  *
  */
-static void vmw_view_commit_notify(struct vmw_resource *res,
+static void vmw_view_commit_yestify(struct vmw_resource *res,
 				   enum vmw_cmdbuf_res_state state)
 {
 	struct vmw_view *view = vmw_view(res);
@@ -327,7 +327,7 @@ int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
 	struct vmw_view *view;
 	struct ttm_operation_ctx ttm_opt_ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	size_t size;
 	int ret;
@@ -400,7 +400,7 @@ out_resource_init:
  * @list: Caller's list of staged command buffer resource actions.
  * @res_p: If the resource is in an already committed state, points to the
  * struct vmw_resource on successful return. The pointer will be
- * non ref-counted.
+ * yesn ref-counted.
  */
 int vmw_view_remove(struct vmw_cmdbuf_res_manager *man,
 		    u32 user_key, enum vmw_view_type view_type,
@@ -462,7 +462,7 @@ void vmw_view_surface_list_destroy(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_view_srf - Return a non-refcounted pointer to the surface a view is
+ * vmw_view_srf - Return a yesn-refcounted pointer to the surface a view is
  * pointing to.
  *
  * @res: pointer to a view resource.
@@ -482,7 +482,7 @@ struct vmw_resource *vmw_view_srf(struct vmw_resource *res)
  * @view_type: The view type.
  * @user_key: The view user id.
  *
- * returns a refcounted pointer to a view or an error pointer if not found.
+ * returns a refcounted pointer to a view or an error pointer if yest found.
  */
 struct vmw_resource *vmw_view_lookup(struct vmw_cmdbuf_res_manager *man,
 				     enum vmw_view_type view_type,

@@ -149,19 +149,19 @@ static void show_pte(unsigned long addr)
 		pmd_t *pmdp, pmd;
 		pte_t *ptep, pte;
 
-		if (pgd_none(pgd) || pgd_bad(pgd))
+		if (pgd_yesne(pgd) || pgd_bad(pgd))
 			break;
 
 		pudp = pud_offset(pgdp, addr);
 		pud = READ_ONCE(*pudp);
 		pr_cont(", pud=%016llx", pud_val(pud));
-		if (pud_none(pud) || pud_bad(pud))
+		if (pud_yesne(pud) || pud_bad(pud))
 			break;
 
 		pmdp = pmd_offset(pudp, addr);
 		pmd = READ_ONCE(*pmdp);
 		pr_cont(", pmd=%016llx", pmd_val(pmd));
-		if (pmd_none(pmd) || pmd_bad(pmd))
+		if (pmd_yesne(pmd) || pmd_bad(pmd))
 			break;
 
 		ptep = pte_offset_map(pmdp, addr);
@@ -179,9 +179,9 @@ static void show_pte(unsigned long addr)
  *
  * It needs to cope with hardware update of the accessed/dirty state by other
  * agents in the system and can safely skip the __sync_icache_dcache() call as,
- * like set_pte_at(), the PTE is never changed from no-exec to exec here.
+ * like set_pte_at(), the PTE is never changed from yes-exec to exec here.
  *
- * Returns whether or not the PTE actually changed.
+ * Returns whether or yest the PTE actually changed.
  */
 int ptep_set_access_flags(struct vm_area_struct *vma,
 			  unsigned long address, pte_t *ptep,
@@ -258,7 +258,7 @@ static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
 	local_irq_restore(flags);
 
 	/*
-	 * If we now have a valid translation, treat the translation fault as
+	 * If we yesw have a valid translation, treat the translation fault as
 	 * spurious.
 	 */
 	if (!(par & SYS_PAR_EL1_F))
@@ -295,20 +295,20 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 
 	/*
 	 * Are we prepared to handle this kernel fault?
-	 * We are almost certainly not prepared to handle instruction faults.
+	 * We are almost certainly yest prepared to handle instruction faults.
 	 */
 	if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
 		return;
 
 	if (WARN_RATELIMIT(is_spurious_el1_translation_fault(addr, esr, regs),
-	    "Ignoring spurious kernel translation fault at virtual address %016lx\n", addr))
+	    "Igyesring spurious kernel translation fault at virtual address %016lx\n", addr))
 		return;
 
 	if (is_el1_permission_fault(addr, esr, regs)) {
 		if (esr & ESR_ELx_WNR)
 			msg = "write to read-only memory";
 		else if (is_el1_instruction_abort(esr))
-			msg = "execute from non-executable memory";
+			msg = "execute from yesn-executable memory";
 		else
 			msg = "read from unreadable memory";
 	} else if (addr < PAGE_SIZE) {
@@ -328,12 +328,12 @@ static void set_thread_esr(unsigned long address, unsigned int esr)
 	 * If the faulting address is in the kernel, we must sanitize the ESR.
 	 * From userspace's point of view, kernel-only mappings don't exist
 	 * at all, so we report them as level 0 translation faults.
-	 * (This is not quite the way that "no mapping there at all" behaves:
-	 * an alignment fault not caused by the memory type would take
+	 * (This is yest quite the way that "yes mapping there at all" behaves:
+	 * an alignment fault yest caused by the memory type would take
 	 * precedence over translation fault for a real access to empty
 	 * space. Unfortunately we can't easily distinguish "alignment fault
-	 * not caused by memory type" from "alignment fault caused by memory
-	 * type", so we ignore this wrinkle and just return the translation
+	 * yest caused by memory type" from "alignment fault caused by memory
+	 * type", so we igyesre this wrinkle and just return the translation
 	 * fault.)
 	 */
 	if (!is_ttbr0_addr(current->thread.fault_address)) {
@@ -341,7 +341,7 @@ static void set_thread_esr(unsigned long address, unsigned int esr)
 		case ESR_ELx_EC_DABT_LOW:
 			/*
 			 * These bits provide only information about the
-			 * faulting instruction, which userspace knows already.
+			 * faulting instruction, which userspace kyesws already.
 			 * We explicitly clear bits which are architecturally
 			 * RES0 in case they are given meanings in future.
 			 * We always report the ESR as if the fault was taken
@@ -365,10 +365,10 @@ static void set_thread_esr(unsigned long address, unsigned int esr)
 			/*
 			 * This should never happen (entry.S only brings us
 			 * into this code for insn and data aborts from a lower
-			 * exception level). Fail safe by not providing an ESR
+			 * exception level). Fail safe by yest providing an ESR
 			 * context record at all.
 			 */
-			WARN(1, "ESR 0x%x is not DABT or IABT from EL0\n", esr);
+			WARN(1, "ESR 0x%x is yest DABT or IABT from EL0\n", esr);
 			esr = 0;
 			break;
 		}
@@ -380,7 +380,7 @@ static void set_thread_esr(unsigned long address, unsigned int esr)
 static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
 	/*
-	 * If we are in kernel mode at this point, we have no context to
+	 * If we are in kernel mode at this point, we have yes context to
 	 * handle this fault with.
 	 */
 	if (user_mode(regs)) {
@@ -431,8 +431,8 @@ static bool is_el0_instruction_abort(unsigned int esr)
 }
 
 /*
- * Note: not valid for EL1 DC IVAC, but we never use that such that it
- * should fault. EL0 cannot issue DC IVAC (undef).
+ * Note: yest valid for EL1 DC IVAC, but we never use that such that it
+ * should fault. EL0 canyest issue DC IVAC (undef).
  */
 static bool is_write_abort(unsigned int esr)
 {
@@ -452,11 +452,11 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 		return 0;
 
 	/*
-	 * If we're in an interrupt or have no user context, we must not take
+	 * If we're in an interrupt or have yes user context, we must yest take
 	 * the fault.
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto no_context;
+		goto yes_context;
 
 	if (user_mode(regs))
 		mm_flags |= FAULT_FLAG_USER;
@@ -493,7 +493,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if (!user_mode(regs) && !search_exception_tables(regs->pc))
-			goto no_context;
+			goto yes_context;
 retry:
 		down_read(&mm->mmap_sem);
 	} else {
@@ -505,7 +505,7 @@ retry:
 #ifdef CONFIG_DEBUG_VM
 		if (!user_mode(regs) && !search_exception_tables(regs->pc)) {
 			up_read(&mm->mmap_sem);
-			goto no_context;
+			goto yes_context;
 		}
 #endif
 	}
@@ -516,13 +516,13 @@ retry:
 	if (fault & VM_FAULT_RETRY) {
 		/*
 		 * If we need to retry but a fatal signal is pending,
-		 * handle the signal first. We do not need to release
+		 * handle the signal first. We do yest need to release
 		 * the mmap_sem because it would already be released
 		 * in __lock_page_or_retry in mm/filemap.c.
 		 */
 		if (fatal_signal_pending(current)) {
 			if (!user_mode(regs))
-				goto no_context;
+				goto yes_context;
 			return 0;
 		}
 
@@ -539,12 +539,12 @@ retry:
 	up_read(&mm->mmap_sem);
 
 	/*
-	 * Handle the "normal" (no error) case first.
+	 * Handle the "yesrmal" (yes error) case first.
 	 */
 	if (likely(!(fault & (VM_FAULT_ERROR | VM_FAULT_BADMAP |
 			      VM_FAULT_BADACCESS)))) {
 		/*
-		 * Major/minor page fault accounting is only done
+		 * Major/miyesr page fault accounting is only done
 		 * once. If we go through a retry, it is extremely
 		 * likely that the page will be found in page cache at
 		 * that point.
@@ -563,11 +563,11 @@ retry:
 	}
 
 	/*
-	 * If we are in kernel mode at this point, we have no context to
+	 * If we are in kernel mode at this point, we have yes context to
 	 * handle this fault with.
 	 */
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 
 	if (fault & VM_FAULT_OOM) {
 		/*
@@ -610,7 +610,7 @@ retry:
 
 	return 0;
 
-no_context:
+yes_context:
 	__do_kernel_fault(addr, esr, regs);
 	return 0;
 }
@@ -646,7 +646,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 	inf = esr_to_fault_info(esr);
 
 	/*
-	 * Return value ignored as we rely on signal merging.
+	 * Return value igyesred as we rely on signal merging.
 	 * Future patches will make this more robust.
 	 */
 	apei_claim_sea(regs);
@@ -655,7 +655,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 		siaddr = NULL;
 	else
 		siaddr  = (void __user *)addr;
-	arm64_notify_die(inf->name, regs, inf->sig, inf->code, siaddr, esr);
+	arm64_yestify_die(inf->name, regs, inf->sig, inf->code, siaddr, esr);
 
 	return 0;
 }
@@ -669,62 +669,62 @@ static const struct fault_info fault_info[] = {
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 1 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 2 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 3 translation fault"	},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 8"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 8"			},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 access flag fault"	},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 12"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 12"			},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 permission fault"	},
-	{ do_sea,		SIGBUS,  BUS_OBJERR,	"synchronous external abort"	},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 17"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 18"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 19"			},
+	{ do_sea,		SIGBUS,  BUS_OBJERR,	"synchroyesus external abort"	},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 17"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 18"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 19"			},
 	{ do_sea,		SIGKILL, SI_KERNEL,	"level 0 (translation table walk)"	},
 	{ do_sea,		SIGKILL, SI_KERNEL,	"level 1 (translation table walk)"	},
 	{ do_sea,		SIGKILL, SI_KERNEL,	"level 2 (translation table walk)"	},
 	{ do_sea,		SIGKILL, SI_KERNEL,	"level 3 (translation table walk)"	},
-	{ do_sea,		SIGBUS,  BUS_OBJERR,	"synchronous parity or ECC error" },	// Reserved when RAS is implemented
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 25"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 26"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 27"			},
-	{ do_sea,		SIGKILL, SI_KERNEL,	"level 0 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
-	{ do_sea,		SIGKILL, SI_KERNEL,	"level 1 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
-	{ do_sea,		SIGKILL, SI_KERNEL,	"level 2 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
-	{ do_sea,		SIGKILL, SI_KERNEL,	"level 3 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 32"			},
+	{ do_sea,		SIGBUS,  BUS_OBJERR,	"synchroyesus parity or ECC error" },	// Reserved when RAS is implemented
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 25"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 26"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 27"			},
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 0 synchroyesus parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 1 synchroyesus parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 2 synchroyesus parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 3 synchroyesus parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 32"			},
 	{ do_alignment_fault,	SIGBUS,  BUS_ADRALN,	"alignment fault"		},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 34"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 35"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 36"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 37"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 38"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 39"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 40"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 41"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 42"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 43"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 44"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 45"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 46"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 47"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 34"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 35"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 36"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 37"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 38"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 39"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 40"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 41"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 42"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 43"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 44"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 45"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 46"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 47"			},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"TLB conflict abort"		},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"Unsupported atomic hardware update fault"	},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 50"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 51"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 50"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 51"			},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"implementation fault (lockdown abort)" },
 	{ do_bad,		SIGBUS,  BUS_OBJERR,	"implementation fault (unsupported exclusive)" },
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 54"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 55"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 56"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 57"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 58" 			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 59"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 60"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 54"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 55"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 56"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 57"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 58" 			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 59"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 60"			},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"section domain fault"		},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"page domain fault"		},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 63"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unkyeswn 63"			},
 };
 
 void do_mem_abort(unsigned long addr, unsigned int esr, struct pt_regs *regs)
@@ -740,7 +740,7 @@ void do_mem_abort(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 		show_pte(addr);
 	}
 
-	arm64_notify_die(inf->name, regs,
+	arm64_yestify_die(inf->name, regs,
 			 inf->sig, inf->code, (void __user *)addr, esr);
 }
 NOKPROBE_SYMBOL(do_mem_abort);
@@ -754,7 +754,7 @@ NOKPROBE_SYMBOL(do_el0_irq_bp_hardening);
 
 void do_sp_pc_abort(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
-	arm64_notify_die("SP/PC alignment exception", regs,
+	arm64_yestify_die("SP/PC alignment exception", regs,
 			 SIGBUS, BUS_ADRALN, (void __user *)addr, esr);
 }
 NOKPROBE_SYMBOL(do_sp_pc_abort);
@@ -771,11 +771,11 @@ static struct fault_info __refdata debug_fault_info[] = {
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware breakpoint"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware single-step"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware watchpoint"	},
-	{ do_bad,	SIGKILL,	SI_KERNEL,	"unknown 3"		},
+	{ do_bad,	SIGKILL,	SI_KERNEL,	"unkyeswn 3"		},
 	{ do_bad,	SIGTRAP,	TRAP_BRKPT,	"aarch32 BKPT"		},
 	{ do_bad,	SIGKILL,	SI_KERNEL,	"aarch32 vector catch"	},
 	{ early_brk64,	SIGTRAP,	TRAP_BRKPT,	"aarch64 BRK"		},
-	{ do_bad,	SIGKILL,	SI_KERNEL,	"unknown 7"		},
+	{ do_bad,	SIGKILL,	SI_KERNEL,	"unkyeswn 7"		},
 };
 
 void __init hook_debug_fault_code(int nr,
@@ -800,7 +800,7 @@ void __init hook_debug_fault_code(int nr,
 static void debug_exception_enter(struct pt_regs *regs)
 {
 	/*
-	 * Tell lockdep we disabled irqs in entry.S. Do nothing if they were
+	 * Tell lockdep we disabled irqs in entry.S. Do yesthing if they were
 	 * already disabled to preserve the last enabled/disabled addresses.
 	 */
 	if (interrupts_enabled(regs))
@@ -813,7 +813,7 @@ static void debug_exception_enter(struct pt_regs *regs)
 		 * We might have interrupted pretty much anything.  In
 		 * fact, if we're a debug exception, we can even interrupt
 		 * NMI processing. We don't want this code makes in_nmi()
-		 * to return true, but we need to notify RCU.
+		 * to return true, but we need to yestify RCU.
 		 */
 		rcu_nmi_enter();
 	}
@@ -827,7 +827,7 @@ NOKPROBE_SYMBOL(debug_exception_enter);
 
 static void debug_exception_exit(struct pt_regs *regs)
 {
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 
 	if (!user_mode(regs))
 		rcu_nmi_exit();
@@ -881,7 +881,7 @@ void do_debug_exception(unsigned long addr_if_watchpoint, unsigned int esr,
 		arm64_apply_bp_hardening();
 
 	if (inf->fn(addr_if_watchpoint, esr, regs)) {
-		arm64_notify_die(inf->name, regs,
+		arm64_yestify_die(inf->name, regs,
 				 inf->sig, inf->code, (void __user *)pc, esr);
 	}
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <regex.h>
 #include <linux/zalloc.h>
@@ -107,7 +107,7 @@ error:
  *	i-NUM		i-1
  *
  * SDT marker arguments on Powerpc uses %rREG form with -mregnames flag
- * and REG form with -mno-regnames. Here REG is general purpose register,
+ * and REG form with -myes-regnames. Here REG is general purpose register,
  * which is in 0 to 31 range.
  */
 int arch_sdt_arg_parse_op(char *old_op, char **new_op)
@@ -116,7 +116,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 	regmatch_t rm[5];
 	char prefix;
 
-	/* Constant argument. Uprobe does not support it */
+	/* Constant argument. Uprobe does yest support it */
 	if (old_op[0] == 'i') {
 		pr_debug4("Skipping unsupported SDT argument: %s\n", old_op);
 		return SDT_ARG_SKIP;

@@ -2,7 +2,7 @@
  *  linux/fs/hfs/sysdep.c
  *
  * Copyright (C) 1996  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * This file contains the code to do various system dependent things.
@@ -15,23 +15,23 @@
 
 static int hfs_revalidate_dentry(struct dentry *dentry, unsigned int flags)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int diff;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	inode = d_inode(dentry);
-	if(!inode)
+	iyesde = d_iyesde(dentry);
+	if(!iyesde)
 		return 1;
 
-	/* fix up inode on a timezone change */
-	diff = sys_tz.tz_minuteswest * 60 - HFS_I(inode)->tz_secondswest;
+	/* fix up iyesde on a timezone change */
+	diff = sys_tz.tz_minuteswest * 60 - HFS_I(iyesde)->tz_secondswest;
 	if (diff) {
-		inode->i_ctime.tv_sec += diff;
-		inode->i_atime.tv_sec += diff;
-		inode->i_mtime.tv_sec += diff;
-		HFS_I(inode)->tz_secondswest += diff;
+		iyesde->i_ctime.tv_sec += diff;
+		iyesde->i_atime.tv_sec += diff;
+		iyesde->i_mtime.tv_sec += diff;
+		HFS_I(iyesde)->tz_secondswest += diff;
 	}
 	return 1;
 }

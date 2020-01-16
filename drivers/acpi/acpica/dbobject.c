@@ -14,7 +14,7 @@
 ACPI_MODULE_NAME("dbobject")
 
 /* Local prototypes */
-static void acpi_db_decode_node(struct acpi_namespace_node *node);
+static void acpi_db_decode_yesde(struct acpi_namespace_yesde *yesde);
 
 /*******************************************************************************
  *
@@ -35,17 +35,17 @@ void
 acpi_db_dump_method_info(acpi_status status, struct acpi_walk_state *walk_state)
 {
 	struct acpi_thread_state *thread;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 
-	node = walk_state->method_node;
+	yesde = walk_state->method_yesde;
 
-	/* There are no locals or arguments for the module-level code case */
+	/* There are yes locals or arguments for the module-level code case */
 
-	if (node == acpi_gbl_root_node) {
+	if (yesde == acpi_gbl_root_yesde) {
 		return;
 	}
 
-	/* Ignore control codes, they are not errors */
+	/* Igyesre control codes, they are yest errors */
 
 	if ((status & AE_CODE_MASK) == AE_CODE_CONTROL) {
 		return;
@@ -53,13 +53,13 @@ acpi_db_dump_method_info(acpi_status status, struct acpi_walk_state *walk_state)
 
 	/* We may be executing a deferred opcode */
 
-	if (walk_state->deferred_node) {
+	if (walk_state->deferred_yesde) {
 		acpi_os_printf("Executing subtree for Buffer/Package/Region\n");
 		return;
 	}
 
 	/*
-	 * If there is no Thread, we are not actually executing a method.
+	 * If there is yes Thread, we are yest actually executing a method.
 	 * This can happen when the iASL compiler calls the interpreter
 	 * to perform constant folding.
 	 */
@@ -143,32 +143,32 @@ void acpi_db_decode_internal_object(union acpi_operand_object *obj_desc)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_db_decode_node
+ * FUNCTION:    acpi_db_decode_yesde
  *
- * PARAMETERS:  node        - Object to be displayed
+ * PARAMETERS:  yesde        - Object to be displayed
  *
  * RETURN:      None
  *
- * DESCRIPTION: Short display of a namespace node
+ * DESCRIPTION: Short display of a namespace yesde
  *
  ******************************************************************************/
 
-static void acpi_db_decode_node(struct acpi_namespace_node *node)
+static void acpi_db_decode_yesde(struct acpi_namespace_yesde *yesde)
 {
 
 	acpi_os_printf("<Node>          Name %4.4s",
-		       acpi_ut_get_node_name(node));
+		       acpi_ut_get_yesde_name(yesde));
 
-	if (node->flags & ANOBJ_METHOD_ARG) {
+	if (yesde->flags & ANOBJ_METHOD_ARG) {
 		acpi_os_printf(" [Method Arg]");
 	}
-	if (node->flags & ANOBJ_METHOD_LOCAL) {
+	if (yesde->flags & ANOBJ_METHOD_LOCAL) {
 		acpi_os_printf(" [Method Local]");
 	}
 
-	switch (node->type) {
+	switch (yesde->type) {
 
-		/* These types have no attached object */
+		/* These types have yes attached object */
 
 	case ACPI_TYPE_DEVICE:
 
@@ -183,7 +183,7 @@ static void acpi_db_decode_node(struct acpi_namespace_node *node)
 	default:
 
 		acpi_db_decode_internal_object(acpi_ns_get_attached_object
-					       (node));
+					       (yesde));
 		break;
 	}
 }
@@ -224,7 +224,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 
 	case ACPI_DESC_TYPE_NAMED:
 
-		acpi_db_decode_node((struct acpi_namespace_node *)obj_desc);
+		acpi_db_decode_yesde((struct acpi_namespace_yesde *)obj_desc);
 		break;
 
 	case ACPI_DESC_TYPE_OPERAND:
@@ -303,7 +303,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 				default:
 
 					acpi_os_printf
-					    ("Unknown index target type");
+					    ("Unkyeswn index target type");
 					break;
 				}
 				break;
@@ -322,7 +322,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 					(obj_desc->reference.object)) {
 				case ACPI_DESC_TYPE_NAMED:
 
-					acpi_db_decode_node(obj_desc->reference.
+					acpi_db_decode_yesde(obj_desc->reference.
 							    object);
 					break;
 
@@ -339,7 +339,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 
 			case ACPI_REFCLASS_NAME:
 
-				acpi_db_decode_node(obj_desc->reference.node);
+				acpi_db_decode_yesde(obj_desc->reference.yesde);
 				break;
 
 			case ACPI_REFCLASS_DEBUG:
@@ -348,7 +348,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 				acpi_os_printf("\n");
 				break;
 
-			default:	/* Unknown reference class */
+			default:	/* Unkyeswn reference class */
 
 				acpi_os_printf("%2.2X\n",
 					       obj_desc->reference.class);
@@ -390,24 +390,24 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
 {
 	u32 i;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	u8 display_locals = FALSE;
 
-	node = walk_state->method_node;
+	yesde = walk_state->method_yesde;
 
-	/* There are no locals for the module-level code case */
+	/* There are yes locals for the module-level code case */
 
-	if (node == acpi_gbl_root_node) {
+	if (yesde == acpi_gbl_root_yesde) {
 		return;
 	}
 
-	if (!node) {
+	if (!yesde) {
 		acpi_os_printf
-		    ("No method node (Executing subtree for buffer or opregion)\n");
+		    ("No method yesde (Executing subtree for buffer or opregion)\n");
 		return;
 	}
 
-	if (node->type != ACPI_TYPE_METHOD) {
+	if (yesde->type != ACPI_TYPE_METHOD) {
 		acpi_os_printf("Executing subtree for Buffer/Package/Region\n");
 		return;
 	}
@@ -427,7 +427,7 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
 	if (display_locals) {
 		acpi_os_printf
 		    ("\nInitialized Local Variables for Method [%4.4s]:\n",
-		     acpi_ut_get_node_name(node));
+		     acpi_ut_get_yesde_name(yesde));
 
 		for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++) {
 			obj_desc = walk_state->local_variables[i].object;
@@ -440,7 +440,7 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
 	} else {
 		acpi_os_printf
 		    ("No Local Variables are initialized for Method [%4.4s]\n",
-		     acpi_ut_get_node_name(node));
+		     acpi_ut_get_yesde_name(yesde));
 	}
 }
 
@@ -460,24 +460,24 @@ void acpi_db_decode_arguments(struct acpi_walk_state *walk_state)
 {
 	u32 i;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	u8 display_args = FALSE;
 
-	node = walk_state->method_node;
+	yesde = walk_state->method_yesde;
 
-	/* There are no arguments for the module-level code case */
+	/* There are yes arguments for the module-level code case */
 
-	if (node == acpi_gbl_root_node) {
+	if (yesde == acpi_gbl_root_yesde) {
 		return;
 	}
 
-	if (!node) {
+	if (!yesde) {
 		acpi_os_printf
-		    ("No method node (Executing subtree for buffer or opregion)\n");
+		    ("No method yesde (Executing subtree for buffer or opregion)\n");
 		return;
 	}
 
-	if (node->type != ACPI_TYPE_METHOD) {
+	if (yesde->type != ACPI_TYPE_METHOD) {
 		acpi_os_printf("Executing subtree for Buffer/Package/Region\n");
 		return;
 	}
@@ -497,8 +497,8 @@ void acpi_db_decode_arguments(struct acpi_walk_state *walk_state)
 	if (display_args) {
 		acpi_os_printf("Initialized Arguments for Method [%4.4s]:  "
 			       "(%X arguments defined for method invocation)\n",
-			       acpi_ut_get_node_name(node),
-			       node->object->method.param_count);
+			       acpi_ut_get_yesde_name(yesde),
+			       yesde->object->method.param_count);
 
 		for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++) {
 			obj_desc = walk_state->arguments[i].object;
@@ -511,6 +511,6 @@ void acpi_db_decode_arguments(struct acpi_walk_state *walk_state)
 	} else {
 		acpi_os_printf
 		    ("No Arguments are initialized for method [%4.4s]\n",
-		     acpi_ut_get_node_name(node));
+		     acpi_ut_get_yesde_name(yesde));
 	}
 }

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/semaphore.h>
@@ -373,7 +373,7 @@ static void mgmt_recv_msg_handler(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	u16 out_size = 0;
 
 	if (recv_msg->mod >= HINIC_MOD_MAX) {
-		dev_err(&pdev->dev, "Unknown MGMT MSG module = %d\n",
+		dev_err(&pdev->dev, "Unkyeswn MGMT MSG module = %d\n",
 			recv_msg->mod);
 		return;
 	}

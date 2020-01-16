@@ -1,4 +1,4 @@
-* Freescale i.MX non-core registers
+* Freescale i.MX yesn-core registers
 
 Required properties:
 - #index-cells: Cells used to descibe usb controller index. Should be <1>

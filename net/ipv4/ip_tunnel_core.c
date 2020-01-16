@@ -58,7 +58,7 @@ void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 
 	skb_scrub_packet(skb, xnet);
 
-	skb_clear_hash_if_not_l4(skb);
+	skb_clear_hash_if_yest_l4(skb);
 	skb_dst_set(skb, &rt->dst);
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 
@@ -112,7 +112,7 @@ int __iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
 		skb->protocol = inner_proto;
 	}
 
-	skb_clear_hash_if_not_l4(skb);
+	skb_clear_hash_if_yest_l4(skb);
 	__vlan_hwaccel_clear_tag(skb);
 	skb_set_queue_mapping(skb, 0);
 	skb_scrub_packet(skb, xnet);
@@ -517,7 +517,7 @@ static int ip_tun_fill_encap_opts_geneve(struct sk_buff *skb,
 	struct nlattr *nest;
 	int offset = 0;
 
-	nest = nla_nest_start_noflag(skb, LWTUNNEL_IP_OPTS_GENEVE);
+	nest = nla_nest_start_yesflag(skb, LWTUNNEL_IP_OPTS_GENEVE);
 	if (!nest)
 		return -ENOMEM;
 
@@ -544,7 +544,7 @@ static int ip_tun_fill_encap_opts_vxlan(struct sk_buff *skb,
 	struct vxlan_metadata *md;
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, LWTUNNEL_IP_OPTS_VXLAN);
+	nest = nla_nest_start_yesflag(skb, LWTUNNEL_IP_OPTS_VXLAN);
 	if (!nest)
 		return -ENOMEM;
 
@@ -564,7 +564,7 @@ static int ip_tun_fill_encap_opts_erspan(struct sk_buff *skb,
 	struct erspan_metadata *md;
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, LWTUNNEL_IP_OPTS_ERSPAN);
+	nest = nla_nest_start_yesflag(skb, LWTUNNEL_IP_OPTS_ERSPAN);
 	if (!nest)
 		return -ENOMEM;
 
@@ -598,7 +598,7 @@ static int ip_tun_fill_encap_opts(struct sk_buff *skb, int type,
 	if (!(tun_info->key.tun_flags & TUNNEL_OPTIONS_PRESENT))
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, type);
+	nest = nla_nest_start_yesflag(skb, type);
 	if (!nest)
 		return -ENOMEM;
 

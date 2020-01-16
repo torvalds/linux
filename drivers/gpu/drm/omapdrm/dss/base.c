@@ -66,7 +66,7 @@ void omapdss_device_unregister(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL_GPL(omapdss_device_unregister);
 
-static bool omapdss_device_is_registered(struct device_node *node)
+static bool omapdss_device_is_registered(struct device_yesde *yesde)
 {
 	struct omap_dss_device *dssdev;
 	bool found = false;
@@ -74,7 +74,7 @@ static bool omapdss_device_is_registered(struct device_node *node)
 	mutex_lock(&omapdss_devices_lock);
 
 	list_for_each_entry(dssdev, &omapdss_devices_list, list) {
-		if (dssdev->dev->of_node == node) {
+		if (dssdev->dev->of_yesde == yesde) {
 			found = true;
 			break;
 		}
@@ -105,12 +105,12 @@ void omapdss_device_put(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL(omapdss_device_put);
 
-struct omap_dss_device *omapdss_find_device_by_node(struct device_node *node)
+struct omap_dss_device *omapdss_find_device_by_yesde(struct device_yesde *yesde)
 {
 	struct omap_dss_device *dssdev;
 
 	list_for_each_entry(dssdev, &omapdss_devices_list, list) {
-		if (dssdev->dev->of_node == node)
+		if (dssdev->dev->of_yesde == yesde)
 			return omapdss_device_get(dssdev);
 	}
 
@@ -291,66 +291,66 @@ EXPORT_SYMBOL_GPL(omapdss_device_post_disable);
 
 static struct list_head omapdss_comp_list;
 
-struct omapdss_comp_node {
+struct omapdss_comp_yesde {
 	struct list_head list;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	bool dss_core_component;
 	const char *compat;
 };
 
-static bool omapdss_list_contains(const struct device_node *node)
+static bool omapdss_list_contains(const struct device_yesde *yesde)
 {
-	struct omapdss_comp_node *comp;
+	struct omapdss_comp_yesde *comp;
 
 	list_for_each_entry(comp, &omapdss_comp_list, list) {
-		if (comp->node == node)
+		if (comp->yesde == yesde)
 			return true;
 	}
 
 	return false;
 }
 
-static void omapdss_walk_device(struct device *dev, struct device_node *node,
+static void omapdss_walk_device(struct device *dev, struct device_yesde *yesde,
 				bool dss_core)
 {
-	struct omapdss_comp_node *comp;
-	struct device_node *n;
+	struct omapdss_comp_yesde *comp;
+	struct device_yesde *n;
 	const char *compat;
 	int ret;
 
-	ret = of_property_read_string(node, "compatible", &compat);
+	ret = of_property_read_string(yesde, "compatible", &compat);
 	if (ret < 0)
 		return;
 
 	comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
 	if (comp) {
-		comp->node = node;
+		comp->yesde = yesde;
 		comp->dss_core_component = dss_core;
 		comp->compat = compat;
 		list_add(&comp->list, &omapdss_comp_list);
 	}
 
 	/*
-	 * of_graph_get_remote_port_parent() prints an error if there is no
-	 * port/ports node. To avoid that, check first that there's the node.
+	 * of_graph_get_remote_port_parent() prints an error if there is yes
+	 * port/ports yesde. To avoid that, check first that there's the yesde.
 	 */
-	n = of_get_child_by_name(node, "ports");
+	n = of_get_child_by_name(yesde, "ports");
 	if (!n)
-		n = of_get_child_by_name(node, "port");
+		n = of_get_child_by_name(yesde, "port");
 	if (!n)
 		return;
 
-	of_node_put(n);
+	of_yesde_put(n);
 
 	n = NULL;
-	while ((n = of_graph_get_next_endpoint(node, n)) != NULL) {
-		struct device_node *pn = of_graph_get_remote_port_parent(n);
+	while ((n = of_graph_get_next_endpoint(yesde, n)) != NULL) {
+		struct device_yesde *pn = of_graph_get_remote_port_parent(n);
 
 		if (!pn)
 			continue;
 
 		if (!of_device_is_available(pn) || omapdss_list_contains(pn)) {
-			of_node_put(pn);
+			of_yesde_put(pn);
 			continue;
 		}
 
@@ -360,24 +360,24 @@ static void omapdss_walk_device(struct device *dev, struct device_node *node,
 
 void omapdss_gather_components(struct device *dev)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 
 	INIT_LIST_HEAD(&omapdss_comp_list);
 
-	omapdss_walk_device(dev, dev->of_node, true);
+	omapdss_walk_device(dev, dev->of_yesde, true);
 
-	for_each_available_child_of_node(dev->of_node, child)
+	for_each_available_child_of_yesde(dev->of_yesde, child)
 		omapdss_walk_device(dev, child, true);
 }
 EXPORT_SYMBOL(omapdss_gather_components);
 
-static bool omapdss_component_is_loaded(struct omapdss_comp_node *comp)
+static bool omapdss_component_is_loaded(struct omapdss_comp_yesde *comp)
 {
 	if (comp->dss_core_component)
 		return true;
 	if (!strstarts(comp->compat, "omapdss,"))
 		return true;
-	if (omapdss_device_is_registered(comp->node))
+	if (omapdss_device_is_registered(comp->yesde))
 		return true;
 
 	return false;
@@ -385,7 +385,7 @@ static bool omapdss_component_is_loaded(struct omapdss_comp_node *comp)
 
 bool omapdss_stack_is_ready(void)
 {
-	struct omapdss_comp_node *comp;
+	struct omapdss_comp_yesde *comp;
 
 	list_for_each_entry(comp, &omapdss_comp_list, list) {
 		if (!omapdss_component_is_loaded(comp))

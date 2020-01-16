@@ -9,7 +9,7 @@
 import collections
 import re
 
-CONFIG_IS_NOT_SET_PATTERN = r'^# CONFIG_\w+ is not set$'
+CONFIG_IS_NOT_SET_PATTERN = r'^# CONFIG_\w+ is yest set$'
 CONFIG_PATTERN = r'^CONFIG_\w+=\S+$'
 
 KconfigEntryBase = collections.namedtuple('KconfigEntry', ['raw_entry'])
@@ -48,13 +48,13 @@ class Kconfig(object):
 	def parse_from_string(self, blob: str) -> None:
 		"""Parses a string containing KconfigEntrys and populates this Kconfig."""
 		self._entries = []
-		is_not_set_matcher = re.compile(CONFIG_IS_NOT_SET_PATTERN)
+		is_yest_set_matcher = re.compile(CONFIG_IS_NOT_SET_PATTERN)
 		config_matcher = re.compile(CONFIG_PATTERN)
 		for line in blob.split('\n'):
 			line = line.strip()
-			if not line:
+			if yest line:
 				continue
-			elif config_matcher.match(line) or is_not_set_matcher.match(line):
+			elif config_matcher.match(line) or is_yest_set_matcher.match(line):
 				self._entries.append(KconfigEntry(line))
 			elif line[0] == '#':
 				continue

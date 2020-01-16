@@ -78,7 +78,7 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 /*
  * CPU -> queue mappings
  */
-extern int blk_mq_hw_queue_to_node(struct blk_mq_queue_map *qmap, unsigned int);
+extern int blk_mq_hw_queue_to_yesde(struct blk_mq_queue_map *qmap, unsigned int);
 
 /*
  * blk_mq_map_queue_type() - map (hctx_type,cpu) to hardware queue
@@ -135,9 +135,9 @@ static inline struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
 }
 
 /*
- * This assumes per-cpu software queueing queues. They could be per-node
- * as well, for instance. For now this is hardcoded as-is. Note that we don't
- * care about preemption, since we know the ctx's are persistent. This does
+ * This assumes per-cpu software queueing queues. They could be per-yesde
+ * as well, for instance. For yesw this is hardcoded as-is. Note that we don't
+ * care about preemption, since we kyesw the ctx's are persistent. This does
  * mean that we can't rely on ctx always matching the currently running CPU.
  */
 static inline struct blk_mq_ctx *blk_mq_get_ctx(struct request_queue *q)
@@ -234,10 +234,10 @@ static inline void blk_mq_clear_mq_map(struct blk_mq_queue_map *qmap)
  * insertion order to change from the order in which submit_bio() is being
  * executed in the case of multiple contexts concurrently issuing BIOs to a
  * device, even if these context are synchronized to tightly control BIO issuing
- * order. While this is not a problem with regular block devices, this ordering
+ * order. While this is yest a problem with regular block devices, this ordering
  * change can cause write BIO failures with zoned block devices as these
  * require sequential write patterns to zones. Prevent this from happening by
- * ignoring the plug state of a BIO issuing context if the target request queue
+ * igyesring the plug state of a BIO issuing context if the target request queue
  * is for a zoned block device and the BIO to plug is a write operation.
  *
  * Return current->plug if the bio can be plugged and NULL otherwise
@@ -247,12 +247,12 @@ static inline struct blk_plug *blk_mq_plug(struct request_queue *q,
 {
 	/*
 	 * For regular block devices or read operations, use the context plug
-	 * which may be NULL if blk_start_plug() was not executed.
+	 * which may be NULL if blk_start_plug() was yest executed.
 	 */
 	if (!blk_queue_is_zoned(q) || !op_is_write(bio_op(bio)))
 		return current->plug;
 
-	/* Zoned block device write operation case: do not plug the BIO */
+	/* Zoned block device write operation case: do yest plug the BIO */
 	return NULL;
 }
 

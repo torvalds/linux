@@ -3,7 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/pagemap.h>
 #include <linux/dma-mapping.h>
@@ -51,7 +51,7 @@ static void __iomem *g_regs;
  * offsets/sizes in pagelists.
  *
  * Modern VPU firmware looks for a DT "cache-line-size" property in
- * the VCHIQ node and will overwrite it with the actual L2 cache size,
+ * the VCHIQ yesde and will overwrite it with the actual L2 cache size,
  * which the kernel must then respect.  That property was rejected
  * upstream, so we have to use the VPU firmware's compatibility value
  * of 32.
@@ -106,7 +106,7 @@ int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state *state)
 	slot_mem = dmam_alloc_coherent(dev, slot_mem_size + frag_mem_size,
 				       &slot_phys, GFP_KERNEL);
 	if (!slot_mem) {
-		dev_err(dev, "could not allocate DMA memory\n");
+		dev_err(dev, "could yest allocate DMA memory\n");
 		return -ENOMEM;
 	}
 
@@ -282,7 +282,7 @@ vchiq_platform_resumed(struct vchiq_state *state)
 int
 vchiq_platform_videocore_wanted(struct vchiq_state *state)
 {
-	return 1; // autosuspend not supported - videocore always wanted
+	return 1; // autosuspend yest supported - videocore always wanted
 }
 
 int
@@ -293,7 +293,7 @@ vchiq_platform_use_suspend_timer(void)
 void
 vchiq_dump_platform_use_state(struct vchiq_state *state)
 {
-	vchiq_log_info(vchiq_arm_log_level, "Suspend timer not in use");
+	vchiq_log_info(vchiq_arm_log_level, "Suspend timer yest in use");
 }
 void
 vchiq_platform_handle_timeout(struct vchiq_state *state)
@@ -381,7 +381,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 			(num_pages * sizeof(struct scatterlist))) +
 			sizeof(struct vchiq_pagelist_info);
 
-	/* Allocate enough storage to hold the page pointers and the page
+	/* Allocate eyesugh storage to hold the page pointers and the page
 	 * list
 	 */
 	pagelist = dma_alloc_coherent(g_dev, pagelist_size, &dma_addr,
@@ -435,7 +435,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 			length -= bytes;
 			off = 0;
 		}
-		/* do not try and release vmalloc pages */
+		/* do yest try and release vmalloc pages */
 	} else {
 		actual_pages = get_user_pages_fast(
 					  (unsigned long)buf & PAGE_MASK,

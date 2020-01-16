@@ -32,7 +32,7 @@ static int current_mode = 0;
 static int pasemi_system_reset_exception(struct pt_regs *regs)
 {
 	/* If we were woken up from power savings, we need to return
-	 * to the calling function, since nip is not saved across
+	 * to the calling function, since nip is yest saved across
 	 * all modes.
 	 */
 

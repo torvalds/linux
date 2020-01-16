@@ -235,12 +235,12 @@ COMPAT_SYSCALL_DEFINE0(sigreturn)
 	struct compat_sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
 	 * then 'sp' should be word aligned here.  If it's
-	 * not, then the user is trying to mess with us.
+	 * yest, then the user is trying to mess with us.
 	 */
 	if (regs->compat_sp & 7)
 		goto badframe;
@@ -256,7 +256,7 @@ COMPAT_SYSCALL_DEFINE0(sigreturn)
 	return regs->regs[0];
 
 badframe:
-	arm64_notify_segfault(regs->compat_sp);
+	arm64_yestify_segfault(regs->compat_sp);
 	return 0;
 }
 
@@ -266,12 +266,12 @@ COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
 	struct compat_rt_sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
 	 * then 'sp' should be word aligned here.  If it's
-	 * not, then the user is trying to mess with us.
+	 * yest, then the user is trying to mess with us.
 	 */
 	if (regs->compat_sp & 7)
 		goto badframe;
@@ -290,7 +290,7 @@ COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
 	return regs->regs[0];
 
 badframe:
-	arm64_notify_segfault(regs->compat_sp);
+	arm64_yestify_segfault(regs->compat_sp);
 	return 0;
 }
 
@@ -408,7 +408,7 @@ static int compat_setup_sigframe(struct compat_sigframe __user *sf,
 	__put_user_error(regs->pc, &sf->uc.uc_mcontext.arm_pc, err);
 	__put_user_error(psr, &sf->uc.uc_mcontext.arm_cpsr, err);
 
-	__put_user_error((compat_ulong_t)0, &sf->uc.uc_mcontext.trap_no, err);
+	__put_user_error((compat_ulong_t)0, &sf->uc.uc_mcontext.trap_yes, err);
 	/* set the compat FSR WnR */
 	__put_user_error(!!(current->thread.fault_code & ESR_ELx_WNR) <<
 			 FSR_WRITE_SHIFT, &sf->uc.uc_mcontext.error_code, err);

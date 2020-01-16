@@ -113,7 +113,7 @@ static int ccmp_init_iv_and_aad(const struct ieee80211_hdr *hdr,
 	}
 
 	/* In CCM, the initial vectors (IV) used for CTR mode encryption and CBC
-	 * mode authentication are not allowed to collide, yet both are derived
+	 * mode authentication are yest allowed to collide, yet both are derived
 	 * from the same vector. We only set L := 1 here to indicate that the
 	 * data size can be represented in (L+1) bytes. The CCM layer will take
 	 * care of storing the data length in the top (L+1) bytes and setting
@@ -285,7 +285,7 @@ static int lib80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -6;
 	}
 	if (!key->key_set) {
-		net_dbg_ratelimited("CCMP: received packet from %pM with keyid=%d that does not have a configured key\n",
+		net_dbg_ratelimited("CCMP: received packet from %pM with keyid=%d that does yest have a configured key\n",
 				    hdr->addr2, keyidx);
 		return -3;
 	}

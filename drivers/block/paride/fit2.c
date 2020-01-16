@@ -3,7 +3,7 @@
                           Under the terms of the GNU General Public License.
 
 	fit2.c is a low-level protocol driver for the older version
-        of the Fidelity International Technology parallel port adapter.  
+        of the Fidelity International Techyeslogy parallel port adapter.  
 	This adapter is used in their TransDisk 2000 and older TransDisk
 	3000 portable hard-drives.  As far as I can tell, this device
 	supports 4-bit mode _only_.  
@@ -30,9 +30,9 @@
 /* cont = 0 - access the IDE register file 
    cont = 1 - access the IDE command set 
 
-NB:  The FIT adapter does not appear to use the control registers.
+NB:  The FIT adapter does yest appear to use the control registers.
 So, we map ALT_STATUS to STATUS and NO-OP writes to the device
-control register - this means that IDE reset will not work on these
+control register - this means that IDE reset will yest work on these
 devices.
 
 */

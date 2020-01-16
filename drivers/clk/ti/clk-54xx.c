@@ -571,7 +571,7 @@ static struct ti_dt_clk omap54xx_clks[] = {
 	DT_CLK(NULL, "usb_tll_hs_usb_ch2_clk", "l3init_cm:0048:10"),
 	DT_CLK(NULL, "utmi_p1_gfclk", "l3init_cm:0038:24"),
 	DT_CLK(NULL, "utmi_p2_gfclk", "l3init_cm:0038:25"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 int __init omap5xxx_dt_clk_init(void)

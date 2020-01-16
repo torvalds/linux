@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -449,7 +449,7 @@ qed_iwarp_modify_qp(struct qed_hwfn *p_hwfn,
 			qp->iwarp_state = new_state;
 			break;
 		case QED_IWARP_QP_STATE_CLOSING:
-			/* could happen due to race... do nothing.... */
+			/* could happen due to race... do yesthing.... */
 			break;
 		default:
 			rc = -EINVAL;
@@ -798,7 +798,7 @@ qed_iwarp_mpa_received(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 
 			ep->rtr_type &= iwarp_info->rtr_type;
 
-			/* if we're left with no match send our capabilities */
+			/* if we're left with yes match send our capabilities */
 			if (ep->rtr_type == MPA_RTR_TYPE_NONE)
 				ep->rtr_type = iwarp_info->rtr_type;
 		}
@@ -979,7 +979,7 @@ qed_iwarp_mpa_reply_arrived(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 
 	if (ep->connect_mode == TCP_CONNECT_PASSIVE) {
 		DP_NOTICE(p_hwfn,
-			  "MPA reply event not expected on passive side!\n");
+			  "MPA reply event yest expected on passive side!\n");
 		return;
 	}
 
@@ -1093,7 +1093,7 @@ qed_iwarp_mpa_complete(struct qed_hwfn *p_hwfn,
 
 	ep->event_cb(ep->cb_context, &params);
 
-	/* on passive side, if there is no associated QP (REJECT) we need to
+	/* on passive side, if there is yes associated QP (REJECT) we need to
 	 * return the ep to the pool, (in the regular case we add an element
 	 * in accept instead of this one.
 	 * In both cases we need to remove it from the ep_list.
@@ -1266,14 +1266,14 @@ static struct qed_iwarp_ep *qed_iwarp_get_free_ep(struct qed_hwfn *p_hwfn)
 			      struct qed_iwarp_ep, list_entry);
 
 	/* in some cases we could have failed allocating a tcp cid when added
-	 * from accept / failure... retry now..this is not the common case.
+	 * from accept / failure... retry yesw..this is yest the common case.
 	 */
 	if (ep->tcp_cid == QED_IWARP_INVALID_TCP_CID) {
 		rc = qed_iwarp_alloc_tcp_cid(p_hwfn, &ep->tcp_cid);
 
-		/* if we fail we could look for another entry with a valid
+		/* if we fail we could look for ayesther entry with a valid
 		 * tcp_cid, but since we don't expect to reach this anyway
-		 * it's not worth the handling
+		 * it's yest worth the handling
 		 */
 		if (rc) {
 			ep->tcp_cid = QED_IWARP_INVALID_TCP_CID;
@@ -1662,7 +1662,7 @@ qed_iwarp_get_listener(struct qed_hwfn *p_hwfn,
 		return listener;
 	}
 
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "listener not found\n");
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "listener yest found\n");
 	return NULL;
 }
 
@@ -1895,13 +1895,13 @@ qed_iwarp_cp_pkt(struct qed_hwfn *p_hwfn,
 
 	/* need to copy the data from the partial packet stored in fpdu
 	 * to the new buf, for this we also need to move the data currently
-	 * placed on the buf. The assumption is that the buffer is big enough
+	 * placed on the buf. The assumption is that the buffer is big eyesugh
 	 * since fpdu_length <= mss, we use an intermediate buffer since
 	 * we may need to copy the new data to an overlapping location
 	 */
 	if ((fpdu->mpa_frag_len + tcp_payload_size) > (u16)buf->buff_size) {
 		DP_ERR(p_hwfn,
-		       "MPA ALIGN: Unexpected: buffer is not large enough for split fpdu buff_size = %d mpa_frag_len = %d, tcp_payload_size = %d, incomplete_bytes = %d\n",
+		       "MPA ALIGN: Unexpected: buffer is yest large eyesugh for split fpdu buff_size = %d mpa_frag_len = %d, tcp_payload_size = %d, incomplete_bytes = %d\n",
 		       buf->buff_size, fpdu->mpa_frag_len,
 		       tcp_payload_size, fpdu->incomplete_bytes);
 		return -EINVAL;
@@ -1954,7 +1954,7 @@ qed_iwarp_update_fpdu_length(struct qed_hwfn *p_hwfn,
 
 	/* Update incomplete packets if needed */
 	if (fpdu->incomplete_bytes == QED_IWARP_INVALID_FPDU_LENGTH) {
-		/* Missing lower byte is now available */
+		/* Missing lower byte is yesw available */
 		mpa_len = fpdu->fpdu_length | *mpa_data;
 		fpdu->fpdu_length = QED_IWARP_FPDU_LEN_WITH_PAD(mpa_len);
 		/* one byte of hdr */
@@ -2087,7 +2087,7 @@ qed_iwarp_send_fpdu(struct qed_hwfn *p_hwfn,
 	/* vlan overload with enum iwarp_ll2_tx_queues */
 	tx_pkt.vlan = IWARP_LL2_ALIGNED_TX_QUEUE;
 
-	/* special case of unaligned packet and not packed, need to send
+	/* special case of unaligned packet and yest packed, need to send
 	 * both buffers as cookie to release.
 	 */
 	if (tcp_payload_size == fpdu->incomplete_bytes)
@@ -2252,7 +2252,7 @@ qed_iwarp_process_mpa_pkt(struct qed_hwfn *p_hwfn,
 
 			mpa_buf->tcp_payload_len -= fpdu->incomplete_bytes;
 			curr_pkt->first_mpa_offset += fpdu->incomplete_bytes;
-			/* The framed PDU was sent - no more incomplete bytes */
+			/* The framed PDU was sent - yes more incomplete bytes */
 			fpdu->incomplete_bytes = 0;
 			break;
 		}
@@ -2383,7 +2383,7 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 	if (!listener) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_RDMA,
-			   "SYN received on tuple not listened on parse_flags=%d packet len=%d\n",
+			   "SYN received on tuple yest listened on parse_flags=%d packet len=%d\n",
 			   data->parse_flags, data->length.packet_length);
 
 		memset(&tx_pkt, 0, sizeof(tx_pkt));
@@ -2754,7 +2754,7 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 	/* The mpa_bufs array serves for pending RX packets received on the
 	 * mpa ll2 that don't have place on the tx ring and require later
 	 * processing. We can't fail on allocation of such a struct therefore
-	 * we allocate enough to take care of all rx packets
+	 * we allocate eyesugh to take care of all rx packets
 	 */
 	iwarp_info->mpa_bufs = kcalloc(data.input.rx_num_desc,
 				       sizeof(*iwarp_info->mpa_bufs),
@@ -2964,7 +2964,7 @@ qed_iwarp_tcp_connect_unsuccessful(struct qed_hwfn *p_hwfn,
 		params.status = -EBUSY;
 		break;
 	case IWARP_CONN_ERROR_MPA_NOT_SUPPORTED_VER:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA not supported VER\n",
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA yest supported VER\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->tcp_cid);
 		params.status = -ECONNREFUSED;
 		break;
@@ -3005,7 +3005,7 @@ qed_iwarp_connect_complete(struct qed_hwfn *p_hwfn,
 
 		ep->syn = NULL;
 
-		/* If connect failed - upper layer doesn't know about it */
+		/* If connect failed - upper layer doesn't kyesw about it */
 		if (fw_return_code == RDMA_RETURN_OK)
 			qed_iwarp_mpa_received(p_hwfn, ep);
 		else
@@ -3105,7 +3105,7 @@ static int qed_iwarp_async_event(struct qed_hwfn *p_hwfn,
 	case IWARP_EVENT_TYPE_ASYNC_SRQ_EMPTY:
 		DP_NOTICE(p_hwfn, "IWARP_EVENT_TYPE_ASYNC_SRQ_EMPTY\n");
 		srq_offset = p_hwfn->p_rdma_info->srq_id_offset;
-		/* FW assigns value that is no greater than u16 */
+		/* FW assigns value that is yes greater than u16 */
 		srq_id = ((u16)le32_to_cpu(fw_handle->lo)) - srq_offset;
 		events.affiliated_event(events.context,
 					QED_IWARP_EVENT_SRQ_EMPTY,
@@ -3114,7 +3114,7 @@ static int qed_iwarp_async_event(struct qed_hwfn *p_hwfn,
 	case IWARP_EVENT_TYPE_ASYNC_SRQ_LIMIT:
 		DP_NOTICE(p_hwfn, "IWARP_EVENT_TYPE_ASYNC_SRQ_LIMIT\n");
 		srq_offset = p_hwfn->p_rdma_info->srq_id_offset;
-		/* FW assigns value that is no greater than u16 */
+		/* FW assigns value that is yes greater than u16 */
 		srq_id = ((u16)le32_to_cpu(fw_handle->lo)) - srq_offset;
 		events.affiliated_event(events.context,
 					QED_IWARP_EVENT_SRQ_LIMIT,

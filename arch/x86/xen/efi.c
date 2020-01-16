@@ -22,8 +22,8 @@ static efi_system_table_t efi_systab_xen __initdata = {
 	.hdr = {
 		.signature	= EFI_SYSTEM_TABLE_SIGNATURE,
 		.revision	= 0, /* Initialized later. */
-		.headersize	= 0, /* Ignored by Linux Kernel. */
-		.crc32		= 0, /* Ignored by Linux Kernel. */
+		.headersize	= 0, /* Igyesred by Linux Kernel. */
+		.crc32		= 0, /* Igyesred by Linux Kernel. */
 		.reserved	= 0
 	},
 	.fw_vendor	= EFI_INVALID_TABLE_ADDR, /* Initialized later. */
@@ -56,7 +56,7 @@ static efi_system_table_t __init *xen_efi_probe(void)
 	if (!xen_initial_domain() || HYPERVISOR_platform_op(&op) < 0)
 		return NULL;
 
-	/* Here we know that Xen runs on EFI platform. */
+	/* Here we kyesw that Xen runs on EFI platform. */
 	xen_efi_runtime_setup();
 
 	efi_systab_xen.tables = info->cfg.addr;
@@ -142,8 +142,8 @@ static enum efi_secureboot_mode xen_efi_get_secureboot(void)
 	return efi_secureboot_mode_enabled;
 
  out_efi_err:
-	pr_err("Could not determine UEFI Secure Boot status.\n");
-	return efi_secureboot_mode_unknown;
+	pr_err("Could yest determine UEFI Secure Boot status.\n");
+	return efi_secureboot_mode_unkyeswn;
 }
 
 void __init xen_efi_init(struct boot_params *boot_params)

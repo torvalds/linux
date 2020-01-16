@@ -6,12 +6,12 @@
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
    (C) 2011 Hans de Goede <hdegoede@redhat.com>
 
-   NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
+   NOTE: this version of pwc is an uyesfficial (modified) release of pwc & pcwx
+   driver and thus may have bugs that are yest present in the original version.
    Please send bug reports and support requests to <luc@saillard.org>.
 
-   NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
+   NOTE: this version of pwc is an uyesfficial (modified) release of pwc & pcwx
+   driver and thus may have bugs that are yest present in the original version.
    Please send bug reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
@@ -29,7 +29,7 @@
 #ifdef __KERNEL__
 #include <linux/uaccess.h>
 #endif
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 #include "pwc.h"
 #include "pwc-kiara.h"
@@ -69,16 +69,16 @@ static const char *size2name[PSZ_MAX] =
 /********/
 
 /* Entries for the Nala (645/646) camera; the Nala doesn't have compression
-   preferences, so you either get compressed or non-compressed streams.
+   preferences, so you either get compressed or yesn-compressed streams.
 
-   An alternate value of 0 means this mode is not available at all.
+   An alternate value of 0 means this mode is yest available at all.
  */
 
 #define PWC_FPS_MAX_NALA 8
 
 struct Nala_table_entry {
 	char alternate;			/* USB alternate setting */
-	int compressed;			/* Compressed yes/no */
+	int compressed;			/* Compressed no/yes */
 
 	unsigned char mode[3];		/* precomputed mode table */
 };
@@ -206,7 +206,7 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int pixfmt,
 	else
 		pdev->vbandlength = 0;
 
-	/* Let pwc-if.c:isoc_init know we don't support higher compression */
+	/* Let pwc-if.c:isoc_init kyesw we don't support higher compression */
 	*compression = 3;
 
 	return 0;

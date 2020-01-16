@@ -16,7 +16,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Copyright 2001 MontaVista Software Inc.
@@ -94,7 +94,7 @@ static void __init jmr3927_mem_setup(void)
 	/* initialize board */
 	jmr3927_board_init();
 
-	tx3927_sio_init(0, 1 << 1); /* ch1: noCTS */
+	tx3927_sio_init(0, 1 << 1); /* ch1: yesCTS */
 }
 
 static void __init jmr3927_pci_setup(void)

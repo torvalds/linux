@@ -8,7 +8,7 @@ Initial Release:
 	This is conceptually very similar to the macvlan driver with one major
 exception of using L3 for mux-ing /demux-ing among slaves. This property makes
 the master device share the L2 with it's slave devices. I have developed this
-driver in conjunction with network namespaces and not sure if there is use case
+driver in conjunction with network namespaces and yest sure if there is use case
 outside of it.
 
 
@@ -19,7 +19,7 @@ The driver can be built into the kernel (CONFIG_IPVLAN=y) or as a module
 
 
 3. Configuration:
-	There are no module parameters for this driver and it can be configured
+	There are yes module parameters for this driver and it can be configured
 using IProute2/ip utility.
 
     ip link add link <master> name <slave> type ipvlan [ mode MODE ] [ FLAGS ]
@@ -58,7 +58,7 @@ as well.
 to the slave device and packets are switched to the stack instance of the
 master device for the L2 processing and routing from that instance will be
 used before packets are queued on the outbound device. In this mode the slaves
-will not receive nor can send multicast / broadcast traffic.
+will yest receive yesr can send multicast / broadcast traffic.
 
 4.3 L3S mode:
 	This is very similar to the L3 mode except that iptables (conn-tracking)

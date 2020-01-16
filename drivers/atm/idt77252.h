@@ -21,7 +21,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if yest, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *******************************************************************/
@@ -518,14 +518,14 @@ struct idt77252_dev
 #define SAR_CFG_TX_FIFO_SIZE_2 0x08000000  /* TX FIFO Size = 2 cells         */
 #define SAR_CFG_TX_FIFO_SIZE_4 0x0C000000  /* TX FIFO Size = 4 cells         */
 #define SAR_CFG_TX_FIFO_SIZE_9 0x00000000  /* TX FIFO Size = 9 cells (full)  */
-#define SAR_CFG_NO_IDLE        0x02000000  /* SAR sends no Null Cells        */
+#define SAR_CFG_NO_IDLE        0x02000000  /* SAR sends yes Null Cells        */
 #define SAR_CFG_RSVD1          0x01000000  /* Reserved                       */
 #define SAR_CFG_RXSTQ_SIZE_2k  0x00000000  /* RX Stat Queue Size = 2048 byte */
 #define SAR_CFG_RXSTQ_SIZE_4k  0x00400000  /* RX Stat Queue Size = 4096 byte */
 #define SAR_CFG_RXSTQ_SIZE_8k  0x00800000  /* RX Stat Queue Size = 8192 byte */
 #define SAR_CFG_RXSTQ_SIZE_R   0x00C00000  /* RX Stat Queue Size = reserved  */
 #define SAR_CFG_ICAPT          0x00200000  /* accept Invalid Cells           */
-#define SAR_CFG_IGGFC          0x00100000  /* Ignore GFC                     */
+#define SAR_CFG_IGGFC          0x00100000  /* Igyesre GFC                     */
 #define SAR_CFG_VPVCS_0        0x00000000  /* VPI/VCI Select bit range       */
 #define SAR_CFG_VPVCS_1        0x00040000  /* VPI/VCI Select bit range       */
 #define SAR_CFG_VPVCS_2        0x00080000  /* VPI/VCI Select bit range       */
@@ -761,7 +761,7 @@ struct idt77252_dev
 #define SAR_RCTE_FBP_1         0x00200000  /* use FBQ 1 for all cells        */
 #define SAR_RCTE_FBP_2         0x00400000  /* use FBQ 2 for all cells        */
 #define SAR_RCTE_FBP_3         0x00600000  /* use FBQ 3 for all cells        */
-#define SAR_RCTE_NZ_GFC        0x00100000  /* non zero GFC in all cell of VC */
+#define SAR_RCTE_NZ_GFC        0x00100000  /* yesn zero GFC in all cell of VC */
 #define SAR_RCTE_CONNECTOPEN   0x00080000  /* VC is open                     */
 #define SAR_RCTE_AAL_MASK      0x00070000  /* mask for AAL type field s.b.   */
 #define SAR_RCTE_RAWCELLINTEN  0x00008000  /* raw cell interrupt enable      */

@@ -145,7 +145,7 @@ static int axp20x_gpio_get_direction(struct gpio_chip *chip,
 
 	/*
 	 * This shouldn't really happen if the pin is in use already,
-	 * or if it's not in use yet, it doesn't matter since we're
+	 * or if it's yest in use yet, it doesn't matter since we're
 	 * going to change the value soon anyway. Default to output.
 	 */
 	if ((val & AXP20X_GPIO_FUNCTIONS) > 2)
@@ -245,7 +245,7 @@ static int axp20x_pmx_set_mux(struct pinctrl_dev *pctldev,
 
 	/*
 	 * We let the regulator framework handle the LDO muxing as muxing bits
-	 * are basically also regulators on/off bits. It's better not to enforce
+	 * are basically also regulators on/off bits. It's better yest to enforce
 	 * any state of the regulator when selecting LDO mux so that we don't
 	 * interfere with the regulator driver.
 	 */
@@ -305,7 +305,7 @@ static const char *axp20x_group_name(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinctrl_ops axp20x_pctrl_ops = {
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_group,
 	.dt_free_map		= pinconf_generic_dt_free_map,
 	.get_groups_count	= axp20x_groups_cnt,
 	.get_group_name		= axp20x_group_name,
@@ -398,11 +398,11 @@ static int axp20x_pctl_probe(struct platform_device *pdev)
 	struct pinctrl_desc *pctrl_desc;
 	int ret;
 
-	if (!of_device_is_available(pdev->dev.of_node))
+	if (!of_device_is_available(pdev->dev.of_yesde))
 		return -ENODEV;
 
 	if (!axp20x) {
-		dev_err(&pdev->dev, "Parent drvdata not set\n");
+		dev_err(&pdev->dev, "Parent drvdata yest set\n");
 		return -EINVAL;
 	}
 

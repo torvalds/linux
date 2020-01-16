@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Hardware Decoder found in PowerDown Controller.
  *
- * Copyright 2010-2014 Imagination Technologies Ltd.
+ * Copyright 2010-2014 Imagination Techyeslogies Ltd.
  */
 
 #ifndef _IMG_IR_HW_H_
@@ -31,7 +31,7 @@
  * @bitorien:	Bit orientation (1=MSB first)
  * @d1validsel:	Decoder 2 takes over if it detects valid data
  * @bitinv:	Bit inversion switch (1=don't invert)
- * @decodend2:	Secondary decoder enable (no leader symbol)
+ * @decodend2:	Secondary decoder enable (yes leader symbol)
  * @bitoriend2:	Bit orientation (1=MSB first)
  * @bitinvd2:	Secondary decoder bit inversion switch (1=don't invert)
  */
@@ -53,7 +53,7 @@ struct img_ir_control {
  * struct img_ir_timing_range - range of timing values
  * @min:	Minimum timing value
  * @max:	Maximum timing value (if < @min, this will be set to @min during
- *		preprocessing step, so it is normally not explicitly initialised
+ *		preprocessing step, so it is yesrmally yest explicitly initialised
  *		and is taken care of by the tolerance)
  */
 struct img_ir_timing_range {
@@ -89,8 +89,8 @@ struct img_ir_free_timing {
  * @ldr:	Leader symbol timing data
  * @s00:	Zero symbol timing data for primary decoder
  * @s01:	One symbol timing data for primary decoder
- * @s10:	Zero symbol timing data for secondary (no leader symbol) decoder
- * @s11:	One symbol timing data for secondary (no leader symbol) decoder
+ * @s10:	Zero symbol timing data for secondary (yes leader symbol) decoder
+ * @s11:	One symbol timing data for secondary (yes leader symbol) decoder
  * @ft:		Free time symbol timing data
  */
 struct img_ir_timings {
@@ -146,7 +146,7 @@ struct img_ir_scancode_req {
  * struct img_ir_decoder - Decoder settings for an IR protocol.
  * @type:	Protocol types bitmap.
  * @tolerance:	Timing tolerance as a percentage (default 10%).
- * @unit:	Unit of timings in nanoseconds (default 1 us).
+ * @unit:	Unit of timings in nayesseconds (default 1 us).
  * @timings:	Primary timings
  * @rtimings:	Additional override timings while waiting for repeats.
  * @repeat:	Maximum repeat interval (always in milliseconds).
@@ -156,7 +156,7 @@ struct img_ir_scancode_req {
  *		must be safe to execute in interrupt context).
  *		Returns IMG_IR_SCANCODE to emit new scancode.
  *		Returns IMG_IR_REPEATCODE to repeat previous code.
- *		Returns -errno (e.g. -EINVAL) on error.
+ *		Returns -erryes (e.g. -EINVAL) on error.
  * @filter:	Pointer to function to convert scancode filter to raw hardware
  *		filter. The minlen and maxlen fields will have been initialised
  *		to the maximum range.
@@ -214,7 +214,7 @@ enum img_ir_mode {
  * struct img_ir_priv_hw - Private driver data for hardware decoder.
  * @ct_quirks:		Quirk bits for each code type.
  * @rdev:		Remote control device
- * @clk_nb:		Notifier block for clock notify events.
+ * @clk_nb:		Notifier block for clock yestify events.
  * @end_timer:		Timer until repeat timeout.
  * @suspend_timer:	Timer to re-enable protocol.
  * @decoder:		Current decoder settings.
@@ -225,14 +225,14 @@ enum img_ir_mode {
  * @filters:		HW filters (derived from scancode filters).
  * @mode:		Current decode mode.
  * @stopping:		Indicates that decoder is being taken down and timers
- *			should not be restarted.
+ *			should yest be restarted.
  * @suspend_irqen:	Saved IRQ enable mask over suspend.
  * @quirk_suspend_irq:	Saved IRQ enable mask over quirk suspend timer.
  */
 struct img_ir_priv_hw {
 	unsigned int			ct_quirks[4];
 	struct rc_dev			*rdev;
-	struct notifier_block		clk_nb;
+	struct yestifier_block		clk_nb;
 	struct timer_list		end_timer;
 	struct timer_list		suspend_timer;
 	const struct img_ir_decoder	*decoder;

@@ -1470,7 +1470,7 @@ static bool is_blacklisted_cpu(void)
 
 static int force;
 module_param(force, int, 0);
-MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
+MODULE_PARM_DESC(force, "Force module load, igyesre CPU blacklist");
 
 static int __init init(void)
 {

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef __UAPI_ASM_NDS32_PTRACE_H
 #define __UAPI_ASM_NDS32_PTRACE_H
@@ -19,7 +19,7 @@ struct user_pt_regs {
 	long lb;
 	long le;
 	long lc;
-	long syscallno;
+	long syscallyes;
 };
 #endif
 #endif

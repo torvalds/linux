@@ -56,18 +56,18 @@
  * @fixed_size: Boolean indicating if the slice has a fixed capacity
  * @bonus_ways: Bonus ways are additional ways to be used for any slice,
  *		if client ends up using more than reserved cache ways. Bonus
- *		ways are allocated only if they are not reserved for some
+ *		ways are allocated only if they are yest reserved for some
  *		other client.
- * @res_ways: Reserved ways for the cache slice, the reserved ways cannot
+ * @res_ways: Reserved ways for the cache slice, the reserved ways canyest
  *		be used by any other client than the one its assigned to.
  * @cache_mode: Each slice operates as a cache, this controls the mode of the
- *             slice: normal or TCM(Tightly Coupled Memory)
+ *             slice: yesrmal or TCM(Tightly Coupled Memory)
  * @probe_target_ways: Determines what ways to probe for access hit. When
  *                    configured to 1 only bonus and reserved ways are probed.
  *                    When configured to 0 all ways in llcc are probed.
  * @dis_cap_alloc: Disable capacity based allocation for a client
  * @retain_on_pc: If this bit is set and client has maintained active vote
- *               then the ways assigned to this client are not flushed on power
+ *               then the ways assigned to this client are yest flushed on power
  *               collapse.
  * @activate_on_init: Activate the slice immediately after it is programmed
  */
@@ -217,7 +217,7 @@ static int llcc_update_act_ctrl(u32 sid,
  * llcc_slice_activate - Activate the llcc slice
  * @desc: Pointer to llcc slice descriptor
  *
- * A value of zero will be returned on success and a negative errno will
+ * A value of zero will be returned on success and a negative erryes will
  * be returned in error cases
  */
 int llcc_slice_activate(struct llcc_slice_desc *desc)
@@ -257,7 +257,7 @@ EXPORT_SYMBOL_GPL(llcc_slice_activate);
  * llcc_slice_deactivate - Deactivate the llcc slice
  * @desc: Pointer to llcc slice descriptor
  *
- * A value of zero will be returned on success and a negative errno will
+ * A value of zero will be returned on success and a negative erryes will
  * be returned in error cases
  */
 int llcc_slice_deactivate(struct llcc_slice_desc *desc)

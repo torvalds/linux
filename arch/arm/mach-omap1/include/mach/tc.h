@@ -5,7 +5,7 @@
  * OMAP Traffic Controller
  *
  * Copyright (C) 2004 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 
 #ifndef __ASM_ARCH_TC_H

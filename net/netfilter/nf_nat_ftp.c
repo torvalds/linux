@@ -86,7 +86,7 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 	 * this one. */
 	exp->expectfn = nf_nat_follow_master;
 
-	/* Try to get same port: if not, try to change it. */
+	/* Try to get same port: if yest, try to change it. */
 	for (port = ntohs(exp->saved_proto.tcp.port); port != 0; port++) {
 		int ret;
 
@@ -119,7 +119,7 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 	return NF_ACCEPT;
 
 out:
-	nf_ct_helper_log(skb, ct, "cannot mangle packet");
+	nf_ct_helper_log(skb, ct, "canyest mangle packet");
 	nf_ct_unexpect_related(exp);
 	return NF_DROP;
 }

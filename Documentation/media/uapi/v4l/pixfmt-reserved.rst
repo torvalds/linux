@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _pixfmt-reserved:
 
@@ -13,7 +13,7 @@
 Reserved Format Identifiers
 ***************************
 
-These formats are not defined by this specification, they are just
+These formats are yest defined by this specification, they are just
 listed for reference and to avoid naming conflicts. If you want to
 register your own format, send an e-mail to the linux-media mailing list
 `https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__
@@ -40,7 +40,7 @@ please make a proposal on the linux-media mailing list.
 
       - ``V4L2_PIX_FMT_DV``
       - 'dvsd'
-      - unknown
+      - unkyeswn
     * .. _V4L2-PIX-FMT-ET61X251:
 
       - ``V4L2_PIX_FMT_ET61X251``
@@ -170,8 +170,8 @@ please make a proposal on the linux-media mailing list.
 
       - ``V4L2_PIX_FMT_WNVA``
       - 'WNVA'
-      - Used by the Winnov Videum driver,
-	`http://www.thedirks.org/winnov/ <http://www.thedirks.org/winnov/>`__
+      - Used by the Winyesv Videum driver,
+	`http://www.thedirks.org/winyesv/ <http://www.thedirks.org/winyesv/>`__
     * .. _V4L2-PIX-FMT-TM6000:
 
       - ``V4L2_PIX_FMT_TM6000``
@@ -195,7 +195,7 @@ please make a proposal on the linux-media mailing list.
 
       - ``V4L2_PIX_FMT_YYUV``
       - 'YYUV'
-      - unknown
+      - unkyeswn
     * .. _V4L2-PIX-FMT-Y4:
 
       - ``V4L2_PIX_FMT_Y4``

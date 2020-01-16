@@ -6,7 +6,7 @@
  * Copyright (C) 2015 QWERTY Embedded Design
  * Copyright (C) 2015 EMAC Inc.
  *
- * Based on original tsc2005.c by Lauri Leukkunen <lauri.leukkunen@nokia.com>
+ * Based on original tsc2005.c by Lauri Leukkunen <lauri.leukkunen@yeskia.com>
  */
 
 #include <linux/input.h>

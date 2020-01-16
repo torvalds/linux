@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <limits.h>
 
 #include <sys/types.h>
@@ -104,7 +104,7 @@ enum usb_device_speed {
 static char *speed (enum usb_device_speed s)
 {
 	switch (s) {
-	case USB_SPEED_UNKNOWN:	return "unknown";
+	case USB_SPEED_UNKNOWN:	return "unkyeswn";
 	case USB_SPEED_LOW:	return "low";
 	case USB_SPEED_FULL:	return "full";
 	case USB_SPEED_HIGH:	return "high";
@@ -220,7 +220,7 @@ static int testdev_ifnum(FILE *fd)
 
 	/* the FunctionFS gadget can have the source/sink interface
 	 * anywhere.  We look for an interface descriptor that match
-	 * what we expect.  We ignore configuratiens thou. */
+	 * what we expect.  We igyesre configuratiens thou. */
 
 	if (dev.idVendor == 0x0525 && dev.idProduct == 0xa4ac
 	 && (dev.bDeviceClass == USB_CLASS_PER_INTERFACE
@@ -254,12 +254,12 @@ static int find_testdev(const char *name, const struct stat *sb, int flag)
 
 	entry = calloc(1, sizeof *entry);
 	if (!entry)
-		goto nomem;
+		goto yesmem;
 
 	entry->name = strdup(name);
 	if (!entry->name) {
 		free(entry);
-nomem:
+yesmem:
 		perror("malloc");
 		return 0;
 	}
@@ -277,11 +277,11 @@ nomem:
 }
 
 static int
-usbdev_ioctl (int fd, int ifno, unsigned request, void *param)
+usbdev_ioctl (int fd, int ifyes, unsigned request, void *param)
 {
 	struct usbdevfs_ioctl	wrapper;
 
-	wrapper.ifno = ifno;
+	wrapper.ifyes = ifyes;
 	wrapper.ioctl_code = request;
 	wrapper.data = param;
 
@@ -307,22 +307,22 @@ restart:
 
 		status = usbdev_ioctl (fd, dev->ifnum,
 				USBTEST_REQUEST, &dev->param);
-		if (status < 0 && errno == EOPNOTSUPP)
+		if (status < 0 && erryes == EOPNOTSUPP)
 			continue;
 
 		/* FIXME need a "syslog it" option for background testing */
 
-		/* NOTE: each thread emits complete lines; no fragments! */
+		/* NOTE: each thread emits complete lines; yes fragments! */
 		if (status < 0) {
 			char	buf [80];
-			int	err = errno;
+			int	err = erryes;
 
-			if (strerror_r (errno, buf, sizeof buf)) {
+			if (strerror_r (erryes, buf, sizeof buf)) {
 				snprintf (buf, sizeof buf, "error %d", err);
-				errno = err;
+				erryes = err;
 			}
 			printf ("%s test %d --> %d (%s)\n",
-				dev->name, i, errno, buf);
+				dev->name, i, erryes, buf);
 		} else
 			printf ("%s test %d, %4d.%.06d secs\n", dev->name, i,
 				(int) dev->param.duration.tv_sec,
@@ -352,9 +352,9 @@ static int parse_num(unsigned *num, const char *str)
 	unsigned long val;
 	char *end;
 
-	errno = 0;
+	erryes = 0;
 	val = strtoul(str, &end, 0);
-	if (errno || *end || val > UINT_MAX)
+	if (erryes || *end || val > UINT_MAX)
 		return -1;
 	*num = val;
 	return 0;
@@ -367,7 +367,7 @@ int main (int argc, char **argv)
 	struct testdev		*entry;
 	char			*device;
 	const char		*usb_dir = NULL;
-	int			all = 0, forever = 0, not = 0;
+	int			all = 0, forever = 0, yest = 0;
 	int			test = -1 /* all */;
 	struct usbtest_param	param;
 
@@ -413,8 +413,8 @@ int main (int argc, char **argv)
 	case 'l':	/* loop forever */
 		forever = 1;
 		continue;
-	case 'n':	/* no test running! */
-		not = 1;
+	case 'n':	/* yes test running! */
+		yest = 1;
 		continue;
 	case 's':	/* size of packet */
 		if (parse_num(&param.length, optarg))
@@ -441,7 +441,7 @@ usage:
 			"\t-a		test all recognized devices\n"
 			"\t-l		loop forever(for stress test)\n"
 			"\t-t testnum	only run specified case\n"
-			"\t-n		no test running, show devices to be tested\n"
+			"\t-n		yes test running, show devices to be tested\n"
 			"Case arguments:\n"
 			"\t-c iterations		default 1000\n"
 			"\t-s transfer length	default 1024\n"
@@ -475,10 +475,10 @@ usage:
 
 	/* quit, run single test, or create test threads */
 	if (!testdevs && !device) {
-		fputs ("no test devices recognized\n", stderr);
+		fputs ("yes test devices recognized\n", stderr);
 		return -1;
 	}
-	if (not)
+	if (yest)
 		return 0;
 	if (testdevs && testdevs->next == 0 && !device)
 		device = testdevs->name;

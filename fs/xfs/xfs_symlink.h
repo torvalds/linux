@@ -7,10 +7,10 @@
 
 /* Kernel only symlink definitions */
 
-int xfs_symlink(struct xfs_inode *dp, struct xfs_name *link_name,
-		const char *target_path, umode_t mode, struct xfs_inode **ipp);
-int xfs_readlink_bmap_ilocked(struct xfs_inode *ip, char *link);
-int xfs_readlink(struct xfs_inode *ip, char *link);
-int xfs_inactive_symlink(struct xfs_inode *ip);
+int xfs_symlink(struct xfs_iyesde *dp, struct xfs_name *link_name,
+		const char *target_path, umode_t mode, struct xfs_iyesde **ipp);
+int xfs_readlink_bmap_ilocked(struct xfs_iyesde *ip, char *link);
+int xfs_readlink(struct xfs_iyesde *ip, char *link);
+int xfs_inactive_symlink(struct xfs_iyesde *ip);
 
 #endif /* __XFS_SYMLINK_H */

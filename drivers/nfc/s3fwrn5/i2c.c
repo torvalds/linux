@@ -2,7 +2,7 @@
 /*
  * I2C Link Layer for Samsung S3FWRN5 NCI based Driver
  *
- * Copyright (C) 2015 Samsung Electrnoics
+ * Copyright (C) 2015 Samsung Electryesics
  * Robert Baldyga <r.baldyga@samsung.com>
  */
 
@@ -195,7 +195,7 @@ out:
 static int s3fwrn5_i2c_parse_dt(struct i2c_client *client)
 {
 	struct s3fwrn5_i2c_phy *phy = i2c_get_clientdata(client);
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 
 	if (!np)
 		return -ENODEV;

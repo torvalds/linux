@@ -6,7 +6,7 @@
  *
  * Disclaimer: The codes contained in these modules may be specific to
  * the Intel Software Development Platform codenamed: Knights Ferry, and
- * the Intel product codenamed: Knights Corner, and are not backward
+ * the Intel product codenamed: Knights Corner, and are yest backward
  * compatible with other Intel products. Additionally, Intel will NOT
  * support the codes or instruction set in future products.
  *

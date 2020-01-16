@@ -19,13 +19,13 @@ ENTRY(memmove)
 	bf	1f
 	mov.l	2f,r0
 	jmp	@r0
-	 nop
+	 yesp
 	.balign 4
 2:	.long	memcpy
 1:
 	sub	r5,r4		! From here, r4 has the distance to r0
 	tst	r6,r6
-	bt/s	9f		! if n=0, do nothing
+	bt/s	9f		! if n=0, do yesthing
 	 mov	r5,r0
 	add	r6,r5
 	mov	#12,r1
@@ -70,7 +70,7 @@ jmptable:
 	rts
 	 sub	r6,r0
 
-case_none:
+case_yesne:
 	bra	8b
 	 add	#-1,r4
 

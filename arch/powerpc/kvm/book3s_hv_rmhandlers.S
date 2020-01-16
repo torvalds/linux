@@ -32,7 +32,7 @@
 #include <asm/cpuidle.h>
 #include <asm/ultravisor-api.h>
 
-/* Sign-extend HDEC if not on POWER9 */
+/* Sign-extend HDEC if yest on POWER9 */
 #define EXTEND_HDEC(reg)			\
 BEGIN_FTR_SECTION;				\
 	extsw	reg, reg;			\
@@ -94,7 +94,7 @@ BEGIN_FTR_SECTION
 	cmpwi	r4, 0
 	beq	46f
 	bl	kvmhv_p9_set_lpcr
-	nop
+	yesp
 46:
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
@@ -127,7 +127,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	subf	r4, r4, r3
 	mtspr	SPRN_DEC, r4
 
-	/* hwthread_req may have got set by cede or no vcpu, so clear it */
+	/* hwthread_req may have got set by cede or yes vcpu, so clear it */
 	li	r0, 0
 	stb	r0, HSTATE_HWTHREAD_REQ(r13)
 
@@ -170,7 +170,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	mtlr	r8
 	blr
 
-kvmppc_primary_no_guest:
+kvmppc_primary_yes_guest:
 	/* We handle this much like a ceded vcpu */
 	/* put the HDEC into the DEC, since HDEC interrupts don't wake us */
 	/* HDEC may be larger than DEC for arch >= v3.00, but since the */
@@ -205,7 +205,7 @@ kvmppc_primary_no_guest:
 	li	r12, 0
 	lwz	r7, VCORE_ENTRY_EXIT(r5)
 	cmpwi	r7, 0x100
-	bge	kvm_novcpu_exit	/* another thread already exiting */
+	bge	kvm_yesvcpu_exit	/* ayesther thread already exiting */
 	li	r3, NAPPING_NOVCPU
 	stb	r3, HSTATE_NAPPING(r13)
 
@@ -213,13 +213,13 @@ kvmppc_primary_no_guest:
 	b	kvm_do_nap
 
 /*
- * kvm_novcpu_wakeup
+ * kvm_yesvcpu_wakeup
  *	Entered from kvm_start_guest if kvm_hstate.napping is set
  *	to NAPPING_NOVCPU
  *		r2 = kernel TOC
  *		r13 = paca
  */
-kvm_novcpu_wakeup:
+kvm_yesvcpu_wakeup:
 	ld	r1, HSTATE_HOST_R1(r13)
 	ld	r5, HSTATE_KVM_VCORE(r13)
 	li	r0, 0
@@ -238,7 +238,7 @@ kvm_novcpu_wakeup:
 	/* see if any other thread is already exiting */
 	lwz	r0, VCORE_ENTRY_EXIT(r5)
 	cmpwi	r0, 0x100
-	bge	kvm_novcpu_exit
+	bge	kvm_yesvcpu_exit
 
 	/* clear our bit in napping_threads */
 	lbz	r7, HSTATE_PTID(r13)
@@ -252,19 +252,19 @@ kvm_novcpu_wakeup:
 
 	/* See if the wake reason means we need to exit */
 	cmpdi	r3, 0
-	bge	kvm_novcpu_exit
+	bge	kvm_yesvcpu_exit
 
 	/* See if our timeslice has expired (HDEC is negative) */
 	mfspr	r0, SPRN_HDEC
 	EXTEND_HDEC(r0)
 	li	r12, BOOK3S_INTERRUPT_HV_DECREMENTER
 	cmpdi	r0, 0
-	blt	kvm_novcpu_exit
+	blt	kvm_yesvcpu_exit
 
 	/* Got an IPI but other vcpus aren't yet exiting, must be a latecomer */
 	ld	r4, HSTATE_KVM_VCPU(r13)
 	cmpdi	r4, 0
-	beq	kvmppc_primary_no_guest
+	beq	kvmppc_primary_yes_guest
 
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
 	addi	r3, r4, VCPU_TB_RMENTRY
@@ -272,7 +272,7 @@ kvm_novcpu_wakeup:
 #endif
 	b	kvmppc_got_guest
 
-kvm_novcpu_exit:
+kvm_yesvcpu_exit:
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
 	ld	r4, HSTATE_KVM_VCPU(r13)
 	cmpdi	r4, 0
@@ -283,7 +283,7 @@ kvm_novcpu_exit:
 13:	mr	r3, r12
 	stw	r12, STACK_SLOT_TRAP(r1)
 	bl	kvmhv_commence_exit
-	nop
+	yesp
 	b	kvmhv_switch_to_host
 
 /*
@@ -302,7 +302,7 @@ _GLOBAL(idle_kvm_start_guest)
 	SAVE_NVGPRS(r1)
 
 	/*
-	 * Could avoid this and pass it through in r3. For now,
+	 * Could avoid this and pass it through in r3. For yesw,
 	 * code expects it to be in SRR1.
 	 */
 	mtspr	SPRN_SRR1,r3
@@ -313,7 +313,7 @@ _GLOBAL(idle_kvm_start_guest)
 	li	r0,KVM_HWTHREAD_IN_KVM
 	stb	r0,HSTATE_HWTHREAD_STATE(r13)
 
-	/* kvm cede / napping does not come through here */
+	/* kvm cede / napping does yest come through here */
 	lbz	r0,HSTATE_NAPPING(r13)
 	twnei	r0,0
 
@@ -336,17 +336,17 @@ kvm_unsplit_wakeup:
 	bl	kvmppc_check_wake_reason
 	/*
 	 * kvmppc_check_wake_reason could invoke a C routine, but we
-	 * have no volatile registers to restore when we return.
+	 * have yes volatile registers to restore when we return.
 	 */
 
 	cmpdi	r3, 0
-	bge	kvm_no_guest
+	bge	kvm_yes_guest
 
-	/* get vcore pointer, NULL if we have nothing to run */
+	/* get vcore pointer, NULL if we have yesthing to run */
 	ld	r5,HSTATE_KVM_VCORE(r13)
 	cmpdi	r5,0
-	/* if we have no vcore to run, go back to sleep */
-	beq	kvm_no_guest
+	/* if we have yes vcore to run, go back to sleep */
+	beq	kvm_yes_guest
 
 kvm_secondary_got_guest:
 
@@ -380,7 +380,7 @@ FTR_SECTION_ELSE
 	beq	1f
 	mr	r3, r6
 	bl	kvmhv_p9_set_lpcr
-	nop
+	yesp
 1:
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 63:
@@ -405,22 +405,22 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	/*
 	 * All secondaries exiting guest will fall through this path.
 	 * Before proceeding, just check for HMI interrupt and
-	 * invoke opal hmi handler. By now we are sure that the
+	 * invoke opal hmi handler. By yesw we are sure that the
 	 * primary thread on this core/subcore has already made partition
 	 * switch/TB resync and we are good to call opal hmi handler.
 	 */
 	cmpwi	r12, BOOK3S_INTERRUPT_HMI
-	bne	kvm_no_guest
+	bne	kvm_yes_guest
 
 	li	r3,0			/* NULL argument */
 	bl	hmi_exception_realmode
 /*
  * At this point we have finished executing in the guest.
  * We need to wait for hwthread_req to become zero, since
- * we may not turn on the MMU while hwthread_req is non-zero.
+ * we may yest turn on the MMU while hwthread_req is yesn-zero.
  * While waiting we also need to check if we get given a vcpu to run.
  */
-kvm_no_guest:
+kvm_yes_guest:
 	lbz	r3, HSTATE_HWTHREAD_REQ(r13)
 	cmpwi	r3, 0
 	bne	53f
@@ -458,7 +458,7 @@ kvm_no_guest:
 	bne	60f
 	ld	r3, HSTATE_SPLIT_MODE(r13)
 	cmpdi	r3, 0
-	beq	kvm_no_guest
+	beq	kvm_yes_guest
 	lwz	r0, KVM_SPLIT_DO_SET(r3)
 	cmpwi	r0, 0
 	bne	kvmhv_do_set
@@ -467,7 +467,7 @@ kvm_no_guest:
 	bne	kvmhv_do_restore
 	lbz	r0, KVM_SPLIT_DO_NAP(r3)
 	cmpwi	r0, 0
-	beq	kvm_no_guest
+	beq	kvm_yes_guest
 	HMT_MEDIUM
 	b	kvm_unsplit_nap
 60:	HMT_MEDIUM
@@ -475,20 +475,20 @@ kvm_no_guest:
 
 54:	li	r0, KVM_HWTHREAD_IN_KVM
 	stb	r0, HSTATE_HWTHREAD_STATE(r13)
-	b	kvm_no_guest
+	b	kvm_yes_guest
 
 kvmhv_do_set:
 	/* Set LPCR, LPIDR etc. on P9 */
 	HMT_MEDIUM
 	bl	kvmhv_p9_set_lpcr
-	nop
-	b	kvm_no_guest
+	yesp
+	b	kvm_yes_guest
 
 kvmhv_do_restore:
 	HMT_MEDIUM
 	bl	kvmhv_p9_restore_lpcr
-	nop
-	b	kvm_no_guest
+	yesp
+	b	kvm_yes_guest
 
 /*
  * Here the primary thread is trying to return the core to
@@ -497,10 +497,10 @@ kvmhv_do_restore:
 kvm_unsplit_nap:
 	/*
 	 * When secondaries are napping in kvm_unsplit_nap() with
-	 * hwthread_req = 1, HMI goes ignored even though subcores are
+	 * hwthread_req = 1, HMI goes igyesred even though subcores are
 	 * already exited the guest. Hence HMI keeps waking up secondaries
 	 * from nap in a loop and secondaries always go back to nap since
-	 * no vcore is assigned to them. This makes impossible for primary
+	 * yes vcore is assigned to them. This makes impossible for primary
 	 * thread to get hold of secondary threads resulting into a soft
 	 * lockup in KVM path.
 	 *
@@ -518,7 +518,7 @@ kvm_unsplit_nap:
 	sync		/* matches smp_mb() before setting split_info.do_nap */
 	ld	r0, HSTATE_KVM_VCORE(r13)
 	cmpdi	r0, 0
-	bne	kvm_no_guest
+	bne	kvm_yes_guest
 	/* clear any pending message */
 BEGIN_FTR_SECTION
 	lis	r6, (PPC_DBELL_SERVER << (63-36))@h
@@ -544,7 +544,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 57:	li	r0, 0
 	stbx	r0, r3, r4
-	b	kvm_no_guest
+	b	kvm_yes_guest
 
 /******************************************************************************
  *                                                                            *
@@ -563,7 +563,7 @@ kvmppc_hv_entry:
 	 * R1 = host R1
 	 * R2 = TOC
 	 * all other volatile GPRS = free
-	 * Does not preserve non-volatile GPRs or CR fields
+	 * Does yest preserve yesn-volatile GPRs or CR fields
 	 */
 	mflr	r0
 	std	r0, PPC_LR_STKOFF(r1)
@@ -624,7 +624,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	lhz	r4, PACAPACAINDEX(r13)	/* physical cpu number */
 	li	r5, 0			/* nested vcpu pointer */
 	bl	kvmppc_check_need_tlb_flush
-	nop
+	yesp
 	ld	r5, HSTATE_KVM_VCORE(r13)
 
 	/* Add timebase offset onto timebase */
@@ -662,7 +662,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 	/* Mark the subcore state as inside guest */
 	bl	kvmppc_subcore_enter_guest
-	nop
+	yesp
 	ld	r5, HSTATE_KVM_VCORE(r13)
 	ld	r4, HSTATE_KVM_VCPU(r13)
 	li	r0,1
@@ -670,7 +670,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 	/* Do we have a guest vcpu to run? */
 10:	cmpdi	r4, 0
-	beq	kvmppc_primary_no_guest
+	beq	kvmppc_primary_yes_guest
 kvmppc_got_guest:
 	/* Increment yield count if they have a VPA */
 	ld	r3, VCPU_VPA(r4)
@@ -740,13 +740,13 @@ BEGIN_FTR_SECTION
 	b	91f
 END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/*
-	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but not CR)
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but yest CR)
 	 */
 	mr      r3, r4
 	ld      r4, VCPU_MSR(r3)
-	li	r5, 0			/* don't preserve non-vol regs */
+	li	r5, 0			/* don't preserve yesn-vol regs */
 	bl	kvmppc_restore_tm_hv
-	nop
+	yesp
 	ld	r4, HSTATE_KVM_VCPU(r13)
 91:
 #endif
@@ -794,7 +794,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	mtspr	SPRN_PSPB, r6
 	mtspr	SPRN_FSCR, r7
 	/*
-	 * Handle broken DAWR case by not writing it. This means we
+	 * Handle broken DAWR case by yest writing it. This means we
 	 * can still store the DAWR register for migration.
 	 */
 	LOAD_REG_ADDR(r5, dawr_force_enable)
@@ -832,7 +832,7 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_ACOP, r6
 	mtspr	SPRN_CSIGR, r7
 	mtspr	SPRN_TACR, r8
-	nop
+	yesp
 FTR_SECTION_ELSE
 	/* POWER9-only registers */
 	ld	r5, VCPU_TID(r4)
@@ -889,7 +889,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	HMT_LOW
 20:	lwz	r3, VCORE_ENTRY_EXIT(r5)
 	cmpwi	r3, 0x100
-	bge	no_switch_exit
+	bge	yes_switch_exit
 	lbz	r0, VCORE_IN_GUEST(r5)
 	cmpwi	r0, 0
 	beq	20b
@@ -947,21 +947,21 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	li	r9, TM_QW1_OS
 	lwz	r8, VCPU_XIVE_CAM_WORD(r4)
 	cmpwi	r8, 0
-	beq	no_xive
+	beq	yes_xive
 	li	r7, TM_QW1_OS + TM_WORD2
 	mfmsr	r0
 	andi.	r0, r0, MSR_DR		/* in real mode? */
 	beq	2f
 	ld	r10, HSTATE_XIVE_TIMA_VIRT(r13)
 	cmpldi	cr1, r10, 0
-	beq     cr1, no_xive
+	beq     cr1, yes_xive
 	eieio
 	stdx	r11,r9,r10
 	stwx	r8,r7,r10
 	b	3f
 2:	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
 	cmpldi	cr1, r10, 0
-	beq	cr1, no_xive
+	beq	cr1, yes_xive
 	eieio
 	stdcix	r11,r9,r10
 	stwcix	r8,r7,r10
@@ -971,9 +971,9 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 
 	/*
 	 * We clear the irq_pending flag. There is a small chance of a
-	 * race vs. the escalation interrupt happening on another
+	 * race vs. the escalation interrupt happening on ayesther
 	 * processor setting it again, but the only consequence is to
-	 * cause a spurrious wakeup on the next H_CEDE which is not an
+	 * cause a spurrious wakeup on the next H_CEDE which is yest an
 	 * issue.
 	 */
 	li	r0,0
@@ -997,12 +997,12 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 
 	/* We have a possible subtle race here: The escalation interrupt might
 	 * have fired and be on its way to the host queue while we mask it,
-	 * and if we unmask it early enough (re-cede right away), there is
+	 * and if we unmask it early eyesugh (re-cede right away), there is
 	 * a theorical possibility that it fires again, thus landing in the
-	 * target queue more than once which is a big no-no.
+	 * target queue more than once which is a big yes-yes.
 	 *
 	 * Fortunately, solving this is rather easy. If the above load setting
-	 * PQ to 01 returns a previous value where P is set, then we know the
+	 * PQ to 01 returns a previous value where P is set, then we kyesw the
 	 * escalation interrupt is somewhere on its way to the host. In that
 	 * case we simply don't clear the xive_esc_on flag below. It will be
 	 * eventually cleared by the handler for the escalation interrupt.
@@ -1017,14 +1017,14 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	li	r0, 0
 	stb	r0, VCPU_XIVE_ESC_ON(r4)
 1:
-no_xive:
+yes_xive:
 #endif /* CONFIG_KVM_XICS */
 
 	li	r0, 0
 	stw	r0, STACK_SLOT_SHORT_PATH(r1)
 
 deliver_guest_interrupt:	/* r4 = vcpu, r13 = paca */
-	/* Check if we can deliver an external or decrementer interrupt now */
+	/* Check if we can deliver an external or decrementer interrupt yesw */
 	ld	r0, VCPU_PENDING_EXC(r4)
 BEGIN_FTR_SECTION
 	/* On POWER9, also check for emulated doorbell interrupt */
@@ -1236,7 +1236,7 @@ secondary_too_late:
 #endif
 11:	b	kvmhv_switch_to_host
 
-no_switch_exit:
+yes_switch_exit:
 	HMT_MEDIUM
 	li	r12, 0
 	b	12f
@@ -1278,7 +1278,7 @@ kvmppc_interrupt_hv:
 	ld	r9, HSTATE_SCRATCH2(r13)
 	beq	kvmppc_interrupt_pr
 #endif
-	/* We're now back in the host but in guest MMU context */
+	/* We're yesw back in the host but in guest MMU context */
 	li	r9, KVM_GUEST_MODE_HOST_HV
 	stb	r9, HSTATE_IN_GUEST(r13)
 
@@ -1463,7 +1463,7 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	ld	r10, HSTATE_XIVE_TIMA_VIRT(r13)
 	cmpldi	cr0, r10, 0
 	beq	1f
-	/* First load to pull the context, we ignore the value */
+	/* First load to pull the context, we igyesre the value */
 	eieio
 	lwzx	r11, r7, r10
 	/* Second load to recover the context state (Words 0 and 1) */
@@ -1472,7 +1472,7 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 2:	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
 	cmpldi	cr0, r10, 0
 	beq	1f
-	/* First load to pull the context, we ignore the value */
+	/* First load to pull the context, we igyesre the value */
 	eieio
 	lwzcix	r11, r7, r10
 	/* Second load to recover the context state (Words 0 and 1) */
@@ -1492,10 +1492,10 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	 * Possibly flush the link stack here, before we do a blr in
 	 * guest_exit_short_path.
 	 */
-1:	nop
+1:	yesp
 	patch_site 1b patch__call_kvm_flush_link_stack
 
-	/* If we came in through the P9 short path, go back out to C now */
+	/* If we came in through the P9 short path, go back out to C yesw */
 	lwz	r0, STACK_SLOT_SHORT_PATH(r1)
 	cmpwi	r0, 0
 	bne	guest_exit_short_path
@@ -1550,7 +1550,7 @@ guest_bypass:
 	stw	r12, STACK_SLOT_TRAP(r1)
 
 	/* Save DEC */
-	/* Do this before kvmhv_commence_exit so we know TB is guest TB */
+	/* Do this before kvmhv_commence_exit so we kyesw TB is guest TB */
 	ld	r3, HSTATE_KVM_VCORE(r13)
 	mfspr	r5,SPRN_DEC
 	mftb	r6
@@ -1570,7 +1570,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	/* Increment exit count, poke other threads to exit */
 	mr 	r3, r12
 	bl	kvmhv_commence_exit
-	nop
+	yesp
 	ld	r9, HSTATE_KVM_VCPU(r13)
 
 	/* Stop others sending VCPU interrupts to this physical CPU */
@@ -1654,7 +1654,7 @@ FTR_SECTION_ELSE
 	mtspr	SPRN_HFSCR, r7
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	/*
-	 * Restore various registers to 0, where non-zero values
+	 * Restore various registers to 0, where yesn-zero values
 	 * set by the guest could disrupt the host.
 	 */
 	li	r0, 0
@@ -1688,7 +1688,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	std	r8, VCPU_DSCR(r9)
 	mtspr	SPRN_DSCR, r7
 
-	/* Save non-volatile GPRs */
+	/* Save yesn-volatile GPRs */
 	std	r14, VCPU_GPR(R14)(r9)
 	std	r15, VCPU_GPR(R15)(r9)
 	std	r16, VCPU_GPR(R16)(r9)
@@ -1731,13 +1731,13 @@ BEGIN_FTR_SECTION
 	b	91f
 END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/*
-	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but not CR)
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but yest CR)
 	 */
 	mr      r3, r9
 	ld      r4, VCPU_MSR(r3)
-	li	r5, 0			/* don't preserve non-vol regs */
+	li	r5, 0			/* don't preserve yesn-vol regs */
 	bl	kvmppc_save_tm_hv
-	nop
+	yesp
 	ld	r9, HSTATE_KVM_VCPU(r13)
 91:
 #endif
@@ -1757,7 +1757,7 @@ END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/* r8 and cr0.eq are live here */
 	mr	r3, r9
 	li	r4, 1
-	beq	21f			/* if no VPA, save PMU stuff anyway */
+	beq	21f			/* if yes VPA, save PMU stuff anyway */
 	lbz	r4, LPPACA_PMCINUSE(r8)
 21:	bl	kvmhv_save_guest_pmu
 	ld	r9, HSTATE_KVM_VCPU(r13)
@@ -1811,7 +1811,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	/*
 	 * Illegal PID, the HW might have prefetched and cached in the TLB
 	 * some translations for the  LPID 0 / guest PID combination which
-	 * Linux doesn't know about, so we need to flush that PID out of
+	 * Linux doesn't kyesw about, so we need to flush that PID out of
 	 * the TLB. First we need to set LPIDR to 0 so tlbiel applies to
 	 * the right context.
 	*/
@@ -1910,14 +1910,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 17:
 	/*
 	 * If this is an HMI, we called kvmppc_realmode_hmi_handler
-	 * above, which may or may not have already called
+	 * above, which may or may yest have already called
 	 * kvmppc_subcore_exit_guest.  Fortunately, all that
 	 * kvmppc_subcore_exit_guest does is clear a flag, so calling
 	 * it again here is benign even if kvmppc_realmode_hmi_handler
 	 * has already called it.
 	 */
 	bl	kvmppc_subcore_exit_guest
-	nop
+	yesp
 30:	ld	r5,HSTATE_KVM_VCORE(r13)
 	ld	r4,VCORE_KVM(r5)	/* pointer to struct kvm */
 
@@ -1944,7 +1944,7 @@ BEGIN_FTR_SECTION
 	cmpwi	r8, 0
 	beq	47f
 	bl	kvmhv_p9_restore_lpcr
-	nop
+	yesp
 	b	48f
 47:
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
@@ -1995,7 +1995,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 kvmppc_guest_external:
 	/* External interrupt, first check for host_ipi. If this is
-	 * set, we know the host wants us out so let's do it now
+	 * set, we kyesw the host wants us out so let's do it yesw
 	 */
 	bl	kvmppc_read_intr
 
@@ -2019,12 +2019,12 @@ kvmppc_guest_external:
 	 *     to indicate to the host to complete handling the interrupt
 	 *
 	 * Before returning to guest, we check if any CPU is heading out
-	 * to the host and if so, we head out also. If no CPUs are heading
+	 * to the host and if so, we head out also. If yes CPUs are heading
 	 * check return values <= 0.
 	 *
 	 * Return to guest (r3 <= 0)
 	 *  0 No external interrupt is pending
-	 * -1 A guest wakeup IPI (which has now been cleared)
+	 * -1 A guest wakeup IPI (which has yesw been cleared)
 	 *    In either case, we return to guest to deliver any pending
 	 *    guest interrupts.
 	 *
@@ -2074,25 +2074,25 @@ kvmppc_tm_emul:
 	cmpwi	r0, 0		/* keep exiting guest if in fake suspend */
 	bne	guest_exit_cont
 	rldicl	r3, r11, 64 - MSR_TS_S_LG, 62
-	cmpwi	r3, 1		/* or if not in suspend state */
+	cmpwi	r3, 1		/* or if yest in suspend state */
 	bne	guest_exit_cont
 
 	/* Call C code to do the emulation */
 	mr	r3, r9
 	bl	kvmhv_p9_tm_emulation_early
-	nop
+	yesp
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	li	r12, BOOK3S_INTERRUPT_HV_SOFTPATCH
 	cmpwi	r3, 0
-	beq	guest_exit_cont		/* continue exiting if not handled */
+	beq	guest_exit_cont		/* continue exiting if yest handled */
 	ld	r10, VCPU_PC(r9)
 	ld	r11, VCPU_MSR(r9)
 	b	fast_interrupt_c_return	/* go back to guest if handled */
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 /*
- * Check whether an HDSI is an HPTE not found fault or something else.
- * If it is an HPTE not found fault that is due to the guest accessing
+ * Check whether an HDSI is an HPTE yest found fault or something else.
+ * If it is an HPTE yest found fault that is due to the guest accessing
  * a page that they have mapped but which we have paged out, then
  * we continue on with the guest exit path.  In all other cases,
  * reflect the HDSI to the guest as a DSI.
@@ -2109,9 +2109,9 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	cmpwi	r0, 0
 	bne	.Lradix_hdsi		/* on radix, just save DAR/DSISR/ASDR */
-	/* HPTE not found fault or protection fault? */
+	/* HPTE yest found fault or protection fault? */
 	andis.	r0, r6, (DSISR_NOHPTE | DSISR_PROTFAULT)@h
-	beq	1f			/* if not, send it to the guest */
+	beq	1f			/* if yest, send it to the guest */
 	andi.	r0, r11, MSR_DR		/* data relocation enabled? */
 	beq	3f
 BEGIN_FTR_SECTION
@@ -2121,7 +2121,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	clrrdi	r0, r4, 28
 	PPC_SLBFEE_DOT(R5, R0)		/* if so, look up SLB */
 	li	r0, BOOK3S_INTERRUPT_DATA_SEGMENT
-	bne	7f			/* if no SLB entry found */
+	bne	7f			/* if yes SLB entry found */
 4:	std	r4, VCPU_FAULT_DAR(r9)
 	stw	r6, VCPU_FAULT_DSISR(r9)
 
@@ -2158,7 +2158,7 @@ fast_interrupt_c_return:
 	mr	r4, r9
 	b	fast_guest_return
 
-3:	ld	r5, VCPU_KVM(r9)	/* not relocated, use VRMA */
+3:	ld	r5, VCPU_KVM(r9)	/* yest relocated, use VRMA */
 	ld	r5, KVM_VRMA_SLB_V(r5)
 	b	4b
 
@@ -2195,7 +2195,7 @@ fast_interrupt_c_return:
 
 /*
  * Similarly for an HISI, reflect it to the guest as an ISI unless
- * it is an HPTE not found fault for a page that we have paged out.
+ * it is an HPTE yest found fault for a page that we have paged out.
  */
 kvmppc_hisi:
 	ld	r3, VCPU_KVM(r9)
@@ -2213,7 +2213,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	clrrdi	r0, r10, 28
 	PPC_SLBFEE_DOT(R5, R0)		/* if so, look up SLB */
 	li	r0, BOOK3S_INTERRUPT_INST_SEGMENT
-	bne	7f			/* if no SLB entry found */
+	bne	7f			/* if yes SLB entry found */
 4:
 	/* Search the hash table. */
 	mr	r3, r9			/* vcpu pointer */
@@ -2239,7 +2239,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	bl	kvmppc_msr_interrupt
 	b	fast_interrupt_c_return
 
-3:	ld	r6, VCPU_KVM(r9)	/* not relocated, use VRMA */
+3:	ld	r6, VCPU_KVM(r9)	/* yest relocated, use VRMA */
 	ld	r5, KVM_VRMA_SLB_V(r6)
 	b	4b
 
@@ -2624,15 +2624,15 @@ _GLOBAL(kvmppc_h_cede)		/* r3 = vcpu pointer, r11 = msr, r13 = paca */
 	stb	r0,HSTATE_NAPPING(r13)
 	lwz	r7,VCORE_ENTRY_EXIT(r5)
 	cmpwi	r7,0x100
-	bge	33f		/* another thread already exiting */
+	bge	33f		/* ayesther thread already exiting */
 
 /*
- * Although not specifically required by the architecture, POWER7
+ * Although yest specifically required by the architecture, POWER7
  * preserves the following registers in nap mode, even if an SMT mode
  * switch occurs: SLB entries, PURR, SPURR, AMOR, UAMOR, AMR, SPRG0-3,
  * DAR, DSISR, DABR, DABRX, DSCR, PMCx, MMCRx, SIAR, SDAR.
  */
-	/* Save non-volatile GPRs */
+	/* Save yesn-volatile GPRs */
 	std	r14, VCPU_GPR(R14)(r3)
 	std	r15, VCPU_GPR(R15)(r3)
 	std	r16, VCPU_GPR(R16)(r3)
@@ -2664,19 +2664,19 @@ BEGIN_FTR_SECTION
 	b	91f
 END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/*
-	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but not CR)
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but yest CR)
 	 */
 	ld	r3, HSTATE_KVM_VCPU(r13)
 	ld      r4, VCPU_MSR(r3)
-	li	r5, 0			/* don't preserve non-vol regs */
+	li	r5, 0			/* don't preserve yesn-vol regs */
 	bl	kvmppc_save_tm_hv
-	nop
+	yesp
 91:
 #endif
 
 	/*
 	 * Set DEC to the smaller of DEC and HDEC, so that we wake
-	 * no later than the end of our timeslice (HDEC interrupts
+	 * yes later than the end of our timeslice (HDEC interrupts
 	 * don't wake us from nap).
 	 */
 	mfspr	r3, SPRN_DEC
@@ -2774,10 +2774,10 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 	cmpwi	r0, NAPPING_CEDE
 	beq	kvm_end_cede
 	cmpwi	r0, NAPPING_NOVCPU
-	beq	kvm_novcpu_wakeup
+	beq	kvm_yesvcpu_wakeup
 	cmpwi	r0, NAPPING_UNSPLIT
 	beq	kvm_unsplit_wakeup
-	twi	31,0,0 /* Nap state must not be zero */
+	twi	31,0,0 /* Nap state must yest be zero */
 
 33:	mr	r4, r3
 	li	r3, 0
@@ -2804,13 +2804,13 @@ BEGIN_FTR_SECTION
 	b	91f
 END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/*
-	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but not CR)
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but yest CR)
 	 */
 	mr      r3, r4
 	ld      r4, VCPU_MSR(r3)
-	li	r5, 0			/* don't preserve non-vol regs */
+	li	r5, 0			/* don't preserve yesn-vol regs */
 	bl	kvmppc_restore_tm_hv
-	nop
+	yesp
 	ld	r4, HSTATE_KVM_VCPU(r13)
 91:
 #endif
@@ -2854,9 +2854,9 @@ END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	 * Restore volatile registers since we could have called a
 	 * C routine in kvmppc_check_wake_reason
 	 *	r4 = VCPU
-	 * r3 tells us whether we need to return to host or not
+	 * r3 tells us whether we need to return to host or yest
 	 * WARNING: it gets checked further down:
-	 * should not modify r3 until this check is done.
+	 * should yest modify r3 until this check is done.
 	 */
 	ld	r4, HSTATE_KVM_VCPU(r13)
 
@@ -2933,7 +2933,7 @@ kvm_cede_exit:
 machine_check_realmode:
 	mr	r3, r9		/* get vcpu pointer */
 	bl	kvmppc_realmode_machine_check
-	nop
+	yesp
 	/* all machine checks go to virtual mode for further handling */
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	li	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
@@ -2957,14 +2957,14 @@ hmi_realmode:
 /*
  * Check the reason we woke from nap, and take appropriate action.
  * Returns (in r3):
- *	0 if nothing needs to be done
+ *	0 if yesthing needs to be done
  *	1 if something happened that needs to be handled by the host
  *	-1 if there was a guest wakeup (IPI or msgsnd)
  *	-2 if we handled a PCI passthrough interrupt (returned by
  *		kvmppc_read_intr only)
  *
  * Also sets r12 to the interrupt vector for any interrupt that needs
- * to be handled now by the host (0x500 for external interrupt), or zero.
+ * to be handled yesw by the host (0x500 for external interrupt), or zero.
  * Modifies all volatile registers (since it may call a C function).
  * This routine calls kvmppc_read_intr, a C function, if an external
  * interrupt is pending.
@@ -3011,7 +3011,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	lbz	r0, HSTATE_HOST_IPI(r13)
 	cmpwi	r0, 0
 	bnelr
-	/* if not, return -1 */
+	/* if yest, return -1 */
 	li	r3, -1
 	blr
 
@@ -3025,7 +3025,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	std	r0, PPC_LR_STKOFF(r1)
 	stdu	r1, -PPC_MIN_STKFRM(r1)
 	bl	kvmppc_read_intr
-	nop
+	yesp
 	li	r12, BOOK3S_INTERRUPT_EXTERNAL
 	cmpdi	r3, 1
 	ble	1f
@@ -3047,7 +3047,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
  * Save away FP, VMX and VSX registers.
  * r3 = vcpu pointer
  * N.B. r30 and r31 are volatile across this function,
- * thus it is not callable from C.
+ * thus it is yest callable from C.
  */
 kvmppc_save_fp:
 	mflr	r30
@@ -3082,7 +3082,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
  * Load up FP, VMX and VSX registers
  * r4 = vcpu pointer
  * N.B. r30 and r31 are volatile across this function,
- * thus it is not callable from C.
+ * thus it is yest callable from C.
  */
 kvmppc_load_fp:
 	mflr	r30
@@ -3119,7 +3119,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
  * Save transactional state and TM-related registers.
  * Called with r3 pointing to the vcpu struct and r4 containing
  * the guest MSR value.
- * r5 is non-zero iff non-volatile register state needs to be maintained.
+ * r5 is yesn-zero iff yesn-volatile register state needs to be maintained.
  * If r5 == 0, this can modify all checkpointed registers, but
  * restores r1 and r2 before exit.
  */
@@ -3150,16 +3150,16 @@ END_FTR_SECTION_IFCLR(CPU_FTR_P9_TM_HV_ASSIST)
 BEGIN_FTR_SECTION
 	bl	pnv_power9_force_smt4_catch
 END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
-	nop
+	yesp
 
 	/* We have to treclaim here because that's the only way to do S->N */
 	li	r3, TM_CAUSE_KVM_RESCHED
 	TRECLAIM(R3)
 
 	/*
-	 * We were in fake suspend, so we are not going to save the
+	 * We were in fake suspend, so we are yest going to save the
 	 * register state as the guest checkpointed state (since
-	 * we already have it), therefore we can now use any volatile GPR.
+	 * we already have it), therefore we can yesw use any volatile GPR.
 	 * In fact treclaim in fake suspend state doesn't modify
 	 * any registers.
 	 */
@@ -3167,7 +3167,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
 BEGIN_FTR_SECTION
 	bl	pnv_power9_force_smt4_release
 END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
-	nop
+	yesp
 
 4:
 	mfspr	r3, SPRN_PSSCR
@@ -3192,7 +3192,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
  * Restore transactional state and TM-related registers.
  * Called with r3 pointing to the vcpu struct
  * and r4 containing the guest MSR value.
- * r5 is non-zero iff non-volatile register state needs to be maintained.
+ * r5 is yesn-zero iff yesn-volatile register state needs to be maintained.
  * This potentially modifies all checkpointed registers.
  * It restores r1 and r2 from the PACA.
  */
@@ -3230,7 +3230,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_P9_TM_HV_ASSIST)
 	mtspr	SPRN_TEXASR, r7
 
 	rldicl. r5, r4, 64 - MSR_TS_S_LG, 62
-	beqlr		/* TM not active in guest */
+	beqlr		/* TM yest active in guest */
 
 	/* Make sure the failure summary is set */
 	oris	r7, r7, (TEXASR_FS)@h
@@ -3243,7 +3243,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_P9_TM_HV_ASSIST)
 10:	stdu	r1, -PPC_MIN_STKFRM(r1)
 	/* guest is in transactional state, so simulate rollback */
 	bl	kvmhv_emulate_tm_rollback
-	nop
+	yesp
 	addi	r1, r1, PPC_MIN_STKFRM
 9:	ld	r0, PPC_LR_STKOFF(r1)
 	mtlr	r0
@@ -3324,9 +3324,9 @@ kvmppc_bad_host_intr:
 	 * On POWER9 do a minimal restore of the MMU and call C code,
 	 * which will print a message and panic.
 	 * XXX On POWER7 and POWER8, we just spin here since we don't
-	 * know what the other threads are doing (and we don't want to
-	 * coordinate with them) - but at least we now have register state
-	 * in memory that we might be able to look at from another CPU.
+	 * kyesw what the other threads are doing (and we don't want to
+	 * coordinate with them) - but at least we yesw have register state
+	 * in memory that we might be able to look at from ayesther CPU.
 	 */
 BEGIN_FTR_SECTION
 	b	.
@@ -3466,7 +3466,7 @@ EXPORT_SYMBOL_GPL(kvmhv_load_host_pmu)
 	mflr	r0
 	lbz	r4, PACA_PMCINUSE(r13) /* is the host using the PMU? */
 	cmpwi	r4, 0
-	beq	23f			/* skip if not */
+	beq	23f			/* skip if yest */
 BEGIN_FTR_SECTION
 	ld	r3, HSTATE_MMCR0(r13)
 	andi.	r4, r3, MMCR0_PMAO_SYNC | MMCR0_PMAO
@@ -3520,7 +3520,7 @@ BEGIN_FTR_SECTION
 	 * when some counters are already negative doesn't seem
 	 * to cause a performance monitor alert (and hence interrupt).
 	 * The effect of this is that when saving the PMU state,
-	 * if there is no PMU alert pending when we read MMCR0
+	 * if there is yes PMU alert pending when we read MMCR0
 	 * before freezing the counters, but one becomes pending
 	 * before we read the counters, we lose it.
 	 * To work around this, we need a way to freeze the counters
@@ -3548,7 +3548,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	isync
 	cmpwi	r8, 0			/* did they ask for PMU stuff to be saved? */
 	bne	21f
-	std	r3, VCPU_MMCR(r9)	/* if not, set saved MMCR0 to FC */
+	std	r3, VCPU_MMCR(r9)	/* if yest, set saved MMCR0 to FC */
 	b	22f
 21:	mfspr	r5, SPRN_MMCR1
 	mfspr	r7, SPRN_SIAR
@@ -3622,7 +3622,7 @@ kvmhv_start_timing:
 	blr
 
 /*
- * Accumulate time to one activity and start another.
+ * Accumulate time to one activity and start ayesther.
  * r3 = pointer to new time accumulation struct, r4 = vcpu
  */
 kvmhv_accumulate_time:

@@ -30,9 +30,9 @@ CREDITS.
 
 Permission  to  use, copy, modify and distribute this software and its
 documentation is hereby granted,  provided  that  both  the  copyright
-notice  and  this  permission  notice  appear  in  all  copies  of the
+yestice  and  this  permission  yestice  appear  in  all  copies  of the
 software, derivative works or  modified  versions,  and  any  portions
-thereof, and that both notices appear in supporting documentation, and
+thereof, and that both yestices appear in supporting documentation, and
 that credit is given to Carnegie Mellon University  in  all  documents
 and publicity pertaining to direct or indirect use of this code or its
 derivatives.

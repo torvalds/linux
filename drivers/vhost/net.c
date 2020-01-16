@@ -89,7 +89,7 @@ enum {
 struct vhost_net_ubuf_ref {
 	/* refcount follows semantics similar to kref:
 	 *  0: object is released
-	 *  1: no outstanding ubufs
+	 *  1: yes outstanding ubufs
 	 * >1: outstanding ubufs
 	 */
 	atomic_t refcount;
@@ -350,7 +350,7 @@ static bool vhost_sock_xdp(struct socket *sock)
 	return sock_flag(sock->sk, SOCK_XDP);
 }
 
-/* In case of DMA done not in order in lower device driver for some reason.
+/* In case of DMA done yest in order in lower device driver for some reason.
  * upend_idx is used to track end of used idx, done_idx is used to track head
  * of used idx. Once lower device DMA done contiguously, we will signal KVM
  * guest used idx.
@@ -499,8 +499,8 @@ static void vhost_net_busy_poll_try_queue(struct vhost_net *net,
 {
 	if (!vhost_vq_avail_empty(&net->dev, vq)) {
 		vhost_poll_queue(&vq->poll);
-	} else if (unlikely(vhost_enable_notify(&net->dev, vq))) {
-		vhost_disable_notify(&net->dev, vq);
+	} else if (unlikely(vhost_enable_yestify(&net->dev, vq))) {
+		vhost_disable_yestify(&net->dev, vq);
 		vhost_poll_queue(&vq->poll);
 	}
 }
@@ -517,13 +517,13 @@ static void vhost_net_busy_poll(struct vhost_net *net,
 	struct vhost_virtqueue *vq = poll_rx ? tvq : rvq;
 
 	/* Try to hold the vq mutex of the paired virtqueue. We can't
-	 * use mutex_lock() here since we could not guarantee a
+	 * use mutex_lock() here since we could yest guarantee a
 	 * consistenet lock ordering.
 	 */
 	if (!mutex_trylock(&vq->mutex))
 		return;
 
-	vhost_disable_notify(&net->dev, vq);
+	vhost_disable_yestify(&net->dev, vq);
 	sock = rvq->private_data;
 
 	busyloop_timeout = poll_rx ? rvq->busyloop_timeout:
@@ -550,8 +550,8 @@ static void vhost_net_busy_poll(struct vhost_net *net,
 
 	if (poll_rx || sock_has_rx_data(sock))
 		vhost_net_busy_poll_try_queue(net, vq);
-	else if (!poll_rx) /* On tx here, sock has no rx data. */
-		vhost_enable_notify(&net->dev, rvq);
+	else if (!poll_rx) /* On tx here, sock has yes rx data. */
+		vhost_enable_yestify(&net->dev, rvq);
 
 	mutex_unlock(&vq->mutex);
 }
@@ -787,9 +787,9 @@ static void handle_tx_copy(struct vhost_net *net, struct socket *sock)
 		if (head == vq->num) {
 			if (unlikely(busyloop_intr)) {
 				vhost_poll_queue(&vq->poll);
-			} else if (unlikely(vhost_enable_notify(&net->dev,
+			} else if (unlikely(vhost_enable_yestify(&net->dev,
 								vq))) {
-				vhost_disable_notify(&net->dev, vq);
+				vhost_disable_yestify(&net->dev, vq);
 				continue;
 			}
 			break;
@@ -879,8 +879,8 @@ static void handle_tx_zerocopy(struct vhost_net *net, struct socket *sock)
 		if (head == vq->num) {
 			if (unlikely(busyloop_intr)) {
 				vhost_poll_queue(&vq->poll);
-			} else if (unlikely(vhost_enable_notify(&net->dev, vq))) {
-				vhost_disable_notify(&net->dev, vq);
+			} else if (unlikely(vhost_enable_yestify(&net->dev, vq))) {
+				vhost_disable_yestify(&net->dev, vq);
 				continue;
 			}
 			break;
@@ -959,7 +959,7 @@ static void handle_tx(struct vhost_net *net)
 	if (!vq_meta_prefetch(vq))
 		goto out;
 
-	vhost_disable_notify(&net->dev, vq);
+	vhost_disable_yestify(&net->dev, vq);
 	vhost_net_disable_vq(net, vq);
 
 	if (vhost_sock_zcopy(sock))
@@ -1128,7 +1128,7 @@ static void handle_rx(struct vhost_net *net)
 	if (!vq_meta_prefetch(vq))
 		goto out;
 
-	vhost_disable_notify(&net->dev, vq);
+	vhost_disable_yestify(&net->dev, vq);
 	vhost_net_disable_vq(net, vq);
 
 	vhost_hlen = nvq->vhost_hlen;
@@ -1151,14 +1151,14 @@ static void handle_rx(struct vhost_net *net)
 		/* On error, stop handling until the next kick. */
 		if (unlikely(headcount < 0))
 			goto out;
-		/* OK, now we need to know about added descriptors. */
+		/* OK, yesw we need to kyesw about added descriptors. */
 		if (!headcount) {
 			if (unlikely(busyloop_intr)) {
 				vhost_poll_queue(&vq->poll);
-			} else if (unlikely(vhost_enable_notify(&net->dev, vq))) {
+			} else if (unlikely(vhost_enable_yestify(&net->dev, vq))) {
 				/* They have slipped one in as we were
 				 * doing that: check again. */
-				vhost_disable_notify(&net->dev, vq);
+				vhost_disable_yestify(&net->dev, vq);
 				continue;
 			}
 			/* Nothing new?  Wait for eventfd to tell us
@@ -1176,7 +1176,7 @@ static void handle_rx(struct vhost_net *net)
 			pr_debug("Discarded rx packet: len %zd\n", sock_len);
 			continue;
 		}
-		/* We don't need to be notified again. */
+		/* We don't need to be yestified again. */
 		iov_iter_init(&msg.msg_iter, READ, vq->iov, in, vhost_len);
 		fixup = msg.msg_iter;
 		if (unlikely((vhost_hlen))) {
@@ -1188,7 +1188,7 @@ static void handle_rx(struct vhost_net *net)
 		err = sock->ops->recvmsg(sock, &msg,
 					 sock_len, MSG_DONTWAIT | MSG_TRUNC);
 		/* Userspace might have consumed the packet meanwhile:
-		 * it's not supposed to do this usually, but might be hard
+		 * it's yest supposed to do this usually, but might be hard
 		 * to prevent. Discard data we got (if any) and keep going. */
 		if (unlikely(err != sock_len)) {
 			pr_debug("Discarded rx packet: "
@@ -1270,7 +1270,7 @@ static void handle_rx_net(struct vhost_work *work)
 	handle_rx(net);
 }
 
-static int vhost_net_open(struct inode *inode, struct file *f)
+static int vhost_net_open(struct iyesde *iyesde, struct file *f)
 {
 	struct vhost_net *n;
 	struct vhost_dev *dev;
@@ -1383,7 +1383,7 @@ static void vhost_net_flush(struct vhost_net *n)
 	}
 }
 
-static int vhost_net_release(struct inode *inode, struct file *f)
+static int vhost_net_release(struct iyesde *iyesde, struct file *f)
 {
 	struct vhost_net *n = f->private_data;
 	struct socket *tx_sock;
@@ -1398,7 +1398,7 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 		sockfd_put(tx_sock);
 	if (rx_sock)
 		sockfd_put(rx_sock);
-	/* Make sure no callbacks are outstanding */
+	/* Make sure yes callbacks are outstanding */
 	synchronize_rcu();
 	/* We do an extra flush before freeing memory,
 	 * since jobs can re-queue themselves. */
@@ -1756,9 +1756,9 @@ static ssize_t vhost_net_chr_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	struct file *file = iocb->ki_filp;
 	struct vhost_net *n = file->private_data;
 	struct vhost_dev *dev = &n->dev;
-	int noblock = file->f_flags & O_NONBLOCK;
+	int yesblock = file->f_flags & O_NONBLOCK;
 
-	return vhost_chr_read_iter(dev, to, noblock);
+	return vhost_chr_read_iter(dev, to, yesblock);
 }
 
 static ssize_t vhost_net_chr_write_iter(struct kiocb *iocb,
@@ -1788,11 +1788,11 @@ static const struct file_operations vhost_net_fops = {
 	.unlocked_ioctl = vhost_net_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
 	.open           = vhost_net_open,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct miscdevice vhost_net_misc = {
-	.minor = VHOST_NET_MINOR,
+	.miyesr = VHOST_NET_MINOR,
 	.name = "vhost-net",
 	.fops = &vhost_net_fops,
 };

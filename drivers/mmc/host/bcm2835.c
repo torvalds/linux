@@ -8,7 +8,7 @@
  *
  * The sdhci controller supports both sdcard and sdio.  The sdhost
  * controller supports the sdcard only, but has better performance.
- * Also note that the rpi3 has sdio wifi, so driving the sdcard with
+ * Also yeste that the rpi3 has sdio wifi, so driving the sdcard with
  * the sdhost controller allows to use the sdhci controller for wifi
  * support.
  *
@@ -492,7 +492,7 @@ void bcm2835_prepare_dma(struct bcm2835_host *host, struct mmc_data *data)
 		host->drain_words = len / 4;
 	}
 
-	/* The parameters have already been validated, so this will not fail */
+	/* The parameters have already been validated, so this will yest fail */
 	(void)dmaengine_slave_config(dma_chan,
 				     (dir_data == DMA_FROM_DEVICE) ?
 				     &host->dma_cfg_rx :
@@ -698,7 +698,7 @@ static void bcm2835_transfer_complete(struct bcm2835_host *host)
 	host->data = NULL;
 
 	/* Need to send CMD12 if -
-	 * a) open-ended multiblock transfer (no CMD23)
+	 * a) open-ended multiblock transfer (yes CMD23)
 	 * b) error in multiblock transfer
 	 */
 	if (host->mrq->stop && (data->error || !host->use_sbc)) {
@@ -798,11 +798,11 @@ static void bcm2835_finish_command(struct bcm2835_host *host)
 	}
 
 	if (cmd == host->mrq->sbc) {
-		/* Finished CMD23, now send actual command. */
+		/* Finished CMD23, yesw send actual command. */
 		host->cmd = NULL;
 		if (bcm2835_send_command(host, host->mrq->cmd)) {
 			if (host->data && host->dma_desc)
-				/* DMA transfer starts now, PIO starts
+				/* DMA transfer starts yesw, PIO starts
 				 * after irq
 				 */
 				bcm2835_start_dma(host);
@@ -913,10 +913,10 @@ static void bcm2835_busy_irq(struct bcm2835_host *host)
 
 static void bcm2835_data_irq(struct bcm2835_host *host, u32 intmask)
 {
-	/* There are no dedicated data/space available interrupt
+	/* There are yes dedicated data/space available interrupt
 	 * status bits, so it is necessary to use the single shared
-	 * data/space available FIFO status bits. It is therefore not
-	 * an error to get here when there is no data transfer in
+	 * data/space available FIFO status bits. It is therefore yest
+	 * an error to get here when there is yes data transfer in
 	 * progress.
 	 */
 	if (!host->data)
@@ -1002,7 +1002,7 @@ static irqreturn_t bcm2835_irq(int irq, void *dev_id)
 		}
 	}
 
-	/* There is no true data interrupt status bit, so it is
+	/* There is yes true data interrupt status bit, so it is
 	 * necessary to qualify the data flag with the interrupt
 	 * enable bit.
 	 */
@@ -1194,7 +1194,7 @@ static void bcm2835_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	if ((fsm != SDEDM_FSM_IDENTMODE) &&
 	    (fsm != SDEDM_FSM_DATAMODE)) {
-		dev_err(dev, "previous command (%d) not complete (EDM %08x)\n",
+		dev_err(dev, "previous command (%d) yest complete (EDM %08x)\n",
 			readl(host->ioaddr + SDCMD) & SDCMD_CMD_MASK,
 			edm);
 		bcm2835_dumpregs(host);
@@ -1219,7 +1219,7 @@ static void bcm2835_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		}
 	} else if (mrq->cmd && bcm2835_send_command(host, mrq->cmd)) {
 		if (host->data && host->dma_desc) {
-			/* DMA transfer starts now, PIO starts after irq */
+			/* DMA transfer starts yesw, PIO starts after irq */
 			bcm2835_start_dma(host);
 		}
 
@@ -1381,7 +1381,7 @@ static int bcm2835_probe(struct platform_device *pdev)
 	/* Parse OF address directly to get the physical address for
 	 * DMA to our registers.
 	 */
-	regaddr_p = of_get_address(pdev->dev.of_node, 0, NULL, NULL);
+	regaddr_p = of_get_address(pdev->dev.of_yesde, 0, NULL, NULL);
 	if (!regaddr_p) {
 		dev_err(dev, "Can't get phys address\n");
 		ret = -EINVAL;
@@ -1399,7 +1399,7 @@ static int bcm2835_probe(struct platform_device *pdev)
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
 		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "could not get clk: %d\n", ret);
+			dev_err(dev, "could yest get clk: %d\n", ret);
 		goto err;
 	}
 

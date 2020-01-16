@@ -87,7 +87,7 @@ struct dsthash_dst {
 
 struct dsthash_ent {
 	/* static / read-only parts in the beginning */
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 	struct dsthash_dst dst;
 
 	/* modified structure members in the end */
@@ -113,7 +113,7 @@ struct dsthash_ent {
 };
 
 struct xt_hashlimit_htable {
-	struct hlist_node node;		/* global list of all htables */
+	struct hlist_yesde yesde;		/* global list of all htables */
 	int use;
 	u_int8_t family;
 	bool rnd_initialized;
@@ -202,7 +202,7 @@ dsthash_find(const struct xt_hashlimit_htable *ht,
 	u_int32_t hash = hash_dst(ht, dst);
 
 	if (!hlist_empty(&ht->hash[hash])) {
-		hlist_for_each_entry_rcu(ent, &ht->hash[hash], node)
+		hlist_for_each_entry_rcu(ent, &ht->hash[hash], yesde)
 			if (dst_cmp(ent, dst)) {
 				spin_lock(&ent->lock);
 				return ent;
@@ -248,7 +248,7 @@ dsthash_alloc_init(struct xt_hashlimit_htable *ht,
 		spin_lock_init(&ent->lock);
 
 		spin_lock(&ent->lock);
-		hlist_add_head_rcu(&ent->node, &ht->hash[hash_dst(ht, dst)]);
+		hlist_add_head_rcu(&ent->yesde, &ht->hash[hash_dst(ht, dst)]);
 		ht->count++;
 	}
 	spin_unlock(&ht->lock);
@@ -265,7 +265,7 @@ static void dsthash_free_rcu(struct rcu_head *head)
 static inline void
 dsthash_free(struct xt_hashlimit_htable *ht, struct dsthash_ent *ent)
 {
-	hlist_del_rcu(&ent->node);
+	hlist_del_rcu(&ent->yesde);
 	call_rcu(&ent->rcu, dsthash_free_rcu);
 	ht->count--;
 }
@@ -352,7 +352,7 @@ static int htable_create(struct net *net, struct hashlimit_cfg3 *cfg,
 	queue_delayed_work(system_power_efficient_wq, &hinfo->gc_work,
 			   msecs_to_jiffies(hinfo->cfg.gc_interval));
 
-	hlist_add_head(&hinfo->node, &hashlimit_net->htables);
+	hlist_add_head(&hinfo->yesde, &hashlimit_net->htables);
 
 	return 0;
 }
@@ -377,10 +377,10 @@ static void htable_selective_cleanup(struct xt_hashlimit_htable *ht,
 
 	for (i = 0; i < ht->cfg.size; i++) {
 		struct dsthash_ent *dh;
-		struct hlist_node *n;
+		struct hlist_yesde *n;
 
 		spin_lock_bh(&ht->lock);
-		hlist_for_each_entry_safe(dh, n, &ht->hash[i], node) {
+		hlist_for_each_entry_safe(dh, n, &ht->hash[i], yesde) {
 			if ((*select)(ht, dh))
 				dsthash_free(ht, dh);
 		}
@@ -431,7 +431,7 @@ static struct xt_hashlimit_htable *htable_find_get(struct net *net,
 	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
 	struct xt_hashlimit_htable *hinfo;
 
-	hlist_for_each_entry(hinfo, &hashlimit_net->htables, node) {
+	hlist_for_each_entry(hinfo, &hashlimit_net->htables, yesde) {
 		if (!strcmp(name, hinfo->name) &&
 		    hinfo->family == family) {
 			hinfo->use++;
@@ -445,7 +445,7 @@ static void htable_put(struct xt_hashlimit_htable *hinfo)
 {
 	mutex_lock(&hashlimit_mutex);
 	if (--hinfo->use == 0) {
-		hlist_del(&hinfo->node);
+		hlist_del(&hinfo->yesde);
 		htable_destroy(hinfo);
 	}
 	mutex_unlock(&hashlimit_mutex);
@@ -455,7 +455,7 @@ static void htable_put(struct xt_hashlimit_htable *hinfo)
  * see net/sched/sch_tbf.c in the linux source tree
  */
 
-/* Rusty: This is my (non-mathematically-inclined) understanding of
+/* Rusty: This is my (yesn-mathematically-inclined) understanding of
    this algorithm.  The `average rate' in jiffies becomes your initial
    amount of credit `credit' and the most credit you can ever have
    `credit_cap'.  The `peak rate' becomes the cost of passing the
@@ -544,10 +544,10 @@ static u64 user2rate_bytes(u32 user)
 	return (r - 1) << XT_HASHLIMIT_BYTE_SHIFT;
 }
 
-static void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now,
+static void rateinfo_recalc(struct dsthash_ent *dh, unsigned long yesw,
 			    u32 mode, int revision)
 {
-	unsigned long delta = now - dh->rateinfo.prev;
+	unsigned long delta = yesw - dh->rateinfo.prev;
 	u64 cap, cpj;
 
 	if (delta == 0)
@@ -559,7 +559,7 @@ static void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now,
 		if (delta < interval)
 			return;
 
-		dh->rateinfo.prev = now;
+		dh->rateinfo.prev = yesw;
 		dh->rateinfo.prev_window =
 			((dh->rateinfo.current_rate * interval) >
 			 (delta * dh->rateinfo.rate));
@@ -568,7 +568,7 @@ static void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now,
 		return;
 	}
 
-	dh->rateinfo.prev = now;
+	dh->rateinfo.prev = yesw;
 
 	if (mode & XT_HASHLIMIT_BYTES) {
 		u64 tmp = dh->rateinfo.credit;
@@ -744,7 +744,7 @@ hashlimit_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		    struct xt_hashlimit_htable *hinfo,
 		    const struct hashlimit_cfg3 *cfg, int revision)
 {
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 	bool race = false;
@@ -762,16 +762,16 @@ hashlimit_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 			goto hotdrop;
 		} else if (race) {
 			/* Already got an entry, update expiration timeout */
-			dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
-			rateinfo_recalc(dh, now, hinfo->cfg.mode, revision);
+			dh->expires = yesw + msecs_to_jiffies(hinfo->cfg.expire);
+			rateinfo_recalc(dh, yesw, hinfo->cfg.mode, revision);
 		} else {
 			dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
 			rateinfo_init(dh, hinfo, revision);
 		}
 	} else {
 		/* update expiration timeout */
-		dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
-		rateinfo_recalc(dh, now, hinfo->cfg.mode, revision);
+		dh->expires = yesw + msecs_to_jiffies(hinfo->cfg.expire);
+		rateinfo_recalc(dh, yesw, hinfo->cfg.mode, revision);
 	}
 
 	if (cfg->mode & XT_HASHLIMIT_RATE_MATCH) {
@@ -870,7 +870,7 @@ static int hashlimit_mt_check_common(const struct xt_mtchk_param *par,
 	}
 
 	if (cfg->mode & ~XT_HASHLIMIT_ALL) {
-		pr_info_ratelimited("Unknown mode mask %X, kernel too old?\n",
+		pr_info_ratelimited("Unkyeswn mode mask %X, kernel too old?\n",
 				    cfg->mode);
 		return -EINVAL;
 	}
@@ -1060,7 +1060,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 static void *dl_seq_start(struct seq_file *s, loff_t *pos)
 	__acquires(htable->lock)
 {
-	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->file));
+	struct xt_hashlimit_htable *htable = PDE_DATA(file_iyesde(s->file));
 	unsigned int *bucket;
 
 	spin_lock_bh(&htable->lock);
@@ -1077,7 +1077,7 @@ static void *dl_seq_start(struct seq_file *s, loff_t *pos)
 
 static void *dl_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
-	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->file));
+	struct xt_hashlimit_htable *htable = PDE_DATA(file_iyesde(s->file));
 	unsigned int *bucket = v;
 
 	*pos = ++(*bucket);
@@ -1091,7 +1091,7 @@ static void *dl_seq_next(struct seq_file *s, void *v, loff_t *pos)
 static void dl_seq_stop(struct seq_file *s, void *v)
 	__releases(htable->lock)
 {
-	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->file));
+	struct xt_hashlimit_htable *htable = PDE_DATA(file_iyesde(s->file));
 	unsigned int *bucket = v;
 
 	if (!IS_ERR(bucket))
@@ -1133,7 +1133,7 @@ static void dl_seq_print(struct dsthash_ent *ent, u_int8_t family,
 static int dl_seq_real_show_v2(struct dsthash_ent *ent, u_int8_t family,
 			       struct seq_file *s)
 {
-	struct xt_hashlimit_htable *ht = PDE_DATA(file_inode(s->file));
+	struct xt_hashlimit_htable *ht = PDE_DATA(file_iyesde(s->file));
 
 	spin_lock(&ent->lock);
 	/* recalculate to show accurate numbers */
@@ -1148,7 +1148,7 @@ static int dl_seq_real_show_v2(struct dsthash_ent *ent, u_int8_t family,
 static int dl_seq_real_show_v1(struct dsthash_ent *ent, u_int8_t family,
 			       struct seq_file *s)
 {
-	struct xt_hashlimit_htable *ht = PDE_DATA(file_inode(s->file));
+	struct xt_hashlimit_htable *ht = PDE_DATA(file_iyesde(s->file));
 
 	spin_lock(&ent->lock);
 	/* recalculate to show accurate numbers */
@@ -1163,7 +1163,7 @@ static int dl_seq_real_show_v1(struct dsthash_ent *ent, u_int8_t family,
 static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 			    struct seq_file *s)
 {
-	struct xt_hashlimit_htable *ht = PDE_DATA(file_inode(s->file));
+	struct xt_hashlimit_htable *ht = PDE_DATA(file_iyesde(s->file));
 
 	spin_lock(&ent->lock);
 	/* recalculate to show accurate numbers */
@@ -1177,12 +1177,12 @@ static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 
 static int dl_seq_show_v2(struct seq_file *s, void *v)
 {
-	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->file));
+	struct xt_hashlimit_htable *htable = PDE_DATA(file_iyesde(s->file));
 	unsigned int *bucket = (unsigned int *)v;
 	struct dsthash_ent *ent;
 
 	if (!hlist_empty(&htable->hash[*bucket])) {
-		hlist_for_each_entry(ent, &htable->hash[*bucket], node)
+		hlist_for_each_entry(ent, &htable->hash[*bucket], yesde)
 			if (dl_seq_real_show_v2(ent, htable->family, s))
 				return -1;
 	}
@@ -1191,12 +1191,12 @@ static int dl_seq_show_v2(struct seq_file *s, void *v)
 
 static int dl_seq_show_v1(struct seq_file *s, void *v)
 {
-	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->file));
+	struct xt_hashlimit_htable *htable = PDE_DATA(file_iyesde(s->file));
 	unsigned int *bucket = v;
 	struct dsthash_ent *ent;
 
 	if (!hlist_empty(&htable->hash[*bucket])) {
-		hlist_for_each_entry(ent, &htable->hash[*bucket], node)
+		hlist_for_each_entry(ent, &htable->hash[*bucket], yesde)
 			if (dl_seq_real_show_v1(ent, htable->family, s))
 				return -1;
 	}
@@ -1205,12 +1205,12 @@ static int dl_seq_show_v1(struct seq_file *s, void *v)
 
 static int dl_seq_show(struct seq_file *s, void *v)
 {
-	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->file));
+	struct xt_hashlimit_htable *htable = PDE_DATA(file_iyesde(s->file));
 	unsigned int *bucket = v;
 	struct dsthash_ent *ent;
 
 	if (!hlist_empty(&htable->hash[*bucket])) {
-		hlist_for_each_entry(ent, &htable->hash[*bucket], node)
+		hlist_for_each_entry(ent, &htable->hash[*bucket], yesde)
 			if (dl_seq_real_show(ent, htable->family, s))
 				return -1;
 	}
@@ -1265,7 +1265,7 @@ static void __net_exit hashlimit_proc_net_exit(struct net *net)
 	 * entries is empty before trying to remove it.
 	 */
 	mutex_lock(&hashlimit_mutex);
-	hlist_for_each_entry(hinfo, &hashlimit_net->htables, node)
+	hlist_for_each_entry(hinfo, &hashlimit_net->htables, yesde)
 		htable_remove_proc_entry(hinfo);
 	hashlimit_net->ipt_hashlimit = NULL;
 	hashlimit_net->ip6t_hashlimit = NULL;

@@ -39,7 +39,7 @@ void *memmove(void *dest, const void *src, size_t n);
 #define __HAVE_ARCH_STRRCHR	/* arch function */
 #define __HAVE_ARCH_STRSTR	/* arch function */
 
-/* Prototypes for non-inlined arch strings functions. */
+/* Prototypes for yesn-inlined arch strings functions. */
 int memcmp(const void *s1, const void *s2, size_t n);
 int strcmp(const char *s1, const char *s2);
 size_t strlcat(char *dest, const char *src, size_t n);
@@ -64,8 +64,8 @@ extern void *__memset(void *s, int c, size_t n);
 extern void *__memmove(void *dest, const void *src, size_t n);
 
 /*
- * For files that are not instrumented (e.g. mm/slub.c) we
- * should use not instrumented version of mem* functions.
+ * For files that are yest instrumented (e.g. mm/slub.c) we
+ * should use yest instrumented version of mem* functions.
  */
 
 #define memcpy(dst, src, len) __memcpy(dst, src, len)
@@ -73,14 +73,14 @@ extern void *__memmove(void *dest, const void *src, size_t n);
 #define memset(s, c, n) __memset(s, c, n)
 #define strlen(s) __strlen(s)
 
-#define __no_sanitize_prefix_strfunc(x) __##x
+#define __yes_sanitize_prefix_strfunc(x) __##x
 
 #ifndef __NO_FORTIFY
 #define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
 #endif
 
 #else
-#define __no_sanitize_prefix_strfunc(x) x
+#define __yes_sanitize_prefix_strfunc(x) x
 #endif /* defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__) */
 
 void *__memset16(uint16_t *s, uint16_t v, size_t count);
@@ -169,7 +169,7 @@ static inline char *strcpy(char *dst, const char *src)
 #endif
 
 #if defined(__HAVE_ARCH_STRLEN) || (defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__))
-static inline size_t __no_sanitize_prefix_strfunc(strlen)(const char *s)
+static inline size_t __yes_sanitize_prefix_strfunc(strlen)(const char *s)
 {
 	register unsigned long r0 asm("0") = 0;
 	const char *tmp = s;

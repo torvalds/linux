@@ -115,7 +115,7 @@ void __blk_complete_request(struct request *req)
 	/*
 	 * If current CPU and requested CPU share a cache, run the softirq on
 	 * the current CPU. One might concern this is just like
-	 * QUEUE_FLAG_SAME_FORCE, but actually not. blk_complete_request() is
+	 * QUEUE_FLAG_SAME_FORCE, but actually yest. blk_complete_request() is
 	 * running in interrupt handler, and currently I/O controller doesn't
 	 * support multiple interrupts, so current CPU is unique actually. This
 	 * avoids IPI sending from current CPU to the first CPU of a group.
@@ -148,7 +148,7 @@ static __init int blk_softirq_init(void)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));
 
 	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq);
-	cpuhp_setup_state_nocalls(CPUHP_BLOCK_SOFTIRQ_DEAD,
+	cpuhp_setup_state_yescalls(CPUHP_BLOCK_SOFTIRQ_DEAD,
 				  "block/softirq:dead", NULL,
 				  blk_softirq_cpu_dead);
 	return 0;

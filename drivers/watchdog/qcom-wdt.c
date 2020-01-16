@@ -72,7 +72,7 @@ static irqreturn_t qcom_wdt_isr(int irq, void *arg)
 {
 	struct watchdog_device *wdd = arg;
 
-	watchdog_notify_pretimeout(wdd);
+	watchdog_yestify_pretimeout(wdd);
 
 	return IRQ_HANDLED;
 }
@@ -184,7 +184,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct qcom_wdt *wdt;
 	struct resource *res;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const u32 *regs;
 	u32 percpu_offset;
 	int irq, ret;
@@ -232,7 +232,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 
 	/*
 	 * We use the clock rate to calculate the max timeout, so ensure it's
-	 * not zero to avoid a divide-by-zero exception.
+	 * yest zero to avoid a divide-by-zero exception.
 	 *
 	 * WATCHDOG_CORE assumes units of seconds, if the WDT is clocked such
 	 * that it would bite before a second elapses it's usefulness is

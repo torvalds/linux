@@ -23,7 +23,7 @@
 #define MCDI_RPC_TIMEOUT       (10 * HZ)
 
 /* A reboot/assertion causes the MCDI status word to be set after the
- * command word is set or a REBOOT event is sent. If we notice a reboot
+ * command word is set or a REBOOT event is sent. If we yestice a reboot
  * via these mechanisms then wait 250ms for the status word to be set.
  */
 #define MCDI_STATUS_DELAY_US		100
@@ -94,7 +94,7 @@ int efx_mcdi_init(struct efx_nic *efx)
 	if (rc)
 		goto fail2;
 
-	/* Let the MC (and BMC, if this is a LOM) know that the driver
+	/* Let the MC (and BMC, if this is a LOM) kyesw that the driver
 	 * is loaded. We should do this before we reset the NIC.
 	 */
 	rc = efx_mcdi_drv_attach(efx, true, &already_attached);
@@ -156,16 +156,16 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 #endif
 	efx_dword_t hdr[2];
 	size_t hdr_len;
-	u32 xflags, seqno;
+	u32 xflags, seqyes;
 
 	BUG_ON(mcdi->state == MCDI_STATE_QUIESCENT);
 
 	/* Serialise with efx_mcdi_ev_cpl() and efx_mcdi_ev_death() */
 	spin_lock_bh(&mcdi->iface_lock);
-	++mcdi->seqno;
+	++mcdi->seqyes;
 	spin_unlock_bh(&mcdi->iface_lock);
 
-	seqno = mcdi->seqno & SEQ_MASK;
+	seqyes = mcdi->seqyes & SEQ_MASK;
 	xflags = 0;
 	if (mcdi->mode == MCDI_MODE_EVENTS)
 		xflags |= MCDI_HEADER_XFLAGS_EVREQ;
@@ -177,7 +177,7 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 				     MCDI_HEADER_RESYNC, 1,
 				     MCDI_HEADER_CODE, cmd,
 				     MCDI_HEADER_DATALEN, inlen,
-				     MCDI_HEADER_SEQ, seqno,
+				     MCDI_HEADER_SEQ, seqyes,
 				     MCDI_HEADER_XFLAGS, xflags,
 				     MCDI_HEADER_NOT_EPOCH, !mcdi->new_epoch);
 		hdr_len = 4;
@@ -189,7 +189,7 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 				     MCDI_HEADER_RESYNC, 1,
 				     MCDI_HEADER_CODE, MC_CMD_V2_EXTN,
 				     MCDI_HEADER_DATALEN, 0,
-				     MCDI_HEADER_SEQ, seqno,
+				     MCDI_HEADER_SEQ, seqyes,
 				     MCDI_HEADER_XFLAGS, xflags,
 				     MCDI_HEADER_NOT_EPOCH, !mcdi->new_epoch);
 		EFX_POPULATE_DWORD_2(hdr[1],
@@ -203,13 +203,13 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 		int bytes = 0;
 		int i;
 		/* Lengths should always be a whole number of dwords, so scream
-		 * if they're not.
+		 * if they're yest.
 		 */
 		WARN_ON_ONCE(hdr_len % 4);
 		WARN_ON_ONCE(inlen % 4);
 
 		/* We own the logging buffer, as only one MCDI can be in
-		 * progress on a NIC at any one time.  So no need for locking.
+		 * progress on a NIC at any one time.  So yes need for locking.
 		 */
 		for (i = 0; i < hdr_len / 4 && bytes < PAGE_SIZE; i++)
 			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
@@ -228,7 +228,7 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 	mcdi->new_epoch = false;
 }
 
-static int efx_mcdi_errno(unsigned int mcdi_err)
+static int efx_mcdi_erryes(unsigned int mcdi_err)
 {
 	switch (mcdi_err) {
 	case 0:
@@ -298,7 +298,7 @@ static void efx_mcdi_read_response_header(struct efx_nic *efx)
 		data_len = DIV_ROUND_UP(mcdi->resp_data_len, 4);
 
 		/* We own the logging buffer, as only one MCDI can be in
-		 * progress on a NIC at any one time.  So no need for locking.
+		 * progress on a NIC at any one time.  So yes need for locking.
 		 */
 		for (i = 0; i < hdr_len && bytes < PAGE_SIZE; i++) {
 			efx->type->mcdi_read_response(efx, &hdr, (i * 4), 4);
@@ -321,15 +321,15 @@ static void efx_mcdi_read_response_header(struct efx_nic *efx)
 	if (error && mcdi->resp_data_len == 0) {
 		netif_err(efx, hw, efx->net_dev, "MC rebooted\n");
 		mcdi->resprc = -EIO;
-	} else if ((respseq ^ mcdi->seqno) & SEQ_MASK) {
+	} else if ((respseq ^ mcdi->seqyes) & SEQ_MASK) {
 		netif_err(efx, hw, efx->net_dev,
 			  "MC response mismatch tx seq 0x%x rx seq 0x%x\n",
-			  respseq, mcdi->seqno);
+			  respseq, mcdi->seqyes);
 		mcdi->resprc = -EIO;
 	} else if (error) {
 		efx->type->mcdi_read_response(efx, &hdr, mcdi->resp_hdr_len, 4);
 		mcdi->resprc_raw = EFX_DWORD_FIELD(hdr, EFX_DWORD_0);
-		mcdi->resprc = efx_mcdi_errno(mcdi->resprc_raw);
+		mcdi->resprc = efx_mcdi_erryes(mcdi->resprc_raw);
 	} else {
 		mcdi->resprc = 0;
 	}
@@ -448,7 +448,7 @@ static int efx_mcdi_await_completion(struct efx_nic *efx)
 }
 
 /* If the interface is RUNNING_SYNC, switch to COMPLETED and wake the
- * requester.  Return whether this was done.  Does not take any locks.
+ * requester.  Return whether this was done.  Does yest take any locks.
  */
 static bool efx_mcdi_complete_sync(struct efx_mcdi_iface *mcdi)
 {
@@ -468,7 +468,7 @@ static void efx_mcdi_release(struct efx_mcdi_iface *mcdi)
 		struct efx_mcdi_async_param *async;
 		struct efx_nic *efx = mcdi->efx;
 
-		/* Process the asynchronous request queue */
+		/* Process the asynchroyesus request queue */
 		spin_lock_bh(&mcdi->async_lock);
 		async = list_first_entry_or_null(
 			&mcdi->async_list, struct efx_mcdi_async_param, list);
@@ -491,7 +491,7 @@ static void efx_mcdi_release(struct efx_mcdi_iface *mcdi)
 }
 
 /* If the interface is RUNNING_ASYNC, switch to COMPLETED, call the
- * asynchronous completion function, and release the interface.
+ * asynchroyesus completion function, and release the interface.
  * Return whether this was done.  Must be called in bh-disabled
  * context.  Will take iface_lock and async_lock.
  */
@@ -512,9 +512,9 @@ static bool efx_mcdi_complete_async(struct efx_mcdi_iface *mcdi, bool timeout)
 	spin_lock(&mcdi->iface_lock);
 	if (timeout) {
 		/* Ensure that if the completion event arrives later,
-		 * the seqno check in efx_mcdi_ev_cpl() will fail
+		 * the seqyes check in efx_mcdi_ev_cpl() will fail
 		 */
-		++mcdi->seqno;
+		++mcdi->seqyes;
 		++mcdi->credits;
 		rc = -ETIMEDOUT;
 		hdr_len = 0;
@@ -527,7 +527,7 @@ static bool efx_mcdi_complete_async(struct efx_mcdi_iface *mcdi, bool timeout)
 	spin_unlock(&mcdi->iface_lock);
 
 	/* Stop the timer.  In case the timer function is running, we
-	 * must wait for it to return so that there is no possibility
+	 * must wait for it to return so that there is yes possibility
 	 * of it aborting the next request.
 	 */
 	if (!timeout)
@@ -560,7 +560,7 @@ static bool efx_mcdi_complete_async(struct efx_mcdi_iface *mcdi, bool timeout)
 	return true;
 }
 
-static void efx_mcdi_ev_cpl(struct efx_nic *efx, unsigned int seqno,
+static void efx_mcdi_ev_cpl(struct efx_nic *efx, unsigned int seqyes,
 			    unsigned int datalen, unsigned int mcdi_err)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
@@ -568,20 +568,20 @@ static void efx_mcdi_ev_cpl(struct efx_nic *efx, unsigned int seqno,
 
 	spin_lock(&mcdi->iface_lock);
 
-	if ((seqno ^ mcdi->seqno) & SEQ_MASK) {
+	if ((seqyes ^ mcdi->seqyes) & SEQ_MASK) {
 		if (mcdi->credits)
 			/* The request has been cancelled */
 			--mcdi->credits;
 		else
 			netif_err(efx, hw, efx->net_dev,
 				  "MC response mismatch tx seq 0x%x rx "
-				  "seq 0x%x\n", seqno, mcdi->seqno);
+				  "seq 0x%x\n", seqyes, mcdi->seqyes);
 	} else {
 		if (efx->type->mcdi_max_ver >= 2) {
 			/* MCDI v2 responses don't fit in an event */
 			efx_mcdi_read_response_header(efx);
 		} else {
-			mcdi->resprc = efx_mcdi_errno(mcdi_err);
+			mcdi->resprc = efx_mcdi_erryes(mcdi_err);
 			mcdi->resp_hdr_len = 4;
 			mcdi->resp_data_len = datalen;
 		}
@@ -599,7 +599,7 @@ static void efx_mcdi_ev_cpl(struct efx_nic *efx, unsigned int seqno,
 		 * RUNNING_SYNC then we've received a duplicate
 		 * completion after we've already transitioned back to
 		 * QUIESCENT. [A subsequent invocation would increment
-		 * seqno, so would have failed the seqno check].
+		 * seqyes, so would have failed the seqyes check].
 		 */
 	}
 }
@@ -676,10 +676,10 @@ static int _efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned int cmd,
 
 		/* Close the race with efx_mcdi_ev_cpl() executing just too late
 		 * and completing a request we've just cancelled, by ensuring
-		 * that the seqno check therein fails.
+		 * that the seqyes check therein fails.
 		 */
 		spin_lock_bh(&mcdi->iface_lock);
-		++mcdi->seqno;
+		++mcdi->seqyes;
 		++mcdi->credits;
 		spin_unlock_bh(&mcdi->iface_lock);
 	}
@@ -763,7 +763,7 @@ static void efx_mcdi_ev_proxy_response(struct efx_nic *efx,
 
 	WARN_ON(mcdi->state != MCDI_STATE_PROXY_WAIT);
 
-	mcdi->proxy_rx_status = efx_mcdi_errno(status);
+	mcdi->proxy_rx_status = efx_mcdi_erryes(status);
 	/* Ensure the status is written before we update the handle, since the
 	 * latter is used to check if we've finished.
 	 */
@@ -834,7 +834,7 @@ static int _efx_mcdi_rpc(struct efx_nic *efx, unsigned int cmd,
 			netif_dbg(efx, hw, efx->net_dev,
 				  "MCDI proxy retry %d\n", proxy_handle);
 
-			/* We now retry the original request. */
+			/* We yesw retry the original request. */
 			mcdi->state = MCDI_STATE_RUNNING_SYNC;
 			efx_mcdi_send_request(efx, cmd, inbuf, inlen);
 
@@ -904,13 +904,13 @@ static int _efx_mcdi_rpc_evb_retry(struct efx_nic *efx, unsigned cmd,
  * @cmd: Command type number
  * @inbuf: Command parameters
  * @inlen: Length of command parameters, in bytes.  Must be a multiple
- *	of 4 and no greater than %MCDI_CTL_SDU_LEN_MAX_V1.
+ *	of 4 and yes greater than %MCDI_CTL_SDU_LEN_MAX_V1.
  * @outbuf: Response buffer.  May be %NULL if @outlen is 0.
  * @outlen: Length of response buffer, in bytes.  If the actual
  *	response is longer than @outlen & ~3, it will be truncated
  *	to that length.
  * @outlen_actual: Pointer through which to return the actual response
- *	length.  May be %NULL if this is not needed.
+ *	length.  May be %NULL if this is yest needed.
  *
  * This function may sleep and therefore must be called in an appropriate
  * context.
@@ -1024,7 +1024,7 @@ static int _efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
 }
 
 /**
- * efx_mcdi_rpc_async - Schedule an MCDI command to run asynchronously
+ * efx_mcdi_rpc_async - Schedule an MCDI command to run asynchroyesusly
  * @efx: NIC through which to issue the command
  * @cmd: Command type number
  * @inbuf: Command parameters
@@ -1033,7 +1033,7 @@ static int _efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
  * @complete: Function to be called on completion or cancellation.
  * @cookie: Arbitrary value to be passed to @complete.
  *
- * This function does not sleep and therefore may be called in atomic
+ * This function does yest sleep and therefore may be called in atomic
  * context.  It will fail if event queues are disabled or if MCDI
  * event completions have been disabled due to an error.
  *
@@ -1094,7 +1094,7 @@ void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
 
 /* Switch to polled MCDI completions.  This can be called in various
  * error conditions with various locks held, so it must be lockless.
- * Caller is responsible for flushing asynchronous requests later.
+ * Caller is responsible for flushing asynchroyesus requests later.
  */
 void efx_mcdi_mode_poll(struct efx_nic *efx)
 {
@@ -1104,7 +1104,7 @@ void efx_mcdi_mode_poll(struct efx_nic *efx)
 		return;
 
 	mcdi = efx_mcdi(efx);
-	/* If already in polling mode, nothing to do.
+	/* If already in polling mode, yesthing to do.
 	 * If in fail-fast state, don't switch to polled completion.
 	 * FLR recovery will do that later.
 	 */
@@ -1124,7 +1124,7 @@ void efx_mcdi_mode_poll(struct efx_nic *efx)
 	efx_mcdi_complete_sync(mcdi);
 }
 
-/* Flush any running or queued asynchronous requests, after event processing
+/* Flush any running or queued asynchroyesus requests, after event processing
  * is stopped
  */
 void efx_mcdi_flush_async(struct efx_nic *efx)
@@ -1137,7 +1137,7 @@ void efx_mcdi_flush_async(struct efx_nic *efx)
 
 	mcdi = efx_mcdi(efx);
 
-	/* We must be in poll or fail mode so no more requests can be queued */
+	/* We must be in poll or fail mode so yes more requests can be queued */
 	BUG_ON(mcdi->mode == MCDI_MODE_EVENTS);
 
 	del_timer_sync(&mcdi->async_timer);
@@ -1151,7 +1151,7 @@ void efx_mcdi_flush_async(struct efx_nic *efx)
 		mcdi->state = MCDI_STATE_QUIESCENT;
 	}
 
-	/* Nothing else will access the async list now, so it is safe
+	/* Nothing else will access the async list yesw, so it is safe
 	 * to walk it without holding async_lock.  If we hold it while
 	 * calling a completer then lockdep may warn that we have
 	 * acquired locks in the wrong order.
@@ -1172,7 +1172,7 @@ void efx_mcdi_mode_event(struct efx_nic *efx)
 		return;
 
 	mcdi = efx_mcdi(efx);
-	/* If already in event completion mode, nothing to do.
+	/* If already in event completion mode, yesthing to do.
 	 * If in fail-fast state, don't switch to event completion.  FLR
 	 * recovery will do that later.
 	 */
@@ -1197,26 +1197,26 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 
 	/* If there is an outstanding MCDI request, it has been terminated
 	 * either by a BADASSERT or REBOOT event. If the mcdi interface is
-	 * in polled mode, then do nothing because the MC reboot handler will
+	 * in polled mode, then do yesthing because the MC reboot handler will
 	 * set the header correctly. However, if the mcdi interface is waiting
 	 * for a CMDDONE event it won't receive it [and since all MCDI events
 	 * are sent to the same queue, we can't be racing with
 	 * efx_mcdi_ev_cpl()]
 	 *
-	 * If there is an outstanding asynchronous request, we can't
-	 * complete it now (efx_mcdi_complete() would deadlock).  The
+	 * If there is an outstanding asynchroyesus request, we can't
+	 * complete it yesw (efx_mcdi_complete() would deadlock).  The
 	 * reset process will take care of this.
 	 *
 	 * There's a race here with efx_mcdi_send_request(), because
 	 * we might receive a REBOOT event *before* the request has
 	 * been copied out. In polled mode (during startup) this is
-	 * irrelevant, because efx_mcdi_complete_sync() is ignored. In
+	 * irrelevant, because efx_mcdi_complete_sync() is igyesred. In
 	 * event mode, this condition is just an edge-case of
 	 * receiving a REBOOT event after posting the MCDI
 	 * request. Did the mc reboot before or after the copyout? The
 	 * best we can do always is just return failure.
 	 *
-	 * If there is an outstanding proxy response expected it is not going
+	 * If there is an outstanding proxy response expected it is yest going
 	 * to arrive. We should thus abort it.
 	 */
 	spin_lock(&mcdi->iface_lock);
@@ -1243,7 +1243,7 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 		/* On EF10, a CODE_MC_REBOOT event can be received without the
 		 * reboot detection in efx_mcdi_poll_reboot() being triggered.
 		 * If zero was returned from the final call to
-		 * efx_mcdi_poll_reboot(), the MC reboot wasn't noticed but the
+		 * efx_mcdi_poll_reboot(), the MC reboot wasn't yesticed but the
 		 * MC has definitely rebooted so prepare for the reset.
 		 */
 		if (!rc && efx->type->mcdi_reboot_detected)
@@ -1343,7 +1343,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		efx_mcdi_ev_bist(efx);
 		break;
 	case MCDI_EVENT_CODE_MAC_STATS_DMA:
-		/* MAC stats are gather lazily.  We can ignore this. */
+		/* MAC stats are gather lazily.  We can igyesre this. */
 		break;
 	case MCDI_EVENT_CODE_FLR:
 		if (efx->type->sriov_flr)
@@ -1363,7 +1363,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		/* Two flush events will be sent: one to the same event
 		 * queue as completions, and one to event queue 0.
 		 * In the latter case the {RX,TX}_FLUSH_TO_DRIVER
-		 * flag will be set, and we should ignore the event
+		 * flag will be set, and we should igyesre the event
 		 * because we want to wait for all completions.
 		 */
 		BUILD_BUG_ON(MCDI_EVENT_TX_FLUSH_TO_DRIVER_LBN !=
@@ -1386,7 +1386,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		break;
 	default:
 		netif_err(efx, hw, efx->net_dev,
-			  "Unknown MCDI event " EFX_QWORD_FMT "\n",
+			  "Unkyeswn MCDI event " EFX_QWORD_FMT "\n",
 			  EFX_QWORD_VAL(*event));
 	}
 }
@@ -1433,7 +1433,7 @@ void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 
 		/* It's theoretically possible for the string to exceed 31
 		 * characters, though in practice the first three version
-		 * components are short enough that this doesn't happen.
+		 * components are short eyesugh that this doesn't happen.
 		 */
 		if (WARN_ON(offset >= len))
 			buf[0] = 0;
@@ -1461,7 +1461,7 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 
 	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_DRV_ATTACH, inbuf, sizeof(inbuf),
 				outbuf, sizeof(outbuf), &outlen);
-	/* If we're not the primary PF, trying to ATTACH with a FIRMWARE_ID
+	/* If we're yest the primary PF, trying to ATTACH with a FIRMWARE_ID
 	 * specified will fail with EPERM, and we have to tell the MC we don't
 	 * care what firmware we get.
 	 */
@@ -1501,7 +1501,7 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 
 	/* We currently assume we have control of the external link
 	 * and are completely trusted by firmware.  Abort probing
-	 * if that's not true for this function.
+	 * if that's yest true for this function.
 	 */
 
 	if (was_attached != NULL)
@@ -1700,7 +1700,7 @@ fail1:
 	return rc;
 }
 
-/* Returns 1 if an assertion was read, 0 if no assertion had fired,
+/* Returns 1 if an assertion was read, 0 if yes assertion had fired,
  * negative on error.
  */
 static int efx_mcdi_read_assertion(struct efx_nic *efx)
@@ -1748,7 +1748,7 @@ static int efx_mcdi_read_assertion(struct efx_nic *efx)
 		? "thread-level assertion"
 		: (flags == MC_CMD_GET_ASSERTS_FLAGS_WDOG_FIRED)
 		? "watchdog reset"
-		: "unknown assertion";
+		: "unkyeswn assertion";
 	netif_err(efx, hw, efx->net_dev,
 		  "MCPU %s at PC = 0x%.8x in thread 0x%.8x\n", reason,
 		  MCDI_DWORD(outbuf, GET_ASSERTS_OUT_SAVED_PC_OFFS),
@@ -1771,9 +1771,9 @@ static int efx_mcdi_exit_assertion(struct efx_nic *efx)
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_REBOOT_IN_LEN);
 	int rc;
 
-	/* If the MC is running debug firmware, it might now be
+	/* If the MC is running debug firmware, it might yesw be
 	 * waiting for a debugger to attach, but we just want it to
-	 * reboot.  We set a flag that makes the command a no-op if it
+	 * reboot.  We set a flag that makes the command a yes-op if it
 	 * has already done so.
 	 * The MCDI will thus return either 0 or -EIO.
 	 */
@@ -2156,7 +2156,7 @@ static int efx_mcdi_nvram_update_finish(struct efx_nic *efx, unsigned int type)
 	int rc, rc2;
 
 	MCDI_SET_DWORD(inbuf, NVRAM_UPDATE_FINISH_IN_TYPE, type);
-	/* Always set this flag. Old firmware ignores it */
+	/* Always set this flag. Old firmware igyesres it */
 	MCDI_POPULATE_DWORD_1(inbuf, NVRAM_UPDATE_FINISH_V2_IN_FLAGS,
 			      NVRAM_UPDATE_FINISH_V2_IN_FLAG_REPORT_VERIFY_RESULT,
 			      1);
@@ -2190,7 +2190,7 @@ static int efx_mcdi_nvram_update_finish(struct efx_nic *efx, unsigned int type)
 			break;
 		default:
 			netif_err(efx, drv, efx->net_dev,
-				  "Unknown response to NVRAM_UPDATE_FINISH\n");
+				  "Unkyeswn response to NVRAM_UPDATE_FINISH\n");
 			rc = -EIO;
 		}
 	}

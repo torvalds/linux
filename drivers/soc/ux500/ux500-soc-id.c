@@ -59,7 +59,7 @@ static void ux500_print_soc_info(unsigned int asicid)
 	else if (rev >= 0xA0)
 		pr_cont("v%d.%d" , (rev >> 4) - 0xA + 1, rev & 0xf);
 	else
-		pr_cont("Unknown");
+		pr_cont("Unkyeswn");
 
 	pr_cont(" [%#010x]\n", asicid);
 }
@@ -143,7 +143,7 @@ static const char * __init ux500_get_revision(void)
 		return kasprintf(GFP_KERNEL, "%d.%d",
 				 (rev >> 4) - 0xA + 1, rev & 0xf);
 
-	return kasprintf(GFP_KERNEL, "%s", "Unknown");
+	return kasprintf(GFP_KERNEL, "%s", "Unkyeswn");
 }
 
 static ssize_t ux500_get_process(struct device *dev,
@@ -156,7 +156,7 @@ static ssize_t ux500_get_process(struct device *dev,
 	return sprintf(buf, "%02xnm\n", dbx500_id.process);
 }
 
-static const char *db8500_read_soc_id(struct device_node *backupram)
+static const char *db8500_read_soc_id(struct device_yesde *backupram)
 {
 	void __iomem *base;
 	void __iomem *uid;
@@ -178,7 +178,7 @@ static const char *db8500_read_soc_id(struct device_node *backupram)
 }
 
 static void __init soc_info_populate(struct soc_device_attribute *soc_dev_attr,
-				     struct device_node *backupram)
+				     struct device_yesde *backupram)
 {
 	soc_dev_attr->soc_id   = db8500_read_soc_id(backupram);
 	soc_dev_attr->machine  = ux500_get_machine();
@@ -194,9 +194,9 @@ static int __init ux500_soc_device_init(void)
 	struct device *parent;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
-	struct device_node *backupram;
+	struct device_yesde *backupram;
 
-	backupram = of_find_compatible_node(NULL, NULL, "ste,dbx500-backupram");
+	backupram = of_find_compatible_yesde(NULL, NULL, "ste,dbx500-backupram");
 	if (!backupram)
 		return 0;
 
@@ -204,12 +204,12 @@ static int __init ux500_soc_device_init(void)
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr) {
-		of_node_put(backupram);
+		of_yesde_put(backupram);
 		return -ENOMEM;
 	}
 
 	soc_info_populate(soc_dev_attr, backupram);
-	of_node_put(backupram);
+	of_yesde_put(backupram);
 
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {

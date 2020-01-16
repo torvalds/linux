@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -32,7 +32,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -853,7 +853,7 @@ int mlx4_mw_enable(struct mlx4_dev *dev, struct mlx4_mw *mw)
 	mpt_entry = mailbox->buf;
 
 	/* Note that the MLX4_MPT_FLAG_REGION bit in mpt_entry->flags is turned
-	 * off, thus creating a memory window and not a memory region.
+	 * off, thus creating a memory window and yest a memory region.
 	 */
 	mpt_entry->key	       = cpu_to_be32(key_to_hw_index(mw->key));
 	mpt_entry->pd_flags    = cpu_to_be32(mw->pd);
@@ -980,7 +980,7 @@ static inline int mlx4_check_fmr(struct mlx4_fmr *fmr, u64 *page_list,
 	if (iova & page_mask)
 		return -EINVAL;
 
-	/* Trust the user not to pass misaligned data in page_list */
+	/* Trust the user yest to pass misaligned data in page_list */
 	if (0)
 		for (i = 0; i < npages; ++i) {
 			if (page_list[i] & ~page_mask)

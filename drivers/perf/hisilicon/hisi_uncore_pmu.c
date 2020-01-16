@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 
 #include <asm/cputype.h>
@@ -89,7 +89,7 @@ static bool hisi_validate_event_group(struct perf_event *event)
 		counters++;
 	}
 
-	/* The group can not count events more than the counters in the HW */
+	/* The group can yest count events more than the counters in the HW */
 	return counters <= hisi_pmu->num_counters;
 }
 
@@ -133,22 +133,22 @@ int hisi_uncore_pmu_event_init(struct perf_event *event)
 		return -ENOENT;
 
 	/*
-	 * We do not support sampling as the counters are all
+	 * We do yest support sampling as the counters are all
 	 * shared by all CPU cores in a CPU die(SCCL). Also we
-	 * do not support attach to a task(per-process mode)
+	 * do yest support attach to a task(per-process mode)
 	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EOPNOTSUPP;
 
 	/*
-	 *  The uncore counters not specific to any CPU, so cannot
+	 *  The uncore counters yest specific to any CPU, so canyest
 	 *  support per-task
 	 */
 	if (event->cpu < 0)
 		return -EINVAL;
 
 	/*
-	 * Validate if the events in group does not exceed the
+	 * Validate if the events in group does yest exceed the
 	 * available counters in hardware.
 	 */
 	if (!hisi_validate_event_group(event))
@@ -211,7 +211,7 @@ void hisi_uncore_pmu_set_event_period(struct perf_event *event)
 	 * The HiSilicon PMU counters support 32 bits or 48 bits, depending on
 	 * the PMU. We reduce it to 2^(counter_bits - 1) to account for the
 	 * extreme interrupt latency. So we could hopefully handle the overflow
-	 * interrupt before another 2^(counter_bits - 1) events occur and the
+	 * interrupt before ayesther 2^(counter_bits - 1) events occur and the
 	 * counter overtakes its previous value.
 	 */
 	u64 val = BIT_ULL(hisi_pmu->counter_bits - 1);
@@ -342,7 +342,7 @@ void hisi_uncore_pmu_disable(struct pmu *pmu)
  * If multi-threading is supported, On Huawei Kunpeng 920 SoC whose cpu
  * core is tsv110, CCL_ID is the low 3-bits in MPIDR[Aff2] and SCCL_ID
  * is the upper 5-bits of Aff2 field; while for other cpu types, SCCL_ID
- * is in MPIDR[Aff3] and CCL_ID is in MPIDR[Aff2], if not, SCCL_ID
+ * is in MPIDR[Aff3] and CCL_ID is in MPIDR[Aff2], if yest, SCCL_ID
  * is in MPIDR[Aff2] and CCL_ID is in MPIDR[Aff1].
  */
 static void hisi_read_sccl_and_ccl_id(int *sccl_id, int *ccl_id)
@@ -390,17 +390,17 @@ static bool hisi_pmu_cpu_is_associated_pmu(struct hisi_pmu *hisi_pmu)
 	return sccl_id == hisi_pmu->sccl_id && ccl_id == hisi_pmu->ccl_id;
 }
 
-int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
+int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct hisi_pmu *hisi_pmu = hlist_entry_safe(node, struct hisi_pmu,
-						     node);
+	struct hisi_pmu *hisi_pmu = hlist_entry_safe(yesde, struct hisi_pmu,
+						     yesde);
 
 	if (!hisi_pmu_cpu_is_associated_pmu(hisi_pmu))
 		return 0;
 
 	cpumask_set_cpu(cpu, &hisi_pmu->associated_cpus);
 
-	/* If another CPU is already managing this PMU, simply return. */
+	/* If ayesther CPU is already managing this PMU, simply return. */
 	if (hisi_pmu->on_cpu != -1)
 		return 0;
 
@@ -413,10 +413,10 @@ int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct hisi_pmu *hisi_pmu = hlist_entry_safe(node, struct hisi_pmu,
-						     node);
+	struct hisi_pmu *hisi_pmu = hlist_entry_safe(yesde, struct hisi_pmu,
+						     yesde);
 	cpumask_t pmu_online_cpus;
 	unsigned int target;
 

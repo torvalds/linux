@@ -132,7 +132,7 @@ static unsigned long kvm_psci_vcpu_affinity_info(struct kvm_vcpu *vcpu)
 	if (!target_affinity_mask)
 		return PSCI_RET_INVALID_PARAMS;
 
-	/* Ignore other bits of target affinity */
+	/* Igyesre other bits of target affinity */
 	target_affinity &= target_affinity_mask;
 
 	/*
@@ -164,7 +164,7 @@ static void kvm_prepare_system_event(struct kvm_vcpu *vcpu, u32 type)
 	 * again and may perform shutdown/reboot at a later time that when the
 	 * actual request is made.  Since we are implementing PSCI and a
 	 * caller of PSCI reboot and shutdown expects that the system shuts
-	 * down or reboots immediately, let's make sure that VCPUs are not run
+	 * down or reboots immediately, let's make sure that VCPUs are yest run
 	 * after this call is handled and before the VCPUs have been
 	 * re-initialized.
 	 */
@@ -198,7 +198,7 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 	case PSCI_0_2_FN_PSCI_VERSION:
 		/*
 		 * Bits[31:16] = Major Version = 0
-		 * Bits[15:0] = Minor Version = 2
+		 * Bits[15:0] = Miyesr Version = 2
 		 */
 		val = KVM_ARM_PSCI_0_2;
 		break;
@@ -222,9 +222,9 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 		break;
 	case PSCI_0_2_FN_MIGRATE_INFO_TYPE:
 		/*
-		 * Trusted OS is MP hence does not require migration
+		 * Trusted OS is MP hence does yest require migration
 	         * or
-		 * Trusted OS is not present
+		 * Trusted OS is yest present
 		 */
 		val = PSCI_0_2_TOS_MP;
 		break;
@@ -493,7 +493,7 @@ int kvm_arm_set_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		if (get_kernel_wa_level(reg->id) < wa_level)
 			return -EINVAL;
 
-		/* The enabled bit must not be set unless the level is AVAIL. */
+		/* The enabled bit must yest be set unless the level is AVAIL. */
 		if (wa_level != KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_AVAIL &&
 		    wa_level != val)
 			return -EINVAL;

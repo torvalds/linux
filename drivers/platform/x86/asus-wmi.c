@@ -121,7 +121,7 @@ struct agfn_args {
 	u16 mfun; /* probably "Multi-function" to be called */
 	u16 sfun; /* probably "Sub-function" to be called */
 	u16 len;  /* size of the hole struct, including subfunction fields */
-	u8 stas;  /* not used by now */
+	u8 stas;  /* yest used by yesw */
 	u8 err;   /* zero on success */
 } __packed;
 
@@ -416,7 +416,7 @@ static DEVICE_ATTR_RW(charge_control_end_threshold);
 
 static int asus_wmi_battery_add(struct power_supply *battery)
 {
-	/* The WMI method does not provide a way to specific a battery, so we
+	/* The WMI method does yest provide a way to specific a battery, so we
 	 * just assume it is the first battery.
 	 */
 	if (strcmp(battery->desc->name, "BAT0") != 0)
@@ -523,13 +523,13 @@ static int kbd_led_read(struct asus_wmi *asus, int *level, int *env)
 	/*
 	 * bits 0-2: level
 	 * bit 7: light on/off
-	 * bit 8-10: environment (0: dark, 1: normal, 2: light)
-	 * bit 17: status unknown
+	 * bit 8-10: environment (0: dark, 1: yesrmal, 2: light)
+	 * bit 17: status unkyeswn
 	 */
 	retval = asus_wmi_get_devstate_bits(asus, ASUS_WMI_DEVID_KBD_BACKLIGHT,
 					    0xFFFF);
 
-	/* Unknown status is considered as off */
+	/* Unkyeswn status is considered as off */
 	if (retval == 0x8000)
 		retval = 0;
 
@@ -570,7 +570,7 @@ static void kbd_led_set_by_kbd(struct asus_wmi *asus, enum led_brightness value)
 	struct led_classdev *led_cdev = &asus->kbd_led;
 
 	do_kbd_led_set(led_cdev, value);
-	led_classdev_notify_brightness_hw_changed(led_cdev, asus->kbd_led_wk);
+	led_classdev_yestify_brightness_hw_changed(led_cdev, asus->kbd_led_wk);
 }
 
 static enum led_brightness kbd_led_get(struct led_classdev *led_cdev)
@@ -587,7 +587,7 @@ static enum led_brightness kbd_led_get(struct led_classdev *led_cdev)
 	return value;
 }
 
-static int wlan_led_unknown_state(struct asus_wmi *asus)
+static int wlan_led_unkyeswn_state(struct asus_wmi *asus)
 {
 	u32 result;
 
@@ -718,7 +718,7 @@ static int asus_wmi_led_init(struct asus_wmi *asus)
 
 		asus->wlan_led.name = "asus::wlan";
 		asus->wlan_led.brightness_set = wlan_led_set;
-		if (!wlan_led_unknown_state(asus))
+		if (!wlan_led_unkyeswn_state(asus))
 			asus->wlan_led.brightness_get = wlan_led_get;
 		asus->wlan_led.flags = LED_CORE_SUSPENDRESUME;
 		asus->wlan_led.max_brightness = 1;
@@ -830,7 +830,7 @@ out_unlock:
 	mutex_unlock(&asus->hotplug_lock);
 }
 
-static void asus_rfkill_notify(acpi_handle handle, u32 event, void *data)
+static void asus_rfkill_yestify(acpi_handle handle, u32 event, void *data)
 {
 	struct asus_wmi *asus = data;
 
@@ -839,44 +839,44 @@ static void asus_rfkill_notify(acpi_handle handle, u32 event, void *data)
 
 	/*
 	 * We can't call directly asus_rfkill_hotplug because most
-	 * of the time WMBC is still being executed and not reetrant.
-	 * There is currently no way to tell ACPICA that  we want this
+	 * of the time WMBC is still being executed and yest reetrant.
+	 * There is currently yes way to tell ACPICA that  we want this
 	 * method to be serialized, we schedule a asus_rfkill_hotplug
 	 * call later, in a safer context.
 	 */
 	queue_work(asus->hotplug_workqueue, &asus->hotplug_work);
 }
 
-static int asus_register_rfkill_notifier(struct asus_wmi *asus, char *node)
+static int asus_register_rfkill_yestifier(struct asus_wmi *asus, char *yesde)
 {
 	acpi_status status;
 	acpi_handle handle;
 
-	status = acpi_get_handle(NULL, node, &handle);
+	status = acpi_get_handle(NULL, yesde, &handle);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-					     asus_rfkill_notify, asus);
+	status = acpi_install_yestify_handler(handle, ACPI_SYSTEM_NOTIFY,
+					     asus_rfkill_yestify, asus);
 	if (ACPI_FAILURE(status))
-		pr_warn("Failed to register notify on %s\n", node);
+		pr_warn("Failed to register yestify on %s\n", yesde);
 
 	return 0;
 }
 
-static void asus_unregister_rfkill_notifier(struct asus_wmi *asus, char *node)
+static void asus_unregister_rfkill_yestifier(struct asus_wmi *asus, char *yesde)
 {
 	acpi_status status = AE_OK;
 	acpi_handle handle;
 
-	status = acpi_get_handle(NULL, node, &handle);
+	status = acpi_get_handle(NULL, yesde, &handle);
 	if (ACPI_FAILURE(status))
 		return;
 
-	status = acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-					    asus_rfkill_notify);
+	status = acpi_remove_yestify_handler(handle, ACPI_SYSTEM_NOTIFY,
+					    asus_rfkill_yestify);
 	if (ACPI_FAILURE(status))
-		pr_err("Error removing rfkill notify handler %s\n", node);
+		pr_err("Error removing rfkill yestify handler %s\n", yesde);
 }
 
 static int asus_get_adapter_status(struct hotplug_slot *hotplug_slot,
@@ -986,7 +986,7 @@ static int asus_rfkill_wlan_set(void *data, bool blocked)
 	/*
 	 * This handler is enabled only if hotplug is enabled.
 	 * In this case, the asus_wmi_set_devstate() will
-	 * trigger a wmi notification and we need to wait
+	 * trigger a wmi yestification and we need to wait
 	 * this call to finish before being able to call
 	 * any wmi method
 	 */
@@ -1049,9 +1049,9 @@ static void asus_wmi_rfkill_exit(struct asus_wmi *asus)
 	if (asus->driver->wlan_ctrl_by_user && ashs_present())
 		return;
 
-	asus_unregister_rfkill_notifier(asus, "\\_SB.PCI0.P0P5");
-	asus_unregister_rfkill_notifier(asus, "\\_SB.PCI0.P0P6");
-	asus_unregister_rfkill_notifier(asus, "\\_SB.PCI0.P0P7");
+	asus_unregister_rfkill_yestifier(asus, "\\_SB.PCI0.P0P5");
+	asus_unregister_rfkill_yestifier(asus, "\\_SB.PCI0.P0P6");
+	asus_unregister_rfkill_yestifier(asus, "\\_SB.PCI0.P0P7");
 	if (asus->wlan.rfkill) {
 		rfkill_unregister(asus->wlan.rfkill);
 		rfkill_destroy(asus->wlan.rfkill);
@@ -1059,7 +1059,7 @@ static void asus_wmi_rfkill_exit(struct asus_wmi *asus)
 	}
 	/*
 	 * Refresh pci hotplug in case the rfkill state was changed after
-	 * asus_unregister_rfkill_notifier()
+	 * asus_unregister_rfkill_yestifier()
 	 */
 	asus_rfkill_hotplug(asus);
 	if (asus->hotplug_slot.ops)
@@ -1149,9 +1149,9 @@ static int asus_wmi_rfkill_init(struct asus_wmi *asus)
 	if (result == -EBUSY)
 		result = 0;
 
-	asus_register_rfkill_notifier(asus, "\\_SB.PCI0.P0P5");
-	asus_register_rfkill_notifier(asus, "\\_SB.PCI0.P0P6");
-	asus_register_rfkill_notifier(asus, "\\_SB.PCI0.P0P7");
+	asus_register_rfkill_yestifier(asus, "\\_SB.PCI0.P0P5");
+	asus_register_rfkill_yestifier(asus, "\\_SB.PCI0.P0P6");
+	asus_register_rfkill_yestifier(asus, "\\_SB.PCI0.P0P7");
 	/*
 	 * Refresh pci hotplug in case the rfkill state was changed during
 	 * setup.
@@ -1282,8 +1282,8 @@ static bool asus_wmi_has_agfn_fan(struct asus_wmi *asus)
 	 * bits or spec ...
 	 * Currently we disable it if:
 	 * - ASUS_WMI_UNSUPPORTED_METHOD is returned
-	 * - reverved bits are non-zero
-	 * - sfun and presence bit are not set
+	 * - reverved bits are yesn-zero
+	 * - sfun and presence bit are yest set
 	 */
 	return !(value == ASUS_WMI_UNSUPPORTED_METHOD || value & 0xFFF80000
 		 || (!asus->sfun && !(value & ASUS_WMI_DSTS_PRESENCE_BIT)));
@@ -1333,7 +1333,7 @@ static ssize_t pwm1_show(struct device *dev,
 
 	/*
 	 * If we haven't set already set a value through the AGFN interface,
-	 * we read a current value through the (now-deprecated) FAN_CTRL device.
+	 * we read a current value through the (yesw-deprecated) FAN_CTRL device.
 	 */
 	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_FAN_CTRL, &value);
 	if (err < 0)
@@ -1348,7 +1348,7 @@ static ssize_t pwm1_show(struct device *dev,
 	else if (value == 3)
 		value = 255;
 	else if (value) {
-		pr_err("Unknown fan speed %#x\n", value);
+		pr_err("Unkyeswn fan speed %#x\n", value);
 		value = -1;
 	}
 
@@ -1397,7 +1397,7 @@ static ssize_t fan1_input_show(struct device *dev,
 		break;
 
 	case FAN_TYPE_AGFN:
-		/* no speed readable on manual mode */
+		/* yes speed readable on manual mode */
 		if (asus->fan_pwm_mode == ASUS_FAN_CTRL_MANUAL)
 			return -ENXIO;
 
@@ -1426,9 +1426,9 @@ static ssize_t pwm1_enable_show(struct device *dev,
 	 *
 	 * For the CPU_FAN device, the spec indicates that we should be
 	 * able to read the device status and consult bit 19 to see if we
-	 * are in Full On or Automatic mode. However, this does not work
+	 * are in Full On or Automatic mode. However, this does yest work
 	 * in practice on X532FL at least (the bit is always 0) and there's
-	 * also nothing in the DSDT to indicate that this behaviour exists.
+	 * also yesthing in the DSDT to indicate that this behaviour exists.
 	 */
 	return sprintf(buf, "%d\n", asus->fan_pwm_mode);
 }
@@ -1579,7 +1579,7 @@ static int asus_wmi_hwmon_init(struct asus_wmi *asus)
 			hwmon_attribute_groups);
 
 	if (IS_ERR(hwmon)) {
-		pr_err("Could not register asus hwmon device\n");
+		pr_err("Could yest register asus hwmon device\n");
 		return PTR_ERR(hwmon);
 	}
 	return 0;
@@ -1715,7 +1715,7 @@ static ssize_t fan_boost_mode_store(struct device *dev,
 	return result;
 }
 
-// Fan boost mode: 0 - normal, 1 - overboost, 2 - silent
+// Fan boost mode: 0 - yesrmal, 1 - overboost, 2 - silent
 static DEVICE_ATTR_RW(fan_boost_mode);
 
 /* Backlight ******************************************************************/
@@ -1820,7 +1820,7 @@ static const struct backlight_ops asus_wmi_bl_ops = {
 	.update_status = update_bl_status,
 };
 
-static int asus_wmi_backlight_notify(struct asus_wmi *asus, int code)
+static int asus_wmi_backlight_yestify(struct asus_wmi *asus, int code)
 {
 	struct backlight_device *bd = asus->backlight_device;
 	int old = bd->props.brightness;
@@ -1862,7 +1862,7 @@ static int asus_wmi_backlight_init(struct asus_wmi *asus)
 				       &asus->platform_device->dev, asus,
 				       &asus_wmi_bl_ops, &props);
 	if (IS_ERR(bd)) {
-		pr_err("Could not register backlight device\n");
+		pr_err("Could yest register backlight device\n");
 		return PTR_ERR(bd);
 	}
 
@@ -1929,7 +1929,7 @@ static int asus_wmi_get_event_code(u32 value)
 
 	status = wmi_get_event_data(value, &response);
 	if (ACPI_FAILURE(status)) {
-		pr_warn("Failed to get WMI notify code: %s\n",
+		pr_warn("Failed to get WMI yestify code: %s\n",
 				acpi_format_exception(status));
 		return -EIO;
 	}
@@ -1967,7 +1967,7 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 
 	if (code == ASUS_WMI_BRN_DOWN || code == ASUS_WMI_BRN_UP) {
 		if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
-			asus_wmi_backlight_notify(asus, orig_code);
+			asus_wmi_backlight_yestify(asus, orig_code);
 			return;
 		}
 	}
@@ -1999,15 +1999,15 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 		return;
 	}
 
-	if (is_display_toggle(code) && asus->driver->quirks->no_display_toggle)
+	if (is_display_toggle(code) && asus->driver->quirks->yes_display_toggle)
 		return;
 
 	if (!sparse_keymap_report_event(asus->inputdev, code,
 					key_value, autorelease))
-		pr_info("Unknown key %x pressed\n", code);
+		pr_info("Unkyeswn key %x pressed\n", code);
 }
 
-static void asus_wmi_notify(u32 value, void *context)
+static void asus_wmi_yestify(u32 value, void *context)
 {
 	struct asus_wmi *asus = context;
 	int code;
@@ -2016,7 +2016,7 @@ static void asus_wmi_notify(u32 value, void *context)
 	for (i = 0; i < WMI_EVENT_QUEUE_SIZE + 1; i++) {
 		code = asus_wmi_get_event_code(value);
 		if (code < 0) {
-			pr_warn("Failed to get notify code: %d\n", code);
+			pr_warn("Failed to get yestify code: %d\n", code);
 			return;
 		}
 
@@ -2036,7 +2036,7 @@ static void asus_wmi_notify(u32 value, void *context)
 	pr_warn("Failed to process event queue, last code: 0x%x\n", code);
 }
 
-static int asus_wmi_notify_queue_flush(struct asus_wmi *asus)
+static int asus_wmi_yestify_queue_flush(struct asus_wmi *asus)
 {
 	int code;
 	int i;
@@ -2206,7 +2206,7 @@ static int asus_wmi_platform_init(struct asus_wmi *asus)
 	if (!asus_wmi_evaluate_method(ASUS_WMI_METHODID_INIT, 0, 0, &rv))
 		pr_info("Initialization: %#x\n", rv);
 
-	/* We don't know yet what to do with this version... */
+	/* We don't kyesw yet what to do with this version... */
 	if (!asus_wmi_evaluate_method(ASUS_WMI_METHODID_SPEC, 0, 0x9, &rv)) {
 		pr_info("BIOS WMI version: %d.%d\n", rv >> 16, rv & 0xFF);
 		asus->spec = rv;
@@ -2214,7 +2214,7 @@ static int asus_wmi_platform_init(struct asus_wmi *asus)
 
 	/*
 	 * The SFUN method probably allows the original driver to get the list
-	 * of features supported by a given model. For now, 0x0100 or 0x0800
+	 * of features supported by a given model. For yesw, 0x0100 or 0x0800
 	 * bit signifies that the laptop is equipped with a Wi-Fi MiniPCI card.
 	 * The significance of others is yet to be found.
 	 */
@@ -2226,12 +2226,12 @@ static int asus_wmi_platform_init(struct asus_wmi *asus)
 	/*
 	 * Eee PC and Notebooks seems to have different method_id for DSTS,
 	 * but it may also be related to the BIOS's SPEC.
-	 * Note, on most Eeepc, there is no way to check if a method exist
-	 * or note, while on notebooks, they returns 0xFFFFFFFE on failure,
+	 * Note, on most Eeepc, there is yes way to check if a method exist
+	 * or yeste, while on yestebooks, they returns 0xFFFFFFFE on failure,
 	 * but once again, SPEC may probably be used for that kind of things.
 	 *
-	 * Additionally at least TUF Gaming series laptops return nothing for
-	 * unknown methods, so the detection in this way is not possible.
+	 * Additionally at least TUF Gaming series laptops return yesthing for
+	 * unkyeswn methods, so the detection in this way is yest possible.
 	 *
 	 * There is strong indication that only ACPI WMI devices that have _UID
 	 * equal to "ASUSWMI" use DCTS whereas those with "ATK" use DSTS.
@@ -2244,14 +2244,14 @@ static int asus_wmi_platform_init(struct asus_wmi *asus)
 		dev_info(dev, "Detected ASUSWMI, use DCTS\n");
 		asus->dsts_id = ASUS_WMI_METHODID_DCTS;
 	} else {
-		dev_info(dev, "Detected %s, not ASUSWMI, use DSTS\n", wmi_uid);
+		dev_info(dev, "Detected %s, yest ASUSWMI, use DSTS\n", wmi_uid);
 		asus->dsts_id = ASUS_WMI_METHODID_DSTS;
 	}
 
 	/*
 	 * Some devices can have multiple event codes stored in a queue before
 	 * the module load if it was unloaded intermittently after calling
-	 * the INIT method (enables event handling). The WMI notify handler is
+	 * the INIT method (enables event handling). The WMI yestify handler is
 	 * expected to retrieve all event codes until a retrieved code equals
 	 * queue end marker (One or Ones). Old codes are flushed from the queue
 	 * upon module load. Not enabling this when it should be has minimal
@@ -2261,7 +2261,7 @@ static int asus_wmi_platform_init(struct asus_wmi *asus)
 	if (wmi_uid && !strcmp(wmi_uid, ASUS_ACPI_UID_ATK)) {
 		dev_info(dev, "Detected ATK, enable event queue\n");
 
-		if (!asus_wmi_notify_queue_flush(asus))
+		if (!asus_wmi_yestify_queue_flush(asus))
 			asus->wmi_event_queue = true;
 	}
 
@@ -2276,7 +2276,7 @@ static int asus_wmi_platform_init(struct asus_wmi *asus)
 
 /* debugfs ********************************************************************/
 
-struct asus_wmi_debugfs_node {
+struct asus_wmi_debugfs_yesde {
 	struct asus_wmi *asus;
 	char *name;
 	int (*show) (struct seq_file *m, void *data);
@@ -2348,17 +2348,17 @@ static int show_call(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct asus_wmi_debugfs_node asus_wmi_debug_files[] = {
+static struct asus_wmi_debugfs_yesde asus_wmi_debug_files[] = {
 	{NULL, "devs", show_devs},
 	{NULL, "dsts", show_dsts},
 	{NULL, "call", show_call},
 };
 
-static int asus_wmi_debugfs_open(struct inode *inode, struct file *file)
+static int asus_wmi_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
-	struct asus_wmi_debugfs_node *node = inode->i_private;
+	struct asus_wmi_debugfs_yesde *yesde = iyesde->i_private;
 
-	return single_open(file, node->show, node->asus);
+	return single_open(file, yesde->show, yesde->asus);
 }
 
 static const struct file_operations asus_wmi_debugfs_io_ops = {
@@ -2390,11 +2390,11 @@ static void asus_wmi_debugfs_init(struct asus_wmi *asus)
 			   &asus->debug.ctrl_param);
 
 	for (i = 0; i < ARRAY_SIZE(asus_wmi_debug_files); i++) {
-		struct asus_wmi_debugfs_node *node = &asus_wmi_debug_files[i];
+		struct asus_wmi_debugfs_yesde *yesde = &asus_wmi_debug_files[i];
 
-		node->asus = asus;
-		debugfs_create_file(node->name, S_IFREG | S_IRUGO,
-				    asus->debug.root, node,
+		yesde->asus = asus;
+		debugfs_create_file(yesde->name, S_IFREG | S_IRUGO,
+				    asus->debug.root, yesde,
 				    &asus_wmi_debugfs_io_ops);
 	}
 }
@@ -2439,7 +2439,7 @@ static int asus_wmi_add(struct platform_device *pdev)
 	if (err)
 		goto fail_input;
 
-	err = asus_wmi_fan_init(asus); /* probably no problems on error */
+	err = asus_wmi_fan_init(asus); /* probably yes problems on error */
 
 	err = asus_wmi_hwmon_init(asus);
 	if (err)
@@ -2489,10 +2489,10 @@ static int asus_wmi_add(struct platform_device *pdev)
 		asus_wmi_fnlock_update(asus);
 	}
 
-	status = wmi_install_notify_handler(asus->driver->event_guid,
-					    asus_wmi_notify, asus);
+	status = wmi_install_yestify_handler(asus->driver->event_guid,
+					    asus_wmi_yestify, asus);
 	if (ACPI_FAILURE(status)) {
-		pr_err("Unable to register notify handler - %d\n", status);
+		pr_err("Unable to register yestify handler - %d\n", status);
 		err = -ENODEV;
 		goto fail_wmi_handler;
 	}
@@ -2526,7 +2526,7 @@ static int asus_wmi_remove(struct platform_device *device)
 	struct asus_wmi *asus;
 
 	asus = platform_get_drvdata(device);
-	wmi_remove_notify_handler(asus->driver->event_guid);
+	wmi_remove_yestify_handler(asus->driver->event_guid);
 	asus_wmi_backlight_exit(asus);
 	asus_wmi_input_exit(asus);
 	asus_wmi_led_exit(asus);
@@ -2626,12 +2626,12 @@ static int asus_wmi_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!wmi_has_guid(ASUS_WMI_MGMT_GUID)) {
-		pr_warn("ASUS Management GUID not found\n");
+		pr_warn("ASUS Management GUID yest found\n");
 		return -ENODEV;
 	}
 
 	if (wdrv->event_guid && !wmi_has_guid(wdrv->event_guid)) {
-		pr_warn("ASUS Event GUID not found\n");
+		pr_warn("ASUS Event GUID yest found\n");
 		return -ENODEV;
 	}
 

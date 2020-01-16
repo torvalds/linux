@@ -90,7 +90,7 @@ static int shmob_drm_setup_clocks(struct shmob_drm_device *sdev,
 
 	clk = devm_clk_get(sdev->dev, clkname);
 	if (IS_ERR(clk)) {
-		dev_err(sdev->dev, "cannot get dot clock %s\n", clkname);
+		dev_err(sdev->dev, "canyest get dot clock %s\n", clkname);
 		return PTR_ERR(clk);
 	}
 
@@ -109,7 +109,7 @@ static irqreturn_t shmob_drm_irq(int irq, void *arg)
 	unsigned long flags;
 	u32 status;
 
-	/* Acknowledge interrupts. Putting interrupt enable and interrupt flag
+	/* Ackyeswledge interrupts. Putting interrupt enable and interrupt flag
 	 * bits in the same register is really brain-dead design and requires
 	 * taking a spinlock.
 	 */
@@ -146,7 +146,7 @@ static struct drm_driver shmob_drm_driver = {
 	.desc			= "Renesas SH Mobile DRM",
 	.date			= "20120424",
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 };
 
 /* -----------------------------------------------------------------------------
@@ -209,7 +209,7 @@ static int shmob_drm_probe(struct platform_device *pdev)
 	int ret;
 
 	if (pdata == NULL) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "yes platform data\n");
 		return -EINVAL;
 	}
 

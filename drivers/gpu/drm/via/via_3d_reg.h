@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2003 VIA Techyeslogies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -649,9 +649,9 @@
 #define HC_HROP_DPa             0x00000800
 #define HC_HROP_DPxn            0x00000900
 #define HC_HROP_D               0x00000a00
-#define HC_HROP_DPno            0x00000b00
+#define HC_HROP_DPyes            0x00000b00
 #define HC_HROP_P               0x00000c00
-#define HC_HROP_PDno            0x00000d00
+#define HC_HROP_PDyes            0x00000d00
 #define HC_HROP_DPo             0x00000e00
 #define HC_HROP_WHITE           0x00000f00
 

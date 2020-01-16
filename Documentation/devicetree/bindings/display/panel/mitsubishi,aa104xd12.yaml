@@ -17,7 +17,7 @@ properties:
   compatible:
     items:
       - const: mitsubishi,aa104xd12
-      - {} # panel-lvds, but not listed here to avoid false select
+      - {} # panel-lvds, but yest listed here to avoid false select
 
   vcc-supply:
     description: Reference to the regulator powering the panel VCC pins.

@@ -528,7 +528,7 @@ static int snd_dw_hdmi_probe(struct platform_device *pdev)
 		       data->base + HDMI_IH_MUTE_AHBDMAAUD_STAT0);
 	revision = readb_relaxed(data->base + HDMI_REVISION_ID);
 	if (revision != 0x0a && revision != 0x1a) {
-		dev_err(dev, "dw-hdmi-audio: unknown revision 0x%02x\n",
+		dev_err(dev, "dw-hdmi-audio: unkyeswn revision 0x%02x\n",
 			revision);
 		return -ENXIO;
 	}
@@ -592,7 +592,7 @@ static int snd_dw_hdmi_remove(struct platform_device *pdev)
 #if defined(CONFIG_PM_SLEEP) && defined(IS_NOT_BROKEN)
 /*
  * This code is fine, but requires implementation in the dw_hdmi_trigger()
- * method which is currently missing as I have no way to test this.
+ * method which is currently missing as I have yes way to test this.
  */
 static int snd_dw_hdmi_suspend(struct device *dev)
 {
@@ -631,6 +631,6 @@ static struct platform_driver snd_dw_hdmi_driver = {
 module_platform_driver(snd_dw_hdmi_driver);
 
 MODULE_AUTHOR("Russell King <rmk+kernel@arm.linux.org.uk>");
-MODULE_DESCRIPTION("Synopsis Designware HDMI AHB ALSA interface");
+MODULE_DESCRIPTION("Syyespsis Designware HDMI AHB ALSA interface");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRIVER_NAME);

@@ -22,7 +22,7 @@
 
 #define LBG_COMMUNITY(b, s, e)				\
 	{						\
-		.barno = (b),				\
+		.baryes = (b),				\
 		.padown_offset = LBG_PAD_OWN,		\
 		.padcfglock_offset = LBG_PADCFGLOCK,	\
 		.hostown_offset = LBG_HOSTSW_OWN,	\

@@ -309,7 +309,7 @@ static irqreturn_t linflex_int(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* return TIOCSER_TEMT when transmitter is not busy */
+/* return TIOCSER_TEMT when transmitter is yest busy */
 static unsigned int linflex_tx_empty(struct uart_port *port)
 {
 	unsigned long status;
@@ -360,7 +360,7 @@ static void linflex_setup_watermark(struct uart_port *sport)
 
 	/*
 	 *	UART = 0x1;		- Linflex working in UART mode
-	 *	TXEN = 0x1;		- Enable transmission of data now
+	 *	TXEN = 0x1;		- Enable transmission of data yesw
 	 *	RXEn = 0x1;		- Receiver enabled
 	 *	WL0 = 0x1;		- 8 bit data
 	 *	PCE = 0x0;		- No parity
@@ -508,18 +508,18 @@ linflex_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= LINFLEXD_UARTSR_FEF;
 
-	/* characters to ignore */
-	port->ignore_status_mask = 0;
+	/* characters to igyesre */
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= LINFLEXD_UARTSR_PE;
+		port->igyesre_status_mask |= LINFLEXD_UARTSR_PE;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= LINFLEXD_UARTSR_PE;
+		port->igyesre_status_mask |= LINFLEXD_UARTSR_PE;
 		/*
-		 * if we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * if we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= LINFLEXD_UARTSR_BOF;
+			port->igyesre_status_mask |= LINFLEXD_UARTSR_BOF;
 	}
 
 	writel(cr, port->membase + UARTCR);
@@ -538,7 +538,7 @@ static const char *linflex_type(struct uart_port *port)
 
 static void linflex_release_port(struct uart_port *port)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 static int linflex_request_port(struct uart_port *port)
@@ -826,7 +826,7 @@ static struct uart_driver linflex_reg = {
 
 static int linflex_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct uart_port *sport;
 	struct resource *res;
 	int ret;
@@ -837,7 +837,7 @@ static int linflex_probe(struct platform_device *pdev)
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", ret);
+		dev_err(&pdev->dev, "failed to get alias id, erryes %d\n", ret);
 		return ret;
 	}
 	if (ret >= UART_NR) {

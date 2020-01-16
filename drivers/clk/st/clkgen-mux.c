@@ -15,7 +15,7 @@
 #include <linux/clk-provider.h>
 #include "clkgen.h"
 
-static const char ** __init clkgen_mux_get_parents(struct device_node *np,
+static const char ** __init clkgen_mux_get_parents(struct device_yesde *np,
 						       int *num_parents)
 {
 	const char **parents;
@@ -49,7 +49,7 @@ static struct clkgen_mux_data stih407_a9_mux_data = {
 	.lock = &clkgen_a9_lock,
 };
 
-static void __init st_of_clkgen_mux_setup(struct device_node *np,
+static void __init st_of_clkgen_mux_setup(struct device_yesde *np,
 		struct clkgen_mux_data *data)
 {
 	struct clk *clk;
@@ -93,7 +93,7 @@ err_parents:
 	iounmap(reg);
 }
 
-static void __init st_of_clkgen_a9_mux_setup(struct device_node *np)
+static void __init st_of_clkgen_a9_mux_setup(struct device_yesde *np)
 {
 	st_of_clkgen_mux_setup(np, &stih407_a9_mux_data);
 }

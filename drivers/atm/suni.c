@@ -14,7 +14,7 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/atmdev.h>
 #include <linux/sonet.h>
 #include <linux/delay.h>
@@ -320,7 +320,7 @@ static int suni_start(struct atm_dev *dev)
 		/* interrupt on loss of signal */
 	poll_los(dev); /* ... and clear SUNI interrupts */
 	if (dev->signal == ATM_PHY_SIG_LOST)
-		printk(KERN_WARNING "%s(itf %d): no signal\n",dev->type,
+		printk(KERN_WARNING "%s(itf %d): yes signal\n",dev->type,
 		    dev->number);
 	PRIV(dev)->loop_mode = ATM_LM_NONE;
 	suni_hz(NULL); /* clear SUNI counters */

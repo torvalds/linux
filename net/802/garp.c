@@ -147,12 +147,12 @@ static int garp_attr_cmp(const struct garp_attr *attr,
 static struct garp_attr *garp_attr_lookup(const struct garp_applicant *app,
 					  const void *data, u8 len, u8 type)
 {
-	struct rb_node *parent = app->gid.rb_node;
+	struct rb_yesde *parent = app->gid.rb_yesde;
 	struct garp_attr *attr;
 	int d;
 
 	while (parent) {
-		attr = rb_entry(parent, struct garp_attr, node);
+		attr = rb_entry(parent, struct garp_attr, yesde);
 		d = garp_attr_cmp(attr, data, len, type);
 		if (d > 0)
 			parent = parent->rb_left;
@@ -167,13 +167,13 @@ static struct garp_attr *garp_attr_lookup(const struct garp_applicant *app,
 static struct garp_attr *garp_attr_create(struct garp_applicant *app,
 					  const void *data, u8 len, u8 type)
 {
-	struct rb_node *parent = NULL, **p = &app->gid.rb_node;
+	struct rb_yesde *parent = NULL, **p = &app->gid.rb_yesde;
 	struct garp_attr *attr;
 	int d;
 
 	while (*p) {
 		parent = *p;
-		attr = rb_entry(parent, struct garp_attr, node);
+		attr = rb_entry(parent, struct garp_attr, yesde);
 		d = garp_attr_cmp(attr, data, len, type);
 		if (d > 0)
 			p = &parent->rb_left;
@@ -192,14 +192,14 @@ static struct garp_attr *garp_attr_create(struct garp_applicant *app,
 	attr->dlen  = len;
 	memcpy(attr->data, data, len);
 
-	rb_link_node(&attr->node, parent, p);
-	rb_insert_color(&attr->node, &app->gid);
+	rb_link_yesde(&attr->yesde, parent, p);
+	rb_insert_color(&attr->yesde, &app->gid);
 	return attr;
 }
 
 static void garp_attr_destroy(struct garp_applicant *app, struct garp_attr *attr)
 {
-	rb_erase(&attr->node, &app->gid);
+	rb_erase(&attr->yesde, &app->gid);
 	kfree(attr);
 }
 
@@ -379,13 +379,13 @@ EXPORT_SYMBOL_GPL(garp_request_leave);
 
 static void garp_gid_event(struct garp_applicant *app, enum garp_event event)
 {
-	struct rb_node *node, *next;
+	struct rb_yesde *yesde, *next;
 	struct garp_attr *attr;
 
-	for (node = rb_first(&app->gid);
-	     next = node ? rb_next(node) : NULL, node != NULL;
-	     node = next) {
-		attr = rb_entry(node, struct garp_attr, node);
+	for (yesde = rb_first(&app->gid);
+	     next = yesde ? rb_next(yesde) : NULL, yesde != NULL;
+	     yesde = next) {
+		attr = rb_entry(yesde, struct garp_attr, yesde);
 		garp_attr_event(app, attr, event);
 	}
 }

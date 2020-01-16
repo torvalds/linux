@@ -78,7 +78,7 @@ and::
 Detection of unaligned accesses controlled through the separate option -
 CONFIG_UBSAN_ALIGNMENT. It's off by default on architectures that support
 unaligned accesses (CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS=y). One could
-still enable it in config, just note that it will produce a lot of UBSAN
+still enable it in config, just yeste that it will produce a lot of UBSAN
 reports.
 
 References

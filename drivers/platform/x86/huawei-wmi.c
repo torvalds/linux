@@ -107,7 +107,7 @@ static int __init dmi_matched(const struct dmi_system_id *dmi)
 	return 1;
 }
 
-static struct quirk_entry quirk_unknown = {
+static struct quirk_entry quirk_unkyeswn = {
 };
 
 static struct quirk_entry quirk_battery_reset = {
@@ -161,10 +161,10 @@ static int huawei_wmi_call(struct huawei_wmi *huawei,
 
 /* HWMI takes a 64 bit input and returns either a package with 2 buffers, one of
  * 4 bytes and the other of 256 bytes, or one buffer of size 0x104 (260) bytes.
- * The first 4 bytes are ignored, we ignore the first 4 bytes buffer if we got a
+ * The first 4 bytes are igyesred, we igyesre the first 4 bytes buffer if we got a
  * package, or skip the first 4 if a buffer of 0x104 is used. The first byte of
  * the remaining 0x100 sized buffer has the return status of every call. In case
- * the return status is non-zero, we return -ENODEV but still copy the returned
+ * the return status is yesn-zero, we return -ENODEV but still copy the returned
  * buffer to the given buffer parameter (buf).
  */
 static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
@@ -180,7 +180,7 @@ static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
 	in.pointer = &arg;
 
 	/* Some models require calling HWMI twice to execute a command. We evaluate
-	 * HWMI and if we get a non-zero return status we evaluate it again.
+	 * HWMI and if we get a yesn-zero return status we evaluate it again.
 	 */
 	for (i = 0; i < 2; i++) {
 		err = huawei_wmi_call(huawei, &in, &out);
@@ -327,7 +327,7 @@ static int huawei_wmi_battery_get(int *start, int *end)
 	if (err)
 		return err;
 
-	/* Find the last two non-zero values. Return status is ignored. */
+	/* Find the last two yesn-zero values. Return status is igyesred. */
 	i = 0xff;
 	do {
 		if (start)
@@ -525,7 +525,7 @@ static int huawei_wmi_fn_lock_get(int *on)
 	if (err)
 		return err;
 
-	/* Find the first non-zero value. Return status is ignored. */
+	/* Find the first yesn-zero value. Return status is igyesred. */
 	i = 1;
 	do {
 		if (on)
@@ -715,7 +715,7 @@ static void huawei_wmi_process_key(struct input_dev *idev, int code)
 
 	key = sparse_keymap_entry_from_scancode(idev, code);
 	if (!key) {
-		dev_info(&idev->dev, "Unknown key pressed, code: 0x%04x\n", code);
+		dev_info(&idev->dev, "Unkyeswn key pressed, code: 0x%04x\n", code);
 		return;
 	}
 
@@ -727,7 +727,7 @@ static void huawei_wmi_process_key(struct input_dev *idev, int code)
 	sparse_keymap_report_entry(idev, key, 1, true);
 }
 
-static void huawei_wmi_input_notify(u32 value, void *context)
+static void huawei_wmi_input_yestify(u32 value, void *context)
 {
 	struct input_dev *idev = (struct input_dev *)context;
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -764,13 +764,13 @@ static int huawei_wmi_input_setup(struct device *dev,
 
 	return sparse_keymap_setup(*idev, huawei_wmi_keymap, NULL) ||
 		input_register_device(*idev) ||
-		wmi_install_notify_handler(guid, huawei_wmi_input_notify,
+		wmi_install_yestify_handler(guid, huawei_wmi_input_yestify,
 				*idev);
 }
 
 static void huawei_wmi_input_exit(struct device *dev, const char *guid)
 {
-	wmi_remove_notify_handler(guid);
+	wmi_remove_yestify_handler(guid);
 }
 
 /* Huawei driver */
@@ -853,7 +853,7 @@ static __init int huawei_wmi_init(void)
 	if (!huawei_wmi)
 		return -ENOMEM;
 
-	quirks = &quirk_unknown;
+	quirks = &quirk_unkyeswn;
 	dmi_check_system(huawei_quirks);
 	if (battery_reset != -1)
 		quirks->battery_reset = battery_reset;

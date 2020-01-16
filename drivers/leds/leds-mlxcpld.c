@@ -1,17 +1,17 @@
 /*
  * drivers/leds/leds-mlxcpld.c
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Vadim Pasternak <vadimp@mellanox.com>
+ * Copyright (c) 2016 Mellayesx Techyeslogies. All rights reserved.
+ * Copyright (c) 2016 Vadim Pasternak <vadimp@mellayesx.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -121,7 +121,7 @@ struct mlxcpld_led_pdata {
 
 static struct mlxcpld_led_pdata *mlxcpld_led;
 
-/* Default profile fit the next Mellanox systems:
+/* Default profile fit the next Mellayesx systems:
  * "msx6710", "msx6720", "msb7700", "msn2700", "msx1410",
  * "msn2410", "msb7800", "msn2740"
  */
@@ -176,7 +176,7 @@ static struct mlxcpld_led_profile mlxcpld_led_default_profile[] = {
 	},
 };
 
-/* Profile fit the Mellanox systems based on "msn2100" */
+/* Profile fit the Mellayesx systems based on "msn2100" */
 static struct mlxcpld_led_profile mlxcpld_led_msn2100_profile[] = {
 	{
 		0x21, 0xf0, MLXCPLD_LED_GREEN_STATIC_ON, 1,
@@ -402,7 +402,7 @@ static int __init mlxcpld_led_init(void)
 	struct platform_device *pdev;
 	int err;
 
-	if (!dmi_match(DMI_CHASSIS_VENDOR, "Mellanox Technologies Ltd."))
+	if (!dmi_match(DMI_CHASSIS_VENDOR, "Mellayesx Techyeslogies Ltd."))
 		return -ENODEV;
 
 	pdev = platform_device_register_simple(KBUILD_MODNAME, -1, NULL, 0);
@@ -429,7 +429,7 @@ static void __exit mlxcpld_led_exit(void)
 module_init(mlxcpld_led_init);
 module_exit(mlxcpld_led_exit);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox board LED driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx board LED driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:leds_mlxcpld");

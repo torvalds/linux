@@ -45,7 +45,7 @@ struct avs_80211_1_header {
 	__be32 priority;
 	__be32 ssi_type;
 	__be32 ssi_signal;
-	__be32 ssi_noise;
+	__be32 ssi_yesise;
 	__be32 preamble;
 	__be32 encoding;
 };

@@ -35,12 +35,12 @@ enum dccp_state {
 	 *  c. Server performs an active-close as in (a), keeps TIMEWAIT state.
 	 *
 	 * 3) The following intermediate states are employed to give passively
-	 *    closing nodes a chance to process their unread data:
+	 *    closing yesdes a chance to process their unread data:
 	 *    - PASSIVE_CLOSE    (from OPEN => CLOSED) and
 	 *    - PASSIVE_CLOSEREQ (from (PART)OPEN to CLOSING; case (b) above).
 	 */
 	DCCP_ACTIVE_CLOSEREQ = TCP_FIN_WAIT1,
-	DCCP_PASSIVE_CLOSE   = TCP_CLOSE_WAIT,	/* any node receiving a Close */
+	DCCP_PASSIVE_CLOSE   = TCP_CLOSE_WAIT,	/* any yesde receiving a Close */
 	DCCP_CLOSING	     = TCP_CLOSING,
 	DCCP_TIME_WAIT	     = TCP_TIME_WAIT,
 	DCCP_CLOSED	     = TCP_CLOSE,
@@ -223,14 +223,14 @@ struct dccp_ackvec;
  *
  * @dccps_swl - sequence number window low
  * @dccps_swh - sequence number window high
- * @dccps_awl - acknowledgement number window low
- * @dccps_awh - acknowledgement number window high
+ * @dccps_awl - ackyeswledgement number window low
+ * @dccps_awh - ackyeswledgement number window high
  * @dccps_iss - initial sequence number sent
  * @dccps_isr - initial sequence number received
  * @dccps_osr - first OPEN sequence number received
  * @dccps_gss - greatest sequence number sent
  * @dccps_gsr - greatest valid sequence number received
- * @dccps_gar - greatest valid ack number received on a non-Sync; initialized to %dccps_iss
+ * @dccps_gar - greatest valid ack number received on a yesn-Sync; initialized to %dccps_iss
  * @dccps_service - first (passive sock) or unique (active sock) service code
  * @dccps_service_list - second .. last service code on passive socket
  * @dccps_timestamp_echo - latest timestamp received on a TIMESTAMP option

@@ -5,7 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
 #include <linux/wait.h>
@@ -123,10 +123,10 @@ static irqreturn_t venc_isr(int irq, void *arg)
 
 	if (event == (last_event & ~VENC_END_OF_FRAME)) {
 		/*
-		* If the display is non-interlaced, then we need to flag the
+		* If the display is yesn-interlaced, then we need to flag the
 		* end-of-frame event at every interrupt regardless of the
 		* value of the FIDST bit.  We can conclude that the display is
-		* non-interlaced if the value of the FIDST bit is unchanged
+		* yesn-interlaced if the value of the FIDST bit is unchanged
 		* from the previous interrupt.
 		*/
 		event |= VENC_END_OF_FRAME;
@@ -163,7 +163,7 @@ static irqreturn_t venc_isr(int irq, void *arg)
 				fid = 1;
 
 			/*
-			* If field id does not match with store
+			* If field id does yest match with store
 			* field id
 			*/
 			if (fid != layer->field_id) {
@@ -208,7 +208,7 @@ static int vpbe_buffer_prepare(struct vb2_buffer *vb)
 	addr = vb2_dma_contig_plane_dma_addr(vb, 0);
 	if (!IS_ALIGNED(addr, 8)) {
 		v4l2_err(&vpbe_dev->v4l2_dev,
-			 "buffer_prepare:offset is not aligned to 32 bytes\n");
+			 "buffer_prepare:offset is yest aligned to 32 bytes\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -447,10 +447,10 @@ vpbe_disp_calculate_scale_factor(struct vpbe_display *disp_dev,
 
 	cfg->xsize = pixfmt->width;
 	cfg->ysize = pixfmt->height;
-	layer_info->h_zoom = ZOOM_X1;	/* no horizontal zoom */
-	layer_info->v_zoom = ZOOM_X1;	/* no horizontal zoom */
-	layer_info->h_exp = H_EXP_OFF;	/* no horizontal zoom */
-	layer_info->v_exp = V_EXP_OFF;	/* no horizontal zoom */
+	layer_info->h_zoom = ZOOM_X1;	/* yes horizontal zoom */
+	layer_info->v_zoom = ZOOM_X1;	/* yes horizontal zoom */
+	layer_info->h_exp = H_EXP_OFF;	/* yes horizontal zoom */
+	layer_info->v_exp = V_EXP_OFF;	/* yes horizontal zoom */
 
 	if (pixfmt->width < expected_xsize) {
 		h_scale = vpbe_dev->current_timings.xres / pixfmt->width;
@@ -480,7 +480,7 @@ vpbe_disp_calculate_scale_factor(struct vpbe_display *disp_dev,
 		if (h_exp)
 			layer_info->h_exp = H_EXP_9_OVER_8;
 	} else {
-		/* no scaling, only cropping. Set display area to crop area */
+		/* yes scaling, only cropping. Set display area to crop area */
 		cfg->xsize = expected_xsize;
 	}
 
@@ -511,7 +511,7 @@ vpbe_disp_calculate_scale_factor(struct vpbe_display *disp_dev,
 		if (v_exp)
 			layer_info->v_exp = V_EXP_6_OVER_5;
 	} else {
-		/* no scaling, only cropping. Set display area to crop area */
+		/* yes scaling, only cropping. Set display area to crop area */
 		cfg->ysize = expected_ysize;
 	}
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,
@@ -840,7 +840,7 @@ static int vpbe_display_s_fmt(struct file *file, void *priv,
 
 		otherlayer = _vpbe_display_get_other_win_layer(disp_dev, layer);
 		/* if other layer is available, only
-		 * claim it, do not configure it
+		 * claim it, do yest configure it
 		 */
 		ret = osd_device->ops.request_layer(osd_device,
 						    otherlayer->layer_info.id);
@@ -1299,7 +1299,7 @@ static int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
 	vbd->release	= video_device_release_empty;
 	vbd->fops	= &vpbe_fops;
 	vbd->ioctl_ops	= &vpbe_ioctl_ops;
-	vbd->minor	= -1;
+	vbd->miyesr	= -1;
 	vbd->v4l2_dev   = &disp_dev->vpbe_dev->v4l2_dev;
 	vbd->lock	= &vpbe_display_layer->opslock;
 	vbd->vfl_dir	= VFL_DIR_TX;
@@ -1307,7 +1307,7 @@ static int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
 
 	if (disp_dev->vpbe_dev->current_timings.timings_type &
 			VPBE_ENC_STD)
-		vbd->tvnorms = (V4L2_STD_525_60 | V4L2_STD_625_50);
+		vbd->tvyesrms = (V4L2_STD_525_60 | V4L2_STD_625_50);
 
 	snprintf(vbd->name, sizeof(vbd->name),
 			"DaVinci_VPBE Display_DRIVER_V%d.%d.%d",

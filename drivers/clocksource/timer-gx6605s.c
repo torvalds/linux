@@ -90,7 +90,7 @@ static struct timer_of to = {
 	},
 };
 
-static u64 notrace gx6605s_sched_clock_read(void)
+static u64 yestrace gx6605s_sched_clock_read(void)
 {
 	void __iomem *base;
 
@@ -125,13 +125,13 @@ static int gx6605s_clksrc_init(void __iomem *base)
 			timer_of_rate(&to), 200, 32, clocksource_mmio_readl_up);
 }
 
-static int __init gx6605s_timer_init(struct device_node *np)
+static int __init gx6605s_timer_init(struct device_yesde *np)
 {
 	int ret;
 
 	/*
 	 * The timer driver is for nationalchip gx6605s SOC and there are two
-	 * same timer in gx6605s. We use one for clkevt and another for clksrc.
+	 * same timer in gx6605s. We use one for clkevt and ayesther for clksrc.
 	 *
 	 * The timer is mmio map to access, so we need give mmio address in dts.
 	 *

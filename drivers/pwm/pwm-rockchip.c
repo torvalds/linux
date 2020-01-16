@@ -2,7 +2,7 @@
 /*
  * PWM driver for Rockchip SoCs
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamiyes Galvani <b.galvani@gmail.com>
  * Copyright (C) 2014 ROCKCHIP, Inc.
  */
 
@@ -122,7 +122,7 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/*
 	 * Lock the period and duty of previous configuration, then
-	 * change the duty and period, that would not be effective.
+	 * change the duty and period, that would yest be effective.
 	 */
 	ctrl = readl_relaxed(pc->base + pc->data->regs.ctrl);
 	if (pc->data->supports_lock) {
@@ -320,7 +320,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		}
 	}
 
-	count = of_count_phandle_with_args(pdev->dev.of_node,
+	count = of_count_phandle_with_args(pdev->dev.of_yesde,
 					   "clocks", "#clock-cells");
 	if (count == 2)
 		pc->pclk = devm_clk_get(&pdev->dev, "pclk");
@@ -387,7 +387,7 @@ static int rockchip_pwm_remove(struct platform_device *pdev)
 	/*
 	 * Disable the PWM clk before unpreparing it if the PWM device is still
 	 * running. This should only happen when the last PWM user left it
-	 * enabled, or when nobody requested a PWM that was previously enabled
+	 * enabled, or when yesbody requested a PWM that was previously enabled
 	 * by the bootloader.
 	 *
 	 * FIXME: Maybe the core should disable all PWM devices in
@@ -414,6 +414,6 @@ static struct platform_driver rockchip_pwm_driver = {
 };
 module_platform_driver(rockchip_pwm_driver);
 
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamiyes Galvani <b.galvani@gmail.com>");
 MODULE_DESCRIPTION("Rockchip SoC PWM driver");
 MODULE_LICENSE("GPL v2");

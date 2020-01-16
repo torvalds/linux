@@ -1,4 +1,4 @@
-NEC LCD Technologies,Ltd. WQVGA TFT LCD panel
+NEC LCD Techyeslogies,Ltd. WQVGA TFT LCD panel
 
 Required properties:
 - compatible: should be "nec,nl4827hc19-05b"

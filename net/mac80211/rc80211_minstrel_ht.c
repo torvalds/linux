@@ -26,7 +26,7 @@
 /* Number of symbols for a packet with (bps) bits per symbol */
 #define MCS_NSYMS(bps) DIV_ROUND_UP(MCS_NBITS, (bps))
 
-/* Transmission time (nanoseconds) for a packet containing (syms) symbols */
+/* Transmission time (nayesseconds) for a packet containing (syms) symbols */
 #define MCS_SYMBOL_TIME(sgi, syms)					\
 	(sgi ?								\
 	  ((syms) * 18000 + 4000) / 5 :	/* syms * 3.6 us */		\
@@ -240,7 +240,7 @@ static void
 minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi);
 
 /*
- * Some VHT MCSes are invalid (when Ndbps / Nes is not an integer)
+ * Some VHT MCSes are invalid (when Ndbps / Nes is yest an integer)
  * e.g for MCS9@20MHzx1Nss: Ndbps=8x52*(5/6) Nes=1
  *
  * Returns the valid mcs map for struct minstrel_mcs_group_data.supported
@@ -350,7 +350,7 @@ minstrel_ht_get_tp_avg(struct minstrel_ht_sta *mi, int group, int rate,
 {
 	unsigned int nsecs = 0;
 
-	/* do not account throughput if sucess prob is below 10% */
+	/* do yest account throughput if sucess prob is below 10% */
 	if (prob_avg < MINSTREL_FRAC(10, 100))
 		return 0;
 
@@ -377,7 +377,7 @@ minstrel_ht_get_tp_avg(struct minstrel_ht_sta *mi, int group, int rate,
  *
  * If multiple rates provide equal throughput the sorting is based on their
  * current success probability. Higher success probability is preferred among
- * MCS groups, CCK rates do not provide aggregation and are therefore at last.
+ * MCS groups, CCK rates do yest provide aggregation and are therefore at last.
  */
 static void
 minstrel_ht_sort_best_tp_rates(struct minstrel_ht_sta *mi, u16 index,
@@ -436,7 +436,7 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 index)
 	tmp_tp_avg = minstrel_ht_get_tp_avg(mi, tmp_group, tmp_idx, tmp_prob);
 
 	/* if max_tp_rate[0] is from MCS_GROUP max_prob_rate get selected from
-	 * MCS_GROUP as well as CCK_GROUP rates do not allow aggregation */
+	 * MCS_GROUP as well as CCK_GROUP rates do yest allow aggregation */
 	max_tp_group = mi->max_tp_rate[0] / MCS_GROUP_RATES;
 	if((index / MCS_GROUP_RATES == MINSTREL_CCK_GROUP) &&
 	    (max_tp_group != MINSTREL_CCK_GROUP))
@@ -470,7 +470,7 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 index)
  * Assign new rate set per sta and use CCK rates only if the fastest
  * rate (max_tp_rate[0]) is from CCK group. This prohibits such sorted
  * rate sets where MCS and CCK rates are mixed, because CCK rates can
- * not use aggregation.
+ * yest use aggregation.
  */
 static void
 minstrel_ht_assign_best_tp_rates(struct minstrel_ht_sta *mi,
@@ -628,7 +628,7 @@ minstrel_ht_rate_sample_switch(struct minstrel_priv *mp,
 	if (!n_rates && faster_rate)
 		minstrel_ht_find_probe_rates(mi, rates, &n_rates, false);
 
-	/* If no suitable rate was found, try to pick the next one in the group */
+	/* If yes suitable rate was found, try to pick the next one in the group */
 	if (!n_rates) {
 		int g_idx = mi->max_tp_rate[0] / MCS_GROUP_RATES;
 		u16 supported = mi->supported[g_idx];
@@ -1234,7 +1234,7 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	}
 
 	/*
-	 * Sampling might add some overhead (RTS, no aggregation)
+	 * Sampling might add some overhead (RTS, yes aggregation)
 	 * to the frame. Hence, don't use sampling for the highest currently
 	 * used highest throughput or probability rate.
 	 */
@@ -1242,7 +1242,7 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		return -1;
 
 	/*
-	 * Do not sample if the probability is already higher than 95%,
+	 * Do yest sample if the probability is already higher than 95%,
 	 * or if the rate is 3 times slower than the current max probability
 	 * rate, to avoid wasting airtime.
 	 */
@@ -1253,7 +1253,7 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 
 
 	/*
-	 * For devices with no configurable multi-rate retry, skip sampling
+	 * For devices with yes configurable multi-rate retry, skip sampling
 	 * below the per-group max throughput rate, and only use one sampling
 	 * attempt per rate
 	 */
@@ -1314,7 +1314,7 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 		return;
 #endif
 
-	/* Don't use EAPOL frames for sampling on non-mrr hw */
+	/* Don't use EAPOL frames for sampling on yesn-mrr hw */
 	if (mp->hw->max_rates == 1 &&
 	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		sample_idx = -1;
@@ -1652,7 +1652,7 @@ minstrel_ht_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 	mp->cw_max = 1023;
 
 	/* number of packets (in %) to use for sampling other rates
-	 * sample less often for non-mrr packets, because the overhead
+	 * sample less often for yesn-mrr packets, because the overhead
 	 * is much higher than with mrr */
 	mp->lookaround_rate = 5;
 	mp->lookaround_rate_mrr = 10;
@@ -1663,7 +1663,7 @@ minstrel_ht_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 	if (hw->max_rate_tries > 0)
 		mp->max_retry = hw->max_rate_tries;
 	else
-		/* safe default, does not necessarily have to match hw properties */
+		/* safe default, does yest necessarily have to match hw properties */
 		mp->max_retry = 7;
 
 	if (hw->max_rates >= 4)

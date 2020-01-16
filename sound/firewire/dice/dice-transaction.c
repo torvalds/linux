@@ -129,7 +129,7 @@ void snd_dice_transaction_clear_enable(struct snd_dice *dice)
 	dice->global_enabled = false;
 }
 
-static void dice_notification(struct fw_card *card, struct fw_request *request,
+static void dice_yestification(struct fw_card *card, struct fw_request *request,
 			      int tcode, int destination, int source,
 			      int generation, unsigned long long offset,
 			      void *data, size_t length, void *callback_data)
@@ -150,7 +150,7 @@ static void dice_notification(struct fw_card *card, struct fw_request *request,
 	bits = be32_to_cpup(data);
 
 	spin_lock_irqsave(&dice->lock, flags);
-	dice->notification_bits |= bits;
+	dice->yestification_bits |= bits;
 	spin_unlock_irqrestore(&dice->lock, flags);
 
 	fw_send_response(card, request, RCODE_COMPLETE);
@@ -160,7 +160,7 @@ static void dice_notification(struct fw_card *card, struct fw_request *request,
 	wake_up(&dice->hwdep_wait);
 }
 
-static int register_notification_address(struct snd_dice *dice, bool retry)
+static int register_yestification_address(struct snd_dice *dice, bool retry)
 {
 	struct fw_device *device = fw_parent_device(dice->unit);
 	__be64 *buffer;
@@ -176,11 +176,11 @@ static int register_notification_address(struct snd_dice *dice, bool retry)
 	for (;;) {
 		buffer[0] = cpu_to_be64(OWNER_NO_OWNER);
 		buffer[1] = cpu_to_be64(
-			((u64)device->card->node_id << OWNER_NODE_SHIFT) |
-			dice->notification_handler.offset);
+			((u64)device->card->yesde_id << OWNER_NODE_SHIFT) |
+			dice->yestification_handler.offset);
 
 		dice->owner_generation = device->generation;
-		smp_rmb(); /* node_id vs. generation */
+		smp_rmb(); /* yesde_id vs. generation */
 		err = snd_fw_transaction(dice->unit, TCODE_LOCK_COMPARE_SWAP,
 					 get_subaddr(dice,
 						     SND_DICE_ADDR_TYPE_GLOBAL,
@@ -214,7 +214,7 @@ static int register_notification_address(struct snd_dice *dice, bool retry)
 	return err;
 }
 
-static void unregister_notification_address(struct snd_dice *dice)
+static void unregister_yestification_address(struct snd_dice *dice)
 {
 	struct fw_device *device = fw_parent_device(dice->unit);
 	__be64 *buffer;
@@ -224,8 +224,8 @@ static void unregister_notification_address(struct snd_dice *dice)
 		return;
 
 	buffer[0] = cpu_to_be64(
-		((u64)device->card->node_id << OWNER_NODE_SHIFT) |
-		dice->notification_handler.offset);
+		((u64)device->card->yesde_id << OWNER_NODE_SHIFT) |
+		dice->yestification_handler.offset);
 	buffer[1] = cpu_to_be64(OWNER_NO_OWNER);
 	snd_fw_transaction(dice->unit, TCODE_LOCK_COMPARE_SWAP,
 			   get_subaddr(dice, SND_DICE_ADDR_TYPE_GLOBAL,
@@ -240,12 +240,12 @@ static void unregister_notification_address(struct snd_dice *dice)
 
 void snd_dice_transaction_destroy(struct snd_dice *dice)
 {
-	struct fw_address_handler *handler = &dice->notification_handler;
+	struct fw_address_handler *handler = &dice->yestification_handler;
 
 	if (handler->callback_data == NULL)
 		return;
 
-	unregister_notification_address(dice);
+	unregister_yestification_address(dice);
 
 	fw_core_remove_address_handler(handler);
 	handler->callback_data = NULL;
@@ -253,12 +253,12 @@ void snd_dice_transaction_destroy(struct snd_dice *dice)
 
 int snd_dice_transaction_reinit(struct snd_dice *dice)
 {
-	struct fw_address_handler *handler = &dice->notification_handler;
+	struct fw_address_handler *handler = &dice->yestification_handler;
 
 	if (handler->callback_data == NULL)
 		return -EINVAL;
 
-	return register_notification_address(dice, false);
+	return register_yestification_address(dice, false);
 }
 
 static int get_subaddrs(struct snd_dice *dice)
@@ -315,7 +315,7 @@ static int get_subaddrs(struct snd_dice *dice)
 		if ((version & cpu_to_be32(0xff000000)) !=
 						cpu_to_be32(0x01000000)) {
 			dev_err(&dice->unit->device,
-				"unknown DICE version: 0x%08x\n",
+				"unkyeswn DICE version: 0x%08x\n",
 				be32_to_cpu(version));
 			err = -ENODEV;
 			goto end;
@@ -341,7 +341,7 @@ end:
 
 int snd_dice_transaction_init(struct snd_dice *dice)
 {
-	struct fw_address_handler *handler = &dice->notification_handler;
+	struct fw_address_handler *handler = &dice->yestification_handler;
 	int err;
 
 	err = get_subaddrs(dice);
@@ -350,7 +350,7 @@ int snd_dice_transaction_init(struct snd_dice *dice)
 
 	/* Allocation callback in address space over host controller */
 	handler->length = 4;
-	handler->address_callback = dice_notification;
+	handler->address_callback = dice_yestification;
 	handler->callback_data = dice;
 	err = fw_core_add_address_handler(handler, &fw_high_memory_region);
 	if (err < 0) {
@@ -359,7 +359,7 @@ int snd_dice_transaction_init(struct snd_dice *dice)
 	}
 
 	/* Register the address space */
-	err = register_notification_address(dice, true);
+	err = register_yestification_address(dice, true);
 	if (err < 0) {
 		fw_core_remove_address_handler(handler);
 		handler->callback_data = NULL;

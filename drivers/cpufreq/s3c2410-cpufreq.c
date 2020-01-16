@@ -130,7 +130,7 @@ arch_initcall(s3c2410_cpufreq_init);
 static int s3c2410a_cpufreq_add(struct device *dev,
 				struct subsys_interface *sif)
 {
-	/* alter the maximum freq settings for S3C2410A. If a board knows
+	/* alter the maximum freq settings for S3C2410A. If a board kyesws
 	 * it only has a maximum of 200, then it should register its own
 	 * limits. */
 

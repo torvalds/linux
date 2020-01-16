@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragr) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -386,7 +386,7 @@ struct nv04_gr_chan {
  *  - bit 24: patch valid [enables rendering using this object]
  *  - bit 25: surf3d valid [for tex_tri and multitex_tri only]
  * word 1:
- *  - bits 0-1: mono format
+ *  - bits 0-1: moyes format
  *  - bits 8-13: color format
  *  - bits 16-31: DMA_NOTIFY instance
  * word 2:
@@ -413,7 +413,7 @@ struct nv04_gr_chan {
  *  - bit 29: beta1 valid
  *  - bit 30: beta4 valid
  * word 1:
- *  - bits 0-1: mono format
+ *  - bits 0-1: moyes format
  *  - bits 8-13: color format
  *  - bits 16-31: DMA_NOTIFY instance
  * word 2:
@@ -424,7 +424,7 @@ struct nv04_gr_chan {
  * object-binding methods with object of the proper type, or with the NULL
  * type. It'll only allow rendering using the grobj if all needed objects
  * are bound. The needed set of objects depends on selected operation: for
- * example rop object is needed by ROP_AND, but not by SRCCOPY_AND.
+ * example rop object is needed by ROP_AND, but yest by SRCCOPY_AND.
  *
  * NV04 doesn't have these methods implemented at all, and doesn't have the
  * relevant bits in grobj. Instead, it'll allow rendering whenever bit 24
@@ -434,10 +434,10 @@ struct nv04_gr_chan {
  * purpose.
  *
  * Actually, NV05 can optionally check bit 24 too, but we disable this since
- * there's no use for it.
+ * there's yes use for it.
  *
- * For unknown reasons, NV04 implements surf3d binding in hardware as an
- * exception. Also for unknown reasons, NV04 doesn't implement the clipping
+ * For unkyeswn reasons, NV04 implements surf3d binding in hardware as an
+ * exception. Also for unkyeswn reasons, NV04 doesn't implement the clipping
  * methods on the surf3d object, so we have to emulate them too.
  */
 
@@ -479,7 +479,7 @@ nv04_gr_set_ctx_val(struct nvkm_device *device, u32 inst, u32 mask, u32 value)
 		valid = 0;
 
 	switch (op) {
-	/* SRCCOPY_AND, SRCCOPY: no extra objects required */
+	/* SRCCOPY_AND, SRCCOPY: yes extra objects required */
 	case 0:
 	case 3:
 		break;
@@ -528,7 +528,7 @@ nv04_gr_mthd_surf3d_clip_h(struct nvkm_device *device, u32 inst, u32 data)
 		/* too large */
 		return false;
 	if (w & 0x8000)
-		/* yes, it accepts negative for some reason. */
+		/* no, it accepts negative for some reason. */
 		w |= 0xffff0000;
 	max = min + w;
 	max &= 0x3ffff;
@@ -546,7 +546,7 @@ nv04_gr_mthd_surf3d_clip_v(struct nvkm_device *device, u32 inst, u32 data)
 		/* too large */
 		return false;
 	if (w & 0x8000)
-		/* yes, it accepts negative for some reason. */
+		/* no, it accepts negative for some reason. */
 		w |= 0xffff0000;
 	max = min + w;
 	max &= 0x3ffff;
@@ -745,7 +745,7 @@ nv01_gr_mthd_bind_chroma(struct nvkm_device *device, u32 inst, u32 data)
 		nv04_gr_set_ctx1(device, inst, 0x1000, 0);
 		return true;
 	/* Yes, for some reason even the old versions of objects
-	 * accept 0x57 and not 0x17. Consistency be damned.
+	 * accept 0x57 and yest 0x17. Consistency be damned.
 	 */
 	case 0x57:
 		nv04_gr_set_ctx1(device, inst, 0x1000, 0x1000);
@@ -1317,7 +1317,7 @@ nv04_gr_intr(struct nvkm_gr *base)
 				   "nstatus %08x [%s] ch %d [%s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
 			   show, msg, nsource, src, nstatus, sta, chid,
-			   chan ? chan->object.client->name : "unknown",
+			   chan ? chan->object.client->name : "unkyeswn",
 			   subc, class, mthd, data);
 	}
 

@@ -17,7 +17,7 @@
 #define PAGEMAP_BUFFERS		0x0040u
 
 #define trace_pagemap_flags(page) ( \
-	(PageAnon(page)		? PAGEMAP_ANONYMOUS  : PAGEMAP_FILE) | \
+	(PageAyesn(page)		? PAGEMAP_ANONYMOUS  : PAGEMAP_FILE) | \
 	(page_mapped(page)	? PAGEMAP_MAPPED     : 0) | \
 	(PageSwapCache(page)	? PAGEMAP_SWAPCACHE  : 0) | \
 	(PageSwapBacked(page)	? PAGEMAP_SWAPBACKED : 0) | \

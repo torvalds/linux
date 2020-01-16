@@ -21,7 +21,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/regset.h>
 #include <linux/user.h>
@@ -35,7 +35,7 @@
 #include <asm/switch_to.h>
 
 /*
- * does not yet catch signals sent when the child dies.
+ * does yest yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -263,7 +263,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		unsigned long dabr_fake;
 #endif
 		ret = -EINVAL;
-		/* We only support one DABR and no IABRS at the moment */
+		/* We only support one DABR and yes IABRS at the moment */
 		if (addr > 0)
 			break;
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS

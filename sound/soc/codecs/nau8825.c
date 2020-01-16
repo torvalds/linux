@@ -4,7 +4,7 @@
  *
  * Copyright 2015 Google Chromium project.
  *  Author: Anatol Pomozov <anatol@chromium.org>
- * Copyright 2015 Nuvoton Technology Corp.
+ * Copyright 2015 Nuvoton Techyeslogy Corp.
  *  Co-author: Meng-Huang Kuo <mhkuo@nuvoton.com>
  */
 
@@ -240,18 +240,18 @@ static const unsigned short logtable[256] = {
  * @timeout: how long in jiffies to wait before failure or zero to wait
  * until release
  *
- * Attempts to acquire the semaphore with number of jiffies. If no more
+ * Attempts to acquire the semaphore with number of jiffies. If yes more
  * tasks are allowed to acquire the semaphore, calling this function will
- * put the task to sleep. If the semaphore is not released within the
+ * put the task to sleep. If the semaphore is yest released within the
  * specified number of jiffies, this function returns.
- * If the semaphore is not released within the specified number of jiffies,
+ * If the semaphore is yest released within the specified number of jiffies,
  * this function returns -ETIME. If the sleep is interrupted by a signal,
  * this function will return -EINTR. It returns 0 if the semaphore was
  * acquired successfully.
  *
  * Acquires the semaphore without jiffies. Try to acquire the semaphore
  * atomically. Returns 0 if the semaphore has been acquired successfully
- * or 1 if it it cannot be acquired.
+ * or 1 if it it canyest be acquired.
  */
 static int nau8825_sema_acquire(struct nau8825 *nau8825, long timeout)
 {
@@ -303,7 +303,7 @@ static inline void nau8825_sema_reset(struct nau8825 *nau8825)
  * @step: the volume span to move on
  *
  * The headphone volume is from 0dB to minimum -54dB and -1dB per step.
- * If the volume changes sharp, there is a pop noise heard in headphone. We
+ * If the volume changes sharp, there is a pop yesise heard in headphone. We
  * provide the function to ramp up the volume up or down by delaying 10ms
  * per step.
  */
@@ -362,7 +362,7 @@ static u32 nau8825_intlog10_dec3(u32 value)
 	/* first detect the msb (count begins at 0) */
 	msb = fls(value) - 1;
 	/**
-	 *      now we use a logtable after the following method:
+	 *      yesw we use a logtable after the following method:
 	 *
 	 *      log2(2^x * y) * 2^24 = x * 2^24 + log2(y) * 2^24
 	 *      where x = msb and therefore 1 <= y < 2
@@ -473,13 +473,13 @@ static void nau8825_xtalk_restore(struct nau8825 *nau8825, bool cause_cancel)
 
 	/* Restore register values from backup table; When the driver restores
 	 * the headphone volume in XTALK_DONE state, it needs recover to
-	 * original level gradually with 3dB per step for less pop noise.
+	 * original level gradually with 3dB per step for less pop yesise.
 	 * Otherwise, the restore should do ASAP.
 	 */
 	for (i = 0; i < ARRAY_SIZE(nau8825_xtalk_baktab); i++) {
 		if (!cause_cancel && nau8825_xtalk_baktab[i].reg ==
 			NAU8825_REG_HSVOL_CTRL) {
-			/* Ramping up the volume change to reduce pop noise */
+			/* Ramping up the volume change to reduce pop yesise */
 			volume = nau8825_xtalk_baktab[i].def &
 				NAU8825_HPR_VOL_MASK;
 			nau8825_hpvol_ramp(nau8825, 0, volume, 3);
@@ -521,7 +521,7 @@ static void nau8825_xtalk_prepare_dac(struct nau8825 *nau8825)
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_POWER_UP_CONTROL,
 		NAU8825_POWERUP_HP_DRV_R | NAU8825_POWERUP_HP_DRV_L,
 		NAU8825_POWERUP_HP_DRV_R | NAU8825_POWERUP_HP_DRV_L);
-	/* HP outputs not shouted to ground  */
+	/* HP outputs yest shouted to ground  */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_HSD_CTRL,
 		NAU8825_SPKR_DWN1R | NAU8825_SPKR_DWN1L, 0);
 	/* Enable HP boost driver */
@@ -576,7 +576,7 @@ static void nau8825_xtalk_prepare(struct nau8825 *nau8825)
 		NAU8825_I2S_BLK_DIV_MASK, NAU8825_I2S_MS_MASTER |
 		(0x2 << NAU8825_I2S_LRC_DIV_SFT) | 0x1);
 	/* Ramp up headphone volume to 0dB to get better performance and
-	 * avoid pop noise in headphone.
+	 * avoid pop yesise in headphone.
 	 */
 	index = nau8825_xtalk_baktab_index_by_reg(NAU8825_REG_HSVOL_CTRL);
 	if (index != -EINVAL) {
@@ -680,7 +680,7 @@ static void nau8825_xtalk_imm_start(struct nau8825 *nau8825, int vol)
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_ADC_DGAIN_CTRL,
 				NAU8825_ADC_DIG_VOL_MASK, vol);
 	/* Disables JKTIP(HPL) DAC channel for right to left measurement.
-	 * Do it before sending signal in order to erase pop noise.
+	 * Do it before sending signal in order to erase pop yesise.
 	 */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_BIAS_ADJ,
 		NAU8825_BIAS_TESTDACR_EN | NAU8825_BIAS_TESTDACL_EN,
@@ -1550,7 +1550,7 @@ static void nau8825_setup_auto_irq(struct nau8825 *nau8825)
 		NAU8825_ENABLE_ADC, NAU8825_ENABLE_ADC);
 
 	/* Chip needs one FSCLK cycle in order to generate interruptions,
-	 * as we cannot guarantee one will be provided by the system. Turning
+	 * as we canyest guarantee one will be provided by the system. Turning
 	 * master mode on then off enables us to generate that FSCLK cycle
 	 * with a minimum of contention on the clock bus.
 	 */
@@ -1608,7 +1608,7 @@ static int nau8825_jack_insert(struct nau8825 *nau8825)
 
 	switch (mic_detected) {
 	case 0:
-		/* no mic */
+		/* yes mic */
 		type = SND_JACK_HEADPHONE;
 		break;
 	case 1:
@@ -1712,7 +1712,7 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 				 */
 				if (!nau8825->xtalk_protect) {
 					/* Raise protection for cross talk de-
-					 * tection if no protection before.
+					 * tection if yes protection before.
 					 * The driver has to cancel the pro-
 					 * cess and restore changes if process
 					 * is ongoing when ejection.
@@ -1740,7 +1740,7 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 				}
 			}
 		} else {
-			dev_warn(nau8825->dev, "Headset completion IRQ fired but no headset connected\n");
+			dev_warn(nau8825->dev, "Headset completion IRQ fired but yes headset connected\n");
 			nau8825_eject_jack(nau8825);
 		}
 
@@ -2011,7 +2011,7 @@ static int nau8825_calc_fll_param(unsigned int fll_in, unsigned int fs,
 	fll_param->ratio = fll_ratio[i].val;
 
 	/* Calculate the frequency of DCO (FDCO) given freq_out = 256 * Fs.
-	 * FDCO must be within the 90MHz - 124MHz or the FFL cannot be
+	 * FDCO must be within the 90MHz - 124MHz or the FFL canyest be
 	 * guaranteed across the full range of operation.
 	 * FDCO = freq_out * 2 * mclk_src_scaling
 	 */
@@ -2174,7 +2174,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 */
 		nau8825_sema_acquire(nau8825, 3 * HZ);
 		nau8825_configure_mclk_as_sysclk(regmap);
-		/* MCLK not changed by clock tree */
+		/* MCLK yest changed by clock tree */
 		regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
 			NAU8825_CLK_MCLK_SRC_MASK, 0);
 		/* Release the semaphore. */
@@ -2203,10 +2203,10 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 				NAU8825_SDM_EN, NAU8825_SDM_EN);
 		} else {
 			/* The clock turns off intentionally for power saving
-			 * when no headset connected.
+			 * when yes headset connected.
 			 */
 			nau8825_configure_mclk_as_sysclk(regmap);
-			dev_warn(nau8825->dev, "Disable clock for power saving when no headset connected\n");
+			dev_warn(nau8825->dev, "Disable clock for power saving when yes headset connected\n");
 		}
 		if (nau8825->mclk_freq) {
 			clk_disable_unprepare(nau8825->mclk);
@@ -2433,7 +2433,7 @@ static const struct snd_soc_component_driver nau8825_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static void nau8825_reset_chip(struct regmap *regmap)
@@ -2541,7 +2541,7 @@ static int nau8825_read_device_properties(struct device *dev,
 	if (PTR_ERR(nau8825->mclk) == -EPROBE_DEFER) {
 		return -EPROBE_DEFER;
 	} else if (PTR_ERR(nau8825->mclk) == -ENOENT) {
-		/* The MCLK is managed externally or not used at all */
+		/* The MCLK is managed externally or yest used at all */
 		nau8825->mclk = NULL;
 		dev_info(dev, "No 'mclk' clock found, assume MCLK is managed externally");
 	} else if (IS_ERR(nau8825->mclk)) {
@@ -2560,7 +2560,7 @@ static int nau8825_setup_irq(struct nau8825 *nau8825)
 		"nau8825", nau8825);
 
 	if (ret) {
-		dev_err(nau8825->dev, "Cannot request irq %d (%d)\n",
+		dev_err(nau8825->dev, "Canyest request irq %d (%d)\n",
 			nau8825->irq, ret);
 		return ret;
 	}

@@ -2,7 +2,7 @@
   {
     "EventName": "ic_fw32",
     "EventCode": "0x80",
-    "BriefDescription": "The number of 32B fetch windows transferred from IC pipe to DE instruction decoder (includes non-cacheable and cacheable fill responses)."
+    "BriefDescription": "The number of 32B fetch windows transferred from IC pipe to DE instruction decoder (includes yesn-cacheable and cacheable fill responses)."
   },
   {
     "EventName": "ic_fw32_miss",
@@ -17,7 +17,7 @@
   {
     "EventName": "ic_cache_fill_sys",
     "EventCode": "0x83",
-    "BriefDescription": "The number of 64 byte instruction cache line fulfilled from system memory or another cache."
+    "BriefDescription": "The number of 64 byte instruction cache line fulfilled from system memory or ayesther cache."
   },
   {
     "EventName": "bp_l1_tlb_miss_l2_hit",
@@ -32,13 +32,13 @@
   {
     "EventName": "bp_snp_re_sync",
     "EventCode": "0x86",
-    "BriefDescription": "The number of pipeline restarts caused by invalidating probes that hit on the instruction stream currently being executed. This would happen if the active instruction stream was being modified by another processor in an MP system - typically a highly unlikely event."
+    "BriefDescription": "The number of pipeline restarts caused by invalidating probes that hit on the instruction stream currently being executed. This would happen if the active instruction stream was being modified by ayesther processor in an MP system - typically a highly unlikely event."
   },
   {
     "EventName": "ic_fetch_stall.ic_stall_any",
     "EventCode": "0x87",
-    "BriefDescription": "IC pipe was stalled during this clock cycle for any reason (nothing valid in pipe ICM1).",
-    "PublicDescription": "Instruction Pipe Stall. IC pipe was stalled during this clock cycle for any reason (nothing valid in pipe ICM1).",
+    "BriefDescription": "IC pipe was stalled during this clock cycle for any reason (yesthing valid in pipe ICM1).",
+    "PublicDescription": "Instruction Pipe Stall. IC pipe was stalled during this clock cycle for any reason (yesthing valid in pipe ICM1).",
     "UMask": "0x4"
   },
   {
@@ -59,14 +59,14 @@
     "EventName": "ic_cache_inval.l2_invalidating_probe",
     "EventCode": "0x8c",
     "BriefDescription": "IC line invalidated due to L2 invalidating probe (external or LS).",
-    "PublicDescription": "The number of instruction cache lines invalidated. A non-SMC event is CMC (cross modifying code), either from the other thread of the core or another core. IC line invalidated due to L2 invalidating probe (external or LS).",
+    "PublicDescription": "The number of instruction cache lines invalidated. A yesn-SMC event is CMC (cross modifying code), either from the other thread of the core or ayesther core. IC line invalidated due to L2 invalidating probe (external or LS).",
     "UMask": "0x2"
   },
   {
     "EventName": "ic_cache_inval.fill_invalidated",
     "EventCode": "0x8c",
     "BriefDescription": "IC line invalidated due to overwriting fill response.",
-    "PublicDescription": "The number of instruction cache lines invalidated. A non-SMC event is CMC (cross modifying code), either from the other thread of the core or another core. IC line invalidated due to overwriting fill response.",
+    "PublicDescription": "The number of instruction cache lines invalidated. A yesn-SMC event is CMC (cross modifying code), either from the other thread of the core or ayesther core. IC line invalidated due to overwriting fill response.",
     "UMask": "0x1"
   },
   {
@@ -133,8 +133,8 @@
   {
     "EventName": "l2_request_g2.group1",
     "EventCode": "0x61",
-    "BriefDescription": "All Group 1 commands not in unit0.",
-    "PublicDescription": "Multi-events in that LS and IF requests can be received simultaneous. All Group 1 commands not in unit0.",
+    "BriefDescription": "All Group 1 commands yest in unit0.",
+    "PublicDescription": "Multi-events in that LS and IF requests can be received simultaneous. All Group 1 commands yest in unit0.",
     "UMask": "0x80"
   },
   {
@@ -225,56 +225,56 @@
     "EventName": "l2_cache_req_stat.ls_rd_blk_cs",
     "EventCode": "0x64",
     "BriefDescription": "LS ReadBlock C/S Hit.",
-    "PublicDescription": "This event does not count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. LS ReadBlock C/S Hit.",
+    "PublicDescription": "This event does yest count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. LS ReadBlock C/S Hit.",
     "UMask": "0x80"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_l_hit_x",
     "EventCode": "0x64",
     "BriefDescription": "LS Read Block L Hit X.",
-    "PublicDescription": "This event does not count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. LS Read Block L Hit X.",
+    "PublicDescription": "This event does yest count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. LS Read Block L Hit X.",
     "UMask": "0x40"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_l_hit_s",
     "EventCode": "0x64",
     "BriefDescription": "LsRdBlkL Hit Shared.",
-    "PublicDescription": "This event does not count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. LsRdBlkL Hit Shared.",
+    "PublicDescription": "This event does yest count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. LsRdBlkL Hit Shared.",
     "UMask": "0x20"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_x",
     "EventCode": "0x64",
     "BriefDescription": "LsRdBlkX/ChgToX Hit X.  Count RdBlkX finding Shared as a Miss.",
-    "PublicDescription": "This event does not count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. LsRdBlkX/ChgToX Hit X.  Count RdBlkX finding Shared as a Miss.",
+    "PublicDescription": "This event does yest count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. LsRdBlkX/ChgToX Hit X.  Count RdBlkX finding Shared as a Miss.",
     "UMask": "0x10"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_c",
     "EventCode": "0x64",
     "BriefDescription": "LS Read Block C S L X Change to X Miss.",
-    "PublicDescription": "This event does not count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. LS Read Block C S L X Change to X Miss.",
+    "PublicDescription": "This event does yest count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. LS Read Block C S L X Change to X Miss.",
     "UMask": "0x8"
   },
   {
     "EventName": "l2_cache_req_stat.ic_fill_hit_x",
     "EventCode": "0x64",
     "BriefDescription": "IC Fill Hit Exclusive Stale.",
-    "PublicDescription": "This event does not count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. IC Fill Hit Exclusive Stale.",
+    "PublicDescription": "This event does yest count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. IC Fill Hit Exclusive Stale.",
     "UMask": "0x4"
   },
   {
     "EventName": "l2_cache_req_stat.ic_fill_hit_s",
     "EventCode": "0x64",
     "BriefDescription": "IC Fill Hit Shared.",
-    "PublicDescription": "This event does not count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. IC Fill Hit Shared.",
+    "PublicDescription": "This event does yest count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. IC Fill Hit Shared.",
     "UMask": "0x2"
   },
   {
     "EventName": "l2_cache_req_stat.ic_fill_miss",
     "EventCode": "0x64",
     "BriefDescription": "IC Fill Miss.",
-    "PublicDescription": "This event does not count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. IC Fill Miss.",
+    "PublicDescription": "This event does yest count accesses to the L2 cache by the L2 prefetcher, but it does count accesses by the L1 prefetcher. IC Fill Miss.",
     "UMask": "0x1"
   },
   {
@@ -315,14 +315,14 @@
   {
     "EventName": "xi_sys_fill_latency",
     "EventCode": "0x90",
-    "BriefDescription": "L3 Cache Miss Latency. Total cycles for all transactions divided by 16. Ignores SliceMask and ThreadMask.",
+    "BriefDescription": "L3 Cache Miss Latency. Total cycles for all transactions divided by 16. Igyesres SliceMask and ThreadMask.",
     "UMask": "0x00",
     "Unit": "L3PMC"
   },
   {
     "EventName": "xi_ccx_sdp_req1.all_l3_miss_req_typs",
     "EventCode": "0x9a",
-    "BriefDescription": "All L3 Miss Request Types. Ignores SliceMask and ThreadMask.",
+    "BriefDescription": "All L3 Miss Request Types. Igyesres SliceMask and ThreadMask.",
     "UMask": "0x3f",
     "Unit": "L3PMC"
   }

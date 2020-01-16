@@ -193,7 +193,7 @@ static void altera_uart_set_termios(struct uart_port *port,
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	/*
-	 * FIXME: port->read_status_mask and port->ignore_status_mask
+	 * FIXME: port->read_status_mask and port->igyesre_status_mask
 	 * need to be initialized based on termios settings for
 	 * INPCK, IGNBRK, IGNPAR, PARMRK, BRKINT
 	 */
@@ -311,7 +311,7 @@ static void altera_uart_config_port(struct uart_port *port, int flags)
 {
 	port->type = PORT_ALTERA_UART;
 
-	/* Clear mask, so no surprise interrupts. */
+	/* Clear mask, so yes surprise interrupts. */
 	altera_uart_writel(port, 0, ALTERA_UART_CONTROL_REG);
 	/* Clear status register */
 	altera_uart_writel(port, 0, ALTERA_UART_STATUS_REG);
@@ -339,7 +339,7 @@ static int altera_uart_startup(struct uart_port *port)
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	/* Enable RX interrupts now */
+	/* Enable RX interrupts yesw */
 	pp->imr = ALTERA_UART_CONTROL_RRDY_MSK;
 	altera_uart_update_ctrl_reg(pp);
 
@@ -355,7 +355,7 @@ static void altera_uart_shutdown(struct uart_port *port)
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	/* Disable all interrupts now */
+	/* Disable all interrupts yesw */
 	pp->imr = 0;
 	altera_uart_update_ctrl_reg(pp);
 
@@ -515,7 +515,7 @@ static int __init altera_uart_earlycon_setup(struct earlycon_device *dev,
 	if (!port->membase)
 		return -ENODEV;
 
-	/* Enable RX interrupts now */
+	/* Enable RX interrupts yesw */
 	altera_uart_writel(port, ALTERA_UART_CONTROL_RRDY_MSK,
 			   ALTERA_UART_CONTROL_REG);
 
@@ -545,7 +545,7 @@ static struct uart_driver altera_uart_driver = {
 	.driver_name	= DRV_NAME,
 	.dev_name	= "ttyAL",
 	.major		= SERIAL_ALTERA_MAJOR,
-	.minor		= SERIAL_ALTERA_MINOR,
+	.miyesr		= SERIAL_ALTERA_MINOR,
 	.nr		= CONFIG_SERIAL_ALTERA_UART_MAXPORTS,
 	.cons		= ALTERA_UART_CONSOLE,
 };
@@ -585,11 +585,11 @@ static int altera_uart_probe(struct platform_device *pdev)
 	else if (platp)
 		port->irq = platp->irq;
 
-	/* Check platform data first so we can override device node data */
+	/* Check platform data first so we can override device yesde data */
 	if (platp)
 		port->uartclk = platp->uartclk;
 	else {
-		ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+		ret = of_property_read_u32(pdev->dev.of_yesde, "clock-frequency",
 					   &port->uartclk);
 		if (ret)
 			return ret;

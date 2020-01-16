@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -37,8 +37,8 @@
 
 enum fw_retval {
 	FW_SUCCESS		= 0,	/* completed successfully */
-	FW_EPERM		= 1,	/* operation not permitted */
-	FW_ENOENT		= 2,	/* no such file or directory */
+	FW_EPERM		= 1,	/* operation yest permitted */
+	FW_ENOENT		= 2,	/* yes such file or directory */
 	FW_EIO			= 5,	/* input/output error; hw bad */
 	FW_ENOEXEC		= 8,	/* exec format error; inv microcode */
 	FW_EAGAIN		= 11,	/* try again */
@@ -46,17 +46,17 @@ enum fw_retval {
 	FW_EFAULT		= 14,	/* bad address; fw bad */
 	FW_EBUSY		= 16,	/* resource busy */
 	FW_EEXIST		= 17,	/* file exists */
-	FW_ENODEV		= 19,	/* no such device */
+	FW_ENODEV		= 19,	/* yes such device */
 	FW_EINVAL		= 22,	/* invalid argument */
-	FW_ENOSPC		= 28,	/* no space left on device */
-	FW_ENOSYS		= 38,	/* functionality not implemented */
-	FW_ENODATA		= 61,	/* no data available */
+	FW_ENOSPC		= 28,	/* yes space left on device */
+	FW_ENOSYS		= 38,	/* functionality yest implemented */
+	FW_ENODATA		= 61,	/* yes data available */
 	FW_EPROTO		= 71,	/* protocol error */
 	FW_EADDRINUSE		= 98,	/* address already in use */
-	FW_EADDRNOTAVAIL	= 99,	/* cannot assigned requested address */
+	FW_EADDRNOTAVAIL	= 99,	/* canyest assigned requested address */
 	FW_ENETDOWN		= 100,	/* network is down */
 	FW_ENETUNREACH		= 101,	/* network is unreachable */
-	FW_ENOBUFS		= 105,	/* no buffer space available */
+	FW_ENOBUFS		= 105,	/* yes buffer space available */
 	FW_ETIMEDOUT		= 110,	/* timeout */
 	FW_EINPROGRESS		= 115,	/* fw internal */
 	FW_SCSI_ABORT_REQUESTED	= 128,	/* */
@@ -699,7 +699,7 @@ enum fw_flowc_mnem_tcpstate {
 	FW_FLOWC_MNEM_TCPSTATE_FINWAIT2 = 9, /* sent FIN and got FIN + ACK,
 					      * waiting for FIN
 					      */
-	FW_FLOWC_MNEM_TCPSTATE_TIMEWAIT = 10, /* not expected */
+	FW_FLOWC_MNEM_TCPSTATE_TIMEWAIT = 10, /* yest expected */
 };
 
 enum fw_flowc_mnem_eostate {
@@ -2571,7 +2571,7 @@ struct fw_acl_vlan_cmd {
 	__be32 op_to_vfn;
 	__be32 en_to_len16;
 	u8 nvlan;
-	u8 dropnovlan_fm;
+	u8 dropyesvlan_fm;
 	u8 r3_lo[6];
 	__be16 vlanid[16];
 };
@@ -3325,7 +3325,7 @@ struct fw_port_lb_stats_cmd {
 };
 
 enum fw_ptp_subop {
-	/* none */
+	/* yesne */
 	FW_PTP_SC_INIT_TIMER            = 0x00,
 	FW_PTP_SC_TX_TYPE               = 0x01,
 	/* init */
@@ -3861,7 +3861,7 @@ enum fw_devlog_facility {
 /* log message format */
 struct fw_devlog_e {
 	__be64	timestamp;
-	__be32	seqno;
+	__be32	seqyes;
 	__be16	reserved1;
 	__u8	level;
 	__u8	facility;

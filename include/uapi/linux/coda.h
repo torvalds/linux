@@ -30,9 +30,9 @@ CREDITS.
 
 Permission  to  use, copy, modify and distribute this software and its
 documentation is hereby granted,  provided  that  both  the  copyright
-notice  and  this  permission  notice  appear  in  all  copies  of the
+yestice  and  this  permission  yestice  appear  in  all  copies  of the
 software, derivative works or  modified  versions,  and  any  portions
-thereof, and that both notices appear in supporting documentation, and
+thereof, and that both yestices appear in supporting documentation, and
 that credit is given to Carnegie Mellon University  in  all  documents
 and publicity pertaining to direct or indirect use of this code or its
 derivatives.
@@ -75,7 +75,7 @@ Mellon the rights to redistribute these changes without encumbrance.
 typedef unsigned long u_long;
 typedef unsigned int u_int;
 typedef unsigned short u_short;
-typedef u_long ino_t;
+typedef u_long iyes_t;
 typedef u_long dev_t;
 typedef void * caddr_t;
 #ifdef DOS
@@ -86,7 +86,7 @@ typedef unsigned long long u_quad_t;
 
 #define inline
 
-#else  /* DJGPP but not KERNEL */
+#else  /* DJGPP but yest KERNEL */
 #include <sys/time.h>
 typedef unsigned long long u_quad_t;
 #endif /* !KERNEL */
@@ -149,11 +149,11 @@ typedef unsigned int	   u_int32_t;
 #ifndef _VENUS_DIRENT_T_
 #define _VENUS_DIRENT_T_ 1
 struct venus_dirent {
-        u_int32_t d_fileno;		/* file number of entry */
+        u_int32_t d_fileyes;		/* file number of entry */
         u_int16_t d_reclen;		/* length of this record */
         u_int8_t  d_type;			/* file type, see below */
         u_int8_t  d_namlen;		/* length of string in d_name */
-        char	  d_name[CODA_MAXNAMLEN + 1];/* name must be no longer than this */
+        char	  d_name[CODA_MAXNAMLEN + 1];/* name must be yes longer than this */
 };
 #undef DIRSIZ
 #define DIRSIZ(dp)      ((sizeof (struct venus_dirent) - (CODA_MAXNAMLEN+1)) + \
@@ -196,17 +196,17 @@ struct CodaFid {
 #ifndef _VENUS_VATTR_T_
 #define _VENUS_VATTR_T_
 /*
- * Vnode types.  VNON means no type.
+ * Vyesde types.  VNON means yes type.
  */
 enum coda_vtype	{ C_VNON, C_VREG, C_VDIR, C_VBLK, C_VCHR, C_VLNK, C_VSOCK, C_VFIFO, C_VBAD };
 
 struct coda_timespec {
 	int64_t		tv_sec;		/* seconds */
-	long		tv_nsec;	/* nanoseconds */
+	long		tv_nsec;	/* nayesseconds */
 };
 
 struct coda_vattr {
-	long     	va_type;	/* vnode type (for create) */
+	long     	va_type;	/* vyesde type (for create) */
 	u_short		va_mode;	/* files access mode and type */
 	short		va_nlink;	/* number of references to file */
 	vuid_t		va_uid;		/* owner user id */
@@ -327,7 +327,7 @@ struct coda_open_in {
 struct coda_open_out {
     struct coda_out_hdr oh;
     cdev_t	dev;
-    ino_t	inode;
+    iyes_t	iyesde;
 };
 
 
@@ -466,7 +466,7 @@ struct coda_remove_out {
 /* coda_link: NO_OUT */
 struct coda_link_in {
     struct coda_in_hdr ih;
-    struct CodaFid sourceFid;	/* cnode to link *to* */
+    struct CodaFid sourceFid;	/* cyesde to link *to* */
     struct CodaFid destFid;	/* Directory in which to place link */
     int tname;		/* Place holder for data. */
 };
@@ -616,7 +616,7 @@ struct coda_open_by_fd_out {
     int fd;
 
 #ifdef __KERNEL__
-    struct file *fh; /* not passed from userspace but used in-kernel only */
+    struct file *fh; /* yest passed from userspace but used in-kernel only */
 #endif
 };
 

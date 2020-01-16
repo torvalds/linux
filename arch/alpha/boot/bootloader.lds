@@ -20,6 +20,6 @@ SECTIONS
   PROVIDE (end = .);
 
   .mdebug 0 : { *(.mdebug) }
-  .note 0 : { *(.note) }
+  .yeste 0 : { *(.yeste) }
   .comment 0 : { *(.comment) }
 }

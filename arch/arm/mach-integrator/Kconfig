@@ -94,7 +94,7 @@ config INTEGRATOR_CM946ES
 config INTEGRATOR_CM966ES
 	bool "Integrator/CM966E-S core module"
 	depends on ARCH_INTEGRATOR_AP
-	depends on BROKEN # no kernel support
+	depends on BROKEN # yes kernel support
 
 config INTEGRATOR_CM10200E_REV0
 	bool "Integrator/CM10200E rev.0 core module"

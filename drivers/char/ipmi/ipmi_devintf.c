@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
@@ -84,9 +84,9 @@ static const struct ipmi_user_hndl ipmi_hndlrs =
 	.ipmi_recv_hndl	= file_receive_handler,
 };
 
-static int ipmi_open(struct inode *inode, struct file *file)
+static int ipmi_open(struct iyesde *iyesde, struct file *file)
 {
-	int                      if_num = iminor(inode);
+	int                      if_num = imiyesr(iyesde);
 	int                      rv;
 	struct ipmi_file_private *priv;
 
@@ -119,7 +119,7 @@ out:
 	return rv;
 }
 
-static int ipmi_release(struct inode *inode, struct file *file)
+static int ipmi_release(struct iyesde *iyesde, struct file *file)
 {
 	struct ipmi_file_private *priv = file->private_data;
 	int                      rv;
@@ -159,7 +159,7 @@ static int handle_send_req(struct ipmi_user *user,
 	if (!msg.data)
 		return -ENOMEM;
 
-	/* From here out we cannot return, we must jump to "out" for
+	/* From here out we canyest return, we must jump to "out" for
 	   error exits to free msgdata. */
 
 	rv = ipmi_validate_addr(&addr, req->addr_len);
@@ -209,7 +209,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 	/* We claim a mutex because we don't want two
 	   users getting something from the queue at a time.
 	   Since we have to release the spinlock before we can
-	   copy the data to the user, it's possible another
+	   copy the data to the user, it's possible ayesther
 	   user will grab something from the queue, too.  Then
 	   the messages might get out of order if something
 	   fails and the message gets put back onto the
@@ -417,7 +417,7 @@ static long ipmi_ioctl(struct file   *file,
 		break;
 	}
 
-	/* The next four are legacy, not per-channel. */
+	/* The next four are legacy, yest per-channel. */
 	case IPMICTL_SET_MY_ADDRESS_CMD:
 	{
 		unsigned int val;
@@ -785,7 +785,7 @@ static const struct file_operations ipmi_fops = {
 	.release	= ipmi_release,
 	.fasync		= ipmi_fasync,
 	.poll		= ipmi_poll,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 #define DEVICE_NAME     "ipmidev"

@@ -11,7 +11,7 @@ Required properties:
   - reg: the I2C address of the device
   - io-channels: the phandle of the iio provider
 
-  - ti,external-tia-resistor: if the property ti,tia-gain-ohm is not defined this
+  - ti,external-tia-resistor: if the property ti,tia-gain-ohm is yest defined this
     needs to be set to signal that an external resistor value is being used.
 
 Optional properties:

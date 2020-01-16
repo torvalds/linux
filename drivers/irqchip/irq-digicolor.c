@@ -3,7 +3,7 @@
  *
  * Author: Baruch Siach <baruch@tkos.co.il>
  *
- * Copyright (C) 2014 Paradox Innovation Ltd.
+ * Copyright (C) 2014 Paradox Inyesvation Ltd.
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
@@ -68,17 +68,17 @@ static void __init digicolor_set_gc(void __iomem *reg_base, unsigned irq_base,
 	gc->chip_types[0].chip.irq_unmask = irq_gc_mask_set_bit;
 }
 
-static int __init digicolor_of_init(struct device_node *node,
-				struct device_node *parent)
+static int __init digicolor_of_init(struct device_yesde *yesde,
+				struct device_yesde *parent)
 {
 	void __iomem *reg_base;
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	struct regmap *ucregs;
 	int ret;
 
-	reg_base = of_iomap(node, 0);
+	reg_base = of_iomap(yesde, 0);
 	if (!reg_base) {
-		pr_err("%pOF: unable to map IC registers\n", node);
+		pr_err("%pOF: unable to map IC registers\n", yesde);
 		return -ENXIO;
 	}
 
@@ -86,18 +86,18 @@ static int __init digicolor_of_init(struct device_node *node,
 	writel(0, reg_base + IC_INT0ENABLE_LO);
 	writel(0, reg_base + IC_INT0ENABLE_XLO);
 
-	ucregs = syscon_regmap_lookup_by_phandle(node, "syscon");
+	ucregs = syscon_regmap_lookup_by_phandle(yesde, "syscon");
 	if (IS_ERR(ucregs)) {
-		pr_err("%pOF: unable to map UC registers\n", node);
+		pr_err("%pOF: unable to map UC registers\n", yesde);
 		return PTR_ERR(ucregs);
 	}
 	/* channel 1, regular IRQs */
 	regmap_write(ucregs, UC_IRQ_CONTROL, 1);
 
 	digicolor_irq_domain =
-		irq_domain_add_linear(node, 64, &irq_generic_chip_ops, NULL);
+		irq_domain_add_linear(yesde, 64, &irq_generic_chip_ops, NULL);
 	if (!digicolor_irq_domain) {
-		pr_err("%pOF: unable to create IRQ domain\n", node);
+		pr_err("%pOF: unable to create IRQ domain\n", yesde);
 		return -ENOMEM;
 	}
 
@@ -105,7 +105,7 @@ static int __init digicolor_of_init(struct device_node *node,
 					     "digicolor_irq", handle_level_irq,
 					     clr, 0, 0);
 	if (ret) {
-		pr_err("%pOF: unable to allocate IRQ gc\n", node);
+		pr_err("%pOF: unable to allocate IRQ gc\n", yesde);
 		return ret;
 	}
 

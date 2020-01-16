@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved.
  */
 
 #include <rdma/rdma_cm.h>
@@ -80,7 +80,7 @@ void rdma_restrack_clean(struct ib_device *dev)
 					owner = e->kern_name;
 				} else {
 					/*
-					 * There is no need to call get_task_struct here,
+					 * There is yes need to call get_task_struct here,
 					 * because we can be here only if there are more
 					 * get_task_struct() call than put_task_struct().
 					 */
@@ -88,7 +88,7 @@ void rdma_restrack_clean(struct ib_device *dev)
 					owner = buf;
 				}
 
-				pr_err("restrack: %s %s object allocated by %s is not freed\n",
+				pr_err("restrack: %s %s object allocated by %s is yest freed\n",
 				       rdma_is_kernel_res(e) ? "Kernel" :
 							       "User",
 				       type2str(e->type), owner);
@@ -131,7 +131,7 @@ static void set_kern_name(struct rdma_restrack_entry *res)
 	case RDMA_RESTRACK_QP:
 		pd = container_of(res, struct ib_qp, res)->pd;
 		if (!pd) {
-			WARN_ONCE(true, "XRC QPs are not supported\n");
+			WARN_ONCE(true, "XRC QPs are yest supported\n");
 			/* Survive, despite the programmer's error */
 			res->kern_name = " ";
 		}

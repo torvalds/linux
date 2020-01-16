@@ -56,7 +56,7 @@ static void rza_wdt_calc_timeout(struct rza_wdt *priv, int timeout)
 		ticks = DIV_ROUND_UP(timeout * rate, DIVIDER_4BIT);
 
 		/*
-		 * Since max_timeout was set in probe, we know that the timeout
+		 * Since max_timeout was set in probe, we kyesw that the timeout
 		 * value passed will never calculate to a tick value greater
 		 * than 256.
 		 */
@@ -220,7 +220,7 @@ static int rza_wdt_probe(struct platform_device *pdev)
 
 	ret = devm_watchdog_register_device(dev, &priv->wdev);
 	if (ret)
-		dev_err(dev, "Cannot register watchdog device\n");
+		dev_err(dev, "Canyest register watchdog device\n");
 
 	return ret;
 }

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -156,7 +156,7 @@ nvkm_bios_new(struct nvkm_device *device, int index, struct nvkm_bios **pbios)
 		return ret;
 
 	/* Some tables have weird pointers that need adjustment before
-	 * they're dereferenced.  I'm not entirely sure why...
+	 * they're dereferenced.  I'm yest entirely sure why...
 	 */
 	if (nvbios_image(bios, idx++, &image)) {
 		bios->image0_size = image.size;
@@ -186,19 +186,19 @@ nvkm_bios_new(struct nvkm_device *device, int index, struct nvkm_bios **pbios)
 	if (!bit_entry(bios, 'i', &bit_i) && bit_i.length >= 4) {
 		bios->version.major = nvbios_rd08(bios, bit_i.offset + 3);
 		bios->version.chip  = nvbios_rd08(bios, bit_i.offset + 2);
-		bios->version.minor = nvbios_rd08(bios, bit_i.offset + 1);
+		bios->version.miyesr = nvbios_rd08(bios, bit_i.offset + 1);
 		bios->version.micro = nvbios_rd08(bios, bit_i.offset + 0);
 		bios->version.patch = nvbios_rd08(bios, bit_i.offset + 4);
 	} else
 	if (bmp_version(bios)) {
 		bios->version.major = nvbios_rd08(bios, bios->bmp_offset + 13);
 		bios->version.chip  = nvbios_rd08(bios, bios->bmp_offset + 12);
-		bios->version.minor = nvbios_rd08(bios, bios->bmp_offset + 11);
+		bios->version.miyesr = nvbios_rd08(bios, bios->bmp_offset + 11);
 		bios->version.micro = nvbios_rd08(bios, bios->bmp_offset + 10);
 	}
 
 	nvkm_info(&bios->subdev, "version %02x.%02x.%02x.%02x.%02x\n",
 		  bios->version.major, bios->version.chip,
-		  bios->version.minor, bios->version.micro, bios->version.patch);
+		  bios->version.miyesr, bios->version.micro, bios->version.patch);
 	return 0;
 }

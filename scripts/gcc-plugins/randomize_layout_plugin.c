@@ -23,8 +23,8 @@
 #error "The RANDSTRUCT plugin requires GCC 4.7 or newer."
 #endif
 
-#define ORIG_TYPE_NAME(node) \
-	(TYPE_NAME(TYPE_MAIN_VARIANT(node)) != NULL_TREE ? ((const unsigned char *)IDENTIFIER_POINTER(TYPE_NAME(TYPE_MAIN_VARIANT(node)))) : (const unsigned char *)"anonymous")
+#define ORIG_TYPE_NAME(yesde) \
+	(TYPE_NAME(TYPE_MAIN_VARIANT(yesde)) != NULL_TREE ? ((const unsigned char *)IDENTIFIER_POINTER(TYPE_NAME(TYPE_MAIN_VARIANT(yesde)))) : (const unsigned char *)"ayesnymous")
 
 #define INFORM(loc, msg, ...)	inform(loc, "randstruct: " msg, ##__VA_ARGS__)
 #define MISMATCH(loc, how, ...)	INFORM(loc, "casting between randomized structure pointer types (" how "): %qT and %qT\n", __VA_ARGS__)
@@ -35,7 +35,7 @@ static int performance_mode;
 
 static struct plugin_info randomize_layout_plugin_info = {
 	.version	= "201402201816vanilla",
-	.help		= "disable\t\t\tdo not activate plugin\n"
+	.help		= "disable\t\t\tdo yest activate plugin\n"
 			  "performance-mode\tenable cacheline-aware layout randomization\n"
 };
 
@@ -73,31 +73,31 @@ name_hash(const unsigned char *name)
 	return (unsigned int)hash;
 }
 
-static tree handle_randomize_layout_attr(tree *node, tree name, tree args, int flags, bool *no_add_attrs)
+static tree handle_randomize_layout_attr(tree *yesde, tree name, tree args, int flags, bool *yes_add_attrs)
 {
 	tree type;
 
-	*no_add_attrs = true;
-	if (TREE_CODE(*node) == FUNCTION_DECL) {
-		error("%qE attribute does not apply to functions (%qF)", name, *node);
+	*yes_add_attrs = true;
+	if (TREE_CODE(*yesde) == FUNCTION_DECL) {
+		error("%qE attribute does yest apply to functions (%qF)", name, *yesde);
 		return NULL_TREE;
 	}
 
-	if (TREE_CODE(*node) == PARM_DECL) {
-		error("%qE attribute does not apply to function parameters (%qD)", name, *node);
+	if (TREE_CODE(*yesde) == PARM_DECL) {
+		error("%qE attribute does yest apply to function parameters (%qD)", name, *yesde);
 		return NULL_TREE;
 	}
 
-	if (TREE_CODE(*node) == VAR_DECL) {
-		error("%qE attribute does not apply to variables (%qD)", name, *node);
+	if (TREE_CODE(*yesde) == VAR_DECL) {
+		error("%qE attribute does yest apply to variables (%qD)", name, *yesde);
 		return NULL_TREE;
 	}
 
-	if (TYPE_P(*node)) {
-		type = *node;
+	if (TYPE_P(*yesde)) {
+		type = *yesde;
 	} else {
-		gcc_assert(TREE_CODE(*node) == TYPE_DECL);
-		type = TREE_TYPE(*node);
+		gcc_assert(TREE_CODE(*yesde) == TYPE_DECL);
+		type = TREE_TYPE(*yesde);
 	}
 
 	if (TREE_CODE(type) != RECORD_TYPE) {
@@ -110,25 +110,25 @@ static tree handle_randomize_layout_attr(tree *node, tree name, tree args, int f
 		return NULL_TREE;
 	}
 
-	*no_add_attrs = false;
+	*yes_add_attrs = false;
 
 	return NULL_TREE;
 }
 
 /* set on complete types that we don't need to inspect further at all */
-static tree handle_randomize_considered_attr(tree *node, tree name, tree args, int flags, bool *no_add_attrs)
+static tree handle_randomize_considered_attr(tree *yesde, tree name, tree args, int flags, bool *yes_add_attrs)
 {
-	*no_add_attrs = false;
+	*yes_add_attrs = false;
 	return NULL_TREE;
 }
 
 /*
  * set on types that we've performed a shuffle on, to prevent re-shuffling
- * this does not preclude us from inspecting its fields for potential shuffles
+ * this does yest preclude us from inspecting its fields for potential shuffles
  */
-static tree handle_randomize_performed_attr(tree *node, tree name, tree args, int flags, bool *no_add_attrs)
+static tree handle_randomize_performed_attr(tree *yesde, tree name, tree args, int flags, bool *yes_add_attrs)
 {
-	*no_add_attrs = false;
+	*yes_add_attrs = false;
 	return NULL_TREE;
 }
 
@@ -341,7 +341,7 @@ static int relayout_struct(tree type)
 	gcc_assert(num_fields < INT_MAX);
 
 	if (lookup_attribute("randomize_performed", TYPE_ATTRIBUTES(type)) ||
-	    lookup_attribute("no_randomize_layout", TYPE_ATTRIBUTES(TYPE_MAIN_VARIANT(type))))
+	    lookup_attribute("yes_randomize_layout", TYPE_ATTRIBUTES(TYPE_MAIN_VARIANT(type))))
 		return 0;
 
 	/* Workaround for 3rd-party VirtualBox source that we can't modify ourselves */
@@ -373,17 +373,17 @@ static int relayout_struct(tree type)
 	shuffle(type, (tree *)newtree, shuffle_length);
 
 	/*
-	 * set up a bogus anonymous struct field designed to error out on unnamed struct initializers
-	 * as gcc provides no other way to detect such code
+	 * set up a bogus ayesnymous struct field designed to error out on unnamed struct initializers
+	 * as gcc provides yes other way to detect such code
 	 */
-	list = make_node(FIELD_DECL);
+	list = make_yesde(FIELD_DECL);
 	TREE_CHAIN(list) = newtree[0];
-	TREE_TYPE(list) = void_type_node;
-	DECL_SIZE(list) = bitsize_zero_node;
+	TREE_TYPE(list) = void_type_yesde;
+	DECL_SIZE(list) = bitsize_zero_yesde;
 	DECL_NONADDRESSABLE_P(list) = 1;
-	DECL_FIELD_BIT_OFFSET(list) = bitsize_zero_node;
-	DECL_SIZE_UNIT(list) = size_zero_node;
-	DECL_FIELD_OFFSET(list) = size_zero_node;
+	DECL_FIELD_BIT_OFFSET(list) = bitsize_zero_yesde;
+	DECL_SIZE_UNIT(list) = size_zero_yesde;
+	DECL_FIELD_OFFSET(list) = size_zero_yesde;
 	DECL_CONTEXT(list) = type;
 	// to satisfy the constify plugin
 	TREE_READONLY(list) = 1;
@@ -430,17 +430,17 @@ static bool is_fptr(const_tree fieldtype)
 }
 
 /* derived from constify plugin */
-static int is_pure_ops_struct(const_tree node)
+static int is_pure_ops_struct(const_tree yesde)
 {
 	const_tree field;
 
-	gcc_assert(TREE_CODE(node) == RECORD_TYPE || TREE_CODE(node) == UNION_TYPE);
+	gcc_assert(TREE_CODE(yesde) == RECORD_TYPE || TREE_CODE(yesde) == UNION_TYPE);
 
-	for (field = TYPE_FIELDS(node); field; field = TREE_CHAIN(field)) {
+	for (field = TYPE_FIELDS(yesde); field; field = TREE_CHAIN(field)) {
 		const_tree fieldtype = get_field_type(field);
 		enum tree_code code = TREE_CODE(fieldtype);
 
-		if (node == fieldtype)
+		if (yesde == fieldtype)
 			continue;
 
 		if (code == RECORD_TYPE || code == UNION_TYPE) {
@@ -491,7 +491,7 @@ static void update_decl_size(tree decl)
 		return;
 
 	init = DECL_INITIAL(decl);
-	if (init == NULL_TREE || init == error_mark_node)
+	if (init == NULL_TREE || init == error_mark_yesde)
 		return;
 
 	if (TREE_CODE(init) != CONSTRUCTOR)
@@ -519,7 +519,7 @@ static void update_decl_size(tree decl)
 	flexsize = bitsize_int(TREE_STRING_LENGTH(lastval) *
 		tree_to_uhwi(TYPE_SIZE(TREE_TYPE(TREE_TYPE(lastval)))));
 
-	DECL_SIZE(decl) = size_binop(PLUS_EXPR, TYPE_SIZE(type), flexsize);
+	DECL_SIZE(decl) = size_biyesp(PLUS_EXPR, TYPE_SIZE(type), flexsize);
 
 	return;
 }
@@ -530,7 +530,7 @@ static void randomize_layout_finish_decl(void *event_data, void *data)
 	tree decl = (tree)event_data;
 	tree type;
 
-	if (decl == NULL_TREE || decl == error_mark_node)
+	if (decl == NULL_TREE || decl == error_mark_yesde)
 		return;
 
 	type = TREE_TYPE(decl);
@@ -557,7 +557,7 @@ static void finish_type(void *event_data, void *data)
 {
 	tree type = (tree)event_data;
 
-	if (type == NULL_TREE || type == error_mark_node)
+	if (type == NULL_TREE || type == error_mark_yesde)
 		return;
 
 	if (TREE_CODE(type) != RECORD_TYPE)
@@ -581,7 +581,7 @@ static void finish_type(void *event_data, void *data)
 }
 
 static struct attribute_spec randomize_layout_attr = { };
-static struct attribute_spec no_randomize_layout_attr = { };
+static struct attribute_spec yes_randomize_layout_attr = { };
 static struct attribute_spec randomize_considered_attr = { };
 static struct attribute_spec randomize_performed_attr = { };
 
@@ -594,11 +594,11 @@ static void register_attributes(void *event_data, void *data)
 	randomize_layout_attr.affects_type_identity = true;
 #endif
 
-	no_randomize_layout_attr.name		= "no_randomize_layout";
-	no_randomize_layout_attr.type_required	= true;
-	no_randomize_layout_attr.handler	= handle_randomize_layout_attr;
+	yes_randomize_layout_attr.name		= "yes_randomize_layout";
+	yes_randomize_layout_attr.type_required	= true;
+	yes_randomize_layout_attr.handler	= handle_randomize_layout_attr;
 #if BUILDING_GCC_VERSION >= 4007
-	no_randomize_layout_attr.affects_type_identity = true;
+	yes_randomize_layout_attr.affects_type_identity = true;
 #endif
 
 	randomize_considered_attr.name		= "randomize_considered";
@@ -610,7 +610,7 @@ static void register_attributes(void *event_data, void *data)
 	randomize_performed_attr.handler	= handle_randomize_performed_attr;
 
 	register_attribute(&randomize_layout_attr);
-	register_attribute(&no_randomize_layout_attr);
+	register_attribute(&yes_randomize_layout_attr);
 	register_attribute(&randomize_considered_attr);
 	register_attribute(&randomize_performed_attr);
 }
@@ -628,7 +628,7 @@ static void check_bad_casts_in_constructor(tree var, tree init)
 		}
 
 		/* pipacs' plugin creates franken-arrays that differ from those produced by
-		   normal code which all have valid 'field' trees. work around this */
+		   yesrmal code which all have valid 'field' trees. work around this */
 		if (field == NULL_TREE)
 			continue;
 		field_type = TREE_TYPE(field);
@@ -643,7 +643,7 @@ static void check_bad_casts_in_constructor(tree var, tree init)
 		field_type = TYPE_MAIN_VARIANT(strip_array_types(TYPE_MAIN_VARIANT(TREE_TYPE(field_type))));
 		val_type = TYPE_MAIN_VARIANT(strip_array_types(TYPE_MAIN_VARIANT(TREE_TYPE(val_type))));
 
-		if (field_type == void_type_node)
+		if (field_type == void_type_yesde)
 			continue;
 		if (field_type == val_type)
 			continue;
@@ -659,11 +659,11 @@ static void check_bad_casts_in_constructor(tree var, tree init)
 /* derived from the constify plugin */
 static void check_global_variables(void *event_data, void *data)
 {
-	struct varpool_node *node;
+	struct varpool_yesde *yesde;
 	tree init;
 
-	FOR_EACH_VARIABLE(node) {
-		tree var = NODE_DECL(node);
+	FOR_EACH_VARIABLE(yesde) {
+		tree var = NODE_DECL(yesde);
 		init = DECL_INITIAL(var);
 		if (init == NULL_TREE)
 			continue;
@@ -761,7 +761,7 @@ static bool type_name_eq(gimple stmt, const_tree type_tree, const char *wanted_n
 		if (TYPE_PRECISION(type_tree) == CHAR_TYPE_SIZE)
 			type_name = "char";
 		else {
-			INFORM(gimple_location(stmt), "found non-char INTEGER_TYPE cast comparison: %qT\n", type_tree);
+			INFORM(gimple_location(stmt), "found yesn-char INTEGER_TYPE cast comparison: %qT\n", type_tree);
 			debug_tree(type_tree);
 			return false;
 		}
@@ -771,7 +771,7 @@ static bool type_name_eq(gimple stmt, const_tree type_tree, const char *wanted_n
 			type_name = "void *";
 			break;
 		} else {
-			INFORM(gimple_location(stmt), "found non-void POINTER_TYPE cast comparison %qT\n", type_tree);
+			INFORM(gimple_location(stmt), "found yesn-void POINTER_TYPE cast comparison %qT\n", type_tree);
 			debug_tree(type_tree);
 			return false;
 		}
@@ -863,10 +863,10 @@ static unsigned int find_bad_casts_execute(void)
 			ptr_lhs_type = TYPE_MAIN_VARIANT(strip_array_types(TYPE_MAIN_VARIANT(TREE_TYPE(lhs_type))));
 			ptr_rhs_type = TYPE_MAIN_VARIANT(strip_array_types(TYPE_MAIN_VARIANT(TREE_TYPE(rhs_type))));
 
-			if (ptr_rhs_type == void_type_node)
+			if (ptr_rhs_type == void_type_yesde)
 				continue;
 
-			if (ptr_lhs_type == void_type_node)
+			if (ptr_lhs_type == void_type_yesde)
 				continue;
 
 			if (dominated_by_is_err(rhs1, bb))
@@ -952,7 +952,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 	}
 
 	if (strncmp(lang_hooks.name, "GNU C", 5) && !strncmp(lang_hooks.name, "GNU C+", 6)) {
-		inform(UNKNOWN_LOCATION, G_("%s supports C only, not %s"), plugin_name, lang_hooks.name);
+		inform(UNKNOWN_LOCATION, G_("%s supports C only, yest %s"), plugin_name, lang_hooks.name);
 		enable = false;
 	}
 
@@ -965,7 +965,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 			performance_mode = 1;
 			continue;
 		}
-		error(G_("unknown option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
+		error(G_("unkyeswn option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
 	}
 
 	if (strlen(randstruct_seed) != 64) {

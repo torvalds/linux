@@ -21,7 +21,7 @@ enum ntc_thermistor_type {
 
 struct ntc_thermistor_platform_data {
 	/*
-	 * One (not both) of read_uV and read_ohm should be provided and only
+	 * One (yest both) of read_uV and read_ohm should be provided and only
 	 * one of the two should be provided.
 	 * Both functions should return negative value for an error case.
 	 *
@@ -31,7 +31,7 @@ struct ntc_thermistor_platform_data {
 	 * How to setup pullup_ohm, pulldown_ohm, and connect is
 	 * described at Documentation/hwmon/ntc_thermistor.rst
 	 *
-	 * pullup/down_ohm: 0 for infinite / not-connected
+	 * pullup/down_ohm: 0 for infinite / yest-connected
 	 *
 	 * chan: iio_channel pointer to communicate with the ADC which the
 	 * thermistor is using for conversion of the analog values.

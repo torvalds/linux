@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -70,7 +70,7 @@ struct agp_region32 {
 struct agp_allocate32 {
 	compat_int_t key;		/* tag of allocation            */
 	compat_size_t pg_count;	/* number of pages              */
-	u32 type;		/* 0 == normal, other devspec   */
+	u32 type;		/* 0 == yesrmal, other devspec   */
 	u32 physical;           /* device specific (some devices
 				 * need a phys address of the
 				 * actual page behind the gatt

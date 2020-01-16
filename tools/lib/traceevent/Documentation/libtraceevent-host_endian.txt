@@ -44,7 +44,7 @@ The _endian_ argument is the endianness:
 
 RETURN VALUE
 ------------
-The _tep_is_bigendian()_ function returns non zero if the endianness of the
+The _tep_is_bigendian()_ function returns yesn zero if the endianness of the
 machine, executing the code, is big endian and zero otherwise.
 
 The _tep_is_local_bigendian()_ function returns true, if the endianness of the
@@ -89,7 +89,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

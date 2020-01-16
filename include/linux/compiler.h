@@ -17,14 +17,14 @@
 void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 			  int expect, int is_constant);
 
-#define likely_notrace(x)	__builtin_expect(!!(x), 1)
-#define unlikely_notrace(x)	__builtin_expect(!!(x), 0)
+#define likely_yestrace(x)	__builtin_expect(!!(x), 1)
+#define unlikely_yestrace(x)	__builtin_expect(!!(x), 0)
 
 #define __branch_check__(x, expect, is_constant) ({			\
 			long ______r;					\
 			static struct ftrace_likely_data		\
 				__aligned(4)				\
-				__section(_ftrace_annotated_branch)	\
+				__section(_ftrace_anyestated_branch)	\
 				______f = {				\
 				.data.func = __func__,			\
 				.data.file = __FILE__,			\
@@ -37,7 +37,7 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 		})
 
 /*
- * Using __builtin_constant_p(x) to ignore cases where the return
+ * Using __builtin_constant_p(x) to igyesre cases where the return
  * value is always the same.  This idea is taken from a similar patch
  * written by Daniel Walker.
  */
@@ -97,15 +97,15 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 /*
  * These macros help objtool understand GCC code flow for unreachable code.
  * The __COUNTER__ based labels are a hack to make each instance of the macros
- * unique, to convince GCC not to merge duplicate inline asm statements.
+ * unique, to convince GCC yest to merge duplicate inline asm statements.
  */
-#define annotate_reachable() ({						\
+#define anyestate_reachable() ({						\
 	asm volatile("%c0:\n\t"						\
 		     ".pushsection .discard.reachable\n\t"		\
 		     ".long %c0b - .\n\t"				\
 		     ".popsection\n\t" : : "i" (__COUNTER__));		\
 })
-#define annotate_unreachable() ({					\
+#define anyestate_unreachable() ({					\
 	asm volatile("%c0:\n\t"						\
 		     ".pushsection .discard.unreachable\n\t"		\
 		     ".long %c0b - .\n\t"				\
@@ -117,13 +117,13 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 	".long 999b - .\n\t"						\
 	".popsection\n\t"
 
-/* Annotate a C jump table to allow objtool to follow the code flow */
-#define __annotate_jump_table __section(.rodata..c_jump_table)
+/* Anyestate a C jump table to allow objtool to follow the code flow */
+#define __anyestate_jump_table __section(.rodata..c_jump_table)
 
 #else
-#define annotate_reachable()
-#define annotate_unreachable()
-#define __annotate_jump_table
+#define anyestate_reachable()
+#define anyestate_unreachable()
+#define __anyestate_jump_table
 #endif
 
 #ifndef ASM_UNREACHABLE
@@ -131,14 +131,14 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 #endif
 #ifndef unreachable
 # define unreachable() do {		\
-	annotate_unreachable();		\
+	anyestate_unreachable();		\
 	__builtin_unreachable();	\
 } while (0)
 #endif
 
 /*
  * KENTRY - kernel entry point
- * This can be used to annotate symbols (functions or data) that are used
+ * This can be used to anyestate symbols (functions or data) that are used
  * without their linker symbol being referenced explicitly. For example,
  * interrupt vector handlers, or functions in the kernel image that are found
  * programatically.
@@ -148,7 +148,7 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
  *
  * KENTRY can be avoided if the symbols in question are marked as KEEP() in the
  * linker script. For example an architecture could KEEP() its entire
- * boot/exception vector code rather than annotate each function and data.
+ * boot/exception vector code rather than anyestate each function and data.
  */
 #ifndef KENTRY
 # define KENTRY(sym)						\
@@ -201,18 +201,18 @@ void __read_once_size(const volatile void *p, void *res, int size)
 
 #ifdef CONFIG_KASAN
 /*
- * We can't declare function 'inline' because __no_sanitize_address confilcts
+ * We can't declare function 'inline' because __yes_sanitize_address confilcts
  * with inlining. Attempt to inline it may cause a build failure.
  * 	https://gcc.gnu.org/bugzilla/show_bug.cgi?id=67368
- * '__maybe_unused' allows us to avoid defined-but-not-used warnings.
+ * '__maybe_unused' allows us to avoid defined-but-yest-used warnings.
  */
-# define __no_kasan_or_inline __no_sanitize_address notrace __maybe_unused
+# define __yes_kasan_or_inline __yes_sanitize_address yestrace __maybe_unused
 #else
-# define __no_kasan_or_inline __always_inline
+# define __yes_kasan_or_inline __always_inline
 #endif
 
-static __no_kasan_or_inline
-void __read_once_size_nocheck(const volatile void *p, void *res, int size)
+static __yes_kasan_or_inline
+void __read_once_size_yescheck(const volatile void *p, void *res, int size)
 {
 	__READ_ONCE_SIZE;
 }
@@ -248,8 +248,8 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  *
  * Their two major use cases are: (1) Mediating communication between
  * process-level code and irq/NMI handlers, all running on the same CPU,
- * and (2) Ensuring that the compiler does not fold, spindle, or otherwise
- * mutilate accesses that either do not require ordering or that interact
+ * and (2) Ensuring that the compiler does yest fold, spindle, or otherwise
+ * mutilate accesses that either do yest require ordering or that interact
  * with an explicit memory barrier or atomic instruction that provides the
  * required ordering.
  */
@@ -262,7 +262,7 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 	if (check)							\
 		__read_once_size(&(x), __u.__c, sizeof(x));		\
 	else								\
-		__read_once_size_nocheck(&(x), __u.__c, sizeof(x));	\
+		__read_once_size_yescheck(&(x), __u.__c, sizeof(x));	\
 	smp_read_barrier_depends(); /* Enforce dependency ordering from x */ \
 	__u.__val;							\
 })
@@ -274,7 +274,7 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  */
 #define READ_ONCE_NOCHECK(x) __READ_ONCE(x, 0)
 
-static __no_kasan_or_inline
+static __yes_kasan_or_inline
 unsigned long read_word_at_a_time(const void *addr)
 {
 	kasan_check_read(addr, 1);
@@ -312,7 +312,7 @@ static inline void *offset_to_ptr(const int *off)
 
 #endif /* __ASSEMBLY__ */
 
-/* Compile time object size, -1 for unknown */
+/* Compile time object size, -1 for unkyeswn */
 #ifndef __compiletime_object_size
 # define __compiletime_object_size(obj) -1
 #endif

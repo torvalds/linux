@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2018 Linaro Ltd.
  *
- * Author: Stanimir Varbanov <stanimir.varbanov@linaro.org>
+ * Author: Stanimir Varbayesv <stanimir.varbayesv@linaro.org>
  */
 #include <linux/bitops.h>
 #include <linux/kernel.h>

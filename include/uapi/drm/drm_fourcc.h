@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -56,7 +56,7 @@ extern "C" {
  * vendor-namespaced, and as such the relationship between a fourcc code and a
  * modifier is specific to the modifer being used. For example, some modifiers
  * may preserve meaning - such as number of planes - from the fourcc code,
- * whereas others may not.
+ * whereas others may yest.
  *
  * Vendors should document their modifier usage in as much detail as
  * possible, to ensure maximum compatibility across devices, drivers and
@@ -204,14 +204,14 @@ extern "C" {
  * 1-plane YUV 4:2:0
  * In these formats, the component ordering is specified (Y, followed by U
  * then V), but the exact Linear layout is undefined.
- * These formats can only be used with a non-Linear modifier.
+ * These formats can only be used with a yesn-Linear modifier.
  */
 #define DRM_FORMAT_YUV420_8BIT	fourcc_code('Y', 'U', '0', '8')
 #define DRM_FORMAT_YUV420_10BIT	fourcc_code('Y', 'U', '1', '0')
 
 /*
  * 2 plane RGB + A
- * index 0 = RGB plane, same format as the corresponding non _A8 format has
+ * index 0 = RGB plane, same format as the corresponding yesn _A8 format has
  * index 1 = A plane, [7:0] A
  */
 #define DRM_FORMAT_XRGB8888_A8	fourcc_code('X', 'R', 'A', '8')
@@ -234,8 +234,8 @@ extern "C" {
 #define DRM_FORMAT_NV21		fourcc_code('N', 'V', '2', '1') /* 2x2 subsampled Cb:Cr plane */
 #define DRM_FORMAT_NV16		fourcc_code('N', 'V', '1', '6') /* 2x1 subsampled Cr:Cb plane */
 #define DRM_FORMAT_NV61		fourcc_code('N', 'V', '6', '1') /* 2x1 subsampled Cb:Cr plane */
-#define DRM_FORMAT_NV24		fourcc_code('N', 'V', '2', '4') /* non-subsampled Cr:Cb plane */
-#define DRM_FORMAT_NV42		fourcc_code('N', 'V', '4', '2') /* non-subsampled Cb:Cr plane */
+#define DRM_FORMAT_NV24		fourcc_code('N', 'V', '2', '4') /* yesn-subsampled Cr:Cb plane */
+#define DRM_FORMAT_NV42		fourcc_code('N', 'V', '4', '2') /* yesn-subsampled Cb:Cr plane */
 
 /*
  * 2 plane YCbCr MSB aligned
@@ -282,8 +282,8 @@ extern "C" {
 #define DRM_FORMAT_YVU420	fourcc_code('Y', 'V', '1', '2') /* 2x2 subsampled Cr (1) and Cb (2) planes */
 #define DRM_FORMAT_YUV422	fourcc_code('Y', 'U', '1', '6') /* 2x1 subsampled Cb (1) and Cr (2) planes */
 #define DRM_FORMAT_YVU422	fourcc_code('Y', 'V', '1', '6') /* 2x1 subsampled Cr (1) and Cb (2) planes */
-#define DRM_FORMAT_YUV444	fourcc_code('Y', 'U', '2', '4') /* non-subsampled Cb (1) and Cr (2) planes */
-#define DRM_FORMAT_YVU444	fourcc_code('Y', 'V', '2', '4') /* non-subsampled Cr (1) and Cb (2) planes */
+#define DRM_FORMAT_YUV444	fourcc_code('Y', 'U', '2', '4') /* yesn-subsampled Cb (1) and Cr (2) planes */
+#define DRM_FORMAT_YVU444	fourcc_code('Y', 'V', '2', '4') /* yesn-subsampled Cr (1) and Cb (2) planes */
 
 
 /*
@@ -337,8 +337,8 @@ extern "C" {
 /*
  * Linear Layout
  *
- * Just plain linear layout. Note that this is different from no specifying any
- * modifier (e.g. not setting DRM_MODE_FB_MODIFIERS in the DRM_ADDFB2 ioctl),
+ * Just plain linear layout. Note that this is different from yes specifying any
+ * modifier (e.g. yest setting DRM_MODE_FB_MODIFIERS in the DRM_ADDFB2 ioctl),
  * which tells the driver to also take driver-internal information into account
  * and so might actually result in a tiled framebuffer.
  */
@@ -354,7 +354,7 @@ extern "C" {
  * a platform-dependent stride. On top of that the memory can apply
  * platform-depending swizzling of some higher address bits into bit6.
  *
- * This format is highly platforms specific and not useful for cross-driver
+ * This format is highly platforms specific and yest useful for cross-driver
  * sharing. It exists since on a given platform it does uniquely identify the
  * layout in a simple way for i915-specific userspace.
  */
@@ -369,7 +369,7 @@ extern "C" {
  * memory can apply platform-depending swizzling of some higher address bits
  * into bit6.
  *
- * This format is highly platforms specific and not useful for cross-driver
+ * This format is highly platforms specific and yest useful for cross-driver
  * sharing. It exists since on a given platform it does uniquely identify the
  * layout in a simple way for i915-specific userspace.
  */
@@ -399,12 +399,12 @@ extern "C" {
  *
  * Each CCS tile matches a 1024x512 pixel area of the main surface.
  * To match certain aspects of the 3D hardware the CCS is
- * considered to be made up of normal 128Bx32 Y tiles, Thus
+ * considered to be made up of yesrmal 128Bx32 Y tiles, Thus
  * the CCS pitch must be specified in multiples of 128 bytes.
  *
  * In reality the CCS tile appears to be a 64Bx64 Y tile, composed
  * of QWORD (8 bytes) chunks instead of OWORD (16 bytes) chunks.
- * But that fact is not relevant unless the memory is accessed
+ * But that fact is yest relevant unless the memory is accessed
  * directly.
  */
 #define I915_FORMAT_MOD_Y_TILED_CCS	fourcc_mod_code(INTEL, 4)
@@ -474,7 +474,7 @@ extern "C" {
  *
  * Same as the 4x4 tiling layout, except every second 4x4 pixel tile starts at a
  * different base address. Offsets from the base addresses are therefore halved
- * compared to the non-split tiled layout.
+ * compared to the yesn-split tiled layout.
  */
 #define DRM_FORMAT_MOD_VIVANTE_SPLIT_TILED	fourcc_mod_code(VIVANTE, 3)
 
@@ -483,7 +483,7 @@ extern "C" {
  *
  * Same as the 64x64 super-tiling layout, except every second 4x4 pixel tile
  * starts at a different base address. Offsets from the base addresses are
- * therefore halved compared to the non-split super-tiled layout.
+ * therefore halved compared to the yesn-split super-tiled layout.
  */
 #define DRM_FORMAT_MOD_VIVANTE_SPLIT_SUPER_TILED fourcc_mod_code(VIVANTE, 4)
 
@@ -591,7 +591,7 @@ extern "C" {
  * Note that the column height for this format modifier is the same
  * for all of the planes, assuming that each column contains both Y
  * and UV.  Some SAND-using hardware stores UV in a separate tiled
- * image from Y to reduce the column height, which is not supported
+ * image from Y to reduce the column height, which is yest supported
  * with these modifiers.
  */
 
@@ -626,11 +626,11 @@ extern "C" {
  * bank.
  *
  * To calculate the padding, it is assumed that each hardware block
- * and the software driving it knows the platform's SDRAM page size,
+ * and the software driving it kyesws the platform's SDRAM page size,
  * number of banks, and XOR address, and that it's identical between
  * all blocks using the format.  This tiling modifier will use XOR as
  * necessary to reduce the padding.  If a hardware block can't do XOR,
- * the assumption is that a no-XOR tiling modifier will be created.
+ * the assumption is that a yes-XOR tiling modifier will be created.
  */
 #define DRM_FORMAT_MOD_BROADCOM_UIF fourcc_mod_code(BROADCOM, 6)
 
@@ -651,7 +651,7 @@ extern "C" {
 
 /*
  * The top 4 bits (out of the 56 bits alloted for specifying vendor specific
- * modifiers) denote the category for modifiers. Currently we have only two
+ * modifiers) deyeste the category for modifiers. Currently we have only two
  * categories of modifiers ie AFBC and MISC. We can have a maximum of sixteen
  * different categories.
  */
@@ -716,7 +716,7 @@ extern "C" {
  * AFBC copy-block restrict
  *
  * Buffers with this flag must obey the copy-block restriction. The restriction
- * is such that there are no copy-blocks referring across the border of 8x8
+ * is such that there are yes copy-blocks referring across the border of 8x8
  * blocks. For the subsampled data the 8x8 limitation is also subsampled.
  */
 #define AFBC_FORMAT_MOD_CBR     (1ULL <<  7)

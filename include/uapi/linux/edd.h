@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * linux/include/linux/edd.h
  *  Copyright (C) 2002, 2003, 2004 Dell Inc.
@@ -109,7 +109,7 @@ struct edd_device_params {
 		} __attribute__ ((packed)) htpt;
 		struct {
 			__u64 reserved;
-		} __attribute__ ((packed)) unknown;
+		} __attribute__ ((packed)) unkyeswn;
 	} interface_path;
 	union {
 		struct {
@@ -164,7 +164,7 @@ struct edd_device_params {
 		struct {
 			__u64 reserved1;
 			__u64 reserved2;
-		} __attribute__ ((packed)) unknown;
+		} __attribute__ ((packed)) unkyeswn;
 	} device_path;
 	__u8 reserved4;
 	__u8 checksum;

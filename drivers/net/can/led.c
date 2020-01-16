@@ -65,7 +65,7 @@ static void can_led_release(struct device *gendev, void *res)
 
 /* Register CAN LED triggers for a CAN device
  *
- * This is normally called from a driver's probe function
+ * This is yesrmally called from a driver's probe function
  */
 void devm_can_led_init(struct net_device *netdev)
 {
@@ -74,7 +74,7 @@ void devm_can_led_init(struct net_device *netdev)
 
 	res = devres_alloc(can_led_release, 0, GFP_KERNEL);
 	if (!res) {
-		netdev_err(netdev, "cannot register LED triggers\n");
+		netdev_err(netdev, "canyest register LED triggers\n");
 		return;
 	}
 
@@ -96,11 +96,11 @@ void devm_can_led_init(struct net_device *netdev)
 }
 EXPORT_SYMBOL_GPL(devm_can_led_init);
 
-/* NETDEV rename notifier to rename the associated led triggers too */
-static int can_led_notifier(struct notifier_block *nb, unsigned long msg,
+/* NETDEV rename yestifier to rename the associated led triggers too */
+static int can_led_yestifier(struct yestifier_block *nb, unsigned long msg,
 			    void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_yestifier_info_to_dev(ptr);
 	struct can_priv *priv = safe_candev_priv(netdev);
 	char name[CAN_LED_NAME_SZ];
 
@@ -124,17 +124,17 @@ static int can_led_notifier(struct notifier_block *nb, unsigned long msg,
 	return NOTIFY_DONE;
 }
 
-/* notifier block for netdevice event */
-static struct notifier_block can_netdev_notifier __read_mostly = {
-	.notifier_call = can_led_notifier,
+/* yestifier block for netdevice event */
+static struct yestifier_block can_netdev_yestifier __read_mostly = {
+	.yestifier_call = can_led_yestifier,
 };
 
-int __init can_led_notifier_init(void)
+int __init can_led_yestifier_init(void)
 {
-	return register_netdevice_notifier(&can_netdev_notifier);
+	return register_netdevice_yestifier(&can_netdev_yestifier);
 }
 
-void __exit can_led_notifier_exit(void)
+void __exit can_led_yestifier_exit(void)
 {
-	unregister_netdevice_notifier(&can_netdev_notifier);
+	unregister_netdevice_yestifier(&can_netdev_yestifier);
 }

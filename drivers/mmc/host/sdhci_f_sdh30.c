@@ -130,7 +130,7 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if (dev_of_node(dev)) {
+	if (dev_of_yesde(dev)) {
 		sdhci_get_of_property(pdev);
 
 		priv->clk_iface = devm_clk_get(&pdev->dev, "iface");

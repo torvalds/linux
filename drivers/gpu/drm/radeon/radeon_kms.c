@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -89,7 +89,7 @@ done_free:
  * @flags: device flags
  *
  * This is the main load function for KMS (all asics).
- * It calls radeon_device_init() to set up the non-display
+ * It calls radeon_device_init() to set up the yesn-display
  * parts of the chip (asic init, CP, writeback, etc.), and
  * radeon_modeset_init() to set up the display parts
  * (crtcs, encoders, hotplug detect, etc.).
@@ -134,7 +134,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	}
 
 	/* Again modeset_init should fail only on fatal error
-	 * otherwise it should provide enough functionalities
+	 * otherwise it should provide eyesugh functionalities
 	 * for shadowfb to run
 	 */
 	r = radeon_modeset_init(rdev);
@@ -142,7 +142,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		dev_err(&dev->pdev->dev, "Fatal error during modeset init\n");
 
 	/* Call ACPI methods: require modeset init
-	 * but failure is not fatal
+	 * but failure is yest fatal
 	 */
 	if (!r) {
 		acpi_status = radeon_acpi_init(rdev);
@@ -261,7 +261,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			}
 		}
 		if (!found) {
-			DRM_DEBUG_KMS("unknown crtc id %d\n", *value);
+			DRM_DEBUG_KMS("unkyeswn crtc id %d\n", *value);
 			return -EINVAL;
 		}
 		break;
@@ -391,13 +391,13 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		}
 		break;
 	case RADEON_INFO_VA_START:
-		/* this is where we report if vm is supported or not */
+		/* this is where we report if vm is supported or yest */
 		if (rdev->family < CHIP_CAYMAN)
 			return -EINVAL;
 		*value = RADEON_VA_RESERVED_SIZE;
 		break;
 	case RADEON_INFO_IB_VM_MAX_SIZE:
-		/* this is where we report if vm is supported or not */
+		/* this is where we report if vm is supported or yest */
 		if (rdev->family < CHIP_CAYMAN)
 			return -EINVAL;
 		*value = RADEON_IB_VM_MAX_SIZE;
@@ -600,7 +600,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 
 /*
- * Outdated mess for old drm with Xorg being in charge (void function now).
+ * Outdated mess for old drm with Xorg being in charge (void function yesw).
  */
 /**
  * radeon_driver_lastclose_kms - drm callback for last close
@@ -756,7 +756,7 @@ u32 radeon_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 		return -EINVAL;
 	}
 
-	/* The hw increments its frame counter at start of vsync, not at start
+	/* The hw increments its frame counter at start of vsync, yest at start
 	 * of vblank, as is required by DRM core vblank counter handling.
 	 * Cook the hw count here to make it appear to the caller as if it
 	 * incremented at start of vblank. We measure distance to start of
@@ -770,11 +770,11 @@ u32 radeon_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 		 */
 		do {
 			count = radeon_get_vblank_counter(rdev, pipe);
-			/* Ask radeon_get_crtc_scanoutpos to return vpos as
+			/* Ask radeon_get_crtc_scayesutpos to return vpos as
 			 * distance to start of vblank, instead of regular
-			 * vertical scanout pos.
+			 * vertical scayesut pos.
 			 */
-			stat = radeon_get_crtc_scanoutpos(
+			stat = radeon_get_crtc_scayesutpos(
 				dev, pipe, GET_DISTANCE_TO_VBLANKSTART,
 				&vpos, &hpos, NULL, NULL,
 				&rdev->mode_info.crtcs[pipe]->base.hwmode);

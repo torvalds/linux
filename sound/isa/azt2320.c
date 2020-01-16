@@ -61,7 +61,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable azt2320 based soundcard.");
 
 struct snd_card_azt2320 {
-	int dev_no;
+	int dev_yes;
 	struct pnp_dev *dev;
 	struct pnp_dev *devmpu;
 	struct snd_wss *chip;
@@ -223,14 +223,14 @@ static int snd_card_azt2320_probe(int dev,
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_AZT2320,
 				mpu_port[dev], 0,
 				mpu_irq[dev], NULL) < 0)
-			snd_printk(KERN_ERR PFX "no MPU-401 device at 0x%lx\n", mpu_port[dev]);
+			snd_printk(KERN_ERR PFX "yes MPU-401 device at 0x%lx\n", mpu_port[dev]);
 	}
 
 	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_opl3_create(card,
 				    fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_AUTO, 0, &opl3) < 0) {
-			snd_printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx\n",
+			snd_printk(KERN_ERR PFX "yes OPL device at 0x%lx-0x%lx\n",
 				   fm_port[dev], fm_port[dev] + 2);
 		} else {
 			if ((error = snd_opl3_timer_new(opl3, 1, 2)) < 0) {
@@ -326,7 +326,7 @@ static int __init alsa_card_azt2320_init(void)
 	if (!azt2320_devices) {
 		pnp_unregister_card_driver(&azt2320_pnpc_driver);
 #ifdef MODULE
-		snd_printk(KERN_ERR "no AZT2320 based soundcards found\n");
+		snd_printk(KERN_ERR "yes AZT2320 based soundcards found\n");
 #endif
 		return -ENODEV;
 	}

@@ -45,9 +45,9 @@ struct tegra_gmi {
 	struct clk *clk;
 	struct reset_control *rst;
 
-	u32 snor_config;
-	u32 snor_timing0;
-	u32 snor_timing1;
+	u32 syesr_config;
+	u32 syesr_timing0;
+	u32 syesr_timing1;
 };
 
 static int tegra_gmi_enable(struct tegra_gmi *gmi)
@@ -64,11 +64,11 @@ static int tegra_gmi_enable(struct tegra_gmi *gmi)
 	usleep_range(2000, 4000);
 	reset_control_deassert(gmi->rst);
 
-	writel(gmi->snor_timing0, gmi->base + TEGRA_GMI_TIMING0);
-	writel(gmi->snor_timing1, gmi->base + TEGRA_GMI_TIMING1);
+	writel(gmi->syesr_timing0, gmi->base + TEGRA_GMI_TIMING0);
+	writel(gmi->syesr_timing1, gmi->base + TEGRA_GMI_TIMING1);
 
-	gmi->snor_config |= TEGRA_GMI_CONFIG_GO;
-	writel(gmi->snor_config, gmi->base + TEGRA_GMI_CONFIG);
+	gmi->syesr_config |= TEGRA_GMI_CONFIG_GO;
+	writel(gmi->syesr_config, gmi->base + TEGRA_GMI_CONFIG);
 
 	return 0;
 }
@@ -88,13 +88,13 @@ static void tegra_gmi_disable(struct tegra_gmi *gmi)
 
 static int tegra_gmi_parse_dt(struct tegra_gmi *gmi)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	u32 property, ranges[4];
 	int err;
 
-	child = of_get_next_available_child(gmi->dev->of_node, NULL);
+	child = of_get_next_available_child(gmi->dev->of_yesde, NULL);
 	if (!child) {
-		dev_err(gmi->dev, "no child nodes found\n");
+		dev_err(gmi->dev, "yes child yesdes found\n");
 		return -ENODEV;
 	}
 
@@ -103,29 +103,29 @@ static int tegra_gmi_parse_dt(struct tegra_gmi *gmi)
 	 * chip-select address decoding. Which means that we only have one
 	 * chip-select line from the GMI controller.
 	 */
-	if (of_get_child_count(gmi->dev->of_node) > 1)
+	if (of_get_child_count(gmi->dev->of_yesde) > 1)
 		dev_warn(gmi->dev, "only one child device is supported.");
 
-	if (of_property_read_bool(child, "nvidia,snor-data-width-32bit"))
-		gmi->snor_config |= TEGRA_GMI_BUS_WIDTH_32BIT;
+	if (of_property_read_bool(child, "nvidia,syesr-data-width-32bit"))
+		gmi->syesr_config |= TEGRA_GMI_BUS_WIDTH_32BIT;
 
-	if (of_property_read_bool(child, "nvidia,snor-mux-mode"))
-		gmi->snor_config |= TEGRA_GMI_MUX_MODE;
+	if (of_property_read_bool(child, "nvidia,syesr-mux-mode"))
+		gmi->syesr_config |= TEGRA_GMI_MUX_MODE;
 
-	if (of_property_read_bool(child, "nvidia,snor-rdy-active-before-data"))
-		gmi->snor_config |= TEGRA_GMI_RDY_BEFORE_DATA;
+	if (of_property_read_bool(child, "nvidia,syesr-rdy-active-before-data"))
+		gmi->syesr_config |= TEGRA_GMI_RDY_BEFORE_DATA;
 
-	if (of_property_read_bool(child, "nvidia,snor-rdy-active-high"))
-		gmi->snor_config |= TEGRA_GMI_RDY_ACTIVE_HIGH;
+	if (of_property_read_bool(child, "nvidia,syesr-rdy-active-high"))
+		gmi->syesr_config |= TEGRA_GMI_RDY_ACTIVE_HIGH;
 
-	if (of_property_read_bool(child, "nvidia,snor-adv-active-high"))
-		gmi->snor_config |= TEGRA_GMI_ADV_ACTIVE_HIGH;
+	if (of_property_read_bool(child, "nvidia,syesr-adv-active-high"))
+		gmi->syesr_config |= TEGRA_GMI_ADV_ACTIVE_HIGH;
 
-	if (of_property_read_bool(child, "nvidia,snor-oe-active-high"))
-		gmi->snor_config |= TEGRA_GMI_OE_ACTIVE_HIGH;
+	if (of_property_read_bool(child, "nvidia,syesr-oe-active-high"))
+		gmi->syesr_config |= TEGRA_GMI_OE_ACTIVE_HIGH;
 
-	if (of_property_read_bool(child, "nvidia,snor-cs-active-high"))
-		gmi->snor_config |= TEGRA_GMI_CS_ACTIVE_HIGH;
+	if (of_property_read_bool(child, "nvidia,syesr-cs-active-high"))
+		gmi->syesr_config |= TEGRA_GMI_CS_ACTIVE_HIGH;
 
 	/* Decode the CS# */
 	err = of_property_read_u32_array(child, "ranges", ranges, 4);
@@ -138,14 +138,14 @@ static int tegra_gmi_parse_dt(struct tegra_gmi *gmi)
 		}
 
 		/*
-		 * If we reach here it means that the child node has an empty
-		 * ranges or it does not exist at all. Attempt to decode the
+		 * If we reach here it means that the child yesde has an empty
+		 * ranges or it does yest exist at all. Attempt to decode the
 		 * CS# from the reg property instead.
 		 */
 		err = of_property_read_u32(child, "reg", &property);
 		if (err < 0) {
 			dev_err(gmi->dev,
-				"failed to decode CS: no reg property found\n");
+				"failed to decode CS: yes reg property found\n");
 			goto error_cs;
 		}
 	} else {
@@ -159,46 +159,46 @@ static int tegra_gmi_parse_dt(struct tegra_gmi *gmi)
 		goto error_cs;
 	}
 
-	gmi->snor_config |= TEGRA_GMI_CS_SELECT(property);
+	gmi->syesr_config |= TEGRA_GMI_CS_SELECT(property);
 
 	/* The default values that are provided below are reset values */
-	if (!of_property_read_u32(child, "nvidia,snor-muxed-width", &property))
-		gmi->snor_timing0 |= TEGRA_GMI_MUXED_WIDTH(property);
+	if (!of_property_read_u32(child, "nvidia,syesr-muxed-width", &property))
+		gmi->syesr_timing0 |= TEGRA_GMI_MUXED_WIDTH(property);
 	else
-		gmi->snor_timing0 |= TEGRA_GMI_MUXED_WIDTH(1);
+		gmi->syesr_timing0 |= TEGRA_GMI_MUXED_WIDTH(1);
 
-	if (!of_property_read_u32(child, "nvidia,snor-hold-width", &property))
-		gmi->snor_timing0 |= TEGRA_GMI_HOLD_WIDTH(property);
+	if (!of_property_read_u32(child, "nvidia,syesr-hold-width", &property))
+		gmi->syesr_timing0 |= TEGRA_GMI_HOLD_WIDTH(property);
 	else
-		gmi->snor_timing0 |= TEGRA_GMI_HOLD_WIDTH(1);
+		gmi->syesr_timing0 |= TEGRA_GMI_HOLD_WIDTH(1);
 
-	if (!of_property_read_u32(child, "nvidia,snor-adv-width", &property))
-		gmi->snor_timing0 |= TEGRA_GMI_ADV_WIDTH(property);
+	if (!of_property_read_u32(child, "nvidia,syesr-adv-width", &property))
+		gmi->syesr_timing0 |= TEGRA_GMI_ADV_WIDTH(property);
 	else
-		gmi->snor_timing0 |= TEGRA_GMI_ADV_WIDTH(1);
+		gmi->syesr_timing0 |= TEGRA_GMI_ADV_WIDTH(1);
 
-	if (!of_property_read_u32(child, "nvidia,snor-ce-width", &property))
-		gmi->snor_timing0 |= TEGRA_GMI_CE_WIDTH(property);
+	if (!of_property_read_u32(child, "nvidia,syesr-ce-width", &property))
+		gmi->syesr_timing0 |= TEGRA_GMI_CE_WIDTH(property);
 	else
-		gmi->snor_timing0 |= TEGRA_GMI_CE_WIDTH(4);
+		gmi->syesr_timing0 |= TEGRA_GMI_CE_WIDTH(4);
 
-	if (!of_property_read_u32(child, "nvidia,snor-we-width", &property))
-		gmi->snor_timing1 |= TEGRA_GMI_WE_WIDTH(property);
+	if (!of_property_read_u32(child, "nvidia,syesr-we-width", &property))
+		gmi->syesr_timing1 |= TEGRA_GMI_WE_WIDTH(property);
 	else
-		gmi->snor_timing1 |= TEGRA_GMI_WE_WIDTH(1);
+		gmi->syesr_timing1 |= TEGRA_GMI_WE_WIDTH(1);
 
-	if (!of_property_read_u32(child, "nvidia,snor-oe-width", &property))
-		gmi->snor_timing1 |= TEGRA_GMI_OE_WIDTH(property);
+	if (!of_property_read_u32(child, "nvidia,syesr-oe-width", &property))
+		gmi->syesr_timing1 |= TEGRA_GMI_OE_WIDTH(property);
 	else
-		gmi->snor_timing1 |= TEGRA_GMI_OE_WIDTH(1);
+		gmi->syesr_timing1 |= TEGRA_GMI_OE_WIDTH(1);
 
-	if (!of_property_read_u32(child, "nvidia,snor-wait-width", &property))
-		gmi->snor_timing1 |= TEGRA_GMI_WAIT_WIDTH(property);
+	if (!of_property_read_u32(child, "nvidia,syesr-wait-width", &property))
+		gmi->syesr_timing1 |= TEGRA_GMI_WAIT_WIDTH(property);
 	else
-		gmi->snor_timing1 |= TEGRA_GMI_WAIT_WIDTH(3);
+		gmi->syesr_timing1 |= TEGRA_GMI_WAIT_WIDTH(3);
 
 error_cs:
-	of_node_put(child);
+	of_yesde_put(child);
 	return err;
 }
 
@@ -222,13 +222,13 @@ static int tegra_gmi_probe(struct platform_device *pdev)
 
 	gmi->clk = devm_clk_get(dev, "gmi");
 	if (IS_ERR(gmi->clk)) {
-		dev_err(dev, "can not get clock\n");
+		dev_err(dev, "can yest get clock\n");
 		return PTR_ERR(gmi->clk);
 	}
 
 	gmi->rst = devm_reset_control_get(dev, "gmi");
 	if (IS_ERR(gmi->rst)) {
-		dev_err(dev, "can not get reset\n");
+		dev_err(dev, "can yest get reset\n");
 		return PTR_ERR(gmi->rst);
 	}
 
@@ -240,7 +240,7 @@ static int tegra_gmi_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	err = of_platform_default_populate(dev->of_node, NULL, dev);
+	err = of_platform_default_populate(dev->of_yesde, NULL, dev);
 	if (err < 0) {
 		dev_err(dev, "fail to create devices.\n");
 		tegra_gmi_disable(gmi);

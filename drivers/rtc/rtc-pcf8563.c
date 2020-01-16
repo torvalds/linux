@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * An I2C driver for the Philips PCF8563 RTC
- * Copyright 2005-06 Tower Technologies
+ * Copyright 2005-06 Tower Techyeslogies
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  * Maintainers: http://www.nslu2-linux.org/
@@ -71,7 +71,7 @@ struct pcf8563 {
 	 * century. When the year digit data overflows from 99 to 00,
 	 * this bit is set. By presetting it to 0 while still in the
 	 * 20th century, it will be set in year 2000, ...
-	 * There seems no reliable way to know how the system use this
+	 * There seems yes reliable way to kyesw how the system use this
 	 * bit.  So let's do it heuristically, assuming we are live in
 	 * 1970...2069.
 	 */
@@ -210,7 +210,7 @@ static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (buf[PCF8563_REG_SC] & PCF8563_SC_LV) {
 		pcf8563->voltage_low = 1;
 		dev_err(&client->dev,
-			"low voltage detected, date/time is not reliable.\n");
+			"low voltage detected, date/time is yest reliable.\n");
 		return -EINVAL;
 	}
 
@@ -230,7 +230,7 @@ static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_wday = buf[PCF8563_REG_DW] & 0x07;
 	tm->tm_mon = bcd2bin(buf[PCF8563_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
 	tm->tm_year = bcd2bin(buf[PCF8563_REG_YR]) + 100;
-	/* detect the polarity heuristically. see note above. */
+	/* detect the polarity heuristically. see yeste above. */
 	pcf8563->c_polarity = (buf[PCF8563_REG_MO] & PCF8563_MO_C) ?
 		(tm->tm_year >= 100) : (tm->tm_year < 100);
 
@@ -285,7 +285,7 @@ static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long
 	switch (cmd) {
 	case RTC_VL_READ:
 		if (pcf8563->voltage_low)
-			dev_info(dev, "low voltage detected, date/time is not reliable.\n");
+			dev_info(dev, "low voltage detected, date/time is yest reliable.\n");
 
 		if (copy_to_user((void __user *)arg, &pcf8563->voltage_low,
 					sizeof(int)))
@@ -294,8 +294,8 @@ static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long
 	case RTC_VL_CLR:
 		/*
 		 * Clear the VL bit in the seconds register in case
-		 * the time has not been set already (which would
-		 * have cleared it). This does not really matter
+		 * the time has yest been set already (which would
+		 * have cleared it). This does yest really matter
 		 * because of the cached voltage_low value but do it
 		 * anyway for consistency.
 		 */
@@ -352,7 +352,7 @@ static int pcf8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 	unsigned char buf[4];
 	int err;
 
-	/* The alarm has no seconds, round up to nearest minute */
+	/* The alarm has yes seconds, round up to nearest minute */
 	if (tm->time.tm_sec) {
 		time64_t alarm_time = rtc_tm_to_time64(&tm->time);
 
@@ -503,7 +503,7 @@ static const struct clk_ops pcf8563_clkout_ops = {
 static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 {
 	struct i2c_client *client = pcf8563->client;
-	struct device_node *node = client->dev.of_node;
+	struct device_yesde *yesde = client->dev.of_yesde;
 	struct clk *clk;
 	struct clk_init_data init;
 	int ret;
@@ -523,13 +523,13 @@ static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 	pcf8563->clkout_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string(node, "clock-output-names", &init.name);
+	of_property_read_string(yesde, "clock-output-names", &init.name);
 
 	/* register the clock */
 	clk = devm_clk_register(&client->dev, &pcf8563->clkout_hw);
 
 	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 
 	return clk;
 }

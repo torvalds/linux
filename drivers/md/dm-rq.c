@@ -99,7 +99,7 @@ static void end_clone_bio(struct bio *clone)
 		return;
 	else if (error) {
 		/*
-		 * Don't notice the error to the upper layer yet.
+		 * Don't yestice the error to the upper layer yet.
 		 * The error handling decision is made by the target driver,
 		 * when the request is completed.
 		 */
@@ -115,7 +115,7 @@ static void end_clone_bio(struct bio *clone)
 
 	/*
 	 * Update the original request.
-	 * Do not use blk_mq_end_request() here, because it may complete
+	 * Do yest use blk_mq_end_request() here, because it may complete
 	 * the original request before the clone, and break the ordering.
 	 */
 	if (is_last)
@@ -292,7 +292,7 @@ static void dm_complete_request(struct request *rq, blk_status_t error)
 }
 
 /*
- * Complete the not-mapped clone and the original request with the error status
+ * Complete the yest-mapped clone and the original request with the error status
  * through softirq context.
  * Target's rq_end_io() function isn't called.
  * This may be used when the target's clone_and_map_rq() function fails.
@@ -469,7 +469,7 @@ static void dm_start_request(struct mapped_device *md, struct request *orig)
 }
 
 static int dm_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
-			      unsigned int hctx_idx, unsigned int numa_node)
+			      unsigned int hctx_idx, unsigned int numa_yesde)
 {
 	struct mapped_device *md = set->driver_data;
 	struct dm_rq_target_io *tio = blk_mq_rq_to_pdu(rq);
@@ -540,13 +540,13 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
 	struct dm_target *immutable_tgt;
 	int err;
 
-	md->tag_set = kzalloc_node(sizeof(struct blk_mq_tag_set), GFP_KERNEL, md->numa_node_id);
+	md->tag_set = kzalloc_yesde(sizeof(struct blk_mq_tag_set), GFP_KERNEL, md->numa_yesde_id);
 	if (!md->tag_set)
 		return -ENOMEM;
 
 	md->tag_set->ops = &dm_mq_ops;
 	md->tag_set->queue_depth = dm_get_blk_mq_queue_depth();
-	md->tag_set->numa_node = md->numa_node_id;
+	md->tag_set->numa_yesde = md->numa_yesde_id;
 	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
 	md->tag_set->nr_hw_queues = dm_get_blk_mq_nr_hw_queues();
 	md->tag_set->driver_data = md;

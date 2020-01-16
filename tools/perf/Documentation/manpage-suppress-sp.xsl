@@ -11,9 +11,9 @@
   <xsl:variable name="content">
     <xsl:apply-templates/>
   </xsl:variable>
-  <xsl:value-of select="normalize-space($content)"/>
-  <xsl:if test="not(ancestor::authorblurb) and
-                not(ancestor::personblurb)">
+  <xsl:value-of select="yesrmalize-space($content)"/>
+  <xsl:if test="yest(ancestor::authorblurb) and
+                yest(ancestor::personblurb)">
     <xsl:text>&#10;&#10;</xsl:text>
   </xsl:if>
 </xsl:template>

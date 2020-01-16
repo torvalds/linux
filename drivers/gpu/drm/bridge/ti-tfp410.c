@@ -5,7 +5,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/fwnode.h>
+#include <linux/fwyesde.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
@@ -75,7 +75,7 @@ static int tfp410_get_modes(struct drm_connector *connector)
 
 fallback:
 	/* No EDID, fallback on the XGA standard modes */
-	ret = drm_add_modes_noedid(connector, 1920, 1200);
+	ret = drm_add_modes_yesedid(connector, 1920, 1200);
 
 	/* And prefer a mode pretty much anything can handle */
 	drm_set_preferred_mode(connector, 1024, 768);
@@ -106,7 +106,7 @@ tfp410_connector_detect(struct drm_connector *connector, bool force)
 			return connector_status_disconnected;
 	}
 
-	return connector_status_unknown;
+	return connector_status_unkyeswn;
 }
 
 static const struct drm_connector_funcs tfp410_con_funcs = {
@@ -203,7 +203,7 @@ static const struct drm_bridge_timings tfp410_default_timings = {
 static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 {
 	struct drm_bridge_timings *timings = &dvi->timings;
-	struct device_node *ep;
+	struct device_yesde *ep;
 	u32 pclk_sample = 0;
 	u32 bus_width = 24;
 	s32 deskew = 0;
@@ -220,18 +220,18 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 		return 0;
 
 	/*
-	 * In non-I2C mode, timings are configured through the BSEL, DSEL, DKEN
+	 * In yesn-I2C mode, timings are configured through the BSEL, DSEL, DKEN
 	 * and EDGE pins. They are specified in DT through endpoint properties
 	 * and vendor-specific properties.
 	 */
-	ep = of_graph_get_endpoint_by_regs(dvi->dev->of_node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(dvi->dev->of_yesde, 0, 0);
 	if (!ep)
 		return -EINVAL;
 
 	/* Get the sampling edge from the endpoint. */
 	of_property_read_u32(ep, "pclk-sample", &pclk_sample);
 	of_property_read_u32(ep, "bus-width", &bus_width);
-	of_node_put(ep);
+	of_yesde_put(ep);
 
 	timings->input_bus_flags = DRM_BUS_FLAG_DE_HIGH;
 
@@ -260,7 +260,7 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 	}
 
 	/* Get the setup and hold time from vendor-specific properties. */
-	of_property_read_u32(dvi->dev->of_node, "ti,deskew", (u32 *)&deskew);
+	of_property_read_u32(dvi->dev->of_yesde, "ti,deskew", (u32 *)&deskew);
 	if (deskew < -4 || deskew > 3)
 		return -EINVAL;
 
@@ -272,20 +272,20 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 
 static int tfp410_get_connector_properties(struct tfp410 *dvi)
 {
-	struct device_node *connector_node, *ddc_phandle;
+	struct device_yesde *connector_yesde, *ddc_phandle;
 	int ret = 0;
 
-	/* port@1 is the connector node */
-	connector_node = of_graph_get_remote_node(dvi->dev->of_node, 1, -1);
-	if (!connector_node)
+	/* port@1 is the connector yesde */
+	connector_yesde = of_graph_get_remote_yesde(dvi->dev->of_yesde, 1, -1);
+	if (!connector_yesde)
 		return -ENODEV;
 
-	if (of_device_is_compatible(connector_node, "hdmi-connector"))
+	if (of_device_is_compatible(connector_yesde, "hdmi-connector"))
 		dvi->connector_type = DRM_MODE_CONNECTOR_HDMIA;
 	else
 		dvi->connector_type = DRM_MODE_CONNECTOR_DVID;
 
-	dvi->hpd = fwnode_gpiod_get_index(&connector_node->fwnode,
+	dvi->hpd = fwyesde_gpiod_get_index(&connector_yesde->fwyesde,
 					  "hpd", 0, GPIOD_IN, "hpd");
 	if (IS_ERR(dvi->hpd)) {
 		ret = PTR_ERR(dvi->hpd);
@@ -296,20 +296,20 @@ static int tfp410_get_connector_properties(struct tfp410 *dvi)
 			goto fail;
 	}
 
-	ddc_phandle = of_parse_phandle(connector_node, "ddc-i2c-bus", 0);
+	ddc_phandle = of_parse_phandle(connector_yesde, "ddc-i2c-bus", 0);
 	if (!ddc_phandle)
 		goto fail;
 
-	dvi->ddc = of_get_i2c_adapter_by_node(ddc_phandle);
+	dvi->ddc = of_get_i2c_adapter_by_yesde(ddc_phandle);
 	if (dvi->ddc)
 		dev_info(dvi->dev, "Connector's ddc i2c bus found\n");
 	else
 		ret = -EPROBE_DEFER;
 
-	of_node_put(ddc_phandle);
+	of_yesde_put(ddc_phandle);
 
 fail:
-	of_node_put(connector_node);
+	of_yesde_put(connector_yesde);
 	return ret;
 }
 
@@ -318,7 +318,7 @@ static int tfp410_init(struct device *dev, bool i2c)
 	struct tfp410 *dvi;
 	int ret;
 
-	if (!dev->of_node) {
+	if (!dev->of_yesde) {
 		dev_err(dev, "device-tree data is missing\n");
 		return -ENXIO;
 	}
@@ -329,7 +329,7 @@ static int tfp410_init(struct device *dev, bool i2c)
 	dev_set_drvdata(dev, dvi);
 
 	dvi->bridge.funcs = &tfp410_bridge_funcs;
-	dvi->bridge.of_node = dev->of_node;
+	dvi->bridge.of_yesde = dev->of_yesde;
 	dvi->bridge.timings = &dvi->timings;
 	dvi->dev = dev;
 
@@ -419,14 +419,14 @@ static struct platform_driver tfp410_platform_driver = {
 };
 
 #if IS_ENABLED(CONFIG_I2C)
-/* There is currently no i2c functionality. */
+/* There is currently yes i2c functionality. */
 static int tfp410_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
 	int reg;
 
-	if (!client->dev.of_node ||
-	    of_property_read_u32(client->dev.of_node, "reg", &reg)) {
+	if (!client->dev.of_yesde ||
+	    of_property_read_u32(client->dev.of_yesde, "reg", &reg)) {
 		dev_err(&client->dev,
 			"Can't get i2c reg property from device-tree\n");
 		return -ENXIO;

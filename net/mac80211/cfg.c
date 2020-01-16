@@ -40,7 +40,7 @@ static void ieee80211_set_mu_mimo_follow(struct ieee80211_sub_if_data *sdata,
 		memcpy(sdata->vif.bss_conf.mu_group.position,
 		       params->vht_mumimo_groups + WLAN_MEMBERSHIP_LEN,
 		       WLAN_USER_POSITION_LEN);
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_MU_GROUPS);
+		ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_MU_GROUPS);
 		/* don't care about endianness - just check for 0 */
 		memcpy(&membership, params->vht_mumimo_groups,
 		       WLAN_MEMBERSHIP_LEN);
@@ -87,7 +87,7 @@ static int ieee80211_set_mon_options(struct ieee80211_sub_if_data *sdata,
 	    (params->vht_mumimo_groups || params->vht_mumimo_follow_addr))
 		return -EOPNOTSUPP;
 
-	/* apply all changes now - no failures allowed */
+	/* apply all changes yesw - yes failures allowed */
 
 	if (monitor_sdata)
 		ieee80211_set_mu_mimo_follow(monitor_sdata, params);
@@ -339,13 +339,13 @@ static void ieee80211_del_nan_func(struct wiphy *wiphy,
 		drv_del_nan_func(sdata->local, sdata, instance_id);
 }
 
-static int ieee80211_set_noack_map(struct wiphy *wiphy,
+static int ieee80211_set_yesack_map(struct wiphy *wiphy,
 				  struct net_device *dev,
-				  u16 noack_map)
+				  u16 yesack_map)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	sdata->noack_map = noack_map;
+	sdata->yesack_map = yesack_map;
 
 	ieee80211_check_fast_xmit_iface(sdata);
 
@@ -465,7 +465,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 			key->conf.flags |= IEEE80211_KEY_FLAG_RX_MGMT;
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		/* no MFP (yet) */
+		/* yes MFP (yet) */
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 #ifdef CONFIG_MAC80211_MESH
@@ -903,7 +903,7 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 	if (!new)
 		return -ENOMEM;
 
-	/* start filling the new info now */
+	/* start filling the new info yesw */
 
 	/*
 	 * pointers go into the block we allocated,
@@ -1025,10 +1025,10 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	/*
 	 * Apply control port protocol, this allows us to
-	 * not encrypt dynamic WEP control frames.
+	 * yest encrypt dynamic WEP control frames.
 	 */
 	sdata->control_port_protocol = params->crypto.control_port_ethertype;
-	sdata->control_port_no_encrypt = params->crypto.control_port_no_encrypt;
+	sdata->control_port_yes_encrypt = params->crypto.control_port_yes_encrypt;
 	sdata->control_port_over_nl80211 =
 				params->crypto.control_port_over_nl80211;
 	sdata->encrypt_headroom = ieee80211_cs_headroom(sdata->local,
@@ -1038,8 +1038,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
 		vlan->control_port_protocol =
 			params->crypto.control_port_ethertype;
-		vlan->control_port_no_encrypt =
-			params->crypto.control_port_no_encrypt;
+		vlan->control_port_yes_encrypt =
+			params->crypto.control_port_yes_encrypt;
 		vlan->control_port_over_nl80211 =
 			params->crypto.control_port_over_nl80211;
 		vlan->encrypt_headroom =
@@ -1062,12 +1062,12 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->vif.bss_conf.hidden_ssid =
 		(params->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE);
 
-	memset(&sdata->vif.bss_conf.p2p_noa_attr, 0,
-	       sizeof(sdata->vif.bss_conf.p2p_noa_attr));
-	sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow =
+	memset(&sdata->vif.bss_conf.p2p_yesa_attr, 0,
+	       sizeof(sdata->vif.bss_conf.p2p_yesa_attr));
+	sdata->vif.bss_conf.p2p_yesa_attr.oppps_ctwindow =
 		params->p2p_ctwindow & IEEE80211_P2P_OPPPS_CTWINDOW_MASK;
 	if (params->p2p_opp_ps)
-		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow |=
+		sdata->vif.bss_conf.p2p_yesa_attr.oppps_ctwindow |=
 					IEEE80211_P2P_OPPPS_ENABLE_BIT;
 
 	err = ieee80211_assign_beacon(sdata, &params->beacon, NULL);
@@ -1089,7 +1089,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	ieee80211_recalc_dtim(local, sdata);
-	ieee80211_bss_info_change_notify(sdata, changed);
+	ieee80211_bss_info_change_yestify(sdata, changed);
 
 	netif_carrier_on(dev);
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
@@ -1121,7 +1121,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	err = ieee80211_assign_beacon(sdata, params, NULL);
 	if (err < 0)
 		return err;
-	ieee80211_bss_info_change_notify(sdata, err);
+	ieee80211_bss_info_change_yestify(sdata, err);
 	return 0;
 }
 
@@ -1177,7 +1177,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	sdata->vif.bss_conf.enable_beacon = false;
 	sdata->vif.bss_conf.ssid_len = 0;
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
+	ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_BEACON_ENABLED);
 
 	if (sdata->wdev.cac_started) {
 		chandef = sdata->vif.bss_conf.chandef;
@@ -1301,14 +1301,14 @@ static void sta_apply_mesh_params(struct ieee80211_local *local,
 					NL80211_MESH_POWER_UNKNOWN);
 			break;
 		default:
-			/*  nothing  */
+			/*  yesthing  */
 			break;
 		}
 	}
 
 	switch (params->plink_action) {
 	case NL80211_PLINK_ACTION_NO_ACTION:
-		/* nothing */
+		/* yesthing */
 		break;
 	case NL80211_PLINK_ACTION_OPEN:
 		changed |= mesh_plink_open(sta);
@@ -1322,7 +1322,7 @@ static void sta_apply_mesh_params(struct ieee80211_local *local,
 		changed |= ieee80211_mps_set_sta_local_pm(sta,
 							  params->local_pm);
 
-	ieee80211_mbss_info_change_notify(sdata, changed);
+	ieee80211_mbss_info_change_yestify(sdata, changed);
 #endif
 }
 
@@ -1354,7 +1354,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	} else if (test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
 		/*
 		 * TDLS -- everything follows authorized, but
-		 * only becoming authorized is possible, not
+		 * only becoming authorized is possible, yest
 		 * going back
 		 */
 		if (set & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
@@ -1420,7 +1420,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		sta->sta.max_sp = params->max_sp;
 	}
 
-	/* The sender might not have sent the last bit, consider it to be 0 */
+	/* The sender might yest have sent the last bit, consider it to be 0 */
 	if (params->ext_capab_len >= 8) {
 		u8 val = (params->ext_capab[7] &
 			  WLAN_EXT_CAPA8_MAX_MSDU_IN_AMSDU_LSB) >> 7;
@@ -1459,7 +1459,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	 * Some of the following updates would be racy if called on an
 	 * existing station, via ieee80211_change_station(). However,
 	 * all such changes are rejected by cfg80211 except for updates
-	 * changing the supported rates on an existing but not yet used
+	 * changing the supported rates on an existing but yest yet used
 	 * TDLS peer.
 	 */
 
@@ -1496,11 +1496,11 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 						  (void *)params->he_capa,
 						  params->he_capa_len, sta);
 
-	if (params->opmode_notif_used) {
+	if (params->opmode_yestif_used) {
 		/* returned value is only needed for rc update, but the
-		 * rc isn't initialized here yet, so ignore it
+		 * rc isn't initialized here yet, so igyesre it
 		 */
-		__ieee80211_vht_handle_opmode(sdata, sta, params->opmode_notif,
+		__ieee80211_vht_handle_opmode(sdata, sta, params->opmode_yestif,
 					      sband->band);
 	}
 
@@ -1568,7 +1568,7 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 
 	/*
 	 * for TDLS and for unassociated station, rate control should be
-	 * initialized only when rates are known and station is marked
+	 * initialized only when rates are kyeswn and station is marked
 	 * authorized/associated
 	 */
 	if (!test_sta_flag(sta, WLAN_STA_TDLS_PEER) &&
@@ -1693,7 +1693,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 	if ((sdata->vif.type == NL80211_IFTYPE_AP ||
 	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
-	    sta->known_smps_mode != sta->sdata->bss->req_smps &&
+	    sta->kyeswn_smps_mode != sta->sdata->bss->req_smps &&
 	    test_sta_flag(sta, WLAN_STA_AUTHORIZED) &&
 	    sta_info_tx_streams(sta) != 1) {
 		ht_dbg(sta->sdata,
@@ -1964,7 +1964,7 @@ static int copy_mesh_setup(struct ieee80211_if_mesh *ifmsh,
 	ifmsh->ie = new_ie;
 	kfree(old_ie);
 
-	/* now copy the rest of the setup parameters */
+	/* yesw copy the rest of the setup parameters */
 	ifmsh->mesh_id_len = setup->mesh_id_len;
 	memcpy(ifmsh->mesh_id, setup->mesh_id, ifmsh->mesh_id_len);
 	ifmsh->mesh_sp_id = setup->sync_method;
@@ -2050,16 +2050,16 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 		ieee80211_mesh_root_setup(ifmsh);
 	}
 	if (_chg_mesh_attr(NL80211_MESHCONF_GATE_ANNOUNCEMENTS, mask)) {
-		/* our current gate announcement implementation rides on root
-		 * announcements, so require this ifmsh to also be a root node
+		/* our current gate anyesuncement implementation rides on root
+		 * anyesuncements, so require this ifmsh to also be a root yesde
 		 * */
-		if (nconf->dot11MeshGateAnnouncementProtocol &&
+		if (nconf->dot11MeshGateAnyesuncementProtocol &&
 		    !(conf->dot11MeshHWMPRootMode > IEEE80211_ROOTMODE_ROOT)) {
 			conf->dot11MeshHWMPRootMode = IEEE80211_PROACTIVE_RANN;
 			ieee80211_mesh_root_setup(ifmsh);
 		}
-		conf->dot11MeshGateAnnouncementProtocol =
-			nconf->dot11MeshGateAnnouncementProtocol;
+		conf->dot11MeshGateAnyesuncementProtocol =
+			nconf->dot11MeshGateAnyesuncementProtocol;
 	}
 	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_RANN_INTERVAL, mask))
 		conf->dot11MeshHWMPRannInterval =
@@ -2077,7 +2077,7 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 	if (_chg_mesh_attr(NL80211_MESHCONF_HT_OPMODE, mask)) {
 		conf->ht_opmode = nconf->ht_opmode;
 		sdata->vif.bss_conf.ht_operation_mode = nconf->ht_opmode;
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_HT);
+		ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_HT);
 	}
 	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_PATH_TO_ROOT_TIMEOUT, mask))
 		conf->dot11MeshHWMPactivePathToRootTimeout =
@@ -2100,7 +2100,7 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 	if (_chg_mesh_attr(NL80211_MESHCONF_CONNECTED_TO_GATE, mask))
 		conf->dot11MeshConnectedToMeshGate =
 			nconf->dot11MeshConnectedToMeshGate;
-	ieee80211_mbss_info_change_notify(sdata, BSS_CHANGED_BEACON);
+	ieee80211_mbss_info_change_yestify(sdata, BSS_CHANGED_BEACON);
 	return 0;
 }
 
@@ -2208,24 +2208,24 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	}
 
 	if (params->p2p_ctwindow >= 0) {
-		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow &=
+		sdata->vif.bss_conf.p2p_yesa_attr.oppps_ctwindow &=
 					~IEEE80211_P2P_OPPPS_CTWINDOW_MASK;
-		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow |=
+		sdata->vif.bss_conf.p2p_yesa_attr.oppps_ctwindow |=
 			params->p2p_ctwindow & IEEE80211_P2P_OPPPS_CTWINDOW_MASK;
 		changed |= BSS_CHANGED_P2P_PS;
 	}
 
 	if (params->p2p_opp_ps > 0) {
-		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow |=
+		sdata->vif.bss_conf.p2p_yesa_attr.oppps_ctwindow |=
 					IEEE80211_P2P_OPPPS_ENABLE_BIT;
 		changed |= BSS_CHANGED_P2P_PS;
 	} else if (params->p2p_opp_ps == 0) {
-		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow &=
+		sdata->vif.bss_conf.p2p_yesa_attr.oppps_ctwindow &=
 					~IEEE80211_P2P_OPPPS_ENABLE_BIT;
 		changed |= BSS_CHANGED_P2P_PS;
 	}
 
-	ieee80211_bss_info_change_notify(sdata, changed);
+	ieee80211_bss_info_change_yestify(sdata, changed);
 
 	return 0;
 }
@@ -2266,7 +2266,7 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
+	ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_QOS);
 
 	return 0;
 }
@@ -2306,7 +2306,7 @@ static int ieee80211_scan(struct wiphy *wiphy,
 			break;
 		/*
 		 * FIXME: implement NoA while scanning in software,
-		 * for now fall through to allow scanning only when
+		 * for yesw fall through to allow scanning only when
 		 * beaconing hasn't been configured yet
 		 */
 		/* fall through */
@@ -2415,7 +2415,7 @@ static int ieee80211_set_mcast_rate(struct wiphy *wiphy, struct net_device *dev,
 	memcpy(sdata->vif.bss_conf.mcast_rate, rate,
 	       sizeof(int) * NUM_NL80211_BANDS);
 
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_MCAST_RATE);
+	ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_MCAST_RATE);
 
 	return 0;
 }
@@ -2678,7 +2678,7 @@ int __ieee80211_request_smps_ap(struct ieee80211_sub_if_data *sdata,
 		 * unless we are getting more restrictive.
 		 */
 		if (test_sta_flag(sta, WLAN_STA_PS_STA) &&
-		    !ieee80211_smps_is_restrictive(sta->known_smps_mode,
+		    !ieee80211_smps_is_restrictive(sta->kyeswn_smps_mode,
 						   smps_mode)) {
 			ht_dbg(sdata, "Won't send SMPS to sleeping STA %pM\n",
 			       sta->sta.addr);
@@ -2686,7 +2686,7 @@ int __ieee80211_request_smps_ap(struct ieee80211_sub_if_data *sdata,
 		}
 
 		/*
-		 * If the STA is not authorized, wait until it gets
+		 * If the STA is yest authorized, wait until it gets
 		 * authorized and the action frame will be sent then.
 		 */
 		if (!test_sta_flag(sta, WLAN_STA_AUTHORIZED))
@@ -2726,8 +2726,8 @@ int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 		return 0;
 
 	/*
-	 * If not associated, or current association is not an HT
-	 * association, there's no need to do anything, just store
+	 * If yest associated, or current association is yest an HT
+	 * association, there's yes need to do anything, just store
 	 * the new value until we associate.
 	 */
 	if (!sdata->u.mgd.associated ||
@@ -2784,7 +2784,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	sdata->u.mgd.powersave = enabled;
 	local->dynamic_ps_forced_timeout = timeout;
 
-	/* no change, but if automatic follow powersave */
+	/* yes change, but if automatic follow powersave */
 	sdata_lock(sdata);
 	__ieee80211_request_smps_mgd(sdata, sdata->u.mgd.req_smps);
 	sdata_unlock(sdata);
@@ -2824,7 +2824,7 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 	/* tell the driver upon association, unless already associated */
 	if (sdata->u.mgd.associated &&
 	    sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI)
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_CQM);
+		ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_CQM);
 
 	return 0;
 }
@@ -2849,7 +2849,7 @@ static int ieee80211_set_cqm_rssi_range_config(struct wiphy *wiphy,
 	/* tell the driver upon association, unless already associated */
 	if (sdata->u.mgd.associated &&
 	    sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI)
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_CQM);
+		ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_CQM);
 
 	return 0;
 }
@@ -2936,7 +2936,7 @@ static int ieee80211_start_radar_detection(struct wiphy *wiphy,
 		goto out_unlock;
 	}
 
-	/* whatever, but channel contexts should not complain about that one */
+	/* whatever, but channel contexts should yest complain about that one */
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
 	sdata->needed_rx_chains = local->rx_chains;
 
@@ -3007,7 +3007,7 @@ cfg80211_beacon_dup(struct cfg80211_beacon_data *beacon)
 		pos += beacon->probe_resp_len;
 	}
 
-	/* might copy -1, meaning no changes requested */
+	/* might copy -1, meaning yes changes requested */
 	new_beacon->ftm_responder = beacon->ftm_responder;
 	if (beacon->lci) {
 		new_beacon->lci_len = beacon->lci_len;
@@ -3085,7 +3085,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 	/*
 	 * using reservation isn't immediate as it may be deferred until later
 	 * with multi-vif. once reservation is complete it will re-schedule the
-	 * work with no reserved_chanctx so verify chandef to check if it
+	 * work with yes reserved_chanctx so verify chandef to check if it
 	 * completed successfully
 	 */
 
@@ -3111,7 +3111,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 	if (err)
 		return err;
 
-	ieee80211_bss_info_change_notify(sdata, changed);
+	ieee80211_bss_info_change_yestify(sdata, changed);
 
 	if (sdata->csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
@@ -3123,7 +3123,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 	if (err)
 		return err;
 
-	cfg80211_ch_switch_notify(sdata->dev, &sdata->csa_chandef);
+	cfg80211_ch_switch_yestify(sdata->dev, &sdata->csa_chandef);
 
 	return 0;
 }
@@ -3189,7 +3189,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 		 *
 		 * TODO: A channel switch with count <= 1 without
 		 * sending a CSA action frame is kind of useless,
-		 * because the clients won't know we're changing
+		 * because the clients won't kyesw we're changing
 		 * channels.  The action frame must be implemented
 		 * either here or in the userspace.
 		 */
@@ -3237,7 +3237,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 			return -EINVAL;
 		}
 
-		/* changes into another band are not supported */
+		/* changes into ayesther band are yest supported */
 		if (sdata->u.ibss.chandef.chan->band !=
 		    params->chandef.chan->band)
 			return -EINVAL;
@@ -3260,7 +3260,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 		if (params->chandef.width != sdata->vif.bss_conf.chandef.width)
 			return -EINVAL;
 
-		/* changes into another band are not supported */
+		/* changes into ayesther band are yest supported */
 		if (sdata->vif.bss_conf.chandef.chan->band !=
 		    params->chandef.chan->band)
 			return -EINVAL;
@@ -3321,7 +3321,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 				       &sdata->vif.bss_conf.chandef))
 		return -EINVAL;
 
-	/* don't allow another channel switch if one is already active. */
+	/* don't allow ayesther channel switch if one is already active. */
 	if (sdata->vif.csa_active)
 		return -EBUSY;
 
@@ -3372,11 +3372,11 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		ieee80211_stop_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
 
-	cfg80211_ch_switch_started_notify(sdata->dev, &sdata->csa_chandef,
+	cfg80211_ch_switch_started_yestify(sdata->dev, &sdata->csa_chandef,
 					  params->count);
 
 	if (changed) {
-		ieee80211_bss_info_change_notify(sdata, changed);
+		ieee80211_bss_info_change_yestify(sdata, changed);
 		drv_channel_switch_beacon(sdata, &params->chandef);
 	} else {
 		/* if the beacon didn't change, we can finalize immediately */
@@ -3675,7 +3675,7 @@ static int ieee80211_set_ap_chanwidth(struct wiphy *wiphy,
 
 	ret = ieee80211_vif_change_bandwidth(sdata, chandef, &changed);
 	if (ret == 0)
-		ieee80211_bss_info_change_notify(sdata, changed);
+		ieee80211_bss_info_change_yestify(sdata, changed);
 
 	return ret;
 }
@@ -3724,7 +3724,7 @@ static int ieee80211_del_tx_ts(struct wiphy *wiphy, struct net_device *dev,
 		if (tx_tspec->tsid != tsid)
 			continue;
 
-		/* due to this new packets will be reassigned to non-ACM ACs */
+		/* due to this new packets will be reassigned to yesn-ACM ACs */
 		tx_tspec->up = -1;
 
 		/* Make sure that all packets have been sent to avoid to
@@ -3734,7 +3734,7 @@ static int ieee80211_del_tx_ts(struct wiphy *wiphy, struct net_device *dev,
 		synchronize_net();
 		ieee80211_flush_queues(local, sdata, false);
 
-		/* restore the normal QoS parameters
+		/* restore the yesrmal QoS parameters
 		 * (unconditionally to avoid races)
 		 */
 		tx_tspec->action = TX_TSPEC_ACTION_STOP_DOWNGRADE;
@@ -4017,7 +4017,7 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.tdls_channel_switch = ieee80211_tdls_channel_switch,
 	.tdls_cancel_channel_switch = ieee80211_tdls_cancel_channel_switch,
 	.probe_client = ieee80211_probe_client,
-	.set_noack_map = ieee80211_set_noack_map,
+	.set_yesack_map = ieee80211_set_yesack_map,
 #ifdef CONFIG_PM
 	.set_wakeup = ieee80211_set_wakeup,
 #endif

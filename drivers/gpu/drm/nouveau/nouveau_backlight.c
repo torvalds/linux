@@ -9,7 +9,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -34,22 +34,22 @@
 #include <linux/backlight.h>
 #include <linux/idr.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_reg.h"
-#include "nouveau_encoder.h"
-#include "nouveau_connector.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_reg.h"
+#include "yesuveau_encoder.h"
+#include "yesuveau_connector.h"
 
 static struct ida bl_ida;
 #define BL_NAME_SIZE 15 // 12 for name + 2 for digits + 1 for '\0'
 
-struct nouveau_backlight {
+struct yesuveau_backlight {
 	struct backlight_device *dev;
 	int id;
 };
 
 static bool
-nouveau_get_backlight_name(char backlight_name[BL_NAME_SIZE],
-			   struct nouveau_backlight *bl)
+yesuveau_get_backlight_name(char backlight_name[BL_NAME_SIZE],
+			   struct yesuveau_backlight *bl)
 {
 	const int nb = ida_simple_get(&bl_ida, 0, 0, GFP_KERNEL);
 	if (nb < 0 || nb >= 100)
@@ -65,8 +65,8 @@ nouveau_get_backlight_name(char backlight_name[BL_NAME_SIZE],
 static int
 nv40_get_intensity(struct backlight_device *bd)
 {
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct yesuveau_encoder *nv_encoder = bl_get_data(bd);
+	struct yesuveau_drm *drm = yesuveau_drm(nv_encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 	int val = (nvif_rd32(device, NV40_PMC_BACKLIGHT) &
 		   NV40_PMC_BACKLIGHT_MASK) >> 16;
@@ -77,8 +77,8 @@ nv40_get_intensity(struct backlight_device *bd)
 static int
 nv40_set_intensity(struct backlight_device *bd)
 {
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct yesuveau_encoder *nv_encoder = bl_get_data(bd);
+	struct yesuveau_drm *drm = yesuveau_drm(nv_encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 	int val = bd->props.brightness;
 	int reg = nvif_rd32(device, NV40_PMC_BACKLIGHT);
@@ -96,11 +96,11 @@ static const struct backlight_ops nv40_bl_ops = {
 };
 
 static int
-nv40_backlight_init(struct nouveau_encoder *encoder,
+nv40_backlight_init(struct yesuveau_encoder *encoder,
 		    struct backlight_properties *props,
 		    const struct backlight_ops **ops)
 {
-	struct nouveau_drm *drm = nouveau_drm(encoder->base.base.dev);
+	struct yesuveau_drm *drm = yesuveau_drm(encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 
 	if (!(nvif_rd32(device, NV40_PMC_BACKLIGHT) & NV40_PMC_BACKLIGHT_MASK))
@@ -115,8 +115,8 @@ nv40_backlight_init(struct nouveau_encoder *encoder,
 static int
 nv50_get_intensity(struct backlight_device *bd)
 {
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct yesuveau_encoder *nv_encoder = bl_get_data(bd);
+	struct yesuveau_drm *drm = yesuveau_drm(nv_encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 	int or = ffs(nv_encoder->dcb->or) - 1;
 	u32 div = 1025;
@@ -130,8 +130,8 @@ nv50_get_intensity(struct backlight_device *bd)
 static int
 nv50_set_intensity(struct backlight_device *bd)
 {
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct yesuveau_encoder *nv_encoder = bl_get_data(bd);
+	struct yesuveau_drm *drm = yesuveau_drm(nv_encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 	int or = ffs(nv_encoder->dcb->or) - 1;
 	u32 div = 1025;
@@ -151,8 +151,8 @@ static const struct backlight_ops nv50_bl_ops = {
 static int
 nva3_get_intensity(struct backlight_device *bd)
 {
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct yesuveau_encoder *nv_encoder = bl_get_data(bd);
+	struct yesuveau_drm *drm = yesuveau_drm(nv_encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 	int or = ffs(nv_encoder->dcb->or) - 1;
 	u32 div, val;
@@ -169,8 +169,8 @@ nva3_get_intensity(struct backlight_device *bd)
 static int
 nva3_set_intensity(struct backlight_device *bd)
 {
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct yesuveau_encoder *nv_encoder = bl_get_data(bd);
+	struct yesuveau_drm *drm = yesuveau_drm(nv_encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 	int or = ffs(nv_encoder->dcb->or) - 1;
 	u32 div, val;
@@ -195,11 +195,11 @@ static const struct backlight_ops nva3_bl_ops = {
 };
 
 static int
-nv50_backlight_init(struct nouveau_encoder *nv_encoder,
+nv50_backlight_init(struct yesuveau_encoder *nv_encoder,
 		    struct backlight_properties *props,
 		    const struct backlight_ops **ops)
 {
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct yesuveau_drm *drm = yesuveau_drm(nv_encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 
 	if (!nvif_rd32(device, NV50_PDISP_SOR_PWM_CTL(ffs(nv_encoder->dcb->or) - 1)))
@@ -219,11 +219,11 @@ nv50_backlight_init(struct nouveau_encoder *nv_encoder,
 }
 
 int
-nouveau_backlight_init(struct drm_connector *connector)
+yesuveau_backlight_init(struct drm_connector *connector)
 {
-	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_backlight *bl;
-	struct nouveau_encoder *nv_encoder = NULL;
+	struct yesuveau_drm *drm = yesuveau_drm(connector->dev);
+	struct yesuveau_backlight *bl;
+	struct yesuveau_encoder *nv_encoder = NULL;
 	struct nvif_device *device = &drm->client.device;
 	char backlight_name[BL_NAME_SIZE];
 	struct backlight_properties props = {0};
@@ -231,7 +231,7 @@ nouveau_backlight_init(struct drm_connector *connector)
 	int ret;
 
 	if (apple_gmux_present()) {
-		NV_INFO_ONCE(drm, "Apple GMUX detected: not registering Nouveau backlight interface\n");
+		NV_INFO_ONCE(drm, "Apple GMUX detected: yest registering Nouveau backlight interface\n");
 		return 0;
 	}
 
@@ -271,7 +271,7 @@ nouveau_backlight_init(struct drm_connector *connector)
 	if (!bl)
 		return -ENOMEM;
 
-	if (!nouveau_get_backlight_name(backlight_name, bl)) {
+	if (!yesuveau_get_backlight_name(backlight_name, bl)) {
 		NV_ERROR(drm, "Failed to retrieve a unique name for the backlight interface\n");
 		goto fail_alloc;
 	}
@@ -285,7 +285,7 @@ nouveau_backlight_init(struct drm_connector *connector)
 		goto fail_alloc;
 	}
 
-	nouveau_connector(connector)->backlight = bl;
+	yesuveau_connector(connector)->backlight = bl;
 	bl->dev->props.brightness = bl->dev->ops->get_brightness(bl->dev);
 	backlight_update_status(bl->dev);
 
@@ -297,10 +297,10 @@ fail_alloc:
 }
 
 void
-nouveau_backlight_fini(struct drm_connector *connector)
+yesuveau_backlight_fini(struct drm_connector *connector)
 {
-	struct nouveau_connector *nv_conn = nouveau_connector(connector);
-	struct nouveau_backlight *bl = nv_conn->backlight;
+	struct yesuveau_connector *nv_conn = yesuveau_connector(connector);
+	struct yesuveau_backlight *bl = nv_conn->backlight;
 
 	if (!bl)
 		return;
@@ -314,13 +314,13 @@ nouveau_backlight_fini(struct drm_connector *connector)
 }
 
 void
-nouveau_backlight_ctor(void)
+yesuveau_backlight_ctor(void)
 {
 	ida_init(&bl_ida);
 }
 
 void
-nouveau_backlight_dtor(void)
+yesuveau_backlight_dtor(void)
 {
 	ida_destroy(&bl_ida);
 }

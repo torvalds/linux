@@ -73,7 +73,7 @@ static int s3c24xx_led_probe(struct platform_device *dev)
 	if (ret < 0)
 		return ret;
 
-	/* no point in having a pull-up if we are always driving */
+	/* yes point in having a pull-up if we are always driving */
 
 	s3c_gpio_setpull(pdata->gpio, S3C_GPIO_PULL_NONE);
 

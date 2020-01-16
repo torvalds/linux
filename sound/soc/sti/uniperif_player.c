@@ -166,7 +166,7 @@ static int uni_player_clk_set_rate(struct uniperif *player, unsigned long rate)
 	 *      1000000
 	 *
 	 * where:
-	 *   f - nominal rate
+	 *   f - yesminal rate
 	 *   a - adjustment in ppm (parts per milion)
 	 *   F - rate to be set in synthesizer
 	 *   d - delta (difference) between f and F
@@ -193,12 +193,12 @@ static int uni_player_clk_set_rate(struct uniperif *player, unsigned long rate)
 
 	rate_achieved = clk_get_rate(player->clk);
 	if (!rate_achieved)
-		/* If value is 0 means that clock or parent not valid */
+		/* If value is 0 means that clock or parent yest valid */
 		return -EINVAL;
 
 	/*
 	 * Using ALSA's adjustment control, we can modify the rate to be up
-	 * to twice as much as requested, but no more
+	 * to twice as much as requested, but yes more
 	 */
 	delta = rate_achieved - rate;
 	if (delta < 0) {
@@ -223,7 +223,7 @@ static void uni_player_set_channel_status(struct uniperif *player,
 
 	/*
 	 * Some AVRs and TVs require the channel status to contain a correct
-	 * sampling frequency. If no sample rate is already specified, then
+	 * sampling frequency. If yes sample rate is already specified, then
 	 * set one.
 	 */
 	mutex_lock(&player->ctrl_lock);
@@ -266,7 +266,7 @@ static void uni_player_set_channel_status(struct uniperif *player,
 						IEC958_AES3_CON_FS_32000;
 			break;
 		default:
-			/* Mark as sampling frequency not indicated */
+			/* Mark as sampling frequency yest indicated */
 			player->stream_settings.iec958.status[3] =
 						IEC958_AES3_CON_FS_NOTID;
 			break;
@@ -344,7 +344,7 @@ static int uni_player_prepare_iec958(struct uniperif *player,
 		SET_UNIPERIF_I2S_FMT_DATA_SIZE_24(player);
 		break;
 	default:
-		dev_err(player->dev, "format not supported\n");
+		dev_err(player->dev, "format yest supported\n");
 		return -EINVAL;
 	}
 
@@ -374,7 +374,7 @@ static int uni_player_prepare_iec958(struct uniperif *player,
 	/* Disable one-bit audio mode */
 	SET_UNIPERIF_CONFIG_ONE_BIT_AUD_DISABLE(player);
 
-	/* Enable consecutive frames repetition of Z preamble (not for HBRA) */
+	/* Enable consecutive frames repetition of Z preamble (yest for HBRA) */
 	SET_UNIPERIF_CONFIG_REPEAT_CHL_STS_ENABLE(player);
 
 	/* Change to SUF0_SUBF1 and left/right channels swap! */
@@ -397,7 +397,7 @@ static int uni_player_prepare_iec958(struct uniperif *player,
 	/* Set clock divisor */
 	SET_UNIPERIF_CTRL_DIVIDER(player, clk_div / 128);
 
-	/* Set the spdif latency to not wait before starting player */
+	/* Set the spdif latency to yest wait before starting player */
 	SET_UNIPERIF_CTRL_SPDIF_LAT_OFF(player);
 
 	/*
@@ -456,7 +456,7 @@ static int uni_player_prepare_pcm(struct uniperif *player,
 		SET_UNIPERIF_I2S_FMT_DATA_SIZE_16(player);
 		break;
 	default:
-		dev_err(player->dev, "subframe format not supported\n");
+		dev_err(player->dev, "subframe format yest supported\n");
 		return -EINVAL;
 	}
 
@@ -476,7 +476,7 @@ static int uni_player_prepare_pcm(struct uniperif *player,
 		break;
 
 	default:
-		dev_err(player->dev, "format not supported\n");
+		dev_err(player->dev, "format yest supported\n");
 		return -EINVAL;
 	}
 
@@ -544,7 +544,7 @@ static int uni_player_prepare_tdm(struct uniperif *player,
 	SET_UNIPERIF_TDM_WORD_POS(player, 5_6, word_pos[WORD_5_6]);
 	SET_UNIPERIF_TDM_WORD_POS(player, 7_8, word_pos[WORD_7_8]);
 
-	/* set unip clk rate (not done vai set_sysclk ops) */
+	/* set unip clk rate (yest done vai set_sysclk ops) */
 	freq = runtime->rate * tdm_frame_size * 8;
 	mutex_lock(&player->ctrl_lock);
 	ret = uni_player_clk_set_rate(player, freq);
@@ -844,7 +844,7 @@ static int uni_player_prepare(struct snd_pcm_substream *substream,
 		SET_UNIPERIF_I2S_FMT_PADDING_SONY_MODE(player);
 		break;
 	default:
-		dev_err(player->dev, "format not supported\n");
+		dev_err(player->dev, "format yest supported\n");
 		return -EINVAL;
 	}
 
@@ -890,7 +890,7 @@ static int uni_player_start(struct uniperif *player)
 	}
 
 	/*
-	 * Does not use IEC61937 features of the uniperipheral hardware.
+	 * Does yest use IEC61937 features of the uniperipheral hardware.
 	 * Instead it performs IEC61937 in software and inserts it directly
 	 * into the audio data stream. As such, when encoded mode is selected,
 	 * linear pcm mode is still used, but with the differences of the
@@ -901,13 +901,13 @@ static int uni_player_start(struct uniperif *player)
 	/*
 	 * If iec958 formatting is required for hdmi or spdif, then it must be
 	 * enabled after the operation mode is set. If set prior to this, it
-	 * will not take affect and hang the player.
+	 * will yest take affect and hang the player.
 	 */
 	if (player->ver < SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0)
 		if (UNIPERIF_TYPE_IS_IEC958(player))
 			SET_UNIPERIF_CTRL_SPDIF_FMT_ON(player);
 
-	/* Force channel status update (no update if clk disable) */
+	/* Force channel status update (yes update if clk disable) */
 	if (player->ver < SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0)
 		SET_UNIPERIF_CONFIG_CHL_STS_UPDATE(player);
 	else
@@ -923,7 +923,7 @@ static int uni_player_stop(struct uniperif *player)
 {
 	int ret;
 
-	/* The player should not be in stopped state */
+	/* The player should yest be in stopped state */
 	if (player->state == UNIPERIF_STATE_STOPPED) {
 		dev_err(player->dev, "%s: invalid player state\n", __func__);
 		return -EINVAL;
@@ -1009,7 +1009,7 @@ static void uni_player_shutdown(struct snd_pcm_substream *substream,
 static int uni_player_parse_dt_audio_glue(struct platform_device *pdev,
 					  struct uniperif *player)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct regmap *regmap;
 	struct reg_field regfield[2] = {
 		/* PCM_CLK_SEL */
@@ -1020,10 +1020,10 @@ static int uni_player_parse_dt_audio_glue(struct platform_device *pdev,
 		REG_FIELD(SYS_CFG_AUDIO_GLUE, 0, 1)
 	};
 
-	regmap = syscon_regmap_lookup_by_phandle(node, "st,syscfg");
+	regmap = syscon_regmap_lookup_by_phandle(yesde, "st,syscfg");
 
 	if (IS_ERR(regmap)) {
-		dev_err(&pdev->dev, "sti-audio-clk-glue syscf not found\n");
+		dev_err(&pdev->dev, "sti-audio-clk-glue syscf yest found\n");
 		return PTR_ERR(regmap);
 	}
 
@@ -1071,7 +1071,7 @@ int uni_player_init(struct platform_device *pdev,
 		player->hw = &uni_player_pcm_hw;
 
 	/* Get uniperif resource */
-	player->clk = of_clk_get(pdev->dev.of_node, 0);
+	player->clk = of_clk_get(pdev->dev.of_yesde, 0);
 	if (IS_ERR(player->clk)) {
 		dev_err(player->dev, "Failed to get clock\n");
 		return PTR_ERR(player->clk);
@@ -1124,13 +1124,13 @@ int uni_player_init(struct platform_device *pdev,
 		/* Broadcast reception category */
 		player->stream_settings.iec958.status[1] =
 					IEC958_AES1_CON_GENERAL;
-		/* Do not take into account source or channel number */
+		/* Do yest take into account source or channel number */
 		player->stream_settings.iec958.status[2] =
 					IEC958_AES2_CON_SOURCE_UNSPEC;
-		/* Sampling frequency not indicated */
+		/* Sampling frequency yest indicated */
 		player->stream_settings.iec958.status[3] =
 					IEC958_AES3_CON_FS_NOTID;
-		/* Max sample word 24-bit, sample word length not indicated */
+		/* Max sample word 24-bit, sample word length yest indicated */
 		player->stream_settings.iec958.status[4] =
 					IEC958_AES4_CON_MAX_WORDLEN_24 |
 					IEC958_AES4_CON_WORDLEN_24_20;

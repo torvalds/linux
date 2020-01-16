@@ -112,7 +112,7 @@ static void map_single_talitos_ptr(struct device *dev,
 	__map_single_talitos_ptr(dev, ptr, len, data, dir, 0);
 }
 
-static void map_single_talitos_ptr_nosync(struct device *dev,
+static void map_single_talitos_ptr_yessync(struct device *dev,
 					  struct talitos_ptr *ptr,
 					  unsigned int len, void *data,
 					  enum dma_data_direction dir)
@@ -216,7 +216,7 @@ static int init_device(struct device *dev)
 	/*
 	 * Master reset
 	 * errata documentation: warning: certain SEC interrupts
-	 * are not fully cleared by writing the MCR:SWR bit,
+	 * are yest fully cleared by writing the MCR:SWR bit,
 	 * set bit twice to completely reset
 	 */
 	err = reset_device(dev);
@@ -279,7 +279,7 @@ static int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
 
 	spin_lock_irqsave(&priv->chan[ch].head_lock, flags);
 
-	if (!atomic_inc_not_zero(&priv->chan[ch].submit_count)) {
+	if (!atomic_inc_yest_zero(&priv->chan[ch].submit_count)) {
 		/* h/w fifo is full */
 		spin_unlock_irqrestore(&priv->chan[ch].head_lock, flags);
 		return -EAGAIN;
@@ -336,7 +336,7 @@ static __be32 get_request_hdr(struct talitos_request *request, bool is_sec1)
 }
 
 /*
- * process what was done, notify callback of error if not
+ * process what was done, yestify callback of error if yest
  */
 static void flush_channel(struct device *dev, int ch, int error, int reset_ch)
 {
@@ -499,7 +499,7 @@ static u32 current_desc_hdr(struct device *dev, int ch)
 }
 
 /*
- * user diagnostics; report root cause of error based on execution unit status
+ * user diagyesstics; report root cause of error based on execution unit status
  */
 static void report_eu_error(struct device *dev, int ch, u32 desc_hdr)
 {
@@ -613,7 +613,7 @@ static void talitos_error(struct device *dev, u32 isr, u32 isr_lo)
 		if (v_lo & TALITOS_CCPSR_LO_MDTE)
 			dev_err(dev, "master data transfer error\n");
 		if (v_lo & TALITOS_CCPSR_LO_SGDLZ)
-			dev_err(dev, is_sec1 ? "pointer not complete error\n"
+			dev_err(dev, is_sec1 ? "pointer yest complete error\n"
 					     : "s/g data length zero error\n");
 		if (v_lo & TALITOS_CCPSR_LO_FPZ)
 			dev_err(dev, is_sec1 ? "parity error\n"
@@ -683,7 +683,7 @@ static irqreturn_t talitos1_interrupt_##name(int irq, void *data)	       \
 	spin_lock_irqsave(&priv->reg_lock, flags);			       \
 	isr = in_be32(priv->reg + TALITOS_ISR);				       \
 	isr_lo = in_be32(priv->reg + TALITOS_ISR_LO);			       \
-	/* Acknowledge interrupt */					       \
+	/* Ackyeswledge interrupt */					       \
 	out_be32(priv->reg + TALITOS_ICR, isr & (ch_done_mask | ch_err_mask)); \
 	out_be32(priv->reg + TALITOS_ICR_LO, isr_lo);			       \
 									       \
@@ -718,7 +718,7 @@ static irqreturn_t talitos2_interrupt_##name(int irq, void *data)	       \
 	spin_lock_irqsave(&priv->reg_lock, flags);			       \
 	isr = in_be32(priv->reg + TALITOS_ISR);				       \
 	isr_lo = in_be32(priv->reg + TALITOS_ISR_LO);			       \
-	/* Acknowledge interrupt */					       \
+	/* Ackyeswledge interrupt */					       \
 	out_be32(priv->reg + TALITOS_ICR, isr & (ch_done_mask | ch_err_mask)); \
 	out_be32(priv->reg + TALITOS_ICR_LO, isr_lo);			       \
 									       \
@@ -1169,7 +1169,7 @@ static int talitos_sg_map_ext(struct device *dev, struct scatterlist *src,
 	sg_count = sg_to_link_tbl_offset(src, sg_count, offset, len, elen,
 					 &edesc->link_tbl[tbl_off]);
 	if (sg_count == 1 && !force) {
-		/* Only one segment now, so no link tbl needed*/
+		/* Only one segment yesw, so yes link tbl needed*/
 		copy_talitos_ptr(ptr, &edesc->link_tbl[tbl_off], is_sec1);
 		return sg_count;
 	}
@@ -1533,7 +1533,7 @@ static int skcipher_aes_setkey(struct crypto_skcipher *cipher,
 	return -EINVAL;
 }
 
-static void common_nonsnoop_unmap(struct device *dev,
+static void common_yesnsyesop_unmap(struct device *dev,
 				  struct talitos_edesc *edesc,
 				  struct skcipher_request *areq)
 {
@@ -1559,7 +1559,7 @@ static void skcipher_done(struct device *dev,
 
 	edesc = container_of(desc, struct talitos_edesc, desc);
 
-	common_nonsnoop_unmap(dev, edesc, areq);
+	common_yesnsyesop_unmap(dev, edesc, areq);
 	memcpy(areq->iv, ctx->iv, ivsize);
 
 	kfree(edesc);
@@ -1567,7 +1567,7 @@ static void skcipher_done(struct device *dev,
 	areq->base.complete(&areq->base, err);
 }
 
-static int common_nonsnoop(struct talitos_edesc *edesc,
+static int common_yesnsyesop(struct talitos_edesc *edesc,
 			   struct skcipher_request *areq,
 			   void (*callback) (struct device *dev,
 					     struct talitos_desc *desc,
@@ -1632,7 +1632,7 @@ static int common_nonsnoop(struct talitos_edesc *edesc,
 
 	ret = talitos_submit(dev, ctx->ch, desc, callback, areq);
 	if (ret != -EINPROGRESS) {
-		common_nonsnoop_unmap(dev, edesc, areq);
+		common_yesnsyesop_unmap(dev, edesc, areq);
 		kfree(edesc);
 	}
 	return ret;
@@ -1672,7 +1672,7 @@ static int skcipher_encrypt(struct skcipher_request *areq)
 	/* set encrypt */
 	edesc->desc.hdr = ctx->desc_hdr_template | DESC_HDR_MODE0_ENCRYPT;
 
-	return common_nonsnoop(edesc, areq, skcipher_done);
+	return common_yesnsyesop(edesc, areq, skcipher_done);
 }
 
 static int skcipher_decrypt(struct skcipher_request *areq)
@@ -1696,10 +1696,10 @@ static int skcipher_decrypt(struct skcipher_request *areq)
 
 	edesc->desc.hdr = ctx->desc_hdr_template | DESC_HDR_DIR_INBOUND;
 
-	return common_nonsnoop(edesc, areq, skcipher_done);
+	return common_yesnsyesop(edesc, areq, skcipher_done);
 }
 
-static void common_nonsnoop_hash_unmap(struct device *dev,
+static void common_yesnsyesop_hash_unmap(struct device *dev,
 				       struct talitos_edesc *edesc,
 				       struct ahash_request *areq)
 {
@@ -1757,7 +1757,7 @@ static void ahash_done(struct device *dev,
 		req_ctx->buf_idx = (req_ctx->buf_idx + 1) & 1;
 		req_ctx->nbuf = req_ctx->to_hash_later;
 	}
-	common_nonsnoop_hash_unmap(dev, edesc, areq);
+	common_yesnsyesop_hash_unmap(dev, edesc, areq);
 
 	kfree(edesc);
 
@@ -1785,7 +1785,7 @@ static void talitos_handle_buggy_hash(struct talitos_ctx *ctx,
 			       (char *)padded_hash, DMA_TO_DEVICE);
 }
 
-static int common_nonsnoop_hash(struct talitos_edesc *edesc,
+static int common_yesnsyesop_hash(struct talitos_edesc *edesc,
 				struct ahash_request *areq, unsigned int length,
 				void (*callback) (struct device *dev,
 						  struct talitos_desc *desc,
@@ -1806,13 +1806,13 @@ static int common_nonsnoop_hash(struct talitos_edesc *edesc,
 
 	/* hash context in */
 	if (!req_ctx->first || req_ctx->swinit) {
-		map_single_talitos_ptr_nosync(dev, &desc->ptr[1],
+		map_single_talitos_ptr_yessync(dev, &desc->ptr[1],
 					      req_ctx->hw_context_size,
 					      req_ctx->hw_context,
 					      DMA_TO_DEVICE);
 		req_ctx->swinit = 0;
 	}
-	/* Indicate next op is not the first. */
+	/* Indicate next op is yest the first. */
 	req_ctx->first = 0;
 
 	/* HMAC key */
@@ -1851,7 +1851,7 @@ static int common_nonsnoop_hash(struct talitos_edesc *edesc,
 				       crypto_ahash_digestsize(tfm),
 				       req_ctx->hw_context, DMA_FROM_DEVICE);
 	else
-		map_single_talitos_ptr_nosync(dev, &desc->ptr[5],
+		map_single_talitos_ptr_yessync(dev, &desc->ptr[5],
 					      req_ctx->hw_context_size,
 					      req_ctx->hw_context,
 					      DMA_FROM_DEVICE);
@@ -1878,7 +1878,7 @@ static int common_nonsnoop_hash(struct talitos_edesc *edesc,
 			copy_talitos_ptr(&desc2->ptr[1], &desc->ptr[1],
 					 is_sec1);
 		else
-			map_single_talitos_ptr_nosync(dev, &desc2->ptr[1],
+			map_single_talitos_ptr_yessync(dev, &desc2->ptr[1],
 						      req_ctx->hw_context_size,
 						      req_ctx->hw_context,
 						      DMA_TO_DEVICE);
@@ -1889,7 +1889,7 @@ static int common_nonsnoop_hash(struct talitos_edesc *edesc,
 			sync_needed = true;
 		copy_talitos_ptr(&desc2->ptr[5], &desc->ptr[5], is_sec1);
 		if (req_ctx->last)
-			map_single_talitos_ptr_nosync(dev, &desc->ptr[5],
+			map_single_talitos_ptr_yessync(dev, &desc->ptr[5],
 						      req_ctx->hw_context_size,
 						      req_ctx->hw_context,
 						      DMA_FROM_DEVICE);
@@ -1905,7 +1905,7 @@ static int common_nonsnoop_hash(struct talitos_edesc *edesc,
 
 	ret = talitos_submit(dev, ctx->ch, desc, callback, areq);
 	if (ret != -EINPROGRESS) {
-		common_nonsnoop_hash_unmap(dev, edesc, areq);
+		common_yesnsyesop_hash_unmap(dev, edesc, areq);
 		kfree(edesc);
 	}
 	return ret;
@@ -2017,7 +2017,7 @@ static int ahash_process_req(struct ahash_request *areq, unsigned int nbytes)
 	if (req_ctx->last)
 		to_hash_later = 0;
 	else if (to_hash_later)
-		/* There is a partial block. Hash the full block(s) now */
+		/* There is a partial block. Hash the full block(s) yesw */
 		nbytes_to_hash -= to_hash_later;
 	else {
 		/* Keep one block buffered */
@@ -2084,12 +2084,12 @@ static int ahash_process_req(struct ahash_request *areq, unsigned int nbytes)
 		edesc->desc.hdr |= DESC_HDR_MODE0_MDEU_INIT;
 
 	/* When the tfm context has a keylen, it's an HMAC.
-	 * A first or last (ie. not middle) descriptor must request HMAC.
+	 * A first or last (ie. yest middle) descriptor must request HMAC.
 	 */
 	if (ctx->keylen && (req_ctx->first || req_ctx->last))
 		edesc->desc.hdr |= DESC_HDR_MODE0_MDEU_HMAC;
 
-	return common_nonsnoop_hash(edesc, areq, nbytes_to_hash, ahash_done);
+	return common_yesnsyesop_hash(edesc, areq, nbytes_to_hash, ahash_done);
 }
 
 static int ahash_update(struct ahash_request *areq)
@@ -3009,7 +3009,7 @@ static int talitos_init_common(struct talitos_ctx *ctx,
 	/* copy descriptor header template value */
 	ctx->desc_hdr_template = talitos_alg->algt.desc_hdr_template;
 
-	/* select done notification */
+	/* select done yestification */
 	ctx->desc_hdr_template |= DESC_HDR_DONE_NOTIFY;
 
 	return 0;
@@ -3068,7 +3068,7 @@ static void talitos_cra_exit(struct crypto_tfm *tfm)
 /*
  * given the alg's descriptor header template, determine whether descriptor
  * type and primary/secondary execution units required match the hw
- * capabilities description provided in the device tree node.
+ * capabilities description provided in the device tree yesde.
  */
 static int hw_supports(struct device *dev, __be32 desc_hdr_template)
 {
@@ -3192,7 +3192,7 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 		}
 		break;
 	default:
-		dev_err(dev, "unknown algorithm type %d\n", t_alg->algt.type);
+		dev_err(dev, "unkyeswn algorithm type %d\n", t_alg->algt.type);
 		devm_kfree(dev, t_alg);
 		return ERR_PTR(-EINVAL);
 	}
@@ -3217,7 +3217,7 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 static int talitos_probe_irq(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	int err;
 	bool is_sec1 = has_ftr_sec1(priv);
@@ -3271,7 +3271,7 @@ primary_out:
 static int talitos_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct talitos_private *priv;
 	int i, err;
 	int stride;
@@ -3308,7 +3308,7 @@ static int talitos_probe(struct platform_device *ofdev)
 
 	if (!is_power_of_2(priv->num_channels) || !priv->chfifo_len ||
 	    !priv->exec_units || !priv->desc_types) {
-		dev_err(dev, "invalid property data in device tree node\n");
+		dev_err(dev, "invalid property data in device tree yesde\n");
 		err = -EINVAL;
 		goto err_out;
 	}

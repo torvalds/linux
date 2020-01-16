@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -239,7 +239,7 @@ struct vega12_registry_data {
 	uint8_t   lclk_deep_sleep_support;
 	uint8_t   dce_fclk_deep_sleep_support;
 	uint8_t   sclk_dpm_key_disabled;
-	uint8_t   sclk_throttle_low_notification;
+	uint8_t   sclk_throttle_low_yestification;
 	uint8_t   skip_baco_hardware;
 	uint8_t   socclk_dpm_key_disabled;
 	uint8_t   sq_ramping_support;

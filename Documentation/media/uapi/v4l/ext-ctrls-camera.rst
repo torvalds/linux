@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _camera-controls:
 
@@ -36,7 +36,7 @@ enum v4l2_exposure_auto_type -
     Enables automatic adjustments of the exposure time and/or iris
     aperture. The effect of manual changes of the exposure time or iris
     aperture while these features are enabled is undefined, drivers
-    should ignore such requests. Possible values are:
+    should igyesre such requests. Possible values are:
 
 
 
@@ -96,7 +96,7 @@ enum v4l2_exposure_metering -
 
     * - ``V4L2_EXPOSURE_METERING_AVERAGE``
       - Use the light information coming from the entire frame and average
-	giving no weighting to any particular portion of the metered area.
+	giving yes weighting to any particular portion of the metered area.
     * - ``V4L2_EXPOSURE_METERING_CENTER_WEIGHTED``
       - Average the light information coming from the entire frame giving
 	priority to the center of the metered area.
@@ -114,13 +114,13 @@ enum v4l2_exposure_metering -
     This control turns the camera horizontally by the specified amount.
     The unit is undefined. A positive value moves the camera to the
     right (clockwise when viewed from above), a negative value to the
-    left. A value of zero does not cause motion. This is a write-only
+    left. A value of zero does yest cause motion. This is a write-only
     control.
 
 ``V4L2_CID_TILT_RELATIVE (integer)``
     This control turns the camera vertically by the specified amount.
     The unit is undefined. A positive value moves the camera up, a
-    negative value down. A value of zero does not cause motion. This is
+    negative value down. A value of zero does yest cause motion. This is
     a write-only control.
 
 ``V4L2_CID_PAN_RESET (button)``
@@ -158,12 +158,12 @@ enum v4l2_exposure_metering -
 ``V4L2_CID_FOCUS_AUTO (boolean)``
     Enables continuous automatic focus adjustments. The effect of manual
     focus adjustments while this feature is enabled is undefined,
-    drivers should ignore such requests.
+    drivers should igyesre such requests.
 
 ``V4L2_CID_AUTO_FOCUS_START (button)``
     Starts single auto focus process. The effect of setting this control
     when ``V4L2_CID_FOCUS_AUTO`` is set to ``TRUE`` (1) is undefined,
-    drivers should ignore such requests.
+    drivers should igyesre such requests.
 
 ``V4L2_CID_AUTO_FOCUS_STOP (button)``
     Aborts automatic focusing started with ``V4L2_CID_AUTO_FOCUS_START``
@@ -187,14 +187,14 @@ enum v4l2_exposure_metering -
     :stub-columns: 0
 
     * - ``V4L2_AUTO_FOCUS_STATUS_IDLE``
-      - Automatic focus is not active.
+      - Automatic focus is yest active.
     * - ``V4L2_AUTO_FOCUS_STATUS_BUSY``
       - Automatic focusing is in progress.
     * - ``V4L2_AUTO_FOCUS_STATUS_REACHED``
       - Focus has been reached.
     * - ``V4L2_AUTO_FOCUS_STATUS_FAILED``
-      - Automatic focus has failed, the driver will not transition from
-	this state until another action is performed by an application.
+      - Automatic focus has failed, the driver will yest transition from
+	this state until ayesther action is performed by an application.
 
 
 
@@ -258,9 +258,9 @@ enum v4l2_auto_focus_range -
 
 ``V4L2_CID_PRIVACY (boolean)``
     Prevent video from being acquired by the camera. When this control
-    is set to ``TRUE`` (1), no image can be captured by the camera.
+    is set to ``TRUE`` (1), yes image can be captured by the camera.
     Common means to enforce privacy are mechanical obturation of the
-    sensor and firmware image processing, but the device is not
+    sensor and firmware image processing, but the device is yest
     restricted to these methods. Devices that implement the privacy
     control must support read access and may support write access.
 
@@ -347,7 +347,7 @@ enum v4l2_auto_n_preset_white_balance -
     The effect of setting this control while the
     ``V4L2_CID_ISO_SENSITIVITY_AUTO`` control is set to a value other
     than ``V4L2_CID_ISO_SENSITIVITY_MANUAL`` is undefined, drivers
-    should ignore such requests.
+    should igyesre such requests.
 
 .. _v4l2-iso-sensitivity-auto-type:
 
@@ -383,7 +383,7 @@ enum v4l2_scene_mode -
     parameters are influenced by the scene mode control. An exact
     behavior in each mode is subject to the camera specification.
 
-    When the scene mode feature is not used, this control should be set
+    When the scene mode feature is yest used, this control should be set
     to ``V4L2_SCENE_MODE_NONE`` to make sure the other possibly related
     controls are accessible. The following scene programs are defined:
 
@@ -403,12 +403,12 @@ enum v4l2_scene_mode -
       - Backlight. Compensates for dark shadows when light is coming from
 	behind a subject, also by automatically turning on the flash.
     * - ``V4L2_SCENE_MODE_BEACH_SNOW``
-      - Beach and snow. This mode compensates for all-white or bright
+      - Beach and syesw. This mode compensates for all-white or bright
 	scenes, which tend to look gray and low contrast, when camera's
 	automatic exposure is based on an average scene brightness. To
 	compensate, this mode automatically slightly overexposes the
 	frames. The white balance may also be adjusted to compensate for
-	the fact that reflected snow looks bluish rather than white.
+	the fact that reflected syesw looks bluish rather than white.
     * - ``V4L2_SCENE_MODE_CANDLELIGHT``
       - Candle light. The camera generally raises the ISO sensitivity and
 	lowers the shutter speed. This mode compensates for relatively
@@ -433,12 +433,12 @@ enum v4l2_scene_mode -
 	in dim light conditions. The focus is fixed at infinity. Suitable
 	for distant and wide scenery.
     * - ``V4L2_SCENE_MODE_NIGHT``
-      - Night, also known as Night Landscape. Designed for low light
+      - Night, also kyeswn as Night Landscape. Designed for low light
 	conditions, it preserves detail in the dark areas without blowing
 	out bright objects. The camera generally sets itself to a
 	medium-to-high ISO sensitivity, with a relatively long exposure
 	time, and turns flash off. As such, there will be increased image
-	noise and the possibility of blurred image.
+	yesise and the possibility of blurred image.
     * - ``V4L2_SCENE_MODE_PARTY_INDOOR``
       - Party and indoor. Designed to capture indoor scenes that are lit
 	by indoor background lighting as well as the flash. The camera
@@ -452,7 +452,7 @@ enum v4l2_scene_mode -
 	skin tones. The intensity of the flash is often reduced.
     * - ``V4L2_SCENE_MODE_SPORTS``
       - Sports. Significantly increases ISO and uses a fast shutter speed
-	to freeze motion of rapidly-moving subjects. Increased image noise
+	to freeze motion of rapidly-moving subjects. Increased image yesise
 	may be seen in this mode.
     * - ``V4L2_SCENE_MODE_SUNSET``
       - Sunset. Preserves deep hues seen in sunsets and sunrises. It bumps
@@ -465,7 +465,7 @@ enum v4l2_scene_mode -
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 ``V4L2_CID_3A_LOCK (bitmask)``
@@ -475,8 +475,8 @@ enum v4l2_scene_mode -
     the settings until the lock bit is cleared. The following lock bits
     are defined:
 
-    When a given algorithm is not enabled, drivers should ignore
-    requests to lock it and should return no error. An example might be
+    When a given algorithm is yest enabled, drivers should igyesre
+    requests to lock it and should return yes error. An example might be
     an application setting bit ``V4L2_LOCK_WHITE_BALANCE`` when the
     ``V4L2_CID_AUTO_WHITE_BALANCE`` control is set to ``FALSE``. The
     value of this control may be changed by exposure, white balance or
@@ -502,13 +502,13 @@ enum v4l2_scene_mode -
     The unit is undefined. A positive value moves the camera to the
     right (clockwise when viewed from above), a negative value to the
     left. A value of zero stops the motion if one is in progress and has
-    no effect otherwise.
+    yes effect otherwise.
 
 ``V4L2_CID_TILT_SPEED (integer)``
     This control turns the camera vertically at the specified speed. The
     unit is undefined. A positive value moves the camera up, a negative
     value down. A value of zero stops the motion if one is in progress
-    and has no effect otherwise.
+    and has yes effect otherwise.
 
 .. [#f1]
    This control may be changed to a menu control in the future, if more

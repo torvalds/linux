@@ -22,11 +22,11 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
-#define OF_DT_BEGIN_NODE	0x1		/* Start of node, full name */
-#define OF_DT_END_NODE		0x2		/* End node */
+#define OF_DT_BEGIN_NODE	0x1		/* Start of yesde, full name */
+#define OF_DT_END_NODE		0x2		/* End yesde */
 #define OF_DT_PROP		0x3		/* Property: name off, size,
 						 * content */
-#define OF_DT_NOP		0x4		/* nop */
+#define OF_DT_NOP		0x4		/* yesp */
 #define OF_DT_END		0x9
 
 #define OF_DT_VERSION		0x10
@@ -65,16 +65,16 @@ struct boot_param_header {
  * OF address retreival & translation
  */
 
-/* Parse the ibm,dma-window property of an OF node into the busno, phys and
+/* Parse the ibm,dma-window property of an OF yesde into the busyes, phys and
  * size parameters.
  */
-void of_parse_dma_window(struct device_node *dn, const __be32 *dma_window,
-			 unsigned long *busno, unsigned long *phys,
+void of_parse_dma_window(struct device_yesde *dn, const __be32 *dma_window,
+			 unsigned long *busyes, unsigned long *phys,
 			 unsigned long *size);
 
 extern void of_instantiate_rtc(void);
 
-extern int of_get_ibm_chip_id(struct device_node *np);
+extern int of_get_ibm_chip_id(struct device_yesde *np);
 
 struct of_drc_info {
 	char *drc_type;
@@ -94,8 +94,8 @@ extern int of_read_drc_info_cell(struct property **prop,
 /*
  * There are two methods for telling firmware what our capabilities are.
  * Newer machines have an "ibm,client-architecture-support" method on the
- * root node.  For older machines, we have to call the "process-elf-header"
- * method in the /packages/elf-loader node, passing it a fake 32-bit
+ * root yesde.  For older machines, we have to call the "process-elf-header"
+ * method in the /packages/elf-loader yesde, passing it a fake 32-bit
  * ELF header containing a couple of PT_NOTE sections that contain
  * structures that contain various information.
  */
@@ -103,7 +103,7 @@ extern int of_read_drc_info_cell(struct property **prop,
 /* New method - extensible architecture description vector. */
 
 /* Option vector bits - generic bits in byte 1 */
-#define OV_IGNORE		0x80	/* ignore this vector */
+#define OV_IGNORE		0x80	/* igyesre this vector */
 #define OV_CESSATION_POLICY	0x40	/* halt if unsupported option present*/
 
 /* Option vector 1: processor architectures supported */

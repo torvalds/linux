@@ -270,7 +270,7 @@ static void mxl5007t_set_if_freq_bits(struct mxl5007t_state *state,
 	}
 	set_reg_bits(state->tab_init, 0x02, 0x0f, val);
 
-	/* set inverted IF or normal IF */
+	/* set inverted IF or yesrmal IF */
 	set_reg_bits(state->tab_init, 0x02, 0x10, invert_if ? 0x10 : 0x00);
 
 	state->if_freq = if_freq;
@@ -633,7 +633,7 @@ static int mxl5007t_set_params(struct dvb_frontend *fe)
 		}
 		break;
 	default:
-		mxl_err("modulation type not supported!");
+		mxl_err("modulation type yest supported!");
 		return -EINVAL;
 	}
 
@@ -825,7 +825,7 @@ static int mxl5007t_get_chip_id(struct mxl5007t_state *state)
 		break;
 	default:
 		name = "MxL5007T";
-		printk(KERN_WARNING "%s: unknown rev (%02x)\n", __func__, id);
+		printk(KERN_WARNING "%s: unkyeswn rev (%02x)\n", __func__, id);
 		id = MxL_UNKNOWN_ID;
 	}
 	state->chip_id = id;

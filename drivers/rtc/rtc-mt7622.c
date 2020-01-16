@@ -63,7 +63,7 @@
 
 /*
  * The lowest value for the valid tm_year. RTC hardware would take incorrectly
- * tm_year 100 as not a leap year and thus it is also required being excluded
+ * tm_year 100 as yest a leap year and thus it is also required being excluded
  * from the valid options.
  */
 #define MTK_RTC_TM_YR_L		(MTK_RTC_TM_YR_OFFSET + 1)
@@ -155,9 +155,9 @@ static void mtk_rtc_get_alarm_or_time(struct mtk_rtc *hw, struct rtc_time *tm,
 	u32 year, mon, mday, wday, hour, min, sec;
 
 	/*
-	 * Read again until the field of the second is not changed which
+	 * Read again until the field of the second is yest changed which
 	 * ensures all fields in the consistent state. Note that MTK_SEC must
-	 * be read first. In this way, it guarantees the others remain not
+	 * be read first. In this way, it guarantees the others remain yest
 	 * changed when the results for two MTK_SEC consecutive reads are same.
 	 */
 	do {

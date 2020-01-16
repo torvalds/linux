@@ -40,7 +40,7 @@ struct msm_ringbuffer {
 	uint32_t *start, *end, *cur, *next;
 	struct list_head submits;
 	uint64_t iova;
-	uint32_t seqno;
+	uint32_t seqyes;
 	uint32_t hangcheck_fence;
 	struct msm_rbmemptrs *memptrs;
 	uint64_t memptrs_iova;

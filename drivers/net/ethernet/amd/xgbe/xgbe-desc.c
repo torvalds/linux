@@ -19,26 +19,26 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -62,11 +62,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -82,23 +82,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -185,26 +185,26 @@ static void xgbe_free_ring_resources(struct xgbe_prv_data *pdata)
 	DBGPR("<--xgbe_free_ring_resources\n");
 }
 
-static void *xgbe_alloc_node(size_t size, int node)
+static void *xgbe_alloc_yesde(size_t size, int yesde)
 {
 	void *mem;
 
-	mem = kzalloc_node(size, GFP_KERNEL, node);
+	mem = kzalloc_yesde(size, GFP_KERNEL, yesde);
 	if (!mem)
 		mem = kzalloc(size, GFP_KERNEL);
 
 	return mem;
 }
 
-static void *xgbe_dma_alloc_node(struct device *dev, size_t size,
-				 dma_addr_t *dma, int node)
+static void *xgbe_dma_alloc_yesde(struct device *dev, size_t size,
+				 dma_addr_t *dma, int yesde)
 {
 	void *mem;
-	int cur_node = dev_to_node(dev);
+	int cur_yesde = dev_to_yesde(dev);
 
-	set_dev_node(dev, node);
+	set_dev_yesde(dev, yesde);
 	mem = dma_alloc_coherent(dev, size, dma, GFP_KERNEL);
-	set_dev_node(dev, cur_node);
+	set_dev_yesde(dev, cur_yesde);
 
 	if (!mem)
 		mem = dma_alloc_coherent(dev, size, dma, GFP_KERNEL);
@@ -224,21 +224,21 @@ static int xgbe_init_ring(struct xgbe_prv_data *pdata,
 	size = rdesc_count * sizeof(struct xgbe_ring_desc);
 
 	ring->rdesc_count = rdesc_count;
-	ring->rdesc = xgbe_dma_alloc_node(pdata->dev, size, &ring->rdesc_dma,
-					  ring->node);
+	ring->rdesc = xgbe_dma_alloc_yesde(pdata->dev, size, &ring->rdesc_dma,
+					  ring->yesde);
 	if (!ring->rdesc)
 		return -ENOMEM;
 
 	/* Descriptor information */
 	size = rdesc_count * sizeof(struct xgbe_ring_data);
 
-	ring->rdata = xgbe_alloc_node(size, ring->node);
+	ring->rdata = xgbe_alloc_yesde(size, ring->yesde);
 	if (!ring->rdata)
 		return -ENOMEM;
 
 	netif_dbg(pdata, drv, pdata->netdev,
-		  "rdesc=%p, rdesc_dma=%pad, rdata=%p, node=%d\n",
-		  ring->rdesc, &ring->rdesc_dma, ring->rdata, ring->node);
+		  "rdesc=%p, rdesc_dma=%pad, rdata=%p, yesde=%d\n",
+		  ring->rdesc, &ring->rdesc_dma, ring->rdata, ring->yesde);
 
 	return 0;
 }
@@ -284,7 +284,7 @@ err_ring:
 
 static int xgbe_alloc_pages(struct xgbe_prv_data *pdata,
 			    struct xgbe_page_alloc *pa, int alloc_order,
-			    int node)
+			    int yesde)
 {
 	struct page *pages = NULL;
 	dma_addr_t pages_dma;
@@ -297,7 +297,7 @@ again:
 	/* Try to obtain pages, decreasing order if necessary */
 	gfp = GFP_ATOMIC | __GFP_COMP | __GFP_NOWARN;
 	while (order >= 0) {
-		pages = alloc_pages_node(node, gfp, order);
+		pages = alloc_pages_yesde(yesde, gfp, order);
 		if (pages)
 			break;
 
@@ -305,8 +305,8 @@ again:
 	}
 
 	/* If we couldn't get local pages, try getting from anywhere */
-	if (!pages && (node != NUMA_NO_NODE)) {
-		node = NUMA_NO_NODE;
+	if (!pages && (yesde != NUMA_NO_NODE)) {
+		yesde = NUMA_NO_NODE;
 		goto again;
 	}
 
@@ -360,14 +360,14 @@ static int xgbe_map_rx_buffer(struct xgbe_prv_data *pdata,
 	int ret;
 
 	if (!ring->rx_hdr_pa.pages) {
-		ret = xgbe_alloc_pages(pdata, &ring->rx_hdr_pa, 0, ring->node);
+		ret = xgbe_alloc_pages(pdata, &ring->rx_hdr_pa, 0, ring->yesde);
 		if (ret)
 			return ret;
 	}
 
 	if (!ring->rx_buf_pa.pages) {
 		ret = xgbe_alloc_pages(pdata, &ring->rx_buf_pa,
-				       PAGE_ALLOC_COSTLY_ORDER, ring->node);
+				       PAGE_ALLOC_COSTLY_ORDER, ring->yesde);
 		if (ret)
 			return ret;
 	}

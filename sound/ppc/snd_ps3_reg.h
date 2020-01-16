@@ -64,7 +64,7 @@
   PS3_AUDIO_INTR_0 register tells an interrupt handler which audio
   DMA channel triggered the interrupt.  The interrupt status for a channel
   can be cleared by writing a '1' to the corresponding bit.  A new interrupt
-  cannot be generated until the previous interrupt has been cleared.
+  canyest be generated until the previous interrupt has been cleared.
 
   Note that the status reported by PS3_AUDIO_INTR_0 is independent of the
   value of PS3_AUDIO_INTR_EN_0.
@@ -114,7 +114,7 @@
    will occur as if the transfer had finished.
    Since this bit is designed to recover from DMA related issues
    which are caused by unpredictable situations, it is preferred to wait
-   for normal DMA transfer end without using this bit.
+   for yesrmal DMA transfer end without using this bit.
 */
 #define PS3_AUDIO_CONFIG_CLEAR          (1 << 8)  /* RWIVF */
 
@@ -307,7 +307,7 @@ Audio Port Interrupt Status Register
 Indicates Interrupt status, which interrupt has occurred, and can clear
 each interrupt in this register.
 Writing 1b to a field containing 1b clears field and de-asserts interrupt.
-Writing 0b to a field has no effect.
+Writing 0b to a field has yes effect.
 Field vaules are the following:
 0 - Interrupt hasn't occurred.
 1 - Interrupt has occurred.
@@ -743,10 +743,10 @@ The registers for a DMA channel should only be written if REQUEST is IDLE.
 The STATUS field can be used to monitor the progress of a DMA request.
 DONE indicates the previous request has completed.
 EVENT indicates that the DMA engine is waiting for the EVENT to occur.
-PENDING indicates that the DMA engine has not started processing this
+PENDING indicates that the DMA engine has yest started processing this
 request, but the EVENT has occurred.
 DMA indicates that the data transfer is in progress.
-NOTIFY indicates that the notifier signalling end of transfer is being written.
+NOTIFY indicates that the yestifier signalling end of transfer is being written.
 CLEAR indicated that the previous transfer was cleared.
 ERROR indicates the previous transfer requested an unsupported
 source/destination combination.
@@ -844,14 +844,14 @@ So a value of 0 means 128-bytes will get transferred.
  *
  *	Write
  *	  ' ' = Other Information
- *	  '-' = Must not be written (D), value ignored when written (R,A,F)
+ *	  '-' = Must yest be written (D), value igyesred when written (R,A,F)
  *	  'W' = Can be written
  *
  *	Internal State
  *	  ' ' = Other Information
  *	  '-' = No internal state
- *	  'X' = Internal state, initial value is unknown
- *	  'I' = Internal state, initial value is known and follows (I)
+ *	  'X' = Internal state, initial value is unkyeswn
+ *	  'I' = Internal state, initial value is kyeswn and follows (I)
  *
  *	Declaration/Size
  *	  ' ' = Other Information

@@ -131,8 +131,8 @@ static __inline__ long local_sub_return(long i, local_t * l)
  * @a: the amount to add to l...
  * @u: ...unless l is equal to u.
  *
- * Atomically adds @a to @l, so long as it was not @u.
- * Returns non-zero if @l was not @u, and zero otherwise.
+ * Atomically adds @a to @l, so long as it was yest @u.
+ * Returns yesn-zero if @l was yest @u, and zero otherwise.
  */
 #define local_add_unless(l, a, u)				\
 ({								\
@@ -142,7 +142,7 @@ static __inline__ long local_sub_return(long i, local_t * l)
 		c = old;					\
 	c != (u);						\
 })
-#define local_inc_not_zero(l) local_add_unless((l), 1, 0)
+#define local_inc_yest_zero(l) local_add_unless((l), 1, 0)
 
 #define local_dec_return(l) local_sub_return(1, (l))
 #define local_inc_return(l) local_add_return(1, (l))
@@ -191,7 +191,7 @@ static __inline__ long local_sub_return(long i, local_t * l)
 
 /* Use these for per-cpu local_t variables: on some archs they are
  * much more efficient than these naive implementations.  Note they take
- * a variable, not an address.
+ * a variable, yest an address.
  */
 
 #define __local_inc(l)		((l)->a.counter++)

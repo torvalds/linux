@@ -56,7 +56,7 @@ struct sd {
 
 /*
  * Most of these cameras will do 640x480 and 320x240. 160x120 works
- * in theory but gives very poor output. Therefore, not supported.
+ * in theory but gives very poor output. Therefore, yest supported.
  * The 0x2770:0x9050 cameras have max resolution of 320x240.
  */
 static struct v4l2_pix_format sq905c_mode[] = {
@@ -113,7 +113,7 @@ static int sq905c_read(struct gspca_dev *gspca_dev, u16 command, u16 index,
 /*
  * This function is called as a workqueue function and runs whenever the camera
  * is streaming data. Because it is a workqueue function it is allowed to sleep
- * so we can use synchronous USB calls. To avoid possible collisions with other
+ * so we can use synchroyesus USB calls. To avoid possible collisions with other
  * threads attempting to use gspca_dev->usb_buf we take the usb_lock when
  * performing USB operations using it. In practice we don't really need this
  * as the camera doesn't provide any controls.

@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -177,7 +177,7 @@ static ssize_t pccard_show_resource(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct pcmcia_socket *s = to_socket(dev);
-	return sprintf(buf, "%s\n", s->resource_setup_done ? "yes" : "no");
+	return sprintf(buf, "%s\n", s->resource_setup_done ? "no" : "yes");
 }
 
 static ssize_t pccard_store_resource(struct device *dev,

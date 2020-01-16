@@ -36,7 +36,7 @@ struct pl022_ssp_controller pl022_plat_data = {
 	 * select provided by spi masters other is controlled through external
 	 * gpio's. We can't use chipselect provided from spi master (because as
 	 * soon as FIFO becomes empty, CS is disabled and transfer ends). So
-	 * this number now depends on number of gpios available for spi. each
+	 * this number yesw depends on number of gpios available for spi. each
 	 * slave on each master requires a separate gpio pin.
 	 */
 	.num_chipselect = 2,

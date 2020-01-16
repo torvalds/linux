@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include "acp_gfx_if.h"
 
@@ -35,11 +35,11 @@
 #define mmACP_AZALIA_I2S_SELECT 0x51d4
 
 int amd_acp_hw_init(struct cgs_device *cgs_device,
-		    unsigned acp_version_major, unsigned acp_version_minor)
+		    unsigned acp_version_major, unsigned acp_version_miyesr)
 {
 	unsigned int acp_mode = ACP_MODE_I2S;
 
-	if ((acp_version_major == 2) && (acp_version_minor == 2))
+	if ((acp_version_major == 2) && (acp_version_miyesr == 2))
 		acp_mode = cgs_read_register(cgs_device,
 					mmACP_AZALIA_I2S_SELECT);
 

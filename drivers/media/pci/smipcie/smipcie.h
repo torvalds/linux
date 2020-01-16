@@ -212,7 +212,7 @@ struct smi_cfg_info {
 #define SMI_TS_NULL             0
 #define SMI_TS_DMA_SINGLE       1
 #define SMI_TS_DMA_BOTH         3
-/* SMI_TS_NULL: not use;
+/* SMI_TS_NULL: yest use;
  * SMI_TS_DMA_SINGLE: use DMA 0 only;
  * SMI_TS_DMA_BOTH:use DMA 0 and 1.*/
 	int ts_0;

@@ -23,14 +23,14 @@ struct clp_fh_list_entry {
 } __packed;
 
 #define CLP_RC_SETPCIFN_FH	0x0101	/* Invalid PCI fn handle */
-#define CLP_RC_SETPCIFN_FHOP	0x0102	/* Fn handle not valid for op */
+#define CLP_RC_SETPCIFN_FHOP	0x0102	/* Fn handle yest valid for op */
 #define CLP_RC_SETPCIFN_DMAAS	0x0103	/* Invalid DMA addr space */
 #define CLP_RC_SETPCIFN_RES	0x0104	/* Insufficient resources */
 #define CLP_RC_SETPCIFN_ALRDY	0x0105	/* Fn already in requested state */
 #define CLP_RC_SETPCIFN_ERR	0x0106	/* Fn in permanent error state */
 #define CLP_RC_SETPCIFN_RECPND	0x0107	/* Error recovery pending */
 #define CLP_RC_SETPCIFN_BUSY	0x0108	/* Fn busy */
-#define CLP_RC_LISTPCI_BADRT	0x010a	/* Resume token not recognized */
+#define CLP_RC_LISTPCI_BADRT	0x010a	/* Resume token yest recognized */
 #define CLP_RC_QUERYPCIFG_PFGID	0x010b	/* Unrecognized PFGID */
 
 /* request or response block header length */
@@ -127,7 +127,7 @@ struct clp_req_query_pci_grp {
 struct clp_rsp_query_pci_grp {
 	struct clp_rsp_hdr hdr;
 	u16			:  4;
-	u16 noi			: 12;	/* number of interrupts */
+	u16 yesi			: 12;	/* number of interrupts */
 	u8 version;
 	u8			:  6;
 	u8 frame		:  1;
@@ -137,7 +137,7 @@ struct clp_rsp_query_pci_grp {
 	u16			: 16;
 	u16 maxfaal;
 	u16			:  4;
-	u16 dnoi		: 12;
+	u16 dyesi		: 12;
 	u16 maxcpu;
 	u64 dasm;			/* dma address space mask */
 	u64 msia;			/* MSI address */

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -215,7 +215,7 @@ static void dce120_update_dchub(
 				AGP_TOP, (dh_data->zfb_mc_base_addr + dh_data->zfb_size_in_byte - 1) >> 22);
 		break;
 	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		/*Should yest touch FB LOCATION (done by VBIOS on AsicInit table)*/
 		REG_UPDATE(DCHUB_AGP_BASE,
 				AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
 
@@ -226,7 +226,7 @@ static void dce120_update_dchub(
 				AGP_TOP, (dh_data->zfb_mc_base_addr + dh_data->zfb_size_in_byte - 1) >> 22);
 		break;
 	case FRAME_BUFFER_MODE_LOCAL_ONLY:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		/*Should yest touch FB LOCATION (done by VBIOS on AsicInit table)*/
 		REG_UPDATE(DCHUB_AGP_BASE,
 				AGP_BASE, 0);
 

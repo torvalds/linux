@@ -34,15 +34,15 @@ static int snd_vt1724_amp_init(struct snd_ice1712 *ice)
 
 	unsigned int i;
 
-	/* only use basic functionality for now */
+	/* only use basic functionality for yesw */
 
 	/* VT1616 6ch codec connected to PSDOUT0 using packed mode */
 	ice->num_total_dacs = 6;
 	ice->num_total_adcs = 2;
 
-	/* Chaintech AV-710 has another WM8728 codec connected to PSDOUT4
+	/* Chaintech AV-710 has ayesther WM8728 codec connected to PSDOUT4
 	   (shared with the SPDIF output). Mixer control for this codec
-	   is not yet supported. */
+	   is yest yet supported. */
 	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_AV710) {
 		for (i = 0; i < ARRAY_SIZE(wm_inits); i += 2)
 			wm_put(ice, wm_inits[i], wm_inits[i+1]);

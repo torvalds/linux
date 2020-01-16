@@ -63,7 +63,7 @@ struct firmware_cache {
 
 	struct delayed_work work;
 
-	struct notifier_block   pm_notify;
+	struct yestifier_block   pm_yestify;
 #endif
 };
 
@@ -135,7 +135,7 @@ static bool fw_is_builtin_firmware(const struct firmware *fw)
 	return false;
 }
 
-#else /* Module case - no builtin firmware support */
+#else /* Module case - yes builtin firmware support */
 
 static inline bool fw_get_builtin_firmware(struct firmware *fw,
 					   const char *name, void *buf,
@@ -328,7 +328,7 @@ int fw_map_paged_buf(struct fw_priv *fw_priv)
 	if (!fw_priv->data)
 		return -ENOMEM;
 
-	/* page table is no longer needed after mapping, let's free */
+	/* page table is yes longer needed after mapping, let's free */
 	kvfree(fw_priv->pages);
 	fw_priv->pages = NULL;
 
@@ -500,7 +500,7 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv,
 				dev_warn(device, "loading %s failed with error %d\n",
 					 path, rc);
 			else
-				dev_dbg(device, "loading %s failed for no such file or directory.\n",
+				dev_dbg(device, "loading %s failed for yes such file or directory.\n",
 					 path);
 			continue;
 		}
@@ -707,7 +707,7 @@ _request_firmware_prepare(struct firmware **firmware_p, const char *name,
 				  opt_flags);
 
 	/*
-	 * bind with 'priv' now to avoid warning in failure path
+	 * bind with 'priv' yesw to avoid warning in failure path
 	 * of requesting firmware.
 	 */
 	firmware->priv = fw_priv;
@@ -808,7 +808,7 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
  *      Should be called from user context where sleeping is allowed.
  *
  *      @name will be used as $FIRMWARE in the uevent environment and
- *      should be distinctive enough not to be confused with any other
+ *      should be distinctive eyesugh yest to be confused with any other
  *      firmware image for this or any other device.
  *
  *	Caller must hold the reference count of @device.
@@ -832,19 +832,19 @@ request_firmware(const struct firmware **firmware_p, const char *name,
 EXPORT_SYMBOL(request_firmware);
 
 /**
- * firmware_request_nowarn() - request for an optional fw module
+ * firmware_request_yeswarn() - request for an optional fw module
  * @firmware: pointer to firmware image
  * @name: name of firmware file
  * @device: device for which firmware is being loaded
  *
  * This function is similar in behaviour to request_firmware(), except
- * it doesn't produce warning messages when the file is not found.
+ * it doesn't produce warning messages when the file is yest found.
  * The sysfs fallback mechanism is enabled if direct filesystem lookup fails,
  * however, however failures to find the firmware file with it are still
  * suppressed. It is therefore up to the driver to check for the return value
  * of this call and to decide when to inform the users of errors.
  **/
-int firmware_request_nowarn(const struct firmware **firmware, const char *name,
+int firmware_request_yeswarn(const struct firmware **firmware, const char *name,
 			    struct device *device)
 {
 	int ret;
@@ -856,7 +856,7 @@ int firmware_request_nowarn(const struct firmware **firmware, const char *name,
 	module_put(THIS_MODULE);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(firmware_request_nowarn);
+EXPORT_SYMBOL_GPL(firmware_request_yeswarn);
 
 /**
  * request_firmware_direct() - load firmware directly without usermode helper
@@ -888,12 +888,12 @@ EXPORT_SYMBOL_GPL(request_firmware_direct);
  * @name: name of firmware file
  * @device: device for which firmware should be cached for
  *
- * There are some devices with an optimization that enables the device to not
+ * There are some devices with an optimization that enables the device to yest
  * require loading firmware on system reboot. This optimization may still
  * require the firmware present on resume from suspend. This routine can be
  * used to ensure the firmware is present on resume from suspend in these
- * situations. This helper is not compatible with drivers which use
- * request_firmware_into_buf() or request_firmware_nowait() with no uevent set.
+ * situations. This helper is yest compatible with drivers which use
+ * request_firmware_into_buf() or request_firmware_yeswait() with yes uevent set.
  **/
 int firmware_request_cache(struct device *device, const char *name)
 {
@@ -974,7 +974,7 @@ static void request_firmware_work_func(struct work_struct *work)
 	_request_firmware(&fw, fw_work->name, fw_work->device, NULL, 0,
 			  fw_work->opt_flags);
 	fw_work->cont(fw, fw_work->context);
-	put_device(fw_work->device); /* taken in request_firmware_nowait() */
+	put_device(fw_work->device); /* taken in request_firmware_yeswait() */
 
 	module_put(fw_work->module);
 	kfree_const(fw_work->name);
@@ -982,21 +982,21 @@ static void request_firmware_work_func(struct work_struct *work)
 }
 
 /**
- * request_firmware_nowait() - asynchronous version of request_firmware
+ * request_firmware_yeswait() - asynchroyesus version of request_firmware
  * @module: module requesting the firmware
  * @uevent: sends uevent to copy the firmware image if this flag
- *	is non-zero else the firmware copy must be done manually.
+ *	is yesn-zero else the firmware copy must be done manually.
  * @name: name of firmware file
  * @device: device for which firmware is being loaded
  * @gfp: allocation flags
  * @context: will be passed over to @cont, and
  *	@fw may be %NULL if firmware request fails.
- * @cont: function will be called asynchronously when the firmware
+ * @cont: function will be called asynchroyesusly when the firmware
  *	request is over.
  *
  *	Caller must hold the reference count of @device.
  *
- *	Asynchronous variant of request_firmware() for user contexts:
+ *	Asynchroyesus variant of request_firmware() for user contexts:
  *		- sleep for as small periods as possible since it may
  *		  increase kernel boot time of built-in device drivers
  *		  requesting firmware in their ->probe() methods, if
@@ -1005,7 +1005,7 @@ static void request_firmware_work_func(struct work_struct *work)
  *		- can't sleep at all if @gfp is GFP_ATOMIC.
  **/
 int
-request_firmware_nowait(
+request_firmware_yeswait(
 	struct module *module, bool uevent,
 	const char *name, struct device *device, gfp_t gfp, void *context,
 	void (*cont)(const struct firmware *fw, void *context))
@@ -1045,7 +1045,7 @@ request_firmware_nowait(
 	schedule_work(&fw_work->work);
 	return 0;
 }
-EXPORT_SYMBOL(request_firmware_nowait);
+EXPORT_SYMBOL(request_firmware_yeswait);
 
 #ifdef CONFIG_FW_CACHE
 static ASYNC_DOMAIN_EXCLUSIVE(fw_cache_domain);
@@ -1057,7 +1057,7 @@ static ASYNC_DOMAIN_EXCLUSIVE(fw_cache_domain);
  * Cache firmware in kernel memory so that drivers can use it when
  * system isn't ready for them to request firmware image from userspace.
  * Once it returns successfully, driver can use request_firmware or its
- * nowait version to get the cached firmware without any interacting
+ * yeswait version to get the cached firmware without any interacting
  * with userspace
  *
  * Return 0 if the firmware image has been cached successfully
@@ -1271,12 +1271,12 @@ static void __device_uncache_fw_images(void)
 /**
  * device_cache_fw_images() - cache devices' firmware
  *
- * If one device called request_firmware or its nowait version
+ * If one device called request_firmware or its yeswait version
  * successfully before, the firmware names are recored into the
  * device's devres link list, so device_cache_fw_images can call
  * cache_firmware() to cache these firmwares for the device,
  * then the device driver can load its firmwares easily at
- * time when system is not ready to complete loading firmware.
+ * time when system is yest ready to complete loading firmware.
  */
 static void device_cache_fw_images(void)
 {
@@ -1331,7 +1331,7 @@ static void device_uncache_fw_images_delay(unsigned long delay)
 			   msecs_to_jiffies(delay));
 }
 
-static int fw_pm_notify(struct notifier_block *notify_block,
+static int fw_pm_yestify(struct yestifier_block *yestify_block,
 			unsigned long mode, void *unused)
 {
 	switch (mode) {
@@ -1351,7 +1351,7 @@ static int fw_pm_notify(struct notifier_block *notify_block,
 	case PM_POST_RESTORE:
 		/*
 		 * In case that system sleep failed and syscore_suspend is
-		 * not called.
+		 * yest called.
 		 */
 		mutex_lock(&fw_lock);
 		fw_cache.state = FW_LOADER_NO_CACHE;
@@ -1385,8 +1385,8 @@ static int __init register_fw_pm_ops(void)
 	INIT_DELAYED_WORK(&fw_cache.work,
 			  device_uncache_fw_images_work);
 
-	fw_cache.pm_notify.notifier_call = fw_pm_notify;
-	ret = register_pm_notifier(&fw_cache.pm_notify);
+	fw_cache.pm_yestify.yestifier_call = fw_pm_yestify;
+	ret = register_pm_yestifier(&fw_cache.pm_yestify);
 	if (ret)
 		return ret;
 
@@ -1398,7 +1398,7 @@ static int __init register_fw_pm_ops(void)
 static inline void unregister_fw_pm_ops(void)
 {
 	unregister_syscore_ops(&fw_syscore_ops);
-	unregister_pm_notifier(&fw_cache.pm_notify);
+	unregister_pm_yestifier(&fw_cache.pm_yestify);
 }
 #else
 static int fw_cache_piggyback_on_request(const char *name)
@@ -1421,7 +1421,7 @@ static void __init fw_cache_init(void)
 	fw_cache.state = FW_LOADER_NO_CACHE;
 }
 
-static int fw_shutdown_notify(struct notifier_block *unused1,
+static int fw_shutdown_yestify(struct yestifier_block *unused1,
 			      unsigned long unused2, void *unused3)
 {
 	/*
@@ -1433,8 +1433,8 @@ static int fw_shutdown_notify(struct notifier_block *unused1,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block fw_shutdown_nb = {
-	.notifier_call = fw_shutdown_notify,
+static struct yestifier_block fw_shutdown_nb = {
+	.yestifier_call = fw_shutdown_yestify,
 };
 
 static int __init firmware_class_init(void)
@@ -1448,7 +1448,7 @@ static int __init firmware_class_init(void)
 	if (ret)
 		return ret;
 
-	ret = register_reboot_notifier(&fw_shutdown_nb);
+	ret = register_reboot_yestifier(&fw_shutdown_nb);
 	if (ret)
 		goto out;
 
@@ -1462,7 +1462,7 @@ out:
 static void __exit firmware_class_exit(void)
 {
 	unregister_fw_pm_ops();
-	unregister_reboot_notifier(&fw_shutdown_nb);
+	unregister_reboot_yestifier(&fw_shutdown_nb);
 	unregister_sysfs_loader();
 }
 

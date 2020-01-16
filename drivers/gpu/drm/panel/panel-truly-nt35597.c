@@ -503,14 +503,14 @@ static int truly_nt35597_panel_add(struct truly_nt35597 *ctx)
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		DRM_DEV_ERROR(dev, "cannot get reset gpio %ld\n",
+		DRM_DEV_ERROR(dev, "canyest get reset gpio %ld\n",
 			PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
 	ctx->mode_gpio = devm_gpiod_get(dev, "mode", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->mode_gpio)) {
-		DRM_DEV_ERROR(dev, "cannot get mode gpio %ld\n",
+		DRM_DEV_ERROR(dev, "canyest get mode gpio %ld\n",
 			PTR_ERR(ctx->mode_gpio));
 		return PTR_ERR(ctx->mode_gpio);
 	}
@@ -554,7 +554,7 @@ static int truly_nt35597_probe(struct mipi_dsi_device *dsi)
 	struct device *dev = &dsi->dev;
 	struct truly_nt35597 *ctx;
 	struct mipi_dsi_device *dsi1_device;
-	struct device_node *dsi1;
+	struct device_yesde *dsi1;
 	struct mipi_dsi_host *dsi1_host;
 	struct mipi_dsi_device *dsi_dev;
 	int ret = 0;
@@ -563,7 +563,7 @@ static int truly_nt35597_probe(struct mipi_dsi_device *dsi)
 	const struct mipi_dsi_device_info info = {
 		.type = "trulynt35597",
 		.channel = 0,
-		.node = NULL,
+		.yesde = NULL,
 	};
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
@@ -575,7 +575,7 @@ static int truly_nt35597_probe(struct mipi_dsi_device *dsi)
 	 * This device represents itself as one with two input ports which are
 	 * fed by the output ports of the two DSI controllers . The DSI0 is
 	 * the master controller and has most of the panel related info in its
-	 * child node.
+	 * child yesde.
 	 */
 
 	ctx->config = of_device_get_match_data(dev);
@@ -585,15 +585,15 @@ static int truly_nt35597_probe(struct mipi_dsi_device *dsi)
 		return -ENODEV;
 	}
 
-	dsi1 = of_graph_get_remote_node(dsi->dev.of_node, 1, -1);
+	dsi1 = of_graph_get_remote_yesde(dsi->dev.of_yesde, 1, -1);
 	if (!dsi1) {
 		DRM_DEV_ERROR(dev,
-			"failed to get remote node for dsi1_device\n");
+			"failed to get remote yesde for dsi1_device\n");
 		return -ENODEV;
 	}
 
-	dsi1_host = of_find_mipi_dsi_host_by_node(dsi1);
-	of_node_put(dsi1);
+	dsi1_host = of_find_mipi_dsi_host_by_yesde(dsi1);
+	of_yesde_put(dsi1);
 	if (!dsi1_host) {
 		DRM_DEV_ERROR(dev, "failed to find dsi host\n");
 		return -EPROBE_DEFER;

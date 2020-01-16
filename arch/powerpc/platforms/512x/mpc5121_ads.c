@@ -25,7 +25,7 @@
 static void __init mpc5121_ads_setup_arch(void)
 {
 #ifdef CONFIG_PCI
-	struct device_node *np;
+	struct device_yesde *np;
 #endif
 	printk(KERN_INFO "MPC5121 ADS board from Freescale Semiconductor\n");
 	/*
@@ -34,7 +34,7 @@ static void __init mpc5121_ads_setup_arch(void)
 	mpc5121_ads_cpld_map();
 
 #ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,mpc5121-pci")
+	for_each_compatible_yesde(np, "pci", "fsl,mpc5121-pci")
 		mpc83xx_add_bridge(np);
 #endif
 

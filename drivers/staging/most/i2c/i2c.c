@@ -2,7 +2,7 @@
 /*
  * i2c.c - Hardware Dependent Module for I2C Interface
  *
- * Copyright (C) 2013-2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2013-2015, Microchip Techyeslogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -269,7 +269,7 @@ static irqreturn_t most_irq_handler(int irq, void *_dev)
 {
 	struct hdm_i2c *dev = _dev;
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	dev->rx.int_disabled = true;
 	schedule_delayed_work(&dev->rx.dwork, 0);
 

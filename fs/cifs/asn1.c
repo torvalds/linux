@@ -87,7 +87,7 @@ struct asn1_ctx {
 };
 
 /*
- * Octet string (not null terminated)
+ * Octet string (yest null terminated)
  */
 struct asn1_octstr {
 	unsigned char *data;
@@ -518,7 +518,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 			rc = 0;
 	}
 
-	/* SPNEGO OID not present or garbled -- bail out */
+	/* SPNEGO OID yest present or garbled -- bail out */
 	if (!rc) {
 		cifs_dbg(FYI, "Error decoding negTokenInit header\n");
 		return 0;
@@ -604,8 +604,8 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 	}
 
 	/*
-	 * We currently ignore anything at the end of the SPNEGO blob after
-	 * the mechTypes have been parsed, since none of that info is
+	 * We currently igyesre anything at the end of the SPNEGO blob after
+	 * the mechTypes have been parsed, since yesne of that info is
 	 * used at the moment.
 	 */
 	return 1;

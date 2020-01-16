@@ -6,7 +6,7 @@
  * This file is part of GnuPG.
  *
  * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ *	 Actually it's the same code with only miyesr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.

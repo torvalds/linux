@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -1361,7 +1361,7 @@ qed_filter_ucast_common(struct qed_hwfn *p_hwfn,
 
 		if (action == MAX_ETH_FILTER_ACTION) {
 			DP_NOTICE(p_hwfn,
-				  "%d is not supported yet\n",
+				  "%d is yest supported yet\n",
 				  p_filter_cmd->opcode);
 			qed_sp_destroy_request(p_hwfn, *pp_ent);
 			return -EINVAL;
@@ -1631,7 +1631,7 @@ static void __qed_get_vport_pstats_addrlen(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static noinline_for_stack void
+static yesinline_for_stack void
 __qed_get_vport_pstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		       struct qed_eth_stats *p_stats, u16 statistics_bin)
 {
@@ -1660,7 +1660,7 @@ __qed_get_vport_pstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	    HILO_64_REGPAIR(pstats.error_drop_pkts);
 }
 
-static noinline_for_stack void
+static yesinline_for_stack void
 __qed_get_vport_tstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		       struct qed_eth_stats *p_stats, u16 statistics_bin)
 {
@@ -1707,7 +1707,7 @@ static void __qed_get_vport_ustats_addrlen(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 void __qed_get_vport_ustats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 			    struct qed_eth_stats *p_stats, u16 statistics_bin)
 {
@@ -1748,7 +1748,7 @@ static void __qed_get_vport_mstats_addrlen(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static noinline_for_stack void
+static yesinline_for_stack void
 __qed_get_vport_mstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		       struct qed_eth_stats *p_stats, u16 statistics_bin)
 {
@@ -1761,8 +1761,8 @@ __qed_get_vport_mstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	memset(&mstats, 0, sizeof(mstats));
 	qed_memcpy_from(p_hwfn, p_ptt, &mstats, mstats_addr, mstats_len);
 
-	p_stats->common.no_buff_discards +=
-	    HILO_64_REGPAIR(mstats.no_buff_discard);
+	p_stats->common.yes_buff_discards +=
+	    HILO_64_REGPAIR(mstats.yes_buff_discard);
 	p_stats->common.packet_too_big_discard +=
 	    HILO_64_REGPAIR(mstats.packet_too_big_discard);
 	p_stats->common.ttl0_discard += HILO_64_REGPAIR(mstats.ttl0_discard);
@@ -1776,7 +1776,7 @@ __qed_get_vport_mstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	    HILO_64_REGPAIR(mstats.tpa_coalesced_bytes);
 }
 
-static noinline_for_stack void
+static yesinline_for_stack void
 __qed_get_vport_port_stats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 			   struct qed_eth_stats *p_stats)
 {
@@ -1973,12 +1973,12 @@ void qed_reset_vport_stats(struct qed_dev *cdev)
 			qed_ptt_release(p_hwfn, p_ptt);
 	}
 
-	/* PORT statistics are not necessarily reset, so we need to
+	/* PORT statistics are yest necessarily reset, so we need to
 	 * read and create a baseline for future statistics.
 	 * Link change stat is maintained by MFW, return its value as is.
 	 */
 	if (!cdev->reset_stats) {
-		DP_INFO(cdev, "Reset stats not allocated\n");
+		DP_INFO(cdev, "Reset stats yest allocated\n");
 	} else {
 		_qed_get_vport_stats(cdev, cdev->reset_stats);
 		cdev->reset_stats->common.link_change_count = 0;
@@ -2405,7 +2405,7 @@ static int qed_update_vport_rss(struct qed_dev *cdev,
 		return 0;
 	}
 
-	/* Start by copying the non-spcific information to the 2nd copy */
+	/* Start by copying the yesn-spcific information to the 2nd copy */
 	memcpy(&rss[1], &rss[0], sizeof(struct qed_rss_params));
 
 	/* CMT should be round-robin */
@@ -2714,7 +2714,7 @@ static int qed_configure_filter_ucast(struct qed_dev *cdev,
 
 	if (!params->vlan_valid && !params->mac_valid) {
 		DP_NOTICE(cdev,
-			  "Tried configuring a unicast filter, but both MAC and VLAN are not set\n");
+			  "Tried configuring a unicast filter, but both MAC and VLAN are yest set\n");
 		return -EINVAL;
 	}
 
@@ -2730,7 +2730,7 @@ static int qed_configure_filter_ucast(struct qed_dev *cdev,
 		ucast.opcode = QED_FILTER_REPLACE;
 		break;
 	default:
-		DP_NOTICE(cdev, "Unknown unicast filter type %d\n",
+		DP_NOTICE(cdev, "Unkyeswn unicast filter type %d\n",
 			  params->type);
 	}
 
@@ -2767,7 +2767,7 @@ static int qed_configure_filter_mcast(struct qed_dev *cdev,
 		mcast.opcode = QED_FILTER_REMOVE;
 		break;
 	default:
-		DP_NOTICE(cdev, "Unknown multicast filter type %d\n",
+		DP_NOTICE(cdev, "Unkyeswn multicast filter type %d\n",
 			  params->type);
 	}
 
@@ -2792,7 +2792,7 @@ static int qed_configure_filter(struct qed_dev *cdev,
 		accept_flags = params->filter.accept_flags;
 		return qed_configure_filter_rx_mode(cdev, accept_flags);
 	default:
-		DP_NOTICE(cdev, "Unknown filter type %d\n", (int)params->type);
+		DP_NOTICE(cdev, "Unkyeswn filter type %d\n", (int)params->type);
 		return -EINVAL;
 	}
 }

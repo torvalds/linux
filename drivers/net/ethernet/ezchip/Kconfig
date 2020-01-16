@@ -23,6 +23,6 @@ config EZCHIP_NPS_MANAGEMENT_ENET
 	---help---
 	  Simple LAN device for debug or management purposes.
 	  Device supports interrupts for RX and TX(completion).
-	  Device does not have DMA ability.
+	  Device does yest have DMA ability.
 
 endif

@@ -30,7 +30,7 @@ struct gphdr {
 
 /**
  * struct se_req_ctrl - SE request information.
- * @arg: Minor number of the opcode
+ * @arg: Miyesr number of the opcode
  * @ctxc: Context control.
  * @unca: Uncertainity enabled.
  * @info: Additional information for SE cores.
@@ -309,7 +309,7 @@ union pkt_instr_hdr {
 /**
  * struct pkt_hdr - Packet Input Header
  * @opcode: Request opcode (Major)
- * @arg: Request opcode (Minor)
+ * @arg: Request opcode (Miyesr)
  * @ctxc: Context control.
  * @unca: When set [UNC] is the uncertainty count for an input packet.
  *        The hardware uses uncertainty counts to predict
@@ -365,7 +365,7 @@ union pkt_hdr {
  *       packet.
  * @rptr: The result pointer for the solicited output port packet.
  *        If [SSZ]=0, [RPTR] must point directly to a buffer on the remote
- *        host that is large enough to hold the entire output packet.
+ *        host that is large eyesugh to hold the entire output packet.
  *        If [SSZ]!=0, [RPTR] must point to an array of ([SSZ]+3)/4
  *        sglist components at [RPTR] on the remote host.
  */

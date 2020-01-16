@@ -26,7 +26,7 @@ static const u8 intra_quantization_matrix_default[64] = {
 	46, 46, 56, 56, 58, 69, 69, 83
 };
 
-static const u8 non_intra_quantization_matrix_default[64] = {
+static const u8 yesn_intra_quantization_matrix_default[64] = {
 	16, 16, 16, 16, 16, 16, 16, 16,
 	16, 16, 16, 16, 16, 16, 16, 16,
 	16, 16, 16, 16, 16, 16, 16, 16,
@@ -112,12 +112,12 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 		cedrus_write(dev, VE_DEC_MPEG_IQMINPUT, reg);
 	}
 
-	/* Set non-intra quantization matrix. */
+	/* Set yesn-intra quantization matrix. */
 
-	if (quantization && quantization->load_non_intra_quantiser_matrix)
-		matrix = quantization->non_intra_quantiser_matrix;
+	if (quantization && quantization->load_yesn_intra_quantiser_matrix)
+		matrix = quantization->yesn_intra_quantiser_matrix;
 	else
-		matrix = non_intra_quantization_matrix_default;
+		matrix = yesn_intra_quantization_matrix_default;
 
 	for (i = 0; i < 64; i++) {
 		reg = VE_DEC_MPEG_IQMINPUT_WEIGHT(i, matrix[i]);

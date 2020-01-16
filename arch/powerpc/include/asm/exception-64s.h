@@ -48,18 +48,18 @@
 
 #define STF_ENTRY_BARRIER_SLOT						\
 	STF_ENTRY_BARRIER_FIXUP_SECTION;				\
-	nop;								\
-	nop;								\
-	nop
+	yesp;								\
+	yesp;								\
+	yesp
 
 #define STF_EXIT_BARRIER_SLOT						\
 	STF_EXIT_BARRIER_FIXUP_SECTION;					\
-	nop;								\
-	nop;								\
-	nop;								\
-	nop;								\
-	nop;								\
-	nop
+	yesp;								\
+	yesp;								\
+	yesp;								\
+	yesp;								\
+	yesp;								\
+	yesp
 
 /*
  * r10 must be free to use, r13 must be paca
@@ -68,16 +68,16 @@
 	STF_ENTRY_BARRIER_SLOT
 
 /*
- * Macros for annotating the expected destination of (h)rfid
+ * Macros for anyestating the expected destination of (h)rfid
  *
- * The nop instructions allow us to insert one or more instructions to flush the
+ * The yesp instructions allow us to insert one or more instructions to flush the
  * L1-D cache when returning to userspace or a guest.
  */
 #define RFI_FLUSH_SLOT							\
 	RFI_FLUSH_FIXUP_SECTION;					\
-	nop;								\
-	nop;								\
-	nop
+	yesp;								\
+	yesp;								\
+	yesp
 
 #define RFI_TO_KERNEL							\
 	rfid

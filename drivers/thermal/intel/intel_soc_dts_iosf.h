@@ -34,7 +34,7 @@ struct intel_soc_dts_sensor_entry {
 
 struct intel_soc_dts_sensors {
 	u32 tj_max;
-	spinlock_t intr_notify_lock;
+	spinlock_t intr_yestify_lock;
 	struct mutex dts_update_lock;
 	enum intel_soc_dts_interrupt_type intr_type;
 	struct intel_soc_dts_sensor_entry soc_dts[SOC_MAX_DTS_SENSORS];

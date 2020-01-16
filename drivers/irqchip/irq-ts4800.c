@@ -54,7 +54,7 @@ static int ts4800_irqdomain_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip_and_handler(irq, &data->irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, data);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 
 	return 0;
 }
@@ -91,7 +91,7 @@ out:
 
 static int ts4800_ic_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct ts4800_irq_data *data;
 	struct irq_chip *irq_chip;
 	struct resource *res;
@@ -108,7 +108,7 @@ static int ts4800_ic_probe(struct platform_device *pdev)
 
 	writew(0xFFFF, data->base + IRQ_MASK);
 
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(yesde, 0);
 	if (!parent_irq) {
 		dev_err(&pdev->dev, "failed to get parent IRQ\n");
 		return -EINVAL;
@@ -119,9 +119,9 @@ static int ts4800_ic_probe(struct platform_device *pdev)
 	irq_chip->irq_mask = ts4800_irq_mask;
 	irq_chip->irq_unmask = ts4800_irq_unmask;
 
-	data->domain = irq_domain_add_linear(node, 8, &ts4800_ic_ops, data);
+	data->domain = irq_domain_add_linear(yesde, 8, &ts4800_ic_ops, data);
 	if (!data->domain) {
-		dev_err(&pdev->dev, "cannot add IRQ domain\n");
+		dev_err(&pdev->dev, "canyest add IRQ domain\n");
 		return -ENOMEM;
 	}
 
@@ -143,7 +143,7 @@ static int ts4800_ic_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id ts4800_ic_of_match[] = {
-	{ .compatible = "technologic,ts4800-irqc", },
+	{ .compatible = "techyeslogic,ts4800-irqc", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ts4800_ic_of_match);

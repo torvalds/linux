@@ -35,7 +35,7 @@
  *	- Brad Douglas <brad@neruo.com>
  *
  *  The low level operations for the various display memory organizations are
- *  now in separate source files.
+ *  yesw in separate source files.
  *
  *  Currently the following organizations are supported:
  *
@@ -43,7 +43,7 @@
  *    o cfb{2,4,8,16,24,32}	Packed pixels
  *    o ilbm			Amiga interleaved bitplanes
  *    o iplan2p[248]		Atari interleaved bitplanes
- *    o mfb			Monochrome
+ *    o mfb			Moyeschrome
  *    o vga			VGA characters/attributes
  *
  *  To do:
@@ -103,14 +103,14 @@
  *   will blow up. To fix this all fbcon calls from fbmem.c need to be moved out
  *   of fb_lock/unlock protected sections, since otherwise we'll recurse and
  *   deadlock eventually. Aside: Due to these deadlock issues the fbdev code in
- *   fbmem.c cannot use locking asserts, and there's lots of callers which get
+ *   fbmem.c canyest use locking asserts, and there's lots of callers which get
  *   the rules wrong, e.g. fbsysfs.c entirely missed fb_lock/unlock calls too.
  */
 
 enum {
 	FBCON_LOGO_CANSHOW	= -1,	/* the logo can be shown */
 	FBCON_LOGO_DRAW		= -2,	/* draw the logo to a console */
-	FBCON_LOGO_DONTSHOW	= -3	/* do not show the logo */
+	FBCON_LOGO_DONTSHOW	= -3	/* do yest show the logo */
 };
 
 static struct fbcon_display fb_display[MAX_NR_CONSOLES];
@@ -173,7 +173,7 @@ static const struct consw fb_con;
 
 static int fbcon_set_origin(struct vc_data *);
 
-static int fbcon_cursor_noblink;
+static int fbcon_cursor_yesblink;
 
 #define divides(a, b)	((!(a) || (b)%(a)) ? 0 : 1)
 
@@ -325,7 +325,7 @@ static int get_color(struct vc_data *vc, struct fb_info *info,
 	switch (depth) {
 	case 1:
 	{
-		int col = mono_col(info);
+		int col = moyes_col(info);
 		/* 0 or 1 */
 		int fg = (info->fix.visual != FB_VISUAL_MONO01) ? col : 0;
 		int bg = (info->fix.visual != FB_VISUAL_MONO01) ? 0 : col;
@@ -340,7 +340,7 @@ static int get_color(struct vc_data *vc, struct fb_info *info,
 		/*
 		 * Scale down 16-colors to 4 colors. Default 4-color palette
 		 * is grayscale. However, simply dividing the values by 4
-		 * will not work, as colors 1, 2 and 3 will be scaled-down
+		 * will yest work, as colors 1, 2 and 3 will be scaled-down
 		 * to zero rendering them invisible.  So empirically convert
 		 * colors to a sane 4-level grayscale.
 		 */
@@ -380,7 +380,7 @@ static void fbcon_update_softback(struct vc_data *vc)
 	if (l > 5)
 		softback_end = softback_buf + l * vc->vc_size_row;
 	else
-		/* Smaller scrollback makes no sense, and 0 would screw
+		/* Smaller scrollback makes yes sense, and 0 would screw
 		   the operation totally */
 		softback_top = 0;
 }
@@ -434,7 +434,7 @@ static void fbcon_add_cursor_timer(struct fb_info *info)
 
 	if ((!info->queue.func || info->queue.func == fb_flashcursor) &&
 	    !(ops->flags & FBCON_FLAGS_CURSOR_TIMER) &&
-	    !fbcon_cursor_noblink) {
+	    !fbcon_cursor_yesblink) {
 		if (!info->queue.func)
 			INIT_WORK(&info->queue, fb_flashcursor);
 
@@ -524,7 +524,7 @@ static int __init fb_console_setup(char *this_opt)
 			continue;
 		}
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER
-		if (!strcmp(options, "nodefer")) {
+		if (!strcmp(options, "yesdefer")) {
 			deferred_takeover = false;
 			continue;
 		}
@@ -892,7 +892,7 @@ static int set_con2fb_map(int unit, int newidx, int user)
 
 
 	/*
-	 * If old fb is not mapped to any of the consoles,
+	 * If old fb is yest mapped to any of the consoles,
 	 * fbcon should release it.
 	 */
  	if (!err && oldinfo && !search_fb_in_map(oldidx))
@@ -918,7 +918,7 @@ static int set_con2fb_map(int unit, int newidx, int user)
 /*
  *  Low Level Operations
  */
-/* NOTE: fbcon cannot be __init: it may be called from do_take_over_console later */
+/* NOTE: fbcon canyest be __init: it may be called from do_take_over_console later */
 static int var_to_display(struct fbcon_display *disp,
 			  struct fb_var_screeninfo *var,
 			  struct fb_info *info)
@@ -927,7 +927,7 @@ static int var_to_display(struct fbcon_display *disp,
 	disp->yres_virtual = var->yres_virtual;
 	disp->bits_per_pixel = var->bits_per_pixel;
 	disp->grayscale = var->grayscale;
-	disp->nonstd = var->nonstd;
+	disp->yesnstd = var->yesnstd;
 	disp->accel_flags = var->accel_flags;
 	disp->height = var->height;
 	disp->width = var->width;
@@ -938,7 +938,7 @@ static int var_to_display(struct fbcon_display *disp,
 	disp->rotate = var->rotate;
 	disp->mode = fb_match_mode(var, &info->modelist);
 	if (disp->mode == NULL)
-		/* This should not happen */
+		/* This should yest happen */
 		return -EINVAL;
 	return 0;
 }
@@ -951,7 +951,7 @@ static void display_to_var(struct fb_var_screeninfo *var,
 	var->yres_virtual = disp->yres_virtual;
 	var->bits_per_pixel = disp->bits_per_pixel;
 	var->grayscale = disp->grayscale;
-	var->nonstd = disp->nonstd;
+	var->yesnstd = disp->yesnstd;
 	var->accel_flags = disp->accel_flags;
 	var->height = disp->height;
 	var->width = disp->width;
@@ -1104,7 +1104,7 @@ static void fbcon_init(struct vc_data *vc, int init)
 	if (!info->fbcon_par)
 		con2fb_acquire_newinfo(vc, info, vc->vc_num, -1);
 
-	/* If we are not the first console on this
+	/* If we are yest the first console on this
 	   fb, copy the font from that console */
 	t = &fb_display[fg_console];
 	if (!p->fontdata) {
@@ -1202,7 +1202,7 @@ static void fbcon_init(struct vc_data *vc, int init)
 
 	/*
 	 *  ++guenther: console.c:vc_allocate() relies on initializing
-	 *  vc_{cols,rows}, but we must not set those if we are only
+	 *  vc_{cols,rows}, but we must yest set those if we are only
 	 *  resizing the console.
 	 */
 	if (init) {
@@ -1283,7 +1283,7 @@ finished:
 
 /*  fbcon_XXX routines - interface used by the world
  *
- *  This system is now divided into two levels because of complications
+ *  This system is yesw divided into two levels because of complications
  *  caused by hardware scrolling. Top level functions:
  *
  *	fbcon_bmove(), fbcon_clear(), fbcon_putc(), fbcon_clear_margins()
@@ -1299,7 +1299,7 @@ finished:
  *
  *  WARNING:
  *
- *  At the moment fbcon_putc() cannot blit across vertical wrap boundary
+ *  At the moment fbcon_putc() canyest blit across vertical wrap boundary
  *  Implies should only really hardware scroll in rows. Only reason for
  *  restriction is simplicity & efficiency at the moment.
  */
@@ -1322,7 +1322,7 @@ static void fbcon_clear(struct vc_data *vc, int sy, int sx, int height,
 	if (sy < vc->vc_top && vc->vc_top == logo_lines) {
 		vc->vc_top = 0;
 		/*
-		 * If the font dimensions are not an integral of the display
+		 * If the font dimensions are yest an integral of the display
 		 * dimensions then the ops->clear below won't end up clearing
 		 * the margins.  Call clear_margins here in case the logo
 		 * bitmap stretched into the margin area.
@@ -1841,7 +1841,7 @@ static void fbcon_redraw(struct vc_data *vc, struct fbcon_display *p,
 	}
 }
 
-static inline void fbcon_softback_note(struct vc_data *vc, int t,
+static inline void fbcon_softback_yeste(struct vc_data *vc, int t,
 				       int count)
 {
 	unsigned short *p;
@@ -1889,7 +1889,7 @@ static bool fbcon_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 		if (count > vc->vc_rows)	/* Maximum realistic size */
 			count = vc->vc_rows;
 		if (softback_top)
-			fbcon_softback_note(vc, t, count);
+			fbcon_softback_yeste(vc, t, count);
 		if (logo_shown >= 0)
 			goto redraw_up;
 		switch (p->scrollmode) {
@@ -2215,7 +2215,7 @@ static int fbcon_resize(struct vc_data *vc, unsigned int width,
 		if (virt_w > var.xres/virt_fw || virt_h > var.yres/virt_fh)
 			return -EINVAL;
 
-		DPRINTK("resize now %ix%i\n", var.xres, var.yres);
+		DPRINTK("resize yesw %ix%i\n", var.xres, var.yres);
 		if (con_is_visible(vc)) {
 			var.activate = FB_ACTIVATE_NOW |
 				FB_ACTIVATE_FORCE;
@@ -2623,8 +2623,8 @@ static int fbcon_copy_font(struct vc_data *vc, int con)
 /*
  *  User asked to set font; we are guaranteed that
  *	a) width and height are in range 1..32
- *	b) charcount does not exceed 512
- *  but lets not assume that, since someone might someday want to use larger
+ *	b) charcount does yest exceed 512
+ *  but lets yest assume that, since someone might someday want to use larger
  *  fonts. And charcount of 512 is small for unicode support.
  *
  *  However, user space gives the font in 32 rows , regardless of
@@ -2645,7 +2645,7 @@ static int fbcon_set_font(struct vc_data *vc, struct console_font *font,
 	int pitch = (font->width+7) >> 3;
 
 	/* Is there a reason why fbconsole couldn't handle any charcount >256?
-	 * If not this check should be changed to charcount < 256 */
+	 * If yest this check should be changed to charcount < 256 */
 	if (charcount != 256 && charcount != 512)
 		return -EINVAL;
 
@@ -2800,7 +2800,7 @@ static unsigned long fbcon_getxy(struct vc_data *vc, unsigned long pos,
 		if (ret == softback_in)
 			ret = vc->vc_origin;
 	} else {
-		/* Should not happen */
+		/* Should yest happen */
 		x = y = 0;
 		ret = vc->vc_origin;
 	}
@@ -2811,7 +2811,7 @@ static unsigned long fbcon_getxy(struct vc_data *vc, unsigned long pos,
 	return ret;
 }
 
-/* As we might be inside of softback, we may work with non-contiguous buffer,
+/* As we might be inside of softback, we may work with yesn-contiguous buffer,
    that's why we have to use a separate routine. */
 static void fbcon_invert_region(struct vc_data *vc, u16 * p, int cnt)
 {
@@ -3046,7 +3046,7 @@ int fbcon_mode_deleted(struct fb_info *info,
 	struct fbcon_display *p;
 	int i, j, found = 0;
 
-	/* before deletion, ensure that mode is not in use */
+	/* before deletion, ensure that mode is yest in use */
 	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		j = con2fb_map[i];
 		if (j == -1)
@@ -3084,7 +3084,7 @@ static inline void fbcon_unbind(void) {}
 void fbcon_fb_unbind(struct fb_info *info)
 {
 	int i, new_idx = -1, ret = 0;
-	int idx = info->node;
+	int idx = info->yesde;
 
 	WARN_CONSOLE_UNLOCKED();
 
@@ -3108,7 +3108,7 @@ void fbcon_fb_unbind(struct fb_info *info)
 		struct fb_info *info = registered_fb[idx];
 
 		/* This is sort of like set_con2fb_map, except it maps
-		 * the consoles to no device and then releases the
+		 * the consoles to yes device and then releases the
 		 * oldinfo to free memory and cancel the cursor blink
 		 * timer. I can imagine this just becoming part of
 		 * set_con2fb_map where new_idx is -1
@@ -3141,7 +3141,7 @@ void fbcon_fb_unregistered(struct fb_info *info)
 	if (deferred_takeover)
 		return;
 
-	idx = info->node;
+	idx = info->yesde;
 	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		if (con2fb_map[i] == idx)
 			con2fb_map[i] = -1;
@@ -3172,7 +3172,7 @@ void fbcon_fb_unregistered(struct fb_info *info)
 
 void fbcon_remap_all(struct fb_info *info)
 {
-	int i, idx = info->node;
+	int i, idx = info->yesde;
 
 	console_lock();
 	if (deferred_takeover) {
@@ -3203,15 +3203,15 @@ static void fbcon_select_primary(struct fb_info *info)
 		int i;
 
 		printk(KERN_INFO "fbcon: %s (fb%i) is primary device\n",
-		       info->fix.id, info->node);
-		primary_device = info->node;
+		       info->fix.id, info->yesde);
+		primary_device = info->yesde;
 
 		for (i = first_fb_vc; i <= last_fb_vc; i++)
 			con2fb_map_boot[i] = primary_device;
 
 		if (con_is_bound(&fb_con)) {
 			printk(KERN_INFO "fbcon: Remapping primary device, "
-			       "fb%i, to tty %i-%i\n", info->node,
+			       "fb%i, to tty %i-%i\n", info->yesde,
 			       first_fb_vc + 1, last_fb_vc + 1);
 			info_idx = primary_device;
 		}
@@ -3232,7 +3232,7 @@ int fbcon_fb_registered(struct fb_info *info)
 
 	WARN_CONSOLE_UNLOCKED();
 
-	idx = info->node;
+	idx = info->yesde;
 	fbcon_select_primary(info);
 
 	if (deferred_takeover) {
@@ -3315,7 +3315,7 @@ void fbcon_get_requirement(struct fb_info *info,
 		for (i = first_fb_vc; i <= last_fb_vc; i++) {
 			vc = vc_cons[i].d;
 			if (vc && vc->vc_mode == KD_TEXT &&
-			    info->node == con2fb_map[i]) {
+			    info->yesde == con2fb_map[i]) {
 				p = &fb_display[i];
 				caps->x |= 1 << (vc->vc_font.width - 1);
 				caps->y |= 1 << (vc->vc_font.height - 1);
@@ -3329,7 +3329,7 @@ void fbcon_get_requirement(struct fb_info *info,
 		vc = vc_cons[fg_console].d;
 
 		if (vc && vc->vc_mode == KD_TEXT &&
-		    info->node == con2fb_map[fg_console]) {
+		    info->yesde == con2fb_map[fg_console]) {
 			p = &fb_display[fg_console];
 			caps->x = 1 << (vc->vc_font.width - 1);
 			caps->y = 1 << (vc->vc_font.height - 1);
@@ -3521,10 +3521,10 @@ static ssize_t store_cursor_blink(struct device *device,
 	blink = simple_strtoul(buf, last, 0);
 
 	if (blink) {
-		fbcon_cursor_noblink = 0;
+		fbcon_cursor_yesblink = 0;
 		fbcon_add_cursor_timer(info);
 	} else {
-		fbcon_cursor_noblink = 1;
+		fbcon_cursor_yesblink = 1;
 		fbcon_del_cursor_timer(info);
 	}
 
@@ -3576,17 +3576,17 @@ static void fbcon_register_existing_fbs(struct work_struct *work)
 	console_unlock();
 }
 
-static struct notifier_block fbcon_output_nb;
+static struct yestifier_block fbcon_output_nb;
 static DECLARE_WORK(fbcon_deferred_takeover_work, fbcon_register_existing_fbs);
 
-static int fbcon_output_notifier(struct notifier_block *nb,
+static int fbcon_output_yestifier(struct yestifier_block *nb,
 				 unsigned long action, void *data)
 {
 	WARN_CONSOLE_UNLOCKED();
 
 	pr_info("fbcon: Taking over console\n");
 
-	dummycon_unregister_output_notifier(&fbcon_output_nb);
+	dummycon_unregister_output_yestifier(&fbcon_output_nb);
 	deferred_takeover = false;
 	logo_shown = FBCON_LOGO_DONTSHOW;
 
@@ -3606,8 +3606,8 @@ static void fbcon_start(void)
 		deferred_takeover = false;
 
 	if (deferred_takeover) {
-		fbcon_output_nb.notifier_call = fbcon_output_notifier;
-		dummycon_register_output_notifier(&fbcon_output_nb);
+		fbcon_output_nb.yestifier_call = fbcon_output_yestifier;
+		dummycon_register_output_yestifier(&fbcon_output_nb);
 		return;
 	}
 #endif
@@ -3631,7 +3631,7 @@ static void fbcon_exit(void)
 
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER
 	if (deferred_takeover) {
-		dummycon_unregister_output_notifier(&fbcon_output_nb);
+		dummycon_unregister_output_yestifier(&fbcon_output_nb);
 		deferred_takeover = false;
 	}
 #endif
@@ -3648,7 +3648,7 @@ static void fbcon_exit(void)
 		if (info->queue.func)
 			pending = cancel_work_sync(&info->queue);
 		DPRINTK("fbcon: %s pending work\n", (pending ? "canceled" :
-			"no"));
+			"yes"));
 
 		for (j = first_fb_vc; j <= last_fb_vc; j++) {
 			if (con2fb_map[j] == i) {
@@ -3688,7 +3688,7 @@ void __init fb_console_init(void)
 
 	if (IS_ERR(fbcon_device)) {
 		printk(KERN_WARNING "Unable to create device "
-		       "for fbcon; errno = %ld\n",
+		       "for fbcon; erryes = %ld\n",
 		       PTR_ERR(fbcon_device));
 		fbcon_device = NULL;
 	} else

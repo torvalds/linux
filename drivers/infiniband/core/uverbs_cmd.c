@@ -2,7 +2,7 @@
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
- * Copyright (c) 2006 Mellanox Technologies.  All rights reserved.
+ * Copyright (c) 2006 Mellayesx Techyeslogies.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -177,7 +177,7 @@ static int uverbs_request_finish(struct uverbs_req_iter *iter)
 /*
  * When calling a destroy function during an error unwind we need to pass in
  * the udata that is sanitized of all user arguments. Ie from the driver
- * perspective it looks like no udata was passed.
+ * perspective it looks like yes udata was passed.
  */
 struct ib_udata *uverbs_get_cleared_udata(struct uverbs_attr_bundle *attrs)
 {
@@ -314,7 +314,7 @@ static void copy_query_dev_fields(struct ib_ucontext *ucontext,
 	struct ib_device *ib_dev = ucontext->device;
 
 	resp->fw_ver		= attr->fw_ver;
-	resp->node_guid		= ib_dev->node_guid;
+	resp->yesde_guid		= ib_dev->yesde_guid;
 	resp->sys_image_guid	= attr->sys_image_guid;
 	resp->max_mr_size	= attr->max_mr_size;
 	resp->page_size_cap	= attr->page_size_cap;
@@ -471,33 +471,33 @@ static int ib_uverbs_dealloc_pd(struct uverbs_attr_bundle *attrs)
 }
 
 struct xrcd_table_entry {
-	struct rb_node  node;
+	struct rb_yesde  yesde;
 	struct ib_xrcd *xrcd;
-	struct inode   *inode;
+	struct iyesde   *iyesde;
 };
 
 static int xrcd_table_insert(struct ib_uverbs_device *dev,
-			    struct inode *inode,
+			    struct iyesde *iyesde,
 			    struct ib_xrcd *xrcd)
 {
 	struct xrcd_table_entry *entry, *scan;
-	struct rb_node **p = &dev->xrcd_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &dev->xrcd_tree.rb_yesde;
+	struct rb_yesde *parent = NULL;
 
 	entry = kmalloc(sizeof *entry, GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
 	entry->xrcd  = xrcd;
-	entry->inode = inode;
+	entry->iyesde = iyesde;
 
 	while (*p) {
 		parent = *p;
-		scan = rb_entry(parent, struct xrcd_table_entry, node);
+		scan = rb_entry(parent, struct xrcd_table_entry, yesde);
 
-		if (inode < scan->inode) {
+		if (iyesde < scan->iyesde) {
 			p = &(*p)->rb_left;
-		} else if (inode > scan->inode) {
+		} else if (iyesde > scan->iyesde) {
 			p = &(*p)->rb_right;
 		} else {
 			kfree(entry);
@@ -505,24 +505,24 @@ static int xrcd_table_insert(struct ib_uverbs_device *dev,
 		}
 	}
 
-	rb_link_node(&entry->node, parent, p);
-	rb_insert_color(&entry->node, &dev->xrcd_tree);
-	igrab(inode);
+	rb_link_yesde(&entry->yesde, parent, p);
+	rb_insert_color(&entry->yesde, &dev->xrcd_tree);
+	igrab(iyesde);
 	return 0;
 }
 
 static struct xrcd_table_entry *xrcd_table_search(struct ib_uverbs_device *dev,
-						  struct inode *inode)
+						  struct iyesde *iyesde)
 {
 	struct xrcd_table_entry *entry;
-	struct rb_node *p = dev->xrcd_tree.rb_node;
+	struct rb_yesde *p = dev->xrcd_tree.rb_yesde;
 
 	while (p) {
-		entry = rb_entry(p, struct xrcd_table_entry, node);
+		entry = rb_entry(p, struct xrcd_table_entry, yesde);
 
-		if (inode < entry->inode)
+		if (iyesde < entry->iyesde)
 			p = p->rb_left;
-		else if (inode > entry->inode)
+		else if (iyesde > entry->iyesde)
 			p = p->rb_right;
 		else
 			return entry;
@@ -531,11 +531,11 @@ static struct xrcd_table_entry *xrcd_table_search(struct ib_uverbs_device *dev,
 	return NULL;
 }
 
-static struct ib_xrcd *find_xrcd(struct ib_uverbs_device *dev, struct inode *inode)
+static struct ib_xrcd *find_xrcd(struct ib_uverbs_device *dev, struct iyesde *iyesde)
 {
 	struct xrcd_table_entry *entry;
 
-	entry = xrcd_table_search(dev, inode);
+	entry = xrcd_table_search(dev, iyesde);
 	if (!entry)
 		return NULL;
 
@@ -543,14 +543,14 @@ static struct ib_xrcd *find_xrcd(struct ib_uverbs_device *dev, struct inode *ino
 }
 
 static void xrcd_table_delete(struct ib_uverbs_device *dev,
-			      struct inode *inode)
+			      struct iyesde *iyesde)
 {
 	struct xrcd_table_entry *entry;
 
-	entry = xrcd_table_search(dev, inode);
+	entry = xrcd_table_search(dev, iyesde);
 	if (entry) {
-		iput(inode);
-		rb_erase(&entry->node, &dev->xrcd_tree);
+		iput(iyesde);
+		rb_erase(&entry->yesde, &dev->xrcd_tree);
 		kfree(entry);
 	}
 }
@@ -563,7 +563,7 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 	struct ib_uxrcd_object         *obj;
 	struct ib_xrcd                 *xrcd = NULL;
 	struct fd			f = {NULL, 0};
-	struct inode                   *inode = NULL;
+	struct iyesde                   *iyesde = NULL;
 	int				ret = 0;
 	int				new_xrcd = 0;
 	struct ib_device *ib_dev;
@@ -582,10 +582,10 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 			goto err_tree_mutex_unlock;
 		}
 
-		inode = file_inode(f.file);
-		xrcd = find_xrcd(ibudev, inode);
+		iyesde = file_iyesde(f.file);
+		xrcd = find_xrcd(ibudev, iyesde);
 		if (!xrcd && !(cmd.oflags & O_CREAT)) {
-			/* no file descriptor. Need CREATE flag */
+			/* yes file descriptor. Need CREATE flag */
 			ret = -EAGAIN;
 			goto err_tree_mutex_unlock;
 		}
@@ -610,7 +610,7 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 			goto err;
 		}
 
-		xrcd->inode   = inode;
+		xrcd->iyesde   = iyesde;
 		xrcd->device  = ib_dev;
 		atomic_set(&xrcd->usecnt, 0);
 		mutex_init(&xrcd->tgt_qp_mutex);
@@ -623,10 +623,10 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 	memset(&resp, 0, sizeof resp);
 	resp.xrcd_handle = obj->uobject.id;
 
-	if (inode) {
+	if (iyesde) {
 		if (new_xrcd) {
-			/* create new inode/xrcd table entry */
-			ret = xrcd_table_insert(ibudev, inode, xrcd);
+			/* create new iyesde/xrcd table entry */
+			ret = xrcd_table_insert(ibudev, iyesde, xrcd);
 			if (ret)
 				goto err_dealloc_xrcd;
 		}
@@ -645,9 +645,9 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 	return uobj_alloc_commit(&obj->uobject, attrs);
 
 err_copy:
-	if (inode) {
+	if (iyesde) {
 		if (new_xrcd)
-			xrcd_table_delete(ibudev, inode);
+			xrcd_table_delete(ibudev, iyesde);
 		atomic_dec(&xrcd->usecnt);
 	}
 
@@ -682,12 +682,12 @@ int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
 			   enum rdma_remove_reason why,
 			   struct uverbs_attr_bundle *attrs)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int ret;
 	struct ib_uverbs_device *dev = attrs->ufile->device;
 
-	inode = xrcd->inode;
-	if (inode && !atomic_dec_and_test(&xrcd->usecnt))
+	iyesde = xrcd->iyesde;
+	if (iyesde && !atomic_dec_and_test(&xrcd->usecnt))
 		return 0;
 
 	ret = ib_dealloc_xrcd(xrcd, &attrs->driver_udata);
@@ -697,8 +697,8 @@ int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
 		return ret;
 	}
 
-	if (inode)
-		xrcd_table_delete(dev, inode);
+	if (iyesde)
+		xrcd_table_delete(dev, iyesde);
 
 	return ret;
 }
@@ -737,7 +737,7 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 	if (cmd.access_flags & IB_ACCESS_ON_DEMAND) {
 		if (!(pd->device->attrs.device_cap_flags &
 		      IB_DEVICE_ON_DEMAND_PAGING)) {
-			pr_debug("ODP support not available\n");
+			pr_debug("ODP support yest available\n");
 			ret = -EINVAL;
 			goto err_put;
 		}
@@ -1220,9 +1220,9 @@ out_put:
 	return ret;
 }
 
-static int ib_uverbs_req_notify_cq(struct uverbs_attr_bundle *attrs)
+static int ib_uverbs_req_yestify_cq(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_req_notify_cq cmd;
+	struct ib_uverbs_req_yestify_cq cmd;
 	struct ib_cq                  *cq;
 	int ret;
 
@@ -1234,7 +1234,7 @@ static int ib_uverbs_req_notify_cq(struct uverbs_attr_bundle *attrs)
 	if (!cq)
 		return -EINVAL;
 
-	ib_req_notify_cq(cq, cmd.solicited_only ?
+	ib_req_yestify_cq(cq, cmd.solicited_only ?
 			 IB_CQ_SOLICITED : IB_CQ_NEXT_COMP);
 
 	uobj_put_obj_read(cq);
@@ -1732,7 +1732,7 @@ out:
 	return ret;
 }
 
-/* Remove ignored fields set in the attribute mask */
+/* Remove igyesred fields set in the attribute mask */
 static int modify_qp_mask(enum ib_qp_type qp_type, int mask)
 {
 	switch (qp_type) {
@@ -1801,9 +1801,9 @@ static int modify_qp(struct uverbs_attr_bundle *attrs,
 
 		if (cmd->base.attr_mask & IB_QP_STATE &&
 		    cmd->base.qp_state == IB_QPS_RTR) {
-		/* We are in INIT->RTR TRANSITION (if we are not,
+		/* We are in INIT->RTR TRANSITION (if we are yest,
 		 * this transition will be rejected in subsequent checks).
-		 * In the INIT->RTR transition, we cannot have IB_QP_PORT set,
+		 * In the INIT->RTR transition, we canyest have IB_QP_PORT set,
 		 * but the IB_QP_STATE flag is required.
 		 *
 		 * Since kernel 3.14 (commit dbf727de7440), the uverbs driver,
@@ -1820,18 +1820,18 @@ static int modify_qp(struct uverbs_attr_bundle *attrs,
 				goto release_qp;
 			}
 		} else {
-		/* We are in SQD->SQD. (If we are not, this transition will
+		/* We are in SQD->SQD. (If we are yest, this transition will
 		 * be rejected later in the verbs layer checks).
 		 * Check for both IB_QP_PORT and IB_QP_AV, these can be set
 		 * together in the SQD->SQD transition.
 		 *
 		 * If only IP_QP_AV was set, add in IB_QP_PORT as well (the
-		 * verbs layer driver does not track primary port changes
+		 * verbs layer driver does yest track primary port changes
 		 * resulting from path migration. Thus, in SQD, if the primary
 		 * AV is modified, the primary port should also be modified).
 		 *
 		 * Note that in this transition, the IB_QP_STATE flag
-		 * is not allowed.
+		 * is yest allowed.
 		 */
 			if (((cmd->base.attr_mask & (IB_QP_AV | IB_QP_PORT))
 			     == (IB_QP_AV | IB_QP_PORT)) &&
@@ -1884,7 +1884,7 @@ static int modify_qp(struct uverbs_attr_bundle *attrs,
 	if (cmd->base.attr_mask & IB_QP_PKEY_INDEX)
 		attr->pkey_index = cmd->base.pkey_index;
 	if (cmd->base.attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY)
-		attr->en_sqd_async_notify = cmd->base.en_sqd_async_notify;
+		attr->en_sqd_async_yestify = cmd->base.en_sqd_async_yestify;
 	if (cmd->base.attr_mask & IB_QP_MAX_QP_RD_ATOMIC)
 		attr->max_rd_atomic = cmd->base.max_rd_atomic;
 	if (cmd->base.attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
@@ -1958,7 +1958,7 @@ static int ib_uverbs_ex_modify_qp(struct uverbs_attr_bundle *attrs)
 
 	/*
 	 * Last bit is reserved for extending the attr_mask by
-	 * using another field.
+	 * using ayesther field.
 	 */
 	BUILD_BUG_ON(IB_USER_LAST_QP_ATTR_MASK == (1 << 31));
 
@@ -3718,7 +3718,7 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
  *
  * If udata is present then both the request and response structs have a
  * trailing driver_data flex array. In this case the size of the base struct
- * cannot be changed.
+ * canyest be changed.
  */
 #define UAPI_DEF_WRITE_IO(req, resp)                                           \
 	.write.has_resp = 1 +                                                  \
@@ -3746,7 +3746,7 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 
 /*
  * The _EX versions are for use with WRITE_EX and allow the last struct member
- * to be specified. Buffers that do not include that member will be rejected.
+ * to be specified. Buffers that do yest include that member will be rejected.
  */
 #define UAPI_DEF_WRITE_IO_EX(req, req_last_member, resp, resp_last_member)     \
 	.write.has_resp = 1,                                                   \
@@ -3802,9 +3802,9 @@ const struct uapi_definition uverbs_def_write_intf[] = {
 			UAPI_DEF_METHOD_NEEDS_FN(poll_cq)),
 		DECLARE_UVERBS_WRITE(
 			IB_USER_VERBS_CMD_REQ_NOTIFY_CQ,
-			ib_uverbs_req_notify_cq,
-			UAPI_DEF_WRITE_I(struct ib_uverbs_req_notify_cq),
-			UAPI_DEF_METHOD_NEEDS_FN(req_notify_cq)),
+			ib_uverbs_req_yestify_cq,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_req_yestify_cq),
+			UAPI_DEF_METHOD_NEEDS_FN(req_yestify_cq)),
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_RESIZE_CQ,
 				     ib_uverbs_resize_cq,
 				     UAPI_DEF_WRITE_UDATA_IO(

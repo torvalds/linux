@@ -40,7 +40,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 					struct rxrpc_ack_summary *summary,
 					rxrpc_serial_t acked_serial)
 {
-	enum rxrpc_congest_change change = rxrpc_cong_no_change;
+	enum rxrpc_congest_change change = rxrpc_cong_yes_change;
 	unsigned int cumulative_acks = call->cong_cumul_acks;
 	unsigned int cwnd = call->cong_cwnd;
 	bool resend = false;
@@ -96,7 +96,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		if (ktime_before(skb->tstamp,
 				 ktime_add_ns(call->cong_tstamp,
 					      call->peer->rtt)))
-			goto out_no_clear_ca;
+			goto out_yes_clear_ca;
 		change = rxrpc_cong_rtt_window_end;
 		call->cong_tstamp = skb->tstamp;
 		if (cumulative_acks >= cwnd)
@@ -105,7 +105,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 
 	case RXRPC_CALL_PACKET_LOSS:
 		if (summary->nr_nacks == 0)
-			goto resume_normality;
+			goto resume_yesrmality;
 
 		if (summary->new_low_nack) {
 			change = rxrpc_cong_new_low_nack;
@@ -143,7 +143,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 			change = rxrpc_cong_progress;
 			cwnd = call->cong_ssthresh;
 			if (summary->nr_nacks == 0)
-				goto resume_normality;
+				goto resume_yesrmality;
 		}
 		goto out;
 
@@ -152,7 +152,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		goto out;
 	}
 
-resume_normality:
+resume_yesrmality:
 	change = rxrpc_cong_cleared_nacks;
 	call->cong_dup_acks = 0;
 	call->cong_extra = 0;
@@ -163,7 +163,7 @@ resume_normality:
 		call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
 out:
 	cumulative_acks = 0;
-out_no_clear_ca:
+out_yes_clear_ca:
 	if (cwnd >= RXRPC_RXTX_BUFF_SIZE - 1)
 		cwnd = RXRPC_RXTX_BUFF_SIZE - 1;
 	call->cong_cwnd = cwnd;
@@ -183,13 +183,13 @@ send_extra_data:
 	/* Send some previously unsent DATA if we have some to advance the ACK
 	 * state.
 	 */
-	if (call->rxtx_annotations[call->tx_top & RXRPC_RXTX_BUFF_MASK] &
+	if (call->rxtx_anyestations[call->tx_top & RXRPC_RXTX_BUFF_MASK] &
 	    RXRPC_TX_ANNO_LAST ||
 	    summary->nr_acks != call->tx_top - call->tx_hard_ack) {
 		call->cong_extra++;
 		wake_up(&call->waitq);
 	}
-	goto out_no_clear_ca;
+	goto out_yes_clear_ca;
 }
 
 /*
@@ -201,7 +201,7 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 	struct sk_buff *skb, *list = NULL;
 	bool rot_last = false;
 	int ix;
-	u8 annotation;
+	u8 anyestation;
 
 	if (call->acks_lowest_nak == call->tx_hard_ack) {
 		call->acks_lowest_nak = to;
@@ -216,18 +216,18 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 		call->tx_hard_ack++;
 		ix = call->tx_hard_ack & RXRPC_RXTX_BUFF_MASK;
 		skb = call->rxtx_buffer[ix];
-		annotation = call->rxtx_annotations[ix];
+		anyestation = call->rxtx_anyestations[ix];
 		rxrpc_see_skb(skb, rxrpc_skb_rotated);
 		call->rxtx_buffer[ix] = NULL;
-		call->rxtx_annotations[ix] = 0;
+		call->rxtx_anyestations[ix] = 0;
 		skb->next = list;
 		list = skb;
 
-		if (annotation & RXRPC_TX_ANNO_LAST) {
+		if (anyestation & RXRPC_TX_ANNO_LAST) {
 			set_bit(RXRPC_CALL_TX_LAST, &call->flags);
 			rot_last = true;
 		}
-		if ((annotation & RXRPC_TX_ANNO_MASK) != RXRPC_TX_ANNO_ACK)
+		if ((anyestation & RXRPC_TX_ANNO_MASK) != RXRPC_TX_ANNO_ACK)
 			summary->nr_rot_new_acks++;
 	}
 
@@ -241,7 +241,7 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 	while (list) {
 		skb = list;
 		list = skb->next;
-		skb_mark_not_on_list(skb);
+		skb_mark_yest_on_list(skb);
 		rxrpc_free_skb(skb, rxrpc_skb_freed);
 	}
 
@@ -275,7 +275,7 @@ static bool rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
 
 	case RXRPC_CALL_SERVER_AWAIT_ACK:
 		__rxrpc_call_completed(call);
-		rxrpc_notify_socket(call);
+		rxrpc_yestify_socket(call);
 		state = call->state;
 		break;
 
@@ -304,18 +304,18 @@ bad_state:
 static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 {
 	struct rxrpc_ack_summary summary = { 0 };
-	unsigned long now, timo;
+	unsigned long yesw, timo;
 	rxrpc_seq_t top = READ_ONCE(call->tx_top);
 
 	if (call->ackr_reason) {
 		spin_lock_bh(&call->lock);
 		call->ackr_reason = 0;
 		spin_unlock_bh(&call->lock);
-		now = jiffies;
-		timo = now + MAX_JIFFY_OFFSET;
+		yesw = jiffies;
+		timo = yesw + MAX_JIFFY_OFFSET;
 		WRITE_ONCE(call->resend_at, timo);
 		WRITE_ONCE(call->ack_at, timo);
-		trace_rxrpc_timer(call, rxrpc_timer_init_for_reply, now);
+		trace_rxrpc_timer(call, rxrpc_timer_init_for_reply, yesw);
 	}
 
 	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags)) {
@@ -385,13 +385,13 @@ protocol_error:
  * space until the call times out.
  *
  * We limit the space usage by only accepting three duplicate jumbo packets per
- * call.  After that, we tell the other side we're no longer accepting jumbos
+ * call.  After that, we tell the other side we're yes longer accepting jumbos
  * (that information is encoded in the ACK packet).
  */
 static void rxrpc_input_dup_data(struct rxrpc_call *call, rxrpc_seq_t seq,
 				 bool is_jumbo, bool *_jumbo_bad)
 {
-	/* Discard normal packets that are duplicates. */
+	/* Discard yesrmal packets that are duplicates. */
 	if (is_jumbo)
 		return;
 
@@ -433,13 +433,13 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 
 	if (call->state == RXRPC_CALL_SERVER_RECV_REQUEST) {
 		unsigned long timo = READ_ONCE(call->next_req_timo);
-		unsigned long now, expect_req_by;
+		unsigned long yesw, expect_req_by;
 
 		if (timo) {
-			now = jiffies;
-			expect_req_by = now + timo;
+			yesw = jiffies;
+			expect_req_by = yesw + timo;
 			WRITE_ONCE(call->expect_req_by, expect_req_by);
-			rxrpc_reduce_call_timer(call, expect_req_by, now,
+			rxrpc_reduce_call_timer(call, expect_req_by, yesw,
 						rxrpc_timer_set_for_idle);
 		}
 	}
@@ -471,7 +471,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 		unsigned int ix = seq & RXRPC_RXTX_BUFF_MASK;
 		bool terminal = (j == sp->nr_subpackets - 1);
 		bool last = terminal && (sp->rx_flags & RXRPC_SKB_INCL_LAST);
-		u8 flags, annotation = j;
+		u8 flags, anyestation = j;
 
 		_proto("Rx DATA+%u %%%u { #%x t=%u l=%u }",
 		     j, serial, seq, terminal, last);
@@ -497,7 +497,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 			flags |= RXRPC_JUMBO_PACKET;
 		if (test_bit(j, sp->rx_req_ack))
 			flags |= RXRPC_REQUEST_ACK;
-		trace_rxrpc_rx_data(call->debug_id, seq, serial, flags, annotation);
+		trace_rxrpc_rx_data(call->debug_id, seq, serial, flags, anyestation);
 
 		if (before_eq(seq, hard_ack)) {
 			ack = RXRPC_ACK_DUPLICATE;
@@ -536,7 +536,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 
 		/* Queue the packet.  We use a couple of memory barriers here as need
 		 * to make sure that rx_top is perceived to be set after the buffer
-		 * pointer and that the buffer pointer is set after the annotation and
+		 * pointer and that the buffer pointer is set after the anyestation and
 		 * the skb data.
 		 *
 		 * Barriers against rxrpc_recvmsg_data() and rxrpc_rotate_rx_window()
@@ -544,7 +544,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 		 */
 		if (!terminal)
 			rxrpc_get_skb(skb, rxrpc_skb_got);
-		call->rxtx_annotations[ix] = annotation;
+		call->rxtx_anyestations[ix] = anyestation;
 		smp_wmb();
 		call->rxtx_buffer[ix] = skb;
 		if (after(seq, call->rx_top)) {
@@ -559,8 +559,8 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 		}
 
 		if (terminal) {
-			/* From this point on, we're not allowed to touch the
-			 * packet any longer as its ref now belongs to the Rx
+			/* From this point on, we're yest allowed to touch the
+			 * packet any longer as its ref yesw belongs to the Rx
 			 * ring.
 			 */
 			skb = NULL;
@@ -598,8 +598,8 @@ ack:
 				  rxrpc_propose_ack_input_data);
 
 	if (seq0 == READ_ONCE(call->rx_hard_ack) + 1) {
-		trace_rxrpc_notify_socket(call->debug_id, serial);
-		rxrpc_notify_socket(call);
+		trace_rxrpc_yestify_socket(call->debug_id, serial);
+		rxrpc_yestify_socket(call);
 	}
 
 unlock:
@@ -660,14 +660,14 @@ static void rxrpc_input_check_for_lost_ack(struct rxrpc_call *call)
 	if (before(bottom, top)) {
 		for (seq = bottom; before_eq(seq, top); seq++) {
 			int ix = seq & RXRPC_RXTX_BUFF_MASK;
-			u8 annotation = call->rxtx_annotations[ix];
-			u8 anno_type = annotation & RXRPC_TX_ANNO_MASK;
+			u8 anyestation = call->rxtx_anyestations[ix];
+			u8 anyes_type = anyestation & RXRPC_TX_ANNO_MASK;
 
-			if (anno_type != RXRPC_TX_ANNO_UNACK)
+			if (anyes_type != RXRPC_TX_ANNO_UNACK)
 				continue;
-			annotation &= ~RXRPC_TX_ANNO_MASK;
-			annotation |= RXRPC_TX_ANNO_RETRANS;
-			call->rxtx_annotations[ix] = annotation;
+			anyestation &= ~RXRPC_TX_ANNO_MASK;
+			anyestation |= RXRPC_TX_ANNO_RETRANS;
+			call->rxtx_anyestations[ix] = anyestation;
 			resend = true;
 		}
 	}
@@ -757,7 +757,7 @@ static void rxrpc_input_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
  * Each ACK in the array corresponds to one packet and can be either an ACK or
  * a NAK.  If we get find an explicitly NAK'd packet we resend immediately;
  * packets that lie beyond the end of the ACK list are scheduled for resend by
- * the timer on the basis that the peer might just not have processed them at
+ * the timer on the basis that the peer might just yest have processed them at
  * the time the ACK was sent.
  */
 static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
@@ -765,21 +765,21 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 				  struct rxrpc_ack_summary *summary)
 {
 	int ix;
-	u8 annotation, anno_type;
+	u8 anyestation, anyes_type;
 
 	for (; nr_acks > 0; nr_acks--, seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
-		annotation = call->rxtx_annotations[ix];
-		anno_type = annotation & RXRPC_TX_ANNO_MASK;
-		annotation &= ~RXRPC_TX_ANNO_MASK;
+		anyestation = call->rxtx_anyestations[ix];
+		anyes_type = anyestation & RXRPC_TX_ANNO_MASK;
+		anyestation &= ~RXRPC_TX_ANNO_MASK;
 		switch (*acks++) {
 		case RXRPC_ACK_TYPE_ACK:
 			summary->nr_acks++;
-			if (anno_type == RXRPC_TX_ANNO_ACK)
+			if (anyes_type == RXRPC_TX_ANNO_ACK)
 				continue;
 			summary->nr_new_acks++;
-			call->rxtx_annotations[ix] =
-				RXRPC_TX_ANNO_ACK | annotation;
+			call->rxtx_anyestations[ix] =
+				RXRPC_TX_ANNO_ACK | anyestation;
 			break;
 		case RXRPC_ACK_TYPE_NACK:
 			if (!summary->nr_nacks &&
@@ -788,13 +788,13 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 				summary->new_low_nack = true;
 			}
 			summary->nr_nacks++;
-			if (anno_type == RXRPC_TX_ANNO_NAK)
+			if (anyes_type == RXRPC_TX_ANNO_NAK)
 				continue;
 			summary->nr_new_nacks++;
-			if (anno_type == RXRPC_TX_ANNO_RETRANS)
+			if (anyes_type == RXRPC_TX_ANNO_RETRANS)
 				continue;
-			call->rxtx_annotations[ix] =
-				RXRPC_TX_ANNO_NAK | annotation;
+			call->rxtx_anyestations[ix] =
+				RXRPC_TX_ANNO_NAK | anyestation;
 			break;
 		default:
 			return rxrpc_proto_abort("SFT", call, 0);
@@ -896,7 +896,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		goto out;
 	}
 
-	/* Ignore ACKs unless we are or have just been transmitting. */
+	/* Igyesre ACKs unless we are or have just been transmitting. */
 	switch (READ_ONCE(call->state)) {
 	case RXRPC_CALL_CLIENT_SEND_REQUEST:
 	case RXRPC_CALL_CLIENT_AWAIT_REPLY:
@@ -933,7 +933,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 				      &summary);
 	}
 
-	if (call->rxtx_annotations[call->tx_top & RXRPC_RXTX_BUFF_MASK] &
+	if (call->rxtx_anyestations[call->tx_top & RXRPC_RXTX_BUFF_MASK] &
 	    RXRPC_TX_ANNO_LAST &&
 	    summary.nr_acks == call->tx_top - hard_ack &&
 	    rxrpc_is_client_call(call))
@@ -986,7 +986,7 @@ static void rxrpc_input_abort(struct rxrpc_call *call, struct sk_buff *skb)
 
 	if (rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
 				      abort_code, -ECONNABORTED))
-		rxrpc_notify_socket(call);
+		rxrpc_yestify_socket(call);
 }
 
 /*
@@ -1002,18 +1002,18 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 
 	timo = READ_ONCE(call->next_rx_timo);
 	if (timo) {
-		unsigned long now = jiffies, expect_rx_by;
+		unsigned long yesw = jiffies, expect_rx_by;
 
-		expect_rx_by = now + timo;
+		expect_rx_by = yesw + timo;
 		WRITE_ONCE(call->expect_rx_by, expect_rx_by);
-		rxrpc_reduce_call_timer(call, expect_rx_by, now,
-					rxrpc_timer_set_for_normal);
+		rxrpc_reduce_call_timer(call, expect_rx_by, yesw,
+					rxrpc_timer_set_for_yesrmal);
 	}
 
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_DATA:
 		rxrpc_input_data(call, skb);
-		goto no_free;
+		goto yes_free;
 
 	case RXRPC_PACKET_TYPE_ACK:
 		rxrpc_input_ack(call, skb);
@@ -1022,7 +1022,7 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 	case RXRPC_PACKET_TYPE_BUSY:
 		_proto("Rx BUSY %%%u", sp->hdr.serial);
 
-		/* Just ignore BUSY packets from the server; the retry and
+		/* Just igyesre BUSY packets from the server; the retry and
 		 * lifespan timers will take care of business.  BUSY packets
 		 * from the client don't make sense.
 		 */
@@ -1041,13 +1041,13 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 	}
 
 	rxrpc_free_skb(skb, rxrpc_skb_freed);
-no_free:
+yes_free:
 	_leave("");
 }
 
 /*
  * Handle a new service call on a channel implicitly completing the preceding
- * call on that channel.  This does not apply to client conns.
+ * call on that channel.  This does yest apply to client conns.
  *
  * TODO: If callNumber > call_id + 1, renegotiate security.
  */
@@ -1073,7 +1073,7 @@ static void rxrpc_input_implicit_end_call(struct rxrpc_sock *rx,
 	spin_lock(&rx->incoming_lock);
 	__rxrpc_disconnect_call(conn, call);
 	spin_unlock(&rx->incoming_lock);
-	rxrpc_notify_socket(call);
+	rxrpc_yestify_socket(call);
 }
 
 /*
@@ -1125,7 +1125,7 @@ static void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 /*
  * Extract the wire header from a packet and translate the byte order.
  */
-static noinline
+static yesinline
 int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
 {
 	struct rxrpc_wire_header whdr;
@@ -1156,8 +1156,8 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
  * handle data received on the local endpoint
  * - may be called in interrupt context
  *
- * [!] Note that as this is called from the encap_rcv hook, the socket is not
- * held locked by the caller and nothing prevents sk_user_data on the UDP from
+ * [!] Note that as this is called from the encap_rcv hook, the socket is yest
+ * held locked by the caller and yesthing prevents sk_user_data on the UDP from
  * being cleared in the middle of processing this function.
  *
  * Called with the RCU read lock held from the IP layer via UDP.
@@ -1240,7 +1240,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		if (sp->hdr.securityIndex != 0) {
 			struct sk_buff *nskb = skb_unshare(skb, GFP_ATOMIC);
 			if (!nskb) {
-				rxrpc_eaten_skb(skb, rxrpc_skb_unshared_nomem);
+				rxrpc_eaten_skb(skb, rxrpc_skb_unshared_yesmem);
 				goto out;
 			}
 
@@ -1262,7 +1262,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 			goto discard;
 		break;
 
-		/* Packet types 9-11 should just be ignored. */
+		/* Packet types 9-11 should just be igyesred. */
 	case RXRPC_PACKET_TYPE_PARAMS:
 	case RXRPC_PACKET_TYPE_10:
 	case RXRPC_PACKET_TYPE_11:
@@ -1277,7 +1277,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		goto bad_message;
 
 	if (rxrpc_to_server(sp)) {
-		/* Weed out packets to services we're not offering.  Packets
+		/* Weed out packets to services we're yest offering.  Packets
 		 * that would begin a call are explicitly rejected and the rest
 		 * are just discarded.
 		 */
@@ -1323,7 +1323,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		channel = sp->hdr.cid & RXRPC_CHANNELMASK;
 		chan = &conn->channels[channel];
 
-		/* Ignore really old calls */
+		/* Igyesre really old calls */
 		if (sp->hdr.callNumber < chan->last_call)
 			goto discard;
 

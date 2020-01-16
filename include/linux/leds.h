@@ -32,8 +32,8 @@ enum led_brightness {
 };
 
 struct led_init_data {
-	/* device fwnode handle */
-	struct fwnode_handle *fwnode;
+	/* device fwyesde handle */
+	struct fwyesde_handle *fwyesde;
 	/*
 	 * default <color:function> tuple, for backward compatibility
 	 * with in-driver hard-coded LED names used as a fallback when
@@ -43,7 +43,7 @@ struct led_init_data {
 	const char *default_label;
 	/*
 	 * string to be used for devicename section of LED class device
-	 * either for label based LED name composition path or for fwnode
+	 * either for label based LED name composition path or for fwyesde
 	 * based when devname_mandatory is true
 	 */
 	const char *devicename;
@@ -85,7 +85,7 @@ struct led_classdev {
 #define LED_BLINK_DISABLE		5
 
 	/* Set LED brightness level
-	 * Must not sleep. Use brightness_set_blocking for drivers
+	 * Must yest sleep. Use brightness_set_blocking for drivers
 	 * that can sleep while setting brightness.
 	 */
 	void		(*brightness_set)(struct led_classdev *led_cdev,
@@ -118,7 +118,7 @@ struct led_classdev {
 	struct device		*dev;
 	const struct attribute_group	**groups;
 
-	struct list_head	 node;			/* LED Device list */
+	struct list_head	 yesde;			/* LED Device list */
 	const char		*default_trigger;	/* Trigger to use */
 
 	unsigned long		 blink_delay_on, blink_delay_off;
@@ -143,7 +143,7 @@ struct led_classdev {
 
 #ifdef CONFIG_LEDS_BRIGHTNESS_HW_CHANGED
 	int			 brightness_hw_changed;
-	struct kernfs_node	*brightness_hw_changed_kn;
+	struct kernfs_yesde	*brightness_hw_changed_kn;
 #endif
 
 	/* Ensures consistent access to the LED Flash Class device */
@@ -204,11 +204,11 @@ void led_classdev_resume(struct led_classdev *led_cdev);
  *
  * This function makes the LED blink, attempting to use the
  * hardware acceleration if possible, but falling back to
- * software blinking if there is no hardware blinking or if
+ * software blinking if there is yes hardware blinking or if
  * the LED refuses the passed values.
  *
  * Note that if software blinking is active, simply calling
- * led_cdev->brightness_set() will not stop the blinking,
+ * led_cdev->brightness_set() will yest stop the blinking,
  * use led_classdev_brightness_set() instead.
  */
 void led_blink_set(struct led_classdev *led_cdev, unsigned long *delay_on,
@@ -221,7 +221,7 @@ void led_blink_set(struct led_classdev *led_cdev, unsigned long *delay_on,
  * @invert: blink off, then on, leaving the led on
  *
  * This function makes the LED blink one time for delay_on +
- * delay_off time, ignoring the request if another one-shot
+ * delay_off time, igyesring the request if ayesther one-shot
  * blink is already in progress.
  *
  * If invert is set, led blinks for delay_off first, then for
@@ -237,13 +237,13 @@ void led_blink_set_oneshot(struct led_classdev *led_cdev,
  *
  * Set an LED's brightness, and, if necessary, cancel the
  * software blink timer that implements blinking when the
- * hardware doesn't. This function is guaranteed not to sleep.
+ * hardware doesn't. This function is guaranteed yest to sleep.
  */
 void led_set_brightness(struct led_classdev *led_cdev,
 			enum led_brightness brightness);
 
 /**
- * led_set_brightness_sync - set LED brightness synchronously
+ * led_set_brightness_sync - set LED brightness synchroyesusly
  * @led_cdev: the LED to set
  * @value: the brightness to set it to
  *
@@ -395,7 +395,7 @@ static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
  *
  * Change a LED trigger name by copying the string passed in
  * name into current trigger name, which MUST be large
- * enough for the new string.
+ * eyesugh for the new string.
  *
  * Note that name must NOT point to the same string used
  * during LED registration, as that could lead to races.
@@ -411,7 +411,7 @@ void led_trigger_rename_static(const char *name, struct led_trigger *trig);
 
 #else
 
-/* Trigger has no members */
+/* Trigger has yes members */
 struct led_trigger {};
 
 /* Trigger inline empty functions */
@@ -547,10 +547,10 @@ static inline void ledtrig_cpu(enum cpu_led_event evt)
 #endif
 
 #ifdef CONFIG_LEDS_BRIGHTNESS_HW_CHANGED
-void led_classdev_notify_brightness_hw_changed(
+void led_classdev_yestify_brightness_hw_changed(
 	struct led_classdev *led_cdev, enum led_brightness brightness);
 #else
-static inline void led_classdev_notify_brightness_hw_changed(
+static inline void led_classdev_yestify_brightness_hw_changed(
 	struct led_classdev *led_cdev, enum led_brightness brightness) { }
 #endif
 

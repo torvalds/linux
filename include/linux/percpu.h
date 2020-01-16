@@ -12,7 +12,7 @@
 
 #include <asm/percpu.h>
 
-/* enough to cover all DEFINE_PER_CPUs in modules */
+/* eyesugh to cover all DEFINE_PER_CPUs in modules */
 #ifdef CONFIG_MODULES
 #define PERCPU_MODULE_RESERVE		(8 << 10)
 #else
@@ -138,10 +138,10 @@ extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
 
 #define alloc_percpu_gfp(type, gfp)					\
 	(typeof(type) __percpu *)__alloc_percpu_gfp(sizeof(type),	\
-						__alignof__(type), gfp)
+						__aligyesf__(type), gfp)
 #define alloc_percpu(type)						\
 	(typeof(type) __percpu *)__alloc_percpu(sizeof(type),		\
-						__alignof__(type))
+						__aligyesf__(type))
 
 extern unsigned long pcpu_nr_pages(void);
 

@@ -105,9 +105,9 @@ class Event(dict):
     def equal(self, other):
         for t in Event.terms:
             log.debug("      [%s] %s %s" % (t, self[t], other[t]));
-            if t not in self or t not in other:
+            if t yest in self or t yest in other:
                 return False
-            if not data_equal(self[t], other[t]):
+            if yest data_equal(self[t], other[t]):
                 return False
         return True
 
@@ -118,9 +118,9 @@ class Event(dict):
 
     def diff(self, other):
         for t in Event.terms:
-            if t not in self or t not in other:
+            if t yest in self or t yest in other:
                 continue
-            if not data_equal(self[t], other[t]):
+            if yest data_equal(self[t], other[t]):
                 log.warning("expected %s=%s, got %s" % (t, self[t], other[t]))
 
 # Test file description needs to have following sections:
@@ -173,7 +173,7 @@ class Test(object):
             return True
 
     def skip_test(self, myarch):
-        # If architecture not set always run test
+        # If architecture yest set always run test
         if self.arch == '':
             # log.warning("test for arch %s is ok" % myarch)
             return False
@@ -231,7 +231,7 @@ class Test(object):
 
         log.info("  '%s' ret '%s', expected '%s'" % (cmd, str(ret), str(self.ret)))
 
-        if not data_equal(str(ret), str(self.ret)):
+        if yest data_equal(str(ret), str(self.ret)):
             raise Unsup(self)
 
     def compare(self, expect, result):
@@ -240,7 +240,7 @@ class Test(object):
         log.debug("  compare");
 
         # For each expected event find all matching
-        # events in result. Fail if there's not any.
+        # events in result. Fail if there's yest any.
         for exp_name, exp_event in expect.items():
             exp_list = []
             res_event = {}
@@ -255,12 +255,12 @@ class Test(object):
 
             log.debug("    match: [%s] matches %s" % (exp_name, str(exp_list)))
 
-            # we did not any matching event - fail
-            if not exp_list:
+            # we did yest any matching event - fail
+            if yest exp_list:
                 if exp_event.optional():
-                    log.debug("    %s does not match, but is optional" % exp_name)
+                    log.debug("    %s does yest match, but is optional" % exp_name)
                 else:
-                    if not res_event:
+                    if yest res_event:
                         log.debug("    res_event is empty");
                     else:
                         exp_event.diff(res_event)
@@ -278,7 +278,7 @@ class Test(object):
 
             for res_name in match[exp_name]:
                 res_group = result[res_name].group
-                if res_group not in match[group]:
+                if res_group yest in match[group]:
                     raise Fail(self, 'group failure')
 
                 log.debug("    group: [%s] matches group leader %s" %
@@ -377,11 +377,11 @@ def main():
 
     setup_log(options.verbose)
 
-    if not options.test_dir:
-        print('FAILED no -d option specified')
+    if yest options.test_dir:
+        print('FAILED yes -d option specified')
         sys.exit(-1)
 
-    if not options.test:
+    if yest options.test:
         options.test = 'test*'
 
     try:

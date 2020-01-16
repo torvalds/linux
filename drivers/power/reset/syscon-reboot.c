@@ -7,7 +7,7 @@
  */
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -20,10 +20,10 @@ struct syscon_reboot_context {
 	u32 offset;
 	u32 value;
 	u32 mask;
-	struct notifier_block restart_handler;
+	struct yestifier_block restart_handler;
 };
 
-static int syscon_restart_handle(struct notifier_block *this,
+static int syscon_restart_handle(struct yestifier_block *this,
 					unsigned long mode, void *cmd)
 {
 	struct syscon_reboot_context *ctx =
@@ -50,15 +50,15 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->map = syscon_regmap_lookup_by_phandle(dev->of_node, "regmap");
+	ctx->map = syscon_regmap_lookup_by_phandle(dev->of_yesde, "regmap");
 	if (IS_ERR(ctx->map))
 		return PTR_ERR(ctx->map);
 
-	if (of_property_read_u32(pdev->dev.of_node, "offset", &ctx->offset))
+	if (of_property_read_u32(pdev->dev.of_yesde, "offset", &ctx->offset))
 		return -EINVAL;
 
-	value_err = of_property_read_u32(pdev->dev.of_node, "value", &ctx->value);
-	mask_err = of_property_read_u32(pdev->dev.of_node, "mask", &ctx->mask);
+	value_err = of_property_read_u32(pdev->dev.of_yesde, "value", &ctx->value);
+	mask_err = of_property_read_u32(pdev->dev.of_yesde, "mask", &ctx->mask);
 	if (value_err && mask_err) {
 		dev_err(dev, "unable to read 'value' and 'mask'");
 		return -EINVAL;
@@ -73,11 +73,11 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 		ctx->mask = 0xFFFFFFFF;
 	}
 
-	ctx->restart_handler.notifier_call = syscon_restart_handle;
+	ctx->restart_handler.yestifier_call = syscon_restart_handle;
 	ctx->restart_handler.priority = 192;
 	err = register_restart_handler(&ctx->restart_handler);
 	if (err)
-		dev_err(dev, "can't register restart notifier (err=%d)\n", err);
+		dev_err(dev, "can't register restart yestifier (err=%d)\n", err);
 
 	return err;
 }

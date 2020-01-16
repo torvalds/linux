@@ -2,11 +2,11 @@
 /*
  *  H8S TPU Driver
  *
- *  Copyright 2015 Yoshinori Sato <ysato@users.sourcefoge.jp>
+ *  Copyright 2015 Yoshiyesri Sato <ysato@users.sourcefoge.jp>
  *
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clocksource.h>
@@ -120,24 +120,24 @@ static struct tpu_priv tpu_priv = {
 #define CH_L 0
 #define CH_H 1
 
-static int __init h8300_tpu_init(struct device_node *node)
+static int __init h8300_tpu_init(struct device_yesde *yesde)
 {
 	void __iomem *base[2];
 	struct clk *clk;
 	int ret = -ENXIO;
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(yesde, 0);
 	if (IS_ERR(clk)) {
 		pr_err("failed to get clock for clocksource\n");
 		return PTR_ERR(clk);
 	}
 
-	base[CH_L] = of_iomap(node, CH_L);
+	base[CH_L] = of_iomap(yesde, CH_L);
 	if (!base[CH_L]) {
 		pr_err("failed to map registers for clocksource\n");
 		goto free_clk;
 	}
-	base[CH_H] = of_iomap(node, CH_H);
+	base[CH_H] = of_iomap(yesde, CH_H);
 	if (!base[CH_H]) {
 		pr_err("failed to map registers for clocksource\n");
 		goto unmap_L;

@@ -287,7 +287,7 @@ static bool qcom_geni_serial_poll_bit(struct uart_port *uport,
 
 	/*
 	 * Use custom implementation instead of readl_poll_atomic since ktimer
-	 * is not ready at the time of early console.
+	 * is yest ready at the time of early console.
 	 */
 	timeout_us = DIV_ROUND_UP(timeout_us, 10) * 10;
 	while (timeout_us) {
@@ -399,7 +399,7 @@ __qcom_geni_serial_console_write(struct uart_port *uport, const char *s,
 		size_t avail = DEF_FIFO_DEPTH_WORDS - DEF_TX_WM;
 
 		/*
-		 * If the WM bit never set, then the Tx state machine is not
+		 * If the WM bit never set, then the Tx state machine is yest
 		 * in a valid state, so break, cancel/abort any existing
 		 * command. Unfortunately the current data being written is
 		 * lost.
@@ -689,7 +689,7 @@ static void qcom_geni_serial_handle_tx(struct uart_port *uport, bool done,
 	else
 		pending = uart_circ_chars_pending(xmit);
 
-	/* All data has been transmitted and acknowledged as received */
+	/* All data has been transmitted and ackyeswledged as received */
 	if (!pending && !status && done) {
 		qcom_geni_serial_stop_tx(uport);
 		goto out_write_wakeup;
@@ -1122,7 +1122,7 @@ static int __init qcom_geni_serial_earlycon_setup(struct earlycon_device *dev,
 	if (geni_se_read_proto(&se) != GENI_SE_UART)
 		return -ENXIO;
 	/*
-	 * Ignore Flow control.
+	 * Igyesre Flow control.
 	 * n = 8.
 	 */
 	tx_trans_cfg = UART_CTS_MASK;
@@ -1261,15 +1261,15 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	bool console = false;
 	struct uart_driver *drv;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,geni-debug-uart"))
+	if (of_device_is_compatible(pdev->dev.of_yesde, "qcom,geni-debug-uart"))
 		console = true;
 
 	if (console) {
 		drv = &qcom_geni_console_driver;
-		line = of_alias_get_id(pdev->dev.of_node, "serial");
+		line = of_alias_get_id(pdev->dev.of_yesde, "serial");
 	} else {
 		drv = &qcom_geni_uart_driver;
-		line = of_alias_get_id(pdev->dev.of_node, "hsuart");
+		line = of_alias_get_id(pdev->dev.of_yesde, "hsuart");
 	}
 
 	port = get_port_from_line(line, console);

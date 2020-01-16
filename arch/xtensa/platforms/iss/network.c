@@ -166,8 +166,8 @@ static int tuntap_open(struct iss_net_private *lp)
 
 	fd = simc_open("/dev/net/tun", 02, 0); /* O_RDWR */
 	if (fd < 0) {
-		pr_err("%s: failed to open /dev/net/tun, returned %d (errno = %d)\n",
-		       lp->dev->name, fd, errno);
+		pr_err("%s: failed to open /dev/net/tun, returned %d (erryes = %d)\n",
+		       lp->dev->name, fd, erryes);
 		return fd;
 	}
 
@@ -177,8 +177,8 @@ static int tuntap_open(struct iss_net_private *lp)
 
 	err = simc_ioctl(fd, TUNSETIFF, &ifr);
 	if (err < 0) {
-		pr_err("%s: failed to set interface %s, returned %d (errno = %d)\n",
-		       lp->dev->name, dev_name, err, errno);
+		pr_err("%s: failed to set interface %s, returned %d (erryes = %d)\n",
+		       lp->dev->name, dev_name, err, erryes);
 		simc_close(fd);
 		return err;
 	}
@@ -426,7 +426,7 @@ static int iss_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_trans_update(dev);
 		netif_start_queue(dev);
 
-		/* this is normally done in the interrupt when tx finishes */
+		/* this is yesrmally done in the interrupt when tx finishes */
 		netif_wake_queue(dev);
 
 	} else if (len == 0) {
@@ -527,7 +527,7 @@ static int iss_net_configure(int index, char *init)
 	spin_lock_init(&lp->lock);
 	/*
 	 * If this name ends up conflicting with an existing registered
-	 * netdevice, that is OK, register_netdev{,ice}() will notice this
+	 * netdevice, that is OK, register_netdev{,ice}() will yestice this
 	 * and fail.
 	 */
 	snprintf(dev->name, sizeof(dev->name), "eth%d", index);

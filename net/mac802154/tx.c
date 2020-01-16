@@ -6,7 +6,7 @@
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  * Sergey Lapin <slapin@ossfans.org>
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 #include <linux/netdevice.h>
@@ -116,7 +116,7 @@ ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* TODO we should move it to wpan_dev_hard_header and dev_hard_header
 	 * functions. The reason is wireshark will show a mac header which is
-	 * with security fields but the payload is not encrypted.
+	 * with security fields but the payload is yest encrypted.
 	 */
 	rc = mac802154_llsec_encrypt(&sdata->sec, skb);
 	if (rc) {

@@ -44,7 +44,7 @@ int __hyp_text __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
 	fault_ipa  = kvm_vcpu_get_fault_ipa(vcpu);
 	fault_ipa |= kvm_vcpu_get_hfar(vcpu) & GENMASK(11, 0);
 
-	/* If not for GICV, move on */
+	/* If yest for GICV, move on */
 	if (fault_ipa <  vgic->vgic_cpu_base ||
 	    fault_ipa >= (vgic->vgic_cpu_base + KVM_VGIC_V2_CPU_SIZE))
 		return 0;

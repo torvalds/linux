@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -114,7 +114,7 @@
 #define UDCCS0_DRWF	(1 << 3)	/* Device remote wakeup feature */
 #define UDCCS0_SST	(1 << 4)	/* Sent stall */
 #define UDCCS0_FST	(1 << 5)	/* Force stall */
-#define UDCCS0_RNE	(1 << 6)	/* Receive FIFO no empty */
+#define UDCCS0_RNE	(1 << 6)	/* Receive FIFO yes empty */
 #define UDCCS0_SA	(1 << 7)	/* Setup active */
 
 #define UDCCS_BI_TFS	(1 << 0)	/* Transmit FIFO service */
@@ -130,7 +130,7 @@
 #define UDCCS_BO_DME	(1 << 3)	/* DMA enable */
 #define UDCCS_BO_SST	(1 << 4)	/* Sent stall */
 #define UDCCS_BO_FST	(1 << 5)	/* Force stall */
-#define UDCCS_BO_RNE	(1 << 6)	/* Receive FIFO not empty */
+#define UDCCS_BO_RNE	(1 << 6)	/* Receive FIFO yest empty */
 #define UDCCS_BO_RSP	(1 << 7)	/* Receive short packet */
 
 #define UDCCS_II_TFS	(1 << 0)	/* Transmit FIFO service */
@@ -148,7 +148,7 @@
 #define UDCCS_IO_ROF	(1 << 2)	/* Receive overflow */
 #endif
 #define UDCCS_IO_DME	(1 << 3)	/* DMA enable */
-#define UDCCS_IO_RNE	(1 << 6)	/* Receive FIFO not empty */
+#define UDCCS_IO_RNE	(1 << 6)	/* Receive FIFO yest empty */
 #define UDCCS_IO_RSP	(1 << 7)	/* Receive short packet */
 
 #define UDCCS_INT_TFS	(1 << 0)	/* Transmit FIFO service */
@@ -212,10 +212,10 @@
  * pxa250 a0/a1 b0/b1/b2 sure act like they're still there.
  *
  * Note that the UDC hardware supports DMA (except on IXP) but that's
- * not used here.  IN-DMA (to host) is simple enough, when the data is
+ * yest used here.  IN-DMA (to host) is simple eyesugh, when the data is
  * suitably aligned (16 bytes) ... the network stack doesn't do that,
  * other software can.  OUT-DMA is buggy in most chip versions, as well
- * as poorly designed (data toggle not automatic).  So this driver won't
+ * as poorly designed (data toggle yest automatic).  So this driver won't
  * bother using DMA.  (Mostly-working IN-DMA support was available in
  * kernels before 2.6.23, but was never enabled or well tested.)
  */
@@ -262,7 +262,7 @@ static const char ep0name [] = "ep0";
 static void pxa25x_ep_fifo_flush (struct usb_ep *ep);
 static void nuke (struct pxa25x_ep *, int status);
 
-/* one GPIO should control a D+ pullup, so host sees this device (or not) */
+/* one GPIO should control a D+ pullup, so host sees this device (or yest) */
 static void pullup_off(void)
 {
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
@@ -410,14 +410,14 @@ static inline u32 udc_ep_get_UBCR(struct pxa25x_ep *ep)
  *
  * we need to verify the descriptors used to enable endpoints.  since pxa25x
  * endpoint configurations are fixed, and are pretty much always enabled,
- * there's not a lot to manage here.
+ * there's yest a lot to manage here.
  *
  * because pxa25x can't selectively initialize bulk (or interrupt) endpoints,
  * (resetting endpoint halt and toggle), SET_INTERFACE is unusable except
  * for a single interface (with only the default altsetting) and for gadget
- * drivers that don't halt endpoints (not reset by set_interface).  that also
+ * drivers that don't halt endpoints (yest reset by set_interface).  that also
  * means that if you use ISO, you must violate the USB spec rule that all
- * iso endpoints must be in non-default altsettings.
+ * iso endpoints must be in yesn-default altsettings.
  */
 static int pxa25x_ep_enable (struct usb_ep *_ep,
 		const struct usb_endpoint_descriptor *desc)
@@ -478,7 +478,7 @@ static int pxa25x_ep_disable (struct usb_ep *_ep)
 
 	ep = container_of (_ep, struct pxa25x_ep, ep);
 	if (!_ep || !ep->ep.desc) {
-		DMSG("%s, %s not enabled\n", __func__,
+		DMSG("%s, %s yest enabled\n", __func__,
 			_ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
@@ -613,7 +613,7 @@ write_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 				is_last = 0;
 			else
 				is_last = 1;
-			/* interrupt/iso maxpacket may not fill the fifo */
+			/* interrupt/iso maxpacket may yest fill the fifo */
 			is_short = unlikely (max < ep->fifo_size);
 		}
 
@@ -622,9 +622,9 @@ write_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 			is_last ? "/L" : "", is_short ? "/S" : "",
 			req->req.length - req->req.actual, req);
 
-		/* let loose that packet. maybe try writing another one,
+		/* let loose that packet. maybe try writing ayesther one,
 		 * double buffering might work.  TSP, TPC, and TFS
-		 * bit values are the same for all normal IN endpoints.
+		 * bit values are the same for all yesrmal IN endpoints.
 		 */
 		udc_ep_set_UDCCS(ep, UDCCS_BI_TPC);
 		if (is_short)
@@ -768,7 +768,7 @@ read_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 			}
 		}
 		udc_ep_set_UDCCS(ep, UDCCS_BO_RPC);
-		/* RPC/RSP/RNE could now reflect the other packet buffer */
+		/* RPC/RSP/RNE could yesw reflect the other packet buffer */
 
 		/* iso is one request per packet */
 		if (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
@@ -792,7 +792,7 @@ read_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 }
 
 /*
- * special ep0 version of the above.  no UBCR0 or double buffering; status
+ * special ep0 version of the above.  yes UBCR0 or double buffering; status
  * handshaking is magic.  most device protocols don't need control-OUT.
  * CDC vendor commands (and RNDIS), mass storage CB/CBI, and some other
  * protocols do use them.
@@ -1007,7 +1007,7 @@ static int pxa25x_ep_set_halt(struct usb_ep *_ep, int value)
 	}
 	if (value == 0) {
 		/* this path (reset toggle+halt) is needed to implement
-		 * SET_INTERFACE on normal hardware.  but it can't be
+		 * SET_INTERFACE on yesrmal hardware.  but it can't be
 		 * done from software on the PXA UDC, and the hardware
 		 * forgets to do it as part of SET_INTERFACE automagic.
 		 */
@@ -1129,7 +1129,7 @@ static int pxa25x_udc_wakeup(struct usb_gadget *_gadget)
 
 	udc = container_of(_gadget, struct pxa25x_udc, gadget);
 
-	/* host may not have enabled remote wakeup */
+	/* host may yest have enabled remote wakeup */
 	if ((udc_ep0_get_UDCCS(udc) & UDCCS0_DRWF) == 0)
 		return -EHOSTUNREACH;
 	udc_set_mask_UDCCR(udc, UDCCR_RSM);
@@ -1140,7 +1140,7 @@ static void stop_activity(struct pxa25x_udc *, struct usb_gadget_driver *);
 static void udc_enable (struct pxa25x_udc *);
 static void udc_disable(struct pxa25x_udc *);
 
-/* We disable the UDC -- and its 48 MHz clock -- whenever it's not
+/* We disable the UDC -- and its 48 MHz clock -- whenever it's yest
  * in active use.
  */
 static int pullup(struct pxa25x_udc *udc)
@@ -1159,7 +1159,7 @@ static int pullup(struct pxa25x_udc *udc)
 			if (udc->gadget.speed != USB_SPEED_UNKNOWN) {
 				DMSG("disconnect %s\n", udc->driver
 					? udc->driver->driver.name
-					: "(no driver)");
+					: "(yes driver)");
 				stop_activity(udc, udc->driver);
 			}
 			udc_disable(udc);
@@ -1191,7 +1191,7 @@ static int pxa25x_udc_pullup(struct usb_gadget *_gadget, int is_active)
 
 	udc = container_of(_gadget, struct pxa25x_udc, gadget);
 
-	/* not all boards support pullup control */
+	/* yest all boards support pullup control */
 	if (!gpio_is_valid(udc->mach->gpio_pullup) && !udc->mach->udc_command)
 		return -EOPNOTSUPP;
 
@@ -1246,7 +1246,7 @@ static int udc_debug_show(struct seq_file *m, void *_d)
 	seq_printf(m, DRIVER_DESC "\n"
 		"%s version: %s\nGadget driver: %s\nHost %s\n\n",
 		driver_name, DRIVER_VERSION SIZE_STR "(pio)",
-		dev->driver ? dev->driver->driver.name : "(none)",
+		dev->driver ? dev->driver->driver.name : "(yesne)",
 		dev->gadget.speed == USB_SPEED_FULL ? "full speed" : "disconnected");
 
 	/* registers for device and ep0 */
@@ -1319,7 +1319,7 @@ static int udc_debug_show(struct seq_file *m, void *_d)
 				ep->pio_irqs);
 
 		if (list_empty(&ep->queue)) {
-			seq_printf(m, "\t(nothing queued)\n");
+			seq_printf(m, "\t(yesthing queued)\n");
 			continue;
 		}
 		list_for_each_entry(req, &ep->queue, queue) {
@@ -1384,7 +1384,7 @@ static void udc_reinit(struct pxa25x_udc *dev)
 	INIT_LIST_HEAD (&dev->gadget.ep_list);
 	INIT_LIST_HEAD (&dev->gadget.ep0->ep_list);
 	dev->ep0state = EP0_IDLE;
-	dev->gadget.quirk_altset_not_supp = 1;
+	dev->gadget.quirk_altset_yest_supp = 1;
 
 	/* basic endpoint records init */
 	for (i = 0; i < PXA_UDC_NUM_ENDPOINTS; i++) {
@@ -1436,7 +1436,7 @@ static void udc_enable (struct pxa25x_udc *dev)
 		/* "USB test mode" for pxa250 errata 40-42 (stepping a0, a1)
 		 * which could result in missing packets and interrupts.
 		 * supposedly one bit per endpoint, controlling whether it
-		 * double buffers or not; ACM/AREN bits fit into the holes.
+		 * double buffers or yest; ACM/AREN bits fit into the holes.
 		 * zero bits (like USIR0_IRx) disable double buffering.
 		 */
 		udc_set_reg(dev, UDC_RES1, 0x00);
@@ -1456,7 +1456,7 @@ static void udc_enable (struct pxa25x_udc *dev)
 
 /* when a driver is successfully registered, it will receive
  * control requests including set_configuration(), which enables
- * non-control requests.  then usb traffic follows until a
+ * yesn-control requests.  then usb traffic follows until a
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
@@ -1565,7 +1565,7 @@ static int pxa25x_udc_stop(struct usb_gadget*g)
 #ifdef CONFIG_ARCH_LUBBOCK
 
 /* Lubbock has separate connect and disconnect irqs.  More typical designs
- * use one GPIO as the VBUS IRQ, and another to control the D+ pullup.
+ * use one GPIO as the VBUS IRQ, and ayesther to control the D+ pullup.
  */
 
 static irqreturn_t
@@ -1649,7 +1649,7 @@ static void handle_ep0 (struct pxa25x_udc *dev)
 		ep0_idle(dev);
 	}
 
-	/* previous request unfinished?  non-error iff back-to-back ... */
+	/* previous request unfinished?  yesn-error iff back-to-back ... */
 	if ((udccs0 & UDCCS0_SA) != 0 && dev->ep0state != EP0_IDLE) {
 		nuke(ep, 0);
 		del_timer(&dev->timer);
@@ -1702,8 +1702,8 @@ got_setup:
 config_change:
 					dev->req_config = 1;
 					clear_ep_state(dev);
-					/* if !has_cfr, there's no synch
-					 * else use AREN (later) not SA|OPR
+					/* if !has_cfr, there's yes synch
+					 * else use AREN (later) yest SA|OPR
 					 * USIR0_IR0 acts edge sensitive
 					 */
 				}
@@ -1763,7 +1763,7 @@ stall:
 				start_watchdog(dev);
 				dev->ep0state = EP0_STALL;
 
-			/* deferred i/o == no response yet */
+			/* deferred i/o == yes response yet */
 			} else if (dev->req_pending) {
 				if (likely(dev->ep0state == EP0_IN_DATA_PHASE
 						|| dev->req_std || u.r.wLength))
@@ -1949,7 +1949,7 @@ pxa25x_udc_irq(int irq, void *_dev)
 				DBG(DBG_VERBOSE, "USB reset start\n");
 
 				/* reset driver and endpoints,
-				 * in case that's not yet done
+				 * in case that's yest yet done
 				 */
 				reset_gadget(dev, dev->driver);
 
@@ -2008,7 +2008,7 @@ pxa25x_udc_irq(int irq, void *_dev)
 
 /*-------------------------------------------------------------------------*/
 
-static void nop_release (struct device *dev)
+static void yesp_release (struct device *dev)
 {
 	DMSG("%s %s\n", __func__, dev_name(dev));
 }
@@ -2024,7 +2024,7 @@ static struct pxa25x_udc memory = {
 		.name		= driver_name,
 		.dev = {
 			.init_name	= "gadget",
-			.release	= nop_release,
+			.release	= yesp_release,
 		},
 	},
 
@@ -2327,7 +2327,7 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 	/* insist on Intel/ARM/XScale */
 	asm("mrc%? p15, 0, %0, c0, c0" : "=r" (chiprev));
 	if ((chiprev & CP15R0_VENDOR_MASK) != CP15R0_XSCALE_VALUE) {
-		pr_err("%s: not XScale!\n", driver_name);
+		pr_err("%s: yest XScale!\n", driver_name);
 		return -ENODEV;
 	}
 
@@ -2339,7 +2339,7 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 		break;
 	case PXA250_A0:
 	case PXA250_A1:
-		/* A0/A1 "not released"; ep 13, 15 unusable */
+		/* A0/A1 "yest released"; ep 13, 15 unusable */
 		/* fall through */
 	case PXA250_B2: case PXA210_B2:
 	case PXA250_B1: case PXA210_B1:
@@ -2379,7 +2379,7 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 		SIZE_STR "(pio)"
 		);
 
-	/* other non-static parts of init */
+	/* other yesn-static parts of init */
 	dev->dev = &pdev->dev;
 	dev->mach = dev_get_platdata(&pdev->dev);
 
@@ -2484,11 +2484,11 @@ static int pxa25x_udc_remove(struct platform_device *pdev)
  * the 48 MHz clock is required; so the system can't enter 33 MHz idle
  * mode, or any deeper PM saving state.
  *
- * For now, we punt and forcibly disconnect from the USB host when PXA
+ * For yesw, we punt and forcibly disconnect from the USB host when PXA
  * enters any suspend state.  While we're disconnected, we always disable
  * the 48MHz USB clock ... allowing PXA sleep and/or 33 MHz idle states.
  * Boards without software pullup control shouldn't use those states.
- * VBUS IRQs should probably be ignored so that the PXA device just acts
+ * VBUS IRQs should probably be igyesred so that the PXA device just acts
  * "dead" to USB hosts until system resume.
  */
 static int pxa25x_udc_suspend(struct platform_device *dev, pm_message_t state)

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2017 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2017 Netroyesme Systems, Inc. */
 
 /*
  * nfp_arm.h
@@ -143,7 +143,7 @@
 #define   NFP_ARM_GCSR_DFT_BIST_RUN_of(_x)              ((_x) & 0x7)
 
 /* Gasket CSRs */
-/* NOTE: These cannot be remapped, and are always at this location.
+/* NOTE: These canyest be remapped, and are always at this location.
  */
 #define NFP_ARM_GCSR_START	(0xd6000000 + NFP_ARM_GCSR)
 #define NFP_ARM_GCSR_SIZE	SZ_64K

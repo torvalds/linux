@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_FANOTIFY_H
 #define _UAPI_LINUX_FANOTIFY_H
 
@@ -33,7 +33,7 @@
 #define FAN_CLOSE		(FAN_CLOSE_WRITE | FAN_CLOSE_NOWRITE) /* close */
 #define FAN_MOVE		(FAN_MOVED_FROM | FAN_MOVED_TO) /* moves */
 
-/* flags used for fanotify_init() */
+/* flags used for fayestify_init() */
 #define FAN_CLOEXEC		0x00000001
 #define FAN_NONBLOCK		0x00000002
 
@@ -42,7 +42,7 @@
 #define FAN_CLASS_CONTENT	0x00000004
 #define FAN_CLASS_PRE_CONTENT	0x00000008
 
-/* Deprecated - do not use this in programs and do not add new flags here! */
+/* Deprecated - do yest use this in programs and do yest add new flags here! */
 #define FAN_ALL_CLASS_BITS	(FAN_CLASS_NOTIF | FAN_CLASS_CONTENT | \
 				 FAN_CLASS_PRE_CONTENT)
 
@@ -50,16 +50,16 @@
 #define FAN_UNLIMITED_MARKS	0x00000020
 #define FAN_ENABLE_AUDIT	0x00000040
 
-/* Flags to determine fanotify event format */
+/* Flags to determine fayestify event format */
 #define FAN_REPORT_TID		0x00000100	/* event->pid is thread id */
 #define FAN_REPORT_FID		0x00000200	/* Report unique file id */
 
-/* Deprecated - do not use this in programs and do not add new flags here! */
+/* Deprecated - do yest use this in programs and do yest add new flags here! */
 #define FAN_ALL_INIT_FLAGS	(FAN_CLOEXEC | FAN_NONBLOCK | \
 				 FAN_ALL_CLASS_BITS | FAN_UNLIMITED_QUEUE |\
 				 FAN_UNLIMITED_MARKS)
 
-/* flags used for fanotify_modify_mark() */
+/* flags used for fayestify_modify_mark() */
 #define FAN_MARK_ADD		0x00000001
 #define FAN_MARK_REMOVE		0x00000002
 #define FAN_MARK_DONT_FOLLOW	0x00000004
@@ -75,7 +75,7 @@
 #define FAN_MARK_MOUNT		0x00000010
 #define FAN_MARK_FILESYSTEM	0x00000100
 
-/* Deprecated - do not use this in programs and do not add new flags here! */
+/* Deprecated - do yest use this in programs and do yest add new flags here! */
 #define FAN_ALL_MARK_FLAGS	(FAN_MARK_ADD |\
 				 FAN_MARK_REMOVE |\
 				 FAN_MARK_DONT_FOLLOW |\
@@ -85,7 +85,7 @@
 				 FAN_MARK_IGNORED_SURV_MODIFY |\
 				 FAN_MARK_FLUSH)
 
-/* Deprecated - do not use this in programs and do not add new flags here! */
+/* Deprecated - do yest use this in programs and do yest add new flags here! */
 #define FAN_ALL_EVENTS (FAN_ACCESS |\
 			FAN_MODIFY |\
 			FAN_CLOSE |\
@@ -94,18 +94,18 @@
 /*
  * All events which require a permission response from userspace
  */
-/* Deprecated - do not use this in programs and do not add new flags here! */
+/* Deprecated - do yest use this in programs and do yest add new flags here! */
 #define FAN_ALL_PERM_EVENTS (FAN_OPEN_PERM |\
 			     FAN_ACCESS_PERM)
 
-/* Deprecated - do not use this in programs and do not add new flags here! */
+/* Deprecated - do yest use this in programs and do yest add new flags here! */
 #define FAN_ALL_OUTGOING_EVENTS	(FAN_ALL_EVENTS |\
 				 FAN_ALL_PERM_EVENTS |\
 				 FAN_Q_OVERFLOW)
 
 #define FANOTIFY_METADATA_VERSION	3
 
-struct fanotify_event_metadata {
+struct fayestify_event_metadata {
 	__u32 event_len;
 	__u8 vers;
 	__u8 reserved;
@@ -118,15 +118,15 @@ struct fanotify_event_metadata {
 #define FAN_EVENT_INFO_TYPE_FID		1
 
 /* Variable length info record following event metadata */
-struct fanotify_event_info_header {
+struct fayestify_event_info_header {
 	__u8 info_type;
 	__u8 pad;
 	__u16 len;
 };
 
 /* Unique file identifier info record */
-struct fanotify_event_info_fid {
-	struct fanotify_event_info_header hdr;
+struct fayestify_event_info_fid {
+	struct fayestify_event_info_header hdr;
 	__kernel_fsid_t fsid;
 	/*
 	 * Following is an opaque struct file_handle that can be passed as
@@ -135,7 +135,7 @@ struct fanotify_event_info_fid {
 	unsigned char handle[0];
 };
 
-struct fanotify_response {
+struct fayestify_response {
 	__s32 fd;
 	__u32 response;
 };
@@ -148,11 +148,11 @@ struct fanotify_response {
 /* No fd set in event */
 #define FAN_NOFD	-1
 
-/* Helper functions to deal with fanotify_event_metadata buffers */
-#define FAN_EVENT_METADATA_LEN (sizeof(struct fanotify_event_metadata))
+/* Helper functions to deal with fayestify_event_metadata buffers */
+#define FAN_EVENT_METADATA_LEN (sizeof(struct fayestify_event_metadata))
 
 #define FAN_EVENT_NEXT(meta, len) ((len) -= (meta)->event_len, \
-				   (struct fanotify_event_metadata*)(((char *)(meta)) + \
+				   (struct fayestify_event_metadata*)(((char *)(meta)) + \
 				   (meta)->event_len))
 
 #define FAN_EVENT_OK(meta, len)	((long)(len) >= (long)FAN_EVENT_METADATA_LEN && \

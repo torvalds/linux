@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/delay.h>
 #include <linux/rtc/ds1685.h>
 #include <linux/interrupt.h>
@@ -20,7 +20,7 @@
 #include <asm/reboot.h>
 #include <asm/sgi/heart.h>
 
-static void __noreturn ip30_machine_restart(char *cmd)
+static void __yesreturn ip30_machine_restart(char *cmd)
 {
 	/*
 	 * Execute HEART cold reset

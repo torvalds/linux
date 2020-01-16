@@ -260,12 +260,12 @@ unlock_adc:
 
 static void sc27xx_adc_volt_ratio(struct sc27xx_adc_data *data,
 				  int channel, int scale,
-				  u32 *div_numerator, u32 *div_denominator)
+				  u32 *div_numerator, u32 *div_deyesminator)
 {
 	u32 ratio = sc27xx_adc_get_ratio(channel, scale);
 
 	*div_numerator = ratio >> SC27XX_RATIO_NUMERATOR_OFFSET;
-	*div_denominator = ratio & SC27XX_RATIO_DENOMINATOR_MASK;
+	*div_deyesminator = ratio & SC27XX_RATIO_DENOMINATOR_MASK;
 }
 
 static int sc27xx_adc_to_volt(struct sc27xx_adc_linear_graph *graph,
@@ -283,7 +283,7 @@ static int sc27xx_adc_to_volt(struct sc27xx_adc_linear_graph *graph,
 static int sc27xx_adc_convert_volt(struct sc27xx_adc_data *data, int channel,
 				   int scale, int raw_adc)
 {
-	u32 numerator, denominator;
+	u32 numerator, deyesminator;
 	u32 volt;
 
 	/*
@@ -305,9 +305,9 @@ static int sc27xx_adc_convert_volt(struct sc27xx_adc_data *data, int channel,
 		break;
 	}
 
-	sc27xx_adc_volt_ratio(data, channel, scale, &numerator, &denominator);
+	sc27xx_adc_volt_ratio(data, channel, scale, &numerator, &deyesminator);
 
-	return (volt * denominator + numerator / 2) / numerator;
+	return (volt * deyesminator + numerator / 2) / numerator;
 }
 
 static int sc27xx_adc_read_processed(struct sc27xx_adc_data *data,
@@ -480,7 +480,7 @@ static void sc27xx_adc_disable(void *_data)
 static int sc27xx_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct sc27xx_adc_data *sc27xx_data;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -541,7 +541,7 @@ static int sc27xx_adc_probe(struct platform_device *pdev)
 	indio_dev->num_channels = ARRAY_SIZE(sc27xx_channels);
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
-		dev_err(dev, "could not register iio (ADC)");
+		dev_err(dev, "could yest register iio (ADC)");
 
 	return ret;
 }

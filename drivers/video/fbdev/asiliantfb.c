@@ -6,11 +6,11 @@
  *  from driver/video/chipsfb.c and,
  *
  *  drivers/video/asiliantfb.c -- frame buffer device for
- *  Asiliant 69030 chip (formerly Intel, formerly Chips & Technologies)
+ *  Asiliant 69030 chip (formerly Intel, formerly Chips & Techyeslogies)
  *  Author: apc@agelectronics.co.uk
  *  Copyright (C) 2000 AG Electronics
  *  Note: the data sheets don't seem to be available from Asiliant.
- *  They are available by searching developer.intel.com, but are not otherwise
+ *  They are available by searching developer.intel.com, but are yest otherwise
  *  linked to.
  *
  *  This driver should be portable with minimal effort to the 69000 display
@@ -31,7 +31,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -92,7 +92,7 @@ static int asiliantfb_pci_init(struct pci_dev *dp, const struct pci_device_id *)
 static int asiliantfb_check_var(struct fb_var_screeninfo *var,
 				struct fb_info *info);
 static int asiliantfb_set_par(struct fb_info *info);
-static int asiliantfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int asiliantfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 				u_int transp, struct fb_info *info);
 
 static struct fb_ops asiliantfb_ops = {
@@ -119,7 +119,7 @@ static void asiliant_calc_dclk2(u32 *ppixclock, u8 *dclk2_m, u8 *dclk2_n, u8 *dc
 	unsigned remainder;
 	unsigned char divisor = 0;
 
-	/* Calculate the frequency required. This is hard enough. */
+	/* Calculate the frequency required. This is hard eyesugh. */
 	ratio = 1000000 / pixclock;
 	remainder = 1000000 % pixclock;
 	Ftarget = 1000000 * ratio + (1000000 * remainder) / pixclock;
@@ -303,38 +303,38 @@ static int asiliantfb_set_par(struct fb_info *p)
 	return 0;
 }
 
-static int asiliantfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int asiliantfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			     u_int transp, struct fb_info *p)
 {
-	if (regno > 255)
+	if (regyes > 255)
 		return 1;
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
 
         /* Set hardware palete */
-	writeb(regno, mmio_base + 0x790);
+	writeb(regyes, mmio_base + 0x790);
 	udelay(1);
 	writeb(red, mmio_base + 0x791);
 	writeb(green, mmio_base + 0x791);
 	writeb(blue, mmio_base + 0x791);
 
-	if (regno < 16) {
+	if (regyes < 16) {
 		switch(p->var.red.offset) {
 		case 10: /* RGB 555 */
-			((u32 *)(p->pseudo_palette))[regno] =
+			((u32 *)(p->pseudo_palette))[regyes] =
 				((red & 0xf8) << 7) |
 				((green & 0xf8) << 2) |
 				((blue & 0xf8) >> 3);
 			break;
 		case 11: /* RGB 565 */
-			((u32 *)(p->pseudo_palette))[regno] =
+			((u32 *)(p->pseudo_palette))[regyes] =
 				((red & 0xf8) << 8) |
 				((green & 0xfc) << 3) |
 				((blue & 0xf8) >> 3);
 			break;
 		case 16: /* RGB 888 */
-			((u32 *)(p->pseudo_palette))[regno] =
+			((u32 *)(p->pseudo_palette))[regyes] =
 				(red << 16)  |
 				(green << 8) |
 				(blue);

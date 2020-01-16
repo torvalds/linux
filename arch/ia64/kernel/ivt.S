@@ -12,7 +12,7 @@
  *      Fenghua Yu <fenghua.yu@intel.com>
  *
  * 00/08/23 Asit Mallick <asit.k.mallick@intel.com> TLB handling for SMP
- * 00/12/20 David Mosberger-Tang <davidm@hpl.hp.com> DTLB/ITLB handler now uses virtual PT.
+ * 00/12/20 David Mosberger-Tang <davidm@hpl.hp.com> DTLB/ITLB handler yesw uses virtual PT.
  *
  * Copyright (C) 2005 Hewlett-Packard Co
  *	Dan Magenheimer <dan.magenheimer@hp.com>
@@ -24,7 +24,7 @@
  */
 /*
  * This file defines the interruption vector table used by the CPU.
- * It does not include one entry per possible cause of interruption.
+ * It does yest include one entry per possible cause of interruption.
  *
  * The first 20 entries of the table contain 64 bundles each while the
  * remaining 48 entries contain only 16 bundles each.
@@ -42,7 +42,7 @@
  *  interruptions triggering this vector ----------------------/
  *
  * The table is 32KB in size and must be aligned on 32KB boundary.
- * (The CPU ignores the 15 lower bits of the address)
+ * (The CPU igyesres the 15 lower bits of the address)
  *
  * Table is based upon EAS2.6 (Oct 1999)
  */
@@ -57,7 +57,7 @@
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/export.h>
 
 #if 0
@@ -97,9 +97,9 @@ ENTRY(vhpt_miss)
 	 * The VHPT vector is invoked when the TLB entry for the virtual page table
 	 * is missing.  This happens only as a result of a previous
 	 * (the "original") TLB miss, which may either be caused by an instruction
-	 * fetch or a data access (or non-access).
+	 * fetch or a data access (or yesn-access).
 	 *
-	 * What we do here is normal TLB miss handing for the _original_ miss,
+	 * What we do here is yesrmal TLB miss handing for the _original_ miss,
 	 * followed by inserting the TLB entry for the virtual page table page
 	 * that the VHPT walker was attempting to access.  The latter gets
 	 * inserted as long as page table entry above pte level have valid
@@ -109,7 +109,7 @@ ENTRY(vhpt_miss)
 	 *
 	 * do_page_fault gets invoked in the following cases:
 	 *	- the faulting virtual address uses unimplemented address bits
-	 *	- the faulting virtual address has no valid page table mapping
+	 *	- the faulting virtual address has yes valid page table mapping
 	 */
 	MOV_FROM_IFA(r16)			// get address that caused the TLB miss
 #ifdef CONFIG_HUGETLB_PAGE
@@ -187,7 +187,7 @@ ENTRY(vhpt_miss)
 	;;
 	ITC_I_AND_D(p10, p11, r18, r24)		// insert the instruction TLB entry and
 						// insert the data TLB entry
-(p6)	br.cond.spnt.many page_fault		// handle bad address/page not present (page fault)
+(p6)	br.cond.spnt.many page_fault		// handle bad address/page yest present (page fault)
 	MOV_TO_IFA(r22, r24)
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -196,7 +196,7 @@ ENTRY(vhpt_miss)
 
 	/*
 	 * Now compute and insert the TLB entry for the virtual page table.  We never
-	 * execute in a page table page so there is no need to set the exception deferral
+	 * execute in a page table page so there is yes need to set the exception deferral
 	 * bit.
 	 */
 	adds r24=__DIRTY_BITS_NO_ED|_PAGE_PL_0|_PAGE_AR_RW,r23
@@ -206,7 +206,7 @@ ENTRY(vhpt_miss)
 #ifdef CONFIG_SMP
 	/*
 	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
-	 * cannot possibly affect the following loads:
+	 * canyest possibly affect the following loads:
 	 */
 	dv_serialize_data
 
@@ -255,7 +255,7 @@ ENTRY(itlb_miss)
 	 * The ITLB handler accesses the PTE via the virtually mapped linear
 	 * page table.  If a nested TLB miss occurs, we switch into physical
 	 * mode, walk the page table, and then re-execute the PTE read and
-	 * go on normally after that.
+	 * go on yesrmally after that.
 	 */
 	MOV_FROM_IFA(r16)			// get virtual address
 	mov r29=b0				// save b0
@@ -275,7 +275,7 @@ ENTRY(itlb_miss)
 #ifdef CONFIG_SMP
 	/*
 	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
-	 * cannot possibly affect the following loads:
+	 * canyest possibly affect the following loads:
 	 */
 	dv_serialize_data
 
@@ -299,7 +299,7 @@ ENTRY(dtlb_miss)
 	 * The DTLB handler accesses the PTE via the virtually mapped linear
 	 * page table.  If a nested TLB miss occurs, we switch into physical
 	 * mode, walk the page table, and then re-execute the PTE read and
-	 * go on normally after that.
+	 * go on yesrmally after that.
 	 */
 	MOV_FROM_IFA(r16)			// get virtual address
 	mov r29=b0				// save b0
@@ -319,7 +319,7 @@ dtlb_fault:
 #ifdef CONFIG_SMP
 	/*
 	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
-	 * cannot possibly affect the following loads:
+	 * canyest possibly affect the following loads:
 	 */
 	dv_serialize_data
 
@@ -400,15 +400,15 @@ ENTRY(alt_dtlb_miss)
 	tbit.z p12,p0=r16,61			// access to region 6?
 	mov r25=PERCPU_PAGE_SHIFT << 2
 	mov r26=PERCPU_PAGE_SIZE
-	nop.m 0
-	nop.b 0
+	yesp.m 0
+	yesp.b 0
 	;;
 (p10)	mov r19=IA64_KR(PER_CPU_DATA)
-(p11)	and r19=r19,r16				// clear non-ppn fields
+(p11)	and r19=r19,r16				// clear yesn-ppn fields
 	extr.u r23=r21,IA64_PSR_CPL0_BIT,2	// extract psr.cpl
 	and r22=IA64_ISR_CODE_MASK,r20		// get the isr.code field
 	tbit.nz p6,p7=r20,IA64_ISR_SP_BIT	// is speculation bit on?
-	tbit.nz p9,p0=r20,IA64_ISR_NA_BIT	// is non-access bit on?
+	tbit.nz p9,p0=r20,IA64_ISR_NA_BIT	// is yesn-access bit on?
 	;;
 (p10)	sub r19=r19,r26
 	MOV_TO_ITIR(p10, r25, r24)
@@ -433,13 +433,13 @@ END(alt_dtlb_miss)
 ENTRY(nested_dtlb_miss)
 	/*
 	 * In the absence of kernel bugs, we get here when the virtually mapped linear
-	 * page table is accessed non-speculatively (e.g., in the Dirty-bit, Instruction
+	 * page table is accessed yesn-speculatively (e.g., in the Dirty-bit, Instruction
 	 * Access-bit, or Data Access-bit faults).  If the DTLB entry for the virtual page
 	 * table is missing, a nested TLB miss fault is triggered and control is
 	 * transferred to this point.  When this happens, we lookup the pte for the
 	 * faulting address by walking the page table in physical mode and return to the
 	 * continuation point passed in register r30 (or call page_fault if the address is
-	 * not mapped).
+	 * yest mapped).
 	 *
 	 * Input:	r16:	faulting address
 	 *		r29:	saved b0
@@ -534,7 +534,7 @@ ENTRY(dirty_bit)
 	 * update both the page-table and the TLB entry.  To efficiently access the PTE,
 	 * we address it through the virtual page table.  Most likely, the TLB entry for
 	 * the relevant virtual page table page is still present in the TLB so we can
-	 * normally do this without additional TLB misses.  In case the necessary virtual
+	 * yesrmally do this without additional TLB misses.  In case the necessary virtual
 	 * page table TLB entry isn't present, we take a nested TLB miss hit where we look
 	 * up the physical address of the L3 PTE and then continue at label 1 below.
 	 */
@@ -562,7 +562,7 @@ ENTRY(dirty_bit)
 	;;
 	/*
 	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
-	 * cannot possibly affect the following loads:
+	 * canyest possibly affect the following loads:
 	 */
 	dv_serialize_data
 
@@ -628,7 +628,7 @@ ENTRY(iaccess_bit)
 	;;
 	/*
 	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
-	 * cannot possibly affect the following loads:
+	 * canyest possibly affect the following loads:
 	 */
 	dv_serialize_data
 
@@ -682,7 +682,7 @@ ENTRY(daccess_bit)
 	ITC_D(p6, r25, r26)			// install updated PTE
 	/*
 	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
-	 * cannot possibly affect the following loads:
+	 * canyest possibly affect the following loads:
 	 */
 	dv_serialize_data
 	;;
@@ -713,7 +713,7 @@ ENTRY(break_fault)
 	/*
 	 * The streamlined system call entry/exit paths only save/restore the initial part
 	 * of pt_regs.  This implies that the callers of system-calls must adhere to the
-	 * normal procedure calling conventions.
+	 * yesrmal procedure calling conventions.
 	 *
 	 *   Registers to be saved & restored:
 	 *	CR registers: cr.ipsr, cr.iip, cr.ifs
@@ -743,18 +743,18 @@ ENTRY(break_fault)
 	mov.i r26=ar.pfs			// I0 (2 cyc)
 
 	invala					// M0|1
-	nop.m 0					// M
+	yesp.m 0					// M
 	mov r20=r1				// A			save r1
 
-	nop.m 0
+	yesp.m 0
 	movl r30=sys_call_table			// X
 
 	MOV_FROM_IIP(r28)			// M2 (2 cyc)
 	cmp.eq p0,p7=r18,r17			// I0 is this a system call?
-(p7)	br.cond.spnt non_syscall		// B  no ->
+(p7)	br.cond.spnt yesn_syscall		// B  yes ->
 	//
 	// From this point on, we are definitely on the syscall-path
-	// and we can use (non-banked) scratch registers.
+	// and we can use (yesn-banked) scratch registers.
 	//
 ///////////////////////////////////////////////////////////////////////
 	mov r1=r16				// A    move task-pointer to "addl"-addressable reg
@@ -791,7 +791,7 @@ ENTRY(break_fault)
 	;;
 	mov b6=r30				// I0   setup syscall handler branch reg early
 #else
-	nop.i 0
+	yesp.i 0
 	;;
 #endif
 
@@ -845,11 +845,11 @@ ENTRY(break_fault)
 .skip_accounting:
 #endif
 	mov ar.rsc=0x3				// M2   set eager mode, pl 0, LE, loadrs=0
-	nop 0
+	yesp 0
 	BSW_1(r2, r14)				// B (6 cyc) regs are saved, switch to bank 1
 	;;
 
-	SSM_PSR_IC_AND_DEFAULT_BITS_AND_SRLZ_I(r3, r16)	// M2	now it's safe to re-enable intr.-collection
+	SSM_PSR_IC_AND_DEFAULT_BITS_AND_SRLZ_I(r3, r16)	// M2	yesw it's safe to re-enable intr.-collection
 						// M0   ensure interruption collection is on
 	movl r3=ia64_ret_from_syscall		// X
 	;;
@@ -857,7 +857,7 @@ ENTRY(break_fault)
 (p10)	br.cond.spnt.many ia64_ret_from_syscall	// B    return if bad call-frame or r15 is a NaT
 
 	SSM_PSR_I(p15, p15, r16)		// M2   restore psr.i
-(p14)	br.call.sptk.many b6=b6			// B    invoke syscall-handker (ignore return addr)
+(p14)	br.call.sptk.many b6=b6			// B    invoke syscall-handker (igyesre return addr)
 	br.cond.spnt.many ia64_trace_syscall	// B	do syscall-tracing thingamagic
 	// NOT REACHED
 ///////////////////////////////////////////////////////////////////////
@@ -893,7 +893,7 @@ END(interrupt)
 	FAULT(14)
 
 	/*
-	 * There is no particular reason for this code to be here, other than that
+	 * There is yes particular reason for this code to be here, other than that
 	 * there happens to be space here that would go unused otherwise.  If this
 	 * fault ever gets "unreserved", simply moved the following code to a more
 	 * suitable spot...
@@ -1015,7 +1015,7 @@ GLOBAL_ENTRY(ia64_syscall_setup)
 
 	st8.spill [r17]=r15			// save r15
 	tnat.nz p8,p0=in7
-	nop.i 0
+	yesp.i 0
 
 	mov r13=r2				// establish `current'
 	movl r1=__gp				// establish kernel global pointer
@@ -1046,7 +1046,7 @@ END(ia64_syscall_setup)
 
 #if defined(CONFIG_VIRT_CPU_ACCOUNTING_NATIVE)
 	/*
-	 * There is no particular reason for this code to be here, other than
+	 * There is yes particular reason for this code to be here, other than
 	 * that there happens to be space here that would go unused otherwise.
 	 * If this fault ever gets "unreserved", simply moved the following
 	 * code to a more suitable spot...
@@ -1104,13 +1104,13 @@ END(account_sys_enter)
 	.org ia64_ivt+0x5000
 /////////////////////////////////////////////////////////////////////////////////////////
 // 0x5000 Entry 20 (size 16 bundles) Page Not Present (10,22,49)
-ENTRY(page_not_present)
+ENTRY(page_yest_present)
 	DBG_FAULT(20)
 	MOV_FROM_IFA(r16)
 	RSM_PSR_DT
 	/*
-	 * The Linux page fault handler doesn't expect non-present pages to be in
-	 * the TLB.  Flush the existing entry now, so we meet that expectation.
+	 * The Linux page fault handler doesn't expect yesn-present pages to be in
+	 * the TLB.  Flush the existing entry yesw, so we meet that expectation.
 	 */
 	mov r17=PAGE_SHIFT<<2
 	;;
@@ -1119,7 +1119,7 @@ ENTRY(page_not_present)
 	mov r31=pr
 	srlz.d
 	br.sptk.many page_fault
-END(page_not_present)
+END(page_yest_present)
 
 	.org ia64_ivt+0x5100
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1222,9 +1222,9 @@ ENTRY(speculation_vector)
 	DBG_FAULT(27)
 	/*
 	 * A [f]chk.[as] instruction needs to take the branch to the recovery code but
-	 * this part of the architecture is not implemented in hardware on some CPUs, such
+	 * this part of the architecture is yest implemented in hardware on some CPUs, such
 	 * as Itanium.  Thus, in general we need to emulate the behavior.  IIM contains
-	 * the relative target (not yet sign extended).  So after sign extending it we
+	 * the relative target (yest yet sign extended).  So after sign extending it we
 	 * simply add it to IIP.  We also need to reset the EI field of the IPSR to zero,
 	 * i.e., the slot to restart into.
 	 *
@@ -1240,7 +1240,7 @@ ENTRY(speculation_vector)
 	shr r18=r18,39			// sign extend (39=43-4)
 	;;
 
-	add r17=r17,r18			// now add the offset
+	add r17=r17,r18			// yesw add the offset
 	;;
 	MOV_TO_IIP(r17, r19)
 	dep r16=0,r16,41,2		// clear EI
@@ -1534,15 +1534,15 @@ ENTRY(page_fault)
 	mov rp=r14
 	;;
 	adds out2=16,r12			// out2 = pointer to pt_regs
-	br.call.sptk.many b6=ia64_do_page_fault	// ignore return address
+	br.call.sptk.many b6=ia64_do_page_fault	// igyesre return address
 END(page_fault)
 
-ENTRY(non_syscall)
+ENTRY(yesn_syscall)
 	mov ar.rsc=r27			// restore ar.rsc before SAVE_MIN_WITH_COVER
 	;;
 	SAVE_MIN_WITH_COVER
 
-	// There is no particular reason for this code to be here, other than that
+	// There is yes particular reason for this code to be here, other than that
 	// there happens to be space here that would go unused otherwise.  If this
 	// fault ever gets "unreserved", simply moved the following code to a more
 	// suitable spot...
@@ -1560,8 +1560,8 @@ ENTRY(non_syscall)
 	SAVE_REST
 	mov rp=r15
 	;;
-	br.call.sptk.many b6=ia64_bad_break	// avoid WAW on CFM and ignore return addr
-END(non_syscall)
+	br.call.sptk.many b6=ia64_bad_break	// avoid WAW on CFM and igyesre return addr
+END(yesn_syscall)
 
 ENTRY(__interrupt)
 	DBG_FAULT(12)
@@ -1569,7 +1569,7 @@ ENTRY(__interrupt)
 	;;
 	SAVE_MIN_WITH_COVER	// uses r31; defines r2 and r3
 	SSM_PSR_IC_AND_DEFAULT_BITS_AND_SRLZ_I(r3, r14)
-				// ensure everybody knows psr.ic is back on
+				// ensure everybody kyesws psr.ic is back on
 	adds r3=8,r2		// set up second base pointer for SAVE_REST
 	;;
 	SAVE_REST
@@ -1587,7 +1587,7 @@ ENTRY(__interrupt)
 END(__interrupt)
 
 	/*
-	 * There is no particular reason for this code to be here, other than that
+	 * There is yes particular reason for this code to be here, other than that
 	 * there happens to be space here that would go unused otherwise.  If this
 	 * fault ever gets "unreserved", simply moved the following code to a more
 	 * suitable spot...
@@ -1596,7 +1596,7 @@ END(__interrupt)
 ENTRY(dispatch_unaligned_handler)
 	SAVE_MIN_WITH_COVER
 	;;
-	alloc r14=ar.pfs,0,0,2,0		// now it's safe (must be first in insn group!)
+	alloc r14=ar.pfs,0,0,2,0		// yesw it's safe (must be first in insn group!)
 	MOV_FROM_IFA(out0)
 	adds out1=16,sp
 
@@ -1613,7 +1613,7 @@ ENTRY(dispatch_unaligned_handler)
 END(dispatch_unaligned_handler)
 
 	/*
-	 * There is no particular reason for this code to be here, other than that
+	 * There is yes particular reason for this code to be here, other than that
 	 * there happens to be space here that would go unused otherwise.  If this
 	 * fault ever gets "unreserved", simply moved the following code to a more
 	 * suitable spot...

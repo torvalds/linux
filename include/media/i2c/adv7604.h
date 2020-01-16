@@ -151,7 +151,7 @@ enum adv76xx_pad {
 #define V4L2_CID_ADV_RX_FREE_RUN_COLOR_MANUAL	(V4L2_CID_DV_CLASS_BASE + 0x1001)
 #define V4L2_CID_ADV_RX_FREE_RUN_COLOR		(V4L2_CID_DV_CLASS_BASE + 0x1002)
 
-/* notify events */
+/* yestify events */
 #define ADV76XX_HOTPLUG		1
 
 #endif

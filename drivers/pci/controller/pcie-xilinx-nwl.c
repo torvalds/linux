@@ -165,8 +165,8 @@ struct nwl_pcie {
 	int irq_intx;
 	int irq_misc;
 	u32 ecam_value;
-	u8 last_busno;
-	u8 root_busno;
+	u8 last_busyes;
+	u8 root_busyes;
 	struct nwl_msi msi;
 	struct irq_domain *legacy_irq_domain;
 	raw_spinlock_t leg_mask_lock;
@@ -201,7 +201,7 @@ static int nwl_wait_for_link(struct nwl_pcie *pcie)
 	struct device *dev = pcie->dev;
 	int retries;
 
-	/* check if the link is up or not */
+	/* check if the link is up or yest */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
 		if (nwl_phy_link_up(pcie))
 			return 0;
@@ -217,13 +217,13 @@ static bool nwl_pcie_valid_device(struct pci_bus *bus, unsigned int devfn)
 	struct nwl_pcie *pcie = bus->sysdata;
 
 	/* Check link before accessing downstream ports */
-	if (bus->number != pcie->root_busno) {
+	if (bus->number != pcie->root_busyes) {
 		if (!nwl_pcie_link_up(pcie))
 			return false;
 	}
 
 	/* Only one device down on each root port */
-	if (bus->number == pcie->root_busno && devfn > 0)
+	if (bus->number == pcie->root_busyes && devfn > 0)
 		return false;
 
 	return true;
@@ -307,7 +307,7 @@ static irqreturn_t nwl_pcie_misc_handler(int irq, void *data)
 		dev_err(dev, "Fatal Error Detected\n");
 
 	if (misc_stat & MSGF_MSIC_SR_LINK_AUTO_BWIDTH)
-		dev_info(dev, "Link Autonomous Bandwidth Management Status bit set\n");
+		dev_info(dev, "Link Autoyesmous Bandwidth Management Status bit set\n");
 
 	if (misc_stat & MSGF_MSIC_SR_LINK_BWIDTH)
 		dev_info(dev, "Link Bandwidth Management Status bit set\n");
@@ -520,7 +520,7 @@ static int nwl_pcie_init_msi_irq_domain(struct nwl_pcie *pcie)
 {
 #ifdef CONFIG_PCI_MSI
 	struct device *dev = pcie->dev;
-	struct fwnode_handle *fwnode = of_node_to_fwnode(dev->of_node);
+	struct fwyesde_handle *fwyesde = of_yesde_to_fwyesde(dev->of_yesde);
 	struct nwl_msi *msi = &pcie->msi;
 
 	msi->dev_domain = irq_domain_add_linear(NULL, INT_PCI_MSI_NR,
@@ -529,7 +529,7 @@ static int nwl_pcie_init_msi_irq_domain(struct nwl_pcie *pcie)
 		dev_err(dev, "failed to create dev IRQ domain\n");
 		return -ENOMEM;
 	}
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
+	msi->msi_domain = pci_msi_create_irq_domain(fwyesde,
 						    &nwl_msi_domain_info,
 						    msi->dev_domain);
 	if (!msi->msi_domain) {
@@ -544,20 +544,20 @@ static int nwl_pcie_init_msi_irq_domain(struct nwl_pcie *pcie)
 static int nwl_pcie_init_irq_domain(struct nwl_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *legacy_intc_node;
+	struct device_yesde *yesde = dev->of_yesde;
+	struct device_yesde *legacy_intc_yesde;
 
-	legacy_intc_node = of_get_next_child(node, NULL);
-	if (!legacy_intc_node) {
-		dev_err(dev, "No legacy intc node found\n");
+	legacy_intc_yesde = of_get_next_child(yesde, NULL);
+	if (!legacy_intc_yesde) {
+		dev_err(dev, "No legacy intc yesde found\n");
 		return -EINVAL;
 	}
 
-	pcie->legacy_irq_domain = irq_domain_add_linear(legacy_intc_node,
+	pcie->legacy_irq_domain = irq_domain_add_linear(legacy_intc_yesde,
 							PCI_NUM_INTX,
 							&legacy_domain_ops,
 							pcie);
-	of_node_put(legacy_intc_node);
+	of_yesde_put(legacy_intc_yesde);
 	if (!pcie->legacy_irq_domain) {
 		dev_err(dev, "failed to create IRQ domain\n");
 		return -ENOMEM;
@@ -608,7 +608,7 @@ static int nwl_pcie_enable_msi(struct nwl_pcie *pcie)
 	/* Check for msii_present bit */
 	ret = nwl_bridge_readl(pcie, I_MSII_CAPABILITIES) & MSII_PRESENT;
 	if (!ret) {
-		dev_err(dev, "MSI not present\n");
+		dev_err(dev, "MSI yest present\n");
 		ret = -EIO;
 		goto err;
 	}
@@ -659,12 +659,12 @@ static int nwl_pcie_bridge_init(struct nwl_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	u32 breg_val, ecam_val, first_busno = 0;
+	u32 breg_val, ecam_val, first_busyes = 0;
 	int err;
 
 	breg_val = nwl_bridge_readl(pcie, E_BREG_CAPABILITIES) & BREG_PRESENT;
 	if (!breg_val) {
-		dev_err(dev, "BREG is not present\n");
+		dev_err(dev, "BREG is yest present\n");
 		return breg_val;
 	}
 
@@ -695,7 +695,7 @@ static int nwl_pcie_bridge_init(struct nwl_pcie *pcie)
 
 	ecam_val = nwl_bridge_readl(pcie, E_ECAM_CAPABILITIES) & E_ECAM_PRESENT;
 	if (!ecam_val) {
-		dev_err(dev, "ECAM is not present\n");
+		dev_err(dev, "ECAM is yest present\n");
 		return ecam_val;
 	}
 
@@ -714,11 +714,11 @@ static int nwl_pcie_bridge_init(struct nwl_pcie *pcie)
 
 	/* Get bus range */
 	ecam_val = nwl_bridge_readl(pcie, E_ECAM_CONTROL);
-	pcie->last_busno = (ecam_val & E_ECAM_SIZE_LOC) >> E_ECAM_SIZE_SHIFT;
+	pcie->last_busyes = (ecam_val & E_ECAM_SIZE_LOC) >> E_ECAM_SIZE_SHIFT;
 	/* Write primary, secondary and subordinate bus numbers */
-	ecam_val = first_busno;
-	ecam_val |= (first_busno + 1) << 8;
-	ecam_val |= (pcie->last_busno << E_ECAM_SIZE_SHIFT);
+	ecam_val = first_busyes;
+	ecam_val |= (first_busyes + 1) << 8;
+	ecam_val |= (pcie->last_busyes << E_ECAM_SIZE_SHIFT);
 	writel(ecam_val, (pcie->ecam_base + PCI_PRIMARY_BUS));
 
 	if (nwl_pcie_link_up(pcie))
@@ -858,7 +858,7 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 
 	bridge->dev.parent = dev;
 	bridge->sysdata = pcie;
-	bridge->busnr = pcie->root_busno;
+	bridge->busnr = pcie->root_busyes;
 	bridge->ops = &nwl_pcie_ops;
 	bridge->map_irq = of_irq_parse_and_map_pci;
 	bridge->swizzle_irq = pci_common_swizzle;
@@ -878,7 +878,7 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 	bus = bridge->bus;
 
 	pci_assign_unassigned_bus_resources(bus);
-	list_for_each_entry(child, &bus->children, node)
+	list_for_each_entry(child, &bus->children, yesde)
 		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
 	return 0;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/ptrace.h>
 #include <linux/regset.h>
@@ -37,7 +37,7 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 
 static const struct user_regset nds32_regsets[] = {
 	[REGSET_GPR] = {
-			.core_note_type = NT_PRSTATUS,
+			.core_yeste_type = NT_PRSTATUS,
 			.n = sizeof(struct user_pt_regs) / sizeof(u32),
 			.size = sizeof(elf_greg_t),
 			.align = sizeof(elf_greg_t),
@@ -107,7 +107,7 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 		if (tracehook_report_syscall_entry(regs))
 			forget_syscall(regs);
 	}
-	return regs->syscallno;
+	return regs->syscallyes;
 }
 
 asmlinkage void syscall_trace_leave(struct pt_regs *regs)

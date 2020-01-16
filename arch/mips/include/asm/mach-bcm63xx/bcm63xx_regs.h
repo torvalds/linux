@@ -88,7 +88,7 @@
 					CKCTL_6338_SPI_EN)
 
 /* BCM6345 clock bits are shifted by 16 on the left, because of the test
- * control register which is 16-bits wide. That way we do not have any
+ * control register which is 16-bits wide. That way we do yest have any
  * specific BCM6345 code for handling clocks, and writing 0 to the test
  * control register is fine.
  */
@@ -1025,7 +1025,7 @@
  * _REG relative to RSET_MPI
  *************************************************************************/
 
-/* well known (hard wired) chip select */
+/* well kyeswn (hard wired) chip select */
 #define MPI_CS_PCMCIA_COMMON		4
 #define MPI_CS_PCMCIA_ATTR		5
 #define MPI_CS_PCMCIA_IO		6

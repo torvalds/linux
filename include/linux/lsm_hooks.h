@@ -3,12 +3,12 @@
  *
  * Copyright (C) 2001 WireX Communications, Inc <chris@wirex.com>
  * Copyright (C) 2001 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2001 Networks Associates Technology, Inc <ssmalley@nai.com>
+ * Copyright (C) 2001 Networks Associates Techyeslogy, Inc <ssmalley@nai.com>
  * Copyright (C) 2001 James Morris <jmorris@intercode.com.au>
- * Copyright (C) 2001 Silicon Graphics, Inc. (Trust Technology Group)
+ * Copyright (C) 2001 Silicon Graphics, Inc. (Trust Techyeslogy Group)
  * Copyright (C) 2015 Intel Corporation.
  * Copyright (C) 2015 Casey Schaufler <casey@schaufler-ca.com>
- * Copyright (C) 2016 Mellanox Techonologies
+ * Copyright (C) 2016 Mellayesx Techoyeslogies
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
  *	transitions between security domains).
  *	This hook may be called multiple times during a single execve, e.g. for
  *	interpreters.  The hook can tell whether it has already been called by
- *	checking to see if @bprm->security is non-NULL.  If so, then the hook
+ *	checking to see if @bprm->security is yesn-NULL.  If so, then the hook
  *	may decide either to retain the security information saved earlier or
  *	to replace it.  The hook must set @bprm->secureexec to 1 if a "secure
  *	exec" has happened as a result of this hook call.  The flag is used to
@@ -65,7 +65,7 @@
  *	pointed to by @current->cred and the information set in @bprm->cred by
  *	the bprm_set_creds hook.  @bprm points to the linux_binprm structure.
  *	This hook is a good place to perform state changes on the process such
- *	as closing open file descriptors to which access will no longer be
+ *	as closing open file descriptors to which access will yes longer be
  *	granted when the attributes are changed.  This is called immediately
  *	before commit_creds().
  * @bprm_committed_creds:
@@ -73,7 +73,7 @@
  *	process being transformed by an execve operation.  The new credentials
  *	have, by this point, been set to @current->cred.  @bprm points to the
  *	linux_binprm structure.  This hook is a good place to perform state
- *	changes on the process such as clearing out non-inheritable signal
+ *	changes on the process such as clearing out yesn-inheritable signal
  *	state.  This is called immediately after commit_creds().
  *
  * Security hooks for mount using fs_context.
@@ -131,7 +131,7 @@
  *	@copy copied data which will be passed to the security module.
  *	Returns 0 if the copy was successful.
  * @sb_remount:
- *	Extracts security system specific mount options and verifies no changes
+ *	Extracts security system specific mount options and verifies yes changes
  *	are being made to those options.
  *	@sb superblock being remounted
  *	@data contains the filesystem-specific data.
@@ -152,30 +152,30 @@
  *	@sb the superblock to set security mount options for
  *	@opts binary data structure containing all lsm mount data
  * @sb_clone_mnt_opts:
- *	Copy all security options from a given superblock to another
+ *	Copy all security options from a given superblock to ayesther
  *	@oldsb old superblock which contain information to clone
  *	@newsb new superblock which needs filled in
  * @sb_parse_opts_str:
  *	Parse a string of security data filling in the opts structure
- *	@options string containing all mount options known by the LSM
+ *	@options string containing all mount options kyeswn by the LSM
  *	@opts binary data structure usable by the LSM
  * @move_mount:
  *	Check permission before a mount is moved.
  *	@from_path indicates the mount that is going to be moved.
  *	@to_path indicates the mountpoint that will be mounted upon.
  * @dentry_init_security:
- *	Compute a context for a dentry as the inode is not yet available
- *	since NFSv4 has no label backed by an EA anyway.
+ *	Compute a context for a dentry as the iyesde is yest yet available
+ *	since NFSv4 has yes label backed by an EA anyway.
  *	@dentry dentry to use in calculating the context.
  *	@mode mode used to determine resource type.
  *	@name name of the last path component used to create file
  *	@ctx pointer to place the pointer to the resulting context in.
  *	@ctxlen point to place the length of the resulting context.
  * @dentry_create_files_as:
- *	Compute a context for a dentry as the inode is not yet available
+ *	Compute a context for a dentry as the iyesde is yest yet available
  *	and set that context in passed in creds so that new files are
  *	created using that context. Context is calculated using the
- *	passed in creds and not the creds of the caller.
+ *	passed in creds and yest the creds of the caller.
  *	@dentry dentry to use in calculating the context.
  *	@mode mode used to determine resource type.
  *	@name name of the last path component used to create file
@@ -183,49 +183,49 @@
  *	@new creds to modify
  *
  *
- * Security hooks for inode operations.
+ * Security hooks for iyesde operations.
  *
- * @inode_alloc_security:
- *	Allocate and attach a security structure to @inode->i_security.  The
- *	i_security field is initialized to NULL when the inode structure is
+ * @iyesde_alloc_security:
+ *	Allocate and attach a security structure to @iyesde->i_security.  The
+ *	i_security field is initialized to NULL when the iyesde structure is
  *	allocated.
- *	@inode contains the inode structure.
+ *	@iyesde contains the iyesde structure.
  *	Return 0 if operation was successful.
- * @inode_free_security:
- *	@inode contains the inode structure.
- *	Deallocate the inode security structure and set @inode->i_security to
+ * @iyesde_free_security:
+ *	@iyesde contains the iyesde structure.
+ *	Deallocate the iyesde security structure and set @iyesde->i_security to
  *	NULL.
- * @inode_init_security:
+ * @iyesde_init_security:
  *	Obtain the security attribute name suffix and value to set on a newly
- *	created inode and set up the incore security field for the new inode.
- *	This hook is called by the fs code as part of the inode creation
- *	transaction and provides for atomic labeling of the inode, unlike
+ *	created iyesde and set up the incore security field for the new iyesde.
+ *	This hook is called by the fs code as part of the iyesde creation
+ *	transaction and provides for atomic labeling of the iyesde, unlike
  *	the post_create/mkdir/... hooks called by the VFS.  The hook function
  *	is expected to allocate the name and value via kmalloc, with the caller
  *	being responsible for calling kfree after using them.
- *	If the security module does not use security attributes or does
- *	not wish to put a security attribute on this particular inode,
+ *	If the security module does yest use security attributes or does
+ *	yest wish to put a security attribute on this particular iyesde,
  *	then it should return -EOPNOTSUPP to skip this processing.
- *	@inode contains the inode structure of the newly created inode.
- *	@dir contains the inode structure of the parent directory.
+ *	@iyesde contains the iyesde structure of the newly created iyesde.
+ *	@dir contains the iyesde structure of the parent directory.
  *	@qstr contains the last path component of the new object
  *	@name will be set to the allocated name suffix (e.g. selinux).
  *	@value will be set to the allocated attribute value.
  *	@len will be set to the length of the value.
  *	Returns 0 if @name and @value have been successfully set,
- *	-EOPNOTSUPP if no security attribute is needed, or
+ *	-EOPNOTSUPP if yes security attribute is needed, or
  *	-ENOMEM on memory allocation failure.
- * @inode_create:
+ * @iyesde_create:
  *	Check permission to create a regular file.
- *	@dir contains inode structure of the parent of the new file.
+ *	@dir contains iyesde structure of the parent of the new file.
  *	@dentry contains the dentry structure for the file to be created.
  *	@mode contains the file mode of the file to be created.
  *	Return 0 if permission is granted.
- * @inode_link:
+ * @iyesde_link:
  *	Check permission before creating a new hard link to a file.
  *	@old_dentry contains the dentry structure for an existing
  *	link to the file.
- *	@dir contains the inode structure of the parent directory
+ *	@dir contains the iyesde structure of the parent directory
  *	of the new link.
  *	@new_dentry contains the dentry structure for the new link.
  *	Return 0 if permission is granted.
@@ -237,9 +237,9 @@
  *	the new link.
  *	@new_dentry contains the dentry structure for the new link.
  *	Return 0 if permission is granted.
- * @inode_unlink:
+ * @iyesde_unlink:
  *	Check the permission to remove a hard link to a file.
- *	@dir contains the inode structure of parent directory of the file.
+ *	@dir contains the iyesde structure of parent directory of the file.
  *	@dentry contains the dentry structure for file to be unlinked.
  *	Return 0 if permission is granted.
  * @path_unlink:
@@ -247,9 +247,9 @@
  *	@dir contains the path structure of parent directory of the file.
  *	@dentry contains the dentry structure for file to be unlinked.
  *	Return 0 if permission is granted.
- * @inode_symlink:
+ * @iyesde_symlink:
  *	Check the permission to create a symbolic link to a file.
- *	@dir contains the inode structure of parent directory of
+ *	@dir contains the iyesde structure of parent directory of
  *	the symbolic link.
  *	@dentry contains the dentry structure of the symbolic link.
  *	@old_name contains the pathname of file.
@@ -261,10 +261,10 @@
  *	@dentry contains the dentry structure of the symbolic link.
  *	@old_name contains the pathname of file.
  *	Return 0 if permission is granted.
- * @inode_mkdir:
+ * @iyesde_mkdir:
  *	Check permissions to create a new directory in the existing directory
- *	associated with inode structure @dir.
- *	@dir contains the inode structure of parent of the directory
+ *	associated with iyesde structure @dir.
+ *	@dir contains the iyesde structure of parent of the directory
  *	to be created.
  *	@dentry contains the dentry structure of new directory.
  *	@mode contains the mode of new directory.
@@ -277,9 +277,9 @@
  *	@dentry contains the dentry structure of new directory.
  *	@mode contains the mode of new directory.
  *	Return 0 if permission is granted.
- * @inode_rmdir:
+ * @iyesde_rmdir:
  *	Check the permission to remove a directory.
- *	@dir contains the inode structure of parent of the directory
+ *	@dir contains the iyesde structure of parent of the directory
  *	to be removed.
  *	@dentry contains the dentry structure of directory to be removed.
  *	Return 0 if permission is granted.
@@ -289,30 +289,30 @@
  *	removed.
  *	@dentry contains the dentry structure of directory to be removed.
  *	Return 0 if permission is granted.
- * @inode_mknod:
+ * @iyesde_mkyesd:
  *	Check permissions when creating a special file (or a socket or a fifo
- *	file created via the mknod system call).  Note that if mknod operation
+ *	file created via the mkyesd system call).  Note that if mkyesd operation
  *	is being done for a regular file, then the create hook will be called
- *	and not this hook.
- *	@dir contains the inode structure of parent of the new file.
+ *	and yest this hook.
+ *	@dir contains the iyesde structure of parent of the new file.
  *	@dentry contains the dentry structure of the new file.
  *	@mode contains the mode of the new file.
  *	@dev contains the device number.
  *	Return 0 if permission is granted.
- * @path_mknod:
+ * @path_mkyesd:
  *	Check permissions when creating a file. Note that this hook is called
- *	even if mknod operation is being done for a regular file.
+ *	even if mkyesd operation is being done for a regular file.
  *	@dir contains the path structure of parent of the new file.
  *	@dentry contains the dentry structure of the new file.
  *	@mode contains the mode of the new file.
  *	@dev contains the undecoded device number. Use new_decode_dev() to get
  *	the decoded device number.
  *	Return 0 if permission is granted.
- * @inode_rename:
+ * @iyesde_rename:
  *	Check for permission to rename a file or directory.
- *	@old_dir contains the inode structure for parent of the old link.
+ *	@old_dir contains the iyesde structure for parent of the old link.
  *	@old_dentry contains the dentry structure of the old link.
- *	@new_dir contains the inode structure for parent of the new link.
+ *	@new_dir contains the iyesde structure for parent of the new link.
  *	@new_dentry contains the dentry structure of the new link.
  *	Return 0 if permission is granted.
  * @path_rename:
@@ -339,32 +339,32 @@
  *	Check for permission to change root directory.
  *	@path contains the path structure.
  *	Return 0 if permission is granted.
- * @path_notify:
+ * @path_yestify:
  *	Check permissions before setting a watch on events as defined by @mask,
  *	on an object at @path, whose type is defined by @obj_type.
- * @inode_readlink:
+ * @iyesde_readlink:
  *	Check the permission to read the symbolic link.
  *	@dentry contains the dentry structure for the file link.
  *	Return 0 if permission is granted.
- * @inode_follow_link:
+ * @iyesde_follow_link:
  *	Check permission to follow a symbolic link when looking up a pathname.
  *	@dentry contains the dentry structure for the link.
- *	@inode contains the inode, which itself is not stable in RCU-walk
+ *	@iyesde contains the iyesde, which itself is yest stable in RCU-walk
  *	@rcu indicates whether we are in RCU-walk mode.
  *	Return 0 if permission is granted.
- * @inode_permission:
- *	Check permission before accessing an inode.  This hook is called by the
+ * @iyesde_permission:
+ *	Check permission before accessing an iyesde.  This hook is called by the
  *	existing Linux permission function, so a security module can use it to
  *	provide additional checking for existing Linux permission checks.
  *	Notice that this hook is called when a file is opened (as well as many
  *	other operations), whereas the file_security_ops permission hook is
  *	called when the actual read/write operations are performed.
- *	@inode contains the inode structure to check.
+ *	@iyesde contains the iyesde structure to check.
  *	@mask contains the permission mask.
  *	Return 0 if permission is granted.
- * @inode_setattr:
+ * @iyesde_setattr:
  *	Check permission before setting file attributes.  Note that the kernel
- *	call to notify_change is performed from several locations, whenever
+ *	call to yestify_change is performed from several locations, whenever
  *	file attributes change (such as when a file is truncated, chown/chmod
  *	operations, transferring disk quotas, etc).
  *	@dentry contains the dentry structure for the file.
@@ -374,67 +374,67 @@
  *	Check permission before truncating a file.
  *	@path contains the path structure for the file.
  *	Return 0 if permission is granted.
- * @inode_getattr:
+ * @iyesde_getattr:
  *	Check permission before obtaining file attributes.
  *	@path contains the path structure for the file.
  *	Return 0 if permission is granted.
- * @inode_setxattr:
+ * @iyesde_setxattr:
  *	Check permission before setting the extended attributes
  *	@value identified by @name for @dentry.
  *	Return 0 if permission is granted.
- * @inode_post_setxattr:
- *	Update inode security field after successful setxattr operation.
+ * @iyesde_post_setxattr:
+ *	Update iyesde security field after successful setxattr operation.
  *	@value identified by @name for @dentry.
- * @inode_getxattr:
+ * @iyesde_getxattr:
  *	Check permission before obtaining the extended attributes
  *	identified by @name for @dentry.
  *	Return 0 if permission is granted.
- * @inode_listxattr:
+ * @iyesde_listxattr:
  *	Check permission before obtaining the list of extended attribute
  *	names for @dentry.
  *	Return 0 if permission is granted.
- * @inode_removexattr:
+ * @iyesde_removexattr:
  *	Check permission before removing the extended attribute
  *	identified by @name for @dentry.
  *	Return 0 if permission is granted.
- * @inode_getsecurity:
+ * @iyesde_getsecurity:
  *	Retrieve a copy of the extended attribute representation of the
- *	security label associated with @name for @inode via @buffer.  Note that
+ *	security label associated with @name for @iyesde via @buffer.  Note that
  *	@name is the remainder of the attribute name after the security prefix
  *	has been removed. @alloc is used to specify of the call should return a
  *	value via the buffer or just the value length Return size of buffer on
  *	success.
- * @inode_setsecurity:
- *	Set the security label associated with @name for @inode from the
+ * @iyesde_setsecurity:
+ *	Set the security label associated with @name for @iyesde from the
  *	extended attribute value @value.  @size indicates the size of the
  *	@value in bytes.  @flags may be XATTR_CREATE, XATTR_REPLACE, or 0.
  *	Note that @name is the remainder of the attribute name after the
  *	security. prefix has been removed.
  *	Return 0 on success.
- * @inode_listsecurity:
+ * @iyesde_listsecurity:
  *	Copy the extended attribute names for the security labels
- *	associated with @inode into @buffer.  The maximum size of @buffer
+ *	associated with @iyesde into @buffer.  The maximum size of @buffer
  *	is specified by @buffer_size.  @buffer may be NULL to request
  *	the size of the buffer required.
  *	Returns number of bytes used/required on success.
- * @inode_need_killpriv:
- *	Called when an inode has been changed.
+ * @iyesde_need_killpriv:
+ *	Called when an iyesde has been changed.
  *	@dentry is the dentry being changed.
- *	Return <0 on error to abort the inode change operation.
- *	Return 0 if inode_killpriv does not need to be called.
- *	Return >0 if inode_killpriv does need to be called.
- * @inode_killpriv:
+ *	Return <0 on error to abort the iyesde change operation.
+ *	Return 0 if iyesde_killpriv does yest need to be called.
+ *	Return >0 if iyesde_killpriv does need to be called.
+ * @iyesde_killpriv:
  *	The setuid bit is being removed.  Remove similar security labels.
- *	Called with the dentry->d_inode->i_mutex held.
+ *	Called with the dentry->d_iyesde->i_mutex held.
  *	@dentry is the dentry being changed.
  *	Return 0 on success.  If error is returned, then the operation
  *	causing setuid bit removal is failed.
- * @inode_getsecid:
- *	Get the secid associated with the node.
- *	@inode contains a pointer to the inode.
+ * @iyesde_getsecid:
+ *	Get the secid associated with the yesde.
+ *	@iyesde contains a pointer to the iyesde.
  *	@secid contains a pointer to the location where result will be saved.
  *	In case of failure, @secid will be set to zero.
- * @inode_copy_up:
+ * @iyesde_copy_up:
  *	A file is about to be copied up from lower layer to upper layer of
  *	overlay filesystem. Security module can prepare a set of new creds
  *	and modify as need be and return new creds. Caller will switch to
@@ -443,23 +443,23 @@
  *	@src indicates the union dentry of file that is being copied up.
  *	@new pointer to pointer to return newly allocated creds.
  *	Returns 0 on success or a negative error code on error.
- * @inode_copy_up_xattr:
+ * @iyesde_copy_up_xattr:
  *	Filter the xattrs being copied up when a unioned file is copied
  *	up from a lower layer to the union/overlay layer.
  *	@name indicates the name of the xattr.
  *	Returns 0 to accept the xattr, 1 to discard the xattr, -EOPNOTSUPP if
- *	security module does not know about attribute or a negative error code
+ *	security module does yest kyesw about attribute or a negative error code
  *	to abort the copy up. Note that the caller is responsible for reading
  *	and writing the xattrs as this hook is merely a filter.
  *
- * Security hooks for kernfs node operations
+ * Security hooks for kernfs yesde operations
  *
  * @kernfs_init_security:
- *	Initialize the security context of a newly created kernfs node based
+ *	Initialize the security context of a newly created kernfs yesde based
  *	on its own and its parent's attributes.
  *
- *	@kn_dir the parent kernfs node
- *	@kn the new child kernfs node
+ *	@kn_dir the parent kernfs yesde
+ *	@kn the new child kernfs yesde
  *
  * Security hooks for file operations
  *
@@ -470,10 +470,10 @@
  *	operations, e.g.  to revalidate permissions on use to support privilege
  *	bracketing or policy changes.  Notice that this hook is used when the
  *	actual read/write operations are performed, whereas the
- *	inode_security_ops hook is called when a file is opened (as well as
+ *	iyesde_security_ops hook is called when a file is opened (as well as
  *	many other operations).
  *	Caveat:  Although this hook can be used to revalidate permissions for
- *	various system call operations that read or write files, it does not
+ *	various system call operations that read or write files, it does yest
  *	address the revalidation of permissions for memory-mapped files.
  *	Security modules must handle this separately if they need such
  *	revalidation.
@@ -504,7 +504,7 @@
  *	Return 0 if permission is granted.
  * @mmap_file :
  *	Check permissions for a mmap operation.  The @file may be NULL, e.g.
- *	if mapping anonymous memory.
+ *	if mapping ayesnymous memory.
  *	@file contains the file structure for file to map (may be NULL).
  *	@reqprot contains the protection requested by the application.
  *	@prot contains the protection that will be applied by the kernel.
@@ -556,7 +556,7 @@
  * @file_open:
  *	Save open-time permission checking state for later use upon
  *	file_permission, and recheck access if anything has changed
- *	since inode_permission.
+ *	since iyesde_permission.
  *
  * Security hooks for task operations.
  *
@@ -573,7 +573,7 @@
  *	@cred points to the credentials.
  *	@gfp indicates the atomicity of any memory allocations.
  *	Only allocate sufficient memory and attach to @cred such that
- *	cred_transfer() will not get ENOMEM.
+ *	cred_transfer() will yest get ENOMEM.
  * @cred_free:
  *	@cred points to the credentials.
  *	Deallocate and clear the cred->security field in a set of credentials.
@@ -594,14 +594,14 @@
  *	Set the credentials for a kernel service to act as (subjective context).
  *	@new points to the credentials to be modified.
  *	@secid specifies the security ID to be set
- *	The current task must be the one that nominated @secid.
+ *	The current task must be the one that yesminated @secid.
  *	Return 0 if successful.
  * @kernel_create_files_as:
  *	Set the file creation context in a set of credentials to be the same as
- *	the objective context of the specified inode.
+ *	the objective context of the specified iyesde.
  *	@new points to the credentials to be modified.
- *	@inode points to the inode to use as a reference.
- *	The current task must be the one that nominated @inode.
+ *	@iyesde points to the iyesde to use as a reference.
+ *	The current task must be the one that yesminated @iyesde.
  *	Return 0 if successful.
  * @kernel_module_request:
  *	Ability to trigger the kernel to automatically upcall to userspace for
@@ -672,7 +672,7 @@
  *	Return 0 if permission is granted.
  * @task_prlimit:
  *	Check permission before getting and/or setting the resource limits of
- *	another task.
+ *	ayesther task.
  *	@cred points to the cred structure for the current task.
  *	@tcred points to the cred structure for the target task.
  *	@flags contains the LSM_PRLIMIT_* flag bits indicating whether the
@@ -721,13 +721,13 @@
  *	@arg3 contains a argument.
  *	@arg4 contains a argument.
  *	@arg5 contains a argument.
- *	Return -ENOSYS if no-one wanted to handle this op, any other value to
+ *	Return -ENOSYS if yes-one wanted to handle this op, any other value to
  *	cause prctl() to return immediately with that value.
- * @task_to_inode:
- *	Set the security attributes for an inode based on an associated task's
- *	security attributes, e.g. for /proc/pid inodes.
+ * @task_to_iyesde:
+ *	Set the security attributes for an iyesde based on an associated task's
+ *	security attributes, e.g. for /proc/pid iyesdes.
  *	@p contains the task_struct for the task.
- *	@inode contains the inode structure for the inode.
+ *	@iyesde contains the iyesde structure for the iyesde.
  *
  * Security hooks for Netlink messaging.
  *
@@ -761,12 +761,12 @@
  * The @unix_stream_connect and @unix_may_send hooks were necessary because
  * Linux provides an alternative to the conventional file name space for Unix
  * domain sockets.  Whereas binding and connecting to sockets in the file name
- * space is mediated by the typical file permissions (and caught by the mknod
- * and permission hooks in inode_security_ops), binding and connecting to
+ * space is mediated by the typical file permissions (and caught by the mkyesd
+ * and permission hooks in iyesde_security_ops), binding and connecting to
  * sockets in the abstract name space is completely unmediated.  Sufficient
  * control of Unix domain sockets in the abstract name space isn't possible
- * using only the socket layer hooks, since we need to know the actual target
- * socket, which is not looked up until we are inside the af_unix code.
+ * using only the socket layer hooks, since we need to kyesw the actual target
+ * socket, which is yest looked up until we are inside the af_unix code.
  *
  * Security hooks for socket operations.
  *
@@ -779,13 +779,13 @@
  *	Return 0 if permission is granted.
  * @socket_post_create:
  *	This hook allows a module to update or allocate a per-socket security
- *	structure. Note that the security field was not added directly to the
+ *	structure. Note that the security field was yest added directly to the
  *	socket structure, but rather, the socket security information is stored
- *	in the associated inode.  Typically, the inode alloc_security hook will
+ *	in the associated iyesde.  Typically, the iyesde alloc_security hook will
  *	allocate and and attach security information to
  *	SOCK_INODE(sock)->i_security.  This hook may be used to update the
  *	SOCK_INODE(sock)->i_security field with additional information that
- *	wasn't available when the inode was allocated.
+ *	wasn't available when the iyesde was allocated.
  *	@sock contains the newly created socket structure.
  *	@family contains the requested protocol family.
  *	@type contains the requested communications type.
@@ -819,12 +819,12 @@
  * @socket_accept:
  *	Check permission before accepting a new connection.  Note that the new
  *	socket, @newsock, has been created and some information copied to it,
- *	but the accept operation has not actually been performed.
+ *	but the accept operation has yest actually been performed.
  *	@sock contains the listening socket structure.
  *	@newsock contains the newly created server socket for connection.
  *	Return 0 if permission is granted.
  * @socket_sendmsg:
- *	Check permission before transmitting a message to another socket.
+ *	Check permission before transmitting a message to ayesther socket.
  *	@sock contains the socket structure.
  *	@msg contains the message to be transmitted.
  *	@size contains the size of message.
@@ -871,8 +871,8 @@
  *	Check permissions on incoming network packets.  This hook is distinct
  *	from Netfilter's IP input hooks since it is the first time that the
  *	incoming sk_buff @skb has been associated with a particular socket, @sk.
- *	Must not sleep inside this hook because some callers hold spinlocks.
- *	@sk contains the sock (not socket) associated with the incoming sk_buff.
+ *	Must yest sleep inside this hook because some callers hold spinlocks.
+ *	@sk contains the sock (yest socket) associated with the incoming sk_buff.
  *	@skb contains the incoming network data.
  * @socket_getpeersec_stream:
  *	This hook allows the security module to provide peer socket security
@@ -992,7 +992,7 @@
  * @ib_alloc_security:
  *	Allocate a security structure for Infiniband objects.
  *	@sec pointer to a security structure pointer.
- *	Returns 0 on success, non-zero on failure
+ *	Returns 0 on success, yesn-zero on failure
  * @ib_free_security:
  *	Deallocate an Infiniband security structure.
  *	@sec contains the security structure to be freed.
@@ -1054,7 +1054,7 @@
  *	Check permission when a flow selects a xfrm_policy for processing
  *	XFRMs on a packet.  The hook is called when selecting either a
  *	per-socket policy or a generic xfrm policy.
- *	Return 0 if permission is granted, -ESRCH otherwise, or -errno
+ *	Return 0 if permission is granted, -ESRCH otherwise, or -erryes
  *	on other errors.
  * @xfrm_state_pol_flow_match:
  *	@x contains the state to match.
@@ -1071,7 +1071,7 @@
  *
  * @key_alloc:
  *	Permit allocation of a key and assign security data. Note that key does
- *	not have a serial number assigned at this point.
+ *	yest have a serial number assigned at this point.
  *	@key points to the key.
  *	@flags is the allocation flags
  *	Return 0 if permission is granted, -ve error otherwise.
@@ -1089,15 +1089,15 @@
  *	Return 0 if permission is granted, -ve error otherwise.
  * @key_getsecurity:
  *	Get a textual representation of the security context attached to a key
- *	for the purposes of honouring KEYCTL_GETSECURITY.  This function
+ *	for the purposes of hoyesuring KEYCTL_GETSECURITY.  This function
  *	allocates the storage for the NUL-terminated string and the caller
  *	should free it.
  *	@key points to the key to be queried.
  *	@_buffer points to a pointer that should be set to point to the
- *	resulting string (if no label or an error occurs).
+ *	resulting string (if yes label or an error occurs).
  *	Return the length of the string (including terminating NUL) or -ve if
  *	an error.
- *	May also return 0 (and a NULL buffer pointer) if there is no label.
+ *	May also return 0 (and a NULL buffer pointer) if there is yes label.
  *
  * Security hooks affecting all System V IPC operations.
  *
@@ -1137,7 +1137,7 @@
  * @msg_queue_associate:
  *	Check permission when a message queue is requested through the
  *	msgget system call. This hook is only called when returning the
- *	message queue identifier for an existing message queue, not when a
+ *	message queue identifier for an existing message queue, yest when a
  *	new message queue is created.
  *	@perm contains the IPC permissions of the message queue.
  *	@msqflg contains the operation control flags.
@@ -1159,7 +1159,7 @@
  * @msg_queue_msgrcv:
  *	Check permission before a message, @msg, is removed from the message
  *	queue. The @target task structure contains a pointer to the
- *	process that will be receiving the message (not equal to the current
+ *	process that will be receiving the message (yest equal to the current
  *	process when inline receives are being performed).
  *	@perm contains the IPC permissions of the message queue.
  *	@msg contains the message destination.
@@ -1182,7 +1182,7 @@
  * @shm_associate:
  *	Check permission when a shared memory region is requested through the
  *	shmget system call. This hook is only called when returning the shared
- *	memory region identifier for an existing region, not when a new shared
+ *	memory region identifier for an existing region, yest when a new shared
  *	memory region is created.
  *	@perm contains the IPC permissions of the shared memory structure.
  *	@shmflg contains the operation control flags.
@@ -1217,7 +1217,7 @@
  * @sem_associate:
  *	Check permission when a semaphore is requested through the semget
  *	system call. This hook is only called when returning the semaphore
- *	identifier for an existing semaphore, not when a new one must be
+ *	identifier for an existing semaphore, yest when a new one must be
  *	created.
  *	@perm contains the IPC permissions of the semaphore.
  *	@semflg contains the operation control flags.
@@ -1231,7 +1231,7 @@
  *	Return 0 if permission is granted.
  * @sem_semop:
  *	Check permissions before performing operations on members of the
- *	semaphore set. If the @alter flag is nonzero, the semaphore set
+ *	semaphore set. If the @alter flag is yesnzero, the semaphore set
  *	may be modified.
  *	@perm contains the IPC permissions of the semaphore.
  *	@sops contains the operations to perform.
@@ -1315,7 +1315,7 @@
  *	@ts contains new time
  *	@tz contains new timezone
  *	Return 0 if permission is granted.
- * @vm_enough_memory:
+ * @vm_eyesugh_memory:
  *	Check permissions for allocating a new virtual mapping.
  *	@mm contains the mm struct it is being added to.
  *	@pages contains the number of pages.
@@ -1330,7 +1330,7 @@
  *
  * @secid_to_secctx:
  *	Convert secid to security context.  If secdata is NULL the length of
- *	the result will be returned in seclen, but no secdata will be returned.
+ *	the result will be returned in seclen, but yes secdata will be returned.
  *	This does mean that the length could change between calls to check the
  *	length and the next call which actually allocates and returns the
  *	secdata.
@@ -1360,7 +1360,7 @@
  *	Return 0 if @lsmrule has been successfully set,
  *	-EINVAL in case of an invalid rule.
  *
- * @audit_rule_known:
+ * @audit_rule_kyeswn:
  *	Specifies whether given @krule contains any fields related to
  *	current LSM.
  *	@krule contains the audit rule of interest.
@@ -1368,51 +1368,51 @@
  *
  * @audit_rule_match:
  *	Determine if given @secid matches a rule previously approved
- *	by @audit_rule_known.
+ *	by @audit_rule_kyeswn.
  *	@secid contains the security id in question.
  *	@field contains the field which relates to current LSM.
  *	@op contains the operator that will be used for matching.
  *	@lrule points to the audit rule that will be checked against.
- *	Return 1 if secid matches the rule, 0 if it does not, -ERRNO on failure.
+ *	Return 1 if secid matches the rule, 0 if it does yest, -ERRNO on failure.
  *
  * @audit_rule_free:
  *	Deallocate the LSM audit rule structure previously allocated by
  *	audit_rule_init.
  *	@lsmrule contains the allocated rule
  *
- * @inode_invalidate_secctx:
+ * @iyesde_invalidate_secctx:
  *	Notify the security module that it must revalidate the security context
- *	of an inode.
+ *	of an iyesde.
  *
- * @inode_notifysecctx:
- *	Notify the security module of what the security context of an inode
+ * @iyesde_yestifysecctx:
+ *	Notify the security module of what the security context of an iyesde
  *	should be.  Initializes the incore security context managed by the
- *	security module for this inode.  Example usage:  NFS client invokes
- *	this hook to initialize the security context in its incore inode to the
+ *	security module for this iyesde.  Example usage:  NFS client invokes
+ *	this hook to initialize the security context in its incore iyesde to the
  *	value provided by the server for the file when the server returned the
  *	file's attributes to the client.
- *	Must be called with inode->i_mutex locked.
- *	@inode we wish to set the security context of.
- *	@ctx contains the string which we wish to set in the inode.
+ *	Must be called with iyesde->i_mutex locked.
+ *	@iyesde we wish to set the security context of.
+ *	@ctx contains the string which we wish to set in the iyesde.
  *	@ctxlen contains the length of @ctx.
  *
- * @inode_setsecctx:
- *	Change the security context of an inode.  Updates the
+ * @iyesde_setsecctx:
+ *	Change the security context of an iyesde.  Updates the
  *	incore security context managed by the security module and invokes the
- *	fs code as needed (via __vfs_setxattr_noperm) to update any backing
+ *	fs code as needed (via __vfs_setxattr_yesperm) to update any backing
  *	xattrs that represent the context.  Example usage:  NFS server invokes
- *	this hook to change the security context in its incore inode and on the
+ *	this hook to change the security context in its incore iyesde and on the
  *	backing filesystem to a value provided by the client on a SETATTR
  *	operation.
- *	Must be called with inode->i_mutex locked.
- *	@dentry contains the inode we wish to set the security context of.
- *	@ctx contains the string which we wish to set in the inode.
+ *	Must be called with iyesde->i_mutex locked.
+ *	@dentry contains the iyesde we wish to set the security context of.
+ *	@ctx contains the string which we wish to set in the iyesde.
  *	@ctxlen contains the length of @ctx.
  *
- * @inode_getsecctx:
+ * @iyesde_getsecctx:
  *	On success, returns 0 and fills out @ctx and @ctxlen with the security
- *	context for the given @inode.
- *	@inode we wish to get the security context of.
+ *	context for the given @iyesde.
+ *	@iyesde we wish to get the security context of.
  *	@ctx is a pointer in which to place the allocated security context.
  *	@ctxlen points to the place to put the length of @ctx.
  *
@@ -1482,7 +1482,7 @@ union security_list_options {
 	int (*quota_on)(struct dentry *dentry);
 	int (*syslog)(int type);
 	int (*settime)(const struct timespec64 *ts, const struct timezone *tz);
-	int (*vm_enough_memory)(struct mm_struct *mm, long pages);
+	int (*vm_eyesugh_memory)(struct mm_struct *mm, long pages);
 
 	int (*bprm_set_creds)(struct linux_binprm *bprm);
 	int (*bprm_check_security)(struct linux_binprm *bprm);
@@ -1529,7 +1529,7 @@ union security_list_options {
 	int (*path_mkdir)(const struct path *dir, struct dentry *dentry,
 				umode_t mode);
 	int (*path_rmdir)(const struct path *dir, struct dentry *dentry);
-	int (*path_mknod)(const struct path *dir, struct dentry *dentry,
+	int (*path_mkyesd)(const struct path *dir, struct dentry *dentry,
 				umode_t mode, unsigned int dev);
 	int (*path_truncate)(const struct path *path);
 	int (*path_symlink)(const struct path *dir, struct dentry *dentry,
@@ -1543,59 +1543,59 @@ union security_list_options {
 	int (*path_chown)(const struct path *path, kuid_t uid, kgid_t gid);
 	int (*path_chroot)(const struct path *path);
 #endif
-	/* Needed for inode based security check */
-	int (*path_notify)(const struct path *path, u64 mask,
+	/* Needed for iyesde based security check */
+	int (*path_yestify)(const struct path *path, u64 mask,
 				unsigned int obj_type);
-	int (*inode_alloc_security)(struct inode *inode);
-	void (*inode_free_security)(struct inode *inode);
-	int (*inode_init_security)(struct inode *inode, struct inode *dir,
+	int (*iyesde_alloc_security)(struct iyesde *iyesde);
+	void (*iyesde_free_security)(struct iyesde *iyesde);
+	int (*iyesde_init_security)(struct iyesde *iyesde, struct iyesde *dir,
 					const struct qstr *qstr,
 					const char **name, void **value,
 					size_t *len);
-	int (*inode_create)(struct inode *dir, struct dentry *dentry,
+	int (*iyesde_create)(struct iyesde *dir, struct dentry *dentry,
 				umode_t mode);
-	int (*inode_link)(struct dentry *old_dentry, struct inode *dir,
+	int (*iyesde_link)(struct dentry *old_dentry, struct iyesde *dir,
 				struct dentry *new_dentry);
-	int (*inode_unlink)(struct inode *dir, struct dentry *dentry);
-	int (*inode_symlink)(struct inode *dir, struct dentry *dentry,
+	int (*iyesde_unlink)(struct iyesde *dir, struct dentry *dentry);
+	int (*iyesde_symlink)(struct iyesde *dir, struct dentry *dentry,
 				const char *old_name);
-	int (*inode_mkdir)(struct inode *dir, struct dentry *dentry,
+	int (*iyesde_mkdir)(struct iyesde *dir, struct dentry *dentry,
 				umode_t mode);
-	int (*inode_rmdir)(struct inode *dir, struct dentry *dentry);
-	int (*inode_mknod)(struct inode *dir, struct dentry *dentry,
+	int (*iyesde_rmdir)(struct iyesde *dir, struct dentry *dentry);
+	int (*iyesde_mkyesd)(struct iyesde *dir, struct dentry *dentry,
 				umode_t mode, dev_t dev);
-	int (*inode_rename)(struct inode *old_dir, struct dentry *old_dentry,
-				struct inode *new_dir,
+	int (*iyesde_rename)(struct iyesde *old_dir, struct dentry *old_dentry,
+				struct iyesde *new_dir,
 				struct dentry *new_dentry);
-	int (*inode_readlink)(struct dentry *dentry);
-	int (*inode_follow_link)(struct dentry *dentry, struct inode *inode,
+	int (*iyesde_readlink)(struct dentry *dentry);
+	int (*iyesde_follow_link)(struct dentry *dentry, struct iyesde *iyesde,
 				 bool rcu);
-	int (*inode_permission)(struct inode *inode, int mask);
-	int (*inode_setattr)(struct dentry *dentry, struct iattr *attr);
-	int (*inode_getattr)(const struct path *path);
-	int (*inode_setxattr)(struct dentry *dentry, const char *name,
+	int (*iyesde_permission)(struct iyesde *iyesde, int mask);
+	int (*iyesde_setattr)(struct dentry *dentry, struct iattr *attr);
+	int (*iyesde_getattr)(const struct path *path);
+	int (*iyesde_setxattr)(struct dentry *dentry, const char *name,
 				const void *value, size_t size, int flags);
-	void (*inode_post_setxattr)(struct dentry *dentry, const char *name,
+	void (*iyesde_post_setxattr)(struct dentry *dentry, const char *name,
 					const void *value, size_t size,
 					int flags);
-	int (*inode_getxattr)(struct dentry *dentry, const char *name);
-	int (*inode_listxattr)(struct dentry *dentry);
-	int (*inode_removexattr)(struct dentry *dentry, const char *name);
-	int (*inode_need_killpriv)(struct dentry *dentry);
-	int (*inode_killpriv)(struct dentry *dentry);
-	int (*inode_getsecurity)(struct inode *inode, const char *name,
+	int (*iyesde_getxattr)(struct dentry *dentry, const char *name);
+	int (*iyesde_listxattr)(struct dentry *dentry);
+	int (*iyesde_removexattr)(struct dentry *dentry, const char *name);
+	int (*iyesde_need_killpriv)(struct dentry *dentry);
+	int (*iyesde_killpriv)(struct dentry *dentry);
+	int (*iyesde_getsecurity)(struct iyesde *iyesde, const char *name,
 					void **buffer, bool alloc);
-	int (*inode_setsecurity)(struct inode *inode, const char *name,
+	int (*iyesde_setsecurity)(struct iyesde *iyesde, const char *name,
 					const void *value, size_t size,
 					int flags);
-	int (*inode_listsecurity)(struct inode *inode, char *buffer,
+	int (*iyesde_listsecurity)(struct iyesde *iyesde, char *buffer,
 					size_t buffer_size);
-	void (*inode_getsecid)(struct inode *inode, u32 *secid);
-	int (*inode_copy_up)(struct dentry *src, struct cred **new);
-	int (*inode_copy_up_xattr)(const char *name);
+	void (*iyesde_getsecid)(struct iyesde *iyesde, u32 *secid);
+	int (*iyesde_copy_up)(struct dentry *src, struct cred **new);
+	int (*iyesde_copy_up_xattr)(const char *name);
 
-	int (*kernfs_init_security)(struct kernfs_node *kn_dir,
-				    struct kernfs_node *kn);
+	int (*kernfs_init_security)(struct kernfs_yesde *kn_dir,
+				    struct kernfs_yesde *kn);
 
 	int (*file_permission)(struct file *file, int mask);
 	int (*file_alloc_security)(struct file *file);
@@ -1625,7 +1625,7 @@ union security_list_options {
 	void (*cred_transfer)(struct cred *new, const struct cred *old);
 	void (*cred_getsecid)(const struct cred *c, u32 *secid);
 	int (*kernel_act_as)(struct cred *new, u32 secid);
-	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
+	int (*kernel_create_files_as)(struct cred *new, struct iyesde *iyesde);
 	int (*kernel_module_request)(char *kmod_name);
 	int (*kernel_load_data)(enum kernel_load_data_id id);
 	int (*kernel_read_file)(struct file *file, enum kernel_read_file_id id);
@@ -1651,7 +1651,7 @@ union security_list_options {
 				int sig, const struct cred *cred);
 	int (*task_prctl)(int option, unsigned long arg2, unsigned long arg3,
 				unsigned long arg4, unsigned long arg5);
-	void (*task_to_inode)(struct task_struct *p, struct inode *inode);
+	void (*task_to_iyesde)(struct task_struct *p, struct iyesde *iyesde);
 
 	int (*ipc_permission)(struct kern_ipc_perm *ipcp, short flag);
 	void (*ipc_getsecid)(struct kern_ipc_perm *ipcp, u32 *secid);
@@ -1685,7 +1685,7 @@ union security_list_options {
 
 	int (*netlink_send)(struct sock *sk, struct sk_buff *skb);
 
-	void (*d_instantiate)(struct dentry *dentry, struct inode *inode);
+	void (*d_instantiate)(struct dentry *dentry, struct iyesde *iyesde);
 
 	int (*getprocattr)(struct task_struct *p, char *name, char **value);
 	int (*setprocattr)(const char *name, void *value, size_t size);
@@ -1694,10 +1694,10 @@ union security_list_options {
 	int (*secctx_to_secid)(const char *secdata, u32 seclen, u32 *secid);
 	void (*release_secctx)(char *secdata, u32 seclen);
 
-	void (*inode_invalidate_secctx)(struct inode *inode);
-	int (*inode_notifysecctx)(struct inode *inode, void *ctx, u32 ctxlen);
-	int (*inode_setsecctx)(struct dentry *dentry, void *ctx, u32 ctxlen);
-	int (*inode_getsecctx)(struct inode *inode, void **ctx, u32 *ctxlen);
+	void (*iyesde_invalidate_secctx)(struct iyesde *iyesde);
+	int (*iyesde_yestifysecctx)(struct iyesde *iyesde, void *ctx, u32 ctxlen);
+	int (*iyesde_setsecctx)(struct dentry *dentry, void *ctx, u32 ctxlen);
+	int (*iyesde_getsecctx)(struct iyesde *iyesde, void **ctx, u32 *ctxlen);
 
 #ifdef CONFIG_SECURITY_NETWORK
 	int (*unix_stream_connect)(struct sock *sock, struct sock *other,
@@ -1802,7 +1802,7 @@ union security_list_options {
 #ifdef CONFIG_AUDIT
 	int (*audit_rule_init)(u32 field, u32 op, char *rulestr,
 				void **lsmrule);
-	int (*audit_rule_known)(struct audit_krule *krule);
+	int (*audit_rule_kyeswn)(struct audit_krule *krule);
 	int (*audit_rule_match)(u32 secid, u32 field, u32 op, void *lsmrule);
 	void (*audit_rule_free)(void *lsmrule);
 #endif /* CONFIG_AUDIT */
@@ -1842,7 +1842,7 @@ struct security_hook_heads {
 	struct hlist_head quota_on;
 	struct hlist_head syslog;
 	struct hlist_head settime;
-	struct hlist_head vm_enough_memory;
+	struct hlist_head vm_eyesugh_memory;
 	struct hlist_head bprm_set_creds;
 	struct hlist_head bprm_check_security;
 	struct hlist_head bprm_committing_creds;
@@ -1870,7 +1870,7 @@ struct security_hook_heads {
 	struct hlist_head path_unlink;
 	struct hlist_head path_mkdir;
 	struct hlist_head path_rmdir;
-	struct hlist_head path_mknod;
+	struct hlist_head path_mkyesd;
 	struct hlist_head path_truncate;
 	struct hlist_head path_symlink;
 	struct hlist_head path_link;
@@ -1879,37 +1879,37 @@ struct security_hook_heads {
 	struct hlist_head path_chown;
 	struct hlist_head path_chroot;
 #endif
-	/* Needed for inode based modules as well */
-	struct hlist_head path_notify;
-	struct hlist_head inode_alloc_security;
-	struct hlist_head inode_free_security;
-	struct hlist_head inode_init_security;
-	struct hlist_head inode_create;
-	struct hlist_head inode_link;
-	struct hlist_head inode_unlink;
-	struct hlist_head inode_symlink;
-	struct hlist_head inode_mkdir;
-	struct hlist_head inode_rmdir;
-	struct hlist_head inode_mknod;
-	struct hlist_head inode_rename;
-	struct hlist_head inode_readlink;
-	struct hlist_head inode_follow_link;
-	struct hlist_head inode_permission;
-	struct hlist_head inode_setattr;
-	struct hlist_head inode_getattr;
-	struct hlist_head inode_setxattr;
-	struct hlist_head inode_post_setxattr;
-	struct hlist_head inode_getxattr;
-	struct hlist_head inode_listxattr;
-	struct hlist_head inode_removexattr;
-	struct hlist_head inode_need_killpriv;
-	struct hlist_head inode_killpriv;
-	struct hlist_head inode_getsecurity;
-	struct hlist_head inode_setsecurity;
-	struct hlist_head inode_listsecurity;
-	struct hlist_head inode_getsecid;
-	struct hlist_head inode_copy_up;
-	struct hlist_head inode_copy_up_xattr;
+	/* Needed for iyesde based modules as well */
+	struct hlist_head path_yestify;
+	struct hlist_head iyesde_alloc_security;
+	struct hlist_head iyesde_free_security;
+	struct hlist_head iyesde_init_security;
+	struct hlist_head iyesde_create;
+	struct hlist_head iyesde_link;
+	struct hlist_head iyesde_unlink;
+	struct hlist_head iyesde_symlink;
+	struct hlist_head iyesde_mkdir;
+	struct hlist_head iyesde_rmdir;
+	struct hlist_head iyesde_mkyesd;
+	struct hlist_head iyesde_rename;
+	struct hlist_head iyesde_readlink;
+	struct hlist_head iyesde_follow_link;
+	struct hlist_head iyesde_permission;
+	struct hlist_head iyesde_setattr;
+	struct hlist_head iyesde_getattr;
+	struct hlist_head iyesde_setxattr;
+	struct hlist_head iyesde_post_setxattr;
+	struct hlist_head iyesde_getxattr;
+	struct hlist_head iyesde_listxattr;
+	struct hlist_head iyesde_removexattr;
+	struct hlist_head iyesde_need_killpriv;
+	struct hlist_head iyesde_killpriv;
+	struct hlist_head iyesde_getsecurity;
+	struct hlist_head iyesde_setsecurity;
+	struct hlist_head iyesde_listsecurity;
+	struct hlist_head iyesde_getsecid;
+	struct hlist_head iyesde_copy_up;
+	struct hlist_head iyesde_copy_up_xattr;
 	struct hlist_head kernfs_init_security;
 	struct hlist_head file_permission;
 	struct hlist_head file_alloc_security;
@@ -1952,7 +1952,7 @@ struct security_hook_heads {
 	struct hlist_head task_movememory;
 	struct hlist_head task_kill;
 	struct hlist_head task_prctl;
-	struct hlist_head task_to_inode;
+	struct hlist_head task_to_iyesde;
 	struct hlist_head ipc_permission;
 	struct hlist_head ipc_getsecid;
 	struct hlist_head msg_msg_alloc_security;
@@ -1981,10 +1981,10 @@ struct security_hook_heads {
 	struct hlist_head secid_to_secctx;
 	struct hlist_head secctx_to_secid;
 	struct hlist_head release_secctx;
-	struct hlist_head inode_invalidate_secctx;
-	struct hlist_head inode_notifysecctx;
-	struct hlist_head inode_setsecctx;
-	struct hlist_head inode_getsecctx;
+	struct hlist_head iyesde_invalidate_secctx;
+	struct hlist_head iyesde_yestifysecctx;
+	struct hlist_head iyesde_setsecctx;
+	struct hlist_head iyesde_getsecctx;
 #ifdef CONFIG_SECURITY_NETWORK
 	struct hlist_head unix_stream_connect;
 	struct hlist_head unix_may_send;
@@ -2054,7 +2054,7 @@ struct security_hook_heads {
 #endif	/* CONFIG_KEYS */
 #ifdef CONFIG_AUDIT
 	struct hlist_head audit_rule_init;
-	struct hlist_head audit_rule_known;
+	struct hlist_head audit_rule_kyeswn;
 	struct hlist_head audit_rule_match;
 	struct hlist_head audit_rule_free;
 #endif /* CONFIG_AUDIT */
@@ -2082,7 +2082,7 @@ struct security_hook_heads {
  * For use with generic list macros for common operations.
  */
 struct security_hook_list {
-	struct hlist_node		list;
+	struct hlist_yesde		list;
 	struct hlist_head		*head;
 	union security_list_options	hook;
 	char				*lsm;
@@ -2094,7 +2094,7 @@ struct security_hook_list {
 struct lsm_blob_sizes {
 	int	lbs_cred;
 	int	lbs_file;
-	int	lbs_inode;
+	int	lbs_iyesde;
 	int	lbs_ipc;
 	int	lbs_msg_msg;
 	int	lbs_task;
@@ -2175,6 +2175,6 @@ static inline void security_delete_hooks(struct security_hook_list *hooks,
 #define __lsm_ro_after_init	__ro_after_init
 #endif /* CONFIG_SECURITY_WRITABLE_HOOKS */
 
-extern int lsm_inode_alloc(struct inode *inode);
+extern int lsm_iyesde_alloc(struct iyesde *iyesde);
 
 #endif /* ! __LINUX_LSM_HOOKS_H */

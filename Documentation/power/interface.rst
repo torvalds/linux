@@ -52,9 +52,9 @@ To select an option, write the string representing it to /sys/power/disk.
 
 /sys/power/image_size controls the size of hibernation images.
 
-It can be written a string representing a non-negative integer that will be
+It can be written a string representing a yesn-negative integer that will be
 used as a best-effort upper limit of the image size, in bytes.  The hibernation
-core will do its best to ensure that the image size will not exceed that number.
+core will do its best to ensure that the image size will yest exceed that number.
 However, if that turns out to be impossible to achieve, a hibernation image will
 still be created and its size will be as small as possible.  In particular,
 writing '0' to this file will enforce hibernation images to be as small as
@@ -76,4 +76,4 @@ storing it and it can be used later to identify the driver that caused the crash
 to happen (see Documentation/power/s2ram.rst for more information).
 
 Initially it contains '0' which may be changed to '1' by writing a string
-representing a nonzero integer into it.
+representing a yesnzero integer into it.

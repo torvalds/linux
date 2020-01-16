@@ -87,7 +87,7 @@ static inline bool cyapa_is_operational_mode(struct cyapa *cyapa)
 	return false;
 }
 
-/* Returns 0 on success, else negative errno on failure. */
+/* Returns 0 on success, else negative erryes on failure. */
 static ssize_t cyapa_i2c_read(struct cyapa *cyapa, u8 reg, size_t len,
 					u8 *values)
 {
@@ -123,7 +123,7 @@ static ssize_t cyapa_i2c_read(struct cyapa *cyapa, u8 reg, size_t len,
  * @len: number of bytes to write
  * @values: Data to be written
  *
- * Return negative errno code on error; return zero when success.
+ * Return negative erryes code on error; return zero when success.
  */
 static int cyapa_i2c_write(struct cyapa *cyapa, u8 reg,
 					 size_t len, const void *values)
@@ -271,9 +271,9 @@ error:
  * Note: The timeout has granularity of the polling rate, which is 100 ms.
  *
  * Returns:
- *   0 when the device eventually responds with a valid non-busy state.
+ *   0 when the device eventually responds with a valid yesn-busy state.
  *   -ETIMEDOUT if device never responds (too many -EAGAIN)
- *   -EAGAIN    if bootload is busy, or unknown state.
+ *   -EAGAIN    if bootload is busy, or unkyeswn state.
  *   < 0        other errors
  */
 int cyapa_poll_state(struct cyapa *cyapa, unsigned int timeout)
@@ -299,13 +299,13 @@ int cyapa_poll_state(struct cyapa *cyapa, unsigned int timeout)
  * firmware supported by this driver.
  *
  * Returns:
- *   -ENODEV no device
- *   -EBUSY  no device or in bootloader
+ *   -ENODEV yes device
+ *   -EBUSY  yes device or in bootloader
  *   -EIO    failure while reading from device
- *   -ETIMEDOUT timeout failure for bus idle or bus no response
+ *   -ETIMEDOUT timeout failure for bus idle or bus yes response
  *   -EAGAIN device is still in bootloader
  *           if ->state = CYAPA_STATE_BL_IDLE, device has invalid firmware
- *   -EINVAL device is in operational mode, but not supported by this driver
+ *   -EINVAL device is in operational mode, but yest supported by this driver
  *   0       device is supported
  */
 static int cyapa_check_is_operational(struct cyapa *cyapa)
@@ -341,7 +341,7 @@ static int cyapa_check_is_operational(struct cyapa *cyapa)
 
 
 /*
- * Returns 0 on device detected, negative errno on no device detected.
+ * Returns 0 on device detected, negative erryes on yes device detected.
  * And when the device is detected and operational, it will be reset to
  * full power active mode automatically.
  */
@@ -354,11 +354,11 @@ static int cyapa_detect(struct cyapa *cyapa)
 	if (error) {
 		if (error != -ETIMEDOUT && error != -ENODEV &&
 			cyapa_is_bootloader_mode(cyapa)) {
-			dev_warn(dev, "device detected but not operational\n");
+			dev_warn(dev, "device detected but yest operational\n");
 			return 0;
 		}
 
-		dev_err(dev, "no device detected: %d\n", error);
+		dev_err(dev, "yes device detected: %d\n", error);
 		return error;
 	}
 
@@ -529,8 +529,8 @@ static void cyapa_enable_irq_for_cmd(struct cyapa *cyapa)
 	if (!input || !input->users) {
 		/*
 		 * When input is NULL, TP must be in deep sleep mode.
-		 * In this mode, later non-power I2C command will always failed
-		 * if not bring it out of deep sleep mode firstly,
+		 * In this mode, later yesn-power I2C command will always failed
+		 * if yest bring it out of deep sleep mode firstly,
 		 * so must command TP to active mode here.
 		 */
 		if (!input || cyapa->operational)
@@ -653,7 +653,7 @@ static int cyapa_reinitialize(struct cyapa *cyapa)
 
 out:
 	if (!input || !input->users) {
-		/* Reset to power OFF state to save power when no user open. */
+		/* Reset to power OFF state to save power when yes user open. */
 		if (cyapa->operational)
 			cyapa->ops->set_power_mode(cyapa,
 					PWR_MODE_OFF, 0, CYAPA_PM_DEACTIVE);
@@ -1018,7 +1018,7 @@ static int cyapa_firmware(struct cyapa *cyapa, const char *fw_name)
 
 	error = request_firmware(&fw, fw_name, dev);
 	if (error) {
-		dev_err(dev, "Could not load firmware from %s: %d\n",
+		dev_err(dev, "Could yest load firmware from %s: %d\n",
 			fw_name, error);
 		return error;
 	}
@@ -1032,7 +1032,7 @@ static int cyapa_firmware(struct cyapa *cyapa, const char *fw_name)
 
 	/*
 	 * Resume the potentially suspended device because doing FW
-	 * update on a device not in the FULL mode has a chance to
+	 * update on a device yest in the FULL mode has a chance to
 	 * fail.
 	 */
 	pm_runtime_get_sync(dev);
@@ -1066,7 +1066,7 @@ static int cyapa_firmware(struct cyapa *cyapa, const char *fw_name)
 
 err_detect:
 	cyapa_disable_irq_for_cmd(cyapa);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 done:
 	release_firmware(fw);
@@ -1256,7 +1256,7 @@ static int cyapa_probe(struct i2c_client *client,
 
 	adapter_func = cyapa_check_adapter_functionality(client);
 	if (adapter_func == CYAPA_ADAPTER_FUNC_NONE) {
-		dev_err(dev, "not a supported I2C/SMBus adapter\n");
+		dev_err(dev, "yest a supported I2C/SMBus adapter\n");
 		return -EIO;
 	}
 

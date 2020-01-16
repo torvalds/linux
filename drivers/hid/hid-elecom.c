@@ -8,8 +8,8 @@
  *
  *  Copyright (c) 2010 Richard Nauber <Richard.Nauber@gmail.com>
  *  Copyright (c) 2016 Yuxuan Shui <yshuiv7@gmail.com>
- *  Copyright (c) 2017 Diego Elio Pettenò <flameeyes@flameeyes.eu>
- *  Copyright (c) 2017 Alex Manoussakis <amanou@gnu.org>
+ *  Copyright (c) 2017 Diego Elio Pettenò <flameeno@flameeno.eu>
+ *  Copyright (c) 2017 Alex Mayesussakis <amayesu@gnu.org>
  *  Copyright (c) 2017 Tomasz Kramkowski <tk@the-tk.com>
  */
 
@@ -26,7 +26,7 @@
  * Certain ELECOM mice misreport their button count meaning that they only work
  * correctly with the ELECOM mouse assistant software which is unavailable for
  * Linux. A four extra INPUT reports and a FEATURE report are described by the
- * report descriptor but it does not appear that these enable software to
+ * report descriptor but it does yest appear that these enable software to
  * control what the extra buttons map to. The only simple and straightforward
  * solution seems to involve fixing up the report descriptor.
  *
@@ -55,7 +55,7 @@ static __u8 *elecom_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 {
 	switch (hdev->product) {
 	case USB_DEVICE_ID_ELECOM_BM084:
-		/* The BM084 Bluetooth mouse includes a non-existing horizontal
+		/* The BM084 Bluetooth mouse includes a yesn-existing horizontal
 		 * wheel in the HID descriptor. */
 		if (*rsize >= 48 && rdesc[46] == 0x05 && rdesc[47] == 0x0c) {
 			hid_info(hdev, "Fixing up Elecom BM084 report descriptor\n");

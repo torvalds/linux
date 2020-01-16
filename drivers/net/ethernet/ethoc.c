@@ -55,13 +55,13 @@ MODULE_PARM_DESC(buffer_size, "DMA buffer allocation size");
 /* mode register */
 #define	MODER_RXEN	(1 <<  0) /* receive enable */
 #define	MODER_TXEN	(1 <<  1) /* transmit enable */
-#define	MODER_NOPRE	(1 <<  2) /* no preamble */
+#define	MODER_NOPRE	(1 <<  2) /* yes preamble */
 #define	MODER_BRO	(1 <<  3) /* broadcast address */
 #define	MODER_IAM	(1 <<  4) /* individual address mode */
 #define	MODER_PRO	(1 <<  5) /* promiscuous mode */
 #define	MODER_IFG	(1 <<  6) /* interframe gap for incoming frames */
 #define	MODER_LOOP	(1 <<  7) /* loopback */
-#define	MODER_NBO	(1 <<  8) /* no back-off */
+#define	MODER_NBO	(1 <<  8) /* yes back-off */
 #define	MODER_EDE	(1 <<  9) /* excess defer enable */
 #define	MODER_FULLD	(1 << 10) /* full duplex */
 #define	MODER_RESET	(1 << 11) /* FIXME: reset (undocumented) */
@@ -106,7 +106,7 @@ MODULE_PARM_DESC(buffer_size, "DMA buffer allocation size");
 
 /* MII mode register */
 #define	MIIMODER_CLKDIV(x)	((x) & 0xfe) /* needs to be an even number */
-#define	MIIMODER_NOPRE		(1 << 8) /* no preamble */
+#define	MIIMODER_NOPRE		(1 << 8) /* yes preamble */
 
 /* MII command register */
 #define	MIICOMMAND_SCAN		(1 << 0) /* scan status */
@@ -553,10 +553,10 @@ static irqreturn_t ethoc_interrupt(int irq, void *dev_id)
 	/* Figure out what triggered the interrupt...
 	 * The tricky bit here is that the interrupt source bits get
 	 * set in INT_SOURCE for an event regardless of whether that
-	 * event is masked or not.  Thus, in order to figure out what
+	 * event is masked or yest.  Thus, in order to figure out what
 	 * triggered the interrupt, we need to remove the sources
 	 * for all events that are currently masked.  This behaviour
-	 * is not particularly well documented but reasonable...
+	 * is yest particularly well documented but reasonable...
 	 */
 	mask = ethoc_read(priv, INT_MASK);
 	pending = ethoc_read(priv, INT_SOURCE);
@@ -704,7 +704,7 @@ static int ethoc_mdio_probe(struct net_device *dev)
 		phy = phy_find_first(priv->mdio);
 
 	if (!phy) {
-		dev_err(&dev->dev, "no PHY found\n");
+		dev_err(&dev->dev, "yes PHY found\n");
 		return -ENXIO;
 	}
 
@@ -714,7 +714,7 @@ static int ethoc_mdio_probe(struct net_device *dev)
 	err = phy_connect_direct(dev, phy, ethoc_mdio_poll,
 				 PHY_INTERFACE_MODE_GMII);
 	if (err) {
-		dev_err(&dev->dev, "could not attach to PHY\n");
+		dev_err(&dev->dev, "could yest attach to PHY\n");
 		return err;
 	}
 
@@ -886,7 +886,7 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb_put_padto(skb, ETHOC_ZLEN)) {
 		dev->stats.tx_errors++;
-		goto out_no_free;
+		goto out_yes_free;
 	}
 
 	if (unlikely(skb->len > ETHOC_BUFSIZ)) {
@@ -923,7 +923,7 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_tx_timestamp(skb);
 out:
 	dev_kfree_skb(skb);
-out_no_free:
+out_yes_free:
 	return NETDEV_TX_OK;
 }
 
@@ -1042,7 +1042,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	/* obtain I/O memory space */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "cannot obtain I/O memory space\n");
+		dev_err(&pdev->dev, "canyest obtain I/O memory space\n");
 		ret = -ENXIO;
 		goto free;
 	}
@@ -1050,7 +1050,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	mmio = devm_request_mem_region(&pdev->dev, res->start,
 			resource_size(res), res->name);
 	if (!mmio) {
-		dev_err(&pdev->dev, "cannot request I/O memory space\n");
+		dev_err(&pdev->dev, "canyest request I/O memory space\n");
 		ret = -ENXIO;
 		goto free;
 	}
@@ -1063,7 +1063,7 @@ static int ethoc_probe(struct platform_device *pdev)
 		mem = devm_request_mem_region(&pdev->dev, res->start,
 			resource_size(res), res->name);
 		if (!mem) {
-			dev_err(&pdev->dev, "cannot request memory space\n");
+			dev_err(&pdev->dev, "canyest request memory space\n");
 			ret = -ENXIO;
 			goto free;
 		}
@@ -1076,7 +1076,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	/* obtain device IRQ number */
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "cannot obtain IRQ\n");
+		dev_err(&pdev->dev, "canyest obtain IRQ\n");
 		ret = -ENXIO;
 		goto free;
 	}
@@ -1087,19 +1087,19 @@ static int ethoc_probe(struct platform_device *pdev)
 	priv = netdev_priv(netdev);
 	priv->netdev = netdev;
 
-	priv->iobase = devm_ioremap_nocache(&pdev->dev, netdev->base_addr,
+	priv->iobase = devm_ioremap_yescache(&pdev->dev, netdev->base_addr,
 			resource_size(mmio));
 	if (!priv->iobase) {
-		dev_err(&pdev->dev, "cannot remap I/O memory space\n");
+		dev_err(&pdev->dev, "canyest remap I/O memory space\n");
 		ret = -ENXIO;
 		goto free;
 	}
 
 	if (netdev->mem_end) {
-		priv->membase = devm_ioremap_nocache(&pdev->dev,
+		priv->membase = devm_ioremap_yescache(&pdev->dev,
 			netdev->mem_start, resource_size(mem));
 		if (!priv->membase) {
-			dev_err(&pdev->dev, "cannot remap memory space\n");
+			dev_err(&pdev->dev, "canyest remap memory space\n");
 			ret = -ENXIO;
 			goto free;
 		}
@@ -1109,7 +1109,7 @@ static int ethoc_probe(struct platform_device *pdev)
 			buffer_size, (void *)&netdev->mem_start,
 			GFP_KERNEL);
 		if (!priv->membase) {
-			dev_err(&pdev->dev, "cannot allocate %dB buffer\n",
+			dev_err(&pdev->dev, "canyest allocate %dB buffer\n",
 				buffer_size);
 			ret = -ENOMEM;
 			goto free;
@@ -1118,7 +1118,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	}
 
 	priv->big_endian = pdata ? pdata->big_endian :
-		of_device_is_big_endian(pdev->dev.of_node);
+		of_device_is_big_endian(pdev->dev.of_yesde);
 
 	/* calculate the number of TX/RX buffers, maximum 128 supported */
 	num_bd = min_t(unsigned int,
@@ -1149,7 +1149,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	} else {
 		const void *mac;
 
-		mac = of_get_mac_address(pdev->dev.of_node);
+		mac = of_get_mac_address(pdev->dev.of_yesde);
 		if (!IS_ERR(mac))
 			ether_addr_copy(netdev->dev_addr, mac);
 		priv->phy_id = -1;

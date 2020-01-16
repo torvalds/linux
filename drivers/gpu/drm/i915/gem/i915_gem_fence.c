@@ -13,7 +13,7 @@ struct stub_fence {
 };
 
 static int __i915_sw_fence_call
-stub_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+stub_yestify(struct i915_sw_fence *fence, enum i915_sw_fence_yestify state)
 {
 	struct stub_fence *stub = container_of(fence, typeof(*stub), chain);
 
@@ -67,7 +67,7 @@ i915_gem_object_lock_fence(struct drm_i915_gem_object *obj)
 	if (!stub)
 		return NULL;
 
-	i915_sw_fence_init(&stub->chain, stub_notify);
+	i915_sw_fence_init(&stub->chain, stub_yestify);
 	dma_fence_init(&stub->dma, &stub_fence_ops, &stub->chain.wait.lock,
 		       0, 0);
 

@@ -17,7 +17,7 @@
 
 #define MSP_INPUT_FREQ_APB 48000000
 
-/*** Stereo mode. Used for APB data accesses as 16 bits accesses (mono),
+/*** Stereo mode. Used for APB data accesses as 16 bits accesses (moyes),
  *   32 bits accesses (stereo).
  ***/
 enum msp_stereo_mode {
@@ -434,7 +434,7 @@ struct msp_protdesc {
 	u32 tx_half_word_swap;
 	u32 compression_mode;
 	u32 expansion_mode;
-	u32 frame_sync_ignore;
+	u32 frame_sync_igyesre;
 	u32 frame_period;
 	u32 frame_width;
 	u32 clocks_per_frame;

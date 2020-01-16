@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_STD:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_STD - VIDIOC_S_STD - VIDIOC_SUBDEV_G_STD - VIDIOC_SUBDEV_S_STD - Query or select the video standard of the current input
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_STD, v4l2_std_id *argp )
@@ -57,20 +57,20 @@ unambiguous such that they appear in only one enumerated
 struct :c:type:`v4l2_standard` structure.
 
 :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` accepts one or more flags, being a write-only ioctl it
-does not return the actual new standard as :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` does. When
-no flags are given or the current input does not support the requested
+does yest return the actual new standard as :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` does. When
+yes flags are given or the current input does yest support the requested
 standard the driver returns an ``EINVAL`` error code. When the standard set
 is ambiguous drivers may return ``EINVAL`` or choose any of the requested
-standards. If the current input or output does not support standard
+standards. If the current input or output does yest support standard
 video timings (e.g. if :ref:`VIDIOC_ENUMINPUT`
-does not set the ``V4L2_IN_CAP_STD`` flag), then ``ENODATA`` error code is
+does yest set the ``V4L2_IN_CAP_STD`` flag), then ``ENODATA`` error code is
 returned.
 
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -78,4 +78,4 @@ EINVAL
     The :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` parameter was unsuitable.
 
 ENODATA
-    Standard video timings are not supported for this input or output.
+    Standard video timings are yest supported for this input or output.

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
+/* vim: set ts=8 sw=8 yeset tw=80 yeswrap: */
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 
 typedef uint8_t u8;
@@ -50,7 +50,7 @@ void family_write(const struct family_route_values *rv, FILE *fp)
 			;
 
 		if (src >= (NI_NAMES_BASE + NI_NUM_NAMES))
-			continue; /* no data here */
+			continue; /* yes data here */
 
 		fprintf(fp, "    %u : {\n", dest);
 		for (src = NI_NAMES_BASE; src < (NI_NAMES_BASE + NI_NUM_NAMES);

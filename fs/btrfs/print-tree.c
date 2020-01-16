@@ -93,11 +93,11 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 			pr_cont("shared block backref parent %llu\n", offset);
 			/*
 			 * offset is supposed to be a tree block which
-			 * must be aligned to nodesize.
+			 * must be aligned to yesdesize.
 			 */
-			if (!IS_ALIGNED(offset, eb->fs_info->nodesize))
-				pr_info("\t\t\t(parent %llu is NOT ALIGNED to nodesize %llu)\n",
-					offset, (unsigned long long)eb->fs_info->nodesize);
+			if (!IS_ALIGNED(offset, eb->fs_info->yesdesize))
+				pr_info("\t\t\t(parent %llu is NOT ALIGNED to yesdesize %llu)\n",
+					offset, (unsigned long long)eb->fs_info->yesdesize);
 			break;
 		case BTRFS_EXTENT_DATA_REF_KEY:
 			dref = (struct btrfs_extent_data_ref *)(&iref->offset);
@@ -109,11 +109,11 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 			       offset, btrfs_shared_data_ref_count(eb, sref));
 			/*
 			 * offset is supposed to be a tree block which
-			 * must be aligned to nodesize.
+			 * must be aligned to yesdesize.
 			 */
-			if (!IS_ALIGNED(offset, eb->fs_info->nodesize))
-				pr_info("\t\t\t(parent %llu is NOT ALIGNED to nodesize %llu)\n",
-				     offset, (unsigned long long)eb->fs_info->nodesize);
+			if (!IS_ALIGNED(offset, eb->fs_info->yesdesize))
+				pr_info("\t\t\t(parent %llu is NOT ALIGNED to yesdesize %llu)\n",
+				     offset, (unsigned long long)eb->fs_info->yesdesize);
 			break;
 		default:
 			pr_cont("(extent %llu has INVALID ref type %d)\n",
@@ -171,7 +171,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 	struct btrfs_item *item;
 	struct btrfs_root_item *ri;
 	struct btrfs_dir_item *di;
-	struct btrfs_inode_item *ii;
+	struct btrfs_iyesde_item *ii;
 	struct btrfs_block_group_item *bi;
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_extent_data_ref *dref;
@@ -200,11 +200,11 @@ void btrfs_print_leaf(struct extent_buffer *l)
 			btrfs_item_offset(l, item), btrfs_item_size(l, item));
 		switch (type) {
 		case BTRFS_INODE_ITEM_KEY:
-			ii = btrfs_item_ptr(l, i, struct btrfs_inode_item);
-			pr_info("\t\tinode generation %llu size %llu mode %o\n",
-			       btrfs_inode_generation(l, ii),
-			       btrfs_inode_size(l, ii),
-			       btrfs_inode_mode(l, ii));
+			ii = btrfs_item_ptr(l, i, struct btrfs_iyesde_item);
+			pr_info("\t\tiyesde generation %llu size %llu mode %o\n",
+			       btrfs_iyesde_generation(l, ii),
+			       btrfs_iyesde_size(l, ii),
+			       btrfs_iyesde_mode(l, ii));
 			break;
 		case BTRFS_DIR_ITEM_KEY:
 			di = btrfs_item_ptr(l, i, struct btrfs_dir_item);
@@ -295,7 +295,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 				pr_info("\t\tdevice stats\n");
 				break;
 			default:
-				pr_info("\t\tunknown persistent item\n");
+				pr_info("\t\tunkyeswn persistent item\n");
 			}
 			break;
 		case BTRFS_TEMPORARY_ITEM_KEY:
@@ -306,7 +306,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 				pr_info("\t\tbalance status\n");
 				break;
 			default:
-				pr_info("\t\tunknown temporary item\n");
+				pr_info("\t\tunkyeswn temporary item\n");
 			}
 			break;
 		case BTRFS_DEV_REPLACE_KEY:
@@ -338,17 +338,17 @@ void btrfs_print_tree(struct extent_buffer *c, bool follow)
 		return;
 	}
 	btrfs_info(fs_info,
-		   "node %llu level %d gen %llu total ptrs %d free spc %u owner %llu",
+		   "yesde %llu level %d gen %llu total ptrs %d free spc %u owner %llu",
 		   btrfs_header_bytenr(c), level, btrfs_header_generation(c),
 		   nr, (u32)BTRFS_NODEPTRS_PER_BLOCK(fs_info) - nr,
 		   btrfs_header_owner(c));
 	print_eb_refs_lock(c);
 	for (i = 0; i < nr; i++) {
-		btrfs_node_key_to_cpu(c, &key, i);
+		btrfs_yesde_key_to_cpu(c, &key, i);
 		pr_info("\tkey %d (%llu %u %llu) block %llu gen %llu\n",
 		       i, key.objectid, key.type, key.offset,
-		       btrfs_node_blockptr(c, i),
-		       btrfs_node_ptr_generation(c, i));
+		       btrfs_yesde_blockptr(c, i),
+		       btrfs_yesde_ptr_generation(c, i));
 	}
 	if (!follow)
 		return;
@@ -356,9 +356,9 @@ void btrfs_print_tree(struct extent_buffer *c, bool follow)
 		struct btrfs_key first_key;
 		struct extent_buffer *next;
 
-		btrfs_node_key_to_cpu(c, &first_key, i);
-		next = read_tree_block(fs_info, btrfs_node_blockptr(c, i),
-				       btrfs_node_ptr_generation(c, i),
+		btrfs_yesde_key_to_cpu(c, &first_key, i);
+		next = read_tree_block(fs_info, btrfs_yesde_blockptr(c, i),
+				       btrfs_yesde_ptr_generation(c, i),
 				       level - 1, &first_key);
 		if (IS_ERR(next)) {
 			continue;

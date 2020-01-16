@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -639,11 +639,11 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
 			goto out;
 	}
 
-	/* now we copy our data into the right place in the sector buffer */
+	/* yesw we copy our data into the right place in the sector buffer */
 	memcpy(sector_buffer + data_start_addr, data, data_len);
 
 	/*
-	 * now we check if there is a tail section of the sector that we need to
+	 * yesw we check if there is a tail section of the sector that we need to
 	 * readback.
 	 */
 	tail_start_addr = (data_start_addr + data_len) % sector_size;
@@ -653,7 +653,7 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
 
 		tail_len = sector_size - tail_start_addr;
 
-		/* now we read this tail into our sector buffer */
+		/* yesw we read this tail into our sector buffer */
 		err = broadsheet_spiflash_read_range(par, tail_start_addr,
 			tail_len, sector_buffer + tail_start_addr);
 		if (err)
@@ -667,7 +667,7 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
 	if (err)
 		goto out;
 
-	/* now write it */
+	/* yesw write it */
 	err = broadsheet_spiflash_write_sector(par, start_sector_addr,
 					sector_buffer, sector_size);
 out:
@@ -953,16 +953,16 @@ static void broadsheetfb_dpy_deferred_io(struct fb_info *info,
 			/* this page is consecutive so increase our height */
 			h += h_inc;
 		} else {
-			/* page not consecutive, issue previous update first */
+			/* page yest consecutive, issue previous update first */
 			broadsheetfb_dpy_update_pages(info->par, y1, y1 + h);
-			/* start over with our non consecutive page */
+			/* start over with our yesn consecutive page */
 			y1 = (cur->index << PAGE_SHIFT) / xres;
 			h = h_inc;
 		}
 		prev_index = cur->index;
 	}
 
-	/* if we still have any pages to update we do so now */
+	/* if we still have any pages to update we do so yesw */
 	if (h >= yres) {
 		/* its a full screen update, just do it */
 		broadsheetfb_dpy_update(info->par);

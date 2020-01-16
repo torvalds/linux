@@ -143,7 +143,7 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 	config.init_data = &ldo->init_data;
 
 	/*
-	 * Look up LDO enable GPIO from the parent device node, we don't
+	 * Look up LDO enable GPIO from the parent device yesde, we don't
 	 * use devm because the regulator core will free the GPIO
 	 */
 	gpiod = gpiod_get_optional(pdev->dev.parent,
@@ -154,8 +154,8 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 		return PTR_ERR(gpiod);
 	config.ena_gpiod = gpiod;
 
-	/* Use default constraints if none set up */
-	if (!pdata || !pdata->ldo[id].init_data || wm8994->dev->of_node) {
+	/* Use default constraints if yesne set up */
+	if (!pdata || !pdata->ldo[id].init_data || wm8994->dev->of_yesde) {
 		dev_dbg(wm8994->dev, "Using default init data, supply %s %s\n",
 			ldo->supply.dev_name, ldo->supply.supply);
 
@@ -169,7 +169,7 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 
 	/*
 	 * At this point the GPIO descriptor is handled over to the
-	 * regulator core and we need not worry about it on the
+	 * regulator core and we need yest worry about it on the
 	 * error path.
 	 */
 	ldo->regulator = devm_regulator_register(&pdev->dev,

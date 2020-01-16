@@ -386,13 +386,13 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 				 struct dwapb_port_property *pp)
 {
 	struct gpio_chip *gc = &port->gc;
-	struct fwnode_handle  *fwnode = pp->fwnode;
+	struct fwyesde_handle  *fwyesde = pp->fwyesde;
 	struct irq_chip_generic	*irq_gc = NULL;
 	unsigned int hwirq, ngpio = gc->ngpio;
 	struct irq_chip_type *ct;
 	int err, i;
 
-	gpio->domain = irq_domain_create_linear(fwnode, ngpio,
+	gpio->domain = irq_domain_create_linear(fwyesde, ngpio,
 						 &irq_generic_chip_ops, gpio);
 	if (!gpio->domain)
 		return;
@@ -520,7 +520,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 	}
 
 #ifdef CONFIG_OF_GPIO
-	port->gc.of_node = to_of_node(pp->fwnode);
+	port->gc.of_yesde = to_of_yesde(pp->fwyesde);
 #endif
 	port->gc.ngpio = pp->ngpio;
 	port->gc.base = pp->gpio_base;
@@ -558,13 +558,13 @@ static void dwapb_gpio_unregister(struct dwapb_gpio *gpio)
 static struct dwapb_platform_data *
 dwapb_gpio_get_pdata(struct device *dev)
 {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct dwapb_platform_data *pdata;
 	struct dwapb_port_property *pp;
 	int nports;
 	int i, j;
 
-	nports = device_get_child_node_count(dev);
+	nports = device_get_child_yesde_count(dev);
 	if (nports == 0)
 		return ERR_PTR(-ENODEV);
 
@@ -579,21 +579,21 @@ dwapb_gpio_get_pdata(struct device *dev)
 	pdata->nports = nports;
 
 	i = 0;
-	device_for_each_child_node(dev, fwnode)  {
-		struct device_node *np = NULL;
+	device_for_each_child_yesde(dev, fwyesde)  {
+		struct device_yesde *np = NULL;
 
 		pp = &pdata->properties[i++];
-		pp->fwnode = fwnode;
+		pp->fwyesde = fwyesde;
 
-		if (fwnode_property_read_u32(fwnode, "reg", &pp->idx) ||
+		if (fwyesde_property_read_u32(fwyesde, "reg", &pp->idx) ||
 		    pp->idx >= DWAPB_MAX_PORTS) {
 			dev_err(dev,
 				"missing/invalid port index for port%d\n", i);
-			fwnode_handle_put(fwnode);
+			fwyesde_handle_put(fwyesde);
 			return ERR_PTR(-EINVAL);
 		}
 
-		if (fwnode_property_read_u32(fwnode, "snps,nr-gpios",
+		if (fwyesde_property_read_u32(fwyesde, "snps,nr-gpios",
 					 &pp->ngpio)) {
 			dev_info(dev,
 				 "failed to get number of gpios for port%d\n",
@@ -611,9 +611,9 @@ dwapb_gpio_get_pdata(struct device *dev)
 		if (pp->idx != 0)
 			continue;
 
-		if (dev->of_node && fwnode_property_read_bool(fwnode,
+		if (dev->of_yesde && fwyesde_property_read_bool(fwyesde,
 						  "interrupt-controller")) {
-			np = to_of_node(fwnode);
+			np = to_of_yesde(fwyesde);
 		}
 
 		for (j = 0; j < pp->ngpio; j++) {
@@ -629,7 +629,7 @@ dwapb_gpio_get_pdata(struct device *dev)
 		}
 
 		if (!pp->has_irq)
-			dev_warn(dev, "no irq for port%d\n", pp->idx);
+			dev_warn(dev, "yes irq for port%d\n", pp->idx);
 	}
 
 	return pdata;
@@ -694,13 +694,13 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 	if (!IS_ERR(gpio->clk)) {
 		err = clk_prepare_enable(gpio->clk);
 		if (err) {
-			dev_info(&pdev->dev, "Cannot enable clock\n");
+			dev_info(&pdev->dev, "Canyest enable clock\n");
 			return err;
 		}
 	}
 
 	gpio->flags = 0;
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		gpio->flags = (uintptr_t)of_device_get_match_data(dev);
 	} else if (has_acpi_companion(dev)) {
 		const struct acpi_device_id *acpi_id;
@@ -849,4 +849,4 @@ module_platform_driver(dwapb_gpio_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jamie Iles");
-MODULE_DESCRIPTION("Synopsys DesignWare APB GPIO driver");
+MODULE_DESCRIPTION("Syyespsys DesignWare APB GPIO driver");

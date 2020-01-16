@@ -58,7 +58,7 @@ static int imx_audmix_fe_startup(struct snd_pcm_substream *substream)
 		if (ret < 0)
 			return ret;
 	} else {
-		dev_warn(dev, "mclk may be not supported %lu\n", clk_rate);
+		dev_warn(dev, "mclk may be yest supported %lu\n", clk_rate);
 	}
 
 	ret = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_CHANNELS,
@@ -143,8 +143,8 @@ static struct snd_soc_ops imx_audmix_be_ops = {
 
 static int imx_audmix_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *audmix_np = NULL, *out_cpu_np = NULL;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *audmix_np = NULL, *out_cpu_np = NULL;
 	struct platform_device *audmix_pdev = NULL;
 	struct platform_device *cpu_pdev;
 	struct of_phandle_args args;
@@ -154,18 +154,18 @@ static int imx_audmix_probe(struct platform_device *pdev)
 	char *be_name, *be_pb, *be_cp, *dai_name, *capture_dai_name;
 
 	if (pdev->dev.parent) {
-		audmix_np = pdev->dev.parent->of_node;
+		audmix_np = pdev->dev.parent->of_yesde;
 	} else {
 		dev_err(&pdev->dev, "Missing parent device.\n");
 		return -EINVAL;
 	}
 
 	if (!audmix_np) {
-		dev_err(&pdev->dev, "Missing DT node for parent device.\n");
+		dev_err(&pdev->dev, "Missing DT yesde for parent device.\n");
 		return -EINVAL;
 	}
 
-	audmix_pdev = of_find_device_by_node(audmix_np);
+	audmix_pdev = of_find_device_by_yesde(audmix_np);
 	if (!audmix_pdev) {
 		dev_err(&pdev->dev, "Missing AUDMIX platform device for %s\n",
 			np->full_name);
@@ -221,7 +221,7 @@ static int imx_audmix_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		cpu_pdev = of_find_device_by_node(args.np);
+		cpu_pdev = of_find_device_by_yesde(args.np);
 		if (!cpu_pdev) {
 			dev_err(&pdev->dev, "failed to find SAI platform device\n");
 			return -EINVAL;
@@ -252,13 +252,13 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		priv->dai[i].stream_name = "HiFi-AUDMIX-FE";
 		priv->dai[i].codecs->dai_name = "snd-soc-dummy-dai";
 		priv->dai[i].codecs->name = "snd-soc-dummy";
-		priv->dai[i].cpus->of_node = args.np;
+		priv->dai[i].cpus->of_yesde = args.np;
 		priv->dai[i].cpus->dai_name = dev_name(&cpu_pdev->dev);
-		priv->dai[i].platforms->of_node = args.np;
+		priv->dai[i].platforms->of_yesde = args.np;
 		priv->dai[i].dynamic = 1;
 		priv->dai[i].dpcm_playback = 1;
 		priv->dai[i].dpcm_capture = (i == 0 ? 1 : 0);
-		priv->dai[i].ignore_pmdown_time = 1;
+		priv->dai[i].igyesre_pmdown_time = 1;
 		priv->dai[i].ops = &imx_audmix_fe_ops;
 
 		/* Add AUDMIX Backend */
@@ -280,16 +280,16 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		priv->dai[num_dai + i].name = be_name;
 		priv->dai[num_dai + i].codecs->dai_name = "snd-soc-dummy-dai";
 		priv->dai[num_dai + i].codecs->name = "snd-soc-dummy";
-		priv->dai[num_dai + i].cpus->of_node = audmix_np;
+		priv->dai[num_dai + i].cpus->of_yesde = audmix_np;
 		priv->dai[num_dai + i].cpus->dai_name = be_name;
 		priv->dai[num_dai + i].platforms->name = "snd-soc-dummy";
-		priv->dai[num_dai + i].no_pcm = 1;
+		priv->dai[num_dai + i].yes_pcm = 1;
 		priv->dai[num_dai + i].dpcm_playback = 1;
 		priv->dai[num_dai + i].dpcm_capture  = 1;
-		priv->dai[num_dai + i].ignore_pmdown_time = 1;
+		priv->dai[num_dai + i].igyesre_pmdown_time = 1;
 		priv->dai[num_dai + i].ops = &imx_audmix_be_ops;
 
-		priv->dai_conf[i].of_node = args.np;
+		priv->dai_conf[i].of_yesde = args.np;
 		priv->dai_conf[i].name_prefix = dai_name;
 
 		priv->dapm_routes[i].source =
@@ -302,7 +302,7 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		priv->dapm_routes[2 * num_dai + i].sink   = capture_dai_name;
 	}
 
-	cpu_pdev = of_find_device_by_node(out_cpu_np);
+	cpu_pdev = of_find_device_by_yesde(out_cpu_np);
 	if (!cpu_pdev) {
 		dev_err(&pdev->dev, "failed to find SAI platform device\n");
 		return -EINVAL;

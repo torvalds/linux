@@ -573,14 +573,14 @@ static const char *const rk3128_critical_clocks[] __initconst = {
 	"sclk_timer5",
 };
 
-static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device_node *np)
+static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
-		pr_err("%s: could not map cru region\n", __func__);
+		pr_err("%s: could yest map cru region\n", __func__);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -605,12 +605,12 @@ static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device
 	rockchip_register_softrst(np, 9, reg_base + RK2928_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(ctx, RK2928_GLB_SRST_FST, NULL);
+	rockchip_register_restart_yestifier(ctx, RK2928_GLB_SRST_FST, NULL);
 
 	return ctx;
 }
 
-static void __init rk3126_clk_init(struct device_node *np)
+static void __init rk3126_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 
@@ -628,7 +628,7 @@ static void __init rk3126_clk_init(struct device_node *np)
 
 CLK_OF_DECLARE(rk3126_cru, "rockchip,rk3126-cru", rk3126_clk_init);
 
-static void __init rk3128_clk_init(struct device_node *np)
+static void __init rk3128_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 

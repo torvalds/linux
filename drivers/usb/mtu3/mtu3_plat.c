@@ -31,14 +31,14 @@ int ssusb_check_clocks(struct ssusb_mtk *ssusb, u32 ex_clks)
 	ret = readl_poll_timeout(ibase + U3D_SSUSB_IP_PW_STS1, value,
 			(check_val == (value & check_val)), 100, 20000);
 	if (ret) {
-		dev_err(ssusb->dev, "clks of sts1 are not stable!\n");
+		dev_err(ssusb->dev, "clks of sts1 are yest stable!\n");
 		return ret;
 	}
 
 	ret = readl_poll_timeout(ibase + U3D_SSUSB_IP_PW_STS2, value,
 			(value & SSUSB_U2_MAC_SYS_RST_B_STS), 100, 10000);
 	if (ret) {
-		dev_err(ssusb->dev, "mac2 clock is not stable\n");
+		dev_err(ssusb->dev, "mac2 clock is yest stable\n");
 		return ret;
 	}
 
@@ -213,7 +213,7 @@ static void ssusb_ip_sw_reset(struct ssusb_mtk *ssusb)
 
 static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
@@ -244,7 +244,7 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	if (IS_ERR(ssusb->dma_clk))
 		return PTR_ERR(ssusb->dma_clk);
 
-	ssusb->num_phys = of_count_phandle_with_args(node,
+	ssusb->num_phys = of_count_phandle_with_args(yesde,
 			"phys", "#phy-cells");
 	if (ssusb->num_phys > 0) {
 		ssusb->phys = devm_kcalloc(dev, ssusb->num_phys,
@@ -256,7 +256,7 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	}
 
 	for (i = 0; i < ssusb->num_phys; i++) {
-		ssusb->phys[i] = devm_of_phy_get_by_index(dev, node, i);
+		ssusb->phys[i] = devm_of_phy_get_by_index(dev, yesde, i);
 		if (IS_ERR(ssusb->phys[i])) {
 			dev_err(dev, "failed to get phy-%d\n", i);
 			return PTR_ERR(ssusb->phys[i]);
@@ -276,14 +276,14 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 		goto out;
 
 	/* if host role is supported */
-	ret = ssusb_wakeup_of_property_parse(ssusb, node);
+	ret = ssusb_wakeup_of_property_parse(ssusb, yesde);
 	if (ret) {
 		dev_err(dev, "failed to parse uwk property\n");
 		return ret;
 	}
 
-	/* optional property, ignore the error if it does not exist */
-	of_property_read_u32(node, "mediatek,u3p-dis-msk",
+	/* optional property, igyesre the error if it does yest exist */
+	of_property_read_u32(yesde, "mediatek,u3p-dis-msk",
 			     &ssusb->u3p_dis_msk);
 
 	otg_sx->vbus = devm_regulator_get(dev, "vbus");
@@ -296,12 +296,12 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 		goto out;
 
 	/* if dual-role mode is supported */
-	otg_sx->is_u3_drd = of_property_read_bool(node, "mediatek,usb3-drd");
+	otg_sx->is_u3_drd = of_property_read_bool(yesde, "mediatek,usb3-drd");
 	otg_sx->manual_drd_enabled =
-		of_property_read_bool(node, "enable-manual-drd");
-	otg_sx->role_sw_used = of_property_read_bool(node, "usb-role-switch");
+		of_property_read_bool(yesde, "enable-manual-drd");
+	otg_sx->role_sw_used = of_property_read_bool(yesde, "usb-role-switch");
 
-	if (!otg_sx->role_sw_used && of_property_read_bool(node, "extcon")) {
+	if (!otg_sx->role_sw_used && of_property_read_bool(yesde, "extcon")) {
 		otg_sx->edev = extcon_get_edev_by_phandle(ssusb->dev, 0);
 		if (IS_ERR(otg_sx->edev)) {
 			dev_err(ssusb->dev, "couldn't get extcon device\n");
@@ -319,7 +319,7 @@ out:
 
 static int mtu3_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	struct ssusb_mtk *ssusb;
 	int ret = -ENOMEM;
@@ -372,7 +372,7 @@ static int mtu3_probe(struct platform_device *pdev)
 		}
 		break;
 	case USB_DR_MODE_HOST:
-		ret = ssusb_host_init(ssusb, node);
+		ret = ssusb_host_init(ssusb, yesde);
 		if (ret) {
 			dev_err(dev, "failed to initialize host\n");
 			goto comm_exit;
@@ -385,7 +385,7 @@ static int mtu3_probe(struct platform_device *pdev)
 			goto comm_exit;
 		}
 
-		ret = ssusb_host_init(ssusb, node);
+		ret = ssusb_host_init(ssusb, yesde);
 		if (ret) {
 			dev_err(dev, "failed to initialize host\n");
 			goto gadget_exit;

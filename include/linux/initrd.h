@@ -14,7 +14,7 @@ extern int rd_image_start;
 /* size of a single RAM disk */
 extern unsigned long rd_size;
 
-/* 1 if it is not an error if initrd_start < memory_start */
+/* 1 if it is yest an error if initrd_start < memory_start */
 extern int initrd_below_start_ok;
 
 /* free_initrd_mem always gets called with the next two as arguments.. */

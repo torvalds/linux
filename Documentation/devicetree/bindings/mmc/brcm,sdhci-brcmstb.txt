@@ -27,7 +27,7 @@ Example:
 	};
 
 	sdhci@f03e0300 {
-		non-removable;
+		yesn-removable;
 		bus-width = <0x8>;
 		compatible = "brcm,bcm7425-sdhci";
 		reg = <0xf03e0200 0x100>;

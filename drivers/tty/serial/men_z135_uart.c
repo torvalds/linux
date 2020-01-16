@@ -238,7 +238,7 @@ static u16 get_rx_fifo_content(struct men_z135_port *uart)
  * men_z135_handle_rx() - RX tasklet routine
  * @arg: Pointer to struct men_z135_port
  *
- * Copy from RX FIFO and acknowledge number of bytes copied.
+ * Copy from RX FIFO and ackyeswledge number of bytes copied.
  */
 static void men_z135_handle_rx(struct men_z135_port *uart)
 {
@@ -254,7 +254,7 @@ static void men_z135_handle_rx(struct men_z135_port *uart)
 		return;
 
 	/* Avoid accidently accessing TX FIFO instead of RX FIFO. Last
-	 * longword in RX FIFO cannot be read.(0x004-0x3FF)
+	 * longword in RX FIFO canyest be read.(0x004-0x3FF)
 	 */
 	if (size > MEN_Z135_FIFO_WATERMARK)
 		size = MEN_Z135_FIFO_WATERMARK;
@@ -262,14 +262,14 @@ static void men_z135_handle_rx(struct men_z135_port *uart)
 	room = tty_buffer_request_room(tport, size);
 	if (room != size)
 		dev_warn(&uart->mdev->dev,
-			"Not enough room in flip buffer, truncating to %d\n",
+			"Not eyesugh room in flip buffer, truncating to %d\n",
 			room);
 
 	if (room == 0)
 		return;
 
 	memcpy_fromio(uart->rxbuf, port->membase + MEN_Z135_RX_RAM, room);
-	/* Be sure to first copy all data and then acknowledge it */
+	/* Be sure to first copy all data and then ackyeswledge it */
 	mb();
 	iowrite32(room, port->membase +  MEN_Z135_RX_CTRL);
 
@@ -327,12 +327,12 @@ static void men_z135_handle_tx(struct men_z135_port *uart)
 	txfree = MEN_Z135_FIFO_WATERMARK - txc;
 	if (txfree <= 0) {
 		dev_err(&uart->mdev->dev,
-			"Not enough room in TX FIFO have %d, need %d\n",
+			"Not eyesugh room in TX FIFO have %d, need %d\n",
 			txfree, qlen);
 		goto irq_en;
 	}
 
-	/* if we're not aligned, it's better to copy only 1 or 2 bytes and
+	/* if we're yest aligned, it's better to copy only 1 or 2 bytes and
 	 * then the rest.
 	 */
 	if (align && qlen >= 3 && BYTES_TO_ALIGN(wptr))
@@ -700,7 +700,7 @@ static void men_z135_set_termios(struct uart_port *port,
 		uart->automode = false;
 	}
 
-	termios->c_cflag &= ~CMSPAR; /* Mark/Space parity is not supported */
+	termios->c_cflag &= ~CMSPAR; /* Mark/Space parity is yest supported */
 
 	conf_reg |= lcr << MEN_Z135_LCR_SHIFT;
 	iowrite32(conf_reg, port->membase + MEN_Z135_CONF_REG);
@@ -794,7 +794,7 @@ static struct uart_driver men_z135_driver = {
 	.driver_name = KBUILD_MODNAME,
 	.dev_name = "ttyHSU",
 	.major = 0,
-	.minor = 0,
+	.miyesr = 0,
 	.nr = MEN_Z135_MAX_PORTS,
 };
 

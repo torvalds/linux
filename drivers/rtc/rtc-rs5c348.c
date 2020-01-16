@@ -12,7 +12,7 @@
 #include <linux/bcd.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -87,7 +87,7 @@ rs5c348_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	if (pdata->rtc_24h) {
 		txp[RS5C348_REG_HOURS] = bin2bcd(tm->tm_hour);
 	} else {
-		/* hour 0 is AM12, noon is PM12 */
+		/* hour 0 is AM12, yeson is PM12 */
 		txp[RS5C348_REG_HOURS] = bin2bcd((tm->tm_hour + 11) % 12 + 1) |
 			(tm->tm_hour >= 12 ? RS5C348_BIT_PM : 0);
 	}
@@ -176,7 +176,7 @@ static int rs5c348_probe(struct spi_device *spi)
 	/* Check D7 of SECOND register */
 	ret = spi_w8r8(spi, RS5C348_CMD_R(RS5C348_REG_SECS));
 	if (ret < 0 || (ret & 0x80)) {
-		dev_err(&spi->dev, "not found.\n");
+		dev_err(&spi->dev, "yest found.\n");
 		return ret;
 	}
 

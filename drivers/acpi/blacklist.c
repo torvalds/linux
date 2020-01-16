@@ -2,7 +2,7 @@
 /*
  *  blacklist.c
  *
- *  Check to see if the given machine has a known bad ACPI BIOS
+ *  Check to see if the given machine has a kyeswn bad ACPI BIOS
  *  or if the BIOS is too old.
  *  Check given machine against acpi_rev_dmi_table[].
  *
@@ -34,7 +34,7 @@ static struct acpi_platform_list acpi_blacklist[] __initdata = {
 	 "ACPI driver problem", 1},
 	/* Compaq Presario 800, Insyde BIOS */
 	{"INT440", "SYSFexxx", 0x00001001, ACPI_SIG_DSDT, less_than_or_equal,
-	 "Does not use _REG to protect EC OpRegions", 1},
+	 "Does yest use _REG to protect EC OpRegions", 1},
 	/* IBM 600E - _ADR should return 7, but it returns 1 */
 	{"IBM   ", "TP600E  ", 0x00000105, ACPI_SIG_DSDT, less_than_or_equal,
 	 "Incorrect _ADR", 1},
@@ -49,7 +49,7 @@ int __init acpi_blacklisted(void)
 
 	i = acpi_match_platform_list(acpi_blacklist);
 	if (i >= 0) {
-		pr_err(PREFIX "Vendor \"%6.6s\" System \"%8.8s\" Revision 0x%x has a known ACPI BIOS problem.\n",
+		pr_err(PREFIX "Vendor \"%6.6s\" System \"%8.8s\" Revision 0x%x has a kyeswn ACPI BIOS problem.\n",
 		       acpi_blacklist[i].oem_id,
 		       acpi_blacklist[i].oem_table_id,
 		       acpi_blacklist[i].oem_revision);
@@ -57,7 +57,7 @@ int __init acpi_blacklisted(void)
 		pr_err(PREFIX "Reason: %s. This is a %s error\n",
 		       acpi_blacklist[i].reason,
 		       (acpi_blacklist[i].data ?
-			"non-recoverable" : "recoverable"));
+			"yesn-recoverable" : "recoverable"));
 
 		blacklisted = acpi_blacklist[i].data;
 	}
@@ -85,7 +85,7 @@ static const struct dmi_system_id acpi_rev_dmi_table[] __initconst = {
 	/*
 	 * DELL XPS 13 (2015) switches sound between HDA and I2S
 	 * depending on the ACPI _REV callback. If userspace supports
-	 * I2S sufficiently (or if you do not care about sound), you
+	 * I2S sufficiently (or if you do yest care about sound), you
 	 * can safely disable this quirk.
 	 */
 	{
@@ -114,7 +114,7 @@ static const struct dmi_system_id acpi_rev_dmi_table[] __initconst = {
 	},
 	/*
 	 * Resolves a quirk with the Dell Latitude 3350 that
-	 * causes the ethernet adapter to not function.
+	 * causes the ethernet adapter to yest function.
 	 */
 	{
 	 .callback = dmi_enable_rev_override,

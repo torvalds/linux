@@ -36,13 +36,13 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
 	u32 i;
 
 	/*
-	 * If not a predefined name, cannot typecheck args, because
-	 * we have no idea what argument types are expected.
-	 * Also, ignore typecheck if warnings/errors if this method
+	 * If yest a predefined name, canyest typecheck args, because
+	 * we have yes idea what argument types are expected.
+	 * Also, igyesre typecheck if warnings/errors if this method
 	 * has already been evaluated at least once -- in order
 	 * to suppress repetitive messages.
 	 */
-	if (!info->predefined || (info->node->flags & ANOBJ_EVALUATED)) {
+	if (!info->predefined || (info->yesde->flags & ANOBJ_EVALUATED)) {
 		return;
 	}
 
@@ -67,7 +67,7 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
 
 			/* Prevent any additional typechecking for this method */
 
-			info->node->flags |= ANOBJ_EVALUATED;
+			info->yesde->flags |= ANOBJ_EVALUATED;
 		}
 	}
 }
@@ -76,8 +76,8 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
  *
  * FUNCTION:    acpi_ns_check_acpi_compliance
  *
- * PARAMETERS:  pathname        - Full pathname to the node (for error msgs)
- *              node            - Namespace node for the method/object
+ * PARAMETERS:  pathname        - Full pathname to the yesde (for error msgs)
+ *              yesde            - Namespace yesde for the method/object
  *              predefined      - Pointer to entry in predefined name table
  *
  * RETURN:      None
@@ -90,13 +90,13 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
 
 void
 acpi_ns_check_acpi_compliance(char *pathname,
-			      struct acpi_namespace_node *node,
+			      struct acpi_namespace_yesde *yesde,
 			      const union acpi_predefined_info *predefined)
 {
 	u32 aml_param_count;
 	u32 required_param_count;
 
-	if (!predefined || (node->flags & ANOBJ_EVALUATED)) {
+	if (!predefined || (yesde->flags & ANOBJ_EVALUATED)) {
 		return;
 	}
 
@@ -106,10 +106,10 @@ acpi_ns_check_acpi_compliance(char *pathname,
 	    METHOD_GET_ARG_COUNT(predefined->info.argument_list);
 
 	/*
-	 * If this object is not a control method, we can check if the ACPI
+	 * If this object is yest a control method, we can check if the ACPI
 	 * spec requires that it be a method.
 	 */
-	if (node->type != ACPI_TYPE_METHOD) {
+	if (yesde->type != ACPI_TYPE_METHOD) {
 		if (required_param_count > 0) {
 
 			/* Object requires args, must be implemented as a method */
@@ -117,19 +117,19 @@ acpi_ns_check_acpi_compliance(char *pathname,
 			ACPI_BIOS_ERROR_PREDEFINED((AE_INFO, pathname,
 						    ACPI_WARN_ALWAYS,
 						    "Object (%s) must be a control method with %u arguments",
-						    acpi_ut_get_type_name(node->
+						    acpi_ut_get_type_name(yesde->
 									  type),
 						    required_param_count));
 		} else if (!required_param_count
 			   && !predefined->info.expected_btypes) {
 
-			/* Object requires no args and no return value, must be a method */
+			/* Object requires yes args and yes return value, must be a method */
 
 			ACPI_BIOS_ERROR_PREDEFINED((AE_INFO, pathname,
 						    ACPI_WARN_ALWAYS,
 						    "Object (%s) must be a control method "
-						    "with no arguments and no return value",
-						    acpi_ut_get_type_name(node->
+						    "with yes arguments and yes return value",
+						    acpi_ut_get_type_name(yesde->
 									  type)));
 		}
 
@@ -146,7 +146,7 @@ acpi_ns_check_acpi_compliance(char *pathname,
 	 *
 	 * Note: These are BIOS errors in the declaration of the object
 	 */
-	aml_param_count = node->object->method.param_count;
+	aml_param_count = yesde->object->method.param_count;
 
 	if (aml_param_count < required_param_count) {
 		ACPI_BIOS_ERROR_PREDEFINED((AE_INFO, pathname, ACPI_WARN_ALWAYS,
@@ -169,8 +169,8 @@ acpi_ns_check_acpi_compliance(char *pathname,
  *
  * FUNCTION:    acpi_ns_check_argument_count
  *
- * PARAMETERS:  pathname        - Full pathname to the node (for error msgs)
- *              node            - Namespace node for the method/object
+ * PARAMETERS:  pathname        - Full pathname to the yesde (for error msgs)
+ *              yesde            - Namespace yesde for the method/object
  *              user_param_count - Number of args passed in by the caller
  *              predefined      - Pointer to entry in predefined name table
  *
@@ -183,14 +183,14 @@ acpi_ns_check_acpi_compliance(char *pathname,
 
 void
 acpi_ns_check_argument_count(char *pathname,
-			     struct acpi_namespace_node *node,
+			     struct acpi_namespace_yesde *yesde,
 			     u32 user_param_count,
 			     const union acpi_predefined_info *predefined)
 {
 	u32 aml_param_count;
 	u32 required_param_count;
 
-	if (node->flags & ANOBJ_EVALUATED) {
+	if (yesde->flags & ANOBJ_EVALUATED) {
 		return;
 	}
 
@@ -199,14 +199,14 @@ acpi_ns_check_argument_count(char *pathname,
 		 * Not a predefined name. Check the incoming user argument count
 		 * against the count that is specified in the method/object.
 		 */
-		if (node->type != ACPI_TYPE_METHOD) {
+		if (yesde->type != ACPI_TYPE_METHOD) {
 			if (user_param_count) {
 				ACPI_INFO_PREDEFINED((AE_INFO, pathname,
 						      ACPI_WARN_ALWAYS,
-						      "%u arguments were passed to a non-method ACPI object (%s)",
+						      "%u arguments were passed to a yesn-method ACPI object (%s)",
 						      user_param_count,
 						      acpi_ut_get_type_name
-						      (node->type)));
+						      (yesde->type)));
 			}
 
 			return;
@@ -220,11 +220,11 @@ acpi_ns_check_argument_count(char *pathname,
 		 * Emit a message if too few or too many arguments have been passed
 		 * by the caller.
 		 *
-		 * Note: Too many arguments will not cause the method to
+		 * Note: Too many arguments will yest cause the method to
 		 * fail. However, the method will fail if there are too few
 		 * arguments and the method attempts to use one of the missing ones.
 		 */
-		aml_param_count = node->object->method.param_count;
+		aml_param_count = yesde->object->method.param_count;
 
 		if (user_param_count < aml_param_count) {
 			ACPI_WARN_PREDEFINED((AE_INFO, pathname,

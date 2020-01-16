@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -27,11 +27,11 @@
 #ifndef __NOUVEAU_DMA_H__
 #define __NOUVEAU_DMA_H__
 
-#include "nouveau_bo.h"
-#include "nouveau_chan.h"
+#include "yesuveau_bo.h"
+#include "yesuveau_chan.h"
 
-int nouveau_dma_wait(struct nouveau_channel *, int slots, int size);
-void nv50_dma_push(struct nouveau_channel *, u64 addr, int length);
+int yesuveau_dma_wait(struct yesuveau_channel *, int slots, int size);
+void nv50_dma_push(struct yesuveau_channel *, u64 addr, int length);
 
 /*
  * There's a hw race condition where you can't jump to your PUT offset,
@@ -84,11 +84,11 @@ enum {
 #define NV50_MEMORY_TO_MEMORY_FORMAT_OFFSET_OUT_HIGH                  0x0000023c
 
 static __must_check inline int
-RING_SPACE(struct nouveau_channel *chan, int size)
+RING_SPACE(struct yesuveau_channel *chan, int size)
 {
 	int ret;
 
-	ret = nouveau_dma_wait(chan, 1, size);
+	ret = yesuveau_dma_wait(chan, 1, size);
 	if (ret)
 		return ret;
 
@@ -97,52 +97,52 @@ RING_SPACE(struct nouveau_channel *chan, int size)
 }
 
 static inline void
-OUT_RING(struct nouveau_channel *chan, int data)
+OUT_RING(struct yesuveau_channel *chan, int data)
 {
-	nouveau_bo_wr32(chan->push.buffer, chan->dma.cur++, data);
+	yesuveau_bo_wr32(chan->push.buffer, chan->dma.cur++, data);
 }
 
 extern void
-OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords);
+OUT_RINGp(struct yesuveau_channel *chan, const void *data, unsigned nr_dwords);
 
 static inline void
-BEGIN_NV04(struct nouveau_channel *chan, int subc, int mthd, int size)
+BEGIN_NV04(struct yesuveau_channel *chan, int subc, int mthd, int size)
 {
 	OUT_RING(chan, 0x00000000 | (subc << 13) | (size << 18) | mthd);
 }
 
 static inline void
-BEGIN_NI04(struct nouveau_channel *chan, int subc, int mthd, int size)
+BEGIN_NI04(struct yesuveau_channel *chan, int subc, int mthd, int size)
 {
 	OUT_RING(chan, 0x40000000 | (subc << 13) | (size << 18) | mthd);
 }
 
 static inline void
-BEGIN_NVC0(struct nouveau_channel *chan, int subc, int mthd, int size)
+BEGIN_NVC0(struct yesuveau_channel *chan, int subc, int mthd, int size)
 {
 	OUT_RING(chan, 0x20000000 | (size << 16) | (subc << 13) | (mthd >> 2));
 }
 
 static inline void
-BEGIN_NIC0(struct nouveau_channel *chan, int subc, int mthd, int size)
+BEGIN_NIC0(struct yesuveau_channel *chan, int subc, int mthd, int size)
 {
 	OUT_RING(chan, 0x60000000 | (size << 16) | (subc << 13) | (mthd >> 2));
 }
 
 static inline void
-BEGIN_IMC0(struct nouveau_channel *chan, int subc, int mthd, u16 data)
+BEGIN_IMC0(struct yesuveau_channel *chan, int subc, int mthd, u16 data)
 {
 	OUT_RING(chan, 0x80000000 | (data << 16) | (subc << 13) | (mthd >> 2));
 }
 
 #define WRITE_PUT(val) do {                                                    \
 	mb();                                                   \
-	nouveau_bo_rd32(chan->push.buffer, 0);                                 \
+	yesuveau_bo_rd32(chan->push.buffer, 0);                                 \
 	nvif_wr32(&chan->user, chan->user_put, ((val) << 2) + chan->push.addr);\
 } while (0)
 
 static inline void
-FIRE_RING(struct nouveau_channel *chan)
+FIRE_RING(struct yesuveau_channel *chan)
 {
 	if (chan->dma.cur == chan->dma.put)
 		return;
@@ -159,7 +159,7 @@ FIRE_RING(struct nouveau_channel *chan)
 }
 
 static inline void
-WIND_RING(struct nouveau_channel *chan)
+WIND_RING(struct yesuveau_channel *chan)
 {
 	chan->dma.cur = chan->dma.put;
 }

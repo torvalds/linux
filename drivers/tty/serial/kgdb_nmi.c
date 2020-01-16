@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/compiler.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/atomic.h>
 #include <linux/console.h>
 #include <linux/tty.h>
@@ -27,11 +27,11 @@
 #include <linux/kgdb.h>
 #include <linux/kdb.h>
 
-static int kgdb_nmi_knock = 1;
-module_param_named(knock, kgdb_nmi_knock, int, 0600);
-MODULE_PARM_DESC(knock, "if set to 1 (default), the special '$3#33' command " \
+static int kgdb_nmi_kyesck = 1;
+module_param_named(kyesck, kgdb_nmi_kyesck, int, 0600);
+MODULE_PARM_DESC(kyesck, "if set to 1 (default), the special '$3#33' command " \
 			"must be used to enter the debugger; when set to 0, " \
-			"hitting return key is enough to enter the debugger; " \
+			"hitting return key is eyesugh to enter the debugger; " \
 			"when set to -1, the debugger is entered immediately " \
 			"upon NMI");
 
@@ -81,7 +81,7 @@ static struct console kgdb_nmi_console = {
 };
 
 /*
- * This is usually the maximum rate on debug ports. We make fifo large enough
+ * This is usually the maximum rate on debug ports. We make fifo large eyesugh
  * to make copy-pasting to the terminal usable.
  */
 #define KGDB_NMI_BAUD		115200
@@ -103,16 +103,16 @@ static void kgdb_tty_recv(int ch)
 	if (!kgdb_nmi_port || ch < 0)
 		return;
 	/*
-	 * Can't use port->tty->driver_data as tty might be not there. Timer
+	 * Can't use port->tty->driver_data as tty might be yest there. Timer
 	 * will check for tty and will get the ref, but here we don't have to
-	 * do that, and actually, we can't: we're in NMI context, no locks are
+	 * do that, and actually, we can't: we're in NMI context, yes locks are
 	 * possible.
 	 */
 	priv = container_of(kgdb_nmi_port, struct kgdb_nmi_tty_priv, port);
 	kfifo_in(&priv->fifo, &c, 1);
 }
 
-static int kgdb_nmi_poll_one_knock(void)
+static int kgdb_nmi_poll_one_kyesck(void)
 {
 	static int n;
 	int c = -1;
@@ -124,7 +124,7 @@ static int kgdb_nmi_poll_one_knock(void)
 	if (c == NO_POLL_CHAR)
 		return c;
 
-	if (!kgdb_nmi_knock && (c == '\r' || c == '\n')) {
+	if (!kgdb_nmi_kyesck && (c == '\r' || c == '\n')) {
 		return 1;
 	} else if (c == magic[n]) {
 		n = (n + 1) % m;
@@ -146,36 +146,36 @@ static int kgdb_nmi_poll_one_knock(void)
 	}
 
 	kdb_printf("\r%s %s to enter the debugger> %*s",
-		   kgdb_nmi_knock ? "Type" : "Hit",
-		   kgdb_nmi_knock ? magic  : "<return>", (int)m, "");
+		   kgdb_nmi_kyesck ? "Type" : "Hit",
+		   kgdb_nmi_kyesck ? magic  : "<return>", (int)m, "");
 	while (m--)
 		kdb_printf("\b");
 	return 0;
 }
 
 /**
- * kgdb_nmi_poll_knock - Check if it is time to enter the debugger
+ * kgdb_nmi_poll_kyesck - Check if it is time to enter the debugger
  *
- * "Serial ports are often noisy, especially when muxed over another port (we
+ * "Serial ports are often yesisy, especially when muxed over ayesther port (we
  * often use serial over the headset connector). Noise on the async command
- * line just causes characters that are ignored, on a command line that blocked
- * execution noise would be catastrophic." -- Colin Cross
+ * line just causes characters that are igyesred, on a command line that blocked
+ * execution yesise would be catastrophic." -- Colin Cross
  *
- * So, this function implements KGDB/KDB knocking on the serial line: we won't
- * enter the debugger until we receive a known magic phrase (which is actually
- * "$3#33", known as "escape to KDB" command. There is also a relaxed variant
- * of knocking, i.e. just pressing the return key is enough to enter the
- * debugger. And if knocking is disabled, the function always returns 1.
+ * So, this function implements KGDB/KDB kyescking on the serial line: we won't
+ * enter the debugger until we receive a kyeswn magic phrase (which is actually
+ * "$3#33", kyeswn as "escape to KDB" command. There is also a relaxed variant
+ * of kyescking, i.e. just pressing the return key is eyesugh to enter the
+ * debugger. And if kyescking is disabled, the function always returns 1.
  */
-bool kgdb_nmi_poll_knock(void)
+bool kgdb_nmi_poll_kyesck(void)
 {
-	if (kgdb_nmi_knock < 0)
+	if (kgdb_nmi_kyesck < 0)
 		return true;
 
 	while (1) {
 		int ret;
 
-		ret = kgdb_nmi_poll_one_knock();
+		ret = kgdb_nmi_poll_one_kyesck();
 		if (ret == NO_POLL_CHAR)
 			return false;
 		else if (ret == 1)
@@ -185,7 +185,7 @@ bool kgdb_nmi_poll_knock(void)
 }
 
 /*
- * The tasklet is cheap, it does not cause wakeups when reschedules itself,
+ * The tasklet is cheap, it does yest cause wakeups when reschedules itself,
  * instead it waits for the next tick.
  */
 static void kgdb_nmi_tty_receiver(struct timer_list *t)
@@ -332,7 +332,7 @@ int kgdb_register_nmi_console(void)
 
 	kgdb_nmi_tty_driver = alloc_tty_driver(1);
 	if (!kgdb_nmi_tty_driver) {
-		pr_err("%s: cannot allocate tty\n", __func__);
+		pr_err("%s: canyest allocate tty\n", __func__);
 		return -ENOMEM;
 	}
 	kgdb_nmi_tty_driver->driver_name	= "ttyNMI";

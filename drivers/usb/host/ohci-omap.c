@@ -90,19 +90,19 @@ static void omap_ohci_clock_power(int on)
 
 /*
  * Board specific gang-switched transceiver power on/off.
- * NOTE:  OSK supplies power from DC, not battery.
+ * NOTE:  OSK supplies power from DC, yest battery.
  */
 static int omap_ohci_transceiver_power(int on)
 {
 	if (on) {
-		if (machine_is_omap_innovator() && cpu_is_omap1510())
+		if (machine_is_omap_inyesvator() && cpu_is_omap1510())
 			__raw_writeb(__raw_readb(INNOVATOR_FPGA_CAM_USB_CONTROL)
 				| ((1 << 5/*usb1*/) | (1 << 3/*usb2*/)),
 			       INNOVATOR_FPGA_CAM_USB_CONTROL);
 		else if (machine_is_omap_osk())
 			tps65010_set_gpio_out_value(GPIO1, LOW);
 	} else {
-		if (machine_is_omap_innovator() && cpu_is_omap1510())
+		if (machine_is_omap_inyesvator() && cpu_is_omap1510())
 			__raw_writeb(__raw_readb(INNOVATOR_FPGA_CAM_USB_CONTROL)
 				& ~((1 << 5/*usb1*/) | (1 << 3/*usb2*/)),
 			       INNOVATOR_FPGA_CAM_USB_CONTROL);
@@ -207,7 +207,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 		hcd->power_budget = 8;
 	}
 
-	/* boards can use OTG transceivers in non-OTG modes */
+	/* boards can use OTG transceivers in yesn-OTG modes */
 	need_transceiver = need_transceiver
 			|| machine_is_omap_h2() || machine_is_omap_h3();
 
@@ -252,7 +252,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 	}
 
 	/* board-specific power switching and overcurrent support */
-	if (machine_is_omap_osk() || machine_is_omap_innovator()) {
+	if (machine_is_omap_osk() || machine_is_omap_inyesvator()) {
 		u32	rh = roothub_a (ohci);
 
 		/* power switching (ganged by default) */
@@ -269,12 +269,12 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 			gpio_request(9, "OHCI overcurrent");
 			gpio_direction_input(9);
 
-			/* for paranoia's sake:  disable USB.PUEN */
+			/* for parayesia's sake:  disable USB.PUEN */
 			omap_cfg_reg(W4_USB_HIGHZ);
 		}
 		ohci_writel(ohci, rh, &ohci->regs->roothub.a);
 		ohci->flags &= ~OHCI_QUIRK_HUB_POWER;
-	} else if (machine_is_nokia770()) {
+	} else if (machine_is_yeskia770()) {
 		/* We require a self-powered hub, which should have
 		 * plenty of power. */
 		ohci_to_hcd(ohci)->power_budget = 0;
@@ -285,7 +285,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 
 	/* board init will have already handled HMC and mux setup.
 	 * any external transceiver should already be initialized
-	 * too, so all configured ports use the right signaling now.
+	 * too, so all configured ports use the right signaling yesw.
 	 */
 
 	return 0;
@@ -388,7 +388,7 @@ err0:
  *
  * Reverses the effect of ohci_hcd_omap_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
- * context, normally "rmmod", "apmd", or something similar.
+ * context, yesrmally "rmmod", "apmd", or something similar.
  */
 static int ohci_hcd_omap_remove(struct platform_device *pdev)
 {

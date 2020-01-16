@@ -60,7 +60,7 @@ ftrace_modify_code(unsigned long ip, unsigned int old, unsigned int new)
 
 	/*
 	 * Note:
-	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * We are parayesid about modifying text, as if a bug was to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with probe_kernel_*(), and make
 	 * sure what we read is what we expected it to be before modifying it.
@@ -120,7 +120,7 @@ static unsigned long find_bl_target(unsigned long ip, unsigned int op)
 #ifdef CONFIG_MODULES
 #ifdef CONFIG_PPC64
 static int
-__ftrace_make_nop(struct module *mod,
+__ftrace_make_yesp(struct module *mod,
 		  struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long entry, ptr, tramp;
@@ -154,12 +154,12 @@ __ftrace_make_nop(struct module *mod,
 	entry = ppc_global_function_entry((void *)addr);
 	/* This should match what was called */
 	if (ptr != entry) {
-		pr_err("addr %lx does not match expected %lx\n", ptr, entry);
+		pr_err("addr %lx does yest match expected %lx\n", ptr, entry);
 		return -EINVAL;
 	}
 
 #ifdef CONFIG_MPROFILE_KERNEL
-	/* When using -mkernel_profile there is no load to jump over */
+	/* When using -mkernel_profile there is yes load to jump over */
 	pop = PPC_INST_NOP;
 
 	if (probe_kernel_read(&op, (void *)(ip - 4), 4)) {
@@ -179,8 +179,8 @@ __ftrace_make_nop(struct module *mod,
 	 * bl <tramp>
 	 * ld r2,XX(r1)
 	 *
-	 * Milton Miller pointed out that we can not simply nop the branch.
-	 * If a task was preempted when calling a trace function, the nops
+	 * Milton Miller pointed out that we can yest simply yesp the branch.
+	 * If a task was preempted when calling a trace function, the yesps
 	 * will remove the way to restore the TOC in r2 and the r2 TOC will
 	 * get corrupted.
 	 *
@@ -214,7 +214,7 @@ __ftrace_make_nop(struct module *mod,
 
 #else /* !PPC64 */
 static int
-__ftrace_make_nop(struct module *mod,
+__ftrace_make_yesp(struct module *mod,
 		  struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned int op;
@@ -269,7 +269,7 @@ __ftrace_make_nop(struct module *mod,
 	pr_devel(" %lx ", tramp);
 
 	if (tramp != addr) {
-		pr_err("Trampoline location %08lx does not match addr\n",
+		pr_err("Trampoline location %08lx does yest match addr\n",
 		       tramp);
 		return -EINVAL;
 	}
@@ -317,7 +317,7 @@ static int add_ftrace_tramp(unsigned long tramp)
 /*
  * If this is a compiler generated long_branch trampoline (essentially, a
  * trampoline that has a branch to _mcount()), we re-write the branch to
- * instead go to ftrace_[regs_]caller() and note down the location of this
+ * instead go to ftrace_[regs_]caller() and yeste down the location of this
  * trampoline.
  */
 static int setup_mcount_compiler_tramp(unsigned long tramp)
@@ -326,14 +326,14 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 	unsigned long ptr;
 	static unsigned long ftrace_plt_tramps[NUM_FTRACE_TRAMPS];
 
-	/* Is this a known long jump tramp? */
+	/* Is this a kyeswn long jump tramp? */
 	for (i = 0; i < NUM_FTRACE_TRAMPS; i++)
 		if (!ftrace_tramps[i])
 			break;
 		else if (ftrace_tramps[i] == tramp)
 			return 0;
 
-	/* Is this a known plt tramp? */
+	/* Is this a kyeswn plt tramp? */
 	for (i = 0; i < NUM_FTRACE_TRAMPS; i++)
 		if (!ftrace_plt_tramps[i])
 			break;
@@ -348,7 +348,7 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 
 	/* Is this a 24 bit branch? */
 	if (!is_b_op(op)) {
-		pr_debug("Trampoline is not a long branch tramp.\n");
+		pr_debug("Trampoline is yest a long branch tramp.\n");
 		return -1;
 	}
 
@@ -356,7 +356,7 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 	ptr = find_bl_target(tramp, op);
 
 	if (ptr != ppc_global_function_entry((void *)_mcount)) {
-		pr_debug("Trampoline target %p is not _mcount\n", (void *)ptr);
+		pr_debug("Trampoline target %p is yest _mcount\n", (void *)ptr);
 		return -1;
 	}
 
@@ -367,7 +367,7 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 	ptr = ppc_global_function_entry((void *)ftrace_caller);
 #endif
 	if (!create_branch((void *)tramp, ptr, 0)) {
-		pr_debug("%ps is not reachable from existing mcount tramp\n",
+		pr_debug("%ps is yest reachable from existing mcount tramp\n",
 				(void *)ptr);
 		return -1;
 	}
@@ -385,7 +385,7 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 	return 0;
 }
 
-static int __ftrace_make_nop_kernel(struct dyn_ftrace *rec, unsigned long addr)
+static int __ftrace_make_yesp_kernel(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long tramp, ip = rec->ip;
 	unsigned int op;
@@ -424,7 +424,7 @@ static int __ftrace_make_nop_kernel(struct dyn_ftrace *rec, unsigned long addr)
 	return 0;
 }
 
-int ftrace_make_nop(struct module *mod,
+int ftrace_make_yesp(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long ip = rec->ip;
@@ -441,7 +441,7 @@ int ftrace_make_nop(struct module *mod,
 		new = PPC_INST_NOP;
 		return ftrace_modify_code(ip, old, new);
 	} else if (core_kernel_text(ip))
-		return __ftrace_make_nop_kernel(rec, addr);
+		return __ftrace_make_yesp_kernel(rec, addr);
 
 #ifdef CONFIG_MODULES
 	/*
@@ -457,17 +457,17 @@ int ftrace_make_nop(struct module *mod,
 		rec->arch.mod = mod;
 	} else if (mod) {
 		if (mod != rec->arch.mod) {
-			pr_err("Record mod %p not equal to passed in mod %p\n",
+			pr_err("Record mod %p yest equal to passed in mod %p\n",
 			       rec->arch.mod, mod);
 			return -EINVAL;
 		}
-		/* nothing to do if mod == rec->arch.mod */
+		/* yesthing to do if mod == rec->arch.mod */
 	} else
 		mod = rec->arch.mod;
 
-	return __ftrace_make_nop(mod, rec, addr);
+	return __ftrace_make_yesp(mod, rec, addr);
 #else
-	/* We should not get here without modules */
+	/* We should yest get here without modules */
 	return -EINVAL;
 #endif /* CONFIG_MODULES */
 }
@@ -481,7 +481,7 @@ int ftrace_make_nop(struct module *mod,
  */
 #ifndef CONFIG_MPROFILE_KERNEL
 static int
-expected_nop_sequence(void *ip, unsigned int op0, unsigned int op1)
+expected_yesp_sequence(void *ip, unsigned int op0, unsigned int op1)
 {
 	/*
 	 * We expect to see:
@@ -498,7 +498,7 @@ expected_nop_sequence(void *ip, unsigned int op0, unsigned int op1)
 }
 #else
 static int
-expected_nop_sequence(void *ip, unsigned int op0, unsigned int op1)
+expected_yesp_sequence(void *ip, unsigned int op0, unsigned int op1)
 {
 	/* look for patched "NOP" on ppc64 with -mprofile-kernel */
 	if (op0 != PPC_INST_NOP)
@@ -519,7 +519,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	if (probe_kernel_read(op, ip, sizeof(op)))
 		return -EFAULT;
 
-	if (!expected_nop_sequence(ip, op[0], op[1])) {
+	if (!expected_yesp_sequence(ip, op[0], op[1])) {
 		pr_err("Unexpected call sequence at %p: %x %x\n",
 		ip, op[0], op[1]);
 		return -EINVAL;
@@ -552,7 +552,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	entry = ppc_global_function_entry((void *)addr);
 	/* This should match what was called */
 	if (ptr != entry) {
-		pr_err("addr %lx does not match expected %lx\n", ptr, entry);
+		pr_err("addr %lx does yest match expected %lx\n", ptr, entry);
 		return -EINVAL;
 	}
 
@@ -581,7 +581,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	if (probe_kernel_read(&op, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
-	/* It should be pointing to a nop */
+	/* It should be pointing to a yesp */
 	if (op != PPC_INST_NOP) {
 		pr_err("Expected NOP but have %x\n", op);
 		return -EINVAL;
@@ -617,7 +617,7 @@ static int __ftrace_make_call_kernel(struct dyn_ftrace *rec, unsigned long addr)
 	void *ip = (void *)rec->ip;
 	unsigned long tramp, entry, ptr;
 
-	/* Make sure we're being asked to patch branch to a known ftrace addr */
+	/* Make sure we're being asked to patch branch to a kyeswn ftrace addr */
 	entry = ppc_global_function_entry((void *)ftrace_caller);
 	ptr = ppc_global_function_entry((void *)addr);
 
@@ -626,14 +626,14 @@ static int __ftrace_make_call_kernel(struct dyn_ftrace *rec, unsigned long addr)
 		entry = ppc_global_function_entry((void *)ftrace_regs_caller);
 		if (ptr != entry) {
 #endif
-			pr_err("Unknown ftrace addr to patch: %ps\n", (void *)ptr);
+			pr_err("Unkyeswn ftrace addr to patch: %ps\n", (void *)ptr);
 			return -EINVAL;
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 		}
 #endif
 	}
 
-	/* Make sure we have a nop */
+	/* Make sure we have a yesp */
 	if (probe_kernel_read(&op, ip, sizeof(op))) {
 		pr_err("Unable to read ftrace location %p\n", ip);
 		return -EFAULT;
@@ -679,7 +679,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 #ifdef CONFIG_MODULES
 	/*
 	 * Out of range jumps are called from modules.
-	 * Being that we are converting from nop, it had better
+	 * Being that we are converting from yesp, it had better
 	 * already have a module defined.
 	 */
 	if (!rec->arch.mod) {
@@ -689,7 +689,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	return __ftrace_make_call(rec, addr);
 #else
-	/* We should not get here without modules */
+	/* We should yest get here without modules */
 	return -EINVAL;
 #endif /* CONFIG_MODULES */
 }
@@ -730,7 +730,7 @@ __ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	pr_devel("ip:%lx jumps to %lx", ip, tramp);
 
 	if (tramp != entry) {
-		/* old_addr is not within range, so we must have used a trampoline */
+		/* old_addr is yest within range, so we must have used a trampoline */
 		if (module_trampoline_target(mod, tramp, &ptr)) {
 			pr_err("Failed to get trampoline target\n");
 			return -EFAULT;
@@ -740,7 +740,7 @@ __ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 
 		/* This should match what was called */
 		if (ptr != entry) {
-			pr_err("addr %lx does not match expected %lx\n", ptr, entry);
+			pr_err("addr %lx does yest match expected %lx\n", ptr, entry);
 			return -EINVAL;
 		}
 	}
@@ -771,7 +771,7 @@ __ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	entry = ppc_global_function_entry((void *)addr);
 	/* This should match what was called */
 	if (ptr != entry) {
-		pr_err("addr %lx does not match expected %lx\n", ptr, entry);
+		pr_err("addr %lx does yest match expected %lx\n", ptr, entry);
 		return -EINVAL;
 	}
 
@@ -809,7 +809,7 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	} else if (core_kernel_text(ip)) {
 		/*
 		 * We always patch out of range locations to go to the regs
-		 * variant, so there is nothing to do here
+		 * variant, so there is yesthing to do here
 		 */
 		return 0;
 	}
@@ -825,7 +825,7 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 
 	return __ftrace_modify_call(rec, old_addr, addr);
 #else
-	/* We should not get here without modules */
+	/* We should yest get here without modules */
 	return -EINVAL;
 #endif /* CONFIG_MODULES */
 }

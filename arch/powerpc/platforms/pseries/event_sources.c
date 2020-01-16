@@ -8,7 +8,7 @@
 
 #include "pseries.h"
 
-void request_event_sources_irqs(struct device_node *np,
+void request_event_sources_irqs(struct device_yesde *np,
 				irq_handler_t handler,
 				const char *name)
 {

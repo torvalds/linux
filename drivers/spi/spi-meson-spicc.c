@@ -22,12 +22,12 @@
 #include <linux/gpio.h>
 
 /*
- * The Meson SPICC controller could support DMA based transfers, but is not
+ * The Meson SPICC controller could support DMA based transfers, but is yest
  * implemented by the vendor code, and while having the registers documentation
  * it has never worked on the GXL Hardware.
  * The PIO mode is the only mode implemented, and due to badly designed HW :
  * - all transfers are cutted in 16 words burst because the FIFO hangs on
- *   TX underflow, and there is no TX "Half-Empty" interrupt, so we go by
+ *   TX underflow, and there is yes TX "Half-Empty" interrupt, so we go by
  *   FIFO max size chunk only
  * - CS management is dumb, and goes UP between every burst, so is really a
  *   "Data Valid" signal than a Chip Select, GPIO link should be used instead
@@ -348,7 +348,7 @@ static void meson_spicc_setup_xfer(struct meson_spicc_device *spicc,
 	conf |= FIELD_PREP(SPICC_BITLENGTH_MASK,
 			   (spicc->bytes_per_word << 3) - 1);
 
-	/* Ignore if unchanged */
+	/* Igyesre if unchanged */
 	if (conf != conf_orig)
 		writel_relaxed(conf, spicc->base + SPICC_CONREG);
 }
@@ -442,7 +442,7 @@ static int meson_spicc_prepare_message(struct spi_master *master,
 
 	writel_relaxed(conf, spicc->base + SPICC_CONREG);
 
-	/* Setup no wait cycles by default */
+	/* Setup yes wait cycles by default */
 	writel_relaxed(0, spicc->base + SPICC_PERIODREG);
 
 	writel_bits_relaxed(BIT(24), BIT(24), spicc->base + SPICC_TESTREG);
@@ -551,7 +551,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	device_reset_optional(&pdev->dev);
 
 	master->num_chipselect = 4;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH;
 	master->bits_per_word_mask = SPI_BPW_MASK(32) |
 				     SPI_BPW_MASK(24) |

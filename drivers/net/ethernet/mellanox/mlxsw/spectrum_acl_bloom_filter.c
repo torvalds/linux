@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellayesx Techyeslogies. All rights reserved */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/refcount.h>
@@ -62,7 +62,7 @@ struct mlxsw_sp_acl_bf {
 static const u8 chunk_key_offsets[MLXSW_BLOOM_KEY_CHUNKS] = {2, 20, 38};
 
 /* This table is just the CRC of each possible byte. It is
- * computed, Msbit first, for the Bloom filter polynomial
+ * computed, Msbit first, for the Bloom filter polyyesmial
  * which is 0x8529 (1 + x^3 + x^5 + x^8 + x^10 + x^15 and
  * the implicit x^16).
  */
@@ -180,7 +180,7 @@ mlxsw_sp_acl_bf_entry_add(struct mlxsw_sp *mlxsw_sp,
 	rule_index = mlxsw_sp_acl_bf_rule_count_index_get(bf, erp_bank,
 							  bf_index);
 
-	if (refcount_inc_not_zero(&bf->refcnt[rule_index])) {
+	if (refcount_inc_yest_zero(&bf->refcnt[rule_index])) {
 		err = 0;
 		goto unlock;
 	}

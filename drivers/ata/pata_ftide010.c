@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Faraday Technology FTIDE010 driver
+ * Faraday Techyeslogy FTIDE010 driver
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  *
  * Includes portions of the SL2312/SL3516/Gemini PATA driver
  * Copyright (C) 2003 StorLine, Inc <jason@storlink.com.tw>
- * Copyright (C) 2009 Janos Laube <janos.dev@gmail.com>
+ * Copyright (C) 2009 Jayess Laube <jayess.dev@gmail.com>
  * Copyright (C) 2010 Frederic Pecourt <opengemini@free.fr>
  * Copyright (C) 2011 Tobias Waldvogel <tobias.waldvogel@gmail.com>
  */
@@ -92,8 +92,8 @@ static struct scsi_host_template pata_ftide010_sht = {
  * Bus timings
  *
  * The unit of the below required timings is two clock periods of the ATA
- * reference clock which is 30 nanoseconds per unit at 66MHz and 20
- * nanoseconds per unit at 50 MHz. The PIO timings assume 33MHz speed for
+ * reference clock which is 30 nayesseconds per unit at 66MHz and 20
+ * nayesseconds per unit at 50 MHz. The PIO timings assume 33MHz speed for
  * PIO.
  *
  * pio_active_time: array of 5 elements for T2 timing for Mode 0,
@@ -134,7 +134,7 @@ static const u8 udma_66_hold_time[7] = {};
 static const bool set_mdma_66_mhz[] = { true, true, true, true };
 
 /*
- * We set 66 MHz for UDMA modes 3, 4 and 6 and no others
+ * We set 66 MHz for UDMA modes 3, 4 and 6 and yes others
  */
 static const bool set_udma_66_mhz[] = { false, false, false, true, true, false, true };
 
@@ -142,7 +142,7 @@ static void ftide010_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct ftide010 *ftide = ap->host->private_data;
 	u8 speed = adev->dma_mode;
-	u8 devno = adev->devno & 1;
+	u8 devyes = adev->devyes & 1;
 	u8 udma_en_mask;
 	u8 f66m_en_mask;
 	u8 clkreg;
@@ -150,7 +150,7 @@ static void ftide010_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	u8 i;
 
 	/* Target device 0 (master) or 1 (slave) */
-	if (!devno) {
+	if (!devyes) {
 		udma_en_mask = FTIDE010_CLK_MOD_DEV0_UDMA_EN;
 		f66m_en_mask = FTIDE010_CLK_MOD_DEV0_CLK_SEL;
 	} else {
@@ -185,7 +185,7 @@ static void ftide010_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 			clkreg, timreg);
 
 		writeb(clkreg, ftide->base + FTIDE010_CLK_MOD);
-		writeb(timreg, ftide->base + FTIDE010_UDMA_TIMING0 + devno);
+		writeb(timreg, ftide->base + FTIDE010_UDMA_TIMING0 + devyes);
 	} else {
 		i = speed & ~XFER_MW_DMA_0;
 		dev_dbg(ftide->dev, "set MWDMA mode %02x, index %d\n",
@@ -341,7 +341,7 @@ static int pata_ftide010_gemini_cable_detect(struct ata_port *ap)
 	struct ftide010 *ftide = ap->host->private_data;
 
 	/*
-	 * Return the master cable, I have no clue how to return a different
+	 * Return the master cable, I have yes clue how to return a different
 	 * cable for the slave than for the master.
 	 */
 	return ftide->master_cbl;
@@ -452,7 +452,7 @@ static int pata_ftide010_gemini_init(struct ftide010 *ftide,
 static int pata_ftide010_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct ata_port_info pi = ftide010_port_info;
 	const struct ata_port_info *ppi[] = { &pi, NULL };
 	struct ftide010 *ftide;
@@ -490,7 +490,7 @@ static int pata_ftide010_probe(struct platform_device *pdev)
 	/* Some special Cortina Gemini init, if needed */
 	if (of_device_is_compatible(np, "cortina,gemini-pata")) {
 		/*
-		 * We need to know which instance is probing (the
+		 * We need to kyesw which instance is probing (the
 		 * Gemini has two instances of FTIDE010) and we do
 		 * this simply by looking at the physical base
 		 * address, which is 0x63400000 for ATA1, else we

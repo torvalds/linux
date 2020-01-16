@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2015, Mellayesx Techyeslogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -114,7 +114,7 @@ struct mlx5_vport_info {
 	u8                      mac[ETH_ALEN];
 	u16                     vlan;
 	u8                      qos;
-	u64                     node_guid;
+	u64                     yesde_guid;
 	int                     link_state;
 	u32                     min_rate;
 	u32                     max_rate;
@@ -212,9 +212,9 @@ struct mlx5_esw_offload {
 	enum devlink_eswitch_encap_mode encap;
 };
 
-/* E-Switch MC FDB table hash node */
+/* E-Switch MC FDB table hash yesde */
 struct esw_mc_addr { /* SRIOV only */
-	struct l2addr_node     node;
+	struct l2addr_yesde     yesde;
 	struct mlx5_flow_handle *uplink_rule; /* Forward to uplink rule */
 	u32                    refcnt;
 };
@@ -499,7 +499,7 @@ static inline bool mlx5_eswitch_is_funcs_handler(struct mlx5_core_dev *dev)
 	/* Ideally device should have the functions changed supported
 	 * capability regardless of it being ECPF or PF wherever such
 	 * event should be processed such as on eswitch manager device.
-	 * However, some ECPF based device might not have this capability
+	 * However, some ECPF based device might yest have this capability
 	 * set. Hence OR for ECPF check to cover such device.
 	 */
 	return MLX5_CAP_ESW(dev, esw_functions_changed) ||
@@ -595,7 +595,7 @@ void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
 #define mlx5_esw_for_each_vf_vport_num_reverse(esw, vport, nvfs)	\
 	for ((vport) = (nvfs); (vport) >= MLX5_VPORT_FIRST_VF; (vport)--)
 
-/* Includes host PF (vport 0) if it's not esw manager. */
+/* Includes host PF (vport 0) if it's yest esw manager. */
 #define mlx5_esw_for_each_host_func_rep(esw, i, rep, nvfs)	\
 	for ((i) = (esw)->first_host_vport;			\
 	     (rep) = &(esw)->offloads.vport_reps[i],		\
@@ -620,7 +620,7 @@ mlx5_eswitch_get_vport(struct mlx5_eswitch *esw, u16 vport_num);
 bool mlx5_eswitch_is_vf_vport(const struct mlx5_eswitch *esw, u16 vport_num);
 
 void mlx5_eswitch_update_num_of_vfs(struct mlx5_eswitch *esw, const int num_vfs);
-int mlx5_esw_funcs_changed_handler(struct notifier_block *nb, unsigned long type, void *data);
+int mlx5_esw_funcs_changed_handler(struct yestifier_block *nb, unsigned long type, void *data);
 
 int
 mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,

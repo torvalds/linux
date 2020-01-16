@@ -35,7 +35,7 @@
 #define GLOBAL_MIC_MUTE_ENABLE	0x0364
 #define GLOBAL_MIC_MUTE_DISABLE	0x0365
 
-struct notifier_block;
+struct yestifier_block;
 
 struct calling_interface_token {
 	u16 tokenID;
@@ -64,13 +64,13 @@ int dell_smbios_call(struct calling_interface_buffer *buffer);
 
 struct calling_interface_token *dell_smbios_find_token(int tokenid);
 
-enum dell_laptop_notifier_actions {
+enum dell_laptop_yestifier_actions {
 	DELL_LAPTOP_KBD_BACKLIGHT_BRIGHTNESS_CHANGED,
 };
 
-int dell_laptop_register_notifier(struct notifier_block *nb);
-int dell_laptop_unregister_notifier(struct notifier_block *nb);
-void dell_laptop_call_notifier(unsigned long action, void *data);
+int dell_laptop_register_yestifier(struct yestifier_block *nb);
+int dell_laptop_unregister_yestifier(struct yestifier_block *nb);
+void dell_laptop_call_yestifier(unsigned long action, void *data);
 
 /* for the supported backends */
 #ifdef CONFIG_DELL_SMBIOS_WMI

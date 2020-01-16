@@ -57,8 +57,8 @@ struct thread_info {
  * local register variable within current_thread_info() because clang doesn't
  * support explicit local register variables.
  *
- * When building the VDSO we take care not to declare the global register
- * variable because this causes GCC to not preserve the value of $28/$gp in
+ * When building the VDSO we take care yest to declare the global register
+ * variable because this causes GCC to yest preserve the value of $28/$gp in
  * functions that change its value (which is common in the PIC VDSO when
  * accessing the GOT). Since the VDSO shouldn't be accessing
  * __current_thread_info anyway we declare it extern in order to cause a link
@@ -118,7 +118,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_RESTORE_SIGMASK	9	/* restore signal mask in do_signal() */
 #define TIF_USEDFPU		16	/* FPU was used by this task this quantum (SMP) */
 #define TIF_MEMDIE		18	/* is terminating due to OOM killer */
-#define TIF_NOHZ		19	/* in adaptive nohz mode */
+#define TIF_NOHZ		19	/* in adaptive yeshz mode */
 #define TIF_FIXADE		20	/* Fix address errors in software */
 #define TIF_LOGADE		21	/* Log address errors to syslog */
 #define TIF_32BIT_REGS		22	/* 32-bit general purpose registers */

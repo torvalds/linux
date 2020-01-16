@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -378,7 +378,7 @@ struct bw_context {
  * @res_ctx: Persistent state of resources
  * @bw_ctx: The output from bandwidth and watermark calculations and the DML
  * @pp_display_cfg: PowerPlay clocks and settings
- * @dcn_bw_vars: non-stack memory to support bandwidth calculations
+ * @dcn_bw_vars: yesn-stack memory to support bandwidth calculations
  *
  */
 struct dc_state {
@@ -390,7 +390,7 @@ struct dc_state {
 
 	struct bw_context bw_ctx;
 
-	/* Note: these are big structures, do *not* put on stack! */
+	/* Note: these are big structures, do *yest* put on stack! */
 	struct dm_pp_display_configuration pp_display_cfg;
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	struct dcn_bw_internal_vars dcn_bw_vars;

@@ -78,7 +78,7 @@ found:
 }
 
 /* When processing receive frames, there are two cases to
- * consider. Data frames consist of a non-zero session-id and an
+ * consider. Data frames consist of a yesn-zero session-id and an
  * optional cookie. Control frames consist of a regular L2TP header
  * preceded by 32-bits of zeros.
  *
@@ -215,7 +215,7 @@ static int l2tp_ip_open(struct sock *sk)
 	inet_sk(sk)->inet_num = IPPROTO_L2TP;
 
 	write_lock_bh(&l2tp_ip_lock);
-	sk_add_node(sk, &l2tp_ip_table);
+	sk_add_yesde(sk, &l2tp_ip_table);
 	write_unlock_bh(&l2tp_ip_lock);
 
 	return 0;
@@ -224,8 +224,8 @@ static int l2tp_ip_open(struct sock *sk)
 static void l2tp_ip_close(struct sock *sk, long timeout)
 {
 	write_lock_bh(&l2tp_ip_lock);
-	hlist_del_init(&sk->sk_bind_node);
-	sk_del_node_init(sk);
+	hlist_del_init(&sk->sk_bind_yesde);
+	sk_del_yesde_init(sk);
 	write_unlock_bh(&l2tp_ip_lock);
 	sk_common_release(sk);
 }
@@ -286,8 +286,8 @@ static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	sk_dst_reset(sk);
 	l2tp_ip_sk(sk)->conn_id = addr->l2tp_conn_id;
 
-	sk_add_bind_node(sk, &l2tp_ip_bind_table);
-	sk_del_node_init(sk);
+	sk_add_bind_yesde(sk, &l2tp_ip_bind_table);
+	sk_del_yesde_init(sk);
 	write_unlock_bh(&l2tp_ip_lock);
 
 	ret = 0;
@@ -312,7 +312,7 @@ static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 
 	lock_sock(sk);
 
-	/* Must bind first - autobinding does not work */
+	/* Must bind first - autobinding does yest work */
 	if (sock_flag(sk, SOCK_ZAPPED)) {
 		rc = -EINVAL;
 		goto out_sk;
@@ -325,8 +325,8 @@ static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 	l2tp_ip_sk(sk)->peer_conn_id = lsa->l2tp_conn_id;
 
 	write_lock_bh(&l2tp_ip_lock);
-	hlist_del_init(&sk->sk_bind_node);
-	sk_add_bind_node(sk, &l2tp_ip_bind_table);
+	hlist_del_init(&sk->sk_bind_yesde);
+	sk_add_bind_yesde(sk, &l2tp_ip_bind_table);
 	write_unlock_bh(&l2tp_ip_lock);
 
 out_sk:
@@ -474,7 +474,7 @@ static int l2tp_ip_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 					   sk->sk_protocol, RT_CONN_FLAGS(sk),
 					   sk->sk_bound_dev_if);
 		if (IS_ERR(rt))
-			goto no_route;
+			goto yes_route;
 		if (connected) {
 			sk_setup_caps(sk, &rt->dst);
 		} else {
@@ -483,10 +483,10 @@ static int l2tp_ip_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		}
 	}
 
-	/* We dont need to clone dst here, it is guaranteed to not disappear.
+	/* We dont need to clone dst here, it is guaranteed to yest disappear.
 	 *  __dev_xmit_skb() might force a refcount if needed.
 	 */
-	skb_dst_set_noref(skb, &rt->dst);
+	skb_dst_set_yesref(skb, &rt->dst);
 
 xmit:
 	/* Queue the packet to IP for output */
@@ -501,7 +501,7 @@ out:
 	release_sock(sk);
 	return rc;
 
-no_route:
+yes_route:
 	rcu_read_unlock();
 	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
 	kfree_skb(skb);
@@ -510,7 +510,7 @@ no_route:
 }
 
 static int l2tp_ip_recvmsg(struct sock *sk, struct msghdr *msg,
-			   size_t len, int noblock, int flags, int *addr_len)
+			   size_t len, int yesblock, int flags, int *addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	size_t copied = 0;
@@ -521,7 +521,7 @@ static int l2tp_ip_recvmsg(struct sock *sk, struct msghdr *msg,
 	if (flags & MSG_OOB)
 		goto out;
 
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = skb_recv_datagram(sk, flags, yesblock, &err);
 	if (!skb)
 		goto out;
 
@@ -609,20 +609,20 @@ static const struct proto_ops l2tp_ip_ops = {
 	.release	   = inet_release,
 	.bind		   = inet_bind,
 	.connect	   = inet_dgram_connect,
-	.socketpair	   = sock_no_socketpair,
-	.accept		   = sock_no_accept,
+	.socketpair	   = sock_yes_socketpair,
+	.accept		   = sock_yes_accept,
 	.getname	   = l2tp_ip_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = inet_ioctl,
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,
+	.listen		   = sock_yes_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = sock_common_recvmsg,
-	.mmap		   = sock_no_mmap,
-	.sendpage	   = sock_no_sendpage,
+	.mmap		   = sock_yes_mmap,
+	.sendpage	   = sock_yes_sendpage,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,

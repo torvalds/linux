@@ -9,9 +9,9 @@
  * met:
  *
  *   * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
+ * yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
+ * copyright yestice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
  *
@@ -56,7 +56,7 @@ unsigned HUF_isError(size_t code) { return ERR_isError(code); }
 /*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
-size_t FSE_readNCount(short *normalizedCounter, unsigned *maxSVPtr, unsigned *tableLogPtr, const void *headerBuffer, size_t hbSize)
+size_t FSE_readNCount(short *yesrmalizedCounter, unsigned *maxSVPtr, unsigned *tableLogPtr, const void *headerBuffer, size_t hbSize)
 {
 	const BYTE *const istart = (const BYTE *)headerBuffer;
 	const BYTE *const iend = istart + hbSize;
@@ -105,7 +105,7 @@ size_t FSE_readNCount(short *normalizedCounter, unsigned *maxSVPtr, unsigned *ta
 			if (n0 > *maxSVPtr)
 				return ERROR(maxSymbolValue_tooSmall);
 			while (charnum < n0)
-				normalizedCounter[charnum++] = 0;
+				yesrmalizedCounter[charnum++] = 0;
 			if ((ip <= iend - 7) || (ip + (bitCount >> 3) <= iend - 4)) {
 				ip += bitCount >> 3;
 				bitCount &= 7;
@@ -130,7 +130,7 @@ size_t FSE_readNCount(short *normalizedCounter, unsigned *maxSVPtr, unsigned *ta
 
 			count--;				 /* extra accuracy */
 			remaining -= count < 0 ? -count : count; /* -1 means +1 */
-			normalizedCounter[charnum++] = (short)count;
+			yesrmalizedCounter[charnum++] = (short)count;
 			previous0 = !count;
 			while (remaining < threshold) {
 				nbBits--;
@@ -174,7 +174,7 @@ size_t HUF_readStats_wksp(BYTE *huffWeight, size_t hwSize, U32 *rankStats, U32 *
 	if (!srcSize)
 		return ERROR(srcSize_wrong);
 	iSize = ip[0];
-	/* memset(huffWeight, 0, hwSize);   */ /* is not necessary, even though some analyzer complain ... */
+	/* memset(huffWeight, 0, hwSize);   */ /* is yest necessary, even though some analyzer complain ... */
 
 	if (iSize >= 128) { /* special header */
 		oSize = iSize - 127;
@@ -191,7 +191,7 @@ size_t HUF_readStats_wksp(BYTE *huffWeight, size_t hwSize, U32 *rankStats, U32 *
 				huffWeight[n + 1] = ip[n / 2] & 15;
 			}
 		}
-	} else {						 /* header compressed with FSE (normal case) */
+	} else {						 /* header compressed with FSE (yesrmal case) */
 		if (iSize + 1 > srcSize)
 			return ERROR(srcSize_wrong);
 		oSize = FSE_decompress_wksp(huffWeight, hwSize - 1, ip + 1, iSize, 6, workspace, workspaceSize); /* max (hwSize-1) values decoded, as last one is implied */
@@ -214,7 +214,7 @@ size_t HUF_readStats_wksp(BYTE *huffWeight, size_t hwSize, U32 *rankStats, U32 *
 	if (weightTotal == 0)
 		return ERROR(corruption_detected);
 
-	/* get last non-null symbol weight (implied, total must be 2^n) */
+	/* get last yesn-null symbol weight (implied, total must be 2^n) */
 	{
 		U32 const tableLog = BIT_highbit32(weightTotal) + 1;
 		if (tableLog > HUF_TABLELOG_MAX)

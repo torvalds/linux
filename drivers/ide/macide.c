@@ -38,7 +38,7 @@
 
 /*
  * this register is odd; it doesn't seem to do much and it's
- * not word-aligned like virtually every other hardware register
+ * yest word-aligned like virtually every other hardware register
  * on the Mac...
  */
 

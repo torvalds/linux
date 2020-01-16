@@ -10,7 +10,7 @@ Required properties :
 - clocks : Should contain a reference to the hbus clock
 
 = Data cells =
-Are child nodes of mxs-ocotp, bindings of which as described in
+Are child yesdes of mxs-ocotp, bindings of which as described in
 bindings/nvmem/nvmem.txt
 
 Example for i.MX28:

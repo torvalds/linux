@@ -104,7 +104,7 @@ config SERIAL_SB1250_DUART
 	select SERIAL_CORE
 	default y
 	---help---
-	  Support for the asynchronous serial interface (DUART) included in
+	  Support for the asynchroyesus serial interface (DUART) included in
 	  the BCM1250 and derived System-On-a-Chip (SOC) devices.  Note that
 	  the letter D in DUART stands for "dual", which is how the device
 	  is implemented.  Depending on the SOC configuration there may be
@@ -166,14 +166,14 @@ config SERIAL_ATMEL_TTYAT
 	depends on SERIAL_ATMEL=y
 	help
 	  Say Y here if you wish to have the internal AT91 UARTs
-	  appear as /dev/ttyATn (major 204, minor starting at 154)
-	  instead of the normal /dev/ttySn (major 4, minor starting at
+	  appear as /dev/ttyATn (major 204, miyesr starting at 154)
+	  instead of the yesrmal /dev/ttySn (major 4, miyesr starting at
 	  64). This is necessary if you also want other UARTs, such as
 	  external 8250/16C550 compatible UARTs.
-	  The ttySn nodes are legally reserved for the 8250 serial driver
+	  The ttySn yesdes are legally reserved for the 8250 serial driver
 	  but are often misused by other serial drivers.
 
-	  To use this, you should create suitable ttyATn device nodes in
+	  To use this, you should create suitable ttyATn device yesdes in
 	  /dev/, and pass "console=ttyATn" to the kernel.
 
 	  Say Y if you have an external 8250/16C550 UART.  If unsure, say N.
@@ -183,7 +183,7 @@ config SERIAL_KGDB_NMI
 	depends on KGDB_SERIAL_CONSOLE
 	help
 	  This special driver allows you to temporary use NMI debugger port
-	  as a normal console (assuming that the port is attached to KGDB).
+	  as a yesrmal console (assuming that the port is attached to KGDB).
 
 	  Unlike KDB's disable_nmi command, with this driver you are always
 	  able to go back to the debugger using KGDB escape sequence ($3#33).
@@ -241,7 +241,7 @@ config SERIAL_SAMSUNG
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
-	  providing /dev/ttySAC0, 1 and 2 (note, some machines may not
+	  providing /dev/ttySAC0, 1 and 2 (yeste, some machines may yest
 	  provide all of these ports, depending on how the serial port
 	  pins are configured.
 
@@ -250,7 +250,7 @@ config SERIAL_SAMSUNG_UARTS_4
 	depends on SERIAL_SAMSUNG
 	default y if !(CPU_S3C2410 || CPU_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
 	help
-	  Internal node for the common case of 4 Samsung compatible UARTs
+	  Internal yesde for the common case of 4 Samsung compatible UARTs
 
 config SERIAL_SAMSUNG_UARTS
 	int
@@ -292,7 +292,7 @@ config SERIAL_SIRFSOC
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UART on the CSR SiRFprimaII series,
-	  providing /dev/ttySiRF0, 1 and 2 (note, some machines may not
+	  providing /dev/ttySiRF0, 1 and 2 (yeste, some machines may yest
 	  provide all of these ports, depending on how the serial port
 	  pins are configured).
 
@@ -314,7 +314,7 @@ config SERIAL_TEGRA
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the NVIDIA Tegra series SOCs
-	  providing /dev/ttyTHS0, 1, 2, 3 and 4 (note, some machines may not
+	  providing /dev/ttyTHS0, 1, 2, 3 and 4 (yeste, some machines may yest
 	  provide all of these ports, depending on how the serial port
 	  are enabled). This driver uses the APB DMA to achieve higher baudrate
 	  and better performance.
@@ -602,12 +602,12 @@ config SERIAL_MUX
 	---help---
 	  Saying Y here will enable the hardware MUX serial driver for
 	  the Nova, K class systems and D class with a 'remote control card'.
-	  The hardware MUX is not 8250/16550 compatible therefore the
+	  The hardware MUX is yest 8250/16550 compatible therefore the
 	  /dev/ttyB0 device is shared between the Serial MUX and the PDC
 	  software console. The following steps need to be completed to use
 	  the Serial MUX:
 
-	    1. create the device entry (mknod /dev/ttyB0 c 11 0)
+	    1. create the device entry (mkyesd /dev/ttyB0 c 11 0)
 	    2. Edit the /etc/inittab to start a getty listening on /dev/ttyB0
 	    3. Add device ttyB0 to /etc/securetty (if you want to log on as
 		 root on this console.)
@@ -625,10 +625,10 @@ config PDC_CONSOLE
 	help
 	  Saying Y here will enable the software based PDC console to be 
 	  used as the system console.  This is useful for machines in 
-	  which the hardware based console has not been written yet.  The
+	  which the hardware based console has yest been written yet.  The
 	  following steps must be completed to use the PDC console:
 
-	    1. create the device entry (mknod /dev/ttyB0 c 11 0)
+	    1. create the device entry (mkyesd /dev/ttyB0 c 11 0)
 	    2. Edit the /etc/inittab to start a getty listening on /dev/ttyB0
 	    3. Add device ttyB0 to /etc/securetty (if you want to log on as
 		 root on this console.)
@@ -782,16 +782,16 @@ config SERIAL_PMACZILOG
 	  Say Y or M if you want to be able to these serial ports.
 
 config SERIAL_PMACZILOG_TTYS
-	bool "Use ttySn device nodes for Zilog z85c30"
+	bool "Use ttySn device yesdes for Zilog z85c30"
 	depends on SERIAL_PMACZILOG
 	help
 	  The pmac_zilog driver for the z85C30 chip on many powermacs
 	  historically used the device numbers for /dev/ttySn.  The
 	  8250 serial port driver also uses these numbers, which means
-	  the two drivers being unable to coexist; you could not use
+	  the two drivers being unable to coexist; you could yest use
 	  both z85C30 and 8250 type ports at the same time.
 
-	  If this option is not selected, the pmac_zilog driver will
+	  If this option is yest selected, the pmac_zilog driver will
 	  use the device numbers allocated for /dev/ttyPZn.  This allows
 	  the pmac_zilog and 8250 drivers to co-exist, but may cause
 	  existing userspace setups to break.  Programs that need to
@@ -848,7 +848,7 @@ config SERIAL_PIC32
 
 	  Say Y or M to use PIC32 serial ports, otherwise say N. Note that
 	  to use a serial port as a console, this must be included in kernel and
-	  not as a module.
+	  yest as a module.
 
 config SERIAL_PIC32_CONSOLE
 	bool "PIC32 serial console support"
@@ -867,7 +867,7 @@ config SERIAL_MPC52xx
 	help
 	  This driver supports MPC52xx and MPC512x PSC serial ports. If you would
 	  like to use them, you must answer Y or M to this option. Note that
-	  for use as console, it must be included in kernel and not as a
+	  for use as console, it must be included in kernel and yest as a
 	  module.
 
 config SERIAL_MPC52xx_CONSOLE
@@ -930,7 +930,7 @@ config SERIAL_VR41XX
 	help
 	  If you have a NEC VR4100 series processor and you want to use
 	  Serial Interface Unit(SIU) or Debug Serial Interface Unit(DSIU)
-	  (not include VR4111/VR4121 DSIU), say Y.  Otherwise, say N.
+	  (yest include VR4111/VR4121 DSIU), say Y.  Otherwise, say N.
 
 config SERIAL_VR41XX_CONSOLE
 	bool "Enable NEC VR4100 series Serial Interface Unit console"
@@ -979,7 +979,7 @@ config SERIAL_QCOM_GENI_CONSOLE
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help
-	  Serial console driver for Qualcomm Technologies Inc's GENI based
+	  Serial console driver for Qualcomm Techyeslogies Inc's GENI based
 	  QUP hardware.
 
 config SERIAL_VT8500
@@ -1098,7 +1098,7 @@ config SERIAL_SC16IS7XX_I2C
 	default y
 	help
 	  Enable SC16IS7xx driver on I2C bus,
-	  If required say y, and say n to i2c if not required,
+	  If required say y, and say n to i2c if yest required,
 	  Enabled by default to support oldconfig.
 	  You must select at least one bus for the driver to be built.
 
@@ -1110,7 +1110,7 @@ config SERIAL_SC16IS7XX_SPI
 	select REGMAP_SPI if SPI_MASTER
 	help
 	  Enable SC16IS7xx driver on SPI bus,
-	  If required say y, and say n to spi if not required,
+	  If required say y, and say n to spi if yest required,
 	  This is additional support to exsisting driver.
 	  You must select at least one bus for the driver to be built.
 
@@ -1172,11 +1172,11 @@ config SERIAL_ALTERA_JTAGUART_CONSOLE
 	  Enable a Altera JTAG UART port to be the system console.
 
 config SERIAL_ALTERA_JTAGUART_CONSOLE_BYPASS
-	bool "Bypass output when no connection"
+	bool "Bypass output when yes connection"
 	depends on SERIAL_ALTERA_JTAGUART_CONSOLE
 	select SERIAL_CORE_CONSOLE
 	help
-	  Bypass console output and keep going even if there is no
+	  Bypass console output and keep going even if there is yes
 	  JTAG terminal connection with the host.
 
 config SERIAL_ALTERA_UART
@@ -1331,7 +1331,7 @@ config SERIAL_ARC
 	tristate "ARC UART driver support"
 	select SERIAL_CORE
 	help
-	  Driver for on-chip UART for ARC(Synopsys) for the legacy
+	  Driver for on-chip UART for ARC(Syyespsys) for the legacy
 	  FPGA Boards (ML50x/ARCAngel4)
 
 config SERIAL_ARC_CONSOLE
@@ -1358,7 +1358,7 @@ config SERIAL_RP2
 	help
 	  This driver supports the Comtrol RocketPort EXPRESS and
 	  RocketPort INFINITY families of PCI/PCIe multiport serial adapters.
-	  These adapters use a "RocketPort 2" ASIC that is not compatible
+	  These adapters use a "RocketPort 2" ASIC that is yest compatible
 	  with the original RocketPort driver (CONFIG_ROCKETPORT).
 
 	  To compile this driver as a module, choose M here: the
@@ -1427,7 +1427,7 @@ config SERIAL_ST_ASC
 	select SERIAL_CORE
 	depends on ARM || COMPILE_TEST
 	help
-	  This driver is for the on-chip Asychronous Serial Controller on
+	  This driver is for the on-chip Asychroyesus Serial Controller on
 	  STMicroelectronics STi SoCs.
 	  ASC is embedded in ST COMMS IP block. It supports Rx & Tx functionality.
 	  It support all industry standard baud rates.
@@ -1444,7 +1444,7 @@ config SERIAL_MEN_Z135
 	select SERIAL_CORE
 	depends on MCB
 	help
-	  Say yes here to enable support for the MEN 16z135 High Speed UART IP-Core
+	  Say no here to enable support for the MEN 16z135 High Speed UART IP-Core
 	  on a MCB carrier.
 
 	  This driver can also be build as a module. If so, the module will be called

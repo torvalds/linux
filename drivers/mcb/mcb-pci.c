@@ -63,7 +63,7 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	priv->base = devm_ioremap(&pdev->dev, priv->mapbase, CHAM_HEADER_SIZE);
 	if (!priv->base) {
-		dev_err(&pdev->dev, "Cannot ioremap\n");
+		dev_err(&pdev->dev, "Canyest ioremap\n");
 		ret = -ENOMEM;
 		goto out_disable;
 	}
@@ -72,7 +72,7 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (flags & IORESOURCE_IO) {
 		ret = -ENOTSUPP;
 		dev_err(&pdev->dev,
-			"IO mapped PCI devices are not supported\n");
+			"IO mapped PCI devices are yest supported\n");
 		goto out_disable;
 	}
 

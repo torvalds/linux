@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  HID driver for Speedlink Vicious and Divine Cezanne (USB mouse).
- *  Fixes "jumpy" cursor and removes nonexistent keyboard LEDS from
+ *  Fixes "jumpy" cursor and removes yesnexistent keyboard LEDS from
  *  the HID descriptor.
  *
  *  Copyright (c) 2011, 2013 Stefan Kriwanek <dev@stefankriwanek.de>
@@ -30,7 +30,7 @@ static int speedlink_input_mapping(struct hid_device *hdev,
 	 * The Cezanne mouse has a second "keyboard" USB endpoint for it is
 	 * able to map keyboard events to the button presses.
 	 * It sends a standard keyboard report descriptor, though, whose
-	 * LEDs we ignore.
+	 * LEDs we igyesre.
 	 */
 	switch (usage->hid & HID_USAGE_PAGE) {
 	case HID_UP_LED:
@@ -46,7 +46,7 @@ static int speedlink_event(struct hid_device *hdev, struct hid_field *field,
 
 	/* This fixes the "jumpy" cursor occuring due to invalid events sent
 	 * by the device. Some devices only send them with value==+256, others
-	 * don't. However, catching abs(value)>=256 is restrictive enough not
+	 * don't. However, catching abs(value)>=256 is restrictive eyesugh yest
 	 * to interfere with devices that were bug-free (has been tested).
 	 */
 	if (abs(value) >= 256)

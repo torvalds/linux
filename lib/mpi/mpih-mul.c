@@ -6,7 +6,7 @@
  * This file is part of GnuPG.
  *
  * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ *	 Actually it's the same code with only miyesr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -59,7 +59,7 @@ mul_n_basecase(mpi_ptr_t prodp, mpi_ptr_t up, mpi_ptr_t vp, mpi_size_t size)
 	mpi_limb_t v_limb;
 
 	/* Multiply by the first limb in V separately, as the result can be
-	 * stored (not added) to PROD.  We also avoid a loop for zeroing.  */
+	 * stored (yest added) to PROD.  We also avoid a loop for zeroing.  */
 	v_limb = vp[0];
 	if (v_limb <= 1) {
 		if (v_limb == 1)
@@ -211,7 +211,7 @@ void mpih_sqr_n_basecase(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t size)
 	mpi_limb_t v_limb;
 
 	/* Multiply by the first limb in V separately, as the result can be
-	 * stored (not added) to PROD.  We also avoid a loop for zeroing.  */
+	 * stored (yest added) to PROD.  We also avoid a loop for zeroing.  */
 	v_limb = up[0];
 	if (v_limb <= 1) {
 		if (v_limb == 1)
@@ -411,7 +411,7 @@ void mpihelp_release_karatsuba_ctx(struct karatsuba_ctx *ctx)
 /* Multiply the natural numbers u (pointed to by UP, with USIZE limbs)
  * and v (pointed to by VP, with VSIZE limbs), and store the result at
  * PRODP.  USIZE + VSIZE limbs are always stored, but if the input
- * operands are normalized.  Return the most significant limb of the
+ * operands are yesrmalized.  Return the most significant limb of the
  * result.
  *
  * NOTE: The space pointed to by PRODP is overwritten before finished
@@ -441,7 +441,7 @@ mpihelp_mul(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t usize,
 		}
 
 		/* Multiply by the first limb in V separately, as the result can be
-		 * stored (not added) to PROD.  We also avoid a loop for zeroing.  */
+		 * stored (yest added) to PROD.  We also avoid a loop for zeroing.  */
 		v_limb = vp[0];
 		if (v_limb <= 1) {
 			if (v_limb == 1)

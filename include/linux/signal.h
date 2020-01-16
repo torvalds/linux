@@ -49,7 +49,7 @@ enum siginfo_layout siginfo_layout(unsigned sig, int si_code);
 #ifndef __HAVE_ARCH_SIG_BITOPS
 #include <linux/bitops.h>
 
-/* We don't use <linux/bitops.h> for these because there is no need to
+/* We don't use <linux/bitops.h> for these because there is yes need to
    be atomic.  */
 static inline void sigaddset(sigset_t *set, int _sig)
 {
@@ -173,11 +173,11 @@ static inline void name(sigset_t *set)					\
 	}								\
 }
 
-#define _sig_not(x)	(~(x))
-_SIG_SET_OP(signotset, _sig_not)
+#define _sig_yest(x)	(~(x))
+_SIG_SET_OP(sigyestset, _sig_yest)
 
 #undef _SIG_SET_OP
-#undef _sig_not
+#undef _sig_yest
 
 static inline void sigemptyset(sigset_t *set)
 {
@@ -289,7 +289,7 @@ static inline void allow_signal(int sig)
 {
 	/*
 	 * Kernel threads handle their own signals. Let the signal code
-	 * know it'll be handled, so that they don't get converted to
+	 * kyesw it'll be handled, so that they don't get converted to
 	 * SIGKILL or just silently dropped.
 	 */
 	kernel_sigaction(sig, SIG_KTHREAD);
@@ -299,7 +299,7 @@ static inline void allow_kernel_signal(int sig)
 {
 	/*
 	 * Kernel threads handle their own signals. Let the signal code
-	 * know signals sent by the kernel will be handled, so that they
+	 * kyesw signals sent by the kernel will be handled, so that they
 	 * don't get silently dropped.
 	 */
 	kernel_sigaction(sig, SIG_KTHREAD_KERNEL);
@@ -320,11 +320,11 @@ extern bool unhandled_signal(struct task_struct *tsk, int sig);
  * is sent determines whether it's to one thread or the whole group,
  * which determines which signal mask(s) are involved in blocking it
  * from being delivered until later.  When the signal is delivered,
- * either it's caught or ignored by a user handler or it has a default
+ * either it's caught or igyesred by a user handler or it has a default
  * effect that applies to the whole thread group (POSIX process).
  *
  * The possible effects an unblocked signal set to SIG_DFL can have are:
- *   ignore	- Nothing Happens
+ *   igyesre	- Nothing Happens
  *   terminate	- kill the process, i.e. all threads in the group,
  * 		  similar to exit_group.  The group leader (only) reports
  *		  WIFSIGNALED status to its parent.
@@ -332,8 +332,8 @@ extern bool unhandled_signal(struct task_struct *tsk, int sig);
  *		  the same mm and then kill all those threads
  *   stop 	- stop all the threads in the group, i.e. TASK_STOPPED state
  *
- * SIGKILL and SIGSTOP cannot be caught, blocked, or ignored.
- * Other signals when not blocked and set to SIG_DFL behaves as follows.
+ * SIGKILL and SIGSTOP canyest be caught, blocked, or igyesred.
+ * Other signals when yest blocked and set to SIG_DFL behaves as follows.
  * The job control signals also have other special effects.
  *
  *	+--------------------+------------------+
@@ -354,13 +354,13 @@ extern bool unhandled_signal(struct task_struct *tsk, int sig);
  *	|  SIGPIPE           |	terminate	|
  *	|  SIGALRM           |	terminate	|
  *	|  SIGTERM           |	terminate	|
- *	|  SIGCHLD           |	ignore   	|
- *	|  SIGCONT           |	ignore(*)	|
+ *	|  SIGCHLD           |	igyesre   	|
+ *	|  SIGCONT           |	igyesre(*)	|
  *	|  SIGSTOP           |	stop(*)(+)  	|
  *	|  SIGTSTP           |	stop(*)  	|
  *	|  SIGTTIN           |	stop(*)  	|
  *	|  SIGTTOU           |	stop(*)  	|
- *	|  SIGURG            |	ignore   	|
+ *	|  SIGURG            |	igyesre   	|
  *	|  SIGXCPU           |	coredump 	|
  *	|  SIGXFSZ           |	coredump 	|
  *	|  SIGVTALRM         |	terminate	|
@@ -368,23 +368,23 @@ extern bool unhandled_signal(struct task_struct *tsk, int sig);
  *	|  SIGPOLL/SIGIO     |	terminate	|
  *	|  SIGSYS/SIGUNUSED  |	coredump 	|
  *	|  SIGSTKFLT         |	terminate	|
- *	|  SIGWINCH          |	ignore   	|
+ *	|  SIGWINCH          |	igyesre   	|
  *	|  SIGPWR            |	terminate	|
  *	|  SIGRTMIN-SIGRTMAX |	terminate       |
  *	+--------------------+------------------+
- *	|  non-POSIX signal  |  default action  |
+ *	|  yesn-POSIX signal  |  default action  |
  *	+--------------------+------------------+
  *	|  SIGEMT            |  coredump	|
  *	+--------------------+------------------+
  *
- * (+) For SIGKILL and SIGSTOP the action is "always", not just "default".
+ * (+) For SIGKILL and SIGSTOP the action is "always", yest just "default".
  * (*) Special job control effects:
  * When SIGCONT is sent, it resumes the process (all threads in the group)
  * from TASK_STOPPED state and also clears any pending/queued stop signals
  * (any of those marked with "stop(*)").  This happens regardless of blocking,
- * catching, or ignoring SIGCONT.  When any stop signal is sent, it clears
+ * catching, or igyesring SIGCONT.  When any stop signal is sent, it clears
  * any pending/queued SIGCONT signals; this happens regardless of blocking,
- * catching, or ignored the stop signal, though (except for SIGSTOP) the
+ * catching, or igyesred the stop signal, though (except for SIGSTOP) the
  * default action of stopping the process may happen later or never.
  */
 
@@ -431,7 +431,7 @@ extern bool unhandled_signal(struct task_struct *tsk, int sig);
 
 #define sig_kernel_only(sig)		siginmask(sig, SIG_KERNEL_ONLY_MASK)
 #define sig_kernel_coredump(sig)	siginmask(sig, SIG_KERNEL_COREDUMP_MASK)
-#define sig_kernel_ignore(sig)		siginmask(sig, SIG_KERNEL_IGNORE_MASK)
+#define sig_kernel_igyesre(sig)		siginmask(sig, SIG_KERNEL_IGNORE_MASK)
 #define sig_kernel_stop(sig)		siginmask(sig, SIG_KERNEL_STOP_MASK)
 #define sig_specific_sicodes(sig)	siginmask(sig, SIG_SPECIFIC_SICODES_MASK)
 

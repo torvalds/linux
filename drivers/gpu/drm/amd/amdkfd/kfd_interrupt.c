@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,11 +33,11 @@
  * processing so we copy it to an internal interrupt ring and call each
  * interrupt client again from a work-queue.
  *
- * There's no acknowledgment for the interrupts we use. The hardware simply
+ * There's yes ackyeswledgment for the interrupts we use. The hardware simply
  * queues a new interrupt each time without waiting.
  *
  * The fixed-size internal queue means that it's possible for us to lose
- * interrupts because we have no back-pressure to the hardware.
+ * interrupts because we have yes back-pressure to the hardware.
  */
 
 #include <linux/slab.h>
@@ -97,7 +97,7 @@ void kfd_interrupt_exit(struct kfd_dev *kfd)
 	spin_unlock_irqrestore(&kfd->interrupt_lock, flags);
 
 	/*
-	 * flush_work ensures that there are no outstanding
+	 * flush_work ensures that there are yes outstanding
 	 * work-queue items that will access interrupt_ring. New work items
 	 * can't be created because we stopped interrupt handling above.
 	 */
@@ -107,7 +107,7 @@ void kfd_interrupt_exit(struct kfd_dev *kfd)
 }
 
 /*
- * Assumption: single reader/writer. This function is not re-entrant
+ * Assumption: single reader/writer. This function is yest re-entrant
  */
 bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry)
 {
@@ -126,7 +126,7 @@ bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry)
 }
 
 /*
- * Assumption: single reader/writer. This function is not re-entrant
+ * Assumption: single reader/writer. This function is yest re-entrant
  */
 static bool dequeue_ih_ring_entry(struct kfd_dev *kfd, void *ih_ring_entry)
 {
@@ -160,7 +160,7 @@ bool interrupt_is_wanted(struct kfd_dev *dev,
 			const uint32_t *ih_ring_entry,
 			uint32_t *patched_ihre, bool *flag)
 {
-	/* integer and bitwise OR so there is no boolean short-circuiting */
+	/* integer and bitwise OR so there is yes boolean short-circuiting */
 	unsigned int wanted = 0;
 
 	wanted |= dev->device_info->event_interrupt_class->interrupt_isr(dev,

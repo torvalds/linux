@@ -32,7 +32,7 @@ config DRM_AMD_DC_DCN2_1
 	depends on DRM_AMD_DC_DCN2_0
 	help
 	  Choose this option if you want to have
-	  Renoir support for display engine
+	  Reyesir support for display engine
 
 config DRM_AMD_DC_DSC_SUPPORT
 	bool "DSC support"

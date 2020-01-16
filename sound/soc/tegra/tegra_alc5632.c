@@ -5,7 +5,7 @@
  * Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.lauchpad.net>
  * Copyright (C) 2012 - NVIDIA, Inc.
  *
- * Authors:  Leon Romanovsky <leon@leon.nu>
+ * Authors:  Leon Romayesvsky <leon@leon.nu>
  *           Andrey Danin <danindrey@mail.ru>
  *           Marc Dietrich <marvin24@gmx.de>
  */
@@ -55,7 +55,7 @@ static int tegra_alc5632_asoc_hw_params(struct snd_pcm_substream *substream,
 	err = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 					SND_SOC_CLOCK_IN);
 	if (err < 0) {
-		dev_err(card->dev, "codec_dai clock not set\n");
+		dev_err(card->dev, "codec_dai clock yest set\n");
 		return err;
 	}
 
@@ -151,7 +151,7 @@ static struct snd_soc_card snd_soc_tegra_alc5632 = {
 
 static int tegra_alc5632_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct snd_soc_card *card = &snd_soc_tegra_alc5632;
 	struct tegra_alc5632 *alc5632;
 	int ret;
@@ -176,30 +176,30 @@ static int tegra_alc5632_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	tegra_alc5632_dai.codecs->of_node = of_parse_phandle(
-			pdev->dev.of_node, "nvidia,audio-codec", 0);
+	tegra_alc5632_dai.codecs->of_yesde = of_parse_phandle(
+			pdev->dev.of_yesde, "nvidia,audio-codec", 0);
 
-	if (!tegra_alc5632_dai.codecs->of_node) {
+	if (!tegra_alc5632_dai.codecs->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,audio-codec' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	tegra_alc5632_dai.cpus->of_node = of_parse_phandle(np,
+	tegra_alc5632_dai.cpus->of_yesde = of_parse_phandle(np,
 			"nvidia,i2s-controller", 0);
-	if (!tegra_alc5632_dai.cpus->of_node) {
+	if (!tegra_alc5632_dai.cpus->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
-		goto err_put_codec_of_node;
+		goto err_put_codec_of_yesde;
 	}
 
-	tegra_alc5632_dai.platforms->of_node = tegra_alc5632_dai.cpus->of_node;
+	tegra_alc5632_dai.platforms->of_yesde = tegra_alc5632_dai.cpus->of_yesde;
 
 	ret = tegra_asoc_utils_init(&alc5632->util_data, &pdev->dev);
 	if (ret)
-		goto err_put_cpu_of_node;
+		goto err_put_cpu_of_yesde;
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
@@ -212,13 +212,13 @@ static int tegra_alc5632_probe(struct platform_device *pdev)
 
 err_fini_utils:
 	tegra_asoc_utils_fini(&alc5632->util_data);
-err_put_cpu_of_node:
-	of_node_put(tegra_alc5632_dai.cpus->of_node);
-	tegra_alc5632_dai.cpus->of_node = NULL;
-	tegra_alc5632_dai.platforms->of_node = NULL;
-err_put_codec_of_node:
-	of_node_put(tegra_alc5632_dai.codecs->of_node);
-	tegra_alc5632_dai.codecs->of_node = NULL;
+err_put_cpu_of_yesde:
+	of_yesde_put(tegra_alc5632_dai.cpus->of_yesde);
+	tegra_alc5632_dai.cpus->of_yesde = NULL;
+	tegra_alc5632_dai.platforms->of_yesde = NULL;
+err_put_codec_of_yesde:
+	of_yesde_put(tegra_alc5632_dai.codecs->of_yesde);
+	tegra_alc5632_dai.codecs->of_yesde = NULL;
 err:
 	return ret;
 }
@@ -232,11 +232,11 @@ static int tegra_alc5632_remove(struct platform_device *pdev)
 
 	tegra_asoc_utils_fini(&machine->util_data);
 
-	of_node_put(tegra_alc5632_dai.cpus->of_node);
-	tegra_alc5632_dai.cpus->of_node = NULL;
-	tegra_alc5632_dai.platforms->of_node = NULL;
-	of_node_put(tegra_alc5632_dai.codecs->of_node);
-	tegra_alc5632_dai.codecs->of_node = NULL;
+	of_yesde_put(tegra_alc5632_dai.cpus->of_yesde);
+	tegra_alc5632_dai.cpus->of_yesde = NULL;
+	tegra_alc5632_dai.platforms->of_yesde = NULL;
+	of_yesde_put(tegra_alc5632_dai.codecs->of_yesde);
+	tegra_alc5632_dai.codecs->of_yesde = NULL;
 
 	return 0;
 }
@@ -257,7 +257,7 @@ static struct platform_driver tegra_alc5632_driver = {
 };
 module_platform_driver(tegra_alc5632_driver);
 
-MODULE_AUTHOR("Leon Romanovsky <leon@leon.nu>");
+MODULE_AUTHOR("Leon Romayesvsky <leon@leon.nu>");
 MODULE_DESCRIPTION("Tegra+ALC5632 machine ASoC driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

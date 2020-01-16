@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -43,7 +43,7 @@ static int compat_agpioc_info_wrap(struct agp_file_private *priv, void __user *a
 	agp_copy_info(agp_bridge, &kerninfo);
 
 	userinfo.version.major = kerninfo.version.major;
-	userinfo.version.minor = kerninfo.version.minor;
+	userinfo.version.miyesr = kerninfo.version.miyesr;
 	userinfo.bridge_id = kerninfo.device->vendor |
 	    (kerninfo.device->device << 16);
 	userinfo.agp_mode = kerninfo.mode;

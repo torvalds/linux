@@ -187,8 +187,8 @@ static void dump_ipv6_packet(struct net *net, struct nf_log_buf *m,
 			}
 			return;
 		default:
-			/* Max length: 20 "Unknown Ext Hdr 255" */
-			nf_log_buf_add(m, "Unknown Ext Hdr %u", currenthdr);
+			/* Max length: 20 "Unkyeswn Ext Hdr 255" */
+			nf_log_buf_add(m, "Unkyeswn Ext Hdr %u", currenthdr);
 			return;
 		}
 		if (logflags & NF_LOG_IPOPT)

@@ -198,13 +198,13 @@ static u64 vread_pvclock(void)
 	 * number maps 1:1 to per-CPU pvclock time info.
 	 *
 	 * Because the hypervisor is entirely unaware of guest userspace
-	 * preemption, it cannot guarantee that per-CPU pvclock time
+	 * preemption, it canyest guarantee that per-CPU pvclock time
 	 * info is updated if the underlying CPU changes or that that
 	 * version is increased whenever underlying CPU changes.
 	 *
 	 * On KVM, we are guaranteed that pvti updates for any vCPU are
 	 * atomic as seen by *all* vCPUs.  This is an even stronger
-	 * guarantee than we get with a normal seqlock.
+	 * guarantee than we get with a yesrmal seqlock.
 	 *
 	 * On Xen, we don't appear to have that guarantee, but Xen still
 	 * supplies a valid seqlock using the version field.
@@ -269,18 +269,18 @@ static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
  * x86 specific delta calculation.
  *
  * The regular implementation assumes that clocksource reads are globally
- * monotonic. The TSC can be slightly off across sockets which can cause
+ * moyestonic. The TSC can be slightly off across sockets which can cause
  * the regular delta calculation (@cycles - @last) to return a huge time
  * jump.
  *
  * Therefore it needs to be verified that @cycles are greater than
- * @last. If not then use @last, which is the base time of the current
+ * @last. If yest then use @last, which is the base time of the current
  * conversion period.
  *
  * This variant also removes the masking of the subtraction because the
  * clocksource mask of all VDSO capable clocksources on x86 is U64_MAX
- * which would result in a pointless operation. The compiler cannot
- * optimize it away as the mask comes from the vdso data and is not compile
+ * which would result in a pointless operation. The compiler canyest
+ * optimize it away as the mask comes from the vdso data and is yest compile
  * time constant.
  */
 static __always_inline

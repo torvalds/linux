@@ -94,12 +94,12 @@ int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh, int proto)
 		return err;
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE && !skb->csum_valid) {
-		/* If SW calculated the value, we know it's bad */
+		/* If SW calculated the value, we kyesw it's bad */
 		if (skb->csum_complete_sw)
 			return 1;
 
 		/* HW says the value is bad. Let's validate that.
-		 * skb->csum is no longer the full packet checksum,
+		 * skb->csum is yes longer the full packet checksum,
 		 * so don't treat is as such.
 		 */
 		skb_checksum_complete_unset(skb);
@@ -112,13 +112,13 @@ EXPORT_SYMBOL(udp6_csum_init);
 /* Function to set UDP checksum for an IPv6 UDP packet. This is intended
  * for the simple case like when setting the checksum for a UDP tunnel.
  */
-void udp6_set_csum(bool nocheck, struct sk_buff *skb,
+void udp6_set_csum(bool yescheck, struct sk_buff *skb,
 		   const struct in6_addr *saddr,
 		   const struct in6_addr *daddr, int len)
 {
 	struct udphdr *uh = udp_hdr(skb);
 
-	if (nocheck)
+	if (yescheck)
 		uh->check = 0;
 	else if (skb_is_gso(skb))
 		uh->check = ~udp_v6_check(len, saddr, daddr, 0);

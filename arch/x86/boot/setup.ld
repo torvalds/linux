@@ -51,7 +51,7 @@ SECTIONS
 	. = ALIGN(16);
 	_end = .;
 
-	/DISCARD/ : { *(.note*) }
+	/DISCARD/ : { *(.yeste*) }
 
 	/*
 	 * The ASSERT() sink to . is intentional, for binutils 2.14 compatibility:

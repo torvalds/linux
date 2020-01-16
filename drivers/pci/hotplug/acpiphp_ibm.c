@@ -2,7 +2,7 @@
 /*
  * ACPI PCI Hot Plug IBM Extension
  *
- * Copyright (C) 2004 Vernon Mauery <vernux@us.ibm.com>
+ * Copyright (C) 2004 Veryesn Mauery <vernux@us.ibm.com>
  * Copyright (C) 2004 IBM Corp.
  *
  * All rights reserved.
@@ -27,7 +27,7 @@
 #include "../pci.h"
 
 #define DRIVER_VERSION	"1.0.1"
-#define DRIVER_AUTHOR	"Irene Zubarev <zubarev@us.ibm.com>, Vernon Mauery <vernux@us.ibm.com>"
+#define DRIVER_AUTHOR	"Irene Zubarev <zubarev@us.ibm.com>, Veryesn Mauery <vernux@us.ibm.com>"
 #define DRIVER_DESC	"ACPI Hot Plug PCI Controller Driver IBM extension"
 
 
@@ -71,10 +71,10 @@ union apci_descriptor {
 	} generic;
 };
 
-/* struct notification - keeps info about the device
- * that cause the ACPI notification event
+/* struct yestification - keeps info about the device
+ * that cause the ACPI yestification event
  */
-struct notification {
+struct yestification {
 	struct acpi_device *device;
 	u8                  event;
 };
@@ -92,7 +92,7 @@ static int __init ibm_acpiphp_init(void);
 static void __exit ibm_acpiphp_exit(void);
 
 static acpi_handle ibm_acpi_handle;
-static struct notification ibm_note;
+static struct yestification ibm_yeste;
 static struct bin_attribute ibm_apci_table_attr __ro_after_init = {
 	    .attr = {
 		    .name = "apci_table",
@@ -202,7 +202,7 @@ static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status)
  * Description: This method is registered with the acpiphp module as a
  * callback to do the device specific task of getting the LED status.
  *
- * Because there is no direct method of getting the LED status directly
+ * Because there is yes direct method of getting the LED status directly
  * from an ACPI call, we read the aPCI table and parse out our
  * slot descriptor to read the status from that.
  */
@@ -234,10 +234,10 @@ static int ibm_get_attention_status(struct hotplug_slot *slot, u8 *status)
  * ibm_handle_events - listens for ACPI events for the IBM37D0 device
  * @handle: an ACPI handle to the device that caused the event
  * @event: the event info (device specific)
- * @context: passed context (our notification struct)
+ * @context: passed context (our yestification struct)
  *
  * Description: This method is registered as a callback with the ACPI
- * subsystem it is called when this device has an event to notify the OS of.
+ * subsystem it is called when this device has an event to yestify the OS of.
  *
  * The events actually come from the device as two events that get
  * synthesized into one event with data by this function.  The event
@@ -246,23 +246,23 @@ static int ibm_get_attention_status(struct hotplug_slot *slot, u8 *status)
  *
  * From section 5.6.2.2 of the ACPI 2.0 spec, I understand that the OSPM will
  * only re-enable the interrupt that causes this event AFTER this method
- * has returned, thereby enforcing serial access for the notification struct.
+ * has returned, thereby enforcing serial access for the yestification struct.
  */
 static void ibm_handle_events(acpi_handle handle, u32 event, void *context)
 {
 	u8 detail = event & 0x0f;
 	u8 subevent = event & 0xf0;
-	struct notification *note = context;
+	struct yestification *yeste = context;
 
-	pr_debug("%s: Received notification %02x\n", __func__, event);
+	pr_debug("%s: Received yestification %02x\n", __func__, event);
 
 	if (subevent == 0x80) {
 		pr_debug("%s: generating bus event\n", __func__);
-		acpi_bus_generate_netlink_event(note->device->pnp.device_class,
-						  dev_name(&note->device->dev),
-						  note->event, detail);
+		acpi_bus_generate_netlink_event(yeste->device->pnp.device_class,
+						  dev_name(&yeste->device->dev),
+						  yeste->event, detail);
 	} else
-		note->event = event;
+		yeste->event = event;
 }
 
 /**
@@ -348,7 +348,7 @@ read_table_done:
  * Description: Gets registered with sysfs as the reader callback
  * to be executed when /sys/bus/pci/slots/apci_table gets read.
  *
- * Since we don't get notified on open and close for this file,
+ * Since we don't get yestified on open and close for this file,
  * things get really tricky here...
  * our solution is to only allow reading the table in all at once.
  */
@@ -378,7 +378,7 @@ static ssize_t ibm_read_apci_table(struct file *filp, struct kobject *kobj,
  * @rv: a return value to fill if desired
  *
  * Description: Used as a callback when calling acpi_walk_namespace
- * to find our device.  When this method returns non-zero
+ * to find our device.  When this method returns yesn-zero
  * acpi_walk_namespace quits its search and returns our value.
  */
 static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
@@ -405,7 +405,7 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 		pr_debug("found hardware: %s, handle: %p\n",
 			info->hardware_id.string, handle);
 		*phandle = handle;
-		/* returning non-zero causes the search to stop
+		/* returning yesn-zero causes the search to stop
 		 * and returns this value to the caller of
 		 * acpi_walk_namespace, but it also causes some warnings
 		 * in the acpi debug code to print...
@@ -443,12 +443,12 @@ static int __init ibm_acpiphp_init(void)
 		goto init_return;
 	}
 
-	ibm_note.device = device;
-	status = acpi_install_notify_handler(ibm_acpi_handle,
+	ibm_yeste.device = device;
+	status = acpi_install_yestify_handler(ibm_acpi_handle,
 			ACPI_DEVICE_NOTIFY, ibm_handle_events,
-			&ibm_note);
+			&ibm_yeste);
 	if (ACPI_FAILURE(status)) {
-		pr_err("%s: Failed to register notification handler\n",
+		pr_err("%s: Failed to register yestification handler\n",
 				__func__);
 		retval = -EBUSY;
 		goto init_cleanup;
@@ -475,7 +475,7 @@ static void __exit ibm_acpiphp_exit(void)
 	if (acpiphp_unregister_attention(&ibm_attention_info))
 		pr_err("%s: attention info deregistration failed", __func__);
 
-	status = acpi_remove_notify_handler(
+	status = acpi_remove_yestify_handler(
 			   ibm_acpi_handle,
 			   ACPI_DEVICE_NOTIFY,
 			   ibm_handle_events);

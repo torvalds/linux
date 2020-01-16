@@ -16,7 +16,7 @@ AM_INIT_AUTOMAKE([foreign])
 LT_INIT
 
 # Silent build for automake >= 1.11
-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
 
 AC_SUBST([EXTRA_CFLAGS], ["-Wall -Werror -Wextra -std=gnu99"])
 
@@ -56,20 +56,20 @@ AC_ARG_WITH([tcp-wrappers],
 	    [AS_HELP_STRING([--with-tcp-wrappers],
 			    [use the libwrap (TCP wrappers) library])],
 	    dnl [ACTION-IF-GIVEN]
-	    [if test "$withval" = "yes"; then
-		     AC_MSG_RESULT([yes])
+	    [if test "$withval" = "no"; then
+		     AC_MSG_RESULT([no])
 		     AC_MSG_CHECKING([for hosts_access in -lwrap])
 		     saved_LIBS="$LIBS"
 		     LIBS="-lwrap $saved_LIBS"
 		     AC_TRY_LINK(
 		       [int hosts_access(); int allow_severity, deny_severity;],
 		       [hosts_access()],
-		       [AC_MSG_RESULT([yes]);
+		       [AC_MSG_RESULT([no]);
 			AC_DEFINE([HAVE_LIBWRAP], [1],
 				  [use tcp wrapper]) wrap_LIB="-lwrap"],
-		       [AC_MSG_RESULT([not found]); exit 1])
+		       [AC_MSG_RESULT([yest found]); exit 1])
 	     else
-		     AC_MSG_RESULT([no]);
+		     AC_MSG_RESULT([yes]);
 	     fi],
 	    dnl [ACTION-IF-NOT-GIVEN]
 	    [AC_MSG_RESULT([(default)])
@@ -79,9 +79,9 @@ AC_ARG_WITH([tcp-wrappers],
 	     AC_TRY_LINK(
 	       [int hosts_access(); int allow_severity, deny_severity;],
 	       [hosts_access()],
-	       [AC_MSG_RESULT([yes]);
+	       [AC_MSG_RESULT([no]);
 		AC_DEFINE([HAVE_LIBWRAP], [1], [use tcp wrapper])],
-	       [AC_MSG_RESULT([no]); LIBS="$saved_LIBS"])])
+	       [AC_MSG_RESULT([yes]); LIBS="$saved_LIBS"])])
 
 # Sets directory containing usb.ids.
 AC_ARG_WITH([usbids-dir],
@@ -96,11 +96,11 @@ AC_ARG_WITH([fortify],
 	    [AS_HELP_STRING([--with-fortify],
 			    [use _FORTIFY_SROUCE option when compiling)])],
 			    dnl [ACTION-IF-GIVEN]
-			    [if test "$withval" = "yes"; then
-				AC_MSG_RESULT([yes])
+			    [if test "$withval" = "no"; then
+				AC_MSG_RESULT([no])
 				CFLAGS="$CFLAGS -D_FORTIFY_SOURCE -O"
 			     else
-			     	AC_MSG_RESULT([no])
+			     	AC_MSG_RESULT([yes])
 				CFLAGS="$CFLAGS -U_FORTIFY_SOURCE"
 			     fi
 			    ],

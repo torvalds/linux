@@ -5,15 +5,15 @@ e.g. an ADC channel, these bindings describe that situation.
 
 Required properties:
 - compatible : "io-channel-mux"
-- io-channels : Channel node of the parent channel that has multiplexed
+- io-channels : Channel yesde of the parent channel that has multiplexed
 		input.
 - io-channel-names : Should be "parent".
 - #address-cells = <1>;
 - #size-cells = <0>;
-- mux-controls : Mux controller node to use for operating the mux
+- mux-controls : Mux controller yesde to use for operating the mux
 - channels : List of strings, labeling the mux controller states.
 
-For each non-empty string in the channels property, an io-channel will
+For each yesn-empty string in the channels property, an io-channel will
 be created. The number of this io-channel is the same as the index into
 the list of strings in the channels property, and also matches the mux
 controller state. The mux controller state is described in

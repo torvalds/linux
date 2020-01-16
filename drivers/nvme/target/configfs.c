@@ -57,7 +57,7 @@ static ssize_t nvmet_addr_adrfam_store(struct config_item *item,
 	struct nvmet_port *port = to_nvmet_port(item);
 
 	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
+		pr_err("Canyest modify address while enabled\n");
 		pr_err("Disable the address before modifying\n");
 		return -EACCES;
 	}
@@ -101,7 +101,7 @@ static ssize_t nvmet_addr_portid_store(struct config_item *item,
 	}
 
 	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
+		pr_err("Canyest modify address while enabled\n");
 		pr_err("Disable the address before modifying\n");
 		return -EACCES;
 	}
@@ -131,7 +131,7 @@ static ssize_t nvmet_addr_traddr_store(struct config_item *item,
 	}
 
 	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
+		pr_err("Canyest modify address while enabled\n");
 		pr_err("Disable the address before modifying\n");
 		return -EACCES;
 	}
@@ -149,11 +149,11 @@ static ssize_t nvmet_addr_treq_show(struct config_item *item,
 	switch (to_nvmet_port(item)->disc_addr.treq &
 		NVME_TREQ_SECURE_CHANNEL_MASK) {
 	case NVMF_TREQ_NOT_SPECIFIED:
-		return sprintf(page, "not specified\n");
+		return sprintf(page, "yest specified\n");
 	case NVMF_TREQ_REQUIRED:
 		return sprintf(page, "required\n");
 	case NVMF_TREQ_NOT_REQUIRED:
-		return sprintf(page, "not required\n");
+		return sprintf(page, "yest required\n");
 	default:
 		return sprintf(page, "\n");
 	}
@@ -166,16 +166,16 @@ static ssize_t nvmet_addr_treq_store(struct config_item *item,
 	u8 treq = port->disc_addr.treq & ~NVME_TREQ_SECURE_CHANNEL_MASK;
 
 	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
+		pr_err("Canyest modify address while enabled\n");
 		pr_err("Disable the address before modifying\n");
 		return -EACCES;
 	}
 
-	if (sysfs_streq(page, "not specified")) {
+	if (sysfs_streq(page, "yest specified")) {
 		treq |= NVMF_TREQ_NOT_SPECIFIED;
 	} else if (sysfs_streq(page, "required")) {
 		treq |= NVMF_TREQ_REQUIRED;
-	} else if (sysfs_streq(page, "not required")) {
+	} else if (sysfs_streq(page, "yest required")) {
 		treq |= NVMF_TREQ_NOT_REQUIRED;
 	} else {
 		pr_err("Invalid value '%s' for treq\n", page);
@@ -207,7 +207,7 @@ static ssize_t nvmet_addr_trsvcid_store(struct config_item *item,
 		return -EINVAL;
 	}
 	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
+		pr_err("Canyest modify address while enabled\n");
 		pr_err("Disable the address before modifying\n");
 		return -EACCES;
 	}
@@ -234,7 +234,7 @@ static ssize_t nvmet_param_inline_data_size_store(struct config_item *item,
 	int ret;
 
 	if (port->enabled) {
-		pr_err("Cannot modify inline_data_size while port enabled\n");
+		pr_err("Canyest modify inline_data_size while port enabled\n");
 		pr_err("Disable the port before modifying\n");
 		return -EACCES;
 	}
@@ -277,7 +277,7 @@ static ssize_t nvmet_addr_trtype_store(struct config_item *item,
 	int i;
 
 	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
+		pr_err("Canyest modify address while enabled\n");
 		pr_err("Disable the address before modifying\n");
 		return -EACCES;
 	}
@@ -825,16 +825,16 @@ static ssize_t nvmet_subsys_attr_version_store(struct config_item *item,
 					       const char *page, size_t count)
 {
 	struct nvmet_subsys *subsys = to_subsys(item);
-	int major, minor, tertiary = 0;
+	int major, miyesr, tertiary = 0;
 	int ret;
 
 
-	ret = sscanf(page, "%d.%d.%d\n", &major, &minor, &tertiary);
+	ret = sscanf(page, "%d.%d.%d\n", &major, &miyesr, &tertiary);
 	if (ret != 2 && ret != 3)
 		return -EINVAL;
 
 	down_write(&nvmet_config_sem);
-	subsys->ver = NVME_VS(major, minor, tertiary);
+	subsys->ver = NVME_VS(major, miyesr, tertiary);
 	up_write(&nvmet_config_sem);
 
 	return count;
@@ -1018,7 +1018,7 @@ static struct {
 	const char		*name;
 } nvmet_ana_state_names[] = {
 	{ NVME_ANA_OPTIMIZED,		"optimized" },
-	{ NVME_ANA_NONOPTIMIZED,	"non-optimized" },
+	{ NVME_ANA_NONOPTIMIZED,	"yesn-optimized" },
 	{ NVME_ANA_INACCESSIBLE,	"inaccessible" },
 	{ NVME_ANA_PERSISTENT_LOSS,	"persistent-loss" },
 	{ NVME_ANA_CHANGE,		"change" },

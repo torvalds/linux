@@ -263,7 +263,7 @@ static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 		goto err_pltfm_free;
 	}
 
-	dev_dbg(dev, "non-removable=%c\n",
+	dev_dbg(dev, "yesn-removable=%c\n",
 		mmc_card_is_removable(host->mmc) ? 'N' : 'Y');
 	dev_dbg(dev, "cd_gpio %c, wp_gpio %c\n",
 		(mmc_gpio_get_cd(host->mmc) != -ENOSYS) ? 'Y' : 'N',

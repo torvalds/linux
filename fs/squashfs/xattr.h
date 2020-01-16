@@ -17,7 +17,7 @@ extern int squashfs_xattr_lookup(struct super_block *, unsigned int, int *,
 static inline __le64 *squashfs_read_xattr_id_table(struct super_block *sb,
 		u64 start, u64 *xattr_table_start, int *xattr_ids)
 {
-	ERROR("Xattrs in filesystem, these will be ignored\n");
+	ERROR("Xattrs in filesystem, these will be igyesred\n");
 	*xattr_table_start = start;
 	return ERR_PTR(-ENOTSUPP);
 }

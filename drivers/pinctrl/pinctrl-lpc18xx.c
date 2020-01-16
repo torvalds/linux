@@ -722,7 +722,7 @@ static int lpc18xx_pin_to_gpio(struct pinctrl_dev *pctldev, unsigned pin)
 {
 	struct pinctrl_gpio_range *range;
 
-	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
+	range = pinctrl_find_gpio_range_from_pin_yeslock(pctldev, pin);
 	if (!range)
 		return -EINVAL;
 
@@ -920,7 +920,7 @@ static int lpc18xx_pconf_set_usb1(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		dev_err(pctldev->dev, "Property not supported\n");
+		dev_err(pctldev->dev, "Property yest supported\n");
 		return -ENOTSUPP;
 	}
 
@@ -971,7 +971,7 @@ static int lpc18xx_pconf_set_i2c0(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		dev_err(pctldev->dev, "Property not supported\n");
+		dev_err(pctldev->dev, "Property yest supported\n");
 		return -ENOTSUPP;
 	}
 
@@ -1075,7 +1075,7 @@ static int lpc18xx_pconf_set_pin(struct pinctrl_dev *pctldev, unsigned param,
 		return lpc18xx_pconf_set_gpio_pin_int(pctldev, param_val, pin);
 
 	default:
-		dev_err(pctldev->dev, "Property not supported\n");
+		dev_err(pctldev->dev, "Property yest supported\n");
 		return -ENOTSUPP;
 	}
 
@@ -1251,7 +1251,7 @@ static const struct pinctrl_ops lpc18xx_pctl_ops = {
 	.get_groups_count	= lpc18xx_pctl_get_groups_count,
 	.get_group_name		= lpc18xx_pctl_get_group_name,
 	.get_group_pins		= lpc18xx_pctl_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -1336,7 +1336,7 @@ static int lpc18xx_scu_probe(struct platform_device *pdev)
 
 	scu->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(scu->clk)) {
-		dev_err(&pdev->dev, "Input clock not found.\n");
+		dev_err(&pdev->dev, "Input clock yest found.\n");
 		return PTR_ERR(scu->clk);
 	}
 
@@ -1356,7 +1356,7 @@ static int lpc18xx_scu_probe(struct platform_device *pdev)
 
 	scu->pctl = devm_pinctrl_register(&pdev->dev, &lpc18xx_scu_desc, scu);
 	if (IS_ERR(scu->pctl)) {
-		dev_err(&pdev->dev, "Could not register pinctrl driver\n");
+		dev_err(&pdev->dev, "Could yest register pinctrl driver\n");
 		clk_disable_unprepare(scu->clk);
 		return PTR_ERR(scu->pctl);
 	}

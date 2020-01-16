@@ -26,7 +26,7 @@ static DEFINE_MUTEX(wakelocks_lock);
 
 struct wakelock {
 	char			*name;
-	struct rb_node		node;
+	struct rb_yesde		yesde;
 	struct wakeup_source	*ws;
 #ifdef CONFIG_PM_WAKELOCKS_GC
 	struct list_head	lru;
@@ -37,15 +37,15 @@ static struct rb_root wakelocks_tree = RB_ROOT;
 
 ssize_t pm_show_wakelocks(char *buf, bool show_active)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct wakelock *wl;
 	char *str = buf;
 	char *end = buf + PAGE_SIZE;
 
 	mutex_lock(&wakelocks_lock);
 
-	for (node = rb_first(&wakelocks_tree); node; node = rb_next(node)) {
-		wl = rb_entry(node, struct wakelock, node);
+	for (yesde = rb_first(&wakelocks_tree); yesde; yesde = rb_next(yesde)) {
+		wl = rb_entry(yesde, struct wakelock, yesde);
 		if (wl->ws->active == show_active)
 			str += scnprintf(str, end - str, "%s ", wl->name);
 	}
@@ -103,17 +103,17 @@ static inline void wakelocks_lru_most_recent(struct wakelock *wl)
 static void __wakelocks_gc(struct work_struct *work)
 {
 	struct wakelock *wl, *aux;
-	ktime_t now;
+	ktime_t yesw;
 
 	mutex_lock(&wakelocks_lock);
 
-	now = ktime_get();
+	yesw = ktime_get();
 	list_for_each_entry_safe_reverse(wl, aux, &wakelocks_lru_list, lru) {
 		u64 idle_time_ns;
 		bool active;
 
 		spin_lock_irq(&wl->ws->lock);
-		idle_time_ns = ktime_to_ns(ktime_sub(now, wl->ws->last_time));
+		idle_time_ns = ktime_to_ns(ktime_sub(yesw, wl->ws->last_time));
 		active = wl->ws->active;
 		spin_unlock_irq(&wl->ws->lock);
 
@@ -122,7 +122,7 @@ static void __wakelocks_gc(struct work_struct *work)
 
 		if (!active) {
 			wakeup_source_unregister(wl->ws);
-			rb_erase(&wl->node, &wakelocks_tree);
+			rb_erase(&wl->yesde, &wakelocks_tree);
 			list_del(&wl->lru);
 			kfree(wl->name);
 			kfree(wl);
@@ -148,17 +148,17 @@ static inline void wakelocks_gc(void) {}
 #endif /* !CONFIG_PM_WAKELOCKS_GC */
 
 static struct wakelock *wakelock_lookup_add(const char *name, size_t len,
-					    bool add_if_not_found)
+					    bool add_if_yest_found)
 {
-	struct rb_node **node = &wakelocks_tree.rb_node;
-	struct rb_node *parent = *node;
+	struct rb_yesde **yesde = &wakelocks_tree.rb_yesde;
+	struct rb_yesde *parent = *yesde;
 	struct wakelock *wl;
 
-	while (*node) {
+	while (*yesde) {
 		int diff;
 
-		parent = *node;
-		wl = rb_entry(*node, struct wakelock, node);
+		parent = *yesde;
+		wl = rb_entry(*yesde, struct wakelock, yesde);
 		diff = strncmp(name, wl->name, len);
 		if (diff == 0) {
 			if (wl->name[len])
@@ -167,11 +167,11 @@ static struct wakelock *wakelock_lookup_add(const char *name, size_t len,
 				return wl;
 		}
 		if (diff < 0)
-			node = &(*node)->rb_left;
+			yesde = &(*yesde)->rb_left;
 		else
-			node = &(*node)->rb_right;
+			yesde = &(*yesde)->rb_right;
 	}
-	if (!add_if_not_found)
+	if (!add_if_yest_found)
 		return ERR_PTR(-EINVAL);
 
 	if (wakelocks_limit_exceeded())
@@ -196,8 +196,8 @@ static struct wakelock *wakelock_lookup_add(const char *name, size_t len,
 	}
 	wl->ws->last_time = ktime_get();
 
-	rb_link_node(&wl->node, parent, node);
-	rb_insert_color(&wl->node, &wakelocks_tree);
+	rb_link_yesde(&wl->yesde, parent, yesde);
+	rb_insert_color(&wl->yesde, &wakelocks_tree);
 	wakelocks_lru_add(wl);
 	increment_wakelocks_number();
 	return wl;

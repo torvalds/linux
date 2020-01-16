@@ -53,22 +53,22 @@
 /**
  * struct kempld_info - PLD device information structure
  * @major:	PLD major revision
- * @minor:	PLD minor revision
+ * @miyesr:	PLD miyesr revision
  * @buildnr:	PLD build number
  * @number:	PLD board specific index
  * @type:	PLD type
  * @spec_major:	PLD FW specification major revision
- * @spec_minor:	PLD FW specification minor revision
+ * @spec_miyesr:	PLD FW specification miyesr revision
  * @version:	PLD version string
  */
 struct kempld_info {
 	unsigned int major;
-	unsigned int minor;
+	unsigned int miyesr;
 	unsigned int buildnr;
 	unsigned int number;
 	unsigned int type;
 	unsigned int spec_major;
-	unsigned int spec_minor;
+	unsigned int spec_miyesr;
 	char version[KEMPLD_VERSION_LEN];
 };
 

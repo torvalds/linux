@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4412 based Trats 2 board device tree source
+ * Samsung's Exyyess4412 based Trats 2 board device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Device tree source file for Samsung's Trats 2 board which is based on
- * Samsung's Exynos4412 SoC.
+ * Samsung's Exyyess4412 SoC.
  */
 
 /dts-v1/;
-#include "exynos4412.dtsi"
-#include "exynos4412-ppmu-common.dtsi"
+#include "exyyess4412.dtsi"
+#include "exyyess4412-ppmu-common.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/maxim,max77686.h>
 #include <dt-bindings/pinctrl/samsung.h>
 
 / {
-	compatible = "samsung,midas", "samsung,exynos4412", "samsung,exynos4";
+	compatible = "samsung,midas", "samsung,exyyess4412", "samsung,exyyess4";
 
 	aliases {
 		i2c11 = &i2c_max77693;
@@ -397,7 +397,7 @@
 	samsung,pll-clock-frequency = <24000000>;
 };
 
-&exynos_usbphy {
+&exyyess_usbphy {
 	vbus-supply = <&esafeout1_reg>;
 	status = "okay";
 };
@@ -886,7 +886,7 @@
 
 &mshc_0 {
 	broken-cd;
-	non-removable;
+	yesn-removable;
 	card-detect-delay = <200>;
 	vmmc-supply = <&ldo22_reg>;
 	clock-frequency = <400000000>;
@@ -1288,7 +1288,7 @@
 &sdhci_3 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	non-removable;
+	yesn-removable;
 	bus-width = <4>;
 
 	mmc-pwrseq = <&wlan_pwrseq>;

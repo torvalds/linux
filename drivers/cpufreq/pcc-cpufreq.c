@@ -17,7 +17,7 @@
  *  INFRINGEMENT. See the GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -77,14 +77,14 @@ struct pcc_header {
 	u32 signature;
 	u16 length;
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	u32 features;
 	u16 command;
 	u16 status;
 	u32 latency;
 	u32 minimum_time;
 	u32 maximum_time;
-	u32 nominal;
+	u32 yesminal;
 	u32 throttled_frequency;
 	u32 minimum_frequency;
 };
@@ -171,7 +171,7 @@ static unsigned int pcc_get_freq(unsigned int cpu)
 		goto cmd_incomplete;
 	}
 	iowrite16(0, &pcch_hdr->status);
-	curr_freq = (((ioread32(&pcch_hdr->nominal) * (output_buffer & 0xff))
+	curr_freq = (((ioread32(&pcch_hdr->yesminal) * (output_buffer & 0xff))
 			/ 100) * 1000);
 
 	pr_debug("get: SUCCESS: (virtual) output_offset for cpu %d is "
@@ -218,7 +218,7 @@ static int pcc_cpufreq_target(struct cpufreq_policy *policy,
 	spin_lock(&pcc_lock);
 
 	input_buffer = 0x1 | (((target_freq * 100)
-			       / (ioread32(&pcch_hdr->nominal) * 1000)) << 8);
+			       / (ioread32(&pcch_hdr->yesminal) * 1000)) << 8);
 	iowrite32(input_buffer,
 			(pcch_virt_addr + pcc_cpu_data->input_offset));
 	iowrite16(CMD_SET_FREQ, &pcch_hdr->command);
@@ -405,7 +405,7 @@ static int __init pcc_cpufreq_probe(void)
 	if (ACPI_SUCCESS(status)) {
 		ret = pcc_cpufreq_do_osc(&osc_handle);
 		if (ret)
-			pr_debug("probe: _OSC evaluation did not succeed\n");
+			pr_debug("probe: _OSC evaluation did yest succeed\n");
 		/* Firmware's use of _OSC is optional */
 		ret = 0;
 	}
@@ -445,10 +445,10 @@ static int __init pcc_cpufreq_probe(void)
 		goto out_free;
 	}
 
-	pcch_virt_addr = ioremap_nocache(mem_resource->minimum,
+	pcch_virt_addr = ioremap_yescache(mem_resource->minimum,
 					mem_resource->address_length);
 	if (pcch_virt_addr == NULL) {
-		pr_debug("probe: could not map shared mem region\n");
+		pr_debug("probe: could yest map shared mem region\n");
 		ret = -ENOMEM;
 		goto out_free;
 	}
@@ -456,23 +456,23 @@ static int __init pcc_cpufreq_probe(void)
 
 	pr_debug("probe: PCCH header (virtual) addr: 0x%p\n", pcch_hdr);
 	pr_debug("probe: PCCH header is at physical address: 0x%llx,"
-		" signature: 0x%x, length: %d bytes, major: %d, minor: %d,"
+		" signature: 0x%x, length: %d bytes, major: %d, miyesr: %d,"
 		" supported features: 0x%x, command field: 0x%x,"
-		" status field: 0x%x, nominal latency: %d us\n",
+		" status field: 0x%x, yesminal latency: %d us\n",
 		mem_resource->minimum, ioread32(&pcch_hdr->signature),
 		ioread16(&pcch_hdr->length), ioread8(&pcch_hdr->major),
-		ioread8(&pcch_hdr->minor), ioread32(&pcch_hdr->features),
+		ioread8(&pcch_hdr->miyesr), ioread32(&pcch_hdr->features),
 		ioread16(&pcch_hdr->command), ioread16(&pcch_hdr->status),
 		ioread32(&pcch_hdr->latency));
 
 	pr_debug("probe: min time between commands: %d us,"
 		" max time between commands: %d us,"
-		" nominal CPU frequency: %d MHz,"
+		" yesminal CPU frequency: %d MHz,"
 		" minimum CPU frequency: %d MHz,"
 		" minimum CPU frequency without throttling: %d MHz\n",
 		ioread32(&pcch_hdr->minimum_time),
 		ioread32(&pcch_hdr->maximum_time),
-		ioread32(&pcch_hdr->nominal),
+		ioread32(&pcch_hdr->yesminal),
 		ioread32(&pcch_hdr->throttled_frequency),
 		ioread32(&pcch_hdr->minimum_frequency));
 
@@ -524,7 +524,7 @@ static int __init pcc_cpufreq_probe(void)
 	printk(KERN_DEBUG "pcc-cpufreq: (v%s) driver loaded with frequency"
 	       " limits: %d MHz, %d MHz\n", PCC_VERSION,
 	       ioread32(&pcch_hdr->minimum_frequency),
-	       ioread32(&pcch_hdr->nominal));
+	       ioread32(&pcch_hdr->yesminal));
 	kfree(output.pointer);
 	return ret;
 pcch_free:
@@ -551,7 +551,7 @@ static int pcc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	policy->max = policy->cpuinfo.max_freq =
-		ioread32(&pcch_hdr->nominal) * 1000;
+		ioread32(&pcch_hdr->yesminal) * 1000;
 	policy->min = policy->cpuinfo.min_freq =
 		ioread32(&pcch_hdr->minimum_frequency) * 1000;
 
@@ -580,7 +580,7 @@ static int __init pcc_cpufreq_init(void)
 {
 	int ret;
 
-	/* Skip initialization if another cpufreq driver is there. */
+	/* Skip initialization if ayesther cpufreq driver is there. */
 	if (cpufreq_get_current_driver())
 		return -EEXIST;
 
@@ -597,7 +597,7 @@ static int __init pcc_cpufreq_init(void)
 		pcc_cpufreq_driver.flags |= CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING;
 		pr_err("%s: Too many CPUs, dynamic performance scaling disabled\n",
 		       __func__);
-		pr_err("%s: Try to enable another scaling driver through BIOS settings\n",
+		pr_err("%s: Try to enable ayesther scaling driver through BIOS settings\n",
 		       __func__);
 		pr_err("%s: and complain to the system vendor\n", __func__);
 	}

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-yeste */
 /*
  * include/linux/loop.h
  *
@@ -32,7 +32,7 @@ enum {
 struct loop_info {
 	int		   lo_number;		/* ioctl r/o */
 	__kernel_old_dev_t lo_device; 		/* ioctl r/o */
-	unsigned long	   lo_inode; 		/* ioctl r/o */
+	unsigned long	   lo_iyesde; 		/* ioctl r/o */
 	__kernel_old_dev_t lo_rdevice; 		/* ioctl r/o */
 	int		   lo_offset;
 	int		   lo_encrypt_type;
@@ -46,7 +46,7 @@ struct loop_info {
 
 struct loop_info64 {
 	__u64		   lo_device;			/* ioctl r/o */
-	__u64		   lo_inode;			/* ioctl r/o */
+	__u64		   lo_iyesde;			/* ioctl r/o */
 	__u64		   lo_rdevice;			/* ioctl r/o */
 	__u64		   lo_offset;
 	__u64		   lo_sizelimit;/* bytes, 0 == max available */

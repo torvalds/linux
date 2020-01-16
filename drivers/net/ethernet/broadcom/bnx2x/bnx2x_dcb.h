@@ -9,7 +9,7 @@
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
  *
- * Notwithstanding the above, under no circumstances may you combine this
+ * Notwithstanding the above, under yes circumstances may you combine this
  * software in any way with any other QLogic software provided under a
  * license other than the GPL, without QLogic's express prior written
  * consent.
@@ -57,7 +57,7 @@ struct bnx2x_dcbx_pg_params {
 
 struct bnx2x_dcbx_pfc_params {
 	u32 enabled;
-	u32 priority_non_pauseable_mask;
+	u32 priority_yesn_pauseable_mask;
 };
 
 struct bnx2x_dcbx_port_params {
@@ -153,7 +153,7 @@ struct cos_help_data {
 #define DCBX_STRICT_PRIORITY			(15)
 #define DCBX_INVALID_COS_BW			(0xFFFFFFFF)
 #define DCBX_PFC_PRI_NON_PAUSE_MASK(bp)		\
-			((bp)->dcbx_port_params.pfc.priority_non_pauseable_mask)
+			((bp)->dcbx_port_params.pfc.priority_yesn_pauseable_mask)
 #define DCBX_PFC_PRI_PAUSE_MASK(bp)		\
 					((u8)~DCBX_PFC_PRI_NON_PAUSE_MASK(bp))
 #define DCBX_PFC_PRI_GET_PAUSE(bp, pg_pri)	\

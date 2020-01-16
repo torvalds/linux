@@ -3,7 +3,7 @@
  * IIO driver for the MiraMEMS DA311 3-axis accelerometer
  *
  * Copyright (c) 2016 Hans de Goede <hdegoede@redhat.com>
- * Copyright (c) 2011-2013 MiraMEMS Sensing Technology Co., Ltd.
+ * Copyright (c) 2011-2013 MiraMEMS Sensing Techyeslogy Co., Ltd.
  */
 
 #include <linux/module.h>

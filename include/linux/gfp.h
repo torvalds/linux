@@ -15,7 +15,7 @@ struct vm_area_struct;
  * include/trace/events/mmflags.h and tools/perf/builtin-kmem.c
  */
 
-/* Plain integer GFP bitmasks. Do not use this directly. */
+/* Plain integer GFP bitmasks. Do yest use this directly. */
 #define ___GFP_DMA		0x01u
 #define ___GFP_HIGHMEM		0x02u
 #define ___GFP_DMA32		0x04u
@@ -49,7 +49,7 @@ struct vm_area_struct;
 /*
  * Physical address zone modifiers (see linux/mmzone.h - low four bits)
  *
- * Do not put any conditional on these. If necessary modify the definitions
+ * Do yest put any conditional on these. If necessary modify the definitions
  * without the underscores and use them consistently. The definitions here may
  * be used in bit comparisons.
  */
@@ -82,7 +82,7 @@ struct vm_area_struct;
  * %__GFP_HARDWALL enforces the cpuset memory allocation policy.
  *
  * %__GFP_THISNODE forces the allocation to be satisfied from the requested
- * node with no fallbacks or placement policy enforcements.
+ * yesde with yes fallbacks or placement policy enforcements.
  *
  * %__GFP_ACCOUNT causes the allocation to be accounted to kmemcg.
  */
@@ -102,7 +102,7 @@ struct vm_area_struct;
  * the request is necessary before the system can make forward progress.
  * For example, creating an IO context to clean pages.
  *
- * %__GFP_ATOMIC indicates that the caller cannot reclaim or sleep and is
+ * %__GFP_ATOMIC indicates that the caller canyest reclaim or sleep and is
  * high priority. Users are typically interrupt handlers. This may be
  * used in conjunction with %__GFP_HIGH
  *
@@ -139,7 +139,7 @@ struct vm_area_struct;
  * the low watermark is reached and have it reclaim pages until the high
  * watermark is reached. A caller may wish to clear this flag when fallback
  * options are available and the reclaim is likely to disrupt the system. The
- * canonical example is THP allocation where a fallback is cheap but
+ * cayesnical example is THP allocation where a fallback is cheap but
  * reclaim/compaction may cause indirect stalls.
  *
  * %__GFP_RECLAIM is shorthand to allow/forbid both direct and kswapd reclaim.
@@ -147,9 +147,9 @@ struct vm_area_struct;
  * The default allocator behavior depends on the request size. We have a concept
  * of so called costly allocations (with order > %PAGE_ALLOC_COSTLY_ORDER).
  * !costly allocations are too essential to fail so they are implicitly
- * non-failing by default (with some exceptions like OOM victims might fail so
+ * yesn-failing by default (with some exceptions like OOM victims might fail so
  * the caller still has to check for failures) while costly requests try to be
- * not disruptive and back off even without invoking the OOM killer.
+ * yest disruptive and back off even without invoking the OOM killer.
  * The following three modifiers might be used to override some of these
  * implicit rules
  *
@@ -168,22 +168,22 @@ struct vm_area_struct;
  * There is still a definite limit to the number of retries, but it is
  * a larger limit than with %__GFP_NORETRY.
  * Allocations with this flag may fail, but only when there is
- * genuinely little unused memory. While these allocations do not
+ * genuinely little unused memory. While these allocations do yest
  * directly trigger the OOM killer, their failure indicates that
  * the system is likely to need to use the OOM killer soon.  The
  * caller must handle failure, but can reasonably do so by failing
  * a higher-level request, or completing it only in a much less
  * efficient manner.
  * If the allocation does fail, and the caller is in a position to
- * free some non-essential memory, doing so could benefit the system
+ * free some yesn-essential memory, doing so could benefit the system
  * as a whole.
  *
  * %__GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
- * cannot handle allocation failures. The allocation could block
+ * canyest handle allocation failures. The allocation could block
  * indefinitely but will never return with failure. Testing for
  * failure is pointless.
  * New users should be evaluated carefully (and the flag should be
- * used only when there is no reasonable failure policy) but it is
+ * used only when there is yes reasonable failure policy) but it is
  * definitely preferable to use the flag rather than opencode endless
  * loop around allocator.
  * Using this flag for costly allocations is _highly_ discouraged.
@@ -230,7 +230,7 @@ struct vm_area_struct;
  * that subsystems start with one of these combinations and then set/clear
  * %__GFP_FOO flags as necessary.
  *
- * %GFP_ATOMIC users can not sleep and need the allocation to succeed. A lower
+ * %GFP_ATOMIC users can yest sleep and need the allocation to succeed. A lower
  * watermark is applied to allow access to "atomic reserves"
  *
  * %GFP_KERNEL is typical for kernel-internal allocations. The caller requires
@@ -239,19 +239,19 @@ struct vm_area_struct;
  * %GFP_KERNEL_ACCOUNT is the same as GFP_KERNEL, except the allocation is
  * accounted to kmemcg.
  *
- * %GFP_NOWAIT is for kernel allocations that should not stall for direct
+ * %GFP_NOWAIT is for kernel allocations that should yest stall for direct
  * reclaim, start physical IO or use any filesystem callback.
  *
  * %GFP_NOIO will use direct reclaim to discard clean pages or slab pages
- * that do not require the starting of any physical IO.
+ * that do yest require the starting of any physical IO.
  * Please try to avoid using this flag directly and instead use
- * memalloc_noio_{save,restore} to mark the whole scope which cannot
+ * memalloc_yesio_{save,restore} to mark the whole scope which canyest
  * perform any IO with a short explanation why. All allocation requests
  * will inherit GFP_NOIO implicitly.
  *
- * %GFP_NOFS will use direct reclaim but will not use any filesystem interfaces.
+ * %GFP_NOFS will use direct reclaim but will yest use any filesystem interfaces.
  * Please try to avoid using this flag directly and instead use
- * memalloc_nofs_{save,restore} to mark the whole scope which cannot/shouldn't
+ * memalloc_yesfs_{save,restore} to mark the whole scope which canyest/shouldn't
  * recurse into the FS layer with a short explanation why. All allocation
  * requests will inherit GFP_NOFS implicitly.
  *
@@ -271,20 +271,20 @@ struct vm_area_struct;
  * address.
  *
  * %GFP_HIGHUSER is for userspace allocations that may be mapped to userspace,
- * do not need to be directly accessible by the kernel but that cannot
+ * do yest need to be directly accessible by the kernel but that canyest
  * move once in use. An example may be a hardware allocation that maps
- * data directly into userspace but has no addressing limitations.
+ * data directly into userspace but has yes addressing limitations.
  *
- * %GFP_HIGHUSER_MOVABLE is for userspace allocations that the kernel does not
+ * %GFP_HIGHUSER_MOVABLE is for userspace allocations that the kernel does yest
  * need direct access to but can use kmap() when access is required. They
  * are expected to be movable via page reclaim or page migration. Typically,
  * pages on the LRU would also be allocated with %GFP_HIGHUSER_MOVABLE.
  *
  * %GFP_TRANSHUGE and %GFP_TRANSHUGE_LIGHT are used for THP allocations. They
- * are compound allocations that will generally fail quickly if memory is not
- * available and will not wake kswapd/kcompactd on failure. The _LIGHT
- * version does not attempt reclaim/compaction at all and is by default used
- * in page fault path, while the non-light is used by khugepaged.
+ * are compound allocations that will generally fail quickly if memory is yest
+ * available and will yest wake kswapd/kcompactd on failure. The _LIGHT
+ * version does yest attempt reclaim/compaction at all and is by default used
+ * in page fault path, while the yesn-light is used by khugepaged.
  */
 #define GFP_ATOMIC	(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
 #define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
@@ -326,7 +326,7 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
 }
 
 /**
- * gfpflags_normal_context - is gfp_flags a normal sleepable context?
+ * gfpflags_yesrmal_context - is gfp_flags a yesrmal sleepable context?
  * @gfp_flags: gfp_flags to test
  *
  * Test whether @gfp_flags indicates that the allocation is from the
@@ -342,7 +342,7 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
  * %true result from this function indicates that the allocation context
  * can sleep and use anything that's associated with %current.
  */
-static inline bool gfpflags_normal_context(const gfp_t gfp_flags)
+static inline bool gfpflags_yesrmal_context(const gfp_t gfp_flags)
 {
 	return (gfp_flags & (__GFP_DIRECT_RECLAIM | __GFP_MEMALLOC)) ==
 		__GFP_DIRECT_RECLAIM;
@@ -373,8 +373,8 @@ static inline bool gfpflags_normal_context(const gfp_t gfp_flags)
  * __GFP_DMA, __GFP_DMA32, __GFP_MOVABLE and __GFP_HIGHMEM.
  *
  * The zone fallback order is MOVABLE=>HIGHMEM=>NORMAL=>DMA32=>DMA.
- * But GFP_MOVABLE is not only a zone specifier but also an allocation
- * policy. Therefore __GFP_MOVABLE plus another zone selector is valid.
+ * But GFP_MOVABLE is yest only a zone specifier but also an allocation
+ * policy. Therefore __GFP_MOVABLE plus ayesther zone selector is valid.
  * Only 1 bit of the lowest 3 bits (DMA,DMA32,HIGHMEM) can be set to "1".
  *
  *       bit       result
@@ -400,7 +400,7 @@ static inline bool gfpflags_normal_context(const gfp_t gfp_flags)
  */
 
 #if defined(CONFIG_ZONE_DEVICE) && (MAX_NR_ZONES-1) <= 4
-/* ZONE_DEVICE is not a valid GFP zone specifier */
+/* ZONE_DEVICE is yest a valid GFP zone specifier */
 #define GFP_ZONES_SHIFT 2
 #else
 #define GFP_ZONES_SHIFT ZONES_SHIFT
@@ -423,8 +423,8 @@ static inline bool gfpflags_normal_context(const gfp_t gfp_flags)
 
 /*
  * GFP_ZONE_BAD is a bitmap for all combinations of __GFP_DMA, __GFP_DMA32
- * __GFP_HIGHMEM and __GFP_MOVABLE that are not permitted. One flag per
- * entry starting with bit 0. Bit is set if the combination is not
+ * __GFP_HIGHMEM and __GFP_MOVABLE that are yest permitted. One flag per
+ * entry starting with bit 0. Bit is set if the combination is yest
  * allowed.
  */
 #define GFP_ZONE_BAD ( \
@@ -466,17 +466,17 @@ static inline int gfp_zonelist(gfp_t flags)
 }
 
 /*
- * We get the zone list from the current node and the gfp_mask.
+ * We get the zone list from the current yesde and the gfp_mask.
  * This zone list contains a maximum of MAXNODES*MAX_NR_ZONES zones.
- * There are two zonelists per node, one for all zones with memory and
- * one containing just zones from the node the zonelist belongs to.
+ * There are two zonelists per yesde, one for all zones with memory and
+ * one containing just zones from the yesde the zonelist belongs to.
  *
- * For the normal case of non-DISCONTIGMEM systems the NODE_DATA() gets
+ * For the yesrmal case of yesn-DISCONTIGMEM systems the NODE_DATA() gets
  * optimized to &contig_page_data at compile-time.
  */
-static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
+static inline struct zonelist *yesde_zonelist(int nid, gfp_t flags)
 {
-	return NODE_DATA(nid)->node_zonelists + gfp_zonelist(flags);
+	return NODE_DATA(nid)->yesde_zonelists + gfp_zonelist(flags);
 }
 
 #ifndef HAVE_ARCH_FREE_PAGE
@@ -487,40 +487,40 @@ static inline void arch_alloc_page(struct page *page, int order) { }
 #endif
 
 struct page *
-__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
-							nodemask_t *nodemask);
+__alloc_pages_yesdemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
+							yesdemask_t *yesdemask);
 
 static inline struct page *
 __alloc_pages(gfp_t gfp_mask, unsigned int order, int preferred_nid)
 {
-	return __alloc_pages_nodemask(gfp_mask, order, preferred_nid, NULL);
+	return __alloc_pages_yesdemask(gfp_mask, order, preferred_nid, NULL);
 }
 
 /*
- * Allocate pages, preferring the node given as nid. The node must be valid and
- * online. For more general interface, see alloc_pages_node().
+ * Allocate pages, preferring the yesde given as nid. The yesde must be valid and
+ * online. For more general interface, see alloc_pages_yesde().
  */
 static inline struct page *
-__alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
+__alloc_pages_yesde(int nid, gfp_t gfp_mask, unsigned int order)
 {
 	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
-	VM_WARN_ON((gfp_mask & __GFP_THISNODE) && !node_online(nid));
+	VM_WARN_ON((gfp_mask & __GFP_THISNODE) && !yesde_online(nid));
 
 	return __alloc_pages(gfp_mask, order, nid);
 }
 
 /*
- * Allocate pages, preferring the node given as nid. When nid == NUMA_NO_NODE,
- * prefer the current CPU's closest node. Otherwise node must be valid and
+ * Allocate pages, preferring the yesde given as nid. When nid == NUMA_NO_NODE,
+ * prefer the current CPU's closest yesde. Otherwise yesde must be valid and
  * online.
  */
-static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+static inline struct page *alloc_pages_yesde(int nid, gfp_t gfp_mask,
 						unsigned int order)
 {
 	if (nid == NUMA_NO_NODE)
 		nid = numa_mem_id();
 
-	return __alloc_pages_node(nid, gfp_mask, order);
+	return __alloc_pages_yesde(nid, gfp_mask, order);
 }
 
 #ifdef CONFIG_NUMA
@@ -533,22 +533,22 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
 }
 extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
 			struct vm_area_struct *vma, unsigned long addr,
-			int node, bool hugepage);
+			int yesde, bool hugepage);
 #define alloc_hugepage_vma(gfp_mask, vma, addr, order) \
-	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
+	alloc_pages_vma(gfp_mask, order, vma, addr, numa_yesde_id(), true)
 #else
 #define alloc_pages(gfp_mask, order) \
-		alloc_pages_node(numa_node_id(), gfp_mask, order)
-#define alloc_pages_vma(gfp_mask, order, vma, addr, node, false)\
+		alloc_pages_yesde(numa_yesde_id(), gfp_mask, order)
+#define alloc_pages_vma(gfp_mask, order, vma, addr, yesde, false)\
 	alloc_pages(gfp_mask, order)
 #define alloc_hugepage_vma(gfp_mask, vma, addr, order) \
 	alloc_pages(gfp_mask, order)
 #endif
 #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
 #define alloc_page_vma(gfp_mask, vma, addr)			\
-	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id(), false)
-#define alloc_page_vma_node(gfp_mask, vma, addr, node)		\
-	alloc_pages_vma(gfp_mask, 0, vma, addr, node, false)
+	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_yesde_id(), false)
+#define alloc_page_vma_yesde(gfp_mask, vma, addr, yesde)		\
+	alloc_pages_vma(gfp_mask, 0, vma, addr, yesde, false)
 
 extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
 extern unsigned long get_zeroed_page(gfp_t gfp_mask);
@@ -613,7 +613,7 @@ static inline bool pm_suspended_storage(void)
 extern int alloc_contig_range(unsigned long start, unsigned long end,
 			      unsigned migratetype, gfp_t gfp_mask);
 extern struct page *alloc_contig_pages(unsigned long nr_pages, gfp_t gfp_mask,
-				       int nid, nodemask_t *nodemask);
+				       int nid, yesdemask_t *yesdemask);
 #endif
 void free_contig_range(unsigned long pfn, unsigned int nr_pages);
 

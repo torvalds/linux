@@ -407,16 +407,16 @@ static void clkdev_add_clkout(void)
 void __init ltq_soc_init(void)
 {
 	struct resource res_pmu, res_cgu, res_ebu;
-	struct device_node *np_pmu =
-			of_find_compatible_node(NULL, NULL, "lantiq,pmu-xway");
-	struct device_node *np_cgu =
-			of_find_compatible_node(NULL, NULL, "lantiq,cgu-xway");
-	struct device_node *np_ebu =
-			of_find_compatible_node(NULL, NULL, "lantiq,ebu-xway");
+	struct device_yesde *np_pmu =
+			of_find_compatible_yesde(NULL, NULL, "lantiq,pmu-xway");
+	struct device_yesde *np_cgu =
+			of_find_compatible_yesde(NULL, NULL, "lantiq,cgu-xway");
+	struct device_yesde *np_ebu =
+			of_find_compatible_yesde(NULL, NULL, "lantiq,ebu-xway");
 
 	/* check if all the core register ranges are available */
 	if (!np_pmu || !np_cgu || !np_ebu)
-		panic("Failed to load core nodes from devicetree");
+		panic("Failed to load core yesdes from devicetree");
 
 	if (of_address_to_resource(np_pmu, 0, &res_pmu) ||
 			of_address_to_resource(np_cgu, 0, &res_cgu) ||
@@ -431,10 +431,10 @@ void __init ltq_soc_init(void)
 				res_ebu.name))
 		pr_err("Failed to request core resources");
 
-	pmu_membase = ioremap_nocache(res_pmu.start, resource_size(&res_pmu));
-	ltq_cgu_membase = ioremap_nocache(res_cgu.start,
+	pmu_membase = ioremap_yescache(res_pmu.start, resource_size(&res_pmu));
+	ltq_cgu_membase = ioremap_yescache(res_cgu.start,
 						resource_size(&res_cgu));
-	ltq_ebu_membase = ioremap_nocache(res_ebu.start,
+	ltq_ebu_membase = ioremap_yescache(res_ebu.start,
 						resource_size(&res_ebu));
 	if (!pmu_membase || !ltq_cgu_membase || !ltq_ebu_membase)
 		panic("Failed to remap core resources");

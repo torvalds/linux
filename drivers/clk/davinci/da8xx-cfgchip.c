@@ -2,7 +2,7 @@
 /*
  * Clock driver for DA8xx/AM17xx/AM18xx/OMAP-L13x CFGCHIP
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechyeslogy.com>
  */
 
 #include <linux/clk-provider.h>
@@ -307,7 +307,7 @@ static int __init da850_cfgchip_register_async3(struct device *dev,
 
 	clk_hw_register_clkdev(&mux->hw, "async3", "da850-psc1");
 
-	/* pll1_sysclk2 is not affected by CPU scaling, so use it for async3 */
+	/* pll1_sysclk2 is yest affected by CPU scaling, so use it for async3 */
 	parent = clk_hw_get_parent_by_index(&mux->hw, 1);
 	if (parent)
 		clk_set_parent(mux->hw.clk, parent->clk);
@@ -381,7 +381,7 @@ static int da8xx_usb0_clk48_enable(struct clk_hw *hw)
 	 */
 	clk_enable(usb0->fck);
 
-	/* Turn on the USB 2.0 PHY, but just the PLL, and not OTG. The USB 1.1
+	/* Turn on the USB 2.0 PHY, but just the PLL, and yest OTG. The USB 1.1
 	 * PHY may use the USB 2.0 PLL clock without USB 2.0 OTG being used.
 	 */
 	mask = CFGCHIP2_RESET | CFGCHIP2_PHYPWRDN | CFGCHIP2_PHY_PLLON;
@@ -746,12 +746,12 @@ static int da8xx_cfgchip_probe(struct platform_device *pdev)
 
 	of_id = of_match_device(da8xx_cfgchip_of_match, dev);
 	if (of_id) {
-		struct device_node *parent;
+		struct device_yesde *parent;
 
 		clk_init = of_id->data;
-		parent = of_get_parent(dev->of_node);
-		regmap = syscon_node_to_regmap(parent);
-		of_node_put(parent);
+		parent = of_get_parent(dev->of_yesde);
+		regmap = syscon_yesde_to_regmap(parent);
+		of_yesde_put(parent);
 	} else if (pdev->id_entry && pdata) {
 		clk_init = (void *)pdev->id_entry->driver_data;
 		regmap = pdata->cfgchip;
@@ -763,7 +763,7 @@ static int da8xx_cfgchip_probe(struct platform_device *pdev)
 	}
 
 	if (IS_ERR_OR_NULL(regmap)) {
-		dev_err(dev, "no regmap for CFGCHIP syscon\n");
+		dev_err(dev, "yes regmap for CFGCHIP syscon\n");
 		return regmap ? PTR_ERR(regmap) : -ENOENT;
 	}
 

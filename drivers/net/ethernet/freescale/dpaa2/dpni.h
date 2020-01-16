@@ -39,7 +39,7 @@ struct fsl_mc_io;
 #define DPNI_NEW_FLOW_ID			(u16)(-1)
 
 /**
- * Tx traffic is always released to a buffer pool on transmit, there are no
+ * Tx traffic is always released to a buffer pool on transmit, there are yes
  * resources allocated to have the frames confirmed back to the source after
  * transmission.
  */
@@ -65,8 +65,8 @@ struct fsl_mc_io;
  */
 #define DPNI_OPT_SHARED_CONGESTION		0x000008
 /**
- * Enables TCAM for Flow Steering and QoS look-ups. If not specified, all
- * look-ups are exact match. Note that TCAM is not available on LS1088 and its
+ * Enables TCAM for Flow Steering and QoS look-ups. If yest specified, all
+ * look-ups are exact match. Note that TCAM is yest available on LS1088 and its
  * variants. Setting this bit on these SoCs will trigger an error.
  */
 #define DPNI_OPT_HAS_KEY_MASKING		0x000010
@@ -249,7 +249,7 @@ int dpni_get_attributes(struct fsl_mc_io	*mc_io,
 /**
  * enum dpni_error_action - Defines DPNI behavior for errors
  * @DPNI_ERROR_ACTION_DISCARD: Discard the frame
- * @DPNI_ERROR_ACTION_CONTINUE: Continue with the normal flow
+ * @DPNI_ERROR_ACTION_CONTINUE: Continue with the yesrmal flow
  * @DPNI_ERROR_ACTION_SEND_TO_ERROR_QUEUE: Send the frame to the error queue
  */
 enum dpni_error_action {
@@ -262,13 +262,13 @@ enum dpni_error_action {
  * struct dpni_error_cfg - Structure representing DPNI errors treatment
  * @errors: Errors mask; use 'DPNI_ERROR__<X>
  * @error_action: The desired action for the errors mask
- * @set_frame_annotation: Set to '1' to mark the errors in frame annotation
- *		status (FAS); relevant only for the non-discard action
+ * @set_frame_anyestation: Set to '1' to mark the errors in frame anyestation
+ *		status (FAS); relevant only for the yesn-discard action
  */
 struct dpni_error_cfg {
 	u32			errors;
 	enum dpni_error_action	error_action;
-	int			set_frame_annotation;
+	int			set_frame_anyestation;
 };
 
 int dpni_set_errors_behavior(struct fsl_mc_io		*mc_io,
@@ -285,7 +285,7 @@ int dpni_set_errors_behavior(struct fsl_mc_io		*mc_io,
  */
 #define DPNI_BUF_LAYOUT_OPT_TIMESTAMP		0x00000001
 /**
- * Select to modify the parser-result setting; not applicable for Tx
+ * Select to modify the parser-result setting; yest applicable for Tx
  */
 #define DPNI_BUF_LAYOUT_OPT_PARSER_RESULT	0x00000002
 /**
@@ -415,7 +415,7 @@ int dpni_get_tx_data_offset(struct fsl_mc_io	*mc_io,
  * @page_2: Page_2 statistics structure
  * @page_2.ingress_filtered_frames: Ingress filtered frame count
  * @page_2.ingress_discarded_frames: Ingress discarded frame count
- * @page_2.ingress_nobuffer_discards: Ingress discarded frame count due to
+ * @page_2.ingress_yesbuffer_discards: Ingress discarded frame count due to
  *	lack of buffers
  * @page_2.egress_discarded_frames: Egress discarded frame count
  * @page_2.egress_confirmed_frames: Egress confirmed frame count
@@ -461,7 +461,7 @@ union dpni_statistics {
 	struct {
 		u64 ingress_filtered_frames;
 		u64 ingress_discarded_frames;
-		u64 ingress_nobuffer_discards;
+		u64 ingress_yesbuffer_discards;
 		u64 egress_discarded_frames;
 		u64 egress_confirmed_frames;
 	} page_2;
@@ -627,9 +627,9 @@ enum dpni_dist_mode {
 
 /**
  * enum dpni_fs_miss_action -   DPNI Flow Steering miss action
- * @DPNI_FS_MISS_DROP: In case of no-match, drop the frame
- * @DPNI_FS_MISS_EXPLICIT_FLOWID: In case of no-match, use explicit flow-id
- * @DPNI_FS_MISS_HASH: In case of no-match, distribute using hash
+ * @DPNI_FS_MISS_DROP: In case of yes-match, drop the frame
+ * @DPNI_FS_MISS_EXPLICIT_FLOWID: In case of yes-match, use explicit flow-id
+ * @DPNI_FS_MISS_HASH: In case of yes-match, distribute using hash
  */
 enum dpni_fs_miss_action {
 	DPNI_FS_MISS_DROP = 0,
@@ -718,14 +718,14 @@ int dpni_set_rx_hash_dist(struct fsl_mc_io *mc_io,
 /**
  * enum dpni_dest - DPNI destination types
  * @DPNI_DEST_NONE: Unassigned destination; The queue is set in parked mode and
- *		does not generate FQDAN notifications; user is expected to
+ *		does yest generate FQDAN yestifications; user is expected to
  *		dequeue from the queue based on polling or other user-defined
  *		method
  * @DPNI_DEST_DPIO: The queue is set in schedule mode and generates FQDAN
- *		notifications to the specified DPIO; user is expected to dequeue
- *		from the queue only after notification is received
- * @DPNI_DEST_DPCON: The queue is set in schedule mode and does not generate
- *		FQDAN notifications, but is connected to the specified DPCON
+ *		yestifications to the specified DPIO; user is expected to dequeue
+ *		from the queue only after yestification is received
+ * @DPNI_DEST_DPCON: The queue is set in schedule mode and does yest generate
+ *		FQDAN yestifications, but is connected to the specified DPCON
  *		object; user is expected to dequeue from the DPCON channel
  */
 enum dpni_dest {
@@ -742,22 +742,22 @@ enum dpni_dest {
  *	Not relevant for Tx queues.
  * @destination.type:	May be one of the following:
  *	0 - No destination, queue can be manually
- *		queried, but will not push traffic or
- *		notifications to a DPIO;
+ *		queried, but will yest push traffic or
+ *		yestifications to a DPIO;
  *	1 - The destination is a DPIO. When traffic
  *		becomes available in the queue a FQDAN
- *		(FQ data available notification) will be
+ *		(FQ data available yestification) will be
  *		generated to selected DPIO;
  *	2 - The destination is a DPCON. The queue is
  *		associated with a DPCON object for the
  *		purpose of scheduling between multiple
  *		queues. The DPCON may be independently
- *		configured to generate notifications.
+ *		configured to generate yestifications.
  *		Not relevant for Tx queues.
  * @destination.hold_active: Hold active, maintains a queue scheduled for longer
  *	in a DPIO during dequeue to reduce spread of traffic.
  *	Only relevant if queues are
- *	not affined to a single DPIO.
+ *	yest affined to a single DPIO.
  * @user_context: User data, presented to the user along with any frames
  *	from this queue. Not relevant for Tx queues.
  * @flc: FD FLow Context structure
@@ -774,7 +774,7 @@ enum dpni_dest {
  *      that are stashed.  FLC value is interpreted as a memory address
  *      in this case, excluding the 6 LS bits.
  *      - bits 2-3: indicates the number of 64 byte units of frame
- *      annotation to be stashed.  Annotation is placed at FD[ADDR].
+ *      anyestation to be stashed.  Anyestation is placed at FD[ADDR].
  *      - bits 4-5: indicates the number of 64 byte units of frame
  *      data to be stashed.  Frame data is placed at FD[ADDR] +
  *      FD[OFFSET].
@@ -850,7 +850,7 @@ enum dpni_congestion_unit {
  * @DPNI_CP_GROUP: Set taildrop per queue group. Depending on options used to
  *		define the DPNI this can be either per TC (default) or per
  *		interface (DPNI_OPT_SHARED_CONGESTION set at DPNI create).
- *		QUEUE_INDEX is ignored if this type is used.
+ *		QUEUE_INDEX is igyesred if this type is used.
  */
 enum dpni_congestion_point {
 	DPNI_CP_QUEUE,
@@ -859,12 +859,12 @@ enum dpni_congestion_point {
 
 /**
  * struct dpni_taildrop - Structure representing the taildrop
- * @enable:	Indicates whether the taildrop is active or not.
+ * @enable:	Indicates whether the taildrop is active or yest.
  * @units:	Indicates the unit of THRESHOLD. Queue taildrop only supports
- *		byte units, this field is ignored and assumed = 0 if
+ *		byte units, this field is igyesred and assumed = 0 if
  *		CONGESTION_POINT is 0.
  * @threshold:	Threshold value, in units identified by UNITS field. Value 0
- *		cannot be used as a valid taildrop threshold, THRESHOLD must
+ *		canyest be used as a valid taildrop threshold, THRESHOLD must
  *		be > 0 if the taildrop is enabled.
  */
 struct dpni_taildrop {
@@ -924,11 +924,11 @@ struct dpni_rule_cfg {
  *     - bits 0-1: indicates the number of 64 byte units of context that are
  *     stashed. FLC value is interpreted as a memory address in this case,
  *     excluding the 6 LS bits.
- *     - bits 2-3: indicates the number of 64 byte units of frame annotation
- *     to be stashed. Annotation is placed at FD[ADDR].
+ *     - bits 2-3: indicates the number of 64 byte units of frame anyestation
+ *     to be stashed. Anyestation is placed at FD[ADDR].
  *     - bits 4-5: indicates the number of 64 byte units of frame data to be
  *     stashed. Frame data is placed at FD[ADDR] + FD[OFFSET].
- * This flag is ignored if DPNI_FS_OPT_SET_FLC is not specified.
+ * This flag is igyesred if DPNI_FS_OPT_SET_FLC is yest specified.
  */
 #define DPNI_FS_OPT_SET_STASH_CONTROL  0x4
 
@@ -964,6 +964,6 @@ int dpni_remove_fs_entry(struct fsl_mc_io *mc_io,
 int dpni_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,
-			 u16 *minor_ver);
+			 u16 *miyesr_ver);
 
 #endif /* __FSL_DPNI_H */

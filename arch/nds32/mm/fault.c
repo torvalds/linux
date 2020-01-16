@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/extable.h>
 #include <linux/module.h>
@@ -35,7 +35,7 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 		pud_t *pud;
 		pmd_t *pmd;
 
-		if (pgd_none(*pgd))
+		if (pgd_yesne(*pgd))
 			break;
 
 		if (pgd_bad(*pgd)) {
@@ -50,7 +50,7 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 		pr_alert(", *pmd=%08lx", pmd_val(*pmd));
 #endif
 
-		if (pmd_none(*pmd))
+		if (pmd_yesne(*pmd))
 			break;
 
 		if (pmd_bad(*pmd)) {
@@ -61,7 +61,7 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 		if (IS_ENABLED(CONFIG_HIGHMEM))
 		{
 			pte_t *pte;
-			/* We must not map this if we have highmem enabled */
+			/* We must yest map this if we have highmem enabled */
 			pte = pte_offset_map(pmd, addr);
 			pr_alert(", *pte=%08lx", pte_val(*pte));
 			pte_unmap(pte);
@@ -93,34 +93,34 @@ void do_page_fault(unsigned long entry, unsigned long addr,
 	 * NOTE! We MUST NOT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * yesthing more.
 	 */
 	if (addr >= TASK_SIZE) {
 		if (user_mode(regs))
-			goto bad_area_nosemaphore;
+			goto bad_area_yessemaphore;
 
 		if (addr >= TASK_SIZE && addr < VMALLOC_END
 		    && (entry == ENTRY_PTE_NOT_PRESENT))
 			goto vmalloc_fault;
 		else
-			goto no_context;
+			goto yes_context;
 	}
 
 	/* Send a signal to the task for handling the unalignment access. */
 	if (entry == ENTRY_GENERAL_EXCPETION
 	    && error_code == ETYPE_ALIGNMENT_CHECK) {
 		if (user_mode(regs))
-			goto bad_area_nosemaphore;
+			goto bad_area_yessemaphore;
 		else
-			goto no_context;
+			goto yes_context;
 	}
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have yes user
+	 * context, we must yest take the fault..
 	 */
 	if (unlikely(faulthandler_disabled() || !mm))
-		goto no_context;
+		goto yes_context;
 
 	/*
 	 * As per x86, we may deadlock here. However, since the kernel only
@@ -130,7 +130,7 @@ void do_page_fault(unsigned long entry, unsigned long addr,
 	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
 		if (!user_mode(regs) &&
 		    !search_exception_tables(instruction_pointer(regs)))
-			goto no_context;
+			goto yes_context;
 retry:
 		down_read(&mm->mmap_sem);
 	} else {
@@ -142,7 +142,7 @@ retry:
 		if (IS_ENABLED(CONFIG_DEBUG_VM)) {
 			if (!user_mode(regs) &&
 			    !search_exception_tables(instruction_pointer(regs)))
-				goto no_context;
+				goto yes_context;
 		}
 	}
 
@@ -211,12 +211,12 @@ good_area:
 
 	/*
 	 * If we need to retry but a fatal signal is pending, handle the
-	 * signal first. We do not need to release the mmap_sem because it
+	 * signal first. We do yest need to release the mmap_sem because it
 	 * would already be released in __lock_page_or_retry in mm/filemap.c.
 	 */
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
 		if (!user_mode(regs))
-			goto no_context;
+			goto yes_context;
 		return;
 	}
 
@@ -230,7 +230,7 @@ good_area:
 	}
 
 	/*
-	 * Major/minor page fault accounting is only done on the initial
+	 * Major/miyesr page fault accounting is only done on the initial
 	 * attempt. If we go through a retry, it is extremely likely that the
 	 * page will be found in page cache at that point.
 	 */
@@ -267,19 +267,19 @@ good_area:
 bad_area:
 	up_read(&mm->mmap_sem);
 
-bad_area_nosemaphore:
+bad_area_yessemaphore:
 
 	/* User mode accesses just cause a SIGSEGV */
 
 	if (user_mode(regs)) {
 		tsk->thread.address = addr;
 		tsk->thread.error_code = error_code;
-		tsk->thread.trap_no = entry;
+		tsk->thread.trap_yes = entry;
 		force_sig_fault(SIGSEGV, si_code, (void __user *)addr);
 		return;
 	}
 
-no_context:
+yes_context:
 
 	/* Are we prepared to handle this kernel fault?
 	 *
@@ -327,7 +327,7 @@ no_context:
 out_of_memory:
 	up_read(&mm->mmap_sem);
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	pagefault_out_of_memory();
 	return;
 
@@ -336,14 +336,14 @@ do_sigbus:
 
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 
 	/*
 	 * Send a sigbus
 	 */
 	tsk->thread.address = addr;
 	tsk->thread.error_code = error_code;
-	tsk->thread.trap_no = entry;
+	tsk->thread.trap_yes = entry;
 	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)addr);
 
 	return;
@@ -372,22 +372,22 @@ vmalloc_fault:
 		pgd_k = init_mm.pgd + index;
 
 		if (!pgd_present(*pgd_k))
-			goto no_context;
+			goto yes_context;
 
 		p4d = p4d_offset(pgd, addr);
 		p4d_k = p4d_offset(pgd_k, addr);
 		if (!p4d_present(*p4d_k))
-			goto no_context;
+			goto yes_context;
 
 		pud = pud_offset(p4d, addr);
 		pud_k = pud_offset(p4d_k, addr);
 		if (!pud_present(*pud_k))
-			goto no_context;
+			goto yes_context;
 
 		pmd = pmd_offset(pud, addr);
 		pmd_k = pmd_offset(pud_k, addr);
 		if (!pmd_present(*pmd_k))
-			goto no_context;
+			goto yes_context;
 
 		if (!pmd_present(*pmd))
 			set_pmd(pmd, *pmd_k);
@@ -396,21 +396,21 @@ vmalloc_fault:
 
 		/*
 		 * Since the vmalloc area is global, we don't
-		 * need to copy individual PTE's, it is enough to
+		 * need to copy individual PTE's, it is eyesugh to
 		 * copy the pgd pointer into the pte page of the
 		 * root task. If that is there, we'll find our pte if
 		 * it exists.
 		 */
 
 		/* Make sure the actual PTE exists as well to
-		 * catch kernel vmalloc-area accesses to non-mapped
+		 * catch kernel vmalloc-area accesses to yesn-mapped
 		 * addres. If we don't do this, this will just
 		 * silently loop forever.
 		 */
 
 		pte_k = pte_offset_kernel(pmd_k, addr);
 		if (!pte_present(*pte_k))
-			goto no_context;
+			goto yes_context;
 
 		return;
 	}

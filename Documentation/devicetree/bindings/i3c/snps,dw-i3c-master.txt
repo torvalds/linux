@@ -1,4 +1,4 @@
-Bindings for Synopsys DesignWare I3C master block
+Bindings for Syyespsys DesignWare I3C master block
 =================================================
 
 Required properties:

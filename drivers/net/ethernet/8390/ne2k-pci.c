@@ -11,7 +11,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license yestice.  This file is yest
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -38,13 +38,13 @@
 static int full_duplex[MAX_UNITS];
 static int options[MAX_UNITS];
 
-/* Force a non std. amount of memory.  Units are 256 byte pages. */
+/* Force a yesn std. amount of memory.  Units are 256 byte pages. */
 /* #define PACKETBUF_MEMSIZE	0x40 */
 
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -60,7 +60,7 @@ static int options[MAX_UNITS];
 
 static u32 ne2k_msg_enable;
 
-/* These identify the driver base version and may not be removed. */
+/* These identify the driver base version and may yest be removed. */
 static const char version[] =
 	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE
 	" D. Becker/P. Gortmaker\n";
@@ -92,7 +92,7 @@ MODULE_PARM_DESC(full_duplex, "full duplex setting(s) (1)");
 /* #define NE_RW_BUGFIX */
 
 /* Flags.  We rename an existing ei_status field to store flags! */
-/* Thus only the low 8 bits are usable for non-init-time flags. */
+/* Thus only the low 8 bits are usable for yesn-init-time flags. */
 #define ne2k_flags reg0
 enum {
 	ONLY_16BIT_IO=8, ONLY_32BIT_IO=4,	/* Chip can do only 16/32-bit xfers. */
@@ -178,7 +178,7 @@ static const struct ethtool_ops ne2k_pci_ethtool_ops;
 
 
 
-/* There is no room in the standard 8390 structure for extra info we need,
+/* There is yes room in the standard 8390 structure for extra info we need,
    so we build a meta/outer-wrapper structure.. */
 struct ne2k_pci_card {
 	struct net_device *dev;
@@ -244,7 +244,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 	irq = pdev->irq;
 
 	if (!ioaddr || ((pci_resource_flags (pdev, 0) & IORESOURCE_IO) == 0)) {
-		dev_err(&pdev->dev, "no I/O resource at PCI BAR #0\n");
+		dev_err(&pdev->dev, "yes I/O resource at PCI BAR #0\n");
 		goto err_out;
 	}
 
@@ -276,7 +276,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 	/* Allocate net_device, dev->priv; fill in 8390 specific dev fields. */
 	dev = alloc_ei_netdev();
 	if (!dev) {
-		dev_err(&pdev->dev, "cannot allocate ethernet device\n");
+		dev_err(&pdev->dev, "canyest allocate ethernet device\n");
 		goto err_out_free_res;
 	}
 	dev->netdev_ops = &ne2k_netdev_ops;
@@ -285,7 +285,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	/* Reset card. Who knows what dain-bramaged state it was left in. */
+	/* Reset card. Who kyesws what dain-bramaged state it was left in. */
 	{
 		unsigned long reset_start_time = jiffies;
 
@@ -298,7 +298,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 			/* Limit wait: '2' avoids jiffy roll-over. */
 			if (jiffies - reset_start_time > 2) {
 				dev_err(&pdev->dev,
-					"Card failure (no reset ack).\n");
+					"Card failure (yes reset ack).\n");
 				goto err_out_free_netdev;
 			}
 
@@ -362,7 +362,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 
 	ei_status.rx_start_page = start_page + TX_PAGES;
 #ifdef PACKETBUF_MEMSIZE
-	/* Allow the packet buffer size to be overridden by know-it-alls. */
+	/* Allow the packet buffer size to be overridden by kyesw-it-alls. */
 	ei_status.stop_page = ei_status.tx_start_page + PACKETBUF_MEMSIZE;
 #endif
 
@@ -464,10 +464,10 @@ static void ne2k_pci_reset_8390(struct net_device *dev)
 	ei_status.txing = 0;
 	ei_status.dmaing = 0;
 
-	/* This check _should_not_ be necessary, omit eventually. */
+	/* This check _should_yest_ be necessary, omit eventually. */
 	while ((inb(NE_BASE+EN0_ISR) & ENISR_RESET) == 0)
 		if (jiffies - reset_start_time > 2) {
-			netdev_err(dev, "ne2k_pci_reset_8390() did not complete.\n");
+			netdev_err(dev, "ne2k_pci_reset_8390() did yest complete.\n");
 			break;
 		}
 	outb(ENISR_RESET, NE_BASE + EN0_ISR);	/* Ack intr. */
@@ -590,7 +590,7 @@ static void ne2k_pci_block_output(struct net_device *dev, int count,
 	/* Handle the read-before-write bug the same way as the
 	   Crynwr packet driver -- the NatSemi method doesn't work.
 	   Actually this doesn't always work either, but if you have
-	   problems with your NEx000 this is better than nothing! */
+	   problems with your NEx000 this is better than yesthing! */
 	outb(0x42, nic_base + EN0_RCNTLO);
 	outb(0x00, nic_base + EN0_RCNTHI);
 	outb(0x42, nic_base + EN0_RSARLO);
@@ -599,7 +599,7 @@ static void ne2k_pci_block_output(struct net_device *dev, int count,
 #endif
 	outb(ENISR_RDC, nic_base + EN0_ISR);
 
-   /* Now the normal output. */
+   /* Now the yesrmal output. */
 	outb(count & 0xff, nic_base + EN0_RCNTLO);
 	outb(count >> 8,   nic_base + EN0_RCNTHI);
 	outb(0x00, nic_base + EN0_RSARLO);
@@ -725,7 +725,7 @@ static struct pci_driver ne2k_driver = {
 
 static int __init ne2k_pci_init(void)
 {
-/* when a module, this is printed whether or not devices are found in probe */
+/* when a module, this is printed whether or yest devices are found in probe */
 #ifdef MODULE
 	printk(version);
 #endif

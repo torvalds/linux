@@ -74,11 +74,11 @@ int pxa2xx_ac97_read(int slot, unsigned short reg)
 		goto out;
 	}
 
-	/* valid data now */
+	/* valid data yesw */
 	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
 	val = (*reg_addr & 0xffff);
-	/* but we've just started another cycle... */
+	/* but we've just started ayesther cycle... */
 	wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1);
 
 out:	mutex_unlock(&car_mutex);
@@ -335,11 +335,11 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 			dev_err(&dev->dev, "Invalid reset GPIO %d\n",
 				pdata->reset_gpio);
 		}
-	} else if (!pdata && dev->dev.of_node) {
+	} else if (!pdata && dev->dev.of_yesde) {
 		pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
-		pdata->reset_gpio = of_get_named_gpio(dev->dev.of_node,
+		pdata->reset_gpio = of_get_named_gpio(dev->dev.of_yesde,
 						      "reset-gpios", 0);
 		if (pdata->reset_gpio == -ENOENT)
 			pdata->reset_gpio = -1;

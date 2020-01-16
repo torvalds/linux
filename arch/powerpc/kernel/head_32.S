@@ -73,12 +73,12 @@ _ENTRY(_start);
 	/*
 	 * These are here for legacy reasons, the kernel used to
 	 * need to look like a coff function entry for the pmac
-	 * but we're always started by some kind of bootloader now.
+	 * but we're always started by some kind of bootloader yesw.
 	 *  -- Cort
 	 */
-	nop	/* used by __secondary_hold on prep (mtx) and chrp smp */
-	nop	/* used by __secondary_hold on prep (mtx) and chrp smp */
-	nop
+	yesp	/* used by __secondary_hold on prep (mtx) and chrp smp */
+	yesp	/* used by __secondary_hold on prep (mtx) and chrp smp */
+	yesp
 
 /* PMAC
  * Enter here with the kernel text, data and bss loaded starting at
@@ -100,7 +100,7 @@ _ENTRY(_start);
  * to its proper place in memory by the boot loader.  The expected layout
  * of the regs is:
  *   r3: ptr to residual data
- *   r4: initrd_start or if no initrd then 0
+ *   r4: initrd_start or if yes initrd then 0
  *   r5: initrd_end - unused if r4 is 0
  *   r6: Start of command line string
  *   r7: End of command line string
@@ -121,7 +121,7 @@ __start:
 	beq	1f
 
 #ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
-	/* find out where we are now */
+	/* find out where we are yesw */
 	bcl	20,31,$+4
 0:	mflr	r8			/* r8 = runtime addr here */
 	addis	r8,r8,(_stext - 0b)@ha
@@ -205,12 +205,12 @@ __after_mmu_off:
 	cmplw	0,r4,r5			/* already running at PHYSICAL_START? */
 	bne	relocate_kernel
 /*
- * we now have the 1st 16M of ram mapped with the bats.
+ * we yesw have the 1st 16M of ram mapped with the bats.
  * prep needs the mmu to be turned on here, but pmac already has it on.
  * this shouldn't bother the pmac since it just gets turned on again
  * as we jump to our code at KERNELBASE. -- Cort
- * Actually no, pmac doesn't have it on any more. BootX enters with MMU
- * off, and in other cases, we now turn it off before changing BATs above.
+ * Actually yes, pmac doesn't have it on any more. BootX enters with MMU
+ * off, and in other cases, we yesw turn it off before changing BATs above.
  */
 turn_on_mmu:
 	mfmsr	r0
@@ -231,7 +231,7 @@ turn_on_mmu:
 	.globl	__secondary_hold
 __secondary_hold:
 	/* tell the master we're here */
-	stw	r3,__secondary_hold_acknowledge@l(0)
+	stw	r3,__secondary_hold_ackyeswledge@l(0)
 #ifdef CONFIG_SMP
 100:	lwz	r4,0(0)
 	/* wait until we're told to start */
@@ -247,25 +247,25 @@ __secondary_hold:
 	.globl	__secondary_hold_spinloop
 __secondary_hold_spinloop:
 	.long	0
-	.globl	__secondary_hold_acknowledge
-__secondary_hold_acknowledge:
+	.globl	__secondary_hold_ackyeswledge
+__secondary_hold_ackyeswledge:
 	.long	-1
 
 /* System reset */
 /* core99 pmac starts the seconary here by changing the vector, and
-   putting it back to what it was (unknown_exception) when done.  */
-	EXCEPTION(0x100, Reset, unknown_exception, EXC_XFER_STD)
+   putting it back to what it was (unkyeswn_exception) when done.  */
+	EXCEPTION(0x100, Reset, unkyeswn_exception, EXC_XFER_STD)
 
 /* Machine check */
 /*
  * On CHRP, this is complicated by the fact that we could get a
- * machine check inside RTAS, and we have no guarantee that certain
+ * machine check inside RTAS, and we have yes guarantee that certain
  * critical registers will have the values we expect.  The set of
  * registers that might have bad values includes all the GPRs
  * and all the BATs.  We indicate that we are in RTAS by putting
- * a non-zero value, the address of the exception frame to use,
+ * a yesn-zero value, the address of the exception frame to use,
  * in thread.rtas_sp.  The machine check handler checks thread.rtas_sp
- * and uses its value if it is non-zero.
+ * and uses its value if it is yesn-zero.
  * (Other exception handlers assume that r1 is a valid kernel stack
  * pointer when we take an exception from supervisor mode.)
  *	-- paulus.
@@ -304,7 +304,7 @@ DataAccess:
 #else
 	andis.	r0,r10,(DSISR_BAD_FAULT_32S|DSISR_DABRMATCH)@h
 #endif
-	bne	1f			/* if not, try to put a PTE */
+	bne	1f			/* if yest, try to put a PTE */
 	mfspr	r4,SPRN_DAR		/* into the hash table */
 	rlwinm	r3,r10,32-15,21,21	/* DSISR_STORE -> _PAGE_RW */
 BEGIN_MMU_FTR_SECTION
@@ -320,7 +320,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	DO_KVM  0x400
 InstructionAccess:
 	EXCEPTION_PROLOG
-	andis.	r0,r9,SRR1_ISI_NOPT@h	/* no pte found? */
+	andis.	r0,r9,SRR1_ISI_NOPT@h	/* yes pte found? */
 	beq	1f			/* if so, try to put a PTE */
 	li	r3,0			/* into the hash table */
 	mr	r4,r12			/* SRR0 is fault address */
@@ -370,8 +370,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 /* Decrementer */
 	EXCEPTION(0x900, Decrementer, timer_interrupt, EXC_XFER_LITE)
 
-	EXCEPTION(0xa00, Trap_0a, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0xb00, Trap_0b, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0xa00, Trap_0a, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0xb00, Trap_0b, unkyeswn_exception, EXC_XFER_STD)
 
 /* System call */
 	. = 0xc00
@@ -379,16 +379,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 SystemCall:
 	SYSCALL_ENTRY	0xc00
 
-/* Single step - not used on 601 */
+/* Single step - yest used on 601 */
 	EXCEPTION(0xd00, SingleStep, single_step_exception, EXC_XFER_STD)
-	EXCEPTION(0xe00, Trap_0e, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0xe00, Trap_0e, unkyeswn_exception, EXC_XFER_STD)
 
 /*
  * The Altivec unavailable trap is at 0x0f20.  Foo.
  * We effectively remap it to 0x3000.
  * We include an altivec unavailable exception vector even if
- * not configured for Altivec, so that you can't panic a
- * non-altivec kernel running on a machine with altivec just
+ * yest configured for Altivec, so that you can't panic a
+ * yesn-altivec kernel running on a machine with altivec just
  * by executing an altivec instruction.
  */
 	. = 0xf00
@@ -431,17 +431,17 @@ InstructionTLBMiss:
 112:	rlwimi	r2,r3,12,20,29		/* insert top 10 bits of address */
 	lwz	r2,0(r2)		/* get pmd entry */
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
-	beq-	InstructionAddressInvalid	/* return if no mapping */
+	beq-	InstructionAddressInvalid	/* return if yes mapping */
 	rlwimi	r2,r3,22,20,29		/* insert next 10 bits of address */
 	lwz	r0,0(r2)		/* get linux-style pte */
 	andc.	r1,r1,r0		/* check access & ~permission */
-	bne-	InstructionAddressInvalid /* return if access not permitted */
+	bne-	InstructionAddressInvalid /* return if access yest permitted */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
 	rlwimi	r0,r0,32-2,31,31	/* _PAGE_USER -> PP lsb */
 	ori	r1, r1, 0xe06		/* clear out reserved bits */
 	andc	r1, r0, r1		/* PP = user? 1 : 0 */
 BEGIN_FTR_SECTION
-	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence yest required) */
 END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
 	tlbli	r3
@@ -462,7 +462,7 @@ InstructionAddressInvalid:
 	rlwimi	r2,r2,1,30,30	/* change 1 -> 3 */
 	xor	r1,r1,r2
 	mtspr	SPRN_DAR,r1	/* Set fault address */
-	mfmsr	r0		/* Restore "normal" registers */
+	mfmsr	r0		/* Restore "yesrmal" registers */
 	xoris	r0,r0,MSR_TGPR>>16
 	mtcrf	0x80,r3		/* Restore CR0 */
 	mtmsr	r0
@@ -495,13 +495,13 @@ DataLoadTLBMiss:
 112:	rlwimi	r2,r3,12,20,29		/* insert top 10 bits of address */
 	lwz	r2,0(r2)		/* get pmd entry */
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
-	beq-	DataAddressInvalid	/* return if no mapping */
+	beq-	DataAddressInvalid	/* return if yes mapping */
 	rlwimi	r2,r3,22,20,29		/* insert next 10 bits of address */
 	lwz	r0,0(r2)		/* get linux-style pte */
 	andc.	r1,r1,r0		/* check access & ~permission */
-	bne-	DataAddressInvalid	/* return if access not permitted */
+	bne-	DataAddressInvalid	/* return if access yest permitted */
 	/*
-	 * NOTE! We are assuming this is not an SMP system, otherwise
+	 * NOTE! We are assuming this is yest an SMP system, otherwise
 	 * we would need to update the pte atomically with lwarx/stwcx.
 	 */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
@@ -511,7 +511,7 @@ DataLoadTLBMiss:
 	ori	r1,r1,0xe04		/* clear out reserved bits */
 	andc	r1,r0,r1		/* PP = user? rw? 1: 3: 0 */
 BEGIN_FTR_SECTION
-	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence yest required) */
 END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
 	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
@@ -542,7 +542,7 @@ DataAddressInvalid:
 	beq	20f		/* Jump if big endian */
 	xori	r1,r1,3
 20:	mtspr	SPRN_DAR,r1	/* Set fault address */
-	mfmsr	r0		/* Restore "normal" registers */
+	mfmsr	r0		/* Restore "yesrmal" registers */
 	xoris	r0,r0,MSR_TGPR>>16
 	mtcrf	0x80,r3		/* Restore CR0 */
 	mtmsr	r0
@@ -575,13 +575,13 @@ DataStoreTLBMiss:
 112:	rlwimi	r2,r3,12,20,29		/* insert top 10 bits of address */
 	lwz	r2,0(r2)		/* get pmd entry */
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
-	beq-	DataAddressInvalid	/* return if no mapping */
+	beq-	DataAddressInvalid	/* return if yes mapping */
 	rlwimi	r2,r3,22,20,29		/* insert next 10 bits of address */
 	lwz	r0,0(r2)		/* get linux-style pte */
 	andc.	r1,r1,r0		/* check access & ~permission */
-	bne-	DataAddressInvalid	/* return if access not permitted */
+	bne-	DataAddressInvalid	/* return if access yest permitted */
 	/*
-	 * NOTE! We are assuming this is not an SMP system, otherwise
+	 * NOTE! We are assuming this is yest an SMP system, otherwise
 	 * we would need to update the pte atomically with lwarx/stwcx.
 	 */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
@@ -589,7 +589,7 @@ DataStoreTLBMiss:
 	li	r1,0xe06		/* clear out reserved bits & PP msb */
 	andc	r1,r0,r1		/* PP = user? 1: 0 */
 BEGIN_FTR_SECTION
-	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence yest required) */
 END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
 	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
@@ -610,38 +610,38 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 	rfi
 
 #ifndef CONFIG_ALTIVEC
-#define altivec_assist_exception	unknown_exception
+#define altivec_assist_exception	unkyeswn_exception
 #endif
 
 	EXCEPTION(0x1300, Trap_13, instruction_breakpoint_exception, EXC_XFER_STD)
 	EXCEPTION(0x1400, SMI, SMIException, EXC_XFER_STD)
-	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1500, Trap_15, unkyeswn_exception, EXC_XFER_STD)
 	EXCEPTION(0x1600, Trap_16, altivec_assist_exception, EXC_XFER_STD)
 	EXCEPTION(0x1700, Trap_17, TAUException, EXC_XFER_STD)
-	EXCEPTION(0x1800, Trap_18, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1900, Trap_19, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1a00, Trap_1a, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1b00, Trap_1b, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1c00, Trap_1c, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1d00, Trap_1d, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1e00, Trap_1e, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1800, Trap_18, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1900, Trap_19, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1a00, Trap_1a, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1b00, Trap_1b, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1c00, Trap_1c, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1d00, Trap_1d, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1e00, Trap_1e, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1f00, Trap_1f, unkyeswn_exception, EXC_XFER_STD)
 	EXCEPTION(0x2000, RunMode, RunModeException, EXC_XFER_STD)
-	EXCEPTION(0x2100, Trap_21, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2200, Trap_22, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2300, Trap_23, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2400, Trap_24, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2500, Trap_25, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2600, Trap_26, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2700, Trap_27, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2800, Trap_28, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2900, Trap_29, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2a00, Trap_2a, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2b00, Trap_2b, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2c00, Trap_2c, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2d00, Trap_2d, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2e00, Trap_2e, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2f00, Trap_2f, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x2100, Trap_21, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2200, Trap_22, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2300, Trap_23, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2400, Trap_24, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2500, Trap_25, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2600, Trap_26, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2700, Trap_27, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2800, Trap_28, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2900, Trap_29, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2a00, Trap_2a, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2b00, Trap_2b, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2c00, Trap_2c, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2d00, Trap_2d, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2e00, Trap_2e, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x2f00, Trap_2f, unkyeswn_exception, EXC_XFER_STD)
 
 	. = 0x3000
 
@@ -710,7 +710,7 @@ _ENTRY(copy_and_flush)
 	.globl __secondary_start_mpc86xx
 __secondary_start_mpc86xx:
 	mfspr	r3, SPRN_PIR
-	stw	r3, __secondary_hold_acknowledge@l(0)
+	stw	r3, __secondary_hold_ackyeswledge@l(0)
 	mr	r24, r3			/* cpu # */
 	b	__secondary_start
 
@@ -786,7 +786,7 @@ __secondary_start:
 #endif
 
 /*
- * Those generic dummy functions are kept for CPUs not
+ * Those generic dummy functions are kept for CPUs yest
  * included in CONFIG_PPC_BOOK3S_32
  */
 #if !defined(CONFIG_PPC_BOOK3S_32)
@@ -827,7 +827,7 @@ load_up_mmu:
 	mtspr	SPRN_SDR1,r6
 
 /* Load the BAT registers with the values set up by MMU_init.
-   MMU_init takes care of whether we're on a 601 or not. */
+   MMU_init takes care of whether we're on a 601 or yest. */
 	lis	r3,BATS@ha
 	addi	r3,r3,BATS@l
 	tophys(r3,r3)
@@ -926,7 +926,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 
 #ifdef CONFIG_BDI_SWITCH
 	/* Add helper information for the Abatron bdiGDB debugger.
-	 * We do this here because we know the mmu is disabled, and
+	 * We do this here because we kyesw the mmu is disabled, and
 	 * will be enabled for real in just a few instructions.
 	 */
 	lis	r5, abatron_pteptrs@h
@@ -997,7 +997,7 @@ EXPORT_SYMBOL(switch_mmu_context)
  * An undocumented "feature" of 604e requires that the v bit
  * be cleared before changing BAT values.
  *
- * Also, newer IBM firmware does not clear bat3 and 4 so
+ * Also, newer IBM firmware does yest clear bat3 and 4 so
  * this makes sure it's done.
  *  -- Cort
  */
@@ -1024,7 +1024,7 @@ clear_bats:
 	mtspr	SPRN_IBAT3L,r10
 BEGIN_MMU_FTR_SECTION
 	/* Here's a tweak: at this point, CPU setup have
-	 * not been called yet, so HIGH_BAT_EN may not be
+	 * yest been called yet, so HIGH_BAT_EN may yest be
 	 * set in HID0 for the 745x processors. However, it
 	 * seems that doesn't affect our ability to actually
 	 * write to these SPRs.
@@ -1130,7 +1130,7 @@ initial_bats:
 #endif /* CONFIG_SMP */
 	ori	r11,r11,BL_256M<<2|0x2	/* set up BAT registers for 604 */
 
-	mtspr	SPRN_DBAT0L,r8		/* N.B. 6xx (not 601) have valid */
+	mtspr	SPRN_DBAT0L,r8		/* N.B. 6xx (yest 601) have valid */
 	mtspr	SPRN_DBAT0U,r11		/* bit in upper BAT register */
 	mtspr	SPRN_IBAT0L,r8
 	mtspr	SPRN_IBAT0U,r11

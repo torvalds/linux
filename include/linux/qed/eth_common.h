@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -420,7 +420,7 @@ struct eth_tx_data_bd {
 	__le16 reserved3;
 };
 
-/* The common non-special TX BD ring element */
+/* The common yesn-special TX BD ring element */
 struct eth_tx_bd {
 	struct regpair addr;
 	__le16 nbytes;

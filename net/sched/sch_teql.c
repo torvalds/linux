@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
 #include <linux/init.h>
@@ -37,8 +37,8 @@
 
    1. Slave devices MUST be active devices, i.e., they must raise the tbusy
       signal and generate EOI events. If you want to equalize virtual devices
-      like tunnels, use a normal eql device.
-   2. This device puts no limitations on physical slave characteristics
+      like tunnels, use a yesrmal eql device.
+   2. This device puts yes limitations on physical slave characteristics
       f.e. it will equalize 9600baud line and 100Mb ethernet perfectly :-)
       Certainly, large difference in link speeds will make the resulting
       eqalized link unusable, because of huge packet reordering.
@@ -46,7 +46,7 @@
    3. If the slave requires address resolution, only protocols using
       neighbour cache (IPv4/IPv6) will work over the equalized link.
       Other protocols are still allowed to use the slave device directly,
-      which will not break load balancing, though native slave
+      which will yest break load balancing, though native slave
       traffic will have the highest priority.  */
 
 struct teql_master {
@@ -227,7 +227,7 @@ __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res,
 	if (dst->dev != dev) {
 		struct neighbour *mn;
 
-		mn = __neigh_lookup_errno(n->tbl, n->primary_key, dev);
+		mn = __neigh_lookup_erryes(n->tbl, n->primary_key, dev);
 		neigh_release(n);
 		if (IS_ERR(mn))
 			return PTR_ERR(mn);
@@ -259,7 +259,7 @@ static inline int teql_resolve(struct sk_buff *skb,
 	struct dst_entry *dst = skb_dst(skb);
 	int res;
 
-	if (rcu_access_pointer(txq->qdisc) == &noop_qdisc)
+	if (rcu_access_pointer(txq->qdisc) == &yesop_qdisc)
 		return -ENODEV;
 
 	if (!dev->header_ops || !dst)
@@ -277,14 +277,14 @@ static netdev_tx_t teql_master_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct teql_master *master = netdev_priv(dev);
 	struct Qdisc *start, *q;
 	int busy;
-	int nores;
+	int yesres;
 	int subq = skb_get_queue_mapping(skb);
 	struct sk_buff *skb_res = NULL;
 
 	start = master->slaves;
 
 restart:
-	nores = 0;
+	yesres = 0;
 	busy = 0;
 
 	q = start;
@@ -327,13 +327,13 @@ restart:
 			master->slaves = NEXT_SLAVE(q);
 			return NETDEV_TX_OK;
 		default:
-			nores = 1;
+			yesres = 1;
 			break;
 		}
 		__skb_pull(skb, skb_network_offset(skb));
 	} while ((q = NEXT_SLAVE(q)) != start);
 
-	if (nores && skb_res == NULL) {
+	if (yesres && skb_res == NULL) {
 		skb_res = skb;
 		goto restart;
 	}

@@ -4,13 +4,13 @@
  * Author: Martin Persson <martin.persson@stericsson.com>
  *         Hongbo Zhang <hongbo.zhang@linaro.org>
  *
- * ABX500 does not provide auto ADC, so to monitor the required temperatures,
- * a periodic work is used. It is more important to not wake up the CPU than
+ * ABX500 does yest provide auto ADC, so to monitor the required temperatures,
+ * a periodic work is used. It is more important to yest wake up the CPU than
  * to perform this job, hence the use of a deferred delay.
  *
  * A deferred delay for thermal monitor is considered safe because:
  * If the chip gets too hot during a sleep state it's most likely due to
- * external factors, such as the surrounding temperature. I.e. no SW decisions
+ * external factors, such as the surrounding temperature. I.e. yes SW decisions
  * will make any difference.
  */
 
@@ -55,7 +55,7 @@ static void threshold_updated(struct abx500_temp *data)
 static void gpadc_monitor(struct work_struct *work)
 {
 	int temp, i, ret;
-	char alarm_node[30];
+	char alarm_yesde[30];
 	bool updated_min_alarm, updated_max_alarm;
 	struct abx500_temp *data;
 
@@ -107,12 +107,12 @@ static void gpadc_monitor(struct work_struct *work)
 		}
 
 		if (updated_min_alarm) {
-			ret = sprintf(alarm_node, "temp%d_min_alarm", i + 1);
-			sysfs_notify(&data->pdev->dev.kobj, NULL, alarm_node);
+			ret = sprintf(alarm_yesde, "temp%d_min_alarm", i + 1);
+			sysfs_yestify(&data->pdev->dev.kobj, NULL, alarm_yesde);
 		}
 		if (updated_max_alarm) {
-			ret = sprintf(alarm_node, "temp%d_max_alarm", i + 1);
-			sysfs_notify(&data->pdev->dev.kobj, NULL, alarm_node);
+			ret = sprintf(alarm_yesde, "temp%d_max_alarm", i + 1);
+			sysfs_yestify(&data->pdev->dev.kobj, NULL, alarm_yesde);
 		}
 	}
 
@@ -152,7 +152,7 @@ static ssize_t input_show(struct device *dev,
 	return sprintf(buf, "%d\n", temp);
 }
 
-/* Set functions (RW nodes) */
+/* Set functions (RW yesdes) */
 static ssize_t min_store(struct device *dev, struct device_attribute *devattr,
 			 const char *buf, size_t count)
 {
@@ -214,7 +214,7 @@ static ssize_t max_hyst_store(struct device *dev,
 	return count;
 }
 
-/* Show functions (RO nodes) */
+/* Show functions (RO yesdes) */
 static ssize_t min_show(struct device *dev, struct device_attribute *devattr,
 			char *buf)
 {

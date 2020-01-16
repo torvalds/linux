@@ -3,7 +3,7 @@
  *  linux/arch/arm/mm/proc-sa1100.S
  *
  *  Copyright (C) 1997-2002 Russell King
- *  hacked for non-paged-MM by Hyok S. Choi, 2003.
+ *  hacked for yesn-paged-MM by Hyok S. Choi, 2003.
  *
  *  MMU functions for SA110
  *
@@ -96,10 +96,10 @@ ENDPROC(cpu_sa1100_reset)
  */
 	.align	5
 ENTRY(cpu_sa1100_do_idle)
-	mov	r0, r0				@ 4 nop padding
+	mov	r0, r0				@ 4 yesp padding
 	mov	r0, r0
 	mov	r0, r0
-	mov	r0, r0				@ 4 nop padding
+	mov	r0, r0				@ 4 yesp padding
 	mov	r0, r0
 	mov	r0, r0
 	mov	r0, #0

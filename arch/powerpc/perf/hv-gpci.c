@@ -151,7 +151,7 @@ static unsigned long single_gpci_request(u32 req, u32 starting_index,
 	arg->params.secondary_index = cpu_to_be16(secondary_index);
 	arg->params.counter_info_version_in = version_in;
 
-	ret = plpar_hcall_norets(H_GET_PERF_COUNTER_INFO,
+	ret = plpar_hcall_yesrets(H_GET_PERF_COUNTER_INFO,
 			virt_to_phys(arg), HGPCI_REQ_BUFFER_SIZE);
 	if (ret) {
 		pr_devel("hcall failed: 0x%lx\n", ret);
@@ -190,9 +190,9 @@ static u64 h_gpci_get_value(struct perf_event *event)
 static void h_gpci_event_update(struct perf_event *event)
 {
 	s64 prev;
-	u64 now = h_gpci_get_value(event);
-	prev = local64_xchg(&event->hw.prev_count, now);
-	local64_add(now - prev, &event->count);
+	u64 yesw = h_gpci_get_value(event);
+	prev = local64_xchg(&event->hw.prev_count, yesw);
+	local64_add(yesw - prev, &event->count);
 }
 
 static void h_gpci_event_start(struct perf_event *event, int flags)
@@ -228,7 +228,7 @@ static int h_gpci_event_init(struct perf_event *event)
 		return -EINVAL;
 	}
 
-	/* no branch sampling */
+	/* yes branch sampling */
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
 
@@ -284,18 +284,18 @@ static int hv_gpci_init(void)
 	hv_gpci_assert_offsets_correct();
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		pr_debug("not a virtualized system, not enabling\n");
+		pr_debug("yest a virtualized system, yest enabling\n");
 		return -ENODEV;
 	}
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {
-		pr_debug("could not obtain capabilities, not enabling, rc=%ld\n",
+		pr_debug("could yest obtain capabilities, yest enabling, rc=%ld\n",
 				hret);
 		return -ENODEV;
 	}
 
-	/* sampling not supported */
+	/* sampling yest supported */
 	h_gpci_pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 
 	r = perf_pmu_register(&h_gpci_pmu, h_gpci_pmu.name, -1);

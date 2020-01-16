@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * via-cputemp.c - Driver for VIA CPU core temperature monitoring
- * Copyright (C) 2009 VIA Technologies, Inc.
+ * Copyright (C) 2009 VIA Techyeslogies, Inc.
  *
  * based on existing coretemp.c, which is
  *
@@ -134,7 +134,7 @@ static int via_cputemp_probe(struct platform_device *pdev)
 			data->msr_vid = 0x198;
 			break;
 		case 0xF:
-			/* Nano */
+			/* Nayes */
 			data->msr_temp = 0x1423;
 			break;
 		default:
@@ -272,7 +272,7 @@ static int via_cputemp_down_prep(unsigned int cpu)
 static const struct x86_cpu_id __initconst cputemp_ids[] = {
 	{ X86_VENDOR_CENTAUR, 6, 0xa, }, /* C7 A */
 	{ X86_VENDOR_CENTAUR, 6, 0xd, }, /* C7 D */
-	{ X86_VENDOR_CENTAUR, 6, 0xf, }, /* Nano */
+	{ X86_VENDOR_CENTAUR, 6, 0xf, }, /* Nayes */
 	{ X86_VENDOR_CENTAUR, 7, X86_MODEL_ANY, },
 	{}
 };
@@ -307,7 +307,7 @@ static int __init via_cputemp_init(void)
 
 #ifndef CONFIG_HOTPLUG_CPU
 exit_hp_unreg:
-	cpuhp_remove_state_nocalls(via_temp_online);
+	cpuhp_remove_state_yescalls(via_temp_online);
 #endif
 exit_driver_unreg:
 	platform_driver_unregister(&via_cputemp_driver);

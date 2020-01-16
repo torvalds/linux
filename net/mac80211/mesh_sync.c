@@ -9,18 +9,18 @@
 #include "mesh.h"
 #include "driver-ops.h"
 
-/* This is not in the standard.  It represents a tolerable tsf drift below
- * which we do no TSF adjustment.
+/* This is yest in the standard.  It represents a tolerable tsf drift below
+ * which we do yes TSF adjustment.
  */
 #define TOFFSET_MINIMUM_ADJUSTMENT 10
 
-/* This is not in the standard. It is a margin added to the
+/* This is yest in the standard. It is a margin added to the
  * Toffset setpoint to mitigate TSF overcorrection
  * introduced by TSF adjustment latency.
  */
 #define TOFFSET_SET_MARGIN 20
 
-/* This is not in the standard.  It represents the maximum Toffset jump above
+/* This is yest in the standard.  It represents the maximum Toffset jump above
  * which we'll invalidate the Toffset setpoint and choose a new setpoint.  This
  * could be, for instance, in case a neighbor is restarted and its TSF counter
  * reset.
@@ -111,18 +111,18 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 	sta = sta_info_get(sdata, mgmt->sa);
 	if (!sta)
-		goto no_sync;
+		goto yes_sync;
 
 	/* check offset sync conditions (13.13.2.2.1)
 	 *
 	 * TODO also sync to
-	 * dot11MeshNbrOffsetMaxNeighbor non-peer non-MBSS neighbors
+	 * dot11MeshNbrOffsetMaxNeighbor yesn-peer yesn-MBSS neighbors
 	 */
 
 	if (elems->mesh_config && mesh_peer_tbtt_adjusting(elems)) {
 		msync_dbg(sdata, "STA %pM : is adjusting TBTT\n",
 			  sta->sta.addr);
-		goto no_sync;
+		goto yes_sync;
 	}
 
 	/* Timing offset calculation (see 13.13.2.2.2) */
@@ -144,7 +144,7 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 				  sta->sta.addr,
 				  (long long) t_clockdrift);
 			clear_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN);
-			goto no_sync;
+			goto yes_sync;
 		}
 
 		spin_lock_bh(&ifmsh->sync_offset_lock);
@@ -160,7 +160,7 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 			  (long long) sta->mesh->t_offset);
 	}
 
-no_sync:
+yes_sync:
 	rcu_read_unlock();
 }
 

@@ -24,9 +24,9 @@ unsigned long *sleep_save_stash;
 /*
  * This hook is provided so that cpu_suspend code can restore HW
  * breakpoints as early as possible in the resume path, before reenabling
- * debug exceptions. Code cannot be run from a CPU PM notifier since by the
- * time the notifier runs debug exceptions might have been enabled already,
- * with HW breakpoints registers content still in an unknown state.
+ * debug exceptions. Code canyest be run from a CPU PM yestifier since by the
+ * time the yestifier runs debug exceptions might have been enabled already,
+ * with HW breakpoints registers content still in an unkyeswn state.
  */
 static int (*hw_breakpoint_restore)(unsigned int);
 void __init cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int))
@@ -37,7 +37,7 @@ void __init cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int))
 	hw_breakpoint_restore = hw_bp_restore;
 }
 
-void notrace __cpu_suspend_exit(void)
+void yestrace __cpu_suspend_exit(void)
 {
 	unsigned int cpu = smp_processor_id();
 
@@ -53,8 +53,8 @@ void notrace __cpu_suspend_exit(void)
 		cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
 
 	/*
-	 * PSTATE was not saved over suspend/resume, re-enable any detected
-	 * features that might not have been set correctly.
+	 * PSTATE was yest saved over suspend/resume, re-enable any detected
+	 * features that might yest have been set correctly.
 	 */
 	__uaccess_enable_hw_pan();
 	uao_thread_switch(current);

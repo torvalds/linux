@@ -55,7 +55,7 @@ __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 		(__force u64)sum + ((len + proto) << 8));
 }
 
-__wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+__wsum csum_tcpudp_yesfold(__be32 saddr, __be32 daddr,
 			  __u32 len, __u8 proto, __wsum sum)
 {
 	u64 result;
@@ -71,12 +71,12 @@ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 	result = (result & 0xffffffffUL) + (result >> 32);
 	return (__force __wsum)result;
 }
-EXPORT_SYMBOL(csum_tcpudp_nofold);
+EXPORT_SYMBOL(csum_tcpudp_yesfold);
 
 /*
  * Do a 64-bit checksum on an arbitrary memory area..
  *
- * This isn't a great routine, but it's not _horrible_ either. The
+ * This isn't a great routine, but it's yest _horrible_ either. The
  * inner loop could be unrolled a bit further, and there are better
  * ways to do the carry, but this is reasonable.
  */
@@ -181,9 +181,9 @@ unsigned int do_csum(const void *voidptr, int len)
  * copy from ds while checksumming, otherwise like csum_partial
  */
 __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
+csum_partial_copy_yescheck(const void *src, void *dst, int len, __wsum sum)
 {
 	memcpy(dst, src, len);
 	return csum_partial(dst, len, sum);
 }
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
+EXPORT_SYMBOL(csum_partial_copy_yescheck);

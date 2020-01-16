@@ -30,7 +30,7 @@ static irqreturn_t line_interrupt(int irq, void *data)
 /*
  * Returns the free space inside the ring buffer of this line.
  *
- * Should be called while holding line->lock (this does not modify data).
+ * Should be called while holding line->lock (this does yest modify data).
  */
 static int write_room(struct line *line)
 {
@@ -78,7 +78,7 @@ int line_chars_in_buffer(struct tty_struct *tty)
  * This copies the content of buf into the circular buffer associated with
  * this line.
  * The return value is the number of characters actually copied, i.e. the ones
- * for which there was space: this function is not supposed to ever flush out
+ * for which there was space: this function is yest supposed to ever flush out
  * the circular buffer.
  *
  * Must be called while holding line->lock!
@@ -123,8 +123,8 @@ static int buffer_data(struct line *line, const char *buf, int len)
  * called, passing it line->head as buffer, and an appropriate count.
  *
  * On exit, returns 1 when the buffer is empty,
- * 0 when the buffer is not empty on exit,
- * and -errno when an error occurred.
+ * 0 when the buffer is yest empty on exit,
+ * and -erryes when an error occurred.
  *
  * Must be called while holding line->lock!*/
 static int flush_buffer(struct line *line)
@@ -144,7 +144,7 @@ static int flush_buffer(struct line *line)
 			return n;
 		if (n == count) {
 			/*
-			 * We have flushed from ->head to buffer end, now we
+			 * We have flushed from ->head to buffer end, yesw we
 			 * must flush only from the beginning to ->tail.
 			 */
 			line->head = line->buffer;
@@ -177,7 +177,7 @@ void line_flush_buffer(struct tty_struct *tty)
 
 /*
  * We map both ->flush_chars and ->put_char (which go in pair) onto
- * ->flush_buffer and ->write. Hope it's not that bad.
+ * ->flush_buffer and ->write. Hope it's yest that bad.
  */
 void line_flush_chars(struct tty_struct *tty)
 {
@@ -218,7 +218,7 @@ out_up:
 
 void line_set_termios(struct tty_struct *tty, struct ktermios * old)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 void line_throttle(struct tty_struct *tty)
@@ -375,7 +375,7 @@ int setup_one_line(struct line *lines, int n, char *init,
 		goto out;
 	}
 
-	if (!strcmp(init, "none")) {
+	if (!strcmp(init, "yesne")) {
 		if (line->valid) {
 			line->valid = 0;
 			kfree(line->init_str);
@@ -500,7 +500,7 @@ int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
 	line = &lines[dev];
 
 	if (!line->valid)
-		CONFIG_CHUNK(str, size, n, "none", 1);
+		CONFIG_CHUNK(str, size, n, "yesne", 1);
 	else {
 		struct tty_struct *tty = tty_port_tty_get(&line->port);
 		if (tty == NULL) {
@@ -535,7 +535,7 @@ int line_remove(struct line *lines, unsigned int num, int n, char **error_out)
 		*error_out = "Device number out of range";
 		return -EINVAL;
 	}
-	return setup_one_line(lines, n, "none", NULL, error_out);
+	return setup_one_line(lines, n, "yesne", NULL, error_out);
 }
 
 int register_lines(struct line_driver *line_driver,
@@ -552,7 +552,7 @@ int register_lines(struct line_driver *line_driver,
 	driver->driver_name = line_driver->name;
 	driver->name = line_driver->device_name;
 	driver->major = line_driver->major;
-	driver->minor_start = line_driver->minor_start;
+	driver->miyesr_start = line_driver->miyesr_start;
 	driver->type = line_driver->type;
 	driver->subtype = line_driver->subtype;
 	driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
@@ -635,7 +635,7 @@ static irqreturn_t winch_interrupt(int irq, void *data)
 				list_del(&winch->list);
 				os_close_file(fd);
 				printk(KERN_ERR "winch_interrupt : "
-				       "read failed, errno = %d\n", -err);
+				       "read failed, erryes = %d\n", -err);
 				printk(KERN_ERR "fd %d is losing SIGWINCH "
 				       "support\n", winch->tty_fd);
 				INIT_WORK(&winch->work, __free_winch);

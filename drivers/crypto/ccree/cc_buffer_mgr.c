@@ -126,7 +126,7 @@ static int cc_render_buff_to_mlli(struct device *dev, dma_addr_t buff_dma,
 	u32 *mlli_entry_p = *mlli_entry_pp;
 	u32 new_nents;
 
-	/* Verify there is no memory overflow*/
+	/* Verify there is yes memory overflow*/
 	new_nents = (*curr_nents + buff_size / CC_MAX_MLLI_ENTRY_SIZE + 1);
 	if (new_nents > MAX_NUM_OF_TOTAL_MLLI_ENTRIES) {
 		dev_err(dev, "Too many mlli entries. current %d max %d\n",
@@ -772,7 +772,7 @@ static void cc_prepare_aead_data_mlli(struct cc_drvdata *drvdata,
 			}
 		} else { /* Contig. ICV */
 			sg = &areq_ctx->src_sgl[areq_ctx->src.nents - 1];
-			/*Should hanlde if the sg is not contig.*/
+			/*Should hanlde if the sg is yest contig.*/
 			areq_ctx->icv_dma_addr = sg_dma_address(sg) +
 				(*src_last_bytes - authsize);
 			areq_ctx->icv_virt_addr = sg_virt(sg) +
@@ -804,7 +804,7 @@ static void cc_prepare_aead_data_mlli(struct cc_drvdata *drvdata,
 
 		} else { /* Contig. ICV */
 			sg = &areq_ctx->src_sgl[areq_ctx->src.nents - 1];
-			/*Should hanlde if the sg is not contig.*/
+			/*Should hanlde if the sg is yest contig.*/
 			areq_ctx->icv_dma_addr = sg_dma_address(sg) +
 				(*src_last_bytes - authsize);
 			areq_ctx->icv_virt_addr = sg_virt(sg) +
@@ -853,7 +853,7 @@ static int cc_aead_chain_data(struct cc_drvdata *drvdata,
 	int rc = 0;
 	u32 src_mapped_nents = 0, dst_mapped_nents = 0;
 	u32 offset = 0;
-	/* non-inplace mode */
+	/* yesn-inplace mode */
 	unsigned int size_for_map = areq_ctx->assoclen + req->cryptlen;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	u32 sg_index = 0;
@@ -1135,7 +1135,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 		 * Create MLLI table for:
 		 *   (1) Assoc. data
 		 *   (2) Src/Dst SGLs
-		 *   Note: IV is contg. buffer (not an SGL)
+		 *   Note: IV is contg. buffer (yest an SGL)
 		 */
 		rc = cc_aead_chain_assoc(drvdata, req, &sg_data, true, false);
 		if (rc)
@@ -1155,13 +1155,13 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 		 *   (2) IV entry (chained right after end of assoc)
 		 *   (3) MLLI for src/dst (inplace operation)
 		 *
-		 * If ENCRYPT (non-inplace)
+		 * If ENCRYPT (yesn-inplace)
 		 *   (1) MLLI table for assoc
 		 *   (2) IV entry (chained right after end of assoc)
 		 *   (3) MLLI for dst
 		 *   (4) MLLI for src
 		 *
-		 * If DECRYPT (non-inplace)
+		 * If DECRYPT (yesn-inplace)
 		 *   (1) MLLI table for assoc
 		 *   (2) IV entry (chained right after end of assoc)
 		 *   (3) MLLI for src
@@ -1225,11 +1225,11 @@ int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
 	areq_ctx->in_nents = 0;
 
 	if (nbytes == 0 && *curr_buff_cnt == 0) {
-		/* nothing to do */
+		/* yesthing to do */
 		return 0;
 	}
 
-	/*TODO: copy data in case that buffer is enough for operation */
+	/*TODO: copy data in case that buffer is eyesugh for operation */
 	/* map the previous buffer */
 	if (*curr_buff_cnt) {
 		rc = cc_set_hash_buf(dev, areq_ctx, curr_buff, *curr_buff_cnt,
@@ -1359,7 +1359,7 @@ int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
 			goto unmap_curr_buff;
 		if (mapped_nents == 1 &&
 		    areq_ctx->data_dma_buf_type == CC_DMA_BUF_NULL) {
-			/* only one entry in the SG and no previous data */
+			/* only one entry in the SG and yes previous data */
 			memcpy(areq_ctx->buff_sg, src,
 			       sizeof(struct scatterlist));
 			areq_ctx->buff_sg->length = update_data_len;

@@ -31,7 +31,7 @@ MODULE_FIRMWARE("3826.arm");
 
 /* gpios should be handled in board files and provided via platform data,
  * but because it's currently impossible for p54spi to have a header file
- * in include/linux, let's use module paramaters for now
+ * in include/linux, let's use module paramaters for yesw
  */
 
 static int p54spi_gpio_power = 97;
@@ -135,7 +135,7 @@ static int p54spi_spi_write_dma(struct p54s_priv *priv, __le32 base,
 				const void *buf, size_t len)
 {
 	if (!p54spi_wait_bit(priv, SPI_ADRS_DMA_WRITE_CTRL, HOST_ALLOWED)) {
-		dev_err(&priv->spi->dev, "spi_write_dma not allowed "
+		dev_err(&priv->spi->dev, "spi_write_dma yest allowed "
 			"to DMA write.\n");
 		return -EAGAIN;
 	}
@@ -347,14 +347,14 @@ static int p54spi_rx(struct p54s_priv *priv)
 	}
 
 	/* Firmware may insert up to 4 padding bytes after the lmac header,
-	 * but it does not amend the size of SPI data transfer.
+	 * but it does yest amend the size of SPI data transfer.
 	 * Such packets has correct data size in header, thus referencing
 	 * past the end of allocated skb. Reserve extra 4 bytes for this case
 	 */
 	skb = dev_alloc_skb(len + 4);
 	if (!skb) {
 		p54spi_sleep(priv);
-		dev_err(&priv->spi->dev, "could not alloc skb");
+		dev_err(&priv->spi->dev, "could yest alloc skb");
 		return -ENOMEM;
 	}
 
@@ -589,7 +589,7 @@ static int p54spi_probe(struct spi_device *spi)
 
 	hw = p54_init_common(sizeof(*priv));
 	if (!hw) {
-		dev_err(&spi->dev, "could not alloc ieee80211_hw");
+		dev_err(&spi->dev, "could yest alloc ieee80211_hw");
 		return -ENOMEM;
 	}
 

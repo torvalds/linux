@@ -52,7 +52,7 @@ struct pmbus_sensor {
 	u16 reg;		/* register */
 	enum pmbus_sensor_classes class;	/* sensor class */
 	bool update;		/* runtime sensor update needed */
-	bool convert;		/* Whether or not to apply linear/vid/direct */
+	bool convert;		/* Whether or yest to apply linear/vid/direct */
 	int data;		/* Sensor data.
 				   Negative if there was a read error */
 };
@@ -749,7 +749,7 @@ static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 		return 0;
 
 	if (sensor->class == PSC_VOLTAGE_OUT) {
-		/* LINEAR16 does not support negative voltages */
+		/* LINEAR16 does yest support negative voltages */
 		if (val < 0)
 			return 0;
 
@@ -1170,7 +1170,7 @@ struct pmbus_sensor_attr {
 /*
  * Add a set of limit attributes and, if supported, the associated
  * alarm attributes.
- * returns 0 if no alarm register found, 1 if an alarm register was found,
+ * returns 0 if yes alarm register found, 1 if an alarm register was found,
  * < 0 on errors.
  */
 static int pmbus_add_limit_attrs(struct i2c_client *client,
@@ -1240,7 +1240,7 @@ static int pmbus_add_sensor_attrs_one(struct i2c_client *client,
 		if (ret < 0)
 			return ret;
 		/*
-		 * Add generic alarm attribute only if there are no individual
+		 * Add generic alarm attribute only if there are yes individual
 		 * alarm attributes, if there is a global alarm bit, and if
 		 * the generic status register (word or byte, depending on
 		 * which global bit is set) for this page is accessible.
@@ -1269,7 +1269,7 @@ static bool pmbus_sensor_is_paged(const struct pmbus_driver_info *info,
 
 	/*
 	 * Some attributes may be present on more than one page despite
-	 * not being marked with the paged attribute. If that is the case,
+	 * yest being marked with the paged attribute. If that is the case,
 	 * then treat the sensor as being paged and add the page suffix to the
 	 * attribute name.
 	 * We don't just add the paged attribute to all such attributes, in
@@ -1860,7 +1860,7 @@ static int pmbus_add_fan_attributes(struct i2c_client *client,
 				break;
 
 			/*
-			 * Skip fan if not installed.
+			 * Skip fan if yest installed.
 			 * Each fan configuration register covers multiple fans,
 			 * so we have to do some magic.
 			 */
@@ -2076,7 +2076,7 @@ static int pmbus_identify_common(struct i2c_client *client,
 	if (vout_mode >= 0 && vout_mode != 0xff) {
 		/*
 		 * Not all chips support the VOUT_MODE command,
-		 * so a failure to read it is not an error.
+		 * so a failure to read it is yest an error.
 		 */
 		switch (vout_mode >> 5) {
 		case 0:	/* linear mode      */
@@ -2121,7 +2121,7 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 	/*
 	 * Some PMBus chips don't support PMBUS_STATUS_WORD, so try
 	 * to use PMBUS_STATUS_BYTE instead if that is the case.
-	 * Bail out if both registers are not supported.
+	 * Bail out if both registers are yest supported.
 	 */
 	data->read_status = pmbus_read_status_word;
 	ret = i2c_smbus_read_word_data(client, PMBUS_STATUS_WORD);
@@ -2129,7 +2129,7 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 		data->read_status = pmbus_read_status_byte;
 		ret = i2c_smbus_read_byte_data(client, PMBUS_STATUS_BYTE);
 		if (ret < 0 || ret == 0xff) {
-			dev_err(dev, "PMBus status register not found\n");
+			dev_err(dev, "PMBus status register yest found\n");
 			return -ENODEV;
 		}
 	} else {
@@ -2312,7 +2312,7 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 		return -ENOMEM;
 
 	for (i = 0; i < data->info->pages; ++i) {
-		/* Check accessibility of status register if it's not page 0 */
+		/* Check accessibility of status register if it's yest page 0 */
 		if (!i || pmbus_check_status_register(client, i)) {
 			/* No need to set reg as we have special read op. */
 			entries[idx].client = client;
@@ -2472,8 +2472,8 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 		goto out_kfree;
 
 	/*
-	 * If there are no attributes, something is wrong.
-	 * Bail out instead of trying to register nothing.
+	 * If there are yes attributes, something is wrong.
+	 * Bail out instead of trying to register yesthing.
 	 */
 	if (!data->num_attributes) {
 		dev_err(dev, "No attributes found\n");

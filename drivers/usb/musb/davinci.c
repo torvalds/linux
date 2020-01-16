@@ -93,7 +93,7 @@ static void davinci_musb_enable(struct musb *musb)
 	musb_writel(musb->ctrl_base, DAVINCI_USB_INT_MASK_SET_REG, tmp);
 
 	if (is_dma_capable() && !dma_off)
-		printk(KERN_WARNING "%s %s: dma not reactivated\n",
+		printk(KERN_WARNING "%s %s: dma yest reactivated\n",
 				__FILE__, __func__);
 	else
 		dma_off = 0;
@@ -109,7 +109,7 @@ static void davinci_musb_enable(struct musb *musb)
 static void davinci_musb_disable(struct musb *musb)
 {
 	/* because we don't set CTRLR.UINT, "important" to:
-	 *  - not read/write INTRUSB/INTRUSBE
+	 *  - yest read/write INTRUSB/INTRUSBE
 	 *  - (except during initial setup, as workaround)
 	 *  - use INTSETR/INTCLRR instead
 	 */
@@ -131,7 +131,7 @@ static void davinci_musb_disable(struct musb *musb)
  * which doesn't wire DRVVBUS to the FET that switches it.  Unclear
  * if that's a problem with the DM6446 chip or just with that board.
  *
- * In either case, the DM355 EVM automates DRVVBUS the normal way,
+ * In either case, the DM355 EVM automates DRVVBUS the yesrmal way,
  * when J10 is out, and TI documents it as handling OTG.
  */
 
@@ -139,11 +139,11 @@ static void davinci_musb_disable(struct musb *musb)
 
 static int vbus_state = -1;
 
-/* I2C operations are always synchronous, and require a task context.
+/* I2C operations are always synchroyesus, and require a task context.
  * With unloaded systems, using the shared workqueue seems to suffice
  * to satisfy the 100msec A_WAIT_VRISE timeout...
  */
-static void evm_deferred_drvvbus(struct work_struct *ignored)
+static void evm_deferred_drvvbus(struct work_struct *igyesred)
 {
 	gpio_set_value_cansleep(GPIO_nVBUS_DRV, vbus_state);
 	vbus_state = !vbus_state;
@@ -159,7 +159,7 @@ static void davinci_musb_source_power(struct musb *musb, int is_on, int immediat
 
 	if (vbus_state == is_on)
 		return;
-	vbus_state = !is_on;		/* 0/1 vs "-1 == unknown/init" */
+	vbus_state = !is_on;		/* 0/1 vs "-1 == unkyeswn/init" */
 
 	if (machine_is_davinci_evm()) {
 		static DECLARE_WORK(evm_vbus_work, evm_deferred_drvvbus);
@@ -215,13 +215,13 @@ static void otg_timer(struct timer_list *t)
 		break;
 	case OTG_STATE_B_IDLE:
 		/*
-		 * There's no ID-changed IRQ, so we have no good way to tell
+		 * There's yes ID-changed IRQ, so we have yes good way to tell
 		 * when to switch to the A-Default state machine (by setting
 		 * the DEVCTL.SESSION flag).
 		 *
 		 * Workaround:  whenever we're in B_IDLE, try setting the
 		 * session flag every few seconds.  If it works, ID was
-		 * grounded and we're now in the A-Default state machine.
+		 * grounded and we're yesw in the A-Default state machine.
 		 *
 		 * NOTE setting the session flag is _supposed_ to trigger
 		 * SRP, but clearly it doesn't.
@@ -257,7 +257,7 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 	 *
 	 * Docs describe irq "vector" registers associated with the CPPI and
 	 * USB EOI registers.  These hold a bitmask corresponding to the
-	 * current IRQ, not an irq handler address.  Would using those bits
+	 * current IRQ, yest an irq handler address.  Would using those bits
 	 * resolve some of the races observed in this dispatch code??
 	 */
 
@@ -268,7 +268,7 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 	if (is_cppi_enabled(musb) && musb->dma_controller && !cppi->irq)
 		retval = cppi_interrupt(irq, __hci);
 
-	/* ack and handle non-CPPI interrupts */
+	/* ack and handle yesn-CPPI interrupts */
 	tmp = musb_readl(tibase, DAVINCI_USB_INT_SRC_MASKED_REG);
 	musb_writel(tibase, DAVINCI_USB_INT_SRC_CLR_REG, tmp);
 	dev_dbg(musb->controller, "IRQ %08x\n", tmp);
@@ -283,9 +283,9 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 	/* DRVVBUS irqs are the only proxy we have (a very poor one!) for
 	 * DaVinci's missing ID change IRQ.  We need an ID change IRQ to
 	 * switch appropriately between halves of the OTG state machine.
-	 * Managing DEVCTL.SESSION per Mentor docs requires we know its
+	 * Managing DEVCTL.SESSION per Mentor docs requires we kyesw its
 	 * value, but DEVCTL.BDEVICE is invalid without DEVCTL.SESSION set.
-	 * Also, DRVVBUS pulses for SRP (but not at 5V) ...
+	 * Also, DRVVBUS pulses for SRP (but yest at 5V) ...
 	 */
 	if (tmp & (DAVINCI_INTR_DRVVBUS << DAVINCI_USB_USBINT_SHIFT)) {
 		int	drvvbus = musb_readl(tibase, DAVINCI_USB_STAT_REG);
@@ -297,7 +297,7 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 		if (err) {
 			/* The Mentor core doesn't debounce VBUS as needed
 			 * to cope with device connect current spikes. This
-			 * means it's not uncommon for bus-powered devices
+			 * means it's yest uncommon for bus-powered devices
 			 * to get VBUS errors during enumeration.
 			 *
 			 * This is a workaround, but newer RTL from Mentor
@@ -368,7 +368,7 @@ static int davinci_musb_init(struct musb *musb)
 
 	musb->mregs += DAVINCI_BASE_OFFSET;
 
-	/* returns zero if e.g. not clocked */
+	/* returns zero if e.g. yest clocked */
 	revision = musb_readl(tibase, DAVINCI_USB_VERSION_REG);
 	if (revision == 0)
 		goto fail;
@@ -389,7 +389,7 @@ static int davinci_musb_init(struct musb *musb)
 	}
 
 	/* On dm355, the default-A state machine needs DRVVBUS control.
-	 * If we won't be a host, there's no need to turn it on.
+	 * If we won't be a host, there's yes need to turn it on.
 	 */
 	if (cpu_is_davinci_dm355()) {
 		u32	deepsleep = __raw_readl(DM355_DEEPSLEEP);
@@ -406,7 +406,7 @@ static int davinci_musb_init(struct musb *musb)
 
 	msleep(5);
 
-	/* NOTE:  irqs are in mixed mode, not bypass to pure-musb */
+	/* NOTE:  irqs are in mixed mode, yest bypass to pure-musb */
 	pr_debug("DaVinci OTG revision %08x phy %03x control %02x\n",
 		revision, __raw_readl(USB_PHY_CTRL),
 		musb_readb(tibase, DAVINCI_USB_CTRL_REG));
@@ -441,7 +441,7 @@ static int davinci_musb_exit(struct musb *musb)
 
 	/*
 	 * delay, to avoid problems with module reload.
-	 * if there's no peripheral connected, this can take a
+	 * if there's yes peripheral connected, this can take a
 	 * long time to fall, especially on EVM with huge C133.
 	 */
 	do {
@@ -457,7 +457,7 @@ static int davinci_musb_exit(struct musb *musb)
 		maxdelay--;
 	} while (maxdelay > 0);
 
-	/* in OTG mode, another host might be connected */
+	/* in OTG mode, ayesther host might be connected */
 	if (devctl & MUSB_DEVCTL_VBUS)
 		dev_dbg(musb->controller, "VBUS off timeout (devctl %02x)\n", devctl);
 

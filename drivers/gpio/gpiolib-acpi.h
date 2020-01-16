@@ -47,7 +47,7 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 				 unsigned int idx,
 				 enum gpiod_flags *dflags,
 				 unsigned long *lookupflags);
-struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
+struct gpio_desc *acpi_yesde_get_gpiod(struct fwyesde_handle *fwyesde,
 				      const char *propname, int index,
 				      struct acpi_gpio_info *info);
 
@@ -82,7 +82,7 @@ acpi_find_gpio(struct device *dev, const char *con_id,
 	return ERR_PTR(-ENOENT);
 }
 static inline struct gpio_desc *
-acpi_node_get_gpiod(struct fwnode_handle *fwnode, const char *propname,
+acpi_yesde_get_gpiod(struct fwyesde_handle *fwyesde, const char *propname,
 		    int index, struct acpi_gpio_info *info)
 {
 	return ERR_PTR(-ENXIO);

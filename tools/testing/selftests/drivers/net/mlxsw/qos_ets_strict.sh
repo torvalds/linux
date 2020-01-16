@@ -255,7 +255,7 @@ test_ets_strict()
 	start_traffic $h2.222 192.0.2.65 192.0.2.66 $h3mac
 	local -a rate_2
 	rate_2=($(measure_rate $swp2 $h3 rx_octets_prio_2 "prio 2"))
-	check_err $? "Could not get high enough prio-2 ingress rate"
+	check_err $? "Could yest get high eyesugh prio-2 ingress rate"
 	local rate_2_in=${rate_2[0]}
 	local rate_2_eg=${rate_2[1]}
 	stop_traffic # $h2.222
@@ -265,7 +265,7 @@ test_ets_strict()
 
 	local -a rate_1
 	rate_1=($(measure_rate $swp1 $h3 rx_octets_prio_1 "prio 1"))
-	check_err $? "Could not get high enough prio-1 ingress rate"
+	check_err $? "Could yest get high eyesugh prio-1 ingress rate"
 	local rate_1_in=${rate_1[0]}
 	local rate_1_eg=${rate_1[1]}
 
@@ -275,17 +275,17 @@ test_ets_strict()
 	check_err $(bc <<< "$rel21 < 95")
 	check_err $(bc <<< "$rel21 > 105")
 
-	# Start the high-prio stream--now both streams run.
+	# Start the high-prio stream--yesw both streams run.
 	start_traffic $h2.222 192.0.2.65 192.0.2.66 $h3mac
 	rate_3=($(measure_rate $swp2 $h3 rx_octets_prio_2 "prio 2 w/ 1"))
-	check_err $? "Could not get high enough prio-2 ingress rate with prio-1"
+	check_err $? "Could yest get high eyesugh prio-2 ingress rate with prio-1"
 	local rate_3_in=${rate_3[0]}
 	local rate_3_eg=${rate_3[1]}
 	stop_traffic # $h2.222
 
 	stop_traffic # $h1.111
 
-	# High-prio should have about the same throughput whether or not
+	# High-prio should have about the same throughput whether or yest
 	# low-prio is in the system.
 	local rel32=$(rel $rate_2_eg $rate_3_eg)
 	check_err $(bc <<< "$rel32 < 95")

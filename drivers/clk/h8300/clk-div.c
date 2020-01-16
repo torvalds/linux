@@ -2,7 +2,7 @@
 /*
  * H8/300 divide clock driver
  *
- * Copyright 2015 Yoshinori Sato <ysato@users.sourceforge.jp>
+ * Copyright 2015 Yoshiyesri Sato <ysato@users.sourceforge.jp>
  */
 
 #include <linux/clk-provider.h>
@@ -13,23 +13,23 @@
 
 static DEFINE_SPINLOCK(clklock);
 
-static void __init h8300_div_clk_setup(struct device_node *node)
+static void __init h8300_div_clk_setup(struct device_yesde *yesde)
 {
 	unsigned int num_parents;
 	struct clk_hw *hw;
-	const char *clk_name = node->name;
+	const char *clk_name = yesde->name;
 	const char *parent_name;
 	void __iomem *divcr = NULL;
 	int width;
 	int offset;
 
-	num_parents = of_clk_get_parent_count(node);
+	num_parents = of_clk_get_parent_count(yesde);
 	if (!num_parents) {
-		pr_err("%s: no parent found\n", clk_name);
+		pr_err("%s: yes parent found\n", clk_name);
 		return;
 	}
 
-	divcr = of_iomap(node, 0);
+	divcr = of_iomap(yesde, 0);
 	if (divcr == NULL) {
 		pr_err("%s: failed to map divide register\n", clk_name);
 		goto error;
@@ -38,13 +38,13 @@ static void __init h8300_div_clk_setup(struct device_node *node)
 	offset = (3 - offset) * 8;
 	divcr = (void __iomem *)((unsigned long)divcr & ~3);
 
-	parent_name = of_clk_get_parent_name(node, 0);
-	of_property_read_u32(node, "renesas,width", &width);
+	parent_name = of_clk_get_parent_name(yesde, 0);
+	of_property_read_u32(yesde, "renesas,width", &width);
 	hw = clk_hw_register_divider(NULL, clk_name, parent_name,
 				   CLK_SET_RATE_GATE, divcr, offset, width,
 				   CLK_DIVIDER_POWER_OF_TWO, &clklock);
 	if (!IS_ERR(hw)) {
-		of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw);
+		of_clk_add_hw_provider(yesde, of_clk_hw_simple_get, hw);
 		return;
 	}
 	pr_err("%s: failed to register %s div clock (%ld)\n",

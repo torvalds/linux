@@ -27,7 +27,7 @@
 void __delay(unsigned long loops)
 {
 	__asm__ __volatile__ (
-	"	.set	noreorder				\n"
+	"	.set	yesreorder				\n"
 	"	.align	3					\n"
 	"1:	bnez	%0, 1b					\n"
 	"	 " __stringify(LONG_SUBU) "	%0, %1		\n"

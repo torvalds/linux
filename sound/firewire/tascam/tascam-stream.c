@@ -179,7 +179,7 @@ static int set_stream_formats(struct snd_tscm *tscm, unsigned int rate)
 	__be32 reg;
 	int err;
 
-	// Set an option for unknown purpose.
+	// Set an option for unkyeswn purpose.
 	reg = cpu_to_be32(0x00200000);
 	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 				 TSCM_ADDR_BASE + TSCM_OFFSET_SET_OPTION,
@@ -224,7 +224,7 @@ static int begin_session(struct snd_tscm *tscm)
 	__be32 reg;
 	int err;
 
-	// Register the isochronous channel for transmitting stream.
+	// Register the isochroyesus channel for transmitting stream.
 	reg = cpu_to_be32(tscm->tx_resources.channel);
 	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 				 TSCM_ADDR_BASE + TSCM_OFFSET_ISOC_TX_CH,
@@ -232,7 +232,7 @@ static int begin_session(struct snd_tscm *tscm)
 	if (err < 0)
 		return err;
 
-	// Unknown.
+	// Unkyeswn.
 	reg = cpu_to_be32(0x00000002);
 	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 				 TSCM_ADDR_BASE + TSCM_OFFSET_UNKNOWN,
@@ -240,7 +240,7 @@ static int begin_session(struct snd_tscm *tscm)
 	if (err < 0)
 		return err;
 
-	// Register the isochronous channel for receiving stream.
+	// Register the isochroyesus channel for receiving stream.
 	reg = cpu_to_be32(tscm->rx_resources.channel);
 	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 				 TSCM_ADDR_BASE + TSCM_OFFSET_ISOC_RX_CH,
@@ -262,7 +262,7 @@ static int begin_session(struct snd_tscm *tscm)
 	if (err < 0)
 		return err;
 
-	// Set an option for unknown purpose.
+	// Set an option for unkyeswn purpose.
 	reg = cpu_to_be32(0x00002000);
 	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 				 TSCM_ADDR_BASE + TSCM_OFFSET_SET_OPTION,

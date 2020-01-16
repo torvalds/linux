@@ -64,7 +64,7 @@ static int intel_th_probe(struct device *dev)
 	hubdrv = to_intel_th_driver(hub->dev.driver);
 
 	pm_runtime_set_active(dev);
-	pm_runtime_no_callbacks(dev);
+	pm_runtime_yes_callbacks(dev);
 	pm_runtime_enable(dev);
 
 	ret = thdrv->probe(to_intel_th_device(dev));
@@ -79,7 +79,7 @@ static int intel_th_probe(struct device *dev)
 
 	if (thdev->type == INTEL_TH_OUTPUT &&
 	    !intel_th_output_assigned(thdev))
-		/* does not talk to hardware */
+		/* does yest talk to hardware */
 		ret = hubdrv->assign(hub, thdev);
 
 out:
@@ -118,7 +118,7 @@ static int intel_th_remove(struct device *dev)
 		 */
 		for (i = 0, lowest = -1; i < th->num_thdevs; i++) {
 			/*
-			 * Move the non-output devices from higher up the
+			 * Move the yesn-output devices from higher up the
 			 * th->thdev[] array to lower positions to maintain
 			 * a contiguous array.
 			 */
@@ -155,7 +155,7 @@ static int intel_th_remove(struct device *dev)
 			to_intel_th_driver(dev->parent->driver);
 
 		if (hub->dev.driver)
-			/* does not talk to hardware */
+			/* does yest talk to hardware */
 			hubdrv->unassign(hub, thdev);
 	}
 
@@ -185,21 +185,21 @@ static struct device_type intel_th_source_device_type = {
 	.release	= intel_th_device_release,
 };
 
-static char *intel_th_output_devnode(struct device *dev, umode_t *mode,
+static char *intel_th_output_devyesde(struct device *dev, umode_t *mode,
 				     kuid_t *uid, kgid_t *gid)
 {
 	struct intel_th_device *thdev = to_intel_th_device(dev);
 	struct intel_th *th = to_intel_th(thdev);
-	char *node;
+	char *yesde;
 
 	if (thdev->id >= 0)
-		node = kasprintf(GFP_KERNEL, "intel_th%d/%s%d", th->id,
+		yesde = kasprintf(GFP_KERNEL, "intel_th%d/%s%d", th->id,
 				 thdev->name, thdev->id);
 	else
-		node = kasprintf(GFP_KERNEL, "intel_th%d/%s", th->id,
+		yesde = kasprintf(GFP_KERNEL, "intel_th%d/%s", th->id,
 				 thdev->name);
 
-	return node;
+	return yesde;
 }
 
 static ssize_t port_show(struct device *dev, struct device_attribute *attr,
@@ -320,7 +320,7 @@ static struct device_type intel_th_output_device_type = {
 	.name		= "intel_th_output_device",
 	.groups		= intel_th_output_groups,
 	.release	= intel_th_device_release,
-	.devnode	= intel_th_output_devnode,
+	.devyesde	= intel_th_output_devyesde,
 };
 
 static struct device_type intel_th_switch_device_type = {
@@ -422,7 +422,7 @@ static const struct intel_th_subdevice {
 	unsigned		nres;
 	unsigned		type;
 	unsigned		otype;
-	bool			mknode;
+	bool			mkyesde;
 	unsigned		scrpd;
 	int			id;
 } intel_th_subdevices[] = {
@@ -457,7 +457,7 @@ static const struct intel_th_subdevice {
 		.name	= "msc",
 		.id	= 0,
 		.type	= INTEL_TH_OUTPUT,
-		.mknode	= true,
+		.mkyesde	= true,
 		.otype	= GTH_MSU,
 		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC0_IS_ENABLED,
 	},
@@ -478,7 +478,7 @@ static const struct intel_th_subdevice {
 		.name	= "msc",
 		.id	= 1,
 		.type	= INTEL_TH_OUTPUT,
-		.mknode	= true,
+		.mkyesde	= true,
 		.otype	= GTH_MSU,
 		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC1_IS_ENABLED,
 	},
@@ -653,7 +653,7 @@ intel_th_subdevice_alloc(struct intel_th *th,
 		goto fail_put_device;
 
 	if (subdev->type == INTEL_TH_OUTPUT) {
-		if (subdev->mknode)
+		if (subdev->mkyesde)
 			thdev->dev.devt = MKDEV(th->major, th->num_thdevs);
 		thdev->output.type = subdev->otype;
 		thdev->output.port = -1;
@@ -711,7 +711,7 @@ int intel_th_output_enable(struct intel_th *th, unsigned int otype)
 			break;
 		}
 
-		/* no unallocated matching subdevices */
+		/* yes unallocated matching subdevices */
 		if (src == ARRAY_SIZE(intel_th_subdevices))
 			return -ENODEV;
 
@@ -727,7 +727,7 @@ int intel_th_output_enable(struct intel_th *th, unsigned int otype)
 
 		/*
 		 * intel_th_subdevices[src] matches our requirements and is
-		 * not matched in th::thdev[]
+		 * yest matched in th::thdev[]
 		 */
 		if (dst == th->num_thdevs)
 			goto found;
@@ -770,7 +770,7 @@ static int intel_th_populate(struct intel_th *th)
 			continue;
 
 		thdev = intel_th_subdevice_alloc(th, subdev);
-		/* note: caller should free subdevices from th::thdev[] */
+		/* yeste: caller should free subdevices from th::thdev[] */
 		if (IS_ERR(thdev)) {
 			/* ENODEV for individual subdevices is allowed */
 			if (PTR_ERR(thdev) == -ENODEV)
@@ -785,14 +785,14 @@ static int intel_th_populate(struct intel_th *th)
 	return 0;
 }
 
-static int intel_th_output_open(struct inode *inode, struct file *file)
+static int intel_th_output_open(struct iyesde *iyesde, struct file *file)
 {
 	const struct file_operations *fops;
 	struct intel_th_driver *thdrv;
 	struct device *dev;
 	int err;
 
-	dev = bus_find_device_by_devt(&intel_th_bus, inode->i_rdev);
+	dev = bus_find_device_by_devt(&intel_th_bus, iyesde->i_rdev);
 	if (!dev || !dev->driver)
 		return -ENODEV;
 
@@ -806,7 +806,7 @@ static int intel_th_output_open(struct inode *inode, struct file *file)
 	file->private_data = to_intel_th_device(dev);
 
 	if (file->f_op->open) {
-		err = file->f_op->open(inode, file);
+		err = file->f_op->open(iyesde, file);
 		return err;
 	}
 
@@ -815,7 +815,7 @@ static int intel_th_output_open(struct inode *inode, struct file *file)
 
 static const struct file_operations intel_th_output_fops = {
 	.open	= intel_th_output_open,
-	.llseek	= noop_llseek,
+	.llseek	= yesop_llseek,
 };
 
 static irqreturn_t intel_th_irq(int irq, void *data)
@@ -887,7 +887,7 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 			th->num_irqs++;
 			break;
 		default:
-			dev_warn(dev, "Unknown resource type %lx\n",
+			dev_warn(dev, "Unkyeswn resource type %lx\n",
 				 devres[r].flags);
 			break;
 		}
@@ -896,7 +896,7 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 
 	dev_set_drvdata(dev, th);
 
-	pm_runtime_no_callbacks(dev);
+	pm_runtime_yes_callbacks(dev);
 	pm_runtime_put(dev);
 	pm_runtime_allow(dev);
 
@@ -1022,7 +1022,7 @@ int intel_th_set_output(struct intel_th_device *thdev,
 	struct intel_th_device *hub = to_intel_th_hub(thdev);
 	struct intel_th_driver *hubdrv = to_intel_th_driver(hub->dev.driver);
 
-	/* In host mode, this is up to the external debugger, do nothing. */
+	/* In host mode, this is up to the external debugger, do yesthing. */
 	if (hub->host_mode)
 		return 0;
 

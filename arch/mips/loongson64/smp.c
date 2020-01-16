@@ -286,7 +286,7 @@ static void ipi_mailbox_buf_init(void)
 }
 
 /*
- * Simple enough, just poke the appropriate ipi register
+ * Simple eyesugh, just poke the appropriate ipi register
  */
 static void loongson3_send_ipi_single(int cpu, unsigned int action)
 {
@@ -402,7 +402,7 @@ static void __init loongson3_smp_setup(void)
 {
 	int i = 0, num = 0; /* i: physical id, num: logical id */
 
-	init_cpu_possible(cpu_none_mask);
+	init_cpu_possible(cpu_yesne_mask);
 
 	/* For unified kernel, NR_CPUS is the maximum possible value,
 	 * loongson_sysconf.nr_cpus is the really present value */
@@ -501,18 +501,18 @@ static void loongson3_cpu_die(unsigned int cpu)
 }
 
 /* To shutdown a core in Loongson 3, the target core should go to CKSEG1 and
- * flush all L1 entries at first. Then, another core (usually Core 0) can
+ * flush all L1 entries at first. Then, ayesther core (usually Core 0) can
  * safely disable the clock of the target core. loongson3_play_dead() is
  * called via CKSEG1 (uncached and unmmaped) */
 static void loongson3_type1_play_dead(int *state_addr)
 {
 	register int val;
-	register long cpuid, core, node, count;
+	register long cpuid, core, yesde, count;
 	register void *addr, *base, *initfunc;
 
 	__asm__ __volatile__(
 		"   .set push                     \n"
-		"   .set noreorder                \n"
+		"   .set yesreorder                \n"
 		"   li %[addr], 0x80000000        \n" /* KSEG0 */
 		"1: cache 0, 0(%[addr])           \n" /* flush L1 ICache */
 		"   cache 0, 1(%[addr])           \n"
@@ -536,7 +536,7 @@ static void loongson3_type1_play_dead(int *state_addr)
 
 	__asm__ __volatile__(
 		"   .set push                         \n"
-		"   .set noreorder                    \n"
+		"   .set yesreorder                    \n"
 		"   .set mips64                       \n"
 		"   mfc0  %[cpuid], $15, 1            \n"
 		"   andi  %[cpuid], 0x3ff             \n"
@@ -544,22 +544,22 @@ static void loongson3_type1_play_dead(int *state_addr)
 		"   andi  %[core], %[cpuid], 0x3      \n"
 		"   sll   %[core], 8                  \n" /* get core id */
 		"   or    %[base], %[base], %[core]   \n"
-		"   andi  %[node], %[cpuid], 0xc      \n"
-		"   dsll  %[node], 42                 \n" /* get node id */
-		"   or    %[base], %[base], %[node]   \n"
+		"   andi  %[yesde], %[cpuid], 0xc      \n"
+		"   dsll  %[yesde], 42                 \n" /* get yesde id */
+		"   or    %[base], %[base], %[yesde]   \n"
 		"1: li    %[count], 0x100             \n" /* wait for init loop */
 		"2: bnez  %[count], 2b                \n" /* limit mailbox access */
 		"   addiu %[count], -1                \n"
 		"   ld    %[initfunc], 0x20(%[base])  \n" /* get PC via mailbox */
 		"   beqz  %[initfunc], 1b             \n"
-		"   nop                               \n"
+		"   yesp                               \n"
 		"   ld    $sp, 0x28(%[base])          \n" /* get SP via mailbox */
 		"   ld    $gp, 0x30(%[base])          \n" /* get GP via mailbox */
 		"   ld    $a1, 0x38(%[base])          \n"
 		"   jr    %[initfunc]                 \n" /* jump to initial PC */
-		"   nop                               \n"
+		"   yesp                               \n"
 		"   .set pop                          \n"
-		: [core] "=&r" (core), [node] "=&r" (node),
+		: [core] "=&r" (core), [yesde] "=&r" (yesde),
 		  [base] "=&r" (base), [cpuid] "=&r" (cpuid),
 		  [count] "=&r" (count), [initfunc] "=&r" (initfunc)
 		: /* No Input */
@@ -569,12 +569,12 @@ static void loongson3_type1_play_dead(int *state_addr)
 static void loongson3_type2_play_dead(int *state_addr)
 {
 	register int val;
-	register long cpuid, core, node, count;
+	register long cpuid, core, yesde, count;
 	register void *addr, *base, *initfunc;
 
 	__asm__ __volatile__(
 		"   .set push                     \n"
-		"   .set noreorder                \n"
+		"   .set yesreorder                \n"
 		"   li %[addr], 0x80000000        \n" /* KSEG0 */
 		"1: cache 0, 0(%[addr])           \n" /* flush L1 ICache */
 		"   cache 0, 1(%[addr])           \n"
@@ -598,7 +598,7 @@ static void loongson3_type2_play_dead(int *state_addr)
 
 	__asm__ __volatile__(
 		"   .set push                         \n"
-		"   .set noreorder                    \n"
+		"   .set yesreorder                    \n"
 		"   .set mips64                       \n"
 		"   mfc0  %[cpuid], $15, 1            \n"
 		"   andi  %[cpuid], 0x3ff             \n"
@@ -606,24 +606,24 @@ static void loongson3_type2_play_dead(int *state_addr)
 		"   andi  %[core], %[cpuid], 0x3      \n"
 		"   sll   %[core], 8                  \n" /* get core id */
 		"   or    %[base], %[base], %[core]   \n"
-		"   andi  %[node], %[cpuid], 0xc      \n"
-		"   dsll  %[node], 42                 \n" /* get node id */
-		"   or    %[base], %[base], %[node]   \n"
-		"   dsrl  %[node], 30                 \n" /* 15:14 */
-		"   or    %[base], %[base], %[node]   \n"
+		"   andi  %[yesde], %[cpuid], 0xc      \n"
+		"   dsll  %[yesde], 42                 \n" /* get yesde id */
+		"   or    %[base], %[base], %[yesde]   \n"
+		"   dsrl  %[yesde], 30                 \n" /* 15:14 */
+		"   or    %[base], %[base], %[yesde]   \n"
 		"1: li    %[count], 0x100             \n" /* wait for init loop */
 		"2: bnez  %[count], 2b                \n" /* limit mailbox access */
 		"   addiu %[count], -1                \n"
 		"   ld    %[initfunc], 0x20(%[base])  \n" /* get PC via mailbox */
 		"   beqz  %[initfunc], 1b             \n"
-		"   nop                               \n"
+		"   yesp                               \n"
 		"   ld    $sp, 0x28(%[base])          \n" /* get SP via mailbox */
 		"   ld    $gp, 0x30(%[base])          \n" /* get GP via mailbox */
 		"   ld    $a1, 0x38(%[base])          \n"
 		"   jr    %[initfunc]                 \n" /* jump to initial PC */
-		"   nop                               \n"
+		"   yesp                               \n"
 		"   .set pop                          \n"
-		: [core] "=&r" (core), [node] "=&r" (node),
+		: [core] "=&r" (core), [yesde] "=&r" (yesde),
 		  [base] "=&r" (base), [cpuid] "=&r" (cpuid),
 		  [count] "=&r" (count), [initfunc] "=&r" (initfunc)
 		: /* No Input */
@@ -633,12 +633,12 @@ static void loongson3_type2_play_dead(int *state_addr)
 static void loongson3_type3_play_dead(int *state_addr)
 {
 	register int val;
-	register long cpuid, core, node, count;
+	register long cpuid, core, yesde, count;
 	register void *addr, *base, *initfunc;
 
 	__asm__ __volatile__(
 		"   .set push                     \n"
-		"   .set noreorder                \n"
+		"   .set yesreorder                \n"
 		"   li %[addr], 0x80000000        \n" /* KSEG0 */
 		"1: cache 0, 0(%[addr])           \n" /* flush L1 ICache */
 		"   cache 0, 1(%[addr])           \n"
@@ -683,7 +683,7 @@ static void loongson3_type3_play_dead(int *state_addr)
 
 	__asm__ __volatile__(
 		"   .set push                         \n"
-		"   .set noreorder                    \n"
+		"   .set yesreorder                    \n"
 		"   .set mips64                       \n"
 		"   mfc0  %[cpuid], $15, 1            \n"
 		"   andi  %[cpuid], 0x3ff             \n"
@@ -691,22 +691,22 @@ static void loongson3_type3_play_dead(int *state_addr)
 		"   andi  %[core], %[cpuid], 0x3      \n"
 		"   sll   %[core], 8                  \n" /* get core id */
 		"   or    %[base], %[base], %[core]   \n"
-		"   andi  %[node], %[cpuid], 0xc      \n"
-		"   dsll  %[node], 42                 \n" /* get node id */
-		"   or    %[base], %[base], %[node]   \n"
+		"   andi  %[yesde], %[cpuid], 0xc      \n"
+		"   dsll  %[yesde], 42                 \n" /* get yesde id */
+		"   or    %[base], %[base], %[yesde]   \n"
 		"1: li    %[count], 0x100             \n" /* wait for init loop */
 		"2: bnez  %[count], 2b                \n" /* limit mailbox access */
 		"   addiu %[count], -1                \n"
 		"   ld    %[initfunc], 0x20(%[base])  \n" /* get PC via mailbox */
 		"   beqz  %[initfunc], 1b             \n"
-		"   nop                               \n"
+		"   yesp                               \n"
 		"   ld    $sp, 0x28(%[base])          \n" /* get SP via mailbox */
 		"   ld    $gp, 0x30(%[base])          \n" /* get GP via mailbox */
 		"   ld    $a1, 0x38(%[base])          \n"
 		"   jr    %[initfunc]                 \n" /* jump to initial PC */
-		"   nop                               \n"
+		"   yesp                               \n"
 		"   .set pop                          \n"
-		: [core] "=&r" (core), [node] "=&r" (node),
+		: [core] "=&r" (core), [yesde] "=&r" (yesde),
 		  [base] "=&r" (base), [cpuid] "=&r" (cpuid),
 		  [count] "=&r" (count), [initfunc] "=&r" (initfunc)
 		: /* No Input */
@@ -784,14 +784,14 @@ static int loongson3_enable_clock(unsigned int cpu)
 	return 0;
 }
 
-static int register_loongson3_notifier(void)
+static int register_loongson3_yestifier(void)
 {
-	return cpuhp_setup_state_nocalls(CPUHP_MIPS_SOC_PREPARE,
+	return cpuhp_setup_state_yescalls(CPUHP_MIPS_SOC_PREPARE,
 					 "mips/loongson:prepare",
 					 loongson3_enable_clock,
 					 loongson3_disable_clock);
 }
-early_initcall(register_loongson3_notifier);
+early_initcall(register_loongson3_yestifier);
 
 #endif
 
@@ -808,6 +808,6 @@ const struct plat_smp_ops loongson3_smp_ops = {
 	.cpu_die = loongson3_cpu_die,
 #endif
 #ifdef CONFIG_KEXEC
-	.kexec_nonboot_cpu = kexec_nonboot_cpu_jump,
+	.kexec_yesnboot_cpu = kexec_yesnboot_cpu_jump,
 #endif
 };

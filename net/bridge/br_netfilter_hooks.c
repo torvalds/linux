@@ -229,7 +229,7 @@ static int br_validate_ipv4(struct net *net, struct sk_buff *skb)
 	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
 	/* We should really parse IP options here but until
 	 * somebody who actually uses IP options complains to
-	 * us we'll just silently ignore the options because
+	 * us we'll just silently igyesre the options because
 	 * we're lazy!
 	 */
 	return 0;
@@ -259,7 +259,7 @@ void nf_bridge_update_protocol(struct sk_buff *skb)
 }
 
 /* Obtain the correct destination MAC address, while preserving the original
- * source MAC address. If we already know this address, we just copy it. If we
+ * source MAC address. If we already kyesw this address, we just copy it. If we
  * don't, we use the neighbour framework to find out. In both cases, we make
  * sure that br_handle_frame_finish() is called afterwards.
  */
@@ -319,7 +319,7 @@ br_nf_ipv4_daddr_was_changed(const struct sk_buff *skb,
  *    port group as it was received on. We can still bridge
  *    the packet.
  * 2. The packet was DNAT'ed to a different device, either
- *    a non-bridged device or another bridge port group.
+ *    a yesn-bridged device or ayesther bridge port group.
  *    The packet will need to be routed.
  *
  * The correct way of distinguishing between these two cases is to
@@ -337,7 +337,7 @@ br_nf_ipv4_daddr_was_changed(const struct sk_buff *skb,
  * packet, ip_route_input() will give back the localhost as output device,
  * which differs from the bridge device.
  *
- * Let's now consider the case that ip_route_input() fails:
+ * Let's yesw consider the case that ip_route_input() fails:
  *
  * This can be because the destination address is martian, in which case
  * the packet will be dropped.
@@ -374,7 +374,7 @@ static int br_nf_pre_routing_finish(struct net *net, struct sock *sk, struct sk_
 			 * ip_route_output_key() will fail. It won't fail for 2 types of
 			 * martian destinations: loopback destinations and destination
 			 * 0.0.0.0. In both cases the packet will be dropped because the
-			 * destination is the loopback device and not the bridge. */
+			 * destination is the loopback device and yest the bridge. */
 			if (err != -EHOSTUNREACH || !in_dev || IN_DEV_FORWARD(in_dev))
 				goto free_skb;
 
@@ -413,7 +413,7 @@ bridged_dnat:
 			kfree_skb(skb);
 			return 0;
 		}
-		skb_dst_set_noref(skb, &rt->dst);
+		skb_dst_set_yesref(skb, &rt->dst);
 	}
 
 	skb->dev = nf_bridge->physindev;
@@ -461,7 +461,7 @@ struct net_device *setup_pre_routing(struct sk_buff *skb, const struct net *net)
 	else if (skb->protocol == htons(ETH_P_PPP_SES))
 		nf_bridge->orig_proto = BRNF_PROTO_PPPOE;
 
-	/* Must drop socket now because of tproxy. */
+	/* Must drop socket yesw because of tproxy. */
 	skb_orphan(skb);
 	return skb->dev;
 }
@@ -497,7 +497,7 @@ static unsigned int br_nf_pre_routing(void *priv,
 		    !br_opt_get(br, BROPT_NF_CALL_IP6TABLES))
 			return NF_ACCEPT;
 		if (!ipv6_mod_enabled()) {
-			pr_warn_once("Module ipv6 is disabled, so call_ip6tables is not supported.");
+			pr_warn_once("Module ipv6 is disabled, so call_ip6tables is yest supported.");
 			return NF_DROP;
 		}
 
@@ -707,7 +707,7 @@ br_nf_ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	unsigned int mtu = ip_skb_dst_mtu(sk, skb);
 	struct iphdr *iph = ip_hdr(skb);
 
-	if (unlikely(((iph->frag_off & htons(IP_DF)) && !skb->ignore_df) ||
+	if (unlikely(((iph->frag_off & htons(IP_DF)) && !skb->igyesre_df) ||
 		     (IPCB(skb)->frag_max_size &&
 		      IPCB(skb)->frag_max_size > mtu))) {
 		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
@@ -816,7 +816,7 @@ static unsigned int br_nf_post_routing(void *priv,
 	u_int8_t pf;
 
 	/* if nf_bridge is set, but ->physoutdev is NULL, this packet came in
-	 * on a bridge, but was delivered locally and is now being routed:
+	 * on a bridge, but was delivered locally and is yesw being routed:
 	 *
 	 * POST_ROUTING was already invoked from the ip stack.
 	 */
@@ -957,10 +957,10 @@ static const struct nf_hook_ops br_nf_ops[] = {
 	},
 };
 
-static int brnf_device_event(struct notifier_block *unused, unsigned long event,
+static int brnf_device_event(struct yestifier_block *unused, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct brnf_net *brnet;
 	struct net *net;
 	int ret;
@@ -983,8 +983,8 @@ static int brnf_device_event(struct notifier_block *unused, unsigned long event,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block brnf_notifier __read_mostly = {
-	.notifier_call = brnf_device_event,
+static struct yestifier_block brnf_yestifier __read_mostly = {
+	.yestifier_call = brnf_device_event,
 };
 
 /* recursively invokes nf_hook_slow (again), skipping already-called
@@ -1168,7 +1168,7 @@ static int __init br_netfilter_init(void)
 	if (ret < 0)
 		return ret;
 
-	ret = register_netdevice_notifier(&brnf_notifier);
+	ret = register_netdevice_yestifier(&brnf_yestifier);
 	if (ret < 0) {
 		unregister_pernet_subsys(&brnf_net_ops);
 		return ret;
@@ -1182,7 +1182,7 @@ static int __init br_netfilter_init(void)
 static void __exit br_netfilter_fini(void)
 {
 	RCU_INIT_POINTER(nf_br_ops, NULL);
-	unregister_netdevice_notifier(&brnf_notifier);
+	unregister_netdevice_yestifier(&brnf_yestifier);
 	unregister_pernet_subsys(&brnf_net_ops);
 }
 

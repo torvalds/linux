@@ -19,7 +19,7 @@ ENTRY(_start)
 	/*
 	 * Image header expected by Linux boot-loaders. The image header data
 	 * structure is described in asm/image.h.
-	 * Do not modify it without modifying the structure and all bootloaders
+	 * Do yest modify it without modifying the structure and all bootloaders
 	 * that expects this header format!!
 	 */
 	/* jump to start kernel */
@@ -59,7 +59,7 @@ _start_kernel:
 	call reset_regs
 
 	/*
-	 * The hartid in a0 is expected later on, and we have no firmware
+	 * The hartid in a0 is expected later on, and we have yes firmware
 	 * to hand it to us.
 	 */
 	csrr a0, CSR_MHARTID
@@ -67,7 +67,7 @@ _start_kernel:
 
 	/* Load the global pointer */
 .option push
-.option norelax
+.option yesrelax
 	la gp, __global_pointer$
 .option pop
 
@@ -89,7 +89,7 @@ _start_kernel:
 	amoadd.w a3, a2, (a3)
 	bnez a3, .Lsecondary_start
 
-	/* Clear BSS for flat non-ELF images */
+	/* Clear BSS for flat yesn-ELF images */
 	la a3, __bss_start
 	la a4, __bss_stop
 	ble a4, a3, clear_bss_done
@@ -160,7 +160,7 @@ relocate:
 
 	/* Reload the global pointer */
 .option push
-.option norelax
+.option yesrelax
 	la gp, __global_pointer$
 .option pop
 
@@ -190,7 +190,7 @@ relocate:
 
 	/*
 	 * This hart didn't win the lottery, so we wait for the winning hart to
-	 * get far enough along the boot process that it should continue.
+	 * get far eyesugh along the boot process that it should continue.
 	 */
 .Lwait_for_cpu_up:
 	/* FIXME: We should WFI to save some energy here. */
@@ -288,7 +288,7 @@ ENTRY(reset_regs)
 	fmv.s.x	f30, zero
 	fmv.s.x	f31, zero
 	csrw	fcsr, 0
-	/* note that the caller must clear SR_FS */
+	/* yeste that the caller must clear SR_FS */
 #endif /* CONFIG_FPU */
 .Lreset_regs_done:
 	ret

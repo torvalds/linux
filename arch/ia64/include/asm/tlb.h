@@ -12,7 +12,7 @@
  * procedure:
  *
  *	(1) Flush (virtual) caches --- ensures virtual memory is coherent with kernel memory
- *	    (this is a no-op on ia64).
+ *	    (this is a yes-op on ia64).
  *	(2) Clear the relevant portions of the page-table
  *	(3) Flush the TLBs --- ensures that stale content is gone from CPU TLBs
  *	(4) Release the pages that were freed up in step (2).
@@ -29,7 +29,7 @@
  *	    tlb_start_vma(tlb, vma);
  *	      for each page-table-entry PTE that needs to be removed do {
  *		tlb_remove_tlb_entry(tlb, pte, address);
- *		if (pte refers to a normal page) {
+ *		if (pte refers to a yesrmal page) {
  *		  tlb_remove_page(tlb, page);
  *		}
  *	      }

@@ -16,7 +16,7 @@
 #ifndef _XTENSA_ASM_UACCESS_H
 #define _XTENSA_ASM_UACCESS_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/types.h>
 
 #include <asm/current.h>

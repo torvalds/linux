@@ -35,7 +35,7 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
  * return_address uses walk_stackframe to do it's work.  If both
  * CONFIG_FRAME_POINTER=y and CONFIG_ARM_UNWIND=y walk_stackframe uses unwind
  * information.  For this to work in the function tracer many functions would
- * have to be marked with __notrace.  So for now just depend on
+ * have to be marked with __yestrace.  So for yesw just depend on
  * !CONFIG_ARM_UNWIND.
  */
 
@@ -66,7 +66,7 @@ static inline bool arch_syscall_match_sym_name(const char *sym,
 	else if (!strcmp(sym, "sys_arm_fadvise64_64"))
 		sym = "sys_fadvise64_64";
 
-	/* Ignore case since sym may start with "SyS" instead of "sys" */
+	/* Igyesre case since sym may start with "SyS" instead of "sys" */
 	return !strcasecmp(sym, name);
 }
 

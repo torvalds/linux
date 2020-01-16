@@ -24,7 +24,7 @@ enum carl9170fw_feature_list {
 	/* usb registers are initialized by the firmware */
 	CARL9170FW_USB_INIT_FIRMWARE,
 
-	/* command traps & notifications are send through EP2 */
+	/* command traps & yestifications are send through EP2 */
 	CARL9170FW_USB_RESP_EP2,
 
 	/* usb download (app -> fw) stream */
@@ -33,7 +33,7 @@ enum carl9170fw_feature_list {
 	/* usb upload (fw -> app) stream */
 	CARL9170FW_USB_UP_STREAM,
 
-	/* unusable - reserved to flag non-functional debug firmwares */
+	/* unusable - reserved to flag yesn-functional debug firmwares */
 	CARL9170FW_UNUSABLE,
 
 	/* AR9170_CMD_RF_INIT, AR9170_CMD_FREQ_START, AR9170_CMD_FREQUENCY */

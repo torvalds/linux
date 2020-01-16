@@ -21,7 +21,7 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
-#include <media/drv-intf/exynos-fimc.h>
+#include <media/drv-intf/exyyess-fimc.h>
 
 extern int fimc_isp_debug;
 
@@ -122,7 +122,7 @@ struct isp_video_buf {
  * @format: current pixel format
  */
 struct fimc_is_video {
-	struct exynos_video_entity ve;
+	struct exyyess_video_entity ve;
 	enum v4l2_buf_type	type;
 	struct media_pad	pad;
 	struct list_head	pending_buf_q;

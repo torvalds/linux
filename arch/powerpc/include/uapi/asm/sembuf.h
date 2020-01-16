@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 #ifndef _ASM_POWERPC_SEMBUF_H
 #define _ASM_POWERPC_SEMBUF_H
 
@@ -31,7 +31,7 @@ struct semid64_ds {
 	long		sem_otime;	/* last semop time */
 	long		sem_ctime;	/* last change time */
 #endif
-	unsigned long	sem_nsems;	/* no. of semaphores in array */
+	unsigned long	sem_nsems;	/* yes. of semaphores in array */
 	unsigned long	__unused3;
 	unsigned long	__unused4;
 };

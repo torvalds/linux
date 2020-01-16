@@ -415,7 +415,7 @@ static int adis16136_stop_device(struct iio_dev *indio_dev)
 	ret = adis_write_reg_16(&adis16136->adis, ADIS16136_REG_SLP_CTRL, 0xff);
 	if (ret)
 		dev_err(&indio_dev->dev,
-			"Could not power down device: %d\n", ret);
+			"Could yest power down device: %d\n", ret);
 
 	return ret;
 }
@@ -441,7 +441,7 @@ static int adis16136_initial_setup(struct iio_dev *indio_dev)
 		return -EINVAL;
 
 	if (prod_id != device_id)
-		dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do not match.",
+		dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do yest match.",
 				device_id, prod_id);
 
 	return 0;

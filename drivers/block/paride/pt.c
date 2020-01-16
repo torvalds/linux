@@ -5,7 +5,7 @@
         This is the high-level driver for parallel port ATAPI tape
         drives based on chips supported by the paride module.
 
-	The driver implements both rewinding and non-rewinding
+	The driver implements both rewinding and yesn-rewinding
 	devices, filemarks, and the rewind ioctl.  It allocates
 	a small internal "bounce buffer" for each open device, but
         otherwise expects buffering and blocking to be done at the
@@ -18,7 +18,7 @@
         specified, the driver can handle up to 4 drives.
 
 	The rewinding devices are named /dev/pt0, /dev/pt1, ...
-	while the non-rewinding devices are /dev/npt0, /dev/npt1, etc.
+	while the yesn-rewinding devices are /dev/npt0, /dev/npt1, etc.
 
         The behaviour of the pt driver can be altered by setting
         some parameters from the insmod command line.  The following
@@ -37,17 +37,17 @@
                 <pro>   is the protocol number for the adapter that
                         supports this drive.  These numbers are
                         logged by 'paride' when the protocol modules
-                        are initialised.  (0 if not given)
+                        are initialised.  (0 if yest given)
 
                 <uni>   for those adapters that support chained
                         devices, this is the unit selector for the
                         chain of devices on the given port.  It should
                         be zero for devices that don't support chaining.
-                        (0 if not given)
+                        (0 if yest given)
 
                 <mod>   this can be -1 to choose the best mode, or one
                         of the mode numbers supported by the adapter.
-                        (-1 if not given)
+                        (-1 if yest given)
 
                 <slv>   ATAPI devices can be jumpered to master or slave.
                         Set this to 0 to choose the master drive, 1 to
@@ -73,7 +73,7 @@
 
             verbose     This parameter controls the amount of logging
                         that the driver will do.  Set it to 0 for
-                        normal operation, 1 to see autoprobe progress
+                        yesrmal operation, 1 to see autoprobe progress
                         messages, or 2 to see additional debugging
                         output.  (default 0)
  
@@ -100,7 +100,7 @@
 	1.02    GRG 1998.06.16  Eliminate an Ugh.
 	1.03    GRG 1998.08.15  Adjusted PT_TMO, use HZ in loop timing,
 				extra debugging
-	1.04    GRG 1998.09.24  Repair minor coding error, added jumbo support
+	1.04    GRG 1998.09.24  Repair miyesr coding error, added jumbo support
 	
 */
 
@@ -192,9 +192,9 @@ module_param_array(drive3, int, NULL, 0);
 #define ATAPI_LOG_SENSE		0x4d
 
 static DEFINE_MUTEX(pt_mutex);
-static int pt_open(struct inode *inode, struct file *file);
+static int pt_open(struct iyesde *iyesde, struct file *file);
 static long pt_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-static int pt_release(struct inode *inode, struct file *file);
+static int pt_release(struct iyesde *iyesde, struct file *file);
 static ssize_t pt_read(struct file *filp, char __user *buf,
 		       size_t count, loff_t * ppos);
 static ssize_t pt_write(struct file *filp, const char __user *buf,
@@ -243,7 +243,7 @@ static const struct file_operations pt_fops = {
 	.unlocked_ioctl = pt_ioctl,
 	.open = pt_open,
 	.release = pt_release,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 /* sysfs class support */
@@ -570,7 +570,7 @@ static int pt_identify(struct pt_unit *tape)
 
 	printk("%s: %s %s, %s", tape->name, mf, id, ms[tape->drive]);
 	if (!(tape->flags & PT_MEDIA))
-		printk(", no media\n");
+		printk(", yes media\n");
 	else {
 		if (!(tape->flags & PT_WRITE_OK))
 			printk(", RO");
@@ -656,9 +656,9 @@ static int pt_detect(void)
 	return -1;
 }
 
-static int pt_open(struct inode *inode, struct file *file)
+static int pt_open(struct iyesde *iyesde, struct file *file)
 {
-	int unit = iminor(inode) & 0x7F;
+	int unit = imiyesr(iyesde) & 0x7F;
 	struct pt_unit *tape = pt + unit;
 	int err;
 
@@ -682,7 +682,7 @@ static int pt_open(struct inode *inode, struct file *file)
 	if ((!(tape->flags & PT_WRITE_OK)) && (file->f_mode & FMODE_WRITE))
 		goto out;
 
-	if (!(iminor(inode) & 128))
+	if (!(imiyesr(iyesde) & 128))
 		tape->flags |= PT_REWIND;
 
 	err = -ENOMEM;
@@ -740,7 +740,7 @@ static long pt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static int
-pt_release(struct inode *inode, struct file *file)
+pt_release(struct iyesde *iyesde, struct file *file)
 {
 	struct pt_unit *tape = file->private_data;
 

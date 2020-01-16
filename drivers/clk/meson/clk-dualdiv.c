@@ -65,20 +65,20 @@ __dualdiv_get_setting(unsigned long rate, unsigned long parent_rate,
 		      struct meson_clk_dualdiv_data *dualdiv)
 {
 	const struct meson_clk_dualdiv_param *table = dualdiv->table;
-	unsigned long best = 0, now = 0;
+	unsigned long best = 0, yesw = 0;
 	unsigned int i, best_i = 0;
 
 	if (!table)
 		return NULL;
 
 	for (i = 0; table[i].n1; i++) {
-		now = __dualdiv_param_to_rate(parent_rate, &table[i]);
+		yesw = __dualdiv_param_to_rate(parent_rate, &table[i]);
 
 		/* If we get an exact match, don't bother any further */
-		if (now == rate) {
+		if (yesw == rate) {
 			return &table[i];
-		} else if (abs(now - rate) < abs(best - rate)) {
-			best = now;
+		} else if (abs(yesw - rate) < abs(best - rate)) {
+			best = yesw;
 			best_i = i;
 		}
 	}

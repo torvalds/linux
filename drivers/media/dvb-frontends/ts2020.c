@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
-    Montage Technology TS2020 - Silicon Tuner driver
+    Montage Techyeslogy TS2020 - Silicon Tuner driver
     Copyright (C) 2009-2012 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
 
     Copyright (C) 2009-2012 TurboSight.com
@@ -470,13 +470,13 @@ static int ts2020_read_signal_strength(struct dvb_frontend *fe,
 
 	/* Calculate the signal strength based on the total gain of the tuner */
 	if (gain < -85000)
-		/* 0%: no signal or weak signal */
+		/* 0%: yes signal or weak signal */
 		strength = 0;
 	else if (gain < -65000)
 		/* 0% - 60%: weak signal */
 		strength = 0 + div64_s64((85000 + gain) * 3, 1000);
 	else if (gain < -45000)
-		/* 60% - 90%: normal signal */
+		/* 60% - 90%: yesrmal signal */
 		strength = 60 + div64_s64((65000 + gain) * 3, 2000);
 	else
 		/* 90% - 99%: strong signal */
@@ -678,7 +678,7 @@ static int ts2020_probe(struct i2c_client *client,
 		goto err_regmap_exit;
 
 	dev_info(&client->dev,
-		 "Montage Technology %s successfully identified\n", chip_str);
+		 "Montage Techyeslogy %s successfully identified\n", chip_str);
 
 	memcpy(&fe->ops.tuner_ops, &ts2020_tuner_ops,
 			sizeof(struct dvb_tuner_ops));
@@ -730,5 +730,5 @@ static struct i2c_driver ts2020_driver = {
 module_i2c_driver(ts2020_driver);
 
 MODULE_AUTHOR("Konstantin Dimitrov <kosio.dimitrov@gmail.com>");
-MODULE_DESCRIPTION("Montage Technology TS2020 - Silicon tuner driver module");
+MODULE_DESCRIPTION("Montage Techyeslogy TS2020 - Silicon tuner driver module");
 MODULE_LICENSE("GPL");

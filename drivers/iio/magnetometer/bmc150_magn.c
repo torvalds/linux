@@ -270,7 +270,7 @@ static int bmc150_magn_set_power_state(struct bmc150_magn_data *data, bool on)
 		dev_err(data->dev,
 			"failed to change power state to %d\n", on);
 		if (on)
-			pm_runtime_put_noidle(data->dev);
+			pm_runtime_put_yesidle(data->dev);
 
 		return ret;
 	}
@@ -682,7 +682,7 @@ static irqreturn_t bmc150_magn_trigger_handler(int irq, void *p)
 
 err:
 	mutex_unlock(&data->mutex);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -973,7 +973,7 @@ int bmc150_magn_remove(struct device *dev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 	iio_triggered_buffer_cleanup(indio_dev);
 

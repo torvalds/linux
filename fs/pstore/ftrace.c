@@ -22,7 +22,7 @@
 /* This doesn't need to be atomic: speed is chosen over correctness here. */
 static u64 pstore_ftrace_stamp;
 
-static void notrace pstore_ftrace_call(unsigned long ip,
+static void yestrace pstore_ftrace_call(unsigned long ip,
 				       unsigned long parent_ip,
 				       struct ftrace_ops *op,
 				       struct pt_regs *regs)
@@ -57,7 +57,7 @@ static struct ftrace_ops pstore_ftrace_ops __read_mostly = {
 static DEFINE_MUTEX(pstore_ftrace_lock);
 static bool pstore_ftrace_enabled;
 
-static ssize_t pstore_ftrace_knob_write(struct file *f, const char __user *buf,
+static ssize_t pstore_ftrace_kyesb_write(struct file *f, const char __user *buf,
 					size_t count, loff_t *ppos)
 {
 	u8 on;
@@ -94,7 +94,7 @@ err:
 	return ret;
 }
 
-static ssize_t pstore_ftrace_knob_read(struct file *f, char __user *buf,
+static ssize_t pstore_ftrace_kyesb_read(struct file *f, char __user *buf,
 				       size_t count, loff_t *ppos)
 {
 	char val[] = { '0' + pstore_ftrace_enabled, '\n' };
@@ -102,10 +102,10 @@ static ssize_t pstore_ftrace_knob_read(struct file *f, char __user *buf,
 	return simple_read_from_buffer(buf, count, ppos, val, sizeof(val));
 }
 
-static const struct file_operations pstore_knob_fops = {
+static const struct file_operations pstore_kyesb_fops = {
 	.open	= simple_open,
-	.read	= pstore_ftrace_knob_read,
-	.write	= pstore_ftrace_knob_write,
+	.read	= pstore_ftrace_kyesb_read,
+	.write	= pstore_ftrace_kyesb_write,
 };
 
 static struct dentry *pstore_ftrace_dir;
@@ -118,7 +118,7 @@ void pstore_register_ftrace(void)
 	pstore_ftrace_dir = debugfs_create_dir("pstore", NULL);
 
 	debugfs_create_file("record_ftrace", 0600, pstore_ftrace_dir, NULL,
-			    &pstore_knob_fops);
+			    &pstore_kyesb_fops);
 }
 
 void pstore_unregister_ftrace(void)

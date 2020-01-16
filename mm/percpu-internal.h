@@ -10,11 +10,11 @@
  * Each chunk's bitmap is split into a number of full blocks.
  * All units are in terms of bits.
  *
- * The scan hint is the largest known contiguous area before the contig hint.
- * It is not necessarily the actual largest contig hint though.  There is an
+ * The scan hint is the largest kyeswn contiguous area before the contig hint.
+ * It is yest necessarily the actual largest contig hint though.  There is an
  * invariant that the scan_hint_start > contig_hint_start iff
  * scan_hint == contig_hint.  This is necessary because when scanning forward,
- * we don't know if a new contig hint would be better than the current one.
+ * we don't kyesw if a new contig hint would be better than the current one.
  */
 struct pcpu_block_md {
 	int			scan_hint;	/* scan hint for block */
@@ -47,7 +47,7 @@ struct pcpu_chunk {
 	struct pcpu_block_md	*md_blocks;	/* metadata blocks */
 
 	void			*data;		/* chunk data */
-	bool			immutable;	/* no [de]population allowed */
+	bool			immutable;	/* yes [de]population allowed */
 	int			start_offset;	/* the overlap with the previous
 						   region to have a page aligned
 						   base_addr */

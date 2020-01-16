@@ -13,7 +13,7 @@
  * for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
+ * along with this program; if yest, write to the Free Software Foundation,
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -25,7 +25,7 @@
  *
  * @big_endian_desc:	BE descriptors
  * @big_endian_mmio:	BE registers
- * @no_big_frame_no:	no big endian frame_no shift
+ * @yes_big_frame_yes:	yes big endian frame_yes shift
  * @num_ports:		number of ports
  *
  * These are general configuration options for the OHCI controller. All of
@@ -34,7 +34,7 @@
 struct usb_ohci_pdata {
 	unsigned	big_endian_desc:1;
 	unsigned	big_endian_mmio:1;
-	unsigned	no_big_frame_no:1;
+	unsigned	yes_big_frame_yes:1;
 	unsigned int	num_ports;
 
 	/* Turn on all power and clocks */

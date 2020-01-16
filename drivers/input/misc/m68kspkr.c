@@ -106,7 +106,7 @@ static int __init m68kspkr_init(void)
 	int err;
 
 	if (!mach_beep) {
-		printk(KERN_INFO "m68kspkr: no lowlevel beep support\n");
+		printk(KERN_INFO "m68kspkr: yes lowlevel beep support\n");
 		return -ENODEV;
         }
 

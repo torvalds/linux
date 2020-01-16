@@ -19,7 +19,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
  * USA
  *
@@ -41,12 +41,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -70,7 +70,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <bits/wordsize.h>
@@ -119,7 +119,7 @@ static bool mei_init(struct mei *me, const uuid_le *guid,
 
 	me->fd = open("/dev/mei0", O_RDWR);
 	if (me->fd == -1) {
-		mei_err(me, "Cannot establish a handle to the Intel MEI driver\n");
+		mei_err(me, "Canyest establish a handle to the Intel MEI driver\n");
 		goto err;
 	}
 	memcpy(&me->guid, guid, sizeof(*guid));
@@ -138,7 +138,7 @@ static bool mei_init(struct mei *me, const uuid_le *guid,
 
 	if ((req_protocol_version > 0) &&
 	     (cl->protocol_version != req_protocol_version)) {
-		mei_err(me, "Intel MEI protocol version not supported\n");
+		mei_err(me, "Intel MEI protocol version yest supported\n");
 		goto err;
 	}
 
@@ -161,7 +161,7 @@ static ssize_t mei_recv_msg(struct mei *me, unsigned char *buffer,
 	rc = read(me->fd, buffer, len);
 	if (rc < 0) {
 		mei_err(me, "read failed with status %zd %s\n",
-				rc, strerror(errno));
+				rc, strerror(erryes));
 		mei_deinit(me);
 	} else {
 		mei_msg(me, "read succeeded with result %zd\n", rc);
@@ -184,9 +184,9 @@ static ssize_t mei_send_msg(struct mei *me, const unsigned char *buffer,
 
 	written = write(me->fd, buffer, len);
 	if (written < 0) {
-		rc = -errno;
+		rc = -erryes;
 		mei_err(me, "write failed with status %zd %s\n",
-			written, strerror(errno));
+			written, strerror(erryes));
 		goto out;
 	}
 
@@ -212,7 +212,7 @@ out:
 }
 
 /***************************************************************************
- * Intel Advanced Management Technology ME Client
+ * Intel Advanced Management Techyeslogy ME Client
  ***************************************************************************/
 
 #define AMT_MAJOR_VERSION 1
@@ -244,7 +244,7 @@ struct amt_version_type {
 
 struct amt_version {
 	uint8_t major;
-	uint8_t minor;
+	uint8_t miyesr;
 } __attribute__((packed));
 
 struct amt_code_versions {
@@ -254,7 +254,7 @@ struct amt_code_versions {
 } __attribute__((packed));
 
 /***************************************************************************
- * Intel Advanced Management Technology Host Interface
+ * Intel Advanced Management Techyeslogy Host Interface
  ***************************************************************************/
 
 struct amt_host_if_msg_header {
@@ -358,7 +358,7 @@ static uint32_t amt_verify_response_header(uint32_t command,
 	} else if (resp_hdr->_reserved != 0) {
 		return AMT_STATUS_INTERNAL_ERROR;
 	} else if (resp_hdr->version.major != AMT_MAJOR_VERSION ||
-		   resp_hdr->version.minor < AMT_MINOR_VERSION) {
+		   resp_hdr->version.miyesr < AMT_MINOR_VERSION) {
 		return AMT_STATUS_INTERNAL_ERROR;
 	}
 	return AMT_STATUS_SUCCESS;

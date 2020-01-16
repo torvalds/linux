@@ -18,7 +18,7 @@
 
 /*
  * @name:	module name for sysfs
- * @hwirq_base:	base index for IRQ for this module (-1 if no IRQs)
+ * @hwirq_base:	base index for IRQ for this module (-1 if yes IRQs)
  * @nirqs:	how many interrupts does the shift register provide
  * @desc:	module description for kernel log
  */
@@ -28,7 +28,7 @@ static const struct {
 	int nirqs;
 	const char *desc;
 } mox_module_table[] = {
-	/* do not change order of this array! */
+	/* do yest change order of this array! */
 	{ NULL,		 0,			0, NULL },
 	{ "sfp",	-1,			0, "MOX D (SFP cage)" },
 	{ "pci",	MOXTET_IRQ_PCI,		1, "MOX B (Mini-PCIe)" },
@@ -38,17 +38,17 @@ static const struct {
 	{ "pci-bridge",	-1,			0, "MOX G (Mini-PCIe bridge)" },
 };
 
-static inline bool mox_module_known(unsigned int id)
+static inline bool mox_module_kyeswn(unsigned int id)
 {
 	return id >= TURRIS_MOX_MODULE_FIRST && id <= TURRIS_MOX_MODULE_LAST;
 }
 
 static inline const char *mox_module_name(unsigned int id)
 {
-	if (mox_module_known(id))
+	if (mox_module_kyeswn(id))
 		return mox_module_table[id].name;
 	else
-		return "unknown";
+		return "unkyeswn";
 }
 
 #define DEF_MODULE_ATTR(name, fmt, ...)					\
@@ -64,7 +64,7 @@ static DEVICE_ATTR_RO(module_##name)
 DEF_MODULE_ATTR(id, "0x%x\n", mdev->id);
 DEF_MODULE_ATTR(name, "%s\n", mox_module_name(mdev->id));
 DEF_MODULE_ATTR(description, "%s\n",
-		mox_module_known(mdev->id) ? mox_module_table[mdev->id].desc
+		mox_module_kyeswn(mdev->id) ? mox_module_table[mdev->id].desc
 					   : "");
 
 static struct attribute *moxtet_dev_attrs[] = {
@@ -191,9 +191,9 @@ done:
 
 static int __unregister(struct device *dev, void *null)
 {
-	if (dev->of_node) {
-		of_node_clear_flag(dev->of_node, OF_POPULATED);
-		of_node_put(dev->of_node);
+	if (dev->of_yesde) {
+		of_yesde_clear_flag(dev->of_yesde, OF_POPULATED);
+		of_yesde_put(dev->of_yesde);
 	}
 
 	device_unregister(dev);
@@ -202,7 +202,7 @@ static int __unregister(struct device *dev, void *null)
 }
 
 static struct moxtet_device *
-of_register_moxtet_device(struct moxtet *moxtet, struct device_node *nc)
+of_register_moxtet_device(struct moxtet *moxtet, struct device_yesde *nc)
 {
 	struct moxtet_device *dev;
 	u32 val;
@@ -217,7 +217,7 @@ of_register_moxtet_device(struct moxtet *moxtet, struct device_node *nc)
 
 	ret = of_property_read_u32(nc, "reg", &val);
 	if (ret) {
-		dev_err(moxtet->dev, "%pOF has no valid 'reg' property (%d)\n",
+		dev_err(moxtet->dev, "%pOF has yes valid 'reg' property (%d)\n",
 			nc, ret);
 		goto err_put;
 	}
@@ -240,14 +240,14 @@ of_register_moxtet_device(struct moxtet *moxtet, struct device_node *nc)
 		goto err_put;
 	}
 
-	of_node_get(nc);
-	dev->dev.of_node = nc;
+	of_yesde_get(nc);
+	dev->dev.of_yesde = nc;
 
 	ret = moxtet_add_device(dev);
 	if (ret) {
 		dev_err(moxtet->dev,
 			"Moxtet device register error for %pOF\n", nc);
-		of_node_put(nc);
+		of_yesde_put(nc);
 		goto err_put;
 	}
 
@@ -261,20 +261,20 @@ err_put:
 static void of_register_moxtet_devices(struct moxtet *moxtet)
 {
 	struct moxtet_device *dev;
-	struct device_node *nc;
+	struct device_yesde *nc;
 
-	if (!moxtet->dev->of_node)
+	if (!moxtet->dev->of_yesde)
 		return;
 
-	for_each_available_child_of_node(moxtet->dev->of_node, nc) {
-		if (of_node_test_and_set_flag(nc, OF_POPULATED))
+	for_each_available_child_of_yesde(moxtet->dev->of_yesde, nc) {
+		if (of_yesde_test_and_set_flag(nc, OF_POPULATED))
 			continue;
 		dev = of_register_moxtet_device(moxtet, nc);
 		if (IS_ERR(dev)) {
 			dev_warn(moxtet->dev,
 				 "Failed to create Moxtet device for %pOF\n",
 				 nc);
-			of_node_clear_flag(nc, OF_POPULATED);
+			of_yesde_clear_flag(nc, OF_POPULATED);
 		}
 	}
 }
@@ -365,17 +365,17 @@ static int moxtet_find_topology(struct moxtet *moxtet)
 		moxtet->modules[i-1] = id;
 		++moxtet->count;
 
-		if (mox_module_known(id)) {
+		if (mox_module_kyeswn(id)) {
 			dev_info(moxtet->dev, "Found %s module\n",
 				 mox_module_table[id].desc);
 
 			if (moxtet_set_irq(moxtet, i-1, id, cnts[id]++) < 0)
 				dev_err(moxtet->dev,
-					"  Cannot set IRQ for module %s\n",
+					"  Canyest set IRQ for module %s\n",
 					mox_module_table[id].desc);
 		} else {
 			dev_warn(moxtet->dev,
-				 "Unknown Moxtet module found (ID 0x%02x)\n",
+				 "Unkyeswn Moxtet module found (ID 0x%02x)\n",
 				 id);
 		}
 	}
@@ -454,11 +454,11 @@ int moxtet_device_written(struct device *dev)
 EXPORT_SYMBOL_GPL(moxtet_device_written);
 
 #ifdef CONFIG_DEBUG_FS
-static int moxtet_debug_open(struct inode *inode, struct file *file)
+static int moxtet_debug_open(struct iyesde *iyesde, struct file *file)
 {
-	file->private_data = inode->i_private;
+	file->private_data = iyesde->i_private;
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 static ssize_t input_read(struct file *file, char __user *buf, size_t len,
@@ -485,7 +485,7 @@ static const struct file_operations input_fops = {
 	.owner	= THIS_MODULE,
 	.open	= moxtet_debug_open,
 	.read	= input_read,
-	.llseek	= no_llseek,
+	.llseek	= yes_llseek,
 };
 
 static ssize_t output_read(struct file *file, char __user *buf, size_t len,
@@ -550,7 +550,7 @@ static const struct file_operations output_fops = {
 	.open	= moxtet_debug_open,
 	.read	= output_read,
 	.write	= output_write,
-	.llseek	= no_llseek,
+	.llseek	= yes_llseek,
 };
 
 static int moxtet_register_debugfs(struct moxtet *moxtet)
@@ -612,7 +612,7 @@ static int moxtet_irq_domain_map(struct irq_domain *d, unsigned int irq,
 }
 
 static int moxtet_irq_domain_xlate(struct irq_domain *d,
-				   struct device_node *ctrlr,
+				   struct device_yesde *ctrlr,
 				   const u32 *intspec, unsigned int intsize,
 				   unsigned long *out_hwirq,
 				   unsigned int *out_type)
@@ -740,11 +740,11 @@ static int moxtet_irq_setup(struct moxtet *moxtet)
 {
 	int i, ret;
 
-	moxtet->irq.domain = irq_domain_add_simple(moxtet->dev->of_node,
+	moxtet->irq.domain = irq_domain_add_simple(moxtet->dev->of_yesde,
 						   MOXTET_NIRQS, 0,
 						   &moxtet_irq_domain, moxtet);
 	if (moxtet->irq.domain == NULL) {
-		dev_err(moxtet->dev, "Could not add IRQ domain\n");
+		dev_err(moxtet->dev, "Could yest add IRQ domain\n");
 		return -ENOMEM;
 	}
 
@@ -786,7 +786,7 @@ static int moxtet_probe(struct spi_device *spi)
 
 	mutex_init(&moxtet->lock);
 
-	moxtet->dev_irq = of_irq_get(moxtet->dev->of_node, 0);
+	moxtet->dev_irq = of_irq_get(moxtet->dev->of_yesde, 0);
 	if (moxtet->dev_irq == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 

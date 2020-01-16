@@ -37,7 +37,7 @@ u8 rtw_validate_ssid(struct ndis_802_11_ssid *ssid)
 	for (i = 0; i < ssid->SsidLength; i++) {
 		/* wifi, printable ascii code must be supported */
 		if (!((ssid->Ssid[i] >= 0x20) && (ssid->Ssid[i] <= 0x7e))) {
-			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("ssid has non-printable ascii\n"));
+			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("ssid has yesn-printable ascii\n"));
 			ret = false;
 			break;
 		}
@@ -132,12 +132,12 @@ u8 rtw_do_join(struct adapter *padapter)
 				/*  can't associate ; reset under-linking */
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 
-				/* when set_ssid/set_bssid for rtw_do_join(), but there are no desired bss in scanning queue */
+				/* when set_ssid/set_bssid for rtw_do_join(), but there are yes desired bss in scanning queue */
 				/* we try to issue sitesurvey firstly */
 				if (pmlmepriv->LinkDetectInfo.bBusyTraffic == false
 					|| rtw_to_roam(padapter) > 0
 				) {
-					/* DBG_871X("rtw_do_join() when   no desired bss in scanning queue\n"); */
+					/* DBG_871X("rtw_do_join() when   yes desired bss in scanning queue\n"); */
 					ret = rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0);
 					if (_SUCCESS != ret) {
 						pmlmepriv->to_join = false;
@@ -188,7 +188,7 @@ u8 rtw_set_802_11_bssid(struct adapter *padapter, u8 *bssid)
 			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == false)
 				goto release_mlme_lock;/* it means driver is in WIFI_ADHOC_MASTER_STATE, we needn't create bss again. */
 		} else {
-			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("Set BSSID not the same bssid\n"));
+			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("Set BSSID yest the same bssid\n"));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("set_bssid ="MAC_FMT"\n", MAC_ARG(bssid)));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("cur_bssid ="MAC_FMT"\n", MAC_ARG(pmlmepriv->cur_network.network.MacAddress)));
 
@@ -289,7 +289,7 @@ u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 				rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_JOINBSS, 1);
 			}
 		} else {
-			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("Set SSID not the same ssid\n"));
+			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("Set SSID yest the same ssid\n"));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("set_ssid =[%s] len = 0x%x\n", ssid->Ssid, (unsigned int)ssid->SsidLength));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("assoc_ssid =[%s] len = 0x%x\n", pmlmepriv->assoc_ssid.Ssid, (unsigned int)pmlmepriv->assoc_ssid.SsidLength));
 
@@ -413,7 +413,7 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 	struct	wlan_network	*cur_network = &pmlmepriv->cur_network;
 	enum NDIS_802_11_NETWORK_INFRASTRUCTURE *pold_state = &(cur_network->network.InfrastructureMode);
 
-	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_notice_,
+	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_yestice_,
 		 ("+rtw_set_802_11_infrastructure_mode: old =%d new =%d fw_state = 0x%08x\n",
 		  *pold_state, networktype, get_fwstate(pmlmepriv)));
 
@@ -439,7 +439,7 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 
 		if ((*pold_state == Ndis802_11Infrastructure) || (*pold_state == Ndis802_11IBSS)) {
 			if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
-				rtw_indicate_disconnect(padapter); /* will clr Linked_state; before this function, we must have chked whether  issue dis-assoc_cmd or not */
+				rtw_indicate_disconnect(padapter); /* will clr Linked_state; before this function, we must have chked whether  issue dis-assoc_cmd or yest */
 			}
 	       }
 
@@ -463,7 +463,7 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 
 			break;
 
-		case Ndis802_11AutoUnknown:
+		case Ndis802_11AutoUnkyeswn:
 		case Ndis802_11InfrastructureMax:
 			break;
 		}
@@ -490,7 +490,7 @@ u8 rtw_set_802_11_disassociate(struct adapter *padapter)
 
 		rtw_disassoc_cmd(padapter, 0, true);
 		rtw_indicate_disconnect(padapter);
-		/* modify for CONFIG_IEEE80211W, none 11w can use it */
+		/* modify for CONFIG_IEEE80211W, yesne 11w can use it */
 		rtw_free_assoc_resources_cmd(padapter);
 		if (_FAIL == rtw_pwr_wakeup(padapter))
 			DBG_871X("%s(): rtw_pwr_wakeup fail !!!\n", __func__);
@@ -520,7 +520,7 @@ u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_s
 
 	if ((check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING) == true) ||
 		(pmlmepriv->LinkDetectInfo.bBusyTraffic == true)) {
-		/*  Scan or linking is in progress, do nothing. */
+		/*  Scan or linking is in progress, do yesthing. */
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("rtw_set_802_11_bssid_list_scan fail since fw_state = %x\n", get_fwstate(pmlmepriv)));
 		res = true;
 

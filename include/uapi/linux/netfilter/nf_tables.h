@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_NF_TABLES_H
 #define _LINUX_NF_TABLES_H
 
@@ -86,7 +86,7 @@ enum nft_verdicts {
  * @NFT_MSG_NEWSETELEM: create a new set element (enum nft_set_elem_attributes)
  * @NFT_MSG_GETSETELEM: get a set element (enum nft_set_elem_attributes)
  * @NFT_MSG_DELSETELEM: delete a set element (enum nft_set_elem_attributes)
- * @NFT_MSG_NEWGEN: announce a new generation, only for events (enum nft_gen_attributes)
+ * @NFT_MSG_NEWGEN: anyesunce a new generation, only for events (enum nft_gen_attributes)
  * @NFT_MSG_GETGEN: get the rule-set generation (enum nft_gen_attributes)
  * @NFT_MSG_TRACE: trace event (enum nft_trace_attributes)
  * @NFT_MSG_NEWOBJ: create a stateful object (enum nft_obj_attributes)
@@ -159,7 +159,7 @@ enum nft_hook_attributes {
 /**
  * enum nft_table_flags - nf_tables table flags
  *
- * @NFT_TABLE_F_DORMANT: this table is not active
+ * @NFT_TABLE_F_DORMANT: this table is yest active
  */
 enum nft_table_flags {
 	NFT_TABLE_F_DORMANT	= 0x1,
@@ -269,7 +269,7 @@ enum nft_rule_compat_attributes {
  * enum nft_set_flags - nf_tables set flags
  *
  * @NFT_SET_ANONYMOUS: name allocation, automatic cleanup on unlink
- * @NFT_SET_CONSTANT: set contents may not change while bound
+ * @NFT_SET_CONSTANT: set contents may yest change while bound
  * @NFT_SET_INTERVAL: set contains intervals
  * @NFT_SET_MAP: set is used as a dictionary
  * @NFT_SET_TIMEOUT: set uses timeouts
@@ -410,7 +410,7 @@ enum nft_set_elem_list_attributes {
  * @NFT_DATA_VALUE: generic data
  * @NFT_DATA_VERDICT: netfilter verdict
  *
- * The type of data is usually determined by the kernel directly and is not
+ * The type of data is usually determined by the kernel directly and is yest
  * explicitly specified by userspace. The only difference are sets, where
  * userspace specifies the key and mapping data types.
  *
@@ -551,7 +551,7 @@ enum nft_byteorder_attributes {
  * enum nft_cmp_ops - nf_tables relational operator
  *
  * @NFT_CMP_EQ: equal
- * @NFT_CMP_NEQ: not equal
+ * @NFT_CMP_NEQ: yest equal
  * @NFT_CMP_LT: less than
  * @NFT_CMP_LTE: less than or equal to
  * @NFT_CMP_GT: greater than
@@ -586,7 +586,7 @@ enum nft_cmp_attributes {
  * enum nft_range_ops - nf_tables range operator
  *
  * @NFT_RANGE_EQ: equal
- * @NFT_RANGE_NEQ: not equal
+ * @NFT_RANGE_NEQ: yest equal
  */
 enum nft_range_ops {
 	NFT_RANGE_EQ,
@@ -688,7 +688,7 @@ enum nft_payload_bases {
 /**
  * enum nft_payload_csum_types - nf_tables payload expression checksum types
  *
- * @NFT_PAYLOAD_CSUM_NONE: no checksumming
+ * @NFT_PAYLOAD_CSUM_NONE: yes checksumming
  * @NFT_PAYLOAD_CSUM_INET: internet checksum (RFC 791)
  */
 enum nft_payload_csum_types {
@@ -802,7 +802,7 @@ enum nft_exthdr_attributes {
  * @NFT_META_OIFKIND: packet output interface kind name (dev->rtnl_link_ops->kind)
  * @NFT_META_BRI_IIFPVID: packet input bridge port pvid
  * @NFT_META_BRI_IIFVPROTO: packet input bridge vlan proto
- * @NFT_META_TIME_NS: time since epoch (in nanoseconds)
+ * @NFT_META_TIME_NS: time since epoch (in nayesseconds)
  * @NFT_META_TIME_DAY: day of week (from 0 = Sunday to 6 = Saturday)
  * @NFT_META_TIME_HOUR: hour of day (in seconds)
  */
@@ -1136,7 +1136,7 @@ enum nft_log_attributes {
  * @NFT_LOGLEVEL_CRIT: critical conditions
  * @NFT_LOGLEVEL_ERR: error conditions
  * @NFT_LOGLEVEL_WARNING: warning conditions
- * @NFT_LOGLEVEL_NOTICE: normal but significant condition
+ * @NFT_LOGLEVEL_NOTICE: yesrmal but significant condition
  * @NFT_LOGLEVEL_INFO: informational
  * @NFT_LOGLEVEL_DEBUG: debug-level messages
  * @NFT_LOGLEVEL_AUDIT: enabling audit logging
@@ -1174,7 +1174,7 @@ enum nft_queue_attributes {
 #define NFTA_QUEUE_MAX		(__NFTA_QUEUE_MAX - 1)
 
 #define NFT_QUEUE_FLAG_BYPASS		0x01 /* for compatibility with v2 */
-#define NFT_QUEUE_FLAG_CPU_FANOUT	0x02 /* use current CPU (no hashing) */
+#define NFT_QUEUE_FLAG_CPU_FANOUT	0x02 /* use current CPU (yes hashing) */
 #define NFT_QUEUE_FLAG_MASK		0x03
 
 enum nft_quota_flags {
@@ -1230,7 +1230,7 @@ enum nft_reject_types {
 /**
  * enum nft_reject_code - Generic reject codes for IPv4/IPv6
  *
- * @NFT_REJECT_ICMPX_NO_ROUTE: no route to host / network unreachable
+ * @NFT_REJECT_ICMPX_NO_ROUTE: yes route to host / network unreachable
  * @NFT_REJECT_ICMPX_PORT_UNREACH: port unreachable
  * @NFT_REJECT_ICMPX_HOST_UNREACH: host unreachable
  * @NFT_REJECT_ICMPX_ADMIN_PROHIBITED: administratively prohibited

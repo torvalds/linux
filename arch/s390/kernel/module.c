@@ -20,7 +20,7 @@
 #include <linux/moduleloader.h>
 #include <linux/bug.h>
 #include <asm/alternative.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <asm/facility.h>
 
 #if 0
@@ -37,7 +37,7 @@ void *module_alloc(unsigned long size)
 
 	if (PAGE_ALIGN(size) > MODULES_LEN)
 		return NULL;
-	p = __vmalloc_node_range(size, MODULE_ALIGN, MODULES_VADDR, MODULES_END,
+	p = __vmalloc_yesde_range(size, MODULE_ALIGN, MODULES_VADDR, MODULES_END,
 				 GFP_KERNEL, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
 				 __builtin_return_address(0));
 	if (p && (kasan_module_alloc(p, size) < 0)) {
@@ -124,7 +124,7 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			break;
 		}
 	if (!symtab) {
-		printk(KERN_ERR "module %s: no symbol table\n", me->name);
+		printk(KERN_ERR "module %s: yes symbol table\n", me->name);
 		return -ENOEXEC;
 	}
 
@@ -166,7 +166,7 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 	me->core_layout.size += me->arch.got_size;
 	me->arch.plt_offset = me->core_layout.size;
 	if (me->arch.plt_size) {
-		if (IS_ENABLED(CONFIG_EXPOLINE) && !nospec_disable)
+		if (IS_ENABLED(CONFIG_EXPOLINE) && !yesspec_disable)
 			me->arch.plt_size += PLT_ENTRY_SIZE;
 		me->core_layout.size += me->arch.plt_size;
 	}
@@ -325,7 +325,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 				info->plt_offset;
 			ip[0] = 0x0d10e310;	/* basr 1,0  */
 			ip[1] = 0x100a0004;	/* lg	1,10(1) */
-			if (IS_ENABLED(CONFIG_EXPOLINE) && !nospec_disable) {
+			if (IS_ENABLED(CONFIG_EXPOLINE) && !yesspec_disable) {
 				unsigned int *ij;
 				ij = me->core_layout.base +
 					me->arch.plt_offset +
@@ -398,7 +398,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 		   modules linked with -shared. */
 		return -ENOEXEC;
 	default:
-		printk(KERN_ERR "module %s: unknown relocation: %u\n",
+		printk(KERN_ERR "module %s: unkyeswn relocation: %u\n",
 		       me->name, r_type);
 		return -ENOEXEC;
 	}
@@ -446,7 +446,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 	void *aseg;
 
 	if (IS_ENABLED(CONFIG_EXPOLINE) &&
-	    !nospec_disable && me->arch.plt_size) {
+	    !yesspec_disable && me->arch.plt_size) {
 		unsigned int *ij;
 
 		ij = me->core_layout.base + me->arch.plt_offset +
@@ -473,13 +473,13 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
 		    (str_has_prefix(secname, ".s390_indirect")))
-			nospec_revert(aseg, aseg + s->sh_size);
+			yesspec_revert(aseg, aseg + s->sh_size);
 
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
 		    (str_has_prefix(secname, ".s390_return")))
-			nospec_revert(aseg, aseg + s->sh_size);
+			yesspec_revert(aseg, aseg + s->sh_size);
 	}
 
-	jump_label_apply_nops(me);
+	jump_label_apply_yesps(me);
 	return 0;
 }

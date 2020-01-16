@@ -26,7 +26,7 @@
 	},
 	.fixup_map_hash_8b = { 1 },
 	.result = REJECT,
-	.errstr = "cannot pass map_type 1 into func bpf_get_local_storage",
+	.errstr = "canyest pass map_type 1 into func bpf_get_local_storage",
 	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
 },
 {
@@ -39,7 +39,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.result = REJECT,
-	.errstr = "fd 1 is not pointing to valid bpf_map",
+	.errstr = "fd 1 is yest pointing to valid bpf_map",
 	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
 },
 {
@@ -88,7 +88,7 @@
 	},
 	.fixup_cgroup_storage = { 1 },
 	.result = REJECT,
-	.errstr = "get_local_storage() doesn't support non-zero flags",
+	.errstr = "get_local_storage() doesn't support yesn-zero flags",
 	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
 },
 {
@@ -104,7 +104,7 @@
 	},
 	.fixup_cgroup_storage = { 1 },
 	.result = REJECT,
-	.errstr = "get_local_storage() doesn't support non-zero flags",
+	.errstr = "get_local_storage() doesn't support yesn-zero flags",
 	.errstr_unpriv = "R2 leaks addr into helper function",
 	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
 },
@@ -136,7 +136,7 @@
 	},
 	.fixup_map_hash_8b = { 1 },
 	.result = REJECT,
-	.errstr = "cannot pass map_type 1 into func bpf_get_local_storage",
+	.errstr = "canyest pass map_type 1 into func bpf_get_local_storage",
 	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
 },
 {
@@ -149,7 +149,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.result = REJECT,
-	.errstr = "fd 1 is not pointing to valid bpf_map",
+	.errstr = "fd 1 is yest pointing to valid bpf_map",
 	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
 },
 {
@@ -198,7 +198,7 @@
 	},
 	.fixup_percpu_cgroup_storage = { 1 },
 	.result = REJECT,
-	.errstr = "get_local_storage() doesn't support non-zero flags",
+	.errstr = "get_local_storage() doesn't support yesn-zero flags",
 	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
 },
 {
@@ -214,7 +214,7 @@
 	},
 	.fixup_percpu_cgroup_storage = { 1 },
 	.result = REJECT,
-	.errstr = "get_local_storage() doesn't support non-zero flags",
+	.errstr = "get_local_storage() doesn't support yesn-zero flags",
 	.errstr_unpriv = "R2 leaks addr into helper function",
 	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
 },

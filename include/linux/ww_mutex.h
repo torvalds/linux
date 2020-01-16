@@ -7,7 +7,7 @@
  *  Copyright (C) 2004, 2005, 2006 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
  *
  * Wait/Die implementation:
- *  Copyright (C) 2013 Canonical Ltd.
+ *  Copyright (C) 2013 Cayesnical Ltd.
  * Choice of algorithm:
  *  Copyright (C) 2018 WMWare Inc.
  *
@@ -90,7 +90,7 @@ struct ww_mutex {
  * Initialize the w/w mutex to unlocked state and associate it with the given
  * class.
  *
- * It is not allowed to initialize an already locked mutex.
+ * It is yest allowed to initialize an already locked mutex.
  */
 static inline void ww_mutex_init(struct ww_mutex *lock,
 				 struct ww_class *ww_class)
@@ -140,7 +140,7 @@ static inline void ww_acquire_init(struct ww_acquire_ctx *ctx,
 	ctx->contending_lock = NULL;
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	debug_check_no_locks_freed((void *)ctx, sizeof(*ctx));
+	debug_check_yes_locks_freed((void *)ctx, sizeof(*ctx));
 	lockdep_init_map(&ctx->dep_map, ww_class->acquire_name,
 			 &ww_class->acquire_key, 0);
 	mutex_acquire(&ctx->dep_map, 0, 0, _RET_IP_);
@@ -187,7 +187,7 @@ static inline void ww_acquire_fini(struct ww_acquire_ctx *ctx)
 	DEBUG_LOCKS_WARN_ON(ctx->acquired);
 	if (!IS_ENABLED(CONFIG_PROVE_LOCKING))
 		/*
-		 * lockdep will normally handle this,
+		 * lockdep will yesrmally handle this,
 		 * but fail without anyway
 		 */
 		ctx->done_acquire = 1;
@@ -214,15 +214,15 @@ static inline void ww_acquire_fini(struct ww_acquire_ctx *ctx)
  *
  * In the die case the caller must release all currently held w/w mutexes for
  * the given context and then wait for this contending lock to be available by
- * calling ww_mutex_lock_slow. Alternatively callers can opt to not acquire this
+ * calling ww_mutex_lock_slow. Alternatively callers can opt to yest acquire this
  * lock and proceed with trying to acquire further w/w mutexes (e.g. when
  * scanning through lru lists trying to free resources).
  *
  * The mutex must later on be released by the same task that
- * acquired it. The task may not exit without first unlocking the mutex. Also,
- * kernel memory where the mutex resides must not be freed with the mutex still
+ * acquired it. The task may yest exit without first unlocking the mutex. Also,
+ * kernel memory where the mutex resides must yest be freed with the mutex still
  * locked. The mutex must first be initialized (or statically defined) before it
- * can be locked. memset()-ing the mutex to 0 is not allowed. The mutex must be
+ * can be locked. memset()-ing the mutex to 0 is yest allowed. The mutex must be
  * of the same w/w lock class as was used to initialize the acquire context.
  *
  * A mutex acquired with this function must be released with ww_mutex_unlock.
@@ -247,14 +247,14 @@ extern int /* __must_check */ ww_mutex_lock(struct ww_mutex *lock, struct ww_acq
  * In the die case the caller must release all currently held w/w mutexes for
  * the given context and then wait for this contending lock to be available by
  * calling ww_mutex_lock_slow_interruptible. Alternatively callers can opt to
- * not acquire this lock and proceed with trying to acquire further w/w mutexes
+ * yest acquire this lock and proceed with trying to acquire further w/w mutexes
  * (e.g. when scanning through lru lists trying to free resources).
  *
  * The mutex must later on be released by the same task that
- * acquired it. The task may not exit without first unlocking the mutex. Also,
- * kernel memory where the mutex resides must not be freed with the mutex still
+ * acquired it. The task may yest exit without first unlocking the mutex. Also,
+ * kernel memory where the mutex resides must yest be freed with the mutex still
  * locked. The mutex must first be initialized (or statically defined) before it
- * can be locked. memset()-ing the mutex to 0 is not allowed. The mutex must be
+ * can be locked. memset()-ing the mutex to 0 is yest allowed. The mutex must be
  * of the same w/w lock class as was used to initialize the acquire context.
  *
  * A mutex acquired with this function must be released with ww_mutex_unlock.
@@ -283,7 +283,7 @@ extern int __must_check ww_mutex_lock_interruptible(struct ww_mutex *lock,
  *
  * Note that the slowpath lock acquiring can also be done by calling
  * ww_mutex_lock directly. This function here is simply to help w/w mutex
- * locking code readability by clearly denoting the slowpath.
+ * locking code readability by clearly deyesting the slowpath.
  */
 static inline void
 ww_mutex_lock_slow(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
@@ -319,7 +319,7 @@ ww_mutex_lock_slow(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
  *
  * Note that the slowpath lock acquiring can also be done by calling
  * ww_mutex_lock_interruptible directly. This function here is simply to help
- * w/w mutex locking code readability by clearly denoting the slowpath.
+ * w/w mutex locking code readability by clearly deyesting the slowpath.
  */
 static inline int __must_check
 ww_mutex_lock_slow_interruptible(struct ww_mutex *lock,
@@ -337,7 +337,7 @@ extern void ww_mutex_unlock(struct ww_mutex *lock);
  * ww_mutex_trylock - tries to acquire the w/w mutex without acquire context
  * @lock: mutex to lock
  *
- * Trylocks a mutex without acquire context, so no deadlock detection is
+ * Trylocks a mutex without acquire context, so yes deadlock detection is
  * possible. Returns 1 if the mutex has been acquired successfully, 0 otherwise.
  */
 static inline int __must_check ww_mutex_trylock(struct ww_mutex *lock)
@@ -350,7 +350,7 @@ static inline int __must_check ww_mutex_trylock(struct ww_mutex *lock)
  * @lock: the mutex to be destroyed
  *
  * This function marks the mutex uninitialized, and any subsequent
- * use of the mutex is forbidden. The mutex must not be locked when
+ * use of the mutex is forbidden. The mutex must yest be locked when
  * this function is called.
  */
 static inline void ww_mutex_destroy(struct ww_mutex *lock)

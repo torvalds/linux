@@ -12,7 +12,7 @@
  */
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/ptrace.h>
 
 #include <asm/fpu.h>
@@ -20,7 +20,7 @@
 #include <asm/current.h>
 #include <asm/mipsregs.h>
 
-static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
+static int loongson_cu2_call(struct yestifier_block *nfb, unsigned long action,
 	void *data)
 {
 	int fpu_owned;
@@ -48,14 +48,14 @@ static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
 		}
 		preempt_enable();
 
-		return NOTIFY_STOP;	/* Don't call default notifier */
+		return NOTIFY_STOP;	/* Don't call default yestifier */
 	}
 
-	return NOTIFY_OK;		/* Let default notifier send signals */
+	return NOTIFY_OK;		/* Let default yestifier send signals */
 }
 
 static int __init loongson_cu2_setup(void)
 {
-	return cu2_notifier(loongson_cu2_call, 0);
+	return cu2_yestifier(loongson_cu2_call, 0);
 }
 early_initcall(loongson_cu2_setup);

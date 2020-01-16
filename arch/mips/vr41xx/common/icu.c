@@ -15,7 +15,7 @@
  *  Yoichi Yuasa <yuasa@linux-mips.org>
  *  - Coped with INTASSIGN of NEC VR4133.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/ioport.h>

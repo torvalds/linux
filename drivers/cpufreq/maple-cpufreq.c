@@ -14,7 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -52,7 +52,7 @@
 #define PSR_CUR_SPEED_SHIFT	(56)
 
 /*
- * The G5 only supports two frequencies (Quarter speed is not supported)
+ * The G5 only supports two frequencies (Quarter speed is yest supported)
  */
 #define CPUFREQ_HIGH                  0
 #define CPUFREQ_LOW                   1
@@ -156,7 +156,7 @@ static struct cpufreq_driver maple_cpufreq_driver = {
 
 static int __init maple_cpufreq_init(void)
 {
-	struct device_node *cpunode;
+	struct device_yesde *cpuyesde;
 	unsigned int psize;
 	unsigned long max_freq;
 	const u32 *valp;
@@ -171,44 +171,44 @@ static int __init maple_cpufreq_init(void)
 	    !of_machine_is_compatible("Momentum,Apache"))
 		return 0;
 
-	/* Get first CPU node */
-	cpunode = of_cpu_device_node_get(0);
-	if (cpunode == NULL) {
-		pr_err("Can't find any CPU 0 node\n");
-		goto bail_noprops;
+	/* Get first CPU yesde */
+	cpuyesde = of_cpu_device_yesde_get(0);
+	if (cpuyesde == NULL) {
+		pr_err("Can't find any CPU 0 yesde\n");
+		goto bail_yesprops;
 	}
 
-	/* Check 970FX for now */
+	/* Check 970FX for yesw */
 	/* we actually don't care on which CPU to access PVR */
 	pvr_hi = PVR_VER(mfspr(SPRN_PVR));
 	if (pvr_hi != 0x3c && pvr_hi != 0x44) {
 		pr_err("Unsupported CPU version (%x)\n", pvr_hi);
-		goto bail_noprops;
+		goto bail_yesprops;
 	}
 
 	/* Look for the powertune data in the device-tree */
 	/*
 	 * On Maple this property is provided by PIBS in dual-processor config,
-	 * not provided by PIBS in CPU0 config and also not provided by SLOF,
+	 * yest provided by PIBS in CPU0 config and also yest provided by SLOF,
 	 * so YMMV
 	 */
-	maple_pmode_data = of_get_property(cpunode, "power-mode-data", &psize);
+	maple_pmode_data = of_get_property(cpuyesde, "power-mode-data", &psize);
 	if (!maple_pmode_data) {
 		DBG("No power-mode-data !\n");
-		goto bail_noprops;
+		goto bail_yesprops;
 	}
 	maple_pmode_max = psize / sizeof(u32) - 1;
 
 	/*
 	 * From what I see, clock-frequency is always the maximal frequency.
-	 * The current driver can not slew sysclk yet, so we really only deal
-	 * with powertune steps for now. We also only implement full freq and
+	 * The current driver can yest slew sysclk yet, so we really only deal
+	 * with powertune steps for yesw. We also only implement full freq and
 	 * half freq in this version. So far, I haven't yet seen a machine
 	 * supporting anything else.
 	 */
-	valp = of_get_property(cpunode, "clock-frequency", NULL);
+	valp = of_get_property(cpuyesde, "clock-frequency", NULL);
 	if (!valp)
-		goto bail_noprops;
+		goto bail_yesprops;
 	max_freq = (*valp)/1000;
 	maple_cpu_freqs[0].frequency = max_freq;
 	maple_cpu_freqs[1].frequency = max_freq/2;
@@ -229,8 +229,8 @@ static int __init maple_cpufreq_init(void)
 
 	rc = cpufreq_register_driver(&maple_cpufreq_driver);
 
-bail_noprops:
-	of_node_put(cpunode);
+bail_yesprops:
+	of_yesde_put(cpuyesde);
 
 	return rc;
 }

@@ -9,7 +9,7 @@
  *  Major cleanup & driver split: Martin Schwidefsky <schwidefsky@de.ibm.com>
  *				  Ralph Wuerthner <rwuerthn@de.ibm.com>
  *  MSGTYPE restruct:		  Holger Dengler <hd@linux.vnet.ibm.com>
- *  Multiple device nodes: Harald Freudenberger <freude@linux.ibm.com>
+ *  Multiple device yesdes: Harald Freudenberger <freude@linux.ibm.com>
  */
 
 #include <linux/module.h>
@@ -111,7 +111,7 @@ struct zcrypt_ops *zcrypt_msgtype(unsigned char *name, int variant)
 EXPORT_SYMBOL(zcrypt_msgtype);
 
 /*
- * Multi device nodes extension functions.
+ * Multi device yesdes extension functions.
  */
 
 #ifdef CONFIG_ZCRYPT_MULTIDEVNODES
@@ -350,13 +350,13 @@ static int zcdn_create(const char *name)
 {
 	dev_t devt;
 	int i, rc = 0;
-	char nodename[ZCDN_MAX_NAME];
+	char yesdename[ZCDN_MAX_NAME];
 	struct zcdn_device *zcdndev;
 
 	if (mutex_lock_interruptible(&ap_perms_mutex))
 		return -ERESTARTSYS;
 
-	/* check if device node with this name already exists */
+	/* check if device yesde with this name already exists */
 	if (name[0]) {
 		zcdndev = find_zcdndev_by_name(name);
 		if (zcdndev) {
@@ -366,7 +366,7 @@ static int zcdn_create(const char *name)
 		}
 	}
 
-	/* find an unused minor number */
+	/* find an unused miyesr number */
 	for (i = 0; i < ZCRYPT_MAX_MINOR_NODES; i++) {
 		devt = MKDEV(MAJOR(zcrypt_devt), MINOR(zcrypt_devt) + i);
 		zcdndev = find_zcdndev_by_devt(devt);
@@ -391,12 +391,12 @@ static int zcdn_create(const char *name)
 	zcdndev->device.devt = devt;
 	zcdndev->device.groups = zcdn_dev_attr_groups;
 	if (name[0])
-		strncpy(nodename, name, sizeof(nodename));
+		strncpy(yesdename, name, sizeof(yesdename));
 	else
-		snprintf(nodename, sizeof(nodename),
+		snprintf(yesdename, sizeof(yesdename),
 			 ZCRYPT_NAME "_%d", (int) MINOR(devt));
-	nodename[sizeof(nodename)-1] = '\0';
-	if (dev_set_name(&zcdndev->device, nodename)) {
+	yesdename[sizeof(yesdename)-1] = '\0';
+	if (dev_set_name(&zcdndev->device, yesdename)) {
 		rc = -EINVAL;
 		goto unlockout;
 	}
@@ -430,7 +430,7 @@ static int zcdn_destroy(const char *name)
 	}
 
 	/*
-	 * The zcdn device is not hard destroyed. It is subject to
+	 * The zcdn device is yest hard destroyed. It is subject to
 	 * reference counting and thus just needs to be unregistered.
 	 */
 	put_device(&zcdndev->device);
@@ -464,7 +464,7 @@ static void zcdn_destroy_all(void)
 /**
  * zcrypt_read (): Not supported beyond zcrypt 1.3.1.
  *
- * This function is not supported beyond zcrypt 1.3.1.
+ * This function is yest supported beyond zcrypt 1.3.1.
  */
 static ssize_t zcrypt_read(struct file *filp, char __user *buf,
 			   size_t count, loff_t *f_pos)
@@ -475,7 +475,7 @@ static ssize_t zcrypt_read(struct file *filp, char __user *buf,
 /**
  * zcrypt_write(): Not allowed.
  *
- * Write is is not allowed
+ * Write is is yest allowed
  */
 static ssize_t zcrypt_write(struct file *filp, const char __user *buf,
 			    size_t count, loff_t *f_pos)
@@ -488,18 +488,18 @@ static ssize_t zcrypt_write(struct file *filp, const char __user *buf,
  *
  * Device open function to count number of users.
  */
-static int zcrypt_open(struct inode *inode, struct file *filp)
+static int zcrypt_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct ap_perms *perms = &ap_perms;
 
 #ifdef CONFIG_ZCRYPT_MULTIDEVNODES
-	if (filp->f_inode->i_cdev == &zcrypt_cdev) {
+	if (filp->f_iyesde->i_cdev == &zcrypt_cdev) {
 		struct zcdn_device *zcdndev;
 
 		if (mutex_lock_interruptible(&ap_perms_mutex))
 			return -ERESTARTSYS;
-		zcdndev = find_zcdndev_by_devt(filp->f_inode->i_rdev);
-		/* find returns a reference, no get_device() needed */
+		zcdndev = find_zcdndev_by_devt(filp->f_iyesde->i_rdev);
+		/* find returns a reference, yes get_device() needed */
 		mutex_unlock(&ap_perms_mutex);
 		if (zcdndev)
 			perms = &zcdndev->perms;
@@ -508,7 +508,7 @@ static int zcrypt_open(struct inode *inode, struct file *filp)
 	filp->private_data = (void *) perms;
 
 	atomic_inc(&zcrypt_open_count);
-	return stream_open(inode, filp);
+	return stream_open(iyesde, filp);
 }
 
 /**
@@ -516,14 +516,14 @@ static int zcrypt_open(struct inode *inode, struct file *filp)
  *
  * Device close function to count number of users.
  */
-static int zcrypt_release(struct inode *inode, struct file *filp)
+static int zcrypt_release(struct iyesde *iyesde, struct file *filp)
 {
 #ifdef CONFIG_ZCRYPT_MULTIDEVNODES
-	if (filp->f_inode->i_cdev == &zcrypt_cdev) {
+	if (filp->f_iyesde->i_cdev == &zcrypt_cdev) {
 		struct zcdn_device *zcdndev;
 
 		mutex_lock(&ap_perms_mutex);
-		zcdndev = find_zcdndev_by_devt(filp->f_inode->i_rdev);
+		zcdndev = find_zcdndev_by_devt(filp->f_iyesde->i_rdev);
 		mutex_unlock(&ap_perms_mutex);
 		if (zcdndev) {
 			/* 2 puts here: one for find, one for open */
@@ -647,7 +647,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 	}
 
 	/*
-	 * As long as outputdatalength is big enough, we can set the
+	 * As long as outputdatalength is big eyesugh, we can set the
 	 * outputdatalength equal to the inputdatalength, since that is the
 	 * number of bytes we will copy in any case
 	 */
@@ -668,7 +668,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 		if (zc->min_mod_size > mex->inputdatalength ||
 		    zc->max_mod_size < mex->inputdatalength)
 			continue;
-		/* check if device node has admission for this card */
+		/* check if device yesde has admission for this card */
 		if (!zcrypt_check_card(perms, zc->card->id))
 			continue;
 		/* get weight index of the card device	*/
@@ -679,7 +679,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 			/* check if device is online and eligible */
 			if (!zq->online || !zq->ops->rsa_modexpo)
 				continue;
-			/* check if device node has admission for this queue */
+			/* check if device yesde has admission for this queue */
 			if (!zcrypt_check_queue(perms,
 						AP_QID_QUEUE(zq->queue->qid)))
 				continue;
@@ -731,7 +731,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 	}
 
 	/*
-	 * As long as outputdatalength is big enough, we can set the
+	 * As long as outputdatalength is big eyesugh, we can set the
 	 * outputdatalength equal to the inputdatalength, since that is the
 	 * number of bytes we will copy in any case
 	 */
@@ -752,7 +752,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 		if (zc->min_mod_size > crt->inputdatalength ||
 		    zc->max_mod_size < crt->inputdatalength)
 			continue;
-		/* check if device node has admission for this card */
+		/* check if device yesde has admission for this card */
 		if (!zcrypt_check_card(perms, zc->card->id))
 			continue;
 		/* get weight index of the card device	*/
@@ -763,7 +763,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 			/* check if device is online and eligible */
 			if (!zq->online || !zq->ops->rsa_modexpo_crt)
 				continue;
-			/* check if device node has admission for this queue */
+			/* check if device yesde has admission for this queue */
 			if (!zcrypt_check_queue(perms,
 						AP_QID_QUEUE(zq->queue->qid)))
 				continue;
@@ -838,7 +838,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 		if (xcRB->user_defined != AUTOSELECT &&
 		    xcRB->user_defined != zc->card->id)
 			continue;
-		/* check if device node has admission for this card */
+		/* check if device yesde has admission for this card */
 		if (!zcrypt_check_card(perms, zc->card->id))
 			continue;
 		/* get weight index of the card device	*/
@@ -852,7 +852,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 			    (tdom != (unsigned short) AUTOSELECT &&
 			     tdom != AP_QID_QUEUE(zq->queue->qid)))
 				continue;
-			/* check if device node has admission for this queue */
+			/* check if device yesde has admission for this queue */
 			if (!zcrypt_check_queue(perms,
 						AP_QID_QUEUE(zq->queue->qid)))
 				continue;
@@ -975,7 +975,7 @@ static long zcrypt_send_ep11_cprb(struct ap_perms *perms,
 		if (targets &&
 		    !is_desired_ep11_card(zc->card->id, target_num, targets))
 			continue;
-		/* check if device node has admission for this card */
+		/* check if device yesde has admission for this card */
 		if (!zcrypt_check_card(perms, zc->card->id))
 			continue;
 		/* get weight index of the card device	*/
@@ -990,7 +990,7 @@ static long zcrypt_send_ep11_cprb(struct ap_perms *perms,
 			     !is_desired_ep11_queue(zq->queue->qid,
 						    target_num, targets)))
 				continue;
-			/* check if device node has admission for this queue */
+			/* check if device yesde has admission for this queue */
 			if (!zcrypt_check_queue(perms,
 						AP_QID_QUEUE(zq->queue->qid)))
 				continue;
@@ -1477,9 +1477,9 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 		return 0;
 	}
-	/* unknown ioctl number */
+	/* unkyeswn ioctl number */
 	default:
-		ZCRYPT_DBF(DBF_DEBUG, "unknown ioctl 0x%08x\n", cmd);
+		ZCRYPT_DBF(DBF_DEBUG, "unkyeswn ioctl 0x%08x\n", cmd);
 		return -ENOIOCTLCMD;
 	}
 }
@@ -1672,14 +1672,14 @@ static const struct file_operations zcrypt_fops = {
 #endif
 	.open		= zcrypt_open,
 	.release	= zcrypt_release,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 /*
  * Misc device.
  */
 static struct miscdevice zcrypt_misc_device = {
-	.minor	    = MISC_DYNAMIC_MINOR,
+	.miyesr	    = MISC_DYNAMIC_MINOR,
 	.name	    = "z90crypt",
 	.fops	    = &zcrypt_fops,
 };
@@ -1786,7 +1786,7 @@ static int __init zcdn_init(void)
 	}
 	zcrypt_class->dev_release = zcdn_device_release;
 
-	/* alloc device minor range */
+	/* alloc device miyesr range */
 	rc = alloc_chrdev_region(&zcrypt_devt,
 				 0, ZCRYPT_MAX_MINOR_NODES,
 				 ZCRYPT_NAME);

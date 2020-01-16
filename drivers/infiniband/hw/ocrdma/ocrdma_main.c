@@ -13,11 +13,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * - Redistributions of source code must retain the above copyright notice,
+ * - Redistributions of source code must retain the above copyright yestice,
  *   this list of conditions and the following disclaimer.
  *
  * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
@@ -177,7 +177,7 @@ static const struct ib_device_ops ocrdma_dev_ops = {
 	.query_port = ocrdma_query_port,
 	.query_qp = ocrdma_query_qp,
 	.reg_user_mr = ocrdma_reg_user_mr,
-	.req_notify_cq = ocrdma_arm_cq,
+	.req_yestify_cq = ocrdma_arm_cq,
 	.resize_cq = ocrdma_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, ocrdma_ah, ibah),
@@ -200,9 +200,9 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 {
 	int ret;
 
-	ocrdma_get_guid(dev, (u8 *)&dev->ibdev.node_guid);
+	ocrdma_get_guid(dev, (u8 *)&dev->ibdev.yesde_guid);
 	BUILD_BUG_ON(sizeof(OCRDMA_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
-	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
+	memcpy(dev->ibdev.yesde_desc, OCRDMA_NODE_DESC,
 	       sizeof(OCRDMA_NODE_DESC));
 	dev->ibdev.uverbs_cmd_mask =
 	    OCRDMA_UVERBS(GET_CONTEXT) |
@@ -231,7 +231,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	     OCRDMA_UVERBS(QUERY_AH) |
 	     OCRDMA_UVERBS(DESTROY_AH);
 
-	dev->ibdev.node_type = RDMA_NODE_IB_CA;
+	dev->ibdev.yesde_type = RDMA_NODE_IB_CA;
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = dev->eq_cnt;
 
@@ -411,7 +411,7 @@ static void ocrdma_shutdown(struct ocrdma_dev *dev)
 }
 
 /* event handling via NIC driver ensures that all the NIC specific
- * initialization done before RoCE driver notifies
+ * initialization done before RoCE driver yestifies
  * event to stack.
  */
 static void ocrdma_event_handler(struct ocrdma_dev *dev, u32 event)

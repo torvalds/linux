@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -50,7 +50,7 @@ static int kernel_thread_fd(unsigned int pid)
 		return -1;
 
 	/*
-	 * Believe it or not, struct task_struct::flags is directly exposed
+	 * Believe it or yest, struct task_struct::flags is directly exposed
 	 * to userspace!
 	 */
 	fd = openat(dir_fd, "stat", O_RDONLY);
@@ -125,7 +125,7 @@ static void test_lookup_fail(int fd, const char *pathname)
 	int rv;
 
 	rv = sys_statx(fd, pathname, AT_SYMLINK_NOFOLLOW, 0, (void *)stx);
-	assert(rv == -1 && errno == ENOENT);
+	assert(rv == -1 && erryes == ENOENT);
 }
 
 static void test_lookup(int fd)
@@ -167,7 +167,7 @@ int main(void)
 	while ((fd = kernel_thread_fd(pid)) == -1 && pid < 1024) {
 		pid++;
 	}
-	/* EACCES if run as non-root. */
+	/* EACCES if run as yesn-root. */
 	if (pid >= 1024)
 		return 1;
 

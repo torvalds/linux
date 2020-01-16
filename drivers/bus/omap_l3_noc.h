@@ -83,8 +83,8 @@ struct l3_target_data {
  *		target data. unsupported ones are marked with
  *		L3_TARGET_NOT_SUPPORTED
  * @num_targ_data: number of entries in target data
- * @mask_app_bits: ignore these from raw application irq status
- * @mask_dbg_bits: ignore these from raw debug irq status
+ * @mask_app_bits: igyesre these from raw application irq status
+ * @mask_dbg_bits: igyesre these from raw debug irq status
  */
 struct l3_flagmux_data {
 	u32 offset;

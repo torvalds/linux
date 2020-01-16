@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * This is for all the tests related to validating kernel memory
- * permissions: non-executable regions, non-writable regions, and
- * even non-readable regions.
+ * permissions: yesn-executable regions, yesn-writable regions, and
+ * even yesn-readable regions.
  */
 #include "lkdtm.h"
 #include <linux/slab.h>
@@ -11,14 +11,14 @@
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 
-/* Whether or not to fill the target memory area with do_nothing(). */
+/* Whether or yest to fill the target memory area with do_yesthing(). */
 #define CODE_WRITE	true
 #define CODE_AS_IS	false
 
-/* How many bytes to copy to be sure we've copied enough of do_nothing(). */
+/* How many bytes to copy to be sure we've copied eyesugh of do_yesthing(). */
 #define EXEC_SIZE 64
 
-/* This is non-const, so it will end up in the .data section. */
+/* This is yesn-const, so it will end up in the .data section. */
 static u8 data_area[EXEC_SIZE];
 
 /* This is cost, so it will end up in the .rodata section. */
@@ -29,29 +29,29 @@ static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
 
 /*
  * This just returns to the caller. It is designed to be copied into
- * non-executable memory regions.
+ * yesn-executable memory regions.
  */
-static void do_nothing(void)
+static void do_yesthing(void)
 {
 	return;
 }
 
-/* Must immediately follow do_nothing for size calculuations to work out. */
+/* Must immediately follow do_yesthing for size calculuations to work out. */
 static void do_overwritten(void)
 {
 	pr_info("do_overwritten wasn't overwritten!\n");
 	return;
 }
 
-static noinline void execute_location(void *dst, bool write)
+static yesinline void execute_location(void *dst, bool write)
 {
 	void (*func)(void) = dst;
 
-	pr_info("attempting ok execution at %px\n", do_nothing);
-	do_nothing();
+	pr_info("attempting ok execution at %px\n", do_yesthing);
+	do_yesthing();
 
 	if (write == CODE_WRITE) {
-		memcpy(dst, do_nothing, EXEC_SIZE);
+		memcpy(dst, do_yesthing, EXEC_SIZE);
 		flush_icache_range((unsigned long)dst,
 				   (unsigned long)dst + EXEC_SIZE);
 	}
@@ -66,10 +66,10 @@ static void execute_user_location(void *dst)
 	/* Intentionally crossing kernel/user memory boundary. */
 	void (*func)(void) = dst;
 
-	pr_info("attempting ok execution at %px\n", do_nothing);
-	do_nothing();
+	pr_info("attempting ok execution at %px\n", do_yesthing);
+	do_yesthing();
 
-	copied = access_process_vm(current, (unsigned long)dst, do_nothing,
+	copied = access_process_vm(current, (unsigned long)dst, do_yesthing,
 				   EXEC_SIZE, FOLL_WRITE);
 	if (copied < EXEC_SIZE)
 		return;
@@ -109,11 +109,11 @@ void lkdtm_WRITE_KERN(void)
 	size_t size;
 	unsigned char *ptr;
 
-	size = (unsigned long)do_overwritten - (unsigned long)do_nothing;
+	size = (unsigned long)do_overwritten - (unsigned long)do_yesthing;
 	ptr = (unsigned char *)do_overwritten;
 
 	pr_info("attempting bad %zu byte write at %px\n", size, ptr);
-	memcpy(ptr, (unsigned char *)do_nothing, size);
+	memcpy(ptr, (unsigned char *)do_yesthing, size);
 	flush_icache_range((unsigned long)ptr, (unsigned long)(ptr + size));
 
 	do_overwritten();
@@ -146,7 +146,7 @@ void lkdtm_EXEC_VMALLOC(void)
 
 void lkdtm_EXEC_RODATA(void)
 {
-	execute_location(lkdtm_rodata_do_nothing, CODE_AS_IS);
+	execute_location(lkdtm_rodata_do_yesthing, CODE_AS_IS);
 }
 
 void lkdtm_EXEC_USERSPACE(void)

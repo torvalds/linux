@@ -305,7 +305,7 @@ static irqreturn_t mxc4005_trigger_handler(int irq, void *private)
 					   pf->timestamp);
 
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

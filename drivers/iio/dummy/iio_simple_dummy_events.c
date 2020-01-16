@@ -24,7 +24,7 @@
  * @type: type of the event whose state is being queried
  * @dir: direction of the vent whose state is being queried
  *
- * This function would normally query the relevant registers or a cache to
+ * This function would yesrmally query the relevant registers or a cache to
  * discover if the event generation is enabled on the device.
  */
 int iio_simple_dummy_read_event_config(struct iio_dev *indio_dev,
@@ -45,7 +45,7 @@ int iio_simple_dummy_read_event_config(struct iio_dev *indio_dev,
  * @dir: direction of the vent whose state is being set
  * @state: whether to enable or disable the device.
  *
- * This function would normally set the relevant registers on the devices
+ * This function would yesrmally set the relevant registers on the devices
  * so that it generates the specified event. Here it just sets up a cached
  * value.
  */
@@ -228,7 +228,7 @@ static irqreturn_t iio_simple_dummy_event_handler(int irq, void *private)
  * Normally the irq is a hardware interrupt and the number comes
  * from board configuration files.  Here we get it from a companion
  * module that fakes the interrupt for us. Note that module in
- * no way forms part of this example. Just assume that events magically
+ * yes way forms part of this example. Just assume that events magically
  * appear via the provided interrupt.
  */
 int iio_simple_dummy_events_register(struct iio_dev *indio_dev)
@@ -236,7 +236,7 @@ int iio_simple_dummy_events_register(struct iio_dev *indio_dev)
 	struct iio_dummy_state *st = iio_priv(indio_dev);
 	int ret;
 
-	/* Fire up event source - normally not present */
+	/* Fire up event source - yesrmally yest present */
 	st->event_irq = iio_dummy_evgen_get_irq();
 	if (st->event_irq < 0) {
 		ret = st->event_irq;
@@ -269,6 +269,6 @@ void iio_simple_dummy_events_unregister(struct iio_dev *indio_dev)
 	struct iio_dummy_state *st = iio_priv(indio_dev);
 
 	free_irq(st->event_irq, indio_dev);
-	/* Not part of normal driver */
+	/* Not part of yesrmal driver */
 	iio_dummy_evgen_release_irq(st->event_irq);
 }

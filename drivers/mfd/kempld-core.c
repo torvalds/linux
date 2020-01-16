@@ -49,16 +49,16 @@ static int kempld_get_info_generic(struct kempld_device_data *pld)
 	spec = kempld_read8(pld, KEMPLD_SPEC);
 	pld->info.buildnr = kempld_read16(pld, KEMPLD_BUILDNR);
 
-	pld->info.minor = KEMPLD_VERSION_GET_MINOR(version);
+	pld->info.miyesr = KEMPLD_VERSION_GET_MINOR(version);
 	pld->info.major = KEMPLD_VERSION_GET_MAJOR(version);
 	pld->info.number = KEMPLD_VERSION_GET_NUMBER(version);
 	pld->info.type = KEMPLD_VERSION_GET_TYPE(version);
 
 	if (spec == 0xff) {
-		pld->info.spec_minor = 0;
+		pld->info.spec_miyesr = 0;
 		pld->info.spec_major = 1;
 	} else {
-		pld->info.spec_minor = KEMPLD_SPEC_GET_MINOR(spec);
+		pld->info.spec_miyesr = KEMPLD_SPEC_GET_MINOR(spec);
 		pld->info.spec_major = KEMPLD_SPEC_GET_MAJOR(spec);
 	}
 
@@ -283,7 +283,7 @@ static int kempld_get_info(struct kempld_device_data *pld)
 {
 	int ret;
 	const struct kempld_platform_data *pdata = dev_get_platdata(pld->dev);
-	char major, minor;
+	char major, miyesr;
 
 	ret = pdata->get_info(pld);
 	if (ret)
@@ -294,20 +294,20 @@ static int kempld_get_info(struct kempld_device_data *pld)
 	 *   P:    Fixed
 	 *   w:    PLD number    - 1 hex digit
 	 *   x:    Major version - 1 alphanumerical digit (0-9A-V)
-	 *   y:    Minor version - 1 alphanumerical digit (0-9A-V)
+	 *   y:    Miyesr version - 1 alphanumerical digit (0-9A-V)
 	 *   zzzz: Build number  - 4 zero padded hex digits */
 
 	if (pld->info.major < 10)
 		major = pld->info.major + '0';
 	else
 		major = (pld->info.major - 10) + 'A';
-	if (pld->info.minor < 10)
-		minor = pld->info.minor + '0';
+	if (pld->info.miyesr < 10)
+		miyesr = pld->info.miyesr + '0';
 	else
-		minor = (pld->info.minor - 10) + 'A';
+		miyesr = (pld->info.miyesr - 10) + 'A';
 
 	ret = scnprintf(pld->info.version, sizeof(pld->info.version),
-			"P%X%c%c.%04X", pld->info.number, major, minor,
+			"P%X%c%c.%04X", pld->info.number, major, miyesr,
 			pld->info.buildnr);
 	if (ret < 0)
 		return ret;
@@ -365,7 +365,7 @@ static ssize_t kempld_specification_show(struct device *dev,
 	struct kempld_device_data *pld = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d.%d\n", pld->info.spec_major,
-		       pld->info.spec_minor);
+		       pld->info.spec_miyesr);
 }
 
 static ssize_t kempld_type_show(struct device *dev,
@@ -421,7 +421,7 @@ static int kempld_detect_device(struct kempld_device_data *pld)
 
 	dev_info(pld->dev, "Found Kontron PLD - %s (%s), spec %d.%d\n",
 		 pld->info.version, kempld_get_type_string(pld),
-		 pld->info.spec_major, pld->info.spec_minor);
+		 pld->info.spec_major, pld->info.spec_miyesr);
 
 	ret = sysfs_create_group(&pld->dev->kobj, &pld_attr_group);
 	if (ret)
@@ -715,7 +715,7 @@ static const struct dmi_system_id kempld_dmi_table[] __initconst = {
 		.ident = "NTC1",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
-			DMI_MATCH(DMI_BOARD_NAME, "nanoETXexpress-TT"),
+			DMI_MATCH(DMI_BOARD_NAME, "nayesETXexpress-TT"),
 		},
 		.driver_data = (void *)&kempld_platform_data_generic,
 		.callback = kempld_create_platform_device,

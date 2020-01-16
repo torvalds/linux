@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/kernel.h>
 #include <linux/media-bus-format.h>

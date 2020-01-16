@@ -16,23 +16,23 @@
  * wait-queues, but the semantics are actually completely different, and
  * every single user we have ever had has been buggy (or pointless).
  *
- * A "swake_up_one()" only wakes up _one_ waiter, which is not at all what
+ * A "swake_up_one()" only wakes up _one_ waiter, which is yest at all what
  * "wake_up()" does, and has led to problems. In other cases, it has
  * been fine, because there's only ever one waiter (kvm), but in that
  * case gthe whole "simple" wait-queue is just pointless to begin with,
- * since there is no "queue". Use "wake_up_process()" with a direct
+ * since there is yes "queue". Use "wake_up_process()" with a direct
  * pointer instead.
  *
  * While these are very similar to regular wait queues (wait.h) the most
  * important difference is that the simple waitqueue allows for deterministic
  * behaviour -- IOW it has strictly bounded IRQ and lock hold times.
  *
- * Mainly, this is accomplished by two things. Firstly not allowing swake_up_all
+ * Mainly, this is accomplished by two things. Firstly yest allowing swake_up_all
  * from IRQ disabled, and dropping the lock upon every wakeup, giving a higher
  * priority task a chance to run.
  *
  * Secondly, we had to drop a fair number of features of the other waitqueue
- * code; notably:
+ * code; yestably:
  *
  *  - mixing INTERRUPTIBLE and UNINTERRUPTIBLE sleeps on the same waitqueue;
  *    all wakeups are TASK_NORMAL in order to avoid O(n) lookups for the right
@@ -41,12 +41,12 @@
  *  - the !exclusive mode; because that leads to O(n) wakeups, everything is
  *    exclusive.
  *
- *  - custom wake callback functions; because you cannot give any guarantees
+ *  - custom wake callback functions; because you canyest give any guarantees
  *    about random code. This also allows swait to be used in RT, such that
  *    raw spinlock can be used for the swait queue head.
  *
  * As a side effect of these; the data structures are slimmer albeit more ad-hoc.
- * For all the above, note that simple wait queues should _only_ be used under
+ * For all the above, yeste that simple wait queues should _only_ be used under
  * very specific realtime constraints -- it is best to stick with the regular
  * wait queues in most cases.
  */
@@ -102,10 +102,10 @@ extern void __init_swait_queue_head(struct swait_queue_head *q, const char *name
  * swait_active -- locklessly test for waiters on the queue
  * @wq: the waitqueue to test for waiters
  *
- * returns true if the wait list is not empty
+ * returns true if the wait list is yest empty
  *
  * NOTE: this function is lockless and requires care, incorrect usage _will_
- * lead to sporadic and non-obvious failure.
+ * lead to sporadic and yesn-obvious failure.
  *
  * NOTE2: this function has the same above implications as regular waitqueues.
  *
@@ -125,10 +125,10 @@ extern void __init_swait_queue_head(struct swait_queue_head *q, const char *name
  *
  * Because without the explicit smp_mb() it's possible for the
  * swait_active() load to get hoisted over the @cond store such that we'll
- * observe an empty wait list while the waiter might not observe @cond.
+ * observe an empty wait list while the waiter might yest observe @cond.
  * This, in turn, can trigger missing wakeups.
  *
- * Also note that this 'optimization' trades a spin_lock() for an smp_mb(),
+ * Also yeste that this 'optimization' trades a spin_lock() for an smp_mb(),
  * which (when the lock is uncontended) are of roughly equal cost.
  */
 static inline int swait_active(struct swait_queue_head *wq)
@@ -255,7 +255,7 @@ do {									\
  *
  * This function is mostly used when a kthread or workqueue waits for some
  * condition and doesn't want to contribute to system load. Signals are
- * ignored.
+ * igyesred.
  */
 #define swait_event_idle_exclusive(wq, condition)			\
 do {									\
@@ -280,7 +280,7 @@ do {									\
  *
  * This function is mostly used when a kthread or workqueue waits for some
  * condition and doesn't want to contribute to system load. Signals are
- * ignored.
+ * igyesred.
  *
  * Returns:
  * 0 if the @condition evaluated to %false after the @timeout elapsed,

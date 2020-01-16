@@ -78,7 +78,7 @@ int __intel_context_do_pin(struct intel_context *ce)
 	}
 
 	atomic_inc(&ce->pin_count);
-	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* no overflow! */
+	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* yes overflow! */
 
 	mutex_unlock(&ce->pin_mutex);
 	return 0;
@@ -93,7 +93,7 @@ void intel_context_unpin(struct intel_context *ce)
 	if (likely(atomic_add_unless(&ce->pin_count, -1, 1)))
 		return;
 
-	/* We may be called from inside intel_context_pin() to evict another */
+	/* We may be called from inside intel_context_pin() to evict ayesther */
 	intel_context_get(ce);
 	mutex_lock_nested(&ce->pin_mutex, SINGLE_DEPTH_NESTING);
 
@@ -124,8 +124,8 @@ static int __context_pin_state(struct i915_vma *vma)
 		return err;
 
 	/*
-	 * And mark it as a globally pinned object to let the shrinker know
-	 * it cannot reclaim the object until we release it.
+	 * And mark it as a globally pinned object to let the shrinker kyesw
+	 * it canyest reclaim the object until we release it.
 	 */
 	i915_vma_make_unshrinkable(vma);
 	vma->obj->mm.dirty = true;
@@ -197,7 +197,7 @@ int intel_context_active_acquire(struct intel_context *ce)
 	if (err)
 		return err;
 
-	/* Preallocate tracking nodes */
+	/* Preallocate tracking yesdes */
 	if (!i915_gem_context_is_kernel(ce->gem_context)) {
 		err = i915_active_acquire_preallocate_barrier(&ce->active,
 							      ce->engine);

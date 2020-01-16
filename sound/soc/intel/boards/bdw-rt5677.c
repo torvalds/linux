@@ -240,7 +240,7 @@ static int bdw_rt5677_init(struct snd_soc_pcm_runtime *rtd)
 	rt5677_sel_asrc_clk_src(component, RT5677_DA_STEREO_FILTER |
 			RT5677_AD_STEREO1_FILTER | RT5677_I2S1_SOURCE,
 			RT5677_CLK_SEL_I2S1_ASRC);
-	/* Enable codec ASRC function for Mono ADC L.
+	/* Enable codec ASRC function for Moyes ADC L.
 	 * The ASRC clock source is clk_sys2_asrc.
 	 */
 	rt5677_sel_asrc_clk_src(component, RT5677_AD_MONO_L_FILTER,
@@ -332,11 +332,11 @@ static struct snd_soc_dai_link bdw_rt5677_dais[] = {
 		/* SSP0 - Codec */
 		.name = "Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
+		.igyesre_suspend = 1,
+		.igyesre_pmdown_time = 1,
 		.be_hw_params_fixup = broadwell_ssp0_fixup,
 		.ops = &bdw_rt5677_ops,
 		.dpcm_playback = 1,

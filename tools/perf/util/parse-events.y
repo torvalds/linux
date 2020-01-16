@@ -42,8 +42,8 @@ static void free_list_evsel(struct list_head* list_evsel)
 {
 	struct evsel *evsel, *tmp;
 
-	list_for_each_entry_safe(evsel, tmp, list_evsel, core.node) {
-		list_del_init(&evsel->core.node);
+	list_for_each_entry_safe(evsel, tmp, list_evsel, core.yesde) {
+		list_del_init(&evsel->core.yesde);
 		perf_evsel__delete(evsel);
 	}
 	free(list_evsel);

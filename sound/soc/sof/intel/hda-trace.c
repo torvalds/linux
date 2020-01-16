@@ -47,7 +47,7 @@ int hda_dsp_trace_init(struct snd_sof_dev *sdev, u32 *stream_tag)
 
 	if (!hda->dtrace_stream) {
 		dev_err(sdev->dev,
-			"error: no available capture stream for DMA trace\n");
+			"error: yes available capture stream for DMA trace\n");
 		return -ENODEV;
 	}
 
@@ -82,7 +82,7 @@ int hda_dsp_trace_release(struct snd_sof_dev *sdev)
 		return 0;
 	}
 
-	dev_dbg(sdev->dev, "DMA trace stream is not opened!\n");
+	dev_dbg(sdev->dev, "DMA trace stream is yest opened!\n");
 	return -ENODEV;
 }
 

@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
@@ -79,9 +79,9 @@ typedef struct {
 static device_info_t deviceInfo;
 
 static char *mode_option = NULL;
-static int nopan = 0;
-static int nowrap = 1;
-static int nomtrr = 0;
+static int yespan = 0;
+static int yeswrap = 1;
+static int yesmtrr = 0;
 
 /* PCI driver prototypes */
 static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -305,7 +305,7 @@ static int kyro_dev_video_mode_set(struct fb_info *info)
 	StopVTG(deviceInfo.pSTGReg);
 	DisableRamdacOutput(deviceInfo.pSTGReg);
 
-	/* Bring us out of VGA and into Hi-Res mode, if not already. */
+	/* Bring us out of VGA and into Hi-Res mode, if yest already. */
 	DisableVGA(deviceInfo.pSTGReg);
 
 	if (InitialiseRamdac(deviceInfo.pSTGReg,
@@ -395,7 +395,7 @@ static int kyrofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct kyrofb_info *par = info->par;
 
 	if (var->bits_per_pixel != 16 && var->bits_per_pixel != 32) {
-		printk(KERN_WARNING "kyrofb: depth not supported: %u\n", var->bits_per_pixel);
+		printk(KERN_WARNING "kyrofb: depth yest supported: %u\n", var->bits_per_pixel);
 		return -EINVAL;
 	}
 
@@ -426,19 +426,19 @@ static int kyrofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	/* Timing information. All values are in picoseconds */
 
 	/* par->PIXCLK is in 100Hz units. Convert to picoseconds -
-	 * ensuring we do not exceed 32 bit precision
+	 * ensuring we do yest exceed 32 bit precision
 	 */
 	/*
 	 * XXX: Enabling this really screws over the pixclock value when we
 	 * read it back with fbset. As such, leaving this commented out appears
-	 * to do the right thing (at least for now) .. bearing in mind that we
+	 * to do the right thing (at least for yesw) .. bearing in mind that we
 	 * have infact already done the KHZ2PICOS conversion in both the modedb
 	 * and kyro_var. -- PFM.
 	 */
 //	var->pixclock = 1000000000 / (par->PIXCLK / 10);
 
 	/* the header file claims we should use picoseconds
-	 * - nobody else does though, the all use pixels and lines
+	 * - yesbody else does though, the all use pixels and lines
 	 * of h and v sizes. Both options here.
 	 */
 
@@ -523,25 +523,25 @@ static int kyrofb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static int kyrofb_setcolreg(u_int regno, u_int red, u_int green,
+static int kyrofb_setcolreg(u_int regyes, u_int red, u_int green,
 			    u_int blue, u_int transp, struct fb_info *info)
 {
 	struct kyrofb_info *par = info->par;
 
-	if (regno > 255)
+	if (regyes > 255)
 		return 1;	/* Invalid register */
 
-	if (regno < 16) {
+	if (regyes < 16) {
 		switch (info->var.bits_per_pixel) {
 		case 16:
-			par->palette[regno] =
+			par->palette[regyes] =
 			     (red   & 0xf800) |
 			    ((green & 0xfc00) >> 5) |
 			    ((blue  & 0xf800) >> 11);
 			break;
 		case 32:
 			red >>= 8; green >>= 8; blue >>= 8; transp >>= 8;
-			par->palette[regno] =
+			par->palette[regyes] =
 			    (transp << 24) | (red << 16) | (green << 8) | blue;
 			break;
 		}
@@ -561,12 +561,12 @@ static int __init kyrofb_setup(char *options)
 	while ((this_opt = strsep(&options, ","))) {
 		if (!*this_opt)
 			continue;
-		if (strcmp(this_opt, "nopan") == 0) {
-			nopan = 1;
-		} else if (strcmp(this_opt, "nowrap") == 0) {
-			nowrap = 1;
-		} else if (strcmp(this_opt, "nomtrr") == 0) {
-			nomtrr = 1;
+		if (strcmp(this_opt, "yespan") == 0) {
+			yespan = 1;
+		} else if (strcmp(this_opt, "yeswrap") == 0) {
+			yeswrap = 1;
+		} else if (strcmp(this_opt, "yesmtrr") == 0) {
+			yesmtrr = 1;
 		} else {
 			mode_option = this_opt;
 		}
@@ -683,7 +683,7 @@ static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	kyro_fix.mmio_len   = pci_resource_len(pdev, 1);
 
 	currentpar->regbase = deviceInfo.pSTGReg =
-		ioremap_nocache(kyro_fix.mmio_start, kyro_fix.mmio_len);
+		ioremap_yescache(kyro_fix.mmio_start, kyro_fix.mmio_len);
 	if (!currentpar->regbase)
 		goto out_free_fb;
 
@@ -691,12 +691,12 @@ static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!info->screen_base)
 		goto out_unmap_regs;
 
-	if (!nomtrr)
+	if (!yesmtrr)
 		currentpar->wc_cookie = arch_phys_wc_add(kyro_fix.smem_start,
 							 kyro_fix.smem_len);
 
-	kyro_fix.ypanstep	= nopan ? 0 : 1;
-	kyro_fix.ywrapstep	= nowrap ? 0 : 1;
+	kyro_fix.ypanstep	= yespan ? 0 : 1;
+	kyro_fix.ywrapstep	= yeswrap ? 0 : 1;
 
 	info->fbops		= &kyrofb_ops;
 	info->fix		= kyro_fix;

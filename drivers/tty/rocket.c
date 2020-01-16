@@ -12,7 +12,7 @@
  *
  * This driver has 2 kernel control paths - exception handlers (calls into the driver
  * from user mode) and the timer bottom half (tasklet).  This is a polled driver, interrupts
- * are not used.
+ * are yest used.
  *
  * Critical data: 
  * -  rp_table[], accessed through passed "info" pointers, is a global (static) array of 
@@ -47,7 +47,7 @@
 /****** Kernel includes ******/
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/major.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
@@ -173,13 +173,13 @@ static Byte_t RRegData[RREGDATASIZE] = {
 	0x0a, 0x09, 0xc5, 0x11,	/* 08: XON char */
 	0x0c, 0x09, 0x86, 0x85,	/* 0c: XANY */
 	0x12, 0x09, 0x41, 0xff,	/* 10: Rx mask char */
-	0x14, 0x09, 0x82, 0x00,	/* 14: Compare/Ignore #0 */
+	0x14, 0x09, 0x82, 0x00,	/* 14: Compare/Igyesre #0 */
 	0x16, 0x09, 0x82, 0x7b,	/* 18: Compare #1 */
 	0x18, 0x09, 0x8a, 0x7d,	/* 1c: Compare #2 */
 	0x1a, 0x09, 0x88, 0x81,	/* 20: Interrupt #1 */
-	0x1c, 0x09, 0x86, 0x7a,	/* 24: Ignore/Replace #1 */
+	0x1c, 0x09, 0x86, 0x7a,	/* 24: Igyesre/Replace #1 */
 	0x1e, 0x09, 0x84, 0x81,	/* 28: Interrupt #2 */
-	0x20, 0x09, 0x82, 0x7c,	/* 2c: Ignore/Replace #2 */
+	0x20, 0x09, 0x82, 0x7c,	/* 2c: Igyesre/Replace #2 */
 	0x22, 0x09, 0x0a, 0x0a	/* 30: Rx FIFO Enable */
 };
 
@@ -205,7 +205,7 @@ static Byte_t sBitMapSetTbl[8] = {
 static int sClockPrescale = 0x14;
 
 /*
- *  Line number is the ttySIx number (x), the Minor number.  We 
+ *  Line number is the ttySIx number (x), the Miyesr number.  We 
  *  assign them sequentially, starting at zero.  The following 
  *  array keeps track of the line number assigned to a given board/aiop/channel.
  */
@@ -278,7 +278,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 /*************************************************************************/
 /*                     Module code starts here                           */
 
-static inline int rocket_paranoia_check(struct r_port *info,
+static inline int rocket_parayesia_check(struct r_port *info,
 					const char *routine)
 {
 #ifdef ROCKET_PARANOIA_CHECK
@@ -334,8 +334,8 @@ static void rp_do_receive(struct r_port *info, CHANNEL_t *cp,
 	 */
 	if (ChanStatus & STATMODE) {
 #ifdef ROCKET_DEBUG_RECEIVE
-		printk(KERN_INFO "Ignore %x, read %x...\n",
-			info->ignore_status_mask, info->read_status_mask);
+		printk(KERN_INFO "Igyesre %x, read %x...\n",
+			info->igyesre_status_mask, info->read_status_mask);
 #endif
 		while (ToRecv) {
 			char flag;
@@ -346,7 +346,7 @@ static void rp_do_receive(struct r_port *info, CHANNEL_t *cp,
 #endif
 			if (CharNStat & STMBREAKH)
 				CharNStat &= ~(STMFRAMEH | STMPARITYH);
-			if (CharNStat & info->ignore_status_mask) {
+			if (CharNStat & info->igyesre_status_mask) {
 				ToRecv--;
 				continue;
 			}
@@ -500,7 +500,7 @@ static void rp_handle_port(struct r_port *info)
 	}
 	if (IntMask & DELTA_CD) {	/* CD change  */
 #if (defined(ROCKET_DEBUG_OPEN) || defined(ROCKET_DEBUG_INTR) || defined(ROCKET_DEBUG_HANGUP))
-		printk(KERN_INFO "ttyR%d CD now %s...\n", info->line,
+		printk(KERN_INFO "ttyR%d CD yesw %s...\n", info->line,
 		       (ChanStatus & CD_ACT) ? "on" : "off");
 #endif
 		if (!(ChanStatus & CD_ACT) && info->cd_status) {
@@ -790,7 +790,7 @@ static void configure_r_port(struct tty_struct *tty, struct r_port *info,
 #endif
 
 	/*
-	 * Set up ignore/read mask words
+	 * Set up igyesre/read mask words
 	 */
 	info->read_status_mask = STMRCVROVRH | 0xFF;
 	if (I_INPCK(tty))
@@ -799,19 +799,19 @@ static void configure_r_port(struct tty_struct *tty, struct r_port *info,
 		info->read_status_mask |= STMBREAKH;
 
 	/*
-	 * Characters to ignore
+	 * Characters to igyesre
 	 */
-	info->ignore_status_mask = 0;
+	info->igyesre_status_mask = 0;
 	if (I_IGNPAR(tty))
-		info->ignore_status_mask |= STMFRAMEH | STMPARITYH;
+		info->igyesre_status_mask |= STMFRAMEH | STMPARITYH;
 	if (I_IGNBRK(tty)) {
-		info->ignore_status_mask |= STMBREAKH;
+		info->igyesre_status_mask |= STMBREAKH;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too.  (For real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too.  (For real raw support).
 		 */
 		if (I_IGNPAR(tty))
-			info->ignore_status_mask |= STMRCVROVRH;
+			info->igyesre_status_mask |= STMRCVROVRH;
 	}
 
 	rocketMode = info->flags & ROCKET_MODE_MASK;
@@ -883,7 +883,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 		return -ENOMEM;
 
 	/*
-	 * We must not sleep from here until the port is marked fully in use.
+	 * We must yest sleep from here until the port is marked fully in use.
 	 */
 	if (info->xmit_buf)
 		free_page(page);
@@ -906,7 +906,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 #endif
 
 	/*
-	 * Info->count is now 1; so it's safe to sleep now.
+	 * Info->count is yesw 1; so it's safe to sleep yesw.
 	 */
 	if (!tty_port_initialized(port)) {
 		cp = &info->channel;
@@ -963,7 +963,7 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 	int timeout;
 	CHANNEL_t *cp;
 	
-	if (rocket_paranoia_check(info, "rp_close"))
+	if (rocket_parayesia_check(info, "rp_close"))
 		return;
 
 #ifdef ROCKET_DEBUG_OPEN
@@ -1042,7 +1042,7 @@ static void rp_set_termios(struct tty_struct *tty,
 	CHANNEL_t *cp;
 	unsigned cflag;
 
-	if (rocket_paranoia_check(info, "rp_set_termios"))
+	if (rocket_parayesia_check(info, "rp_set_termios"))
 		return;
 
 	cflag = tty->termios.c_cflag;
@@ -1081,7 +1081,7 @@ static int rp_break(struct tty_struct *tty, int break_state)
 	struct r_port *info = tty->driver_data;
 	unsigned long flags;
 
-	if (rocket_paranoia_check(info, "rp_break"))
+	if (rocket_parayesia_check(info, "rp_break"))
 		return -EINVAL;
 
 	spin_lock_irqsave(&info->slock, flags);
@@ -1285,7 +1285,7 @@ static int rp_ioctl(struct tty_struct *tty,
 	void __user *argp = (void __user *)arg;
 	int ret = 0;
 
-	if (cmd != RCKP_GET_PORTS && rocket_paranoia_check(info, "rp_ioctl"))
+	if (cmd != RCKP_GET_PORTS && rocket_parayesia_check(info, "rp_ioctl"))
 		return -ENXIO;
 
 	switch (cmd) {
@@ -1325,7 +1325,7 @@ static void rp_send_xchar(struct tty_struct *tty, char ch)
 	struct r_port *info = tty->driver_data;
 	CHANNEL_t *cp;
 
-	if (rocket_paranoia_check(info, "rp_send_xchar"))
+	if (rocket_parayesia_check(info, "rp_send_xchar"))
 		return;
 
 	cp = &info->channel;
@@ -1343,7 +1343,7 @@ static void rp_throttle(struct tty_struct *tty)
 	printk(KERN_INFO "throttle %s ....\n", tty->name);
 #endif
 
-	if (rocket_paranoia_check(info, "rp_throttle"))
+	if (rocket_parayesia_check(info, "rp_throttle"))
 		return;
 
 	if (I_IXOFF(tty))
@@ -1359,7 +1359,7 @@ static void rp_unthrottle(struct tty_struct *tty)
 	printk(KERN_INFO "unthrottle %s ....\n", tty->name);
 #endif
 
-	if (rocket_paranoia_check(info, "rp_unthrottle"))
+	if (rocket_parayesia_check(info, "rp_unthrottle"))
 		return;
 
 	if (I_IXOFF(tty))
@@ -1385,7 +1385,7 @@ static void rp_stop(struct tty_struct *tty)
 	       info->xmit_cnt, info->xmit_fifo_room);
 #endif
 
-	if (rocket_paranoia_check(info, "rp_stop"))
+	if (rocket_parayesia_check(info, "rp_stop"))
 		return;
 
 	if (sGetTxCnt(&info->channel))
@@ -1401,7 +1401,7 @@ static void rp_start(struct tty_struct *tty)
 	       info->xmit_cnt, info->xmit_fifo_room);
 #endif
 
-	if (rocket_paranoia_check(info, "rp_stop"))
+	if (rocket_parayesia_check(info, "rp_stop"))
 		return;
 
 	sEnTransmit(&info->channel);
@@ -1420,7 +1420,7 @@ static void rp_wait_until_sent(struct tty_struct *tty, int timeout)
 	int check_time, exit_time;
 	int txcnt;
 
-	if (rocket_paranoia_check(info, "rp_wait_until_sent"))
+	if (rocket_parayesia_check(info, "rp_wait_until_sent"))
 		return;
 
 	cp = &info->channel;
@@ -1472,7 +1472,7 @@ static void rp_hangup(struct tty_struct *tty)
 	struct r_port *info = tty->driver_data;
 	unsigned long flags;
 
-	if (rocket_paranoia_check(info, "rp_hangup"))
+	if (rocket_parayesia_check(info, "rp_hangup"))
 		return;
 
 #if (defined(ROCKET_DEBUG_OPEN) || defined(ROCKET_DEBUG_HANGUP))
@@ -1512,7 +1512,7 @@ static int rp_put_char(struct tty_struct *tty, unsigned char ch)
 	CHANNEL_t *cp;
 	unsigned long flags;
 
-	if (rocket_paranoia_check(info, "rp_put_char"))
+	if (rocket_parayesia_check(info, "rp_put_char"))
 		return 0;
 
 	/*
@@ -1547,7 +1547,7 @@ static int rp_put_char(struct tty_struct *tty, unsigned char ch)
 
 /*
  *  Exception handler - write routine, called when user app writes to the device.
- *  A per port write mutex is used to protect from another process writing to
+ *  A per port write mutex is used to protect from ayesther process writing to
  *  this port at the same time.  This other process could be running on the other CPU
  *  or get control of the CPU if the copy_from_user() blocks due to a page fault (swapped out). 
  *  Spinlocks protect the info xmit members.
@@ -1561,7 +1561,7 @@ static int rp_write(struct tty_struct *tty,
 	int c, retval = 0;
 	unsigned long flags;
 
-	if (count <= 0 || rocket_paranoia_check(info, "rp_write"))
+	if (count <= 0 || rocket_parayesia_check(info, "rp_write"))
 		return 0;
 
 	if (mutex_lock_interruptible(&info->write_mtx))
@@ -1643,7 +1643,7 @@ end:
 
 /*
  * Return the number of characters that can be sent.  We estimate
- * only using the in-memory transmit buffer only, and ignore the
+ * only using the in-memory transmit buffer only, and igyesre the
  * potential space in the transmit FIFO.
  */
 static int rp_write_room(struct tty_struct *tty)
@@ -1651,7 +1651,7 @@ static int rp_write_room(struct tty_struct *tty)
 	struct r_port *info = tty->driver_data;
 	int ret;
 
-	if (rocket_paranoia_check(info, "rp_write_room"))
+	if (rocket_parayesia_check(info, "rp_write_room"))
 		return 0;
 
 	ret = XMIT_BUF_SIZE - info->xmit_cnt - 1;
@@ -1671,7 +1671,7 @@ static int rp_chars_in_buffer(struct tty_struct *tty)
 {
 	struct r_port *info = tty->driver_data;
 
-	if (rocket_paranoia_check(info, "rp_chars_in_buffer"))
+	if (rocket_parayesia_check(info, "rp_chars_in_buffer"))
 		return 0;
 
 #ifdef ROCKET_DEBUG_WRITE
@@ -1683,7 +1683,7 @@ static int rp_chars_in_buffer(struct tty_struct *tty)
 /*
  *  Flushes the TX fifo for a port, deletes data in the xmit_buf stored in the
  *  r_port struct for the port.  Note that spinlock are used to protect info members,
- *  do not call this function if the spinlock is already held.
+ *  do yest call this function if the spinlock is already held.
  */
 static void rp_flush_buffer(struct tty_struct *tty)
 {
@@ -1691,7 +1691,7 @@ static void rp_flush_buffer(struct tty_struct *tty)
 	CHANNEL_t *cp;
 	unsigned long flags;
 
-	if (rocket_paranoia_check(info, "rp_flush_buffer"))
+	if (rocket_parayesia_check(info, "rp_flush_buffer"))
 		return;
 
 	spin_lock_irqsave(&info->slock, flags);
@@ -1765,8 +1765,8 @@ Call:     sPCIInitController(CtlP,CtlNum,AiopIOList,AiopIOListSize,
           int CtlNum; Controller number
           ByteIO_t *AiopIOList; List of I/O addresses for each AIOP.
              This list must be in the order the AIOPs will be found on the
-             controller.  Once an AIOP in the list is not found, it is
-             assumed that there are no more AIOPs on the controller.
+             controller.  Once an AIOP in the list is yest found, it is
+             assumed that there are yes more AIOPs on the controller.
           int AiopIOListSize; Number of addresses in AiopIOList
           int IRQNum; Interrupt Request number.  Can be any of the following:
                          0: Disable global interrupts
@@ -1808,9 +1808,9 @@ Comments:
           invalid combination.
 
           This function performs initialization of global interrupt modes,
-          but it does not actually enable global interrupts.  To enable
+          but it does yest actually enable global interrupts.  To enable
           and disable global interrupts use functions sEnGlobalInt() and
-          sDisGlobalInt().  Enabling of global interrupts is normally not
+          sDisGlobalInt().  Enabling of global interrupts is yesrmally yest
           done until all other initializations are complete.
 
           Even if interrupts are globally enabled, they must also be
@@ -1860,7 +1860,7 @@ static int sPCIInitController(CONTROLLER_T * CtlP, int CtlNum,
 		CtlP->AiopIntChanIO[i] = io + _INT_CHAN;
 
 		CtlP->AiopID[i] = sReadAiopID(io);	/* read AIOP ID */
-		if (CtlP->AiopID[i] == AIOPID_NULL)	/* if AIOP does not exist */
+		if (CtlP->AiopID[i] == AIOPID_NULL)	/* if AIOP does yest exist */
 			break;	/* done looking for AIOPs */
 
 		CtlP->AiopNumChan[i] = sReadAiopNumChan((WordIO_t) io);	/* num channels in AIOP */
@@ -2209,14 +2209,14 @@ static int __init init_ISA(int i)
 	CONTROLLER_t *ctlp;
 	char *type_string;
 
-	/*  If io_addr is zero, no board configured */
+	/*  If io_addr is zero, yes board configured */
 	if (rcktpt_io_addr[i] == 0)
 		return (0);
 
 	/*  Reserve the IO region */
 	if (!request_region(rcktpt_io_addr[i], 64, "Comtrol RocketPort")) {
 		printk(KERN_ERR "Unable to reserve IO region for configured "
-				"ISA RocketPort at address 0x%lx, board not "
+				"ISA RocketPort at address 0x%lx, board yest "
 				"installed...\n", rcktpt_io_addr[i]);
 		rcktpt_io_addr[i] = 0;
 		return (0);
@@ -2351,14 +2351,14 @@ static int __init rp_init(void)
 		goto err;
 
 	/*
-	 *  If board 1 is non-zero, there is at least one ISA configured.  If controller is 
+	 *  If board 1 is yesn-zero, there is at least one ISA configured.  If controller is 
 	 *  zero, use the default controller IO address of board1 + 0x40.
 	 */
 	if (board1) {
 		if (controller == 0)
 			controller = board1 + 0x40;
 	} else {
-		controller = 0;  /*  Used as a flag, meaning no ISA boards */
+		controller = 0;  /*  Used as a flag, meaning yes ISA boards */
 	}
 
 	/*  If an ISA card is configured, reserve the 4 byte IO space for the Mudbac controller */
@@ -2394,7 +2394,7 @@ static int __init rp_init(void)
 	rocket_driver->name = "ttyR";
 	rocket_driver->driver_name = "Comtrol RocketPort";
 	rocket_driver->major = TTY_ROCKET_MAJOR;
-	rocket_driver->minor_start = 0;
+	rocket_driver->miyesr_start = 0;
 	rocket_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	rocket_driver->subtype = SERIAL_TYPE_NORMAL;
 	rocket_driver->init_termios = tty_std_termios;
@@ -2496,8 +2496,8 @@ Call:     sInitController(CtlP,CtlNum,MudbacIO,AiopIOList,AiopIOListSize,
           ByteIO_t MudbacIO; Mudbac base I/O address.
           ByteIO_t *AiopIOList; List of I/O addresses for each AIOP.
              This list must be in the order the AIOPs will be found on the
-             controller.  Once an AIOP in the list is not found, it is
-             assumed that there are no more AIOPs on the controller.
+             controller.  Once an AIOP in the list is yest found, it is
+             assumed that there are yes more AIOPs on the controller.
           int AiopIOListSize; Number of addresses in AiopIOList
           int IRQNum; Interrupt Request number.  Can be any of the following:
                          0: Disable global interrupts
@@ -2539,9 +2539,9 @@ Comments:
           invalid combination.
 
           This function performs initialization of global interrupt modes,
-          but it does not actually enable global interrupts.  To enable
+          but it does yest actually enable global interrupts.  To enable
           and disable global interrupts use functions sEnGlobalInt() and
-          sDisGlobalInt().  Enabling of global interrupts is normally not
+          sDisGlobalInt().  Enabling of global interrupts is yesrmally yest
           done until all other initializations are complete.
 
           Even if interrupts are globally enabled, they must also be
@@ -2574,11 +2574,11 @@ static int sInitController(CONTROLLER_T * CtlP, int CtlNum, ByteIO_t MudbacIO,
 	CtlP->MReg3IO = MudbacIO + 3;
 #if 1
 	CtlP->MReg2 = 0;	/* interrupt disable */
-	CtlP->MReg3 = 0;	/* no periodic interrupts */
+	CtlP->MReg3 = 0;	/* yes periodic interrupts */
 #else
 	if (sIRQMap[IRQNum] == 0) {	/* interrupts globally disabled */
 		CtlP->MReg2 = 0;	/* interrupt disable */
-		CtlP->MReg3 = 0;	/* no periodic interrupts */
+		CtlP->MReg3 = 0;	/* yes periodic interrupts */
 	} else {
 		CtlP->MReg2 = sIRQMap[IRQNum];	/* set IRQ number */
 		CtlP->MReg3 = Frequency;	/* set frequency */
@@ -2602,7 +2602,7 @@ static int sInitController(CONTROLLER_T * CtlP, int CtlNum, ByteIO_t MudbacIO,
 			continue;
 		sEnAiop(CtlP, i);	/* enable the AIOP */
 		CtlP->AiopID[i] = sReadAiopID(io);	/* read AIOP ID */
-		if (CtlP->AiopID[i] == AIOPID_NULL)	/* if AIOP does not exist */
+		if (CtlP->AiopID[i] == AIOPID_NULL)	/* if AIOP does yest exist */
 			done = 1;	/* done looking for AIOPs */
 		else {
 			CtlP->AiopNumChan[i] = sReadAiopNumChan((WordIO_t) io);	/* num channels in AIOP */
@@ -2626,7 +2626,7 @@ Call:     sReadAiopID(io)
           ByteIO_t io: AIOP base I/O address
 Return:   int: Flag AIOPID_XXXX if a valid AIOP is found, where X
                  is replace by an identifying number.
-          Flag AIOPID_NULL if no valid AIOP is found
+          Flag AIOPID_NULL if yes valid AIOP is found
 Warnings: No context switches are allowed while executing this function.
 
 */
@@ -2639,7 +2639,7 @@ static int sReadAiopID(ByteIO_t io)
 	AiopID = sInW(io + _CHN_STAT0) & 0x07;
 	if (AiopID == 0x06)
 		return (1);
-	else			/* AIOP does not exist */
+	else			/* AIOP does yest exist */
 		return (-1);
 }
 
@@ -2825,15 +2825,15 @@ Call:     sStopRxProcessor(ChP)
 
 Comments: The receive processor can be started again with sStartRxProcessor().
           This function causes the receive processor to skip over the
-          stopped channel.  It does not stop it from processing other channels.
+          stopped channel.  It does yest stop it from processing other channels.
 
 Warnings: No context switches are allowed while executing this function.
 
-          Do not leave the receive processor stopped for more than one
+          Do yest leave the receive processor stopped for more than one
           character time.
 
           After calling this function a delay of 4 uS is required to ensure
-          that the receive processor is no longer processing this channel.
+          that the receive processor is yes longer processing this channel.
 */
 static void sStopRxProcessor(CHANNEL_T * ChP)
 {
@@ -2952,7 +2952,7 @@ static int sWriteTxPrioByte(CHANNEL_T * ChP, Byte_t Data)
 		IndexAddr = ChP->IndexAddr;
 		sOutW((WordIO_t) IndexAddr, ChP->TxPrioCnt);	/* get priority buffer status */
 		if (sInB((ByteIO_t) ChP->IndexData) & PRI_PEND)	/* priority buffer busy */
-			return (0);	/* nothing sent */
+			return (0);	/* yesthing sent */
 
 		WordPtr = (Word_t *) (&DWBuf[0]);
 		*WordPtr = ChP->TxPrioBuf;	/* data byte address */
@@ -2988,8 +2988,8 @@ Call:     sEnInterrupts(ChP,Flags)
                             Interrupt Channel Register.
 Return:   void
 Comments: If an interrupt enable flag is set in Flags, that interrupt will be
-          enabled.  If an interrupt enable flag is not set in Flags, that
-          interrupt will not be changed.  Interrupts can be disabled with
+          enabled.  If an interrupt enable flag is yest set in Flags, that
+          interrupt will yest be changed.  Interrupts can be disabled with
           function sDisInterrupts().
 
           This function sets the appropriate bit for the channel in the AIOP's
@@ -3039,8 +3039,8 @@ Call:     sDisInterrupts(ChP,Flags)
                             AIOP's Interrupt Channel Register.
 Return:   void
 Comments: If an interrupt flag is set in Flags, that interrupt will be
-          disabled.  If an interrupt flag is not set in Flags, that
-          interrupt will not be changed.  Interrupts can be enabled with
+          disabled.  If an interrupt flag is yest set in Flags, that
+          interrupt will yest be changed.  Interrupts can be enabled with
           function sEnInterrupts().
 
           This function clears the appropriate bit for the channel in the AIOP's
@@ -3080,7 +3080,7 @@ static void sModemReset(CONTROLLER_T * CtlP, int chan, int on)
 
 	addr = CtlP->AiopIO[0] + 0x400;
 	val = sInB(CtlP->MReg3IO);
-	/* if AIOP[1] is not enabled, enable it */
+	/* if AIOP[1] is yest enabled, enable it */
 	if ((val & 2) == 0) {
 		val = sInB(CtlP->MReg2IO);
 		sOutB(CtlP->MReg2IO, (val & 0xfc) | (1 & 0x03));

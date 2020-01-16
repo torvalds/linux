@@ -15,11 +15,11 @@ __sdivsi3_1:
 
 __sdivsi3_2:
 	nsb r5, r1
-	shlld r5, r1, r25    /* normalize; [-2 ..1, 1..2) in s2.62 */
+	shlld r5, r1, r25    /* yesrmalize; [-2 ..1, 1..2) in s2.62 */
 	shari r25, 58, r21   /* extract 5(6) bit index (s2.4 with hole -1..1) */
 	/* bubble */
 	ldx.ub r20, r21, r19 /* u0.8 */
-	shari r25, 32, r25   /* normalize to s2.30 */
+	shari r25, 32, r25   /* yesrmalize to s2.30 */
 	shlli r21, 1, r21
 	muls.l r25, r19, r19 /* s2.38 */
 	ldx.w r20, r21, r21  /* s2.14 */

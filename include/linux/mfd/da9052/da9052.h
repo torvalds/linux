@@ -213,6 +213,6 @@ void da9052_free_irq(struct da9052 *da9052, int irq, void *data);
 
 int da9052_enable_irq(struct da9052 *da9052, int irq);
 int da9052_disable_irq(struct da9052 *da9052, int irq);
-int da9052_disable_irq_nosync(struct da9052 *da9052, int irq);
+int da9052_disable_irq_yessync(struct da9052 *da9052, int irq);
 
 #endif /* __MFD_DA9052_DA9052_H */

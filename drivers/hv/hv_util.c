@@ -236,7 +236,7 @@ static void hv_set_host_time(struct work_struct *work)
  * considered a hard request to discipline the clock.
  *
  * ICTIMESYNCFLAG_SAMPLE bit indicates a time sample from host. This is
- * typically used as a hint to the guest. The guest is under no obligation
+ * typically used as a hint to the guest. The guest is under yes obligation
  * to discipline the clock.
  */
 static inline void adj_guesttime(u64 hosttime, u64 reftime, u8 adj_flags)
@@ -257,7 +257,7 @@ static inline void adj_guesttime(u64 hosttime, u64 reftime, u8 adj_flags)
 	/*
 	 * TimeSync v4 messages contain reference time (guest's Hyper-V
 	 * clocksource read when the time sample was generated), we can
-	 * improve the precision by adding the delta between now and the
+	 * improve the precision by adding the delta between yesw and the
 	 * time of generation. For older protocols we set
 	 * reftime == cur_reftime on call.
 	 */
@@ -332,7 +332,7 @@ static void timesync_onchannelcallback(void *context)
 /*
  * Heartbeat functionality.
  * Every two seconds, Hyper-V send us a heartbeat request message.
- * we respond to this message, and Hyper-V knows we are alive.
+ * we respond to this message, and Hyper-V kyesws we are alive.
  */
 static void heartbeat_onchannelcallback(void *context)
 {
@@ -403,8 +403,8 @@ static int util_probe(struct hv_device *dev,
 	}
 
 	/*
-	 * The set of services managed by the util driver are not performance
-	 * critical and do not need batched reading. Furthermore, some services
+	 * The set of services managed by the util driver are yest performance
+	 * critical and do yest need batched reading. Furthermore, some services
 	 * such as KVP can only handle one message from the host at a time.
 	 * Turn off batched reading for all util drivers before we open the
 	 * channel.
@@ -538,7 +538,7 @@ static int hv_timesync_init(struct hv_util_service *srv)
 	 */
 	hv_ptp_clock = ptp_clock_register(&ptp_hyperv_info, NULL);
 	if (IS_ERR_OR_NULL(hv_ptp_clock)) {
-		pr_err("cannot register PTP clock: %ld\n",
+		pr_err("canyest register PTP clock: %ld\n",
 		       PTR_ERR(hv_ptp_clock));
 		hv_ptp_clock = NULL;
 	}

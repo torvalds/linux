@@ -135,7 +135,7 @@ long cxl_h_collect_vpd(u64 unit_address, u64 record, u64 list_address,
 long cxl_h_get_fn_error_interrupt(u64 unit_address, u64 *reg);
 
 /**
- * cxl_h_ack_fn_error_interrupt - Acknowledge function-wide error data
+ * cxl_h_ack_fn_error_interrupt - Ackyeswledge function-wide error data
  *                                based on an interrupt
  * Parameter1 = value to write to the function-wide error interrupt register
  */

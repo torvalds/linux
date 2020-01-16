@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
@@ -88,11 +88,11 @@ static const struct pt_regs_offset regoffset_table[] = {
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure single step bits etc are not set.
+ * Make sure single step bits etc are yest set.
  */
 void ptrace_disable(struct task_struct *child)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 /* To get the necessary page struct, access_process_vm() first calls
@@ -138,7 +138,7 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 				__asm__ __volatile__(
 					"stxa %%g0, [%0] %1\n\t"
 					"membar #Sync"
-					: /* no outputs */
+					: /* yes outputs */
 					: "r" (start),
 					"i" (ASI_DCACHE_INVALIDATE));
 		}
@@ -363,7 +363,7 @@ static int genregs64_set(struct task_struct *target,
 	}
 
 	if (!ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 						36 * sizeof(u64), -1);
 
 	return ret;
@@ -474,7 +474,7 @@ static int fpregs64_set(struct task_struct *target,
 	task_thread_info(target)->fpsaved[0] = fprs;
 
 	if (!ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 						35 * sizeof(u64), -1);
 	return ret;
 }
@@ -488,7 +488,7 @@ static const struct user_regset sparc64_regsets[] = {
 	 *	TSTATE, TPC, TNPC, Y
 	 */
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = 36,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.get = genregs64_get, .set = genregs64_set
@@ -500,7 +500,7 @@ static const struct user_regset sparc64_regsets[] = {
 	 *	FPRS
 	 */
 	[REGSET_FP] = {
-		.core_note_type = NT_PRFPREG,
+		.core_yeste_type = NT_PRFPREG,
 		.n = 35,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.get = fpregs64_get, .set = fpregs64_set
@@ -743,7 +743,7 @@ finish:
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
 
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+	return user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 					 38 * sizeof(reg), -1);
 }
 
@@ -819,7 +819,7 @@ static int fpregs32_set(struct task_struct *target,
 				 fpregs,
 				 0, 32 * sizeof(u32));
 	if (!ret)
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 					  32 * sizeof(u32),
 					  33 * sizeof(u32));
 	if (!ret && count > 0) {
@@ -842,7 +842,7 @@ static int fpregs32_set(struct task_struct *target,
 	task_thread_info(target)->fpsaved[0] = fprs;
 
 	if (!ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 						34 * sizeof(u32), -1);
 	return ret;
 }
@@ -856,7 +856,7 @@ static const struct user_regset sparc32_regsets[] = {
 	 *	PSR, PC, nPC, Y, WIM, TBR
 	 */
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = 38,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.get = genregs32_get, .set = genregs32_set
@@ -872,7 +872,7 @@ static const struct user_regset sparc32_regsets[] = {
 	 *	FPU QUEUE (64 32-bit ints)
 	 */
 	[REGSET_FP] = {
-		.core_note_type = NT_PRFPREG,
+		.core_yeste_type = NT_PRFPREG,
 		.n = 99,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.get = fpregs32_get, .set = fpregs32_set
@@ -1170,7 +1170,7 @@ int regs_query_register_offset(const char *name)
  * @addr:	address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If yest, returns false.
  */
 static inline int regs_within_kernel_stack(struct pt_regs *regs,
 					   unsigned long addr)

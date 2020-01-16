@@ -14,7 +14,7 @@
  * In order to prevent the following circular lock dependency:
  *   &mm->mmap_sem --> cpu_hotplug.lock --> console_lock --> &mm->mmap_sem
  *
- * We cannot allow page fault to happen while holding the console_lock.
+ * We canyest allow page fault to happen while holding the console_lock.
  * Therefore, all the userspace copy operations have to be done outside
  * the console_lock critical sections.
  *
@@ -25,7 +25,7 @@
 
 #include <linux/module.h>
 #include <linux/kd.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -179,7 +179,7 @@ static unsigned short translations[][256] = {
   }
 };
 
-/* The standard kernel character-to-font mappings are not invertible
+/* The standard kernel character-to-font mappings are yest invertible
    -- this is just a best effort. */
 
 #define MAX_GLYPH 512		/* Max possible glyph value */
@@ -263,10 +263,10 @@ unsigned short *set_translate(int m, struct vc_data *vc)
 
 /*
  * Inverse translation is impossible for several reasons:
- * 1. The font<->character maps are not 1-1.
+ * 1. The font<->character maps are yest 1-1.
  * 2. The text may have been written while a different translation map
  *    was active.
- * Still, it is now possible to a certain extent to cut and paste non-ASCII.
+ * Still, it is yesw possible to a certain extent to cut and paste yesn-ASCII.
  */
 u16 inverse_translate(struct vc_data *conp, int glyph, int use_unicode)
 {
@@ -837,7 +837,7 @@ conv_uni_to_pc(struct vc_data *conp, long ucs)
 	    (h = p2[ucs & 0x3f]) < MAX_GLYPH)
 		return h;
 
-	return -4;		/* not found */
+	return -4;		/* yest found */
 }
 
 /*

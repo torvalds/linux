@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_REQBUFS:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_REQBUFS - Initiate Memory Mapping, User Pointer I/O or DMA buffer I/O
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_REQBUFS, struct v4l2_requestbuffers *argp )
@@ -62,7 +62,7 @@ number is also possible when the driver requires more buffers to
 function correctly. For example video output requires at least two
 buffers, one displayed and one filled by the application.
 
-When the I/O method is not supported the ioctl returns an ``EINVAL`` error
+When the I/O method is yest supported the ioctl returns an ``EINVAL`` error
 code.
 
 Applications can call :ref:`VIDIOC_REQBUFS` again to change the number of
@@ -102,9 +102,9 @@ aborting or finishing any DMA in progress, an implicit
     * - __u32
       - ``capabilities``
       - Set by the driver. If 0, then the driver doesn't support
-        capabilities. In that case all you know is that the driver is
+        capabilities. In that case all you kyesw is that the driver is
 	guaranteed to support ``V4L2_MEMORY_MMAP`` and *might* support
-	other :c:type:`v4l2_memory` types. It will not support any others
+	other :c:type:`v4l2_memory` types. It will yest support any others
 	capabilities.
 
 	If you want to query the capabilities with a minimum of side-effects,
@@ -160,10 +160,10 @@ aborting or finishing any DMA in progress, an implicit
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The buffer type (``type`` field) or the requested I/O method
-    (``memory``) is not supported.
+    (``memory``) is yest supported.

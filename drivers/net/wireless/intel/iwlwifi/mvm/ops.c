@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -65,7 +65,7 @@
 #include <linux/vmalloc.h>
 #include <net/mac80211.h>
 
-#include "fw/notif-wait.h"
+#include "fw/yestif-wait.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "fw/img.h"
@@ -167,10 +167,10 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 
 	/*
 	 * TODO: Bits 7-8 of CSR in 8000 HW family and higher set the ADC
-	 * sampling, and shouldn't be set to any non-zero value.
+	 * sampling, and shouldn't be set to any yesn-zero value.
 	 * The same is supposed to be true of the other HW, but unsetting
 	 * them (such as the 7260) causes automatic tests to fail on seemingly
-	 * unrelated errors. Need to further investigate this, but for now
+	 * unrelated errors. Need to further investigate this, but for yesw
 	 * we'll separate cases.
 	 */
 	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_8000)
@@ -196,9 +196,9 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	/*
 	 * W/A : NIC is stuck in a reset state after Early PCIe power off
 	 * (PCIe power is lost before PERST# is asserted), causing ME FW
-	 * to lose ownership and not being able to obtain it back.
+	 * to lose ownership and yest being able to obtain it back.
 	 */
-	if (!mvm->trans->cfg->apmg_not_supported)
+	if (!mvm->trans->cfg->apmg_yest_supported)
 		iwl_set_bits_mask_prph(mvm->trans, APMG_PS_CTRL_REG,
 				       APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
 				       ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
@@ -221,10 +221,10 @@ enum iwl_rx_handler_context {
 };
 
 /**
- * struct iwl_rx_handlers handler for FW notification
+ * struct iwl_rx_handlers handler for FW yestification
  * @cmd_id: command id
  * @context: see &iwl_rx_handler_context
- * @fn: the function is called when notification is received
+ * @fn: the function is called when yestification is received
  */
 struct iwl_rx_handlers {
 	u16 cmd_id;
@@ -238,7 +238,7 @@ struct iwl_rx_handlers {
 	{ .cmd_id = WIDE_ID(_grp, _cmd), .fn = _fn, .context = _context }
 
 /*
- * Handlers for fw notifications
+ * Handlers for fw yestifications
  * Convention: RX_HANDLER(CMD_NAME, iwl_mvm_rx_CMD_NAME
  * This list should be in order of frequency for performance purposes.
  *
@@ -246,61 +246,61 @@ struct iwl_rx_handlers {
  */
 static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(TX_CMD, iwl_mvm_rx_tx_cmd, RX_HANDLER_SYNC),
-	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_notif, RX_HANDLER_SYNC),
+	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_yestif, RX_HANDLER_SYNC),
 
 	RX_HANDLER_GRP(DATA_PATH_GROUP, TLC_MNG_UPDATE_NOTIF,
-		       iwl_mvm_tlc_update_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_tlc_update_yestif, RX_HANDLER_SYNC),
 
-	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif,
+	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_yestif,
 		   RX_HANDLER_ASYNC_LOCKED),
-	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif,
+	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_yestif,
 		   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics,
 		   RX_HANDLER_ASYNC_LOCKED),
 
 	RX_HANDLER(BA_WINDOW_STATUS_NOTIFICATION_ID,
-		   iwl_mvm_window_status_notif, RX_HANDLER_SYNC),
+		   iwl_mvm_window_status_yestif, RX_HANDLER_SYNC),
 
-	RX_HANDLER(TIME_EVENT_NOTIFICATION, iwl_mvm_rx_time_event_notif,
+	RX_HANDLER(TIME_EVENT_NOTIFICATION, iwl_mvm_rx_time_event_yestif,
 		   RX_HANDLER_SYNC),
 	RX_HANDLER_GRP(MAC_CONF_GROUP, SESSION_PROTECTION_NOTIF,
-		       iwl_mvm_rx_session_protect_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_rx_session_protect_yestif, RX_HANDLER_SYNC),
 	RX_HANDLER(MCC_CHUB_UPDATE_CMD, iwl_mvm_rx_chub_update_mcc,
 		   RX_HANDLER_ASYNC_LOCKED),
 
-	RX_HANDLER(EOSP_NOTIFICATION, iwl_mvm_rx_eosp_notif, RX_HANDLER_SYNC),
+	RX_HANDLER(EOSP_NOTIFICATION, iwl_mvm_rx_eosp_yestif, RX_HANDLER_SYNC),
 
 	RX_HANDLER(SCAN_ITERATION_COMPLETE,
-		   iwl_mvm_rx_lmac_scan_iter_complete_notif, RX_HANDLER_SYNC),
+		   iwl_mvm_rx_lmac_scan_iter_complete_yestif, RX_HANDLER_SYNC),
 	RX_HANDLER(SCAN_OFFLOAD_COMPLETE,
-		   iwl_mvm_rx_lmac_scan_complete_notif,
+		   iwl_mvm_rx_lmac_scan_complete_yestif,
 		   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER(MATCH_FOUND_NOTIFICATION, iwl_mvm_rx_scan_match_found,
 		   RX_HANDLER_SYNC),
-	RX_HANDLER(SCAN_COMPLETE_UMAC, iwl_mvm_rx_umac_scan_complete_notif,
+	RX_HANDLER(SCAN_COMPLETE_UMAC, iwl_mvm_rx_umac_scan_complete_yestif,
 		   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER(SCAN_ITERATION_COMPLETE_UMAC,
-		   iwl_mvm_rx_umac_scan_iter_complete_notif, RX_HANDLER_SYNC),
+		   iwl_mvm_rx_umac_scan_iter_complete_yestif, RX_HANDLER_SYNC),
 
-	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_notif,
+	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_yestif,
 		   RX_HANDLER_SYNC),
 
-	RX_HANDLER(MISSED_BEACONS_NOTIFICATION, iwl_mvm_rx_missed_beacons_notif,
+	RX_HANDLER(MISSED_BEACONS_NOTIFICATION, iwl_mvm_rx_missed_beacons_yestif,
 		   RX_HANDLER_SYNC),
 
 	RX_HANDLER(REPLY_ERROR, iwl_mvm_rx_fw_error, RX_HANDLER_SYNC),
 	RX_HANDLER(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION,
-		   iwl_mvm_power_uapsd_misbehaving_ap_notif, RX_HANDLER_SYNC),
-	RX_HANDLER(DTS_MEASUREMENT_NOTIFICATION, iwl_mvm_temp_notif,
+		   iwl_mvm_power_uapsd_misbehaving_ap_yestif, RX_HANDLER_SYNC),
+	RX_HANDLER(DTS_MEASUREMENT_NOTIFICATION, iwl_mvm_temp_yestif,
 		   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER_GRP(PHY_OPS_GROUP, DTS_MEASUREMENT_NOTIF_WIDE,
-		       iwl_mvm_temp_notif, RX_HANDLER_ASYNC_UNLOCKED),
+		       iwl_mvm_temp_yestif, RX_HANDLER_ASYNC_UNLOCKED),
 	RX_HANDLER_GRP(PHY_OPS_GROUP, CT_KILL_NOTIFICATION,
-		       iwl_mvm_ct_kill_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_ct_kill_yestif, RX_HANDLER_SYNC),
 
-	RX_HANDLER(TDLS_CHANNEL_SWITCH_NOTIFICATION, iwl_mvm_rx_tdls_notif,
+	RX_HANDLER(TDLS_CHANNEL_SWITCH_NOTIFICATION, iwl_mvm_rx_tdls_yestif,
 		   RX_HANDLER_ASYNC_LOCKED),
-	RX_HANDLER(MFUART_LOAD_NOTIFICATION, iwl_mvm_rx_mfuart_notif,
+	RX_HANDLER(MFUART_LOAD_NOTIFICATION, iwl_mvm_rx_mfuart_yestif,
 		   RX_HANDLER_SYNC),
 	RX_HANDLER_GRP(LOCATION_GROUP, TOF_RESPONDER_STATS,
 		       iwl_mvm_ftm_responder_stats, RX_HANDLER_ASYNC_LOCKED),
@@ -308,16 +308,16 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_GRP(LOCATION_GROUP, TOF_RANGE_RESPONSE_NOTIF,
 		       iwl_mvm_ftm_range_resp, RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER_GRP(LOCATION_GROUP, TOF_LC_NOTIF,
-		       iwl_mvm_ftm_lc_notif, RX_HANDLER_ASYNC_LOCKED),
+		       iwl_mvm_ftm_lc_yestif, RX_HANDLER_ASYNC_LOCKED),
 
 	RX_HANDLER_GRP(DEBUG_GROUP, MFU_ASSERT_DUMP_NTF,
-		       iwl_mvm_mfu_assert_dump_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_mfu_assert_dump_yestif, RX_HANDLER_SYNC),
 	RX_HANDLER_GRP(PROT_OFFLOAD_GROUP, STORED_BEACON_NTF,
-		       iwl_mvm_rx_stored_beacon_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_rx_stored_beacon_yestif, RX_HANDLER_SYNC),
 	RX_HANDLER_GRP(DATA_PATH_GROUP, MU_GROUP_MGMT_NOTIF,
-		       iwl_mvm_mu_mimo_grp_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_mu_mimo_grp_yestif, RX_HANDLER_SYNC),
 	RX_HANDLER_GRP(DATA_PATH_GROUP, STA_PM_NOTIF,
-		       iwl_mvm_sta_pm_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_sta_pm_yestif, RX_HANDLER_SYNC),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -612,7 +612,7 @@ static const struct iwl_fw_runtime_ops iwl_mvm_fwrt_ops = {
 	.d3_debug_enable = iwl_mvm_d3_debug_enable,
 };
 
-static u8 iwl_mvm_lookup_notif_ver(struct iwl_mvm *mvm, u8 grp, u8 cmd, u8 def)
+static u8 iwl_mvm_lookup_yestif_ver(struct iwl_mvm *mvm, u8 grp, u8 cmd, u8 def)
 {
 	const struct iwl_fw_cmd_version *entry;
 	unsigned int i;
@@ -624,9 +624,9 @@ static u8 iwl_mvm_lookup_notif_ver(struct iwl_mvm *mvm, u8 grp, u8 cmd, u8 def)
 	entry = mvm->fw->ucode_capa.cmd_versions;
 	for (i = 0; i < mvm->fw->ucode_capa.n_cmd_versions; i++, entry++) {
 		if (entry->group == grp && entry->cmd == cmd) {
-			if (entry->notif_ver == IWL_FW_CMD_VER_UNKNOWN)
+			if (entry->yestif_ver == IWL_FW_CMD_VER_UNKNOWN)
 				return def;
-			return entry->notif_ver;
+			return entry->yestif_ver;
 		}
 	}
 
@@ -641,7 +641,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	struct iwl_op_mode *op_mode;
 	struct iwl_mvm *mvm;
 	struct iwl_trans_config trans_cfg = {};
-	static const u8 no_reclaim_cmds[] = {
+	static const u8 yes_reclaim_cmds[] = {
 		TX_CMD,
 	};
 	int err, scan_size;
@@ -740,23 +740,23 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_DELAYED_WORK(&mvm->tcm.work, iwl_mvm_tcm_work);
 	mvm->tcm.ts = jiffies;
 	mvm->tcm.ll_ts = jiffies;
-	mvm->tcm.uapsd_nonagg_ts = jiffies;
+	mvm->tcm.uapsd_yesnagg_ts = jiffies;
 
 	INIT_DELAYED_WORK(&mvm->cs_tx_unblock_dwork, iwl_mvm_tx_unblock_dwork);
 
 	mvm->cmd_ver.d0i3_resp =
-		iwl_mvm_lookup_notif_ver(mvm, LEGACY_GROUP, D0I3_END_CMD, 0);
+		iwl_mvm_lookup_yestif_ver(mvm, LEGACY_GROUP, D0I3_END_CMD, 0);
 	/* we only support version 1 */
 	if (WARN_ON_ONCE(mvm->cmd_ver.d0i3_resp > 1))
 		goto out_free;
 
 	/*
 	 * Populate the state variables that the transport layer needs
-	 * to know about.
+	 * to kyesw about.
 	 */
 	trans_cfg.op_mode = op_mode;
-	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
-	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
+	trans_cfg.yes_reclaim_cmds = yes_reclaim_cmds;
+	trans_cfg.n_yes_reclaim_cmds = ARRAY_SIZE(yes_reclaim_cmds);
 
 	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		rb_size_default = IWL_AMSDU_2K;
@@ -819,13 +819,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans->iml = mvm->fw->iml;
 	trans->iml_len = mvm->fw->iml_len;
 
-	/* set up notification wait support */
-	iwl_notification_wait_init(&mvm->notif_wait);
+	/* set up yestification wait support */
+	iwl_yestification_wait_init(&mvm->yestif_wait);
 
 	/* Init phy db */
 	mvm->phy_db = iwl_phy_db_init(trans);
 	if (!mvm->phy_db) {
-		IWL_ERR(mvm, "Cannot init phy_db\n");
+		IWL_ERR(mvm, "Canyest init phy_db\n");
 		goto out_free;
 	}
 
@@ -860,7 +860,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (!mvm->scan_cmd)
 		goto out_free;
 
-	/* Set EBS as successful as long as not stated otherwise by the FW. */
+	/* Set EBS as successful as long as yest stated otherwise by the FW. */
 	mvm->last_ebs_successful = true;
 
 	err = iwl_mvm_mac_setup_register(mvm);
@@ -959,7 +959,7 @@ static void iwl_mvm_async_handlers_wk(struct work_struct *wk)
 	struct iwl_async_handler_entry *entry, *tmp;
 	LIST_HEAD(local_list);
 
-	/* Ensure that we are not in stop flow (check iwl_mvm_mac_stop) */
+	/* Ensure that we are yest in stop flow (check iwl_mvm_mac_stop) */
 
 	/*
 	 * Sync with Rx path with a lock. Remove all the entries from this list,
@@ -1023,11 +1023,11 @@ static void iwl_mvm_rx_common(struct iwl_mvm *mvm,
 	iwl_mvm_rx_check_trigger(mvm, pkt);
 
 	/*
-	 * Do the notification wait before RX handlers so
+	 * Do the yestification wait before RX handlers so
 	 * even if the RX handler consumes the RXB we have
-	 * access to it in the notification wait entry.
+	 * access to it in the yestification wait entry.
 	 */
-	iwl_notification_wait_notify(&mvm->notif_wait, pkt);
+	iwl_yestification_wait_yestify(&mvm->yestif_wait, pkt);
 
 	for (i = 0; i < ARRAY_SIZE(iwl_mvm_rx_handlers); i++) {
 		const struct iwl_rx_handlers *rx_h = &iwl_mvm_rx_handlers[i];
@@ -1087,13 +1087,13 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, 0);
 	else if (unlikely(cmd == WIDE_ID(DATA_PATH_GROUP,
 					 RX_QUEUES_NOTIFICATION)))
-		iwl_mvm_rx_queue_notif(mvm, napi, rxb, 0);
+		iwl_mvm_rx_queue_yestif(mvm, napi, rxb, 0);
 	else if (cmd == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE))
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
 	else if (cmd == WIDE_ID(LEGACY_GROUP, BAR_FRAME_RELEASE))
 		iwl_mvm_rx_bar_frame_release(mvm, napi, rxb, 0);
 	else if (cmd == WIDE_ID(DATA_PATH_GROUP, RX_NO_DATA_NOTIF))
-		iwl_mvm_rx_monitor_no_data(mvm, napi, rxb, 0);
+		iwl_mvm_rx_monitor_yes_data(mvm, napi, rxb, 0);
 	else
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }
@@ -1104,7 +1104,7 @@ static void iwl_mvm_async_cb(struct iwl_op_mode *op_mode,
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
 	/*
-	 * For now, we only set the CMD_WANT_ASYNC_CALLBACK for ADD_STA
+	 * For yesw, we only set the CMD_WANT_ASYNC_CALLBACK for ADD_STA
 	 * commands that need to block the Tx queues.
 	 */
 	iwl_trans_block_txq_ptrs(mvm->trans, false);
@@ -1222,7 +1222,7 @@ static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 
 	 /* iwl_run_init_mvm_ucode is waiting for results, abort it. */
 	if (rfkill_safe_init_done)
-		iwl_abort_notification_waits(&mvm->notif_wait);
+		iwl_abort_yestification_waits(&mvm->yestif_wait);
 
 	/*
 	 * Don't ask the transport to stop the firmware. We'll do it
@@ -1266,18 +1266,18 @@ static void iwl_mvm_reprobe_wk(struct work_struct *wk)
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 {
-	iwl_abort_notification_waits(&mvm->notif_wait);
+	iwl_abort_yestification_waits(&mvm->yestif_wait);
 	iwl_dbg_tlv_del_timers(mvm->trans);
 
 	/*
 	 * This is a bit racy, but worst case we tell mac80211 about
 	 * a stopped/aborted scan when that was already done which
-	 * is not a problem. It is necessary to abort any os scan
+	 * is yest a problem. It is necessary to abort any os scan
 	 * here because mac80211 requires having the scan cleared
 	 * before restarting.
 	 * We'll reset the scan_status to NONE in restart cleanup in
 	 * the next start() call from mac80211. If restart isn't called
-	 * (no fw restart) scan status will stay busy.
+	 * (yes fw restart) scan status will stay busy.
 	 */
 	iwl_mvm_report_scan_aborted(mvm);
 
@@ -1315,7 +1315,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 		schedule_work(&reprobe->work);
 	} else if (test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
 			    &mvm->status)) {
-		IWL_ERR(mvm, "HW restart already requested, but not started\n");
+		IWL_ERR(mvm, "HW restart already requested, but yest started\n");
 	} else if (mvm->fwrt.cur_fw_img == IWL_UCODE_REGULAR &&
 		   mvm->hw_registered &&
 		   !test_bit(STATUS_TRANS_DEAD, &mvm->trans->status)) {
@@ -1364,7 +1364,7 @@ static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
 	/* these could be differentiated */			\
 	.async_cb = iwl_mvm_async_cb,				\
 	.queue_full = iwl_mvm_stop_sw_queue,			\
-	.queue_not_full = iwl_mvm_wake_sw_queue,		\
+	.queue_yest_full = iwl_mvm_wake_sw_queue,		\
 	.hw_rf_kill = iwl_mvm_set_hw_rfkill_state,		\
 	.free_skb = iwl_mvm_free_skb,				\
 	.nic_error = iwl_mvm_nic_error,				\
@@ -1392,7 +1392,7 @@ static void iwl_mvm_rx_mq_rss(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, queue);
 	else if (unlikely(cmd == WIDE_ID(DATA_PATH_GROUP,
 					 RX_QUEUES_NOTIFICATION)))
-		iwl_mvm_rx_queue_notif(mvm, napi, rxb, queue);
+		iwl_mvm_rx_queue_yestif(mvm, napi, rxb, queue);
 	else if (likely(cmd == WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD)))
 		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, queue);
 }

@@ -3,7 +3,7 @@
  *  linux/arch/arm/kernel/module.c
  *
  *  Copyright (C) 2002 Russell King.
- *  Modified for nommu by Hyok S. Choi
+ *  Modified for yesmmu by Hyok S. Choi
  *
  * Module allocation method suggested by Andi Kleen.
  */
@@ -27,7 +27,7 @@
 /*
  * The XIP kernel text is mapped in the module area for modules and
  * some other stuff to work without any indirect relocations.
- * MODULES_VADDR is redefined here and not in asm/memory.h to avoid
+ * MODULES_VADDR is redefined here and yest in asm/memory.h to avoid
  * recompiling the whole kernel when CONFIG_XIP_KERNEL is turned on/off.
  */
 #undef MODULES_VADDR
@@ -44,12 +44,12 @@ void *module_alloc(unsigned long size)
 	if (IS_ENABLED(CONFIG_ARM_MODULE_PLTS))
 		gfp_mask |= __GFP_NOWARN;
 
-	p = __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+	p = __vmalloc_yesde_range(size, 1, MODULES_VADDR, MODULES_END,
 				gfp_mask, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
 				__builtin_return_address(0));
 	if (!IS_ENABLED(CONFIG_ARM_MODULE_PLTS) || p)
 		return p;
-	return __vmalloc_node_range(size, 1,  VMALLOC_START, VMALLOC_END,
+	return __vmalloc_yesde_range(size, 1,  VMALLOC_START, VMALLOC_END,
 				GFP_KERNEL, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
 				__builtin_return_address(0));
 }
@@ -103,7 +103,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 
 		switch (ELF32_R_TYPE(rel->r_info)) {
 		case R_ARM_NONE:
-			/* ignore */
+			/* igyesre */
 			break;
 
 		case R_ARM_ABS32:
@@ -201,12 +201,12 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 		case R_ARM_THM_JUMP24:
 			/*
 			 * For function symbols, only Thumb addresses are
-			 * allowed (no interworking).
+			 * allowed (yes interworking).
 			 *
-			 * For non-function symbols, the destination
-			 * has no specific ARM/Thumb disposition, so
+			 * For yesn-function symbols, the destination
+			 * has yes specific ARM/Thumb disposition, so
 			 * the branch is resolved under the assumption
-			 * that interworking is not required.
+			 * that interworking is yest required.
 			 */
 			if (ELF32_ST_TYPE(sym->st_info) == STT_FUNC &&
 			    !(sym->st_value & 1)) {
@@ -311,7 +311,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 #endif
 
 		default:
-			pr_err("%s: unknown relocation: %u\n",
+			pr_err("%s: unkyeswn relocation: %u\n",
 			       module->name, ELF32_R_TYPE(rel->r_info));
 			return -ENOEXEC;
 		}

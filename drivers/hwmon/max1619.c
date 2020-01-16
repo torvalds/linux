@@ -23,7 +23,7 @@
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
 /*
@@ -309,7 +309,7 @@ static struct i2c_driver max1619_driver = {
 	.probe		= max1619_probe,
 	.id_table	= max1619_id,
 	.detect		= max1619_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(max1619_driver);

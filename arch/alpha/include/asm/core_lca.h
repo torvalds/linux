@@ -29,14 +29,14 @@
  *
  * Dense memory space doesn't require the HAE, but is restricted to
  * aligned 32 and 64 bit accesses.  Special Cycle and Interrupt
- * Acknowledge cycles may also require the use of the HAE.  The LCA
+ * Ackyeswledge cycles may also require the use of the HAE.  The LCA
  * limits I/O address space to the bottom 24 bits of address space,
  * but this easily covers the 16 bit ISA I/O address space.
  */
 
 /*
- * NOTE 2! The memory operations do not set any memory barriers, as
- * it's not needed for cases like a frame buffer that is essentially
+ * NOTE 2! The memory operations do yest set any memory barriers, as
+ * it's yest needed for cases like a frame buffer that is essentially
  * memory-like.  You need to do them by hand if the operations depend
  * on ordering.
  *
@@ -46,12 +46,12 @@
  * device), it needs to be done by hand.
  *
  * After the above has bitten me 100 times, I'll give up and just do
- * the mb all the time, but right now I'm hoping this will work out.
- * Avoiding mb's may potentially be a noticeable speed improvement,
+ * the mb all the time, but right yesw I'm hoping this will work out.
+ * Avoiding mb's may potentially be a yesticeable speed improvement,
  * but I can't honestly say I've tested it.
  *
  * Handling interrupts that need to do mb's to synchronize to
- * non-interrupts is another fun race area.  Don't do it (because if
+ * yesn-interrupts is ayesther fun race area.  Don't do it (because if
  * you do, I'll have to do *everything* with interrupts disabled,
  * ugh).
  */
@@ -208,7 +208,7 @@ union el_lca {
 /*
  * I/O functions:
  *
- * Unlike Jensen, the Noname machines have no concept of local
+ * Unlike Jensen, the Noname machines have yes concept of local
  * I/O---everything goes over the PCI bus.
  *
  * There is plenty room for optimization here.  In particular,

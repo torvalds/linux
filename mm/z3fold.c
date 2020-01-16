@@ -12,7 +12,7 @@
  * compression ratio of zbud while retaining its main concepts (e. g. always
  * storing an integral number of objects per page) and simplicity.
  * It still has simple and deterministic reclaim properties that make it
- * preferable to a higher density approach (with no requirement on integral
+ * preferable to a higher density approach (with yes requirement on integral
  * number of object per page) when reclaim is used.
  *
  * As in zbud, pages are divided into "chunks".  The size of the chunks is
@@ -31,7 +31,7 @@
 #include <linux/module.h>
 #include <linux/page-flags.h>
 #include <linux/migrate.h>
-#include <linux/node.h>
+#include <linux/yesde.h>
 #include <linux/compaction.h>
 #include <linux/percpu.h>
 #include <linux/mount.h>
@@ -87,7 +87,7 @@ enum buddy {
 struct z3fold_buddy_slots {
 	/*
 	 * we are using BUDDY_MASK in handle_to_buddy etc. so there should
-	 * be enough slots to hold all possible variants
+	 * be eyesugh slots to hold all possible variants
 	 */
 	unsigned long slot[BUDDY_MASK + 1];
 	unsigned long pool; /* back link + flags */
@@ -147,7 +147,7 @@ struct z3fold_header {
  * @compact_wq:	workqueue for page layout background optimization
  * @release_wq:	workqueue for safe page release
  * @work:	work_struct for safe page release
- * @inode:	inode for z3fold pseudo filesystem
+ * @iyesde:	iyesde for z3fold pseudo filesystem
  *
  * This structure is allocated at pool creation time and maintains metadata
  * pertaining to a particular z3fold pool.
@@ -167,7 +167,7 @@ struct z3fold_pool {
 	struct workqueue_struct *compact_wq;
 	struct workqueue_struct *release_wq;
 	struct work_struct work;
-	struct inode *inode;
+	struct iyesde *iyesde;
 };
 
 /*
@@ -288,7 +288,7 @@ static inline struct z3fold_header *handle_to_z3fold_header(unsigned long h)
 	return __get_z3fold_header(h, false);
 }
 
-/* return locked z3fold page if it's not headless */
+/* return locked z3fold page if it's yest headless */
 static inline struct z3fold_header *get_z3fold_header(unsigned long h)
 {
 	return __get_z3fold_header(h, true);
@@ -321,7 +321,7 @@ static inline void free_handle(unsigned long handle)
 	*(unsigned long *)handle = 0;
 	write_unlock(&slots->lock);
 	if (zhdr->slots == slots)
-		return; /* simple case, nothing else to do */
+		return; /* simple case, yesthing else to do */
 
 	/* we are freeing a foreign handle if we are here */
 	zhdr->foreign_handles--;
@@ -354,7 +354,7 @@ static int z3fold_init_fs_context(struct fs_context *fc)
 static struct file_system_type z3fold_fs = {
 	.name		= "z3fold",
 	.init_fs_context = z3fold_init_fs_context,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= kill_ayesn_super,
 };
 
 static struct vfsmount *z3fold_mnt;
@@ -377,21 +377,21 @@ static void z3fold_unmount(void)
 static const struct address_space_operations z3fold_aops;
 static int z3fold_register_migration(struct z3fold_pool *pool)
 {
-	pool->inode = alloc_anon_inode(z3fold_mnt->mnt_sb);
-	if (IS_ERR(pool->inode)) {
-		pool->inode = NULL;
+	pool->iyesde = alloc_ayesn_iyesde(z3fold_mnt->mnt_sb);
+	if (IS_ERR(pool->iyesde)) {
+		pool->iyesde = NULL;
 		return 1;
 	}
 
-	pool->inode->i_mapping->private_data = pool;
-	pool->inode->i_mapping->a_ops = &z3fold_aops;
+	pool->iyesde->i_mapping->private_data = pool;
+	pool->iyesde->i_mapping->a_ops = &z3fold_aops;
 	return 0;
 }
 
 static void z3fold_unregister_migration(struct z3fold_pool *pool)
 {
-	if (pool->inode)
-		iput(pool->inode);
+	if (pool->iyesde)
+		iput(pool->iyesde);
  }
 
 /* Initializes the z3fold header of a newly allocated z3fold page */
@@ -534,7 +534,7 @@ static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
 		list_del_init(&page->lru);
 	spin_unlock(&pool->lock);
 
-	/* If there are no foreign handles, free the handles array */
+	/* If there are yes foreign handles, free the handles array */
 	read_lock(&zhdr->slots->lock);
 	for (i = 0; i <= BUDDY_MASK; i++) {
 		if (zhdr->slots->slot[i]) {
@@ -786,7 +786,7 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
 		return 0;
 
 	if (zhdr->middle_chunks == 0)
-		return 0; /* nothing to compact */
+		return 0; /* yesthing to compact */
 
 	if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
 		/* move to the beginning */
@@ -924,9 +924,9 @@ lookup:
 		}
 
 		/*
-		 * this page could not be removed from its unbuddied
+		 * this page could yest be removed from its unbuddied
 		 * list while pool lock was held, and then we've taken
-		 * page lock so kref_put could not be called before
+		 * page lock so kref_put could yest be called before
 		 * we got here, so it's safe to just call kref_get()
 		 */
 		kref_get(&zhdr->refcount);
@@ -1058,7 +1058,7 @@ static void z3fold_destroy_pool(struct z3fold_pool *pool)
 	 * queue_work(pool->release_wq, &pool->work).
 	 *
 	 * There are still outstanding pages until both workqueues are drained,
-	 * so we cannot unregister migration until then.
+	 * so we canyest unregister migration until then.
 	 */
 
 	destroy_workqueue(pool->compact_wq);
@@ -1074,12 +1074,12 @@ static void z3fold_destroy_pool(struct z3fold_pool *pool)
  * @gfp:	gfp flags used if the pool needs to grow
  * @handle:	handle of the new allocation
  *
- * This function will attempt to find a free region in the pool large enough to
+ * This function will attempt to find a free region in the pool large eyesugh to
  * satisfy the allocation request.  A search of the unbuddied lists is
- * performed first. If no suitable free region is found, then a new page is
+ * performed first. If yes suitable free region is found, then a new page is
  * allocated and added to the pool to satisfy the request.
  *
- * gfp should not set __GFP_HIGHMEM as highmem pages cannot be used
+ * gfp should yest set __GFP_HIGHMEM as highmem pages canyest be used
  * as z3fold pool pages.
  *
  * Return: 0 if success and handle is set, otherwise -EINVAL if the size or
@@ -1171,11 +1171,11 @@ retry:
 	}
 	if (can_sleep) {
 		lock_page(page);
-		__SetPageMovable(page, pool->inode->i_mapping);
+		__SetPageMovable(page, pool->iyesde->i_mapping);
 		unlock_page(page);
 	} else {
 		if (trylock_page(page)) {
-			__SetPageMovable(page, pool->inode->i_mapping);
+			__SetPageMovable(page, pool->iyesde->i_mapping);
 			unlock_page(page);
 		}
 	}
@@ -1232,7 +1232,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 	if (test_bit(PAGE_HEADLESS, &page->private)) {
 		/* if a headless page is under reclaim, just leave.
 		 * NB: we use test_and_set_bit for a reason: if the bit
-		 * has not been set before, we release this page
+		 * has yest been set before, we release this page
 		 * immediately so we don't care about its value any more.
 		 */
 		if (!page_claimed) {
@@ -1260,7 +1260,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 		zhdr->last_chunks = 0;
 		break;
 	default:
-		pr_err("%s: unknown bud %d\n", __func__, bud);
+		pr_err("%s: unkyeswn bud %d\n", __func__, bud);
 		WARN_ON(1);
 		put_z3fold_header(zhdr);
 		clear_bit(PAGE_CLAIMED, &page->private);
@@ -1274,7 +1274,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 		return;
 	}
 	if (page_claimed) {
-		/* the page has not been claimed by us */
+		/* the page has yest been claimed by us */
 		z3fold_page_unlock(zhdr);
 		return;
 	}
@@ -1306,7 +1306,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
  * @retries:	number of pages on the LRU list for which eviction will
  *		be attempted before failing
  *
- * z3fold reclaim is different from normal system reclaim in that it is done
+ * z3fold reclaim is different from yesrmal system reclaim in that it is done
  * from the bottom, up. This is because only the bottom layer, z3fold, has
  * information on how the allocations are organized within each z3fold page.
  * This has the potential to create interesting locking situations between
@@ -1319,8 +1319,8 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
  * call the user-defined eviction handler with the pool and handle as
  * arguments.
  *
- * If the handle can not be evicted, the eviction handler should return
- * non-zero. z3fold_reclaim_page() will add the z3fold page back to the
+ * If the handle can yest be evicted, the eviction handler should return
+ * yesn-zero. z3fold_reclaim_page() will add the z3fold page back to the
  * appropriate list and try the next z3fold page on the LRU up to
  * a user defined number of retries.
  *
@@ -1333,7 +1333,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
  * z3fold page can be freed.
  *
  * Returns: 0 if page is successfully freed, otherwise -EINVAL if there are
- * no pages to evict or an eviction handler is not registered, -EAGAIN if
+ * yes pages to evict or an eviction handler is yest registered, -EAGAIN if
  * the retry limit was hit.
  */
 static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
@@ -1460,7 +1460,7 @@ next:
 				return 0;
 			}
 			/*
-			 * if we are here, the page is still not completely
+			 * if we are here, the page is still yest completely
 			 * free. Take the global pool lock then to be able
 			 * to add it back to the lru list
 			 */
@@ -1515,7 +1515,7 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
 		addr += PAGE_SIZE - (handle_to_chunks(handle) << CHUNK_SHIFT);
 		break;
 	default:
-		pr_err("unknown buddy id %d\n", buddy);
+		pr_err("unkyeswn buddy id %d\n", buddy);
 		WARN_ON(1);
 		addr = NULL;
 		break;
@@ -1792,7 +1792,7 @@ static int __init init_z3fold(void)
 {
 	int ret;
 
-	/* Make sure the z3fold header is not larger than the page size */
+	/* Make sure the z3fold header is yest larger than the page size */
 	BUILD_BUG_ON(ZHDR_SIZE_ALIGNED > PAGE_SIZE);
 	ret = z3fold_mount();
 	if (ret)

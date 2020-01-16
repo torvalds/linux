@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat, Inc.
- * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@canonical.com>
+ * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@cayesnical.com>
  */
 
 #include <linux/ctype.h>
@@ -18,15 +18,15 @@
 
 LIST_HEAD(efivarfs_list);
 
-static void efivarfs_evict_inode(struct inode *inode)
+static void efivarfs_evict_iyesde(struct iyesde *iyesde)
 {
-	clear_inode(inode);
+	clear_iyesde(iyesde);
 }
 
 static const struct super_operations efivarfs_ops = {
 	.statfs = simple_statfs,
-	.drop_inode = generic_delete_inode,
-	.evict_inode = efivarfs_evict_inode,
+	.drop_iyesde = generic_delete_iyesde,
+	.evict_iyesde = efivarfs_evict_iyesde,
 };
 
 /*
@@ -108,7 +108,7 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 {
 	struct super_block *sb = (struct super_block *)data;
 	struct efivar_entry *entry;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	struct dentry *dentry, *root = sb->s_root;
 	unsigned long size = 0;
 	char *name;
@@ -141,35 +141,35 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 
 	name[len + EFI_VARIABLE_GUID_LEN+1] = '\0';
 
-	inode = efivarfs_get_inode(sb, d_inode(root), S_IFREG | 0644, 0,
+	iyesde = efivarfs_get_iyesde(sb, d_iyesde(root), S_IFREG | 0644, 0,
 				   is_removable);
-	if (!inode)
+	if (!iyesde)
 		goto fail_name;
 
 	dentry = efivarfs_alloc_dentry(root, name);
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
-		goto fail_inode;
+		goto fail_iyesde;
 	}
 
 	efivar_entry_size(entry, &size);
 	err = efivar_entry_add(entry, &efivarfs_list);
 	if (err)
-		goto fail_inode;
+		goto fail_iyesde;
 
 	/* copied by the above to local storage in the dentry. */
 	kfree(name);
 
-	inode_lock(inode);
-	inode->i_private = entry;
-	i_size_write(inode, size + sizeof(entry->var.Attributes));
-	inode_unlock(inode);
-	d_add(dentry, inode);
+	iyesde_lock(iyesde);
+	iyesde->i_private = entry;
+	i_size_write(iyesde, size + sizeof(entry->var.Attributes));
+	iyesde_unlock(iyesde);
+	d_add(dentry, iyesde);
 
 	return 0;
 
-fail_inode:
-	iput(inode);
+fail_iyesde:
+	iput(iyesde);
 fail_name:
 	kfree(name);
 fail:
@@ -189,7 +189,7 @@ static int efivarfs_destroy(struct efivar_entry *entry, void *data)
 
 static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	struct dentry *root;
 	int err;
 
@@ -201,12 +201,12 @@ static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_d_op		= &efivarfs_d_ops;
 	sb->s_time_gran         = 1;
 
-	inode = efivarfs_get_inode(sb, NULL, S_IFDIR | 0755, 0, true);
-	if (!inode)
+	iyesde = efivarfs_get_iyesde(sb, NULL, S_IFDIR | 0755, 0, true);
+	if (!iyesde)
 		return -ENOMEM;
-	inode->i_op = &efivarfs_dir_inode_operations;
+	iyesde->i_op = &efivarfs_dir_iyesde_operations;
 
-	root = d_make_root(inode);
+	root = d_make_root(iyesde);
 	sb->s_root = root;
 	if (!root)
 		return -ENOMEM;

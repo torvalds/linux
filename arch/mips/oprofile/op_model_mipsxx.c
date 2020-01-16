@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2004, 05, 06 by Ralf Baechle
- * Copyright (C) 2005 by MIPS Technologies, Inc.
+ * Copyright (C) 2005 by MIPS Techyeslogies, Inc.
  */
 #include <linux/cpumask.h>
 #include <linux/oprofile.h>
@@ -27,7 +27,7 @@ static int perfcount_irq;
 /*
  * XLR has only one set of counters per core. Designate the
  * first hardware thread in the core for setup and init.
- * Skip CPUs with non-zero hardware thread id (4 hwt per core)
+ * Skip CPUs with yesn-zero hardware thread id (4 hwt per core)
  */
 #if defined(CONFIG_CPU_XLR) && defined(CONFIG_SMP)
 #define oprofile_skip_cpu(c)	((cpu_logical_map(c) & 0x3) != 0)
@@ -43,7 +43,7 @@ static int perfcount_irq;
 
 /*
  * The number of bits to shift to convert between counters per core and
- * counters per VPE.  There is no reasonable interface atm to obtain the
+ * counters per VPE.  There is yes reasonable interface atm to obtain the
  * number of VPEs used by Linux and in the 34K this number is fixed to two
  * anyways so we hardcore a few things here for the moment.  The way it's
  * done here will ensure that oprofile VSMP kernel will run right on a lesser
@@ -333,7 +333,7 @@ static int __init mipsxx_init(void)
 
 	counters = n_counters();
 	if (counters == 0) {
-		printk(KERN_ERR "Oprofile: CPU has no performance counters\n");
+		printk(KERN_ERR "Oprofile: CPU has yes performance counters\n");
 		return -ENODEV;
 	}
 

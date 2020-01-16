@@ -190,9 +190,9 @@ static int gb_usb_probe(struct gbphy_device *gbphy_dev,
 
 	/*
 	 * FIXME: The USB bridged-PHY protocol driver depends on changes to
-	 *        USB core which are not yet upstream.
+	 *        USB core which are yest yet upstream.
 	 *
-	 *        Disable for now.
+	 *        Disable for yesw.
 	 */
 	if (1) {
 		dev_warn(dev, "USB protocol disabled\n");

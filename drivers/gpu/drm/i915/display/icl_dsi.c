@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -54,7 +54,7 @@ static void wait_for_header_credits(struct drm_i915_private *dev_priv,
 {
 	if (wait_for_us(header_credits_available(dev_priv, dsi_trans) >=
 			MAX_HEADER_CREDIT, 100))
-		DRM_ERROR("DSI header credits not released\n");
+		DRM_ERROR("DSI header credits yest released\n");
 }
 
 static void wait_for_payload_credits(struct drm_i915_private *dev_priv,
@@ -62,7 +62,7 @@ static void wait_for_payload_credits(struct drm_i915_private *dev_priv,
 {
 	if (wait_for_us(payload_credits_available(dev_priv, dsi_trans) >=
 			MAX_PLOAD_CREDIT, 100))
-		DRM_ERROR("DSI payload credits not released\n");
+		DRM_ERROR("DSI payload credits yest released\n");
 }
 
 static enum transcoder dsi_port_to_transcoder(enum port port)
@@ -89,12 +89,12 @@ static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
 		wait_for_payload_credits(dev_priv, dsi_trans);
 	}
 
-	/* send nop DCS command */
+	/* send yesp DCS command */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi = intel_dsi->dsi_hosts[port]->device;
 		dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 		dsi->channel = 0;
-		ret = mipi_dsi_dcs_nop(dsi);
+		ret = mipi_dsi_dcs_yesp(dsi);
 		if (ret < 0)
 			DRM_ERROR("error sending DCS NOP command\n");
 	}
@@ -110,7 +110,7 @@ static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
 		dsi_trans = dsi_port_to_transcoder(port);
 		if (wait_for_us(!(I915_READ(DSI_LP_MSG(dsi_trans)) &
 				  LPTX_IN_PROGRESS), 20))
-			DRM_ERROR("LPTX bit not cleared\n");
+			DRM_ERROR("LPTX bit yest cleared\n");
 	}
 }
 
@@ -128,7 +128,7 @@ static bool add_payld_to_queue(struct intel_dsi_host *host, const u8 *data,
 
 		free_credits = payload_credits_available(dev_priv, dsi_trans);
 		if (free_credits < 1) {
-			DRM_ERROR("Payload credit not available\n");
+			DRM_ERROR("Payload credit yest available\n");
 			return false;
 		}
 
@@ -153,7 +153,7 @@ static int dsi_send_pkt_hdr(struct intel_dsi_host *host,
 	/* check if header credit available */
 	free_credits = header_credits_available(dev_priv, dsi_trans);
 	if (free_credits < 1) {
-		DRM_ERROR("send pkt header failed, not enough hdr credits\n");
+		DRM_ERROR("send pkt header failed, yest eyesugh hdr credits\n");
 		return -1;
 	}
 
@@ -250,7 +250,7 @@ static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
 		I915_WRITE(ICL_PORT_TX_DW4_AUX(phy), tmp);
 
 		for (lane = 0; lane <= 3; lane++) {
-			/* Bspec: must not use GRP register for write */
+			/* Bspec: must yest use GRP register for write */
 			tmp = I915_READ(ICL_PORT_TX_DW4_LN(lane, phy));
 			tmp &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 				 CURSOR_COEFF_MASK);
@@ -757,7 +757,7 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		dsi_trans = dsi_port_to_transcoder(port);
 		if (wait_for_us((I915_READ(DSI_TRANS_FUNC_CONF(dsi_trans)) &
 				LINK_READY), 2500))
-			DRM_ERROR("DSI link not ready\n");
+			DRM_ERROR("DSI link yest ready\n");
 	}
 }
 
@@ -803,7 +803,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 
 	/* if RGB666 format, then hactive must be multiple of 4 pixels */
 	if (intel_dsi->pixel_format == MIPI_DSI_FMT_RGB666 && hactive % 4 != 0)
-		DRM_ERROR("hactive pixels are not multiple of 4\n");
+		DRM_ERROR("hactive pixels are yest multiple of 4\n");
 
 	/* program TRANS_HTOTAL register */
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -841,7 +841,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 		dsi_trans = dsi_port_to_transcoder(port);
 		/*
 		 * FIXME: Programing this by assuming progressive mode, since
-		 * non-interlaced info from VBT is not saved inside
+		 * yesn-interlaced info from VBT is yest saved inside
 		 * struct drm_display_mode.
 		 * For interlace mode: program required pixel minus 2
 		 */
@@ -900,7 +900,7 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 		/* wait for transcoder to be enabled */
 		if (intel_de_wait_for_set(dev_priv, PIPECONF(dsi_trans),
 					  I965_PIPECONF_ACTIVE, 10))
-			DRM_ERROR("DSI transcoder not enabled\n");
+			DRM_ERROR("DSI transcoder yest enabled\n");
 	}
 }
 
@@ -1001,7 +1001,7 @@ static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
 
 		/*
 		 * FIXME: This uses the number of DW's currently in the payload
-		 * receive queue. This is probably not what we want here.
+		 * receive queue. This is probably yest what we want here.
 		 */
 		tmp = I915_READ(DSI_CMD_RXCTL(dsi_trans));
 		tmp &= NUMBER_RX_PLOAD_DW_MASK;
@@ -1080,7 +1080,7 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 		/* wait for transcoder to be disabled */
 		if (intel_de_wait_for_clear(dev_priv, PIPECONF(dsi_trans),
 					    I965_PIPECONF_ACTIVE, 50))
-			DRM_ERROR("DSI trancoder not disabled\n");
+			DRM_ERROR("DSI trancoder yest disabled\n");
 	}
 }
 
@@ -1115,7 +1115,7 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 		if (wait_for_us((I915_READ(DSI_LP_MSG(dsi_trans)) &
 				LINK_IN_ULPS),
 				10))
-			DRM_ERROR("DSI link not in ULPS\n");
+			DRM_ERROR("DSI link yest in ULPS\n");
 	}
 
 	/* disable ddi function */
@@ -1153,7 +1153,7 @@ static void gen11_dsi_disable_port(struct intel_encoder *encoder)
 		if (wait_for_us((I915_READ(DDI_BUF_CTL(port)) &
 				 DDI_BUF_IS_IDLE),
 				 8))
-			DRM_ERROR("DDI port:%c buffer not idle\n",
+			DRM_ERROR("DDI port:%c buffer yest idle\n",
 				  port_name(port));
 	}
 	gen11_dsi_gate_clocks(encoder);
@@ -1631,7 +1631,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (!intel_dsi_vbt_init(intel_dsi, MIPI_DSI_GENERIC_PANEL_ID)) {
-		DRM_DEBUG_KMS("no device found\n");
+		DRM_DEBUG_KMS("yes device found\n");
 		goto err;
 	}
 

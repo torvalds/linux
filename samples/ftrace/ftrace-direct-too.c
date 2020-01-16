@@ -47,5 +47,5 @@ module_init(ftrace_direct_init);
 module_exit(ftrace_direct_exit);
 
 MODULE_AUTHOR("Steven Rostedt");
-MODULE_DESCRIPTION("Another example use case of using register_ftrace_direct()");
+MODULE_DESCRIPTION("Ayesther example use case of using register_ftrace_direct()");
 MODULE_LICENSE("GPL");

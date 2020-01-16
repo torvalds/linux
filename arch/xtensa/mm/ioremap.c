@@ -44,11 +44,11 @@ static void __iomem *xtensa_ioremap(unsigned long paddr, unsigned long size,
 	return (void __iomem *)(offset + vaddr);
 }
 
-void __iomem *xtensa_ioremap_nocache(unsigned long addr, unsigned long size)
+void __iomem *xtensa_ioremap_yescache(unsigned long addr, unsigned long size)
 {
-	return xtensa_ioremap(addr, size, pgprot_noncached(PAGE_KERNEL));
+	return xtensa_ioremap(addr, size, pgprot_yesncached(PAGE_KERNEL));
 }
-EXPORT_SYMBOL(xtensa_ioremap_nocache);
+EXPORT_SYMBOL(xtensa_ioremap_yescache);
 
 void __iomem *xtensa_ioremap_cache(unsigned long addr, unsigned long size)
 {

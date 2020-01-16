@@ -97,7 +97,7 @@ struct enclosure_component {
 
 struct enclosure_device {
 	void *scratch;
-	struct list_head node;
+	struct list_head yesde;
 	struct device edev;
 	struct enclosure_component_callbacks *cb;
 	int components;

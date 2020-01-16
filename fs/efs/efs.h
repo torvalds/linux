@@ -27,7 +27,7 @@ static const char cprt[] = "EFS: "EFS_VERSION" - (c) 1999 Al Smith <Al.Smith@aes
 #define	EFS_BLOCKSIZE		(1 << EFS_BLOCKSIZE_BITS)
 
 typedef	int32_t		efs_block_t;
-typedef uint32_t	efs_ino_t;
+typedef uint32_t	efs_iyes_t;
 
 #define	EFS_DIRECTEXTENTS	12
 
@@ -50,10 +50,10 @@ typedef struct edevs {
 } efs_devs;
 
 /*
- * extent based filesystem inode as it appears on disk.  The efs inode
+ * extent based filesystem iyesde as it appears on disk.  The efs iyesde
  * is exactly 128 bytes long.
  */
-struct	efs_dinode {
+struct	efs_diyesde {
 	__be16		di_mode;	/* mode and type of file */
 	__be16		di_nlink;	/* number of links to file */
 	__be16		di_uid;		/* owner's user id */
@@ -64,7 +64,7 @@ struct	efs_dinode {
 	__be32		di_ctime;	/* time created */
 	__be32		di_gen;		/* generation number */
 	__be16		di_numextents;	/* # of extents */
-	u_char		di_version;	/* version of inode */
+	u_char		di_version;	/* version of iyesde */
 	u_char		di_spare;	/* spare - used by AFS */
 	union di_addr {
 		efs_extent	di_extents[EFS_DIRECTEXTENTS];
@@ -72,13 +72,13 @@ struct	efs_dinode {
 	} di_u;
 };
 
-/* efs inode storage in memory */
-struct efs_inode_info {
+/* efs iyesde storage in memory */
+struct efs_iyesde_info {
 	int		numextents;
 	int		lastextent;
 
 	efs_extent	extents[EFS_DIRECTEXTENTS];
-	struct inode	vfs_inode;
+	struct iyesde	vfs_iyesde;
 };
 
 #include <linux/efs_fs_sb.h>
@@ -87,7 +87,7 @@ struct efs_inode_info {
 #define EFS_DIRBSIZE		(1 << EFS_DIRBSIZE_BITS)
 
 struct efs_dentry {
-	__be32		inode;
+	__be32		iyesde;
 	unsigned char	namelen;
 	char		name[3];
 };
@@ -115,9 +115,9 @@ struct efs_dir {
 #define EFS_REALOFF(offset) ((offset << 1))
 
 
-static inline struct efs_inode_info *INODE_INFO(struct inode *inode)
+static inline struct efs_iyesde_info *INODE_INFO(struct iyesde *iyesde)
 {
-	return container_of(inode, struct efs_inode_info, vfs_inode);
+	return container_of(iyesde, struct efs_iyesde_info, vfs_iyesde);
 }
 
 static inline struct efs_sb_info *SUPER_INFO(struct super_block *sb)
@@ -128,20 +128,20 @@ static inline struct efs_sb_info *SUPER_INFO(struct super_block *sb)
 struct statfs;
 struct fid;
 
-extern const struct inode_operations efs_dir_inode_operations;
+extern const struct iyesde_operations efs_dir_iyesde_operations;
 extern const struct file_operations efs_dir_operations;
 extern const struct address_space_operations efs_symlink_aops;
 
-extern struct inode *efs_iget(struct super_block *, unsigned long);
-extern efs_block_t efs_map_block(struct inode *, efs_block_t);
-extern int efs_get_block(struct inode *, sector_t, struct buffer_head *, int);
+extern struct iyesde *efs_iget(struct super_block *, unsigned long);
+extern efs_block_t efs_map_block(struct iyesde *, efs_block_t);
+extern int efs_get_block(struct iyesde *, sector_t, struct buffer_head *, int);
 
-extern struct dentry *efs_lookup(struct inode *, struct dentry *, unsigned int);
+extern struct dentry *efs_lookup(struct iyesde *, struct dentry *, unsigned int);
 extern struct dentry *efs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 		int fh_len, int fh_type);
 extern struct dentry *efs_fh_to_parent(struct super_block *sb, struct fid *fid,
 		int fh_len, int fh_type);
 extern struct dentry *efs_get_parent(struct dentry *);
-extern int efs_bmap(struct inode *, int);
+extern int efs_bmap(struct iyesde *, int);
 
 #endif /* _EFS_EFS_H_ */

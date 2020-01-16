@@ -115,7 +115,7 @@ sgl_to_sgl_fcnvfu(
 		result = 0;
 
 		/* check for inexact */
-		if (Sgl_isnotzero_exponentmantissa(src)) {
+		if (Sgl_isyestzero_exponentmantissa(src)) {
 			inexact = TRUE;
 			/*  round result  */
 			switch (Rounding_mode()) {
@@ -136,7 +136,7 @@ sgl_to_sgl_fcnvfu(
 				break;
 			case ROUNDNEAREST:
 				if (src_exponent == -1 &&
-				    Sgl_isnotzero_mantissa(src)) {
+				    Sgl_isyestzero_mantissa(src)) {
 					if (Sgl_isone_sign(src)) {
 						result = 0;
 						if (Is_invalidtrap_enabled()) {
@@ -236,7 +236,7 @@ sgl_to_dbl_fcnvfu(
 		Duint_setzero(resultp1,resultp2);
 
 		/* check for inexact */
-		if (Sgl_isnotzero_exponentmantissa(src)) {
+		if (Sgl_isyestzero_exponentmantissa(src)) {
 			inexact = TRUE;
 			/*  round result  */
 			switch (Rounding_mode()) {
@@ -257,7 +257,7 @@ sgl_to_dbl_fcnvfu(
 				break;
 			case ROUNDNEAREST:
 				if (src_exponent == -1 &&
-				    Sgl_isnotzero_mantissa(src)) {
+				    Sgl_isyestzero_mantissa(src)) {
 					if (Sgl_isone_sign(src)) {
 						resultp1 = 0;
 						resultp2 = 0;
@@ -363,7 +363,7 @@ dbl_to_sgl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 		result = 0;
 
 		/* check for inexact */
-		if (Dbl_isnotzero_exponentmantissa(srcp1,srcp2)) {
+		if (Dbl_isyestzero_exponentmantissa(srcp1,srcp2)) {
 			inexact = TRUE;
 			/*  round result  */
 			switch (Rounding_mode()) {
@@ -382,7 +382,7 @@ dbl_to_sgl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 				break;
 			case ROUNDNEAREST:
 				if (src_exponent == -1 &&
-				    Dbl_isnotzero_mantissa(srcp1,srcp2))
+				    Dbl_isyestzero_mantissa(srcp1,srcp2))
 					if (Dbl_isone_sign(srcp1)) {
 						result = 0;
 						if (Is_invalidtrap_enabled()) {
@@ -477,7 +477,7 @@ dbl_to_dbl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 		Duint_setzero(resultp1,resultp2);
 
 		/* check for inexact */
-		if (Dbl_isnotzero_exponentmantissa(srcp1,srcp2)) {
+		if (Dbl_isyestzero_exponentmantissa(srcp1,srcp2)) {
 			inexact = TRUE;
 			/*  round result  */
 			switch (Rounding_mode()) {
@@ -498,7 +498,7 @@ dbl_to_dbl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 				break;
 			case ROUNDNEAREST:
 				if (src_exponent == -1 &&
-				    Dbl_isnotzero_mantissa(srcp1,srcp2))
+				    Dbl_isyestzero_mantissa(srcp1,srcp2))
 					if (Dbl_iszero_sign(srcp1)) {
 						Duint_increment(resultp1,resultp2);
 					} else {

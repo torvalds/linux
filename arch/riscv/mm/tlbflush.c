@@ -11,7 +11,7 @@ void flush_tlb_all(void)
 }
 
 /*
- * This function must not be called with cmask being null.
+ * This function must yest be called with cmask being null.
  * Kernel may panic if cmask is NULL.
  */
 static void __sbi_tlb_flush_range(struct cpumask *cmask, unsigned long start,

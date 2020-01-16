@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Copyright (C) 2019 Renesas Electronics Corporation
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 #ifndef RENESAS_USB_MOD_H
 #define RENESAS_USB_MOD_H
@@ -85,11 +85,11 @@ struct usbhs_mod_info {
 	/*
 	 * INTSTS0 :: VBINT
 	 *
-	 * This function will be used as autonomy mode (runtime_pwctrl == 0)
+	 * This function will be used as autoyesmy mode (runtime_pwctrl == 0)
 	 * when the platform doesn't have own get_vbus function.
 	 *
-	 * This callback cannot be member of "struct usbhs_mod" because it
-	 * will be used even though host/gadget has not been selected.
+	 * This callback canyest be member of "struct usbhs_mod" because it
+	 * will be used even though host/gadget has yest been selected.
 	 */
 	int (*irq_vbus)(struct usbhs_priv *priv,
 			struct usbhs_irq_state *irq_state);
@@ -112,8 +112,8 @@ int usbhs_mod_change(struct usbhs_priv *priv, int id);
 int usbhs_mod_probe(struct usbhs_priv *priv);
 void usbhs_mod_remove(struct usbhs_priv *priv);
 
-void usbhs_mod_autonomy_mode(struct usbhs_priv *priv);
-void usbhs_mod_non_autonomy_mode(struct usbhs_priv *priv);
+void usbhs_mod_autoyesmy_mode(struct usbhs_priv *priv);
+void usbhs_mod_yesn_autoyesmy_mode(struct usbhs_priv *priv);
 
 /*
  *		status functions

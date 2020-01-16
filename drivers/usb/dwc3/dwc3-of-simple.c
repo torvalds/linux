@@ -6,8 +6,8 @@
  *
  * Author: Felipe Balbi <balbi@ti.com>
  *
- * This is a combination of the old dwc3-qcom.c by Ivan T. Ivanov
- * <iivanov@mm-sol.com> and the original patch adding support for Xilinx' SoC
+ * This is a combination of the old dwc3-qcom.c by Ivan T. Ivayesv
+ * <iivayesv@mm-sol.com> and the original patch adding support for Xilinx' SoC
  * by Subbaraya Sundeep Bhatta <subbaraya.sundeep.bhatta@xilinx.com>
  */
 
@@ -35,7 +35,7 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 {
 	struct dwc3_of_simple	*simple;
 	struct device		*dev = &pdev->dev;
-	struct device_node	*np = dev->of_node;
+	struct device_yesde	*np = dev->of_yesde;
 
 	int			ret;
 	bool			shared_resets = false;
@@ -124,7 +124,7 @@ static void __dwc3_of_simple_teardown(struct dwc3_of_simple *simple)
 	reset_control_put(simple->resets);
 
 	pm_runtime_disable(simple->dev);
-	pm_runtime_put_noidle(simple->dev);
+	pm_runtime_put_yesidle(simple->dev);
 	pm_runtime_set_suspended(simple->dev);
 }
 

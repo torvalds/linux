@@ -10,9 +10,9 @@ struct xt_rateest {
 	spinlock_t			lock;
 
 
-	/* following fields not accessed in hot path */
+	/* following fields yest accessed in hot path */
 	unsigned int			refcnt;
-	struct hlist_node		list;
+	struct hlist_yesde		list;
 	char				name[IFNAMSIZ];
 	struct gnet_estimator		params;
 	struct rcu_head			rcu;

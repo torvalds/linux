@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -108,7 +108,7 @@ static enum ib_wc_opcode get_umr_comp(struct mlx5_ib_wq *wq, int idx)
 		return IB_WC_REG_MR;
 
 	default:
-		pr_warn("unknown completion status\n");
+		pr_warn("unkyeswn completion status\n");
 		return 0;
 	}
 }
@@ -458,7 +458,7 @@ repoll:
 
 	qpn = ntohl(cqe64->sop_drop_qpn) & 0xffffff;
 	if (!*cur_qp || (qpn != (*cur_qp)->ibqp.qp_num)) {
-		/* We do not have to take the QP table lock here,
+		/* We do yest have to take the QP table lock here,
 		 * because CQs will be locked while QPs are removed
 		 * from the table.
 		 */
@@ -581,7 +581,7 @@ int mlx5_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	spin_lock_irqsave(&cq->lock, flags);
 	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
-		/* make sure no soft wqe's are waiting */
+		/* make sure yes soft wqe's are waiting */
 		if (unlikely(!list_empty(&cq->wc_list)))
 			soft_polled = poll_soft_wc(cq, num_entries, wc, true);
 
@@ -606,7 +606,7 @@ out:
 	return soft_polled + npolled;
 }
 
-int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_yestify_flags flags)
 {
 	struct mlx5_core_dev *mdev = to_mdev(ibcq->device)->mdev;
 	struct mlx5_ib_cq *cq = to_mcq(ibcq);
@@ -615,8 +615,8 @@ int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	int ret = 0;
 
 	spin_lock_irqsave(&cq->lock, irq_flags);
-	if (cq->notify_flags != IB_CQ_NEXT_COMP)
-		cq->notify_flags = flags & IB_CQ_SOLICITED_MASK;
+	if (cq->yestify_flags != IB_CQ_NEXT_COMP)
+		cq->yestify_flags = flags & IB_CQ_SOLICITED_MASK;
 
 	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !list_empty(&cq->wc_list))
 		ret = 1;
@@ -640,10 +640,10 @@ static int alloc_cq_frag_buf(struct mlx5_ib_dev *dev,
 	u8 log_wq_sz     = ilog2(cqe_size);
 	int err;
 
-	err = mlx5_frag_buf_alloc_node(dev->mdev,
+	err = mlx5_frag_buf_alloc_yesde(dev->mdev,
 				       nent * cqe_size,
 				       frag_buf,
-				       dev->mdev->priv.numa_node);
+				       dev->mdev->priv.numa_yesde);
 	if (err)
 		return err;
 
@@ -749,7 +749,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		      (*cqe_size == 64  &&
 		       MLX5_CAP_GEN(dev->mdev, cqe_compression)))) {
 			err = -EOPNOTSUPP;
-			mlx5_ib_warn(dev, "CQE compression is not supported for size %d!\n",
+			mlx5_ib_warn(dev, "CQE compression is yest supported for size %d!\n",
 				     *cqe_size);
 			goto err_cqb;
 		}
@@ -773,7 +773,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		    !MLX5_CAP_GEN(dev->mdev, cqe_128_always)) {
 			err = -EOPNOTSUPP;
 			mlx5_ib_warn(dev,
-				     "CQE padding is not supported for CQE size of %dB!\n",
+				     "CQE padding is yest supported for CQE size of %dB!\n",
 				     *cqe_size);
 			goto err_cqb;
 		}
@@ -875,10 +875,10 @@ static void destroy_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq)
 	mlx5_db_free(dev->mdev, &cq->db);
 }
 
-static void notify_soft_wc_handler(struct work_struct *work)
+static void yestify_soft_wc_handler(struct work_struct *work)
 {
 	struct mlx5_ib_cq *cq = container_of(work, struct mlx5_ib_cq,
-					     notify_work);
+					     yestify_work);
 
 	cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
@@ -933,7 +933,7 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		if (err)
 			return err;
 
-		INIT_WORK(&cq->notify_work, notify_soft_wc_handler);
+		INIT_WORK(&cq->yestify_work, yestify_soft_wc_handler);
 	}
 
 	err = mlx5_vector2eqn(dev->mdev, vector, &eqn, &irqn);
@@ -1019,7 +1019,7 @@ void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 rsn, struct mlx5_ib_srq *srq)
 		return;
 
 	/* First we need to find the current producer index, so we
-	 * know where to start cleaning from.  It doesn't matter if HW
+	 * kyesw where to start cleaning from.  It doesn't matter if HW
 	 * adds new entries after this loop -- the QP we're worried
 	 * about is already in RESET, so the new entries won't come
 	 * from our QP and therefore don't need to be checked.
@@ -1163,7 +1163,7 @@ static int copy_resize_cqes(struct mlx5_ib_cq *cq)
 	ssize = cq->buf.cqe_size;
 	dsize = cq->resize_buf->cqe_size;
 	if (ssize != dsize) {
-		mlx5_ib_warn(dev, "resize from different cqe size is not supported\n");
+		mlx5_ib_warn(dev, "resize from different cqe size is yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1217,7 +1217,7 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	unsigned long flags;
 
 	if (!MLX5_CAP_GEN(dev->mdev, cq_resize)) {
-		pr_info("Firmware does not support resize CQ\n");
+		pr_info("Firmware does yest support resize CQ\n");
 		return -ENOSYS;
 	}
 
@@ -1362,10 +1362,10 @@ int mlx5_ib_generate_wc(struct ib_cq *ibcq, struct ib_wc *wc)
 	soft_wc->wc = *wc;
 	spin_lock_irqsave(&cq->lock, flags);
 	list_add_tail(&soft_wc->list, &cq->wc_list);
-	if (cq->notify_flags == IB_CQ_NEXT_COMP ||
+	if (cq->yestify_flags == IB_CQ_NEXT_COMP ||
 	    wc->status != IB_WC_SUCCESS) {
-		cq->notify_flags = 0;
-		schedule_work(&cq->notify_work);
+		cq->yestify_flags = 0;
+		schedule_work(&cq->yestify_work);
 	}
 	spin_unlock_irqrestore(&cq->lock, flags);
 

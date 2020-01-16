@@ -12,7 +12,7 @@ distribute, sub license, and/or sell copies of the Software, and to
 permit persons to whom the Software is furnished to do so, subject to
 the following conditions:
 
-The above copyright notice and this permission notice (including the
+The above copyright yestice and this permission yestice (including the
 next paragraph) shall be included in all copies or substantial portions
 of the Software.
 
@@ -149,7 +149,7 @@ static bool sil164_init(struct intel_dvo_device *dvo,
 		goto out;
 
 	if (ch != (SIL164_VID & 0xff)) {
-		DRM_DEBUG_KMS("sil164 not detected got %d: from %s Slave %d.\n",
+		DRM_DEBUG_KMS("sil164 yest detected got %d: from %s Slave %d.\n",
 			  ch, adapter->name, dvo->slave_addr);
 		goto out;
 	}
@@ -158,7 +158,7 @@ static bool sil164_init(struct intel_dvo_device *dvo,
 		goto out;
 
 	if (ch != (SIL164_DID & 0xff)) {
-		DRM_DEBUG_KMS("sil164 not detected got %d: from %s Slave %d.\n",
+		DRM_DEBUG_KMS("sil164 yest detected got %d: from %s Slave %d.\n",
 			  ch, adapter->name, dvo->slave_addr);
 		goto out;
 	}

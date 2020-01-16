@@ -123,7 +123,7 @@ struct talitos_private {
 	/* SEC global registers lock  */
 	spinlock_t reg_lock ____cacheline_aligned;
 
-	/* SEC version geometry (from device tree node) */
+	/* SEC version geometry (from device tree yesde) */
 	unsigned int num_channels;
 	unsigned int chfifo_len;
 	unsigned int exec_units;
@@ -234,7 +234,7 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 #define   TALITOS_CCCR_LO_EAE		0x20   /* extended address enable */
 #define   TALITOS_CCCR_LO_CDWE		0x10   /* chan. done writeback enab. */
 #define   TALITOS_CCCR_LO_NE		0x8    /* fetch next descriptor enab. */
-#define   TALITOS_CCCR_LO_NT		0x4    /* notification type */
+#define   TALITOS_CCCR_LO_NT		0x4    /* yestification type */
 #define   TALITOS_CCCR_LO_CDIE		0x2    /* channel done IRQ enable */
 #define   TALITOS1_CCCR_LO_RESET	0x1    /* channel reset on SEC1 */
 
@@ -398,7 +398,7 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 /* direction of overall data flow (DIR) */
 #define	DESC_HDR_DIR_INBOUND		cpu_to_be32(0x00000002)
 
-/* request done notification (DN) */
+/* request done yestification (DN) */
 #define	DESC_HDR_DONE_NOTIFY		cpu_to_be32(0x00000001)
 
 /* descriptor types */

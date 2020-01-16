@@ -3,7 +3,7 @@
  * Texas Instruments' Message Manager Driver
  *
  * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com/
- *	Nishanth Menon
+ *	Nishanth Meyesn
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -146,7 +146,7 @@ struct ti_msgmgr_inst {
  * @d:		Description of message manager
  * @qinst:	Queue instance for which we check the number of pending messages
  *
- * Return: number of messages pending in the queue (0 == no pending messages)
+ * Return: number of messages pending in the queue (0 == yes pending messages)
  */
 static inline int
 ti_msgmgr_queue_get_num_messages(const struct ti_msgmgr_desc *d,
@@ -156,7 +156,7 @@ ti_msgmgr_queue_get_num_messages(const struct ti_msgmgr_desc *d,
 	u32 status_cnt_mask = d->status_cnt_mask;
 
 	/*
-	 * We cannot use relaxed operation here - update may happen
+	 * We canyest use relaxed operation here - update may happen
 	 * real-time.
 	 */
 	val = readl(qinst->queue_state) & status_cnt_mask;
@@ -177,12 +177,12 @@ static inline bool ti_msgmgr_queue_is_error(const struct ti_msgmgr_desc *d,
 {
 	u32 val;
 
-	/* Msgmgr has no error detection */
+	/* Msgmgr has yes error detection */
 	if (!d->is_sproxy)
 		return false;
 
 	/*
-	 * We cannot use relaxed operation here - update may happen
+	 * We canyest use relaxed operation here - update may happen
 	 * real-time.
 	 */
 	val = readl(qinst->queue_state) & d->status_err_mask;
@@ -195,8 +195,8 @@ static inline bool ti_msgmgr_queue_is_error(const struct ti_msgmgr_desc *d,
  * @irq:	Interrupt number
  * @p:		Channel Pointer
  *
- * Return: -EINVAL if there is no instance
- * IRQ_NONE if the interrupt is not ours.
+ * Return: -EINVAL if there is yes instance
+ * IRQ_NONE if the interrupt is yest ours.
  * IRQ_HANDLED if the rx interrupt was successfully handled.
  */
 static irqreturn_t ti_msgmgr_queue_rx_interrupt(int irq, void *p)
@@ -212,13 +212,13 @@ static irqreturn_t ti_msgmgr_queue_rx_interrupt(int irq, void *p)
 	u32 *word_data;
 
 	if (WARN_ON(!inst)) {
-		dev_err(dev, "no platform drv data??\n");
+		dev_err(dev, "yes platform drv data??\n");
 		return -EINVAL;
 	}
 
 	/* Do I have an invalid interrupt source? */
 	if (qinst->is_tx) {
-		dev_err(dev, "Cannot handle rx interrupt on tx channel %s\n",
+		dev_err(dev, "Canyest handle rx interrupt on tx channel %s\n",
 			qinst->name);
 		return IRQ_NONE;
 	}
@@ -238,7 +238,7 @@ static irqreturn_t ti_msgmgr_queue_rx_interrupt(int irq, void *p)
 	}
 
 	/*
-	 * I have no idea about the protocol being used to communicate with the
+	 * I have yes idea about the protocol being used to communicate with the
 	 * remote producer - 0 could be valid data, so I wont make a judgement
 	 * of how many bytes I should be reading. Let the client figure this
 	 * out.. I just read the full message and pass it on..
@@ -248,16 +248,16 @@ static irqreturn_t ti_msgmgr_queue_rx_interrupt(int irq, void *p)
 
 	/*
 	 * NOTE about register access involved here:
-	 * the hardware block is implemented with 32bit access operations and no
+	 * the hardware block is implemented with 32bit access operations and yes
 	 * support for data splitting.  We don't want the hardware to misbehave
 	 * with sub 32bit access - For example: if the last register read is
 	 * split into byte wise access, it can result in the queue getting
 	 * stuck or indeterminate behavior. An out of order read operation may
 	 * result in weird data results as well.
-	 * Hence, we do not use memcpy_fromio or __ioread32_copy here, instead
+	 * Hence, we do yest use memcpy_fromio or __ioread32_copy here, instead
 	 * we depend on readl for the purpose.
 	 *
-	 * Also note that the final register read automatically marks the
+	 * Also yeste that the final register read automatically marks the
 	 * queue message as read.
 	 */
 	for (data_reg = qinst->queue_buff_start, word_data = qinst->rx_buff,
@@ -280,7 +280,7 @@ static irqreturn_t ti_msgmgr_queue_rx_interrupt(int irq, void *p)
  * ti_msgmgr_queue_peek_data() - Peek to see if there are any rx messages.
  * @chan:	Channel Pointer
  *
- * Return: 'true' if there is pending rx data, 'false' if there is none.
+ * Return: 'true' if there is pending rx data, 'false' if there is yesne.
  */
 static bool ti_msgmgr_queue_peek_data(struct mbox_chan *chan)
 {
@@ -307,7 +307,7 @@ static bool ti_msgmgr_queue_peek_data(struct mbox_chan *chan)
  * ti_msgmgr_last_tx_done() - See if all the tx messages are sent
  * @chan:	Channel pointer
  *
- * Return: 'true' is no pending tx data, 'false' if there are any.
+ * Return: 'true' is yes pending tx data, 'false' if there are any.
  */
 static bool ti_msgmgr_last_tx_done(struct mbox_chan *chan)
 {
@@ -355,7 +355,7 @@ static int ti_msgmgr_send_data(struct mbox_chan *chan, void *data)
 	u32 *word_data;
 
 	if (WARN_ON(!inst)) {
-		dev_err(dev, "no platform drv data??\n");
+		dev_err(dev, "yes platform drv data??\n");
 		return -EINVAL;
 	}
 	desc = inst->desc;
@@ -388,7 +388,7 @@ static int ti_msgmgr_send_data(struct mbox_chan *chan, void *data)
 		data_reg++;
 	}
 	/*
-	 * 'data_reg' indicates next register to write. If we did not already
+	 * 'data_reg' indicates next register to write. If we did yest already
 	 * write on tx complete reg(last reg), we must do so for transmit
 	 */
 	if (data_reg <= qinst->queue_buff_end)
@@ -411,18 +411,18 @@ static int ti_msgmgr_queue_rx_irq_req(struct device *dev,
 {
 	int ret = 0;
 	char of_rx_irq_name[7];
-	struct device_node *np;
+	struct device_yesde *np;
 
 	snprintf(of_rx_irq_name, sizeof(of_rx_irq_name),
 		 "rx_%03d", d->is_sproxy ? qinst->proxy_id : qinst->queue_id);
 
-	/* Get the IRQ if not found */
+	/* Get the IRQ if yest found */
 	if (qinst->irq < 0) {
-		np = of_node_get(dev->of_node);
+		np = of_yesde_get(dev->of_yesde);
 		if (!np)
 			return -ENODATA;
 		qinst->irq = of_irq_get_byname(np, of_rx_irq_name);
-		of_node_put(np);
+		of_yesde_put(np);
 
 		if (qinst->irq < 0) {
 			dev_err(dev,
@@ -470,7 +470,7 @@ static int ti_msgmgr_queue_startup(struct mbox_chan *chan)
 		msg_count = ti_msgmgr_queue_get_num_messages(d, qinst);
 
 		if (!msg_count && qinst->is_tx) {
-			dev_err(dev, "%s: Cannot transmit with 0 credits!\n",
+			dev_err(dev, "%s: Canyest transmit with 0 credits!\n",
 				qinst->name);
 			return -EINVAL;
 		}
@@ -569,7 +569,7 @@ err:
  * ti_msgmgr_queue_setup() - Setup data structures for each queue instance
  * @idx:	index of the queue
  * @dev:	pointer to the message manager device
- * @np:		pointer to the of node
+ * @np:		pointer to the of yesde
  * @inst:	Queue instance pointer
  * @d:		Message Manager instance description data
  * @qd:		Queue description data
@@ -579,7 +579,7 @@ err:
  * Return: 0 if all went well, else return corresponding error
  */
 static int ti_msgmgr_queue_setup(int idx, struct device *dev,
-				 struct device_node *np,
+				 struct device_yesde *np,
 				 struct ti_msgmgr_inst *inst,
 				 const struct ti_msgmgr_desc *d,
 				 const struct ti_msgmgr_valid_queue_desc *qd,
@@ -707,7 +707,7 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *of_id;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource *res;
 	const struct ti_msgmgr_desc *desc;
 	struct ti_msgmgr_inst *inst;
@@ -719,11 +719,11 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 	int ret = -EINVAL;
 	const struct ti_msgmgr_valid_queue_desc *queue_desc;
 
-	if (!dev->of_node) {
-		dev_err(dev, "no OF information\n");
+	if (!dev->of_yesde) {
+		dev_err(dev, "yes OF information\n");
 		return -EINVAL;
 	}
-	np = dev->of_node;
+	np = dev->of_yesde;
 
 	of_id = of_match_device(ti_msgmgr_of_match, dev);
 	if (!of_id) {
@@ -835,5 +835,5 @@ module_platform_driver(ti_msgmgr_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("TI message manager driver");
-MODULE_AUTHOR("Nishanth Menon");
+MODULE_AUTHOR("Nishanth Meyesn");
 MODULE_ALIAS("platform:ti-msgmgr");

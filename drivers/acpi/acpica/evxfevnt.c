@@ -60,7 +60,7 @@ acpi_status acpi_enable(void)
 	status = acpi_hw_set_mode(ACPI_SYS_MODE_ACPI);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not transition to ACPI mode"));
+			    "Could yest transition to ACPI mode"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -76,7 +76,7 @@ acpi_status acpi_enable(void)
 		acpi_os_stall(100);	/* 100 usec */
 	}
 
-	ACPI_ERROR((AE_INFO, "Hardware did not enter ACPI mode"));
+	ACPI_ERROR((AE_INFO, "Hardware did yest enter ACPI mode"));
 	return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 }
 
@@ -90,7 +90,7 @@ ACPI_EXPORT_SYMBOL(acpi_enable)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Transfers the system into LEGACY (non-ACPI) mode.
+ * DESCRIPTION: Transfers the system into LEGACY (yesn-ACPI) mode.
  *
  ******************************************************************************/
 acpi_status acpi_disable(void)
@@ -107,7 +107,7 @@ acpi_status acpi_disable(void)
 
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_LEGACY) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-				  "System is already in legacy (non-ACPI) mode\n"));
+				  "System is already in legacy (yesn-ACPI) mode\n"));
 	} else {
 		/* Transition to LEGACY mode */
 
@@ -115,7 +115,7 @@ acpi_status acpi_disable(void)
 
 		if (ACPI_FAILURE(status)) {
 			ACPI_ERROR((AE_INFO,
-				    "Could not exit ACPI mode to legacy mode"));
+				    "Could yest exit ACPI mode to legacy mode"));
 			return_ACPI_STATUS(status);
 		}
 
@@ -146,7 +146,7 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 
 	ACPI_FUNCTION_TRACE(acpi_enable_event);
 
-	/* If Hardware Reduced flag is set, there are no fixed events */
+	/* If Hardware Reduced flag is set, there are yes fixed events */
 
 	if (acpi_gbl_reduced_hardware) {
 		return_ACPI_STATUS(AE_OK);
@@ -180,7 +180,7 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 
 	if (value != 1) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not enable %s event",
+			    "Could yest enable %s event",
 			    acpi_ut_get_event_name(event)));
 		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 	}
@@ -209,7 +209,7 @@ acpi_status acpi_disable_event(u32 event, u32 flags)
 
 	ACPI_FUNCTION_TRACE(acpi_disable_event);
 
-	/* If Hardware Reduced flag is set, there are no fixed events */
+	/* If Hardware Reduced flag is set, there are yes fixed events */
 
 	if (acpi_gbl_reduced_hardware) {
 		return_ACPI_STATUS(AE_OK);
@@ -241,7 +241,7 @@ acpi_status acpi_disable_event(u32 event, u32 flags)
 
 	if (value != 0) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not disable %s events",
+			    "Could yest disable %s events",
 			    acpi_ut_get_event_name(event)));
 		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 	}
@@ -268,7 +268,7 @@ acpi_status acpi_clear_event(u32 event)
 
 	ACPI_FUNCTION_TRACE(acpi_clear_event);
 
-	/* If Hardware Reduced flag is set, there are no fixed events */
+	/* If Hardware Reduced flag is set, there are yes fixed events */
 
 	if (acpi_gbl_reduced_hardware) {
 		return_ACPI_STATUS(AE_OK);

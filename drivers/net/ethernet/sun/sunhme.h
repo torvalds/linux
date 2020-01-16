@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: sunhme.h,v 1.33 2001/08/03 06:23:04 davem Exp $
  * sunhme.h: Definitions for Sparc HME/BigMac 10/100baseT ethernet driver.
- *           Also known as the "Happy Meal".
+ *           Also kyeswn as the "Happy Meal".
  *
  * Copyright (C) 1996, 1999 David S. Miller (davem@redhat.com)
  */
@@ -55,7 +55,7 @@
 #define GREG_STAT_RXLATERR     0x00080000 /* Late error during receive dma            */
 #define GREG_STAT_RXPERR       0x00100000 /* Parity error during receive dma          */
 #define GREG_STAT_RXTERR       0x00200000 /* Tag error during receive dma             */
-#define GREG_STAT_EOPERR       0x00400000 /* Transmit descriptor did not have EOP set */
+#define GREG_STAT_EOPERR       0x00400000 /* Transmit descriptor did yest have EOP set */
 #define GREG_STAT_MIFIRQ       0x00800000 /* MIF is signaling an interrupt condition  */
 #define GREG_STAT_HOSTTOTX     0x01000000 /* Moved from host memory to transmit-FIFO  */
 #define GREG_STAT_TXALL        0x02000000 /* Transmitted all packets in the tx-fifo   */
@@ -92,7 +92,7 @@
 #define GREG_IMASK_RXLATERR    0x00080000 /* Late error during receive dma            */
 #define GREG_IMASK_RXPERR      0x00100000 /* Parity error during receive dma          */
 #define GREG_IMASK_RXTERR      0x00200000 /* Tag error during receive dma             */
-#define GREG_IMASK_EOPERR      0x00400000 /* Transmit descriptor did not have EOP set */
+#define GREG_IMASK_EOPERR      0x00400000 /* Transmit descriptor did yest have EOP set */
 #define GREG_IMASK_MIFIRQ      0x00800000 /* MIF is signaling an interrupt condition  */
 #define GREG_IMASK_HOSTTOTX    0x01000000 /* Moved from host memory to transmit-FIFO  */
 #define GREG_IMASK_TXALL       0x02000000 /* Transmitted all packets in the tx-fifo   */
@@ -171,7 +171,7 @@
 #define BMAC_TXMIN	0x234UL	/* Transmit min pkt size              */
 #define BMAC_PATTEMPT	0x238UL	/* Count of transmit peak attempts    */
 #define BMAC_DTCTR	0x23cUL	/* Transmit defer timer               */
-#define BMAC_NCCTR	0x240UL	/* Transmit normal-collision counter  */
+#define BMAC_NCCTR	0x240UL	/* Transmit yesrmal-collision counter  */
 #define BMAC_FCCTR	0x244UL	/* Transmit first-collision counter   */
 #define BMAC_EXCTR	0x248UL	/* Transmit excess-collision counter  */
 #define BMAC_LTCTR	0x24cUL	/* Transmit late-collision counter    */
@@ -215,8 +215,8 @@
 /* BigMac transmit config register. */
 #define BIGMAC_TXCFG_ENABLE   0x00000001 /* Enable the transmitter       */
 #define BIGMAC_TXCFG_SMODE    0x00000020 /* Enable slow transmit mode    */
-#define BIGMAC_TXCFG_CIGN     0x00000040 /* Ignore transmit collisions   */
-#define BIGMAC_TXCFG_FCSOFF   0x00000080 /* Do not emit FCS              */
+#define BIGMAC_TXCFG_CIGN     0x00000040 /* Igyesre transmit collisions   */
+#define BIGMAC_TXCFG_FCSOFF   0x00000080 /* Do yest emit FCS              */
 #define BIGMAC_TXCFG_DBACKOFF 0x00000100 /* Disable backoff              */
 #define BIGMAC_TXCFG_FULLDPLX 0x00000200 /* Enable full-duplex           */
 #define BIGMAC_TXCFG_DGIVEUP  0x00000400 /* Don't give up on transmits   */
@@ -262,7 +262,7 @@
 
 /* Transceiver status register */
 #define TCV_STAT_BASIC        0xffff0000 /* The "basic" part                */
-#define TCV_STAT_NORMAL       0x0000ffff /* The "non-basic" part            */
+#define TCV_STAT_NORMAL       0x0000ffff /* The "yesn-basic" part            */
 
 /* Inside the Happy Meal transceiver is the physical layer, they use an
  * implementations for National Semiconductor, part number DP83840VCE.
@@ -384,7 +384,7 @@ struct hmeal_init_block {
 enum happy_transceiver {
 	external = 0,
 	internal = 1,
-	none     = 2,
+	yesne     = 2,
 };
 
 /* Timer state engine. */
@@ -449,7 +449,7 @@ struct happy_meal {
 	unsigned int              poll_data;      /* MIF poll data                     */
 	unsigned int              poll_flag;      /* MIF poll flag                     */
 	unsigned int              linkcheck;      /* Have we checked the link yet?     */
-	unsigned int              lnkup;          /* Is the link up as far as we know? */
+	unsigned int              lnkup;          /* Is the link up as far as we kyesw? */
 	unsigned int              lnkdown;        /* Trying to force the link down?    */
 	unsigned int              lnkcnt;         /* Counter for link-up attempts.     */
 	struct timer_list         happy_timer;    /* To watch the link when coming up. */

@@ -13,7 +13,7 @@
  * in the LICENSE file that accompanied this code).
  *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; If not, see http://www.gnu.org/licenses
+ * version 2 along with this program; If yest, see http://www.gnu.org/licenses
  *
  * Please  visit http://www.xyratex.com/contact if you need additional
  * information or have any questions.
@@ -22,7 +22,7 @@
  */
 
 /*
- * Copyright 2012 Xyratex Technology Limited
+ * Copyright 2012 Xyratex Techyeslogy Limited
  */
 
 /*

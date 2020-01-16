@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bug.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -67,7 +67,7 @@ int cm_split_idlest_reg(struct clk_omap_reg *idlest_reg, s16 *prcm_inst,
 {
 	int ret;
 	if (!cm_ll_data->split_idlest_reg) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: yes low-level function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -88,14 +88,14 @@ int cm_split_idlest_reg(struct clk_omap_reg *idlest_reg, s16 *prcm_inst,
  * Wait for the PRCM to indicate that the module identified by
  * (@prcm_mod, @idlest_id, @idlest_shift) is clocked.  Return 0 upon
  * success, -EBUSY if the module doesn't enable in time, or -EINVAL if
- * no per-SoC wait_module_ready() function pointer has been registered
- * or if the idlest register is unknown on the SoC.
+ * yes per-SoC wait_module_ready() function pointer has been registered
+ * or if the idlest register is unkyeswn on the SoC.
  */
 int omap_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_reg,
 			      u8 idlest_shift)
 {
 	if (!cm_ll_data->wait_module_ready) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: yes low-level function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -112,16 +112,16 @@ int omap_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_reg,
  * @idlest_shift: shift of the bit in the CM_IDLEST* register to check
  *
  * Wait for the PRCM to indicate that the module identified by
- * (@prcm_mod, @idlest_id, @idlest_shift) is no longer clocked.  Return
+ * (@prcm_mod, @idlest_id, @idlest_shift) is yes longer clocked.  Return
  * 0 upon success, -EBUSY if the module doesn't enable in time, or
- * -EINVAL if no per-SoC wait_module_idle() function pointer has been
- * registered or if the idlest register is unknown on the SoC.
+ * -EINVAL if yes per-SoC wait_module_idle() function pointer has been
+ * registered or if the idlest register is unkyeswn on the SoC.
  */
 int omap_cm_wait_module_idle(u8 part, s16 prcm_mod, u16 idlest_reg,
 			     u8 idlest_shift)
 {
 	if (!cm_ll_data->wait_module_idle) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: yes low-level function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -138,13 +138,13 @@ int omap_cm_wait_module_idle(u8 part, s16 prcm_mod, u16 idlest_reg,
  * @clkctrl_offs: CM_CLKCTRL register offset for the module
  *
  * Enables clocks for a module identified by (@part, @inst, @clkctrl_offs)
- * making its IO space accessible. Return 0 upon success, -EINVAL if no
+ * making its IO space accessible. Return 0 upon success, -EINVAL if yes
  * per-SoC module_enable() function pointer has been registered.
  */
 int omap_cm_module_enable(u8 mode, u8 part, u16 inst, u16 clkctrl_offs)
 {
 	if (!cm_ll_data->module_enable) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: yes low-level function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -161,12 +161,12 @@ int omap_cm_module_enable(u8 mode, u8 part, u16 inst, u16 clkctrl_offs)
  *
  * Disables clocks for a module identified by (@part, @inst, @clkctrl_offs)
  * makings its IO space inaccessible. Return 0 upon success, -EINVAL if
- * no per-SoC module_disable() function pointer has been registered.
+ * yes per-SoC module_disable() function pointer has been registered.
  */
 int omap_cm_module_disable(u8 part, u16 inst, u16 clkctrl_offs)
 {
 	if (!cm_ll_data->module_disable) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: yes low-level function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -178,7 +178,7 @@ int omap_cm_module_disable(u8 part, u16 inst, u16 clkctrl_offs)
 u32 omap_cm_xlate_clkctrl(u8 part, u16 inst, u16 clkctrl_offs)
 {
 	if (!cm_ll_data->xlate_clkctrl) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: yes low-level function defined\n",
 			  __func__);
 		return 0;
 	}
@@ -215,9 +215,9 @@ int cm_register(const struct cm_ll_data *cld)
  *
  * Unregister per-SoC low-level OMAP CM data and function pointers
  * that were previously registered with cm_register().  The
- * caller may not destroy any of the data pointed to by @cld until
+ * caller may yest destroy any of the data pointed to by @cld until
  * this function returns successfully.  Returns 0 upon success, or
- * -EINVAL if @cld is NULL or if @cld does not match the struct
+ * -EINVAL if @cld is NULL or if @cld does yest match the struct
  * cm_ll_data * previously registered by cm_register().
  */
 int cm_unregister(const struct cm_ll_data *cld)
@@ -322,14 +322,14 @@ static const struct of_device_id omap_cm_dt_match_table[] __initconst = {
  */
 int __init omap2_cm_base_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id *match;
 	struct omap_prcm_init_data *data;
 	struct resource res;
 	int ret;
 	struct omap_domain_base *mem = NULL;
 
-	for_each_matching_node_and_match(np, omap_cm_dt_match_table, &match) {
+	for_each_matching_yesde_and_match(np, omap_cm_dt_match_table, &match) {
 		data = (struct omap_prcm_init_data *)match->data;
 
 		ret = of_address_to_resource(np, 0, &res);
@@ -368,12 +368,12 @@ int __init omap2_cm_base_init(void)
  */
 int __init omap_cm_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id *match;
 	const struct omap_prcm_init_data *data;
 	int ret;
 
-	for_each_matching_node_and_match(np, omap_cm_dt_match_table, &match) {
+	for_each_matching_yesde_and_match(np, omap_cm_dt_match_table, &match) {
 		data = match->data;
 
 		if (data->flags & CM_NO_CLOCKS)

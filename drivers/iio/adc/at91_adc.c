@@ -260,7 +260,7 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(idev, st->buffer, pf->timestamp);
 
-	iio_trigger_notify_done(idev->trig);
+	iio_trigger_yestify_done(idev->trig);
 
 	/* Needed to ACK the DRDY interruption */
 	at91_adc_readl(st, AT91_ADC_LCDR);
@@ -276,7 +276,7 @@ static void handle_adc_eoc_trigger(int irq, struct iio_dev *idev)
 	struct at91_adc_state *st = iio_priv(idev);
 
 	if (iio_buffer_enabled(idev)) {
-		disable_irq_nosync(irq);
+		disable_irq_yessync(irq);
 		iio_trigger_poll(idev->trig);
 	} else {
 		st->last_value = at91_adc_readl(st, AT91_ADC_CHAN(st, st->chnb));
@@ -330,7 +330,7 @@ static int at91_ts_sample(struct at91_adc_state *st)
 		pres = rxp * (x * factor / 1024) * (z2 * factor / z1 - factor)
 			/ factor;
 	else
-		pres = st->ts_pressure_threshold;	/* no pen contacted */
+		pres = st->ts_pressure_threshold;	/* yes pen contacted */
 
 	dev_dbg(&idev->dev, "xpos = %d, xscale = %d, ypos = %d, yscale = %d, z1 = %d, z2 = %d, press = %d\n",
 				xpos, xscale, ypos, yscale, z1, z2, pres);
@@ -344,7 +344,7 @@ static int at91_ts_sample(struct at91_adc_state *st)
 		input_report_key(st->ts_input, BTN_TOUCH, 1);
 		input_sync(st->ts_input);
 	} else {
-		dev_dbg(&idev->dev, "pressure too low: not reporting\n");
+		dev_dbg(&idev->dev, "pressure too low: yest reporting\n");
 	}
 
 	return 0;
@@ -451,7 +451,7 @@ static irqreturn_t at91_adc_9x5_interrupt(int irq, void *private)
 			/* validate data by pen contact */
 			at91_ts_sample(st);
 		} else {
-			/* triggered by event that is no pen contact, just read
+			/* triggered by event that is yes pen contact, just read
 			 * them to clean the interrupt and discard all.
 			 */
 			at91_adc_readl(st, AT91_ADC_TSXPOSR);
@@ -644,7 +644,7 @@ static int at91_adc_trigger_init(struct iio_dev *idev)
 							st->trigger_list + i);
 		if (st->trig[i] == NULL) {
 			dev_err(&idev->dev,
-				"Could not allocate trigger %d\n", i);
+				"Could yest allocate trigger %d\n", i);
 			ret = -ENOMEM;
 			goto error_trigger;
 		}
@@ -705,7 +705,7 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 						       msecs_to_jiffies(1000));
 
 		/* Disable interrupts, regardless if adc conversion was
-		 * successful or not
+		 * successful or yest
 		 */
 		at91_adc_writel(st, AT91_ADC_CHDR,
 				AT91_ADC_CH(chan->channel));
@@ -741,7 +741,7 @@ static int at91_adc_of_get_resolution(struct at91_adc_state *st,
 				      struct platform_device *pdev)
 {
 	struct iio_dev *idev = iio_priv_to_dev(st);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int count, i, ret = 0;
 	char *res_name, *s;
 	u32 *resolutions;
@@ -783,7 +783,7 @@ static int at91_adc_of_get_resolution(struct at91_adc_state *st,
 		goto ret;
 	}
 
-	dev_err(&idev->dev, "There is no resolution for %s\n", res_name);
+	dev_err(&idev->dev, "There is yes resolution for %s\n", res_name);
 
 ret:
 	kfree(resolutions);
@@ -831,13 +831,13 @@ static u32 calc_startup_ticks_9x5(u32 startup_time, u32 adc_clk_khz)
 
 static const struct of_device_id at91_adc_dt_ids[];
 
-static int at91_adc_probe_dt_ts(struct device_node *node,
+static int at91_adc_probe_dt_ts(struct device_yesde *yesde,
 	struct at91_adc_state *st, struct device *dev)
 {
 	int ret;
 	u32 prop;
 
-	ret = of_property_read_u32(node, "atmel,adc-ts-wires", &prop);
+	ret = of_property_read_u32(yesde, "atmel,adc-ts-wires", &prop);
 	if (ret) {
 		dev_info(dev, "ADC Touch screen is disabled.\n");
 		return 0;
@@ -856,7 +856,7 @@ static int at91_adc_probe_dt_ts(struct device_node *node,
 	if (!st->caps->has_tsmr)
 		return 0;
 	prop = 0;
-	of_property_read_u32(node, "atmel,adc-ts-pressure-threshold", &prop);
+	of_property_read_u32(yesde, "atmel,adc-ts-pressure-threshold", &prop);
 	st->ts_pressure_threshold = prop;
 	if (st->ts_pressure_threshold) {
 		return 0;
@@ -870,29 +870,29 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 			     struct platform_device *pdev)
 {
 	struct iio_dev *idev = iio_priv_to_dev(st);
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *trig_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *trig_yesde;
 	int i = 0, ret;
 	u32 prop;
 
-	if (!node)
+	if (!yesde)
 		return -EINVAL;
 
 	st->caps = (struct at91_adc_caps *)
 		of_match_device(at91_adc_dt_ids, &pdev->dev)->data;
 
-	st->use_external = of_property_read_bool(node, "atmel,adc-use-external-triggers");
+	st->use_external = of_property_read_bool(yesde, "atmel,adc-use-external-triggers");
 
-	if (of_property_read_u32(node, "atmel,adc-channels-used", &prop)) {
+	if (of_property_read_u32(yesde, "atmel,adc-channels-used", &prop)) {
 		dev_err(&idev->dev, "Missing adc-channels-used property in the DT.\n");
 		ret = -EINVAL;
 		goto error_ret;
 	}
 	st->channels_mask = prop;
 
-	st->sleep_mode = of_property_read_bool(node, "atmel,adc-sleep-mode");
+	st->sleep_mode = of_property_read_bool(yesde, "atmel,adc-sleep-mode");
 
-	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop)) {
+	if (of_property_read_u32(yesde, "atmel,adc-startup-time", &prop)) {
 		dev_err(&idev->dev, "Missing adc-startup-time property in the DT.\n");
 		ret = -EINVAL;
 		goto error_ret;
@@ -900,10 +900,10 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 	st->startup_time = prop;
 
 	prop = 0;
-	of_property_read_u32(node, "atmel,adc-sample-hold-time", &prop);
+	of_property_read_u32(yesde, "atmel,adc-sample-hold-time", &prop);
 	st->sample_hold_time = prop;
 
-	if (of_property_read_u32(node, "atmel,adc-vref", &prop)) {
+	if (of_property_read_u32(yesde, "atmel,adc-vref", &prop)) {
 		dev_err(&idev->dev, "Missing adc-vref property in the DT.\n");
 		ret = -EINVAL;
 		goto error_ret;
@@ -916,43 +916,43 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 
 	st->registers = &st->caps->registers;
 	st->num_channels = st->caps->num_channels;
-	st->trigger_number = of_get_child_count(node);
+	st->trigger_number = of_get_child_count(yesde);
 	st->trigger_list = devm_kcalloc(&idev->dev,
 					st->trigger_number,
 					sizeof(struct at91_adc_trigger),
 					GFP_KERNEL);
 	if (!st->trigger_list) {
-		dev_err(&idev->dev, "Could not allocate trigger list memory.\n");
+		dev_err(&idev->dev, "Could yest allocate trigger list memory.\n");
 		ret = -ENOMEM;
 		goto error_ret;
 	}
 
-	for_each_child_of_node(node, trig_node) {
+	for_each_child_of_yesde(yesde, trig_yesde) {
 		struct at91_adc_trigger *trig = st->trigger_list + i;
 		const char *name;
 
-		if (of_property_read_string(trig_node, "trigger-name", &name)) {
+		if (of_property_read_string(trig_yesde, "trigger-name", &name)) {
 			dev_err(&idev->dev, "Missing trigger-name property in the DT.\n");
 			ret = -EINVAL;
 			goto error_ret;
 		}
 		trig->name = name;
 
-		if (of_property_read_u32(trig_node, "trigger-value", &prop)) {
+		if (of_property_read_u32(trig_yesde, "trigger-value", &prop)) {
 			dev_err(&idev->dev, "Missing trigger-value property in the DT.\n");
 			ret = -EINVAL;
 			goto error_ret;
 		}
 		trig->value = prop;
-		trig->is_external = of_property_read_bool(trig_node, "trigger-external");
+		trig->is_external = of_property_read_bool(trig_yesde, "trigger-external");
 		i++;
 	}
 
 	/* Check if touchscreen is supported. */
 	if (st->caps->has_ts)
-		return at91_adc_probe_dt_ts(node, st, &idev->dev);
+		return at91_adc_probe_dt_ts(yesde, st, &idev->dev);
 	else
-		dev_info(&idev->dev, "not support touchscreen in the adc compatible string.\n");
+		dev_info(&idev->dev, "yest support touchscreen in the adc compatible string.\n");
 
 	return 0;
 
@@ -1018,7 +1018,7 @@ static int at91_ts_hw_init(struct at91_adc_state *st, u32 adc_clk_khz)
 	int i = 0;
 
 	/* a Pen Detect Debounce Time is necessary for the ADC Touch to avoid
-	 * pen detect noise.
+	 * pen detect yesise.
 	 * The formula is : Pen Detect Debounce Time = (2 ^ pendbc) / ADCClock
 	 */
 	st->ts_pendbc = round_up(TOUCH_PEN_DETECT_DEBOUNCE_US * adc_clk_khz /
@@ -1161,7 +1161,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	st = iio_priv(idev);
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		ret = at91_adc_probe_dt(st, pdev);
 	else
 		ret = at91_adc_probe_pdata(st, pdev);
@@ -1216,7 +1216,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(st->clk);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"Could not prepare or enable the clock.\n");
+			"Could yest prepare or enable the clock.\n");
 		goto error_free_irq;
 	}
 
@@ -1230,7 +1230,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(st->adc_clk);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"Could not prepare or enable the ADC clock.\n");
+			"Could yest prepare or enable the ADC clock.\n");
 		goto error_disable_clk;
 	}
 

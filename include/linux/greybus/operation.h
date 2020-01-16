@@ -84,7 +84,7 @@ struct gb_message {
  * size); and the response message payload (and size).  Note that a
  * message with a 0-byte payload has a null message payload pointer.
  *
- * In addition, every operation has a result, which is an errno
+ * In addition, every operation has a result, which is an erryes
  * value.  Protocol handlers access the operation result using
  * gb_operation_result().
  */
@@ -97,7 +97,7 @@ struct gb_operation {
 	unsigned long		flags;
 	u8			type;
 	u16			id;
-	int			errno;		/* Operation result */
+	int			erryes;		/* Operation result */
 
 	struct work_struct	work;
 	gb_operation_callback	callback;
@@ -182,8 +182,8 @@ gb_operation_request_send_sync(struct gb_operation *operation)
 			GB_OPERATION_TIMEOUT_DEFAULT);
 }
 
-void gb_operation_cancel(struct gb_operation *operation, int errno);
-void gb_operation_cancel_incoming(struct gb_operation *operation, int errno);
+void gb_operation_cancel(struct gb_operation *operation, int erryes);
+void gb_operation_cancel_incoming(struct gb_operation *operation, int erryes);
 
 void greybus_message_sent(struct gb_host_device *hd,
 				struct gb_message *message, int status);

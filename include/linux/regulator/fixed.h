@@ -7,7 +7,7 @@
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
  * Copyright (c) 2009 Nokia Corporation
- * Roger Quadros <ext-roger.quadros@nokia.com>
+ * Roger Quadros <ext-roger.quadros@yeskia.com>
  */
 
 #ifndef __REGULATOR_FIXED_H
@@ -22,7 +22,7 @@ struct regulator_init_data;
  * @microvolts:		Output voltage of regulator
  * @startup_delay:	Start-up time in microseconds
  * @enabled_at_boot:	Whether regulator has been enabled at
- * 			boot or not. 1 = Yes, 0 = No
+ * 			boot or yest. 1 = Yes, 0 = No
  * 			This is used to keep the regulator at
  * 			the default state
  * @init_data:		regulator_init_data

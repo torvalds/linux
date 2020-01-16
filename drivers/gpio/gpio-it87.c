@@ -2,7 +2,7 @@
 /*
  *  GPIO interface for IT87xx Super I/O chips
  *
- *  Author: Diego Elio Pettenò <flameeyes@flameeyes.eu>
+ *  Author: Diego Elio Pettenò <flameeno@flameeno.eu>
  *  Copyright (c) 2017 Google, Inc.
  *
  *  Based on it87_wdt.c     by Oliver Schuster
@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/gpio/driver.h>
@@ -166,7 +166,7 @@ static int it87_gpio_request(struct gpio_chip *chip, unsigned gpio_num)
 	if (rc)
 		goto exit;
 
-	/* not all the IT87xx chips support Simple I/O and not all of
+	/* yest all the IT87xx chips support Simple I/O and yest all of
 	 * them allow all the lines to be set/unset to Simple I/O.
 	 */
 	if (group < it87_gpio->simple_size)
@@ -333,10 +333,10 @@ static int __init it87_gpio_init(void)
 		it87_gpio->chip.ngpio = 16;
 		break;
 	case NO_DEV_ID:
-		pr_err("no device\n");
+		pr_err("yes device\n");
 		return -ENODEV;
 	default:
-		pr_err("Unknown Chip found, Chip %04x Revision %x\n",
+		pr_err("Unkyeswn Chip found, Chip %04x Revision %x\n",
 		       chip_type, chip_rev);
 		return -ENODEV;
 	}
@@ -415,6 +415,6 @@ static void __exit it87_gpio_exit(void)
 module_init(it87_gpio_init);
 module_exit(it87_gpio_exit);
 
-MODULE_AUTHOR("Diego Elio Pettenò <flameeyes@flameeyes.eu>");
+MODULE_AUTHOR("Diego Elio Pettenò <flameeno@flameeno.eu>");
 MODULE_DESCRIPTION("GPIO interface for IT87xx Super I/O chips");
 MODULE_LICENSE("GPL");

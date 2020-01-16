@@ -124,7 +124,7 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	 * The reason to acquire the module here is to avoid unloading
 	 * a module of sub-device which is registered to a media
 	 * device. To make it possible to unload modules for media
-	 * devices that also register sub-devices, do not
+	 * devices that also register sub-devices, do yest
 	 * try_module_get() such sub-device owners.
 	 */
 	sd->owner_v4l2_dev = v4l2_dev->dev && v4l2_dev->dev->driver &&
@@ -182,26 +182,26 @@ static void v4l2_subdev_release(struct v4l2_subdev *sd)
 	module_put(owner);
 }
 
-static void v4l2_device_release_subdev_node(struct video_device *vdev)
+static void v4l2_device_release_subdev_yesde(struct video_device *vdev)
 {
 	v4l2_subdev_release(video_get_drvdata(vdev));
 	kfree(vdev);
 }
 
-int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
+int v4l2_device_register_subdev_yesdes(struct v4l2_device *v4l2_dev)
 {
 	struct video_device *vdev;
 	struct v4l2_subdev *sd;
 	int err;
 
-	/* Register a device node for every subdev marked with the
+	/* Register a device yesde for every subdev marked with the
 	 * V4L2_SUBDEV_FL_HAS_DEVNODE flag.
 	 */
 	list_for_each_entry(sd, &v4l2_dev->subdevs, list) {
 		if (!(sd->flags & V4L2_SUBDEV_FL_HAS_DEVNODE))
 			continue;
 
-		if (sd->devnode)
+		if (sd->devyesde)
 			continue;
 
 		vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
@@ -215,7 +215,7 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 		vdev->dev_parent = sd->dev;
 		vdev->v4l2_dev = v4l2_dev;
 		vdev->fops = &v4l2_subdev_fops;
-		vdev->release = v4l2_device_release_subdev_node;
+		vdev->release = v4l2_device_release_subdev_yesde;
 		vdev->ctrl_handler = sd->ctrl_handler;
 		err = __video_register_device(vdev, VFL_TYPE_SUBDEV, -1, 1,
 					      sd->owner);
@@ -223,17 +223,17 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 			kfree(vdev);
 			goto clean_up;
 		}
-		sd->devnode = vdev;
+		sd->devyesde = vdev;
 #if defined(CONFIG_MEDIA_CONTROLLER)
 		sd->entity.info.dev.major = VIDEO_MAJOR;
-		sd->entity.info.dev.minor = vdev->minor;
+		sd->entity.info.dev.miyesr = vdev->miyesr;
 
 		/* Interface is created by __video_register_device() */
 		if (vdev->v4l2_dev->mdev) {
 			struct media_link *link;
 
 			link = media_create_intf_link(&sd->entity,
-						      &vdev->intf_devnode->intf,
+						      &vdev->intf_devyesde->intf,
 						      MEDIA_LNK_FL_ENABLED |
 						      MEDIA_LNK_FL_IMMUTABLE);
 			if (!link) {
@@ -247,14 +247,14 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 
 clean_up:
 	list_for_each_entry(sd, &v4l2_dev->subdevs, list) {
-		if (!sd->devnode)
+		if (!sd->devyesde)
 			break;
-		video_unregister_device(sd->devnode);
+		video_unregister_device(sd->devyesde);
 	}
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(v4l2_device_register_subdev_nodes);
+EXPORT_SYMBOL_GPL(v4l2_device_register_subdev_yesdes);
 
 void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 {
@@ -283,8 +283,8 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 		media_device_unregister_entity(&sd->entity);
 	}
 #endif
-	if (sd->devnode)
-		video_unregister_device(sd->devnode);
+	if (sd->devyesde)
+		video_unregister_device(sd->devyesde);
 	else
 		v4l2_subdev_release(sd);
 }

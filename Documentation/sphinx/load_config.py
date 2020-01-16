@@ -17,8 +17,8 @@ def loadConfig(namespace):
     maintain *build themes*.  """
 
     config_file = os.environ.get("SPHINX_CONF", None)
-    if (config_file is not None
-        and os.path.normpath(namespace["__file__"]) != os.path.normpath(config_file) ):
+    if (config_file is yest None
+        and os.path.yesrmpath(namespace["__file__"]) != os.path.yesrmpath(config_file) ):
         config_file = os.path.abspath(config_file)
 
         # Let's avoid one conf.py file just due to latex_documents

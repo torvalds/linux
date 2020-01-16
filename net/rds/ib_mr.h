@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -71,7 +71,7 @@ struct rds_ib_mr {
 	struct rds_ib_mr_pool		*pool;
 	struct rds_ib_connection	*ic;
 
-	struct llist_node		llnode;
+	struct llist_yesde		llyesde;
 
 	/* unmap_list is for freeing */
 	struct list_head		unmap_list;
@@ -96,7 +96,7 @@ struct rds_ib_mr_pool {
 	atomic_t		item_count;	/* total # of MRs */
 	atomic_t		dirty_count;	/* # dirty of MRs */
 
-	struct llist_head	drop_list;	/* MRs not reached max_maps */
+	struct llist_head	drop_list;	/* MRs yest reached max_maps */
 	struct llist_head	free_list;	/* unused MRs */
 	struct llist_head	clean_list;	/* unused & unmapped MRs */
 	wait_queue_head_t	flush_wait;

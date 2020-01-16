@@ -35,12 +35,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -155,7 +155,7 @@ iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 	 * Checking that we hold mvm->mutex is a good idea, but the rate
 	 * control can't acquire the mutex since it runs in Tx path.
 	 * So this is racy in that case, but in the worst case, the AMPDU
-	 * size limit will be wrong for a short time which is not a big
+	 * size limit will be wrong for a short time which is yest a big
 	 * issue.
 	 */
 
@@ -182,9 +182,9 @@ iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 		le32_to_cpu(mvm->last_bt_ci_cmd.secondary_ch_phy_id);
 
 	if (primary_ch_phy_id == phy_ctx_id)
-		ret = le32_to_cpu(mvm->last_bt_notif.primary_ch_lut);
+		ret = le32_to_cpu(mvm->last_bt_yestif.primary_ch_lut);
 	else if (secondary_ch_phy_id == phy_ctx_id)
-		ret = le32_to_cpu(mvm->last_bt_notif.secondary_ch_lut);
+		ret = le32_to_cpu(mvm->last_bt_yestif.secondary_ch_lut);
 	/* else - default = TX TX disallowed */
 
 	rcu_read_unlock();
@@ -229,7 +229,7 @@ int iwl_mvm_send_bt_init_conf(struct iwl_mvm *mvm)
 	bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_HIGH_BAND_RET);
 
 send_cmd:
-	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
+	memset(&mvm->last_bt_yestif, 0, sizeof(mvm->last_bt_yestif));
 	memset(&mvm->last_bt_ci_cmd, 0, sizeof(mvm->last_bt_ci_cmd));
 
 	return iwl_mvm_send_cmd_pdu(mvm, BT_CONFIG, 0, sizeof(bt_cmd), &bt_cmd);
@@ -246,7 +246,7 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 	if (!mvmsta)
 		return 0;
 
-	/* nothing to do */
+	/* yesthing to do */
 	if (mvmsta->bt_reduced_txpower == enable)
 		return 0;
 
@@ -266,7 +266,7 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 }
 
 struct iwl_bt_iterator_data {
-	struct iwl_bt_coex_profile_notif *notif;
+	struct iwl_bt_coex_profile_yestif *yestif;
 	struct iwl_mvm *mvm;
 	struct ieee80211_chanctx_conf *primary;
 	struct ieee80211_chanctx_conf *secondary;
@@ -294,12 +294,12 @@ void iwl_mvm_bt_coex_enable_rssi_event(struct iwl_mvm *mvm,
 static void iwl_mvm_bt_coex_tcm_based_ci(struct iwl_mvm *mvm,
 					 struct iwl_bt_iterator_data *data)
 {
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 
-	if (!time_after(now, mvm->bt_coex_last_tcm_ts + MVM_COEX_TCM_PERIOD))
+	if (!time_after(yesw, mvm->bt_coex_last_tcm_ts + MVM_COEX_TCM_PERIOD))
 		return;
 
-	mvm->bt_coex_last_tcm_ts = now;
+	mvm->bt_coex_last_tcm_ts = yesw;
 
 	/* We assume here that we don't have more than 2 vifs on 2.4GHz */
 
@@ -314,7 +314,7 @@ static void iwl_mvm_bt_coex_tcm_based_ci(struct iwl_mvm *mvm,
 }
 
 /* must be called under rcu_read_lock */
-static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
+static void iwl_mvm_bt_yestif_iterator(void *_data, u8 *mac,
 				      struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -341,7 +341,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 
 	chanctx_conf = rcu_dereference(vif->chanctx_conf);
 
-	/* If channel context is invalid or not on 2.4GHz .. */
+	/* If channel context is invalid or yest on 2.4GHz .. */
 	if ((!chanctx_conf ||
 	     chanctx_conf->def.chan->band != NL80211_BAND_2GHZ)) {
 		if (vif->type == NL80211_IFTYPE_STATION) {
@@ -360,7 +360,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	else
 		min_ag_for_static_smps = BT_HIGH_TRAFFIC;
 
-	bt_activity_grading = le32_to_cpu(data->notif->bt_activity_grading);
+	bt_activity_grading = le32_to_cpu(data->yestif->bt_activity_grading);
 	if (bt_activity_grading >= min_ag_for_static_smps)
 		smps_mode = IEEE80211_SMPS_STATIC;
 	else if (bt_activity_grading >= BT_LOW_TRAFFIC)
@@ -371,7 +371,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	if (mvmvif->phy_ctxt &&
-	    (mvm->last_bt_notif.rrc_status & BIT(mvmvif->phy_ctxt->id)))
+	    (mvm->last_bt_yestif.rrc_status & BIT(mvmvif->phy_ctxt->id)))
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	IWL_DEBUG_COEX(data->mvm,
@@ -399,7 +399,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 
 		if (!data->primary_ll) {
 			/*
-			 * downgrade the current primary no matter what its
+			 * downgrade the current primary yes matter what its
 			 * type is.
 			 */
 			data->secondary = data->primary;
@@ -423,7 +423,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (!data->primary || data->primary == chanctx_conf)
 		data->primary = chanctx_conf;
 	else if (!data->secondary)
-		/* if secondary is not NULL, it might be a GO */
+		/* if secondary is yest NULL, it might be a GO */
 		data->secondary = chanctx_conf;
 
 	if (data->primary == chanctx_conf)
@@ -435,11 +435,11 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	 *  we are in LOOSE
 	 *  single share antenna product
 	 *  BT is inactive
-	 *  we are not associated
+	 *  we are yest associated
 	 */
 	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT ||
 	    mvm->cfg->bt_shared_single_ant || !vif->bss_conf.assoc ||
-	    le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF) {
+	    le32_to_cpu(mvm->last_bt_yestif.bt_activity_grading) == BT_OFF) {
 		iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false);
 		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
@@ -463,23 +463,23 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, true, ave_rssi);
 }
 
-static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
+static void iwl_mvm_bt_coex_yestif_handle(struct iwl_mvm *mvm)
 {
 	struct iwl_bt_iterator_data data = {
 		.mvm = mvm,
-		.notif = &mvm->last_bt_notif,
+		.yestif = &mvm->last_bt_yestif,
 	};
 	struct iwl_bt_coex_ci_cmd cmd = {};
 	u8 ci_bw_idx;
 
-	/* Ignore updates if we are in force mode */
+	/* Igyesre updates if we are in force mode */
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
 		return;
 
 	rcu_read_lock();
 	ieee80211_iterate_active_interfaces_atomic(
 					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-					iwl_mvm_bt_notif_iterator, &data);
+					iwl_mvm_bt_yestif_iterator, &data);
 
 	iwl_mvm_bt_coex_tcm_based_ci(mvm, &data);
 
@@ -540,25 +540,25 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 	}
 }
 
-void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_bt_coex_yestif(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
+	struct iwl_bt_coex_profile_yestif *yestif = (void *)pkt->data;
 
 	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
-	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
+	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", yestif->bt_ci_compliance);
 	IWL_DEBUG_COEX(mvm, "\tBT primary_ch_lut %d\n",
-		       le32_to_cpu(notif->primary_ch_lut));
+		       le32_to_cpu(yestif->primary_ch_lut));
 	IWL_DEBUG_COEX(mvm, "\tBT secondary_ch_lut %d\n",
-		       le32_to_cpu(notif->secondary_ch_lut));
+		       le32_to_cpu(yestif->secondary_ch_lut));
 	IWL_DEBUG_COEX(mvm, "\tBT activity grading %d\n",
-		       le32_to_cpu(notif->bt_activity_grading));
+		       le32_to_cpu(yestif->bt_activity_grading));
 
-	/* remember this notification for future use: rssi fluctuations */
-	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
+	/* remember this yestification for future use: rssi fluctuations */
+	memcpy(&mvm->last_bt_yestif, yestif, sizeof(mvm->last_bt_yestif));
 
-	iwl_mvm_bt_coex_notif_handle(mvm);
+	iwl_mvm_bt_coex_yestif_handle(mvm);
 }
 
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -569,26 +569,26 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* Ignore updates if we are in force mode */
+	/* Igyesre updates if we are in force mode */
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
 		return;
 
 	/*
-	 * Rssi update while not associated - can happen since the statistics
-	 * are handled asynchronously
+	 * Rssi update while yest associated - can happen since the statistics
+	 * are handled asynchroyesusly
 	 */
 	if (mvmvif->ap_sta_id == IWL_MVM_INVALID_STA)
 		return;
 
 	/* No BT - reports should be disabled */
-	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF)
+	if (le32_to_cpu(mvm->last_bt_yestif.bt_activity_grading) == BT_OFF)
 		return;
 
-	IWL_DEBUG_COEX(mvm, "RSSI for %pM is now %s\n", vif->bss_conf.bssid,
+	IWL_DEBUG_COEX(mvm, "RSSI for %pM is yesw %s\n", vif->bss_conf.bssid,
 		       rssi_event == RSSI_EVENT_HIGH ? "HIGH" : "LOW");
 
 	/*
-	 * Check if rssi is good enough for reduced Tx power, but not in loose
+	 * Check if rssi is good eyesugh for reduced Tx power, but yest in loose
 	 * scheme.
 	 */
 	if (rssi_event == RSSI_EVENT_LOW || mvm->cfg->bt_shared_single_ant ||
@@ -613,10 +613,10 @@ u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
 	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
-	if (mvm->last_bt_notif.ttc_status & BIT(phy_ctxt->id))
+	if (mvm->last_bt_yestif.ttc_status & BIT(phy_ctxt->id))
 		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
 
-	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
+	if (le32_to_cpu(mvm->last_bt_yestif.bt_activity_grading) <
 	    BT_HIGH_TRAFFIC)
 		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
 
@@ -637,10 +637,10 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
-	if (mvm->last_bt_notif.ttc_status & BIT(phy_ctxt->id))
+	if (mvm->last_bt_yestif.ttc_status & BIT(phy_ctxt->id))
 		return true;
 
-	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
+	if (le32_to_cpu(mvm->last_bt_yestif.bt_activity_grading) <
 	    BT_HIGH_TRAFFIC)
 		return true;
 
@@ -657,30 +657,30 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 
 bool iwl_mvm_bt_coex_is_ant_avail(struct iwl_mvm *mvm, u8 ant)
 {
-	/* there is no other antenna, shared antenna is always available */
+	/* there is yes other antenna, shared antenna is always available */
 	if (mvm->cfg->bt_shared_single_ant)
 		return true;
 
-	if (ant & mvm->cfg->non_shared_ant)
+	if (ant & mvm->cfg->yesn_shared_ant)
 		return true;
 
-	return le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
+	return le32_to_cpu(mvm->last_bt_yestif.bt_activity_grading) <
 		BT_HIGH_TRAFFIC;
 }
 
 bool iwl_mvm_bt_coex_is_shared_ant_avail(struct iwl_mvm *mvm)
 {
-	/* there is no other antenna, shared antenna is always available */
+	/* there is yes other antenna, shared antenna is always available */
 	if (mvm->cfg->bt_shared_single_ant)
 		return true;
 
-	return le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) < BT_HIGH_TRAFFIC;
+	return le32_to_cpu(mvm->last_bt_yestif.bt_activity_grading) < BT_HIGH_TRAFFIC;
 }
 
 bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 				    enum nl80211_band band)
 {
-	u32 bt_activity = le32_to_cpu(mvm->last_bt_notif.bt_activity_grading);
+	u32 bt_activity = le32_to_cpu(mvm->last_bt_yestif.bt_activity_grading);
 
 	if (band != NL80211_BAND_2GHZ)
 		return false;
@@ -691,8 +691,8 @@ bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 u8 iwl_mvm_bt_coex_get_single_ant_msk(struct iwl_mvm *mvm, u8 enabled_ants)
 {
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_COEX_SCHEMA_2) &&
-	    (mvm->cfg->non_shared_ant & enabled_ants))
-		return mvm->cfg->non_shared_ant;
+	    (mvm->cfg->yesn_shared_ant & enabled_ants))
+		return mvm->cfg->yesn_shared_ant;
 
 	return first_antenna(enabled_ants);
 }
@@ -728,7 +728,7 @@ u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 	} else if (ieee80211_is_mgmt(fc)) {
 		return ieee80211_is_disassoc(fc) ? 0 : 3;
 	} else if (ieee80211_is_ctl(fc)) {
-		/* ignore cfend and cfendack frames as we never send those */
+		/* igyesre cfend and cfendack frames as we never send those */
 		return 3;
 	}
 
@@ -737,5 +737,5 @@ u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 
 void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm)
 {
-	iwl_mvm_bt_coex_notif_handle(mvm);
+	iwl_mvm_bt_coex_yestif_handle(mvm);
 }

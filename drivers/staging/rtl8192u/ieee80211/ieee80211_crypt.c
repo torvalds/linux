@@ -3,14 +3,14 @@
  * Host AP crypto routines
  *
  * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
- * Portions Copyright (C) 2004, Intel Corporation <jketreno@linux.intel.com>
+ * Portions Copyright (C) 2004, Intel Corporation <jketreyes@linux.intel.com>
  */
 
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include "ieee80211.h"
 
@@ -81,7 +81,7 @@ void ieee80211_crypt_delayed_deinit(struct ieee80211_device *ieee,
 	tmp = *crypt;
 	*crypt = NULL;
 
-	/* must not run ops->deinit() while there may be pending encrypt or
+	/* must yest run ops->deinit() while there may be pending encrypt or
 	 * decrypt operations. Use a list of delayed deinits to avoid needing
 	 * locking.
 	 */

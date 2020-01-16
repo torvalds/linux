@@ -15,20 +15,20 @@
 /*
  * red-black trees properties:  http://en.wikipedia.org/wiki/Rbtree
  *
- *  1) A node is either red or black
+ *  1) A yesde is either red or black
  *  2) The root is black
  *  3) All leaves (NULL) are black
- *  4) Both children of every red node are black
+ *  4) Both children of every red yesde are black
  *  5) Every simple path from root to leaves contains the same number
- *     of black nodes.
+ *     of black yesdes.
  *
- *  4 and 5 give the O(log n) guarantee, since 4 implies you cannot have two
- *  consecutive red nodes in a path and every red node is therefore followed by
- *  a black. So if B is the number of black nodes on every simple path (as per
+ *  4 and 5 give the O(log n) guarantee, since 4 implies you canyest have two
+ *  consecutive red yesdes in a path and every red yesde is therefore followed by
+ *  a black. So if B is the number of black yesdes on every simple path (as per
  *  5), then the longest possible path due to 4 is 2B.
  *
- *  We shall indicate color with case, where black nodes are uppercase and red
- *  nodes will be lowercase. Unknown color nodes shall be drawn as red within
+ *  We shall indicate color with case, where black yesdes are uppercase and red
+ *  yesdes will be lowercase. Unkyeswn color yesdes shall be drawn as red within
  *  parentheses and have some accompanying text comment.
  */
 
@@ -36,34 +36,34 @@
  * Notes on lockless lookups:
  *
  * All stores to the tree structure (rb_left and rb_right) must be done using
- * WRITE_ONCE(). And we must not inadvertently cause (temporary) loops in the
+ * WRITE_ONCE(). And we must yest inadvertently cause (temporary) loops in the
  * tree structure as seen in program order.
  *
- * These two requirements will allow lockless iteration of the tree -- not
- * correct iteration mind you, tree rotations are not atomic so a lookup might
+ * These two requirements will allow lockless iteration of the tree -- yest
+ * correct iteration mind you, tree rotations are yest atomic so a lookup might
  * miss entire subtrees.
  *
  * But they do guarantee that any such traversal will only see valid elements
- * and that it will indeed complete -- does not get stuck in a loop.
+ * and that it will indeed complete -- does yest get stuck in a loop.
  *
  * It also guarantees that if the lookup returns an element it is the 'correct'
- * one. But not returning an element does _NOT_ mean it's not present.
+ * one. But yest returning an element does _NOT_ mean it's yest present.
  *
  * NOTE:
  *
- * Stores to __rb_parent_color are not important for simple lookups so those
- * are left undone as of now. Nor did I check for loops involving parent
+ * Stores to __rb_parent_color are yest important for simple lookups so those
+ * are left undone as of yesw. Nor did I check for loops involving parent
  * pointers.
  */
 
-static inline void rb_set_black(struct rb_node *rb)
+static inline void rb_set_black(struct rb_yesde *rb)
 {
 	rb->__rb_parent_color |= RB_BLACK;
 }
 
-static inline struct rb_node *rb_red_parent(struct rb_node *red)
+static inline struct rb_yesde *rb_red_parent(struct rb_yesde *red)
 {
-	return (struct rb_node *)red->__rb_parent_color;
+	return (struct rb_yesde *)red->__rb_parent_color;
 }
 
 /*
@@ -72,32 +72,32 @@ static inline struct rb_node *rb_red_parent(struct rb_node *red)
  * - old gets assigned new as a parent and 'color' as a color.
  */
 static inline void
-__rb_rotate_set_parents(struct rb_node *old, struct rb_node *new,
+__rb_rotate_set_parents(struct rb_yesde *old, struct rb_yesde *new,
 			struct rb_root *root, int color)
 {
-	struct rb_node *parent = rb_parent(old);
+	struct rb_yesde *parent = rb_parent(old);
 	new->__rb_parent_color = old->__rb_parent_color;
 	rb_set_parent_color(old, new, color);
 	__rb_change_child(old, new, parent, root);
 }
 
 static __always_inline void
-__rb_insert(struct rb_node *node, struct rb_root *root,
-	    void (*augment_rotate)(struct rb_node *old, struct rb_node *new))
+__rb_insert(struct rb_yesde *yesde, struct rb_root *root,
+	    void (*augment_rotate)(struct rb_yesde *old, struct rb_yesde *new))
 {
-	struct rb_node *parent = rb_red_parent(node), *gparent, *tmp;
+	struct rb_yesde *parent = rb_red_parent(yesde), *gparent, *tmp;
 
 	while (true) {
 		/*
-		 * Loop invariant: node is red.
+		 * Loop invariant: yesde is red.
 		 */
 		if (unlikely(!parent)) {
 			/*
-			 * The inserted node is root. Either this is the
-			 * first node, or we recursed at Case 1 below and
-			 * are no longer violating 4).
+			 * The inserted yesde is root. Either this is the
+			 * first yesde, or we recursed at Case 1 below and
+			 * are yes longer violating 4).
 			 */
-			rb_set_parent_color(node, NULL, RB_BLACK);
+			rb_set_parent_color(yesde, NULL, RB_BLACK);
 			break;
 		}
 
@@ -105,7 +105,7 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
 		 * If there is a black parent, we are done.
 		 * Otherwise, take some corrective action as,
 		 * per 4), we don't want a red root or two
-		 * consecutive red nodes.
+		 * consecutive red yesdes.
 		 */
 		if(rb_is_black(parent))
 			break;
@@ -116,7 +116,7 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
 		if (parent != tmp) {	/* parent == gparent->rb_left */
 			if (tmp && rb_is_red(tmp)) {
 				/*
-				 * Case 1 - node's uncle is red (color flips).
+				 * Case 1 - yesde's uncle is red (color flips).
 				 *
 				 *       G            g
 				 *      / \          / \
@@ -125,21 +125,21 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
 				 *   n            n
 				 *
 				 * However, since g's parent might be red, and
-				 * 4) does not allow this, we need to recurse
+				 * 4) does yest allow this, we need to recurse
 				 * at g.
 				 */
 				rb_set_parent_color(tmp, gparent, RB_BLACK);
 				rb_set_parent_color(parent, gparent, RB_BLACK);
-				node = gparent;
-				parent = rb_parent(node);
-				rb_set_parent_color(node, parent, RB_RED);
+				yesde = gparent;
+				parent = rb_parent(yesde);
+				rb_set_parent_color(yesde, parent, RB_RED);
 				continue;
 			}
 
 			tmp = parent->rb_right;
-			if (node == tmp) {
+			if (yesde == tmp) {
 				/*
-				 * Case 2 - node's uncle is black and node is
+				 * Case 2 - yesde's uncle is black and yesde is
 				 * the parent's right child (left rotate at parent).
 				 *
 				 *      G             G
@@ -151,20 +151,20 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
 				 * This still leaves us in violation of 4), the
 				 * continuation into Case 3 will fix that.
 				 */
-				tmp = node->rb_left;
+				tmp = yesde->rb_left;
 				WRITE_ONCE(parent->rb_right, tmp);
-				WRITE_ONCE(node->rb_left, parent);
+				WRITE_ONCE(yesde->rb_left, parent);
 				if (tmp)
 					rb_set_parent_color(tmp, parent,
 							    RB_BLACK);
-				rb_set_parent_color(parent, node, RB_RED);
-				augment_rotate(parent, node);
-				parent = node;
-				tmp = node->rb_right;
+				rb_set_parent_color(parent, yesde, RB_RED);
+				augment_rotate(parent, yesde);
+				parent = yesde;
+				tmp = yesde->rb_right;
 			}
 
 			/*
-			 * Case 3 - node's uncle is black and node is
+			 * Case 3 - yesde's uncle is black and yesde is
 			 * the parent's left child (right rotate at gparent).
 			 *
 			 *        G           P
@@ -186,25 +186,25 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
 				/* Case 1 - color flips */
 				rb_set_parent_color(tmp, gparent, RB_BLACK);
 				rb_set_parent_color(parent, gparent, RB_BLACK);
-				node = gparent;
-				parent = rb_parent(node);
-				rb_set_parent_color(node, parent, RB_RED);
+				yesde = gparent;
+				parent = rb_parent(yesde);
+				rb_set_parent_color(yesde, parent, RB_RED);
 				continue;
 			}
 
 			tmp = parent->rb_left;
-			if (node == tmp) {
+			if (yesde == tmp) {
 				/* Case 2 - right rotate at parent */
-				tmp = node->rb_right;
+				tmp = yesde->rb_right;
 				WRITE_ONCE(parent->rb_left, tmp);
-				WRITE_ONCE(node->rb_right, parent);
+				WRITE_ONCE(yesde->rb_right, parent);
 				if (tmp)
 					rb_set_parent_color(tmp, parent,
 							    RB_BLACK);
-				rb_set_parent_color(parent, node, RB_RED);
-				augment_rotate(parent, node);
-				parent = node;
-				tmp = node->rb_left;
+				rb_set_parent_color(parent, yesde, RB_RED);
+				augment_rotate(parent, yesde);
+				parent = yesde;
+				tmp = yesde->rb_left;
 			}
 
 			/* Case 3 - left rotate at gparent */
@@ -224,21 +224,21 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
  * and eliminate the dummy_rotate callback there
  */
 static __always_inline void
-____rb_erase_color(struct rb_node *parent, struct rb_root *root,
-	void (*augment_rotate)(struct rb_node *old, struct rb_node *new))
+____rb_erase_color(struct rb_yesde *parent, struct rb_root *root,
+	void (*augment_rotate)(struct rb_yesde *old, struct rb_yesde *new))
 {
-	struct rb_node *node = NULL, *sibling, *tmp1, *tmp2;
+	struct rb_yesde *yesde = NULL, *sibling, *tmp1, *tmp2;
 
 	while (true) {
 		/*
 		 * Loop invariants:
-		 * - node is black (or NULL on first iteration)
-		 * - node is not the root (parent is not NULL)
-		 * - All leaf paths going through parent and node have a
-		 *   black node count that is 1 lower than other leaf paths.
+		 * - yesde is black (or NULL on first iteration)
+		 * - yesde is yest the root (parent is yest NULL)
+		 * - All leaf paths going through parent and yesde have a
+		 *   black yesde count that is 1 lower than other leaf paths.
 		 */
 		sibling = parent->rb_right;
-		if (node != sibling) {	/* node == parent->rb_left */
+		if (yesde != sibling) {	/* yesde == parent->rb_left */
 			if (rb_is_red(sibling)) {
 				/*
 				 * Case 1 - left rotate at parent
@@ -282,8 +282,8 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 					if (rb_is_red(parent))
 						rb_set_black(parent);
 					else {
-						node = parent;
-						parent = rb_parent(node);
+						yesde = parent;
+						parent = rb_parent(yesde);
 						if (parent)
 							continue;
 					}
@@ -372,8 +372,8 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 					if (rb_is_red(parent))
 						rb_set_black(parent);
 					else {
-						node = parent;
-						parent = rb_parent(node);
+						yesde = parent;
+						parent = rb_parent(yesde);
 						if (parent)
 							continue;
 					}
@@ -407,8 +407,8 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 }
 
 /* Non-inline version for rb_erase_augmented() use */
-void __rb_erase_color(struct rb_node *parent, struct rb_root *root,
-	void (*augment_rotate)(struct rb_node *old, struct rb_node *new))
+void __rb_erase_color(struct rb_yesde *parent, struct rb_root *root,
+	void (*augment_rotate)(struct rb_yesde *old, struct rb_yesde *new))
 {
 	____rb_erase_color(parent, root, augment_rotate);
 }
@@ -420,9 +420,9 @@ void __rb_erase_color(struct rb_node *parent, struct rb_root *root,
  * out of the rb_insert_color() and rb_erase() function definitions.
  */
 
-static inline void dummy_propagate(struct rb_node *node, struct rb_node *stop) {}
-static inline void dummy_copy(struct rb_node *old, struct rb_node *new) {}
-static inline void dummy_rotate(struct rb_node *old, struct rb_node *new) {}
+static inline void dummy_propagate(struct rb_yesde *yesde, struct rb_yesde *stop) {}
+static inline void dummy_copy(struct rb_yesde *old, struct rb_yesde *new) {}
+static inline void dummy_rotate(struct rb_yesde *old, struct rb_yesde *new) {}
 
 static const struct rb_augment_callbacks dummy_callbacks = {
 	.propagate = dummy_propagate,
@@ -430,15 +430,15 @@ static const struct rb_augment_callbacks dummy_callbacks = {
 	.rotate = dummy_rotate
 };
 
-void rb_insert_color(struct rb_node *node, struct rb_root *root)
+void rb_insert_color(struct rb_yesde *yesde, struct rb_root *root)
 {
-	__rb_insert(node, root, dummy_rotate);
+	__rb_insert(yesde, root, dummy_rotate);
 }
 
-void rb_erase(struct rb_node *node, struct rb_root *root)
+void rb_erase(struct rb_yesde *yesde, struct rb_root *root)
 {
-	struct rb_node *rebalance;
-	rebalance = __rb_erase_augmented(node, root, &dummy_callbacks);
+	struct rb_yesde *rebalance;
+	rebalance = __rb_erase_augmented(yesde, root, &dummy_callbacks);
 	if (rebalance)
 		____rb_erase_color(rebalance, root, dummy_rotate);
 }
@@ -446,24 +446,24 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 /*
  * Augmented rbtree manipulation functions.
  *
- * This instantiates the same __always_inline functions as in the non-augmented
+ * This instantiates the same __always_inline functions as in the yesn-augmented
  * case, but this time with user-defined callbacks.
  */
 
-void __rb_insert_augmented(struct rb_node *node, struct rb_root *root,
-	void (*augment_rotate)(struct rb_node *old, struct rb_node *new))
+void __rb_insert_augmented(struct rb_yesde *yesde, struct rb_root *root,
+	void (*augment_rotate)(struct rb_yesde *old, struct rb_yesde *new))
 {
-	__rb_insert(node, root, augment_rotate);
+	__rb_insert(yesde, root, augment_rotate);
 }
 
 /*
- * This function returns the first node (in sort order) of the tree.
+ * This function returns the first yesde (in sort order) of the tree.
  */
-struct rb_node *rb_first(const struct rb_root *root)
+struct rb_yesde *rb_first(const struct rb_root *root)
 {
-	struct rb_node	*n;
+	struct rb_yesde	*n;
 
-	n = root->rb_node;
+	n = root->rb_yesde;
 	if (!n)
 		return NULL;
 	while (n->rb_left)
@@ -471,11 +471,11 @@ struct rb_node *rb_first(const struct rb_root *root)
 	return n;
 }
 
-struct rb_node *rb_last(const struct rb_root *root)
+struct rb_yesde *rb_last(const struct rb_root *root)
 {
-	struct rb_node	*n;
+	struct rb_yesde	*n;
 
-	n = root->rb_node;
+	n = root->rb_yesde;
 	if (!n)
 		return NULL;
 	while (n->rb_right)
@@ -483,74 +483,74 @@ struct rb_node *rb_last(const struct rb_root *root)
 	return n;
 }
 
-struct rb_node *rb_next(const struct rb_node *node)
+struct rb_yesde *rb_next(const struct rb_yesde *yesde)
 {
-	struct rb_node *parent;
+	struct rb_yesde *parent;
 
-	if (RB_EMPTY_NODE(node))
+	if (RB_EMPTY_NODE(yesde))
 		return NULL;
 
 	/*
 	 * If we have a right-hand child, go down and then left as far
 	 * as we can.
 	 */
-	if (node->rb_right) {
-		node = node->rb_right;
-		while (node->rb_left)
-			node=node->rb_left;
-		return (struct rb_node *)node;
+	if (yesde->rb_right) {
+		yesde = yesde->rb_right;
+		while (yesde->rb_left)
+			yesde=yesde->rb_left;
+		return (struct rb_yesde *)yesde;
 	}
 
 	/*
 	 * No right-hand children. Everything down and left is smaller than us,
-	 * so any 'next' node must be in the general direction of our parent.
+	 * so any 'next' yesde must be in the general direction of our parent.
 	 * Go up the tree; any time the ancestor is a right-hand child of its
 	 * parent, keep going up. First time it's a left-hand child of its
-	 * parent, said parent is our 'next' node.
+	 * parent, said parent is our 'next' yesde.
 	 */
-	while ((parent = rb_parent(node)) && node == parent->rb_right)
-		node = parent;
+	while ((parent = rb_parent(yesde)) && yesde == parent->rb_right)
+		yesde = parent;
 
 	return parent;
 }
 
-struct rb_node *rb_prev(const struct rb_node *node)
+struct rb_yesde *rb_prev(const struct rb_yesde *yesde)
 {
-	struct rb_node *parent;
+	struct rb_yesde *parent;
 
-	if (RB_EMPTY_NODE(node))
+	if (RB_EMPTY_NODE(yesde))
 		return NULL;
 
 	/*
 	 * If we have a left-hand child, go down and then right as far
 	 * as we can.
 	 */
-	if (node->rb_left) {
-		node = node->rb_left;
-		while (node->rb_right)
-			node=node->rb_right;
-		return (struct rb_node *)node;
+	if (yesde->rb_left) {
+		yesde = yesde->rb_left;
+		while (yesde->rb_right)
+			yesde=yesde->rb_right;
+		return (struct rb_yesde *)yesde;
 	}
 
 	/*
 	 * No left-hand children. Go up till we find an ancestor which
 	 * is a right-hand child of its parent.
 	 */
-	while ((parent = rb_parent(node)) && node == parent->rb_left)
-		node = parent;
+	while ((parent = rb_parent(yesde)) && yesde == parent->rb_left)
+		yesde = parent;
 
 	return parent;
 }
 
-void rb_replace_node(struct rb_node *victim, struct rb_node *new,
+void rb_replace_yesde(struct rb_yesde *victim, struct rb_yesde *new,
 		     struct rb_root *root)
 {
-	struct rb_node *parent = rb_parent(victim);
+	struct rb_yesde *parent = rb_parent(victim);
 
 	/* Copy the pointers/colour from the victim to the replacement */
 	*new = *victim;
 
-	/* Set the surrounding nodes to point to the replacement */
+	/* Set the surrounding yesdes to point to the replacement */
 	if (victim->rb_left)
 		rb_set_parent(victim->rb_left, new);
 	if (victim->rb_right)
@@ -558,40 +558,40 @@ void rb_replace_node(struct rb_node *victim, struct rb_node *new,
 	__rb_change_child(victim, new, parent, root);
 }
 
-static struct rb_node *rb_left_deepest_node(const struct rb_node *node)
+static struct rb_yesde *rb_left_deepest_yesde(const struct rb_yesde *yesde)
 {
 	for (;;) {
-		if (node->rb_left)
-			node = node->rb_left;
-		else if (node->rb_right)
-			node = node->rb_right;
+		if (yesde->rb_left)
+			yesde = yesde->rb_left;
+		else if (yesde->rb_right)
+			yesde = yesde->rb_right;
 		else
-			return (struct rb_node *)node;
+			return (struct rb_yesde *)yesde;
 	}
 }
 
-struct rb_node *rb_next_postorder(const struct rb_node *node)
+struct rb_yesde *rb_next_postorder(const struct rb_yesde *yesde)
 {
-	const struct rb_node *parent;
-	if (!node)
+	const struct rb_yesde *parent;
+	if (!yesde)
 		return NULL;
-	parent = rb_parent(node);
+	parent = rb_parent(yesde);
 
-	/* If we're sitting on node, we've already seen our children */
-	if (parent && node == parent->rb_left && parent->rb_right) {
-		/* If we are the parent's left node, go to the parent's right
-		 * node then all the way down to the left */
-		return rb_left_deepest_node(parent->rb_right);
+	/* If we're sitting on yesde, we've already seen our children */
+	if (parent && yesde == parent->rb_left && parent->rb_right) {
+		/* If we are the parent's left yesde, go to the parent's right
+		 * yesde then all the way down to the left */
+		return rb_left_deepest_yesde(parent->rb_right);
 	} else
-		/* Otherwise we are the parent's right node, and the parent
+		/* Otherwise we are the parent's right yesde, and the parent
 		 * should be next */
-		return (struct rb_node *)parent;
+		return (struct rb_yesde *)parent;
 }
 
-struct rb_node *rb_first_postorder(const struct rb_root *root)
+struct rb_yesde *rb_first_postorder(const struct rb_root *root)
 {
-	if (!root->rb_node)
+	if (!root->rb_yesde)
 		return NULL;
 
-	return rb_left_deepest_node(root->rb_node);
+	return rb_left_deepest_yesde(root->rb_yesde);
 }

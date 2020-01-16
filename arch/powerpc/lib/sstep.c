@@ -66,7 +66,7 @@ extern int do_stqcx(unsigned long ea, unsigned long val0, unsigned long val1,
 /*
  * Emulate the truncation of 64 bit values in 32-bit mode.
  */
-static nokprobe_inline unsigned long truncate_if_32bit(unsigned long msr,
+static yeskprobe_inline unsigned long truncate_if_32bit(unsigned long msr,
 							unsigned long val)
 {
 #ifdef __powerpc64__
@@ -79,7 +79,7 @@ static nokprobe_inline unsigned long truncate_if_32bit(unsigned long msr,
 /*
  * Determine whether a conditional branch instruction would branch.
  */
-static nokprobe_inline int branch_taken(unsigned int instr,
+static yeskprobe_inline int branch_taken(unsigned int instr,
 					const struct pt_regs *regs,
 					struct instruction_op *op)
 {
@@ -101,7 +101,7 @@ static nokprobe_inline int branch_taken(unsigned int instr,
 	return 1;
 }
 
-static nokprobe_inline long address_ok(struct pt_regs *regs,
+static yeskprobe_inline long address_ok(struct pt_regs *regs,
 				       unsigned long ea, int nb)
 {
 	if (!user_mode(regs))
@@ -119,7 +119,7 @@ static nokprobe_inline long address_ok(struct pt_regs *regs,
 /*
  * Calculate effective address for a D-form instruction
  */
-static nokprobe_inline unsigned long dform_ea(unsigned int instr,
+static yeskprobe_inline unsigned long dform_ea(unsigned int instr,
 					      const struct pt_regs *regs)
 {
 	int ra;
@@ -137,7 +137,7 @@ static nokprobe_inline unsigned long dform_ea(unsigned int instr,
 /*
  * Calculate effective address for a DS-form instruction
  */
-static nokprobe_inline unsigned long dsform_ea(unsigned int instr,
+static yeskprobe_inline unsigned long dsform_ea(unsigned int instr,
 					       const struct pt_regs *regs)
 {
 	int ra;
@@ -154,7 +154,7 @@ static nokprobe_inline unsigned long dsform_ea(unsigned int instr,
 /*
  * Calculate effective address for a DQ-form instruction
  */
-static nokprobe_inline unsigned long dqform_ea(unsigned int instr,
+static yeskprobe_inline unsigned long dqform_ea(unsigned int instr,
 					       const struct pt_regs *regs)
 {
 	int ra;
@@ -172,7 +172,7 @@ static nokprobe_inline unsigned long dqform_ea(unsigned int instr,
 /*
  * Calculate effective address for an X-form instruction
  */
-static nokprobe_inline unsigned long xform_ea(unsigned int instr,
+static yeskprobe_inline unsigned long xform_ea(unsigned int instr,
 					      const struct pt_regs *regs)
 {
 	int ra, rb;
@@ -188,34 +188,34 @@ static nokprobe_inline unsigned long xform_ea(unsigned int instr,
 }
 
 /*
- * Return the largest power of 2, not greater than sizeof(unsigned long),
+ * Return the largest power of 2, yest greater than sizeof(unsigned long),
  * such that x is a multiple of it.
  */
-static nokprobe_inline unsigned long max_align(unsigned long x)
+static yeskprobe_inline unsigned long max_align(unsigned long x)
 {
 	x |= sizeof(unsigned long);
 	return x & -x;		/* isolates rightmost bit */
 }
 
-static nokprobe_inline unsigned long byterev_2(unsigned long x)
+static yeskprobe_inline unsigned long byterev_2(unsigned long x)
 {
 	return ((x >> 8) & 0xff) | ((x & 0xff) << 8);
 }
 
-static nokprobe_inline unsigned long byterev_4(unsigned long x)
+static yeskprobe_inline unsigned long byterev_4(unsigned long x)
 {
 	return ((x >> 24) & 0xff) | ((x >> 8) & 0xff00) |
 		((x & 0xff00) << 8) | ((x & 0xff) << 24);
 }
 
 #ifdef __powerpc64__
-static nokprobe_inline unsigned long byterev_8(unsigned long x)
+static yeskprobe_inline unsigned long byterev_8(unsigned long x)
 {
 	return (byterev_4(x) << 32) | byterev_4(x >> 32);
 }
 #endif
 
-static nokprobe_inline void do_byte_reverse(void *ptr, int nb)
+static yeskprobe_inline void do_byte_reverse(void *ptr, int nb)
 {
 	switch (nb) {
 	case 2:
@@ -242,7 +242,7 @@ static nokprobe_inline void do_byte_reverse(void *ptr, int nb)
 	}
 }
 
-static nokprobe_inline int read_mem_aligned(unsigned long *dest,
+static yeskprobe_inline int read_mem_aligned(unsigned long *dest,
 					    unsigned long ea, int nb,
 					    struct pt_regs *regs)
 {
@@ -276,7 +276,7 @@ static nokprobe_inline int read_mem_aligned(unsigned long *dest,
  * Copy from userspace to a buffer, using the largest possible
  * aligned accesses, up to sizeof(long).
  */
-static nokprobe_inline int copy_mem_in(u8 *dest, unsigned long ea, int nb,
+static yeskprobe_inline int copy_mem_in(u8 *dest, unsigned long ea, int nb,
 				       struct pt_regs *regs)
 {
 	int err = 0;
@@ -315,7 +315,7 @@ static nokprobe_inline int copy_mem_in(u8 *dest, unsigned long ea, int nb,
 	return 0;
 }
 
-static nokprobe_inline int read_mem_unaligned(unsigned long *dest,
+static yeskprobe_inline int read_mem_unaligned(unsigned long *dest,
 					      unsigned long ea, int nb,
 					      struct pt_regs *regs)
 {
@@ -350,7 +350,7 @@ static int read_mem(unsigned long *dest, unsigned long ea, int nb,
 }
 NOKPROBE_SYMBOL(read_mem);
 
-static nokprobe_inline int write_mem_aligned(unsigned long val,
+static yeskprobe_inline int write_mem_aligned(unsigned long val,
 					     unsigned long ea, int nb,
 					     struct pt_regs *regs)
 {
@@ -381,7 +381,7 @@ static nokprobe_inline int write_mem_aligned(unsigned long val,
  * Copy from a buffer to userspace, using the largest possible
  * aligned accesses, up to sizeof(long).
  */
-static nokprobe_inline int copy_mem_out(u8 *dest, unsigned long ea, int nb,
+static yeskprobe_inline int copy_mem_out(u8 *dest, unsigned long ea, int nb,
 					struct pt_regs *regs)
 {
 	int err = 0;
@@ -420,7 +420,7 @@ static nokprobe_inline int copy_mem_out(u8 *dest, unsigned long ea, int nb,
 	return 0;
 }
 
-static nokprobe_inline int write_mem_unaligned(unsigned long val,
+static yeskprobe_inline int write_mem_unaligned(unsigned long val,
 					       unsigned long ea, int nb,
 					       struct pt_regs *regs)
 {
@@ -552,8 +552,8 @@ NOKPROBE_SYMBOL(do_fp_store);
 #endif
 
 #ifdef CONFIG_ALTIVEC
-/* For Altivec/VMX, no need to worry about alignment */
-static nokprobe_inline int do_vec_load(int rn, unsigned long ea,
+/* For Altivec/VMX, yes need to worry about alignment */
+static yeskprobe_inline int do_vec_load(int rn, unsigned long ea,
 				       int size, struct pt_regs *regs,
 				       bool cross_endian)
 {
@@ -581,7 +581,7 @@ static nokprobe_inline int do_vec_load(int rn, unsigned long ea,
 	return 0;
 }
 
-static nokprobe_inline int do_vec_store(int rn, unsigned long ea,
+static yeskprobe_inline int do_vec_store(int rn, unsigned long ea,
 					int size, struct pt_regs *regs,
 					bool cross_endian)
 {
@@ -608,7 +608,7 @@ static nokprobe_inline int do_vec_store(int rn, unsigned long ea,
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef __powerpc64__
-static nokprobe_inline int emulate_lq(struct pt_regs *regs, unsigned long ea,
+static yeskprobe_inline int emulate_lq(struct pt_regs *regs, unsigned long ea,
 				      int reg, bool cross_endian)
 {
 	int err;
@@ -628,7 +628,7 @@ static nokprobe_inline int emulate_lq(struct pt_regs *regs, unsigned long ea,
 	return err;
 }
 
-static nokprobe_inline int emulate_stq(struct pt_regs *regs, unsigned long ea,
+static yeskprobe_inline int emulate_stq(struct pt_regs *regs, unsigned long ea,
 				       int reg, bool cross_endian)
 {
 	int err;
@@ -813,7 +813,7 @@ void emulate_vsx_store(struct instruction_op *op, const union vsx_reg *reg,
 EXPORT_SYMBOL_GPL(emulate_vsx_store);
 NOKPROBE_SYMBOL(emulate_vsx_store);
 
-static nokprobe_inline int do_vsx_load(struct instruction_op *op,
+static yeskprobe_inline int do_vsx_load(struct instruction_op *op,
 				       unsigned long ea, struct pt_regs *regs,
 				       bool cross_endian)
 {
@@ -845,7 +845,7 @@ static nokprobe_inline int do_vsx_load(struct instruction_op *op,
 	return 0;
 }
 
-static nokprobe_inline int do_vsx_store(struct instruction_op *op,
+static yeskprobe_inline int do_vsx_store(struct instruction_op *op,
 					unsigned long ea, struct pt_regs *regs,
 					bool cross_endian)
 {
@@ -941,7 +941,7 @@ NOKPROBE_SYMBOL(emulate_dcbz);
 		: "=r" (err)				\
 		: "r" (addr), "i" (-EFAULT), "0" (err))
 
-static nokprobe_inline void set_cr0(const struct pt_regs *regs,
+static yeskprobe_inline void set_cr0(const struct pt_regs *regs,
 				    struct instruction_op *op)
 {
 	long val = op->val;
@@ -960,7 +960,7 @@ static nokprobe_inline void set_cr0(const struct pt_regs *regs,
 		op->ccval |= 0x20000000;
 }
 
-static nokprobe_inline void set_ca32(struct instruction_op *op, bool val)
+static yeskprobe_inline void set_ca32(struct instruction_op *op, bool val)
 {
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 		if (val)
@@ -970,7 +970,7 @@ static nokprobe_inline void set_ca32(struct instruction_op *op, bool val)
 	}
 }
 
-static nokprobe_inline void add_with_carry(const struct pt_regs *regs,
+static yeskprobe_inline void add_with_carry(const struct pt_regs *regs,
 				     struct instruction_op *op, int rd,
 				     unsigned long val1, unsigned long val2,
 				     unsigned long carry_in)
@@ -998,7 +998,7 @@ static nokprobe_inline void add_with_carry(const struct pt_regs *regs,
 			(carry_in && (unsigned int)val == (unsigned int)val1));
 }
 
-static nokprobe_inline void do_cmp_signed(const struct pt_regs *regs,
+static yeskprobe_inline void do_cmp_signed(const struct pt_regs *regs,
 					  struct instruction_op *op,
 					  long v1, long v2, int crfld)
 {
@@ -1016,7 +1016,7 @@ static nokprobe_inline void do_cmp_signed(const struct pt_regs *regs,
 	op->ccval = (regs->ccr & ~(0xf << shift)) | (crval << shift);
 }
 
-static nokprobe_inline void do_cmp_unsigned(const struct pt_regs *regs,
+static yeskprobe_inline void do_cmp_unsigned(const struct pt_regs *regs,
 					    struct instruction_op *op,
 					    unsigned long v1,
 					    unsigned long v2, int crfld)
@@ -1035,7 +1035,7 @@ static nokprobe_inline void do_cmp_unsigned(const struct pt_regs *regs,
 	op->ccval = (regs->ccr & ~(0xf << shift)) | (crval << shift);
 }
 
-static nokprobe_inline void do_cmpb(const struct pt_regs *regs,
+static yeskprobe_inline void do_cmpb(const struct pt_regs *regs,
 				    struct instruction_op *op,
 				    unsigned long v1, unsigned long v2)
 {
@@ -1055,7 +1055,7 @@ static nokprobe_inline void do_cmpb(const struct pt_regs *regs,
  * The size parameter is used to adjust the equivalent popcnt instruction.
  * popcntb = 8, popcntw = 32, popcntd = 64
  */
-static nokprobe_inline void do_popcnt(const struct pt_regs *regs,
+static yeskprobe_inline void do_popcnt(const struct pt_regs *regs,
 				      struct instruction_op *op,
 				      unsigned long v1, int size)
 {
@@ -1082,7 +1082,7 @@ static nokprobe_inline void do_popcnt(const struct pt_regs *regs,
 }
 
 #ifdef CONFIG_PPC64
-static nokprobe_inline void do_bpermd(const struct pt_regs *regs,
+static yeskprobe_inline void do_bpermd(const struct pt_regs *regs,
 				      struct instruction_op *op,
 				      unsigned long v1, unsigned long v2)
 {
@@ -1103,7 +1103,7 @@ static nokprobe_inline void do_bpermd(const struct pt_regs *regs,
  * The size parameter adjusts the equivalent prty instruction.
  * prtyw = 32, prtyd = 64
  */
-static nokprobe_inline void do_prty(const struct pt_regs *regs,
+static yeskprobe_inline void do_prty(const struct pt_regs *regs,
 				    struct instruction_op *op,
 				    unsigned long v, int size)
 {
@@ -1119,7 +1119,7 @@ static nokprobe_inline void do_prty(const struct pt_regs *regs,
 	op->val = res & 1;	/*prtyd */
 }
 
-static nokprobe_inline int trap_compare(long v1, long v2)
+static yeskprobe_inline int trap_compare(long v1, long v2)
 {
 	int ret = 0;
 
@@ -1238,7 +1238,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			op->type = BARRIER | BARRIER_ISYNC;
 			return 1;
 
-		case 33:	/* crnor */
+		case 33:	/* cryesr */
 		case 129:	/* crandc */
 		case 193:	/* crxor */
 		case 225:	/* crnand */
@@ -1329,7 +1329,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 		/*
 		 * There are other instructions from ISA 3.0 with the same
-		 * primary opcode which do not have emulation support yet.
+		 * primary opcode which do yest have emulation support yet.
 		 */
 		return -1;
 #endif
@@ -1424,32 +1424,32 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 	case 24:	/* ori */
 		op->val = regs->gpr[rd] | (unsigned short) instr;
-		goto logical_done_nocc;
+		goto logical_done_yescc;
 
 	case 25:	/* oris */
 		imm = (unsigned short) instr;
 		op->val = regs->gpr[rd] | (imm << 16);
-		goto logical_done_nocc;
+		goto logical_done_yescc;
 
 	case 26:	/* xori */
 		op->val = regs->gpr[rd] ^ (unsigned short) instr;
-		goto logical_done_nocc;
+		goto logical_done_yescc;
 
 	case 27:	/* xoris */
 		imm = (unsigned short) instr;
 		op->val = regs->gpr[rd] ^ (imm << 16);
-		goto logical_done_nocc;
+		goto logical_done_yescc;
 
 	case 28:	/* andi. */
 		op->val = regs->gpr[rd] & (unsigned short) instr;
 		set_cr0(regs, op);
-		goto logical_done_nocc;
+		goto logical_done_yescc;
 
 	case 29:	/* andis. */
 		imm = (unsigned short) instr;
 		op->val = regs->gpr[rd] & (imm << 16);
 		set_cr0(regs, op);
-		goto logical_done_nocc;
+		goto logical_done_yescc;
 
 #ifdef __powerpc64__
 	case 30:	/* rld* */
@@ -1492,7 +1492,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		return 0;
 
 	case 31:
-		/* isel occupies 32 minor opcodes */
+		/* isel occupies 32 miyesr opcodes */
 		if (((instr >> 1) & 0x1f) == 15) {
 			mb = (instr >> 6) & 0x1f; /* bc field */
 			val = (regs->ccr >> (31 - mb)) & 1;
@@ -1618,7 +1618,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 		case 508: /* cmpb */
 			do_cmpb(regs, op, regs->gpr[rd], regs->gpr[rb]);
-			goto logical_done_nocc;
+			goto logical_done_yescc;
 
 /*
  * Arithmetic instructions
@@ -1797,23 +1797,23 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 		case 122:	/* popcntb */
 			do_popcnt(regs, op, regs->gpr[rd], 8);
-			goto logical_done_nocc;
+			goto logical_done_yescc;
 
-		case 124:	/* nor */
+		case 124:	/* yesr */
 			op->val = ~(regs->gpr[rd] | regs->gpr[rb]);
 			goto logical_done;
 
 		case 154:	/* prtyw */
 			do_prty(regs, op, regs->gpr[rd], 32);
-			goto logical_done_nocc;
+			goto logical_done_yescc;
 
 		case 186:	/* prtyd */
 			do_prty(regs, op, regs->gpr[rd], 64);
-			goto logical_done_nocc;
+			goto logical_done_yescc;
 #ifdef CONFIG_PPC64
 		case 252:	/* bpermd */
 			do_bpermd(regs, op, regs->gpr[rd], regs->gpr[rb]);
-			goto logical_done_nocc;
+			goto logical_done_yescc;
 #endif
 		case 284:	/* xor */
 			op->val = ~(regs->gpr[rd] ^ regs->gpr[rb]);
@@ -1825,7 +1825,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 		case 378:	/* popcntw */
 			do_popcnt(regs, op, regs->gpr[rd], 32);
-			goto logical_done_nocc;
+			goto logical_done_yescc;
 
 		case 412:	/* orc */
 			op->val = regs->gpr[rd] | ~regs->gpr[rb];
@@ -1841,7 +1841,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #ifdef CONFIG_PPC64
 		case 506:	/* popcntd */
 			do_popcnt(regs, op, regs->gpr[rd], 64);
-			goto logical_done_nocc;
+			goto logical_done_yescc;
 #endif
 		case 538:	/* cnttzw */
 			if (!cpu_has_feature(CPU_FTR_ARCH_300))
@@ -2665,7 +2665,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
  logical_done:
 	if (instr & 1)
 		set_cr0(regs, op);
- logical_done_nocc:
+ logical_done_yescc:
 	op->reg = ra;
 	op->type |= SETREG;
 	return 1;
@@ -2693,13 +2693,13 @@ NOKPROBE_SYMBOL(analyse_instr);
 
 /*
  * For PPC32 we always use stwu with r1 to change the stack pointer.
- * So this emulated store may corrupt the exception frame, now we
+ * So this emulated store may corrupt the exception frame, yesw we
  * have to provide the exception frame trampoline, which is pushed
  * below the kprobed function stack. So we only update gpr[1] but
  * don't emulate the real store operation. We will do real store
  * operation safely in exception return code by checking this flag.
  */
-static nokprobe_inline int handle_stack_update(unsigned long ea, struct pt_regs *regs)
+static yeskprobe_inline int handle_stack_update(unsigned long ea, struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC32
 	/*
@@ -2719,7 +2719,7 @@ static nokprobe_inline int handle_stack_update(unsigned long ea, struct pt_regs 
 	return 0;
 }
 
-static nokprobe_inline void do_signext(unsigned long *valp, int size)
+static yeskprobe_inline void do_signext(unsigned long *valp, int size)
 {
 	switch (size) {
 	case 2:
@@ -2731,7 +2731,7 @@ static nokprobe_inline void do_signext(unsigned long *valp, int size)
 	}
 }
 
-static nokprobe_inline void do_byterev(unsigned long *valp, int size)
+static yeskprobe_inline void do_byterev(unsigned long *valp, int size)
 {
 	switch (size) {
 	case 2:
@@ -2842,7 +2842,7 @@ NOKPROBE_SYMBOL(emulate_update_regs);
  * -EFAULT = address out of range or access faulted (regs->dar
  *	     contains the faulting address)
  * -EACCES = misaligned access, instruction requires alignment
- * -EINVAL = unknown operation in *op
+ * -EINVAL = unkyeswn operation in *op
  */
 int emulate_loadstore(struct pt_regs *regs, struct instruction_op *op)
 {
@@ -2956,9 +2956,9 @@ int emulate_loadstore(struct pt_regs *regs, struct instruction_op *op)
 	case LOAD_FP:
 		/*
 		 * If the instruction is in userspace, we can emulate it even
-		 * if the VMX state is not live, because we have the state
+		 * if the VMX state is yest live, because we have the state
 		 * stored in the thread_struct.  If the instruction is in
-		 * the kernel, we must not touch the state in the thread_struct.
+		 * the kernel, we must yest touch the state in the thread_struct.
 		 */
 		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_FP))
 			return 0;
@@ -3097,8 +3097,8 @@ NOKPROBE_SYMBOL(emulate_loadstore);
 /*
  * Emulate instructions that cause a transfer of control,
  * loads and stores, and a few other instructions.
- * Returns 1 if the step was emulated, 0 if not,
- * or -1 if the instruction is one that should not be stepped,
+ * Returns 1 if the step was emulated, 0 if yest,
+ * or -1 if the instruction is one that should yest be stepped,
  * such as an rfid, or a mtmsrd that would clear MSR_RI.
  */
 int emulate_step(struct pt_regs *regs, unsigned int instr)
@@ -3175,7 +3175,7 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 #ifdef CONFIG_PPC64
 	case SYSCALL:	/* sc */
 		/*
-		 * N.B. this uses knowledge about how the syscall
+		 * N.B. this uses kyeswledge about how the syscall
 		 * entry code works.  If that is changed, this will
 		 * need to be changed also.
 		 */

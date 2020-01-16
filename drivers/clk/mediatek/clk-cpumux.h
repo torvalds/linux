@@ -15,7 +15,7 @@ struct mtk_clk_cpumux {
 	u8		shift;
 };
 
-int mtk_clk_register_cpumuxes(struct device_node *node,
+int mtk_clk_register_cpumuxes(struct device_yesde *yesde,
 			      const struct mtk_composite *clks, int num,
 			      struct clk_onecell_data *clk_data);
 

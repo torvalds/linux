@@ -188,7 +188,7 @@ static const struct gpio smdk_led_gpios[] = {
 
 void __init smdk_machine_init(void)
 {
-	/* Configure the LEDs (even if we have no LED support)*/
+	/* Configure the LEDs (even if we have yes LED support)*/
 
 	int ret = gpio_request_array(smdk_led_gpios,
 				     ARRAY_SIZE(smdk_led_gpios));

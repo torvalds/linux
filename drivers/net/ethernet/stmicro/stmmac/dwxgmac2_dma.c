@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syyespsys, Inc. and/or its affiliates.
  * stmmac XGMAC support.
  */
 
@@ -331,14 +331,14 @@ static int dwxgmac2_dma_interrupt(void __iomem *ioaddr,
 
 	/* TX/RX NORMAL interrupts */
 	if (likely(intr_status & XGMAC_NIS)) {
-		x->normal_irq_n++;
+		x->yesrmal_irq_n++;
 
 		if (likely(intr_status & XGMAC_RI)) {
-			x->rx_normal_irq_n++;
+			x->rx_yesrmal_irq_n++;
 			ret |= handle_rx;
 		}
 		if (likely(intr_status & (XGMAC_TI | XGMAC_TBU))) {
-			x->tx_normal_irq_n++;
+			x->tx_yesrmal_irq_n++;
 			ret |= handle_tx;
 		}
 	}

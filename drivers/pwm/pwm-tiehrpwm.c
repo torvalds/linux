@@ -250,7 +250,7 @@ static int ehrpwm_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		if (pc->period_cycles[i] &&
 				(pc->period_cycles[i] != period_cycles)) {
 			/*
-			 * Allow channel to reconfigure period if no other
+			 * Allow channel to reconfigure period if yes other
 			 * channels being configured.
 			 */
 			if (i == pwm->hwpwm)
@@ -419,7 +419,7 @@ MODULE_DEVICE_TABLE(of, ehrpwm_of_match);
 
 static int ehrpwm_pwm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct ehrpwm_pwm_chip *pc;
 	struct resource *r;
 	struct clk *clk;

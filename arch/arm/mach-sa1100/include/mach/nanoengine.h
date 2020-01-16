@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * arch/arm/mach-sa1100/include/mach/nanoengine.h
+ * arch/arm/mach-sa1100/include/mach/nayesengine.h
  *
- * This file contains the hardware specific definitions for nanoEngine.
+ * This file contains the hardware specific definitions for nayesEngine.
  * Only include this file from SA1100-specific files.
  *
  * Copyright (C) 2010 Marcelo Roberto Jimenez <mroberto@cpti.cetuc.puc-rio.br>
@@ -26,7 +26,7 @@
 #define NANOENGINE_IRQ_GPIO_PC_CD1	IRQ_GPIO14
 
 /*
- * nanoEngine Memory Map:
+ * nayesEngine Memory Map:
  *
  * 0000.0000 - 003F.0000 -   4 MB Flash
  * C000.0000 - C1FF.FFFF -  32 MB SDRAM

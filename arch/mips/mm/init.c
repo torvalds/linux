@@ -6,7 +6,7 @@
  * Copyright (C) 1994 - 2000 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2000 MIPS Techyeslogies, Inc.  All rights reserved.
  */
 #include <linux/bug.h>
 #include <linux/init.h>
@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/pagemap.h>
@@ -141,7 +141,7 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 	return __kmap_pgprot(page, addr, PAGE_KERNEL);
 }
 
-void *kmap_noncoherent(struct page *page, unsigned long addr)
+void *kmap_yesncoherent(struct page *page, unsigned long addr)
 {
 	return __kmap_pgprot(page, addr, PAGE_KERNEL_NC);
 }
@@ -249,7 +249,7 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 		for ( ; (j < PTRS_PER_PUD) && (vaddr < end); pud++, j++) {
 			pmd = (pmd_t *)pud;
 			for (; (k < PTRS_PER_PMD) && (vaddr < end); pmd++, k++) {
-				if (pmd_none(*pmd)) {
+				if (pmd_yesne(*pmd)) {
 					pte = (pte_t *) memblock_alloc_low(PAGE_SIZE,
 									   PAGE_SIZE);
 					if (!pte)
@@ -307,7 +307,7 @@ unsigned __weak platform_maar_init(unsigned num_pairs)
 
 	num_configured = maar_config(wi.cfg, wi.num_cfg, num_pairs);
 	if (num_configured < wi.num_cfg)
-		pr_warn("Not enough MAAR pairs (%u) for all memory regions (%u)\n",
+		pr_warn("Not eyesugh MAAR pairs (%u) for all memory regions (%u)\n",
 			num_pairs, wi.num_cfg);
 
 	return num_configured;
@@ -412,13 +412,13 @@ void __init paging_init(void)
 
 	if (cpu_has_dc_aliases && max_low_pfn != highend_pfn) {
 		printk(KERN_WARNING "This processor doesn't support highmem."
-		       " %ldk highmem ignored\n",
+		       " %ldk highmem igyesred\n",
 		       (highend_pfn - max_low_pfn) << (PAGE_SHIFT - 10));
 		max_zone_pfns[ZONE_HIGHMEM] = max_low_pfn;
 	}
 #endif
 
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init_yesdes(max_zone_pfns);
 }
 
 #ifdef CONFIG_64BIT
@@ -447,7 +447,7 @@ static inline void __init mem_init_free_highmem(void)
 void __init mem_init(void)
 {
 	/*
-	 * When _PFN_SHIFT is greater than PAGE_SHIFT we won't have enough PTE
+	 * When _PFN_SHIFT is greater than PAGE_SHIFT we won't have eyesugh PTE
 	 * bits to hold a full 32b physical address on MIPS32 systems.
 	 */
 	BUILD_BUG_ON(IS_ENABLED(CONFIG_32BIT) && (_PFN_SHIFT > PAGE_SHIFT));

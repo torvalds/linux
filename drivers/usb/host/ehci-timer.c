@@ -44,9 +44,9 @@ static void ehci_clear_command_bit(struct ehci_hcd *ehci, u32 bit)
  * ehci->next_hrtimer_event.  Whenever ehci->hrtimer gets restarted, its
  * expiration time is set to the timeout value for this event.
  *
- * As a result, events might not get handled right away; the actual delay
+ * As a result, events might yest get handled right away; the actual delay
  * could be anywhere up to twice the requested delay.  This doesn't
- * matter, because none of the events are especially time-critical.  The
+ * matter, because yesne of the events are especially time-critical.  The
  * ones that matter most all have a delay of 1 ms, so they will be
  * handled after 2 ms at most, which is okay.  In addition to this, we
  * allow for an expiration range of 1 ms.
@@ -223,11 +223,11 @@ static void ehci_handle_start_intr_unlinks(struct ehci_hcd *ehci)
 		struct ehci_qh	*qh;
 
 		qh = list_first_entry(&ehci->intr_unlink_wait,
-				struct ehci_qh, unlink_node);
+				struct ehci_qh, unlink_yesde);
 		if (!stopped && (qh->unlink_cycle ==
 				ehci->intr_unlink_wait_cycle))
 			break;
-		list_del_init(&qh->unlink_node);
+		list_del_init(&qh->unlink_yesde);
 		qh->unlink_reason |= QH_UNLINK_QUEUE_EMPTY;
 		start_unlink_intr(ehci, qh);
 	}
@@ -256,10 +256,10 @@ static void ehci_handle_intr_unlinks(struct ehci_hcd *ehci)
 		struct ehci_qh	*qh;
 
 		qh = list_first_entry(&ehci->intr_unlink, struct ehci_qh,
-				unlink_node);
+				unlink_yesde);
 		if (!stopped && qh->unlink_cycle == ehci->intr_unlink_cycle)
 			break;
-		list_del_init(&qh->unlink_node);
+		list_del_init(&qh->unlink_yesde);
 		end_unlink_intr(ehci, qh);
 	}
 
@@ -272,7 +272,7 @@ static void ehci_handle_intr_unlinks(struct ehci_hcd *ehci)
 }
 
 
-/* Start another free-iTDs/siTDs cycle */
+/* Start ayesther free-iTDs/siTDs cycle */
 static void start_free_itds(struct ehci_hcd *ehci)
 {
 	if (!(ehci->enabled_hrtimer_events & BIT(EHCI_HRTIMER_FREE_ITDS))) {
@@ -366,7 +366,7 @@ static void turn_on_io_watchdog(struct ehci_hcd *ehci)
 		return;
 
 	/*
-	 * Isochronous transfers always need the watchdog.
+	 * Isochroyesus transfers always need the watchdog.
 	 * For other sorts we use it only if the flag is set.
 	 */
 	if (ehci->isoc_count > 0 || (ehci->need_io_watchdog &&
@@ -398,7 +398,7 @@ static void (*event_handlers[])(struct ehci_hcd *) = {
 static enum hrtimer_restart ehci_hrtimer_func(struct hrtimer *t)
 {
 	struct ehci_hcd	*ehci = container_of(t, struct ehci_hcd, hrtimer);
-	ktime_t		now;
+	ktime_t		yesw;
 	unsigned long	events;
 	unsigned long	flags;
 	unsigned	e;
@@ -413,9 +413,9 @@ static enum hrtimer_restart ehci_hrtimer_func(struct hrtimer *t)
 	 * Check each pending event.  If its time has expired, handle
 	 * the event; otherwise re-enable it.
 	 */
-	now = ktime_get();
+	yesw = ktime_get();
 	for_each_set_bit(e, &events, EHCI_HRTIMER_NUM_EVENTS) {
-		if (ktime_compare(now, ehci->hr_timeouts[e]) >= 0)
+		if (ktime_compare(yesw, ehci->hr_timeouts[e]) >= 0)
 			event_handlers[e](ehci);
 		else
 			ehci_enable_event(ehci, e, false);

@@ -23,13 +23,13 @@
  *
  * Checks if a pointer to a block of memory in user space is valid.
  *
- * Returns true (nonzero) if the memory block *may* be valid, false (zero)
+ * Returns true (yesnzero) if the memory block *may* be valid, false (zero)
  * if it is definitely invalid.
  *
  * User address space in Hexagon, like x86, goes to 0xbfffffff, so the
  * simple MSB-based tests used by MIPS won't work.  Some further
- * optimization is probably possible here, but for now, keep it
- * reasonably simple and not *too* slow.  After all, we've got the
+ * optimization is probably possible here, but for yesw, keep it
+ * reasonably simple and yest *too* slow.  After all, we've got the
  * MMU for backup.
  */
 

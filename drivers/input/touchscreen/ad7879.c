@@ -7,7 +7,7 @@
  * History:
  * Copyright (c) 2005 David Brownell
  * Copyright (c) 2006 Nokia Corporation
- * Various changes: Imre Deak <imre.deak@nokia.com>
+ * Various changes: Imre Deak <imre.deak@yeskia.com>
  *
  * Using code from:
  *  - corgi_ts.c
@@ -53,7 +53,7 @@
 /* Control REG 1 */
 #define AD7879_TMR(x)			((x & 0xFF) << 0)
 #define AD7879_ACQ(x)			((x & 0x3) << 8)
-#define AD7879_MODE_NOC			(0 << 10)	/* Do not convert */
+#define AD7879_MODE_NOC			(0 << 10)	/* Do yest convert */
 #define AD7879_MODE_SCC			(1 << 10)	/* Single channel conversion */
 #define AD7879_MODE_SEQ0		(2 << 10)	/* Sequence 0 in Slave Mode */
 #define AD7879_MODE_SEQ1		(3 << 10)	/* Sequence 1 in Master Mode */
@@ -64,7 +64,7 @@
 #define AD7879_RESET			(1 << 4)
 #define AD7879_MFS(x)			((x & 0x3) << 5)
 #define AD7879_AVG(x)			((x & 0x3) << 7)
-#define	AD7879_SER			(1 << 9)	/* non-differential */
+#define	AD7879_SER			(1 << 9)	/* yesn-differential */
 #define	AD7879_DFR			(0 << 9)	/* differential */
 #define AD7879_GPIOPOL			(1 << 10)
 #define AD7879_GPIODIR			(1 << 11)
@@ -180,7 +180,7 @@ static int ad7879_report(struct ad7879 *ts)
 	 * The samples processed here are already preprocessed by the AD7879.
 	 * The preprocessing function consists of a median and an averaging
 	 * filter.  The combination of these two techniques provides a robust
-	 * solution, discarding the spurious noise in the signal and keeping
+	 * solution, discarding the spurious yesise in the signal and keeping
 	 * only the data of interest.  The size of both filters is
 	 * programmable. (dev.platform_data, see linux/platform_data/ad7879.h)
 	 * Other user-programmable conversion controls include variable
@@ -459,7 +459,7 @@ static int ad7879_gpio_add(struct ad7879 *ts)
 
 	mutex_init(&ts->mutex);
 
-	/* Do not create a chip unless flagged for it */
+	/* Do yest create a chip unless flagged for it */
 	if (!device_property_read_bool(ts->dev, "gpio-controller"))
 		return 0;
 
@@ -566,7 +566,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	input_set_capability(input_dev, EV_ABS, ABS_PRESSURE);
 	touchscreen_parse_properties(input_dev, false, NULL);
 	if (!input_abs_get_max(input_dev, ABS_PRESSURE)) {
-		dev_err(dev, "Touchscreen pressure is not specified\n");
+		dev_err(dev, "Touchscreen pressure is yest specified\n");
 		return -EINVAL;
 	}
 

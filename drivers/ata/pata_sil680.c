@@ -18,7 +18,7 @@
  *	if necessary
  *
  * TODO
- *	If we know all our devices are LBA28 (or LBA28 sized)  we could use
+ *	If we kyesw all our devices are LBA28 (or LBA28 sized)  we could use
  *	the command fifo mode.
  */
 
@@ -50,7 +50,7 @@
 static unsigned long sil680_selreg(struct ata_port *ap, int r)
 {
 	unsigned long base = 0xA0 + r;
-	base += (ap->port_no << 4);
+	base += (ap->port_yes << 4);
 	return base;
 }
 
@@ -67,8 +67,8 @@ static unsigned long sil680_selreg(struct ata_port *ap, int r)
 static unsigned long sil680_seldev(struct ata_port *ap, struct ata_device *adev, int r)
 {
 	unsigned long base = 0xA0 + r;
-	base += (ap->port_no << 4);
-	base |= adev->devno ? 2 : 0;
+	base += (ap->port_yes << 4);
+	base |= adev->devyes ? 2 : 0;
 	return base;
 }
 
@@ -114,11 +114,11 @@ static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	unsigned long tfaddr = sil680_selreg(ap, 0x02);
 	unsigned long addr = sil680_seldev(ap, adev, 0x04);
-	unsigned long addr_mask = 0x80 + 4 * ap->port_no;
+	unsigned long addr_mask = 0x80 + 4 * ap->port_yes;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int pio = adev->pio_mode - XFER_PIO_0;
 	int lowest_pio = pio;
-	int port_shift = 4 * adev->devno;
+	int port_shift = 4 * adev->devyes;
 	u16 reg;
 	u8 mode;
 
@@ -166,8 +166,8 @@ static void sil680_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned long ma = sil680_seldev(ap, adev, 0x08);
 	unsigned long ua = sil680_seldev(ap, adev, 0x0C);
-	unsigned long addr_mask = 0x80 + 4 * ap->port_no;
-	int port_shift = adev->devno * 4;
+	unsigned long addr_mask = 0x80 + 4 * ap->port_yes;
+	int port_shift = adev->devyes * 4;
 	u8 scsc, mode;
 	u16 multi, ultra;
 

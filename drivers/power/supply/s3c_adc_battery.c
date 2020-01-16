@@ -18,7 +18,7 @@
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/s3c_adc_battery.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/module.h>
 
@@ -51,7 +51,7 @@ static int gather_samples(struct s3c_adc_client *client, int num, int channel)
 {
 	int value, i;
 
-	/* default to 1 if nothing is set */
+	/* default to 1 if yesthing is set */
 	if (num < 1)
 		num = 1;
 
@@ -76,7 +76,7 @@ static int s3c_adc_backup_bat_get_property(struct power_supply *psy,
 	struct s3c_adc_bat *bat = power_supply_get_drvdata(psy);
 
 	if (!bat) {
-		dev_err(&psy->dev, "%s: no battery infos ?!\n", __func__);
+		dev_err(&psy->dev, "%s: yes battery infos ?!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -149,12 +149,12 @@ static int s3c_adc_bat_get_property(struct power_supply *psy,
 	unsigned int lut_size;
 
 	if (!bat) {
-		dev_err(&psy->dev, "no battery infos ?!\n");
+		dev_err(&psy->dev, "yes battery infos ?!\n");
 		return -EINVAL;
 	}
 
-	lut = bat->pdata->lut_noac;
-	lut_size = bat->pdata->lut_noac_cnt;
+	lut = bat->pdata->lut_yesac;
+	lut_size = bat->pdata->lut_yesac_cnt;
 
 	if (bat->volt_value < 0 || bat->cur_value < 0 ||
 		jiffies_to_msecs(jiffies - bat->timestamp) >
@@ -298,7 +298,7 @@ static int s3c_adc_bat_probe(struct platform_device *pdev)
 
 	client = s3c_adc_register(pdev, NULL, NULL, 0);
 	if (IS_ERR(client)) {
-		dev_err(&pdev->dev, "cannot register adc\n");
+		dev_err(&pdev->dev, "canyest register adc\n");
 		return PTR_ERR(client);
 	}
 

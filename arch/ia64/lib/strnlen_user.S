@@ -38,7 +38,7 @@ GLOBAL_ENTRY(__strnlen_user)
 (p6)	br.cond.dpnt .Lexit
 	br.cloop.dptk.few .Loop1
 
-	add r9=1,in1			// NUL not found---return N+1
+	add r9=1,in1			// NUL yest found---return N+1
 	;;
 .Lexit:
 	mov r8=r9

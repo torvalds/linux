@@ -478,7 +478,7 @@ static int hclgevf_set_handle_info(struct hclgevf_dev *hdev)
 
 	nic->ae_algo = &ae_algovf;
 	nic->pdev = hdev->pdev;
-	nic->numa_node_mask = hdev->numa_node_mask;
+	nic->numa_yesde_mask = hdev->numa_yesde_mask;
 	nic->flags |= HNAE3_SUPPORT_VF;
 
 	ret = hclgevf_knic_setup(hdev);
@@ -991,10 +991,10 @@ static int hclgevf_get_tc_size(struct hnae3_handle *handle)
 
 static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 				       int vector_id,
-				       struct hnae3_ring_chain_node *ring_chain)
+				       struct hnae3_ring_chain_yesde *ring_chain)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	struct hnae3_ring_chain_node *node;
+	struct hnae3_ring_chain_yesde *yesde;
 	struct hclge_mbx_vf_to_pf_cmd *req;
 	struct hclgevf_desc desc;
 	int i = 0;
@@ -1005,7 +1005,7 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 	type = en ? HCLGE_MBX_MAP_RING_TO_VECTOR :
 		HCLGE_MBX_UNMAP_RING_TO_VECTOR;
 
-	for (node = ring_chain; node; node = node->next) {
+	for (yesde = ring_chain; yesde; yesde = yesde->next) {
 		int idx_offset = HCLGE_MBX_RING_MAP_BASIC_MSG_NUM +
 					HCLGE_MBX_RING_NODE_VARIABLE_NUM * i;
 
@@ -1018,9 +1018,9 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 		}
 
 		req->msg[idx_offset] =
-				hnae3_get_bit(node->flag, HNAE3_RING_TYPE_B);
-		req->msg[idx_offset + 1] = node->tqp_index;
-		req->msg[idx_offset + 2] = hnae3_get_field(node->int_gl_idx,
+				hnae3_get_bit(yesde->flag, HNAE3_RING_TYPE_B);
+		req->msg[idx_offset + 1] = yesde->tqp_index;
+		req->msg[idx_offset + 2] = hnae3_get_field(yesde->int_gl_idx,
 							   HNAE3_RING_GL_IDX_M,
 							   HNAE3_RING_GL_IDX_S);
 
@@ -1028,7 +1028,7 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 		if ((i == (HCLGE_MBX_VF_MSG_DATA_NUM -
 		     HCLGE_MBX_RING_MAP_BASIC_MSG_NUM) /
 		     HCLGE_MBX_RING_NODE_VARIABLE_NUM) ||
-		    !node->next) {
+		    !yesde->next) {
 			req->msg[2] = i;
 
 			status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
@@ -1051,7 +1051,7 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 }
 
 static int hclgevf_map_ring_to_vector(struct hnae3_handle *handle, int vector,
-				      struct hnae3_ring_chain_node *ring_chain)
+				      struct hnae3_ring_chain_yesde *ring_chain)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	int vector_id;
@@ -1069,7 +1069,7 @@ static int hclgevf_map_ring_to_vector(struct hnae3_handle *handle, int vector,
 static int hclgevf_unmap_ring_from_vector(
 				struct hnae3_handle *handle,
 				int vector,
-				struct hnae3_ring_chain_node *ring_chain)
+				struct hnae3_ring_chain_yesde *ring_chain)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	int ret, vector_id;
@@ -1382,8 +1382,8 @@ static int hclgevf_set_mtu(struct hnae3_handle *handle, int new_mtu)
 				    sizeof(new_mtu), true, NULL, 0);
 }
 
-static int hclgevf_notify_client(struct hclgevf_dev *hdev,
-				 enum hnae3_reset_notify_type type)
+static int hclgevf_yestify_client(struct hclgevf_dev *hdev,
+				 enum hnae3_reset_yestify_type type)
 {
 	struct hnae3_client *client = hdev->nic_client;
 	struct hnae3_handle *handle = &hdev->nic;
@@ -1393,12 +1393,12 @@ static int hclgevf_notify_client(struct hclgevf_dev *hdev,
 	    !client)
 		return 0;
 
-	if (!client->ops->reset_notify)
+	if (!client->ops->reset_yestify)
 		return -EOPNOTSUPP;
 
-	ret = client->ops->reset_notify(handle, type);
+	ret = client->ops->reset_yestify(handle, type);
 	if (ret)
-		dev_err(&hdev->pdev->dev, "notify nic client failed %d(%d)\n",
+		dev_err(&hdev->pdev->dev, "yestify nic client failed %d(%d)\n",
 			type, ret);
 
 	return ret;
@@ -1492,7 +1492,7 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	int ret;
 
 	/* uninitialize the nic client */
-	ret = hclgevf_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+	ret = hclgevf_yestify_client(hdev, HNAE3_UNINIT_CLIENT);
 	if (ret)
 		return ret;
 
@@ -1505,11 +1505,11 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	}
 
 	/* bring up the nic client again */
-	ret = hclgevf_notify_client(hdev, HNAE3_INIT_CLIENT);
+	ret = hclgevf_yestify_client(hdev, HNAE3_INIT_CLIENT);
 	if (ret)
 		return ret;
 
-	ret = hclgevf_notify_client(hdev, HNAE3_RESTORE_CLIENT);
+	ret = hclgevf_yestify_client(hdev, HNAE3_RESTORE_CLIENT);
 	if (ret)
 		return ret;
 
@@ -1601,14 +1601,14 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 	int ret;
 
 	/* Initialize ae_dev reset status as well, in case enet layer wants to
-	 * know if device is undergoing reset
+	 * kyesw if device is undergoing reset
 	 */
 	ae_dev->reset_type = hdev->reset_type;
 	hdev->rst_stats.rst_cnt++;
 	rtnl_lock();
 
 	/* bring down the nic to stop any ongoing TX/RX */
-	ret = hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	ret = hclgevf_yestify_client(hdev, HNAE3_DOWN_CLIENT);
 	if (ret)
 		goto err_reset_lock;
 
@@ -1634,7 +1634,7 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 
 	rtnl_lock();
 
-	/* now, re-initialize the nic client and ae device */
+	/* yesw, re-initialize the nic client and ae device */
 	ret = hclgevf_reset_stack(hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev, "failed to reset VF stack\n");
@@ -1642,7 +1642,7 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 	}
 
 	/* bring up the nic to enable TX/RX again */
-	ret = hclgevf_notify_client(hdev, HNAE3_UP_CLIENT);
+	ret = hclgevf_yestify_client(hdev, HNAE3_UP_CLIENT);
 	if (ret)
 		goto err_reset_lock;
 
@@ -1827,7 +1827,7 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 	if (test_and_clear_bit(HCLGEVF_RESET_PENDING,
 			       &hdev->reset_state)) {
 		/* PF has initmated that it is about to reset the hardware.
-		 * We now have to poll & check if hardware has actually
+		 * We yesw have to poll & check if hardware has actually
 		 * completed the reset sequence. On hardware reset completion,
 		 * VF needs to reset the client and ae device.
 		 */
@@ -1850,21 +1850,21 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 		 *       which resulted in watchdog reacting and inducing VF
 		 *       reset. This also means our cmdq would be unreliable.
 		 *    b. problem in TX due to other lower layer(example link
-		 *       layer not functioning properly etc.)
+		 *       layer yest functioning properly etc.)
 		 * 2. VF reset might have been initiated due to some config
 		 *    change.
 		 *
-		 * NOTE: Theres no clear way to detect above cases than to react
+		 * NOTE: Theres yes clear way to detect above cases than to react
 		 * to the response of PF for this reset request. PF will ack the
-		 * 1b and 2. cases but we will not get any intimation about 1a
+		 * 1b and 2. cases but we will yest get any intimation about 1a
 		 * from PF as cmdq would be in unreliable state i.e. mailbox
 		 * communication between PF and VF would be broken.
 		 *
 		 * if we are never geting into pending state it means either:
-		 * 1. PF is not receiving our request which could be due to IMP
+		 * 1. PF is yest receiving our request which could be due to IMP
 		 *    reset
 		 * 2. PF is screwed
-		 * We cannot do much for 2. but to check first we can try reset
+		 * We canyest do much for 2. but to check first we can try reset
 		 * our PCIe + stack and see if it alleviates the problem.
 		 */
 		if (hdev->reset_attempts > HCLGEVF_MAX_RESET_ATTEMPTS_CNT) {
@@ -2005,7 +2005,7 @@ static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 		return HCLGEVF_VECTOR0_EVENT_MBX;
 	}
 
-	dev_dbg(&hdev->pdev->dev, "vector 0 interrupt from unknown source\n");
+	dev_dbg(&hdev->pdev->dev, "vector 0 interrupt from unkyeswn source\n");
 
 	return HCLGEVF_VECTOR0_EVENT_OTHER;
 }
@@ -2104,7 +2104,7 @@ static int hclgevf_init_roce_base_info(struct hclgevf_dev *hdev)
 
 	roce->pdev = nic->pdev;
 	roce->ae_algo = nic->ae_algo;
-	roce->numa_node_mask = nic->numa_node_mask;
+	roce->numa_yesde_mask = nic->numa_yesde_mask;
 
 	return 0;
 }
@@ -2527,7 +2527,7 @@ static void hclgevf_uninit_client_instance(struct hnae3_client *client,
 		hdev->roce.client = NULL;
 	}
 
-	/* un-init nic/unic, if this was not called by roce client */
+	/* un-init nic/unic, if this was yest called by roce client */
 	if (client->ops->uninit_instance && hdev->nic_client &&
 	    client->type != HNAE3_CLIENT_ROCE) {
 		clear_bit(HCLGEVF_STATE_NIC_REGISTERED, &hdev->state);
@@ -2636,7 +2636,7 @@ static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 
 	if (hdev->num_nic_msix < HNAE3_MIN_VECTOR_NUM) {
 		dev_err(&hdev->pdev->dev,
-			"Just %u msi resources, not enough for vf(min:2).\n",
+			"Just %u msi resources, yest eyesugh for vf(min:2).\n",
 			hdev->num_nic_msix);
 		return -EINVAL;
 	}
@@ -2884,7 +2884,7 @@ static u32 hclgevf_get_max_channels(struct hclgevf_dev *hdev)
  *
  * We don't support separate tx and rx queues as channels. The other count
  * represents how many queues are being used for control. max_combined counts
- * how many queue pairs we can support. They may not be mapped 1 to 1 with
+ * how many queue pairs we can support. They may yest be mapped 1 to 1 with
  * q_vectors since we support a lot more queue pairs than q_vectors.
  **/
 static void hclgevf_get_channels(struct hnae3_handle *handle,
@@ -2919,7 +2919,7 @@ static void hclgevf_update_rss_size(struct hnae3_handle *handle,
 	max_rss_size = min_t(u16, hdev->rss_size_max,
 			     hdev->num_tqps / kinfo->num_tc);
 
-	/* Use the user's configuration when it is not larger than
+	/* Use the user's configuration when it is yest larger than
 	 * max_rss_size, otherwise, use the maximum specification value.
 	 */
 	if (kinfo->req_rss_size != kinfo->rss_size && kinfo->req_rss_size &&
@@ -3128,7 +3128,7 @@ void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
 	struct hnae3_handle *nic = &hdev->nic;
 
 	rtnl_lock();
-	hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	hclgevf_yestify_client(hdev, HNAE3_DOWN_CLIENT);
 	rtnl_unlock();
 
 	/* send msg to PF and wait update port based vlan info */
@@ -3143,7 +3143,7 @@ void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
 		nic->port_base_vlan_state = HNAE3_PORT_BASE_VLAN_ENABLE;
 
 	rtnl_lock();
-	hclgevf_notify_client(hdev, HNAE3_UP_CLIENT);
+	hclgevf_yestify_client(hdev, HNAE3_UP_CLIENT);
 	rtnl_unlock();
 }
 

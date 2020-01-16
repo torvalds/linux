@@ -60,7 +60,7 @@ static u64 pcsp_timer_update(struct snd_pcsp *chip)
 		return 0;
 
 	runtime = substream->runtime;
-	/* assume it is mono! */
+	/* assume it is moyes! */
 	val = runtime->dma_area[chip->playback_ptr + chip->fmt_size - 1];
 	if (chip->is_signed)
 		val ^= 0x80;

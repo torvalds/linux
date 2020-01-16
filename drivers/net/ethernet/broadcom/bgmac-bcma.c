@@ -128,10 +128,10 @@ static int bgmac_probe(struct bcma_device *core)
 
 	bcma_set_drvdata(core, bgmac);
 
-	if (bgmac->dev->of_node)
-		mac = of_get_mac_address(bgmac->dev->of_node);
+	if (bgmac->dev->of_yesde)
+		mac = of_get_mac_address(bgmac->dev->of_yesde);
 
-	/* If no MAC address assigned via device tree, check SPROM */
+	/* If yes MAC address assigned via device tree, check SPROM */
 	if (IS_ERR_OR_NULL(mac)) {
 		switch (core->core_unit) {
 		case 0:
@@ -156,7 +156,7 @@ static int bgmac_probe(struct bcma_device *core)
 	/* On BCM4706 we need common core to access PHY */
 	if (core->id.id == BCMA_CORE_4706_MAC_GBIT &&
 	    !core->bus->drv_gmac_cmn.core) {
-		dev_err(bgmac->dev, "GMAC CMN core not found (required for BCM4706)\n");
+		dev_err(bgmac->dev, "GMAC CMN core yest found (required for BCM4706)\n");
 		err = -ENODEV;
 		goto err;
 	}
@@ -200,17 +200,17 @@ static int bgmac_probe(struct bcma_device *core)
 	}
 
 	if (core->bus->hosttype == BCMA_HOSTTYPE_PCI) {
-		dev_err(bgmac->dev, "PCI setup not implemented\n");
+		dev_err(bgmac->dev, "PCI setup yest implemented\n");
 		err = -ENOTSUPP;
 		goto err1;
 	}
 
 	bgmac->has_robosw = !!(sprom->boardflags_lo & BGMAC_BFL_ENETROBO);
 	if (bgmac->has_robosw)
-		dev_warn(bgmac->dev, "Support for Roboswitch not implemented\n");
+		dev_warn(bgmac->dev, "Support for Roboswitch yest implemented\n");
 
 	if (sprom->boardflags_lo & BGMAC_BFL_ENETADM)
-		dev_warn(bgmac->dev, "Support for ADMtek ethernet switch not implemented\n");
+		dev_warn(bgmac->dev, "Support for ADMtek ethernet switch yest implemented\n");
 
 	/* Feature Flags */
 	switch (ci->id) {

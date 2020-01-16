@@ -101,7 +101,7 @@ static struct cpufreq_driver kirkwood_cpufreq_driver = {
 
 static int kirkwood_cpufreq_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource *res;
 	int err;
 
@@ -112,9 +112,9 @@ static int kirkwood_cpufreq_probe(struct platform_device *pdev)
 	if (IS_ERR(priv.base))
 		return PTR_ERR(priv.base);
 
-	np = of_cpu_device_node_get(0);
+	np = of_cpu_device_yesde_get(0);
 	if (!np) {
-		dev_err(&pdev->dev, "failed to get cpu device node\n");
+		dev_err(&pdev->dev, "failed to get cpu device yesde\n");
 		return -ENODEV;
 	}
 
@@ -122,13 +122,13 @@ static int kirkwood_cpufreq_probe(struct platform_device *pdev)
 	if (IS_ERR(priv.cpu_clk)) {
 		dev_err(priv.dev, "Unable to get cpuclk\n");
 		err = PTR_ERR(priv.cpu_clk);
-		goto out_node;
+		goto out_yesde;
 	}
 
 	err = clk_prepare_enable(priv.cpu_clk);
 	if (err) {
 		dev_err(priv.dev, "Unable to prepare cpuclk\n");
-		goto out_node;
+		goto out_yesde;
 	}
 
 	kirkwood_freq_table[0].frequency = clk_get_rate(priv.cpu_clk) / 1000;
@@ -165,7 +165,7 @@ static int kirkwood_cpufreq_probe(struct platform_device *pdev)
 		goto out_powersave;
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 	return 0;
 
 out_powersave:
@@ -174,8 +174,8 @@ out_ddr:
 	clk_disable_unprepare(priv.ddr_clk);
 out_cpu:
 	clk_disable_unprepare(priv.cpu_clk);
-out_node:
-	of_node_put(np);
+out_yesde:
+	of_yesde_put(np);
 
 	return err;
 }

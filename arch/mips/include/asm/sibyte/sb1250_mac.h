@@ -314,7 +314,7 @@
  * Configuration Register.
  */
 
-#define K_MAC_IFG_RX_10		    _SB_MAKE64(0)	/* See table 176, not used */
+#define K_MAC_IFG_RX_10		    _SB_MAKE64(0)	/* See table 176, yest used */
 #define K_MAC_IFG_RX_100	    _SB_MAKE64(0)
 #define K_MAC_IFG_RX_1000	    _SB_MAKE64(0)
 
@@ -618,7 +618,7 @@
  * MAC Receive Channel Select Registers (Table 9-25)
  */
 
-/* no bitfields */
+/* yes bitfields */
 
 /*
  * MAC MII Management Interface Registers (Table 9-26)

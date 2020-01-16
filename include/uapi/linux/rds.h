@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2008, 2018 Oracle and/or its affiliates. All rights reserved.
  *
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -300,9 +300,9 @@ struct rds_cmsg_rx_trace {
  * The application installs a 64bit mask value in the socket,
  * where each bit corresponds to a group of ports.
  * When a congestion update arrives, RDS checks the set of
- * ports that are now uncongested against the list bit mask
+ * ports that are yesw uncongested against the list bit mask
  * installed in the socket, and if they overlap, we queue a
- * cong_notification on the socket.
+ * cong_yestification on the socket.
  *
  * To install the congestion monitor bitmask, use RDS_CONG_MONITOR
  * with the 64bit mask.
@@ -324,7 +324,7 @@ struct rds_cmsg_rx_trace {
  * This encapsulates a remote memory location.
  * In the current implementation, it contains the R_Key
  * of the remote memory region, and the offset into it
- * (so that the application does not have to worry about
+ * (so that the application does yest have to worry about
  * alignment).
  */
 typedef __u64		rds_rdma_cookie_t;
@@ -381,14 +381,14 @@ struct rds_atomic_args {
 		} m_cswp;
 		struct {
 			__u64		add;
-			__u64		nocarry_mask;
+			__u64		yescarry_mask;
 		} m_fadd;
 	};
 	__u64		flags;
 	__u64		user_token;
 };
 
-struct rds_rdma_notify {
+struct rds_rdma_yestify {
 	__u64		user_token;
 	__s32		status;
 };
@@ -414,6 +414,6 @@ struct rds_zcopy_cookies {
 #define RDS_RDMA_USE_ONCE	0x0008	/* free MR after use */
 #define RDS_RDMA_DONTWAIT	0x0010	/* Don't wait in SET_BARRIER */
 #define RDS_RDMA_NOTIFY_ME	0x0020	/* Notify when operation completes */
-#define RDS_RDMA_SILENT		0x0040	/* Do not interrupt remote */
+#define RDS_RDMA_SILENT		0x0040	/* Do yest interrupt remote */
 
 #endif /* IB_RDS_H */

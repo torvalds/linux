@@ -12,7 +12,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -403,7 +403,7 @@ static void lapb_state3_machine(struct lapb_cb *lapb, struct sk_buff *skb,
 			queued = 1;
 			/*
 			 * If upper layer has dropped the frame, we
-			 * basically ignore any further protocol
+			 * basically igyesre any further protocol
 			 * processing. This will cause the peer
 			 * to re-transmit the frame later like
 			 * a frame lost on the wire.

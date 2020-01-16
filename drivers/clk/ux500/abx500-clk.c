@@ -28,7 +28,7 @@ static int ab8500_reg_clks(struct device *dev)
 {
 	int ret;
 	struct clk *clk;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const char *intclk_parents[] = {"ab8500_sysclk", "ulpclk"};
 	u16 intclk_reg_sel[] = {0 , AB8500_SYSULPCLKCTRL1};
 	u8 intclk_reg_mask[] = {0 , AB8500_SYSULPCLKCTRL1_SYSULPCLKINTSEL_MASK};
@@ -95,7 +95,7 @@ static int abx500_clk_probe(struct platform_device *pdev)
 	if (is_ab8500(parent) || is_ab8505(parent)) {
 		ret = ab8500_reg_clks(&pdev->dev);
 	} else {
-		dev_err(&pdev->dev, "non supported plf id\n");
+		dev_err(&pdev->dev, "yesn supported plf id\n");
 		return -ENODEV;
 	}
 

@@ -30,7 +30,7 @@ MODULE_DESCRIPTION("PS3 vuart");
  *
  * The vuart provides a bi-directional byte stream data link between logical
  * partitions.  Its primary role is as a communications link between the guest
- * OS and the system policy module.  The current HV does not support any
+ * OS and the system policy module.  The current HV does yest support any
  * connections other than those listed.
  */
 
@@ -90,8 +90,8 @@ static struct ps3_vuart_port_priv *to_port_priv(
 /**
  * struct ports_bmp - bitmap indicating ports needing service.
  *
- * A 256 bit read only bitmap indicating ports needing service.  Do not write
- * to these bits.  Must not cross a page boundary.
+ * A 256 bit read only bitmap indicating ports needing service.  Do yest write
+ * to these bits.  Must yest cross a page boundary.
  */
 
 struct ports_bmp {
@@ -345,7 +345,7 @@ int ps3_vuart_disable_interrupt_disconnect(struct ps3_system_bus_device *dev)
  * ps3_vuart_raw_write - Low level write helper.
  * @dev: The struct ps3_system_bus_device instance.
  *
- * Do not call ps3_vuart_raw_write directly, use ps3_vuart_write.
+ * Do yest call ps3_vuart_raw_write directly, use ps3_vuart_write.
  */
 
 static int ps3_vuart_raw_write(struct ps3_system_bus_device *dev,
@@ -375,7 +375,7 @@ static int ps3_vuart_raw_write(struct ps3_system_bus_device *dev,
  * ps3_vuart_raw_read - Low level read helper.
  * @dev: The struct ps3_system_bus_device instance.
  *
- * Do not call ps3_vuart_raw_read directly, use ps3_vuart_read.
+ * Do yest call ps3_vuart_raw_read directly, use ps3_vuart_read.
  */
 
 static int ps3_vuart_raw_read(struct ps3_system_bus_device *dev, void *buf,
@@ -408,7 +408,7 @@ static int ps3_vuart_raw_read(struct ps3_system_bus_device *dev, void *buf,
  * @dev: The struct ps3_system_bus_device instance.
  * @bytes: Max byte count to discard, zero = all pending.
  *
- * Used to clear pending rx interrupt source.  Will not block.
+ * Used to clear pending rx interrupt source.  Will yest block.
  */
 
 void ps3_vuart_clear_rx_bytes(struct ps3_system_bus_device *dev,
@@ -589,9 +589,9 @@ static int ps3_vuart_queue_rx_bytes(struct ps3_system_bus_device *dev,
 /**
  * ps3_vuart_read - The entry point for reading data from a port.
  *
- * Queue data waiting at the port, and if enough bytes to satisfy the request
+ * Queue data waiting at the port, and if eyesugh bytes to satisfy the request
  * are held in the buffer list those bytes are dequeued and copied to the
- * caller's buffer.  Emptied list buffers are retiered.  If the request cannot
+ * caller's buffer.  Emptied list buffers are retiered.  If the request canyest
  * be statified by bytes held in the list buffers -EAGAIN is returned.
  */
 
@@ -655,7 +655,7 @@ int ps3_vuart_read(struct ps3_system_bus_device *dev, void *buf,
 EXPORT_SYMBOL_GPL(ps3_vuart_read);
 
 /**
- * ps3_vuart_work - Asynchronous read handler.
+ * ps3_vuart_work - Asynchroyesus read handler.
  */
 
 static void ps3_vuart_work(struct work_struct *work)
@@ -808,7 +808,7 @@ static int ps3_vuart_handle_interrupt_disconnect(
 	struct ps3_system_bus_device *dev)
 {
 	dev_dbg(&dev->core, "%s:%d\n", __func__, __LINE__);
-	BUG_ON("no support");
+	BUG_ON("yes support");
 	return -1;
 }
 
@@ -1048,7 +1048,7 @@ static int ps3_vuart_probe(struct ps3_system_bus_device *dev)
 		result = drv->probe(dev);
 	else {
 		result = 0;
-		dev_info(&dev->core, "%s:%d: no probe method\n", __func__,
+		dev_info(&dev->core, "%s:%d: yes probe method\n", __func__,
 			__LINE__);
 	}
 
@@ -1100,7 +1100,7 @@ static int ps3_vuart_cleanup(struct ps3_system_bus_device *dev)
  * @dev: The struct ps3_system_bus_device instance.
  *
  * Cleans all memory, interrupts and HV resources.  After this call the
- * device can no longer be used.
+ * device can yes longer be used.
  */
 
 static int ps3_vuart_remove(struct ps3_system_bus_device *dev)
@@ -1116,7 +1116,7 @@ static int ps3_vuart_remove(struct ps3_system_bus_device *dev)
 		dev->match_id);
 
 	if (!dev->core.driver) {
-		dev_dbg(&dev->core, "%s:%d: no driver bound\n", __func__,
+		dev_dbg(&dev->core, "%s:%d: yes driver bound\n", __func__,
 			__LINE__);
 		mutex_unlock(&vuart_bus_priv.probe_mutex);
 		return 0;
@@ -1129,7 +1129,7 @@ static int ps3_vuart_remove(struct ps3_system_bus_device *dev)
 	if (drv->remove) {
 		drv->remove(dev);
 	} else {
-		dev_dbg(&dev->core, "%s:%d: no remove method\n", __func__,
+		dev_dbg(&dev->core, "%s:%d: yes remove method\n", __func__,
 		__LINE__);
 		BUG();
 	}
@@ -1167,7 +1167,7 @@ static int ps3_vuart_shutdown(struct ps3_system_bus_device *dev)
 		dev->match_id);
 
 	if (!dev->core.driver) {
-		dev_dbg(&dev->core, "%s:%d: no driver bound\n", __func__,
+		dev_dbg(&dev->core, "%s:%d: yes driver bound\n", __func__,
 			__LINE__);
 		mutex_unlock(&vuart_bus_priv.probe_mutex);
 		return 0;
@@ -1180,11 +1180,11 @@ static int ps3_vuart_shutdown(struct ps3_system_bus_device *dev)
 	if (drv->shutdown)
 		drv->shutdown(dev);
 	else if (drv->remove) {
-		dev_dbg(&dev->core, "%s:%d: no shutdown, calling remove\n",
+		dev_dbg(&dev->core, "%s:%d: yes shutdown, calling remove\n",
 			__func__, __LINE__);
 		drv->remove(dev);
 	} else {
-		dev_dbg(&dev->core, "%s:%d: no shutdown method\n", __func__,
+		dev_dbg(&dev->core, "%s:%d: yes shutdown method\n", __func__,
 			__LINE__);
 		BUG();
 	}

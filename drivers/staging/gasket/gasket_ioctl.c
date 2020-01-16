@@ -256,12 +256,12 @@ static bool gasket_ioctl_check_permissions(struct file *filp, uint cmd)
 		return alive && write;
 	}
 
-	return false; /* unknown permissions */
+	return false; /* unkyeswn permissions */
 }
 
 /*
  * standard ioctl dispatch function.
- * @filp: File structure pointer describing this node usage session.
+ * @filp: File structure pointer describing this yesde usage session.
  * @cmd: ioctl number to handle.
  * @argp: ioctl-specific data pointer.
  *
@@ -289,7 +289,7 @@ long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
 		}
 	} else if (!gasket_ioctl_check_permissions(filp, cmd)) {
 		trace_gasket_ioctl_exit(-EPERM);
-		dev_dbg(gasket_dev->dev, "ioctl cmd=%x noperm\n", cmd);
+		dev_dbg(gasket_dev->dev, "ioctl cmd=%x yesperm\n", cmd);
 		return -EPERM;
 	}
 
@@ -349,7 +349,7 @@ long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
 		 */
 		trace_gasket_ioctl_integer_data(arg);
 		dev_dbg(gasket_dev->dev,
-			"Unknown ioctl cmd=0x%x not caught by gasket_is_supported_ioctl\n",
+			"Unkyeswn ioctl cmd=0x%x yest caught by gasket_is_supported_ioctl\n",
 			cmd);
 		retval = -EINVAL;
 		break;

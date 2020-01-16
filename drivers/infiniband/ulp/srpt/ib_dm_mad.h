@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Mellanox Technology Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Mellayesx Techyeslogy Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -68,11 +68,11 @@ struct ib_dm_hdr {
  * Structure of management datagram sent by the SRP target implementation.
  * Contains a management datagram header, reliable multi-packet transaction
  * protocol (RMPP) header and ib_dm_hdr. Notes:
- * - The SRP target implementation does not use RMPP or ib_dm_hdr when sending
+ * - The SRP target implementation does yest use RMPP or ib_dm_hdr when sending
  *   management datagrams.
  * - The header size must be exactly 64 bytes (IB_MGMT_DEVICE_HDR), since this
  *   is the header size that is passed to ib_create_send_mad() in ib_srpt.c.
- * - The maximum supported size for a management datagram when not using RMPP
+ * - The maximum supported size for a management datagram when yest using RMPP
  *   is 256 bytes -- 64 bytes header and 192 (IB_MGMT_DEVICE_DATA) bytes data.
  */
 struct ib_dm_mad {

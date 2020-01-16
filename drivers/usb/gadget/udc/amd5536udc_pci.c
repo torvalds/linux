@@ -15,7 +15,7 @@
  * be used as host port) and UOC bits PAD_EN and APU are set (should be done
  * by BIOS init).
  *
- * UDC DMA requires 32-bit aligned buffers so DMA with gadget ether does not
+ * UDC DMA requires 32-bit aligned buffers so DMA with gadget ether does yest
  * work without updating NET_IP_ALIGN. Or PIO mode (module param "use_dma=0")
  * can be used with gadget ether.
  *
@@ -23,7 +23,7 @@
  * is done in amd5536udc.c
  *
  * The driver is split so as to use the core UDC driver which is based on
- * Synopsys device controller IP (different than HS OTG IP) in UDCs
+ * Syyespsys device controller IP (different than HS OTG IP) in UDCs
  * integrated to SoC platforms.
  *
  */
@@ -60,7 +60,7 @@ static void udc_pci_remove(struct pci_dev *pdev)
 	dev = pci_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&udc->gadget);
-	/* gadget driver must not be registered */
+	/* gadget driver must yest be registered */
 	if (WARN_ON(dev->driver))
 		return;
 
@@ -116,15 +116,15 @@ static int udc_pci_probe(
 		goto err_memreg;
 	}
 
-	dev->virt_addr = ioremap_nocache(resource, len);
+	dev->virt_addr = ioremap_yescache(resource, len);
 	if (!dev->virt_addr) {
-		dev_dbg(&pdev->dev, "start address cannot be mapped\n");
+		dev_dbg(&pdev->dev, "start address canyest be mapped\n");
 		retval = -EFAULT;
 		goto err_ioremap;
 	}
 
 	if (!pdev->irq) {
-		dev_err(&pdev->dev, "irq not set\n");
+		dev_err(&pdev->dev, "irq yest set\n");
 		retval = -ENODEV;
 		goto err_irq;
 	}

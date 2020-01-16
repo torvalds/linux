@@ -3,7 +3,7 @@
  * PIC32 watchdog driver
  *
  * Joshua Henderson <joshua.henderson@microchip.com>
- * Copyright (c) 2016, Microchip Technology Inc.
+ * Copyright (c) 2016, Microchip Techyeslogy Inc.
  */
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -121,10 +121,10 @@ static int pic32_wdt_stop(struct watchdog_device *wdd)
 	writel(WDTCON_ON, PIC32_CLR(wdt->regs + WDTCON_REG));
 
 	/*
-	 * Cannot touch registers in the CPU cycle following clearing the
+	 * Canyest touch registers in the CPU cycle following clearing the
 	 * ON bit.
 	 */
-	nop();
+	yesp();
 
 	return 0;
 }
@@ -188,7 +188,7 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 
 	wdt->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(wdt->clk)) {
-		dev_err(dev, "clk not found\n");
+		dev_err(dev, "clk yest found\n");
 		return PTR_ERR(wdt->clk);
 	}
 
@@ -203,7 +203,7 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 		return ret;
 
 	if (pic32_wdt_is_win_enabled(wdt)) {
-		dev_err(dev, "windowed-clear mode is not supported.\n");
+		dev_err(dev, "windowed-clear mode is yest supported.\n");
 		return -ENODEV;
 	}
 
@@ -217,7 +217,7 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 
 	wdd->bootstatus = pic32_wdt_bootstatus(wdt) ? WDIOF_CARDRESET : 0;
 
-	watchdog_set_nowayout(wdd, WATCHDOG_NOWAYOUT);
+	watchdog_set_yeswayout(wdd, WATCHDOG_NOWAYOUT);
 	watchdog_set_drvdata(wdd, wdt);
 
 	ret = devm_watchdog_register_device(dev, wdd);

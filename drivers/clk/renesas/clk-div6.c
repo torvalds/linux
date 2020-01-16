@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/pm.h>
@@ -39,7 +39,7 @@ struct div6_clock {
 	unsigned int div;
 	u32 src_shift;
 	u32 src_width;
-	struct notifier_block nb;
+	struct yestifier_block nb;
 	u8 parents[];
 };
 
@@ -65,7 +65,7 @@ static void cpg_div6_clock_disable(struct clk_hw *hw)
 	val = readl(clock->reg);
 	val |= CPG_DIV6_CKSTP;
 	/*
-	 * DIV6 clocks require the divisor field to be non-zero when stopping
+	 * DIV6 clocks require the divisor field to be yesn-zero when stopping
 	 * the clock. However, some clocks (e.g. ZB on sh73a0) fail to be
 	 * re-enabled later if the divisor field is changed when stopping the
 	 * clock
@@ -177,7 +177,7 @@ static const struct clk_ops cpg_div6_clock_ops = {
 	.set_rate = cpg_div6_clock_set_rate,
 };
 
-static int cpg_div6_clock_notifier_call(struct notifier_block *nb,
+static int cpg_div6_clock_yestifier_call(struct yestifier_block *nb,
 					unsigned long action, void *data)
 {
 	struct div6_clock *clock = container_of(nb, struct div6_clock, nb);
@@ -185,8 +185,8 @@ static int cpg_div6_clock_notifier_call(struct notifier_block *nb,
 	switch (action) {
 	case PM_EVENT_RESUME:
 		/*
-		 * TODO: This does not yet support DIV6 clocks with multiple
-		 * parents, as the parent selection bits are not restored.
+		 * TODO: This does yest yet support DIV6 clocks with multiple
+		 * parents, as the parent selection bits are yest restored.
 		 * Fortunately so far such DIV6 clocks are found only on
 		 * R/SH-Mobile SoCs, while the resume functionality is only
 		 * needed on R-Car Gen3.
@@ -207,13 +207,13 @@ static int cpg_div6_clock_notifier_call(struct notifier_block *nb,
  * @num_parents: Number of parent clocks of the DIV6 clock (1, 4, or 8)
  * @parent_names: Array containing the names of the parent clocks
  * @reg: Mapped register used to control the DIV6 clock
- * @notifiers: Optional notifier chain to save/restore state for system resume
+ * @yestifiers: Optional yestifier chain to save/restore state for system resume
  */
 struct clk * __init cpg_div6_register(const char *name,
 				      unsigned int num_parents,
 				      const char **parent_names,
 				      void __iomem *reg,
-				      struct raw_notifier_head *notifiers)
+				      struct raw_yestifier_head *yestifiers)
 {
 	unsigned int valid_parents;
 	struct clk_init_data init;
@@ -277,9 +277,9 @@ struct clk * __init cpg_div6_register(const char *name,
 	if (IS_ERR(clk))
 		goto free_clock;
 
-	if (notifiers) {
-		clock->nb.notifier_call = cpg_div6_clock_notifier_call;
-		raw_notifier_chain_register(notifiers, &clock->nb);
+	if (yestifiers) {
+		clock->nb.yestifier_call = cpg_div6_clock_yestifier_call;
+		raw_yestifier_chain_register(yestifiers, &clock->nb);
 	}
 
 	return clk;
@@ -289,7 +289,7 @@ free_clock:
 	return clk;
 }
 
-static void __init cpg_div6_clock_init(struct device_node *np)
+static void __init cpg_div6_clock_init(struct device_yesde *np)
 {
 	unsigned int num_parents;
 	const char **parent_names;
@@ -300,7 +300,7 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents < 1) {
-		pr_err("%s: no parent found for %pOFn DIV6 clock\n",
+		pr_err("%s: yes parent found for %pOFn DIV6 clock\n",
 		       __func__, np);
 		return;
 	}

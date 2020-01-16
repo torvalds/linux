@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -42,7 +42,7 @@
 #elif defined(__BIG_ENDIAN)
 #define MLX5_SET_HOST_ENDIANNESS	0x80
 #else
-#error Host endianness not defined
+#error Host endianness yest defined
 #endif
 
 /* helper macros */
@@ -302,12 +302,12 @@ enum {
 };
 
 /* mlx5 components can subscribe to any one of these events via
- * mlx5_eq_notifier_register API.
+ * mlx5_eq_yestifier_register API.
  */
 enum mlx5_event {
 	/* Special value to subscribe to any event */
 	MLX5_EVENT_TYPE_NOTIFY_ANY	   = 0x0,
-	/* HW events enum start: comp events are not subscribable */
+	/* HW events enum start: comp events are yest subscribable */
 	MLX5_EVENT_TYPE_COMP		   = 0x0,
 	/* HW Async events enum start: subscribable events */
 	MLX5_EVENT_TYPE_PATH_MIG	   = 0x01,
@@ -902,11 +902,11 @@ enum {
 enum {
 	CQE_RSS_HTYPE_IP	= 0x3 << 2,
 	/* cqe->rss_hash_type[3:2] - IP destination selected for hash
-	 * (00 = none,  01 = IPv4, 10 = IPv6, 11 = Reserved)
+	 * (00 = yesne,  01 = IPv4, 10 = IPv6, 11 = Reserved)
 	 */
 	CQE_RSS_HTYPE_L4	= 0x3 << 6,
 	/* cqe->rss_hash_type[7:6] - L4 destination selected for hash
-	 * (00 = none, 01 = TCP. 10 = UDP, 11 = IPSEC.SPI
+	 * (00 = yesne, 01 = TCP. 10 = UDP, 11 = IPSEC.SPI
 	 */
 };
 
@@ -970,7 +970,7 @@ enum {
 struct mlx5_mkey_seg {
 	/* This is a two bit field occupying bits 31-30.
 	 * bit 31 is always 0,
-	 * bit 30 is zero for regular MRs and 1 (e.g free) for UMRs that do not have tanslation
+	 * bit 30 is zero for regular MRs and 1 (e.g free) for UMRs that do yest have tanslation
 	 */
 	u8		status;
 	u8		pcie_control;

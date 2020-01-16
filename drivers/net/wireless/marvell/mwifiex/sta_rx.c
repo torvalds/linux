@@ -72,9 +72,9 @@ mwifiex_discard_gratuitous_arp(struct mwifiex_private *priv,
  * to kernel/upper layer.
  *
  * This function parses through the received packet and determines
- * if it is a debug packet or normal packet.
+ * if it is a debug packet or yesrmal packet.
  *
- * For non-debug packets, the function chops off unnecessary leading
+ * For yesn-debug packets, the function chops off unnecessary leading
  * header bytes, reconstructs the packet as an ethernet frame or
  * 802.2/llc/snap frame as required, and sends it to kernel/upper layer.
  *
@@ -196,7 +196,7 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_private *priv,
 	struct rx_packet_hdr *rx_pkt_hdr;
 	u8 ta[ETH_ALEN];
 	u16 rx_pkt_type, rx_pkt_offset, rx_pkt_length, seq_num;
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 
 	local_rx_pd = (struct rxpd *) (skb->data);
 	rx_pkt_type = le16_to_cpu(local_rx_pd->rx_pkt_type);
@@ -224,7 +224,7 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_private *priv,
 	}
 
 	/*
-	 * If the packet is not an unicast packet then send the packet
+	 * If the packet is yest an unicast packet then send the packet
 	 * directly to os. Don't pass thru rx reordering
 	 */
 	if ((!IS_11N_ENABLED(priv) &&

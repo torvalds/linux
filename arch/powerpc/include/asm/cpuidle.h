@@ -18,13 +18,13 @@
  * Bottom 8 bits track the idle state of each thread. Bit is cleared before
  * the thread executes an idle instruction (nap/sleep/winkle).
  *
- * Then there is winkle tracking. A core does not lose complete state
+ * Then there is winkle tracking. A core does yest lose complete state
  * until every thread is in winkle. So the winkle count field counts the
  * number of threads in winkle (small window of false positives is okay
- * around the sleep/wake, so long as there are no false negatives).
+ * around the sleep/wake, so long as there are yes false negatives).
  *
  * When the winkle count reaches 8 (the COUNT_ALL_BIT becomes set), then
- * the THREAD_WINKLE_BITS are set, which indicate which threads have not
+ * the THREAD_WINKLE_BITS are set, which indicate which threads have yest
  * yet woken from the winkle state.
  */
 #define NR_PNV_CORE_IDLE_LOCK_BIT		28

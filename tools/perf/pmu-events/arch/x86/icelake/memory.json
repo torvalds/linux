@@ -23,25 +23,25 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of times a TSX Abort was triggered due to a non-release/commit store to lock.",
+        "PublicDescription": "Counts the number of times a TSX Abort was triggered due to a yesn-release/commit store to lock.",
         "EventCode": "0x54",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
         "PEBScounters": "0,1,2,3",
         "EventName": "TX_MEM.ABORT_HLE_STORE_TO_ELIDED_LOCK",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of times a HLE transactional region aborted due to a non XRELEASE prefixed instruction writing to an elided lock in the elision buffer"
+        "BriefDescription": "Number of times a HLE transactional region aborted due to a yesn XRELEASE prefixed instruction writing to an elided lock in the elision buffer"
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of times a TSX Abort was triggered due to commit but Lock Buffer not empty.",
+        "PublicDescription": "Counts the number of times a TSX Abort was triggered due to commit but Lock Buffer yest empty.",
         "EventCode": "0x54",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "PEBScounters": "0,1,2,3",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_NOT_EMPTY",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of times an HLE transactional execution aborted due to NoAllocatedElisionBuffer being non-zero."
+        "BriefDescription": "Number of times an HLE transactional execution aborted due to NoAllocatedElisionBuffer being yesn-zero."
     },
     {
         "CollectPEBSRecord": "2",
@@ -52,7 +52,7 @@
         "PEBScounters": "0,1,2,3",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_MISMATCH",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock not satisfying the address and value requirements in the elision buffer"
+        "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock yest satisfying the address and value requirements in the elision buffer"
     },
     {
         "CollectPEBSRecord": "2",
@@ -67,14 +67,14 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of times we could not allocate Lock Buffer.",
+        "PublicDescription": "Counts the number of times we could yest allocate Lock Buffer.",
         "EventCode": "0x54",
         "Counter": "0,1,2,3",
         "UMask": "0x40",
         "PEBScounters": "0,1,2,3",
         "EventName": "TX_MEM.HLE_ELISION_BUFFER_FULL",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of times HLE lock could not be elided due to ElisionBufferAvailable being zero."
+        "BriefDescription": "Number of times HLE lock could yest be elided due to ElisionBufferAvailable being zero."
     },
     {
         "CollectPEBSRecord": "2",
@@ -133,7 +133,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may not conform to the memory ordering rules of the x86 architecture",
+        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may yest conform to the memory ordering rules of the x86 architecture",
         "EventCode": "0xc3",
         "Counter": "0,1,2,3,4,5,6,7",
         "UMask": "0x2",
@@ -144,7 +144,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of times we entered an HLE region. Does not count nested transactions.",
+        "PublicDescription": "Counts the number of times we entered an HLE region. Does yest count nested transactions.",
         "EventCode": "0xC8",
         "Counter": "0,1,2,3,4,5,6,7",
         "UMask": "0x1",
@@ -211,7 +211,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of times we entered an RTM region. Does not count nested transactions.",
+        "PublicDescription": "Counts the number of times we entered an RTM region. Does yest count nested transactions.",
         "EventCode": "0xC9",
         "Counter": "0,1,2,3,4,5,6,7",
         "UMask": "0x1",
@@ -278,14 +278,14 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt).",
+        "PublicDescription": "Counts the number of times an RTM execution aborted due to yesne of the previous 4 categories (e.g. interrupt).",
         "EventCode": "0xC9",
         "Counter": "0,1,2,3,4,5,6,7",
         "UMask": "0x80",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "EventName": "RTM_RETIRED.ABORTED_EVENTS",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)"
+        "BriefDescription": "Number of times an RTM execution aborted due to yesne of the previous 4 categories (e.g. interrupt)"
     },
     {
         "PEBS": "2",

@@ -347,7 +347,7 @@ bool host1x_syncpt_is_expired(struct host1x_syncpt *sp, u32 thresh)
 	 *	   Dtf >= Dtc implies EXPIRED	(return true)
 	 *	   Dtf <  Dtc implies WAIT	(return false)
 	 *
-	 * Note: If t is expired then we *cannot* wait on it. We would wait
+	 * Note: If t is expired then we *canyest* wait on it. We would wait
 	 * forever (hang the system).
 	 *
 	 * Note: do NOT get clever and remove the -thresh from both sides. It
@@ -401,8 +401,8 @@ int host1x_syncpt_init(struct host1x *host)
 	host1x_hw_syncpt_enable_protection(host);
 
 	/* Allocate sync point to use for clearing waits for expired fences */
-	host->nop_sp = host1x_syncpt_alloc(host, NULL, 0);
-	if (!host->nop_sp)
+	host->yesp_sp = host1x_syncpt_alloc(host, NULL, 0);
+	if (!host->yesp_sp)
 		return -ENOMEM;
 
 	return 0;
@@ -415,7 +415,7 @@ int host1x_syncpt_init(struct host1x *host)
  *
  * host1x client drivers can use this function to allocate a syncpoint for
  * subsequent use. A syncpoint returned by this function will be reserved for
- * use by the client exclusively. When no longer using a syncpoint, a host1x
+ * use by the client exclusively. When yes longer using a syncpoint, a host1x
  * client driver needs to release it using host1x_syncpt_free().
  */
 struct host1x_syncpt *host1x_syncpt_request(struct host1x_client *client,
@@ -432,7 +432,7 @@ EXPORT_SYMBOL(host1x_syncpt_request);
  * @sp: host1x syncpoint
  *
  * Release a syncpoint previously allocated using host1x_syncpt_request(). A
- * host1x client driver should call this when the syncpoint is no longer in
+ * host1x client driver should call this when the syncpoint is yes longer in
  * use. Note that client drivers must ensure that the syncpoint doesn't remain
  * under the control of hardware after calling this function, otherwise two
  * clients may end up trying to access the same syncpoint concurrently.

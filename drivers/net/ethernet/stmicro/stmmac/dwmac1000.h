@@ -285,7 +285,7 @@ enum ttc_control {
  *   1,11 - Reserved
  *
  * RFD should always be > RFA for a given FIFO size. RFD == RFA may work,
- * but packet throughput performance may not be as expected.
+ * but packet throughput performance may yest be as expected.
  *
  * Be sure that bit 3 in GMAC Register 6 is set for Unicast Pause frame
  * detection (IEEE Specification Requirement, Annex 31B, 31B.1, Pause

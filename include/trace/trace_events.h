@@ -254,7 +254,7 @@ TRACE_MAKE_SYSTEM_STR();
  * }
  *
  * This is the method used to print the raw event to the trace
- * output format. Note, this is not needed if the data is read
+ * output format. Note, this is yest needed if the data is read
  * in binary.
  */
 
@@ -348,7 +348,7 @@ TRACE_MAKE_SYSTEM_STR();
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
-static notrace enum print_line_t					\
+static yestrace enum print_line_t					\
 trace_raw_output_##call(struct trace_iterator *iter, int flags,		\
 			struct trace_event *trace_event)		\
 {									\
@@ -373,7 +373,7 @@ static struct trace_event_functions trace_event_type_funcs_##call = {	\
 
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, call, proto, args, print)		\
-static notrace enum print_line_t					\
+static yestrace enum print_line_t					\
 trace_raw_output_##call(struct trace_iterator *iter, int flags,		\
 			 struct trace_event *event)			\
 {									\
@@ -452,7 +452,7 @@ static struct trace_event_functions trace_event_type_funcs_##call = {	\
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, func, print)	\
-static int notrace __init						\
+static int yestrace __init						\
 trace_event_define_fields_##call(struct trace_event_call *event_call)	\
 {									\
 	struct trace_event_raw_##call field;				\
@@ -531,7 +531,7 @@ trace_event_define_fields_##call(struct trace_event_call *event_call)	\
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
-static inline notrace int trace_event_get_offsets_##call(		\
+static inline yestrace int trace_event_get_offsets_##call(		\
 	struct trace_event_data_offsets_##call *__data_offsets, proto)	\
 {									\
 	int __data_size = 0;						\
@@ -645,7 +645,7 @@ static inline notrace int trace_event_get_offsets_##call(		\
 #ifdef CONFIG_PERF_EVENTS
 
 #define _TRACE_PERF_PROTO(call, proto)					\
-	static notrace void						\
+	static yestrace void						\
 	perf_trace_##call(void *__data, proto);
 
 #define _TRACE_PERF_INIT(call)						\
@@ -701,7 +701,7 @@ static inline notrace int trace_event_get_offsets_##call(		\
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 									\
-static notrace void							\
+static yestrace void							\
 trace_event_raw_event_##call(void *__data, proto)			\
 {									\
 	struct trace_event_file *trace_file = __data;			\

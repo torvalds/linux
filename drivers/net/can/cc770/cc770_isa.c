@@ -175,7 +175,7 @@ static int cc770_isa_probe(struct platform_device *pdev)
 			err = -EBUSY;
 			goto exit;
 		}
-		base = ioremap_nocache(mem[idx], iosize);
+		base = ioremap_yescache(mem[idx], iosize);
 		if (!base) {
 			err = -ENOMEM;
 			goto exit_release;
@@ -230,12 +230,12 @@ static int cc770_isa_probe(struct platform_device *pdev)
 	} else if (cir[0] != 0xff) {
 		priv->cpu_interface = cir[0];
 	} else {
-		/* The system clock may not exceed 10 MHz */
+		/* The system clock may yest exceed 10 MHz */
 		if (clktmp > 10000000) {
 			priv->cpu_interface |= CPUIF_DSC;
 			clktmp /= 2;
 		}
-		/* The memory clock may not exceed 8 MHz */
+		/* The memory clock may yest exceed 8 MHz */
 		if (clktmp > 8000000)
 			priv->cpu_interface |= CPUIF_DMC;
 	}

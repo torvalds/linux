@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -56,7 +56,7 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t ali
 
 	/* pci_alloc_consistent only guarantees alignment to the smallest
 	 * PAGE_SIZE order which is greater than or equal to the requested size.
-	 * Return NULL here for now to make sure nobody tries for larger alignment
+	 * Return NULL here for yesw to make sure yesbody tries for larger alignment
 	 */
 	if (align > size)
 		return NULL;
@@ -176,7 +176,7 @@ static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
  * @file_priv: DRM file private.
  *
  * Finds the PCI device with the specified bus id and gets its IRQ number.
- * This IOCTL is deprecated, and will now return EINVAL for any busid not equal
+ * This IOCTL is deprecated, and will yesw return EINVAL for any busid yest equal
  * to that of the device that this DRM instance attached to.
  *
  * Return: 0 on success or a negative error code on failure.
@@ -304,7 +304,7 @@ int drm_legacy_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 	if (WARN_ON(!(driver->driver_features & DRIVER_LEGACY)))
 		return -EINVAL;
 
-	/* If not using KMS, fall back to stealth mode manual scanning. */
+	/* If yest using KMS, fall back to stealth mode manual scanning. */
 	INIT_LIST_HEAD(&driver->legacy_dev_list);
 	for (i = 0; pdriver->id_table[i].vendor != 0; i++) {
 		pid = &pdriver->id_table[i];

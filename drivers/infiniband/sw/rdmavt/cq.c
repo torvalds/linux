@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -140,14 +140,14 @@ bool rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 		k_wc->head = next;
 	}
 
-	if (cq->notify == IB_CQ_NEXT_COMP ||
-	    (cq->notify == IB_CQ_SOLICITED &&
+	if (cq->yestify == IB_CQ_NEXT_COMP ||
+	    (cq->yestify == IB_CQ_SOLICITED &&
 	     (solicited || entry->status != IB_WC_SUCCESS))) {
 		/*
 		 * This will cause send_complete() to be called in
-		 * another thread.
+		 * ayesther thread.
 		 */
-		cq->notify = RVT_CQ_NONE;
+		cq->yestify = RVT_CQ_NONE;
 		cq->triggered++;
 		queue_work_on(cq->comp_vector_cpu, comp_vector_wq,
 			      &cq->comptask);
@@ -163,7 +163,7 @@ static void send_complete(struct work_struct *work)
 	struct rvt_cq *cq = container_of(work, struct rvt_cq, comptask);
 
 	/*
-	 * The completion handler will most likely rearm the notification
+	 * The completion handler will most likely rearm the yestification
 	 * and poll for all pending entries.  If a new completion entry
 	 * is added while we are in this routine, queue_work()
 	 * won't call us again until we return so we check triggered to
@@ -237,7 +237,7 @@ int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	} else {
 		sz = sizeof(struct ib_wc) * (entries + 1);
 		sz += sizeof(*k_wc);
-		k_wc = vzalloc_node(sz, rdi->dparms.node);
+		k_wc = vzalloc_yesde(sz, rdi->dparms.yesde);
 		if (!k_wc)
 			return -ENOMEM;
 	}
@@ -286,10 +286,10 @@ int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 			rdi->driver_f.comp_vect_cpu_lookup(rdi, comp_vector);
 	else
 		cq->comp_vector_cpu =
-			cpumask_first(cpumask_of_node(rdi->dparms.node));
+			cpumask_first(cpumask_of_yesde(rdi->dparms.yesde));
 
 	cq->ibcq.cqe = entries;
-	cq->notify = RVT_CQ_NONE;
+	cq->yestify = RVT_CQ_NONE;
 	spin_lock_init(&cq->lock);
 	INIT_WORK(&cq->comptask, send_complete);
 	if (u_wc)
@@ -331,16 +331,16 @@ void rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 }
 
 /**
- * rvt_req_notify_cq - change the notification type for a completion queue
+ * rvt_req_yestify_cq - change the yestification type for a completion queue
  * @ibcq: the completion queue
- * @notify_flags: the type of notification to request
+ * @yestify_flags: the type of yestification to request
  *
  * This may be called from interrupt context.  Also called by
- * ib_req_notify_cq() in the generic verbs code.
+ * ib_req_yestify_cq() in the generic verbs code.
  *
  * Return: 0 for success.
  */
-int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
+int rvt_req_yestify_cq(struct ib_cq *ibcq, enum ib_cq_yestify_flags yestify_flags)
 {
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
 	unsigned long flags;
@@ -351,10 +351,10 @@ int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
 	 * Don't change IB_CQ_NEXT_COMP to IB_CQ_SOLICITED but allow
 	 * any other transitions (see C11-31 and C11-32 in ch. 11.4.2.2).
 	 */
-	if (cq->notify != IB_CQ_NEXT_COMP)
-		cq->notify = notify_flags & IB_CQ_SOLICITED_MASK;
+	if (cq->yestify != IB_CQ_NEXT_COMP)
+		cq->yestify = yestify_flags & IB_CQ_SOLICITED_MASK;
 
-	if (notify_flags & IB_CQ_REPORT_MISSED_EVENTS) {
+	if (yestify_flags & IB_CQ_REPORT_MISSED_EVENTS) {
 		if (cq->queue) {
 			if (RDMA_READ_UAPI_ATOMIC(cq->queue->head) !=
 				RDMA_READ_UAPI_ATOMIC(cq->queue->tail))
@@ -403,7 +403,7 @@ int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	} else {
 		sz = sizeof(struct ib_wc) * (cqe + 1);
 		sz += sizeof(*k_wc);
-		k_wc = vzalloc_node(sz, rdi->dparms.node);
+		k_wc = vzalloc_yesde(sz, rdi->dparms.yesde);
 		if (!k_wc)
 			return -ENOMEM;
 	}

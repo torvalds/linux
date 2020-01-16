@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
@@ -18,7 +18,7 @@ int main(void)
 	DEFINE(SP_OFFSET, offsetof(struct pt_regs, sp));
 	DEFINE(FUCOP_CTL_OFFSET, offsetof(struct pt_regs, fucop_ctl));
 	DEFINE(IPSW_OFFSET, offsetof(struct pt_regs, ipsw));
-	DEFINE(SYSCALLNO_OFFSET, offsetof(struct pt_regs, syscallno));
+	DEFINE(SYSCALLNO_OFFSET, offsetof(struct pt_regs, syscallyes));
 	DEFINE(IPC_OFFSET, offsetof(struct pt_regs, ipc));
 	DEFINE(R0_OFFSET, offsetof(struct pt_regs, uregs[0]));
 	DEFINE(R15_OFFSET, offsetof(struct pt_regs, uregs[15]));

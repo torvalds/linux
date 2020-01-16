@@ -19,7 +19,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -93,7 +93,7 @@ EXPORT_SYMBOL(sys_ctrler);
 
 static void pmac_show_cpuinfo(struct seq_file *m)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const char *pp;
 	int plen;
 	int mbmodel;
@@ -106,11 +106,11 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 				    PMAC_MB_INFO_FLAGS, 0);
 	if (pmac_call_feature(PMAC_FTR_GET_MB_INFO, NULL, PMAC_MB_INFO_NAME,
 			      (long) &mbname) != 0)
-		mbname = "Unknown";
+		mbname = "Unkyeswn";
 
 	/* find motherboard type */
 	seq_printf(m, "machine\t\t: ");
-	np = of_find_node_by_path("/");
+	np = of_find_yesde_by_path("/");
 	if (np != NULL) {
 		pp = of_get_property(np, "model", NULL);
 		if (pp != NULL)
@@ -128,7 +128,7 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 			}
 			seq_printf(m, "\n");
 		}
-		of_node_put(np);
+		of_yesde_put(np);
 	} else
 		seq_printf(m, "PowerMac\n");
 
@@ -137,9 +137,9 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "pmac flags\t: %08x\n", mbflags);
 
 	/* find l2 cache info */
-	np = of_find_node_by_name(NULL, "l2-cache");
+	np = of_find_yesde_by_name(NULL, "l2-cache");
 	if (np == NULL)
-		np = of_find_node_by_type(NULL, "cache");
+		np = of_find_yesde_by_type(NULL, "cache");
 	if (np != NULL) {
 		const unsigned int *ic =
 			of_get_property(np, "i-cache-size", NULL);
@@ -160,7 +160,7 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 		if (pp)
 			seq_printf(m, " %s", pp);
 		seq_printf(m, "\n");
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
 	/* Indicate newworld/oldworld */
@@ -171,11 +171,11 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 #ifndef CONFIG_ADB_CUDA
 int find_via_cuda(void)
 {
-	struct device_node *dn = of_find_node_by_name(NULL, "via-cuda");
+	struct device_yesde *dn = of_find_yesde_by_name(NULL, "via-cuda");
 
 	if (!dn)
 		return 0;
-	of_node_put(dn);
+	of_yesde_put(dn);
 	printk("WARNING ! Your machine is CUDA-based but your kernel\n");
 	printk("          wasn't compiled with CONFIG_ADB_CUDA option !\n");
 	return 0;
@@ -185,11 +185,11 @@ int find_via_cuda(void)
 #ifndef CONFIG_ADB_PMU
 int find_via_pmu(void)
 {
-	struct device_node *dn = of_find_node_by_name(NULL, "via-pmu");
+	struct device_yesde *dn = of_find_yesde_by_name(NULL, "via-pmu");
 
 	if (!dn)
 		return 0;
-	of_node_put(dn);
+	of_yesde_put(dn);
 	printk("WARNING ! Your machine is PMU-based but your kernel\n");
 	printk("          wasn't compiled with CONFIG_ADB_PMU option !\n");
 	return 0;
@@ -209,7 +209,7 @@ static volatile u32 *sysctrl_regs;
 
 static void __init ohare_init(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
 	/* this area has the CPU identification register
 	   and some registers used by smp boards */
@@ -220,9 +220,9 @@ static void __init ohare_init(void)
 	 * We assume that we have a PSX memory controller iff
 	 * we have an ohare I/O controller.
 	 */
-	dn = of_find_node_by_name(NULL, "ohare");
+	dn = of_find_yesde_by_name(NULL, "ohare");
 	if (dn) {
-		of_node_put(dn);
+		of_yesde_put(dn);
 		if (((sysctrl_regs[2] >> 24) & 0xf) >= 3) {
 			if (sysctrl_regs[4] & 0x10)
 				sysctrl_regs[4] |= 0x04000020;
@@ -238,9 +238,9 @@ static void __init l2cr_init(void)
 {
 	/* Checks "l2cr-value" property in the registry */
 	if (cpu_has_feature(CPU_FTR_L2CR)) {
-		struct device_node *np;
+		struct device_yesde *np;
 
-		for_each_of_cpu_node(np) {
+		for_each_of_cpu_yesde(np) {
 			const unsigned int *l2cr =
 				of_get_property(np, "l2cr-value", NULL);
 			if (l2cr) {
@@ -249,7 +249,7 @@ static void __init l2cr_init(void)
 				_set_L2CR(0);
 				_set_L2CR(ppc_override_l2cr_value);
 			}
-			of_node_put(np);
+			of_yesde_put(np);
 			break;
 		}
 	}
@@ -265,7 +265,7 @@ static void __init l2cr_init(void)
 
 static void __init pmac_setup_arch(void)
 {
-	struct device_node *cpu, *ic;
+	struct device_yesde *cpu, *ic;
 	const int *fp;
 	unsigned long pvr;
 
@@ -275,7 +275,7 @@ static void __init pmac_setup_arch(void)
 	   for use until calibrate_delay gets called. */
 	loops_per_jiffy = 50000000 / HZ;
 
-	for_each_of_cpu_node(cpu) {
+	for_each_of_cpu_yesde(cpu) {
 		fp = of_get_property(cpu, "clock-frequency", NULL);
 		if (fp != NULL) {
 			if (pvr >= 0x30 && pvr < 0x80)
@@ -287,16 +287,16 @@ static void __init pmac_setup_arch(void)
 			else
 				/* 601, 603, etc. */
 				loops_per_jiffy = *fp / (2 * HZ);
-			of_node_put(cpu);
+			of_yesde_put(cpu);
 			break;
 		}
 	}
 
 	/* See if newworld or oldworld */
-	ic = of_find_node_with_property(NULL, "interrupt-controller");
+	ic = of_find_yesde_with_property(NULL, "interrupt-controller");
 	if (ic) {
 		pmac_newworld = 1;
-		of_node_put(ic);
+		of_yesde_put(ic);
 	}
 
 	/* Lookup PCI hosts */
@@ -332,10 +332,10 @@ static void __init pmac_setup_arch(void)
 }
 
 #ifdef CONFIG_SCSI
-void note_scsi_host(struct device_node *node, void *host)
+void yeste_scsi_host(struct device_yesde *yesde, void *host)
 {
 }
-EXPORT_SYMBOL(note_scsi_host);
+EXPORT_SYMBOL(yeste_scsi_host);
 #endif
 
 static int initializing = 1;
@@ -347,14 +347,14 @@ static int pmac_late_init(void)
 }
 machine_late_initcall(powermac, pmac_late_init);
 
-void note_bootable_part(dev_t dev, int part, int goodness);
+void yeste_bootable_part(dev_t dev, int part, int goodness);
 /*
  * This is __ref because we check for "initializing" before
  * touching any of the __init sensitive things and "initializing"
  * will be false after __init time. This can't be __init because it
  * can be called whenever a disk is first accessed.
  */
-void __ref note_bootable_part(dev_t dev, int part, int goodness)
+void __ref yeste_bootable_part(dev_t dev, int part, int goodness)
 {
 	char *p;
 
@@ -372,7 +372,7 @@ void __ref note_bootable_part(dev_t dev, int part, int goodness)
 }
 
 #ifdef CONFIG_ADB_CUDA
-static void __noreturn cuda_restart(void)
+static void __yesreturn cuda_restart(void)
 {
 	struct adb_request req;
 
@@ -381,7 +381,7 @@ static void __noreturn cuda_restart(void)
 		cuda_poll();
 }
 
-static void __noreturn cuda_shutdown(void)
+static void __yesreturn cuda_shutdown(void)
 {
 	struct adb_request req;
 
@@ -405,7 +405,7 @@ static void __noreturn cuda_shutdown(void)
 #define smu_shutdown()
 #endif
 
-static void __noreturn pmac_restart(char *cmd)
+static void __yesreturn pmac_restart(char *cmd)
 {
 	switch (sys_ctrler) {
 	case SYS_CTRLER_CUDA:
@@ -422,7 +422,7 @@ static void __noreturn pmac_restart(char *cmd)
 	while (1) ;
 }
 
-static void __noreturn pmac_power_off(void)
+static void __yesreturn pmac_power_off(void)
 {
 	switch (sys_ctrler) {
 	case SYS_CTRLER_CUDA:
@@ -439,7 +439,7 @@ static void __noreturn pmac_power_off(void)
 	while (1) ;
 }
 
-static void __noreturn
+static void __yesreturn
 pmac_halt(void)
 {
 	pmac_power_off();
@@ -478,31 +478,31 @@ static void __init pmac_init(void)
 
 static int __init pmac_declare_of_platform_devices(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_node_by_name(NULL, "valkyrie");
+	np = of_find_yesde_by_name(NULL, "valkyrie");
 	if (np) {
 		of_platform_device_create(np, "valkyrie", NULL);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
-	np = of_find_node_by_name(NULL, "platinum");
+	np = of_find_yesde_by_name(NULL, "platinum");
 	if (np) {
 		of_platform_device_create(np, "platinum", NULL);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
-        np = of_find_node_by_type(NULL, "smu");
+        np = of_find_yesde_by_type(NULL, "smu");
         if (np) {
 		of_platform_device_create(np, "smu", NULL);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
-	np = of_find_node_by_type(NULL, "fcu");
+	np = of_find_yesde_by_type(NULL, "fcu");
 	if (np == NULL) {
 		/* Some machines have strangely broken device-tree */
-		np = of_find_node_by_path("/u3@0,f8000000/i2c@f8001000/fan@15e");
+		np = of_find_yesde_by_path("/u3@0,f8000000/i2c@f8001000/fan@15e");
 	}
 	if (np) {
 		of_platform_device_create(np, "temperature", NULL);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
 	return 0;
@@ -518,7 +518,7 @@ machine_device_initcall(powermac, pmac_declare_of_platform_devices);
  */
 static int __init check_pmac_serial_console(void)
 {
-	struct device_node *prom_stdout = NULL;
+	struct device_yesde *prom_stdout = NULL;
 	int offset = 0;
 	const char *name;
 #ifdef CONFIG_SERIAL_PMACZILOG_TTYS
@@ -544,31 +544,31 @@ static int __init check_pmac_serial_console(void)
 	/* ... So use the full path instead */
 	name = of_get_property(of_chosen, "linux,stdout-path", NULL);
 	if (name == NULL) {
-		pr_debug(" no linux,stdout-path !\n");
+		pr_debug(" yes linux,stdout-path !\n");
 		return -ENODEV;
 	}
-	prom_stdout = of_find_node_by_path(name);
+	prom_stdout = of_find_yesde_by_path(name);
 	if (!prom_stdout) {
 		pr_debug(" can't find stdout package %s !\n", name);
 		return -ENODEV;
 	}
 	pr_debug("stdout is %pOF\n", prom_stdout);
 
-	if (of_node_name_eq(prom_stdout, "ch-a"))
+	if (of_yesde_name_eq(prom_stdout, "ch-a"))
 		offset = 0;
-	else if (of_node_name_eq(prom_stdout, "ch-b"))
+	else if (of_yesde_name_eq(prom_stdout, "ch-b"))
 		offset = 1;
 	else
-		goto not_found;
-	of_node_put(prom_stdout);
+		goto yest_found;
+	of_yesde_put(prom_stdout);
 
 	pr_debug("Found serial console at %s%d\n", devname, offset);
 
 	return add_preferred_console(devname, offset, NULL);
 
- not_found:
+ yest_found:
 	pr_debug("No preferred console found !\n");
-	of_node_put(prom_stdout);
+	of_yesde_put(prom_stdout);
 	return -ENODEV;
 }
 console_initcall(check_pmac_serial_console);

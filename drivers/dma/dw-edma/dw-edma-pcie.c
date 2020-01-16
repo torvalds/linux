@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018-2019 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare eDMA PCIe driver
+ * Copyright (c) 2018-2019 Syyespsys, Inc. and/or its affiliates.
+ * Syyespsys DesignWare eDMA PCIe driver
  *
- * Author: Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+ * Author: Gustavo Pimentel <gustavo.pimentel@syyespsys.com>
  */
 
 #include <linux/kernel.h>
@@ -18,15 +18,15 @@
 
 struct dw_edma_pcie_data {
 	/* eDMA registers location */
-	enum pci_barno			rg_bar;
+	enum pci_baryes			rg_bar;
 	off_t				rg_off;
 	size_t				rg_sz;
 	/* eDMA memory linked list location */
-	enum pci_barno			ll_bar;
+	enum pci_baryes			ll_bar;
 	off_t				ll_off;
 	size_t				ll_sz;
 	/* eDMA memory data location */
-	enum pci_barno			dt_bar;
+	enum pci_baryes			dt_bar;
 	off_t				dt_off;
 	size_t				dt_sz;
 	/* Other */
@@ -225,5 +225,5 @@ static struct pci_driver dw_edma_pcie_driver = {
 module_pci_driver(dw_edma_pcie_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare eDMA PCIe driver");
-MODULE_AUTHOR("Gustavo Pimentel <gustavo.pimentel@synopsys.com>");
+MODULE_DESCRIPTION("Syyespsys DesignWare eDMA PCIe driver");
+MODULE_AUTHOR("Gustavo Pimentel <gustavo.pimentel@syyespsys.com>");

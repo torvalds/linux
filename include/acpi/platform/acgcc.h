@@ -12,7 +12,7 @@
 
 /*
  * Use compiler specific <stdarg.h> is a good practice for even when
- * -nostdinc is specified (i.e., ACPI_USE_STANDARD_HEADERS undefined.
+ * -yesstdinc is specified (i.e., ACPI_USE_STANDARD_HEADERS undefined.
  */
 #ifndef va_arg
 #ifdef ACPI_USE_BUILTIN_STDARG

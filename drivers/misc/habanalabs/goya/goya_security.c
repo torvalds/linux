@@ -2151,7 +2151,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
  *
  * @hdev: pointer to hl_device structure
  *
- * All protection bits are 1 by default, means not protected. Need to set to 0
+ * All protection bits are 1 by default, means yest protected. Need to set to 0
  * each bit that belongs to a protected register.
  *
  */

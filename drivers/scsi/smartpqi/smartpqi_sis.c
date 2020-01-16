@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *    driver for Microsemi PQI-based storage controllers
- *    Copyright (c) 2019 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2019 Microchip Techyeslogy Inc. and its subsidiaries
  *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
@@ -101,7 +101,7 @@ static int sis_wait_for_ctrl_ready_with_timeout(struct pqi_ctrl_info *ctrl_info,
 		}
 		if (time_after(jiffies, timeout)) {
 			dev_err(&ctrl_info->pci_dev->dev,
-				"controller not ready after %u seconds\n",
+				"controller yest ready after %u seconds\n",
 				timeout_secs);
 			return -ETIMEDOUT;
 		}
@@ -169,7 +169,7 @@ static int sis_send_sync_cmd(struct pqi_ctrl_info *ctrl_info,
 	writel(cmd, &registers->sis_mailbox[0]);
 
 	/*
-	 * Write the command parameters to mailboxes 1-4 (mailbox 5 is not used
+	 * Write the command parameters to mailboxes 1-4 (mailbox 5 is yest used
 	 * when sending a command to the controller).
 	 */
 	for (i = 1; i <= 4; i++)
@@ -356,7 +356,7 @@ static int sis_wait_for_doorbell_bit_to_clear(
 		}
 		if (time_after(jiffies, timeout)) {
 			dev_err(&ctrl_info->pci_dev->dev,
-				"doorbell register bit 0x%x not cleared\n",
+				"doorbell register bit 0x%x yest cleared\n",
 				bit);
 			rc = -ETIMEDOUT;
 			break;

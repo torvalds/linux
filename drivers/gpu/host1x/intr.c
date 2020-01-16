@@ -324,9 +324,9 @@ void host1x_intr_stop(struct host1x *host)
 		}
 
 		if (!list_empty(&syncpt[id].intr.wait_head)) {
-			/* output diagnostics */
+			/* output diagyesstics */
 			mutex_unlock(&host->intr_mutex);
-			pr_warn("%s cannot stop syncpt intr id=%u\n",
+			pr_warn("%s canyest stop syncpt intr id=%u\n",
 				__func__, id);
 			return;
 		}

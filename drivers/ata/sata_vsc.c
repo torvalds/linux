@@ -106,7 +106,7 @@ static void vsc_freeze(struct ata_port *ap)
 	void __iomem *mask_addr;
 
 	mask_addr = ap->host->iomap[VSC_MMIO_BAR] +
-		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
+		VSC_SATA_INT_MASK_OFFSET + ap->port_yes;
 
 	writeb(0, mask_addr);
 }
@@ -117,7 +117,7 @@ static void vsc_thaw(struct ata_port *ap)
 	void __iomem *mask_addr;
 
 	mask_addr = ap->host->iomap[VSC_MMIO_BAR] +
-		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
+		VSC_SATA_INT_MASK_OFFSET + ap->port_yes;
 
 	writeb(0xff, mask_addr);
 }
@@ -129,7 +129,7 @@ static void vsc_intr_mask_update(struct ata_port *ap, u8 ctl)
 	u8 mask;
 
 	mask_addr = ap->host->iomap[VSC_MMIO_BAR] +
-		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
+		VSC_SATA_INT_MASK_OFFSET + ap->port_yes;
 	mask = readb(mask_addr);
 	if (ctl & ATA_NIEN)
 		mask |= 0x80;
@@ -146,7 +146,7 @@ static void vsc_sata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 
 	/*
 	 * The only thing the ctl register is used for is SRST.
-	 * That is not enabled or disabled via tf_load.
+	 * That is yest enabled or disabled via tf_load.
 	 * However, if ATA_NIEN is changed, then we need to change
 	 * the interrupt register.
 	 */
@@ -284,8 +284,8 @@ static struct scsi_host_template vsc_sata_sht = {
 
 static struct ata_port_operations vsc_sata_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	/* The IRQ handling is not quite standard SFF behaviour so we
-	   cannot use the default lost interrupt handler */
+	/* The IRQ handling is yest quite standard SFF behaviour so we
+	   canyest use the default lost interrupt handler */
 	.lost_interrupt		= ATA_OP_NULL,
 	.sff_tf_load		= vsc_sata_tf_load,
 	.sff_tf_read		= vsc_sata_tf_read,
@@ -377,7 +377,7 @@ static int vsc_sata_init_one(struct pci_dev *pdev,
 
 	/*
 	 * Due to a bug in the chip, the default cache line size can't be
-	 * used (unless the default is non-zero).
+	 * used (unless the default is yesn-zero).
 	 */
 	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &cls);
 	if (cls == 0x00)

@@ -24,10 +24,10 @@
 
 /**
  * struct clk_pll_data - pll data structure
- * @has_pllctrl: If set to non zero, lower 6 bits of multiplier is in pllm
+ * @has_pllctrl: If set to yesn zero, lower 6 bits of multiplier is in pllm
  *	register of pll controller, else it is in the pll_ctrl0((bit 11-6)
  * @phy_pllm: Physical address of PLLM in pll controller. Used when
- *	has_pllctrl is non zero.
+ *	has_pllctrl is yesn zero.
  * @phy_pll_ctl0: Physical address of PLL ctrl0. This could be that of
  *	Main PLL or any other PLLs in the device such as ARM PLL, DDR PLL
  *	or PA PLL available on keystone2. These PLLs are controlled by
@@ -82,7 +82,7 @@ static unsigned long clk_pllclk_recalc(struct clk_hw *hw,
 
 	/*
 	 * get bits 0-5 of multiplier from pllctrl PLLM register
-	 * if has_pllctrl is non zero
+	 * if has_pllctrl is yesn zero
 	 */
 	if (pll_data->has_pllctrl) {
 		val = readl(pll_data->pllm);
@@ -151,11 +151,11 @@ out:
 
 /**
  * _of_pll_clk_init - PLL initialisation via DT
- * @node: device tree node for this clock
+ * @yesde: device tree yesde for this clock
  * @pllctrl: If true, lower 6 bits of multiplier is in pllm register of
  *		pll controller, else it is in the control register0(bit 11-6)
  */
-static void __init _of_pll_clk_init(struct device_node *node, bool pllctrl)
+static void __init _of_pll_clk_init(struct device_yesde *yesde, bool pllctrl)
 {
 	struct clk_pll_data *pll_data;
 	const char *parent_name;
@@ -168,23 +168,23 @@ static void __init _of_pll_clk_init(struct device_node *node, bool pllctrl)
 		return;
 	}
 
-	parent_name = of_clk_get_parent_name(node, 0);
-	if (of_property_read_u32(node, "fixed-postdiv",	&pll_data->postdiv)) {
+	parent_name = of_clk_get_parent_name(yesde, 0);
+	if (of_property_read_u32(yesde, "fixed-postdiv",	&pll_data->postdiv)) {
 		/* assume the PLL has output divider register bits */
 		pll_data->clkod_mask = CLKOD_MASK;
 		pll_data->clkod_shift = CLKOD_SHIFT;
 
 		/*
-		 * Check if there is an post-divider register. If not
+		 * Check if there is an post-divider register. If yest
 		 * assume od bits are part of control register.
 		 */
-		i = of_property_match_string(node, "reg-names",
+		i = of_property_match_string(yesde, "reg-names",
 					     "post-divider");
-		pll_data->pllod = of_iomap(node, i);
+		pll_data->pllod = of_iomap(yesde, i);
 	}
 
-	i = of_property_match_string(node, "reg-names", "control");
-	pll_data->pll_ctl0 = of_iomap(node, i);
+	i = of_property_match_string(yesde, "reg-names", "control");
+	pll_data->pll_ctl0 = of_iomap(yesde, i);
 	if (!pll_data->pll_ctl0) {
 		pr_err("%s: ioremap failed\n", __func__);
 		iounmap(pll_data->pllod);
@@ -199,8 +199,8 @@ static void __init _of_pll_clk_init(struct device_node *node, bool pllctrl)
 		pll_data->pllm_upper_mask = PLLM_HIGH_MASK;
 	} else {
 		pll_data->pllm_upper_mask = MAIN_PLLM_HIGH_MASK;
-		i = of_property_match_string(node, "reg-names", "multiplier");
-		pll_data->pllm = of_iomap(node, i);
+		i = of_property_match_string(yesde, "reg-names", "multiplier");
+		pll_data->pllm = of_iomap(yesde, i);
 		if (!pll_data->pllm) {
 			iounmap(pll_data->pll_ctl0);
 			iounmap(pll_data->pllod);
@@ -208,72 +208,72 @@ static void __init _of_pll_clk_init(struct device_node *node, bool pllctrl)
 		}
 	}
 
-	clk = clk_register_pll(NULL, node->name, parent_name, pll_data);
+	clk = clk_register_pll(NULL, yesde->name, parent_name, pll_data);
 	if (clk) {
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 		return;
 	}
 
 out:
-	pr_err("%s: error initializing pll %pOFn\n", __func__, node);
+	pr_err("%s: error initializing pll %pOFn\n", __func__, yesde);
 	kfree(pll_data);
 }
 
 /**
  * of_keystone_pll_clk_init - PLL initialisation DT wrapper
- * @node: device tree node for this clock
+ * @yesde: device tree yesde for this clock
  */
-static void __init of_keystone_pll_clk_init(struct device_node *node)
+static void __init of_keystone_pll_clk_init(struct device_yesde *yesde)
 {
-	_of_pll_clk_init(node, false);
+	_of_pll_clk_init(yesde, false);
 }
 CLK_OF_DECLARE(keystone_pll_clock, "ti,keystone,pll-clock",
 					of_keystone_pll_clk_init);
 
 /**
  * of_keystone_main_pll_clk_init - Main PLL initialisation DT wrapper
- * @node: device tree node for this clock
+ * @yesde: device tree yesde for this clock
  */
-static void __init of_keystone_main_pll_clk_init(struct device_node *node)
+static void __init of_keystone_main_pll_clk_init(struct device_yesde *yesde)
 {
-	_of_pll_clk_init(node, true);
+	_of_pll_clk_init(yesde, true);
 }
 CLK_OF_DECLARE(keystone_main_pll_clock, "ti,keystone,main-pll-clock",
 						of_keystone_main_pll_clk_init);
 
 /**
  * of_pll_div_clk_init - PLL divider setup function
- * @node: device tree node for this clock
+ * @yesde: device tree yesde for this clock
  */
-static void __init of_pll_div_clk_init(struct device_node *node)
+static void __init of_pll_div_clk_init(struct device_yesde *yesde)
 {
 	const char *parent_name;
 	void __iomem *reg;
 	u32 shift, mask;
 	struct clk *clk;
-	const char *clk_name = node->name;
+	const char *clk_name = yesde->name;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
-	reg = of_iomap(node, 0);
+	of_property_read_string(yesde, "clock-output-names", &clk_name);
+	reg = of_iomap(yesde, 0);
 	if (!reg) {
 		pr_err("%s: ioremap failed\n", __func__);
 		return;
 	}
 
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(yesde, 0);
 	if (!parent_name) {
 		pr_err("%s: missing parent clock\n", __func__);
 		iounmap(reg);
 		return;
 	}
 
-	if (of_property_read_u32(node, "bit-shift", &shift)) {
+	if (of_property_read_u32(yesde, "bit-shift", &shift)) {
 		pr_err("%s: missing 'shift' property\n", __func__);
 		iounmap(reg);
 		return;
 	}
 
-	if (of_property_read_u32(node, "bit-mask", &mask)) {
+	if (of_property_read_u32(yesde, "bit-mask", &mask)) {
 		pr_err("%s: missing 'bit-mask' property\n", __func__);
 		iounmap(reg);
 		return;
@@ -282,7 +282,7 @@ static void __init of_pll_div_clk_init(struct device_node *node)
 	clk = clk_register_divider(NULL, clk_name, parent_name, 0, reg, shift,
 				 mask, 0, NULL);
 	if (clk) {
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 	} else {
 		pr_err("%s: error registering divider %s\n", __func__, clk_name);
 		iounmap(reg);
@@ -292,35 +292,35 @@ CLK_OF_DECLARE(pll_divider_clock, "ti,keystone,pll-divider-clock", of_pll_div_cl
 
 /**
  * of_pll_mux_clk_init - PLL mux setup function
- * @node: device tree node for this clock
+ * @yesde: device tree yesde for this clock
  */
-static void __init of_pll_mux_clk_init(struct device_node *node)
+static void __init of_pll_mux_clk_init(struct device_yesde *yesde)
 {
 	void __iomem *reg;
 	u32 shift, mask;
 	struct clk *clk;
 	const char *parents[2];
-	const char *clk_name = node->name;
+	const char *clk_name = yesde->name;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
-	reg = of_iomap(node, 0);
+	of_property_read_string(yesde, "clock-output-names", &clk_name);
+	reg = of_iomap(yesde, 0);
 	if (!reg) {
 		pr_err("%s: ioremap failed\n", __func__);
 		return;
 	}
 
-	of_clk_parent_fill(node, parents, 2);
+	of_clk_parent_fill(yesde, parents, 2);
 	if (!parents[0] || !parents[1]) {
 		pr_err("%s: missing parent clocks\n", __func__);
 		return;
 	}
 
-	if (of_property_read_u32(node, "bit-shift", &shift)) {
+	if (of_property_read_u32(yesde, "bit-shift", &shift)) {
 		pr_err("%s: missing 'shift' property\n", __func__);
 		return;
 	}
 
-	if (of_property_read_u32(node, "bit-mask", &mask)) {
+	if (of_property_read_u32(yesde, "bit-mask", &mask)) {
 		pr_err("%s: missing 'bit-mask' property\n", __func__);
 		return;
 	}
@@ -329,7 +329,7 @@ static void __init of_pll_mux_clk_init(struct device_node *node)
 				ARRAY_SIZE(parents) , 0, reg, shift, mask,
 				0, NULL);
 	if (clk)
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 	else
 		pr_err("%s: error registering mux %s\n", __func__, clk_name);
 }

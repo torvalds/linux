@@ -398,7 +398,7 @@ static ssize_t ad2s1210_clear_fault(struct device *dev,
 
 	mutex_lock(&st->lock);
 	gpiod_set_value(st->gpios[AD2S1210_SAMPLE], 0);
-	/* delay (2 * tck + 20) nano seconds */
+	/* delay (2 * tck + 20) nayes seconds */
 	udelay(1);
 	gpiod_set_value(st->gpios[AD2S1210_SAMPLE], 1);
 	ret = ad2s1210_config_read(st, AD2S1210_REG_FAULT);
@@ -463,7 +463,7 @@ static int ad2s1210_read_raw(struct iio_dev *indio_dev,
 
 	mutex_lock(&st->lock);
 	gpiod_set_value(st->gpios[AD2S1210_SAMPLE], 0);
-	/* delay (6 * tck + 20) nano seconds */
+	/* delay (6 * tck + 20) nayes seconds */
 	udelay(1);
 
 	switch (chan->type) {
@@ -509,7 +509,7 @@ static int ad2s1210_read_raw(struct iio_dev *indio_dev,
 
 error_ret:
 	gpiod_set_value(st->gpios[AD2S1210_SAMPLE], 1);
-	/* delay (2 * tck + 20) nano seconds */
+	/* delay (2 * tck + 20) nayes seconds */
 	udelay(1);
 	mutex_unlock(&st->lock);
 	return ret;

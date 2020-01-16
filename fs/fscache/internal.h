@@ -173,14 +173,14 @@ extern atomic_t fscache_n_op_rejected;
 
 extern atomic_t fscache_n_attr_changed;
 extern atomic_t fscache_n_attr_changed_ok;
-extern atomic_t fscache_n_attr_changed_nobufs;
-extern atomic_t fscache_n_attr_changed_nomem;
+extern atomic_t fscache_n_attr_changed_yesbufs;
+extern atomic_t fscache_n_attr_changed_yesmem;
 extern atomic_t fscache_n_attr_changed_calls;
 
 extern atomic_t fscache_n_allocs;
 extern atomic_t fscache_n_allocs_ok;
 extern atomic_t fscache_n_allocs_wait;
-extern atomic_t fscache_n_allocs_nobufs;
+extern atomic_t fscache_n_allocs_yesbufs;
 extern atomic_t fscache_n_allocs_intr;
 extern atomic_t fscache_n_allocs_object_dead;
 extern atomic_t fscache_n_alloc_ops;
@@ -189,10 +189,10 @@ extern atomic_t fscache_n_alloc_op_waits;
 extern atomic_t fscache_n_retrievals;
 extern atomic_t fscache_n_retrievals_ok;
 extern atomic_t fscache_n_retrievals_wait;
-extern atomic_t fscache_n_retrievals_nodata;
-extern atomic_t fscache_n_retrievals_nobufs;
+extern atomic_t fscache_n_retrievals_yesdata;
+extern atomic_t fscache_n_retrievals_yesbufs;
 extern atomic_t fscache_n_retrievals_intr;
-extern atomic_t fscache_n_retrievals_nomem;
+extern atomic_t fscache_n_retrievals_yesmem;
 extern atomic_t fscache_n_retrievals_object_dead;
 extern atomic_t fscache_n_retrieval_ops;
 extern atomic_t fscache_n_retrieval_op_waits;
@@ -200,7 +200,7 @@ extern atomic_t fscache_n_retrieval_op_waits;
 extern atomic_t fscache_n_stores;
 extern atomic_t fscache_n_stores_ok;
 extern atomic_t fscache_n_stores_again;
-extern atomic_t fscache_n_stores_nobufs;
+extern atomic_t fscache_n_stores_yesbufs;
 extern atomic_t fscache_n_stores_oom;
 extern atomic_t fscache_n_store_ops;
 extern atomic_t fscache_n_store_calls;
@@ -208,7 +208,7 @@ extern atomic_t fscache_n_store_pages;
 extern atomic_t fscache_n_store_radix_deletes;
 extern atomic_t fscache_n_store_pages_over_limit;
 
-extern atomic_t fscache_n_store_vmscan_not_storing;
+extern atomic_t fscache_n_store_vmscan_yest_storing;
 extern atomic_t fscache_n_store_vmscan_gone;
 extern atomic_t fscache_n_store_vmscan_busy;
 extern atomic_t fscache_n_store_vmscan_cancelled;
@@ -219,9 +219,9 @@ extern atomic_t fscache_n_uncaches;
 
 extern atomic_t fscache_n_acquires;
 extern atomic_t fscache_n_acquires_null;
-extern atomic_t fscache_n_acquires_no_cache;
+extern atomic_t fscache_n_acquires_yes_cache;
 extern atomic_t fscache_n_acquires_ok;
-extern atomic_t fscache_n_acquires_nobufs;
+extern atomic_t fscache_n_acquires_yesbufs;
 extern atomic_t fscache_n_acquires_oom;
 
 extern atomic_t fscache_n_invalidates;
@@ -241,7 +241,7 @@ extern atomic_t fscache_n_cookie_data;
 extern atomic_t fscache_n_cookie_special;
 
 extern atomic_t fscache_n_object_alloc;
-extern atomic_t fscache_n_object_no_alloc;
+extern atomic_t fscache_n_object_yes_alloc;
 extern atomic_t fscache_n_object_lookups;
 extern atomic_t fscache_n_object_lookups_negative;
 extern atomic_t fscache_n_object_lookups_positive;
@@ -250,7 +250,7 @@ extern atomic_t fscache_n_object_created;
 extern atomic_t fscache_n_object_avail;
 extern atomic_t fscache_n_object_dead;
 
-extern atomic_t fscache_n_checkaux_none;
+extern atomic_t fscache_n_checkaux_yesne;
 extern atomic_t fscache_n_checkaux_okay;
 extern atomic_t fscache_n_checkaux_update;
 extern atomic_t fscache_n_checkaux_obsolete;
@@ -273,7 +273,7 @@ extern atomic_t fscache_n_cop_write_page;
 extern atomic_t fscache_n_cop_uncache_page;
 extern atomic_t fscache_n_cop_dissociate_pages;
 
-extern atomic_t fscache_n_cache_no_space_reject;
+extern atomic_t fscache_n_cache_yes_space_reject;
 extern atomic_t fscache_n_cache_stale_objects;
 extern atomic_t fscache_n_cache_retired_objects;
 extern atomic_t fscache_n_cache_culled_objects;
@@ -300,7 +300,7 @@ int fscache_stats_show(struct seq_file *m, void *v);
 
 /*
  * raise an event on an object
- * - if the event is not masked for that object, then the object is
+ * - if the event is yest masked for that object, then the object is
  *   queued for attention by the thread pool.
  */
 static inline void fscache_raise_event(struct fscache_object *object,
@@ -377,7 +377,7 @@ void fscache_update_aux(struct fscache_cookie *cookie, const void *aux_data)
 #define kleave(FMT, ...) dbgprintk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
 #define kdebug(FMT, ...) dbgprintk(FMT, ##__VA_ARGS__)
 
-#define kjournal(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
+#define kjournal(FMT, ...) yes_printk(FMT, ##__VA_ARGS__)
 
 #ifdef __KDEBUG
 #define _enter(FMT, ...) kenter(FMT, ##__VA_ARGS__)
@@ -404,9 +404,9 @@ do {						\
 } while (0)
 
 #else
-#define _enter(FMT, ...) no_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
-#define _leave(FMT, ...) no_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
-#define _debug(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
+#define _enter(FMT, ...) yes_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
+#define _leave(FMT, ...) yes_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
+#define _debug(FMT, ...) yes_printk(FMT, ##__VA_ARGS__)
 #endif
 
 /*
@@ -487,4 +487,4 @@ do {									\
 #define ASSERTIF(C, X)			do {} while (0)
 #define ASSERTIFCMP(C, X, OP, Y)	do {} while (0)
 
-#endif /* assert or not */
+#endif /* assert or yest */

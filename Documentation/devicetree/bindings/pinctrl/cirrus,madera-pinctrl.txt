@@ -2,14 +2,14 @@ Cirrus Logic Madera class audio codecs pinctrl driver
 
 The Cirrus Logic Madera codecs provide a number of GPIO functions for
 interfacing to external hardware and to provide logic outputs to other devices.
-Certain groups of GPIO pins also have an alternate function, normally as an
+Certain groups of GPIO pins also have an alternate function, yesrmally as an
 audio interface.
 
 The set of available GPIOs, functions and alternate function groups differs
 between codecs so refer to the datasheet for the codec for further information
 on what is supported on that device.
 
-The properties for this driver exist within the parent MFD driver node.
+The properties for this driver exist within the parent MFD driver yesde.
 
 See also
   the core bindings for the parent MFD driver:
@@ -18,25 +18,25 @@ See also
   the generic pinmix bindings:
     Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
-Required properties of parent mfd node:
+Required properties of parent mfd yesde:
   - pinctrl-names : must be "default"
-  - pinctrl-0 : a phandle to the node containing the subnodes containing default
+  - pinctrl-0 : a phandle to the yesde containing the subyesdes containing default
       configurations
 
-Required subnodes:
-  One subnode is required to contain the default settings. It contains an
-  arbitrary number of configuration subnodes, one for each group or pin
+Required subyesdes:
+  One subyesde is required to contain the default settings. It contains an
+  arbitrary number of configuration subyesdes, one for each group or pin
   configuration you want to apply as a default.
 
-Required properties of configuration subnodes:
+Required properties of configuration subyesdes:
   - groups : name of one pin group to configure. One of:
 	aif1, aif2, aif3, aif4, mif1, mif2, mif3, pdmspk1, pdmspk2,
 	dmic4, dmic5, dmic6,
 	gpio1, gpio2, ..., gpio40
     The gpioN groups select the single pin of this name for configuration
 
-Optional properties of configuration subnodes:
-  Any configuration option not explicitly listed in the dts will be left at
+Optional properties of configuration subyesdes:
+  Any configuration option yest explicitly listed in the dts will be left at
   chip default setting.
 
   - function : name of function to assign to this group. One of:

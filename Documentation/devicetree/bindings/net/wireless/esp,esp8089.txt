@@ -1,7 +1,7 @@
 Espressif ESP8089 wireless SDIO devices
 
-This node provides properties for controlling the ESP8089 wireless device.
-The node is expected to be specified as a child node to the SDIO controller
+This yesde provides properties for controlling the ESP8089 wireless device.
+The yesde is expected to be specified as a child yesde to the SDIO controller
 that connects the device to the system.
 
 Required properties:
@@ -20,7 +20,7 @@ Example:
 	vmmc-supply = <&reg_dldo1>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 
 	esp8089: sdio_wifi@1 {
 		compatible = "esp,esp8089";

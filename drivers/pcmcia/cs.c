@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -110,7 +110,7 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 
 	dev_dbg(&socket->dev, "pcmcia_register_socket(0x%p)\n", socket->ops);
 
-	/* try to obtain a socket number [yes, it gets ugly if we
+	/* try to obtain a socket number [no, it gets ugly if we
 	 * register more than 2^sizeof(unsigned int) pcmcia
 	 * sockets... but the socket number is deprecated
 	 * anyways, so I don't care] */
@@ -135,7 +135,7 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 
 #ifndef CONFIG_CARDBUS
 	/*
-	 * If we do not support Cardbus, ensure that
+	 * If we do yest support Cardbus, ensure that
 	 * the Cardbus socket capability is disabled.
 	 */
 	socket->features &= ~SS_CAP_CARDBUS;
@@ -175,7 +175,7 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 	wait_for_completion(&socket->thread_done);
 	if (!socket->thread) {
 		dev_warn(&socket->dev,
-			 "PCMCIA: warning: socket thread did not start\n");
+			 "PCMCIA: warning: socket thread did yest start\n");
 		return -EIO;
 	}
 
@@ -184,9 +184,9 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 	/*
 	 * Let's try to get the PCMCIA module for 16-bit PCMCIA support.
 	 * If it fails, it doesn't matter -- we still have 32-bit CardBus
-	 * support to offer, so this is not a failure mode.
+	 * support to offer, so this is yest a failure mode.
 	 */
-	request_module_nowait("pcmcia");
+	request_module_yeswait("pcmcia");
 
 	return 0;
 
@@ -359,7 +359,7 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 
 	if (status & SS_CARDBUS) {
 		if (!(skt->features & SS_CAP_CARDBUS)) {
-			dev_err(&skt->dev, "cardbus cards are not supported\n");
+			dev_err(&skt->dev, "cardbus cards are yest supported\n");
 			return -EINVAL;
 		}
 		skt->state |= SOCKET_CARDBUS;
@@ -424,7 +424,7 @@ static int socket_insert(struct pcmcia_socket *skt)
 	if (ret == 0) {
 		skt->state |= SOCKET_PRESENT;
 
-		dev_notice(&skt->dev, "pccard: %s card inserted into slot %d\n",
+		dev_yestice(&skt->dev, "pccard: %s card inserted into slot %d\n",
 			   (skt->state & SOCKET_CARDBUS) ? "CardBus" : "PCMCIA",
 			   skt->sock);
 
@@ -453,7 +453,7 @@ static int socket_suspend(struct pcmcia_socket *skt)
 		return -EBUSY;
 
 	mutex_lock(&skt->ops_mutex);
-	/* store state on first suspend, but not after spurious wakeups */
+	/* store state on first suspend, but yest after spurious wakeups */
 	if (!(skt->state & SOCKET_IN_RESUME))
 		skt->suspended_state = skt->state;
 
@@ -517,7 +517,7 @@ static int socket_late_resume(struct pcmcia_socket *skt)
 /*
  * Finalize the resume. In case of a cardbus socket, we have
  * to rebind the devices as we can't be certain that it has been
- * replaced, or not.
+ * replaced, or yest.
  */
 static int socket_complete_resume(struct pcmcia_socket *skt)
 {
@@ -556,7 +556,7 @@ static int socket_resume(struct pcmcia_socket *skt)
 
 static void socket_remove(struct pcmcia_socket *skt)
 {
-	dev_notice(&skt->dev, "pccard: card ejected from slot %d\n", skt->sock);
+	dev_yestice(&skt->dev, "pccard: card ejected from slot %d\n", skt->sock);
 	socket_shutdown(skt);
 }
 
@@ -766,8 +766,8 @@ int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c)
 EXPORT_SYMBOL(pccard_register_pcmcia);
 
 
-/* I'm not sure which "reset" function this is supposed to use,
- * but for now, it uses the low-level interface's reset, not the
+/* I'm yest sure which "reset" function this is supposed to use,
+ * but for yesw, it uses the low-level interface's reset, yest the
  * CIS register.
  */
 
@@ -780,7 +780,7 @@ int pcmcia_reset_card(struct pcmcia_socket *skt)
 	mutex_lock(&skt->skt_mutex);
 	do {
 		if (!(skt->state & SOCKET_PRESENT)) {
-			dev_dbg(&skt->dev, "can't reset, not present\n");
+			dev_dbg(&skt->dev, "can't reset, yest present\n");
 			ret = -ENODEV;
 			break;
 		}
@@ -847,12 +847,12 @@ static int __pcmcia_pm_op(struct device *dev,
 	return ret;
 }
 
-static int pcmcia_socket_dev_suspend_noirq(struct device *dev)
+static int pcmcia_socket_dev_suspend_yesirq(struct device *dev)
 {
 	return __pcmcia_pm_op(dev, socket_suspend);
 }
 
-static int pcmcia_socket_dev_resume_noirq(struct device *dev)
+static int pcmcia_socket_dev_resume_yesirq(struct device *dev)
 {
 	return __pcmcia_pm_op(dev, socket_early_resume);
 }
@@ -874,14 +874,14 @@ static const struct dev_pm_ops pcmcia_socket_pm_ops = {
 				pcmcia_socket_dev_resume)
 
 	/* late suspend must be called with IRQs disabled */
-	.suspend_noirq = pcmcia_socket_dev_suspend_noirq,
-	.freeze_noirq = pcmcia_socket_dev_suspend_noirq,
-	.poweroff_noirq = pcmcia_socket_dev_suspend_noirq,
+	.suspend_yesirq = pcmcia_socket_dev_suspend_yesirq,
+	.freeze_yesirq = pcmcia_socket_dev_suspend_yesirq,
+	.poweroff_yesirq = pcmcia_socket_dev_suspend_yesirq,
 
 	/* early resume must be called with IRQs disabled */
-	.resume_noirq = pcmcia_socket_dev_resume_noirq,
-	.thaw_noirq = pcmcia_socket_dev_resume_noirq,
-	.restore_noirq = pcmcia_socket_dev_resume_noirq,
+	.resume_yesirq = pcmcia_socket_dev_resume_yesirq,
+	.thaw_yesirq = pcmcia_socket_dev_resume_yesirq,
+	.restore_yesirq = pcmcia_socket_dev_resume_yesirq,
 	.complete = pcmcia_socket_dev_complete,
 };
 

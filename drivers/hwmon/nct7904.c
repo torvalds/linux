@@ -32,7 +32,7 @@
 
 #define FANIN_MAX		12	/* Counted from 1 */
 #define VSEN_MAX		21	/* VSEN1..14, 3VDD, VBAT, V3VSB,
-					   LTD (not a voltage), VSEN17..19 */
+					   LTD (yest a voltage), VSEN17..19 */
 #define FANCTL_MAX		4	/* Counted from 1 */
 #define TCPU_MAX		8	/* Counted from 1 */
 #define TEMP_MAX		4	/* Counted from 1 */
@@ -88,7 +88,7 @@
 
 #define ENABLE_TSI	BIT(1)
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x2d, 0x2e, I2C_CLIENT_END
 };
 
@@ -1008,7 +1008,7 @@ static struct i2c_driver nct7904_driver = {
 	.probe = nct7904_probe,
 	.id_table = nct7904_id,
 	.detect = nct7904_detect,
-	.address_list = normal_i2c,
+	.address_list = yesrmal_i2c,
 };
 
 module_i2c_driver(nct7904_driver);

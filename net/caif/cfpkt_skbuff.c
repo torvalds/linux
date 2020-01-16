@@ -16,7 +16,7 @@
 #define PKT_LEN_WHEN_EXTENDING 128
 #define PKT_ERROR(pkt, errmsg)		   \
 do {					   \
-	cfpkt_priv(pkt)->erronous = true;  \
+	cfpkt_priv(pkt)->erroyesus = true;  \
 	skb_reset_tail_pointer(&pkt->skb); \
 	pr_warn(errmsg);		   \
 } while (0)
@@ -29,7 +29,7 @@ struct cfpktq {
 };
 
 /*
- * net/caif/ is generic and does not
+ * net/caif/ is generic and does yest
  * understand SKB, so we do this typecast
  */
 struct cfpkt {
@@ -39,7 +39,7 @@ struct cfpkt {
 /* Private data inside SKB */
 struct cfpkt_priv_data {
 	struct dev_info dev_info;
-	bool erronous;
+	bool erroyesus;
 };
 
 static inline struct cfpkt_priv_data *cfpkt_priv(struct cfpkt *pkt)
@@ -47,9 +47,9 @@ static inline struct cfpkt_priv_data *cfpkt_priv(struct cfpkt *pkt)
 	return (struct cfpkt_priv_data *) pkt->skb.cb;
 }
 
-static inline bool is_erronous(struct cfpkt *pkt)
+static inline bool is_erroyesus(struct cfpkt *pkt)
 {
-	return cfpkt_priv(pkt)->erronous;
+	return cfpkt_priv(pkt)->erroyesus;
 }
 
 static inline struct sk_buff *pkt_to_skb(struct cfpkt *pkt)
@@ -65,7 +65,7 @@ static inline struct cfpkt *skb_to_pkt(struct sk_buff *skb)
 struct cfpkt *cfpkt_fromnative(enum caif_direction dir, void *nativepkt)
 {
 	struct cfpkt *pkt = skb_to_pkt(nativepkt);
-	cfpkt_priv(pkt)->erronous = false;
+	cfpkt_priv(pkt)->erroyesus = false;
 	return pkt;
 }
 EXPORT_SYMBOL(cfpkt_fromnative);
@@ -120,7 +120,7 @@ int cfpkt_extr_head(struct cfpkt *pkt, void *data, u16 len)
 {
 	struct sk_buff *skb = pkt_to_skb(pkt);
 	u8 *from;
-	if (unlikely(is_erronous(pkt)))
+	if (unlikely(is_erroyesus(pkt)))
 		return -EPROTO;
 
 	if (unlikely(len > skb->len)) {
@@ -147,7 +147,7 @@ int cfpkt_extr_trail(struct cfpkt *pkt, void *dta, u16 len)
 	struct sk_buff *skb = pkt_to_skb(pkt);
 	u8 *data = dta;
 	u8 *from;
-	if (unlikely(is_erronous(pkt)))
+	if (unlikely(is_erroyesus(pkt)))
 		return -EPROTO;
 
 	if (unlikely(skb_linearize(skb) != 0)) {
@@ -177,7 +177,7 @@ int cfpkt_add_body(struct cfpkt *pkt, const void *data, u16 len)
 	u16 addlen = 0;
 
 
-	if (unlikely(is_erronous(pkt)))
+	if (unlikely(is_erroyesus(pkt)))
 		return -EPROTO;
 
 	lastskb = skb;
@@ -219,10 +219,10 @@ int cfpkt_add_head(struct cfpkt *pkt, const void *data2, u16 len)
 	u8 *to;
 	const u8 *data = data2;
 	int ret;
-	if (unlikely(is_erronous(pkt)))
+	if (unlikely(is_erroyesus(pkt)))
 		return -EPROTO;
 	if (unlikely(skb_headroom(skb) < len)) {
-		PKT_ERROR(pkt, "no headroom\n");
+		PKT_ERROR(pkt, "yes headroom\n");
 		return -EPROTO;
 	}
 
@@ -256,9 +256,9 @@ int cfpkt_iterate(struct cfpkt *pkt,
 {
 	/*
 	 * Don't care about the performance hit of linearizing,
-	 * Checksum should not be used on high-speed interfaces anyway.
+	 * Checksum should yest be used on high-speed interfaces anyway.
 	 */
-	if (unlikely(is_erronous(pkt)))
+	if (unlikely(is_erroyesus(pkt)))
 		return -EPROTO;
 	if (unlikely(skb_linearize(&pkt->skb) != 0)) {
 		PKT_ERROR(pkt, "linearize failed\n");
@@ -272,7 +272,7 @@ int cfpkt_setlen(struct cfpkt *pkt, u16 len)
 	struct sk_buff *skb = pkt_to_skb(pkt);
 
 
-	if (unlikely(is_erronous(pkt)))
+	if (unlikely(is_erroyesus(pkt)))
 		return -EPROTO;
 
 	if (likely(len <= skb->len)) {
@@ -302,7 +302,7 @@ struct cfpkt *cfpkt_append(struct cfpkt *dstpkt,
 	struct sk_buff *tmp;
 	u16 dstlen;
 	u16 createlen;
-	if (unlikely(is_erronous(dstpkt) || is_erronous(addpkt))) {
+	if (unlikely(is_erroyesus(dstpkt) || is_erroyesus(addpkt))) {
 		return dstpkt;
 	}
 	if (expectlen > addlen)
@@ -336,7 +336,7 @@ struct cfpkt *cfpkt_split(struct cfpkt *pkt, u16 pos)
 	u8 *split = skb->data + pos;
 	u16 len2nd = skb_tail_pointer(skb) - split;
 
-	if (unlikely(is_erronous(pkt)))
+	if (unlikely(is_erroyesus(pkt)))
 		return NULL;
 
 	if (skb->data + pos > skb_tail_pointer(skb)) {
@@ -366,7 +366,7 @@ struct cfpkt *cfpkt_split(struct cfpkt *pkt, u16 pos)
 
 bool cfpkt_erroneous(struct cfpkt *pkt)
 {
-	return cfpkt_priv(pkt)->erronous;
+	return cfpkt_priv(pkt)->erroyesus;
 }
 
 struct caif_payload_info *cfpkt_info(struct cfpkt *pkt)

@@ -90,7 +90,7 @@ static inline void unmap_dma_buffer(struct musb_request *request,
 
 	if (request->request.dma == DMA_ADDR_INVALID) {
 		dev_vdbg(musb->controller,
-				"not unmapping a never mapped buffer\n");
+				"yest unmapping a never mapped buffer\n");
 		return;
 	}
 	if (request->map_state == MUSB_MAPPED) {
@@ -152,7 +152,7 @@ __acquires(ep->musb->lock)
 /* ----------------------------------------------------------------------- */
 
 /*
- * Abort requests queued to an endpoint using the status. Synchronous.
+ * Abort requests queued to an endpoint using the status. Synchroyesus.
  * caller locked controller and blocked irqs, and selected this ep.
  */
 static void nuke(struct musb_ep *ep, const int status)
@@ -169,7 +169,7 @@ static void nuke(struct musb_ep *ep, const int status)
 
 		if (ep->is_in) {
 			/*
-			 * The programming guide says that we must not clear
+			 * The programming guide says that we must yest clear
 			 * the DMAMODE bit before DMAENAB, so we only
 			 * clear it in the second write...
 			 */
@@ -233,7 +233,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 
 	/* Check if EP is disabled */
 	if (!musb_ep->desc) {
-		musb_dbg(musb, "ep:%s disabled - ignore request",
+		musb_dbg(musb, "ep:%s disabled - igyesre request",
 						musb_ep->end_point.name);
 		return;
 	}
@@ -293,7 +293,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			if (use_dma) {
 				if (musb_ep->dma->desired_mode == 0) {
 					/*
-					 * We must not clear the DMAMODE bit
+					 * We must yest clear the DMAMODE bit
 					 * before the DMAENAB bit -- and the
 					 * latter doesn't always get cleared
 					 * before we get here...
@@ -364,7 +364,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 				musb_ep->dma = NULL;
 				csr &= ~MUSB_TXCSR_DMAENAB;
 				musb_writew(epio, MUSB_TXCSR, csr);
-				/* invariant: prequest->buf is non-null */
+				/* invariant: prequest->buf is yesn-null */
 			}
 		} else if (tusb_dma_omap(musb))
 			use_dma = use_dma && c->channel_program(
@@ -434,7 +434,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 	}
 
 	if (csr & MUSB_TXCSR_P_UNDERRUN) {
-		/* We NAKed, no big deal... little reason to care. */
+		/* We NAKed, yes big deal... little reason to care. */
 		csr |=	 MUSB_TXCSR_P_WZC_BITS;
 		csr &= ~(MUSB_TXCSR_P_UNDERRUN | MUSB_TXCSR_TXPKTRDY);
 		musb_writew(epio, MUSB_TXCSR, csr);
@@ -476,7 +476,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			&& (request->actual == request->length)) {
 
 			/*
-			 * On DMA completion, FIFO may not be
+			 * On DMA completion, FIFO may yest be
 			 * available yet...
 			 */
 			if (csr & MUSB_TXCSR_TXPKTRDY)
@@ -500,7 +500,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			musb_ep_select(mbase, epnum);
 			req = musb_ep->desc ? next_request(musb_ep) : NULL;
 			if (!req) {
-				musb_dbg(musb, "%s idle now",
+				musb_dbg(musb, "%s idle yesw",
 					musb_ep->end_point.name);
 				return;
 			}
@@ -536,7 +536,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 
 	/* Check if EP is disabled */
 	if (!musb_ep->desc) {
-		musb_dbg(musb, "ep:%s disabled - ignore request",
+		musb_dbg(musb, "ep:%s disabled - igyesre request",
 						musb_ep->end_point.name);
 		return;
 	}
@@ -564,7 +564,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 		 */
 		if (c->channel_program(channel,
 				musb_ep->packet_sz,
-				!request->short_not_ok,
+				!request->short_yest_ok,
 				request->dma + request->actual,
 				request->length - request->actual)) {
 
@@ -584,12 +584,12 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 		fifo_count = musb_readw(epio, MUSB_RXCOUNT);
 
 		/*
-		 * Enable Mode 1 on RX transfers only when short_not_ok flag
-		 * is set. Currently short_not_ok flag is set only from
+		 * Enable Mode 1 on RX transfers only when short_yest_ok flag
+		 * is set. Currently short_yest_ok flag is set only from
 		 * file_storage and f_mass_storage drivers
 		 */
 
-		if (request->short_not_ok && fifo_count == musb_ep->packet_sz)
+		if (request->short_yest_ok && fifo_count == musb_ep->packet_sz)
 			use_mode_1 = 1;
 		else
 			use_mode_1 = 0;
@@ -608,7 +608,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 				channel = musb_ep->dma;
 
 	/* We use DMA Req mode 0 in rx_csr, and DMA controller operates in
-	 * mode 0 only. So we do not get endpoint interrupts due to DMA
+	 * mode 0 only. So we do yest get endpoint interrupts due to DMA
 	 * completion. We only get interrupts from DMA controller.
 	 *
 	 * We could operate in DMA mode 1 if we knew the size of the tranfer
@@ -624,7 +624,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	 * to get endpoint interrupt on every DMA req, but that didn't seem
 	 * to work reliably.
 	 *
-	 * REVISIT an updated g_file_storage can set req->short_not_ok, which
+	 * REVISIT an updated g_file_storage can set req->short_yest_ok, which
 	 * then becomes usable as a runtime "use mode 1" hint...
 	 */
 
@@ -686,7 +686,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 				/* In case first packet is short */
 				if (fifo_count < musb_ep->packet_sz)
 					transfer_size = fifo_count;
-				else if (request->short_not_ok)
+				else if (request->short_yest_ok)
 					transfer_size =	min_t(unsigned int,
 							request->length -
 							request->actual,
@@ -832,12 +832,12 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 			request->status = -EOVERFLOW;
 	}
 	if (csr & MUSB_RXCSR_INCOMPRX) {
-		/* REVISIT not necessarily an error */
+		/* REVISIT yest necessarily an error */
 		musb_dbg(musb, "%s, incomprx", musb_ep->end_point.name);
 	}
 
 	if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
-		/* "should not happen"; likely RXPKTRDY pending for DMA */
+		/* "should yest happen"; likely RXPKTRDY pending for DMA */
 		musb_dbg(musb, "%s busy, csr %04x",
 			musb_ep->end_point.name, csr);
 		return;
@@ -863,7 +863,7 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 			musb_writew(epio, MUSB_RXCSR, csr);
 		}
 
-		/* incomplete, and not short? wait for next IN packet */
+		/* incomplete, and yest short? wait for next IN packet */
 		if ((request->actual < request->length)
 				&& (musb_ep->dma->actual_len
 					== musb_ep->packet_sz)) {
@@ -949,7 +949,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			ok = musb->hb_iso_rx;
 
 		if (!ok) {
-			musb_dbg(musb, "no support for high bandwidth ISO");
+			musb_dbg(musb, "yes support for high bandwidth ISO");
 			goto fail;
 		}
 		musb_ep->hb_mult = tmp;
@@ -1212,7 +1212,7 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 		dev_err(musb->controller,
 			"pm runtime get failed in %s\n",
 			__func__);
-		pm_runtime_put_noidle(musb->controller);
+		pm_runtime_put_yesidle(musb->controller);
 
 		return status;
 	}
@@ -1220,7 +1220,7 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 
 	trace_musb_req_enq(request);
 
-	/* request is mine now... */
+	/* request is mine yesw... */
 	request->request.actual = 0;
 	request->request.status = -EINPROGRESS;
 	request->epnum = musb_ep->current_epnum;
@@ -1281,7 +1281,7 @@ static int musb_gadget_dequeue(struct usb_ep *ep, struct usb_request *request)
 			break;
 	}
 	if (r != req) {
-		dev_err(musb->controller, "request %p not queued to %s\n",
+		dev_err(musb->controller, "request %p yest queued to %s\n",
 				request, ep->name);
 		status = -EINVAL;
 		goto done;
@@ -1348,16 +1348,16 @@ static int musb_gadget_set_halt(struct usb_ep *ep, int value)
 	request = next_request(musb_ep);
 	if (value) {
 		if (request) {
-			musb_dbg(musb, "request in progress, cannot halt %s",
+			musb_dbg(musb, "request in progress, canyest halt %s",
 			    ep->name);
 			status = -EAGAIN;
 			goto done;
 		}
-		/* Cannot portably stall with non-empty FIFO */
+		/* Canyest portably stall with yesn-empty FIFO */
 		if (musb_ep->is_in) {
 			csr = musb_readw(epio, MUSB_TXCSR);
 			if (csr & MUSB_TXCSR_FIFONOTEMPTY) {
-				musb_dbg(musb, "FIFO busy, cannot halt %s",
+				musb_dbg(musb, "FIFO busy, canyest halt %s",
 						ep->name);
 				status = -EAGAIN;
 				goto done;
@@ -1404,7 +1404,7 @@ done:
 }
 
 /*
- * Sets the halt feature with the clear requests ignored
+ * Sets the halt feature with the clear requests igyesred
  */
 static int musb_gadget_set_wedge(struct usb_ep *ep)
 {
@@ -1465,7 +1465,7 @@ static void musb_gadget_fifo_flush(struct usb_ep *ep)
 			csr |= MUSB_TXCSR_FLUSHFIFO | MUSB_TXCSR_P_WZC_BITS;
 			/*
 			 * Setting both TXPKTRDY and FLUSHFIFO makes controller
-			 * to interrupt current FIFO loading, but not flushing
+			 * to interrupt current FIFO loading, but yest flushing
 			 * the already loaded ones.
 			 */
 			csr &= ~MUSB_TXCSR_TXPKTRDY;
@@ -1528,7 +1528,7 @@ static int musb_gadget_wakeup(struct usb_gadget *gadget)
 			break;
 		goto done;
 	case OTG_STATE_B_IDLE:
-		/* Start SRP ... OTG not required. */
+		/* Start SRP ... OTG yest required. */
 		devctl = musb_readb(mregs, MUSB_DEVCTL);
 		musb_dbg(musb, "Sending SRP: devctl: %02x", devctl);
 		devctl |= MUSB_DEVCTL_SESSION;
@@ -1570,7 +1570,7 @@ static int musb_gadget_wakeup(struct usb_gadget *gadget)
 	musb_writeb(mregs, MUSB_POWER, power);
 	musb_dbg(musb, "issue wakeup");
 
-	/* FIXME do this next chunk in a timer callback, no udelay */
+	/* FIXME do this next chunk in a timer callback, yes udelay */
 	mdelay(2);
 
 	power = musb_readb(mregs, MUSB_POWER);
@@ -1650,7 +1650,7 @@ static int musb_gadget_pullup(struct usb_gadget *gadget, int is_on)
 	is_on = !!is_on;
 
 	/* NOTE: this assumes we are sensing vbus; we'd rather
-	 * not pullup unless the B-session is active.
+	 * yest pullup unless the B-session is active.
 	 */
 	spin_lock_irqsave(&musb->lock, flags);
 	if (is_on != musb->softconnect) {
@@ -1681,7 +1681,7 @@ static const struct usb_gadget_ops musb_gadget_operations = {
 
 /* Registration */
 
-/* Only this registration code "knows" the rule (from USB standards)
+/* Only this registration code "kyesws" the rule (from USB standards)
  * about there being only one external upstream port.  It assumes
  * all peripheral ports are external...
  */
@@ -1772,7 +1772,7 @@ int musb_gadget_setup(struct musb *musb)
 {
 	int status;
 
-	/* REVISIT minor race:  if (erroneously) setting up two
+	/* REVISIT miyesr race:  if (erroneously) setting up two
 	 * musb peripherals at the same time, only the bus lock
 	 * is probably held.
 	 */
@@ -1818,9 +1818,9 @@ void musb_gadget_cleanup(struct musb *musb)
  * Register the gadget driver. Used by gadget drivers when
  * registering themselves with the controller.
  *
- * -EINVAL something went wrong (not driver)
- * -EBUSY another gadget is already using the controller
- * -ENOMEM no memory to perform the operation
+ * -EINVAL something went wrong (yest driver)
+ * -EBUSY ayesther gadget is already using the controller
+ * -ENOMEM yes memory to perform the operation
  *
  * @param driver the gadget driver
  * @return <0 if error, 0 if everything is fine
@@ -1902,7 +1902,7 @@ static int musb_gadget_stop(struct usb_gadget *g)
 	spin_unlock_irqrestore(&musb->lock, flags);
 
 	/*
-	 * FIXME we need to be able to register another
+	 * FIXME we need to be able to register ayesther
 	 * gadget driver here and have everything work;
 	 * that currently misbehaves.
 	 */
@@ -2066,15 +2066,15 @@ __acquires(musb->lock)
 	musb->g.b_hnp_enable = 0;
 	musb->g.a_alt_hnp_support = 0;
 	musb->g.a_hnp_support = 0;
-	musb->g.quirk_zlp_not_supp = 1;
+	musb->g.quirk_zlp_yest_supp = 1;
 
 	/* Normal reset, as B-Device;
 	 * or else after HNP, as A-Device
 	 */
 	if (!musb->g.is_otg) {
-		/* USB device controllers that are not OTG compatible
-		 * may not have DEVCTL register in silicon.
-		 * In that case, do not rely on devctl for setting
+		/* USB device controllers that are yest OTG compatible
+		 * may yest have DEVCTL register in silicon.
+		 * In that case, do yest rely on devctl for setting
 		 * peripheral mode.
 		 */
 		musb->xceiv->otg->state = OTG_STATE_B_PERIPHERAL;

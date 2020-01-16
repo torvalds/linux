@@ -92,7 +92,7 @@ static void __init init_pins(int n, struct cpm_pin *pin)
 
 static void __init init_ioports(void)
 {
-	struct device_node *dnode;
+	struct device_yesde *dyesde;
 	struct property *prop;
 	int	len;
 
@@ -100,10 +100,10 @@ static void __init init_ioports(void)
 
 	cpm1_clk_setup(CPM_CLK_SMC1, CPM_BRG1, CPM_CLK_RTX);
 
-	dnode = of_find_node_by_name(NULL, "aliases");
-	if (dnode == NULL)
+	dyesde = of_find_yesde_by_name(NULL, "aliases");
+	if (dyesde == NULL)
 		return;
-	prop = of_find_property(dnode, "ethernet1", &len);
+	prop = of_find_property(dyesde, "ethernet1", &len);
 	if (prop == NULL)
 		return;
 

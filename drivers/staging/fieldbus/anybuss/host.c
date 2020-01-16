@@ -20,15 +20,15 @@
  * Communication happens using one of the following mechanisms:
  * 1. reserve, read/write, release dpram memory areas:
  *	using an IND_AB/IND_AP protocol, the driver is able to reserve certain
- *	memory areas. no dpram memory can be read or written except if reserved.
+ *	memory areas. yes dpram memory can be read or written except if reserved.
  *	(with a few limited exceptions)
  * 2. send and receive data structures via a shared mailbox:
  *	using an IND_AB/IND_AP protocol, the driver and Anybus card are able to
  *	exchange commands and responses using a shared mailbox.
  * 3. receive software interrupts:
- *	using an IND_AB/IND_AP protocol, the Anybus card is able to notify the
+ *	using an IND_AB/IND_AP protocol, the Anybus card is able to yestify the
  *	driver of certain events such as: bus online/offline, data available.
- *	note that software interrupt event bits are located in a memory area
+ *	yeste that software interrupt event bits are located in a memory area
  *	which must be reserved before it can be accessed.
  *
  * The manual[1] is silent on whether these mechanisms can happen concurrently,
@@ -110,7 +110,7 @@
  *	|	|     if task done:		       |	|
  *	|	|       complete task, remove from q   |	|
  *	|	|   if software irq event bits set:    |	|
- *	|	|     notify userspace		       |	|
+ *	|	|     yestify userspace		       |	|
  *	|	|     post clear event bits task------>|>-------+
  *	|	|   wait for IND_AB changed event OR   |
  *	|	|            task added event	  OR   |
@@ -131,7 +131,7 @@
  *
  * Note that the Anybus interrupt is dual-purpose:
  * - after a reset, triggered when the card becomes ready;
- * - during normal operation, triggered when AB_IND changes.
+ * - during yesrmal operation, triggered when AB_IND changes.
  * This is why the interrupt service routine doesn't just wake up the
  * queue thread, but also completes the card_boot completion.
  *
@@ -213,7 +213,7 @@
  * ---------------------------------------------------------------
  * Anybus mailbox messages - definitions
  * ---------------------------------------------------------------
- * note that we're depending on the layout of these structures being
+ * yeste that we're depending on the layout of these structures being
  * exactly as advertised.
  */
 
@@ -237,7 +237,7 @@ struct msg_anybus_init {
 	__be16 output_dpram_len;
 	__be16 output_total_len;
 	__be16 op_mode;
-	__be16 notif_config;
+	__be16 yestif_config;
 	__be16 wd_val;
 };
 
@@ -429,7 +429,7 @@ static int read_ind_ab(struct regmap *regmap)
 			usleep_range(500, 1000);
 		}
 	}
-	WARN(1, "IND_AB register not stable");
+	WARN(1, "IND_AB register yest stable");
 	return -ETIMEDOUT;
 }
 
@@ -450,7 +450,7 @@ static int write_ind_ap(struct regmap *regmap, unsigned int ind_ap)
 			usleep_range(500, 1000);
 		}
 	}
-	WARN(1, "IND_AP register not stable");
+	WARN(1, "IND_AP register yest stable");
 	return -ETIMEDOUT;
 }
 
@@ -554,7 +554,7 @@ static int task_fn_area_3(struct anybuss_host *cd, struct ab_task *t)
 	if (!cd->power_on)
 		return -EIO;
 	if (atomic_read(&cd->ind_ab) & pd->flags) {
-		/* area not released yet */
+		/* area yest released yet */
 		if (time_after(jiffies, t->start_jiffies + TIMEOUT))
 			return -ETIMEDOUT;
 		return -EINPROGRESS;
@@ -702,7 +702,7 @@ static int task_fn_mbox_2(struct anybuss_host *cd, struct ab_task *t)
 		return -EIO;
 	regmap_read(cd->regmap, REG_IND_AP, &ind_ap);
 	if (((atomic_read(&cd->ind_ab) ^ ind_ap) & IND_AX_MOUT) == 0) {
-		/* output message not here */
+		/* output message yest here */
 		if (time_after(jiffies, t->start_jiffies + TIMEOUT))
 			return -ETIMEDOUT;
 		return -EINPROGRESS;
@@ -972,7 +972,7 @@ static int qthread_fn(void *data)
 	/*
 	 * this kernel thread has exclusive access to the anybus's memory.
 	 * only exception: the IND_AB register, which is accessed exclusively
-	 * by the interrupt service routine (ISR). This thread must not touch
+	 * by the interrupt service routine (ISR). This thread must yest touch
 	 * the IND_AB register, but it does require access to its value.
 	 *
 	 * the interrupt service routine stores the register's value in
@@ -1017,7 +1017,7 @@ int anybuss_start_init(struct anybuss_client *client,
 		.output_io_len = cpu_to_be16(cfg->output_io),
 		.output_dpram_len = cpu_to_be16(cfg->output_dpram),
 		.output_total_len = cpu_to_be16(cfg->output_total),
-		.notif_config = cpu_to_be16(0x000F),
+		.yestif_config = cpu_to_be16(0x000F),
 		.wd_val = cpu_to_be16(0),
 	};
 
@@ -1234,7 +1234,7 @@ static int taskq_alloc(struct device *dev, struct kfifo *q)
 	return kfifo_init(q, buf, size);
 }
 
-static int anybus_of_get_host_idx(struct device_node *np)
+static int anybus_of_get_host_idx(struct device_yesde *np)
 {
 	const __be32 *host_idx;
 
@@ -1244,16 +1244,16 @@ static int anybus_of_get_host_idx(struct device_node *np)
 	return __be32_to_cpu(*host_idx);
 }
 
-static struct device_node *
+static struct device_yesde *
 anybus_of_find_child_device(struct device *dev, int host_idx)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	if (!dev || !dev->of_node)
+	if (!dev || !dev->of_yesde)
 		return NULL;
-	for_each_child_of_node(dev->of_node, node) {
-		if (anybus_of_get_host_idx(node) == host_idx)
-			return node;
+	for_each_child_of_yesde(dev->of_yesde, yesde) {
+		if (anybus_of_get_host_idx(yesde) == host_idx)
+			return yesde;
 	}
 	return NULL;
 }
@@ -1306,14 +1306,14 @@ anybuss_host_common_probe(struct device *dev,
 	 */
 	reset_assert(cd);
 	if (test_dpram(cd->regmap)) {
-		dev_err(dev, "no Anybus-S card in slot");
+		dev_err(dev, "yes Anybus-S card in slot");
 		ret = -ENODEV;
 		goto err_qcache;
 	}
 	ret = devm_request_threaded_irq(dev, cd->irq, NULL, irq_handler,
 					IRQF_ONESHOT, dev_name(dev), cd);
 	if (ret) {
-		dev_err(dev, "could not request irq");
+		dev_err(dev, "could yest request irq");
 		goto err_qcache;
 	}
 	/*
@@ -1358,12 +1358,12 @@ anybuss_host_common_probe(struct device *dev,
 	/* fire up the queue thread */
 	cd->qthread = kthread_run(qthread_fn, cd, dev_name(dev));
 	if (IS_ERR(cd->qthread)) {
-		dev_err(dev, "could not create kthread");
+		dev_err(dev, "could yest create kthread");
 		ret = PTR_ERR(cd->qthread);
 		goto err_reset;
 	}
 	/*
-	 * now advertise that we've detected a client device (card).
+	 * yesw advertise that we've detected a client device (card).
 	 * the bus infrastructure will match it to a client driver.
 	 */
 	cd->client = kzalloc(sizeof(*cd->client), GFP_KERNEL);
@@ -1376,7 +1376,7 @@ anybuss_host_common_probe(struct device *dev,
 	cd->client->dev.bus = &anybus_bus;
 	cd->client->dev.parent = dev;
 	cd->client->dev.release = client_device_release;
-	cd->client->dev.of_node =
+	cd->client->dev.of_yesde =
 		anybus_of_find_child_device(dev, cd->host_idx);
 	dev_set_name(&cd->client->dev, "anybuss.card%d", cd->host_idx);
 	ret = device_register(&cd->client->dev);
@@ -1442,7 +1442,7 @@ static int __init anybus_init(void)
 
 	ret = bus_register(&anybus_bus);
 	if (ret)
-		pr_err("could not register Anybus-S bus: %d\n", ret);
+		pr_err("could yest register Anybus-S bus: %d\n", ret);
 	return ret;
 }
 module_init(anybus_init);

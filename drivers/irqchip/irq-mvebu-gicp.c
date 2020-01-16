@@ -94,19 +94,19 @@ static int gicp_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	__set_bit(hwirq, gicp->spi_bitmap);
 	spin_unlock(&gicp->spi_lock);
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwyesde = domain->parent->fwyesde;
 	fwspec.param_count = 3;
 	fwspec.param[0] = GIC_SPI;
 	fwspec.param[1] = gicp_idx_to_spi(gicp, hwirq) - 32;
 	/*
-	 * Assume edge rising for now, it will be properly set when
+	 * Assume edge rising for yesw, it will be properly set when
 	 * ->set_type() is called
 	 */
 	fwspec.param[2] = IRQ_TYPE_EDGE_RISING;
 
 	ret = irq_domain_alloc_irqs_parent(domain, virq, 1, &fwspec);
 	if (ret) {
-		dev_err(gicp->dev, "Cannot allocate parent IRQ\n");
+		dev_err(gicp->dev, "Canyest allocate parent IRQ\n");
 		goto free_hwirq;
 	}
 
@@ -169,8 +169,8 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 {
 	struct mvebu_gicp *gicp;
 	struct irq_domain *inner_domain, *plat_domain, *parent_domain;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *irq_parent_dn;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *irq_parent_dn;
 	int ret, i;
 
 	gicp = devm_kzalloc(&pdev->dev, sizeof(*gicp), GFP_KERNEL);
@@ -184,7 +184,7 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 	if (!gicp->res)
 		return -ENODEV;
 
-	ret = of_property_count_u32_elems(node, "marvell,spi-ranges");
+	ret = of_property_count_u32_elems(yesde, "marvell,spi-ranges");
 	if (ret < 0)
 		return ret;
 
@@ -199,11 +199,11 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	for (i = 0; i < gicp->spi_ranges_cnt; i++) {
-		of_property_read_u32_index(node, "marvell,spi-ranges",
+		of_property_read_u32_index(yesde, "marvell,spi-ranges",
 					   i * 2,
 					   &gicp->spi_ranges[i].start);
 
-		of_property_read_u32_index(node, "marvell,spi-ranges",
+		of_property_read_u32_index(yesde, "marvell,spi-ranges",
 					   i * 2 + 1,
 					   &gicp->spi_ranges[i].count);
 
@@ -216,9 +216,9 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 	if (!gicp->spi_bitmap)
 		return -ENOMEM;
 
-	irq_parent_dn = of_irq_find_parent(node);
+	irq_parent_dn = of_irq_find_parent(yesde);
 	if (!irq_parent_dn) {
-		dev_err(&pdev->dev, "failed to find parent IRQ node\n");
+		dev_err(&pdev->dev, "failed to find parent IRQ yesde\n");
 		return -ENODEV;
 	}
 
@@ -230,13 +230,13 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 
 	inner_domain = irq_domain_create_hierarchy(parent_domain, 0,
 						   gicp->spi_cnt,
-						   of_node_to_fwnode(node),
+						   of_yesde_to_fwyesde(yesde),
 						   &gicp_domain_ops, gicp);
 	if (!inner_domain)
 		return -ENOMEM;
 
 
-	plat_domain = platform_msi_create_irq_domain(of_node_to_fwnode(node),
+	plat_domain = platform_msi_create_irq_domain(of_yesde_to_fwyesde(yesde),
 						     &gicp_msi_domain_info,
 						     inner_domain);
 	if (!plat_domain) {

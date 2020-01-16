@@ -1,4 +1,4 @@
-These bindings should be considered EXPERIMENTAL for now.
+These bindings should be considered EXPERIMENTAL for yesw.
 
 * Renesas SH73A0 Clock Pulse Generator (CPG)
 

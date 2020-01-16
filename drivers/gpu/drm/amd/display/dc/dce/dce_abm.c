@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -74,7 +74,7 @@ static bool dce_abm_set_pipe(struct abm *abm, uint32_t controller_id)
 			MASTER_COMM_CMD_REG_BYTE0, MCP_ABM_PIPE_SET,
 			MASTER_COMM_CMD_REG_BYTE1, controller_id);
 
-	/* notifyDMCUMsg */
+	/* yestifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
@@ -210,7 +210,7 @@ static void dmcu_set_backlight_level(
 		// Check for max backlight condition
 		backlight_8_bit = 0xFF;
 	else
-		// Take MSB of fractional part since backlight is not max
+		// Take MSB of fractional part since backlight is yest max
 		backlight_8_bit = (backlight_pwm_u16_16 >> 8) & 0xFF;
 
 	dce_abm_set_pipe(&abm_dce->base, controller_id);
@@ -230,7 +230,7 @@ static void dmcu_set_backlight_level(
 	/* setDMCUParam_Cmd */
 	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, MCP_BL_SET);
 
-	/* notifyDMCUMsg */
+	/* yestifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
 	/* UpdateRequestedBacklightLevel */
@@ -325,7 +325,7 @@ static bool dce_abm_set_level(struct abm *abm, uint32_t level)
 			MASTER_COMM_CMD_REG_BYTE0, MCP_ABM_LEVEL_SET,
 			MASTER_COMM_CMD_REG_BYTE2, level);
 
-	/* notifyDMCUMsg */
+	/* yestifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
 	return true;
@@ -357,7 +357,7 @@ static bool dce_abm_init_backlight(struct abm *abm)
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 	uint32_t value;
 
-	/* It must not be 0, so we have to restore them
+	/* It must yest be 0, so we have to restore them
 	 * Bios bug w/a - period resets to zero,
 	 * restoring to cache values which is always correct
 	 */
@@ -375,7 +375,7 @@ static bool dce_abm_init_backlight(struct abm *abm)
 				abm->stored_backlight_registers.
 				LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV);
 		} else {
-			/* TODO: Note: This should not really happen since VBIOS
+			/* TODO: Note: This should yest really happen since VBIOS
 			 * should have initialized PWM registers on boot.
 			 */
 			REG_WRITE(BL_PWM_CNTL, 0xC000FA00);

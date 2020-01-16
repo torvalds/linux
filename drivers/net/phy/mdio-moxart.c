@@ -110,7 +110,7 @@ static int moxart_mdio_reset(struct mii_bus *bus)
 
 static int moxart_mdio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct mii_bus *bus;
 	struct moxart_mdio_data *data;
 	int ret, i;
@@ -126,10 +126,10 @@ static int moxart_mdio_probe(struct platform_device *pdev)
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-%d-mii", pdev->name, pdev->id);
 	bus->parent = &pdev->dev;
 
-	/* Setting PHY_IGNORE_INTERRUPT here even if it has no effect,
+	/* Setting PHY_IGNORE_INTERRUPT here even if it has yes effect,
 	 * of_mdiobus_register() sets these PHY_POLL.
 	 * Ideally, the interrupt from MAC controller could be used to
-	 * detect link state changes, not polling, i.e. if there was
+	 * detect link state changes, yest polling, i.e. if there was
 	 * a way phy_driver could set PHY_HAS_INTERRUPT but have that
 	 * interrupt handled in ethernet drivercode.
 	 */

@@ -14,6 +14,6 @@ if ! ( $compiler --version | grep -q clang) ; then
 fi
 
 MAJOR=$(echo __clang_major__ | $compiler -E -x c - | tail -n 1)
-MINOR=$(echo __clang_minor__ | $compiler -E -x c - | tail -n 1)
+MINOR=$(echo __clang_miyesr__ | $compiler -E -x c - | tail -n 1)
 PATCHLEVEL=$(echo __clang_patchlevel__ | $compiler -E -x c - | tail -n 1)
 printf "%d%02d%02d\\n" $MAJOR $MINOR $PATCHLEVEL

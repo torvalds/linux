@@ -27,7 +27,7 @@
 #include <asm/unaligned.h>
 #include <asm/stacktrace.h>
 
-/* Reserve enough memory for two stack frames */
+/* Reserve eyesugh memory for two stack frames */
 #define DWARF_FRAME_MIN_REQ	2
 /* ... with 4 registers per frame. */
 #define DWARF_REG_MIN_REQ	(DWARF_FRAME_MIN_REQ * 4)
@@ -68,7 +68,7 @@ static struct dwarf_reg *dwarf_frame_alloc_reg(struct dwarf_frame *frame,
 	if (!reg) {
 		printk(KERN_WARNING "Unable to allocate a DWARF register\n");
 		/*
-		 * Let's just bomb hard here, we have no way to
+		 * Let's just bomb hard here, we have yes way to
 		 * gracefully recover.
 		 */
 		UNWINDER_BUG();
@@ -274,7 +274,7 @@ static inline int dwarf_entry_len(char *addr, unsigned long *len)
 
 	/*
 	 * An initial length field value in the range DW_LEN_EXT_LO -
-	 * DW_LEN_EXT_HI indicates an extension, and should not be
+	 * DW_LEN_EXT_HI indicates an extension, and should yest be
 	 * interpreted as a length. The only extension that we currently
 	 * understand is the use of DWARF64 addresses.
 	 */
@@ -287,7 +287,7 @@ static inline int dwarf_entry_len(char *addr, unsigned long *len)
 			*len = get_unaligned((u64 *)addr + 4);
 			count = 12;
 		} else {
-			printk(KERN_WARNING "Unknown DWARF extension\n");
+			printk(KERN_WARNING "Unkyeswn DWARF extension\n");
 			count = 0;
 		}
 	} else
@@ -302,7 +302,7 @@ static inline int dwarf_entry_len(char *addr, unsigned long *len)
  */
 static struct dwarf_cie *dwarf_lookup_cie(unsigned long cie_ptr)
 {
-	struct rb_node **rb_node = &cie_root.rb_node;
+	struct rb_yesde **rb_yesde = &cie_root.rb_yesde;
 	struct dwarf_cie *cie = NULL;
 	unsigned long flags;
 
@@ -317,10 +317,10 @@ static struct dwarf_cie *dwarf_lookup_cie(unsigned long cie_ptr)
 		goto out;
 	}
 
-	while (*rb_node) {
+	while (*rb_yesde) {
 		struct dwarf_cie *cie_tmp;
 
-		cie_tmp = rb_entry(*rb_node, struct dwarf_cie, node);
+		cie_tmp = rb_entry(*rb_yesde, struct dwarf_cie, yesde);
 		BUG_ON(!cie_tmp);
 
 		if (cie_ptr == cie_tmp->cie_pointer) {
@@ -329,9 +329,9 @@ static struct dwarf_cie *dwarf_lookup_cie(unsigned long cie_ptr)
 			goto out;
 		} else {
 			if (cie_ptr < cie_tmp->cie_pointer)
-				rb_node = &(*rb_node)->rb_left;
+				rb_yesde = &(*rb_yesde)->rb_left;
 			else
-				rb_node = &(*rb_node)->rb_right;
+				rb_yesde = &(*rb_yesde)->rb_right;
 		}
 	}
 
@@ -346,30 +346,30 @@ out:
  */
 struct dwarf_fde *dwarf_lookup_fde(unsigned long pc)
 {
-	struct rb_node **rb_node = &fde_root.rb_node;
+	struct rb_yesde **rb_yesde = &fde_root.rb_yesde;
 	struct dwarf_fde *fde = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dwarf_fde_lock, flags);
 
-	while (*rb_node) {
+	while (*rb_yesde) {
 		struct dwarf_fde *fde_tmp;
 		unsigned long tmp_start, tmp_end;
 
-		fde_tmp = rb_entry(*rb_node, struct dwarf_fde, node);
+		fde_tmp = rb_entry(*rb_yesde, struct dwarf_fde, yesde);
 		BUG_ON(!fde_tmp);
 
 		tmp_start = fde_tmp->initial_location;
 		tmp_end = fde_tmp->initial_location + fde_tmp->address_range;
 
 		if (pc < tmp_start) {
-			rb_node = &(*rb_node)->rb_left;
+			rb_yesde = &(*rb_yesde)->rb_left;
 		} else {
 			if (pc < tmp_end) {
 				fde = fde_tmp;
 				goto out;
 			} else
-				rb_node = &(*rb_node)->rb_right;
+				rb_yesde = &(*rb_yesde)->rb_right;
 		}
 	}
 
@@ -390,7 +390,7 @@ out:
  *
  *	Execute the Call Frame instruction sequence starting at
  *	@insn_start and ending at @insn_end. The instructions describe
- *	how to calculate the Canonical Frame Address of a stackframe.
+ *	how to calculate the Cayesnical Frame Address of a stackframe.
  *	Store the results in @frame.
  */
 static int dwarf_cfa_execute_insns(unsigned char *insn_start,
@@ -442,7 +442,7 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 		 * operands in the instruction.
 		 */
 		switch (insn) {
-		case DW_CFA_nop:
+		case DW_CFA_yesp:
 			continue;
 		case DW_CFA_advance_loc1:
 			delta = *current_insn++;
@@ -611,7 +611,7 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 		if (ret_stack)
 			pc = ret_stack->ret;
 		/*
-		 * We currently have no way of tracking how many
+		 * We currently have yes way of tracking how many
 		 * return_to_handler()'s we've seen. If there is more
 		 * than one patched return address on our stack,
 		 * complain loudly.
@@ -634,17 +634,17 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	fde = dwarf_lookup_fde(pc);
 	if (!fde) {
 		/*
-		 * This is our normal exit path. There are two reasons
+		 * This is our yesrmal exit path. There are two reasons
 		 * why we might exit here,
 		 *
-		 *	a) pc has no asscociated DWARF frame info and so
-		 *	we don't know how to unwind this frame. This is
+		 *	a) pc has yes asscociated DWARF frame info and so
+		 *	we don't kyesw how to unwind this frame. This is
 		 *	usually the case when we're trying to unwind a
 		 *	frame that was called from some assembly code
-		 *	that has no DWARF info, e.g. syscalls.
+		 *	that has yes DWARF info, e.g. syscalls.
 		 *
 		 *	b) the DEBUG info for pc is bogus. There's
-		 *	really no way to distinguish this case from the
+		 *	really yes way to distinguish this case from the
 		 *	case above, which sucks because we could print a
 		 *	warning here.
 		 */
@@ -680,7 +680,7 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 			 * Again, we're starting from the top of the
 			 * stack. We need to physically read
 			 * the contents of a register in order to get
-			 * the Canonical Frame Address for this
+			 * the Cayesnical Frame Address for this
 			 * function.
 			 */
 			frame->cfa = dwarf_read_arch_reg(frame->cfa_register);
@@ -735,8 +735,8 @@ bail:
 static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 			   unsigned char *end, struct module *mod)
 {
-	struct rb_node **rb_node = &cie_root.rb_node;
-	struct rb_node *parent = *rb_node;
+	struct rb_yesde **rb_yesde = &cie_root.rb_yesde;
+	struct rb_yesde *parent = *rb_yesde;
 	struct dwarf_cie *cie;
 	unsigned long flags;
 	int count;
@@ -819,7 +819,7 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 			UNWINDER_BUG();
 		} else {
 			/*
-			 * Unknown augmentation. Assume
+			 * Unkyeswn augmentation. Assume
 			 * 'z' augmentation.
 			 */
 			p = cie->initial_instructions;
@@ -834,23 +834,23 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 	/* Add to list */
 	spin_lock_irqsave(&dwarf_cie_lock, flags);
 
-	while (*rb_node) {
+	while (*rb_yesde) {
 		struct dwarf_cie *cie_tmp;
 
-		cie_tmp = rb_entry(*rb_node, struct dwarf_cie, node);
+		cie_tmp = rb_entry(*rb_yesde, struct dwarf_cie, yesde);
 
-		parent = *rb_node;
+		parent = *rb_yesde;
 
 		if (cie->cie_pointer < cie_tmp->cie_pointer)
-			rb_node = &parent->rb_left;
+			rb_yesde = &parent->rb_left;
 		else if (cie->cie_pointer >= cie_tmp->cie_pointer)
-			rb_node = &parent->rb_right;
+			rb_yesde = &parent->rb_right;
 		else
 			WARN_ON(1);
 	}
 
-	rb_link_node(&cie->node, parent, rb_node);
-	rb_insert_color(&cie->node, &cie_root);
+	rb_link_yesde(&cie->yesde, parent, rb_yesde);
+	rb_insert_color(&cie->yesde, &cie_root);
 
 #ifdef CONFIG_MODULES
 	if (mod != NULL)
@@ -866,8 +866,8 @@ static int dwarf_parse_fde(void *entry, u32 entry_type,
 			   void *start, unsigned long len,
 			   unsigned char *end, struct module *mod)
 {
-	struct rb_node **rb_node = &fde_root.rb_node;
-	struct rb_node *parent = *rb_node;
+	struct rb_yesde **rb_yesde = &fde_root.rb_yesde;
+	struct rb_yesde *parent = *rb_yesde;
 	struct dwarf_fde *fde;
 	struct dwarf_cie *cie;
 	unsigned long flags;
@@ -918,12 +918,12 @@ static int dwarf_parse_fde(void *entry, u32 entry_type,
 	/* Add to list. */
 	spin_lock_irqsave(&dwarf_fde_lock, flags);
 
-	while (*rb_node) {
+	while (*rb_yesde) {
 		struct dwarf_fde *fde_tmp;
 		unsigned long tmp_start, tmp_end;
 		unsigned long start, end;
 
-		fde_tmp = rb_entry(*rb_node, struct dwarf_fde, node);
+		fde_tmp = rb_entry(*rb_yesde, struct dwarf_fde, yesde);
 
 		start = fde->initial_location;
 		end = fde->initial_location + fde->address_range;
@@ -931,18 +931,18 @@ static int dwarf_parse_fde(void *entry, u32 entry_type,
 		tmp_start = fde_tmp->initial_location;
 		tmp_end = fde_tmp->initial_location + fde_tmp->address_range;
 
-		parent = *rb_node;
+		parent = *rb_yesde;
 
 		if (start < tmp_start)
-			rb_node = &parent->rb_left;
+			rb_yesde = &parent->rb_left;
 		else if (start >= tmp_end)
-			rb_node = &parent->rb_right;
+			rb_yesde = &parent->rb_right;
 		else
 			WARN_ON(1);
 	}
 
-	rb_link_node(&fde->node, parent, rb_node);
-	rb_insert_color(&fde->node, &fde_root);
+	rb_link_yesde(&fde->yesde, parent, rb_yesde);
+	rb_insert_color(&fde->yesde, &fde_root);
 
 #ifdef CONFIG_MODULES
 	if (mod != NULL)
@@ -1001,10 +1001,10 @@ static void __init dwarf_unwinder_cleanup(void)
 	 * Traverse all the FDE/CIE lists and remove and free all the
 	 * memory associated with those data structures.
 	 */
-	rbtree_postorder_for_each_entry_safe(fde, next_fde, &fde_root, node)
+	rbtree_postorder_for_each_entry_safe(fde, next_fde, &fde_root, yesde)
 		kfree(fde);
 
-	rbtree_postorder_for_each_entry_safe(cie, next_cie, &cie_root, node)
+	rbtree_postorder_for_each_entry_safe(cie, next_cie, &cie_root, yesde)
 		kfree(cie);
 
 	mempool_destroy(dwarf_reg_pool);
@@ -1042,7 +1042,7 @@ static int dwarf_parse_section(char *eh_frame_start, char *eh_frame_end,
 		if (count == 0) {
 			/*
 			 * We read a bogus length field value. There is
-			 * nothing we can do here apart from disabling
+			 * yesthing we can do here apart from disabling
 			 * the DWARF unwinder. We can't even skip this
 			 * entry and move to the next one because 'len'
 			 * tells us where our next entry is.
@@ -1052,7 +1052,7 @@ static int dwarf_parse_section(char *eh_frame_start, char *eh_frame_end,
 		} else
 			p += count;
 
-		/* initial length does not include itself */
+		/* initial length does yest include itself */
 		end = p + len;
 
 		entry_type = get_unaligned((u32 *)p);
@@ -1096,7 +1096,7 @@ int module_dwarf_finalize(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
 	start = end = 0;
 
 	for (i = 1; i < hdr->e_shnum; i++) {
-		/* Alloc bit cleared means "ignore it." */
+		/* Alloc bit cleared means "igyesre it." */
 		if ((sechdrs[i].sh_flags & SHF_ALLOC)
 		    && !strcmp(secstrings+sechdrs[i].sh_name, ".eh_frame")) {
 			start = sechdrs[i].sh_addr;
@@ -1137,7 +1137,7 @@ void module_dwarf_cleanup(struct module *mod)
 
 	list_for_each_entry_safe(cie, ctmp, &mod->arch.cie_list, link) {
 		list_del(&cie->link);
-		rb_erase(&cie->node, &cie_root);
+		rb_erase(&cie->yesde, &cie_root);
 		kfree(cie);
 	}
 
@@ -1147,7 +1147,7 @@ void module_dwarf_cleanup(struct module *mod)
 
 	list_for_each_entry_safe(fde, ftmp, &mod->arch.fde_list, link) {
 		list_del(&fde->link);
-		rb_erase(&fde->node, &fde_root);
+		rb_erase(&fde->yesde, &fde_root);
 		kfree(fde);
 	}
 
@@ -1160,7 +1160,7 @@ void module_dwarf_cleanup(struct module *mod)
  *
  *	Build the data structures describing the .dwarf_frame section to
  *	make it easier to lookup CIE and FDE entries. Because the
- *	.eh_frame section is packed as tightly as possible it is not
+ *	.eh_frame section is packed as tightly as possible it is yest
  *	easy to lookup the FDE for a given PC, so we build a list of FDE
  *	and CIE entries that make it easier.
  */

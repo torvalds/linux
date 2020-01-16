@@ -8,7 +8,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -30,12 +30,12 @@
 
 /*
  * Out events may be sent only when requested by backend, and receipt
- * of an unknown out event is an error.
+ * of an unkyeswn out event is an error.
  */
 
-/* Event type 1 currently not used */
+/* Event type 1 currently yest used */
 /*
- * Framebuffer update notification event
+ * Framebuffer update yestification event
  * Capable frontend sets feature-update in xenstore.
  * Backend requests it by setting request-update in xenstore.
  */
@@ -50,7 +50,7 @@ struct xenfb_update {
 };
 
 /*
- * Framebuffer resize notification event
+ * Framebuffer resize yestification event
  * Capable backend sets feature-resize in xenstore.
  */
 #define XENFB_TYPE_RESIZE 3
@@ -76,7 +76,7 @@ union xenfb_out_event {
 /* In events (backend -> frontend) */
 
 /*
- * Frontends should ignore unknown in events.
+ * Frontends should igyesre unkyeswn in events.
  * No in events currently defined.
  */
 
@@ -122,16 +122,16 @@ struct xenfb_page {
 	 * framebuffer pages, and can thus map up to PAGE_SIZE *
 	 * PAGE_SIZE / sizeof(*pd) bytes.  With PAGE_SIZE == 4096 and
 	 * sizeof(unsigned long) == 4/8, that's 4 Megs 32 bit and 2
-	 * Megs 64 bit.  256 directories give enough room for a 512
+	 * Megs 64 bit.  256 directories give eyesugh room for a 512
 	 * Meg framebuffer with a max resolution of 12,800x10,240.
-	 * Should be enough for a while with room leftover for
+	 * Should be eyesugh for a while with room leftover for
 	 * expansion.
 	 */
 	unsigned long pd[256];
 };
 
 /*
- * Wart: xenkbd needs to know default resolution.  Put it here until a
+ * Wart: xenkbd needs to kyesw default resolution.  Put it here until a
  * better solution is found, but don't leak it to the backend.
  */
 #ifdef __KERNEL__

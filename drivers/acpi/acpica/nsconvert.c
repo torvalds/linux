@@ -131,7 +131,7 @@ acpi_ns_convert_to_string(union acpi_operand_object *original_object,
 	case ACPI_TYPE_BUFFER:
 		/*
 		 * Buffer-to-String conversion. Use a to_string
-		 * conversion, no transform performed on the buffer data. The best
+		 * conversion, yes transform performed on the buffer data. The best
 		 * example of this is the _BIF method, where the string data from
 		 * the battery is often (incorrectly) returned as buffer object(s).
 		 */
@@ -149,7 +149,7 @@ acpi_ns_convert_to_string(union acpi_operand_object *original_object,
 		}
 
 		/*
-		 * Copy the raw buffer data with no transform. String is already NULL
+		 * Copy the raw buffer data with yes transform. String is already NULL
 		 * terminated at Length+1.
 		 */
 		memcpy(new_object->string.pointer,
@@ -272,7 +272,7 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
  *
  * FUNCTION:    acpi_ns_convert_to_unicode
  *
- * PARAMETERS:  scope               - Namespace node for the method/object
+ * PARAMETERS:  scope               - Namespace yesde for the method/object
  *              original_object     - ASCII String Object to be converted
  *              return_object       - Where the new converted object is returned
  *
@@ -283,7 +283,7 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_convert_to_unicode(struct acpi_namespace_node *scope,
+acpi_ns_convert_to_unicode(struct acpi_namespace_yesde *scope,
 			   union acpi_operand_object *original_object,
 			   union acpi_operand_object **return_object)
 {
@@ -338,7 +338,7 @@ acpi_ns_convert_to_unicode(struct acpi_namespace_node *scope,
  *
  * FUNCTION:    acpi_ns_convert_to_resource
  *
- * PARAMETERS:  scope               - Namespace node for the method/object
+ * PARAMETERS:  scope               - Namespace yesde for the method/object
  *              original_object     - Object to be converted
  *              return_object       - Where the new converted object is returned
  *
@@ -350,7 +350,7 @@ acpi_ns_convert_to_unicode(struct acpi_namespace_node *scope,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_convert_to_resource(struct acpi_namespace_node *scope,
+acpi_ns_convert_to_resource(struct acpi_namespace_yesde *scope,
 			    union acpi_operand_object *original_object,
 			    union acpi_operand_object **return_object)
 {
@@ -417,7 +417,7 @@ acpi_ns_convert_to_resource(struct acpi_namespace_node *scope,
  *
  * FUNCTION:    acpi_ns_convert_to_reference
  *
- * PARAMETERS:  scope               - Namespace node for the method/object
+ * PARAMETERS:  scope               - Namespace yesde for the method/object
  *              original_object     - Object to be converted
  *              return_object       - Where the new converted object is returned
  *
@@ -429,13 +429,13 @@ acpi_ns_convert_to_resource(struct acpi_namespace_node *scope,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
+acpi_ns_convert_to_reference(struct acpi_namespace_yesde *scope,
 			     union acpi_operand_object *original_object,
 			     union acpi_operand_object **return_object)
 {
 	union acpi_operand_object *new_object = NULL;
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_generic_state scope_info;
 	char *name;
 
@@ -449,14 +449,14 @@ acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
 		return_ACPI_STATUS(status);
 	}
 
-	/* Find the namespace node */
+	/* Find the namespace yesde */
 
-	scope_info.scope.node =
-	    ACPI_CAST_PTR(struct acpi_namespace_node, scope);
+	scope_info.scope.yesde =
+	    ACPI_CAST_PTR(struct acpi_namespace_yesde, scope);
 	status =
 	    acpi_ns_lookup(&scope_info, name, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
 			   ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
-			   NULL, &node);
+			   NULL, &yesde);
 	if (ACPI_FAILURE(status)) {
 
 		/* Check if we are resolving a named reference within a package */
@@ -473,15 +473,15 @@ acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
 		status = AE_NO_MEMORY;
 		goto error_exit;
 	}
-	new_object->reference.node = node;
-	new_object->reference.object = node->object;
+	new_object->reference.yesde = yesde;
+	new_object->reference.object = yesde->object;
 	new_object->reference.class = ACPI_REFCLASS_NAME;
 
 	/*
 	 * Increase reference of the object if needed (the object is likely a
-	 * null for device nodes).
+	 * null for device yesdes).
 	 */
-	acpi_ut_add_reference(node->object);
+	acpi_ut_add_reference(yesde->object);
 
 error_exit:
 	ACPI_FREE(name);

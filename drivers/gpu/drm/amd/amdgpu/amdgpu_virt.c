@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -29,7 +29,7 @@
 
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)
 {
-	/* By now all MMIO pages except mailbox are blocked */
+	/* By yesw all MMIO pages except mailbox are blocked */
 	/* if blocking is enabled in hypervisor. Choose the */
 	/* SCRATCH_REG0 to test. */
 	return RREG32_NO_KIQ(0xc040) == 0xffffffff;

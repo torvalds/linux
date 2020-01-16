@@ -179,7 +179,7 @@ static int vf610_ocotp_read(void *context, unsigned int offset,
 			}
 
 			/*
-			 * In case of error, we do not abort and expect to read
+			 * In case of error, we do yest abort and expect to read
 			 * 0xBADABADA as mentioned by the TRM. We just read this
 			 * value and return.
 			 */

@@ -10,7 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/tracepoint.h>
 #include <linux/cpumask.h>
 #include <linux/irq_work.h>
@@ -41,7 +41,7 @@
 #define KVM_SOFT_MAX_VCPUS 240
 #define KVM_MAX_VCPU_ID 1023
 #define KVM_USER_MEM_SLOTS 509
-/* memory slots that are not exposed to userspace */
+/* memory slots that are yest exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 3
 #define KVM_MEM_SLOTS_NUM (KVM_USER_MEM_SLOTS + KVM_PRIVATE_MEM_SLOTS)
 
@@ -231,20 +231,20 @@ struct kvm_kernel_irq_routing_entry;
 
 /*
  * We don't want allocation failures within the mmu code, so we preallocate
- * enough memory for a single page fault in a cache.
+ * eyesugh memory for a single page fault in a cache.
  */
 struct kvm_mmu_memory_cache {
-	int nobjs;
+	int yesbjs;
 	void *objects[KVM_NR_MEM_OBJS];
 };
 
 /*
  * the pages used as guest page table on soft mmu are tracked by
  * kvm_memory_slot.arch.gfn_track which is 16 bits, so the role bits used
- * by indirect shadow page can not be more than 15 bits.
+ * by indirect shadow page can yest be more than 15 bits.
  *
  * Currently, we used 14 bits that are @level, @gpte_is_8_bytes, @quadrant, @access,
- * @nxe, @cr0_wp, @smep_andnot_wp and @smap_andnot_wp.
+ * @nxe, @cr0_wp, @smep_andyest_wp and @smap_andyest_wp.
  */
 union kvm_mmu_page_role {
 	u32 word;
@@ -257,8 +257,8 @@ union kvm_mmu_page_role {
 		unsigned invalid:1;
 		unsigned nxe:1;
 		unsigned cr0_wp:1;
-		unsigned smep_andnot_wp:1;
-		unsigned smap_andnot_wp:1;
+		unsigned smep_andyest_wp:1;
+		unsigned smap_andyest_wp:1;
 		unsigned ad_disabled:1;
 		unsigned guest_mode:1;
 		unsigned :6;
@@ -276,7 +276,7 @@ union kvm_mmu_page_role {
 union kvm_mmu_extended_role {
 /*
  * This structure complements kvm_mmu_page_role caching everything needed for
- * MMU configuration. If nothing in both these structures changed, MMU
+ * MMU configuration. If yesthing in both these structures changed, MMU
  * re-configuration can be skipped. @valid bit is set on first usage so we don't
  * treat all-zero structure as valid data.
  */
@@ -309,7 +309,7 @@ struct kvm_rmap_head {
 
 struct kvm_mmu_page {
 	struct list_head link;
-	struct hlist_node hash_link;
+	struct hlist_yesde hash_link;
 	struct list_head lpage_disallowed_link;
 
 	bool unsync;
@@ -420,15 +420,15 @@ struct kvm_mmu {
 
 	/*
 	 * check zero bits on shadow page table entries, these
-	 * bits include not only hardware reserved bits but also
+	 * bits include yest only hardware reserved bits but also
 	 * the bits spte never used.
 	 */
 	struct rsvd_bits_validate shadow_zero_check;
 
 	struct rsvd_bits_validate guest_rsvd_check;
 
-	/* Can have large pages at levels 2..last_nonleaf_level-1. */
-	u8 last_nonleaf_level;
+	/* Can have large pages at levels 2..last_yesnleaf_level-1. */
+	u8 last_yesnleaf_level;
 
 	bool nx;
 
@@ -480,7 +480,7 @@ struct kvm_pmu {
 	DECLARE_BITMAP(pmc_in_use, X86_PMC_IDX_MAX);
 
 	/*
-	 * The gate to release perf_events not marked in
+	 * The gate to release perf_events yest marked in
 	 * pmc_in_use only once in a vcpu time slice.
 	 */
 	bool need_cleanup;
@@ -503,7 +503,7 @@ enum {
 struct kvm_mtrr_range {
 	u64 base;
 	u64 mask;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct kvm_mtrr {
@@ -607,7 +607,7 @@ struct kvm_vcpu_arch {
 	 *
 	 * This context will save all necessary information to walk page tables
 	 * of the an L2 guest. This context is only initialized for page table
-	 * walking and not for faulting since we never handle l2 page faults on
+	 * walking and yest for faulting since we never handle l2 page faults on
 	 * the host.
 	 */
 	struct kvm_mmu nested_mmu;
@@ -707,7 +707,7 @@ struct kvm_vcpu_arch {
 	u64 msr_ia32_power_ctl;
 	u64 tsc_scaling_ratio;
 
-	atomic_t nmi_queued;  /* unprocessed asynchronous NMIs */
+	atomic_t nmi_queued;  /* unprocessed asynchroyesus NMIs */
 	unsigned nmi_pending; /* NMI queued after currently running handler */
 	bool nmi_injected;    /* Trying to inject an NMI this entry */
 	bool smi_pending;    /* SMI queued after currently running handler */
@@ -819,8 +819,8 @@ struct kvm_arch_memory_slot {
  * We use as the mode the number of bits allocated in the LDR for the
  * logical processor ID.  It happens that these are all powers of two.
  * This makes it is very easy to detect cases where the APICs are
- * configured for multiple modes; in that case, we cannot use the map and
- * hence cannot use kvm_irq_delivery_to_apic_fast either.
+ * configured for multiple modes; in that case, we canyest use the map and
+ * hence canyest use kvm_irq_delivery_to_apic_fast either.
  */
 #define KVM_APIC_MODE_XAPIC_CLUSTER          4
 #define KVM_APIC_MODE_XAPIC_FLAT             8
@@ -881,14 +881,14 @@ struct kvm_arch {
 	struct list_head active_mmu_pages;
 	struct list_head zapped_obsolete_pages;
 	struct list_head lpage_disallowed_mmu_pages;
-	struct kvm_page_track_notifier_node mmu_sp_tracker;
-	struct kvm_page_track_notifier_head track_notifier_head;
+	struct kvm_page_track_yestifier_yesde mmu_sp_tracker;
+	struct kvm_page_track_yestifier_head track_yestifier_head;
 
 	struct list_head assigned_dev_head;
 	struct iommu_domain *iommu_domain;
-	bool iommu_noncoherent;
+	bool iommu_yesncoherent;
 #define __KVM_HAVE_ARCH_NONCOHERENT_DMA
-	atomic_t noncoherent_dma_count;
+	atomic_t yesncoherent_dma_count;
 #define __KVM_HAVE_ARCH_ASSIGNED_DEVICE
 	atomic_t assigned_device_count;
 	struct kvm_pic *vpic;
@@ -922,14 +922,14 @@ struct kvm_arch {
 	spinlock_t pvclock_gtod_sync_lock;
 	bool use_master_clock;
 	u64 master_kernel_ns;
-	u64 master_cycle_now;
+	u64 master_cycle_yesw;
 	struct delayed_work kvmclock_update_work;
 	struct delayed_work kvmclock_sync_work;
 
 	struct kvm_xen_hvm_config xen_hvm_config;
 
 	/* reads protected by irq_srcu, writes by irq_lock */
-	struct hlist_head mask_notifier_list;
+	struct hlist_head mask_yestifier_list;
 
 	struct kvm_hv hyperv;
 
@@ -1039,7 +1039,7 @@ struct kvm_x86_ops {
 	int (*vm_init)(struct kvm *kvm);
 	void (*vm_destroy)(struct kvm *kvm);
 
-	/* Create, but do not attach this VCPU */
+	/* Create, but do yest attach this VCPU */
 	struct kvm_vcpu *(*vcpu_create)(struct kvm *kvm, unsigned id);
 	void (*vcpu_free)(struct kvm_vcpu *vcpu);
 	void (*vcpu_reset)(struct kvm_vcpu *vcpu, bool init_event);
@@ -1083,9 +1083,9 @@ struct kvm_x86_ops {
 
 	/*
 	 * Flush any TLB entries associated with the given GVA.
-	 * Does not need to flush GPA->HPA mappings.
-	 * Can potentially get non-canonical addresses through INVLPGs, which
-	 * the implementation may choose to ignore if appropriate.
+	 * Does yest need to flush GPA->HPA mappings.
+	 * Can potentially get yesn-cayesnical addresses through INVLPGs, which
+	 * the implementation may choose to igyesre if appropriate.
 	 */
 	void (*tlb_flush_gva)(struct kvm_vcpu *vcpu, gva_t addr);
 
@@ -1185,7 +1185,7 @@ struct kvm_x86_ops {
 	 * HLT instruction.
 	 * Returns for .pre_block():
 	 *    - 0 means continue to block the vCPU.
-	 *    - 1 means we cannot block the vCPU since some event
+	 *    - 1 means we canyest block the vCPU since some event
 	 *        happens during this period, such as, 'ON' bit in
 	 *        posted-interrupts descriptor is set.
 	 */
@@ -1302,17 +1302,17 @@ bool pdptrs_changed(struct kvm_vcpu *vcpu);
 int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 			  const void *val, int bytes);
 
-struct kvm_irq_mask_notifier {
-	void (*func)(struct kvm_irq_mask_notifier *kimn, bool masked);
+struct kvm_irq_mask_yestifier {
+	void (*func)(struct kvm_irq_mask_yestifier *kimn, bool masked);
 	int irq;
-	struct hlist_node link;
+	struct hlist_yesde link;
 };
 
-void kvm_register_irq_mask_notifier(struct kvm *kvm, int irq,
-				    struct kvm_irq_mask_notifier *kimn);
-void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
-				      struct kvm_irq_mask_notifier *kimn);
-void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
+void kvm_register_irq_mask_yestifier(struct kvm *kvm, int irq,
+				    struct kvm_irq_mask_yestifier *kimn);
+void kvm_unregister_irq_mask_yestifier(struct kvm *kvm, int irq,
+				      struct kvm_irq_mask_yestifier *kimn);
+void kvm_fire_mask_yestifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 			     bool mask);
 
 extern bool tdp_enabled;
@@ -1557,7 +1557,7 @@ asmlinkage void kvm_spurious_fault(void);
  * Hardware virtualization extension instructions may fault if a
  * reboot turns off virtualization while processes are running.
  * Usually after catching the fault we just panic; during reboot
- * instead the instruction is ignored.
+ * instead the instruction is igyesred.
  */
 #define __kvm_handle_fault_on_reboot(insn)				\
 	"666: \n\t"							\
@@ -1598,7 +1598,7 @@ void kvm_make_scan_ioapic_request(struct kvm *kvm);
 void kvm_make_scan_ioapic_request_mask(struct kvm *kvm,
 				       unsigned long *vcpu_bitmap);
 
-void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+void kvm_arch_async_page_yest_present(struct kvm_vcpu *vcpu,
 				     struct kvm_async_pf *work);
 void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 				 struct kvm_async_pf *work);

@@ -366,7 +366,7 @@
 	BPF_LDX_MEM(BPF_DW, BPF_REG_4, BPF_REG_5, 0),
 	BPF_STX_MEM(BPF_DW, BPF_REG_4, BPF_REG_0, 0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
-	/* now the sk_ptr is verified, free the reference */
+	/* yesw the sk_ptr is verified, free the reference */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_4, 0),
 	BPF_EMIT_CALL(BPF_FUNC_sk_release),
 	BPF_EXIT_INSN(),
@@ -408,7 +408,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "BPF_LD_[ABS|IND] cannot be mixed with socket references",
+	.errstr = "BPF_LD_[ABS|IND] canyest be mixed with socket references",
 	.result = REJECT,
 },
 {
@@ -443,7 +443,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "BPF_LD_[ABS|IND] cannot be mixed with socket references",
+	.errstr = "BPF_LD_[ABS|IND] canyest be mixed with socket references",
 	.result = REJECT,
 },
 {
@@ -595,7 +595,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "cannot write into sock",
+	.errstr = "canyest write into sock",
 	.result = REJECT,
 },
 {
@@ -792,10 +792,10 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "reference has not been acquired before",
+	.errstr = "reference has yest been acquired before",
 },
 {
-	/* !bpf_sk_fullsock(sk) is checked but !bpf_tcp_sock(sk) is not checked */
+	/* !bpf_sk_fullsock(sk) is checked but !bpf_tcp_sock(sk) is yest checked */
 	"reference tracking: tp->snd_cwnd after bpf_sk_fullsock(sk) and bpf_tcp_sock(sk)",
 	.insns = {
 	BPF_SK_LOOKUP(sk_lookup_tcp),

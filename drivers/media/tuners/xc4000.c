@@ -28,19 +28,19 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debugging level (0 to 2, default: 0 (off)).");
 
-static int no_poweroff;
-module_param(no_poweroff, int, 0644);
-MODULE_PARM_DESC(no_poweroff, "Power management (1: disabled, 2: enabled, 0 (default): use device-specific default mode).");
+static int yes_poweroff;
+module_param(yes_poweroff, int, 0644);
+MODULE_PARM_DESC(yes_poweroff, "Power management (1: disabled, 2: enabled, 0 (default): use device-specific default mode).");
 
 static int audio_std;
 module_param(audio_std, int, 0644);
-MODULE_PARM_DESC(audio_std, "Audio standard. XC4000 audio decoder explicitly needs to know what audio standard is needed for some video standards with audio A2 or NICAM. The valid settings are a sum of:\n"
+MODULE_PARM_DESC(audio_std, "Audio standard. XC4000 audio decoder explicitly needs to kyesw what audio standard is needed for some video standards with audio A2 or NICAM. The valid settings are a sum of:\n"
 	" 1: use NICAM/B or A2/B instead of NICAM/A or A2/A\n"
 	" 2: use A2 instead of NICAM or BTSC\n"
 	" 4: use SECAM/K3 instead of K1\n"
 	" 8: use PAL-D/K audio for SECAM-D/K\n"
 	"16: use FM radio input 1 instead of input 2\n"
-	"32: use mono audio (the lower three bits are ignored)");
+	"32: use moyes audio (the lower three bits are igyesred)");
 
 static char firmware_name[30];
 module_param_string(firmware_name, firmware_name, sizeof(firmware_name), 0);
@@ -83,7 +83,7 @@ struct xc4000_priv {
 	u8	default_pm;
 	u8	dvb_amplitude;
 	u8	set_smoothedcvbs;
-	u8	ignore_i2c_write_errors;
+	u8	igyesre_i2c_write_errors;
 	__u16	firm_version;
 	struct firmware_properties cur_fw;
 	__u16	hwmodel;
@@ -185,7 +185,7 @@ struct XC_TV_STANDARD {
 #define XC4000_MN_NTSC_PAL_BTSC		0
 #define XC4000_MN_NTSC_PAL_A2		1
 #define XC4000_MN_NTSC_PAL_EIAJ		2
-#define XC4000_MN_NTSC_PAL_Mono		3
+#define XC4000_MN_NTSC_PAL_Moyes		3
 #define XC4000_BG_PAL_A2		4
 #define XC4000_BG_PAL_NICAM		5
 #define XC4000_BG_PAL_MONO		6
@@ -211,7 +211,7 @@ static struct XC_TV_STANDARD xc4000_standard[MAX_TV_STANDARD] = {
 	{"M/N-NTSC/PAL-BTSC",	0x0000, 0x80A0, 4500},
 	{"M/N-NTSC/PAL-A2",	0x0000, 0x80A0, 4600},
 	{"M/N-NTSC/PAL-EIAJ",	0x0040, 0x80A0, 4500},
-	{"M/N-NTSC/PAL-Mono",	0x0078, 0x80A0, 4500},
+	{"M/N-NTSC/PAL-Moyes",	0x0078, 0x80A0, 4500},
 	{"B/G-PAL-A2",		0x0000, 0x8159, 5640},
 	{"B/G-PAL-NICAM",	0x0004, 0x8159, 5740},
 	{"B/G-PAL-MONO",	0x0078, 0x8159, 5500},
@@ -243,7 +243,7 @@ static int xc_send_i2c_data(struct xc4000_priv *priv, u8 *buf, int len)
 	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
 			       .flags = 0, .buf = buf, .len = len };
 	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
-		if (priv->ignore_i2c_write_errors == 0) {
+		if (priv->igyesre_i2c_write_errors == 0) {
 			printk(KERN_ERR "xc4000: I2C write failed (len=%i)\n",
 			       len);
 			if (len == 4) {
@@ -273,7 +273,7 @@ static int xc4000_tuner_reset(struct dvb_frontend *fe)
 			return -EREMOTEIO;
 		}
 	} else {
-		printk(KERN_ERR "xc4000: no tuner reset callback function, fatal\n");
+		printk(KERN_ERR "xc4000: yes tuner reset callback function, fatal\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -307,7 +307,7 @@ static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
 		len = i2c_sequence[index] * 256 + i2c_sequence[index+1];
 		if (len == 0x0000) {
 			/* RESET command */
-			/* NOTE: this is ignored, as the reset callback was */
+			/* NOTE: this is igyesred, as the reset callback was */
 			/* already called by check_firmware() */
 			index += 2;
 		} else if (len & 0x8000) {
@@ -316,7 +316,7 @@ static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
 			index += 2;
 		} else {
 			/* Send i2c data whilst ensuring individual transactions
-			 * do not exceed XC_MAX_I2C_WRITE_LENGTH bytes.
+			 * do yest exceed XC_MAX_I2C_WRITE_LENGTH bytes.
 			 */
 			index += 2;
 			buf[0] = i2c_sequence[index];
@@ -356,13 +356,13 @@ static int xc_set_tv_standard(struct xc4000_priv *priv,
 		xc4000_standard[priv->video_standard].Name);
 
 	/* Don't complain when the request fails because of i2c stretching */
-	priv->ignore_i2c_write_errors = 1;
+	priv->igyesre_i2c_write_errors = 1;
 
 	ret = xc_write_reg(priv, XREG_VIDEO_MODE, video_mode);
 	if (ret == 0)
 		ret = xc_write_reg(priv, XREG_AUDIO_MODE, audio_mode);
 
-	priv->ignore_i2c_write_errors = 0;
+	priv->igyesre_i2c_write_errors = 0;
 
 	return ret;
 }
@@ -396,7 +396,7 @@ static int xc_set_rf_frequency(struct xc4000_priv *priv, u32 freq_hz)
 	freq_code = (u16)(freq_hz / 15625);
 
 	/* WAS: Starting in firmware version 1.1.44, Xceive recommends using the
-	   FINERFREQ for all normal tuning (the doc indicates reg 0x03 should
+	   FINERFREQ for all yesrmal tuning (the doc indicates reg 0x03 should
 	   only be used for fast scanning for channel lock) */
 	/* WAS: XREG_FINERFREQ */
 	return xc_write_reg(priv, XREG_RF_FREQ, freq_code);
@@ -429,8 +429,8 @@ static int xc_get_lock_status(struct xc4000_priv *priv, u16 *lock_status)
 }
 
 static int xc_get_version(struct xc4000_priv *priv,
-	u8 *hw_majorversion, u8 *hw_minorversion,
-	u8 *fw_majorversion, u8 *fw_minorversion)
+	u8 *hw_majorversion, u8 *hw_miyesrversion,
+	u8 *fw_majorversion, u8 *fw_miyesrversion)
 {
 	u16 data;
 	int result;
@@ -440,9 +440,9 @@ static int xc_get_version(struct xc4000_priv *priv,
 		return result;
 
 	(*hw_majorversion) = (data >> 12) & 0x0F;
-	(*hw_minorversion) = (data >>  8) & 0x0F;
+	(*hw_miyesrversion) = (data >>  8) & 0x0F;
 	(*fw_majorversion) = (data >>  4) & 0x0F;
-	(*fw_minorversion) = data & 0x0F;
+	(*fw_miyesrversion) = data & 0x0F;
 
 	return 0;
 }
@@ -475,9 +475,9 @@ static int xc_get_signal_level(struct xc4000_priv *priv, u16 *signal)
 	return xc4000_readreg(priv, XREG_SIGNAL_LEVEL, signal);
 }
 
-static int xc_get_noise_level(struct xc4000_priv *priv, u16 *noise)
+static int xc_get_yesise_level(struct xc4000_priv *priv, u16 *yesise)
 {
-	return xc4000_readreg(priv, XREG_NOISE_LEVEL, noise);
+	return xc4000_readreg(priv, XREG_NOISE_LEVEL, yesise);
 }
 
 static u16 xc_wait_for_lock(struct xc4000_priv *priv)
@@ -503,9 +503,9 @@ static int xc_tune_channel(struct xc4000_priv *priv, u32 freq_hz)
 	dprintk(1, "%s(%u)\n", __func__, freq_hz);
 
 	/* Don't complain when the request fails because of i2c stretching */
-	priv->ignore_i2c_write_errors = 1;
+	priv->igyesre_i2c_write_errors = 1;
 	result = xc_set_rf_frequency(priv, freq_hz);
-	priv->ignore_i2c_write_errors = 0;
+	priv->igyesre_i2c_write_errors = 0;
 
 	if (result != 0)
 		return 0;
@@ -623,7 +623,7 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 	unsigned int	best_nr_diffs = 255U;
 
 	if (!priv->firm) {
-		printk(KERN_ERR "Error! firmware not loaded\n");
+		printk(KERN_ERR "Error! firmware yest loaded\n");
 		return -EINVAL;
 	}
 
@@ -693,11 +693,11 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 	p = priv->firm[pos].ptr;
 
 	/* Don't complain when the request fails because of i2c stretching */
-	priv->ignore_i2c_write_errors = 1;
+	priv->igyesre_i2c_write_errors = 1;
 
 	rc = xc_load_i2c_sequence(fe, p);
 
-	priv->ignore_i2c_write_errors = 0;
+	priv->igyesre_i2c_write_errors = 0;
 
 	return rc;
 }
@@ -733,7 +733,7 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 
 	if (rc < 0) {
 		if (rc == -ENOENT)
-			printk(KERN_ERR "Error: firmware %s not found.\n", fname);
+			printk(KERN_ERR "Error: firmware %s yest found.\n", fname);
 		else
 			printk(KERN_ERR "Error %d while requesting firmware %s\n",
 			       rc, fname);
@@ -767,7 +767,7 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 
 	priv->firm = kcalloc(n_array, sizeof(*priv->firm), GFP_KERNEL);
 	if (priv->firm == NULL) {
-		printk(KERN_ERR "Not enough memory to load firmware file.\n");
+		printk(KERN_ERR "Not eyesugh memory to load firmware file.\n");
 		rc = -ENOMEM;
 		goto done;
 	}
@@ -785,7 +785,7 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 			goto corrupt;
 		}
 
-		/* Checks if there's enough bytes to read */
+		/* Checks if there's eyesugh bytes to read */
 		if (endp - p < sizeof(type) + sizeof(id) + sizeof(size))
 			goto header;
 
@@ -814,7 +814,7 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 
 		priv->firm[n].ptr = kmemdup(p, size, GFP_KERNEL);
 		if (priv->firm[n].ptr == NULL) {
-			printk(KERN_ERR "Not enough memory to load firmware file.\n");
+			printk(KERN_ERR "Not eyesugh memory to load firmware file.\n");
 			rc = -ENOMEM;
 			goto done;
 		}
@@ -928,7 +928,7 @@ static int check_firmware(struct dvb_frontend *fe, unsigned int type,
 	int			   rc = 0, is_retry = 0;
 	u16			   hwmodel;
 	v4l2_std_id		   std0;
-	u8			   hw_major = 0, hw_minor = 0, fw_major = 0, fw_minor = 0;
+	u8			   hw_major = 0, hw_miyesr = 0, fw_major = 0, fw_miyesr = 0;
 
 	dprintk(1, "%s called\n", __func__);
 
@@ -960,7 +960,7 @@ retry:
 
 	/* No need to reload base firmware if it matches */
 	if (priv->cur_fw.type & BASE) {
-		dprintk(1, "BASE firmware not changed.\n");
+		dprintk(1, "BASE firmware yest changed.\n");
 		goto skip_base;
 	}
 
@@ -995,7 +995,7 @@ retry:
 skip_base:
 	/*
 	 * No need to reload standard specific firmware if base firmware
-	 * was not reloaded and requested video standards have not changed.
+	 * was yest reloaded and requested video standards have yest changed.
 	 */
 	if (priv->cur_fw.type == (BASE | new_fw.type) &&
 	    priv->cur_fw.std_req == std) {
@@ -1031,20 +1031,20 @@ check_device:
 		goto fail;
 	}
 
-	if (xc_get_version(priv, &hw_major, &hw_minor, &fw_major,
-			   &fw_minor) != 0) {
+	if (xc_get_version(priv, &hw_major, &hw_miyesr, &fw_major,
+			   &fw_miyesr) != 0) {
 		printk(KERN_ERR "Unable to read tuner registers.\n");
 		goto fail;
 	}
 
 	dprintk(1, "Device is Xceive %d version %d.%d, firmware version %d.%d\n",
-		hwmodel, hw_major, hw_minor, fw_major, fw_minor);
+		hwmodel, hw_major, hw_miyesr, fw_major, fw_miyesr);
 
 	/* Check firmware version against what we downloaded. */
-	if (priv->firm_version != ((fw_major << 8) | fw_minor)) {
+	if (priv->firm_version != ((fw_major << 8) | fw_miyesr)) {
 		printk(KERN_WARNING
 		       "Incorrect readback of firmware version %d.%d.\n",
-		       fw_major, fw_minor);
+		       fw_major, fw_miyesr);
 		goto fail;
 	}
 
@@ -1053,9 +1053,9 @@ check_device:
 	    (hwmodel == XC_PRODUCT_ID_XC4000 ||
 	     hwmodel == XC_PRODUCT_ID_XC4100)) {
 		priv->hwmodel = hwmodel;
-		priv->hwvers = (hw_major << 8) | hw_minor;
+		priv->hwvers = (hw_major << 8) | hw_miyesr;
 	} else if (priv->hwmodel == 0 || priv->hwmodel != hwmodel ||
-		   priv->hwvers != ((hw_major << 8) | hw_minor)) {
+		   priv->hwvers != ((hw_major << 8) | hw_miyesr)) {
 		printk(KERN_WARNING
 		       "Read invalid device hardware information - tuner hung?\n");
 		goto fail;
@@ -1096,9 +1096,9 @@ static void xc_debug_dump(struct xc4000_priv *priv)
 	u16	frame_lines;
 	u16	quality;
 	u16	signal = 0;
-	u16	noise = 0;
-	u8	hw_majorversion = 0, hw_minorversion = 0;
-	u8	fw_majorversion = 0, fw_minorversion = 0;
+	u16	yesise = 0;
+	u8	hw_majorversion = 0, hw_miyesrversion = 0;
+	u8	fw_majorversion = 0, fw_miyesrversion = 0;
 
 	xc_get_adc_envelope(priv, &adc_envelope);
 	dprintk(1, "*** ADC envelope (0-1023) = %d\n", adc_envelope);
@@ -1110,11 +1110,11 @@ static void xc_debug_dump(struct xc4000_priv *priv)
 	dprintk(1, "*** Lock status (0-Wait, 1-Locked, 2-No-signal) = %d\n",
 		lock_status);
 
-	xc_get_version(priv, &hw_majorversion, &hw_minorversion,
-		       &fw_majorversion, &fw_minorversion);
+	xc_get_version(priv, &hw_majorversion, &hw_miyesrversion,
+		       &fw_majorversion, &fw_miyesrversion);
 	dprintk(1, "*** HW: V%02x.%02x, FW: V%02x.%02x\n",
-		hw_majorversion, hw_minorversion,
-		fw_majorversion, fw_minorversion);
+		hw_majorversion, hw_miyesrversion,
+		fw_majorversion, fw_miyesrversion);
 
 	if (priv->video_standard < XC4000_DTV6) {
 		xc_get_hsync_freq(priv, &hsync_freq_hz);
@@ -1131,8 +1131,8 @@ static void xc_debug_dump(struct xc4000_priv *priv)
 	xc_get_signal_level(priv, &signal);
 	dprintk(1, "*** Signal level = -%ddB (%d)\n", signal >> 8, signal);
 
-	xc_get_noise_level(priv, &noise);
-	dprintk(1, "*** Noise level = %ddB (%d)\n", noise >> 8, noise);
+	xc_get_yesise_level(priv, &yesise);
+	dprintk(1, "*** Noise level = %ddB (%d)\n", yesise >> 8, yesise);
 }
 
 static int xc4000_set_params(struct dvb_frontend *fe)
@@ -1190,7 +1190,7 @@ static int xc4000_set_params(struct dvb_frontend *fe)
 		priv->rf_mode = XC_RF_MODE_AIR;
 		break;
 	default:
-		printk(KERN_ERR "xc4000 delivery system not supported!\n");
+		printk(KERN_ERR "xc4000 delivery system yest supported!\n");
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -1220,7 +1220,7 @@ static int xc4000_set_params(struct dvb_frontend *fe)
 		ret = xc_set_tv_standard(priv, video_mode, audio_mode);
 		if (ret != 0) {
 			printk(KERN_ERR "xc4000: xc_set_tv_standard failed\n");
-			/* DJH - do not return when it fails... */
+			/* DJH - do yest return when it fails... */
 			/* goto fail; */
 		}
 	}
@@ -1289,7 +1289,7 @@ static int xc4000_set_analog_params(struct dvb_frontend *fe,
 	priv->freq_hz = params->frequency * 62500;
 
 	params->std &= V4L2_STD_ALL;
-	/* if std is not defined, choose one */
+	/* if std is yest defined, choose one */
 	if (!params->std)
 		params->std = V4L2_STD_PAL_BG;
 
@@ -1299,7 +1299,7 @@ static int xc4000_set_analog_params(struct dvb_frontend *fe,
 	if (params->std & V4L2_STD_MN) {
 		params->std = V4L2_STD_MN;
 		if (audio_std & XC4000_AUDIO_STD_MONO) {
-			priv->video_standard = XC4000_MN_NTSC_PAL_Mono;
+			priv->video_standard = XC4000_MN_NTSC_PAL_Moyes;
 		} else if (audio_std & XC4000_AUDIO_STD_A2) {
 			params->std |= V4L2_STD_A2;
 			priv->video_standard = XC4000_MN_NTSC_PAL_A2;
@@ -1466,7 +1466,7 @@ static int xc4000_get_signal(struct dvb_frontend *fe, u16 *strength)
 	 */
 	tuner_dbg("Signal strength: -%ddB (%05d)\n", value >> 8, value);
 
-	/* all known digital modes */
+	/* all kyeswn digital modes */
 	if ((priv->video_standard == XC4000_DTV6) ||
 	    (priv->video_standard == XC4000_DTV7) ||
 	    (priv->video_standard == XC4000_DTV7_8) ||
@@ -1484,7 +1484,7 @@ static int xc4000_get_signal(struct dvb_frontend *fe, u16 *strength)
 
 	tuner_dbg("Noise level: %ddB (%05d)\n", value >> 8, value);
 
-	/* highest noise level: 32dB */
+	/* highest yesise level: 32dB */
 	if (value >= 0x2000) {
 		value = 0;
 	} else {
@@ -1494,7 +1494,7 @@ static int xc4000_get_signal(struct dvb_frontend *fe, u16 *strength)
 	goto ret;
 
 	/* Digital mode has SIGNAL LEVEL important and real
-	   noise level is stored in demodulator registers.
+	   yesise level is stored in demodulator registers.
 	 */
 digital:
 	/* best signal: -50dB */
@@ -1580,8 +1580,8 @@ static int xc4000_sleep(struct dvb_frontend *fe)
 	mutex_lock(&priv->lock);
 
 	/* Avoid firmware reload on slow devices */
-	if ((no_poweroff == 2 ||
-	     (no_poweroff == 0 && priv->default_pm != 0)) &&
+	if ((yes_poweroff == 2 ||
+	     (yes_poweroff == 0 && priv->default_pm != 0)) &&
 	    (priv->cur_fw.type & BASE) != 0) {
 		/* force reset and firmware reload */
 		priv->cur_fw.type = XC_POWERED_DOWN;
@@ -1688,7 +1688,7 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 		priv->set_smoothedcvbs = cfg->set_smoothedcvbs;
 	}
 
-	/* Check if firmware has been loaded. It is possible that another
+	/* Check if firmware has been loaded. It is possible that ayesther
 	   instance of the driver has loaded the firmware.
 	 */
 
@@ -1714,11 +1714,11 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 			"xc4000: Successfully identified at address 0x%02x\n",
 			cfg->i2c_address);
 		printk(KERN_INFO
-			"xc4000: Firmware has not been loaded previously\n");
+			"xc4000: Firmware has yest been loaded previously\n");
 		break;
 	default:
 		printk(KERN_ERR
-			"xc4000: Device not found at addr 0x%02x (0x%x)\n",
+			"xc4000: Device yest found at addr 0x%02x (0x%x)\n",
 			cfg->i2c_address, id);
 		goto fail;
 	}

@@ -29,7 +29,7 @@
 #define VALIDATE_IMG_INCOMPLETE	-1002	/* User copied < VALIDATE_BUF_SIZE */
 
 /* Manage image status values */
-#define MANAGE_ACTIVE_ERR	-9001	/* Cannot overwrite active img */
+#define MANAGE_ACTIVE_ERR	-9001	/* Canyest overwrite active img */
 
 /* Flash image status values */
 #define FLASH_IMG_READY		0	/* Img ready for flash on reboot */
@@ -47,9 +47,9 @@
 
 /* Validate image update result tokens */
 #define VALIDATE_TMP_UPDATE	0     /* T side will be updated */
-#define VALIDATE_FLASH_AUTH	1     /* Partition does not have authority */
-#define VALIDATE_INVALID_IMG	2     /* Candidate image is not valid */
-#define VALIDATE_CUR_UNKNOWN	3     /* Current fixpack level is unknown */
+#define VALIDATE_FLASH_AUTH	1     /* Partition does yest have authority */
+#define VALIDATE_INVALID_IMG	2     /* Candidate image is yest valid */
+#define VALIDATE_CUR_UNKNOWN	3     /* Current fixpack level is unkyeswn */
 /*
  * Current T side will be committed to P side before being replace with new
  * image, and the new image is downlevel from current image
@@ -153,7 +153,7 @@ static ssize_t validate_show(struct kobject *kobj,
 	struct validate_flash_t *args_buf = &validate_flash_data;
 	int len;
 
-	/* Candidate image is not validated */
+	/* Candidate image is yest validated */
 	if (args_buf->status < VALIDATE_TMP_UPDATE) {
 		len = sprintf(buf, "%d\n", args_buf->status);
 		goto out;
@@ -308,7 +308,7 @@ void opal_flash_update_print_message(void)
 	pr_alert("FLASH: Flashing new firmware\n");
 	pr_alert("FLASH: Image is %u bytes\n", image_data.size);
 	pr_alert("FLASH: Performing flash and reboot/shutdown\n");
-	pr_alert("FLASH: This will take several minutes. Do not power off!\n");
+	pr_alert("FLASH: This will take several minutes. Do yest power off!\n");
 
 	/* Small delay to help getting the above message out */
 	msleep(500);
@@ -529,21 +529,21 @@ void __init opal_flash_update_init(void)
 
 	/* Make sure /sys/firmware/opal directory is created */
 	if (!opal_kobj) {
-		pr_warn("FLASH: opal kobject is not available\n");
-		goto nokobj;
+		pr_warn("FLASH: opal kobject is yest available\n");
+		goto yeskobj;
 	}
 
 	/* Create the sysfs files */
 	ret = sysfs_create_group(opal_kobj, &image_op_attr_group);
 	if (ret) {
 		pr_warn("FLASH: Failed to create sysfs files\n");
-		goto nokobj;
+		goto yeskobj;
 	}
 
 	ret = sysfs_create_bin_file(opal_kobj, &image_data_attr);
 	if (ret) {
 		pr_warn("FLASH: Failed to create sysfs files\n");
-		goto nosysfs_file;
+		goto yessysfs_file;
 	}
 
 	/* Set default status */
@@ -553,10 +553,10 @@ void __init opal_flash_update_init(void)
 	image_data.status = IMAGE_INVALID;
 	return;
 
-nosysfs_file:
+yessysfs_file:
 	sysfs_remove_group(opal_kobj, &image_op_attr_group);
 
-nokobj:
+yeskobj:
 	kfree(validate_flash_data.buf);
 	return;
 }

@@ -24,9 +24,9 @@ sessions over a UDP tunnel.
 L2TPv3 (rfc3931) changes the protocol to allow different frame types
 to be passed over an L2TP tunnel by moving the PPP-specific parts of
 the protocol out of the core L2TP packet headers. Each frame type is
-known as a pseudowire type. Ethernet, PPP, HDLC, Frame Relay and ATM
-pseudowires for L2TP are defined in separate RFC standards. Another
-change for L2TPv3 is that it can be carried directly over IP with no
+kyeswn as a pseudowire type. Ethernet, PPP, HDLC, Frame Relay and ATM
+pseudowires for L2TP are defined in separate RFC standards. Ayesther
+change for L2TPv3 is that it can be carried directly over IP with yes
 UDP header (UDP is optional). It is also possible to create static
 unmanaged L2TPv3 tunnels manually without a control protocol
 (userspace daemon) to manage them.
@@ -47,7 +47,7 @@ clients/servers and are used to setup / teardown tunnels and
 sessions. An L2TP client or server is implemented in userspace.
 
 Each L2TP tunnel is implemented using a UDP or L2TPIP socket; L2TPIP
-provides L2TPv3 IP encapsulation (no UDP) and is implemented using a
+provides L2TPv3 IP encapsulation (yes UDP) and is implemented using a
 new l2tpip socket family. The tunnel socket is typically created by
 userspace, though for unmanaged L2TPv3 tunnels, the socket can also be
 created by the kernel. Each L2TP session (pseudowire) gets a network
@@ -69,7 +69,7 @@ netdevice driver, managing virtual ethernet devices, one per
 pseudowire. These interfaces can be managed using standard Linux tools
 such as "ip" and "ifconfig". If only IP frames are passed over the
 tunnel, the interface can be given an IP addresses of itself and its
-peer. If non-IP frames are to be passed over the tunnel, the interface
+peer. If yesn-IP frames are to be passed over the tunnel, the interface
 can be added to a bridge using brctl. All L2TP datapath protocol
 functions are handled by the L2TP core driver.
 
@@ -158,9 +158,9 @@ is closed. The netlink API may also be used to delete sessions and
 tunnels. Configuration and status info may be set or read using netlink.
 
 The L2TP driver also supports static (unmanaged) L2TPv3 tunnels. These
-are where there is no L2TP control message exchange with the peer to
+are where there is yes L2TP control message exchange with the peer to
 setup the tunnel; the tunnel is configured manually at each end of the
-tunnel. There is no need for an L2TP userspace application in this
+tunnel. There is yes need for an L2TP userspace application in this
 case -- the tunnel socket is created by the kernel and configured
 using parameters sent in the L2TP_CMD_TUNNEL_CREATE netlink
 request. The "ip" utility of iproute2 has commands for managing static
@@ -171,7 +171,7 @@ Debugging
 
 The driver supports a flexible debug scheme where kernel trace
 messages may be optionally enabled per tunnel and per session. Care is
-needed when debugging a live system since the messages are not
+needed when debugging a live system since the messages are yest
 rate-limited and a busy system could be swamped. Userspace uses
 setsockopt on the PPPoX socket to set a debug mask.
 
@@ -192,9 +192,9 @@ Files under the l2tp directory can then be accessed.
 
 # cat /debug/l2tp/tunnels
 
-The debugfs files should not be used by applications to obtain L2TP
+The debugfs files should yest be used by applications to obtain L2TP
 state information because the file format is subject to change. It is
-implemented to provide extra debug information to help diagnose
+implemented to provide extra debug information to help diagyesse
 problems.) Users should use the netlink API.
 
 /proc/net/pppol2tp is also provided for backwards compatibility with
@@ -205,7 +205,7 @@ Unmanaged L2TPv3 Tunnels
 ========================
 
 Some commercial L2TP products support unmanaged L2TPv3 ethernet
-tunnels, where there is no L2TP control protocol; tunnels are
+tunnels, where there is yes L2TP control protocol; tunnels are
 configured at each side manually. New commands are available in
 iproute2's ip utility to support this.
 
@@ -225,7 +225,7 @@ of the remote system. The IP addresses of the l2tpeth0 interface can be
 anything suitable.
 
 Repeat the above at the peer, with ports, tunnel/session ids and IP
-addresses reversed.  The tunnel and session IDs can be any non-zero
+addresses reversed.  The tunnel and session IDs can be any yesn-zero
 32-bit number, but the values must be reversed at the peer.
 
 Host 1                         Host2
@@ -267,7 +267,7 @@ Sample Userspace Code
 
                 if(connect(kernel_fd, (struct sockaddr *)&sax, sizeof(sax) ) < 0 ) {
                         perror("connect failed");
-                        result = -errno;
+                        result = -erryes;
                         goto err;
                 }
         }
@@ -277,7 +277,7 @@ Sample Userspace Code
         struct sockaddr_pppol2tp sax;
         int fd;
 
-        /* Note, the target socket must be bound already, else it will not be ready */
+        /* Note, the target socket must be bound already, else it will yest be ready */
         sax.sa_family = AF_PPPOX;
         sax.sa_protocol = PX_PROTO_OL2TP;
         sax.pppol2tp.fd = tunnel_fd;
@@ -294,7 +294,7 @@ Sample Userspace Code
          */
         fd = connect(session_fd, (struct sockaddr *)&sax, sizeof(sax));
         if (fd < 0 )    {
-                return -errno;
+                return -erryes;
         }
         return 0;
 
@@ -313,10 +313,10 @@ Relay.
 
 When a tunnel is first opened, the reference count on the socket is
 increased using sock_hold(). This ensures that the kernel socket
-cannot be removed while L2TP's data structures reference it.
+canyest be removed while L2TP's data structures reference it.
 
 Some L2TP sessions also have a socket (PPP pseudowires) while others
-do not (ethernet pseudowires). We can't use the socket reference count
+do yest (ethernet pseudowires). We can't use the socket reference count
 as the reference count for session contexts. The L2TP implementation
 therefore has its own internal reference counts on the session
 contexts.
@@ -325,7 +325,7 @@ To Do
 =====
 
 Add L2TP tunnel switching support. This would route tunneled traffic
-from one L2TP tunnel into another. Specified in
+from one L2TP tunnel into ayesther. Specified in
 http://tools.ietf.org/html/draft-ietf-l2tpext-tunnel-switching-08
 
 Add L2TPv3 VLAN pseudowire support.

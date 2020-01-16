@@ -32,8 +32,8 @@ struct scif_hw_dev_id {
  * @mmio: MMIO memory window
  * @aper: Aperture memory window
  * @dev: underlying device
- * @dnode - The destination node which this device will communicate with.
- * @snode - The source node for this device.
+ * @dyesde - The destination yesde which this device will communicate with.
+ * @syesde - The source yesde for this device.
  * @dp - Self device page
  * @rdp - Remote device page
  * @dma_ch - Array of DMA channels
@@ -47,8 +47,8 @@ struct scif_hw_dev {
 	struct mic_mw *mmio;
 	struct mic_mw *aper;
 	struct device dev;
-	u8 dnode;
-	u8 snode;
+	u8 dyesde;
+	u8 syesde;
 	void *dp;
 	void __iomem *rdp;
 	struct dma_chan **dma_ch;
@@ -60,7 +60,7 @@ struct scif_hw_dev {
  * scif_driver - operations for a scif I/O driver
  * @driver: underlying device driver (populate name and owner).
  * @id_table: the ids serviced by this driver.
- * @probe: the function to call when a device is found.  Returns 0 or -errno.
+ * @probe: the function to call when a device is found.  Returns 0 or -erryes.
  * @remove: the function to call when a device is removed.
  */
 struct scif_driver {
@@ -76,10 +76,10 @@ struct scif_driver {
  * @next_db: Obtain the next available doorbell.
  * @request_irq: Request an interrupt on a particular doorbell.
  * @free_irq: Free an interrupt requested previously.
- * @ack_interrupt: acknowledge an interrupt in the ISR.
- * @send_intr: Send an interrupt to the remote node on a specified doorbell.
- * @send_p2p_intr: Send an interrupt to the peer node on a specified doorbell
- * which is specifically targeted for a peer to peer node.
+ * @ack_interrupt: ackyeswledge an interrupt in the ISR.
+ * @send_intr: Send an interrupt to the remote yesde on a specified doorbell.
+ * @send_p2p_intr: Send an interrupt to the peer yesde on a specified doorbell
+ * which is specifically targeted for a peer to peer yesde.
  * @remap: Map a buffer with the specified physical address and length.
  * @unmap: Unmap a buffer previously mapped.
  */
@@ -106,7 +106,7 @@ void scif_unregister_driver(struct scif_driver *driver);
 struct scif_hw_dev *
 scif_register_device(struct device *pdev, int id,
 		     const struct dma_map_ops *dma_ops,
-		     struct scif_hw_ops *hw_ops, u8 dnode, u8 snode,
+		     struct scif_hw_ops *hw_ops, u8 dyesde, u8 syesde,
 		     struct mic_mw *mmio, struct mic_mw *aper,
 		     void *dp, void __iomem *rdp,
 		     struct dma_chan **chan, int num_chan,

@@ -6,7 +6,7 @@
  */
 
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -37,7 +37,7 @@ struct fujitsu {
  * First byte
  * 1 C 0 0 R S S S
  * Where C is 1 while in calibration mode (which we don't use)
- * R is 1 when no coordinate corection was done.
+ * R is 1 when yes coordinate corection was done.
  * S are button state
  */
 static irqreturn_t fujitsu_interrupt(struct serio *serio,

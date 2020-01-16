@@ -18,9 +18,9 @@ extern struct mm_struct *mm_alloc(void);
  * mmgrab() - Pin a &struct mm_struct.
  * @mm: The &struct mm_struct to pin.
  *
- * Make sure that @mm will not get freed even after the owning task
+ * Make sure that @mm will yest get freed even after the owning task
  * exits. This doesn't guarantee that the associated address space
- * will still exist later on and mmget_not_zero() has to be used before
+ * will still exist later on and mmget_yest_zero() has to be used before
  * accessing it.
  *
  * This is a preferred way to to pin @mm for a longer/unbounded amount
@@ -50,20 +50,20 @@ static inline void mmdrop(struct mm_struct *mm)
 }
 
 /*
- * This has to be called after a get_task_mm()/mmget_not_zero()
+ * This has to be called after a get_task_mm()/mmget_yest_zero()
  * followed by taking the mmap_sem for writing before modifying the
- * vmas or anything the coredump pretends not to change from under it.
+ * vmas or anything the coredump pretends yest to change from under it.
  *
  * It also has to be called when mmgrab() is used in the context of
  * the process, but then the mm_count refcount is transferred outside
  * the context of the process to run down_write() on that pinned mm.
  *
  * NOTE: find_extend_vma() called from GUP context is the only place
- * that can modify the "mm" (notably the vm_start/end) under mmap_sem
+ * that can modify the "mm" (yestably the vm_start/end) under mmap_sem
  * for reading and outside the context of the process, so it is also
  * the only case that holds the mmap_sem for reading that must call
  * this function. Generally if the mmap_sem is hold for reading
- * there's no need of this check after get_task_mm()/mmget_not_zero().
+ * there's yes need of this check after get_task_mm()/mmget_yest_zero().
  *
  * This function can be obsoleted and the check can be removed, after
  * the coredump code will hold the mmap_sem for writing before
@@ -79,7 +79,7 @@ static inline bool mmget_still_valid(struct mm_struct *mm)
  * @mm: The address space to pin.
  *
  * Make sure that the address space of the given &struct mm_struct doesn't
- * go away. This does not protect against parts of the address space being
+ * go away. This does yest protect against parts of the address space being
  * modified or freed, however.
  *
  * Never use this function to pin this address space for an
@@ -95,9 +95,9 @@ static inline void mmget(struct mm_struct *mm)
 	atomic_inc(&mm->mm_users);
 }
 
-static inline bool mmget_not_zero(struct mm_struct *mm)
+static inline bool mmget_yest_zero(struct mm_struct *mm)
 {
-	return atomic_inc_not_zero(&mm->mm_users);
+	return atomic_inc_yest_zero(&mm->mm_users);
 }
 
 /* mmput gets rid of the mappings and all user-space */
@@ -109,10 +109,10 @@ extern void mmput(struct mm_struct *);
 void mmput_async(struct mm_struct *);
 #endif
 
-/* Grab a reference to a task's mm, if it is not already going away */
+/* Grab a reference to a task's mm, if it is yest already going away */
 extern struct mm_struct *get_task_mm(struct task_struct *task);
 /*
- * Grab a reference to a task's mm, if it is not already going away
+ * Grab a reference to a task's mm, if it is yest already going away
  * and ptrace_may_access with the mode parameter passed to it
  * succeeds.
  */
@@ -153,16 +153,16 @@ static inline bool in_vfork(struct task_struct *tsk)
 	 * need RCU to access ->real_parent if CLONE_VM was used along with
 	 * CLONE_PARENT.
 	 *
-	 * We check real_parent->mm == tsk->mm because CLONE_VFORK does not
+	 * We check real_parent->mm == tsk->mm because CLONE_VFORK does yest
 	 * imply CLONE_VM
 	 *
 	 * CLONE_VFORK can be used with CLONE_PARENT/CLONE_THREAD and thus
-	 * ->real_parent is not necessarily the task doing vfork(), so in
+	 * ->real_parent is yest necessarily the task doing vfork(), so in
 	 * theory we can't rely on task_lock() if we want to dereference it.
 	 *
 	 * And in this case we can't trust the real_parent->mm == tsk->mm
-	 * check, it can be false negative. But we do not care, if init or
-	 * another oom-unkillable task does this it should blame itself.
+	 * check, it can be false negative. But we do yest care, if init or
+	 * ayesther oom-unkillable task does this it should blame itself.
 	 */
 	rcu_read_lock();
 	ret = tsk->vfork_done && tsk->real_parent->mm == tsk->mm;
@@ -175,7 +175,7 @@ static inline bool in_vfork(struct task_struct *tsk)
  * Applies per-task gfp context to the given allocation flags.
  * PF_MEMALLOC_NOIO implies GFP_NOIO
  * PF_MEMALLOC_NOFS implies GFP_NOFS
- * PF_MEMALLOC_NOCMA implies no allocation from CMA region.
+ * PF_MEMALLOC_NOCMA implies yes allocation from CMA region.
  */
 static inline gfp_t current_gfp_context(gfp_t flags)
 {
@@ -210,17 +210,17 @@ static inline void fs_reclaim_release(gfp_t gfp_mask) { }
 #endif
 
 /**
- * memalloc_noio_save - Marks implicit GFP_NOIO allocation scope.
+ * memalloc_yesio_save - Marks implicit GFP_NOIO allocation scope.
  *
  * This functions marks the beginning of the GFP_NOIO allocation scope.
  * All further allocations will implicitly drop __GFP_IO flag and so
  * they are safe for the IO critical section from the allocation recursion
- * point of view. Use memalloc_noio_restore to end the scope with flags
+ * point of view. Use memalloc_yesio_restore to end the scope with flags
  * returned by this function.
  *
  * This function is safe to be used from any context.
  */
-static inline unsigned int memalloc_noio_save(void)
+static inline unsigned int memalloc_yesio_save(void)
 {
 	unsigned int flags = current->flags & PF_MEMALLOC_NOIO;
 	current->flags |= PF_MEMALLOC_NOIO;
@@ -228,30 +228,30 @@ static inline unsigned int memalloc_noio_save(void)
 }
 
 /**
- * memalloc_noio_restore - Ends the implicit GFP_NOIO scope.
+ * memalloc_yesio_restore - Ends the implicit GFP_NOIO scope.
  * @flags: Flags to restore.
  *
- * Ends the implicit GFP_NOIO scope started by memalloc_noio_save function.
+ * Ends the implicit GFP_NOIO scope started by memalloc_yesio_save function.
  * Always make sure that that the given flags is the return value from the
- * pairing memalloc_noio_save call.
+ * pairing memalloc_yesio_save call.
  */
-static inline void memalloc_noio_restore(unsigned int flags)
+static inline void memalloc_yesio_restore(unsigned int flags)
 {
 	current->flags = (current->flags & ~PF_MEMALLOC_NOIO) | flags;
 }
 
 /**
- * memalloc_nofs_save - Marks implicit GFP_NOFS allocation scope.
+ * memalloc_yesfs_save - Marks implicit GFP_NOFS allocation scope.
  *
  * This functions marks the beginning of the GFP_NOFS allocation scope.
  * All further allocations will implicitly drop __GFP_FS flag and so
  * they are safe for the FS critical section from the allocation recursion
- * point of view. Use memalloc_nofs_restore to end the scope with flags
+ * point of view. Use memalloc_yesfs_restore to end the scope with flags
  * returned by this function.
  *
  * This function is safe to be used from any context.
  */
-static inline unsigned int memalloc_nofs_save(void)
+static inline unsigned int memalloc_yesfs_save(void)
 {
 	unsigned int flags = current->flags & PF_MEMALLOC_NOFS;
 	current->flags |= PF_MEMALLOC_NOFS;
@@ -259,32 +259,32 @@ static inline unsigned int memalloc_nofs_save(void)
 }
 
 /**
- * memalloc_nofs_restore - Ends the implicit GFP_NOFS scope.
+ * memalloc_yesfs_restore - Ends the implicit GFP_NOFS scope.
  * @flags: Flags to restore.
  *
- * Ends the implicit GFP_NOFS scope started by memalloc_nofs_save function.
+ * Ends the implicit GFP_NOFS scope started by memalloc_yesfs_save function.
  * Always make sure that that the given flags is the return value from the
- * pairing memalloc_nofs_save call.
+ * pairing memalloc_yesfs_save call.
  */
-static inline void memalloc_nofs_restore(unsigned int flags)
+static inline void memalloc_yesfs_restore(unsigned int flags)
 {
 	current->flags = (current->flags & ~PF_MEMALLOC_NOFS) | flags;
 }
 
-static inline unsigned int memalloc_noreclaim_save(void)
+static inline unsigned int memalloc_yesreclaim_save(void)
 {
 	unsigned int flags = current->flags & PF_MEMALLOC;
 	current->flags |= PF_MEMALLOC;
 	return flags;
 }
 
-static inline void memalloc_noreclaim_restore(unsigned int flags)
+static inline void memalloc_yesreclaim_restore(unsigned int flags)
 {
 	current->flags = (current->flags & ~PF_MEMALLOC) | flags;
 }
 
 #ifdef CONFIG_CMA
-static inline unsigned int memalloc_nocma_save(void)
+static inline unsigned int memalloc_yescma_save(void)
 {
 	unsigned int flags = current->flags & PF_MEMALLOC_NOCMA;
 
@@ -292,17 +292,17 @@ static inline unsigned int memalloc_nocma_save(void)
 	return flags;
 }
 
-static inline void memalloc_nocma_restore(unsigned int flags)
+static inline void memalloc_yescma_restore(unsigned int flags)
 {
 	current->flags = (current->flags & ~PF_MEMALLOC_NOCMA) | flags;
 }
 #else
-static inline unsigned int memalloc_nocma_save(void)
+static inline unsigned int memalloc_yescma_save(void)
 {
 	return 0;
 }
 
-static inline void memalloc_nocma_restore(unsigned int flags)
+static inline void memalloc_yescma_restore(unsigned int flags)
 {
 }
 #endif
@@ -316,7 +316,7 @@ static inline void memalloc_nocma_restore(unsigned int flags)
  * __GFP_ACCOUNT allocations till the end of the scope will be charged to the
  * given memcg.
  *
- * NOTE: This function is not nesting safe.
+ * NOTE: This function is yest nesting safe.
  */
 static inline void memalloc_use_memcg(struct mem_cgroup *memcg)
 {

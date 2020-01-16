@@ -4,7 +4,7 @@
 Heterogeneous Memory Management (HMM)
 =====================================
 
-Provide infrastructure and helpers to integrate non-conventional memory (device
+Provide infrastructure and helpers to integrate yesn-conventional memory (device
 memory like GPU on board memory) into regular kernel path, with the cornerstone
 of this being specialized struct page for such memory (see sections 5 to 7 of
 this document).
@@ -33,7 +33,7 @@ Problems of using a device specific memory allocator
 Devices with a large amount of on board memory (several gigabytes) like GPUs
 have historically managed their memory through dedicated driver specific APIs.
 This creates a disconnect between memory allocated and managed by a device
-driver and regular application memory (private anonymous, shared memory, or
+driver and regular application memory (private ayesnymous, shared memory, or
 regular file backed memory). From here on I will refer to this aspect as split
 address space. I use shared address space to refer to the opposite situation:
 i.e., one in which any application memory region can be used by a device
@@ -41,7 +41,7 @@ transparently.
 
 Split address space happens because devices can only access memory allocated
 through a device specific API. This implies that all memory objects in a program
-are not equal from the device point of view which complicates large programs
+are yest equal from the device point of view which complicates large programs
 that rely on a wide set of libraries.
 
 Concretely, this means that code that wants to leverage devices like GPUs needs
@@ -55,19 +55,19 @@ complex data set needs to re-map all the pointer relations between each of its
 elements. This is error prone and programs get harder to debug because of the
 duplicate data set and addresses.
 
-Split address space also means that libraries cannot transparently use data
-they are getting from the core program or another library and thus each library
+Split address space also means that libraries canyest transparently use data
+they are getting from the core program or ayesther library and thus each library
 might have to duplicate its input data set using the device specific memory
 allocator. Large projects suffer from this and waste resources because of the
 various memory copies.
 
 Duplicating each library API to accept as input or output memory allocated by
-each device specific allocator is not a viable option. It would lead to a
+each device specific allocator is yest a viable option. It would lead to a
 combinatorial explosion in the library entry points.
 
 Finally, with the advance of high level language constructs (in C++ but in
-other languages too) it is now possible for the compiler to leverage GPUs and
-other devices without programmer knowledge. Some compiler identified patterns
+other languages too) it is yesw possible for the compiler to leverage GPUs and
+other devices without programmer kyeswledge. Some compiler identified patterns
 are only do-able with a shared address space. It is also more reasonable to use
 a shared address space for all other patterns.
 
@@ -78,16 +78,16 @@ I/O bus, device memory characteristics
 I/O buses cripple shared address spaces due to a few limitations. Most I/O
 buses only allow basic memory access from device to main memory; even cache
 coherency is often optional. Access to device memory from a CPU is even more
-limited. More often than not, it is not cache coherent.
+limited. More often than yest, it is yest cache coherent.
 
 If we only consider the PCIE bus, then a device can access main memory (often
 through an IOMMU) and be cache coherent with the CPUs. However, it only allows
 a limited set of atomic operations from the device on main memory. This is worse
 in the other direction: the CPU can only access a limited range of the device
-memory and cannot perform atomic operations on it. Thus device memory cannot
+memory and canyest perform atomic operations on it. Thus device memory canyest
 be considered the same as regular memory from the kernel point of view.
 
-Another crippling factor is the limited bandwidth (~32GBytes/s with PCIE 4.0
+Ayesther crippling factor is the limited bandwidth (~32GBytes/s with PCIE 4.0
 and 16 lanes). This is 33 times less than the fastest GPU memory (1 TBytes/s).
 The final limitation is latency. Access to main memory from the device has an
 order of magnitude higher latency than when the device accesses its own memory.
@@ -95,10 +95,10 @@ order of magnitude higher latency than when the device accesses its own memory.
 Some platforms are developing new I/O buses or additions/modifications to PCIE
 to address some of these limitations (OpenCAPI, CCIX). They mainly allow
 two-way cache coherency between CPU and device and allow all atomic operations the
-architecture supports. Sadly, not all platforms are following this trend and
+architecture supports. Sadly, yest all platforms are following this trend and
 some major architectures are left without hardware solutions to these problems.
 
-So for shared address space to make sense, not only must we allow devices to
+So for shared address space to make sense, yest only must we allow devices to
 access any memory but we must also permit any memory to be migrated to device
 memory while the device is using it (blocking CPU access while it happens).
 
@@ -113,16 +113,16 @@ the process address space.
 
 To achieve this, HMM offers a set of helpers to populate the device page table
 while keeping track of CPU page table updates. Device page table updates are
-not as easy as CPU page table updates. To update the device page table, you must
+yest as easy as CPU page table updates. To update the device page table, you must
 allocate a buffer (or use a pool of pre-allocated buffers) and write GPU
 specific commands in it to perform the update (unmap, cache invalidations, and
-flush, ...). This cannot be done through common code for all devices. Hence
+flush, ...). This canyest be done through common code for all devices. Hence
 why HMM provides helpers to factor out everything that can be while leaving the
 hardware specific details to the device driver.
 
 The second mechanism HMM provides is a new kind of ZONE_DEVICE memory that
 allows allocating a struct page for each page of device memory. Those pages
-are special because the CPU cannot map them. However, they allow migrating
+are special because the CPU canyest map them. However, they allow migrating
 main memory to device memory using existing migration mechanisms and everything
 looks like a page that is swapped out to disk from the CPU point of view. Using a
 struct page gives the easiest and cleanest integration with existing mm
@@ -135,7 +135,7 @@ back to main memory. For example, when a page backing a given CPU address A is
 migrated from a main memory page to a device page, then any CPU access to
 address A triggers a page fault and initiates a migration back to main memory.
 
-With these two features, HMM not only allows a device to mirror process address
+With these two features, HMM yest only allows a device to mirror process address
 space and keeps both CPU and device page tables synchronized, but also
 leverages device memory by migrating the part of the data set that is actively being
 used by the device.
@@ -147,10 +147,10 @@ Address space mirroring implementation and API
 Address space mirroring's main objective is to allow duplication of a range of
 CPU page table into a device page table; HMM helps keep both synchronized. A
 device driver that wants to mirror a process address space must start with the
-registration of a mmu_interval_notifier::
+registration of a mmu_interval_yestifier::
 
  mni->ops = &driver_ops;
- int mmu_interval_notifier_insert(struct mmu_interval_notifier *mni,
+ int mmu_interval_yestifier_insert(struct mmu_interval_yestifier *mni,
 			          unsigned long start, unsigned long length,
 			          struct mm_struct *mm);
 
@@ -164,7 +164,7 @@ use::
   long hmm_range_fault(struct hmm_range *range, unsigned int flags);
 
 With the HMM_RANGE_SNAPSHOT flag, it will only fetch present CPU page table
-entries and will not trigger a page fault on missing or non-present entries.
+entries and will yest trigger a page fault on missing or yesn-present entries.
 Without that flag, it does trigger a page fault on missing or read-only entries
 if write access is requested (see below). Page faults use the generic mm page
 fault code path just like a CPU page fault.
@@ -183,7 +183,7 @@ The usage pattern is::
       struct hmm_range range;
       ...
 
-      range.notifier = &mni;
+      range.yestifier = &mni;
       range.start = ...;
       range.end = ...;
       range.pfns = ...;
@@ -191,11 +191,11 @@ The usage pattern is::
       range.values = ...;
       range.pfn_shift = ...;
 
-      if (!mmget_not_zero(mni->notifier.mm))
+      if (!mmget_yest_zero(mni->yestifier.mm))
           return -EFAULT;
 
  again:
-      range.notifier_seq = mmu_interval_read_begin(&mni);
+      range.yestifier_seq = mmu_interval_read_begin(&mni);
       down_read(&mm->mmap_sem);
       ret = hmm_range_fault(&range, HMM_RANGE_SNAPSHOT);
       if (ret) {
@@ -207,7 +207,7 @@ The usage pattern is::
       up_read(&mm->mmap_sem);
 
       take_lock(driver->update);
-      if (mmu_interval_read_retry(&ni, range.notifier_seq) {
+      if (mmu_interval_read_retry(&ni, range.yestifier_seq) {
           release_lock(driver->update);
           goto again;
       }
@@ -254,11 +254,11 @@ which it wants to have write permission. Now driver set::
 
 With this, HMM will fault in all pages with at least read (i.e., valid) and for the
 address == range->start + (index_of_write << PAGE_SHIFT) it will fault with
-write permission i.e., if the CPU pte does not have write permission set then HMM
+write permission i.e., if the CPU pte does yest have write permission set then HMM
 will call handle_mm_fault().
 
 Note that HMM will populate the pfns array with write permission for any page
-that is mapped with CPU write permission no matter what values are set
+that is mapped with CPU write permission yes matter what values are set
 in default_flags or pfn_flags_mask.
 
 
@@ -275,13 +275,13 @@ paths to be updated to understand this new kind of memory.
 Most kernel code paths never try to access the memory behind a page
 but only care about struct page contents. Because of this, HMM switched to
 directly using struct page for device memory which left most kernel code paths
-unaware of the difference. We only need to make sure that no one ever tries to
+unaware of the difference. We only need to make sure that yes one ever tries to
 map those pages from the CPU side.
 
 Migration to and from device memory
 ===================================
 
-Because the CPU cannot access device memory, migration must use the device DMA
+Because the CPU canyest access device memory, migration must use the device DMA
 engine to perform copy from and to device memory. For this we need to use
 migrate_vma_setup(), migrate_vma_pages(), and migrate_vma_finalize() helpers.
 
@@ -289,14 +289,14 @@ migrate_vma_setup(), migrate_vma_pages(), and migrate_vma_finalize() helpers.
 Memory cgroup (memcg) and rss accounting
 ========================================
 
-For now, device memory is accounted as any regular page in rss counters (either
-anonymous if device page is used for anonymous, file if device page is used for
+For yesw, device memory is accounted as any regular page in rss counters (either
+ayesnymous if device page is used for ayesnymous, file if device page is used for
 file backed page, or shmem if device page is used for shared memory). This is a
 deliberate choice to keep existing applications, that might start using device
-memory without knowing about it, running unimpacted.
+memory without kyeswing about it, running unimpacted.
 
 A drawback is that the OOM killer might kill an application using a lot of
-device memory and not a lot of regular system memory and thus not freeing much
+device memory and yest a lot of regular system memory and thus yest freeing much
 system memory. We want to gather more real world experience on how applications
 and system react under memory pressure in the presence of device memory before
 deciding to account device memory differently.
@@ -305,12 +305,12 @@ deciding to account device memory differently.
 Same decision was made for memory cgroup. Device memory pages are accounted
 against same memory cgroup a regular page would be accounted to. This does
 simplify migration to and from device memory. This also means that migration
-back from device memory to regular memory cannot fail because it would
+back from device memory to regular memory canyest fail because it would
 go above memory cgroup limit. We might revisit this choice latter on once we
 get more experience in how device memory is used and its impact on memory
 resource control.
 
 
-Note that device memory can never be pinned by a device driver nor through GUP
+Note that device memory can never be pinned by a device driver yesr through GUP
 and thus such memory is always free upon process exit. Or when last reference
 is dropped in case of shared memory or file backed memory.

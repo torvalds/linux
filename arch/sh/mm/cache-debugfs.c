@@ -76,7 +76,7 @@ static int cache_seq_show(struct seq_file *file, void *iter)
 		     addr += cache->linesz, line++) {
 			unsigned long data = __raw_readl(addr);
 
-			/* Check the V bit, ignore invalid cachelines */
+			/* Check the V bit, igyesre invalid cachelines */
 			if ((data & 1) == 0)
 				continue;
 
@@ -94,9 +94,9 @@ static int cache_seq_show(struct seq_file *file, void *iter)
 	return 0;
 }
 
-static int cache_debugfs_open(struct inode *inode, struct file *file)
+static int cache_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, cache_seq_show, inode->i_private);
+	return single_open(file, cache_seq_show, iyesde->i_private);
 }
 
 static const struct file_operations cache_debugfs_fops = {

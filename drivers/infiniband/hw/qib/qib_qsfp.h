@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -50,12 +50,12 @@
 
 #define QSFP_PAGESIZE 128
 /* Defined fields that QLogic requires of qualified cables */
-/* Byte 0 is Identifier, not checked */
+/* Byte 0 is Identifier, yest checked */
 /* Byte 1 is reserved "status MSB" */
 /* Byte 2 is "status LSB" We only care that D2 "Flat Mem" is set. */
 /*
- * Rest of first 128 not used, although 127 is reserved for page select
- * if module is not "Flat memory".
+ * Rest of first 128 yest used, although 127 is reserved for page select
+ * if module is yest "Flat memory".
  */
 /* Byte 128 is Identifier: must be 0x0c for QSFP, or 0x0d for QSFP+ */
 #define QSFP_MOD_ID_OFFS 128
@@ -65,15 +65,15 @@
  */
 #define QSFP_MOD_PWR_OFFS 129
 /* Byte 130 is Connector type. Not QLogic req'd */
-/* Bytes 131..138 are Transceiver types, bit maps for various tech, none IB */
+/* Bytes 131..138 are Transceiver types, bit maps for various tech, yesne IB */
 /* Byte 139 is encoding. code 0x01 is 8b10b. Not QLogic req'd */
-/* byte 140 is nominal bit-rate, in units of 100Mbits/sec Not QLogic req'd */
+/* byte 140 is yesminal bit-rate, in units of 100Mbits/sec Not QLogic req'd */
 /* Byte 141 is Extended Rate Select. Not QLogic req'd */
 /* Bytes 142..145 are lengths for various fiber types. Not QLogic req'd */
 /* Byte 146 is length for Copper. Units of 1 meter */
 #define QSFP_MOD_LEN_OFFS 146
 /*
- * Byte 147 is Device technology. D0..3 not Qlogc req'd
+ * Byte 147 is Device techyeslogy. D0..3 yest Qlogc req'd
  * D4..7 select from 15 choices, translated by table:
  */
 #define QSFP_MOD_TECH_OFFS 147
@@ -84,7 +84,7 @@ extern const char *const qib_qsfp_devtech[16];
 #define QSFP_IS_ACTIVE_FAR(tech) ((0x32FF >> ((tech) >> 4)) & 1)
 /* Attenuation should be valid for copper other than full/near Eq */
 #define QSFP_HAS_ATTEN(tech) ((0x4D00 >> ((tech) >> 4)) & 1)
-/* Length is only valid if technology is "copper" */
+/* Length is only valid if techyeslogy is "copper" */
 #define QSFP_IS_CU(tech) ((0xED00 >> ((tech) >> 4)) & 1)
 #define QSFP_TECH_1490 9
 
@@ -115,7 +115,7 @@ extern const char *const qib_qsfp_devtech[16];
  */
 #define QSFP_ATTEN_OFFS 186
 #define QSFP_ATTEN_LEN 2
-/* Bytes 188,189 are Wavelength tolerance, not QLogic req'd */
+/* Bytes 188,189 are Wavelength tolerance, yest QLogic req'd */
 /* Byte 190 is Max Case Temp. Not QLogic req'd */
 /* Byte 191 is LSB of sum of bytes 128..190. Not QLogic req'd */
 #define QSFP_CC_OFFS 191

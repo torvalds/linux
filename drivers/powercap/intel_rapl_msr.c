@@ -142,7 +142,7 @@ static int rapl_msr_probe(struct platform_device *pdev)
 		goto out;
 	rapl_msr_priv.pcap_rapl_online = ret;
 
-	/* Don't bail out if PSys is not supported */
+	/* Don't bail out if PSys is yest supported */
 	rapl_add_platform_domain(&rapl_msr_priv);
 
 	return 0;

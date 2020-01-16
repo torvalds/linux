@@ -955,8 +955,8 @@ static void digital_tg_set_rf_tech(struct nfc_digital_dev *ddev, u8 rf_tech)
 {
 	ddev->curr_rf_tech = rf_tech;
 
-	ddev->skb_add_crc = digital_skb_add_crc_none;
-	ddev->skb_check_crc = digital_skb_check_crc_none;
+	ddev->skb_add_crc = digital_skb_add_crc_yesne;
+	ddev->skb_check_crc = digital_skb_check_crc_yesne;
 
 	if (DIGITAL_DRV_CAPS_TG_CRC(ddev))
 		return;
@@ -1169,9 +1169,9 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 			}
 
 			/* atn_count > 0 and PDU pni != curr_nfc_dep_pni - 1
-			 * means the target probably did not received the last
+			 * means the target probably did yest received the last
 			 * DEP_REQ PDU sent by the initiator. The target
-			 * fallbacks to normal processing then.
+			 * fallbacks to yesrmal processing then.
 			 */
 		}
 
@@ -1226,7 +1226,7 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 			ddev->atn_count = 0;
 
 			/* If the ACK PNI is equal to the target PNI - 1 means
-			 * that the initiator did not receive the previous PDU
+			 * that the initiator did yest receive the previous PDU
 			 * sent by the target so re-send it.
 			 */
 			if (DIGITAL_NFC_DEP_PFB_PNI(pfb + 1) ==
@@ -1238,8 +1238,8 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 				goto free_resp;
 			}
 
-			/* Otherwise, the target did not receive the previous
-			 * ACK PDU from the initiator. Fallback to normal
+			/* Otherwise, the target did yest receive the previous
+			 * ACK PDU from the initiator. Fallback to yesrmal
 			 * processing of chained PDU then.
 			 */
 		}

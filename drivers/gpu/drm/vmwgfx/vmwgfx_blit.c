@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -141,7 +141,7 @@ do {									\
  * @size: Number of bytes to compare
  * @granularity: The granularity needed for the return value in bytes.
  * return: The offset from find start where the first difference was
- * encountered in bytes. If no difference was found, the function returns
+ * encountered in bytes. If yes difference was found, the function returns
  * a value >= @size.
  */
 static size_t vmw_find_first_diff(const u8 *dst, const u8 *src, size_t size,
@@ -214,7 +214,7 @@ do {									\
  * @size: Number of bytes to compare
  * @granularity: The granularity needed for the return value in bytes.
  * return: The offset from find start where the last difference was
- * encountered in bytes, or a negative value if no difference was found.
+ * encountered in bytes, or a negative value if yes difference was found.
  */
 static ssize_t vmw_find_last_diff(const u8 *dst, const u8 *src, size_t size,
 				  size_t granularity)
@@ -280,7 +280,7 @@ static void vmw_adjust_rect(struct vmw_diff_cpy *diff, size_t diff_offs)
  * finally the field @diff->cpp need to be preloaded with the number of bytes
  * per unit in the horizontal direction of the area we're examining.
  * Typically bytes per pixel.
- * This is needed to know the needed granularity of the difference computing
+ * This is needed to kyesw the needed granularity of the difference computing
  * operations. A higher cpp generally leads to faster execution at the cost of
  * bounding box width precision.
  */
@@ -346,7 +346,7 @@ struct vmw_bo_blit_line_data {
 };
 
 /**
- * vmw_bo_cpu_blit_line - Blit part of a line from one bo to another.
+ * vmw_bo_cpu_blit_line - Blit part of a line from one bo to ayesther.
  *
  * @d: Blit data as described above.
  * @dst_offset: Destination copy start offset from start of bo.
@@ -433,14 +433,14 @@ static int vmw_bo_cpu_blit_line(struct vmw_bo_blit_line_data *d,
  * return: Zero on success. Negative error value on failure. Will print out
  * kernel warnings on caller bugs.
  *
- * Performs a CPU blit from one buffer object to another avoiding a full
+ * Performs a CPU blit from one buffer object to ayesther avoiding a full
  * bo vmap which may exhaust- or fragment vmalloc space.
  * On supported architectures (x86), we're using kmap_atomic which avoids
- * cross-processor TLB- and cache flushes and may, on non-HIGHMEM systems
+ * cross-processor TLB- and cache flushes and may, on yesn-HIGHMEM systems
  * reference already set-up mappings.
  *
  * Neither of the buffer objects may be placed in PCI memory
- * (Fixed memory in TTM terminology) when using this function.
+ * (Fixed memory in TTM termiyeslogy) when using this function.
  */
 int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 		    u32 dst_offset, u32 dst_stride,
@@ -451,7 +451,7 @@ int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	u32 j, initial_line = dst_offset / dst_stride;
 	struct vmw_bo_blit_line_data d;

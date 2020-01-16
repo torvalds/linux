@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include "opl3_voice.h"
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Hannu Savolainen 1993-1996, Rob Hooft");
@@ -78,7 +78,7 @@ static int snd_opl3_detect(struct snd_opl3 * opl3)
 	 * The detection algorithm plays with the timer built in the FM chip and
 	 * looks for a change in the status register.
 	 *
-	 * Note! The timers of the FM chip are not connected to AdLib (and compatible)
+	 * Note! The timers of the FM chip are yest connected to AdLib (and compatible)
 	 * boards.
 	 *
 	 * Note2! The chip is initialized if detected.
@@ -107,12 +107,12 @@ static int snd_opl3_detect(struct snd_opl3 * opl3)
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, OPL3_TIMER1_MASK | OPL3_TIMER2_MASK);
 	/* Reset the IRQ of the FM chip */
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, OPL3_IRQ_RESET);
-	if ((stat2 & 0xe0) != 0xc0) {	/* There is no YM3812 */
+	if ((stat2 & 0xe0) != 0xc0) {	/* There is yes YM3812 */
 		snd_printd("OPL3: stat2 = 0x%x\n", stat2);
 		return -ENODEV;
 	}
 
-	/* If the toplevel code knows exactly the type of chip, don't try
+	/* If the toplevel code kyesws exactly the type of chip, don't try
 	   to detect it. */
 	if (opl3->hardware != OPL3_HW_AUTO)
 		return 0;
@@ -232,7 +232,7 @@ static struct snd_timer_hardware snd_opl3_timer2 =
 	.stop =		snd_opl3_timer2_stop,
 };
 
-static int snd_opl3_timer1_init(struct snd_opl3 * opl3, int timer_no)
+static int snd_opl3_timer1_init(struct snd_opl3 * opl3, int timer_yes)
 {
 	struct snd_timer *timer = NULL;
 	struct snd_timer_id tid;
@@ -241,7 +241,7 @@ static int snd_opl3_timer1_init(struct snd_opl3 * opl3, int timer_no)
 	tid.dev_class = SNDRV_TIMER_CLASS_CARD;
 	tid.dev_sclass = SNDRV_TIMER_SCLASS_NONE;
 	tid.card = opl3->card->number;
-	tid.device = timer_no;
+	tid.device = timer_yes;
 	tid.subdevice = 0;
 	if ((err = snd_timer_new(opl3->card, "AdLib timer #1", &tid, &timer)) >= 0) {
 		strcpy(timer->name, "AdLib timer #1");
@@ -252,7 +252,7 @@ static int snd_opl3_timer1_init(struct snd_opl3 * opl3, int timer_no)
 	return err;
 }
 
-static int snd_opl3_timer2_init(struct snd_opl3 * opl3, int timer_no)
+static int snd_opl3_timer2_init(struct snd_opl3 * opl3, int timer_yes)
 {
 	struct snd_timer *timer = NULL;
 	struct snd_timer_id tid;
@@ -261,7 +261,7 @@ static int snd_opl3_timer2_init(struct snd_opl3 * opl3, int timer_no)
 	tid.dev_class = SNDRV_TIMER_CLASS_CARD;
 	tid.dev_sclass = SNDRV_TIMER_SCLASS_NONE;
 	tid.card = opl3->card->number;
-	tid.device = timer_no;
+	tid.device = timer_yes;
 	tid.subdevice = 0;
 	if ((err = snd_timer_new(opl3->card, "AdLib timer #2", &tid, &timer)) >= 0) {
 		strcpy(timer->name, "AdLib timer #2");
@@ -362,7 +362,7 @@ EXPORT_SYMBOL(snd_opl3_new);
 int snd_opl3_init(struct snd_opl3 *opl3)
 {
 	if (! opl3->command) {
-		printk(KERN_ERR "snd_opl3_init: command not defined!\n");
+		printk(KERN_ERR "snd_opl3_init: command yest defined!\n");
 		return -EINVAL;
 	}
 
@@ -424,7 +424,7 @@ int snd_opl3_create(struct snd_card *card,
 	default:
 		opl3->command = &snd_opl2_command;
 		if ((err = snd_opl3_detect(opl3)) < 0) {
-			snd_printd("OPL2/3 chip not detected at 0x%lx/0x%lx\n",
+			snd_printd("OPL2/3 chip yest detected at 0x%lx/0x%lx\n",
 				   opl3->l_port, opl3->r_port);
 			snd_device_free(card, opl3);
 			return err;

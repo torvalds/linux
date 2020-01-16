@@ -5,7 +5,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -29,7 +29,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -200,7 +200,7 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		allwinner,erratum-unknown1;
+		allwinner,erratum-unkyeswn1;
 		interrupts = <GIC_PPI 13
 			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
 			     <GIC_PPI 14
@@ -606,7 +606,7 @@
 				function = "csi";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-yes-ref/
 			csi_mclk_pin: csi-mclk-pin {
 				pins = "PE1";
 				function = "csi";
@@ -622,7 +622,7 @@
 				function = "i2c1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-yes-ref/
 			lcd_rgb666_pins: lcd-rgb666-pins {
 				pins = "PD0", "PD1", "PD2", "PD3", "PD4",
 				       "PD5", "PD6", "PD7", "PD8", "PD9",

@@ -131,7 +131,7 @@ ACPI_EXPORT_SYMBOL(acpi_warning)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Print generic "ACPI:" information message. There is no
+ * DESCRIPTION: Print generic "ACPI:" information message. There is yes
  *              module/line/version info in order to keep the message simple.
  *
  ******************************************************************************/

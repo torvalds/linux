@@ -11,7 +11,7 @@
 /*
  * This file implements UBIFS superblock. The superblock is stored at the first
  * LEB of the volume and is never changed by UBIFS. Only user-space tools may
- * change it. The superblock node mostly contains geometry information.
+ * change it. The superblock yesde mostly contains geometry information.
  */
 
 #include "ubifs.h"
@@ -28,7 +28,7 @@
 /* Default maximum journal size in bytes */
 #define DEFAULT_MAX_JNL (32*1024*1024)
 
-/* Default indexing tree fanout */
+/* Default indexing tree fayesut */
 #define DEFAULT_FANOUT 8
 
 /* Default number of data journal heads */
@@ -48,7 +48,7 @@
 /* The default maximum size of reserved pool in bytes */
 #define DEFAULT_MAX_RP_SIZE (5*1024*1024)
 
-/* Default time granularity in nanoseconds */
+/* Default time granularity in nayesseconds */
 #define DEFAULT_TIME_GRAN 1000000000
 
 static int get_default_compressor(struct ubifs_info *c)
@@ -71,17 +71,17 @@ static int get_default_compressor(struct ubifs_info *c)
  */
 static int create_default_filesystem(struct ubifs_info *c)
 {
-	struct ubifs_sb_node *sup;
-	struct ubifs_mst_node *mst;
-	struct ubifs_idx_node *idx;
+	struct ubifs_sb_yesde *sup;
+	struct ubifs_mst_yesde *mst;
+	struct ubifs_idx_yesde *idx;
 	struct ubifs_branch *br;
-	struct ubifs_ino_node *ino;
-	struct ubifs_cs_node *cs;
+	struct ubifs_iyes_yesde *iyes;
+	struct ubifs_cs_yesde *cs;
 	union ubifs_key key;
 	int err, tmp, jnl_lebs, log_lebs, max_buds, main_lebs, main_first;
-	int lpt_lebs, lpt_first, orph_lebs, big_lpt, ino_waste, sup_flags = 0;
+	int lpt_lebs, lpt_first, orph_lebs, big_lpt, iyes_waste, sup_flags = 0;
 	int min_leb_cnt = UBIFS_MIN_LEB_CNT;
-	int idx_node_size;
+	int idx_yesde_size;
 	long long tmp64, main_bytes;
 	__le64 tmp_le64;
 	__le32 tmp_le32;
@@ -97,7 +97,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	 * log size, journal size, etc.
 	 */
 	if (c->leb_cnt < 0x7FFFFFFF / DEFAULT_JNL_PERCENT)
-		/* We can first multiply then divide and have no overflow */
+		/* We can first multiply then divide and have yes overflow */
 		jnl_lebs = c->leb_cnt * DEFAULT_JNL_PERCENT / 100;
 	else
 		jnl_lebs = (c->leb_cnt / 100) * DEFAULT_JNL_PERCENT;
@@ -108,12 +108,12 @@ static int create_default_filesystem(struct ubifs_info *c)
 		jnl_lebs = DEFAULT_MAX_JNL / c->leb_size;
 
 	/*
-	 * The log should be large enough to fit reference nodes for all bud
-	 * LEBs. Because buds do not have to start from the beginning of LEBs
+	 * The log should be large eyesugh to fit reference yesdes for all bud
+	 * LEBs. Because buds do yest have to start from the beginning of LEBs
 	 * (half of the LEB may contain committed data), the log should
 	 * generally be larger, make it twice as large.
 	 */
-	tmp = 2 * (c->ref_node_alsz * jnl_lebs) + c->leb_size - 1;
+	tmp = 2 * (c->ref_yesde_alsz * jnl_lebs) + c->leb_size - 1;
 	log_lebs = tmp / c->leb_size;
 	/* Plus one LEB reserved for commit */
 	log_lebs += 1;
@@ -128,10 +128,10 @@ static int create_default_filesystem(struct ubifs_info *c)
 		max_buds = UBIFS_MIN_BUD_LEBS;
 
 	/*
-	 * Orphan nodes are stored in a separate area. One node can store a lot
-	 * of orphan inode numbers, but when new orphan comes we just add a new
-	 * orphan node. At some point the nodes are consolidated into one
-	 * orphan node.
+	 * Orphan yesdes are stored in a separate area. One yesde can store a lot
+	 * of orphan iyesde numbers, but when new orphan comes we just add a new
+	 * orphan yesde. At some point the yesdes are consolidated into one
+	 * orphan yesde.
 	 */
 	orph_lebs = UBIFS_MIN_ORPH_LEBS;
 	if (c->leb_cnt - min_leb_cnt > 1)
@@ -159,13 +159,13 @@ static int create_default_filesystem(struct ubifs_info *c)
 	main_first = c->leb_cnt - main_lebs;
 
 	sup = kzalloc(ALIGN(UBIFS_SB_NODE_SZ, c->min_io_size), GFP_KERNEL);
-	mst = kzalloc(c->mst_node_alsz, GFP_KERNEL);
-	idx_node_size = ubifs_idx_node_sz(c, 1);
+	mst = kzalloc(c->mst_yesde_alsz, GFP_KERNEL);
+	idx_yesde_size = ubifs_idx_yesde_sz(c, 1);
 	idx = kzalloc(ALIGN(tmp, c->min_io_size), GFP_KERNEL);
-	ino = kzalloc(ALIGN(UBIFS_INO_NODE_SZ, c->min_io_size), GFP_KERNEL);
+	iyes = kzalloc(ALIGN(UBIFS_INO_NODE_SZ, c->min_io_size), GFP_KERNEL);
 	cs = kzalloc(ALIGN(UBIFS_CS_NODE_SZ, c->min_io_size), GFP_KERNEL);
 
-	if (!sup || !mst || !idx || !ino || !cs) {
+	if (!sup || !mst || !idx || !iyes || !cs) {
 		err = -ENOMEM;
 		goto out;
 	}
@@ -187,7 +187,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 		sup->hash_algo = cpu_to_le16(0xffff);
 	}
 
-	sup->ch.node_type  = UBIFS_SB_NODE;
+	sup->ch.yesde_type  = UBIFS_SB_NODE;
 	sup->key_hash      = UBIFS_KEY_HASH_R5;
 	sup->flags         = cpu_to_le32(sup_flags);
 	sup->min_io_size   = cpu_to_le32(c->min_io_size);
@@ -199,7 +199,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	sup->lpt_lebs      = cpu_to_le32(lpt_lebs);
 	sup->orph_lebs     = cpu_to_le32(orph_lebs);
 	sup->jhead_cnt     = cpu_to_le32(DEFAULT_JHEADS_CNT);
-	sup->fanout        = cpu_to_le32(DEFAULT_FANOUT);
+	sup->fayesut        = cpu_to_le32(DEFAULT_FANOUT);
 	sup->lsave_cnt     = cpu_to_le32(c->lsave_cnt);
 	sup->fmt_version   = cpu_to_le32(UBIFS_FORMAT_VERSION);
 	sup->time_gran     = cpu_to_le32(DEFAULT_TIME_GRAN);
@@ -219,15 +219,15 @@ static int create_default_filesystem(struct ubifs_info *c)
 
 	dbg_gen("default superblock created at LEB 0:0");
 
-	/* Create default master node */
+	/* Create default master yesde */
 
-	mst->ch.node_type = UBIFS_MST_NODE;
+	mst->ch.yesde_type = UBIFS_MST_NODE;
 	mst->log_lnum     = cpu_to_le32(UBIFS_LOG_LNUM);
 	mst->highest_inum = cpu_to_le64(UBIFS_FIRST_INO);
-	mst->cmt_no       = 0;
+	mst->cmt_yes       = 0;
 	mst->root_lnum    = cpu_to_le32(main_first + DEFAULT_IDX_LEB);
 	mst->root_offs    = 0;
-	tmp = ubifs_idx_node_sz(c, 1);
+	tmp = ubifs_idx_yesde_sz(c, 1);
 	mst->root_len     = cpu_to_le32(tmp);
 	mst->gc_lnum      = cpu_to_le32(main_first + DEFAULT_GC_LEB);
 	mst->ihead_lnum   = cpu_to_le32(main_first + DEFAULT_IDX_LEB);
@@ -249,106 +249,106 @@ static int create_default_filesystem(struct ubifs_info *c)
 
 	/* Calculate lprops statistics */
 	tmp64 = main_bytes;
-	tmp64 -= ALIGN(ubifs_idx_node_sz(c, 1), c->min_io_size);
+	tmp64 -= ALIGN(ubifs_idx_yesde_sz(c, 1), c->min_io_size);
 	tmp64 -= ALIGN(UBIFS_INO_NODE_SZ, c->min_io_size);
 	mst->total_free = cpu_to_le64(tmp64);
 
-	tmp64 = ALIGN(ubifs_idx_node_sz(c, 1), c->min_io_size);
-	ino_waste = ALIGN(UBIFS_INO_NODE_SZ, c->min_io_size) -
+	tmp64 = ALIGN(ubifs_idx_yesde_sz(c, 1), c->min_io_size);
+	iyes_waste = ALIGN(UBIFS_INO_NODE_SZ, c->min_io_size) -
 			  UBIFS_INO_NODE_SZ;
-	tmp64 += ino_waste;
-	tmp64 -= ALIGN(ubifs_idx_node_sz(c, 1), 8);
+	tmp64 += iyes_waste;
+	tmp64 -= ALIGN(ubifs_idx_yesde_sz(c, 1), 8);
 	mst->total_dirty = cpu_to_le64(tmp64);
 
-	/*  The indexing LEB does not contribute to dark space */
+	/*  The indexing LEB does yest contribute to dark space */
 	tmp64 = ((long long)(c->main_lebs - 1) * c->dark_wm);
 	mst->total_dark = cpu_to_le64(tmp64);
 
 	mst->total_used = cpu_to_le64(UBIFS_INO_NODE_SZ);
 
-	dbg_gen("default master node created at LEB %d:0", UBIFS_MST_LNUM);
+	dbg_gen("default master yesde created at LEB %d:0", UBIFS_MST_LNUM);
 
-	/* Create the root indexing node */
+	/* Create the root indexing yesde */
 
 	c->key_fmt = UBIFS_SIMPLE_KEY_FMT;
 	c->key_hash = key_r5_hash;
 
-	idx->ch.node_type = UBIFS_IDX_NODE;
+	idx->ch.yesde_type = UBIFS_IDX_NODE;
 	idx->child_cnt = cpu_to_le16(1);
-	ino_key_init(c, &key, UBIFS_ROOT_INO);
+	iyes_key_init(c, &key, UBIFS_ROOT_INO);
 	br = ubifs_idx_branch(c, idx, 0);
 	key_write_idx(c, &key, &br->key);
 	br->lnum = cpu_to_le32(main_first + DEFAULT_DATA_LEB);
 	br->len  = cpu_to_le32(UBIFS_INO_NODE_SZ);
 
-	dbg_gen("default root indexing node created LEB %d:0",
+	dbg_gen("default root indexing yesde created LEB %d:0",
 		main_first + DEFAULT_IDX_LEB);
 
-	/* Create default root inode */
+	/* Create default root iyesde */
 
-	ino_key_init_flash(c, &ino->key, UBIFS_ROOT_INO);
-	ino->ch.node_type = UBIFS_INO_NODE;
-	ino->creat_sqnum = cpu_to_le64(++c->max_sqnum);
-	ino->nlink = cpu_to_le32(2);
+	iyes_key_init_flash(c, &iyes->key, UBIFS_ROOT_INO);
+	iyes->ch.yesde_type = UBIFS_INO_NODE;
+	iyes->creat_sqnum = cpu_to_le64(++c->max_sqnum);
+	iyes->nlink = cpu_to_le32(2);
 
 	ktime_get_real_ts64(&ts);
 	ts = timespec64_trunc(ts, DEFAULT_TIME_GRAN);
 	tmp_le64 = cpu_to_le64(ts.tv_sec);
-	ino->atime_sec   = tmp_le64;
-	ino->ctime_sec   = tmp_le64;
-	ino->mtime_sec   = tmp_le64;
+	iyes->atime_sec   = tmp_le64;
+	iyes->ctime_sec   = tmp_le64;
+	iyes->mtime_sec   = tmp_le64;
 	tmp_le32 = cpu_to_le32(ts.tv_nsec);
-	ino->atime_nsec  = tmp_le32;
-	ino->ctime_nsec  = tmp_le32;
-	ino->mtime_nsec  = tmp_le32;
-	ino->mode = cpu_to_le32(S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO);
-	ino->size = cpu_to_le64(UBIFS_INO_NODE_SZ);
+	iyes->atime_nsec  = tmp_le32;
+	iyes->ctime_nsec  = tmp_le32;
+	iyes->mtime_nsec  = tmp_le32;
+	iyes->mode = cpu_to_le32(S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO);
+	iyes->size = cpu_to_le64(UBIFS_INO_NODE_SZ);
 
 	/* Set compression enabled by default */
-	ino->flags = cpu_to_le32(UBIFS_COMPR_FL);
+	iyes->flags = cpu_to_le32(UBIFS_COMPR_FL);
 
-	dbg_gen("root inode created at LEB %d:0",
+	dbg_gen("root iyesde created at LEB %d:0",
 		main_first + DEFAULT_DATA_LEB);
 
 	/*
-	 * The first node in the log has to be the commit start node. This is
-	 * always the case during normal file-system operation. Write a fake
-	 * commit start node to the log.
+	 * The first yesde in the log has to be the commit start yesde. This is
+	 * always the case during yesrmal file-system operation. Write a fake
+	 * commit start yesde to the log.
 	 */
 
-	cs->ch.node_type = UBIFS_CS_NODE;
+	cs->ch.yesde_type = UBIFS_CS_NODE;
 
-	err = ubifs_write_node_hmac(c, sup, UBIFS_SB_NODE_SZ, 0, 0,
-				    offsetof(struct ubifs_sb_node, hmac));
+	err = ubifs_write_yesde_hmac(c, sup, UBIFS_SB_NODE_SZ, 0, 0,
+				    offsetof(struct ubifs_sb_yesde, hmac));
 	if (err)
 		goto out;
 
-	err = ubifs_write_node(c, ino, UBIFS_INO_NODE_SZ,
+	err = ubifs_write_yesde(c, iyes, UBIFS_INO_NODE_SZ,
 			       main_first + DEFAULT_DATA_LEB, 0);
 	if (err)
 		goto out;
 
-	ubifs_node_calc_hash(c, ino, hash);
+	ubifs_yesde_calc_hash(c, iyes, hash);
 	ubifs_copy_hash(c, hash, ubifs_branch_hash(c, br));
 
-	err = ubifs_write_node(c, idx, idx_node_size, main_first + DEFAULT_IDX_LEB, 0);
+	err = ubifs_write_yesde(c, idx, idx_yesde_size, main_first + DEFAULT_IDX_LEB, 0);
 	if (err)
 		goto out;
 
-	ubifs_node_calc_hash(c, idx, hash);
+	ubifs_yesde_calc_hash(c, idx, hash);
 	ubifs_copy_hash(c, hash, mst->hash_root_idx);
 
-	err = ubifs_write_node_hmac(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM, 0,
-		offsetof(struct ubifs_mst_node, hmac));
+	err = ubifs_write_yesde_hmac(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM, 0,
+		offsetof(struct ubifs_mst_yesde, hmac));
 	if (err)
 		goto out;
 
-	err = ubifs_write_node_hmac(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM + 1,
-			       0, offsetof(struct ubifs_mst_node, hmac));
+	err = ubifs_write_yesde_hmac(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM + 1,
+			       0, offsetof(struct ubifs_mst_yesde, hmac));
 	if (err)
 		goto out;
 
-	err = ubifs_write_node(c, cs, UBIFS_CS_NODE_SZ, UBIFS_LOG_LNUM, 0);
+	err = ubifs_write_yesde(c, cs, UBIFS_CS_NODE_SZ, UBIFS_LOG_LNUM, 0);
 	if (err)
 		goto out;
 
@@ -359,23 +359,23 @@ out:
 	kfree(sup);
 	kfree(mst);
 	kfree(idx);
-	kfree(ino);
+	kfree(iyes);
 	kfree(cs);
 
 	return err;
 }
 
 /**
- * validate_sb - validate superblock node.
+ * validate_sb - validate superblock yesde.
  * @c: UBIFS file-system description object
- * @sup: superblock node
+ * @sup: superblock yesde
  *
- * This function validates superblock node @sup. Since most of data was read
+ * This function validates superblock yesde @sup. Since most of data was read
  * from the superblock and stored in @c, the function validates fields in @c
  * instead. Returns zero in case of success and %-EINVAL in case of validation
  * failure.
  */
-static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
+static int validate_sb(struct ubifs_info *c, struct ubifs_sb_yesde *sup)
 {
 	long long max_bytes;
 	int err = 1, min_leb_cnt;
@@ -456,8 +456,8 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 		goto failed;
 	}
 
-	if (c->fanout < UBIFS_MIN_FANOUT ||
-	    ubifs_idx_node_sz(c, c->fanout) > c->leb_size) {
+	if (c->fayesut < UBIFS_MIN_FANOUT ||
+	    ubifs_idx_yesde_sz(c, c->fayesut) > c->leb_size) {
 		err = 10;
 		goto failed;
 	}
@@ -505,28 +505,28 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 
 failed:
 	ubifs_err(c, "bad superblock, error %d", err);
-	ubifs_dump_node(c, sup);
+	ubifs_dump_yesde(c, sup);
 	return -EINVAL;
 }
 
 /**
- * ubifs_read_sb_node - read superblock node.
+ * ubifs_read_sb_yesde - read superblock yesde.
  * @c: UBIFS file-system description object
  *
- * This function returns a pointer to the superblock node or a negative error
+ * This function returns a pointer to the superblock yesde or a negative error
  * code. Note, the user of this function is responsible of kfree()'ing the
  * returned superblock buffer.
  */
-static struct ubifs_sb_node *ubifs_read_sb_node(struct ubifs_info *c)
+static struct ubifs_sb_yesde *ubifs_read_sb_yesde(struct ubifs_info *c)
 {
-	struct ubifs_sb_node *sup;
+	struct ubifs_sb_yesde *sup;
 	int err;
 
 	sup = kmalloc(ALIGN(UBIFS_SB_NODE_SZ, c->min_io_size), GFP_NOFS);
 	if (!sup)
 		return ERR_PTR(-ENOMEM);
 
-	err = ubifs_read_node(c, sup, UBIFS_SB_NODE, UBIFS_SB_NODE_SZ,
+	err = ubifs_read_yesde(c, sup, UBIFS_SB_NODE, UBIFS_SB_NODE_SZ,
 			      UBIFS_SB_LNUM, 0);
 	if (err) {
 		kfree(sup);
@@ -536,8 +536,8 @@ static struct ubifs_sb_node *ubifs_read_sb_node(struct ubifs_info *c)
 	return sup;
 }
 
-static int authenticate_sb_node(struct ubifs_info *c,
-				const struct ubifs_sb_node *sup)
+static int authenticate_sb_yesde(struct ubifs_info *c,
+				const struct ubifs_sb_yesde *sup)
 {
 	unsigned int sup_flags = le32_to_cpu(sup->flags);
 	u8 hmac_wkm[UBIFS_HMAC_ARR_SZ];
@@ -551,7 +551,7 @@ static int authenticate_sb_node(struct ubifs_info *c,
 	}
 
 	if (!c->authenticated && authenticated) {
-		ubifs_err(c, "authenticated FS found, but no key given");
+		ubifs_err(c, "authenticated FS found, but yes key given");
 		return -EINVAL;
 	}
 
@@ -566,7 +566,7 @@ static int authenticate_sb_node(struct ubifs_info *c,
 
 	hash_algo = le16_to_cpu(sup->hash_algo);
 	if (hash_algo >= HASH_ALGO__LAST) {
-		ubifs_err(c, "superblock uses unknown hash algo %d",
+		ubifs_err(c, "superblock uses unkyeswn hash algo %d",
 			  hash_algo);
 		return -EINVAL;
 	}
@@ -579,9 +579,9 @@ static int authenticate_sb_node(struct ubifs_info *c,
 	}
 
 	/*
-	 * The super block node can either be authenticated by a HMAC or
-	 * by a signature in a ubifs_sig_node directly following the
-	 * super block node to support offline image creation.
+	 * The super block yesde can either be authenticated by a HMAC or
+	 * by a signature in a ubifs_sig_yesde directly following the
+	 * super block yesde to support offline image creation.
 	 */
 	if (ubifs_hmac_zero(c, sup->hmac)) {
 		err = ubifs_sb_verify_signature(c, sup);
@@ -590,11 +590,11 @@ static int authenticate_sb_node(struct ubifs_info *c,
 		if (err)
 			return err;
 		if (ubifs_check_hmac(c, hmac_wkm, sup->hmac_wkm)) {
-			ubifs_err(c, "provided key does not fit");
+			ubifs_err(c, "provided key does yest fit");
 			return -ENOKEY;
 		}
-		err = ubifs_node_verify_hmac(c, sup, sizeof(*sup),
-					     offsetof(struct ubifs_sb_node,
+		err = ubifs_yesde_verify_hmac(c, sup, sizeof(*sup),
+					     offsetof(struct ubifs_sb_yesde,
 						      hmac));
 	}
 
@@ -605,19 +605,19 @@ static int authenticate_sb_node(struct ubifs_info *c,
 }
 
 /**
- * ubifs_write_sb_node - write superblock node.
+ * ubifs_write_sb_yesde - write superblock yesde.
  * @c: UBIFS file-system description object
- * @sup: superblock node read with 'ubifs_read_sb_node()'
+ * @sup: superblock yesde read with 'ubifs_read_sb_yesde()'
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-int ubifs_write_sb_node(struct ubifs_info *c, struct ubifs_sb_node *sup)
+int ubifs_write_sb_yesde(struct ubifs_info *c, struct ubifs_sb_yesde *sup)
 {
 	int len = ALIGN(UBIFS_SB_NODE_SZ, c->min_io_size);
 	int err;
 
-	err = ubifs_prepare_node_hmac(c, sup, UBIFS_SB_NODE_SZ,
-				      offsetof(struct ubifs_sb_node, hmac), 1);
+	err = ubifs_prepare_yesde_hmac(c, sup, UBIFS_SB_NODE_SZ,
+				      offsetof(struct ubifs_sb_yesde, hmac), 1);
 	if (err)
 		return err;
 
@@ -635,7 +635,7 @@ int ubifs_write_sb_node(struct ubifs_info *c, struct ubifs_sb_node *sup)
 int ubifs_read_superblock(struct ubifs_info *c)
 {
 	int err, sup_flags;
-	struct ubifs_sb_node *sup;
+	struct ubifs_sb_yesde *sup;
 
 	if (c->empty) {
 		err = create_default_filesystem(c);
@@ -643,17 +643,17 @@ int ubifs_read_superblock(struct ubifs_info *c)
 			return err;
 	}
 
-	sup = ubifs_read_sb_node(c);
+	sup = ubifs_read_sb_yesde(c);
 	if (IS_ERR(sup))
 		return PTR_ERR(sup);
 
-	c->sup_node = sup;
+	c->sup_yesde = sup;
 
 	c->fmt_version = le32_to_cpu(sup->fmt_version);
 	c->ro_compat_version = le32_to_cpu(sup->ro_compat_version);
 
 	/*
-	 * The software supports all previous versions but not future versions,
+	 * The software supports all previous versions but yest future versions,
 	 * due to the unavailability of time-travelling equipment.
 	 */
 	if (c->fmt_version > UBIFS_FORMAT_VERSION) {
@@ -681,7 +681,7 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	}
 
 	if (c->fmt_version < 3) {
-		ubifs_err(c, "on-flash format version %d is not supported",
+		ubifs_err(c, "on-flash format version %d is yest supported",
 			  c->fmt_version);
 		err = -EINVAL;
 		goto out;
@@ -718,7 +718,7 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	c->lpt_lebs      = le32_to_cpu(sup->lpt_lebs);
 	c->orph_lebs     = le32_to_cpu(sup->orph_lebs);
 	c->jhead_cnt     = le32_to_cpu(sup->jhead_cnt) + NONDATA_JHEADS_CNT;
-	c->fanout        = le32_to_cpu(sup->fanout);
+	c->fayesut        = le32_to_cpu(sup->fayesut);
 	c->lsave_cnt     = le32_to_cpu(sup->lsave_cnt);
 	c->rp_size       = le64_to_cpu(sup->rp_size);
 	c->rp_uid        = make_kuid(&init_user_ns, le32_to_cpu(sup->rp_uid));
@@ -734,12 +734,12 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	c->double_hash = !!(sup_flags & UBIFS_FLG_DOUBLE_HASH);
 	c->encrypted = !!(sup_flags & UBIFS_FLG_ENCRYPTION);
 
-	err = authenticate_sb_node(c, sup);
+	err = authenticate_sb_yesde(c, sup);
 	if (err)
 		goto out;
 
 	if ((sup_flags & ~UBIFS_FLG_MASK) != 0) {
-		ubifs_err(c, "Unknown feature flags found: %#x",
+		ubifs_err(c, "Unkyeswn feature flags found: %#x",
 			  sup_flags & ~UBIFS_FLG_MASK);
 		err = -EINVAL;
 		goto out;
@@ -828,7 +828,7 @@ static int fixup_free_space(struct ubifs_info *c)
 
 	/* Fixup LEBs in the master area */
 	for (lnum = UBIFS_MST_LNUM; lnum < UBIFS_LOG_LNUM; lnum++) {
-		err = fixup_leb(c, lnum, c->mst_offs + c->mst_node_alsz);
+		err = fixup_leb(c, lnum, c->mst_offs + c->mst_yesde_alsz);
 		if (err)
 			goto out;
 	}
@@ -843,7 +843,7 @@ static int fixup_free_space(struct ubifs_info *c)
 	}
 
 	/*
-	 * Fixup the log head which contains the only a CS node at the
+	 * Fixup the log head which contains the only a CS yesde at the
 	 * beginning.
 	 */
 	err = fixup_leb(c, c->lhead_lnum,
@@ -898,14 +898,14 @@ out:
  * empty min. I/O unit (i.e. free-space-count > 0) is re-written, to make sure
  * the free space is actually erased. E.g., this is necessary for some NAND
  * chips, since the free space may have been programmed like real "0xff" data
- * (generating a non-0xff ECC), causing future writes to the not-really-erased
+ * (generating a yesn-0xff ECC), causing future writes to the yest-really-erased
  * NAND pages to behave badly. After the space is fixed up, the superblock flag
  * is cleared, so that this is skipped for all future mounts.
  */
 int ubifs_fixup_free_space(struct ubifs_info *c)
 {
 	int err;
-	struct ubifs_sb_node *sup = c->sup_node;
+	struct ubifs_sb_yesde *sup = c->sup_yesde;
 
 	ubifs_assert(c, c->space_fixup);
 	ubifs_assert(c, !c->ro_mount);
@@ -916,7 +916,7 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 	if (err)
 		return err;
 
-	/* Free-space fixup is no longer required */
+	/* Free-space fixup is yes longer required */
 	c->space_fixup = 0;
 	sup->flags &= cpu_to_le32(~UBIFS_FLG_SPACE_FIXUP);
 
@@ -929,7 +929,7 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 int ubifs_enable_encryption(struct ubifs_info *c)
 {
 	int err;
-	struct ubifs_sb_node *sup = c->sup_node;
+	struct ubifs_sb_yesde *sup = c->sup_yesde;
 
 	if (!IS_ENABLED(CONFIG_FS_ENCRYPTION))
 		return -EOPNOTSUPP;
@@ -947,7 +947,7 @@ int ubifs_enable_encryption(struct ubifs_info *c)
 
 	sup->flags |= cpu_to_le32(UBIFS_FLG_ENCRYPTION);
 
-	err = ubifs_write_sb_node(c, sup);
+	err = ubifs_write_sb_yesde(c, sup);
 	if (!err)
 		c->encrypted = 1;
 

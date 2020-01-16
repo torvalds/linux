@@ -39,7 +39,7 @@ enum {
 	UIO_IRQ_DISABLED = 0,
 };
 
-static int uio_pdrv_genirq_open(struct uio_info *info, struct inode *inode)
+static int uio_pdrv_genirq_open(struct uio_info *info, struct iyesde *iyesde)
 {
 	struct uio_pdrv_genirq_platdata *priv = info->priv;
 
@@ -48,7 +48,7 @@ static int uio_pdrv_genirq_open(struct uio_info *info, struct inode *inode)
 	return 0;
 }
 
-static int uio_pdrv_genirq_release(struct uio_info *info, struct inode *inode)
+static int uio_pdrv_genirq_release(struct uio_info *info, struct iyesde *iyesde)
 {
 	struct uio_pdrv_genirq_platdata *priv = info->priv;
 
@@ -67,7 +67,7 @@ static irqreturn_t uio_pdrv_genirq_handler(int irq, struct uio_info *dev_info)
 
 	spin_lock(&priv->lock);
 	if (!__test_and_set_bit(UIO_IRQ_DISABLED, &priv->flags))
-		disable_irq_nosync(irq);
+		disable_irq_yessync(irq);
 	spin_unlock(&priv->lock);
 
 	return IRQ_HANDLED;
@@ -92,7 +92,7 @@ static int uio_pdrv_genirq_irqcontrol(struct uio_info *dev_info, s32 irq_on)
 			enable_irq(dev_info->irq);
 	} else {
 		if (!__test_and_set_bit(UIO_IRQ_DISABLED, &priv->flags))
-			disable_irq_nosync(dev_info->irq);
+			disable_irq_yessync(dev_info->irq);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -102,13 +102,13 @@ static int uio_pdrv_genirq_irqcontrol(struct uio_info *dev_info, s32 irq_on)
 static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 {
 	struct uio_info *uioinfo = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct uio_pdrv_genirq_platdata *priv;
 	struct uio_mem *uiomem;
 	int ret = -EINVAL;
 	int i;
 
-	if (node) {
+	if (yesde) {
 		const char *name;
 
 		/* alloc uioinfo for one device */
@@ -119,14 +119,14 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 			return -ENOMEM;
 		}
 
-		if (!of_property_read_string(node, "linux,uio-name", &name))
+		if (!of_property_read_string(yesde, "linux,uio-name", &name))
 			uioinfo->name = devm_kstrdup(&pdev->dev, name, GFP_KERNEL);
 		else
 			uioinfo->name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-						       "%pOFn", node);
+						       "%pOFn", yesde);
 
 		uioinfo->version = "devicetree";
-		/* Multiple IRQs are not supported */
+		/* Multiple IRQs are yest supported */
 	}
 
 	if (!uioinfo || !uioinfo->name || !uioinfo->version) {
@@ -154,7 +154,7 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	if (!uioinfo->irq) {
 		ret = platform_get_irq(pdev, 0);
 		uioinfo->irq = ret;
-		if (ret == -ENXIO && pdev->dev.of_node)
+		if (ret == -ENXIO && pdev->dev.of_yesde)
 			uioinfo->irq = UIO_IRQ_NONE;
 		else if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get IRQ\n");
@@ -189,13 +189,13 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 		++uiomem;
 	}
 
-	/* This driver requires no hardware specific kernel code to handle
+	/* This driver requires yes hardware specific kernel code to handle
 	 * interrupts. Instead, the interrupt handler simply disables the
 	 * interrupt in the interrupt controller. User space is responsible
-	 * for performing hardware specific acknowledge and re-enabling of
+	 * for performing hardware specific ackyeswledge and re-enabling of
 	 * the interrupt in the interrupt controller.
 	 *
-	 * Interrupt sharing is not supported.
+	 * Interrupt sharing is yest supported.
 	 */
 
 	uioinfo->handler = uio_pdrv_genirq_handler;
@@ -235,7 +235,7 @@ static int uio_pdrv_genirq_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int uio_pdrv_genirq_runtime_nop(struct device *dev)
+static int uio_pdrv_genirq_runtime_yesp(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
@@ -245,7 +245,7 @@ static int uio_pdrv_genirq_runtime_nop(struct device *dev)
 	 * Runtime PM code to turn off power to the device while the
 	 * device is unused, ie before open() and after release().
 	 *
-	 * This Runtime PM callback does not need to save or restore
+	 * This Runtime PM callback does yest need to save or restore
 	 * any registers since user space is responsbile for hardware
 	 * register reinitialization after open().
 	 */
@@ -253,8 +253,8 @@ static int uio_pdrv_genirq_runtime_nop(struct device *dev)
 }
 
 static const struct dev_pm_ops uio_pdrv_genirq_dev_pm_ops = {
-	.runtime_suspend = uio_pdrv_genirq_runtime_nop,
-	.runtime_resume = uio_pdrv_genirq_runtime_nop,
+	.runtime_suspend = uio_pdrv_genirq_runtime_yesp,
+	.runtime_resume = uio_pdrv_genirq_runtime_yesp,
 };
 
 #ifdef CONFIG_OF

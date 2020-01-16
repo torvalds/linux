@@ -4,11 +4,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -193,7 +193,7 @@ struct tgec_regs {
 };
 
 struct tgec_cfg {
-	bool pause_ignore;
+	bool pause_igyesre;
 	bool promiscuous_mode_enable;
 	u16 max_frame_length;
 	u16 pause_quant;
@@ -234,7 +234,7 @@ static void set_mac_address(struct tgec_regs __iomem *regs, u8 *adr)
 static void set_dflts(struct tgec_cfg *cfg)
 {
 	cfg->promiscuous_mode_enable = false;
-	cfg->pause_ignore = false;
+	cfg->pause_igyesre = false;
 	cfg->tx_ipg_length = DEFAULT_TX_IPG_LENGTH;
 	cfg->max_frame_length = DEFAULT_MAX_FRAME_LENGTH;
 	cfg->pause_quant = DEFAULT_PAUSE_QUANT;
@@ -249,7 +249,7 @@ static int init(struct tgec_regs __iomem *regs, struct tgec_cfg *cfg,
 	tmp = CMF_CFG_CRC_FWD;
 	if (cfg->promiscuous_mode_enable)
 		tmp |= CMD_CFG_PROMIS_EN;
-	if (cfg->pause_ignore)
+	if (cfg->pause_igyesre)
 		tmp |= CMD_CFG_PAUSE_IGNORE;
 	/* Payload length check disable */
 	tmp |= CMD_CFG_NO_LEN_CHK;
@@ -359,7 +359,7 @@ static void tgec_err_exception(void *handle)
 	struct tgec_regs __iomem *regs = tgec->regs;
 	u32 event;
 
-	/* do not handle MDIO events */
+	/* do yest handle MDIO events */
 	event = ioread32be(&regs->ievent) &
 			   ~(TGEC_IMASK_MDIO_SCAN_EVENT |
 			   TGEC_IMASK_MDIO_CMD_CMPL);
@@ -542,7 +542,7 @@ int tgec_add_hash_mac_address(struct fman_mac *tgec, enet_addr_t *eth_addr)
 	addr = ENET_ADDR_TO_UINT64(*eth_addr);
 
 	if (!(addr & GROUP_ADDRESS)) {
-		/* Unicast addresses not supported in hash */
+		/* Unicast addresses yest supported in hash */
 		pr_err("Unicast Address\n");
 		return -EINVAL;
 	}
@@ -557,9 +557,9 @@ int tgec_add_hash_mac_address(struct fman_mac *tgec, enet_addr_t *eth_addr)
 	if (!hash_entry)
 		return -ENOMEM;
 	hash_entry->addr = addr;
-	INIT_LIST_HEAD(&hash_entry->node);
+	INIT_LIST_HEAD(&hash_entry->yesde);
 
-	list_add_tail(&hash_entry->node,
+	list_add_tail(&hash_entry->yesde,
 		      &tgec->multicast_addr_hash->lsts[hash]);
 	iowrite32be((hash | TGEC_HASH_MCAST_EN), &regs->hashtable_ctrl);
 
@@ -631,7 +631,7 @@ int tgec_del_hash_mac_address(struct fman_mac *tgec, enet_addr_t *eth_addr)
 	list_for_each(pos, &tgec->multicast_addr_hash->lsts[hash]) {
 		hash_entry = ETH_HASH_ENTRY_OBJ(pos);
 		if (hash_entry->addr == addr) {
-			list_del_init(&hash_entry->node);
+			list_del_init(&hash_entry->yesde);
 			kfree(hash_entry);
 			break;
 		}

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /****************************************************************
 
-Siano Mobile Silicon, Inc.
+Siayes Mobile Silicon, Inc.
 MDTV receiver kernel modules.
 Copyright (C) 2006-2008, Uri Shkolnik, Anatoly Greenblat
 
@@ -43,23 +43,23 @@ Copyright (C) 2006-2008, Uri Shkolnik, Anatoly Greenblat
 #define SMS_FW_CMMB_VEGA_12MHZ     "cmmb_vega_12mhz.inp"
 #define SMS_FW_CMMB_VENICE_12MHZ   "cmmb_venice_12mhz.inp"
 #define SMS_FW_DVBH_RIO            "dvbh_rio.inp"
-#define SMS_FW_DVB_NOVA_12MHZ_B0   "dvb_nova_12mhz_b0.inp"
-#define SMS_FW_DVB_NOVA_12MHZ      "dvb_nova_12mhz.inp"
+#define SMS_FW_DVB_NOVA_12MHZ_B0   "dvb_yesva_12mhz_b0.inp"
+#define SMS_FW_DVB_NOVA_12MHZ      "dvb_yesva_12mhz.inp"
 #define SMS_FW_DVB_RIO             "dvb_rio.inp"
 #define SMS_FW_FM_RADIO            "fm_radio.inp"
 #define SMS_FW_FM_RADIO_RIO        "fm_radio_rio.inp"
 #define SMS_FW_DVBT_HCW_55XXX      "sms1xxx-hcw-55xxx-dvbt-02.fw"
 #define SMS_FW_ISDBT_HCW_55XXX     "sms1xxx-hcw-55xxx-isdbt-02.fw"
-#define SMS_FW_ISDBT_NOVA_12MHZ_B0 "isdbt_nova_12mhz_b0.inp"
-#define SMS_FW_ISDBT_NOVA_12MHZ    "isdbt_nova_12mhz.inp"
+#define SMS_FW_ISDBT_NOVA_12MHZ_B0 "isdbt_yesva_12mhz_b0.inp"
+#define SMS_FW_ISDBT_NOVA_12MHZ    "isdbt_yesva_12mhz.inp"
 #define SMS_FW_ISDBT_PELE          "isdbt_pele.inp"
 #define SMS_FW_ISDBT_RIO           "isdbt_rio.inp"
-#define SMS_FW_DVBT_NOVA_A         "sms1xxx-nova-a-dvbt-01.fw"
-#define SMS_FW_DVBT_NOVA_B         "sms1xxx-nova-b-dvbt-01.fw"
+#define SMS_FW_DVBT_NOVA_A         "sms1xxx-yesva-a-dvbt-01.fw"
+#define SMS_FW_DVBT_NOVA_B         "sms1xxx-yesva-b-dvbt-01.fw"
 #define SMS_FW_DVBT_STELLAR        "sms1xxx-stellar-dvbt-01.fw"
 #define SMS_FW_TDMB_DENVER         "tdmb_denver.inp"
-#define SMS_FW_TDMB_NOVA_12MHZ_B0  "tdmb_nova_12mhz_b0.inp"
-#define SMS_FW_TDMB_NOVA_12MHZ     "tdmb_nova_12mhz.inp"
+#define SMS_FW_TDMB_NOVA_12MHZ_B0  "tdmb_yesva_12mhz_b0.inp"
+#define SMS_FW_TDMB_NOVA_12MHZ     "tdmb_yesva_12mhz.inp"
 
 #define SMS_PROTOCOL_MAX_RAOUNDTRIP_MS			(10000)
 #define SMS_ALLOC_ALIGNMENT				128
@@ -206,8 +206,8 @@ struct smscore_device_t {
 	struct ir_t ir;
 
 	/*
-	 * Identify if device is USB or not.
-	 * Used by smsdvb-sysfs to know the root node for debugfs
+	 * Identify if device is USB or yest.
+	 * Used by smsdvb-sysfs to kyesw the root yesde for debugfs
 	 */
 	bool is_usb_device;
 
@@ -655,12 +655,12 @@ struct sms_version_res {
 	u8 supported_protocols;
 
 	u8		version_major;
-	u8		version_minor;
+	u8		version_miyesr;
 	u8		version_patch;
 	u8		version_field_patch;
 
 	u8		rom_ver_major;
-	u8		rom_ver_minor;
+	u8		rom_ver_miyesr;
 	u8		rom_ver_patch;
 	u8		rom_ver_field_patch;
 
@@ -680,8 +680,8 @@ struct sms_stats {
 	u32 reserved;		/* reserved */
 
 	/* Common parameters */
-	u32 is_rf_locked;		/* 0 - not locked, 1 - locked */
-	u32 is_demod_locked;	/* 0 - not locked, 1 - locked */
+	u32 is_rf_locked;		/* 0 - yest locked, 1 - locked */
+	u32 is_demod_locked;	/* 0 - yest locked, 1 - locked */
 	u32 is_external_lna_on;	/* 0 - external LNA off, 1 - external LNA on */
 
 	/* Reception quality */
@@ -732,7 +732,7 @@ struct sms_stats {
 	u32 error_ts_packets;	/* Number of erroneous
 	transport-stream packets */
 	u32 total_ts_packets;	/* Total number of transport-stream packets */
-	u32 num_of_valid_mpe_tlbs;	/* Number of MPE tables which do not include
+	u32 num_of_valid_mpe_tlbs;	/* Number of MPE tables which do yest include
 	errors after MPE RS decoding */
 	u32 num_of_invalid_mpe_tlbs;/* Number of MPE tables which include errors
 	after MPE RS decoding */
@@ -750,7 +750,7 @@ struct sms_stats {
 
 	/* DVB-H TPS parameters */
 	u32 cell_id;		/* TPS Cell ID in bits 15..0, bits 31..16 zero;
-	 if set to 0xFFFFFFFF cell_id not yet recovered */
+	 if set to 0xFFFFFFFF cell_id yest yet recovered */
 	u32 dvbh_srv_ind_hp;	/* DVB-H service indication info, bit 1 -
 	Time Slicing indicator, bit 0 - MPE-FEC indicator */
 	u32 dvbh_srv_ind_lp;	/* DVB-H service indication info, bit 1 -
@@ -768,16 +768,16 @@ struct sms_msg_statistics_info {
 
 	/* Split the calc of the SNR in DAB */
 	u32 signal; /* dB */
-	u32 noise; /* dB */
+	u32 yesise; /* dB */
 
 };
 
 struct sms_isdbt_layer_stats {
 	/* Per-layer information */
 	u32 code_rate; /* Code Rate from SMSHOSTLIB_CODE_RATE_ET,
-		       * 255 means layer does not exist */
+		       * 255 means layer does yest exist */
 	u32 constellation; /* constellation from SMSHOSTLIB_CONSTELLATION_ET,
-			    * 255 means layer does not exist */
+			    * 255 means layer does yest exist */
 	u32 ber; /* Post Viterbi ber [1E-5], 0xFFFFFFFF indicate N/A */
 	u32 ber_error_count; /* Post Viterbi Error Bits Count */
 	u32 ber_bit_count; /* Post Viterbi Total Bits Count */
@@ -786,9 +786,9 @@ struct sms_isdbt_layer_stats {
 	u32 error_ts_packets; /* Number of erroneous transport-stream packets */
 	u32 total_ts_packets; /* Total number of transport-stream packets */
 	u32 ti_ldepth_i; /* Time interleaver depth I parameter,
-			* 255 means layer does not exist */
+			* 255 means layer does yest exist */
 	u32 number_of_segments; /* Number of segments in layer A,
-			       * 255 means layer does not exist */
+			       * 255 means layer does yest exist */
 	u32 tmcc_errors; /* TMCC errors */
 };
 
@@ -805,8 +805,8 @@ struct sms_isdbt_stats {
 		       * full_size, the struct will be truncated */
 
 	/* Common parameters */
-	u32 is_rf_locked; /* 0 - not locked, 1 - locked */
-	u32 is_demod_locked; /* 0 - not locked, 1 - locked */
+	u32 is_rf_locked; /* 0 - yest locked, 1 - locked */
+	u32 is_demod_locked; /* 0 - yest locked, 1 - locked */
 	u32 is_external_lna_on; /* 0 - external LNA off, 1 - external LNA on */
 
 	/* Reception quality */
@@ -847,8 +847,8 @@ struct sms_isdbt_stats_ex {
 		       * full_size, the struct will be truncated */
 
 	/* Common parameters */
-	u32 is_rf_locked; /* 0 - not locked, 1 - locked */
-	u32 is_demod_locked; /* 0 - not locked, 1 - locked */
+	u32 is_rf_locked; /* 0 - yest locked, 1 - locked */
+	u32 is_demod_locked; /* 0 - yest locked, 1 - locked */
 	u32 is_external_lna_on; /* 0 - external LNA off, 1 - external LNA on */
 
 	/* Reception quality */
@@ -940,17 +940,17 @@ struct sms_tx_stats {
 
 	/* DVB-H TPS parameters */
 	u32 cell_id;		/* TPS Cell ID in bits 15..0, bits 31..16 zero;
-	 if set to 0xFFFFFFFF cell_id not yet recovered */
+	 if set to 0xFFFFFFFF cell_id yest yet recovered */
 	u32 dvbh_srv_ind_hp;	/* DVB-H service indication info, bit 1 -
 	 Time Slicing indicator, bit 0 - MPE-FEC indicator */
 	u32 dvbh_srv_ind_lp;	/* DVB-H service indication info, bit 1 -
 	 Time Slicing indicator, bit 0 - MPE-FEC indicator */
-	u32 is_demod_locked;	/* 0 - not locked, 1 - locked */
+	u32 is_demod_locked;	/* 0 - yest locked, 1 - locked */
 };
 
 struct sms_rx_stats {
-	u32 is_rf_locked;		/* 0 - not locked, 1 - locked */
-	u32 is_demod_locked;	/* 0 - not locked, 1 - locked */
+	u32 is_rf_locked;		/* 0 - yest locked, 1 - locked */
+	u32 is_demod_locked;	/* 0 - yest locked, 1 - locked */
 	u32 is_external_lna_on;	/* 0 - external LNA off, 1 - external LNA on */
 
 	u32 modem_state;		/* from SMSHOSTLIB_DVB_MODEM_STATE_ET */
@@ -975,8 +975,8 @@ struct sms_rx_stats {
 };
 
 struct sms_rx_stats_ex {
-	u32 is_rf_locked;		/* 0 - not locked, 1 - locked */
-	u32 is_demod_locked;	/* 0 - not locked, 1 - locked */
+	u32 is_rf_locked;		/* 0 - yest locked, 1 - locked */
+	u32 is_demod_locked;	/* 0 - yest locked, 1 - locked */
 	u32 is_external_lna_on;	/* 0 - external LNA off, 1 - external LNA on */
 
 	u32 modem_state;		/* from SMSHOSTLIB_DVB_MODEM_STATE_ET */
@@ -1055,7 +1055,7 @@ struct sms_i2c_req {
 };
 
 struct sms_i2c_res {
-	u32	status; /* non-zero value in case of failure */
+	u32	status; /* yesn-zero value in case of failure */
 	u32	read_count; /* number of bytes read */
 	u8	Data[1];
 };

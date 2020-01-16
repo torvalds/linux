@@ -51,7 +51,7 @@ enum {
 #define WLAN_STA_TIM BIT(3)
 #define WLAN_STA_PERM BIT(4)
 #define WLAN_STA_AUTHORIZED BIT(5)
-#define WLAN_STA_PENDING_POLL BIT(6) /* pending activity poll not ACKed */
+#define WLAN_STA_PENDING_POLL BIT(6) /* pending activity poll yest ACKed */
 #define WLAN_STA_SHORT_PREAMBLE BIT(7)
 #define WLAN_STA_PREAUTH BIT(8)
 #define WLAN_STA_WME BIT(9)
@@ -409,7 +409,7 @@ struct ieee80211_snap_hdr {
 
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
- * concurrent frames, but it should be noted that each entry can consume about
+ * concurrent frames, but it should be yested that each entry can consume about
  * 2 kB of RAM and increasing cache size will slow down frame reassembly.
  */
 #define IEEE80211_FRAG_CACHE_LEN 4
@@ -469,11 +469,11 @@ struct ieee80211_snap_hdr {
  */
 
 enum ieee80211_state {
-	/* the card is not linked at all */
+	/* the card is yest linked at all */
 	IEEE80211_NOLINK = 0,
 
 	/* IEEE80211_ASSOCIATING* are for BSS client mode
-	 * the driver shall not perform RX filtering unless
+	 * the driver shall yest perform RX filtering unless
 	 * the state is LINKED.
 	 * The driver shall just check for the state LINKED and
 	 * defaults to NOLINK for ALL the other states (including
@@ -626,12 +626,12 @@ enum rtw_ieee80211_back_parties {
  * @RTW_IEEE80211_CHAN_DISABLED: This channel is disabled.
  * @RTW_IEEE80211_CHAN_PASSIVE_SCAN: Only passive scanning is permitted
  *      on this channel.
- * @RTW_IEEE80211_CHAN_NO_IBSS: IBSS is not allowed on this channel.
+ * @RTW_IEEE80211_CHAN_NO_IBSS: IBSS is yest allowed on this channel.
  * @RTW_IEEE80211_CHAN_RADAR: Radar detection is required on this channel.
  * @RTW_IEEE80211_CHAN_NO_HT40PLUS: extension channel above this channel
- *      is not permitted.
+ *      is yest permitted.
  * @RTW_IEEE80211_CHAN_NO_HT40MINUS: extension channel below this channel
- *      is not permitted.
+ *      is yest permitted.
  */
 enum rtw_ieee80211_channel_flags {
 	RTW_IEEE80211_CHAN_DISABLED	 = BIT(0),
@@ -711,7 +711,7 @@ struct rtw_ieee802_11_elems {
 
 enum parse_res {
 	ParseOK = 0,
-	ParseUnknown = 1,
+	ParseUnkyeswn = 1,
 	ParseFailed = -1
 };
 
@@ -724,7 +724,7 @@ u8 *rtw_set_fixed_ie(void *pbuf, unsigned int len,
 u8 *rtw_set_ie(u8 *pbuf, int index, uint len, u8 *source, uint *frlen);
 
 enum secondary_ch_offset {
-	SCN = 0, /* no secondary channel */
+	SCN = 0, /* yes secondary channel */
 	SCA = 1, /* secondary channel above */
 	SCB = 3,  /* secondary channel below */
 };

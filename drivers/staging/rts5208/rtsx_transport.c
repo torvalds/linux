@@ -22,8 +22,8 @@
 /*
  * Copy a buffer of length buflen to/from the srb's transfer buffer.
  * (Note: for scatter-gather transfers (srb->use_sg > 0), srb->request_buffer
- * points to a list of s-g entries and we ignore srb->request_bufflen.
- * For non-scatter-gather transfers, srb->request_buffer points to the
+ * points to a list of s-g entries and we igyesre srb->request_bufflen.
+ * For yesn-scatter-gather transfers, srb->request_buffer points to the
  * transfer buffer itself and srb->request_bufflen is the buffer's length.)
  * Update the *index and *offset variables so that the next copy will
  * pick up from where this one left off.
@@ -38,7 +38,7 @@ unsigned int rtsx_stor_access_xfer_buf(unsigned char *buffer,
 {
 	unsigned int cnt;
 
-	/* If not using scatter-gather, just transfer the data directly. */
+	/* If yest using scatter-gather, just transfer the data directly. */
 	if (scsi_sg_count(srb) == 0) {
 		unsigned char *sgbuffer;
 
@@ -210,7 +210,7 @@ void rtsx_add_cmd(struct rtsx_chip *chip,
 	spin_unlock_irq(&chip->rtsx->reg_lock);
 }
 
-void rtsx_send_cmd_no_wait(struct rtsx_chip *chip)
+void rtsx_send_cmd_yes_wait(struct rtsx_chip *chip)
 {
 	u32 val = BIT(31);
 

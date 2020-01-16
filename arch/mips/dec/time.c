@@ -60,14 +60,14 @@ void read_persistent_clock64(struct timespec64 *ts)
 
 /*
  * In order to set the CMOS clock precisely, update_persistent_clock64 has to
- * be called 500 ms after the second nowtime has started, because when
- * nowtime is written into the registers of the CMOS clock, it will
+ * be called 500 ms after the second yeswtime has started, because when
+ * yeswtime is written into the registers of the CMOS clock, it will
  * jump to the next second precisely 500 ms later.  Check the Dallas
  * DS1287 data sheet for details.
  */
-int update_persistent_clock64(struct timespec64 now)
+int update_persistent_clock64(struct timespec64 yesw)
 {
-	time64_t nowtime = now.tv_sec;
+	time64_t yeswtime = yesw.tv_sec;
 	int retval = 0;
 	int real_seconds, real_minutes, cmos_minutes;
 	unsigned char save_control, save_freq_select;
@@ -89,10 +89,10 @@ int update_persistent_clock64(struct timespec64 now)
 	/*
 	 * since we're only adjusting minutes and seconds,
 	 * don't interfere with hour overflow. This avoids
-	 * messing with unknown time zones but requires your
-	 * RTC not to be off by more than 15 minutes
+	 * messing with unkyeswn time zones but requires your
+	 * RTC yest to be off by more than 15 minutes
 	 */
-	real_minutes = div_s64_rem(nowtime, 60, &real_seconds);
+	real_minutes = div_s64_rem(yeswtime, 60, &real_seconds);
 	if (((abs(real_minutes - cmos_minutes) + 15) / 30) & 1)
 		real_minutes += 30;	/* correct for half hour time zone */
 	real_minutes %= 60;
@@ -112,7 +112,7 @@ int update_persistent_clock64(struct timespec64 now)
 	}
 
 	/* The following flags have to be released exactly in this order,
-	 * otherwise the DS1287 will not reset the oscillator and will not
+	 * otherwise the DS1287 will yest reset the oscillator and will yest
 	 * update precisely 500 ms later.  You won't find this mentioned
 	 * in the Dallas Semiconductor data sheets, but who believes data
 	 * sheets anyway ...                           -- Markus Kuhn
@@ -158,8 +158,8 @@ void __init plat_time_init(void)
 		 * so we can't use the timer as a clock source, and a clock
 		 * event both at a time.  An accurate wall clock is more
 		 * important than a high-precision interval timer so only
-		 * use the timer as a clock source, and not a clock event
-		 * if there's no I/O ASIC counter available to serve as a
+		 * use the timer as a clock source, and yest a clock event
+		 * if there's yes I/O ASIC counter available to serve as a
 		 * clock source.
 		 */
 		if (!ioasic_clock) {

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015 Texas Instruments, Inc.
  *
- * Benoit Parrot <bparrot@ti.com>
+ * Beyesit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
  *
  * This program is free software; you may redistribute it and/or modify

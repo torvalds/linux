@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -54,7 +54,7 @@ struct kfd_gpu_cache_info {
 	uint32_t	cache_level;
 	uint32_t	flags;
 	/* Indicates how many Compute Units share this cache
-	 * Value = 1 indicates the cache is not shared
+	 * Value = 1 indicates the cache is yest shared
 	 */
 	uint32_t	num_cu_shared;
 };
@@ -138,17 +138,17 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 /* TODO - check & update Vega10 cache details */
 #define vega10_cache_info carrizo_cache_info
 #define raven_cache_info carrizo_cache_info
-#define renoir_cache_info carrizo_cache_info
+#define reyesir_cache_info carrizo_cache_info
 /* TODO - check & update Navi10 cache details */
 #define navi10_cache_info carrizo_cache_info
 
 static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
 {
-	dev->node_props.cpu_cores_count = cu->num_cpu_cores;
-	dev->node_props.cpu_core_id_base = cu->processor_id_low;
+	dev->yesde_props.cpu_cores_count = cu->num_cpu_cores;
+	dev->yesde_props.cpu_core_id_base = cu->processor_id_low;
 	if (cu->hsa_capability & CRAT_CU_FLAGS_IOMMU_PRESENT)
-		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
+		dev->yesde_props.capability |= HSA_CAP_ATS_PRESENT;
 
 	pr_debug("CU CPU: cores=%d id_base=%d\n", cu->num_cpu_cores,
 			cu->processor_id_low);
@@ -157,17 +157,17 @@ static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 static void kfd_populated_cu_info_gpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
 {
-	dev->node_props.simd_id_base = cu->processor_id_low;
-	dev->node_props.simd_count = cu->num_simd_cores;
-	dev->node_props.lds_size_in_kb = cu->lds_size_in_kb;
-	dev->node_props.max_waves_per_simd = cu->max_waves_simd;
-	dev->node_props.wave_front_size = cu->wave_front_size;
-	dev->node_props.array_count = cu->array_count;
-	dev->node_props.cu_per_simd_array = cu->num_cu_per_array;
-	dev->node_props.simd_per_cu = cu->num_simd_per_cu;
-	dev->node_props.max_slots_scratch_cu = cu->max_slots_scatch_cu;
+	dev->yesde_props.simd_id_base = cu->processor_id_low;
+	dev->yesde_props.simd_count = cu->num_simd_cores;
+	dev->yesde_props.lds_size_in_kb = cu->lds_size_in_kb;
+	dev->yesde_props.max_waves_per_simd = cu->max_waves_simd;
+	dev->yesde_props.wave_front_size = cu->wave_front_size;
+	dev->yesde_props.array_count = cu->array_count;
+	dev->yesde_props.cu_per_simd_array = cu->num_cu_per_array;
+	dev->yesde_props.simd_per_cu = cu->num_simd_per_cu;
+	dev->yesde_props.max_slots_scratch_cu = cu->max_slots_scatch_cu;
 	if (cu->hsa_capability & CRAT_CU_FLAGS_HOT_PLUGGABLE)
-		dev->node_props.capability |= HSA_CAP_HOT_PLUGGABLE;
+		dev->yesde_props.capability |= HSA_CAP_HOT_PLUGGABLE;
 	pr_debug("CU GPU: id_base=%d\n", cu->processor_id_low);
 }
 
@@ -227,8 +227,8 @@ static int kfd_parse_subtype_mem(struct crat_subtype_memory *mem,
 			mem->proximity_domain);
 	list_for_each_entry(dev, device_list, list) {
 		if (mem->proximity_domain == dev->proximity_domain) {
-			/* We're on GPU node */
-			if (dev->node_props.cpu_cores_count == 0) {
+			/* We're on GPU yesde */
+			if (dev->yesde_props.cpu_cores_count == 0) {
 				/* APU */
 				if (mem->visibility_type == 0)
 					heap_type =
@@ -269,7 +269,7 @@ static int kfd_parse_subtype_mem(struct crat_subtype_memory *mem,
 			props->size_in_bytes = size_in_bytes;
 			props->width = width;
 
-			dev->node_props.mem_banks_count++;
+			dev->yesde_props.mem_banks_count++;
 			list_add_tail(&props->list, &dev->mem_props);
 
 			break;
@@ -294,8 +294,8 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 
 	pr_debug("Found cache entry in CRAT table with processor_id=%d\n", id);
 	list_for_each_entry(dev, device_list, list) {
-		total_num_of_cu = (dev->node_props.array_count *
-					dev->node_props.cu_per_simd_array);
+		total_num_of_cu = (dev->yesde_props.array_count *
+					dev->yesde_props.cu_per_simd_array);
 
 		/* Cache infomration in CRAT doesn't have proximity_domain
 		 * information as it is associated with a CPU core or GPU
@@ -305,11 +305,11 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 		 *  Compute Units are parsed before caches are parsed. In
 		 *  future, remove this dependency
 		 */
-		if ((id >= dev->node_props.cpu_core_id_base &&
-			id <= dev->node_props.cpu_core_id_base +
-				dev->node_props.cpu_cores_count) ||
-			(id >= dev->node_props.simd_id_base &&
-			id < dev->node_props.simd_id_base +
+		if ((id >= dev->yesde_props.cpu_core_id_base &&
+			id <= dev->yesde_props.cpu_core_id_base +
+				dev->yesde_props.cpu_cores_count) ||
+			(id >= dev->yesde_props.simd_id_base &&
+			id < dev->yesde_props.simd_id_base +
 				total_num_of_cu)) {
 			props = kfd_alloc_struct(props);
 			if (!props)
@@ -335,7 +335,7 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 				props->cache_type |= HSA_CACHE_TYPE_HSACU;
 
 			dev->cache_count++;
-			dev->node_props.caches_count++;
+			dev->yesde_props.caches_count++;
 			list_add_tail(&props->list, &dev->cache_props);
 
 			break;
@@ -367,10 +367,10 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 			if (!props)
 				return -ENOMEM;
 
-			props->node_from = id_from;
-			props->node_to = id_to;
+			props->yesde_from = id_from;
+			props->yesde_to = id_to;
 			props->ver_maj = iolink->version_major;
-			props->ver_min = iolink->version_minor;
+			props->ver_min = iolink->version_miyesr;
 			props->iolink_type = iolink->io_interface_type;
 
 			if (props->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS)
@@ -378,7 +378,7 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 			else if (props->iolink_type == CRAT_IOLINK_TYPE_XGMI)
 				props->weight = 15 * iolink->num_hops_xgmi;
 			else
-				props->weight = node_distance(id_from, id_to);
+				props->weight = yesde_distance(id_from, id_to);
 
 			props->min_latency = iolink->minimum_latency;
 			props->max_latency = iolink->maximum_latency;
@@ -388,19 +388,19 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 					iolink->recommended_transfer_size;
 
 			dev->io_link_count++;
-			dev->node_props.io_links_count++;
+			dev->yesde_props.io_links_count++;
 			list_add_tail(&props->list, &dev->io_link_props);
 			break;
 		}
 	}
 
 	/* CPU topology is created before GPUs are detected, so CPU->GPU
-	 * links are not built at that time. If a PCIe type is discovered, it
+	 * links are yest built at that time. If a PCIe type is discovered, it
 	 * means a GPU is detected and we are adding GPU->CPU to the topology.
 	 * At this time, also add the corresponded CPU->GPU link if GPU
 	 * is large bar.
 	 * For xGMI, we only added the link with one direction in the crat
-	 * table, add corresponded reversed direction link now.
+	 * table, add corresponded reversed direction link yesw.
 	 */
 	if (props && (iolink->flags & CRAT_IOLINK_FLAGS_BI_DIRECTIONAL)) {
 		to_dev = kfd_topology_device_by_proximity_domain(id_to);
@@ -408,11 +408,11 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 			return -ENODEV;
 		/* same everything but the other direction */
 		props2 = kmemdup(props, sizeof(*props2), GFP_KERNEL);
-		props2->node_from = id_to;
-		props2->node_to = id_from;
+		props2->yesde_from = id_to;
+		props2->yesde_to = id_from;
 		props2->kobj = NULL;
 		to_dev->io_link_count++;
-		to_dev->node_props.io_links_count++;
+		to_dev->yesde_props.io_links_count++;
 		list_add_tail(&props2->list, &to_dev->io_link_props);
 	}
 
@@ -448,29 +448,29 @@ static int kfd_parse_subtype(struct crat_subtype_generic *sub_type_hdr,
 		break;
 	case CRAT_SUBTYPE_TLB_AFFINITY:
 		/*
-		 * For now, nothing to do here
+		 * For yesw, yesthing to do here
 		 */
-		pr_debug("Found TLB entry in CRAT table (not processing)\n");
+		pr_debug("Found TLB entry in CRAT table (yest processing)\n");
 		break;
 	case CRAT_SUBTYPE_CCOMPUTE_AFFINITY:
 		/*
-		 * For now, nothing to do here
+		 * For yesw, yesthing to do here
 		 */
-		pr_debug("Found CCOMPUTE entry in CRAT table (not processing)\n");
+		pr_debug("Found CCOMPUTE entry in CRAT table (yest processing)\n");
 		break;
 	case CRAT_SUBTYPE_IOLINK_AFFINITY:
 		iolink = (struct crat_subtype_iolink *)sub_type_hdr;
 		ret = kfd_parse_subtype_iolink(iolink, device_list);
 		break;
 	default:
-		pr_warn("Unknown subtype %d in CRAT\n",
+		pr_warn("Unkyeswn subtype %d in CRAT\n",
 				sub_type_hdr->type);
 	}
 
 	return ret;
 }
 
-/* kfd_parse_crat_table - parse CRAT table. For each node present in CRAT
+/* kfd_parse_crat_table - parse CRAT table. For each yesde present in CRAT
  * create a kfd_topology_device and add in to device_list. Also parse
  * CRAT subtypes and attach it to appropriate kfd_topology_device
  *	@crat_image - input image containing CRAT
@@ -485,10 +485,10 @@ int kfd_parse_crat_table(void *crat_image, struct list_head *device_list,
 {
 	struct kfd_topology_device *top_dev = NULL;
 	struct crat_subtype_generic *sub_type_hdr;
-	uint16_t node_id;
+	uint16_t yesde_id;
 	int ret = 0;
 	struct crat_header *crat_table = (struct crat_header *)crat_image;
-	uint16_t num_nodes;
+	uint16_t num_yesdes;
 	uint32_t image_len;
 
 	if (!crat_image)
@@ -499,12 +499,12 @@ int kfd_parse_crat_table(void *crat_image, struct list_head *device_list,
 		return -EINVAL;
 	}
 
-	num_nodes = crat_table->num_domains;
+	num_yesdes = crat_table->num_domains;
 	image_len = crat_table->length;
 
-	pr_info("Parsing CRAT table with %d nodes\n", num_nodes);
+	pr_info("Parsing CRAT table with %d yesdes\n", num_yesdes);
 
-	for (node_id = 0; node_id < num_nodes; node_id++) {
+	for (yesde_id = 0; yesde_id < num_yesdes; yesde_id++) {
 		top_dev = kfd_create_topology_device(device_list);
 		if (!top_dev)
 			break;
@@ -553,7 +553,7 @@ static int fill_in_pcache(struct crat_subtype_cache *pcache,
 	unsigned int cu_sibling_map_mask;
 	int first_active_cu;
 
-	/* First check if enough memory is available */
+	/* First check if eyesugh memory is available */
 	if (sizeof(struct crat_subtype_cache) > mem_available)
 		return -ENOMEM;
 
@@ -564,7 +564,7 @@ static int fill_in_pcache(struct crat_subtype_cache *pcache,
 	first_active_cu = ffs(cu_sibling_map_mask);
 
 	/* CU could be inactive. In case of shared cache find the first active
-	 * CU. and incase of non-shared cache check if the CU is inactive. If
+	 * CU. and incase of yesn-shared cache check if the CU is inactive. If
 	 * inactive active skip it
 	 */
 	if (first_active_cu) {
@@ -672,8 +672,8 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		num_of_cache_types = ARRAY_SIZE(raven_cache_info);
 		break;
 	case CHIP_RENOIR:
-		pcache_info = renoir_cache_info;
-		num_of_cache_types = ARRAY_SIZE(renoir_cache_info);
+		pcache_info = reyesir_cache_info;
+		num_of_cache_types = ARRAY_SIZE(reyesir_cache_info);
 		break;
 	case CHIP_NAVI10:
 	case CHIP_NAVI12:
@@ -745,7 +745,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
  * copies CRAT from ACPI (if available).
  * NOTE: Call kfd_destroy_crat_image to free CRAT image memory
  *
- *	@crat_image: CRAT read from ACPI. If no CRAT in ACPI then
+ *	@crat_image: CRAT read from ACPI. If yes CRAT in ACPI then
  *		     crat_image will be NULL
  *	@size: [OUT] size of crat_image
  *
@@ -765,7 +765,7 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 	/* Fetch the CRAT table from ACPI */
 	status = acpi_get_table(CRAT_SIGNATURE, 0, &crat_table);
 	if (status == AE_NOT_FOUND) {
-		pr_warn("CRAT table not found\n");
+		pr_warn("CRAT table yest found\n");
 		return -ENODATA;
 	} else if (ACPI_FAILURE(status)) {
 		const char *err = acpi_format_exception(status);
@@ -774,7 +774,7 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 		return -EINVAL;
 	}
 
-	if (ignore_crat) {
+	if (igyesre_crat) {
 		pr_info("CRAT table disabled by module option\n");
 		return -ENODATA;
 	}
@@ -790,23 +790,23 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 }
 
 /* Memory required to create Virtual CRAT.
- * Since there is no easy way to predict the amount of memory required, the
+ * Since there is yes easy way to predict the amount of memory required, the
  * following amount are allocated for CPU and GPU Virtual CRAT. This is
- * expected to cover all known conditions. But to be safe additional check
+ * expected to cover all kyeswn conditions. But to be safe additional check
  * is put in the code to ensure we don't overwrite.
  */
 #define VCRAT_SIZE_FOR_CPU	(2 * PAGE_SIZE)
 #define VCRAT_SIZE_FOR_GPU	(4 * PAGE_SIZE)
 
-/* kfd_fill_cu_for_cpu - Fill in Compute info for the given CPU NUMA node
+/* kfd_fill_cu_for_cpu - Fill in Compute info for the given CPU NUMA yesde
  *
- *	@numa_node_id: CPU NUMA node id
+ *	@numa_yesde_id: CPU NUMA yesde id
  *	@avail_size: Available size in the memory
  *	@sub_type_hdr: Memory into which compute info will be filled in
  *
  *	Return 0 if successful else return -ve value
  */
-static int kfd_fill_cu_for_cpu(int numa_node_id, int *avail_size,
+static int kfd_fill_cu_for_cpu(int numa_yesde_id, int *avail_size,
 				int proximity_domain,
 				struct crat_subtype_computeunit *sub_type_hdr)
 {
@@ -823,12 +823,12 @@ static int kfd_fill_cu_for_cpu(int numa_node_id, int *avail_size,
 	sub_type_hdr->length = sizeof(struct crat_subtype_computeunit);
 	sub_type_hdr->flags = CRAT_SUBTYPE_FLAGS_ENABLED;
 
-	cpumask = cpumask_of_node(numa_node_id);
+	cpumask = cpumask_of_yesde(numa_yesde_id);
 
 	/* Fill in CU data */
 	sub_type_hdr->flags |= CRAT_CU_FLAGS_CPU_PRESENT;
 	sub_type_hdr->proximity_domain = proximity_domain;
-	sub_type_hdr->processor_id_low = kfd_numa_node_to_apic_id(numa_node_id);
+	sub_type_hdr->processor_id_low = kfd_numa_yesde_to_apic_id(numa_yesde_id);
 	if (sub_type_hdr->processor_id_low == -1)
 		return -EINVAL;
 
@@ -837,15 +837,15 @@ static int kfd_fill_cu_for_cpu(int numa_node_id, int *avail_size,
 	return 0;
 }
 
-/* kfd_fill_mem_info_for_cpu - Fill in Memory info for the given CPU NUMA node
+/* kfd_fill_mem_info_for_cpu - Fill in Memory info for the given CPU NUMA yesde
  *
- *	@numa_node_id: CPU NUMA node id
+ *	@numa_yesde_id: CPU NUMA yesde id
  *	@avail_size: Available size in the memory
  *	@sub_type_hdr: Memory into which compute info will be filled in
  *
  *	Return 0 if successful else return -ve value
  */
-static int kfd_fill_mem_info_for_cpu(int numa_node_id, int *avail_size,
+static int kfd_fill_mem_info_for_cpu(int numa_yesde_id, int *avail_size,
 			int proximity_domain,
 			struct crat_subtype_memory *sub_type_hdr)
 {
@@ -866,13 +866,13 @@ static int kfd_fill_mem_info_for_cpu(int numa_node_id, int *avail_size,
 
 	/* Fill in Memory Subunit data */
 
-	/* Unlike si_meminfo, si_meminfo_node is not exported. So
-	 * the following lines are duplicated from si_meminfo_node
+	/* Unlike si_meminfo, si_meminfo_yesde is yest exported. So
+	 * the following lines are duplicated from si_meminfo_yesde
 	 * function
 	 */
-	pgdat = NODE_DATA(numa_node_id);
+	pgdat = NODE_DATA(numa_yesde_id);
 	for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++)
-		mem_in_bytes += zone_managed_pages(&pgdat->node_zones[zone_type]);
+		mem_in_bytes += zone_managed_pages(&pgdat->yesde_zones[zone_type]);
 	mem_in_bytes <<= PAGE_SHIFT;
 
 	sub_type_hdr->length_low = lower_32_bits(mem_in_bytes);
@@ -883,7 +883,7 @@ static int kfd_fill_mem_info_for_cpu(int numa_node_id, int *avail_size,
 }
 
 #ifdef CONFIG_X86_64
-static int kfd_fill_iolink_info_for_cpu(int numa_node_id, int *avail_size,
+static int kfd_fill_iolink_info_for_cpu(int numa_yesde_id, int *avail_size,
 				uint32_t *num_entries,
 				struct crat_subtype_iolink *sub_type_hdr)
 {
@@ -898,9 +898,9 @@ static int kfd_fill_iolink_info_for_cpu(int numa_node_id, int *avail_size,
 
 	*num_entries = 0;
 
-	/* Create IO links from this node to other CPU nodes */
-	for_each_online_node(nid) {
-		if (nid == numa_node_id) /* node itself */
+	/* Create IO links from this yesde to other CPU yesdes */
+	for_each_online_yesde(nid) {
+		if (nid == numa_yesde_id) /* yesde itself */
 			continue;
 
 		*avail_size -= sizeof(struct crat_subtype_iolink);
@@ -915,7 +915,7 @@ static int kfd_fill_iolink_info_for_cpu(int numa_node_id, int *avail_size,
 		sub_type_hdr->flags = CRAT_SUBTYPE_FLAGS_ENABLED;
 
 		/* Fill in IO link data */
-		sub_type_hdr->proximity_domain_from = numa_node_id;
+		sub_type_hdr->proximity_domain_from = numa_yesde_id;
 		sub_type_hdr->proximity_domain_to = nid;
 		sub_type_hdr->io_interface_type = link_type;
 
@@ -940,7 +940,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 	acpi_status status;
 	struct crat_subtype_generic *sub_type_hdr;
 	int avail_size = *size;
-	int numa_node_id;
+	int numa_yesde_id;
 #ifdef CONFIG_X86_64
 	uint32_t entries = 0;
 #endif
@@ -963,7 +963,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 
 	status = acpi_get_table("DSDT", 0, &acpi_table);
 	if (status != AE_OK)
-		pr_warn("DSDT table not found for OEM information\n");
+		pr_warn("DSDT table yest found for OEM information\n");
 	else {
 		crat_table->oem_revision = acpi_table->revision;
 		memcpy(crat_table->oem_id, acpi_table->oem_id,
@@ -976,12 +976,12 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 
 	sub_type_hdr = (struct crat_subtype_generic *)(crat_table+1);
 
-	for_each_online_node(numa_node_id) {
-		if (kfd_numa_node_to_apic_id(numa_node_id) == -1)
+	for_each_online_yesde(numa_yesde_id) {
+		if (kfd_numa_yesde_to_apic_id(numa_yesde_id) == -1)
 			continue;
 
 		/* Fill in Subtype: Compute Unit */
-		ret = kfd_fill_cu_for_cpu(numa_node_id, &avail_size,
+		ret = kfd_fill_cu_for_cpu(numa_yesde_id, &avail_size,
 			crat_table->num_domains,
 			(struct crat_subtype_computeunit *)sub_type_hdr);
 		if (ret < 0)
@@ -993,7 +993,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 			sub_type_hdr->length);
 
 		/* Fill in Subtype: Memory */
-		ret = kfd_fill_mem_info_for_cpu(numa_node_id, &avail_size,
+		ret = kfd_fill_mem_info_for_cpu(numa_yesde_id, &avail_size,
 			crat_table->num_domains,
 			(struct crat_subtype_memory *)sub_type_hdr);
 		if (ret < 0)
@@ -1006,7 +1006,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 
 		/* Fill in Subtype: IO Link */
 #ifdef CONFIG_X86_64
-		ret = kfd_fill_iolink_info_for_cpu(numa_node_id, &avail_size,
+		ret = kfd_fill_iolink_info_for_cpu(numa_yesde_id, &avail_size,
 				&entries,
 				(struct crat_subtype_iolink *)sub_type_hdr);
 		if (ret < 0)
@@ -1017,7 +1017,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 		sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 				sub_type_hdr->length * entries);
 #else
-		pr_info("IO link not available for non x86 platforms\n");
+		pr_info("IO link yest available for yesn x86 platforms\n");
 #endif
 
 		crat_table->num_domains++;
@@ -1026,7 +1026,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 	/* TODO: Add cache Subtype for CPU.
 	 * Currently, CPU cache information is available in function
 	 * detect_cache_attributes(cpu) defined in the file
-	 * ./arch/x86/kernel/cpu/intel_cacheinfo.c. This function is not
+	 * ./arch/x86/kernel/cpu/intel_cacheinfo.c. This function is yest
 	 * exported and to get the same information the code needs to be
 	 * duplicated.
 	 */
@@ -1067,11 +1067,11 @@ static int kfd_fill_gpu_memory_affinity(int *avail_size,
 }
 
 /* kfd_fill_gpu_direct_io_link - Fill in direct io link from GPU
- * to its NUMA node
+ * to its NUMA yesde
  *	@avail_size: Available size in the memory
  *	@kdev - [IN] GPU device
  *	@sub_type_hdr: Memory into which io link info will be filled in
- *	@proximity_domain - proximity domain of the GPU node
+ *	@proximity_domain - proximity domain of the GPU yesde
  *
  *	Return 0 if successful else return -ve value
  */
@@ -1099,10 +1099,10 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 	sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_PCIEXPRESS;
 	sub_type_hdr->proximity_domain_from = proximity_domain;
 #ifdef CONFIG_NUMA
-	if (kdev->pdev->dev.numa_node == NUMA_NO_NODE)
+	if (kdev->pdev->dev.numa_yesde == NUMA_NO_NODE)
 		sub_type_hdr->proximity_domain_to = 0;
 	else
-		sub_type_hdr->proximity_domain_to = kdev->pdev->dev.numa_node;
+		sub_type_hdr->proximity_domain_to = kdev->pdev->dev.numa_yesde;
 #else
 	sub_type_hdr->proximity_domain_to = 0;
 #endif
@@ -1213,7 +1213,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 
 	cu->hsa_capability = 0;
 
-	/* Check if this node supports IOMMU. During parsing this flag will
+	/* Check if this yesde supports IOMMU. During parsing this flag will
 	 * translate to HSA_CAP_ATS_PRESENT
 	 */
 	if (!kfd_iommu_check_device(kdev))
@@ -1222,7 +1222,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	crat_table->length += sub_type_hdr->length;
 	crat_table->total_entries++;
 
-	/* Fill in Subtype: Memory. Only on systems with large BAR (no
+	/* Fill in Subtype: Memory. Only on systems with large BAR (yes
 	 * private FB), report memory as public. On other systems
 	 * report the total FB size (public+private) as a single
 	 * private heap.
@@ -1276,7 +1276,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 
 	/* Fill in Subtype: IO_LINKS
 	 *  Only direct links are added here which is Link from GPU to
-	 *  to its NUMA node. Indirect links are added by userspace.
+	 *  to its NUMA yesde. Indirect links are added by userspace.
 	 */
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 		cache_mem_filled);
@@ -1329,13 +1329,13 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
  *
  * NOTE: Call kfd_destroy_crat_image to free CRAT image memory
  *
- *	@crat_image: VCRAT image created because ACPI does not have a
+ *	@crat_image: VCRAT image created because ACPI does yest have a
  *		     CRAT for this device
  *	@size: [OUT] size of virtual crat_image
  *	@flags:	COMPUTE_UNIT_CPU - Create VCRAT for CPU device
  *		COMPUTE_UNIT_GPU - Create VCRAT for GPU
  *		(COMPUTE_UNIT_CPU | COMPUTE_UNIT_GPU) - Create VCRAT for APU
- *			-- this option is not currently implemented.
+ *			-- this option is yest currently implemented.
  *			The assumption is that all AMD APUs will have CRAT
  *	@kdev: Valid kfd_device required if flags contain COMPUTE_UNIT_GPU
  *
@@ -1355,7 +1355,7 @@ int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
 
 	/* Allocate one VCRAT_SIZE_FOR_CPU for CPU virtual CRAT image and
 	 * VCRAT_SIZE_FOR_GPU for GPU virtual CRAT image. This should cover
-	 * all the current conditions. A check is put not to overwrite beyond
+	 * all the current conditions. A check is put yest to overwrite beyond
 	 * allocated size
 	 */
 	switch (flags) {
@@ -1379,7 +1379,7 @@ int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
 	case (COMPUTE_UNIT_CPU | COMPUTE_UNIT_GPU):
 		/* TODO: */
 		ret = -EINVAL;
-		pr_err("VCRAT not implemented for APU\n");
+		pr_err("VCRAT yest implemented for APU\n");
 		break;
 	default:
 		ret = -EINVAL;

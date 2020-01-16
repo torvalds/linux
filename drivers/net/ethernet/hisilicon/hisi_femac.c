@@ -2,7 +2,7 @@
 /*
  * Hisilicon Fast Ethernet MAC Driver
  *
- * Copyright (c) 2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016 HiSilicon Techyeslogies Co., Ltd.
  */
 
 #include <linux/circ_buf.h>
@@ -780,7 +780,7 @@ static void hisi_femac_port_init(struct hisi_femac_priv *priv)
 static int hisi_femac_drv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct net_device *ndev;
 	struct hisi_femac_priv *priv;
 	struct phy_device *phy;
@@ -834,7 +834,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->phy_rst)) {
 		priv->phy_rst = NULL;
 	} else {
-		ret = of_property_read_u32_array(node,
+		ret = of_property_read_u32_array(yesde,
 						 PHY_RESET_DELAYS_PROPERTY,
 						 priv->phy_reset_delays,
 						 DELAYS_NUM);
@@ -843,7 +843,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 		hisi_femac_phy_reset(priv);
 	}
 
-	phy = of_phy_get_and_connect(ndev, node, hisi_femac_adjust_link);
+	phy = of_phy_get_and_connect(ndev, yesde, hisi_femac_adjust_link);
 	if (!phy) {
 		dev_err(dev, "connect to PHY failed!\n");
 		ret = -ENODEV;
@@ -854,7 +854,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 			   (unsigned long)phy->phy_id,
 			   phy_modes(phy->interface));
 
-	mac_addr = of_get_mac_address(node);
+	mac_addr = of_get_mac_address(yesde);
 	if (!IS_ERR(mac_addr))
 		ether_addr_copy(ndev->dev_addr, mac_addr);
 	if (!is_valid_ether_addr(ndev->dev_addr)) {

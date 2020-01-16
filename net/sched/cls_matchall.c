@@ -2,7 +2,7 @@
 /*
  * net/sched/cls_matchll.c		Match-all classifier
  *
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellayesx.com>
  */
 
 #include <linux/kernel.h>
@@ -356,7 +356,7 @@ static int mall_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = head->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -429,6 +429,6 @@ static void __exit cls_mall_exit(void)
 module_init(cls_mall_init);
 module_exit(cls_mall_exit);
 
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
+MODULE_AUTHOR("Jiri Pirko <jiri@mellayesx.com>");
 MODULE_DESCRIPTION("Match-all classifier");
 MODULE_LICENSE("GPL v2");

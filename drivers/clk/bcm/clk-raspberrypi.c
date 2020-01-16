@@ -4,7 +4,7 @@
  *
  * Even though clk-bcm2835 provides an interface to the hardware registers for
  * the system clocks we've had to factor out 'pllb' as the firmware 'owns' it.
- * We're not allowed to change it directly as we might race with the
+ * We're yest allowed to change it directly as we might race with the
  * over-temperature and under-voltage protections provided by the firmware.
  *
  * Copyright (C) 2019 Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
@@ -138,7 +138,7 @@ static int raspberrypi_fw_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 /*
- * Sadly there is no firmware rate rounding interface. We borrowed it from
+ * Sadly there is yes firmware rate rounding interface. We borrowed it from
  * clk-bcm2835.
  */
 static int raspberrypi_pll_determine_rate(struct clk_hw *hw,
@@ -249,21 +249,21 @@ static int raspberrypi_register_pllb_arm(struct raspberrypi_clk *rpi)
 
 static int raspberrypi_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *firmware_node;
+	struct device_yesde *firmware_yesde;
 	struct device *dev = &pdev->dev;
 	struct rpi_firmware *firmware;
 	struct raspberrypi_clk *rpi;
 	int ret;
 
-	firmware_node = of_find_compatible_node(NULL, NULL,
+	firmware_yesde = of_find_compatible_yesde(NULL, NULL,
 					"raspberrypi,bcm2835-firmware");
-	if (!firmware_node) {
-		dev_err(dev, "Missing firmware node\n");
+	if (!firmware_yesde) {
+		dev_err(dev, "Missing firmware yesde\n");
 		return -ENOENT;
 	}
 
-	firmware = rpi_firmware_get(firmware_node);
-	of_node_put(firmware_node);
+	firmware = rpi_firmware_get(firmware_yesde);
+	of_yesde_put(firmware_yesde);
 	if (!firmware)
 		return -EPROBE_DEFER;
 

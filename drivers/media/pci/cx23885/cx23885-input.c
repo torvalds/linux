@@ -17,7 +17,7 @@
  *		       Mauro Carvalho Chehab <mchehab@kernel.org>
  *		       Sascha Sommer <saschasommer@freenet.de>
  *  Copyright (C) 2004, 2005 Chris Pascoe
- *  Copyright (C) 2003, 2004 Gerd Knorr
+ *  Copyright (C) 2003, 2004 Gerd Kyesrr
  *  Copyright (C) 2003 Pavel Machek
  */
 
@@ -87,7 +87,7 @@ void cx23885_input_rx_work_handler(struct cx23885_dev *dev, u32 events)
 	case CX23885_BOARD_DVBSKY_T982:
 	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
 		/*
-		 * The only boards we handle right now.  However other boards
+		 * The only boards we handle right yesw.  However other boards
 		 * using the CX2388x integrated IR controller should be similar
 		 */
 		break;
@@ -162,7 +162,7 @@ static int cx23885_input_ir_start(struct cx23885_dev *dev)
 		params.max_pulse_width = 3333333; /* ns */
 		/* RC-5:    666,667 ns = 1/36 kHz * 32 cycles * 1 mark * 0.75 */
 		/* RC-6A:   333,333 ns = 1/36 kHz * 16 cycles * 1 mark * 0.75 */
-		params.noise_filter_min_width = 333333; /* ns */
+		params.yesise_filter_min_width = 333333; /* ns */
 		/*
 		 * This board has inverted receive sense:
 		 * mark is received as low logic level;
@@ -196,10 +196,10 @@ static int cx23885_input_ir_start(struct cx23885_dev *dev)
 		params.max_pulse_width = 12378022; /* ns */
 
 		/*
-		 * NEC noise filter min width: (64/3)/(455 kHz/12) * 1 nec_unit
+		 * NEC yesise filter min width: (64/3)/(455 kHz/12) * 1 nec_unit
 		 * (64/3)/(455 kHz/12) * 1 nec_units * 0.625 = 351648 ns
 		 */
-		params.noise_filter_min_width = 351648; /* ns */
+		params.yesise_filter_min_width = 351648; /* ns */
 
 		params.modulation = false;
 		params.invert_level = true;
@@ -227,7 +227,7 @@ static void cx23885_input_ir_stop(struct cx23885_dev *dev)
 		return;
 
 	/*
-	 * Stop the sd_ir subdevice from generating notifications and
+	 * Stop the sd_ir subdevice from generating yestifications and
 	 * scheduling work.
 	 * It is shutdown this way in order to mitigate a race with
 	 * cx23885_input_rx_work_handler() in the overrun case, which could
@@ -266,7 +266,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 
 	/*
 	 * If the IR device (hardware registers, chip, GPIO lines, etc.) isn't
-	 * encapsulated in a v4l2_subdev, then I'm not going to deal with it.
+	 * encapsulated in a v4l2_subdev, then I'm yest going to deal with it.
 	 */
 	if (dev->sd_ir == NULL)
 		return -ENODEV;

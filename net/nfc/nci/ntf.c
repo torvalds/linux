@@ -8,7 +8,7 @@
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
- *  Acknowledgements:
+ *  Ackyeswledgements:
  *  This file is based on hci_event.c, which was written
  *  by Maxim Krasnyansky.
  */
@@ -208,7 +208,7 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 		protocol = nci_get_prop_rf_protocol(ndev, rf_protocol);
 
 	if (!(protocol & ndev->poll_prots)) {
-		pr_err("the target found does not have the desired protocol\n");
+		pr_err("the target found does yest have the desired protocol\n");
 		return -EPROTO;
 	}
 
@@ -273,9 +273,9 @@ static void nci_add_new_target(struct nci_dev *ndev,
 		}
 	}
 
-	/* This is a new target, check if we've enough room */
+	/* This is a new target, check if we've eyesugh room */
 	if (ndev->n_targets == NCI_MAX_DISCOVERED_TARGETS) {
-		pr_debug("not enough room, ignoring new target...\n");
+		pr_debug("yest eyesugh room, igyesring new target...\n");
 		return;
 	}
 
@@ -531,7 +531,7 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 
 	/* If this contains a value of 0x00 (NFCEE Direct RF
 	 * Interface) then all following parameters SHALL contain a
-	 * value of 0 and SHALL be ignored.
+	 * value of 0 and SHALL be igyesred.
 	 */
 	if (ntf.rf_interface == NCI_RF_INTERFACE_NFCEE_DIRECT)
 		goto listen;
@@ -559,7 +559,7 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 			break;
 
 		case NCI_NFC_A_PASSIVE_LISTEN_MODE:
-			/* no RF technology specific parameters */
+			/* yes RF techyeslogy specific parameters */
 			break;
 
 		case NCI_NFC_F_PASSIVE_LISTEN_MODE:
@@ -600,7 +600,7 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 			break;
 
 		case NCI_RF_INTERFACE_FRAME:
-			/* no activation params */
+			/* yes activation params */
 			break;
 
 		default:
@@ -789,7 +789,7 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		break;
 
 	default:
-		pr_err("unknown ntf opcode 0x%x\n", ntf_opcode);
+		pr_err("unkyeswn ntf opcode 0x%x\n", ntf_opcode);
 		break;
 	}
 

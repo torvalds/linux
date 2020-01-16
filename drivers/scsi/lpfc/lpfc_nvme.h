@@ -50,7 +50,7 @@ struct lpfc_nvme_lport {
 	/* Add stats counters here */
 	atomic_t fc4NvmeLsRequests;
 	atomic_t fc4NvmeLsCmpls;
-	atomic_t xmt_fcp_noxri;
+	atomic_t xmt_fcp_yesxri;
 	atomic_t xmt_fcp_bad_ndlp;
 	atomic_t xmt_fcp_qdepth;
 	atomic_t xmt_fcp_wqerr;
@@ -67,7 +67,7 @@ struct lpfc_nvme_lport {
 struct lpfc_nvme_rport {
 	struct lpfc_nvme_lport *lport;
 	struct nvme_fc_remote_port *remoteport;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	struct completion rport_unreg_done;
 };
 

@@ -167,7 +167,7 @@ unlock:
  * @rpm_msg: The data that needs to be sent (cmds).
  *
  * Cache the RPMH request and send if the state is ACTIVE_ONLY.
- * SLEEP/WAKE_ONLY requests are not sent to the controller at
+ * SLEEP/WAKE_ONLY requests are yest sent to the controller at
  * this time. Use rpmh_flush() to send them to the controller.
  */
 static int __rpmh_write(const struct device *dev, enum rpmh_state state,
@@ -256,7 +256,7 @@ EXPORT_SYMBOL(rpmh_write_async);
  * @cmd: The payload data
  * @n: The number of elements in @cmd
  *
- * May sleep. Do not call from atomic contexts.
+ * May sleep. Do yest call from atomic contexts.
  */
 int rpmh_write(const struct device *dev, enum rpmh_state state,
 	       const struct tcs_cmd *cmd, u32 n)
@@ -298,7 +298,7 @@ static int flush_batch(struct rpmh_ctrlr *ctrlr)
 	int ret = 0;
 	int i;
 
-	/* Send Sleep/Wake requests to the controller, expect no response */
+	/* Send Sleep/Wake requests to the controller, expect yes response */
 	spin_lock_irqsave(&ctrlr->cache_lock, flags);
 	list_for_each_entry(req, &ctrlr->batch_cache, list) {
 		for (i = 0; i < req->count; i++) {
@@ -339,9 +339,9 @@ static void invalidate_batch(struct rpmh_ctrlr *ctrlr)
  * state is ACTIVE, then the requests are treated as completion request
  * and sent to the controller immediately. The function waits until all the
  * commands are complete. If the request was to SLEEP or WAKE_ONLY, then the
- * request is sent as fire-n-forget and no ack is expected.
+ * request is sent as fire-n-forget and yes ack is expected.
  *
- * May sleep. Do not call from atomic contexts for ACTIVE_ONLY requests.
+ * May sleep. Do yest call from atomic contexts for ACTIVE_ONLY requests.
  */
 int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 		     const struct tcs_cmd *cmd, u32 *n)
@@ -433,7 +433,7 @@ static int send_single(const struct device *dev, enum rpmh_state state,
 	DEFINE_RPMH_MSG_ONSTACK(dev, state, NULL, rpm_msg);
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
 
-	/* Wake sets are always complete and sleep sets are not */
+	/* Wake sets are always complete and sleep sets are yest */
 	rpm_msg.msg.wait_for_compl = (state == RPMH_WAKE_ONLY_STATE);
 	rpm_msg.cmd[0].addr = addr;
 	rpm_msg.cmd[0].data = data;
@@ -451,7 +451,7 @@ static int send_single(const struct device *dev, enum rpmh_state state,
  * to a RPMH request sent earlier.
  *
  * This function is always called from the sleep code from the last CPU
- * that is powering down the entire system. Since no other RPMH API would be
+ * that is powering down the entire system. Since yes other RPMH API would be
  * executing at this time, it is safe to run lockless.
  */
 int rpmh_flush(const struct device *dev)

@@ -89,7 +89,7 @@ static int thunder_ecam_p2_config_read(struct pci_bus *bus, unsigned int devfn,
 	struct pci_config_window *cfg = bus->sysdata;
 	int where_a = where & ~3;
 	void __iomem *addr;
-	u32 node_bits;
+	u32 yesde_bits;
 	u32 v;
 
 	/* EA Base[63:32] may be missing some bits ... */
@@ -116,9 +116,9 @@ static int thunder_ecam_p2_config_read(struct pci_bus *bus, unsigned int devfn,
 	 * the config space access window.  Since we are working with
 	 * the high-order 32 bits, shift everything down by 32 bits.
 	 */
-	node_bits = (cfg->res.start >> 32) & (1 << 12);
+	yesde_bits = (cfg->res.start >> 32) & (1 << 12);
 
-	v |= node_bits;
+	v |= yesde_bits;
 	set_val(v, where, size, val);
 
 	return PCIBIOS_SUCCESSFUL;
@@ -142,7 +142,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 
 	v = readl(addr);
 
-	/* Check for non type-00 header */
+	/* Check for yesn type-00 header */
 	cfg_type = (v >> 16) & 0x7f;
 
 	addr = bus->ops->map_bus(bus, devfn, 8);
@@ -153,12 +153,12 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 
 	class_rev = readl(addr);
 	if (class_rev == 0xffffffff)
-		goto no_emulation;
+		goto yes_emulation;
 
 	if ((class_rev & 0xff) >= 8) {
 		/* Pass-2 handling */
 		if (cfg_type)
-			goto no_emulation;
+			goto yes_emulation;
 		return thunder_ecam_p2_config_read(bus, devfn, where,
 						   size, val);
 	}
@@ -183,13 +183,13 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 
 	vendor_device = readl(addr);
 	if (vendor_device == 0xffffffff)
-		goto no_emulation;
+		goto yes_emulation;
 
 	pr_debug("%04x:%04x - Fix pass#: %08x, where: %03x, devfn: %03x\n",
 		 vendor_device & 0xffff, vendor_device >> 16, class_rev,
 		 (unsigned) where, devfn);
 
-	/* Check for non type-00 header */
+	/* Check for yesn type-00 header */
 	if (cfg_type == 0) {
 		bool has_msix;
 		bool is_nic = (vendor_device == 0xa01e177d);
@@ -283,7 +283,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 			if (is_nic_bridge)
 				v = 0x10014; /* EA last in chain, 1 entry */
 			else
-				v = 0x00014; /* EA last in chain, no entries */
+				v = 0x00014; /* EA last in chain, yes entries */
 			set_val(v, where, size, val);
 			return PCIBIOS_SUCCESSFUL;
 		}
@@ -300,7 +300,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 			return PCIBIOS_SUCCESSFUL;
 		}
 		if (where_a == 0xc4 && is_nic_bridge) {
-			/* Enabled, not-Write, SP=ff, PP=05, BEI=6, ES=4 */
+			/* Enabled, yest-Write, SP=ff, PP=05, BEI=6, ES=4 */
 			v = 0x80ff0564;
 			set_val(v, where, size, val);
 			return PCIBIOS_SUCCESSFUL;
@@ -326,7 +326,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 			return PCIBIOS_SUCCESSFUL;
 		}
 	}
-no_emulation:
+yes_emulation:
 	return pci_generic_config_read(bus, devfn, where, size, val);
 }
 
@@ -334,7 +334,7 @@ static int thunder_ecam_config_write(struct pci_bus *bus, unsigned int devfn,
 				     int where, int size, u32 val)
 {
 	/*
-	 * All BARs have fixed addresses; ignore BAR writes so they
+	 * All BARs have fixed addresses; igyesre BAR writes so they
 	 * don't get corrupted.
 	 */
 	if ((where >= 0x10 && where < 0x2c) ||

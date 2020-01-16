@@ -25,7 +25,7 @@ endif
 
 GCOV_PROFILE		:= n
 
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
+# Prevents link failures: __sanitizer_cov_trace_pc() is yest linked in.
 KCOV_INSTRUMENT		:= n
 
 #
@@ -56,8 +56,8 @@ endif
 endif
 
 #
-# We now have a PIC decompressor implementation.  Decompressors running
-# from RAM should not define ZTEXTADDR.  Decompressors running directly
+# We yesw have a PIC decompressor implementation.  Decompressors running
+# from RAM should yest define ZTEXTADDR.  Decompressors running directly
 # from ROM or Flash must define ZTEXTADDR (preferably via the config)
 # FIXME: Previous assignment to ztextaddr-y is lost here. See SHARK
 ifeq ($(CONFIG_ZBOOT_ROM),y)
@@ -110,14 +110,14 @@ endif
 
 # -fstack-protector-strong triggers protection checks in this code,
 # but it is being used too early to link to meaningful stack_chk logic.
-nossp_flags := $(call cc-option, -fno-stack-protector)
-CFLAGS_atags_to_fdt.o := $(nossp_flags)
-CFLAGS_fdt.o := $(nossp_flags)
-CFLAGS_fdt_ro.o := $(nossp_flags)
-CFLAGS_fdt_rw.o := $(nossp_flags)
-CFLAGS_fdt_wip.o := $(nossp_flags)
+yesssp_flags := $(call cc-option, -fyes-stack-protector)
+CFLAGS_atags_to_fdt.o := $(yesssp_flags)
+CFLAGS_fdt.o := $(yesssp_flags)
+CFLAGS_fdt_ro.o := $(yesssp_flags)
+CFLAGS_fdt_rw.o := $(yesssp_flags)
+CFLAGS_fdt_wip.o := $(yesssp_flags)
 
-ccflags-y := -fpic $(call cc-option,-mno-single-pic-base,) -fno-builtin -I$(obj)
+ccflags-y := -fpic $(call cc-option,-myes-single-pic-base,) -fyes-builtin -I$(obj)
 asflags-y := -DZIMAGE
 
 # Supply kernel BSS size to the decompressor via a linker symbol.
@@ -133,7 +133,7 @@ ifeq ($(CONFIG_CPU_ENDIAN_BE8),y)
 LDFLAGS_vmlinux += --be8
 endif
 # Report unresolved symbol references
-LDFLAGS_vmlinux += --no-undefined
+LDFLAGS_vmlinux += --yes-undefined
 # Delete all temporary local symbols
 LDFLAGS_vmlinux += -X
 # Next argument is a linker script
@@ -158,16 +158,16 @@ $(obj)/bswapsdi2.S: $(srctree)/arch/$(SRCARCH)/lib/bswapsdi2.S
 	$(call cmd,shipped)
 
 # We need to prevent any GOTOFF relocs being used with references
-# to symbols in the .bss section since we cannot relocate them
+# to symbols in the .bss section since we canyest relocate them
 # independently from the rest at run time.  This can be achieved by
-# ensuring that no private .bss symbols exist, as global symbols
+# ensuring that yes private .bss symbols exist, as global symbols
 # always have a GOT entry which is what we need.
-# The .data section is already discarded by the linker script so no need
+# The .data section is already discarded by the linker script so yes need
 # to bother about it here.
 check_for_bad_syms = \
 bad_syms=$$($(NM) $@ | sed -n 's/^.\{8\} [bc] \(.*\)/\1/p') && \
 [ -z "$$bad_syms" ] || \
-  ( echo "following symbols must have non local/private scope:" >&2; \
+  ( echo "following symbols must have yesn local/private scope:" >&2; \
     echo "$$bad_syms" >&2; false )
 
 check_for_multiple_zreladdr = \

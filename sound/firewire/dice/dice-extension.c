@@ -154,7 +154,7 @@ int snd_dice_detect_extension_formats(struct snd_dice *dice)
 	if (err < 0)
 		goto end;
 
-	/* Check two of them for offset have the same value or not. */
+	/* Check two of them for offset have the same value or yest. */
 	for (i = 0; i < 9; ++i) {
 		int j;
 

@@ -77,7 +77,7 @@ static struct gdp_format_to_str {
 #define GDP_NODE_NB_BANK        2
 #define GDP_NODE_PER_FIELD      2
 
-struct sti_gdp_node {
+struct sti_gdp_yesde {
 	u32 gam_gdp_ctl;
 	u32 gam_gdp_agc;
 	u32 reserved1;
@@ -96,10 +96,10 @@ struct sti_gdp_node {
 	u32 gam_gdp_cml;
 };
 
-struct sti_gdp_node_list {
-	struct sti_gdp_node *top_field;
+struct sti_gdp_yesde_list {
+	struct sti_gdp_yesde *top_field;
 	dma_addr_t top_field_paddr;
-	struct sti_gdp_node *btm_field;
+	struct sti_gdp_yesde *btm_field;
 	dma_addr_t btm_field_paddr;
 };
 
@@ -112,9 +112,9 @@ struct sti_gdp_node_list {
  * @clk_pix:            pixel clock for the current gdp
  * @clk_main_parent:    gdp parent clock if main path used
  * @clk_aux_parent:     gdp parent clock if aux path used
- * @vtg_field_nb:       callback for VTG FIELD (top or bottom) notification
- * @is_curr_top:        true if the current node processed is the top field
- * @node_list:          array of node list
+ * @vtg_field_nb:       callback for VTG FIELD (top or bottom) yestification
+ * @is_curr_top:        true if the current yesde processed is the top field
+ * @yesde_list:          array of yesde list
  * @vtg:                registered vtg
  */
 struct sti_gdp {
@@ -124,9 +124,9 @@ struct sti_gdp {
 	struct clk *clk_pix;
 	struct clk *clk_main_parent;
 	struct clk *clk_aux_parent;
-	struct notifier_block vtg_field_nb;
+	struct yestifier_block vtg_field_nb;
 	bool is_curr_top;
-	struct sti_gdp_node_list node_list[GDP_NODE_NB_BANK];
+	struct sti_gdp_yesde_list yesde_list[GDP_NODE_NB_BANK];
 	struct sti_vtg *vtg;
 };
 
@@ -184,12 +184,12 @@ static void gdp_dbg_nvn(struct seq_file *s, struct sti_gdp *gdp, int val)
 	unsigned int i;
 
 	for (i = 0; i < GDP_NODE_NB_BANK; i++) {
-		if (gdp->node_list[i].top_field_paddr == val) {
-			base = gdp->node_list[i].top_field;
+		if (gdp->yesde_list[i].top_field_paddr == val) {
+			base = gdp->yesde_list[i].top_field;
 			break;
 		}
-		if (gdp->node_list[i].btm_field_paddr == val) {
-			base = gdp->node_list[i].btm_field;
+		if (gdp->yesde_list[i].btm_field_paddr == val) {
+			base = gdp->yesde_list[i].btm_field;
 			break;
 		}
 	}
@@ -212,8 +212,8 @@ static void gdp_dbg_mst(struct seq_file *s, int val)
 
 static int gdp_dbg_show(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct sti_gdp *gdp = (struct sti_gdp *)yesde->info_ent->data;
 	struct drm_plane *drm_plane = &gdp->plane.drm_plane;
 	struct drm_crtc *crtc;
 
@@ -255,39 +255,39 @@ static int gdp_dbg_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static void gdp_node_dump_node(struct seq_file *s, struct sti_gdp_node *node)
+static void gdp_yesde_dump_yesde(struct seq_file *s, struct sti_gdp_yesde *yesde)
 {
-	seq_printf(s, "\t@:0x%p", node);
-	seq_printf(s, "\n\tCTL  0x%08X", node->gam_gdp_ctl);
-	gdp_dbg_ctl(s, node->gam_gdp_ctl);
-	seq_printf(s, "\n\tAGC  0x%08X", node->gam_gdp_agc);
-	seq_printf(s, "\n\tVPO  0x%08X", node->gam_gdp_vpo);
-	gdp_dbg_vpo(s, node->gam_gdp_vpo);
-	seq_printf(s, "\n\tVPS  0x%08X", node->gam_gdp_vps);
-	gdp_dbg_vps(s, node->gam_gdp_vps);
-	seq_printf(s, "\n\tPML  0x%08X", node->gam_gdp_pml);
-	seq_printf(s, "\n\tPMP  0x%08X", node->gam_gdp_pmp);
-	seq_printf(s, "\n\tSIZE 0x%08X", node->gam_gdp_size);
-	gdp_dbg_size(s, node->gam_gdp_size);
-	seq_printf(s, "\n\tNVN  0x%08X", node->gam_gdp_nvn);
-	seq_printf(s, "\n\tKEY1 0x%08X", node->gam_gdp_key1);
-	seq_printf(s, "\n\tKEY2 0x%08X", node->gam_gdp_key2);
-	seq_printf(s, "\n\tPPT  0x%08X", node->gam_gdp_ppt);
-	gdp_dbg_ppt(s, node->gam_gdp_ppt);
-	seq_printf(s, "\n\tCML  0x%08X\n", node->gam_gdp_cml);
+	seq_printf(s, "\t@:0x%p", yesde);
+	seq_printf(s, "\n\tCTL  0x%08X", yesde->gam_gdp_ctl);
+	gdp_dbg_ctl(s, yesde->gam_gdp_ctl);
+	seq_printf(s, "\n\tAGC  0x%08X", yesde->gam_gdp_agc);
+	seq_printf(s, "\n\tVPO  0x%08X", yesde->gam_gdp_vpo);
+	gdp_dbg_vpo(s, yesde->gam_gdp_vpo);
+	seq_printf(s, "\n\tVPS  0x%08X", yesde->gam_gdp_vps);
+	gdp_dbg_vps(s, yesde->gam_gdp_vps);
+	seq_printf(s, "\n\tPML  0x%08X", yesde->gam_gdp_pml);
+	seq_printf(s, "\n\tPMP  0x%08X", yesde->gam_gdp_pmp);
+	seq_printf(s, "\n\tSIZE 0x%08X", yesde->gam_gdp_size);
+	gdp_dbg_size(s, yesde->gam_gdp_size);
+	seq_printf(s, "\n\tNVN  0x%08X", yesde->gam_gdp_nvn);
+	seq_printf(s, "\n\tKEY1 0x%08X", yesde->gam_gdp_key1);
+	seq_printf(s, "\n\tKEY2 0x%08X", yesde->gam_gdp_key2);
+	seq_printf(s, "\n\tPPT  0x%08X", yesde->gam_gdp_ppt);
+	gdp_dbg_ppt(s, yesde->gam_gdp_ppt);
+	seq_printf(s, "\n\tCML  0x%08X\n", yesde->gam_gdp_cml);
 }
 
-static int gdp_node_dbg_show(struct seq_file *s, void *arg)
+static int gdp_yesde_dbg_show(struct seq_file *s, void *arg)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct sti_gdp *gdp = (struct sti_gdp *)yesde->info_ent->data;
 	unsigned int b;
 
 	for (b = 0; b < GDP_NODE_NB_BANK; b++) {
 		seq_printf(s, "\n%s[%d].top", sti_plane_to_str(&gdp->plane), b);
-		gdp_node_dump_node(s, gdp->node_list[b].top_field);
+		gdp_yesde_dump_yesde(s, gdp->yesde_list[b].top_field);
 		seq_printf(s, "\n%s[%d].btm", sti_plane_to_str(&gdp->plane), b);
-		gdp_node_dump_node(s, gdp->node_list[b].btm_field);
+		gdp_yesde_dump_yesde(s, gdp->yesde_list[b].btm_field);
 	}
 
 	return 0;
@@ -295,25 +295,25 @@ static int gdp_node_dbg_show(struct seq_file *s, void *arg)
 
 static struct drm_info_list gdp0_debugfs_files[] = {
 	{ "gdp0", gdp_dbg_show, 0, NULL },
-	{ "gdp0_node", gdp_node_dbg_show, 0, NULL },
+	{ "gdp0_yesde", gdp_yesde_dbg_show, 0, NULL },
 };
 
 static struct drm_info_list gdp1_debugfs_files[] = {
 	{ "gdp1", gdp_dbg_show, 0, NULL },
-	{ "gdp1_node", gdp_node_dbg_show, 0, NULL },
+	{ "gdp1_yesde", gdp_yesde_dbg_show, 0, NULL },
 };
 
 static struct drm_info_list gdp2_debugfs_files[] = {
 	{ "gdp2", gdp_dbg_show, 0, NULL },
-	{ "gdp2_node", gdp_node_dbg_show, 0, NULL },
+	{ "gdp2_yesde", gdp_yesde_dbg_show, 0, NULL },
 };
 
 static struct drm_info_list gdp3_debugfs_files[] = {
 	{ "gdp3", gdp_dbg_show, 0, NULL },
-	{ "gdp3_node", gdp_node_dbg_show, 0, NULL },
+	{ "gdp3_yesde", gdp_yesde_dbg_show, 0, NULL },
 };
 
-static int gdp_debugfs_init(struct sti_gdp *gdp, struct drm_minor *minor)
+static int gdp_debugfs_init(struct sti_gdp *gdp, struct drm_miyesr *miyesr)
 {
 	unsigned int i;
 	struct drm_info_list *gdp_debugfs_files;
@@ -345,7 +345,7 @@ static int gdp_debugfs_init(struct sti_gdp *gdp, struct drm_minor *minor)
 
 	return drm_debugfs_create_files(gdp_debugfs_files,
 					nb_files,
-					minor->debugfs_root, minor);
+					miyesr->debugfs_root, miyesr);
 }
 
 static int sti_gdp_fourcc2format(int fourcc)
@@ -383,15 +383,15 @@ static int sti_gdp_get_alpharange(int format)
 }
 
 /**
- * sti_gdp_get_free_nodes
+ * sti_gdp_get_free_yesdes
  * @gdp: gdp pointer
  *
- * Look for a GDP node list that is not currently read by the HW.
+ * Look for a GDP yesde list that is yest currently read by the HW.
  *
  * RETURNS:
- * Pointer to the free GDP node list
+ * Pointer to the free GDP yesde list
  */
-static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_gdp *gdp)
+static struct sti_gdp_yesde_list *sti_gdp_get_free_yesdes(struct sti_gdp *gdp)
 {
 	int hw_nvn;
 	unsigned int i;
@@ -401,29 +401,29 @@ static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_gdp *gdp)
 		goto end;
 
 	for (i = 0; i < GDP_NODE_NB_BANK; i++)
-		if ((hw_nvn != gdp->node_list[i].btm_field_paddr) &&
-		    (hw_nvn != gdp->node_list[i].top_field_paddr))
-			return &gdp->node_list[i];
+		if ((hw_nvn != gdp->yesde_list[i].btm_field_paddr) &&
+		    (hw_nvn != gdp->yesde_list[i].top_field_paddr))
+			return &gdp->yesde_list[i];
 
-	/* in hazardious cases restart with the first node */
+	/* in hazardious cases restart with the first yesde */
 	DRM_ERROR("inconsistent NVN for %s: 0x%08X\n",
 			sti_plane_to_str(&gdp->plane), hw_nvn);
 
 end:
-	return &gdp->node_list[0];
+	return &gdp->yesde_list[0];
 }
 
 /**
- * sti_gdp_get_current_nodes
+ * sti_gdp_get_current_yesdes
  * @gdp: gdp pointer
  *
- * Look for GDP nodes that are currently read by the HW.
+ * Look for GDP yesdes that are currently read by the HW.
  *
  * RETURNS:
- * Pointer to the current GDP node list
+ * Pointer to the current GDP yesde list
  */
 static
-struct sti_gdp_node_list *sti_gdp_get_current_nodes(struct sti_gdp *gdp)
+struct sti_gdp_yesde_list *sti_gdp_get_current_yesdes(struct sti_gdp *gdp)
 {
 	int hw_nvn;
 	unsigned int i;
@@ -433,12 +433,12 @@ struct sti_gdp_node_list *sti_gdp_get_current_nodes(struct sti_gdp *gdp)
 		goto end;
 
 	for (i = 0; i < GDP_NODE_NB_BANK; i++)
-		if ((hw_nvn == gdp->node_list[i].btm_field_paddr) ||
-				(hw_nvn == gdp->node_list[i].top_field_paddr))
-			return &gdp->node_list[i];
+		if ((hw_nvn == gdp->yesde_list[i].btm_field_paddr) ||
+				(hw_nvn == gdp->yesde_list[i].top_field_paddr))
+			return &gdp->yesde_list[i];
 
 end:
-	DRM_DEBUG_DRIVER("Warning, NVN 0x%08X for %s does not match any node\n",
+	DRM_DEBUG_DRIVER("Warning, NVN 0x%08X for %s does yest match any yesde\n",
 				hw_nvn, sti_plane_to_str(&gdp->plane));
 
 	return NULL;
@@ -456,14 +456,14 @@ static void sti_gdp_disable(struct sti_gdp *gdp)
 
 	DRM_DEBUG_DRIVER("%s\n", sti_plane_to_str(&gdp->plane));
 
-	/* Set the nodes as 'to be ignored on mixer' */
+	/* Set the yesdes as 'to be igyesred on mixer' */
 	for (i = 0; i < GDP_NODE_NB_BANK; i++) {
-		gdp->node_list[i].top_field->gam_gdp_ppt |= GAM_GDP_PPT_IGNORE;
-		gdp->node_list[i].btm_field->gam_gdp_ppt |= GAM_GDP_PPT_IGNORE;
+		gdp->yesde_list[i].top_field->gam_gdp_ppt |= GAM_GDP_PPT_IGNORE;
+		gdp->yesde_list[i].btm_field->gam_gdp_ppt |= GAM_GDP_PPT_IGNORE;
 	}
 
 	if (sti_vtg_unregister_client(gdp->vtg, &gdp->vtg_field_nb))
-		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
+		DRM_DEBUG_DRIVER("Warning: canyest unregister VTG yestifier\n");
 
 	if (gdp->clk_pix)
 		clk_disable_unprepare(gdp->clk_pix);
@@ -474,7 +474,7 @@ static void sti_gdp_disable(struct sti_gdp *gdp)
 
 /**
  * sti_gdp_field_cb
- * @nb: notifier block
+ * @nb: yestifier block
  * @event: event message
  * @data: private data
  *
@@ -483,7 +483,7 @@ static void sti_gdp_disable(struct sti_gdp *gdp)
  * RETURNS:
  * 0 on success.
  */
-static int sti_gdp_field_cb(struct notifier_block *nb,
+static int sti_gdp_field_cb(struct yestifier_block *nb,
 			    unsigned long event, void *data)
 {
 	struct sti_gdp *gdp = container_of(nb, struct sti_gdp, vtg_field_nb);
@@ -513,18 +513,18 @@ static int sti_gdp_field_cb(struct notifier_block *nb,
 
 static void sti_gdp_init(struct sti_gdp *gdp)
 {
-	struct device_node *np = gdp->dev->of_node;
+	struct device_yesde *np = gdp->dev->of_yesde;
 	dma_addr_t dma_addr;
 	void *base;
 	unsigned int i, size;
 
-	/* Allocate all the nodes within a single memory page */
-	size = sizeof(struct sti_gdp_node) *
+	/* Allocate all the yesdes within a single memory page */
+	size = sizeof(struct sti_gdp_yesde) *
 	    GDP_NODE_PER_FIELD * GDP_NODE_NB_BANK;
 	base = dma_alloc_wc(gdp->dev, size, &dma_addr, GFP_KERNEL);
 
 	if (!base) {
-		DRM_ERROR("Failed to allocate memory for GDP node\n");
+		DRM_ERROR("Failed to allocate memory for GDP yesde\n");
 		return;
 	}
 	memset(base, 0, size);
@@ -534,22 +534,22 @@ static void sti_gdp_init(struct sti_gdp *gdp)
 			DRM_ERROR("Mem alignment failed\n");
 			return;
 		}
-		gdp->node_list[i].top_field = base;
-		gdp->node_list[i].top_field_paddr = dma_addr;
+		gdp->yesde_list[i].top_field = base;
+		gdp->yesde_list[i].top_field_paddr = dma_addr;
 
-		DRM_DEBUG_DRIVER("node[%d].top_field=%p\n", i, base);
-		base += sizeof(struct sti_gdp_node);
-		dma_addr += sizeof(struct sti_gdp_node);
+		DRM_DEBUG_DRIVER("yesde[%d].top_field=%p\n", i, base);
+		base += sizeof(struct sti_gdp_yesde);
+		dma_addr += sizeof(struct sti_gdp_yesde);
 
 		if (dma_addr & 0xF) {
 			DRM_ERROR("Mem alignment failed\n");
 			return;
 		}
-		gdp->node_list[i].btm_field = base;
-		gdp->node_list[i].btm_field_paddr = dma_addr;
-		DRM_DEBUG_DRIVER("node[%d].btm_field=%p\n", i, base);
-		base += sizeof(struct sti_gdp_node);
-		dma_addr += sizeof(struct sti_gdp_node);
+		gdp->yesde_list[i].btm_field = base;
+		gdp->yesde_list[i].btm_field_paddr = dma_addr;
+		DRM_DEBUG_DRIVER("yesde[%d].btm_field=%p\n", i, base);
+		base += sizeof(struct sti_gdp_yesde);
+		dma_addr += sizeof(struct sti_gdp_yesde);
 	}
 
 	if (of_device_is_compatible(np, "st,stih407-compositor")) {
@@ -570,21 +570,21 @@ static void sti_gdp_init(struct sti_gdp *gdp)
 			clk_name = "pix_gdp4";
 			break;
 		default:
-			DRM_ERROR("GDP id not recognized\n");
+			DRM_ERROR("GDP id yest recognized\n");
 			return;
 		}
 
 		gdp->clk_pix = devm_clk_get(gdp->dev, clk_name);
 		if (IS_ERR(gdp->clk_pix))
-			DRM_ERROR("Cannot get %s clock\n", clk_name);
+			DRM_ERROR("Canyest get %s clock\n", clk_name);
 
 		gdp->clk_main_parent = devm_clk_get(gdp->dev, "main_parent");
 		if (IS_ERR(gdp->clk_main_parent))
-			DRM_ERROR("Cannot get main_parent clock\n");
+			DRM_ERROR("Canyest get main_parent clock\n");
 
 		gdp->clk_aux_parent = devm_clk_get(gdp->dev, "aux_parent");
 		if (IS_ERR(gdp->clk_aux_parent))
-			DRM_ERROR("Cannot get aux_parent clock\n");
+			DRM_ERROR("Canyest get aux_parent clock\n");
 	}
 }
 
@@ -605,11 +605,11 @@ static int sti_gdp_get_dst(struct device *dev, int dst, int src)
 		return dst;
 
 	if (dst < src) {
-		dev_dbg(dev, "WARNING: GDP scale not supported, will crop\n");
+		dev_dbg(dev, "WARNING: GDP scale yest supported, will crop\n");
 		return dst;
 	}
 
-	dev_dbg(dev, "WARNING: GDP scale not supported, will clamp\n");
+	dev_dbg(dev, "WARNING: GDP scale yest supported, will clamp\n");
 	return src;
 }
 
@@ -627,7 +627,7 @@ static int sti_gdp_atomic_check(struct drm_plane *drm_plane,
 	int src_x, src_y, src_w, src_h;
 	int format;
 
-	/* no need for further checks if the plane is being disabled */
+	/* yes need for further checks if the plane is being disabled */
 	if (!crtc || !fb)
 		return 0;
 
@@ -646,7 +646,7 @@ static int sti_gdp_atomic_check(struct drm_plane *drm_plane,
 
 	format = sti_gdp_fourcc2format(fb->format->format);
 	if (format == -1) {
-		DRM_ERROR("Format not supported by GDP %.4s\n",
+		DRM_ERROR("Format yest supported by GDP %.4s\n",
 			  (char *)&fb->format->format);
 		return -EINVAL;
 	}
@@ -676,7 +676,7 @@ static int sti_gdp_atomic_check(struct drm_plane *drm_plane,
 
 		res = clk_set_rate(gdp->clk_pix, rate);
 		if (res < 0) {
-			DRM_ERROR("Cannot set rate (%dHz) for gdp\n",
+			DRM_ERROR("Canyest set rate (%dHz) for gdp\n",
 				  rate);
 			return -EINVAL;
 		}
@@ -705,9 +705,9 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	int dst_x, dst_y, dst_w, dst_h;
 	int src_x, src_y, src_w, src_h;
 	struct drm_gem_cma_object *cma_obj;
-	struct sti_gdp_node_list *list;
-	struct sti_gdp_node_list *curr_list;
-	struct sti_gdp_node *top_field, *btm_field;
+	struct sti_gdp_yesde_list *list;
+	struct sti_gdp_yesde_list *curr_list;
+	struct sti_gdp_yesde *top_field, *btm_field;
 	u32 dma_updated_top;
 	u32 dma_updated_btm;
 	int format;
@@ -726,8 +726,8 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	    (oldstate->src_y == state->src_y) &&
 	    (oldstate->src_w == state->src_w) &&
 	    (oldstate->src_h == state->src_h)) {
-		/* No change since last update, do not post cmd */
-		DRM_DEBUG_DRIVER("No change, not posting cmd\n");
+		/* No change since last update, do yest post cmd */
+		DRM_DEBUG_DRIVER("No change, yest posting cmd\n");
 		plane->status = STI_PLANE_UPDATED;
 		return;
 	}
@@ -753,11 +753,11 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	src_w = clamp_val(state->src_w >> 16, 0, GAM_GDP_SIZE_MAX_WIDTH);
 	src_h = clamp_val(state->src_h >> 16, 0, GAM_GDP_SIZE_MAX_HEIGHT);
 
-	list = sti_gdp_get_free_nodes(gdp);
+	list = sti_gdp_get_free_yesdes(gdp);
 	top_field = list->top_field;
 	btm_field = list->btm_field;
 
-	dev_dbg(gdp->dev, "%s %s top_node:0x%p btm_node:0x%p\n", __func__,
+	dev_dbg(gdp->dev, "%s %s top_yesde:0x%p btm_yesde:0x%p\n", __func__,
 		sti_plane_to_str(plane), top_field, btm_field);
 
 	/* build the top field */
@@ -805,16 +805,16 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 		btm_field->gam_gdp_pml = top_field->gam_gdp_pml +
 					 fb->pitches[0];
 
-	/* Update the NVN field of the 'right' field of the current GDP node
+	/* Update the NVN field of the 'right' field of the current GDP yesde
 	 * (being used by the HW) with the address of the updated ('free') top
-	 * field GDP node.
+	 * field GDP yesde.
 	 * - In interlaced mode the 'right' field is the bottom field as we
 	 *   update frames starting from their top field
 	 * - In progressive mode, we update both bottom and top fields which
-	 *   are equal nodes.
-	 * At the next VSYNC, the updated node list will be used by the HW.
+	 *   are equal yesdes.
+	 * At the next VSYNC, the updated yesde list will be used by the HW.
 	 */
-	curr_list = sti_gdp_get_current_nodes(gdp);
+	curr_list = sti_gdp_get_current_yesdes(gdp);
 	dma_updated_top = list->top_field_paddr;
 	dma_updated_btm = list->btm_field_paddr;
 
@@ -825,9 +825,9 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 		readl(gdp->regs + GAM_GDP_PML_OFFSET));
 
 	if (!curr_list) {
-		/* First update or invalid node should directly write in the
+		/* First update or invalid yesde should directly write in the
 		 * hw register */
-		DRM_DEBUG_DRIVER("%s first update (or invalid node)\n",
+		DRM_DEBUG_DRIVER("%s first update (or invalid yesde)\n",
 				 sti_plane_to_str(plane));
 
 		writel(gdp->is_curr_top ?
@@ -838,7 +838,7 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		if (gdp->is_curr_top) {
-			/* Do not update in the middle of the frame, but
+			/* Do yest update in the middle of the frame, but
 			 * postpone the update after the bottom field has
 			 * been displayed */
 			curr_list->btm_field->gam_gdp_nvn = dma_updated_top;
@@ -864,7 +864,7 @@ static void sti_gdp_atomic_disable(struct drm_plane *drm_plane,
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 
 	if (!oldstate->crtc) {
-		DRM_DEBUG_DRIVER("drm plane:%d not enabled\n",
+		DRM_DEBUG_DRIVER("drm plane:%d yest enabled\n",
 				 drm_plane->base.id);
 		return;
 	}
@@ -928,7 +928,7 @@ struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
 	gdp->plane.desc = desc;
 	gdp->plane.status = STI_PLANE_DISABLED;
 
-	gdp->vtg_field_nb.notifier_call = sti_gdp_field_cb;
+	gdp->vtg_field_nb.yestifier_call = sti_gdp_field_cb;
 
 	sti_gdp_init(gdp);
 

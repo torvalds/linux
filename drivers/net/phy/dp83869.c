@@ -165,42 +165,42 @@ static int dp83869_of_init(struct phy_device *phydev)
 {
 	struct dp83869_private *dp83869 = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_yesde *of_yesde = dev->of_yesde;
 	int ret;
 
-	if (!of_node)
+	if (!of_yesde)
 		return -ENODEV;
 
 	dp83869->io_impedance = -EINVAL;
 
 	/* Optional configuration */
-	ret = of_property_read_u32(of_node, "ti,clk-output-sel",
+	ret = of_property_read_u32(of_yesde, "ti,clk-output-sel",
 				   &dp83869->clk_output_sel);
 	if (ret || dp83869->clk_output_sel > DP83869_CLK_O_SEL_REF_CLK)
 		dp83869->clk_output_sel = DP83869_CLK_O_SEL_REF_CLK;
 
-	ret = of_property_read_u32(of_node, "ti,op-mode", &dp83869->mode);
+	ret = of_property_read_u32(of_yesde, "ti,op-mode", &dp83869->mode);
 	if (ret == 0) {
 		if (dp83869->mode < DP83869_RGMII_COPPER_ETHERNET ||
 		    dp83869->mode > DP83869_SGMII_COPPER_ETHERNET)
 			return -EINVAL;
 	}
 
-	if (of_property_read_bool(of_node, "ti,max-output-impedance"))
+	if (of_property_read_bool(of_yesde, "ti,max-output-impedance"))
 		dp83869->io_impedance = DP83869_IO_MUX_CFG_IO_IMPEDANCE_MAX;
-	else if (of_property_read_bool(of_node, "ti,min-output-impedance"))
+	else if (of_property_read_bool(of_yesde, "ti,min-output-impedance"))
 		dp83869->io_impedance = DP83869_IO_MUX_CFG_IO_IMPEDANCE_MIN;
 
-	if (of_property_read_bool(of_node, "enet-phy-lane-swap"))
+	if (of_property_read_bool(of_yesde, "enet-phy-lane-swap"))
 		dp83869->port_mirroring = DP83869_PORT_MIRRORING_EN;
 	else
 		dp83869->port_mirroring = DP83869_PORT_MIRRORING_DIS;
 
-	if (of_property_read_u32(of_node, "rx-fifo-depth",
+	if (of_property_read_u32(of_yesde, "rx-fifo-depth",
 				 &dp83869->rx_fifo_depth))
 		dp83869->rx_fifo_depth = DP83869_PHYCR_FIFO_DEPTH_4_B_NIB;
 
-	if (of_property_read_u32(of_node, "tx-fifo-depth",
+	if (of_property_read_u32(of_yesde, "tx-fifo-depth",
 				 &dp83869->tx_fifo_depth))
 		dp83869->tx_fifo_depth = DP83869_PHYCR_FIFO_DEPTH_4_B_NIB;
 

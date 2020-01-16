@@ -111,7 +111,7 @@ static int dsp_command(void __iomem *port, u8 cmd)
 	return 0;
 }
 
-static int dsp_get_version(void __iomem *port, u8 *major, u8 *minor)
+static int dsp_get_version(void __iomem *port, u8 *major, u8 *miyesr)
 {
 	int err;
 
@@ -123,7 +123,7 @@ static int dsp_get_version(void __iomem *port, u8 *major, u8 *minor)
 	if (err < 0)
 		return err;
 
-	err = dsp_get_byte(port, minor);
+	err = dsp_get_byte(port, miyesr);
 	if (err < 0)
 		return err;
 
@@ -301,7 +301,7 @@ static int snd_galaxy_match(struct device *dev, unsigned int n)
 mpu:
 	switch (mpu_port[n]) {
 	case SNDRV_AUTO_PORT:
-		dev_warn(dev, "mpu_port not specified; not using MPU-401\n");
+		dev_warn(dev, "mpu_port yest specified; yest using MPU-401\n");
 		mpu_port[n] = -1;
 		goto fm;
 	case 0x300:
@@ -317,7 +317,7 @@ mpu:
 
 	switch (mpu_irq[n]) {
 	case SNDRV_AUTO_IRQ:
-		dev_warn(dev, "mpu_irq not specified: using polling mode\n");
+		dev_warn(dev, "mpu_irq yest specified: using polling mode\n");
 		mpu_irq[n] = -1;
 		break;
 	case 2:
@@ -348,14 +348,14 @@ mpu:
 	}
 
 	if (mpu_irq[n] == irq[n]) {
-		dev_err(dev, "cannot share IRQ between WSS and MPU-401\n");
+		dev_err(dev, "canyest share IRQ between WSS and MPU-401\n");
 		return 0;
 	}
 
 fm:
 	switch (fm_port[n]) {
 	case SNDRV_AUTO_PORT:
-		dev_warn(dev, "fm_port not specified: not using OPL3\n");
+		dev_warn(dev, "fm_port yest specified: yest using OPL3\n");
 		fm_port[n] = -1;
 		break;
 	case 0x388:
@@ -372,18 +372,18 @@ fm:
 static int galaxy_init(struct snd_galaxy *galaxy, u8 *type)
 {
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	int err;
 
 	err = dsp_reset(galaxy->port);
 	if (err < 0)
 		return err;
 
-	err = dsp_get_version(galaxy->port, &major, &minor);
+	err = dsp_get_version(galaxy->port, &major, &miyesr);
 	if (err < 0)
 		return err;
 
-	if (major != GALAXY_DSP_MAJOR || minor != GALAXY_DSP_MINOR)
+	if (major != GALAXY_DSP_MAJOR || miyesr != GALAXY_DSP_MINOR)
 		return -ENODEV;
 
 	err = dsp_command(galaxy->port, DSP_COMMAND_GALAXY_8);
@@ -506,7 +506,7 @@ static int snd_galaxy_probe(struct device *dev, unsigned int n)
 
 	galaxy->res_port = request_region(port[n], 16, DRV_NAME);
 	if (!galaxy->res_port) {
-		dev_err(dev, "could not grab ports %#lx-%#lx\n", port[n],
+		dev_err(dev, "could yest grab ports %#lx-%#lx\n", port[n],
 			port[n] + 15);
 		err = -EBUSY;
 		goto error;
@@ -515,7 +515,7 @@ static int snd_galaxy_probe(struct device *dev, unsigned int n)
 
 	err = galaxy_init(galaxy, &type);
 	if (err < 0) {
-		dev_err(dev, "did not find a Sound Galaxy at %#lx\n", port[n]);
+		dev_err(dev, "did yest find a Sound Galaxy at %#lx\n", port[n]);
 		goto error;
 	}
 	dev_info(dev, "Sound Galaxy (type %d) found at %#lx\n", type, port[n]);
@@ -523,7 +523,7 @@ static int snd_galaxy_probe(struct device *dev, unsigned int n)
 	galaxy->res_config_port = request_region(port[n] + GALAXY_PORT_CONFIG,
 						 16, DRV_NAME);
 	if (!galaxy->res_config_port) {
-		dev_err(dev, "could not grab ports %#lx-%#lx\n",
+		dev_err(dev, "could yest grab ports %#lx-%#lx\n",
 			port[n] + GALAXY_PORT_CONFIG,
 			port[n] + GALAXY_PORT_CONFIG + 15);
 		err = -EBUSY;
@@ -535,7 +535,7 @@ static int snd_galaxy_probe(struct device *dev, unsigned int n)
 
 	galaxy->res_wss_port = request_region(wss_port[n], 4, DRV_NAME);
 	if (!galaxy->res_wss_port)  {
-		dev_err(dev, "could not grab ports %#lx-%#lx\n", wss_port[n],
+		dev_err(dev, "could yest grab ports %#lx-%#lx\n", wss_port[n],
 			wss_port[n] + 3);
 		err = -EBUSY;
 		goto error;
@@ -544,7 +544,7 @@ static int snd_galaxy_probe(struct device *dev, unsigned int n)
 
 	err = galaxy_wss_config(galaxy, wss_config[n]);
 	if (err < 0) {
-		dev_err(dev, "could not configure WSS\n");
+		dev_err(dev, "could yest configure WSS\n");
 		goto error;
 	}
 
@@ -584,7 +584,7 @@ static int snd_galaxy_probe(struct device *dev, unsigned int n)
 		err = snd_opl3_create(card, fm_port[n], fm_port[n] + 2,
 				      OPL3_HW_AUTO, 0, &opl3);
 		if (err < 0) {
-			dev_err(dev, "no OPL device at %#lx\n", fm_port[n]);
+			dev_err(dev, "yes OPL device at %#lx\n", fm_port[n]);
 			goto error;
 		}
 		err = snd_opl3_timer_new(opl3, 1, 2);

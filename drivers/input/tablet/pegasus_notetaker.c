@@ -27,7 +27,7 @@
  * 5	Y high
  *
  * X X	battery state:
- *	no state reported	0x00
+ *	yes state reported	0x00
  *	battery low		0x01
  *	battery good		0x02
  *
@@ -168,7 +168,7 @@ static void pegasus_parse_packet(struct pegasus *pegasus)
 
 	default:
 		dev_warn_once(&pegasus->usbdev->dev,
-			      "unknown answer from device\n");
+			      "unkyeswn answer from device\n");
 	}
 }
 
@@ -192,7 +192,7 @@ static void pegasus_irq(struct urb *urb)
 		return;
 
 	default:
-		dev_err(&dev->dev, "%s - nonzero urb status received: %d",
+		dev_err(&dev->dev, "%s - yesnzero urb status received: %d",
 			__func__, urb->status);
 		break;
 	}
@@ -451,7 +451,7 @@ static const struct usb_device_id pegasus_ids[] = {
 MODULE_DEVICE_TABLE(usb, pegasus_ids);
 
 static struct usb_driver pegasus_driver = {
-	.name		= "pegasus_notetaker",
+	.name		= "pegasus_yestetaker",
 	.probe		= pegasus_probe,
 	.disconnect	= pegasus_disconnect,
 	.suspend	= pegasus_suspend,

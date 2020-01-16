@@ -4,7 +4,7 @@
 #include "xdpsock.h"
 
 /* This XDP program is only needed for the XDP_SHARED_UMEM mode.
- * If you do not use this mode, libbpf can supply an XDP program for you.
+ * If you do yest use this mode, libbpf can supply an XDP program for you.
  */
 
 struct {

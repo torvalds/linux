@@ -32,12 +32,12 @@ Loading of plugins can be controlled by the _tep_flags_, using the
 _tep_set_flag()_ API:
 [verse]
 --
-	_TEP_DISABLE_SYS_PLUGINS_	- do not load plugins, located in
+	_TEP_DISABLE_SYS_PLUGINS_	- do yest load plugins, located in
 					the system's plugin directory.
-	_TEP_DISABLE_PLUGINS_		- do not load any plugins.
+	_TEP_DISABLE_PLUGINS_		- do yest load any plugins.
 --
 The _tep_set_flag()_ API needs to be called before _tep_load_plugins()_, if
-loading of all plugins is not the desired case.
+loading of all plugins is yest the desired case.
 
 The _tep_unload_plugins()_ function unloads the plugins, previously loaded by
 _tep_load_plugins()_. The _tep_ argument is trace event parser context. The
@@ -47,7 +47,7 @@ the _tep_load_plugins()_ function.
 RETURN VALUE
 ------------
 The _tep_load_plugins()_ function returns a list of successfully loaded plugins,
-or NULL in case no plugins are loaded.
+or NULL in case yes plugins are loaded.
 
 EXAMPLE
 -------
@@ -59,7 +59,7 @@ struct tep_handle *tep = tep_alloc();
 ...
 struct tep_plugin_list *plugins = tep_load_plugins(tep);
 if (plugins == NULL) {
-	/* no plugins are loaded */
+	/* yes plugins are loaded */
 }
 ...
 tep_unload_plugins(plugins, tep);
@@ -84,7 +84,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

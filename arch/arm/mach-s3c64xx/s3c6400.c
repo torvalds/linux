@@ -5,7 +5,7 @@
 //	http://armlinux.simtec.co.uk/
 
 /*
- * NOTE: Code in this file is not used when booting with Device Tree support.
+ * NOTE: Code in this file is yest used when booting with Device Tree support.
  */
 
 #include <linux/kernel.h>
@@ -59,7 +59,7 @@ void __init s3c6400_map_io(void)
 
 void __init s3c6400_init_irq(void)
 {
-	/* VIC0 does not have IRQS 5..7,
+	/* VIC0 does yest have IRQS 5..7,
 	 * VIC1 is fully populated. */
 	s3c64xx_init_irq(~0 & ~(0xf << 5), ~0);
 }

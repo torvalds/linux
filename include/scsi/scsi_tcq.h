@@ -7,7 +7,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 
-#define SCSI_NO_TAG	(-1)    /* identify no tag in use */
+#define SCSI_NO_TAG	(-1)    /* identify yes tag in use */
 
 
 #ifdef CONFIG_BLOCK

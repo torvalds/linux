@@ -28,7 +28,7 @@ static struct fb_var_screeninfo my_default_var = {
 	.green           = {0, 8, 0},
 	.blue            = {0, 8, 0},
 	.transp          = {0, 0, 0},
-	.nonstd          = 0,
+	.yesnstd          = 0,
 	.activate        = FB_ACTIVATE_NOW,
 	.height          = -1,
 	.width           = -1,
@@ -44,7 +44,7 @@ static struct fb_var_screeninfo my_default_var = {
 	.vmode           = FB_VMODE_NONINTERLACED,
 };
 
-#define MODE_INDEX_NONE           0  /* index for mode=none */
+#define MODE_INDEX_NONE           0  /* index for mode=yesne */
 
 /* Boot-time parameters */
 static int sisfb_off = 0;
@@ -71,7 +71,7 @@ static int sisfb_tvplug = -1;		/* Tv plug type (for overriding autodetection) */
 static int sisfb_tvstd  = -1;
 static int sisfb_tvxposoffset = 0;
 static int sisfb_tvyposoffset = 0;
-static int sisfb_nocrt2rate = 0;
+static int sisfb_yescrt2rate = 0;
 #if !defined(__i386__) && !defined(__x86_64__)
 static int sisfb_resetcard = 0;
 static int sisfb_videoram = 0;
@@ -124,9 +124,9 @@ MODULE_DEVICE_TABLE(pci, sisfb_pci_table);
 
 static struct sis_video_info *card_list = NULL;
 
-/* The memory heap is now handled card-wise, by using
+/* The memory heap is yesw handled card-wise, by using
    sis_malloc_new/sis_free_new. However, the DRM does
-   not do this yet. Until it does, we keep a "global"
+   yest do this yet. Until it does, we keep a "global"
    heap which is actually the first card's one.
  */
 static struct SIS_HEAP	*sisfb_heap;
@@ -137,9 +137,9 @@ static struct SIS_HEAP	*sisfb_heap;
 /* Mode table */
 static const struct _sisbios_mode {
 	char name[15];
-	u8  mode_no[2];
-	u16 vesa_mode_no_1;  /* "SiS defined" VESA mode number */
-	u16 vesa_mode_no_2;  /* Real VESA mode numbers */
+	u8  mode_yes[2];
+	u16 vesa_mode_yes_1;  /* "SiS defined" VESA mode number */
+	u16 vesa_mode_yes_2;  /* Real VESA mode numbers */
 	u16 xres;
 	u16 yres;
 	u16 bpp;
@@ -148,7 +148,7 @@ static const struct _sisbios_mode {
 	u16 rows;
 	u8  chipset;
 } sisbios_mode[] = {
-/*0*/	{"none",         {0xff,0xff}, 0x0000, 0x0000,    0,    0,  0, 0,   0,  0, MD_SIS300|MD_SIS315},
+/*0*/	{"yesne",         {0xff,0xff}, 0x0000, 0x0000,    0,    0,  0, 0,   0,  0, MD_SIS300|MD_SIS315},
 	{"320x200x8",    {0x59,0x59}, 0x0138, 0x0000,  320,  200,  8, 1,  40, 12, MD_SIS300|MD_SIS315},
 	{"320x200x16",   {0x41,0x41}, 0x010e, 0x0000,  320,  200, 16, 1,  40, 12, MD_SIS300|MD_SIS315},
 	{"320x200x24",   {0x4f,0x4f}, 0x0000, 0x0000,  320,  200, 32, 1,  40, 12, MD_SIS300|MD_SIS315},  /* That's for people who mix up color- and fb depth */
@@ -354,8 +354,8 @@ static unsigned short sis661paneltype[] = {
 
 static struct _sis_crt2type {
 	char name[32];
-	u32 type_no;
-	u32 tvplug_no;
+	u32 type_yes;
+	u32 tvplug_yes;
 	u16 flags;
 } sis_crt2type[] __initdata = {
 	{"NONE", 	     0, 	-1,                     FL_300|FL_315},
@@ -383,7 +383,7 @@ static struct _sis_crt2type {
 /* TV standard */
 static struct _sis_tvtype {
 	char name[6];
-	u32 type_no;
+	u32 type_yes;
 } sis_tvtype[] __initdata = {
 	{"PAL",  	TV_PAL},
 	{"NTSC", 	TV_NTSC},
@@ -552,7 +552,7 @@ static struct _customttable {
 	  0,
 	  { 0, 0, 0, 0, 0 },
 	  { 0, 0, 0, 0, 0 },
-	  0x1558, 0x0400,  /* possibly 401 and 402 as well; not panelsize specific (?) */
+	  0x1558, 0x0400,  /* possibly 401 and 402 as well; yest panelsize specific (?) */
 	  "Clevo", "D400S/D410S/D400H/D410H", CUT_CLEVO1400, "CLEVO_D4X0"
 	},
 	{ SIS_650, "", "",
@@ -612,7 +612,7 @@ static struct _customttable {
 	  "Compal", "??? (V2)", CUT_COMPAL1400_2, "COMPAL_1400_2"
 	},
 	{ SIS_650, "1.10.8o", "",
-	  0,	/* For EMI (unknown) */
+	  0,	/* For EMI (unkyeswn) */
 	  { 0, 0, 0, 0, 0 },
 	  { 0, 0, 0, 0, 0 },
 	  0x1043, 0x1612,

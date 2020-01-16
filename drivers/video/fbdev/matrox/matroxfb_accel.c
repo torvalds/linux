@@ -28,7 +28,7 @@
  *               "Scott Wood" <sawst46+@pitt.edu>
  *                     Fixes
  *
- *               "Gerd Knorr" <kraxel@goldbach.isdn.cs.tu-berlin.de>
+ *               "Gerd Kyesrr" <kraxel@goldbach.isdn.cs.tu-berlin.de>
  *                     Betatesting
  *
  *               "Kelly French" <targon@hazmat.com>
@@ -64,13 +64,13 @@
  *               "Mark Vojkovich" <mvojkovi@ucsd.edu>
  *                     G400 support
  *
- * (following author is not in any relation with this code, but his code
+ * (following author is yest in any relation with this code, but his code
  *  is included in this driver)
  *
  * Based on framebuffer driver for VBE 2.0 compliant graphic boards
- *     (c) 1998 Gerd Knorr <kraxel@cs.tu-berlin.de>
+ *     (c) 1998 Gerd Kyesrr <kraxel@cs.tu-berlin.de>
  *
- * (following author is not in any relation with this code, but his ideas
+ * (following author is yest in any relation with this code, but his ideas
  *  were used when writing this driver)
  *
  *		 FreeVBE/AF (Matrox), "Shawn Hargreaves" <shawn@talula.demon.co.uk>

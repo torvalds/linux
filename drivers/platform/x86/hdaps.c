@@ -2,7 +2,7 @@
 /*
  * hdaps.c - driver for IBM's Hard Drive Active Protection System
  *
- * Copyright (C) 2005 Robert Love <rml@novell.com>
+ * Copyright (C) 2005 Robert Love <rml@yesvell.com>
  * Copyright (C) 2005 Jesper Juhl <jj@chaosbits.net>
  *
  * The HardDisk Active Protection System (hdaps) is present in IBM ThinkPads
@@ -104,7 +104,7 @@ static int __wait_latch(u16 port, u8 val)
 }
 
 /*
- * __device_refresh - request a refresh from the accelerometer.  Does not wait
+ * __device_refresh - request a refresh from the accelerometer.  Does yest wait
  * for refresh to complete.  Callers must hold hdaps_mtx.
  */
 static void __device_refresh(void)
@@ -117,9 +117,9 @@ static void __device_refresh(void)
 }
 
 /*
- * __device_refresh_sync - request a synchronous refresh from the
+ * __device_refresh_sync - request a synchroyesus refresh from the
  * accelerometer.  We wait for the refresh to complete.  Returns zero if
- * successful and nonzero on error.  Callers must hold hdaps_mtx.
+ * successful and yesnzero on error.  Callers must hold hdaps_mtx.
  */
 static int __device_refresh_sync(void)
 {
@@ -259,7 +259,7 @@ static int hdaps_device_init(void)
 	if (__wait_latch(0x1611, 0x00))
 		goto out;
 
-	/* we have done our dance, now let's wait for the applause */
+	/* we have done our dance, yesw let's wait for the applause */
 	for (total = INIT_TIMEOUT_MSECS; total > 0; total -= INIT_WAIT_MSECS) {
 		int x, y;
 
@@ -499,7 +499,7 @@ static int __init hdaps_dmi_match_invert(const struct dmi_system_id *id)
 
 /* Note that HDAPS_DMI_MATCH_NORMAL("ThinkPad T42") would match
    "ThinkPad T42p", so the order of the entries matters.
-   If your ThinkPad is not recognized, please update to latest
+   If your ThinkPad is yest recognized, please update to latest
    BIOS. This is especially the case for some R52 ThinkPads. */
 static const struct dmi_system_id hdaps_whitelist[] __initconst = {
 	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad R50p", HDAPS_BOTH_AXES),
@@ -533,7 +533,7 @@ static int __init hdaps_init(void)
 	int ret;
 
 	if (!dmi_check_system(hdaps_whitelist)) {
-		pr_warn("supported laptop not found!\n");
+		pr_warn("supported laptop yest found!\n");
 		ret = -ENODEV;
 		goto out;
 	}

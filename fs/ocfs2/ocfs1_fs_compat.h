@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * ocfs1_fs_compat.h
  *
@@ -30,7 +30,7 @@
  */
 struct ocfs1_vol_disk_hdr
 {
-/*00*/	__u32 minor_version;
+/*00*/	__u32 miyesr_version;
 	__u32 major_version;
 /*08*/	__u8 signature[OCFS1_MAX_VOL_SIGNATURE_LEN];
 /*88*/	__u8 mount_point[OCFS1_MAX_MOUNT_POINT_LEN];
@@ -46,13 +46,13 @@ struct ocfs1_vol_disk_hdr
 /*150*/	__u64 root_off;
 	__u64 root_size;
 /*160*/	__u64 cluster_size;
-	__u64 num_nodes;
+	__u64 num_yesdes;
 /*170*/	__u64 num_clusters;
-	__u64 dir_node_size;
-/*180*/	__u64 file_node_size;
+	__u64 dir_yesde_size;
+/*180*/	__u64 file_yesde_size;
 	__u64 internal_off;
-/*190*/	__u64 node_cfg_off;
-	__u64 node_cfg_size;
+/*190*/	__u64 yesde_cfg_off;
+	__u64 yesde_cfg_size;
 /*1A0*/	__u64 new_cfg_off;
 	__u32 prot_bits;
 	__s32 excl_mount;
@@ -69,9 +69,9 @@ struct ocfs1_disk_lock
 				explicit */
 	__u64 last_write_time;
 /*10*/	__u64 last_read_time;
-	__u32 writer_node_num;
-	__u32 reader_node_num;
-/*20*/	__u64 oin_node_map;
+	__u32 writer_yesde_num;
+	__u32 reader_yesde_num;
+/*20*/	__u64 oin_yesde_map;
 	__u64 dlock_seq_num;
 /*30*/
 };

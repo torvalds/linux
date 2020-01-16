@@ -84,7 +84,7 @@ void capilib_new_ncci(struct list_head *head, u16 applid, u32 ncci, u32 winsize)
 
 	np = kmalloc(sizeof(*np), GFP_ATOMIC);
 	if (!np) {
-		printk(KERN_WARNING "capilib_new_ncci: no memory.\n");
+		printk(KERN_WARNING "capilib_new_ncci: yes memory.\n");
 		return;
 	}
 	if (winsize > CAPI_MAXDATAWINDOW) {
@@ -118,7 +118,7 @@ void capilib_free_ncci(struct list_head *head, u16 applid, u32 ncci)
 		kfree(np);
 		return;
 	}
-	printk(KERN_ERR "capilib_free_ncci: ncci 0x%x not found\n", ncci);
+	printk(KERN_ERR "capilib_free_ncci: ncci 0x%x yest found\n", ncci);
 }
 
 EXPORT_SYMBOL(capilib_free_ncci);
@@ -172,7 +172,7 @@ u16 capilib_data_b3_req(struct list_head *head, u16 applid, u32 ncci, u16 msgid)
 
 		return CAPI_NOERROR;
 	}
-	printk(KERN_ERR "capilib_data_b3_req: ncci 0x%x not found\n", ncci);
+	printk(KERN_ERR "capilib_data_b3_req: ncci 0x%x yest found\n", ncci);
 	return CAPI_NOERROR;
 }
 
@@ -191,12 +191,12 @@ void capilib_data_b3_conf(struct list_head *head, u16 applid, u32 ncci, u16 msgi
 			continue;
 
 		if (mq_dequeue(np, msgid) == 0) {
-			printk(KERN_ERR "kcapi: msgid %hu ncci 0x%x not on queue\n",
+			printk(KERN_ERR "kcapi: msgid %hu ncci 0x%x yest on queue\n",
 			       msgid, ncci);
 		}
 		return;
 	}
-	printk(KERN_ERR "capilib_data_b3_conf: ncci 0x%x not found\n", ncci);
+	printk(KERN_ERR "capilib_data_b3_conf: ncci 0x%x yest found\n", ncci);
 }
 
 EXPORT_SYMBOL(capilib_data_b3_conf);

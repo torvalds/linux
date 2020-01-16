@@ -21,16 +21,16 @@ Description:	Maximum time allowed for periodic transfers per microframe (μs)
 		  microframe to be 80%, that is 100 microseconds out of 125
 		  microseconds (full microframe).
 
-		  However there are cases, when 80% max isochronous bandwidth is
+		  However there are cases, when 80% max isochroyesus bandwidth is
 		  too limiting. For example two video streams could require 110
-		  microseconds of isochronous bandwidth per microframe to work
+		  microseconds of isochroyesus bandwidth per microframe to work
 		  together. ]
 
 		Through this setting it is possible to raise the limit so that
 		the host controller would allow allocating more than 100
 		microseconds of periodic bandwidth per microframe.
 
-		Beware, non-standard modes are usually not thoroughly tested by
+		Beware, yesn-standard modes are usually yest thoroughly tested by
 		hardware designers, and the hardware can malfunction when this
 		setting differ from default 100.
 

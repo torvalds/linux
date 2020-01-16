@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_STAT_H
 #define _UAPI_LINUX_STAT_H
 
@@ -49,7 +49,7 @@
  * tv_sec holds the number of seconds before (negative) or after (positive)
  * 00:00:00 1st January 1970 UTC.
  *
- * tv_nsec holds a number of nanoseconds (0..999,999,999) after the tv_sec time.
+ * tv_nsec holds a number of nayesseconds (0..999,999,999) after the tv_sec time.
  *
  * __reserved is held in case we need a yet finer resolution.
  */
@@ -69,7 +69,7 @@ struct statx_timestamp {
  *
  * For each bit in the mask argument:
  *
- * - if the datum is not supported:
+ * - if the datum is yest supported:
  *
  *   - the bit will be cleared, and
  *
@@ -85,9 +85,9 @@ struct statx_timestamp {
  *
  *   - the field will be filled in and the bit will be set;
  *
- * - otherwise, if not requested, but available in approximate form without any
+ * - otherwise, if yest requested, but available in approximate form without any
  *   effort, it will be filled in anyway, and the bit will be set upon return
- *   (it might not be up to date, however, and no attempt will be made to
+ *   (it might yest be up to date, however, and yes attempt will be made to
  *   synchronise the internal state first);
  *
  * - otherwise the field and the bit will be cleared before returning.
@@ -108,7 +108,7 @@ struct statx {
 	__u16	stx_mode;	/* File mode */
 	__u16	__spare0[1];
 	/* 0x20 */
-	__u64	stx_ino;	/* Inode number */
+	__u64	stx_iyes;	/* Iyesde number */
 	__u64	stx_size;	/* File size */
 	__u64	stx_blocks;	/* Number of 512-byte blocks allocated */
 	__u64	stx_attributes_mask; /* Mask to show what's supported in stx_attributes */
@@ -119,9 +119,9 @@ struct statx {
 	struct statx_timestamp	stx_mtime;	/* Last data modification time */
 	/* 0x80 */
 	__u32	stx_rdev_major;	/* Device ID of special file [if bdev/cdev] */
-	__u32	stx_rdev_minor;
+	__u32	stx_rdev_miyesr;
 	__u32	stx_dev_major;	/* ID of device containing file [uncond] */
-	__u32	stx_dev_minor;
+	__u32	stx_dev_miyesr;
 	/* 0x90 */
 	__u64	__spare2[14];	/* Spare space for future expansion */
 	/* 0x100 */
@@ -143,10 +143,10 @@ struct statx {
 #define STATX_ATIME		0x00000020U	/* Want/got stx_atime */
 #define STATX_MTIME		0x00000040U	/* Want/got stx_mtime */
 #define STATX_CTIME		0x00000080U	/* Want/got stx_ctime */
-#define STATX_INO		0x00000100U	/* Want/got stx_ino */
+#define STATX_INO		0x00000100U	/* Want/got stx_iyes */
 #define STATX_SIZE		0x00000200U	/* Want/got stx_size */
 #define STATX_BLOCKS		0x00000400U	/* Want/got stx_blocks */
-#define STATX_BASIC_STATS	0x000007ffU	/* The stuff in the normal stat struct */
+#define STATX_BASIC_STATS	0x000007ffU	/* The stuff in the yesrmal stat struct */
 #define STATX_BTIME		0x00000800U	/* Want/got stx_btime */
 #define STATX_ALL		0x00000fffU	/* All currently supported flags */
 #define STATX__RESERVED		0x80000000U	/* Reserved for future struct statx expansion */
@@ -165,7 +165,7 @@ struct statx {
 #define STATX_ATTR_COMPRESSED		0x00000004 /* [I] File is compressed by the fs */
 #define STATX_ATTR_IMMUTABLE		0x00000010 /* [I] File is marked immutable */
 #define STATX_ATTR_APPEND		0x00000020 /* [I] File is append-only */
-#define STATX_ATTR_NODUMP		0x00000040 /* [I] File is not to be dumped */
+#define STATX_ATTR_NODUMP		0x00000040 /* [I] File is yest to be dumped */
 #define STATX_ATTR_ENCRYPTED		0x00000800 /* [I] File requires key to decrypt in fs */
 #define STATX_ATTR_AUTOMOUNT		0x00001000 /* Dir: Automount trigger */
 #define STATX_ATTR_VERITY		0x00100000 /* [I] Verity protected file */

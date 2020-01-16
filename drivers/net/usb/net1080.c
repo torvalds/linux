@@ -22,7 +22,7 @@
 
 /*
  * Netchip 1080 driver ... http://www.netchip.com
- * (Sept 2004:  End-of-life announcement has been sent.)
+ * (Sept 2004:  End-of-life anyesuncement has been sent.)
  * Used in (some) LapLink cables
  */
 
@@ -38,7 +38,7 @@
  *	- (optional padding byte, if needed so length becomes odd)
  *	- nc_trailer
  *
- * This framing is to be avoided for non-NetChip devices.
+ * This framing is to be avoided for yesn-NetChip devices.
  */
 
 struct nc_header {		// packed:
@@ -72,7 +72,7 @@ struct nc_trailer {
 
 
 /*
- * Zero means no timeout; else, how long a 64 byte bulk packet may be queued
+ * Zero means yes timeout; else, how long a 64 byte bulk packet may be queued
  * before the hardware drops it.  If that's done, the driver will need to
  * frame network packets to guard against the dropped USB packets.  The win32
  * driver sets this for both sides of the link.
@@ -80,7 +80,7 @@ struct nc_trailer {
 #define	NC_READ_TTL_MS	((u8)255)	// ms
 
 /*
- * We ignore most registers and EEPROM contents.
+ * We igyesre most registers and EEPROM contents.
  */
 #define	REG_USBCTL	((u8)0x04)
 #define REG_TTL		((u8)0x10)
@@ -113,7 +113,7 @@ nc_register_read(struct usbnet *dev, u8 regnum, u16 *retval_ptr)
 	return nc_vendor_read(dev, REQUEST_REGISTER, regnum, retval_ptr);
 }
 
-// no retval ... can become async, usable in_interrupt()
+// yes retval ... can become async, usable in_interrupt()
 static void
 nc_vendor_write(struct usbnet *dev, u8 req, u8 regnum, u16 value)
 {
@@ -230,7 +230,7 @@ static inline void nc_dump_status(struct usbnet *dev, u16 status)
 		  status,
 
 		  // XXX the packet counts don't seem right
-		  // (1 at reset, not 0); maybe UNSPEC too
+		  // (1 at reset, yest 0); maybe UNSPEC too
 
 		  (status & STATUS_PORT_A) ? 'A' : 'B',
 		  STATUS_PACKETS_THIS(status),
@@ -343,7 +343,7 @@ static int net1080_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	struct nc_trailer	*trailer;
 	u16			hdr_len, packet_len;
 
-	/* This check is no longer done by usbnet */
+	/* This check is yes longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
 
@@ -428,12 +428,12 @@ net1080_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 
 		if (padlen <= tailroom &&
 		    sizeof(struct nc_header) <= headroom)
-			/* There's enough head and tail room */
+			/* There's eyesugh head and tail room */
 			goto encapsulate;
 
 		if ((sizeof (struct nc_header) + padlen) <
 				(headroom + tailroom)) {
-			/* There's enough total room, so just readjust */
+			/* There's eyesugh total room, so just readjust */
 			skb->data = memmove(skb->head
 						+ sizeof (struct nc_header),
 					    skb->data, skb->len);

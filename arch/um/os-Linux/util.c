@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <string.h>
 #include <termios.h>
@@ -20,7 +20,7 @@ void stack_protections(unsigned long address)
 {
 	if (mprotect((void *) address, UM_THREAD_SIZE,
 		    PROT_READ | PROT_WRITE | PROT_EXEC) < 0)
-		panic("protecting stack failed, errno = %d", errno);
+		panic("protecting stack failed, erryes = %d", erryes);
 }
 
 int raw(int fd)
@@ -30,13 +30,13 @@ int raw(int fd)
 
 	CATCH_EINTR(err = tcgetattr(fd, &tt));
 	if (err < 0)
-		return -errno;
+		return -erryes;
 
 	cfmakeraw(&tt);
 
 	CATCH_EINTR(err = tcsetattr(fd, TCSADRAIN, &tt));
 	if (err < 0)
-		return -errno;
+		return -erryes;
 
 	/*
 	 * XXX tcsetattr could have applied only some changes
@@ -71,17 +71,17 @@ void setup_hostinfo(char *buf, int len)
 	struct utsname host;
 
 	uname(&host);
-	snprintf(buf, len, "%s %s %s %s %s", host.sysname, host.nodename,
+	snprintf(buf, len, "%s %s %s %s %s", host.sysname, host.yesdename,
 		 host.release, host.version, host.machine);
 }
 
 /*
- * We cannot use glibc's abort(). It makes use of tgkill() which
- * has no effect within UML's kernel threads.
+ * We canyest use glibc's abort(). It makes use of tgkill() which
+ * has yes effect within UML's kernel threads.
  * After that glibc would execute an invalid instruction to kill
  * the calling process and UML crashes with SIGSEGV.
  */
-static inline void __attribute__ ((noreturn)) uml_abort(void)
+static inline void __attribute__ ((yesreturn)) uml_abort(void)
 {
 	sigset_t sig;
 
@@ -96,7 +96,7 @@ static inline void __attribute__ ((noreturn)) uml_abort(void)
 }
 
 /*
- * UML helper threads must not handle SIGWINCH/INT/TERM
+ * UML helper threads must yest handle SIGWINCH/INT/TERM
  */
 void os_fix_helper_signals(void)
 {
@@ -113,9 +113,9 @@ void os_dump_core(void)
 
 	/*
 	 * We are about to SIGTERM this entire process group to ensure that
-	 * nothing is around to run after the kernel exits.  The
-	 * kernel wants to abort, not die through SIGTERM, so we
-	 * ignore it here.
+	 * yesthing is around to run after the kernel exits.  The
+	 * kernel wants to abort, yest die through SIGTERM, so we
+	 * igyesre it here.
 	 */
 
 	signal(SIGTERM, SIG_IGN);
@@ -137,10 +137,10 @@ void os_dump_core(void)
 	 * SIGSEGV being signal 11) is never handled.
 	 *
 	 * Run a waitpid loop until we get some kind of error.
-	 * Hopefully, it's ECHILD, but there's not a lot we can do if
-	 * it's something else.  Tell os_kill_ptraced_process not to
+	 * Hopefully, it's ECHILD, but there's yest a lot we can do if
+	 * it's something else.  Tell os_kill_ptraced_process yest to
 	 * wait for the child to report its death because there's
-	 * nothing reasonable to do if that fails.
+	 * yesthing reasonable to do if that fails.
 	 */
 
 	while ((pid = waitpid(-1, NULL, WNOHANG | __WALL)) > 0)

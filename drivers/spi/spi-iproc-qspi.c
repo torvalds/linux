@@ -115,7 +115,7 @@ static int bcm_iproc_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->int_status_reg))
 		return PTR_ERR(priv->int_status_reg);
 
-	priv->big_endian = of_device_is_big_endian(dev->of_node);
+	priv->big_endian = of_device_is_big_endian(dev->of_yesde);
 
 	bcm_iproc_qspi_int_ack(soc_intc, MSPI_BSPI_DONE);
 	bcm_iproc_qspi_int_set(soc_intc, MSPI_BSPI_DONE, false);

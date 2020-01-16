@@ -77,15 +77,15 @@ void
 lpfc_terminate_rport_io(struct fc_rport *rport)
 {
 	struct lpfc_rport_data *rdata;
-	struct lpfc_nodelist * ndlp;
+	struct lpfc_yesdelist * ndlp;
 	struct lpfc_hba *phba;
 
 	rdata = rport->dd_data;
-	ndlp = rdata->pnode;
+	ndlp = rdata->pyesde;
 
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
 		if (rport->roles & FC_RPORT_ROLE_FCP_TARGET)
-			printk(KERN_ERR "Cannot find remote node"
+			printk(KERN_ERR "Canyest find remote yesde"
 			" to terminate I/O Data x%x\n",
 			rport->port_id);
 		return;
@@ -111,17 +111,17 @@ void
 lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 {
 	struct lpfc_rport_data *rdata;
-	struct lpfc_nodelist * ndlp;
+	struct lpfc_yesdelist * ndlp;
 	struct lpfc_vport *vport;
 	struct Scsi_Host *shost;
 	struct lpfc_hba   *phba;
 	struct lpfc_work_evt *evtp;
-	int  put_node;
+	int  put_yesde;
 	int  put_rport;
 	unsigned long iflags;
 
 	rdata = rport->dd_data;
-	ndlp = rdata->pnode;
+	ndlp = rdata->pyesde;
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
 		return;
 
@@ -137,15 +137,15 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag);
 
 	/* Don't defer this if we are in the process of deleting the vport
-	 * or unloading the driver. The unload will cleanup the node
+	 * or unloading the driver. The unload will cleanup the yesde
 	 * appropriately we just need to cleanup the ndlp rport info here.
 	 */
 	if (vport->load_flag & FC_UNLOADING) {
-		put_node = rdata->pnode != NULL;
+		put_yesde = rdata->pyesde != NULL;
 		put_rport = ndlp->rport != NULL;
-		rdata->pnode = NULL;
+		rdata->pyesde = NULL;
 		ndlp->rport = NULL;
-		if (put_node)
+		if (put_yesde)
 			lpfc_nlp_put(ndlp);
 		if (put_rport)
 			put_device(&rport->dev);
@@ -157,7 +157,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 	if (rport->port_name != wwn_to_u64(ndlp->nlp_portname.u.wwn))
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
-				"6789 rport name %llx != node port name %llx",
+				"6789 rport name %llx != yesde port name %llx",
 				rport->port_name,
 				wwn_to_u64(ndlp->nlp_portname.u.wwn));
 
@@ -175,7 +175,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	ndlp->nlp_flag |= NLP_IN_DEV_LOSS;
 	spin_unlock_irqrestore(shost->host_lock, iflags);
 
-	/* We need to hold the node by incrementing the reference
+	/* We need to hold the yesde by incrementing the reference
 	 * count until this queued work is done
 	 */
 	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
@@ -192,17 +192,17 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 }
 
 /**
- * lpfc_dev_loss_tmo_handler - Remote node devloss timeout handler
- * @ndlp: Pointer to remote node object.
+ * lpfc_dev_loss_tmo_handler - Remote yesde devloss timeout handler
+ * @ndlp: Pointer to remote yesde object.
  *
  * This function is called from the worker thread when devloss timeout timer
  * expires. For SLI4 host, this routine shall return 1 when at lease one
- * remote node, including this @ndlp, is still in use of FCF; otherwise, this
- * routine shall return 0 when there is no remote node is still in use of FCF
+ * remote yesde, including this @ndlp, is still in use of FCF; otherwise, this
+ * routine shall return 0 when there is yes remote yesde is still in use of FCF
  * when devloss timeout happened to this @ndlp.
  **/
 static int
-lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
+lpfc_dev_loss_tmo_handler(struct lpfc_yesdelist *ndlp)
 {
 	struct lpfc_rport_data *rdata;
 	struct fc_rport   *rport;
@@ -210,7 +210,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	struct lpfc_hba   *phba;
 	struct Scsi_Host  *shost;
 	uint8_t *name;
-	int  put_node;
+	int  put_yesde;
 	int warn_on = 0;
 	int fcf_inuse = 0;
 	unsigned long iflags;
@@ -242,13 +242,13 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 
 	/*
 	 * lpfc_nlp_remove if reached with dangling rport drops the
-	 * reference. To make sure that does not happen clear rport
+	 * reference. To make sure that does yest happen clear rport
 	 * pointer in ndlp before lpfc_nlp_put.
 	 */
 	rdata = rport->dd_data;
 
 	/* Don't defer this if we are in the process of deleting the vport
-	 * or unloading the driver. The unload will cleanup the node
+	 * or unloading the driver. The unload will cleanup the yesde
 	 * appropriately we just need to cleanup the ndlp rport info here.
 	 */
 	if (vport->load_flag & FC_UNLOADING) {
@@ -258,10 +258,10 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 					    &phba->sli.sli3_ring[LPFC_FCP_RING],
 					    ndlp->nlp_sid, 0, LPFC_CTX_TGT);
 		}
-		put_node = rdata->pnode != NULL;
-		rdata->pnode = NULL;
+		put_yesde = rdata->pyesde != NULL;
+		rdata->pyesde = NULL;
 		ndlp->rport = NULL;
-		if (put_node)
+		if (put_yesde)
 			lpfc_nlp_put(ndlp);
 		put_device(&rport->dev);
 
@@ -270,7 +270,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 
 	if (ndlp->nlp_state == NLP_STE_MAPPED_NODE) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "0284 Devloss timeout Ignored on "
+				 "0284 Devloss timeout Igyesred on "
 				 "WWPN %x:%x:%x:%x:%x:%x:%x:%x "
 				 "NPort x%x\n",
 				 *name, *(name+1), *(name+2), *(name+3),
@@ -279,10 +279,10 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		return fcf_inuse;
 	}
 
-	put_node = rdata->pnode != NULL;
-	rdata->pnode = NULL;
+	put_yesde = rdata->pyesde != NULL;
+	rdata->pyesde = NULL;
 	ndlp->rport = NULL;
-	if (put_node)
+	if (put_yesde)
 		lpfc_nlp_put(ndlp);
 	put_device(&rport->dev);
 
@@ -329,15 +329,15 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
  * lpfc_sli4_post_dev_loss_tmo_handler - SLI4 post devloss timeout handler
  * @phba: Pointer to hba context object.
  * @fcf_inuse: SLI4 FCF in-use state reported from devloss timeout handler.
- * @nlp_did: remote node identifer with devloss timeout.
+ * @nlp_did: remote yesde identifer with devloss timeout.
  *
  * This function is called from the worker thread after invoking devloss
  * timeout handler and releasing the reference count for the ndlp with
  * which the devloss timeout was handled for SLI4 host. For the devloss
- * timeout of the last remote node which had been in use of FCF, when this
- * routine is invoked, it shall be guaranteed that none of the remote are
+ * timeout of the last remote yesde which had been in use of FCF, when this
+ * routine is invoked, it shall be guaranteed that yesne of the remote are
  * in-use of FCF. When devloss timeout to the last remote using the FCF,
- * if the FIP engine is neither in FCF table scan process nor roundrobin
+ * if the FIP engine is neither in FCF table scan process yesr roundrobin
  * failover process, the in-use FCF shall be unregistered. If the FIP
  * engine is in FCF discovery process, the devloss timeout state shall
  * be set for either the FCF table scan process or roundrobin failover
@@ -347,8 +347,8 @@ static void
 lpfc_sli4_post_dev_loss_tmo_handler(struct lpfc_hba *phba, int fcf_inuse,
 				    uint32_t nlp_did)
 {
-	/* If devloss timeout happened to a remote node when FCF had no
-	 * longer been in-use, do nothing.
+	/* If devloss timeout happened to a remote yesde when FCF had yes
+	 * longer been in-use, do yesthing.
 	 */
 	if (!fcf_inuse)
 		return;
@@ -362,7 +362,7 @@ lpfc_sli4_post_dev_loss_tmo_handler(struct lpfc_hba *phba, int fcf_inuse,
 			}
 			phba->hba_flag |= HBA_DEVLOSS_TMO;
 			lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-					"2847 Last remote node (x%x) using "
+					"2847 Last remote yesde (x%x) using "
 					"FCF devloss tmo\n", nlp_did);
 		}
 		if (phba->fcf.fcf_flag & FCF_REDISC_PROG) {
@@ -407,7 +407,7 @@ struct lpfc_fast_path_event *
 lpfc_alloc_fast_evt(struct lpfc_hba *phba) {
 	struct lpfc_fast_path_event *ret;
 
-	/* If there are lot of fast event do not exhaust memory due to this */
+	/* If there are lot of fast event do yest exhaust memory due to this */
 	if (atomic_read(&phba->fast_event_count) > LPFC_MAX_EVT_COUNT)
 		return NULL;
 
@@ -517,7 +517,7 @@ static void
 lpfc_work_list_done(struct lpfc_hba *phba)
 {
 	struct lpfc_work_evt  *evtp = NULL;
-	struct lpfc_nodelist  *ndlp;
+	struct lpfc_yesdelist  *ndlp;
 	int free_evt;
 	int fcf_inuse;
 	uint32_t nlp_did;
@@ -530,19 +530,19 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 		free_evt = 1;
 		switch (evtp->evt) {
 		case LPFC_EVT_ELS_RETRY:
-			ndlp = (struct lpfc_nodelist *) (evtp->evt_arg1);
+			ndlp = (struct lpfc_yesdelist *) (evtp->evt_arg1);
 			lpfc_els_retry_delay_handler(ndlp);
 			free_evt = 0; /* evt is part of ndlp */
-			/* decrement the node reference count held
+			/* decrement the yesde reference count held
 			 * for this queued work
 			 */
 			lpfc_nlp_put(ndlp);
 			break;
 		case LPFC_EVT_DEV_LOSS:
-			ndlp = (struct lpfc_nodelist *)(evtp->evt_arg1);
+			ndlp = (struct lpfc_yesdelist *)(evtp->evt_arg1);
 			fcf_inuse = lpfc_dev_loss_tmo_handler(ndlp);
 			free_evt = 0;
-			/* decrement the node reference count held for
+			/* decrement the yesde reference count held for
 			 * this queued work
 			 */
 			nlp_did = ndlp->nlp_DID;
@@ -658,7 +658,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 	if (vports != NULL)
 		for (i = 0; i <= phba->max_vports; i++) {
 			/*
-			 * We could have no vports in array if unloading, so if
+			 * We could have yes vports in array if unloading, so if
 			 * this happens then just use the pport
 			 */
 			if (vports[i] == NULL && i == 0)
@@ -808,9 +808,9 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
-	struct lpfc_nodelist *ndlp, *next_ndlp;
+	struct lpfc_yesdelist *ndlp, *next_ndlp;
 
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_yesdes, nlp_listp) {
 		if (!NLP_CHK_NODE_ACT(ndlp))
 			continue;
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
@@ -820,7 +820,7 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 			(ndlp->nlp_DID == NameServer_DID)))
 			lpfc_unreg_rpi(vport, ndlp);
 
-		/* Leave Fabric nodes alone on link down */
+		/* Leave Fabric yesdes alone on link down */
 		if ((phba->sli_rev < LPFC_SLI_REV4) &&
 		    (!remove && ndlp->nlp_type & NLP_FABRIC))
 			continue;
@@ -918,7 +918,7 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL) {
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			/* Issue a LINK DOWN event to all nodes */
+			/* Issue a LINK DOWN event to all yesdes */
 			lpfc_linkdown_port(vports[i]);
 
 			vports[i]->fc_myDID = 0;
@@ -971,11 +971,11 @@ lpfc_linkdown(struct lpfc_hba *phba)
 }
 
 static void
-lpfc_linkup_cleanup_nodes(struct lpfc_vport *vport)
+lpfc_linkup_cleanup_yesdes(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry(ndlp, &vport->fc_yesdes, nlp_listp) {
 		ndlp->nlp_fc4_type &= ~(NLP_FC4_FCP | NLP_FC4_NVME);
 		if (!NLP_CHK_NODE_ACT(ndlp))
 			continue;
@@ -989,7 +989,7 @@ lpfc_linkup_cleanup_nodes(struct lpfc_vport *vport)
 				lpfc_unreg_rpi(vport, ndlp);
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		} else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
-			/* Fail outstanding IO now since device is
+			/* Fail outstanding IO yesw since device is
 			 * marked for PLOGI.
 			 */
 			lpfc_unreg_rpi(vport, ndlp);
@@ -1010,7 +1010,7 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 		"Link Up:         top:x%x speed:x%x flg:x%x",
 		phba->fc_topology, phba->fc_linkspeed, phba->link_flag);
 
-	/* If NPIV is not enabled, only bring the physical port up */
+	/* If NPIV is yest enabled, only bring the physical port up */
 	if (!(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
 		(vport != phba->pport))
 		return;
@@ -1027,7 +1027,7 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 	spin_unlock_irq(shost->host_lock);
 
 	if (vport->fc_flag & FC_LBIT)
-		lpfc_linkup_cleanup_nodes(vport);
+		lpfc_linkup_cleanup_yesdes(vport);
 
 }
 
@@ -1080,7 +1080,7 @@ lpfc_mbx_cmpl_clear_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	MAILBOX_t *mb = &pmb->u.mb;
 	uint32_t control;
 
-	/* Since we don't do discovery right now, turn these off here */
+	/* Since we don't do discovery right yesw, turn these off here */
 	psli->sli3_ring[LPFC_EXTRA_RING].flag &= ~LPFC_STOP_IOCB_EVENT;
 	psli->sli3_ring[LPFC_FCP_RING].flag &= ~LPFC_STOP_IOCB_EVENT;
 
@@ -1144,7 +1144,7 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	mempool_free(pmb, phba->mbox_mem_pool);
 
-	/* don't perform discovery for SLI4 loopback diagnostic test */
+	/* don't perform discovery for SLI4 loopback diagyesstic test */
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
 	    !(phba->hba_flag & HBA_FCOE_MODE) &&
 	    (phba->link_flag & LS_LOOPBACK_MODE))
@@ -1481,7 +1481,7 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 	int rc;
 
 	spin_lock_irq(&phba->hbalock);
-	/* If the FCF is not available do nothing. */
+	/* If the FCF is yest available do yesthing. */
 	if (!(phba->fcf.fcf_flag & FCF_AVAILABLE)) {
 		phba->hba_flag &= ~(FCF_TS_INPROG | FCF_RR_INPROG);
 		spin_unlock_irq(&phba->hbalock);
@@ -1541,7 +1541,7 @@ lpfc_register_fcf(struct lpfc_hba *phba)
  * is used by boot bios and addr_mode will indicate the addressing mode to be
  * used for this FCF when the function returns.
  * If the FCF record need to be used with a particular vlan id, the vlan is
- * set in the vlan_id on return of the function. If not VLAN tagging need to
+ * set in the vlan_id on return of the function. If yest VLAN tagging need to
  * be used with the FCF vlan_id will be set to LPFC_FCOE_NULL_VID;
  **/
 static int
@@ -1566,7 +1566,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 		}
 	}
 
-	/* FCF not valid/available or solicitation in progress */
+	/* FCF yest valid/available or solicitation in progress */
 	if (!bf_get(lpfc_fcf_record_fcf_avail, new_fcf_record) ||
 	    !bf_get(lpfc_fcf_record_fcf_valid, new_fcf_record) ||
 	    bf_get(lpfc_fcf_record_fcf_sol, new_fcf_record))
@@ -1584,7 +1584,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 	}
 
 	/*
-	 * If there are no FCF connection table entry, driver connect to all
+	 * If there are yes FCF connection table entry, driver connect to all
 	 * FCFs.
 	 */
 	if (list_empty(&phba->fcf_conn_rec_list)) {
@@ -1593,7 +1593,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 			new_fcf_record);
 
 		/*
-		 * When there are no FCF connect entries, use driver's default
+		 * When there are yes FCF connect entries, use driver's default
 		 * addressing mode - FPMA.
 		 */
 		if (*addr_mode & LPFC_FCF_FPMA)
@@ -1622,8 +1622,8 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 			continue;
 		if (conn_entry->conn_rec.flags & FCFCNCT_VLAN_VALID) {
 			/*
-			 * If the vlan bit map does not have the bit set for the
-			 * vlan id to be used, then it is not a match.
+			 * If the vlan bit map does yest have the bit set for the
+			 * vlan id to be used, then it is yest a match.
 			 */
 			if (!(new_fcf_record->vlan_bitmap
 				[conn_entry->conn_rec.vlan_tag / 8] &
@@ -1632,7 +1632,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 		}
 
 		/*
-		 * If connection record does not support any addressing mode,
+		 * If connection record does yest support any addressing mode,
 		 * skip the FCF record.
 		 */
 		if (!(bf_get(lpfc_fcf_record_mac_addr_prov, new_fcf_record)
@@ -1647,7 +1647,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 			!(conn_entry->conn_rec.flags & FCFCNCT_AM_PREFERRED)) {
 
 			/*
-			 * If SPMA required but FCF not support this continue.
+			 * If SPMA required but FCF yest support this continue.
 			 */
 			if ((conn_entry->conn_rec.flags & FCFCNCT_AM_SPMA) &&
 				!(bf_get(lpfc_fcf_record_mac_addr_prov,
@@ -1655,7 +1655,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 				continue;
 
 			/*
-			 * If FPMA required but FCF not support this continue.
+			 * If FPMA required but FCF yest support this continue.
 			 */
 			if (!(conn_entry->conn_rec.flags & FCFCNCT_AM_SPMA) &&
 				!(bf_get(lpfc_fcf_record_mac_addr_prov,
@@ -1672,8 +1672,8 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 			*boot_flag = 0;
 
 		/*
-		 * If user did not specify any addressing mode, or if the
-		 * preferred addressing mode specified by user is not supported
+		 * If user did yest specify any addressing mode, or if the
+		 * preferred addressing mode specified by user is yest supported
 		 * by FCF, allow fabric to pick the addressing mode.
 		 */
 		*addr_mode = bf_get(lpfc_fcf_record_mac_addr_prov,
@@ -1706,7 +1706,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 		if (conn_entry->conn_rec.flags & FCFCNCT_VLAN_VALID)
 			*vlan_id = conn_entry->conn_rec.vlan_tag;
 		/*
-		 * If no vlan id is specified in connect list, use the vlan id
+		 * If yes vlan id is specified in connect list, use the vlan id
 		 * in the FCF record
 		 */
 		else if (fcf_vlan_id)
@@ -1733,8 +1733,8 @@ int
 lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
 {
 	/*
-	 * If the Link is up and no FCoE events while in the
-	 * FCF discovery, no need to restart FCF discovery.
+	 * If the Link is up and yes FCoE events while in the
+	 * FCF discovery, yes need to restart FCF discovery.
 	 */
 	if ((phba->link_state  >= LPFC_LINK_UP) &&
 	    (phba->fcoe_eventtag == phba->fcoe_eventtag_at_fcf_scan))
@@ -1761,7 +1761,7 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
 		lpfc_sli4_fcf_scan_read_fcf_rec(phba, LPFC_FCOE_FCF_GET_FIRST);
 	} else {
 		/*
-		 * Do not continue FCF discovery and clear FCF_TS_INPROG
+		 * Do yest continue FCF discovery and clear FCF_TS_INPROG
 		 * flag
 		 */
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
@@ -1819,11 +1819,11 @@ lpfc_sli4_new_fcf_random_select(struct lpfc_hba *phba, uint32_t fcf_cnt)
  * @mboxq: pointer to mailbox object.
  * @next_fcf_index: pointer to holder of next fcf index.
  *
- * This routine parses the non-embedded fcf mailbox command by performing the
- * necessarily error checking, non-embedded read FCF record mailbox command
+ * This routine parses the yesn-embedded fcf mailbox command by performing the
+ * necessarily error checking, yesn-embedded read FCF record mailbox command
  * SGE parsing, and endianness swapping.
  *
- * Returns the pointer to the new FCF record in the non-embedded mailbox
+ * Returns the pointer to the new FCF record in the yesn-embedded mailbox
  * command DMA memory if successfully, other NULL.
  */
 static struct fcf_record *
@@ -1837,13 +1837,13 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	union lpfc_sli4_cfg_shdr *shdr;
 	struct fcf_record *new_fcf_record;
 
-	/* Get the first SGE entry from the non-embedded DMA memory. This
+	/* Get the first SGE entry from the yesn-embedded DMA memory. This
 	 * routine only uses a single SGE.
 	 */
 	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
 	if (unlikely(!mboxq->sge_array)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
-				"2524 Failed to get the non-embedded SGE "
+				"2524 Failed to get the yesn-embedded SGE "
 				"virtual address\n");
 		return NULL;
 	}
@@ -1954,7 +1954,7 @@ lpfc_sli4_log_fcf_record_info(struct lpfc_hba *phba,
  *
  * This function performs matching test of a new FCF record against an existing
  * FCF record. If the new_vlan_id passed in is LPFC_FCOE_IGNORE_VID, vlan id
- * will not be used as part of the FCF record matching criteria.
+ * will yest be used as part of the FCF record matching criteria.
  *
  * Returns true if all the fields matching, otherwise returns false.
  */
@@ -1999,7 +1999,7 @@ int lpfc_sli4_fcf_rr_next_proc(struct lpfc_vport *vport, uint16_t fcf_index)
 		if (phba->hba_flag & HBA_DEVLOSS_TMO) {
 			spin_unlock_irq(&phba->hbalock);
 			lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-					"2872 Devloss tmo with no eligible "
+					"2872 Devloss tmo with yes eligible "
 					"FCF, unregister in-use FCF (x%x) "
 					"and rescan FCF table\n",
 					phba->fcf.current_rec.fcf_indx);
@@ -2008,7 +2008,7 @@ int lpfc_sli4_fcf_rr_next_proc(struct lpfc_vport *vport, uint16_t fcf_index)
 		}
 		/* Mark the end to FLOGI roundrobin failover */
 		phba->hba_flag &= ~FCF_RR_INPROG;
-		/* Allow action to new fcf asynchronous event */
+		/* Allow action to new fcf asynchroyesus event */
 		phba->fcf.fcf_flag &= ~(FCF_AVAILABLE | FCF_SCAN_DONE);
 		spin_unlock_irq(&phba->hbalock);
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
@@ -2093,7 +2093,7 @@ static void lpfc_sli4_fcf_pri_list_del(struct lpfc_hba *phba,
  * @fcf_index the index of the fcf record to update
  * This routine acquires the hbalock and then set the LPFC_FCF_FLOGI_FAILED
  * flag so the the round robin slection for the particular priority level
- * will try a different fcf record that does not have this bit set.
+ * will try a different fcf record that does yest have this bit set.
  * If the fcf record is re-read for any reason this flag is cleared brfore
  * adding it to the priority list.
  **/
@@ -2236,7 +2236,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		return;
 	}
 
-	/* Parse the FCF record from the non-embedded mailbox command */
+	/* Parse the FCF record from the yesn-embedded mailbox command */
 	new_fcf_record = lpfc_sli4_fcf_rec_mbox_parse(phba, mboxq,
 						      &next_fcf_index);
 	if (!new_fcf_record) {
@@ -2260,7 +2260,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 				      next_fcf_index);
 
 	/*
-	 * If the fcf record does not match with connect list entries
+	 * If the fcf record does yest match with connect list entries
 	 * read the next entry; otherwise, this is an eligible FCF
 	 * record for roundrobin FCF failover.
 	 */
@@ -2295,7 +2295,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			/*
 			 * In case the current in-use FCF record becomes
 			 * invalid/unavailable during FCF discovery that
-			 * was not triggered by fast FCF failover process,
+			 * was yest triggered by fast FCF failover process,
 			 * treat it as fast FCF failover.
 			 */
 			if (!(phba->fcf.fcf_flag & FCF_REDISC_PEND) &&
@@ -2324,7 +2324,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	}
 
 	/*
-	 * If this is not the first FCF discovery of the HBA, use last
+	 * If this is yest the first FCF discovery of the HBA, use last
 	 * FCF record for the discovery. The condition that a rescan
 	 * matches the in-use FCF record: fabric name, switch name, mac
 	 * address, and vlan_id.
@@ -2363,7 +2363,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		}
 		/*
 		 * Read next FCF record from HBA searching for the matching
-		 * with in-use record only if not during the fast failover
+		 * with in-use record only if yest during the fast failover
 		 * period. In case of fast failover period, it shall try to
 		 * determine whether the FCF record just read should be the
 		 * next candidate.
@@ -2384,7 +2384,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 
 	if (phba->fcf.fcf_flag & FCF_AVAILABLE) {
 		/*
-		 * If the driver FCF record does not have boot flag
+		 * If the driver FCF record does yest have boot flag
 		 * set and new hba fcf record has boot flag set, use
 		 * the new hba fcf record.
 		 */
@@ -2403,7 +2403,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		}
 		/*
 		 * If the driver FCF record has boot flag set and the
-		 * new hba FCF record does not have boot flag, read
+		 * new hba FCF record does yest have boot flag, read
 		 * the next FCF record.
 		 */
 		if (!boot_flag && (fcf_rec->flag & BOOT_ENABLE)) {
@@ -2476,8 +2476,8 @@ read_next_fcf:
 			 */
 
 			/*
-			 * It has not found any suitable FCF record, cancel
-			 * FCF scan inprogress, and do nothing
+			 * It has yest found any suitable FCF record, cancel
+			 * FCF scan inprogress, and do yesthing
 			 */
 			if (!(phba->fcf.failover_rec.flag & RECORD_VALID)) {
 				lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
@@ -2507,7 +2507,7 @@ read_next_fcf:
 				return;
 			}
 			/*
-			 * It has found a suitable FCF record that is not
+			 * It has found a suitable FCF record that is yest
 			 * the same as in-use FCF record, unregister the
 			 * in-use FCF record, replace the in-use FCF record
 			 * with the new FCF record, mark FCF fast failover
@@ -2540,7 +2540,7 @@ read_next_fcf:
 		} else {
 			/*
 			 * In case of transaction period to fast FCF failover,
-			 * do nothing when search to the end of the FCF table.
+			 * do yesthing when search to the end of the FCF table.
 			 */
 			if ((phba->fcf.fcf_flag & FCF_REDISC_EVT) ||
 			    (phba->fcf.fcf_flag & FCF_REDISC_PEND))
@@ -2549,14 +2549,14 @@ read_next_fcf:
 			if (phba->cfg_fcf_failover_policy == LPFC_FCF_FOV &&
 				phba->fcf.fcf_flag & FCF_IN_USE) {
 				/*
-				 * In case the current in-use FCF record no
+				 * In case the current in-use FCF record yes
 				 * longer existed during FCF discovery that
-				 * was not triggered by fast FCF failover
+				 * was yest triggered by fast FCF failover
 				 * process, treat it as fast FCF failover.
 				 */
 				lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 						"2841 In-use FCF record (x%x) "
-						"not reported, entering fast "
+						"yest reported, entering fast "
 						"FCF failover mode scanning.\n",
 						phba->fcf.current_rec.fcf_indx);
 				spin_lock_irq(&phba->hbalock);
@@ -2587,7 +2587,7 @@ out:
  *
  * This is the callback function for FLOGI failure roundrobin FCF failover
  * read FCF record mailbox command from the eligible FCF record bmask for
- * performing the failover. If the FCF read back is not valid/available, it
+ * performing the failover. If the FCF read back is yest valid/available, it
  * fails through to retrying FLOGI to the currently registered FCF again.
  * Otherwise, if the FCF read back is valid and available, it will set the
  * newly read FCF record to the failover FCF record, unregister currently
@@ -2605,7 +2605,7 @@ lpfc_mbx_cmpl_fcf_rr_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	uint16_t vlan_id;
 	int rc;
 
-	/* If link state is not up, stop the roundrobin failover process */
+	/* If link state is yest up, stop the roundrobin failover process */
 	if (phba->link_state < LPFC_LINK_UP) {
 		spin_lock_irq(&phba->hbalock);
 		phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
@@ -2614,7 +2614,7 @@ lpfc_mbx_cmpl_fcf_rr_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		goto out;
 	}
 
-	/* Parse the FCF record from the non-embedded mailbox command */
+	/* Parse the FCF record from the yesn-embedded mailbox command */
 	new_fcf_record = lpfc_sli4_fcf_rec_mbox_parse(phba, mboxq,
 						      &next_fcf_index);
 	if (!new_fcf_record) {
@@ -2710,15 +2710,15 @@ lpfc_mbx_cmpl_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	uint16_t vlan_id;
 	int rc;
 
-	/* If link state is not up, no need to proceed */
+	/* If link state is yest up, yes need to proceed */
 	if (phba->link_state < LPFC_LINK_UP)
 		goto out;
 
-	/* If FCF discovery period is over, no need to proceed */
+	/* If FCF discovery period is over, yes need to proceed */
 	if (!(phba->fcf.fcf_flag & FCF_DISCOVERY))
 		goto out;
 
-	/* Parse the FCF record from the non-embedded mailbox command */
+	/* Parse the FCF record from the yesn-embedded mailbox command */
 	new_fcf_record = lpfc_sli4_fcf_rec_mbox_parse(phba, mboxq,
 						      &next_fcf_index);
 	if (!new_fcf_record) {
@@ -2761,7 +2761,7 @@ lpfc_init_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_vport *vport = mboxq->vport;
 
 	/*
-	 * VFI not supported on interface type 0, just do the flogi
+	 * VFI yest supported on interface type 0, just do the flogi
 	 * Also continue if the VFI is in use - just use the same one.
 	 */
 	if (mboxq->u.mb.mbxStatus &&
@@ -2824,7 +2824,7 @@ void
 lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
 	struct lpfc_vport *vport = mboxq->vport;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if (mboxq->u.mb.mbxStatus) {
@@ -2842,12 +2842,12 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 
 	/* If this port is physical port or FDISC is done, do reg_vpi */
 	if ((phba->pport == vport) || (vport->port_state == LPFC_FDISC)) {
-			ndlp = lpfc_findnode_did(vport, Fabric_DID);
+			ndlp = lpfc_findyesde_did(vport, Fabric_DID);
 			if (!ndlp)
 				lpfc_printf_vlog(vport, KERN_ERR,
 					LOG_DISCOVERY,
-					"2731 Cannot find fabric "
-					"controller node\n");
+					"2731 Canyest find fabric "
+					"controller yesde\n");
 			else
 				lpfc_register_new_vport(phba, vport, ndlp);
 			mempool_free(mboxq, phba->mbox_mem_pool);
@@ -2926,7 +2926,7 @@ lpfc_start_fdiscs(struct lpfc_hba *phba)
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			if (vports[i]->port_type == LPFC_PHYSICAL_PORT)
 				continue;
-			/* There are no vpi for this vport */
+			/* There are yes vpi for this vport */
 			if (vports[i]->vpi > phba->max_vpi) {
 				lpfc_vport_set_state(vports[i],
 						     FC_VPORT_FAILED);
@@ -2964,7 +2964,7 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	/*
-	 * VFI not supported for interface type 0, so ignore any mailbox
+	 * VFI yest supported for interface type 0, so igyesre any mailbox
 	 * error (except VFI in use) and continue with the discovery.
 	 */
 	if (mboxq->u.mb.mbxStatus &&
@@ -2986,7 +2986,7 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		goto out_free_mem;
 	}
 
-	/* If the VFI is already registered, there is nothing else to do
+	/* If the VFI is already registered, there is yesthing else to do
 	 * Unless this was a VFI update and we are in PT2PT mode, then
 	 * we should drop through to set the port state to ready.
 	 */
@@ -3073,7 +3073,7 @@ lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	       sizeof (struct serv_parm));
 
 	ed_tov = be32_to_cpu(sp->cmn.e_d_tov);
-	if (sp->cmn.edtovResolution)	/* E_D_TOV ticks are in nanoseconds */
+	if (sp->cmn.edtovResolution)	/* E_D_TOV ticks are in nayesseconds */
 		ed_tov = (ed_tov + 999999) / 1000000;
 
 	phba->fc_edtov = ed_tov;
@@ -3086,7 +3086,7 @@ lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_update_vport_wwn(vport);
 	fc_host_port_name(shost) = wwn_to_u64(vport->fc_portname.u.wwn);
 	if (vport->port_type == LPFC_PHYSICAL_PORT) {
-		memcpy(&phba->wwnn, &vport->fc_nodename, sizeof(phba->wwnn));
+		memcpy(&phba->wwnn, &vport->fc_yesdename, sizeof(phba->wwnn));
 		memcpy(&phba->wwpn, &vport->fc_portname, sizeof(phba->wwnn));
 	}
 
@@ -3155,11 +3155,11 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		phba->sli3_options &= ~LPFC_SLI3_NPIV_ENABLED;
 
 		/* if npiv is enabled and this adapter supports npiv log
-		 * a message that npiv is not supported in this topology
+		 * a message that npiv is yest supported in this topology
 		 */
 		if (phba->cfg_enable_npiv && phba->max_vpi)
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
-				"1309 Link Up Event npiv not supported in loop "
+				"1309 Link Up Event npiv yest supported in loop "
 				"topology\n");
 				/* Get Loop Map information */
 		if (bf_get(lpfc_mbx_read_top_il, la))
@@ -3259,7 +3259,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	} else {
 		vport->port_state = LPFC_VPORT_UNKNOWN;
 		/*
-		 * Add the driver's default FCF record at FCF index 0 now. This
+		 * Add the driver's default FCF record at FCF index 0 yesw. This
 		 * is phase 1 implementation that support FCF index 0 and driver
 		 * defaults.
 		 */
@@ -3269,7 +3269,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 			if (unlikely(!fcf_record)) {
 				lpfc_printf_log(phba, KERN_ERR,
 					LOG_MBOX | LOG_SLI,
-					"2554 Could not allocate memory for "
+					"2554 Could yest allocate memory for "
 					"fcf record\n");
 				rc = -ENODEV;
 				goto out;
@@ -3281,7 +3281,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 			if (unlikely(rc)) {
 				lpfc_printf_log(phba, KERN_ERR,
 					LOG_MBOX | LOG_SLI,
-					"2013 Could not manually add FCF "
+					"2013 Could yest manually add FCF "
 					"record 0, status %d\n", rc);
 				rc = -ENODEV;
 				kfree(fcf_record);
@@ -3347,7 +3347,7 @@ lpfc_mbx_issue_link_down(struct lpfc_hba *phba)
 	lpfc_linkdown(phba);
 	lpfc_enable_la(phba);
 	lpfc_unregister_unused_fcf(phba);
-	/* turn on Link Attention interrupts - no CLEAR_LA needed */
+	/* turn on Link Attention interrupts - yes CLEAR_LA needed */
 }
 
 
@@ -3524,7 +3524,7 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport  *vport = pmb->vport;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	struct lpfc_yesdelist *ndlp = (struct lpfc_yesdelist *)pmb->ctx_ndlp;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 
 	pmb->ctx_buf = NULL;
@@ -3544,8 +3544,8 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		 * mbox reg login, we may have cycled
 		 * back through the state and be
 		 * back at reg login state so this
-		 * mbox needs to be ignored becase
-		 * there is another reg login in
+		 * mbox needs to be igyesred becase
+		 * there is ayesther reg login in
 		 * process.
 		 */
 		spin_lock_irq(shost->host_lock);
@@ -3553,7 +3553,7 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		spin_unlock_irq(shost->host_lock);
 
 		/*
-		 * We cannot leave the RPI registered because
+		 * We canyest leave the RPI registered because
 		 * if we go thru discovery again for this ndlp
 		 * a subsequent REG_RPI will fail.
 		 */
@@ -3567,7 +3567,7 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	mempool_free(pmb, phba->mbox_mem_pool);
-	/* decrement the node reference count held for this callback
+	/* decrement the yesde reference count held for this callback
 	 * function.
 	 */
 	lpfc_nlp_put(ndlp);
@@ -3630,7 +3630,7 @@ lpfc_mbx_unreg_vpi(struct lpfc_vport *vport)
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
-				 "1800 Could not issue unreg_vpi\n");
+				 "1800 Could yest issue unreg_vpi\n");
 		mempool_free(mbox, phba->mbox_mem_pool);
 		vport->unreg_vpi_cmpl = VPORT_ERROR;
 		return rc;
@@ -3672,12 +3672,12 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	vport->vpi_state |= LPFC_VPI_REGISTERED;
 	vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;
 	spin_unlock_irq(shost->host_lock);
-	vport->num_disc_nodes = 0;
+	vport->num_disc_yesdes = 0;
 	/* go thru NPR list and issue ELS PLOGIs */
 	if (vport->fc_npr_cnt)
 		lpfc_els_disc_plogi(vport);
 
-	if (!vport->num_disc_nodes) {
+	if (!vport->num_disc_yesdes) {
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag &= ~FC_NDISC_ACTIVE;
 		spin_unlock_irq(shost->host_lock);
@@ -3801,8 +3801,8 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 	for (i = 0; i < MAX_STATIC_VPORT_COUNT; i++) {
 		memset(&vport_id, 0, sizeof(vport_id));
 		vport_id.port_name = wwn_to_u64(vport_info->vport_list[i].wwpn);
-		vport_id.node_name = wwn_to_u64(vport_info->vport_list[i].wwnn);
-		if (!vport_id.port_name || !vport_id.node_name)
+		vport_id.yesde_name = wwn_to_u64(vport_info->vport_list[i].wwnn);
+		if (!vport_id.port_name || !vport_id.yesde_name)
 			continue;
 
 		vport_id.roles = FC_PORT_ROLE_FCP_INITIATOR;
@@ -3847,10 +3847,10 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport *vport = pmb->vport;
 	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	struct Scsi_Host *shost;
 
-	ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	ndlp = (struct lpfc_yesdelist *)pmb->ctx_ndlp;
 	pmb->ctx_ndlp = NULL;
 	pmb->ctx_buf = NULL;
 
@@ -3890,7 +3890,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
-		/* when physical port receive logo donot start
+		/* when physical port receive logo doyest start
 		 * vport discovery */
 		if (!(vport->fc_flag & FC_LOGO_RCVD_DID_CHNG))
 			lpfc_start_fdiscs(phba);
@@ -3925,7 +3925,7 @@ lpfc_issue_gidft(struct lpfc_vport *vport)
 	if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
 	    (vport->cfg_enable_fc4_type == LPFC_ENABLE_FCP)) {
 		if (lpfc_ns_cmd(vport, SLI_CTNS_GID_FT, 0, SLI_CTPT_FCP)) {
-			/* Cannot issue NameServer FCP Query, so finish up
+			/* Canyest issue NameServer FCP Query, so finish up
 			 * discovery
 			 */
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
@@ -3941,7 +3941,7 @@ lpfc_issue_gidft(struct lpfc_vport *vport)
 	if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
 	    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
 		if (lpfc_ns_cmd(vport, SLI_CTNS_GID_FT, 0, SLI_CTPT_NVME)) {
-			/* Cannot issue NameServer NVME Query, so finish up
+			/* Canyest issue NameServer NVME Query, so finish up
 			 * discovery
 			 */
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
@@ -3973,7 +3973,7 @@ lpfc_issue_gidpt(struct lpfc_vport *vport)
 {
 	/* Good status, issue CT Request to NameServer */
 	if (lpfc_ns_cmd(vport, SLI_CTNS_GID_PT, 0, GID_PT_N_PORT)) {
-		/* Cannot issue NameServer FCP Query, so finish up
+		/* Canyest issue NameServer FCP Query, so finish up
 		 * discovery
 		 */
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
@@ -3998,7 +3998,7 @@ lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	struct lpfc_yesdelist *ndlp = (struct lpfc_yesdelist *)pmb->ctx_ndlp;
 	struct lpfc_vport *vport = pmb->vport;
 
 	pmb->ctx_buf = NULL;
@@ -4011,7 +4011,7 @@ lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				 mb->mbxStatus);
 
 out:
-		/* decrement the node reference count held for this
+		/* decrement the yesde reference count held for this
 		 * callback function.
 		 */
 		lpfc_nlp_put(ndlp);
@@ -4019,8 +4019,8 @@ out:
 		kfree(mp);
 		mempool_free(pmb, phba->mbox_mem_pool);
 
-		/* If no other thread is using the ndlp, free it */
-		lpfc_nlp_not_used(ndlp);
+		/* If yes other thread is using the ndlp, free it */
+		lpfc_nlp_yest_used(ndlp);
 
 		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 			/*
@@ -4076,7 +4076,7 @@ out:
 	 * At this point in time we may need to wait for multiple
 	 * SLI_CTNS_GID_FT CT commands to complete before we start discovery.
 	 *
-	 * decrement the node reference count held for this
+	 * decrement the yesde reference count held for this
 	 * callback function.
 	 */
 	lpfc_nlp_put(ndlp);
@@ -4088,7 +4088,7 @@ out:
 }
 
 static void
-lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct fc_rport  *rport;
@@ -4100,13 +4100,13 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		return;
 
 	/* Remote port has reappeared. Re-register w/ FC transport */
-	rport_ids.node_name = wwn_to_u64(ndlp->nlp_nodename.u.wwn);
+	rport_ids.yesde_name = wwn_to_u64(ndlp->nlp_yesdename.u.wwn);
 	rport_ids.port_name = wwn_to_u64(ndlp->nlp_portname.u.wwn);
 	rport_ids.port_id = ndlp->nlp_DID;
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
 
 	/*
-	 * We leave our node pointer in rport->dd_data when we unregister a
+	 * We leave our yesde pointer in rport->dd_data when we unregister a
 	 * FCP target port.  But fc_remote_port_add zeros the space to which
 	 * rport->dd_data points.  So, if we're reusing a previously
 	 * registered port, drop the reference that we took the last time we
@@ -4118,9 +4118,9 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		/* break the link before dropping the ref */
 		ndlp->rport = NULL;
 		if (rdata) {
-			if (rdata->pnode == ndlp)
+			if (rdata->pyesde == ndlp)
 				lpfc_nlp_put(ndlp);
-			rdata->pnode = NULL;
+			rdata->pyesde = NULL;
 		}
 		/* drop reference for earlier registeration */
 		put_device(&rport->dev);
@@ -4145,7 +4145,7 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	rport->maxframe_size = ndlp->nlp_maxframe;
 	rport->supported_classes = ndlp->nlp_class_sup;
 	rdata = rport->dd_data;
-	rdata->pnode = lpfc_nlp_get(ndlp);
+	rdata->pyesde = lpfc_nlp_get(ndlp);
 
 	if (ndlp->nlp_type & NLP_FCP_TARGET)
 		rport_ids.roles |= FC_PORT_ROLE_FCP_TARGET;
@@ -4173,7 +4173,7 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 }
 
 static void
-lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
+lpfc_unregister_remote_port(struct lpfc_yesdelist *ndlp)
 {
 	struct fc_rport *rport = ndlp->rport;
 	struct lpfc_vport *vport = ndlp->vport;
@@ -4234,7 +4234,7 @@ lpfc_nlp_counters(struct lpfc_vport *vport, int state, int count)
 }
 
 static void
-lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp,
 		       int old_state, int new_state)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
@@ -4263,7 +4263,7 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				if (ndlp->nlp_type & NLP_NVME_TARGET)
 					lpfc_nvme_unregister_port(vport, ndlp);
 			} else {
-				/* NVMET has no upcall. */
+				/* NVMET has yes upcall. */
 				lpfc_nlp_put(ndlp);
 			}
 		}
@@ -4298,7 +4298,7 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				}
 			} else {
 				/* Just take an NDLP ref count since the
-				 * target does not register rports.
+				 * target does yest register rports.
 				 */
 				lpfc_nlp_get(ndlp);
 			}
@@ -4308,7 +4308,7 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if ((new_state ==  NLP_STE_MAPPED_NODE) &&
 		(vport->stat_data_enabled)) {
 		/*
-		 * A new target is discovered, if there is no buffer for
+		 * A new target is discovered, if there is yes buffer for
 		 * statistical data collection allocate buffer.
 		 */
 		ndlp->lat_data = kcalloc(LPFC_MAX_BUCKET_COUNT,
@@ -4322,9 +4322,9 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				"0x%x\n", ndlp->nlp_DID);
 	}
 	/*
-	 * If the node just added to Mapped list was an FCP target,
+	 * If the yesde just added to Mapped list was an FCP target,
 	 * but the remote port registration failed or assigned a target
-	 * id outside the presentable range - move the node to the
+	 * id outside the presentable range - move the yesde to the
 	 * Unmapped List.
 	 */
 	if ((new_state == NLP_STE_MAPPED_NODE) &&
@@ -4357,12 +4357,12 @@ lpfc_nlp_state_name(char *buffer, size_t size, int state)
 	if (state < NLP_STE_MAX_STATE && states[state])
 		strlcpy(buffer, states[state], size);
 	else
-		snprintf(buffer, size, "unknown (%d)", state);
+		snprintf(buffer, size, "unkyeswn (%d)", state);
 	return buffer;
 }
 
 void
-lpfc_nlp_set_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+lpfc_nlp_set_state(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp,
 		   int state)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
@@ -4376,7 +4376,7 @@ lpfc_nlp_set_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			 lpfc_nlp_state_name(name2, sizeof(name2), state));
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
-		"node statechg    did:x%x old:%d ste:%d",
+		"yesde statechg    did:x%x old:%d ste:%d",
 		ndlp->nlp_DID, old_state, state);
 
 	if (old_state == NLP_STE_NPR_NODE &&
@@ -4389,7 +4389,7 @@ lpfc_nlp_set_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	if (list_empty(&ndlp->nlp_listp)) {
 		spin_lock_irq(shost->host_lock);
-		list_add_tail(&ndlp->nlp_listp, &vport->fc_nodes);
+		list_add_tail(&ndlp->nlp_listp, &vport->fc_yesdes);
 		spin_unlock_irq(shost->host_lock);
 	} else if (old_state)
 		lpfc_nlp_counters(vport, old_state, -1);
@@ -4400,19 +4400,19 @@ lpfc_nlp_set_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 }
 
 void
-lpfc_enqueue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+lpfc_enqueue_yesde(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if (list_empty(&ndlp->nlp_listp)) {
 		spin_lock_irq(shost->host_lock);
-		list_add_tail(&ndlp->nlp_listp, &vport->fc_nodes);
+		list_add_tail(&ndlp->nlp_listp, &vport->fc_yesdes);
 		spin_unlock_irq(shost->host_lock);
 	}
 }
 
 void
-lpfc_dequeue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+lpfc_dequeue_yesde(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
@@ -4427,7 +4427,7 @@ lpfc_dequeue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 }
 
 static void
-lpfc_disable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+lpfc_disable_yesde(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp)
 {
 	lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	if (ndlp->nlp_state && !list_empty(&ndlp->nlp_listp))
@@ -4436,13 +4436,13 @@ lpfc_disable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				NLP_STE_UNUSED_NODE);
 }
 /**
- * lpfc_initialize_node - Initialize all fields of node object
+ * lpfc_initialize_yesde - Initialize all fields of yesde object
  * @vport: Pointer to Virtual Port object.
- * @ndlp: Pointer to FC node object.
- * @did: FC_ID of the node.
+ * @ndlp: Pointer to FC yesde object.
+ * @did: FC_ID of the yesde.
  *
- * This function is always called when node object need to be initialized.
- * It initializes all the fields of the node object. Although the reference
+ * This function is always called when yesde object need to be initialized.
+ * It initializes all the fields of the yesde object. Although the reference
  * to phba from @ndlp can be obtained indirectly through it's reference to
  * @vport, a direct reference to phba is taken here by @ndlp. This is due
  * to the life-span of the @ndlp might go beyond the existence of @vport as
@@ -4450,7 +4450,7 @@ lpfc_disable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  * operation on @ndlp needs the reference to phba.
  **/
 static inline void
-lpfc_initialize_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+lpfc_initialize_yesde(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp,
 	uint32_t did)
 {
 	INIT_LIST_HEAD(&ndlp->els_retry_evt.evt_listp);
@@ -4468,8 +4468,8 @@ lpfc_initialize_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	ndlp->nlp_defer_did = NLP_EVT_NOTHING_PENDING;
 }
 
-struct lpfc_nodelist *
-lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+struct lpfc_yesdelist *
+lpfc_enable_yesde(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp,
 		 int state)
 {
 	struct lpfc_hba *phba = vport->phba;
@@ -4501,7 +4501,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	}
 
 	spin_lock_irqsave(&phba->ndlp_lock, flags);
-	/* The ndlp should not be in memory free mode */
+	/* The ndlp should yest be in memory free mode */
 	if (NLP_CHK_FREE_REQ(ndlp)) {
 		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
@@ -4511,7 +4511,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				kref_read(&ndlp->kref));
 		goto free_rpi;
 	}
-	/* The ndlp should not already be in active mode */
+	/* The ndlp should yest already be in active mode */
 	if (NLP_CHK_NODE_ACT(ndlp)) {
 		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
@@ -4532,10 +4532,10 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	/* Zero ndlp except of ndlp linked list pointer */
 	memset((((char *)ndlp) + sizeof (struct list_head)), 0,
-		sizeof (struct lpfc_nodelist) - sizeof (struct list_head));
+		sizeof (struct lpfc_yesdelist) - sizeof (struct list_head));
 
 	/* Next reinitialize and restore saved objects */
-	lpfc_initialize_node(vport, ndlp, did);
+	lpfc_initialize_yesde(vport, ndlp, did);
 	ndlp->nlp_flag |= flag;
 	if (flag & NLP_UNREG_INP)
 		ndlp->nlp_defer_did = defer_did;
@@ -4566,7 +4566,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				 ndlp->nlp_usg_map, ndlp);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
-		"node enable:       did:x%x",
+		"yesde enable:       did:x%x",
 		ndlp->nlp_DID, 0, 0);
 	return ndlp;
 
@@ -4579,14 +4579,14 @@ free_rpi:
 }
 
 void
-lpfc_drop_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+lpfc_drop_yesde(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp)
 {
 	/*
-	 * Use of lpfc_drop_node and UNUSED list: lpfc_drop_node should
+	 * Use of lpfc_drop_yesde and UNUSED list: lpfc_drop_yesde should
 	 * be used if we wish to issue the "last" lpfc_nlp_put() to remove
 	 * the ndlp from the vport. The ndlp marked as UNUSED on the list
 	 * until ALL other outstanding threads have completed. We check
-	 * that the ndlp not already in the UNUSED state before we proceed.
+	 * that the ndlp yest already in the UNUSED state before we proceed.
 	 */
 	if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 		return;
@@ -4684,7 +4684,7 @@ int
 lpfc_check_sli_ndlp(struct lpfc_hba *phba,
 		    struct lpfc_sli_ring *pring,
 		    struct lpfc_iocbq *iocb,
-		    struct lpfc_nodelist *ndlp)
+		    struct lpfc_yesdelist *ndlp)
 {
 	IOCB_t *icmd = &iocb->iocb;
 	struct lpfc_vport    *vport = ndlp->vport;
@@ -4692,7 +4692,7 @@ lpfc_check_sli_ndlp(struct lpfc_hba *phba,
 	if (iocb->vport != vport)
 		return 0;
 
-	if (pring->ringno == LPFC_ELS_RING) {
+	if (pring->ringyes == LPFC_ELS_RING) {
 		switch (icmd->ulpCommand) {
 		case CMD_GEN_REQUEST64_CR:
 			if (iocb->context_un.ndlp == ndlp)
@@ -4707,7 +4707,7 @@ lpfc_check_sli_ndlp(struct lpfc_hba *phba,
 				return 1;
 			/* fall through */
 		}
-	} else if (pring->ringno == LPFC_FCP_RING) {
+	} else if (pring->ringyes == LPFC_FCP_RING) {
 		/* Skip match check if waiting to relogin to FCP target */
 		if ((ndlp->nlp_type & NLP_FCP_TARGET) &&
 		    (ndlp->nlp_flag & NLP_DELAY_TMO)) {
@@ -4722,7 +4722,7 @@ lpfc_check_sli_ndlp(struct lpfc_hba *phba,
 
 static void
 __lpfc_dequeue_nport_iocbs(struct lpfc_hba *phba,
-		struct lpfc_nodelist *ndlp, struct lpfc_sli_ring *pring,
+		struct lpfc_yesdelist *ndlp, struct lpfc_sli_ring *pring,
 		struct list_head *dequeue_list)
 {
 	struct lpfc_iocbq *iocb, *next_iocb;
@@ -4737,7 +4737,7 @@ __lpfc_dequeue_nport_iocbs(struct lpfc_hba *phba,
 
 static void
 lpfc_sli3_dequeue_nport_iocbs(struct lpfc_hba *phba,
-		struct lpfc_nodelist *ndlp, struct list_head *dequeue_list)
+		struct lpfc_yesdelist *ndlp, struct list_head *dequeue_list)
 {
 	struct lpfc_sli *psli = &phba->sli;
 	uint32_t i;
@@ -4751,7 +4751,7 @@ lpfc_sli3_dequeue_nport_iocbs(struct lpfc_hba *phba,
 
 static void
 lpfc_sli4_dequeue_nport_iocbs(struct lpfc_hba *phba,
-		struct lpfc_nodelist *ndlp, struct list_head *dequeue_list)
+		struct lpfc_yesdelist *ndlp, struct list_head *dequeue_list)
 {
 	struct lpfc_sli_ring *pring;
 	struct lpfc_queue *qp = NULL;
@@ -4773,7 +4773,7 @@ lpfc_sli4_dequeue_nport_iocbs(struct lpfc_hba *phba,
  * associated with nlp_rpi in the LPFC_NODELIST entry.
  */
 static int
-lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
+lpfc_yes_rpi(struct lpfc_hba *phba, struct lpfc_yesdelist *ndlp)
 {
 	LIST_HEAD(completions);
 
@@ -4781,7 +4781,7 @@ lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 
 	/*
 	 * Everything that matches on txcmplq will be returned
-	 * by firmware with a no rpi error.
+	 * by firmware with a yes rpi error.
 	 */
 	if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
 		if (phba->sli_rev != LPFC_SLI_REV4)
@@ -4809,9 +4809,9 @@ static void
 lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport  *vport = pmb->vport;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 
-	ndlp = (struct lpfc_nodelist *)(pmb->ctx_ndlp);
+	ndlp = (struct lpfc_yesdelist *)(pmb->ctx_ndlp);
 	if (!ndlp)
 		return;
 	lpfc_issue_els_logo(vport, ndlp, 0);
@@ -4846,7 +4846,7 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
  */
 static void
 lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
-	struct lpfc_nodelist *ndlp, LPFC_MBOXQ_t *mbox)
+	struct lpfc_yesdelist *ndlp, LPFC_MBOXQ_t *mbox)
 {
 	unsigned long iflags;
 
@@ -4879,7 +4879,7 @@ lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
 
 /*
  * Free rpi associated with LPFC_NODELIST entry.
- * This routine is called from lpfc_freenode(), when we are removing
+ * This routine is called from lpfc_freeyesde(), when we are removing
  * a LPFC_NODELIST entry. It is also called if the driver initiates a
  * LOGO that completes successfully, and we are waiting to PLOGI back
  * to the remote NPort. In addition, it is called after we receive
@@ -4887,7 +4887,7 @@ lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
  * we are waiting to PLOGI back to the remote NPort.
  */
 int
-lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp)
 {
 	struct lpfc_hba *phba = vport->phba;
 	LPFC_MBOXQ_t    *mbox;
@@ -4906,7 +4906,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 					 ndlp->nlp_DID);
 
 		/* If there is already an UNREG in progress for this ndlp,
-		 * no need to queue up another one.
+		 * yes need to queue up ayesther one.
 		 */
 		if (ndlp->nlp_flag & NLP_UNREG_INP) {
 			lpfc_printf_vlog(vport, KERN_INFO,
@@ -4954,7 +4954,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				acc_plogi = 1;
 			}
 		}
-		lpfc_no_rpi(phba, ndlp);
+		lpfc_yes_rpi(phba, ndlp);
 out:
 		if (phba->sli_rev != LPFC_SLI_REV4)
 			ndlp->nlp_rpi = 0;
@@ -4979,7 +4979,7 @@ void
 lpfc_unreg_hba_rpis(struct lpfc_hba *phba)
 {
 	struct lpfc_vport **vports;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	struct Scsi_Host *shost;
 	int i;
 
@@ -4992,7 +4992,7 @@ lpfc_unreg_hba_rpis(struct lpfc_hba *phba)
 	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 		shost = lpfc_shost_from_vport(vports[i]);
 		spin_lock_irq(shost->host_lock);
-		list_for_each_entry(ndlp, &vports[i]->fc_nodes, nlp_listp) {
+		list_for_each_entry(ndlp, &vports[i]->fc_yesdes, nlp_listp) {
 			if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
 				/* The mempool_alloc might sleep */
 				spin_unlock_irq(shost->host_lock);
@@ -5030,7 +5030,7 @@ lpfc_unreg_all_rpis(struct lpfc_vport *vport)
 
 		if ((rc == MBX_TIMEOUT) || (rc == MBX_NOT_FINISHED))
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
-				"1836 Could not issue "
+				"1836 Could yest issue "
 				"unreg_login(all_rpis) status %d\n", rc);
 	}
 }
@@ -5059,7 +5059,7 @@ lpfc_unreg_default_rpis(struct lpfc_vport *vport)
 
 		if ((rc == MBX_TIMEOUT) || (rc == MBX_NOT_FINISHED))
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
-					 "1815 Could not issue "
+					 "1815 Could yest issue "
 					 "unreg_did (default rpis) status %d\n",
 					 rc);
 	}
@@ -5070,7 +5070,7 @@ lpfc_unreg_default_rpis(struct lpfc_vport *vport)
  * so it can be freed.
  */
 static int
-lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+lpfc_cleanup_yesde(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
@@ -5078,9 +5078,9 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct lpfc_dmabuf *mp;
 	unsigned long iflags;
 
-	/* Cleanup node for NPort <nlp_DID> */
+	/* Cleanup yesde for NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-			 "0900 Cleanup node for NPort x%x "
+			 "0900 Cleanup yesde for NPort x%x "
 			 "Data: x%x x%x x%x\n",
 			 ndlp->nlp_DID, ndlp->nlp_flag,
 			 ndlp->nlp_state, ndlp->nlp_rpi);
@@ -5090,14 +5090,14 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				"usgmap:x%x refcnt:%d\n",
 				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
-		lpfc_dequeue_node(vport, ndlp);
+		lpfc_dequeue_yesde(vport, ndlp);
 	} else {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
 				"0281 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
 				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
-		lpfc_disable_node(vport, ndlp);
+		lpfc_disable_yesde(vport, ndlp);
 	}
 
 
@@ -5107,18 +5107,18 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if ((mb = phba->sli.mbox_active)) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   !(mb->mbox_flag & LPFC_MBX_IMED_UNREG) &&
-		   (ndlp == (struct lpfc_nodelist *)mb->ctx_ndlp)) {
+		   (ndlp == (struct lpfc_yesdelist *)mb->ctx_ndlp)) {
 			mb->ctx_ndlp = NULL;
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		}
 	}
 
 	spin_lock_irq(&phba->hbalock);
-	/* Cleanup REG_LOGIN completions which are not yet processed */
+	/* Cleanup REG_LOGIN completions which are yest yet processed */
 	list_for_each_entry(mb, &phba->sli.mboxq_cmpl, list) {
 		if ((mb->u.mb.mbxCommand != MBX_REG_LOGIN64) ||
 			(mb->mbox_flag & LPFC_MBX_IMED_UNREG) ||
-			(ndlp != (struct lpfc_nodelist *)mb->ctx_ndlp))
+			(ndlp != (struct lpfc_yesdelist *)mb->ctx_ndlp))
 			continue;
 
 		mb->ctx_ndlp = NULL;
@@ -5128,7 +5128,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   !(mb->mbox_flag & LPFC_MBX_IMED_UNREG) &&
-		    (ndlp == (struct lpfc_nodelist *)mb->ctx_ndlp)) {
+		    (ndlp == (struct lpfc_yesdelist *)mb->ctx_ndlp)) {
 			mp = (struct lpfc_dmabuf *)(mb->ctx_buf);
 			if (mp) {
 				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
@@ -5136,7 +5136,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			}
 			list_del(&mb->list);
 			mempool_free(mb, phba->mbox_mem_pool);
-			/* We shall not invoke the lpfc_nlp_put to decrement
+			/* We shall yest invoke the lpfc_nlp_put to decrement
 			 * the ndlp reference count as we are in the process
 			 * of lpfc_nlp_release.
 			 */
@@ -5159,7 +5159,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		ndlp->nlp_flag |= NLP_RELEASE_RPI;
 	if (!lpfc_unreg_rpi(vport, ndlp)) {
-		/* Clean up unregistered and non freed rpis */
+		/* Clean up unregistered and yesn freed rpis */
 		if ((ndlp->nlp_flag & NLP_RELEASE_RPI) &&
 		    !(ndlp->nlp_rpi == LPFC_RPI_ALLOC_ERROR)) {
 			lpfc_sli4_free_rpi(vport->phba,
@@ -5181,7 +5181,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  * machine, defer the free till we reach the end of the state machine.
  */
 static void
-lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_rport_data *rdata;
@@ -5223,11 +5223,11 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			}
 		}
 	}
-	lpfc_cleanup_node(vport, ndlp);
+	lpfc_cleanup_yesde(vport, ndlp);
 
 	/*
 	 * ndlp->rport must be set to NULL before it reaches here
-	 * i.e. break rport/node link before doing lpfc_nlp_put for
+	 * i.e. break rport/yesde link before doing lpfc_nlp_put for
 	 * registered rport and then drop the reference of rport.
 	 */
 	if (ndlp->rport) {
@@ -5236,20 +5236,20 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * for registered rport so need to cleanup rport
 		 */
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0940 removed node x%px DID x%x "
-				"rpi %d rport not null x%px\n",
+				"0940 removed yesde x%px DID x%x "
+				"rpi %d rport yest null x%px\n",
 				 ndlp, ndlp->nlp_DID, ndlp->nlp_rpi,
 				 ndlp->rport);
 		rport = ndlp->rport;
 		rdata = rport->dd_data;
-		rdata->pnode = NULL;
+		rdata->pyesde = NULL;
 		ndlp->rport = NULL;
 		put_device(&rport->dev);
 	}
 }
 
 static int
-lpfc_matchdid(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+lpfc_matchdid(struct lpfc_vport *vport, struct lpfc_yesdelist *ndlp,
 	      uint32_t did)
 {
 	D_ID mydid, ndlpdid, matchdid;
@@ -5275,7 +5275,7 @@ lpfc_matchdid(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			/* This code is supposed to match the ID
 			 * for a private loop device that is
 			 * connect to fl_port. But we need to
-			 * check that the port did not just go
+			 * check that the port did yest just go
 			 * from pt2pt to fabric or we could end
 			 * up matching ndlp->nlp_DID 000001 to
 			 * fabric DID 0x20101
@@ -5303,21 +5303,21 @@ lpfc_matchdid(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	return 0;
 }
 
-/* Search for a nodelist entry */
-static struct lpfc_nodelist *
-__lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
+/* Search for a yesdelist entry */
+static struct lpfc_yesdelist *
+__lpfc_findyesde_did(struct lpfc_vport *vport, uint32_t did)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	uint32_t data1;
 
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry(ndlp, &vport->fc_yesdes, nlp_listp) {
 		if (lpfc_matchdid(vport, ndlp, did)) {
 			data1 = (((uint32_t)ndlp->nlp_state << 24) |
 				 ((uint32_t)ndlp->nlp_xri << 16) |
 				 ((uint32_t)ndlp->nlp_type << 8) |
 				 ((uint32_t)ndlp->nlp_usg_map & 0xff));
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-					 "0929 FIND node DID "
+					 "0929 FIND yesde DID "
 					 "Data: x%px x%x x%x x%x x%x x%px\n",
 					 ndlp, ndlp->nlp_DID,
 					 ndlp->nlp_flag, data1, ndlp->nlp_rpi,
@@ -5326,36 +5326,36 @@ __lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
 		}
 	}
 
-	/* FIND node did <did> NOT FOUND */
+	/* FIND yesde did <did> NOT FOUND */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-			 "0932 FIND node did x%x NOT FOUND.\n", did);
+			 "0932 FIND yesde did x%x NOT FOUND.\n", did);
 	return NULL;
 }
 
-struct lpfc_nodelist *
-lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
+struct lpfc_yesdelist *
+lpfc_findyesde_did(struct lpfc_vport *vport, uint32_t did)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	unsigned long iflags;
 
 	spin_lock_irqsave(shost->host_lock, iflags);
-	ndlp = __lpfc_findnode_did(vport, did);
+	ndlp = __lpfc_findyesde_did(vport, did);
 	spin_unlock_irqrestore(shost->host_lock, iflags);
 	return ndlp;
 }
 
-struct lpfc_nodelist *
-lpfc_findnode_mapped(struct lpfc_vport *vport)
+struct lpfc_yesdelist *
+lpfc_findyesde_mapped(struct lpfc_vport *vport)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	uint32_t data1;
 	unsigned long iflags;
 
 	spin_lock_irqsave(shost->host_lock, iflags);
 
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry(ndlp, &vport->fc_yesdes, nlp_listp) {
 		if (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE ||
 		    ndlp->nlp_state == NLP_STE_MAPPED_NODE) {
 			data1 = (((uint32_t)ndlp->nlp_state << 24) |
@@ -5364,7 +5364,7 @@ lpfc_findnode_mapped(struct lpfc_vport *vport)
 				 ((uint32_t)ndlp->nlp_rpi & 0xff));
 			spin_unlock_irqrestore(shost->host_lock, iflags);
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-					 "2025 FIND node DID "
+					 "2025 FIND yesde DID "
 					 "Data: x%px x%x x%x x%x x%px\n",
 					 ndlp, ndlp->nlp_DID,
 					 ndlp->nlp_flag, data1,
@@ -5374,19 +5374,19 @@ lpfc_findnode_mapped(struct lpfc_vport *vport)
 	}
 	spin_unlock_irqrestore(shost->host_lock, iflags);
 
-	/* FIND node did <did> NOT FOUND */
+	/* FIND yesde did <did> NOT FOUND */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 			 "2026 FIND mapped did NOT FOUND.\n");
 	return NULL;
 }
 
-struct lpfc_nodelist *
-lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
+struct lpfc_yesdelist *
+lpfc_setup_disc_yesde(struct lpfc_vport *vport, uint32_t did)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 
-	ndlp = lpfc_findnode_did(vport, did);
+	ndlp = lpfc_findyesde_did(vport, did);
 	if (!ndlp) {
 		if (vport->phba->nvmet_support)
 			return NULL;
@@ -5411,10 +5411,10 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
 		if (vport->phba->nvmet_support)
 			return NULL;
-		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_NPR_NODE);
+		ndlp = lpfc_enable_yesde(vport, ndlp, NLP_STE_NPR_NODE);
 		if (!ndlp) {
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_SLI,
-					 "0014 Could not enable ndlp\n");
+					 "0014 Could yest enable ndlp\n");
 			return NULL;
 		}
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
@@ -5429,7 +5429,7 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 		return ndlp;
 	}
 
-	/* The NVME Target does not want to actively manage an rport.
+	/* The NVME Target does yest want to actively manage an rport.
 	 * The goal is to allow the target to reset its state and clear
 	 * pending IO in preparation for the initiator to recover.
 	 */
@@ -5437,8 +5437,8 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 	    !(vport->fc_flag & FC_NDISC_ACTIVE)) {
 		if (lpfc_rscn_payload_check(vport, did)) {
 
-			/* Since this node is marked for discovery,
-			 * delay timeout is not needed.
+			/* Since this yesde is marked for discovery,
+			 * delay timeout is yest needed.
 			 */
 			lpfc_cancel_retry_delay_tmo(vport, ndlp);
 
@@ -5448,10 +5448,10 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 					 ndlp->nlp_DID, ndlp->nlp_flag,
 					 ndlp->nlp_state, vport->fc_flag);
 
-			/* NVME Target mode waits until rport is known to be
+			/* NVME Target mode waits until rport is kyeswn to be
 			 * impacted by the RSCN before it transitions.  No
 			 * active management - just go to NPR provided the
-			 * node had a valid login.
+			 * yesde had a valid login.
 			 */
 			if (vport->phba->nvmet_support)
 				return ndlp;
@@ -5487,7 +5487,7 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 
 		/* If the initiator received a PLOGI from this NPort or if the
 		 * initiator is already in the process of discovery on it,
-		 * there's no need to try to discover it again.
+		 * there's yes need to try to discover it again.
 		 */
 		if (ndlp->nlp_state == NLP_STE_ADISC_ISSUE ||
 		    ndlp->nlp_state == NLP_STE_PLOGI_ISSUE ||
@@ -5510,7 +5510,7 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 	return ndlp;
 }
 
-/* Build a list of nodes to discover based on the loopmap */
+/* Build a list of yesdes to discover based on the loopmap */
 void
 lpfc_disc_list_loopmap(struct lpfc_vport *vport)
 {
@@ -5524,13 +5524,13 @@ lpfc_disc_list_loopmap(struct lpfc_vport *vport)
 	if (phba->fc_topology != LPFC_TOPOLOGY_LOOP)
 		return;
 
-	/* Check for loop map present or not */
+	/* Check for loop map present or yest */
 	if (phba->alpa_map[0]) {
 		for (j = 1; j <= phba->alpa_map[0]; j++) {
 			alpa = phba->alpa_map[j];
 			if (((vport->fc_myDID & 0xff) == alpa) || (alpa == 0))
 				continue;
-			lpfc_setup_disc_node(vport, alpa);
+			lpfc_setup_disc_yesde(vport, alpa);
 		}
 	} else {
 		/* No alpamap, so try all alpa's */
@@ -5545,7 +5545,7 @@ lpfc_disc_list_loopmap(struct lpfc_vport *vport)
 			alpa = lpfcAlpaArray[index];
 			if ((vport->fc_myDID & 0xff) == alpa)
 				continue;
-			lpfc_setup_disc_node(vport, alpa);
+			lpfc_setup_disc_yesde(vport, alpa);
 		}
 	}
 	return;
@@ -5562,7 +5562,7 @@ lpfc_issue_clear_la(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	int  rc;
 
 	/*
-	 * if it's not a physical port or if we already send
+	 * if it's yest a physical port or if we already send
 	 * clear_la then don't send it.
 	 */
 	if ((phba->link_state >= LPFC_CLEAR_LA) ||
@@ -5587,7 +5587,7 @@ lpfc_issue_clear_la(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	}
 }
 
-/* Reg_vpi to tell firmware to resume normal operations */
+/* Reg_vpi to tell firmware to resume yesrmal operations */
 void
 lpfc_issue_reg_vpi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 {
@@ -5605,7 +5605,7 @@ lpfc_issue_reg_vpi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	}
 }
 
-/* Start Link up / RSCN discovery on NPR nodes */
+/* Start Link up / RSCN discovery on NPR yesdes */
 void
 lpfc_disc_start(struct lpfc_vport *vport)
 {
@@ -5616,7 +5616,7 @@ lpfc_disc_start(struct lpfc_vport *vport)
 
 	if (!lpfc_is_link_up(phba)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
-				 "3315 Link is not up %x\n",
+				 "3315 Link is yest up %x\n",
 				 phba->link_state);
 		return;
 	}
@@ -5632,7 +5632,7 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	lpfc_set_disctmo(vport);
 
 	vport->fc_prevDID = vport->fc_myDID;
-	vport->num_disc_nodes = 0;
+	vport->num_disc_yesdes = 0;
 
 	/* Start Discovery state <hba_state> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
@@ -5662,16 +5662,16 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	 * discovery.
 	 */
 	if (vport->port_state < LPFC_VPORT_READY && !clear_la_pending) {
-		/* If we get here, there is nothing to ADISC */
+		/* If we get here, there is yesthing to ADISC */
 		lpfc_issue_clear_la(phba, vport);
 
 		if (!(vport->fc_flag & FC_ABORT_DISCOVERY)) {
-			vport->num_disc_nodes = 0;
-			/* go thru NPR nodes and issue ELS PLOGIs */
+			vport->num_disc_yesdes = 0;
+			/* go thru NPR yesdes and issue ELS PLOGIs */
 			if (vport->fc_npr_cnt)
 				lpfc_els_disc_plogi(vport);
 
-			if (!vport->num_disc_nodes) {
+			if (!vport->num_disc_yesdes) {
 				spin_lock_irq(shost->host_lock);
 				vport->fc_flag &= ~FC_NDISC_ACTIVE;
 				spin_unlock_irq(shost->host_lock);
@@ -5704,11 +5704,11 @@ lpfc_disc_start(struct lpfc_vport *vport)
 }
 
 /*
- *  Ignore completion for all IOCBs on tx and txcmpl queue for ELS
- *  ring the match the sppecified nodelist.
+ *  Igyesre completion for all IOCBs on tx and txcmpl queue for ELS
+ *  ring the match the sppecified yesdelist.
  */
 static void
-lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
+lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_yesdelist *ndlp)
 {
 	LIST_HEAD(completions);
 	IOCB_t     *icmd;
@@ -5756,11 +5756,11 @@ lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 static void
 lpfc_disc_flush_list(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp, *next_ndlp;
+	struct lpfc_yesdelist *ndlp, *next_ndlp;
 	struct lpfc_hba *phba = vport->phba;
 
 	if (vport->fc_plogi_cnt || vport->fc_adisc_cnt) {
-		list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes,
+		list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_yesdes,
 					 nlp_listp) {
 			if (!NLP_CHK_NODE_ACT(ndlp))
 				continue;
@@ -5792,7 +5792,7 @@ lpfc_cleanup_discovery_resources(struct lpfc_vport *vport)
  *      Timer function
  *
  * RETURNS:
- *      none
+ *      yesne
  */
 /*****************************************************************************/
 void
@@ -5823,7 +5823,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_sli  *psli = &phba->sli;
-	struct lpfc_nodelist *ndlp, *next_ndlp;
+	struct lpfc_yesdelist *ndlp, *next_ndlp;
 	LPFC_MBOXQ_t *initlinkmbox;
 	int rc, clrlaerr = 0;
 
@@ -5849,7 +5849,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 				 "0221 FAN timeout\n");
 
 		/* Start discovery by sending FLOGI, clean up old rpis */
-		list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes,
+		list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_yesdes,
 					 nlp_listp) {
 			if (!NLP_CHK_NODE_ACT(ndlp))
 				continue;
@@ -5857,10 +5857,10 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 				continue;
 			if (ndlp->nlp_type & NLP_FABRIC) {
 				/* Clean up the ndlp on Fabric connections */
-				lpfc_drop_node(vport, ndlp);
+				lpfc_drop_yesde(vport, ndlp);
 
 			} else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
-				/* Fail outstanding IO now since device
+				/* Fail outstanding IO yesw since device
 				 * is marked for PLOGI.
 				 */
 				lpfc_unreg_rpi(vport, ndlp);
@@ -5883,7 +5883,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 				 "0222 Initial %s timeout\n",
 				 vport->vpi ? "FDISC" : "FLOGI");
 
-		/* Assume no Fabric and go on with discovery.
+		/* Assume yes Fabric and go on with discovery.
 		 * Check for outstanding ELS FLOGI to abort.
 		 */
 
@@ -5901,7 +5901,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 				 "0223 Timeout while waiting for "
 				 "NameServer login\n");
 		/* Next look for NameServer ndlp */
-		ndlp = lpfc_findnode_did(vport, NameServer_DID);
+		ndlp = lpfc_findyesde_did(vport, NameServer_DID);
 		if (ndlp && NLP_CHK_NODE_ACT(ndlp))
 			lpfc_els_abort(phba, ndlp);
 
@@ -6056,7 +6056,7 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_dmabuf   *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	struct lpfc_yesdelist *ndlp = (struct lpfc_yesdelist *)pmb->ctx_ndlp;
 	struct lpfc_vport    *vport = pmb->vport;
 
 	pmb->ctx_buf = NULL;
@@ -6074,7 +6074,7 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			 ndlp->nlp_usg_map, ndlp);
 	/*
 	 * Start issuing Fabric-Device Management Interface (FDMI) command to
-	 * 0xfffffa (FDMI well known port).
+	 * 0xfffffa (FDMI well kyeswn port).
 	 * DHBA -> DPRT -> RHBA -> RPA  (physical port)
 	 * DPRT -> RPRT (vports)
 	 */
@@ -6084,7 +6084,7 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DPRT, 0);
 
 
-	/* decrement the node reference count held for this callback
+	/* decrement the yesde reference count held for this callback
 	 * function.
 	 */
 	lpfc_nlp_put(ndlp);
@@ -6096,11 +6096,11 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 }
 
 static int
-lpfc_filter_by_rpi(struct lpfc_nodelist *ndlp, void *param)
+lpfc_filter_by_rpi(struct lpfc_yesdelist *ndlp, void *param)
 {
 	uint16_t *rpi = param;
 
-	/* check for active node */
+	/* check for active yesde */
 	if (!NLP_CHK_NODE_ACT(ndlp))
 		return 0;
 
@@ -6108,21 +6108,21 @@ lpfc_filter_by_rpi(struct lpfc_nodelist *ndlp, void *param)
 }
 
 static int
-lpfc_filter_by_wwpn(struct lpfc_nodelist *ndlp, void *param)
+lpfc_filter_by_wwpn(struct lpfc_yesdelist *ndlp, void *param)
 {
 	return memcmp(&ndlp->nlp_portname, param,
 		      sizeof(ndlp->nlp_portname)) == 0;
 }
 
-static struct lpfc_nodelist *
-__lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
+static struct lpfc_yesdelist *
+__lpfc_find_yesde(struct lpfc_vport *vport, yesde_filter filter, void *param)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry(ndlp, &vport->fc_yesdes, nlp_listp) {
 		if (filter(ndlp, param)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-					 "3185 FIND node filter %ps DID "
+					 "3185 FIND yesde filter %ps DID "
 					 "ndlp x%px did x%x flg x%x st x%x "
 					 "xri x%x type x%x rpi x%x\n",
 					 filter, ndlp, ndlp->nlp_DID,
@@ -6133,50 +6133,50 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 		}
 	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-			 "3186 FIND node filter %ps NOT FOUND.\n", filter);
+			 "3186 FIND yesde filter %ps NOT FOUND.\n", filter);
 	return NULL;
 }
 
 /*
  * This routine looks up the ndlp lists for the given RPI. If rpi found it
- * returns the node list element pointer else return NULL.
+ * returns the yesde list element pointer else return NULL.
  */
-struct lpfc_nodelist *
-__lpfc_findnode_rpi(struct lpfc_vport *vport, uint16_t rpi)
+struct lpfc_yesdelist *
+__lpfc_findyesde_rpi(struct lpfc_vport *vport, uint16_t rpi)
 {
-	return __lpfc_find_node(vport, lpfc_filter_by_rpi, &rpi);
+	return __lpfc_find_yesde(vport, lpfc_filter_by_rpi, &rpi);
 }
 
 /*
  * This routine looks up the ndlp lists for the given WWPN. If WWPN found it
- * returns the node element list pointer else return NULL.
+ * returns the yesde element list pointer else return NULL.
  */
-struct lpfc_nodelist *
-lpfc_findnode_wwpn(struct lpfc_vport *vport, struct lpfc_name *wwpn)
+struct lpfc_yesdelist *
+lpfc_findyesde_wwpn(struct lpfc_vport *vport, struct lpfc_name *wwpn)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 
 	spin_lock_irq(shost->host_lock);
-	ndlp = __lpfc_find_node(vport, lpfc_filter_by_wwpn, wwpn);
+	ndlp = __lpfc_find_yesde(vport, lpfc_filter_by_wwpn, wwpn);
 	spin_unlock_irq(shost->host_lock);
 	return ndlp;
 }
 
 /*
  * This routine looks up the ndlp lists for the given RPI. If the rpi
- * is found, the routine returns the node element list pointer else
+ * is found, the routine returns the yesde element list pointer else
  * return NULL.
  */
-struct lpfc_nodelist *
-lpfc_findnode_rpi(struct lpfc_vport *vport, uint16_t rpi)
+struct lpfc_yesdelist *
+lpfc_findyesde_rpi(struct lpfc_vport *vport, uint16_t rpi)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	unsigned long flags;
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	ndlp = __lpfc_findnode_rpi(vport, rpi);
+	ndlp = __lpfc_findyesde_rpi(vport, rpi);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	return ndlp;
 }
@@ -6214,7 +6214,7 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 
 		if (i >= phba->max_vpi) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-					 "2936 Could not find Vport mapped "
+					 "2936 Could yest find Vport mapped "
 					 "to vpi %d\n", vpi);
 			return NULL;
 		}
@@ -6231,10 +6231,10 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 	return NULL;
 }
 
-struct lpfc_nodelist *
+struct lpfc_yesdelist *
 lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	int rpi = LPFC_RPI_ALLOC_ERROR;
 
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
@@ -6250,9 +6250,9 @@ lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did)
 		return NULL;
 	}
 
-	memset(ndlp, 0, sizeof (struct lpfc_nodelist));
+	memset(ndlp, 0, sizeof (struct lpfc_yesdelist));
 
-	lpfc_initialize_node(vport, ndlp, did);
+	lpfc_initialize_yesde(vport, ndlp, did);
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
 		ndlp->nlp_rpi = rpi;
@@ -6274,25 +6274,25 @@ lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did)
 
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
-		"node init:       did:x%x",
+		"yesde init:       did:x%x",
 		ndlp->nlp_DID, 0, 0);
 
 	return ndlp;
 }
 
 /* This routine releases all resources associated with a specifc NPort's ndlp
- * and mempool_free's the nodelist.
+ * and mempool_free's the yesdelist.
  */
 static void
 lpfc_nlp_release(struct kref *kref)
 {
 	struct lpfc_hba *phba;
 	unsigned long flags;
-	struct lpfc_nodelist *ndlp = container_of(kref, struct lpfc_nodelist,
+	struct lpfc_yesdelist *ndlp = container_of(kref, struct lpfc_yesdelist,
 						  kref);
 
 	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
-		"node release:    did:x%x flg:x%x type:x%x",
+		"yesde release:    did:x%x flg:x%x type:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
@@ -6322,18 +6322,18 @@ lpfc_nlp_release(struct kref *kref)
 }
 
 /* This routine bumps the reference count for a ndlp structure to ensure
- * that one discovery thread won't free a ndlp while another discovery thread
+ * that one discovery thread won't free a ndlp while ayesther discovery thread
  * is using it.
  */
-struct lpfc_nodelist *
-lpfc_nlp_get(struct lpfc_nodelist *ndlp)
+struct lpfc_yesdelist *
+lpfc_nlp_get(struct lpfc_yesdelist *ndlp)
 {
 	struct lpfc_hba *phba;
 	unsigned long flags;
 
 	if (ndlp) {
 		lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
-			"node get:        did:x%x flg:x%x refcnt:x%x",
+			"yesde get:        did:x%x flg:x%x refcnt:x%x",
 			ndlp->nlp_DID, ndlp->nlp_flag,
 			kref_read(&ndlp->kref));
 		/* The check of ndlp usage to prevent incrementing the
@@ -6358,13 +6358,13 @@ lpfc_nlp_get(struct lpfc_nodelist *ndlp)
 }
 
 /* This routine decrements the reference count for a ndlp structure. If the
- * count goes to 0, this indicates the the associated nodelist should be
+ * count goes to 0, this indicates the the associated yesdelist should be
  * freed. Returning 1 indicates the ndlp resource has been released; on the
- * other hand, returning 0 indicates the ndlp resource has not been released
+ * other hand, returning 0 indicates the ndlp resource has yest been released
  * yet.
  */
 int
-lpfc_nlp_put(struct lpfc_nodelist *ndlp)
+lpfc_nlp_put(struct lpfc_yesdelist *ndlp)
 {
 	struct lpfc_hba *phba;
 	unsigned long flags;
@@ -6373,12 +6373,12 @@ lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 		return 1;
 
 	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
-			"node put:        did:x%x flg:x%x refcnt:x%x",
+			"yesde put:        did:x%x flg:x%x refcnt:x%x",
 			ndlp->nlp_DID, ndlp->nlp_flag,
 			kref_read(&ndlp->kref));
 	phba = ndlp->phba;
 	spin_lock_irqsave(&phba->ndlp_lock, flags);
-	/* Check the ndlp memory free acknowledge flag to avoid the
+	/* Check the ndlp memory free ackyeswledge flag to avoid the
 	 * possible race condition that kref_put got invoked again
 	 * after previous one has done ndlp memory free.
 	 */
@@ -6404,7 +6404,7 @@ lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 				kref_read(&ndlp->kref));
 		return 1;
 	}
-	/* For last put, mark the ndlp usage flags to make sure no
+	/* For last put, mark the ndlp usage flags to make sure yes
 	 * other kref_get and kref_put on the same ndlp shall get
 	 * in between the process when the final kref_put has been
 	 * invoked on this ndlp.
@@ -6412,30 +6412,30 @@ lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 	if (kref_read(&ndlp->kref) == 1) {
 		/* Indicate ndlp is put to inactive state. */
 		NLP_SET_IACT_REQ(ndlp);
-		/* Acknowledge ndlp memory free has been seen. */
+		/* Ackyeswledge ndlp memory free has been seen. */
 		if (NLP_CHK_FREE_REQ(ndlp))
 			NLP_SET_FREE_ACK(ndlp);
 	}
 	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 	/* Note, the kref_put returns 1 when decrementing a reference
 	 * count that was 1, it invokes the release callback function,
-	 * but it still left the reference count as 1 (not actually
+	 * but it still left the reference count as 1 (yest actually
 	 * performs the last decrementation). Otherwise, it actually
 	 * decrements the reference count and returns 0.
 	 */
 	return kref_put(&ndlp->kref, lpfc_nlp_release);
 }
 
-/* This routine free's the specified nodelist if it is not in use
+/* This routine free's the specified yesdelist if it is yest in use
  * by any other discovery thread. This routine returns 1 if the
  * ndlp has been freed. A return value of 0 indicates the ndlp is
- * not yet been released.
+ * yest yet been released.
  */
 int
-lpfc_nlp_not_used(struct lpfc_nodelist *ndlp)
+lpfc_nlp_yest_used(struct lpfc_yesdelist *ndlp)
 {
 	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
-		"node not used:   did:x%x flg:x%x refcnt:x%x",
+		"yesde yest used:   did:x%x flg:x%x refcnt:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag,
 		kref_read(&ndlp->kref));
 	if (kref_read(&ndlp->kref) == 1)
@@ -6448,10 +6448,10 @@ lpfc_nlp_not_used(struct lpfc_nodelist *ndlp)
  * lpfc_fcf_inuse - Check if FCF can be unregistered.
  * @phba: Pointer to hba context object.
  *
- * This function iterate through all FC nodes associated
- * will all vports to check if there is any node with
+ * This function iterate through all FC yesdes associated
+ * will all vports to check if there is any yesde with
  * fc_rports associated with it. If there is an fc_rport
- * associated with the node, then the node is either in
+ * associated with the yesde, then the yesde is either in
  * discovered state or its devloss_timer is pending.
  */
 static int
@@ -6459,12 +6459,12 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 {
 	struct lpfc_vport **vports;
 	int i, ret = 0;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	struct Scsi_Host  *shost;
 
 	vports = lpfc_create_vport_work_array(phba);
 
-	/* If driver cannot allocate memory, indicate fcf is in use */
+	/* If driver canyest allocate memory, indicate fcf is in use */
 	if (!vports)
 		return 1;
 
@@ -6472,9 +6472,9 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 		shost = lpfc_shost_from_vport(vports[i]);
 		spin_lock_irq(shost->host_lock);
 		/*
-		 * IF the CVL_RCVD bit is not set then we have sent the
+		 * IF the CVL_RCVD bit is yest set then we have sent the
 		 * flogi.
-		 * If dev_loss fires while we are waiting we do not want to
+		 * If dev_loss fires while we are waiting we do yest want to
 		 * unreg the fcf.
 		 */
 		if (!(vports[i]->fc_flag & FC_VPORT_CVL_RCVD)) {
@@ -6482,7 +6482,7 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 			ret =  1;
 			goto out;
 		}
-		list_for_each_entry(ndlp, &vports[i]->fc_nodes, nlp_listp) {
+		list_for_each_entry(ndlp, &vports[i]->fc_yesdes, nlp_listp) {
 			if (NLP_CHK_NODE_ACT(ndlp) && ndlp->rport &&
 			  (ndlp->rport->roles & FC_RPORT_ROLE_FCP_TARGET)) {
 				ret = 1;
@@ -6565,7 +6565,7 @@ int
 lpfc_unregister_fcf_prep(struct lpfc_hba *phba)
 {
 	struct lpfc_vport **vports;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	struct Scsi_Host *shost;
 	int i = 0, rc;
 
@@ -6581,7 +6581,7 @@ lpfc_unregister_fcf_prep(struct lpfc_hba *phba)
 	if (vports && (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED))
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			/* Stop FLOGI/FDISC retries */
-			ndlp = lpfc_findnode_did(vports[i], Fabric_DID);
+			ndlp = lpfc_findyesde_did(vports[i], Fabric_DID);
 			if (ndlp)
 				lpfc_cancel_retry_delay_tmo(vports[i], ndlp);
 			lpfc_cleanup_pending_mbox(vports[i]);
@@ -6596,7 +6596,7 @@ lpfc_unregister_fcf_prep(struct lpfc_hba *phba)
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 	if (i == 0 && (!(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED))) {
-		ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
+		ndlp = lpfc_findyesde_did(phba->pport, Fabric_DID);
 		if (ndlp)
 			lpfc_cancel_retry_delay_tmo(phba->pport, ndlp);
 		lpfc_cleanup_pending_mbox(phba->pport);
@@ -6622,11 +6622,11 @@ lpfc_unregister_fcf_prep(struct lpfc_hba *phba)
  * lpfc_sli4_unregister_fcf - Unregister currently registered FCF record
  * @phba: Pointer to hba context object.
  *
- * This function issues synchronous unregister FCF mailbox command to HBA to
- * unregister the currently registered FCF record. The driver does not reset
+ * This function issues synchroyesus unregister FCF mailbox command to HBA to
+ * unregister the currently registered FCF record. The driver does yest reset
  * the driver FCF usage state flags.
  *
- * Return 0 if successfully issued, none-zero otherwise.
+ * Return 0 if successfully issued, yesne-zero otherwise.
  */
 int
 lpfc_sli4_unregister_fcf(struct lpfc_hba *phba)
@@ -6661,7 +6661,7 @@ lpfc_sli4_unregister_fcf(struct lpfc_hba *phba)
  * @phba: Pointer to hba context object.
  *
  * This function unregisters the currently reigstered FCF. This function
- * also tries to find another FCF for discovery by rescan the HBA FCF table.
+ * also tries to find ayesther FCF for discovery by rescan the HBA FCF table.
  */
 void
 lpfc_unregister_fcf_rescan(struct lpfc_hba *phba)
@@ -6686,7 +6686,7 @@ lpfc_unregister_fcf_rescan(struct lpfc_hba *phba)
 	phba->fcf.current_rec.flag = 0;
 
 	/*
-	 * If driver is not unloading, check if there is any other
+	 * If driver is yest unloading, check if there is any other
 	 * FCF record that can be used for discovery.
 	 */
 	if ((phba->pport->load_flag & FC_UNLOADING) ||
@@ -6718,8 +6718,8 @@ lpfc_unregister_fcf_rescan(struct lpfc_hba *phba)
  * lpfc_unregister_fcf - Unregister the currently registered fcf record
  * @phba: Pointer to hba context object.
  *
- * This function just unregisters the currently reigstered FCF. It does not
- * try to find another FCF for discovery.
+ * This function just unregisters the currently reigstered FCF. It does yest
+ * try to find ayesther FCF for discovery.
  */
 void
 lpfc_unregister_fcf(struct lpfc_hba *phba)
@@ -6751,15 +6751,15 @@ lpfc_unregister_fcf(struct lpfc_hba *phba)
  *
  * This function check if there are any connected remote port for the FCF and
  * if all the devices are disconnected, this function unregister FCFI.
- * This function also tries to use another FCF for discovery.
+ * This function also tries to use ayesther FCF for discovery.
  */
 void
 lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 {
 	/*
-	 * If HBA is not running in FIP mode, if HBA does not support
-	 * FCoE, if FCF discovery is ongoing, or if FCF has not been
-	 * registered, do nothing.
+	 * If HBA is yest running in FIP mode, if HBA does yest support
+	 * FCoE, if FCF discovery is ongoing, or if FCF has yest been
+	 * registered, do yesthing.
 	 */
 	spin_lock_irq(&phba->hbalock);
 	if (!(phba->hba_flag & HBA_FCOE_MODE) ||
@@ -6954,7 +6954,7 @@ lpfc_parse_fcoe_conf(struct lpfc_hba *phba,
 	uint8_t *rec_ptr;
 
 	/*
-	 * If data size is less than 2 words signature and version cannot be
+	 * If data size is less than 2 words signature and version canyest be
 	 * verified.
 	 */
 	if (size < 2*sizeof(uint32_t))

@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,12 +31,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -147,7 +147,7 @@ static void sci_request_build_sgl(struct isci_request *ireq)
 			prev_sg = scu_sg;
 			sg_idx++;
 		}
-	} else {	/* handle when no sg */
+	} else {	/* handle when yes sg */
 		scu_sg = to_sgl_element_pair(ireq, sg_idx);
 
 		dma_addr = dma_map_single(&ihost->pdev->dev,
@@ -235,11 +235,11 @@ static void scu_ssp_request_construct_task_context(
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
-	task_context->remote_node_index = idev->rnc.remote_node_index;
+	task_context->remote_yesde_index = idev->rnc.remote_yesde_index;
 	task_context->command_code = 0;
 
 	task_context->link_layer_control = 0;
-	task_context->do_not_dma_ssp_good_response = 1;
+	task_context->do_yest_dma_ssp_good_response = 1;
 	task_context->strict_ordering = 0;
 	task_context->control_frame = 0;
 	task_context->timeout_enable = 0;
@@ -460,8 +460,8 @@ static void scu_ssp_io_request_construct_task_context(struct isci_request *ireq,
  *    following important settings are utilized: -# priority ==
  *    SCU_TASK_PRIORITY_HIGH.  This ensures that the task request is issued
  *    ahead of other task destined for the same Remote Node. -# task_type ==
- *    SCU_TASK_TYPE_IOREAD.  This simply indicates that a normal request type
- *    (i.e. non-raw frame) is being utilized to perform task management. -#
+ *    SCU_TASK_TYPE_IOREAD.  This simply indicates that a yesrmal request type
+ *    (i.e. yesn-raw frame) is being utilized to perform task management. -#
  *    control_frame == 1.  This ensures that the proper endianess is set so
  *    that the bytes are transmitted in the right order for a task frame.
  * @sci_req: This parameter specifies the task request object being
@@ -492,7 +492,7 @@ static void scu_ssp_task_request_construct_task_context(struct isci_request *ire
  *    constructed.
  *
  * The general io request construction is complete. The buffer assignment for
- * the command buffer is complete. none Revisit task context construction to
+ * the command buffer is complete. yesne Revisit task context construction to
  * determine what is common for SSP/SMP/STP task context structures.
  */
 static void scu_sata_request_construct_task_context(
@@ -517,11 +517,11 @@ static void scu_sata_request_construct_task_context(
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
-	task_context->remote_node_index = idev->rnc.remote_node_index;
+	task_context->remote_yesde_index = idev->rnc.remote_yesde_index;
 	task_context->command_code = 0;
 
 	task_context->link_layer_control = 0;
-	task_context->do_not_dma_ssp_good_response = 1;
+	task_context->do_yest_dma_ssp_good_response = 1;
 	task_context->strict_ordering = 0;
 	task_context->control_frame = 0;
 	task_context->timeout_enable = 0;
@@ -553,7 +553,7 @@ static void scu_sata_request_construct_task_context(
 	task_context->command_iu_upper = upper_32_bits(dma_addr);
 	task_context->command_iu_lower = lower_32_bits(dma_addr);
 
-	/* SATA Requests do not have a response buffer */
+	/* SATA Requests do yest have a response buffer */
 	task_context->response_iu_upper = 0;
 	task_context->response_iu_lower = 0;
 }
@@ -586,7 +586,7 @@ static enum sci_status sci_stp_pio_request_construct(struct isci_request *ireq,
 		sci_request_build_sgl(ireq);
 		stp_req->sgl.index = 0;
 	} else {
-		/* The user does not want the data copied to the SGL buffer location */
+		/* The user does yest want the data copied to the SGL buffer location */
 		stp_req->sgl.index = -1;
 	}
 
@@ -700,7 +700,7 @@ sci_io_request_construct_sata(struct isci_request *ireq,
 		return SCI_SUCCESS;
 	}
 
-	/* non data */
+	/* yesn data */
 	if (task->data_dir == DMA_NONE) {
 		scu_stp_raw_request_construct_task_context(ireq);
 		return SCI_SUCCESS;
@@ -836,7 +836,7 @@ enum sci_status sci_request_start(struct isci_request *ireq)
 		break;
 
 	case SCU_TASK_CONTEXT_PROTOCOL_NONE:
-		/* / @todo When do we set no protocol type? */
+		/* / @todo When do we set yes protocol type? */
 		break;
 
 	default:
@@ -863,7 +863,7 @@ sci_io_request_terminate(struct isci_request *ireq)
 
 	switch (state) {
 	case SCI_REQ_CONSTRUCTED:
-		/* Set to make sure no HW terminate posting is done: */
+		/* Set to make sure yes HW terminate posting is done: */
 		set_bit(IREQ_TC_ABORT_POSTED, &ireq->flags);
 		ireq->scu_status = SCU_TASK_DONE_TASK_ABORT;
 		ireq->sci_status = SCI_FAILURE_IO_TERMINATED;
@@ -889,7 +889,7 @@ sci_io_request_terminate(struct isci_request *ireq)
 	case SCI_REQ_TASK_WAIT_TC_RESP:
 		/* The task frame was already confirmed to have been
 		 * sent by the SCU HW.  Since the state machine is
-		 * now only waiting for the task response itself,
+		 * yesw only waiting for the task response itself,
 		 * abort the request and complete it immediately
 		 * and don't wait for the task response.
 		 */
@@ -1099,7 +1099,7 @@ request_started_state_tc_event(struct isci_request *ireq,
 		ireq->sci_status = SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
 		break;
 
-	/* neither ssp nor stp gets suspended. */
+	/* neither ssp yesr stp gets suspended. */
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_NAK_CMD_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_UNEXP_XR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_XR_IU_LEN_ERR):
@@ -1209,7 +1209,7 @@ smp_request_await_response_tc_event(struct isci_request *ireq,
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_FRM_TYPE_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_LL_RX_ERR):
 		/* These status has been seen in a specific LSI
-		 * expander, which sometimes is not able to send smp
+		 * expander, which sometimes is yest able to send smp
 		 * response within 2 ms. This causes our hardware break
 		 * the connection and set TC completion with one of
 		 * these SMP_XXX_XX_ERR status. For these type of error,
@@ -1290,7 +1290,7 @@ static struct scu_sgl_element *pio_sgl_next(struct isci_stp_request *stp_req)
 }
 
 static enum sci_status
-stp_request_non_data_await_h2d_tc_event(struct isci_request *ireq,
+stp_request_yesn_data_await_h2d_tc_event(struct isci_request *ireq,
 					u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
@@ -1639,7 +1639,7 @@ static enum sci_status atapi_d2h_reg_frame_handler(struct isci_request *ireq,
 		ireq->sci_status = SCI_SUCCESS;
 	}
 
-	/* the d2h ufi is the end of non-data commands */
+	/* the d2h ufi is the end of yesn-data commands */
 	if (task->data_dir == DMA_NONE)
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 
@@ -1746,7 +1746,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 				ireq->sci_status = SCI_SUCCESS;
 			}
 		} else {
-			/* not a response frame, why did it get forwarded? */
+			/* yest a response frame, why did it get forwarded? */
 			dev_err(&ihost->pdev->dev,
 				"%s: SCIC IO Request 0x%p received unexpected "
 				"frame %d type 0x%02x\n", __func__, ireq,
@@ -1799,7 +1799,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 			sci_change_state(&ireq->sm, SCI_REQ_SMP_WAIT_TC_COMP);
 		} else {
 			/*
-			 * This was not a response frame why did it get
+			 * This was yest a response frame why did it get
 			 * forwarded?
 			 */
 			dev_err(&ihost->pdev->dev,
@@ -1847,7 +1847,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 
 		if (status != SCI_SUCCESS) {
 			dev_err(&ihost->pdev->dev,
-				"%s: SCIC IO Request 0x%p could not get frame "
+				"%s: SCIC IO Request 0x%p could yest get frame "
 				"header for frame index %d, status %x\n",
 				__func__,
 				stp_req,
@@ -1902,7 +1902,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 
 		if (status != SCI_SUCCESS) {
 			dev_err(&ihost->pdev->dev,
-				"%s: SCIC IO Request 0x%p could not get frame "
+				"%s: SCIC IO Request 0x%p could yest get frame "
 				"header for frame index %d, status %x\n",
 				__func__, stp_req, frame_index, status);
 			return status;
@@ -1955,7 +1955,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 			if (frame_header->status & ATA_BUSY) {
 				/*
 				 * Now why is the drive sending a D2H Register
-				 * FIS when it is still busy?  Do nothing since
+				 * FIS when it is still busy?  Do yesthing since
 				 * we are still in the right state.
 				 */
 				dev_dbg(&ihost->pdev->dev,
@@ -2002,7 +2002,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 
 		if (status != SCI_SUCCESS) {
 			dev_err(&ihost->pdev->dev,
-				"%s: SCIC IO Request 0x%p could not get frame "
+				"%s: SCIC IO Request 0x%p could yest get frame "
 				"header for frame index %d, status %x\n",
 				__func__,
 				stp_req,
@@ -2192,7 +2192,7 @@ static enum sci_status atapi_data_tc_completion_handler(struct isci_request *ire
 	case (SCU_TASK_DONE_UNEXP_FIS << SCU_COMPLETION_TL_STATUS_SHIFT): {
 		u16 len = sci_req_tx_bytes(ireq);
 
-		/* likely non-error data underrrun, workaround missing
+		/* likely yesn-error data underrrun, workaround missing
 		 * d2h frame from the controller
 		 */
 		if (d2h->fis_type != FIS_REGD2H) {
@@ -2226,8 +2226,8 @@ static enum sci_status atapi_data_tc_completion_handler(struct isci_request *ire
 		break;
 	}
 	case (SCU_TASK_DONE_EXCESS_DATA << SCU_COMPLETION_TL_STATUS_SHIFT):
-		/* In this case, there is no UF coming after.
-		 * compelte the IO now.
+		/* In this case, there is yes UF coming after.
+		 * compelte the IO yesw.
 		 */
 		ireq->scu_status = SCU_TASK_DONE_GOOD;
 		ireq->sci_status = SCI_SUCCESS;
@@ -2240,7 +2240,7 @@ static enum sci_status atapi_data_tc_completion_handler(struct isci_request *ire
 			status = ireq->sci_status;
 			sci_change_state(&idev->sm, SCI_STP_DEV_ATAPI_ERROR);
 		} else {
-			/* If receiving any non-success TC status, no UF
+			/* If receiving any yesn-success TC status, yes UF
 			 * received yet, then an UF for the status fis
 			 * is coming after (XXX: suspect this is
 			 * actually a protocol error or a bug like the
@@ -2275,7 +2275,7 @@ static int sci_request_smp_completion_status_is_tx_suspend(
 static int sci_request_smp_completion_status_is_tx_rx_suspend(
 	unsigned int completion_status)
 {
-	return 0; /* There are no Tx/Rx SMP suspend conditions. */
+	return 0; /* There are yes Tx/Rx SMP suspend conditions. */
 }
 
 static int sci_request_ssp_completion_status_is_tx_suspend(
@@ -2301,7 +2301,7 @@ static int sci_request_ssp_completion_status_is_tx_suspend(
 static int sci_request_ssp_completion_status_is_tx_rx_suspend(
 	unsigned int completion_status)
 {
-	return 0; /* There are no Tx/Rx SSP suspend conditions. */
+	return 0; /* There are yes Tx/Rx SSP suspend conditions. */
 }
 
 static int sci_request_stpsata_completion_status_is_tx_suspend(
@@ -2374,14 +2374,14 @@ static void sci_request_handle_suspending_completions(
 		break;
 	default:
 		dev_warn(&ireq->isci_host->pdev->dev,
-			 "%s: request %p has no valid protocol\n",
+			 "%s: request %p has yes valid protocol\n",
 			 __func__, ireq);
 		break;
 	}
 	if (is_tx || is_tx_rx) {
 		BUG_ON(is_tx && is_tx_rx);
 
-		sci_remote_node_context_suspend(
+		sci_remote_yesde_context_suspend(
 			&ireq->target_device->rnc,
 			SCI_HW_SUSPEND,
 			(is_tx_rx) ? SCU_EVENT_TL_RNC_SUSPEND_TX_RX
@@ -2422,7 +2422,7 @@ sci_io_request_tc_completion(struct isci_request *ireq,
 						       completion_code);
 
 	case SCI_REQ_STP_NON_DATA_WAIT_H2D:
-		return stp_request_non_data_await_h2d_tc_event(ireq,
+		return stp_request_yesn_data_await_h2d_tc_event(ireq,
 							       completion_code);
 
 	case SCI_REQ_STP_PIO_WAIT_H2D:
@@ -2462,7 +2462,7 @@ sci_io_request_tc_completion(struct isci_request *ireq,
  * @resp_iu: This parameter points to the response iu of the completed request.
  * @dev: This parameter specifies the linux device struct.
  *
- * none.
+ * yesne.
  */
 static void isci_request_process_response_iu(
 	struct sas_task *task,
@@ -2496,7 +2496,7 @@ static void isci_request_process_response_iu(
  * @open_rej_reason: This parameter specifies the encoded reason for the
  *    abandon-class reject.
  *
- * none.
+ * yesne.
  */
 static void isci_request_set_open_reject_status(
 	struct isci_request *request,
@@ -2519,7 +2519,7 @@ static void isci_request_set_open_reject_status(
  * @response_ptr: This parameter specifies the service response for the I/O.
  * @status_ptr: This parameter specifies the exec status for the I/O.
  *
- * none.
+ * yesne.
  */
 static void isci_request_handle_controller_specific_errors(
 	struct isci_remote_device *idev,
@@ -2558,7 +2558,7 @@ static void isci_request_handle_controller_specific_errors(
 			*response_ptr = SAS_TASK_COMPLETE;
 
 			/* See if the device has been/is being stopped. Note
-			 * that we ignore the quiesce state, since we are
+			 * that we igyesre the quiesce state, since we are
 			 * concerned about the actual device state.
 			 */
 			if (!idev)
@@ -2568,7 +2568,7 @@ static void isci_request_handle_controller_specific_errors(
 
 			set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
 		} else {
-			/* Task in the target is not done. */
+			/* Task in the target is yest done. */
 			*response_ptr = SAS_TASK_UNDELIVERED;
 
 			if (!idev)
@@ -2590,13 +2590,13 @@ static void isci_request_handle_controller_specific_errors(
 	case SCU_TASK_DONE_IIT_ENTRY_NV:        /* TODO - conditions? */
 	case SCU_TASK_DONE_RNCNV_OUTBOUND:      /* TODO - conditions? */
 		/* These are conditions in which the target
-		 * has completed the task, so that no cleanup
+		 * has completed the task, so that yes cleanup
 		 * is necessary.
 		 */
 		*response_ptr = SAS_TASK_COMPLETE;
 
 		/* See if the device has been/is being stopped. Note
-		 * that we ignore the quiesce state, since we are
+		 * that we igyesre the quiesce state, since we are
 		 * concerned about the actual device state.
 		 */
 		if (!idev)
@@ -2702,7 +2702,7 @@ static void isci_request_handle_controller_specific_errors(
 	case SCU_TASK_DONE_SDB_ERR:
 	case SCU_TASK_DONE_TASK_ABORT:
 	default:
-		/* Task in the target is not done. */
+		/* Task in the target is yest done. */
 		*response_ptr = SAS_TASK_UNDELIVERED;
 		*status_ptr = SAM_STAT_TASK_ABORTED;
 
@@ -2776,7 +2776,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 
 		} else
 			dev_err(&ihost->pdev->dev,
-				"%s: unknown protocol\n", __func__);
+				"%s: unkyeswn protocol\n", __func__);
 
 		/* use the task status set in the task struct by the
 		* isci_request_process_response_iu call.
@@ -2830,7 +2830,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 		response = SAS_TASK_UNDELIVERED;
 
 		/* See if the device has been/is being stopped. Note
-		* that we ignore the quiesce state, since we are
+		* that we igyesre the quiesce state, since we are
 		* concerned about the actual device state.
 		*/
 		if (!idev)
@@ -2850,7 +2850,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 		/* This is a special case, in that the I/O completion
 		* is telling us that the device needs a reset.
 		* In order for the device reset condition to be
-		* noticed, the I/O has to be handled in the error
+		* yesticed, the I/O has to be handled in the error
 		* handler.  Set the reset flag and cause the
 		* SCSI error thread to be scheduled.
 		*/
@@ -2888,7 +2888,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 		response = SAS_TASK_UNDELIVERED;
 
 		/* See if the device has been/is being stopped. Note
-		* that we ignore the quiesce state, since we are
+		* that we igyesre the quiesce state, since we are
 		* concerned about the actual device state.
 		*/
 		if (!idev)
@@ -2940,7 +2940,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	task->task_status.stat = status;
 
 	if (test_bit(IREQ_COMPLETE_IN_TARGET, &request->flags)) {
-		/* Normal notification (task_done) */
+		/* Normal yestification (task_done) */
 		task->task_state_flags |= SAS_TASK_STATE_DONE;
 		task->task_state_flags &= ~(SAS_TASK_AT_INITIATOR |
 					    SAS_TASK_STATE_PENDING);
@@ -2950,7 +2950,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	/* complete the io request to the core. */
 	sci_controller_complete_io(ihost, request->target_device, request);
 
-	/* set terminated handle so it cannot be completed or
+	/* set terminated handle so it canyest be completed or
 	 * terminated again, and to cause any calls into abort
 	 * task to recognize the already completed case.
 	 */
@@ -2971,7 +2971,7 @@ static void sci_request_started_state_enter(struct sci_base_state_machine *sm)
 	 */
 	task = (test_bit(IREQ_TMF, &ireq->flags)) ? NULL : isci_request_access_task(ireq);
 
-	/* all unaccelerated request types (non ssp or ncq) handled with
+	/* all unaccelerated request types (yesn ssp or ncq) handled with
 	 * substates
 	 */
 	if (!task && dev->dev_type == SAS_END_DEVICE) {
@@ -2991,7 +2991,7 @@ static void sci_request_started_state_enter(struct sci_base_state_machine *sm)
 			state = SCI_REQ_STP_PIO_WAIT_H2D;
 		}
 	} else {
-		/* SSP or NCQ are fully accelerated, no substates */
+		/* SSP or NCQ are fully accelerated, yes substates */
 		return;
 	}
 	sci_change_state(sm, state);
@@ -3018,7 +3018,7 @@ static void sci_request_aborting_state_enter(struct sci_base_state_machine *sm)
 	ireq->tc->abort = 1;
 }
 
-static void sci_stp_request_started_non_data_await_h2d_completion_enter(struct sci_base_state_machine *sm)
+static void sci_stp_request_started_yesn_data_await_h2d_completion_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_request *ireq = container_of(sm, typeof(*ireq), sm);
 
@@ -3039,7 +3039,7 @@ static const struct sci_base_state sci_request_state_table[] = {
 		.enter_state = sci_request_started_state_enter,
 	},
 	[SCI_REQ_STP_NON_DATA_WAIT_H2D] = {
-		.enter_state = sci_stp_request_started_non_data_await_h2d_completion_enter,
+		.enter_state = sci_stp_request_started_yesn_data_await_h2d_completion_enter,
 	},
 	[SCI_REQ_STP_NON_DATA_WAIT_D2H] = { },
 	[SCI_REQ_STP_PIO_WAIT_H2D] = {
@@ -3094,7 +3094,7 @@ sci_io_request_construct(struct isci_host *ihost,
 	/* Build the common part of the request */
 	sci_general_request_construct(ihost, idev, ireq);
 
-	if (idev->rnc.remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
+	if (idev->rnc.remote_yesde_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
 		return SCI_FAILURE_INVALID_REMOTE_DEVICE;
 
 	if (dev->dev_type == SAS_END_DEVICE)
@@ -3199,7 +3199,7 @@ sci_io_request_construct_smp(struct device *dev,
 	/*
 	 * Look at the SMP requests' header fields; for certain SAS 1.x SMP
 	 * functions under SAS 2.0, a zero request length really indicates
-	 * a non-zero default length.
+	 * a yesn-zero default length.
 	 */
 	if (smp_req->req_len == 0) {
 		switch (smp_req->func) {
@@ -3249,13 +3249,13 @@ sci_io_request_construct_smp(struct device *dev,
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
 	/* 04h */
-	task_context->remote_node_index = idev->rnc.remote_node_index;
+	task_context->remote_yesde_index = idev->rnc.remote_yesde_index;
 	task_context->command_code = 0;
 	task_context->task_type = SCU_TASK_TYPE_SMP_REQUEST;
 
 	/* 08h */
 	task_context->link_layer_control = 0;
-	task_context->do_not_dma_ssp_good_response = 1;
+	task_context->do_yest_dma_ssp_good_response = 1;
 	task_context->strict_ordering = 0;
 	task_context->control_frame = 1;
 	task_context->timeout_enable = 0;
@@ -3290,12 +3290,12 @@ sci_io_request_construct_smp(struct device *dev,
 			      ISCI_TAG_TCI(ireq->io_tag));
 	/*
 	 * Copy the physical address for the command buffer to the SCU Task
-	 * Context command buffer should not contain command header.
+	 * Context command buffer should yest contain command header.
 	 */
 	task_context->command_iu_upper = upper_32_bits(sg_dma_address(sg));
 	task_context->command_iu_lower = lower_32_bits(sg_dma_address(sg) + sizeof(u32));
 
-	/* SMP response comes as UF, so no need to set response IU address. */
+	/* SMP response comes as UF, so yes need to set response IU address. */
 	task_context->response_iu_upper = 0;
 	task_context->response_iu_lower = 0;
 
@@ -3394,7 +3394,7 @@ static enum sci_status isci_io_request_build(struct isci_host *ihost,
 		break;
 	default:
 		dev_dbg(&ihost->pdev->dev,
-			 "%s: unknown protocol\n", __func__);
+			 "%s: unkyeswn protocol\n", __func__);
 		return SCI_FAILURE;
 	}
 
@@ -3497,9 +3497,9 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 	 * the device needs a target reset.
 	 */
 	if (status != SCI_SUCCESS) {
-		/* The request did not really start in the
+		/* The request did yest really start in the
 		 * hardware, so clear the request handle
-		 * here so no terminations will be done.
+		 * here so yes terminations will be done.
 		 */
 		set_bit(IREQ_TERMINATED, &ireq->flags);
 	}

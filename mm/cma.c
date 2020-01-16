@@ -83,13 +83,13 @@ static unsigned long cma_bitmap_pages_to_bits(const struct cma *cma,
 static void cma_clear_bitmap(struct cma *cma, unsigned long pfn,
 			     unsigned int count)
 {
-	unsigned long bitmap_no, bitmap_count;
+	unsigned long bitmap_yes, bitmap_count;
 
-	bitmap_no = (pfn - cma->base_pfn) >> cma->order_per_bit;
+	bitmap_yes = (pfn - cma->base_pfn) >> cma->order_per_bit;
 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
 
 	mutex_lock(&cma->lock);
-	bitmap_clear(cma->bitmap, bitmap_no, bitmap_count);
+	bitmap_clear(cma->bitmap, bitmap_yes, bitmap_count);
 	mutex_unlock(&cma->lock);
 }
 
@@ -99,7 +99,7 @@ static int __init cma_activate_area(struct cma *cma)
 	unsigned i = cma->count >> pageblock_order;
 	struct zone *zone;
 
-	cma->bitmap = bitmap_zalloc(cma_bitmap_maxno(cma), GFP_KERNEL);
+	cma->bitmap = bitmap_zalloc(cma_bitmap_maxyes(cma), GFP_KERNEL);
 	if (!cma->bitmap) {
 		cma->count = 0;
 		return -ENOMEM;
@@ -121,7 +121,7 @@ static int __init cma_activate_area(struct cma *cma)
 			 * to be in the same zone.
 			 */
 			if (page_zone(pfn_to_page(pfn)) != zone)
-				goto not_in_zone;
+				goto yest_in_zone;
 		}
 		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
 	} while (--i);
@@ -135,8 +135,8 @@ static int __init cma_activate_area(struct cma *cma)
 
 	return 0;
 
-not_in_zone:
-	pr_err("CMA area %s could not be activated\n", cma->name);
+yest_in_zone:
+	pr_err("CMA area %s could yest be activated\n", cma->name);
 	bitmap_free(cma->bitmap);
 	cma->count = 0;
 	return -EINVAL;
@@ -179,7 +179,7 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 
 	/* Sanity checks */
 	if (cma_area_count == ARRAY_SIZE(cma_areas)) {
-		pr_err("Not enough slots for CMA reserved regions!\n");
+		pr_err("Not eyesugh slots for CMA reserved regions!\n");
 		return -ENOSPC;
 	}
 
@@ -258,7 +258,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
 		__func__, &size, &base, &limit, &alignment);
 
 	if (cma_area_count == ARRAY_SIZE(cma_areas)) {
-		pr_err("Not enough slots for CMA reserved regions!\n");
+		pr_err("Not eyesugh slots for CMA reserved regions!\n");
 		return -ENOSPC;
 	}
 
@@ -272,7 +272,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 * Sanitise input arguments.
 	 * Pages both ends in CMA area could be merged into adjacent unmovable
 	 * migratetype page by page allocator's buddy algorithm. In the case,
-	 * you couldn't get a contiguous memory, which is not what we want.
+	 * you couldn't get a contiguous memory, which is yest what we want.
 	 */
 	alignment = max(alignment,  (phys_addr_t)PAGE_SIZE <<
 			  max_t(unsigned long, MAX_ORDER - 1, pageblock_order));
@@ -294,7 +294,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
 		return -EINVAL;
 
 	/*
-	 * If allocating at a fixed base the request region must not cross the
+	 * If allocating at a fixed base the request region must yest cross the
 	 * low/high memory boundary.
 	 */
 	if (fixed && base < highmem_start && base + size > highmem_start) {
@@ -354,7 +354,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
 		 * kmemleak scans/reads tracked objects for pointers to other
 		 * objects but this address isn't mapped and accessible
 		 */
-		kmemleak_ignore_phys(addr);
+		kmemleak_igyesre_phys(addr);
 		base = addr;
 	}
 
@@ -379,7 +379,7 @@ static void cma_debug_show_areas(struct cma *cma)
 	unsigned long next_zero_bit, next_set_bit, nr_zero;
 	unsigned long start = 0;
 	unsigned long nr_part, nr_total = 0;
-	unsigned long nbits = cma_bitmap_maxno(cma);
+	unsigned long nbits = cma_bitmap_maxyes(cma);
 
 	mutex_lock(&cma->lock);
 	pr_info("number of available pages: ");
@@ -407,18 +407,18 @@ static inline void cma_debug_show_areas(struct cma *cma) { }
  * @cma:   Contiguous memory region for which the allocation is performed.
  * @count: Requested number of pages.
  * @align: Requested alignment of pages (in PAGE_SIZE order).
- * @no_warn: Avoid printing message about failed allocation
+ * @yes_warn: Avoid printing message about failed allocation
  *
  * This function allocates part of contiguous memory on specific
  * contiguous memory area.
  */
 struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
-		       bool no_warn)
+		       bool yes_warn)
 {
 	unsigned long mask, offset;
 	unsigned long pfn = -1;
 	unsigned long start = 0;
-	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
+	unsigned long bitmap_maxyes, bitmap_yes, bitmap_count;
 	size_t i;
 	struct page *page = NULL;
 	int ret = -ENOMEM;
@@ -434,22 +434,22 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 
 	mask = cma_bitmap_aligned_mask(cma, align);
 	offset = cma_bitmap_aligned_offset(cma, align);
-	bitmap_maxno = cma_bitmap_maxno(cma);
+	bitmap_maxyes = cma_bitmap_maxyes(cma);
 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
 
-	if (bitmap_count > bitmap_maxno)
+	if (bitmap_count > bitmap_maxyes)
 		return NULL;
 
 	for (;;) {
 		mutex_lock(&cma->lock);
-		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
-				bitmap_maxno, start, bitmap_count, mask,
+		bitmap_yes = bitmap_find_next_zero_area_off(cma->bitmap,
+				bitmap_maxyes, start, bitmap_count, mask,
 				offset);
-		if (bitmap_no >= bitmap_maxno) {
+		if (bitmap_yes >= bitmap_maxyes) {
 			mutex_unlock(&cma->lock);
 			break;
 		}
-		bitmap_set(cma->bitmap, bitmap_no, bitmap_count);
+		bitmap_set(cma->bitmap, bitmap_yes, bitmap_count);
 		/*
 		 * It's safe to drop the lock here. We've marked this region for
 		 * our exclusive use. If the migration fails we will take the
@@ -457,10 +457,10 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 		 */
 		mutex_unlock(&cma->lock);
 
-		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
+		pfn = cma->base_pfn + (bitmap_yes << cma->order_per_bit);
 		mutex_lock(&cma_mutex);
 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
-				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
+				     GFP_KERNEL | (yes_warn ? __GFP_NOWARN : 0));
 		mutex_unlock(&cma_mutex);
 		if (ret == 0) {
 			page = pfn_to_page(pfn);
@@ -474,14 +474,14 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 		pr_debug("%s(): memory range at %p is busy, retrying\n",
 			 __func__, pfn_to_page(pfn));
 		/* try again with a bit different memory target */
-		start = bitmap_no + mask + 1;
+		start = bitmap_yes + mask + 1;
 	}
 
 	trace_cma_alloc(pfn, page, count, align);
 
 	/*
 	 * CMA can allocate multiple page blocks, which results in different
-	 * blocks being marked with different tags. Reset the tags to ignore
+	 * blocks being marked with different tags. Reset the tags to igyesre
 	 * those page blocks.
 	 */
 	if (page) {
@@ -489,7 +489,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 			page_kasan_tag_reset(page + i);
 	}
 
-	if (ret && !no_warn) {
+	if (ret && !yes_warn) {
 		pr_err("%s: alloc failed, req-size: %zu pages, ret: %d\n",
 			__func__, count, ret);
 		cma_debug_show_areas(cma);
@@ -506,7 +506,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
  * @count: Number of allocated pages.
  *
  * This function releases memory allocated by cma_alloc().
- * It returns false when provided pages do not belong to contiguous area and
+ * It returns false when provided pages do yest belong to contiguous area and
  * true otherwise.
  */
 bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)

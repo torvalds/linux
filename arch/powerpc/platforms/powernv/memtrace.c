@@ -20,7 +20,7 @@
 #include <asm/machdep.h>
 #include <asm/debugfs.h>
 
-/* This enables us to keep track of the memory removed from each node. */
+/* This enables us to keep track of the memory removed from each yesde. */
 struct memtrace_entry {
 	void *mem;
 	u64 start;
@@ -92,17 +92,17 @@ static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
 	return true;
 }
 
-static u64 memtrace_alloc_node(u32 nid, u64 size)
+static u64 memtrace_alloc_yesde(u32 nid, u64 size)
 {
 	u64 start_pfn, end_pfn, nr_pages, pfn;
 	u64 base_pfn;
 	u64 bytes = memory_block_size_bytes();
 
-	if (!node_spanned_pages(nid))
+	if (!yesde_spanned_pages(nid))
 		return 0;
 
-	start_pfn = node_start_pfn(nid);
-	end_pfn = node_end_pfn(nid);
+	start_pfn = yesde_start_pfn(nid);
+	end_pfn = yesde_end_pfn(nid);
 	nr_pages = size >> PAGE_SHIFT;
 
 	/* Trace memory needs to be aligned to the size */
@@ -135,26 +135,26 @@ static int memtrace_init_regions_runtime(u64 size)
 	u32 nid;
 	u64 m;
 
-	memtrace_array = kcalloc(num_online_nodes(),
+	memtrace_array = kcalloc(num_online_yesdes(),
 				sizeof(struct memtrace_entry), GFP_KERNEL);
 	if (!memtrace_array) {
 		pr_err("Failed to allocate memtrace_array\n");
 		return -EINVAL;
 	}
 
-	for_each_online_node(nid) {
-		m = memtrace_alloc_node(nid, size);
+	for_each_online_yesde(nid) {
+		m = memtrace_alloc_yesde(nid, size);
 
 		/*
-		 * A node might not have any local memory, so warn but
+		 * A yesde might yest have any local memory, so warn but
 		 * continue on.
 		 */
 		if (!m) {
-			pr_err("Failed to allocate trace memory on node %d\n", nid);
+			pr_err("Failed to allocate trace memory on yesde %d\n", nid);
 			continue;
 		}
 
-		pr_info("Allocated trace memory on node %d at 0x%016llx\n", nid, m);
+		pr_info("Allocated trace memory on yesde %d at 0x%016llx\n", nid, m);
 
 		memtrace_array[memtrace_array_nr].start = m;
 		memtrace_array[memtrace_array_nr].size = size;
@@ -188,7 +188,7 @@ static int memtrace_init_debugfs(void)
 		snprintf(ent->name, 16, "%08x", ent->nid);
 		dir = debugfs_create_dir(ent->name, memtrace_debugfs_dir);
 		if (!dir) {
-			pr_err("Failed to create debugfs directory for node %d\n",
+			pr_err("Failed to create debugfs directory for yesde %d\n",
 				ent->nid);
 			return -1;
 		}
@@ -230,7 +230,7 @@ static int memtrace_online(void)
 		}
 
 		if (add_memory(ent->nid, ent->start, ent->size)) {
-			pr_err("Failed to add trace memory to node %d\n",
+			pr_err("Failed to add trace memory to yesde %d\n",
 				ent->nid);
 			ret += 1;
 			continue;
@@ -252,7 +252,7 @@ static int memtrace_online(void)
 		 * so on reentry we can tell that this chunk was added.
 		 */
 		debugfs_remove_recursive(ent->dir);
-		pr_info("Added trace memory back to node %d\n", ent->nid);
+		pr_info("Added trace memory back to yesde %d\n", ent->nid);
 		ent->size = ent->start = ent->nid = NUMA_NO_NODE;
 	}
 	if (ret)

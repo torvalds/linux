@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@yesvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@yesvell.com>
  */
 
 
@@ -194,7 +194,7 @@ l1_timer3(struct FsmInst *fi, int event, void *arg)
 	}
 	if (l1->l1m.state != ST_L1_F6) {
 		mISDN_FsmChangeState(fi, ST_L1_F3);
-		/* do not force anything here, we need send INFO 0 */
+		/* do yest force anything here, we need send INFO 0 */
 	}
 }
 
@@ -233,7 +233,7 @@ l1_activate_s(struct FsmInst *fi, int event, void *arg)
 }
 
 static void
-l1_activate_no(struct FsmInst *fi, int event, void *arg)
+l1_activate_yes(struct FsmInst *fi, int event, void *arg)
 {
 	struct layer1 *l1 = fi->userdata;
 
@@ -249,8 +249,8 @@ l1_activate_no(struct FsmInst *fi, int event, void *arg)
 static struct FsmNode L1SFnList[] =
 {
 	{ST_L1_F3, EV_PH_ACTIVATE, l1_activate_s},
-	{ST_L1_F6, EV_PH_ACTIVATE, l1_activate_no},
-	{ST_L1_F8, EV_PH_ACTIVATE, l1_activate_no},
+	{ST_L1_F6, EV_PH_ACTIVATE, l1_activate_yes},
+	{ST_L1_F8, EV_PH_ACTIVATE, l1_activate_yes},
 	{ST_L1_F3, EV_RESET_IND, l1_reset},
 	{ST_L1_F4, EV_RESET_IND, l1_reset},
 	{ST_L1_F5, EV_RESET_IND, l1_reset},

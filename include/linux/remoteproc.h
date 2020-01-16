@@ -10,12 +10,12 @@
  * are met:
  *
  * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   yestice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the
  *   distribution.
- * * Neither the name Texas Instruments nor the names of its
+ * * Neither the name Texas Instruments yesr the names of its
  *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
  *
@@ -54,7 +54,7 @@
  * If needed, the remote processor firmware should contain this table
  * as a dedicated ".resource_table" ELF section.
  *
- * Some resources entries are mere announcements, where the host is informed
+ * Some resources entries are mere anyesuncements, where the host is informed
  * of specific remoteproc configuration. Other entries require the host to
  * do something (e.g. allocate a system resource). Sometimes a negotiation
  * is expected, where the firmware requests a resource, and once allocated,
@@ -96,7 +96,7 @@ struct fw_rsc_hdr {
  * @RSC_CARVEOUT:   request for allocation of a physically contiguous
  *		    memory region.
  * @RSC_DEVMEM:     request to iommu_map a memory-based peripheral.
- * @RSC_TRACE:	    announces the availability of a trace buffer into which
+ * @RSC_TRACE:	    anyesunces the availability of a trace buffer into which
  *		    the remote processor will be writing logs.
  * @RSC_VDEV:       declare support for a virtio device, and serve as its
  *		    virtio header.
@@ -107,7 +107,7 @@ struct fw_rsc_hdr {
  * For more details regarding a specific resource type, please see its
  * dedicated structure below.
  *
- * Please note that these values are used as indices to the rproc_handle_rsc
+ * Please yeste that these values are used as indices to the rproc_handle_rsc
  * lookup table, so please keep them sane. Moreover, @RSC_LAST is used to
  * check the validity of an index before the lookup table is accessed, so
  * please update it as needed.
@@ -154,13 +154,13 @@ enum fw_resource_type {
  * isn't using an iommu. In that case, though, it will obviously contain
  * physical addresses.
  *
- * Some remote processors needs to know the allocated physical address
+ * Some remote processors needs to kyesw the allocated physical address
  * even if they do use an iommu. This is needed, e.g., if they control
  * hardware accelerators which access the physical memory directly (this
  * is the case with OMAP4 for instance). In that case, the host will
  * overwrite @pa with the dynamically allocated physical address.
  * Generally we don't want to expose physical addresses if we don't have to
- * (remote processors are generally _not_ trusted), so we might want to
+ * (remote processors are generally _yest_ trusted), so we might want to
  * change this to happen _only_ when explicitly required by the hardware.
  *
  * @flags is used to provide IOMMU protection flags, and @name should
@@ -202,7 +202,7 @@ struct fw_rsc_carveout {
  * Note: at this point we just "trust" those devmem entries to contain valid
  * physical addresses, but this isn't safe and will be changed: eventually we
  * want remoteproc implementations to provide us ranges of physical addresses
- * the firmware is allowed to request, and not allow firmwares to request
+ * the firmware is allowed to request, and yest allow firmwares to request
  * access to physical addresses that are outside those ranges.
  */
 struct fw_rsc_devmem {
@@ -242,12 +242,12 @@ struct fw_rsc_trace {
  * @da: device address
  * @align: the alignment between the consumer and producer parts of the vring
  * @num: num of buffers supported by this vring (must be power of two)
- * @notifyid is a unique rproc-wide notify index for this vring. This notify
- * index is used when kicking a remote processor, to let it know that this
+ * @yestifyid is a unique rproc-wide yestify index for this vring. This yestify
+ * index is used when kicking a remote processor, to let it kyesw that this
  * vring is triggered.
  * @pa: physical address
  *
- * This descriptor is not a resource entry by itself; it is part of the
+ * This descriptor is yest a resource entry by itself; it is part of the
  * vdev resource type (see below).
  *
  * Note that @da should either contain the device address where
@@ -258,15 +258,15 @@ struct fw_rsc_vdev_vring {
 	u32 da;
 	u32 align;
 	u32 num;
-	u32 notifyid;
+	u32 yestifyid;
 	u32 pa;
 } __packed;
 
 /**
  * struct fw_rsc_vdev - virtio device header
  * @id: virtio device id (as in virtio_ids.h)
- * @notifyid is a unique rproc-wide notify index for this vdev. This notify
- * index is used when kicking a remote processor, to let it know that the
+ * @yestifyid is a unique rproc-wide yestify index for this vdev. This yestify
+ * index is used when kicking a remote processor, to let it kyesw that the
  * status/features of this vdev have changes.
  * @dfeatures specifies the virtio device features supported by the firmware
  * @gfeatures is a place holder used by the host to write back the
@@ -284,7 +284,7 @@ struct fw_rsc_vdev_vring {
  *
  * By providing this resource entry, the firmware essentially asks remoteproc
  * to statically allocate a vdev upon registration of the rproc (dynamic vdev
- * allocation is not yet supported).
+ * allocation is yest yet supported).
  *
  * Note: unlike virtualization systems, the term 'host' here means
  * the Linux side which is running remoteproc to control the remote
@@ -299,7 +299,7 @@ struct fw_rsc_vdev_vring {
  */
 struct fw_rsc_vdev {
 	u32 id;
-	u32 notifyid;
+	u32 yestifyid;
 	u32 dfeatures;
 	u32 gfeatures;
 	u32 config_len;
@@ -320,7 +320,7 @@ struct rproc;
  * @release: release associated memory
  * @priv: associated data
  * @name: associated memory region name (optional)
- * @node: list node
+ * @yesde: list yesde
  * @rsc_offset: offset in resource table
  * @flags: iommu protection flags
  * @of_resm_idx: reserved memory phandle index
@@ -333,7 +333,7 @@ struct rproc_mem_entry {
 	u32 da;
 	void *priv;
 	char name[32];
-	struct list_head node;
+	struct list_head yesde;
 	u32 rsc_offset;
 	u32 flags;
 	u32 of_resm_idx;
@@ -346,7 +346,7 @@ struct firmware;
 /**
  * enum rsc_handling_status - return status of rproc_ops handle_rsc hook
  * @RSC_HANDLED:	resource was handled
- * @RSC_IGNORED:	resource was ignored
+ * @RSC_IGNORED:	resource was igyesred
  */
 enum rsc_handling_status {
 	RSC_HANDLED	= 0,
@@ -361,7 +361,7 @@ enum rsc_handling_status {
  * @da_to_va:	optional platform hook to perform address translations
  * @parse_fw:	parse firmware to extract information (e.g. resource table)
  * @handle_rsc:	optional platform hook to handle vendor resources. Should return
- * RSC_HANDLED if resource was handled, RSC_IGNORED if not handled and a
+ * RSC_HANDLED if resource was handled, RSC_IGNORED if yest handled and a
  * negative value on error
  * @load_rsc_table:	load resource table from firmware image
  * @find_loaded_rsc_table: find the loaded resouce table
@@ -395,7 +395,7 @@ struct rproc_ops {
  * @RPROC_DELETED:	device is deleted
  * @RPROC_LAST:		just keep this one at the end
  *
- * Please note that the values of these states are used as indices
+ * Please yeste that the values of these states are used as indices
  * to rproc_state_string, a state-to-name lookup table,
  * so please keep the two synchronized. @RPROC_LAST is used to check
  * the validity of an index before the lookup table is accessed, so
@@ -429,7 +429,7 @@ enum rproc_crash_type {
 
 /**
  * struct rproc_dump_segment - segment info from ELF header
- * @node:	list node related to the rproc segment list
+ * @yesde:	list yesde related to the rproc segment list
  * @da:		device address of the segment
  * @size:	size of the segment
  * @priv:	private data associated with the dump_segment
@@ -437,7 +437,7 @@ enum rproc_crash_type {
  *		with coredump
  */
 struct rproc_dump_segment {
-	struct list_head node;
+	struct list_head yesde;
 
 	dma_addr_t da;
 	size_t size;
@@ -450,7 +450,7 @@ struct rproc_dump_segment {
 
 /**
  * struct rproc - represents a physical remote processor device
- * @node: list node of this rproc object
+ * @yesde: list yesde of this rproc object
  * @domain: iommu domain
  * @name: human readable name of the rproc
  * @firmware: name of firmware file to be loaded
@@ -468,12 +468,12 @@ struct rproc_dump_segment {
  * @bootaddr: address of first instruction to boot rproc with (optional)
  * @rvdevs: list of remote virtio devices
  * @subdevs: list of subdevices, to following the running state
- * @notifyids: idr for dynamically assigning rproc-wide unique notify ids
+ * @yestifyids: idr for dynamically assigning rproc-wide unique yestify ids
  * @index: index of this rproc device
  * @crash_handler: workqueue for handling a crash
  * @crash_cnt: crash counter
  * @recovery_disabled: flag that state if recovery was disabled
- * @max_notifyid: largest allocated notify id.
+ * @max_yestifyid: largest allocated yestify id.
  * @table_ptr: pointer to the resource table in effect
  * @cached_table: copy of the resource table
  * @table_sz: size of @cached_table
@@ -483,7 +483,7 @@ struct rproc_dump_segment {
  * @nb_vdev: number of vdev currently handled by rproc
  */
 struct rproc {
-	struct list_head node;
+	struct list_head yesde;
 	struct iommu_domain *domain;
 	const char *name;
 	char *firmware;
@@ -501,12 +501,12 @@ struct rproc {
 	u32 bootaddr;
 	struct list_head rvdevs;
 	struct list_head subdevs;
-	struct idr notifyids;
+	struct idr yestifyids;
 	int index;
 	struct work_struct crash_handler;
 	unsigned int crash_cnt;
 	bool recovery_disabled;
-	int max_notifyid;
+	int max_yestifyid;
 	struct resource_table *table_ptr;
 	struct resource_table *cached_table;
 	size_t table_sz;
@@ -518,7 +518,7 @@ struct rproc {
 
 /**
  * struct rproc_subdev - subdevice tied to a remoteproc
- * @node: list node related to the rproc subdevs list
+ * @yesde: list yesde related to the rproc subdevs list
  * @prepare: prepare function, called before the rproc is started
  * @start: start function, called after the rproc has been started
  * @stop: stop function, called before the rproc is stopped; the @crashed
@@ -526,7 +526,7 @@ struct rproc {
  * @unprepare: unprepare function, called after the rproc has been stopped
  */
 struct rproc_subdev {
-	struct list_head node;
+	struct list_head yesde;
 
 	int (*prepare)(struct rproc_subdev *subdev);
 	int (*start)(struct rproc_subdev *subdev);
@@ -544,7 +544,7 @@ struct rproc_subdev {
  * @len: length, in bytes
  * @da: device address
  * @align: vring alignment
- * @notifyid: rproc-specific unique vring index
+ * @yestifyid: rproc-specific unique vring index
  * @rvdev: remote vdev
  * @vq: the virtqueue of this vring
  */
@@ -553,7 +553,7 @@ struct rproc_vring {
 	int len;
 	u32 da;
 	u32 align;
-	int notifyid;
+	int yestifyid;
 	struct rproc_vdev *rvdev;
 	struct virtqueue *vq;
 };
@@ -563,7 +563,7 @@ struct rproc_vring {
  * @refcount: reference counter for the vdev and vring allocations
  * @subdev: handle for registering the vdev as a rproc subdevice
  * @id: virtio device id (as in virtio_ids.h)
- * @node: list node
+ * @yesde: list yesde
  * @rproc: the rproc handle
  * @vdev: the virio device
  * @vring: the vrings for this vdev
@@ -577,7 +577,7 @@ struct rproc_vdev {
 	struct device dev;
 
 	unsigned int id;
-	struct list_head node;
+	struct list_head yesde;
 	struct rproc *rproc;
 	struct rproc_vring vring[RVDEV_NUM_VRINGS];
 	u32 rsc_offset;

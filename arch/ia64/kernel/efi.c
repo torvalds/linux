@@ -13,14 +13,14 @@
  * (c) Copyright 2006 Hewlett-Packard Development Company, L.P.
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  *
- * All EFI Runtime Services are not implemented yet as EFI only
+ * All EFI Runtime Services are yest implemented yet as EFI only
  * supports physical mode addressing on SoftSDV. This is to be fixed
  * in a future version.  --drummond 1999-07-20
  *
  * Implemented EFI runtime services and virtual mode calls.  --davidm
  *
  * Goutham Rao: <goutham.rao@intel.com>
- *	Skip non-WB memory and ignore empty memory ranges.
+ *	Skip yesn-WB memory and igyesre empty memory ranges.
  */
 #include <linux/module.h>
 #include <linux/memblock.h>
@@ -183,14 +183,14 @@ prefix##_set_variable (efi_char16_t *name, efi_guid_t *vendor,		       \
 
 #define STUB_GET_NEXT_HIGH_MONO_COUNT(prefix, adjust_arg)		       \
 static efi_status_t							       \
-prefix##_get_next_high_mono_count (u32 *count)				       \
+prefix##_get_next_high_moyes_count (u32 *count)				       \
 {									       \
 	struct ia64_fpreg fr[6];					       \
 	efi_status_t ret;						       \
 									       \
 	ia64_save_scratch_fpregs(fr);					       \
-	ret = efi_call_##prefix((efi_get_next_high_mono_count_t *)	       \
-				__va(runtime->get_next_high_mono_count),       \
+	ret = efi_call_##prefix((efi_get_next_high_moyes_count_t *)	       \
+				__va(runtime->get_next_high_moyes_count),       \
 				adjust_arg(count));			       \
 	ia64_load_scratch_fpregs(fr);					       \
 	return ret;							       \
@@ -211,7 +211,7 @@ prefix##_reset_system (int reset_type, efi_status_t status,		       \
 	efi_call_##prefix(						       \
 		(efi_reset_system_t *) __va(runtime->reset_system),	       \
 		reset_type, status, data_size, adata);			       \
-	/* should not return, but just in case... */			       \
+	/* should yest return, but just in case... */			       \
 	ia64_load_scratch_fpregs(fr);					       \
 }
 
@@ -251,7 +251,7 @@ efi_gettimeofday (struct timespec64 *ts)
 
 	ts->tv_sec = mktime64(tm.year, tm.month, tm.day,
 			    tm.hour, tm.minute, tm.second);
-	ts->tv_nsec = tm.nanosecond;
+	ts->tv_nsec = tm.nayessecond;
 }
 
 static int
@@ -387,12 +387,12 @@ efi_get_pal_addr (void)
 		 * implies that the PAL code is always aligned on its size,
 		 * i.e., the closest matching page size supported by the TLB.
 		 * Therefore PAL code is guaranteed never to cross a 64MB unless
-		 * it is bigger than 64MB (very unlikely!).  So for now the
-		 * following test is enough to determine whether or not we need
+		 * it is bigger than 64MB (very unlikely!).  So for yesw the
+		 * following test is eyesugh to determine whether or yest we need
 		 * a dedicated ITR for the PAL code.
 		 */
 		if ((vaddr & mask) == (KERNEL_START & mask)) {
-			printk(KERN_INFO "%s: no need to install ITR for PAL code\n",
+			printk(KERN_INFO "%s: yes need to install ITR for PAL code\n",
 			       __func__);
 			continue;
 		}
@@ -411,7 +411,7 @@ efi_get_pal_addr (void)
 #endif
 		return __va(md->phys_addr);
 	}
-	printk(KERN_WARNING "%s: no PAL-code memory-descriptor found\n",
+	printk(KERN_WARNING "%s: yes PAL-code memory-descriptor found\n",
 	       __func__);
 	return NULL;
 }
@@ -461,7 +461,7 @@ efi_map_pal_code (void)
 		return;
 
 	/*
-	 * Cannot write to CRx with PSR.ic=1
+	 * Canyest write to CRx with PSR.ic=1
 	 */
 	psr = ia64_clear_ic();
 	ia64_itr(0x1, IA64_TR_PALCODE,
@@ -477,7 +477,7 @@ efi_init (void)
 	void *efi_map_start, *efi_map_end;
 	efi_char16_t *c16;
 	u64 efi_desc_size;
-	char *cp, vendor[100] = "unknown";
+	char *cp, vendor[100] = "unkyeswn";
 	int i;
 
 	set_bit(EFI_BOOT, &efi.flags);
@@ -502,10 +502,10 @@ efi_init (void)
 		}
 	}
 	if (min_addr != 0UL)
-		printk(KERN_INFO "Ignoring memory below %lluMB\n",
+		printk(KERN_INFO "Igyesring memory below %lluMB\n",
 		       min_addr >> 20);
 	if (max_addr != ~0UL)
-		printk(KERN_INFO "Ignoring memory above %lluMB\n",
+		printk(KERN_INFO "Igyesring memory above %lluMB\n",
 		       max_addr >> 20);
 
 	efi.systab = __va(ia64_boot_param->efi_systab);
@@ -523,7 +523,7 @@ efi_init (void)
 		       efi.systab->hdr.revision >> 16,
 		       efi.systab->hdr.revision & 0xffff);
 
-	/* Show what we know for posterity */
+	/* Show what we kyesw for posterity */
 	c16 = __va(efi.systab->fw_vendor);
 	if (c16) {
 		for (i = 0;i < (int) sizeof(vendor) - 1 && *c16; ++i)
@@ -551,7 +551,7 @@ efi_init (void)
 	efi.get_variable = phys_get_variable;
 	efi.get_next_variable = phys_get_next_variable;
 	efi.set_variable = phys_set_variable;
-	efi.get_next_high_mono_count = phys_get_next_high_mono_count;
+	efi.get_next_high_moyes_count = phys_get_next_high_moyes_count;
 	efi.reset_system = phys_reset_system;
 
 	efi_map_start = __va(ia64_boot_param->efi_memmap);
@@ -678,7 +678,7 @@ efi_enter_virtual_mode (void)
 	efi.get_variable = virt_get_variable;
 	efi.get_next_variable = virt_get_next_variable;
 	efi.set_variable = virt_set_variable;
-	efi.get_next_high_mono_count = virt_get_next_high_mono_count;
+	efi.get_next_high_moyes_count = virt_get_next_high_moyes_count;
 	efi.reset_system = virt_reset_system;
 }
 
@@ -793,7 +793,7 @@ efi_mem_attribute (unsigned long phys_addr, unsigned long size)
 		return 0;
 
 	/*
-	 * EFI_MEMORY_RUNTIME is not a memory attribute; it just tells
+	 * EFI_MEMORY_RUNTIME is yest a memory attribute; it just tells
 	 * the kernel that firmware needs this region mapped.
 	 */
 	attr = md->attribute & ~EFI_MEMORY_RUNTIME;
@@ -872,7 +872,7 @@ valid_mmap_phys_addr_range (unsigned long pfn, unsigned long size)
 	attr = efi_mem_attribute(phys_addr, size);
 
 	/*
-	 * /dev/mem mmap uses normal user pages, so we don't need the entire
+	 * /dev/mem mmap uses yesrmal user pages, so we don't need the entire
 	 * granule, but the entire region we're mapping must support the same
 	 * attribute.
 	 */
@@ -907,7 +907,7 @@ phys_mem_access_prot(struct file *file, unsigned long pfn, unsigned long size,
 	if (attr & EFI_MEMORY_WB)
 		return pgprot_cacheable(vma_prot);
 	else if (attr & EFI_MEMORY_UC)
-		return pgprot_noncached(vma_prot);
+		return pgprot_yesncached(vma_prot);
 
 	/*
 	 * Some chipsets don't support UC access to memory.  If
@@ -916,7 +916,7 @@ phys_mem_access_prot(struct file *file, unsigned long pfn, unsigned long size,
 	if (efi_mem_attribute(phys_addr, size) & EFI_MEMORY_WB)
 		return pgprot_cacheable(vma_prot);
 
-	return pgprot_noncached(vma_prot);
+	return pgprot_yesncached(vma_prot);
 }
 
 int __init
@@ -966,8 +966,8 @@ efi_uart_console_only(void)
 
 /*
  * Look for the first granule aligned memory descriptor memory
- * that is big enough to hold EFI memory map. Make sure this
- * descriptor is at least granule sized so it does not get trimmed
+ * that is big eyesugh to hold EFI memory map. Make sure this
+ * descriptor is at least granule sized so it does yest get trimmed
  */
 struct kern_memdesc *
 find_memmap_space (void)
@@ -1190,7 +1190,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 	for (p = efi_map_start; p < efi_map_end; p += efi_desc_size) {
 		md = p;
 
-		if (md->num_pages == 0) /* should not happen */
+		if (md->num_pages == 0) /* should yest happen */
 			continue;
 
 		flags = IORESOURCE_MEM | IORESOURCE_BUSY;
@@ -1259,7 +1259,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 			kfree(res);
 		else {
 			/*
-			 * We don't know which region contains
+			 * We don't kyesw which region contains
 			 * kernel data so we try it repeatedly and
 			 * let the resource manager test it.
 			 */
@@ -1317,7 +1317,7 @@ kdump_find_rsvd_region (unsigned long size, struct rsvd_region *r, int n)
 	}
 
 	printk(KERN_WARNING
-	       "Cannot reserve 0x%lx byte of memory for crashdump\n", size);
+	       "Canyest reserve 0x%lx byte of memory for crashdump\n", size);
 	return ~0UL;
 }
 #endif
@@ -1346,7 +1346,7 @@ vmcore_find_descriptor_size (unsigned long address)
 	}
 
 	if (ret == 0)
-		printk(KERN_WARNING "Cannot locate EFI vmcore descriptor\n");
+		printk(KERN_WARNING "Canyest locate EFI vmcore descriptor\n");
 
 	return ret;
 }

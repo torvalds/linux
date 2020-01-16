@@ -262,10 +262,10 @@ static void dump_ipv4_packet(struct net *net, struct nf_log_buf *m,
 	/* ICMP:    11+max(25, 18+25+max(19,14,24+3+n+10,3+n+10)) = 91+n */
 	/* ESP:     10+max(25)+15 = 50 */
 	/* AH:	    9+max(25)+15 = 49 */
-	/* unknown: 10 */
+	/* unkyeswn: 10 */
 
 	/* (ICMP allows recursion one level deep) */
-	/* maxlen =  IP + ICMP +  IP + max(TCP,UDP,ICMP,unknown) */
+	/* maxlen =  IP + ICMP +  IP + max(TCP,UDP,ICMP,unkyeswn) */
 	/* maxlen = 230+   91  + 230 + 252 = 803 */
 }
 

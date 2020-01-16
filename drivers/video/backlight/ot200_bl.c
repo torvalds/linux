@@ -91,7 +91,7 @@ static int ot200_backlight_probe(struct platform_device *pdev)
 	/* request timer */
 	pwm_timer = cs5535_mfgpt_alloc_timer(7, MFGPT_DOMAIN_ANY);
 	if (!pwm_timer) {
-		dev_err(&pdev->dev, "MFGPT 7 not available\n");
+		dev_err(&pdev->dev, "MFGPT 7 yest available\n");
 		return -ENODEV;
 	}
 

@@ -48,7 +48,7 @@ int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
 	jack->card = card;
 	INIT_LIST_HEAD(&jack->pins);
 	INIT_LIST_HEAD(&jack->jack_zones);
-	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
+	BLOCKING_INIT_NOTIFIER_HEAD(&jack->yestifier);
 
 	ret = snd_jack_new(card->snd_card, id, type, &jack->jack, false, false);
 	if (ret)
@@ -93,7 +93,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	jack->status &= ~mask;
 	jack->status |= status & mask;
 
-	trace_snd_soc_jack_notify(jack, status);
+	trace_snd_soc_jack_yestify(jack, status);
 
 	list_for_each_entry(pin, &jack->pins, list) {
 		enable = pin->mask & jack->status;
@@ -111,7 +111,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	}
 
 	/* Report before the DAPM sync to help users updating micbias status */
-	blocking_notifier_call_chain(&jack->notifier, jack->status, jack);
+	blocking_yestifier_call_chain(&jack->yestifier, jack->status, jack);
 
 	if (sync)
 		snd_soc_dapm_sync(dapm);
@@ -212,38 +212,38 @@ int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 EXPORT_SYMBOL_GPL(snd_soc_jack_add_pins);
 
 /**
- * snd_soc_jack_notifier_register - Register a notifier for jack status
+ * snd_soc_jack_yestifier_register - Register a yestifier for jack status
  *
  * @jack:  ASoC jack
  * @nb:    Notifier block to register
  *
- * Register for notification of the current status of the jack.  Note
- * that it is not possible to report additional jack events in the
- * callback from the notifier, this is intended to support
+ * Register for yestification of the current status of the jack.  Note
+ * that it is yest possible to report additional jack events in the
+ * callback from the yestifier, this is intended to support
  * applications such as enabling electrical detection only when a
  * mechanical detection event has occurred.
  */
-void snd_soc_jack_notifier_register(struct snd_soc_jack *jack,
-				    struct notifier_block *nb)
+void snd_soc_jack_yestifier_register(struct snd_soc_jack *jack,
+				    struct yestifier_block *nb)
 {
-	blocking_notifier_chain_register(&jack->notifier, nb);
+	blocking_yestifier_chain_register(&jack->yestifier, nb);
 }
-EXPORT_SYMBOL_GPL(snd_soc_jack_notifier_register);
+EXPORT_SYMBOL_GPL(snd_soc_jack_yestifier_register);
 
 /**
- * snd_soc_jack_notifier_unregister - Unregister a notifier for jack status
+ * snd_soc_jack_yestifier_unregister - Unregister a yestifier for jack status
  *
  * @jack:  ASoC jack
  * @nb:    Notifier block to unregister
  *
- * Stop notifying for status changes.
+ * Stop yestifying for status changes.
  */
-void snd_soc_jack_notifier_unregister(struct snd_soc_jack *jack,
-				      struct notifier_block *nb)
+void snd_soc_jack_yestifier_unregister(struct snd_soc_jack *jack,
+				      struct yestifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&jack->notifier, nb);
+	blocking_yestifier_chain_unregister(&jack->yestifier, nb);
 }
-EXPORT_SYMBOL_GPL(snd_soc_jack_notifier_unregister);
+EXPORT_SYMBOL_GPL(snd_soc_jack_yestifier_unregister);
 
 #ifdef CONFIG_GPIOLIB
 /* gpio detect */
@@ -294,18 +294,18 @@ static void gpio_work(struct work_struct *work)
 	snd_soc_jack_gpio_detect(gpio);
 }
 
-static int snd_soc_jack_pm_notifier(struct notifier_block *nb,
+static int snd_soc_jack_pm_yestifier(struct yestifier_block *nb,
 				    unsigned long action, void *data)
 {
 	struct snd_soc_jack_gpio *gpio =
-			container_of(nb, struct snd_soc_jack_gpio, pm_notifier);
+			container_of(nb, struct snd_soc_jack_gpio, pm_yestifier);
 
 	switch (action) {
 	case PM_POST_SUSPEND:
 	case PM_POST_HIBERNATION:
 	case PM_POST_RESTORE:
 		/*
-		 * Use workqueue so we do not have to care about running
+		 * Use workqueue so we do yest have to care about running
 		 * concurrently with work triggered by the interrupt handler.
 		 */
 		queue_delayed_work(system_power_efficient_wq, &gpio->work, 0);
@@ -322,7 +322,7 @@ static void jack_free_gpios(struct snd_soc_jack *jack, int count,
 
 	for (i = 0; i < count; i++) {
 		gpiod_unexport(gpios[i].desc);
-		unregister_pm_notifier(&gpios[i].pm_notifier);
+		unregister_pm_yestifier(&gpios[i].pm_yestifier);
 		free_irq(gpiod_to_irq(gpios[i].desc), &gpios[i]);
 		cancel_delayed_work_sync(&gpios[i].work);
 		gpiod_put(gpios[i].desc);
@@ -379,7 +379,7 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			if (IS_ERR(gpios[i].desc)) {
 				ret = PTR_ERR(gpios[i].desc);
 				dev_err(gpios[i].gpiod_dev,
-					"ASoC: Cannot get gpio at index %d: %d",
+					"ASoC: Canyest get gpio at index %d: %d",
 					i, ret);
 				goto undo;
 			}
@@ -422,13 +422,13 @@ got_gpio:
 		}
 
 		/*
-		 * Register PM notifier so we do not miss state transitions
+		 * Register PM yestifier so we do yest miss state transitions
 		 * happening while system is asleep.
 		 */
-		gpios[i].pm_notifier.notifier_call = snd_soc_jack_pm_notifier;
-		register_pm_notifier(&gpios[i].pm_notifier);
+		gpios[i].pm_yestifier.yestifier_call = snd_soc_jack_pm_yestifier;
+		register_pm_yestifier(&gpios[i].pm_yestifier);
 
-		/* Expose GPIO value over sysfs for diagnostic purposes */
+		/* Expose GPIO value over sysfs for diagyesstic purposes */
 		gpiod_export(gpios[i].desc, false);
 
 		/* Update initial jack status */

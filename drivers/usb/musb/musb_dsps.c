@@ -10,7 +10,7 @@
  *
  * musb_dsps.c will be a common file for all the TI DSPS platforms
  * such as dm64x, dm36x, dm35x, da8x, am35x and ti81x.
- * For now only ti81x is using this and in future davinci.c, am35x.c
+ * For yesw only ti81x is using this and in future davinci.c, am35x.c
  * da8xx.c would be merged to this file after testing.
  */
 
@@ -145,7 +145,7 @@ static void dsps_mod_timer(struct dsps_glue *glue, int wait_ms)
 }
 
 /*
- * If no vbus irq from the PMIC is configured, we need to poll VBUS status.
+ * If yes vbus irq from the PMIC is configured, we need to poll VBUS status.
  */
 static void dsps_mod_timer_optional(struct dsps_glue *glue)
 {
@@ -285,8 +285,8 @@ static void otg_timer(struct timer_list *t)
 
 	err = pm_runtime_get(dev);
 	if ((err != -EINPROGRESS) && err < 0) {
-		dev_err(dev, "Poll could not pm_runtime_get: %i\n", err);
-		pm_runtime_put_noidle(dev);
+		dev_err(dev, "Poll could yest pm_runtime_get: %i\n", err);
+		pm_runtime_put_yesidle(dev);
 
 		return;
 	}
@@ -355,7 +355,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 			/*
 			 * The Mentor core doesn't debounce VBUS as needed
 			 * to cope with device connect current spikes. This
-			 * means it's not uncommon for bus-powered devices
+			 * means it's yest uncommon for bus-powered devices
 			 * to get VBUS errors during enumeration.
 			 *
 			 * This is a workaround, but newer RTL from Mentor
@@ -446,7 +446,7 @@ static int dsps_musb_init(struct musb *musb)
 
 	musb->phy = devm_phy_get(dev->parent, "usb2-phy");
 
-	/* Returns zero if e.g. not clocked */
+	/* Returns zero if e.g. yest clocked */
 	rev = musb_readl(reg_base, wrp->revision);
 	if (!rev)
 		return -ENODEV;
@@ -523,7 +523,7 @@ static int dsps_musb_set_mode(struct musb *musb, u8 mode)
 
 		/*
 		 * if we're setting mode to host-only or device-only, we're
-		 * going to ignore whatever the PHY sends us and just force
+		 * going to igyesre whatever the PHY sends us and just force
 		 * ID pin status by SW
 		 */
 		reg |= (1 << wrp->iddig_mux);
@@ -536,7 +536,7 @@ static int dsps_musb_set_mode(struct musb *musb, u8 mode)
 
 		/*
 		 * if we're setting mode to host-only or device-only, we're
-		 * going to ignore whatever the PHY sends us and just force
+		 * going to igyesre whatever the PHY sends us and just force
 		 * ID pin status by SW
 		 */
 		reg |= (1 << wrp->iddig_mux);
@@ -564,7 +564,7 @@ static bool dsps_sw_babble_control(struct musb *musb)
 		babble_ctl);
 	/*
 	 * check line monitor flag to check whether babble is
-	 * due to noise
+	 * due to yesise
 	 */
 	dev_dbg(musb->controller, "STUCK_J is %s\n",
 		babble_ctl & MUSB_BABBLE_STUCK_J ? "set" : "reset");
@@ -573,8 +573,8 @@ static bool dsps_sw_babble_control(struct musb *musb)
 		int timeout = 10;
 
 		/*
-		 * babble is due to noise, then set transmit idle (d7 bit)
-		 * to resume normal operation
+		 * babble is due to yesise, then set transmit idle (d7 bit)
+		 * to resume yesrmal operation
 		 */
 		babble_ctl = musb_readb(musb->mregs, MUSB_BABBLE_CTL);
 		babble_ctl |= MUSB_BABBLE_FORCE_TXIDLE;
@@ -594,7 +594,7 @@ static bool dsps_sw_babble_control(struct musb *musb)
 			 * restart the controller to start the
 			 * session again
 			 */
-			dev_dbg(musb->controller, "J not cleared, misc (%x)\n",
+			dev_dbg(musb->controller, "J yest cleared, misc (%x)\n",
 				babble_ctl);
 			session_restart = true;
 		}
@@ -708,7 +708,7 @@ static struct musb_platform_ops dsps_ops = {
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
 
-static int get_int_prop(struct device_node *dn, const char *s)
+static int get_int_prop(struct device_yesde *dn, const char *s)
 {
 	int ret;
 	u32 val;
@@ -728,7 +728,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	struct device *dev = &parent->dev;
 	struct musb_hdrc_config	*config;
 	struct platform_device *musb;
-	struct device_node *dn = parent->dev.of_node;
+	struct device_yesde *dn = parent->dev.of_yesde;
 	int ret, val;
 
 	memset(resources, 0, sizeof(resources));
@@ -757,7 +757,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	musb->dev.parent		= dev;
 	musb->dev.dma_mask		= &musb_dmamask;
 	musb->dev.coherent_dma_mask	= musb_dmamask;
-	device_set_of_node_from_dev(&musb->dev, &parent->dev);
+	device_set_of_yesde_from_dev(&musb->dev, &parent->dev);
 
 	glue->musb = musb;
 
@@ -793,7 +793,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	case USB_SPEED_FULL:
 		break;
 	case USB_SPEED_SUPER:
-		dev_warn(dev, "ignore incorrect maximum_speed "
+		dev_warn(dev, "igyesre incorrect maximum_speed "
 				"(super-speed) setting in dts");
 		/* fall through */
 	default:
@@ -869,14 +869,14 @@ static int dsps_probe(struct platform_device *pdev)
 	if (!strcmp(pdev->name, "musb-hdrc"))
 		return -ENODEV;
 
-	match = of_match_node(musb_dsps_of_match, pdev->dev.of_node);
+	match = of_match_yesde(musb_dsps_of_match, pdev->dev.of_yesde);
 	if (!match) {
 		dev_err(&pdev->dev, "fail to get matching of_match struct\n");
 		return -EINVAL;
 	}
 	wrp = match->data;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "ti,musb-dm816"))
+	if (of_device_is_compatible(pdev->dev.of_yesde, "ti,musb-dm816"))
 		dsps_ops.read_fifo = dsps_read_fifo32;
 
 	/* allocate glue */
@@ -886,7 +886,7 @@ static int dsps_probe(struct platform_device *pdev)
 
 	glue->dev = &pdev->dev;
 	glue->wrp = wrp;
-	glue->usbss_base = of_iomap(pdev->dev.parent->of_node, 0);
+	glue->usbss_base = of_iomap(pdev->dev.parent->of_yesde, 0);
 	if (!glue->usbss_base)
 		return -ENXIO;
 
@@ -978,7 +978,7 @@ static int dsps_suspend(struct device *dev)
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		return ret;
 	}
 

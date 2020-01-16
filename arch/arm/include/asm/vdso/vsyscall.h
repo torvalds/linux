@@ -17,7 +17,7 @@ bool tk_is_cntvct(const struct timekeeper *tk)
 	if (!IS_ENABLED(CONFIG_ARM_ARCH_TIMER))
 		return false;
 
-	if (!tk->tkr_mono.clock->archdata.vdso_direct)
+	if (!tk->tkr_moyes.clock->archdata.vdso_direct)
 		return false;
 
 	return true;

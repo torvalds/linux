@@ -9,7 +9,7 @@
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
-#include <asm/nospec-insn.h>
+#include <asm/yesspec-insn.h>
 #include <asm/ptrace.h>
 #include <asm/sigp.h>
 

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -118,9 +118,9 @@ gk104_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
 	*pvolt = &volt->base;
 	volt->bios = bios;
 
-	/* now that we have a subdev, we can show an error if we found through
+	/* yesw that we have a subdev, we can show an error if we found through
 	 * the voltage table that we were supposed to use the PWN mode but we
-	 * did not find the right GPIO for it.
+	 * did yest find the right GPIO for it.
 	 */
 	if (bios.type == NVBIOS_VOLT_PWM && volt_func != &gk104_volt_pwm) {
 		nvkm_error(&volt->base.subdev,

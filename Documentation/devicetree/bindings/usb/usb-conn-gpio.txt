@@ -14,7 +14,7 @@ Optional properties:
 - vbus-supply : can be present if needed when supports dual role mode.
 	see connector/usb-connector.txt
 
-- Sub-nodes:
+- Sub-yesdes:
 	- port : can be present.
 		see graph.txt
 

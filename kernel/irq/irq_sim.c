@@ -70,7 +70,7 @@ static void irq_sim_handle_irq(struct irq_work *work)
  * @num_irqs:   Number of interrupts to allocate
  *
  * On success: return the base of the allocated interrupt range.
- * On failure: a negative errno.
+ * On failure: a negative erryes.
  */
 int irq_sim_init(struct irq_sim *sim, unsigned int num_irqs)
 {
@@ -140,7 +140,7 @@ static void devm_irq_sim_release(struct device *dev, void *res)
  * @num_irqs:   Number of interrupts to allocate
  *
  * On success: return the base of the allocated interrupt range.
- * On failure: a negative errno.
+ * On failure: a negative erryes.
  */
 int devm_irq_sim_init(struct device *dev, struct irq_sim *sim,
 		      unsigned int num_irqs)

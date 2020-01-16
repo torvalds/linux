@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2015 Texas Instruments, Inc.
  *
- * Benoit Parrot <bparrot@ti.com>
+ * Beyesit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
  */
 
@@ -19,7 +19,7 @@
 #include <media/i2c/ov2659.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-subdev.h>
 
@@ -1188,7 +1188,7 @@ static int ov2659_s_stream(struct v4l2_subdev *sd, int on)
 
 	ret = pm_runtime_get_sync(&client->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&client->dev);
+		pm_runtime_put_yesidle(&client->dev);
 		goto unlock;
 	}
 
@@ -1383,18 +1383,18 @@ static struct ov2659_platform_data *
 ov2659_get_pdata(struct i2c_client *client)
 {
 	struct ov2659_platform_data *pdata;
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-	struct device_node *endpoint;
+	struct v4l2_fwyesde_endpoint bus_cfg = { .bus_type = 0 };
+	struct device_yesde *endpoint;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_yesde)
 		return client->dev.platform_data;
 
-	endpoint = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(client->dev.of_yesde, NULL);
 	if (!endpoint)
 		return NULL;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(endpoint),
+	ret = v4l2_fwyesde_endpoint_alloc_parse(of_fwyesde_handle(endpoint),
 					       &bus_cfg);
 	if (ret) {
 		pdata = NULL;
@@ -1407,7 +1407,7 @@ ov2659_get_pdata(struct i2c_client *client)
 
 	if (!bus_cfg.nr_of_link_frequencies) {
 		dev_err(&client->dev,
-			"link-frequencies property not found or too many\n");
+			"link-frequencies property yest found or too many\n");
 		pdata = NULL;
 		goto done;
 	}
@@ -1415,8 +1415,8 @@ ov2659_get_pdata(struct i2c_client *client)
 	pdata->link_frequency = bus_cfg.link_frequencies[0];
 
 done:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	of_node_put(endpoint);
+	v4l2_fwyesde_endpoint_free(&bus_cfg);
+	of_yesde_put(endpoint);
 	return pdata;
 }
 
@@ -1429,7 +1429,7 @@ static int ov2659_probe(struct i2c_client *client)
 	int ret;
 
 	if (!pdata) {
-		dev_err(&client->dev, "platform data not specified\n");
+		dev_err(&client->dev, "platform data yest specified\n");
 		return -EINVAL;
 	}
 
@@ -1449,13 +1449,13 @@ static int ov2659_probe(struct i2c_client *client)
 	    ov2659->xvclk_frequency > 27000000)
 		return -EINVAL;
 
-	/* Optional gpio don't fail if not present */
+	/* Optional gpio don't fail if yest present */
 	ov2659->pwdn_gpio = devm_gpiod_get_optional(&client->dev, "powerdown",
 						    GPIOD_OUT_LOW);
 	if (IS_ERR(ov2659->pwdn_gpio))
 		return PTR_ERR(ov2659->pwdn_gpio);
 
-	/* Optional gpio don't fail if not present */
+	/* Optional gpio don't fail if yest present */
 	ov2659->resetb_gpio = devm_gpiod_get_optional(&client->dev, "reset",
 						      GPIOD_OUT_HIGH);
 	if (IS_ERR(ov2659->resetb_gpio))
@@ -1584,6 +1584,6 @@ static struct i2c_driver ov2659_i2c_driver = {
 
 module_i2c_driver(ov2659_i2c_driver);
 
-MODULE_AUTHOR("Benoit Parrot <bparrot@ti.com>");
+MODULE_AUTHOR("Beyesit Parrot <bparrot@ti.com>");
 MODULE_DESCRIPTION("OV2659 CMOS Image Sensor driver");
 MODULE_LICENSE("GPL v2");

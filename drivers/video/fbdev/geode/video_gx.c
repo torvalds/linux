@@ -277,7 +277,7 @@ void gx_configure_display(struct fb_info *info)
 	}
 
 	/* Enable the display logic */
-	/* Set up the DACS to blank normally */
+	/* Set up the DACS to blank yesrmally */
 
 	dcfg |= VP_DCFG_CRT_EN | VP_DCFG_DAC_BL_EN;
 

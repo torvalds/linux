@@ -14,7 +14,7 @@
 #include <uapi/linux/hdlc.h>
 
 /* This structure is a private property of HDLC protocols.
-   Hardware drivers have no interest here */
+   Hardware drivers have yes interest here */
 
 struct hdlc_proto {
 	int (*open)(struct net_device *dev);

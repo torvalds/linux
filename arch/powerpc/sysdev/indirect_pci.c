@@ -22,10 +22,10 @@ int __indirect_read_config(struct pci_controller *hose,
 {
 	volatile void __iomem *cfg_data;
 	u8 cfg_type = 0;
-	u32 bus_no, reg;
+	u32 bus_yes, reg;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK) {
-		if (bus_number != hose->first_busno)
+		if (bus_number != hose->first_busyes)
 			return PCIBIOS_DEVICE_NOT_FOUND;
 		if (devfn != 0)
 			return PCIBIOS_DEVICE_NOT_FOUND;
@@ -36,11 +36,11 @@ int __indirect_read_config(struct pci_controller *hose,
 			return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_SET_CFG_TYPE)
-		if (bus_number != hose->first_busno)
+		if (bus_number != hose->first_busyes)
 			cfg_type = 1;
 
-	bus_no = (bus_number == hose->first_busno) ?
-			hose->self_busno : bus_number;
+	bus_yes = (bus_number == hose->first_busyes) ?
+			hose->self_busyes : bus_number;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_EXT_REG)
 		reg = ((offset & 0xf00) << 16) | (offset & 0xfc);
@@ -48,10 +48,10 @@ int __indirect_read_config(struct pci_controller *hose,
 		reg = offset & 0xfc;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_BIG_ENDIAN)
-		out_be32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+		out_be32(hose->cfg_addr, (0x80000000 | (bus_yes << 16) |
 			 (devfn << 8) | reg | cfg_type));
 	else
-		out_le32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+		out_le32(hose->cfg_addr, (0x80000000 | (bus_yes << 16) |
 			 (devfn << 8) | reg | cfg_type));
 
 	/*
@@ -88,10 +88,10 @@ int indirect_write_config(struct pci_bus *bus, unsigned int devfn,
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	volatile void __iomem *cfg_data;
 	u8 cfg_type = 0;
-	u32 bus_no, reg;
+	u32 bus_yes, reg;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK) {
-		if (bus->number != hose->first_busno)
+		if (bus->number != hose->first_busyes)
 			return PCIBIOS_DEVICE_NOT_FOUND;
 		if (devfn != 0)
 			return PCIBIOS_DEVICE_NOT_FOUND;
@@ -102,11 +102,11 @@ int indirect_write_config(struct pci_bus *bus, unsigned int devfn,
 			return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_SET_CFG_TYPE)
-		if (bus->number != hose->first_busno)
+		if (bus->number != hose->first_busyes)
 			cfg_type = 1;
 
-	bus_no = (bus->number == hose->first_busno) ?
-			hose->self_busno : bus->number;
+	bus_yes = (bus->number == hose->first_busyes) ?
+			hose->self_busyes : bus->number;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_EXT_REG)
 		reg = ((offset & 0xf00) << 16) | (offset & 0xfc);
@@ -114,16 +114,16 @@ int indirect_write_config(struct pci_bus *bus, unsigned int devfn,
 		reg = offset & 0xfc;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_BIG_ENDIAN)
-		out_be32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+		out_be32(hose->cfg_addr, (0x80000000 | (bus_yes << 16) |
 			 (devfn << 8) | reg | cfg_type));
 	else
-		out_le32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+		out_le32(hose->cfg_addr, (0x80000000 | (bus_yes << 16) |
 			 (devfn << 8) | reg | cfg_type));
 
 	/* suppress setting of PCI_PRIMARY_BUS */
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS)
 		if ((offset == PCI_PRIMARY_BUS) &&
-			(bus->number == hose->first_busno))
+			(bus->number == hose->first_busyes))
 		val &= 0xffffff00;
 
 	/* Workaround for PCI_28 Errata in 440EPx/GRx */

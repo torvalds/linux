@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -43,7 +43,7 @@ enum rdma_lookup_mode {
 	UVERBS_LOOKUP_READ,
 	UVERBS_LOOKUP_WRITE,
 	/*
-	 * Destroy is like LOOKUP_WRITE, except that the uobject is not
+	 * Destroy is like LOOKUP_WRITE, except that the uobject is yest
 	 * locked.  uobj_destroy is used to convert a LOOKUP_DESTROY lock into
 	 * a LOOKUP_WRITE lock.
 	 */
@@ -86,14 +86,14 @@ struct uverbs_obj_type_class {
 					  struct ib_uverbs_file *ufile);
 	/* This consumes the kref on uobj */
 	int (*alloc_commit)(struct ib_uobject *uobj);
-	/* This does not consume the kref on uobj */
+	/* This does yest consume the kref on uobj */
 	void (*alloc_abort)(struct ib_uobject *uobj);
 
 	struct ib_uobject *(*lookup_get)(const struct uverbs_api_object *obj,
 					 struct ib_uverbs_file *ufile, s64 id,
 					 enum rdma_lookup_mode mode);
 	void (*lookup_put)(struct ib_uobject *uobj, enum rdma_lookup_mode mode);
-	/* This does not consume the kref on uobj */
+	/* This does yest consume the kref on uobj */
 	int __must_check (*destroy_hw)(struct ib_uobject *uobj,
 				       enum rdma_remove_reason why,
 				       struct uverbs_attr_bundle *attrs);
@@ -108,8 +108,8 @@ struct uverbs_obj_type {
 
 /*
  * Objects type classes which support a detach state (object is still alive but
- * it's not attached to any context need to make sure:
- * (a) no call through to a driver after a detach is called
+ * it's yest attached to any context need to make sure:
+ * (a) yes call through to a driver after a detach is called
  * (b) detach isn't called concurrently with context_cleanup
  */
 

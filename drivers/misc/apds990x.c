@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
  *
- * Contact: Samu Onkalo <samu.p.onkalo@nokia.com>
+ * Contact: Samu Onkalo <samu.p.onkalo@yeskia.com>
  */
 
 #include <linux/kernel.h>
@@ -320,7 +320,7 @@ static int apds990x_refresh_pthres(struct apds990x_chip *chip, int data)
 {
 	int ret, lo, hi;
 
-	/* If the chip is not in use, don't try to access it */
+	/* If the chip is yest in use, don't try to access it */
 	if (pm_runtime_suspended(&chip->client->dev))
 		return 0;
 
@@ -344,7 +344,7 @@ static int apds990x_refresh_pthres(struct apds990x_chip *chip, int data)
 static int apds990x_refresh_athres(struct apds990x_chip *chip)
 {
 	int ret;
-	/* If the chip is not in use, don't try to access it */
+	/* If the chip is yest in use, don't try to access it */
 	if (pm_runtime_suspended(&chip->client->dev))
 		return 0;
 
@@ -498,7 +498,7 @@ static irqreturn_t apds990x_irq(int irq, void *data)
 				chip->lux = chip->lux_raw;
 				chip->lux_wait_fresh_res = false;
 				wake_up(&chip->wait);
-				sysfs_notify(&chip->client->dev.kobj,
+				sysfs_yestify(&chip->client->dev.kobj,
 					NULL, "lux0_input");
 			}
 		}
@@ -510,7 +510,7 @@ static irqreturn_t apds990x_irq(int irq, void *data)
 			/*
 			 * If ALS channel is saturated at min gain,
 			 * proximity gives false posivite values.
-			 * Just ignore them.
+			 * Just igyesre them.
 			 */
 			if (chip->again_meas == 0 &&
 				clr_ch == chip->a_max_result)
@@ -525,7 +525,7 @@ static irqreturn_t apds990x_irq(int irq, void *data)
 				chip->prox_data = 0;
 			else if (!chip->prox_continuous_mode)
 				chip->prox_data = APDS_PROX_RANGE;
-			sysfs_notify(&chip->client->dev.kobj,
+			sysfs_yestify(&chip->client->dev.kobj,
 				NULL, "prox0_raw");
 		}
 	}
@@ -730,7 +730,7 @@ static int apds990x_set_arate(struct apds990x_chip *chip, int rate)
 	chip->lux_persistence = apersis[i];
 	chip->arate = arates_hz[i];
 
-	/* If the chip is not in use, don't try to access it */
+	/* If the chip is yest in use, don't try to access it */
 	if (pm_runtime_suspended(&chip->client->dev))
 		return 0;
 
@@ -1118,13 +1118,13 @@ static int apds990x_probe(struct i2c_client *client,
 	err = regulator_bulk_get(&client->dev,
 				 ARRAY_SIZE(chip->regs), chip->regs);
 	if (err < 0) {
-		dev_err(&client->dev, "Cannot get regulators\n");
+		dev_err(&client->dev, "Canyest get regulators\n");
 		goto fail1;
 	}
 
 	err = regulator_bulk_enable(ARRAY_SIZE(chip->regs), chip->regs);
 	if (err < 0) {
-		dev_err(&client->dev, "Cannot enable regulators\n");
+		dev_err(&client->dev, "Canyest enable regulators\n");
 		goto fail2;
 	}
 
@@ -1132,7 +1132,7 @@ static int apds990x_probe(struct i2c_client *client,
 
 	err = apds990x_detect(chip);
 	if (err < 0) {
-		dev_err(&client->dev, "APDS990X not found\n");
+		dev_err(&client->dev, "APDS990X yest found\n");
 		goto fail3;
 	}
 
@@ -1165,7 +1165,7 @@ static int apds990x_probe(struct i2c_client *client,
 				IRQF_ONESHOT,
 				"apds990x", chip);
 	if (err) {
-		dev_err(&client->dev, "could not get IRQ %d\n",
+		dev_err(&client->dev, "could yest get IRQ %d\n",
 			client->irq);
 		goto fail5;
 	}
@@ -1225,7 +1225,7 @@ static int apds990x_resume(struct device *dev)
 
 	/*
 	 * If we were enabled at suspend time, it is expected
-	 * everything works nice and smoothly. Chip_on is enough
+	 * everything works nice and smoothly. Chip_on is eyesugh
 	 */
 	apds990x_chip_on(chip);
 

@@ -10,7 +10,7 @@
  *  Copyright (c) 2004 Ron Lee (ron@debian.org)
  *	rewritten for kernel 2.6
  *
- *  cPad display character device part is not included. It can be found at
+ *  cPad display character device part is yest included. It can be found at
  *  http://jan-steinhoff.de/linux/synaptics-usb.html
  *
  * Bases on:	usb_skeleton.c v2.2 by Greg Kroah-Hartman
@@ -23,8 +23,8 @@
 /*
  * There are three different types of Synaptics USB devices: Touchpads,
  * touchsticks (or trackpoints), and touchscreens. Touchpads are well supported
- * by this driver, touchstick support has not been tested much yet, and
- * touchscreens have not been tested at all.
+ * by this driver, touchstick support has yest been tested much yet, and
+ * touchscreens have yest been tested at all.
  *
  * Up to three alternate settings are possible:
  *	setting 0: one int endpoint for relative movement (used by usbhid.ko)
@@ -302,7 +302,7 @@ static int synusb_probe(struct usb_interface *intf,
 	error = usb_set_interface(udev, intf_num, altsetting);
 	if (error) {
 		dev_err(&udev->dev,
-			"Can not set alternate setting to %i, error: %i",
+			"Can yest set alternate setting to %i, error: %i",
 			altsetting, error);
 		return error;
 	}

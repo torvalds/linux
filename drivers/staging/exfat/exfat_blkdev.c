@@ -18,7 +18,7 @@ void exfat_bdev_open(struct super_block *sb)
 	p_bd->sector_size      = bdev_logical_block_size(sb->s_bdev);
 	p_bd->sector_size_bits = ilog2(p_bd->sector_size);
 	p_bd->sector_size_mask = p_bd->sector_size - 1;
-	p_bd->num_sectors      = i_size_read(sb->s_bdev->bd_inode) >>
+	p_bd->num_sectors      = i_size_read(sb->s_bdev->bd_iyesde) >>
 				 p_bd->sector_size_bits;
 	p_bd->opened = true;
 }
@@ -30,7 +30,7 @@ void exfat_bdev_close(struct super_block *sb)
 	p_bd->opened = false;
 }
 
-int exfat_bdev_read(struct super_block *sb, sector_t secno, struct buffer_head **bh,
+int exfat_bdev_read(struct super_block *sb, sector_t secyes, struct buffer_head **bh,
 	      u32 num_secs, bool read)
 {
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
@@ -50,10 +50,10 @@ int exfat_bdev_read(struct super_block *sb, sector_t secno, struct buffer_head *
 		__brelse(*bh);
 
 	if (read)
-		*bh = __bread(sb->s_bdev, secno,
+		*bh = __bread(sb->s_bdev, secyes,
 			      num_secs << p_bd->sector_size_bits);
 	else
-		*bh = __getblk(sb->s_bdev, secno,
+		*bh = __getblk(sb->s_bdev, secyes,
 			       num_secs << p_bd->sector_size_bits);
 
 	if (*bh)
@@ -65,7 +65,7 @@ int exfat_bdev_read(struct super_block *sb, sector_t secno, struct buffer_head *
 	return -EIO;
 }
 
-int exfat_bdev_write(struct super_block *sb, sector_t secno, struct buffer_head *bh,
+int exfat_bdev_write(struct super_block *sb, sector_t secyes, struct buffer_head *bh,
 	       u32 num_secs, bool sync)
 {
 	s32 count;
@@ -83,7 +83,7 @@ int exfat_bdev_write(struct super_block *sb, sector_t secno, struct buffer_head 
 	if (!p_bd->opened)
 		return -ENODEV;
 
-	if (secno == bh->b_blocknr) {
+	if (secyes == bh->b_blocknr) {
 		lock_buffer(bh);
 		set_buffer_uptodate(bh);
 		mark_buffer_dirty(bh);
@@ -93,9 +93,9 @@ int exfat_bdev_write(struct super_block *sb, sector_t secno, struct buffer_head 
 	} else {
 		count = num_secs << p_bd->sector_size_bits;
 
-		bh2 = __getblk(sb->s_bdev, secno, count);
+		bh2 = __getblk(sb->s_bdev, secyes, count);
 		if (!bh2)
-			goto no_bh;
+			goto yes_bh;
 
 		lock_buffer(bh2);
 		memcpy(bh2->b_data, bh->b_data, count);
@@ -104,14 +104,14 @@ int exfat_bdev_write(struct super_block *sb, sector_t secno, struct buffer_head 
 		unlock_buffer(bh2);
 		if (sync && (sync_dirty_buffer(bh2) != 0)) {
 			__brelse(bh2);
-			goto no_bh;
+			goto yes_bh;
 		}
 		__brelse(bh2);
 	}
 
 	return 0;
 
-no_bh:
+yes_bh:
 	WARN(!p_fs->dev_ejected,
 	     "[EXFAT] No bh, device seems wrong or to be ejected.\n");
 

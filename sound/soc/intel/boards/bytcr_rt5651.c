@@ -182,7 +182,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		codec_dai = snd_soc_card_get_codec_dai(card, BYT_CODEC_DAI2);
 	if (!codec_dai) {
 		dev_err(card->dev,
-			"Codec dai not found; Unable to set platform clock\n");
+			"Codec dai yest found; Unable to set platform clock\n");
 		return -EIO;
 	}
 
@@ -191,7 +191,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 			ret = clk_prepare_enable(priv->mclk);
 			if (ret < 0) {
 				dev_err(card->dev,
-					"could not configure MCLK state");
+					"could yest configure MCLK state");
 				return ret;
 			}
 		}
@@ -446,20 +446,20 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 					BYT_RT5651_IN1_IN2_MAP),
 	},
 	{
-		/* Minnowboard Max B3 */
+		/* Minyeswboard Max B3 */
 		.callback = byt_rt5651_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Circuitco"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Max B3 PLATFORM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Minyeswboard Max B3 PLATFORM"),
 		},
 		.driver_data = (void *)(BYT_RT5651_IN1_MAP),
 	},
 	{
-		/* Minnowboard Turbot */
+		/* Minyeswboard Turbot */
 		.callback = byt_rt5651_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ADI"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Turbot"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Minyeswboard Turbot"),
 		},
 		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
 					BYT_RT5651_IN1_MAP),
@@ -532,7 +532,7 @@ static int byt_rt5651_add_codec_device_props(struct device *i2c_dev)
 		props[cnt++] = PROPERTY_ENTRY_BOOL("realtek,dmic-en");
 
 	if (byt_rt5651_quirk & BYT_RT5651_JD_NOT_INV)
-		props[cnt++] = PROPERTY_ENTRY_BOOL("realtek,jack-detect-not-inverted");
+		props[cnt++] = PROPERTY_ENTRY_BOOL("realtek,jack-detect-yest-inverted");
 
 	return device_add_properties(i2c_dev, props);
 }
@@ -601,18 +601,18 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 		dev_err(card->dev, "unable to add card controls\n");
 		return ret;
 	}
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Headphone");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Speaker");
+	snd_soc_dapm_igyesre_suspend(&card->dapm, "Headphone");
+	snd_soc_dapm_igyesre_suspend(&card->dapm, "Speaker");
 
 	if (byt_rt5651_quirk & BYT_RT5651_MCLK_EN) {
 		/*
 		 * The firmware might enable the clock at
-		 * boot (this information may or may not
+		 * boot (this information may or may yest
 		 * be reflected in the enable clock register).
 		 * To change the rate we must disable the clock
 		 * first to cover these cases. Due to common
-		 * clock framework restrictions that do not allow
-		 * to disable a clock that has not been enabled,
+		 * clock framework restrictions that do yest allow
+		 * to disable a clock that has yest been enabled,
 		 * we need to enable the clock first.
 		 */
 		ret = clk_prepare_enable(priv->mclk);
@@ -691,7 +691,7 @@ static int byt_rt5651_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	/*
 	 * Default mode for SSP configuration is TDM 4 slot, override config
 	 * with explicit setting to I2S 2ch. The word length is set with
-	 * dai_set_tdm_slot() since there is no other API exposed
+	 * dai_set_tdm_slot() since there is yes other API exposed
 	 */
 	ret = snd_soc_dai_set_fmt(rtd->cpu_dai,
 				  SND_SOC_DAIFMT_I2S     |
@@ -758,7 +758,7 @@ static struct snd_soc_dai_link byt_rt5651_dais[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -768,7 +768,7 @@ static struct snd_soc_dai_link byt_rt5651_dais[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &byt_rt5651_aif1_ops,
@@ -779,12 +779,12 @@ static struct snd_soc_dai_link byt_rt5651_dais[] = {
 	{
 		.name = "SSP2-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 						| SND_SOC_DAIFMT_CBS_CFS,
 		.be_hw_params_fixup = byt_rt5651_codec_fixup,
-		.ignore_suspend = 1,
-		.nonatomic = true,
+		.igyesre_suspend = 1,
+		.yesnatomic = true,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.init = byt_rt5651_init,
@@ -865,7 +865,7 @@ static const struct acpi_gpio_mapping cht_rt5651_gpios[] = {
 
 struct acpi_chan_package {   /* ACPICA seems to require 64 bit integers */
 	u64 aif_value;       /* 1: AIF1, 2: AIF2 */
-	u64 mclock_value;    /* usually 25MHz (0x17d7940), ignored */
+	u64 mclock_value;    /* usually 25MHz (0x17d7940), igyesred */
 };
 
 static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
@@ -909,7 +909,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 		put_device(&adev->dev);
 		byt_rt5651_dais[dai_index].codecs->name = byt_rt5651_codec_name;
 	} else {
-		dev_err(&pdev->dev, "Error cannot find '%s' dev\n", mach->id);
+		dev_err(&pdev->dev, "Error canyest find '%s' dev\n", mach->id);
 		return -ENODEV;
 	}
 
@@ -932,8 +932,8 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 		 * Baytrail CR platforms may have CHAN package in BIOS, try
 		 * to find relevant routing quirk based as done on Windows
 		 * platforms. We have to read the information directly from the
-		 * BIOS, at this stage the card is not created and the links
-		 * with the codec driver/pdata are non-existent
+		 * BIOS, at this stage the card is yest created and the links
+		 * with the codec driver/pdata are yesn-existent
 		 */
 
 		struct acpi_chan_package chan_package;
@@ -963,13 +963,13 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 				dev_info(&pdev->dev, "BIOS Routing: AIF2 connected\n");
 				byt_rt5651_quirk |= BYT_RT5651_SSP0_AIF2;
 			} else {
-				dev_info(&pdev->dev, "BIOS Routing isn't valid, ignored\n");
+				dev_info(&pdev->dev, "BIOS Routing isn't valid, igyesred\n");
 				pkg_found = false;
 			}
 		}
 
 		if (!pkg_found) {
-			/* no BIOS indications, assume SSP0-AIF2 connection */
+			/* yes BIOS indications, assume SSP0-AIF2 connection */
 			byt_rt5651_quirk |= BYT_RT5651_SSP0_AIF2;
 		}
 	}
@@ -996,9 +996,9 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 
 	if (byt_rt5651_gpios) {
 		devm_acpi_dev_add_driver_gpios(codec_dev, byt_rt5651_gpios);
-		priv->ext_amp_gpio = devm_fwnode_get_index_gpiod_from_child(
+		priv->ext_amp_gpio = devm_fwyesde_get_index_gpiod_from_child(
 						&pdev->dev, "ext-amp-enable", 0,
-						codec_dev->fwnode,
+						codec_dev->fwyesde,
 						GPIOD_OUT_LOW, "speaker-amp");
 		if (IS_ERR(priv->ext_amp_gpio)) {
 			ret_val = PTR_ERR(priv->ext_amp_gpio);
@@ -1015,9 +1015,9 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 				return ret_val;
 			}
 		}
-		priv->hp_detect = devm_fwnode_get_index_gpiod_from_child(
+		priv->hp_detect = devm_fwyesde_get_index_gpiod_from_child(
 						&pdev->dev, "hp-detect", 0,
-						codec_dev->fwnode,
+						codec_dev->fwyesde,
 						GPIOD_IN, "hp-detect");
 		if (IS_ERR(priv->hp_detect)) {
 			ret_val = PTR_ERR(priv->hp_detect);
@@ -1070,7 +1070,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 				"Failed to get MCLK from pmc_plt_clk_3: %d\n",
 				ret_val);
 			/*
-			 * Fall back to bit clock usage for -ENOENT (clock not
+			 * Fall back to bit clock usage for -ENOENT (clock yest
 			 * available likely due to missing dependencies), bail
 			 * for all other errors, including -EPROBE_DEFER
 			 */
@@ -1088,7 +1088,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	snprintf(byt_rt5651_long_name, sizeof(byt_rt5651_long_name),
 		 "bytcr-rt5651-%s-spk-%s-mic%s",
 		 (byt_rt5651_quirk & BYT_RT5651_MONO_SPEAKER) ?
-			"mono" : "stereo",
+			"moyes" : "stereo",
 		 mic_name[BYT_RT5651_MAP(byt_rt5651_quirk)], hp_swapped);
 	byt_rt5651_card.long_name = byt_rt5651_long_name;
 

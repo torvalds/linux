@@ -32,7 +32,7 @@ acpi_ex_region_read(union acpi_operand_object *obj_desc,
  * FUNCTION:    acpi_ex_add_table
  *
  * PARAMETERS:  table               - Pointer to raw table
- *              parent_node         - Where to load the table (scope)
+ *              parent_yesde         - Where to load the table (scope)
  *              ddb_handle          - Where to return the table handle.
  *
  * RETURN:      Status
@@ -84,9 +84,9 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 {
 	acpi_status status;
 	union acpi_operand_object **operand = &walk_state->operands[0];
-	struct acpi_namespace_node *parent_node;
-	struct acpi_namespace_node *start_node;
-	struct acpi_namespace_node *parameter_node = NULL;
+	struct acpi_namespace_yesde *parent_yesde;
+	struct acpi_namespace_yesde *start_yesde;
+	struct acpi_namespace_yesde *parameter_yesde = NULL;
 	union acpi_operand_object *ddb_handle;
 	u32 table_index;
 
@@ -104,7 +104,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 			return_ACPI_STATUS(status);
 		}
 
-		/* Table not found, return an Integer=0 and AE_OK */
+		/* Table yest found, return an Integer=0 and AE_OK */
 
 		ddb_handle = acpi_ut_create_integer_object((u64) 0);
 		if (!ddb_handle) {
@@ -115,22 +115,22 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Default nodes */
+	/* Default yesdes */
 
-	start_node = walk_state->scope_info->scope.node;
-	parent_node = acpi_gbl_root_node;
+	start_yesde = walk_state->scope_info->scope.yesde;
+	parent_yesde = acpi_gbl_root_yesde;
 
 	/* root_path (optional parameter) */
 
 	if (operand[3]->string.length > 0) {
 		/*
-		 * Find the node referenced by the root_path_string. This is the
+		 * Find the yesde referenced by the root_path_string. This is the
 		 * location within the namespace where the table will be loaded.
 		 */
-		status = acpi_ns_get_node_unlocked(start_node,
+		status = acpi_ns_get_yesde_unlocked(start_yesde,
 						   operand[3]->string.pointer,
 						   ACPI_NS_SEARCH_PARENT,
-						   &parent_node);
+						   &parent_yesde);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -142,18 +142,18 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 		if ((operand[4]->string.pointer[0] != AML_ROOT_PREFIX) &&
 		    (operand[4]->string.pointer[0] != AML_PARENT_PREFIX)) {
 			/*
-			 * Path is not absolute, so it will be relative to the node
+			 * Path is yest absolute, so it will be relative to the yesde
 			 * referenced by the root_path_string (or the NS root if omitted)
 			 */
-			start_node = parent_node;
+			start_yesde = parent_yesde;
 		}
 
-		/* Find the node referenced by the parameter_path_string */
+		/* Find the yesde referenced by the parameter_path_string */
 
-		status = acpi_ns_get_node_unlocked(start_node,
+		status = acpi_ns_get_yesde_unlocked(start_yesde,
 						   operand[4]->string.pointer,
 						   ACPI_NS_SEARCH_PARENT,
-						   &parameter_node);
+						   &parameter_yesde);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -163,7 +163,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	ACPI_INFO(("Dynamic OEM Table Load:"));
 	acpi_ex_exit_interpreter();
-	status = acpi_tb_load_table(table_index, parent_node);
+	status = acpi_tb_load_table(table_index, parent_yesde);
 	acpi_ex_enter_interpreter();
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -182,13 +182,13 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	/* Parameter Data (optional) */
 
-	if (parameter_node) {
+	if (parameter_yesde) {
 
 		/* Store the parameter data into the optional parameter object */
 
 		status = acpi_ex_store(operand[5],
 				       ACPI_CAST_PTR(union acpi_operand_object,
-						     parameter_node),
+						     parameter_yesde),
 				       walk_state);
 		if (ACPI_FAILURE(status)) {
 			(void)acpi_ex_unload_table(ddb_handle);
@@ -293,8 +293,8 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		}
 
 		/*
-		 * If the Region Address and Length have not been previously
-		 * evaluated, evaluate them now and save the results.
+		 * If the Region Address and Length have yest been previously
+		 * evaluated, evaluate them yesw and save the results.
 		 */
 		if (!(obj_desc->common.flags & AOPOBJ_DATA_VALID)) {
 			status = acpi_ds_get_region_arguments(obj_desc);
@@ -328,13 +328,13 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		}
 
 		/*
-		 * The original implementation simply mapped the table, with no copy.
-		 * However, the memory region is not guaranteed to remain stable and
+		 * The original implementation simply mapped the table, with yes copy.
+		 * However, the memory region is yest guaranteed to remain stable and
 		 * we must copy the table to a local buffer. For example, the memory
 		 * region is corrupted after suspend on some machines. Dynamically
 		 * loaded tables are usually small, so this overhead is minimal.
 		 *
-		 * The latest implementation (5/2009) does not use a mapping at all.
+		 * The latest implementation (5/2009) does yest use a mapping at all.
 		 * We use the low-level operation region interface to read the table
 		 * instead of the obvious optimization of using a direct mapping.
 		 * This maintains a consistent use of operation regions across the
@@ -379,7 +379,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 				  obj_desc->buffer.pointer);
 		length = table_header->length;
 
-		/* Table cannot extend beyond the buffer */
+		/* Table canyest extend beyond the buffer */
 
 		if (length > obj_desc->buffer.length) {
 			return_ACPI_STATUS(AE_AML_BUFFER_LIMIT);
@@ -483,20 +483,20 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	/*
 	 * Temporarily emit a warning so that the ASL for the machine can be
 	 * hopefully obtained. This is to say that the Unload() operator is
-	 * extremely rare if not completely unused.
+	 * extremely rare if yest completely unused.
 	 */
 	ACPI_WARNING((AE_INFO, "Received request to unload an ACPI table"));
 
 	/*
-	 * May 2018: Unload is no longer supported for the following reasons:
-	 * 1) A correct implementation on some hosts may not be possible.
-	 * 2) Other ACPI implementations do not correctly/fully support it.
-	 * 3) It requires host device driver support which does not exist.
+	 * May 2018: Unload is yes longer supported for the following reasons:
+	 * 1) A correct implementation on some hosts may yest be possible.
+	 * 2) Other ACPI implementations do yest correctly/fully support it.
+	 * 3) It requires host device driver support which does yest exist.
 	 *    (To properly support namespace unload out from underneath.)
 	 * 4) This AML operator has never been seen in the field.
 	 */
 	ACPI_EXCEPTION((AE_INFO, AE_NOT_IMPLEMENTED,
-			"AML Unload operator is not supported"));
+			"AML Unload operator is yest supported"));
 
 	/*
 	 * Validate the handle
@@ -505,7 +505,7 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	 * validated here.
 	 *
 	 * Handle must be a valid operand object of type reference. Also, the
-	 * ddb_handle must still be marked valid (table has not been previously
+	 * ddb_handle must still be marked valid (table has yest been previously
 	 * unloaded)
 	 */
 	if ((!ddb_handle) ||
@@ -529,7 +529,7 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 
 	/*
 	 * Invalidate the handle. We do this because the handle may be stored
-	 * in a named object and may not be actually deleted until much later.
+	 * in a named object and may yest be actually deleted until much later.
 	 */
 	if (ACPI_SUCCESS(status)) {
 		ddb_handle->common.flags &= ~AOPOBJ_DATA_VALID;

@@ -216,7 +216,7 @@ int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id)
 
 	if (invalid_phys_cpuid(phys_id)) {
 		/*
-		 * On UP processor, there is no _MAT or MADT table.
+		 * On UP processor, there is yes _MAT or MADT table.
 		 * So above phys_id is always set to PHYS_CPUID_INVALID.
 		 *
 		 * BIOS may define multiple CPU handles even for UP processor.
@@ -230,9 +230,9 @@ int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id)
 		 *     Processor (CPU3, 0x03, 0x00000410, 0x06) {}
 		 * }
 		 *
-		 * Ignores phys_id and always returns 0 for the processor
+		 * Igyesres phys_id and always returns 0 for the processor
 		 * handle with acpi id 0 if nr_cpu_ids is 1.
-		 * This should be the case if SMP tables are not found.
+		 * This should be the case if SMP tables are yest found.
 		 * Return -EINVAL for other CPU's handle.
 		 */
 		if (nr_cpu_ids <= 1 && acpi_id == 0)

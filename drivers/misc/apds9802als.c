@@ -126,7 +126,7 @@ static ssize_t als_sensing_range_store(struct device *dev,
 
 	pm_runtime_get_sync(dev);
 
-	/* Make sure nobody else reads/modifies/writes 0x81 while we
+	/* Make sure yesbody else reads/modifies/writes 0x81 while we
 	   are active */
 	mutex_lock(&data->mutex);
 
@@ -253,7 +253,7 @@ static int apds9802als_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	kfree(data);
 	return 0;

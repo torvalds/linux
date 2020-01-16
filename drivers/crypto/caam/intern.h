@@ -40,7 +40,7 @@ struct caam_jrentry_info {
 
 /* Private sub-storage for a single JobR */
 struct caam_drv_private_jr {
-	struct list_head	list_node;	/* Job Ring device list */
+	struct list_head	list_yesde;	/* Job Ring device list */
 	struct device		*dev;
 	int ridx;
 	struct caam_job_ring __iomem *rregs;	/* JobR's register space */
@@ -213,7 +213,7 @@ DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u64_ro, caam_debugfs_u64_get, NULL, "%llu\n");
 
 static inline u64 caam_get_dma_mask(struct device *dev)
 {
-	struct device_node *nprop = dev->of_node;
+	struct device_yesde *nprop = dev->of_yesde;
 
 	if (caam_ptr_sz != sizeof(u64))
 		return DMA_BIT_MASK(32);

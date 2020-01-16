@@ -232,7 +232,7 @@ static void tea5764_tune(struct tea5764_device *radio, int freq)
 {
 	tea5764_set_freq(radio, freq);
 	if (tea5764_i2c_write(radio))
-		PWARN("Could not set frequency!");
+		PWARN("Could yest set frequency!");
 }
 
 static void tea5764_set_audout_mode(struct tea5764_device *radio, int audmode)
@@ -335,7 +335,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 		/* We special case this as a power down control. */
 		tea5764_power_down(radio);
 		/* Yes, that's what is returned in this case. This
-		   whole special case is non-compliant and should really
+		   whole special case is yesn-compliant and should really
 		   be replaced with something better, but changing this
 		   might well break code that depends on this behavior.
 		   So we keep it as-is. */
@@ -428,7 +428,7 @@ static int tea5764_i2c_probe(struct i2c_client *client,
 	v4l2_dev = &radio->v4l2_dev;
 	ret = v4l2_device_register(&client->dev, v4l2_dev);
 	if (ret < 0) {
-		v4l2_err(v4l2_dev, "could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "could yest register v4l2_device\n");
 		goto errfr;
 	}
 
@@ -439,7 +439,7 @@ static int tea5764_i2c_probe(struct i2c_client *client,
 	v4l2_dev->ctrl_handler = hdl;
 	if (hdl->error) {
 		ret = hdl->error;
-		v4l2_err(v4l2_dev, "Could not register controls\n");
+		v4l2_err(v4l2_dev, "Could yest register controls\n");
 		goto errunreg;
 	}
 
@@ -452,7 +452,7 @@ static int tea5764_i2c_probe(struct i2c_client *client,
 	PDEBUG("chipid = %04X, manid = %04X", r->chipid, r->manid);
 	if (r->chipid != TEA5764_CHIPID ||
 		(r->manid & 0x0fff) != TEA5764_MANID) {
-		PWARN("This chip is not a TEA5764!");
+		PWARN("This chip is yest a TEA5764!");
 		ret = -EINVAL;
 		goto errunreg;
 	}
@@ -473,7 +473,7 @@ static int tea5764_i2c_probe(struct i2c_client *client,
 
 	ret = video_register_device(&radio->vdev, VFL_TYPE_RADIO, radio_nr);
 	if (ret < 0) {
-		PWARN("Could not register video device!");
+		PWARN("Could yest register video device!");
 		goto errunreg;
 	}
 

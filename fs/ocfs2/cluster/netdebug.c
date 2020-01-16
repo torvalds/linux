@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * netdebug.c
  *
@@ -22,7 +22,7 @@
 #include <linux/uaccess.h>
 
 #include "tcp.h"
-#include "nodemanager.h"
+#include "yesdemanager.h"
 #define MLOG_MASK_PREFIX ML_TCP
 #include "masklog.h"
 
@@ -32,7 +32,7 @@
 #define SC_DEBUG_NAME		"sock_containers"
 #define NST_DEBUG_NAME		"send_tracking"
 #define STATS_DEBUG_NAME	"stats"
-#define NODES_DEBUG_NAME	"connected_nodes"
+#define NODES_DEBUG_NAME	"connected_yesdes"
 
 #define SHOW_SOCK_CONTAINERS	0
 #define SHOW_SOCK_STATS		1
@@ -111,7 +111,7 @@ static void *nst_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 static int nst_seq_show(struct seq_file *seq, void *v)
 {
 	struct o2net_send_tracking *nst, *dummy_nst = seq->private;
-	ktime_t now;
+	ktime_t yesw;
 	s64 sock, send, status;
 
 	spin_lock(&o2net_debug_lock);
@@ -119,17 +119,17 @@ static int nst_seq_show(struct seq_file *seq, void *v)
 	if (!nst)
 		goto out;
 
-	now = ktime_get();
-	sock = ktime_to_us(ktime_sub(now, nst->st_sock_time));
-	send = ktime_to_us(ktime_sub(now, nst->st_send_time));
-	status = ktime_to_us(ktime_sub(now, nst->st_status_time));
+	yesw = ktime_get();
+	sock = ktime_to_us(ktime_sub(yesw, nst->st_sock_time));
+	send = ktime_to_us(ktime_sub(yesw, nst->st_send_time));
+	status = ktime_to_us(ktime_sub(yesw, nst->st_status_time));
 
 	/* get_task_comm isn't exported.  oh well. */
 	seq_printf(seq, "%p:\n"
 		   "  pid:          %lu\n"
 		   "  tgid:         %lu\n"
 		   "  process name: %s\n"
-		   "  node:         %u\n"
+		   "  yesde:         %u\n"
 		   "  sc:           %p\n"
 		   "  message id:   %d\n"
 		   "  message type: %u\n"
@@ -139,7 +139,7 @@ static int nst_seq_show(struct seq_file *seq, void *v)
 		   "  wait start:   %lld usecs ago\n",
 		   nst, (unsigned long)task_pid_nr(nst->st_task),
 		   (unsigned long)nst->st_task->tgid,
-		   nst->st_task->comm, nst->st_node,
+		   nst->st_task->comm, nst->st_yesde,
 		   nst->st_sc, nst->st_id, nst->st_msg_type,
 		   nst->st_msg_key,
 		   (long long)sock,
@@ -163,7 +163,7 @@ static const struct seq_operations nst_seq_ops = {
 	.show = nst_seq_show,
 };
 
-static int nst_fop_open(struct inode *inode, struct file *file)
+static int nst_fop_open(struct iyesde *iyesde, struct file *file)
 {
 	struct o2net_send_tracking *dummy_nst;
 
@@ -175,13 +175,13 @@ static int nst_fop_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int nst_fop_release(struct inode *inode, struct file *file)
+static int nst_fop_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	struct o2net_send_tracking *dummy_nst = seq->private;
 
 	o2net_debug_del_nst(dummy_nst);
-	return seq_release_private(inode, file);
+	return seq_release_private(iyesde, file);
 }
 
 static const struct file_operations nst_seq_fops = {
@@ -285,7 +285,7 @@ static void sc_show_sock_stats(struct seq_file *seq,
 		return;
 
 	seq_printf(seq, "%d,%u,%lu,%lld,%lld,%lld,%lu,%lld\n", O2NET_STATS_STR_VERSION,
-		   sc->sc_node->nd_num, (unsigned long)sc_send_count(sc),
+		   sc->sc_yesde->nd_num, (unsigned long)sc_send_count(sc),
 		   (long long)sc_tv_acquiry_total_ns(sc),
 		   (long long)sc_tv_send_total_ns(sc),
 		   (long long)sc_tv_status_total_ns(sc),
@@ -312,13 +312,13 @@ static void sc_show_sock_container(struct seq_file *seq,
 		dport = (__force __be16)inet->inet_dport;
 	}
 
-	/* XXX sigh, inet-> doesn't have sparse annotation so any
+	/* XXX sigh, inet-> doesn't have sparse anyestation so any
 	 * use of it here generates a warning with -Wbitwise */
 	seq_printf(seq, "%p:\n"
 		   "  krefs:           %d\n"
 		   "  sock:            %pI4:%u -> "
 				      "%pI4:%u\n"
-		   "  remote node:     %s\n"
+		   "  remote yesde:     %s\n"
 		   "  page off:        %zu\n"
 		   "  handshake ok:    %u\n"
 		   "  timer:           %lld usecs\n"
@@ -333,7 +333,7 @@ static void sc_show_sock_container(struct seq_file *seq,
 		   kref_read(&sc->sc_kref),
 		   &saddr, inet ? ntohs(sport) : 0,
 		   &daddr, inet ? ntohs(dport) : 0,
-		   sc->sc_node->nd_name,
+		   sc->sc_yesde->nd_name,
 		   sc->sc_page_off,
 		   sc->sc_handshake_ok,
 		   (long long)ktime_to_us(sc->sc_tv_timer),
@@ -400,7 +400,7 @@ static int sc_common_open(struct file *file, int ctxt)
 	return 0;
 }
 
-static int sc_fop_release(struct inode *inode, struct file *file)
+static int sc_fop_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	struct o2net_sock_debug *sd = seq->private;
@@ -408,10 +408,10 @@ static int sc_fop_release(struct inode *inode, struct file *file)
 
 	o2net_debug_del_sc(dummy_sc);
 	kfree(dummy_sc);
-	return seq_release_private(inode, file);
+	return seq_release_private(iyesde, file);
 }
 
-static int stats_fop_open(struct inode *inode, struct file *file)
+static int stats_fop_open(struct iyesde *iyesde, struct file *file)
 {
 	return sc_common_open(file, SHOW_SOCK_STATS);
 }
@@ -423,7 +423,7 @@ static const struct file_operations stats_seq_fops = {
 	.release = sc_fop_release,
 };
 
-static int sc_fop_open(struct inode *inode, struct file *file)
+static int sc_fop_open(struct iyesde *iyesde, struct file *file)
 {
 	return sc_common_open(file, SHOW_SOCK_CONTAINERS);
 }
@@ -440,7 +440,7 @@ static int o2net_fill_bitmap(char *buf, int len)
 	unsigned long map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	int i = -1, out = 0;
 
-	o2net_fill_node_map(map, sizeof(map));
+	o2net_fill_yesde_map(map, sizeof(map));
 
 	while ((i = find_next_bit(map, O2NM_MAX_NODES, i + 1)) < O2NM_MAX_NODES)
 		out += snprintf(buf + out, PAGE_SIZE - out, "%d ", i);
@@ -449,7 +449,7 @@ static int o2net_fill_bitmap(char *buf, int len)
 	return out;
 }
 
-static int nodes_fop_open(struct inode *inode, struct file *file)
+static int yesdes_fop_open(struct iyesde *iyesde, struct file *file)
 {
 	char *buf;
 
@@ -457,14 +457,14 @@ static int nodes_fop_open(struct inode *inode, struct file *file)
 	if (!buf)
 		return -ENOMEM;
 
-	i_size_write(inode, o2net_fill_bitmap(buf, PAGE_SIZE));
+	i_size_write(iyesde, o2net_fill_bitmap(buf, PAGE_SIZE));
 
 	file->private_data = buf;
 
 	return 0;
 }
 
-static int o2net_debug_release(struct inode *inode, struct file *file)
+static int o2net_debug_release(struct iyesde *iyesde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -477,8 +477,8 @@ static ssize_t o2net_debug_read(struct file *file, char __user *buf,
 				       i_size_read(file->f_mapping->host));
 }
 
-static const struct file_operations nodes_fops = {
-	.open		= nodes_fop_open,
+static const struct file_operations yesdes_fops = {
+	.open		= yesdes_fop_open,
 	.release	= o2net_debug_release,
 	.read		= o2net_debug_read,
 	.llseek		= generic_file_llseek,
@@ -502,7 +502,7 @@ void o2net_debugfs_init(void)
 	debugfs_create_file(STATS_DEBUG_NAME, mode, o2net_dentry, NULL,
 			    &stats_seq_fops);
 	debugfs_create_file(NODES_DEBUG_NAME, mode, o2net_dentry, NULL,
-			    &nodes_fops);
+			    &yesdes_fops);
 }
 
 #endif	/* CONFIG_DEBUG_FS */

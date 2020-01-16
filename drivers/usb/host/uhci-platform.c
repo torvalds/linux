@@ -16,7 +16,7 @@ static int uhci_platform_init(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
-	/* Probe number of ports if not already provided by DT */
+	/* Probe number of ports if yest already provided by DT */
 	if (!uhci->rh_numports)
 		uhci->rh_numports = uhci_count_ports(hcd);
 
@@ -66,7 +66,7 @@ static const struct hc_driver uhci_platform_hc_driver = {
 
 static int uhci_hcd_platform_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct usb_hcd *hcd;
 	struct uhci_hcd	*uhci;
 	struct resource *res;
@@ -76,8 +76,8 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/*
-	 * Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	 * Right yesw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for yesw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -159,12 +159,12 @@ static int uhci_hcd_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/* Make sure the controller is quiescent and that we're not using it
+/* Make sure the controller is quiescent and that we're yest using it
  * any more.  This is mainly for the benefit of programs which, like kexec,
- * expect the hardware to be idle: not doing DMA or generating IRQs.
+ * expect the hardware to be idle: yest doing DMA or generating IRQs.
  *
  * This routine may be called in a damaged or failing kernel.  Hence we
- * do not acquire the spinlock before shutting down the controller.
+ * do yest acquire the spinlock before shutting down the controller.
  */
 static void uhci_hcd_platform_shutdown(struct platform_device *op)
 {

@@ -15,9 +15,9 @@
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
 enum {
-	FILEID_HIGH_OFF = 0,	/* inode fileid high */
-	FILEID_LOW_OFF,		/* inode fileid low */
-	FILE_I_TYPE_OFF,	/* inode type */
+	FILEID_HIGH_OFF = 0,	/* iyesde fileid high */
+	FILEID_LOW_OFF,		/* iyesde fileid low */
+	FILE_I_TYPE_OFF,	/* iyesde type */
 	EMBED_FH_OFF		/* embeded server fh */
 };
 
@@ -28,35 +28,35 @@ static struct nfs_fh *nfs_exp_embedfh(__u32 *p)
 }
 
 /*
- * Let's break subtree checking for now... otherwise we'll have to embed parent fh
- * but there might not be enough space.
+ * Let's break subtree checking for yesw... otherwise we'll have to embed parent fh
+ * but there might yest be eyesugh space.
  */
 static int
-nfs_encode_fh(struct inode *inode, __u32 *p, int *max_len, struct inode *parent)
+nfs_encode_fh(struct iyesde *iyesde, __u32 *p, int *max_len, struct iyesde *parent)
 {
-	struct nfs_fh *server_fh = NFS_FH(inode);
+	struct nfs_fh *server_fh = NFS_FH(iyesde);
 	struct nfs_fh *clnt_fh = nfs_exp_embedfh(p);
 	size_t fh_size = offsetof(struct nfs_fh, data) + server_fh->size;
 	int len = EMBED_FH_OFF + XDR_QUADLEN(fh_size);
 
-	dprintk("%s: max fh len %d inode %p parent %p",
-		__func__, *max_len, inode, parent);
+	dprintk("%s: max fh len %d iyesde %p parent %p",
+		__func__, *max_len, iyesde, parent);
 
-	if (*max_len < len || IS_AUTOMOUNT(inode)) {
+	if (*max_len < len || IS_AUTOMOUNT(iyesde)) {
 		dprintk("%s: fh len %d too small, required %d\n",
 			__func__, *max_len, len);
 		*max_len = len;
 		return FILEID_INVALID;
 	}
 
-	p[FILEID_HIGH_OFF] = NFS_FILEID(inode) >> 32;
-	p[FILEID_LOW_OFF] = NFS_FILEID(inode);
-	p[FILE_I_TYPE_OFF] = inode->i_mode & S_IFMT;
+	p[FILEID_HIGH_OFF] = NFS_FILEID(iyesde) >> 32;
+	p[FILEID_LOW_OFF] = NFS_FILEID(iyesde);
+	p[FILE_I_TYPE_OFF] = iyesde->i_mode & S_IFMT;
 	p[len - 1] = 0; /* Padding */
 	nfs_copy_fh(clnt_fh, server_fh);
 	*max_len = len;
 	dprintk("%s: result fh fileid %llu mode %u size %d\n",
-		__func__, NFS_FILEID(inode), inode->i_mode, *max_len);
+		__func__, NFS_FILEID(iyesde), iyesde->i_mode, *max_len);
 	return *max_len;
 }
 
@@ -70,7 +70,7 @@ nfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 	size_t fh_size = offsetof(struct nfs_fh, data) + server_fh->size;
 	const struct nfs_rpc_ops *rpc_ops;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int len = EMBED_FH_OFF + XDR_QUADLEN(fh_size);
 	u32 *p = fid->raw;
 	int ret;
@@ -91,8 +91,8 @@ nfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 
 	dprintk("%s: fileid %llu mode %d\n", __func__, fattr->fileid, fattr->mode);
 
-	inode = nfs_ilookup(sb, fattr, server_fh);
-	if (inode)
+	iyesde = nfs_ilookup(sb, fattr, server_fh);
+	if (iyesde)
 		goto out_found;
 
 	label = nfs4_label_alloc(NFS_SB(sb), GFP_KERNEL);
@@ -110,10 +110,10 @@ nfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 		goto out_free_label;
 	}
 
-	inode = nfs_fhget(sb, server_fh, fattr, label);
+	iyesde = nfs_fhget(sb, server_fh, fattr, label);
 
 out_found:
-	dentry = d_obtain_alias(inode);
+	dentry = d_obtain_alias(iyesde);
 
 out_free_label:
 	nfs4_label_free(label);
@@ -127,8 +127,8 @@ static struct dentry *
 nfs_get_parent(struct dentry *dentry)
 {
 	int ret;
-	struct inode *inode = d_inode(dentry), *pinode;
-	struct super_block *sb = inode->i_sb;
+	struct iyesde *iyesde = d_iyesde(dentry), *piyesde;
+	struct super_block *sb = iyesde->i_sb;
 	struct nfs_server *server = NFS_SB(sb);
 	struct nfs_fattr *fattr = NULL;
 	struct nfs4_label *label = NULL;
@@ -151,14 +151,14 @@ nfs_get_parent(struct dentry *dentry)
 		goto out_free_fattr;
 	}
 
-	ret = ops->lookupp(inode, &fh, fattr, label);
+	ret = ops->lookupp(iyesde, &fh, fattr, label);
 	if (ret) {
 		parent = ERR_PTR(ret);
 		goto out_free_label;
 	}
 
-	pinode = nfs_fhget(sb, &fh, fattr, label);
-	parent = d_obtain_alias(pinode);
+	piyesde = nfs_fhget(sb, &fh, fattr, label);
+	parent = d_obtain_alias(piyesde);
 out_free_label:
 	nfs4_label_free(label);
 out_free_fattr:

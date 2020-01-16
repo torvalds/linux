@@ -27,7 +27,7 @@ static void dpu_core_irq_callback_handler(void *arg, int irq_idx)
 	pr_debug("irq_idx=%d\n", irq_idx);
 
 	if (list_empty(&irq_obj->irq_cb_tbl[irq_idx])) {
-		DRM_ERROR("no registered cb, idx:%d enable_count:%d\n", irq_idx,
+		DRM_ERROR("yes registered cb, idx:%d enable_count:%d\n", irq_idx,
 			atomic_read(&dpu_kms->irq_obj.enable_counts[irq_idx]));
 	}
 
@@ -47,7 +47,7 @@ static void dpu_core_irq_callback_handler(void *arg, int irq_idx)
 	 * NOTE: dpu_core_irq_callback_handler is protected by top-level
 	 *       spinlock, so it is safe to clear any interrupt status here.
 	 */
-	dpu_kms->hw_intr->ops.clear_intr_status_nolock(
+	dpu_kms->hw_intr->ops.clear_intr_status_yeslock(
 			dpu_kms->hw_intr,
 			irq_idx);
 }
@@ -101,7 +101,7 @@ static int _dpu_core_irq_enable(struct dpu_kms *dpu_kms, int irq_idx)
 		spin_lock_irqsave(&dpu_kms->irq_obj.cb_lock, irq_flags);
 		/* empty callback list but interrupt is enabled */
 		if (list_empty(&dpu_kms->irq_obj.irq_cb_tbl[irq_idx]))
-			DPU_ERROR("irq_idx=%d enabled with no callback\n",
+			DPU_ERROR("irq_idx=%d enabled with yes callback\n",
 					irq_idx);
 		spin_unlock_irqrestore(&dpu_kms->irq_obj.cb_lock, irq_flags);
 	}
@@ -265,7 +265,7 @@ int dpu_core_irq_unregister_callback(struct dpu_kms *dpu_kms, int irq_idx,
 	/* empty callback list but interrupt is still enabled */
 	if (list_empty(&dpu_kms->irq_obj.irq_cb_tbl[irq_idx]) &&
 			atomic_read(&dpu_kms->irq_obj.enable_counts[irq_idx]))
-		DPU_ERROR("irq_idx=%d enabled with no callback\n", irq_idx);
+		DPU_ERROR("irq_idx=%d enabled with yes callback\n", irq_idx);
 	spin_unlock_irqrestore(&dpu_kms->irq_obj.cb_lock, irq_flags);
 
 	return 0;
@@ -289,9 +289,9 @@ static void dpu_disable_all_irqs(struct dpu_kms *dpu_kms)
 
 #ifdef CONFIG_DEBUG_FS
 #define DEFINE_DPU_DEBUGFS_SEQ_FOPS(__prefix)				\
-static int __prefix ## _open(struct inode *inode, struct file *file)	\
+static int __prefix ## _open(struct iyesde *iyesde, struct file *file)	\
 {									\
-	return single_open(file, __prefix ## _show, inode->i_private);	\
+	return single_open(file, __prefix ## _show, iyesde->i_private);	\
 }									\
 static const struct file_operations __prefix ## _fops = {		\
 	.owner = THIS_MODULE,						\

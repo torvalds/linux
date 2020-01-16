@@ -699,7 +699,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	unsigned char revid;
 
 	if (!irq) {
-		dev_err(dev, "no IRQ?\n");
+		dev_err(dev, "yes IRQ?\n");
 		err = -ENODEV;
 		goto err_out;
 	}

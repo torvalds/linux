@@ -36,7 +36,7 @@ static int untimeout(struct nf_conn *ct, void *timeout)
 	if (timeout_ext && (!timeout || timeout_ext->timeout == timeout))
 		RCU_INIT_POINTER(timeout_ext->timeout, NULL);
 
-	/* We are not intended to delete this conntrack. */
+	/* We are yest intended to delete this conntrack. */
 	return 0;
 }
 
@@ -137,7 +137,7 @@ EXPORT_SYMBOL_GPL(nf_ct_destroy_timeout);
 
 static const struct nf_ct_ext_type timeout_extend = {
 	.len	= sizeof(struct nf_conn_timeout),
-	.align	= __alignof__(struct nf_conn_timeout),
+	.align	= __aligyesf__(struct nf_conn_timeout),
 	.id	= NF_CT_EXT_TIMEOUT,
 };
 

@@ -80,8 +80,8 @@ static inline gfp_t skcipher_walk_gfp(struct skcipher_walk *walk)
 	return walk->flags & SKCIPHER_WALK_SLEEP ? GFP_KERNEL : GFP_ATOMIC;
 }
 
-/* Get a spot of the specified length that does not straddle a page.
- * The caller needs to ensure that there is enough space for this operation.
+/* Get a spot of the specified length that does yest straddle a page.
+ * The caller needs to ensure that there is eyesugh space for this operation.
  */
 static inline u8 *skcipher_get_spot(u8 *start, unsigned int len)
 {
@@ -252,7 +252,7 @@ static int skcipher_next_slow(struct skcipher_walk *walk, unsigned int bsize)
 	/* Minimum size to align p->buffer by alignmask. */
 	n += alignmask & ~a;
 
-	/* Minimum size to ensure p->buffer does not straddle a page. */
+	/* Minimum size to ensure p->buffer does yest straddle a page. */
 	n += (bsize - 1) & ~(alignmask | a);
 
 	v = kzalloc(n, skcipher_walk_gfp(walk));
@@ -413,7 +413,7 @@ static int skcipher_copy_iv(struct skcipher_walk *walk)
 	else {
 		size += aligned_bs + ivsize;
 
-		/* Minimum size to ensure buffer does not straddle a page. */
+		/* Minimum size to ensure buffer does yest straddle a page. */
 		size += (bs - 1) & ~(alignmask | a);
 	}
 
@@ -717,7 +717,7 @@ static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
 
 	seq_printf(m, "type         : skcipher\n");
 	seq_printf(m, "async        : %s\n",
-		   alg->cra_flags & CRYPTO_ALG_ASYNC ?  "yes" : "no");
+		   alg->cra_flags & CRYPTO_ALG_ASYNC ?  "no" : "yes");
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
 	seq_printf(m, "min keysize  : %u\n", skcipher->min_keysize);
 	seq_printf(m, "max keysize  : %u\n", skcipher->max_keysize);
@@ -736,7 +736,7 @@ static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 	memset(&rblkcipher, 0, sizeof(rblkcipher));
 
 	strscpy(rblkcipher.type, "skcipher", sizeof(rblkcipher.type));
-	strscpy(rblkcipher.geniv, "<none>", sizeof(rblkcipher.geniv));
+	strscpy(rblkcipher.geniv, "<yesne>", sizeof(rblkcipher.geniv));
 
 	rblkcipher.blocksize = alg->cra_blocksize;
 	rblkcipher.min_keysize = skcipher->min_keysize;
@@ -793,7 +793,7 @@ struct crypto_sync_skcipher *crypto_alloc_sync_skcipher(
 	tfm = crypto_alloc_tfm(alg_name, &crypto_skcipher_type, type, mask);
 
 	/*
-	 * Make sure we do not allocate something that might get used with
+	 * Make sure we do yest allocate something that might get used with
 	 * an on-stack request: check the request size.
 	 */
 	if (!IS_ERR(tfm) && WARN_ON(crypto_skcipher_reqsize(tfm) >

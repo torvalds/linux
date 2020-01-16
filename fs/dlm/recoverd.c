@@ -69,7 +69,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	dlm_create_root_list(ls);
 
 	/*
-	 * Add or remove nodes from the lockspace's ls_nodes list.
+	 * Add or remove yesdes from the lockspace's ls_yesdes list.
 	 */
 
 	error = dlm_recover_members(ls, rv, &neg);
@@ -78,7 +78,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		goto fail;
 	}
 
-	dlm_recover_dir_nodeid(ls);
+	dlm_recover_dir_yesdeid(ls);
 
 	ls->ls_recover_dir_sent_res = 0;
 	ls->ls_recover_dir_sent_msg = 0;
@@ -96,7 +96,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	/*
 	 * Rebuild our own share of the directory by collecting from all other
-	 * nodes their master rsb names that hash to us.
+	 * yesdes their master rsb names that hash to us.
 	 */
 
 	error = dlm_recover_directory(ls);
@@ -118,7 +118,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	/*
 	 * We may have outstanding operations that are waiting for a reply from
-	 * a failed node.  Mark these to be resent after recovery.  Unlock and
+	 * a failed yesde.  Mark these to be resent after recovery.  Unlock and
 	 * cancel ops can just be completed.
 	 */
 
@@ -128,16 +128,16 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	if (error)
 		goto fail;
 
-	if (neg || dlm_no_directory(ls)) {
+	if (neg || dlm_yes_directory(ls)) {
 		/*
-		 * Clear lkb's for departed nodes.
+		 * Clear lkb's for departed yesdes.
 		 */
 
 		dlm_recover_purge(ls);
 
 		/*
-		 * Get new master nodeid's for rsb's that were mastered on
-		 * departed nodes.
+		 * Get new master yesdeid's for rsb's that were mastered on
+		 * departed yesdes.
 		 */
 
 		error = dlm_recover_masters(ls);
@@ -168,7 +168,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 			  ls->ls_recover_locks_in);
 
 		/*
-		 * Finalize state in master rsb's now that all locks can be
+		 * Finalize state in master rsb's yesw that all locks can be
 		 * checked.  This includes conversion resolution and lvb
 		 * settings.
 		 */
@@ -193,8 +193,8 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	/*
 	 * Purge directory-related requests that are saved in requestqueue.
-	 * All dir requests from before recovery are invalid now due to the dir
-	 * rebuild and will be resent by the requesting nodes.
+	 * All dir requests from before recovery are invalid yesw due to the dir
+	 * rebuild and will be resent by the requesting yesdes.
 	 */
 
 	dlm_purge_requestqueue(ls);
@@ -266,7 +266,7 @@ static void do_ls_recovery(struct dlm_ls *ls)
 
 	if (rv) {
 		ls_recover(ls, rv);
-		kfree(rv->nodes);
+		kfree(rv->yesdes);
 		kfree(rv);
 	}
 }
@@ -277,7 +277,7 @@ static int dlm_recoverd(void *arg)
 
 	ls = dlm_find_lockspace_local(arg);
 	if (!ls) {
-		log_print("dlm_recoverd: no lockspace %p", arg);
+		log_print("dlm_recoverd: yes lockspace %p", arg);
 		return -1;
 	}
 

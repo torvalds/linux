@@ -294,7 +294,7 @@ static int jl2005c_stop(struct gspca_dev *gspca_dev)
 /*
  * This function is called as a workqueue function and runs whenever the camera
  * is streaming data. Because it is a workqueue function it is allowed to sleep
- * so we can use synchronous USB calls. To avoid possible collisions with other
+ * so we can use synchroyesus USB calls. To avoid possible collisions with other
  * threads attempting to use gspca_dev->usb_buf we take the usb_lock when
  * performing USB operations using it. In practice we don't really need this
  * as the camera doesn't provide any controls.
@@ -341,7 +341,7 @@ static void jl2005c_dostream(struct work_struct *work)
 				goto quit_stream;
 			/* Check whether we actually got the first blodk */
 			if (memcmp(header_sig, buffer, 2) != 0) {
-				pr_err("First block is not the first block\n");
+				pr_err("First block is yest the first block\n");
 				goto quit_stream;
 			}
 			/* total size to fetch is byte 7, times blocksize
@@ -402,7 +402,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->bulk = 1;
 	/* For the rest, the camera needs to be detected */
 	jl2005c_get_firmware_id(gspca_dev);
-	/* Here are some known firmware IDs
+	/* Here are some kyeswn firmware IDs
 	 * First some JL2005B cameras
 	 * {0x41, 0x07, 0x04, 0x2c, 0xe8, 0xf2}	Sakar KidzCam
 	 * {0x45, 0x02, 0x08, 0xb9, 0x00, 0xd2}	No-name JL2005B
@@ -459,7 +459,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		jl2005c_stream_start_cif_small(gspca_dev);
 		break;
 	default:
-		pr_err("Unknown resolution specified\n");
+		pr_err("Unkyeswn resolution specified\n");
 		return -1;
 	}
 

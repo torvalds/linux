@@ -145,7 +145,7 @@ int rtl88e_init_sw_vars(struct ieee80211_hw *hw)
 	fw_name = "rtlwifi/rtl8188efw.bin";
 	rtlpriv->max_fw_size = 0x8000;
 	pr_info("Using firmware %s\n", fw_name);
-	err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
+	err = request_firmware_yeswait(THIS_MODULE, 1, fw_name,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
@@ -218,7 +218,7 @@ static struct rtl_hal_ops rtl8188ee_hal_ops = {
 	.fill_tx_cmddesc = rtl88ee_tx_fill_cmddesc,
 	.query_rx_desc = rtl88ee_rx_query_desc,
 	.set_channel_access = rtl88ee_update_channel_access_setting,
-	.radio_onoff_checking = rtl88ee_gpio_radio_on_off_checking,
+	.radio_oyesff_checking = rtl88ee_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl88e_phy_set_bw_mode,
 	.switch_channel = rtl88e_phy_sw_chnl,
 	.dm_watchdog = rtl88e_dm_watchdog,
@@ -373,7 +373,7 @@ module_param_named(aspm, rtl88ee_mod_params.aspm_support, int, 0444);
 module_param_named(disable_watchdog, rtl88ee_mod_params.disable_watchdog,
 		   bool, 0444);
 MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
-MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
+MODULE_PARM_DESC(ips, "Set to 0 to yest use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 1)\n");

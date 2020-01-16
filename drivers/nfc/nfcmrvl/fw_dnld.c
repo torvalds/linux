@@ -88,7 +88,7 @@ static struct sk_buff *alloc_lc_skb(struct nfcmrvl_private *priv, uint8_t plen)
 
 	skb = nci_skb_alloc(priv->ndev, (NCI_DATA_HDR_SIZE + plen), GFP_KERNEL);
 	if (!skb) {
-		pr_err("no memory for data\n");
+		pr_err("yes memory for data\n");
 		return NULL;
 	}
 

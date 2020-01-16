@@ -230,7 +230,7 @@ static void cedrus_h265_setup(struct cedrus_ctx *ctx,
 	const struct v4l2_hevc_pred_weight_table *pred_weight_table;
 	dma_addr_t src_buf_addr;
 	dma_addr_t src_buf_end_addr;
-	u32 chroma_log2_weight_denom;
+	u32 chroma_log2_weight_deyesm;
 	u32 output_pic_list_index;
 	u32 pic_order_cnt[2];
 	u32 reg;
@@ -482,11 +482,11 @@ static void cedrus_h265_setup(struct cedrus_ctx *ctx,
 
 	cedrus_write(dev, VE_DEC_H265_DEC_SLICE_HDR_INFO1, reg);
 
-	chroma_log2_weight_denom = pred_weight_table->luma_log2_weight_denom +
-				   pred_weight_table->delta_chroma_log2_weight_denom;
+	chroma_log2_weight_deyesm = pred_weight_table->luma_log2_weight_deyesm +
+				   pred_weight_table->delta_chroma_log2_weight_deyesm;
 	reg = VE_DEC_H265_DEC_SLICE_HDR_INFO2_NUM_ENTRY_POINT_OFFSETS(0) |
-	      VE_DEC_H265_DEC_SLICE_HDR_INFO2_CHROMA_LOG2_WEIGHT_DENOM(chroma_log2_weight_denom) |
-	      VE_DEC_H265_DEC_SLICE_HDR_INFO2_LUMA_LOG2_WEIGHT_DENOM(pred_weight_table->luma_log2_weight_denom);
+	      VE_DEC_H265_DEC_SLICE_HDR_INFO2_CHROMA_LOG2_WEIGHT_DENOM(chroma_log2_weight_deyesm) |
+	      VE_DEC_H265_DEC_SLICE_HDR_INFO2_LUMA_LOG2_WEIGHT_DENOM(pred_weight_table->luma_log2_weight_deyesm);
 
 	cedrus_write(dev, VE_DEC_H265_DEC_SLICE_HDR_INFO2, reg);
 

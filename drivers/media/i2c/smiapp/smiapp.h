@@ -63,7 +63,7 @@ struct smiapp_module_info {
 	u32 manufacturer_id;
 	u32 model_id;
 	u32 revision_number_major;
-	u32 revision_number_minor;
+	u32 revision_number_miyesr;
 
 	u32 module_year;
 	u32 module_month;

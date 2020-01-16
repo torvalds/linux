@@ -37,10 +37,10 @@ static const struct mtk_mdp_comp_match mtk_mdp_matches[MTK_MDP_COMP_ID_MAX] = {
 	{ MTK_MDP_WROT,	1 },
 };
 
-int mtk_mdp_comp_get_id(struct device *dev, struct device_node *node,
+int mtk_mdp_comp_get_id(struct device *dev, struct device_yesde *yesde,
 			enum mtk_mdp_comp_type comp_type)
 {
-	int id = of_alias_get_id(node, mtk_mdp_comp_stem[comp_type]);
+	int id = of_alias_get_id(yesde, mtk_mdp_comp_stem[comp_type]);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mtk_mdp_matches); i++) {
@@ -91,10 +91,10 @@ void mtk_mdp_comp_clock_off(struct device *dev, struct mtk_mdp_comp *comp)
 		mtk_smi_larb_put(comp->larb_dev);
 }
 
-int mtk_mdp_comp_init(struct device *dev, struct device_node *node,
+int mtk_mdp_comp_init(struct device *dev, struct device_yesde *yesde,
 		      struct mtk_mdp_comp *comp, enum mtk_mdp_comp_id comp_id)
 {
-	struct device_node *larb_node;
+	struct device_yesde *larb_yesde;
 	struct platform_device *larb_pdev;
 	int i;
 
@@ -103,13 +103,13 @@ int mtk_mdp_comp_init(struct device *dev, struct device_node *node,
 		return -EINVAL;
 	}
 
-	comp->dev_node = of_node_get(node);
+	comp->dev_yesde = of_yesde_get(yesde);
 	comp->id = comp_id;
 	comp->type = mtk_mdp_matches[comp_id].type;
-	comp->regs = of_iomap(node, 0);
+	comp->regs = of_iomap(yesde, 0);
 
 	for (i = 0; i < ARRAY_SIZE(comp->clk); i++) {
-		comp->clk[i] = of_clk_get(node, i);
+		comp->clk[i] = of_clk_get(yesde, i);
 
 		/* Only RDMA needs two clocks */
 		if (comp->type != MTK_MDP_RDMA)
@@ -123,20 +123,20 @@ int mtk_mdp_comp_init(struct device *dev, struct device_node *node,
 	    comp->type != MTK_MDP_WROT)
 		return 0;
 
-	larb_node = of_parse_phandle(node, "mediatek,larb", 0);
-	if (!larb_node) {
+	larb_yesde = of_parse_phandle(yesde, "mediatek,larb", 0);
+	if (!larb_yesde) {
 		dev_err(dev,
-			"Missing mediadek,larb phandle in %pOF node\n", node);
+			"Missing mediadek,larb phandle in %pOF yesde\n", yesde);
 		return -EINVAL;
 	}
 
-	larb_pdev = of_find_device_by_node(larb_node);
+	larb_pdev = of_find_device_by_yesde(larb_yesde);
 	if (!larb_pdev) {
-		dev_warn(dev, "Waiting for larb device %pOF\n", larb_node);
-		of_node_put(larb_node);
+		dev_warn(dev, "Waiting for larb device %pOF\n", larb_yesde);
+		of_yesde_put(larb_yesde);
 		return -EPROBE_DEFER;
 	}
-	of_node_put(larb_node);
+	of_yesde_put(larb_yesde);
 
 	comp->larb_dev = &larb_pdev->dev;
 
@@ -145,5 +145,5 @@ int mtk_mdp_comp_init(struct device *dev, struct device_node *node,
 
 void mtk_mdp_comp_deinit(struct device *dev, struct mtk_mdp_comp *comp)
 {
-	of_node_put(comp->dev_node);
+	of_yesde_put(comp->dev_yesde);
 }

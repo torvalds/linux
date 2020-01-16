@@ -168,7 +168,7 @@ static void zx2967_wdt_reset_sysctrl(struct device *dev)
 	unsigned int offset, mask, config;
 	struct of_phandle_args out_args;
 
-	ret = of_parse_phandle_with_fixed_args(dev->of_node,
+	ret = of_parse_phandle_with_fixed_args(dev->of_yesde,
 			"zte,wdt-reset-sysctrl", 3, 0, &out_args);
 	if (ret)
 		return;
@@ -177,14 +177,14 @@ static void zx2967_wdt_reset_sysctrl(struct device *dev)
 	config = out_args.args[1];
 	mask = out_args.args[2];
 
-	regmap = syscon_node_to_regmap(out_args.np);
+	regmap = syscon_yesde_to_regmap(out_args.np);
 	if (IS_ERR(regmap)) {
-		of_node_put(out_args.np);
+		of_yesde_put(out_args.np);
 		return;
 	}
 
 	regmap_update_bits(regmap, offset, mask, config);
-	of_node_put(out_args.np);
+	of_yesde_put(out_args.np);
 }
 
 static void zx2967_clk_disable_unprepare(void *data)
@@ -247,13 +247,13 @@ static int zx2967_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(&wdt->wdt_device, wdt);
 	watchdog_init_timeout(&wdt->wdt_device,
 			ZX2967_WDT_DEFAULT_TIMEOUT, dev);
-	watchdog_set_nowayout(&wdt->wdt_device, WATCHDOG_NOWAYOUT);
+	watchdog_set_yeswayout(&wdt->wdt_device, WATCHDOG_NOWAYOUT);
 
 	ret = devm_watchdog_register_device(dev, &wdt->wdt_device);
 	if (ret)
 		return ret;
 
-	dev_info(dev, "watchdog enabled (timeout=%d sec, nowayout=%d)",
+	dev_info(dev, "watchdog enabled (timeout=%d sec, yeswayout=%d)",
 		 wdt->wdt_device.timeout, WATCHDOG_NOWAYOUT);
 
 	return 0;

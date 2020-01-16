@@ -12,7 +12,7 @@ struct hv_get_perf_counter_info_params {
 	__be32 starting_index;  /* IO */
 	__be16 secondary_index; /* IO */
 	__be16 returned_values; /* O */
-	__be32 detail_rc; /* O, only needed when called via *_norets() */
+	__be32 detail_rc; /* O, only needed when called via *_yesrets() */
 
 	/*
 	 * O, size each of counter_value element in bytes, only set for version

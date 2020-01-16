@@ -34,7 +34,7 @@
  * (SMP) systems which share clock and voltage across all CPUs.
  *
  * Actual voltage and frequency scaling is done solely by the AVS
- * firmware. This driver does not change frequency or voltage itself.
+ * firmware. This driver does yest change frequency or voltage itself.
  * It provides a standard CPUfreq interface to the rest of the kernel
  * and to userland. It interfaces with the AVS firmware to effect the
  * requested changes and to report back the current system status in a
@@ -138,17 +138,17 @@
 
 /* AVS Command Status Values */
 #define AVS_STATUS_CLEAR	0x00
-/* Command/notification accepted */
+/* Command/yestification accepted */
 #define AVS_STATUS_SUCCESS	0xf0
-/* Command/notification rejected */
+/* Command/yestification rejected */
 #define AVS_STATUS_FAILURE	0xff
-/* Invalid command/notification (unknown) */
+/* Invalid command/yestification (unkyeswn) */
 #define AVS_STATUS_INVALID	0xf1
-/* Non-AVS modes are not supported */
+/* Non-AVS modes are yest supported */
 #define AVS_STATUS_NO_SUPP	0xf2
-/* Cannot set P-State until P-Map supplied */
+/* Canyest set P-State until P-Map supplied */
 #define AVS_STATUS_NO_MAP	0xf3
-/* Cannot change P-Map after initial P-Map set */
+/* Canyest change P-Map after initial P-Map set */
 #define AVS_STATUS_MAP_SET	0xf4
 /* Max AVS status; higher numbers are used for debugging */
 #define AVS_STATUS_MAX		0xff
@@ -182,15 +182,15 @@ struct private_data {
 
 static void __iomem *__map_region(const char *name)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *ptr;
 
-	np = of_find_compatible_node(NULL, NULL, name);
+	np = of_find_compatible_yesde(NULL, NULL, name);
 	if (!np)
 		return NULL;
 
 	ptr = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return ptr;
 }
@@ -209,7 +209,7 @@ static int __issue_avs_command(struct private_data *priv, int cmd, bool is_send,
 		return ret;
 
 	/*
-	 * Make sure no other command is currently running: cmd is 0 if AVS
+	 * Make sure yes other command is currently running: cmd is 0 if AVS
 	 * co-processor is idle. Due to the guard above, we should almost never
 	 * have to wait here.
 	 */
@@ -242,9 +242,9 @@ static int __issue_avs_command(struct private_data *priv, int cmd, bool is_send,
 	time_left = wait_for_completion_timeout(&priv->done, time_left);
 
 	/*
-	 * If the AVS status is not in the expected range, it means AVS didn't
+	 * If the AVS status is yest in the expected range, it means AVS didn't
 	 * complete our command in time, and we return an error. Also, if there
-	 * is no "time left", we timed out waiting for the interrupt.
+	 * is yes "time left", we timed out waiting for the interrupt.
 	 */
 	val = readl(base + AVS_MBOX_STATUS);
 	if (time_left == 0 || val == 0 || val > AVS_STATUS_MAX) {
@@ -265,7 +265,7 @@ static int __issue_avs_command(struct private_data *priv, int cmd, bool is_send,
 	/* Clear status to tell AVS co-processor we are done. */
 	writel(AVS_STATUS_CLEAR, base + AVS_MBOX_STATUS);
 
-	/* Convert firmware errors to errno's as much as possible. */
+	/* Convert firmware errors to erryes's as much as possible. */
 	switch (val) {
 	case AVS_STATUS_INVALID:
 		ret = -EINVAL;
@@ -477,7 +477,7 @@ static int brcm_avs_suspend(struct cpufreq_policy *policy)
 	/*
 	 * We can't use the P-state returned by brcm_avs_get_pmap(), since
 	 * that's the initial P-state from when the P-map was downloaded to the
-	 * AVS co-processor, not necessarily the P-state we are running at now.
+	 * AVS co-processor, yest necessarily the P-state we are running at yesw.
 	 * So, we get the current P-state explicitly.
 	 */
 	return brcm_avs_get_pstate(priv, &priv->pmap.state);
@@ -555,7 +555,7 @@ static int brcm_avs_prepare_init(struct platform_device *pdev)
 	if (brcm_avs_is_firmware_loaded(priv))
 		return 0;
 
-	dev_err(dev, "AVS firmware is not loaded or doesn't support DVFS\n");
+	dev_err(dev, "AVS firmware is yest loaded or doesn't support DVFS\n");
 	ret = -ENODEV;
 
 unmap_intr_base:
@@ -614,7 +614,7 @@ static ssize_t show_brcm_avs_pstate(struct cpufreq_policy *policy, char *buf)
 	unsigned int pstate;
 
 	if (brcm_avs_get_pstate(priv, &pstate))
-		return sprintf(buf, "<unknown>\n");
+		return sprintf(buf, "<unkyeswn>\n");
 
 	return sprintf(buf, "%u\n", pstate);
 }
@@ -625,7 +625,7 @@ static ssize_t show_brcm_avs_mode(struct cpufreq_policy *policy, char *buf)
 	struct pmap pmap;
 
 	if (brcm_avs_get_pmap(priv, &pmap))
-		return sprintf(buf, "<unknown>\n");
+		return sprintf(buf, "<unkyeswn>\n");
 
 	return sprintf(buf, "%s %u\n", brcm_avs_mode_to_string(pmap.mode),
 		pmap.mode);
@@ -639,7 +639,7 @@ static ssize_t show_brcm_avs_pmap(struct cpufreq_policy *policy, char *buf)
 	struct pmap pmap;
 
 	if (brcm_avs_get_pmap(priv, &pmap))
-		return sprintf(buf, "<unknown>\n");
+		return sprintf(buf, "<unkyeswn>\n");
 
 	brcm_avs_parse_p1(pmap.p1, &mdiv_p0, &pdiv, &ndiv);
 	brcm_avs_parse_p2(pmap.p2, &mdiv_p1, &mdiv_p2, &mdiv_p3, &mdiv_p4);

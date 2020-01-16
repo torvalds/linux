@@ -19,8 +19,8 @@ struct mtk_base_memif_data {
 	int fs_reg;
 	int fs_shift;
 	int fs_maskbit;
-	int mono_reg;
-	int mono_shift;
+	int moyes_reg;
+	int moyes_shift;
 	int enable_reg;
 	int enable_shift;
 	int hd_reg;

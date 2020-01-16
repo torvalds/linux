@@ -45,10 +45,10 @@ static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
 
 static inline void nlm_debug_print_file(char *msg, struct nlm_file *file)
 {
-	struct inode *inode = locks_inode(file->f_file);
+	struct iyesde *iyesde = locks_iyesde(file->f_file);
 
 	dprintk("lockd: %s %s/%ld\n",
-		msg, inode->i_sb->s_id, inode->i_ino);
+		msg, iyesde->i_sb->s_id, iyesde->i_iyes);
 }
 #else
 static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
@@ -73,11 +73,11 @@ static inline unsigned int file_hash(struct nfs_fh *f)
 
 /*
  * Lookup file info. If it doesn't exist, create a file info struct
- * and open a (VFS) file for the given inode.
+ * and open a (VFS) file for the given iyesde.
  *
  * FIXME:
  * Note that we open the file O_RDONLY even when creating write locks.
- * This is not quite right, but for now, we assume the client performs
+ * This is yest quite right, but for yesw, we assume the client performs
  * the proper R/W checking.
  */
 __be32
@@ -101,7 +101,7 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 
 	nlm_debug_print_fh("creating file for", f);
 
-	nfserr = nlm_lck_denied_nolocks;
+	nfserr = nlm_lck_denied_yeslocks;
 	file = kzalloc(sizeof(*file), GFP_KERNEL);
 	if (!file)
 		goto out_unlock;
@@ -111,8 +111,8 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	INIT_HLIST_NODE(&file->f_list);
 	INIT_LIST_HEAD(&file->f_blocks);
 
-	/* Open the file. Note that this must not sleep for too long, else
-	 * we would lock up lockd:-) So no NFS re-exports, folks.
+	/* Open the file. Note that this must yest sleep for too long, else
+	 * we would lock up lockd:-) So yes NFS re-exports, folks.
 	 *
 	 * We have to make sure we have the right credential to open
 	 * the file.
@@ -151,7 +151,7 @@ nlm_delete_file(struct nlm_file *file)
 		nlmsvc_ops->fclose(file->f_file);
 		kfree(file);
 	} else {
-		printk(KERN_WARNING "lockd: attempt to release unknown file!\n");
+		printk(KERN_WARNING "lockd: attempt to release unkyeswn file!\n");
 	}
 }
 
@@ -163,9 +163,9 @@ static int
 nlm_traverse_locks(struct nlm_host *host, struct nlm_file *file,
 			nlm_host_match_fn_t match)
 {
-	struct inode	 *inode = nlmsvc_file_inode(file);
+	struct iyesde	 *iyesde = nlmsvc_file_iyesde(file);
 	struct file_lock *fl;
-	struct file_lock_context *flctx = inode->i_flctx;
+	struct file_lock_context *flctx = iyesde->i_flctx;
 	struct nlm_host	 *lockhost;
 
 	if (!flctx || list_empty_careful(&flctx->flc_posix))
@@ -225,9 +225,9 @@ nlm_inspect_file(struct nlm_host *host, struct nlm_file *file, nlm_host_match_fn
 static inline int
 nlm_file_inuse(struct nlm_file *file)
 {
-	struct inode	 *inode = nlmsvc_file_inode(file);
+	struct iyesde	 *iyesde = nlmsvc_file_iyesde(file);
 	struct file_lock *fl;
-	struct file_lock_context *flctx = inode->i_flctx;
+	struct file_lock_context *flctx = iyesde->i_flctx;
 
 	if (file->f_count || !list_empty(&file->f_blocks) || file->f_shares)
 		return 1;
@@ -253,7 +253,7 @@ static int
 nlm_traverse_files(void *data, nlm_host_match_fn_t match,
 		int (*is_failover_file)(void *data, struct nlm_file *file))
 {
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 	struct nlm_file	*file;
 	int i, ret = 0;
 
@@ -286,12 +286,12 @@ nlm_traverse_files(void *data, nlm_host_match_fn_t match,
 }
 
 /*
- * Release file. If there are no more remote locks on this file,
+ * Release file. If there are yes more remote locks on this file,
  * close it and free the handle.
  *
  * Note that we can't do proper reference counting without major
  * contortions because the code in fs/locks.c creates, deletes and
- * splits locks without notification. Our only way is to walk the
+ * splits locks without yestification. Our only way is to walk the
  * entire lock list each time we remove a lock.
  */
 void
@@ -303,7 +303,7 @@ nlm_release_file(struct nlm_file *file)
 	/* Lock file table */
 	mutex_lock(&nlm_file_mutex);
 
-	/* If there are no more locks etc, delete the file */
+	/* If there are yes more locks etc, delete the file */
 	if (--file->f_count == 0 && !nlm_file_inuse(file))
 		nlm_delete_file(file);
 
@@ -415,7 +415,7 @@ nlmsvc_match_sb(void *datap, struct nlm_file *file)
 {
 	struct super_block *sb = datap;
 
-	return sb == locks_inode(file->f_file)->i_sb;
+	return sb == locks_iyesde(file->f_file)->i_sb;
 }
 
 /**

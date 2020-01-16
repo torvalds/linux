@@ -5,7 +5,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license yestice.  This file is yest
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -19,7 +19,7 @@
 
 	Information and updates available at
 	http://www.scyld.com/network/epic100.html
-	[this link no longer provides anything useful -jgarzik]
+	[this link yes longer provides anything useful -jgarzik]
 
 	---------------------------------------------------------------------
 
@@ -32,7 +32,7 @@
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
 
-static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
+static int debug = 1;			/* 1 yesrmal messages, 0 quiet .. 7 verbose. */
 
 /* Used to pass the full-duplex flag, etc. */
 #define MAX_UNITS 8		/* More are supported, limit only on options */
@@ -49,14 +49,14 @@ static int rx_copybreak;
    The compiler will convert <unsigned>'%'<2^N> into a bit mask.
    Making the Tx ring too large decreases the effectiveness of channel
    bonding and packet priority.
-   There are no ill effects from too-large receive rings. */
+   There are yes ill effects from too-large receive rings. */
 #define TX_RING_SIZE	256
 #define TX_QUEUE_LEN	240		/* Limit ring entries actually used.  */
 #define RX_RING_SIZE	256
 #define TX_TOTAL_SIZE	TX_RING_SIZE*sizeof(struct epic_tx_desc)
 #define RX_TOTAL_SIZE	RX_RING_SIZE*sizeof(struct epic_rx_desc)
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are yest changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (2*HZ)
 
@@ -71,7 +71,7 @@ static int rx_copybreak;
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -89,11 +89,11 @@ static int rx_copybreak;
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
-/* These identify the driver base version and may not be removed. */
+/* These identify the driver base version and may yest be removed. */
 static char version[] =
 DRV_NAME ".c:v1.11 1/7/2001 Written by Donald Becker <becker@scyld.com>";
 static char version2[] =
-"  (unofficial 2.4.x kernel port, version " DRV_VERSION ", " DRV_RELDATE ")";
+"  (uyesfficial 2.4.x kernel port, version " DRV_VERSION ", " DRV_RELDATE ")";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("SMC 83c170 EPIC series Ethernet driver");
@@ -119,10 +119,10 @@ the SMC EtherPower II boards.
 
 II. Board-specific settings
 
-PCI bus devices are configured by the system at boot time, so no jumpers
+PCI bus devices are configured by the system at boot time, so yes jumpers
 need to be set on the board.  The system BIOS will assign the
 PCI INTA signal to a (preferably otherwise unused) system IRQ line.
-Note: Kernel versions earlier than 1.3.73 do not support shared PCI
+Note: Kernel versions earlier than 1.3.73 do yest support shared PCI
 interrupt lines.
 
 III. Driver operation
@@ -225,7 +225,7 @@ static const u16 media2miictl[16] = {
 
 /*
  * The EPIC100 Rx and Tx buffer descriptors.  Note that these
- * really ARE host-endian; it's not a misannotation.  We tell
+ * really ARE host-endian; it's yest a misanyestation.  We tell
  * the card to byteswap them internally on big-endian hosts -
  * look for #ifdef __BIG_ENDIAN in epic_open().
  */
@@ -339,7 +339,7 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out;
 
 	if (pci_resource_len(pdev, 0) < EPIC_TOTAL_SIZE) {
-		dev_err(&pdev->dev, "no PCI region space\n");
+		dev_err(&pdev->dev, "yes PCI region space\n");
 		ret = -ENODEV;
 		goto err_out_disable;
 	}
@@ -401,7 +401,7 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Bring the chip out of low-power mode. */
 	ew32(GENCTL, 0x4200);
 	/* Magic?!  If we don't set this bit the MII interface won't work. */
-	/* This magic is documented in SMSC app note 7.15 */
+	/* This magic is documented in SMSC app yeste 7.15 */
 	for (i = 16; i > 0; i--)
 		ew32(TEST1, 0x0008);
 
@@ -411,7 +411,7 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ew32(NVCTL, (er32(NVCTL) & ~0x003c) | 0x4800);
 	ew32(GENCTL, 0x0200);
 
-	/* Note: the '175 does not have a serial EEPROM. */
+	/* Note: the '175 does yest have a serial EEPROM. */
 	for (i = 0; i < 3; i++)
 		((__le16 *)dev->dev_addr)[i] = cpu_to_le16(er16(LAN0 + i*4));
 
@@ -431,7 +431,7 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Find the connected MII xcvrs.
 	   Doing this in open() would allow detecting external xcvrs later, but
-	   takes much time and no cards have external MII. */
+	   takes much time and yes cards have external MII. */
 	{
 		int phy, phy_idx = 0;
 		for (phy = 1; phy < 32 && phy_idx < sizeof(ep->phys); phy++) {
@@ -455,7 +455,7 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		} else if ( ! (ep->chip_flags & NO_MII)) {
 			dev_warn(&pdev->dev,
 				"***WARNING***: No MII transceiver found!\n");
-			/* Use the known PHY address of the EPII. */
+			/* Use the kyeswn PHY address of the EPII. */
 			ep->phys[0] = 3;
 		}
 		ep->mii.phy_id = ep->phys[0];
@@ -657,7 +657,7 @@ static int epic_open(struct net_device *dev)
 	epic_init_ring(dev);
 
 	ew32(GENCTL, 0x4000);
-	/* This magic is documented in SMSC app note 7.15 */
+	/* This magic is documented in SMSC app yeste 7.15 */
 	for (i = 16; i > 0; i--)
 		ew32(TEST1, 0x0008);
 
@@ -783,7 +783,7 @@ static void epic_restart(struct net_device *dev)
 		   ep->cur_rx, ep->dirty_rx, ep->dirty_tx, ep->cur_tx);
 	udelay(1);
 
-	/* This magic is documented in SMSC app note 7.15 */
+	/* This magic is documented in SMSC app yeste 7.15 */
 	for (i = 16; i > 0; i--)
 		ew32(TEST1, 0x0008);
 
@@ -1050,7 +1050,7 @@ static void epic_tx(struct net_device *dev, struct epic_private *ep)
 #endif
 	ep->dirty_tx = dirty_tx;
 	if (ep->tx_full && cur_tx - dirty_tx < TX_QUEUE_LEN - 4) {
-		/* The ring is no longer full, allow new TX entries. */
+		/* The ring is yes longer full, allow new TX entries. */
 		ep->tx_full = 0;
 		netif_wake_queue(dev);
 	}
@@ -1067,7 +1067,7 @@ static irqreturn_t epic_interrupt(int irq, void *dev_instance)
 	int status;
 
 	status = er32(INTSTAT);
-	/* Acknowledge all of the current interrupt sources ASAP. */
+	/* Ackyeswledge all of the current interrupt sources ASAP. */
 	ew32(INTSTAT, status & EpicNormalEvent);
 
 	if (debug > 4) {
@@ -1172,7 +1172,7 @@ static int epic_rx(struct net_device *dev, int budget)
 					   status, pkt_len);
 				pkt_len = 1514;
 			}
-			/* Check if the packet is long enough to accept without copying
+			/* Check if the packet is long eyesugh to accept without copying
 			   to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
@@ -1333,7 +1333,7 @@ static struct net_device_stats *epic_get_stats(struct net_device *dev)
 
 /* Set or clear the multicast filter for this adaptor.
    Note that we only use exclusion around actually queueing the
-   new frame, not around filling ep->setup_frame.  This is non-deterministic
+   new frame, yest around filling ep->setup_frame.  This is yesn-deterministic
    when re-entered but still correct. */
 
 static void set_rx_mode(struct net_device *dev)
@@ -1356,7 +1356,7 @@ static void set_rx_mode(struct net_device *dev)
 	} else if (netdev_mc_empty(dev)) {
 		ew32(RxCtrl, 0x0004);
 		return;
-	} else {					/* Never executed, for now. */
+	} else {					/* Never executed, for yesw. */
 		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
@@ -1480,7 +1480,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		ew32(NVCTL, (er32(NVCTL) & ~0x003c) | 0x4800);
 	}
 
-	/* all non-ethtool ioctls (the SIOC[GS]MIIxxx ioctls) */
+	/* all yesn-ethtool ioctls (the SIOC[GS]MIIxxx ioctls) */
 	spin_lock_irq(&np->lock);
 	rc = generic_mii_ioctl(&np->mii, data, cmd, NULL);
 	spin_unlock_irq(&np->lock);
@@ -1556,7 +1556,7 @@ static struct pci_driver epic_driver = {
 
 static int __init epic_init (void)
 {
-/* when a module, this is printed whether or not devices are found in probe */
+/* when a module, this is printed whether or yest devices are found in probe */
 #ifdef MODULE
 	pr_info("%s%s\n", version, version2);
 #endif

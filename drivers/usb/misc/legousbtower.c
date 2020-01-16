@@ -39,22 +39,22 @@
  *   - port to 2.6 style driver
  * 2004-02-29 - 0.6 Juergen Stuber <starblue@users.sourceforge.net>
  *   - fix locking
- *   - unlink read URBs which are no longer needed
+ *   - unlink read URBs which are yes longer needed
  *   - allow increased buffer size, eliminates need for timeout on write
  *   - have read URB running continuously
  *   - added poll
  *   - forbid seeking
- *   - added nonblocking I/O
+ *   - added yesnblocking I/O
  *   - changed back __func__ to __func__
  *   - read and log tower firmware version
  *   - reset tower on probe, avoids failure of first write
  * 2004-03-09 - 0.7 Juergen Stuber <starblue@users.sourceforge.net>
- *   - timeout read now only after inactivity, shorten default accordingly
+ *   - timeout read yesw only after inactivity, shorten default accordingly
  * 2004-03-11 - 0.8 Juergen Stuber <starblue@users.sourceforge.net>
- *   - log major, minor instead of possibly confusing device filename
+ *   - log major, miyesr instead of possibly confusing device filename
  *   - whitespace cleanup
  * 2004-03-12 - 0.9 Juergen Stuber <starblue@users.sourceforge.net>
- *   - normalize whitespace in debug messages
+ *   - yesrmalize whitespace in debug messages
  *   - take care about endianness in control message responses
  * 2004-03-13 - 0.91 Juergen Stuber <starblue@users.sourceforge.net>
  *   - make default intervals longer to accommodate current EHCI driver
@@ -74,7 +74,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/completion.h>
@@ -103,7 +103,7 @@ MODULE_PARM_DESC(read_buffer_size, "Read buffer size");
  * In this case write_buffer_size should exceed the maximal packet length
  * (417 for firmware and program downloads).
  * A problem with long writes is that the following read may time out
- * if the software is not prepared to wait long enough.
+ * if the software is yest prepared to wait long eyesugh.
  */
 static int write_buffer_size = 480;
 module_param(write_buffer_size, int, 0);
@@ -113,7 +113,7 @@ MODULE_PARM_DESC(write_buffer_size, "Write buffer size");
  * To achieve this, characters which arrive before a packet timeout
  * occurs will be returned in a single read operation.
  * A problem with long reads is that the software may time out
- * if it is not prepared to wait long enough.
+ * if it is yest prepared to wait long eyesugh.
  * The packet timeout should be greater than the time between the
  * reception of subsequent characters, which should arrive about
  * every 5ms for the standard 2400 baud.
@@ -136,7 +136,7 @@ MODULE_PARM_DESC(read_timeout, "Read timeout in ms");
  * to simplify the scheduling of periodic transfers.
  * This conflicts with our standard 1ms intervals for in and out URBs.
  * We use default intervals of 2ms for in and 8ms for out transfers,
- * which is fast enough for 2400 baud and allows a small additional load.
+ * which is fast eyesugh for 2400 baud and allows a small additional load.
  * Increase the interval to allow more devices that do interrupt transfers,
  * or set to 0 to use the standard interval from the endpoint descriptors.
  */
@@ -167,8 +167,8 @@ struct tower_get_version_reply {
 	__u8 err_code;
 	__u8 spare;
 	__u8 major;
-	__u8 minor;
-	__le16 build_no;
+	__u8 miyesr;
+	__le16 build_yes;
 };
 
 
@@ -187,7 +187,7 @@ MODULE_DEVICE_TABLE(usb, tower_table);
 struct lego_usb_tower {
 	struct mutex		lock;		/* locks this structure */
 	struct usb_device	*udev;		/* save off the usb device pointer */
-	unsigned char		minor;		/* the starting minor number for this device */
+	unsigned char		miyesr;		/* the starting miyesr number for this device */
 
 	int			open_count;	/* number of times this port has been opened */
 	unsigned long		disconnected:1;
@@ -221,8 +221,8 @@ struct lego_usb_tower {
 static ssize_t tower_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos);
 static ssize_t tower_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos);
 static inline void tower_delete(struct lego_usb_tower *dev);
-static int tower_open(struct inode *inode, struct file *file);
-static int tower_release(struct inode *inode, struct file *file);
+static int tower_open(struct iyesde *iyesde, struct file *file);
+static int tower_release(struct iyesde *iyesde, struct file *file);
 static __poll_t tower_poll(struct file *file, poll_table *wait);
 static loff_t tower_llseek(struct file *file, loff_t off, int whence);
 
@@ -245,20 +245,20 @@ static const struct file_operations tower_fops = {
 	.llseek =	tower_llseek,
 };
 
-static char *legousbtower_devnode(struct device *dev, umode_t *mode)
+static char *legousbtower_devyesde(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
 }
 
 /*
- * usb class driver info in order to get a minor number from the usb core,
+ * usb class driver info in order to get a miyesr number from the usb core,
  * and to have the device registered with the driver core
  */
 static struct usb_class_driver tower_class = {
 	.name =		"legousbtower%d",
-	.devnode = 	legousbtower_devnode,
+	.devyesde = 	legousbtower_devyesde,
 	.fops =		&tower_fops,
-	.minor_base =	LEGO_USB_TOWER_MINOR_BASE,
+	.miyesr_base =	LEGO_USB_TOWER_MINOR_BASE,
 };
 
 
@@ -302,10 +302,10 @@ static inline void tower_delete(struct lego_usb_tower *dev)
 /**
  *	tower_open
  */
-static int tower_open(struct inode *inode, struct file *file)
+static int tower_open(struct iyesde *iyesde, struct file *file)
 {
 	struct lego_usb_tower *dev = NULL;
-	int subminor;
+	int submiyesr;
 	int retval = 0;
 	struct usb_interface *interface;
 	struct tower_reset_reply *reset_reply;
@@ -317,12 +317,12 @@ static int tower_open(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
-	nonseekable_open(inode, file);
-	subminor = iminor(inode);
+	yesnseekable_open(iyesde, file);
+	submiyesr = imiyesr(iyesde);
 
-	interface = usb_find_interface(&tower_driver, subminor);
+	interface = usb_find_interface(&tower_driver, submiyesr);
 	if (!interface) {
-		pr_err("error, can't find device for minor %d\n", subminor);
+		pr_err("error, can't find device for miyesr %d\n", submiyesr);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -401,7 +401,7 @@ exit:
 /**
  *	tower_release
  */
-static int tower_release(struct inode *inode, struct file *file)
+static int tower_release(struct iyesde *iyesde, struct file *file)
 {
 	struct lego_usb_tower *dev;
 	int retval = 0;
@@ -443,8 +443,8 @@ exit:
 /**
  *	tower_check_for_read_packet
  *
- *      To get correct semantics for signals and non-blocking I/O
- *      with packetizing we pretend not to see any data in the read buffer
+ *      To get correct semantics for signals and yesn-blocking I/O
+ *      with packetizing we pretend yest to see any data in the read buffer
  *      until it has been there unchanged for at least
  *      dev->packet_timeout_jiffies, or until the buffer is full.
  */
@@ -682,7 +682,7 @@ static void tower_interrupt_in_callback(struct urb *urb)
 			goto exit;
 		} else {
 			dev_dbg(&dev->udev->dev,
-				"%s: nonzero status received: %d\n", __func__,
+				"%s: yesnzero status received: %d\n", __func__,
 				status);
 			goto resubmit; /* maybe we can recover */
 		}
@@ -733,7 +733,7 @@ static void tower_interrupt_out_callback(struct urb *urb)
 			status == -ECONNRESET ||
 			status == -ESHUTDOWN)) {
 		dev_dbg(&dev->udev->dev,
-			"%s: nonzero write bulk status received: %d\n", __func__,
+			"%s: yesnzero write bulk status received: %d\n", __func__,
 			status);
 	}
 
@@ -775,7 +775,7 @@ static int tower_probe(struct usb_interface *interface, const struct usb_device_
 			&dev->interrupt_in_endpoint,
 			&dev->interrupt_out_endpoint);
 	if (result) {
-		dev_err(idev, "interrupt endpoints not found\n");
+		dev_err(idev, "interrupt endpoints yest found\n");
 		retval = result;
 		goto error;
 	}
@@ -824,24 +824,24 @@ static int tower_probe(struct usb_interface *interface, const struct usb_device_
 	dev_info(&interface->dev,
 		 "LEGO USB Tower firmware version is %d.%d build %d\n",
 		 get_version_reply->major,
-		 get_version_reply->minor,
-		 le16_to_cpu(get_version_reply->build_no));
+		 get_version_reply->miyesr,
+		 le16_to_cpu(get_version_reply->build_yes));
 
-	/* we can register the device now, as it is ready */
+	/* we can register the device yesw, as it is ready */
 	usb_set_intfdata(interface, dev);
 
 	retval = usb_register_dev(interface, &tower_class);
 	if (retval) {
 		/* something prevented us from registering this driver */
-		dev_err(idev, "Not able to get a minor for this device.\n");
+		dev_err(idev, "Not able to get a miyesr for this device.\n");
 		goto error;
 	}
-	dev->minor = interface->minor;
+	dev->miyesr = interface->miyesr;
 
-	/* let the user know what node this device is now attached to */
-	dev_info(&interface->dev, "LEGO USB Tower #%d now attached to major "
-		 "%d minor %d\n", (dev->minor - LEGO_USB_TOWER_MINOR_BASE),
-		 USB_MAJOR, dev->minor);
+	/* let the user kyesw what yesde this device is yesw attached to */
+	dev_info(&interface->dev, "LEGO USB Tower #%d yesw attached to major "
+		 "%d miyesr %d\n", (dev->miyesr - LEGO_USB_TOWER_MINOR_BASE),
+		 USB_MAJOR, dev->miyesr);
 
 exit:
 	kfree(get_version_reply);
@@ -862,13 +862,13 @@ error:
 static void tower_disconnect(struct usb_interface *interface)
 {
 	struct lego_usb_tower *dev;
-	int minor;
+	int miyesr;
 
 	dev = usb_get_intfdata(interface);
 
-	minor = dev->minor;
+	miyesr = dev->miyesr;
 
-	/* give back our minor and prevent further open() */
+	/* give back our miyesr and prevent further open() */
 	usb_deregister_dev(interface, &tower_class);
 
 	/* stop I/O */
@@ -877,7 +877,7 @@ static void tower_disconnect(struct usb_interface *interface)
 
 	mutex_lock(&dev->lock);
 
-	/* if the device is not opened, then we clean up right now */
+	/* if the device is yest opened, then we clean up right yesw */
 	if (!dev->open_count) {
 		mutex_unlock(&dev->lock);
 		tower_delete(dev);
@@ -889,8 +889,8 @@ static void tower_disconnect(struct usb_interface *interface)
 		mutex_unlock(&dev->lock);
 	}
 
-	dev_info(&interface->dev, "LEGO USB Tower #%d now disconnected\n",
-		 (minor - LEGO_USB_TOWER_MINOR_BASE));
+	dev_info(&interface->dev, "LEGO USB Tower #%d yesw disconnected\n",
+		 (miyesr - LEGO_USB_TOWER_MINOR_BASE));
 }
 
 module_usb_driver(tower_driver);

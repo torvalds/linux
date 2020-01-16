@@ -4,13 +4,13 @@
  *
  * Copyright(c) 2013-2016 Intel Corporation. All rights reserved.
  */
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/acpi.h>
 #include <linux/nd.h>
 #include <asm/mce.h>
 #include "nfit.h"
 
-static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
+static int nfit_handle_mce(struct yestifier_block *nb, unsigned long val,
 			void *data)
 {
 	struct mce *mce = (struct mce *)data;
@@ -65,12 +65,12 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 		nvdimm_bus_add_badrange(acpi_desc->nvdimm_bus,
 				ALIGN(mce->addr, L1_CACHE_BYTES),
 				L1_CACHE_BYTES);
-		nvdimm_region_notify(nfit_spa->nd_region,
+		nvdimm_region_yestify(nfit_spa->nd_region,
 				NVDIMM_REVALIDATE_POISON);
 
 		if (acpi_desc->scrub_mode == HW_ERROR_SCRUB_ON) {
 			/*
-			 * We can ignore an -EBUSY here because if an ARS is
+			 * We can igyesre an -EBUSY here because if an ARS is
 			 * already in progress, just let that be the last
 			 * authoritative one
 			 */
@@ -83,8 +83,8 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block nfit_mce_dec = {
-	.notifier_call	= nfit_handle_mce,
+static struct yestifier_block nfit_mce_dec = {
+	.yestifier_call	= nfit_handle_mce,
 	.priority	= MCE_PRIO_NFIT,
 };
 

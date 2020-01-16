@@ -114,7 +114,7 @@ static int tegra210_bpmp_ring_doorbell(struct tegra_bpmp *bpmp)
 	struct irq_data *irq_data = priv->tx_irq_data;
 
 	/*
-	 * Tegra Legacy Interrupt Controller (LIC) is used to notify BPMP of
+	 * Tegra Legacy Interrupt Controller (LIC) is used to yestify BPMP of
 	 * available messages
 	 */
 	if (irq_data->chip->irq_retrigger)

@@ -229,7 +229,7 @@ static inline void copy_fxregs_to_kernel(struct fpu *fpu)
  * XSAVEOPT.
  *
  * Otherwise, if XSAVEOPT is enabled, XSAVEOPT replaces XSAVE because XSAVEOPT
- * supports modified optimization which is not supported by XSAVE.
+ * supports modified optimization which is yest supported by XSAVE.
  *
  * We use XSAVE as a fallback.
  *
@@ -268,8 +268,8 @@ static inline void copy_fxregs_to_kernel(struct fpu *fpu)
 		     : "memory")
 
 /*
- * This function is called only during boot time when x86 caps are not set
- * up and alternative can not be used yet.
+ * This function is called only during boot time when x86 caps are yest set
+ * up and alternative can yest be used yet.
  */
 static inline void copy_xregs_to_kernel_booting(struct xregs_state *xstate)
 {
@@ -290,8 +290,8 @@ static inline void copy_xregs_to_kernel_booting(struct xregs_state *xstate)
 }
 
 /*
- * This function is called only during boot time when x86 caps are not set
- * up and alternative can not be used yet.
+ * This function is called only during boot time when x86 caps are yest set
+ * up and alternative can yest be used yet.
  */
 static inline void copy_kernel_to_xregs_booting(struct xregs_state *xstate)
 {
@@ -412,7 +412,7 @@ static inline int copy_kernel_to_xregs_err(struct xregs_state *xstate, u64 mask)
  * The legacy FNSAVE instruction cleared all FPU state
  * unconditionally, so registers are essentially destroyed.
  * Modern FPU state can be kept in registers, if there are
- * no pending FP exceptions.
+ * yes pending FP exceptions.
  */
 static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 {
@@ -421,7 +421,7 @@ static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 
 		/*
 		 * AVX512 state is tracked here because its use is
-		 * known to slow the max clock speed of the core.
+		 * kyeswn to slow the max clock speed of the core.
 		 */
 		if (fpu->state.xsave.header.xfeatures & XFEATURE_MASK_AVX512)
 			fpu->avx512_timestamp = jiffies;
@@ -489,10 +489,10 @@ DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
  * FPU state from memory.
  *
  * Any code that clobbers the FPU registers or updates the in-memory
- * FPU state for a task MUST let the rest of the kernel know that the
- * FPU registers are no longer valid for this task.
+ * FPU state for a task MUST let the rest of the kernel kyesw that the
+ * FPU registers are yes longer valid for this task.
  *
- * Either one of these invalidation functions is enough. Invalidate
+ * Either one of these invalidation functions is eyesugh. Invalidate
  * a resource you control: CPU if using the CPU for something else
  * (with preemption disabled), FPU for the current task, or a task that
  * is prevented from running by the current task.
@@ -529,7 +529,7 @@ static inline void fpregs_activate(struct fpu *fpu)
 }
 
 /*
- * Internal helper, do not use directly. Use switch_fpu_return() instead.
+ * Internal helper, do yest use directly. Use switch_fpu_return() instead.
  */
 static inline void __fpregs_load_activate(void)
 {
@@ -561,7 +561,7 @@ static inline void __fpregs_load_activate(void)
  * If TIF_NEED_FPU_LOAD is cleared then the CPU's FPU registers
  * are saved in the current thread's FPU register state.
  *
- * If TIF_NEED_FPU_LOAD is set then CPU's FPU registers may not
+ * If TIF_NEED_FPU_LOAD is set then CPU's FPU registers may yest
  * hold current()'s FPU registers. It is required to load the
  * registers before returning to userland or using the content
  * otherwise.

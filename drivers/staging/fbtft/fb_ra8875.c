@@ -150,7 +150,7 @@ static int init_display(struct fbtft_par *par)
 		write_reg(par, 0x1E, 0x00);
 		write_reg(par, 0x1F, 0x01);
 	} else {
-		dev_err(par->info->device, "display size is not supported!!");
+		dev_err(par->info->device, "display size is yest supported!!");
 		return -1;
 	}
 

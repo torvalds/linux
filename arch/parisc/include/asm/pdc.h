@@ -44,7 +44,7 @@ int pdc_model_sysmodel(char *name);
 int pdc_model_cpuid(unsigned long *cpu_id);
 int pdc_model_versions(unsigned long *versions, int id);
 int pdc_model_capabilities(unsigned long *capabilities);
-int pdc_model_platform_info(char *orig_prod_num, char *current_prod_num, char *serial_no);
+int pdc_model_platform_info(char *orig_prod_num, char *current_prod_num, char *serial_yes);
 int pdc_cache_info(struct pdc_cache_info *cache);
 int pdc_spaceid_bits(unsigned long *space_bits);
 #ifndef CONFIG_PA20
@@ -101,7 +101,7 @@ static inline char * os_id_to_string(u16 os_id) {
 	case OS_ID_HPRT:	return "HP-RT";
 	case OS_ID_NOVEL:	return "Novell Netware";
 	case OS_ID_LINUX:	return "Linux";
-	default:	return "Unknown";
+	default:	return "Unkyeswn";
 	}
 }
 

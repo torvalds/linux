@@ -8,13 +8,13 @@ struct strlist;
 struct intlist;
 
 struct symbol_conf {
-	bool		nanosecs;
+	bool		nayessecs;
 	unsigned short	priv_size;
 	bool		try_vmlinux_path,
-			init_annotation,
+			init_anyestation,
 			force,
-			ignore_vmlinux,
-			ignore_vmlinux_buildid,
+			igyesre_vmlinux,
+			igyesre_vmlinux_buildid,
 			show_kernel_path,
 			use_modules,
 			allow_aliases,

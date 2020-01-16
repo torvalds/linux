@@ -20,7 +20,7 @@ static inline bool try_preempt_state(struct a5xx_gpu *a5xx_gpu,
 
 /*
  * Force the preemption state to the specified state.  This is used in cases
- * where the current state is known and won't change
+ * where the current state is kyeswn and won't change
  */
 static inline void set_preempt_state(struct a5xx_gpu *gpu,
 		enum preempt_state new)
@@ -90,8 +90,8 @@ static void a5xx_preempt_timer(struct timer_list *t)
 /* Try to trigger a preemption switch */
 void a5xx_preempt_trigger(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 	unsigned long flags;
 	struct msm_ringbuffer *ring;
 
@@ -109,19 +109,19 @@ void a5xx_preempt_trigger(struct msm_gpu *gpu)
 	ring = get_next_ring(gpu);
 
 	/*
-	 * If no ring is populated or the highest priority ring is the current
-	 * one do nothing except to update the wptr to the latest and greatest
+	 * If yes ring is populated or the highest priority ring is the current
+	 * one do yesthing except to update the wptr to the latest and greatest
 	 */
 	if (!ring || (a5xx_gpu->cur_ring == ring)) {
 		/*
 		 * Its possible that while a preemption request is in progress
 		 * from an irq context, a user context trying to submit might
 		 * fail to update the write pointer, because it determines
-		 * that the preempt state is not PREEMPT_NONE.
+		 * that the preempt state is yest PREEMPT_NONE.
 		 *
 		 * Close the race by introducing an intermediate
 		 * state PREEMPT_ABORT to let the submit path
-		 * know that the ringbuffer is not going to change
+		 * kyesw that the ringbuffer is yest going to change
 		 * and can safely update the write pointer.
 		 */
 
@@ -159,8 +159,8 @@ void a5xx_preempt_trigger(struct msm_gpu *gpu)
 void a5xx_preempt_irq(struct msm_gpu *gpu)
 {
 	uint32_t status;
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 	struct drm_device *dev = gpu->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 
@@ -172,7 +172,7 @@ void a5xx_preempt_irq(struct msm_gpu *gpu)
 
 	/*
 	 * The hardware should be setting CP_CONTEXT_SWITCH_CNTL to zero before
-	 * firing the interrupt, but there is a non zero chance of a hardware
+	 * firing the interrupt, but there is a yesn zero chance of a hardware
 	 * condition or a software race that could set it again before we have a
 	 * chance to finish. If that happens, log and go for recovery
 	 */
@@ -195,8 +195,8 @@ void a5xx_preempt_irq(struct msm_gpu *gpu)
 
 void a5xx_preempt_hw_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 	int i;
 
 	/* Always come up on rb 0 */
@@ -223,8 +223,8 @@ void a5xx_preempt_hw_init(struct msm_gpu *gpu)
 static int preempt_init_ring(struct a5xx_gpu *a5xx_gpu,
 		struct msm_ringbuffer *ring)
 {
-	struct adreno_gpu *adreno_gpu = &a5xx_gpu->base;
-	struct msm_gpu *gpu = &adreno_gpu->base;
+	struct adreyes_gpu *adreyes_gpu = &a5xx_gpu->base;
+	struct msm_gpu *gpu = &adreyes_gpu->base;
 	struct a5xx_preempt_record *ptr;
 	struct drm_gem_object *bo = NULL;
 	u64 iova = 0;
@@ -256,8 +256,8 @@ static int preempt_init_ring(struct a5xx_gpu *a5xx_gpu,
 
 void a5xx_preempt_fini(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 	int i;
 
 	for (i = 0; i < gpu->nr_rings; i++)
@@ -266,8 +266,8 @@ void a5xx_preempt_fini(struct msm_gpu *gpu)
 
 void a5xx_preempt_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 	int i;
 
 	/* No preemption if we only have one ring */

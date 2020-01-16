@@ -52,8 +52,8 @@ struct vmci_guest_device {
 	struct tasklet_struct bm_tasklet;
 
 	void *data_buffer;
-	void *notification_bitmap;
-	dma_addr_t notification_base;
+	void *yestification_bitmap;
+	dma_addr_t yestification_base;
 };
 
 static bool use_ppn64;
@@ -155,7 +155,7 @@ static void vmci_guest_cid_update(u32 sub_id,
 }
 
 /*
- * Verify that the host supports the hypercalls we need. If it does not,
+ * Verify that the host supports the hypercalls we need. If it does yest,
  * try to find fallback hypercalls and use those instead.  Returns
  * true if required hypercalls (or fallback hypercalls) are
  * supported by the host, false otherwise.
@@ -190,7 +190,7 @@ static int vmci_check_host_caps(struct pci_dev *pdev)
 	dev_dbg(&pdev->dev, "%s: Host capability check: %s\n",
 		__func__, result ? "PASSED" : "FAILED");
 
-	/* We need the vector. There are no fallbacks. */
+	/* We need the vector. There are yes fallbacks. */
 	return result ? 0 : -ENXIO;
 }
 
@@ -199,7 +199,7 @@ static int vmci_check_host_caps(struct pci_dev *pdev)
  * always start reading datagrams into only the first page of the
  * datagram buffer. If the datagrams don't fit into one page, we
  * use the maximum datagram buffer size for the remainder of the
- * invocation. This is a simple heuristic for not penalizing
+ * invocation. This is a simple heuristic for yest penalizing
  * small datagrams.
  *
  * This function assumes that it has exclusive access to the data
@@ -247,7 +247,7 @@ static void vmci_dispatch_dgs(unsigned long data)
 			/*
 			 * If the remaining bytes in the datagram
 			 * buffer doesn't contain the complete
-			 * datagram, we first make sure we have enough
+			 * datagram, we first make sure we have eyesugh
 			 * room for it and then we read the reminder
 			 * of the datagram and possibly any following
 			 * datagrams.
@@ -349,19 +349,19 @@ static void vmci_dispatch_dgs(unsigned long data)
 }
 
 /*
- * Scans the notification bitmap for raised flags, clears them
- * and handles the notifications.
+ * Scans the yestification bitmap for raised flags, clears them
+ * and handles the yestifications.
  */
 static void vmci_process_bitmap(unsigned long data)
 {
 	struct vmci_guest_device *dev = (struct vmci_guest_device *)data;
 
-	if (!dev->notification_bitmap) {
+	if (!dev->yestification_bitmap) {
 		dev_dbg(dev->dev, "No bitmap present in %s\n", __func__);
 		return;
 	}
 
-	vmci_dbell_scan_notification_entries(dev->notification_bitmap);
+	vmci_dbell_scan_yestification_entries(dev->yestification_bitmap);
 }
 
 /*
@@ -374,7 +374,7 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 
 	/*
 	 * If we are using MSI-X with exclusive vectors then we simply schedule
-	 * the datagram tasklet, since we know the interrupt was meant for us.
+	 * the datagram tasklet, since we kyesw the interrupt was meant for us.
 	 * Otherwise we must read the ICR to determine what to do.
 	 */
 
@@ -383,7 +383,7 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 	} else {
 		unsigned int icr;
 
-		/* Acknowledge interrupt and determine what needs doing. */
+		/* Ackyeswledge interrupt and determine what needs doing. */
 		icr = ioread32(dev->iobase + VMCI_ICR_ADDR);
 		if (icr == 0 || icr == ~0)
 			return IRQ_NONE;
@@ -400,7 +400,7 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 
 		if (icr != 0)
 			dev_warn(dev->dev,
-				 "Ignoring unknown interrupt cause (%d)\n",
+				 "Igyesring unkyeswn interrupt cause (%d)\n",
 				 icr);
 	}
 
@@ -409,7 +409,7 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 
 /*
  * Interrupt handler for MSI-X interrupt vector VMCI_INTR_NOTIFICATION,
- * which is for the notification bitmap.  Will only get called if we are
+ * which is for the yestification bitmap.  Will only get called if we are
  * using MSI-X with exclusive vectors.
  */
 static irqreturn_t vmci_interrupt_bm(int irq, void *_dev)
@@ -486,13 +486,13 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 * we need. If the device is missing capabilities that we would
 	 * like to use, check for fallback capabilities and use those
 	 * instead (so we can run a new VM on old hosts). Fail the load if
-	 * a required capability is missing and there is no fallback.
+	 * a required capability is missing and there is yes fallback.
 	 *
-	 * Right now, we need datagrams. There are no fallbacks.
+	 * Right yesw, we need datagrams. There are yes fallbacks.
 	 */
 	capabilities = ioread32(vmci_dev->iobase + VMCI_CAPS_ADDR);
 	if (!(capabilities & VMCI_CAPS_DATAGRAM)) {
-		dev_err(&pdev->dev, "Device does not support datagrams\n");
+		dev_err(&pdev->dev, "Device does yest support datagrams\n");
 		error = -ENXIO;
 		goto err_free_data_buffer;
 	}
@@ -501,7 +501,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	/*
 	 * Use 64-bit PPNs if the device supports.
 	 *
-	 * There is no check for the return value of dma_set_mask_and_coherent
+	 * There is yes check for the return value of dma_set_mask_and_coherent
 	 * since this driver can handle the default mask values if
 	 * dma_set_mask_and_coherent fails.
 	 */
@@ -515,25 +515,25 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	}
 
 	/*
-	 * If the hardware supports notifications, we will use that as
+	 * If the hardware supports yestifications, we will use that as
 	 * well.
 	 */
 	if (capabilities & VMCI_CAPS_NOTIFICATIONS) {
-		vmci_dev->notification_bitmap = dma_alloc_coherent(
-			&pdev->dev, PAGE_SIZE, &vmci_dev->notification_base,
+		vmci_dev->yestification_bitmap = dma_alloc_coherent(
+			&pdev->dev, PAGE_SIZE, &vmci_dev->yestification_base,
 			GFP_KERNEL);
-		if (!vmci_dev->notification_bitmap) {
+		if (!vmci_dev->yestification_bitmap) {
 			dev_warn(&pdev->dev,
-				 "Unable to allocate notification bitmap\n");
+				 "Unable to allocate yestification bitmap\n");
 		} else {
-			memset(vmci_dev->notification_bitmap, 0, PAGE_SIZE);
+			memset(vmci_dev->yestification_bitmap, 0, PAGE_SIZE);
 			caps_in_use |= VMCI_CAPS_NOTIFICATIONS;
 		}
 	}
 
 	dev_info(&pdev->dev, "Using capabilities 0x%x\n", caps_in_use);
 
-	/* Let the host know which capabilities we intend to use. */
+	/* Let the host kyesw which capabilities we intend to use. */
 	iowrite32(caps_in_use, vmci_dev->iobase + VMCI_CAPS_ADDR);
 
 	/* Set up global device so that we can start sending datagrams */
@@ -543,15 +543,15 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	spin_unlock_irq(&vmci_dev_spinlock);
 
 	/*
-	 * Register notification bitmap with device if that capability is
+	 * Register yestification bitmap with device if that capability is
 	 * used.
 	 */
 	if (caps_in_use & VMCI_CAPS_NOTIFICATIONS) {
 		unsigned long bitmap_ppn =
-			vmci_dev->notification_base >> PAGE_SHIFT;
-		if (!vmci_dbell_register_notification_bitmap(bitmap_ppn)) {
+			vmci_dev->yestification_base >> PAGE_SHIFT;
+		if (!vmci_dbell_register_yestification_bitmap(bitmap_ppn)) {
 			dev_warn(&pdev->dev,
-				 "VMCI device unable to register notification bitmap with PPN 0x%lx\n",
+				 "VMCI device unable to register yestification bitmap with PPN 0x%lx\n",
 				 bitmap_ppn);
 			error = -ENXIO;
 			goto err_remove_vmci_dev_g;
@@ -656,12 +656,12 @@ err_disable_msi:
 			 VMCI_EVENT_CTX_ID_UPDATE, ctx_update_sub_id, vmci_err);
 
 err_remove_bitmap:
-	if (vmci_dev->notification_bitmap) {
+	if (vmci_dev->yestification_bitmap) {
 		iowrite32(VMCI_CONTROL_RESET,
 			  vmci_dev->iobase + VMCI_CONTROL_ADDR);
 		dma_free_coherent(&pdev->dev, PAGE_SIZE,
-				  vmci_dev->notification_bitmap,
-				  vmci_dev->notification_base);
+				  vmci_dev->yestification_bitmap,
+				  vmci_dev->yestification_base);
 	}
 
 err_remove_vmci_dev_g:
@@ -715,15 +715,15 @@ static void vmci_guest_remove_device(struct pci_dev *pdev)
 	tasklet_kill(&vmci_dev->datagram_tasklet);
 	tasklet_kill(&vmci_dev->bm_tasklet);
 
-	if (vmci_dev->notification_bitmap) {
+	if (vmci_dev->yestification_bitmap) {
 		/*
 		 * The device reset above cleared the bitmap state of the
 		 * device, so we can safely free it here.
 		 */
 
 		dma_free_coherent(&pdev->dev, PAGE_SIZE,
-				  vmci_dev->notification_bitmap,
-				  vmci_dev->notification_base);
+				  vmci_dev->yestification_bitmap,
+				  vmci_dev->yestification_base);
 	}
 
 	vfree(vmci_dev->data_buffer);

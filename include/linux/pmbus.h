@@ -18,9 +18,9 @@
  *
  * Some PMBus chips respond with valid data when trying to read an unsupported
  * register. For such chips, checking the status register is mandatory when
- * trying to determine if a chip register exists or not.
+ * trying to determine if a chip register exists or yest.
  * Other PMBus chips don't support the STATUS_CML register, or report
- * communication errors for no explicable reason. For such chips, checking
+ * communication errors for yes explicable reason. For such chips, checking
  * the status register must be disabled.
  */
 #define PMBUS_SKIP_STATUS_CHECK	(1 << 0)

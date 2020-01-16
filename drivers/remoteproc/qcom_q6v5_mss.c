@@ -714,7 +714,7 @@ static int q6v5_mpss_init_image(struct q6v5 *qproc, const struct firmware *fw)
 	xferop_ret = q6v5_xfer_mem_ownership(qproc, &mdata_perm, false, phys, size);
 	if (xferop_ret)
 		dev_warn(qproc->dev,
-			 "mdt buffer not reclaimed system may become unstable\n");
+			 "mdt buffer yest reclaimed system may become unstable\n");
 
 free_dma_attrs:
 	dma_free_attrs(qproc->dev, size, ptr, phys, dma_attrs);
@@ -903,7 +903,7 @@ static void q6v5_mba_reclaim(struct q6v5 *qproc)
 	q6v5_pds_disable(qproc, qproc->active_pds, qproc->active_pd_count);
 
 	/* In case of failure or coredump scenario where reclaiming MBA memory
-	 * could not happen reclaim it here.
+	 * could yest happen reclaim it here.
 	 */
 	ret = q6v5_xfer_mem_ownership(qproc, &qproc->mba_perm, false,
 				      qproc->mba_phys,
@@ -1000,7 +1000,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 		ptr = qproc->mpss_region + offset;
 
 		if (phdr->p_filesz && phdr->p_offset < fw->size) {
-			/* Firmware is large enough to be non-split */
+			/* Firmware is large eyesugh to be yesn-split */
 			if (phdr->p_offset + phdr->p_filesz > fw->size) {
 				dev_err(qproc->dev,
 					"failed to load segment %d from truncated file %s\n",
@@ -1237,15 +1237,15 @@ static int q6v5_init_mem(struct q6v5 *qproc, struct platform_device *pdev)
 	if (IS_ERR(qproc->rmb_base))
 		return PTR_ERR(qproc->rmb_base);
 
-	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
+	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_yesde,
 					       "qcom,halt-regs", 3, 0, &args);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to parse qcom,halt-regs\n");
 		return -EINVAL;
 	}
 
-	qproc->halt_map = syscon_node_to_regmap(args.np);
-	of_node_put(args.np);
+	qproc->halt_map = syscon_yesde_to_regmap(args.np);
+	of_yesde_put(args.np);
 	if (IS_ERR(qproc->halt_map))
 		return PTR_ERR(qproc->halt_map);
 
@@ -1341,19 +1341,19 @@ static int q6v5_init_reset(struct q6v5 *qproc)
 
 static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 {
-	struct device_node *child;
-	struct device_node *node;
+	struct device_yesde *child;
+	struct device_yesde *yesde;
 	struct resource r;
 	int ret;
 
-	child = of_get_child_by_name(qproc->dev->of_node, "mba");
-	node = of_parse_phandle(child, "memory-region", 0);
-	ret = of_address_to_resource(node, 0, &r);
+	child = of_get_child_by_name(qproc->dev->of_yesde, "mba");
+	yesde = of_parse_phandle(child, "memory-region", 0);
+	ret = of_address_to_resource(yesde, 0, &r);
 	if (ret) {
 		dev_err(qproc->dev, "unable to resolve mba region\n");
 		return ret;
 	}
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	qproc->mba_phys = r.start;
 	qproc->mba_size = resource_size(&r);
@@ -1364,14 +1364,14 @@ static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 		return -EBUSY;
 	}
 
-	child = of_get_child_by_name(qproc->dev->of_node, "mpss");
-	node = of_parse_phandle(child, "memory-region", 0);
-	ret = of_address_to_resource(node, 0, &r);
+	child = of_get_child_by_name(qproc->dev->of_yesde, "mpss");
+	yesde = of_parse_phandle(child, "memory-region", 0);
+	ret = of_address_to_resource(yesde, 0, &r);
 	if (ret) {
 		dev_err(qproc->dev, "unable to resolve mpss region\n");
 		return ret;
 	}
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	qproc->mpss_phys = qproc->mpss_reloc = r.start;
 	qproc->mpss_size = resource_size(&r);
@@ -1401,7 +1401,7 @@ static int q6v5_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	mba_image = desc->hexagon_mba_image;
-	ret = of_property_read_string_index(pdev->dev.of_node, "firmware-name",
+	ret = of_property_read_string_index(pdev->dev.of_yesde, "firmware-name",
 					    0, &mba_image);
 	if (ret < 0 && ret != -EINVAL)
 		return ret;
@@ -1419,7 +1419,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	qproc->dev = &pdev->dev;
 	qproc->rproc = rproc;
 	qproc->hexagon_mdt_image = "modem.mdt";
-	ret = of_property_read_string_index(pdev->dev.of_node, "firmware-name",
+	ret = of_property_read_string_index(pdev->dev.of_yesde, "firmware-name",
 					    1, &qproc->hexagon_mdt_image);
 	if (ret < 0 && ret != -EINVAL)
 		return ret;
@@ -1558,14 +1558,14 @@ static const struct rproc_hexagon_res sdm845_mss = {
 	},
 	.reset_clk_names = (char*[]){
 			"iface",
-			"snoc_axi",
+			"syesc_axi",
 			NULL
 	},
 	.active_clk_names = (char*[]){
 			"bus",
 			"mem",
 			"gpll0_mss",
-			"mnoc_axi",
+			"myesc_axi",
 			NULL
 	},
 	.active_pd_names = (char*[]){
@@ -1596,8 +1596,8 @@ static const struct rproc_hexagon_res msm8998_mss = {
 			"bus",
 			"mem",
 			"gpll0_mss",
-			"mnoc_axi",
-			"snoc_axi",
+			"myesc_axi",
+			"syesc_axi",
 			NULL
 	},
 	.proxy_pd_names = (char*[]){
@@ -1621,7 +1621,7 @@ static const struct rproc_hexagon_res msm8996_mss = {
 	},
 	.proxy_clk_names = (char*[]){
 			"xo",
-			"pnoc",
+			"pyesc",
 			"qdss",
 			NULL
 	},
@@ -1630,8 +1630,8 @@ static const struct rproc_hexagon_res msm8996_mss = {
 			"bus",
 			"mem",
 			"gpll0_mss",
-			"snoc_axi",
-			"mnoc_axi",
+			"syesc_axi",
+			"myesc_axi",
 			NULL
 	},
 	.need_mem_protection = true,

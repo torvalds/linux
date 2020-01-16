@@ -48,11 +48,11 @@
  * and the ZSTD_ErrorCode can be extracted using ZSTD_getErrorCode().
  */
 typedef enum {
-	ZSTD_error_no_error,
+	ZSTD_error_yes_error,
 	ZSTD_error_GENERIC,
-	ZSTD_error_prefix_unknown,
+	ZSTD_error_prefix_unkyeswn,
 	ZSTD_error_version_unsupported,
-	ZSTD_error_parameter_unknown,
+	ZSTD_error_parameter_unkyeswn,
 	ZSTD_error_frameParameter_unsupported,
 	ZSTD_error_frameParameter_unsupportedBy32bits,
 	ZSTD_error_frameParameter_windowTooLarge,
@@ -155,10 +155,10 @@ typedef struct {
 /**
  * struct ZSTD_frameParameters - zstd frame parameters
  * @contentSizeFlag: Controls whether content size will be present in the frame
- *                   header (when known).
+ *                   header (when kyeswn).
  * @checksumFlag:    Controls whether a 32-bit checksum is generated at the end
  *                   of the frame for error detection.
- * @noDictIDFlag:    Controls whether dictID will be saved into the frame header
+ * @yesDictIDFlag:    Controls whether dictID will be saved into the frame header
  *                   when using dictionary compression.
  *
  * The default value is all fields set to 0.
@@ -166,7 +166,7 @@ typedef struct {
 typedef struct {
 	unsigned int contentSizeFlag;
 	unsigned int checksumFlag;
-	unsigned int noDictIDFlag;
+	unsigned int yesDictIDFlag;
 } ZSTD_frameParameters;
 
 /**
@@ -182,7 +182,7 @@ typedef struct {
 /**
  * ZSTD_getCParams() - returns ZSTD_compressionParameters for selected level
  * @compressionLevel: The compression level from 1 to ZSTD_maxCLevel().
- * @estimatedSrcSize: The estimated source size to compress or 0 if unknown.
+ * @estimatedSrcSize: The estimated source size to compress or 0 if unkyeswn.
  * @dictSize:         The dictionary size or 0 if a dictionary isn't being used.
  *
  * Return:            The selected ZSTD_compressionParameters.
@@ -193,7 +193,7 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel,
 /**
  * ZSTD_getParams() - returns ZSTD_parameters for selected level
  * @compressionLevel: The compression level from 1 to ZSTD_maxCLevel().
- * @estimatedSrcSize: The estimated source size to compress or 0 if unknown.
+ * @estimatedSrcSize: The estimated source size to compress or 0 if unkyeswn.
  * @dictSize:         The dictionary size or 0 if a dictionary isn't being used.
  *
  * The same as ZSTD_getCParams() except also selects the default frame
@@ -245,7 +245,7 @@ ZSTD_CCtx *ZSTD_initCCtx(void *workspace, size_t workspaceSize);
  *               least as large as ZSTD_CCtxWorkspaceBound(params.cParams).
  * @dst:         The buffer to compress src into.
  * @dstCapacity: The size of the destination buffer. May be any size, but
- *               ZSTD_compressBound(srcSize) is guaranteed to be large enough.
+ *               ZSTD_compressBound(srcSize) is guaranteed to be large eyesugh.
  * @src:         The data to compress.
  * @srcSize:     The size of the data to compress.
  * @params:      The parameters to use for compression. See ZSTD_getParams().
@@ -287,7 +287,7 @@ ZSTD_DCtx *ZSTD_initDCtx(void *workspace, size_t workspaceSize);
  * @ctx:         The decompression context.
  * @dst:         The buffer to decompress src into.
  * @dstCapacity: The size of the destination buffer. Must be at least as large
- *               as the decompressed size. If the caller cannot upper bound the
+ *               as the decompressed size. If the caller canyest upper bound the
  *               decompressed size, then it's better to use the streaming API.
  * @src:         The zstd compressed data to decompress. Multiple concatenated
  *               frames and skippable frames are allowed.
@@ -309,7 +309,7 @@ size_t ZSTD_decompressDCtx(ZSTD_DCtx *ctx, void *dst, size_t dstCapacity,
  *               least as large as ZSTD_CCtxWorkspaceBound(params.cParams).
  * @dst:         The buffer to compress src into.
  * @dstCapacity: The size of the destination buffer. May be any size, but
- *               ZSTD_compressBound(srcSize) is guaranteed to be large enough.
+ *               ZSTD_compressBound(srcSize) is guaranteed to be large eyesugh.
  * @src:         The data to compress.
  * @srcSize:     The size of the data to compress.
  * @dict:        The dictionary to use for compression.
@@ -331,7 +331,7 @@ size_t ZSTD_compress_usingDict(ZSTD_CCtx *ctx, void *dst, size_t dstCapacity,
  * @ctx:         The decompression context.
  * @dst:         The buffer to decompress src into.
  * @dstCapacity: The size of the destination buffer. Must be at least as large
- *               as the decompressed size. If the caller cannot upper bound the
+ *               as the decompressed size. If the caller canyest upper bound the
  *               decompressed size, then it's better to use the streaming API.
  * @src:         The zstd compressed data to decompress. Multiple concatenated
  *               frames and skippable frames are allowed.
@@ -391,7 +391,7 @@ ZSTD_CDict *ZSTD_initCDict(const void *dictBuffer, size_t dictSize,
  *               cdict.
  * @dst:         The buffer to compress src into.
  * @dstCapacity: The size of the destination buffer. May be any size, but
- *               ZSTD_compressBound(srcSize) is guaranteed to be large enough.
+ *               ZSTD_compressBound(srcSize) is guaranteed to be large eyesugh.
  * @src:         The data to compress.
  * @srcSize:     The size of the data to compress.
  * @cdict:       The digested dictionary to use for compression.
@@ -443,7 +443,7 @@ ZSTD_DDict *ZSTD_initDDict(const void *dictBuffer, size_t dictSize,
  * @ctx:         The decompression context.
  * @dst:         The buffer to decompress src into.
  * @dstCapacity: The size of the destination buffer. Must be at least as large
- *               as the decompressed size. If the caller cannot upper bound the
+ *               as the decompressed size. If the caller canyest upper bound the
  *               decompressed size, then it's better to use the streaming API.
  * @src:         The zstd compressed data to decompress. Multiple concatenated
  *               frames and skippable frames are allowed.
@@ -503,7 +503,7 @@ typedef struct ZSTD_outBuffer_s {
  *
  * Use ZSTD_compressStream() repetitively to consume input stream.
  * The function will automatically update both `pos` fields.
- * Note that it may not consume the entire input, in which case `pos < size`,
+ * Note that it may yest consume the entire input, in which case `pos < size`,
  * and it's up to the caller to present again remaining data.
  * It returns a hint for the preferred number of bytes to use as an input for
  * the next function call.
@@ -516,7 +516,7 @@ typedef struct ZSTD_outBuffer_s {
  *
  * ZSTD_endStream() instructs to finish a frame. It will perform a flush and
  * write frame epilogue. The epilogue is required for decoders to consider a
- * frame completed. Similar to ZSTD_flushStream(), it may not be able to flush
+ * frame completed. Similar to ZSTD_flushStream(), it may yest be able to flush
  * the full content if `output->size` is too small. In which case, call again
  * ZSTD_endStream() to complete the flush. It returns the number of bytes left
  * in the internal buffer and must be called until it returns 0.
@@ -543,7 +543,7 @@ typedef struct ZSTD_CStream_s ZSTD_CStream;
  * @pledgedSrcSize: If params.fParams.contentSizeFlag == 1 then the caller must
  *                  pass the source size (zero means empty source). Otherwise,
  *                  the caller may optionally pass the source size, or zero if
- *                  unknown.
+ *                  unkyeswn.
  * @workspace:      The workspace to emplace the context into. It must outlive
  *                  the returned context.
  * @workspaceSize:  The size of workspace.
@@ -559,7 +559,7 @@ ZSTD_CStream *ZSTD_initCStream(ZSTD_parameters params,
 /**
  * ZSTD_initCStream_usingCDict() - initialize a streaming compression context
  * @cdict:          The digested dictionary to use for compression.
- * @pledgedSrcSize: Optionally the source size, or zero if unknown.
+ * @pledgedSrcSize: Optionally the source size, or zero if unkyeswn.
  * @workspace:      The workspace to emplace the context into. It must outlive
  *                  the returned context.
  * @workspaceSize:  The size of workspace. Call ZSTD_CStreamWorkspaceBound()
@@ -576,10 +576,10 @@ ZSTD_CStream *ZSTD_initCStream_usingCDict(const ZSTD_CDict *cdict,
 /**
  * ZSTD_resetCStream() - reset the context using parameters from creation
  * @zcs:            The zstd streaming compression context to reset.
- * @pledgedSrcSize: Optionally the source size, or zero if unknown.
+ * @pledgedSrcSize: Optionally the source size, or zero if unkyeswn.
  *
  * Resets the context using the parameters from creation. Skips dictionary
- * loading, since it can be reused. If `pledgedSrcSize` is non-zero the frame
+ * loading, since it can be reused. If `pledgedSrcSize` is yesn-zero the frame
  * content size is always written into the frame header.
  *
  * Return:          Zero or an error, which can be checked using ZSTD_isError().
@@ -591,12 +591,12 @@ size_t ZSTD_resetCStream(ZSTD_CStream *zcs, unsigned long long pledgedSrcSize);
  * @output: Destination buffer. `output->pos` is updated to indicate how much
  *          compressed data was written.
  * @input:  Source buffer. `input->pos` is updated to indicate how much data was
- *          read. Note that it may not consume the entire input, in which case
+ *          read. Note that it may yest consume the entire input, in which case
  *          `input->pos < input->size`, and it's up to the caller to present
  *          remaining data again.
  *
  * The `input` and `output` buffers may be any size. Guaranteed to make some
- * forward progress if `input` and `output` are not empty.
+ * forward progress if `input` and `output` are yest empty.
  *
  * Return:  A hint for the number of bytes to use as the input for the next
  *          function call or an error, which can be checked using
@@ -642,7 +642,7 @@ size_t ZSTD_CStreamInSize(void);
  * ZSTD_CStreamOutSize() - recommended size for the output buffer
  *
  * When the output buffer is at least this large, it is guaranteed to be large
- * enough to flush at least one complete compressed block.
+ * eyesugh to flush at least one complete compressed block.
  *
  * Return: The recommended size for the output buffer.
  */
@@ -659,7 +659,7 @@ size_t ZSTD_CStreamOutSize(void);
  *
  * Use ZSTD_decompressStream() repetitively to consume your input.
  * The function will update both `pos` fields.
- * If `input->pos < input->size`, some input has not been consumed.
+ * If `input->pos < input->size`, some input has yest been consumed.
  * It's up to the caller to present again remaining data.
  * If `output->pos < output->size`, decoder has flushed everything it could.
  * Returns 0 iff a frame is completely decoded and fully flushed.
@@ -726,13 +726,13 @@ size_t ZSTD_resetDStream(ZSTD_DStream *zds);
  * @output: Destination buffer. `output.pos` is updated to indicate how much
  *          decompressed data was written.
  * @input:  Source buffer. `input.pos` is updated to indicate how much data was
- *          read. Note that it may not consume the entire input, in which case
+ *          read. Note that it may yest consume the entire input, in which case
  *          `input.pos < input.size`, and it's up to the caller to present
  *          remaining data again.
  *
  * The `input` and `output` buffers may be any size. Guaranteed to make some
- * forward progress if `input` and `output` are not empty.
- * ZSTD_decompressStream() will not consume the last byte of the frame until
+ * forward progress if `input` and `output` are yest empty.
+ * ZSTD_decompressStream() will yest consume the last byte of the frame until
  * the entire frame is flushed.
  *
  * Return:  Returns 0 iff a frame is completely decoded and fully flushed.
@@ -753,7 +753,7 @@ size_t ZSTD_DStreamInSize(void);
  * ZSTD_DStreamOutSize() - recommended size for the output buffer
  *
  * When the output buffer is at least this large, it is guaranteed to be large
- * enough to flush at least one complete decompressed block.
+ * eyesugh to flush at least one complete decompressed block.
  *
  * Return: The recommended size for the output buffer.
  */
@@ -822,9 +822,9 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize);
  * ZSTD_getFrameContentSize() - returns the content size in a zstd frame header
  * @src:     It should point to the start of a zstd encoded frame.
  * @srcSize: The size of the source buffer. It must be at least as large as the
- *           frame header. `ZSTD_frameHeaderSize_max` is always large enough.
+ *           frame header. `ZSTD_frameHeaderSize_max` is always large eyesugh.
  *
- * Return:   The frame content size stored in the frame header if known.
+ * Return:   The frame content size stored in the frame header if kyeswn.
  *           `ZSTD_CONTENTSIZE_UNKNOWN` if the content size isn't stored in the
  *           frame header. `ZSTD_CONTENTSIZE_ERROR` on invalid input.
  */
@@ -846,8 +846,8 @@ unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize);
  * efficient as most of the data is skipped, however it does mean that all frame
  * data must be present and valid.
  *
- * Return:   Decompressed size of all the data contained in the frames if known.
- *           `ZSTD_CONTENTSIZE_UNKNOWN` if the decompressed size is unknown.
+ * Return:   Decompressed size of all the data contained in the frames if kyeswn.
+ *           `ZSTD_CONTENTSIZE_UNKNOWN` if the decompressed size is unkyeswn.
  *           `ZSTD_CONTENTSIZE_ERROR` if an error occurred.
  */
 unsigned long long ZSTD_findDecompressedSize(const void *src, size_t srcSize);
@@ -865,8 +865,8 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams);
 
 /**
  * ZSTD_adjustCParams() - optimize parameters for a given srcSize and dictSize
- * @srcSize:  Optionally the estimated source size, or zero if unknown.
- * @dictSize: Optionally the estimated dictionary size, or zero if unknown.
+ * @srcSize:  Optionally the estimated source size, or zero if unkyeswn.
+ * @dictSize: Optionally the estimated dictionary size, or zero if unkyeswn.
  *
  * Return:    The optimized parameters.
  */
@@ -891,7 +891,7 @@ unsigned int ZSTD_isFrame(const void *buffer, size_t size);
  * @dictSize: The size of the dictionary buffer.
  *
  * Return:    The dictionary id stored within the dictionary or 0 if the
- *            dictionary is not a zstd dictionary. If it returns 0 the
+ *            dictionary is yest a zstd dictionary. If it returns 0 the
  *            dictionary can still be loaded as a content-only dictionary.
  */
 unsigned int ZSTD_getDictID_fromDict(const void *dict, size_t dictSize);
@@ -900,7 +900,7 @@ unsigned int ZSTD_getDictID_fromDict(const void *dict, size_t dictSize);
  * ZSTD_getDictID_fromDDict() - returns the dictionary id stored in a ZSTD_DDict
  * @ddict: The ddict to find the id of.
  *
- * Return: The dictionary id stored within `ddict` or 0 if the dictionary is not
+ * Return: The dictionary id stored within `ddict` or 0 if the dictionary is yest
  *         a zstd dictionary. If it returns 0 `ddict` will be loaded as a
  *         content-only dictionary.
  */
@@ -910,21 +910,21 @@ unsigned int ZSTD_getDictID_fromDDict(const ZSTD_DDict *ddict);
  * ZSTD_getDictID_fromFrame() - returns the dictionary id stored in a zstd frame
  * @src:     Source buffer. It must be a zstd encoded frame.
  * @srcSize: The size of the source buffer. It must be at least as large as the
- *           frame header. `ZSTD_frameHeaderSize_max` is always large enough.
+ *           frame header. `ZSTD_frameHeaderSize_max` is always large eyesugh.
  *
  * Return:   The dictionary id required to decompress the frame stored within
- *           `src` or 0 if the dictionary id could not be decoded. It can return
- *           0 if the frame does not require a dictionary, the dictionary id
- *           wasn't stored in the frame, `src` is not a zstd frame, or `srcSize`
+ *           `src` or 0 if the dictionary id could yest be decoded. It can return
+ *           0 if the frame does yest require a dictionary, the dictionary id
+ *           wasn't stored in the frame, `src` is yest a zstd frame, or `srcSize`
  *           is too small.
  */
 unsigned int ZSTD_getDictID_fromFrame(const void *src, size_t srcSize);
 
 /**
  * struct ZSTD_frameParams - zstd frame parameters stored in the frame header
- * @frameContentSize: The frame content size, or 0 if not present.
+ * @frameContentSize: The frame content size, or 0 if yest present.
  * @windowSize:       The window size, or 0 if the frame is a skippable frame.
- * @dictID:           The dictionary id, or 0 if not present.
+ * @dictID:           The dictionary id, or 0 if yest present.
  * @checksumFlag:     Whether a checksum was used.
  */
 typedef struct {
@@ -939,7 +939,7 @@ typedef struct {
  * @fparamsPtr: On success the frame parameters are written here.
  * @src:        The source buffer. It must point to a zstd or skippable frame.
  * @srcSize:    The size of the source buffer. `ZSTD_frameHeaderSize_max` is
- *              always large enough to succeed.
+ *              always large eyesugh to succeed.
  *
  * Return:      0 on success. If more data is required it returns how many bytes
  *              must be provided to make forward progress. Otherwise it returns
@@ -949,16 +949,16 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams *fparamsPtr, const void *src,
 	size_t srcSize);
 
 /*-*****************************************************************************
- * Buffer-less and synchronous inner streaming functions
+ * Buffer-less and synchroyesus inner streaming functions
  *
  * This is an advanced API, giving full control over buffer management, for
  * users which need direct control over memory.
  * But it's also a complex one, with many restrictions (documented below).
- * Prefer using normal streaming API for an easier experience
+ * Prefer using yesrmal streaming API for an easier experience
  ******************************************************************************/
 
 /*-*****************************************************************************
- * Buffer-less streaming compression (synchronous mode)
+ * Buffer-less streaming compression (synchroyesus mode)
  *
  * A ZSTD_CCtx object is required to track streaming operations.
  * Use ZSTD_initCCtx() to initialize a context.
@@ -975,11 +975,11 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams *fparamsPtr, const void *src,
  * Then, consume your input using ZSTD_compressContinue().
  * There are some important considerations to keep in mind when using this
  * advanced function :
- * - ZSTD_compressContinue() has no internal buffer. It uses externally provided
+ * - ZSTD_compressContinue() has yes internal buffer. It uses externally provided
  *   buffer only.
- * - Interface is synchronous : input is consumed entirely and produce 1+
+ * - Interface is synchroyesus : input is consumed entirely and produce 1+
  *   (or more) compressed blocks.
- * - Caller must ensure there is enough space in `dst` to store compressed data
+ * - Caller must ensure there is eyesugh space in `dst` to store compressed data
  *   under worst case scenario. Worst case evaluation is provided by
  *   ZSTD_compressBound().
  *   ZSTD_compressContinue() doesn't guarantee recover after a failed
@@ -1020,7 +1020,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx *cctx, void *dst, size_t dstCapacity,
 
 
 /*-*****************************************************************************
- * Buffer-less streaming decompression (synchronous mode)
+ * Buffer-less streaming decompression (synchroyesus mode)
  *
  * A ZSTD_DCtx object is required to track streaming operations.
  * Use ZSTD_initDCtx() to initialize a context.
@@ -1031,7 +1031,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx *cctx, void *dst, size_t dstCapacity,
  * important information to correctly decode the frame, such as the minimum
  * rolling buffer size to allocate to decompress data (`windowSize`), and the
  * dictionary ID used.
- * Note: content size is optional, it may not be present. 0 means unknown.
+ * Note: content size is optional, it may yest be present. 0 means unkyeswn.
  * Note that these values could be wrong, either because of data malformation,
  * or because an attacker is spoofing deliberate false information. As a
  * consequence, check that values remain within valid application range,
@@ -1039,7 +1039,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx *cctx, void *dst, size_t dstCapacity,
  * limit, depending on local restrictions. For extended interoperability, it is
  * recommended to support at least 8 MB.
  * Frame parameters are extracted from the beginning of the compressed frame.
- * Data fragment must be large enough to ensure successful decoding, typically
+ * Data fragment must be large eyesugh to ensure successful decoding, typically
  * `ZSTD_frameHeaderSize_max` bytes.
  * Result: 0: successful decoding, the `ZSTD_frameParams` structure is filled.
  *        >0: `srcSize` is too small, provide at least this many bytes.
@@ -1057,7 +1057,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx *cctx, void *dst, size_t dstCapacity,
  * fail.
  *
  * The result of ZSTD_decompressContinue() is the number of bytes regenerated
- * within 'dst' (necessarily <= dstCapacity). It can be zero, which is not an
+ * within 'dst' (necessarily <= dstCapacity). It can be zero, which is yest an
  * error; it just means ZSTD_decompressContinue() has decoded some metadata
  * item. It can also be an error code, which can be tested with ZSTD_isError().
  *
@@ -1067,20 +1067,20 @@ size_t ZSTD_compressEnd(ZSTD_CCtx *cctx, void *dst, size_t dstCapacity,
  * possible. Sufficient size is determined by frame parameters.
  * ZSTD_decompressContinue() is very sensitive to contiguity, if 2 blocks don't
  * follow each other, make sure that either the compressor breaks contiguity at
- * the same place, or that previous contiguous segment is large enough to
+ * the same place, or that previous contiguous segment is large eyesugh to
  * properly handle maximum back-reference.
  *
  * A frame is fully decoded when ZSTD_nextSrcSizeToDecompress() returns zero.
  * Context can then be reset to start a new decompression.
  *
- * Note: it's possible to know if next input to present is a header or a block,
- * using ZSTD_nextInputType(). This information is not required to properly
+ * Note: it's possible to kyesw if next input to present is a header or a block,
+ * using ZSTD_nextInputType(). This information is yest required to properly
  * decode a frame.
  *
  * == Special case: skippable frames ==
  *
  * Skippable frames allow integration of user-defined data into a flow of
- * concatenated frames. Skippable frames will be ignored (skipped) by a
+ * concatenated frames. Skippable frames will be igyesred (skipped) by a
  * decompressor. The format of skippable frames is as follows:
  * a) Skippable frame ID - 4 Bytes, Little endian format, any value from
  *    0x184D2A50 to 0x184D2A5F
@@ -1090,7 +1090,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx *cctx, void *dst, size_t dstCapacity,
  * For skippable frames ZSTD_getFrameParams() returns fparamsPtr->windowLog==0
  * what means that a frame is skippable.
  * Note: If fparamsPtr->frameContentSize==0, it is ambiguous: the frame might
- *       actually be a zstd encoded frame with no content. For purposes of
+ *       actually be a zstd encoded frame with yes content. For purposes of
  *       decompression, it is valid in both cases to skip the frame using
  *       ZSTD_findFrameCompressedSize() to find its size in bytes.
  * It also returns frame size as fparamsPtr->frameContentSize.
@@ -1118,7 +1118,7 @@ ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx *dctx);
  * Block functions
  *
  * Block functions produce and decode raw zstd blocks, without frame metadata.
- * Frame metadata cost is typically ~18 bytes, which can be non-negligible for
+ * Frame metadata cost is typically ~18 bytes, which can be yesn-negligible for
  * very small blocks (< 100 bytes). User will have to take in charge required
  * information to regenerate data, such as compressed and content sizes.
  *
@@ -1134,8 +1134,8 @@ ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx *dctx);
  *   + If you need to compress more, cut data into multiple blocks
  *   + Consider using the regular ZSTD_compress() instead, as frame metadata
  *     costs become negligible when source size is large.
- * - When a block is considered not compressible enough, ZSTD_compressBlock()
- *   result will be zero. In which case, nothing is produced into `dst`.
+ * - When a block is considered yest compressible eyesugh, ZSTD_compressBlock()
+ *   result will be zero. In which case, yesthing is produced into `dst`.
  *   + User must test for such outcome and deal directly with uncompressed data
  *   + ZSTD_decompressBlock() doesn't accept uncompressed data as input!!!
  *   + In case of multiple successive blocks, decoder must be informed of

@@ -101,7 +101,7 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 
 	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
 
-	/* encode packet rate for no-skb packet id to fix up status reporting */
+	/* encode packet rate for yes-skb packet id to fix up status reporting */
 	if (pid == MT_PACKET_ID_NO_SKB)
 		pid = MT_PACKET_ID_HAS_RATE |
 		      (le16_to_cpu(txwi->rate) & MT_PKTID_RATE) |

@@ -222,7 +222,7 @@ static inline struct clk *zx_gate(const char *name, const char *parent,
 				 reg, shift, CLK_SET_RATE_PARENT, &reg_lock);
 }
 
-static void __init zx296702_top_clocks_init(struct device_node *np)
+static void __init zx296702_top_clocks_init(struct device_yesde *np)
 {
 	struct clk **clk = topclk;
 	int i;
@@ -466,7 +466,7 @@ static void __init zx296702_top_clocks_init(struct device_node *np)
 	clk[ZX296702_LSP1_APB_PCLK] =
 		zx_gate("lsp1_apb_pclk",	"main_pclk",	CLK_EN1, 7);
 	/* FIXME: wclk enable bit is bit8. We hack it as reserved 31 for
-	 * UART does not work after parent clk is disabled/enabled */
+	 * UART does yest work after parent clk is disabled/enabled */
 	clk[ZX296702_LSP1_26M_WCLK] =
 		zx_gate("lsp1_26M_wclk",     "lsp_26_wclk_mux",	CLK_EN1, 31);
 	clk[ZX296702_LSP1_104M_WCLK] =
@@ -590,7 +590,7 @@ static void __init zx296702_top_clocks_init(struct device_node *np)
 CLK_OF_DECLARE(zx296702_top_clk, "zte,zx296702-topcrm-clk",
 		zx296702_top_clocks_init);
 
-static void __init zx296702_lsp0_clocks_init(struct device_node *np)
+static void __init zx296702_lsp0_clocks_init(struct device_yesde *np)
 {
 	struct clk **clk = lsp0clk;
 	int i;
@@ -674,7 +674,7 @@ static void __init zx296702_lsp0_clocks_init(struct device_node *np)
 CLK_OF_DECLARE(zx296702_lsp0_clk, "zte,zx296702-lsp0crpm-clk",
 		zx296702_lsp0_clocks_init);
 
-static void __init zx296702_lsp1_clocks_init(struct device_node *np)
+static void __init zx296702_lsp1_clocks_init(struct device_yesde *np)
 {
 	struct clk **clk = lsp1clk;
 	int i;
@@ -687,7 +687,7 @@ static void __init zx296702_lsp1_clocks_init(struct device_node *np)
 		zx_mux("uart0_wclk_mux", uart_wclk_sel,
 				ARRAY_SIZE(uart_wclk_sel), CLK_UART0, 4, 1);
 	/* FIXME: uart wclk enable bit is bit1 in. We hack it as reserved 31 for
-	 * UART does not work after parent clk is disabled/enabled */
+	 * UART does yest work after parent clk is disabled/enabled */
 	clk[ZX296702_UART0_WCLK] =
 		zx_gate("uart0_wclk", "uart0_wclk_mux", CLK_UART0, 31);
 	clk[ZX296702_UART0_PCLK] =

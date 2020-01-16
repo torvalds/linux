@@ -20,10 +20,10 @@
  * ambiguity.
  * @index is the index of the entry being operated on
  * @mark is an xa_mark_t; a small number indicating one of the mark bits.
- * @node refers to an xa_node; usually the primary one being operated on by
+ * @yesde refers to an xa_yesde; usually the primary one being operated on by
  * this function.
- * @offset is the index into the slots array inside an xa_node.
- * @parent refers to the @xa_node closer to the head than @node.
+ * @offset is the index into the slots array inside an xa_yesde.
+ * @parent refers to the @xa_yesde closer to the head than @yesde.
  * @entry refers to something stored in a slot in the xarray
  */
 
@@ -74,39 +74,39 @@ static inline void xa_mark_clear(struct xarray *xa, xa_mark_t mark)
 		xa->xa_flags &= ~(XA_FLAGS_MARK(mark));
 }
 
-static inline unsigned long *node_marks(struct xa_node *node, xa_mark_t mark)
+static inline unsigned long *yesde_marks(struct xa_yesde *yesde, xa_mark_t mark)
 {
-	return node->marks[(__force unsigned)mark];
+	return yesde->marks[(__force unsigned)mark];
 }
 
-static inline bool node_get_mark(struct xa_node *node,
+static inline bool yesde_get_mark(struct xa_yesde *yesde,
 		unsigned int offset, xa_mark_t mark)
 {
-	return test_bit(offset, node_marks(node, mark));
+	return test_bit(offset, yesde_marks(yesde, mark));
 }
 
 /* returns true if the bit was set */
-static inline bool node_set_mark(struct xa_node *node, unsigned int offset,
+static inline bool yesde_set_mark(struct xa_yesde *yesde, unsigned int offset,
 				xa_mark_t mark)
 {
-	return __test_and_set_bit(offset, node_marks(node, mark));
+	return __test_and_set_bit(offset, yesde_marks(yesde, mark));
 }
 
 /* returns true if the bit was set */
-static inline bool node_clear_mark(struct xa_node *node, unsigned int offset,
+static inline bool yesde_clear_mark(struct xa_yesde *yesde, unsigned int offset,
 				xa_mark_t mark)
 {
-	return __test_and_clear_bit(offset, node_marks(node, mark));
+	return __test_and_clear_bit(offset, yesde_marks(yesde, mark));
 }
 
-static inline bool node_any_mark(struct xa_node *node, xa_mark_t mark)
+static inline bool yesde_any_mark(struct xa_yesde *yesde, xa_mark_t mark)
 {
-	return !bitmap_empty(node_marks(node, mark), XA_CHUNK_SIZE);
+	return !bitmap_empty(yesde_marks(yesde, mark), XA_CHUNK_SIZE);
 }
 
-static inline void node_mark_all(struct xa_node *node, xa_mark_t mark)
+static inline void yesde_mark_all(struct xa_yesde *yesde, xa_mark_t mark)
 {
-	bitmap_fill(node_marks(node, mark), XA_CHUNK_SIZE);
+	bitmap_fill(yesde_marks(yesde, mark), XA_CHUNK_SIZE);
 }
 
 #define mark_inc(mark) do { \
@@ -129,7 +129,7 @@ static void xas_squash_marks(const struct xa_state *xas)
 		return;
 
 	do {
-		unsigned long *marks = xas->xa_node->marks[mark];
+		unsigned long *marks = xas->xa_yesde->marks[mark];
 		if (find_next_bit(marks, limit, xas->xa_offset + 1) == limit)
 			continue;
 		__set_bit(xas->xa_offset, marks);
@@ -137,21 +137,21 @@ static void xas_squash_marks(const struct xa_state *xas)
 	} while (mark++ != (__force unsigned)XA_MARK_MAX);
 }
 
-/* extracts the offset within this node from the index */
-static unsigned int get_offset(unsigned long index, struct xa_node *node)
+/* extracts the offset within this yesde from the index */
+static unsigned int get_offset(unsigned long index, struct xa_yesde *yesde)
 {
-	return (index >> node->shift) & XA_CHUNK_MASK;
+	return (index >> yesde->shift) & XA_CHUNK_MASK;
 }
 
 static void xas_set_offset(struct xa_state *xas)
 {
-	xas->xa_offset = get_offset(xas->xa_index, xas->xa_node);
+	xas->xa_offset = get_offset(xas->xa_index, xas->xa_yesde);
 }
 
 /* move the index either forwards (find) or backwards (sibling slot) */
 static void xas_move_index(struct xa_state *xas, unsigned long offset)
 {
-	unsigned int shift = xas->xa_node->shift;
+	unsigned int shift = xas->xa_yesde->shift;
 	xas->xa_index &= ~XA_CHUNK_MASK << shift;
 	xas->xa_index += offset << shift;
 }
@@ -164,7 +164,7 @@ static void xas_advance(struct xa_state *xas)
 
 static void *set_bounds(struct xa_state *xas)
 {
-	xas->xa_node = XAS_BOUNDS;
+	xas->xa_yesde = XAS_BOUNDS;
 	return NULL;
 }
 
@@ -172,8 +172,8 @@ static void *set_bounds(struct xa_state *xas)
  * Starts a walk.  If the @xas is already valid, we assume that it's on
  * the right path and just return where we've got to.  If we're in an
  * error state, return NULL.  If the index is outside the current scope
- * of the xarray, return NULL without changing @xas->xa_node.  Otherwise
- * set @xas->xa_node to NULL and return the current head of the array.
+ * of the xarray, return NULL without changing @xas->xa_yesde.  Otherwise
+ * set @xas->xa_yesde to NULL and return the current head of the array.
  */
 static void *xas_start(struct xa_state *xas)
 {
@@ -185,27 +185,27 @@ static void *xas_start(struct xa_state *xas)
 		return NULL;
 
 	entry = xa_head(xas->xa);
-	if (!xa_is_node(entry)) {
+	if (!xa_is_yesde(entry)) {
 		if (xas->xa_index)
 			return set_bounds(xas);
 	} else {
-		if ((xas->xa_index >> xa_to_node(entry)->shift) > XA_CHUNK_MASK)
+		if ((xas->xa_index >> xa_to_yesde(entry)->shift) > XA_CHUNK_MASK)
 			return set_bounds(xas);
 	}
 
-	xas->xa_node = NULL;
+	xas->xa_yesde = NULL;
 	return entry;
 }
 
-static void *xas_descend(struct xa_state *xas, struct xa_node *node)
+static void *xas_descend(struct xa_state *xas, struct xa_yesde *yesde)
 {
-	unsigned int offset = get_offset(xas->xa_index, node);
-	void *entry = xa_entry(xas->xa, node, offset);
+	unsigned int offset = get_offset(xas->xa_index, yesde);
+	void *entry = xa_entry(xas->xa, yesde, offset);
 
-	xas->xa_node = node;
+	xas->xa_yesde = yesde;
 	if (xa_is_sibling(entry)) {
 		offset = xa_to_sibling(entry);
-		entry = xa_entry(xas->xa, node, offset);
+		entry = xa_entry(xas->xa, yesde, offset);
 	}
 
 	xas->xa_offset = offset;
@@ -217,7 +217,7 @@ static void *xas_descend(struct xa_state *xas, struct xa_node *node)
  * @xas: XArray operation state.
  *
  * Usually walks the @xas to the appropriate state to load the entry
- * stored at xa_index.  However, it will do nothing and return %NULL if
+ * stored at xa_index.  However, it will do yesthing and return %NULL if
  * @xas is in an error state.  xas_load() will never expand the tree.
  *
  * If the xa_state is set up to operate on a multi-index entry, xas_load()
@@ -231,99 +231,99 @@ void *xas_load(struct xa_state *xas)
 {
 	void *entry = xas_start(xas);
 
-	while (xa_is_node(entry)) {
-		struct xa_node *node = xa_to_node(entry);
+	while (xa_is_yesde(entry)) {
+		struct xa_yesde *yesde = xa_to_yesde(entry);
 
-		if (xas->xa_shift > node->shift)
+		if (xas->xa_shift > yesde->shift)
 			break;
-		entry = xas_descend(xas, node);
-		if (node->shift == 0)
+		entry = xas_descend(xas, yesde);
+		if (yesde->shift == 0)
 			break;
 	}
 	return entry;
 }
 EXPORT_SYMBOL_GPL(xas_load);
 
-/* Move the radix tree node cache here */
-extern struct kmem_cache *radix_tree_node_cachep;
-extern void radix_tree_node_rcu_free(struct rcu_head *head);
+/* Move the radix tree yesde cache here */
+extern struct kmem_cache *radix_tree_yesde_cachep;
+extern void radix_tree_yesde_rcu_free(struct rcu_head *head);
 
 #define XA_RCU_FREE	((struct xarray *)1)
 
-static void xa_node_free(struct xa_node *node)
+static void xa_yesde_free(struct xa_yesde *yesde)
 {
-	XA_NODE_BUG_ON(node, !list_empty(&node->private_list));
-	node->array = XA_RCU_FREE;
-	call_rcu(&node->rcu_head, radix_tree_node_rcu_free);
+	XA_NODE_BUG_ON(yesde, !list_empty(&yesde->private_list));
+	yesde->array = XA_RCU_FREE;
+	call_rcu(&yesde->rcu_head, radix_tree_yesde_rcu_free);
 }
 
 /*
  * xas_destroy() - Free any resources allocated during the XArray operation.
  * @xas: XArray operation state.
  *
- * This function is now internal-only.
+ * This function is yesw internal-only.
  */
 static void xas_destroy(struct xa_state *xas)
 {
-	struct xa_node *node = xas->xa_alloc;
+	struct xa_yesde *yesde = xas->xa_alloc;
 
-	if (!node)
+	if (!yesde)
 		return;
-	XA_NODE_BUG_ON(node, !list_empty(&node->private_list));
-	kmem_cache_free(radix_tree_node_cachep, node);
+	XA_NODE_BUG_ON(yesde, !list_empty(&yesde->private_list));
+	kmem_cache_free(radix_tree_yesde_cachep, yesde);
 	xas->xa_alloc = NULL;
 }
 
 /**
- * xas_nomem() - Allocate memory if needed.
+ * xas_yesmem() - Allocate memory if needed.
  * @xas: XArray operation state.
  * @gfp: Memory allocation flags.
  *
- * If we need to add new nodes to the XArray, we try to allocate memory
+ * If we need to add new yesdes to the XArray, we try to allocate memory
  * with GFP_NOWAIT while holding the lock, which will usually succeed.
  * If it fails, @xas is flagged as needing memory to continue.  The caller
- * should drop the lock and call xas_nomem().  If xas_nomem() succeeds,
+ * should drop the lock and call xas_yesmem().  If xas_yesmem() succeeds,
  * the caller should retry the operation.
  *
- * Forward progress is guaranteed as one node is allocated here and
+ * Forward progress is guaranteed as one yesde is allocated here and
  * stored in the xa_state where it will be found by xas_alloc().  More
- * nodes will likely be found in the slab allocator, but we do not tie
+ * yesdes will likely be found in the slab allocator, but we do yest tie
  * them up here.
  *
  * Return: true if memory was needed, and was successfully allocated.
  */
-bool xas_nomem(struct xa_state *xas, gfp_t gfp)
+bool xas_yesmem(struct xa_state *xas, gfp_t gfp)
 {
-	if (xas->xa_node != XA_ERROR(-ENOMEM)) {
+	if (xas->xa_yesde != XA_ERROR(-ENOMEM)) {
 		xas_destroy(xas);
 		return false;
 	}
 	if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
 		gfp |= __GFP_ACCOUNT;
-	xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
+	xas->xa_alloc = kmem_cache_alloc(radix_tree_yesde_cachep, gfp);
 	if (!xas->xa_alloc)
 		return false;
 	XA_NODE_BUG_ON(xas->xa_alloc, !list_empty(&xas->xa_alloc->private_list));
-	xas->xa_node = XAS_RESTART;
+	xas->xa_yesde = XAS_RESTART;
 	return true;
 }
-EXPORT_SYMBOL_GPL(xas_nomem);
+EXPORT_SYMBOL_GPL(xas_yesmem);
 
 /*
- * __xas_nomem() - Drop locks and allocate memory if needed.
+ * __xas_yesmem() - Drop locks and allocate memory if needed.
  * @xas: XArray operation state.
  * @gfp: Memory allocation flags.
  *
- * Internal variant of xas_nomem().
+ * Internal variant of xas_yesmem().
  *
  * Return: true if memory was needed, and was successfully allocated.
  */
-static bool __xas_nomem(struct xa_state *xas, gfp_t gfp)
+static bool __xas_yesmem(struct xa_state *xas, gfp_t gfp)
 	__must_hold(xas->xa->xa_lock)
 {
 	unsigned int lock_type = xa_lock_type(xas->xa);
 
-	if (xas->xa_node != XA_ERROR(-ENOMEM)) {
+	if (xas->xa_yesde != XA_ERROR(-ENOMEM)) {
 		xas_destroy(xas);
 		return false;
 	}
@@ -331,35 +331,35 @@ static bool __xas_nomem(struct xa_state *xas, gfp_t gfp)
 		gfp |= __GFP_ACCOUNT;
 	if (gfpflags_allow_blocking(gfp)) {
 		xas_unlock_type(xas, lock_type);
-		xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
+		xas->xa_alloc = kmem_cache_alloc(radix_tree_yesde_cachep, gfp);
 		xas_lock_type(xas, lock_type);
 	} else {
-		xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
+		xas->xa_alloc = kmem_cache_alloc(radix_tree_yesde_cachep, gfp);
 	}
 	if (!xas->xa_alloc)
 		return false;
 	XA_NODE_BUG_ON(xas->xa_alloc, !list_empty(&xas->xa_alloc->private_list));
-	xas->xa_node = XAS_RESTART;
+	xas->xa_yesde = XAS_RESTART;
 	return true;
 }
 
-static void xas_update(struct xa_state *xas, struct xa_node *node)
+static void xas_update(struct xa_state *xas, struct xa_yesde *yesde)
 {
 	if (xas->xa_update)
-		xas->xa_update(node);
+		xas->xa_update(yesde);
 	else
-		XA_NODE_BUG_ON(node, !list_empty(&node->private_list));
+		XA_NODE_BUG_ON(yesde, !list_empty(&yesde->private_list));
 }
 
 static void *xas_alloc(struct xa_state *xas, unsigned int shift)
 {
-	struct xa_node *parent = xas->xa_node;
-	struct xa_node *node = xas->xa_alloc;
+	struct xa_yesde *parent = xas->xa_yesde;
+	struct xa_yesde *yesde = xas->xa_alloc;
 
 	if (xas_invalid(xas))
 		return NULL;
 
-	if (node) {
+	if (yesde) {
 		xas->xa_alloc = NULL;
 	} else {
 		gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN;
@@ -367,28 +367,28 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
 		if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
 			gfp |= __GFP_ACCOUNT;
 
-		node = kmem_cache_alloc(radix_tree_node_cachep, gfp);
-		if (!node) {
+		yesde = kmem_cache_alloc(radix_tree_yesde_cachep, gfp);
+		if (!yesde) {
 			xas_set_err(xas, -ENOMEM);
 			return NULL;
 		}
 	}
 
 	if (parent) {
-		node->offset = xas->xa_offset;
+		yesde->offset = xas->xa_offset;
 		parent->count++;
-		XA_NODE_BUG_ON(node, parent->count > XA_CHUNK_SIZE);
+		XA_NODE_BUG_ON(yesde, parent->count > XA_CHUNK_SIZE);
 		xas_update(xas, parent);
 	}
-	XA_NODE_BUG_ON(node, shift > BITS_PER_LONG);
-	XA_NODE_BUG_ON(node, !list_empty(&node->private_list));
-	node->shift = shift;
-	node->count = 0;
-	node->nr_values = 0;
-	RCU_INIT_POINTER(node->parent, xas->xa_node);
-	node->array = xas->xa;
+	XA_NODE_BUG_ON(yesde, shift > BITS_PER_LONG);
+	XA_NODE_BUG_ON(yesde, !list_empty(&yesde->private_list));
+	yesde->shift = shift;
+	yesde->count = 0;
+	yesde->nr_values = 0;
+	RCU_INIT_POINTER(yesde->parent, xas->xa_yesde);
+	yesde->array = xas->xa;
 
-	return node;
+	return yesde;
 }
 
 #ifdef CONFIG_XARRAY_MULTI
@@ -401,7 +401,7 @@ static unsigned long xas_size(const struct xa_state *xas)
 
 /*
  * Use this to calculate the maximum index that will need to be created
- * in order to add the entry described by @xas.  Because we cannot store a
+ * in order to add the entry described by @xas.  Because we canyest store a
  * multiple-index entry at index 0, the calculation is a little more complex
  * than you might expect.
  */
@@ -424,137 +424,137 @@ static unsigned long xas_max(struct xa_state *xas)
 /* The maximum index that can be contained in the array without expanding it */
 static unsigned long max_index(void *entry)
 {
-	if (!xa_is_node(entry))
+	if (!xa_is_yesde(entry))
 		return 0;
-	return (XA_CHUNK_SIZE << xa_to_node(entry)->shift) - 1;
+	return (XA_CHUNK_SIZE << xa_to_yesde(entry)->shift) - 1;
 }
 
 static void xas_shrink(struct xa_state *xas)
 {
 	struct xarray *xa = xas->xa;
-	struct xa_node *node = xas->xa_node;
+	struct xa_yesde *yesde = xas->xa_yesde;
 
 	for (;;) {
 		void *entry;
 
-		XA_NODE_BUG_ON(node, node->count > XA_CHUNK_SIZE);
-		if (node->count != 1)
+		XA_NODE_BUG_ON(yesde, yesde->count > XA_CHUNK_SIZE);
+		if (yesde->count != 1)
 			break;
-		entry = xa_entry_locked(xa, node, 0);
+		entry = xa_entry_locked(xa, yesde, 0);
 		if (!entry)
 			break;
-		if (!xa_is_node(entry) && node->shift)
+		if (!xa_is_yesde(entry) && yesde->shift)
 			break;
 		if (xa_is_zero(entry) && xa_zero_busy(xa))
 			entry = NULL;
-		xas->xa_node = XAS_BOUNDS;
+		xas->xa_yesde = XAS_BOUNDS;
 
 		RCU_INIT_POINTER(xa->xa_head, entry);
-		if (xa_track_free(xa) && !node_get_mark(node, 0, XA_FREE_MARK))
+		if (xa_track_free(xa) && !yesde_get_mark(yesde, 0, XA_FREE_MARK))
 			xa_mark_clear(xa, XA_FREE_MARK);
 
-		node->count = 0;
-		node->nr_values = 0;
-		if (!xa_is_node(entry))
-			RCU_INIT_POINTER(node->slots[0], XA_RETRY_ENTRY);
-		xas_update(xas, node);
-		xa_node_free(node);
-		if (!xa_is_node(entry))
+		yesde->count = 0;
+		yesde->nr_values = 0;
+		if (!xa_is_yesde(entry))
+			RCU_INIT_POINTER(yesde->slots[0], XA_RETRY_ENTRY);
+		xas_update(xas, yesde);
+		xa_yesde_free(yesde);
+		if (!xa_is_yesde(entry))
 			break;
-		node = xa_to_node(entry);
-		node->parent = NULL;
+		yesde = xa_to_yesde(entry);
+		yesde->parent = NULL;
 	}
 }
 
 /*
- * xas_delete_node() - Attempt to delete an xa_node
+ * xas_delete_yesde() - Attempt to delete an xa_yesde
  * @xas: Array operation state.
  *
- * Attempts to delete the @xas->xa_node.  This will fail if xa->node has
- * a non-zero reference count.
+ * Attempts to delete the @xas->xa_yesde.  This will fail if xa->yesde has
+ * a yesn-zero reference count.
  */
-static void xas_delete_node(struct xa_state *xas)
+static void xas_delete_yesde(struct xa_state *xas)
 {
-	struct xa_node *node = xas->xa_node;
+	struct xa_yesde *yesde = xas->xa_yesde;
 
 	for (;;) {
-		struct xa_node *parent;
+		struct xa_yesde *parent;
 
-		XA_NODE_BUG_ON(node, node->count > XA_CHUNK_SIZE);
-		if (node->count)
+		XA_NODE_BUG_ON(yesde, yesde->count > XA_CHUNK_SIZE);
+		if (yesde->count)
 			break;
 
-		parent = xa_parent_locked(xas->xa, node);
-		xas->xa_node = parent;
-		xas->xa_offset = node->offset;
-		xa_node_free(node);
+		parent = xa_parent_locked(xas->xa, yesde);
+		xas->xa_yesde = parent;
+		xas->xa_offset = yesde->offset;
+		xa_yesde_free(yesde);
 
 		if (!parent) {
 			xas->xa->xa_head = NULL;
-			xas->xa_node = XAS_BOUNDS;
+			xas->xa_yesde = XAS_BOUNDS;
 			return;
 		}
 
 		parent->slots[xas->xa_offset] = NULL;
 		parent->count--;
 		XA_NODE_BUG_ON(parent, parent->count > XA_CHUNK_SIZE);
-		node = parent;
-		xas_update(xas, node);
+		yesde = parent;
+		xas_update(xas, yesde);
 	}
 
-	if (!node->parent)
+	if (!yesde->parent)
 		xas_shrink(xas);
 }
 
 /**
- * xas_free_nodes() - Free this node and all nodes that it references
+ * xas_free_yesdes() - Free this yesde and all yesdes that it references
  * @xas: Array operation state.
  * @top: Node to free
  *
- * This node has been removed from the tree.  We must now free it and all
- * of its subnodes.  There may be RCU walkers with references into the tree,
+ * This yesde has been removed from the tree.  We must yesw free it and all
+ * of its subyesdes.  There may be RCU walkers with references into the tree,
  * so we must replace all entries with retry markers.
  */
-static void xas_free_nodes(struct xa_state *xas, struct xa_node *top)
+static void xas_free_yesdes(struct xa_state *xas, struct xa_yesde *top)
 {
 	unsigned int offset = 0;
-	struct xa_node *node = top;
+	struct xa_yesde *yesde = top;
 
 	for (;;) {
-		void *entry = xa_entry_locked(xas->xa, node, offset);
+		void *entry = xa_entry_locked(xas->xa, yesde, offset);
 
-		if (node->shift && xa_is_node(entry)) {
-			node = xa_to_node(entry);
+		if (yesde->shift && xa_is_yesde(entry)) {
+			yesde = xa_to_yesde(entry);
 			offset = 0;
 			continue;
 		}
 		if (entry)
-			RCU_INIT_POINTER(node->slots[offset], XA_RETRY_ENTRY);
+			RCU_INIT_POINTER(yesde->slots[offset], XA_RETRY_ENTRY);
 		offset++;
 		while (offset == XA_CHUNK_SIZE) {
-			struct xa_node *parent;
+			struct xa_yesde *parent;
 
-			parent = xa_parent_locked(xas->xa, node);
-			offset = node->offset + 1;
-			node->count = 0;
-			node->nr_values = 0;
-			xas_update(xas, node);
-			xa_node_free(node);
-			if (node == top)
+			parent = xa_parent_locked(xas->xa, yesde);
+			offset = yesde->offset + 1;
+			yesde->count = 0;
+			yesde->nr_values = 0;
+			xas_update(xas, yesde);
+			xa_yesde_free(yesde);
+			if (yesde == top)
 				return;
-			node = parent;
+			yesde = parent;
 		}
 	}
 }
 
 /*
- * xas_expand adds nodes to the head of the tree until it has reached
+ * xas_expand adds yesdes to the head of the tree until it has reached
  * sufficient height to be able to contain @xas->xa_index
  */
 static int xas_expand(struct xa_state *xas, void *head)
 {
 	struct xarray *xa = xas->xa;
-	struct xa_node *node = NULL;
+	struct xa_yesde *yesde = NULL;
 	unsigned int shift = 0;
 	unsigned long max = xas_max(xas);
 
@@ -564,35 +564,35 @@ static int xas_expand(struct xa_state *xas, void *head)
 		while ((max >> shift) >= XA_CHUNK_SIZE)
 			shift += XA_CHUNK_SHIFT;
 		return shift + XA_CHUNK_SHIFT;
-	} else if (xa_is_node(head)) {
-		node = xa_to_node(head);
-		shift = node->shift + XA_CHUNK_SHIFT;
+	} else if (xa_is_yesde(head)) {
+		yesde = xa_to_yesde(head);
+		shift = yesde->shift + XA_CHUNK_SHIFT;
 	}
-	xas->xa_node = NULL;
+	xas->xa_yesde = NULL;
 
 	while (max > max_index(head)) {
 		xa_mark_t mark = 0;
 
-		XA_NODE_BUG_ON(node, shift > BITS_PER_LONG);
-		node = xas_alloc(xas, shift);
-		if (!node)
+		XA_NODE_BUG_ON(yesde, shift > BITS_PER_LONG);
+		yesde = xas_alloc(xas, shift);
+		if (!yesde)
 			return -ENOMEM;
 
-		node->count = 1;
+		yesde->count = 1;
 		if (xa_is_value(head))
-			node->nr_values = 1;
-		RCU_INIT_POINTER(node->slots[0], head);
+			yesde->nr_values = 1;
+		RCU_INIT_POINTER(yesde->slots[0], head);
 
 		/* Propagate the aggregated mark info to the new child */
 		for (;;) {
 			if (xa_track_free(xa) && mark == XA_FREE_MARK) {
-				node_mark_all(node, XA_FREE_MARK);
+				yesde_mark_all(yesde, XA_FREE_MARK);
 				if (!xa_marked(xa, XA_FREE_MARK)) {
-					node_clear_mark(node, 0, XA_FREE_MARK);
+					yesde_clear_mark(yesde, 0, XA_FREE_MARK);
 					xa_mark_set(xa, XA_FREE_MARK);
 				}
 			} else if (xa_marked(xa, mark)) {
-				node_set_mark(node, 0, mark);
+				yesde_set_mark(yesde, 0, mark);
 			}
 			if (mark == XA_MARK_MAX)
 				break;
@@ -600,21 +600,21 @@ static int xas_expand(struct xa_state *xas, void *head)
 		}
 
 		/*
-		 * Now that the new node is fully initialised, we can add
+		 * Now that the new yesde is fully initialised, we can add
 		 * it to the tree
 		 */
-		if (xa_is_node(head)) {
-			xa_to_node(head)->offset = 0;
-			rcu_assign_pointer(xa_to_node(head)->parent, node);
+		if (xa_is_yesde(head)) {
+			xa_to_yesde(head)->offset = 0;
+			rcu_assign_pointer(xa_to_yesde(head)->parent, yesde);
 		}
-		head = xa_mk_node(node);
+		head = xa_mk_yesde(yesde);
 		rcu_assign_pointer(xa->xa_head, head);
-		xas_update(xas, node);
+		xas_update(xas, yesde);
 
 		shift += XA_CHUNK_SHIFT;
 	}
 
-	xas->xa_node = node;
+	xas->xa_yesde = yesde;
 	return shift;
 }
 
@@ -623,7 +623,7 @@ static int xas_expand(struct xa_state *xas, void *head)
  * @xas: XArray operation state.
  * @allow_root: %true if we can store the entry in the root directly
  *
- * Most users will not need to call this function directly, as it is called
+ * Most users will yest need to call this function directly, as it is called
  * by xas_store().  It is useful for doing conditional store operations
  * (see the xa_cmpxchg() implementation for an example).
  *
@@ -636,13 +636,13 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 	struct xarray *xa = xas->xa;
 	void *entry;
 	void __rcu **slot;
-	struct xa_node *node = xas->xa_node;
+	struct xa_yesde *yesde = xas->xa_yesde;
 	int shift;
 	unsigned int order = xas->xa_shift;
 
-	if (xas_top(node)) {
+	if (xas_top(yesde)) {
 		entry = xa_head_locked(xa);
-		xas->xa_node = NULL;
+		xas->xa_yesde = NULL;
 		if (!entry && xa_zero_busy(xa))
 			entry = XA_ZERO_ENTRY;
 		shift = xas_expand(xas, entry);
@@ -654,12 +654,12 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 		slot = &xa->xa_head;
 	} else if (xas_error(xas)) {
 		return NULL;
-	} else if (node) {
+	} else if (yesde) {
 		unsigned int offset = xas->xa_offset;
 
-		shift = node->shift;
-		entry = xa_entry_locked(xa, node, offset);
-		slot = &node->slots[offset];
+		shift = yesde->shift;
+		entry = xa_entry_locked(xa, yesde, offset);
+		slot = &yesde->slots[offset];
 	} else {
 		shift = 0;
 		entry = xa_head_locked(xa);
@@ -669,19 +669,19 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 	while (shift > order) {
 		shift -= XA_CHUNK_SHIFT;
 		if (!entry) {
-			node = xas_alloc(xas, shift);
-			if (!node)
+			yesde = xas_alloc(xas, shift);
+			if (!yesde)
 				break;
 			if (xa_track_free(xa))
-				node_mark_all(node, XA_FREE_MARK);
-			rcu_assign_pointer(*slot, xa_mk_node(node));
-		} else if (xa_is_node(entry)) {
-			node = xa_to_node(entry);
+				yesde_mark_all(yesde, XA_FREE_MARK);
+			rcu_assign_pointer(*slot, xa_mk_yesde(yesde));
+		} else if (xa_is_yesde(entry)) {
+			yesde = xa_to_yesde(entry);
 		} else {
 			break;
 		}
-		entry = xas_descend(xas, node);
-		slot = &node->slots[xas->xa_offset];
+		entry = xas_descend(xas, yesde);
+		slot = &yesde->slots[xas->xa_offset];
 	}
 
 	return entry;
@@ -693,7 +693,7 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
  *
  * Creates all of the slots in the range covered by @xas.  Sets @xas to
  * create single-index entries and positions it at the beginning of the
- * range.  This is for the benefit of users which have not yet been
+ * range.  This is for the benefit of users which have yest yet been
  * converted to use multi-index entries.
  */
 void xas_create_range(struct xa_state *xas)
@@ -703,7 +703,7 @@ void xas_create_range(struct xa_state *xas)
 	unsigned char sibs = xas->xa_sibs;
 
 	xas->xa_index |= ((sibs + 1) << shift) - 1;
-	if (xas_is_node(xas) && xas->xa_node->shift == xas->xa_shift)
+	if (xas_is_yesde(xas) && xas->xa_yesde->shift == xas->xa_shift)
 		xas->xa_offset |= sibs;
 	xas->xa_shift = 0;
 	xas->xa_sibs = 0;
@@ -717,10 +717,10 @@ void xas_create_range(struct xa_state *xas)
 		xas->xa_index -= XA_CHUNK_SIZE;
 
 		for (;;) {
-			struct xa_node *node = xas->xa_node;
-			xas->xa_node = xa_parent_locked(xas->xa, node);
-			xas->xa_offset = node->offset - 1;
-			if (node->offset != 0)
+			struct xa_yesde *yesde = xas->xa_yesde;
+			xas->xa_yesde = xa_parent_locked(xas->xa, yesde);
+			xas->xa_offset = yesde->offset - 1;
+			if (yesde->offset != 0)
 				break;
 		}
 	}
@@ -732,24 +732,24 @@ restore:
 	return;
 success:
 	xas->xa_index = index;
-	if (xas->xa_node)
+	if (xas->xa_yesde)
 		xas_set_offset(xas);
 }
 EXPORT_SYMBOL_GPL(xas_create_range);
 
-static void update_node(struct xa_state *xas, struct xa_node *node,
+static void update_yesde(struct xa_state *xas, struct xa_yesde *yesde,
 		int count, int values)
 {
-	if (!node || (!count && !values))
+	if (!yesde || (!count && !values))
 		return;
 
-	node->count += count;
-	node->nr_values += values;
-	XA_NODE_BUG_ON(node, node->count > XA_CHUNK_SIZE);
-	XA_NODE_BUG_ON(node, node->nr_values > XA_CHUNK_SIZE);
-	xas_update(xas, node);
+	yesde->count += count;
+	yesde->nr_values += values;
+	XA_NODE_BUG_ON(yesde, yesde->count > XA_CHUNK_SIZE);
+	XA_NODE_BUG_ON(yesde, yesde->nr_values > XA_CHUNK_SIZE);
+	xas_update(xas, yesde);
 	if (count < 0)
-		xas_delete_node(xas);
+		xas_delete_yesde(xas);
 }
 
 /**
@@ -759,15 +759,15 @@ static void update_node(struct xa_state *xas, struct xa_node *node,
  *
  * If @xas is operating on a multi-index entry, the entry returned by this
  * function is essentially meaningless (it may be an internal entry or it
- * may be %NULL, even if there are non-NULL entries at some of the indices
- * covered by the range).  This is not a problem for any current users,
+ * may be %NULL, even if there are yesn-NULL entries at some of the indices
+ * covered by the range).  This is yest a problem for any current users,
  * and can be changed if needed.
  *
  * Return: The old entry at this index.
  */
 void *xas_store(struct xa_state *xas, void *entry)
 {
-	struct xa_node *node;
+	struct xa_yesde *yesde;
 	void __rcu **slot = &xas->xa->xa_head;
 	unsigned int offset, max;
 	int count = 0;
@@ -776,7 +776,7 @@ void *xas_store(struct xa_state *xas, void *entry)
 	bool value = xa_is_value(entry);
 
 	if (entry) {
-		bool allow_root = !xa_is_node(entry) && !xa_is_zero(entry);
+		bool allow_root = !xa_is_yesde(entry) && !xa_is_zero(entry);
 		first = xas_create(xas, allow_root);
 	} else {
 		first = xas_load(xas);
@@ -784,8 +784,8 @@ void *xas_store(struct xa_state *xas, void *entry)
 
 	if (xas_invalid(xas))
 		return first;
-	node = xas->xa_node;
-	if (node && (xas->xa_shift < node->shift))
+	yesde = xas->xa_yesde;
+	if (yesde && (xas->xa_shift < yesde->shift))
 		xas->xa_sibs = 0;
 	if ((first == entry) && !xas->xa_sibs)
 		return first;
@@ -793,8 +793,8 @@ void *xas_store(struct xa_state *xas, void *entry)
 	next = first;
 	offset = xas->xa_offset;
 	max = xas->xa_offset + xas->xa_sibs;
-	if (node) {
-		slot = &node->slots[offset];
+	if (yesde) {
+		slot = &yesde->slots[offset];
 		if (xas->xa_sibs)
 			xas_squash_marks(xas);
 	}
@@ -810,9 +810,9 @@ void *xas_store(struct xa_state *xas, void *entry)
 		 * entry is set to NULL.
 		 */
 		rcu_assign_pointer(*slot, entry);
-		if (xa_is_node(next) && (!node || node->shift))
-			xas_free_nodes(xas, xa_to_node(next));
-		if (!node)
+		if (xa_is_yesde(next) && (!yesde || yesde->shift))
+			xas_free_yesdes(xas, xa_to_yesde(next));
+		if (!yesde)
 			break;
 		count += !next - !entry;
 		values += !xa_is_value(first) - !value;
@@ -825,7 +825,7 @@ void *xas_store(struct xa_state *xas, void *entry)
 			if (offset == XA_CHUNK_MASK)
 				break;
 		}
-		next = xa_entry_locked(xas->xa, node, ++offset);
+		next = xa_entry_locked(xas->xa, yesde, ++offset);
 		if (!xa_is_sibling(next)) {
 			if (!entry && (offset > max))
 				break;
@@ -834,7 +834,7 @@ void *xas_store(struct xa_state *xas, void *entry)
 		slot++;
 	}
 
-	update_node(xas, node, count, values);
+	update_yesde(xas, yesde, count, values);
 	return first;
 }
 EXPORT_SYMBOL_GPL(xas_store);
@@ -851,9 +851,9 @@ bool xas_get_mark(const struct xa_state *xas, xa_mark_t mark)
 {
 	if (xas_invalid(xas))
 		return false;
-	if (!xas->xa_node)
+	if (!xas->xa_yesde)
 		return xa_marked(xas->xa, mark);
-	return node_get_mark(xas->xa_node, xas->xa_offset, mark);
+	return yesde_get_mark(xas->xa_yesde, xas->xa_offset, mark);
 }
 EXPORT_SYMBOL_GPL(xas_get_mark);
 
@@ -863,22 +863,22 @@ EXPORT_SYMBOL_GPL(xas_get_mark);
  * @mark: Mark number.
  *
  * Sets the specified mark on this entry, and walks up the tree setting it
- * on all the ancestor entries.  Does nothing if @xas has not been walked to
+ * on all the ancestor entries.  Does yesthing if @xas has yest been walked to
  * an entry, or is in an error state.
  */
 void xas_set_mark(const struct xa_state *xas, xa_mark_t mark)
 {
-	struct xa_node *node = xas->xa_node;
+	struct xa_yesde *yesde = xas->xa_yesde;
 	unsigned int offset = xas->xa_offset;
 
 	if (xas_invalid(xas))
 		return;
 
-	while (node) {
-		if (node_set_mark(node, offset, mark))
+	while (yesde) {
+		if (yesde_set_mark(yesde, offset, mark))
 			return;
-		offset = node->offset;
-		node = xa_parent_locked(xas->xa, node);
+		offset = yesde->offset;
+		yesde = xa_parent_locked(xas->xa, yesde);
 	}
 
 	if (!xa_marked(xas->xa, mark))
@@ -892,25 +892,25 @@ EXPORT_SYMBOL_GPL(xas_set_mark);
  * @mark: Mark number.
  *
  * Clears the specified mark on this entry, and walks back to the head
- * attempting to clear it on all the ancestor entries.  Does nothing if
- * @xas has not been walked to an entry, or is in an error state.
+ * attempting to clear it on all the ancestor entries.  Does yesthing if
+ * @xas has yest been walked to an entry, or is in an error state.
  */
 void xas_clear_mark(const struct xa_state *xas, xa_mark_t mark)
 {
-	struct xa_node *node = xas->xa_node;
+	struct xa_yesde *yesde = xas->xa_yesde;
 	unsigned int offset = xas->xa_offset;
 
 	if (xas_invalid(xas))
 		return;
 
-	while (node) {
-		if (!node_clear_mark(node, offset, mark))
+	while (yesde) {
+		if (!yesde_clear_mark(yesde, offset, mark))
 			return;
-		if (node_any_mark(node, mark))
+		if (yesde_any_mark(yesde, mark))
 			return;
 
-		offset = node->offset;
-		node = xa_parent_locked(xas->xa, node);
+		offset = yesde->offset;
+		yesde = xa_parent_locked(xas->xa, yesde);
 	}
 
 	if (xa_marked(xas->xa, mark))
@@ -926,7 +926,7 @@ EXPORT_SYMBOL_GPL(xas_clear_mark);
  * free entries with a mark, we need to set it on all entries.  All other
  * marks are cleared.
  *
- * This implementation is not as efficient as it could be; we may walk
+ * This implementation is yest as efficient as it could be; we may walk
  * up the tree multiple times.
  */
 void xas_init_marks(const struct xa_state *xas)
@@ -962,22 +962,22 @@ EXPORT_SYMBOL_GPL(xas_init_marks);
  */
 void xas_pause(struct xa_state *xas)
 {
-	struct xa_node *node = xas->xa_node;
+	struct xa_yesde *yesde = xas->xa_yesde;
 
 	if (xas_invalid(xas))
 		return;
 
-	if (node) {
+	if (yesde) {
 		unsigned int offset = xas->xa_offset;
 		while (++offset < XA_CHUNK_SIZE) {
-			if (!xa_is_sibling(xa_entry(xas->xa, node, offset)))
+			if (!xa_is_sibling(xa_entry(xas->xa, yesde, offset)))
 				break;
 		}
-		xas->xa_index += (offset - xas->xa_offset) << node->shift;
+		xas->xa_index += (offset - xas->xa_offset) << yesde->shift;
 	} else {
 		xas->xa_index++;
 	}
-	xas->xa_node = XAS_RESTART;
+	xas->xa_yesde = XAS_RESTART;
 }
 EXPORT_SYMBOL_GPL(xas_pause);
 
@@ -992,29 +992,29 @@ void *__xas_prev(struct xa_state *xas)
 {
 	void *entry;
 
-	if (!xas_frozen(xas->xa_node))
+	if (!xas_frozen(xas->xa_yesde))
 		xas->xa_index--;
-	if (!xas->xa_node)
+	if (!xas->xa_yesde)
 		return set_bounds(xas);
-	if (xas_not_node(xas->xa_node))
+	if (xas_yest_yesde(xas->xa_yesde))
 		return xas_load(xas);
 
-	if (xas->xa_offset != get_offset(xas->xa_index, xas->xa_node))
+	if (xas->xa_offset != get_offset(xas->xa_index, xas->xa_yesde))
 		xas->xa_offset--;
 
 	while (xas->xa_offset == 255) {
-		xas->xa_offset = xas->xa_node->offset - 1;
-		xas->xa_node = xa_parent(xas->xa, xas->xa_node);
-		if (!xas->xa_node)
+		xas->xa_offset = xas->xa_yesde->offset - 1;
+		xas->xa_yesde = xa_parent(xas->xa, xas->xa_yesde);
+		if (!xas->xa_yesde)
 			return set_bounds(xas);
 	}
 
 	for (;;) {
-		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
-		if (!xa_is_node(entry))
+		entry = xa_entry(xas->xa, xas->xa_yesde, xas->xa_offset);
+		if (!xa_is_yesde(entry))
 			return entry;
 
-		xas->xa_node = xa_to_node(entry);
+		xas->xa_yesde = xa_to_yesde(entry);
 		xas_set_offset(xas);
 	}
 }
@@ -1031,29 +1031,29 @@ void *__xas_next(struct xa_state *xas)
 {
 	void *entry;
 
-	if (!xas_frozen(xas->xa_node))
+	if (!xas_frozen(xas->xa_yesde))
 		xas->xa_index++;
-	if (!xas->xa_node)
+	if (!xas->xa_yesde)
 		return set_bounds(xas);
-	if (xas_not_node(xas->xa_node))
+	if (xas_yest_yesde(xas->xa_yesde))
 		return xas_load(xas);
 
-	if (xas->xa_offset != get_offset(xas->xa_index, xas->xa_node))
+	if (xas->xa_offset != get_offset(xas->xa_index, xas->xa_yesde))
 		xas->xa_offset++;
 
 	while (xas->xa_offset == XA_CHUNK_SIZE) {
-		xas->xa_offset = xas->xa_node->offset + 1;
-		xas->xa_node = xa_parent(xas->xa, xas->xa_node);
-		if (!xas->xa_node)
+		xas->xa_offset = xas->xa_yesde->offset + 1;
+		xas->xa_yesde = xa_parent(xas->xa, xas->xa_yesde);
+		if (!xas->xa_yesde)
 			return set_bounds(xas);
 	}
 
 	for (;;) {
-		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
-		if (!xa_is_node(entry))
+		entry = xa_entry(xas->xa, xas->xa_yesde, xas->xa_offset);
+		if (!xa_is_yesde(entry))
 			return entry;
 
-		xas->xa_node = xa_to_node(entry);
+		xas->xa_yesde = xa_to_yesde(entry);
 		xas_set_offset(xas);
 	}
 }
@@ -1064,13 +1064,13 @@ EXPORT_SYMBOL_GPL(__xas_next);
  * @xas: XArray operation state.
  * @max: Highest index to return.
  *
- * If the @xas has not yet been walked to an entry, return the entry
+ * If the @xas has yest yet been walked to an entry, return the entry
  * which has an index >= xas.xa_index.  If it has been walked, the entry
  * currently being pointed at has been processed, and so we move to the
  * next entry.
  *
- * If no entry is found and the array is smaller than @max, the iterator
- * is set to the smallest index not yet in the array.  This allows @xas
+ * If yes entry is found and the array is smaller than @max, the iterator
+ * is set to the smallest index yest yet in the array.  This allows @xas
  * to be immediately passed to xas_store().
  *
  * Return: The entry, if found, otherwise %NULL.
@@ -1082,30 +1082,30 @@ void *xas_find(struct xa_state *xas, unsigned long max)
 	if (xas_error(xas))
 		return NULL;
 
-	if (!xas->xa_node) {
+	if (!xas->xa_yesde) {
 		xas->xa_index = 1;
 		return set_bounds(xas);
-	} else if (xas_top(xas->xa_node)) {
+	} else if (xas_top(xas->xa_yesde)) {
 		entry = xas_load(xas);
-		if (entry || xas_not_node(xas->xa_node))
+		if (entry || xas_yest_yesde(xas->xa_yesde))
 			return entry;
-	} else if (!xas->xa_node->shift &&
+	} else if (!xas->xa_yesde->shift &&
 		    xas->xa_offset != (xas->xa_index & XA_CHUNK_MASK)) {
 		xas->xa_offset = ((xas->xa_index - 1) & XA_CHUNK_MASK) + 1;
 	}
 
 	xas_advance(xas);
 
-	while (xas->xa_node && (xas->xa_index <= max)) {
+	while (xas->xa_yesde && (xas->xa_index <= max)) {
 		if (unlikely(xas->xa_offset == XA_CHUNK_SIZE)) {
-			xas->xa_offset = xas->xa_node->offset + 1;
-			xas->xa_node = xa_parent(xas->xa, xas->xa_node);
+			xas->xa_offset = xas->xa_yesde->offset + 1;
+			xas->xa_yesde = xa_parent(xas->xa, xas->xa_yesde);
 			continue;
 		}
 
-		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
-		if (xa_is_node(entry)) {
-			xas->xa_node = xa_to_node(entry);
+		entry = xa_entry(xas->xa, xas->xa_yesde, xas->xa_offset);
+		if (xa_is_yesde(entry)) {
+			xas->xa_yesde = xa_to_yesde(entry);
 			xas->xa_offset = 0;
 			continue;
 		}
@@ -1115,8 +1115,8 @@ void *xas_find(struct xa_state *xas, unsigned long max)
 		xas_advance(xas);
 	}
 
-	if (!xas->xa_node)
-		xas->xa_node = XAS_BOUNDS;
+	if (!xas->xa_yesde)
+		xas->xa_yesde = XAS_BOUNDS;
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(xas_find);
@@ -1127,17 +1127,17 @@ EXPORT_SYMBOL_GPL(xas_find);
  * @max: Highest index to return.
  * @mark: Mark number to search for.
  *
- * If the @xas has not yet been walked to an entry, return the marked entry
+ * If the @xas has yest yet been walked to an entry, return the marked entry
  * which has an index >= xas.xa_index.  If it has been walked, the entry
  * currently being pointed at has been processed, and so we return the
  * first marked entry with an index > xas.xa_index.
  *
- * If no marked entry is found and the array is smaller than @max, @xas is
+ * If yes marked entry is found and the array is smaller than @max, @xas is
  * set to the bounds state and xas->xa_index is set to the smallest index
- * not yet in the array.  This allows @xas to be immediately passed to
+ * yest yet in the array.  This allows @xas to be immediately passed to
  * xas_store().
  *
- * If no entry is found before @max is reached, @xas is set to the restart
+ * If yes entry is found before @max is reached, @xas is set to the restart
  * state.
  *
  * Return: The entry, if found, otherwise %NULL.
@@ -1151,37 +1151,37 @@ void *xas_find_marked(struct xa_state *xas, unsigned long max, xa_mark_t mark)
 	if (xas_error(xas))
 		return NULL;
 
-	if (!xas->xa_node) {
+	if (!xas->xa_yesde) {
 		xas->xa_index = 1;
 		goto out;
-	} else if (xas_top(xas->xa_node)) {
+	} else if (xas_top(xas->xa_yesde)) {
 		advance = false;
 		entry = xa_head(xas->xa);
-		xas->xa_node = NULL;
+		xas->xa_yesde = NULL;
 		if (xas->xa_index > max_index(entry))
 			goto out;
-		if (!xa_is_node(entry)) {
+		if (!xa_is_yesde(entry)) {
 			if (xa_marked(xas->xa, mark))
 				return entry;
 			xas->xa_index = 1;
 			goto out;
 		}
-		xas->xa_node = xa_to_node(entry);
-		xas->xa_offset = xas->xa_index >> xas->xa_node->shift;
+		xas->xa_yesde = xa_to_yesde(entry);
+		xas->xa_offset = xas->xa_index >> xas->xa_yesde->shift;
 	}
 
 	while (xas->xa_index <= max) {
 		if (unlikely(xas->xa_offset == XA_CHUNK_SIZE)) {
-			xas->xa_offset = xas->xa_node->offset + 1;
-			xas->xa_node = xa_parent(xas->xa, xas->xa_node);
-			if (!xas->xa_node)
+			xas->xa_offset = xas->xa_yesde->offset + 1;
+			xas->xa_yesde = xa_parent(xas->xa, xas->xa_yesde);
+			if (!xas->xa_yesde)
 				break;
 			advance = false;
 			continue;
 		}
 
 		if (!advance) {
-			entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
+			entry = xa_entry(xas->xa, xas->xa_yesde, xas->xa_offset);
 			if (xa_is_sibling(entry)) {
 				xas->xa_offset = xa_to_sibling(entry);
 				xas_move_index(xas, xas->xa_offset);
@@ -1200,10 +1200,10 @@ void *xas_find_marked(struct xa_state *xas, unsigned long max, xa_mark_t mark)
 				continue;
 		}
 
-		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
-		if (!xa_is_node(entry))
+		entry = xa_entry(xas->xa, xas->xa_yesde, xas->xa_offset);
+		if (!xa_is_yesde(entry))
 			return entry;
-		xas->xa_node = xa_to_node(entry);
+		xas->xa_yesde = xa_to_yesde(entry);
 		xas_set_offset(xas);
 	}
 
@@ -1212,7 +1212,7 @@ out:
 		goto max;
 	return set_bounds(xas);
 max:
-	xas->xa_node = XAS_RESTART;
+	xas->xa_yesde = XAS_RESTART;
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(xas_find_marked);
@@ -1233,42 +1233,42 @@ void *xas_find_conflict(struct xa_state *xas)
 	if (xas_error(xas))
 		return NULL;
 
-	if (!xas->xa_node)
+	if (!xas->xa_yesde)
 		return NULL;
 
-	if (xas_top(xas->xa_node)) {
+	if (xas_top(xas->xa_yesde)) {
 		curr = xas_start(xas);
 		if (!curr)
 			return NULL;
-		while (xa_is_node(curr)) {
-			struct xa_node *node = xa_to_node(curr);
-			curr = xas_descend(xas, node);
+		while (xa_is_yesde(curr)) {
+			struct xa_yesde *yesde = xa_to_yesde(curr);
+			curr = xas_descend(xas, yesde);
 		}
 		if (curr)
 			return curr;
 	}
 
-	if (xas->xa_node->shift > xas->xa_shift)
+	if (xas->xa_yesde->shift > xas->xa_shift)
 		return NULL;
 
 	for (;;) {
-		if (xas->xa_node->shift == xas->xa_shift) {
+		if (xas->xa_yesde->shift == xas->xa_shift) {
 			if ((xas->xa_offset & xas->xa_sibs) == xas->xa_sibs)
 				break;
 		} else if (xas->xa_offset == XA_CHUNK_MASK) {
-			xas->xa_offset = xas->xa_node->offset;
-			xas->xa_node = xa_parent_locked(xas->xa, xas->xa_node);
-			if (!xas->xa_node)
+			xas->xa_offset = xas->xa_yesde->offset;
+			xas->xa_yesde = xa_parent_locked(xas->xa, xas->xa_yesde);
+			if (!xas->xa_yesde)
 				break;
 			continue;
 		}
-		curr = xa_entry_locked(xas->xa, xas->xa_node, ++xas->xa_offset);
+		curr = xa_entry_locked(xas->xa, xas->xa_yesde, ++xas->xa_offset);
 		if (xa_is_sibling(curr))
 			continue;
-		while (xa_is_node(curr)) {
-			xas->xa_node = xa_to_node(curr);
+		while (xa_is_yesde(curr)) {
+			xas->xa_yesde = xa_to_yesde(curr);
 			xas->xa_offset = 0;
-			curr = xa_entry_locked(xas->xa, xas->xa_node, 0);
+			curr = xa_entry_locked(xas->xa, xas->xa_yesde, 0);
 		}
 		if (curr)
 			return curr;
@@ -1308,7 +1308,7 @@ static void *xas_result(struct xa_state *xas, void *curr)
 	if (xa_is_zero(curr))
 		return NULL;
 	if (xas_error(xas))
-		curr = xas->xa_node;
+		curr = xas->xa_yesde;
 	return curr;
 }
 
@@ -1319,7 +1319,7 @@ static void *xas_result(struct xa_state *xas, void *curr)
  *
  * After this function returns, loading from @index will return %NULL.
  * If the index is part of a multi-index entry, all indices will be erased
- * and none of the entries will be part of a multi-index entry.
+ * and yesne of the entries will be part of a multi-index entry.
  *
  * Context: Any context.  Expects xa_lock to be held on entry.
  * Return: The entry which used to be at this index.
@@ -1338,7 +1338,7 @@ EXPORT_SYMBOL(__xa_erase);
  *
  * After this function returns, loading from @index will return %NULL.
  * If the index is part of a multi-index entry, all indices will be erased
- * and none of the entries will be part of a multi-index entry.
+ * and yesne of the entries will be part of a multi-index entry.
  *
  * Context: Any context.  Takes and releases the xa_lock.
  * Return: The entry which used to be at this index.
@@ -1384,7 +1384,7 @@ void *__xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 		curr = xas_store(&xas, entry);
 		if (xa_track_free(xa))
 			xas_clear_mark(&xas, XA_FREE_MARK);
-	} while (__xas_nomem(&xas, gfp));
+	} while (__xas_yesmem(&xas, gfp));
 
 	return xas_result(&xas, curr);
 }
@@ -1404,7 +1404,7 @@ EXPORT_SYMBOL(__xa_store);
  * Context: Any context.  Takes and releases the xa_lock.
  * May sleep if the @gfp flags permit.
  * Return: The old entry at this index on success, xa_err(-EINVAL) if @entry
- * cannot be stored in an XArray, or xa_err(-ENOMEM) if memory allocation
+ * canyest be stored in an XArray, or xa_err(-ENOMEM) if memory allocation
  * failed.
  */
 void *xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
@@ -1451,27 +1451,27 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 			if (xa_track_free(xa) && entry && !curr)
 				xas_clear_mark(&xas, XA_FREE_MARK);
 		}
-	} while (__xas_nomem(&xas, gfp));
+	} while (__xas_yesmem(&xas, gfp));
 
 	return xas_result(&xas, curr);
 }
 EXPORT_SYMBOL(__xa_cmpxchg);
 
 /**
- * __xa_insert() - Store this entry in the XArray if no entry is present.
+ * __xa_insert() - Store this entry in the XArray if yes entry is present.
  * @xa: XArray.
  * @index: Index into array.
  * @entry: New entry.
  * @gfp: Memory allocation flags.
  *
  * Inserting a NULL entry will store a reserved entry (like xa_reserve())
- * if no entry is present.  Inserting will fail if a reserved entry is
+ * if yes entry is present.  Inserting will fail if a reserved entry is
  * present, even though loading from this index will return NULL.
  *
  * Context: Any context.  Expects xa_lock to be held on entry.  May
  * release and reacquire xa_lock if @gfp flags permit.
- * Return: 0 if the store succeeded.  -EBUSY if another entry was present.
- * -ENOMEM if memory could not be allocated.
+ * Return: 0 if the store succeeded.  -EBUSY if ayesther entry was present.
+ * -ENOMEM if memory could yest be allocated.
  */
 int __xa_insert(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 {
@@ -1492,7 +1492,7 @@ int __xa_insert(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 		} else {
 			xas_set_err(&xas, -EBUSY);
 		}
-	} while (__xas_nomem(&xas, gfp));
+	} while (__xas_yesmem(&xas, gfp));
 
 	return xas_error(&xas);
 }
@@ -1545,7 +1545,7 @@ static void xas_set_range(struct xa_state *xas, unsigned long first,
  *
  * Context: Process context.  Takes and releases the xa_lock.  May sleep
  * if the @gfp flags permit.
- * Return: %NULL on success, xa_err(-EINVAL) if @entry cannot be stored in
+ * Return: %NULL on success, xa_err(-EINVAL) if @entry canyest be stored in
  * an XArray, or xa_err(-ENOMEM) if memory allocation failed.
  */
 void *xa_store_range(struct xarray *xa, unsigned long first,
@@ -1578,7 +1578,7 @@ void *xa_store_range(struct xarray *xa, unsigned long first,
 		} while (first <= last);
 unlock:
 		xas_unlock(&xas);
-	} while (xas_nomem(&xas, gfp));
+	} while (xas_yesmem(&xas, gfp));
 
 	return xas_result(&xas, NULL);
 }
@@ -1595,12 +1595,12 @@ EXPORT_SYMBOL(xa_store_range);
  *
  * Finds an empty entry in @xa between @limit.min and @limit.max,
  * stores the index into the @id pointer, then stores the entry at
- * that index.  A concurrent lookup will not see an uninitialised @id.
+ * that index.  A concurrent lookup will yest see an uninitialised @id.
  *
  * Context: Any context.  Expects xa_lock to be held on entry.  May
  * release and reacquire xa_lock if @gfp flags permit.
- * Return: 0 on success, -ENOMEM if memory could not be allocated or
- * -EBUSY if there are no free entries in @limit.
+ * Return: 0 on success, -ENOMEM if memory could yest be allocated or
+ * -EBUSY if there are yes free entries in @limit.
  */
 int __xa_alloc(struct xarray *xa, u32 *id, void *entry,
 		struct xa_limit limit, gfp_t gfp)
@@ -1618,13 +1618,13 @@ int __xa_alloc(struct xarray *xa, u32 *id, void *entry,
 	do {
 		xas.xa_index = limit.min;
 		xas_find_marked(&xas, limit.max, XA_FREE_MARK);
-		if (xas.xa_node == XAS_RESTART)
+		if (xas.xa_yesde == XAS_RESTART)
 			xas_set_err(&xas, -EBUSY);
 		else
 			*id = xas.xa_index;
 		xas_store(&xas, entry);
 		xas_clear_mark(&xas, XA_FREE_MARK);
-	} while (__xas_nomem(&xas, gfp));
+	} while (__xas_yesmem(&xas, gfp));
 
 	return xas_error(&xas);
 }
@@ -1641,15 +1641,15 @@ EXPORT_SYMBOL(__xa_alloc);
  *
  * Finds an empty entry in @xa between @limit.min and @limit.max,
  * stores the index into the @id pointer, then stores the entry at
- * that index.  A concurrent lookup will not see an uninitialised @id.
+ * that index.  A concurrent lookup will yest see an uninitialised @id.
  * The search for an empty entry will start at @next and will wrap
  * around if necessary.
  *
  * Context: Any context.  Expects xa_lock to be held on entry.  May
  * release and reacquire xa_lock if @gfp flags permit.
  * Return: 0 if the allocation succeeded without wrapping.  1 if the
- * allocation succeeded after wrapping, -ENOMEM if memory could not be
- * allocated or -EBUSY if there are no free entries in @limit.
+ * allocation succeeded after wrapping, -ENOMEM if memory could yest be
+ * allocated or -EBUSY if there are yes free entries in @limit.
  */
 int __xa_alloc_cyclic(struct xarray *xa, u32 *id, void *entry,
 		struct xa_limit limit, u32 *next, gfp_t gfp)
@@ -1686,7 +1686,7 @@ EXPORT_SYMBOL(__xa_alloc_cyclic);
  * @index: Index of entry.
  * @mark: Mark number.
  *
- * Attempting to set a mark on a %NULL entry does not succeed.
+ * Attempting to set a mark on a %NULL entry does yest succeed.
  *
  * Context: Any context.  Expects xa_lock to be held on entry.
  */
@@ -1738,9 +1738,9 @@ bool xa_get_mark(struct xarray *xa, unsigned long index, xa_mark_t mark)
 	rcu_read_lock();
 	entry = xas_start(&xas);
 	while (xas_get_mark(&xas, mark)) {
-		if (!xa_is_node(entry))
+		if (!xa_is_yesde(entry))
 			goto found;
-		entry = xas_descend(&xas, xa_to_node(entry));
+		entry = xas_descend(&xas, xa_to_yesde(entry));
 	}
 	rcu_read_unlock();
 	return false;
@@ -1756,7 +1756,7 @@ EXPORT_SYMBOL(xa_get_mark);
  * @index: Index of entry.
  * @mark: Mark number.
  *
- * Attempting to set a mark on a %NULL entry does not succeed.
+ * Attempting to set a mark on a %NULL entry does yest succeed.
  *
  * Context: Process context.  Takes and releases the xa_lock.
  */
@@ -1794,10 +1794,10 @@ EXPORT_SYMBOL(xa_clear_mark);
  * @filter: Selection criterion.
  *
  * Finds the entry in @xa which matches the @filter, and has the lowest
- * index that is at least @indexp and no more than @max.
+ * index that is at least @indexp and yes more than @max.
  * If an entry is found, @indexp is updated to be the index of the entry.
- * This function is protected by the RCU read lock, so it may not find
- * entries which are being simultaneously added.  It will not return an
+ * This function is protected by the RCU read lock, so it may yest find
+ * entries which are being simultaneously added.  It will yest return an
  * %XA_RETRY_ENTRY; if you need to see retry entries, use xas_find().
  *
  * Context: Any context.  Takes and releases the RCU lock.
@@ -1832,10 +1832,10 @@ EXPORT_SYMBOL(xa_find);
  * @filter: Selection criterion.
  *
  * Finds the entry in @xa which matches the @filter and has the lowest
- * index that is above @indexp and no more than @max.
+ * index that is above @indexp and yes more than @max.
  * If an entry is found, @indexp is updated to be the index of the entry.
  * This function is protected by the RCU read lock, so it may miss entries
- * which are being simultaneously added.  It will not return an
+ * which are being simultaneously added.  It will yest return an
  * %XA_RETRY_ENTRY; if you need to see retry entries, use xas_find().
  *
  * Context: Any context.  Takes and releases the RCU lock.
@@ -1853,7 +1853,7 @@ void *xa_find_after(struct xarray *xa, unsigned long *indexp,
 			entry = xas_find_marked(&xas, max, filter);
 		else
 			entry = xas_find(&xas, max);
-		if (xas.xa_node == XAS_BOUNDS)
+		if (xas.xa_yesde == XAS_BOUNDS)
 			break;
 		if (xas.xa_shift) {
 			if (xas.xa_index & ((1UL << xas.xa_shift) - 1))
@@ -1912,7 +1912,7 @@ static unsigned int xas_extract_marked(struct xa_state *xas, void **dst,
 }
 
 /**
- * xa_extract() - Copy selected entries from the XArray into a normal array.
+ * xa_extract() - Copy selected entries from the XArray into a yesrmal array.
  * @xa: The source XArray to copy from.
  * @dst: The buffer to copy entries into.
  * @start: The first index in the XArray eligible to be selected.
@@ -1925,13 +1925,13 @@ static unsigned int xas_extract_marked(struct xa_state *xas, void **dst,
  *
  * The @filter may be an XArray mark value, in which case entries which are
  * marked with that mark will be copied.  It may also be %XA_PRESENT, in
- * which case all entries which are not %NULL will be copied.
+ * which case all entries which are yest %NULL will be copied.
  *
- * The entries returned may not represent a snapshot of the XArray at a
- * moment in time.  For example, if another thread stores to index 5, then
+ * The entries returned may yest represent a snapshot of the XArray at a
+ * moment in time.  For example, if ayesther thread stores to index 5, then
  * index 10, calling xa_extract() may return the old contents of index 5
- * and the new contents of index 10.  Indices not modified while this
- * function is running will not be skipped.
+ * and the new contents of index 10.  Indices yest modified while this
+ * function is running will yest be skipped.
  *
  * If you need stronger guarantees, holding the xa_lock across calls to this
  * function will prevent concurrent modification.
@@ -1969,40 +1969,40 @@ void xa_destroy(struct xarray *xa)
 	unsigned long flags;
 	void *entry;
 
-	xas.xa_node = NULL;
+	xas.xa_yesde = NULL;
 	xas_lock_irqsave(&xas, flags);
 	entry = xa_head_locked(xa);
 	RCU_INIT_POINTER(xa->xa_head, NULL);
 	xas_init_marks(&xas);
 	if (xa_zero_busy(xa))
 		xa_mark_clear(xa, XA_FREE_MARK);
-	/* lockdep checks we're still holding the lock in xas_free_nodes() */
-	if (xa_is_node(entry))
-		xas_free_nodes(&xas, xa_to_node(entry));
+	/* lockdep checks we're still holding the lock in xas_free_yesdes() */
+	if (xa_is_yesde(entry))
+		xas_free_yesdes(&xas, xa_to_yesde(entry));
 	xas_unlock_irqrestore(&xas, flags);
 }
 EXPORT_SYMBOL(xa_destroy);
 
 #ifdef XA_DEBUG
-void xa_dump_node(const struct xa_node *node)
+void xa_dump_yesde(const struct xa_yesde *yesde)
 {
 	unsigned i, j;
 
-	if (!node)
+	if (!yesde)
 		return;
-	if ((unsigned long)node & 3) {
-		pr_cont("node %px\n", node);
+	if ((unsigned long)yesde & 3) {
+		pr_cont("yesde %px\n", yesde);
 		return;
 	}
 
-	pr_cont("node %px %s %d parent %px shift %d count %d values %d "
+	pr_cont("yesde %px %s %d parent %px shift %d count %d values %d "
 		"array %px list %px %px marks",
-		node, node->parent ? "offset" : "max", node->offset,
-		node->parent, node->shift, node->count, node->nr_values,
-		node->array, node->private_list.prev, node->private_list.next);
+		yesde, yesde->parent ? "offset" : "max", yesde->offset,
+		yesde->parent, yesde->shift, yesde->count, yesde->nr_values,
+		yesde->array, yesde->private_list.prev, yesde->private_list.next);
 	for (i = 0; i < XA_MAX_MARKS; i++)
 		for (j = 0; j < XA_MARK_LONGS; j++)
-			pr_cont(" %lx", node->marks[i][j]);
+			pr_cont(" %lx", yesde->marks[i][j]);
 	pr_cont("\n");
 }
 
@@ -2023,16 +2023,16 @@ void xa_dump_entry(const void *entry, unsigned long index, unsigned long shift)
 
 	xa_dump_index(index, shift);
 
-	if (xa_is_node(entry)) {
+	if (xa_is_yesde(entry)) {
 		if (shift == 0) {
 			pr_cont("%px\n", entry);
 		} else {
 			unsigned long i;
-			struct xa_node *node = xa_to_node(entry);
-			xa_dump_node(node);
+			struct xa_yesde *yesde = xa_to_yesde(entry);
+			xa_dump_yesde(yesde);
 			for (i = 0; i < XA_CHUNK_SIZE; i++)
-				xa_dump_entry(node->slots[i],
-				      index + (i << node->shift), node->shift);
+				xa_dump_entry(yesde->slots[i],
+				      index + (i << yesde->shift), yesde->shift);
 		}
 	} else if (xa_is_value(entry))
 		pr_cont("value %ld (0x%lx) [%px]\n", xa_to_value(entry),
@@ -2057,8 +2057,8 @@ void xa_dump(const struct xarray *xa)
 	pr_info("xarray: %px head %px flags %x marks %d %d %d\n", xa, entry,
 			xa->xa_flags, xa_marked(xa, XA_MARK_0),
 			xa_marked(xa, XA_MARK_1), xa_marked(xa, XA_MARK_2));
-	if (xa_is_node(entry))
-		shift = xa_to_node(entry)->shift + XA_CHUNK_SHIFT;
+	if (xa_is_yesde(entry))
+		shift = xa_to_yesde(entry)->shift + XA_CHUNK_SHIFT;
 	xa_dump_entry(entry, 0, shift);
 }
 #endif

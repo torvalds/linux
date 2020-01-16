@@ -16,7 +16,7 @@ static int tango_boot_secondary(unsigned int cpu, struct task_struct *idle)
  * cpu_kill() and cpu_die() run concurrently on different cores.
  * Firmware will only "kill" a core once it has properly "died".
  * Try a few times to kill a core before giving up, and sleep
- * between tries to give that core enough time to die.
+ * between tries to give that core eyesugh time to die.
  */
 static int tango_cpu_kill(unsigned int cpu)
 {

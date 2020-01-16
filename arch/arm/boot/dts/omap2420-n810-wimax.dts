@@ -5,5 +5,5 @@
 
 / {
 	model = "Nokia N810 WiMax";
-	compatible = "nokia,n810-wimax", "nokia,n8x0", "ti,omap2420", "ti,omap2";
+	compatible = "yeskia,n810-wimax", "yeskia,n8x0", "ti,omap2420", "ti,omap2";
 };

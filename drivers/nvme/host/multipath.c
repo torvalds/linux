@@ -45,8 +45,8 @@ void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
 /*
  * If multipathing is enabled we need to always use the subsystem instance
  * number for numbering our devices to avoid conflicts between subsystems that
- * have multiple controllers and thus use the multipath-aware subsystem node
- * and those that have a single controller and use the controller node
+ * have multiple controllers and thus use the multipath-aware subsystem yesde
+ * and those that have a single controller and use the controller yesde
  * directly.
  */
 void nvme_set_disk_name(char *disk_name, struct nvme_ns *ns,
@@ -80,10 +80,10 @@ void nvme_failover_req(struct request *req)
 	case NVME_SC_ANA_INACCESSIBLE:
 	case NVME_SC_ANA_PERSISTENT_LOSS:
 		/*
-		 * If we got back an ANA error we know the controller is alive,
-		 * but not ready to serve this namespaces.  The spec suggests
+		 * If we got back an ANA error we kyesw the controller is alive,
+		 * but yest ready to serve this namespaces.  The spec suggests
 		 * we should update our general state here, but due to the fact
-		 * that the admin and I/O queues are not serialized that is
+		 * that the admin and I/O queues are yest serialized that is
 		 * fundamentally racy.  So instead just clear the current path,
 		 * mark the the path as pending and kick of a re-read of the ANA
 		 * log page ASAP.
@@ -104,7 +104,7 @@ void nvme_failover_req(struct request *req)
 		break;
 	default:
 		/*
-		 * Reset the controller for any non-ANA error as we don't know
+		 * Reset the controller for any yesn-ANA error as we don't kyesw
 		 * what caused the error.
 		 */
 		nvme_reset_ctrl(ns->ctrl);
@@ -129,7 +129,7 @@ void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl)
 static const char *nvme_ana_state_names[] = {
 	[0]				= "invalid state",
 	[NVME_ANA_OPTIMIZED]		= "optimized",
-	[NVME_ANA_NONOPTIMIZED]		= "non-optimized",
+	[NVME_ANA_NONOPTIMIZED]		= "yesn-optimized",
 	[NVME_ANA_INACCESSIBLE]		= "inaccessible",
 	[NVME_ANA_PERSISTENT_LOSS]	= "persistent-loss",
 	[NVME_ANA_CHANGE]		= "change",
@@ -139,14 +139,14 @@ bool nvme_mpath_clear_current_path(struct nvme_ns *ns)
 {
 	struct nvme_ns_head *head = ns->head;
 	bool changed = false;
-	int node;
+	int yesde;
 
 	if (!head)
 		goto out;
 
-	for_each_node(node) {
-		if (ns == rcu_access_pointer(head->current_path[node])) {
-			rcu_assign_pointer(head->current_path[node], NULL);
+	for_each_yesde(yesde) {
+		if (ns == rcu_access_pointer(head->current_path[yesde])) {
+			rcu_assign_pointer(head->current_path[yesde], NULL);
 			changed = true;
 		}
 	}
@@ -174,7 +174,7 @@ static bool nvme_path_is_disabled(struct nvme_ns *ns)
 		test_bit(NVME_NS_REMOVING, &ns->flags);
 }
 
-static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int node)
+static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int yesde)
 {
 	int found_distance = INT_MAX, fallback_distance = INT_MAX, distance;
 	struct nvme_ns *found = NULL, *fallback = NULL, *ns;
@@ -184,7 +184,7 @@ static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int node)
 			continue;
 
 		if (READ_ONCE(head->subsys->iopolicy) == NVME_IOPOLICY_NUMA)
-			distance = node_distance(node, ns->ctrl->numa_node);
+			distance = yesde_distance(yesde, ns->ctrl->numa_yesde);
 		else
 			distance = LOCAL_DISTANCE;
 
@@ -209,7 +209,7 @@ static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int node)
 	if (!found)
 		found = fallback;
 	if (found)
-		rcu_assign_pointer(head->current_path[node], found);
+		rcu_assign_pointer(head->current_path[yesde], found);
 	return found;
 }
 
@@ -224,7 +224,7 @@ static struct nvme_ns *nvme_next_ns(struct nvme_ns_head *head,
 }
 
 static struct nvme_ns *nvme_round_robin_path(struct nvme_ns_head *head,
-		int node, struct nvme_ns *old)
+		int yesde, struct nvme_ns *old)
 {
 	struct nvme_ns *ns, *found, *fallback = NULL;
 
@@ -252,7 +252,7 @@ static struct nvme_ns *nvme_round_robin_path(struct nvme_ns_head *head,
 		return NULL;
 	found = fallback;
 out:
-	rcu_assign_pointer(head->current_path[node], found);
+	rcu_assign_pointer(head->current_path[yesde], found);
 	return found;
 }
 
@@ -264,14 +264,14 @@ static inline bool nvme_path_is_optimized(struct nvme_ns *ns)
 
 inline struct nvme_ns *nvme_find_path(struct nvme_ns_head *head)
 {
-	int node = numa_node_id();
+	int yesde = numa_yesde_id();
 	struct nvme_ns *ns;
 
-	ns = srcu_dereference(head->current_path[node], &head->srcu);
+	ns = srcu_dereference(head->current_path[yesde], &head->srcu);
 	if (READ_ONCE(head->subsys->iopolicy) == NVME_IOPOLICY_RR && ns)
-		ns = nvme_round_robin_path(head, node, ns);
+		ns = nvme_round_robin_path(head, yesde, ns);
 	if (unlikely(!ns || !nvme_path_is_optimized(ns)))
-		ns = __nvme_find_path(head, node);
+		ns = __nvme_find_path(head, yesde);
 	return ns;
 }
 
@@ -320,13 +320,13 @@ static blk_qc_t nvme_ns_head_make_request(struct request_queue *q,
 				      bio->bi_iter.bi_sector);
 		ret = direct_make_request(bio);
 	} else if (nvme_available_path(head)) {
-		dev_warn_ratelimited(dev, "no usable path - requeuing I/O\n");
+		dev_warn_ratelimited(dev, "yes usable path - requeuing I/O\n");
 
 		spin_lock_irq(&head->requeue_lock);
 		bio_list_add(&head->requeue_list, bio);
 		spin_unlock_irq(&head->requeue_lock);
 	} else {
-		dev_warn_ratelimited(dev, "no available path - failing I/O\n");
+		dev_warn_ratelimited(dev, "yes available path - failing I/O\n");
 
 		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
@@ -351,7 +351,7 @@ static void nvme_requeue_work(struct work_struct *work)
 		bio->bi_next = NULL;
 
 		/*
-		 * Reset disk to the mpath node and resubmit to select a new
+		 * Reset disk to the mpath yesde and resubmit to select a new
 		 * path.
 		 */
 		bio->bi_disk = head->disk;
@@ -370,14 +370,14 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 	INIT_WORK(&head->requeue_work, nvme_requeue_work);
 
 	/*
-	 * Add a multipath node if the subsystems supports multiple controllers.
+	 * Add a multipath yesde if the subsystems supports multiple controllers.
 	 * We also do this for private namespaces as the namespace sharing data could
 	 * change after a rescan.
 	 */
 	if (!(ctrl->subsys->cmic & (1 << 1)) || !multipath)
 		return 0;
 
-	q = blk_alloc_queue_node(GFP_KERNEL, ctrl->numa_node);
+	q = blk_alloc_queue_yesde(GFP_KERNEL, ctrl->numa_yesde);
 	if (!q)
 		goto out;
 	q->queuedata = head;
@@ -423,11 +423,11 @@ static void nvme_mpath_set_live(struct nvme_ns *ns)
 				nvme_ns_id_attr_groups);
 
 	if (nvme_path_is_optimized(ns)) {
-		int node, srcu_idx;
+		int yesde, srcu_idx;
 
 		srcu_idx = srcu_read_lock(&head->srcu);
-		for_each_node(node)
-			__nvme_find_path(head, node);
+		for_each_yesde(yesde)
+			__nvme_find_path(head, yesde);
 		srcu_read_unlock(&head->srcu, srcu_idx);
 	}
 

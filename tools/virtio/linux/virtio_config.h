@@ -5,7 +5,7 @@
 
 /*
  * __virtio_test_bit - helper to test feature bits. For use by transports.
- *                     Devices should normally use virtio_has_feature,
+ *                     Devices should yesrmally use virtio_has_feature,
  *                     which includes more checks.
  * @vdev: the device
  * @fbit: the feature bit

@@ -14,7 +14,7 @@
  * that would like to identify the protocol.
  */
 #define CEPH_PORT_FIRST  6789
-#define CEPH_PORT_START  6800  /* non-monitors start here */
+#define CEPH_PORT_START  6800  /* yesn-monitors start here */
 #define CEPH_PORT_LAST   6900
 
 /*
@@ -62,7 +62,7 @@ extern const char *ceph_entity_type_name(int type);
  */
 struct ceph_entity_addr {
 	__le32 type;
-	__le32 nonce;  /* unique id for process (e.g. pid) */
+	__le32 yesnce;  /* unique id for process (e.g. pid) */
 	struct sockaddr_storage in_addr;
 } __attribute__ ((packed));
 
@@ -181,7 +181,7 @@ struct ceph_msg_footer {
 } __attribute__ ((packed));
 
 #define CEPH_MSG_FOOTER_COMPLETE  (1<<0)   /* msg wasn't aborted */
-#define CEPH_MSG_FOOTER_NOCRC     (1<<1)   /* no data crc */
+#define CEPH_MSG_FOOTER_NOCRC     (1<<1)   /* yes data crc */
 #define CEPH_MSG_FOOTER_SIGNED	  (1<<2)   /* msg was signed */
 
 

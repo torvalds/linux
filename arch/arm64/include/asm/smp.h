@@ -140,10 +140,10 @@ static inline void cpu_panic_kernel(void)
 
 /*
  * If a secondary CPU enters the kernel but fails to come online,
- * (e.g. due to mismatched features), and cannot exit the kernel,
+ * (e.g. due to mismatched features), and canyest exit the kernel,
  * we increment cpus_stuck_in_kernel and leave the CPU in a
  * quiesecent loop within the kernel text. The memory containing
- * this loop must not be re-used for anything else as the 'stuck'
+ * this loop must yest be re-used for anything else as the 'stuck'
  * core is executing it.
  *
  * This function is used to inhibit features like kexec and hibernate.

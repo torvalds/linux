@@ -13,8 +13,8 @@ static int i_zero;
 static int i_one_hundred = 100;
 
 /*
- * Test that proc_dointvec will not try to use a NULL .data field even when the
- * length is non-zero.
+ * Test that proc_dointvec will yest try to use a NULL .data field even when the
+ * length is yesn-zero.
  */
 static void sysctl_test_api_dointvec_null_tbl_data(struct kunit *test)
 {
@@ -43,7 +43,7 @@ static void sysctl_test_api_dointvec_null_tbl_data(struct kunit *test)
 
 	/*
 	 * We don't care what the starting length is since proc_dointvec should
-	 * not try to read because .data is NULL.
+	 * yest try to read because .data is NULL.
 	 */
 	len = 1234;
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&null_data_table,
@@ -63,7 +63,7 @@ static void sysctl_test_api_dointvec_null_tbl_data(struct kunit *test)
 
 /*
  * Similar to the previous test, we create a struct ctrl_table that has a .data
- * field that proc_dointvec cannot do anything with; however, this time it is
+ * field that proc_dointvec canyest do anything with; however, this time it is
  * because we tell proc_dointvec that the size is 0.
  */
 static void sysctl_test_api_dointvec_table_maxlen_unset(struct kunit *test)
@@ -73,7 +73,7 @@ static void sysctl_test_api_dointvec_table_maxlen_unset(struct kunit *test)
 		.procname = "foo",
 		.data		= &data,
 		/*
-		 * So .data is no longer NULL, but we tell proc_dointvec its
+		 * So .data is yes longer NULL, but we tell proc_dointvec its
 		 * length is 0, so it still shouldn't try to use it.
 		 */
 		.maxlen		= 0,
@@ -89,7 +89,7 @@ static void sysctl_test_api_dointvec_table_maxlen_unset(struct kunit *test)
 
 	/*
 	 * As before, we don't care what buffer length is because proc_dointvec
-	 * cannot do anything because its internal .data buffer has zero length.
+	 * canyest do anything because its internal .data buffer has zero length.
 	 */
 	len = 1234;
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&data_maxlen_unset_table,
@@ -128,7 +128,7 @@ static void sysctl_test_api_dointvec_table_len_is_zero(struct kunit *test)
 	void __user *buffer = (void __user *)kunit_kzalloc(test, sizeof(int),
 							   GFP_USER);
 	/*
-	 * However, now our read/write buffer has zero length.
+	 * However, yesw our read/write buffer has zero length.
 	 */
 	size_t len = 0;
 	loff_t pos;
@@ -143,7 +143,7 @@ static void sysctl_test_api_dointvec_table_len_is_zero(struct kunit *test)
 }
 
 /*
- * Test that proc_dointvec refuses to read when the file position is non-zero.
+ * Test that proc_dointvec refuses to read when the file position is yesn-zero.
  */
 static void sysctl_test_api_dointvec_table_read_but_position_set(
 		struct kunit *test)
@@ -163,12 +163,12 @@ static void sysctl_test_api_dointvec_table_read_but_position_set(
 							   GFP_USER);
 	/*
 	 * We don't care about our buffer length because we start off with a
-	 * non-zero file position.
+	 * yesn-zero file position.
 	 */
 	size_t len = 1234;
 	/*
 	 * proc_dointvec should refuse to read into the buffer since the file
-	 * pos is non-zero.
+	 * pos is yesn-zero.
 	 */
 	loff_t pos = 1;
 
@@ -210,7 +210,7 @@ static void sysctl_test_dointvec_read_happy_single_positive(struct kunit *test)
 }
 
 /*
- * Same as previous test, just now with negative numbers.
+ * Same as previous test, just yesw with negative numbers.
  */
 static void sysctl_test_dointvec_read_happy_single_negative(struct kunit *test)
 {
@@ -270,7 +270,7 @@ static void sysctl_test_dointvec_write_happy_single_positive(struct kunit *test)
 }
 
 /*
- * Same as previous test, but now with negative numbers.
+ * Same as previous test, but yesw with negative numbers.
  */
 static void sysctl_test_dointvec_write_happy_single_negative(struct kunit *test)
 {
@@ -300,7 +300,7 @@ static void sysctl_test_dointvec_write_happy_single_negative(struct kunit *test)
 }
 
 /*
- * Test that writing a value smaller than the minimum possible value is not
+ * Test that writing a value smaller than the minimum possible value is yest
  * allowed.
  */
 static void sysctl_test_api_dointvec_write_single_less_int_min(

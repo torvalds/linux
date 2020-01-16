@@ -545,7 +545,7 @@ enum {
 
 struct sst_module {
 	struct snd_kcontrol *kctl;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct sst_ssp_config {
@@ -843,18 +843,18 @@ struct sst_enum {
 };
 
 /* only 4 slots/channels supported atm */
-#define SST_SSP_SLOT_ENUM(s_ch_no, is_tx, xtexts) \
-	(struct sst_enum){ .reg = s_ch_no, .tx = is_tx, .max = 4+1, .texts = xtexts, }
+#define SST_SSP_SLOT_ENUM(s_ch_yes, is_tx, xtexts) \
+	(struct sst_enum){ .reg = s_ch_yes, .tx = is_tx, .max = 4+1, .texts = xtexts, }
 
 #define SST_SLOT_CTL_NAME(xpname, xmname, s_ch_name) \
 	xpname " " xmname " " s_ch_name
 
-#define SST_SSP_SLOT_CTL(xpname, xmname, s_ch_name, s_ch_no, is_tx, xtexts, xget, xput) \
+#define SST_SSP_SLOT_CTL(xpname, xmname, s_ch_name, s_ch_yes, is_tx, xtexts, xget, xput) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	.name = SST_SLOT_CTL_NAME(xpname, xmname, s_ch_name), \
 	.info = sst_slot_enum_info, \
 	.get = xget, .put = xput, \
-	.private_value = (unsigned long)&SST_SSP_SLOT_ENUM(s_ch_no, is_tx, xtexts), \
+	.private_value = (unsigned long)&SST_SSP_SLOT_ENUM(s_ch_yes, is_tx, xtexts), \
 }
 
 #define SST_MUX_CTL_NAME(xpname, xinstance) \

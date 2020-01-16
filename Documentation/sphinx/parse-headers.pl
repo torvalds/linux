@@ -147,29 +147,29 @@ if ($file_exceptions) {
 	while (<IN>) {
 		next if (m/^\s*$/ || m/^\s*#/);
 
-		# Parsers to ignore a symbol
+		# Parsers to igyesre a symbol
 
-		if (m/^ignore\s+ioctl\s+(\S+)/) {
+		if (m/^igyesre\s+ioctl\s+(\S+)/) {
 			delete $ioctls{$1} if (exists($ioctls{$1}));
 			next;
 		}
-		if (m/^ignore\s+define\s+(\S+)/) {
+		if (m/^igyesre\s+define\s+(\S+)/) {
 			delete $defines{$1} if (exists($defines{$1}));
 			next;
 		}
-		if (m/^ignore\s+typedef\s+(\S+)/) {
+		if (m/^igyesre\s+typedef\s+(\S+)/) {
 			delete $typedefs{$1} if (exists($typedefs{$1}));
 			next;
 		}
-		if (m/^ignore\s+enum\s+(\S+)/) {
+		if (m/^igyesre\s+enum\s+(\S+)/) {
 			delete $enums{$1} if (exists($enums{$1}));
 			next;
 		}
-		if (m/^ignore\s+struct\s+(\S+)/) {
+		if (m/^igyesre\s+struct\s+(\S+)/) {
 			delete $structs{$1} if (exists($structs{$1}));
 			next;
 		}
-		if (m/^ignore\s+symbol\s+(\S+)/) {
+		if (m/^igyesre\s+symbol\s+(\S+)/) {
 			delete $enum_symbols{$1} if (exists($enum_symbols{$1}));
 			next;
 		}
@@ -369,8 +369,8 @@ Prints a more detailed help message and exits.
 Convert a C header or source file (C_FILE), into a ReStructured Text
 included via ..parsed-literal block with cross-references for the
 documentation files that describe the API. It accepts an optional
-EXCEPTIONS_FILE with describes what elements will be either ignored or
-be pointed to a non-default reference.
+EXCEPTIONS_FILE with describes what elements will be either igyesred or
+be pointed to a yesn-default reference.
 
 The output is written at the (OUT_FILE).
 
@@ -379,7 +379,7 @@ enums and enum symbols and create cross-references for all of them.
 It is also capable of distinguish #define used for specifying a Linux
 ioctl.
 
-The EXCEPTIONS_FILE contain two rules to allow ignoring a symbol or
+The EXCEPTIONS_FILE contain two rules to allow igyesring a symbol or
 to replace the default references by a custom one.
 
 Please read Documentation/doc-guide/parse-headers.rst at the Kernel's

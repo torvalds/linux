@@ -2,7 +2,7 @@
 /*
  * DSM-G600 board-level PCI initialization
  *
- * Copyright (C) 2006 Tower Technologies
+ * Copyright (C) 2006 Tower Techyeslogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * based on ixdp425-pci.c:

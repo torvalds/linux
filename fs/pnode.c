@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/pnode.c
+ *  linux/fs/pyesde.c
  *
  * (C) Copyright IBM Corporation 2005.
  *	Author : Ram Pai (linuxram@us.ibm.com)
@@ -11,7 +11,7 @@
 #include <linux/nsproxy.h>
 #include <uapi/linux/mount.h>
 #include "internal.h"
-#include "pnode.h"
+#include "pyesde.h"
 
 /* return the next shared peer mount of @p */
 static inline struct mount *next_peer(struct mount *p)
@@ -94,7 +94,7 @@ static int do_make_slave(struct mount *mnt)
 		struct mount *m;
 		/*
 		 * slave 'mnt' to a peer mount that has the
-		 * same root dentry. If none is available then
+		 * same root dentry. If yesne is available then
 		 * slave it to anything that is available.
 		 */
 		for (m = master = next_peer(mnt); m != mnt; m = next_peer(m)) {
@@ -171,7 +171,7 @@ static struct mount *skip_propagation_subtree(struct mount *m,
 						struct mount *origin)
 {
 	/*
-	 * Advance m such that propagation_next will not return
+	 * Advance m such that propagation_next will yest return
 	 * the slaves of m.
 	 */
 	if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
@@ -362,7 +362,7 @@ static inline int do_refcount_check(struct mount *mnt, int count)
  * @mnt: the mount to be checked for unmount
  * NOTE: unmounting 'mnt' would naturally propagate to all
  * other mounts its parent propagates to.
- * Check if any of these mounts that **do not have submounts**
+ * Check if any of these mounts that **do yest have submounts**
  * have more references than 'refcnt'. If so return busy.
  *
  * vfsmount lock must be held for write
@@ -377,7 +377,7 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 
 	/*
 	 * quickly check if the current mount can be unmounted.
-	 * If not, we don't have to go checking for all other
+	 * If yest, we don't have to go checking for all other
 	 * mounts
 	 */
 	if (!list_empty(&mnt->mnt_mounts) || do_refcount_check(mnt, refcnt))
@@ -391,7 +391,7 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 			continue;
 
 		/* Is there exactly one mount on the child that covers
-		 * it completely whose reference should be ignored?
+		 * it completely whose reference should be igyesred?
 		 */
 		topper = find_topper(child);
 		if (topper)
@@ -452,7 +452,7 @@ static bool __propagate_umount(struct mount *mnt,
 	if (mnt->mnt.mnt_flags & (MNT_UMOUNT | MNT_MARKED))
 		goto out;
 
-	/* Verify topper is the only grandchild that has not been
+	/* Verify topper is the only grandchild that has yest been
 	 * speculatively unmounted.
 	 */
 	list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
@@ -464,11 +464,11 @@ static bool __propagate_umount(struct mount *mnt,
 		goto children;
 	}
 
-	/* Mark mounts that can be unmounted if not locked */
+	/* Mark mounts that can be unmounted if yest locked */
 	SET_MNT_MARK(mnt);
 	progress = true;
 
-	/* If a mount is without children and not locked umount it. */
+	/* If a mount is without children and yest locked umount it. */
 	if (!IS_MNT_LOCKED(mnt)) {
 		umount_one(mnt, to_umount);
 	} else {
@@ -546,10 +546,10 @@ int propagate_umount(struct list_head *list)
 		struct mount *m;
 
 		/*
-		 * If this mount has already been visited it is known that it's
+		 * If this mount has already been visited it is kyeswn that it's
 		 * entire peer group and all of their slaves in the propagation
 		 * tree for the mountpoint has already been visited and there is
-		 * no need to visit them again.
+		 * yes need to visit them again.
 		 */
 		if (!list_empty(&mnt->mnt_umounting))
 			continue;
@@ -565,17 +565,17 @@ int propagate_umount(struct list_head *list)
 			if (!list_empty(&child->mnt_umounting)) {
 				/*
 				 * If the child has already been visited it is
-				 * know that it's entire peer group and all of
+				 * kyesw that it's entire peer group and all of
 				 * their slaves in the propgation tree for the
 				 * mountpoint has already been visited and there
-				 * is no need to visit this subtree again.
+				 * is yes need to visit this subtree again.
 				 */
 				m = skip_propagation_subtree(m, parent);
 				continue;
 			} else if (child->mnt.mnt_flags & MNT_UMOUNT) {
 				/*
 				 * We have come accross an partially unmounted
-				 * mount in list that has not been visited yet.
+				 * mount in list that has yest been visited yet.
 				 * Remember it has been visited and continue
 				 * about our merry way.
 				 */

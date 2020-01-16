@@ -12,7 +12,7 @@
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -396,21 +396,21 @@ static void jbusmc_construct_dimm_groups(struct jbusmc *p,
 static int jbusmc_probe(struct platform_device *op)
 {
 	const struct linux_prom64_registers *mem_regs;
-	struct device_node *mem_node;
+	struct device_yesde *mem_yesde;
 	int err, len, num_mem_regs;
 	struct jbusmc *p;
 	const u32 *prop;
 	const void *ml;
 
 	err = -ENODEV;
-	mem_node = of_find_node_by_path("/memory");
-	if (!mem_node) {
-		printk(KERN_ERR PFX "Cannot find /memory node.\n");
+	mem_yesde = of_find_yesde_by_path("/memory");
+	if (!mem_yesde) {
+		printk(KERN_ERR PFX "Canyest find /memory yesde.\n");
 		goto out;
 	}
-	mem_regs = of_get_property(mem_node, "reg", &len);
+	mem_regs = of_get_property(mem_yesde, "reg", &len);
 	if (!mem_regs) {
-		printk(KERN_ERR PFX "Cannot get reg property of /memory node.\n");
+		printk(KERN_ERR PFX "Canyest get reg property of /memory yesde.\n");
 		goto out;
 	}
 	num_mem_regs = len / sizeof(*mem_regs);
@@ -418,24 +418,24 @@ static int jbusmc_probe(struct platform_device *op)
 	err = -ENOMEM;
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		printk(KERN_ERR PFX "Cannot allocate struct jbusmc.\n");
+		printk(KERN_ERR PFX "Canyest allocate struct jbusmc.\n");
 		goto out;
 	}
 
 	INIT_LIST_HEAD(&p->list);
 
 	err = -ENODEV;
-	prop = of_get_property(op->dev.of_node, "portid", &len);
+	prop = of_get_property(op->dev.of_yesde, "portid", &len);
 	if (!prop || len != 4) {
-		printk(KERN_ERR PFX "Cannot find portid.\n");
+		printk(KERN_ERR PFX "Canyest find portid.\n");
 		goto out_free;
 	}
 
 	p->portid = *prop;
 
-	prop = of_get_property(op->dev.of_node, "memory-control-register-1", &len);
+	prop = of_get_property(op->dev.of_yesde, "memory-control-register-1", &len);
 	if (!prop || len != 8) {
-		printk(KERN_ERR PFX "Cannot get memory control register 1.\n");
+		printk(KERN_ERR PFX "Canyest get memory control register 1.\n");
 		goto out_free;
 	}
 
@@ -444,14 +444,14 @@ static int jbusmc_probe(struct platform_device *op)
 	err = -ENOMEM;
 	p->regs = of_ioremap(&op->resource[0], 0, JBUSMC_REGS_SIZE, "jbusmc");
 	if (!p->regs) {
-		printk(KERN_ERR PFX "Cannot map jbusmc regs.\n");
+		printk(KERN_ERR PFX "Canyest map jbusmc regs.\n");
 		goto out_free;
 	}
 
 	err = -ENODEV;
-	ml = of_get_property(op->dev.of_node, "memory-layout", &p->layout_len);
+	ml = of_get_property(op->dev.of_yesde, "memory-layout", &p->layout_len);
 	if (!ml) {
-		printk(KERN_ERR PFX "Cannot get memory layout property.\n");
+		printk(KERN_ERR PFX "Canyest get memory layout property.\n");
 		goto out_iounmap;
 	}
 	if (p->layout_len > sizeof(p->layout)) {
@@ -466,7 +466,7 @@ static int jbusmc_probe(struct platform_device *op)
 	mc_list_add(&p->list);
 
 	printk(KERN_INFO PFX "UltraSPARC-IIIi memory controller at %pOF\n",
-	       op->dev.of_node);
+	       op->dev.of_yesde);
 
 	dev_set_drvdata(&op->dev, p);
 
@@ -521,12 +521,12 @@ static struct chmc_bank_info *chmc_find_bank(unsigned long phys_addr)
 	struct chmc *p;
 
 	list_for_each_entry(p, &mctrl_list, list) {
-		int bank_no;
+		int bank_yes;
 
-		for (bank_no = 0; bank_no < CHMCTRL_NBANKS; bank_no++) {
+		for (bank_yes = 0; bank_yes < CHMCTRL_NBANKS; bank_yes++) {
 			struct chmc_bank_info *bp;
 
-			bp = &p->logical_banks[bank_no];
+			bp = &p->logical_banks[bank_yes];
 			if (chmc_bank_match(bp, phys_addr))
 				return bp;
 		}
@@ -667,7 +667,7 @@ static void chmc_interpret_one_decode_reg(struct chmc *p, int which_bank, u64 va
 		break;
 	}
 
-	/* UK[10] is reserved, and UK[11] is not set for the SDRAM
+	/* UK[10] is reserved, and UK[11] is yest set for the SDRAM
 	 * bank size definition.
 	 */
 	bp->size = (((unsigned long)bp->uk &
@@ -692,7 +692,7 @@ static void chmc_fetch_decode_regs(struct chmc *p)
 
 static int chmc_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	unsigned long ver;
 	const void *pval;
 	int len, portid;
@@ -719,7 +719,7 @@ static int chmc_probe(struct platform_device *op)
 	err = -ENOMEM;
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		printk(KERN_ERR PFX "Could not allocate struct chmc.\n");
+		printk(KERN_ERR PFX "Could yest allocate struct chmc.\n");
 		goto out;
 	}
 
@@ -732,7 +732,7 @@ static int chmc_probe(struct platform_device *op)
 
 	p->regs = of_ioremap(&op->resource[0], 0, 0x48, "chmc");
 	if (!p->regs) {
-		printk(KERN_ERR PFX "Could not map registers.\n");
+		printk(KERN_ERR PFX "Could yest map registers.\n");
 		goto out_free;
 	}
 

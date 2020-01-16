@@ -1,7 +1,7 @@
 /*
  * Battery driver for LEGO MINDSTORMS EV3
  *
- * Copyright (C) 2017 David Lechner <david@lechnology.com>
+ * Copyright (C) 2017 David Lechner <david@lechyeslogy.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -29,7 +29,7 @@ struct lego_ev3_battery {
 	struct iio_channel *iio_i;
 	struct gpio_desc *rechargeable_gpio;
 	struct power_supply *psy;
-	int technology;
+	int techyeslogy;
 	int v_max;
 	int v_min;
 };
@@ -43,7 +43,7 @@ static int lego_ev3_battery_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = batt->technology;
+		val->intval = batt->techyeslogy;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		/* battery voltage is iio channel * 2 + Vce of transistor */
@@ -97,18 +97,18 @@ static int lego_ev3_battery_set_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		/*
-		 * Only allow changing technology from Unknown to NiMH. Li-ion
-		 * batteries are automatically detected and should not be
+		 * Only allow changing techyeslogy from Unkyeswn to NiMH. Li-ion
+		 * batteries are automatically detected and should yest be
 		 * overridden. Rechargeable AA batteries, on the other hand,
-		 * cannot be automatically detected, and so must be manually
+		 * canyest be automatically detected, and so must be manually
 		 * specified. This should only be set once during system init,
-		 * so there is no mechanism to go back to Unknown.
+		 * so there is yes mechanism to go back to Unkyeswn.
 		 */
-		if (batt->technology != POWER_SUPPLY_TECHNOLOGY_UNKNOWN)
+		if (batt->techyeslogy != POWER_SUPPLY_TECHNOLOGY_UNKNOWN)
 			return -EINVAL;
 		switch (val->intval) {
 		case POWER_SUPPLY_TECHNOLOGY_NiMH:
-			batt->technology = POWER_SUPPLY_TECHNOLOGY_NiMH;
+			batt->techyeslogy = POWER_SUPPLY_TECHNOLOGY_NiMH;
 			batt->v_max = 7800000;
 			batt->v_min = 5400000;
 			break;
@@ -129,7 +129,7 @@ static int lego_ev3_battery_property_is_writeable(struct power_supply *psy,
 	struct lego_ev3_battery *batt = power_supply_get_drvdata(psy);
 
 	return psp == POWER_SUPPLY_PROP_TECHNOLOGY &&
-		batt->technology == POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+		batt->techyeslogy == POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
 }
 
 static enum power_supply_property lego_ev3_battery_props[] = {
@@ -189,22 +189,22 @@ static int lego_ev3_battery_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * The rechargeable battery indication switch cannot be changed without
+	 * The rechargeable battery indication switch canyest be changed without
 	 * removing the battery, so we only need to read it once.
 	 */
 	if (gpiod_get_value(batt->rechargeable_gpio)) {
-		/* 2-cell Li-ion, 7.4V nominal */
-		batt->technology = POWER_SUPPLY_TECHNOLOGY_LION;
+		/* 2-cell Li-ion, 7.4V yesminal */
+		batt->techyeslogy = POWER_SUPPLY_TECHNOLOGY_LION;
 		batt->v_max = 84000000;
 		batt->v_min = 60000000;
 	} else {
-		/* 6x AA Alkaline, 9V nominal */
-		batt->technology = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+		/* 6x AA Alkaline, 9V yesminal */
+		batt->techyeslogy = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
 		batt->v_max = 90000000;
 		batt->v_min = 48000000;
 	}
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_yesde = pdev->dev.of_yesde;
 	psy_cfg.drv_data = batt;
 
 	batt->psy = devm_power_supply_register(dev, &lego_ev3_battery_desc,
@@ -234,5 +234,5 @@ static struct platform_driver lego_ev3_battery_driver = {
 module_platform_driver(lego_ev3_battery_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechyeslogy.com>");
 MODULE_DESCRIPTION("LEGO MINDSTORMS EV3 Battery Driver");

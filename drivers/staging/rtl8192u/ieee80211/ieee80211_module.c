@@ -19,20 +19,20 @@
  *  more details.
  *
  *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc., 59
+ *  this program; if yest, write to the Free Software Foundation, Inc., 59
  *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  *  The full GNU General Public License is included in this distribution in the
  *  file called LICENSE.
  *
  *  Contact Information:
- *  James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  James P. Ketreyess <ipw2100-admin@linux.intel.com>
  *  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  ******************************************************************************/
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
 #include <linux/in.h>
@@ -54,7 +54,7 @@
 #include "ieee80211.h"
 
 MODULE_DESCRIPTION("802.11 data/management/control stack");
-MODULE_AUTHOR("Copyright (C) 2004 Intel Corporation <jketreno@linux.intel.com>");
+MODULE_AUTHOR("Copyright (C) 2004 Intel Corporation <jketreyes@linux.intel.com>");
 MODULE_LICENSE("GPL");
 
 #define DRV_NAME "ieee80211"
@@ -259,7 +259,7 @@ static ssize_t write_debug_level(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static int open_debug_level(struct inode *inode, struct file *file)
+static int open_debug_level(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, show_debug_level, NULL);
 }

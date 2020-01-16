@@ -188,7 +188,7 @@ struct rtl_pci {
 
 	/*irq */
 	u8 irq_alloc;
-	u32 irq_mask[4];	/* 0-1: normal, 2: unused, 3: h2c */
+	u32 irq_mask[4];	/* 0-1: yesrmal, 2: unused, 3: h2c */
 	u32 sys_irq_mask;
 
 	/*Bcn control register setting */

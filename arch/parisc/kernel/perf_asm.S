@@ -44,17 +44,17 @@ ENTRY(perf_intrigue_enable_perf_counters)
 	pmenb                           ; enable performance monitor
 	ssm     0,0                     ; dummy op to ensure completion
 	sync                            ; follow ERS
-	andcm   %r26,%r25,%r26             ; clear bit now 
+	andcm   %r26,%r25,%r26             ; clear bit yesw 
 	mtctl   %r26,ccr                 ; turn off performance coprocessor
-	nop                             ; NOPs as specified in ERS
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp                             ; NOPs as specified in ERS
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 	bve    (%r2)
-	nop
+	yesp
 	.exit
 	.procend
 ENDPROC(perf_intrigue_enable_perf_counters)
@@ -69,7 +69,7 @@ ENTRY(perf_intrigue_disable_perf_counters)
 	mtctl   %r26,ccr                 ; turn on performance coprocessor
 	pmdis                           ; disable performance monitor
 	ssm     0,0                     ; dummy op to ensure completion
-	andcm   %r26,%r25,%r26             ; clear bit now 
+	andcm   %r26,%r25,%r26             ; clear bit yesw 
 	bve    (%r2)
 	mtctl   %r26,ccr                 ; turn off performance coprocessor
 	.exit
@@ -115,7 +115,7 @@ ENTRY(perf_rdr_shift_in_W)
 ;
 
 ; NOTE: The PCX-W ERS states that DR2_SLOW_RET must be set before any
-; shifting is done, from or to, remote diagnose registers.
+; shifting is done, from or to, remote diagyesse registers.
 ;
 
 	depdi,z		1,DR2_SLOW_RET,1,%r29
@@ -123,23 +123,23 @@ ENTRY(perf_rdr_shift_in_W)
 	or		    %r24,%r29,%r29
 	MTDIAG_2	(29)			; set DR2_SLOW_RET
 
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
 
 ;
 ; Cacheline start (32-byte cacheline)
 ;
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
 	extrd,u		arg1,63,6,%r1	; setup shift amount by bits to move 
 
 	mtsar		%r1
 	shladd		arg0,2,%r0,%r1	; %r1 = 4 * RDR number
 	blr  		%r1,%r0		; branch to 8-instruction sequence
-	nop
+	yesp
 
 ;
 ; Cacheline start (32-byte cacheline)
@@ -167,7 +167,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	ssm		    0,0
 	b,n         perf_rdr_shift_in_W_leave
-	nop
+	yesp
 
 	;
 	; RDR 2 read sequence
@@ -185,13 +185,13 @@ ENTRY(perf_rdr_shift_in_W)
 	; RDR 3 read sequence
 	;
 	b,n         perf_rdr_shift_in_W_leave
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	;
 	; RDR 4 read sequence
@@ -203,7 +203,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	; 
 	; RDR 5 read sequence
@@ -215,7 +215,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 6 read sequence
@@ -227,43 +227,43 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 7 read sequence
 	;
 	b,n         perf_rdr_shift_in_W_leave
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	;
 	; RDR 8 read sequence
 	;
 	b,n         perf_rdr_shift_in_W_leave
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	;
 	; RDR 9 read sequence
 	;
 	b,n         perf_rdr_shift_in_W_leave
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	;
 	; RDR 10 read sequence
@@ -293,13 +293,13 @@ ENTRY(perf_rdr_shift_in_W)
 	; RDR 12 read sequence
 	;
 	b,n         perf_rdr_shift_in_W_leave
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	;
 	; RDR 13 read sequence
@@ -311,7 +311,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 14 read sequence
@@ -335,7 +335,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	ssm		0,0
 	b,n         perf_rdr_shift_in_W_leave
-	nop
+	yesp
 
 	;
 	; RDR 16 read sequence
@@ -347,7 +347,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 17 read sequence
@@ -377,13 +377,13 @@ ENTRY(perf_rdr_shift_in_W)
 	; RDR 19 read sequence
 	;
 	b,n         perf_rdr_shift_in_W_leave
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	;
 	; RDR 20 read sequence
@@ -395,7 +395,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 21 read sequence
@@ -407,7 +407,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 22 read sequence
@@ -419,7 +419,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 23 read sequence
@@ -431,7 +431,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 24 read sequence
@@ -443,7 +443,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 25 read sequence
@@ -455,7 +455,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 26 read sequence
@@ -491,7 +491,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 29 read sequence
@@ -503,7 +503,7 @@ ENTRY(perf_rdr_shift_in_W)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 30 read sequence
@@ -525,9 +525,9 @@ ENTRY(perf_rdr_shift_in_W)
 	SFDIAG		(31)
 	ssm		0,0
 	MFDIAG_1	(28)
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; Fallthrough
@@ -570,7 +570,7 @@ ENTRY(perf_rdr_shift_out_W)
 	.entry
 ;
 ; NOTE: The PCX-W ERS states that DR2_SLOW_RET must be set before any
-; shifting is done, from or to, the remote diagnose registers.
+; shifting is done, from or to, the remote diagyesse registers.
 ;
 
 	depdi,z		1,DR2_SLOW_RET,1,%r24
@@ -580,7 +580,7 @@ ENTRY(perf_rdr_shift_out_W)
 	MTDIAG_1	(25)		; data to the staging register
 	shladd		arg0,2,%r0,%r1	; %r1 = 4 * RDR number
 	blr		    %r1,%r0	; branch to 8-instruction sequence
-	nop
+	yesp
 
 	;
 	; RDR 0 write sequence
@@ -590,9 +590,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(0)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 1 write sequence
@@ -602,9 +602,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(1)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 2 write sequence
@@ -614,9 +614,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(2)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 3 write sequence
@@ -626,9 +626,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(3)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 4 write sequence
@@ -638,9 +638,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(4)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 5 write sequence
@@ -650,9 +650,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(5)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 6 write sequence
@@ -662,9 +662,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(6)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 7 write sequence
@@ -674,9 +674,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(7)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 8 write sequence
@@ -686,9 +686,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(8)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 9 write sequence
@@ -698,9 +698,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(9)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 10 write sequence
@@ -712,7 +712,7 @@ ENTRY(perf_rdr_shift_out_W)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 11 write sequence
@@ -724,7 +724,7 @@ ENTRY(perf_rdr_shift_out_W)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 12 write sequence
@@ -734,9 +734,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(12)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 13 write sequence
@@ -746,9 +746,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(13)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 14 write sequence
@@ -758,9 +758,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(14)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 15 write sequence
@@ -770,9 +770,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(15)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 16 write sequence
@@ -782,9 +782,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(16)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 17 write sequence
@@ -794,9 +794,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(17)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 18 write sequence
@@ -806,9 +806,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(18)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 19 write sequence
@@ -818,9 +818,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(19)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 20 write sequence
@@ -830,9 +830,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(20)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 21 write sequence
@@ -842,9 +842,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(21)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 22 write sequence
@@ -854,9 +854,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(22)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 23 write sequence
@@ -866,9 +866,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(23)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 24 write sequence
@@ -878,9 +878,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(24)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 25 write sequence
@@ -890,9 +890,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(25)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 26 write sequence
@@ -904,7 +904,7 @@ ENTRY(perf_rdr_shift_out_W)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 27 write sequence
@@ -916,7 +916,7 @@ ENTRY(perf_rdr_shift_out_W)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 28 write sequence
@@ -926,9 +926,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(28)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 29 write sequence
@@ -938,9 +938,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(29)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 30 write sequence
@@ -950,9 +950,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(30)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	;
 	; RDR 31 write sequence
@@ -962,9 +962,9 @@ ENTRY(perf_rdr_shift_out_W)
 	STDIAG		(31)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_W_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 perf_rdr_shift_out_W_leave:
 	bve		(%r2)
@@ -1009,30 +1009,30 @@ ENTRY(perf_rdr_shift_in_U)
 ; read(shift in) the RDR.
 ;
 ; NOTE: The PCX-U ERS states that DR2_SLOW_RET must be set before any
-; shifting is done, from or to, remote diagnose registers.
+; shifting is done, from or to, remote diagyesse registers.
 
 	depdi,z		1,DR2_SLOW_RET,1,%r29
 	MFDIAG_2	(24)
 	or			%r24,%r29,%r29
 	MTDIAG_2	(29)			; set DR2_SLOW_RET
 
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
 
 ;
 ; Start of next 32-byte cacheline
 ;
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
 	extrd,u		arg1,63,6,%r1
 
 	mtsar		%r1
 	shladd		arg0,2,%r0,%r1	; %r1 = 4 * RDR number
 	blr 		%r1,%r0		; branch to 8-instruction sequence
-	nop
+	yesp
 
 ;
 ; Start of next 32-byte cacheline
@@ -1062,7 +1062,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 3 read sequence
 	ssm		0,0
@@ -1071,7 +1071,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 4 read sequence
 	ssm		0,0
@@ -1080,7 +1080,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 5 read sequence
 	ssm		0,0
@@ -1089,7 +1089,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 6 read sequence
 	ssm		0,0
@@ -1098,7 +1098,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 7 read sequence
 	ssm		0,0
@@ -1107,16 +1107,16 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	b,n         perf_rdr_shift_in_U_leave
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	SFDIAG		(9)		; RDR 9 read sequence
 	ssm		0,0
@@ -1188,7 +1188,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	SFDIAG		(17)		; RDR 17 read sequence
 	ssm		0,0
@@ -1209,13 +1209,13 @@ ENTRY(perf_rdr_shift_in_U)
 	b,n         perf_rdr_shift_in_U_leave
 
 	b,n         perf_rdr_shift_in_U_leave
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	sync				; RDR 20 read sequence
 	ssm		0,0
@@ -1224,7 +1224,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 21 read sequence
 	ssm		0,0
@@ -1233,7 +1233,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 22 read sequence
 	ssm		0,0
@@ -1242,7 +1242,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 23 read sequence
 	ssm		0,0
@@ -1251,7 +1251,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 24 read sequence
 	ssm		0,0
@@ -1260,7 +1260,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 25 read sequence
 	ssm		0,0
@@ -1269,7 +1269,7 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	SFDIAG		(26)		; RDR 26 read sequence
 	ssm		0,0
@@ -1296,16 +1296,16 @@ ENTRY(perf_rdr_shift_in_U)
 	MFDIAG_1	(28)
 	b,n         perf_rdr_shift_in_U_leave
 	ssm		0,0
-	nop
+	yesp
 
 	b,n         perf_rdr_shift_in_U_leave
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	SFDIAG		(30)		; RDR 30 read sequence
 	ssm		0,0
@@ -1324,7 +1324,7 @@ ENTRY(perf_rdr_shift_in_U)
 	STDIAG		(31)
 	ssm		0,0
 	b,n         perf_rdr_shift_in_U_leave
-	nop
+	yesp
 
 perf_rdr_shift_in_U_leave:
 	bve		    (%r2)
@@ -1365,7 +1365,7 @@ ENTRY(perf_rdr_shift_out_U)
 
 ;
 ; NOTE: The PCX-U ERS states that DR2_SLOW_RET must be set before any
-; shifting is done, from or to, the remote diagnose registers.
+; shifting is done, from or to, the remote diagyesse registers.
 ;
 
 	depdi,z		1,DR2_SLOW_RET,1,%r24
@@ -1376,7 +1376,7 @@ ENTRY(perf_rdr_shift_out_U)
 	MTDIAG_1	(25)		; data to the staging register
 	shladd		arg0,2,%r0,%r1	; %r1 = 4 * RDR number
 	blr		%r1,%r0		; branch to 8-instruction sequence
-	nop
+	yesp
 
 ;
 ; 32-byte cachline aligned
@@ -1387,288 +1387,288 @@ ENTRY(perf_rdr_shift_out_U)
 	STDIAG		(0)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 1 write sequence
 	ssm		0,0
 	STDIAG		(1)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 2 write sequence
 	ssm		0,0
 	STDIAG		(2)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 3 write sequence
 	ssm		0,0
 	STDIAG		(3)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 4 write sequence
 	ssm		0,0
 	STDIAG		(4)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 5 write sequence
 	ssm		0,0
 	STDIAG		(5)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 6 write sequence
 	ssm		0,0
 	STDIAG		(6)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 7 write sequence
 	ssm		0,0
 	STDIAG		(7)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 8 write sequence
 	ssm		0,0
 	STDIAG		(8)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 9 write sequence
 	ssm		0,0
 	STDIAG		(9)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 10 write sequence
 	ssm		0,0
 	STDIAG		(10)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 11 write sequence
 	ssm		0,0
 	STDIAG		(11)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 12 write sequence
 	ssm		0,0
 	STDIAG		(12)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 13 write sequence
 	ssm		0,0
 	STDIAG		(13)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 14 write sequence
 	ssm		0,0
 	STDIAG		(14)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 15 write sequence
 	ssm		0,0
 	STDIAG		(15)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 16 write sequence
 	ssm		0,0
 	STDIAG		(16)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 17 write sequence
 	ssm		0,0
 	STDIAG		(17)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 18 write sequence
 	ssm		0,0
 	STDIAG		(18)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 19 write sequence
 	ssm		0,0
 	STDIAG		(19)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 20 write sequence
 	ssm		0,0
 	STDIAG		(20)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 21 write sequence
 	ssm		0,0
 	STDIAG		(21)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 22 write sequence
 	ssm		0,0
 	STDIAG		(22)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 23 write sequence
 	ssm		0,0
 	STDIAG		(23)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 24 write sequence
 	ssm		0,0
 	STDIAG		(24)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 25 write sequence
 	ssm		0,0
 	STDIAG		(25)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 26 write sequence
 	ssm		0,0
 	STDIAG		(26)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 27 write sequence
 	ssm		0,0
 	STDIAG		(27)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 28 write sequence
 	ssm		0,0
 	STDIAG		(28)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 29 write sequence
 	ssm		0,0
 	STDIAG		(29)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 30 write sequence
 	ssm		0,0
 	STDIAG		(30)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 	sync				; RDR 31 write sequence
 	ssm		0,0
 	STDIAG		(31)
 	ssm		0,0
 	b,n         perf_rdr_shift_out_U_leave
-	nop
+	yesp
 	ssm		0,0
-	nop
+	yesp
 
 perf_rdr_shift_out_U_leave:
 	bve		(%r2)

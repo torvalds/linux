@@ -255,7 +255,7 @@ void __nand_calculate_ecc(const unsigned char *buf, unsigned int eccsize,
 
 	/*
 	 * we also need to calculate the row parity for rp0..rp3
-	 * This is present in par, because par is now
+	 * This is present in par, because par is yesw
 	 * rp3 rp3 rp2 rp2 in little endian and
 	 * rp2 rp2 rp3 rp3 in big endian
 	 * as well as
@@ -295,7 +295,7 @@ void __nand_calculate_ecc(const unsigned char *buf, unsigned int eccsize,
 
 	/*
 	 * and calculate rp5..rp15..rp17
-	 * note that par = rp4 ^ rp5 and due to the commutative property
+	 * yeste that par = rp4 ^ rp5 and due to the commutative property
 	 * of the ^ operator we can say:
 	 * rp5 = (par ^ rp4);
 	 * The & 0xff seems superfluous, but benchmarking learned that
@@ -417,7 +417,7 @@ int __nand_correct_data(unsigned char *buf,
 	/* ordered in order of likelihood */
 
 	if ((b0 | b1 | b2) == 0)
-		return 0;	/* no error */
+		return 0;	/* yes error */
 
 	if ((((b0 ^ (b0 >> 1)) & 0x55) == 0x55) &&
 	    (((b1 ^ (b1 >> 1)) & 0x55) == 0x55) &&
@@ -431,14 +431,14 @@ int __nand_correct_data(unsigned char *buf,
 		 * the bits from the byte they are in.
 		 * A marginal optimisation is possible by having three
 		 * different lookup tables.
-		 * One as we have now (for b0), one for b2
+		 * One as we have yesw (for b0), one for b2
 		 * (that would avoid the >> 1), and one for b1 (with all values
 		 * << 4). However it was felt that introducing two more tables
 		 * hardly justify the gain.
 		 *
 		 * The b2 shift is there to get rid of the lowest two bits.
 		 * We could also do addressbits[b2] >> 1 but for the
-		 * performance it does not make any difference
+		 * performance it does yest make any difference
 		 */
 		if (eccsize_mult == 1)
 			byte_addr = (addressbits[b1] << 4) + addressbits[b0];
@@ -453,7 +453,7 @@ int __nand_correct_data(unsigned char *buf,
 	}
 	/* count nr of bits; use table lookup, faster than calculating it */
 	if ((bitsperbyte[b0] + bitsperbyte[b1] + bitsperbyte[b2]) == 1)
-		return 1;	/* error in ECC data; no action needed */
+		return 1;	/* error in ECC data; yes action needed */
 
 	pr_err("%s: uncorrectable ECC error\n", __func__);
 	return -EBADMSG;

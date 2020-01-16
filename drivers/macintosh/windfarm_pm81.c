@@ -7,8 +7,8 @@
  *
  * The algorithm used is the PID control algorithm, used the same
  * way the published Darwin code does, using the same values that
- * are present in the Darwin 8.2 snapshot property lists (note however
- * that none of the code has been re-used, it's a complete re-implementation
+ * are present in the Darwin 8.2 snapshot property lists (yeste however
+ * that yesne of the code has been re-used, it's a complete re-implementation
  *
  * The various control loops found in Darwin config file are:
  *
@@ -77,14 +77,14 @@
  *   linear-factors : offset = 0xfb50 scale  = 0x1000
  *
  * CPU Slew control loop. Not implemented. The cpufreq driver in linux is
- * completely separate for now, though we could find a way to link it, either
- * as a client reacting to overtemp notifications, or directling monitoring
+ * completely separate for yesw, though we could find a way to link it, either
+ * as a client reacting to overtemp yestifications, or directling monitoring
  * the CPU temperature
  *
  * WARNING ! The CPU control loop requires the CPU tmax for the current
  * operating point. However, we currently are completely separated from
- * the cpufreq driver and thus do not know what the current operating
- * point is. Fortunately, we also do not have any hardware supporting anything
+ * the cpufreq driver and thus do yest kyesw what the current operating
+ * point is. Fortunately, we also do yest have any hardware supporting anything
  * but operating point 0 at the moment, thus we just peek that value directly
  * from the SDB partition. If we ever end up with actually slewing the system
  * clock and thus changing operating points, we'll have to find a way to
@@ -92,7 +92,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -156,8 +156,8 @@ static bool wf_smu_overtemp;
  */
 
 /* Parameters for the System Fans control loop. Parameters
- * not in this table such as interval, history size, ...
- * are common to all versions and thus hard coded for now.
+ * yest in this table such as interval, history size, ...
+ * are common to all versions and thus hard coded for yesw.
  */
 struct wf_smu_sys_fans_param {
 	int	model_id;
@@ -276,7 +276,7 @@ static void wf_smu_create_sys_fans(void)
 
 	/* No params found, put fans to max */
 	if (param == NULL) {
-		printk(KERN_WARNING "windfarm: System fan config not found "
+		printk(KERN_WARNING "windfarm: System fan config yest found "
 		       "for this machine model, max fan speed\n");
 		goto fail;
 	}
@@ -401,14 +401,14 @@ static void wf_smu_create_cpu_fans(void)
 	/* First, locate the PID params in SMU SBD */
 	hdr = smu_get_sdb_partition(SMU_SDB_CPUPIDDATA_ID, NULL);
 	if (hdr == 0) {
-		printk(KERN_WARNING "windfarm: CPU PID fan config not found "
+		printk(KERN_WARNING "windfarm: CPU PID fan config yest found "
 		       "max fan speed\n");
 		goto fail;
 	}
 	piddata = (struct smu_sdbp_cpupiddata *)&hdr[1];
 
 	/* Get the FVT params for operating point 0 (the only supported one
-	 * for now) in order to get tmax
+	 * for yesw) in order to get tmax
 	 */
 	hdr = smu_get_sdb_partition(SMU_SDB_FVT_ID, NULL);
 	if (hdr) {
@@ -460,7 +460,7 @@ static void wf_smu_create_cpu_fans(void)
 	return;
 
  fail:
-	printk(KERN_WARNING "windfarm: CPU fan config not found\n"
+	printk(KERN_WARNING "windfarm: CPU fan config yest found\n"
 	       "for this machine model, max fan speed\n");
 
 	if (cpufreq_clamp)
@@ -587,7 +587,7 @@ static void wf_smu_tick(void)
 		wf_smu_readjust = 1;
 	}
 
-	/* Overtemp condition detected, notify and start skipping a couple
+	/* Overtemp condition detected, yestify and start skipping a couple
 	 * ticks to let the temperature go down
 	 */
 	if (new_failure & FAILURE_OVERTEMP) {
@@ -597,7 +597,7 @@ static void wf_smu_tick(void)
 	}
 
 	/* We only clear the overtemp condition if overtemp is cleared
-	 * _and_ no other failure is present. Since a sensor error will
+	 * _and_ yes other failure is present. Since a sensor error will
 	 * clear the overtemp condition (can't measure temperature) at
 	 * the control loop levels, but we don't want to keep it clear
 	 * here in this case
@@ -672,7 +672,7 @@ static void wf_smu_new_sensor(struct wf_sensor *sr)
 }
 
 
-static int wf_smu_notify(struct notifier_block *self,
+static int wf_smu_yestify(struct yestifier_block *self,
 			       unsigned long event, void *data)
 {
 	switch(event) {
@@ -695,8 +695,8 @@ static int wf_smu_notify(struct notifier_block *self,
 	return 0;
 }
 
-static struct notifier_block wf_smu_events = {
-	.notifier_call	= wf_smu_notify,
+static struct yestifier_block wf_smu_events = {
+	.yestifier_call	= wf_smu_yestify,
 };
 
 static int wf_init_pm(void)
@@ -736,7 +736,7 @@ static int wf_smu_remove(struct platform_device *ddev)
 	/* Release all sensors */
 	/* One more crappy race: I don't think we have any guarantee here
 	 * that the attribute callback won't race with the sensor beeing
-	 * disposed of, and I'm not 100% certain what best way to deal
+	 * disposed of, and I'm yest 100% certain what best way to deal
 	 * with that except by adding locks all over... I'll do that
 	 * eventually but heh, who ever rmmod this module anyway ?
 	 */

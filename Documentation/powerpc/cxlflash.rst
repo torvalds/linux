@@ -11,8 +11,8 @@ Introduction
     protocol through PCIe that allow PCIe adapters to look like special
     purpose co-processors which can read or write an application's
     memory and generate page faults. As a result, the host interface to
-    an adapter running in CAPI mode does not require the data buffers to
-    be mapped to the device's memory (IOMMU bypass) nor does it require
+    an adapter running in CAPI mode does yest require the data buffers to
+    be mapped to the device's memory (IOMMU bypass) yesr does it require
     memory to be pinned.
 
     On Linux, Coherent Accelerator (CXL) kernel services present CAPI
@@ -55,7 +55,7 @@ Overview
     The Coherent Accelerator Interface Architecture (CAIA) introduces a
     concept of a master context. A master typically has special privileges
     granted to it by the kernel or hypervisor allowing it to perform AFU
-    wide management and control. The master may or may not be involved
+    wide management and control. The master may or may yest be involved
     directly in each user I/O, but at the minimum is involved in the
     initial setup before the user application is allowed to send requests
     directly to the AFU.
@@ -97,7 +97,7 @@ Overview
     block device (/dev/sdb) may be carved up into any number of distinct
     virtual LUNs. The virtual LUNs may be resized as long as the sum of
     the sizes of all the virtual LUNs, along with the meta-data associated
-    with it does not exceed the physical capacity.
+    with it does yest exceed the physical capacity.
 
     The second mode is called the physical mode. In this mode a single
     block device (/dev/sdb) may be opened directly by the block library
@@ -105,8 +105,8 @@ Overview
 
     Only the physical mode provides persistence of the data.  i.e. The
     data written to the block device will survive application exit and
-    restart and also reboot. The virtual LUNs do not persist (i.e. do
-    not survive after the application terminates or the system reboots).
+    restart and also reboot. The virtual LUNs do yest persist (i.e. do
+    yest survive after the application terminates or the system reboots).
 
 
 Block library API
@@ -119,7 +119,7 @@ Block library API
     The block library can be thought of as a 'user' of services,
     implemented as IOCTLs, that are provided by the cxlflash driver
     specifically for devices (LUNs) operating in user space access
-    mode. While it is not a requirement that applications understand
+    mode. While it is yest a requirement that applications understand
     the interface between the block library and the cxlflash driver,
     a high-level overview of each supported service (IOCTL) is provided
     below.
@@ -139,7 +139,7 @@ CXL Flash Driver LUN IOCTLs
     descriptor is obtained by opening the device special file associated
     with the scsi disk device (/dev/sdb) that was created during LUN
     discovery. As per the location of the cxlflash driver within the
-    SCSI protocol stack, this open is actually not seen by the cxlflash
+    SCSI protocol stack, this open is actually yest seen by the cxlflash
     driver. Upon successful open, the user receives a file descriptor
     (herein referred to as fd1) that should be used for issuing the
     subsequent ioctls listed below.
@@ -157,8 +157,8 @@ DK_CXLFLASH_ATTACH
     referred to as fd2) that is used by the block library to initiate
     memory mapped I/O (via mmap()) to the CXL flash device and poll for
     completion events. This file descriptor is intentionally installed by
-    this driver and not the CXL kernel services to allow for intermediary
-    notification and access in the event of a non-user-initiated close(),
+    this driver and yest the CXL kernel services to allow for intermediary
+    yestification and access in the event of a yesn-user-initiated close(),
     such as a killed process. This design point is described in further
     detail in the description for the DK_CXLFLASH_DETACH ioctl.
 
@@ -166,7 +166,7 @@ DK_CXLFLASH_ATTACH
     and fd2) that are provided back to the user:
 
         - These tokens are only valid for the process under which they
-          were created. The child of a forked process cannot continue
+          were created. The child of a forked process canyest continue
           to use the context id or file descriptor created by its parent
           (see DK_CXLFLASH_VLUN_CLONE for further details).
 
@@ -178,10 +178,10 @@ DK_CXLFLASH_ATTACH
 	- A valid adapter file descriptor (fd2 >= 0) is only returned on
 	  the initial attach for a context. Subsequent attaches to an
 	  existing context (DK_CXLFLASH_ATTACH_REUSE_CONTEXT flag present)
-	  do not provide the adapter file descriptor as it was previously
-	  made known to the application.
+	  do yest provide the adapter file descriptor as it was previously
+	  made kyeswn to the application.
 
-        - When a context is no longer needed, the user shall detach from
+        - When a context is yes longer needed, the user shall detach from
           the context via the DK_CXLFLASH_DETACH ioctl. When this ioctl
 	  returns with a valid adapter file descriptor and the return flag
 	  DK_CXLFLASH_APP_CLOSE_ADAP_FD is present, the application _must_
@@ -241,7 +241,7 @@ DK_CXLFLASH_USER_VIRTUAL
     option of specifying a size as part of the DK_CXLFLASH_USER_VIRTUAL
     ioctl, such that when success is returned to the user, the
     resource handle that is provided is already referencing provisioned
-    storage. This is reflected by the last LBA being a non-zero value.
+    storage. This is reflected by the last LBA being a yesn-zero value.
 
     When a LUN is accessible from more than one port, this ioctl will
     return with the DK_CXLFLASH_ALL_PORTS_ACTIVE return flag set. This
@@ -251,7 +251,7 @@ DK_CXLFLASH_USER_VIRTUAL
 DK_CXLFLASH_VLUN_RESIZE
 -----------------------
     This ioctl is responsible for resizing a previously created virtual
-    LUN and will fail if invoked upon a LUN that is not in virtual
+    LUN and will fail if invoked upon a LUN that is yest in virtual
     mode. Upon success, an updated last LBA is returned to the user
     indicating the new size of the virtual LUN associated with the
     resource handle.
@@ -263,7 +263,7 @@ DK_CXLFLASH_VLUN_RESIZE
 
     This ioctl can return -EAGAIN if an AFU sync operation takes too long.
     In addition to returning a failure to user, cxlflash will also schedule
-    an asynchronous AFU reset. Should the user choose to retry the operation,
+    an asynchroyesus AFU reset. Should the user choose to retry the operation,
     it is expected to succeed. If this ioctl fails with -EAGAIN, the user
     can either retry the operation or treat it as a failure.
 
@@ -273,7 +273,7 @@ DK_CXLFLASH_RELEASE
     reference to either a physical or virtual LUN. This can be
     thought of as the inverse of the DK_CXLFLASH_USER_DIRECT or
     DK_CXLFLASH_USER_VIRTUAL ioctls. Upon success, the resource handle
-    is no longer valid and the entry in the resource handle table is
+    is yes longer valid and the entry in the resource handle table is
     made available to be used again.
 
     As part of the release process for virtual LUNs, the virtual LUN
@@ -284,9 +284,9 @@ DK_CXLFLASH_DETACH
 ------------------
     This ioctl is responsible for unregistering a context with the
     cxlflash driver and release outstanding resources that were
-    not explicitly released via the DK_CXLFLASH_RELEASE ioctl. Upon
+    yest explicitly released via the DK_CXLFLASH_RELEASE ioctl. Upon
     success, all "tokens" which had been provided to the user from the
-    DK_CXLFLASH_ATTACH onward are no longer valid.
+    DK_CXLFLASH_ATTACH onward are yes longer valid.
 
     When the DK_CXLFLASH_APP_CLOSE_ADAP_FD flag was returned on a successful
     attach, the application _must_ close the fd2 associated with the context
@@ -301,7 +301,7 @@ DK_CXLFLASH_VLUN_CLONE
     will have access to the same LUNs via the same resource handle(s)
     as the parent, but under a different context.
 
-    Context sharing across processes is not supported with CXL and
+    Context sharing across processes is yest supported with CXL and
     therefore each fork must be met with establishing a new context
     for the child process. This ioctl simplifies the state management
     and playback required by a user in such a scenario. When a process
@@ -321,7 +321,7 @@ DK_CXLFLASH_VLUN_CLONE
 
     This ioctl can return -EAGAIN if an AFU sync operation takes too long.
     In addition to returning a failure to user, cxlflash will also schedule
-    an asynchronous AFU reset. Should the user choose to retry the operation,
+    an asynchroyesus AFU reset. Should the user choose to retry the operation,
     it is expected to succeed. If this ioctl fails with -EAGAIN, the user
     can either retry the operation or treat it as a failure.
 
@@ -335,9 +335,9 @@ DK_CXLFLASH_VERIFY
     The user calls in when they want to validate that a LUN hasn't been
     changed in response to a check condition. As the user is operating out
     of band from the kernel, they will see these types of events without
-    the kernel's knowledge. When encountered, the user's architected
+    the kernel's kyeswledge. When encountered, the user's architected
     behavior is to call in to this ioctl, indicating what they want to
-    verify and passing along any appropriate information. For now, only
+    verify and passing along any appropriate information. For yesw, only
     verifying a LUN change (ie: size different) with sense data is
     supported.
 
@@ -348,14 +348,14 @@ DK_CXLFLASH_RECOVER_AFU
     is re-established upon successful recovery.
 
     User contexts are put into an error condition when the device needs to
-    be reset or is terminating. Users are notified of this error condition
+    be reset or is terminating. Users are yestified of this error condition
     by seeing all 0xF's on an MMIO read. Upon encountering this, the
     architected behavior for a user is to call into this ioctl to recover
     their context. A user may also call into this ioctl at any time to
-    check if the device is operating normally. If a failure is returned
+    check if the device is operating yesrmally. If a failure is returned
     from this ioctl, the user is expected to gracefully clean up their
     context via release/detach ioctls. Until they do, the context they
-    hold is not relinquished. The user may also optionally exit the process
+    hold is yest relinquished. The user may also optionally exit the process
     at which time the context/resources they held will be freed as part of
     the release fop.
 
@@ -397,7 +397,7 @@ HT_CXLFLASH_LUN_PROVISION
     the target port to host the LUN and a desired size in 4K blocks. Upon
     success, the LUN ID and WWID of the created LUN will be returned and
     the SCSI bus can be scanned to detect the change in LUN topology. Note
-    that partial allocations are not supported. Should a creation fail due
+    that partial allocations are yest supported. Should a creation fail due
     to a space issue, the target port can be queried for its current LUN
     geometry.
 
@@ -429,5 +429,5 @@ HT_CXLFLASH_AFU_DEBUG
     data transfer, the user supplies an adequately sized data buffer and must
     specify the data transfer direction with respect to the host. There is a
     maximum transfer size of 256K imposed. Note that partial read completions
-    are not supported - when errors are experienced with a host read data
-    transfer, the data buffer is not copied back to the user.
+    are yest supported - when errors are experienced with a host read data
+    transfer, the data buffer is yest copied back to the user.

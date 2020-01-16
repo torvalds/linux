@@ -109,7 +109,7 @@
 #define B2_CONN_TYP	0x0108	/*  8 bit Connector type */
 #define B2_PMD_TYP	0x0109	/*  8 bit PMD type */
 				/* 0x010a - 0x010b:	reserved */
-	/* Eprom registers are currently of no use */
+	/* Eprom registers are currently of yes use */
 #define B2_E_0		0x010c	/*  8 bit EPROM Byte 0 */
 #define B2_E_1		0x010d	/*  8 bit EPROM Byte 1 */
 #define B2_E_2		0x010e	/*  8 bit EPROM Byte 2 */
@@ -267,7 +267,7 @@
 #define BUS_SLOT_SZ	(1<<6)	/* Bit 6: (ML)	Slot Size 0/1 = 32/64 bit slot*/
 				/* Bit 5..4:	reserved */
 #define	DAS_AVAIL	(1<<3)	/* Bit 3:	1 = DAS, 0 = SAS */
-#define DAS_BYP_ST	(1<<2)	/* Bit 2:	1 = avail,SAS, 0 = not avail */
+#define DAS_BYP_ST	(1<<2)	/* Bit 2:	1 = avail,SAS, 0 = yest avail */
 #define DAS_BYP_INS	(1<<1)	/* Bit 1:	1 = insert Bypass */
 #define DAS_BYP_RMV	(1<<0)	/* Bit 0:	1 = remove Bypass */
 
@@ -327,12 +327,12 @@
 #define	IS_R2_B		(1L<<10)	/* Bit 10: (DV)	End of Buffer (q2) */
 #define	IS_R2_F		(1L<<9)		/* Bit	9: (DV)	End of Frame (q2) */
 #define	IS_R2_C		(1L<<8)		/* Bit	8: (DV)	Encoding Error (q2) */
-/* Asynchronous Transmit queue */
+/* Asynchroyesus Transmit queue */
 					/* Bit  7:	reserved */
 #define	IS_XA_B		(1L<<6)		/* Bit	6:	End of Buffer (xa) */
 #define	IS_XA_F		(1L<<5)		/* Bit	5:	End of Frame (xa) */
 #define	IS_XA_C		(1L<<4)		/* Bit	4:	Encoding Error (xa) */
-/* Synchronous Transmit queue */
+/* Synchroyesus Transmit queue */
 					/* Bit  3:	reserved */
 #define	IS_XS_B		(1L<<2)		/* Bit	2:	End of Buffer (xs) */
 #define	IS_XS_F		(1L<<1)		/* Bit	1:	End of Frame (xs) */
@@ -376,12 +376,12 @@
 #define	IRQ_R2_B	(1L<<10)	/* Bit 10: (DV)	End of Buffer (q2) */
 #define	IRQ_R2_F	(1L<<9)		/* Bit	9: (DV)	End of Frame (q2) */
 #define	IRQ_R2_C	(1L<<8)		/* Bit	8: (DV)	Encoding Error (q2) */
-/* Asynchronous Transmit queue */
+/* Asynchroyesus Transmit queue */
 					/* Bit  7:	reserved */
 #define	IRQ_XA_B	(1L<<6)		/* Bit	6:	End of Buffer (xa) */
 #define	IRQ_XA_F	(1L<<5)		/* Bit	5:	End of Frame (xa) */
 #define	IRQ_XA_C	(1L<<4)		/* Bit	4:	Encoding Error (xa) */
-/* Synchronous Transmit queue */
+/* Synchroyesus Transmit queue */
 					/* Bit  3:	reserved */
 #define	IRQ_XS_B	(1L<<2)		/* Bit	2:	End of Buffer (xs) */
 #define	IRQ_XS_F	(1L<<1)		/* Bit	1:	End of Frame (xs) */
@@ -407,7 +407,7 @@
 /*	B2_PMD_TYP	8 bit PMD type */
 /*	Values of connector and PMD type comply to SysKonnect internal std */
 
-/*	The EPROM register are currently of no use */
+/*	The EPROM register are currently of yes use */
 /*	B2_E_0		8 bit EPROM Byte 0 */
 /*	B2_E_1		8 bit EPROM Byte 1 */
 /*	B2_E_2		8 bit EPROM Byte 2 */
@@ -882,13 +882,13 @@
 				printf("\tTimer ISR\n") ;\
 }
 
-#else	/* no DEBUG */
+#else	/* yes DEBUG */
 
 #define	DB_MAC(mac,st)
 #define	DB_PLC(p,iev)
 #define	DB_TIMER()
 
-#endif	/* no DEBUG */
+#endif	/* yes DEBUG */
 
 #define	INC_PTR(sp,cp,ep)	if (++cp == ep) cp = sp
 /*

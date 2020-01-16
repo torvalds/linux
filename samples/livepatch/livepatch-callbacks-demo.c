@@ -40,7 +40,7 @@
  *       target module is loaded after a livepatch with callbacks.
  *
  * NOTE: 'pre_patch_ret' is a module parameter that sets the pre-patch
- *       callback return status.  Try setting up a non-zero status
+ *       callback return status.  Try setting up a yesn-zero status
  *       such as -19 (-ENODEV):
  *
  *       # Load demo livepatch, vmlinux is patched
@@ -51,7 +51,7 @@
  *
  *       # Module loader refuses to load the target module
  *       insmod samples/livepatch/livepatch-callbacks-mod.ko
- *       insmod: ERROR: could not insert module samples/livepatch/livepatch-callbacks-mod.ko: No such device
+ *       insmod: ERROR: could yest insert module samples/livepatch/livepatch-callbacks-mod.ko: No such device
  *
  * NOTE: There is a second target module,
  *       livepatch-callbacks-busymod.ko, available for experimenting
@@ -68,7 +68,7 @@
  *       # Meanwhile load the livepatch
  *       insmod samples/livepatch/livepatch-callbacks-demo.ko
  *
- *       # ... then load and unload another target module while the
+ *       # ... then load and unload ayesther target module while the
  *       # transition is in progress
  *       insmod samples/livepatch/livepatch-callbacks-mod.ko
  *       rmmod samples/livepatch/livepatch-callbacks-mod.ko
@@ -134,7 +134,7 @@ static void patched_work_func(struct work_struct *work)
 	pr_info("%s\n", __func__);
 }
 
-static struct klp_func no_funcs[] = {
+static struct klp_func yes_funcs[] = {
 	{ }
 };
 
@@ -148,7 +148,7 @@ static struct klp_func busymod_funcs[] = {
 static struct klp_object objs[] = {
 	{
 		.name = NULL,	/* vmlinux */
-		.funcs = no_funcs,
+		.funcs = yes_funcs,
 		.callbacks = {
 			.pre_patch = pre_patch_callback,
 			.post_patch = post_patch_callback,
@@ -157,7 +157,7 @@ static struct klp_object objs[] = {
 		},
 	},	{
 		.name = "livepatch_callbacks_mod",
-		.funcs = no_funcs,
+		.funcs = yes_funcs,
 		.callbacks = {
 			.pre_patch = pre_patch_callback,
 			.post_patch = post_patch_callback,

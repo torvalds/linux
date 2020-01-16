@@ -10,11 +10,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -55,7 +55,7 @@ const char tipc_bclink_name[] = "broadcast-link";
  * @primary_bearer: a bearer having links to all broadcast destinations, if any
  * @bcast_support: indicates if primary bearer, if any, supports broadcast
  * @force_bcast: forces broadcast for multicast traffic
- * @rcast_support: indicates if all peer nodes support replicast
+ * @rcast_support: indicates if all peer yesdes support replicast
  * @force_rcast: forces replicast for multicast traffic
  * @rc_ratio: dest count as percentage of cluster size where send method changes
  * @bc_threshold: calculated from rc_ratio; if dests > threshold use broadcast
@@ -128,7 +128,7 @@ static void tipc_bcbase_select_primary(struct net *net)
 
 		bb->primary_bearer = i;
 
-		/* Reduce risk that all nodes select same primary */
+		/* Reduce risk that all yesdes select same primary */
 		if ((i ^ tipc_own_addr(net)) & 1)
 			break;
 	}
@@ -161,8 +161,8 @@ void tipc_bcast_dec_bearer_dst_cnt(struct net *net, int bearer_id)
  *
  * Note that number of reachable destinations, as indicated in the dests[]
  * array, may transitionally differ from the number of destinations indicated
- * in each sent buffer. We can sustain this. Excess destination nodes will
- * drop and never acknowledge the unexpected packets, and missing destinations
+ * in each sent buffer. We can sustain this. Excess destination yesdes will
+ * drop and never ackyeswledge the unexpected packets, and missing destinations
  * will either require retransmission (if they are just about to be added to
  * the bearer), or be removed from the buffer's 'ackers' counter (if they
  * just went down)
@@ -177,7 +177,7 @@ static void tipc_bcbase_xmit(struct net *net, struct sk_buff_head *xmitq)
 	if (skb_queue_empty(xmitq))
 		return;
 
-	/* The typical case: at least one bearer has links to all nodes */
+	/* The typical case: at least one bearer has links to all yesdes */
 	bearer_id = bb->primary_bearer;
 	if (bearer_id >= 0) {
 		tipc_bearer_bc_xmit(net, bearer_id, xmitq);
@@ -238,16 +238,16 @@ static void tipc_bcast_select_xmit_method(struct net *net, int dests,
 		return;
 	}
 	/* Configuration as 'autoselect' or default method */
-	/* Determine method to use now */
+	/* Determine method to use yesw */
 	method->rcast = dests <= bb->bc_threshold;
 }
 
-/* tipc_bcast_xmit - broadcast the buffer chain to all external nodes
+/* tipc_bcast_xmit - broadcast the buffer chain to all external yesdes
  * @net: the applicable net namespace
  * @pkts: chain of buffers containing message
  * @cong_link_cnt: set to 1 if broadcast link is congested, otherwise 0
  * Consumes the buffer chain.
- * Returns 0 if success, otherwise errno: -EHOSTUNREACH,-EMSGSIZE
+ * Returns 0 if success, otherwise erryes: -EHOSTUNREACH,-EMSGSIZE
  */
 static int tipc_bcast_xmit(struct net *net, struct sk_buff_head *pkts,
 			   u16 *cong_link_cnt)
@@ -270,31 +270,31 @@ static int tipc_bcast_xmit(struct net *net, struct sk_buff_head *pkts,
 	return rc;
 }
 
-/* tipc_rcast_xmit - replicate and send a message to given destination nodes
+/* tipc_rcast_xmit - replicate and send a message to given destination yesdes
  * @net: the applicable net namespace
  * @pkts: chain of buffers containing message
- * @dests: list of destination nodes
+ * @dests: list of destination yesdes
  * @cong_link_cnt: returns number of congested links
  * @cong_links: returns identities of congested links
- * Returns 0 if success, otherwise errno
+ * Returns 0 if success, otherwise erryes
  */
 static int tipc_rcast_xmit(struct net *net, struct sk_buff_head *pkts,
 			   struct tipc_nlist *dests, u16 *cong_link_cnt)
 {
 	struct tipc_dest *dst, *tmp;
 	struct sk_buff_head _pkts;
-	u32 dnode, selector;
+	u32 dyesde, selector;
 
 	selector = msg_link_selector(buf_msg(skb_peek(pkts)));
 	__skb_queue_head_init(&_pkts);
 
 	list_for_each_entry_safe(dst, tmp, &dests->list, list) {
-		dnode = dst->node;
-		if (!tipc_msg_pskb_copy(dnode, pkts, &_pkts))
+		dyesde = dst->yesde;
+		if (!tipc_msg_pskb_copy(dyesde, pkts, &_pkts))
 			return -ENOMEM;
 
-		/* Any other return value than -ELINKCONG is ignored */
-		if (tipc_node_xmit(net, &_pkts, dnode, selector) == -ELINKCONG)
+		/* Any other return value than -ELINKCONG is igyesred */
+		if (tipc_yesde_xmit(net, &_pkts, dyesde, selector) == -ELINKCONG)
 			(*cong_link_cnt)++;
 	}
 	return 0;
@@ -304,8 +304,8 @@ static int tipc_rcast_xmit(struct net *net, struct sk_buff_head *pkts,
  * @net: the applicable net namespace
  * @skb: socket buffer to copy
  * @method: send method to be used
- * @dests: destination nodes for message.
- * Returns 0 if success, otherwise errno
+ * @dests: destination yesdes for message.
+ * Returns 0 if success, otherwise erryes
  */
 static int tipc_mcast_send_sync(struct net *net, struct sk_buff *skb,
 				struct tipc_mc_method *method,
@@ -352,21 +352,21 @@ static int tipc_mcast_send_sync(struct net *net, struct sk_buff *skb,
 	else
 		rc = tipc_rcast_xmit(net, &tmpq, dests, &cong_link_cnt);
 
-	/* This queue should normally be empty by now */
+	/* This queue should yesrmally be empty by yesw */
 	__skb_queue_purge(&tmpq);
 
 	return rc;
 }
 
-/* tipc_mcast_xmit - deliver message to indicated destination nodes
- *                   and to identified node local sockets
+/* tipc_mcast_xmit - deliver message to indicated destination yesdes
+ *                   and to identified yesde local sockets
  * @net: the applicable net namespace
  * @pkts: chain of buffers containing message
  * @method: send method to be used
- * @dests: destination nodes for message.
+ * @dests: destination yesdes for message.
  * @cong_link_cnt: returns number of encountered congested destination links
  * Consumes buffer chain.
- * Returns 0 if success, otherwise errno
+ * Returns 0 if success, otherwise erryes
  */
 int tipc_mcast_xmit(struct net *net, struct sk_buff_head *pkts,
 		    struct tipc_mc_method *method, struct tipc_nlist *dests,
@@ -417,14 +417,14 @@ int tipc_mcast_xmit(struct net *net, struct sk_buff_head *pkts,
 		tipc_sk_mcast_rcv(net, &localq, &inputq);
 	}
 exit:
-	/* This queue should normally be empty by now */
+	/* This queue should yesrmally be empty by yesw */
 	__skb_queue_purge(pkts);
 	return rc;
 }
 
 /* tipc_bcast_rcv - receive a broadcast packet, and deliver to rcv link
  *
- * RCU is locked, no other locks set
+ * RCU is locked, yes other locks set
  */
 int tipc_bcast_rcv(struct net *net, struct tipc_link *l, struct sk_buff *skb)
 {
@@ -456,9 +456,9 @@ int tipc_bcast_rcv(struct net *net, struct tipc_link *l, struct sk_buff *skb)
 	return rc;
 }
 
-/* tipc_bcast_ack_rcv - receive and handle a broadcast acknowledge
+/* tipc_bcast_ack_rcv - receive and handle a broadcast ackyeswledge
  *
- * RCU is locked, no other locks set
+ * RCU is locked, yes other locks set
  */
 void tipc_bcast_ack_rcv(struct net *net, struct tipc_link *l,
 			struct tipc_msg *hdr)
@@ -467,7 +467,7 @@ void tipc_bcast_ack_rcv(struct net *net, struct tipc_link *l,
 	u16 acked = msg_bcast_ack(hdr);
 	struct sk_buff_head xmitq;
 
-	/* Ignore bc acks sent by peer before bcast synch point was received */
+	/* Igyesre bc acks sent by peer before bcast synch point was received */
 	if (msg_bc_ack_invalid(hdr))
 		return;
 
@@ -486,7 +486,7 @@ void tipc_bcast_ack_rcv(struct net *net, struct tipc_link *l,
 
 /* tipc_bcast_synch_rcv -  check and update rcv link with peer's send state
  *
- * RCU is locked, no other locks set
+ * RCU is locked, yes other locks set
  */
 int tipc_bcast_sync_rcv(struct net *net, struct tipc_link *l,
 			struct tipc_msg *hdr)
@@ -514,9 +514,9 @@ int tipc_bcast_sync_rcv(struct net *net, struct tipc_link *l,
 	return rc;
 }
 
-/* tipc_bcast_add_peer - add a peer node to broadcast link and bearer
+/* tipc_bcast_add_peer - add a peer yesde to broadcast link and bearer
  *
- * RCU is locked, node lock is set
+ * RCU is locked, yesde lock is set
  */
 void tipc_bcast_add_peer(struct net *net, struct tipc_link *uc_l,
 			 struct sk_buff_head *xmitq)
@@ -530,9 +530,9 @@ void tipc_bcast_add_peer(struct net *net, struct tipc_link *uc_l,
 	tipc_bcast_unlock(net);
 }
 
-/* tipc_bcast_remove_peer - remove a peer node from broadcast link and bearer
+/* tipc_bcast_remove_peer - remove a peer yesde from broadcast link and bearer
  *
- * RCU is locked, node lock is set
+ * RCU is locked, yesde lock is set
  */
 void tipc_bcast_remove_peer(struct net *net, struct tipc_link *rcv_l)
 {
@@ -682,7 +682,7 @@ int tipc_bcast_init(struct net *net)
 
 	bb = kzalloc(sizeof(*bb), GFP_KERNEL);
 	if (!bb)
-		goto enomem;
+		goto eyesmem;
 	tn->bcbase = bb;
 	spin_lock_init(&tipc_net(net)->bclock);
 
@@ -694,13 +694,13 @@ int tipc_bcast_init(struct net *net)
 				 NULL,
 				 NULL,
 				 &l))
-		goto enomem;
+		goto eyesmem;
 	bb->link = l;
 	tn->bcl = l;
 	bb->rc_ratio = 10;
 	bb->rcast_support = true;
 	return 0;
-enomem:
+eyesmem:
 	kfree(bb);
 	kfree(l);
 	return -ENOMEM;
@@ -722,19 +722,19 @@ void tipc_nlist_init(struct tipc_nlist *nl, u32 self)
 	nl->self = self;
 }
 
-void tipc_nlist_add(struct tipc_nlist *nl, u32 node)
+void tipc_nlist_add(struct tipc_nlist *nl, u32 yesde)
 {
-	if (node == nl->self)
+	if (yesde == nl->self)
 		nl->local = true;
-	else if (tipc_dest_push(&nl->list, node, 0))
+	else if (tipc_dest_push(&nl->list, yesde, 0))
 		nl->remote++;
 }
 
-void tipc_nlist_del(struct tipc_nlist *nl, u32 node)
+void tipc_nlist_del(struct tipc_nlist *nl, u32 yesde)
 {
-	if (node == nl->self)
+	if (yesde == nl->self)
 		nl->local = false;
-	else if (tipc_dest_del(&nl->list, node, 0))
+	else if (tipc_dest_del(&nl->list, yesde, 0))
 		nl->remote--;
 }
 
@@ -774,7 +774,7 @@ void tipc_mcast_filter_msg(struct net *net, struct sk_buff_head *defq,
 	struct sk_buff *skb, *_skb, *tmp;
 	struct tipc_msg *hdr, *_hdr;
 	bool match = false;
-	u32 node, port;
+	u32 yesde, port;
 
 	skb = skb_peek(inputq);
 	if (!skb)
@@ -785,8 +785,8 @@ void tipc_mcast_filter_msg(struct net *net, struct sk_buff_head *defq,
 	if (likely(!msg_is_syn(hdr) && skb_queue_empty(defq)))
 		return;
 
-	node = msg_orignode(hdr);
-	if (node == tipc_own_addr(net))
+	yesde = msg_origyesde(hdr);
+	if (yesde == tipc_own_addr(net))
 		return;
 
 	port = msg_origport(hdr);
@@ -794,7 +794,7 @@ void tipc_mcast_filter_msg(struct net *net, struct sk_buff_head *defq,
 	/* Has the twin SYN message already arrived ? */
 	skb_queue_walk(defq, _skb) {
 		_hdr = buf_msg(_skb);
-		if (msg_orignode(_hdr) != node)
+		if (msg_origyesde(_hdr) != yesde)
 			continue;
 		if (msg_origport(_hdr) != port)
 			continue;
@@ -810,7 +810,7 @@ void tipc_mcast_filter_msg(struct net *net, struct sk_buff_head *defq,
 		return;
 	}
 
-	/* Deliver non-SYN message from other link, otherwise queue it */
+	/* Deliver yesn-SYN message from other link, otherwise queue it */
 	if (!msg_is_syn(hdr)) {
 		if (msg_is_rcast(hdr) != msg_is_rcast(_hdr))
 			return;
@@ -819,7 +819,7 @@ void tipc_mcast_filter_msg(struct net *net, struct sk_buff_head *defq,
 		return;
 	}
 
-	/* Queue non-SYN/SYN message from same link */
+	/* Queue yesn-SYN/SYN message from same link */
 	if (msg_is_rcast(hdr) == msg_is_rcast(_hdr)) {
 		__skb_dequeue(inputq);
 		__skb_queue_tail(defq, skb);
@@ -836,10 +836,10 @@ void tipc_mcast_filter_msg(struct net *net, struct sk_buff_head *defq,
 		__skb_queue_tail(inputq, _skb);
 	}
 
-	/* Deliver subsequent non-SYN messages from same peer */
+	/* Deliver subsequent yesn-SYN messages from same peer */
 	skb_queue_walk_safe(defq, _skb, tmp) {
 		_hdr = buf_msg(_skb);
-		if (msg_orignode(_hdr) != node)
+		if (msg_origyesde(_hdr) != yesde)
 			continue;
 		if (msg_origport(_hdr) != port)
 			continue;

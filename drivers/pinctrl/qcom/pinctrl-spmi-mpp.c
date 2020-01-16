@@ -24,7 +24,7 @@
 
 /*
  * Pull Up Values - it indicates whether a pull-up should be
- * applied for bidirectional mode only. The hardware ignores the
+ * applied for bidirectional mode only. The hardware igyesres the
  * configuration when operating in other modes.
  */
 #define PMIC_MPP_PULL_UP_0P6KOHM		0
@@ -226,7 +226,7 @@ static const struct pinctrl_ops pmic_mpp_pinctrl_ops = {
 	.get_groups_count	= pmic_mpp_get_groups_count,
 	.get_group_name		= pmic_mpp_get_group_name,
 	.get_group_pins		= pmic_mpp_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -409,7 +409,7 @@ static int pmic_mpp_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	pad = pctldev->desc->pins[pin].drv_data;
 
-	/* Make it possible to enable the pin, by not setting high impedance */
+	/* Make it possible to enable the pin, by yest setting high impedance */
 	pad->is_enabled = true;
 
 	for (i = 0; i < nconfs; i++) {
@@ -687,7 +687,7 @@ static int pmic_mpp_populate(struct pmic_mpp_state *state,
 		pad->num_sources = 8;
 		break;
 	default:
-		dev_err(state->dev, "unknown MPP type 0x%x at 0x%x\n",
+		dev_err(state->dev, "unkyeswn MPP type 0x%x at 0x%x\n",
 			subtype, pad->base);
 		return -ENODEV;
 	}
@@ -738,7 +738,7 @@ static int pmic_mpp_populate(struct pmic_mpp_state *state,
 		pad->function = PMIC_MPP_SINK;
 		break;
 	default:
-		dev_err(state->dev, "unknown MPP direction\n");
+		dev_err(state->dev, "unkyeswn MPP direction\n");
 		return -ENODEV;
 	}
 
@@ -806,7 +806,7 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 	int ret, npins, i;
 	u32 reg;
 
-	ret = of_property_read_u32(dev->of_node, "reg", &reg);
+	ret = of_property_read_u32(dev->of_yesde, "reg", &reg);
 	if (ret < 0) {
 		dev_err(dev, "missing base address");
 		return ret;
@@ -936,7 +936,7 @@ static struct platform_driver pmic_mpp_driver = {
 
 module_platform_driver(pmic_mpp_driver);
 
-MODULE_AUTHOR("Ivan T. Ivanov <iivanov@mm-sol.com>");
+MODULE_AUTHOR("Ivan T. Ivayesv <iivayesv@mm-sol.com>");
 MODULE_DESCRIPTION("Qualcomm SPMI PMIC MPP pin control driver");
 MODULE_ALIAS("platform:qcom-spmi-mpp");
 MODULE_LICENSE("GPL v2");

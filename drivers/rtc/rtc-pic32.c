@@ -3,7 +3,7 @@
  * PIC32 RTC driver
  *
  * Joshua Henderson <joshua.henderson@microchip.com>
- * Copyright (C) 2016 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2016 Microchip Techyeslogy Inc.  All rights reserved.
  *
  */
 #include <linux/init.h>
@@ -247,7 +247,7 @@ static int pic32_rtc_proc(struct device *dev, struct seq_file *seq)
 
 	repeat = readw(base + PIC32_RTCALRM);
 	repeat &= PIC32_RTCALRM_ARPT;
-	seq_printf(seq, "periodic_IRQ\t: %s\n", repeat  ? "yes" : "no");
+	seq_printf(seq, "periodic_IRQ\t: %s\n", repeat  ? "no" : "yes");
 
 	clk_disable(pdata->clk);
 	return 0;
@@ -340,7 +340,7 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 
 	ret = rtc_register_device(pdata->rtc);
 	if (ret)
-		goto err_nortc;
+		goto err_yesrtc;
 
 	pdata->rtc->max_user_freq = 128;
 
@@ -351,14 +351,14 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev,
 			"IRQ %d error %d\n", pdata->alarm_irq, ret);
-		goto err_nortc;
+		goto err_yesrtc;
 	}
 
 	clk_disable(pdata->clk);
 
 	return 0;
 
-err_nortc:
+err_yesrtc:
 	pic32_rtc_enable(pdata, 0);
 	clk_disable_unprepare(pdata->clk);
 

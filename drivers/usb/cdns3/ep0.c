@@ -145,7 +145,7 @@ static int cdns3_req_ep0_set_configuration(struct cdns3_device *priv_dev,
 
 	switch (device_state) {
 	case USB_STATE_ADDRESS:
-		/* Configure non-control EPs */
+		/* Configure yesn-control EPs */
 		for (i = 0; i < CDNS3_ENDPOINTS_MAX_COUNT; i++) {
 			priv_ep = priv_dev->eps[i];
 			if (!priv_ep)
@@ -202,7 +202,7 @@ static int cdns3_req_ep0_set_address(struct cdns3_device *priv_dev,
 
 	if (addr > USB_DEVICE_MAX_ADDRESS) {
 		dev_err(priv_dev->dev,
-			"Device address (%d) cannot be greater than %d\n",
+			"Device address (%d) canyest be greater than %d\n",
 			addr, USB_DEVICE_MAX_ADDRESS);
 		return -EINVAL;
 	}
@@ -526,10 +526,10 @@ static void __pending_setup_status_handler(struct cdns3_device *priv_dev)
 {
 	struct usb_request *request = priv_dev->pending_status_request;
 
-	if (priv_dev->status_completion_no_call && request &&
+	if (priv_dev->status_completion_yes_call && request &&
 	    request->complete) {
 		request->complete(&priv_dev->eps[0]->endpoint, request);
-		priv_dev->status_completion_no_call = 0;
+		priv_dev->status_completion_yes_call = 0;
 	}
 }
 
@@ -731,12 +731,12 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 		cdns3_allow_enable_l1(priv_dev, 1);
 
 		request->actual = 0;
-		priv_dev->status_completion_no_call = true;
+		priv_dev->status_completion_yes_call = true;
 		priv_dev->pending_status_request = request;
 		spin_unlock_irqrestore(&priv_dev->lock, flags);
 
 		/*
-		 * Since there is no completion interrupt for status stage,
+		 * Since there is yes completion interrupt for status stage,
 		 * it needs to call ->completion in software after
 		 * ep0_queue is back.
 		 */

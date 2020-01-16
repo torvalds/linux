@@ -23,11 +23,11 @@
 
 #ifdef CONFIG_PPC_BOOK3S_64
 /*
- * Book3s has no ptesync after setting a pte, so without this ptesync it's
+ * Book3s has yes ptesync after setting a pte, so without this ptesync it's
  * possible for a kernel virtual mapping access to return a spurious fault
  * if it's accessed right after the pte is set. The page fault handler does
- * not expect this type of fault. flush_cache_vmap is not exactly the right
- * place to put this, but it seems to work well enough.
+ * yest expect this type of fault. flush_cache_vmap is yest exactly the right
+ * place to put this, but it seems to work well eyesugh.
  */
 static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 {
@@ -51,7 +51,7 @@ void __flush_dcache_icache(void *page);
 
 /**
  * flush_dcache_range(): Write any modified data cache blocks out to memory and
- * invalidate them. Does not invalidate the corresponding instruction cache
+ * invalidate them. Does yest invalidate the corresponding instruction cache
  * blocks.
  *
  * @start: the start address
@@ -80,7 +80,7 @@ static inline void flush_dcache_range(unsigned long start, unsigned long stop)
 
 /*
  * Write any modified data cache blocks out to memory.
- * Does not invalidate the corresponding cache lines (especially for
+ * Does yest invalidate the corresponding cache lines (especially for
  * any corresponding instruction cache).
  */
 static inline void clean_dcache_range(unsigned long start, unsigned long stop)
@@ -99,7 +99,7 @@ static inline void clean_dcache_range(unsigned long start, unsigned long stop)
 /*
  * Like above, but invalidate the D-cache.  This is used by the 8xx
  * to invalidate the cache so the PPC core doesn't get stale data
- * from the CPM (no cache snooping here :-).
+ * from the CPM (yes cache syesoping here :-).
  */
 static inline void invalidate_dcache_range(unsigned long start,
 					   unsigned long stop)

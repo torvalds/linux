@@ -12,7 +12,7 @@ Required properties:
     - "maxim,max7326": For the Maxim MAX7326
     - "maxim,max7327": For the Maxim MAX7327
   - reg: I2C slave address for this device.
-  - gpio-controller: Marks the device node as a GPIO controller.
+  - gpio-controller: Marks the device yesde as a GPIO controller.
   - #gpio-cells: Should be 2.
     - first cell is the GPIO number
     - second cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>.
@@ -26,7 +26,7 @@ Optional properties:
   interrupt controller device tree bindings documentation available at
   Documentation/devicetree/bindings/interrupt-controller/interrupts.txt.
 
-  - interrupt-controller: Identifies the node as an interrupt controller.
+  - interrupt-controller: Identifies the yesde as an interrupt controller.
   - #interrupt-cells: Number of cells to encode an interrupt source, shall be 2.
     - first cell is the pin number
     - second cell is used to specify flags

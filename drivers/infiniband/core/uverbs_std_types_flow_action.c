@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2018, Mellayesx Techyeslogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -88,7 +88,7 @@ static int (* const flow_action_esp_keymat_validate[])(struct ib_flow_action_att
 	[IB_UVERBS_FLOW_ACTION_ESP_KEYMAT_AES_GCM] = validate_flow_action_esp_keymat_aes_gcm,
 };
 
-static int flow_action_esp_replay_none(struct ib_flow_action_attrs_esp_replays *replay,
+static int flow_action_esp_replay_yesne(struct ib_flow_action_attrs_esp_replays *replay,
 				       bool is_modify)
 {
 	/* This is used in order to modify an esp flow action with an enabled
@@ -110,7 +110,7 @@ static int flow_action_esp_replay_def_ok(struct ib_flow_action_attrs_esp_replays
 
 static int (* const flow_action_esp_replay_validate[])(struct ib_flow_action_attrs_esp_replays *replay,
 						       bool is_modify) = {
-	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_NONE] = flow_action_esp_replay_none,
+	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_NONE] = flow_action_esp_replay_yesne,
 	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_BMP] = flow_action_esp_replay_def_ok,
 };
 

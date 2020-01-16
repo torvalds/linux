@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -42,7 +42,7 @@ nv40_ram_calc(struct nvkm_ram *base, u32 freq)
 
 	ret = nvbios_pll_parse(bios, 0x04, &pll);
 	if (ret) {
-		nvkm_error(subdev, "mclk pll data not found\n");
+		nvkm_error(subdev, "mclk pll data yest found\n");
 		return ret;
 	}
 
@@ -116,7 +116,7 @@ nv40_ram_prog(struct nvkm_ram *base)
 	nvkm_wr32(device, 0x1002d4, 0x00000001); /* precharge */
 	nvkm_wr32(device, 0x1002d0, 0x00000001); /* refresh */
 	nvkm_wr32(device, 0x1002d0, 0x00000001); /* refresh */
-	nvkm_mask(device, 0x100210, 0x80000000, 0x00000000); /* no auto refresh */
+	nvkm_mask(device, 0x100210, 0x80000000, 0x00000000); /* yes auto refresh */
 	nvkm_wr32(device, 0x1002dc, 0x00000001); /* enable self-refresh */
 
 	/* change the PLL of each memory partition */
@@ -146,7 +146,7 @@ nv40_ram_prog(struct nvkm_ram *base)
 	udelay(100);
 	nvkm_mask(device, 0x00c040, 0x0000c000, 0x0000c000);
 
-	/* re-enable normal operation of memory controller */
+	/* re-enable yesrmal operation of memory controller */
 	nvkm_wr32(device, 0x1002dc, 0x00000000);
 	nvkm_mask(device, 0x100210, 0x80000000, 0x80000000);
 	udelay(100);

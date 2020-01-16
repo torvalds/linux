@@ -6,7 +6,7 @@
  * Copyright (C) 2012, Linaro, Sangwook Lee <sangwook.lee@linaro.org>
  * Copyright (C) 2012, Insignal Co,. Ltd, Homin Lee <suapapa@insignal.co.kr>
  *
- * Based on s5k6aa and noon010pc30 driver
+ * Based on s5k6aa and yeson010pc30 driver
  * Copyright (C) 2011, Samsung Electronics Co., Ltd.
  */
 
@@ -101,7 +101,7 @@ module_param(debug, int, 0644);
 #define TOK_TERM			0xffffffff
 
 /*
- * FIXME: This is copied from s5k6aa, because of no information
+ * FIXME: This is copied from s5k6aa, because of yes information
  * in the S5K4ECGX datasheet.
  * H/W register Interface (0xd0000000 - 0xd0000fff)
  */
@@ -126,7 +126,7 @@ struct regval_list {
 
 /*
  * TODO: currently only preview is supported and snapshot (capture)
- * is not implemented yet
+ * is yest implemented yet
  */
 static const struct s5k4ecgx_frmsize s5k4ecgx_prev_sizes[] = {
 	{
@@ -294,7 +294,7 @@ static int s5k4ecgx_set_ahb_address(struct v4l2_subdev *sd)
 	if (ret < 0)
 		return ret;
 	/*
-	 * FIXME: This is copied from s5k6aa, because of no information
+	 * FIXME: This is copied from s5k6aa, because of yes information
 	 * in s5k4ecgx's datasheet.
 	 * sw_reset is activated to put device into idle status
 	 */
@@ -799,7 +799,7 @@ static int __s5k4ecgx_s_stream(struct s5k4ecgx *priv, int on)
 	}
 	/*
 	 * This enables/disables preview stream only. Capture requests
-	 * are not supported yet.
+	 * are yest supported yet.
 	 */
 	ret = s5k4ecgx_write(client, REG_G_ENABLE_PREV, on);
 	if (ret < 0)

@@ -271,7 +271,7 @@ static struct gpio_desc *lm363x_regulator_of_get_enable_gpio(struct device *dev,
 	/*
 	 * Check LCM_EN1/2_GPIO is configured.
 	 * Those pins are used for enabling VPOS/VNEG LDOs.
-	 * Do not use devm* here: the regulator core takes over the
+	 * Do yest use devm* here: the regulator core takes over the
 	 * lifecycle management of the GPIO descriptor.
 	 */
 	switch (id) {

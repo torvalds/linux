@@ -227,7 +227,7 @@ struct ncsi_channel *ncsi_add_channel(struct ncsi_package *np, unsigned char id)
 		return tmp;
 	}
 
-	list_add_tail_rcu(&nc->node, &np->channels);
+	list_add_tail_rcu(&nc->yesde, &np->channels);
 	np->channel_num++;
 	spin_unlock_irqrestore(&np->lock, flags);
 
@@ -251,7 +251,7 @@ static void ncsi_remove_channel(struct ncsi_channel *nc)
 
 	/* Remove and free channel */
 	spin_lock_irqsave(&np->lock, flags);
-	list_del_rcu(&nc->node);
+	list_del_rcu(&nc->yesde);
 	np->channel_num--;
 	spin_unlock_irqrestore(&np->lock, flags);
 
@@ -295,7 +295,7 @@ struct ncsi_package *ncsi_add_package(struct ncsi_dev_priv *ndp,
 		return tmp;
 	}
 
-	list_add_tail_rcu(&np->node, &ndp->packages);
+	list_add_tail_rcu(&np->yesde, &ndp->packages);
 	ndp->package_num++;
 	spin_unlock_irqrestore(&ndp->lock, flags);
 
@@ -309,12 +309,12 @@ void ncsi_remove_package(struct ncsi_package *np)
 	unsigned long flags;
 
 	/* Release all child channels */
-	list_for_each_entry_safe(nc, tmp, &np->channels, node)
+	list_for_each_entry_safe(nc, tmp, &np->channels, yesde)
 		ncsi_remove_channel(nc);
 
 	/* Remove and free package */
 	spin_lock_irqsave(&ndp->lock, flags);
-	list_del_rcu(&np->node);
+	list_del_rcu(&np->yesde);
 	ndp->package_num--;
 	spin_unlock_irqrestore(&ndp->lock, flags);
 
@@ -486,7 +486,7 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 
 		/* To retrieve the last link states of channels in current
 		 * package when current active channel needs fail over to
-		 * another one. It means we will possibly select another
+		 * ayesther one. It means we will possibly select ayesther
 		 * channel as next active one. The link states of channels
 		 * are most important factor of the selection. So we need
 		 * accurate link states. Unfortunately, the link states on
@@ -543,8 +543,8 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 			goto error;
 
 		NCSI_FOR_EACH_CHANNEL(np, tmp) {
-			/* If there is another channel active on this package
-			 * do not deselect the package.
+			/* If there is ayesther channel active on this package
+			 * do yest deselect the package.
 			 */
 			if (tmp != nc && tmp->state == NCSI_CHANNEL_ACTIVE) {
 				nd->state = ncsi_dev_state_suspend_done;
@@ -654,7 +654,7 @@ static int set_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 	rcu_read_unlock();
 
 	if (!vid) {
-		/* No VLAN ID is not set */
+		/* No VLAN ID is yest set */
 		spin_unlock_irqrestore(&nc->lock, flags);
 		return -1;
 	}
@@ -997,7 +997,7 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 			}
 			/* Repeat */
 			nd->state = ncsi_dev_state_config_clear_vids;
-		/* Add known VLAN tags to the filter */
+		/* Add kyeswn VLAN tags to the filter */
 		} else if (nd->state == ncsi_dev_state_config_svf) {
 			ret = set_one_vid(ndp, nc, &nca);
 			if (ret) {
@@ -1086,7 +1086,7 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		nc->state = NCSI_CHANNEL_ACTIVE;
 
 		if (ndp->flags & NCSI_DEV_RESET) {
-			/* A reset event happened during config, start it now */
+			/* A reset event happened during config, start it yesw */
 			nc->reconfigure_needed = false;
 			spin_unlock_irqrestore(&nc->lock, flags);
 			ncsi_reset_dev(nd);
@@ -1187,7 +1187,7 @@ static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
 			}
 
 			/* If multi_channel is enabled configure all valid
-			 * channels whether or not they currently have link
+			 * channels whether or yest they currently have link
 			 * so they will have AENs enabled.
 			 */
 			if (with_link || np->multi_channel) {
@@ -1494,7 +1494,7 @@ static int ncsi_kick_channels(struct ncsi_dev_priv *ndp)
 
 			/* Channels may be busy, mark dirty instead of
 			 * kicking if;
-			 * a) not ACTIVE (configured)
+			 * a) yest ACTIVE (configured)
 			 * b) in the channel_queue (to be configured)
 			 * c) it's ndev is in the config state
 			 */
@@ -1593,7 +1593,7 @@ int ncsi_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 
 	nd = ncsi_find_dev(dev);
 	if (!nd) {
-		netdev_warn(dev, "NCSI: no net_device?\n");
+		netdev_warn(dev, "NCSI: yes net_device?\n");
 		return 0;
 	}
 
@@ -1627,7 +1627,7 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	unsigned long flags;
 	int i;
 
-	/* Check if the device has been registered or not */
+	/* Check if the device has been registered or yest */
 	nd = ncsi_find_dev(dev);
 	if (nd)
 		return nd;
@@ -1658,7 +1658,7 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	}
 
 	spin_lock_irqsave(&ncsi_dev_lock, flags);
-	list_add_tail_rcu(&ndp->node, &ncsi_dev_list);
+	list_add_tail_rcu(&ndp->yesde, &ncsi_dev_list);
 	spin_unlock_irqrestore(&ncsi_dev_lock, flags);
 
 	/* Register NCSI packet Rx handler */
@@ -1703,7 +1703,7 @@ void ncsi_stop_dev(struct ncsi_dev *nd)
 	unsigned long flags;
 
 	/* Stop the channel monitor on any active channels. Don't reset the
-	 * channel state so we know which were active when ncsi_start_dev()
+	 * channel state so we kyesw which were active when ncsi_start_dev()
 	 * is next called.
 	 */
 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
@@ -1739,7 +1739,7 @@ int ncsi_reset_dev(struct ncsi_dev *nd)
 		switch (nd->state & ncsi_dev_state_major) {
 		case ncsi_dev_state_registered:
 		case ncsi_dev_state_probe:
-			/* Not even probed yet - do nothing */
+			/* Not even probed yet - do yesthing */
 			spin_unlock_irqrestore(&ndp->lock, flags);
 			return 0;
 		case ncsi_dev_state_suspend:
@@ -1819,11 +1819,11 @@ void ncsi_unregister_dev(struct ncsi_dev *nd)
 
 	dev_remove_pack(&ndp->ptype);
 
-	list_for_each_entry_safe(np, tmp, &ndp->packages, node)
+	list_for_each_entry_safe(np, tmp, &ndp->packages, yesde)
 		ncsi_remove_package(np);
 
 	spin_lock_irqsave(&ncsi_dev_lock, flags);
-	list_del_rcu(&ndp->node);
+	list_del_rcu(&ndp->yesde);
 	spin_unlock_irqrestore(&ncsi_dev_lock, flags);
 
 	ncsi_unregister_netlink(nd->dev);

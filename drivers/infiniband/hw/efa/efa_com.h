@@ -47,7 +47,7 @@ struct efa_com_admin_sq {
 struct efa_com_stats_admin {
 	atomic64_t submitted_cmd;
 	atomic64_t completed_cmd;
-	atomic64_t no_completion;
+	atomic64_t yes_completion;
 };
 
 enum {

@@ -1,7 +1,7 @@
 * STMicroelectronics : NFC Transceiver ST95HF
 
 ST NFC Transceiver is required to attach with SPI bus.
-ST95HF node should be defined in DT as SPI slave device of SPI
+ST95HF yesde should be defined in DT as SPI slave device of SPI
 master with which ST95HF transceiver is physically connected.
 The properties defined below are required to be the part of DT
 to include ST95HF transceiver into the platform.
@@ -23,7 +23,7 @@ Required properties:
 Optional property:
 =================
 - st95hfvin-supply : This is an optional property. It contains a
-	phandle to ST95HF transceiver's regulator supply node in DT.
+	phandle to ST95HF transceiver's regulator supply yesde in DT.
 
 Example:
 =======

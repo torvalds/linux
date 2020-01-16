@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -98,7 +98,7 @@ void drm_mode_object_register(struct drm_device *dev,
  * Free @id from @dev's unique identifier pool.
  * This function can be called multiple times, and guards against
  * multiple removals.
- * These modeset identifiers are _not_ reference counted. Hence don't use this
+ * These modeset identifiers are _yest_ reference counted. Hence don't use this
  * for reference counted modeset objects like framebuffers.
  */
 void drm_mode_object_unregister(struct drm_device *dev,
@@ -186,7 +186,7 @@ EXPORT_SYMBOL(drm_mode_object_find);
  * @obj: DRM mode object
  *
  * This function decrements the object's refcount if it is a refcounted modeset
- * object. It is a no-op on any other object. This is used to drop references
+ * object. It is a yes-op on any other object. This is used to drop references
  * acquired with drm_mode_object_get().
  */
 void drm_mode_object_put(struct drm_mode_object *obj)
@@ -203,7 +203,7 @@ EXPORT_SYMBOL(drm_mode_object_put);
  * @obj: DRM mode object
  *
  * This function increments the object's refcount if it is a refcounted modeset
- * object. It is a no-op on any other object. References should be dropped again
+ * object. It is a yes-op on any other object. References should be dropped again
  * by calling drm_mode_object_put().
  */
 void drm_mode_object_get(struct drm_mode_object *obj)
@@ -222,7 +222,7 @@ EXPORT_SYMBOL(drm_mode_object_get);
  * @init_val: initial value of the property
  *
  * This attaches the given property to the modeset object with the given initial
- * value. Currently this function cannot fail since the properties are stored in
+ * value. Currently this function canyest fail since the properties are stored in
  * a statically sized array.
  */
 void drm_object_attach_property(struct drm_mode_object *obj,
@@ -252,10 +252,10 @@ EXPORT_SYMBOL(drm_object_attach_property);
  * @val: value the property should be set to
  *
  * This function sets a given property on a given object. This function only
- * changes the software state of the property, it does not call into the
+ * changes the software state of the property, it does yest call into the
  * driver's ->set_property callback.
  *
- * Note that atomic drivers should not have any need to call this, the core will
+ * Note that atomic drivers should yest have any need to call this, the core will
  * ensure consistency of values reported back to userspace through the
  * appropriate ->atomic_get_property callback. Only legacy drivers should call
  * this function to update the tracked value (after clamping and other
@@ -315,7 +315,7 @@ static int __drm_object_property_get_value(struct drm_mode_object *obj,
  * @val: storage for the property value
  *
  * This function retrieves the softare state of the given property for the given
- * property. Since there is no driver callback to retrieve the current property
+ * property. Since there is yes driver callback to retrieve the current property
  * value this might be out of sync with the hardware, depending upon the driver
  * and property.
  *
@@ -381,7 +381,7 @@ int drm_mode_object_get_properties(struct drm_mode_object *obj, bool atomic,
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv)

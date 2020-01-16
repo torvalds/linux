@@ -5,7 +5,7 @@
  *
  * PROM library initialisation code.
  *
- * Copyright (C) 1999,2000,2004,2005,2012  MIPS Technologies, Inc.
+ * Copyright (C) 1999,2000,2004,2005,2012  MIPS Techyeslogies, Inc.
  * All rights reserved.
  * Authors: Carsten Langgaard <carstenl@mips.com>
  *         Maciej W. Rozycki <macro@mips.com>
@@ -274,7 +274,7 @@ mips_pci_controller:
 		goto mips_pci_controller;
 
 	default:
-		/* Unknown system controller */
+		/* Unkyeswn system controller */
 		while (1);	/* We die here... */
 	}
 	board_nmi_handler_setup = mips_nmi_setup;

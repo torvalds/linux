@@ -22,7 +22,7 @@ CLANG_SYS_INCLUDES := $(shell $(CLANG) -v -E - </dev/null 2>&1 \
 
 CLANG_FLAGS = -I. -I$(APIDIR) \
 	      $(CLANG_SYS_INCLUDES) \
-	      -Wno-compare-distinct-pointer-types
+	      -Wyes-compare-distinct-pointer-types
 
 $(OUTPUT)/%.o: %.c
 	$(CLANG) $(CLANG_FLAGS) \

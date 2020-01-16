@@ -55,7 +55,7 @@ struct rw_semaphore {
 
 /*
  * Setting all bits of the owner field except bit 0 will indicate
- * that the rwsem is writer-owned with an unknown owner.
+ * that the rwsem is writer-owned with an unkyeswn owner.
  */
 #define RWSEM_OWNER_UNKNOWN	(-2L)
 
@@ -160,14 +160,14 @@ extern void downgrade_write(struct rw_semaphore *sem);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 /*
- * nested locking. NOTE: rwsems are not allowed to recurse
+ * nested locking. NOTE: rwsems are yest allowed to recurse
  * (which occurs if the same task tries to acquire the same
  * lock instance multiple times), but multiple locks of the
  * same lock class might be taken, if the order of the locks
  * is always the same. This ordering rule can be expressed
  * to lockdep via the _nested() APIs, but enumerating the
  * subclasses that are used. (If the nesting relationship is
- * static then another method for expressing nested locking is
+ * static then ayesther method for expressing nested locking is
  * the explicit definition of lock class keys and the use of
  * lockdep_set_class() at lock initialization time.
  * See Documentation/locking/lockdep-design.rst for more details.)
@@ -184,20 +184,20 @@ do {								\
 } while (0);
 
 /*
- * Take/release a lock when not the owner will release it.
+ * Take/release a lock when yest the owner will release it.
  *
  * [ This API should be avoided as much as possible - the
  *   proper abstraction for this case is completions. ]
  */
-extern void down_read_non_owner(struct rw_semaphore *sem);
-extern void up_read_non_owner(struct rw_semaphore *sem);
+extern void down_read_yesn_owner(struct rw_semaphore *sem);
+extern void up_read_yesn_owner(struct rw_semaphore *sem);
 #else
 # define down_read_nested(sem, subclass)		down_read(sem)
 # define down_write_nest_lock(sem, nest_lock)	down_write(sem)
 # define down_write_nested(sem, subclass)	down_write(sem)
 # define down_write_killable_nested(sem, subclass)	down_write_killable(sem)
-# define down_read_non_owner(sem)		down_read(sem)
-# define up_read_non_owner(sem)			up_read(sem)
+# define down_read_yesn_owner(sem)		down_read(sem)
+# define up_read_yesn_owner(sem)			up_read(sem)
 #endif
 
 #endif /* _LINUX_RWSEM_H */

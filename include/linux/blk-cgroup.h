@@ -53,7 +53,7 @@ struct blkcg {
 
 	struct blkcg_policy_data	*cpd[BLKCG_MAX_POLS];
 
-	struct list_head		all_blkcgs_node;
+	struct list_head		all_blkcgs_yesde;
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct list_head		cgwb_list;
 	refcount_t			cgwb_refcnt;
@@ -105,8 +105,8 @@ struct blkcg_policy_data {
 struct blkcg_gq {
 	/* Pointer to the associated request_queue */
 	struct request_queue		*q;
-	struct list_head		q_node;
-	struct hlist_node		blkcg_node;
+	struct list_head		q_yesde;
+	struct hlist_yesde		blkcg_yesde;
 	struct blkcg			*blkcg;
 
 	/*
@@ -115,7 +115,7 @@ struct blkcg_gq {
 	 */
 	struct bdi_writeback_congested	*wb_congested;
 
-	/* all non-root blkcg_gq's are guaranteed to have access to parent */
+	/* all yesn-root blkcg_gq's are guaranteed to have access to parent */
 	struct blkcg_gq			*parent;
 
 	/* reference count */
@@ -245,12 +245,12 @@ static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
  * DO NOT USE.
  * This function is inconsistent and consequently is dangerous to use.  The
  * first part of the function returns a blkcg where a reference is owned by the
- * bio.  This means it does not need to be rcu protected as it cannot go away
+ * bio.  This means it does yest need to be rcu protected as it canyest go away
  * with the bio owning a reference to it.  However, the latter potentially gets
  * it from task_css().  This can race against task migration and the cgroup
  * dying.  It is also semantically different as it must be called rcu protected
  * and is susceptible to failure when trying to get a reference to it.
- * Therefore, it is not ok to assume that *_get() will always succeed on the
+ * Therefore, it is yest ok to assume that *_get() will always succeed on the
  * blkcg returned here.
  */
 static inline struct blkcg *__bio_blkcg(struct bio *bio)
@@ -264,8 +264,8 @@ static inline struct blkcg *__bio_blkcg(struct bio *bio)
  * bio_blkcg - grab the blkcg associated with a bio
  * @bio: target bio
  *
- * This returns the blkcg associated with a bio, %NULL if not associated.
- * Callers are expected to either handle %NULL or know association has been
+ * This returns the blkcg associated with a bio, %NULL if yest associated.
+ * Callers are expected to either handle %NULL or kyesw association has been
  * done prior to calling this.
  */
 static inline struct blkcg *bio_blkcg(struct bio *bio)
@@ -326,7 +326,7 @@ static inline struct blkcg *blkcg_parent(struct blkcg *blkcg)
  * __blkg_lookup - internal version of blkg_lookup()
  * @blkcg: blkcg of interest
  * @q: request_queue of interest
- * @update_hint: whether to update lookup hint with the result or not
+ * @update_hint: whether to update lookup hint with the result or yest
  *
  * This is internal version and shouldn't be used by policy
  * implementations.  Looks up blkgs for the @blkcg - @q pair regardless of
@@ -482,7 +482,7 @@ static inline void blkg_get(struct blkcg_gq *blkg)
  * @blkg: blkg to get
  *
  * This is for use when doing an RCU lookup of the blkg.  We may be in the midst
- * of freeing this blkg, so we can only use it if the refcnt is not zero.
+ * of freeing this blkg, so we can only use it if the refcnt is yest zero.
  */
 static inline bool blkg_tryget(struct blkcg_gq *blkg)
 {
@@ -496,7 +496,7 @@ static inline bool blkg_tryget(struct blkcg_gq *blkg)
  * This needs to be called rcu protected.  As the failure mode here is to walk
  * up the blkg tree, this ensure that the blkg->parent pointers are always
  * valid.  This returns the blkg that it ended up taking a reference on or %NULL
- * if no reference was taken.
+ * if yes reference was taken.
  */
 static inline struct blkcg_gq *blkg_tryget_closest(struct blkcg_gq *blkg)
 {
@@ -534,7 +534,7 @@ static inline void blkg_put(struct blkcg_gq *blkg)
  * read locked.  If called under either blkcg or queue lock, the iteration
  * is guaranteed to include all and only online blkgs.  The caller may
  * update @pos_css by calling css_rightmost_descendant() to skip subtree.
- * @p_blkg is included in the iteration and the first node to be visited.
+ * @p_blkg is included in the iteration and the first yesde to be visited.
  */
 #define blkg_for_each_descendant_pre(d_blkg, pos_css, p_blkg)		\
 	css_for_each_descendant_pre((pos_css), &(p_blkg)->blkcg->css)	\
@@ -549,7 +549,7 @@ static inline void blkg_put(struct blkcg_gq *blkg)
  *
  * Similar to blkg_for_each_descendant_pre() but performs post-order
  * traversal instead.  Synchronization rules are the same.  @p_blkg is
- * included in the iteration and the last node to be visited.
+ * included in the iteration and the last yesde to be visited.
  */
 #define blkg_for_each_descendant_post(d_blkg, pos_css, p_blkg)		\
 	css_for_each_descendant_post((pos_css), &(p_blkg)->blkcg->css)	\
@@ -591,7 +591,7 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
 		char b[BDEVNAME_SIZE];
 
 		WARN_ONCE(1,
-			  "no blkg associated for bio on block-device: %s\n",
+			  "yes blkg associated for bio on block-device: %s\n",
 			  bio_devname(bio, b));
 		bio_associate_blkg(bio);
 	}
@@ -686,7 +686,7 @@ static inline void blkcg_clear_delay(struct blkcg_gq *blkg)
 	}
 }
 
-void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta);
+void blkcg_add_delay(struct blkcg_gq *blkg, u64 yesw, u64 delta);
 void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay);
 void blkcg_maybe_throttle_current(void);
 #else	/* CONFIG_BLK_CGROUP */

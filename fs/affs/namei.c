@@ -43,14 +43,14 @@ affs_get_toupper(struct super_block *sb)
  * Note: the dentry argument is the parent dentry.
  */
 static inline int
-__affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr, toupper_t toupper, bool notruncate)
+__affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr, toupper_t toupper, bool yestruncate)
 {
 	const u8 *name = qstr->name;
 	unsigned long hash;
 	int retval;
 	u32 len;
 
-	retval = affs_check_name(qstr->name, qstr->len, notruncate);
+	retval = affs_check_name(qstr->name, qstr->len, yestruncate);
 	if (retval)
 		return retval;
 
@@ -67,7 +67,7 @@ static int
 affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 {
 	return __affs_hash_dentry(dentry, qstr, affs_toupper,
-				  affs_nofilenametruncate(dentry));
+				  affs_yesfilenametruncate(dentry));
 
 }
 
@@ -75,13 +75,13 @@ static int
 affs_intl_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 {
 	return __affs_hash_dentry(dentry, qstr, affs_intl_toupper,
-				  affs_nofilenametruncate(dentry));
+				  affs_yesfilenametruncate(dentry));
 
 }
 
 static inline int __affs_compare_dentry(unsigned int len,
 		const char *str, const struct qstr *name, toupper_t toupper,
-		bool notruncate)
+		bool yestruncate)
 {
 	const u8 *aname = str;
 	const u8 *bname = name->name;
@@ -91,12 +91,12 @@ static inline int __affs_compare_dentry(unsigned int len,
 	 * must be valid. 'name' must be validated first.
 	 */
 
-	if (affs_check_name(name->name, name->len, notruncate))
+	if (affs_check_name(name->name, name->len, yestruncate))
 		return 1;
 
 	/*
 	 * If the names are longer than the allowed 30 chars,
-	 * the excess is ignored, so their length may differ.
+	 * the excess is igyesred, so their length may differ.
 	 */
 	if (len >= AFFSNAMEMAX) {
 		if (name->len < AFFSNAMEMAX)
@@ -118,7 +118,7 @@ affs_compare_dentry(const struct dentry *dentry,
 {
 
 	return __affs_compare_dentry(len, str, name, affs_toupper,
-				     affs_nofilenametruncate(dentry));
+				     affs_yesfilenametruncate(dentry));
 }
 
 static int
@@ -126,7 +126,7 @@ affs_intl_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return __affs_compare_dentry(len, str, name, affs_intl_toupper,
-				     affs_nofilenametruncate(dentry));
+				     affs_yesfilenametruncate(dentry));
 
 }
 
@@ -167,7 +167,7 @@ affs_hash_name(struct super_block *sb, const u8 *name, unsigned int len)
 }
 
 static struct buffer_head *
-affs_find_entry(struct inode *dir, struct dentry *dentry)
+affs_find_entry(struct iyesde *dir, struct dentry *dentry)
 {
 	struct super_block *sb = dir->i_sb;
 	struct buffer_head *bh;
@@ -176,7 +176,7 @@ affs_find_entry(struct inode *dir, struct dentry *dentry)
 
 	pr_debug("%s(\"%pd\")\n", __func__, dentry);
 
-	bh = affs_bread(sb, dir->i_ino);
+	bh = affs_bread(sb, dir->i_iyes);
 	if (!bh)
 		return ERR_PTR(-EIO);
 
@@ -196,11 +196,11 @@ affs_find_entry(struct inode *dir, struct dentry *dentry)
 }
 
 struct dentry *
-affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+affs_lookup(struct iyesde *dir, struct dentry *dentry, unsigned int flags)
 {
 	struct super_block *sb = dir->i_sb;
 	struct buffer_head *bh;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	struct dentry *res;
 
 	pr_debug("%s(\"%pd\")\n", __func__, dentry);
@@ -212,20 +212,20 @@ affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 		return ERR_CAST(bh);
 	}
 	if (bh) {
-		u32 ino = bh->b_blocknr;
+		u32 iyes = bh->b_blocknr;
 
-		/* store the real header ino in d_fsdata for faster lookups */
-		dentry->d_fsdata = (void *)(long)ino;
+		/* store the real header iyes in d_fsdata for faster lookups */
+		dentry->d_fsdata = (void *)(long)iyes;
 		switch (be32_to_cpu(AFFS_TAIL(sb, bh)->stype)) {
 		//link to dirs disabled
 		//case ST_LINKDIR:
 		case ST_LINKFILE:
-			ino = be32_to_cpu(AFFS_TAIL(sb, bh)->original);
+			iyes = be32_to_cpu(AFFS_TAIL(sb, bh)->original);
 		}
 		affs_brelse(bh);
-		inode = affs_iget(sb, ino);
+		iyesde = affs_iget(sb, iyes);
 	}
-	res = d_splice_alias(inode, dentry);
+	res = d_splice_alias(iyesde, dentry);
 	if (!IS_ERR_OR_NULL(res))
 		res->d_fsdata = dentry->d_fsdata;
 	affs_unlock_dir(dir);
@@ -233,109 +233,109 @@ affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 }
 
 int
-affs_unlink(struct inode *dir, struct dentry *dentry)
+affs_unlink(struct iyesde *dir, struct dentry *dentry)
 {
-	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
-		 d_inode(dentry)->i_ino, dentry);
+	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_iyes,
+		 d_iyesde(dentry)->i_iyes, dentry);
 
 	return affs_remove_header(dentry);
 }
 
 int
-affs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
+affs_create(struct iyesde *dir, struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct super_block *sb = dir->i_sb;
-	struct inode	*inode;
+	struct iyesde	*iyesde;
 	int		 error;
 
 	pr_debug("%s(%lu,\"%pd\",0%ho)\n",
-		 __func__, dir->i_ino, dentry, mode);
+		 __func__, dir->i_iyes, dentry, mode);
 
-	inode = affs_new_inode(dir);
-	if (!inode)
+	iyesde = affs_new_iyesde(dir);
+	if (!iyesde)
 		return -ENOSPC;
 
-	inode->i_mode = mode;
-	affs_mode_to_prot(inode);
-	mark_inode_dirty(inode);
+	iyesde->i_mode = mode;
+	affs_mode_to_prot(iyesde);
+	mark_iyesde_dirty(iyesde);
 
-	inode->i_op = &affs_file_inode_operations;
-	inode->i_fop = &affs_file_operations;
-	inode->i_mapping->a_ops = affs_test_opt(AFFS_SB(sb)->s_flags, SF_OFS) ?
+	iyesde->i_op = &affs_file_iyesde_operations;
+	iyesde->i_fop = &affs_file_operations;
+	iyesde->i_mapping->a_ops = affs_test_opt(AFFS_SB(sb)->s_flags, SF_OFS) ?
 				  &affs_aops_ofs : &affs_aops;
-	error = affs_add_entry(dir, inode, dentry, ST_FILE);
+	error = affs_add_entry(dir, iyesde, dentry, ST_FILE);
 	if (error) {
-		clear_nlink(inode);
-		iput(inode);
+		clear_nlink(iyesde);
+		iput(iyesde);
 		return error;
 	}
 	return 0;
 }
 
 int
-affs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+affs_mkdir(struct iyesde *dir, struct dentry *dentry, umode_t mode)
 {
-	struct inode		*inode;
+	struct iyesde		*iyesde;
 	int			 error;
 
 	pr_debug("%s(%lu,\"%pd\",0%ho)\n",
-		 __func__, dir->i_ino, dentry, mode);
+		 __func__, dir->i_iyes, dentry, mode);
 
-	inode = affs_new_inode(dir);
-	if (!inode)
+	iyesde = affs_new_iyesde(dir);
+	if (!iyesde)
 		return -ENOSPC;
 
-	inode->i_mode = S_IFDIR | mode;
-	affs_mode_to_prot(inode);
+	iyesde->i_mode = S_IFDIR | mode;
+	affs_mode_to_prot(iyesde);
 
-	inode->i_op = &affs_dir_inode_operations;
-	inode->i_fop = &affs_dir_operations;
+	iyesde->i_op = &affs_dir_iyesde_operations;
+	iyesde->i_fop = &affs_dir_operations;
 
-	error = affs_add_entry(dir, inode, dentry, ST_USERDIR);
+	error = affs_add_entry(dir, iyesde, dentry, ST_USERDIR);
 	if (error) {
-		clear_nlink(inode);
-		mark_inode_dirty(inode);
-		iput(inode);
+		clear_nlink(iyesde);
+		mark_iyesde_dirty(iyesde);
+		iput(iyesde);
 		return error;
 	}
 	return 0;
 }
 
 int
-affs_rmdir(struct inode *dir, struct dentry *dentry)
+affs_rmdir(struct iyesde *dir, struct dentry *dentry)
 {
-	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
-		 d_inode(dentry)->i_ino, dentry);
+	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_iyes,
+		 d_iyesde(dentry)->i_iyes, dentry);
 
 	return affs_remove_header(dentry);
 }
 
 int
-affs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
+affs_symlink(struct iyesde *dir, struct dentry *dentry, const char *symname)
 {
 	struct super_block	*sb = dir->i_sb;
 	struct buffer_head	*bh;
-	struct inode		*inode;
+	struct iyesde		*iyesde;
 	char			*p;
 	int			 i, maxlen, error;
 	char			 c, lc;
 
 	pr_debug("%s(%lu,\"%pd\" -> \"%s\")\n",
-		 __func__, dir->i_ino, dentry, symname);
+		 __func__, dir->i_iyes, dentry, symname);
 
 	maxlen = AFFS_SB(sb)->s_hashsize * sizeof(u32) - 1;
-	inode  = affs_new_inode(dir);
-	if (!inode)
+	iyesde  = affs_new_iyesde(dir);
+	if (!iyesde)
 		return -ENOSPC;
 
-	inode->i_op = &affs_symlink_inode_operations;
-	inode_nohighmem(inode);
-	inode->i_data.a_ops = &affs_symlink_aops;
-	inode->i_mode = S_IFLNK | 0777;
-	affs_mode_to_prot(inode);
+	iyesde->i_op = &affs_symlink_iyesde_operations;
+	iyesde_yeshighmem(iyesde);
+	iyesde->i_data.a_ops = &affs_symlink_aops;
+	iyesde->i_mode = S_IFLNK | 0777;
+	affs_mode_to_prot(iyesde);
 
 	error = -EIO;
-	bh = affs_bread(sb, inode->i_ino);
+	bh = affs_bread(sb, iyesde->i_iyes);
 	if (!bh)
 		goto err;
 	i  = 0;
@@ -346,7 +346,7 @@ affs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 		while (*symname == '/')
 			symname++;
 		spin_lock(&sbi->symlink_lock);
-		while (sbi->s_volume[i])	/* Cannot overflow */
+		while (sbi->s_volume[i])	/* Canyest overflow */
 			*p++ = sbi->s_volume[i++];
 		spin_unlock(&sbi->symlink_lock);
 	}
@@ -369,38 +369,38 @@ affs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 				symname++;
 	}
 	*p = 0;
-	inode->i_size = i + 1;
-	mark_buffer_dirty_inode(bh, inode);
+	iyesde->i_size = i + 1;
+	mark_buffer_dirty_iyesde(bh, iyesde);
 	affs_brelse(bh);
-	mark_inode_dirty(inode);
+	mark_iyesde_dirty(iyesde);
 
-	error = affs_add_entry(dir, inode, dentry, ST_SOFTLINK);
+	error = affs_add_entry(dir, iyesde, dentry, ST_SOFTLINK);
 	if (error)
 		goto err;
 
 	return 0;
 
 err:
-	clear_nlink(inode);
-	mark_inode_dirty(inode);
-	iput(inode);
+	clear_nlink(iyesde);
+	mark_iyesde_dirty(iyesde);
+	iput(iyesde);
 	return error;
 }
 
 int
-affs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
+affs_link(struct dentry *old_dentry, struct iyesde *dir, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(old_dentry);
+	struct iyesde *iyesde = d_iyesde(old_dentry);
 
-	pr_debug("%s(%lu, %lu, \"%pd\")\n", __func__, inode->i_ino, dir->i_ino,
+	pr_debug("%s(%lu, %lu, \"%pd\")\n", __func__, iyesde->i_iyes, dir->i_iyes,
 		 dentry);
 
-	return affs_add_entry(dir, inode, dentry, ST_LINKFILE);
+	return affs_add_entry(dir, iyesde, dentry, ST_LINKFILE);
 }
 
 static int
-affs_rename(struct inode *old_dir, struct dentry *old_dentry,
-	    struct inode *new_dir, struct dentry *new_dentry)
+affs_rename(struct iyesde *old_dir, struct dentry *old_dentry,
+	    struct iyesde *new_dir, struct dentry *new_dentry)
 {
 	struct super_block *sb = old_dir->i_sb;
 	struct buffer_head *bh = NULL;
@@ -408,7 +408,7 @@ affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	retval = affs_check_name(new_dentry->d_name.name,
 				 new_dentry->d_name.len,
-				 affs_nofilenametruncate(old_dentry));
+				 affs_yesfilenametruncate(old_dentry));
 
 	if (retval)
 		return retval;
@@ -420,7 +420,7 @@ affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			return retval;
 	}
 
-	bh = affs_bread(sb, d_inode(old_dentry)->i_ino);
+	bh = affs_bread(sb, d_iyesde(old_dentry)->i_iyes);
 	if (!bh)
 		return -EIO;
 
@@ -440,14 +440,14 @@ affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	/* TODO: move it back to old_dir, if error? */
 
 done:
-	mark_buffer_dirty_inode(bh, retval ? old_dir : new_dir);
+	mark_buffer_dirty_iyesde(bh, retval ? old_dir : new_dir);
 	affs_brelse(bh);
 	return retval;
 }
 
 static int
-affs_xrename(struct inode *old_dir, struct dentry *old_dentry,
-	     struct inode *new_dir, struct dentry *new_dentry)
+affs_xrename(struct iyesde *old_dir, struct dentry *old_dentry,
+	     struct iyesde *new_dir, struct dentry *new_dentry)
 {
 
 	struct super_block *sb = old_dir->i_sb;
@@ -455,11 +455,11 @@ affs_xrename(struct inode *old_dir, struct dentry *old_dentry,
 	struct buffer_head *bh_new = NULL;
 	int retval;
 
-	bh_old = affs_bread(sb, d_inode(old_dentry)->i_ino);
+	bh_old = affs_bread(sb, d_iyesde(old_dentry)->i_iyes);
 	if (!bh_old)
 		return -EIO;
 
-	bh_new = affs_bread(sb, d_inode(new_dentry)->i_ino);
+	bh_new = affs_bread(sb, d_iyesde(new_dentry)->i_iyes);
 	if (!bh_new)
 		return -EIO;
 
@@ -491,15 +491,15 @@ affs_xrename(struct inode *old_dir, struct dentry *old_dentry,
 	retval = affs_insert_hash(old_dir, bh_new);
 	affs_unlock_dir(old_dir);
 done:
-	mark_buffer_dirty_inode(bh_old, new_dir);
-	mark_buffer_dirty_inode(bh_new, old_dir);
+	mark_buffer_dirty_iyesde(bh_old, new_dir);
+	mark_buffer_dirty_iyesde(bh_new, old_dir);
 	affs_brelse(bh_old);
 	affs_brelse(bh_new);
 	return retval;
 }
 
-int affs_rename2(struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir, struct dentry *new_dentry,
+int affs_rename2(struct iyesde *old_dir, struct dentry *old_dentry,
+			struct iyesde *new_dir, struct dentry *new_dentry,
 			unsigned int flags)
 {
 
@@ -507,7 +507,7 @@ int affs_rename2(struct inode *old_dir, struct dentry *old_dentry,
 		return -EINVAL;
 
 	pr_debug("%s(old=%lu,\"%pd\" to new=%lu,\"%pd\")\n", __func__,
-		 old_dir->i_ino, old_dentry, new_dir->i_ino, new_dentry);
+		 old_dir->i_iyes, old_dentry, new_dir->i_iyes, new_dentry);
 
 	if (flags & RENAME_EXCHANGE)
 		return affs_xrename(old_dir, old_dentry, new_dir, new_dentry);
@@ -517,10 +517,10 @@ int affs_rename2(struct inode *old_dir, struct dentry *old_dentry,
 
 static struct dentry *affs_get_parent(struct dentry *child)
 {
-	struct inode *parent;
+	struct iyesde *parent;
 	struct buffer_head *bh;
 
-	bh = affs_bread(child->d_sb, d_inode(child)->i_ino);
+	bh = affs_bread(child->d_sb, d_iyesde(child)->i_iyes);
 	if (!bh)
 		return ERR_PTR(-EIO);
 
@@ -533,33 +533,33 @@ static struct dentry *affs_get_parent(struct dentry *child)
 	return d_obtain_alias(parent);
 }
 
-static struct inode *affs_nfs_get_inode(struct super_block *sb, u64 ino,
+static struct iyesde *affs_nfs_get_iyesde(struct super_block *sb, u64 iyes,
 					u32 generation)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	if (!affs_validblock(sb, ino))
+	if (!affs_validblock(sb, iyes))
 		return ERR_PTR(-ESTALE);
 
-	inode = affs_iget(sb, ino);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
+	iyesde = affs_iget(sb, iyes);
+	if (IS_ERR(iyesde))
+		return ERR_CAST(iyesde);
 
-	return inode;
+	return iyesde;
 }
 
 static struct dentry *affs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 					int fh_len, int fh_type)
 {
 	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
-				    affs_nfs_get_inode);
+				    affs_nfs_get_iyesde);
 }
 
 static struct dentry *affs_fh_to_parent(struct super_block *sb, struct fid *fid,
 					int fh_len, int fh_type)
 {
 	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
-				    affs_nfs_get_inode);
+				    affs_nfs_get_iyesde);
 }
 
 const struct export_operations affs_export_ops = {

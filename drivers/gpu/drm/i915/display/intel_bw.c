@@ -187,7 +187,7 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 
 	ret = icl_get_qgv_points(dev_priv, &qi);
 	if (ret) {
-		DRM_DEBUG_KMS("Failed to get memory subsystem information, ignoring bandwidth limits");
+		DRM_DEBUG_KMS("Failed to get memory subsystem information, igyesring bandwidth limits");
 		return ret;
 	}
 	num_channels = qi.num_channels;
@@ -249,7 +249,7 @@ static unsigned int icl_max_bw(struct drm_i915_private *dev_priv,
 			&dev_priv->max_bw[i];
 
 		/*
-		 * Pcode will not expose all QGV points when
+		 * Pcode will yest expose all QGV points when
 		 * SAGV is forced to off/min/med/max.
 		 */
 		if (qgv_point >= bi->num_qgv_points)
@@ -289,8 +289,8 @@ static unsigned int intel_max_data_rate(struct drm_i915_private *dev_priv,
 static unsigned int intel_bw_crtc_num_active_planes(const struct intel_crtc_state *crtc_state)
 {
 	/*
-	 * We assume cursors are small enough
-	 * to not not cause bandwidth problems.
+	 * We assume cursors are small eyesugh
+	 * to yest yest cause bandwidth problems.
 	 */
 	return hweight8(crtc_state->active_planes & ~BIT(PLANE_CURSOR));
 }
@@ -303,8 +303,8 @@ static unsigned int intel_bw_crtc_data_rate(const struct intel_crtc_state *crtc_
 
 	for_each_plane_id_on_crtc(crtc, plane_id) {
 		/*
-		 * We assume cursors are small enough
-		 * to not not cause bandwidth problems.
+		 * We assume cursors are small eyesugh
+		 * to yest yest cause bandwidth problems.
 		 */
 		if (plane_id == PLANE_CURSOR)
 			continue;
@@ -396,7 +396,7 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 
 		/*
 		 * Avoid locking the bw state when
-		 * nothing significant has changed.
+		 * yesthing significant has changed.
 		 */
 		if (old_data_rate == new_data_rate &&
 		    old_active_planes == new_active_planes)

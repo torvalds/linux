@@ -1,30 +1,30 @@
 .. _stable_kernel_rules:
 
-Everything you ever wanted to know about Linux -stable releases
+Everything you ever wanted to kyesw about Linux -stable releases
 ===============================================================
 
-Rules on what kind of patches are accepted, and which ones are not, into the
+Rules on what kind of patches are accepted, and which ones are yest, into the
 "-stable" tree:
 
  - It must be obviously correct and tested.
- - It cannot be bigger than 100 lines, with context.
+ - It canyest be bigger than 100 lines, with context.
  - It must fix only one thing.
- - It must fix a real bug that bothers people (not a, "This could be a
+ - It must fix a real bug that bothers people (yest a, "This could be a
    problem..." type thing).
- - It must fix a problem that causes a build error (but not for things
+ - It must fix a problem that causes a build error (but yest for things
    marked CONFIG_BROKEN), an oops, a hang, data corruption, a real
-   security issue, or some "oh, that's not good" issue.  In short, something
+   security issue, or some "oh, that's yest good" issue.  In short, something
    critical.
  - Serious issues as reported by a user of a distribution kernel may also
-   be considered if they fix a notable performance or interactivity issue.
-   As these fixes are not as obvious and have a higher risk of a subtle
+   be considered if they fix a yestable performance or interactivity issue.
+   As these fixes are yest as obvious and have a higher risk of a subtle
    regression they should only be submitted by a distribution kernel
    maintainer and include an addendum linking to a bugzilla entry if it
    exists and additional information on the user-visible impact.
  - New device IDs and quirks are also accepted.
  - No "theoretical race condition" issues, unless an explanation of how the
    race can be exploited is also provided.
- - It cannot contain any "trivial" fixes in it (spelling changes,
+ - It canyest contain any "trivial" fixes in it (spelling changes,
    whitespace cleanups, etc).
  - It must follow the
    :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
@@ -40,8 +40,8 @@ Procedure for submitting patches to the -stable tree
    :ref:`Documentation/networking/netdev-FAQ.rst <netdev-FAQ>`
    after first checking the stable networking queue at
    https://patchwork.ozlabs.org/bundle/davem/stable/?series=&submitter=&state=*&q=&archive=
-   to ensure the requested patch is not already queued up.
- - Security patches should not be handled (solely) by the -stable review
+   to ensure the requested patch is yest already queued up.
+ - Security patches should yest be handled (solely) by the -stable review
    process but should follow the procedures in
    :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`.
 
@@ -55,7 +55,7 @@ Option 1
 
 To have the patch automatically included in the stable tree, add the tag
 
-.. code-block:: none
+.. code-block:: yesne
 
      Cc: stable@vger.kernel.org
 
@@ -79,7 +79,7 @@ Option 3
 ********
 
 Send the patch, after verifying that it follows the above rules, to
-stable@vger.kernel.org.  You must note the upstream commit ID in the
+stable@vger.kernel.org.  You must yeste the upstream commit ID in the
 changelog of your submission, as well as the kernel version you wish
 it to be applied to.
 
@@ -97,7 +97,7 @@ clearly documented and justified in the patch description.
 The upstream commit ID must be specified with a separate line above the commit
 text, like this:
 
-.. code-block:: none
+.. code-block:: yesne
 
     commit <sha1> upstream.
 
@@ -105,7 +105,7 @@ Additionally, some patches submitted via :ref:`option_1` may have additional
 patch prerequisites which can be cherry-picked. This can be specified in the
 following format in the sign-off area:
 
-.. code-block:: none
+.. code-block:: yesne
 
      Cc: <stable@vger.kernel.org> # 3.3.x: a1f84a3: sched: Check for idle
      Cc: <stable@vger.kernel.org> # 3.3.x: 1b9508f: sched: Rate-limit newidle
@@ -115,7 +115,7 @@ following format in the sign-off area:
 
 The tag sequence has the meaning of:
 
-.. code-block:: none
+.. code-block:: yesne
 
      git cherry-pick a1f84a3
      git cherry-pick 1b9508f
@@ -125,13 +125,13 @@ The tag sequence has the meaning of:
 Also, some patches may have kernel version prerequisites.  This can be
 specified in the following format in the sign-off area:
 
-.. code-block:: none
+.. code-block:: yesne
 
      Cc: <stable@vger.kernel.org> # 3.3.x
 
 The tag has the meaning of:
 
-.. code-block:: none
+.. code-block:: yesne
 
      git cherry-pick <this commit>
 
@@ -156,11 +156,11 @@ Review cycle
  - The review committee has 48 hours in which to ACK or NAK the patch.
  - If the patch is rejected by a member of the committee, or linux-kernel
    members object to the patch, bringing up issues that the maintainers and
-   members did not realize, the patch will be dropped from the queue.
+   members did yest realize, the patch will be dropped from the queue.
  - At the end of the review cycle, the ACKed patches will be added to the
    latest -stable release, and a new -stable release will happen.
  - Security patches will be accepted into the -stable tree directly from the
-   security kernel team, and not go through the normal review cycle.
+   security kernel team, and yest go through the yesrmal review cycle.
    Contact the kernel security team for more details on this procedure.
 
 Trees

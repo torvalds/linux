@@ -23,7 +23,7 @@ static inline void __print_last_io(void)
 		return;
 
 	trace_printk("%3x:%3x %4x %-16s %2x %5x %5x %12x %4x\n",
-			last_io.major, last_io.minor,
+			last_io.major, last_io.miyesr,
 			last_io.pid, "----------------",
 			last_io.type,
 			last_io.fio.op, last_io.fio.op_flags,
@@ -32,17 +32,17 @@ static inline void __print_last_io(void)
 	memset(&last_io, 0, sizeof(last_io));
 }
 
-static int __file_type(struct inode *inode, pid_t pid)
+static int __file_type(struct iyesde *iyesde, pid_t pid)
 {
-	if (f2fs_is_atomic_file(inode))
+	if (f2fs_is_atomic_file(iyesde))
 		return __ATOMIC_FILE;
-	else if (f2fs_is_volatile_file(inode))
+	else if (f2fs_is_volatile_file(iyesde))
 		return __VOLATILE_FILE;
-	else if (S_ISDIR(inode->i_mode))
+	else if (S_ISDIR(iyesde->i_mode))
 		return __DIR_FILE;
-	else if (inode->i_ino == F2FS_NODE_INO(F2FS_I_SB(inode)))
+	else if (iyesde->i_iyes == F2FS_NODE_INO(F2FS_I_SB(iyesde)))
 		return __NODE_FILE;
-	else if (inode->i_ino == F2FS_META_INO(F2FS_I_SB(inode)))
+	else if (iyesde->i_iyes == F2FS_META_INO(F2FS_I_SB(iyesde)))
 		return __META_FILE;
 	else if (pid)
 		return __NORMAL_FILE;
@@ -52,7 +52,7 @@ static int __file_type(struct inode *inode, pid_t pid)
 
 void f2fs_trace_pid(struct page *page)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	pid_t pid = task_pid_nr(current);
 	void *p;
 
@@ -77,7 +77,7 @@ retry:
 	}
 
 	trace_printk("%3x:%3x %4x %-16s\n",
-			MAJOR(inode->i_sb->s_dev), MINOR(inode->i_sb->s_dev),
+			MAJOR(iyesde->i_sb->s_dev), MINOR(iyesde->i_sb->s_dev),
 			pid, current->comm);
 out:
 	spin_unlock(&pids_lock);
@@ -86,24 +86,24 @@ out:
 
 void f2fs_trace_ios(struct f2fs_io_info *fio, int flush)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	pid_t pid;
-	int major, minor;
+	int major, miyesr;
 
 	if (flush) {
 		__print_last_io();
 		return;
 	}
 
-	inode = fio->page->mapping->host;
+	iyesde = fio->page->mapping->host;
 	pid = page_private(fio->page);
 
-	major = MAJOR(inode->i_sb->s_dev);
-	minor = MINOR(inode->i_sb->s_dev);
+	major = MAJOR(iyesde->i_sb->s_dev);
+	miyesr = MINOR(iyesde->i_sb->s_dev);
 
-	if (last_io.major == major && last_io.minor == minor &&
+	if (last_io.major == major && last_io.miyesr == miyesr &&
 			last_io.pid == pid &&
-			last_io.type == __file_type(inode, pid) &&
+			last_io.type == __file_type(iyesde, pid) &&
 			last_io.fio.op == fio->op &&
 			last_io.fio.op_flags == fio->op_flags &&
 			last_io.fio.new_blkaddr + last_io.len ==
@@ -115,9 +115,9 @@ void f2fs_trace_ios(struct f2fs_io_info *fio, int flush)
 	__print_last_io();
 
 	last_io.major = major;
-	last_io.minor = minor;
+	last_io.miyesr = miyesr;
 	last_io.pid = pid;
-	last_io.type = __file_type(inode, pid);
+	last_io.type = __file_type(iyesde, pid);
 	last_io.fio = *fio;
 	last_io.len = 1;
 	return;

@@ -2,7 +2,7 @@
 /*
  * rseq.h
  *
- * (C) Copyright 2016-2018 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2016-2018 - Mathieu Desyesyers <mathieu.desyesyers@efficios.com>
  */
 
 #ifndef RSEQ_H
@@ -13,7 +13,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sched.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/rseq.h>
@@ -21,7 +21,7 @@
 /*
  * Empty code injection macros, override when testing.
  * It is important to consider that the ASM injection macros need to be
- * fully reentrant (e.g. do not modify the stack).
+ * fully reentrant (e.g. do yest modify the stack).
  */
 #ifndef RSEQ_INJECT_ASM
 #define RSEQ_INJECT_ASM(n)
@@ -87,7 +87,7 @@ extern int __rseq_handled;
  * Register rseq for the current thread. This needs to be called once
  * by any thread which uses restartable sequences, before they start
  * using restartable sequences, to ensure restartable sequences
- * succeed. A restartable sequence executed from a non-registered
+ * succeed. A restartable sequence executed from a yesn-registered
  * thread will always fail.
  */
 int rseq_register_current_thread(void);
@@ -120,7 +120,7 @@ static inline int32_t rseq_current_cpu_raw(void)
  * The CPU number returned by rseq_cpu_start should always be validated
  * by passing it to a rseq asm sequence, or by comparing it to the
  * return value of rseq_current_cpu_raw() if the rseq asm sequence
- * does not need to be invoked.
+ * does yest need to be invoked.
  */
 static inline uint32_t rseq_cpu_start(void)
 {

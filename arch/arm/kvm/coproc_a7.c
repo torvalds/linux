@@ -16,8 +16,8 @@
 
 /*
  * Cortex-A7 specific CP15 registers.
- * CRn denotes the primary register number, but is copied to the CRm in the
- * user space API for 64-bit register access in line with the terminology used
+ * CRn deyestes the primary register number, but is copied to the CRm in the
+ * user space API for 64-bit register access in line with the termiyeslogy used
  * in the ARM ARM.
  * Important: Must be sorted ascending by CRn, CRM, Op1, Op2 and with 64-bit
  *            registers preceding 32-bit ones.

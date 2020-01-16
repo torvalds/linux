@@ -327,7 +327,7 @@
 	vqmmc-supply = <&ldo4_reg>;
 	bus-width = <4>;
 	/*
-	 * SDCD signal is not being used here - using the fact that GPIO mode
+	 * SDCD signal is yest being used here - using the fact that GPIO mode
 	 * is always hardwired.
 	 */
 	cd-gpios = <&gpio6 27 GPIO_ACTIVE_LOW>;
@@ -341,7 +341,7 @@
 	vmmc-supply = <&vio_1v8>;
 	vqmmc-supply = <&vio_1v8>;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	pinctrl-names = "default", "hs", "ddr_1_8v", "hs200_1_8v";
 	pinctrl-0 = <&mmc2_pins_default>;
 	pinctrl-1 = <&mmc2_pins_default>;

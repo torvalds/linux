@@ -178,13 +178,13 @@ int uvcg_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
 }
 
 /*
- * Dequeue a video buffer. If nonblocking is false, block until a buffer is
+ * Dequeue a video buffer. If yesnblocking is false, block until a buffer is
  * available.
  */
 int uvcg_dequeue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf,
-			int nonblocking)
+			int yesnblocking)
 {
-	return vb2_dqbuf(&queue->queue, buf, nonblocking);
+	return vb2_dqbuf(&queue->queue, buf, yesnblocking);
 }
 
 /*
@@ -244,7 +244,7 @@ void uvcg_queue_cancel(struct uvc_video_queue *queue, int disconnect)
 	}
 	/* This must be protected by the irqlock spinlock to avoid race
 	 * conditions between uvc_queue_buffer and the disconnection event that
-	 * could result in an interruptible wait in uvc_dequeue_buffer. Do not
+	 * could result in an interruptible wait in uvc_dequeue_buffer. Do yest
 	 * blindly replace this logic by checking for the UVC_DEV_DISCONNECTED
 	 * state outside the queue code.
 	 */

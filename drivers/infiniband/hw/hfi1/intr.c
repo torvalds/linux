@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -74,7 +74,7 @@ static void set_mgmt_allowed(struct hfi1_pportdata *ppd)
  * manager, so place the full management partition key in the second
  * (0-based) pkey array position. Note that we should already have
  * the limited management partition key in array element 1, and also
- * that the port is not yet up when add_full_mgmt_pkey() is invoked.
+ * that the port is yest yet up when add_full_mgmt_pkey() is invoked.
  */
 static void add_full_mgmt_pkey(struct hfi1_pportdata *ppd)
 {
@@ -143,7 +143,7 @@ static void signal_ib_event(struct hfi1_pportdata *ppd, enum ib_event_type ev)
  * @dd: valid device
  * @linkup: link state information
  *
- * Handle a linkup or link down notification.
+ * Handle a linkup or link down yestification.
  * The HW needs time to finish its link up state change. Give it that chance.
  *
  * This is called outside an interrupt.
@@ -155,18 +155,18 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 	enum ib_event_type ev;
 
 	if (!(ppd->linkup ^ !!linkup))
-		return;	/* no change, nothing to do */
+		return;	/* yes change, yesthing to do */
 
 	if (linkup) {
 		/*
-		 * Quick linkup and all link up on the simulator does not
+		 * Quick linkup and all link up on the simulator does yest
 		 * trigger or implement:
 		 *	- VerifyCap interrupt
 		 *	- VerifyCap frames
 		 * But rather moves directly to LinkUp.
 		 *
 		 * Do the work of the VerifyCap interrupt handler,
-		 * handle_verify_cap(), but do not try moving the state to
+		 * handle_verify_cap(), but do yest try moving the state to
 		 * LinkUp as we are already there.
 		 *
 		 * NOTE: This uses this device's vAU, vCU, and vl15_init for
@@ -211,7 +211,7 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		ppd->offline_disabled_reason =
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE);
 
-		/* link widths are not available until the link is fully up */
+		/* link widths are yest available until the link is fully up */
 		get_linkup_link_widths(ppd);
 
 	} else {
@@ -230,9 +230,9 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		hfi1_set_uevent_bits(ppd, _HFI1_EVENT_LINKDOWN_BIT);
 
 		/* if we are down, the neighbor is down */
-		ppd->neighbor_normal = 0;
+		ppd->neighbor_yesrmal = 0;
 
-		/* notify IB of the link change */
+		/* yestify IB of the link change */
 		signal_ib_event(ppd, ev);
 	}
 }

@@ -64,7 +64,7 @@
 #define LMC_RAW         3               /* use direct net interface */
 
 /*
- * These are not in the least IOCTL related, but I want them common.
+ * These are yest in the least IOCTL related, but I want them common.
  */
 /*
  * assignments for the GPIO register on the DEC chip (common)
@@ -171,7 +171,7 @@
 
 /*
  * Some of the MII16 bits are mirrored in the MII17 register as well,
- * but let's keep thing separate for now, and get only the cable from
+ * but let's keep thing separate for yesw, and get only the cable from
  * the MII17.
  */
 #define LMC_MII17_SSI_CABLE_MASK	0x0038	/* mask to extract the cable type */

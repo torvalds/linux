@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/oprofile.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
  
 extern int perfmon_init(struct oprofile_operations *ops);
 extern void perfmon_exit(void);
@@ -21,7 +21,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	int ret = -ENODEV;
 
 #ifdef CONFIG_PERFMON
-	/* perfmon_init() can fail, but we have no way to report it */
+	/* perfmon_init() can fail, but we have yes way to report it */
 	ret = perfmon_init(ops);
 #endif
 	ops->backtrace = ia64_backtrace;

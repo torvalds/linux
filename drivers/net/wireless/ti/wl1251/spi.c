@@ -48,7 +48,7 @@ static void wl1251_spi_reset(struct wl1251 *wl)
 
 	cmd = kzalloc(WSPI_INIT_CMD_LEN, GFP_KERNEL);
 	if (!cmd) {
-		wl1251_error("could not allocate cmd for spi reset");
+		wl1251_error("could yest allocate cmd for spi reset");
 		return;
 	}
 
@@ -75,7 +75,7 @@ static void wl1251_spi_wake(struct wl1251 *wl)
 	u8 *cmd = kzalloc(WSPI_INIT_CMD_LEN, GFP_KERNEL);
 
 	if (!cmd) {
-		wl1251_error("could not allocate cmd for spi init");
+		wl1251_error("could yest allocate cmd for spi init");
 		return;
 	}
 
@@ -149,7 +149,7 @@ static void wl1251_spi_read(struct wl1251 *wl, int addr, void *buf,
 	t[0].len = 4;
 	spi_message_add_tail(&t[0], &m);
 
-	/* Busy and non busy words read */
+	/* Busy and yesn busy words read */
 	t[1].rx_buf = busy_buf;
 	t[1].len = WL1251_BUSY_WORD_LEN;
 	spi_message_add_tail(&t[1], &m);
@@ -227,13 +227,13 @@ static const struct wl1251_if_operations wl1251_spi_ops = {
 static int wl1251_spi_probe(struct spi_device *spi)
 {
 	struct wl1251_platform_data *pdata = dev_get_platdata(&spi->dev);
-	struct device_node *np = spi->dev.of_node;
+	struct device_yesde *np = spi->dev.of_yesde;
 	struct ieee80211_hw *hw;
 	struct wl1251 *wl;
 	int ret;
 
 	if (!np && !pdata) {
-		wl1251_error("no platform data");
+		wl1251_error("yes platform data");
 		return -ENODEV;
 	}
 

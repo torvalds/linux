@@ -28,7 +28,7 @@
 /* RFC 2960 12.2 Parameters necessary per association (i.e. the TCB)
  * Mapping  An array of bits or bytes indicating which out of
  * Array    order TSN's have been received (relative to the
- *          Last Rcvd TSN). If no gaps exist, i.e. no out of
+ *          Last Rcvd TSN). If yes gaps exist, i.e. yes out of
  *          order packets have been received, this array
  *          will be set to all zero. This structure may be
  *          in the form of a circular buffer or bit array.
@@ -51,7 +51,7 @@ struct sctp_tsnmap {
 	 *
 	 * Throughout most of the specification this is called the
 	 * "Cumulative TSN ACK Point".  In this case, we
-	 * ignore the advice in 12.2 in favour of the term
+	 * igyesre the advice in 12.2 in favour of the term
 	 * used in the bulk of the text.
 	 */
 	__u32 cumulative_tsn_ack_point;
@@ -88,7 +88,7 @@ void sctp_tsnmap_free(struct sctp_tsnmap *map);
 
 /* Test the tracking state of this TSN.
  * Returns:
- *   0 if the TSN has not yet been seen
+ *   0 if the TSN has yest yet been seen
  *  >0 if the TSN has been seen (duplicate)
  *  <0 if the TSN is invalid (too large to track)
  */

@@ -14,7 +14,7 @@ Date:		June 2008
 Contact:	Badari Pulavarty <pbadari@us.ibm.com>
 Description:
 		The file /sys/devices/system/memory/memoryX/removable
-		indicates whether this memory block is removable or not.
+		indicates whether this memory block is removable or yest.
 		This is useful for a user-level agent to determine
 		identify removable sections of the memory before attempting
 		potentially expensive hot-remove memory operation
@@ -69,25 +69,25 @@ Description:
 		read-only and is designed to show which zone this memory
 		block can be onlined to.
 
-What:		/sys/devices/system/memoryX/nodeY
+What:		/sys/devices/system/memoryX/yesdeY
 Date:		October 2009
 Contact:	Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		When CONFIG_NUMA is enabled, a symbolic link that
-		points to the corresponding NUMA node directory.
+		points to the corresponding NUMA yesde directory.
 
 		For example, the following symbolic link is created for
-		memory section 9 on node0:
-		/sys/devices/system/memory/memory9/node0 -> ../../node/node0
+		memory section 9 on yesde0:
+		/sys/devices/system/memory/memory9/yesde0 -> ../../yesde/yesde0
 
 
-What:		/sys/devices/system/node/nodeX/memoryY
+What:		/sys/devices/system/yesde/yesdeX/memoryY
 Date:		September 2008
 Contact:	Gary Hade <garyhade@us.ibm.com>
 Description:
 		When CONFIG_NUMA is enabled
-		/sys/devices/system/node/nodeX/memoryY is a symbolic link that
+		/sys/devices/system/yesde/yesdeX/memoryY is a symbolic link that
 		points to the corresponding /sys/devices/system/memory/memoryY
 		memory section directory.  For example, the following symbolic
-		link is created for memory section 9 on node0.
-		/sys/devices/system/node/node0/memory9 -> ../../memory/memory9
+		link is created for memory section 9 on yesde0.
+		/sys/devices/system/yesde/yesde0/memory9 -> ../../memory/memory9

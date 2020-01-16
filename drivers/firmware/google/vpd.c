@@ -71,7 +71,7 @@ static ssize_t vpd_attrib_read(struct file *filp, struct kobject *kobp,
  * The VPD specification supports only [a-zA-Z0-9_]+ characters in key names but
  * old firmware versions may have entries like "S/N" which are problematic when
  * exporting them as sysfs attributes. These keys present in old firmwares are
- * ignored.
+ * igyesred.
  *
  * Returns VPD_OK for a valid key name, VPD_FAIL otherwise.
  *

@@ -270,8 +270,8 @@ static int test_mmap_thread(void)
 	waitpid(pid, NULL, 0);
 
 	/*
-	 * There's no need to call perf_evlist__disable,
-	 * monitored process is dead now.
+	 * There's yes need to call perf_evlist__disable,
+	 * monitored process is dead yesw.
 	 */
 
 	perf_evlist__for_each_mmap(evlist, map, false) {

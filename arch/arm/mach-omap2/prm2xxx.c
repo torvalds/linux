@@ -4,13 +4,13 @@
  *
  * Copyright (C) 2010-2012 Texas Instruments, Inc.
  * Copyright (C) 2010 Nokia Corporation
- * Benoît Cousson
+ * Beyesît Cousson
  * Paul Walmsley
  * Rajendra Nayak <rnayak@ti.com>
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irq.h>

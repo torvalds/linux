@@ -40,7 +40,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct vm_unmapped_area_info info;
 
 	if (flags & MAP_FIXED) {
-		/* We do not accept a shared mapping if it would violate
+		/* We do yest accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
@@ -89,7 +89,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	struct vm_unmapped_area_info info;
 
 	if (flags & MAP_FIXED) {
-		/* We do not accept a shared mapping if it would violate
+		/* We do yest accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&

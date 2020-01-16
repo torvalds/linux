@@ -10,7 +10,7 @@ by _CRS.  Previously, we were only able to use an integer index to find
 the corresponding GPIO, which is pretty error prone (it depends on
 the _CRS output ordering, for example).
 
-With _DSD we can now query GPIOs using a name instead of an integer
+With _DSD we can yesw query GPIOs using a name instead of an integer
 index, like the ASL example below shows::
 
   // Bluetooth device with reset and shutdown GPIOs
@@ -51,7 +51,7 @@ pin
 active_low
   If 1 the GPIO is marked as active_low.
 
-Since ACPI GpioIo() resource does not have a field saying whether it is
+Since ACPI GpioIo() resource does yest have a field saying whether it is
 active low or high, the "active_low" argument can be used here.  Setting
 it to 1 marks the GPIO as active low.
 
@@ -123,7 +123,7 @@ about these properties.
 ACPI GPIO Mappings Provided by Drivers
 ======================================
 
-There are systems in which the ACPI tables do not contain _DSD but provide _CRS
+There are systems in which the ACPI tables do yest contain _DSD but provide _CRS
 with GpioIo()/GpioInt() resources and device drivers still need to work with
 them.
 
@@ -131,7 +131,7 @@ In those cases ACPI device identification objects, _HID, _CID, _CLS, _SUB, _HRV,
 available to the driver can be used to identify the device and that is supposed
 to be sufficient to determine the meaning and purpose of all of the GPIO lines
 listed by the GpioIo()/GpioInt() resources returned by _CRS.  In other words,
-the driver is supposed to know what to use the GpioIo()/GpioInt() resources for
+the driver is supposed to kyesw what to use the GpioIo()/GpioInt() resources for
 once it has identified the device.  Having done that, it can simply assign names
 to the GPIO lines it is going to use and provide the GPIO subsystem with a
 mapping between those names and the ACPI GPIO resources corresponding to them.
@@ -167,9 +167,9 @@ table was previously registered.
 Using the _CRS fallback
 =======================
 
-If a device does not have _DSD or the driver does not create ACPI GPIO
+If a device does yest have _DSD or the driver does yest create ACPI GPIO
 mapping, the Linux GPIO framework refuses to return any GPIOs. This is
-because the driver does not know what it actually gets. For example if we
+because the driver does yest kyesw what it actually gets. For example if we
 have a device like below::
 
   Device (BTH)
@@ -188,14 +188,14 @@ The driver might expect to get the right GPIO when it does::
 
   desc = gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 
-but since there is no way to know the mapping between "reset" and
+but since there is yes way to kyesw the mapping between "reset" and
 the GpioIo() in _CRS desc will hold ERR_PTR(-ENOENT).
 
 The driver author can solve this by passing the mapping explictly
 (the recommended way and documented in the above chapter).
 
-The ACPI GPIO mapping tables should not contaminate drivers that are not
-knowing about which exact device they are servicing on. It implies that
+The ACPI GPIO mapping tables should yest contaminate drivers that are yest
+kyeswing about which exact device they are servicing on. It implies that
 the ACPI GPIO mapping tables are hardly linked to ACPI ID and certain
 objects, as listed in the above chapter, of the device in question.
 
@@ -212,8 +212,8 @@ provided and otherwise.
 
 Case 1::
 
-  desc = gpiod_get(dev, "non-null-connection-id", flags);
-  desc = gpiod_get_index(dev, "non-null-connection-id", index, flags);
+  desc = gpiod_get(dev, "yesn-null-connection-id", flags);
+  desc = gpiod_get_index(dev, "yesn-null-connection-id", index, flags);
 
 Case 2::
 
@@ -227,7 +227,7 @@ otherwise.
 Case 2 explicitly tells GPIO core to look for resources in _CRS.
 
 Be aware that gpiod_get_index() in cases 1 and 2, assuming that there
-are two versions of ACPI device description provided and no mapping is
+are two versions of ACPI device description provided and yes mapping is
 present in the driver, will return different resources. That's why a
 certain driver has to handle them carefully as explained in previous
 chapter.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Bruno Randolf <bruno@thinktube.com>
+ * Copyright (c) 2007 Bruyes Randolf <bruyes@thinktube.com>
  *
  *  This file is free software: you may copy, redistribute and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -12,13 +12,13 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *
- * Copyright (c) 2002-2005 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2005 Sam Leffler, Erryes Consulting
  * Copyright (c) 2004-2005 Atheros Communications, Inc.
  * Copyright (c) 2006 Devicescape Software, Inc.
  * Copyright (c) 2007 Jiri Slaby <jirislaby@gmail.com>
@@ -30,13 +30,13 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer,
+ *    yestice, this list of conditions and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
  *    redistribution must be conditioned upon including a substantially
  *    similar Disclaimer requirement for further binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -137,7 +137,7 @@ ath5k_debug_dump_bands(struct ath5k_hw *ah);
 void
 ath5k_debug_printtxbuf(struct ath5k_hw *ah, struct ath5k_buf *bf);
 
-#else /* no debugging */
+#else /* yes debugging */
 
 #include <linux/compiler.h>
 

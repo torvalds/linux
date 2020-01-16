@@ -123,7 +123,7 @@ struct sdhci_s3c {
 	struct clk		*clk_bus[MAX_BUS_CLK];
 	unsigned long		clk_rates[MAX_BUS_CLK];
 
-	bool			no_divider;
+	bool			yes_divider;
 };
 
 /**
@@ -136,7 +136,7 @@ struct sdhci_s3c {
  */
 struct sdhci_s3c_drv_data {
 	unsigned int	sdhci_quirks;
-	bool		no_divider;
+	bool		yes_divider;
 };
 
 static inline struct sdhci_s3c *to_s3c(struct sdhci_host *host)
@@ -183,10 +183,10 @@ static unsigned int sdhci_s3c_consider_clock(struct sdhci_s3c *ourhost,
 		return UINT_MAX;
 
 	/*
-	 * If controller uses a non-standard clock division, find the best clock
+	 * If controller uses a yesn-standard clock division, find the best clock
 	 * speed possible with selected clock source and skip the division.
 	 */
-	if (ourhost->no_divider) {
+	if (ourhost->yes_divider) {
 		rate = clk_round_rate(clksrc, wanted);
 		return wanted - rate;
 	}
@@ -424,26 +424,26 @@ static struct sdhci_ops sdhci_s3c_ops = {
 static int sdhci_s3c_parse_dt(struct device *dev,
 		struct sdhci_host *host, struct s3c_sdhci_platdata *pdata)
 {
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	u32 max_width;
 
-	/* if the bus-width property is not specified, assume width as 1 */
-	if (of_property_read_u32(node, "bus-width", &max_width))
+	/* if the bus-width property is yest specified, assume width as 1 */
+	if (of_property_read_u32(yesde, "bus-width", &max_width))
 		max_width = 1;
 	pdata->max_width = max_width;
 
 	/* get the card detection method */
-	if (of_get_property(node, "broken-cd", NULL)) {
+	if (of_get_property(yesde, "broken-cd", NULL)) {
 		pdata->cd_type = S3C_SDHCI_CD_NONE;
 		return 0;
 	}
 
-	if (of_get_property(node, "non-removable", NULL)) {
+	if (of_get_property(yesde, "yesn-removable", NULL)) {
 		pdata->cd_type = S3C_SDHCI_CD_PERMANENT;
 		return 0;
 	}
 
-	if (of_get_named_gpio(node, "cd-gpios", 0))
+	if (of_get_named_gpio(yesde, "cd-gpios", 0))
 		return 0;
 
 	/* assuming internal card detect that will be configured by pinctrl */
@@ -464,9 +464,9 @@ static inline struct sdhci_s3c_drv_data *sdhci_s3c_get_driver_data(
 			struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		const struct of_device_id *match;
-		match = of_match_node(sdhci_s3c_dt_match, pdev->dev.of_node);
+		match = of_match_yesde(sdhci_s3c_dt_match, pdev->dev.of_yesde);
 		return (struct sdhci_s3c_drv_data *)match->data;
 	}
 #endif
@@ -484,8 +484,8 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq, ptr, clks;
 
-	if (!pdev->dev.platform_data && !pdev->dev.of_node) {
-		dev_err(dev, "no device data specified\n");
+	if (!pdev->dev.platform_data && !pdev->dev.of_yesde) {
+		dev_err(dev, "yes device data specified\n");
 		return -ENOENT;
 	}
 
@@ -506,7 +506,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 		goto err_pdata_io_clk;
 	}
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		ret = sdhci_s3c_parse_dt(&pdev->dev, host, pdata);
 		if (ret)
 			goto err_pdata_io_clk;
@@ -552,7 +552,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	if (clks == 0) {
 		dev_err(dev, "failed to find any bus clocks\n");
 		ret = -ENOENT;
-		goto err_no_busclks;
+		goto err_yes_busclks;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -577,7 +577,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	host->quirks |= SDHCI_QUIRK_NO_HISPD_BIT;
 	if (drv_data) {
 		host->quirks |= drv_data->sdhci_quirks;
-		sc->no_divider = drv_data->no_divider;
+		sc->yes_divider = drv_data->yes_divider;
 	}
 
 #ifndef CONFIG_MMC_SDHCI_S3C_DMA
@@ -588,8 +588,8 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 
 #endif /* CONFIG_MMC_SDHCI_S3C_DMA */
 
-	/* It seems we do not get an DATA transfer complete on non-busy
-	 * transfers, not sure if this is a problem with this specific
+	/* It seems we do yest get an DATA transfer complete on yesn-busy
+	 * transfers, yest sure if this is a problem with this specific
 	 * SDHCI block, or a missing configuration that needs to be set. */
 	host->quirks |= SDHCI_QUIRK_NO_BUSY_IRQ;
 
@@ -625,10 +625,10 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	host->quirks |= SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK;
 
 	/*
-	 * If controller does not have internal clock divider,
+	 * If controller does yest have internal clock divider,
 	 * we can use overriding functions instead of default.
 	 */
-	if (sc->no_divider) {
+	if (sc->yes_divider) {
 		sdhci_s3c_ops.set_clock = sdhci_cmu_set_clock;
 		sdhci_s3c_ops.get_min_clock = sdhci_cmu_get_min_clock;
 		sdhci_s3c_ops.get_max_clock = sdhci_cmu_get_max_clock;
@@ -644,7 +644,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_suspend_ignore_children(&pdev->dev, 1);
+	pm_suspend_igyesre_children(&pdev->dev, 1);
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
@@ -663,7 +663,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
  err_req_regs:
 	pm_runtime_disable(&pdev->dev);
 
- err_no_busclks:
+ err_yes_busclks:
 	clk_disable_unprepare(sc->clk_io);
 
  err_pdata_io_clk:
@@ -765,14 +765,14 @@ static const struct platform_device_id sdhci_s3c_driver_ids[] = {
 MODULE_DEVICE_TABLE(platform, sdhci_s3c_driver_ids);
 
 #ifdef CONFIG_OF
-static struct sdhci_s3c_drv_data exynos4_sdhci_drv_data = {
-	.no_divider = true,
+static struct sdhci_s3c_drv_data exyyess4_sdhci_drv_data = {
+	.yes_divider = true,
 };
 
 static const struct of_device_id sdhci_s3c_dt_match[] = {
 	{ .compatible = "samsung,s3c6410-sdhci", },
-	{ .compatible = "samsung,exynos4210-sdhci",
-		.data = &exynos4_sdhci_drv_data },
+	{ .compatible = "samsung,exyyess4210-sdhci",
+		.data = &exyyess4_sdhci_drv_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sdhci_s3c_dt_match);

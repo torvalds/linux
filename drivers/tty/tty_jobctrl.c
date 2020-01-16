@@ -4,7 +4,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
@@ -12,7 +12,7 @@
 #include <linux/fcntl.h>
 #include <linux/uaccess.h>
 
-static int is_ignored(int sig)
+static int is_igyesred(int sig)
 {
 	return (sigismember(&current->blocked, sig) ||
 		current->sighand->action[sig-1].sa.sa_handler == SIG_IGN);
@@ -23,8 +23,8 @@ static int is_ignored(int sig)
  *	@tty: tty to check
  *
  *	If we try to write to, or set the state of, a terminal and we're
- *	not in the foreground, send a SIGTTOU.  If the signal is blocked or
- *	ignored, go ahead and perform the operation.  (POSIX 7.2)
+ *	yest in the foreground, send a SIGTTOU.  If the signal is blocked or
+ *	igyesred, go ahead and perform the operation.  (POSIX 7.2)
  *
  *	Locking: ctrl_lock
  */
@@ -45,7 +45,7 @@ int __tty_check_change(struct tty_struct *tty, int sig)
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 
 	if (tty_pgrp && pgrp != tty_pgrp) {
-		if (is_ignored(sig)) {
+		if (is_igyesred(sig)) {
 			if (sig == SIGTTIN)
 				ret = -EIO;
 		} else if (is_current_pgrp_orphaned())
@@ -84,7 +84,7 @@ void proc_clear_tty(struct task_struct *p)
 /**
  * proc_set_tty -  set the controlling terminal
  *
- * Only callable by the session leader and only if it does not already have
+ * Only callable by the session leader and only if it does yest already have
  * a controlling terminal.
  *
  * Caller must hold:  tty_lock()
@@ -97,7 +97,7 @@ static void __proc_set_tty(struct tty_struct *tty)
 
 	spin_lock_irqsave(&tty->ctrl_lock, flags);
 	/*
-	 * The session and fg pgrp references will be non-NULL if
+	 * The session and fg pgrp references will be yesn-NULL if
 	 * tiocsctty() is stealing the controlling tty
 	 */
 	put_pid(tty->session);
@@ -106,7 +106,7 @@ static void __proc_set_tty(struct tty_struct *tty)
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 	tty->session = get_pid(task_session(current));
 	if (current->signal->tty) {
-		tty_debug(tty, "current tty %s not NULL!!\n",
+		tty_debug(tty, "current tty %s yest NULL!!\n",
 			  current->signal->tty->name);
 		tty_kref_put(current->signal->tty);
 	}
@@ -139,12 +139,12 @@ void tty_open_proc_set_tty(struct file *filp, struct tty_struct *tty)
 		 * access through /dev/tty, being able to perform pushback).
 		 * Many distributions set the group of all ttys to "tty" and
 		 * grant write-only access to all terminals for setgid tty
-		 * binaries, which should not imply full privileges on all ttys.
+		 * binaries, which should yest imply full privileges on all ttys.
 		 *
 		 * This could theoretically break old code that performs open()
 		 * on a write-only file descriptor. In that case, it might be
 		 * necessary to also permit this if
-		 * inode_permission(inode, MAY_READ) == 0.
+		 * iyesde_permission(iyesde, MAY_READ) == 0.
 		 */
 		if (filp->f_mode & FMODE_READ)
 			__proc_set_tty(tty);
@@ -179,7 +179,7 @@ void session_clear_tty(struct pid *session)
 /**
  *	tty_signal_session_leader	- sends SIGHUP to session leader
  *	@tty		controlling tty
- *	@exit_session	if non-zero, signal all foreground group processes
+ *	@exit_session	if yesn-zero, signal all foreground group processes
  *
  *	Send SIGHUP and SIGCONT to the session leader and its process group.
  *	Optionally, signal all processes in the foreground process group.
@@ -210,7 +210,7 @@ int tty_signal_session_leader(struct tty_struct *tty, int exit_session)
 			}
 			__group_send_sig_info(SIGHUP, SEND_SIG_PRIV, p);
 			__group_send_sig_info(SIGCONT, SEND_SIG_PRIV, p);
-			put_pid(p->signal->tty_old_pgrp);  /* A noop */
+			put_pid(p->signal->tty_old_pgrp);  /* A yesop */
 			spin_lock(&tty->ctrl_lock);
 			tty_pgrp = get_pid(tty->pgrp);
 			if (tty->pgrp)
@@ -248,7 +248,7 @@ int tty_signal_session_leader(struct tty_struct *tty, int exit_session)
  *
  *	Locking:
  *		BTM is taken for hysterical raisons, and held when
- *		  called from no_tty().
+ *		  called from yes_tty().
  *		  tty_mutex is taken to protect tty
  *		  ->siglock is taken to protect ->signal/->sighand
  *		  tasklist_lock is taken to walk process list for sessions
@@ -315,9 +315,9 @@ void disassociate_ctty(int on_exit)
 
 /*
  *
- *	no_tty	- Ensure the current process does not have a controlling tty
+ *	yes_tty	- Ensure the current process does yest have a controlling tty
  */
-void no_tty(void)
+void yes_tty(void)
 {
 	/* FIXME: Review locking here. The tty_lock never covered any race
 	   between a new association and proc_clear_tty but possible we need
@@ -352,7 +352,7 @@ static int tiocsctty(struct tty_struct *tty, struct file *file, int arg)
 
 	/*
 	 * The process must be a session leader and
-	 * not have a controlling tty already.
+	 * yest have a controlling tty already.
 	 */
 	if (!current->signal->leader || current->signal->tty) {
 		ret = -EPERM;
@@ -362,7 +362,7 @@ static int tiocsctty(struct tty_struct *tty, struct file *file, int arg)
 	if (tty->session) {
 		/*
 		 * This tty is already the controlling
-		 * tty for another session group!
+		 * tty for ayesther session group!
 		 */
 		if (arg == 1 && capable(CAP_SYS_ADMIN)) {
 			/*
@@ -409,8 +409,8 @@ struct pid *tty_get_pgrp(struct tty_struct *tty)
 EXPORT_SYMBOL_GPL(tty_get_pgrp);
 
 /*
- * This checks not only the pgrp, but falls back on the pid if no
- * satisfactory pgrp is found. I dunno - gdb doesn't work correctly
+ * This checks yest only the pgrp, but falls back on the pid if yes
+ * satisfactory pgrp is found. I dunyes - gdb doesn't work correctly
  * without this...
  *
  * The caller must hold rcu lock or the tasklist lock.
@@ -435,10 +435,10 @@ static struct pid *session_of_pgrp(struct pid *pgrp)
  *	@real_tty: tty side of the tty passed by the user if a pty else the tty
  *	@p: returned pid
  *
- *	Obtain the process group of the tty. If there is no process group
+ *	Obtain the process group of the tty. If there is yes process group
  *	return an error.
  *
- *	Locking: none. Reference to current->signal->tty is safe.
+ *	Locking: yesne. Reference to current->signal->tty is safe.
  */
 static int tiocgpgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t __user *p)
 {
@@ -509,10 +509,10 @@ out_unlock:
  *	@real_tty: tty side of the tty passed by the user if a pty else the tty
  *	@p: pointer to returned session id
  *
- *	Obtain the session id of the tty. If there is no session
+ *	Obtain the session id of the tty. If there is yes session
  *	return an error.
  *
- *	Locking: none. Reference to current->signal->tty is safe.
+ *	Locking: yesne. Reference to current->signal->tty is safe.
  */
 static int tiocgsid(struct tty_struct *tty, struct tty_struct *real_tty, pid_t __user *p)
 {
@@ -529,7 +529,7 @@ static int tiocgsid(struct tty_struct *tty, struct tty_struct *real_tty, pid_t _
 
 /*
  * Called from tty_ioctl(). If tty is a pty then real_tty is the slave side,
- * if not then tty == real_tty.
+ * if yest then tty == real_tty.
  */
 long tty_jobctrl_ioctl(struct tty_struct *tty, struct tty_struct *real_tty,
 		       struct file *file, unsigned int cmd, unsigned long arg)
@@ -540,7 +540,7 @@ long tty_jobctrl_ioctl(struct tty_struct *tty, struct tty_struct *real_tty,
 	case TIOCNOTTY:
 		if (current->signal->tty != tty)
 			return -ENOTTY;
-		no_tty();
+		yes_tty();
 		return 0;
 	case TIOCSCTTY:
 		return tiocsctty(real_tty, file, arg);

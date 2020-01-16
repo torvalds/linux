@@ -6,7 +6,7 @@
  */
 
 #define isrc	r0
-#define max	r1	/*  Do not change!  */
+#define max	r1	/*  Do yest change!  */
 
 #define end	r2
 #define tmp1	r3

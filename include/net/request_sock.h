@@ -86,7 +86,7 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener,
 		return NULL;
 	req->rsk_listener = NULL;
 	if (attach_listener) {
-		if (unlikely(!refcount_inc_not_zero(&sk_listener->sk_refcnt))) {
+		if (unlikely(!refcount_inc_yest_zero(&sk_listener->sk_refcnt))) {
 			kmem_cache_free(ops->slab, req);
 			return NULL;
 		}
@@ -94,7 +94,7 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener,
 	}
 	req->rsk_ops = ops;
 	req_to_sk(req)->sk_prot = sk_listener->sk_prot;
-	sk_node_init(&req_to_sk(req)->sk_node);
+	sk_yesde_init(&req_to_sk(req)->sk_yesde);
 	sk_tx_queue_clear(req_to_sk(req));
 	req->saved_syn = NULL;
 	req->num_timeout = 0;
@@ -138,7 +138,7 @@ static inline void reqsk_put(struct request_sock *req)
  *	listen_sock being part of request_sock_queue hence will be freed when
  *	a listener is stopped. But TFO related fields may continue to be
  *	accessed even after a listener is closed, until its sk_refcnt drops
- *	to 0 implying no more outstanding TFO reqs. One solution is to keep
+ *	to 0 implying yes more outstanding TFO reqs. One solution is to keep
  *	listen_opt around until	sk_refcnt drops to 0. But there is some other
  *	complexity that needs to be resolved. E.g., a listener can be disabled
  *	temporarily through shutdown()->tcp_disconnect(), and re-enabled later.

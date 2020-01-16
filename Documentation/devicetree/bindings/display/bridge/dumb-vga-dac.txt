@@ -1,14 +1,14 @@
 Dumb RGB to VGA DAC bridge
 ---------------------------
 
-This binding is aimed for dumb RGB to VGA DAC based bridges that do not require
+This binding is aimed for dumb RGB to VGA DAC based bridges that do yest require
 any configuration.
 
 Required properties:
 
 - compatible: Must be "dumb-vga-dac"
 
-Required nodes:
+Required yesdes:
 
 This device has two video ports. Their connections are modelled using the OF
 graph bindings specified in Documentation/devicetree/bindings/graph.txt.

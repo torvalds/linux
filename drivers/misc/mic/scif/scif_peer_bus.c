@@ -23,7 +23,7 @@ struct bus_type scif_peer_bus = {
 static void scif_peer_release_dev(struct device *d)
 {
 	struct scif_peer_dev *sdev = dev_to_scif_peer(d);
-	struct scif_dev *scifdev = &scif_dev[sdev->dnode];
+	struct scif_dev *scifdev = &scif_dev[sdev->dyesde];
 
 	scif_cleanup_scifdev(scifdev);
 	kfree(sdev);
@@ -42,9 +42,9 @@ static int scif_peer_initialize_device(struct scif_dev *scifdev)
 
 	spdev->dev.parent = scifdev->sdev->dev.parent;
 	spdev->dev.release = scif_peer_release_dev;
-	spdev->dnode = scifdev->node;
+	spdev->dyesde = scifdev->yesde;
 	spdev->dev.bus = &scif_peer_bus;
-	dev_set_name(&spdev->dev, "scif_peer-dev%u", spdev->dnode);
+	dev_set_name(&spdev->dev, "scif_peer-dev%u", spdev->dyesde);
 
 	device_initialize(&spdev->dev);
 	get_device(&spdev->dev);
@@ -52,12 +52,12 @@ static int scif_peer_initialize_device(struct scif_dev *scifdev)
 
 	mutex_lock(&scif_info.conflock);
 	scif_info.total++;
-	scif_info.maxid = max_t(u32, spdev->dnode, scif_info.maxid);
+	scif_info.maxid = max_t(u32, spdev->dyesde, scif_info.maxid);
 	mutex_unlock(&scif_info.conflock);
 	return 0;
 err:
 	dev_err(&scifdev->sdev->dev,
-		"dnode %d: initialize_device rc %d\n", scifdev->node, ret);
+		"dyesde %d: initialize_device rc %d\n", scifdev->yesde, ret);
 	return ret;
 }
 
@@ -71,21 +71,21 @@ static int scif_peer_add_device(struct scif_dev *scifdev)
 	put_device(&spdev->dev);
 	if (ret) {
 		dev_err(&scifdev->sdev->dev,
-			"dnode %d: peer device_add failed\n", scifdev->node);
+			"dyesde %d: peer device_add failed\n", scifdev->yesde);
 		goto put_spdev;
 	}
 
-	scnprintf(pool_name, sizeof(pool_name), "scif-%d", spdev->dnode);
+	scnprintf(pool_name, sizeof(pool_name), "scif-%d", spdev->dyesde);
 	scifdev->signal_pool = dmam_pool_create(pool_name, &scifdev->sdev->dev,
 						sizeof(struct scif_status), 1,
 						0);
 	if (!scifdev->signal_pool) {
 		dev_err(&scifdev->sdev->dev,
-			"dnode %d: dmam_pool_create failed\n", scifdev->node);
+			"dyesde %d: dmam_pool_create failed\n", scifdev->yesde);
 		ret = -ENOMEM;
 		goto del_spdev;
 	}
-	dev_dbg(&spdev->dev, "Added peer dnode %d\n", spdev->dnode);
+	dev_dbg(&spdev->dev, "Added peer dyesde %d\n", spdev->dyesde);
 	return 0;
 del_spdev:
 	device_del(&spdev->dev);
@@ -111,12 +111,12 @@ void scif_add_peer_device(struct work_struct *work)
 /*
  * Peer device registration is split into a device_initialize and a device_add.
  * The reason for doing this is as follows: First, peer device registration
- * itself cannot be done in the message processing thread and must be delegated
- * to another workqueue, otherwise if SCIF client probe, called during peer
+ * itself canyest be done in the message processing thread and must be delegated
+ * to ayesther workqueue, otherwise if SCIF client probe, called during peer
  * device registration, calls scif_connect(..), it will block the message
  * processing thread causing a deadlock. Next, device_initialize is done in the
  * "top-half" message processing thread and device_add in the "bottom-half"
- * workqueue. If this is not done, SCIF_CNCT_REQ message processing executing
+ * workqueue. If this is yest done, SCIF_CNCT_REQ message processing executing
  * concurrently with SCIF_INIT message processing is unable to get a reference
  * on the peer device, thereby failing the connect request.
  */
@@ -155,7 +155,7 @@ int scif_peer_unregister_device(struct scif_dev *scifdev)
 	synchronize_rcu();
 	mutex_unlock(&scifdev->lock);
 
-	dev_dbg(&spdev->dev, "Removing peer dnode %d\n", spdev->dnode);
+	dev_dbg(&spdev->dev, "Removing peer dyesde %d\n", spdev->dyesde);
 	device_unregister(&spdev->dev);
 
 	mutex_lock(&scif_info.conflock);

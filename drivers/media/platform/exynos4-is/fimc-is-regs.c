@@ -105,13 +105,13 @@ int fimc_is_hw_get_params(struct fimc_is *is, unsigned int num_args)
 void fimc_is_hw_set_isp_buf_mask(struct fimc_is *is, unsigned int mask)
 {
 	if (hweight32(mask) == 1) {
-		dev_err(&is->pdev->dev, "%s(): not enough buffers (mask %#x)\n",
+		dev_err(&is->pdev->dev, "%s(): yest eyesugh buffers (mask %#x)\n",
 							__func__, mask);
 		return;
 	}
 
 	if (mcuctl_read(is, MCUCTL_REG_ISSR(23)) != 0)
-		dev_dbg(&is->pdev->dev, "non-zero DMA buffer mask\n");
+		dev_dbg(&is->pdev->dev, "yesn-zero DMA buffer mask\n");
 
 	mcuctl_write(mask, is, MCUCTL_REG_ISSR(23));
 }

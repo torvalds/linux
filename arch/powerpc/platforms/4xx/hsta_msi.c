@@ -43,7 +43,7 @@ static int hsta_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 	/* We don't support MSI-X */
 	if (type == PCI_CAP_ID_MSIX) {
-		pr_debug("%s: MSI-X not supported.\n", __func__);
+		pr_debug("%s: MSI-X yest supported.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -69,7 +69,7 @@ static int hsta_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		msg.address_hi = upper_32_bits(addr);
 		msg.address_lo = lower_32_bits(addr);
 
-		/* Data is not used by the HSTA. */
+		/* Data is yest used by the HSTA. */
 		msg.data = 0;
 
 		pr_debug("%s: Setup irq %d (0x%0llx)\n", __func__, hwirq,
@@ -133,7 +133,7 @@ static int hsta_msi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	irq_count = of_irq_count(dev->of_node);
+	irq_count = of_irq_count(dev->of_yesde);
 	if (!irq_count) {
 		dev_err(dev, "Unable to find IRQ range\n");
 		return -EINVAL;
@@ -148,7 +148,7 @@ static int hsta_msi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ret = msi_bitmap_alloc(&ppc4xx_hsta_msi.bmp, irq_count, dev->of_node);
+	ret = msi_bitmap_alloc(&ppc4xx_hsta_msi.bmp, irq_count, dev->of_yesde);
 	if (ret)
 		goto out;
 
@@ -162,7 +162,7 @@ static int hsta_msi_probe(struct platform_device *pdev)
 	/* Setup a mapping from irq offsets to hardware irq numbers */
 	for (irq = 0; irq < irq_count; irq++) {
 		ppc4xx_hsta_msi.irq_map[irq] =
-			irq_of_parse_and_map(dev->of_node, irq);
+			irq_of_parse_and_map(dev->of_yesde, irq);
 		if (!ppc4xx_hsta_msi.irq_map[irq]) {
 			dev_err(dev, "Unable to map IRQ\n");
 			ret = -EINVAL;
@@ -170,7 +170,7 @@ static int hsta_msi_probe(struct platform_device *pdev)
 		}
 	}
 
-	list_for_each_entry(phb, &hose_list, list_node) {
+	list_for_each_entry(phb, &hose_list, list_yesde) {
 		phb->controller_ops.setup_msi_irqs = hsta_setup_msi_irqs;
 		phb->controller_ops.teardown_msi_irqs = hsta_teardown_msi_irqs;
 	}

@@ -6,7 +6,7 @@
  * Copyright (c) 2017 SKIDATA AG
  *
  * This work is based on the USB3503 driver by Dongjin Kim and
- * a not-accepted patch by Fabien Lahoudere, see:
+ * a yest-accepted patch by Fabien Lahoudere, see:
  * https://patchwork.kernel.org/patch/9257715/
  */
 
@@ -121,7 +121,7 @@ struct usb251xb {
 	u8  conf_data1;
 	u8  conf_data2;
 	u8  conf_data3;
-	u8  non_rem_dev;
+	u8  yesn_rem_dev;
 	u8  port_disable_sp;
 	u8  port_disable_bp;
 	u8  max_power_sp;
@@ -316,7 +316,7 @@ static int usb251xb_connect(struct usb251xb *hub)
 	i2c_wb[USB251XB_ADDR_CONFIG_DATA_1]     = hub->conf_data1;
 	i2c_wb[USB251XB_ADDR_CONFIG_DATA_2]     = hub->conf_data2;
 	i2c_wb[USB251XB_ADDR_CONFIG_DATA_3]     = hub->conf_data3;
-	i2c_wb[USB251XB_ADDR_NON_REMOVABLE_DEVICES] = hub->non_rem_dev;
+	i2c_wb[USB251XB_ADDR_NON_REMOVABLE_DEVICES] = hub->yesn_rem_dev;
 	i2c_wb[USB251XB_ADDR_PORT_DISABLE_SELF] = hub->port_disable_sp;
 	i2c_wb[USB251XB_ADDR_PORT_DISABLE_BUS]  = hub->port_disable_bp;
 	i2c_wb[USB251XB_ADDR_MAX_POWER_SELF]    = hub->max_power_sp;
@@ -387,7 +387,7 @@ static void usb251xb_get_ports_field(struct usb251xb *hub,
 	const __be32 *p;
 	u32 port;
 
-	of_property_for_each_u32(dev->of_node, prop_name, prop, p, port) {
+	of_property_for_each_u32(dev->of_yesde, prop_name, prop, p, port) {
 		if ((port >= ds_only ? 1 : 0) && (port <= port_cnt))
 			*fld |= BIT(port);
 		else
@@ -399,7 +399,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 			       struct usb251xb_data *data)
 {
 	struct device *dev = hub->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int len, err;
 	u32 property_u32 = 0;
 	const char *cproperty_char;
@@ -508,9 +508,9 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	if (of_get_property(np, "string-support", NULL))
 		hub->conf_data3 |= BIT(0);
 
-	hub->non_rem_dev = USB251XB_DEF_NON_REMOVABLE_DEVICES;
-	usb251xb_get_ports_field(hub, "non-removable-ports", data->port_cnt,
-				 true, &hub->non_rem_dev);
+	hub->yesn_rem_dev = USB251XB_DEF_NON_REMOVABLE_DEVICES;
+	usb251xb_get_ports_field(hub, "yesn-removable-ports", data->port_cnt,
+				 true, &hub->yesn_rem_dev);
 
 	hub->port_disable_sp = USB251XB_DEF_PORT_DISABLE_SELF;
 	usb251xb_get_ports_field(hub, "sp-disabled-ports", data->port_cnt,
@@ -584,7 +584,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	usb251xb_get_ports_field(hub, "swap-dx-lanes", data->port_cnt,
 				 false, &hub->port_swap);
 
-	/* The following parameters are currently not exposed to devicetree, but
+	/* The following parameters are currently yest exposed to devicetree, but
 	 * may be as soon as needed.
 	 */
 	hub->bat_charge_en = USB251XB_DEF_BATTERY_CHARGING_ENABLE;
@@ -643,7 +643,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 static int usb251xb_probe(struct usb251xb *hub)
 {
 	struct device *dev = hub->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct of_device_id *of_id = of_match_device(usb251xb_of_match,
 							   dev);
 	int err;

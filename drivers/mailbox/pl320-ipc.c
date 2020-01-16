@@ -10,7 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/amba/bus.h>
@@ -43,7 +43,7 @@ static void __iomem *ipc_base;
 static int ipc_irq;
 static DEFINE_MUTEX(ipc_m1_lock);
 static DECLARE_COMPLETION(ipc_completion);
-static ATOMIC_NOTIFIER_HEAD(ipc_notifier);
+static ATOMIC_NOTIFIER_HEAD(ipc_yestifier);
 
 static inline void set_destination(int source, int mbox)
 {
@@ -73,7 +73,7 @@ static u32 __ipc_rcv(int mbox, u32 *data)
 	return data[1];
 }
 
-/* blocking implmentation from the A9 side, not usuable in interrupts! */
+/* blocking implmentation from the A9 side, yest usuable in interrupts! */
 int pl320_ipc_transmit(u32 *data)
 {
 	int ret;
@@ -108,24 +108,24 @@ static irqreturn_t ipc_handler(int irq, void *dev)
 	}
 	if (irq_stat & MBOX_MASK(IPC_RX_MBOX)) {
 		__ipc_rcv(IPC_RX_MBOX, data);
-		atomic_notifier_call_chain(&ipc_notifier, data[0], data + 1);
+		atomic_yestifier_call_chain(&ipc_yestifier, data[0], data + 1);
 		writel_relaxed(2, ipc_base + IPCMxSEND(IPC_RX_MBOX));
 	}
 
 	return IRQ_HANDLED;
 }
 
-int pl320_ipc_register_notifier(struct notifier_block *nb)
+int pl320_ipc_register_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&ipc_notifier, nb);
+	return atomic_yestifier_chain_register(&ipc_yestifier, nb);
 }
-EXPORT_SYMBOL_GPL(pl320_ipc_register_notifier);
+EXPORT_SYMBOL_GPL(pl320_ipc_register_yestifier);
 
-int pl320_ipc_unregister_notifier(struct notifier_block *nb)
+int pl320_ipc_unregister_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&ipc_notifier, nb);
+	return atomic_yestifier_chain_unregister(&ipc_yestifier, nb);
 }
-EXPORT_SYMBOL_GPL(pl320_ipc_unregister_notifier);
+EXPORT_SYMBOL_GPL(pl320_ipc_unregister_yestifier);
 
 static int pl320_probe(struct amba_device *adev, const struct amba_id *id)
 {

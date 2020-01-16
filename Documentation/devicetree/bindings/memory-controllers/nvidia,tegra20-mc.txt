@@ -14,7 +14,7 @@ Required properties:
   or in the TRM documentation.
 - #iommu-cells: Should be 0. This cell represents the number of cells in an
   IOMMU specifier needed to encode an address. GART supports only a single
-  address space that is shared by all devices, therefore no additional
+  address space that is shared by all devices, therefore yes additional
   information needed for the address encoding.
 
 Example:

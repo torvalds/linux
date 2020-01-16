@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@yeskia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -30,7 +30,7 @@ static ssize_t manager_display_show(struct omap_overlay_manager *mgr, char *buf)
 	struct omap_dss_device *dssdev = mgr->get_device(mgr);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", dssdev ?
-			dssdev->name : "<none>");
+			dssdev->name : "<yesne>");
 }
 
 static int manager_display_match(struct omap_dss_device *dssdev, void *data)
@@ -68,7 +68,7 @@ static ssize_t manager_display_store(struct omap_overlay_manager *mgr,
 		}
 
 		if (omapdss_device_is_enabled(dssdev)) {
-			DSSERR("new display is not disabled\n");
+			DSSERR("new display is yest disabled\n");
 			r = -EINVAL;
 			goto put_device;
 		}
@@ -77,7 +77,7 @@ static ssize_t manager_display_store(struct omap_overlay_manager *mgr,
 	old_dssdev = mgr->get_device(mgr);
 	if (old_dssdev) {
 		if (omapdss_device_is_enabled(old_dssdev)) {
-			DSSERR("old display is not disabled\n");
+			DSSERR("old display is yest disabled\n");
 			r = -EINVAL;
 			goto put_device;
 		}

@@ -14,11 +14,11 @@
 	compatible = "google,cheza-rev1", "qcom,sdm845";
 
 	/*
-	 * FIXED REGULATORS (not in sdm845-cheza.dtsi) - parents above children
+	 * FIXED REGULATORS (yest in sdm845-cheza.dtsi) - parents above children
 	 */
 
 	/*
-	 * NOTE: Technically pp3500_a is not the exact same signal as
+	 * NOTE: Technically pp3500_a is yest the exact same signal as
 	 * pp3500_a_vbob (there's a load switch between them and the EC can
 	 * control pp3500_a via "en_pp3300_a"), but from the AP's point of
 	 * view they are the same.

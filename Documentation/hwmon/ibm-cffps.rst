@@ -16,7 +16,7 @@ is a client to the core PMBus driver.
 Usage Notes
 -----------
 
-This driver does not auto-detect devices. You will have to instantiate the
+This driver does yest auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 

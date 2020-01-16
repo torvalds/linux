@@ -85,7 +85,7 @@
 #define ONENAND_VERSION_PROCESS_SHIFT	(8)
 
 /*
- * Technology Register F006h (R)
+ * Techyeslogy Register F006h (R)
  */
 #define ONENAND_TECHNOLOGY_IS_MLC	(1 << 0)
 
@@ -138,7 +138,7 @@
 #define FLEXONENAND_CMD_PI_ACCESS	(0x66)
 #define FLEXONENAND_CMD_RECOVER_LSB	(0x05)
 
-/* NOTE: Those are not *REAL* commands */
+/* NOTE: Those are yest *REAL* commands */
 #define ONENAND_CMD_BUFFERRAM		(0x1978)
 #define FLEXONENAND_CMD_READ_PI		(0x1985)
 

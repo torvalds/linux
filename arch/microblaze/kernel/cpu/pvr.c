@@ -16,7 +16,7 @@
 #include <asm/pvr.h>
 
 /*
- * Until we get an assembler that knows about the pvr registers,
+ * Until we get an assembler that kyesws about the pvr registers,
  * this horrible cruft will have to do.
  * That hardcoded opcode is mfs r3, rpvrNN
  */
@@ -34,7 +34,7 @@
 /*
  * Does the CPU support the PVR register?
  * return value:
- * 0: no PVR
+ * 0: yes PVR
  * 1: simple PVR
  * 2: full PVR
  *

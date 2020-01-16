@@ -25,7 +25,7 @@ struct msm_gpu_submitqueue *msm_submitqueue_get(struct msm_file_private *ctx,
 
 	read_lock(&ctx->queuelock);
 
-	list_for_each_entry(entry, &ctx->submitqueues, node) {
+	list_for_each_entry(entry, &ctx->submitqueues, yesde) {
 		if (entry->id == id) {
 			kref_get(&entry->ref);
 			read_unlock(&ctx->queuelock);
@@ -49,7 +49,7 @@ void msm_submitqueue_close(struct msm_file_private *ctx)
 	 * No lock needed in close and there won't
 	 * be any more user ioctls coming our way
 	 */
-	list_for_each_entry_safe(entry, tmp, &ctx->submitqueues, node)
+	list_for_each_entry_safe(entry, tmp, &ctx->submitqueues, yesde)
 		msm_submitqueue_put(entry);
 }
 
@@ -84,7 +84,7 @@ int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 	if (id)
 		*id = queue->id;
 
-	list_add_tail(&queue->node, &ctx->submitqueues);
+	list_add_tail(&queue->yesde, &ctx->submitqueues);
 
 	write_unlock(&ctx->queuelock);
 
@@ -170,9 +170,9 @@ int msm_submitqueue_remove(struct msm_file_private *ctx, u32 id)
 
 	write_lock(&ctx->queuelock);
 
-	list_for_each_entry(entry, &ctx->submitqueues, node) {
+	list_for_each_entry(entry, &ctx->submitqueues, yesde) {
 		if (entry->id == id) {
-			list_del(&entry->node);
+			list_del(&entry->yesde);
 			write_unlock(&ctx->queuelock);
 
 			msm_submitqueue_put(entry);

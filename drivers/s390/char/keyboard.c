@@ -23,10 +23,10 @@
  * Handler Tables.
  */
 #define K_HANDLERS\
-	k_self,		k_fn,		k_spec,		k_ignore,\
-	k_dead,		k_ignore,	k_ignore,	k_ignore,\
-	k_ignore,	k_ignore,	k_ignore,	k_ignore,\
-	k_ignore,	k_ignore,	k_ignore,	k_ignore
+	k_self,		k_fn,		k_spec,		k_igyesre,\
+	k_dead,		k_igyesre,	k_igyesre,	k_igyesre,\
+	k_igyesre,	k_igyesre,	k_igyesre,	k_igyesre,\
+	k_igyesre,	k_igyesre,	k_igyesre,	k_igyesre
 
 typedef void (k_handler_fn)(struct kbd_data *, unsigned char);
 static k_handler_fn K_HANDLERS;
@@ -205,7 +205,7 @@ kbd_ebcasc(struct kbd_data *kbd, unsigned char *ebcasc)
  * We have a combining character DIACR here, followed by the character CH.
  * If the combination occurs in the table, return the corresponding value.
  * Otherwise, if CH is a space or equals DIACR, return DIACR.
- * Otherwise, conclude that DIACR was not combining after all,
+ * Otherwise, conclude that DIACR was yest combining after all,
  * queue it and return CH.
  */
 static unsigned int
@@ -254,7 +254,7 @@ k_self(struct kbd_data *kbd, unsigned char value)
  * Special key handlers
  */
 static void
-k_ignore(struct kbd_data *kbd, unsigned char value)
+k_igyesre(struct kbd_data *kbd, unsigned char value)
 {
 }
 
@@ -374,7 +374,7 @@ do_kdsk_ioctl(struct kbd_data *kbd, struct kbentry __user *user_kbe,
 #if MAX_NR_KEYMAPS < 256
 	if (kb_table >= MAX_NR_KEYMAPS)
 		return -EINVAL;	
-	kb_table = array_index_nospec(kb_table , MAX_NR_KEYMAPS);
+	kb_table = array_index_yesspec(kb_table , MAX_NR_KEYMAPS);
 #endif
 
 	switch (cmd) {
@@ -418,7 +418,7 @@ do_kdsk_ioctl(struct kbd_data *kbd, struct kbentry __user *user_kbe,
 		}
 		ov = U(key_map[kb_index]);
 		if (tmp.kb_value == ov)
-			break;	/* nothing to do */
+			break;	/* yesthing to do */
 		/*
 		 * Attention Key.
 		 */

@@ -5,7 +5,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
@@ -40,7 +40,7 @@ static void __iomem *scu_base;
 
 void __init zx_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned long base = 0;
 	void __iomem *aonsysctrl_base;
 	void __iomem *sys_iram;
@@ -54,16 +54,16 @@ void __init zx_smp_prepare_cpus(unsigned int max_cpus)
 
 	scu_enable(scu_base);
 
-	np = of_find_compatible_node(NULL, NULL, "zte,sysctrl");
+	np = of_find_compatible_yesde(NULL, NULL, "zte,sysctrl");
 	if (!np) {
-		pr_err("%s: failed to find sysctrl node\n", __func__);
+		pr_err("%s: failed to find sysctrl yesde\n", __func__);
 		return;
 	}
 
 	aonsysctrl_base = of_iomap(np, 0);
 	if (!aonsysctrl_base) {
 		pr_err("%s: failed to map aonsysctrl\n", __func__);
-		of_node_put(np);
+		of_yesde_put(np);
 		return;
 	}
 
@@ -77,16 +77,16 @@ void __init zx_smp_prepare_cpus(unsigned int max_cpus)
 		     aonsysctrl_base + AON_SYS_CTRL_RESERVED1);
 
 	iounmap(aonsysctrl_base);
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_compatible_node(NULL, NULL, "zte,zx296702-pcu");
+	np = of_find_compatible_yesde(NULL, NULL, "zte,zx296702-pcu");
 	pcu_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	WARN_ON(!pcu_base);
 
-	np = of_find_compatible_node(NULL, NULL, "zte,zx-bus-matrix");
+	np = of_find_compatible_yesde(NULL, NULL, "zte,zx-bus-matrix");
 	matrix_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	WARN_ON(!matrix_base);
 
 	/* Map the first 4 KB IRAM for suspend usage */

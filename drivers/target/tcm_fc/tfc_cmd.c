@@ -133,7 +133,7 @@ int ft_queue_status(struct se_cmd *se_cmd)
 
 	/*
 	 * Test underflow and overflow with one mask.  Usually both are off.
-	 * Bidirectional commands are not handled yet.
+	 * Bidirectional commands are yest handled yet.
 	 */
 	if (se_cmd->se_cmd_flags & (SCF_OVERFLOW_BIT | SCF_UNDERFLOW_BIT)) {
 		if (se_cmd->se_cmd_flags & SCF_OVERFLOW_BIT)
@@ -155,7 +155,7 @@ int ft_queue_status(struct se_cmd *se_cmd)
 		pr_info_ratelimited("%s: Failed to send response frame %p, "
 				    "xid <0x%x>\n", __func__, fp, ep->xid);
 		/*
-		 * Generate a TASK_SET_FULL status to notify the initiator
+		 * Generate a TASK_SET_FULL status to yestify the initiator
 		 * to reduce it's queue_depth after the se_cmd response has
 		 * been re-queued by target-core.
 		 */
@@ -501,7 +501,7 @@ static void ft_send_work(struct work_struct *work)
 		goto err;
 
 	if (fcp->fc_flags & FCP_CFL_LEN_MASK)
-		goto err;		/* not handling longer CDBs yet */
+		goto err;		/* yest handling longer CDBs yet */
 
 	/*
 	 * Check for FCP task management flags
@@ -522,7 +522,7 @@ static void ft_send_work(struct work_struct *work)
 		data_dir = DMA_TO_DEVICE;
 		break;
 	case FCP_CFL_WRDATA | FCP_CFL_RDDATA:
-		goto err;	/* TBD not supported by tcm_fc yet */
+		goto err;	/* TBD yest supported by tcm_fc yet */
 	}
 	/*
 	 * Locate the SAM Task Attr from fc_pri_ta

@@ -20,50 +20,50 @@ void xsk_map_put(struct xsk_map *map)
 	bpf_map_put(&map->map);
 }
 
-static struct xsk_map_node *xsk_map_node_alloc(struct xsk_map *map,
+static struct xsk_map_yesde *xsk_map_yesde_alloc(struct xsk_map *map,
 					       struct xdp_sock **map_entry)
 {
-	struct xsk_map_node *node;
+	struct xsk_map_yesde *yesde;
 	int err;
 
-	node = kzalloc(sizeof(*node), GFP_ATOMIC | __GFP_NOWARN);
-	if (!node)
+	yesde = kzalloc(sizeof(*yesde), GFP_ATOMIC | __GFP_NOWARN);
+	if (!yesde)
 		return ERR_PTR(-ENOMEM);
 
 	err = xsk_map_inc(map);
 	if (err) {
-		kfree(node);
+		kfree(yesde);
 		return ERR_PTR(err);
 	}
 
-	node->map = map;
-	node->map_entry = map_entry;
-	return node;
+	yesde->map = map;
+	yesde->map_entry = map_entry;
+	return yesde;
 }
 
-static void xsk_map_node_free(struct xsk_map_node *node)
+static void xsk_map_yesde_free(struct xsk_map_yesde *yesde)
 {
-	xsk_map_put(node->map);
-	kfree(node);
+	xsk_map_put(yesde->map);
+	kfree(yesde);
 }
 
-static void xsk_map_sock_add(struct xdp_sock *xs, struct xsk_map_node *node)
+static void xsk_map_sock_add(struct xdp_sock *xs, struct xsk_map_yesde *yesde)
 {
 	spin_lock_bh(&xs->map_list_lock);
-	list_add_tail(&node->node, &xs->map_list);
+	list_add_tail(&yesde->yesde, &xs->map_list);
 	spin_unlock_bh(&xs->map_list_lock);
 }
 
 static void xsk_map_sock_delete(struct xdp_sock *xs,
 				struct xdp_sock **map_entry)
 {
-	struct xsk_map_node *n, *tmp;
+	struct xsk_map_yesde *n, *tmp;
 
 	spin_lock_bh(&xs->map_list_lock);
-	list_for_each_entry_safe(n, tmp, &xs->map_list, node) {
+	list_for_each_entry_safe(n, tmp, &xs->map_list, yesde) {
 		if (map_entry == n->map_entry) {
-			list_del(&n->node);
-			xsk_map_node_free(n);
+			list_del(&n->yesde);
+			xsk_map_yesde_free(n);
 		}
 	}
 	spin_unlock_bh(&xs->map_list_lock);
@@ -72,7 +72,7 @@ static void xsk_map_sock_delete(struct xdp_sock *xs,
 static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 {
 	struct bpf_map_memory mem;
-	int cpu, err, numa_node;
+	int cpu, err, numa_yesde;
 	struct xsk_map *m;
 	u64 cost, size;
 
@@ -84,7 +84,7 @@ static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 	    attr->map_flags & ~(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY))
 		return ERR_PTR(-EINVAL);
 
-	numa_node = bpf_map_attr_numa_node(attr);
+	numa_yesde = bpf_map_attr_numa_yesde(attr);
 	size = struct_size(m, xsk_map, attr->max_entries);
 	cost = size + array_size(sizeof(*m->flush_list), num_possible_cpus());
 
@@ -92,7 +92,7 @@ static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 	if (err < 0)
 		return ERR_PTR(err);
 
-	m = bpf_map_area_alloc(size, numa_node);
+	m = bpf_map_area_alloc(size, numa_yesde);
 	if (!m) {
 		bpf_map_charge_finish(&mem);
 		return ERR_PTR(-ENOMEM);
@@ -175,7 +175,7 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
 	struct xdp_sock *xs, *old_xs, **map_entry;
 	u32 i = *(u32 *)key, fd = *(u32 *)value;
-	struct xsk_map_node *node;
+	struct xsk_map_yesde *yesde;
 	struct socket *sock;
 	int err;
 
@@ -201,10 +201,10 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 	}
 
 	map_entry = &m->xsk_map[i];
-	node = xsk_map_node_alloc(m, map_entry);
-	if (IS_ERR(node)) {
+	yesde = xsk_map_yesde_alloc(m, map_entry);
+	if (IS_ERR(yesde)) {
 		sockfd_put(sock);
-		return PTR_ERR(node);
+		return PTR_ERR(yesde);
 	}
 
 	spin_lock_bh(&m->lock);
@@ -219,7 +219,7 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 		err = -ENOENT;
 		goto out;
 	}
-	xsk_map_sock_add(xs, node);
+	xsk_map_sock_add(xs, yesde);
 	WRITE_ONCE(*map_entry, xs);
 	if (old_xs)
 		xsk_map_sock_delete(old_xs, map_entry);
@@ -230,7 +230,7 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 out:
 	spin_unlock_bh(&m->lock);
 	sockfd_put(sock);
-	xsk_map_node_free(node);
+	xsk_map_yesde_free(yesde);
 	return err;
 }
 
@@ -273,5 +273,5 @@ const struct bpf_map_ops xsk_map_ops = {
 	.map_lookup_elem_sys_only = xsk_map_lookup_elem_sys_only,
 	.map_update_elem = xsk_map_update_elem,
 	.map_delete_elem = xsk_map_delete_elem,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_yes_btf,
 };

@@ -48,7 +48,7 @@
 /* Status Register Bit Designations (AD7192_REG_STAT) */
 #define AD7192_STAT_RDY		BIT(7) /* Ready */
 #define AD7192_STAT_ERR		BIT(6) /* Error (Overrange, Underrange) */
-#define AD7192_STAT_NOREF	BIT(5) /* Error no external reference */
+#define AD7192_STAT_NOREF	BIT(5) /* Error yes external reference */
 #define AD7192_STAT_PARITY	BIT(4) /* Parity */
 #define AD7192_STAT_CH3		BIT(2) /* Channel 3 */
 #define AD7192_STAT_CH2		BIT(1) /* Channel 2 */
@@ -64,7 +64,7 @@
 #define AD7192_MODE_ENPAR	BIT(13) /* Parity Enable */
 #define AD7192_MODE_CLKDIV	BIT(12) /* Clock divide by 2 (AD7190/2 only)*/
 #define AD7192_MODE_SCYCLE	BIT(11) /* Single cycle conversion */
-#define AD7192_MODE_REJ60	BIT(10) /* 50/60Hz notch filter */
+#define AD7192_MODE_REJ60	BIT(10) /* 50/60Hz yestch filter */
 #define AD7192_MODE_RATE(x)	((x) & 0x3FF) /* Filter Update Rate Select */
 
 /* Mode Register: AD7192_MODE_SEL options */
@@ -81,7 +81,7 @@
 #define AD7192_CLK_EXT_MCLK1_2		0 /* External 4.92 MHz Clock connected*/
 					  /* from MCLK1 to MCLK2 */
 #define AD7192_CLK_EXT_MCLK2		1 /* External Clock applied to MCLK2 */
-#define AD7192_CLK_INT			2 /* Internal 4.92 MHz Clock not */
+#define AD7192_CLK_INT			2 /* Internal 4.92 MHz Clock yest */
 					  /* available at the MCLK2 pin */
 #define AD7192_CLK_INT_CO		3 /* Internal 4.92 MHz Clock available*/
 					  /* at the MCLK2 pin */
@@ -92,7 +92,7 @@
 #define AD7192_CONF_REFSEL	BIT(20) /* REFIN1/REFIN2 Reference Select */
 #define AD7192_CONF_CHAN(x)	((x) << 8) /* Channel select */
 #define AD7192_CONF_CHAN_MASK	(0x7FF << 8) /* Channel select mask */
-#define AD7192_CONF_BURN	BIT(7) /* Burnout current enable */
+#define AD7192_CONF_BURN	BIT(7) /* Buryesut current enable */
 #define AD7192_CONF_REFDET	BIT(6) /* Reference detect enable */
 #define AD7192_CONF_BUF		BIT(4) /* Buffered Mode Enable */
 #define AD7192_CONF_UNIPOLAR	BIT(3) /* Unipolar/Bipolar Enable */
@@ -307,7 +307,7 @@ static inline bool ad7192_valid_external_frequency(u32 freq)
 
 static int ad7192_of_clock_select(struct ad7192_state *st)
 {
-	struct device_node *np = st->sd.spi->dev.of_node;
+	struct device_yesde *np = st->sd.spi->dev.of_yesde;
 	unsigned int clock_sel;
 
 	clock_sel = AD7192_CLK_INT;
@@ -326,11 +326,11 @@ static int ad7192_of_clock_select(struct ad7192_state *st)
 	return clock_sel;
 }
 
-static int ad7192_setup(struct ad7192_state *st, struct device_node *np)
+static int ad7192_setup(struct ad7192_state *st, struct device_yesde *np)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(st->sd.spi);
 	bool rej60_en, refin2_en;
-	bool buf_en, bipolar, burnout_curr_en;
+	bool buf_en, bipolar, buryesut_curr_en;
 	unsigned long long scale_uv;
 	int i, ret, id;
 
@@ -376,13 +376,13 @@ static int ad7192_setup(struct ad7192_state *st, struct device_node *np)
 	if (!bipolar)
 		st->conf |= AD7192_CONF_UNIPOLAR;
 
-	burnout_curr_en = of_property_read_bool(np,
-						"adi,burnout-currents-enable");
-	if (burnout_curr_en && buf_en) {
+	buryesut_curr_en = of_property_read_bool(np,
+						"adi,buryesut-currents-enable");
+	if (buryesut_curr_en && buf_en) {
 		st->conf |= AD7192_CONF_BURN;
-	} else if (burnout_curr_en) {
+	} else if (buryesut_curr_en) {
 		dev_warn(&st->sd.spi->dev,
-			 "Can't enable burnout currents: see CHOP or buffer\n");
+			 "Can't enable buryesut currents: see CHOP or buffer\n");
 	}
 
 	ret = ad_sd_write_reg(&st->sd, AD7192_REG_MODE, 3, st->mode);
@@ -863,7 +863,7 @@ static int ad7192_probe(struct spi_device *spi)
 	int ret, voltage_uv = 0;
 
 	if (!spi->irq) {
-		dev_err(&spi->dev, "no IRQ?\n");
+		dev_err(&spi->dev, "yes IRQ?\n");
 		return -ENODEV;
 	}
 
@@ -950,7 +950,7 @@ static int ad7192_probe(struct spi_device *spi)
 		}
 	}
 
-	ret = ad7192_setup(st, spi->dev.of_node);
+	ret = ad7192_setup(st, spi->dev.of_yesde);
 	if (ret)
 		goto error_disable_clk;
 

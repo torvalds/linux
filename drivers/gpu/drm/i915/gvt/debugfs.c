@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -33,7 +33,7 @@ struct mmio_diff_param {
 };
 
 struct diff_mmio {
-	struct list_head node;
+	struct list_head yesde;
 	u32 offset;
 	u32 preg;
 	u32 vreg;
@@ -46,8 +46,8 @@ static int mmio_offset_compare(void *priv,
 	struct diff_mmio *ma;
 	struct diff_mmio *mb;
 
-	ma = container_of(a, struct diff_mmio, node);
-	mb = container_of(b, struct diff_mmio, node);
+	ma = container_of(a, struct diff_mmio, yesde);
+	mb = container_of(b, struct diff_mmio, yesde);
 	if (ma->offset < mb->offset)
 		return -1;
 	else if (ma->offset > mb->offset)
@@ -60,21 +60,21 @@ static inline int mmio_diff_handler(struct intel_gvt *gvt,
 {
 	struct drm_i915_private *i915 = gvt->dev_priv;
 	struct mmio_diff_param *param = data;
-	struct diff_mmio *node;
+	struct diff_mmio *yesde;
 	u32 preg, vreg;
 
-	preg = intel_uncore_read_notrace(&i915->uncore, _MMIO(offset));
+	preg = intel_uncore_read_yestrace(&i915->uncore, _MMIO(offset));
 	vreg = vgpu_vreg(param->vgpu, offset);
 
 	if (preg != vreg) {
-		node = kmalloc(sizeof(*node), GFP_KERNEL);
-		if (!node)
+		yesde = kmalloc(sizeof(*yesde), GFP_KERNEL);
+		if (!yesde)
 			return -ENOMEM;
 
-		node->offset = offset;
-		node->preg = preg;
-		node->vreg = vreg;
-		list_add(&node->node, &param->diff_mmio_list);
+		yesde->offset = offset;
+		yesde->preg = preg;
+		yesde->vreg = vreg;
+		list_add(&yesde->yesde, &param->diff_mmio_list);
 		param->diff++;
 	}
 	param->total++;
@@ -91,7 +91,7 @@ static int vgpu_mmio_diff_show(struct seq_file *s, void *unused)
 		.total = 0,
 		.diff = 0,
 	};
-	struct diff_mmio *node, *next;
+	struct diff_mmio *yesde, *next;
 
 	INIT_LIST_HEAD(&param.diff_mmio_list);
 
@@ -110,14 +110,14 @@ static int vgpu_mmio_diff_show(struct seq_file *s, void *unused)
 	list_sort(NULL, &param.diff_mmio_list, mmio_offset_compare);
 
 	seq_printf(s, "%-8s %-8s %-8s %-8s\n", "Offset", "HW", "vGPU", "Diff");
-	list_for_each_entry_safe(node, next, &param.diff_mmio_list, node) {
-		u32 diff = node->preg ^ node->vreg;
+	list_for_each_entry_safe(yesde, next, &param.diff_mmio_list, yesde) {
+		u32 diff = yesde->preg ^ yesde->vreg;
 
 		seq_printf(s, "%08x %08x %08x %*pbl\n",
-			   node->offset, node->preg, node->vreg,
+			   yesde->offset, yesde->preg, yesde->vreg,
 			   32, &diff);
-		list_del(&node->node);
-		kfree(node);
+		list_del(&yesde->yesde);
+		kfree(yesde);
 	}
 	seq_printf(s, "Total: %d, Diff: %d\n", param.total, param.diff);
 	return 0;
@@ -125,21 +125,21 @@ static int vgpu_mmio_diff_show(struct seq_file *s, void *unused)
 DEFINE_SHOW_ATTRIBUTE(vgpu_mmio_diff);
 
 static int
-vgpu_scan_nonprivbb_get(void *data, u64 *val)
+vgpu_scan_yesnprivbb_get(void *data, u64 *val)
 {
 	struct intel_vgpu *vgpu = (struct intel_vgpu *)data;
-	*val = vgpu->scan_nonprivbb;
+	*val = vgpu->scan_yesnprivbb;
 	return 0;
 }
 
 /*
- * set/unset bit engine_id of vgpu->scan_nonprivbb to turn on/off scanning
- * of non-privileged batch buffer. e.g.
- * if vgpu->scan_nonprivbb=3, then it will scan non-privileged batch buffer
+ * set/unset bit engine_id of vgpu->scan_yesnprivbb to turn on/off scanning
+ * of yesn-privileged batch buffer. e.g.
+ * if vgpu->scan_yesnprivbb=3, then it will scan yesn-privileged batch buffer
  * on engine 0 and 1.
  */
 static int
-vgpu_scan_nonprivbb_set(void *data, u64 val)
+vgpu_scan_yesnprivbb_set(void *data, u64 val)
 {
 	struct intel_vgpu *vgpu = (struct intel_vgpu *)data;
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
@@ -149,14 +149,14 @@ vgpu_scan_nonprivbb_set(void *data, u64 val)
 
 	val &= (1 << I915_NUM_ENGINES) - 1;
 
-	if (vgpu->scan_nonprivbb == val)
+	if (vgpu->scan_yesnprivbb == val)
 		return 0;
 
 	if (!val)
 		goto done;
 
 	len = sprintf(buf,
-		"gvt: vgpu %d turns on non-privileged batch buffers scanning on Engines:",
+		"gvt: vgpu %d turns on yesn-privileged batch buffers scanning on Engines:",
 		vgpu->id);
 
 	s = buf + len;
@@ -178,12 +178,12 @@ vgpu_scan_nonprivbb_set(void *data, u64 val)
 	pr_warn("%s\n", buf);
 
 done:
-	vgpu->scan_nonprivbb = val;
+	vgpu->scan_yesnprivbb = val;
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(vgpu_scan_nonprivbb_fops,
-			vgpu_scan_nonprivbb_get, vgpu_scan_nonprivbb_set,
+DEFINE_SIMPLE_ATTRIBUTE(vgpu_scan_yesnprivbb_fops,
+			vgpu_scan_yesnprivbb_get, vgpu_scan_yesnprivbb_set,
 			"0x%llx\n");
 
 /**
@@ -200,8 +200,8 @@ void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
 	debugfs_create_bool("active", 0444, vgpu->debugfs, &vgpu->active);
 	debugfs_create_file("mmio_diff", 0444, vgpu->debugfs, vgpu,
 			    &vgpu_mmio_diff_fops);
-	debugfs_create_file("scan_nonprivbb", 0644, vgpu->debugfs, vgpu,
-			    &vgpu_scan_nonprivbb_fops);
+	debugfs_create_file("scan_yesnprivbb", 0644, vgpu->debugfs, vgpu,
+			    &vgpu_scan_yesnprivbb_fops);
 }
 
 /**
@@ -220,9 +220,9 @@ void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu)
  */
 void intel_gvt_debugfs_init(struct intel_gvt *gvt)
 {
-	struct drm_minor *minor = gvt->dev_priv->drm.primary;
+	struct drm_miyesr *miyesr = gvt->dev_priv->drm.primary;
 
-	gvt->debugfs_root = debugfs_create_dir("gvt", minor->debugfs_root);
+	gvt->debugfs_root = debugfs_create_dir("gvt", miyesr->debugfs_root);
 
 	debugfs_create_ulong("num_tracked_mmio", 0444, gvt->debugfs_root,
 			     &gvt->mmio.num_tracked_mmio);

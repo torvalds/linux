@@ -43,7 +43,7 @@
 #define cpu_has_smartmips	0
 #define cpu_has_vtag_icache	0
 #define cpu_has_ic_fills_f_dc	0
-#define cpu_icache_snoops_remote_store	0
+#define cpu_icache_syesops_remote_store	0
 #define cpu_has_dsp		0
 #define cpu_has_dsp2		0
 #define cpu_has_mipsmt		0

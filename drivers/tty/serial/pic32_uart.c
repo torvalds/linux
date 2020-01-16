@@ -2,7 +2,7 @@
 /*
  * PIC32 Integrated Serial Driver.
  *
- * Copyright (C) 2015 Microchip Technology, Inc.
+ * Copyright (C) 2015 Microchip Techyeslogy, Inc.
  *
  * Authors:
  *   Sorin-Andrei Pistirica <andrei.pistirica@microchip.com>
@@ -103,8 +103,8 @@ static unsigned int pic32_uart_get_mctrl(struct uart_port *port)
 	else if (get_cts_state(sport))
 		mctrl |= TIOCM_CTS;
 
-	/* DSR and CD are not supported in PIC32, so return 1
-	 * RI is not supported in PIC32, so return 0
+	/* DSR and CD are yest supported in PIC32, so return 1
+	 * RI is yest supported in PIC32, so return 0
 	 */
 	mctrl |= TIOCM_CD;
 	mctrl |= TIOCM_DSR;
@@ -112,7 +112,7 @@ static unsigned int pic32_uart_get_mctrl(struct uart_port *port)
 	return mctrl;
 }
 
-/* stop tx and start tx are not called in pairs, therefore a flag indicates
+/* stop tx and start tx are yest called in pairs, therefore a flag indicates
  * the status of irq to control the irq-depth.
  */
 static inline void pic32_uart_irqtxen(struct pic32_sport *sport, u8 en)
@@ -121,11 +121,11 @@ static inline void pic32_uart_irqtxen(struct pic32_sport *sport, u8 en)
 		enable_irq(sport->irq_tx);
 		tx_irq_enabled(sport) = 1;
 	} else if (!en && tx_irq_enabled(sport)) {
-		/* use disable_irq_nosync() and not disable_irq() to avoid self
-		 * imposed deadlock by not waiting for irq handler to end,
+		/* use disable_irq_yessync() and yest disable_irq() to avoid self
+		 * imposed deadlock by yest waiting for irq handler to end,
 		 * since this callback is called from interrupt context.
 		 */
-		disable_irq_nosync(sport->irq_tx);
+		disable_irq_yessync(sport->irq_tx);
 		tx_irq_enabled(sport) = 0;
 	}
 }
@@ -203,7 +203,7 @@ static void pic32_uart_do_rx(struct uart_port *port)
 	struct tty_port *tty;
 	unsigned int max_count;
 
-	/* limit number of char read in interrupt, should not be
+	/* limit number of char read in interrupt, should yest be
 	 * higher than fifo size anyway since we're much faster than
 	 * serial port
 	 */
@@ -261,7 +261,7 @@ static void pic32_uart_do_rx(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, c))
 			continue;
 
-		if ((sta_reg & port->ignore_status_mask) == 0)
+		if ((sta_reg & port->igyesre_status_mask) == 0)
 			tty_insert_flip_char(tty, c, flag);
 
 	} while (--max_count);
@@ -356,7 +356,7 @@ static irqreturn_t pic32_uart_tx_interrupt(int irq, void *dev_id)
 /* FAULT interrupt handler */
 static irqreturn_t pic32_uart_fault_interrupt(int irq, void *dev_id)
 {
-	/* do nothing: pic32_uart_do_rx() handles faults. */
+	/* do yesthing: pic32_uart_do_rx() handles faults. */
 	return IRQ_HANDLED;
 }
 
@@ -586,7 +586,7 @@ static void pic32_uart_set_termios(struct uart_port *port,
 	/* Always 8-bit */
 	new->c_cflag |= CS8;
 
-	/* Mark/Space parity is not supported */
+	/* Mark/Space parity is yest supported */
 	new->c_cflag &= ~CMSPAR;
 
 	/* update baud */
@@ -618,7 +618,7 @@ static int pic32_uart_request_port(struct uart_port *port)
 				"pic32_uart_mem"))
 		return -EBUSY;
 
-	port->membase = devm_ioremap_nocache(port->dev, port->mapbase,
+	port->membase = devm_ioremap_yescache(port->dev, port->mapbase,
 						resource_size(res_mem));
 	if (!port->membase) {
 		dev_err(port->dev, "Unable to map registers\n");
@@ -800,7 +800,7 @@ static struct uart_driver pic32_uart_driver = {
 
 static int pic32_uart_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct pic32_sport *sport;
 	int uart_idx = 0;
 	struct resource *res_mem;

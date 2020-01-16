@@ -116,7 +116,7 @@ static int get_valid_cis_sector(struct mtd_info *mtd)
 	/*
 	 * Look for CIS/IDI sector on the first GOOD block (give up after 4 bad
 	 * blocks). If the first good block doesn't contain CIS number the flash
-	 * is not SSFDC formatted
+	 * is yest SSFDC formatted
 	 */
 	for (k = 0, offset = 0; k < 4; k++, offset += mtd->erasesize) {
 		if (mtd_block_isbad(mtd, offset)) {
@@ -132,7 +132,7 @@ static int get_valid_cis_sector(struct mtd_info *mtd)
 				/* Found */
 				cis_sector = (int)(offset >> SECTOR_SHIFT);
 			} else {
-				pr_debug("SSFDC_RO: CIS/IDI sector not found"
+				pr_debug("SSFDC_RO: CIS/IDI sector yest found"
 					" on %s (mtd%d)\n", mtd->name,
 					mtd->index);
 			}
@@ -147,11 +147,11 @@ static int get_valid_cis_sector(struct mtd_info *mtd)
 
 /* Read physical sector (wrapper to MTD_READ) */
 static int read_physical_sector(struct mtd_info *mtd, uint8_t *sect_buf,
-				int sect_no)
+				int sect_yes)
 {
 	int ret;
 	size_t retlen;
-	loff_t offset = (loff_t)sect_no << SECTOR_SHIFT;
+	loff_t offset = (loff_t)sect_yes << SECTOR_SHIFT;
 
 	ret = mtd_read(mtd, offset, SECTOR_SIZE, &retlen, sect_buf);
 	if (ret < 0 || retlen != SECTOR_SIZE)
@@ -365,17 +365,17 @@ static void ssfdcr_remove_dev(struct mtd_blktrans_dev *dev)
 }
 
 static int ssfdcr_readsect(struct mtd_blktrans_dev *dev,
-				unsigned long logic_sect_no, char *buf)
+				unsigned long logic_sect_yes, char *buf)
 {
 	struct ssfdcr_record *ssfdc = (struct ssfdcr_record *)dev;
 	int sectors_per_block, offset, block_address;
 
 	sectors_per_block = ssfdc->erase_size >> SECTOR_SHIFT;
-	offset = (int)(logic_sect_no % sectors_per_block);
-	block_address = (int)(logic_sect_no / sectors_per_block);
+	offset = (int)(logic_sect_yes % sectors_per_block);
+	block_address = (int)(logic_sect_yes / sectors_per_block);
 
 	pr_debug("SSFDC_RO: ssfdcr_readsect(%lu) sec_per_blk=%d, ofst=%d,"
-		" block_addr=%d\n", logic_sect_no, sectors_per_block, offset,
+		" block_addr=%d\n", logic_sect_yes, sectors_per_block, offset,
 		block_address);
 
 	BUG_ON(block_address >= ssfdc->map_len);
@@ -386,15 +386,15 @@ static int ssfdcr_readsect(struct mtd_blktrans_dev *dev,
 		block_address);
 
 	if (block_address < 0xffff) {
-		unsigned long sect_no;
+		unsigned long sect_yes;
 
-		sect_no = (unsigned long)block_address * sectors_per_block +
+		sect_yes = (unsigned long)block_address * sectors_per_block +
 				offset;
 
-		pr_debug("SSFDC_RO: ssfdcr_readsect() phys_sect_no=%lu\n",
-			sect_no);
+		pr_debug("SSFDC_RO: ssfdcr_readsect() phys_sect_yes=%lu\n",
+			sect_yes);
 
-		if (read_physical_sector(ssfdc->mbd.mtd, buf, sect_no) < 0)
+		if (read_physical_sector(ssfdc->mbd.mtd, buf, sect_yes) < 0)
 			return -EIO;
 	} else {
 		memset(buf, 0xff, SECTOR_SIZE);

@@ -151,7 +151,7 @@ static inline __sum16 udp_v4_check(int len, __be32 saddr,
 	return csum_tcpudp_magic(saddr, daddr, len, IPPROTO_UDP, base);
 }
 
-void udp_set_csum(bool nocheck, struct sk_buff *skb,
+void udp_set_csum(bool yescheck, struct sk_buff *skb,
 		  __be32 saddr, __be32 daddr, int len);
 
 static inline void udp_csum_pull_header(struct sk_buff *skb)
@@ -220,7 +220,7 @@ static inline __be16 udp_flow_src_port(struct net *net, struct sk_buff *skb,
 	hash = skb_get_hash(skb);
 	if (unlikely(!hash)) {
 		if (use_eth) {
-			/* Can't find a normal hash, caller has indicated an
+			/* Can't find a yesrmal hash, caller has indicated an
 			 * Ethernet packet so use that to compute a hash.
 			 */
 			hash = jhash(skb->data, 2 * ETH_ALEN,
@@ -265,13 +265,13 @@ void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len);
 int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb);
 void udp_skb_destructor(struct sock *sk, struct sk_buff *skb);
 struct sk_buff *__skb_recv_udp(struct sock *sk, unsigned int flags,
-			       int noblock, int *off, int *err);
+			       int yesblock, int *off, int *err);
 static inline struct sk_buff *skb_recv_udp(struct sock *sk, unsigned int flags,
-					   int noblock, int *err)
+					   int yesblock, int *err)
 {
 	int off = 0;
 
-	return __skb_recv_udp(sk, flags, noblock, &off, err);
+	return __skb_recv_udp(sk, flags, yesblock, &off, err);
 }
 
 int udp_v4_early_demux(struct sk_buff *skb);
@@ -325,7 +325,7 @@ struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
  */
 struct udp_dev_scratch {
 	/* skb->truesize and the stateless bit are embedded in a single field;
-	 * do not use a bitfield since the compiler emits better/smaller code
+	 * do yest use a bitfield since the compiler emits better/smaller code
 	 * this way
 	 */
 	u32 _tsize_state;
@@ -376,7 +376,7 @@ static inline bool udp_skb_csum_unnecessary(struct sk_buff *skb)
 
 static inline bool udp_skb_is_linear(struct sk_buff *skb)
 {
-	return !skb_is_nonlinear(skb);
+	return !skb_is_yesnlinear(skb);
 }
 #endif
 
@@ -476,7 +476,7 @@ static inline struct sk_buff *udp_rcv_segment(struct sock *sk,
 	if (!inet_get_convert_csum(sk))
 		features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 
-	/* the GSO CB lays after the UDP one, no need to save and restore any
+	/* the GSO CB lays after the UDP one, yes need to save and restore any
 	 * CB fragment
 	 */
 	segs = __skb_gso_segment(skb, features, false);

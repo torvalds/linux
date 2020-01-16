@@ -23,16 +23,16 @@
 /*
  * pidlists linger the following amount before being destroyed.  The goal
  * is avoiding frequent destruction in the middle of consecutive read calls
- * Expiring in the middle is a performance problem not a correctness one.
- * 1 sec should be enough.
+ * Expiring in the middle is a performance problem yest a correctness one.
+ * 1 sec should be eyesugh.
  */
 #define CGROUP_PIDLIST_DESTROY_DELAY	HZ
 
 /* Controllers blocked by the commandline in v1 */
-static u16 cgroup_no_v1_mask;
+static u16 cgroup_yes_v1_mask;
 
 /* disable named v1 mounts */
-static bool cgroup_no_v1_named;
+static bool cgroup_yes_v1_named;
 
 /*
  * pidlist destructions need to be flushed on cgroup destruction.  Use a
@@ -48,7 +48,7 @@ static DEFINE_SPINLOCK(release_agent_path_lock);
 
 bool cgroup1_ssid_disabled(int ssid)
 {
-	return cgroup_no_v1_mask & (1 << ssid);
+	return cgroup_yes_v1_mask & (1 << ssid);
 }
 
 /**
@@ -85,7 +85,7 @@ int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 EXPORT_SYMBOL_GPL(cgroup_attach_task_all);
 
 /**
- * cgroup_trasnsfer_tasks - move tasks from one cgroup to another
+ * cgroup_trasnsfer_tasks - move tasks from one cgroup to ayesther
  * @to: cgroup to which the tasks will be moved
  * @from: cgroup in which the tasks currently reside
  *
@@ -158,7 +158,7 @@ out_err:
  *
  * Reading this file can return large amounts of data if a cgroup has
  * *lots* of attached tasks. So it may need several calls to read(),
- * but we cannot guarantee that the information we produce is correct
+ * but we canyest guarantee that the information we produce is correct
  * unless we produce it entirely atomically.
  *
  */
@@ -244,7 +244,7 @@ static int pidlist_uniq(pid_t *list, int length)
 
 	/*
 	 * we presume the 0th element is unique, so i starts at 1. trivial
-	 * edge cases first; no work needs to be done for either
+	 * edge cases first; yes work needs to be done for either
 	 */
 	if (length == 0 || length == 1)
 		return length;
@@ -296,7 +296,7 @@ static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
 /*
  * find the appropriate pidlist for our purpose (given procs vs tasks)
  * returns with the lock on that pidlist already held, and takes care
- * of the use count, or returns NULL with no locks held if we're out of
+ * of the use count, or returns NULL with yes locks held if we're out of
  * memory.
  */
 static struct cgroup_pidlist *cgroup_pidlist_find_create(struct cgroup *cgrp,
@@ -310,7 +310,7 @@ static struct cgroup_pidlist *cgroup_pidlist_find_create(struct cgroup *cgrp,
 	if (l)
 		return l;
 
-	/* entry not found; create a new one */
+	/* entry yest found; create a new one */
 	l = kzalloc(sizeof(struct cgroup_pidlist), GFP_KERNEL);
 	if (!l)
 		return l;
@@ -341,7 +341,7 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 
 	/*
 	 * If cgroup gets more users after we read count, we won't have
-	 * enough space - tough.  This race is indistinguishable to the
+	 * eyesugh space - tough.  This race is indistinguishable to the
 	 * caller from the case that the additional cgroup users didn't
 	 * show up until sometime later on.
 	 */
@@ -349,7 +349,7 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	array = kvmalloc_array(length, sizeof(pid_t), GFP_KERNEL);
 	if (!array)
 		return -ENOMEM;
-	/* now, populate the array */
+	/* yesw, populate the array */
 	css_task_iter_start(&cgrp->self, 0, &it);
 	while ((tsk = css_task_iter_next(&it))) {
 		if (unlikely(n == length))
@@ -364,7 +364,7 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	}
 	css_task_iter_end(&it);
 	length = n;
-	/* now sort & (if procs) strip out duplicates */
+	/* yesw sort & (if procs) strip out duplicates */
 	sort(array, length, sizeof(pid_t), cmppid, NULL);
 	if (type == CGROUP_FILE_PROCS)
 		length = pidlist_uniq(array, length);
@@ -577,13 +577,13 @@ static int cgroup_sane_behavior_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static u64 cgroup_read_notify_on_release(struct cgroup_subsys_state *css,
+static u64 cgroup_read_yestify_on_release(struct cgroup_subsys_state *css,
 					 struct cftype *cft)
 {
-	return notify_on_release(css->cgroup);
+	return yestify_on_release(css->cgroup);
 }
 
-static int cgroup_write_notify_on_release(struct cgroup_subsys_state *css,
+static int cgroup_write_yestify_on_release(struct cgroup_subsys_state *css,
 					  struct cftype *cft, u64 val)
 {
 	if (val)
@@ -640,9 +640,9 @@ struct cftype cgroup1_base_files[] = {
 		.write = cgroup1_tasks_write,
 	},
 	{
-		.name = "notify_on_release",
-		.read_u64 = cgroup_read_notify_on_release,
-		.write_u64 = cgroup_write_notify_on_release,
+		.name = "yestify_on_release",
+		.read_u64 = cgroup_read_yestify_on_release,
+		.write_u64 = cgroup_write_yestify_on_release,
 	},
 	{
 		.name = "release_agent",
@@ -689,12 +689,12 @@ int proc_cgroupstats_show(struct seq_file *m, void *v)
  */
 int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 {
-	struct kernfs_node *kn = kernfs_node_from_dentry(dentry);
+	struct kernfs_yesde *kn = kernfs_yesde_from_dentry(dentry);
 	struct cgroup *cgrp;
 	struct css_task_iter it;
 	struct task_struct *tsk;
 
-	/* it should be kernfs_node belonging to cgroupfs and is a directory */
+	/* it should be kernfs_yesde belonging to cgroupfs and is a directory */
 	if (dentry->d_sb->s_type != &cgroup_fs_type || !kn ||
 	    kernfs_type(kn) != KERNFS_DIR)
 		return -EINVAL;
@@ -702,7 +702,7 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	mutex_lock(&cgroup_mutex);
 
 	/*
-	 * We aren't being called from kernfs and there's no guarantee on
+	 * We aren't being called from kernfs and there's yes guarantee on
 	 * @kn->priv's validity.  For this and css_tryget_online_from_dir(),
 	 * @kn->priv is RCU safe.  Let's do the RCU dancing.
 	 */
@@ -744,7 +744,7 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 
 void cgroup1_check_for_release(struct cgroup *cgrp)
 {
-	if (notify_on_release(cgrp) && !cgroup_is_populated(cgrp) &&
+	if (yestify_on_release(cgrp) && !cgroup_is_populated(cgrp) &&
 	    !css_has_online_children(&cgrp->self) && !cgroup_is_dead(cgrp))
 		schedule_work(&cgrp->release_agent_work);
 }
@@ -759,18 +759,18 @@ void cgroup1_check_for_release(struct cgroup *cgrp)
  * This races with the possibility that some other task will be
  * attached to this cgroup before it is removed, or that some other
  * user task will 'mkdir' a child cgroup of this cgroup.  That's ok.
- * The presumed 'rmdir' will fail quietly if this cgroup is no longer
+ * The presumed 'rmdir' will fail quietly if this cgroup is yes longer
  * unused, and this cgroup will be reprieved from its death sentence,
  * to continue to serve a useful existence.  Next time it's released,
- * we will get notified again, if it still has 'notify_on_release' set.
+ * we will get yestified again, if it still has 'yestify_on_release' set.
  *
  * The final arg to call_usermodehelper() is UMH_WAIT_EXEC, which
  * means only wait until the task is successfully execve()'d.  The
  * separate release agent task is forked by call_usermodehelper(),
  * then control in this thread returns here, without waiting for the
  * release agent task.  We don't bother to wait because the caller of
- * this routine has no use for the exit status of the release agent
- * task, so no sense holding our caller up for that.
+ * this routine has yes use for the exit status of the release agent
+ * task, so yes sense holding our caller up for that.
  */
 void cgroup1_release_agent(struct work_struct *work)
 {
@@ -815,7 +815,7 @@ out_free:
 /*
  * cgroup_rename - Only allow simple rename of directories in place.
  */
-static int cgroup1_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
+static int cgroup1_rename(struct kernfs_yesde *kn, struct kernfs_yesde *new_parent,
 			  const char *new_name_str)
 {
 	struct cgroup *cgrp = kn->priv;
@@ -857,7 +857,7 @@ static int cgroup1_show_options(struct seq_file *seq, struct kernfs_root *kf_roo
 		if (root->subsys_mask & (1 << ssid))
 			seq_show_option(seq, ss->legacy_name, NULL);
 	if (root->flags & CGRP_ROOT_NOPREFIX)
-		seq_puts(seq, ",noprefix");
+		seq_puts(seq, ",yesprefix");
 	if (root->flags & CGRP_ROOT_XATTR)
 		seq_puts(seq, ",xattr");
 	if (root->flags & CGRP_ROOT_CPUSET_V2_MODE)
@@ -881,8 +881,8 @@ enum cgroup1_param {
 	Opt_clone_children,
 	Opt_cpuset_v2_mode,
 	Opt_name,
-	Opt_none,
-	Opt_noprefix,
+	Opt_yesne,
+	Opt_yesprefix,
 	Opt_release_agent,
 	Opt_xattr,
 };
@@ -892,8 +892,8 @@ static const struct fs_parameter_spec cgroup1_param_specs[] = {
 	fsparam_flag  ("clone_children", Opt_clone_children),
 	fsparam_flag  ("cpuset_v2_mode", Opt_cpuset_v2_mode),
 	fsparam_string("name",		Opt_name),
-	fsparam_flag  ("none",		Opt_none),
-	fsparam_flag  ("noprefix",	Opt_noprefix),
+	fsparam_flag  ("yesne",		Opt_yesne),
+	fsparam_flag  ("yesprefix",	Opt_yesprefix),
 	fsparam_string("release_agent",	Opt_release_agent),
 	fsparam_flag  ("xattr",		Opt_xattr),
 	{}
@@ -924,20 +924,20 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			ctx->subsys_mask |= (1 << i);
 			return 0;
 		}
-		return cg_invalf(fc, "cgroup1: Unknown subsys name '%s'", param->key);
+		return cg_invalf(fc, "cgroup1: Unkyeswn subsys name '%s'", param->key);
 	}
 	if (opt < 0)
 		return opt;
 
 	switch (opt) {
-	case Opt_none:
-		/* Explicitly have no subsystems */
-		ctx->none = true;
+	case Opt_yesne:
+		/* Explicitly have yes subsystems */
+		ctx->yesne = true;
 		break;
 	case Opt_all:
 		ctx->all_ss = true;
 		break;
-	case Opt_noprefix:
+	case Opt_yesprefix:
 		ctx->flags |= CGRP_ROOT_NOPREFIX;
 		break;
 	case Opt_clone_children:
@@ -958,7 +958,7 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	case Opt_name:
 		/* blocked by boot param? */
-		if (cgroup_no_v1_named)
+		if (cgroup_yes_v1_named)
 			return -ENOENT;
 		/* Can't specify an empty name */
 		if (!param->size)
@@ -1002,10 +1002,10 @@ static int check_cgroupfs_options(struct fs_context *fc)
 	ctx->subsys_mask &= enabled;
 
 	/*
-	 * In absense of 'none', 'name=' or subsystem name options,
+	 * In absense of 'yesne', 'name=' or subsystem name options,
 	 * let's default to 'all'.
 	 */
-	if (!ctx->subsys_mask && !ctx->none && !ctx->name)
+	if (!ctx->subsys_mask && !ctx->yesne && !ctx->name)
 		ctx->all_ss = true;
 
 	if (ctx->all_ss) {
@@ -1024,16 +1024,16 @@ static int check_cgroupfs_options(struct fs_context *fc)
 		return cg_invalf(fc, "cgroup1: Need name or subsystem set");
 
 	/*
-	 * Option noprefix was introduced just for backward compatibility
-	 * with the old cpuset, so we allow noprefix only if mounting just
+	 * Option yesprefix was introduced just for backward compatibility
+	 * with the old cpuset, so we allow yesprefix only if mounting just
 	 * the cpuset subsystem.
 	 */
 	if ((ctx->flags & CGRP_ROOT_NOPREFIX) && (ctx->subsys_mask & mask))
-		return cg_invalf(fc, "cgroup1: noprefix used incorrectly");
+		return cg_invalf(fc, "cgroup1: yesprefix used incorrectly");
 
-	/* Can't specify "none" and some subsystems */
-	if (ctx->subsys_mask && ctx->none)
-		return cg_invalf(fc, "cgroup1: none used incorrectly");
+	/* Can't specify "yesne" and some subsystems */
+	if (ctx->subsys_mask && ctx->yesne)
+		return cg_invalf(fc, "cgroup1: yesne used incorrectly");
 
 	return 0;
 }
@@ -1069,7 +1069,7 @@ int cgroup1_reconfigure(struct fs_context *fc)
 		goto out_unlock;
 	}
 
-	/* remounting is not allowed for populated hierarchies */
+	/* remounting is yest allowed for populated hierarchies */
 	if (!list_empty(&root->cgrp.self.children)) {
 		ret = -EBUSY;
 		goto out_unlock;
@@ -1123,11 +1123,11 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 		return ret;
 
 	/*
-	 * Destruction of cgroup root is asynchronous, so subsystems may
+	 * Destruction of cgroup root is asynchroyesus, so subsystems may
 	 * still be dying after the previous unmount.  Let's drain the
 	 * dying subsystems.  We just need to ensure that the ones
 	 * unmounted previously finish dying and don't care about new ones
-	 * starting.  Testing ref liveliness is good enough.
+	 * starting.  Testing ref liveliness is good eyesugh.
 	 */
 	for_each_subsys(ss, i) {
 		if (!(ctx->subsys_mask & (1 << i)) ||
@@ -1157,10 +1157,10 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 		}
 
 		/*
-		 * If we asked for subsystems (or explicitly for no
+		 * If we asked for subsystems (or explicitly for yes
 		 * subsystems) then they must match.
 		 */
-		if ((ctx->subsys_mask || ctx->none) &&
+		if ((ctx->subsys_mask || ctx->yesne) &&
 		    (ctx->subsys_mask != root->subsys_mask)) {
 			if (!name_match)
 				continue;
@@ -1168,7 +1168,7 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 		}
 
 		if (root->flags ^ ctx->flags)
-			pr_warn("new mount options do not match the existing superblock, will be ignored\n");
+			pr_warn("new mount options do yest match the existing superblock, will be igyesred\n");
 
 		ctx->root = root;
 		return 0;
@@ -1179,8 +1179,8 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 	 * specification is allowed for already existing hierarchies but we
 	 * can't create new one without subsys specification.
 	 */
-	if (!ctx->subsys_mask && !ctx->none)
-		return cg_invalf(fc, "cgroup1: No subsys list or none specified");
+	if (!ctx->subsys_mask && !ctx->yesne)
+		return cg_invalf(fc, "cgroup1: No subsys list or yesne specified");
 
 	/* Hierarchies may only be created in the initial cgroup namespace. */
 	if (ctx->ns != &init_cgroup_ns)
@@ -1246,7 +1246,7 @@ static int __init cgroup1_wq_init(void)
 }
 core_initcall(cgroup1_wq_init);
 
-static int __init cgroup_no_v1(char *str)
+static int __init cgroup_yes_v1(char *str)
 {
 	struct cgroup_subsys *ss;
 	char *token;
@@ -1257,12 +1257,12 @@ static int __init cgroup_no_v1(char *str)
 			continue;
 
 		if (!strcmp(token, "all")) {
-			cgroup_no_v1_mask = U16_MAX;
+			cgroup_yes_v1_mask = U16_MAX;
 			continue;
 		}
 
 		if (!strcmp(token, "named")) {
-			cgroup_no_v1_named = true;
+			cgroup_yes_v1_named = true;
 			continue;
 		}
 
@@ -1271,9 +1271,9 @@ static int __init cgroup_no_v1(char *str)
 			    strcmp(token, ss->legacy_name))
 				continue;
 
-			cgroup_no_v1_mask |= 1 << i;
+			cgroup_yes_v1_mask |= 1 << i;
 		}
 	}
 	return 1;
 }
-__setup("cgroup_no_v1=", cgroup_no_v1);
+__setup("cgroup_yes_v1=", cgroup_yes_v1);

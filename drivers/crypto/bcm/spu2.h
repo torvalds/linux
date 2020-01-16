@@ -65,7 +65,7 @@ enum spu2_hash_mode {
 };
 
 enum spu2_ret_md_opts {
-	SPU2_RET_NO_MD = 0,	/* return no metadata */
+	SPU2_RET_NO_MD = 0,	/* return yes metadata */
 	SPU2_RET_FMD_OMD = 1,	/* return both FMD and OMD */
 	SPU2_RET_FMD_ONLY = 2,	/* return only FMD */
 	SPU2_RET_FMD_OMD_IV = 3,	/* return FMD and OMD with just IVs */

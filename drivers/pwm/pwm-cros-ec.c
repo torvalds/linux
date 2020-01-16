@@ -15,7 +15,7 @@
 /**
  * struct cros_ec_pwm_device - Driver data for EC PWM
  *
- * @dev: Device node
+ * @dev: Device yesde
  * @ec: Pointer to EC device
  * @chip: PWM controller chip
  */
@@ -191,7 +191,7 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!ec) {
-		dev_err(dev, "no parent EC device\n");
+		dev_err(dev, "yes parent EC device\n");
 		return -EINVAL;
 	}
 
@@ -217,7 +217,7 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 
 	ret = pwmchip_add(chip);
 	if (ret < 0) {
-		dev_err(dev, "cannot register PWM: %d\n", ret);
+		dev_err(dev, "canyest register PWM: %d\n", ret);
 		return ret;
 	}
 

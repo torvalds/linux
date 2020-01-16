@@ -339,7 +339,7 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 /**
  * Return the pipe currently connected to the panel fitter,
- * or -1 if the panel fitter is not present or not in use
+ * or -1 if the panel fitter is yest present or yest in use
  */
 static int oaktrail_panel_fitter_pipe(struct drm_device *dev)
 {
@@ -599,7 +599,7 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 	u32 dspcntr;
 	int ret = 0;
 
-	/* no fb bound */
+	/* yes fb bound */
 	if (!fb) {
 		dev_dbg(dev->dev, "No FB bound\n");
 		return 0;
@@ -631,7 +631,7 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
 		break;
 	default:
-		dev_err(dev->dev, "Unknown color depth\n");
+		dev_err(dev->dev, "Unkyeswn color depth\n");
 		ret = -EINVAL;
 		goto pipe_set_base_exit;
 	}

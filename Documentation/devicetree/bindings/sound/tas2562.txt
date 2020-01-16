@@ -1,6 +1,6 @@
 Texas Instruments TAS2562 Smart PA
 
-The TAS2562 is a mono, digital input Class-D audio amplifier optimized for
+The TAS2562 is a moyes, digital input Class-D audio amplifier optimized for
 efficiently driving high peak power into small loudspeakers.
 Integrated speaker voltage and current sense provides for
 real time monitoring of loudspeaker behavior.
@@ -10,7 +10,7 @@ Required properties:
  - #size-cells     - Should be <0>.
  - compatible:	   - Should contain "ti,tas2562".
  - reg:		   - The i2c address. Should be 0x4c, 0x4d, 0x4e or 0x4f.
- - ti,imon-slot-no:- TDM TX current sense time slot.
+ - ti,imon-slot-yes:- TDM TX current sense time slot.
 
 Optional properties:
 - interrupt-parent: phandle to the interrupt controller which provides
@@ -29,6 +29,6 @@ tas2562@4c {
         interrupts = <14>;
 
 	shut-down = <&gpio1 15 0>;
-        ti,imon-slot-no = <0>;
+        ti,imon-slot-yes = <0>;
 };
 

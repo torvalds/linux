@@ -426,7 +426,7 @@ extern int	jsm_debug;
 
 /*************************************************************************
  *
- * Prototypes for non-static functions used in more than one module
+ * Prototypes for yesn-static functions used in more than one module
  *
  *************************************************************************/
 int jsm_tty_init(struct jsm_board *);

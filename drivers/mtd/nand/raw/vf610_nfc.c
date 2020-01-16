@@ -13,7 +13,7 @@
  *
  * Limitations:
  * - Untested on MPC5125 and M54418.
- * - DMA and pipelining not used.
+ * - DMA and pipelining yest used.
  * - 2K pages or less.
  * - HW ECC: Only 2K page with 64+ OOB.
  * - HW ECC: Only 24 and 32-bit error correction implemented.
@@ -214,7 +214,7 @@ static inline bool vf610_nfc_kernel_is_little_endian(void)
  * @fix_endian: Fix endianness if required
  *
  * Use this accessor for the internal SRAM buffers. On the ARM
- * Freescale Vybrid SoC it's known that the driver can treat
+ * Freescale Vybrid SoC it's kyeswn that the driver can treat
  * the SRAM buffer as if it's memory. Other platform might need
  * to treat the buffers differently.
  *
@@ -249,7 +249,7 @@ static inline void vf610_nfc_rd_from_sram(void *dst, const void __iomem *src,
  * @fix_endian: Fix endianness if required
  *
  * Use this accessor for the internal SRAM buffers. On the ARM
- * Freescale Vybrid SoC it's known that the driver can treat
+ * Freescale Vybrid SoC it's kyeswn that the driver can treat
  * the SRAM buffer as if it's memory. Other platform might need
  * to treat the buffers differently.
  *
@@ -772,7 +772,7 @@ static int vf610_nfc_attach_chip(struct nand_chip *chip)
 		return -ENXIO;
 	}
 
-	/* Only 64 byte ECC layouts known */
+	/* Only 64 byte ECC layouts kyeswn */
 	if (mtd->oobsize > 64)
 		mtd->oobsize = 64;
 
@@ -813,7 +813,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
-	struct device_node *child;
+	struct device_yesde *child;
 	const struct of_device_id *of_id;
 	int err;
 	int irq;
@@ -855,23 +855,23 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 
 	nfc->variant = (enum vf610_nfc_variant)of_id->data;
 
-	for_each_available_child_of_node(nfc->dev->of_node, child) {
+	for_each_available_child_of_yesde(nfc->dev->of_yesde, child) {
 		if (of_device_is_compatible(child, "fsl,vf610-nfc-nandcs")) {
 
-			if (nand_get_flash_node(chip)) {
+			if (nand_get_flash_yesde(chip)) {
 				dev_err(nfc->dev,
 					"Only one NAND chip supported!\n");
 				err = -EINVAL;
-				of_node_put(child);
+				of_yesde_put(child);
 				goto err_disable_clk;
 			}
 
-			nand_set_flash_node(chip, child);
+			nand_set_flash_yesde(chip, child);
 		}
 	}
 
-	if (!nand_get_flash_node(chip)) {
-		dev_err(nfc->dev, "NAND chip sub-node missing!\n");
+	if (!nand_get_flash_yesde(chip)) {
+		dev_err(nfc->dev, "NAND chip sub-yesde missing!\n");
 		err = -ENODEV;
 		goto err_disable_clk;
 	}

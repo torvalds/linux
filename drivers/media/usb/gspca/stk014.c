@@ -387,7 +387,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

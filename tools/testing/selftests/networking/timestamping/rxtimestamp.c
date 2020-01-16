@@ -1,4 +1,4 @@
-#include <errno.h>
+#include <erryes.h>
 #include <error.h>
 #include <getopt.h>
 #include <stdbool.h>
@@ -83,7 +83,7 @@ static struct test_case test_cases[] = {
 		{}
 	},
 	{
-		/* Loopback device does not support hw timestamps. */
+		/* Loopback device does yest support hw timestamps. */
 		{ so_timestamping: SOF_TIMESTAMPING_RX_HARDWARE },
 		{}
 	},
@@ -109,12 +109,12 @@ static struct test_case test_cases[] = {
 };
 
 static struct option long_options[] = {
-	{ "list_tests", no_argument, 0, 'l' },
+	{ "list_tests", yes_argument, 0, 'l' },
 	{ "test_num", required_argument, 0, 'n' },
 	{ "op_size", required_argument, 0, 's' },
-	{ "tcp", no_argument, 0, 't' },
-	{ "udp", no_argument, 0, 'u' },
-	{ "ip", no_argument, 0, 'i' },
+	{ "tcp", yes_argument, 0, 't' },
+	{ "udp", yes_argument, 0, 'u' },
+	{ "ip", yes_argument, 0, 'i' },
 };
 
 static int next_port = 19999;
@@ -162,7 +162,7 @@ void do_send(int src)
 	memset(buf, 'z', op_size);
 	r = write(src, buf, op_size);
 	if (r < 0)
-		error(1, errno, "Failed to sendmsg");
+		error(1, erryes, "Failed to sendmsg");
 
 	free(buf);
 }
@@ -192,7 +192,7 @@ bool do_recv(int rcv, int read_size, struct tstamps expected)
 
 	r = recvmsg(rcv, &hdr, flags);
 	if (r < 0)
-		error(1, errno, "Failed to recvmsg");
+		error(1, erryes, "Failed to recvmsg");
 	if (r != read_size)
 		error(1, 0, "Only received %d bytes of payload.", r);
 
@@ -215,7 +215,7 @@ bool do_recv(int rcv, int read_size, struct tstamps expected)
 			ts = (struct scm_timestamping *)CMSG_DATA(cmsg);
 			actual.swtstamp = !!ts->ts[0].tv_sec;
 			if (ts->ts[1].tv_sec != 0)
-				error(0, 0, "ts[1] should not be set.");
+				error(0, 0, "ts[1] should yest be set.");
 			actual.hwtstamp = !!ts->ts[2].tv_sec;
 			break;
 		default:
@@ -230,7 +230,7 @@ bool do_recv(int rcv, int read_size, struct tstamps expected)
 				error(0, 0, "Expected " #field " to be set."); \
 			else \
 				error(0, 0, \
-				      "Expected " #field " to not be set."); \
+				      "Expected " #field " to yest be set."); \
 			failed = true; \
 		} \
 	} while (0)
@@ -251,22 +251,22 @@ void config_so_flags(int rcv, struct options o)
 	int on = 1;
 
 	if (setsockopt(rcv, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
-		error(1, errno, "Failed to enable SO_REUSEADDR");
+		error(1, erryes, "Failed to enable SO_REUSEADDR");
 
 	if (o.so_timestamp &&
 	    setsockopt(rcv, SOL_SOCKET, SO_TIMESTAMP,
 		       &o.so_timestamp, sizeof(o.so_timestamp)) < 0)
-		error(1, errno, "Failed to enable SO_TIMESTAMP");
+		error(1, erryes, "Failed to enable SO_TIMESTAMP");
 
 	if (o.so_timestampns &&
 	    setsockopt(rcv, SOL_SOCKET, SO_TIMESTAMPNS,
 		       &o.so_timestampns, sizeof(o.so_timestampns)) < 0)
-		error(1, errno, "Failed to enable SO_TIMESTAMPNS");
+		error(1, erryes, "Failed to enable SO_TIMESTAMPNS");
 
 	if (o.so_timestamping &&
 	    setsockopt(rcv, SOL_SOCKET, SO_TIMESTAMPING,
 		       &o.so_timestamping, sizeof(o.so_timestamping)) < 0)
-		error(1, errno, "Failed to set SO_TIMESTAMPING");
+		error(1, erryes, "Failed to set SO_TIMESTAMPING");
 }
 
 bool run_test_case(struct socket_type s, struct test_case t)
@@ -279,11 +279,11 @@ bool run_test_case(struct socket_type s, struct test_case t)
 
 	src = socket(AF_INET, s.type, s.protocol);
 	if (src < 0)
-		error(1, errno, "Failed to open src socket");
+		error(1, erryes, "Failed to open src socket");
 
 	dst = socket(AF_INET, s.type, s.protocol);
 	if (dst < 0)
-		error(1, errno, "Failed to open dst socket");
+		error(1, erryes, "Failed to open dst socket");
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
@@ -291,25 +291,25 @@ bool run_test_case(struct socket_type s, struct test_case t)
 	addr.sin_port = htons(port);
 
 	if (bind(dst, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-		error(1, errno, "Failed to bind to port %d", port);
+		error(1, erryes, "Failed to bind to port %d", port);
 
 	if (s.type == SOCK_STREAM && (listen(dst, 1) < 0))
-		error(1, errno, "Failed to listen");
+		error(1, erryes, "Failed to listen");
 
 	if (connect(src, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-		error(1, errno, "Failed to connect");
+		error(1, erryes, "Failed to connect");
 
 	if (s.type == SOCK_STREAM) {
 		rcv = accept(dst, NULL, NULL);
 		if (rcv < 0)
-			error(1, errno, "Failed to accept");
+			error(1, erryes, "Failed to accept");
 		close(dst);
 	} else {
 		rcv = dst;
 	}
 
 	config_so_flags(rcv, t.sockopt);
-	usleep(20000); /* setsockopt for SO_TIMESTAMPING is asynchronous */
+	usleep(20000); /* setsockopt for SO_TIMESTAMPING is asynchroyesus */
 	do_send(src);
 
 	if (s.type == SOCK_RAW)

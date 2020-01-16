@@ -12,7 +12,7 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
@@ -191,7 +191,7 @@ const char *madera_name_from_type(enum madera_type type)
 	case WM1840:
 		return "WM1840";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 EXPORT_SYMBOL_GPL(madera_name_from_type);
@@ -209,7 +209,7 @@ static int madera_wait_for_boot(struct madera *madera)
 	 * We can't use an interrupt as we need to runtime resume to do so,
 	 * so we poll the status bit. This won't race with the interrupt
 	 * handler because it will be blocked on runtime resume.
-	 * The chip could NAK a read request while it is booting so ignore
+	 * The chip could NAK a read request while it is booting so igyesre
 	 * errors from regmap_read.
 	 */
 	timeout = ktime_add_us(ktime_get(), MADERA_BOOT_POLL_TIMEOUT_USEC);
@@ -376,11 +376,11 @@ static int madera_get_reset_gpio(struct madera *madera)
 	/*
 	 * A hard reset is needed for full reset of the chip. We allow running
 	 * without hard reset only because it can be useful for early
-	 * prototyping and some debugging, but we need to warn it's not ideal.
+	 * prototyping and some debugging, but we need to warn it's yest ideal.
 	 */
 	if (!reset)
 		dev_warn(madera->dev,
-			 "Running without reset GPIO is not recommended\n");
+			 "Running without reset GPIO is yest recommended\n");
 
 	madera->pdata.reset = reset;
 
@@ -406,7 +406,7 @@ static void madera_set_micbias_info(struct madera *madera)
 	case CS47L85:
 	case WM1840:
 		madera->num_micbias = 4;
-		/* no child biases */
+		/* yes child biases */
 		return;
 	case CS47L90:
 	case CS47L91:
@@ -436,7 +436,7 @@ int madera_dev_init(struct madera *madera)
 	int i, ret;
 
 	dev_set_drvdata(madera->dev, madera);
-	BLOCKING_INIT_NOTIFIER_HEAD(&madera->notifier);
+	BLOCKING_INIT_NOTIFIER_HEAD(&madera->yestifier);
 	mutex_init(&madera->dapm_ptr_lock);
 
 	madera_set_micbias_info(madera);
@@ -503,8 +503,8 @@ int madera_dev_init(struct madera *madera)
 		}
 		break;
 	default:
-		/* No point continuing if the type is unknown */
-		dev_err(madera->dev, "Unknown device type %d\n", madera->type);
+		/* No point continuing if the type is unkyeswn */
+		dev_err(madera->dev, "Unkyeswn device type %d\n", madera->type);
 		return -ENODEV;
 	}
 
@@ -546,7 +546,7 @@ int madera_dev_init(struct madera *madera)
 	regcache_cache_only(madera->regmap_32bit, false);
 
 	/*
-	 * Now we can power up and verify that this is a chip we know about
+	 * Now we can power up and verify that this is a chip we kyesw about
 	 * before we start doing any writes to its registers.
 	 */
 	ret = regmap_read(madera->regmap, MADERA_SOFTWARE_RESET, &hwid);
@@ -626,13 +626,13 @@ int madera_dev_init(struct madera *madera)
 		}
 		break;
 	default:
-		dev_err(madera->dev, "Unknown device ID: %x\n", hwid);
+		dev_err(madera->dev, "Unkyeswn device ID: %x\n", hwid);
 		ret = -EINVAL;
 		goto err_reset;
 	}
 
 	if (!n_devs) {
-		dev_err(madera->dev, "Device ID 0x%x not a %s\n", hwid,
+		dev_err(madera->dev, "Device ID 0x%x yest a %s\n", hwid,
 			madera->type_name);
 		ret = -ENODEV;
 		goto err_reset;
@@ -640,7 +640,7 @@ int madera_dev_init(struct madera *madera)
 
 	/*
 	 * It looks like a device we support. If we don't have a hard reset
-	 * we can now attempt a soft reset.
+	 * we can yesw attempt a soft reset.
 	 */
 	if (!madera->pdata.reset) {
 		ret = madera_soft_reset(madera);
@@ -731,7 +731,7 @@ int madera_dev_exit(struct madera *madera)
 	disable_irq(madera->irq);
 
 	/*
-	 * DCVDD could be supplied by a child node, we must disable it before
+	 * DCVDD could be supplied by a child yesde, we must disable it before
 	 * removing the children, and prevent PM runtime from turning it back on
 	 */
 	pm_runtime_disable(madera->dev);

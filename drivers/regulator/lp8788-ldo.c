@@ -498,7 +498,7 @@ static int lp8788_config_ldo_enable_mode(struct platform_device *pdev,
 	}
 
 	/*
-	 * Do not use devm* here: the regulator core takes over the
+	 * Do yest use devm* here: the regulator core takes over the
 	 * lifecycle management of the GPIO descriptor.
 	 * FIXME: check default mode for GPIO here: high or low?
 	 */
@@ -510,7 +510,7 @@ static int lp8788_config_ldo_enable_mode(struct platform_device *pdev,
 	if (IS_ERR(ldo->ena_gpiod))
 		return PTR_ERR(ldo->ena_gpiod);
 
-	/* if no GPIO for ldo pin, then set default enable mode */
+	/* if yes GPIO for ldo pin, then set default enable mode */
 	if (!ldo->ena_gpiod)
 		goto set_default_ldo_enable_mode;
 

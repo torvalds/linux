@@ -21,7 +21,7 @@
  *  From hd.c:
  *  |
  *  | It traverses the request-list, using interrupts to jump between functions.
- *  | As nearly all functions can be called within interrupts, we may not sleep.
+ *  | As nearly all functions can be called within interrupts, we may yest sleep.
  *  | Special care is recommended.  Have Fun!
  *  |
  *  | modified by Drew Eckhardt to check nr of hd's from the CMOS.
@@ -51,7 +51,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/genhd.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -206,30 +206,30 @@ static const struct kernel_param_ops param_ops_ide_dev_mask = {
 
 #define param_check_ide_dev_mask(name, p) param_check_uint(name, p)
 
-static unsigned int ide_nodma;
+static unsigned int ide_yesdma;
 
-module_param_named(nodma, ide_nodma, ide_dev_mask, 0);
-MODULE_PARM_DESC(nodma, "disallow DMA for a device");
+module_param_named(yesdma, ide_yesdma, ide_dev_mask, 0);
+MODULE_PARM_DESC(yesdma, "disallow DMA for a device");
 
-static unsigned int ide_noflush;
+static unsigned int ide_yesflush;
 
-module_param_named(noflush, ide_noflush, ide_dev_mask, 0);
-MODULE_PARM_DESC(noflush, "disable flush requests for a device");
+module_param_named(yesflush, ide_yesflush, ide_dev_mask, 0);
+MODULE_PARM_DESC(yesflush, "disable flush requests for a device");
 
-static unsigned int ide_nohpa;
+static unsigned int ide_yeshpa;
 
-module_param_named(nohpa, ide_nohpa, ide_dev_mask, 0);
-MODULE_PARM_DESC(nohpa, "disable Host Protected Area for a device");
+module_param_named(yeshpa, ide_yeshpa, ide_dev_mask, 0);
+MODULE_PARM_DESC(yeshpa, "disable Host Protected Area for a device");
 
-static unsigned int ide_noprobe;
+static unsigned int ide_yesprobe;
 
-module_param_named(noprobe, ide_noprobe, ide_dev_mask, 0);
-MODULE_PARM_DESC(noprobe, "skip probing for a device");
+module_param_named(yesprobe, ide_yesprobe, ide_dev_mask, 0);
+MODULE_PARM_DESC(yesprobe, "skip probing for a device");
 
-static unsigned int ide_nowerr;
+static unsigned int ide_yeswerr;
 
-module_param_named(nowerr, ide_nowerr, ide_dev_mask, 0);
-MODULE_PARM_DESC(nowerr, "ignore the ATA_DF bit for a device");
+module_param_named(yeswerr, ide_yeswerr, ide_dev_mask, 0);
+MODULE_PARM_DESC(yeswerr, "igyesre the ATA_DF bit for a device");
 
 static unsigned int ide_cdroms;
 
@@ -250,7 +250,7 @@ static int ide_set_disk_chs(const char *str, const struct kernel_param *kp)
 	unsigned int a, b, c = 0, h = 0, s = 0, i, j = 1;
 
 	/* controller . device (0 or 1) : Cylinders , Heads , Sectors */
-	/* controller . device (0 or 1) : 1 (use CHS) | 0 (ignore CHS) */
+	/* controller . device (0 or 1) : 1 (use CHS) | 0 (igyesre CHS) */
 	if (sscanf(str, "%u.%u:%u,%u,%u", &a, &b, &c, &h, &s) != 5 &&
 	    sscanf(str, "%u.%u:%u", &a, &b, &j) != 3)
 		return -EINVAL;
@@ -282,26 +282,26 @@ static void ide_dev_apply_params(ide_drive_t *drive, u8 unit)
 {
 	int i = drive->hwif->index * MAX_DRIVES + unit;
 
-	if (ide_nodma & (1 << i)) {
+	if (ide_yesdma & (1 << i)) {
 		printk(KERN_INFO "ide: disallowing DMA for %s\n", drive->name);
 		drive->dev_flags |= IDE_DFLAG_NODMA;
 	}
-	if (ide_noflush & (1 << i)) {
+	if (ide_yesflush & (1 << i)) {
 		printk(KERN_INFO "ide: disabling flush requests for %s\n",
 				 drive->name);
 		drive->dev_flags |= IDE_DFLAG_NOFLUSH;
 	}
-	if (ide_nohpa & (1 << i)) {
+	if (ide_yeshpa & (1 << i)) {
 		printk(KERN_INFO "ide: disabling Host Protected Area for %s\n",
 				 drive->name);
 		drive->dev_flags |= IDE_DFLAG_NOHPA;
 	}
-	if (ide_noprobe & (1 << i)) {
+	if (ide_yesprobe & (1 << i)) {
 		printk(KERN_INFO "ide: skipping probe for %s\n", drive->name);
 		drive->dev_flags |= IDE_DFLAG_NOPROBE;
 	}
-	if (ide_nowerr & (1 << i)) {
-		printk(KERN_INFO "ide: ignoring the ATA_DF bit for %s\n",
+	if (ide_yeswerr & (1 << i)) {
+		printk(KERN_INFO "ide: igyesring the ATA_DF bit for %s\n",
 				 drive->name);
 		drive->bad_wstat = BAD_R_STAT;
 	}
@@ -309,7 +309,7 @@ static void ide_dev_apply_params(ide_drive_t *drive, u8 unit)
 		printk(KERN_INFO "ide: forcing %s as a CD-ROM\n", drive->name);
 		drive->dev_flags |= IDE_DFLAG_PRESENT;
 		drive->media = ide_cdrom;
-		/* an ATAPI device ignores DRDY */
+		/* an ATAPI device igyesres DRDY */
 		drive->ready_stat = 0;
 	}
 	if (ide_disks & (1 << i)) {
@@ -327,14 +327,14 @@ static void ide_dev_apply_params(ide_drive_t *drive, u8 unit)
 	}
 }
 
-static unsigned int ide_ignore_cable;
+static unsigned int ide_igyesre_cable;
 
-static int ide_set_ignore_cable(const char *s, const struct kernel_param *kp)
+static int ide_set_igyesre_cable(const char *s, const struct kernel_param *kp)
 {
 	int i, j = 1;
 
-	/* controller (ignore) */
-	/* controller : 1 (ignore) | 0 (use) */
+	/* controller (igyesre) */
+	/* controller : 1 (igyesre) | 0 (use) */
 	if (sscanf(s, "%d:%d", &i, &j) != 2 && sscanf(s, "%d", &i) != 1)
 		return -EINVAL;
 
@@ -342,23 +342,23 @@ static int ide_set_ignore_cable(const char *s, const struct kernel_param *kp)
 		return -EINVAL;
 
 	if (j)
-		ide_ignore_cable |= (1 << i);
+		ide_igyesre_cable |= (1 << i);
 	else
-		ide_ignore_cable &= ~(1 << i);
+		ide_igyesre_cable &= ~(1 << i);
 
 	return 0;
 }
 
-module_param_call(ignore_cable, ide_set_ignore_cable, NULL, NULL, 0);
-MODULE_PARM_DESC(ignore_cable, "ignore cable detection");
+module_param_call(igyesre_cable, ide_set_igyesre_cable, NULL, NULL, 0);
+MODULE_PARM_DESC(igyesre_cable, "igyesre cable detection");
 
 void ide_port_apply_params(ide_hwif_t *hwif)
 {
 	ide_drive_t *drive;
 	int i;
 
-	if (ide_ignore_cable & (1 << hwif->index)) {
-		printk(KERN_INFO "ide: ignoring cable detection for %s\n",
+	if (ide_igyesre_cable & (1 << hwif->index)) {
+		printk(KERN_INFO "ide: igyesring cable detection for %s\n",
 				 hwif->name);
 		hwif->cbl = ATA_CBL_PATA40_SHORT;
 	}

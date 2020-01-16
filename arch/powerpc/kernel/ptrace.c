@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/regset.h>
 #include <linux/tracehook.h>
@@ -33,7 +33,7 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
 #include <linux/context_tracking.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <linux/uaccess.h>
 #include <linux/pkeys.h>
@@ -128,10 +128,10 @@ static const struct pt_regs_offset regoffset_table[] = {
 static void flush_tmregs_to_thread(struct task_struct *tsk)
 {
 	/*
-	 * If task is not current, it will have been flushed already to
+	 * If task is yest current, it will have been flushed already to
 	 * it's thread_struct during __switch_to().
 	 *
-	 * A reclaim flushes ALL the state or if not in TM save TM SPRs
+	 * A reclaim flushes ALL the state or if yest in TM save TM SPRs
 	 * in the appropriate thread structures from live.
 	 */
 
@@ -182,7 +182,7 @@ const char *regs_query_register_name(unsigned int offset)
 }
 
 /*
- * does not yet catch signals sent when the child dies.
+ * does yest yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -274,37 +274,37 @@ static int set_user_trap(struct task_struct *task, unsigned long trap)
 /*
  * Get contents of register REGNO in task TASK.
  */
-int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data)
+int ptrace_get_reg(struct task_struct *task, int regyes, unsigned long *data)
 {
 	unsigned int regs_max;
 
 	if ((task->thread.regs == NULL) || !data)
 		return -EIO;
 
-	if (regno == PT_MSR) {
+	if (regyes == PT_MSR) {
 		*data = get_user_msr(task);
 		return 0;
 	}
 
-	if (regno == PT_DSCR)
+	if (regyes == PT_DSCR)
 		return get_user_dscr(task, data);
 
 #ifdef CONFIG_PPC64
 	/*
 	 * softe copies paca->irq_soft_mask variable state. Since irq_soft_mask is
-	 * no more used as a flag, lets force usr to alway see the softe value as 1
-	 * which means interrupts are not soft disabled.
+	 * yes more used as a flag, lets force usr to alway see the softe value as 1
+	 * which means interrupts are yest soft disabled.
 	 */
-	if (regno == PT_SOFTE) {
+	if (regyes == PT_SOFTE) {
 		*data = 1;
 		return  0;
 	}
 #endif
 
 	regs_max = sizeof(struct user_pt_regs) / sizeof(unsigned long);
-	if (regno < regs_max) {
-		regno = array_index_nospec(regno, regs_max);
-		*data = ((unsigned long *)task->thread.regs)[regno];
+	if (regyes < regs_max) {
+		regyes = array_index_yesspec(regyes, regs_max);
+		*data = ((unsigned long *)task->thread.regs)[regyes];
 		return 0;
 	}
 
@@ -314,21 +314,21 @@ int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data)
 /*
  * Write contents of register REGNO in task TASK.
  */
-int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data)
+int ptrace_put_reg(struct task_struct *task, int regyes, unsigned long data)
 {
 	if (task->thread.regs == NULL)
 		return -EIO;
 
-	if (regno == PT_MSR)
+	if (regyes == PT_MSR)
 		return set_user_msr(task, data);
-	if (regno == PT_TRAP)
+	if (regyes == PT_TRAP)
 		return set_user_trap(task, data);
-	if (regno == PT_DSCR)
+	if (regyes == PT_DSCR)
 		return set_user_dscr(task, data);
 
-	if (regno <= PT_MAX_PUT_REG) {
-		regno = array_index_nospec(regno, PT_MAX_PUT_REG + 1);
-		((unsigned long *)task->thread.regs)[regno] = data;
+	if (regyes <= PT_MAX_PUT_REG) {
+		regyes = array_index_yesspec(regyes, PT_MAX_PUT_REG + 1);
+		((unsigned long *)task->thread.regs)[regyes] = data;
 		return 0;
 	}
 	return -EIO;
@@ -409,7 +409,7 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 					 (PT_MAX_PUT_REG + 1) * sizeof(reg));
 
 	if (PT_MAX_PUT_REG + 1 < PT_TRAP && !ret)
-		ret = user_regset_copyin_ignore(
+		ret = user_regset_copyin_igyesre(
 			&pos, &count, &kbuf, &ubuf,
 			(PT_MAX_PUT_REG + 1) * sizeof(reg),
 			PT_TRAP * sizeof(reg));
@@ -423,7 +423,7 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 	}
 
 	if (!ret)
-		ret = user_regset_copyin_ignore(
+		ret = user_regset_copyin_igyesre(
 			&pos, &count, &kbuf, &ubuf,
 			(PT_TRAP + 1) * sizeof(reg), -1);
 
@@ -934,7 +934,7 @@ static int tm_cgpr_set(struct task_struct *target,
 					 (PT_MAX_PUT_REG + 1) * sizeof(reg));
 
 	if (PT_MAX_PUT_REG + 1 < PT_TRAP && !ret)
-		ret = user_regset_copyin_ignore(
+		ret = user_regset_copyin_igyesre(
 			&pos, &count, &kbuf, &ubuf,
 			(PT_MAX_PUT_REG + 1) * sizeof(reg),
 			PT_TRAP * sizeof(reg));
@@ -948,7 +948,7 @@ static int tm_cgpr_set(struct task_struct *target,
 	}
 
 	if (!ret)
-		ret = user_regset_copyin_ignore(
+		ret = user_regset_copyin_igyesre(
 			&pos, &count, &kbuf, &ubuf,
 			(PT_TRAP + 1) * sizeof(reg), -1);
 
@@ -1898,110 +1898,110 @@ enum powerpc_regset {
 
 static const struct user_regset native_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
+		.core_yeste_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
 		.get = gpr_get, .set = gpr_set
 	},
 	[REGSET_FPR] = {
-		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
+		.core_yeste_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
 		.get = fpr_get, .set = fpr_set
 	},
 #ifdef CONFIG_ALTIVEC
 	[REGSET_VMX] = {
-		.core_note_type = NT_PPC_VMX, .n = 34,
+		.core_yeste_type = NT_PPC_VMX, .n = 34,
 		.size = sizeof(vector128), .align = sizeof(vector128),
 		.active = vr_active, .get = vr_get, .set = vr_set
 	},
 #endif
 #ifdef CONFIG_VSX
 	[REGSET_VSX] = {
-		.core_note_type = NT_PPC_VSX, .n = 32,
+		.core_yeste_type = NT_PPC_VSX, .n = 32,
 		.size = sizeof(double), .align = sizeof(double),
 		.active = vsr_active, .get = vsr_get, .set = vsr_set
 	},
 #endif
 #ifdef CONFIG_SPE
 	[REGSET_SPE] = {
-		.core_note_type = NT_PPC_SPE, .n = 35,
+		.core_yeste_type = NT_PPC_SPE, .n = 35,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.active = evr_active, .get = evr_get, .set = evr_set
 	},
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	[REGSET_TM_CGPR] = {
-		.core_note_type = NT_PPC_TM_CGPR, .n = ELF_NGREG,
+		.core_yeste_type = NT_PPC_TM_CGPR, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
 		.active = tm_cgpr_active, .get = tm_cgpr_get, .set = tm_cgpr_set
 	},
 	[REGSET_TM_CFPR] = {
-		.core_note_type = NT_PPC_TM_CFPR, .n = ELF_NFPREG,
+		.core_yeste_type = NT_PPC_TM_CFPR, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
 		.active = tm_cfpr_active, .get = tm_cfpr_get, .set = tm_cfpr_set
 	},
 	[REGSET_TM_CVMX] = {
-		.core_note_type = NT_PPC_TM_CVMX, .n = ELF_NVMX,
+		.core_yeste_type = NT_PPC_TM_CVMX, .n = ELF_NVMX,
 		.size = sizeof(vector128), .align = sizeof(vector128),
 		.active = tm_cvmx_active, .get = tm_cvmx_get, .set = tm_cvmx_set
 	},
 	[REGSET_TM_CVSX] = {
-		.core_note_type = NT_PPC_TM_CVSX, .n = ELF_NVSX,
+		.core_yeste_type = NT_PPC_TM_CVSX, .n = ELF_NVSX,
 		.size = sizeof(double), .align = sizeof(double),
 		.active = tm_cvsx_active, .get = tm_cvsx_get, .set = tm_cvsx_set
 	},
 	[REGSET_TM_SPR] = {
-		.core_note_type = NT_PPC_TM_SPR, .n = ELF_NTMSPRREG,
+		.core_yeste_type = NT_PPC_TM_SPR, .n = ELF_NTMSPRREG,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_spr_active, .get = tm_spr_get, .set = tm_spr_set
 	},
 	[REGSET_TM_CTAR] = {
-		.core_note_type = NT_PPC_TM_CTAR, .n = 1,
+		.core_yeste_type = NT_PPC_TM_CTAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_tar_active, .get = tm_tar_get, .set = tm_tar_set
 	},
 	[REGSET_TM_CPPR] = {
-		.core_note_type = NT_PPC_TM_CPPR, .n = 1,
+		.core_yeste_type = NT_PPC_TM_CPPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_ppr_active, .get = tm_ppr_get, .set = tm_ppr_set
 	},
 	[REGSET_TM_CDSCR] = {
-		.core_note_type = NT_PPC_TM_CDSCR, .n = 1,
+		.core_yeste_type = NT_PPC_TM_CDSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_dscr_active, .get = tm_dscr_get, .set = tm_dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC64
 	[REGSET_PPR] = {
-		.core_note_type = NT_PPC_PPR, .n = 1,
+		.core_yeste_type = NT_PPC_PPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.get = ppr_get, .set = ppr_set
 	},
 	[REGSET_DSCR] = {
-		.core_note_type = NT_PPC_DSCR, .n = 1,
+		.core_yeste_type = NT_PPC_DSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.get = dscr_get, .set = dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	[REGSET_TAR] = {
-		.core_note_type = NT_PPC_TAR, .n = 1,
+		.core_yeste_type = NT_PPC_TAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.get = tar_get, .set = tar_set
 	},
 	[REGSET_EBB] = {
-		.core_note_type = NT_PPC_EBB, .n = ELF_NEBB,
+		.core_yeste_type = NT_PPC_EBB, .n = ELF_NEBB,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = ebb_active, .get = ebb_get, .set = ebb_set
 	},
 	[REGSET_PMR] = {
-		.core_note_type = NT_PPC_PMU, .n = ELF_NPMU,
+		.core_yeste_type = NT_PPC_PMU, .n = ELF_NPMU,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = pmu_active, .get = pmu_get, .set = pmu_set
 	},
 #endif
 #ifdef CONFIG_PPC_MEM_KEYS
 	[REGSET_PKEY] = {
-		.core_note_type = NT_PPC_PKEY, .n = ELF_NPKEY,
+		.core_yeste_type = NT_PPC_PKEY, .n = ELF_NPKEY,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = pkey_active, .get = pkey_get, .set = pkey_set
 	},
@@ -2127,7 +2127,7 @@ static int gpr32_set_common(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+	return user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 					 (PT_TRAP + 1) * sizeof(reg), -1);
 }
 
@@ -2191,92 +2191,92 @@ static int gpr32_set(struct task_struct *target,
  */
 static const struct user_regset compat_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
+		.core_yeste_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(compat_long_t), .align = sizeof(compat_long_t),
 		.get = gpr32_get, .set = gpr32_set
 	},
 	[REGSET_FPR] = {
-		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
+		.core_yeste_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
 		.get = fpr_get, .set = fpr_set
 	},
 #ifdef CONFIG_ALTIVEC
 	[REGSET_VMX] = {
-		.core_note_type = NT_PPC_VMX, .n = 34,
+		.core_yeste_type = NT_PPC_VMX, .n = 34,
 		.size = sizeof(vector128), .align = sizeof(vector128),
 		.active = vr_active, .get = vr_get, .set = vr_set
 	},
 #endif
 #ifdef CONFIG_SPE
 	[REGSET_SPE] = {
-		.core_note_type = NT_PPC_SPE, .n = 35,
+		.core_yeste_type = NT_PPC_SPE, .n = 35,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.active = evr_active, .get = evr_get, .set = evr_set
 	},
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	[REGSET_TM_CGPR] = {
-		.core_note_type = NT_PPC_TM_CGPR, .n = ELF_NGREG,
+		.core_yeste_type = NT_PPC_TM_CGPR, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
 		.active = tm_cgpr_active,
 		.get = tm_cgpr32_get, .set = tm_cgpr32_set
 	},
 	[REGSET_TM_CFPR] = {
-		.core_note_type = NT_PPC_TM_CFPR, .n = ELF_NFPREG,
+		.core_yeste_type = NT_PPC_TM_CFPR, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
 		.active = tm_cfpr_active, .get = tm_cfpr_get, .set = tm_cfpr_set
 	},
 	[REGSET_TM_CVMX] = {
-		.core_note_type = NT_PPC_TM_CVMX, .n = ELF_NVMX,
+		.core_yeste_type = NT_PPC_TM_CVMX, .n = ELF_NVMX,
 		.size = sizeof(vector128), .align = sizeof(vector128),
 		.active = tm_cvmx_active, .get = tm_cvmx_get, .set = tm_cvmx_set
 	},
 	[REGSET_TM_CVSX] = {
-		.core_note_type = NT_PPC_TM_CVSX, .n = ELF_NVSX,
+		.core_yeste_type = NT_PPC_TM_CVSX, .n = ELF_NVSX,
 		.size = sizeof(double), .align = sizeof(double),
 		.active = tm_cvsx_active, .get = tm_cvsx_get, .set = tm_cvsx_set
 	},
 	[REGSET_TM_SPR] = {
-		.core_note_type = NT_PPC_TM_SPR, .n = ELF_NTMSPRREG,
+		.core_yeste_type = NT_PPC_TM_SPR, .n = ELF_NTMSPRREG,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_spr_active, .get = tm_spr_get, .set = tm_spr_set
 	},
 	[REGSET_TM_CTAR] = {
-		.core_note_type = NT_PPC_TM_CTAR, .n = 1,
+		.core_yeste_type = NT_PPC_TM_CTAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_tar_active, .get = tm_tar_get, .set = tm_tar_set
 	},
 	[REGSET_TM_CPPR] = {
-		.core_note_type = NT_PPC_TM_CPPR, .n = 1,
+		.core_yeste_type = NT_PPC_TM_CPPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_ppr_active, .get = tm_ppr_get, .set = tm_ppr_set
 	},
 	[REGSET_TM_CDSCR] = {
-		.core_note_type = NT_PPC_TM_CDSCR, .n = 1,
+		.core_yeste_type = NT_PPC_TM_CDSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_dscr_active, .get = tm_dscr_get, .set = tm_dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC64
 	[REGSET_PPR] = {
-		.core_note_type = NT_PPC_PPR, .n = 1,
+		.core_yeste_type = NT_PPC_PPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.get = ppr_get, .set = ppr_set
 	},
 	[REGSET_DSCR] = {
-		.core_note_type = NT_PPC_DSCR, .n = 1,
+		.core_yeste_type = NT_PPC_DSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.get = dscr_get, .set = dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	[REGSET_TAR] = {
-		.core_note_type = NT_PPC_TAR, .n = 1,
+		.core_yeste_type = NT_PPC_TAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.get = tar_get, .set = tar_set
 	},
 	[REGSET_EBB] = {
-		.core_note_type = NT_PPC_EBB, .n = ELF_NEBB,
+		.core_yeste_type = NT_PPC_EBB, .n = ELF_NEBB,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = ebb_active, .get = ebb_get, .set = ebb_set
 	},
@@ -2396,8 +2396,8 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	struct arch_hw_breakpoint hw_brk;
 #endif
 
-	/* For ppc64 we support one DABR and no IABR's at the moment (ppc64).
-	 *  For embedded processors we support one DAC and no IAC's at the
+	/* For ppc64 we support one DABR and yes IABR's at the moment (ppc64).
+	 *  For embedded processors we support one DAC and yes IAC's at the
 	 *  moment.
 	 */
 	if (addr > 0)
@@ -2477,7 +2477,7 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 #else /* CONFIG_PPC_ADV_DEBUG_REGS */
 	/* As described above, it was assumed 3 bits were passed with the data
 	 *  address, but we will assume only the mode bits will be passed
-	 *  as to not cause alignment restrictions for DAC-based processors.
+	 *  as to yest cause alignment restrictions for DAC-based processors.
 	 */
 
 	/* DAC's hold the whole address without any mode flags */
@@ -2517,11 +2517,11 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure single step bits etc are not set.
+ * Make sure single step bits etc are yest set.
  */
 void ptrace_disable(struct task_struct *child)
 {
-	/* make sure the single step bit is not set. */
+	/* make sure the single step bit is yest set. */
 	user_disable_single_step(child);
 }
 
@@ -2581,7 +2581,7 @@ static long set_instruction_bp(struct task_struct *child,
 		if (!slot1_in_use) {
 			/*
 			 * Don't use iac1 if iac1-iac2 are free and either
-			 * iac3 or iac4 (but not both) are free
+			 * iac3 or iac4 (but yest both) are free
 			 */
 			if (slot2_in_use || (slot3_in_use == slot4_in_use)) {
 				slot = 1;
@@ -2782,7 +2782,7 @@ static int set_dac_range(struct task_struct *child,
 	/*
 	 * Best effort to verify the address range.  The user/supervisor bits
 	 * prevent trapping in kernel space, but let's fail on an obvious bad
-	 * range.  The simple test on the mask is not fool-proof, and any
+	 * range.  The simple test on the mask is yest fool-proof, and any
 	 * exclusive range will spill over into kernel space.
 	 */
 	if (bp_info->addr >= TASK_SIZE)
@@ -3118,7 +3118,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		unsigned long dabr_fake;
 #endif
 		ret = -EINVAL;
-		/* We only support one DABR and no IABRS at the moment */
+		/* We only support one DABR and yes IABRS at the moment */
 		if (addr > 0)
 			break;
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
@@ -3230,7 +3230,7 @@ static int do_seccomp(struct pt_regs *regs)
 
 	/*
 	 * We use the __ version here because we have already checked
-	 * TIF_SECCOMP. If this fails, there is nothing left to do, we
+	 * TIF_SECCOMP. If this fails, there is yesthing left to do, we
 	 * have already loaded -ENOSYS into r3, or seccomp has put
 	 * something else in r3 (via SECCOMP_RET_ERRNO/TRACE).
 	 */
@@ -3285,9 +3285,9 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 
 		if (unlikely(flags & _TIF_SYSCALL_EMU)) {
 			/*
-			 * A nonzero return code from
+			 * A yesnzero return code from
 			 * tracehook_report_syscall_entry() tells us to prevent
-			 * the syscall execution, but we are not going to
+			 * the syscall execution, but we are yest going to
 			 * execute it anyway.
 			 *
 			 * Returning -1 will skip the syscall execution. We want
@@ -3337,7 +3337,7 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 skip:
 	/*
 	 * If we are aborting explicitly, or if the syscall number is
-	 * now invalid, set the return value to -ENOSYS.
+	 * yesw invalid, set the return value to -ENOSYS.
 	 */
 	regs->gpr[3] = -ENOSYS;
 	return -1;

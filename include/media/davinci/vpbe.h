@@ -36,8 +36,8 @@ struct vpbe_output {
 	 * Fields below are used for supporting multiple modes. For example,
 	 * LCD panel might support different modes and they are listed here.
 	 * Similarly for supporting external encoders, lcd controller port
-	 * requires a set of non-standard timing values to be listed here for
-	 * each supported mode since venc is used in non-standard timing mode
+	 * requires a set of yesn-standard timing values to be listed here for
+	 * each supported mode since venc is used in yesn-standard timing mode
 	 * for interfacing with external encoder similar to configuring lcd
 	 * panel timings
 	 */
@@ -75,7 +75,7 @@ struct amp_config_info {
 /* structure for defining vpbe display subsystem components */
 struct vpbe_config {
 	char module_name[32];
-	/* i2c bus adapter no */
+	/* i2c bus adapter yes */
 	int i2c_adapter_id;
 	struct osd_config_info osd;
 	struct encoder_config_info venc;

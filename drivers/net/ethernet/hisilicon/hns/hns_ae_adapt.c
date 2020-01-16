@@ -215,7 +215,7 @@ static int hns_ae_set_mac_address(struct hnae_handle *handle, void *p)
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
 	if (!p || !is_valid_ether_addr((const u8 *)p)) {
-		dev_err(handle->owner_dev, "is not valid ether addr !\n");
+		dev_err(handle->owner_dev, "is yest valid ether addr !\n");
 		return -EADDRNOTAVAIL;
 	}
 
@@ -362,7 +362,7 @@ static void hns_ae_stop(struct hnae_handle *handle)
 {
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
-	/* just clean tx fbd, neednot rx fbd*/
+	/* just clean tx fbd, needyest rx fbd*/
 	hns_rcb_wait_fbd_clean(handle->qs, handle->q_num, RCB_INT_FLAG_TX);
 
 	msleep(20);
@@ -484,7 +484,7 @@ static void hns_ae_get_pauseparam(struct hnae_handle *handle,
 
 	hns_mac_get_pauseparam(mac_cb, rx_en, tx_en);
 
-	/* Service port's pause feature is provided by DSAF, not mac */
+	/* Service port's pause feature is provided by DSAF, yest mac */
 	if (handle->port_type == HNAE_PORT_SERVICE)
 		hns_dsaf_get_rx_mac_pause_en(dsaf_dev, mac_cb->mac_id, rx_en);
 }
@@ -526,7 +526,7 @@ static int hns_ae_set_pauseparam(struct hnae_handle *handle,
 	if (ret)
 		return ret;
 
-	/* Service port's pause feature is provided by DSAF, not mac */
+	/* Service port's pause feature is provided by DSAF, yest mac */
 	if (handle->port_type == HNAE_PORT_SERVICE) {
 		ret = hns_dsaf_set_rx_mac_pause_en(dsaf_dev,
 						   mac_cb->mac_id, rx_en);
@@ -674,7 +674,7 @@ static void hns_ae_update_stats(struct hnae_handle *handle,
 	}
 
 	hns_ppe_update_stats(ppe_cb);
-	rx_missed_errors = ppe_cb->hw_stats.rx_drop_no_buf;
+	rx_missed_errors = ppe_cb->hw_stats.rx_drop_yes_buf;
 	tx_errors += ppe_cb->hw_stats.tx_err_checksum
 		+ ppe_cb->hw_stats.tx_err_fifo_empty;
 
@@ -944,7 +944,7 @@ static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
 		memcpy(ppe_cb->rss_indir_table, indir,
 		       HNS_PPEV2_RSS_IND_TBL_SIZE  * sizeof(*indir));
 
-		/* now update the hardware */
+		/* yesw update the hardware */
 		hns_ppe_set_indir_table(ppe_cb, ppe_cb->rss_indir_table);
 	}
 

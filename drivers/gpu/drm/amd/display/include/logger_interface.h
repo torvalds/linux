@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -69,9 +69,9 @@ void context_clock_trace(
 
 #define DAL_LOGGER_NOT_IMPL(fmt, ...) \
 	do { \
-		static bool print_not_impl = true; \
-		if (print_not_impl == true) { \
-			print_not_impl = false; \
+		static bool print_yest_impl = true; \
+		if (print_yest_impl == true) { \
+			print_yest_impl = false; \
 			DRM_WARN("DAL_NOT_IMPL: " fmt, ##__VA_ARGS__); \
 		} \
 	} while (0)
@@ -93,7 +93,7 @@ void context_clock_trace(
 		} while (0)
 
 /* Connectivity log format:
- * [time stamp]   [drm] [Major_minor] [connector name] message.....
+ * [time stamp]   [drm] [Major_miyesr] [connector name] message.....
  * eg:
  * [   26.590965] [drm] [Conn_LKTN]	  [DP-1] HBRx4 pass VS=0, PE=0^
  * [   26.881060] [drm] [Conn_Mode]	  [DP-1] {2560x1080, 2784x1111@185580Khz}^

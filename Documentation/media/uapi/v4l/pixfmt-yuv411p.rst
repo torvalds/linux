@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _V4L2-PIX-FMT-YUV411P:
 
@@ -14,14 +14,14 @@ V4L2_PIX_FMT_YUV411P ('411P')
 *****************************
 
 
-Format with ¼ horizontal chroma resolution, also known as YUV 4:1:1.
+Format with ¼ horizontal chroma resolution, also kyeswn as YUV 4:1:1.
 Planar layout as opposed to ``V4L2_PIX_FMT_Y41P``
 
 
 Description
 ===========
 
-This format is not commonly used. This is a planar format similar to the
+This format is yest commonly used. This is a planar format similar to the
 4:2:2 planar format except with half as many chroma. The three
 components are separated into three sub-images or planes. The Y plane is
 first. The Y plane has one byte per pixel. The Cb plane immediately

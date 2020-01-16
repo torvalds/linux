@@ -20,7 +20,7 @@
  * Analog input works
  * Analog output works
  * PWM output works
- * Commands are not supported yet.
+ * Commands are yest supported yet.
  *
  * Configuration Options:
  *   [0] - I/O port base address

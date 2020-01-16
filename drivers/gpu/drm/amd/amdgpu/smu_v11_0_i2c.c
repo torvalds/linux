@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -99,11 +99,11 @@ static void smu_v11_0_i2c_set_clock(struct i2c_adapter *control)
 	/*
 	 * Standard mode speed, These values are taken from SMUIO MAS,
 	 * but are different from what is given is
-	 * Synopsys spec. The values here are based on assumption
+	 * Syyespsys spec. The values here are based on assumption
 	 * that refclock is 100MHz
 	 *
 	 * Configuration for standard mode; Speed = 100kbps
-	 * Scale linearly, for now only support standard speed clock
+	 * Scale linearly, for yesw only support standard speed clock
 	 * This will work only with 100M ref clock
 	 *
 	 * TBD:Change the calculation to take into account ref clock values also.
@@ -183,7 +183,7 @@ static uint32_t smu_v11_0_i2c_poll_rx_status(struct i2c_adapter *control)
 
 	reg_c_tx_abrt_source = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_TX_ABRT_SOURCE);
 
-	/* If slave is not present */
+	/* If slave is yest present */
 	if (REG_GET_FIELD(reg_c_tx_abrt_source,
 			  CKSVII2C_IC_TX_ABRT_SOURCE,
 			  ABRT_7B_ADDR_NOACK) == 1) {
@@ -256,7 +256,7 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 			do {
 				reg = 0;
 				/*
-				 * Prepare transaction, no need to set RESTART. I2C engine will send
+				 * Prepare transaction, yes need to set RESTART. I2C engine will send
 				 * START as soon as it sees data in TXFIFO
 				 */
 				if (bytes_sent == 0)
@@ -264,7 +264,7 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 							    (i2c_flag & I2C_RESTART) ? 1 : 0);
 				reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, DAT, data[bytes_sent]);
 
-				/* determine if we need to send STOP bit or not */
+				/* determine if we need to send STOP bit or yest */
 				if (numbytes == 1)
 					/* Final transaction, so send stop unless I2C_NO_STOP */
 					reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, STOP,
@@ -283,7 +283,7 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 		}
 
 		/*
-		 * We waited too long for the transmission FIFO to become not-full.
+		 * We waited too long for the transmission FIFO to become yest-full.
 		 * Exit the loop with error.
 		 */
 		if (time_after(jiffies, timeout_counter)) {
@@ -295,7 +295,7 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 	ret = smu_v11_0_i2c_poll_tx_status(control);
 
 Err:
-	/* Any error, no point in proceeding */
+	/* Any error, yes point in proceeding */
 	if (ret != I2C_OK) {
 		if (ret & I2C_SW_TIMEOUT)
 			DRM_ERROR("TIMEOUT ERROR !!!");
@@ -344,7 +344,7 @@ static uint32_t smu_v11_0_i2c_receive(struct i2c_adapter *control,
 
 		/* Prepare transaction */
 
-		/* Each time we disable I2C, so this is not a restart */
+		/* Each time we disable I2C, so this is yest a restart */
 		if (bytes_received == 0)
 			reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, RESTART,
 					    (i2c_flag & I2C_RESTART) ? 1 : 0);
@@ -363,7 +363,7 @@ static uint32_t smu_v11_0_i2c_receive(struct i2c_adapter *control,
 
 		ret = smu_v11_0_i2c_poll_rx_status(control);
 
-		/* Any error, no point in proceeding */
+		/* Any error, yes point in proceeding */
 		if (ret != I2C_OK) {
 			if (ret & I2C_SW_TIMEOUT)
 				DRM_ERROR("TIMEOUT ERROR !!!");
@@ -497,7 +497,7 @@ static void smu_v11_0_i2c_fini(struct i2c_adapter *control)
 	/*
 	 * TODO Reenabling clock gating seems to break subsequent SMU operation
 	 *      on the I2C bus. My guess is that SMU doesn't disable clock gating like
-	 *      we do here before working with the bus. So for now just don't restore
+	 *      we do here before working with the bus. So for yesw just don't restore
 	 *      it but later work with SMU to see if they have this issue and can
 	 *      update their code appropriately
 	 */
@@ -578,7 +578,7 @@ static uint32_t smu_v11_0_i2c_eeprom_write_data(struct i2c_adapter *control,
 		/*
 		 * According to EEPROM spec there is a MAX of 10 ms required for
 		 * EEPROM to flush internal RX buffer after STOP was issued at the
-		 * end of write transaction. During this time the EEPROM will not be
+		 * end of write transaction. During this time the EEPROM will yest be
 		 * responsive to any more commands - so wait a bit more.
 		 *
 		 * TODO Improve to wait for first ACK for slave address after
@@ -604,7 +604,7 @@ static void lock_bus(struct i2c_adapter *i2c, unsigned int flags)
 
 static int trylock_bus(struct i2c_adapter *i2c, unsigned int flags)
 {
-	WARN_ONCE(1, "This operation not supposed to run in atomic context!");
+	WARN_ONCE(1, "This operation yest supposed to run in atomic context!");
 	return false;
 }
 

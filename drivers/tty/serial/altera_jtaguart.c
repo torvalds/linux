@@ -202,7 +202,7 @@ static void altera_jtaguart_config_port(struct uart_port *port, int flags)
 {
 	port->type = PORT_ALTERA_JTAGUART;
 
-	/* Clear mask, so no surprise interrupts. */
+	/* Clear mask, so yes surprise interrupts. */
 	writel(0, port->membase + ALTERA_JTAGUART_CONTROL_REG);
 }
 
@@ -223,7 +223,7 @@ static int altera_jtaguart_startup(struct uart_port *port)
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	/* Enable RX interrupts now */
+	/* Enable RX interrupts yesw */
 	pp->imr = ALTERA_JTAGUART_CONTROL_RE_MSK;
 	writel(pp->imr, port->membase + ALTERA_JTAGUART_CONTROL_REG);
 
@@ -240,7 +240,7 @@ static void altera_jtaguart_shutdown(struct uart_port *port)
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	/* Disable all interrupts now */
+	/* Disable all interrupts yesw */
 	pp->imr = 0;
 	writel(pp->imr, port->membase + ALTERA_JTAGUART_CONTROL_REG);
 
@@ -310,7 +310,7 @@ static void altera_jtaguart_console_putc(struct uart_port *port, int c)
 		ALTERA_JTAGUART_CONTROL_WSPACE_MSK) == 0) {
 		if ((status & ALTERA_JTAGUART_CONTROL_AC_MSK) == 0) {
 			spin_unlock_irqrestore(&port->lock, flags);
-			return;	/* no connection activity */
+			return;	/* yes connection activity */
 		}
 		spin_unlock_irqrestore(&port->lock, flags);
 		cpu_relax();
@@ -410,7 +410,7 @@ static struct uart_driver altera_jtaguart_driver = {
 	.driver_name	= "altera_jtaguart",
 	.dev_name	= "ttyJ",
 	.major		= ALTERA_JTAGUART_MAJOR,
-	.minor		= ALTERA_JTAGUART_MINOR,
+	.miyesr		= ALTERA_JTAGUART_MINOR,
 	.nr		= ALTERA_JTAGUART_MAXPORTS,
 	.cons		= ALTERA_JTAGUART_CONSOLE,
 };
@@ -423,7 +423,7 @@ static int altera_jtaguart_probe(struct platform_device *pdev)
 	struct resource *res_irq, *res_mem;
 	int i = pdev->id;
 
-	/* -1 emphasizes that the platform must have one port, no .N suffix */
+	/* -1 emphasizes that the platform must have one port, yes .N suffix */
 	if (i == -1)
 		i = 0;
 

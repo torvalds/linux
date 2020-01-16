@@ -302,7 +302,7 @@ static int ad9832_probe(struct spi_device *spi)
 	int ret;
 
 	if (!pdata) {
-		dev_dbg(&spi->dev, "no platform data?\n");
+		dev_dbg(&spi->dev, "yes platform data?\n");
 		return -ENODEV;
 	}
 

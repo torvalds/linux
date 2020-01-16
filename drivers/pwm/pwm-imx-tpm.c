@@ -6,7 +6,7 @@
  * - The TPM counter and period counter are shared between
  *   multiple channels, so all channels should use same period
  *   settings.
- * - Changes to polarity cannot be latched at the time of the
+ * - Changes to polarity canyest be latched at the time of the
  *   next period start.
  * - Changing period and duty cycle together isn't atomic,
  *   with the wrong timing it might happen that a period is
@@ -160,7 +160,7 @@ static void pwm_imx_tpm_get_state(struct pwm_chip *chip,
 	else
 		/*
 		 * Assume reserved values (2b00 and 2b11) to yield
-		 * normal polarity.
+		 * yesrmal polarity.
 		 */
 		state->polarity = PWM_POLARITY_NORMAL;
 
@@ -260,7 +260,7 @@ static int pwm_imx_tpm_apply_hw(struct pwm_chip *chip,
 		/*
 		 * set polarity (for edge-aligned PWM modes)
 		 *
-		 * ELS[1:0] = 2b10 yields normal polarity behaviour,
+		 * ELS[1:0] = 2b10 yields yesrmal polarity behaviour,
 		 * ELS[1:0] = 2b01 yields inversed polarity.
 		 * The other values are reserved.
 		 */

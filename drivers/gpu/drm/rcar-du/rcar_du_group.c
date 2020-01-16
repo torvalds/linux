@@ -74,7 +74,7 @@ static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 	} else {
 		/*
 		 * On Gen3 VSPD routing can't be configured, and DPAD routing
-		 * is set in the group corresponding to the DPAD output (no Gen3
+		 * is set in the group corresponding to the DPAD output (yes Gen3
 		 * SoC has multiple DPAD sources belonging to separate groups).
 		 */
 		if (rgrp->index == rcdu->dpad0_source / 2)
@@ -309,7 +309,7 @@ static void rcar_du_group_set_dpad_levels(struct rcar_du_group *rgrp)
 	 * output of the DU channels routed to DPAD can be set to fixed levels
 	 * through the DOFLR group register. Use this to turn the DPAD on or off
 	 * by driving fixed low-level signals at the output of any DU channel
-	 * not routed to a DPAD output. This doesn't affect the DU output
+	 * yest routed to a DPAD output. This doesn't affect the DU output
 	 * signals going to other outputs, such as the internal LVDS and HDMI
 	 * encoders.
 	 */

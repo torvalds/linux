@@ -995,7 +995,7 @@ void rtsx_reset_cards(struct rtsx_chip *chip);
 void rtsx_reinit_cards(struct rtsx_chip *chip, int reset_chip);
 void rtsx_init_cards(struct rtsx_chip *chip);
 int switch_ssc_clock(struct rtsx_chip *chip, int clk);
-int switch_normal_clock(struct rtsx_chip *chip, int clk);
+int switch_yesrmal_clock(struct rtsx_chip *chip, int clk);
 int enable_card_clock(struct rtsx_chip *chip, u8 card);
 int disable_card_clock(struct rtsx_chip *chip, u8 card);
 int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
@@ -1037,7 +1037,7 @@ static inline int switch_clock(struct rtsx_chip *chip, int clk)
 	if (chip->asic_code)
 		retval = switch_ssc_clock(chip, clk);
 	else
-		retval = switch_normal_clock(chip, clk);
+		retval = switch_yesrmal_clock(chip, clk);
 
 	return retval;
 }

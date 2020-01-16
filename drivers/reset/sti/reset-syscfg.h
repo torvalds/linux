@@ -17,7 +17,7 @@
  * @compatible: Compatible string of the syscon regmap containing this
  *              channel's control and ack (status) bits.
  * @reset: Regmap field description of the channel's reset bit.
- * @ack: Regmap field description of the channel's acknowledge bit.
+ * @ack: Regmap field description of the channel's ackyeswledge bit.
  */
 struct syscfg_reset_channel_data {
 	const char *compatible;

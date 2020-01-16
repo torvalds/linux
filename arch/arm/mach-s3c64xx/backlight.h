@@ -8,11 +8,11 @@
 #define __ASM_PLAT_BACKLIGHT_H __FILE__
 
 /* samsung_bl_gpio_info - GPIO info for PWM Backlight control
- * @no:		GPIO number for PWM timer out
+ * @yes:		GPIO number for PWM timer out
  * @func:	Special function of GPIO line for PWM timer
  */
 struct samsung_bl_gpio_info {
-	int no;
+	int yes;
 	int func;
 };
 

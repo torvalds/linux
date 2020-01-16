@@ -67,7 +67,7 @@ struct cpu_priv {
 /**
  * Freescale Generic ASOC card private data
  *
- * @dai_link[3]: DAI link structure including normal one and DPCM link
+ * @dai_link[3]: DAI link structure including yesrmal one and DPCM link
  * @pdev: platform device pointer
  * @codec_priv: CODEC private data
  * @cpu_priv: CPU private data
@@ -99,7 +99,7 @@ struct fsl_asoc_card_priv {
  * The other routes shall go through Device Tree.
  *
  * Note: keep all ASRC routes in the second half
- *	 to drop them easily for non-ASRC cases.
+ *	 to drop them easily for yesn-ASRC cases.
  */
 static const struct snd_soc_dapm_route audio_map[] = {
 	/* 1st half -- Normal DAPM routes */
@@ -194,7 +194,7 @@ static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	rate->max = rate->min = priv->asrc_rate;
 
 	mask = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
-	snd_mask_none(mask);
+	snd_mask_yesne(mask);
 	snd_mask_set_format(mask, priv->asrc_format);
 
 	return 0;
@@ -239,7 +239,7 @@ static struct snd_soc_dai_link fsl_asoc_card_dai[] = {
 		.ops = &fsl_asoc_card_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(hifi_be),
 	},
 };
@@ -313,7 +313,7 @@ static int fsl_asoc_card_set_bias_level(struct snd_soc_card *card,
 	return 0;
 }
 
-static int fsl_asoc_card_audmux_init(struct device_node *np,
+static int fsl_asoc_card_audmux_init(struct device_yesde *np,
 				     struct fsl_asoc_card_priv *priv)
 {
 	struct device *dev = &priv->pdev->dev;
@@ -340,9 +340,9 @@ static int fsl_asoc_card_audmux_init(struct device_node *np,
 	ext_port--;
 
 	/*
-	 * Use asynchronous mode (6 wires) for all cases except AC97.
+	 * Use asynchroyesus mode (6 wires) for all cases except AC97.
 	 * If only 4 wires are needed, just set SSI into
-	 * synchronous mode and enable 4 PADs in IOMUX.
+	 * synchroyesus mode and enable 4 PADs in IOMUX.
 	 */
 	switch (priv->dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -399,7 +399,7 @@ static int fsl_asoc_card_audmux_init(struct device_node *np,
 			   IMX_AUDMUX_V2_PTCR_TFSDIR;
 	}
 
-	/* Asynchronous mode can not be set along with RCLKDIR */
+	/* Asynchroyesus mode can yest be set along with RCLKDIR */
 	if (!fsl_asoc_card_is_ac97(priv)) {
 		unsigned int pdcr =
 				IMX_AUDMUX_V2_PDCR_RXDSEL(ext_port);
@@ -480,8 +480,8 @@ static int fsl_asoc_card_late_probe(struct snd_soc_card *card)
 
 static int fsl_asoc_card_probe(struct platform_device *pdev)
 {
-	struct device_node *cpu_np, *codec_np, *asrc_np;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *cpu_np, *codec_np, *asrc_np;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct platform_device *asrc_pdev = NULL;
 	struct platform_device *cpu_pdev;
 	struct fsl_asoc_card_priv *priv;
@@ -504,7 +504,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	cpu_pdev = of_find_device_by_node(cpu_np);
+	cpu_pdev = of_find_device_by_yesde(cpu_np);
 	if (!cpu_pdev) {
 		dev_err(&pdev->dev, "failed to find CPU DAI device\n");
 		ret = -EINVAL;
@@ -513,13 +513,13 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 
 	codec_np = of_parse_phandle(np, "audio-codec", 0);
 	if (codec_np)
-		codec_dev = of_find_i2c_device_by_node(codec_np);
+		codec_dev = of_find_i2c_device_by_yesde(codec_np);
 	else
 		codec_dev = NULL;
 
 	asrc_np = of_parse_phandle(np, "audio-asrc", 0);
 	if (asrc_np)
-		asrc_pdev = of_find_device_by_node(asrc_np);
+		asrc_pdev = of_find_device_by_yesde(asrc_np);
 
 	/* Get the MCLK rate only, and leave it controlled by CODEC drivers */
 	if (codec_dev) {
@@ -574,7 +574,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->card.set_bias_level = NULL;
 		priv->dai_fmt = SND_SOC_DAIFMT_AC97;
 	} else {
-		dev_err(&pdev->dev, "unknown Device Tree compatible\n");
+		dev_err(&pdev->dev, "unkyeswn Device Tree compatible\n");
 		ret = -EINVAL;
 		goto asrc_fail;
 	}
@@ -586,17 +586,17 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	}
 
 	/* Common settings for corresponding Freescale CPU DAI driver */
-	if (of_node_name_eq(cpu_np, "ssi")) {
+	if (of_yesde_name_eq(cpu_np, "ssi")) {
 		/* Only SSI needs to configure AUDMUX */
 		ret = fsl_asoc_card_audmux_init(np, priv);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to init audmux\n");
 			goto asrc_fail;
 		}
-	} else if (of_node_name_eq(cpu_np, "esai")) {
+	} else if (of_yesde_name_eq(cpu_np, "esai")) {
 		priv->cpu_priv.sysclk_id[1] = ESAI_HCKT_EXTAL;
 		priv->cpu_priv.sysclk_id[0] = ESAI_HCKR_EXTAL;
-	} else if (of_node_name_eq(cpu_np, "sai")) {
+	} else if (of_yesde_name_eq(cpu_np, "sai")) {
 		priv->cpu_priv.sysclk_id[1] = FSL_SAI_CLK_MAST1;
 		priv->cpu_priv.sysclk_id[0] = FSL_SAI_CLK_MAST1;
 	}
@@ -631,18 +631,18 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	}
 
 	/* Normal DAI Link */
-	priv->dai_link[0].cpus->of_node = cpu_np;
+	priv->dai_link[0].cpus->of_yesde = cpu_np;
 	priv->dai_link[0].codecs->dai_name = codec_dai_name;
 
 	if (!fsl_asoc_card_is_ac97(priv))
-		priv->dai_link[0].codecs->of_node = codec_np;
+		priv->dai_link[0].codecs->of_yesde = codec_np;
 	else {
 		u32 idx;
 
 		ret = of_property_read_u32(cpu_np, "cell-index", &idx);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"cannot get CPU index property\n");
+				"canyest get CPU index property\n");
 			goto asrc_fail;
 		}
 
@@ -656,19 +656,19 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		}
 	}
 
-	priv->dai_link[0].platforms->of_node = cpu_np;
+	priv->dai_link[0].platforms->of_yesde = cpu_np;
 	priv->dai_link[0].dai_fmt = priv->dai_fmt;
 	priv->card.num_links = 1;
 
 	if (asrc_pdev) {
 		/* DPCM DAI Links only if ASRC exsits */
-		priv->dai_link[1].cpus->of_node = asrc_np;
-		priv->dai_link[1].platforms->of_node = asrc_np;
+		priv->dai_link[1].cpus->of_yesde = asrc_np;
+		priv->dai_link[1].platforms->of_yesde = asrc_np;
 		priv->dai_link[2].codecs->dai_name = codec_dai_name;
-		priv->dai_link[2].codecs->of_node = codec_np;
+		priv->dai_link[2].codecs->of_yesde = codec_np;
 		priv->dai_link[2].codecs->name =
 				priv->dai_link[0].codecs->name;
-		priv->dai_link[2].cpus->of_node = cpu_np;
+		priv->dai_link[2].cpus->of_yesde = cpu_np;
 		priv->dai_link[2].dai_fmt = priv->dai_fmt;
 		priv->card.num_links = 3;
 
@@ -702,11 +702,11 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
 
 asrc_fail:
-	of_node_put(asrc_np);
-	of_node_put(codec_np);
+	of_yesde_put(asrc_np);
+	of_yesde_put(codec_np);
 	put_device(&cpu_pdev->dev);
 fail:
-	of_node_put(cpu_np);
+	of_yesde_put(cpu_np);
 
 	return ret;
 }

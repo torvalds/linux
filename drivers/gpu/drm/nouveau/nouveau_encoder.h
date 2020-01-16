@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -38,7 +38,7 @@ struct nv50_head_atom;
 
 struct nvkm_i2c_port;
 
-struct nouveau_encoder {
+struct yesuveau_encoder {
 	struct drm_encoder_slave base;
 
 	struct dcb_output *dcb;
@@ -49,7 +49,7 @@ struct nouveau_encoder {
 	struct nvkm_i2c_aux *aux;
 
 	/* different to drm_encoder.crtc, this reflects what's
-	 * actually programmed on the hw, not the proposed crtc */
+	 * actually programmed on the hw, yest the proposed crtc */
 	struct drm_crtc *crtc;
 	u32 ctrl;
 
@@ -68,21 +68,21 @@ struct nouveau_encoder {
 
 	void (*enc_save)(struct drm_encoder *encoder);
 	void (*enc_restore)(struct drm_encoder *encoder);
-	void (*update)(struct nouveau_encoder *, u8 head,
+	void (*update)(struct yesuveau_encoder *, u8 head,
 		       struct nv50_head_atom *, u8 proto, u8 depth);
 };
 
-struct nouveau_encoder *
+struct yesuveau_encoder *
 find_encoder(struct drm_connector *connector, int type);
 
-static inline struct nouveau_encoder *nouveau_encoder(struct drm_encoder *enc)
+static inline struct yesuveau_encoder *yesuveau_encoder(struct drm_encoder *enc)
 {
 	struct drm_encoder_slave *slave = to_encoder_slave(enc);
 
-	return container_of(slave, struct nouveau_encoder, base);
+	return container_of(slave, struct yesuveau_encoder, base);
 }
 
-static inline struct drm_encoder *to_drm_encoder(struct nouveau_encoder *enc)
+static inline struct drm_encoder *to_drm_encoder(struct yesuveau_encoder *enc)
 {
 	return &enc->base.base;
 }
@@ -93,16 +93,16 @@ get_slave_funcs(struct drm_encoder *enc)
 	return to_encoder_slave(enc)->slave_funcs;
 }
 
-/* nouveau_dp.c */
-enum nouveau_dp_status {
+/* yesuveau_dp.c */
+enum yesuveau_dp_status {
 	NOUVEAU_DP_SST,
 	NOUVEAU_DP_MST,
 };
 
-int nouveau_dp_detect(struct nouveau_encoder *);
+int yesuveau_dp_detect(struct yesuveau_encoder *);
 
-struct nouveau_connector *
-nouveau_encoder_connector_get(struct nouveau_encoder *encoder);
+struct yesuveau_connector *
+yesuveau_encoder_connector_get(struct yesuveau_encoder *encoder);
 
 int nv50_mstm_detect(struct nv50_mstm *, u8 dpcd[8], int allow);
 void nv50_mstm_remove(struct nv50_mstm *);

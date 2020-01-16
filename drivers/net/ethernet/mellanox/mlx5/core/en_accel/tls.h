@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -43,7 +43,7 @@
 struct mlx5e_tls_sw_stats {
 	atomic64_t tx_tls_drop_metadata;
 	atomic64_t tx_tls_drop_resync_alloc;
-	atomic64_t tx_tls_drop_no_sync_data;
+	atomic64_t tx_tls_drop_yes_sync_data;
 	atomic64_t tx_tls_drop_bypass_required;
 	atomic64_t rx_tls_drop_resync_request;
 	atomic64_t rx_tls_resync_request;

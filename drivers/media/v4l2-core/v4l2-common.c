@@ -31,7 +31,7 @@
  * Makefile fix by "W. Michael Petullo" <mike@flyn.org>
  * 2.4 devfs support ported from 2.4 kernels by
  *  Dan Merillat <dan@merillat.org>
- * Added Gerd Knorrs v4l1 enhancements (Justin Schoeman)
+ * Added Gerd Kyesrrs v4l1 enhancements (Justin Schoeman)
  */
 
 #include <linux/module.h>
@@ -39,7 +39,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -89,7 +89,7 @@ EXPORT_SYMBOL(v4l2_ctrl_query_fill);
 
 /* Clamp x to be between min and max, aligned to a multiple of 2^align.  min
  * and max don't have to be aligned, but there must be at least one valid
- * value.  E.g., min=17,max=31,align=4 is not allowed as there are no multiples
+ * value.  E.g., min=17,max=31,align=4 is yest allowed as there are yes multiples
  * of 16 between 17 and 31.  */
 static unsigned int clamp_align(unsigned int x, unsigned int min,
 				unsigned int max, unsigned int align)
@@ -125,21 +125,21 @@ void v4l_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
 	*w = clamp_align(*w, wmin, wmax, walign);
 	*h = clamp_align(*h, hmin, hmax, halign);
 
-	/* Usually we don't need to align the size and are done now. */
+	/* Usually we don't need to align the size and are done yesw. */
 	if (!salign)
 		return;
 
 	/* How much alignment do we have? */
 	walign = __ffs(*w);
 	halign = __ffs(*h);
-	/* Enough to satisfy the image alignment? */
+	/* Eyesugh to satisfy the image alignment? */
 	if (walign + halign < salign) {
 		/* Max walign where there is still a valid width */
 		unsigned int wmaxa = __fls(wmax ^ (wmin - 1));
 		/* Max halign where there is still a valid height */
 		unsigned int hmaxa = __fls(hmax ^ (hmin - 1));
 
-		/* up the smaller alignment until we have enough */
+		/* up the smaller alignment until we have eyesugh */
 		do {
 			if (halign >= hmaxa ||
 			    (walign <= halign && walign < wmaxa)) {
@@ -275,7 +275,7 @@ const struct v4l2_format_info *v4l2_format_info(u32 format)
 		{ .format = V4L2_PIX_FMT_YVU420,  .pixel_enc = V4L2_PIXEL_ENC_YUV, .mem_planes = 1, .comp_planes = 3, .bpp = { 1, 1, 1, 0 }, .hdiv = 2, .vdiv = 2 },
 		{ .format = V4L2_PIX_FMT_YUV422P, .pixel_enc = V4L2_PIXEL_ENC_YUV, .mem_planes = 1, .comp_planes = 3, .bpp = { 1, 1, 1, 0 }, .hdiv = 2, .vdiv = 1 },
 
-		/* YUV planar formats, non contiguous variant */
+		/* YUV planar formats, yesn contiguous variant */
 		{ .format = V4L2_PIX_FMT_YUV420M, .pixel_enc = V4L2_PIXEL_ENC_YUV, .mem_planes = 3, .comp_planes = 3, .bpp = { 1, 1, 1, 0 }, .hdiv = 2, .vdiv = 2 },
 		{ .format = V4L2_PIX_FMT_YVU420M, .pixel_enc = V4L2_PIXEL_ENC_YUV, .mem_planes = 3, .comp_planes = 3, .bpp = { 1, 1, 1, 0 }, .hdiv = 2, .vdiv = 2 },
 		{ .format = V4L2_PIX_FMT_YUV422M, .pixel_enc = V4L2_PIXEL_ENC_YUV, .mem_planes = 3, .comp_planes = 3, .bpp = { 1, 1, 1, 0 }, .hdiv = 2, .vdiv = 1 },
@@ -415,7 +415,7 @@ int v4l2_fill_pixfmt(struct v4l2_pix_format *pixfmt, u32 pixelformat,
 	if (!info)
 		return -EINVAL;
 
-	/* Single planar API cannot be used for multi plane formats. */
+	/* Single planar API canyest be used for multi plane formats. */
 	if (info->mem_planes > 1)
 		return -EINVAL;
 

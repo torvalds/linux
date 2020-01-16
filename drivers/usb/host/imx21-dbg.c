@@ -58,7 +58,7 @@ static inline struct debug_stats *stats_for_urb(struct imx21 *imx21,
 	struct urb *urb)
 {
 	return usb_pipeisoc(urb->pipe) ?
-		&imx21->isoc_stats : &imx21->nonisoc_stats;
+		&imx21->isoc_stats : &imx21->yesnisoc_stats;
 }
 
 static void debug_urb_submitted(struct imx21 *imx21, struct urb *urb)
@@ -166,7 +166,7 @@ static char *format_ep(struct usb_host_endpoint *ep, char *buf, int bufsize)
 			usb_endpoint_type(&ep->desc),
 			ep);
 	else
-		snprintf(buf, bufsize, "none");
+		snprintf(buf, bufsize, "yesne");
 	return buf;
 }
 
@@ -364,7 +364,7 @@ static int debug_statistics_show(struct seq_file *s, void *v)
 
 	spin_lock_irqsave(&imx21->lock, flags);
 
-	debug_statistics_show_one(s, "nonisoc", &imx21->nonisoc_stats);
+	debug_statistics_show_one(s, "yesnisoc", &imx21->yesnisoc_stats);
 	debug_statistics_show_one(s, "isoc", &imx21->isoc_stats);
 	seq_printf(s, "unblock kludge triggers: %lu\n", imx21->debug_unblocks);
 	spin_unlock_irqrestore(&imx21->lock, flags);

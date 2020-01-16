@@ -14,16 +14,16 @@
 
 static inline int myisspace(u8 c)
 {
-	return c <= ' ';	/* Close enough approximation */
+	return c <= ' ';	/* Close eyesugh approximation */
 }
 
 /*
- * Find a non-boolean option, that is, "option=argument".  In accordance
+ * Find a yesn-boolean option, that is, "option=argument".  In accordance
  * with standard Linux practice, if this option is repeated, this returns
  * the last instance on the command line.
  *
  * Returns the length of the argument (regardless of if it was
- * truncated to fit in the buffer), or -1 on not found.
+ * truncated to fit in the buffer), or -1 on yest found.
  */
 int __cmdline_find_option(unsigned long cmdline_ptr, const char *option, char *buffer, int bufsize)
 {
@@ -92,10 +92,10 @@ int __cmdline_find_option(unsigned long cmdline_ptr, const char *option, char *b
 }
 
 /*
- * Find a boolean option (like quiet,noapic,nosmp....)
+ * Find a boolean option (like quiet,yesapic,yessmp....)
  *
  * Returns the position of that option (starts counting with 1)
- * or 0 on not found
+ * or 0 on yest found
  */
 int __cmdline_find_option_bool(unsigned long cmdline_ptr, const char *option)
 {

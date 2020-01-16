@@ -31,12 +31,12 @@
  * - Workaround batchbuffers, that get executed automatically by the hardware
  *   on every HW context restore.
  *
- * .. [1] Please notice that there are other WAs that, due to their nature,
- *    cannot be applied from a central place. Those are peppered around the rest
+ * .. [1] Please yestice that there are other WAs that, due to their nature,
+ *    canyest be applied from a central place. Those are peppered around the rest
  *    of the code, as needed.
  *
  * .. [2] Technically, some registers are powercontext saved & restored, so they
- *    survive a suspend/resume. In practice, writing them again is not too
+ *    survive a suspend/resume. In practice, writing them again is yest too
  *    costly and simplifies things. We can revisit this in the future.
  *
  * Layout
@@ -47,7 +47,7 @@
  * following order:
  *
  * - Infrastructure functions and macros
- * - WAs per platform in standard gen/chrono order
+ * - WAs per platform in standard gen/chroyes order
  * - Public functions to init or apply the given workaround type.
  */
 
@@ -210,7 +210,7 @@ static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 			  HDC_FORCE_NON_COHERENT);
 
 	/* From the Haswell PRM, Command Reference: Registers, CACHE_MODE_0:
-	 * "The Hierarchical Z RAW Stall Optimization allows non-overlapping
+	 * "The Hierarchical Z RAW Stall Optimization allows yesn-overlapping
 	 *  polygons in the same 8x4 pixel/sample area to be processed without
 	 *  stalling waiting for the earlier ones to write to Hierarchical Z
 	 *  buffer."
@@ -323,7 +323,7 @@ static void gen9_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 * both tied to WaForceContextSaveRestoreNonCoherent
 	 * in some hsds for skl. We keep the tie for all gen9. The
 	 * documentation is a bit hazy and so we want to get common behaviour,
-	 * even though there is no clear evidence we would need both on kbl/bxt.
+	 * even though there is yes clear evidence we would need both on kbl/bxt.
 	 * This area has been source of system hangs so we play it safe
 	 * and mimic the skl regardless of what bspec says.
 	 *
@@ -351,7 +351,7 @@ static void gen9_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 * still able to use more fine-grained preemption levels, since in
 	 * WaEnablePreemptionGranularityControlByUMD we're whitelisting the
 	 * per-ctx register. As such, WaDisable{3D,GPGPU}MidCmdPreemption are
-	 * not real HW workarounds, but merely a way to start using preemption
+	 * yest real HW workarounds, but merely a way to start using preemption
 	 * while maintaining old contract with userspace.
 	 */
 
@@ -522,23 +522,23 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 		 GEN8_ERRDETBCTRL);
 
 	/* Wa_1604370585:icl (pre-prod)
-	 * Formerly known as WaPushConstantDereferenceHoldDisable
+	 * Formerly kyeswn as WaPushConstantDereferenceHoldDisable
 	 */
 	if (IS_ICL_REVID(i915, ICL_REVID_A0, ICL_REVID_B0))
 		WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
 				  PUSH_CONSTANT_DEREF_DISABLE);
 
 	/* WaForceEnableNonCoherent:icl
-	 * This is not the same workaround as in early Gen9 platforms, where
+	 * This is yest the same workaround as in early Gen9 platforms, where
 	 * lacking this could cause system hangs, but coherency performance
 	 * overhead is high and only a few compute workloads really need it
-	 * (the register is whitelisted in hardware now, so UMDs can opt in
+	 * (the register is whitelisted in hardware yesw, so UMDs can opt in
 	 * for coherency if they have a good reason).
 	 */
 	WA_SET_BIT_MASKED(ICL_HDC_MODE, HDC_FORCE_NON_COHERENT);
 
 	/* Wa_2006611047:icl (pre-prod)
-	 * Formerly known as WaDisableImprovedTdlClkGating
+	 * Formerly kyeswn as WaDisableImprovedTdlClkGating
 	 */
 	if (IS_ICL_REVID(i915, ICL_REVID_A0, ICL_REVID_A0))
 		WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
@@ -782,7 +782,7 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	 * will go, we have to find a common index which works for both
 	 * accesses.
 	 *
-	 * Case where we cannot find a common index fortunately should not
+	 * Case where we canyest find a common index fortunately should yest
 	 * happen in production hardware, so we only emit a warning instead of
 	 * implementing something more complex that requires checking the range
 	 * of every MMIO read.
@@ -856,7 +856,7 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 			   GEN11_HASH_CTRL_BIT0 | GEN11_HASH_CTRL_BIT4);
 
 	/* Wa_1405766107:icl
-	 * Formerly known as WaCL2SFHalfMaxAlloc
+	 * Formerly kyeswn as WaCL2SFHalfMaxAlloc
 	 */
 	wa_write_or(wal,
 		    GEN11_LSN_UNSLCVC,
@@ -864,7 +864,7 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		    GEN11_LSN_UNSLCVC_GAFS_HALF_CL2_MAXALLOC);
 
 	/* Wa_220166154:icl
-	 * Formerly known as WaDisCtxReload
+	 * Formerly kyeswn as WaDisCtxReload
 	 */
 	wa_write_or(wal,
 		    GEN8_GAMW_ECO_DEV_RW_IA,
@@ -888,7 +888,7 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 			    CGPSF_CLKGATE_DIS);
 
 	/* Wa_1406463099:icl
-	 * Formerly known as WaGamTlbPendError
+	 * Formerly kyeswn as WaGamTlbPendError
 	 */
 	wa_write_or(wal,
 		    GAMT_CHKN_BIT_REG,
@@ -1035,7 +1035,7 @@ bool intel_gt_verify_workarounds(struct intel_gt *gt, const char *from)
 	return wa_list_verify(gt->uncore, &gt->i915->gt_wa_list, from);
 }
 
-static inline bool is_nonpriv_flags_valid(u32 flags)
+static inline bool is_yesnpriv_flags_valid(u32 flags)
 {
 	/* Check only valid flag bits are set */
 	if (flags & ~RING_FORCE_TO_NONPRIV_MASK_VALID)
@@ -1059,7 +1059,7 @@ whitelist_reg_ext(struct i915_wa_list *wal, i915_reg_t reg, u32 flags)
 	if (GEM_DEBUG_WARN_ON(wal->count >= RING_MAX_NONPRIV_SLOTS))
 		return;
 
-	if (GEM_DEBUG_WARN_ON(!is_nonpriv_flags_valid(flags)))
+	if (GEM_DEBUG_WARN_ON(!is_yesnpriv_flags_valid(flags)))
 		return;
 
 	wa.reg.reg |= flags;
@@ -1146,7 +1146,7 @@ static void cfl_whitelist_build(struct intel_engine_cs *engine)
 	/*
 	 * WaAllowPMDepthAndInvocationCountAccessFromUMD:cfl,whl,cml,aml
 	 *
-	 * This covers 4 register which are next to one another :
+	 * This covers 4 register which are next to one ayesther :
 	 *   - PS_INVOCATION_COUNT
 	 *   - PS_INVOCATION_COUNT_UDW
 	 *   - PS_DEPTH_COUNT
@@ -1186,7 +1186,7 @@ static void icl_whitelist_build(struct intel_engine_cs *engine)
 		/*
 		 * WaAllowPMDepthAndInvocationCountAccessFromUMD:icl
 		 *
-		 * This covers 4 register which are next to one another :
+		 * This covers 4 register which are next to one ayesther :
 		 *   - PS_INVOCATION_COUNT
 		 *   - PS_INVOCATION_COUNT_UDW
 		 *   - PS_DEPTH_COUNT
@@ -1223,7 +1223,7 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 		/*
 		 * WaAllowPMDepthAndInvocationCountAccessFromUMD:tgl
 		 *
-		 * This covers 4 registers which are next to one another :
+		 * This covers 4 registers which are next to one ayesther :
 		 *   - PS_INVOCATION_COUNT
 		 *   - PS_INVOCATION_COUNT_UDW
 		 *   - PS_DEPTH_COUNT
@@ -1318,7 +1318,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	}
 
 	if (IS_GEN(i915, 11)) {
-		/* This is not an Wa. Enable for better image quality */
+		/* This is yest an Wa. Enable for better image quality */
 		wa_masked_en(wal,
 			     _3D_CHICKEN3,
 			     _3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE);
@@ -1330,7 +1330,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 		/*
 		 * Wa_1405543622:icl
-		 * Formerly known as WaGAPZPriorityScheme
+		 * Formerly kyeswn as WaGAPZPriorityScheme
 		 */
 		wa_write_or(wal,
 			    GEN8_GARBCNTL,
@@ -1338,7 +1338,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 		/*
 		 * Wa_1604223664:icl
-		 * Formerly known as WaL3BankAddressHashing
+		 * Formerly kyeswn as WaL3BankAddressHashing
 		 */
 		wa_write_masked_or(wal,
 				   GEN8_GARBCNTL,
@@ -1351,7 +1351,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 		/*
 		 * Wa_1405733216:icl
-		 * Formerly known as WaDisableCleanEvicts
+		 * Formerly kyeswn as WaDisableCleanEvicts
 		 */
 		wa_write_or(wal,
 			    GEN8_L3SQCREG4,
@@ -1508,8 +1508,8 @@ static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 {
 	/*
 	 * Registers in this range are affected by the MCR selector
-	 * which only controls CPU initiated MMIO. Routing does not
-	 * work for CS access so we cannot verify them on this path.
+	 * which only controls CPU initiated MMIO. Routing does yest
+	 * work for CS access so we canyest verify them on this path.
 	 */
 	if (INTEL_GEN(i915) >= 8 && (offset >= 0xb000 && offset <= 0xb4ff))
 		return true;

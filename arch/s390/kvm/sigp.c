@@ -237,7 +237,7 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu,
 		/* running */
 		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	} else {
-		/* not running */
+		/* yest running */
 		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_NOT_RUNNING;
 		rc = SIGP_CC_STATUS_STORED;
@@ -272,10 +272,10 @@ static int __prepare_sigp_cpu_reset(struct kvm_vcpu *vcpu,
 	return -EOPNOTSUPP;
 }
 
-static int __prepare_sigp_unknown(struct kvm_vcpu *vcpu,
+static int __prepare_sigp_unkyeswn(struct kvm_vcpu *vcpu,
 				  struct kvm_vcpu *dst_vcpu)
 {
-	/* handle unknown orders in user space */
+	/* handle unkyeswn orders in user space */
 	return -EOPNOTSUPP;
 }
 
@@ -344,8 +344,8 @@ static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
 		rc = __prepare_sigp_cpu_reset(vcpu, dst_vcpu, order_code);
 		break;
 	default:
-		vcpu->stat.instruction_sigp_unknown++;
-		rc = __prepare_sigp_unknown(vcpu, dst_vcpu);
+		vcpu->stat.instruction_sigp_unkyeswn++;
+		rc = __prepare_sigp_unkyeswn(vcpu, dst_vcpu);
 	}
 
 	if (rc == -EOPNOTSUPP)
@@ -398,7 +398,7 @@ static int handle_sigp_order_in_user_space(struct kvm_vcpu *vcpu, u8 order_code,
 		vcpu->stat.instruction_sigp_cpu_reset++;
 		break;
 	default:
-		vcpu->stat.instruction_sigp_unknown++;
+		vcpu->stat.instruction_sigp_unkyeswn++;
 	}
 	VCPU_EVENT(vcpu, 3, "SIGP: order %u for CPU %d handled in userspace",
 		   order_code, cpu_addr);
@@ -455,7 +455,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
  * external call to a target cpu and the target cpu has the WAIT bit set in
  * its cpuflags. Interception will occurr after the interrupt indicator bits at
  * the target cpu have been set. All error cases will lead to instruction
- * interception, therefore nothing is to be checked or prepared.
+ * interception, therefore yesthing is to be checked or prepared.
  */
 int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu)
 {

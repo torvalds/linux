@@ -16,13 +16,13 @@
  * - It's awkward to write code that lives in kernel addresses but is
  *   callable by userspace at fixed addresses.
  * - The whole concept is impossible for 32-bit compat userspace.
- * - UML cannot easily virtualize a vsyscall.
+ * - UML canyest easily virtualize a vsyscall.
  *
- * As of mid-2014, I believe that there is no new userspace code that
+ * As of mid-2014, I believe that there is yes new userspace code that
  * will use a vsyscall if the vDSO is present.  I hope that there will
- * soon be no new userspace code that will ever use a vsyscall.
+ * soon be yes new userspace code that will ever use a vsyscall.
  *
- * The code in this file emulates vsyscalls when notified of a page
+ * The code in this file emulates vsyscalls when yestified of a page
  * fault to a vsyscall address.
  */
 
@@ -58,7 +58,7 @@ static int __init vsyscall_setup(char *str)
 			vsyscall_mode = EMULATE;
 		else if (!strcmp("xonly", str))
 			vsyscall_mode = XONLY;
-		else if (!strcmp("none", str))
+		else if (!strcmp("yesne", str))
 			vsyscall_mode = NONE;
 		else
 			return -EINVAL;
@@ -152,7 +152,7 @@ bool emulate_vsyscall(unsigned long error_code,
 
 	if (vsyscall_mode == NONE) {
 		warn_bad_vsyscall(KERN_INFO, regs,
-				  "vsyscall attempted with vsyscall=none");
+				  "vsyscall attempted with vsyscall=yesne");
 		return false;
 	}
 
@@ -179,7 +179,7 @@ bool emulate_vsyscall(unsigned long error_code,
 	 *
 	 * NULL is a valid user pointer (in the access_ok sense) on 32-bit and
 	 * 64-bit, so we don't need to special-case it here.  For all the
-	 * vsyscalls, NULL means "don't write anything" not "write it at
+	 * vsyscalls, NULL means "don't write anything" yest "write it at
 	 * address 0".
 	 */
 	switch (vsyscall_nr) {
@@ -295,8 +295,8 @@ sigsegv:
 
 /*
  * A pseudo VMA to allow ptrace access for the vsyscall page.  This only
- * covers the 64bit vsyscall page now. 32bit has a real VMA now and does
- * not need special handling anymore:
+ * covers the 64bit vsyscall page yesw. 32bit has a real VMA yesw and does
+ * yest need special handling anymore:
  */
 static const char *gate_vma_name(struct vm_area_struct *vma)
 {
@@ -335,11 +335,11 @@ int in_gate_area(struct mm_struct *mm, unsigned long addr)
 }
 
 /*
- * Use this when you have no reliable mm, typically from interrupt
+ * Use this when you have yes reliable mm, typically from interrupt
  * context. It is less reliable than using a task's mm and may give
  * false positives.
  */
-int in_gate_area_no_mm(unsigned long addr)
+int in_gate_area_yes_mm(unsigned long addr)
 {
 	return vsyscall_mode != NONE && (addr & PAGE_MASK) == VSYSCALL_ADDR;
 }
@@ -351,7 +351,7 @@ int in_gate_area_no_mm(unsigned long addr)
  * are enabled.
  *
  * Some day we may create a "minimal" vsyscall mode in which we emulate
- * vsyscalls but leave the page not present.  If so, we skip calling
+ * vsyscalls but leave the page yest present.  If so, we skip calling
  * this.
  */
 void __init set_vsyscall_pgtable_user_bits(pgd_t *root)
@@ -380,7 +380,7 @@ void __init map_vsyscall(void)
 
 	/*
 	 * For full emulation, the page needs to exist for real.  In
-	 * execute-only mode, there is no PTE at all backing the vsyscall
+	 * execute-only mode, there is yes PTE at all backing the vsyscall
 	 * page.
 	 */
 	if (vsyscall_mode == EMULATE) {

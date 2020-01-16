@@ -11,7 +11,7 @@
 #include <uapi/linux/uio.h>
 
 struct page;
-struct pipe_inode_info;
+struct pipe_iyesde_info;
 
 struct kvec {
 	void *iov_base; /* and that should *never* hold a userland pointer */
@@ -40,7 +40,7 @@ struct iov_iter {
 		const struct iovec *iov;
 		const struct kvec *kvec;
 		const struct bio_vec *bvec;
-		struct pipe_inode_info *pipe;
+		struct pipe_iyesde_info *pipe;
 	};
 	union {
 		unsigned long nr_segs;
@@ -89,7 +89,7 @@ static inline unsigned char iov_iter_rw(const struct iov_iter *i)
 /*
  * Total number of bytes covered by an iovec.
  *
- * NOTE that it is not safe to use this function until all the iovec's
+ * NOTE that it is yest safe to use this function until all the iovec's
  * segment lengths have been validated.  Because the individual lengths can
  * overflow a size_t when added together.
  */
@@ -126,8 +126,8 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
 size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i);
 bool _copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i);
-size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i);
-bool _copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i);
+size_t _copy_from_iter_yescache(void *addr, size_t bytes, struct iov_iter *i);
+bool _copy_from_iter_full_yescache(void *addr, size_t bytes, struct iov_iter *i);
 
 static __always_inline __must_check
 size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
@@ -157,33 +157,33 @@ bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
 }
 
 static __always_inline __must_check
-size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
+size_t copy_from_iter_yescache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	if (unlikely(!check_copy_size(addr, bytes, false)))
 		return 0;
 	else
-		return _copy_from_iter_nocache(addr, bytes, i);
+		return _copy_from_iter_yescache(addr, bytes, i);
 }
 
 static __always_inline __must_check
-bool copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
+bool copy_from_iter_full_yescache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	if (unlikely(!check_copy_size(addr, bytes, false)))
 		return false;
 	else
-		return _copy_from_iter_full_nocache(addr, bytes, i);
+		return _copy_from_iter_full_yescache(addr, bytes, i);
 }
 
 #ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
 /*
  * Note, users like pmem that depend on the stricter semantics of
- * copy_from_iter_flushcache() than copy_from_iter_nocache() must check for
+ * copy_from_iter_flushcache() than copy_from_iter_yescache() must check for
  * IS_ENABLED(CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE) before assuming that the
  * destination is flushed from the cache on return.
  */
 size_t _copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i);
 #else
-#define _copy_from_iter_flushcache _copy_from_iter_nocache
+#define _copy_from_iter_flushcache _copy_from_iter_yescache
 #endif
 
 #ifdef CONFIG_ARCH_HAS_UACCESS_MCSAFE
@@ -219,7 +219,7 @@ void iov_iter_kvec(struct iov_iter *i, unsigned int direction, const struct kvec
 			unsigned long nr_segs, size_t count);
 void iov_iter_bvec(struct iov_iter *i, unsigned int direction, const struct bio_vec *bvec,
 			unsigned long nr_segs, size_t count);
-void iov_iter_pipe(struct iov_iter *i, unsigned int direction, struct pipe_inode_info *pipe,
+void iov_iter_pipe(struct iov_iter *i, unsigned int direction, struct pipe_iyesde_info *pipe,
 			size_t count);
 void iov_iter_discard(struct iov_iter *i, unsigned int direction, size_t count);
 ssize_t iov_iter_get_pages(struct iov_iter *i, struct page **pages,
@@ -236,10 +236,10 @@ static inline size_t iov_iter_count(const struct iov_iter *i)
 }
 
 /*
- * Cap the iov_iter by given limit; note that the second argument is
- * *not* the new size - it's upper limit for such.  Passing it a value
+ * Cap the iov_iter by given limit; yeste that the second argument is
+ * *yest* the new size - it's upper limit for such.  Passing it a value
  * greater than the amount of data in iov_iter is fine - it'll just do
- * nothing in that case.
+ * yesthing in that case.
  */
 static inline void iov_iter_truncate(struct iov_iter *i, u64 count)
 {
@@ -254,7 +254,7 @@ static inline void iov_iter_truncate(struct iov_iter *i, u64 count)
 }
 
 /*
- * reexpand a previously truncated iterator; count must be no more than how much
+ * reexpand a previously truncated iterator; count must be yes more than how much
  * we had shrunk it.
  */
 static inline void iov_iter_reexpand(struct iov_iter *i, size_t count)

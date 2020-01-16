@@ -166,7 +166,7 @@ static int mcde_modeset_init(struct drm_device *drm)
 	int ret;
 
 	if (!mcde->bridge) {
-		dev_err(drm->dev, "no display output bridge yet\n");
+		dev_err(drm->dev, "yes display output bridge yet\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -181,7 +181,7 @@ static int mcde_modeset_init(struct drm_device *drm)
 
 	/*
 	 * Currently we only support vblank handling on the DSI bridge, using
-	 * TE synchronization. If TE sync is not set up, it is still possible
+	 * TE synchronization. If TE sync is yest set up, it is still possible
 	 * to push out a single update on demand, but this is hard for DRM to
 	 * exploit.
 	 */
@@ -246,7 +246,7 @@ static struct drm_driver mcde_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = "20180529",
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 	.patchlevel = 0,
 	.dumb_create = drm_gem_cma_dumb_create,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
@@ -403,7 +403,7 @@ static int mcde_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mcde->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(mcde->regs)) {
-		dev_err(dev, "no MCDE regs\n");
+		dev_err(dev, "yes MCDE regs\n");
 		ret = -EINVAL;
 		goto clk_disable;
 	}
@@ -483,12 +483,12 @@ static int mcde_probe(struct platform_device *pdev)
 		put_device(p);
 	}
 	if (!match) {
-		dev_err(dev, "no matching components\n");
+		dev_err(dev, "yes matching components\n");
 		ret = -ENODEV;
 		goto clk_disable;
 	}
 	if (IS_ERR(match)) {
-		dev_err(dev, "could not create component match\n");
+		dev_err(dev, "could yest create component match\n");
 		ret = PTR_ERR(match);
 		goto clk_disable;
 	}

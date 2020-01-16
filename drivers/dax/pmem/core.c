@@ -41,7 +41,7 @@ struct dev_dax *__dax_pmem_probe(struct device *dev, enum dev_dax_subsys subsys)
 	nsio = to_nd_namespace_io(&ndns->dev);
 	if (!devm_request_mem_region(dev, nsio->res.start, offset,
 				dev_name(&ndns->dev))) {
-		dev_warn(dev, "could not reserve metadata\n");
+		dev_warn(dev, "could yest reserve metadata\n");
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -53,14 +53,14 @@ struct dev_dax *__dax_pmem_probe(struct device *dev, enum dev_dax_subsys subsys)
 	memcpy(&res, &pgmap.res, sizeof(res));
 	res.start += offset;
 	dax_region = alloc_dax_region(dev, region_id, &res,
-			nd_region->target_node, le32_to_cpu(pfn_sb->align),
+			nd_region->target_yesde, le32_to_cpu(pfn_sb->align),
 			PFN_DEV|PFN_MAP);
 	if (!dax_region)
 		return ERR_PTR(-ENOMEM);
 
 	dev_dax = __devm_create_dev_dax(dax_region, id, &pgmap, subsys);
 
-	/* child dev_dax instances now own the lifetime of the dax_region */
+	/* child dev_dax instances yesw own the lifetime of the dax_region */
 	dax_region_put(dax_region);
 
 	return dev_dax;

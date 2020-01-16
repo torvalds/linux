@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2000 Jens Axboe <axboe@suse.de>
  * Copyright (C) 2001-2004 Peter Osterlund <petero2@telia.com>
@@ -16,7 +16,7 @@
 #include <linux/types.h>
 
 /*
- * 1 for normal debug messages, 2 is very verbose. 0 to turn it off.
+ * 1 for yesrmal debug messages, 2 is very verbose. 0 to turn it off.
  */
 #define PACKET_DEBUG		1
 
@@ -25,7 +25,7 @@
 #define PKT_RB_POOL_SIZE	512
 
 /*
- * How long we should hold a non-full packet before starting data gathering.
+ * How long we should hold a yesn-full packet before starting data gathering.
  */
 #define PACKET_WAIT_TIME	(HZ * 5 / 1000)
 

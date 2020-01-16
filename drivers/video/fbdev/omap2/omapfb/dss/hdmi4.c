@@ -69,8 +69,8 @@ static irqreturn_t hdmi_irq_handler(int irq, void *data)
 		/*
 		 * If we get both connect and disconnect interrupts at the same
 		 * time, turn off the PHY, clear interrupts, and restart, which
-		 * raises connect interrupt if a cable is connected, or nothing
-		 * if cable is not connected.
+		 * raises connect interrupt if a cable is connected, or yesthing
+		 * if cable is yest connected.
 		 */
 		hdmi_wp_set_phy_pwr(wp, HDMI_PHYPWRCMD_OFF);
 
@@ -323,7 +323,7 @@ static int hdmi_display_enable(struct omap_dss_device *dssdev)
 	mutex_lock(&hdmi.lock);
 
 	if (out->manager == NULL) {
-		DSSERR("failed to enable display: no output/manager\n");
+		DSSERR("failed to enable display: yes output/manager\n");
 		r = -ENODEV;
 		goto err0;
 	}
@@ -528,11 +528,11 @@ static void hdmi_uninit_output(struct platform_device *pdev)
 
 static int hdmi_probe_of(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *ep;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *ep;
 	int r;
 
-	ep = omapdss_of_get_first_endpoint(node);
+	ep = omapdss_of_get_first_endpoint(yesde);
 	if (!ep)
 		return 0;
 
@@ -540,11 +540,11 @@ static int hdmi_probe_of(struct platform_device *pdev)
 	if (r)
 		goto err;
 
-	of_node_put(ep);
+	of_yesde_put(ep);
 	return 0;
 
 err:
-	of_node_put(ep);
+	of_yesde_put(ep);
 	return r;
 }
 
@@ -678,7 +678,7 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 	mutex_init(&hdmi.lock);
 	spin_lock_init(&hdmi.audio_playing_lock);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		r = hdmi_probe_of(pdev);
 		if (r)
 			return r;

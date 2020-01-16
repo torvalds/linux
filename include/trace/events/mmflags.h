@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#include <linux/node.h>
+#include <linux/yesde.h>
 #include <linux/mmzone.h>
 #include <linux/compaction.h>
 /*
@@ -53,7 +53,7 @@
 #define show_gfp_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",				\
 	__def_gfpflag_names						\
-	) : "none"
+	) : "yesne"
 
 #ifdef CONFIG_MMU
 #define IF_HAVE_PG_MLOCK(flag,string) ,{1UL << flag, string}
@@ -110,7 +110,7 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
 #define show_page_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",				\
 	__def_pageflag_names						\
-	) : "none"
+	) : "yesne"
 
 #if defined(CONFIG_X86)
 #define __VM_ARCH_SPECIFIC_1 {VM_PAT,     "pat"           }
@@ -152,7 +152,7 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
 	{VM_DONTEXPAND,			"dontexpand"	},		\
 	{VM_LOCKONFAULT,		"lockonfault"	},		\
 	{VM_ACCOUNT,			"account"	},		\
-	{VM_NORESERVE,			"noreserve"	},		\
+	{VM_NORESERVE,			"yesreserve"	},		\
 	{VM_HUGETLB,			"hugetlb"	},		\
 	__VM_ARCH_SPECIFIC_1				,		\
 	{VM_WIPEONFORK,			"wipeonfork"	},		\
@@ -160,13 +160,13 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
 IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
 	{VM_MIXEDMAP,			"mixedmap"	},		\
 	{VM_HUGEPAGE,			"hugepage"	},		\
-	{VM_NOHUGEPAGE,			"nohugepage"	},		\
+	{VM_NOHUGEPAGE,			"yeshugepage"	},		\
 	{VM_MERGEABLE,			"mergeable"	}		\
 
 #define show_vma_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",				\
 	__def_vmaflag_names						\
-	) : "none"
+	) : "yesne"
 
 #ifdef CONFIG_COMPACTION
 #define COMPACTION_STATUS					\
@@ -176,8 +176,8 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
 	EM( COMPACT_SUCCESS,		"success")		\
 	EM( COMPACT_PARTIAL_SKIPPED,	"partial_skipped")	\
 	EM( COMPACT_COMPLETE,		"complete")		\
-	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
-	EM( COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")	\
+	EM( COMPACT_NO_SUITABLE_PAGE,	"yes_suitable_page")	\
+	EM( COMPACT_NOT_SUITABLE_ZONE,	"yest_suitable_zone")	\
 	EMe(COMPACT_CONTENDED,		"contended")
 
 /* High-level compaction status feedback */
@@ -233,8 +233,8 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
 				EMe(ZONE_MOVABLE,"Movable")
 
 #define LRU_NAMES		\
-		EM (LRU_INACTIVE_ANON, "inactive_anon") \
-		EM (LRU_ACTIVE_ANON, "active_anon") \
+		EM (LRU_INACTIVE_ANON, "inactive_ayesn") \
+		EM (LRU_ACTIVE_ANON, "active_ayesn") \
 		EM (LRU_INACTIVE_FILE, "inactive_file") \
 		EM (LRU_ACTIVE_FILE, "active_file") \
 		EMe(LRU_UNEVICTABLE, "unevictable")
@@ -250,7 +250,7 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
 
 COMPACTION_STATUS
 COMPACTION_PRIORITY
-/* COMPACTION_FEEDBACK are defines not enums. Not needed here. */
+/* COMPACTION_FEEDBACK are defines yest enums. Not needed here. */
 ZONE_TYPE
 LRU_NAMES
 

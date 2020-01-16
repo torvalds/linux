@@ -37,7 +37,7 @@ static const char *xfeature_names[] =
 	"AVX-512 ZMM_Hi256"		,
 	"Processor Trace (unused)"	,
 	"Protection Keys User registers",
-	"unknown xstate feature"	,
+	"unkyeswn xstate feature"	,
 };
 
 static short xsave_cpuid_features[] __initdata = {
@@ -110,7 +110,7 @@ EXPORT_SYMBOL_GPL(cpu_has_xfeatures);
 static int xfeature_is_supervisor(int xfeature_nr)
 {
 	/*
-	 * We currently do not support supervisor states, but if
+	 * We currently do yest support supervisor states, but if
 	 * we did, we could find out like this.
 	 *
 	 * SDM says: If state component 'i' is a user state component,
@@ -136,7 +136,7 @@ static int xfeature_is_user(int xfeature_nr)
  * to the corresponding memory layout.
  *
  * This means that when the bit is zero, the state component might still contain
- * some previous - non-initialized register state.
+ * some previous - yesn-initialized register state.
  *
  * Before writing xstate information to user-space we sanitize those components,
  * to always ensure that the memory layout of a feature will be in the init state
@@ -155,7 +155,7 @@ void fpstate_sanitize_xstate(struct fpu *fpu)
 	xfeatures = fpu->state.xsave.header.xfeatures;
 
 	/*
-	 * None of the feature bits are in init state. So nothing else
+	 * None of the feature bits are in init state. So yesthing else
 	 * to do for us, as the memory layout is up to date.
 	 */
 	if ((xfeatures & xfeatures_mask) == xfeatures_mask)
@@ -216,12 +216,12 @@ void fpu__init_cpu_xstate(void)
 	if (!boot_cpu_has(X86_FEATURE_XSAVE) || !xfeatures_mask)
 		return;
 	/*
-	 * Make it clear that XSAVES supervisor states are not yet
+	 * Make it clear that XSAVES supervisor states are yest yet
 	 * implemented should anyone expect it to work by changing
 	 * bits in XFEATURE_MASK_* macros and XCR0.
 	 */
 	WARN_ONCE((xfeatures_mask & XFEATURE_MASK_SUPERVISOR),
-		"x86/fpu: XSAVES supervisor states are not yet implemented.\n");
+		"x86/fpu: XSAVES supervisor states are yest yet implemented.\n");
 
 	xfeatures_mask &= ~XFEATURE_MASK_SUPERVISOR;
 
@@ -232,7 +232,7 @@ void fpu__init_cpu_xstate(void)
 /*
  * Note that in the future we will likely need a pair of
  * functions here: one for user xstates and the other for
- * system xstates.  For now, they are the same.
+ * system xstates.  For yesw, they are the same.
  */
 static int xfeature_enabled(enum xfeature xfeature)
 {
@@ -428,7 +428,7 @@ static void __init setup_init_fpu_buf(void)
 
 	/*
 	 * Dump the init state again. This is to identify the init state
-	 * of any feature which is not represented by all zero's.
+	 * of any feature which is yest represented by all zero's.
 	 */
 	copy_xregs_to_kernel_booting(&init_fpstate.xsave);
 }
@@ -478,7 +478,7 @@ int using_compacted_format(void)
 /* Validate an xstate header supplied by userspace (ptrace or sigreturn) */
 int validate_xstate_header(const struct xstate_header *hdr)
 {
-	/* No unknown or supervisor features may be set */
+	/* No unkyeswn or supervisor features may be set */
 	if (hdr->xfeatures & (~xfeatures_mask | XFEATURE_MASK_SUPERVISOR))
 		return -EINVAL;
 
@@ -565,7 +565,7 @@ static void check_xstate_against_struct(int nr)
 	if ((nr < XFEATURE_YMM) ||
 	    (nr >= XFEATURE_MAX) ||
 	    (nr == XFEATURE_PT_UNIMPLEMENTED_SO_FAR)) {
-		WARN_ONCE(1, "no structure for xstate: %d\n", nr);
+		WARN_ONCE(1, "yes structure for xstate: %d\n", nr);
 		XSTATE_WARN_ON(1);
 	}
 }
@@ -577,7 +577,7 @@ static void check_xstate_against_struct(int nr)
  */
 static void do_extra_xstate_size_checks(void)
 {
-	int paranoid_xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
+	int parayesid_xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 	int i;
 
 	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
@@ -594,22 +594,22 @@ static void do_extra_xstate_size_checks(void)
 
 		/* Align from the end of the previous feature */
 		if (xfeature_is_aligned(i))
-			paranoid_xstate_size = ALIGN(paranoid_xstate_size, 64);
+			parayesid_xstate_size = ALIGN(parayesid_xstate_size, 64);
 		/*
-		 * The offset of a given state in the non-compacted
+		 * The offset of a given state in the yesn-compacted
 		 * format is given to us in a CPUID leaf.  We check
 		 * them for being ordered (increasing offsets) in
 		 * setup_xstate_features().
 		 */
 		if (!using_compacted_format())
-			paranoid_xstate_size = xfeature_uncompacted_offset(i);
+			parayesid_xstate_size = xfeature_uncompacted_offset(i);
 		/*
 		 * The compacted-format offset always depends on where
 		 * the previous state ended.
 		 */
-		paranoid_xstate_size += xfeature_size(i);
+		parayesid_xstate_size += xfeature_size(i);
 	}
-	XSTATE_WARN_ON(paranoid_xstate_size != fpu_kernel_xstate_size);
+	XSTATE_WARN_ON(parayesid_xstate_size != fpu_kernel_xstate_size);
 }
 
 
@@ -621,8 +621,8 @@ static void do_extra_xstate_size_checks(void)
  * that we use 'XSAVES' on, we could potentially overflow the
  * buffer because 'XSAVES' saves system states too.
  *
- * Note that we do not currently set any bits on IA32_XSS so
- * 'XCR0 | IA32_XSS == XCR0' for now.
+ * Note that we do yest currently set any bits on IA32_XSS so
+ * 'XCR0 | IA32_XSS == XCR0' for yesw.
  */
 static unsigned int __init get_xsaves_size(void)
 {
@@ -686,7 +686,7 @@ static int __init init_xstate_size(void)
 
 	/*
 	 * The size is OK, we are definitely going to use xsave,
-	 * make it known to the world that we need more space.
+	 * make it kyeswn to the world that we need more space.
 	 */
 	fpu_kernel_xstate_size = possible_xstate_size;
 	do_extra_xstate_size_checks();
@@ -700,7 +700,7 @@ static int __init init_xstate_size(void)
 
 /*
  * We enabled the XSAVE hardware, but something went wrong and
- * we can not use it.  Disable it.
+ * we can yest use it.  Disable it.
  */
 static void fpu__init_disable_system_xstate(void)
 {
@@ -748,12 +748,12 @@ void __init fpu__init_system_xstate(void)
 		 * with the enumeration.  Disable XSAVE and try to continue
 		 * booting without it.  This is too early to BUG().
 		 */
-		pr_err("x86/fpu: FP/SSE not present amongst the CPU's xstate features: 0x%llx.\n", xfeatures_mask);
+		pr_err("x86/fpu: FP/SSE yest present amongst the CPU's xstate features: 0x%llx.\n", xfeatures_mask);
 		goto out_disable;
 	}
 
 	/*
-	 * Clear XSAVE features that are disabled in the normal CPUID.
+	 * Clear XSAVE features that are disabled in the yesrmal CPUID.
 	 */
 	for (i = 0; i < ARRAY_SIZE(xsave_cpuid_features); i++) {
 		if (!boot_cpu_has(xsave_cpuid_features[i]))
@@ -769,7 +769,7 @@ void __init fpu__init_system_xstate(void)
 		goto out_disable;
 
 	/*
-	 * Update info used for ptrace frames; use standard-format size and no
+	 * Update info used for ptrace frames; use standard-format size and yes
 	 * supervisor xstates:
 	 */
 	update_regset_xstate_info(fpu_user_xstate_size,	xfeatures_mask & ~XFEATURE_MASK_SUPERVISOR);
@@ -823,7 +823,7 @@ static void *__raw_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
  * This is the API that is called to get xstate address in either
  * standard format or compacted format of xsave area.
  *
- * Note that if there is no data for the field in the xsave buffer
+ * Note that if there is yes data for the field in the xsave buffer
  * this will return NULL.
  *
  * Inputs:
@@ -832,7 +832,7 @@ static void *__raw_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
  *	XFEATURE_SSE, etc...)
  * Output:
  *	address of the state in the xsave area, or NULL if the
- *	field is not present in the xsave buffer.
+ *	field is yest present in the xsave buffer.
  */
 void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 {
@@ -843,8 +843,8 @@ void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 		return NULL;
 
 	/*
-	 * We should not ever be requesting features that we
-	 * have not enabled.  Remember that xfeatures_mask is
+	 * We should yest ever be requesting features that we
+	 * have yest enabled.  Remember that xfeatures_mask is
 	 * what we write to the XCR0 register.
 	 */
 	WARN_ONCE(!(xfeatures_mask & BIT_ULL(xfeature_nr)),
@@ -852,13 +852,13 @@ void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 	/*
 	 * This assumes the last 'xsave*' instruction to
 	 * have requested that 'xfeature_nr' be saved.
-	 * If it did not, we might be seeing and old value
+	 * If it did yest, we might be seeing and old value
 	 * of the field in the buffer.
 	 *
-	 * This can happen because the last 'xsave' did not
+	 * This can happen because the last 'xsave' did yest
 	 * request that this feature be saved (unlikely)
 	 * or because the "init optimization" caused it
-	 * to not be saved.
+	 * to yest be saved.
 	 */
 	if (!(xsave->header.xfeatures & BIT_ULL(xfeature_nr)))
 		return NULL;
@@ -873,7 +873,7 @@ EXPORT_SYMBOL_GPL(get_xsave_addr);
  * using the FPU and retrieves the data in to a buffer.  It then calculates
  * the offset of the requested field in the buffer.
  *
- * This function is safe to call whether the FPU is in use or not.
+ * This function is safe to call whether the FPU is in use or yest.
  *
  * Note that this only works on the current task.
  *
@@ -882,7 +882,7 @@ EXPORT_SYMBOL_GPL(get_xsave_addr);
  *	XFEATURE_SSE, etc...)
  * Output:
  *	address of the state in the xsave area or NULL if the state
- *	is not present or is in its 'init state'.
+ *	is yest present or is in its 'init state'.
  */
 const void *get_xsave_field_ptr(int xfeature_nr)
 {
@@ -957,7 +957,7 @@ static inline bool xfeatures_mxcsr_quirk(u64 xfeatures)
 }
 
 /*
- * This is similar to user_regset_copyout(), but will not add offset to
+ * This is similar to user_regset_copyout(), but will yest add offset to
  * the source data pointer or increment pos, count, kbuf, and ubuf.
  */
 static inline void
@@ -1250,7 +1250,7 @@ static void avx512_status(struct seq_file *m, struct task_struct *task)
 
 	if (!timestamp) {
 		/*
-		 * Report -1 if no AVX512 usage
+		 * Report -1 if yes AVX512 usage
 		 */
 		delta = -1;
 	} else {

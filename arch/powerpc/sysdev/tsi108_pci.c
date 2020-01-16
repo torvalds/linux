@@ -180,7 +180,7 @@ static struct pci_ops tsi108_direct_pci_ops = {
 	.write = tsi108_direct_write_config,
 };
 
-int __init tsi108_setup_pci(struct device_node *dev, u32 cfg_phys, int primary)
+int __init tsi108_setup_pci(struct device_yesde *dev, u32 cfg_phys, int primary)
 {
 	int len;
 	struct pci_controller *hose;
@@ -211,14 +211,14 @@ int __init tsi108_setup_pci(struct device_node *dev, u32 cfg_phys, int primary)
 		return -ENOMEM;
 	}
 
-	hose->first_busno = bus_range ? bus_range[0] : 0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busyes = bus_range ? bus_range[0] : 0;
+	hose->last_busyes = bus_range ? bus_range[1] : 0xff;
 
 	(hose)->ops = &tsi108_direct_pci_ops;
 
 	printk(KERN_INFO "Found tsi108 PCI host bridge at 0x%08x. "
 	       "Firmware bus number: %d->%d\n",
-	       rsrc.start, hose->first_busno, hose->last_busno);
+	       rsrc.start, hose->first_busyes, hose->last_busyes);
 
 	/* Interpret the "ranges" property */
 	/* This also maps the I/O region and sets isa_io/mem_base */
@@ -361,7 +361,7 @@ static struct irq_chip tsi108_pci_irq = {
 	.irq_unmask = tsi108_pci_irq_unmask,
 };
 
-static int pci_irq_host_xlate(struct irq_domain *h, struct device_node *ct,
+static int pci_irq_host_xlate(struct irq_domain *h, struct device_yesde *ct,
 			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
@@ -400,11 +400,11 @@ static const struct irq_domain_ops pci_irq_domain_ops = {
  * to the MPIC.
  */
 
-void __init tsi108_pci_int_init(struct device_node *node)
+void __init tsi108_pci_int_init(struct device_yesde *yesde)
 {
 	DBG("Tsi108_pci_int_init: initializing PCI interrupts\n");
 
-	pci_irq_host = irq_domain_add_legacy_isa(node, &pci_irq_domain_ops, NULL);
+	pci_irq_host = irq_domain_add_legacy_isa(yesde, &pci_irq_domain_ops, NULL);
 	if (pci_irq_host == NULL) {
 		printk(KERN_ERR "pci_irq_host: failed to allocate irq domain!\n");
 		return;

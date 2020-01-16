@@ -10,12 +10,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -41,20 +41,20 @@
  * THE PROCEDURE
  *
  * The 2400m and derived devices work in two modes: boot-mode or
- * normal mode. In boot mode we can execute only a handful of commands
+ * yesrmal mode. In boot mode we can execute only a handful of commands
  * targeted at uploading the firmware and launching it.
  *
  * The 2400m enters boot mode when it is first connected to the
  * system, when it crashes and when you ask it to reboot. There are
- * two submodes of the boot mode: signed and non-signed. Signed takes
- * firmwares signed with a certain private key, non-signed takes any
+ * two submodes of the boot mode: signed and yesn-signed. Signed takes
+ * firmwares signed with a certain private key, yesn-signed takes any
  * firmware. Normal hardware takes only signed firmware.
  *
  * On boot mode, in USB, we write to the device using the bulk out
- * endpoint and read from it in the notification endpoint.
+ * endpoint and read from it in the yestification endpoint.
  *
  * Upon entrance to boot mode, the device sends (preceded with a few
- * zero length packets (ZLPs) on the notification endpoint in USB) a
+ * zero length packets (ZLPs) on the yestification endpoint in USB) a
  * reboot barker (4 le32 words with the same value). We ack it by
  * sending the same barker to the device. The device acks with a
  * reboot ack barker (4 le32 words with value I2400M_ACK_BARKER) and
@@ -72,7 +72,7 @@
  *
  * After this, we read the MAC address and then (if needed)
  * reinitialize the device. We need to read it ahead of time because
- * in the future, we might not upload the firmware until userspace
+ * in the future, we might yest upload the firmware until userspace
  * 'ifconfig up's the device.
  *
  * We can then upload the firmware file. The file is composed of a BCF
@@ -85,7 +85,7 @@
  *
  * Once firmware is uploaded, we are good to go :)
  *
- * When we don't know in which mode we are, we first try by sending a
+ * When we don't kyesw in which mode we are, we first try by sending a
  * warm reset request that will take us to boot-mode. If we time out
  * waiting for a reboot barker, that means maybe we are already in
  * boot mode, so we send a reboot barker.
@@ -93,15 +93,15 @@
  * COMMAND EXECUTION
  *
  * This code (and process) is single threaded; for executing commands,
- * we post a URB to the notification endpoint, post the command, wait
- * for data on the notification buffer. We don't need to worry about
- * others as we know we are the only ones in there.
+ * we post a URB to the yestification endpoint, post the command, wait
+ * for data on the yestification buffer. We don't need to worry about
+ * others as we kyesw we are the only ones in there.
  *
  * BACKEND IMPLEMENTATION
  *
  * This code is bus-generic; the bus-specific driver provides back end
  * implementations to send a boot mode command to the device and to
- * read an acknolwedgement from it (or an asynchronous notification)
+ * read an ackyeslwedgement from it (or an asynchroyesus yestification)
  * from it.
  *
  * FIRMWARE LOADING
@@ -109,7 +109,7 @@
  * Note that in some cases, we can't just load a firmware file (for
  * example, when resuming). For that, we might cache the firmware
  * file. Thus, when doing the bootstrap, if there is a cache firmware
- * file, it is used; if not, loading from disk is attempted.
+ * file, it is used; if yest, loading from disk is attempted.
  *
  * ROADMAP
  *
@@ -132,7 +132,7 @@
  *     i2400m_reset
  *   i2400m_dnload_init
  *     i2400m_dnload_init_signed
- *     i2400m_dnload_init_nonsigned
+ *     i2400m_dnload_init_yesnsigned
  *       i2400m_download_chunk
  *         i2400m_bm_cmd
  *   i2400m_dnload_bcf
@@ -149,7 +149,7 @@
  * i2400m_bm_cmd_prepare              Used by bus-drivers to prep
  *                                    commands before sending
  *
- * i2400m_pm_notifier                 Called on Power Management events
+ * i2400m_pm_yestifier                 Called on Power Management events
  *   i2400m_fw_cache
  *   i2400m_fw_uncache
  */
@@ -181,7 +181,7 @@ static const __le32 i2400m_ACK_BARKER[4] = {
  * Computes checksum if so needed. After calling this function, DO NOT
  * modify the command or header as the checksum won't work anymore.
  *
- * We do it from here because some times we cannot do it in the
+ * We do it from here because some times we canyest do it in the
  * original context the command was sent (it is a const), so when we
  * copy it to our staging buffer, we add the checksum there.
  */
@@ -201,7 +201,7 @@ EXPORT_SYMBOL_GPL(i2400m_bm_cmd_prepare);
 
 
 /*
- * Database of known barkers.
+ * Database of kyeswn barkers.
  *
  * A barker is what the device sends indicating he is ready to be
  * bootloaded. Different versions of the device will send different
@@ -241,7 +241,7 @@ int i2400m_zrealloc_2x(void **ptr, size_t *_count, size_t el_size,
 /*
  * Add a barker to the database
  *
- * This cannot used outside of this module and only at at module_init
+ * This canyest used outside of this module and only at at module_init
  * time. This is to avoid the need to do locking.
  */
 static
@@ -276,11 +276,11 @@ void i2400m_barker_db_exit(void)
 
 
 /*
- * Helper function to add all the known stable barkers to the barker
+ * Helper function to add all the kyeswn stable barkers to the barker
  * database.
  */
 static
-int i2400m_barker_db_known_barkers(void)
+int i2400m_barker_db_kyeswn_barkers(void)
 {
 	int result;
 
@@ -318,7 +318,7 @@ int i2400m_barker_db_init(const char *_options)
 	i2400m_barker_db_size = 0;
 	i2400m_barker_db_used = 0;
 
-	result = i2400m_barker_db_known_barkers();
+	result = i2400m_barker_db_kyeswn_barkers();
 	if (result < 0)
 		goto error_add;
 	/* parse command line options from i2400m.barkers */
@@ -379,7 +379,7 @@ error_add:
  * in verifying that the same type of boot barker is returned when the
  * device [re]boots (as long as the same device instance is used).
  *
- * Return: 0 if @buf matches a known boot barker. -ENOENT if the
+ * Return: 0 if @buf matches a kyeswn boot barker. -ENOENT if the
  *     buffer in @buf doesn't match any boot barker in the database or
  *     -EILSEQ if the buffer doesn't have the right size.
  */
@@ -458,8 +458,8 @@ ssize_t __i2400m_bm_ack_verify(struct i2400m *i2400m, int opcode,
 		  i2400m, opcode, ack, ack_size);
 	if (ack_size < sizeof(*ack)) {
 		result = -EIO;
-		dev_err(dev, "boot-mode cmd %d: HW BUG? notification didn't "
-			"return enough data (%zu bytes vs %zu expected)\n",
+		dev_err(dev, "boot-mode cmd %d: HW BUG? yestification didn't "
+			"return eyesugh data (%zu bytes vs %zu expected)\n",
 			opcode, ack_size, sizeof(*ack));
 		goto error_ack_short;
 	}
@@ -482,7 +482,7 @@ ssize_t __i2400m_bm_ack_verify(struct i2400m *i2400m, int opcode,
 	ack->data_size = le32_to_cpu(ack->data_size);
 	ack->target_addr = le32_to_cpu(ack->target_addr);
 	ack->block_checksum = le32_to_cpu(ack->block_checksum);
-	d_printf(5, dev, "boot-mode cmd %d: notification for opcode %u "
+	d_printf(5, dev, "boot-mode cmd %d: yestification for opcode %u "
 		 "response %u csum %u rr %u da %u\n",
 		 opcode, i2400m_brh_get_opcode(ack),
 		 i2400m_brh_get_response(ack),
@@ -549,31 +549,31 @@ error_ack_short:
  *     You can use the i2400m->bm_cmd_buf to stage your commands and
  *     send them.
  *
- *     If NULL, no command is sent (we just wait for an ack).
+ *     If NULL, yes command is sent (we just wait for an ack).
  *
  * @cmd_size: size of the command. Will be auto padded to the
  *     bus-specific drivers padding requirements.
  *
- * @ack: buffer where to place the acknowledgement. If it is a regular
+ * @ack: buffer where to place the ackyeswledgement. If it is a regular
  *     command response, all fields will be returned with the right,
  *     native endianess.
  *
- *     You *cannot* use i2400m->bm_ack_buf for this buffer.
+ *     You *canyest* use i2400m->bm_ack_buf for this buffer.
  *
  * @ack_size: size of @ack, 16 aligned; you need to provide at least
- *     sizeof(*ack) bytes and then enough to contain the return data
+ *     sizeof(*ack) bytes and then eyesugh to contain the return data
  *     from the command
  *
  * @flags: see I2400M_BM_CMD_* above.
  *
- * @returns: bytes received by the notification; if < 0, an errno code
- *     denoting an error or:
+ * @returns: bytes received by the yestification; if < 0, an erryes code
+ *     deyesting an error or:
  *
  *     -ERESTARTSYS  The device has rebooted
  *
  * Executes a boot-mode command and waits for a response, doing basic
  * validation on it; if a zero length response is received, it retries
- * waiting for a response until a non-zero one is received (timing out
+ * waiting for a response until a yesn-zero one is received (timing out
  * after %I2400M_BOOT_RETRIES retries).
  */
 static
@@ -684,7 +684,7 @@ static int i2400m_download_chunk(struct i2400m *i2400m, const void *chunk,
  *     payloads). Assumed verified and consistent.
  * @bcf_len: length (in bytes) of the @bcf buffer.
  *
- * Returns: < 0 errno code on error or the offset to the jump instruction.
+ * Returns: < 0 erryes code on error or the offset to the jump instruction.
  *
  * Given a BCF file, downloads each section (a command and a payload)
  * to the device's address space. Actually, it just executes each
@@ -779,7 +779,7 @@ unsigned i2400m_boot_is_signed(struct i2400m *i2400m)
  *     that is followed by the actual payloads).
  * @offset: [byte] offset into @bcf for the command we need to send.
  *
- * Depending on the boot mode (signed vs non-signed), different
+ * Depending on the boot mode (signed vs yesn-signed), different
  * actions need to be taken.
  */
 static
@@ -805,7 +805,7 @@ int i2400m_dnload_finalize(struct i2400m *i2400m,
 		cmd_buf = i2400m->bm_cmd_buf;
 		memcpy(&cmd_buf->cmd, cmd, sizeof(*cmd));
 		cmd = &cmd_buf->cmd;
-		/* now cmd points to the actual bootrom_header in cmd_buf */
+		/* yesw cmd points to the actual bootrom_header in cmd_buf */
 		i2400m_brh_set_opcode(cmd, I2400M_BRH_JUMP);
 		cmd->data_size = 0;
 		ret = i2400m_bm_cmd(i2400m, cmd, sizeof(*cmd),
@@ -842,16 +842,16 @@ int i2400m_dnload_finalize(struct i2400m *i2400m,
  *          already, so don't wait for it.
  *
  *      I2400M_BRI_NO_REBOOT: Don't send a reboot command, but wait
- *          for a reboot barker notification. This is a one shot; if
+ *          for a reboot barker yestification. This is a one shot; if
  *          the state machine needs to send a reboot command it will.
  *
  * Returns:
  *
- *     < 0 errno code on error, 0 if ok.
+ *     < 0 erryes code on error, 0 if ok.
  *
  * Description:
  *
- * Tries hard enough to put the device in boot-mode. There are two
+ * Tries hard eyesugh to put the device in boot-mode. There are two
  * main phases to this:
  *
  * a. (1) send a reboot command and (2) get a reboot barker
@@ -865,14 +865,14 @@ int i2400m_dnload_finalize(struct i2400m *i2400m,
  * have to backtrack and retry, so we keep a max tries counter for
  * that.
  *
- * It sucks because we don't know ahead of time which is going to be
+ * It sucks because we don't kyesw ahead of time which is going to be
  * the reboot barker (the device might send different ones depending
  * on its EEPROM config) and once the device reboots and waits for the
  * echo/ack reboot barker being sent back, it doesn't understand
- * anything else. So we can be left at the point where we don't know
+ * anything else. So we can be left at the point where we don't kyesw
  * what to send to it -- cold reset and bus reset seem to have little
  * effect. So the function iterates (in this case) through all the
- * known barkers and tries them all until an ACK is
+ * kyeswn barkers and tries them all until an ACK is
  * received. Otherwise, it gives up.
  *
  * If we get a timeout after sending a warm reset, we do it again.
@@ -915,13 +915,13 @@ do_reboot:
 		 */
 		d_printf(4, dev, "device reboot: got reboot barker\n");
 		break;
-	case -EISCONN:	/* we don't know how it got here...but we follow it */
+	case -EISCONN:	/* we don't kyesw how it got here...but we follow it */
 		d_printf(4, dev, "device reboot: got ack barker - whatever\n");
 		goto do_reboot;
 	case -ETIMEDOUT:
 		/*
 		 * Device has timed out, we might be in boot mode
-		 * already and expecting an ack; if we don't know what
+		 * already and expecting an ack; if we don't kyesw what
 		 * the barker is, we just send them all. Cold reset
 		 * and bus reset don't work. Beats me.
 		 */
@@ -947,7 +947,7 @@ do_reboot:
 			}
 		}
 		dev_err(dev, "device boot: tried all the echo/acks, could "
-			"not get device to respond; giving up");
+			"yest get device to respond; giving up");
 		result = -ESHUTDOWN;
 	case -EPROTO:
 	case -ESHUTDOWN:	/* dev is gone */
@@ -962,7 +962,7 @@ do_reboot:
 	/* At this point we ack back with 4 REBOOT barkers and expect
 	 * 4 ACK barkers. This is ugly, as we send a raw command --
 	 * hence the cast. _bm_cmd() will catch the reboot ack
-	 * notification and report it as -EISCONN. */
+	 * yestification and report it as -EISCONN. */
 do_reboot_ack:
 	d_printf(4, dev, "device reboot ack: sending ack [%d # left]\n", count);
 	memcpy(cmd, i2400m->barker->data, sizeof(i2400m->barker->data));
@@ -977,7 +977,7 @@ do_reboot_ack:
 	case -EISCONN:
 		d_printf(4, dev, "reboot ack: got ack barker - good\n");
 		break;
-	case -ETIMEDOUT:	/* no response, maybe it is the other type? */
+	case -ETIMEDOUT:	/* yes response, maybe it is the other type? */
 		if (ack_timeout_cnt-- < 0) {
 			d_printf(4, dev, "reboot ack timedout: retrying\n");
 			goto do_reboot_ack;
@@ -1060,14 +1060,14 @@ error_read_mac:
 
 
 /*
- * Initialize a non signed boot
+ * Initialize a yesn signed boot
  *
  * This implies sending some magic values to the device's memory. Note
  * we convert the values to little endian in the same array
  * declaration.
  */
 static
-int i2400m_dnload_init_nonsigned(struct i2400m *i2400m)
+int i2400m_dnload_init_yesnsigned(struct i2400m *i2400m)
 {
 	unsigned i = 0;
 	int ret = 0;
@@ -1098,7 +1098,7 @@ int i2400m_dnload_init_nonsigned(struct i2400m *i2400m)
  * @bcf_hdr: pointer to the firmware header; assumes it is fully in
  *     memory (it has gone through basic validation).
  *
- * Returns: 0 if ok, < 0 errno code on error, -ERESTARTSYS if the hw
+ * Returns: 0 if ok, < 0 erryes code on error, -ERESTARTSYS if the hw
  *     rebooted.
  *
  * This writes the firmware BCF header to the device using the
@@ -1136,7 +1136,7 @@ int i2400m_dnload_init_signed(struct i2400m *i2400m,
  * Initialize the firmware download at the device size
  *
  * Multiplex to the one that matters based on the device's mode
- * (signed or non-signed).
+ * (signed or yesn-signed).
  */
 static
 int i2400m_dnload_init(struct i2400m *i2400m,
@@ -1155,13 +1155,13 @@ int i2400m_dnload_init(struct i2400m *i2400m,
 				"initialization failed: %d\n",
 				i2400m->fw_name, result);
 	} else {
-		/* non-signed boot process without pokes */
-		d_printf(1, dev, "non-signed boot\n");
-		result = i2400m_dnload_init_nonsigned(i2400m);
+		/* yesn-signed boot process without pokes */
+		d_printf(1, dev, "yesn-signed boot\n");
+		result = i2400m_dnload_init_yesnsigned(i2400m);
 		if (result == -ERESTARTSYS)
 			return result;
 		if (result < 0)
-			dev_err(dev, "firmware %s: non-signed download "
+			dev_err(dev, "firmware %s: yesn-signed download "
 				"initialization failed: %d\n",
 				i2400m->fw_name, result);
 	}
@@ -1187,14 +1187,14 @@ int i2400m_fw_hdr_check(struct i2400m *i2400m,
 {
 	struct device *dev = i2400m_dev(i2400m);
 
-	unsigned module_type, header_len, major_version, minor_version,
+	unsigned module_type, header_len, major_version, miyesr_version,
 		module_id, module_vendor, date, size;
 
 	module_type = le32_to_cpu(bcf_hdr->module_type);
 	header_len = sizeof(u32) * le32_to_cpu(bcf_hdr->header_len);
 	major_version = (le32_to_cpu(bcf_hdr->header_version) & 0xffff0000)
 		>> 16;
-	minor_version = le32_to_cpu(bcf_hdr->header_version) & 0x0000ffff;
+	miyesr_version = le32_to_cpu(bcf_hdr->header_version) & 0x0000ffff;
 	module_id = le32_to_cpu(bcf_hdr->module_id);
 	module_vendor = le32_to_cpu(bcf_hdr->module_vendor);
 	date = le32_to_cpu(bcf_hdr->date);
@@ -1204,14 +1204,14 @@ int i2400m_fw_hdr_check(struct i2400m *i2400m,
 		 "type:vendor:id 0x%x:%x:%x v%u.%u (%u/%u B) built %08x\n",
 		 i2400m->fw_name, index, offset,
 		 module_type, module_vendor, module_id,
-		 major_version, minor_version, header_len, size, date);
+		 major_version, miyesr_version, header_len, size, date);
 
 	/* Hard errors */
 	if (major_version != 1) {
 		dev_err(dev, "firmware %s #%zd@%08zx: major header version "
-			"v%u.%u not supported\n",
+			"v%u.%u yest supported\n",
 			i2400m->fw_name, index, offset,
-			major_version, minor_version);
+			major_version, miyesr_version);
 		return -EBADF;
 	}
 
@@ -1268,7 +1268,7 @@ int i2400m_fw_check(struct i2400m *i2400m, const void *bcf, size_t bcf_size)
 		offset = itr - bcf;
 		if (leftover <= sizeof(*bcf_hdr)) {
 			dev_err(dev, "firmware %s: %zu B left at @%zx, "
-				"not enough for BCF header\n",
+				"yest eyesugh for BCF header\n",
 				i2400m->fw_name, leftover, offset);
 			break;
 		}
@@ -1300,7 +1300,7 @@ int i2400m_fw_check(struct i2400m *i2400m, const void *bcf, size_t bcf_size)
 		used_slots++;
 	}
 	if (headers == 0) {
-		dev_err(dev, "firmware %s: no usable headers found\n",
+		dev_err(dev, "firmware %s: yes usable headers found\n",
 			i2400m->fw_name);
 		result = -EBADF;
 	} else
@@ -1344,7 +1344,7 @@ const struct i2400m_bcf_hdr *i2400m_bcf_hdr_find(struct i2400m *i2400m)
 	d_printf(2, dev, "finding BCF header for barker %08x\n", barker);
 	if (barker == I2400M_NBOOT_BARKER) {
 		bcf_hdr = i2400m->fw_hdrs[0];
-		d_printf(1, dev, "using BCF header #%u/%08x for non-signed "
+		d_printf(1, dev, "using BCF header #%u/%08x for yesn-signed "
 			 "barker\n", 0, le32_to_cpu(bcf_hdr->module_id));
 		return bcf_hdr;
 	}
@@ -1358,7 +1358,7 @@ const struct i2400m_bcf_hdr *i2400m_bcf_hdr_find(struct i2400m *i2400m)
 			d_printf(1, dev, "miss on BCF hdr #%u/%08x\n",
 				 i, le32_to_cpu(bcf_hdr->module_id));
 	}
-	dev_err(dev, "cannot find a matching BCF header for barker %08x\n",
+	dev_err(dev, "canyest find a matching BCF header for barker %08x\n",
 		barker);
 	return NULL;
 }
@@ -1430,7 +1430,7 @@ hw_reboot:
 	/*
 	 * bcf_size refers to one header size plus the fw sections size
 	 * indicated by the header,ie. if there are other extended headers
-	 * at the tail, they are not counted
+	 * at the tail, they are yest counted
 	 */
 	bcf_size = sizeof(u32) * le32_to_cpu(bcf_hdr->size);
 	ret = i2400m_dnload_bcf(i2400m, bcf, bcf_size);
@@ -1468,7 +1468,7 @@ error_too_many_reboots:
 
 error_dev_rebooted:
 	dev_err(dev, "device rebooted, %d tries left\n", count);
-	/* we got the notification already, no need to wait for it again */
+	/* we got the yestification already, yes need to wait for it again */
 	flags |= I2400M_BRI_SOFT;
 	goto hw_reboot;
 }
@@ -1487,7 +1487,7 @@ int i2400m_fw_bootstrap(struct i2400m *i2400m, const struct firmware *fw,
 	if (ret >= 0)
 		ret = i2400m_fw_dnload(i2400m, bcf, fw->size, flags);
 	if (ret < 0)
-		dev_err(dev, "%s: cannot use: %d, skipping\n",
+		dev_err(dev, "%s: canyest use: %d, skipping\n",
 			i2400m->fw_name, ret);
 	kfree(i2400m->fw_hdrs);
 	i2400m->fw_hdrs = NULL;
@@ -1530,19 +1530,19 @@ void i2400m_fw_put(struct i2400m_fw *i2400m_fw)
 
 
 /**
- * i2400m_dev_bootstrap - Bring the device to a known state and upload firmware
+ * i2400m_dev_bootstrap - Bring the device to a kyeswn state and upload firmware
  *
  * @i2400m: device descriptor
  *
- * Returns: >= 0 if ok, < 0 errno code on error.
+ * Returns: >= 0 if ok, < 0 erryes code on error.
  *
  * This sets up the firmware upload environment, loads the firmware
  * file from disk, verifies and then calls the firmware upload process
  * per se.
  *
- * Can be called either from probe, or after a warm reset.  Can not be
+ * Can be called either from probe, or after a warm reset.  Can yest be
  * called from within an interrupt.  All the flow in this code is
- * single-threade; all I/Os are synchronous.
+ * single-threade; all I/Os are synchroyesus.
  */
 int i2400m_dev_bootstrap(struct i2400m *i2400m, enum i2400m_bri flags)
 {
@@ -1559,7 +1559,7 @@ int i2400m_dev_bootstrap(struct i2400m *i2400m, enum i2400m_bri flags)
 	i2400m_fw = i2400m_fw_get(i2400m->fw_cached);
 	spin_unlock(&i2400m->rx_lock);
 	if (i2400m_fw == (void *) ~0) {
-		dev_err(dev, "can't load firmware now!");
+		dev_err(dev, "can't load firmware yesw!");
 		goto out;
 	} else if (i2400m_fw != NULL) {
 		dev_info(dev, "firmware %s: loading from cache\n",
@@ -1573,13 +1573,13 @@ int i2400m_dev_bootstrap(struct i2400m *i2400m, enum i2400m_bri flags)
 	for (itr = 0, ret = -ENOENT; ; itr++) {
 		fw_name = i2400m->bus_fw_names[itr];
 		if (fw_name == NULL) {
-			dev_err(dev, "Could not find a usable firmware image\n");
+			dev_err(dev, "Could yest find a usable firmware image\n");
 			break;
 		}
 		d_printf(1, dev, "trying firmware %s (%d)\n", fw_name, itr);
 		ret = request_firmware(&fw, fw_name, dev);
 		if (ret < 0) {
-			dev_err(dev, "fw %s: cannot load file: %d\n",
+			dev_err(dev, "fw %s: canyest load file: %d\n",
 				fw_name, ret);
 			continue;
 		}
@@ -1603,7 +1603,7 @@ void i2400m_fw_cache(struct i2400m *i2400m)
 	struct i2400m_fw *i2400m_fw;
 	struct device *dev = i2400m_dev(i2400m);
 
-	/* if there is anything there, free it -- now, this'd be weird */
+	/* if there is anything there, free it -- yesw, this'd be weird */
 	spin_lock(&i2400m->rx_lock);
 	i2400m_fw = i2400m->fw_cached;
 	spin_unlock(&i2400m->rx_lock);

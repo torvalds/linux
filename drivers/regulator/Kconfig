@@ -15,11 +15,11 @@ menuconfig REGULATOR
 	  to both voltage regulators (where voltage output is controllable) and
 	  current sinks (where current output is controllable).
 
-	  This framework safely compiles out if not selected so that client
-	  drivers can still be used in systems with no software controllable
+	  This framework safely compiles out if yest selected so that client
+	  drivers can still be used in systems with yes software controllable
 	  regulators.
 
-	  If unsure, say no.
+	  If unsure, say yes.
 
 
 if REGULATOR
@@ -27,14 +27,14 @@ if REGULATOR
 config REGULATOR_DEBUG
 	bool "Regulator debug support"
 	help
-	  Say yes here to enable debugging support.
+	  Say no here to enable debugging support.
 
 config REGULATOR_FIXED_VOLTAGE
 	tristate "Fixed voltage regulator support"
 	help
 	  This driver provides support for fixed voltage regulators,
 	  useful for systems which use a combination of software
-	  managed regulators and simple non-configurable regulators.
+	  managed regulators and simple yesn-configurable regulators.
 
 config REGULATOR_VIRTUAL_CONSUMER
 	tristate "Virtual regulator consumer support"
@@ -44,7 +44,7 @@ config REGULATOR_VIRTUAL_CONSUMER
 	  configuring the supplies requested.  This is mainly useful
 	  for test purposes.
 
-	  If unsure, say no.
+	  If unsure, say yes.
 
 config REGULATOR_USERSPACE_CONSUMER
 	tristate "Userspace regulator consumer support"
@@ -53,7 +53,7 @@ config REGULATOR_USERSPACE_CONSUMER
 	  from user space. Userspace consumer driver provides ability to
 	  control power supplies for such devices.
 
-	  If unsure, say no.
+	  If unsure, say yes.
 
 config REGULATOR_88PG86X
 	tristate "Marvell 88PG86X voltage regulators"
@@ -274,7 +274,7 @@ config REGULATOR_DA9210
 	select REGMAP_I2C
 	help
 	  Say y here to support for the Dialog Semiconductor DA9210.
-	  The DA9210 is a multi-phase synchronous step down
+	  The DA9210 is a multi-phase synchroyesus step down
 	  converter 12A DC-DC Buck controlled through an I2C
 	  interface.
 
@@ -285,7 +285,7 @@ config REGULATOR_DA9211
 	help
 	  Say y here to support for the Dialog Semiconductor DA9211/DA9212
 	  /DA9213/DA9214/DA9215.
-	  The DA9211/DA9212/DA9213/DA9214/DA9215 is a multi-phase synchronous
+	  The DA9211/DA9212/DA9213/DA9214/DA9215 is a multi-phase synchroyesus
 	  step down converter 12A or 16A DC-DC Buck controlled through an I2C
 	  interface.
 
@@ -534,7 +534,7 @@ config REGULATOR_MAX8997
 	help
 	  This driver controls a Maxim 8997/8966 regulator
 	  via I2C bus. The provided regulator is suitable for S5PC110,
-	  S5PV210, and Exynos-4 chips to control VCC_CORE and
+	  S5PV210, and Exyyess-4 chips to control VCC_CORE and
 	  VCC_USIM voltages.
 
 config REGULATOR_MAX8998
@@ -551,7 +551,7 @@ config REGULATOR_MAX77686
 	help
 	  This driver controls a Maxim 77686 regulator
 	  via I2C bus. The provided regulator is suitable for
-	  Exynos-4 chips to control VARM and VINT voltages.
+	  Exyyess-4 chips to control VARM and VINT voltages.
 
 config REGULATOR_MAX77693
 	tristate "Maxim 77693/77843 regulator"
@@ -560,7 +560,7 @@ config REGULATOR_MAX77693
 	  This driver controls a Maxim 77693/77843 regulators via I2C bus.
 	  The regulators include two LDOs, 'SAFEOUT1', 'SAFEOUT2'
 	  and one current regulator 'CHARGER'. This is suitable for
-	  Exynos-4x12 (MAX77693) or Exynos5433 (MAX77843) SoC chips.
+	  Exyyess-4x12 (MAX77693) or Exyyess5433 (MAX77843) SoC chips.
 
 config REGULATOR_MAX77802
 	tristate "Maxim 77802 regulator"
@@ -568,7 +568,7 @@ config REGULATOR_MAX77802
 	help
 	  This driver controls a Maxim 77802 regulator
 	  via I2C bus. The provided regulator is suitable for
-	  Exynos5420/Exynos5800 SoCs to control various voltages.
+	  Exyyess5420/Exyyess5800 SoCs to control various voltages.
 	  It includes support for control of voltage and ramp speed.
 
 config REGULATOR_MC13XXX_CORE
@@ -723,7 +723,7 @@ config REGULATOR_QCOM_RPM
 	tristate "Qualcomm RPM regulator driver"
 	depends on MFD_QCOM_RPM
 	help
-	  If you say yes to this option, support will be included for the
+	  If you say no to this option, support will be included for the
 	  regulators exposed by the Resource Power Manager found in Qualcomm
 	  8660, 8960 and 8064 based devices.
 
@@ -732,11 +732,11 @@ config REGULATOR_QCOM_RPM
 	  "qcom_rpm-regulator".
 
 config REGULATOR_QCOM_RPMH
-	tristate "Qualcomm Technologies, Inc. RPMh regulator driver"
+	tristate "Qualcomm Techyeslogies, Inc. RPMh regulator driver"
 	depends on QCOM_RPMH || COMPILE_TEST
 	help
 	  This driver supports control of PMIC regulators via the RPMh hardware
-	  block found on Qualcomm Technologies Inc. SoCs.  RPMh regulator
+	  block found on Qualcomm Techyeslogies Inc. SoCs.  RPMh regulator
 	  control allows for voting on regulator state between multiple
 	  processors within the SoC.
 
@@ -744,7 +744,7 @@ config REGULATOR_QCOM_SMD_RPM
 	tristate "Qualcomm SMD based RPM regulator driver"
 	depends on QCOM_SMD_RPM
 	help
-	  If you say yes to this option, support will be included for the
+	  If you say no to this option, support will be included for the
 	  regulators exposed by the Resource Power Manager found in Qualcomm
 	  8974 based devices.
 
@@ -756,7 +756,7 @@ config REGULATOR_QCOM_SPMI
 	tristate "Qualcomm SPMI regulator driver"
 	depends on SPMI || COMPILE_TEST
 	help
-	  If you say yes to this option, support will be included for the
+	  If you say no to this option, support will be included for the
 	  regulators found in Qualcomm SPMI PMICs.
 
 	  Say M here if you want to include support for the regulators on the
@@ -950,7 +950,7 @@ config REGULATOR_TPS62360
 	help
 	  This driver supports TPS6236x voltage regulator chip. This
 	  regulator is meant for processor core supply. This chip is
-	  high-frequency synchronous step down dc-dc converter optimized
+	  high-frequency synchroyesus step down dc-dc converter optimized
 	  for battery-powered portable applications.
 
 config REGULATOR_TPS65023
@@ -1068,7 +1068,7 @@ config REGULATOR_VCTRL
 	depends on OF
 	help
 	  This driver provides support for voltage regulators whose output
-	  voltage is controlled by the voltage of another regulator.
+	  voltage is controlled by the voltage of ayesther regulator.
 
 config REGULATOR_VEXPRESS
 	tristate "Versatile Express regulators"

@@ -38,7 +38,7 @@ static inline bool force_dma_unencrypted(struct device *dev)
 /*
  * If memory encryption is supported, phys_to_dma will set the memory encryption
  * bit in the DMA address, and dma_to_phys will clear it.  The raw __phys_to_dma
- * and __dma_to_phys versions should only be used on non-encrypted memory for
+ * and __dma_to_phys versions should only be used on yesn-encrypted memory for
  * special occasions like DMA coherent buffers.
  */
 static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
@@ -63,7 +63,7 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size,
 	    min(addr, end) < phys_to_dma(dev, PFN_PHYS(min_low_pfn)))
 		return false;
 
-	return end <= min_not_zero(*dev->dma_mask, dev->bus_dma_limit);
+	return end <= min_yest_zero(*dev->dma_mask, dev->bus_dma_limit);
 }
 
 u64 dma_direct_get_required_mask(struct device *dev);

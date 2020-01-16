@@ -66,8 +66,8 @@ struct component_master_ops {
 	 * 3. Register the aggregate driver with the subsystem to publish its
 	 *    interfaces.
 	 *
-	 * Note that the lifetime of the aggregate driver does not align with
-	 * any of the underlying &struct device instances. Therefore devm cannot
+	 * Note that the lifetime of the aggregate driver does yest align with
+	 * any of the underlying &struct device instances. Therefore devm canyest
 	 * be used and all resources acquired or allocated in this callback must
 	 * be explicitly released in the @unbind callback.
 	 */

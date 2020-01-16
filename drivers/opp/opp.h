@@ -3,7 +3,7 @@
  * Generic OPP Interface
  *
  * Copyright (C) 2009-2010 Texas Instruments Incorporated.
- *	Nishanth Menon
+ *	Nishanth Meyesn
  *	Romit Dasgupta
  *	Kevin Hilman
  */
@@ -17,7 +17,7 @@
 #include <linux/list.h>
 #include <linux/limits.h>
 #include <linux/pm_opp.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 struct clk;
 struct regulator;
@@ -45,31 +45,31 @@ extern struct list_head opp_tables;
 
 /**
  * struct dev_pm_opp - Generic OPP description structure
- * @node:	opp table node. The nodes are maintained throughout the lifetime
+ * @yesde:	opp table yesde. The yesdes are maintained throughout the lifetime
  *		of boot. It is expected only an optimal set of OPPs are
  *		added to the library by the SoC framework.
- *		IMPORTANT: the opp nodes should be maintained in increasing
+ *		IMPORTANT: the opp yesdes should be maintained in increasing
  *		order.
  * @kref:	for reference count of the OPP.
- * @available:	true/false - marks if this OPP as available or not
- * @dynamic:	not-created from static DT entries.
+ * @available:	true/false - marks if this OPP as available or yest
+ * @dynamic:	yest-created from static DT entries.
  * @turbo:	true if turbo (boost) OPP
  * @suspend:	true if suspend OPP
  * @pstate: Device's power domain's performance state.
  * @rate:	Frequency in hertz
  * @level:	Performance level
  * @supplies:	Power supplies voltage/current values
- * @clock_latency_ns: Latency (in nanoseconds) of switching to this OPP's
+ * @clock_latency_ns: Latency (in nayesseconds) of switching to this OPP's
  *		frequency from any other OPP's frequency.
  * @required_opps: List of OPPs that are required by this OPP.
  * @opp_table:	points back to the opp_table struct this opp belongs to
- * @np:		OPP's device node.
+ * @np:		OPP's device yesde.
  * @dentry:	debugfs dentry pointer (per opp)
  *
  * This structure stores the OPP information for a given device.
  */
 struct dev_pm_opp {
-	struct list_head node;
+	struct list_head yesde;
 	struct kref kref;
 
 	bool available;
@@ -87,7 +87,7 @@ struct dev_pm_opp {
 	struct dev_pm_opp **required_opps;
 	struct opp_table *opp_table;
 
-	struct device_node *np;
+	struct device_yesde *np;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
@@ -96,7 +96,7 @@ struct dev_pm_opp {
 
 /**
  * struct opp_device - devices managed by 'struct opp_table'
- * @node:	list node
+ * @yesde:	list yesde
  * @dev:	device to which the struct object belongs
  * @dentry:	debugfs dentry pointer (per device)
  *
@@ -104,7 +104,7 @@ struct dev_pm_opp {
  * by 'struct opp_table'.
  */
 struct opp_device {
-	struct list_head node;
+	struct list_head yesde;
 	const struct device *dev;
 
 #ifdef CONFIG_DEBUG_FS
@@ -120,17 +120,17 @@ enum opp_table_access {
 
 /**
  * struct opp_table - Device opp structure
- * @node:	table node - contains the devices with OPPs that
- *		have been registered. Nodes once added are not modified in this
+ * @yesde:	table yesde - contains the devices with OPPs that
+ *		have been registered. Nodes once added are yest modified in this
  *		table.
- * @head:	notifier head to notify the OPP availability changes.
+ * @head:	yestifier head to yestify the OPP availability changes.
  * @dev_list:	list of devices that share these OPPs
  * @opp_list:	table of opps
  * @kref:	for reference count of the table.
  * @list_kref:	for reference count of the OPP list.
  * @lock:	mutex protecting the opp_list and dev_list.
- * @np:		struct device_node pointer for opp's DT node.
- * @clock_latency_ns_max: Max clock latency in nanoseconds.
+ * @np:		struct device_yesde pointer for opp's DT yesde.
+ * @clock_latency_ns_max: Max clock latency in nayesseconds.
  * @parsed_static_opps: True if OPPs are initialized from DT.
  * @shared_opp: OPP is shared between multiple devices.
  * @suspend_opp: Pointer to OPP to be used during device suspend.
@@ -145,32 +145,32 @@ enum opp_table_access {
  * @clk: Device's clock handle
  * @regulators: Supply regulators
  * @regulator_count: Number of power supply regulators. Its value can be -1
- * (uninitialized), 0 (no opp-microvolt property) or > 0 (has opp-microvolt
+ * (uninitialized), 0 (yes opp-microvolt property) or > 0 (has opp-microvolt
  * property).
  * @genpd_performance_state: Device's power domain support performance state.
  * @is_genpd: Marks if the OPP table belongs to a genpd.
  * @set_opp: Platform specific set_opp callback
  * @set_opp_data: Data to be passed to set_opp callback
- * @dentry:	debugfs dentry pointer of the real device directory (not links).
+ * @dentry:	debugfs dentry pointer of the real device directory (yest links).
  * @dentry_name: Name of the real dentry.
  *
  * @voltage_tolerance_v1: In percentage, for v1 bindings only.
  *
  * This is an internal data structure maintaining the link to opps attached to
- * a device. This structure is not meant to be shared to users as it is
+ * a device. This structure is yest meant to be shared to users as it is
  * meant for book keeping and private to OPP library.
  */
 struct opp_table {
-	struct list_head node;
+	struct list_head yesde;
 
-	struct blocking_notifier_head head;
+	struct blocking_yestifier_head head;
 	struct list_head dev_list;
 	struct list_head opp_list;
 	struct kref kref;
 	struct kref list_kref;
 	struct mutex lock;
 
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned long clock_latency_ns_max;
 
 	/* For backward compatibility with v1 bindings */
@@ -213,7 +213,7 @@ struct opp_device *_add_opp_dev(const struct device *dev, struct opp_table *opp_
 void _dev_pm_opp_find_and_remove_table(struct device *dev);
 struct dev_pm_opp *_opp_allocate(struct opp_table *opp_table);
 void _opp_free(struct dev_pm_opp *opp);
-int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table, bool rate_not_available);
+int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table, bool rate_yest_available);
 int _opp_add_v1(struct opp_table *opp_table, struct device *dev, unsigned long freq, long u_volt, bool dynamic);
 void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, int last_cpu);
 struct opp_table *_add_opp_table(struct device *dev);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * General MIPS MT support routines, usable in AP/SP and SMVP.
- * Copyright (C) 2005 Mips Technologies, Inc
+ * Copyright (C) 2005 Mips Techyeslogies, Inc
  */
 #include <linux/cpu.h>
 #include <linux/cpuset.h>

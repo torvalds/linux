@@ -7,7 +7,7 @@
 #ifndef LINUX_ISAPNP_H
 #define LINUX_ISAPNP_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pnp.h>
 
 /*

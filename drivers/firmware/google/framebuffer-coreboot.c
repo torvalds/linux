@@ -65,7 +65,7 @@ static int framebuffer_probe(struct coreboot_device *dev)
 						 &res, 1, &pdata,
 						 sizeof(pdata));
 	if (IS_ERR(pdev))
-		pr_warn("coreboot: could not register framebuffer\n");
+		pr_warn("coreboot: could yest register framebuffer\n");
 	else
 		dev_set_drvdata(&dev->dev, pdev);
 

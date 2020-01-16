@@ -2,9 +2,9 @@ Document about softnet driver issues
 
 Transmit path guidelines:
 
-1) The ndo_start_xmit method must not return NETDEV_TX_BUSY under
-   any normal circumstances.  It is considered a hard error unless
-   there is no way your device can tell ahead of time when it's
+1) The ndo_start_xmit method must yest return NETDEV_TX_BUSY under
+   any yesrmal circumstances.  It is considered a hard error unless
+   there is yes way your device can tell ahead of time when it's
    transmit function will become busy.
 
    Instead it must maintain the queue properly.  For example,
@@ -44,7 +44,7 @@ Transmit path guidelines:
             TX_BUFFS_AVAIL(dp) > (MAX_SKB_FRAGS + 1))
 		netif_wake_queue(dp->dev);
 
-   For a non-scatter-gather supporting card, the three tests simply become:
+   For a yesn-scatter-gather supporting card, the three tests simply become:
 
 		/* This is a hard error log it. */
 		if (TX_BUFFS_AVAIL(dp) <= 0)
@@ -59,21 +59,21 @@ Transmit path guidelines:
             TX_BUFFS_AVAIL(dp) > 0)
 		netif_wake_queue(dp->dev);
 
-2) An ndo_start_xmit method must not modify the shared parts of a
+2) An ndo_start_xmit method must yest modify the shared parts of a
    cloned SKB.
 
-3) Do not forget that once you return NETDEV_TX_OK from your
+3) Do yest forget that once you return NETDEV_TX_OK from your
    ndo_start_xmit method, it is your driver's responsibility to free
    up the SKB and in some finite amount of time.
 
-   For example, this means that it is not allowed for your TX
+   For example, this means that it is yest allowed for your TX
    mitigation scheme to let TX packets "hang out" in the TX
-   ring unreclaimed forever if no new TX packets are sent.
+   ring unreclaimed forever if yes new TX packets are sent.
    This error can deadlock sockets waiting for send buffer room
    to be freed up.
 
    If you return NETDEV_TX_BUSY from the ndo_start_xmit method, you
-   must not keep any reference to that SKB and you must not attempt
+   must yest keep any reference to that SKB and you must yest attempt
    to free it up.
 
 Probing guidelines:
@@ -85,7 +85,7 @@ Probing guidelines:
 Close/stop guidelines:
 
 1) After the ndo_stop routine has been called, the hardware must
-   not receive or transmit any data.  All in flight packets must
+   yest receive or transmit any data.  All in flight packets must
    be aborted. If necessary, poll or wait for completion of 
    any reset commands.
 

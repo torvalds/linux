@@ -136,8 +136,8 @@ static int zl6100_read_word_data(struct i2c_client *client, int page, int reg)
 
 	if (data->id == zl2005) {
 		/*
-		 * Limit register detection is not reliable on ZL2005.
-		 * Make sure registers are not erroneously detected.
+		 * Limit register detection is yest reliable on ZL2005.
+		 * Make sure registers are yest erroneously detected.
 		 */
 		switch (reg) {
 		case PMBUS_VOUT_OV_WARN_LIMIT:
@@ -333,7 +333,7 @@ static int zl6100_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 	if (id->driver_data != mid->driver_data)
-		dev_notice(&client->dev,
+		dev_yestice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   id->name, mid->name);
 
@@ -346,7 +346,7 @@ static int zl6100_probe(struct i2c_client *client,
 
 	/*
 	 * According to information from the chip vendor, all currently
-	 * supported chips are known to require a wait time between I2C
+	 * supported chips are kyeswn to require a wait time between I2C
 	 * accesses.
 	 */
 	data->delay = delay;

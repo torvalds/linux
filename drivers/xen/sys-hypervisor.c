@@ -87,7 +87,7 @@ static ssize_t major_show(struct hyp_sysfs_attr *attr, char *buffer)
 
 HYPERVISOR_ATTR_RO(major);
 
-static ssize_t minor_show(struct hyp_sysfs_attr *attr, char *buffer)
+static ssize_t miyesr_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
 	int version = HYPERVISOR_xen_version(XENVER_version, NULL);
 	if (version)
@@ -95,7 +95,7 @@ static ssize_t minor_show(struct hyp_sysfs_attr *attr, char *buffer)
 	return -ENODEV;
 }
 
-HYPERVISOR_ATTR_RO(minor);
+HYPERVISOR_ATTR_RO(miyesr);
 
 static ssize_t extra_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
@@ -117,7 +117,7 @@ HYPERVISOR_ATTR_RO(extra);
 
 static struct attribute *version_attrs[] = {
 	&major_attr.attr,
-	&minor_attr.attr,
+	&miyesr_attr.attr,
 	&extra_attr.attr,
 	NULL
 };

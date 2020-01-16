@@ -65,7 +65,7 @@ acpi_status acpi_ns_initialize_objects(void)
 
 	/*
 	 * TBD: will become ACPI_TYPE_PACKAGE as this type object
-	 * is now the only one that supports deferred initialization
+	 * is yesw the only one that supports deferred initialization
 	 * (forward references).
 	 */
 	status = acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
@@ -98,7 +98,7 @@ acpi_status acpi_ns_initialize_objects(void)
  *              This means running _INI on all present devices.
  *
  *              Note: We install PCI config space handler on region access,
- *              not here.
+ *              yest here.
  *
  ******************************************************************************/
 
@@ -146,9 +146,9 @@ acpi_status acpi_ns_initialize_devices(u32 flags)
 		/*
 		 * Execute the "global" _INI method that may appear at the root.
 		 * This support is provided for Windows compatibility (Vista+) and
-		 * is not part of the ACPI specification.
+		 * is yest part of the ACPI specification.
 		 */
-		info.evaluate_info->prefix_node = acpi_gbl_root_node;
+		info.evaluate_info->prefix_yesde = acpi_gbl_root_yesde;
 		info.evaluate_info->relative_pathname = METHOD_NAME__INI;
 		info.evaluate_info->parameters = NULL;
 		info.evaluate_info->flags = ACPI_IGNORE_RETURN_VALUE;
@@ -167,7 +167,7 @@ acpi_status acpi_ns_initialize_devices(u32 flags)
 		if (ACPI_SUCCESS(status)) {
 			memset(info.evaluate_info, 0,
 			       sizeof(struct acpi_evaluate_info));
-			info.evaluate_info->prefix_node = handle;
+			info.evaluate_info->prefix_yesde = handle;
 			info.evaluate_info->relative_pathname =
 			    METHOD_NAME__INI;
 			info.evaluate_info->parameters = NULL;
@@ -191,7 +191,7 @@ acpi_status acpi_ns_initialize_devices(u32 flags)
 	 * _REG for system_memory/system_io operation regions, but for PCI_Config
 	 * operation regions, it is required to evaluate _REG for those on a PCI
 	 * root bus that doesn't contain _BBN object. So this code is kept here
-	 * in order not to break things.
+	 * in order yest to break things.
 	 */
 	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -213,7 +213,7 @@ acpi_status acpi_ns_initialize_devices(u32 flags)
 						&info, NULL);
 
 		/*
-		 * Any _OSI requests should be completed by now. If the BIOS has
+		 * Any _OSI requests should be completed by yesw. If the BIOS has
 		 * requested any Windows OSI strings, we will always truncate
 		 * I/O addresses to 16 bits -- for Windows compatibility.
 		 */
@@ -262,10 +262,10 @@ acpi_ns_init_one_package(acpi_handle obj_handle,
 {
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_yesde *yesde =
+	    (struct acpi_namespace_yesde *)obj_handle;
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(yesde);
 	if (!obj_desc) {
 		return (AE_OK);
 	}
@@ -320,8 +320,8 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 	acpi_status status = AE_OK;
 	struct acpi_init_walk_info *info =
 	    (struct acpi_init_walk_info *)context;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_yesde *yesde =
+	    (struct acpi_namespace_yesde *)obj_handle;
 	union acpi_operand_object *obj_desc;
 
 	ACPI_FUNCTION_NAME(ns_init_one_object);
@@ -331,7 +331,7 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 	/* And even then, we are only interested in a few object types */
 
 	type = acpi_ns_get_type(obj_handle);
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(yesde);
 	if (!obj_desc) {
 		return (AE_OK);
 	}
@@ -366,12 +366,12 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 
 	default:
 
-		/* No init required, just exit now */
+		/* No init required, just exit yesw */
 
 		return (AE_OK);
 	}
 
-	/* If the object is already initialized, nothing else to do */
+	/* If the object is already initialized, yesthing else to do */
 
 	if (obj_desc->common.flags & AOPOBJ_DATA_VALID) {
 		return (AE_OK);
@@ -388,7 +388,7 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 	switch (type) {
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
 
-		/* TBD: bank_fields do not require deferred init, remove this code */
+		/* TBD: bank_fields do yest require deferred init, remove this code */
 
 		info->field_init++;
 		status = acpi_ds_get_bank_field_arguments(obj_desc);
@@ -409,21 +409,21 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 
 		status = AE_TYPE;
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Opcode is not deferred [%4.4s] (%s)",
-				acpi_ut_get_node_name(node),
+				"Opcode is yest deferred [%4.4s] (%s)",
+				acpi_ut_get_yesde_name(yesde),
 				acpi_ut_get_type_name(type)));
 		break;
 	}
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Could not execute arguments for [%4.4s] (%s)",
-				acpi_ut_get_node_name(node),
+				"Could yest execute arguments for [%4.4s] (%s)",
+				acpi_ut_get_yesde_name(yesde),
 				acpi_ut_get_type_name(type)));
 	}
 
 	/*
-	 * We ignore errors from above, and always return OK, since we don't want
+	 * We igyesre errors from above, and always return OK, since we don't want
 	 * to abort the walk on any single error.
 	 */
 	acpi_ex_exit_interpreter();
@@ -442,7 +442,7 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
  *              device/processor/thermal objects, and marks the entire subtree
  *              with a SUBTREE_HAS_INI flag. This flag is used during the
  *              subsequent device initialization walk to avoid entire subtrees
- *              that do not contain an _INI.
+ *              that do yest contain an _INI.
  *
  ******************************************************************************/
 
@@ -452,22 +452,22 @@ acpi_ns_find_ini_methods(acpi_handle obj_handle,
 {
 	struct acpi_device_walk_info *info =
 	    ACPI_CAST_PTR(struct acpi_device_walk_info, context);
-	struct acpi_namespace_node *node;
-	struct acpi_namespace_node *parent_node;
+	struct acpi_namespace_yesde *yesde;
+	struct acpi_namespace_yesde *parent_yesde;
 
 	/* Keep count of device/processor/thermal objects */
 
-	node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_handle);
-	if ((node->type == ACPI_TYPE_DEVICE) ||
-	    (node->type == ACPI_TYPE_PROCESSOR) ||
-	    (node->type == ACPI_TYPE_THERMAL)) {
+	yesde = ACPI_CAST_PTR(struct acpi_namespace_yesde, obj_handle);
+	if ((yesde->type == ACPI_TYPE_DEVICE) ||
+	    (yesde->type == ACPI_TYPE_PROCESSOR) ||
+	    (yesde->type == ACPI_TYPE_THERMAL)) {
 		info->device_count++;
 		return (AE_OK);
 	}
 
 	/* We are only looking for methods named _INI */
 
-	if (!ACPI_COMPARE_NAMESEG(node->name.ascii, METHOD_NAME__INI)) {
+	if (!ACPI_COMPARE_NAMESEG(yesde->name.ascii, METHOD_NAME__INI)) {
 		return (AE_OK);
 	}
 
@@ -475,17 +475,17 @@ acpi_ns_find_ini_methods(acpi_handle obj_handle,
 	 * The only _INI methods that we care about are those that are
 	 * present under Device, Processor, and Thermal objects.
 	 */
-	parent_node = node->parent;
-	switch (parent_node->type) {
+	parent_yesde = yesde->parent;
+	switch (parent_yesde->type) {
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_THERMAL:
 
 		/* Mark parent and bubble up the INI present flag to the root */
 
-		while (parent_node) {
-			parent_node->flags |= ANOBJ_SUBTREE_HAS_INI;
-			parent_node = parent_node->parent;
+		while (parent_yesde) {
+			parent_yesde->flags |= ANOBJ_SUBTREE_HAS_INI;
+			parent_yesde = parent_yesde->parent;
 		}
 		break;
 
@@ -520,16 +520,16 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	struct acpi_evaluate_info *info = walk_info->evaluate_info;
 	u32 flags;
 	acpi_status status;
-	struct acpi_namespace_node *device_node;
+	struct acpi_namespace_yesde *device_yesde;
 
 	ACPI_FUNCTION_TRACE(ns_init_one_device);
 
 	/* We are interested in Devices, Processors and thermal_zones only */
 
-	device_node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_handle);
-	if ((device_node->type != ACPI_TYPE_DEVICE) &&
-	    (device_node->type != ACPI_TYPE_PROCESSOR) &&
-	    (device_node->type != ACPI_TYPE_THERMAL)) {
+	device_yesde = ACPI_CAST_PTR(struct acpi_namespace_yesde, obj_handle);
+	if ((device_yesde->type != ACPI_TYPE_DEVICE) &&
+	    (device_yesde->type != ACPI_TYPE_PROCESSOR) &&
+	    (device_yesde->type != ACPI_TYPE_THERMAL)) {
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -537,42 +537,42 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	 * Because of an earlier namespace analysis, all subtrees that contain an
 	 * _INI method are tagged.
 	 *
-	 * If this device subtree does not contain any _INI methods, we
-	 * can exit now and stop traversing this entire subtree.
+	 * If this device subtree does yest contain any _INI methods, we
+	 * can exit yesw and stop traversing this entire subtree.
 	 */
-	if (!(device_node->flags & ANOBJ_SUBTREE_HAS_INI)) {
+	if (!(device_yesde->flags & ANOBJ_SUBTREE_HAS_INI)) {
 		return_ACPI_STATUS(AE_CTRL_DEPTH);
 	}
 
 	/*
 	 * Run _STA to determine if this device is present and functioning. We
-	 * must know this information for two important reasons (from ACPI spec):
+	 * must kyesw this information for two important reasons (from ACPI spec):
 	 *
 	 * 1) We can only run _INI if the device is present.
 	 * 2) We must abort the device tree walk on this subtree if the device is
-	 *    not present and is not functional (we will not examine the children)
+	 *    yest present and is yest functional (we will yest examine the children)
 	 *
-	 * The _STA method is not required to be present under the device, we
-	 * assume the device is present if _STA does not exist.
+	 * The _STA method is yest required to be present under the device, we
+	 * assume the device is present if _STA does yest exist.
 	 */
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
-			(ACPI_TYPE_METHOD, device_node, METHOD_NAME__STA));
+			(ACPI_TYPE_METHOD, device_yesde, METHOD_NAME__STA));
 
-	status = acpi_ut_execute_STA(device_node, &flags);
+	status = acpi_ut_execute_STA(device_yesde, &flags);
 	if (ACPI_FAILURE(status)) {
 
-		/* Ignore error and move on to next device */
+		/* Igyesre error and move on to next device */
 
 		return_ACPI_STATUS(AE_OK);
 	}
 
 	/*
-	 * Flags == -1 means that _STA was not found. In this case, we assume that
+	 * Flags == -1 means that _STA was yest found. In this case, we assume that
 	 * the device is both present and functional.
 	 *
 	 * From the ACPI spec, description of _STA:
 	 *
-	 * "If a device object (including the processor object) does not have an
+	 * "If a device object (including the processor object) does yest have an
 	 * _STA object, then OSPM assumes that all of the above bits are set (in
 	 * other words, the device is present, ..., and functioning)"
 	 */
@@ -583,25 +583,25 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	/*
 	 * Examine the PRESENT and FUNCTIONING status bits
 	 *
-	 * Note: ACPI spec does not seem to specify behavior for the present but
-	 * not functioning case, so we assume functioning if present.
+	 * Note: ACPI spec does yest seem to specify behavior for the present but
+	 * yest functioning case, so we assume functioning if present.
 	 */
 	if (!(flags & ACPI_STA_DEVICE_PRESENT)) {
 
-		/* Device is not present, we must examine the Functioning bit */
+		/* Device is yest present, we must examine the Functioning bit */
 
 		if (flags & ACPI_STA_DEVICE_FUNCTIONING) {
 			/*
-			 * Device is not present but is "functioning". In this case,
-			 * we will not run _INI, but we continue to examine the children
+			 * Device is yest present but is "functioning". In this case,
+			 * we will yest run _INI, but we continue to examine the children
 			 * of this device.
 			 *
-			 * From the ACPI spec, description of _STA: (note - no mention
-			 * of whether to run _INI or not on the device in question)
+			 * From the ACPI spec, description of _STA: (yeste - yes mention
+			 * of whether to run _INI or yest on the device in question)
 			 *
-			 * "_STA may return bit 0 clear (not present) with bit 3 set
+			 * "_STA may return bit 0 clear (yest present) with bit 3 set
 			 * (device is functional). This case is used to indicate a valid
-			 * device for which no device driver should be loaded (for example,
+			 * device for which yes device driver should be loaded (for example,
 			 * a bridge device.) Children of this device may be present and
 			 * valid. OSPM should continue enumeration below a device whose
 			 * _STA returns this bit combination"
@@ -609,14 +609,14 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 			return_ACPI_STATUS(AE_OK);
 		} else {
 			/*
-			 * Device is not present and is not functioning. We must abort the
+			 * Device is yest present and is yest functioning. We must abort the
 			 * walk of this subtree immediately -- don't look at the children
 			 * of such a device.
 			 *
 			 * From the ACPI spec, description of _INI:
 			 *
-			 * "If the _STA method indicates that the device is not present,
-			 * OSPM will not run the _INI and will not examine the children
+			 * "If the _STA method indicates that the device is yest present,
+			 * OSPM will yest run the _INI and will yest examine the children
 			 * of the device for _INI methods"
 			 */
 			return_ACPI_STATUS(AE_CTRL_DEPTH);
@@ -624,20 +624,20 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	}
 
 	/*
-	 * The device is present or is assumed present if no _STA exists.
-	 * Run the _INI if it exists (not required to exist)
+	 * The device is present or is assumed present if yes _STA exists.
+	 * Run the _INI if it exists (yest required to exist)
 	 *
-	 * Note: We know there is an _INI within this subtree, but it may not be
+	 * Note: We kyesw there is an _INI within this subtree, but it may yest be
 	 * under this particular device, it may be lower in the branch.
 	 */
-	if (!ACPI_COMPARE_NAMESEG(device_node->name.ascii, "_SB_") ||
-	    device_node->parent != acpi_gbl_root_node) {
+	if (!ACPI_COMPARE_NAMESEG(device_yesde->name.ascii, "_SB_") ||
+	    device_yesde->parent != acpi_gbl_root_yesde) {
 		ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
-				(ACPI_TYPE_METHOD, device_node,
+				(ACPI_TYPE_METHOD, device_yesde,
 				 METHOD_NAME__INI));
 
 		memset(info, 0, sizeof(struct acpi_evaluate_info));
-		info->prefix_node = device_node;
+		info->prefix_yesde = device_yesde;
 		info->relative_pathname = METHOD_NAME__INI;
 		info->parameters = NULL;
 		info->flags = ACPI_IGNORE_RETURN_VALUE;
@@ -649,10 +649,10 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 #ifdef ACPI_DEBUG_OUTPUT
 		else if (status != AE_NOT_FOUND) {
 
-			/* Ignore error and move on to next device */
+			/* Igyesre error and move on to next device */
 
 			char *scope_name =
-			    acpi_ns_get_normalized_pathname(device_node, TRUE);
+			    acpi_ns_get_yesrmalized_pathname(device_yesde, TRUE);
 
 			ACPI_EXCEPTION((AE_INFO, status,
 					"during %s._INI execution",
@@ -662,7 +662,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 #endif
 	}
 
-	/* Ignore errors from above */
+	/* Igyesre errors from above */
 
 	status = AE_OK;
 
@@ -672,7 +672,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	 */
 	if (acpi_gbl_init_handler) {
 		status =
-		    acpi_gbl_init_handler(device_node, ACPI_INIT_DEVICE_INI);
+		    acpi_gbl_init_handler(device_yesde, ACPI_INIT_DEVICE_INI);
 	}
 
 	return_ACPI_STATUS(status);

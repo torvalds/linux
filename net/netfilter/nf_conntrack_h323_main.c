@@ -169,7 +169,7 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 				goto clear_out;
 			}
 
-			/* It is not even a TPKT */
+			/* It is yest even a TPKT */
 			return 0;
 		}
 		tpktoff = 0;
@@ -615,7 +615,7 @@ static int h245_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	nf_ct_helper_log(skb, ct, "cannot process H.245 message");
+	nf_ct_helper_log(skb, ct, "canyest process H.245 message");
 	return NF_DROP;
 }
 
@@ -802,7 +802,7 @@ static int expect_callforwarding(struct sk_buff *skb,
 	if (callforward_filter &&
 	    callforward_do_filter(net, &addr, &ct->tuplehash[!dir].tuple.src.u3,
 				  nf_ct_l3num(ct))) {
-		pr_debug("nf_ct_q931: Call Forwarding not tracked\n");
+		pr_debug("nf_ct_q931: Call Forwarding yest tracked\n");
 		return 0;
 	}
 
@@ -1174,7 +1174,7 @@ static int q931_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	nf_ct_helper_log(skb, ct, "cannot process Q.931 message");
+	nf_ct_helper_log(skb, ct, "canyest process Q.931 message");
 	return NF_DROP;
 }
 
@@ -1623,7 +1623,7 @@ static int process_lcf(struct sk_buff *skb, struct nf_conn *ct,
 
 	nf_ct_expect_put(exp);
 
-	/* Ignore rasAddress */
+	/* Igyesre rasAddress */
 
 	return ret;
 }
@@ -1743,7 +1743,7 @@ static int ras_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	nf_ct_helper_log(skb, ct, "cannot process RAS message");
+	nf_ct_helper_log(skb, ct, "canyest process RAS message");
 	return NF_DROP;
 }
 

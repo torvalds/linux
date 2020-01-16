@@ -185,7 +185,7 @@ static void mt7615_apply_cal_free_data(struct mt7615_dev *dev)
 		0x172, 0x173, 0x17c, 0x17d, 0x181, 0x182, 0x186, 0x187, 0x18b,
 		0x18c
 	};
-	static const u16 ical_nocheck[] = {
+	static const u16 ical_yescheck[] = {
 		0x110, 0x111, 0x112, 0x113, 0x114, 0x115, 0x116, 0x117, 0x118,
 		0x1b5, 0x1b6, 0x1b7, 0x3ac, 0x3ad, 0x3ae, 0x3af, 0x3b0, 0x3b1,
 		0x3b2
@@ -204,8 +204,8 @@ static void mt7615_apply_cal_free_data(struct mt7615_dev *dev)
 	for (i = 0; i < ARRAY_SIZE(ical); i++)
 		eeprom[ical[i]] = otp[ical[i]];
 
-	for (i = 0; i < ARRAY_SIZE(ical_nocheck); i++)
-		eeprom[ical_nocheck[i]] = otp[ical_nocheck[i]];
+	for (i = 0; i < ARRAY_SIZE(ical_yescheck); i++)
+		eeprom[ical_yescheck[i]] = otp[ical_yescheck[i]];
 }
 
 int mt7615_eeprom_init(struct mt7615_dev *dev)

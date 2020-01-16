@@ -319,7 +319,7 @@ static int lbs_add_common_rates_tlv(u8 *tlv, struct cfg80211_bss *bss)
 		if (ext_rates_eid)
 			tlv = add_ie_rates(tlv, ext_rates_eid, &n);
 	} else {
-		lbs_deb_assoc("assoc: bss had no basic rate IE\n");
+		lbs_deb_assoc("assoc: bss had yes basic rate IE\n");
 		/* Fallback: add basic 802.11b rates */
 		*tlv++ = 0x82;
 		*tlv++ = 0x84;
@@ -477,7 +477,7 @@ static int lbs_cfg_set_mesh_channel(struct wiphy *wiphy,
 
 /*
  * When scanning, the firmware doesn't send a nul packet with the power-safe
- * bit to the AP. So we cannot stay away from our current channel too long,
+ * bit to the AP. So we canyest stay away from our current channel too long,
  * otherwise we loose data. So take a "nap" while scanning every other
  * while.
  */
@@ -577,7 +577,7 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 		int rssi;
 		u16 intvl;
 		u16 capa;
-		int chan_no = -1;
+		int chan_yes = -1;
 		const u8 *ssid = NULL;
 		u8 ssid_len = 0;
 
@@ -616,7 +616,7 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 			}
 
 			if (id == WLAN_EID_DS_PARAMS)
-				chan_no = *pos;
+				chan_yes = *pos;
 			if (id == WLAN_EID_SSID) {
 				ssid = pos;
 				ssid_len = elen;
@@ -625,16 +625,16 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 			pos += elen;
 		}
 
-		/* No channel, no luck */
-		if (chan_no != -1) {
+		/* No channel, yes luck */
+		if (chan_yes != -1) {
 			struct wiphy *wiphy = priv->wdev->wiphy;
-			int freq = ieee80211_channel_to_frequency(chan_no,
+			int freq = ieee80211_channel_to_frequency(chan_yes,
 							NL80211_BAND_2GHZ);
 			struct ieee80211_channel *channel =
 				ieee80211_get_channel(wiphy, freq);
 
 			lbs_deb_scan("scan: %pM, capa %04x, chan %2d, %*pE, %d dBm\n",
-				     bssid, capa, chan_no, ssid_len, ssid,
+				     bssid, capa, chan_yes, ssid_len, ssid,
 				     LBS_SCAN_RSSI_TO_MBM(rssi)/100);
 
 			if (channel &&
@@ -796,7 +796,7 @@ static int lbs_cfg_scan(struct wiphy *wiphy,
 	int ret = 0;
 
 	if (priv->scan_req || delayed_work_pending(&priv->scan_work)) {
-		/* old scan request not yet processed */
+		/* old scan request yest yet processed */
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -817,7 +817,7 @@ static int lbs_cfg_scan(struct wiphy *wiphy,
  * Events
  */
 
-void lbs_send_disconnect_notification(struct lbs_private *priv,
+void lbs_send_disconnect_yestification(struct lbs_private *priv,
 				      bool locally_generated)
 {
 	cfg80211_disconnected(priv->dev, 0, NULL, 0, locally_generated,
@@ -1101,14 +1101,14 @@ static int lbs_associate(struct lbs_private *priv,
 	if (ssid_eid)
 		pos += lbs_add_ssid_tlv(pos, ssid_eid + 2, ssid_eid[1]);
 	else
-		lbs_deb_assoc("no SSID\n");
+		lbs_deb_assoc("yes SSID\n");
 	rcu_read_unlock();
 
 	/* add DS param TLV */
 	if (bss->channel)
 		pos += lbs_add_channel_tlv(pos, bss->channel->hw_value);
 	else
-		lbs_deb_assoc("no channel\n");
+		lbs_deb_assoc("yes channel\n");
 
 	/* add (empty) CF param TLV */
 	pos += lbs_add_cf_param_tlv(pos);
@@ -1184,7 +1184,7 @@ static int lbs_associate(struct lbs_private *priv,
 		default:
 			lbs_deb_assoc("association failure %d\n", status);
 			/* v5 OLPC firmware does return the AP status code if
-			 * it's not one of the values above.  Let that through.
+			 * it's yest one of the values above.  Let that through.
 			 */
 			break;
 		}
@@ -1244,7 +1244,7 @@ _new_connect_scan_req(struct wiphy *wiphy, struct cfg80211_connect_params *sme)
 			continue;
 
 		for (j = 0; j < wiphy->bands[band]->n_channels; j++) {
-			/* ignore disabled channels */
+			/* igyesre disabled channels */
 			if (wiphy->bands[band]->channels[j].flags &
 						IEEE80211_CHAN_DISABLED)
 				continue;
@@ -1313,7 +1313,7 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 		sme->ssid, sme->ssid_len, IEEE80211_BSS_TYPE_ESS,
 		IEEE80211_PRIVACY_ANY);
 	if (!bss) {
-		wiphy_err(wiphy, "assoc: bss %pM not in scan results\n",
+		wiphy_err(wiphy, "assoc: bss %pM yest in scan results\n",
 			  sme->bssid);
 		ret = -ENOENT;
 		goto done;
@@ -1343,9 +1343,9 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 		/* No RSN mode for WEP */
 		lbs_enable_rsn(priv, 0);
 		break;
-	case 0: /* there's no WLAN_CIPHER_SUITE_NONE definition */
+	case 0: /* there's yes WLAN_CIPHER_SUITE_NONE definition */
 		/*
-		 * If we don't have no WEP, no WPA and no WPA2,
+		 * If we don't have yes WEP, yes WPA and yes WPA2,
 		 * we remove all keys like in the WPA/WPA2 setup,
 		 * we just don't set RSN.
 		 *
@@ -1526,15 +1526,15 @@ static int lbs_cfg_del_key(struct wiphy *wiphy, struct net_device *netdev,
 	 * I think can keep this a NO-OP, because:
 
 	 * - we clear all keys whenever we do lbs_cfg_connect() anyway
-	 * - neither "iw" nor "wpa_supplicant" won't call this during
+	 * - neither "iw" yesr "wpa_supplicant" won't call this during
 	 *   an ongoing connection
 	 * - TODO: but I have to check if this is still true when
 	 *   I set the AP to periodic re-keying
-	 * - we've not kzallec() something when we've added a key at
+	 * - we've yest kzallec() something when we've added a key at
 	 *   lbs_cfg_connect() or lbs_cfg_add_key().
 	 *
 	 * This causes lbs_cfg_del_key() only called at disconnect time,
-	 * where we'd just waste time deleting a key that is not going
+	 * where we'd just waste time deleting a key that is yest going
 	 * to be used anyway.
 	 */
 	if (key_index < 3 && priv->wep_key_len[key_index]) {
@@ -1555,7 +1555,7 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 			       const u8 *mac, struct station_info *sinfo)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
-	s8 signal, noise;
+	s8 signal, yesise;
 	int ret;
 	size_t i;
 
@@ -1569,7 +1569,7 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 	sinfo->rx_packets = priv->dev->stats.rx_packets;
 
 	/* Get current RSSI */
-	ret = lbs_get_rssi(priv, &signal, &noise);
+	ret = lbs_get_rssi(priv, &signal, &yesise);
 	if (ret == 0) {
 		sinfo->signal = signal;
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
@@ -1675,7 +1675,7 @@ static void lbs_join_post(struct lbs_private *priv,
 	*fake++ = 0; /* ATIM=0 */
 	*fake++ = 0;
 	/* Fake extended rates IE, TODO: don't add this for 802.11b only,
-	 * but I don't know how this could be checked */
+	 * but I don't kyesw how this could be checked */
 	*fake++ = WLAN_EID_EXT_SUPP_RATES;
 	*fake++ = 8;
 	*fake++ = 0x0c;
@@ -1971,8 +1971,8 @@ static int lbs_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		else
 			return -EINVAL;
 	}
-	/* firmware does not work well with too long latency with power saving
-	 * enabled, so do not enable it if there is only polling, no
+	/* firmware does yest work well with too long latency with power saving
+	 * enabled, so do yest enable it if there is only polling, yes
 	 * interrupts (like in some sdio hosts which can only
 	 * poll for sdio irqs)
 	 */
@@ -2036,7 +2036,7 @@ struct wireless_dev *lbs_cfg_alloc(struct device *dev)
 
 	wdev->wiphy = wiphy_new(&lbs_cfg80211_ops, sizeof(struct lbs_private));
 	if (!wdev->wiphy) {
-		dev_err(dev, "cannot allocate wiphy\n");
+		dev_err(dev, "canyest allocate wiphy\n");
 		ret = -ENOMEM;
 		goto err_wiphy_new;
 	}
@@ -2074,7 +2074,7 @@ static void lbs_cfg_set_regulatory_hint(struct lbs_private *priv)
 		}
 }
 
-static void lbs_reg_notifier(struct wiphy *wiphy,
+static void lbs_reg_yestifier(struct wiphy *wiphy,
 			     struct regulatory_request *request)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
@@ -2113,17 +2113,17 @@ int lbs_cfg_register(struct lbs_private *priv)
 	 */
 	wdev->wiphy->cipher_suites = cipher_suites;
 	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
-	wdev->wiphy->reg_notifier = lbs_reg_notifier;
+	wdev->wiphy->reg_yestifier = lbs_reg_yestifier;
 
 	ret = wiphy_register(wdev->wiphy);
 	if (ret < 0)
-		pr_err("cannot register wiphy device\n");
+		pr_err("canyest register wiphy device\n");
 
 	priv->wiphy_registered = true;
 
 	ret = register_netdev(priv->dev);
 	if (ret)
-		pr_err("cannot register network device\n");
+		pr_err("canyest register network device\n");
 
 	INIT_DELAYED_WORK(&priv->scan_work, lbs_scan_worker);
 

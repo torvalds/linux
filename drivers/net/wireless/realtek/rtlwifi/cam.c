@@ -17,7 +17,7 @@ void rtl_cam_reset_sec_info(struct ieee80211_hw *hw)
 	rtlpriv->sec.pairwise_key = NULL;
 }
 
-static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
+static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_yes,
 			   u8 *mac_addr, u8 *key_cont_128, u16 us_config)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -31,7 +31,7 @@ static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
 
 	/* 0-1 config + mac, 2-5 fill 128key,6-7 are reserved */
 	for (entry_i = CAM_CONTENT_COUNT - 1; entry_i >= 0; entry_i--) {
-		target_command = entry_i + CAM_CONTENT_COUNT * entry_no;
+		target_command = entry_i + CAM_CONTENT_COUNT * entry_yes;
 		target_command = target_command | BIT(31) | BIT(16);
 
 		if (entry_i == 0) {
@@ -47,7 +47,7 @@ static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
 				 "WRITE %x: %x\n",
 				 rtlpriv->cfg->maps[WCAMI], target_content);
 			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
-				 "The Key ID is %d\n", entry_no);
+				 "The Key ID is %d\n", entry_yes);
 			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
 				 "WRITE %x: %x\n",
 				 rtlpriv->cfg->maps[RWCAM], target_command);

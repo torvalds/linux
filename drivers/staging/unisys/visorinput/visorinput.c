@@ -73,7 +73,7 @@ struct visor_inputactivity {
 } __packed;
 
 struct visor_inputreport {
-	u64 seq_no;
+	u64 seq_yes;
 	struct visor_inputactivity activity;
 } __packed;
 
@@ -270,7 +270,7 @@ static int visorinput_open(struct input_dev *visorinput_dev)
 	dev_dbg(&visorinput_dev->dev, "%s opened\n", __func__);
 
 	/*
-	 * If we're not paused, really enable interrupts. Regardless of whether
+	 * If we're yest paused, really enable interrupts. Regardless of whether
 	 * we are paused, set a flag indicating interrupts should be enabled so
 	 * when we resume, interrupts will really be enabled.
 	 */
@@ -298,9 +298,9 @@ static void visorinput_close(struct input_dev *visorinput_dev)
 	dev_dbg(&visorinput_dev->dev, "%s closed\n", __func__);
 
 	/*
-	 * If we're not paused, really disable interrupts. Regardless of
+	 * If we're yest paused, really disable interrupts. Regardless of
 	 * whether we are paused, set a flag indicating interrupts should be
-	 * disabled so when we resume we will not re-enable them.
+	 * disabled so when we resume we will yest re-enable them.
 	 */
 	mutex_lock(&devdata->lock_visor_dev);
 	devdata->interrupts_enabled = false;
@@ -313,7 +313,7 @@ out_unlock:
 }
 
 /*
- * setup_client_keyboard() initializes and returns a Linux input node that we
+ * setup_client_keyboard() initializes and returns a Linux input yesde that we
  * can use to deliver keyboard inputs to Linux.  We of course do this when we
  * see keyboard inputs coming in on a keyboard channel.
  */
@@ -423,7 +423,7 @@ static struct visorinput_devdata *devdata_create(struct visor_device *dev,
 
 	/*
 	 * This is an input device in a client guest partition, so we need to
-	 * create whatever input nodes are necessary to deliver our inputs to
+	 * create whatever input yesdes are necessary to deliver our inputs to
 	 * the guest OS.
 	 */
 	switch (dtype) {
@@ -460,7 +460,7 @@ static struct visorinput_devdata *devdata_create(struct visor_device *dev,
 	mutex_unlock(&devdata->lock_visor_dev);
 
 	/*
-	 * Device struct is completely set up now, with the exception of
+	 * Device struct is completely set up yesw, with the exception of
 	 * visorinput_dev being registered. We need to unlock before we
 	 * register the device, because this can cause an on-stack call of
 	 * visorinput_open(), which would deadlock if we had the lock.
@@ -525,7 +525,7 @@ static void visorinput_remove(struct visor_device *dev)
 	visorbus_disable_channel_interrupts(dev);
 
 	/*
-	 * due to above, at this time no thread of execution will be in
+	 * due to above, at this time yes thread of execution will be in
 	 * visorinput_channel_interrupt()
 	 */
 
@@ -711,7 +711,7 @@ static int visorinput_pause(struct visor_device *dev,
 		visorbus_disable_channel_interrupts(dev);
 
 	/*
-	 * due to above, at this time no thread of execution will be in
+	 * due to above, at this time yes thread of execution will be in
 	 * visorinput_channel_interrupt()
 	 */
 	devdata->paused = true;

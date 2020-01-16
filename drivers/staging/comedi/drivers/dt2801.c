@@ -88,7 +88,7 @@
 #define DT2801_CMD		1
 
 #if 0
-/* ignore 'defined but not used' warning */
+/* igyesre 'defined but yest used' warning */
 static const struct comedi_lrange range_dt2801_ai_pgh_bipolar = {
 	4, {
 		BIP_RANGE(10),
@@ -108,7 +108,7 @@ static const struct comedi_lrange range_dt2801_ai_pgl_bipolar = {
 };
 
 #if 0
-/* ignore 'defined but not used' warning */
+/* igyesre 'defined but yest used' warning */
 static const struct comedi_lrange range_dt2801_ai_pgh_unipolar = {
 	4, {
 		UNI_RANGE(10),
@@ -220,7 +220,7 @@ struct dt2801_private {
  */
 
 /*
- * Only checks DataOutReady-flag, not the Ready-flag as it is done
+ * Only checks DataOutReady-flag, yest the Ready-flag as it is done
  *  in the examples of the manual. I don't see why this should be
  *  necessary.
  */
@@ -321,10 +321,10 @@ static void dt2801_writecmd(struct comedi_device *dev, int command)
 	stat = inb_p(dev->iobase + DT2801_STATUS);
 	if (stat & DT_S_COMPOSITE_ERROR) {
 		dev_dbg(dev->class_dev,
-			"composite-error in %s, ignoring\n", __func__);
+			"composite-error in %s, igyesring\n", __func__);
 	}
 	if (!(stat & DT_S_READY))
-		dev_dbg(dev->class_dev, "!ready in %s, ignoring\n", __func__);
+		dev_dbg(dev->class_dev, "!ready in %s, igyesring\n", __func__);
 	outb_p(command, dev->iobase + DT2801_CMD);
 }
 
@@ -407,7 +407,7 @@ static const struct comedi_lrange *dac_range_table[] = {
 static const struct comedi_lrange *dac_range_lkup(int opt)
 {
 	if (opt < 0 || opt >= 5)
-		return &range_unknown;
+		return &range_unkyeswn;
 	return dac_range_table[opt];
 }
 
@@ -423,7 +423,7 @@ static const struct comedi_lrange *ai_range_lkup(int type, int opt)
 	case 2:
 		return &range_unipolar5;
 	}
-	return &range_unknown;
+	return &range_unkyeswn;
 }
 
 static int dt2801_error(struct comedi_device *dev, int stat)

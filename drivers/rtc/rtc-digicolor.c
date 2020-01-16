@@ -2,7 +2,7 @@
 /*
  * Real Time Clock driver for Conexant Digicolor
  *
- * Copyright (C) 2015 Paradox Innovation Ltd.
+ * Copyright (C) 2015 Paradox Inyesvation Ltd.
  *
  * Author: Baruch Siach <baruch@tkos.co.il>
  */
@@ -91,13 +91,13 @@ static int dc_rtc_write(struct dc_rtc *rtc, u32 val)
 static int dc_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct dc_rtc *rtc = dev_get_drvdata(dev);
-	unsigned long now;
+	unsigned long yesw;
 	int ret;
 
-	ret = dc_rtc_read(rtc, &now);
+	ret = dc_rtc_read(rtc, &yesw);
 	if (ret < 0)
 		return ret;
-	rtc_time64_to_tm(now, tm);
+	rtc_time64_to_tm(yesw, tm);
 
 	return 0;
 }
@@ -113,18 +113,18 @@ static int dc_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct dc_rtc *rtc = dev_get_drvdata(dev);
 	u32 alarm_reg, reference;
-	unsigned long now;
+	unsigned long yesw;
 	int ret;
 
 	alarm_reg = readl_relaxed(rtc->regs + DC_RTC_ALARM);
 	reference = readl_relaxed(rtc->regs + DC_RTC_REFERENCE);
 	rtc_time64_to_tm(reference + alarm_reg, &alarm->time);
 
-	ret = dc_rtc_read(rtc, &now);
+	ret = dc_rtc_read(rtc, &yesw);
 	if (ret < 0)
 		return ret;
 
-	alarm->pending = alarm_reg + reference > now;
+	alarm->pending = alarm_reg + reference > yesw;
 	alarm->enabled = readl_relaxed(rtc->regs + DC_RTC_INTENABLE);
 
 	return 0;

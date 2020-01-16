@@ -10,7 +10,7 @@
  *   15-04-1998	RMK	0.0.1	Only do PIO if FAS216 will allow it.
  *   02-05-1998	RMK	0.0.2	Updated & added DMA support.
  *   27-06-1998	RMK		Changed asm/delay.h to linux/delay.h
- *   18-08-1998	RMK	0.0.3	Fixed synchronous transfer depth.
+ *   18-08-1998	RMK	0.0.3	Fixed synchroyesus transfer depth.
  *   02-04-2000	RMK	0.0.4	Updated for new error handling code.
  */
 #include <linux/module.h>
@@ -188,7 +188,7 @@ cumanascsi_2_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 	}
 
 	/*
-	 * If we're not doing DMA,
+	 * If we're yest doing DMA,
 	 *  we'll do pseudo DMA
 	 */
 	return fasdma_pio;
@@ -297,7 +297,7 @@ const char *cumanascsi_2_info(struct Scsi_Host *host)
 	static char string[150];
 
 	sprintf(string, "%s (%s) in slot %d v%s terminators o%s",
-		host->hostt->name, info->info.scsi.type, info->ec->slot_no,
+		host->hostt->name, info->info.scsi.type, info->ec->slot_yes,
 		VERSION, info->terms ? "n" : "ff");
 
 	return string;
@@ -398,7 +398,7 @@ static int cumanascsi2_probe(struct expansion_card *ec,
 	info->ec	= ec;
 	info->base	= base;
 
-	cumanascsi_2_terminator_ctl(host, term[ec->slot_no]);
+	cumanascsi_2_terminator_ctl(host, term[ec->slot_yes]);
 
 	info->info.scsi.io_base		= base + CUMANASCSI2_FAS216_OFFSET;
 	info->info.scsi.io_shift	= CUMANASCSI2_FAS216_SHIFT;
@@ -428,15 +428,15 @@ static int cumanascsi2_probe(struct expansion_card *ec,
 	ret = request_irq(ec->irq, cumanascsi_2_intr,
 			  0, "cumanascsi2", info);
 	if (ret) {
-		printk("scsi%d: IRQ%d not free: %d\n",
-		       host->host_no, ec->irq, ret);
+		printk("scsi%d: IRQ%d yest free: %d\n",
+		       host->host_yes, ec->irq, ret);
 		goto out_release;
 	}
 
 	if (info->info.scsi.dma != NO_DMA) {
 		if (request_dma(info->info.scsi.dma, "cumanascsi2")) {
-			printk("scsi%d: DMA%d not free, using PIO\n",
-			       host->host_no, info->info.scsi.dma);
+			printk("scsi%d: DMA%d yest free, using PIO\n",
+			       host->host_yes, info->info.scsi.dma);
 			info->info.scsi.dma = NO_DMA;
 		} else {
 			set_dma_speed(info->info.scsi.dma, 180);

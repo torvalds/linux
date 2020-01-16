@@ -21,7 +21,7 @@ MODULE_DESCRIPTION("Layout-ID fabric for snd-aoa");
 #define MAX_CODECS_PER_BUS	2
 
 /* These are the connections the layout fabric
- * knows about. It doesn't really care about the
+ * kyesws about. It doesn't really care about the
  * input ones, but I thought I'd separate them
  * to give them proper names. The thing is that
  * Apple usually will distinguish the active output
@@ -47,7 +47,7 @@ struct codec_connection {
 	int connected;
 	/* codec dependent bit to be set in the aoa_codec.connected field.
 	 * This intentionally doesn't have any generic flags because the
-	 * fabric has to know the codec anyway and all codecs might have
+	 * fabric has to kyesw the codec anyway and all codecs might have
 	 * different connectors */
 	int codec_bit;
 };
@@ -64,7 +64,7 @@ struct layout {
 	struct codec_connect_info codecs[MAX_CODECS_PER_BUS];
 	int flags;
 
-	/* if busname is not assigned, we use 'Master' below,
+	/* if busname is yest assigned, we use 'Master' below,
 	 * so that our layout table doesn't need to be filled
 	 * too much.
 	 * We only assign these two if we expect to find more
@@ -115,7 +115,7 @@ MODULE_ALIAS("aoa-device-id-35");
 MODULE_ALIAS("aoa-device-id-44");
 
 /* onyx with all but microphone connected */
-static struct codec_connection onyx_connections_nomic[] = {
+static struct codec_connection onyx_connections_yesmic[] = {
 	{
 		.connected = CC_SPEAKERS | CC_HEADPHONE | CC_LINEOUT,
 		.codec_bit = 0,
@@ -132,7 +132,7 @@ static struct codec_connection onyx_connections_nomic[] = {
 };
 
 /* onyx on machines without headphone */
-static struct codec_connection onyx_connections_noheadphones[] = {
+static struct codec_connection onyx_connections_yesheadphones[] = {
 	{
 		.connected = CC_SPEAKERS | CC_LINEOUT |
 			     CC_LINEOUT_LABELLED_HEADPHONE,
@@ -142,8 +142,8 @@ static struct codec_connection onyx_connections_noheadphones[] = {
 		.connected = CC_DIGITALOUT,
 		.codec_bit = 1,
 	},
-	/* FIXME: are these correct? probably not for all the machines
-	 * below ... If not this will need separating. */
+	/* FIXME: are these correct? probably yest for all the machines
+	 * below ... If yest this will need separating. */
 	{
 		.connected = CC_LINEIN,
 		.codec_bit = 2,
@@ -173,7 +173,7 @@ static struct codec_connection onyx_connections_reallineout[] = {
 };
 
 /* tas on machines without line out */
-static struct codec_connection tas_connections_nolineout[] = {
+static struct codec_connection tas_connections_yeslineout[] = {
 	{
 		.connected = CC_SPEAKERS | CC_HEADPHONE,
 		.codec_bit = 0,
@@ -189,8 +189,8 @@ static struct codec_connection tas_connections_nolineout[] = {
 	{} /* terminate array by .connected == 0 */
 };
 
-/* tas on machines with neither line out nor line in */
-static struct codec_connection tas_connections_noline[] = {
+/* tas on machines with neither line out yesr line in */
+static struct codec_connection tas_connections_yesline[] = {
 	{
 		.connected = CC_SPEAKERS | CC_HEADPHONE,
 		.codec_bit = 0,
@@ -203,7 +203,7 @@ static struct codec_connection tas_connections_noline[] = {
 };
 
 /* tas on machines without microphone */
-static struct codec_connection tas_connections_nomic[] = {
+static struct codec_connection tas_connections_yesmic[] = {
 	{
 		.connected = CC_SPEAKERS | CC_HEADPHONE | CC_LINEOUT,
 		.codec_bit = 0,
@@ -256,7 +256,7 @@ static struct codec_connection topaz_output[] = {
 	{} /* terminate array by .connected == 0 */
 };
 
-static struct codec_connection topaz_inout[] = {
+static struct codec_connection topaz_iyesut[] = {
 	{
 		.connected = CC_DIGITALIN,
 		.codec_bit = 0,
@@ -274,7 +274,7 @@ static struct layout layouts[] = {
 	  .flags = LAYOUT_FLAG_COMBO_LINEOUT_SPDIF,
 	  .codecs[0] = {
 		.name = "onyx",
-		.connections = onyx_connections_noheadphones,
+		.connections = onyx_connections_yesheadphones,
 	  },
 	  .codecs[1] = {
 		.name = "topaz",
@@ -300,7 +300,7 @@ static struct layout layouts[] = {
 	  .flags = LAYOUT_FLAG_COMBO_LINEOUT_SPDIF,
 	  .codecs[0] = {
 		.name = "onyx",
-		.connections = onyx_connections_noheadphones,
+		.connections = onyx_connections_yesheadphones,
 	  },
 	},
 	/* PowerBook5,7 */
@@ -315,7 +315,7 @@ static struct layout layouts[] = {
 	  .flags = LAYOUT_FLAG_COMBO_LINEOUT_SPDIF,
 	  .codecs[0] = {
 		.name = "onyx",
-		.connections = onyx_connections_noheadphones,
+		.connections = onyx_connections_yesheadphones,
 	  },
 	  .codecs[1] = {
 		.name = "topaz",
@@ -326,7 +326,7 @@ static struct layout layouts[] = {
 	{ .layout_id = 45,
 	  .codecs[0] = {
 		.name = "onyx",
-		.connections = onyx_connections_noheadphones,
+		.connections = onyx_connections_yesheadphones,
 	  },
 	  .codecs[1] = {
 		.name = "topaz",
@@ -337,7 +337,7 @@ static struct layout layouts[] = {
 	{ .layout_id = 68,
 	  .codecs[0] = {
 		.name = "onyx",
-		.connections = onyx_connections_nomic,
+		.connections = onyx_connections_yesmic,
 	  },
 	},
 	/* Quad PowerMac (digital in) */
@@ -351,21 +351,21 @@ static struct layout layouts[] = {
 	{ .layout_id = 70,
 	  .codecs[0] = {
 		.name = "tas",
-		.connections = tas_connections_nolineout,
+		.connections = tas_connections_yeslineout,
 	  },
 	},
 	/* PowerBook 5,4 */
 	{ .layout_id = 51,
 	  .codecs[0] = {
 		.name = "tas",
-		.connections = tas_connections_nolineout,
+		.connections = tas_connections_yeslineout,
 	  },
 	},
 	/* PowerBook6,1 */
 	{ .device_id = 31,
 	  .codecs[0] = {
 		.name = "tas",
-		.connections = tas_connections_nolineout,
+		.connections = tas_connections_yeslineout,
 	  },
 	},
 	/* PowerBook6,5 */
@@ -379,21 +379,21 @@ static struct layout layouts[] = {
 	{ .layout_id = 80,
 	  .codecs[0] = {
 		.name = "tas",
-		.connections = tas_connections_noline,
+		.connections = tas_connections_yesline,
 	  },
 	},
 	/* PowerBook6,8 */
 	{ .layout_id = 72,
 	  .codecs[0] = {
 		.name = "tas",
-		.connections = tas_connections_nolineout,
+		.connections = tas_connections_yeslineout,
 	  },
 	},
 	/* PowerMac8,2 */
 	{ .layout_id = 86,
 	  .codecs[0] = {
 		.name = "onyx",
-		.connections = onyx_connections_nomic,
+		.connections = onyx_connections_yesmic,
 	  },
 	  .codecs[1] = {
 		.name = "topaz",
@@ -404,7 +404,7 @@ static struct layout layouts[] = {
 	{ .layout_id = 92,
 	  .codecs[0] = {
 		.name = "tas",
-		.connections = tas_connections_nolineout,
+		.connections = tas_connections_yeslineout,
 	  },
 	},
 	/* PowerMac10,1 (Mac Mini) */
@@ -418,10 +418,10 @@ static struct layout layouts[] = {
 	  .layout_id = 96,
 	  .codecs[0] = {
 	  	.name = "onyx",
-	  	.connections = onyx_connections_noheadphones,
+	  	.connections = onyx_connections_yesheadphones,
 	  },
 	},
-	/* unknown, untested, but this comes from Apple */
+	/* unkyeswn, untested, but this comes from Apple */
 	{ .layout_id = 41,
 	  .codecs[0] = {
 		.name = "tas",
@@ -431,17 +431,17 @@ static struct layout layouts[] = {
 	{ .layout_id = 36,
 	  .codecs[0] = {
 		.name = "tas",
-		.connections = tas_connections_nomic,
+		.connections = tas_connections_yesmic,
 	  },
 	  .codecs[1] = {
 		.name = "topaz",
-		.connections = topaz_inout,
+		.connections = topaz_iyesut,
 	  },
 	},
 	{ .layout_id = 47,
 	  .codecs[0] = {
 		.name = "onyx",
-		.connections = onyx_connections_noheadphones,
+		.connections = onyx_connections_yesheadphones,
 	  },
 	},
 	{ .layout_id = 48,
@@ -453,7 +453,7 @@ static struct layout layouts[] = {
 	{ .layout_id = 49,
 	  .codecs[0] = {
 		.name = "onyx",
-		.connections = onyx_connections_nomic,
+		.connections = onyx_connections_yesmic,
 	  },
 	},
 	{ .layout_id = 50,
@@ -465,7 +465,7 @@ static struct layout layouts[] = {
 	{ .layout_id = 56,
 	  .codecs[0] = {
 		.name = "onyx",
-		.connections = onyx_connections_noheadphones,
+		.connections = onyx_connections_yesheadphones,
 	  },
 	},
 	{ .layout_id = 57,
@@ -477,7 +477,7 @@ static struct layout layouts[] = {
 	{ .layout_id = 62,
 	  .codecs[0] = {
 		.name = "onyx",
-		.connections = onyx_connections_noheadphones,
+		.connections = onyx_connections_yesheadphones,
 	  },
 	  .codecs[1] = {
 		.name = "topaz",
@@ -487,7 +487,7 @@ static struct layout layouts[] = {
 	{ .layout_id = 66,
 	  .codecs[0] = {
 		.name = "onyx",
-		.connections = onyx_connections_noheadphones,
+		.connections = onyx_connections_yesheadphones,
 	  },
 	},
 	{ .layout_id = 67,
@@ -499,24 +499,24 @@ static struct layout layouts[] = {
 	{ .layout_id = 76,
 	  .codecs[0] = {
 		.name = "tas",
-		.connections = tas_connections_nomic,
+		.connections = tas_connections_yesmic,
 	  },
 	  .codecs[1] = {
 		.name = "topaz",
-		.connections = topaz_inout,
+		.connections = topaz_iyesut,
 	  },
 	},
 	{ .layout_id = 90,
 	  .codecs[0] = {
 		.name = "tas",
-		.connections = tas_connections_noline,
+		.connections = tas_connections_yesline,
 	  },
 	},
 	{ .layout_id = 94,
 	  .codecs[0] = {
 		.name = "onyx",
 		/* but it has an external mic?? how to select? */
-		.connections = onyx_connections_noheadphones,
+		.connections = onyx_connections_yesheadphones,
 	  },
 	},
 	{ .layout_id = 98,
@@ -532,14 +532,14 @@ static struct layout layouts[] = {
 	  },
 	  .codecs[1] = {
 		.name = "onyx",
-		.connections = onyx_connections_noheadphones,
+		.connections = onyx_connections_yesheadphones,
 	  },
 	},
 	/* PowerMac3,4 */
 	{ .device_id = 14,
 	  .codecs[0] = {
 		.name = "tas",
-		.connections = tas_connections_noline,
+		.connections = tas_connections_yesline,
 	  },
 	},
 	/* PowerMac3,6 */
@@ -594,7 +594,7 @@ static void use_layout(struct layout *l)
 			request_module("snd-aoa-codec-%s", l->codecs[i].name);
 		}
 	}
-	/* now we wait for the codecs to call us back */
+	/* yesw we wait for the codecs to call us back */
 }
 
 struct layout_dev;
@@ -606,7 +606,7 @@ struct layout_dev_ptr {
 struct layout_dev {
 	struct list_head list;
 	struct soundbus_dev *sdev;
-	struct device_node *sound;
+	struct device_yesde *sound;
 	struct aoa_codec *codecs[MAX_CODECS_PER_BUS];
 	struct layout *layout;
 	struct gpio_runtime gpio;
@@ -634,7 +634,7 @@ static int layouts_list_items;
  * make the fabric handle all the card stuff, etc... */
 static struct layout_dev *layout_device;
 
-#define control_info	snd_ctl_boolean_mono_info
+#define control_info	snd_ctl_boolean_moyes_info
 
 #define AMP_CONTROL(n, description)					\
 static int n##_control_get(struct snd_kcontrol *kcontrol,		\
@@ -773,17 +773,17 @@ static int check_codec(struct aoa_codec *codec,
 	char propname[32];
 	struct codec_connection *cc;
 
-	/* if the codec has a 'codec' node, we require a reference */
-	if (of_node_name_eq(codec->node, "codec")) {
+	/* if the codec has a 'codec' yesde, we require a reference */
+	if (of_yesde_name_eq(codec->yesde, "codec")) {
 		snprintf(propname, sizeof(propname),
 			 "platform-%s-codec-ref", codec->name);
 		ref = of_get_property(ldev->sound, propname, NULL);
 		if (!ref) {
 			printk(KERN_INFO "snd-aoa-fabric-layout: "
-				"required property %s not present\n", propname);
+				"required property %s yest present\n", propname);
 			return -ENODEV;
 		}
-		if (*ref != codec->node->phandle) {
+		if (*ref != codec->yesde->phandle) {
 			printk(KERN_INFO "snd-aoa-fabric-layout: "
 				"%s doesn't match!\n", propname);
 			return -ENODEV;
@@ -791,7 +791,7 @@ static int check_codec(struct aoa_codec *codec,
 	} else {
 		if (layouts_list_items != 1) {
 			printk(KERN_INFO "snd-aoa-fabric-layout: "
-				"more than one soundbus, but no references.\n");
+				"more than one soundbus, but yes references.\n");
 			return -ENODEV;
 		}
 	}
@@ -847,7 +847,7 @@ static void layout_remove_codec(struct aoa_codec *codec)
 	}
 }
 
-static void layout_notify(void *data)
+static void layout_yestify(void *data)
 {
 	struct layout_dev_ptr *dptr = data;
 	struct layout_dev *ldev;
@@ -878,17 +878,17 @@ static void layout_notify(void *data)
 		return;
 
 	if (detected)
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, &detected->id);
+		snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE, &detected->id);
 	if (update) {
 		c = ldev->headphone_ctrl;
 		if (c)
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, &c->id);
+			snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE, &c->id);
 		c = ldev->speaker_ctrl;
 		if (c)
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, &c->id);
+			snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE, &c->id);
 		c = ldev->lineout_ctrl;
 		if (c)
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, &c->id);
+			snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE, &c->id);
 	}
 }
 
@@ -929,9 +929,9 @@ static void layout_attached_codec(struct aoa_codec *codec)
 			aoa_snd_ctl_add(ctl);
 			ldev->have_headphone_detect =
 				!ldev->gpio.methods
-					->set_notify(&ldev->gpio,
+					->set_yestify(&ldev->gpio,
 						     AOA_NOTIFY_HEADPHONE,
-						     layout_notify,
+						     layout_yestify,
 						     &ldev->selfptr_headphone);
 			if (ldev->have_headphone_detect) {
 				ctl = snd_ctl_new1(&headphone_detect_choice,
@@ -954,9 +954,9 @@ static void layout_attached_codec(struct aoa_codec *codec)
 			aoa_snd_ctl_add(ctl);
 			ldev->have_lineout_detect =
 				!ldev->gpio.methods
-					->set_notify(&ldev->gpio,
+					->set_yestify(&ldev->gpio,
 						     AOA_NOTIFY_LINE_OUT,
-						     layout_notify,
+						     layout_yestify,
 						     &ldev->selfptr_lineout);
 			if (ldev->have_lineout_detect) {
 				ctl = snd_ctl_new1(&lineout_detect_choice,
@@ -978,11 +978,11 @@ static void layout_attached_codec(struct aoa_codec *codec)
 		}
 		cc++;
 	}
-	/* now update initial state */
+	/* yesw update initial state */
 	if (ldev->have_headphone_detect)
-		layout_notify(&ldev->selfptr_headphone);
+		layout_yestify(&ldev->selfptr_headphone);
 	if (ldev->have_lineout_detect)
-		layout_notify(&ldev->selfptr_lineout);
+		layout_yestify(&ldev->selfptr_lineout);
 }
 
 static struct aoa_fabric layout_fabric = {
@@ -995,7 +995,7 @@ static struct aoa_fabric layout_fabric = {
 
 static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 {
-	struct device_node *sound = NULL;
+	struct device_yesde *sound = NULL;
 	const unsigned int *id;
 	struct layout *layout = NULL;
 	struct layout_dev *ldev = NULL;
@@ -1006,8 +1006,8 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 		return -ENODEV;
 
 	/* by breaking out we keep a reference */
-	for_each_child_of_node(sdev->ofdev.dev.of_node, sound) {
-		if (of_node_is_type(sound, "soundchip"))
+	for_each_child_of_yesde(sdev->ofdev.dev.of_yesde, sound) {
+		if (of_yesde_is_type(sound, "soundchip"))
 			break;
 	}
 	if (!sound)
@@ -1023,22 +1023,22 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	}
 
 	if (!layout) {
-		printk(KERN_ERR "snd-aoa-fabric-layout: unknown layout\n");
-		goto outnodev;
+		printk(KERN_ERR "snd-aoa-fabric-layout: unkyeswn layout\n");
+		goto outyesdev;
 	}
 
 	ldev = kzalloc(sizeof(struct layout_dev), GFP_KERNEL);
 	if (!ldev)
-		goto outnodev;
+		goto outyesdev;
 
 	layout_device = ldev;
 	ldev->sdev = sdev;
 	ldev->sound = sound;
 	ldev->layout = layout;
-	ldev->gpio.node = sound->parent;
+	ldev->gpio.yesde = sound->parent;
 	switch (layout->layout_id) {
-	case 0:  /* anything with device_id, not layout_id */
-	case 41: /* that unknown machine no one seems to have */
+	case 0:  /* anything with device_id, yest layout_id */
+	case 41: /* that unkyeswn machine yes one seems to have */
 	case 51: /* PowerBook5,4 */
 	case 58: /* Mac Mini */
 		ldev->gpio.methods = ftr_gpio_methods;
@@ -1071,7 +1071,7 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	err = aoa_fabric_register(&layout_fabric, &sdev->ofdev.dev);
 	if (err && err != -EALREADY) {
 		printk(KERN_INFO "snd-aoa-fabric-layout: can't use,"
-				 " another fabric is active!\n");
+				 " ayesther fabric is active!\n");
 		goto outlistdel;
 	}
 
@@ -1088,8 +1088,8 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	list_del(&ldev->list);
 	layouts_list_items--;
 	kfree(ldev);
- outnodev:
- 	of_node_put(sound);
+ outyesdev:
+ 	of_yesde_put(sound);
  	layout_device = NULL;
 	return -ENODEV;
 }
@@ -1107,13 +1107,13 @@ static int aoa_fabric_layout_remove(struct soundbus_dev *sdev)
 	}
 	list_del(&ldev->list);
 	layouts_list_items--;
-	of_node_put(ldev->sound);
+	of_yesde_put(ldev->sound);
 
-	ldev->gpio.methods->set_notify(&ldev->gpio,
+	ldev->gpio.methods->set_yestify(&ldev->gpio,
 				       AOA_NOTIFY_HEADPHONE,
 				       NULL,
 				       NULL);
-	ldev->gpio.methods->set_notify(&ldev->gpio,
+	ldev->gpio.methods->set_yestify(&ldev->gpio,
 				       AOA_NOTIFY_LINE_OUT,
 				       NULL,
 				       NULL);

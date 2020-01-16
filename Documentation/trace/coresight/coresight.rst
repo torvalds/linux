@@ -8,7 +8,7 @@ Coresight - HW Assisted Tracing on ARM
 Introduction
 ------------
 
-Coresight is an umbrella of technologies allowing for the debugging of ARM
+Coresight is an umbrella of techyeslogies allowing for the debugging of ARM
 based SoC.  It includes solutions for JTAG and HW assisted tracing.  This
 document is concerned with the latter.
 
@@ -120,7 +120,7 @@ Classification:
 Source:
    ETMv3.x ETMv4, PTMv1.0, PTMv1.1, STM, STM500, ITM
 Link:
-   Funnel, replicator (intelligent or not), TMC-ETR
+   Funnel, replicator (intelligent or yest), TMC-ETR
 Sinks:
    ETBv1.0, ETB1.1, TPIU, TMC-ETF
 Misc:
@@ -132,7 +132,7 @@ Device Tree Bindings
 
 See Documentation/devicetree/bindings/arm/coresight.txt for details.
 
-As of this writing drivers for ITM, STMs and CTIs are not provided but are
+As of this writing drivers for ITM, STMs and CTIs are yest provided but are
 expected to be added as the solution matures.
 
 
@@ -213,7 +213,7 @@ type. e.g::
      23040000.etm  23140000.etm         23340000.etm
 
 However, with the introduction of ACPI support, the names of the real
-devices are a bit cryptic and non-obvious. Thus, a new naming scheme was
+devices are a bit cryptic and yesn-obvious. Thus, a new naming scheme was
 introduced to use more generic names based on the type of the device. The
 following rules apply::
 
@@ -238,7 +238,7 @@ Thus, with the new scheme the devices could appear as ::
 
 Some of the examples below might refer to old naming scheme and some
 to the newer scheme, to give a confirmation that what you see on your
-system is not unexpected. One must use the "names" as they appear on
+system is yest unexpected. One must use the "names" as they appear on
 the system under specified locations.
 
 How to use the tracer modules
@@ -256,7 +256,7 @@ provide details on using both methods.
 1) Using the sysFS interface:
 
 Before trace collection can start, a coresight sink needs to be identified.
-There is no limit on the amount of sinks (nor sources) that can be enabled at
+There is yes limit on the amount of sinks (yesr sources) that can be enabled at
 any given moment.  As a generic operation, all device pertaining to the sink
 class will have an "active" entry in sysfs::
 
@@ -368,13 +368,13 @@ controlling when tracing gets enabled based on when the process of interest is
 scheduled.  When configured in a system, Coresight PMUs will be listed when
 queried by the perf command line tool:
 
-	linaro@linaro-nano:~$ ./perf list pmu
+	linaro@linaro-nayes:~$ ./perf list pmu
 
 		List of pre-defined events (to be used in -e):
 
 		cs_etm//                                    [Kernel PMU event]
 
-	linaro@linaro-nano:~$
+	linaro@linaro-nayes:~$
 
 Regardless of the number of tracers available in a system (usually equal to the
 amount of processor cores), the "cs_etm" PMU will be listed only once.
@@ -395,7 +395,7 @@ available under ($SYSFS)/bus/coresight/devices/::
 	root:~# ls /sys/bus/coresight/devices/
 	 etm0     etm1     etm2         etm3  etm4      etm5      funnel0
 	 funnel1  funnel2  replicator0  stm0  tmc_etf0  tmc_etr0  tpiu0
-	root@linaro-nano:~# perf record -e cs_etm/@tmc_etr0/u --per-thread program
+	root@linaro-nayes:~# perf record -e cs_etm/@tmc_etr0/u --per-thread program
 
 As mentioned above in section "Device Naming scheme", the names of the devices could
 look different from what is used in the example above. One must use the device names

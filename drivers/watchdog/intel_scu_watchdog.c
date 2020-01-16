@@ -16,7 +16,7 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/fs.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
@@ -73,7 +73,7 @@ MODULE_PARM_DESC(force_boot,
 		"watchdog timer will reset the system."
 		);
 
-/* there is only one device in the system now; this can be made into
+/* there is only one device in the system yesw; this can be made into
  * an array in the future if we have more than one device */
 
 static struct intel_scu_watchdog_dev watchdog_device;
@@ -146,7 +146,7 @@ static irqreturn_t watchdog_timer_interrupt(int irq, void *dev_id)
 	if (int_status != 0)
 		return IRQ_NONE;
 
-	/* has the timer been started? If not, then this is spurious */
+	/* has the timer been started? If yest, then this is spurious */
 	if (watchdog_device.timer_started == 0) {
 		pr_debug("spurious interrupt received\n");
 		return IRQ_HANDLED;
@@ -235,8 +235,8 @@ static int intel_scu_set_heartbeat(u32 t)
 	}
 
 	/* Soft Threshold set loop. Early versions of silicon did */
-	/* not always set this count correctly.  This loop checks */
-	/* the value and retries if it was not set correctly.     */
+	/* yest always set this count correctly.  This loop checks */
+	/* the value and retries if it was yest set correctly.     */
 
 	retry_count = 0;
 	soft_value = watchdog_device.soft_threshold & 0xFFFF0000;
@@ -277,27 +277,27 @@ static int intel_scu_set_heartbeat(u32 t)
  * /dev/watchdog handling
  */
 
-static int intel_scu_open(struct inode *inode, struct file *file)
+static int intel_scu_open(struct iyesde *iyesde, struct file *file)
 {
 
 	/* Set flag to indicate that watchdog device is open */
 	if (test_and_set_bit(0, &watchdog_device.driver_open))
 		return -EBUSY;
 
-	/* Check for reopen of driver. Reopens are not allowed */
+	/* Check for reopen of driver. Reopens are yest allowed */
 	if (watchdog_device.driver_closed)
 		return -EPERM;
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int intel_scu_release(struct inode *inode, struct file *file)
+static int intel_scu_release(struct iyesde *iyesde, struct file *file)
 {
 	/*
-	 * This watchdog should not be closed, after the timer
+	 * This watchdog should yest be closed, after the timer
 	 * is started with the WDIPC_SETTIMEOUT ioctl
 	 * If force_boot is set watchdog_fire() will cause an
-	 * immediate reset. If force_boot is not set, the watchdog
+	 * immediate reset. If force_boot is yest set, the watchdog
 	 * timer is refreshed for one more interval. At the end
 	 * of that interval, the watchdog timer will reset the system.
 	 */
@@ -308,7 +308,7 @@ static int intel_scu_release(struct inode *inode, struct file *file)
 	}
 
 	if (!watchdog_device.timer_started) {
-		/* Just close, since timer has not been started */
+		/* Just close, since timer has yest been started */
 		pr_debug("closed, without starting timer\n");
 		return 0;
 	}
@@ -324,7 +324,7 @@ static int intel_scu_release(struct inode *inode, struct file *file)
 	/* Reboot system (if force_boot is set) */
 	watchdog_fire();
 
-	/* We should only reach this point if force_boot is not set */
+	/* We should only reach this point if force_boot is yest set */
 	return 0;
 }
 
@@ -394,9 +394,9 @@ static long intel_scu_ioctl(struct file *file,
 /*
  *      Notifier for system down
  */
-static int intel_scu_notify_sys(struct notifier_block *this,
+static int intel_scu_yestify_sys(struct yestifier_block *this,
 			       unsigned long code,
-			       void *another_unused)
+			       void *ayesther_unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		/* Turn off the watchdog timer. */
@@ -409,7 +409,7 @@ static int intel_scu_notify_sys(struct notifier_block *this,
  */
 static const struct file_operations intel_scu_fops = {
 	.owner          = THIS_MODULE,
-	.llseek         = no_llseek,
+	.llseek         = yes_llseek,
 	.write          = intel_scu_write,
 	.unlocked_ioctl = intel_scu_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -424,7 +424,7 @@ static int __init intel_scu_watchdog_init(void)
 
 	/*
 	 * We don't really need to check this as the SFI timer get will fail
-	 * but if we do so we can exit with a clearer reason and no noise.
+	 * but if we do so we can exit with a clearer reason and yes yesise.
 	 *
 	 * If it isn't an intel MID device then it doesn't have this watchdog
 	 */
@@ -448,12 +448,12 @@ static int __init intel_scu_watchdog_init(void)
 	watchdog_device.timer_tbl_ptr = sfi_get_mtmr(sfi_mtimer_num-1);
 
 	if (watchdog_device.timer_tbl_ptr == NULL) {
-		pr_debug("timer is not available\n");
+		pr_debug("timer is yest available\n");
 		return -ENODEV;
 	}
 	/* make sure the timer exists */
 	if (watchdog_device.timer_tbl_ptr->phys_addr == 0) {
-		pr_debug("timer %d does not have valid physical memory\n",
+		pr_debug("timer %d does yest have valid physical memory\n",
 			 sfi_mtimer_num);
 		return -ENODEV;
 	}
@@ -463,7 +463,7 @@ static int __init intel_scu_watchdog_init(void)
 		return -ENODEV;
 	}
 
-	tmp_addr = ioremap_nocache(watchdog_device.timer_tbl_ptr->phys_addr,
+	tmp_addr = ioremap_yescache(watchdog_device.timer_tbl_ptr->phys_addr,
 			20);
 
 	if (tmp_addr == NULL) {
@@ -487,22 +487,22 @@ static int __init intel_scu_watchdog_init(void)
 		* watchdog_device.timer_tbl_ptr->freq_hz;
 
 
-	watchdog_device.intel_scu_notifier.notifier_call =
-		intel_scu_notify_sys;
+	watchdog_device.intel_scu_yestifier.yestifier_call =
+		intel_scu_yestify_sys;
 
-	ret = register_reboot_notifier(&watchdog_device.intel_scu_notifier);
+	ret = register_reboot_yestifier(&watchdog_device.intel_scu_yestifier);
 	if (ret) {
-		pr_err("cannot register notifier %d)\n", ret);
+		pr_err("canyest register yestifier %d)\n", ret);
 		goto register_reboot_error;
 	}
 
-	watchdog_device.miscdev.minor = WATCHDOG_MINOR;
+	watchdog_device.miscdev.miyesr = WATCHDOG_MINOR;
 	watchdog_device.miscdev.name = "watchdog";
 	watchdog_device.miscdev.fops = &intel_scu_fops;
 
 	ret = misc_register(&watchdog_device.miscdev);
 	if (ret) {
-		pr_err("cannot register miscdev %d err =%d\n",
+		pr_err("canyest register miscdev %d err =%d\n",
 		       WATCHDOG_MINOR, ret);
 		goto misc_register_error;
 	}
@@ -524,7 +524,7 @@ static int __init intel_scu_watchdog_init(void)
 request_irq_error:
 	misc_deregister(&watchdog_device.miscdev);
 misc_register_error:
-	unregister_reboot_notifier(&watchdog_device.intel_scu_notifier);
+	unregister_reboot_yestifier(&watchdog_device.intel_scu_yestifier);
 register_reboot_error:
 	intel_scu_stop();
 	iounmap(watchdog_device.timer_load_count_addr);

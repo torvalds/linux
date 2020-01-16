@@ -296,7 +296,7 @@ static struct xc5000_config dvico_xc5000_tunerconfig = {
 	.if_khz           = 5380,
 };
 
-static struct tda829x_config tda829x_no_probe = {
+static struct tda829x_config tda829x_yes_probe = {
 	.probe_tuner = TDA829X_DONT_PROBE,
 };
 
@@ -450,7 +450,7 @@ static struct dib7000p_config hauppauge_hvr1400_dib7000_config = {
 static struct zl10353_config dvico_fusionhdtv_xc3028 = {
 	.demod_address = 0x0f,
 	.if2           = 45600,
-	.no_tuner      = 1,
+	.yes_tuner      = 1,
 	.disable_i2c_gate_ctrl = 1,
 };
 
@@ -860,10 +860,10 @@ static struct xc5000_config netup_xc5000_config[] = {
 static struct drxk_config terratec_drxk_config[] = {
 	{
 		.adr = 0x29,
-		.no_i2c_bridge = 1,
+		.yes_i2c_bridge = 1,
 	}, {
 		.adr = 0x2a,
-		.no_i2c_bridge = 1,
+		.yes_i2c_bridge = 1,
 	},
 };
 
@@ -975,14 +975,14 @@ static int netup_altera_fpga_rw(void *device, int flag, int data, int read)
 	return 0;
 };
 
-static int dib7070_tuner_reset(struct dvb_frontend *fe, int onoff)
+static int dib7070_tuner_reset(struct dvb_frontend *fe, int oyesff)
 {
 	struct dib7000p_ops *dib7000p_ops = fe->sec_priv;
 
-	return dib7000p_ops->set_gpio(fe, 8, 0, !onoff);
+	return dib7000p_ops->set_gpio(fe, 8, 0, !oyesff);
 }
 
-static int dib7070_tuner_sleep(struct dvb_frontend *fe, int onoff)
+static int dib7070_tuner_sleep(struct dvb_frontend *fe, int oyesff)
 {
 	return 0;
 }
@@ -1203,7 +1203,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	struct i2c_client *client_sec = NULL;
 	int (*p_set_voltage)(struct dvb_frontend *fe,
 			     enum fe_sec_voltage voltage) = NULL;
-	int mfe_shared = 0; /* bus not shared by default */
+	int mfe_shared = 0; /* bus yest shared by default */
 	int ret;
 
 	/* Get the first frontend */
@@ -1278,7 +1278,7 @@ static int dvb_register(struct cx23885_tsport *port)
 
 			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				   &dev->i2c_bus[1].i2c_adap, 0x42,
-				   &tda829x_no_probe);
+				   &tda829x_yes_probe);
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_bus[1].i2c_adap,
 				   &hauppauge_tda18271_config);
@@ -1363,7 +1363,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			break;
 		dvb_attach(tda829x_attach, fe0->dvb.frontend,
 			   &dev->i2c_bus[1].i2c_adap, 0x42,
-			   &tda829x_no_probe);
+			   &tda829x_yes_probe);
 		dvb_attach(tda18271_attach, fe0->dvb.frontend,
 			   0x60, &dev->i2c_bus[1].i2c_adap,
 			   &hauppauge_hvr1200_tuner_config);
@@ -1717,7 +1717,7 @@ static int dvb_register(struct cx23885_tsport *port)
 
 		i2c_bus = &dev->i2c_bus[0];
 		mfe_shared = 1;/* MFE */
-		port->frontends.gate = 0;/* not clear for me yet */
+		port->frontends.gate = 0;/* yest clear for me yet */
 		/* ports B, C */
 		/* MFE frontend 1 DVB-T */
 		fe0->dvb.frontend = dvb_attach(stv0367ter_attach,
@@ -2617,7 +2617,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 
 	/* Here we need to allocate the correct number of frontends,
 	 * as reflected in the cards struct. The reality is that currently
-	 * no cx23885 boards support this - yet. But, if we don't modify this
+	 * yes cx23885 boards support this - yet. But, if we don't modify this
 	 * code then the second frontend would never be allocated (later)
 	 * and fail with error before the attach in dvb_register().
 	 * Without these changes we risk an OOPS later. The changes here

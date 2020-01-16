@@ -56,7 +56,7 @@ static int run_lwt_bpf(struct sk_buff *skb, struct bpf_lwt_prog *lwt,
 	case BPF_REDIRECT:
 		if (unlikely(!can_redirect)) {
 			pr_warn_once("Illegal redirect return code in prog %s\n",
-				     lwt->name ? : "<unknown>");
+				     lwt->name ? : "<unkyeswn>");
 			ret = BPF_OK;
 		} else {
 			skb_reset_mac_header(skb);
@@ -93,7 +93,7 @@ static int bpf_lwt_input_reroute(struct sk_buff *skb)
 
 		dev_hold(dev);
 		skb_dst_drop(skb);
-		err = ip_route_input_noref(skb, iph->daddr, iph->saddr,
+		err = ip_route_input_yesref(skb, iph->daddr, iph->saddr,
 					   iph->tos, dev);
 		dev_put(dev);
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
@@ -149,7 +149,7 @@ static int bpf_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	}
 
 	if (unlikely(!dst->lwtstate->orig_output)) {
-		pr_warn_once("orig_output not set on dst for prog %s\n",
+		pr_warn_once("orig_output yest set on dst for prog %s\n",
 			     bpf->out.name);
 		kfree_skb(skb);
 		return -EINVAL;
@@ -244,8 +244,8 @@ static int bpf_lwt_xmit_reroute(struct sk_buff *skb)
 
 	/* Although skb header was reserved in bpf_lwt_push_ip_encap(), it
 	 * was done for the previous dst, so we are doing it here again, in
-	 * case the new dst needs much more space. The call below is a noop
-	 * if there is enough header space in skb.
+	 * case the new dst needs much more space. The call below is a yesop
+	 * if there is eyesugh header space in skb.
 	 */
 	err = skb_cow_head(skb, LL_RESERVED_SPACE(dst->dev));
 	if (unlikely(err))
@@ -449,7 +449,7 @@ static int bpf_fill_lwt_prog(struct sk_buff *skb, int attr,
 	if (!prog->prog)
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, attr);
+	nest = nla_nest_start_yesflag(skb, attr);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -488,7 +488,7 @@ static int bpf_lwt_prog_cmp(struct bpf_lwt_prog *a, struct bpf_lwt_prog *b)
 {
 	/* FIXME:
 	 * The LWT state is currently rebuilt for delete requests which
-	 * results in a new bpf_prog instance. Comparing names for now.
+	 * results in a new bpf_prog instance. Comparing names for yesw.
 	 */
 	if (!a->name && !b->name)
 		return 0;
@@ -540,7 +540,7 @@ static int handle_gso_encap(struct sk_buff *skb, bool ipv4, int encap_len)
 	__u8 protocol;
 
 	/* SCTP and UDP_L4 gso need more nuanced handling than what
-	 * handle_gso_type() does above: skb_decrease_gso_size() is not enough.
+	 * handle_gso_type() does above: skb_decrease_gso_size() is yest eyesugh.
 	 * So at the moment only TCP GSO packets are let through.
 	 */
 	if (!(skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6)))
@@ -622,7 +622,7 @@ int bpf_lwt_push_ip_encap(struct sk_buff *skb, void *hdr, u32 len, bool ingress)
 
 	/* push the encap headers and fix pointers */
 	skb_reset_inner_headers(skb);
-	skb_reset_inner_mac_header(skb);  /* mac header is not yet set */
+	skb_reset_inner_mac_header(skb);  /* mac header is yest yet set */
 	skb_set_inner_protocol(skb, skb->protocol);
 	skb->encapsulation = 1;
 	skb_push(skb, len);

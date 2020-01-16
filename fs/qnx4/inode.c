@@ -10,7 +10,7 @@
  *
  * 01-06-1998 by Richard Frowijn : first release.
  * 20-06-1998 by Frank Denis : Linux 2.1.99+ support, boot signature, misc.
- * 30-06-1998 by Frank Denis : first step to write inodes.
+ * 30-06-1998 by Frank Denis : first step to write iyesdes.
  */
 
 #include <linux/module.h>
@@ -28,15 +28,15 @@
 
 static const struct super_operations qnx4_sops;
 
-static struct inode *qnx4_alloc_inode(struct super_block *sb);
-static void qnx4_free_inode(struct inode *inode);
+static struct iyesde *qnx4_alloc_iyesde(struct super_block *sb);
+static void qnx4_free_iyesde(struct iyesde *iyesde);
 static int qnx4_remount(struct super_block *sb, int *flags, char *data);
 static int qnx4_statfs(struct dentry *, struct kstatfs *);
 
 static const struct super_operations qnx4_sops =
 {
-	.alloc_inode	= qnx4_alloc_inode,
-	.free_inode	= qnx4_free_inode,
+	.alloc_iyesde	= qnx4_alloc_iyesde,
+	.free_iyesde	= qnx4_free_iyesde,
 	.statfs		= qnx4_statfs,
 	.remount_fs	= qnx4_remount,
 };
@@ -52,16 +52,16 @@ static int qnx4_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_head *bh, int create )
+static int qnx4_get_block( struct iyesde *iyesde, sector_t iblock, struct buffer_head *bh, int create )
 {
 	unsigned long phys;
 
-	QNX4DEBUG((KERN_INFO "qnx4: qnx4_get_block inode=[%ld] iblock=[%ld]\n",inode->i_ino,iblock));
+	QNX4DEBUG((KERN_INFO "qnx4: qnx4_get_block iyesde=[%ld] iblock=[%ld]\n",iyesde->i_iyes,iblock));
 
-	phys = qnx4_block_map( inode, iblock );
+	phys = qnx4_block_map( iyesde, iblock );
 	if ( phys ) {
 		// logical block is before EOF
-		map_bh(bh, inode->i_sb, phys);
+		map_bh(bh, iyesde->i_sb, phys);
 	}
 	return 0;
 }
@@ -75,34 +75,34 @@ static inline u32 try_extent(qnx4_xtnt_t *extent, u32 *offset)
 	return 0;
 }
 
-unsigned long qnx4_block_map( struct inode *inode, long iblock )
+unsigned long qnx4_block_map( struct iyesde *iyesde, long iblock )
 {
 	int ix;
 	long i_xblk;
 	struct buffer_head *bh = NULL;
 	struct qnx4_xblk *xblk = NULL;
-	struct qnx4_inode_entry *qnx4_inode = qnx4_raw_inode(inode);
-	u16 nxtnt = le16_to_cpu(qnx4_inode->di_num_xtnts);
+	struct qnx4_iyesde_entry *qnx4_iyesde = qnx4_raw_iyesde(iyesde);
+	u16 nxtnt = le16_to_cpu(qnx4_iyesde->di_num_xtnts);
 	u32 offset = iblock;
-	u32 block = try_extent(&qnx4_inode->di_first_xtnt, &offset);
+	u32 block = try_extent(&qnx4_iyesde->di_first_xtnt, &offset);
 
 	if (block) {
 		// iblock is in the first extent. This is easy.
 	} else {
 		// iblock is beyond first extent. We have to follow the extent chain.
-		i_xblk = le32_to_cpu(qnx4_inode->di_xblk);
+		i_xblk = le32_to_cpu(qnx4_iyesde->di_xblk);
 		ix = 0;
 		while ( --nxtnt > 0 ) {
 			if ( ix == 0 ) {
 				// read next xtnt block.
-				bh = sb_bread(inode->i_sb, i_xblk - 1);
+				bh = sb_bread(iyesde->i_sb, i_xblk - 1);
 				if ( !bh ) {
 					QNX4DEBUG((KERN_ERR "qnx4: I/O error reading xtnt block [%ld])\n", i_xblk - 1));
 					return -EIO;
 				}
 				xblk = (struct qnx4_xblk*)bh->b_data;
 				if ( memcmp( xblk->xblk_signature, "IamXblk", 7 ) ) {
-					QNX4DEBUG((KERN_ERR "qnx4: block at %ld is not a valid xtnt\n", qnx4_inode->i_xblk));
+					QNX4DEBUG((KERN_ERR "qnx4: block at %ld is yest a valid xtnt\n", qnx4_iyesde->i_xblk));
 					return -EIO;
 				}
 			}
@@ -122,7 +122,7 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 			brelse( bh );
 	}
 
-	QNX4DEBUG((KERN_INFO "qnx4: mapping block %ld of inode %ld = %ld\n",iblock,inode->i_ino,block));
+	QNX4DEBUG((KERN_INFO "qnx4: mapping block %ld of iyesde %ld = %ld\n",iblock,iyesde->i_iyes,block));
 	return block;
 }
 
@@ -152,12 +152,12 @@ static const char *qnx4_checkroot(struct super_block *sb,
 				  struct qnx4_super_block *s)
 {
 	struct buffer_head *bh;
-	struct qnx4_inode_entry *rootdir;
+	struct qnx4_iyesde_entry *rootdir;
 	int rd, rl;
 	int i, j;
 
 	if (s->RootDir.di_fname[0] != '/' || s->RootDir.di_fname[1] != '\0')
-		return "no qnx4 filesystem (no root dir).";
+		return "yes qnx4 filesystem (yes root dir).";
 	QNX4DEBUG((KERN_NOTICE "QNX4 filesystem found on dev %s.\n", sb->s_id));
 	rd = le32_to_cpu(s->RootDir.di_first_xtnt.xtnt_blk) - 1;
 	rl = le32_to_cpu(s->RootDir.di_first_xtnt.xtnt_size);
@@ -165,29 +165,29 @@ static const char *qnx4_checkroot(struct super_block *sb,
 		bh = sb_bread(sb, rd + j);	/* root dir, first block */
 		if (bh == NULL)
 			return "unable to read root entry.";
-		rootdir = (struct qnx4_inode_entry *) bh->b_data;
+		rootdir = (struct qnx4_iyesde_entry *) bh->b_data;
 		for (i = 0; i < QNX4_INODES_PER_BLOCK; i++, rootdir++) {
 			QNX4DEBUG((KERN_INFO "rootdir entry found : [%s]\n", rootdir->di_fname));
 			if (strcmp(rootdir->di_fname, QNX4_BMNAME) != 0)
 				continue;
 			qnx4_sb(sb)->BitMap = kmemdup(rootdir,
-						      sizeof(struct qnx4_inode_entry),
+						      sizeof(struct qnx4_iyesde_entry),
 						      GFP_KERNEL);
 			brelse(bh);
 			if (!qnx4_sb(sb)->BitMap)
-				return "not enough memory for bitmap inode";
-			/* keep bitmap inode known */
+				return "yest eyesugh memory for bitmap iyesde";
+			/* keep bitmap iyesde kyeswn */
 			return NULL;
 		}
 		brelse(bh);
 	}
-	return "bitmap file not found.";
+	return "bitmap file yest found.";
 }
 
 static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct buffer_head *bh;
-	struct inode *root;
+	struct iyesde *root;
 	const char *errmsg;
 	struct qnx4_sb_info *qs;
 
@@ -213,7 +213,7 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 		return -EINVAL;
 	}
 
- 	/* check before allocating dentries, inodes, .. */
+ 	/* check before allocating dentries, iyesdes, .. */
 	errmsg = qnx4_checkroot(s, (struct qnx4_super_block *) bh->b_data);
 	brelse(bh);
 	if (errmsg != NULL) {
@@ -222,10 +222,10 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 		return -EINVAL;
 	}
 
- 	/* does root not have inode number QNX4_ROOT_INO ?? */
+ 	/* does root yest have iyesde number QNX4_ROOT_INO ?? */
 	root = qnx4_iget(s, QNX4_ROOT_INO * QNX4_INODES_PER_BLOCK);
 	if (IS_ERR(root)) {
-		printk(KERN_ERR "qnx4: get inode failed\n");
+		printk(KERN_ERR "qnx4: get iyesde failed\n");
 		return PTR_ERR(root);
  	}
 
@@ -260,123 +260,123 @@ static const struct address_space_operations qnx4_aops = {
 	.bmap		= qnx4_bmap
 };
 
-struct inode *qnx4_iget(struct super_block *sb, unsigned long ino)
+struct iyesde *qnx4_iget(struct super_block *sb, unsigned long iyes)
 {
 	struct buffer_head *bh;
-	struct qnx4_inode_entry *raw_inode;
+	struct qnx4_iyesde_entry *raw_iyesde;
 	int block;
-	struct qnx4_inode_entry *qnx4_inode;
-	struct inode *inode;
+	struct qnx4_iyesde_entry *qnx4_iyesde;
+	struct iyesde *iyesde;
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
+	iyesde = iget_locked(sb, iyes);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(iyesde->i_state & I_NEW))
+		return iyesde;
 
-	qnx4_inode = qnx4_raw_inode(inode);
-	inode->i_mode = 0;
+	qnx4_iyesde = qnx4_raw_iyesde(iyesde);
+	iyesde->i_mode = 0;
 
-	QNX4DEBUG((KERN_INFO "reading inode : [%d]\n", ino));
-	if (!ino) {
-		printk(KERN_ERR "qnx4: bad inode number on dev %s: %lu is "
+	QNX4DEBUG((KERN_INFO "reading iyesde : [%d]\n", iyes));
+	if (!iyes) {
+		printk(KERN_ERR "qnx4: bad iyesde number on dev %s: %lu is "
 				"out of range\n",
-		       sb->s_id, ino);
-		iget_failed(inode);
+		       sb->s_id, iyes);
+		iget_failed(iyesde);
 		return ERR_PTR(-EIO);
 	}
-	block = ino / QNX4_INODES_PER_BLOCK;
+	block = iyes / QNX4_INODES_PER_BLOCK;
 
 	if (!(bh = sb_bread(sb, block))) {
-		printk(KERN_ERR "qnx4: major problem: unable to read inode from dev "
+		printk(KERN_ERR "qnx4: major problem: unable to read iyesde from dev "
 		       "%s\n", sb->s_id);
-		iget_failed(inode);
+		iget_failed(iyesde);
 		return ERR_PTR(-EIO);
 	}
-	raw_inode = ((struct qnx4_inode_entry *) bh->b_data) +
-	    (ino % QNX4_INODES_PER_BLOCK);
+	raw_iyesde = ((struct qnx4_iyesde_entry *) bh->b_data) +
+	    (iyes % QNX4_INODES_PER_BLOCK);
 
-	inode->i_mode    = le16_to_cpu(raw_inode->di_mode);
-	i_uid_write(inode, (uid_t)le16_to_cpu(raw_inode->di_uid));
-	i_gid_write(inode, (gid_t)le16_to_cpu(raw_inode->di_gid));
-	set_nlink(inode, le16_to_cpu(raw_inode->di_nlink));
-	inode->i_size    = le32_to_cpu(raw_inode->di_size);
-	inode->i_mtime.tv_sec   = le32_to_cpu(raw_inode->di_mtime);
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_atime.tv_sec   = le32_to_cpu(raw_inode->di_atime);
-	inode->i_atime.tv_nsec = 0;
-	inode->i_ctime.tv_sec   = le32_to_cpu(raw_inode->di_ctime);
-	inode->i_ctime.tv_nsec = 0;
-	inode->i_blocks  = le32_to_cpu(raw_inode->di_first_xtnt.xtnt_size);
+	iyesde->i_mode    = le16_to_cpu(raw_iyesde->di_mode);
+	i_uid_write(iyesde, (uid_t)le16_to_cpu(raw_iyesde->di_uid));
+	i_gid_write(iyesde, (gid_t)le16_to_cpu(raw_iyesde->di_gid));
+	set_nlink(iyesde, le16_to_cpu(raw_iyesde->di_nlink));
+	iyesde->i_size    = le32_to_cpu(raw_iyesde->di_size);
+	iyesde->i_mtime.tv_sec   = le32_to_cpu(raw_iyesde->di_mtime);
+	iyesde->i_mtime.tv_nsec = 0;
+	iyesde->i_atime.tv_sec   = le32_to_cpu(raw_iyesde->di_atime);
+	iyesde->i_atime.tv_nsec = 0;
+	iyesde->i_ctime.tv_sec   = le32_to_cpu(raw_iyesde->di_ctime);
+	iyesde->i_ctime.tv_nsec = 0;
+	iyesde->i_blocks  = le32_to_cpu(raw_iyesde->di_first_xtnt.xtnt_size);
 
-	memcpy(qnx4_inode, raw_inode, QNX4_DIR_ENTRY_SIZE);
-	if (S_ISREG(inode->i_mode)) {
-		inode->i_fop = &generic_ro_fops;
-		inode->i_mapping->a_ops = &qnx4_aops;
-		qnx4_i(inode)->mmu_private = inode->i_size;
-	} else if (S_ISDIR(inode->i_mode)) {
-		inode->i_op = &qnx4_dir_inode_operations;
-		inode->i_fop = &qnx4_dir_operations;
-	} else if (S_ISLNK(inode->i_mode)) {
-		inode->i_op = &page_symlink_inode_operations;
-		inode_nohighmem(inode);
-		inode->i_mapping->a_ops = &qnx4_aops;
-		qnx4_i(inode)->mmu_private = inode->i_size;
+	memcpy(qnx4_iyesde, raw_iyesde, QNX4_DIR_ENTRY_SIZE);
+	if (S_ISREG(iyesde->i_mode)) {
+		iyesde->i_fop = &generic_ro_fops;
+		iyesde->i_mapping->a_ops = &qnx4_aops;
+		qnx4_i(iyesde)->mmu_private = iyesde->i_size;
+	} else if (S_ISDIR(iyesde->i_mode)) {
+		iyesde->i_op = &qnx4_dir_iyesde_operations;
+		iyesde->i_fop = &qnx4_dir_operations;
+	} else if (S_ISLNK(iyesde->i_mode)) {
+		iyesde->i_op = &page_symlink_iyesde_operations;
+		iyesde_yeshighmem(iyesde);
+		iyesde->i_mapping->a_ops = &qnx4_aops;
+		qnx4_i(iyesde)->mmu_private = iyesde->i_size;
 	} else {
-		printk(KERN_ERR "qnx4: bad inode %lu on dev %s\n",
-			ino, sb->s_id);
-		iget_failed(inode);
+		printk(KERN_ERR "qnx4: bad iyesde %lu on dev %s\n",
+			iyes, sb->s_id);
+		iget_failed(iyesde);
 		brelse(bh);
 		return ERR_PTR(-EIO);
 	}
 	brelse(bh);
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_iyesde(iyesde);
+	return iyesde;
 }
 
-static struct kmem_cache *qnx4_inode_cachep;
+static struct kmem_cache *qnx4_iyesde_cachep;
 
-static struct inode *qnx4_alloc_inode(struct super_block *sb)
+static struct iyesde *qnx4_alloc_iyesde(struct super_block *sb)
 {
-	struct qnx4_inode_info *ei;
-	ei = kmem_cache_alloc(qnx4_inode_cachep, GFP_KERNEL);
+	struct qnx4_iyesde_info *ei;
+	ei = kmem_cache_alloc(qnx4_iyesde_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	return &ei->vfs_inode;
+	return &ei->vfs_iyesde;
 }
 
-static void qnx4_free_inode(struct inode *inode)
+static void qnx4_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(qnx4_inode_cachep, qnx4_i(inode));
+	kmem_cache_free(qnx4_iyesde_cachep, qnx4_i(iyesde));
 }
 
 static void init_once(void *foo)
 {
-	struct qnx4_inode_info *ei = (struct qnx4_inode_info *) foo;
+	struct qnx4_iyesde_info *ei = (struct qnx4_iyesde_info *) foo;
 
-	inode_init_once(&ei->vfs_inode);
+	iyesde_init_once(&ei->vfs_iyesde);
 }
 
-static int init_inodecache(void)
+static int init_iyesdecache(void)
 {
-	qnx4_inode_cachep = kmem_cache_create("qnx4_inode_cache",
-					     sizeof(struct qnx4_inode_info),
+	qnx4_iyesde_cachep = kmem_cache_create("qnx4_iyesde_cache",
+					     sizeof(struct qnx4_iyesde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
-	if (qnx4_inode_cachep == NULL)
+	if (qnx4_iyesde_cachep == NULL)
 		return -ENOMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_iyesdecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(qnx4_inode_cachep);
+	kmem_cache_destroy(qnx4_iyesde_cachep);
 }
 
 static struct dentry *qnx4_mount(struct file_system_type *fs_type,
@@ -398,13 +398,13 @@ static int __init init_qnx4_fs(void)
 {
 	int err;
 
-	err = init_inodecache();
+	err = init_iyesdecache();
 	if (err)
 		return err;
 
 	err = register_filesystem(&qnx4_fs_type);
 	if (err) {
-		destroy_inodecache();
+		destroy_iyesdecache();
 		return err;
 	}
 
@@ -415,7 +415,7 @@ static int __init init_qnx4_fs(void)
 static void __exit exit_qnx4_fs(void)
 {
 	unregister_filesystem(&qnx4_fs_type);
-	destroy_inodecache();
+	destroy_iyesdecache();
 }
 
 module_init(init_qnx4_fs)

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -822,7 +822,7 @@ bool dce100_validate_bandwidth(
 	}
 
 	if (at_least_one_pipe) {
-		/* TODO implement when needed but for now hardcode max value*/
+		/* TODO implement when needed but for yesw hardcode max value*/
 		context->bw_ctx.bw.dce.dispclk_khz = 681000;
 		context->bw_ctx.bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER_CZ;
 	} else {
@@ -925,13 +925,13 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 	 * below can happen in cases when stream encoder is acquired:
 	 * 1) for second MST display in chain, so preferred engine already
 	 * acquired;
-	 * 2) for another link, which preferred engine already acquired by any
+	 * 2) for ayesther link, which preferred engine already acquired by any
 	 * MST configuration.
 	 *
-	 * If signal is of DP type and preferred engine not found, return last available
+	 * If signal is of DP type and preferred engine yest found, return last available
 	 *
 	 * TODO - This is just a patch up and a generic solution is
-	 * required for non DP connectors.
+	 * required for yesn DP connectors.
 	 */
 
 	if (j >= 0 && link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT)

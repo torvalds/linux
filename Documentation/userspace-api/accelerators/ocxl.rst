@@ -11,7 +11,7 @@ the host memory coherently, using virtual addresses. An OpenCAPI
 device can also host its own memory, that can be accessed from the
 host.
 
-OpenCAPI is known in linux as 'ocxl', as the open, processor-agnostic
+OpenCAPI is kyeswn in linux as 'ocxl', as the open, processor-agyesstic
 evolution of 'cxl' (the driver for the IBM CAPI interface for
 powerpc), which was named that way to avoid confusion with the ISDN
 CAPI subsystem.
@@ -150,7 +150,7 @@ OCXL_IOCTL_IRQ_FREE:
 OCXL_IOCTL_IRQ_SET_FD:
 
   Associate an event fd to an AFU interrupt so that the user process
-  can be notified when the AFU sends an interrupt.
+  can be yestified when the AFU sends an interrupt.
 
 OCXL_IOCTL_GET_METADATA:
 

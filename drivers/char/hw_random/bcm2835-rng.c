@@ -139,7 +139,7 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 {
 	const struct bcm2835_rng_of_data *of_data;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct of_device_id *rng_id;
 	struct bcm2835_rng_priv *priv;
 	int err;
@@ -165,8 +165,8 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 	priv->rng.read = bcm2835_rng_read;
 	priv->rng.cleanup = bcm2835_rng_cleanup;
 
-	if (dev_of_node(dev)) {
-		rng_id = of_match_node(bcm2835_rng_of_match, np);
+	if (dev_of_yesde(dev)) {
+		rng_id = of_match_yesde(bcm2835_rng_of_match, np);
 		if (!rng_id)
 			return -EINVAL;
 

@@ -7,7 +7,7 @@
  *  Based on mach-pxa/gumstix.c
  *
  *  2007, 2008 Kristoffer Ericson <kristoffer.ericson@gmail.com>
- *  2007, 2008 Michael Petchkovsky <mkpetch@internode.on.net>
+ *  2007, 2008 Michael Petchkovsky <mkpetch@interyesde.on.net>
  */
 
 #include <linux/init.h>
@@ -87,7 +87,7 @@ static void __init mp900c_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
-/* Maintainer - Michael Petchkovsky <mkpetch@internode.on.net> */
+/* Maintainer - Michael Petchkovsky <mkpetch@interyesde.on.net> */
 MACHINE_START(NEC_MP900, "MobilePro900/C")
 	.atag_offset	= 0x220100,
 	.init_time	= pxa_timer_init,

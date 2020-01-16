@@ -131,9 +131,9 @@ static int get_all_munits(const struct munit *m)
 		case SAD:
 			/*
 			 * one of these devices per core, including cores
-			 * that don't exist on this SKU. Ignore any that
+			 * that don't exist on this SKU. Igyesre any that
 			 * read a route table of zero, make sure all the
-			 * non-zero values match.
+			 * yesn-zero values match.
 			 */
 			pci_read_config_dword(pdev, 0xB4, &reg);
 			if (reg != 0) {
@@ -309,7 +309,7 @@ sad_found:
 
 	tgt = GET_BITFIELD(ilv, 4 * idx, 4 * idx + 3);
 
-	/* If point to another node, find it and start over */
+	/* If point to ayesther yesde, find it and start over */
 	if (SKX_ILV_REMOTE(tgt)) {
 		if (remote) {
 			edac_dbg(0, "Double remote!\n");
@@ -320,7 +320,7 @@ sad_found:
 			if (d->imc[0].src_id == SKX_ILV_TARGET(tgt))
 				goto restart;
 		}
-		edac_dbg(0, "Can't find node %d\n", SKX_ILV_TARGET(tgt));
+		edac_dbg(0, "Can't find yesde %d\n", SKX_ILV_TARGET(tgt));
 		return false;
 	}
 
@@ -579,8 +579,8 @@ static bool skx_decode(struct decoded_addr *res)
 		skx_rir_decode(res) && skx_mad_decode(res);
 }
 
-static struct notifier_block skx_mce_dec = {
-	.notifier_call	= skx_mce_check_error,
+static struct yestifier_block skx_mce_dec = {
+	.yestifier_call	= skx_mce_check_error,
 	.priority	= MCE_PRIO_EDAC,
 };
 
@@ -599,7 +599,7 @@ static int debugfs_u64_set(void *data, u64 val)
 	pr_warn_once("Fake error to 0x%llx injected via debugfs\n", val);
 
 	memset(&m, 0, sizeof(m));
-	/* ADDRV + MemRd + Unknown channel */
+	/* ADDRV + MemRd + Unkyeswn channel */
 	m.status = MCI_STATUS_ADDRV + 0x90;
 	/* One corrected error */
 	m.status |= BIT_ULL(MCI_STATUS_CEC_SHIFT);
@@ -644,7 +644,7 @@ static int __init skx_init(void)
 	const struct munit *m;
 	const char *owner;
 	int rc = 0, i, off[3] = {0xd0, 0xd4, 0xd8};
-	u8 mc = 0, src_id, node_id;
+	u8 mc = 0, src_id, yesde_id;
 	struct skx_dev *d;
 
 	edac_dbg(2, "\n");
@@ -686,15 +686,15 @@ static int __init skx_init(void)
 		rc = skx_get_src_id(d, 0xf0, &src_id);
 		if (rc < 0)
 			goto fail;
-		rc = skx_get_node_id(d, &node_id);
+		rc = skx_get_yesde_id(d, &yesde_id);
 		if (rc < 0)
 			goto fail;
-		edac_dbg(2, "src_id=%d node_id=%d\n", src_id, node_id);
+		edac_dbg(2, "src_id=%d yesde_id=%d\n", src_id, yesde_id);
 		for (i = 0; i < SKX_NUM_IMC; i++) {
 			d->imc[i].mc = mc++;
 			d->imc[i].lmc = i;
 			d->imc[i].src_id = src_id;
-			d->imc[i].node_id = node_id;
+			d->imc[i].yesde_id = yesde_id;
 			rc = skx_register_mci(&d->imc[i], d->imc[i].chan[0].cdev,
 					      "Skylake Socket", EDAC_MOD_STR,
 					      skx_get_dimm_config);

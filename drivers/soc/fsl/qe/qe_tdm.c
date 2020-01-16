@@ -34,7 +34,7 @@ static void set_si_param(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info)
 	}
 }
 
-int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
+int ucc_of_parse_tdm(struct device_yesde *np, struct ucc_tdm *utdm,
 		     struct ucc_tdm_info *ut_info)
 {
 	const char *sprop;
@@ -212,7 +212,7 @@ void ucc_tdm_init(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info)
 		iowrite16be(sixmr, &si_regs->sixmr1[3]);
 		break;
 	default:
-		pr_err("QE-TDM: can not find tdm sixmr reg\n");
+		pr_err("QE-TDM: can yest find tdm sixmr reg\n");
 		break;
 	}
 }

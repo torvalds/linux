@@ -9,23 +9,23 @@ _DSD
 
 _DSD (Device Specific Data) [7] is a predefined ACPI device
 configuration object that can be used to convey information on
-hardware features which are not specifically covered by the ACPI
+hardware features which are yest specifically covered by the ACPI
 specification [1][6]. There are two _DSD extensions that are relevant
 for graphs: property [4] and hierarchical data extensions [5]. The
 property extension provides generic key-value pairs whereas the
-hierarchical data extension supports nodes with references to other
-nodes, forming a tree. The nodes in the tree may contain properties as
+hierarchical data extension supports yesdes with references to other
+yesdes, forming a tree. The yesdes in the tree may contain properties as
 defined by the property extension. The two extensions together provide
 a tree-like structure with zero or more properties (key-value pairs)
-in each node of the tree.
+in each yesde of the tree.
 
 The data structure may be accessed at runtime by using the device_*
-and fwnode_* functions defined in include/linux/fwnode.h .
+and fwyesde_* functions defined in include/linux/fwyesde.h .
 
-Fwnode represents a generic firmware node object. It is independent on
-the firmware type. In ACPI, fwnodes are _DSD hierarchical data
+Fwyesde represents a generic firmware yesde object. It is independent on
+the firmware type. In ACPI, fwyesdes are _DSD hierarchical data
 extensions objects. A device's _DSD object is represented by an
-fwnode.
+fwyesde.
 
 The data structure may be referenced to elsewhere in the ACPI tables
 by using a hard reference to the device itself and an index to the
@@ -39,16 +39,16 @@ The port and endpoint concepts are very similar to those in Devicetree
 [3]. A port represents an interface in a device, and an endpoint
 represents a connection to that interface.
 
-All port nodes are located under the device's "_DSD" node in the hierarchical
-data extension tree. The data extension related to each port node must begin
+All port yesdes are located under the device's "_DSD" yesde in the hierarchical
+data extension tree. The data extension related to each port yesde must begin
 with "port" and must be followed by the "@" character and the number of the
 port as its key. The target object it refers to should be called "PRTX", where
 "X" is the number of the port. An example of such a package would be::
 
     Package() { "port@4", "PRT4" }
 
-Further on, endpoints are located under the port nodes. The hierarchical
-data extension key of the endpoint nodes must begin with
+Further on, endpoints are located under the port yesdes. The hierarchical
+data extension key of the endpoint yesdes must begin with
 "endpoint" and must be followed by the "@" character and the number of the
 endpoint. The object it refers to should be called "EPXY", where "X" is the
 number of the port and "Y" is the number of the endpoint. An example of such a
@@ -56,7 +56,7 @@ package would be::
 
     Package() { "endpoint@0", "EP40" }
 
-Each port node contains a property extension key "port", the value of which is
+Each port yesde contains a property extension key "port", the value of which is
 the number of the port. Each endpoint is similarly numbered with a property
 extension key "reg", the value of which is the number of the endpoint. Port
 numbers must be unique within a device and endpoint numbers must be unique
@@ -76,7 +76,7 @@ In the above example, "X" is the number of the port and "Y" is the number of
 the endpoint.
 
 The references to endpoints must be always done both ways, to the
-remote endpoint and back from the referred remote endpoint node.
+remote endpoint and back from the referred remote endpoint yesde.
 
 A simple example of this is show below::
 
@@ -87,7 +87,7 @@ A simple example of this is show below::
 	    Name (_DSD, Package () {
 		ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
 		Package () {
-		    Package () { "compatible", Package () { "nokia,smia" } },
+		    Package () { "compatible", Package () { "yeskia,smia" } },
 		},
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {

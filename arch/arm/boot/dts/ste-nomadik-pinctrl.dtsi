@@ -2,10 +2,10 @@
 /*
  * Copyright 2012 ST-Ericsson
  */
-#include <dt-bindings/pinctrl/nomadik.h>
+#include <dt-bindings/pinctrl/yesmadik.h>
 
 / {
-	in_nopull: in_nopull {
+	in_yespull: in_yespull {
 		ste,input = <INPUT_NOPULL>;
 	};
 

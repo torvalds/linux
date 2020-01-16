@@ -5,7 +5,7 @@
 
   Copyright(C) 2011  STMicroelectronics Ltd
 
-  It defines all the functions used to handle the normal/enhanced
+  It defines all the functions used to handle the yesrmal/enhanced
   descriptors in case of the DMA is configured to work in chained or
   in ring mode.
 
@@ -73,7 +73,7 @@ static inline void ndesc_end_tx_desc_on_ring(struct dma_desc *p, int end)
 		p->des1 &= cpu_to_le32(~TDES1_END_RING);
 }
 
-static inline void norm_set_tx_desc_len_on_ring(struct dma_desc *p, int len)
+static inline void yesrm_set_tx_desc_len_on_ring(struct dma_desc *p, int len)
 {
 	if (unlikely(len > BUF_SIZE_2KiB)) {
 		unsigned int buffer1 = (BUF_SIZE_2KiB - 1)
@@ -114,7 +114,7 @@ static inline void ndesc_tx_set_on_chain(struct dma_desc *p)
 	p->des1 |= cpu_to_le32(TDES1_SECOND_ADDRESS_CHAINED);
 }
 
-static inline void norm_set_tx_desc_len_on_chain(struct dma_desc *p, int len)
+static inline void yesrm_set_tx_desc_len_on_chain(struct dma_desc *p, int len)
 {
 	p->des1 |= cpu_to_le32(len & TDES1_BUFFER1_SIZE_MASK);
 }

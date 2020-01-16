@@ -14,7 +14,7 @@
 #include <linux/timer.h>
 #include <linux/smp.h>
 #include <linux/mmzone.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/pm.h>
 
 #include <asm/io.h>
@@ -28,11 +28,11 @@
 
 #include "ip27-common.h"
 
-void machine_restart(char *command) __noreturn;
-void machine_halt(void) __noreturn;
-void machine_power_off(void) __noreturn;
+void machine_restart(char *command) __yesreturn;
+void machine_halt(void) __yesreturn;
+void machine_power_off(void) __yesreturn;
 
-#define noreturn while(1);				/* Silence gcc.	 */
+#define yesreturn while(1);				/* Silence gcc.	 */
 
 /* XXX How to pass the reboot command to the firmware??? */
 static void ip27_machine_restart(char *command)
@@ -46,12 +46,12 @@ static void ip27_machine_restart(char *command)
 	smp_send_stop();
 #endif
 #if 0
-	for_each_online_node(i)
+	for_each_online_yesde(i)
 		REMOTE_HUB_S(i, PROMOP_REG, PROMOP_REBOOT);
 #else
 	LOCAL_HUB_S(NI_PORT_RESET, NPR_PORTRESET | NPR_LOCALRESET);
 #endif
-	noreturn;
+	yesreturn;
 }
 
 static void ip27_machine_halt(void)
@@ -61,16 +61,16 @@ static void ip27_machine_halt(void)
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif
-	for_each_online_node(i)
+	for_each_online_yesde(i)
 		REMOTE_HUB_S(i, PROMOP_REG, PROMOP_RESTART);
 	LOCAL_HUB_S(NI_PORT_RESET, NPR_PORTRESET | NPR_LOCALRESET);
-	noreturn;
+	yesreturn;
 }
 
 static void ip27_machine_power_off(void)
 {
 	/* To do ...  */
-	noreturn;
+	yesreturn;
 }
 
 void ip27_reboot_setup(void)

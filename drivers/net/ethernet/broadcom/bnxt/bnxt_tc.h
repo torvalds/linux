@@ -93,7 +93,7 @@ struct bnxt_tc_actions {
 	struct {
 		bool src_xlate;  /* true => translate src,
 				  * false => translate dst
-				  * Mutually exclusive, i.e cannot set both
+				  * Mutually exclusive, i.e canyest set both
 				  */
 		bool l3_is_ipv4; /* false means L3 is ipv6 */
 		struct bnxt_tc_l3_key l3;
@@ -149,9 +149,9 @@ struct bnxt_tc_flow {
  * and the FW returned handle.
  * A separate table is maintained for encap and decap
  */
-struct bnxt_tc_tunnel_node {
+struct bnxt_tc_tunnel_yesde {
 	struct ip_tunnel_key		key;
-	struct rhash_head		node;
+	struct rhash_head		yesde;
 
 	/* tunnel l2 info */
 	struct bnxt_tc_l2_key		l2_info;
@@ -171,11 +171,11 @@ struct bnxt_tc_tunnel_node {
  * already existing flow/tunnel must refer to it's flow handle or
  * decap_filter_id respectively.
  */
-struct bnxt_tc_l2_node {
+struct bnxt_tc_l2_yesde {
 	/* hash key: first 16b of key */
 #define BNXT_TC_L2_KEY_LEN			16
 	struct bnxt_tc_l2_key	key;
-	struct rhash_head	node;
+	struct rhash_head	yesde;
 
 	/* a linked list of flows that share the same l2 key */
 	struct list_head	common_l2_flows;
@@ -186,10 +186,10 @@ struct bnxt_tc_l2_node {
 	struct rcu_head		rcu;
 };
 
-struct bnxt_tc_flow_node {
+struct bnxt_tc_flow_yesde {
 	/* hash key: provided by TC */
 	unsigned long			cookie;
-	struct rhash_head		node;
+	struct rhash_head		yesde;
 
 	struct bnxt_tc_flow		flow;
 
@@ -197,20 +197,20 @@ struct bnxt_tc_flow_node {
 	__le16				flow_handle;
 	__le32				flow_id;
 
-	/* L2 node in l2 hashtable that shares flow's l2 key */
-	struct bnxt_tc_l2_node		*l2_node;
-	/* for the shared_flows list maintained in l2_node */
-	struct list_head		l2_list_node;
+	/* L2 yesde in l2 hashtable that shares flow's l2 key */
+	struct bnxt_tc_l2_yesde		*l2_yesde;
+	/* for the shared_flows list maintained in l2_yesde */
+	struct list_head		l2_list_yesde;
 
 	/* tunnel encap related */
-	struct bnxt_tc_tunnel_node	*encap_node;
+	struct bnxt_tc_tunnel_yesde	*encap_yesde;
 
 	/* tunnel decap related */
-	struct bnxt_tc_tunnel_node	*decap_node;
-	/* L2 node in tunnel-l2 hashtable that shares flow's tunnel l2 key */
-	struct bnxt_tc_l2_node		*decap_l2_node;
-	/* for the shared_flows list maintained in tunnel decap l2_node */
-	struct list_head		decap_l2_list_node;
+	struct bnxt_tc_tunnel_yesde	*decap_yesde;
+	/* L2 yesde in tunnel-l2 hashtable that shares flow's tunnel l2 key */
+	struct bnxt_tc_l2_yesde		*decap_l2_yesde;
+	/* for the shared_flows list maintained in tunnel decap l2_yesde */
+	struct list_head		decap_l2_list_yesde;
 
 	struct rcu_head			rcu;
 };

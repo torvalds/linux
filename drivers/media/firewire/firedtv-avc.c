@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * FireDTV driver (formerly known as FireSAT)
+ * FireDTV driver (formerly kyeswn as FireSAT)
  *
  * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
  * Copyright (C) 2008 Ben Backx <ben@bbackx.com>
@@ -114,7 +114,7 @@ static void pad_operands(struct avc_command_frame *c, int from)
 
 static int avc_debug;
 module_param_named(debug, avc_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Verbose logging (none = 0"
+MODULE_PARM_DESC(debug, "Verbose logging (yesne = 0"
 	", FCP subactions"
 	": READ DESCRIPTOR = "		__stringify(AVC_DEBUG_READ_DESCRIPTOR)
 	", DSIT = "			__stringify(AVC_DEBUG_DSIT)
@@ -129,8 +129,8 @@ MODULE_PARM_DESC(debug, "Verbose logging (none = 0"
 	", or a combination, or all = -1)");
 
 /*
- * This is a workaround since there is no vendor specific command to retrieve
- * ca_info using AVC. If this parameter is not used, ca_system_id will be
+ * This is a workaround since there is yes vendor specific command to retrieve
+ * ca_info using AVC. If this parameter is yest used, ca_system_id will be
  * filled with application_manufacturer from ca_app_info.
  * Digital Everywhere have said that adding ca_info is on their TODO list.
  */
@@ -138,7 +138,7 @@ static unsigned int num_fake_ca_system_ids;
 static int fake_ca_system_ids[4] = { -1, -1, -1, -1 };
 module_param_array(fake_ca_system_ids, int, &num_fake_ca_system_ids, 0644);
 MODULE_PARM_DESC(fake_ca_system_ids, "If your CAM application manufacturer "
-		 "does not have the same ca_system_id as your CAS, you can "
+		 "does yest have the same ca_system_id as your CAS, you can "
 		 "override what ca_system_ids are presented to the "
 		 "application by setting this field to an array of ids.");
 
@@ -172,14 +172,14 @@ static const char *debug_fcp_opcode(unsigned int opcode,
 	case AVC_OPCODE_DSD:
 		return avc_debug & AVC_DEBUG_DSD ? "DirectSelectData" : NULL;
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 
 	if (length < 7 ||
 	    data[3] != SFE_VENDOR_DE_COMPANYID_0 ||
 	    data[4] != SFE_VENDOR_DE_COMPANYID_1 ||
 	    data[5] != SFE_VENDOR_DE_COMPANYID_2)
-		return "Vendor/Unknown";
+		return "Vendor/Unkyeswn";
 
 	switch (data[6]) {
 	case SFE_VENDOR_OPCODE_REGISTER_REMOTE_CONTROL:
@@ -196,7 +196,7 @@ static const char *debug_fcp_opcode(unsigned int opcode,
 	case SFE_VENDOR_OPCODE_CA2HOST:
 		return avc_debug & AVC_DEBUG_CA2HOST ? "CA2Host" : NULL;
 	}
-	return "Vendor/Unknown";
+	return "Vendor/Unkyeswn";
 }
 
 static void debug_fcp(const u8 *data, int length)
@@ -293,7 +293,7 @@ int avc_recv(struct firedtv *fdtv, void *data, size_t length)
 	}
 
 	if (fdtv->avc_reply_received) {
-		dev_err(fdtv->device, "out-of-order AVC response, ignored\n");
+		dev_err(fdtv->device, "out-of-order AVC response, igyesred\n");
 		return -EIO;
 	}
 
@@ -328,7 +328,7 @@ static int add_pid_filter(struct firedtv *fdtv, u8 *operand)
 
 /*
  * tuning command for setting the relative LNB frequency
- * (not supported by the AVC standard)
+ * (yest supported by the AVC standard)
  */
 static int avc_tuner_tuneqpsk(struct firedtv *fdtv,
 			      struct dtv_frontend_properties *p)
@@ -519,7 +519,7 @@ static int avc_tuner_dsd_dvb_t(struct firedtv *fdtv,
 	switch (p->bandwidth_hz) {
 	case 7000000:	c->operand[12] = 0x20; break;
 	case 8000000:
-	case 6000000:	/* not defined by AVC spec */
+	case 6000000:	/* yest defined by AVC spec */
 	case 0:
 	default:		c->operand[12] = 0x00;
 	}
@@ -735,7 +735,7 @@ int avc_identify_subunit(struct firedtv *fdtv)
 	if ((r->response != AVC_RESPONSE_STABLE &&
 	     r->response != AVC_RESPONSE_ACCEPTED) ||
 	    (r->operand[3] << 8) + r->operand[4] != 8) {
-		dev_err(fdtv->device, "cannot read subunit identifier\n");
+		dev_err(fdtv->device, "canyest read subunit identifier\n");
 		ret = -EINVAL;
 	}
 out:
@@ -774,7 +774,7 @@ int avc_tuner_status(struct firedtv *fdtv, struct firedtv_tuner_status *stat)
 
 	if (r->response != AVC_RESPONSE_STABLE &&
 	    r->response != AVC_RESPONSE_ACCEPTED) {
-		dev_err(fdtv->device, "cannot read tuner status\n");
+		dev_err(fdtv->device, "canyest read tuner status\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -789,7 +789,7 @@ int avc_tuner_status(struct firedtv *fdtv, struct firedtv_tuner_status *stat)
 	stat->active_system		= r->operand[10];
 	stat->searching			= r->operand[11] >> 7 & 1;
 	stat->moving			= r->operand[11] >> 6 & 1;
-	stat->no_rf			= r->operand[11] >> 5 & 1;
+	stat->yes_rf			= r->operand[11] >> 5 & 1;
 	stat->input			= r->operand[12] >> 7 & 1;
 	stat->selected_antenna		= r->operand[12] & 0x7f;
 	stat->ber			= r->operand[13] << 24 |
@@ -806,7 +806,7 @@ int avc_tuner_status(struct firedtv *fdtv, struct firedtv_tuner_status *stat)
 	stat->antenna_error		= r->operand[22] >> 3 & 1;
 	stat->front_end_power_status	= r->operand[22] >> 1 & 1;
 	stat->power_supply		= r->operand[22] & 1;
-	stat->carrier_noise_ratio	= r->operand[23] << 8 |
+	stat->carrier_yesise_ratio	= r->operand[23] << 8 |
 					  r->operand[24];
 	stat->power_supply_voltage	= r->operand[27];
 	stat->antenna_voltage		= r->operand[28];
@@ -1387,12 +1387,12 @@ repeat:
 
 	if (get_opcr_p2p_connections(*opcr)) {
 		if (get_opcr_channel(*opcr) != channel) {
-			dev_err(fdtv->device, "CMP: cannot change channel\n");
+			dev_err(fdtv->device, "CMP: canyest change channel\n");
 			return -EBUSY;
 		}
 		dev_info(fdtv->device, "CMP: overlaying connection\n");
 
-		/* We don't allocate isochronous resources. */
+		/* We don't allocate isochroyesus resources. */
 	} else {
 		set_opcr_channel(opcr, channel);
 		set_opcr_data_rate(opcr, 2); /* S400 */
@@ -1400,7 +1400,7 @@ repeat:
 		/* FIXME: this is for the worst case - optimize */
 		set_opcr_overhead_id(opcr, 0);
 
-		/* FIXME: allocate isochronous channel and bandwidth at IRM */
+		/* FIXME: allocate isochroyesus channel and bandwidth at IRM */
 	}
 
 	set_opcr_p2p_connections(opcr, get_opcr_p2p_connections(*opcr) + 1);
@@ -1415,7 +1415,7 @@ repeat:
 	if (old_opcr != *opcr) {
 		/*
 		 * FIXME: if old_opcr.P2P_Connections > 0,
-		 * deallocate isochronous channel and bandwidth at IRM
+		 * deallocate isochroyesus channel and bandwidth at IRM
 		 */
 
 		if (++attempts < 6) /* arbitrary limit */
@@ -1438,7 +1438,7 @@ void cmp_break_pp_connection(struct firedtv *fdtv, int plug, int channel)
 repeat:
 	if (!get_opcr_online(*opcr) || !get_opcr_p2p_connections(*opcr) ||
 	    get_opcr_channel(*opcr) != channel) {
-		dev_err(fdtv->device, "CMP: no connection to break\n");
+		dev_err(fdtv->device, "CMP: yes connection to break\n");
 		return;
 	}
 
@@ -1454,7 +1454,7 @@ repeat:
 	if (old_opcr != *opcr) {
 		/*
 		 * FIXME: if old_opcr.P2P_Connections == 1, i.e. we were last
-		 * owner, deallocate isochronous channel and bandwidth at IRM
+		 * owner, deallocate isochroyesus channel and bandwidth at IRM
 		 * if (...)
 		 *	fdtv->backend->dealloc_resources(fdtv, channel, bw);
 		 */

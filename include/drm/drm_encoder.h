@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -43,7 +43,7 @@ struct drm_encoder_funcs {
 	 *
 	 * Reset encoder hardware and software state to off. This function isn't
 	 * called by the core directly, only through drm_mode_config_reset().
-	 * It's not a helper hook only for historical reasons.
+	 * It's yest a helper hook only for historical reasons.
 	 */
 	void (*reset)(struct drm_encoder *encoder);
 
@@ -51,7 +51,7 @@ struct drm_encoder_funcs {
 	 * @destroy:
 	 *
 	 * Clean up encoder resources. This is only called at driver unload time
-	 * through drm_mode_config_cleanup() since an encoder cannot be
+	 * through drm_mode_config_cleanup() since an encoder canyest be
 	 * hotplugged in DRM.
 	 */
 	void (*destroy)(struct drm_encoder *encoder);
@@ -145,7 +145,7 @@ struct drm_encoder {
 	 * In reality almost every driver gets this wrong.
 	 *
 	 * Note that since CRTC objects can't be hotplugged the assigned indices
-	 * are stable and hence known before registering all objects.
+	 * are stable and hence kyeswn before registering all objects.
 	 */
 	uint32_t possible_crtcs;
 
@@ -157,17 +157,17 @@ struct drm_encoder {
 	 * drm_dev_register(). Drivers should set the bit representing the
 	 * encoder itself, too. Cloning bits should be set such that when two
 	 * encoders can be used in a cloned configuration, they both should have
-	 * each another bits set.
+	 * each ayesther bits set.
 	 *
 	 * In reality almost every driver gets this wrong.
 	 *
 	 * Note that since encoder objects can't be hotplugged the assigned indices
-	 * are stable and hence known before registering all objects.
+	 * are stable and hence kyeswn before registering all objects.
 	 */
 	uint32_t possible_clones;
 
 	/**
-	 * @crtc: Currently bound CRTC, only really meaningful for non-atomic
+	 * @crtc: Currently bound CRTC, only really meaningful for yesn-atomic
 	 * drivers.  Atomic drivers should instead check
 	 * &drm_connector_state.crtc.
 	 */

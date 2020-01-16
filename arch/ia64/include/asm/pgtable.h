@@ -35,7 +35,7 @@
 #define _PAGE_MA_UC		(0x4 <<  2)	/* uncacheable memory attribute */
 #define _PAGE_MA_UCE		(0x5 <<  2)	/* UC exported attribute */
 #define _PAGE_MA_WC		(0x6 <<  2)	/* write coalescing memory attribute */
-#define _PAGE_MA_NAT		(0x7 <<  2)	/* not-a-thing attribute */
+#define _PAGE_MA_NAT		(0x7 <<  2)	/* yest-a-thing attribute */
 #define _PAGE_MA_MASK		(0x7 <<  2)
 #define _PAGE_PL_0		(0 <<  7)	/* privilege level 0 (kernel) */
 #define _PAGE_PL_1		(1 <<  7)	/* privilege level 1 (unused) */
@@ -131,7 +131,7 @@
 #define FIRST_USER_ADDRESS	0UL
 
 /*
- * All the normal masks have the "page accessed" bits on, as any time
+ * All the yesrmal masks have the "page accessed" bits on, as any time
  * they are used, the page is accessed. They are cleared only by the
  * page-out routines.
  */
@@ -206,9 +206,9 @@ ia64_phys_addr_valid (unsigned long addr)
  * PAGE_OFFSET.  This operation can be relatively expensive (e.g.,
  * require a hash-, or multi-level tree-lookup or something of that
  * sort) but it guarantees to return TRUE only if accessing the page
- * at that address does not cause an error.  Note that there may be
+ * at that address does yest cause an error.  Note that there may be
  * addresses for which kern_addr_valid() returns FALSE even though an
- * access would not cause an error (e.g., this is typically true for
+ * access would yest cause an error (e.g., this is typically true for
  * memory mapped I/O regions.
  *
  * XXX Need to implement this for IA-64.
@@ -262,20 +262,20 @@ extern unsigned long VMALLOC_END;
 #define pte_modify(_pte, newprot) \
 	(__pte((pte_val(_pte) & ~_PAGE_CHG_MASK) | (pgprot_val(newprot) & _PAGE_CHG_MASK)))
 
-#define pte_none(pte) 			(!pte_val(pte))
+#define pte_yesne(pte) 			(!pte_val(pte))
 #define pte_present(pte)		(pte_val(pte) & (_PAGE_P | _PAGE_PROTNONE))
 #define pte_clear(mm,addr,pte)		(pte_val(*(pte)) = 0UL)
 /* pte_page() returns the "struct page *" corresponding to the PTE: */
 #define pte_page(pte)			virt_to_page(((pte_val(pte) & _PFN_MASK) + PAGE_OFFSET))
 
-#define pmd_none(pmd)			(!pmd_val(pmd))
+#define pmd_yesne(pmd)			(!pmd_val(pmd))
 #define pmd_bad(pmd)			(!ia64_phys_addr_valid(pmd_val(pmd)))
 #define pmd_present(pmd)		(pmd_val(pmd) != 0UL)
 #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0UL)
 #define pmd_page_vaddr(pmd)		((unsigned long) __va(pmd_val(pmd) & _PFN_MASK))
 #define pmd_page(pmd)			virt_to_page((pmd_val(pmd) + PAGE_OFFSET))
 
-#define pud_none(pud)			(!pud_val(pud))
+#define pud_yesne(pud)			(!pud_val(pud))
 #define pud_bad(pud)			(!ia64_phys_addr_valid(pud_val(pud)))
 #define pud_present(pud)		(pud_val(pud) != 0UL)
 #define pud_clear(pudp)			(pud_val(*(pudp)) = 0UL)
@@ -283,7 +283,7 @@ extern unsigned long VMALLOC_END;
 #define pud_page(pud)			virt_to_page((pud_val(pud) + PAGE_OFFSET))
 
 #if CONFIG_PGTABLE_LEVELS == 4
-#define pgd_none(pgd)			(!pgd_val(pgd))
+#define pgd_yesne(pgd)			(!pgd_val(pgd))
 #define pgd_bad(pgd)			(!ia64_phys_addr_valid(pgd_val(pgd)))
 #define pgd_present(pgd)		(pgd_val(pgd) != 0UL)
 #define pgd_clear(pgdp)			(pgd_val(*(pgdp)) = 0UL)
@@ -314,7 +314,7 @@ extern unsigned long VMALLOC_END;
 #define pte_mkspecial(pte)	(pte)
 
 /*
- * Because ia64's Icache and Dcache is not coherent (on a cpu), we need to
+ * Because ia64's Icache and Dcache is yest coherent (on a cpu), we need to
  * sync icache and dcache when we insert *new* executable page.
  *  __ia64_sync_icache_dcache() check Pg_arch_1 bit and flush icache
  * if necessary.
@@ -345,12 +345,12 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 
 /*
  * Make page protection values cacheable, uncacheable, or write-
- * combining.  Note that "protection" is really a misnomer here as the
+ * combining.  Note that "protection" is really a misyesmer here as the
  * protection value contains the memory attribute bits, dirty bits, and
  * various other bits as well.
  */
 #define pgprot_cacheable(prot)		__pgprot((pgprot_val(prot) & ~_PAGE_MA_MASK) | _PAGE_MA_WB)
-#define pgprot_noncached(prot)		__pgprot((pgprot_val(prot) & ~_PAGE_MA_MASK) | _PAGE_MA_UC)
+#define pgprot_yesncached(prot)		__pgprot((pgprot_val(prot) & ~_PAGE_MA_MASK) | _PAGE_MA_UC)
 #define pgprot_writecombine(prot)	__pgprot((pgprot_val(prot) & ~_PAGE_MA_MASK) | _PAGE_MA_WC)
 
 struct file;
@@ -375,8 +375,8 @@ pgd_offset (const struct mm_struct *mm, unsigned long address)
 	return mm->pgd + pgd_index(address);
 }
 
-/* In the kernel's mapped region we completely ignore the region number
-   (since we know it's in region number 5). */
+/* In the kernel's mapped region we completely igyesre the region number
+   (since we kyesw it's in region number 5). */
 #define pgd_offset_k(addr) \
 	(init_mm.pgd + (((addr) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1)))
 
@@ -501,7 +501,7 @@ extern struct page *zero_page_memmap_ptr;
 /*
  * Update PTEP with ENTRY, which is guaranteed to be a less
  * restrictive PTE.  That is, ENTRY may have the ACCESSED, DIRTY, and
- * WRITABLE bits turned on, when the value at PTEP did not.  The
+ * WRITABLE bits turned on, when the value at PTEP did yest.  The
  * WRITABLE bit may only be turned if SAFELY_WRITABLE is TRUE.
  *
  * SAFELY_WRITABLE is TRUE if we can update the value at PTEP without
@@ -552,7 +552,7 @@ extern struct page *zero_page_memmap_ptr;
 /*
  * Identity-mapped regions use a large page size.  We'll call such large pages
  * "granules".  If you can think of a better name that's unambiguous, let me
- * know...
+ * kyesw...
  */
 #if defined(CONFIG_IA64_GRANULE_64MB)
 # define IA64_GRANULE_SHIFT	_PAGE_SIZE_64M
@@ -583,7 +583,7 @@ extern struct page *zero_page_memmap_ptr;
 
 #if CONFIG_PGTABLE_LEVELS == 3
 #define __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 #endif
 #include <asm-generic/5level-fixup.h>
 #include <asm-generic/pgtable.h>

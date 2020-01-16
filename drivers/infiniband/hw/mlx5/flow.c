@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2018, Mellayesx Techyeslogies inc.  All rights reserved.
  */
 
 #include <rdma/ib_user_verbs.h>
@@ -256,7 +256,7 @@ static int mlx5_ib_matcher_ns(struct uverbs_attr_bundle *attrs,
 	int err;
 
 	/* New users should use MLX5_IB_ATTR_FLOW_MATCHER_FT_TYPE and older
-	 * users should switch to it. We leave this to not break userspace
+	 * users should switch to it. We leave this to yest break userspace
 	 */
 	if (uverbs_attr_is_valid(attrs, MLX5_IB_ATTR_FLOW_MATCHER_FT_TYPE) &&
 	    uverbs_attr_is_valid(attrs, MLX5_IB_ATTR_FLOW_MATCHER_FLOW_FLAGS))

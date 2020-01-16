@@ -93,7 +93,7 @@ struct bcmgenet_rx_counters {
 	u32	fcs;		/* RO # of Received FCS error  */
 	u32	cf;		/* RO # of Received control frame pkt*/
 	u32	pf;		/* RO # of Received pause frame pkt */
-	u32	uo;		/* RO # of unknown op code pkt */
+	u32	uo;		/* RO # of unkyeswn op code pkt */
 	u32	aln;		/* RO # of alignment error count */
 	u32	flr;		/* RO # of frame length out of range count */
 	u32	cde;		/* RO # of code error pkt */
@@ -548,7 +548,7 @@ struct bcmgenet_hw_params {
 struct bcmgenet_skb_cb {
 	struct enet_cb *first_cb;	/* First control block of SKB */
 	struct enet_cb *last_cb;	/* Last control block of SKB */
-	unsigned int bytes_sent;	/* bytes on the wire (no TSB) */
+	unsigned int bytes_sent;	/* bytes on the wire (yes TSB) */
 };
 
 #define GENET_CB(skb)	((struct bcmgenet_skb_cb *)((skb)->cb))
@@ -631,8 +631,8 @@ struct bcmgenet_priv {
 	/* MDIO bus variables */
 	wait_queue_head_t wq;
 	bool internal_phy;
-	struct device_node *phy_dn;
-	struct device_node *mdio_dn;
+	struct device_yesde *phy_dn;
+	struct device_yesde *mdio_dn;
 	struct mii_bus *mii_bus;
 	u16 gphy_rev;
 	struct clk *clk_eee;

@@ -12,7 +12,7 @@
 #include <linux/cred.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hash.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/gss_api.h>
@@ -174,7 +174,7 @@ rpcauth_put_authops(const struct rpc_authops *ops)
  *
  * Verifies that an appropriate kernel module is available or already loaded.
  * Returns an equivalent pseudoflavor, or RPC_AUTH_MAXFLAVOR if "flavor" is
- * not supported locally.
+ * yest supported locally.
  */
 rpc_authflavor_t
 rpcauth_get_pseudoflavor(rpc_authflavor_t flavor, struct rpcsec_gss_info *info)
@@ -226,9 +226,9 @@ EXPORT_SYMBOL_GPL(rpcauth_get_gssinfo);
  * @array: array to fill in
  * @size: size of "array"
  *
- * Returns the number of array items filled in, or a negative errno.
+ * Returns the number of array items filled in, or a negative erryes.
  *
- * The returned array is not sorted by any policy.  Callers should not
+ * The returned array is yest sorted by any policy.  Callers should yest
  * rely on the order of the items in the returned array.
  */
 int
@@ -344,18 +344,18 @@ rpcauth_init_credcache(struct rpc_auth *auth)
 
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
-		goto out_nocache;
+		goto out_yescache;
 	new->hashbits = auth_hashbits;
 	hashsize = 1U << new->hashbits;
 	new->hashtable = kcalloc(hashsize, sizeof(new->hashtable[0]), GFP_KERNEL);
 	if (!new->hashtable)
-		goto out_nohashtbl;
+		goto out_yeshashtbl;
 	spin_lock_init(&new->lock);
 	auth->au_credcache = new;
 	return 0;
-out_nohashtbl:
+out_yeshashtbl:
 	kfree(new);
-out_nocache:
+out_yescache:
 	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_credcache);
@@ -424,7 +424,7 @@ rpcauth_lru_remove(struct rpc_cred *cred)
 
 /*
  * Clear the RPC credential cache, and delete those credentials
- * that are not referenced.
+ * that are yest referenced.
  */
 void
 rpcauth_clear_credcache(struct rpc_cred_cache *cache)
@@ -442,7 +442,7 @@ rpcauth_clear_credcache(struct rpc_cred_cache *cache)
 		while (!hlist_empty(head)) {
 			cred = hlist_entry(head->first, struct rpc_cred, cr_hash);
 			rpcauth_unhash_cred_locked(cred);
-			/* Note: We now hold a reference to cred */
+			/* Note: We yesw hold a reference to cred */
 			rpcauth_lru_remove_locked(cred);
 			list_add_tail(&cred->cr_lru, &free);
 		}
@@ -530,7 +530,7 @@ rpcauth_cache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 	if ((sc->gfp_mask & GFP_KERNEL) != GFP_KERNEL)
 		return SHRINK_STOP;
 
-	/* nothing left, don't come back */
+	/* yesthing left, don't come back */
 	if (list_empty(&cred_unused))
 		return SHRINK_STOP;
 
@@ -766,7 +766,7 @@ EXPORT_SYMBOL_GPL(put_rpccred);
  *
  * On success, an appropriate verifier is added to @xdr, @xdr is
  * updated to point past the verifier, and zero is returned.
- * Otherwise, @xdr is in an undefined state and a negative errno
+ * Otherwise, @xdr is in an undefined state and a negative erryes
  * is returned.
  */
 int rpcauth_marshcred(struct rpc_task *task, struct xdr_stream *xdr)
@@ -800,7 +800,7 @@ EXPORT_SYMBOL_GPL(rpcauth_wrap_req_encode);
  *
  * On success, @xdr contains the encoded and wrapped message,
  * and zero is returned. Otherwise, @xdr is in an undefined
- * state and a negative errno is returned.
+ * state and a negative erryes is returned.
  */
 int rpcauth_wrap_req(struct rpc_task *task, struct xdr_stream *xdr)
 {
@@ -816,7 +816,7 @@ int rpcauth_wrap_req(struct rpc_task *task, struct xdr_stream *xdr)
  *
  * On success, @xdr is updated to point past the verifier and
  * zero is returned. Otherwise, @xdr is in an undefined state
- * and a negative errno is returned.
+ * and a negative erryes is returned.
  */
 int
 rpcauth_checkverf(struct rpc_task *task, struct xdr_stream *xdr)
@@ -831,7 +831,7 @@ rpcauth_checkverf(struct rpc_task *task, struct xdr_stream *xdr)
  * @task: controlling RPC task
  * @xdr: stream where the Reply message resides
  *
- * Returns zero on success; otherwise a negative errno is returned.
+ * Returns zero on success; otherwise a negative erryes is returned.
  */
 int
 rpcauth_unwrap_resp_decode(struct rpc_task *task, struct xdr_stream *xdr)
@@ -847,7 +847,7 @@ EXPORT_SYMBOL_GPL(rpcauth_unwrap_resp_decode);
  * @task: controlling RPC task
  * @xdr: stream where the Reply message resides
  *
- * Returns zero on success; otherwise a negative errno is returned.
+ * Returns zero on success; otherwise a negative erryes is returned.
  */
 int
 rpcauth_unwrap_resp(struct rpc_task *task, struct xdr_stream *xdr)

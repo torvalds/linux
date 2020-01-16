@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2017 Sanechips Technology Co., Ltd.
+ * Copyright (C) 2017 Sanechips Techyeslogy Co., Ltd.
  * Copyright 2017 Linaro Ltd.
  */
 
@@ -48,8 +48,8 @@ static void zx_irdec_set_mask(struct zx_irdec *irdec, unsigned int reg,
 static irqreturn_t zx_irdec_irq(int irq, void *dev_id)
 {
 	struct zx_irdec *irdec = dev_id;
-	u8 address, not_address;
-	u8 command, not_command;
+	u8 address, yest_address;
+	u8 command, yest_command;
 	u32 rawcode, scancode;
 	enum rc_proto rc_proto;
 
@@ -63,13 +63,13 @@ static irqreturn_t zx_irdec_irq(int irq, void *dev_id)
 	}
 
 	rawcode = readl(irdec->base + ZX_IR_CODE);
-	not_command = (rawcode >> 24) & 0xff;
+	yest_command = (rawcode >> 24) & 0xff;
 	command = (rawcode >> 16) & 0xff;
-	not_address = (rawcode >> 8) & 0xff;
+	yest_address = (rawcode >> 8) & 0xff;
 	address = rawcode & 0xff;
 
-	scancode = ir_nec_bytes_to_scancode(address, not_address,
-					    command, not_command,
+	scancode = ir_nec_bytes_to_scancode(address, yest_address,
+					    command, yest_command,
 					    &rc_proto);
 	rc_keydown(irdec->rcd, rc_proto, scancode, 0);
 

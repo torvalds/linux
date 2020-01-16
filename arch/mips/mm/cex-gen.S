@@ -18,13 +18,13 @@
  * legislation.
  */
 	LEAF(except_vec2_generic)
-	.set	noreorder
-	.set	noat
+	.set	yesreorder
+	.set	yesat
 	.set	mips0
 	/*
 	 * This is a very bad place to be.  Our cache error
 	 * detection has triggered.  If we have write-back data
-	 * in the cache, we may not be able to recover.	 As a
+	 * in the cache, we may yest be able to recover.	 As a
 	 * first-order desperate measure, turn off KSEG0 cacheing.
 	 */
 	mfc0	k0,CP0_CONFIG
@@ -33,10 +33,10 @@
 	ori	k0,k0,CONF_CM_UNCACHED
 	mtc0	k0,CP0_CONFIG
 	/* Give it a few cycles to sink in... */
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
 
 	j	cache_parity_error
-	nop
+	yesp
 	END(except_vec2_generic)

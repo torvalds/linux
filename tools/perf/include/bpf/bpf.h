@@ -15,7 +15,7 @@ struct bpf_map {
         unsigned int max_entries;
         unsigned int map_flags;
         unsigned int inner_map_idx;
-        unsigned int numa_node;
+        unsigned int numa_yesde;
 };
 
 #define bpf_map(name, _type, type_key, type_val, _max_entries)	\
@@ -38,7 +38,7 @@ struct ____btf_map_##name __attribute__((section(".maps." #name), used)) \
  *	  prevents other BPF constructs, such as tracepoint handlers,
  *	  to get installed, with cryptic messages from libbpf, etc.
  *	  For the current need, 'perf trace --filter-pids', 64 should
- *	  be good enough, but this surely needs to be revisited.
+ *	  be good eyesugh, but this surely needs to be revisited.
  */
 #define pid_map(name, value_type) bpf_map(name, HASH, pid_t, value_type, 64)
 

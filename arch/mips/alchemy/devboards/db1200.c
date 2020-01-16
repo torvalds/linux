@@ -334,7 +334,7 @@ static struct platform_device db1200_ide_dev = {
  */
 static irqreturn_t db1200_mmc_cd(int irq, void *ptr)
 {
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	return IRQ_WAKE_THREAD;
 }
 
@@ -425,7 +425,7 @@ static struct led_classdev db1200_mmc_led = {
 
 static irqreturn_t pb1200_mmc1_cd(int irq, void *ptr)
 {
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	return IRQ_WAKE_THREAD;
 }
 
@@ -789,7 +789,7 @@ static int __init pb1200_res_fixup(void)
 		printk(KERN_ERR "WARNING!!!\n");
 		printk(KERN_ERR "PB1200 must be at CPLD rev 4. Please have\n");
 		printk(KERN_ERR "the board updated to latest revisions.\n");
-		printk(KERN_ERR "This software will not work reliably\n");
+		printk(KERN_ERR "This software will yest work reliably\n");
 		printk(KERN_ERR "on anything older than CPLD rev 4.!\n");
 		printk(KERN_ERR "WARNING!!!\n");
 		printk(KERN_ERR "WARNING!!!\n");
@@ -843,7 +843,7 @@ int __init db1200_dev_setup(void)
 	}
 
 	/* insert/eject pairs: one of both is always screaming.	 To avoid
-	 * issues they must not be automatically enabled when initially
+	 * issues they must yest be automatically enabled when initially
 	 * requested.
 	 */
 	irq_set_status_flags(DB1200_SD0_INSERT_INT, IRQ_NOAUTOEN);
@@ -939,7 +939,7 @@ int __init db1200_dev_setup(void)
 		/*DB1200_PC1_STSCHG_INT*/0, DB1200_PC1_EJECT_INT, 1);
 
 	swapped = bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1200_SWAPBOOT;
-	db1x_register_norflash(64 << 20, 2, swapped);
+	db1x_register_yesrflash(64 << 20, 2, swapped);
 
 	platform_add_devices(db1200_devs, ARRAY_SIZE(db1200_devs));
 

@@ -220,7 +220,7 @@ static int hw_atl_utils_soft_reset_rbl(struct aq_hw_s *self)
 		aq_hw_write_reg(self, 0x534, 0xA0);
 
 	if (rbl_status == 0xF1A7) {
-		aq_pr_err("No FW detected. Dynamic FW load not implemented\n");
+		aq_pr_err("No FW detected. Dynamic FW load yest implemented\n");
 		return -ENOTSUPP;
 	}
 
@@ -257,7 +257,7 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self)
 	}
 
 	if (k == 1000) {
-		aq_pr_err("Neither RBL nor FLB firmware started\n");
+		aq_pr_err("Neither RBL yesr FLB firmware started\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -441,13 +441,13 @@ int hw_atl_write_fwsettings_dwords(struct aq_hw_s *self, u32 offset, u32 *p,
 static int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual)
 {
 	const u32 dw_major_mask = 0xff000000U;
-	const u32 dw_minor_mask = 0x00ffffffU;
+	const u32 dw_miyesr_mask = 0x00ffffffU;
 	int err = 0;
 
 	err = (dw_major_mask & (ver_expected ^ ver_actual)) ? -EOPNOTSUPP : 0;
 	if (err < 0)
 		goto err_exit;
-	err = ((dw_minor_mask & ver_expected) > (dw_minor_mask & ver_actual)) ?
+	err = ((dw_miyesr_mask & ver_expected) > (dw_miyesr_mask & ver_actual)) ?
 		-EOPNOTSUPP : 0;
 
 err_exit:

@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -167,7 +167,7 @@ static const struct ieee80211_iface_combination rsi_iface_combinations[] = {
 };
 
 /**
- * rsi_is_cipher_wep() -  This function determines if the cipher is WEP or not.
+ * rsi_is_cipher_wep() -  This function determines if the cipher is WEP or yest.
  * @common: Pointer to the driver private structure.
  *
  * Return: If cipher type is WEP, a value of 1 is returned, else 0.
@@ -253,7 +253,7 @@ static int rsi_mac80211_hw_scan_start(struct ieee80211_hw *hw,
 	if (common->bgscan_en)
 		return -EBUSY;
 
-	/* If STA is not connected, return with special value 1, in order
+	/* If STA is yest connected, return with special value 1, in order
 	 * to start sw_scan in mac80211
 	 */
 	if (!bss->assoc)
@@ -472,7 +472,7 @@ static int rsi_mac80211_add_interface(struct ieee80211_hw *hw,
 	intf_mode = rsi_map_intf_mode(vif->type);
 	if (intf_mode == RSI_OPMODE_UNSUPPORTED) {
 		rsi_dbg(ERR_ZONE,
-			"%s: Interface type %d not supported\n", __func__,
+			"%s: Interface type %d yest supported\n", __func__,
 			vif->type);
 		mutex_unlock(&common->mutex);
 		return -EOPNOTSUPP;
@@ -521,7 +521,7 @@ static int rsi_mac80211_add_interface(struct ieee80211_hw *hw,
 }
 
 /**
- * rsi_mac80211_remove_interface() - This function notifies driver that an
+ * rsi_mac80211_remove_interface() - This function yestifies driver that an
  *				     interface is going down.
  * @hw: Pointer to the ieee80211_hw structure.
  * @vif: Pointer to the ieee80211_vif structure.
@@ -585,7 +585,7 @@ static int rsi_channel_change(struct ieee80211_hw *hw)
 	int i;
 
 	rsi_dbg(INFO_ZONE,
-		"%s: Set channel: %d MHz type: %d channel_no %d\n",
+		"%s: Set channel: %d MHz type: %d channel_yes %d\n",
 		__func__, curchan->center_freq,
 		curchan->flags, channel);
 
@@ -866,7 +866,7 @@ static void rsi_mac80211_conf_filter(struct ieee80211_hw *hw,
 				     u32 *total_flags,
 				     u64 multicast)
 {
-	/* Not doing much here as of now */
+	/* Not doing much here as of yesw */
 	*total_flags &= RSI_SUPP_FILTERS;
 }
 
@@ -1080,7 +1080,7 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
 	struct rsi_sta *rsta = NULL;
-	u16 seq_no = 0, seq_start = 0;
+	u16 seq_yes = 0, seq_start = 0;
 	u8 ii = 0;
 	struct ieee80211_sta *sta = params->sta;
 	u8 sta_id = 0;
@@ -1097,7 +1097,7 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 	mutex_lock(&common->mutex);
 
 	if (ssn != NULL)
-		seq_no = *ssn;
+		seq_yes = *ssn;
 
 	if ((vif->type == NL80211_IFTYPE_AP) ||
 	    (vif->type == NL80211_IFTYPE_P2P_GO)) {
@@ -1112,13 +1112,13 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 
 	rsi_dbg(INFO_ZONE,
 		"%s: AMPDU action tid=%d ssn=0x%x, buf_size=%d sta_id=%d\n",
-		__func__, tid, seq_no, buf_size, sta_id);
+		__func__, tid, seq_yes, buf_size, sta_id);
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 		status = rsi_send_aggregation_params_frame(common,
 							   tid,
-							   seq_no,
+							   seq_yes,
 							   buf_size,
 							   STA_RX_ADDBA_DONE,
 							   sta_id);
@@ -1136,10 +1136,10 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_START:
 		if ((vif->type == NL80211_IFTYPE_STATION) ||
 		    (vif->type == NL80211_IFTYPE_P2P_CLIENT))
-			common->vif_info[ii].seq_start = seq_no;
+			common->vif_info[ii].seq_start = seq_yes;
 		else if ((vif->type == NL80211_IFTYPE_AP) ||
 			 (vif->type == NL80211_IFTYPE_P2P_GO))
-			rsta->seq_start[tid] = seq_no;
+			rsta->seq_start[tid] = seq_yes;
 		status = IEEE80211_AMPDU_TX_START_IMMEDIATE;
 		break;
 
@@ -1148,7 +1148,7 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		status = rsi_send_aggregation_params_frame(common,
 							   tid,
-							   seq_no,
+							   seq_yes,
 							   buf_size,
 							   STA_TX_DELBA,
 							   sta_id);
@@ -1172,7 +1172,7 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 		break;
 
 	default:
-		rsi_dbg(ERR_ZONE, "%s: Unknown AMPDU action\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: Unkyeswn AMPDU action\n", __func__);
 		break;
 	}
 
@@ -1258,7 +1258,7 @@ static void rsi_perform_cqm(struct rsi_common *common,
 
 	common->cqm_info.last_cqm_event_rssi = rssi;
 	rsi_dbg(INFO_ZONE, "CQM: Notifying event: %d\n", event);
-	ieee80211_cqm_rssi_notify(vif, event, rssi, GFP_KERNEL);
+	ieee80211_cqm_rssi_yestify(vif, event, rssi, GFP_KERNEL);
 
 	return;
 }
@@ -1403,7 +1403,7 @@ static void rsi_set_min_rate(struct ieee80211_hw *hw,
 }
 
 /**
- * rsi_mac80211_sta_add() - This function notifies driver about a peer getting
+ * rsi_mac80211_sta_add() - This function yestifies driver about a peer getting
  *			    connected.
  * @hw: pointer to the ieee80211_hw structure.
  * @vif: Pointer to the ieee80211_vif structure.
@@ -1473,7 +1473,7 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 		if (!sta_exist) {
 			rsi_dbg(INFO_ZONE, "New Station\n");
 
-			/* Send peer notify to device */
+			/* Send peer yestify to device */
 			rsi_dbg(INFO_ZONE, "Indicate bss status to device\n");
 			rsi_inform_bss_status(common, RSI_OPMODE_AP, 1,
 					      sta->addr, sta->wme, sta->aid,
@@ -1519,7 +1519,7 @@ unlock:
 }
 
 /**
- * rsi_mac80211_sta_remove() - This function notifies driver about a peer
+ * rsi_mac80211_sta_remove() - This function yestifies driver about a peer
  *			       getting disconnected.
  * @hw: Pointer to the ieee80211_hw structure.
  * @vif: Pointer to the ieee80211_vif structure.
@@ -1544,7 +1544,7 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 	    (vif->type == NL80211_IFTYPE_P2P_GO)) {
 		u8 sta_idx, cnt;
 
-		/* Send peer notify to device */
+		/* Send peer yestify to device */
 		rsi_dbg(INFO_ZONE, "Indicate bss status to device\n");
 		for (sta_idx = 0; sta_idx < common->max_stations; sta_idx++) {
 			rsta = &common->stations[sta_idx];
@@ -1681,7 +1681,7 @@ static int rsi_map_region_code(enum nl80211_dfs_regions region_code)
 	return RSI_REGION_WORLD;
 }
 
-static void rsi_reg_notify(struct wiphy *wiphy,
+static void rsi_reg_yestify(struct wiphy *wiphy,
 			   struct regulatory_request *request)
 {
 	struct ieee80211_supported_band *sband;
@@ -1885,7 +1885,7 @@ int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan)
 	bss = &adapter->vifs[0]->bss_conf;
 
 	if (WARN_ON(!wowlan)) {
-		rsi_dbg(ERR_ZONE, "WoW triggers not enabled\n");
+		rsi_dbg(ERR_ZONE, "WoW triggers yest enabled\n");
 		return -EINVAL;
 	}
 
@@ -1897,7 +1897,7 @@ int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan)
 	}
 	if (!bss->assoc) {
 		rsi_dbg(ERR_ZONE,
-			"Cannot configure WoWLAN (Station not connected)\n");
+			"Canyest configure WoWLAN (Station yest connected)\n");
 		common->wow_flags |= RSI_WOW_NO_CONNECTION;
 		return 0;
 	}
@@ -2090,7 +2090,7 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	wiphy->flags = WIPHY_FLAG_REPORTS_OBSS;
 	wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 	wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
-	wiphy->reg_notifier = rsi_reg_notify;
+	wiphy->reg_yestifier = rsi_reg_yestify;
 
 #ifdef CONFIG_PM
 	wiphy->wowlan = &rsi_wowlan_support;

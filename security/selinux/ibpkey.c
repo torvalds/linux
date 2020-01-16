@@ -3,7 +3,7 @@
  * Pkey table
  *
  * SELinux must keep a mapping of Infinband PKEYs to labels/SIDs.  This
- * mapping is maintained as part of the normal policy but a fast cache is
+ * mapping is maintained as part of the yesrmal policy but a fast cache is
  * needed to reduce the lookup overhead.
  *
  * This code is heavily based on the "netif" and "netport" concept originally
@@ -15,7 +15,7 @@
  */
 
 /*
- * (c) Mellanox Technologies, 2016
+ * (c) Mellayesx Techyeslogies, 2016
  */
 
 #include <linux/types.h>
@@ -65,7 +65,7 @@ static unsigned int sel_ib_pkey_hashfn(u16 pkey)
  *
  * Description:
  * Search the pkey table and return the matching record.  If an entry
- * can not be found in the table return NULL.
+ * can yest be found in the table return NULL.
  *
  */
 static struct sel_ib_pkey *sel_ib_pkey_find(u64 subnet_prefix, u16 pkey_num)

@@ -64,7 +64,7 @@ static inline void op_x86_warn_in_use(int counter)
 	 * performance counter on your platform to monitor the desired
 	 * event. Delete counter #%d from the desired event by editing
 	 * the /usr/share/oprofile/%s/<cpu>/events file. If the event
-	 * cannot be monitored by any other counter, contact your
+	 * canyest be monitored by any other counter, contact your
 	 * hardware or BIOS vendor.
 	 */
 	pr_warn("oprofile: counter #%d on cpu #%d may already be used\n",

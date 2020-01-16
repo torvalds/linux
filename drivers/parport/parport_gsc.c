@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -139,7 +139,7 @@ static int parport_SPP_supported(struct parport *pb)
 	/*
 	 * first clear an eventually pending EPP timeout 
 	 * I (sailer@ife.ee.ethz.ch) have an SMSC chipset
-	 * that does not even respond to SPP cycles if an EPP
+	 * that does yest even respond to SPP cycles if an EPP
 	 * timeout is pending
 	 */
 	clear_epp_timeout(pb);
@@ -190,7 +190,7 @@ static int parport_SPP_supported(struct parport *pb)
  * Some SPP ports have "half PS/2" ability - you can't turn off the line
  * drivers, but an external peripheral with sufficiently beefy drivers of
  * its own can overpower them and assert its own levels onto the bus, from
- * where they can then be read back as normal.  Ports with this property
+ * where they can then be read back as yesrmal.  Ports with this property
  * and the right type of device attached are likely to fail the SPP test,
  * (as they will appear to have stuck bits) and so the fact that they might
  * be misdetected here is rather academic. 
@@ -238,13 +238,13 @@ struct parport *parport_gsc_probe_port(unsigned long base,
 
 	priv = kzalloc (sizeof (struct parport_gsc_private), GFP_KERNEL);
 	if (!priv) {
-		printk (KERN_DEBUG "parport (0x%lx): no memory!\n", base);
+		printk (KERN_DEBUG "parport (0x%lx): yes memory!\n", base);
 		return NULL;
 	}
 	ops = kmemdup(&parport_gsc_ops, sizeof(struct parport_operations),
 		      GFP_KERNEL);
 	if (!ops) {
-		printk (KERN_DEBUG "parport (0x%lx): no memory for ops!\n",
+		printk (KERN_DEBUG "parport (0x%lx): yes memory for ops!\n",
 			base);
 		kfree (priv);
 		return NULL;
@@ -330,8 +330,8 @@ struct parport *parport_gsc_probe_port(unsigned long base,
 
 	/* Now that we've told the sharing engine about the port, and
 	   found out its characteristics, let the high-level drivers
-	   know about it. */
-	parport_announce_port (p);
+	   kyesw about it. */
+	parport_anyesunce_port (p);
 
 	return p;
 }
@@ -347,7 +347,7 @@ static int __init parport_init_chip(struct parisc_device *dev)
 	unsigned long port;
 
 	if (!dev->irq) {
-		printk(KERN_WARNING "IRQ not found for parallel device at 0x%llx\n",
+		printk(KERN_WARNING "IRQ yest found for parallel device at 0x%llx\n",
 			(unsigned long long)dev->hpa.start);
 		return -ENODEV;
 	}
@@ -364,7 +364,7 @@ static int __init parport_init_chip(struct parisc_device *dev)
 		parport_writeb ( (0x10 + 0x20), port + 4);
 
 	} else {
-		printk("%s: enhanced parport-modes not supported.\n", __func__);
+		printk("%s: enhanced parport-modes yest supported.\n", __func__);
 	}
 	
 	p = parport_gsc_probe_port(port, 0, dev->irq,
@@ -393,7 +393,7 @@ static int __exit parport_remove_chip(struct parisc_device *dev)
 					    priv->dma_handle);
 		kfree (p->private_data);
 		parport_put_port(p);
-		kfree (ops); /* hope no-one cached it */
+		kfree (ops); /* hope yes-one cached it */
 	}
 	return 0;
 }

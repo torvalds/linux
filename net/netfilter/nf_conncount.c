@@ -6,9 +6,9 @@
  * Author: Florian Westphal <fw@strlen.de>
  *
  * split from xt_connlimit.c:
- *   (c) 2000 Gerd Knorr <kraxel@bytesex.org>
+ *   (c) 2000 Gerd Kyesrr <kraxel@bytesex.org>
  *   Nov 2002: Martin Bene <martin.bene@icomedias.com>:
- *		only ignore TIME_WAIT or gone connections
+ *		only igyesre TIME_WAIT or gone connections
  *   (C) CC Computer Consultants GmbH, 2007
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -39,7 +39,7 @@
 
 /* we will save the tuples of all connections we care about */
 struct nf_conncount_tuple {
-	struct list_head		node;
+	struct list_head		yesde;
 	struct nf_conntrack_tuple	tuple;
 	struct nf_conntrack_zone	zone;
 	int				cpu;
@@ -47,7 +47,7 @@ struct nf_conncount_tuple {
 };
 
 struct nf_conncount_rb {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	struct nf_conncount_list list;
 	u32 key[MAX_KEYLEN];
 	struct rcu_head rcu_head;
@@ -88,7 +88,7 @@ static void conn_free(struct nf_conncount_list *list,
 	lockdep_assert_held(&list->list_lock);
 
 	list->count--;
-	list_del(&conn->node);
+	list_del(&conn->yesde);
 
 	kmem_cache_free(conncount_conn_cachep, conn);
 }
@@ -108,9 +108,9 @@ find_or_evict(struct net *net, struct nf_conncount_list *list,
 	b = conn->jiffies32;
 	a = (u32)jiffies;
 
-	/* conn might have been added just before by another cpu and
+	/* conn might have been added just before by ayesther cpu and
 	 * might still be unconfirmed.  In this case, nf_conntrack_find()
-	 * returns no result.  Thus only evict if this cpu added the
+	 * returns yes result.  Thus only evict if this cpu added the
 	 * stale entry or if the entry is older than two jiffies.
 	 */
 	age = a - b;
@@ -133,7 +133,7 @@ static int __nf_conncount_add(struct net *net,
 	unsigned int collect = 0;
 
 	/* check the saved connections */
-	list_for_each_entry_safe(conn, conn_n, &list->head, node) {
+	list_for_each_entry_safe(conn, conn_n, &list->head, yesde) {
 		if (collect > CONNCOUNT_GC_MAX_NODES)
 			break;
 
@@ -156,7 +156,7 @@ static int __nf_conncount_add(struct net *net,
 		if (nf_ct_tuple_equal(&conn->tuple, tuple) &&
 		    nf_ct_zone_equal(found_ct, zone, zone->dir)) {
 			/*
-			 * We should not see tuples twice unless someone hooks
+			 * We should yest see tuples twice unless someone hooks
 			 * this into a table without "-p tcp --syn".
 			 *
 			 * Attempt to avoid a re-add in this case.
@@ -165,7 +165,7 @@ static int __nf_conncount_add(struct net *net,
 			return 0;
 		} else if (already_closed(found_ct)) {
 			/*
-			 * we do not care about connections which are
+			 * we do yest care about connections which are
 			 * closed already -> ditch it
 			 */
 			nf_ct_put(found_ct);
@@ -188,7 +188,7 @@ static int __nf_conncount_add(struct net *net,
 	conn->zone = *zone;
 	conn->cpu = raw_smp_processor_id();
 	conn->jiffies32 = (u32)jiffies;
-	list_add_tail(&conn->node, &list->head);
+	list_add_tail(&conn->yesde, &list->head);
 	list->count++;
 	return 0;
 }
@@ -231,7 +231,7 @@ bool nf_conncount_gc_list(struct net *net,
 	if (!spin_trylock(&list->list_lock))
 		return false;
 
-	list_for_each_entry_safe(conn, conn_n, &list->head, node) {
+	list_for_each_entry_safe(conn, conn_n, &list->head, yesde) {
 		found = find_or_evict(net, list, conn);
 		if (IS_ERR(found)) {
 			if (PTR_ERR(found) == -ENOENT)
@@ -242,7 +242,7 @@ bool nf_conncount_gc_list(struct net *net,
 		found_ct = nf_ct_tuplehash_to_ctrack(found);
 		if (already_closed(found_ct)) {
 			/*
-			 * we do not care about connections which are
+			 * we do yest care about connections which are
 			 * closed already -> ditch it
 			 */
 			nf_ct_put(found_ct);
@@ -264,7 +264,7 @@ bool nf_conncount_gc_list(struct net *net,
 }
 EXPORT_SYMBOL_GPL(nf_conncount_gc_list);
 
-static void __tree_nodes_free(struct rcu_head *h)
+static void __tree_yesdes_free(struct rcu_head *h)
 {
 	struct nf_conncount_rb *rbconn;
 
@@ -273,18 +273,18 @@ static void __tree_nodes_free(struct rcu_head *h)
 }
 
 /* caller must hold tree nf_conncount_locks[] lock */
-static void tree_nodes_free(struct rb_root *root,
-			    struct nf_conncount_rb *gc_nodes[],
+static void tree_yesdes_free(struct rb_root *root,
+			    struct nf_conncount_rb *gc_yesdes[],
 			    unsigned int gc_count)
 {
 	struct nf_conncount_rb *rbconn;
 
 	while (gc_count) {
-		rbconn = gc_nodes[--gc_count];
+		rbconn = gc_yesdes[--gc_count];
 		spin_lock(&rbconn->list.list_lock);
 		if (!rbconn->list.count) {
-			rb_erase(&rbconn->node, root);
-			call_rcu(&rbconn->rcu_head, __tree_nodes_free);
+			rb_erase(&rbconn->yesde, root);
+			call_rcu(&rbconn->rcu_head, __tree_yesdes_free);
 		}
 		spin_unlock(&rbconn->list.list_lock);
 	}
@@ -305,8 +305,8 @@ insert_tree(struct net *net,
 	    const struct nf_conntrack_tuple *tuple,
 	    const struct nf_conntrack_zone *zone)
 {
-	struct nf_conncount_rb *gc_nodes[CONNCOUNT_GC_MAX_NODES];
-	struct rb_node **rbnode, *parent;
+	struct nf_conncount_rb *gc_yesdes[CONNCOUNT_GC_MAX_NODES];
+	struct rb_yesde **rbyesde, *parent;
 	struct nf_conncount_rb *rbconn;
 	struct nf_conncount_tuple *conn;
 	unsigned int count = 0, gc_count = 0;
@@ -316,17 +316,17 @@ insert_tree(struct net *net,
 	spin_lock_bh(&nf_conncount_locks[hash]);
 restart:
 	parent = NULL;
-	rbnode = &(root->rb_node);
-	while (*rbnode) {
+	rbyesde = &(root->rb_yesde);
+	while (*rbyesde) {
 		int diff;
-		rbconn = rb_entry(*rbnode, struct nf_conncount_rb, node);
+		rbconn = rb_entry(*rbyesde, struct nf_conncount_rb, yesde);
 
-		parent = *rbnode;
+		parent = *rbyesde;
 		diff = key_diff(key, rbconn->key, keylen);
 		if (diff < 0) {
-			rbnode = &((*rbnode)->rb_left);
+			rbyesde = &((*rbyesde)->rb_left);
 		} else if (diff > 0) {
-			rbnode = &((*rbnode)->rb_right);
+			rbyesde = &((*rbyesde)->rb_right);
 		} else {
 			int ret;
 
@@ -335,26 +335,26 @@ restart:
 				count = 0; /* hotdrop */
 			else
 				count = rbconn->list.count;
-			tree_nodes_free(root, gc_nodes, gc_count);
+			tree_yesdes_free(root, gc_yesdes, gc_count);
 			goto out_unlock;
 		}
 
-		if (gc_count >= ARRAY_SIZE(gc_nodes))
+		if (gc_count >= ARRAY_SIZE(gc_yesdes))
 			continue;
 
 		if (do_gc && nf_conncount_gc_list(net, &rbconn->list))
-			gc_nodes[gc_count++] = rbconn;
+			gc_yesdes[gc_count++] = rbconn;
 	}
 
 	if (gc_count) {
-		tree_nodes_free(root, gc_nodes, gc_count);
+		tree_yesdes_free(root, gc_yesdes, gc_count);
 		schedule_gc_worker(data, hash);
 		gc_count = 0;
 		do_gc = false;
 		goto restart;
 	}
 
-	/* expected case: match, insert new node */
+	/* expected case: match, insert new yesde */
 	rbconn = kmem_cache_alloc(conncount_rb_cachep, GFP_ATOMIC);
 	if (rbconn == NULL)
 		goto out_unlock;
@@ -370,12 +370,12 @@ restart:
 	memcpy(rbconn->key, key, sizeof(u32) * keylen);
 
 	nf_conncount_list_init(&rbconn->list);
-	list_add(&conn->node, &rbconn->list.head);
+	list_add(&conn->yesde, &rbconn->list.head);
 	count = 1;
 	rbconn->list.count = count;
 
-	rb_link_node_rcu(&rbconn->node, parent, rbnode);
-	rb_insert_color(&rbconn->node, root);
+	rb_link_yesde_rcu(&rbconn->yesde, parent, rbyesde);
+	rb_insert_color(&rbconn->yesde, root);
 out_unlock:
 	spin_unlock_bh(&nf_conncount_locks[hash]);
 	return count;
@@ -389,7 +389,7 @@ count_tree(struct net *net,
 	   const struct nf_conntrack_zone *zone)
 {
 	struct rb_root *root;
-	struct rb_node *parent;
+	struct rb_yesde *parent;
 	struct nf_conncount_rb *rbconn;
 	unsigned int hash;
 	u8 keylen = data->keylen;
@@ -397,11 +397,11 @@ count_tree(struct net *net,
 	hash = jhash2(key, data->keylen, conncount_rnd) % CONNCOUNT_SLOTS;
 	root = &data->root[hash];
 
-	parent = rcu_dereference_raw(root->rb_node);
+	parent = rcu_dereference_raw(root->rb_yesde);
 	while (parent) {
 		int diff;
 
-		rbconn = rb_entry(parent, struct nf_conncount_rb, node);
+		rbconn = rb_entry(parent, struct nf_conncount_rb, yesde);
 
 		diff = key_diff(key, rbconn->key, keylen);
 		if (diff < 0) {
@@ -444,9 +444,9 @@ count_tree(struct net *net,
 static void tree_gc_worker(struct work_struct *work)
 {
 	struct nf_conncount_data *data = container_of(work, struct nf_conncount_data, gc_work);
-	struct nf_conncount_rb *gc_nodes[CONNCOUNT_GC_MAX_NODES], *rbconn;
+	struct nf_conncount_rb *gc_yesdes[CONNCOUNT_GC_MAX_NODES], *rbconn;
 	struct rb_root *root;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	unsigned int tree, next_tree, gc_count = 0;
 
 	tree = data->gc_tree % CONNCOUNT_SLOTS;
@@ -454,8 +454,8 @@ static void tree_gc_worker(struct work_struct *work)
 
 	local_bh_disable();
 	rcu_read_lock();
-	for (node = rb_first(root); node != NULL; node = rb_next(node)) {
-		rbconn = rb_entry(node, struct nf_conncount_rb, node);
+	for (yesde = rb_first(root); yesde != NULL; yesde = rb_next(yesde)) {
+		rbconn = rb_entry(yesde, struct nf_conncount_rb, yesde);
 		if (nf_conncount_gc_list(data->net, &rbconn->list))
 			gc_count++;
 	}
@@ -465,26 +465,26 @@ static void tree_gc_worker(struct work_struct *work)
 	cond_resched();
 
 	spin_lock_bh(&nf_conncount_locks[tree]);
-	if (gc_count < ARRAY_SIZE(gc_nodes))
-		goto next; /* do not bother */
+	if (gc_count < ARRAY_SIZE(gc_yesdes))
+		goto next; /* do yest bother */
 
 	gc_count = 0;
-	node = rb_first(root);
-	while (node != NULL) {
-		rbconn = rb_entry(node, struct nf_conncount_rb, node);
-		node = rb_next(node);
+	yesde = rb_first(root);
+	while (yesde != NULL) {
+		rbconn = rb_entry(yesde, struct nf_conncount_rb, yesde);
+		yesde = rb_next(yesde);
 
 		if (rbconn->list.count > 0)
 			continue;
 
-		gc_nodes[gc_count++] = rbconn;
-		if (gc_count >= ARRAY_SIZE(gc_nodes)) {
-			tree_nodes_free(root, gc_nodes, gc_count);
+		gc_yesdes[gc_count++] = rbconn;
+		if (gc_count >= ARRAY_SIZE(gc_yesdes)) {
+			tree_yesdes_free(root, gc_yesdes, gc_count);
 			gc_count = 0;
 		}
 	}
 
-	tree_nodes_free(root, gc_nodes, gc_count);
+	tree_yesdes_free(root, gc_yesdes, gc_count);
 next:
 	clear_bit(tree, data->pending_trees);
 
@@ -500,7 +500,7 @@ next:
 }
 
 /* Count and return number of conntrack entries in 'net' with particular 'key'.
- * If 'tuple' is not null, insert it into the accounting data structure.
+ * If 'tuple' is yest null, insert it into the accounting data structure.
  * Call with RCU read lock.
  */
 unsigned int nf_conncount_count(struct net *net,
@@ -551,7 +551,7 @@ void nf_conncount_cache_free(struct nf_conncount_list *list)
 {
 	struct nf_conncount_tuple *conn, *conn_n;
 
-	list_for_each_entry_safe(conn, conn_n, &list->head, node)
+	list_for_each_entry_safe(conn, conn_n, &list->head, yesde)
 		kmem_cache_free(conncount_conn_cachep, conn);
 }
 EXPORT_SYMBOL_GPL(nf_conncount_cache_free);
@@ -559,12 +559,12 @@ EXPORT_SYMBOL_GPL(nf_conncount_cache_free);
 static void destroy_tree(struct rb_root *r)
 {
 	struct nf_conncount_rb *rbconn;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
-	while ((node = rb_first(r)) != NULL) {
-		rbconn = rb_entry(node, struct nf_conncount_rb, node);
+	while ((yesde = rb_first(r)) != NULL) {
+		rbconn = rb_entry(yesde, struct nf_conncount_rb, yesde);
 
-		rb_erase(node, r);
+		rb_erase(yesde, r);
 
 		nf_conncount_cache_free(&rbconn->list);
 

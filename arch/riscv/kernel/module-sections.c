@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2014-2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
  *
- * Copyright (C) 2018 Andes Technology Corporation <zong@andestech.com>
+ * Copyright (C) 2018 Andes Techyeslogy Corporation <zong@andestech.com>
  */
 
 #include <linux/elf.h>
@@ -19,7 +19,7 @@ unsigned long module_emit_got_entry(struct module *mod, unsigned long val)
 	if (got)
 		return (unsigned long)got;
 
-	/* There is no duplicate entry, create a new one */
+	/* There is yes duplicate entry, create a new one */
 	got = (struct got_entry *)got_sec->shdr->sh_addr;
 	got[i] = emit_got_entry(val);
 
@@ -40,7 +40,7 @@ unsigned long module_emit_plt_entry(struct module *mod, unsigned long val)
 	if (plt)
 		return (unsigned long)plt;
 
-	/* There is no duplicate entry, create a new one */
+	/* There is yes duplicate entry, create a new one */
 	got_plt = (struct got_entry *)got_plt_sec->shdr->sh_addr;
 	got_plt[i] = emit_got_entry(val);
 	plt = (struct plt_entry *)plt_sec->shdr->sh_addr;
@@ -128,7 +128,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		if (sechdrs[i].sh_type != SHT_RELA)
 			continue;
 
-		/* ignore relocations that operate on non-exec sections */
+		/* igyesre relocations that operate on yesn-exec sections */
 		if (!(dst_sec->sh_flags & SHF_EXECINSTR))
 			continue;
 

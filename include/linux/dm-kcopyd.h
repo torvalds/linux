@@ -3,8 +3,8 @@
  * Copyright (C) 2004 - 2008 Red Hat, Inc. All rights reserved.
  *
  * kcopyd provides a simple interface for copying an area of one
- * block-device to one or more other block-devices, either synchronous
- * or with an asynchronous completion notification.
+ * block-device to one or more other block-devices, either synchroyesus
+ * or with an asynchroyesus completion yestification.
  *
  * This file is released under the GPL.
  */
@@ -59,18 +59,18 @@ void dm_kcopyd_client_destroy(struct dm_kcopyd_client *kc);
  * read_err is a boolean,
  * write_err is a bitset, with 1 bit for each destination region
  */
-typedef void (*dm_kcopyd_notify_fn)(int read_err, unsigned long write_err,
+typedef void (*dm_kcopyd_yestify_fn)(int read_err, unsigned long write_err,
 				    void *context);
 
 void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 		    unsigned num_dests, struct dm_io_region *dests,
-		    unsigned flags, dm_kcopyd_notify_fn fn, void *context);
+		    unsigned flags, dm_kcopyd_yestify_fn fn, void *context);
 
 /*
  * Prepare a callback and submit it via the kcopyd thread.
  *
  * dm_kcopyd_prepare_callback allocates a callback structure and returns it.
- * It must not be called from interrupt context.
+ * It must yest be called from interrupt context.
  * The returned value should be passed into dm_kcopyd_do_callback.
  *
  * dm_kcopyd_do_callback submits the callback.
@@ -78,12 +78,12 @@ void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
  * The callback is issued from the kcopyd thread.
  */
 void *dm_kcopyd_prepare_callback(struct dm_kcopyd_client *kc,
-				 dm_kcopyd_notify_fn fn, void *context);
+				 dm_kcopyd_yestify_fn fn, void *context);
 void dm_kcopyd_do_callback(void *job, int read_err, unsigned long write_err);
 
 void dm_kcopyd_zero(struct dm_kcopyd_client *kc,
 		    unsigned num_dests, struct dm_io_region *dests,
-		    unsigned flags, dm_kcopyd_notify_fn fn, void *context);
+		    unsigned flags, dm_kcopyd_yestify_fn fn, void *context);
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_DM_KCOPYD_H */

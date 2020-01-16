@@ -63,7 +63,7 @@ static const struct flag_info flag_array[] = {
 	}, {
 		.mask	= _PAGE_NON_IDEMPOTENT,
 		.val	= _PAGE_NON_IDEMPOTENT,
-		.set	= "non-idempotent",
+		.set	= "yesn-idempotent",
 		.clear	= "              ",
 	}, {
 		.mask	= _PAGE_TOLERANT,

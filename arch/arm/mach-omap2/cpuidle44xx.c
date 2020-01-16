@@ -79,7 +79,7 @@ static DEFINE_RAW_SPINLOCK(mpu_lock);
  * @index: the index of state to be entered
  *
  * Called from the CPUidle framework to program the device to the
- * specified low power state selected by the governor.
+ * specified low power state selected by the goveryesr.
  * Returns the amount of time spent in the low power state.
  */
 static int omap_enter_idle_simple(struct cpuidle_device *dev,
@@ -125,7 +125,7 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 
 	/*
 	 * CPU0 has to wait and stay ON until CPU1 is OFF state.
-	 * This is necessary to honour hardware recommondation
+	 * This is necessary to hoyesur hardware recommondation
 	 * of triggeing all the possible low power modes once CPU1 is
 	 * out of coherency and in OFF mode.
 	 */
@@ -156,7 +156,7 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 	tick_broadcast_enter();
 
 	/*
-	 * Call idle CPU PM enter notifier chain so that
+	 * Call idle CPU PM enter yestifier chain so that
 	 * VFP and per CPU interrupt context is saved.
 	 */
 	cpu_pm_enter();
@@ -166,7 +166,7 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 		omap_set_pwrdm_state(mpu_pd, cx->mpu_state);
 
 		/*
-		 * Call idle CPU cluster PM enter notifier chain
+		 * Call idle CPU cluster PM enter yestifier chain
 		 * to save GIC and wakeupgen context.
 		 */
 		if (mpuss_can_lose_context)
@@ -176,7 +176,7 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 	omap4_enter_lowpower(dev->cpu, cx->cpu_state);
 	cpu_done[dev->cpu] = true;
 
-	/* Wakeup CPU1 only if it is not offlined */
+	/* Wakeup CPU1 only if it is yest offlined */
 	if (dev->cpu == 0 && cpumask_test_cpu(1, cpu_online_mask)) {
 
 		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD) &&
@@ -198,13 +198,13 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 	}
 
 	/*
-	 * Call idle CPU PM exit notifier chain to restore
+	 * Call idle CPU PM exit yestifier chain to restore
 	 * VFP and per CPU IRQ context.
 	 */
 	cpu_pm_exit();
 
 	/*
-	 * Call idle CPU cluster PM exit notifier chain
+	 * Call idle CPU cluster PM exit yestifier chain
 	 * to restore GIC and wakeupgen context.
 	 */
 	if (dev->cpu == 0 && mpuss_can_lose_context)

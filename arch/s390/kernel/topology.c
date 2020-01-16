@@ -23,8 +23,8 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
-#include <linux/nodemask.h>
-#include <linux/node.h>
+#include <linux/yesdemask.h>
+#include <linux/yesde.h>
 #include <asm/sysinfo.h>
 #include <asm/numa.h>
 
@@ -428,7 +428,7 @@ static ssize_t cpu_polarization_show(struct device *dev,
 		count = sprintf(buf, "vertical:high\n");
 		break;
 	default:
-		count = sprintf(buf, "unknown\n");
+		count = sprintf(buf, "unkyeswn\n");
 		break;
 	}
 	mutex_unlock(&smp_cpu_state_mutex);

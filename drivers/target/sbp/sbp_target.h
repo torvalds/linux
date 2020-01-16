@@ -142,7 +142,7 @@ struct sbp_session {
 	struct delayed_work maint_work;
 
 	u64 guid; /* login_owner_EUI_64 */
-	int node_id; /* login_owner_ID */
+	int yesde_id; /* login_owner_ID */
 
 	struct fw_card *card;
 	int generation;
@@ -236,7 +236,7 @@ struct sbp_management_request {
 	struct sbp_status_block status;
 	struct fw_card *card;
 	int generation;
-	int node_addr;
+	int yesde_addr;
 	int speed;
 };
 

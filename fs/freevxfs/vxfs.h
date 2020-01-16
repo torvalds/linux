@@ -7,9 +7,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -45,7 +45,7 @@
 #define VXFS_SUPER_MAGIC	0xa501FCF5
 
 /*
- * The root inode.
+ * The root iyesde.
  */
 #define VXFS_ROOT_INO		2
 
@@ -70,7 +70,7 @@ struct vxfs_sb {
 	/*
 	 * Readonly fields for the version 1 superblock.
 	 *
-	 * Lots of this fields are no more used by version 2
+	 * Lots of this fields are yes more used by version 2
 	 * and never filesystems.
 	 */
 	__fs32		vs_magic;		/* Magic number */
@@ -84,7 +84,7 @@ struct vxfs_sb {
 	__fs32		vs_bsize;		/* block size */
 	__fs32		vs_size;		/* number of blocks */
 	__fs32		vs_dsize;		/* number of data blocks */
-	__fs32		vs_old_ninode;		/* obsolete */
+	__fs32		vs_old_niyesde;		/* obsolete */
 	__fs32		vs_old_nau;		/* obsolete */
 	__fs32		__unused3;		/* unused */
 	__fs32		vs_old_defiextsize;	/* obsolete */
@@ -93,9 +93,9 @@ struct vxfs_sb {
 	__fs32		vs_ndaddr;		/* number of direct extentes */
 	__fs32		vs_firstau;		/* address of first AU */
 	__fs32		vs_emap;		/* offset of extent map in AU */
-	__fs32		vs_imap;		/* offset of inode map in AU */
+	__fs32		vs_imap;		/* offset of iyesde map in AU */
 	__fs32		vs_iextop;		/* offset of ExtOp. map in AU */
-	__fs32		vs_istart;		/* offset of inode list in AU */
+	__fs32		vs_istart;		/* offset of iyesde list in AU */
 	__fs32		vs_bstart;		/* offset of fdblock in AU */
 	__fs32		vs_femap;		/* aufirst + emap */
 	__fs32		vs_fimap;		/* aufirst + imap */
@@ -110,23 +110,23 @@ struct vxfs_sb {
 	__fs32		vs_aupad;		/* length of pad in blocks */
 	__fs32		vs_aublocks;		/* data blocks in AU */
 	__fs32		vs_maxtier;		/* log base 2 of aublocks */
-	__fs32		vs_inopb;		/* number of inodes per blk */
-	__fs32		vs_old_inopau;		/* obsolete */
-	__fs32		vs_old_inopilb;		/* obsolete */
+	__fs32		vs_iyespb;		/* number of iyesdes per blk */
+	__fs32		vs_old_iyespau;		/* obsolete */
+	__fs32		vs_old_iyespilb;		/* obsolete */
 	__fs32		vs_old_ndiripau;	/* obsolete */
 	__fs32		vs_iaddrlen;		/* size of indirect addr ext. */
 	__fs32		vs_bshift;		/* log base 2 of bsize */
-	__fs32		vs_inoshift;		/* log base 2 of inobp */
+	__fs32		vs_iyesshift;		/* log base 2 of iyesbp */
 	__fs32		vs_bmask;		/* ~( bsize - 1 ) */
 	__fs32		vs_boffmask;		/* bsize - 1 */
-	__fs32		vs_old_inomask;		/* old_inopilb - 1 */
+	__fs32		vs_old_iyesmask;		/* old_iyespilb - 1 */
 	__fs32		vs_checksum;		/* checksum of V1 data */
 	
 	/*
 	 * Version 1, writable
 	 */
 	__fs32		vs_free;		/* number of free blocks */
-	__fs32		vs_ifree;		/* number of free inodes */
+	__fs32		vs_ifree;		/* number of free iyesdes */
 	__fs32		vs_efree[VXFS_NEFREE];	/* number of free extents by size */
 	__fs32		vs_flags;		/* flags ?!? */
 	__u8		vs_mod;			/* filesystem has been changed */
@@ -145,10 +145,10 @@ struct vxfs_sb {
 	 */
 	__fs32		vs_oltext[2];		/* OLT extent and replica */
 	__fs32		vs_oltsize;		/* OLT extent size */
-	__fs32		vs_iauimlen;		/* size of inode map */
+	__fs32		vs_iauimlen;		/* size of iyesde map */
 	__fs32		vs_iausize;		/* size of IAU in blocks */
-	__fs32		vs_dinosize;		/* size of inode in bytes */
-	__fs32		vs_old_dniaddr;		/* indir levels per inode */
+	__fs32		vs_diyessize;		/* size of iyesde in bytes */
+	__fs32		vs_old_dniaddr;		/* indir levels per iyesde */
 	__fs32		vs_checksum2;		/* checksum of V2 RO */
 
 	/*
@@ -163,11 +163,11 @@ struct vxfs_sb {
 struct vxfs_sb_info {
 	struct vxfs_sb		*vsi_raw;	/* raw (on disk) superblock */
 	struct buffer_head	*vsi_bp;	/* buffer for raw superblock*/
-	struct inode		*vsi_fship;	/* fileset header inode */
-	struct inode		*vsi_ilist;	/* inode list inode */
-	struct inode		*vsi_stilist;	/* structural inode list inode */
-	u_long			vsi_iext;	/* initial inode list */
-	ino_t			vsi_fshino;	/* fileset header inode */
+	struct iyesde		*vsi_fship;	/* fileset header iyesde */
+	struct iyesde		*vsi_ilist;	/* iyesde list iyesde */
+	struct iyesde		*vsi_stilist;	/* structural iyesde list iyesde */
+	u_long			vsi_iext;	/* initial iyesde list */
+	iyes_t			vsi_fshiyes;	/* fileset header iyesde */
 	daddr_t			vsi_oltext;	/* OLT extent */
 	daddr_t			vsi_oltsize;	/* OLT size */
 	enum vxfs_byte_order	byte_order;
@@ -199,7 +199,7 @@ static inline u64 fs64_to_cpu(struct vxfs_sb_info *sbi, __fs64 a)
 
 /*
  * File modes.  File types above 0xf000 are vxfs internal only, they should
- * not be passed back to higher levels of the system.  vxfs file types must
+ * yest be passed back to higher levels of the system.  vxfs file types must
  * never have one of the regular file type bits set.
  */
 enum vxfs_mode {
@@ -222,15 +222,15 @@ enum vxfs_mode {
 
 	/* VxFS internal */
 	VXFS_IFFSH = 0x10000000,	/* Fileset header */
-	VXFS_IFILT = 0x20000000,	/* Inode list */
-	VXFS_IFIAU = 0x30000000,	/* Inode allocation unit */
+	VXFS_IFILT = 0x20000000,	/* Iyesde list */
+	VXFS_IFIAU = 0x30000000,	/* Iyesde allocation unit */
 	VXFS_IFCUT = 0x40000000,	/* Current usage table */
-	VXFS_IFATT = 0x50000000,	/* Attr. inode */
+	VXFS_IFATT = 0x50000000,	/* Attr. iyesde */
 	VXFS_IFLCT = 0x60000000,	/* Link count table */
 	VXFS_IFIAT = 0x70000000,	/* Indirect attribute file */
 	VXFS_IFEMR = 0x80000000,	/* Extent map reorg file */
 	VXFS_IFQUO = 0x90000000,	/* BSD quota file */
-	VXFS_IFPTI = 0xa0000000,	/* "Pass through" inode */
+	VXFS_IFPTI = 0xa0000000,	/* "Pass through" iyesde */
 	VXFS_IFLAB = 0x11000000,	/* Device label file */
 	VXFS_IFOLT = 0x12000000,	/* OLT file */
 	VXFS_IFLOG = 0x13000000,	/* Log file */
@@ -261,9 +261,9 @@ enum vxfs_mode {
  * Inmode organisation types.
  */
 enum {
-	VXFS_ORG_NONE	= 0,	/* Inode has *no* format ?!? */
+	VXFS_ORG_NONE	= 0,	/* Iyesde has *yes* format ?!? */
 	VXFS_ORG_EXT4	= 1,	/* Ext4 */
-	VXFS_ORG_IMMED	= 2,	/* All data stored in inode */
+	VXFS_ORG_IMMED	= 2,	/* All data stored in iyesde */
 	VXFS_ORG_TYPED	= 3,	/* Typed extents */
 };
 

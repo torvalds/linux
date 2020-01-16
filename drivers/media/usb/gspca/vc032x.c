@@ -2882,7 +2882,7 @@ static const struct sensor_info vc0323_probe_data[] = {
 /* ?? */
 	{-1,		    0x80 | 0x56, 0x01, 0x0000, 0x64, 0x67, 0x01},
 	{SENSOR_MI1320_SOC, 0x80 | 0x48, 0x00, 0x148c, 0x64, 0x67, 0x01},
-/*fixme: not in the ms-win probe - may be found before? */
+/*fixme: yest in the ms-win probe - may be found before? */
 	{SENSOR_OV7670,     0x80 | 0x21, 0x0a, 0x7673, 0x66, 0x67, 0x05},
 };
 
@@ -3103,7 +3103,7 @@ static void usb_exchange(struct gspca_dev *gspca_dev,
 		switch (data[i][3]) {
 		default:
 			return;
-		case 0xcc:			/* normal write */
+		case 0xcc:			/* yesrmal write */
 			reg_w(gspca_dev, 0xa0, data[i][2],
 					(data[i][0]) << 8 | data[i][1]);
 			break;
@@ -3119,7 +3119,7 @@ static void usb_exchange(struct gspca_dev *gspca_dev,
 		}
 		i++;
 	}
-	/*not reached*/
+	/*yest reached*/
 }
 
 
@@ -3134,7 +3134,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	if (id->idVendor == 0x046d &&
 	    (id->idProduct == 0x0892 || id->idProduct == 0x0896))
-		sd->sensor = SENSOR_POxxxx;	/* no probe */
+		sd->sensor = SENSOR_POxxxx;	/* yes probe */
 
 	return 0;
 }
@@ -3166,7 +3166,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	switch (sensor) {
 	case -1:
-		pr_err("Unknown sensor...\n");
+		pr_err("Unkyeswn sensor...\n");
 		return -EINVAL;
 	case SENSOR_HV7131R:
 		gspca_dbg(gspca_dev, D_PROBE, "Find Sensor HV7131R\n");
@@ -3633,7 +3633,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 
 	/* The vc0321 sends some additional data after sending the complete
-	 * frame, we ignore this. */
+	 * frame, we igyesre this. */
 	if (sd->bridge == BRIDGE_VC0321) {
 		int size, l;
 
@@ -3773,7 +3773,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_BACKLIGHT_COMPENSATION, 0, 15, 1, 15);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	if (sd->hflip)

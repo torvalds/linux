@@ -21,7 +21,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -74,7 +74,7 @@ struct fb_info_platinum {
  * Frame buffer device API
  */
 
-static int platinumfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int platinumfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 	u_int transp, struct fb_info *info);
 static int platinumfb_blank(int blank_mode, struct fb_info *info);
 static int platinumfb_set_par (struct fb_info *info);
@@ -179,38 +179,38 @@ static int platinumfb_blank(int blank,  struct fb_info *fb)
 	return 0;
 }
 
-static int platinumfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int platinumfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			      u_int transp, struct fb_info *info)
 {
 	struct fb_info_platinum *pinfo = info->par;
 	volatile struct cmap_regs __iomem *cmap_regs = pinfo->cmap_regs;
 
-	if (regno > 255)
+	if (regyes > 255)
 		return 1;
 
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
 
-	pinfo->palette[regno].red = red;
-	pinfo->palette[regno].green = green;
-	pinfo->palette[regno].blue = blue;
+	pinfo->palette[regyes].red = red;
+	pinfo->palette[regyes].green = green;
+	pinfo->palette[regyes].blue = blue;
 
-	out_8(&cmap_regs->addr, regno);		/* tell clut what addr to fill	*/
+	out_8(&cmap_regs->addr, regyes);		/* tell clut what addr to fill	*/
 	out_8(&cmap_regs->lut, red);		/* send one color channel at	*/
 	out_8(&cmap_regs->lut, green);		/* a time...			*/
 	out_8(&cmap_regs->lut, blue);
 
-	if (regno < 16) {
+	if (regyes < 16) {
 		int i;
 		u32 *pal = info->pseudo_palette;
 		switch (pinfo->cmode) {
 		case CMODE_16:
-			pal[regno] = (regno << 10) | (regno << 5) | regno;
+			pal[regyes] = (regyes << 10) | (regyes << 5) | regyes;
 			break;
 		case CMODE_32:
-			i = (regno << 8) | regno;
-			pal[regno] = (i << 16) | i;
+			i = (regyes << 8) | regyes;
+			pal[regyes] = (i << 16) | i;
 			break;
 		}
 	}
@@ -360,7 +360,7 @@ static int platinum_init_fb(struct fb_info *info)
 	if (default_cmode < CMODE_8 || default_cmode > CMODE_32)
 		default_cmode = CMODE_8;
 	/*
-	 * Reduce the pixel size if we don't have enough VRAM.
+	 * Reduce the pixel size if we don't have eyesugh VRAM.
 	 */
 	while(default_cmode > CMODE_8 &&
 	      platinum_vram_reqd(default_vmode, default_cmode) > pinfo->total_vram)
@@ -455,12 +455,12 @@ static int platinum_var_to_par(struct fb_var_screeninfo *var,
 	}
 
 	if (!platinum_reg_init[vmode-1]) {
-		printk(KERN_ERR "platinum_var_to_par, vmode %d not valid.\n", vmode);
+		printk(KERN_ERR "platinum_var_to_par, vmode %d yest valid.\n", vmode);
 		return -EINVAL;
 	}
 
 	if (platinum_vram_reqd(vmode, cmode) > pinfo->total_vram) {
-		printk(KERN_ERR "platinum_var_to_par, not enough ram for vmode %d, cmode %d.\n", vmode, cmode);
+		printk(KERN_ERR "platinum_var_to_par, yest eyesugh ram for vmode %d, cmode %d.\n", vmode, cmode);
 		return -EINVAL;
 	}
 
@@ -529,7 +529,7 @@ static int __init platinumfb_setup(char *options)
 
 static int platinumfb_probe(struct platform_device* odev)
 {
-	struct device_node	*dp = odev->dev.of_node;
+	struct device_yesde	*dp = odev->dev.of_yesde;
 	struct fb_info		*info;
 	struct fb_info_platinum	*pinfo;
 	volatile __u8		*fbuffer;
@@ -556,8 +556,8 @@ static int platinumfb_probe(struct platform_device* odev)
 		(unsigned long long)pinfo->rsrc_fb.start,
 		(unsigned long long)pinfo->rsrc_fb.end);
 
-	/* Do not try to request register space, they overlap with the
-	 * northbridge and that can fail. Only request framebuffer
+	/* Do yest try to request register space, they overlap with the
+	 * yesrthbridge and that can fail. Only request framebuffer
 	 */
 	if (!request_mem_region(pinfo->rsrc_fb.start,
 				resource_size(&pinfo->rsrc_fb),
@@ -576,7 +576,7 @@ static int platinumfb_probe(struct platform_device* odev)
 	pinfo->platinum_regs_phys = pinfo->rsrc_reg.start;
 	pinfo->platinum_regs = ioremap(pinfo->rsrc_reg.start, 0x1000);
 
-	pinfo->cmap_regs_phys = 0xf301b000;	/* XXX not in prom? */
+	pinfo->cmap_regs_phys = 0xf301b000;	/* XXX yest in prom? */
 	request_mem_region(pinfo->cmap_regs_phys, 0x1000, "platinumfb cmap");
 	pinfo->cmap_regs = ioremap(pinfo->cmap_regs_phys, 0x1000);
 
@@ -620,7 +620,7 @@ static int platinumfb_probe(struct platform_device* odev)
 		break;
 	default:
 		pinfo->clktype = 0;
-		printk(KERN_INFO "platinumfb: Unknown DACula type: %x\n", pinfo->dactype);
+		printk(KERN_INFO "platinumfb: Unkyeswn DACula type: %x\n", pinfo->dactype);
 		break;
 	}
 	dev_set_drvdata(&odev->dev, info);

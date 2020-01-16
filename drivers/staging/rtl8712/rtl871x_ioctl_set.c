@@ -93,7 +93,7 @@ static u8 do_join(struct _adapter *padapter)
 				pmlmepriv->fw_state ^=
 					_FW_UNDER_LINKING;
 			/* when set_ssid/set_bssid for do_join(), but
-			 * there are no desired bss in scanning queue
+			 * there are yes desired bss in scanning queue
 			 * we try to issue sitesurvey first
 			 */
 			if (!pmlmepriv->sitesurveyctrl.traffic_busy)
@@ -244,7 +244,7 @@ void r8712_set_802_11_infrastructure_mode(struct _adapter *padapter,
 		    (*pold_state == Ndis802_11IBSS)) {
 			/* will clr Linked_state before this function,
 			 * we must have checked whether issue dis-assoc_cmd or
-			 * not
+			 * yest
 			 */
 			r8712_ind_disconnect(padapter);
 		}
@@ -264,7 +264,7 @@ void r8712_set_802_11_infrastructure_mode(struct _adapter *padapter,
 		case Ndis802_11APMode:
 			set_fwstate(pmlmepriv, WIFI_AP_STATE);
 			break;
-		case Ndis802_11AutoUnknown:
+		case Ndis802_11AutoUnkyeswn:
 		case Ndis802_11InfrastructureMax:
 			break;
 		}
@@ -301,7 +301,7 @@ u8 r8712_set_802_11_bssid_list_scan(struct _adapter *padapter)
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY | _FW_UNDER_LINKING) ||
 	    pmlmepriv->sitesurveyctrl.traffic_busy) {
-		/* Scan or linking is in progress, do nothing. */
+		/* Scan or linking is in progress, do yesthing. */
 		ret = (u8)check_fwstate(pmlmepriv, _FW_UNDER_SURVEY);
 	} else {
 		r8712_free_network_queue(padapter);

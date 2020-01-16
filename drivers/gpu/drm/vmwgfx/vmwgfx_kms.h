@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -311,7 +311,7 @@ struct vmw_connector_state {
 	 * @gui_x:
 	 *
 	 * vmwgfx connector property representing the x position of this display
-	 * unit (connector is synonymous to display unit) in overall topology.
+	 * unit (connector is syyesnymous to display unit) in overall topology.
 	 * This is what the device expect as xRoot while creating screen.
 	 */
 	int gui_x;
@@ -320,7 +320,7 @@ struct vmw_connector_state {
 	 * @gui_y:
 	 *
 	 * vmwgfx connector property representing the y position of this display
-	 * unit (connector is synonymous to display unit) in overall topology.
+	 * unit (connector is syyesnymous to display unit) in overall topology.
 	 * This is what the device expect as yRoot while creating screen.
 	 */
 	int gui_y;

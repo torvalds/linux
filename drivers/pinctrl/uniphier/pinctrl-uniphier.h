@@ -63,16 +63,16 @@ enum uniphier_pin_drv_type {
 	UNIPHIER_PIN_DRV_FIXED4,	/* fixed to 4mA */
 	UNIPHIER_PIN_DRV_FIXED5,	/* fixed to 5mA */
 	UNIPHIER_PIN_DRV_FIXED8,	/* fixed to 8mA */
-	UNIPHIER_PIN_DRV_NONE,		/* no support (input only pin) */
+	UNIPHIER_PIN_DRV_NONE,		/* yes support (input only pin) */
 };
 
-/* direction of pull register (no pin supports bi-directional pull biasing) */
+/* direction of pull register (yes pin supports bi-directional pull biasing) */
 enum uniphier_pin_pull_dir {
 	UNIPHIER_PIN_PULL_UP,		/* pull-up or disabled */
 	UNIPHIER_PIN_PULL_DOWN,		/* pull-down or disabled */
 	UNIPHIER_PIN_PULL_UP_FIXED,	/* always pull-up */
 	UNIPHIER_PIN_PULL_DOWN_FIXED,	/* always pull-down */
-	UNIPHIER_PIN_PULL_NONE,		/* no pull register */
+	UNIPHIER_PIN_PULL_NONE,		/* yes pull register */
 };
 
 #define UNIPHIER_PIN_IECTRL(x) \

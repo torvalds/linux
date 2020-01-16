@@ -2,5 +2,5 @@
 #include <linux/module.h>
 #include <linux/mmc/sdhci-pci-data.h>
 
-struct sdhci_pci_data *(*sdhci_pci_get_data)(struct pci_dev *pdev, int slotno);
+struct sdhci_pci_data *(*sdhci_pci_get_data)(struct pci_dev *pdev, int slotyes);
 EXPORT_SYMBOL_GPL(sdhci_pci_get_data);

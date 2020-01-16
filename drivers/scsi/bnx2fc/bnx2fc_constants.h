@@ -22,7 +22,7 @@
 /* Current FCoE HSI version number composed of two fields (16 bit) */
 /* Implies on a change broken previous HSI */
 #define FCOE_HSI_MAJOR_VERSION (2)
-/* Implies on a change which does not broken previous HSI */
+/* Implies on a change which does yest broken previous HSI */
 #define FCOE_HSI_MINOR_VERSION (1)
 
 /* KWQ/KCQ FCoE layer code */
@@ -100,7 +100,7 @@
 /* Task context constants */
 /******** Remove FCP_CMD write tce sleep ***********************/
 /* In case timer services are required then shall be updated by Xstorm after
- * start processing the task. In case no timer facilities are required then the
+ * start processing the task. In case yes timer facilities are required then the
  * driver would initialize the state to this value
  *
 #define	FCOE_TASK_TX_STATE_NORMAL				0
@@ -110,7 +110,7 @@
 /* After driver has initialize the task in case timer services required */
 #define	FCOE_TASK_TX_STATE_INIT					0
 /* In case timer services are required then shall be updated by Xstorm after
- * start processing the task. In case no timer facilities are required then the
+ * start processing the task. In case yes timer facilities are required then the
  * driver would initialize the state to this value
  */
 #define	FCOE_TASK_TX_STATE_NORMAL				1
@@ -150,11 +150,11 @@
 /* FW only: Special completion indication in case of task was cleaned. */
 #define FCOE_TASK_RX_STATE_EXCHANGE_CLEANUP_COMPLETED		9
 /* Not in used: Special completion indication (in task requested the exchange
- * cleanup) in case cleaned task is in non-valid.
+ * cleanup) in case cleaned task is in yesn-valid.
  */
 #define FCOE_TASK_RX_STATE_ABORT_CLEANUP_COMPLETED		10
 /* Special completion indication (in task requested the sequence cleanup) in
- * case cleaned task was already returned to normal.
+ * case cleaned task was already returned to yesrmal.
  */
 #define FCOE_TASK_RX_STATE_IGNORED_SEQUENCE_CLEANUP		11
 

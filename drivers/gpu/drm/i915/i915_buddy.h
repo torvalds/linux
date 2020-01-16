@@ -57,7 +57,7 @@ struct i915_buddy_mm {
 
 	/*
 	 * Anything from here is public, and remains static for the lifetime of
-	 * the mm. Everything above is considered do-not-touch.
+	 * the mm. Everything above is considered do-yest-touch.
 	 */
 	unsigned int n_roots;
 	unsigned int max_order;

@@ -1,4 +1,4 @@
-Qualcomm adreno/snapdragon hdmi output
+Qualcomm adreyes/snapdragon hdmi output
 
 Required properties:
 - compatible: one of the following
@@ -50,7 +50,7 @@ Required properties:
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: device clocks
   See Documentation/devicetree/bindings/clock/clock-bindings.txt for details.
-- core-vdda-supply: phandle to vdda regulator device node
+- core-vdda-supply: phandle to vdda regulator device yesde
 
 Example:
 

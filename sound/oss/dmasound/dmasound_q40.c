@@ -30,7 +30,7 @@
 #define DMASOUND_Q40_REVISION 0
 #define DMASOUND_Q40_EDITION 3
 
-static int expand_bal;	/* Balance factor for expanding (not volume!) */
+static int expand_bal;	/* Balance factor for expanding (yest volume!) */
 static int expand_data;	/* Data for expanding */
 
 
@@ -50,7 +50,7 @@ static int Q40SetVolume(int volume);
 static void Q40PlayNextFrame(int index);
 static void Q40Play(void);
 static irqreturn_t Q40StereoInterrupt(int irq, void *dummy);
-static irqreturn_t Q40MonoInterrupt(int irq, void *dummy);
+static irqreturn_t Q40MoyesInterrupt(int irq, void *dummy);
 static void Q40Interrupt(void);
 
 
@@ -114,7 +114,7 @@ static ssize_t q40_ct_u8(const u_char __user *userPtr, size_t userCount,
 }
 
 
-/* a bit too complicated to optimise right now ..*/
+/* a bit too complicated to optimise right yesw ..*/
 static ssize_t q40_ctx_law(const u_char __user *userPtr, size_t userCount,
 			    u_char frame[], ssize_t *frameUsed,
 			    ssize_t frameLeft)
@@ -425,7 +425,7 @@ static void Q40PlayNextFrame(int index)
 		error = request_irq(Q40_IRQ_SAMPLE, Q40StereoInterrupt, 0,
 				    "Q40 sound", Q40Interrupt);
 	  else
-		error = request_irq(Q40_IRQ_SAMPLE, Q40MonoInterrupt, 0,
+		error = request_irq(Q40_IRQ_SAMPLE, Q40MoyesInterrupt, 0,
 				    "Q40 sound", Q40Interrupt);
 	if (error && printk_ratelimit())
 		pr_err("Couldn't register sound interrupt\n");
@@ -444,10 +444,10 @@ static void Q40Play(void)
 		return;
 	}
 
-	/* nothing in the queue */
+	/* yesthing in the queue */
 	if (write_sq.count <= 1 && write_sq.rear_size < write_sq.block_size && !write_sq.syncing) {
-	         /* hmmm, the only existing frame is not
-		  * yet filled and we're not syncing?
+	         /* hmmm, the only existing frame is yest
+		  * yet filled and we're yest syncing?
 		  */
 	         return;
 	}
@@ -468,7 +468,7 @@ static irqreturn_t Q40StereoInterrupt(int irq, void *dummy)
 	spin_unlock(&dmasound.lock);
 	return IRQ_HANDLED;
 }
-static irqreturn_t Q40MonoInterrupt(int irq, void *dummy)
+static irqreturn_t Q40MoyesInterrupt(int irq, void *dummy)
 {
 	spin_lock(&dmasound.lock);
         if (q40_sc>0){
@@ -494,7 +494,7 @@ static void Q40Interrupt(void)
 	Q40Play();
 
 	if (q40_sc<2)
-	      { /* there was nothing to play, disable irq */
+	      { /* there was yesthing to play, disable irq */
 		master_outb(0,SAMPLE_ENABLE_REG);
 		*DAC_LEFT=*DAC_RIGHT=127;
 	      }
@@ -518,7 +518,7 @@ static void Q40Init(void)
 			idx = i;
 
 	dmasound.hard = dmasound.soft;
-	/*sound.hard.stereo=1;*/ /* no longer true */
+	/*sound.hard.stereo=1;*/ /* yes longer true */
 	dmasound.hard.size=8;
 
 	if (idx > -1) {

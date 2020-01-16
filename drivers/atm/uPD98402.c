@@ -6,7 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/atmdev.h>
 #include <linux/sonet.h>
 #include <linux/init.h>
@@ -25,7 +25,7 @@
 
 
 struct uPD98402_priv {
-	struct k_sonet_stats sonet_stats;/* link diagnostics */
+	struct k_sonet_stats sonet_stats;/* link diagyesstics */
 	unsigned char framing;		/* SONET/SDH framing */
 	int loop_mode;			/* loopback mode */
 	spinlock_t lock;
@@ -47,7 +47,7 @@ static int fetch_stats(struct atm_dev *dev,struct sonet_stats __user *arg,int ze
 	sonet_copy_stats(&PRIV(dev)->sonet_stats,&tmp);
 	if (arg) error = copy_to_user(arg,&tmp,sizeof(tmp));
 	if (zero && !error) {
-		/* unused fields are reported as -1, but we must not "adjust"
+		/* unused fields are reported as -1, but we must yest "adjust"
 		   them */
 		tmp.corr_hcs = tmp.tx_cells = tmp.rx_cells = 0;
 		sonet_subtract_stats(&PRIV(dev)->sonet_stats,&tmp);
@@ -216,7 +216,7 @@ static int uPD98402_start(struct atm_dev *dev)
 	spin_lock_init(&PRIV(dev)->lock);
 	memset(&PRIV(dev)->sonet_stats,0,sizeof(struct k_sonet_stats));
 	(void) GET(PCR); /* clear performance events */
-	PUT(uPD98402_PFM_FJ,PCMR); /* ignore frequency adj */
+	PUT(uPD98402_PFM_FJ,PCMR); /* igyesre frequency adj */
 	(void) GET(PCOCR); /* clear overflows */
 	PUT(~uPD98402_PCO_HECC,PCOMR);
 	(void) GET(PICR); /* clear interrupts */
@@ -263,4 +263,4 @@ static __init int uPD98402_module_init(void)
 	return 0;
 }
 module_init(uPD98402_module_init);
-/* module_exit not defined so not unloadable */
+/* module_exit yest defined so yest unloadable */

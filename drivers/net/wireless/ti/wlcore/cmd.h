@@ -5,7 +5,7 @@
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
  * Copyright (C) 2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #ifndef __CMD_H__
@@ -363,7 +363,7 @@ struct wl12xx_cmd_role_start {
 			u8 reset_tsf;
 
 			/*
-			 * ap supports wmm (note that there is additional
+			 * ap supports wmm (yeste that there is additional
 			 * per-sta wmm configuration)
 			 */
 			u8 wmm;
@@ -621,7 +621,7 @@ enum wl12xx_fwlogger_timestamp {
 };
 
 /*
- * Logs can be routed to the debug pinouts (where available), to the host bus
+ * Logs can be routed to the debug piyesuts (where available), to the host bus
  * (SDIO/SPI), or dropped
  */
 enum wl12xx_fwlogger_output {

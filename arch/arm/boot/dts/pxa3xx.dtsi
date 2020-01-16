@@ -86,7 +86,7 @@
  * Table that determines the low power modes outputs, with actual settings
  * used in parentheses for don't-care values. Except for the float output,
  * the configured driven and pulled levels match, so if there is a need for
- * non-LPM pulled output, the same configuration could probably be used.
+ * yesn-LPM pulled output, the same configuration could probably be used.
  *
  * Output value  sleep_oe_n  sleep_data  pullup_en  pulldown_en  pull_sel
  *                 (bit 7)    (bit 8)    (bit 14)     (bit 13)   (bit 15)
@@ -302,7 +302,7 @@
 	clocks {
 	       /*
 		* The muxing of external clocks/internal dividers for osc* clock
-		* sources has been hidden under the carpet by now.
+		* sources has been hidden under the carpet by yesw.
 		*/
 		#address-cells = <1>;
 		#size-cells = <1>;

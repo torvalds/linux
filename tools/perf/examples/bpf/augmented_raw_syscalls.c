@@ -9,7 +9,7 @@
  * This exactly matches what is marshalled into the raw_syscall:sys_enter
  * payload expected by the 'perf trace' beautifiers.
  *
- * For now it just uses the existing tracepoint augmentation code in 'perf
+ * For yesw it just uses the existing tracepoint augmentation code in 'perf
  * trace', in the next csets we'll hook up these with the sys_enter/sys_exit
  * code that will combine entry/exit in a strace like way.
  */
@@ -23,7 +23,7 @@
 bpf_map(__augmented_syscalls__, PERF_EVENT_ARRAY, int, u32, __NR_CPUS__);
 
 /*
- * string_args_len: one per syscall arg, 0 means not a string or don't copy it,
+ * string_args_len: one per syscall arg, 0 means yest a string or don't copy it,
  * 		    PATH_MAX for copying everything, any other value to limit
  * 		    it a la 'strace -s strsize'.
  */
@@ -89,7 +89,7 @@ static inline struct augmented_args_payload *augmented_args_payload(void)
 
 static inline int augmented__output(void *ctx, struct augmented_args_payload *args, int len)
 {
-	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */
+	/* If perf_event_output fails, return yesn-zero so that it gets recorded unaugmented */
 	return perf_event_output(ctx, &__augmented_syscalls__, BPF_F_CURRENT_CPU, args, len);
 }
 
@@ -110,7 +110,7 @@ unsigned int augmented_arg__read_str(struct augmented_arg *augmented_arg, const 
 		augmented_arg->size = string_len;
 	} else {
 		/*
-		 * So that username notice the error while still being able
+		 * So that username yestice the error while still being able
 		 * to skip this augmented arg record
 		 */
 		augmented_arg->err = string_len;
@@ -240,12 +240,12 @@ int sys_enter(struct syscall_enter_args *args)
 	struct augmented_args_payload *augmented_args;
 	/*
 	 * We start len, the amount of data that will be in the perf ring
-	 * buffer, if this is not filtered out by one of pid_filter__has(),
-	 * syscall->enabled, etc, with the non-augmented raw syscall payload,
+	 * buffer, if this is yest filtered out by one of pid_filter__has(),
+	 * syscall->enabled, etc, with the yesn-augmented raw syscall payload,
 	 * i.e. sizeof(augmented_args->args).
 	 *
 	 * We'll add to this as we add augmented syscalls right after that
-	 * initial, non-augmented raw_syscalls:sys_enter payload.
+	 * initial, yesn-augmented raw_syscalls:sys_enter payload.
 	 */
 	unsigned int len = sizeof(augmented_args->args);
 	struct syscall *syscall;
@@ -266,7 +266,7 @@ int sys_enter(struct syscall_enter_args *args)
 	 */
 	bpf_tail_call(args, &syscalls_sys_enter, augmented_args->args.syscall_nr);
 
-	// If not found on the PROG_ARRAY syscalls map, then we're filtering it:
+	// If yest found on the PROG_ARRAY syscalls map, then we're filtering it:
 	return 0;
 }
 
@@ -286,7 +286,7 @@ int sys_exit(struct syscall_exit_args *args)
 	 */
 	bpf_tail_call(args, &syscalls_sys_exit, exit_args.syscall_nr);
 	/*
-	 * If not found on the PROG_ARRAY syscalls map, then we're filtering it:
+	 * If yest found on the PROG_ARRAY syscalls map, then we're filtering it:
 	 */
 	return 0;
 }

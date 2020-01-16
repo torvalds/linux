@@ -14,16 +14,16 @@
 static int affs_symlink_readpage(struct file *file, struct page *page)
 {
 	struct buffer_head *bh;
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	char *link = page_address(page);
 	struct slink_front *lf;
 	int			 i, j;
 	char			 c;
 	char			 lc;
 
-	pr_debug("get_link(ino=%lu)\n", inode->i_ino);
+	pr_debug("get_link(iyes=%lu)\n", iyesde->i_iyes);
 
-	bh = affs_bread(inode->i_sb, inode->i_ino);
+	bh = affs_bread(iyesde->i_sb, iyesde->i_iyes);
 	if (!bh)
 		goto fail;
 	i  = 0;
@@ -32,7 +32,7 @@ static int affs_symlink_readpage(struct file *file, struct page *page)
 	lc = 0;
 
 	if (strchr(lf->symname,':')) {	/* Handle assign or volume name */
-		struct affs_sb_info *sbi = AFFS_SB(inode->i_sb);
+		struct affs_sb_info *sbi = AFFS_SB(iyesde->i_sb);
 		char *pf;
 		spin_lock(&sbi->symlink_lock);
 		pf = sbi->s_prefix ? sbi->s_prefix : "/";
@@ -70,7 +70,7 @@ const struct address_space_operations affs_symlink_aops = {
 	.readpage	= affs_symlink_readpage,
 };
 
-const struct inode_operations affs_symlink_inode_operations = {
+const struct iyesde_operations affs_symlink_iyesde_operations = {
 	.get_link	= page_get_link,
-	.setattr	= affs_notify_change,
+	.setattr	= affs_yestify_change,
 };

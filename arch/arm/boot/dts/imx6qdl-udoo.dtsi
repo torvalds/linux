@@ -304,7 +304,7 @@
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 

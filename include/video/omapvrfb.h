@@ -3,7 +3,7 @@
  * VRFB Rotation Engine
  *
  * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@yeskia.com>
  */
 
 #ifndef __OMAP_VRFB_H__

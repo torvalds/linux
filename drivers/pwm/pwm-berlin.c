@@ -1,7 +1,7 @@
 /*
  * Marvell Berlin PWM driver
  *
- * Copyright (C) 2015 Marvell Technology Group Ltd.
+ * Copyright (C) 2015 Marvell Techyeslogy Group Ltd.
  *
  * Author: Antoine Tenart <antoine.tenart@free-electrons.com>
  *

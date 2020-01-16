@@ -151,22 +151,22 @@ static struct hisi_qp *hpre_get_qp_and_start(void)
 	int ret;
 
 	/* find the proper hpre device, which is near the current CPU core */
-	hpre = hpre_find_device(cpu_to_node(smp_processor_id()));
+	hpre = hpre_find_device(cpu_to_yesde(smp_processor_id()));
 	if (!hpre) {
-		pr_err("Can not find proper hpre device!\n");
+		pr_err("Can yest find proper hpre device!\n");
 		return ERR_PTR(-ENODEV);
 	}
 
 	qp = hisi_qm_create_qp(&hpre->qm, 0);
 	if (IS_ERR(qp)) {
-		pci_err(hpre->qm.pdev, "Can not create qp!\n");
+		pci_err(hpre->qm.pdev, "Can yest create qp!\n");
 		return ERR_PTR(-ENODEV);
 	}
 
 	ret = hisi_qm_start_qp(qp, 0);
 	if (ret < 0) {
 		hisi_qm_release_qp(qp);
-		pci_err(hpre->qm.pdev, "Can not start qp!\n");
+		pci_err(hpre->qm.pdev, "Can yest start qp!\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -941,7 +941,7 @@ static void hpre_rsa_clear_ctx(struct hpre_ctx *ctx, bool is_clear_all)
 }
 
 /*
- * we should judge if it is CRT or not,
+ * we should judge if it is CRT or yest,
  * CRT: return true,  N-CRT: return false .
  */
 static bool hpre_is_crt_key(struct rsa_key *key)
@@ -1046,7 +1046,7 @@ static int hpre_rsa_init_tfm(struct crypto_akcipher *tfm)
 
 	ctx->rsa.soft_tfm = crypto_alloc_akcipher("rsa-generic", 0, 0);
 	if (IS_ERR(ctx->rsa.soft_tfm)) {
-		pr_err("Can not alloc_akcipher!\n");
+		pr_err("Can yest alloc_akcipher!\n");
 		return PTR_ERR(ctx->rsa.soft_tfm);
 	}
 

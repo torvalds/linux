@@ -9,7 +9,7 @@
  * __force_order is used by special_insns.h asm code to force instruction
  * serialization.
  *
- * It is not referenced from the code, but GCC < 5 with -fPIE would fail
+ * It is yest referenced from the code, but GCC < 5 with -fPIE would fail
  * due to an undefined symbol. Define it to make these ancient GCCs work.
  */
 unsigned long __force_order;
@@ -50,10 +50,10 @@ static unsigned long find_trampoline_placement(void)
 	 */
 
 	/*
-	 * EFI systems may not provide legacy ROM. The memory may not be mapped
+	 * EFI systems may yest provide legacy ROM. The memory may yest be mapped
 	 * at all.
 	 *
-	 * Only look for values in the legacy ROM for non-EFI system.
+	 * Only look for values in the legacy ROM for yesn-EFI system.
 	 */
 	signature = (char *)&boot_params->efi_info.efi_loader_signature;
 	if (strncmp(signature, EFI32_LOADER_SIGNATURE, 4) &&
@@ -80,7 +80,7 @@ static unsigned long find_trampoline_placement(void)
 		if (bios_start <= entry->addr)
 			continue;
 
-		/* Skip non-RAM entries. */
+		/* Skip yesn-RAM entries. */
 		if (entry->type != E820_TYPE_RAM)
 			continue;
 
@@ -119,7 +119,7 @@ struct paging_config paging_prepare(void *rmode)
 	 *
 	 * There are several parts to the check:
 	 *   - if the kernel supports 5-level paging: CONFIG_X86_5LEVEL=y
-	 *   - if user asked to disable 5-level paging: no5lvl in cmdline
+	 *   - if user asked to disable 5-level paging: yes5lvl in cmdline
 	 *   - if the machine supports 5-level paging:
 	 *     + CPUID leaf 7 is supported
 	 *     + the leaf has the feature bit set
@@ -127,7 +127,7 @@ struct paging_config paging_prepare(void *rmode)
 	 * That's substitute for boot_cpu_has() in early boot code.
 	 */
 	if (IS_ENABLED(CONFIG_X86_5LEVEL) &&
-			!cmdline_find_option_bool("no5lvl") &&
+			!cmdline_find_option_bool("yes5lvl") &&
 			native_cpuid_eax(0) >= 7 &&
 			(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31)))) {
 		paging_config.l5_required = 1;
@@ -153,12 +153,12 @@ struct paging_config paging_prepare(void *rmode)
 	 * The new page table will be used by trampoline code for switching
 	 * from 4- to 5-level paging or vice versa.
 	 *
-	 * If switching is not required, the page table is unused: trampoline
+	 * If switching is yest required, the page table is unused: trampoline
 	 * code wouldn't touch CR3.
 	 */
 
 	/*
-	 * We are not going to use the page table in trampoline memory if we
+	 * We are yest going to use the page table in trampoline memory if we
 	 * are already in the desired paging mode.
 	 */
 	if (paging_config.l5_required == !!(native_read_cr4() & X86_CR4_LA57))
@@ -178,7 +178,7 @@ struct paging_config paging_prepare(void *rmode)
 		 * by first entry in the current top-level page table as our
 		 * new top-level page table.
 		 *
-		 * We cannot just point to the page table from trampoline as it
+		 * We canyest just point to the page table from trampoline as it
 		 * may be above 4G.
 		 */
 		src = *(unsigned long *)__native_read_cr3() & PAGE_MASK;

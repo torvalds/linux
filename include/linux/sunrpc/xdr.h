@@ -48,7 +48,7 @@ struct xdr_netobj {
  * operations and/or has a need for scatter/gather involving pages.
  */
 struct xdr_buf {
-	struct kvec	head[1],	/* RPC header + non-page data */
+	struct kvec	head[1],	/* RPC header + yesn-page data */
 			tail[1];	/* Appended after page data */
 
 	struct bio_vec	*bvec;
@@ -483,7 +483,7 @@ xdr_stream_decode_opaque_fixed(struct xdr_stream *xdr, void *ptr, size_t len)
  * @ptr: location to store pointer to opaque data
  * @maxlen: maximum acceptable object size
  *
- * Note: the pointer stored in @ptr cannot be assumed valid after the XDR
+ * Note: the pointer stored in @ptr canyest be assumed valid after the XDR
  * buffer has been destroyed, or even after calling xdr_inline_decode()
  * on @xdr. It is therefore expected that the object it points to should
  * be processed immediately.

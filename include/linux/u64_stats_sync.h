@@ -4,28 +4,28 @@
 
 /*
  * To properly implement 64bits network statistics on 32bit and 64bit hosts,
- * we provide a synchronization point, that is a noop on 64bit or UP kernels.
+ * we provide a synchronization point, that is a yesop on 64bit or UP kernels.
  *
  * Key points :
  * 1) Use a seqcount on SMP 32bits, with low overhead.
- * 2) Whole thing is a noop on 64bit arches or UP kernels.
+ * 2) Whole thing is a yesop on 64bit arches or UP kernels.
  * 3) Write side must ensure mutual exclusion or one seqcount update could
  *    be lost, thus blocking readers forever.
- *    If this synchronization point is not a mutex, but a spinlock or
+ *    If this synchronization point is yest a mutex, but a spinlock or
  *    spinlock_bh() or disable_bh() :
- * 3.1) Write side should not sleep.
- * 3.2) Write side should not allow preemption.
+ * 3.1) Write side should yest sleep.
+ * 3.2) Write side should yest allow preemption.
  * 3.3) If applicable, interrupts should be disabled.
  *
- * 4) If reader fetches several counters, there is no guarantee the whole values
- *    are consistent (remember point 1) : this is a noop on 64bit arches anyway)
+ * 4) If reader fetches several counters, there is yes guarantee the whole values
+ *    are consistent (remember point 1) : this is a yesop on 64bit arches anyway)
  *
  * 5) readers are allowed to sleep or be preempted/interrupted : They perform
- *    pure reads. But if they have to fetch many values, it's better to not allow
+ *    pure reads. But if they have to fetch many values, it's better to yest allow
  *    preemptions/interruptions to avoid many retries.
  *
  * 6) If counter might be written by an interrupt, readers should block interrupts.
- *    (On UP, there is no seqcount_t protection, a reader allowing interrupts could
+ *    (On UP, there is yes seqcount_t protection, a reader allowing interrupts could
  *     read partial values)
  *
  * 7) For irq and softirq uses, readers can use u64_stats_fetch_begin_irq() and
@@ -35,25 +35,25 @@
  *
  * Stats producer (writer) should use following template granted it already got
  * an exclusive access to counters (a lock is already taken, or per cpu
- * data is used [in a non preemptable context])
+ * data is used [in a yesn preemptable context])
  *
  *   spin_lock_bh(...) or other synchronization to get exclusive access
  *   ...
  *   u64_stats_update_begin(&stats->syncp);
- *   u64_stats_add(&stats->bytes64, len); // non atomic operation
- *   u64_stats_inc(&stats->packets64);    // non atomic operation
+ *   u64_stats_add(&stats->bytes64, len); // yesn atomic operation
+ *   u64_stats_inc(&stats->packets64);    // yesn atomic operation
  *   u64_stats_update_end(&stats->syncp);
  *
  * While a consumer (reader) should use following template to get consistent
- * snapshot for each variable (but no guarantee on several ones)
+ * snapshot for each variable (but yes guarantee on several ones)
  *
  * u64 tbytes, tpackets;
  * unsigned int start;
  *
  * do {
  *         start = u64_stats_fetch_begin(&stats->syncp);
- *         tbytes = u64_stats_read(&stats->bytes64); // non atomic operation
- *         tpackets = u64_stats_read(&stats->packets64); // non atomic operation
+ *         tbytes = u64_stats_read(&stats->bytes64); // yesn atomic operation
+ *         tpackets = u64_stats_read(&stats->packets64); // yesn atomic operation
  * } while (u64_stats_fetch_retry(&stats->syncp, start));
  *
  *
@@ -195,7 +195,7 @@ static inline bool u64_stats_fetch_retry(const struct u64_stats_sync *syncp,
  * In case irq handlers can update u64 counters, readers can use following helpers
  * - SMP 32bit arches use seqcount protection, irq safe.
  * - UP 32bit must disable irqs.
- * - 64bit have no problem atomically reading u64 values, irq safe.
+ * - 64bit have yes problem atomically reading u64 values, irq safe.
  */
 static inline unsigned int u64_stats_fetch_begin_irq(const struct u64_stats_sync *syncp)
 {

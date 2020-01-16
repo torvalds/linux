@@ -6,7 +6,7 @@
 
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/prctl.h>
 #include <linux/capability.h>

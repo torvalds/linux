@@ -15,7 +15,7 @@
  * commands and allocated memory is freed for reuse.
  *
  * Multicalls are flushed whenever any of the buffers get full, or
- * when explicitly requested.  There's no way to get per-multicall
+ * when explicitly requested.  There's yes way to get per-multicall
  * return results back.  It will BUG if any of the multicalls fail.
  *
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
@@ -76,7 +76,7 @@ void xen_mc_flush(void)
 
 	switch (b->mcidx) {
 	case 0:
-		/* no-op */
+		/* yes-op */
 		BUG_ON(b->argidx != 0);
 		break;
 

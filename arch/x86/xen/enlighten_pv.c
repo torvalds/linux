@@ -144,14 +144,14 @@ static void __init xen_pv_init_platform(void)
 static void __init xen_pv_guest_late_init(void)
 {
 #ifndef CONFIG_SMP
-	/* Setup shared vcpu info for non-smp configurations */
+	/* Setup shared vcpu info for yesn-smp configurations */
 	xen_setup_vcpu_info_placement();
 #endif
 }
 
-/* Check if running on Xen version (major, minor) or later */
+/* Check if running on Xen version (major, miyesr) or later */
 bool
-xen_running_on_version_or_later(unsigned int major, unsigned int minor)
+xen_running_on_version_or_later(unsigned int major, unsigned int miyesr)
 {
 	unsigned int version;
 
@@ -159,7 +159,7 @@ xen_running_on_version_or_later(unsigned int major, unsigned int minor)
 		return false;
 
 	version = HYPERVISOR_xen_version(XENVER_version, NULL);
-	if ((((version >> 16) == major) && ((version & 0xffff) >= minor)) ||
+	if ((((version >> 16) == major) && ((version & 0xffff) >= miyesr)) ||
 		((version >> 16) > major))
 		return true;
 	return false;
@@ -227,7 +227,7 @@ static bool __init xen_check_mwait(void)
 		return false;
 
 	/*
-	 * When running under platform earlier than Xen4.2, do not expose
+	 * When running under platform earlier than Xen4.2, do yest expose
 	 * mwait, to avoid the risk of loading native acpi pad driver
 	 */
 	if (!xen_running_on_version_or_later(4, 2))
@@ -284,7 +284,7 @@ static bool __init xen_check_xsave(void)
 	xsave_mask = (1 << (X86_FEATURE_XSAVE % 32)) |
 		     (1 << (X86_FEATURE_OSXSAVE % 32));
 
-	/* Xen will set CR4.OSXSAVE if supported and not disabled by force */
+	/* Xen will set CR4.OSXSAVE if supported and yest disabled by force */
 	return (cx & xsave_mask) == xsave_mask;
 }
 
@@ -341,7 +341,7 @@ static unsigned long xen_store_tr(void)
 
 /*
  * Set the page permissions for a particular virtual address.  If the
- * address is a vmalloc mapping (or other non-linear mapping), then
+ * address is a vmalloc mapping (or other yesn-linear mapping), then
  * find the linear mapping of the page and also set its protections to
  * match.
  */
@@ -369,12 +369,12 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	 * tables), but we need to be careful about vmap space.  In
 	 * particular, the top level page table can lazily propagate
 	 * entries between processes, so if we've switched mms since we
-	 * vmapped the target in the first place, we might not have the
+	 * vmapped the target in the first place, we might yest have the
 	 * top-level page table entry populated.
 	 *
 	 * We disable preemption because we want the same mm active when
 	 * we probe the target and when we issue the hypercall.  We'll
-	 * have the same nominal mm, but if we're a kernel thread, lazy
+	 * have the same yesminal mm, but if we're a kernel thread, lazy
 	 * mm dropping could change our pgd.
 	 *
 	 * Out of an abundance of caution, this uses __get_user() to fault
@@ -409,10 +409,10 @@ static void xen_alloc_ldt(struct desc_struct *ldt, unsigned entries)
 	/*
 	 * We need to mark the all aliases of the LDT pages RO.  We
 	 * don't need to call vm_flush_aliases(), though, since that's
-	 * only responsible for flushing aliases out the TLBs, not the
+	 * only responsible for flushing aliases out the TLBs, yest the
 	 * page tables, and Xen will flush the TLB for us if needed.
 	 *
-	 * To avoid confusing future readers: none of this is necessary
+	 * To avoid confusing future readers: yesne of this is necessary
 	 * to load the LDT.  The hypervisor only checks this when the
 	 * LDT is faulted in due to subsequent descriptor access.
 	 */
@@ -540,14 +540,14 @@ static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 	 * and lazy gs handling is enabled, it means we're in a
 	 * context switch, and %gs has just been saved.  This means we
 	 * can zero it out to prevent faults on exit from the
-	 * hypervisor if the next process has no %gs.  Either way, it
+	 * hypervisor if the next process has yes %gs.  Either way, it
 	 * has been saved, and the new value will get loaded properly.
-	 * This will go away as soon as Xen has been modified to not
-	 * save/restore %gs for normal hypercalls.
+	 * This will go away as soon as Xen has been modified to yest
+	 * save/restore %gs for yesrmal hypercalls.
 	 *
-	 * On x86_64, this hack is not used for %gs, because gs points
+	 * On x86_64, this hack is yest used for %gs, because gs points
 	 * to KERNEL_GS_BASE (and uses it for PDA references), so we
-	 * must not zero %gs on x86_64
+	 * must yest zero %gs on x86_64
 	 *
 	 * For x86_64, we need to zero %fs, otherwise we may get an
 	 * exception between the new %fs descriptor being loaded and
@@ -618,10 +618,10 @@ static struct trap_array_entry trap_array[] = {
 	{ divide_error,                xen_divide_error,                false },
 	{ bounds,                      xen_bounds,                      false },
 	{ invalid_op,                  xen_invalid_op,                  false },
-	{ device_not_available,        xen_device_not_available,        false },
+	{ device_yest_available,        xen_device_yest_available,        false },
 	{ coprocessor_segment_overrun, xen_coprocessor_segment_overrun, false },
 	{ invalid_TSS,                 xen_invalid_TSS,                 false },
-	{ segment_not_present,         xen_segment_not_present,         false },
+	{ segment_yest_present,         xen_segment_yest_present,         false },
 	{ stack_segment,               xen_stack_segment,               false },
 	{ general_protection,          xen_general_protection,          false },
 	{ spurious_interrupt_bug,      xen_spurious_interrupt_bug,      false },
@@ -637,7 +637,7 @@ static bool __ref get_trap_addr(void **addr, unsigned int ist)
 
 	/*
 	 * Replace trap handler addresses by Xen specific ones.
-	 * Check for known traps using IST and whitelist them.
+	 * Check for kyeswn traps using IST and whitelist them.
 	 * The debugger ones are the only ones we care about.
 	 * Xen will handle faults like double_fault, * so we should never see
 	 * them.  Warn if there's an unexpected IST-using fault handler.
@@ -774,7 +774,7 @@ static void xen_load_idt(const struct desc_ptr *desc)
 	spin_unlock(&lock);
 }
 
-/* Write a GDT descriptor entry.  Ignore LDT descriptors, since
+/* Write a GDT descriptor entry.  Igyesre LDT descriptors, since
    they're handled differently. */
 static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 				const void *desc, int type)
@@ -786,7 +786,7 @@ static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 	switch (type) {
 	case DESC_LDT:
 	case DESC_TSS:
-		/* ignore */
+		/* igyesre */
 		break;
 
 	default: {
@@ -814,7 +814,7 @@ static void __init xen_write_gdt_entry_boot(struct desc_struct *dt, int entry,
 	switch (type) {
 	case DESC_LDT:
 	case DESC_TSS:
-		/* ignore */
+		/* igyesre */
 		break;
 
 	default: {
@@ -862,7 +862,7 @@ static void xen_write_cr0(unsigned long cr0)
 	this_cpu_write(xen_cr0_value, cr0);
 
 	/* Only pay attention to cr0.TS; everything else is
-	   ignored. */
+	   igyesred. */
 	mcs = xen_mc_entry(0);
 
 	MULTI_fpu_taskswitch(mcs.mc, (cr0 & X86_CR0_TS) != 0);
@@ -923,8 +923,8 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 	case MSR_IA32_SYSENTER_ESP:
 	case MSR_IA32_SYSENTER_EIP:
 		/* Fast syscall setup is all done in hypercalls, so
-		   these are all ignored.  Stub them out here to stop
-		   Xen console noise. */
+		   these are all igyesred.  Stub them out here to stop
+		   Xen console yesise. */
 		break;
 
 	default:
@@ -1027,7 +1027,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.usergs_sysret64 = xen_sysret64,
 #endif
 
-	.load_tr_desc = paravirt_nop,
+	.load_tr_desc = paravirt_yesp,
 	.set_ldt = xen_set_ldt,
 	.load_gdt = xen_load_gdt,
 	.load_idt = xen_load_idt,
@@ -1049,7 +1049,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.io_delay = xen_io_delay,
 
 	/* Xen takes care of %gs when switching to usermode for us */
-	.swapgs = paravirt_nop,
+	.swapgs = paravirt_yesp,
 
 	.start_context_switch = paravirt_start_context_switch,
 	.end_context_switch = xen_end_context_switch,
@@ -1152,7 +1152,7 @@ static void __init xen_boot_params_init_edd(void)
 
 /*
  * Set up the GDT and segment registers for -fstack-protector.  Until
- * we do this, we have to be careful not to call any stack-protected
+ * we do this, we have to be careful yest to call any stack-protected
  * function, which is most of the kernel.
  */
 static void __init xen_setup_gdt(int cpu)
@@ -1198,14 +1198,14 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 * local_irq_disable(), irqs_disabled(), e.g. in printk().
 	 *
 	 * Don't do the full vcpu_info placement stuff until we have
-	 * the cpu_possible_mask and a non-dummy shared_info.
+	 * the cpu_possible_mask and a yesn-dummy shared_info.
 	 */
 	xen_vcpu_info_reset(0);
 
 	x86_platform.get_nmi_reason = xen_get_nmi_reason;
 
 	x86_init.resources.memory_setup = xen_memory_setup;
-	x86_init.irqs.intr_mode_init	= x86_init_noop;
+	x86_init.irqs.intr_mode_init	= x86_init_yesop;
 	x86_init.oem.arch_setup = xen_arch_setup;
 	x86_init.oem.banner = xen_banner;
 	x86_init.hyper.init_platform = xen_pv_init_platform;
@@ -1278,7 +1278,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
-	 * The pages we from Xen are not related to machine pages, so
+	 * The pages we from Xen are yest related to machine pages, so
 	 * any NUMA information the kernel tries to get from ACPI will
 	 * be meaningless.  Prevent it from trying.
 	 */
@@ -1294,7 +1294,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 				   xen_start_info->nr_pages);
 	xen_reserve_special_pages();
 
-	/* keep using Xen gdt for now; no urgent need to change it */
+	/* keep using Xen gdt for yesw; yes urgent need to change it */
 
 #ifdef CONFIG_X86_32
 	pv_info.kernel_rpl = 1;
@@ -1366,8 +1366,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
 		xen_acpi_sleep_register();
 
 		/* Avoid searching for BIOS MP tables */
-		x86_init.mpparse.find_smp_config = x86_init_noop;
-		x86_init.mpparse.get_smp_config = x86_init_uint_noop;
+		x86_init.mpparse.find_smp_config = x86_init_yesop;
+		x86_init.mpparse.get_smp_config = x86_init_uint_yesop;
 
 		xen_boot_params_init_edd();
 	}
@@ -1447,5 +1447,5 @@ const __initconst struct hypervisor_x86 x86_hyper_xen_pv = {
 	.detect                 = xen_platform_pv,
 	.type			= X86_HYPER_XEN_PV,
 	.runtime.pin_vcpu       = xen_pin_vcpu,
-	.ignore_nopv		= true,
+	.igyesre_yespv		= true,
 };

@@ -84,7 +84,7 @@
 #define OMAP_TLL_CHANNEL_2_EN_MASK			(1 << 1)
 #define OMAP_TLL_CHANNEL_3_EN_MASK			(1 << 2)
 
-/* Values of USBTLL_REVISION - Note: these are not given in the TRM */
+/* Values of USBTLL_REVISION - Note: these are yest given in the TRM */
 #define OMAP_USBTLL_REV1		0x00000015	/* OMAP3 */
 #define OMAP_USBTLL_REV2		0x00000018	/* OMAP 3630 */
 #define OMAP_USBTLL_REV3		0x00000004	/* OMAP4 */
@@ -230,7 +230,7 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 		break;
 	default:
 		nch = OMAP_TLL_CHANNEL_COUNT;
-		dev_dbg(dev, "rev 0x%x not recognized, assuming %d channels\n",
+		dev_dbg(dev, "rev 0x%x yest recognized, assuming %d channels\n",
 			ver, nch);
 		break;
 	}
@@ -341,7 +341,7 @@ int omap_tll_init(struct usbhs_omap_platform_data *pdata)
 
 		usbtll_write(base, OMAP_TLL_SHARED_CONF, reg);
 
-		/* Enable channels now */
+		/* Enable channels yesw */
 		for (i = 0; i < tll->nch; i++) {
 			reg = usbtll_read(base,	OMAP_TLL_CHANNEL_CONF(i));
 

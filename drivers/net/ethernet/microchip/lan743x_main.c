@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* Copyright (C) 2018 Microchip Technology Inc. */
+/* Copyright (C) 2018 Microchip Techyeslogy Inc. */
 
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -718,7 +718,7 @@ static u32 lan743x_mac_mii_access(u16 id, u16 index, int read)
 	return ret;
 }
 
-static int lan743x_mac_mii_wait_till_not_busy(struct lan743x_adapter *adapter)
+static int lan743x_mac_mii_wait_till_yest_busy(struct lan743x_adapter *adapter)
 {
 	u32 data;
 
@@ -732,15 +732,15 @@ static int lan743x_mdiobus_read(struct mii_bus *bus, int phy_id, int index)
 	u32 val, mii_access;
 	int ret;
 
-	/* comfirm MII not busy */
-	ret = lan743x_mac_mii_wait_till_not_busy(adapter);
+	/* comfirm MII yest busy */
+	ret = lan743x_mac_mii_wait_till_yest_busy(adapter);
 	if (ret < 0)
 		return ret;
 
 	/* set the address, index & direction (read from PHY) */
 	mii_access = lan743x_mac_mii_access(phy_id, index, MAC_MII_READ);
 	lan743x_csr_write(adapter, MAC_MII_ACC, mii_access);
-	ret = lan743x_mac_mii_wait_till_not_busy(adapter);
+	ret = lan743x_mac_mii_wait_till_yest_busy(adapter);
 	if (ret < 0)
 		return ret;
 
@@ -755,8 +755,8 @@ static int lan743x_mdiobus_write(struct mii_bus *bus,
 	u32 val, mii_access;
 	int ret;
 
-	/* confirm MII not busy */
-	ret = lan743x_mac_mii_wait_till_not_busy(adapter);
+	/* confirm MII yest busy */
+	ret = lan743x_mac_mii_wait_till_yest_busy(adapter);
 	if (ret < 0)
 		return ret;
 	val = (u32)regval;
@@ -765,7 +765,7 @@ static int lan743x_mdiobus_write(struct mii_bus *bus,
 	/* set the address, index & direction (write to PHY) */
 	mii_access = lan743x_mac_mii_access(phy_id, index, MAC_MII_WRITE);
 	lan743x_csr_write(adapter, MAC_MII_ACC, mii_access);
-	ret = lan743x_mac_mii_wait_till_not_busy(adapter);
+	ret = lan743x_mac_mii_wait_till_yest_busy(adapter);
 	return ret;
 }
 
@@ -1212,7 +1212,7 @@ static void lan743x_tx_release_desc(struct lan743x_tx *tx,
 	struct lan743x_tx_buffer_info *buffer_info = NULL;
 	struct lan743x_tx_descriptor *descriptor = NULL;
 	u32 descriptor_type = 0;
-	bool ignore_sync;
+	bool igyesre_sync;
 
 	descriptor = &tx->ring_cpu_ptr[descriptor_index];
 	buffer_info = &tx->buffer_info[descriptor_index];
@@ -1255,10 +1255,10 @@ clean_up_data_descriptor:
 		lan743x_ptp_unrequest_tx_timestamp(tx->adapter);
 		dev_kfree_skb(buffer_info->skb);
 	} else {
-		ignore_sync = (buffer_info->flags &
+		igyesre_sync = (buffer_info->flags &
 			       TX_BUFFER_INFO_FLAG_IGNORE_SYNC) != 0;
 		lan743x_ptp_tx_timestamp_skb(tx->adapter,
-					     buffer_info->skb, ignore_sync);
+					     buffer_info->skb, igyesre_sync);
 	}
 
 clear_skb:
@@ -1501,7 +1501,7 @@ static int lan743x_tx_frame_add_fragment(struct lan743x_tx *tx,
 static void lan743x_tx_frame_end(struct lan743x_tx *tx,
 				 struct sk_buff *skb,
 				 bool time_stamp,
-				 bool ignore_sync)
+				 bool igyesre_sync)
 {
 	/* called only from within lan743x_tx_xmit_frame
 	 * assuming tx->ring_lock has already been acquired
@@ -1523,7 +1523,7 @@ static void lan743x_tx_frame_end(struct lan743x_tx *tx,
 	buffer_info->skb = skb;
 	if (time_stamp)
 		buffer_info->flags |= TX_BUFFER_INFO_FLAG_TIMESTAMP_REQUESTED;
-	if (ignore_sync)
+	if (igyesre_sync)
 		buffer_info->flags |= TX_BUFFER_INFO_FLAG_IGNORE_SYNC;
 
 	tx_descriptor->data0 = tx->frame_data0;
@@ -1552,7 +1552,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 	unsigned int head_length = 0;
 	unsigned long irq_flags = 0;
 	bool do_timestamp = false;
-	bool ignore_sync = false;
+	bool igyesre_sync = false;
 	int nr_frags = 0;
 	bool gso = false;
 	int j;
@@ -1579,7 +1579,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		do_timestamp = true;
 		if (tx->ts_flags & TX_TS_FLAG_ONE_STEP_SYNC)
-			ignore_sync = true;
+			igyesre_sync = true;
 	}
 	head_length = skb_headlen(skb);
 	frame_length = skb_pagelen(skb);
@@ -1610,7 +1610,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 		const skb_frag_t *frag = &(skb_shinfo(skb)->frags[j]);
 
 		if (lan743x_tx_frame_add_fragment(tx, frag, frame_length)) {
-			/* upon error no need to call
+			/* upon error yes need to call
 			 *	lan743x_tx_frame_end
 			 * frame assembler clean up was performed inside
 			 *	lan743x_tx_frame_add_fragment
@@ -1621,7 +1621,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 	}
 
 finish:
-	lan743x_tx_frame_end(tx, skb, do_timestamp, ignore_sync);
+	lan743x_tx_frame_end(tx, skb, do_timestamp, igyesre_sync);
 
 unlock:
 	spin_unlock_irqrestore(&tx->ring_lock, irq_flags);
@@ -1657,7 +1657,7 @@ static int lan743x_tx_napi_poll(struct napi_struct *napi, int weight)
 	spin_unlock_irqrestore(&tx->ring_lock, irq_flags);
 
 	if (start_transmitter) {
-		/* space is now available, transmit overflow skb */
+		/* space is yesw available, transmit overflow skb */
 		lan743x_tx_xmit_frame(tx, tx->overflow_skb);
 		tx->overflow_skb = NULL;
 		netif_wake_queue(adapter->netdev);
@@ -2043,7 +2043,7 @@ static int lan743x_rx_process_packet(struct lan743x_rx *rx)
 						goto done;
 					}
 				} else {
-					/* extension is not yet available */
+					/* extension is yest yet available */
 					/* prevent processing of this packet */
 					first_index = -1;
 					last_index = -1;
@@ -2096,8 +2096,8 @@ static int lan743x_rx_process_packet(struct lan743x_rx *rx)
 		} else {
 			int index = first_index;
 
-			/* multi buffer packet not supported */
-			/* this should not happen since
+			/* multi buffer packet yest supported */
+			/* this should yest happen since
 			 * buffers are allocated to be at least jumbo size
 			 */
 

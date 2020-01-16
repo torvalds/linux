@@ -22,7 +22,7 @@
 #define ELO_FLUSH_SMARTSET_RESPONSES	0x02 /* Flush all pending smartset responses */
 #define ELO_SEND_SMARTSET_COMMAND	0x05 /* Send a smartset command */
 #define ELO_GET_SMARTSET_RESPONSE	0x06 /* Get a smartset response */
-#define ELO_DIAG			0x64 /* Diagnostics command */
+#define ELO_DIAG			0x64 /* Diagyesstics command */
 #define ELO_SMARTSET_PACKET_SIZE	8
 
 struct elo_priv {
@@ -94,9 +94,9 @@ static int elo_raw_event(struct hid_device *hdev, struct hid_report *report,
 			return 1;
 		}
 		break;
-	default:	/* unknown report */
-		/* Unknown report type; pass upstream */
-		hid_info(hdev, "unknown report type %d\n", report->id);
+	default:	/* unkyeswn report */
+		/* Unkyeswn report type; pass upstream */
+		hid_info(hdev, "unkyeswn report type %d\n", report->id);
 		break;
 	}
 
@@ -146,11 +146,11 @@ static void elo_work(struct work_struct *work)
 		goto fail;
 	}
 
-	/* send Diagnostics command */
+	/* send Diagyesstics command */
 	*buffer = ELO_DIAG;
 	ret = elo_smartset_send_get(dev, ELO_SEND_SMARTSET_COMMAND, buffer);
 	if (ret < 0) {
-		dev_err(&dev->dev, "send Diagnostics Command failed, error %d\n",
+		dev_err(&dev->dev, "send Diagyesstics Command failed, error %d\n",
 				ret);
 		goto fail;
 	}
@@ -158,7 +158,7 @@ static void elo_work(struct work_struct *work)
 	/* get the result */
 	ret = elo_smartset_send_get(dev, ELO_GET_SMARTSET_RESPONSE, buffer);
 	if (ret < 0) {
-		dev_err(&dev->dev, "get Diagnostics Command response failed, error %d\n",
+		dev_err(&dev->dev, "get Diagyesstics Command response failed, error %d\n",
 				ret);
 		goto fail;
 	}
@@ -168,7 +168,7 @@ static void elo_work(struct work_struct *work)
 		ret = elo_smartset_send_get(dev, ELO_GET_SMARTSET_RESPONSE,
 				buffer);
 		if (ret < 0) {
-			dev_err(&dev->dev, "get acknowledge response failed, error %d\n",
+			dev_err(&dev->dev, "get ackyeswledge response failed, error %d\n",
 					ret);
 			goto fail;
 		}
@@ -207,7 +207,7 @@ static bool elo_broken_firmware(struct usb_device *dev)
 		/*
 		 * If one of the devices below is present attached as a sibling of 
 		 * the touch controller then  this is a newer IBM 4820 monitor that 
-		 * does not need the IBM-requested workaround if fw level is
+		 * does yest need the IBM-requested workaround if fw level is
 		 * 0x010d - aka 'M'.
 		 * No other HW can have this combination.
 		 */

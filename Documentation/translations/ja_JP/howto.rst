@@ -4,8 +4,8 @@ This document is maintained by Tsugikazu Shibata <tshibata@ab.jp.nec.com>
 If you find any difference between this document and the original file or
 a problem with the translation, please contact the maintainer of this file.
 
-Please also note that the purpose of this file is to be easier to
-read for non English (read: Japanese) speakers and is not intended as
+Please also yeste that the purpose of this file is to be easier to
+read for yesn English (read: Japanese) speakers and is yest intended as
 a fork. So if you have any comments or updates for this file, please
 try to update the original English file first.
 
@@ -141,7 +141,7 @@ linux-api@vger.kernel.org に送ることを勧めます。
        "Linux kernel patch submission format"
 		https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html
 
-  :ref:`Documentation/process/stable-api-nonsense.rst <stable_api_nonsense>`
+  :ref:`Documentation/process/stable-api-yesnsense.rst <stable_api_yesnsense>`
     このファイルはカーネルの中に不変の API を持たないことにした意識的
     な決断の背景にある理由について書かれています。以下のようなことを含
     んでいます-
@@ -635,8 +635,8 @@ Paolo Ciarrocchi に感謝、彼は彼の書いた "Development Process"
 以下の人々のレビュー、コメント、貢献に感謝。
 Pat Mochel, Hanna Linder, Randy Dunlap, Kay Sievers,
 Vojtech Pavlik, Jan Kara, Josh Boyer, Kees Cook, Andrew Morton, Andi
-Kleen, Vadim Lobanov, Jesper Juhl, Adrian Bunk, Keri Harris, Frans Pop,
-David A. Wheeler, Junio Hamano, Michael Kerrisk, と Alex Shepard
+Kleen, Vadim Lobayesv, Jesper Juhl, Adrian Bunk, Keri Harris, Frans Pop,
+David A. Wheeler, Junio Hamayes, Michael Kerrisk, と Alex Shepard
 彼らの支援なしでは、このドキュメントはできなかったでしょう。
 
 

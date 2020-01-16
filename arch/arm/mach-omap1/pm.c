@@ -31,7 +31,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if yest, write to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -278,7 +278,7 @@ void omap1_pm_suspend(void)
 	ULPD_SAVE(ULPD_CLOCK_CTRL);
 	ULPD_SAVE(ULPD_STATUS_REQ);
 
-	/* (Step 3 removed - we now allow deep sleep by default) */
+	/* (Step 3 removed - we yesw allow deep sleep by default) */
 
 	/*
 	 * Step 4: OMAP DSP Shutdown
@@ -551,7 +551,7 @@ static void omap_pm_init_debugfs(void)
  */
 static int omap_pm_prepare(void)
 {
-	/* We cannot sleep in idle until we have resumed */
+	/* We canyest sleep in idle until we have resumed */
 	cpu_idle_poll_ctrl(true);
 	return 0;
 }
@@ -620,10 +620,10 @@ static int __init omap_pm_init(void)
 	pr_info("Power Management for TI OMAP.\n");
 
 	if (!IS_ENABLED(CONFIG_OMAP_32K_TIMER))
-		pr_info("OMAP1 PM: sleep states in idle disabled due to no 32KiHz timer\n");
+		pr_info("OMAP1 PM: sleep states in idle disabled due to yes 32KiHz timer\n");
 
 	if (!IS_ENABLED(CONFIG_OMAP_DM_TIMER))
-		pr_info("OMAP1 PM: sleep states in idle disabled due to no DMTIMER support\n");
+		pr_info("OMAP1 PM: sleep states in idle disabled due to yes DMTIMER support\n");
 
 	if (IS_ENABLED(CONFIG_OMAP_32K_TIMER) &&
 	    IS_ENABLED(CONFIG_OMAP_DM_TIMER)) {
@@ -649,7 +649,7 @@ static int __init omap_pm_init(void)
 	}
 
 	if (omap_sram_suspend == NULL) {
-		printk(KERN_ERR "PM not initialized: Missing SRAM support\n");
+		printk(KERN_ERR "PM yest initialized: Missing SRAM support\n");
 		return -ENODEV;
 	}
 

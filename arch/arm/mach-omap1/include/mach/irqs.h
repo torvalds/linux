@@ -2,7 +2,7 @@
 /*
  *  arch/arm/plat-omap/include/mach/irqs.h
  *
- *  Copyright (C) Greg Lonnon 2001
+ *  Copyright (C) Greg Lonyesn 2001
  *  Updated for OMAP-1610 by Tony Lindgren <tony@atomide.com>
  *
  * Copyright (C) 2009 Texas Instruments
@@ -233,7 +233,7 @@
 #define IH_MPUIO_BASE		(OMAP_MAX_GPIO_LINES + IH_GPIO_BASE)
 #define OMAP_IRQ_END		(IH_MPUIO_BASE + 16)
 
-/* External FPGA handles interrupts on Innovator boards */
+/* External FPGA handles interrupts on Inyesvator boards */
 #define	OMAP_FPGA_IRQ_BASE	(OMAP_IRQ_END)
 #ifdef	CONFIG_MACH_OMAP_INNOVATOR
 #define OMAP_FPGA_NR_IRQS	24

@@ -30,10 +30,10 @@ Required Properties:
 Optional Properties:
 
   - #renesas,channels: number of channels implemented by the timer, must be 2
-    or 3 (if not specified the value defaults to 3).
+    or 3 (if yest specified the value defaults to 3).
 
 
-Example: R8A7779 (R-Car H1) TMU0 node
+Example: R8A7779 (R-Car H1) TMU0 yesde
 
 	tmu0: timer@ffd80000 {
 		compatible = "renesas,tmu-r8a7779", "renesas,tmu";

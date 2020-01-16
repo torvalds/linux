@@ -162,7 +162,7 @@ iplstart:
 0:	lmh	%r0,%r15,0(%r13)	# clear high-order half of gprs
 	sam31				# switch to 31 bit addressing mode
 	lh	%r1,__LC_SUBCHANNEL_ID	# test if subchannel number
-	bct	%r1,.Lnoload		#  is valid
+	bct	%r1,.Lyesload		#  is valid
 	l	%r1,__LC_SUBCHANNEL_ID	# load ipl subchannel number
 	la	%r2,IPL_BS		# load start address
 	bas	%r14,.Lloader		# load rest of ipl image
@@ -176,11 +176,11 @@ iplstart:
 	l	%r2,.Linitrd		# ramdisk loc. is temp
 	bas	%r14,.Lloader		# load parameter file
 	ltr	%r2,%r2 		# got anything ?
-	bz	.Lnopf
+	bz	.Lyespf
 	chi	%r2,895
-	bnh	.Lnotrunc
+	bnh	.Lyestrunc
 	la	%r2,895
-.Lnotrunc:
+.Lyestrunc:
 	l	%r4,.Linitrd
 	clc	0(3,%r4),.L_hdr		# if it is HDRx
 	bz	.Lagain1		# skip dataset header
@@ -206,7 +206,7 @@ iplstart:
 .Leolp:
 	slr	%r0,%r0
 	stc	%r0,0(%r2,%r3)		# terminate buffer
-.Lnopf:
+.Lyespf:
 
 #
 # load ramdisk from ipl device
@@ -218,7 +218,7 @@ iplstart:
 	st	%r2,INITRD_SIZE+ARCH_OFFSET-PARMAREA(%r12) # store size of rd
 	ltr	%r2,%r2
 	bnz	.Lrdcont
-	st	%r2,INITRD_START+ARCH_OFFSET-PARMAREA(%r12) # no ramdisk found
+	st	%r2,INITRD_START+ARCH_OFFSET-PARMAREA(%r12) # yes ramdisk found
 .Lrdcont:
 	l	%r2,.Linitrd
 
@@ -232,7 +232,7 @@ iplstart:
 #
 	stidp	.Lcpuid			# store cpuid
 	tm	.Lcpuid,0xff		# running VM ?
-	bno	.Lnoreset
+	byes	.Lyesreset
 	la	%r2,.Lreset
 	lhi	%r3,26
 	diag	%r2,%r3,8
@@ -241,20 +241,20 @@ iplstart:
 	tm	30(%r5),0x0f		# by verifying if any of the
 	bnz	.Lwaitforirq		# activity or status control
 	tm	31(%r5),0xff		# bits is set in the schib
-	bz	.Lnoreset
+	bz	.Lyesreset
 .Lwaitforirq:
 	bas	%r14,.Lirqwait		# wait for IO interrupt
 	c	%r1,__LC_SUBCHANNEL_ID	# compare subchannel number
 	bne	.Lwaitforirq
 	la	%r5,.Lirb
 	tsch	0(%r5)
-.Lnoreset:
-	b	.Lnoload
+.Lyesreset:
+	b	.Lyesload
 
 #
 # everything loaded, go for it
 #
-.Lnoload:
+.Lyesload:
 	l	%r1,.Lstartup
 	br	%r1
 
@@ -263,7 +263,7 @@ iplstart:
 .Lstartup: .long startup
 .Lreset:.byte	0xc3,0xc8,0xc1,0xd5,0xc7,0xc5,0x40,0xd9,0xc4,0xd9,0x40
 	.byte	0xc1,0xd3,0xd3,0x40,0xd2,0xc5,0xc5,0xd7,0x40,0xd5,0xd6
-	.byte	0xc8,0xd6,0xd3,0xc4	# "change rdr all keep nohold"
+	.byte	0xc8,0xd6,0xd3,0xc4	# "change rdr all keep yeshold"
 .L_eof: .long	0xc5d6c600	 /* C'EOF' */
 .L_hdr: .long	0xc8c4d900	 /* C'HDR' */
 	.align	8
@@ -276,13 +276,13 @@ iplstart:
 #
 	.org	0x10000
 ENTRY(startup)
-	j	.Lep_startup_normal
+	j	.Lep_startup_yesrmal
 	.org	EP_OFFSET
 #
 # This is a list of s390 kernel entry points. At address 0x1000f the number of
 # valid entry points is stored.
 #
-# IMPORTANT: Do not change this table, it is s390 kernel ABI!
+# IMPORTANT: Do yest change this table, it is s390 kernel ABI!
 #
 	.ascii	EP_STRING
 	.byte	0x00,0x01
@@ -292,7 +292,7 @@ ENTRY(startup)
 	.org	0x10010
 ENTRY(startup_kdump)
 	j	.Lep_startup_kdump
-.Lep_startup_normal:
+.Lep_startup_yesrmal:
 	mvi	__LC_AR_MODE_ID,1	# set esame flag
 	slr	%r0,%r0 		# set cpuid to zero
 	lhi	%r1,2			# mode 2 = esame (dump)

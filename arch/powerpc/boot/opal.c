@@ -64,15 +64,15 @@ static void opal_con_close(void)
 
 static void opal_init(void)
 {
-	void *opal_node;
+	void *opal_yesde;
 
-	opal_node = finddevice("/ibm,opal");
-	if (!opal_node)
+	opal_yesde = finddevice("/ibm,opal");
+	if (!opal_yesde)
 		return;
-	if (getprop(opal_node, "opal-base-address", &opal.base, sizeof(u64)) < 0)
+	if (getprop(opal_yesde, "opal-base-address", &opal.base, sizeof(u64)) < 0)
 		return;
 	opal.base = be64_to_cpu(opal.base);
-	if (getprop(opal_node, "opal-entry-address", &opal.entry, sizeof(u64)) < 0)
+	if (getprop(opal_yesde, "opal-entry-address", &opal.entry, sizeof(u64)) < 0)
 		return;
 	opal.entry = be64_to_cpu(opal.entry);
 }

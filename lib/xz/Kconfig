@@ -52,7 +52,7 @@ config XZ_DEC_TEST
 	help
 	  This allows passing .xz files to the in-kernel XZ decoder via
 	  a character special file. It calculates CRC32 of the decompressed
-	  data and writes diagnostics to the system log.
+	  data and writes diagyesstics to the system log.
 
 	  Unless you are developing the XZ decoder, you don't need this
 	  and should say N.

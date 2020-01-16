@@ -63,9 +63,9 @@ only send and receive Phonet packets.
 
 The virtual TUN tunnel device driver can also be used for Phonet. This
 requires IFF_TUN mode, _without_ the IFF_NO_PI flag. In this case,
-there is no link-layer header, so there is no Phonet media type byte.
+there is yes link-layer header, so there is yes Phonet media type byte.
 
-Note that Phonet interfaces are not allowed to re-order packets, so
+Note that Phonet interfaces are yest allowed to re-order packets, so
 only the (default) Linux FIFO qdisc should be used with them.
 
 
@@ -83,7 +83,7 @@ The Phonet socket address family maps the Phonet packet header:
   };
 
 The resource field is only used when sending and receiving;
-It is ignored by bind() and getsockname().
+It is igyesred by bind() and getsockname().
 
 
 Low-level datagram protocol
@@ -108,8 +108,8 @@ other peer.
                  (struct sockaddr *)&addr, &addrlen);
 
 This protocol follows the SOCK_DGRAM connection-less semantics.
-However, connect() and getpeername() are not supported, as they did
-not seem useful with Phonet usages (could be added easily).
+However, connect() and getpeername() are yest supported, as they did
+yest seem useful with Phonet usages (could be added easily).
 
 
 Resource subscription
@@ -124,8 +124,8 @@ Phonet resources, as follow:
 Subscription is similarly cancelled using the SIOCPNDELRESOURCE I/O
 control request, or when the socket is closed.
 
-Note that no more than one socket can be subcribed to any given
-resource at a time. If not, ioctl() will return EBUSY.
+Note that yes more than one socket can be subcribed to any given
+resource at a time. If yest, ioctl() will return EBUSY.
 
 
 Phonet Pipe protocol
@@ -173,7 +173,7 @@ e.g. the Nokia Slim Modem in the ST-Ericsson U8500 platform:
   spn.spn_dev = ...;
   spn.spn_resource = 0xD9;
   connect(fd, (struct sockaddr *)&spn, sizeof(spn));
-  /* normal I/O here ... */
+  /* yesrmal I/O here ... */
   close(fd);
 
 
@@ -181,7 +181,7 @@ WARNING:
 When polling a connected pipe socket for writability, there is an
 intrinsic race condition whereby writability might be lost between the
 polling and the writing system calls. In this case, the socket will
-block until write becomes possible again, unless non-blocking mode
+block until write becomes possible again, unless yesn-blocking mode
 is enabled.
 
 
@@ -189,11 +189,11 @@ The pipe protocol provides two socket options at the SOL_PNPIPE level:
 
   PNPIPE_ENCAP accepts one integer value (int) of:
 
-    PNPIPE_ENCAP_NONE: The socket operates normally (default).
+    PNPIPE_ENCAP_NONE: The socket operates yesrmally (default).
 
     PNPIPE_ENCAP_IP: The socket is used as a backend for a virtual IP
       interface. This requires CAP_NET_ADMIN capability. GPRS data
-      support on Nokia modems can use this. Note that the socket cannot
+      support on Nokia modems can use this. Note that the socket canyest
       be reliably poll()'d or read() from while in this mode.
 
   PNPIPE_IFINDEX is a read-only integer value. It contains the

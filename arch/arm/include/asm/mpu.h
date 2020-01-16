@@ -105,7 +105,7 @@ struct mpu_rgn {
 	};
 	union {
 		u32 dracr;  /* PMSAv7 */
-		u32 unused; /* not used in PMSAv8 */
+		u32 unused; /* yest used in PMSAv8 */
 	};
 };
 

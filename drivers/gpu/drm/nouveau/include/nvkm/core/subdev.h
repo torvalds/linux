@@ -44,7 +44,7 @@ void nvkm_subdev_intr(struct nvkm_subdev *);
 #define nvkm_printk(s,l,p,f,a...) nvkm_printk_((s), NV_DBG_##l, p, f, ##a)
 #define nvkm_fatal(s,f,a...) nvkm_printk((s), FATAL,   crit, f, ##a)
 #define nvkm_error(s,f,a...) nvkm_printk((s), ERROR,    err, f, ##a)
-#define nvkm_warn(s,f,a...)  nvkm_printk((s),  WARN, notice, f, ##a)
+#define nvkm_warn(s,f,a...)  nvkm_printk((s),  WARN, yestice, f, ##a)
 #define nvkm_info(s,f,a...)  nvkm_printk((s),  INFO,   info, f, ##a)
 #define nvkm_debug(s,f,a...) nvkm_printk((s), DEBUG,   info, f, ##a)
 #define nvkm_trace(s,f,a...) nvkm_printk((s), TRACE,   info, f, ##a)

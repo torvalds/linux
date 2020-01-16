@@ -123,7 +123,7 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 		hda_priv->need_display_power = true;
 
 	/*
-	 * if common HDMI codec driver is not used, codec load
+	 * if common HDMI codec driver is yest used, codec load
 	 * is skipped here and hdac_hdmi is used instead
 	 */
 	if ((mach_params && mach_params->common_hdmi_codec_drv) ||

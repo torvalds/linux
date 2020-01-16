@@ -20,7 +20,7 @@
 #define PCIE_PORT_SERVICE_HP		(1 << PCIE_PORT_SERVICE_HP_SHIFT)
 #define PCIE_PORT_SERVICE_DPC_SHIFT	3	/* Downstream Port Containment */
 #define PCIE_PORT_SERVICE_DPC		(1 << PCIE_PORT_SERVICE_DPC_SHIFT)
-#define PCIE_PORT_SERVICE_BWNOTIF_SHIFT	4	/* Bandwidth notification */
+#define PCIE_PORT_SERVICE_BWNOTIF_SHIFT	4	/* Bandwidth yestification */
 #define PCIE_PORT_SERVICE_BWNOTIF	(1 << PCIE_PORT_SERVICE_BWNOTIF_SHIFT)
 
 #define PCIE_PORT_DEVICE_MAXSERVICES   5
@@ -52,9 +52,9 @@ static inline int pcie_dpc_init(void) { return 0; }
 #endif
 
 #ifdef CONFIG_PCIE_BW
-int pcie_bandwidth_notification_init(void);
+int pcie_bandwidth_yestification_init(void);
 #else
-static inline int pcie_bandwidth_notification_init(void) { return 0; }
+static inline int pcie_bandwidth_yestification_init(void) { return 0; }
 #endif
 
 /* Port Type */
@@ -84,12 +84,12 @@ struct pcie_port_service_driver {
 	int (*probe)(struct pcie_device *dev);
 	void (*remove)(struct pcie_device *dev);
 	int (*suspend)(struct pcie_device *dev);
-	int (*resume_noirq)(struct pcie_device *dev);
+	int (*resume_yesirq)(struct pcie_device *dev);
 	int (*resume)(struct pcie_device *dev);
 	int (*runtime_suspend)(struct pcie_device *dev);
 	int (*runtime_resume)(struct pcie_device *dev);
 
-	/* Device driver may resume normal operations */
+	/* Device driver may resume yesrmal operations */
 	void (*error_resume)(struct pci_dev *dev);
 
 	/* Link Reset Capability - AER service driver specific */
@@ -119,7 +119,7 @@ extern struct bus_type pcie_port_bus_type;
 int pcie_port_device_register(struct pci_dev *dev);
 #ifdef CONFIG_PM
 int pcie_port_device_suspend(struct device *dev);
-int pcie_port_device_resume_noirq(struct device *dev);
+int pcie_port_device_resume_yesirq(struct device *dev);
 int pcie_port_device_resume(struct device *dev);
 int pcie_port_device_runtime_suspend(struct device *dev);
 int pcie_port_device_runtime_resume(struct device *dev);
@@ -138,7 +138,7 @@ static inline void pcie_pme_disable_msi(void)
 	pcie_pme_msi_disabled = true;
 }
 
-static inline bool pcie_pme_no_msi(void)
+static inline bool pcie_pme_yes_msi(void)
 {
 	return pcie_pme_msi_disabled;
 }
@@ -146,7 +146,7 @@ static inline bool pcie_pme_no_msi(void)
 void pcie_pme_interrupt_enable(struct pci_dev *dev, bool enable);
 #else /* !CONFIG_PCIE_PME */
 static inline void pcie_pme_disable_msi(void) {}
-static inline bool pcie_pme_no_msi(void) { return false; }
+static inline bool pcie_pme_yes_msi(void) { return false; }
 static inline void pcie_pme_interrupt_enable(struct pci_dev *dev, bool en) {}
 #endif /* !CONFIG_PCIE_PME */
 

@@ -20,17 +20,17 @@ GCOV_PROFILE := n
 UBSAN_SANITIZE := n
 KASAN_SANITIZE := n
 
-KBUILD_CFLAGS := -fno-strict-aliasing -Wall -Wstrict-prototypes
-KBUILD_CFLAGS += -Wno-pointer-sign -Wno-sign-compare
-KBUILD_CFLAGS += -fno-zero-initialized-in-bss -fno-builtin -ffreestanding
-KBUILD_CFLAGS += -c -MD -Os -m64 -msoft-float -fno-common
+KBUILD_CFLAGS := -fyes-strict-aliasing -Wall -Wstrict-prototypes
+KBUILD_CFLAGS += -Wyes-pointer-sign -Wyes-sign-compare
+KBUILD_CFLAGS += -fyes-zero-initialized-in-bss -fyes-builtin -ffreestanding
+KBUILD_CFLAGS += -c -MD -Os -m64 -msoft-float -fyes-common
 KBUILD_CFLAGS += $(CLANG_FLAGS)
-KBUILD_CFLAGS += $(call cc-option,-fno-PIE)
+KBUILD_CFLAGS += $(call cc-option,-fyes-PIE)
 KBUILD_AFLAGS := $(filter-out -DCC_USING_EXPOLINE,$(KBUILD_AFLAGS))
 
-# Since we link purgatory with -r unresolved symbols are not checked, so we
+# Since we link purgatory with -r unresolved symbols are yest checked, so we
 # also link a purgatory.chk binary without -r to check for unresolved symbols.
-PURGATORY_LDFLAGS := -nostdlib -z nodefaultlib
+PURGATORY_LDFLAGS := -yesstdlib -z yesdefaultlib
 LDFLAGS_purgatory := -r $(PURGATORY_LDFLAGS) -T
 LDFLAGS_purgatory.chk := -e purgatory_start $(PURGATORY_LDFLAGS)
 $(obj)/purgatory: $(obj)/purgatory.lds $(PURGATORY_OBJS) FORCE
@@ -42,7 +42,7 @@ $(obj)/purgatory.chk: $(obj)/purgatory FORCE
 OBJCOPYFLAGS_purgatory.ro := -O elf64-s390
 OBJCOPYFLAGS_purgatory.ro += --remove-section='*debug*'
 OBJCOPYFLAGS_purgatory.ro += --remove-section='.comment'
-OBJCOPYFLAGS_purgatory.ro += --remove-section='.note.*'
+OBJCOPYFLAGS_purgatory.ro += --remove-section='.yeste.*'
 $(obj)/purgatory.ro: $(obj)/purgatory $(obj)/purgatory.chk FORCE
 		$(call if_changed,objcopy)
 

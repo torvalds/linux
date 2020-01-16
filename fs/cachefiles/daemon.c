@@ -21,8 +21,8 @@
 #include <linux/fs_struct.h>
 #include "internal.h"
 
-static int cachefiles_daemon_open(struct inode *, struct file *);
-static int cachefiles_daemon_release(struct inode *, struct file *);
+static int cachefiles_daemon_open(struct iyesde *, struct file *);
+static int cachefiles_daemon_release(struct iyesde *, struct file *);
 static ssize_t cachefiles_daemon_read(struct file *, char __user *, size_t,
 				      loff_t *);
 static ssize_t cachefiles_daemon_write(struct file *, const char __user *,
@@ -51,7 +51,7 @@ const struct file_operations cachefiles_daemon_fops = {
 	.read		= cachefiles_daemon_read,
 	.write		= cachefiles_daemon_write,
 	.poll		= cachefiles_daemon_poll,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 struct cachefiles_daemon_cmd {
@@ -80,7 +80,7 @@ static const struct cachefiles_daemon_cmd cachefiles_daemon_cmds[] = {
 /*
  * do various checks
  */
-static int cachefiles_daemon_open(struct inode *inode, struct file *file)
+static int cachefiles_daemon_open(struct iyesde *iyesde, struct file *file)
 {
 	struct cachefiles_cache *cache;
 
@@ -102,7 +102,7 @@ static int cachefiles_daemon_open(struct inode *inode, struct file *file)
 	}
 
 	mutex_init(&cache->daemon_mutex);
-	cache->active_nodes = RB_ROOT;
+	cache->active_yesdes = RB_ROOT;
 	rwlock_init(&cache->active_lock);
 	init_waitqueue_head(&cache->daemon_pollwq);
 
@@ -126,7 +126,7 @@ static int cachefiles_daemon_open(struct inode *inode, struct file *file)
 /*
  * release a cache
  */
-static int cachefiles_daemon_release(struct inode *inode, struct file *file)
+static int cachefiles_daemon_release(struct iyesde *iyesde, struct file *file)
 {
 	struct cachefiles_cache *cache = file->private_data;
 
@@ -138,7 +138,7 @@ static int cachefiles_daemon_release(struct inode *inode, struct file *file)
 
 	cachefiles_daemon_unbind(cache);
 
-	ASSERT(!cache->active_nodes.rb_node);
+	ASSERT(!cache->active_yesdes.rb_yesde);
 
 	/* clean up the control file interface */
 	cache->cachefilesd = NULL;
@@ -544,7 +544,7 @@ static int cachefiles_daemon_tag(struct cachefiles_cache *cache, char *args)
 }
 
 /*
- * request a node in the cache be culled from the current working directory
+ * request a yesde in the cache be culled from the current working directory
  * - command: "cull <name>"
  */
 static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
@@ -572,7 +572,7 @@ static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
 	get_fs_pwd(current->fs, &path);
 
 	if (!d_can_lookup(path.dentry))
-		goto notdir;
+		goto yestdir;
 
 	cachefiles_begin_secure(cache, &saved_cred);
 	ret = cachefiles_cull(cache, path.dentry, args);
@@ -582,7 +582,7 @@ static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
 	_leave(" = %d", ret);
 	return ret;
 
-notdir:
+yestdir:
 	path_put(&path);
 	pr_err("cull command requires dirfd to be a directory\n");
 	return -ENOTDIR;
@@ -616,7 +616,7 @@ inval:
 }
 
 /*
- * find out whether an object in the current working directory is in use or not
+ * find out whether an object in the current working directory is in use or yest
  * - command: "inuse <name>"
  */
 static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
@@ -644,7 +644,7 @@ static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
 	get_fs_pwd(current->fs, &path);
 
 	if (!d_can_lookup(path.dentry))
-		goto notdir;
+		goto yestdir;
 
 	cachefiles_begin_secure(cache, &saved_cred);
 	ret = cachefiles_check_in_use(cache, path.dentry, args);
@@ -654,7 +654,7 @@ static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
 	//_leave(" = %d", ret);
 	return ret;
 
-notdir:
+yestdir:
 	path_put(&path);
 	pr_err("inuse command requires dirfd to be a directory\n");
 	return -ENOTDIR;

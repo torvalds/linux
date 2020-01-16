@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2018 Netroyesme Systems, Inc. */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -285,7 +285,7 @@ int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 #define NFP_USTORE_ECC_POLY_WORDS		7
 #define NFP_USTORE_OP_BITS			45
 
-static const u64 nfp_ustore_ecc_polynomials[NFP_USTORE_ECC_POLY_WORDS] = {
+static const u64 nfp_ustore_ecc_polyyesmials[NFP_USTORE_ECC_POLY_WORDS] = {
 	0x0ff800007fffULL,
 	0x11f801ff801fULL,
 	0x1e387e0781e1ULL,
@@ -300,7 +300,7 @@ static bool parity(u64 value)
 	return hweight64(value) & 1;
 }
 
-int nfp_ustore_check_valid_no_ecc(u64 insn)
+int nfp_ustore_check_valid_yes_ecc(u64 insn)
 {
 	if (insn & ~GENMASK_ULL(NFP_USTORE_OP_BITS, 0))
 		return -EINVAL;
@@ -314,7 +314,7 @@ u64 nfp_ustore_calc_ecc_insn(u64 insn)
 	int i;
 
 	for (i = 0; i < NFP_USTORE_ECC_POLY_WORDS; i++)
-		ecc |= parity(nfp_ustore_ecc_polynomials[i] & insn) << i;
+		ecc |= parity(nfp_ustore_ecc_polyyesmials[i] & insn) << i;
 
 	return insn | (u64)ecc << NFP_USTORE_OP_BITS;
 }

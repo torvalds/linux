@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_MODULATOR:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_MODULATOR - VIDIOC_S_MODULATOR - Get or set modulator attributes
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_MODULATOR, struct v4l2_modulator *argp )
@@ -55,8 +55,8 @@ Modulators have two writable properties, an audio modulation set and the
 radio frequency. To change the modulated audio subprograms, applications
 initialize the ``index`` and ``txsubchans`` fields and the ``reserved``
 array and call the :ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl. Drivers may choose a
-different audio modulation if the request cannot be satisfied. However
-this is a write-only ioctl, it does not return the actual audio
+different audio modulation if the request canyest be satisfied. However
+this is a write-only ioctl, it does yest return the actual audio
 modulation selected.
 
 :ref:`SDR <sdr>` specific modulator types are ``V4L2_TUNER_SDR`` and
@@ -90,7 +90,7 @@ To change the radio frequency the
       - Modulator capability flags. No flags are defined for this field,
 	the tuner flags in struct :c:type:`v4l2_tuner` are
 	used accordingly. The audio flags indicate the ability to encode
-	audio subprograms. They will *not* change for example with the
+	audio subprograms. They will *yest* change for example with the
 	current video standard.
     * - __u32
       - ``rangelow``
@@ -110,7 +110,7 @@ To change the radio frequency the
 	shall be modulated. It contains a set of flags as defined in
 	:ref:`modulator-txsubchans`.
 
-	.. note::
+	.. yeste::
 
 	   The tuner ``rxsubchans`` flags  are reused, but the
 	   semantics are different. Video output devices
@@ -140,8 +140,8 @@ To change the radio frequency the
 
     * - ``V4L2_TUNER_SUB_MONO``
       - 0x0001
-      - Modulate channel 1 as mono audio, when the input has more
-	channels, a down-mix of channel 1 and 2. This flag does not
+      - Modulate channel 1 as moyes audio, when the input has more
+	channels, a down-mix of channel 1 and 2. This flag does yest
 	combine with ``V4L2_TUNER_SUB_STEREO`` or
 	``V4L2_TUNER_SUB_LANG1``.
     * - ``V4L2_TUNER_SUB_STEREO``
@@ -149,20 +149,20 @@ To change the radio frequency the
       - Modulate channel 1 and 2 as left and right channel of a stereo
 	audio signal. When the input has only one channel or two channels
 	and ``V4L2_TUNER_SUB_SAP`` is also set, channel 1 is encoded as
-	left and right channel. This flag does not combine with
+	left and right channel. This flag does yest combine with
 	``V4L2_TUNER_SUB_MONO`` or ``V4L2_TUNER_SUB_LANG1``. When the
-	driver does not support stereo audio it shall fall back to mono.
+	driver does yest support stereo audio it shall fall back to moyes.
     * - ``V4L2_TUNER_SUB_LANG1``
       - 0x0008
       - Modulate channel 1 and 2 as primary and secondary language of a
 	bilingual audio signal. When the input has only one channel it is
-	used for both languages. It is not possible to encode the primary
-	or secondary language only. This flag does not combine with
+	used for both languages. It is yest possible to encode the primary
+	or secondary language only. This flag does yest combine with
 	``V4L2_TUNER_SUB_MONO``, ``V4L2_TUNER_SUB_STEREO`` or
-	``V4L2_TUNER_SUB_SAP``. If the hardware does not support the
-	respective audio matrix, or the current video standard does not
+	``V4L2_TUNER_SUB_SAP``. If the hardware does yest support the
+	respective audio matrix, or the current video standard does yest
 	permit bilingual audio the :ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl shall
-	return an ``EINVAL`` error code and the driver shall fall back to mono
+	return an ``EINVAL`` error code and the driver shall fall back to moyes
 	or stereo mode.
     * - ``V4L2_TUNER_SUB_LANG2``
       - 0x0004
@@ -170,21 +170,21 @@ To change the radio frequency the
     * - ``V4L2_TUNER_SUB_SAP``
       - 0x0004
       - When combined with ``V4L2_TUNER_SUB_MONO`` the first channel is
-	encoded as mono audio, the last channel as Second Audio Program.
+	encoded as moyes audio, the last channel as Second Audio Program.
 	When the input has only one channel it is used for both audio
-	tracks. When the input has three channels the mono track is a
+	tracks. When the input has three channels the moyes track is a
 	down-mix of channel 1 and 2. When combined with
 	``V4L2_TUNER_SUB_STEREO`` channel 1 and 2 are encoded as left and
 	right stereo audio, channel 3 as Second Audio Program. When the
 	input has only two channels, the first is encoded as left and
 	right channel and the second as SAP. When the input has only one
-	channel it is used for all audio tracks. It is not possible to
+	channel it is used for all audio tracks. It is yest possible to
 	encode a Second Audio Program only. This flag must combine with
 	``V4L2_TUNER_SUB_MONO`` or ``V4L2_TUNER_SUB_STEREO``. If the
-	hardware does not support the respective audio matrix, or the
-	current video standard does not permit SAP the
+	hardware does yest support the respective audio matrix, or the
+	current video standard does yest permit SAP the
 	:ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl shall return an ``EINVAL`` error code and
-	driver shall fall back to mono or stereo mode.
+	driver shall fall back to moyes or stereo mode.
     * - ``V4L2_TUNER_SUB_RDS``
       - 0x0010
       - Enable the RDS encoder for a radio FM transmitter.
@@ -193,7 +193,7 @@ To change the radio frequency the
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

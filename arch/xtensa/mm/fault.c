@@ -30,7 +30,7 @@ void bad_page_fault(struct pt_regs*, unsigned long, int);
  * and the problem, and then passes it off to one of the appropriate
  * routines.
  *
- * Note: does not handle Miss and MultiHit.
+ * Note: does yest handle Miss and MultiHit.
  */
 
 void do_page_fault(struct pt_regs *regs)
@@ -53,8 +53,8 @@ void do_page_fault(struct pt_regs *regs)
 	if (address >= TASK_SIZE && !user_mode(regs))
 		goto vmalloc_fault;
 
-	/* If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	/* If we're in an interrupt or have yes user
+	 * context, we must yest take the fault..
 	 */
 	if (faulthandler_disabled() || !mm) {
 		bad_page_fault(regs, address, SIGSEGV);

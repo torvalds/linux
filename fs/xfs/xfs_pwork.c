@@ -26,7 +26,7 @@
  * worker thread and queue that pwork.  The work function will be passed the
  * pwork item when it is run (from process context) and any returned error will
  * be recorded in xfs_pwork_ctl.error.  Work functions should check for errors
- * and abort if necessary; the non-zeroness of xfs_pwork_ctl.error does not
+ * and abort if necessary; the yesn-zeroness of xfs_pwork_ctl.error does yest
  * stop workqueue item processing.
  *
  * This is the rough equivalent of the xfsprogs workqueue code, though we can't
@@ -54,7 +54,7 @@ xfs_pwork_work(
 /*
  * Set up control data for parallel work.  @work_fn is the function that will
  * be called.  @tag will be written into the kernel threads.  @nr_threads is
- * the level of parallelism desired, or 0 for no limit.
+ * the level of parallelism desired, or 0 for yes limit.
  */
 int
 xfs_pwork_init(
@@ -120,7 +120,7 @@ xfs_pwork_poll(
 
 /*
  * Return the amount of parallelism that the data device can handle, or 0 for
- * no limit.
+ * yes limit.
  */
 unsigned int
 xfs_pwork_guess_datadev_parallelism(
@@ -129,8 +129,8 @@ xfs_pwork_guess_datadev_parallelism(
 	struct xfs_buftarg	*btp = mp->m_ddev_targp;
 
 	/*
-	 * For now we'll go with the most conservative setting possible,
+	 * For yesw we'll go with the most conservative setting possible,
 	 * which is two threads for an SSD and 1 thread everywhere else.
 	 */
-	return blk_queue_nonrot(btp->bt_bdev->bd_queue) ? 2 : 1;
+	return blk_queue_yesnrot(btp->bt_bdev->bd_queue) ? 2 : 1;
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techyeslogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -119,7 +119,7 @@ enum {
 
 enum {
 	WILC_FW_11N_PROT_AUTO = 0,	/* Auto */
-	WILC_FW_11N_NO_PROT,		/* Do not use any protection */
+	WILC_FW_11N_NO_PROT,		/* Do yest use any protection */
 	WILC_FW_11N_PROT_ERP,		/* Protect all ERP frame exchanges */
 	WILC_FW_11N_PROT_HT,		/* Protect all HT frame exchanges  */
 	WILC_FW_11N_PROT_GF		/* Protect all GF frame exchanges  */
@@ -144,8 +144,8 @@ enum {
 };
 
 enum {
-	WILC_FW_HT_PROT_RTS_CTS_NONHT = 0,  /* RTS-CTS at non-HT rate */
-	WILC_FW_HT_PROT_FIRST_FRAME_NONHT,  /* First frame at non-HT rate */
+	WILC_FW_HT_PROT_RTS_CTS_NONHT = 0,  /* RTS-CTS at yesn-HT rate */
+	WILC_FW_HT_PROT_FIRST_FRAME_NONHT,  /* First frame at yesn-HT rate */
 	WILC_FW_HT_PROT_LSIG_TXOP,	    /* LSIG TXOP Protection */
 	WILC_FW_HT_PROT_FIRST_FRAME_MIXED,  /* First frame at Mixed format */
 };
@@ -240,7 +240,7 @@ enum {
 	WID_PREAMBLE			= 0x0003,
 
 	/*
-	 * 11g operating mode (ignored if 11g not present)
+	 * 11g operating mode (igyesred if 11g yest present)
 	 *  -----------------------------------------------------------
 	 *  Configuration :   HighPerf  Compat(RSet #1) Compat(RSet #2)
 	 *  Values to set :          1               2               3
@@ -540,13 +540,13 @@ enum {
 	WID_11N_OPERATING_MODE		= 0x0083,
 
 	/*
-	 *  11n OBSS non-HT STA Detection flag
+	 *  11n OBSS yesn-HT STA Detection flag
 	 *  -----------------------------------------------------------
-	 *  Configuration :  Do not detect
+	 *  Configuration :  Do yest detect
 	 *  Values to set :  0
-	 *  Configuration :  Detect, do not protect or report
+	 *  Configuration :  Detect, do yest protect or report
 	 *  Values to set :  1
-	 *  Configuration :  Detect, protect and do not report
+	 *  Configuration :  Detect, protect and do yest report
 	 *  Values to set :  2
 	 *  Configuration :  Detect, protect and report to other BSS
 	 *  Values to set :  3
@@ -557,7 +557,7 @@ enum {
 	/*
 	 *  11n HT Protection Type
 	 *  -----------------------------------------------------------
-	 *  Configuration :  RTS-CTS   First Frame Exchange at non-HT-rate
+	 *  Configuration :  RTS-CTS   First Frame Exchange at yesn-HT-rate
 	 *  Values to set :  0         1
 	 *  Configuration :  LSIG TXOP First Frame Exchange in Mixed Fmt
 	 *  Values to set :  2         3
@@ -654,7 +654,7 @@ enum {
 	WID_TX_POWER_LEVEL_11N		= 0x00B1,
 
 	/* Custom Character WID list */
-	/* SCAN Complete notification WID*/
+	/* SCAN Complete yestification WID*/
 	WID_SCAN_COMPLETE		= 0x00C9,
 
 	WID_DEL_BEACON			= 0x00CA,

@@ -139,7 +139,7 @@ static int __init smsc_superio_setup(void)
 	SMSC_WRITE_INDEXED(SMSC_CONFIG_REGISTERS, SMCS_LOGICAL_DEV_INDEX);
 		/* enable the appropriate GPIO pins for IDE functionality:
 		 * bit[0]   In/Out		1==input;  0==output
-		 * bit[1]   Polarity		1==invert; 0==no invert
+		 * bit[1]   Polarity		1==invert; 0==yes invert
 		 * bit[2]   Int Enb #1		1==Enable Combined IRQ #1; 0==disable
 		 * bit[3:4] Function Select	00==original; 01==Alternate Function #1
 		 */

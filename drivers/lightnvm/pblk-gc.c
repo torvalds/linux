@@ -73,7 +73,7 @@ void pblk_put_line_back(struct pblk *pblk, struct pblk_line *line)
 
 	/* We need to reset gc_group in order to ensure that
 	 * pblk_line_gc_list will return proper move_list
-	 * since right now current line is not on any of the
+	 * since right yesw current line is yest on any of the
 	 * gc lists.
 	 */
 	line->gc_group = PBLK_LINEGC_NONE;
@@ -150,7 +150,7 @@ static __le64 *get_lba_list_from_emeta(struct pblk *pblk,
 	}
 
 	/* If this read fails, it means that emeta is corrupted.
-	 * For now, leave the line untouched.
+	 * For yesw, leave the line untouched.
 	 * TODO: Implement a recovery routine that scans and moves
 	 * all sectors on the line.
 	 */
@@ -199,7 +199,7 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 	} else {
 		lba_list = get_lba_list_from_emeta(pblk, line);
 		if (!lba_list) {
-			pblk_err(pblk, "could not interpret emeta (line %d)\n",
+			pblk_err(pblk, "could yest interpret emeta (line %d)\n",
 					line->id);
 			goto fail_free_invalid_bitmap;
 		}
@@ -289,7 +289,7 @@ fail_free_invalid_bitmap:
 fail_free_ws:
 	kfree(line_ws);
 
-	/* Line goes back to closed state, so we cannot release additional
+	/* Line goes back to closed state, so we canyest release additional
 	 * reference for line, since we do that only when we want to do
 	 * gc to free line state transition.
 	 */
@@ -332,7 +332,7 @@ static void pblk_gc_kick(struct pblk *pblk)
 	pblk_gc_writer_kick(gc);
 	pblk_gc_reader_kick(gc);
 
-	/* If we're shutting down GC, let's not start it up again */
+	/* If we're shutting down GC, let's yest start it up again */
 	if (gc->gc_enabled) {
 		wake_up_process(gc->gc_ts);
 		mod_timer(&gc->gc_timer,
@@ -399,7 +399,7 @@ static bool pblk_gc_should_run(struct pblk_gc *gc, struct pblk_rl *rl)
 	nr_blocks_need = pblk_rl_high_thrs(rl);
 	nr_blocks_free = pblk_rl_nr_free_blks(rl);
 
-	/* This is not critical, no need to take lock here */
+	/* This is yest critical, yes need to take lock here */
 	return ((werr_lines > 0) ||
 		((gc->gc_active) && (nr_blocks_need > nr_blocks_free)));
 }
@@ -436,7 +436,7 @@ void pblk_gc_free_full_lines(struct pblk *pblk)
 }
 
 /*
- * Lines with no valid sectors will be returned to the free list immediately. If
+ * Lines with yes valid sectors will be returned to the free list immediately. If
  * GC is activated - either because the free block count is under the determined
  * threshold, or because it is being forced from user space - only lines with a
  * high count of invalid sectors will be recycled.
@@ -627,14 +627,14 @@ int pblk_gc_init(struct pblk *pblk)
 
 	gc->gc_ts = kthread_create(pblk_gc_ts, pblk, "pblk-gc-ts");
 	if (IS_ERR(gc->gc_ts)) {
-		pblk_err(pblk, "could not allocate GC main kthread\n");
+		pblk_err(pblk, "could yest allocate GC main kthread\n");
 		return PTR_ERR(gc->gc_ts);
 	}
 
 	gc->gc_writer_ts = kthread_create(pblk_gc_writer_ts, pblk,
 							"pblk-gc-writer-ts");
 	if (IS_ERR(gc->gc_writer_ts)) {
-		pblk_err(pblk, "could not allocate GC writer kthread\n");
+		pblk_err(pblk, "could yest allocate GC writer kthread\n");
 		ret = PTR_ERR(gc->gc_writer_ts);
 		goto fail_free_main_kthread;
 	}
@@ -642,7 +642,7 @@ int pblk_gc_init(struct pblk *pblk)
 	gc->gc_reader_ts = kthread_create(pblk_gc_reader_ts, pblk,
 							"pblk-gc-reader-ts");
 	if (IS_ERR(gc->gc_reader_ts)) {
-		pblk_err(pblk, "could not allocate GC reader kthread\n");
+		pblk_err(pblk, "could yest allocate GC reader kthread\n");
 		ret = PTR_ERR(gc->gc_reader_ts);
 		goto fail_free_writer_kthread;
 	}
@@ -663,7 +663,7 @@ int pblk_gc_init(struct pblk *pblk)
 	gc->gc_line_reader_wq = alloc_workqueue("pblk-gc-line-reader-wq",
 			WQ_MEM_RECLAIM | WQ_UNBOUND, PBLK_GC_MAX_READERS);
 	if (!gc->gc_line_reader_wq) {
-		pblk_err(pblk, "could not allocate GC line reader workqueue\n");
+		pblk_err(pblk, "could yest allocate GC line reader workqueue\n");
 		ret = -ENOMEM;
 		goto fail_free_reader_kthread;
 	}
@@ -672,7 +672,7 @@ int pblk_gc_init(struct pblk *pblk)
 	gc->gc_reader_wq = alloc_workqueue("pblk-gc-line_wq",
 					WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
 	if (!gc->gc_reader_wq) {
-		pblk_err(pblk, "could not allocate GC reader workqueue\n");
+		pblk_err(pblk, "could yest allocate GC reader workqueue\n");
 		ret = -ENOMEM;
 		goto fail_free_reader_line_wq;
 	}

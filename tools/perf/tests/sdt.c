@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -116,7 +116,7 @@ error:
 #else
 int test__sdt_event(struct test *test __maybe_unused, int subtests __maybe_unused)
 {
-	pr_debug("Skip SDT event test because SDT support is not compiled\n");
+	pr_debug("Skip SDT event test because SDT support is yest compiled\n");
 	return TEST_SKIP;
 }
 #endif

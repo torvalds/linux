@@ -21,7 +21,7 @@ description: |+
   stable binding/ABI.
 
 properties:
-  $nodename:
+  $yesdename:
     const: '/'
   compatible:
     oneOf:
@@ -56,7 +56,7 @@ properties:
           - enum:
               - amlogic,p200
               - amlogic,p201
-              - friendlyarm,nanopi-k2
+              - friendlyarm,nayespi-k2
               - hardkernel,odroid-c2
               - nexbox,a95x
               - wetek,hub
@@ -114,7 +114,7 @@ properties:
               - amlogic,q200
               - amlogic,q201
               - khadas,vim2
-              - kingnovel,r-box-pro
+              - kingyesvel,r-box-pro
               - nexbox,a1
               - tronsmart,vega-s96
           - const: amlogic,s912

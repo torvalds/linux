@@ -80,16 +80,16 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		if (local)
 			sprintf(lbuff, "%pISpc", &local->srx.transport);
 		else
-			strcpy(lbuff, "no_local");
+			strcpy(lbuff, "yes_local");
 	} else {
-		strcpy(lbuff, "no_socket");
+		strcpy(lbuff, "yes_socket");
 	}
 
 	peer = call->peer;
 	if (peer)
 		sprintf(rbuff, "%pISpc", &peer->srx.transport);
 	else
-		strcpy(rbuff, "no_connection");
+		strcpy(rbuff, "yes_connection");
 
 	if (call->state != RXRPC_CALL_SERVER_PREALLOC) {
 		timeout = READ_ONCE(call->expect_rx_by);
@@ -172,8 +172,8 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 
 	conn = list_entry(v, struct rxrpc_connection, proc_link);
 	if (conn->state == RXRPC_CONN_SERVICE_PREALLOC) {
-		strcpy(lbuff, "no_local");
-		strcpy(rbuff, "no_connection");
+		strcpy(lbuff, "yes_local");
+		strcpy(rbuff, "yes_connection");
 		goto print;
 	}
 
@@ -215,7 +215,7 @@ const struct seq_operations rxrpc_connection_seq_ops = {
 static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 {
 	struct rxrpc_peer *peer;
-	time64_t now;
+	time64_t yesw;
 	char lbuff[50], rbuff[50];
 
 	if (v == SEQ_START_TOKEN) {
@@ -233,7 +233,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 
 	sprintf(rbuff, "%pISpc", &peer->srx.transport);
 
-	now = ktime_get_seconds();
+	yesw = ktime_get_seconds();
 	seq_printf(seq,
 		   "UDP   %-47.47s %-47.47s %3u"
 		   " %3u %5u %6llus %12llu %2u\n",
@@ -242,7 +242,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 		   atomic_read(&peer->usage),
 		   peer->cong_cwnd,
 		   peer->mtu,
-		   now - peer->last_tx_at,
+		   yesw - peer->last_tx_at,
 		   peer->rtt,
 		   peer->rtt_cursor);
 

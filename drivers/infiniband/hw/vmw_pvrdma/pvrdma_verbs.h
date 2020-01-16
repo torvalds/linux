@@ -21,11 +21,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -237,7 +237,7 @@ struct pvrdma_ah_attr {
 	u8				reserved;
 };
 
-enum pvrdma_cq_notify_flags {
+enum pvrdma_cq_yestify_flags {
 	PVRDMA_CQ_SOLICITED		= 1 << 0,
 	PVRDMA_CQ_NEXT_COMP		= 1 << 1,
 	PVRDMA_CQ_SOLICITED_MASK	= PVRDMA_CQ_SOLICITED |
@@ -343,7 +343,7 @@ struct pvrdma_qp_attr {
 	u32			qp_access_flags;
 	u16			pkey_index;
 	u16			alt_pkey_index;
-	u8			en_sqd_async_notify;
+	u8			en_sqd_async_yestify;
 	u8			sq_draining;
 	u8			max_rd_atomic;
 	u8			max_dest_rd_atomic;
@@ -413,7 +413,7 @@ int pvrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		     struct ib_udata *udata);
 void pvrdma_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 int pvrdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-int pvrdma_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
+int pvrdma_req_yestify_cq(struct ib_cq *cq, enum ib_cq_yestify_flags flags);
 int pvrdma_create_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr, u32 flags,
 		     struct ib_udata *udata);
 void pvrdma_destroy_ah(struct ib_ah *ah, u32 flags);

@@ -114,8 +114,8 @@ static int btqcomsmd_setup(struct hci_dev *hdev)
 		return PTR_ERR(skb);
 	kfree_skb(skb);
 
-	/* Devices do not have persistent storage for BD address. Retrieve
-	 * it from the firmware node property.
+	/* Devices do yest have persistent storage for BD address. Retrieve
+	 * it from the firmware yesde property.
 	 */
 	set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
 

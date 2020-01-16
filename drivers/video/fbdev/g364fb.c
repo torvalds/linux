@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/console.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -105,7 +105,7 @@ int g364fb_init(void);
 
 static int g364fb_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info);
-static int g364fb_setcolreg(u_int regno, u_int red, u_int green,
+static int g364fb_setcolreg(u_int regyes, u_int red, u_int green,
 			    u_int blue, u_int transp,
 			    struct fb_info *info);
 static int g364fb_cursor(struct fb_info *info, struct fb_cursor *cursor);
@@ -170,21 +170,21 @@ static int g364fb_blank(int blank, struct fb_info *info)
 }
 
 /*
- *  Set a single color register. Return != 0 for invalid regno.
+ *  Set a single color register. Return != 0 for invalid regyes.
  */
-static int g364fb_setcolreg(u_int regno, u_int red, u_int green,
+static int g364fb_setcolreg(u_int regyes, u_int red, u_int green,
 			    u_int blue, u_int transp, struct fb_info *info)
 {
 	volatile unsigned int *ptr = (volatile unsigned int *) CLR_PAL_REG;
 
-	if (regno > 255)
+	if (regyes > 255)
 		return 1;
 
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
 
-	ptr[regno << 1] = (red << 16) | (green << 8) | blue;
+	ptr[regyes << 1] = (red << 16) | (green << 8) | blue;
 
 	return 0;
 }

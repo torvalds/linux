@@ -25,10 +25,10 @@ static LIST_HEAD(mtd_partitions);
 static DEFINE_MUTEX(mtd_partitions_mutex);
 
 /**
- * struct mtd_part - our partition node structure
+ * struct mtd_part - our partition yesde structure
  *
  * @mtd: struct holding partition details
- * @parent: parent mtd - flash device or another partition
+ * @parent: parent mtd - flash device or ayesther partition
  * @offset: partition offset relative to the *flash device*
  */
 struct mtd_part {
@@ -318,7 +318,7 @@ static inline void free_partition(struct mtd_part *p)
 }
 
 static struct mtd_part *allocate_partition(struct mtd_info *parent,
-			const struct mtd_partition *part, int partno,
+			const struct mtd_partition *part, int partyes,
 			uint64_t cur_offset)
 {
 	int wr_alignment = (parent->flags & MTD_NO_ERASE) ? parent->writesize :
@@ -356,16 +356,16 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 
 	/* NOTE: Historically, we didn't arrange MTDs as a tree out of
 	 * concern for showing the same data in multiple partitions.
-	 * However, it is very useful to have the master node present,
+	 * However, it is very useful to have the master yesde present,
 	 * so the MTD_PARTITIONED_MASTER option allows that. The master
-	 * will have device nodes etc only if this is set, so make the
+	 * will have device yesdes etc only if this is set, so make the
 	 * parent conditional on that option. Note, this is a way to
 	 * distinguish between the master and the partition in sysfs.
 	 */
 	slave->mtd.dev.parent = IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER) || mtd_is_partition(parent) ?
 				&parent->dev :
 				parent->dev.parent;
-	slave->mtd.dev.of_node = part->of_node;
+	slave->mtd.dev.of_yesde = part->of_yesde;
 
 	if (parent->_read)
 		slave->mtd._read = part_read;
@@ -398,7 +398,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 		slave->mtd._get_fact_prot_info = part_get_fact_prot_info;
 	if (parent->_sync)
 		slave->mtd._sync = part_sync;
-	if (!partno && !parent->dev.class && parent->_suspend &&
+	if (!partyes && !parent->dev.class && parent->_suspend &&
 	    parent->_resume) {
 		slave->mtd._suspend = part_suspend;
 		slave->mtd._resume = part_resume;
@@ -438,7 +438,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 		if (remainder) {
 			slave->offset += wr_alignment - remainder;
 			printk(KERN_NOTICE "Moving partition %d: "
-			       "0x%012llx -> 0x%012llx\n", partno,
+			       "0x%012llx -> 0x%012llx\n", partyes,
 			       (unsigned long long)cur_offset, (unsigned long long)slave->offset);
 		}
 	}
@@ -448,7 +448,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 			slave->mtd.size = parent->size - slave->offset
 							- slave->mtd.size;
 		} else {
-			printk(KERN_ERR "mtd partition \"%s\" doesn't have enough space: %#llx < %#llx, disabled\n",
+			printk(KERN_ERR "mtd partition \"%s\" doesn't have eyesugh space: %#llx < %#llx, disabled\n",
 				part->name, parent->size - slave->offset,
 				slave->mtd.size);
 			/* register to preserve ordering */
@@ -518,7 +518,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 	if ((slave->mtd.flags & MTD_WRITEABLE) && remainder) {
 		/* Doesn't start on a boundary of major erase size */
 		/* FIXME: Let it be writable if it is on a boundary of
-		 * _minor_ erase size though */
+		 * _miyesr_ erase size though */
 		slave->mtd.flags &= ~MTD_WRITEABLE;
 		printk(KERN_WARNING"mtd: partition \"%s\" doesn't start on an erase/write block boundary -- force read-only\n",
 			part->name);
@@ -680,7 +680,7 @@ int del_mtd_partitions(struct mtd_info *mtd)
 	return err;
 }
 
-int mtd_del_partition(struct mtd_info *mtd, int partno)
+int mtd_del_partition(struct mtd_info *mtd, int partyes)
 {
 	struct mtd_part *slave, *next;
 	int ret = -EINVAL;
@@ -688,7 +688,7 @@ int mtd_del_partition(struct mtd_info *mtd, int partno)
 	mutex_lock(&mtd_partitions_mutex);
 	list_for_each_entry_safe(slave, next, &mtd_partitions, list)
 		if ((slave->parent == mtd) &&
-		    (slave->mtd.index == partno)) {
+		    (slave->mtd.index == partyes)) {
 			ret = __mtd_del_partition(slave);
 			break;
 		}
@@ -812,7 +812,7 @@ void deregister_mtd_parser(struct mtd_part_parser *p)
 EXPORT_SYMBOL_GPL(deregister_mtd_parser);
 
 /*
- * Do not forget to update 'parse_mtd_partitions()' kerneldoc comment if you
+ * Do yest forget to update 'parse_mtd_partitions()' kerneldoc comment if you
  * are changing this array!
  */
 static const char * const default_mtd_part_types[] = {
@@ -839,7 +839,7 @@ static int mtd_part_do_parse(struct mtd_part_parser *parser,
 	if (ret <= 0)
 		return ret;
 
-	pr_notice("%d %s partitions found on MTD device %s\n", ret,
+	pr_yestice("%d %s partitions found on MTD device %s\n", ret,
 		  parser->name, master->name);
 
 	pparts->nr_parts = ret;
@@ -891,15 +891,15 @@ static int mtd_part_of_parse(struct mtd_info *master,
 			     struct mtd_partitions *pparts)
 {
 	struct mtd_part_parser *parser;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct property *prop;
 	const char *compat;
 	const char *fixed = "fixed-partitions";
 	int ret, err = 0;
 
-	np = mtd_get_of_node(master);
+	np = mtd_get_of_yesde(master);
 	if (mtd_is_partition(master))
-		of_node_get(np);
+		of_yesde_get(np);
 	else
 		np = of_get_child_by_name(np, "partitions");
 
@@ -909,19 +909,19 @@ static int mtd_part_of_parse(struct mtd_info *master,
 			continue;
 		ret = mtd_part_do_parse(parser, master, pparts, NULL);
 		if (ret > 0) {
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 		mtd_part_parser_put(parser);
 		if (ret < 0 && !err)
 			err = ret;
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 
 	/*
 	 * For backward compatibility we have to try the "fixed-partitions"
 	 * parser. It supports old DT format with partitions specified as a
-	 * direct subnodes of a flash device DT node without any compatibility
+	 * direct subyesdes of a flash device DT yesde without any compatibility
 	 * specified we could match.
 	 */
 	parser = mtd_part_parser_get(fixed);
@@ -998,7 +998,7 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 			return err ? err : pparts.nr_parts;
 		}
 		/*
-		 * Stash the first error we see; only report it if no parser
+		 * Stash the first error we see; only report it if yes parser
 		 * succeeds
 		 */
 		if (ret < 0 && !err)

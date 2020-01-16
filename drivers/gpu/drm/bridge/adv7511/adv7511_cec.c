@@ -255,7 +255,7 @@ static int adv7511_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 
 	/*
 	 * The number of retries is the number of attempts - 1, but retry
-	 * at least once. It's not clear if a value of 0 is allowed, so
+	 * at least once. It's yest clear if a value of 0 is allowed, so
 	 * let's do at least one retry.
 	 */
 	regmap_update_bits(adv7511->regmap_cec,

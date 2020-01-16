@@ -21,7 +21,7 @@ config NTB_IDT
 	 accepted by a BAR. Note that BAR0 must map PCI configuration space
 	 registers.
 
-	 It's worth to note, that since a part of this driver relies on the
+	 It's worth to yeste, that since a part of this driver relies on the
 	 BAR settings of peer NT-functions, the BAR setups can't be done over
 	 kernel PCI fixups. That's why the alternative pre-initialization
 	 techniques like BIOS using SMBus interface or EEPROM should be

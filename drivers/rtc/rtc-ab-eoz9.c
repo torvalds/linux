@@ -186,11 +186,11 @@ static int abeoz9_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return abeoz9_reset_validity(regmap);
 }
 
-static int abeoz9_trickle_parse_dt(struct device_node *node)
+static int abeoz9_trickle_parse_dt(struct device_yesde *yesde)
 {
 	u32 ohms = 0;
 
-	if (of_property_read_u32(node, "trickle-resistor-ohms", &ohms))
+	if (of_property_read_u32(yesde, "trickle-resistor-ohms", &ohms))
 		return 0;
 
 	switch (ohms) {
@@ -207,7 +207,7 @@ static int abeoz9_trickle_parse_dt(struct device_node *node)
 	}
 }
 
-static int abeoz9_rtc_setup(struct device *dev, struct device_node *node)
+static int abeoz9_rtc_setup(struct device *dev, struct device_yesde *yesde)
 {
 	struct abeoz9_rtc_data *data = dev_get_drvdata(dev);
 	struct regmap *regmap = data->regmap;
@@ -240,7 +240,7 @@ static int abeoz9_rtc_setup(struct device *dev, struct device_node *node)
 		return ret;
 	}
 
-	ret = abeoz9_trickle_parse_dt(node);
+	ret = abeoz9_trickle_parse_dt(yesde);
 
 	/* Enable built-in termometer */
 	ret |= ABEOZ9_REG_EEPROM_THE;
@@ -407,7 +407,7 @@ static int abeoz9_probe(struct i2c_client *client,
 	data->regmap = regmap;
 	dev_set_drvdata(dev, data);
 
-	ret = abeoz9_rtc_setup(dev, client->dev.of_node);
+	ret = abeoz9_rtc_setup(dev, client->dev.of_yesde);
 	if (ret)
 		return ret;
 

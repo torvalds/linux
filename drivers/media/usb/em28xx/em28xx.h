@@ -269,14 +269,14 @@ struct em28xx_fmt {
  * @list:	List to associate it with the other buffers
  * @mem:	pointer to the buffer, as returned by vb2_plane_vaddr()
  * @length:	length of the buffer, as returned by vb2_plane_size()
- * @top_field:	If non-zero, indicate that the buffer is the top field
+ * @top_field:	If yesn-zero, indicate that the buffer is the top field
  * @pos:	Indicate the next position of the buffer to be filled.
  * @vb_buf:	pointer to vmalloc memory address in vb
  *
- * .. note::
+ * .. yeste::
  *
  *    in interlaced mode, @pos is reset to zero at the start of each new
- *    field (not frame !)
+ *    field (yest frame !)
  */
 struct em28xx_buffer {
 	struct vb2_v4l2_buffer	vb;		/* must be first */
@@ -576,7 +576,7 @@ struct em28xx_v4l2 {
 	u32 frequency;		/* selected tuner frequency */
 
 	struct em28xx_fmt *format;
-	v4l2_std_id norm;	/* selected tv norm */
+	v4l2_std_id yesrm;	/* selected tv yesrm */
 
 	/* Progressive/interlaced mode */
 	bool progressive;
@@ -652,7 +652,7 @@ struct em28xx {
 
 	// generic device properties
 	int model;		// index in the device_data struct
-	int devno;		// marks the number of this device
+	int devyes;		// marks the number of this device
 	enum em28xx_chip_id chip_id;
 
 	unsigned int is_em25xx:1;	// em25xx/em276x/7x/8x family bridge

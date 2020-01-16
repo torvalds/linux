@@ -15,22 +15,22 @@
 #define DRVNAME "sifive_edac"
 
 struct sifive_edac_priv {
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	struct edac_device_ctl_info *dci;
 };
 
 /**
  * EDAC error callback
  *
- * @event: non-zero if unrecoverable.
+ * @event: yesn-zero if unrecoverable.
  */
 static
-int ecc_err_event(struct notifier_block *this, unsigned long event, void *ptr)
+int ecc_err_event(struct yestifier_block *this, unsigned long event, void *ptr)
 {
 	const char *msg = (char *)ptr;
 	struct sifive_edac_priv *p;
 
-	p = container_of(this, struct sifive_edac_priv, notifier);
+	p = container_of(this, struct sifive_edac_priv, yestifier);
 
 	if (event == SIFIVE_L2_ERR_TYPE_UE)
 		edac_device_handle_ue(p->dci, 0, 0, msg);
@@ -48,7 +48,7 @@ static int ecc_register(struct platform_device *pdev)
 	if (!p)
 		return -ENOMEM;
 
-	p->notifier.notifier_call = ecc_err_event;
+	p->yestifier.yestifier_call = ecc_err_event;
 	platform_set_drvdata(pdev, p);
 
 	p->dci = edac_device_alloc_ctl_info(0, "sifive_ecc", 1, "sifive_ecc",
@@ -67,7 +67,7 @@ static int ecc_register(struct platform_device *pdev)
 		goto err;
 	}
 
-	register_sifive_l2_error_notifier(&p->notifier);
+	register_sifive_l2_error_yestifier(&p->yestifier);
 
 	return 0;
 
@@ -81,7 +81,7 @@ static int ecc_unregister(struct platform_device *pdev)
 {
 	struct sifive_edac_priv *p = platform_get_drvdata(pdev);
 
-	unregister_sifive_l2_error_notifier(&p->notifier);
+	unregister_sifive_l2_error_yestifier(&p->yestifier);
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(p->dci);
 

@@ -63,7 +63,7 @@ struct clk *rockchip_clk_register_muxgrf(const char *name,
 	struct clk *clk;
 
 	if (IS_ERR(regmap)) {
-		pr_err("%s: regmap not available\n", __func__);
+		pr_err("%s: regmap yest available\n", __func__);
 		return ERR_PTR(-ENOTSUPP);
 	}
 

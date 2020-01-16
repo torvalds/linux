@@ -3,7 +3,7 @@
  * LCD panel support for the TI OMAP H3 board
  *
  * Copyright (C) 2004 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 
 #include <linux/module.h>

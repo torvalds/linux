@@ -10,18 +10,18 @@
  *
  *  Permission is granted to use, copy, create derivative works, and
  *  redistribute this software and such derivative works for any purpose,
- *  so long as the name of the University of Michigan is not used in
+ *  so long as the name of the University of Michigan is yest used in
  *  any advertising or publicity pertaining to the use or distribution
  *  of this software without specific, written prior authorization. If
- *  the above copyright notice or any other identification of the
+ *  the above copyright yestice or any other identification of the
  *  University of Michigan is included in any copy of any portion of
  *  this software, then the disclaimer below must also be included.
  *
  *  This software is provided as is, without representation or warranty
  *  of any kind either express or implied, including without limitation
  *  the implied warranties of merchantability, fitness for a particular
- *  purpose, or noninfringement.  The Regents of the University of
- *  Michigan shall not be liable for any damages, including special,
+ *  purpose, or yesninfringement.  The Regents of the University of
+ *  Michigan shall yest be liable for any damages, including special,
  *  indirect, incidental, or consequential damages, with respect to any
  *  claim arising out of or in connection with the use of the software,
  *  even if it has been or is hereafter advised of the possibility of
@@ -47,7 +47,7 @@ nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 	struct nfs4_pnfs_ds *ds;
 	int i;
 
-	nfs4_print_deviceid(&dsaddr->id_node.deviceid);
+	nfs4_print_deviceid(&dsaddr->id_yesde.deviceid);
 
 	for (i = 0; i < dsaddr->ds_num; i++) {
 		ds = dsaddr->ds_list[i];
@@ -55,12 +55,12 @@ nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 			nfs4_pnfs_ds_put(ds);
 	}
 	kfree(dsaddr->stripe_indices);
-	kfree_rcu(dsaddr, id_node.rcu);
+	kfree_rcu(dsaddr, id_yesde.rcu);
 }
 
 /* Decode opaque device data and return the result */
 struct nfs4_file_layout_dsaddr *
-nfs4_fl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
+nfs4_fl_alloc_deviceid_yesde(struct nfs_server *server, struct pnfs_device *pdev,
 		gfp_t gfp_flags)
 {
 	int i;
@@ -146,7 +146,7 @@ nfs4_fl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 	dsaddr->stripe_indices = stripe_indices;
 	stripe_indices = NULL;
 	dsaddr->ds_num = num;
-	nfs4_init_deviceid_node(&dsaddr->id_node, server, &pdev->dev_id);
+	nfs4_init_deviceid_yesde(&dsaddr->id_yesde, server, &pdev->dev_id);
 
 	INIT_LIST_HEAD(&dsaddrs);
 
@@ -163,10 +163,10 @@ nfs4_fl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 			da = nfs4_decode_mp_ds_addr(server->nfs_client->cl_net,
 						    &stream, gfp_flags);
 			if (da)
-				list_add_tail(&da->da_node, &dsaddrs);
+				list_add_tail(&da->da_yesde, &dsaddrs);
 		}
 		if (list_empty(&dsaddrs)) {
-			dprintk("%s: no suitable DS addresses found\n",
+			dprintk("%s: yes suitable DS addresses found\n",
 				__func__);
 			goto out_err_free_deviceid;
 		}
@@ -179,8 +179,8 @@ nfs4_fl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 		while (!list_empty(&dsaddrs)) {
 			da = list_first_entry(&dsaddrs,
 					      struct nfs4_pnfs_ds_addr,
-					      da_node);
-			list_del_init(&da->da_node);
+					      da_yesde);
+			list_del_init(&da->da_yesde);
 			kfree(da->da_remotestr);
 			kfree(da);
 		}
@@ -192,8 +192,8 @@ nfs4_fl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 out_err_drain_dsaddrs:
 	while (!list_empty(&dsaddrs)) {
 		da = list_first_entry(&dsaddrs, struct nfs4_pnfs_ds_addr,
-				      da_node);
-		list_del_init(&da->da_node);
+				      da_yesde);
+		list_del_init(&da->da_yesde);
 		kfree(da->da_remotestr);
 		kfree(da);
 	}
@@ -213,7 +213,7 @@ out_err:
 void
 nfs4_fl_put_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 {
-	nfs4_put_deviceid_node(&dsaddr->id_node);
+	nfs4_put_deviceid_yesde(&dsaddr->id_yesde);
 }
 
 /*
@@ -263,9 +263,9 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 {
 	struct nfs4_file_layout_dsaddr *dsaddr = FILELAYOUT_LSEG(lseg)->dsaddr;
 	struct nfs4_pnfs_ds *ds = dsaddr->ds_list[ds_idx];
-	struct nfs4_deviceid_node *devid = FILELAYOUT_DEVID_NODE(lseg);
+	struct nfs4_deviceid_yesde *devid = FILELAYOUT_DEVID_NODE(lseg);
 	struct nfs4_pnfs_ds *ret = ds;
-	struct nfs_server *s = NFS_SERVER(lseg->pls_layout->plh_inode);
+	struct nfs_server *s = NFS_SERVER(lseg->pls_layout->plh_iyesde);
 	int status;
 
 	if (ds == NULL) {
@@ -280,7 +280,7 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 
 	status = nfs4_pnfs_ds_connect(s, ds, devid, dataserver_timeo,
 			     dataserver_retrans, 4,
-			     s->nfs_client->cl_minorversion);
+			     s->nfs_client->cl_miyesrversion);
 	if (status) {
 		nfs4_mark_deviceid_unavailable(devid);
 		ret = NULL;

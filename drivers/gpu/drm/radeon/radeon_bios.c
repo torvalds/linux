@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -41,7 +41,7 @@
  */
 
 /* If you boot an IGP board with a discrete card as the primary,
- * the IGP rom is not accessible via the rom bar as the IGP rom is
+ * the IGP rom is yest accessible via the rom bar as the IGP rom is
  * part of the system bios.  On boot, the system bios puts a
  * copy of the igp rom at the start of vram if a discrete card is
  * present.
@@ -686,7 +686,7 @@ bool radeon_get_bios(struct radeon_device *rdev)
 
 	tmp = RBIOS16(0x18);
 	if (RBIOS8(tmp + 0x14) != 0x0) {
-		DRM_INFO("Not an x86 BIOS ROM, not using.\n");
+		DRM_INFO("Not an x86 BIOS ROM, yest using.\n");
 		goto free_bios;
 	}
 

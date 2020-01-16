@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -61,7 +61,7 @@
 
 static bool dce_dmcu_init(struct dmcu *dmcu)
 {
-	// Do nothing
+	// Do yesthing
 	return true;
 }
 
@@ -138,7 +138,7 @@ static void dce_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 		REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0,
 				PSR_EXIT);
 
-	/* notifyDMCUMsg */
+	/* yestifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 	if (wait == true) {
 		for (retryCount = 0; retryCount <= 100; retryCount++) {
@@ -200,13 +200,13 @@ static bool dce_dmcu_setup_psr(struct dmcu *dmcu,
 	case 5:
 		/* CZ/NL only has 4 CRTC!!
 		 * really valid.
-		 * There is no interrupt enable mask for these instances.
+		 * There is yes interrupt enable mask for these instances.
 		 */
 		break;
 	case 6:
 		/* CZ/NL only has 4 CRTC!!
 		 * These are here because they are defined in HW regspec,
-		 * but not really valid. There is no interrupt enable mask
+		 * but yest really valid. There is yes interrupt enable mask
 		 * for these instances.
 		 */
 		break;
@@ -261,7 +261,7 @@ static bool dce_dmcu_setup_psr(struct dmcu *dmcu,
 	REG_UPDATE(MASTER_COMM_CMD_REG,
 			MASTER_COMM_CMD_REG_BYTE0, PSR_SET);
 
-	/* notifyDMCUMsg */
+	/* yestifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
 	return true;
@@ -272,10 +272,10 @@ static bool dce_is_dmcu_initialized(struct dmcu *dmcu)
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 	unsigned int dmcu_uc_reset;
 
-	/* microcontroller is not running */
+	/* microcontroller is yest running */
 	REG_GET(DMCU_STATUS, UC_IN_RESET, &dmcu_uc_reset);
 
-	/* DMCU is not running */
+	/* DMCU is yest running */
 	if (dmcu_uc_reset)
 		return false;
 
@@ -292,7 +292,7 @@ static void dce_psr_wait_loop(
 	if (dmcu->cached_wait_loop_number == wait_loop_number)
 		return;
 
-	/* DMCU is not running */
+	/* DMCU is yest running */
 	if (!dce_is_dmcu_initialized(dmcu))
 		return;
 
@@ -307,7 +307,7 @@ static void dce_psr_wait_loop(
 	/* setDMCUParam_Cmd */
 	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, PSR_SET_WAITLOOP);
 
-	/* notifyDMCUMsg */
+	/* yestifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 }
 
@@ -374,8 +374,8 @@ static bool dcn10_dmcu_init(struct dmcu *dmcu)
 	bool status = false;
 
 	/*  Definition of DC_DMCU_SCRATCH
-	 *  0 : firmare not loaded
-	 *  1 : PSP load DMCU FW but not initialized
+	 *  0 : firmare yest loaded
+	 *  1 : PSP load DMCU FW but yest initialized
 	 *  2 : Firmware already initialized
 	 */
 	dmcu->dmcu_state = REG_READ(DC_DMCU_SCRATCH);
@@ -407,12 +407,12 @@ static bool dcn10_dmcu_init(struct dmcu *dmcu)
 		// Check state is initialized
 		dmcu->dmcu_state = REG_READ(DC_DMCU_SCRATCH);
 
-		// If microcontroller is not in running state, fail
+		// If microcontroller is yest in running state, fail
 		if (dmcu->dmcu_state == DMCU_RUNNING) {
 			/* Retrieve and cache the DMCU firmware version. */
 			dcn10_get_dmcu_version(dmcu);
 
-			/* Initialize DMCU to use fractional PWM or not */
+			/* Initialize DMCU to use fractional PWM or yest */
 			dcn10_dmcu_enable_fractional_pwm(dmcu,
 				(config->disable_fractional_pwm == false) ? 1 : 0);
 			status = true;
@@ -441,7 +441,7 @@ static bool dcn10_dmcu_load_iram(struct dmcu *dmcu,
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 	unsigned int count = 0;
 
-	/* If microcontroller is not running, do nothing */
+	/* If microcontroller is yest running, do yesthing */
 	if (dmcu->dmcu_state != DMCU_RUNNING)
 		return false;
 
@@ -484,7 +484,7 @@ static void dcn10_get_dmcu_psr_state(struct dmcu *dmcu, uint32_t *psr_state)
 
 	uint32_t psr_state_offset = 0xf0;
 
-	/* If microcontroller is not running, do nothing */
+	/* If microcontroller is yest running, do yesthing */
 	if (dmcu->dmcu_state != DMCU_RUNNING)
 		return;
 
@@ -514,7 +514,7 @@ static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 	unsigned int retryCount;
 	uint32_t psr_state = 0;
 
-	/* If microcontroller is not running, do nothing */
+	/* If microcontroller is yest running, do yesthing */
 	if (dmcu->dmcu_state != DMCU_RUNNING)
 		return;
 
@@ -534,7 +534,7 @@ static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 		REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0,
 				PSR_EXIT);
 
-	/* notifyDMCUMsg */
+	/* yestifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
 	/* Below loops 1000 x 500us = 500 ms.
@@ -573,7 +573,7 @@ static bool dcn10_dmcu_setup_psr(struct dmcu *dmcu,
 	union dce_dmcu_psr_config_data_reg2 masterCmdData2;
 	union dce_dmcu_psr_config_data_reg3 masterCmdData3;
 
-	/* If microcontroller is not running, do nothing */
+	/* If microcontroller is yest running, do yesthing */
 	if (dmcu->dmcu_state != DMCU_RUNNING)
 		return false;
 
@@ -609,13 +609,13 @@ static bool dcn10_dmcu_setup_psr(struct dmcu *dmcu,
 	case 5:
 		/* CZ/NL only has 4 CRTC!!
 		 * really valid.
-		 * There is no interrupt enable mask for these instances.
+		 * There is yes interrupt enable mask for these instances.
 		 */
 		break;
 	case 6:
 		/* CZ/NL only has 4 CRTC!!
 		 * These are here because they are defined in HW regspec,
-		 * but not really valid. There is no interrupt enable mask
+		 * but yest really valid. There is yes interrupt enable mask
 		 * for these instances.
 		 */
 		break;
@@ -675,7 +675,7 @@ static bool dcn10_dmcu_setup_psr(struct dmcu *dmcu,
 	REG_UPDATE(MASTER_COMM_CMD_REG,
 			MASTER_COMM_CMD_REG_BYTE0, PSR_SET);
 
-	/* notifyDMCUMsg */
+	/* yestifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
 	/* waitDMCUReadyForCmd */
@@ -691,7 +691,7 @@ static void dcn10_psr_wait_loop(
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 	union dce_dmcu_psr_config_data_wait_loop_reg1 masterCmdData1;
 
-	/* If microcontroller is not running, do nothing */
+	/* If microcontroller is yest running, do yesthing */
 	if (dmcu->dmcu_state != DMCU_RUNNING)
 		return;
 
@@ -707,7 +707,7 @@ static void dcn10_psr_wait_loop(
 	/* setDMCUParam_Cmd */
 	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, PSR_SET_WAITLOOP);
 
-	/* notifyDMCUMsg */
+	/* yestifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 	}
 }
@@ -721,7 +721,7 @@ static void dcn10_get_psr_wait_loop(
 
 static bool dcn10_is_dmcu_initialized(struct dmcu *dmcu)
 {
-	/* microcontroller is not running */
+	/* microcontroller is yest running */
 	if (dmcu->dmcu_state != DMCU_RUNNING)
 		return false;
 	return true;
@@ -735,7 +735,7 @@ static bool dcn20_lock_phy(struct dmcu *dmcu)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 
-	/* If microcontroller is not running, do nothing */
+	/* If microcontroller is yest running, do yesthing */
 	if (dmcu->dmcu_state != DMCU_RUNNING)
 		return false;
 
@@ -745,7 +745,7 @@ static bool dcn20_lock_phy(struct dmcu *dmcu)
 	/* setDMCUParam_Cmd */
 	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, MCP_SYNC_PHY_LOCK);
 
-	/* notifyDMCUMsg */
+	/* yestifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
 	/* waitDMCUReadyForCmd */
@@ -758,7 +758,7 @@ static bool dcn20_unlock_phy(struct dmcu *dmcu)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 
-	/* If microcontroller is not running, do nothing */
+	/* If microcontroller is yest running, do yesthing */
 	if (dmcu->dmcu_state != DMCU_RUNNING)
 		return false;
 
@@ -768,7 +768,7 @@ static bool dcn20_unlock_phy(struct dmcu *dmcu)
 	/* setDMCUParam_Cmd */
 	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, MCP_SYNC_PHY_UNLOCK);
 
-	/* notifyDMCUMsg */
+	/* yestifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
 	/* waitDMCUReadyForCmd */

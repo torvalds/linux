@@ -68,7 +68,7 @@ int sk_stream_wait_connect(struct sock *sk, long *timeo_p)
 		if (!*timeo_p)
 			return -EAGAIN;
 		if (signal_pending(tsk))
-			return sock_intr_errno(*timeo_p);
+			return sock_intr_erryes(*timeo_p);
 
 		add_wait_queue(sk_sleep(sk), &wait);
 		sk->sk_write_pending++;
@@ -175,7 +175,7 @@ do_eagain:
 	err = -EAGAIN;
 	goto out;
 do_interrupted:
-	err = sock_intr_errno(*timeo_p);
+	err = sock_intr_erryes(*timeo_p);
 	goto out;
 }
 EXPORT_SYMBOL(sk_stream_wait_memory);
@@ -209,7 +209,7 @@ void sk_stream_kill_queues(struct sock *sk)
 
 	/* It is _impossible_ for the backlog to contain anything
 	 * when we get here.  All user references to this socket
-	 * have gone away, only the net layer knows can touch it.
+	 * have gone away, only the net layer kyesws can touch it.
 	 */
 }
 EXPORT_SYMBOL(sk_stream_kill_queues);

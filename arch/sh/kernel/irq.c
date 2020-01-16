@@ -104,7 +104,7 @@ static inline void handle_one_irq(unsigned int irq)
 			" mov	%2, r15		\n"
 			/* restore the stack (ring zero) */
 			"mov	r8, r15		\n"
-			: /* no outputs */
+			: /* yes outputs */
 			: "r" (irq), "r" (generic_handle_irq), "r" (isp)
 			: "memory", "r0", "r1", "r2", "r3", "r4",
 			  "r5", "r6", "r7", "r8", "t", "pr"
@@ -169,7 +169,7 @@ void do_softirq_own_stack(void)
 		" mov	%1, r15		\n"
 		/* restore the thread stack */
 		"mov	r9, r15		\n"
-		: /* no outputs */
+		: /* yes outputs */
 		: "r" (__do_softirq), "r" (isp)
 		: "memory", "r0", "r1", "r2", "r3", "r4",
 		  "r5", "r6", "r7", "r8", "r9", "r15", "t", "pr"
@@ -218,7 +218,7 @@ void __init init_IRQ(void)
 #ifdef CONFIG_HOTPLUG_CPU
 /*
  * The CPU has been marked offline.  Migrate IRQs off this CPU.  If
- * the affinity settings do not allow other CPUs, force them onto any
+ * the affinity settings do yest allow other CPUs, force them onto any
  * available CPU.
  */
 void migrate_irqs(void)
@@ -228,12 +228,12 @@ void migrate_irqs(void)
 	for_each_active_irq(irq) {
 		struct irq_data *data = irq_get_irq_data(irq);
 
-		if (irq_data_get_node(data) == cpu) {
+		if (irq_data_get_yesde(data) == cpu) {
 			struct cpumask *mask = irq_data_get_affinity_mask(data);
 			unsigned int newcpu = cpumask_any_and(mask,
 							      cpu_online_mask);
 			if (newcpu >= nr_cpu_ids) {
-				pr_info_ratelimited("IRQ%u no longer affine to CPU%u\n",
+				pr_info_ratelimited("IRQ%u yes longer affine to CPU%u\n",
 						    irq, cpu);
 
 				cpumask_setall(mask);

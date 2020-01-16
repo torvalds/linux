@@ -297,7 +297,7 @@ static int edp_regulator_init(struct edp_ctrl *ctrl)
 	ctrl->vdda_vreg = devm_regulator_get(dev, "vdda");
 	ret = PTR_ERR_OR_ZERO(ctrl->vdda_vreg);
 	if (ret) {
-		pr_err("%s: Could not get vdda reg, ret = %d\n", __func__,
+		pr_err("%s: Could yest get vdda reg, ret = %d\n", __func__,
 				ret);
 		ctrl->vdda_vreg = NULL;
 		return ret;
@@ -305,7 +305,7 @@ static int edp_regulator_init(struct edp_ctrl *ctrl)
 	ctrl->lvl_vreg = devm_regulator_get(dev, "lvl-vdd");
 	ret = PTR_ERR_OR_ZERO(ctrl->lvl_vreg);
 	if (ret) {
-		pr_err("%s: Could not get lvl-vdd reg, ret = %d\n", __func__,
+		pr_err("%s: Could yest get lvl-vdd reg, ret = %d\n", __func__,
 				ret);
 		ctrl->lvl_vreg = NULL;
 		return ret;
@@ -363,7 +363,7 @@ static int edp_gpio_config(struct edp_ctrl *ctrl)
 	if (IS_ERR(ctrl->panel_hpd_gpio)) {
 		ret = PTR_ERR(ctrl->panel_hpd_gpio);
 		ctrl->panel_hpd_gpio = NULL;
-		pr_err("%s: cannot get panel-hpd-gpios, %d\n", __func__, ret);
+		pr_err("%s: canyest get panel-hpd-gpios, %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -371,7 +371,7 @@ static int edp_gpio_config(struct edp_ctrl *ctrl)
 	if (IS_ERR(ctrl->panel_en_gpio)) {
 		ret = PTR_ERR(ctrl->panel_en_gpio);
 		ctrl->panel_en_gpio = NULL;
-		pr_err("%s: cannot get panel-en-gpios, %d\n", __func__, ret);
+		pr_err("%s: canyest get panel-en-gpios, %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -559,7 +559,7 @@ static const u8 vm_pre_emphasis[4][4] = {
 	{0x03, 0xFF, 0xFF, 0xFF}	/* pe3, 9.5 db */
 };
 
-/* voltage swing, 0.2v and 1.0v are not support */
+/* voltage swing, 0.2v and 1.0v are yest support */
 static const u8 vm_voltage_swing[4][4] = {
 	{0x14, 0x18, 0x1A, 0x1E}, /* sw0, 0.4v  */
 	{0x18, 0x1A, 0x1E, 0xFF}, /* sw1, 0.6 v */
@@ -1368,7 +1368,7 @@ bool msm_edp_ctrl_pixel_clock_valid(struct edp_ctrl *ctrl,
 		}
 	}
 
-	DBG("pixel clock %d(kHz) not supported", pixel_rate);
+	DBG("pixel clock %d(kHz) yest supported", pixel_rate);
 
 	return false;
 }

@@ -178,11 +178,11 @@ static void vc4_plane_destroy_state(struct drm_plane *plane,
 	struct vc4_dev *vc4 = to_vc4_dev(plane->dev);
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 
-	if (drm_mm_node_allocated(&vc4_state->lbm)) {
+	if (drm_mm_yesde_allocated(&vc4_state->lbm)) {
 		unsigned long irqflags;
 
 		spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
-		drm_mm_remove_node(&vc4_state->lbm);
+		drm_mm_remove_yesde(&vc4_state->lbm);
 		spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
 	}
 
@@ -224,7 +224,7 @@ static void vc4_dlist_write(struct vc4_plane_state *vc4_state, u32 val)
 }
 
 /* Returns the scl0/scl1 field based on whether the dimensions need to
- * be up/down/non-scaled.
+ * be up/down/yesn-scaled.
  *
  * This is a replication of a table from the spec.
  */
@@ -397,8 +397,8 @@ static void vc4_write_tpz(struct vc4_plane_state *vc4_state, u32 src, u32 dst)
 
 	scale = (1 << 16) * src / dst;
 
-	/* The specs note that while the reciprocal would be defined
-	 * as (1<<32)/scale, ~0 is close enough.
+	/* The specs yeste that while the reciprocal would be defined
+	 * as (1<<32)/scale, ~0 is close eyesugh.
 	 */
 	recip = ~0 / scale;
 
@@ -428,7 +428,7 @@ static u32 vc4_lbm_size(struct drm_plane_state *state)
 	u32 pix_per_line = max(vc4_state->src_w[0], (u32)vc4_state->crtc_w);
 	u32 lbm;
 
-	/* LBM is not needed when there's no vertical scaling. */
+	/* LBM is yest needed when there's yes vertical scaling. */
 	if (vc4_state->y_scaling[0] == VC4_SCALING_NONE &&
 	    vc4_state->y_scaling[1] == VC4_SCALING_NONE)
 		return 0;
@@ -557,11 +557,11 @@ static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 	/* Allocate the LBM memory that the HVS will use for temporary
 	 * storage due to our scaling/format conversion.
 	 */
-	if (!drm_mm_node_allocated(&vc4_state->lbm)) {
+	if (!drm_mm_yesde_allocated(&vc4_state->lbm)) {
 		int ret;
 
 		spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
-		ret = drm_mm_insert_node_generic(&vc4->hvs->lbm_mm,
+		ret = drm_mm_insert_yesde_generic(&vc4->hvs->lbm_mm,
 						 &vc4_state->lbm,
 						 lbm_size, 32, 0, 0);
 		spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
@@ -685,7 +685,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		 * after the initial one should be fetched in descending order,
 		 * which makes sense since we start from the last line and go
 		 * backward.
-		 * Don't know why we need y_off = max_y_off - y_off, but it's
+		 * Don't kyesw why we need y_off = max_y_off - y_off, but it's
 		 * definitely required (I guess it's also related to the "going
 		 * backward" situation).
 		 */
@@ -806,7 +806,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	}
 
 	/* Don't waste cycles mixing with plane alpha if the set alpha
-	 * is opaque or there is no per-pixel alpha information.
+	 * is opaque or there is yes per-pixel alpha information.
 	 * In any case we use the alpha property value as the fixed alpha.
 	 */
 	mix_plane_alpha = state->alpha != DRM_BLEND_ALPHA_OPAQUE &&
@@ -912,15 +912,15 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 			vc4_state->crtc_w == state->crtc->mode.hdisplay &&
 			vc4_state->crtc_h == state->crtc->mode.vdisplay;
 	/* Background fill might be necessary when the plane has per-pixel
-	 * alpha content or a non-opaque plane alpha and could blend from the
-	 * background or does not cover the entire screen.
+	 * alpha content or a yesn-opaque plane alpha and could blend from the
+	 * background or does yest cover the entire screen.
 	 */
 	vc4_state->needs_bg_fill = fb->format->has_alpha || !covers_screen ||
 				   state->alpha != DRM_BLEND_ALPHA_OPAQUE;
 
 	/* Flag the dlist as initialized to avoid checking it twice in case
 	 * the async update check already called vc4_plane_mode_set() and
-	 * decided to fallback to sync update because async update was not
+	 * decided to fallback to sync update because async update was yest
 	 * possible.
 	 */
 	vc4_state->dlist_initialized = 1;
@@ -958,7 +958,7 @@ static int vc4_plane_atomic_check(struct drm_plane *plane,
 static void vc4_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_plane_state *old_state)
 {
-	/* No contents here.  Since we don't know where in the CRTC's
+	/* No contents here.  Since we don't kyesw where in the CRTC's
 	 * dlist we should be stored, our dlist is uploaded to the
 	 * hardware with vc4_plane_write_dlist() at CRTC atomic_flush
 	 * time.
@@ -1003,7 +1003,7 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	addr = bo->paddr + fb->offsets[0];
 
 	/* Write the new address into the hardware immediately.  The
-	 * scanout will start from this address as soon as the FIFO
+	 * scayesut will start from this address as soon as the FIFO
 	 * needs to refill with pixels.
 	 */
 	writel(addr, &vc4_state->hw_dlist[vc4_state->ptr0_offset]);
@@ -1034,7 +1034,7 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 	plane->state->pixel_blend_mode = state->pixel_blend_mode;
 	plane->state->rotation = state->rotation;
 	plane->state->zpos = state->zpos;
-	plane->state->normalized_zpos = state->normalized_zpos;
+	plane->state->yesrmalized_zpos = state->yesrmalized_zpos;
 	plane->state->color_encoding = state->color_encoding;
 	plane->state->color_range = state->color_range;
 	plane->state->src = state->src;

@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -102,7 +102,7 @@ int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
 static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 		char __user *buf, size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_iyesde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 	bool pm_pg_lock, use_bank, use_ring;
@@ -230,7 +230,7 @@ static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
 static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_iyesde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -269,7 +269,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_iyesde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -309,7 +309,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user 
 static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_iyesde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -348,7 +348,7 @@ static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_iyesde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -388,7 +388,7 @@ static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user 
 static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_iyesde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -427,7 +427,7 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_iyesde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -469,10 +469,10 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_iyesde(f)->i_private;
 	ssize_t result = 0;
 	int r;
-	uint32_t *config, no_regs = 0;
+	uint32_t *config, yes_regs = 0;
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
@@ -482,47 +482,47 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 		return -ENOMEM;
 
 	/* version, increment each time something is added */
-	config[no_regs++] = 3;
-	config[no_regs++] = adev->gfx.config.max_shader_engines;
-	config[no_regs++] = adev->gfx.config.max_tile_pipes;
-	config[no_regs++] = adev->gfx.config.max_cu_per_sh;
-	config[no_regs++] = adev->gfx.config.max_sh_per_se;
-	config[no_regs++] = adev->gfx.config.max_backends_per_se;
-	config[no_regs++] = adev->gfx.config.max_texture_channel_caches;
-	config[no_regs++] = adev->gfx.config.max_gprs;
-	config[no_regs++] = adev->gfx.config.max_gs_threads;
-	config[no_regs++] = adev->gfx.config.max_hw_contexts;
-	config[no_regs++] = adev->gfx.config.sc_prim_fifo_size_frontend;
-	config[no_regs++] = adev->gfx.config.sc_prim_fifo_size_backend;
-	config[no_regs++] = adev->gfx.config.sc_hiz_tile_fifo_size;
-	config[no_regs++] = adev->gfx.config.sc_earlyz_tile_fifo_size;
-	config[no_regs++] = adev->gfx.config.num_tile_pipes;
-	config[no_regs++] = adev->gfx.config.backend_enable_mask;
-	config[no_regs++] = adev->gfx.config.mem_max_burst_length_bytes;
-	config[no_regs++] = adev->gfx.config.mem_row_size_in_kb;
-	config[no_regs++] = adev->gfx.config.shader_engine_tile_size;
-	config[no_regs++] = adev->gfx.config.num_gpus;
-	config[no_regs++] = adev->gfx.config.multi_gpu_tile_size;
-	config[no_regs++] = adev->gfx.config.mc_arb_ramcfg;
-	config[no_regs++] = adev->gfx.config.gb_addr_config;
-	config[no_regs++] = adev->gfx.config.num_rbs;
+	config[yes_regs++] = 3;
+	config[yes_regs++] = adev->gfx.config.max_shader_engines;
+	config[yes_regs++] = adev->gfx.config.max_tile_pipes;
+	config[yes_regs++] = adev->gfx.config.max_cu_per_sh;
+	config[yes_regs++] = adev->gfx.config.max_sh_per_se;
+	config[yes_regs++] = adev->gfx.config.max_backends_per_se;
+	config[yes_regs++] = adev->gfx.config.max_texture_channel_caches;
+	config[yes_regs++] = adev->gfx.config.max_gprs;
+	config[yes_regs++] = adev->gfx.config.max_gs_threads;
+	config[yes_regs++] = adev->gfx.config.max_hw_contexts;
+	config[yes_regs++] = adev->gfx.config.sc_prim_fifo_size_frontend;
+	config[yes_regs++] = adev->gfx.config.sc_prim_fifo_size_backend;
+	config[yes_regs++] = adev->gfx.config.sc_hiz_tile_fifo_size;
+	config[yes_regs++] = adev->gfx.config.sc_earlyz_tile_fifo_size;
+	config[yes_regs++] = adev->gfx.config.num_tile_pipes;
+	config[yes_regs++] = adev->gfx.config.backend_enable_mask;
+	config[yes_regs++] = adev->gfx.config.mem_max_burst_length_bytes;
+	config[yes_regs++] = adev->gfx.config.mem_row_size_in_kb;
+	config[yes_regs++] = adev->gfx.config.shader_engine_tile_size;
+	config[yes_regs++] = adev->gfx.config.num_gpus;
+	config[yes_regs++] = adev->gfx.config.multi_gpu_tile_size;
+	config[yes_regs++] = adev->gfx.config.mc_arb_ramcfg;
+	config[yes_regs++] = adev->gfx.config.gb_addr_config;
+	config[yes_regs++] = adev->gfx.config.num_rbs;
 
 	/* rev==1 */
-	config[no_regs++] = adev->rev_id;
-	config[no_regs++] = adev->pg_flags;
-	config[no_regs++] = adev->cg_flags;
+	config[yes_regs++] = adev->rev_id;
+	config[yes_regs++] = adev->pg_flags;
+	config[yes_regs++] = adev->cg_flags;
 
 	/* rev==2 */
-	config[no_regs++] = adev->family;
-	config[no_regs++] = adev->external_rev_id;
+	config[yes_regs++] = adev->family;
+	config[yes_regs++] = adev->external_rev_id;
 
 	/* rev==3 */
-	config[no_regs++] = adev->pdev->device;
-	config[no_regs++] = adev->pdev->revision;
-	config[no_regs++] = adev->pdev->subsystem_device;
-	config[no_regs++] = adev->pdev->subsystem_vendor;
+	config[yes_regs++] = adev->pdev->device;
+	config[yes_regs++] = adev->pdev->revision;
+	config[yes_regs++] = adev->pdev->subsystem_device;
+	config[yes_regs++] = adev->pdev->subsystem_vendor;
 
-	while (size && (*pos < no_regs * 4)) {
+	while (size && (*pos < yes_regs * 4)) {
 		uint32_t value;
 
 		value = config[*pos >> 2];
@@ -558,7 +558,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_iyesde(f)->i_private;
 	int idx, x, outsize, r, valuesize;
 	uint32_t values[16];
 
@@ -617,7 +617,7 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = f->f_iyesde->i_private;
 	int r, x;
 	ssize_t result=0;
 	uint32_t offset, se, sh, cu, wave, simd, data[32];
@@ -689,7 +689,7 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = f->f_iyesde->i_private;
 	int r;
 	ssize_t result = 0;
 	uint32_t offset, se, sh, cu, wave, simd, thread, bank, *data;
@@ -824,8 +824,8 @@ static const char *debugfs_regs_names[] = {
  */
 int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 {
-	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct drm_miyesr *miyesr = adev->ddev->primary;
+	struct dentry *ent, *root = miyesr->debugfs_root;
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(debugfs_regs); i++) {
@@ -833,7 +833,7 @@ int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 					  S_IFREG | S_IRUGO, root,
 					  adev, debugfs_regs[i]);
 		if (!i && !IS_ERR_OR_NULL(ent))
-			i_size_write(ent->d_inode, adev->rmmio_size);
+			i_size_write(ent->d_iyesde, adev->rmmio_size);
 		adev->debugfs_regs[i] = ent;
 	}
 
@@ -854,8 +854,8 @@ void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev)
 
 static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	int r = 0, i;
 
@@ -894,8 +894,8 @@ static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
 
 static int amdgpu_debugfs_get_vbios_dump(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 
 	seq_write(m, adev->bios, adev->bios_size);
@@ -904,8 +904,8 @@ static int amdgpu_debugfs_get_vbios_dump(struct seq_file *m, void *data)
 
 static int amdgpu_debugfs_evict_vram(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 
 	seq_printf(m, "(%d)\n", amdgpu_bo_evict_vram(adev));
@@ -914,8 +914,8 @@ static int amdgpu_debugfs_evict_vram(struct seq_file *m, void *data)
 
 static int amdgpu_debugfs_evict_gtt(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 
 	seq_printf(m, "(%d)\n", ttm_bo_evict_mm(&adev->mman.bdev, TTM_PL_TT));
@@ -980,7 +980,7 @@ static void amdgpu_ib_preempt_job_recovery(struct drm_gpu_scheduler *sched)
 	struct dma_fence *fence;
 
 	spin_lock(&sched->job_list_lock);
-	list_for_each_entry(s_job, &sched->ring_mirror_list, node) {
+	list_for_each_entry(s_job, &sched->ring_mirror_list, yesde) {
 		fence = sched->ops->run_job(s_job);
 		dma_fence_put(fence);
 	}
@@ -1008,7 +1008,7 @@ static void amdgpu_ib_preempt_mark_partial_job(struct amdgpu_ring *ring)
 	fence = rcu_dereference_protected(*ptr, 1);
 
 	spin_lock(&sched->job_list_lock);
-	list_for_each_entry(s_job, &sched->ring_mirror_list, node) {
+	list_for_each_entry(s_job, &sched->ring_mirror_list, yesde) {
 		job = to_amdgpu_job(s_job);
 		if (job->fence == fence)
 			/* mark the job as preempted */

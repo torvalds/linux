@@ -17,7 +17,7 @@ Data file related processing.
 COMMANDS
 --------
 convert::
-	Converts perf data file into another format (only CTF [1] format is support by now).
+	Converts perf data file into ayesther format (only CTF [1] format is support by yesw).
 	It's possible to set data-convert debug variable to get debug messages from conversion,
 	like:
 	  perf --debug data-convert data convert ...
@@ -39,7 +39,7 @@ OPTIONS for 'convert'
         Be more verbose (show counter open errors, etc).
 
 --all::
-	Convert all events, including non-sample events (comm, fork, ...), to output.
+	Convert all events, including yesn-sample events (comm, fork, ...), to output.
 	Default is off, only convert samples.
 
 SEE ALSO

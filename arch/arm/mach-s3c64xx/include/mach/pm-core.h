@@ -22,7 +22,7 @@ static inline void s3c_pm_debug_init_uart(void)
 {
 	u32 tmp = __raw_readl(S3C_PCLK_GATE);
 
-	/* As a note, since the S3C64XX UARTs generally have multiple
+	/* As a yeste, since the S3C64XX UARTs generally have multiple
 	 * clock sources, we simply enable PCLK at the moment and hope
 	 * that the resume settings for the UART are suitable for the
 	 * use with PCLK.
@@ -53,7 +53,7 @@ static inline void s3c_pm_arch_show_resume_irqs(void)
 {
 }
 
-/* make these defines, we currently do not have any need to change
+/* make these defines, we currently do yest have any need to change
  * the IRQ wake controls depending on the CPU we are running on */
 #ifdef CONFIG_PM_SLEEP
 #define s3c_irqwake_eintallow	((1 << 28) - 1)

@@ -560,7 +560,7 @@ static void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 					   QLCNIC_MULTICAST_MAC);
 	}
 
-	/* configure unicast MAC address, if there is not sufficient space
+	/* configure unicast MAC address, if there is yest sufficient space
 	 * to store all the unicast addresses then enable promiscuous mode
 	 */
 	if (netdev_uc_count(netdev) > ahw->max_uc_count) {
@@ -634,7 +634,7 @@ void qlcnic_82xx_free_mac_list(struct qlcnic_adapter *adapter)
 void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_filter *tmp_fil;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct hlist_head *head;
 	int i;
 	unsigned long expires;
@@ -642,7 +642,7 @@ void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
 
 	for (i = 0; i < adapter->fhash.fbucket_size; i++) {
 		head = &(adapter->fhash.fhead[i]);
-		hlist_for_each_entry_safe(tmp_fil, n, head, fnode) {
+		hlist_for_each_entry_safe(tmp_fil, n, head, fyesde) {
 			cmd =  tmp_fil->vlan_id ? QLCNIC_MAC_VLAN_DEL :
 						  QLCNIC_MAC_DEL;
 			expires = tmp_fil->ftime + QLCNIC_FILTER_AGE * HZ;
@@ -653,7 +653,7 @@ void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
 							  cmd);
 				spin_lock_bh(&adapter->mac_learn_lock);
 				adapter->fhash.fnum--;
-				hlist_del(&tmp_fil->fnode);
+				hlist_del(&tmp_fil->fyesde);
 				spin_unlock_bh(&adapter->mac_learn_lock);
 				kfree(tmp_fil);
 			}
@@ -662,13 +662,13 @@ void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
 	for (i = 0; i < adapter->rx_fhash.fbucket_size; i++) {
 		head = &(adapter->rx_fhash.fhead[i]);
 
-		hlist_for_each_entry_safe(tmp_fil, n, head, fnode)
+		hlist_for_each_entry_safe(tmp_fil, n, head, fyesde)
 		{
 			expires = tmp_fil->ftime + QLCNIC_FILTER_AGE * HZ;
 			if (time_before(expires, jiffies)) {
 				spin_lock_bh(&adapter->rx_mac_learn_lock);
 				adapter->rx_fhash.fnum--;
-				hlist_del(&tmp_fil->fnode);
+				hlist_del(&tmp_fil->fyesde);
 				spin_unlock_bh(&adapter->rx_mac_learn_lock);
 				kfree(tmp_fil);
 			}
@@ -679,14 +679,14 @@ void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
 void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_filter *tmp_fil;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct hlist_head *head;
 	int i;
 	u8 cmd;
 
 	for (i = 0; i < adapter->fhash.fbucket_size; i++) {
 		head = &(adapter->fhash.fhead[i]);
-		hlist_for_each_entry_safe(tmp_fil, n, head, fnode) {
+		hlist_for_each_entry_safe(tmp_fil, n, head, fyesde) {
 			cmd =  tmp_fil->vlan_id ? QLCNIC_MAC_VLAN_DEL :
 						  QLCNIC_MAC_DEL;
 			qlcnic_sre_macaddr_change(adapter,
@@ -695,7 +695,7 @@ void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter)
 						  cmd);
 			spin_lock_bh(&adapter->mac_learn_lock);
 			adapter->fhash.fnum--;
-			hlist_del(&tmp_fil->fnode);
+			hlist_del(&tmp_fil->fyesde);
 			spin_unlock_bh(&adapter->mac_learn_lock);
 			kfree(tmp_fil);
 		}
@@ -791,7 +791,7 @@ int qlcnic_82xx_set_rx_coalesce(struct qlcnic_adapter *adapter)
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)
 		dev_err(&adapter->netdev->dev,
-			"Could not send interrupt coalescing parameters\n");
+			"Could yest send interrupt coalescing parameters\n");
 
 	return rv;
 }
@@ -848,7 +848,7 @@ int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)
 		dev_err(&adapter->netdev->dev,
-			"Could not send configure hw lro request\n");
+			"Could yest send configure hw lro request\n");
 
 	return rv;
 }
@@ -875,7 +875,7 @@ int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)
 		dev_err(&adapter->netdev->dev,
-			"Could not send configure bridge mode request\n");
+			"Could yest send configure bridge mode request\n");
 
 	adapter->flags ^= QLCNIC_BRIDGE_ENABLED;
 
@@ -932,7 +932,7 @@ int qlcnic_82xx_config_rss(struct qlcnic_adapter *adapter, int enable)
 
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)
-		dev_err(&adapter->netdev->dev, "could not configure RSS\n");
+		dev_err(&adapter->netdev->dev, "could yest configure RSS\n");
 
 	return rv;
 }
@@ -958,7 +958,7 @@ void qlcnic_82xx_config_ipaddr(struct qlcnic_adapter *adapter,
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)
 		dev_err(&adapter->netdev->dev,
-				"could not notify %s IP 0x%x request\n",
+				"could yest yestify %s IP 0x%x request\n",
 				(cmd == QLCNIC_IP_UP) ? "Add" : "Remove", ip);
 }
 
@@ -976,7 +976,7 @@ int qlcnic_82xx_linkevent_request(struct qlcnic_adapter *adapter, int enable)
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)
 		dev_err(&adapter->netdev->dev,
-				"could not configure link notification\n");
+				"could yest configure link yestification\n");
 
 	return rv;
 }
@@ -1002,7 +1002,7 @@ static int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter)
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)
 		dev_err(&adapter->netdev->dev,
-				 "could not cleanup lro flows\n");
+				 "could yest cleanup lro flows\n");
 
 	return rv;
 }
@@ -1110,10 +1110,10 @@ int qlcnic_set_features(struct net_device *netdev, netdev_features_t features)
 /*
  * Changes the CRB window to the specified window.
  */
- /* Returns < 0 if off is not valid,
+ /* Returns < 0 if off is yest valid,
  *	 1 if window access is needed. 'off' is set to offset from
  *	   CRB space in 128M pci map
- *	 0 if no window access is needed. 'off' is set to 2M addr
+ *	 0 if yes window access is needed. 'off' is set to 2M addr
  * In: 'off' is offset from base in 128M pci map
  */
 static int qlcnic_pci_get_crb_addr_2M(struct qlcnic_hardware_context *ahw,
@@ -1513,7 +1513,7 @@ int qlcnic_82xx_get_board_info(struct qlcnic_adapter *adapter)
 			QLCNIC_XGBE : QLCNIC_GBE;
 		break;
 	default:
-		dev_err(&pdev->dev, "unknown board type %x\n", board_type);
+		dev_err(&pdev->dev, "unkyeswn board type %x\n", board_type);
 		adapter->ahw->port_type = QLCNIC_XGBE;
 		break;
 	}
@@ -1591,7 +1591,7 @@ void qlcnic_82xx_get_beacon_state(struct qlcnic_adapter *adapter)
 	return;
 }
 
-void qlcnic_82xx_get_func_no(struct qlcnic_adapter *adapter)
+void qlcnic_82xx_get_func_yes(struct qlcnic_adapter *adapter)
 {
 	void __iomem *msix_base_addr;
 	u32 func;

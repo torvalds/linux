@@ -52,7 +52,7 @@ encode_fh(__be32 *p, struct svc_fh *fhp)
 
 /*
  * Decode a file name and make sure that the path contains
- * no slashes or null bytes.
+ * yes slashes or null bytes.
  */
 static __be32 *
 decode_filename(__be32 *p, char **namp, unsigned int *lenp)
@@ -170,11 +170,11 @@ encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 		*p++ = htonl(f);
 		break;
 	}
-	*p++ = htonl((u32) stat->ino);
+	*p++ = htonl((u32) stat->iyes);
 	*p++ = htonl((u32) stat->atime.tv_sec);
 	*p++ = htonl(stat->atime.tv_nsec ? stat->atime.tv_nsec / 1000 : 0);
 	time = stat->mtime;
-	lease_get_mtime(d_inode(dentry), &time); 
+	lease_get_mtime(d_iyesde(dentry), &time); 
 	*p++ = htonl((u32) time.tv_sec);
 	*p++ = htonl(time.tv_nsec ? time.tv_nsec / 1000 : 0); 
 	*p++ = htonl((u32) stat->ctime.tv_sec);
@@ -277,7 +277,7 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
 	if (!p)
 		return 0;
 
-	p++;				/* beginoffset */
+	p++;				/* begiyesffset */
 	args->offset = ntohl(*p++);	/* offset */
 	p++;				/* totalcount */
 	len = args->len = ntohl(*p++);
@@ -474,7 +474,7 @@ nfssvc_encode_readres(struct svc_rqst *rqstp, __be32 *p)
 	*p++ = htonl(resp->count);
 	xdr_ressize_check(rqstp, p);
 
-	/* now update rqstp->rq_res to reflect data as well */
+	/* yesw update rqstp->rq_res to reflect data as well */
 	rqstp->rq_res.page_len = resp->count;
 	if (resp->count & 3) {
 		/* need to pad the tail */
@@ -492,7 +492,7 @@ nfssvc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 
 	xdr_ressize_check(rqstp, p);
 	p = resp->buffer;
-	*p++ = 0;			/* no more entries */
+	*p++ = 0;			/* yes more entries */
 	*p++ = htonl((resp->common.err == nfserr_eof));
 	rqstp->rq_res.page_len = (((unsigned long)p-1) & ~PAGE_MASK)+1;
 
@@ -515,7 +515,7 @@ nfssvc_encode_statfsres(struct svc_rqst *rqstp, __be32 *p)
 
 int
 nfssvc_encode_entry(void *ccdv, const char *name,
-		    int namlen, loff_t offset, u64 ino, unsigned int d_type)
+		    int namlen, loff_t offset, u64 iyes, unsigned int d_type)
 {
 	struct readdir_cd *ccd = ccdv;
 	struct nfsd_readdirres *cd = container_of(ccd, struct nfsd_readdirres, common);
@@ -523,8 +523,8 @@ nfssvc_encode_entry(void *ccdv, const char *name,
 	int	buflen, slen;
 
 	/*
-	dprintk("nfsd: entry(%.*s off %ld ino %ld)\n",
-			namlen, name, offset, ino);
+	dprintk("nfsd: entry(%.*s off %ld iyes %ld)\n",
+			namlen, name, offset, iyes);
 	 */
 
 	if (offset > ~((u32) 0)) {
@@ -542,12 +542,12 @@ nfssvc_encode_entry(void *ccdv, const char *name,
 		cd->common.err = nfserr_toosmall;
 		return -EINVAL;
 	}
-	if (ino > ~((u32) 0)) {
+	if (iyes > ~((u32) 0)) {
 		cd->common.err = nfserr_fbig;
 		return -EINVAL;
 	}
 	*p++ = xdr_one;				/* mark entry present */
-	*p++ = htonl((u32) ino);		/* file id */
+	*p++ = htonl((u32) iyes);		/* file id */
 	p    = xdr_encode_array(p, name, namlen);/* name length & name */
 	cd->offset = p;			/* remember pointer */
 	*p++ = htonl(~0U);		/* offset of next entry */

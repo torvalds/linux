@@ -304,7 +304,7 @@ static int axp_mc_probe(struct platform_device *pdev)
 
 	config = readl(base + SDRAM_CONFIG_REG);
 	if (!(config & SDRAM_CONFIG_ECC_MASK)) {
-		dev_warn(&pdev->dev, "SDRAM ECC is not enabled");
+		dev_warn(&pdev->dev, "SDRAM ECC is yest enabled");
 		return -EINVAL;
 	}
 
@@ -326,7 +326,7 @@ static int axp_mc_probe(struct platform_device *pdev)
 	mci->mtype_cap = MEM_FLAG_DDR3;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = pdev->dev.driver->name;
-	mci->ctl_name = id ? id->compatible : "unknown";
+	mci->ctl_name = id ? id->compatible : "unkyeswn";
 	mci->dev_name = dev_name(&pdev->dev);
 	mci->scrub_mode = SCRUB_NONE;
 
@@ -338,7 +338,7 @@ static int axp_mc_probe(struct platform_device *pdev)
 		drvdata->width /= 2;
 
 	/* configure SBE threshold */
-	/* it seems that SBEs are not captured otherwise */
+	/* it seems that SBEs are yest captured otherwise */
 	writel(1 << SDRAM_ERR_CTRL_THR_OFFSET, drvdata->base + SDRAM_ERR_CTRL_REG);
 
 	/* clear cause registers */
@@ -532,9 +532,9 @@ static int aurora_l2_probe(struct platform_device *pdev)
 
 	l2x0_aux_ctrl = readl(base + L2X0_AUX_CTRL);
 	if (!(l2x0_aux_ctrl & AURORA_ACR_PARITY_EN))
-		dev_warn(&pdev->dev, "tag parity is not enabled");
+		dev_warn(&pdev->dev, "tag parity is yest enabled");
 	if (!(l2x0_aux_ctrl & AURORA_ACR_ECC_EN))
-		dev_warn(&pdev->dev, "data ECC is not enabled");
+		dev_warn(&pdev->dev, "data ECC is yest enabled");
 
 	dci = edac_device_alloc_ctl_info(sizeof(*drvdata),
 					 "cpu", 1, "L", 1, 2, NULL, 0, 0);
@@ -549,7 +549,7 @@ static int aurora_l2_probe(struct platform_device *pdev)
 	id = of_match_device(aurora_l2_of_match, &pdev->dev);
 	dci->edac_check = aurora_l2_poll;
 	dci->mod_name = pdev->dev.driver->name;
-	dci->ctl_name = id ? id->compatible : "unknown";
+	dci->ctl_name = id ? id->compatible : "unkyeswn";
 	dci->dev_name = dev_name(&pdev->dev);
 
 	/* clear registers */

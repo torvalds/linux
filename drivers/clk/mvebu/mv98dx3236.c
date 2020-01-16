@@ -43,7 +43,7 @@
 
 static u32 __init mv98dx3236_get_tclk_freq(void __iomem *sar)
 {
-	/* Tclk = 200MHz, no SaR dependency */
+	/* Tclk = 200MHz, yes SaR dependency */
 	return 200000000;
 }
 
@@ -165,16 +165,16 @@ static const struct clk_gating_soc_desc mv98dx3236_gating_desc[] __initconst = {
 	{ }
 };
 
-static void __init mv98dx3236_clk_init(struct device_node *np)
+static void __init mv98dx3236_clk_init(struct device_yesde *np)
 {
-	struct device_node *cgnp =
-		of_find_compatible_node(NULL, NULL, "marvell,mv98dx3236-gating-clock");
+	struct device_yesde *cgnp =
+		of_find_compatible_yesde(NULL, NULL, "marvell,mv98dx3236-gating-clock");
 
 	mvebu_coreclk_setup(np, &mv98dx3236_core_clocks);
 
 	if (cgnp) {
 		mvebu_clk_gating_setup(cgnp, mv98dx3236_gating_desc);
-		of_node_put(cgnp);
+		of_yesde_put(cgnp);
 	}
 }
 CLK_OF_DECLARE(mv98dx3236_clk, "marvell,mv98dx3236-core-clock", mv98dx3236_clk_init);

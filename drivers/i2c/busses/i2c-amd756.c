@@ -137,7 +137,7 @@ static int amd756_transaction(struct i2c_adapter *adap)
 
 	if (temp & GS_PRERR_STS) {
 		result = -ENXIO;
-		dev_dbg(&adap->dev, "SMBus Protocol error (no response)!\n");
+		dev_dbg(&adap->dev, "SMBus Protocol error (yes response)!\n");
 	}
 
 	if (temp & GS_COL_STS) {
@@ -177,7 +177,7 @@ static int amd756_transaction(struct i2c_adapter *adap)
 	return -EIO;
 }
 
-/* Return negative errno on error. */
+/* Return negative erryes on error. */
 static s32 amd756_access(struct i2c_adapter * adap, u16 addr,
 		  unsigned short flags, char read_write,
 		  u8 command, int size, union i2c_smbus_data * data)
@@ -336,7 +336,7 @@ static int amd756_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_read_config_byte(pdev, SMBGCFG, &temp);
 		if ((temp & 128) == 0) {
 			dev_err(&pdev->dev,
-				"Error: SMBus controller I/O not enabled!\n");
+				"Error: SMBus controller I/O yest enabled!\n");
 			return -ENODEV;
 		}
 

@@ -11,7 +11,7 @@ document:
 Optional properties:
   - wlf,ldoena : GPIO specifier for the GPIO controlling LDOENA
 
-Optional subnodes:
+Optional subyesdes:
   - ldo1 : Initial data for the LDO1 regulator, as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
   - micvdd : Initial data for the MICVDD regulator, as covered in

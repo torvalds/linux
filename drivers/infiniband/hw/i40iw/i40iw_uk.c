@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -38,13 +38,13 @@
 #include "i40iw_user.h"
 #include "i40iw_register.h"
 
-static u32 nop_signature = 0x55550000;
+static u32 yesp_signature = 0x55550000;
 
 /**
- * i40iw_nop_1 - insert a nop wqe and move head. no post work
+ * i40iw_yesp_1 - insert a yesp wqe and move head. yes post work
  * @qp: hw qp ptr
  */
-static enum i40iw_status_code i40iw_nop_1(struct i40iw_qp_uk *qp)
+static enum i40iw_status_code i40iw_yesp_1(struct i40iw_qp_uk *qp)
 {
 	u64 header, *wqe;
 	u64 *wqe_0 = NULL;
@@ -72,7 +72,7 @@ static enum i40iw_status_code i40iw_nop_1(struct i40iw_qp_uk *qp)
 
 	header = LS_64(I40IWQP_OP_NOP, I40IWQPSQ_OPCODE) |
 	    LS_64(signaled, I40IWQPSQ_SIGCOMPL) |
-	    LS_64(qp->swqe_polarity, I40IWQPSQ_VALID) | nop_signature++;
+	    LS_64(qp->swqe_polarity, I40IWQPSQ_VALID) | yesp_signature++;
 
 	wmb();	/* Memory barrier to ensure data is written before valid bit is set */
 
@@ -143,7 +143,7 @@ u64 *i40iw_qp_get_next_send_wqe(struct i40iw_qp_uk *qp,
 	u32 peek_head = 0;
 	u16 offset;
 	enum i40iw_status_code ret_code = 0;
-	u8 nop_wqe_cnt = 0, i;
+	u8 yesp_wqe_cnt = 0, i;
 	u64 *wqe_0 = NULL;
 
 	*wqe_idx = I40IW_RING_GETCURRENT_HEAD(qp->sq_ring);
@@ -153,9 +153,9 @@ u64 *i40iw_qp_get_next_send_wqe(struct i40iw_qp_uk *qp,
 	wqe_ptr = (uintptr_t)qp->sq_base[*wqe_idx].elem;
 	offset = (u16)(wqe_ptr) & 0x7F;
 	if ((offset + wqe_size) > I40IW_QP_WQE_MAX_SIZE) {
-		nop_wqe_cnt = (u8)(I40IW_QP_WQE_MAX_SIZE - offset) / I40IW_QP_WQE_MIN_SIZE;
-		for (i = 0; i < nop_wqe_cnt; i++) {
-			i40iw_nop_1(qp);
+		yesp_wqe_cnt = (u8)(I40IW_QP_WQE_MAX_SIZE - offset) / I40IW_QP_WQE_MIN_SIZE;
+		for (i = 0; i < yesp_wqe_cnt; i++) {
+			i40iw_yesp_1(qp);
 			I40IW_RING_MOVE_HEAD(qp->sq_ring, ret_code);
 			if (ret_code)
 				return NULL;
@@ -167,7 +167,7 @@ u64 *i40iw_qp_get_next_send_wqe(struct i40iw_qp_uk *qp,
 	}
 
 	if (((*wqe_idx & 3) == 1) && (wqe_size == I40IW_WQE_SIZE_64)) {
-		i40iw_nop_1(qp);
+		i40iw_yesp_1(qp);
 		I40IW_RING_MOVE_HEAD(qp->sq_ring, ret_code);
 		if (ret_code)
 			return NULL;
@@ -230,7 +230,7 @@ u64 *i40iw_qp_get_next_recv_wqe(struct i40iw_qp_uk *qp, u32 *wqe_idx)
 		return NULL;
 	if (!*wqe_idx)
 		qp->rwqe_polarity = !qp->rwqe_polarity;
-	/* rq_wqe_size_multiplier is no of qwords in one rq wqe */
+	/* rq_wqe_size_multiplier is yes of qwords in one rq wqe */
 	wqe = qp->rq_base[*wqe_idx * (qp->rq_wqe_size_multiplier >> 2)].elem;
 
 	return wqe;
@@ -692,12 +692,12 @@ static enum i40iw_status_code i40iw_post_receive(struct i40iw_qp_uk *qp,
 }
 
 /**
- * i40iw_cq_request_notification - cq notification request (door bell)
+ * i40iw_cq_request_yestification - cq yestification request (door bell)
  * @cq: hw cq
- * @cq_notify: notification type
+ * @cq_yestify: yestification type
  */
-static void i40iw_cq_request_notification(struct i40iw_cq_uk *cq,
-					  enum i40iw_completion_notify cq_notify)
+static void i40iw_cq_request_yestification(struct i40iw_cq_uk *cq,
+					  enum i40iw_completion_yestify cq_yestify)
 {
 	u64 temp_val;
 	u16 sw_cq_sel;
@@ -712,7 +712,7 @@ static void i40iw_cq_request_notification(struct i40iw_cq_uk *cq,
 	sw_cq_sel = (u16)RS_64(temp_val, I40IW_CQ_DBSA_SW_CQ_SELECT);
 	arm_next_se = (u8)RS_64(temp_val, I40IW_CQ_DBSA_ARM_NEXT_SE);
 	arm_next_se |= 1;
-	if (cq_notify == IW_CQ_COMPL_EVENT)
+	if (cq_yestify == IW_CQ_COMPL_EVENT)
 		arm_next = 1;
 	temp_val = LS_64(arm_seq_num, I40IW_CQ_DBSA_ARM_SEQ_NUM) |
 	    LS_64(sw_cq_sel, I40IW_CQ_DBSA_SW_CQ_SELECT) |
@@ -776,7 +776,7 @@ static enum i40iw_status_code i40iw_cq_poll_completion(struct i40iw_cq_uk *cq,
 	if (info->error) {
 		info->comp_status = I40IW_COMPL_STATUS_FLUSHED;
 		info->major_err = (bool)RS_64(qword3, I40IW_CQ_MAJERR);
-		info->minor_err = (bool)RS_64(qword3, I40IW_CQ_MINERR);
+		info->miyesr_err = (bool)RS_64(qword3, I40IW_CQ_MINERR);
 	} else {
 		info->comp_status = I40IW_COMPL_STATUS_SUCCESS;
 	}
@@ -960,11 +960,11 @@ static const struct i40iw_qp_uk_ops iw_qp_uk_ops = {
 	.iw_stag_local_invalidate = i40iw_stag_local_invalidate,
 	.iw_mw_bind = i40iw_mw_bind,
 	.iw_post_receive = i40iw_post_receive,
-	.iw_post_nop = i40iw_nop
+	.iw_post_yesp = i40iw_yesp
 };
 
 static const struct i40iw_cq_ops iw_cq_ops = {
-	.iw_cq_request_notification = i40iw_cq_request_notification,
+	.iw_cq_request_yestification = i40iw_cq_request_yestification,
 	.iw_cq_poll_completion = i40iw_cq_poll_completion,
 	.iw_cq_post_entries = i40iw_cq_post_entries,
 	.iw_cq_clean = i40iw_clean_cq
@@ -984,7 +984,7 @@ static const struct i40iw_device_uk_ops iw_device_uk_ops = {
  * size of the wqe depends on numbers of max. fragements
  * allowed. Then size of wqe * the number of wqes should be the
  * amount of memory allocated for sq and rq. If srq is used,
- * then rq_base will point to one rq wqe only (not the whole
+ * then rq_base will point to one rq wqe only (yest the whole
  * array of wqes)
  */
 enum i40iw_status_code i40iw_qp_uk_init(struct i40iw_qp_uk *qp,
@@ -1118,13 +1118,13 @@ void i40iw_clean_cq(void *queue, struct i40iw_cq_uk *cq)
 }
 
 /**
- * i40iw_nop - send a nop
+ * i40iw_yesp - send a yesp
  * @qp: hw qp ptr
  * @wr_id: work request id
  * @signaled: flag if signaled for completion
  * @post_sq: flag to post sq
  */
-enum i40iw_status_code i40iw_nop(struct i40iw_qp_uk *qp,
+enum i40iw_status_code i40iw_yesp(struct i40iw_qp_uk *qp,
 				 u64 wr_id,
 				 bool signaled,
 				 bool post_sq)

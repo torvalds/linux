@@ -15,7 +15,7 @@ used by the apr service device.
 		    example "qcom,q6asm-v2.0"
 
 = ASM DAIs (Digial Audio Interface)
-"dais" subnode of the ASM node represents dai specific configuration
+"dais" subyesde of the ASM yesde represents dai specific configuration
 
 - compatible:
 	Usage: required
@@ -27,7 +27,7 @@ used by the apr service device.
 	Value type: <u32>
 	Definition: Must be 1
 
-== ASM DAI is subnode of "dais" and represent a dai, it includes board specific
+== ASM DAI is subyesde of "dais" and represent a dai, it includes board specific
 configuration of each dai. Must contain the following properties.
 
 - reg

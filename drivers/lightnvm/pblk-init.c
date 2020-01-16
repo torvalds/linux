@@ -115,7 +115,7 @@ static int pblk_l2p_recover(struct pblk *pblk, bool factory_init)
 	} else {
 		line = pblk_recov_l2p(pblk);
 		if (IS_ERR(line)) {
-			pblk_err(pblk, "could not recover l2p table\n");
+			pblk_err(pblk, "could yest recover l2p table\n");
 			return -EFAULT;
 		}
 	}
@@ -124,7 +124,7 @@ static int pblk_l2p_recover(struct pblk *pblk, bool factory_init)
 	pblk_info(pblk, "init: L2P CRC: %x\n", pblk_l2p_crc(pblk));
 #endif
 
-	/* Free full lines directly as GC has not been started yet */
+	/* Free full lines directly as GC has yest been started yet */
 	pblk_gc_free_full_lines(pblk);
 
 	if (!line) {
@@ -288,7 +288,7 @@ static int pblk_set_addrf(struct pblk *pblk)
 							&pblk->uaddrf);
 		break;
 	default:
-		pblk_err(pblk, "OCSSD revision not supported (%d)\n",
+		pblk_err(pblk, "OCSSD revision yest supported (%d)\n",
 								geo->version);
 		return -EINVAL;
 	}
@@ -394,7 +394,7 @@ static int pblk_core_init(struct pblk *pblk)
 
 	pblk->oob_meta_size = geo->sos;
 	if (!pblk_is_oob_meta_supported(pblk)) {
-		/* For drives which does not have OOB metadata feature
+		/* For drives which does yest have OOB metadata feature
 		 * in order to support recovery feature we need to use
 		 * so called packed metadata. Packed metada will store
 		 * the same information as OOB metadata (l2p table mapping,
@@ -408,7 +408,7 @@ static int pblk_core_init(struct pblk *pblk)
 			 * it will fit.
 			 *
 			 * This is more like sanity check, since there is
-			 * no device with such a big minimal write size
+			 * yes device with such a big minimal write size
 			 * (above 1 metabytes).
 			 */
 			pblk_err(pblk, "Not supported min write size\n");
@@ -671,8 +671,8 @@ static int pblk_set_provision(struct pblk *pblk, int nr_free_chks)
 			return -EINTR;
 		}
 
-		/* If the user did not specify an OP value, and PBLK_DEFAULT_OP
-		 * is not enough, calculate and set sane value
+		/* If the user did yest specify an OP value, and PBLK_DEFAULT_OP
+		 * is yest eyesugh, calculate and set sane value
 		 */
 
 		provisioned = nr_free_chks - minimum;
@@ -860,7 +860,7 @@ static int pblk_line_mg_init(struct pblk *pblk)
 	if (!l_mg->bb_aux)
 		goto fail_free_bb_template;
 
-	/* smeta is always small enough to fit on a kmalloc memory allocation,
+	/* smeta is always small eyesugh to fit on a kmalloc memory allocation,
 	 * emeta depends on the number of LUNs allocated to the pblk instance
 	 */
 	for (i = 0; i < PBLK_DATA_LINES; i++) {
@@ -983,7 +983,7 @@ add_emeta_page:
 					lm->emeta_sec[0], geo->clba);
 
 	if (lm->min_blk_line > lm->blk_per_line) {
-		pblk_err(pblk, "config. not supported. Min. LUN in line:%d\n",
+		pblk_err(pblk, "config. yest supported. Min. LUN in line:%d\n",
 							lm->blk_per_line);
 		return -EINVAL;
 	}
@@ -1071,7 +1071,7 @@ static int pblk_writer_init(struct pblk *pblk)
 		int err = PTR_ERR(pblk->writer_ts);
 
 		if (err != -EINTR)
-			pblk_err(pblk, "could not allocate writer kthread (%d)\n",
+			pblk_err(pblk, "could yest allocate writer kthread (%d)\n",
 					err);
 		return err;
 	}
@@ -1088,10 +1088,10 @@ static void pblk_writer_stop(struct pblk *pblk)
 	 * write thread is stopped
 	 */
 	WARN(pblk_rb_read_count(&pblk->rwb),
-			"Stopping not fully persisted write buffer\n");
+			"Stopping yest fully persisted write buffer\n");
 
 	WARN(pblk_rb_sync_count(&pblk->rwb),
-			"Stopping not fully synced write buffer\n");
+			"Stopping yest fully synced write buffer\n");
 
 	del_timer_sync(&pblk->wtimer);
 	if (pblk->writer_ts)
@@ -1162,14 +1162,14 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 
 	if (!(geo->version == NVM_OCSSD_SPEC_12 ||
 					geo->version == NVM_OCSSD_SPEC_20)) {
-		pblk_err(pblk, "OCSSD version not supported (%u)\n",
+		pblk_err(pblk, "OCSSD version yest supported (%u)\n",
 							geo->version);
 		kfree(pblk);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (geo->ext) {
-		pblk_err(pblk, "extended metadata not supported\n");
+		pblk_err(pblk, "extended metadata yest supported\n");
 		kfree(pblk);
 		return ERR_PTR(-EINVAL);
 	}
@@ -1203,38 +1203,38 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 
 	ret = pblk_core_init(pblk);
 	if (ret) {
-		pblk_err(pblk, "could not initialize core\n");
+		pblk_err(pblk, "could yest initialize core\n");
 		goto fail;
 	}
 
 	ret = pblk_lines_init(pblk);
 	if (ret) {
-		pblk_err(pblk, "could not initialize lines\n");
+		pblk_err(pblk, "could yest initialize lines\n");
 		goto fail_free_core;
 	}
 
 	ret = pblk_rwb_init(pblk);
 	if (ret) {
-		pblk_err(pblk, "could not initialize write buffer\n");
+		pblk_err(pblk, "could yest initialize write buffer\n");
 		goto fail_free_lines;
 	}
 
 	ret = pblk_l2p_init(pblk, flags & NVM_TARGET_FACTORY);
 	if (ret) {
-		pblk_err(pblk, "could not initialize maps\n");
+		pblk_err(pblk, "could yest initialize maps\n");
 		goto fail_free_rwb;
 	}
 
 	ret = pblk_writer_init(pblk);
 	if (ret) {
 		if (ret != -EINTR)
-			pblk_err(pblk, "could not initialize write thread\n");
+			pblk_err(pblk, "could yest initialize write thread\n");
 		goto fail_free_l2p;
 	}
 
 	ret = pblk_gc_init(pblk);
 	if (ret) {
-		pblk_err(pblk, "could not initialize gc\n");
+		pblk_err(pblk, "could yest initialize gc\n");
 		goto fail_stop_writer;
 	}
 

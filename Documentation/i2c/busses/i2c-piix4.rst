@@ -39,13 +39,13 @@ Module Parameters
 Description
 -----------
 
-The PIIX4 (properly known as the 82371AB) is an Intel chip with a lot of
+The PIIX4 (properly kyeswn as the 82371AB) is an Intel chip with a lot of
 functionality. Among other things, it implements the PCI bus. One of its
-minor functions is implementing a System Management Bus. This is a true
-SMBus - you can not access it on I2C levels. The good news is that it
-natively understands SMBus commands and you do not have to worry about
-timing problems. The bad news is that non-SMBus devices connected to it can
-confuse it mightily. Yes, this is known to happen...
+miyesr functions is implementing a System Management Bus. This is a true
+SMBus - you can yest access it on I2C levels. The good news is that it
+natively understands SMBus commands and you do yest have to worry about
+timing problems. The bad news is that yesn-SMBus devices connected to it can
+confuse it mightily. Yes, this is kyeswn to happen...
 
 Do ``lspci -v`` and see whether it contains an entry like this::
 
@@ -57,13 +57,13 @@ identical (like many PCI devices, the PIIX4 incorporates a number of
 different 'functions', which can be considered as separate devices). If you
 find such an entry, you have a PIIX4 SMBus controller.
 
-On some computers (most notably, some Dells), the SMBus is disabled by
+On some computers (most yestably, some Dells), the SMBus is disabled by
 default. If you use the insmod parameter 'force=1', the kernel module will
-try to enable it. THIS IS VERY DANGEROUS! If the BIOS did not set up a
+try to enable it. THIS IS VERY DANGEROUS! If the BIOS did yest set up a
 correct address for this module, you could get in big trouble (read:
 crashes, data corruption, etc.). Try this only as a last resort (try BIOS
 updates first, for example), and backup first! An even more dangerous
-option is 'force_addr=<IOPORT>'. This will not only enable the PIIX4 like
+option is 'force_addr=<IOPORT>'. This will yest only enable the PIIX4 like
 'force' foes, but it will also set a new base I/O port address. The SMBus
 parts of the PIIX4 needs a range of 8 of these addresses to function
 correctly. If these addresses are already reserved by some other device,
@@ -71,7 +71,7 @@ you will get into big trouble! DON'T USE THIS IF YOU ARE NOT VERY SURE
 ABOUT WHAT YOU ARE DOING!
 
 The PIIX4E is just an new version of the PIIX4; it is supported as well.
-The PIIX/PIIX3 does not implement an SMBus or I2C bus, so you can't use
+The PIIX/PIIX3 does yest implement an SMBus or I2C bus, so you can't use
 this driver on those mainboards.
 
 The ServerWorks Southbridges, the Intel 440MX, and the Victory66 are
@@ -96,8 +96,8 @@ the SMI mode.
    If the value is 0x3 then you need to change it to 0x1:
    setpci  -s 00:0f.0 d2.b=1
 
-Please note that you don't need to do that in all cases, just when the SMBus is
-not working properly.
+Please yeste that you don't need to do that in all cases, just when the SMBus is
+yest working properly.
 
 
 Hardware-specific issues
@@ -106,7 +106,7 @@ Hardware-specific issues
 This driver will refuse to load on IBM systems with an Intel PIIX4 SMBus.
 Some of these machines have an RFID EEPROM (24RF08) connected to the SMBus,
 which can easily get corrupted due to a state machine bug. These are mostly
-Thinkpad laptops, but desktop systems may also be affected. We have no list
+Thinkpad laptops, but desktop systems may also be affected. We have yes list
 of all affected systems, so the only safe solution was to prevent access to
 the SMBus on all IBM systems (detected using DMI data.)
 

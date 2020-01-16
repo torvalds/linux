@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
@@ -195,7 +195,7 @@ static int hydra_close(struct net_device *dev)
 
 static void hydra_reset_8390(struct net_device *dev)
 {
-    netdev_info(dev, "Hydra hw reset not there\n");
+    netdev_info(dev, "Hydra hw reset yest there\n");
 }
 
 static void hydra_get_8390_hdr(struct net_device *dev,

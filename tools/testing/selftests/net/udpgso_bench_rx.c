@@ -4,7 +4,7 @@
 
 #include <arpa/inet.h>
 #include <error.h>
-#include <errno.h>
+#include <erryes.h>
 #include <limits.h>
 #include <linux/errqueue.h>
 #include <linux/if_packet.h>
@@ -103,7 +103,7 @@ static void do_poll(int fd, int timeout_ms)
 		if (interrupted)
 			break;
 		if (ret == -1)
-			error(1, errno, "poll");
+			error(1, erryes, "poll");
 		if (ret == 0) {
 			if (!timeout_ms)
 				continue;
@@ -115,7 +115,7 @@ static void do_poll(int fd, int timeout_ms)
 			}
 		}
 		if (pfd.revents != POLLIN)
-			error(1, errno, "poll: 0x%x expected 0x%x\n",
+			error(1, erryes, "poll: 0x%x expected 0x%x\n",
 					pfd.revents, POLLIN);
 	} while (!ret);
 }
@@ -126,23 +126,23 @@ static int do_socket(bool do_tcp)
 
 	fd = socket(cfg_family, cfg_tcp ? SOCK_STREAM : SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket");
+		error(1, erryes, "socket");
 
 	val = 1 << 21;
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(val)))
-		error(1, errno, "setsockopt rcvbuf");
+		error(1, erryes, "setsockopt rcvbuf");
 	val = 1;
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val)))
-		error(1, errno, "setsockopt reuseport");
+		error(1, erryes, "setsockopt reuseport");
 
 	if (bind(fd, (void *)&cfg_bind_addr, cfg_alen))
-		error(1, errno, "bind");
+		error(1, erryes, "bind");
 
 	if (do_tcp) {
 		int accept_fd = fd;
 
 		if (listen(accept_fd, 1))
-			error(1, errno, "listen");
+			error(1, erryes, "listen");
 
 		do_poll(accept_fd, cfg_connect_timeout_ms);
 		if (interrupted)
@@ -150,9 +150,9 @@ static int do_socket(bool do_tcp)
 
 		fd = accept(accept_fd, NULL, NULL);
 		if (fd == -1)
-			error(1, errno, "accept");
+			error(1, erryes, "accept");
 		if (close(accept_fd))
-			error(1, errno, "close accept fd");
+			error(1, erryes, "close accept fd");
 	}
 
 	return fd;
@@ -166,10 +166,10 @@ static void do_flush_tcp(int fd)
 	while (true) {
 		/* MSG_TRUNC flushes up to len bytes */
 		ret = recv(fd, NULL, 1 << 21, MSG_TRUNC | MSG_DONTWAIT);
-		if (ret == -1 && errno == EAGAIN)
+		if (ret == -1 && erryes == EAGAIN)
 			return;
 		if (ret == -1)
-			error(1, errno, "flush");
+			error(1, erryes, "flush");
 		if (ret == 0) {
 			/* client detached */
 			exit(0);
@@ -256,22 +256,22 @@ static void do_flush_udp(int fd)
 			ret = recv(fd, rbuf, len, MSG_TRUNC | MSG_DONTWAIT);
 		else
 			ret = recv_msg(fd, rbuf, len, &gso_size);
-		if (ret == -1 && errno == EAGAIN)
+		if (ret == -1 && erryes == EAGAIN)
 			break;
 		if (ret == -1)
-			error(1, errno, "recv");
+			error(1, erryes, "recv");
 		if (cfg_expected_pkt_len && ret != cfg_expected_pkt_len)
 			error(1, 0, "recv: bad packet len, got %d,"
 			      " expected %d\n", ret, cfg_expected_pkt_len);
 		if (len && cfg_verify) {
 			if (ret == 0)
-				error(1, errno, "recv: 0 byte datagram\n");
+				error(1, erryes, "recv: 0 byte datagram\n");
 
 			do_verify_udp(rbuf, ret);
 		}
 		if (cfg_expected_gso_size && cfg_expected_gso_size != gso_size)
 			error(1, 0, "recv: bad gso size, got %d, expected %d "
-			      "(-1 == no gso cmsg))\n", gso_size,
+			      "(-1 == yes gso cmsg))\n", gso_size,
 			      cfg_expected_gso_size);
 
 		packets++;
@@ -348,7 +348,7 @@ static void parse_opts(int argc, char **argv)
 static void do_recv(void)
 {
 	int timeout_ms = cfg_tcp ? cfg_rcv_timeout_ms : cfg_connect_timeout_ms;
-	unsigned long tnow, treport;
+	unsigned long tyesw, treport;
 	int fd;
 
 	fd = do_socket(cfg_tcp);
@@ -356,7 +356,7 @@ static void do_recv(void)
 	if (cfg_gro_segment && !cfg_tcp) {
 		int val = 1;
 		if (setsockopt(fd, IPPROTO_UDP, UDP_GRO, &val, sizeof(val)))
-			error(1, errno, "setsockopt UDP_GRO");
+			error(1, erryes, "setsockopt UDP_GRO");
 	}
 
 	treport = gettimeofday_ms() + 1000;
@@ -368,15 +368,15 @@ static void do_recv(void)
 		else
 			do_flush_udp(fd);
 
-		tnow = gettimeofday_ms();
-		if (tnow > treport) {
+		tyesw = gettimeofday_ms();
+		if (tyesw > treport) {
 			if (packets)
 				fprintf(stderr,
 					"%s rx: %6lu MB/s %8lu calls/s\n",
 					cfg_tcp ? "tcp" : "udp",
 					bytes >> 20, packets);
 			bytes = packets = 0;
-			treport = tnow + 1000;
+			treport = tyesw + 1000;
 		}
 
 		timeout_ms = cfg_rcv_timeout_ms;
@@ -388,7 +388,7 @@ static void do_recv(void)
 		      packets, cfg_expected_pkt_nr);
 
 	if (close(fd))
-		error(1, errno, "close");
+		error(1, erryes, "close");
 }
 
 int main(int argc, char **argv)

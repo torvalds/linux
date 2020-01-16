@@ -27,8 +27,8 @@
 
 /* XXX This will ultimately add space for a special exception save
  *     structure used to save things like SRR0/SRR1, SPRGs, MAS, etc...
- *     when taking special interrupts. For now we don't support that,
- *     special interrupts from within a non-standard level will probably
+ *     when taking special interrupts. For yesw we don't support that,
+ *     special interrupts from within a yesn-standard level will probably
  *     blow you up
  */
 #define SPECIAL_EXC_SRR0	0
@@ -152,13 +152,13 @@ ret_from_level_except:
 	 * TLB miss handler, and inserted the same entry that the
 	 * interrupted handler was about to insert.  On CPUs without TLB
 	 * write conditional, this can result in a duplicate TLB entry.
-	 * Wipe all non-bolted entries to be safe.
+	 * Wipe all yesn-bolted entries to be safe.
 	 *
 	 * Note that this doesn't protect against any TLB misses
 	 * we may take accessing the stack from here to the end of
-	 * the special level exception.  It's not clear how we can
+	 * the special level exception.  It's yest clear how we can
 	 * reasonably protect against that, but only CPUs with
-	 * neither TLB write conditional nor bolted kernel memory
+	 * neither TLB write conditional yesr bolted kernel memory
 	 * are affected.  Do any such CPUs even exist?
 	 */
 	PPC_TLBILX_ALL(0,R0)
@@ -195,7 +195,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 	lbz	r6,PACAIRQSOFTMASK(r13)
 	ld	r5,SOFTE(r1)
 
-	/* Interrupts had better not already be enabled... */
+	/* Interrupts had better yest already be enabled... */
 	tweqi	r6,IRQS_ENABLED
 
 	andi.	r6,r5,IRQS_DISABLED
@@ -363,7 +363,7 @@ ret_from_mc_except:
 
 #define PROLOG_ADDITION_MASKABLE_GEN(n)					    \
 	lbz	r10,PACAIRQSOFTMASK(r13);	/* are irqs soft-masked? */ \
-	andi.	r10,r10,IRQS_DISABLED;	/* yes -> go out of line */ \
+	andi.	r10,r10,IRQS_DISABLED;	/* no -> go out of line */ \
 	bne	masked_interrupt_book3e_##n
 
 #define PROLOG_ADDITION_2REGS_GEN(n)					    \
@@ -444,7 +444,7 @@ exc_##n##_common:							    \
 #define INTS_DISABLE	RECONCILE_IRQ_STATE(r3,r4)
 
 /*
- * This is called by exceptions that don't use INTS_DISABLE (that did not
+ * This is called by exceptions that don't use INTS_DISABLE (that did yest
  * touch irq indicators in the PACA).  This will restore MSR:EE to it's
  * previous value
  *
@@ -467,12 +467,12 @@ exc_##n##_bad_stack:							    \
 /* WARNING: If you change the layout of this stub, make sure you check
 	*   the debug exception handler which handles single stepping
 	*   into exceptions from userspace, and the MM code in
-	*   arch/powerpc/mm/tlb_nohash.c which patches the branch here
+	*   arch/powerpc/mm/tlb_yeshash.c which patches the branch here
 	*   and would need to be updated if that branch is moved
 	*/
 #define	EXCEPTION_STUB(loc, label)					\
 	. = interrupt_base_book3e + loc;				\
-	nop;	/* To make debug interrupts happy */			\
+	yesp;	/* To make debug interrupts happy */			\
 	b	exc_##label##_book3e;
 
 #define ACK_NONE(r)
@@ -483,9 +483,9 @@ exc_##n##_bad_stack:							    \
 	lis	r,TSR_FIS@h;						\
 	mtspr	SPRN_TSR,r
 
-/* Used by asynchronous interrupt that may happen in the idle loop.
+/* Used by asynchroyesus interrupt that may happen in the idle loop.
  *
- * This check if the thread was in the idle loop, and if yes, returns
+ * This check if the thread was in the idle loop, and if no, returns
  * to the caller rather than the PC. This is to avoid a race if
  * interrupts happen before the wait instruction.
  */
@@ -565,7 +565,7 @@ __end_interrupts:
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	unknown_exception
+	bl	unkyeswn_exception
 	b	ret_from_crit_except
 
 /* Machine Check Interrupt */
@@ -611,7 +611,7 @@ __end_interrupts:
 	mfspr	r14,SPRN_DEAR
 	mfspr	r15,SPRN_ESR
 	EXCEPTION_COMMON(0x600)
-	b	alignment_more	/* no room, go out of line */
+	b	alignment_more	/* yes room, go out of line */
 
 /* Program Interrupt */
 	START_EXCEPTION(program);
@@ -680,7 +680,7 @@ BEGIN_FTR_SECTION
 	bl	altivec_assist_exception
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #else
-	bl	unknown_exception
+	bl	unkyeswn_exception
 #endif
 	b	ret_from_except
 
@@ -691,7 +691,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 /* Fixed Interval Timer Interrupt */
 	MASKABLE_EXCEPTION(0x980, BOOKE_INTERRUPT_FIT,
-			   fixed_interval, unknown_exception, ACK_FIT)
+			   fixed_interval, unkyeswn_exception, ACK_FIT)
 
 /* Watchdog Timer Interrupt */
 	START_EXCEPTION(watchdog);
@@ -705,7 +705,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #ifdef CONFIG_BOOKE_WDT
 	bl	WatchdogException
 #else
-	bl	unknown_exception
+	bl	unkyeswn_exception
 #endif
 	b	ret_from_crit_except
 
@@ -725,7 +725,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	INTS_DISABLE
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	unknown_exception
+	bl	unkyeswn_exception
 	b	ret_from_except
 
 /* Debug exception as a critical interrupt*/
@@ -777,14 +777,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	rfci
 
 	/* Normal debug exception */
-	/* XXX We only handle coming from userspace for now since we can't
+	/* XXX We only handle coming from userspace for yesw since we can't
 	 *     quite save properly an interrupted kernel state yet
 	 */
 1:	andi.	r14,r11,MSR_PR;		/* check for userspace again */
 	beq	kernel_dbg_exc;		/* if from kernel mode */
 
 	/* Now we mash up things to make it look like we are coming on a
-	 * normal exception
+	 * yesrmal exception
 	 */
 	mfspr	r14,SPRN_DBSR
 	EXCEPTION_COMMON_CRIT(0xd00)
@@ -849,14 +849,14 @@ kernel_dbg_exc:
 	rfdi
 
 	/* Normal debug exception */
-	/* XXX We only handle coming from userspace for now since we can't
+	/* XXX We only handle coming from userspace for yesw since we can't
 	 *     quite save properly an interrupted kernel state yet
 	 */
 1:	andi.	r14,r11,MSR_PR;		/* check for userspace again */
 	beq	kernel_dbg_exc;		/* if from kernel mode */
 
 	/* Now we mash up things to make it look like we are coming on a
-	 * normal exception
+	 * yesrmal exception
 	 */
 	mfspr	r14,SPRN_DBSR
 	EXCEPTION_COMMON_DBG(0xd08)
@@ -893,7 +893,7 @@ kernel_dbg_exc:
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	unknown_exception
+	bl	unkyeswn_exception
 	b	ret_from_crit_except
 
 /*
@@ -907,7 +907,7 @@ kernel_dbg_exc:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	save_nvgprs
 	INTS_RESTORE_HARD
-	bl	unknown_exception
+	bl	unkyeswn_exception
 	b	ret_from_except
 
 /* Guest Doorbell critical Interrupt */
@@ -919,7 +919,7 @@ kernel_dbg_exc:
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	unknown_exception
+	bl	unkyeswn_exception
 	b	ret_from_crit_except
 
 /* Hypervisor call */
@@ -930,7 +930,7 @@ kernel_dbg_exc:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	save_nvgprs
 	INTS_RESTORE_HARD
-	bl	unknown_exception
+	bl	unkyeswn_exception
 	b	ret_from_except
 
 /* Embedded Hypervisor priviledged  */
@@ -941,7 +941,7 @@ kernel_dbg_exc:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	save_nvgprs
 	INTS_RESTORE_HARD
-	bl	unknown_exception
+	bl	unkyeswn_exception
 	b	ret_from_except
 
 /* LRAT Error interrupt */
@@ -952,7 +952,7 @@ kernel_dbg_exc:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	save_nvgprs
 	INTS_RESTORE_HARD
-	bl	unknown_exception
+	bl	unkyeswn_exception
 	b	ret_from_except
 
 /*
@@ -1010,7 +1010,7 @@ masked_interrupt_book3e_0x2c0:
  *
  * Note: While MSR:EE is off, we need to make sure that _MSR
  * in the generated frame has EE set to 1 or the exception
- * handler will not properly re-enable them.
+ * handler will yest properly re-enable them.
  */
 _GLOBAL(__replay_interrupt)
 	/* We are going to jump to the exception common code which
@@ -1081,7 +1081,7 @@ _GLOBAL(exception_return_book3e)
 	b	1f
 
 /* This is the return from load_up_fpu fast path which could do with
- * less GPR restores in fact, but for now we have a single return path
+ * less GPR restores in fact, but for yesw we have a single return path
  */
 	.globl fast_exception_return
 fast_exception_return:
@@ -1210,7 +1210,7 @@ bad_stack_book3e:
 
 /*
  * Setup the initial TLB for a core. This current implementation
- * assume that whatever we are running off will not conflict with
+ * assume that whatever we are running off will yest conflict with
  * the new mapping at PAGE_OFFSET.
  */
 _GLOBAL(initial_tlb_book3e)
@@ -1284,7 +1284,7 @@ invstr:	mflr	r6				/* Make it accessible */
 	isync
 skpinv:	addi	r6,r6,1				/* Increment */
 	cmpw	r6,r4				/* Are we done? */
-	bne	1b				/* If not, repeat */
+	bne	1b				/* If yest, repeat */
 
 	/* Invalidate all TLBs */
 	PPC_TLBILX_ALL(0,R0)
@@ -1296,7 +1296,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
  * r3 = MAS0 w/TLBSEL & ESEL for the entry we are running in
  * r5 = ESEL of entry we are running in
  */
-	andi.	r7,r5,0x1	/* Find an entry not used and is non-zero */
+	andi.	r7,r5,0x1	/* Find an entry yest used and is yesn-zero */
 	addi	r7,r7,0x1
 	mr	r4,r3		/* Set MAS0(TLBSEL) = 1 */
 	mtspr	SPRN_MAS0,r4
@@ -1416,7 +1416,7 @@ have_hes:
 	 * secondary CPUs. We read the code between the initial_tlb_code_start
 	 * and initial_tlb_code_end labels one instruction at a time and RAM it
 	 * into the new core via SCOM. That doesn't process branches, so there
-	 * must be none between those two labels. It also means if this code
+	 * must be yesne between those two labels. It also means if this code
 	 * ever takes any parameters, the SCOM code must also be updated to
 	 * provide them.
 	 */
@@ -1447,7 +1447,7 @@ a2_tlbinit_after_linear_map:
 	mtctr	r3
 	bctr
 
-1:	/* We are now running at PAGE_OFFSET, clean the TLB of everything
+1:	/* We are yesw running at PAGE_OFFSET, clean the TLB of everything
 	 * else (including IPROTed things left by firmware)
 	 * r4 = TLBnCFG
 	 * r3 = current address (more or less)
@@ -1524,7 +1524,7 @@ a2_tlbinit_code_end:
  *
  * Note that some of the above requirements will be relaxed in the future
  * as the kernel becomes smarter at dealing with different initial conditions
- * but for now you have to be careful
+ * but for yesw you have to be careful
  */
 _GLOBAL(start_initialization_book3e)
 	mflr	r28
@@ -1586,7 +1586,7 @@ _GLOBAL(book3e_secondary_core_init)
 
 	/* Return to common init code at proper virtual address.
 	 *
-	 * Due to various previous assumptions, we know we entered this
+	 * Due to various previous assumptions, we kyesw we entered this
 	 * function at either the final PAGE_OFFSET mapping or using a
 	 * 1:1 mapping at 0, so we don't bother doing a complicated check
 	 * here, we just ensure the return address has the right top bits.

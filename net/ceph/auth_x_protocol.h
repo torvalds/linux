@@ -28,7 +28,7 @@ struct ceph_x_reply_header {
 
 /* authenticate handshake */
 
-/* initial hello (no reply header) */
+/* initial hello (yes reply header) */
 struct ceph_x_server_challenge {
 	__u8 struct_v;
 	__le64 server_challenge;
@@ -69,7 +69,7 @@ struct ceph_x_authorize_a {
 
 struct ceph_x_authorize_b {
 	__u8 struct_v;
-	__le64 nonce;
+	__le64 yesnce;
 	__u8 have_challenge;
 	__le64 server_challenge_plus_one;
 } __attribute__ ((packed));
@@ -81,7 +81,7 @@ struct ceph_x_authorize_challenge {
 
 struct ceph_x_authorize_reply {
 	__u8 struct_v;
-	__le64 nonce_plus_one;
+	__le64 yesnce_plus_one;
 } __attribute__ ((packed));
 
 

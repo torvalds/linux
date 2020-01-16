@@ -43,7 +43,7 @@ static u8 sharp_z0194a_inittab[] = {
 	0x03, 0x00,
 	0x04, 0x7d,   /* F22FR = 0x7d, F22 = f_VCO / 128 / 0x7d = 22 kHz */
 	0x05, 0x35,   /* I2CT = 0, SCLT = 1, SDAT = 1 */
-	0x06, 0x40,   /* DAC not used, set to high impendance mode */
+	0x06, 0x40,   /* DAC yest used, set to high impendance mode */
 	0x07, 0x00,   /* DAC LSB */
 	0x08, 0x40,   /* DiSEqC off, LNB power on OP2/LOCK pin on */
 	0x09, 0x00,   /* FIFO */
@@ -64,7 +64,7 @@ static u8 sharp_z0194a_inittab[] = {
 	0x21, 0x00,
 	0x22, 0x00,
 	0x23, 0x00,
-	0x28, 0x00,  /* out imp: normal  out type: parallel FEC mode:0 */
+	0x28, 0x00,  /* out imp: yesrmal  out type: parallel FEC mode:0 */
 	0x29, 0x1e,  /* 1/2 threshold */
 	0x2a, 0x14,  /* 2/3 threshold */
 	0x2b, 0x0f,  /* 3/4 threshold */

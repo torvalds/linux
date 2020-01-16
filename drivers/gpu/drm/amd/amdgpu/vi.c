@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -439,7 +439,7 @@ static bool vi_read_bios_from_rom(struct amdgpu_device *adev,
 	/* set rom index to 0 */
 	WREG32(mmSMC_IND_INDEX_11, ixROM_INDEX);
 	WREG32(mmSMC_IND_DATA_11, 0);
-	/* set index to data for continous read */
+	/* set index to data for contiyesus read */
 	WREG32(mmSMC_IND_INDEX_11, ixROM_DATA);
 	for (i = 0; i < length_dw; i++)
 		dw_ptr[i] = RREG32(mmSMC_IND_DATA_11);
@@ -956,7 +956,7 @@ static void vi_enable_doorbell_aperture(struct amdgpu_device *adev,
 {
 	u32 tmp;
 
-	/* not necessary on CZ */
+	/* yest necessary on CZ */
 	if (adev->flags & AMD_IS_APU)
 		return;
 
@@ -1033,7 +1033,7 @@ static void vi_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	int tmp;
 
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
-	 * that may or may not be different from their GPU counterparts
+	 * that may or may yest be different from their GPU counterparts
 	 */
 	if (adev->flags & AMD_IS_APU)
 		return;
@@ -1336,7 +1336,7 @@ static int vi_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x61;
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: yest supported yet */
 		return -EINVAL;
 	}
 
@@ -1741,7 +1741,7 @@ static const struct amdgpu_ip_block_version vi_common_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_COMMON,
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &vi_common_ip_funcs,
 };
@@ -1756,7 +1756,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
-		/* topaz has no DCE, UVD, VCE */
+		/* topaz has yes DCE, UVD, VCE */
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v7_4_ip_block);
 		amdgpu_device_ip_block_add(adev, &iceland_ih_ip_block);
@@ -1870,7 +1870,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: yest supported yet */
 		return -EINVAL;
 	}
 

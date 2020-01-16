@@ -13,7 +13,7 @@
 	.errstr_unpriv = "R2 leaks addr into mem",
 	.result_unpriv = REJECT,
 	.result = REJECT,
-	.errstr = "BPF_XADD stores into R1 ctx is not allowed",
+	.errstr = "BPF_XADD stores into R1 ctx is yest allowed",
 },
 {
 	"leak pointer into ctx 2",
@@ -28,7 +28,7 @@
 	.errstr_unpriv = "R10 leaks addr into mem",
 	.result_unpriv = REJECT,
 	.result = REJECT,
-	.errstr = "BPF_XADD stores into R1 ctx is not allowed",
+	.errstr = "BPF_XADD stores into R1 ctx is yest allowed",
 },
 {
 	"leak pointer into ctx 3",

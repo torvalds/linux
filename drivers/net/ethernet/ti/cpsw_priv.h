@@ -35,10 +35,10 @@ do {								\
 		dev_dbg(priv->dev, format, ## __VA_ARGS__);	\
 } while (0)
 
-#define cpsw_notice(priv, type, format, ...)		\
+#define cpsw_yestice(priv, type, format, ...)		\
 do {								\
 	if (netif_msg_##type(priv) && net_ratelimit())		\
-		dev_notice(priv->dev, format, ## __VA_ARGS__);	\
+		dev_yestice(priv->dev, format, ## __VA_ARGS__);	\
 } while (0)
 
 #define ALE_ALL_PORTS		0x7
@@ -278,8 +278,8 @@ struct cpsw_host_regs {
 };
 
 struct cpsw_slave_data {
-	struct device_node *slave_node;
-	struct device_node *phy_node;
+	struct device_yesde *slave_yesde;
+	struct device_yesde *phy_yesde;
 	char		phy_id[MII_BUS_ID_SIZE];
 	phy_interface_t	phy_if;
 	u8		mac_addr[ETH_ALEN];

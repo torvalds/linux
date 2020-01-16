@@ -36,13 +36,13 @@
 #define SINGLE_Ebias 127
 #define SINGLE_Emin (-126)	/* smallest valid exponent */
 
-static u_char normalize_no_excep(FPU_REG *r, int exp, int sign)
+static u_char yesrmalize_yes_excep(FPU_REG *r, int exp, int sign)
 {
 	u_char tag;
 
 	setexponent16(r, exp);
 
-	tag = FPU_normalize_nuo(r);
+	tag = FPU_yesrmalize_nuo(r);
 	stdexp(r);
 	if (sign)
 		setnegative(r);
@@ -59,7 +59,7 @@ int FPU_tagof(FPU_REG *ptr)
 		if (!(ptr->sigh | ptr->sigl)) {
 			return TAG_Zero;
 		}
-		/* The number is a de-normal or pseudodenormal. */
+		/* The number is a de-yesrmal or pseudodeyesrmal. */
 		return TAG_Special;
 	}
 
@@ -71,7 +71,7 @@ int FPU_tagof(FPU_REG *ptr)
 	if (!(ptr->sigh & 0x80000000)) {
 		/* Unsupported data type. */
 		/* Valid numbers have the ms bit set to 1. */
-		/* Unnormal. */
+		/* Unyesrmal. */
 		return TAG_Special;
 	}
 
@@ -123,21 +123,21 @@ int FPU_load_double(double __user *dfloat, FPU_REG *loaded_data)
 			tag = TAG_Special;	/* The calling function must look for NaNs */
 		}
 	} else if (exp < DOUBLE_Emin + EXTENDED_Ebias) {
-		/* Zero or de-normal */
+		/* Zero or de-yesrmal */
 		if ((m64 == 0) && (l64 == 0)) {
 			/* Zero */
 			reg_copy(&CONST_Z, loaded_data);
 			exp = 0;
 			tag = TAG_Zero;
 		} else {
-			/* De-normal */
+			/* De-yesrmal */
 			loaded_data->sigh = m64 << 11;
 			loaded_data->sigh |= l64 >> 21;
 			loaded_data->sigl = l64 << 11;
 
-			return normalize_no_excep(loaded_data, DOUBLE_Emin,
+			return yesrmalize_yes_excep(loaded_data, DOUBLE_Emin,
 						  negative)
-			    | (denormal_operand() < 0 ? FPU_Exception : 0);
+			    | (deyesrmal_operand() < 0 ? FPU_Exception : 0);
 		}
 	} else {
 		loaded_data->sigh = (m64 << 11) | 0x80000000;
@@ -174,12 +174,12 @@ int FPU_load_single(float __user *single, FPU_REG *loaded_data)
 	exp = ((m32 & 0x7f800000) >> 23) - SINGLE_Ebias + EXTENDED_Ebias;
 	m32 = (m32 & 0x7fffff) << 8;
 	if (exp < SINGLE_Emin + EXTENDED_Ebias) {
-		/* De-normals */
+		/* De-yesrmals */
 		loaded_data->sigh = m32;
 		loaded_data->sigl = 0;
 
-		return normalize_no_excep(loaded_data, SINGLE_Emin, negative)
-		    | (denormal_operand() < 0 ? FPU_Exception : 0);
+		return yesrmalize_yes_excep(loaded_data, SINGLE_Emin, negative)
+		    | (deyesrmal_operand() < 0 ? FPU_Exception : 0);
 	} else if (exp > SINGLE_Emax + EXTENDED_Ebias) {
 		/* Infinity or NaN */
 		if (m32 == 0) {
@@ -233,7 +233,7 @@ int FPU_load_int64(long long __user *_s)
 
 	significand(st0_ptr) = s;
 
-	return normalize_no_excep(st0_ptr, 63, sign);
+	return yesrmalize_yes_excep(st0_ptr, 63, sign);
 }
 
 /* Get a long from user memory */
@@ -262,7 +262,7 @@ int FPU_load_int32(long __user *_s, FPU_REG *loaded_data)
 	loaded_data->sigh = s;
 	loaded_data->sigl = 0;
 
-	return normalize_no_excep(loaded_data, 31, negative);
+	return yesrmalize_yes_excep(loaded_data, 31, negative);
 }
 
 /* Get a short from user memory */
@@ -291,7 +291,7 @@ int FPU_load_int16(short __user *_s, FPU_REG *loaded_data)
 	loaded_data->sigh = s << 16;
 	loaded_data->sigl = 0;
 
-	return normalize_no_excep(loaded_data, 15, negative);
+	return yesrmalize_yes_excep(loaded_data, 15, negative);
 }
 
 /* Get a packed bcd array from user memory */
@@ -327,7 +327,7 @@ int FPU_load_bcd(u_char __user *s)
 		return TAG_Zero;
 	} else {
 		significand(st0_ptr) = l;
-		return normalize_no_excep(st0_ptr, 63, sign);
+		return yesrmalize_yes_excep(st0_ptr, 63, sign);
 	}
 }
 
@@ -390,12 +390,12 @@ int FPU_store_double(FPU_REG *st0_ptr, u_char st0_tag, double __user *dfloat)
 		reg_copy(st0_ptr, &tmp);
 		exp = exponent(&tmp);
 
-		if (exp < DOUBLE_Emin) {	/* It may be a denormal */
+		if (exp < DOUBLE_Emin) {	/* It may be a deyesrmal */
 			addexponent(&tmp, -DOUBLE_Emin + 52);	/* largest exp to be 51 */
-denormal_arg:
+deyesrmal_arg:
 			if ((precision_loss = FPU_round_to_int(&tmp, st0_tag))) {
 #ifdef PECULIAR_486
-				/* Did it round to a non-denormal ? */
+				/* Did it round to a yesn-deyesrmal ? */
 				/* This behaviour might be regarded as peculiar, it appears
 				   that the 80486 rounds to the dest precision, then
 				   converts to decide underflow. */
@@ -494,17 +494,17 @@ denormal_arg:
 		/* Number is zero */
 	} else if (st0_tag == TAG_Special) {
 		st0_tag = FPU_Special(st0_ptr);
-		if (st0_tag == TW_Denormal) {
-			/* A denormal will always underflow. */
+		if (st0_tag == TW_Deyesrmal) {
+			/* A deyesrmal will always underflow. */
 #ifndef PECULIAR_486
 			/* An 80486 is supposed to be able to generate
-			   a denormal exception here, but... */
+			   a deyesrmal exception here, but... */
 			/* Underflow has priority. */
 			if (control_word & CW_Underflow)
-				denormal_operand();
+				deyesrmal_operand();
 #endif /* PECULIAR_486 */
 			reg_copy(st0_ptr, &tmp);
-			goto denormal_arg;
+			goto deyesrmal_arg;
 		} else if (st0_tag == TW_Infinity) {
 			l[1] = 0x7ff00000;
 		} else if (st0_tag == TW_NaN) {
@@ -577,11 +577,11 @@ int FPU_store_single(FPU_REG *st0_ptr, u_char st0_tag, float __user *single)
 		if (exp < SINGLE_Emin) {
 			addexponent(&tmp, -SINGLE_Emin + 23);	/* largest exp to be 22 */
 
-		      denormal_arg:
+		      deyesrmal_arg:
 
 			if ((precision_loss = FPU_round_to_int(&tmp, st0_tag))) {
 #ifdef PECULIAR_486
-				/* Did it round to a non-denormal ? */
+				/* Did it round to a yesn-deyesrmal ? */
 				/* This behaviour might be regarded as peculiar, it appears
 				   that the 80486 rounds to the dest precision, then
 				   converts to decide underflow. */
@@ -675,18 +675,18 @@ int FPU_store_single(FPU_REG *st0_ptr, u_char st0_tag, float __user *single)
 		templ = 0;
 	} else if (st0_tag == TAG_Special) {
 		st0_tag = FPU_Special(st0_ptr);
-		if (st0_tag == TW_Denormal) {
+		if (st0_tag == TW_Deyesrmal) {
 			reg_copy(st0_ptr, &tmp);
 
-			/* A denormal will always underflow. */
+			/* A deyesrmal will always underflow. */
 #ifndef PECULIAR_486
 			/* An 80486 is supposed to be able to generate
-			   a denormal exception here, but... */
+			   a deyesrmal exception here, but... */
 			/* Underflow has priority. */
 			if (control_word & CW_Underflow)
-				denormal_operand();
+				deyesrmal_operand();
 #endif /* PECULIAR_486 */
-			goto denormal_arg;
+			goto deyesrmal_arg;
 		} else if (st0_tag == TW_Infinity) {
 			templ = 0x7f800000;
 		} else if (st0_tag == TW_NaN) {
@@ -960,11 +960,11 @@ int FPU_store_bcd(FPU_REG *st0_ptr, u_char st0_tag, u_char __user *d)
 /*===========================================================================*/
 
 /* r gets mangled such that sig is int, sign: 
-   it is NOT normalized */
+   it is NOT yesrmalized */
 /* The return value (in eax) is zero if the result is exact,
    if bits are changed due to rounding, truncation, etc, then
-   a non-zero value is returned */
-/* Overflow is signalled by a non-zero return value (in eax).
+   a yesn-zero value is returned */
+/* Overflow is signalled by a yesn-zero return value (in eax).
    In the case of overflow, the returned significand always has the
    largest possible value */
 int FPU_round_to_int(FPU_REG *r, u_char tag)
@@ -1093,7 +1093,7 @@ u_char __user *fldenv(fpu_addr_modes addr_modes, u_char __user *s)
 			/* New tag is empty.  Accept it */
 			FPU_settag(i, TAG_Empty);
 		else if (FPU_gettag(i) == TAG_Empty) {
-			/* Old tag is empty and new tag is not empty.  New tag is determined
+			/* Old tag is empty and new tag is yest empty.  New tag is determined
 			   by old reg contents */
 			if (exponent(&fpu_register(i)) == -EXTENDED_Ebias) {
 				if (!
@@ -1108,9 +1108,9 @@ u_char __user *fldenv(fpu_addr_modes addr_modes, u_char __user *s)
 			} else if (fpu_register(i).sigh & 0x80000000)
 				FPU_settag(i, TAG_Valid);
 			else
-				FPU_settag(i, TAG_Special);	/* An Un-normal */
+				FPU_settag(i, TAG_Special);	/* An Un-yesrmal */
 		}
-		/* Else old tag is not empty and new tag is not empty.  Old tag
+		/* Else old tag is yest empty and new tag is yest empty.  Old tag
 		   remains correct */
 	}
 

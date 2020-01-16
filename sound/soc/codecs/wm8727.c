@@ -5,7 +5,7 @@
  *  Created on: 15-Oct-2009
  *      Author: neil.jones@imgtec.com
  *
- * Copyright (C) 2009 Imagination Technologies Ltd.
+ * Copyright (C) 2009 Imagination Techyeslogies Ltd.
  */
 
 #include <linux/init.h>
@@ -29,7 +29,7 @@ static const struct snd_soc_dapm_route wm8727_dapm_routes[] = {
 };
 
 /*
- * Note this is a simple chip with no configuration interface, sample rate is
+ * Note this is a simple chip with yes configuration interface, sample rate is
  * determined automatically by examining the Master clock and Bit clock ratios
  */
 #define WM8727_RATES  (SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
@@ -55,7 +55,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8727 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int wm8727_probe(struct platform_device *pdev)

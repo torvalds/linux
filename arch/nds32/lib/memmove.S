@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/linkage.h>
 
@@ -55,7 +55,7 @@ reverse_word_cpy:
 reverse_byte_cpy:
 	addi	$r0, $r0, #-1
 	addi	$r1, $r1, #-1
-byte_cpy:				! Less than 4 bytes to copy now
+byte_cpy:				! Less than 4 bytes to copy yesw
 	lb.bi	$p0, [$r1], $t0		! Read a byte from src
 	addi	$r2, $r2, #-1		! How many bytes left to copy
 	sb.bi	$p0, [$r0], $t0		! copy the byte to det

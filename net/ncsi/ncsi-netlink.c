@@ -75,7 +75,7 @@ static int ncsi_write_channel_info(struct sk_buff *skb,
 	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MINOR, nc->version.alpha2);
 	nla_put_string(skb, NCSI_CHANNEL_ATTR_VERSION_STR, nc->version.fw_name);
 
-	vid_nest = nla_nest_start_noflag(skb, NCSI_CHANNEL_ATTR_VLAN_LIST);
+	vid_nest = nla_nest_start_yesflag(skb, NCSI_CHANNEL_ATTR_VLAN_LIST);
 	if (!vid_nest)
 		return -ENOMEM;
 	ncf = &nc->vlan_filter;
@@ -109,19 +109,19 @@ static int ncsi_write_package_info(struct sk_buff *skb,
 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
 		if (np->id != id)
 			continue;
-		pnest = nla_nest_start_noflag(skb, NCSI_PKG_ATTR);
+		pnest = nla_nest_start_yesflag(skb, NCSI_PKG_ATTR);
 		if (!pnest)
 			return -ENOMEM;
 		nla_put_u32(skb, NCSI_PKG_ATTR_ID, np->id);
 		if ((0x1 << np->id) == ndp->package_whitelist)
 			nla_put_flag(skb, NCSI_PKG_ATTR_FORCED);
-		cnest = nla_nest_start_noflag(skb, NCSI_PKG_ATTR_CHANNEL_LIST);
+		cnest = nla_nest_start_yesflag(skb, NCSI_PKG_ATTR_CHANNEL_LIST);
 		if (!cnest) {
 			nla_nest_cancel(skb, pnest);
 			return -ENOMEM;
 		}
 		NCSI_FOR_EACH_CHANNEL(np, nc) {
-			nest = nla_nest_start_noflag(skb, NCSI_CHANNEL_ATTR);
+			nest = nla_nest_start_yesflag(skb, NCSI_CHANNEL_ATTR);
 			if (!nest) {
 				nla_nest_cancel(skb, cnest);
 				nla_nest_cancel(skb, pnest);
@@ -183,7 +183,7 @@ static int ncsi_pkg_info_nl(struct sk_buff *msg, struct genl_info *info)
 
 	package_id = nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_ID]);
 
-	attr = nla_nest_start_noflag(skb, NCSI_ATTR_PACKAGE_LIST);
+	attr = nla_nest_start_yesflag(skb, NCSI_ATTR_PACKAGE_LIST);
 	if (!attr) {
 		kfree_skb(skb);
 		return -EMSGSIZE;
@@ -246,7 +246,7 @@ static int ncsi_pkg_info_all_nl(struct sk_buff *skb,
 		goto err;
 	}
 
-	attr = nla_nest_start_noflag(skb, NCSI_ATTR_PACKAGE_LIST);
+	attr = nla_nest_start_yesflag(skb, NCSI_ATTR_PACKAGE_LIST);
 	if (!attr) {
 		rc = -EMSGSIZE;
 		goto err;
@@ -297,7 +297,7 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
 		if (np->id == package_id)
 			package = np;
 	if (!package) {
-		/* The user has set a package that does not exist */
+		/* The user has set a package that does yest exist */
 		return -ERANGE;
 	}
 
@@ -311,7 +311,7 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
 			}
 		if (!channel) {
 			netdev_info(ndp->ndev.dev,
-				    "NCSI: Channel %u does not exist!\n",
+				    "NCSI: Channel %u does yest exist!\n",
 				    channel_id);
 			return -ERANGE;
 		}
@@ -440,7 +440,7 @@ static int ncsi_send_cmd_nl(struct sk_buff *msg, struct genl_info *info)
 
 	len = nla_len(info->attrs[NCSI_ATTR_DATA]);
 	if (len < sizeof(struct ncsi_pkt_hdr)) {
-		netdev_info(ndp->ndev.dev, "NCSI: no command to send %u\n",
+		netdev_info(ndp->ndev.dev, "NCSI: yes command to send %u\n",
 			    package_id);
 		ret = -EINVAL;
 		goto out_netlink;

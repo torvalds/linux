@@ -23,7 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/random.h>
 #include <linux/delay.h>
 #include <linux/socket.h>
@@ -42,7 +42,7 @@
 #include "config.h"
 
 /* Size of the temp buffer midcomms allocates on the stack.
-   We try to make this large enough so most messages fit.
+   We try to make this large eyesugh so most messages fit.
    FIXME: should sctp make this unnecessary? */
 
 #define DLM_INBUF_LEN		148
@@ -114,12 +114,12 @@ struct dlm_rsbtable {
 
 
 /*
- * Lockspace member (per node in a ls)
+ * Lockspace member (per yesde in a ls)
  */
 
 struct dlm_member {
 	struct list_head	list;
-	int			nodeid;
+	int			yesdeid;
 	int			weight;
 	int			slot;
 	int			slot_prev;
@@ -133,8 +133,8 @@ struct dlm_member {
 
 struct dlm_recover {
 	struct list_head	list;
-	struct dlm_config_node	*nodes;
-	int			nodes_count;
+	struct dlm_config_yesde	*yesdes;
+	int			yesdes_count;
 	uint64_t		seq;
 };
 
@@ -159,23 +159,23 @@ struct dlm_args {
  * A lock can be one of three types:
  *
  * local copy      lock is mastered locally
- *                 (lkb_nodeid is zero and DLM_LKF_MSTCPY is not set)
- * process copy    lock is mastered on a remote node
- *                 (lkb_nodeid is non-zero and DLM_LKF_MSTCPY is not set)
- * master copy     master node's copy of a lock owned by remote node
- *                 (lkb_nodeid is non-zero and DLM_LKF_MSTCPY is set)
+ *                 (lkb_yesdeid is zero and DLM_LKF_MSTCPY is yest set)
+ * process copy    lock is mastered on a remote yesde
+ *                 (lkb_yesdeid is yesn-zero and DLM_LKF_MSTCPY is yest set)
+ * master copy     master yesde's copy of a lock owned by remote yesde
+ *                 (lkb_yesdeid is yesn-zero and DLM_LKF_MSTCPY is set)
  *
  * lkb_exflags: a copy of the most recent flags arg provided to dlm_lock or
- * dlm_unlock.  The dlm does not modify these or use any private flags in
+ * dlm_unlock.  The dlm does yest modify these or use any private flags in
  * this field; it only contains DLM_LKF_ flags from dlm.h.  These flags
  * are sent as-is to the remote master when the lock is remote.
  *
  * lkb_flags: internal dlm flags (DLM_IFL_ prefix) from dlm_internal.h.
- * Some internal flags are shared between the master and process nodes;
+ * Some internal flags are shared between the master and process yesdes;
  * these shared flags are kept in the lower two bytes.  One of these
  * flags set on the master copy will be propagated to the process copy
  * and v.v.  Other internal flags are private to the master or process
- * node (e.g. DLM_IFL_MSTCPY).  These are kept in the high two bytes.
+ * yesde (e.g. DLM_IFL_MSTCPY).  These are kept in the high two bytes.
  *
  * lkb_sbflags: status block flags.  These flags are copied directly into
  * the caller's lksb.sb_flags prior to the dlm_lock/dlm_unlock completion
@@ -186,11 +186,11 @@ struct dlm_args {
  *
  * lkb_wait_type: the dlm message type (DLM_MSG_ prefix) for which a
  * reply is needed.  Only set when the lkb is on the lockspace waiters
- * list awaiting a reply from a remote node.
+ * list awaiting a reply from a remote yesde.
  *
- * lkb_nodeid: when the lkb is a local copy, nodeid is 0; when the lkb
- * is a master copy, nodeid specifies the remote lock holder, when the
- * lkb is a process copy, the nodeid specifies the lock master.
+ * lkb_yesdeid: when the lkb is a local copy, yesdeid is 0; when the lkb
+ * is a master copy, yesdeid specifies the remote lock holder, when the
+ * lkb is a process copy, the yesdeid specifies the lock master.
  */
 
 /* lkb_status */
@@ -231,7 +231,7 @@ struct dlm_callback {
 struct dlm_lkb {
 	struct dlm_rsb		*lkb_resource;	/* the rsb */
 	struct kref		lkb_ref;
-	int			lkb_nodeid;	/* copied from rsb */
+	int			lkb_yesdeid;	/* copied from rsb */
 	int			lkb_ownpid;	/* pid of lock owner */
 	uint32_t		lkb_id;		/* our lock ID */
 	uint32_t		lkb_remid;	/* lock ID on remote partner */
@@ -247,7 +247,7 @@ struct dlm_lkb {
 
 	int8_t			lkb_wait_type;	/* type of reply waiting for */
 	int8_t			lkb_wait_count;
-	int			lkb_wait_nodeid; /* for debugging */
+	int			lkb_wait_yesdeid; /* for debugging */
 
 	struct list_head	lkb_statequeue;	/* rsb g/c/w list */
 	struct list_head	lkb_rsb_lookup;	/* waiting for rsb lookup */
@@ -280,13 +280,13 @@ struct dlm_lkb {
 };
 
 /*
- * res_master_nodeid is "normal": 0 is unset/invalid, non-zero is the real
- * nodeid, even when nodeid is our_nodeid.
+ * res_master_yesdeid is "yesrmal": 0 is unset/invalid, yesn-zero is the real
+ * yesdeid, even when yesdeid is our_yesdeid.
  *
- * res_nodeid is "odd": -1 is unset/invalid, zero means our_nodeid,
- * greater than zero when another nodeid.
+ * res_yesdeid is "odd": -1 is unset/invalid, zero means our_yesdeid,
+ * greater than zero when ayesther yesdeid.
  *
- * (TODO: remove res_nodeid and only use res_master_nodeid)
+ * (TODO: remove res_yesdeid and only use res_master_yesdeid)
  */
 
 struct dlm_rsb {
@@ -295,9 +295,9 @@ struct dlm_rsb {
 	struct mutex		res_mutex;
 	unsigned long		res_flags;
 	int			res_length;	/* length of rsb name */
-	int			res_nodeid;
-	int			res_master_nodeid;
-	int			res_dir_nodeid;
+	int			res_yesdeid;
+	int			res_master_yesdeid;
+	int			res_dir_yesdeid;
 	int			res_id;		/* for ls_recover_idr */
 	uint32_t                res_lvbseq;
 	uint32_t		res_hash;
@@ -307,7 +307,7 @@ struct dlm_rsb {
 	struct list_head	res_lookup;	/* lkbs waiting on first */
 	union {
 		struct list_head	res_hashchain;
-		struct rb_node		res_hashnode;	/* rsbtbl */
+		struct rb_yesde		res_hashyesde;	/* rsbtbl */
 	};
 	struct list_head	res_grantqueue;
 	struct list_head	res_convertqueue;
@@ -366,7 +366,7 @@ static inline int rsb_flag(struct dlm_rsb *r, enum rsb_flags flag)
 }
 
 
-/* dlm_header is first element of all structs sent between nodes */
+/* dlm_header is first element of all structs sent between yesdes */
 
 #define DLM_HEADER_MAJOR	0x00030000
 #define DLM_HEADER_MINOR	0x00000001
@@ -379,7 +379,7 @@ static inline int rsb_flag(struct dlm_rsb *r, enum rsb_flags flag)
 struct dlm_header {
 	uint32_t		h_version;
 	uint32_t		h_lockspace;
-	uint32_t		h_nodeid;	/* nodeid of sender */
+	uint32_t		h_yesdeid;	/* yesdeid of sender */
 	uint16_t		h_length;
 	uint8_t			h_cmd;		/* DLM_MSG, DLM_RCOM */
 	uint8_t			h_pad;
@@ -404,7 +404,7 @@ struct dlm_header {
 struct dlm_message {
 	struct dlm_header	m_header;
 	uint32_t		m_type;		/* DLM_MSG_ */
-	uint32_t		m_nodeid;
+	uint32_t		m_yesdeid;
 	uint32_t		m_pid;
 	uint32_t		m_lkid;		/* lkid on sender */
 	uint32_t		m_remid;	/* lkid on receiver */
@@ -483,7 +483,7 @@ struct rcom_config {
 };
 
 struct rcom_slot {
-	__le32			ro_nodeid;
+	__le32			ro_yesdeid;
 	__le16			ro_slot;
 	__le16			ro_unused1;
 	__le64			ro_unused2;
@@ -555,12 +555,12 @@ struct dlm_ls {
 	int			ls_remove_len;
 	int			ls_remove_lens[DLM_REMOVE_NAMES_MAX];
 
-	struct list_head	ls_nodes;	/* current nodes in ls */
-	struct list_head	ls_nodes_gone;	/* dead node list, recovery */
-	int			ls_num_nodes;	/* number of nodes in ls */
-	int			ls_low_nodeid;
+	struct list_head	ls_yesdes;	/* current yesdes in ls */
+	struct list_head	ls_yesdes_gone;	/* dead yesde list, recovery */
+	int			ls_num_yesdes;	/* number of yesdes in ls */
+	int			ls_low_yesdeid;
 	int			ls_total_weight;
-	int			*ls_node_array;
+	int			*ls_yesde_array;
 
 	int			ls_slot;
 	int			ls_num_slots;
@@ -603,7 +603,7 @@ struct dlm_ls {
 	struct list_head	ls_requestqueue;/* queue remote requests */
 	struct mutex		ls_requestqueue_mutex;
 	struct dlm_rcom		*ls_recover_buf;
-	int			ls_recover_nodeid; /* for debugging */
+	int			ls_recover_yesdeid; /* for debugging */
 	unsigned int		ls_recover_dir_sent_res; /* for log info */
 	unsigned int		ls_recover_dir_sent_msg; /* for log info */
 	unsigned int		ls_recover_locks_in; /* for log info */
@@ -644,7 +644,7 @@ struct dlm_ls {
  * LSFL_RECOVER_WORK - dlm_ls_start() sets this to tell dlm_recoverd that it
  * should begin recovery of the lockspace.
  *
- * LSFL_RUNNING - set when normal locking activity is enabled.
+ * LSFL_RUNNING - set when yesrmal locking activity is enabled.
  * dlm_ls_stop() clears this to tell dlm locking routines that they should
  * quit what they are doing so recovery can run.  dlm_recoverd sets
  * this after recovery is finished.
@@ -707,7 +707,7 @@ static inline int dlm_recovery_stopped(struct dlm_ls *ls)
 	return test_bit(LSFL_RECOVER_STOP, &ls->ls_flags);
 }
 
-static inline int dlm_no_directory(struct dlm_ls *ls)
+static inline int dlm_yes_directory(struct dlm_ls *ls)
 {
 	return test_bit(LSFL_NODIR, &ls->ls_flags);
 }

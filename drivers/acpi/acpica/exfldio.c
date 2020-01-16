@@ -73,14 +73,14 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 
 	if (!acpi_is_valid_space_id(space_id)) {
 		ACPI_ERROR((AE_INFO,
-			    "Invalid/unknown Address Space ID: 0x%2.2X",
+			    "Invalid/unkyeswn Address Space ID: 0x%2.2X",
 			    space_id));
 		return_ACPI_STATUS(AE_AML_INVALID_SPACE_ID);
 	}
 
 	/*
-	 * If the Region Address and Length have not been previously evaluated,
-	 * evaluate them now and save the results.
+	 * If the Region Address and Length have yest been previously evaluated,
+	 * evaluate them yesw and save the results.
 	 */
 	if (!(rgn_desc->common.flags & AOPOBJ_DATA_VALID)) {
 		status = acpi_ds_get_region_arguments(rgn_desc);
@@ -90,21 +90,21 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 	}
 
 	/*
-	 * Exit now for SMBus, GSBus or IPMI address space, it has a non-linear
-	 * address space and the request cannot be directly validated
+	 * Exit yesw for SMBus, GSBus or IPMI address space, it has a yesn-linear
+	 * address space and the request canyest be directly validated
 	 */
 	if (space_id == ACPI_ADR_SPACE_SMBUS ||
 	    space_id == ACPI_ADR_SPACE_GSBUS ||
 	    space_id == ACPI_ADR_SPACE_IPMI) {
 
-		/* SMBus or IPMI has a non-linear address space */
+		/* SMBus or IPMI has a yesn-linear address space */
 
 		return_ACPI_STATUS(AE_OK);
 	}
 #ifdef ACPI_UNDER_DEVELOPMENT
 	/*
-	 * If the Field access is any_acc, we can now compute the optimal
-	 * access (because we know know the length of the parent region)
+	 * If the Field access is any_acc, we can yesw compute the optimal
+	 * access (because we kyesw kyesw the length of the parent region)
 	 */
 	if (!(obj_desc->common.flags & AOPOBJ_DATA_VALID)) {
 		if (ACPI_FAILURE(status)) {
@@ -148,11 +148,11 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 			ACPI_ERROR((AE_INFO,
 				    "Field [%4.4s] access width (%u bytes) "
 				    "too large for region [%4.4s] (length %u)",
-				    acpi_ut_get_node_name(obj_desc->
-							  common_field.node),
+				    acpi_ut_get_yesde_name(obj_desc->
+							  common_field.yesde),
 				    obj_desc->common_field.access_byte_width,
-				    acpi_ut_get_node_name(rgn_desc->region.
-							  node),
+				    acpi_ut_get_yesde_name(rgn_desc->region.
+							  yesde),
 				    rgn_desc->region.length));
 		}
 
@@ -163,11 +163,11 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 		ACPI_ERROR((AE_INFO,
 			    "Field [%4.4s] Base+Offset+Width %u+%u+%u "
 			    "is beyond end of region [%4.4s] (length %u)",
-			    acpi_ut_get_node_name(obj_desc->common_field.node),
+			    acpi_ut_get_yesde_name(obj_desc->common_field.yesde),
 			    obj_desc->common_field.base_byte_offset,
 			    field_datum_byte_offset,
 			    obj_desc->common_field.access_byte_width,
-			    acpi_ut_get_node_name(rgn_desc->region.node),
+			    acpi_ut_get_yesde_name(rgn_desc->region.yesde),
 			    rgn_desc->region.length));
 
 		return_ACPI_STATUS(AE_AML_REGION_LIMIT);
@@ -253,13 +253,13 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_IMPLEMENTED) {
 			ACPI_ERROR((AE_INFO,
-				    "Region %s (ID=%u) not implemented",
+				    "Region %s (ID=%u) yest implemented",
 				    acpi_ut_get_region_name(rgn_desc->region.
 							    space_id),
 				    rgn_desc->region.space_id));
 		} else if (status == AE_NOT_EXIST) {
 			ACPI_ERROR((AE_INFO,
-				    "Region %s (ID=%u) has no handler",
+				    "Region %s (ID=%u) has yes handler",
 				    acpi_ut_get_region_name(rgn_desc->region.
 							    space_id),
 				    rgn_desc->region.space_id));
@@ -292,7 +292,7 @@ acpi_ex_register_overflow(union acpi_operand_object *obj_desc, u64 value)
 
 	if (obj_desc->common_field.bit_length >= ACPI_INTEGER_BIT_SIZE) {
 		/*
-		 * The field is large enough to hold the maximum integer, so we can
+		 * The field is large eyesugh to hold the maximum integer, so we can
 		 * never overflow it.
 		 */
 		return (FALSE);
@@ -311,7 +311,7 @@ acpi_ex_register_overflow(union acpi_operand_object *obj_desc, u64 value)
 		return (TRUE);
 	}
 
-	/* The Value will fit into the field with no truncation */
+	/* The Value will fit into the field with yes truncation */
 
 	return (FALSE);
 }
@@ -369,8 +369,8 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 	switch (obj_desc->common.type) {
 	case ACPI_TYPE_BUFFER_FIELD:
 		/*
-		 * If the buffer_field arguments have not been previously evaluated,
-		 * evaluate them now and save the results.
+		 * If the buffer_field arguments have yest been previously evaluated,
+		 * evaluate them yesw and save the results.
 		 */
 		if (!(obj_desc->common.flags & AOPOBJ_DATA_VALID)) {
 			status = acpi_ds_get_buffer_field_arguments(obj_desc);
@@ -407,7 +407,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
 		/*
-		 * Ensure that the bank_value is not beyond the capacity of
+		 * Ensure that the bank_value is yest beyond the capacity of
 		 * the register
 		 */
 		if (acpi_ex_register_overflow(obj_desc->bank_field.bank_obj,
@@ -448,7 +448,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 		/*
-		 * Ensure that the index_value is not beyond the capacity of
+		 * Ensure that the index_value is yest beyond the capacity of
 		 * the register
 		 */
 		if (acpi_ex_register_overflow(obj_desc->index_field.index_obj,
@@ -565,8 +565,8 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
 			field_flags & AML_FIELD_UPDATE_RULE_MASK) {
 		case AML_FIELD_UPDATE_PRESERVE:
 			/*
-			 * Check if update rule needs to be applied (not if mask is all
-			 * ones)  The left shift drops the bits we want to ignore.
+			 * Check if update rule needs to be applied (yest if mask is all
+			 * ones)  The left shift drops the bits we want to igyesre.
 			 */
 			if ((~mask << (ACPI_MUL_8(sizeof(mask)) -
 				       ACPI_MUL_8(obj_desc->common_field.
@@ -605,7 +605,7 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unknown UpdateRule value: 0x%X",
+				    "Unkyeswn UpdateRule value: 0x%X",
 				    (obj_desc->common_field.field_flags &
 				     AML_FIELD_UPDATE_RULE_MASK)));
 			return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
@@ -744,7 +744,7 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
 		 * Merge with previous datum if necessary.
 		 *
 		 * Note: Before the shift, check if the shift value will be larger than
-		 * the integer size. If so, there is no need to perform the operation.
+		 * the integer size. If so, there is yes need to perform the operation.
 		 * This avoids the differences in behavior between different compilers
 		 * concerning shift values larger than the target data width.
 		 */
@@ -832,7 +832,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 	/*
 	 * We must have a buffer that is at least as long as the field
 	 * we are writing to. This is because individual fields are
-	 * indivisible and partial writes are not supported -- as per
+	 * indivisible and partial writes are yest supported -- as per
 	 * the ACPI specification.
 	 */
 	if (buffer_length < required_length) {
@@ -909,7 +909,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 		 * if necessary.
 		 *
 		 * Note: Before the shift, check if the shift value will be larger than
-		 * the integer size. If so, there is no need to perform the operation.
+		 * the integer size. If so, there is yes need to perform the operation.
 		 * This avoids the differences in behavior between different compilers
 		 * concerning shift values larger than the target data width.
 		 */

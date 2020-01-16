@@ -12,7 +12,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -144,7 +144,7 @@ irqreturn_t via_driver_irq_handler(int irq, void *arg)
 		cur_irq++;
 	}
 
-	/* Acknowledge interrupts */
+	/* Ackyeswledge interrupts */
 	via_write(dev_priv, VIA_REG_INTERRUPT, status);
 
 
@@ -154,12 +154,12 @@ irqreturn_t via_driver_irq_handler(int irq, void *arg)
 		return IRQ_NONE;
 }
 
-static __inline__ void viadrv_acknowledge_irqs(drm_via_private_t *dev_priv)
+static __inline__ void viadrv_ackyeswledge_irqs(drm_via_private_t *dev_priv)
 {
 	u32 status;
 
 	if (dev_priv) {
-		/* Acknowledge interrupts */
+		/* Ackyeswledge interrupts */
 		status = via_read(dev_priv, VIA_REG_INTERRUPT);
 		via_write(dev_priv, VIA_REG_INTERRUPT, status |
 			  dev_priv->irq_pending_mask);
@@ -214,19 +214,19 @@ via_driver_irq_wait(struct drm_device *dev, unsigned int irq, int force_sequence
 	DRM_DEBUG("\n");
 
 	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
+		DRM_ERROR("called with yes initialization\n");
 		return -EINVAL;
 	}
 
 	if (irq >= drm_via_irq_num) {
-		DRM_ERROR("Trying to wait on unknown irq %d\n", irq);
+		DRM_ERROR("Trying to wait on unkyeswn irq %d\n", irq);
 		return -EINVAL;
 	}
 
 	real_irq = dev_priv->irq_map[irq];
 
 	if (real_irq < 0) {
-		DRM_ERROR("Video IRQ %d not available on this hardware.\n",
+		DRM_ERROR("Video IRQ %d yest available on this hardware.\n",
 			  irq);
 		return -EINVAL;
 	}
@@ -299,7 +299,7 @@ void via_driver_irq_preinstall(struct drm_device *dev)
 			  ~(dev_priv->irq_enable_mask));
 
 		/* Clear bits if they're already high */
-		viadrv_acknowledge_irqs(dev_priv);
+		viadrv_ackyeswledge_irqs(dev_priv);
 	}
 }
 
@@ -345,14 +345,14 @@ void via_driver_irq_uninstall(struct drm_device *dev)
 int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_via_irqwait_t *irqwait = data;
-	struct timespec64 now;
+	struct timespec64 yesw;
 	int ret = 0;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	drm_via_irq_t *cur_irq = dev_priv->via_irqs;
 	int force_sequence;
 
 	if (irqwait->request.irq >= dev_priv->num_irqs) {
-		DRM_ERROR("Trying to wait on unknown irq %d\n",
+		DRM_ERROR("Trying to wait on unkyeswn irq %d\n",
 			  irqwait->request.irq);
 		return -EINVAL;
 	}
@@ -371,7 +371,7 @@ int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	}
 
 	if (irqwait->request.type & VIA_IRQ_SIGNAL) {
-		DRM_ERROR("Signals on Via IRQs not implemented yet.\n");
+		DRM_ERROR("Signals on Via IRQs yest implemented yet.\n");
 		return -EINVAL;
 	}
 
@@ -379,9 +379,9 @@ int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 	ret = via_driver_irq_wait(dev, irqwait->request.irq, force_sequence,
 				  &irqwait->request.sequence);
-	ktime_get_ts64(&now);
-	irqwait->reply.tval_sec = now.tv_sec;
-	irqwait->reply.tval_usec = now.tv_nsec / NSEC_PER_USEC;
+	ktime_get_ts64(&yesw);
+	irqwait->reply.tval_sec = yesw.tv_sec;
+	irqwait->reply.tval_usec = yesw.tv_nsec / NSEC_PER_USEC;
 
 	return ret;
 }

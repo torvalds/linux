@@ -1,6 +1,6 @@
-/* orinoco_plx.c
+/* oriyesco_plx.c
  *
- * Driver for Prism II devices which would usually be driven by orinoco_cs,
+ * Driver for Prism II devices which would usually be driven by oriyesco_cs,
  * but are connected to the PCI bus by a PLX9052.
  *
  * Current maintainers are:
@@ -11,7 +11,7 @@
  * Copyright (C) 2001 Daniel Barlow
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may yest use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -24,10 +24,10 @@
  * terms of the GNU General Public License version 2 (the "GPL"), in
  * which case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use your
+ * only under the terms of the GPL and yest to allow others to use your
  * version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
+ * deleting the provisions above and replace them with the yestice and
+ * other provisions required by the GPL.  If you do yest delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
  *
@@ -46,7 +46,7 @@
  * the CIS, so to read the bytes of the CIS, read every other byte
  * (0,2,4,...). Passing that test, you need to enable the I/O address
  * space on the PCMCIA card via the PCMCIA COR register. This is the
- * first byte following the CIS. In my case (which may not have any
+ * first byte following the CIS. In my case (which may yest have any
  * relation to what's on the PRISM2 cards), COR was at offset 0x800
  * within the PCI memory space. Write 0x41 to the COR register to
  * enable I/O mode and to select level triggered interrupts. To
@@ -55,7 +55,7 @@
  * card inserted.
  *
  * Following that, you can treat the second PCI I/O address space (the
- * one that's not 0x80 in length) as the PCMCIA I/O space.
+ * one that's yest 0x80 in length) as the PCMCIA I/O space.
  *
  * Note that in the Eumitcom's source for their drivers, they register
  * the interrupt as edge triggered when registering it with the
@@ -67,14 +67,14 @@
  * the serial EEPROM configures it on the WL11000.
  *
  * There's some other little quirks related to timing that I bumped
- * into, but I don't recall right now. Also, there's two variants of
+ * into, but I don't recall right yesw. Also, there's two variants of
  * the WL11000 I've seen, revision A1 and T2. These seem to differ
  * slightly in the timings configured in the wait-state generator in
  * the PLX9052. There have also been some comments from Eumitcom that
  * cards shouldn't be hot swapped, apparently due to risk of cooking
  * the PLX9052. I'm unsure why they believe this, as I can't see
  * anything in the design that would really cause a problem, except
- * for crashing drivers not written to expect it. And having developed
+ * for crashing drivers yest written to expect it. And having developed
  * drivers for the WL11000, I'd say it's quite tricky to write code
  * that will successfully deal with a hot unplug. Very odd things
  * happen on the I/O side of things. But anyway, be warned. Despite
@@ -83,7 +83,7 @@
  * radio card's firmware locks up).
  */
 
-#define DRIVER_NAME "orinoco_plx"
+#define DRIVER_NAME "oriyesco_plx"
 #define PFX DRIVER_NAME ": "
 
 #include <linux/module.h>
@@ -93,8 +93,8 @@
 #include <linux/pci.h>
 #include <pcmcia/cisreg.h>
 
-#include "orinoco.h"
-#include "orinoco_pci.h"
+#include "oriyesco.h"
+#include "oriyesco_pci.h"
 
 #define COR_OFFSET	(0x3e0)	/* COR attribute offset of Prism2 PC card */
 #define COR_VALUE	(COR_LEVEL_REQ | COR_FUNC_ENA) /* Enable PC card with interrupt in level trigger */
@@ -107,10 +107,10 @@
 /*
  * Do a soft reset of the card using the Configuration Option Register
  */
-static int orinoco_plx_cor_reset(struct orinoco_private *priv)
+static int oriyesco_plx_cor_reset(struct oriyesco_private *priv)
 {
 	struct hermes *hw = &priv->hw;
-	struct orinoco_pci_card *card = priv->card;
+	struct oriyesco_pci_card *card = priv->card;
 	unsigned long timeout;
 	u16 reg;
 
@@ -120,7 +120,7 @@ static int orinoco_plx_cor_reset(struct orinoco_private *priv)
 	iowrite8(COR_VALUE, card->attr_io + COR_OFFSET);
 	mdelay(1);
 
-	/* Just in case, wait more until the card is no longer busy */
+	/* Just in case, wait more until the card is yes longer busy */
 	timeout = jiffies + msecs_to_jiffies(PLX_RESET_TIME);
 	reg = hermes_read_regn(hw, CMD);
 	while (time_before(jiffies, timeout) && (reg & HERMES_CMD_BUSY)) {
@@ -137,7 +137,7 @@ static int orinoco_plx_cor_reset(struct orinoco_private *priv)
 	return 0;
 }
 
-static int orinoco_plx_hw_init(struct orinoco_pci_card *card)
+static int oriyesco_plx_hw_init(struct oriyesco_pci_card *card)
 {
 	int i;
 	u32 csr_reg;
@@ -169,7 +169,7 @@ static int orinoco_plx_hw_init(struct orinoco_pci_card *card)
 		iowrite32(csr_reg, card->bridge_io + PLX_INTCSR);
 		csr_reg = ioread32(card->bridge_io + PLX_INTCSR);
 		if (!(csr_reg & PLX_INTCSR_INTEN)) {
-			printk(KERN_ERR PFX "Cannot enable interrupts\n");
+			printk(KERN_ERR PFX "Canyest enable interrupts\n");
 			return -EIO;
 		}
 	}
@@ -177,52 +177,52 @@ static int orinoco_plx_hw_init(struct orinoco_pci_card *card)
 	return 0;
 }
 
-static int orinoco_plx_init_one(struct pci_dev *pdev,
+static int oriyesco_plx_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	int err;
-	struct orinoco_private *priv;
-	struct orinoco_pci_card *card;
+	struct oriyesco_private *priv;
+	struct oriyesco_pci_card *card;
 	void __iomem *hermes_io, *attr_io, *bridge_io;
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot enable PCI device\n");
+		printk(KERN_ERR PFX "Canyest enable PCI device\n");
 		return err;
 	}
 
 	err = pci_request_regions(pdev, DRIVER_NAME);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot obtain PCI resources\n");
+		printk(KERN_ERR PFX "Canyest obtain PCI resources\n");
 		goto fail_resources;
 	}
 
 	bridge_io = pci_iomap(pdev, 1, 0);
 	if (!bridge_io) {
-		printk(KERN_ERR PFX "Cannot map bridge registers\n");
+		printk(KERN_ERR PFX "Canyest map bridge registers\n");
 		err = -EIO;
 		goto fail_map_bridge;
 	}
 
 	attr_io = pci_iomap(pdev, 2, 0);
 	if (!attr_io) {
-		printk(KERN_ERR PFX "Cannot map PCMCIA attributes\n");
+		printk(KERN_ERR PFX "Canyest map PCMCIA attributes\n");
 		err = -EIO;
 		goto fail_map_attr;
 	}
 
 	hermes_io = pci_iomap(pdev, 3, 0);
 	if (!hermes_io) {
-		printk(KERN_ERR PFX "Cannot map chipset registers\n");
+		printk(KERN_ERR PFX "Canyest map chipset registers\n");
 		err = -EIO;
 		goto fail_map_hermes;
 	}
 
 	/* Allocate network device */
-	priv = alloc_orinocodev(sizeof(*card), &pdev->dev,
-				orinoco_plx_cor_reset, NULL);
+	priv = alloc_oriyescodev(sizeof(*card), &pdev->dev,
+				oriyesco_plx_cor_reset, NULL);
 	if (!priv) {
-		printk(KERN_ERR PFX "Cannot allocate network device\n");
+		printk(KERN_ERR PFX "Canyest allocate network device\n");
 		err = -ENOMEM;
 		goto fail_alloc;
 	}
@@ -233,35 +233,35 @@ static int orinoco_plx_init_one(struct pci_dev *pdev,
 
 	hermes_struct_init(&priv->hw, hermes_io, HERMES_16BIT_REGSPACING);
 
-	err = request_irq(pdev->irq, orinoco_interrupt, IRQF_SHARED,
+	err = request_irq(pdev->irq, oriyesco_interrupt, IRQF_SHARED,
 			  DRIVER_NAME, priv);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot allocate IRQ %d\n", pdev->irq);
+		printk(KERN_ERR PFX "Canyest allocate IRQ %d\n", pdev->irq);
 		err = -EBUSY;
 		goto fail_irq;
 	}
 
-	err = orinoco_plx_hw_init(card);
+	err = oriyesco_plx_hw_init(card);
 	if (err) {
 		printk(KERN_ERR PFX "Hardware initialization failed\n");
 		goto fail;
 	}
 
-	err = orinoco_plx_cor_reset(priv);
+	err = oriyesco_plx_cor_reset(priv);
 	if (err) {
 		printk(KERN_ERR PFX "Initial reset failed\n");
 		goto fail;
 	}
 
-	err = orinoco_init(priv);
+	err = oriyesco_init(priv);
 	if (err) {
-		printk(KERN_ERR PFX "orinoco_init() failed\n");
+		printk(KERN_ERR PFX "oriyesco_init() failed\n");
 		goto fail;
 	}
 
-	err = orinoco_if_add(priv, 0, 0, NULL);
+	err = oriyesco_if_add(priv, 0, 0, NULL);
 	if (err) {
-		printk(KERN_ERR PFX "orinoco_if_add() failed\n");
+		printk(KERN_ERR PFX "oriyesco_if_add() failed\n");
 		goto fail_wiphy;
 	}
 
@@ -275,7 +275,7 @@ static int orinoco_plx_init_one(struct pci_dev *pdev,
 	free_irq(pdev->irq, priv);
 
  fail_irq:
-	free_orinocodev(priv);
+	free_oriyescodev(priv);
 
  fail_alloc:
 	pci_iounmap(pdev, hermes_io);
@@ -295,15 +295,15 @@ static int orinoco_plx_init_one(struct pci_dev *pdev,
 	return err;
 }
 
-static void orinoco_plx_remove_one(struct pci_dev *pdev)
+static void oriyesco_plx_remove_one(struct pci_dev *pdev)
 {
-	struct orinoco_private *priv = pci_get_drvdata(pdev);
-	struct orinoco_pci_card *card = priv->card;
+	struct oriyesco_private *priv = pci_get_drvdata(pdev);
+	struct oriyesco_pci_card *card = priv->card;
 
-	orinoco_if_del(priv);
+	oriyesco_if_del(priv);
 	wiphy_unregister(priv_to_wiphy(priv));
 	free_irq(pdev->irq, priv);
-	free_orinocodev(priv);
+	free_oriyescodev(priv);
 	pci_iounmap(pdev, priv->hw.iobase);
 	pci_iounmap(pdev, card->attr_io);
 	pci_iounmap(pdev, card->bridge_io);
@@ -311,7 +311,7 @@ static void orinoco_plx_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static const struct pci_device_id orinoco_plx_id_table[] = {
+static const struct pci_device_id oriyesco_plx_id_table[] = {
 	{0x111a, 0x1023, PCI_ANY_ID, PCI_ANY_ID,},	/* Siemens SpeedStream SS1023 */
 	{0x1385, 0x4100, PCI_ANY_ID, PCI_ANY_ID,},	/* Netgear MA301 */
 	{0x15e8, 0x0130, PCI_ANY_ID, PCI_ANY_ID,},	/* Correga  - does this work? */
@@ -319,7 +319,7 @@ static const struct pci_device_id orinoco_plx_id_table[] = {
 							   Eumitcom PCI WL11000,
 							   Addtron AWA-100 */
 	{0x16ab, 0x1100, PCI_ANY_ID, PCI_ANY_ID,},	/* Global Sun Tech GL24110P */
-	{0x16ab, 0x1101, PCI_ANY_ID, PCI_ANY_ID,},	/* Reported working, but unknown */
+	{0x16ab, 0x1101, PCI_ANY_ID, PCI_ANY_ID,},	/* Reported working, but unkyeswn */
 	{0x16ab, 0x1102, PCI_ANY_ID, PCI_ANY_ID,},	/* Linksys WDT11 */
 	{0x16ec, 0x3685, PCI_ANY_ID, PCI_ANY_ID,},	/* USR 2415 */
 	{0xec80, 0xec00, PCI_ANY_ID, PCI_ANY_ID,},	/* Belkin F5D6000 tested by
@@ -329,15 +329,15 @@ static const struct pci_device_id orinoco_plx_id_table[] = {
 	{0,},
 };
 
-MODULE_DEVICE_TABLE(pci, orinoco_plx_id_table);
+MODULE_DEVICE_TABLE(pci, oriyesco_plx_id_table);
 
-static struct pci_driver orinoco_plx_driver = {
+static struct pci_driver oriyesco_plx_driver = {
 	.name		= DRIVER_NAME,
-	.id_table	= orinoco_plx_id_table,
-	.probe		= orinoco_plx_init_one,
-	.remove		= orinoco_plx_remove_one,
-	.suspend	= orinoco_pci_suspend,
-	.resume		= orinoco_pci_resume,
+	.id_table	= oriyesco_plx_id_table,
+	.probe		= oriyesco_plx_init_one,
+	.remove		= oriyesco_plx_remove_one,
+	.suspend	= oriyesco_pci_suspend,
+	.resume		= oriyesco_pci_resume,
 };
 
 static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
@@ -348,19 +348,19 @@ MODULE_AUTHOR("Daniel Barlow <dan@telent.net>");
 MODULE_DESCRIPTION("Driver for wireless LAN cards using the PLX9052 PCI bridge");
 MODULE_LICENSE("Dual MPL/GPL");
 
-static int __init orinoco_plx_init(void)
+static int __init oriyesco_plx_init(void)
 {
 	printk(KERN_DEBUG "%s\n", version);
-	return pci_register_driver(&orinoco_plx_driver);
+	return pci_register_driver(&oriyesco_plx_driver);
 }
 
-static void __exit orinoco_plx_exit(void)
+static void __exit oriyesco_plx_exit(void)
 {
-	pci_unregister_driver(&orinoco_plx_driver);
+	pci_unregister_driver(&oriyesco_plx_driver);
 }
 
-module_init(orinoco_plx_init);
-module_exit(orinoco_plx_exit);
+module_init(oriyesco_plx_init);
+module_exit(oriyesco_plx_exit);
 
 /*
  * Local variables:

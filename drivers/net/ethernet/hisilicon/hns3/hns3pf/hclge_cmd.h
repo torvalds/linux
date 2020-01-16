@@ -345,7 +345,7 @@ struct hclge_ctrl_vector_chain_cmd {
 };
 
 #define HCLGE_MAX_TC_NUM		8
-#define HCLGE_TC0_PRI_BUF_EN_B	15 /* Bit 15 indicate enable or not */
+#define HCLGE_TC0_PRI_BUF_EN_B	15 /* Bit 15 indicate enable or yest */
 #define HCLGE_BUF_UNIT_S	7  /* Buf size is united by 128 bytes */
 struct hclge_tx_buff_alloc_cmd {
 	__le16 tx_pkt_buff[HCLGE_MAX_TC_NUM];
@@ -396,7 +396,7 @@ struct hclge_priv_buf {
 	struct hclge_waterline wl;	/* Waterline for low and high*/
 	u32 buf_size;	/* TC private buffer size */
 	u32 tx_buf_size;
-	u32 enable;	/* Enable TC private buffer or not */
+	u32 enable;	/* Enable TC private buffer or yest */
 };
 
 struct hclge_shared_buf {
@@ -1057,8 +1057,8 @@ struct hclge_get_m7_bd_cmd {
 };
 
 struct hclge_query_ppu_pf_other_int_dfx_cmd {
-	__le16 over_8bd_no_fe_qid;
-	__le16 over_8bd_no_fe_vf_id;
+	__le16 over_8bd_yes_fe_qid;
+	__le16 over_8bd_yes_fe_vf_id;
 	__le16 tso_mss_cmp_min_err_qid;
 	__le16 tso_mss_cmp_min_err_vf_id;
 	__le16 tso_mss_cmp_max_err_qid;

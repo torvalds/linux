@@ -203,7 +203,7 @@ static unsigned long kfifo_copy_from_user(struct __kfifo *fifo,
 	 */
 	smp_wmb();
 	*copied = len - ret * esize;
-	/* return the number of elements which are not copied */
+	/* return the number of elements which are yest copied */
 	return ret;
 }
 
@@ -263,7 +263,7 @@ static unsigned long kfifo_copy_to_user(struct __kfifo *fifo, void __user *to,
 	 */
 	smp_wmb();
 	*copied = len - ret * esize;
-	/* return the number of elements which are not copied */
+	/* return the number of elements which are yest copied */
 	return ret;
 }
 

@@ -110,11 +110,11 @@ static inline int inet_sdif(struct sk_buff *skb)
 /* Special input handler for packets caught by router alert option.
    They are selected only by protocol field, and then processed likely
    local ones; but only if someone wants them! Otherwise, router
-   not running rsvpd will kill RSVP.
+   yest running rsvpd will kill RSVP.
 
    It is user level problem, what it will make with them.
-   I have no idea, how it will masquearde or NAT them (it is joke, joke :-)),
-   but receiver should be enough clever f.e. to forward mtrace requests,
+   I have yes idea, how it will masquearde or NAT them (it is joke, joke :-)),
+   but receiver should be eyesugh clever f.e. to forward mtrace requests,
    sent to multicast group to reach destination designated router.
  */
 
@@ -179,7 +179,7 @@ static inline struct sk_buff *ip_fraglist_next(struct ip_fraglist_iter *iter)
 	struct sk_buff *skb = iter->frag;
 
 	iter->frag = skb->next;
-	skb_mark_not_on_list(skb);
+	skb_mark_yest_on_list(skb);
 
 	return skb;
 }
@@ -192,7 +192,7 @@ struct ip_frag_state {
 	unsigned int	left;
 	int		offset;
 	int		ptr;
-	__be16		not_last_frag;
+	__be16		yest_last_frag;
 };
 
 void ip_frag_init(struct sk_buff *skb, unsigned int hlen, unsigned int ll_rs,
@@ -263,7 +263,7 @@ struct ip_reply_arg {
 	int	    flags;
 	__wsum 	    csum;
 	int	    csumoffset; /* u16 offset of csum in iov[0].iov_base */
-				/* -1 if not needed */
+				/* -1 if yest needed */
 	int	    bound_dev_if;
 	u8  	    tos;
 	kuid_t	    uid;
@@ -391,7 +391,7 @@ static inline bool ip_is_fragment(const struct iphdr *iph)
 #include <net/dst.h>
 
 /* The function in 2.2 was invalid, producing wrong result for
- * check=0xFEFF. It was noticed by Arthur Skawina _year_ ago. --ANK(000625) */
+ * check=0xFEFF. It was yesticed by Arthur Skawina _year_ ago. --ANK(000625) */
 static inline
 int ip_decrease_ttl(struct iphdr *iph)
 {
@@ -429,7 +429,7 @@ static inline bool ip_sk_use_pmtu(const struct sock *sk)
 	return inet_sk(sk)->pmtudisc < IP_PMTUDISC_PROBE;
 }
 
-static inline bool ip_sk_ignore_df(const struct sock *sk)
+static inline bool ip_sk_igyesre_df(const struct sock *sk)
 {
 	return inet_sk(sk)->pmtudisc < IP_PMTUDISC_DO ||
 	       inet_sk(sk)->pmtudisc == IP_PMTUDISC_OMIT;
@@ -470,7 +470,7 @@ static inline void ip_fib_metrics_put(struct dst_metrics *fib_metrics)
 		kfree(fib_metrics);
 }
 
-/* ipv4 and ipv6 both use refcounted metrics if it is not the default */
+/* ipv4 and ipv6 both use refcounted metrics if it is yest the default */
 static inline
 void ip_dst_init_metrics(struct dst_entry *dst, struct dst_metrics *fib_metrics)
 {
@@ -499,10 +499,10 @@ static inline void ip_select_ident_segs(struct net *net, struct sk_buff *skb,
 {
 	struct iphdr *iph = ip_hdr(skb);
 
-	if ((iph->frag_off & htons(IP_DF)) && !skb->ignore_df) {
+	if ((iph->frag_off & htons(IP_DF)) && !skb->igyesre_df) {
 		/* This is only to work around buggy Windows95/2000
 		 * VJ compression implementations.  If the ID field
-		 * does not change, they drop every other packet in
+		 * does yest change, they drop every other packet in
 		 * a TCP stream using header compression.
 		 */
 		if (sk && inet_sk(sk)->inet_daddr) {
@@ -524,7 +524,7 @@ static inline void ip_select_ident(struct net *net, struct sk_buff *skb,
 
 static inline __wsum inet_compute_pseudo(struct sk_buff *skb, int proto)
 {
-	return csum_tcpudp_nofold(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
+	return csum_tcpudp_yesfold(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
 				  skb->len, proto, 0);
 }
 
@@ -546,7 +546,7 @@ static inline __wsum inet_gro_compute_pseudo(struct sk_buff *skb, int proto)
 {
 	const struct iphdr *iph = skb_gro_network_header(skb);
 
-	return csum_tcpudp_nofold(iph->saddr, iph->daddr,
+	return csum_tcpudp_yesfold(iph->saddr, iph->daddr,
 				  skb_gro_len(skb), proto, 0);
 }
 

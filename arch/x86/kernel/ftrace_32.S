@@ -8,7 +8,7 @@
 #include <asm/segment.h>
 #include <asm/export.h>
 #include <asm/ftrace.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <asm/frame.h>
 #include <asm/asm-offsets.h>
 
@@ -50,7 +50,7 @@ SYM_CODE_START(ftrace_caller)
 	/* Load parent ebp into edx */
 	movl	4*4(%esp), %edx
 #else
-	/* There's no frame pointer, load the appropriate stack addr instead */
+	/* There's yes frame pointer, load the appropriate stack addr instead */
 	lea	4*4(%esp), %edx
 #endif
 

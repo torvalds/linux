@@ -14,16 +14,16 @@
 
 static int get_addr_size_cells(int *addr_cells, int *size_cells)
 {
-	struct device_node *root;
+	struct device_yesde *root;
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (!root)
 		return -EINVAL;
 
 	*addr_cells = of_n_addr_cells(root);
 	*size_cells = of_n_size_cells(root);
 
-	of_node_put(root);
+	of_yesde_put(root);
 
 	return 0;
 }
@@ -51,7 +51,7 @@ static int do_get_kexec_buffer(const void *prop, int len, unsigned long *addr,
  * @addr:	On successful return, set to point to the buffer contents.
  * @size:	On successful return, set to the buffer size.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erryes on error.
  */
 int ima_get_kexec_buffer(void **addr, size_t *size)
 {
@@ -103,22 +103,22 @@ int ima_free_kexec_buffer(void)
 /**
  * remove_ima_buffer - remove the IMA buffer property and reservation from @fdt
  *
- * The IMA measurement buffer is of no use to a subsequent kernel, so we always
+ * The IMA measurement buffer is of yes use to a subsequent kernel, so we always
  * remove it from the device tree.
  */
-void remove_ima_buffer(void *fdt, int chosen_node)
+void remove_ima_buffer(void *fdt, int chosen_yesde)
 {
 	int ret, len;
 	unsigned long addr;
 	size_t size;
 	const void *prop;
 
-	prop = fdt_getprop(fdt, chosen_node, "linux,ima-kexec-buffer", &len);
+	prop = fdt_getprop(fdt, chosen_yesde, "linux,ima-kexec-buffer", &len);
 	if (!prop)
 		return;
 
 	ret = do_get_kexec_buffer(prop, len, &addr, &size);
-	fdt_delprop(fdt, chosen_node, "linux,ima-kexec-buffer");
+	fdt_delprop(fdt, chosen_yesde, "linux,ima-kexec-buffer");
 	if (ret)
 		return;
 
@@ -134,7 +134,7 @@ void remove_ima_buffer(void *fdt, int chosen_node)
  * Architectures should use this function to pass on the IMA buffer
  * information to the next kernel.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erryes on error.
  */
 int arch_ima_add_kexec_buffer(struct kimage *image, unsigned long load_addr,
 			      size_t size)
@@ -170,16 +170,16 @@ static int write_number(void *p, u64 value, int cells)
  * setup_ima_buffer - add IMA buffer information to the fdt
  * @image:		kexec image being loaded.
  * @fdt:		Flattened device tree for the next kernel.
- * @chosen_node:	Offset to the chosen node.
+ * @chosen_yesde:	Offset to the chosen yesde.
  *
- * Return: 0 on success, or negative errno on error.
+ * Return: 0 on success, or negative erryes on error.
  */
-int setup_ima_buffer(const struct kimage *image, void *fdt, int chosen_node)
+int setup_ima_buffer(const struct kimage *image, void *fdt, int chosen_yesde)
 {
 	int ret, addr_cells, size_cells, entry_size;
 	u8 value[16];
 
-	remove_ima_buffer(fdt, chosen_node);
+	remove_ima_buffer(fdt, chosen_yesde);
 	if (!image->arch.ima_buffer_size)
 		return 0;
 
@@ -201,7 +201,7 @@ int setup_ima_buffer(const struct kimage *image, void *fdt, int chosen_node)
 	if (ret)
 		return ret;
 
-	ret = fdt_setprop(fdt, chosen_node, "linux,ima-kexec-buffer", value,
+	ret = fdt_setprop(fdt, chosen_yesde, "linux,ima-kexec-buffer", value,
 			  entry_size);
 	if (ret < 0)
 		return -EINVAL;

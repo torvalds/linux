@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -67,7 +67,7 @@ struct drm_printer;
 	param(int, enable_dpcd_backlight, 0) \
 	param(char *, force_probe, CONFIG_DRM_I915_FORCE_PROBE) \
 	param(unsigned long, fake_lmem_start, 0) \
-	/* leave bools at the end to not create holes */ \
+	/* leave bools at the end to yest create holes */ \
 	param(bool, alpha_support, IS_ENABLED(CONFIG_DRM_I915_ALPHA_SUPPORT)) \
 	param(bool, enable_hangcheck, true) \
 	param(bool, prefault_disable, false) \

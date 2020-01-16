@@ -4,7 +4,7 @@
  * file, so here's a "return static buffer with printf"
  * interface for paths.
  *
- * It's obviously not thread-safe. Sue me. But it's quite
+ * It's obviously yest thread-safe. Sue me. But it's quite
  * useful for doing things like
  *
  *   f = open(mkpath("%s/%s.perf", base, name), O_RDONLY);

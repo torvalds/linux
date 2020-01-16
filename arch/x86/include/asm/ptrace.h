@@ -120,7 +120,7 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
  * register set was from protected mode with RPL-3 CS value.  This
  * tricky test checks that with one comparison.
  *
- * On x86_64, vm86 mode is mercifully nonexistent, and we don't need
+ * On x86_64, vm86 mode is mercifully yesnexistent, and we don't need
  * the extra check.
  */
 static inline int user_mode(struct pt_regs *regs)
@@ -146,8 +146,8 @@ static inline bool user_64bit_mode(struct pt_regs *regs)
 #ifdef CONFIG_X86_64
 #ifndef CONFIG_PARAVIRT_XXL
 	/*
-	 * On non-paravirt systems, this is the only long mode CPL 3
-	 * selector.  We do not allow long mode selectors in the LDT.
+	 * On yesn-paravirt systems, this is the only long mode CPL 3
+	 * selector.  We do yest allow long mode selectors in the LDT.
 	 */
 	return regs->cs == __USER_CS;
 #else
@@ -236,7 +236,7 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
  * @addr:	address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If yest, returns false.
  */
 static inline int regs_within_kernel_stack(struct pt_regs *regs,
 					   unsigned long addr)
@@ -340,8 +340,8 @@ static inline unsigned long regs_get_kernel_argument(struct pt_regs *regs,
 #define ARCH_HAS_USER_SINGLE_STEP_REPORT
 
 /*
- * When hitting ptrace_stop(), we cannot return using SYSRET because
- * that does not restore the full CPU state, only a minimal set.  The
+ * When hitting ptrace_stop(), we canyest return using SYSRET because
+ * that does yest restore the full CPU state, only a minimal set.  The
  * ptracer can change arbitrary register values, which is usually okay
  * because the usual ptrace stops run off the signal delivery path which
  * forces IRET; however, ptrace_event() stops happen in arbitrary places

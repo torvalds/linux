@@ -1197,7 +1197,7 @@ static int tscs42xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	int ret;
 
-	/* Slave mode not supported since it needs always-on frame clock */
+	/* Slave mode yest supported since it needs always-on frame clock */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
 		ret = snd_soc_component_update_bits(component,
@@ -1358,12 +1358,12 @@ static const struct snd_soc_component_driver soc_codec_dev_tscs42xx = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static inline void init_coeff_ram_cache(struct tscs42xx *tscs42xx)
 {
-	static const u8 norm_addrs[] = {
+	static const u8 yesrm_addrs[] = {
 		0x00, 0x05, 0x0a, 0x0f, 0x14, 0x19, 0x1f, 0x20, 0x25, 0x2a,
 		0x2f, 0x34, 0x39, 0x3f, 0x40, 0x45, 0x4a, 0x4f, 0x54, 0x59,
 		0x5f, 0x60, 0x65, 0x6a, 0x6f, 0x74, 0x79, 0x7f, 0x80, 0x85,
@@ -1373,8 +1373,8 @@ static inline void init_coeff_ram_cache(struct tscs42xx *tscs42xx)
 	u8 *coeff_ram = tscs42xx->coeff_ram;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(norm_addrs); i++)
-		coeff_ram[((norm_addrs[i] + 1) * COEFF_SIZE) - 1] = 0x40;
+	for (i = 0; i < ARRAY_SIZE(yesrm_addrs); i++)
+		coeff_ram[((yesrm_addrs[i] + 1) * COEFF_SIZE) - 1] = 0x40;
 }
 
 #define TSCS42XX_RATES SNDRV_PCM_RATE_8000_96000

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,7 +23,7 @@
 /*
  * This header file contains mode setting related functions and definitions
  * which are only used within the drm kms helper module as internal
- * implementation details and are not exported to drivers.
+ * implementation details and are yest exported to drivers.
  */
 
 #include <drm/drm_connector.h>
@@ -46,8 +46,8 @@ static inline int drm_fb_helper_modinit(void)
 #ifdef CONFIG_DRM_DP_AUX_CHARDEV
 int drm_dp_aux_dev_init(void);
 void drm_dp_aux_dev_exit(void);
-int drm_dp_aux_register_devnode(struct drm_dp_aux *aux);
-void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux);
+int drm_dp_aux_register_devyesde(struct drm_dp_aux *aux);
+void drm_dp_aux_unregister_devyesde(struct drm_dp_aux *aux);
 #else
 static inline int drm_dp_aux_dev_init(void)
 {
@@ -58,12 +58,12 @@ static inline void drm_dp_aux_dev_exit(void)
 {
 }
 
-static inline int drm_dp_aux_register_devnode(struct drm_dp_aux *aux)
+static inline int drm_dp_aux_register_devyesde(struct drm_dp_aux *aux)
 {
 	return 0;
 }
 
-static inline void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux)
+static inline void drm_dp_aux_unregister_devyesde(struct drm_dp_aux *aux)
 {
 }
 #endif

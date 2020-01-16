@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -29,7 +29,7 @@
 #include "outp.h"
 
 #include <core/client.h>
-#include <core/notify.h>
+#include <core/yestify.h>
 #include <core/oproxy.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
@@ -59,20 +59,20 @@ nvkm_disp_vblank_init(struct nvkm_event *event, int type, int id)
 
 static int
 nvkm_disp_vblank_ctor(struct nvkm_object *object, void *data, u32 size,
-		      struct nvkm_notify *notify)
+		      struct nvkm_yestify *yestify)
 {
 	struct nvkm_disp *disp =
-		container_of(notify->event, typeof(*disp), vblank);
+		container_of(yestify->event, typeof(*disp), vblank);
 	union {
-		struct nvif_notify_head_req_v0 v0;
+		struct nvif_yestify_head_req_v0 v0;
 	} *req = data;
 	int ret = -ENOSYS;
 
 	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, false))) {
-		notify->size = sizeof(struct nvif_notify_head_rep_v0);
+		yestify->size = sizeof(struct nvif_yestify_head_rep_v0);
 		if (ret = -ENXIO, req->v0.head <= disp->vblank.index_nr) {
-			notify->types = 1;
-			notify->index = req->v0.head;
+			yestify->types = 1;
+			yestify->index = req->v0.head;
 			return 0;
 		}
 	}
@@ -90,29 +90,29 @@ nvkm_disp_vblank_func = {
 void
 nvkm_disp_vblank(struct nvkm_disp *disp, int head)
 {
-	struct nvif_notify_head_rep_v0 rep = {};
+	struct nvif_yestify_head_rep_v0 rep = {};
 	nvkm_event_send(&disp->vblank, 1, head, &rep, sizeof(rep));
 }
 
 static int
 nvkm_disp_hpd_ctor(struct nvkm_object *object, void *data, u32 size,
-		   struct nvkm_notify *notify)
+		   struct nvkm_yestify *yestify)
 {
 	struct nvkm_disp *disp =
-		container_of(notify->event, typeof(*disp), hpd);
+		container_of(yestify->event, typeof(*disp), hpd);
 	union {
-		struct nvif_notify_conn_req_v0 v0;
+		struct nvif_yestify_conn_req_v0 v0;
 	} *req = data;
 	struct nvkm_outp *outp;
 	int ret = -ENOSYS;
 
 	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, false))) {
-		notify->size = sizeof(struct nvif_notify_conn_rep_v0);
+		yestify->size = sizeof(struct nvif_yestify_conn_rep_v0);
 		list_for_each_entry(outp, &disp->outp, head) {
 			if (ret = -ENXIO, outp->conn->index == req->v0.conn) {
 				if (ret = -ENODEV, outp->conn->hpd.event) {
-					notify->types = req->v0.mask;
-					notify->index = req->v0.conn;
+					yestify->types = req->v0.mask;
+					yestify->index = req->v0.conn;
 					ret = 0;
 				}
 				break;
@@ -256,7 +256,7 @@ nvkm_disp_init(struct nvkm_engine *engine)
 			return ret;
 	}
 
-	/* Set 'normal' (ie. when it's attached to a head) state for
+	/* Set 'yesrmal' (ie. when it's attached to a head) state for
 	 * each output resource to 'fully enabled'.
 	 */
 	list_for_each_entry(ior, &disp->ior, head) {
@@ -308,7 +308,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 			ret = -ENODEV;
 			continue;
 		default:
-			nvkm_warn(subdev, "dcb %d type %d unknown\n",
+			nvkm_warn(subdev, "dcb %d type %d unkyeswn\n",
 				  i, dcbE.type);
 			continue;
 		}
@@ -318,7 +318,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 				if (ret != -ENODEV)
 					OUTP_ERR(outp, "ctor failed: %d", ret);
 				else
-					OUTP_DBG(outp, "not supported");
+					OUTP_DBG(outp, "yest supported");
 				nvkm_outp_del(&outp);
 				continue;
 			}
@@ -353,7 +353,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 				}
 			}
 
-			/* Connector shared with another output path. */
+			/* Connector shared with ayesther output path. */
 			if (outp->conn)
 				continue;
 

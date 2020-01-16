@@ -11,12 +11,12 @@
 
 #include <linux/refcount.h>
 
-/* Generic bits for GMAP notification on DAT table entry changes. */
+/* Generic bits for GMAP yestification on DAT table entry changes. */
 #define GMAP_NOTIFY_SHADOW	0x2
 #define GMAP_NOTIFY_MPROT	0x1
 
 /* Status bits only for huge segment entries */
-#define _SEGMENT_ENTRY_GMAP_IN		0x8000	/* invalidation notify bit */
+#define _SEGMENT_ENTRY_GMAP_IN		0x8000	/* invalidation yestify bit */
 #define _SEGMENT_ENTRY_GMAP_UC		0x4000	/* dirty (migration) */
 
 /**
@@ -83,13 +83,13 @@ struct gmap_rmap {
 	for (pos = (head); n = pos ? pos->next : NULL, pos; pos = n)
 
 /**
- * struct gmap_notifier - notify function block for page invalidation
- * @notifier_call: address of callback function
+ * struct gmap_yestifier - yestify function block for page invalidation
+ * @yestifier_call: address of callback function
  */
-struct gmap_notifier {
+struct gmap_yestifier {
 	struct list_head list;
 	struct rcu_head rcu;
-	void (*notifier_call)(struct gmap *gmap, unsigned long start,
+	void (*yestifier_call)(struct gmap *gmap, unsigned long start,
 			      unsigned long end);
 };
 
@@ -134,12 +134,12 @@ int gmap_shadow_pgt_lookup(struct gmap *sg, unsigned long saddr,
 			   unsigned long *pgt, int *dat_protection, int *fake);
 int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte);
 
-void gmap_register_pte_notifier(struct gmap_notifier *);
-void gmap_unregister_pte_notifier(struct gmap_notifier *);
-void gmap_pte_notify(struct mm_struct *, unsigned long addr, pte_t *,
+void gmap_register_pte_yestifier(struct gmap_yestifier *);
+void gmap_unregister_pte_yestifier(struct gmap_yestifier *);
+void gmap_pte_yestify(struct mm_struct *, unsigned long addr, pte_t *,
 		     unsigned long bits);
 
-int gmap_mprotect_notify(struct gmap *, unsigned long start,
+int gmap_mprotect_yestify(struct gmap *, unsigned long start,
 			 unsigned long len, int prot);
 
 void gmap_sync_dirty_log_pmd(struct gmap *gmap, unsigned long dirty_bitmap[4],

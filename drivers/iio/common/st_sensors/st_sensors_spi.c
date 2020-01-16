@@ -37,7 +37,7 @@ static const struct regmap_config st_sensors_spi_regmap_multiread_bit_config = {
  */
 static bool st_sensors_is_spi_3_wire(struct spi_device *spi)
 {
-	struct device_node *np = spi->dev.of_node;
+	struct device_yesde *np = spi->dev.of_yesde;
 	struct st_sensors_platform_data *pdata;
 
 	pdata = (struct st_sensors_platform_data *)spi->dev.platform_data;

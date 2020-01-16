@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -76,8 +76,8 @@ ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
 	pending = ath5k_hw_reg_read(ah, AR5K_QUEUE_STATUS(queue));
 	pending &= AR5K_QCU_STS_FRMPENDCNT;
 
-	/* It's possible to have no frames pending even if TXE
-	 * is set. To indicate that q has not stopped return
+	/* It's possible to have yes frames pending even if TXE
+	 * is set. To indicate that q has yest stopped return
 	 * true */
 	if (!pending && AR5K_REG_READ_Q(ah, AR5K_QCU_TXE, queue))
 		return true;
@@ -121,7 +121,7 @@ ath5k_cw_validate(u16 cw_req)
 	if (is_power_of_2(cw_req))
 		return cw_req - 1;
 
-	/* If none of the above is correct
+	/* If yesne of the above is correct
 	 * find the closest power of 2 */
 	cw_req = (u16) roundup_pow_of_two(cw_req) - 1;
 
@@ -484,7 +484,7 @@ ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		AR5K_Q_ENABLE_BITS(ah->ah_txq_imr_qtrig, queue);
 
 	if (tq->tqi_flags & AR5K_TXQ_FLAG_TXNOFRMINT_ENABLE)
-		AR5K_Q_ENABLE_BITS(ah->ah_txq_imr_nofrm, queue);
+		AR5K_Q_ENABLE_BITS(ah->ah_txq_imr_yesfrm, queue);
 
 	/* Update secondary interrupt mask registers */
 
@@ -497,7 +497,7 @@ ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	ah->ah_txq_imr_cbrorn &= ah->ah_txq_status;
 	ah->ah_txq_imr_cbrurn &= ah->ah_txq_status;
 	ah->ah_txq_imr_qtrig &= ah->ah_txq_status;
-	ah->ah_txq_imr_nofrm &= ah->ah_txq_status;
+	ah->ah_txq_imr_yesfrm &= ah->ah_txq_status;
 
 	ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_txok,
 					AR5K_SIMR0_QCU_TXOK) |
@@ -527,12 +527,12 @@ ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 				AR5K_SIMR4_QTRIG), AR5K_SIMR4);
 
 	/* Set TXNOFRM_QCU for the queues with TXNOFRM enabled */
-	ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_nofrm,
+	ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_yesfrm,
 				AR5K_TXNOFRM_QCU), AR5K_TXNOFRM);
 
 	/* No queue has TXNOFRM enabled, disable the interrupt
 	 * by setting AR5K_TXNOFRM to zero */
-	if (ah->ah_txq_imr_nofrm == 0)
+	if (ah->ah_txq_imr_yesfrm == 0)
 		ath5k_hw_reg_write(ah, 0, AR5K_TXNOFRM);
 
 	/* Set QCU mask for this DCU to save power */

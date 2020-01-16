@@ -39,7 +39,7 @@ int show_unhandled_signals = 1;
  *    operation.
  *
  *    This function assumes that the given instruction is a memory access
- *    instruction (i.e. you should really only call it if you know that
+ *    instruction (i.e. you should really only call it if you kyesw that
  *    the instruction has generated some sort of a memory access fault).
  *
  * Returns:
@@ -82,7 +82,7 @@ parisc_acctyp(unsigned long code, unsigned int inst)
 			 * The significance of bits 20,21 in the FDC
 			 * instruction is:
 			 *
-			 *   00  Flush data cache (normal instruction behavior)
+			 *   00  Flush data cache (yesrmal instruction behavior)
 			 *   01  Graphics flush write  (IO space -> VM)
 			 *   10  Graphics flush read   (VM -> IO space)
 			 *   11  Graphics flush read/write (VM <-> IO space)
@@ -119,9 +119,9 @@ parisc_acctyp(unsigned long code, unsigned int inst)
 
 #if 0
 /* This is the treewalk to find a vma which is the highest that has
- * a start < addr.  We're using find_vma_prev instead right now, but
+ * a start < addr.  We're using find_vma_prev instead right yesw, but
  * we might want to use this at some point in the future.  Probably
- * not, but I want it committed to CVS so I don't lose it :-)
+ * yest, but I want it committed to CVS so I don't lose it :-)
  */
 			while (tree != vm_avl_empty) {
 				if (tree->vm_start > addr) {
@@ -223,7 +223,7 @@ const char *trap_name(unsigned long code)
 	if (code < ARRAY_SIZE(trap_description))
 		t = trap_description[code];
 
-	return t ? t : "Unknown trap";
+	return t ? t : "Unkyeswn trap";
 }
 
 /*
@@ -267,12 +267,12 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	unsigned int flags;
 
 	if (faulthandler_disabled())
-		goto no_context;
+		goto yes_context;
 
 	tsk = current;
 	mm = tsk->mm;
 	if (!mm)
-		goto no_context;
+		goto yes_context;
 
 	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 	if (user_mode(regs))
@@ -354,21 +354,21 @@ bad_area:
 	up_read(&mm->mmap_sem);
 
 	if (user_mode(regs)) {
-		int signo, si_code;
+		int sigyes, si_code;
 
 		switch (code) {
 		case 15:	/* Data TLB miss fault/Data page fault */
 			/* send SIGSEGV when outside of vma */
 			if (!vma ||
 			    address < vma->vm_start || address >= vma->vm_end) {
-				signo = SIGSEGV;
+				sigyes = SIGSEGV;
 				si_code = SEGV_MAPERR;
 				break;
 			}
 
 			/* send SIGSEGV for wrong permissions */
 			if ((vma->vm_flags & acc_type) != acc_type) {
-				signo = SIGSEGV;
+				sigyes = SIGSEGV;
 				si_code = SEGV_ACCERR;
 				break;
 			}
@@ -377,13 +377,13 @@ bad_area:
 			/* fall through */
 		case 17:	/* NA data TLB miss / page fault */
 		case 18:	/* Unaligned access - PCXS only */
-			signo = SIGBUS;
+			sigyes = SIGBUS;
 			si_code = (code == 18) ? BUS_ADRALN : BUS_ADRERR;
 			break;
 		case 16:	/* Non-access instruction TLB miss fault */
 		case 26:	/* PCXL: Data memory access rights trap */
 		default:
-			signo = SIGSEGV;
+			sigyes = SIGSEGV;
 			si_code = (code == 26) ? SEGV_ACCERR : SEGV_MAPERR;
 			break;
 		}
@@ -410,11 +410,11 @@ bad_area:
 #endif
 		show_signal_msg(regs, code, address, tsk, vma);
 
-		force_sig_fault(signo, si_code, (void __user *) address);
+		force_sig_fault(sigyes, si_code, (void __user *) address);
 		return;
 	}
 
-no_context:
+yes_context:
 
 	if (!user_mode(regs) && fixup_exception(regs)) {
 		return;
@@ -425,6 +425,6 @@ no_context:
   out_of_memory:
 	up_read(&mm->mmap_sem);
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	pagefault_out_of_memory();
 }

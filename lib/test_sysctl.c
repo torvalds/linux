@@ -17,7 +17,7 @@
 
 /*
  * This module provides an interface to the the proc sysctl interfaces.  This
- * driver requires CONFIG_PROC_SYSCTL. It will not normally be loaded by the
+ * driver requires CONFIG_PROC_SYSCTL. It will yest yesrmally be loaded by the
  * system unless explicitly requested by name. You can also build this driver
  * into your kernel.
  */
@@ -63,7 +63,7 @@ static struct test_sysctl_data test_data = {
 
 	.uint_0001 = 314,
 
-	.string_0001 = "(none)",
+	.string_0001 = "(yesne)",
 };
 
 /* These are all under /proc/sys/debug/test_sysctl/ */

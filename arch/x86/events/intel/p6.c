@@ -117,7 +117,7 @@ static u64 p6_pmu_event_map(int hw_event)
 }
 
 /*
- * Event setting that is specified not to count anything.
+ * Event setting that is specified yest to count anything.
  * We use this to effectively disable a counter.
  *
  * L2_RQSTS with 0 MESI unit mask.
@@ -255,7 +255,7 @@ __init int p6_pmu_init(void)
 
 	case  3: /* Pentium II - Klamath */
 	case  5: /* Pentium II - Deschutes */
-	case  6: /* Pentium II - Mendocino */
+	case  6: /* Pentium II - Mendociyes */
 		break;
 
 	case  7: /* Pentium III - Katmai */

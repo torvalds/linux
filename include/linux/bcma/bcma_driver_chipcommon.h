@@ -233,7 +233,7 @@
 #define  BCMA_CC_SLOWCLKCTL_LPOFREQ	0x00000200	/* LPOFreqSel, 1: 160Khz, 0: 32KHz */
 #define  BCMA_CC_SLOWCLKCTL_LPOPD	0x00000400	/* LPOPowerDown, 1: LPO is disabled, 0: LPO is enabled */
 #define  BCMA_CC_SLOWCLKCTL_FSLOW	0x00000800	/* ForceSlowClk, 1: sb/cores running on slow clock, 0: power logic control */
-#define  BCMA_CC_SLOWCLKCTL_IPLL	0x00001000	/* IgnorePllOffReq, 1/0: power logic ignores/honors PLL clock disable requests from core */
+#define  BCMA_CC_SLOWCLKCTL_IPLL	0x00001000	/* IgyesrePllOffReq, 1/0: power logic igyesres/hoyesrs PLL clock disable requests from core */
 #define  BCMA_CC_SLOWCLKCTL_ENXTAL	0x00002000	/* XtalControlEn, 1/0: power logic does/doesn't disable crystal when appropriate */
 #define  BCMA_CC_SLOWCLKCTL_XTALPU	0x00004000	/* XtalPU (RO), 1/0: crystal running/disabled */
 #define  BCMA_CC_SLOWCLKCTL_CLKDIV	0xFFFF0000	/* ClockDivider (SlowClk = 1/(4+divisor)) */
@@ -242,7 +242,7 @@
 #define	 BCMA_CC_SYSCLKCTL_IDLPEN	0x00000001	/* ILPen: Enable Idle Low Power */
 #define	 BCMA_CC_SYSCLKCTL_ALPEN	0x00000002	/* ALPen: Enable Active Low Power */
 #define	 BCMA_CC_SYSCLKCTL_PLLEN	0x00000004	/* ForcePLLOn */
-#define	 BCMA_CC_SYSCLKCTL_FORCEALP	0x00000008	/* Force ALP (or HT if ALPen is not set */
+#define	 BCMA_CC_SYSCLKCTL_FORCEALP	0x00000008	/* Force ALP (or HT if ALPen is yest set */
 #define	 BCMA_CC_SYSCLKCTL_FORCEHT	0x00000010	/* Force HT */
 #define  BCMA_CC_SYSCLKCTL_CLKDIV	0xFFFF0000	/* ClkDiv  (ILP = 1/(4+divisor)) */
 #define  BCMA_CC_SYSCLKCTL_CLKDIV_SHIFT	16

@@ -244,7 +244,7 @@ static enum hrtimer_restart ec_bhf_timer_fun(struct hrtimer *timer)
 	if (!netif_running(priv->net_dev))
 		return HRTIMER_NORESTART;
 
-	hrtimer_forward_now(timer, polling_frequency);
+	hrtimer_forward_yesw(timer, polling_frequency);
 	return HRTIMER_RESTART;
 }
 
@@ -262,7 +262,7 @@ static int ec_bhf_setup_offsets(struct ec_bhf_priv *priv)
 			break;
 	}
 	if (i == block_count) {
-		dev_err(dev, "EtherCAT master with DMA block not found\n");
+		dev_err(dev, "EtherCAT master with DMA block yest found\n");
 		return -ENODEV;
 	}
 
@@ -491,7 +491,7 @@ static int ec_bhf_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	err = pci_set_dma_mask(dev, DMA_BIT_MASK(32));
 	if (err) {
 		dev_err(&dev->dev,
-			"Required dma mask not supported, failed to initialize device\n");
+			"Required dma mask yest supported, failed to initialize device\n");
 		err = -EIO;
 		goto err_disable_dev;
 	}
@@ -499,7 +499,7 @@ static int ec_bhf_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	err = pci_set_consistent_dma_mask(dev, DMA_BIT_MASK(32));
 	if (err) {
 		dev_err(&dev->dev,
-			"Required dma mask not supported, failed to initialize device\n");
+			"Required dma mask yest supported, failed to initialize device\n");
 		goto err_disable_dev;
 	}
 

@@ -122,7 +122,7 @@ struct skl_dev;
 /* DSP Core state */
 enum skl_dsp_states {
 	SKL_DSP_RUNNING = 1,
-	/* Running in D0i3 state; can be in streaming or non-streaming D0i3 */
+	/* Running in D0i3 state; can be in streaming or yesn-streaming D0i3 */
 	SKL_DSP_RUNNING_D0I3, /* Running in D0i3 state*/
 	SKL_DSP_RESET,
 };

@@ -15,7 +15,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -133,7 +133,7 @@ static void xenvif_rx_queue_drop_expired(struct xenvif_queue *queue)
 static void xenvif_rx_copy_flush(struct xenvif_queue *queue)
 {
 	unsigned int i;
-	int notify;
+	int yestify;
 
 	gnttab_batch_copy(queue->rx_copy.op, queue->rx_copy.num);
 
@@ -157,9 +157,9 @@ static void xenvif_rx_copy_flush(struct xenvif_queue *queue)
 	queue->rx_copy.num = 0;
 
 	/* Push responses for all completed packets. */
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->rx, notify);
-	if (notify)
-		notify_remote_via_irq(queue->rx_irq);
+	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->rx, yestify);
+	if (yestify)
+		yestify_remote_via_irq(queue->rx_irq);
 
 	__skb_queue_purge(queue->rx_copy.completed);
 }
@@ -516,11 +516,11 @@ static long xenvif_rx_queue_timeout(struct xenvif_queue *queue)
 /* Wait until the guest Rx thread has work.
  *
  * The timeout needs to be adjusted based on the current head of the
- * queue (and not just the head at the beginning).  In particular, if
+ * queue (and yest just the head at the beginning).  In particular, if
  * the queue is initially empty an infinite timeout is used and this
  * needs to be reduced when a skb is queued.
  *
- * This cannot be done with wait_event_timeout() because it only
+ * This canyest be done with wait_event_timeout() because it only
  * calculates the timeout once.
  */
 static void xenvif_wait_for_rx_work(struct xenvif_queue *queue)
@@ -591,7 +591,7 @@ int xenvif_kthread_guest_rx(void *data)
 		/* This frontend is found to be rogue, disable it in
 		 * kthread context. Currently this is only set when
 		 * netback finds out frontend sends malformed packet,
-		 * but we cannot disable the interface in softirq
+		 * but we canyest disable the interface in softirq
 		 * context so we defer it here, if this thread is
 		 * associated with queue 0.
 		 */
@@ -604,7 +604,7 @@ int xenvif_kthread_guest_rx(void *data)
 			xenvif_rx_action(queue);
 
 		/* If the guest hasn't provided any Rx slots for a
-		 * while it's probably not responsive, drop the
+		 * while it's probably yest responsive, drop the
 		 * carrier so packets are dropped earlier.
 		 */
 		if (vif->stall_timeout) {
@@ -615,7 +615,7 @@ int xenvif_kthread_guest_rx(void *data)
 		}
 
 		/* Queued packets may have foreign pages from other
-		 * domains.  These cannot be queued indefinitely as
+		 * domains.  These canyest be queued indefinitely as
 		 * this would starve guests of grant refs and transmit
 		 * slots.
 		 */

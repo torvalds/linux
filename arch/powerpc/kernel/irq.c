@@ -90,7 +90,7 @@ u32 tau_interrupts(unsigned long cpu);
 
 int distribute_irqs = 1;
 
-static inline notrace unsigned long get_irq_happened(void)
+static inline yestrace unsigned long get_irq_happened(void)
 {
 	unsigned long happened;
 
@@ -100,16 +100,16 @@ static inline notrace unsigned long get_irq_happened(void)
 	return happened;
 }
 
-static inline notrace int decrementer_check_overflow(void)
+static inline yestrace int decrementer_check_overflow(void)
 {
- 	u64 now = get_tb_or_rtc();
+ 	u64 yesw = get_tb_or_rtc();
 	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
  
-	return now >= *next_tb;
+	return yesw >= *next_tb;
 }
 
 /* This is called whenever we are re-enabling interrupts
- * and returns either 0 (nothing to do) or 500/900/280/a00/e80 if
+ * and returns either 0 (yesthing to do) or 500/900/280/a00/e80 if
  * there's an EE, DEC or DBELL to generate.
  *
  * This is called in two contexts: From arch_local_irq_restore()
@@ -122,7 +122,7 @@ static inline notrace int decrementer_check_overflow(void)
  * PACA irq_happened field since we can only re-emit one at a
  * time and we don't want to "lose" one.
  */
-notrace unsigned int __check_irq_replay(void)
+yestrace unsigned int __check_irq_replay(void)
 {
 	/*
 	 * We use local_paca rather than get_paca() to avoid all
@@ -140,7 +140,7 @@ notrace unsigned int __check_irq_replay(void)
 
 	/*
 	 * We are always hard disabled here, but PACA_IRQ_HARD_DIS may
-	 * not be set, which means interrupts have only just been hard
+	 * yest be set, which means interrupts have only just been hard
 	 * disabled as part of the local_irq_restore or interrupt return
 	 * code. In that case, skip the decrementr check becaus it's
 	 * expensive to read the TB.
@@ -204,7 +204,7 @@ notrace unsigned int __check_irq_replay(void)
 #ifdef CONFIG_PPC_BOOK3E
 	/*
 	 * Check if an EPR external interrupt happened this bit is typically
-	 * set if we need to handle another "edge" interrupt from within the
+	 * set if we need to handle ayesther "edge" interrupt from within the
 	 * MPIC "EPR" handler.
 	 */
 	if (happened & PACA_IRQ_EE_EDGE) {
@@ -223,13 +223,13 @@ notrace unsigned int __check_irq_replay(void)
 	}
 #endif /* CONFIG_PPC_BOOK3E */
 
-	/* There should be nothing left ! */
+	/* There should be yesthing left ! */
 	BUG_ON(local_paca->irq_happened != 0);
 
 	return 0;
 }
 
-notrace void arch_local_irq_restore(unsigned long mask)
+yestrace void arch_local_irq_restore(unsigned long mask)
 {
 	unsigned char irq_happened;
 	unsigned int replay;
@@ -242,15 +242,15 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	/*
 	 * From this point onward, we can take interrupts, preempt,
 	 * etc... unless we got hard-disabled. We check if an event
-	 * happened. If none happened, we know we can just return.
+	 * happened. If yesne happened, we kyesw we can just return.
 	 *
 	 * We may have preempted before the check below, in which case
 	 * we are checking the "new" CPU instead of the old one. This
 	 * is only a problem if an event happened on the "old" CPU.
 	 *
 	 * External interrupt events will have caused interrupts to
-	 * be hard-disabled, so there is no problem, we
-	 * cannot have preempted.
+	 * be hard-disabled, so there is yes problem, we
+	 * canyest have preempted.
 	 */
 	irq_happened = get_irq_happened();
 	if (!irq_happened) {
@@ -294,7 +294,7 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	 */
 	replay = __check_irq_replay();
 
-	/* We can soft-enable now */
+	/* We can soft-enable yesw */
 	trace_hardirqs_on();
 	irq_soft_mask_set(IRQS_ENABLED);
 
@@ -318,10 +318,10 @@ EXPORT_SYMBOL(arch_local_irq_restore);
  * schedule() or do_signal() when returning to userspace. We do it
  * in C to avoid the burden of dealing with lockdep etc...
  *
- * NOTE: This is called with interrupts hard disabled but not marked
+ * NOTE: This is called with interrupts hard disabled but yest marked
  * as such in paca->irq_happened, so we need to resync this.
  */
-void notrace restore_interrupts(void)
+void yestrace restore_interrupts(void)
 {
 	if (irqs_disabled()) {
 		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
@@ -339,7 +339,7 @@ void notrace restore_interrupts(void)
  * already the case when ppc_md.power_save is called). The function
  * will return whether to enter power save or just return.
  *
- * In the former case, it will have notified lockdep of interrupts
+ * In the former case, it will have yestified lockdep of interrupts
  * being re-enabled and generally sanitized the lazy irq state,
  * and in the latter case it will leave with interrupts hard
  * disabled and marked as such, so the local_irq_enable() call
@@ -348,7 +348,7 @@ void notrace restore_interrupts(void)
 bool prep_irq_for_idle(void)
 {
 	/*
-	 * First we need to hard disable to ensure no interrupt
+	 * First we need to hard disable to ensure yes interrupt
 	 * occurs before we effectively enter the low power state
 	 */
 	__hard_irq_disable();
@@ -356,7 +356,7 @@ bool prep_irq_for_idle(void)
 
 	/*
 	 * If anything happened while we were soft-disabled,
-	 * we return now and do not enter the low power state.
+	 * we return yesw and do yest enter the low power state.
 	 */
 	if (lazy_irq_pending())
 		return false;
@@ -381,7 +381,7 @@ bool prep_irq_for_idle(void)
 /*
  * This is for idle sequences that return with IRQs off, but the
  * idle state itself wakes on interrupt. Tell the irq tracer that
- * IRQs are enabled for the duration of idle so it does not get long
+ * IRQs are enabled for the duration of idle so it does yest get long
  * off times. Must be paired with fini_irq_for_idle_irqsoff.
  */
 bool prep_irq_for_idle_irqsoff(void)
@@ -389,7 +389,7 @@ bool prep_irq_for_idle_irqsoff(void)
 	WARN_ON(!irqs_disabled());
 
 	/*
-	 * First we need to hard disable to ensure no interrupt
+	 * First we need to hard disable to ensure yes interrupt
 	 * occurs before we effectively enter the low power state
 	 */
 	__hard_irq_disable();
@@ -397,7 +397,7 @@ bool prep_irq_for_idle_irqsoff(void)
 
 	/*
 	 * If anything happened while we were soft-disabled,
-	 * we return now and do not enter the low power state.
+	 * we return yesw and do yest enter the low power state.
 	 */
 	if (lazy_irq_pending())
 		return false;
@@ -413,7 +413,7 @@ bool prep_irq_for_idle_irqsoff(void)
  * appropriate irq_happened bit.
  *
  * Sytem reset exceptions taken in idle state also come through here,
- * but they are NMI interrupts so do not need to wait for IRQs to be
+ * but they are NMI interrupts so do yest need to wait for IRQs to be
  * restored, and should be taken as early as practical. These are marked
  * with 0xff in the table. The Power ISA specifies 0100b as the system
  * reset interrupt reason.
@@ -450,8 +450,8 @@ void irq_set_pending_from_srr1(unsigned long srr1)
 	u8 reason = srr1_to_lazyirq[idx];
 
 	/*
-	 * Take the system reset now, which is immediately after registers
-	 * are restored from idle. It's an NMI, so interrupts need not be
+	 * Take the system reset yesw, which is immediately after registers
+	 * are restored from idle. It's an NMI, so interrupts need yest be
 	 * re-enabled before it is taken.
 	 */
 	if (unlikely(reason == IRQ_SYSTEM_RESET)) {
@@ -462,11 +462,11 @@ void irq_set_pending_from_srr1(unsigned long srr1)
 	/*
 	 * The 0 index (SRR1[42:45]=b0000) must always evaluate to 0,
 	 * so this can be called unconditionally with the SRR1 wake
-	 * reason as returned by the idle code, which uses 0 to mean no
+	 * reason as returned by the idle code, which uses 0 to mean yes
 	 * interrupt.
 	 *
 	 * If a future CPU was to designate this as an interrupt reason,
-	 * then a new index for no interrupt must be assigned.
+	 * then a new index for yes interrupt must be assigned.
 	 */
 	local_paca->irq_happened |= reason;
 }
@@ -626,7 +626,7 @@ void __do_irq(struct pt_regs *regs)
 	 */
 	irq = ppc_md.get_irq();
 
-	/* We can hard enable interrupts now to allow perf interrupts */
+	/* We can hard enable interrupts yesw to allow perf interrupts */
 	may_hard_irq_enable();
 
 	/* And finally process it */
@@ -728,11 +728,11 @@ int irq_choose_cpu(const struct cpumask *mask)
 #endif
 
 #ifdef CONFIG_PPC64
-static int __init setup_noirqdistrib(char *str)
+static int __init setup_yesirqdistrib(char *str)
 {
 	distribute_irqs = 0;
 	return 1;
 }
 
-__setup("noirqdistrib", setup_noirqdistrib);
+__setup("yesirqdistrib", setup_yesirqdistrib);
 #endif /* CONFIG_PPC64 */

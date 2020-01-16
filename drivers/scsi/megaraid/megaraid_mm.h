@@ -42,7 +42,7 @@
  * @fca		:
  * @opcode	:
  * @subopcode	:
- * @adapno	:
+ * @adapyes	:
  * @buffer	:
  * @pad		:
  * @length	:
@@ -67,7 +67,7 @@ typedef struct mimd {
 		struct {
 			uint8_t opcode;
 			uint8_t subopcode;
-			uint16_t adapno;
+			uint16_t adapyes;
 #if BITS_PER_LONG == 32
 			uint8_t __user *buffer;
 			uint8_t pad[4];

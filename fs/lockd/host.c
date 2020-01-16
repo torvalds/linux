@@ -58,7 +58,7 @@ struct nlm_lookup_host_info {
 	const u32		version;	/* NLM version to search for */
 	const char		*hostname;	/* remote's hostname */
 	const size_t		hostname_len;	/* it's length */
-	const int		noresvport;	/* use non-priv port */
+	const int		yesresvport;	/* use yesn-priv port */
 	struct net		*net;		/* network namespace to bind */
 	const struct cred	*cred;
 };
@@ -112,7 +112,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 				       struct nsm_handle *nsm)
 {
 	struct nlm_host *host = NULL;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 
 	if (nsm != NULL)
 		refcount_inc(&nsm->sm_count);
@@ -121,7 +121,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 		nsm = nsm_get_handle(ni->net, ni->sap, ni->salen,
 					ni->hostname, ni->hostname_len);
 		if (unlikely(nsm == NULL)) {
-			dprintk("lockd: %s failed; no nsm handle\n",
+			dprintk("lockd: %s failed; yes nsm handle\n",
 				__func__);
 			goto out;
 		}
@@ -129,7 +129,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 
 	host = kmalloc(sizeof(*host), GFP_KERNEL);
 	if (unlikely(host == NULL)) {
-		dprintk("lockd: %s failed; no memory\n", __func__);
+		dprintk("lockd: %s failed; yes memory\n", __func__);
 		nsm_release(nsm);
 		goto out;
 	}
@@ -145,7 +145,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	host->h_proto      = ni->protocol;
 	host->h_reclaiming = 0;
 	host->h_server     = ni->server;
-	host->h_noresvport = ni->noresvport;
+	host->h_yesresvport = ni->yesresvport;
 	host->h_inuse      = 0;
 	init_waitqueue_head(&host->h_gracewait);
 	init_rwsem(&host->h_rwsem);
@@ -154,8 +154,8 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	host->h_pidcount   = 0;
 	refcount_set(&host->h_count, 1);
 	mutex_init(&host->h_mutex);
-	host->h_nextrebind = now + NLM_HOST_REBIND;
-	host->h_expires    = now + NLM_HOST_EXPIRE;
+	host->h_nextrebind = yesw + NLM_HOST_REBIND;
+	host->h_expires    = yesw + NLM_HOST_EXPIRE;
 	INIT_LIST_HEAD(&host->h_lockowners);
 	spin_lock_init(&host->h_lock);
 	INIT_LIST_HEAD(&host->h_granted);
@@ -164,7 +164,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	host->h_addrbuf    = nsm->sm_addrbuf;
 	host->net	   = ni->net;
 	host->h_cred	   = get_cred(ni->cred),
-	strlcpy(host->nodename, utsname()->nodename, sizeof(host->nodename));
+	strlcpy(host->yesdename, utsname()->yesdename, sizeof(host->yesdename));
 
 out:
 	return host;
@@ -204,7 +204,7 @@ static void nlm_destroy_host_locked(struct nlm_host *host)
  * @protocol: transport protocol to use
  * @version: NLM protocol version
  * @hostname: '\0'-terminated hostname of server
- * @noresvport: 1 if non-privileged port should be used
+ * @yesresvport: 1 if yesn-privileged port should be used
  * @net: pointer to net namespace
  * @cred: pointer to cred
  *
@@ -218,7 +218,7 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 				     const unsigned short protocol,
 				     const u32 version,
 				     const char *hostname,
-				     int noresvport,
+				     int yesresvport,
 				     struct net *net,
 				     const struct cred *cred)
 {
@@ -230,7 +230,7 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 		.version	= version,
 		.hostname	= hostname,
 		.hostname_len	= strlen(hostname),
-		.noresvport	= noresvport,
+		.yesresvport	= yesresvport,
 		.net		= net,
 		.cred		= cred,
 	};
@@ -240,7 +240,7 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	dprintk("lockd: %s(host='%s', vers=%u, proto=%s)\n", __func__,
-			(hostname ? hostname : "<none>"), version,
+			(hostname ? hostname : "<yesne>"), version,
 			(protocol == IPPROTO_UDP ? "udp" : "tcp"));
 
 	mutex_lock(&nlm_host_mutex);
@@ -476,7 +476,7 @@ nlm_bind_host(struct nlm_host *host)
 		 */
 		if (!host->h_server)
 			args.flags |= RPC_CLNT_CREATE_HARDRTRY;
-		if (host->h_noresvport)
+		if (host->h_yesresvport)
 			args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 		if (host->h_srcaddrlen)
 			args.saddress = nlm_srcaddr(host);
@@ -549,7 +549,7 @@ static struct nlm_host *next_host_state(struct hlist_head *cache,
  * @net:  network namespace
  * @info: pointer to decoded results of NLM_SM_NOTIFY call
  *
- * We were notified that the specified host has rebooted.  Release
+ * We were yestified that the specified host has rebooted.  Release
  * all resources held by that peer.
  */
 void nlm_host_rebooted(const struct net *net, const struct nlm_reboot *info)
@@ -655,7 +655,7 @@ static void
 nlm_gc_hosts(struct net *net)
 {
 	struct hlist_head *chain;
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 	struct nlm_host	*host;
 
 	dprintk("lockd: host garbage collection for net %x\n",

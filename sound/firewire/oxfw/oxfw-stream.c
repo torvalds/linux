@@ -176,9 +176,9 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	}
 
 	/*
-	 * OXFW starts to transmit packets with non-zero dbc.
-	 * OXFW postpone transferring packets till handling any asynchronous
-	 * packets. As a result, next isochronous packet includes more data
+	 * OXFW starts to transmit packets with yesn-zero dbc.
+	 * OXFW postpone transferring packets till handling any asynchroyesus
+	 * packets. As a result, next isochroyesus packet includes more data
 	 * blocks than IEC 61883-6 defines.
 	 */
 	if (stream == &oxfw->tx_stream) {
@@ -565,7 +565,7 @@ int snd_oxfw_stream_parse_format(u8 *format,
 		/* Don't care */
 		case 0xff:
 		default:
-			return -ENOSYS;	/* not supported */
+			return -ENOSYS;	/* yest supported */
 		}
 	}
 
@@ -657,7 +657,7 @@ static int fill_stream_formats(struct snd_oxfw *oxfw,
 	len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
 	err = avc_stream_get_format_list(oxfw->unit, dir, 0, buf, &len, 0);
 	if (err == -ENOSYS) {
-		/* LIST subfunction is not implemented */
+		/* LIST subfunction is yest implemented */
 		len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
 		err = assume_stream_formats(oxfw, dir, pid, buf, &len,
 					    formats);

@@ -210,24 +210,24 @@ static inline void hpre_remove_from_list(struct hpre *hpre)
 	mutex_unlock(&hpre_list_lock);
 }
 
-struct hpre *hpre_find_device(int node)
+struct hpre *hpre_find_device(int yesde)
 {
 	struct hpre *hpre, *ret = NULL;
 	int min_distance = INT_MAX;
 	struct device *dev;
-	int dev_node = 0;
+	int dev_yesde = 0;
 
 	mutex_lock(&hpre_list_lock);
 	list_for_each_entry(hpre, &hpre_list, list) {
 		dev = &hpre->qm.pdev->dev;
 #ifdef CONFIG_NUMA
-		dev_node = dev->numa_node;
-		if (dev_node < 0)
-			dev_node = 0;
+		dev_yesde = dev->numa_yesde;
+		if (dev_yesde < 0)
+			dev_yesde = 0;
 #endif
-		if (node_distance(dev_node, node) < min_distance) {
+		if (yesde_distance(dev_yesde, yesde) < min_distance) {
 			ret = hpre;
-			min_distance = node_distance(dev_node, node);
+			min_distance = yesde_distance(dev_yesde, yesde);
 		}
 	}
 	mutex_unlock(&hpre_list_lock);
@@ -246,7 +246,7 @@ static int hpre_cfg_by_dsm(struct hisi_qm *qm)
 		return -EINVAL;
 	}
 
-	/* Switch over to MSI handling due to non-standard PCI implementation */
+	/* Switch over to MSI handling due to yesn-standard PCI implementation */
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), &guid,
 				0, HPRE_VIA_MSI_DSM, NULL);
 	if (!obj) {
@@ -706,7 +706,7 @@ static int hpre_qm_pre_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		return -ENODEV;
 
 	if (rev_id == QM_HW_V1) {
-		pci_warn(pdev, "HPRE version 1 is not supported!\n");
+		pci_warn(pdev, "HPRE version 1 is yest supported!\n");
 		return -EINVAL;
 	}
 
@@ -824,7 +824,7 @@ static int hpre_vf_q_assign(struct hpre *hpre, int num_vfs)
 
 	remain_q_num = qm->ctrl_qp_num - qp_num;
 
-	/* If remaining queues are not enough, return error. */
+	/* If remaining queues are yest eyesugh, return error. */
 	if (remain_q_num < num_vfs)
 		return -EINVAL;
 

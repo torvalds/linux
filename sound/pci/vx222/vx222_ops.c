@@ -166,7 +166,7 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 
 	dev_dbg(_chip->card->dev, "testing xilinx...\n");
 	/* This test uses several write/read sequences on TEST0 and TEST1 bits
-	 * to figure out whever or not the xilinx was correctly loaded
+	 * to figure out whever or yest the xilinx was correctly loaded
 	 */
 
 	/* We write 1 on CDSP.TEST0. We should get 0 on STATUS.TEST0. */
@@ -188,7 +188,7 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 	}
 
 	if (_chip->type == VX_TYPE_BOARD) {
-		/* not implemented on VX_2_BOARDS */
+		/* yest implemented on VX_2_BOARDS */
 		/* We write 1 on CDSP.TEST1. We should get 0 on STATUS.TEST1. */
 		vx_outl(chip, CDSP, chip->regCDSP | VX_CDSP_TEST1_MASK);
 		vx_inl(chip, ISR);
@@ -427,7 +427,7 @@ static int vx2_load_dsp(struct vx_core *vx, int index, const struct firmware *ds
 
 
 /*
- * vx_test_and_ack - test and acknowledge interrupt
+ * vx_test_and_ack - test and ackyeswledge interrupt
  *
  * called from irq hander, too
  *
@@ -435,14 +435,14 @@ static int vx2_load_dsp(struct vx_core *vx, int index, const struct firmware *ds
  */
 static int vx2_test_and_ack(struct vx_core *chip)
 {
-	/* not booted yet? */
+	/* yest booted yet? */
 	if (! (chip->chip_status & VX_STAT_XILINX_LOADED))
 		return -ENXIO;
 
 	if (! (vx_inl(chip, STATUS) & VX_STATUS_MEMIRQ_MASK))
 		return -EIO;
 	
-	/* ok, interrupts generated, now ack it */
+	/* ok, interrupts generated, yesw ack it */
 	/* set ACQUIT bit up and down */
 	vx_outl(chip, STATUS, 0);
 	/* useless read just to spend some time and maintain
@@ -671,7 +671,7 @@ static void vx2_write_akm(struct vx_core *chip, int reg, unsigned int data)
 	}
 
 	/* `data' is a value between 0x0 and VX2_AKM_LEVEL_MAX = 0x093, in the case of the AKM codecs, we need
-	   a look up table, as there is no linear matching between the driver codec values
+	   a look up table, as there is yes linear matching between the driver codec values
 	   and the real dBu value
 	*/
 	if (snd_BUG_ON(data >= sizeof(vx2_akm_gains_lut)))
@@ -738,7 +738,7 @@ static void vx2_reset_codec(struct vx_core *_chip)
 	
 	vx2_write_codec_reg(_chip, AKM_CODEC_CLOCK_FORMAT_CMD); /* default */
 	vx2_write_codec_reg(_chip, AKM_CODEC_MUTE_CMD); /* Mute = ON ,Deemphasis = OFF */
-	vx2_write_codec_reg(_chip, AKM_CODEC_RESET_OFF_CMD); /* DAC and ADC normal operation */
+	vx2_write_codec_reg(_chip, AKM_CODEC_RESET_OFF_CMD); /* DAC and ADC yesrmal operation */
 
 	if (_chip->type == VX_TYPE_MIC) {
 		/* set up the micro input selector */

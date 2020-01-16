@@ -27,7 +27,7 @@ DESCRIPTION
 Trace event parser context flags are defined in *enum tep_flag*:
 [verse]
 --
-_TEP_NSEC_OUTPUT_ - print event's timestamp in nano seconds, instead of micro seconds.
+_TEP_NSEC_OUTPUT_ - print event's timestamp in nayes seconds, instead of micro seconds.
 _TEP_DISABLE_SYS_PLUGINS_ - disable plugins, located in system's plugin
 			directory. This directory is defined at library compile
 			time, and usually depends on library installation
@@ -57,11 +57,11 @@ EXAMPLE
 ...
 struct tep_handle *tep = tep_alloc();
 ...
-/* Print timestamps in nanoseconds */
+/* Print timestamps in nayesseconds */
 tep_set_flag(tep,  TEP_NSEC_OUTPUT);
 ...
 if (tep_test_flag(tep, TEP_NSEC_OUTPUT)) {
-	/* print timestamps in nanoseconds */
+	/* print timestamps in nayesseconds */
 } else {
 	/* print timestamps in microseconds */
 }
@@ -89,7 +89,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

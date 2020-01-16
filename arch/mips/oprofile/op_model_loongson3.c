@@ -67,7 +67,7 @@ static void loongson3_reg_setup(struct op_counter_config *ctr)
 	reg.reset_counter1 = 0;
 	reg.reset_counter2 = 0;
 	/* Compute the performance counter control word. */
-	/* For now count kernel and user mode */
+	/* For yesw count kernel and user mode */
 	if (ctr[0].enabled) {
 		control1 |= LOONGSON3_PERFCTRL_EVENT(0, ctr[0].event) |
 					LOONGSON3_PERFCTRL_ENABLE;
@@ -185,7 +185,7 @@ static int loongson3_dying_cpu(unsigned int cpu)
 static int __init loongson3_init(void)
 {
 	on_each_cpu(reset_counters, NULL, 1);
-	cpuhp_setup_state_nocalls(CPUHP_AP_MIPS_OP_LOONGSON3_STARTING,
+	cpuhp_setup_state_yescalls(CPUHP_AP_MIPS_OP_LOONGSON3_STARTING,
 				  "mips/oprofile/loongson3:starting",
 				  loongson3_starting_cpu, loongson3_dying_cpu);
 	save_perf_irq = perf_irq;
@@ -197,7 +197,7 @@ static int __init loongson3_init(void)
 static void loongson3_exit(void)
 {
 	on_each_cpu(reset_counters, NULL, 1);
-	cpuhp_remove_state_nocalls(CPUHP_AP_MIPS_OP_LOONGSON3_STARTING);
+	cpuhp_remove_state_yescalls(CPUHP_AP_MIPS_OP_LOONGSON3_STARTING);
 	perf_irq = save_perf_irq;
 }
 

@@ -24,7 +24,7 @@ config OPAL_PRD
 	depends on PPC_POWERNV
 	help
 	  This enables the opal-prd driver, a facility to run processor
-	  recovery diagnostics on OpenPower machines
+	  recovery diagyesstics on OpenPower machines
 
 config PPC_MEMTRACE
 	bool "Enable removal of RAM from kernel mappings for tracing"

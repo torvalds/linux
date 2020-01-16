@@ -32,7 +32,7 @@ struct clocksource ip30_heart_clocksource = {
 	.flags	= (CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_VALID_FOR_HRES),
 };
 
-static u64 notrace ip30_heart_read_sched_clock(void)
+static u64 yestrace ip30_heart_read_sched_clock(void)
 {
 	return heart_read(&heart_regs->count);
 }

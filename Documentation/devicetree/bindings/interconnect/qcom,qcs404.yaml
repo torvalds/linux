@@ -20,8 +20,8 @@ properties:
   compatible:
     enum:
       - qcom,qcs404-bimc
-      - qcom,qcs404-pcnoc
-      - qcom,qcs404-snoc
+      - qcom,qcs404-pcyesc
+      - qcom,qcs404-syesc
 
   '#interconnect-cells':
     const: 1
@@ -58,18 +58,18 @@ examples:
                        <&rpmcc RPM_SMD_BIMC_A_CLK>;
       };
 
-      pnoc: interconnect@500000 {
+      pyesc: interconnect@500000 {
              reg = <0x00500000 0x15080>;
-             compatible = "qcom,qcs404-pcnoc";
+             compatible = "qcom,qcs404-pcyesc";
              #interconnect-cells = <1>;
              clock-names = "bus", "bus_a";
              clocks = <&rpmcc RPM_SMD_PNOC_CLK>,
                       <&rpmcc RPM_SMD_PNOC_A_CLK>;
       };
 
-      snoc: interconnect@580000 {
+      syesc: interconnect@580000 {
             reg = <0x00580000 0x23080>;
-            compatible = "qcom,qcs404-snoc";
+            compatible = "qcom,qcs404-syesc";
             #interconnect-cells = <1>;
             clock-names = "bus", "bus_a";
             clocks = <&rpmcc RPM_SMD_SNOC_CLK>,

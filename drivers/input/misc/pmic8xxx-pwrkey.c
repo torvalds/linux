@@ -4,7 +4,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -342,7 +342,7 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	u32 kpd_delay;
 	bool pull_up;
 
-	if (of_property_read_u32(pdev->dev.of_node, "debounce", &kpd_delay))
+	if (of_property_read_u32(pdev->dev.of_yesde, "debounce", &kpd_delay))
 		kpd_delay = 15625;
 
 	/* Valid range of pwr key trigger delay is 1/64 sec to 2 seconds. */
@@ -351,7 +351,7 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pull_up = of_property_read_bool(pdev->dev.of_node, "pull-up");
+	pull_up = of_property_read_bool(pdev->dev.of_yesde, "pull-up");
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap) {

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -81,7 +81,7 @@ struct qed_ll2_stats {
 	u64 gsi_crcchksm_error;
 
 	u64 packet_too_big_discard;
-	u64 no_buff_discard;
+	u64 yes_buff_discard;
 
 	u64 rcv_ucast_bytes;
 	u64 rcv_mcast_bytes;
@@ -176,7 +176,7 @@ struct qed_ll2_acquire_data_inputs {
 	u8 tx_tc;
 	enum qed_ll2_tx_dest tx_dest;
 	enum qed_ll2_error_handle ai_err_packet_too_big;
-	enum qed_ll2_error_handle ai_err_no_buf;
+	enum qed_ll2_error_handle ai_err_yes_buf;
 	bool secondary_queue;
 	u8 gsi_enable;
 };

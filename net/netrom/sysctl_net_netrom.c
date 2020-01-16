@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * Copyright (C) 1996 Mike Shaver (shaver@zeroknowledge.com)
+ * Copyright (C) 1996 Mike Shaver (shaver@zerokyeswledge.com)
  */
 #include <linux/mm.h>
 #include <linux/sysctl.h>
@@ -78,8 +78,8 @@ static struct ctl_table nr_table[] = {
 		.extra2		= &max_n2
 	},
 	{
-		.procname	= "transport_acknowledge_delay",
-		.data		= &sysctl_netrom_transport_acknowledge_delay,
+		.procname	= "transport_ackyeswledge_delay",
+		.data		= &sysctl_netrom_transport_ackyeswledge_delay,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
@@ -105,8 +105,8 @@ static struct ctl_table nr_table[] = {
 		.extra2		= &max_window
 	},
 	{
-		.procname	= "transport_no_activity_timeout",
-		.data		= &sysctl_netrom_transport_no_activity_timeout,
+		.procname	= "transport_yes_activity_timeout",
+		.data		= &sysctl_netrom_transport_yes_activity_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,

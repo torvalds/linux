@@ -2,7 +2,7 @@
 
 Maxim max9611/max9612 is an high-side current sense amplifier with integrated
 12-bits ADC communicating over I2c bus.
-The device node for this driver shall be a child of a I2c controller.
+The device yesde for this driver shall be a child of a I2c controller.
 
 Required properties
   - compatible: Should be "maxim,max9611" or "maxim,max9612"
@@ -21,7 +21,7 @@ Example:
 	};
 };
 
-This device node describes a current sense amplifier sitting on I2c4 bus
+This device yesde describes a current sense amplifier sitting on I2c4 bus
 with address 0x7c (read address is 0xf9, write address is 0xf8).
 A sense resistor of 0,005 Ohm is installed between RS+ and RS- current-sensing
 inputs.

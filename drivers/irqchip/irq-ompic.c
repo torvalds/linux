@@ -35,7 +35,7 @@
  *
  * - The ompic generates a level interrupt to the CPU PIC when a message is
  *   ready.  Messages are delivered via the memory bus.
- * - The ompic does not have any interrupt input lines.
+ * - The ompic does yest have any interrupt input lines.
  * - The ompic is wired to the same irq line on each core.
  * - Devices are wired to the same irq line on each core.
  *
@@ -144,8 +144,8 @@ static irqreturn_t ompic_ipi_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init ompic_of_init(struct device_node *node,
-				struct device_node *parent)
+static int __init ompic_of_init(struct device_yesde *yesde,
+				struct device_yesde *parent)
 {
 	struct resource res;
 	int irq;
@@ -153,11 +153,11 @@ static int __init ompic_of_init(struct device_node *node,
 
 	/* Validate the DT */
 	if (ompic_base) {
-		pr_err("ompic: duplicate ompic's are not supported");
+		pr_err("ompic: duplicate ompic's are yest supported");
 		return -EEXIST;
 	}
 
-	if (of_address_to_resource(node, 0, &res)) {
+	if (of_address_to_resource(yesde, 0, &res)) {
 		pr_err("ompic: reg property requires an address and size");
 		return -EINVAL;
 	}
@@ -176,7 +176,7 @@ static int __init ompic_of_init(struct device_node *node,
 		return -ENOMEM;
 	}
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (irq <= 0) {
 		pr_err("ompic: unable to parse device irq");
 		ret = -EINVAL;

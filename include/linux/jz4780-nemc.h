@@ -2,7 +2,7 @@
 /*
  * JZ4780 NAND/external memory controller (NEMC)
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techyeslogies
  * Author: Alex Smith <alex@alex-smith.me.uk>
  */
 

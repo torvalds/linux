@@ -84,11 +84,11 @@
  *
  * Fills the &struct v4l2_queryctrl fields for the query control.
  *
- * .. note::
+ * .. yeste::
  *
  *    This function assumes that the @qctrl->id field is filled.
  *
- * Returns -EINVAL if the control is not known by the V4L2 core, 0 on success.
+ * Returns -EINVAL if the control is yest kyeswn by the V4L2 core, 0 on success.
  */
 
 int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl,
@@ -124,7 +124,7 @@ struct v4l2_subdev_ops;
  *				Represent the following I2C addresses:
  *				0x60, 0x61, 0x62, 0x63 and 0x64.
  *
- * NOTE: All I2C addresses above use the 7-bit notation.
+ * NOTE: All I2C addresses above use the 7-bit yestation.
  */
 enum v4l2_i2c_tuner_type {
 	ADDRS_RADIO,
@@ -207,7 +207,7 @@ unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd);
  * @type: type of the tuner to seek, as defined by
  *	  &enum v4l2_i2c_tuner_type.
  *
- * NOTE: Use only if the tuner addresses are unknown.
+ * NOTE: Use only if the tuner addresses are unkyeswn.
  */
 const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type);
 
@@ -366,18 +366,18 @@ struct v4l2_priv_tun_config {
  * the @height will be a multiple of :math:`2^{halign}`, and the overall
  * size :math:`width * height` will be a multiple of :math:`2^{salign}`.
  *
- * .. note::
+ * .. yeste::
  *
  *    #. The clipping rectangle may be shrunk or enlarged to fit the alignment
  *       constraints.
- *    #. @wmax must not be smaller than @wmin.
- *    #. @hmax must not be smaller than @hmin.
- *    #. The alignments must not be so high there are no possible image
+ *    #. @wmax must yest be smaller than @wmin.
+ *    #. @hmax must yest be smaller than @hmin.
+ *    #. The alignments must yest be so high there are yes possible image
  *       sizes within the allowed bounds.
  *    #. @wmin and @hmin must be at least 1 (don't use 0).
  *    #. For @walign, @halign and @salign, if you don't care about a certain
  *       alignment, specify ``0``, as :math:`2^0 = 1` and one byte alignment
- *       is equivalent to no alignment.
+ *       is equivalent to yes alignment.
  *    #. If you only want to adjust downward, specify a maximum that's the
  *       same as the initial value.
  */
@@ -449,8 +449,8 @@ int v4l2_s_parm_cap(struct video_device *vdev,
 
 /* Compare two v4l2_fract structs */
 #define V4L2_FRACT_COMPARE(a, OP, b)			\
-	((u64)(a).numerator * (b).denominator OP	\
-	(u64)(b).numerator * (a).denominator)
+	((u64)(a).numerator * (b).deyesminator OP	\
+	(u64)(b).numerator * (a).deyesminator)
 
 /* ------------------------------------------------------------------------- */
 
@@ -459,7 +459,7 @@ int v4l2_s_parm_cap(struct video_device *vdev,
 /**
  * enum v4l2_pixel_encoding - specifies the pixel encoding value
  *
- * @V4L2_PIXEL_ENC_UNKNOWN:	Pixel encoding is unknown/un-initialized
+ * @V4L2_PIXEL_ENC_UNKNOWN:	Pixel encoding is unkyeswn/un-initialized
  * @V4L2_PIXEL_ENC_YUV:		Pixel encoding is YUV
  * @V4L2_PIXEL_ENC_RGB:		Pixel encoding is RGB
  * @V4L2_PIXEL_ENC_BAYER:	Pixel encoding is Bayer

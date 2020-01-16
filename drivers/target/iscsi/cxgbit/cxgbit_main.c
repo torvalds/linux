@@ -155,7 +155,7 @@ static int cxgbit_uld_state_change(void *handle, enum cxgb4_state state)
 		cxgbit_detach_cdev(cdev);
 		break;
 	default:
-		pr_info("cdev %s unknown state %d.\n",
+		pr_info("cdev %s unkyeswn state %d.\n",
 			pci_name(cdev->lldi.pdev), state);
 		break;
 	}
@@ -476,7 +476,7 @@ cxgbit_uld_lro_rx_handler(void *hndl, const __be64 *rsp,
 		len = 64 - sizeof(struct rsp_ctrl) - 8;
 		skb = napi_alloc_skb(napi, len);
 		if (!skb)
-			goto nomem;
+			goto yesmem;
 		__skb_put(skb, len);
 		skb_copy_to_linear_data(skb, &rsp[1], len);
 	} else {
@@ -498,7 +498,7 @@ cxgbit_uld_lro_rx_handler(void *hndl, const __be64 *rsp,
 #define RX_PULL_LEN 128
 		skb = cxgb4_pktgl_to_skb(gl, RX_PULL_LEN, RX_PULL_LEN);
 		if (unlikely(!skb))
-			goto nomem;
+			goto yesmem;
 	}
 
 	rpl = (struct cpl_tx_data *)skb->data;
@@ -516,7 +516,7 @@ cxgbit_uld_lro_rx_handler(void *hndl, const __be64 *rsp,
 		__kfree_skb(skb);
 	}
 	return 0;
-nomem:
+yesmem:
 	pr_err("%s OOM bailing out.\n", __func__);
 	return 1;
 }
@@ -633,7 +633,7 @@ out:
 }
 
 static int
-cxgbit_dcbevent_notify(struct notifier_block *nb, unsigned long action,
+cxgbit_dcbevent_yestify(struct yestifier_block *nb, unsigned long action,
 		       void *data)
 {
 	struct cxgbit_dcb_work *dcb_work;
@@ -694,8 +694,8 @@ static struct cxgb4_uld_info cxgbit_uld_info = {
 };
 
 #ifdef CONFIG_CHELSIO_T4_DCB
-static struct notifier_block cxgbit_dcbevent_nb = {
-	.notifier_call = cxgbit_dcbevent_notify,
+static struct yestifier_block cxgbit_dcbevent_nb = {
+	.yestifier_call = cxgbit_dcbevent_yestify,
 };
 #endif
 
@@ -706,7 +706,7 @@ static int __init cxgbit_init(void)
 
 #ifdef CONFIG_CHELSIO_T4_DCB
 	pr_info("%s dcb enabled.\n", DRV_NAME);
-	register_dcbevent_notifier(&cxgbit_dcbevent_nb);
+	register_dcbevent_yestifier(&cxgbit_dcbevent_nb);
 #endif
 	BUILD_BUG_ON(sizeof_field(struct sk_buff, cb) <
 		     sizeof(union cxgbit_skb_cb));
@@ -718,7 +718,7 @@ static void __exit cxgbit_exit(void)
 	struct cxgbit_device *cdev, *tmp;
 
 #ifdef CONFIG_CHELSIO_T4_DCB
-	unregister_dcbevent_notifier(&cxgbit_dcbevent_nb);
+	unregister_dcbevent_yestifier(&cxgbit_dcbevent_nb);
 #endif
 	mutex_lock(&cdev_list_lock);
 	list_for_each_entry_safe(cdev, tmp, &cdev_list_head, list) {

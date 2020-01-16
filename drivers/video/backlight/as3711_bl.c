@@ -257,18 +257,18 @@ static int as3711_bl_register(struct platform_device *pdev,
 static int as3711_backlight_parse_dt(struct device *dev)
 {
 	struct as3711_bl_pdata *pdata = dev_get_platdata(dev);
-	struct device_node *bl, *fb;
+	struct device_yesde *bl, *fb;
 	int ret;
 
-	bl = of_get_child_by_name(dev->parent->of_node, "backlight");
+	bl = of_get_child_by_name(dev->parent->of_yesde, "backlight");
 	if (!bl) {
-		dev_dbg(dev, "backlight node not found\n");
+		dev_dbg(dev, "backlight yesde yest found\n");
 		return -ENODEV;
 	}
 
 	fb = of_parse_phandle(bl, "su1-dev", 0);
 	if (fb) {
-		of_node_put(fb);
+		of_yesde_put(fb);
 
 		pdata->su1_fb = true;
 
@@ -283,7 +283,7 @@ static int as3711_backlight_parse_dt(struct device *dev)
 	if (fb) {
 		int count = 0;
 
-		of_node_put(fb);
+		of_yesde_put(fb);
 
 		pdata->su2_fb = true;
 
@@ -364,12 +364,12 @@ static int as3711_backlight_parse_dt(struct device *dev)
 		}
 	}
 
-	of_node_put(bl);
+	of_yesde_put(bl);
 
 	return 0;
 
 err_put_bl:
-	of_node_put(bl);
+	of_yesde_put(bl);
 
 	return ret;
 }
@@ -388,7 +388,7 @@ static int as3711_backlight_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (pdev->dev.parent->of_node) {
+	if (pdev->dev.parent->of_yesde) {
 		ret = as3711_backlight_parse_dt(&pdev->dev);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "DT parsing failed: %d\n", ret);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __LINUX_IF_PACKET_H
 #define __LINUX_IF_PACKET_H
 
@@ -199,7 +199,7 @@ struct tpacket_hdr_v1 {
 	/*
 	 * Quite a few uses of sequence number:
 	 * 1. Make sure cache flush etc worked.
-	 *    Well, one can argue - why not use the increasing ts below?
+	 *    Well, one can argue - why yest use the increasing ts below?
 	 *    But look at 2. below first.
 	 * 2. When you pass around blocks to other user space decoders,
 	 *    you can see which blk[s] is[are] outstanding etc.
@@ -226,7 +226,7 @@ struct tpacket_hdr_v1 {
 	 * ts_first_pkt:
 	 *		Is always the time-stamp when the block was opened.
 	 *		Case a)	ZERO packets
-	 *			No packets to deal with but atleast you know the
+	 *			No packets to deal with but atleast you kyesw the
 	 *			time-interval of this block.
 	 *		Case b) Non-zero packets
 	 *			Use the ts of the first packet in the block.

@@ -6,7 +6,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -344,7 +344,7 @@ static void b53_set_forwarding(struct b53_device *dev, int enable)
 	b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, mgmt);
 
 	/* Look at B53_UC_FWD_EN and B53_MC_FWD_EN to decide whether
-	 * frames should be flooded or not.
+	 * frames should be flooded or yest.
 	 */
 	b53_read8(dev, B53_CTRL_PAGE, B53_IP_MULTICAST_CTRL, &mgmt);
 	mgmt |= B53_UC_FWD_EN | B53_MC_FWD_EN | B53_IPMC_FWD_EN;
@@ -533,7 +533,7 @@ int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 	if (ret)
 		return ret;
 
-	/* Clear the Rx and Tx disable bits and set to no spanning tree */
+	/* Clear the Rx and Tx disable bits and set to yes spanning tree */
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), 0);
 
 	/* Set this port, and only this one to be in the default VLAN,
@@ -723,7 +723,7 @@ static int b53_switch_reset(struct b53_device *dev)
 		b53_write8(dev, B53_CTRL_PAGE, B53_SOFTRESET, 0x00);
 	}
 
-	/* This is specific to 58xx devices here, do not use is58xx() which
+	/* This is specific to 58xx devices here, do yest use is58xx() which
 	 * covers the larger Starfigther 2 family, including 7445/7278 which
 	 * still use this driver as a library and need to perform the reset
 	 * earlier.
@@ -855,7 +855,7 @@ static unsigned int b53_get_mib_size(struct b53_device *dev)
 
 static struct phy_device *b53_get_phy_device(struct dsa_switch *ds, int port)
 {
-	/* These ports typically do not have built-in PHYs */
+	/* These ports typically do yest have built-in PHYs */
 	switch (port) {
 	case B53_CPU_PORT_25:
 	case 7:
@@ -984,7 +984,7 @@ static int b53_setup(struct dsa_switch *ds)
 	/* Let DSA handle the case were multiple bridges span the same switch
 	 * device and different VLAN awareness settings are requested, which
 	 * would be breaking filtering semantics for any of the other bridge
-	 * devices. (not hardware supported)
+	 * devices. (yest hardware supported)
 	 */
 	ds->vlan_filtering_is_global = true;
 
@@ -1048,7 +1048,7 @@ static void b53_force_port_config(struct b53_device *dev, int port,
 		reg |= PORT_OVERRIDE_SPEED_10M;
 		break;
 	default:
-		dev_err(dev->dev, "unknown speed: %d\n", speed);
+		dev_err(dev->dev, "unkyeswn speed: %d\n", speed);
 		return;
 	}
 
@@ -1102,8 +1102,8 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 		 * account for this internal delay that is inserted, otherwise
 		 * the switch won't be able to receive correctly.
 		 *
-		 * PHY_INTERFACE_MODE_RGMII means that we are not introducing
-		 * any delay neither on transmission nor reception, so the
+		 * PHY_INTERFACE_MODE_RGMII means that we are yest introducing
+		 * any delay neither on transmission yesr reception, so the
 		 * BCM53125 must also be configured accordingly to account for
 		 * the lack of delay and introduce
 		 *
@@ -1303,7 +1303,7 @@ int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 	new_pvid = pvid;
 	if (!vlan_filtering) {
 		/* Filtering is currently enabled, use the default PVID since
-		 * the bridge does not expect tagging anymore
+		 * the bridge does yest expect tagging anymore
 		 */
 		dev->ports[port].pvid = pvid;
 		new_pvid = b53_default_pvid(dev);
@@ -1497,11 +1497,11 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 		return ret;
 
 	ret = b53_arl_read(dev, mac, vid, &ent, &idx, is_valid);
-	/* If this is a read, just finish now */
+	/* If this is a read, just finish yesw */
 	if (op)
 		return ret;
 
-	/* We could not find a matching MAC, so reset to a new entry */
+	/* We could yest find a matching MAC, so reset to a new entry */
 	if (ret) {
 		fwd_entry = 0;
 		idx = 1;
@@ -1693,7 +1693,7 @@ int b53_br_join(struct dsa_switch *ds, int port, struct net_device *br)
 	unsigned int i;
 
 	/* Make this port leave the all VLANs join since we will have proper
-	 * VLAN entries from now on
+	 * VLAN entries from yesw on
 	 */
 	if (is58xx(dev)) {
 		b53_read16(dev, B53_VLAN_PAGE, B53_JOIN_ALL_VLAN_EN, &reg);
@@ -1854,7 +1854,7 @@ EXPORT_SYMBOL(b53_br_egress_floods);
 static bool b53_possible_cpu_port(struct dsa_switch *ds, int port)
 {
 	/* Broadcom switches will accept enabling Broadcom tags on the
-	 * following ports: 5, 7 and 8, any other port is not supported
+	 * following ports: 5, 7 and 8, any other port is yest supported
 	 */
 	switch (port) {
 	case B53_CPU_PORT_25:
@@ -1871,7 +1871,7 @@ static bool b53_can_enable_brcm_tags(struct dsa_switch *ds, int port)
 	bool ret = b53_possible_cpu_port(ds, port);
 
 	if (!ret)
-		dev_warn(ds->dev, "Port %d is not Broadcom tag capable\n",
+		dev_warn(ds->dev, "Port %d is yest Broadcom tag capable\n",
 			 port);
 	return ret;
 }
@@ -1881,7 +1881,7 @@ enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds, int port)
 	struct b53_device *dev = ds->priv;
 
 	/* Older models (5325, 5365) support a different tag format that we do
-	 * not support in net/dsa/tag_brcm.c yet. 539x and 531x5 require managed
+	 * yest support in net/dsa/tag_brcm.c yet. 539x and 531x5 require managed
 	 * mode to be turned on which means we need to specifically manage ARL
 	 * misses on multicast addresses (TBD).
 	 */
@@ -1943,7 +1943,7 @@ void b53_mirror_del(struct dsa_switch *ds, int port,
 		loc_disable = true;
 	b53_write16(dev, B53_MGMT_PAGE, loc, reg);
 
-	/* Now look at the other one to know if we can disable mirroring
+	/* Now look at the other one to kyesw if we can disable mirroring
 	 * entirely
 	 */
 	if (mirror->ingress)
@@ -1954,7 +1954,7 @@ void b53_mirror_del(struct dsa_switch *ds, int port,
 		other_loc_disable = true;
 
 	b53_read16(dev, B53_MGMT_PAGE, B53_MIR_CAP_CTL, &reg);
-	/* Both no longer have ports, let's disable mirroring */
+	/* Both yes longer have ports, let's disable mirroring */
 	if (loc_disable && other_loc_disable) {
 		reg &= ~MIRROR_EN;
 		reg &= ~mirror->to_local_port;
@@ -1978,7 +1978,7 @@ void b53_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
 EXPORT_SYMBOL(b53_eee_enable_set);
 
 
-/* Returns 0 if EEE was not enabled, or 1 otherwise
+/* Returns 0 if EEE was yest enabled, or 1 otherwise
  */
 int b53_eee_init(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
@@ -2346,7 +2346,7 @@ static int b53_switch_init(struct b53_device *dev)
 			/* BCM5325E */
 			break;
 		case 3:
-			/* BCM5325F - do not use port 4 */
+			/* BCM5325F - do yest use port 4 */
 			dev->enabled_ports &= ~BIT(4);
 			break;
 		default:
@@ -2371,7 +2371,7 @@ static int b53_switch_init(struct b53_device *dev)
 	dev->num_ports = dev->cpu_port + 1;
 	dev->enabled_ports |= BIT(dev->cpu_port);
 
-	/* Include non standard CPU port built-in PHYs to be probed */
+	/* Include yesn standard CPU port built-in PHYs to be probed */
 	if (is539x(dev) || is531x5(dev)) {
 		for (i = 0; i < dev->num_ports; i++) {
 			if (!(dev->ds->phys_mii_mask & BIT(i)) &&
@@ -2448,7 +2448,7 @@ int b53_switch_detect(struct b53_device *dev)
 
 	switch (id8) {
 	case 0:
-		/* BCM5325 and BCM5365 do not have this register so reads
+		/* BCM5325 and BCM5365 do yest have this register so reads
 		 * return 0. But the read operation did succeed, so assume this
 		 * is one of them.
 		 *

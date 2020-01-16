@@ -67,11 +67,11 @@ static void vid_dbg_ctl(struct seq_file *s, int val)
 
 	if (!(val & 1))
 		seq_puts(s, "NOT ");
-	seq_puts(s, "ignored on main mixer - ");
+	seq_puts(s, "igyesred on main mixer - ");
 
 	if (!(val & 2))
 		seq_puts(s, "NOT ");
-	seq_puts(s, "ignored on aux mixer");
+	seq_puts(s, "igyesred on aux mixer");
 }
 
 static void vid_dbg_vpo(struct seq_file *s, int val)
@@ -92,8 +92,8 @@ static void vid_dbg_mst(struct seq_file *s, int val)
 
 static int vid_dbg_show(struct seq_file *s, void *arg)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_vid *vid = (struct sti_vid *)node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct sti_vid *vid = (struct sti_vid *)yesde->info_ent->data;
 
 	seq_printf(s, "VID: (vaddr= 0x%p)", vid->regs);
 
@@ -124,7 +124,7 @@ static struct drm_info_list vid_debugfs_files[] = {
 	{ "vid", vid_dbg_show, 0, NULL },
 };
 
-int vid_debugfs_init(struct sti_vid *vid, struct drm_minor *minor)
+int vid_debugfs_init(struct sti_vid *vid, struct drm_miyesr *miyesr)
 {
 	unsigned int i;
 
@@ -133,7 +133,7 @@ int vid_debugfs_init(struct sti_vid *vid, struct drm_minor *minor)
 
 	return drm_debugfs_create_files(vid_debugfs_files,
 					ARRAY_SIZE(vid_debugfs_files),
-					minor->debugfs_root, minor);
+					miyesr->debugfs_root, miyesr);
 }
 
 void sti_vid_commit(struct sti_vid *vid,

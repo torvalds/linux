@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005, 2006 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2013-2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2014 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -153,7 +153,7 @@ static void iser_free_device_ib_res(struct iser_device *device)
  * @cmds_max: max number of SCSI commands for this connection
  * @size: max number of pages per map request
  *
- * Return: 0 on success, or errno code on failure
+ * Return: 0 on success, or erryes code on failure
  */
 int iser_alloc_fmr_pool(struct ib_conn *ib_conn,
 			unsigned cmds_max,
@@ -303,7 +303,7 @@ static void iser_destroy_fastreg_desc(struct iser_fr_desc *desc)
  * @cmds_max: max number of SCSI commands for this connection
  * @size: max number of pages per map request
  *
- * Return: 0 on success, or errno code on failure
+ * Return: 0 on success, or erryes code on failure
  */
 int iser_alloc_fastreg_pool(struct ib_conn *ib_conn,
 			    unsigned cmds_max,
@@ -446,8 +446,8 @@ out_err:
 }
 
 /*
- * based on the resolved device node GUID see if there already allocated
- * device for this device. If there's no such, create one.
+ * based on the resolved device yesde GUID see if there already allocated
+ * device for this device. If there's yes such, create one.
  */
 static
 struct iser_device *iser_device_find_by_ib_device(struct rdma_cm_id *cma_id)
@@ -457,8 +457,8 @@ struct iser_device *iser_device_find_by_ib_device(struct rdma_cm_id *cma_id)
 	mutex_lock(&ig.device_list_mutex);
 
 	list_for_each_entry(device, &ig.device_list, ig_list)
-		/* find if there's a match using the node GUID */
-		if (device->ib_device->node_guid == cma_id->device->node_guid)
+		/* find if there's a match using the yesde GUID */
+		if (device->ib_device->yesde_guid == cma_id->device->yesde_guid)
 			goto inc_refcnt;
 
 	device = kzalloc(sizeof *device, GFP_KERNEL);
@@ -482,7 +482,7 @@ out:
 	return device;
 }
 
-/* if there's no demand for this device, release it */
+/* if there's yes demand for this device, release it */
 static void iser_device_try_release(struct iser_device *device)
 {
 	mutex_lock(&ig.device_list_mutex);
@@ -726,7 +726,7 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 	if (iser_pi_enable) {
 		if (!(device->ib_device->attrs.device_cap_flags &
 		      IB_DEVICE_INTEGRITY_HANDOVER)) {
-			iser_warn("T10-PI requested but not supported on %s, "
+			iser_warn("T10-PI requested but yest supported on %s, "
 				  "continue without T10-PI\n",
 				  dev_name(&ib_conn->device->ib_device->dev));
 			ib_conn->pi_support = false;
@@ -836,8 +836,8 @@ static void iser_cleanup_handler(struct rdma_cm_id *cma_id,
 	struct iser_conn *iser_conn = (struct iser_conn *)cma_id->context;
 
 	/*
-	 * We are not guaranteed that we visited disconnected_handler
-	 * by now, call it here to be safe that we handle CM drep
+	 * We are yest guaranteed that we visited disconnected_handler
+	 * by yesw, call it here to be safe that we handle CM drep
 	 * and flush errors.
 	 */
 	iser_disconnected_handler(cma_id);
@@ -883,9 +883,9 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		/*
-		 * we *must* destroy the device as we cannot rely
+		 * we *must* destroy the device as we canyest rely
 		 * on iscsid to be around to initiate error handling.
-		 * also if we are not in state DOWN implicitly destroy
+		 * also if we are yest in state DOWN implicitly destroy
 		 * the cma_id.
 		 */
 		iser_cleanup_handler(cma_id, true);
@@ -926,7 +926,7 @@ void iser_conn_init(struct iser_conn *iser_conn)
 int iser_connect(struct iser_conn   *iser_conn,
 		 struct sockaddr    *src_addr,
 		 struct sockaddr    *dst_addr,
-		 int                 non_blocking)
+		 int                 yesn_blocking)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	int err = 0;
@@ -937,7 +937,7 @@ int iser_connect(struct iser_conn   *iser_conn,
 
 	iser_info("connecting to: %s\n", iser_conn->name);
 
-	/* the device is known only --after-- address resolution */
+	/* the device is kyeswn only --after-- address resolution */
 	ib_conn->device = NULL;
 
 	iser_conn->state = ISER_CONN_PENDING;
@@ -957,7 +957,7 @@ int iser_connect(struct iser_conn   *iser_conn,
 		goto addr_failure;
 	}
 
-	if (!non_blocking) {
+	if (!yesn_blocking) {
 		wait_for_completion_interruptible(&iser_conn->up_completion);
 
 		if (iser_conn->state != ISER_CONN_UP) {

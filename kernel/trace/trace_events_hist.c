@@ -30,19 +30,19 @@
 #define ERRORS								\
 	C(NONE,			"No error"),				\
 	C(DUPLICATE_VAR,	"Variable already defined"),		\
-	C(VAR_NOT_UNIQUE,	"Variable name not unique, need to use fully qualified name (subsys.event.var) for variable"), \
+	C(VAR_NOT_UNIQUE,	"Variable name yest unique, need to use fully qualified name (subsys.event.var) for variable"), \
 	C(TOO_MANY_VARS,	"Too many variables defined"),		\
 	C(MALFORMED_ASSIGNMENT,	"Malformed assignment"),		\
 	C(NAMED_MISMATCH,	"Named hist trigger doesn't match existing named trigger (includes variables)"), \
 	C(TRIGGER_EEXIST,	"Hist trigger already exists"),		\
-	C(TRIGGER_ENOENT_CLEAR,	"Can't clear or continue a nonexistent hist trigger"), \
+	C(TRIGGER_ENOENT_CLEAR,	"Can't clear or continue a yesnexistent hist trigger"), \
 	C(SET_CLOCK_FAIL,	"Couldn't set trace_clock"),		\
 	C(BAD_FIELD_MODIFIER,	"Invalid field modifier"),		\
 	C(TOO_MANY_SUBEXPR,	"Too many subexpressions (3 max)"),	\
 	C(TIMESTAMP_MISMATCH,	"Timestamp units in expression don't match"), \
 	C(TOO_MANY_FIELD_VARS,	"Too many field variables defined"),	\
-	C(EVENT_FILE_NOT_FOUND,	"Event file not found"),		\
-	C(HIST_NOT_FOUND,	"Matching event histogram not found"),	\
+	C(EVENT_FILE_NOT_FOUND,	"Event file yest found"),		\
+	C(HIST_NOT_FOUND,	"Matching event histogram yest found"),	\
 	C(HIST_CREATE_FAIL,	"Couldn't create histogram for field"),	\
 	C(SYNTH_VAR_NOT_FOUND,	"Couldn't find synthetic variable"),	\
 	C(SYNTH_EVENT_NOT_FOUND,"Couldn't find synthetic event"),	\
@@ -64,7 +64,7 @@
 	C(NO_CLOSING_PAREN,	"No closing paren found"),		\
 	C(SUBSYS_NOT_FOUND,	"Missing subsystem"),			\
 	C(INVALID_SUBSYS_EVENT,	"Invalid subsystem or event name"),	\
-	C(INVALID_REF_KEY,	"Using variable references in keys not supported"), \
+	C(INVALID_REF_KEY,	"Using variable references in keys yest supported"), \
 	C(VAR_NOT_FOUND,	"Couldn't find variable"),		\
 	C(FIELD_NOT_FOUND,	"Couldn't find field"),
 
@@ -149,7 +149,7 @@ struct hist_field {
 	bool                            read_once;
 };
 
-static u64 hist_field_none(struct hist_field *field,
+static u64 hist_field_yesne(struct hist_field *field,
 			   struct tracing_map_elt *elt,
 			   struct ring_buffer_event *rbe,
 			   void *event)
@@ -872,7 +872,7 @@ static struct trace_event_functions synth_event_funcs = {
 	.trace		= print_synth_event
 };
 
-static notrace void trace_event_raw_event_synth(void *__data,
+static yestrace void trace_event_raw_event_synth(void *__data,
 						u64 *var_ref_vals,
 						unsigned int var_ref_idx)
 {
@@ -893,7 +893,7 @@ static notrace void trace_event_raw_event_synth(void *__data,
 
 	/*
 	 * Avoid ring buffer recursion detection, as this event
-	 * is being performed within another event.
+	 * is being performed within ayesther event.
 	 */
 	buffer = trace_file->tr->trace_buffer.buffer;
 	ring_buffer_nest_start(buffer);
@@ -1466,7 +1466,7 @@ static const struct seq_operations synth_events_seq_op = {
 	.show	= synth_events_seq_show,
 };
 
-static int synth_events_open(struct inode *inode, struct file *file)
+static int synth_events_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 
@@ -1531,10 +1531,10 @@ static u64 hist_field_cpu(struct hist_field *hist_field,
  * @var_data: The hist trigger that owns the variable
  * @var_idx: The trigger variable identifier
  *
- * Check the given VAR_REF field to see whether or not it references
+ * Check the given VAR_REF field to see whether or yest it references
  * the given variable associated with the given trigger.
  *
- * Return: The VAR_REF field if it does reference the variable, NULL if not
+ * Return: The VAR_REF field if it does reference the variable, NULL if yest
  */
 static struct hist_field *
 check_field_for_var_ref(struct hist_field *hist_field,
@@ -1560,7 +1560,7 @@ check_field_for_var_ref(struct hist_field *hist_field,
  * whether any of them are references to the variable on the second
  * trigger.
  *
- * Return: The VAR_REF field referencing the variable if so, NULL if not
+ * Return: The VAR_REF field referencing the variable if so, NULL if yest
  */
 static struct hist_field *find_var_ref(struct hist_trigger_data *hist_data,
 				       struct hist_trigger_data *var_data,
@@ -1590,7 +1590,7 @@ static struct hist_field *find_var_ref(struct hist_trigger_data *hist_data,
  * assumption being that a self-reference doesn't prevent a trigger
  * from being removed.
  *
- * Return: The VAR_REF field referencing the variable if so, NULL if not
+ * Return: The VAR_REF field referencing the variable if so, NULL if yest
  */
 static struct hist_field *find_any_var_ref(struct hist_trigger_data *hist_data,
 					   unsigned int var_idx)
@@ -1618,8 +1618,8 @@ static struct hist_field *find_any_var_ref(struct hist_trigger_data *hist_data,
  * currently referenced by any other trigger, this function will
  * determine that.
 
- * Typically used to determine whether or not a trigger can be removed
- * - if there are any references to a trigger's variables, it cannot.
+ * Typically used to determine whether or yest a trigger can be removed
+ * - if there are any references to a trigger's variables, it canyest.
  *
  * Return: True if there is a reference to any of trigger's variables
  */
@@ -2486,7 +2486,7 @@ static struct hist_field *create_hist_field(struct hist_trigger_data *hist_data,
 	}
 
 	if (flags & HIST_FIELD_FL_STACKTRACE) {
-		hist_field->fn = hist_field_none;
+		hist_field->fn = hist_field_yesne;
 		goto out;
 	}
 
@@ -2651,9 +2651,9 @@ static int init_var_ref(struct hist_field *ref_field,
  * represents a reference to it.
  *
  * This function also adds the reference to the trigger that
- * now references the variable.
+ * yesw references the variable.
  *
- * Return: The VAR_REF field if successful, NULL if not
+ * Return: The VAR_REF field if successful, NULL if yest
  */
 static struct hist_field *create_var_ref(struct hist_trigger_data *hist_data,
 					 struct hist_field *var_field,
@@ -2933,7 +2933,7 @@ static struct hist_field *parse_unary(struct hist_trigger_data *hist_data,
 	if (s)
 		*s = '\0';
 	else {
-		ret = -EINVAL; /* no closing ')' */
+		ret = -EINVAL; /* yes closing ')' */
 		goto free;
 	}
 
@@ -3052,7 +3052,7 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 		goto free;
 	}
 
-	/* rest of string could be another expression e.g. b+c in a+b+c */
+	/* rest of string could be ayesther expression e.g. b+c in a+b+c */
 	operand_flags = 0;
 	operand2 = parse_expr(hist_data, file, str, operand_flags, NULL, ++level);
 	if (IS_ERR(operand2)) {
@@ -3220,7 +3220,7 @@ find_synthetic_field_var(struct hist_trigger_data *target_hist_data,
  * @event_name: Optional event name
  * @field_name: The name of the field (and the resulting variable)
  *
- * Hist trigger actions fetch data from variables, not directly from
+ * Hist trigger actions fetch data from variables, yest directly from
  * events.  However, for convenience, users are allowed to directly
  * specify an event field in an action, which will be automatically
  * converted into a variable on their behalf.
@@ -3234,7 +3234,7 @@ find_synthetic_field_var(struct hist_trigger_data *target_hist_data,
  * event (meaning a histogram with the same key as the target
  * histogram), and creates a variable for the specified field, but
  * with 'synthetic_' prepended to the variable name in order to avoid
- * collision with normal field variables.
+ * collision with yesrmal field variables.
  *
  * Return: The variable created for the field.
  */
@@ -3269,7 +3269,7 @@ create_field_var_hist(struct hist_trigger_data *target_hist_data,
 	/*
 	 * Look for a histogram compatible with target.  We'll use the
 	 * found histogram specification to create a new matching
-	 * histogram with our variable on it.  target_hist_data is not
+	 * histogram with our variable on it.  target_hist_data is yest
 	 * yet a registered histogram so we can't use that.
 	 */
 	hist_data = find_compatible_hist(target_hist_data, file);
@@ -3529,7 +3529,7 @@ static struct field_var *create_field_var(struct hist_trigger_data *hist_data,
  * @event_name: Optional event name
  * @var_name: The name of the field (and the resulting variable)
  *
- * Hist trigger actions fetch data from variables, not directly from
+ * Hist trigger actions fetch data from variables, yest directly from
  * events.  However, for convenience, users are allowed to directly
  * specify an event field in an action, which will be automatically
  * converted into a variable on their behalf.
@@ -4164,7 +4164,7 @@ trace_action_create_field_var(struct hist_trigger_data *hist_data,
 	} else {
 		field_var = NULL;
 		/*
-		 * If no explicit system.event is specfied, default to
+		 * If yes explicit system.event is specfied, default to
 		 * looking for fields on the onmatch(system.event.xxx)
 		 * event.
 		 */
@@ -4174,9 +4174,9 @@ trace_action_create_field_var(struct hist_trigger_data *hist_data,
 		}
 
 		/*
-		 * At this point, we're looking at a field on another
+		 * At this point, we're looking at a field on ayesther
 		 * event.  Because we can't modify a hist trigger on
-		 * another event to add a variable for a field, we need
+		 * ayesther event to add a variable for a field, we need
 		 * to create a new trigger on that event and create the
 		 * variable at the same time.
 		 */
@@ -5118,7 +5118,7 @@ static int create_tracing_map_fields(struct hist_trigger_data *hist_data)
 			field = hist_field->field;
 
 			if (hist_field->flags & HIST_FIELD_FL_STACKTRACE)
-				cmp_fn = tracing_map_cmp_none;
+				cmp_fn = tracing_map_cmp_yesne;
 			else if (!field)
 				cmp_fn = tracing_map_cmp_num(hist_field->size,
 							     hist_field->is_signed);
@@ -5378,7 +5378,7 @@ static void hist_trigger_print_key(struct seq_file *m,
 			seq_printf(m, "%s: %llx", field_name, uval);
 		} else if (key_field->flags & HIST_FIELD_FL_SYM) {
 			uval = *(u64 *)(key + key_field->offset);
-			sprint_symbol_no_offset(str, uval);
+			sprint_symbol_yes_offset(str, uval);
 			seq_printf(m, "%s: [%llx] %-45s", field_name,
 				   uval, str);
 		} else if (key_field->flags & HIST_FIELD_FL_SYM_OFFSET) {
@@ -5404,7 +5404,7 @@ static void hist_trigger_print_key(struct seq_file *m,
 			uval = *(u64 *)(key + key_field->offset);
 			syscall_name = get_syscall_name(uval);
 			if (!syscall_name)
-				syscall_name = "unknown_syscall";
+				syscall_name = "unkyeswn_syscall";
 
 			seq_printf(m, "%s: %-30s[%3llu]", field_name,
 				   syscall_name, uval);
@@ -5539,7 +5539,7 @@ static int hist_show(struct seq_file *m, void *v)
 	return ret;
 }
 
-static int event_hist_open(struct inode *inode, struct file *file)
+static int event_hist_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 
@@ -5829,7 +5829,7 @@ static bool compatible_field(struct ftrace_event_field *field,
 static bool hist_trigger_match(struct event_trigger_data *data,
 			       struct event_trigger_data *data_test,
 			       struct event_trigger_data *named_data,
-			       bool ignore_filter)
+			       bool igyesre_filter)
 {
 	struct tracing_map_sort_key *sort_key, *sort_key_test;
 	struct hist_trigger_data *hist_data, *hist_data_test;
@@ -5851,7 +5851,7 @@ static bool hist_trigger_match(struct event_trigger_data *data,
 	    hist_data->n_sort_keys != hist_data_test->n_sort_keys)
 		return false;
 
-	if (!ignore_filter) {
+	if (!igyesre_filter) {
 		if ((data->filter_str && !data_test->filter_str) ||
 		   (!data->filter_str && data_test->filter_str))
 			return false;
@@ -5887,7 +5887,7 @@ static bool hist_trigger_match(struct event_trigger_data *data,
 			return false;
 	}
 
-	if (!ignore_filter && data->filter_str &&
+	if (!igyesre_filter && data->filter_str &&
 	    (strcmp(data->filter_str, data_test->filter_str) != 0))
 		return false;
 
@@ -6213,7 +6213,7 @@ static int event_hist_trigger_func(struct event_command *cmd_ops,
 
 	trigger_data->private_data = hist_data;
 
-	/* if param is non-empty, it's supposed to be a filter */
+	/* if param is yesn-empty, it's supposed to be a filter */
 	if (param && cmd_ops->set_filter) {
 		ret = cmd_ops->set_filter(param, trigger_data, file);
 		if (ret < 0)
@@ -6241,7 +6241,7 @@ static int event_hist_trigger_func(struct event_command *cmd_ops,
 	ret = cmd_ops->reg(glob, trigger_ops, trigger_data, file);
 	/*
 	 * The above returns on success the # of triggers registered,
-	 * but if it didn't register any it returns zero.  Consider no
+	 * but if it didn't register any it returns zero.  Consider yes
 	 * triggers registered a failure too.
 	 */
 	if (!ret) {
@@ -6273,7 +6273,7 @@ enable:
 	se = find_synth_event(se_name);
 	if (se)
 		se->ref++;
-	/* Just return zero, not the number of registered triggers */
+	/* Just return zero, yest the number of registered triggers */
 	ret = 0;
  out:
 	if (ret == 0)
@@ -6457,7 +6457,7 @@ static __init int trace_events_hist_init(void)
 
 	err = dyn_event_register(&synth_event_ops);
 	if (err) {
-		pr_warn("Could not register synth_event_ops\n");
+		pr_warn("Could yest register synth_event_ops\n");
 		return err;
 	}
 
@@ -6476,7 +6476,7 @@ static __init int trace_events_hist_init(void)
 
 	return err;
  err:
-	pr_warn("Could not create tracefs 'synthetic_events' entry\n");
+	pr_warn("Could yest create tracefs 'synthetic_events' entry\n");
 
 	return err;
 }

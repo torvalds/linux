@@ -71,7 +71,7 @@ extern int32_t vchi_exit(void);
 
 extern int32_t vchi_connect(struct vchi_instance_handle *instance_handle);
 
-//When this is called, ensure that all services have no data pending.
+//When this is called, ensure that all services have yes data pending.
 //Bulk transfers can remain 'queued'
 extern int32_t vchi_disconnect(struct vchi_instance_handle *instance_handle);
 
@@ -129,7 +129,7 @@ extern int32_t vchi_msg_dequeue(struct vchi_service_handle *handle,
 				enum vchi_flags flags);
 
 // Routine to look at a message in place.
-// The message is not dequeued, so a subsequent call to peek or dequeue
+// The message is yest dequeued, so a subsequent call to peek or dequeue
 // will return the same message.
 extern int32_t vchi_msg_peek(struct vchi_service_handle *handle,
 			     void **data,

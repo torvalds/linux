@@ -36,7 +36,7 @@ static irqreturn_t mcf_edma_tx_handler(int irq, void *dev_id)
 
 			spin_lock(&mcf_chan->vchan.lock);
 			if (!mcf_chan->edesc->iscyclic) {
-				list_del(&mcf_chan->edesc->vdesc.node);
+				list_del(&mcf_chan->edesc->vdesc.yesde);
 				vchan_cookie_complete(&mcf_chan->edesc->vdesc);
 				mcf_chan->edesc = NULL;
 				mcf_chan->status = DMA_COMPLETE;
@@ -180,7 +180,7 @@ static int mcf_edma_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
+		dev_err(&pdev->dev, "yes platform data supplied\n");
 		return -EINVAL;
 	}
 

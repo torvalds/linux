@@ -19,7 +19,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/mman.h>
@@ -31,7 +31,7 @@
 #include <linux/delay.h>
 #include <linux/highmem.h>
 #include <linux/idr.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/module.h>
 #include <linux/poison.h>
 #include <linux/memblock.h>
@@ -67,8 +67,8 @@
 /*
  * Given an address within the vmemmap, determine the page that
  * represents the start of the subsection it is within.  Note that we have to
- * do this by hand as the proffered address may not be correctly aligned.
- * Subtraction of non-aligned pointers produces undefined results.
+ * do this by hand as the proffered address may yest be correctly aligned.
+ * Subtraction of yesn-aligned pointers produces undefined results.
  */
 static struct page * __meminit vmemmap_subsection_start(unsigned long vmemmap_addr)
 {
@@ -111,7 +111,7 @@ static int __meminit vmemmap_populated(unsigned long vmemmap_addr, int vmemmap_m
 }
 
 /*
- * vmemmap virtual address space management does not have a traditonal page
+ * vmemmap virtual address space management does yest have a traditonal page
  * table to track which virtual struct pages are backed by physical mapping.
  * The virtual to physical mappings are tracked in a simple linked list
  * format. 'vmemmap_list' maintains the entire vmemmap physical mapping at
@@ -128,15 +128,15 @@ static struct vmemmap_backing *next;
 
 /*
  * The same pointer 'next' tracks individual chunks inside the allocated
- * full page during the boot time and again tracks the freeed nodes during
- * runtime. It is racy but it does not happen as they are separated by the
+ * full page during the boot time and again tracks the freeed yesdes during
+ * runtime. It is racy but it does yest happen as they are separated by the
  * boot process. Will create problem if some how we have memory hotplug
  * operation during boot !!
  */
 static int num_left;
 static int num_freed;
 
-static __meminit struct vmemmap_backing * vmemmap_list_alloc(int node)
+static __meminit struct vmemmap_backing * vmemmap_list_alloc(int yesde)
 {
 	struct vmemmap_backing *vmem_back;
 	/* get from freed entries first */
@@ -150,7 +150,7 @@ static __meminit struct vmemmap_backing * vmemmap_list_alloc(int node)
 
 	/* allocate a page when required and hand out chunks */
 	if (!num_left) {
-		next = vmemmap_alloc_block(PAGE_SIZE, node);
+		next = vmemmap_alloc_block(PAGE_SIZE, yesde);
 		if (unlikely(!next)) {
 			WARN_ON(1);
 			return NULL;
@@ -165,11 +165,11 @@ static __meminit struct vmemmap_backing * vmemmap_list_alloc(int node)
 
 static __meminit void vmemmap_list_populate(unsigned long phys,
 					    unsigned long start,
-					    int node)
+					    int yesde)
 {
 	struct vmemmap_backing *vmem_back;
 
-	vmem_back = vmemmap_list_alloc(node);
+	vmem_back = vmemmap_list_alloc(yesde);
 	if (unlikely(!vmem_back)) {
 		WARN_ON(1);
 		return;
@@ -197,7 +197,7 @@ static bool altmap_cross_boundary(struct vmem_altmap *altmap, unsigned long star
 	return false;
 }
 
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int yesde,
 		struct vmem_altmap *altmap)
 {
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
@@ -205,7 +205,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	/* Align to the page size of the linear mapping. */
 	start = _ALIGN_DOWN(start, page_size);
 
-	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
+	pr_debug("vmemmap_populate %lx..%lx, yesde %d\n", start, end, yesde);
 
 	for (; start < end; start += page_size) {
 		void *p = NULL;
@@ -231,11 +231,11 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 				pr_debug("altmap block allocation failed, falling back to system memory");
 		}
 		if (!p)
-			p = vmemmap_alloc_block_buf(page_size, node);
+			p = vmemmap_alloc_block_buf(page_size, yesde);
 		if (!p)
 			return -ENOMEM;
 
-		vmemmap_list_populate(__pa(p), start, node);
+		vmemmap_list_populate(__pa(p), start, yesde);
 
 		pr_debug("      * %016lx..%016lx allocated at %p\n",
 			 start, start + page_size, p);
@@ -308,7 +308,7 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
 		/*
 		 * We have already marked the subsection we are trying to remove
 		 * invalid. So if we want to remove the vmemmap range, we
-		 * need to make sure there is no subsection marked valid
+		 * need to make sure there is yes subsection marked valid
 		 * in this range.
 		 */
 		if (vmemmap_populated(start, page_size))
@@ -372,7 +372,7 @@ early_param("disable_radix", parse_disable_radix);
 /*
  * If we're running under a hypervisor, we need to check the contents of
  * /chosen/ibm,architecture-vec-5 to see if the hypervisor is willing to do
- * radix.  If not, we clear the radix feature bit so we fall back to hash.
+ * radix.  If yest, we clear the radix feature bit so we fall back to hash.
  */
 static void __init early_check_vec5(void)
 {
@@ -382,7 +382,7 @@ static void __init early_check_vec5(void)
 	u8 mmu_supported;
 
 	root = of_get_flat_dt_root();
-	chosen = of_get_flat_dt_subnode_by_name(root, "chosen");
+	chosen = of_get_flat_dt_subyesde_by_name(root, "chosen");
 	if (chosen == -FDT_ERR_NOTFOUND) {
 		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
 		return;
@@ -403,7 +403,7 @@ static void __init early_check_vec5(void)
 	if (mmu_supported == OV5_FEAT(OV5_MMU_RADIX)) {
 		/* Hypervisor only supports radix - check enabled && GTSE */
 		if (!early_radix_enabled()) {
-			pr_warn("WARNING: Ignoring cmdline option disable_radix\n");
+			pr_warn("WARNING: Igyesring cmdline option disable_radix\n");
 		}
 		if (!(vec5[OV5_INDX(OV5_RADIX_GTSE)] &
 						OV5_FEAT(OV5_RADIX_GTSE))) {

@@ -67,9 +67,9 @@ extern int core_scsi3_alloc_aptpl_registration(
 			unsigned char *, u16, u64, int, int, u8);
 extern int core_scsi3_check_aptpl_registration(struct se_device *,
 			struct se_portal_group *, struct se_lun *,
-			struct se_node_acl *, u64);
+			struct se_yesde_acl *, u64);
 extern void core_scsi3_free_pr_reg_from_nacl(struct se_device *,
-					     struct se_node_acl *);
+					     struct se_yesde_acl *);
 extern void core_scsi3_free_all_registrations(struct se_device *);
 extern unsigned char *core_scsi3_pr_dump_type(int);
 

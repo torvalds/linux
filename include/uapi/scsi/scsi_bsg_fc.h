@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  FC Transport BSG Interface
  *
@@ -75,7 +75,7 @@ struct fc_bsg_host_add_rport {
 };
 
 /* Response:
- * There is no additional response data - fc_bsg_reply->result is sufficient
+ * There is yes additional response data - fc_bsg_reply->result is sufficient
  */
 
 
@@ -96,7 +96,7 @@ struct fc_bsg_host_del_rport {
 };
 
 /* Response:
- * There is no additional response data - fc_bsg_reply->result is sufficient
+ * There is yes additional response data - fc_bsg_reply->result is sufficient
  */
 
 
@@ -104,8 +104,8 @@ struct fc_bsg_host_del_rport {
 
 /* Request:
  * This message requests the FC_Host to send an ELS to a specific
- * N_Port_ID. The host does not need to log into the remote port,
- * nor does it need to enumerate the rport for further traffic
+ * N_Port_ID. The host does yest need to log into the remote port,
+ * yesr does it need to enumerate the rport for further traffic
  * (although, the FC host is free to do so if it desires).
  */
 struct fc_bsg_host_els {
@@ -155,7 +155,7 @@ struct fc_bsg_ctels_reply {
 	 */
 	__u32	status;		/* See FC_CTELS_STATUS_xxx */
 
-	/* valid if status is not FC_CTELS_STATUS_OK */
+	/* valid if status is yest FC_CTELS_STATUS_OK */
 	struct	{
 		__u8	action;		/* fragment_id for CT REJECT */
 		__u8	reason_code;
@@ -171,7 +171,7 @@ struct fc_bsg_ctels_reply {
  * This message requests that a CT Request be performed with the
  * indicated N_Port_ID. The driver is responsible for logging in with
  * the fabric and/or N_Port_ID, etc as per FC rules. This request does
- * not mandate that the driver must enumerate the destination in the
+ * yest mandate that the driver must enumerate the destination in the
  * transport. The driver is allowed to decide whether to enumerate it,
  * and whether to tear it down after the request.
  */
@@ -285,8 +285,8 @@ struct fc_bsg_request {
 struct fc_bsg_reply {
 	/*
 	 * The completion result. Result exists in two forms:
-	 *  if negative, it is an -Exxx system errno value. There will
-	 *    be no further reply information supplied.
+	 *  if negative, it is an -Exxx system erryes value. There will
+	 *    be yes further reply information supplied.
 	 *  else, it's the 4-byte scsi error result, with driver, host,
 	 *    msg and status fields. The per-msgcode reply structure
 	 *    will contain valid data.

@@ -31,7 +31,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc4xx.h>
 
-static struct device_node *bcsr_node;
+static struct device_yesde *bcsr_yesde;
 static void __iomem *bcsr_regs;
 
 /* BCSR registers  */
@@ -70,19 +70,19 @@ static void __init ep405_init_bcsr(void)
 	int i;
 
 	/* Find the bloody thing & map it */
-	bcsr_node = of_find_compatible_node(NULL, NULL, "ep405-bcsr");
-	if (bcsr_node == NULL) {
-		printk(KERN_ERR "EP405 BCSR not found !\n");
+	bcsr_yesde = of_find_compatible_yesde(NULL, NULL, "ep405-bcsr");
+	if (bcsr_yesde == NULL) {
+		printk(KERN_ERR "EP405 BCSR yest found !\n");
 		return;
 	}
-	bcsr_regs = of_iomap(bcsr_node, 0);
+	bcsr_regs = of_iomap(bcsr_yesde, 0);
 	if (bcsr_regs == NULL) {
 		printk(KERN_ERR "EP405 BCSR failed to map !\n");
 		return;
 	}
 
 	/* Get the irq-routing property and apply the routing to the CPLD */
-	irq_routing = of_get_property(bcsr_node, "irq-routing", NULL);
+	irq_routing = of_get_property(bcsr_yesde, "irq-routing", NULL);
 	if (irq_routing == NULL)
 		return;
 	for (i = 0; i < 16; i++) {

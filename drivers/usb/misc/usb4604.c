@@ -71,7 +71,7 @@ static int usb4604_switch_mode(struct usb4604 *hub, enum usb4604_mode mode)
 		break;
 
 	default:
-		dev_err(dev, "unknown mode is requested\n");
+		dev_err(dev, "unkyeswn mode is requested\n");
 		err = -EINVAL;
 		break;
 	}
@@ -82,7 +82,7 @@ static int usb4604_switch_mode(struct usb4604 *hub, enum usb4604_mode mode)
 static int usb4604_probe(struct usb4604 *hub)
 {
 	struct device *dev = hub->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct gpio_desc *gpio;
 	u32 mode = USB4604_MODE_HUB;
 

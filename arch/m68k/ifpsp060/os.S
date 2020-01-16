@@ -18,10 +18,10 @@
 |(INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 |BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 |ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-|Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+|Motorola assumes yes responsibility for the maintenance and support of the SOFTWARE.
 |
 |You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-|so long as this entire notice is retained without alteration in any modified and/or
+|so long as this entire yestice is retained without alteration in any modified and/or
 |redistributed versions, and that such modified versions are clearly identified as such.
 |No licenses are granted by implication, estoppel or otherwise under any patents
 |or trademarks of Motorola, Inc.
@@ -66,7 +66,7 @@
 | of a page fault during a _copyout.
 |
 | Linux/68k: The _060_[id]mem_{read,write}_{byte,word,long} functions
-| (i.e. all the known length <= 4) are implemented by single moves
+| (i.e. all the kyeswn length <= 4) are implemented by single moves
 | statements instead of (more expensive) copy{in,out} calls, if
 | working in user space
 
@@ -305,7 +305,7 @@ dmwls:	move.l		%d0,(%a0)		| store super longword
 | Assumes that D0/D1/A0/A1 are scratch registers. The _copyin/_copyout
 | below assume that the SFC/DFC have been set previously.
 |
-| Linux/68k: These are basically non-inlined versions of
+| Linux/68k: These are basically yesn-inlined versions of
 | memcpy_{to,from}fs, but without long-transfer optimization
 | Note: Assumed that SFC/DFC are pointing correctly to user data
 | space... Should be right, or are there any exceptions?
@@ -351,7 +351,7 @@ copyinae:
 | _060_real_trace():
 |
 | This is the exit point for the 060FPSP when an instruction is being traced
-| and there are no other higher priority exceptions pending for this instruction
+| and there are yes other higher priority exceptions pending for this instruction
 | or they have already been processed.
 |
 | The sample code below simply executes an "rte".

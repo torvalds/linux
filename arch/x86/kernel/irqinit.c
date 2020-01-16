@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/linkage.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>
@@ -35,7 +35,7 @@
 
 /*
  * The IO-APIC gives us many more interrupt sources. Most of these
- * are unused but an SMP system is supposed to have enough memory ...
+ * are unused but an SMP system is supposed to have eyesugh memory ...
  * sometimes (mostly wrt. hw bugs) we get corrupted vectors all
  * across the spectrum, so we really want to be prepared to get all
  * of these. Plus, more powerful systems might have more than 64
@@ -48,7 +48,7 @@
  * IRQ2 is cascade interrupt to second interrupt controller
  */
 static struct irqaction irq2 = {
-	.handler = no_action,
+	.handler = yes_action,
 	.name = "cascade",
 	.flags = IRQF_NO_THREAD,
 };

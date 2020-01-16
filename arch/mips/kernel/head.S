@@ -11,7 +11,7 @@
  * Further modifications by David S. Miller and Harald Koerfgen
  * Copyright (C) 1999 Silicon Graphics, Inc.
  * Kevin Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2000 MIPS Techyeslogies, Inc.  All rights reserved.
  */
 #include <linux/init.h>
 #include <linux/threads.h>
@@ -28,7 +28,7 @@
 
 	/*
 	 * For the moment disable interrupts, mark the kernel mode and
-	 * set ST0_KX so that the CPU does not spit fire when using
+	 * set ST0_KX so that the CPU does yest spit fire when using
 	 * 64-bit addresses.  A full initialization of the CPU's status
 	 * register is done later in per_cpu_trap_init().
 	 */
@@ -38,7 +38,7 @@
 	or	t0, ST0_CU0|\set|0x1f|\clr
 	xor	t0, 0x1f|\clr
 	mtc0	t0, CP0_STATUS
-	.set	noreorder
+	.set	yesreorder
 	sll	zero,3				# ehb
 	.set	pop
 	.endm
@@ -73,7 +73,7 @@ EXPORT(_stext)
 	/*
 	 * Give us a fighting chance of running if execution beings at the
 	 * kernel load address.	 This is needed because this platform does
-	 * not have a ELF loader yet.
+	 * yest have a ELF loader yet.
 	 */
 FEXPORT(__kernel_entry)
 	j	kernel_entry
@@ -87,7 +87,7 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 
 	setup_c0_status_pri
 
-	/* We might not get launched at the address the kernel is linked to,
+	/* We might yest get launched at the address the kernel is linked to,
 	   so we jump there.  */
 	PTR_LA	t0, 0f
 	jr	t0
@@ -153,7 +153,7 @@ dtb_found:
 	/*
 	 * relocate_kernel returns the entry point either
 	 * in the relocated kernel or the original if for
-	 * some reason relocation failed - jump there now
+	 * some reason relocation failed - jump there yesw
 	 * with instruction hazard barrier because of the
 	 * newly sync'd icache.
 	 */

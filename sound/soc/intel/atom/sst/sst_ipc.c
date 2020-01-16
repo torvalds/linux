@@ -3,7 +3,7 @@
  *  sst_ipc.c - Intel SST Driver for audio engine
  *
  *  Copyright (C) 2008-14 Intel Corporation
- *  Authors:	Vinod Koul <vinod.koul@intel.com>
+ *  Authors:	Viyesd Koul <viyesd.koul@intel.com>
  *		Harsha Priya <priya.harsha@intel.com>
  *		Dharageswari R <dharageswari.r@intel.com>
  *		KP Jeeja <jeeja.kp@intel.com>
@@ -40,7 +40,7 @@ struct sst_block *sst_create_block(struct intel_sst_drv *ctx,
 	msg->msg_id = msg_id;
 	msg->drv_id = drv_id;
 	spin_lock_bh(&ctx->block_lock);
-	list_add_tail(&msg->node, &ctx->block_list);
+	list_add_tail(&msg->yesde, &ctx->block_list);
 	spin_unlock_bh(&ctx->block_lock);
 
 	return msg;
@@ -52,10 +52,10 @@ struct sst_block *sst_create_block(struct intel_sst_drv *ctx,
  *
  * here we are unblocking the blocked ones, this is based on id we have
  * passed and search that for block threads.
- * We will not find block in two cases
- *  a) when its small message and block in not there, so silently ignore
+ * We will yest find block in two cases
+ *  a) when its small message and block in yest there, so silently igyesre
  *  them
- *  b) when we are actually not able to find the block (bug perhaps)
+ *  b) when we are actually yest able to find the block (bug perhaps)
  *
  *  Since we have bit of small messages we can spam kernel log with err
  *  print on above so need to keep as debug prints which should be enabled
@@ -69,7 +69,7 @@ int sst_wake_up_block(struct intel_sst_drv *ctx, int result,
 	dev_dbg(ctx->dev, "Enter\n");
 
 	spin_lock_bh(&ctx->block_lock);
-	list_for_each_entry(block, &ctx->block_list, node) {
+	list_for_each_entry(block, &ctx->block_list, yesde) {
 		dev_dbg(ctx->dev, "Block ipc %d, drv_id %d\n", block->msg_id,
 							block->drv_id);
 		if (block->msg_id == ipc && block->drv_id == drv_id) {
@@ -85,7 +85,7 @@ int sst_wake_up_block(struct intel_sst_drv *ctx, int result,
 	}
 	spin_unlock_bh(&ctx->block_lock);
 	dev_dbg(ctx->dev,
-		"Block not found or a response received for a short msg for ipc %d, drv_id %d\n",
+		"Block yest found or a response received for a short msg for ipc %d, drv_id %d\n",
 		ipc, drv_id);
 	return -EINVAL;
 }
@@ -96,11 +96,11 @@ int sst_free_block(struct intel_sst_drv *ctx, struct sst_block *freed)
 
 	dev_dbg(ctx->dev, "Enter\n");
 	spin_lock_bh(&ctx->block_lock);
-	list_for_each_entry_safe(block, __block, &ctx->block_list, node) {
+	list_for_each_entry_safe(block, __block, &ctx->block_list, yesde) {
 		if (block == freed) {
 			pr_debug("pvt_id freed --> %d\n", freed->drv_id);
 			/* toggle the index position of pvt_id */
-			list_del(&freed->node);
+			list_del(&freed->yesde);
 			spin_unlock_bh(&ctx->block_lock);
 			kfree(freed->data);
 			freed->data = NULL;
@@ -139,7 +139,7 @@ int sst_post_message_mrfld(struct intel_sst_drv *sst_drv_ctx,
 		}
 	} else {
 		if (list_empty(&sst_drv_ctx->ipc_dispatch_list)) {
-			/* queue is empty, nothing to send */
+			/* queue is empty, yesthing to send */
 			spin_unlock_irqrestore(&sst_drv_ctx->ipc_spin_lock, irq_flags);
 			dev_dbg(sst_drv_ctx->dev,
 					"Empty msg queue... NO Action\n");
@@ -148,14 +148,14 @@ int sst_post_message_mrfld(struct intel_sst_drv *sst_drv_ctx,
 
 		if (header.p.header_high.part.busy) {
 			spin_unlock_irqrestore(&sst_drv_ctx->ipc_spin_lock, irq_flags);
-			dev_dbg(sst_drv_ctx->dev, "Busy not free... post later\n");
+			dev_dbg(sst_drv_ctx->dev, "Busy yest free... post later\n");
 			return 0;
 		}
 
 		/* copy msg from list */
 		msg = list_entry(sst_drv_ctx->ipc_dispatch_list.next,
-				struct ipc_post, node);
-		list_del(&msg->node);
+				struct ipc_post, yesde);
+		list_del(&msg->yesde);
 	}
 	dev_dbg(sst_drv_ctx->dev, "sst: Post message: header = %x\n",
 				msg->mrfld_header.p.header_high.full);
@@ -232,14 +232,14 @@ static void process_fw_init(struct intel_sst_drv *sst_drv_ctx,
 		   sizeof(init->fw_version)))
 		dev_info(sst_drv_ctx->dev, "FW Version %02x.%02x.%02x.%02x\n",
 			init->fw_version.type, init->fw_version.major,
-			init->fw_version.minor, init->fw_version.build);
+			init->fw_version.miyesr, init->fw_version.build);
 	dev_dbg(sst_drv_ctx->dev, "Build date %s Time %s\n",
 			init->build_info.date, init->build_info.time);
 
 	/* Save FW version */
 	sst_drv_ctx->fw_version.type = init->fw_version.type;
 	sst_drv_ctx->fw_version.major = init->fw_version.major;
-	sst_drv_ctx->fw_version.minor = init->fw_version.minor;
+	sst_drv_ctx->fw_version.miyesr = init->fw_version.miyesr;
 	sst_drv_ctx->fw_version.build = init->fw_version.build;
 
 ret:
@@ -285,8 +285,8 @@ static void process_fw_async_msg(struct intel_sst_drv *sst_drv_ctx,
 		str_id = get_stream_id_mrfld(sst_drv_ctx, pipe_id);
 		if (str_id > 0) {
 			stream = &sst_drv_ctx->streams[str_id];
-			if (stream->drain_notify)
-				stream->drain_notify(stream->drain_cb_param);
+			if (stream->drain_yestify)
+				stream->drain_yestify(stream->drain_cb_param);
 		}
 		break;
 

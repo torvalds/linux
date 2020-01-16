@@ -22,8 +22,8 @@ Optional properties:
   Active high.
 - reset-gpios: chip reset signal, pin name "RESET#". Active low.
 
-The device node must contain one 'port' child node with one 'endpoint' child
-sub-node for its digital output video port, in accordance with the video
+The device yesde must contain one 'port' child yesde with one 'endpoint' child
+sub-yesde for its digital output video port, in accordance with the video
 interface bindings defined in:
 Documentation/devicetree/bindings/media/video-interfaces.txt
 

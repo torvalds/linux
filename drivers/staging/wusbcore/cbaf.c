@@ -15,7 +15,7 @@
  * host and device and subsequent times, you can connect wirelessly
  * without having to associate again. That's the idea.
  *
- * This driver does nothing Earth shattering. It just provides an
+ * This driver does yesthing Earth shattering. It just provides an
  * interface to chat with the wire-connected device so we can get a
  * CDID (device ID) that might have been previously associated to a
  * CHID (host ID) and to set up a new <CHID,CDID,CK> triplet
@@ -24,11 +24,11 @@
  *
  * When a device with the CBA capability connects, the probe routine
  * just creates a bunch of sysfs files that a user space enumeration
- * manager uses to allow it to connect wirelessly to the system or not.
+ * manager uses to allow it to connect wirelessly to the system or yest.
  *
  * The process goes like this:
  *
- * 1. Device plugs, cbaf is loaded, notifications happen.
+ * 1. Device plugs, cbaf is loaded, yestifications happen.
  *
  * 2. The connection manager (CM) sees a device with CBAF capability
  *    (the wusb_chid etc. files in /sys/devices/blah/OURDEVICE).
@@ -46,11 +46,11 @@
  * 6. The CM looks up its database
  *
  * 6.1 If it has a matching CHID,CDID entry, the device has been
- *     authorized before (paired) and nothing further needs to be
+ *     authorized before (paired) and yesthing further needs to be
  *     done.
  *
  * 6.2 If the CDID is zero (or the CM doesn't find a matching CDID in
- *     its database), the device is assumed to be not known.  The CM
+ *     its database), the device is assumed to be yest kyeswn.  The CM
  *     may associate the host with device by: writing a randomly
  *     generated CDID to wusb_cdid and then a random CK to wusb_ck
  *     (this uploads the new CC to the device).
@@ -112,7 +112,7 @@ struct cbaf {
  *  - RETRIEVE_HOST_INFO
  *  - ASSOCIATE
  *
- * If the device doesn't provide these interfaces, we do not know how
+ * If the device doesn't provide these interfaces, we do yest kyesw how
  * to deal with it.
  */
 static int cbaf_check(struct cbaf *cbaf)
@@ -132,14 +132,14 @@ static int cbaf_check(struct cbaf *cbaf)
 		0, cbaf->usb_iface->cur_altsetting->desc.bInterfaceNumber,
 		cbaf->buffer, cbaf->buffer_size, USB_CTRL_GET_TIMEOUT);
 	if (result < 0) {
-		dev_err(dev, "Cannot get available association types: %d\n",
+		dev_err(dev, "Canyest get available association types: %d\n",
 			result);
 		return result;
 	}
 
 	assoc_info = cbaf->buffer;
 	if (result < sizeof(*assoc_info)) {
-		dev_err(dev, "Not enough data to decode association info "
+		dev_err(dev, "Not eyesugh data to decode association info "
 			"header (%zu vs %zu bytes required)\n",
 			(size_t)result, sizeof(*assoc_info));
 		return result;
@@ -147,13 +147,13 @@ static int cbaf_check(struct cbaf *cbaf)
 
 	assoc_size = le16_to_cpu(assoc_info->Length);
 	if (result < assoc_size) {
-		dev_err(dev, "Not enough data to decode association info "
+		dev_err(dev, "Not eyesugh data to decode association info "
 			"(%zu vs %zu bytes required)\n",
 			(size_t)assoc_size, sizeof(*assoc_info));
 		return result;
 	}
 	/*
-	 * From now on, we just verify, but won't error out unless we
+	 * From yesw on, we just verify, but won't error out unless we
 	 * don't find the AR_TYPE_WUSB_{RETRIEVE_HOST_INFO,ASSOCIATE}
 	 * types.
 	 */
@@ -170,7 +170,7 @@ static int cbaf_check(struct cbaf *cbaf)
 		assoc_request = itr;
 
 		if (top - itr < sizeof(*assoc_request)) {
-			dev_err(dev, "Not enough data to decode association "
+			dev_err(dev, "Not eyesugh data to decode association "
 				"request (%zu vs %zu bytes needed)\n",
 				top - itr, sizeof(*assoc_request));
 			break;
@@ -179,7 +179,7 @@ static int cbaf_check(struct cbaf *cbaf)
 		ar_type = le16_to_cpu(assoc_request->AssociationTypeId);
 		ar_subtype = le16_to_cpu(assoc_request->AssociationSubTypeId);
 		ar_size = le32_to_cpu(assoc_request->AssociationTypeInfoSize);
-		ar_name = "unknown";
+		ar_name = "unkyeswn";
 
 		switch (ar_type) {
 		case AR_TYPE_WUSB:
@@ -260,7 +260,7 @@ static int cbaf_send_host_info(struct cbaf *cbaf)
  *
  * The device will return it's information (CDID, name, bandgroups)
  * associated to the CHID we have set before, or 0 CDID and default
- * name and bandgroup if no CHID set or unknown.
+ * name and bandgroup if yes CHID set or unkyeswn.
  */
 static int cbaf_cdid_get(struct cbaf *cbaf)
 {
@@ -277,14 +277,14 @@ static int cbaf_cdid_get(struct cbaf *cbaf)
 		0x0200, cbaf->usb_iface->cur_altsetting->desc.bInterfaceNumber,
 		di, cbaf->buffer_size, USB_CTRL_GET_TIMEOUT);
 	if (result < 0) {
-		dev_err(dev, "Cannot request device information: %d\n",
+		dev_err(dev, "Canyest request device information: %d\n",
 			result);
 		return result;
 	}
 
 	needed = result < sizeof(*di) ? sizeof(*di) : le32_to_cpu(di->Length);
 	if (result < needed) {
-		dev_err(dev, "Not enough data in DEVICE_INFO reply (%zu vs "
+		dev_err(dev, "Not eyesugh data in DEVICE_INFO reply (%zu vs "
 			"%zu bytes needed)\n", (size_t)result, needed);
 		return -ENOENT;
 	}
@@ -589,7 +589,7 @@ static int cbaf_probe(struct usb_interface *iface,
 	cbaf->usb_iface = usb_get_intf(iface);
 	result = cbaf_check(cbaf);
 	if (result < 0) {
-		dev_err(dev, "This device is not WUSB-CBAF compliant and is not supported yet.\n");
+		dev_err(dev, "This device is yest WUSB-CBAF compliant and is yest supported yet.\n");
 		goto error_check;
 	}
 
@@ -621,7 +621,7 @@ static void cbaf_disconnect(struct usb_interface *iface)
 	usb_put_intf(iface);
 	usb_put_dev(cbaf->usb_dev);
 	kfree(cbaf->buffer);
-	/* paranoia: clean up crypto keys */
+	/* parayesia: clean up crypto keys */
 	kzfree(cbaf);
 }
 

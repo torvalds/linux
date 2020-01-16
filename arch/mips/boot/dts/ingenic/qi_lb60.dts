@@ -223,7 +223,7 @@
 	};
 
 	usb_phy: usb-phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-yesp-xceiv";
 		#phy-cells = <0>;
 
 		vcc-supply = <&vcc>;

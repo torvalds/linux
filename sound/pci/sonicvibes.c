@@ -5,7 +5,7 @@
  *
  *  BUGS:
  *    It looks like 86c617 rev 3 doesn't supports DDMA buffers above 16MB?
- *    Driver sometimes hangs... Nobody knows why at this moment...
+ *    Driver sometimes hangs... Nobody kyesws why at this moment...
  */
 
 #include <linux/delay.h>
@@ -65,7 +65,7 @@ MODULE_PARM_DESC(dmaio, "DDMA i/o base address for S3 SonicVibes soundcard.");
 #define   SV_ENHANCED	  0x01	/* audio mode select - enhanced mode */
 #define   SV_TEST	  0x02	/* test bit */
 #define   SV_REVERB	  0x04	/* reverb enable */
-#define   SV_WAVETABLE	  0x08	/* wavetable active / FM active if not set */
+#define   SV_WAVETABLE	  0x08	/* wavetable active / FM active if yest set */
 #define   SV_INTA	  0x20	/* INTA driving - should be always 1 */
 #define   SV_RESET	  0x80	/* reset chip */
 #define SV_REG_IRQMASK	0x01	/* R/W: CODEC/Mixer interrupt mask register */
@@ -267,7 +267,7 @@ static inline void snd_sonicvibes_setdmac(struct sonicvibes * sonic,
 					  unsigned int addr,
 					  unsigned int count)
 {
-	/* note: dmac is working in word mode!!! */
+	/* yeste: dmac is working in word mode!!! */
 	count >>= 1;
 	count--;
 	outl(addr, sonic->dmac_port + SV_DMA_ADDR0);
@@ -286,7 +286,7 @@ static inline unsigned int snd_sonicvibes_getdmaa(struct sonicvibes * sonic)
 
 static inline unsigned int snd_sonicvibes_getdmac(struct sonicvibes * sonic)
 {
-	/* note: dmac is working in word mode!!! */
+	/* yeste: dmac is working in word mode!!! */
 	return ((inl(sonic->dmac_port + SV_DMA_COUNT0) & 0xffffff) + 1) << 1;
 }
 
@@ -657,8 +657,8 @@ static irqreturn_t snd_sonicvibes_interrupt(int irq, void *dev_id)
 		snd_sonicvibes_out1(sonic, SV_IREG_LEFT_ANALOG, oleft);
 		snd_sonicvibes_out1(sonic, SV_IREG_RIGHT_ANALOG, oright);
 		spin_unlock(&sonic->reg_lock);
-		snd_ctl_notify(sonic->card, SNDRV_CTL_EVENT_MASK_VALUE, &sonic->master_mute->id);
-		snd_ctl_notify(sonic->card, SNDRV_CTL_EVENT_MASK_VALUE, &sonic->master_volume->id);
+		snd_ctl_yestify(sonic->card, SNDRV_CTL_EVENT_MASK_VALUE, &sonic->master_mute->id);
+		snd_ctl_yestify(sonic->card, SNDRV_CTL_EVENT_MASK_VALUE, &sonic->master_volume->id);
 	}
 	return IRQ_HANDLED;
 }
@@ -1178,7 +1178,7 @@ static int snd_sonicvibes_create_gameport(struct sonicvibes *sonic)
 	sonic->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		dev_err(sonic->card->dev,
-			"sonicvibes: cannot allocate memory for gameport\n");
+			"sonicvibes: canyest allocate memory for gameport\n");
 		return -ENOMEM;
 	}
 
@@ -1251,7 +1251,7 @@ static int snd_sonicvibes_create(struct snd_card *card,
 	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(24)) < 0 ||
 	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(24)) < 0) {
 		dev_err(card->dev,
-			"architecture does not support 24bit PCI busmaster DMA\n");
+			"architecture does yest support 24bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
                 return -ENXIO;
         }
@@ -1295,14 +1295,14 @@ static int snd_sonicvibes_create(struct snd_card *card,
 		dmaa = dmaio;
 		dmaio += 0x10;
 		dev_info(card->dev,
-			 "BIOS did not allocate DDMA channel A i/o, allocated at 0x%x\n",
+			 "BIOS did yest allocate DDMA channel A i/o, allocated at 0x%x\n",
 			 dmaa);
 	}
 	if (!dmac) {
 		dmac = dmaio;
 		dmaio += 0x10;
 		dev_info(card->dev,
-			 "BIOS did not allocate DDMA channel C i/o, allocated at 0x%x\n",
+			 "BIOS did yest allocate DDMA channel C i/o, allocated at 0x%x\n",
 			 dmac);
 	}
 	pci_write_config_dword(pci, 0x40, dmaa);

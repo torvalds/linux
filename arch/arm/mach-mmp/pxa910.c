@@ -129,7 +129,7 @@ void __init pxa910_timer_init(void)
  *   pxa910_device_uart1 - UART2 as FFUART
  *   pxa910_device_uart2 - UART3 as BTUART
  *
- * UART1 is not used by AP for the moment.
+ * UART1 is yest used by AP for the moment.
  */
 PXA910_DEVICE(uart1, "pxa2xx-uart", 0, UART2, 0xd4017000, 0x30, 21, 22);
 PXA910_DEVICE(uart2, "pxa2xx-uart", 1, UART3, 0xd4018000, 0x30, 23, 24);

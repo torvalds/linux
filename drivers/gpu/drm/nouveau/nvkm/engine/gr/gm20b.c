@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -32,13 +32,13 @@ gm20b_gr_init_gpc_mmu(struct gf100_gr *gr)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 val;
 
-	/* Bypass MMU check for non-secure boot */
+	/* Bypass MMU check for yesn-secure boot */
 	if (!device->secboot) {
 		nvkm_wr32(device, 0x100ce4, 0xffffffff);
 
 		if (nvkm_rd32(device, 0x100ce4) != 0xffffffff)
 			nvdev_warn(device,
-			  "cannot bypass secure boot - expect failure soon!\n");
+			  "canyest bypass secure boot - expect failure soon!\n");
 	}
 
 	val = nvkm_rd32(device, 0x100c80);

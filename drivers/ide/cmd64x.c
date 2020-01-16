@@ -2,7 +2,7 @@
 /*
  * cmd64x.c: Enable interrupts at initialization time on Ultra/PCI machines.
  *           Due to massive hardware bugs, UltraDMA is only supported
- *           on the 646U2 and not on the 646U.
+ *           on the 646U2 and yest on the 646U.
  *
  * Copyright (C) 1998		Eddie C. Dost  (ecd@skynet.be)
  * Copyright (C) 1998		David S. Miller (davem@redhat.com)
@@ -275,9 +275,9 @@ static int init_chipset_cmd64x(struct pci_dev *dev)
 	/*
 	 * Enable interrupts, select MEMORY READ LINE for reads.
 	 *
-	 * NOTE: although not mentioned in the PCI0646U specs,
+	 * NOTE: although yest mentioned in the PCI0646U specs,
 	 * bits 0-1 are write only and won't be read back as
-	 * set or not -- PCI0646U2 specs clarify this point.
+	 * set or yest -- PCI0646U2 specs clarify this point.
 	 */
 	(void) pci_read_config_byte (dev, MRDMODE, &mrdmode);
 	mrdmode &= ~0x30;
@@ -339,7 +339,7 @@ static const struct ide_port_info cmd64x_chipsets[] = {
 				  IDE_HFLAG_SERIALIZE,
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= 0x00, /* no udma */
+		.udma_mask	= 0x00, /* yes udma */
 	},
 	{	/* 1: CMD646 */
 		.name		= DRV_NAME,
@@ -386,7 +386,7 @@ static int cmd64x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		 * UltraDMA only supported on PCI646U and PCI646U2, which
 		 * correspond to revisions 0x03, 0x05 and 0x07 respectively.
 		 * Actually, although the CMD tech support people won't
-		 * tell me the details, the 0x03 revision cannot support
+		 * tell me the details, the 0x03 revision canyest support
 		 * UDMA correctly without hardware modifications, and even
 		 * then it only works with Quantum disks due to some
 		 * hold time assumptions in the 646U part which are fixed

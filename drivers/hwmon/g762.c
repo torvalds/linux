@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * g762 - Driver for the Global Mixed-mode Technology Inc. fan speed
+ * g762 - Driver for the Global Mixed-mode Techyeslogy Inc. fan speed
  *        PWM controller chips from G762 family, i.e. G762 and G763
  *
- * Copyright (C) 2013, Arnaud EBALARD <arno@natisbad.org>
+ * Copyright (C) 2013, Arnaud EBALARD <aryes@natisbad.org>
  *
  * This work is based on a basic version for 2.6.31 kernel developed
  * by Olivier Mouchet for LaCie. Updates and correction have been
@@ -132,7 +132,7 @@ struct g762_data {
 	u8 act_cnt;  /* provides access to current fan RPM value */
 	u8 fan_sta;  /* bit 0: set when actual fan speed is more than
 		      *        25% outside requested fan speed
-		      * bit 1: set when no transition occurs on fan
+		      * bit 1: set when yes transition occurs on fan
 		      *        pin for 0.7s
 		      */
 	u8 set_out;  /* controls fan rotation speed in open-loop mode */
@@ -251,7 +251,7 @@ static struct g762_data *g762_update_client(struct device *dev)
  * Set input clock frequency received on CLK pin of the chip. Accepted values
  * are between 0 and 0xffffff. If zero is given, then default frequency
  * (32,768Hz) is used. Note that clock frequency is a characteristic of the
- * system but an internal parameter, i.e. value is not passed to the device.
+ * system but an internal parameter, i.e. value is yest passed to the device.
  */
 static int do_set_clk_freq(struct device *dev, unsigned long val)
 {
@@ -421,7 +421,7 @@ static int do_set_pwm_enable(struct device *dev, unsigned long val)
 		data->fan_cmd1 &= ~G762_REG_FAN_CMD1_FAN_MODE;
 		/*
 		 * BUG FIX: if SET_CNT register value is 255 then, for some
-		 * unknown reason, fan will not rotate as expected, no matter
+		 * unkyeswn reason, fan will yest rotate as expected, yes matter
 		 * the value of SET_OUT (to be specific, this seems to happen
 		 * only in PWM mode). To workaround this bug, we give SET_CNT
 		 * value of 254 if it is 255 when switching to open-loop.
@@ -595,10 +595,10 @@ static int g762_of_clock_enable(struct i2c_client *client)
 	struct clk *clk;
 	int ret;
 
-	if (!client->dev.of_node)
+	if (!client->dev.of_yesde)
 		return 0;
 
-	clk = of_clk_get(client->dev.of_node, 0);
+	clk = of_clk_get(client->dev.of_yesde, 0);
 	if (IS_ERR(clk)) {
 		dev_err(&client->dev, "failed to get clock\n");
 		return PTR_ERR(clk);
@@ -640,7 +640,7 @@ static int g762_of_prop_import_one(struct i2c_client *client,
 	int ret;
 	u32 pval;
 
-	if (of_property_read_u32(client->dev.of_node, pname, &pval))
+	if (of_property_read_u32(client->dev.of_yesde, pname, &pval))
 		return 0;
 
 	dev_dbg(&client->dev, "found %s (%d)\n", pname, pval);
@@ -655,7 +655,7 @@ static int g762_of_prop_import(struct i2c_client *client)
 {
 	int ret;
 
-	if (!client->dev.of_node)
+	if (!client->dev.of_yesde)
 		return 0;
 
 	ret = g762_of_prop_import_one(client, "fan_gear_mode",
@@ -842,15 +842,15 @@ static ssize_t fan1_pulses_store(struct device *dev,
  * Read and write functions for pwm1_enable. Get and set fan speed control mode
  * (i.e. closed or open-loop).
  *
- * Following documentation about hwmon's sysfs interface, a pwm1_enable node
+ * Following documentation about hwmon's sysfs interface, a pwm1_enable yesde
  * should accept the following:
  *
- *  0 : no fan speed control (i.e. fan at full speed)
+ *  0 : yes fan speed control (i.e. fan at full speed)
  *  1 : manual fan speed control enabled (use pwm[1-*]) (open-loop)
  *  2+: automatic fan speed control enabled (use fan[1-*]_target) (closed-loop)
  *
- * but we do not accept 0 as this mode is not natively supported by the chip
- * and it is not emulated by g762 driver. -EINVAL is returned in this case.
+ * but we do yest accept 0 as this mode is yest natively supported by the chip
+ * and it is yest emulated by g762 driver. -EINVAL is returned in this case.
  */
 static ssize_t pwm1_enable_show(struct device *dev,
 				struct device_attribute *da, char *buf)
@@ -921,7 +921,7 @@ static ssize_t pwm1_store(struct device *dev, struct device_attribute *da,
  * Refer to rpm_from_cnt() implementation above to get info about count number
  * calculation.
  *
- * Also note that due to rounding errors it is possible that you don't read
+ * Also yeste that due to rounding errors it is possible that you don't read
  * back exactly the value you have set.
  */
 static ssize_t fan1_target_show(struct device *dev,
@@ -1015,7 +1015,7 @@ ATTRIBUTE_GROUPS(g762);
 
 /*
  * Enable both fan failure detection and fan out of control protection. The
- * function does not protect change/access to data structure; it must thus
+ * function does yest protect change/access to data structure; it must thus
  * only be called during initialization.
  */
 static inline int g762_fan_init(struct device *dev)
@@ -1085,6 +1085,6 @@ static struct i2c_driver g762_driver = {
 
 module_i2c_driver(g762_driver);
 
-MODULE_AUTHOR("Arnaud EBALARD <arno@natisbad.org>");
+MODULE_AUTHOR("Arnaud EBALARD <aryes@natisbad.org>");
 MODULE_DESCRIPTION("GMT G762/G763 driver");
 MODULE_LICENSE("GPL");

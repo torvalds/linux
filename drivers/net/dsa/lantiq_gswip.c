@@ -6,17 +6,17 @@
  * Copyright (C) 2012 John Crispin <john@phrozen.org>
  * Copyright (C) 2017 - 2019 Hauke Mehrtens <hauke@hauke-m.de>
  *
- * The VLAN and bridge model the GSWIP hardware uses does not directly
+ * The VLAN and bridge model the GSWIP hardware uses does yest directly
  * matches the model DSA uses.
  *
  * The hardware has 64 possible table entries for bridges with one VLAN
  * ID, one flow id and a list of ports for each bridge. All entries which
  * match the same flow ID are combined in the mac learning table, they
  * act as one global bridge.
- * The hardware does not support VLAN filter on the port, but on the
+ * The hardware does yest support VLAN filter on the port, but on the
  * bridge, this driver converts the DSA model to the hardware.
  *
- * The CPU gets all the exception frames which do not match any forwarding
+ * The CPU gets all the exception frames which do yest match any forwarding
  * rule and the CPU port is also added to all bridges. This makes it possible
  * to handle all the special cases easily in software.
  * At the initialization the driver allocates one bridge table entry for
@@ -164,7 +164,7 @@
 #define  GSWIP_PCE_TBL_CTRL_ADDR_MASK	GENMASK(4, 0)
 #define GSWIP_PCE_PMAP1			0x453	/* Monitoring port map */
 #define GSWIP_PCE_PMAP2			0x454	/* Default Multicast port map */
-#define GSWIP_PCE_PMAP3			0x455	/* Default Unknown Unicast port map */
+#define GSWIP_PCE_PMAP3			0x455	/* Default Unkyeswn Unicast port map */
 #define GSWIP_PCE_GCTRL_0		0x456
 #define  GSWIP_PCE_GCTRL_0_MTFL		BIT(0)  /* MAC Table Flushing */
 #define  GSWIP_PCE_GCTRL_0_MC_VALID	BIT(3)
@@ -183,7 +183,7 @@
 #define  GSWIP_PCE_PCTRL_0_PSTATE_FORWARDING	0x7
 #define  GSWIP_PCE_PCTRL_0_PSTATE_MASK	GENMASK(2, 0)
 #define GSWIP_PCE_VCTRL(p)		(0x485 + ((p) * 0xA))
-#define  GSWIP_PCE_VCTRL_UVR		BIT(0)	/* Unknown VLAN Rule */
+#define  GSWIP_PCE_VCTRL_UVR		BIT(0)	/* Unkyeswn VLAN Rule */
 #define  GSWIP_PCE_VCTRL_VIMR		BIT(3)	/* VLAN Ingress Member violation rule */
 #define  GSWIP_PCE_VCTRL_VEMR		BIT(4)	/* VLAN Egress Member violation rule */
 #define  GSWIP_PCE_VCTRL_VSR		BIT(5)	/* VLAN Security */
@@ -214,7 +214,7 @@
 #define GSWIP_TABLE_ACTIVE_VLAN		0x01
 #define GSWIP_TABLE_VLAN_MAPPING	0x02
 #define GSWIP_TABLE_MAC_BRIDGE		0x0b
-#define  GSWIP_TABLE_MAC_BRIDGE_STATIC	0x01	/* Static not, aging entry */
+#define  GSWIP_TABLE_MAC_BRIDGE_STATIC	0x01	/* Static yest, aging entry */
 
 #define XRX200_GPHY_FW_ALIGN	(16 * 1024)
 
@@ -277,7 +277,7 @@ struct gswip_rmon_cnt_desc {
 #define MIB_DESC(_size, _offset, _name) {.size = _size, .offset = _offset, .name = _name}
 
 static const struct gswip_rmon_cnt_desc gswip_rmon_cnt[] = {
-	/** Receive Packet Count (only packets that are accepted and not discarded). */
+	/** Receive Packet Count (only packets that are accepted and yest discarded). */
 	MIB_DESC(1, 0x1F, "RxGoodPkts"),
 	MIB_DESC(1, 0x23, "RxUnicastPkts"),
 	MIB_DESC(1, 0x22, "RxMulticastPkts"),
@@ -480,7 +480,7 @@ static int gswip_mdio_rd(struct mii_bus *bus, int addr, int reg)
 	return gswip_mdio_r(priv, GSWIP_MDIO_READ);
 }
 
-static int gswip_mdio(struct gswip_priv *priv, struct device_node *mdio_np)
+static int gswip_mdio(struct gswip_priv *priv, struct device_yesde *mdio_np)
 {
 	struct dsa_switch *ds = priv->ds;
 
@@ -592,7 +592,7 @@ static int gswip_pce_table_entry_write(struct gswip_priv *priv,
 
 /* Add the LAN port into a bridge with the CPU port by
  * default. This prevents automatic forwarding of
- * packages between the LAN ports when no explicit
+ * packages between the LAN ports when yes explicit
  * bridge is configured.
  */
 static int gswip_add_single_port_br(struct gswip_priv *priv, int port, bool add)
@@ -741,7 +741,7 @@ static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
 	struct gswip_priv *priv = ds->priv;
 	struct net_device *bridge = dsa_to_port(ds, port)->bridge_dev;
 
-	/* Do not allow changing the VLAN filtering options while in bridge */
+	/* Do yest allow changing the VLAN filtering options while in bridge */
 	if (!!(priv->port_vlan_filter & BIT(port)) != vlan_filtering && bridge)
 		return -EIO;
 
@@ -794,7 +794,7 @@ static int gswip_setup(struct dsa_switch *ds)
 		return err;
 	}
 
-	/* Default unknown Broadcast/Multicast/Unicast port maps */
+	/* Default unkyeswn Broadcast/Multicast/Unicast port maps */
 	gswip_switch_w(priv, BIT(cpu_port), GSWIP_PCE_PMAP1);
 	gswip_switch_w(priv, BIT(cpu_port), GSWIP_PCE_PMAP2);
 	gswip_switch_w(priv, BIT(cpu_port), GSWIP_PCE_PMAP3);
@@ -924,7 +924,7 @@ static int gswip_vlan_add_unaware(struct gswip_priv *priv,
 		}
 	}
 
-	/* If this bridge is not programmed yet, add a Active VLAN table
+	/* If this bridge is yest programmed yet, add a Active VLAN table
 	 * entry in a free slot and prepare the VLAN mapping table entry.
 	 */
 	if (idx == -1) {
@@ -992,7 +992,7 @@ static int gswip_vlan_add_aware(struct gswip_priv *priv,
 		}
 	}
 
-	/* If this bridge is not programmed yet, add a Active VLAN table
+	/* If this bridge is yest programmed yet, add a Active VLAN table
 	 * entry in a free slot and prepare the VLAN mapping table entry.
 	 */
 	if (idx == -1) {
@@ -1062,7 +1062,7 @@ static int gswip_vlan_remove(struct gswip_priv *priv,
 	}
 
 	if (idx == -1) {
-		dev_err(priv->dev, "bridge to leave does not exists\n");
+		dev_err(priv->dev, "bridge to leave does yest exists\n");
 		return -ENOENT;
 	}
 
@@ -1159,7 +1159,7 @@ static int gswip_port_vlan_prepare(struct dsa_switch *ds, int port,
 			}
 		}
 
-		/* If this VLAN is not programmed yet, we have to reserve
+		/* If this VLAN is yest programmed yet, we have to reserve
 		 * one entry in the VLAN table. Make sure we start at the
 		 * next position round.
 		 */
@@ -1190,9 +1190,9 @@ static void gswip_port_vlan_add(struct dsa_switch *ds, int port,
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	u16 vid;
 
-	/* We have to receive all packets on the CPU port and should not
+	/* We have to receive all packets on the CPU port and should yest
 	 * do any VLAN filtering here. This is also called with bridge
-	 * NULL and then we do not know for which bridge to configure
+	 * NULL and then we do yest kyesw for which bridge to configure
 	 * this.
 	 */
 	if (dsa_is_cpu_port(ds, port))
@@ -1211,9 +1211,9 @@ static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
 	u16 vid;
 	int err;
 
-	/* We have to receive all packets on the CPU port and should not
+	/* We have to receive all packets on the CPU port and should yest
 	 * do any VLAN filtering here. This is also called with bridge
-	 * NULL and then we do not know for which bridge to configure
+	 * NULL and then we do yest kyesw for which bridge to configure
 	 * this.
 	 */
 	if (dsa_is_cpu_port(ds, port))
@@ -1318,7 +1318,7 @@ static int gswip_port_fdb(struct dsa_switch *ds, int port,
 	}
 
 	if (fid == -1) {
-		dev_err(priv->dev, "Port not part of a bridge\n");
+		dev_err(priv->dev, "Port yest part of a bridge\n");
 		return -EINVAL;
 	}
 
@@ -1694,7 +1694,7 @@ static int gswip_gphy_fw_load(struct gswip_priv *priv, struct gswip_gphy_fw *gph
 
 static int gswip_gphy_fw_probe(struct gswip_priv *priv,
 			       struct gswip_gphy_fw *gphy_fw,
-			       struct device_node *gphy_fw_np, int i)
+			       struct device_yesde *gphy_fw_np, int i)
 {
 	struct device *dev = priv->dev;
 	u32 gphy_mode;
@@ -1726,7 +1726,7 @@ static int gswip_gphy_fw_probe(struct gswip_priv *priv,
 		gphy_fw->fw_name = priv->gphy_fw_name_cfg->ge_firmware_name;
 		break;
 	default:
-		dev_err(dev, "Unknown GPHY mode %d\n", gphy_mode);
+		dev_err(dev, "Unkyeswn GPHY mode %d\n", gphy_mode);
 		return -EINVAL;
 	}
 
@@ -1751,7 +1751,7 @@ static void gswip_gphy_fw_remove(struct gswip_priv *priv,
 
 	ret = regmap_write(priv->rcu_regmap, gphy_fw->fw_addr_offset, 0);
 	if (ret)
-		dev_err(priv->dev, "can not reset GPHY FW pointer");
+		dev_err(priv->dev, "can yest reset GPHY FW pointer");
 
 	clk_disable_unprepare(gphy_fw->clk_gate);
 
@@ -1759,10 +1759,10 @@ static void gswip_gphy_fw_remove(struct gswip_priv *priv,
 }
 
 static int gswip_gphy_fw_list(struct gswip_priv *priv,
-			      struct device_node *gphy_fw_list_np, u32 version)
+			      struct device_yesde *gphy_fw_list_np, u32 version)
 {
 	struct device *dev = priv->dev;
-	struct device_node *gphy_fw_np;
+	struct device_yesde *gphy_fw_np;
 	const struct of_device_id *match;
 	int err;
 	int i = 0;
@@ -1780,17 +1780,17 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 			priv->gphy_fw_name_cfg = &xrx200a2x_gphy_data;
 			break;
 		default:
-			dev_err(dev, "unknown GSWIP version: 0x%x", version);
+			dev_err(dev, "unkyeswn GSWIP version: 0x%x", version);
 			return -ENOENT;
 		}
 	}
 
-	match = of_match_node(xway_gphy_match, gphy_fw_list_np);
+	match = of_match_yesde(xway_gphy_match, gphy_fw_list_np);
 	if (match && match->data)
 		priv->gphy_fw_name_cfg = match->data;
 
 	if (!priv->gphy_fw_name_cfg) {
-		dev_err(dev, "GPHY compatible type not supported");
+		dev_err(dev, "GPHY compatible type yest supported");
 		return -ENOENT;
 	}
 
@@ -1809,7 +1809,7 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 	if (!priv->gphy_fw)
 		return -ENOMEM;
 
-	for_each_available_child_of_node(gphy_fw_list_np, gphy_fw_np) {
+	for_each_available_child_of_yesde(gphy_fw_list_np, gphy_fw_np) {
 		err = gswip_gphy_fw_probe(priv, &priv->gphy_fw[i],
 					  gphy_fw_np, i);
 		if (err)
@@ -1828,7 +1828,7 @@ remove_gphy:
 static int gswip_probe(struct platform_device *pdev)
 {
 	struct gswip_priv *priv;
-	struct device_node *mdio_np, *gphy_fw_np;
+	struct device_yesde *mdio_np, *gphy_fw_np;
 	struct device *dev = &pdev->dev;
 	int err;
 	int i;
@@ -1866,10 +1866,10 @@ static int gswip_probe(struct platform_device *pdev)
 	version = gswip_switch_r(priv, GSWIP_VERSION);
 
 	/* bring up the mdio bus */
-	gphy_fw_np = of_get_compatible_child(dev->of_node, "lantiq,gphy-fw");
+	gphy_fw_np = of_get_compatible_child(dev->of_yesde, "lantiq,gphy-fw");
 	if (gphy_fw_np) {
 		err = gswip_gphy_fw_list(priv, gphy_fw_np, version);
-		of_node_put(gphy_fw_np);
+		of_yesde_put(gphy_fw_np);
 		if (err) {
 			dev_err(dev, "gphy fw probe failed\n");
 			return err;
@@ -1877,12 +1877,12 @@ static int gswip_probe(struct platform_device *pdev)
 	}
 
 	/* bring up the mdio bus */
-	mdio_np = of_get_compatible_child(dev->of_node, "lantiq,xrx200-mdio");
+	mdio_np = of_get_compatible_child(dev->of_yesde, "lantiq,xrx200-mdio");
 	if (mdio_np) {
 		err = gswip_mdio(priv, mdio_np);
 		if (err) {
 			dev_err(dev, "mdio probe failed\n");
-			goto put_mdio_node;
+			goto put_mdio_yesde;
 		}
 	}
 
@@ -1911,8 +1911,8 @@ disable_switch:
 mdio_bus:
 	if (mdio_np)
 		mdiobus_unregister(priv->ds->slave_mii_bus);
-put_mdio_node:
-	of_node_put(mdio_np);
+put_mdio_yesde:
+	of_yesde_put(mdio_np);
 	for (i = 0; i < priv->num_gphy_fw; i++)
 		gswip_gphy_fw_remove(priv, &priv->gphy_fw[i]);
 	return err;
@@ -1930,7 +1930,7 @@ static int gswip_remove(struct platform_device *pdev)
 
 	if (priv->ds->slave_mii_bus) {
 		mdiobus_unregister(priv->ds->slave_mii_bus);
-		of_node_put(priv->ds->slave_mii_bus->dev.of_node);
+		of_yesde_put(priv->ds->slave_mii_bus->dev.of_yesde);
 	}
 
 	for (i = 0; i < priv->num_gphy_fw; i++)

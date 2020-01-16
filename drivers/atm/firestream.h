@@ -167,13 +167,13 @@ struct FS_BPENTRY {
 #define TXQ_HP 0
 #define TXQ_LP 1
 
-/* Phew. You don't want to know how many revisions these simple queue
+/* Phew. You don't want to kyesw how many revisions these simple queue
  * address macros went through before I got them nice and compact as
- * they are now. -- REW
+ * they are yesw. -- REW
  */
 
 
-/* And now for something completely different: 
+/* And yesw for something completely different: 
  * The rest of the registers... */
 
 
@@ -432,7 +432,7 @@ struct fs_transmit_config {
 
 
 struct fs_vcc {
-	int channo;
+	int chanyes;
 	wait_queue_head_t close_wait;
 	struct sk_buff *last_skb;
 };
@@ -462,7 +462,7 @@ struct fs_dev {
 
 	unsigned long hw_base;		/* mem base address */
 	void __iomem *base;             /* Mapping of base address */
-	int channo;
+	int chanyes;
 	unsigned long channel_mask;
 
 	struct queue    hp_txq, lp_txq, tx_relq, st_q;

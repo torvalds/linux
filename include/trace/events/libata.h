@@ -177,7 +177,7 @@ TRACE_EVENT(ata_qc_issue,
 
 	TP_fast_assign(
 		__entry->ata_port	= qc->ap->print_id;
-		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devno;
+		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devyes;
 		__entry->tag		= qc->tag;
 		__entry->proto		= qc->tf.protocol;
 		__entry->cmd		= qc->tf.command;
@@ -235,7 +235,7 @@ DECLARE_EVENT_CLASS(ata_qc_complete_template,
 
 	TP_fast_assign(
 		__entry->ata_port	= qc->ap->print_id;
-		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devno;
+		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devyes;
 		__entry->tag		= qc->tag;
 		__entry->status		= qc->result_tf.command;
 		__entry->dev		= qc->result_tf.device;
@@ -290,7 +290,7 @@ TRACE_EVENT(ata_eh_link_autopsy,
 
 	TP_fast_assign(
 		__entry->ata_port	= dev->link->ap->print_id;
-		__entry->ata_dev	= dev->link->pmp + dev->devno;
+		__entry->ata_dev	= dev->link->pmp + dev->devyes;
 		__entry->eh_action	= eh_action;
 		__entry->eh_err_mask	= eh_err_mask;
 	),
@@ -317,7 +317,7 @@ TRACE_EVENT(ata_eh_link_autopsy_qc,
 
 	TP_fast_assign(
 		__entry->ata_port	= qc->ap->print_id;
-		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devno;
+		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devyes;
 		__entry->tag		= qc->tag;
 		__entry->qc_flags	= qc->flags;
 		__entry->eh_err_mask	= qc->err_mask;

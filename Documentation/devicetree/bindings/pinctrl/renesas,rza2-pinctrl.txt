@@ -6,7 +6,7 @@ Each port features up to 8 pins, each of them configurable for GPIO
 function (port mode) or in alternate function mode.
 Up to 8 different alternate function modes exist for each single pin.
 
-Pin controller node
+Pin controller yesde
 -------------------
 
 Required properties:
@@ -22,7 +22,7 @@ Required properties:
   - gpio-ranges
     Expresses the total number of GPIO ports/pins in this SoC
 
-Example: Pin controller node for RZ/A2M SoC (r7s9210)
+Example: Pin controller yesde for RZ/A2M SoC (r7s9210)
 
 	pinctrl: pin-controller@fcffe000 {
 		compatible = "renesas,r7s9210-pinctrl";
@@ -33,14 +33,14 @@ Example: Pin controller node for RZ/A2M SoC (r7s9210)
 		gpio-ranges = <&pinctrl 0 0 176>;
 	};
 
-Sub-nodes
+Sub-yesdes
 ---------
 
-The child nodes of the pin controller designate pins to be used for
+The child yesdes of the pin controller designate pins to be used for
 specific peripheral functions or as GPIO.
 
-- Pin multiplexing sub-nodes:
-  A pin multiplexing sub-node describes how to configure a set of
+- Pin multiplexing sub-yesdes:
+  A pin multiplexing sub-yesde describes how to configure a set of
   (or a single) pin in some desired alternate function mode.
   The values for the pinmux properties are a combination of port name, pin
   number and the desired function index. Use the RZA2_PINMUX macro located

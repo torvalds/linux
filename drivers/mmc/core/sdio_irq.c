@@ -72,7 +72,7 @@ static int process_sdio_pending_irqs(struct mmc_host *host)
 
 	/*
 	 * Optimization, if there is only 1 function interrupt registered
-	 * and we know an IRQ was signaled then call irq handler directly.
+	 * and we kyesw an IRQ was signaled then call irq handler directly.
 	 * Otherwise do the full probe.
 	 */
 	func = card->sdio_single_irq;
@@ -90,14 +90,14 @@ static int process_sdio_pending_irqs(struct mmc_host *host)
 		if (pending & (1 << i)) {
 			func = card->sdio_func[i - 1];
 			if (!func) {
-				pr_warn("%s: pending IRQ for non-existent function\n",
+				pr_warn("%s: pending IRQ for yesn-existent function\n",
 					mmc_card_id(card));
 				ret = -EINVAL;
 			} else if (func->irq_handler) {
 				func->irq_handler(func);
 				count++;
 			} else {
-				pr_warn("%s: pending IRQ with no handler\n",
+				pr_warn("%s: pending IRQ with yes handler\n",
 					sdio_func_id(func));
 				ret = -EINVAL;
 			}
@@ -146,9 +146,9 @@ static int sdio_irq_thread(void *_host)
 	sched_setscheduler(current, SCHED_FIFO, &param);
 
 	/*
-	 * We want to allow for SDIO cards to work even on non SDIO
-	 * aware hosts.  One thing that non SDIO host cannot do is
-	 * asynchronous notification of pending SDIO card interrupts
+	 * We want to allow for SDIO cards to work even on yesn SDIO
+	 * aware hosts.  One thing that yesn SDIO host canyest do is
+	 * asynchroyesus yestification of pending SDIO card interrupts
 	 * hence we poll for them in that case.
 	 */
 	idle_period = msecs_to_jiffies(10);
@@ -169,7 +169,7 @@ static int sdio_irq_thread(void *_host)
 		 *
 		 * Just like traditional hard IRQ handlers, we expect SDIO
 		 * IRQ handlers to be quick and to the point, so that the
-		 * holding of the host lock does not cover too much work
+		 * holding of the host lock does yest cover too much work
 		 * that doesn't require that lock to be held.
 		 */
 		ret = __mmc_claim_host(host, NULL,
@@ -293,7 +293,7 @@ static void sdio_single_irq_set(struct mmc_card *card)
  *
  *	Claim and activate the IRQ for the given SDIO function. The provided
  *	handler will be called when that IRQ is asserted.  The host is always
- *	claimed already when the handler is called so the handler should not
+ *	claimed already when the handler is called so the handler should yest
  *	call sdio_claim_host() or sdio_release_host().
  */
 int sdio_claim_irq(struct sdio_func *func, sdio_irq_handler_t *handler)

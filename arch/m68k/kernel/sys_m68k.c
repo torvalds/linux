@@ -3,12 +3,12 @@
  * linux/arch/m68k/kernel/sys_m68k.c
  *
  * This file contains various random system calls that
- * have a non-standard calling sequence on the Linux/m68k
+ * have a yesn-standard calling sequence on the Linux/m68k
  * platform.
  */
 
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -75,21 +75,21 @@ cache_flush_040 (unsigned long addr, int scope, int cache, unsigned long len)
       switch (cache)
 	{
 	case FLUSH_CACHE_DATA:
-	  /* This nop is needed for some broken versions of the 68040.  */
-	  __asm__ __volatile__ ("nop\n\t"
+	  /* This yesp is needed for some broken versions of the 68040.  */
+	  __asm__ __volatile__ ("yesp\n\t"
 				".chip 68040\n\t"
 				"cpusha %dc\n\t"
 				".chip 68k");
 	  break;
 	case FLUSH_CACHE_INSN:
-	  __asm__ __volatile__ ("nop\n\t"
+	  __asm__ __volatile__ ("yesp\n\t"
 				".chip 68040\n\t"
 				"cpusha %ic\n\t"
 				".chip 68k");
 	  break;
 	default:
 	case FLUSH_CACHE_BOTH:
-	  __asm__ __volatile__ ("nop\n\t"
+	  __asm__ __volatile__ ("yesp\n\t"
 				".chip 68040\n\t"
 				"cpusha %bc\n\t"
 				".chip 68k");
@@ -128,14 +128,14 @@ cache_flush_040 (unsigned long addr, int scope, int cache, unsigned long len)
 	  switch (cache)
 	    {
 	    case FLUSH_CACHE_DATA:
-	      __asm__ __volatile__ ("nop\n\t"
+	      __asm__ __volatile__ ("yesp\n\t"
 				    ".chip 68040\n\t"
 				    "cpushl %%dc,(%0)\n\t"
 				    ".chip 68k"
 				    : : "a" (paddr));
 	      break;
 	    case FLUSH_CACHE_INSN:
-	      __asm__ __volatile__ ("nop\n\t"
+	      __asm__ __volatile__ ("yesp\n\t"
 				    ".chip 68040\n\t"
 				    "cpushl %%ic,(%0)\n\t"
 				    ".chip 68k"
@@ -143,7 +143,7 @@ cache_flush_040 (unsigned long addr, int scope, int cache, unsigned long len)
 	      break;
 	    default:
 	    case FLUSH_CACHE_BOTH:
-	      __asm__ __volatile__ ("nop\n\t"
+	      __asm__ __volatile__ ("yesp\n\t"
 				    ".chip 68040\n\t"
 				    "cpushl %%bc,(%0)\n\t"
 				    ".chip 68k"
@@ -185,14 +185,14 @@ cache_flush_040 (unsigned long addr, int scope, int cache, unsigned long len)
 	  switch (cache)
 	    {
 	    case FLUSH_CACHE_DATA:
-	      __asm__ __volatile__ ("nop\n\t"
+	      __asm__ __volatile__ ("yesp\n\t"
 				    ".chip 68040\n\t"
 				    "cpushp %%dc,(%0)\n\t"
 				    ".chip 68k"
 				    : : "a" (paddr));
 	      break;
 	    case FLUSH_CACHE_INSN:
-	      __asm__ __volatile__ ("nop\n\t"
+	      __asm__ __volatile__ ("yesp\n\t"
 				    ".chip 68040\n\t"
 				    "cpushp %%ic,(%0)\n\t"
 				    ".chip 68k"
@@ -200,7 +200,7 @@ cache_flush_040 (unsigned long addr, int scope, int cache, unsigned long len)
 	      break;
 	    default:
 	    case FLUSH_CACHE_BOTH:
-	      __asm__ __volatile__ ("nop\n\t"
+	      __asm__ __volatile__ ("yesp\n\t"
 				    ".chip 68040\n\t"
 				    "cpushp %%bc,(%0)\n\t"
 				    ".chip 68k"
@@ -417,7 +417,7 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 			while (len--) {
 				__asm__ __volatile__ ("movec %1, %%caar\n\t"
 						      "movec %0, %%cacr"
-						      : /* no outputs */
+						      : /* yes outputs */
 						      : "r" (cacr), "r" (addr));
 				addr += 4;
 			}
@@ -493,7 +493,7 @@ sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
 		}
 
 		/*
-		 * No need to check for EFAULT; we know that the page is
+		 * No need to check for EFAULT; we kyesw that the page is
 		 * present and writable.
 		 */
 		__get_user(mem_value, mem);
@@ -506,7 +506,7 @@ sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
 
 	      bad_access:
 		up_read(&mm->mmap_sem);
-		/* This is not necessarily a bad access, we can get here if
+		/* This is yest necessarily a bad access, we can get here if
 		   a memory we're trying to write to should be copied-on-write.
 		   Make the kernel do the necessary page stuff, then re-iterate.
 		   Simulate a write access fault to do that.  */
@@ -575,6 +575,6 @@ asmlinkage int sys_set_thread_area(unsigned long tp)
 
 asmlinkage int sys_atomic_barrier(void)
 {
-	/* no code needed for uniprocs */
+	/* yes code needed for uniprocs */
 	return 0;
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015, Linaro Limited, Shannon Zhao
+ * Copyright (c) 2015, Linaro Limited, Shanyesn Zhao
  */
 
 #include <linux/platform_device.h>
@@ -101,7 +101,7 @@ unmap:
 	return rc;
 }
 
-static int xen_platform_notifier(struct notifier_block *nb,
+static int xen_platform_yestifier(struct yestifier_block *nb,
 				 unsigned long action, void *data)
 {
 	struct platform_device *pdev = to_platform_device(data);
@@ -129,24 +129,24 @@ static int xen_platform_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block platform_device_nb = {
-	.notifier_call = xen_platform_notifier,
+static struct yestifier_block platform_device_nb = {
+	.yestifier_call = xen_platform_yestifier,
 };
 
-static int __init register_xen_platform_notifier(void)
+static int __init register_xen_platform_yestifier(void)
 {
 	if (!xen_initial_domain() || acpi_disabled)
 		return 0;
 
-	return bus_register_notifier(&platform_bus_type, &platform_device_nb);
+	return bus_register_yestifier(&platform_bus_type, &platform_device_nb);
 }
 
-arch_initcall(register_xen_platform_notifier);
+arch_initcall(register_xen_platform_yestifier);
 
 #ifdef CONFIG_ARM_AMBA
 #include <linux/amba/bus.h>
 
-static int xen_amba_notifier(struct notifier_block *nb,
+static int xen_amba_yestifier(struct yestifier_block *nb,
 			     unsigned long action, void *data)
 {
 	struct amba_device *adev = to_amba_device(data);
@@ -171,17 +171,17 @@ static int xen_amba_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block amba_device_nb = {
-	.notifier_call = xen_amba_notifier,
+static struct yestifier_block amba_device_nb = {
+	.yestifier_call = xen_amba_yestifier,
 };
 
-static int __init register_xen_amba_notifier(void)
+static int __init register_xen_amba_yestifier(void)
 {
 	if (!xen_initial_domain() || acpi_disabled)
 		return 0;
 
-	return bus_register_notifier(&amba_bustype, &amba_device_nb);
+	return bus_register_yestifier(&amba_bustype, &amba_device_nb);
 }
 
-arch_initcall(register_xen_amba_notifier);
+arch_initcall(register_xen_amba_yestifier);
 #endif

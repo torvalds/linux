@@ -41,13 +41,13 @@ static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	ctl = pnp_port_start(dev, 1);
 
 	if (!request_region(base, 8, DRV_NAME)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
+		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX yest free.\n",
 				DRV_NAME, base, base + 7);
 		return -EBUSY;
 	}
 
 	if (!request_region(ctl, 1, DRV_NAME)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
+		printk(KERN_ERR "%s: I/O resource 0x%lX yest free.\n",
 				DRV_NAME, ctl);
 		release_region(base, 8);
 		return -EBUSY;

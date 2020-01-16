@@ -18,7 +18,7 @@ static void irq_spread_init_one(struct cpumask *irqmsk, struct cpumask *nmsk,
 	for ( ; cpus_per_vec > 0; ) {
 		cpu = cpumask_first(nmsk);
 
-		/* Should not happen, but I'm too lazy to think about it */
+		/* Should yest happen, but I'm too lazy to think about it */
 		if (cpu >= nr_cpu_ids)
 			return;
 
@@ -40,62 +40,62 @@ static void irq_spread_init_one(struct cpumask *irqmsk, struct cpumask *nmsk,
 	}
 }
 
-static cpumask_var_t *alloc_node_to_cpumask(void)
+static cpumask_var_t *alloc_yesde_to_cpumask(void)
 {
 	cpumask_var_t *masks;
-	int node;
+	int yesde;
 
-	masks = kcalloc(nr_node_ids, sizeof(cpumask_var_t), GFP_KERNEL);
+	masks = kcalloc(nr_yesde_ids, sizeof(cpumask_var_t), GFP_KERNEL);
 	if (!masks)
 		return NULL;
 
-	for (node = 0; node < nr_node_ids; node++) {
-		if (!zalloc_cpumask_var(&masks[node], GFP_KERNEL))
+	for (yesde = 0; yesde < nr_yesde_ids; yesde++) {
+		if (!zalloc_cpumask_var(&masks[yesde], GFP_KERNEL))
 			goto out_unwind;
 	}
 
 	return masks;
 
 out_unwind:
-	while (--node >= 0)
-		free_cpumask_var(masks[node]);
+	while (--yesde >= 0)
+		free_cpumask_var(masks[yesde]);
 	kfree(masks);
 	return NULL;
 }
 
-static void free_node_to_cpumask(cpumask_var_t *masks)
+static void free_yesde_to_cpumask(cpumask_var_t *masks)
 {
-	int node;
+	int yesde;
 
-	for (node = 0; node < nr_node_ids; node++)
-		free_cpumask_var(masks[node]);
+	for (yesde = 0; yesde < nr_yesde_ids; yesde++)
+		free_cpumask_var(masks[yesde]);
 	kfree(masks);
 }
 
-static void build_node_to_cpumask(cpumask_var_t *masks)
+static void build_yesde_to_cpumask(cpumask_var_t *masks)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		cpumask_set_cpu(cpu, masks[cpu_to_node(cpu)]);
+		cpumask_set_cpu(cpu, masks[cpu_to_yesde(cpu)]);
 }
 
-static int get_nodes_in_cpumask(cpumask_var_t *node_to_cpumask,
-				const struct cpumask *mask, nodemask_t *nodemsk)
+static int get_yesdes_in_cpumask(cpumask_var_t *yesde_to_cpumask,
+				const struct cpumask *mask, yesdemask_t *yesdemsk)
 {
-	int n, nodes = 0;
+	int n, yesdes = 0;
 
-	/* Calculate the number of nodes in the supplied affinity mask */
-	for_each_node(n) {
-		if (cpumask_intersects(mask, node_to_cpumask[n])) {
-			node_set(n, *nodemsk);
-			nodes++;
+	/* Calculate the number of yesdes in the supplied affinity mask */
+	for_each_yesde(n) {
+		if (cpumask_intersects(mask, yesde_to_cpumask[n])) {
+			yesde_set(n, *yesdemsk);
+			yesdes++;
 		}
 	}
-	return nodes;
+	return yesdes;
 }
 
-struct node_vectors {
+struct yesde_vectors {
 	unsigned id;
 
 	union {
@@ -106,74 +106,74 @@ struct node_vectors {
 
 static int ncpus_cmp_func(const void *l, const void *r)
 {
-	const struct node_vectors *ln = l;
-	const struct node_vectors *rn = r;
+	const struct yesde_vectors *ln = l;
+	const struct yesde_vectors *rn = r;
 
 	return ln->ncpus - rn->ncpus;
 }
 
 /*
- * Allocate vector number for each node, so that for each node:
+ * Allocate vector number for each yesde, so that for each yesde:
  *
  * 1) the allocated number is >= 1
  *
- * 2) the allocated numbver is <= active CPU number of this node
+ * 2) the allocated numbver is <= active CPU number of this yesde
  *
  * The actual allocated total vectors may be less than @numvecs when
  * active total CPU number is less than @numvecs.
  *
- * Active CPUs means the CPUs in '@cpu_mask AND @node_to_cpumask[]'
- * for each node.
+ * Active CPUs means the CPUs in '@cpu_mask AND @yesde_to_cpumask[]'
+ * for each yesde.
  */
-static void alloc_nodes_vectors(unsigned int numvecs,
-				cpumask_var_t *node_to_cpumask,
+static void alloc_yesdes_vectors(unsigned int numvecs,
+				cpumask_var_t *yesde_to_cpumask,
 				const struct cpumask *cpu_mask,
-				const nodemask_t nodemsk,
+				const yesdemask_t yesdemsk,
 				struct cpumask *nmsk,
-				struct node_vectors *node_vectors)
+				struct yesde_vectors *yesde_vectors)
 {
 	unsigned n, remaining_ncpus = 0;
 
-	for (n = 0; n < nr_node_ids; n++) {
-		node_vectors[n].id = n;
-		node_vectors[n].ncpus = UINT_MAX;
+	for (n = 0; n < nr_yesde_ids; n++) {
+		yesde_vectors[n].id = n;
+		yesde_vectors[n].ncpus = UINT_MAX;
 	}
 
-	for_each_node_mask(n, nodemsk) {
+	for_each_yesde_mask(n, yesdemsk) {
 		unsigned ncpus;
 
-		cpumask_and(nmsk, cpu_mask, node_to_cpumask[n]);
+		cpumask_and(nmsk, cpu_mask, yesde_to_cpumask[n]);
 		ncpus = cpumask_weight(nmsk);
 
 		if (!ncpus)
 			continue;
 		remaining_ncpus += ncpus;
-		node_vectors[n].ncpus = ncpus;
+		yesde_vectors[n].ncpus = ncpus;
 	}
 
 	numvecs = min_t(unsigned, remaining_ncpus, numvecs);
 
-	sort(node_vectors, nr_node_ids, sizeof(node_vectors[0]),
+	sort(yesde_vectors, nr_yesde_ids, sizeof(yesde_vectors[0]),
 	     ncpus_cmp_func, NULL);
 
 	/*
-	 * Allocate vectors for each node according to the ratio of this
-	 * node's nr_cpus to remaining un-assigned ncpus. 'numvecs' is
-	 * bigger than number of active numa nodes. Always start the
-	 * allocation from the node with minimized nr_cpus.
+	 * Allocate vectors for each yesde according to the ratio of this
+	 * yesde's nr_cpus to remaining un-assigned ncpus. 'numvecs' is
+	 * bigger than number of active numa yesdes. Always start the
+	 * allocation from the yesde with minimized nr_cpus.
 	 *
-	 * This way guarantees that each active node gets allocated at
+	 * This way guarantees that each active yesde gets allocated at
 	 * least one vector, and the theory is simple: over-allocation
-	 * is only done when this node is assigned by one vector, so
-	 * other nodes will be allocated >= 1 vector, since 'numvecs' is
-	 * bigger than number of numa nodes.
+	 * is only done when this yesde is assigned by one vector, so
+	 * other yesdes will be allocated >= 1 vector, since 'numvecs' is
+	 * bigger than number of numa yesdes.
 	 *
 	 * One perfect invariant is that number of allocated vectors for
-	 * each node is <= CPU count of this node:
+	 * each yesde is <= CPU count of this yesde:
 	 *
-	 * 1) suppose there are two nodes: A and B
-	 * 	ncpu(X) is CPU count of node X
-	 * 	vecs(X) is the vector count allocated to node X via this
+	 * 1) suppose there are two yesdes: A and B
+	 * 	ncpu(X) is CPU count of yesde X
+	 * 	vecs(X) is the vector count allocated to yesde X via this
 	 * 	algorithm
 	 *
 	 * 	ncpu(A) <= ncpu(B)
@@ -218,26 +218,26 @@ static void alloc_nodes_vectors(unsigned int numvecs,
 	 * 	=>
 	 * 	vecs(B) <= cpu(B)
 	 *
-	 * For nodes >= 3, it can be thought as one node and another big
-	 * node given that is exactly what this algorithm is implemented,
+	 * For yesdes >= 3, it can be thought as one yesde and ayesther big
+	 * yesde given that is exactly what this algorithm is implemented,
 	 * and we always re-calculate 'remaining_ncpus' & 'numvecs', and
-	 * finally for each node X: vecs(X) <= ncpu(X).
+	 * finally for each yesde X: vecs(X) <= ncpu(X).
 	 *
 	 */
-	for (n = 0; n < nr_node_ids; n++) {
+	for (n = 0; n < nr_yesde_ids; n++) {
 		unsigned nvectors, ncpus;
 
-		if (node_vectors[n].ncpus == UINT_MAX)
+		if (yesde_vectors[n].ncpus == UINT_MAX)
 			continue;
 
 		WARN_ON_ONCE(numvecs == 0);
 
-		ncpus = node_vectors[n].ncpus;
+		ncpus = yesde_vectors[n].ncpus;
 		nvectors = max_t(unsigned, 1,
 				 numvecs * ncpus / remaining_ncpus);
 		WARN_ON_ONCE(nvectors > ncpus);
 
-		node_vectors[n].nvectors = nvectors;
+		yesde_vectors[n].nvectors = nvectors;
 
 		remaining_ncpus -= ncpus;
 		numvecs -= nvectors;
@@ -247,55 +247,55 @@ static void alloc_nodes_vectors(unsigned int numvecs,
 static int __irq_build_affinity_masks(unsigned int startvec,
 				      unsigned int numvecs,
 				      unsigned int firstvec,
-				      cpumask_var_t *node_to_cpumask,
+				      cpumask_var_t *yesde_to_cpumask,
 				      const struct cpumask *cpu_mask,
 				      struct cpumask *nmsk,
 				      struct irq_affinity_desc *masks)
 {
-	unsigned int i, n, nodes, cpus_per_vec, extra_vecs, done = 0;
+	unsigned int i, n, yesdes, cpus_per_vec, extra_vecs, done = 0;
 	unsigned int last_affv = firstvec + numvecs;
 	unsigned int curvec = startvec;
-	nodemask_t nodemsk = NODE_MASK_NONE;
-	struct node_vectors *node_vectors;
+	yesdemask_t yesdemsk = NODE_MASK_NONE;
+	struct yesde_vectors *yesde_vectors;
 
 	if (!cpumask_weight(cpu_mask))
 		return 0;
 
-	nodes = get_nodes_in_cpumask(node_to_cpumask, cpu_mask, &nodemsk);
+	yesdes = get_yesdes_in_cpumask(yesde_to_cpumask, cpu_mask, &yesdemsk);
 
 	/*
-	 * If the number of nodes in the mask is greater than or equal the
-	 * number of vectors we just spread the vectors across the nodes.
+	 * If the number of yesdes in the mask is greater than or equal the
+	 * number of vectors we just spread the vectors across the yesdes.
 	 */
-	if (numvecs <= nodes) {
-		for_each_node_mask(n, nodemsk) {
+	if (numvecs <= yesdes) {
+		for_each_yesde_mask(n, yesdemsk) {
 			cpumask_or(&masks[curvec].mask, &masks[curvec].mask,
-				   node_to_cpumask[n]);
+				   yesde_to_cpumask[n]);
 			if (++curvec == last_affv)
 				curvec = firstvec;
 		}
 		return numvecs;
 	}
 
-	node_vectors = kcalloc(nr_node_ids,
-			       sizeof(struct node_vectors),
+	yesde_vectors = kcalloc(nr_yesde_ids,
+			       sizeof(struct yesde_vectors),
 			       GFP_KERNEL);
-	if (!node_vectors)
+	if (!yesde_vectors)
 		return -ENOMEM;
 
-	/* allocate vector number for each node */
-	alloc_nodes_vectors(numvecs, node_to_cpumask, cpu_mask,
-			    nodemsk, nmsk, node_vectors);
+	/* allocate vector number for each yesde */
+	alloc_yesdes_vectors(numvecs, yesde_to_cpumask, cpu_mask,
+			    yesdemsk, nmsk, yesde_vectors);
 
-	for (i = 0; i < nr_node_ids; i++) {
+	for (i = 0; i < nr_yesde_ids; i++) {
 		unsigned int ncpus, v;
-		struct node_vectors *nv = &node_vectors[i];
+		struct yesde_vectors *nv = &yesde_vectors[i];
 
 		if (nv->nvectors == UINT_MAX)
 			continue;
 
-		/* Get the cpus on this node which are in the mask */
-		cpumask_and(nmsk, cpu_mask, node_to_cpumask[nv->id]);
+		/* Get the cpus on this yesde which are in the mask */
+		cpumask_and(nmsk, cpu_mask, yesde_to_cpumask[nv->id]);
 		ncpus = cpumask_weight(nmsk);
 		if (!ncpus)
 			continue;
@@ -305,7 +305,7 @@ static int __irq_build_affinity_masks(unsigned int startvec,
 		/* Account for rounding errors */
 		extra_vecs = ncpus - nv->nvectors * (ncpus / nv->nvectors);
 
-		/* Spread allocated vectors on CPUs of the current node */
+		/* Spread allocated vectors on CPUs of the current yesde */
 		for (v = 0; v < nv->nvectors; v++, curvec++) {
 			cpus_per_vec = ncpus / nv->nvectors;
 
@@ -326,7 +326,7 @@ static int __irq_build_affinity_masks(unsigned int startvec,
 		}
 		done += nv->nvectors;
 	}
-	kfree(node_vectors);
+	kfree(yesde_vectors);
 	return done;
 }
 
@@ -340,7 +340,7 @@ static int irq_build_affinity_masks(unsigned int startvec, unsigned int numvecs,
 				    struct irq_affinity_desc *masks)
 {
 	unsigned int curvec = startvec, nr_present = 0, nr_others = 0;
-	cpumask_var_t *node_to_cpumask;
+	cpumask_var_t *yesde_to_cpumask;
 	cpumask_var_t nmsk, npresmsk;
 	int ret = -ENOMEM;
 
@@ -350,35 +350,35 @@ static int irq_build_affinity_masks(unsigned int startvec, unsigned int numvecs,
 	if (!zalloc_cpumask_var(&npresmsk, GFP_KERNEL))
 		goto fail_nmsk;
 
-	node_to_cpumask = alloc_node_to_cpumask();
-	if (!node_to_cpumask)
+	yesde_to_cpumask = alloc_yesde_to_cpumask();
+	if (!yesde_to_cpumask)
 		goto fail_npresmsk;
 
 	/* Stabilize the cpumasks */
 	get_online_cpus();
-	build_node_to_cpumask(node_to_cpumask);
+	build_yesde_to_cpumask(yesde_to_cpumask);
 
 	/* Spread on present CPUs starting from affd->pre_vectors */
 	ret = __irq_build_affinity_masks(curvec, numvecs, firstvec,
-					 node_to_cpumask, cpu_present_mask,
+					 yesde_to_cpumask, cpu_present_mask,
 					 nmsk, masks);
 	if (ret < 0)
 		goto fail_build_affinity;
 	nr_present = ret;
 
 	/*
-	 * Spread on non present CPUs starting from the next vector to be
+	 * Spread on yesn present CPUs starting from the next vector to be
 	 * handled. If the spreading of present CPUs already exhausted the
-	 * vector space, assign the non present CPUs to the already spread
+	 * vector space, assign the yesn present CPUs to the already spread
 	 * out vectors.
 	 */
 	if (nr_present >= numvecs)
 		curvec = firstvec;
 	else
 		curvec = firstvec + nr_present;
-	cpumask_andnot(npresmsk, cpu_possible_mask, cpu_present_mask);
+	cpumask_andyest(npresmsk, cpu_possible_mask, cpu_present_mask);
 	ret = __irq_build_affinity_masks(curvec, numvecs, firstvec,
-					 node_to_cpumask, npresmsk, nmsk,
+					 yesde_to_cpumask, npresmsk, nmsk,
 					 masks);
 	if (ret >= 0)
 		nr_others = ret;
@@ -389,7 +389,7 @@ static int irq_build_affinity_masks(unsigned int startvec, unsigned int numvecs,
 	if (ret >= 0)
 		WARN_ON(nr_present + nr_others < numvecs);
 
-	free_node_to_cpumask(node_to_cpumask);
+	free_yesde_to_cpumask(yesde_to_cpumask);
 
  fail_npresmsk:
 	free_cpumask_var(npresmsk);
@@ -421,7 +421,7 @@ irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 	/*
 	 * Determine the number of vectors which need interrupt affinities
 	 * assigned. If the pre/post request exhausts the available vectors
-	 * then nothing to do here except for invoking the calc_sets()
+	 * then yesthing to do here except for invoking the calc_sets()
 	 * callback so the device driver can adjust to the situation.
 	 */
 	if (nvecs > affd->pre_vectors + affd->post_vectors)
@@ -430,7 +430,7 @@ irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 		affvecs = 0;
 
 	/*
-	 * Simple invocations do not provide a calc_sets() callback. Install
+	 * Simple invocations do yest provide a calc_sets() callback. Install
 	 * the generic one.
 	 */
 	if (!affd->calc_sets)

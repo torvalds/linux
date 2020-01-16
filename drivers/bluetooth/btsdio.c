@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 
 #include <linux/mmc/host.h>
@@ -278,8 +278,8 @@ static int btsdio_probe(struct sdio_func *func,
 		tuple = tuple->next;
 	}
 
-	/* Broadcom devices soldered onto the PCB (non-removable) use an
-	 * UART connection for Bluetooth, ignore the BT SDIO interface.
+	/* Broadcom devices soldered onto the PCB (yesn-removable) use an
+	 * UART connection for Bluetooth, igyesre the BT SDIO interface.
 	 */
 	if (func->vendor == SDIO_VENDOR_ID_BROADCOM &&
 	    !mmc_card_is_removable(func->card->host)) {

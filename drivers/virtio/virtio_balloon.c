@@ -92,10 +92,10 @@ struct virtio_balloon {
 	/* Waiting for host to ack the pages we released. */
 	wait_queue_head_t acked;
 
-	/* Number of balloon pages we've told the Host we're not using. */
+	/* Number of balloon pages we've told the Host we're yest using. */
 	unsigned int num_pages;
 	/*
-	 * The pages we've told the Host we're not using are enqueued
+	 * The pages we've told the Host we're yest using are enqueued
 	 * at vb_dev_info->pages list.
 	 * Each page on this list adds VIRTIO_BALLOON_PAGES_PER_PAGE
 	 * to num_pages above.
@@ -289,7 +289,7 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
 	si_meminfo(&i);
 
 	available = si_mem_available();
-	caches = global_node_page_state(NR_FILE_PAGES);
+	caches = global_yesde_page_state(NR_FILE_PAGES);
 
 #ifdef CONFIG_VM_EVENT_COUNTERS
 	update_stat(vb, idx++, VIRTIO_BALLOON_S_SWAP_IN,
@@ -468,8 +468,8 @@ static int init_vqs(struct virtio_balloon *vb)
 
 	/*
 	 * Inflateq and deflateq are used unconditionally. The names[]
-	 * will be NULL if the related feature is not enabled, which will
-	 * cause no allocation for the corresponding virtqueue in find_vqs.
+	 * will be NULL if the related feature is yest enabled, which will
+	 * cause yes allocation for the corresponding virtqueue in find_vqs.
 	 */
 	callbacks[VIRTIO_BALLOON_VQ_INFLATE] = balloon_ack;
 	names[VIRTIO_BALLOON_VQ_INFLATE] = "inflate";
@@ -608,7 +608,7 @@ static int get_free_page_and_send(struct virtio_balloon *vb)
 		spin_unlock_irq(&vb->free_page_list_lock);
 	} else {
 		/*
-		 * The vq has no available entry to add this page block, so
+		 * The vq has yes available entry to add this page block, so
 		 * just free it.
 		 */
 		free_pages((unsigned long)p, VIRTIO_BALLOON_HINT_BLOCK_ORDER);
@@ -690,7 +690,7 @@ static void report_free_page_func(struct work_struct *work)
  * @vb_dev_info: the balloon device
  * @newpage: page that will replace the isolated page after migration finishes.
  * @page   : the isolated (old) page that is about to be migrated to newpage.
- * @mode   : compaction mode -- not used for balloon page migration.
+ * @mode   : compaction mode -- yest used for balloon page migration.
  *
  * After a ballooned page gets isolated by compaction procedures, this is the
  * function that performs the page migration on behalf of a compaction thread
@@ -766,7 +766,7 @@ static int balloon_init_fs_context(struct fs_context *fc)
 static struct file_system_type balloon_fs = {
 	.name           = "balloon-kvm",
 	.init_fs_context = balloon_init_fs_context,
-	.kill_sb        = kill_anon_super,
+	.kill_sb        = kill_ayesn_super,
 };
 
 #endif /* CONFIG_BALLOON_COMPACTION */
@@ -896,13 +896,13 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	}
 
 	vb->vb_dev_info.migratepage = virtballoon_migratepage;
-	vb->vb_dev_info.inode = alloc_anon_inode(balloon_mnt->mnt_sb);
-	if (IS_ERR(vb->vb_dev_info.inode)) {
-		err = PTR_ERR(vb->vb_dev_info.inode);
+	vb->vb_dev_info.iyesde = alloc_ayesn_iyesde(balloon_mnt->mnt_sb);
+	if (IS_ERR(vb->vb_dev_info.iyesde)) {
+		err = PTR_ERR(vb->vb_dev_info.iyesde);
 		kern_unmount(balloon_mnt);
 		goto out_del_vqs;
 	}
-	vb->vb_dev_info.inode->i_mapping->a_ops = &balloon_aops;
+	vb->vb_dev_info.iyesde->i_mapping->a_ops = &balloon_aops;
 #endif
 	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
 		/*
@@ -991,8 +991,8 @@ static void virtballoon_remove(struct virtio_device *vdev)
 
 	remove_common(vb);
 #ifdef CONFIG_BALLOON_COMPACTION
-	if (vb->vb_dev_info.inode)
-		iput(vb->vb_dev_info.inode);
+	if (vb->vb_dev_info.iyesde)
+		iput(vb->vb_dev_info.iyesde);
 
 	kern_unmount(balloon_mnt);
 #endif

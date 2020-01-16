@@ -107,7 +107,7 @@
 
 /*
  * HP Wireless Audio
- * When not ignored, causes instability issues for some users, forcing them to
+ * When yest igyesred, causes instability issues for some users, forcing them to
  * blacklist the entire module.
  */
 {
@@ -143,7 +143,7 @@
 
 /*
  * Logitech QuickCam: bDeviceClass is vendor-specific, so generic interface
- * class matches do not take effect without an explicit ID match.
+ * class matches do yest take effect without an explicit ID match.
  */
 {
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
@@ -638,8 +638,8 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* Has ID 0x0099 when not in "Advanced Driver" mode.
-	 * The UM-2EX has only one input, but we cannot detect this. */
+	/* Has ID 0x0099 when yest in "Advanced Driver" mode.
+	 * The UM-2EX has only one input, but we canyest detect this. */
 	USB_DEVICE(0x0582, 0x0005),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -730,7 +730,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x009d when not in "Advanced Driver" mode */
+	/* has ID 0x009d when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0009),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -791,7 +791,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* thanks to Emiliano Grilli <emillo@libero.it>
+	/* thanks to Emiliayes Grilli <emillo@libero.it>
 	 * for helping researching this data */
 	USB_DEVICE(0x0582, 0x000c),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -825,7 +825,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 {	/*
 	 * This quirk is for the "Advanced Driver" mode of the Edirol UA-5.
 	 * If the advanced mode switch at the back of the unit is off, the
-	 * UA-5 has ID 0x0582/0x0011 and is standard compliant (no quirks),
+	 * UA-5 has ID 0x0582/0x0011 and is standard compliant (yes quirks),
 	 * but offers only 16-bit PCM.
 	 * In advanced mode, the UA-5 will output S24_3LE samples (two
 	 * channels) at the rate indicated on the front switch, including
@@ -853,7 +853,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0013 when not in "Advanced Driver" mode */
+	/* has ID 0x0013 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0012),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Roland",
@@ -867,7 +867,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0015 when not in "Advanced Driver" mode */
+	/* has ID 0x0015 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0014),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -881,7 +881,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0017 when not in "Advanced Driver" mode */
+	/* has ID 0x0017 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0016),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -912,7 +912,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x001c when not in "Advanced Driver" mode */
+	/* has ID 0x001c when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x001b),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Roland",
@@ -943,7 +943,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x001e when not in "Advanced Driver" mode */
+	/* has ID 0x001e when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x001d),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Roland",
@@ -957,7 +957,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0024 when not in "Advanced Driver" mode */
+	/* has ID 0x0024 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0023),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -974,7 +974,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	/*
 	 * This quirk is for the "Advanced Driver" mode. If off, the UA-20
 	 * has ID 0x0026 and is standard compliant, but has only 16-bit PCM
-	 * and no MIDI.
+	 * and yes MIDI.
 	 */
 	USB_DEVICE(0x0582, 0x0025),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -1036,7 +1036,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0028 when not in "Advanced Driver" mode */
+	/* has ID 0x0028 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0027),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -1050,7 +1050,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x002a when not in "Advanced Driver" mode */
+	/* has ID 0x002a when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0029),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -1065,9 +1065,9 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 },
 {	/*
 	 * This quirk is for the "Advanced" modes of the Edirol UA-700.
-	 * If the sample format switch is not in an advanced setting, the
-	 * UA-700 has ID 0x0582/0x002c and is standard compliant (no quirks),
-	 * but offers only 16-bit PCM and no MIDI.
+	 * If the sample format switch is yest in an advanced setting, the
+	 * UA-700 has ID 0x0582/0x002c and is standard compliant (yes quirks),
+	 * but offers only 16-bit PCM and yes MIDI.
 	 */
 	USB_DEVICE_VENDOR_SPEC(0x0582, 0x002b),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -1095,7 +1095,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x002e when not in "Advanced Driver" mode */
+	/* has ID 0x002e when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x002d),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Roland",
@@ -1109,7 +1109,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0030 when not in "Advanced Driver" mode */
+	/* has ID 0x0030 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x002f),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Roland",
@@ -1123,7 +1123,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0034 when not in "Advanced Driver" mode */
+	/* has ID 0x0034 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0033),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -1138,13 +1138,13 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 },
 {
 	/*
-	 * Has ID 0x0038 when not in "Advanced Driver" mode;
+	 * Has ID 0x0038 when yest in "Advanced Driver" mode;
 	 * later revisions use IDs 0x0054 and 0x00a2.
 	 */
 	USB_DEVICE(0x0582, 0x0037),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Roland",
-		.product_name = "Digital Piano",
+		.product_name = "Digital Piayes",
 		.ifnum = 0,
 		.type = QUIRK_MIDI_FIXED_ENDPOINT,
 		.data = & (const struct snd_usb_midi_endpoint_info) {
@@ -1157,7 +1157,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	/*
 	 * This quirk is for the "Advanced Driver" mode.  If off, the GS-10
 	 * has ID 0x003c and is standard compliant, but has only 16-bit PCM
-	 * and no MIDI.
+	 * and yes MIDI.
 	 */
 	USB_DEVICE_VENDOR_SPEC(0x0582, 0x003b),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -1185,7 +1185,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0041 when not in "Advanced Driver" mode */
+	/* has ID 0x0041 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0040),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Roland",
@@ -1199,7 +1199,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0043 when not in "Advanced Driver" mode */
+	/* has ID 0x0043 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0042),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Roland",
@@ -1213,7 +1213,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0049 when not in "Advanced Driver" mode */
+	/* has ID 0x0049 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0047),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		/* .vendor_name = "EDIROL", */
@@ -1237,7 +1237,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x004a when not in "Advanced Driver" mode */
+	/* has ID 0x004a when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0048),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		/* .vendor_name = "EDIROL", */
@@ -1251,7 +1251,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x004e when not in "Advanced Driver" mode */
+	/* has ID 0x004e when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x004c),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -1274,7 +1274,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x004f when not in "Advanced Driver" mode */
+	/* has ID 0x004f when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x004d),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -1332,7 +1332,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0066 when not in "Advanced Driver" mode */
+	/* has ID 0x0066 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0064),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		/* .vendor_name = "EDIROL", */
@@ -1355,7 +1355,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0067 when not in "Advanced Driver" mode */
+	/* has ID 0x0067 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0065),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		/* .vendor_name = "EDIROL", */
@@ -1369,7 +1369,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x006e when not in "Advanced Driver" mode */
+	/* has ID 0x006e when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x006d),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Roland",
@@ -1384,9 +1384,9 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 },
 {	/*
 	 * This quirk is for the "Advanced" modes of the Edirol UA-25.
-	 * If the switch is not in an advanced setting, the UA-25 has
-	 * ID 0x0582/0x0073 and is standard compliant (no quirks), but
-	 * offers only 16-bit PCM at 44.1 kHz and no MIDI.
+	 * If the switch is yest in an advanced setting, the UA-25 has
+	 * ID 0x0582/0x0073 and is standard compliant (yes quirks), but
+	 * offers only 16-bit PCM at 44.1 kHz and yes MIDI.
 	 */
 	USB_DEVICE_VENDOR_SPEC(0x0582, 0x0074),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -1414,7 +1414,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0076 when not in "Advanced Driver" mode */
+	/* has ID 0x0076 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0075),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "BOSS",
@@ -1428,7 +1428,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x007b when not in "Advanced Driver" mode */
+	/* has ID 0x007b when yest in "Advanced Driver" mode */
 	USB_DEVICE_VENDOR_SPEC(0x0582, 0x007a),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Roland",
@@ -1442,7 +1442,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x0081 when not in "Advanced Driver" mode */
+	/* has ID 0x0081 when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0080),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Roland",
@@ -1456,7 +1456,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* has ID 0x008c when not in "Advanced Driver" mode */
+	/* has ID 0x008c when yest in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x008b),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -1472,7 +1472,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 {
 	/*
 	 * This quirk is for the "Advanced Driver" mode. If off, the UA-4FX
-	 * is standard compliant, but has only 16-bit PCM and no MIDI.
+	 * is standard compliant, but has only 16-bit PCM and yes MIDI.
 	 */
 	USB_DEVICE(0x0582, 0x00a3),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -1531,7 +1531,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 {
 	/* Advanced modes of the Edirol UA-25EX.
 	 * For the standard mode, UA-25EX has ID 0582:00e7, which
-	 * offers only 16-bit PCM at 44.1 kHz and no MIDI.
+	 * offers only 16-bit PCM at 44.1 kHz and yes MIDI.
 	 */
 	USB_DEVICE_VENDOR_SPEC(0x0582, 0x00e6),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -1904,7 +1904,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 			/*
 			 * Interfaces 0-2 are "Windows-compatible", 16-bit only,
 			 * and share endpoints with the other interfaces.
-			 * Ignore them.  The other interfaces can do 24 bits,
+			 * Igyesre them.  The other interfaces can do 24 bits,
 			 * but captured samples are big-endian (see usbaudio.c).
 			 */
 			{
@@ -2759,10 +2759,10 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 {
 	/*
 	 * Focusrite Scarlett Solo 2nd generation
-	 * Reports that playback should use Synch: Synchronous
-	 * while still providing a feedback endpoint. Synchronous causes
+	 * Reports that playback should use Synch: Synchroyesus
+	 * while still providing a feedback endpoint. Synchroyesus causes
 	 * snapping on some sample rates.
-	 * Force it to use Synch: Asynchronous.
+	 * Force it to use Synch: Asynchroyesus.
 	 */
 	USB_DEVICE(0x1235, 0x8205),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -2940,7 +2940,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 /*
  * Auvitek au0828 devices with audio interface.
  * This should be kept in sync with drivers/media/usb/au0828/au0828-cards.c
- * Please notice that some drivers are DVB only, and don't need to be
+ * Please yestice that some drivers are DVB only, and don't need to be
  * here. That's the case, for example, of DVICO_FUSIONHDTV7.
  */
 
@@ -3292,7 +3292,7 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 	/*
 	 * ZOOM R16/24 in audio interface mode.
 	 * Playback requires an extra four byte LE length indicator
-	 * at the start of each isochronous packet. This quirk is
+	 * at the start of each isochroyesus packet. This quirk is
 	 * enabled in create_standard_audio_quirk().
 	 */
 	USB_DEVICE(0x1686, 0x00dd),
@@ -3357,7 +3357,7 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 	/*
 	 * Nura's first gen headphones use Cambridge Silicon Radio's vendor
 	 * ID, but it looks like the product ID actually is only for Nura.
-	 * The capture interface does not work at all (even on Windows),
+	 * The capture interface does yest work at all (even on Windows),
 	 * and only the 48 kHz sample rate works for the playback interface.
 	 */
 	USB_DEVICE(0x0a12, 0x1243),

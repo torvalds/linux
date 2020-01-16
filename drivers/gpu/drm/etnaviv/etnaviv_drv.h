@@ -102,7 +102,7 @@ static inline size_t size_vstruct(size_t nelem, size_t elem_size, size_t base)
 }
 
 /*
- * Etnaviv timeouts are specified wrt CLOCK_MONOTONIC, not jiffies.
+ * Etnaviv timeouts are specified wrt CLOCK_MONOTONIC, yest jiffies.
  * We need to calculate the timeout in terms of number of jiffies
  * between the specified timeout and the current CLOCK_MONOTONIC time.
  */
@@ -115,7 +115,7 @@ static inline unsigned long etnaviv_timeout_to_jiffies(
 
 	ktime_get_ts64(&ts);
 
-	/* timeouts before "now" have already expired */
+	/* timeouts before "yesw" have already expired */
 	if (timespec64_compare(&to, &ts) <= 0)
 		return 0;
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014 Marvell Technology Group Ltd.
+ * Copyright (c) 2014 Marvell Techyeslogy Group Ltd.
  *
  * Alexandre Belloni <alexandre.belloni@free-electrons.com>
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
@@ -277,9 +277,9 @@ static const struct berlin2_gate_data bg2q_gates[] __initconst = {
 	{ "pcie",	"perif",	22 },
 };
 
-static void __init berlin2q_clock_setup(struct device_node *np)
+static void __init berlin2q_clock_setup(struct device_yesde *np)
 {
-	struct device_node *parent_np = of_get_parent(np);
+	struct device_yesde *parent_np = of_get_parent(np);
 	const char *parent_names[9];
 	struct clk *clk;
 	struct clk_hw **hws;
@@ -297,7 +297,7 @@ static void __init berlin2q_clock_setup(struct device_node *np)
 		return;
 	}
 
-	/* BG2Q CPU PLL is not part of global registers */
+	/* BG2Q CPU PLL is yest part of global registers */
 	cpupll_base = of_iomap(parent_np, 1);
 	if (!cpupll_base) {
 		pr_err("%pOF: Unable to map cpupll base\n", np);

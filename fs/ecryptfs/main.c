@@ -86,20 +86,20 @@ void __ecryptfs_printk(const char *fmt, ...)
  *                   the lower dentry and the lower mount set
  *
  * eCryptfs only ever keeps a single open file for every lower
- * inode. All I/O operations to the lower inode occur through that
+ * iyesde. All I/O operations to the lower iyesde occur through that
  * file. When the first eCryptfs dentry that interposes with the first
- * lower dentry for that inode is created, this function creates the
+ * lower dentry for that iyesde is created, this function creates the
  * lower file struct and associates it with the eCryptfs
- * inode. When all eCryptfs files associated with the inode are released, the
+ * iyesde. When all eCryptfs files associated with the iyesde are released, the
  * file is closed.
  *
  * The lower file will be opened with read/write permissions, if
  * possible. Otherwise, it is opened read-only.
  *
- * This function does nothing if a lower file is already
- * associated with the eCryptfs inode.
+ * This function does yesthing if a lower file is already
+ * associated with the eCryptfs iyesde.
  *
- * Returns zero on success; non-zero otherwise
+ * Returns zero on success; yesn-zero otherwise
  */
 static int ecryptfs_init_lower_file(struct dentry *dentry,
 				    struct file **lower_file)
@@ -119,37 +119,37 @@ static int ecryptfs_init_lower_file(struct dentry *dentry,
 	return rc;
 }
 
-int ecryptfs_get_lower_file(struct dentry *dentry, struct inode *inode)
+int ecryptfs_get_lower_file(struct dentry *dentry, struct iyesde *iyesde)
 {
-	struct ecryptfs_inode_info *inode_info;
+	struct ecryptfs_iyesde_info *iyesde_info;
 	int count, rc = 0;
 
-	inode_info = ecryptfs_inode_to_private(inode);
-	mutex_lock(&inode_info->lower_file_mutex);
-	count = atomic_inc_return(&inode_info->lower_file_count);
+	iyesde_info = ecryptfs_iyesde_to_private(iyesde);
+	mutex_lock(&iyesde_info->lower_file_mutex);
+	count = atomic_inc_return(&iyesde_info->lower_file_count);
 	if (WARN_ON_ONCE(count < 1))
 		rc = -EINVAL;
 	else if (count == 1) {
 		rc = ecryptfs_init_lower_file(dentry,
-					      &inode_info->lower_file);
+					      &iyesde_info->lower_file);
 		if (rc)
-			atomic_set(&inode_info->lower_file_count, 0);
+			atomic_set(&iyesde_info->lower_file_count, 0);
 	}
-	mutex_unlock(&inode_info->lower_file_mutex);
+	mutex_unlock(&iyesde_info->lower_file_mutex);
 	return rc;
 }
 
-void ecryptfs_put_lower_file(struct inode *inode)
+void ecryptfs_put_lower_file(struct iyesde *iyesde)
 {
-	struct ecryptfs_inode_info *inode_info;
+	struct ecryptfs_iyesde_info *iyesde_info;
 
-	inode_info = ecryptfs_inode_to_private(inode);
-	if (atomic_dec_and_mutex_lock(&inode_info->lower_file_count,
-				      &inode_info->lower_file_mutex)) {
-		filemap_write_and_wait(inode->i_mapping);
-		fput(inode_info->lower_file);
-		inode_info->lower_file = NULL;
-		mutex_unlock(&inode_info->lower_file_mutex);
+	iyesde_info = ecryptfs_iyesde_to_private(iyesde);
+	if (atomic_dec_and_mutex_lock(&iyesde_info->lower_file_count,
+				      &iyesde_info->lower_file_mutex)) {
+		filemap_write_and_wait(iyesde->i_mapping);
+		fput(iyesde_info->lower_file);
+		iyesde_info->lower_file = NULL;
+		mutex_unlock(&iyesde_info->lower_file_mutex);
 	}
 }
 
@@ -195,7 +195,7 @@ static int ecryptfs_init_global_auth_toks(
 			&global_auth_tok->global_auth_tok_key, &auth_tok,
 			global_auth_tok->sig);
 		if (rc) {
-			printk(KERN_ERR "Could not find valid key in user "
+			printk(KERN_ERR "Could yest find valid key in user "
 			       "session keyring for sig specified in mount "
 			       "option: [%s]\n", global_auth_tok->sig);
 			global_auth_tok->flags |= ECRYPTFS_AUTH_TOK_INVALID;
@@ -234,10 +234,10 @@ static void ecryptfs_init_mount_crypt_stat(
  * that lower directory.
  *
  * The signature of the key to use must be the description of a key
- * already in the keyring. Mounting will fail if the key can not be
+ * already in the keyring. Mounting will fail if the key can yest be
  * found.
  *
- * Returns zero on success; non-zero on error
+ * Returns zero on success; yesn-zero on error
  */
 static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 				  uid_t *check_ruid)
@@ -457,7 +457,7 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 	mutex_unlock(&key_tfm_list_mutex);
 	rc = ecryptfs_init_global_auth_toks(mount_crypt_stat);
 	if (rc)
-		printk(KERN_WARNING "One or more global auth toks could not "
+		printk(KERN_WARNING "One or more global auth toks could yest "
 		       "properly register; rc = [%d]\n", rc);
 out:
 	return rc;
@@ -481,7 +481,7 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	struct ecryptfs_dentry_info *root_info;
 	const char *err = "Getting sb failed";
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct path path;
 	uid_t check_ruid;
 	int rc;
@@ -499,7 +499,7 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 	}
 	mount_crypt_stat = &sbi->mount_crypt_stat;
 
-	s = sget(fs_type, NULL, set_anon_super, flags, NULL);
+	s = sget(fs_type, NULL, set_ayesn_super, flags, NULL);
 	if (IS_ERR(s)) {
 		rc = PTR_ERR(s);
 		goto out;
@@ -527,15 +527,15 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 		rc = -EINVAL;
 		printk(KERN_ERR "Mount on filesystem of type "
 			"eCryptfs explicitly disallowed due to "
-			"known incompatibilities\n");
+			"kyeswn incompatibilities\n");
 		goto out_free;
 	}
 
-	if (check_ruid && !uid_eq(d_inode(path.dentry)->i_uid, current_uid())) {
+	if (check_ruid && !uid_eq(d_iyesde(path.dentry)->i_uid, current_uid())) {
 		rc = -EPERM;
-		printk(KERN_ERR "Mount of device (uid: %d) not owned by "
+		printk(KERN_ERR "Mount of device (uid: %d) yest owned by "
 		       "requested user (uid: %d)\n",
-			i_uid_read(d_inode(path.dentry)),
+			i_uid_read(d_iyesde(path.dentry)),
 			from_kuid(&init_user_ns, current_uid()));
 		goto out_free;
 	}
@@ -568,12 +568,12 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 		goto out_free;
 	}
 
-	inode = ecryptfs_get_inode(d_inode(path.dentry), s);
-	rc = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	iyesde = ecryptfs_get_iyesde(d_iyesde(path.dentry), s);
+	rc = PTR_ERR(iyesde);
+	if (IS_ERR(iyesde))
 		goto out_free;
 
-	s->s_root = d_make_root(inode);
+	s->s_root = d_make_root(iyesde);
 	if (!s->s_root) {
 		rc = -ENOMEM;
 		goto out_free;
@@ -613,7 +613,7 @@ out:
 static void ecryptfs_kill_block_super(struct super_block *sb)
 {
 	struct ecryptfs_sb_info *sb_info = ecryptfs_superblock_to_private(sb);
-	kill_anon_super(sb);
+	kill_ayesn_super(sb);
 	if (!sb_info)
 		return;
 	ecryptfs_destroy_mount_crypt_stat(&sb_info->mount_crypt_stat);
@@ -630,16 +630,16 @@ static struct file_system_type ecryptfs_fs_type = {
 MODULE_ALIAS_FS("ecryptfs");
 
 /**
- * inode_info_init_once
+ * iyesde_info_init_once
  *
- * Initializes the ecryptfs_inode_info_cache when it is created
+ * Initializes the ecryptfs_iyesde_info_cache when it is created
  */
 static void
-inode_info_init_once(void *vptr)
+iyesde_info_init_once(void *vptr)
 {
-	struct ecryptfs_inode_info *ei = (struct ecryptfs_inode_info *)vptr;
+	struct ecryptfs_iyesde_info *ei = (struct ecryptfs_iyesde_info *)vptr;
 
-	inode_init_once(&ei->vfs_inode);
+	iyesde_init_once(&ei->vfs_iyesde);
 }
 
 static struct ecryptfs_cache_info {
@@ -665,11 +665,11 @@ static struct ecryptfs_cache_info {
 		.size = sizeof(struct ecryptfs_dentry_info),
 	},
 	{
-		.cache = &ecryptfs_inode_info_cache,
-		.name = "ecryptfs_inode_cache",
-		.size = sizeof(struct ecryptfs_inode_info),
+		.cache = &ecryptfs_iyesde_info_cache,
+		.name = "ecryptfs_iyesde_cache",
+		.size = sizeof(struct ecryptfs_iyesde_info),
 		.flags = SLAB_ACCOUNT,
-		.ctor = inode_info_init_once,
+		.ctor = iyesde_info_init_once,
 	},
 	{
 		.cache = &ecryptfs_sb_info_cache,
@@ -713,7 +713,7 @@ static void ecryptfs_free_kmem_caches(void)
 	int i;
 
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
@@ -729,7 +729,7 @@ static void ecryptfs_free_kmem_caches(void)
 /**
  * ecryptfs_init_kmem_caches
  *
- * Returns zero on success; non-zero otherwise
+ * Returns zero on success; yesn-zero otherwise
  */
 static int ecryptfs_init_kmem_caches(void)
 {
@@ -805,7 +805,7 @@ static int __init ecryptfs_init(void)
 		rc = -EINVAL;
 		ecryptfs_printk(KERN_ERR, "The eCryptfs extent size is "
 				"larger than the host's page size, and so "
-				"eCryptfs cannot run on this system. The "
+				"eCryptfs canyest run on this system. The "
 				"default eCryptfs extent size is [%u] bytes; "
 				"the page size is [%lu] bytes.\n",
 				ECRYPTFS_DEFAULT_EXTENT_SIZE,

@@ -154,12 +154,12 @@ void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
 {
 	struct iowa_bus *bus;
 	void __iomem *res = __ioremap_caller(addr, size, prot, caller);
-	int busno;
+	int busyes;
 
 	bus = iowa_pci_find(0, (unsigned long)addr);
 	if (bus != NULL) {
-		busno = bus - iowa_busses;
-		PCI_SET_ADDR_TOKEN(res, busno + 1);
+		busyes = bus - iowa_busses;
+		PCI_SET_ADDR_TOKEN(res, busyes + 1);
 	}
 	return res;
 }
@@ -181,7 +181,7 @@ void iowa_register_bus(struct pci_controller *phb, struct ppc_pci_io *ops,
 		       int (*initfunc)(struct iowa_bus *, void *), void *data)
 {
 	struct iowa_bus *bus;
-	struct device_node *np = phb->dn;
+	struct device_yesde *np = phb->dn;
 
 	io_workaround_init();
 

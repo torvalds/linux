@@ -35,7 +35,7 @@
  * Invokes filesystem specific ->unlocked_ioctl, if one exists; otherwise
  * returns -ENOTTY.
  *
- * Returns 0 on success, -errno on error.
+ * Returns 0 on success, -erryes on error.
  */
 long vfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -81,7 +81,7 @@ static int ioctl_fibmap(struct file *filp, int __user *p)
  * info as passed in via arguments and copy to user memory. On
  * success, extent count on fieinfo is incremented.
  *
- * Returns 0 on success, -errno on error, 1 if this was the last
+ * Returns 0 on success, -erryes on error, 1 if this was the last
  * extent that will fit in user array.
  */
 #define SET_UNKNOWN_FLAGS	(FIEMAP_EXTENT_DELALLOC)
@@ -179,12 +179,12 @@ static int ioctl_fiemap(struct file *filp, struct fiemap __user *ufiemap)
 {
 	struct fiemap fiemap;
 	struct fiemap_extent_info fieinfo = { 0, };
-	struct inode *inode = file_inode(filp);
-	struct super_block *sb = inode->i_sb;
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct super_block *sb = iyesde->i_sb;
 	u64 len;
 	int error;
 
-	if (!inode->i_op->fiemap)
+	if (!iyesde->i_op->fiemap)
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&fiemap, ufiemap, sizeof(fiemap)))
@@ -208,9 +208,9 @@ static int ioctl_fiemap(struct file *filp, struct fiemap __user *ufiemap)
 		return -EFAULT;
 
 	if (fieinfo.fi_flags & FIEMAP_FLAG_SYNC)
-		filemap_write_and_wait(inode->i_mapping);
+		filemap_write_and_wait(iyesde->i_mapping);
 
-	error = inode->i_op->fiemap(inode, &fieinfo, fiemap.fm_start, len);
+	error = iyesde->i_op->fiemap(iyesde, &fieinfo, fiemap.fm_start, len);
 	fiemap.fm_flags = fieinfo.fi_flags;
 	fiemap.fm_mapped_extents = fieinfo.fi_extents_mapped;
 	if (copy_to_user(ufiemap, &fiemap, sizeof(fiemap)))
@@ -257,43 +257,43 @@ static long ioctl_file_clone_range(struct file *file,
 
 #ifdef CONFIG_BLOCK
 
-static inline sector_t logical_to_blk(struct inode *inode, loff_t offset)
+static inline sector_t logical_to_blk(struct iyesde *iyesde, loff_t offset)
 {
-	return (offset >> inode->i_blkbits);
+	return (offset >> iyesde->i_blkbits);
 }
 
-static inline loff_t blk_to_logical(struct inode *inode, sector_t blk)
+static inline loff_t blk_to_logical(struct iyesde *iyesde, sector_t blk)
 {
-	return (blk << inode->i_blkbits);
+	return (blk << iyesde->i_blkbits);
 }
 
 /**
- * __generic_block_fiemap - FIEMAP for block based inodes (no locking)
- * @inode: the inode to map
+ * __generic_block_fiemap - FIEMAP for block based iyesdes (yes locking)
+ * @iyesde: the iyesde to map
  * @fieinfo: the fiemap info struct that will be passed back to userspace
- * @start: where to start mapping in the inode
+ * @start: where to start mapping in the iyesde
  * @len: how much space to map
  * @get_block: the fs's get_block function
  *
- * This does FIEMAP for block based inodes.  Basically it will just loop
+ * This does FIEMAP for block based iyesdes.  Basically it will just loop
  * through get_block until we hit the number of extents we want to map, or we
  * go past the end of the file and hit a hole.
  *
- * If it is possible to have data blocks beyond a hole past @inode->i_size, then
- * please do not use this function, it will stop at the first unmapped block
+ * If it is possible to have data blocks beyond a hole past @iyesde->i_size, then
+ * please do yest use this function, it will stop at the first unmapped block
  * beyond i_size.
  *
  * If you use this function directly, you need to do your own locking. Use
  * generic_block_fiemap if you want the locking done for you.
  */
 
-int __generic_block_fiemap(struct inode *inode,
+int __generic_block_fiemap(struct iyesde *iyesde,
 			   struct fiemap_extent_info *fieinfo, loff_t start,
 			   loff_t len, get_block_t *get_block)
 {
 	struct buffer_head map_bh;
 	sector_t start_blk, last_blk;
-	loff_t isize = i_size_read(inode);
+	loff_t isize = i_size_read(iyesde);
 	u64 logical = 0, phys = 0, size = 0;
 	u32 flags = FIEMAP_EXTENT_MERGED;
 	bool past_eof = false, whole_file = false;
@@ -305,7 +305,7 @@ int __generic_block_fiemap(struct inode *inode,
 
 	/*
 	 * Either the i_mutex or other appropriate locking needs to be held
-	 * since we expect isize to not change at all through the duration of
+	 * since we expect isize to yest change at all through the duration of
 	 * this call.
 	 */
 	if (len >= isize) {
@@ -317,11 +317,11 @@ int __generic_block_fiemap(struct inode *inode,
 	 * Some filesystems can't deal with being asked to map less than
 	 * blocksize, so make sure our len is at least block length.
 	 */
-	if (logical_to_blk(inode, len) == 0)
-		len = blk_to_logical(inode, 1);
+	if (logical_to_blk(iyesde, len) == 0)
+		len = blk_to_logical(iyesde, 1);
 
-	start_blk = logical_to_blk(inode, start);
-	last_blk = logical_to_blk(inode, start + len - 1);
+	start_blk = logical_to_blk(iyesde, start);
+	last_blk = logical_to_blk(iyesde, start + len - 1);
 
 	do {
 		/*
@@ -331,7 +331,7 @@ int __generic_block_fiemap(struct inode *inode,
 		memset(&map_bh, 0, sizeof(struct buffer_head));
 		map_bh.b_size = len;
 
-		ret = get_block(inode, start_blk, &map_bh, 0);
+		ret = get_block(iyesde, start_blk, &map_bh, 0);
 		if (ret)
 			break;
 
@@ -342,12 +342,12 @@ int __generic_block_fiemap(struct inode *inode,
 			/*
 			 * We want to handle the case where there is an
 			 * allocated block at the front of the file, and then
-			 * nothing but holes up to the end of the file properly,
+			 * yesthing but holes up to the end of the file properly,
 			 * to make sure that extent at the front gets properly
 			 * marked with FIEMAP_EXTENT_LAST
 			 */
 			if (!past_eof &&
-			    blk_to_logical(inode, start_blk) >= isize)
+			    blk_to_logical(iyesde, start_blk) >= isize)
 				past_eof = 1;
 
 			/*
@@ -392,7 +392,7 @@ int __generic_block_fiemap(struct inode *inode,
 			}
 
 			/*
-			 * if size != 0 then we know we already have an extent
+			 * if size != 0 then we kyesw we already have an extent
 			 * to add, so add it.
 			 */
 			if (size) {
@@ -403,12 +403,12 @@ int __generic_block_fiemap(struct inode *inode,
 					break;
 			}
 
-			logical = blk_to_logical(inode, start_blk);
-			phys = blk_to_logical(inode, map_bh.b_blocknr);
+			logical = blk_to_logical(iyesde, start_blk);
+			phys = blk_to_logical(iyesde, map_bh.b_blocknr);
 			size = map_bh.b_size;
 			flags = FIEMAP_EXTENT_MERGED;
 
-			start_blk += logical_to_blk(inode, size);
+			start_blk += logical_to_blk(iyesde, size);
 
 			/*
 			 * If we are past the EOF, then we need to make sure as
@@ -435,25 +435,25 @@ int __generic_block_fiemap(struct inode *inode,
 EXPORT_SYMBOL(__generic_block_fiemap);
 
 /**
- * generic_block_fiemap - FIEMAP for block based inodes
- * @inode: The inode to map
+ * generic_block_fiemap - FIEMAP for block based iyesdes
+ * @iyesde: The iyesde to map
  * @fieinfo: The mapping information
  * @start: The initial block to map
  * @len: The length of the extect to attempt to map
  * @get_block: The block mapping function for the fs
  *
- * Calls __generic_block_fiemap to map the inode, after taking
- * the inode's mutex lock.
+ * Calls __generic_block_fiemap to map the iyesde, after taking
+ * the iyesde's mutex lock.
  */
 
-int generic_block_fiemap(struct inode *inode,
+int generic_block_fiemap(struct iyesde *iyesde,
 			 struct fiemap_extent_info *fieinfo, u64 start,
 			 u64 len, get_block_t *get_block)
 {
 	int ret;
-	inode_lock(inode);
-	ret = __generic_block_fiemap(inode, fieinfo, start, len, get_block);
-	inode_unlock(inode);
+	iyesde_lock(iyesde);
+	ret = __generic_block_fiemap(iyesde, fieinfo, start, len, get_block);
+	iyesde_unlock(iyesde);
 	return ret;
 }
 EXPORT_SYMBOL(generic_block_fiemap);
@@ -465,11 +465,11 @@ EXPORT_SYMBOL(generic_block_fiemap);
  * which predate the fallocate syscall.
  *
  * Only the l_start, l_len and l_whence fields of the 'struct space_resv'
- * are used here, rest are ignored.
+ * are used here, rest are igyesred.
  */
 int ioctl_preallocate(struct file *filp, int mode, void __user *argp)
 {
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 	struct space_resv sr;
 
 	if (copy_from_user(&sr, argp, sizeof(sr)))
@@ -482,7 +482,7 @@ int ioctl_preallocate(struct file *filp, int mode, void __user *argp)
 		sr.l_start += filp->f_pos;
 		break;
 	case SEEK_END:
-		sr.l_start += i_size_read(inode);
+		sr.l_start += i_size_read(iyesde);
 		break;
 	default:
 		return -EINVAL;
@@ -498,7 +498,7 @@ int ioctl_preallocate(struct file *filp, int mode, void __user *argp)
 int compat_ioctl_preallocate(struct file *file, int mode,
 				struct space_resv_32 __user *argp)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct space_resv_32 sr;
 
 	if (copy_from_user(&sr, argp, sizeof(sr)))
@@ -511,7 +511,7 @@ int compat_ioctl_preallocate(struct file *file, int mode,
 		sr.l_start += file->f_pos;
 		break;
 	case SEEK_END:
-		sr.l_start += i_size_read(inode);
+		sr.l_start += i_size_read(iyesde);
 		break;
 	default:
 		return -EINVAL;
@@ -524,14 +524,14 @@ int compat_ioctl_preallocate(struct file *file, int mode,
 static int file_ioctl(struct file *filp, unsigned int cmd,
 		unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 	int __user *p = (int __user *)arg;
 
 	switch (cmd) {
 	case FIBMAP:
 		return ioctl_fibmap(filp, p);
 	case FIONREAD:
-		return put_user(i_size_read(inode) - filp->f_pos, p);
+		return put_user(i_size_read(iyesde) - filp->f_pos, p);
 	case FS_IOC_RESVSP:
 	case FS_IOC_RESVSP64:
 		return ioctl_preallocate(filp, 0, p);
@@ -592,7 +592,7 @@ static int ioctl_fioasync(unsigned int fd, struct file *filp,
 
 static int ioctl_fsfreeze(struct file *filp)
 {
-	struct super_block *sb = file_inode(filp)->i_sb;
+	struct super_block *sb = file_iyesde(filp)->i_sb;
 
 	if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
@@ -609,7 +609,7 @@ static int ioctl_fsfreeze(struct file *filp)
 
 static int ioctl_fsthaw(struct file *filp)
 {
-	struct super_block *sb = file_inode(filp)->i_sb;
+	struct super_block *sb = file_iyesde(filp)->i_sb;
 
 	if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
@@ -664,7 +664,7 @@ out:
  * When you add any new common ioctls to the switches above and below
  * please update compat_sys_ioctl() too.
  *
- * do_vfs_ioctl() is not for drivers and not intended to be EXPORT_SYMBOL()'d.
+ * do_vfs_ioctl() is yest for drivers and yest intended to be EXPORT_SYMBOL()'d.
  * It's just a simple helper for sys_ioctl and compat_sys_ioctl.
  */
 int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
@@ -672,7 +672,7 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 {
 	int error = 0;
 	void __user *argp = (void __user *)arg;
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 
 	switch (cmd) {
 	case FIOCLEX:
@@ -692,9 +692,9 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 		break;
 
 	case FIOQSIZE:
-		if (S_ISDIR(inode->i_mode) || S_ISREG(inode->i_mode) ||
-		    S_ISLNK(inode->i_mode)) {
-			loff_t res = inode_get_bytes(inode);
+		if (S_ISDIR(iyesde->i_mode) || S_ISREG(iyesde->i_mode) ||
+		    S_ISLNK(iyesde->i_mode)) {
+			loff_t res = iyesde_get_bytes(iyesde);
 			error = copy_to_user(argp, &res, sizeof(res)) ?
 					-EFAULT : 0;
 		} else
@@ -713,10 +713,10 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 		return ioctl_fiemap(filp, argp);
 
 	case FIGETBSZ:
-		/* anon_bdev filesystems may not have a block size */
-		if (!inode->i_sb->s_blocksize)
+		/* ayesn_bdev filesystems may yest have a block size */
+		if (!iyesde->i_sb->s_blocksize)
 			return -EINVAL;
-		return put_user(inode->i_sb->s_blocksize, (int __user *)argp);
+		return put_user(iyesde->i_sb->s_blocksize, (int __user *)argp);
 
 	case FICLONE:
 		return ioctl_file_clone(filp, arg, 0, 0, 0);
@@ -728,7 +728,7 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 		return ioctl_file_dedupe_range(filp, argp);
 
 	default:
-		if (S_ISREG(inode->i_mode))
+		if (S_ISREG(iyesde->i_mode))
 			error = file_ioctl(filp, cmd, arg);
 		else
 			error = vfs_ioctl(filp, cmd, arg);
@@ -760,7 +760,7 @@ SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
 /**
  * compat_ptr_ioctl - generic implementation of .compat_ioctl file operation
  *
- * This is not normally called as a function, but instead set in struct
+ * This is yest yesrmally called as a function, but instead set in struct
  * file_operations as
  *
  *     .compat_ioctl = compat_ptr_ioctl,
@@ -772,7 +772,7 @@ SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
  * native 32-bit s390 user space.
  *
  * The compat_ptr_ioctl() function must therefore be used only with ioctl
- * functions that either ignore the argument or pass a pointer to a
+ * functions that either igyesre the argument or pass a pointer to a
  * compatible data type.
  *
  * If any ioctl command handled by fops->unlocked_ioctl passes a plain

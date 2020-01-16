@@ -36,7 +36,7 @@ required:
   - '#clock-cells'
 
 examples:
-  # Clock controller node:
+  # Clock controller yesde:
   - |
     m10v-clk-ctrl@1d021000 {
         compatible = "socionext,milbeaut-m10v-clk-ccu";
@@ -45,7 +45,7 @@ examples:
         clocks = <&clki40mhz>;
     };
 
-  # Required an external clock for Clock controller node:
+  # Required an external clock for Clock controller yesde:
   - |
     clocks {
         clki40mhz: clki40mhz {

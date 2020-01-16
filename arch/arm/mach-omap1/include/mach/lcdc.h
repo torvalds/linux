@@ -4,7 +4,7 @@
  *
  * Extracted from drivers/video/omap/lcdc.c
  * Copyright (C) 2004 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 #ifndef __MACH_LCDC_H__
 #define __MACH_LCDC_H__

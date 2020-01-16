@@ -47,7 +47,7 @@ static const char serial21285_name[] = "Footbridge UART";
 /*
  * The documented expression for selecting the divisor is:
  *  BAUD_BASE / baud - 1
- * However, typically BAUD_BASE is not divisible by baud, so
+ * However, typically BAUD_BASE is yest divisible by baud, so
  * we want to select the divisor that gives us the minimum
  * error.  Therefore, we want:
  *  int(BAUD_BASE / baud - 0.5) ->
@@ -58,7 +58,7 @@ static const char serial21285_name[] = "Footbridge UART";
 static void serial21285_stop_tx(struct uart_port *port)
 {
 	if (tx_enabled(port)) {
-		disable_irq_nosync(IRQ_CONTX);
+		disable_irq_yessync(IRQ_CONTX);
 		tx_enabled(port) = 0;
 	}
 }
@@ -74,7 +74,7 @@ static void serial21285_start_tx(struct uart_port *port)
 static void serial21285_stop_rx(struct uart_port *port)
 {
 	if (rx_enabled(port)) {
-		disable_irq_nosync(IRQ_CONRX);
+		disable_irq_yessync(IRQ_CONRX);
 		rx_enabled(port) = 0;
 	}
 }
@@ -156,7 +156,7 @@ static unsigned int serial21285_tx_empty(struct uart_port *port)
 	return (*CSR_UARTFLG & 8) ? 0 : TIOCSER_TEMT;
 }
 
-/* no modem control lines */
+/* yes modem control lines */
 static unsigned int serial21285_get_mctrl(struct uart_port *port)
 {
 	return TIOCM_CAR | TIOCM_DSR | TIOCM_CTS;
@@ -273,19 +273,19 @@ serial21285_set_termios(struct uart_port *port, struct ktermios *termios,
 		port->read_status_mask |= RXSTAT_FRAME | RXSTAT_PARITY;
 
 	/*
-	 * Which character status flags should we ignore?
+	 * Which character status flags should we igyesre?
 	 */
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= RXSTAT_FRAME | RXSTAT_PARITY;
+		port->igyesre_status_mask |= RXSTAT_FRAME | RXSTAT_PARITY;
 	if (termios->c_iflag & IGNBRK && termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= RXSTAT_OVERRUN;
+		port->igyesre_status_mask |= RXSTAT_OVERRUN;
 
 	/*
-	 * Ignore all characters if CREAD is not set.
+	 * Igyesre all characters if CREAD is yest set.
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= RXSTAT_DUMMY_READ;
+		port->igyesre_status_mask |= RXSTAT_DUMMY_READ;
 
 	quot -= 1;
 
@@ -473,7 +473,7 @@ static struct uart_driver serial21285_reg = {
 	.driver_name		= "ttyFB",
 	.dev_name		= "ttyFB",
 	.major			= SERIAL_21285_MAJOR,
-	.minor			= SERIAL_21285_MINOR,
+	.miyesr			= SERIAL_21285_MINOR,
 	.nr			= 1,
 	.cons			= SERIAL_21285_CONSOLE,
 };

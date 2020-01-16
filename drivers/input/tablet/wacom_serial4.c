@@ -6,7 +6,7 @@
  * Copyright 2011-2012 Julian Squires <julian@cipht.net>
  *
  * Many thanks to Bill Seremetis, without whom PenPartner support
- * would not have been possible. Thanks to Patrick Mahoney.
+ * would yest have been possible. Thanks to Patrick Mahoney.
  *
  * This driver was developed with reference to much code written by others,
  * particularly:
@@ -187,14 +187,14 @@ enum {
 
 static void wacom_handle_model_response(struct wacom *wacom)
 {
-	int major_v, minor_v, r = 0;
+	int major_v, miyesr_v, r = 0;
 	char *p;
 
 	p = strrchr(wacom->data, 'V');
 	if (p)
-		r = sscanf(p + 1, "%u.%u", &major_v, &minor_v);
+		r = sscanf(p + 1, "%u.%u", &major_v, &miyesr_v);
 	if (r != 2)
-		major_v = minor_v = 0;
+		major_v = miyesr_v = 0;
 
 	switch (wacom->data[2] << 8 | wacom->data[3]) {
 	case MODEL_CINTIQ:	/* UNTESTED */
@@ -245,7 +245,7 @@ static void wacom_handle_model_response(struct wacom *wacom)
 	case MODEL_DIGITIZER_II:
 		wacom->dev->name = "Wacom Digitizer II";
 		wacom->dev->id.version = MODEL_DIGITIZER_II;
-		if (major_v == 1 && minor_v <= 2)
+		if (major_v == 1 && miyesr_v <= 2)
 			wacom->extra_z_bits = 0; /* UNTESTED */
 		break;
 
@@ -257,7 +257,7 @@ static void wacom_handle_model_response(struct wacom *wacom)
 	}
 
 	dev_info(&wacom->dev->dev, "%s tablet, version %u.%u\n",
-		 wacom->dev->name, major_v, minor_v);
+		 wacom->dev->name, major_v, miyesr_v);
 }
 
 static void wacom_handle_configuration_response(struct wacom *wacom)
@@ -268,7 +268,7 @@ static void wacom_handle_configuration_response(struct wacom *wacom)
 	r = sscanf(wacom->data, "~R%x,%u,%u,%u,%u", &skip, &skip, &skip,
 		   &wacom->res_x, &wacom->res_y);
 	if (r != 5)
-		dev_warn(&wacom->dev->dev, "could not get resolution\n");
+		dev_warn(&wacom->dev->dev, "could yest get resolution\n");
 }
 
 static void wacom_handle_coordinates_response(struct wacom *wacom)
@@ -278,7 +278,7 @@ static void wacom_handle_coordinates_response(struct wacom *wacom)
 	dev_dbg(&wacom->dev->dev, "Coordinates string: %s\n", wacom->data);
 	r = sscanf(wacom->data, "~C%u,%u", &wacom->max_x, &wacom->max_y);
 	if (r != 2)
-		dev_warn(&wacom->dev->dev, "could not get max coordinates\n");
+		dev_warn(&wacom->dev->dev, "could yest get max coordinates\n");
 }
 
 static void wacom_handle_response(struct wacom *wacom)
@@ -354,7 +354,7 @@ static void wacom_handle_packet(struct wacom *wacom)
 		input_report_key(wacom->dev, BTN_LEFT, button & 1);
 		input_report_key(wacom->dev, BTN_RIGHT, button & 2);
 		input_report_key(wacom->dev, BTN_MIDDLE, button & 4);
-		/* handle relative wheel for non-stylus device */
+		/* handle relative wheel for yesn-stylus device */
 		z = (wacom->data[6] & 0x30) >> 4;
 		if (wacom->data[6] & 0x40)
 			z = -z;

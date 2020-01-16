@@ -3,7 +3,7 @@ Texas Instruments TI-SCI Clocks
 
 All clocks on Texas Instruments' SoCs that contain a System Controller,
 are only controlled by this entity. Communication between a host processor
-running an OS and the System Controller happens through a protocol known
+running an OS and the System Controller happens through a protocol kyeswn
 as TI-SCI[1]. This clock implementation plugs into the common clock
 framework and makes use of the TI-SCI protocol on clock API requests.
 

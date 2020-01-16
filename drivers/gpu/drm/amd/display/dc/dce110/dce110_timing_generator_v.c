@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -192,18 +192,18 @@ static void dce110_timing_generator_v_wait_for_vblank(struct timing_generator *t
 {
 	/* We want to catch beginning of VBlank here, so if the first try are
 	 * in VBlank, we might be very close to Active, in this case wait for
-	 * another frame
+	 * ayesther frame
 	 */
 	while (dce110_timing_generator_v_is_in_vertical_blank(tg)) {
 		if (!dce110_timing_generator_v_is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - yes point to wait if counter is yest moving */
 			break;
 		}
 	}
 
 	while (!dce110_timing_generator_v_is_in_vertical_blank(tg)) {
 		if (!dce110_timing_generator_v_is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - yes point to wait if counter is yest moving */
 			break;
 		}
 	}
@@ -216,7 +216,7 @@ static void dce110_timing_generator_v_wait_for_vactive(struct timing_generator *
 {
 	while (dce110_timing_generator_v_is_in_vertical_blank(tg)) {
 		if (!dce110_timing_generator_v_is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - yes point to wait if counter is yest moving */
 			break;
 		}
 	}
@@ -511,7 +511,7 @@ static void dce110_timing_generator_v_set_overscan_color_black(
 	addr = mmCRTCV_BLANK_DATA_COLOR;
 	dm_write_reg(ctx, addr, value);
 
-	/* TO DO we have to program EXT registers and we need to know LB DATA
+	/* TO DO we have to program EXT registers and we need to kyesw LB DATA
 	 * format because it is used when more 10 , i.e. 12 bits per color
 	 *
 	 * m_mmDxCRTC_OVERSCAN_COLOR_EXT
@@ -613,7 +613,7 @@ static uint32_t dce110_timing_generator_v_get_vblank_counter(struct timing_gener
 static bool dce110_timing_generator_v_did_triggered_reset_occur(
 	struct timing_generator *tg)
 {
-	DC_LOG_ERROR("Timing Sync not supported on underlay pipe\n");
+	DC_LOG_ERROR("Timing Sync yest supported on underlay pipe\n");
 	return false;
 }
 
@@ -621,7 +621,7 @@ static void dce110_timing_generator_v_setup_global_swap_lock(
 	struct timing_generator *tg,
 	const struct dcp_gsl_params *gsl_params)
 {
-	DC_LOG_ERROR("Timing Sync not supported on underlay pipe\n");
+	DC_LOG_ERROR("Timing Sync yest supported on underlay pipe\n");
 	return;
 }
 
@@ -629,21 +629,21 @@ static void dce110_timing_generator_v_enable_reset_trigger(
 	struct timing_generator *tg,
 	int source_tg_inst)
 {
-	DC_LOG_ERROR("Timing Sync not supported on underlay pipe\n");
+	DC_LOG_ERROR("Timing Sync yest supported on underlay pipe\n");
 	return;
 }
 
 static void dce110_timing_generator_v_disable_reset_trigger(
 	struct timing_generator *tg)
 {
-	DC_LOG_ERROR("Timing Sync not supported on underlay pipe\n");
+	DC_LOG_ERROR("Timing Sync yest supported on underlay pipe\n");
 	return;
 }
 
 static void dce110_timing_generator_v_tear_down_global_swap_lock(
 	struct timing_generator *tg)
 {
-	DC_LOG_ERROR("Timing Sync not supported on underlay pipe\n");
+	DC_LOG_ERROR("Timing Sync yest supported on underlay pipe\n");
 	return;
 }
 

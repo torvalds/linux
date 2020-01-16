@@ -11,7 +11,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -58,7 +58,7 @@ static int tps65910_rtc_alarm_irq_enable(struct device *dev,
 /*
  * Gets current tps65910 RTC time and date parameters.
  *
- * The RTC's time/alarm representation is not what gmtime(3) requires
+ * The RTC's time/alarm representation is yest what gmtime(3) requires
  * Linux to use:
  *
  *  - Months are 1..12 vs Linux 0-11
@@ -255,7 +255,7 @@ static int tps65910_rtc_get_calibration(struct device *dev, int *calibration)
 	if (ret < 0)
 		return ret;
 
-	/* If automatic compensation is not enabled report back zero */
+	/* If automatic compensation is yest enabled report back zero */
 	if (!(ctrl & TPS65910_RTC_CTRL_AUTO_COMP)) {
 		*calibration = 0;
 		return 0;
@@ -361,7 +361,7 @@ static const struct rtc_class_ops tps65910_rtc_ops = {
 	.set_offset	= tps65910_set_offset,
 };
 
-static const struct rtc_class_ops tps65910_rtc_ops_noirq = {
+static const struct rtc_class_ops tps65910_rtc_ops_yesirq = {
 	.read_time	= tps65910_rtc_read_time,
 	.set_time	= tps65910_rtc_set_time,
 	.read_offset	= tps65910_read_offset,
@@ -413,7 +413,7 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 
 	irq  = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
-		dev_warn(&pdev->dev, "Wake up is not possible as irq = %d\n",
+		dev_warn(&pdev->dev, "Wake up is yest possible as irq = %d\n",
 			irq);
 		return -ENXIO;
 	}
@@ -429,7 +429,7 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 		device_set_wakeup_capable(&pdev->dev, 1);
 		tps_rtc->rtc->ops = &tps65910_rtc_ops;
 	} else
-		tps_rtc->rtc->ops = &tps65910_rtc_ops_noirq;
+		tps_rtc->rtc->ops = &tps65910_rtc_ops_yesirq;
 
 	tps_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	tps_rtc->rtc->range_max = RTC_TIMESTAMP_END_2099;

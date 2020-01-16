@@ -250,11 +250,11 @@ struct eg20t_port {
 /**
  * struct pch_uart_driver_data - private data structure for UART-DMA
  * @port_type:			The type of UART port
- * @line_no:			UART port line number (0, 1, 2...)
+ * @line_yes:			UART port line number (0, 1, 2...)
  */
 struct pch_uart_driver_data {
 	int port_type;
-	int line_no;
+	int line_yes;
 };
 
 enum pch_uart_num_t {
@@ -388,16 +388,16 @@ static const struct dmi_system_id pch_uart_dmi_table[] = {
 		(void *)NTC1_UARTCLK,
 	},
 	{
-		.ident = "nanoETXexpress-TT",
+		.ident = "nayesETXexpress-TT",
 		{
-			DMI_MATCH(DMI_BOARD_NAME, "nanoETXexpress-TT"),
+			DMI_MATCH(DMI_BOARD_NAME, "nayesETXexpress-TT"),
 		},
 		(void *)NTC1_UARTCLK,
 	},
 	{
-		.ident = "MinnowBoard",
+		.ident = "MinyeswBoard",
 		{
-			DMI_MATCH(DMI_BOARD_NAME, "MinnowBoard"),
+			DMI_MATCH(DMI_BOARD_NAME, "MinyeswBoard"),
 		},
 		(void *)MINNOW_UARTCLK,
 	},
@@ -949,7 +949,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 	}
 
 	if (priv->tx_dma_use) {
-		dev_dbg(priv->port.dev, "%s:Tx is not completed. (%lu)\n",
+		dev_dbg(priv->port.dev, "%s:Tx is yest completed. (%lu)\n",
 			__func__, jiffies);
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
 		priv->tx_empty = 1;
@@ -1363,7 +1363,7 @@ static void pch_uart_shutdown(struct uart_port *port)
 }
 
 /* Change the port parameters, including word length, parity, stop
- *bits.  Update read_status_mask and ignore_status_mask to indicate
+ *bits.  Update read_status_mask and igyesre_status_mask to indicate
  *the types of events we are interested in receiving.  */
 static void pch_uart_set_termios(struct uart_port *port,
 				 struct ktermios *termios, struct ktermios *old)
@@ -1408,7 +1408,7 @@ static void pch_uart_set_termios(struct uart_port *port,
 	else
 		priv->mcr &= ~UART_MCR_AFE;
 
-	termios->c_cflag &= ~CMSPAR; /* Mark/Space parity is not supported */
+	termios->c_cflag &= ~CMSPAR; /* Mark/Space parity is yest supported */
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
 
@@ -1489,7 +1489,7 @@ static int pch_uart_verify_port(struct uart_port *port,
 		serinfo->flags &= ~UPF_LOW_LATENCY;
 	} else {
 #ifndef CONFIG_PCH_DMA
-		dev_err(priv->port.dev, "%s : PCH DMA is not Loaded.\n",
+		dev_err(priv->port.dev, "%s : PCH DMA is yest Loaded.\n",
 			__func__);
 		return -EOPNOTSUPP;
 #endif
@@ -1621,7 +1621,7 @@ static void pch_console_putchar(struct uart_port *port, int ch)
 }
 
 /*
- *	Print a string to the serial port trying not to disturb
+ *	Print a string to the serial port trying yest to disturb
  *	any possible real use of the port...
  *
  *	The console_lock must be held when we get here.
@@ -1726,7 +1726,7 @@ static struct uart_driver pch_uart_driver = {
 	.driver_name = KBUILD_MODNAME,
 	.dev_name = PCH_UART_DRIVER_DEVICE,
 	.major = 0,
-	.minor = 0,
+	.miyesr = 0,
 	.nr = PCH_UART_NR,
 	.cons = PCH_CONSOLE,
 };
@@ -1795,7 +1795,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->port.ops = &pch_uart_ops;
 	priv->port.flags = UPF_BOOT_AUTOCONF;
 	priv->port.fifosize = fifosize;
-	priv->port.line = board->line_no;
+	priv->port.line = board->line_yes;
 	priv->trigger = PCH_UART_HAL_TRIGGER_M;
 
 	snprintf(priv->irq_name, IRQ_NAME_SIZE,
@@ -1808,19 +1808,19 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->trigger_level = 1;
 	priv->fcr = 0;
 
-	if (pdev->dev.of_node)
-		of_property_read_u32(pdev->dev.of_node, "clock-frequency"
+	if (pdev->dev.of_yesde)
+		of_property_read_u32(pdev->dev.of_yesde, "clock-frequency"
 					 , &user_uartclk);
 
 #ifdef CONFIG_SERIAL_PCH_UART_CONSOLE
-	pch_uart_ports[board->line_no] = priv;
+	pch_uart_ports[board->line_yes] = priv;
 #endif
 	ret = uart_add_one_port(&pch_uart_driver, &priv->port);
 	if (ret < 0)
 		goto init_port_hal_free;
 
 #ifdef CONFIG_DEBUG_FS
-	snprintf(name, sizeof(name), "uart%d_regs", board->line_no);
+	snprintf(name, sizeof(name), "uart%d_regs", board->line_yes);
 	priv->debugfs = debugfs_create_file(name, S_IFREG | S_IRUGO,
 				NULL, priv, &port_regs_ops);
 #endif
@@ -1829,7 +1829,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 
 init_port_hal_free:
 #ifdef CONFIG_SERIAL_PCH_UART_CONSOLE
-	pch_uart_ports[board->line_no] = NULL;
+	pch_uart_ports[board->line_yes] = NULL;
 #endif
 	free_page((unsigned long)rxbuf);
 init_port_free_txbuf:

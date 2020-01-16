@@ -16,7 +16,7 @@
 #define KMSG_COMPONENT "setup"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
@@ -39,7 +39,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/dma-contiguous.h>
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/pfn.h>
 #include <linux/ctype.h>
 #include <linux/reboot.h>
@@ -70,7 +70,7 @@
 #include <asm/sysinfo.h>
 #include <asm/numa.h>
 #include <asm/alternative.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <asm/mem_detect.h>
 #include <asm/uv.h>
 #include "entry.h"
@@ -81,8 +81,8 @@
 unsigned int console_mode = 0;
 EXPORT_SYMBOL(console_mode);
 
-unsigned int console_devno = -1;
-EXPORT_SYMBOL(console_devno);
+unsigned int console_devyes = -1;
+EXPORT_SYMBOL(console_devyes);
 
 unsigned int console_irq = -1;
 EXPORT_SYMBOL(console_irq);
@@ -96,7 +96,7 @@ unsigned long int_hwcap = 0;
 int __bootdata_preserved(prot_virt_guest);
 #endif
 
-int __bootdata(noexec_disabled);
+int __bootdata(yesexec_disabled);
 int __bootdata(memory_end_set);
 unsigned long __bootdata(memory_end);
 unsigned long __bootdata(vmalloc_size);
@@ -146,7 +146,7 @@ static int __init condev_setup(char *str)
 
 	vdev = simple_strtoul(str, &str, 0);
 	if (vdev >= 0 && vdev < 65536) {
-		console_devno = vdev;
+		console_devyes = vdev;
 		console_irq = -1;
 	}
 	return 1;
@@ -193,7 +193,7 @@ static void __init conmode_default(void)
 
         if (MACHINE_IS_VM) {
 		cpcmd("QUERY CONSOLE", query_buffer, 1024, NULL);
-		console_devno = simple_strtoul(query_buffer + 5, NULL, 16);
+		console_devyes = simple_strtoul(query_buffer + 5, NULL, 16);
 		ptr = strstr(query_buffer, "SUBCHANNEL =");
 		console_irq = simple_strtoul(ptr + 13, NULL, 16);
 		cpcmd("QUERY TERM", query_buffer, 1024, NULL);
@@ -203,7 +203,7 @@ static void __init conmode_default(void)
 		 * will set the cu_type of the console to 3215. If the
 		 * conmode is 3270 and we don't set it back then both
 		 * 3215 and the 3270 driver will try to access the console
-		 * device (3215 as console and 3270 as normal tty).
+		 * device (3215 as console and 3270 as yesrmal tty).
 		 */
 		cpcmd("TERM CONMODE 3215", NULL, 0, NULL);
 		if (ptr == NULL) {
@@ -252,7 +252,7 @@ static void __init setup_zfcpdump(void)
 		return;
 	if (OLDMEM_BASE)
 		return;
-	strcat(boot_command_line, " cio_ignore=all,!ipldev,!condev");
+	strcat(boot_command_line, " cio_igyesre=all,!ipldev,!condev");
 	console_loglevel = 2;
 }
 #else
@@ -309,7 +309,7 @@ unsigned long stack_alloc(void)
 {
 #ifdef CONFIG_VMAP_STACK
 	return (unsigned long)
-		__vmalloc_node_range(THREAD_SIZE, THREAD_SIZE,
+		__vmalloc_yesde_range(THREAD_SIZE, THREAD_SIZE,
 				     VMALLOC_START, VMALLOC_END,
 				     THREADINFO_GFP,
 				     PAGE_KERNEL, 0, NUMA_NO_NODE,
@@ -397,7 +397,7 @@ static void __init setup_lowcore_dat_off(void)
 	lc->io_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
-	lc->nodat_stack = ((unsigned long) &init_thread_union)
+	lc->yesdat_stack = ((unsigned long) &init_thread_union)
 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->current_task = (unsigned long)&init_task;
 	lc->lpp = LPP_MAGIC;
@@ -535,11 +535,11 @@ static void __init setup_resources(void)
 	 * Re-add removed crash kernel memory as reserved memory. This makes
 	 * sure it will be mapped with the identity mapping and struct pages
 	 * will be created, so it can be resized later on.
-	 * However add it later since the crash kernel resource should not be
+	 * However add it later since the crash kernel resource should yest be
 	 * part of the System RAM resource.
 	 */
 	if (crashk_res.end) {
-		memblock_add_node(crashk_res.start, resource_size(&crashk_res), 0);
+		memblock_add_yesde(crashk_res.start, resource_size(&crashk_res), 0);
 		memblock_reserve(crashk_res.start, resource_size(&crashk_res));
 		insert_resource(&iomem_resource, &crashk_res);
 	}
@@ -589,20 +589,20 @@ static void __init setup_memory_end(void)
 	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
 	memblock_remove(memory_end, ULONG_MAX);
 
-	pr_notice("The maximum memory size is %luMB\n", memory_end >> 20);
+	pr_yestice("The maximum memory size is %luMB\n", memory_end >> 20);
 }
 
 #ifdef CONFIG_CRASH_DUMP
 
 /*
- * When kdump is enabled, we have to ensure that no memory from
+ * When kdump is enabled, we have to ensure that yes memory from
  * the area [0 - crashkernel memory size] and
  * [crashk_res.start - crashk_res.end] is set offline.
  */
-static int kdump_mem_notifier(struct notifier_block *nb,
+static int kdump_mem_yestifier(struct yestifier_block *nb,
 			      unsigned long action, void *data)
 {
-	struct memory_notify *arg = data;
+	struct memory_yestify *arg = data;
 
 	if (action != MEM_GOING_OFFLINE)
 		return NOTIFY_OK;
@@ -615,8 +615,8 @@ static int kdump_mem_notifier(struct notifier_block *nb,
 	return NOTIFY_BAD;
 }
 
-static struct notifier_block kdump_mem_nb = {
-	.notifier_call = kdump_mem_notifier,
+static struct yestifier_block kdump_mem_nb = {
+	.yestifier_call = kdump_mem_yestifier,
 };
 
 #endif
@@ -700,11 +700,11 @@ static void __init reserve_crashkernel(void)
 
 	if (!crash_base) {
 		pr_info("crashkernel reservation failed: %s\n",
-			"no suitable area found");
+			"yes suitable area found");
 		return;
 	}
 
-	if (register_memory_notifier(&kdump_mem_nb))
+	if (register_memory_yestifier(&kdump_mem_nb))
 		return;
 
 	if (!OLDMEM_BASE && MACHINE_IS_VM)
@@ -781,7 +781,7 @@ static const char * __init get_mem_info_source(void)
 	case MEM_DETECT_BIN_SEARCH:
 		return "binary search";
 	}
-	return "none";
+	return "yesne";
 }
 
 static void __init memblock_add_mem_detect_info(void)
@@ -807,7 +807,7 @@ static void __init check_initrd(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (INITRD_START && INITRD_SIZE &&
 	    !memblock_is_region_memory(INITRD_START, INITRD_SIZE)) {
-		pr_err("The initial RAM disk does not fit into the memory\n");
+		pr_err("The initial RAM disk does yest fit into the memory\n");
 		memblock_free(INITRD_START, INITRD_SIZE);
 		initrd_start = initrd_end = 0;
 	}
@@ -913,7 +913,7 @@ static int __init setup_hwcaps(void)
 
 	/*
 	 * Vector extension HWCAP_S390_VXRS is bit 11. The Vector extension
-	 * can be disabled with the "novx" parameter. Use MACHINE_HAS_VX
+	 * can be disabled with the "yesvx" parameter. Use MACHINE_HAS_VX
 	 * instead of facility bit 129.
 	 */
 	if (MACHINE_HAS_VX) {
@@ -1024,7 +1024,7 @@ static void __init setup_task_size(void)
 }
 
 /*
- * Issue diagnose 318 to set the control program name and
+ * Issue diagyesse 318 to set the control program name and
  * version codes.
  */
 static void __init setup_control_program_code(void)
@@ -1066,7 +1066,7 @@ static void __init log_component_list(void)
 			else
 				str = "signed, verification failed";
 		} else {
-			str = "not signed";
+			str = "yest signed";
 		}
 		pr_info("%016llx - %016llx (%s)\n",
 			ptr->addr, ptr->addr + ptr->len, str);
@@ -1108,7 +1108,7 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.brk = (unsigned long) _end;
 
 	if (IS_ENABLED(CONFIG_EXPOLINE_AUTO))
-		nospec_auto_detect();
+		yesspec_auto_detect();
 
 	parse_early_param();
 #ifdef CONFIG_CRASH_DUMP
@@ -1175,7 +1175,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * After paging_init created the kernel page table, the new PSWs
-	 * in lowcore can now run with DAT enabled.
+	 * in lowcore can yesw run with DAT enabled.
 	 */
 	setup_lowcore_dat_on();
 
@@ -1185,7 +1185,7 @@ void __init setup_arch(char **cmdline_p)
 
 	apply_alternative_instructions();
 	if (IS_ENABLED(CONFIG_EXPOLINE))
-		nospec_init_branches();
+		yesspec_init_branches();
 
 	/* Setup zfcpdump support */
 	setup_zfcpdump();

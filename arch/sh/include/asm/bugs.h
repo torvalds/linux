@@ -10,7 +10,7 @@
  */
 
 /*
- * I don't know of any Super-H bugs yet.
+ * I don't kyesw of any Super-H bugs yet.
  */
 
 #include <asm/processor.h>

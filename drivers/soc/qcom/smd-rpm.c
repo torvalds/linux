@@ -107,7 +107,7 @@ int qcom_rpm_smd_write(struct qcom_smd_rpm *rpm,
 	} *pkt;
 	size_t size = sizeof(*pkt) + count;
 
-	/* SMD packets to the RPM may not exceed 256 bytes */
+	/* SMD packets to the RPM may yest exceed 256 bytes */
 	if (WARN_ON(size >= 256))
 		return -EINVAL;
 
@@ -177,7 +177,7 @@ static int qcom_smd_rpm_callback(struct rpmsg_device *rpdev,
 			memcpy_fromio(msgbuf, msg->message, len);
 			msgbuf[len - 1] = 0;
 
-			if (!strcmp(msgbuf, "resource does not exist"))
+			if (!strcmp(msgbuf, "resource does yest exist"))
 				status = -ENXIO;
 			else
 				status = -EINVAL;
@@ -213,7 +213,7 @@ static int qcom_smd_rpm_probe(struct rpmsg_device *rpdev)
 	if (IS_ERR(rpm->icc))
 		return PTR_ERR(rpm->icc);
 
-	ret = of_platform_populate(rpdev->dev.of_node, NULL, NULL, &rpdev->dev);
+	ret = of_platform_populate(rpdev->dev.of_yesde, NULL, NULL, &rpdev->dev);
 	if (ret)
 		platform_device_unregister(rpm->icc);
 

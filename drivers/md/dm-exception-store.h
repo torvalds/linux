@@ -28,7 +28,7 @@ typedef sector_t chunk_t;
  * chunk within the device.
  */
 struct dm_exception {
-	struct hlist_bl_node hash_list;
+	struct hlist_bl_yesde hash_list;
 
 	chunk_t old_chunk;
 	chunk_t new_chunk;
@@ -92,7 +92,7 @@ struct dm_exception_store_type {
 	int (*commit_merge) (struct dm_exception_store *store, int nr_merged);
 
 	/*
-	 * The snapshot is invalid, note this in the metadata.
+	 * The snapshot is invalid, yeste this in the metadata.
 	 */
 	void (*drop_snapshot) (struct dm_exception_store *store);
 
@@ -168,7 +168,7 @@ static inline void dm_consecutive_chunk_count_dec(struct dm_exception *e)
  */
 static inline sector_t get_dev_size(struct block_device *bdev)
 {
-	return i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
+	return i_size_read(bdev->bd_iyesde) >> SECTOR_SHIFT;
 }
 
 static inline chunk_t sector_to_chunk(struct dm_exception_store *store,

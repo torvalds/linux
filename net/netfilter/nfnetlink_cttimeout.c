@@ -12,7 +12,7 @@
 #include <linux/timer.h>
 #include <linux/security.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netlink.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -107,7 +107,7 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 
 	if (matching) {
 		if (nlh->nlmsg_flags & NLM_F_REPLACE) {
-			/* You cannot replace one timeout policy by another of
+			/* You canyest replace one timeout policy by ayesther of
 			 * different kind, sorry.
 			 */
 			if (matching->timeout.l3num != l3num ||
@@ -124,7 +124,7 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 
 	l4proto = nf_ct_l4proto_find(l4num);
 
-	/* This protocol is not supportted, skip. */
+	/* This protocol is yest supportted, skip. */
 	if (l4proto->l4proto != l4num) {
 		ret = -EOPNOTSUPP;
 		goto err_proto_put;
@@ -359,7 +359,7 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
 	l4proto = nf_ct_l4proto_find(l4num);
 
-	/* This protocol is not supported, skip. */
+	/* This protocol is yest supported, skip. */
 	if (l4proto->l4proto != l4num) {
 		ret = -EOPNOTSUPP;
 		goto err;
@@ -522,7 +522,7 @@ static struct nf_ct_timeout *ctnl_timeout_find_get(struct net *net,
 		if (!try_module_get(THIS_MODULE))
 			goto err;
 
-		if (!refcount_inc_not_zero(&timeout->refcnt)) {
+		if (!refcount_inc_yest_zero(&timeout->refcnt)) {
 			module_put(THIS_MODULE);
 			goto err;
 		}
@@ -608,7 +608,7 @@ static int __init cttimeout_init(void)
 
 	ret = nfnetlink_subsys_register(&cttimeout_subsys);
 	if (ret < 0) {
-		pr_err("cttimeout_init: cannot register cttimeout with "
+		pr_err("cttimeout_init: canyest register cttimeout with "
 			"nfnetlink.\n");
 		goto err_out;
 	}

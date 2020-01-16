@@ -63,7 +63,7 @@ struct alc_customize_define {
 	unsigned int  platform_type:1;
 	unsigned int  swap:1;
 	unsigned int  override:1;
-	unsigned int  fixup:1; /* Means that this sku is set by driver, not read from hw */
+	unsigned int  fixup:1; /* Means that this sku is set by driver, yest read from hw */
 };
 
 struct alc_spec {
@@ -98,14 +98,14 @@ struct alc_spec {
 	void (*power_hook)(struct hda_codec *codec);
 #endif
 	void (*shutup)(struct hda_codec *codec);
-	void (*reboot_notify)(struct hda_codec *codec);
+	void (*reboot_yestify)(struct hda_codec *codec);
 
 	int init_amp;
 	int codec_variant;	/* flag for other variants */
 	unsigned int has_alc5505_dsp:1;
-	unsigned int no_depop_delay:1;
+	unsigned int yes_depop_delay:1;
 	unsigned int done_hp_init:1;
-	unsigned int no_shutup_pins:1;
+	unsigned int yes_shutup_pins:1;
 	unsigned int ultra_low_power:1;
 
 	/* for PLL fix */
@@ -300,8 +300,8 @@ static void alc_fix_pll_init(struct hda_codec *codec, hda_nid_t nid,
 	alc_fix_pll(codec);
 }
 
-/* update the master volume per volume-knob's unsol event */
-static void alc_update_knob_master(struct hda_codec *codec,
+/* update the master volume per volume-kyesb's unsol event */
+static void alc_update_kyesb_master(struct hda_codec *codec,
 				   struct hda_jack_callback *jack)
 {
 	unsigned int val;
@@ -476,7 +476,7 @@ static void alc_auto_setup_eapd(struct hda_codec *codec, bool on)
 
 static int find_ext_mic_pin(struct hda_codec *codec);
 
-static void alc_headset_mic_no_shutup(struct hda_codec *codec)
+static void alc_headset_mic_yes_shutup(struct hda_codec *codec)
 {
 	const struct hda_pincfg *pin;
 	int mic_pin = find_ext_mic_pin(codec);
@@ -507,24 +507,24 @@ static void alc_shutup_pins(struct hda_codec *codec)
 	case 0x10ec0286:
 	case 0x10ec0288:
 	case 0x10ec0298:
-		alc_headset_mic_no_shutup(codec);
+		alc_headset_mic_yes_shutup(codec);
 		break;
 	default:
-		if (!spec->no_shutup_pins)
+		if (!spec->yes_shutup_pins)
 			snd_hda_shutup_pins(codec);
 		break;
 	}
 }
 
 /* generic shutup callback;
- * just turning off EAPD and a little pause for avoiding pop-noise
+ * just turning off EAPD and a little pause for avoiding pop-yesise
  */
 static void alc_eapd_shutup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
 	alc_auto_setup_eapd(codec, false);
-	if (!spec->no_depop_delay)
+	if (!spec->yes_depop_delay)
 		msleep(200);
 	alc_shutup_pins(codec);
 }
@@ -568,12 +568,12 @@ static hda_nid_t alc_get_hp_pin(struct alc_spec *spec)
  * Realtek SSID verification
  */
 
-/* Could be any non-zero and even value. When used as fixup, tells
- * the driver to ignore any present sku defines.
+/* Could be any yesn-zero and even value. When used as fixup, tells
+ * the driver to igyesre any present sku defines.
  */
 #define ALC_FIXUP_SKU_IGNORE (2)
 
-static void alc_fixup_sku_ignore(struct hda_codec *codec,
+static void alc_fixup_sku_igyesre(struct hda_codec *codec,
 				 const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
@@ -583,13 +583,13 @@ static void alc_fixup_sku_ignore(struct hda_codec *codec,
 	}
 }
 
-static void alc_fixup_no_depop_delay(struct hda_codec *codec,
+static void alc_fixup_yes_depop_delay(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
 
 	if (action == HDA_FIXUP_ACT_PROBE) {
-		spec->no_depop_delay = 1;
+		spec->yes_depop_delay = 1;
 		codec->depop_delay = 0;
 	}
 }
@@ -621,7 +621,7 @@ static int alc_auto_parse_customize_define(struct hda_codec *codec)
 	ass = snd_hda_codec_get_pincfg(codec, nid);
 
 	if (!(ass & 1)) {
-		codec_info(codec, "%s: SKU not ready 0x%08x\n",
+		codec_info(codec, "%s: SKU yest ready 0x%08x\n",
 			   codec->core.chip_name, ass);
 		return -1;
 	}
@@ -661,7 +661,7 @@ do_sku:
 	return 0;
 }
 
-/* return the position of NID in the list, or -1 if not found */
+/* return the position of NID in the list, or -1 if yest found */
 static int find_idx_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
 {
 	int i;
@@ -721,7 +721,7 @@ static int alc_subsystem_id(struct hda_codec *codec, const hda_nid_t *ports)
 		   ass, nid);
 	if (!(ass & 1))
 		return 0;
-	if ((ass >> 30) != 1)	/* no physical connection */
+	if ((ass >> 30) != 1)	/* yes physical connection */
 		return 0;
 
 	/* check sum */
@@ -871,12 +871,12 @@ static inline void alc_shutup(struct hda_codec *codec)
 		alc_shutup_pins(codec);
 }
 
-static void alc_reboot_notify(struct hda_codec *codec)
+static void alc_reboot_yestify(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (spec && spec->reboot_notify)
-		spec->reboot_notify(codec);
+	if (spec && spec->reboot_yestify)
+		spec->reboot_yestify(codec);
 	else
 		alc_shutup(codec);
 }
@@ -904,8 +904,8 @@ static int alc_resume(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (!spec->no_depop_delay)
-		msleep(150); /* to avoid pop noise */
+	if (!spec->yes_depop_delay)
+		msleep(150); /* to avoid pop yesise */
 	codec->patch_ops.init(codec);
 	regcache_sync(codec->core.regmap);
 	hda_call_check_power_status(codec, 0x01);
@@ -926,7 +926,7 @@ static const struct hda_codec_ops alc_patch_ops = {
 	.suspend = alc_suspend,
 	.check_power_status = snd_hda_gen_check_power_status,
 #endif
-	.reboot_notify = alc_reboot_notify,
+	.reboot_yestify = alc_reboot_yestify,
 };
 
 
@@ -1068,9 +1068,9 @@ static const struct snd_pci_quirk beep_white_list[] = {
 	SND_PCI_QUIRK(0x1043, 0x834a, "EeePC", 1),
 	SND_PCI_QUIRK(0x1458, 0xa002, "GA-MA790X", 1),
 	SND_PCI_QUIRK(0x8086, 0xd613, "Intel", 1),
-	/* blacklist -- no beep available */
-	SND_PCI_QUIRK(0x17aa, 0x309e, "Lenovo ThinkCentre M73", 0),
-	SND_PCI_QUIRK(0x17aa, 0x30a3, "Lenovo ThinkCentre M93", 0),
+	/* blacklist -- yes beep available */
+	SND_PCI_QUIRK(0x17aa, 0x309e, "Leyesvo ThinkCentre M73", 0),
+	SND_PCI_QUIRK(0x17aa, 0x30a3, "Leyesvo ThinkCentre M93", 0),
 	{}
 };
 
@@ -1089,18 +1089,18 @@ static inline int has_cdefine_beep(struct hda_codec *codec)
 #endif
 
 /* parse the BIOS configuration and set up the alc_spec */
-/* return 1 if successful, 0 if the proper config is not found,
+/* return 1 if successful, 0 if the proper config is yest found,
  * or a negative error code
  */
 static int alc_parse_auto_config(struct hda_codec *codec,
-				 const hda_nid_t *ignore_nids,
+				 const hda_nid_t *igyesre_nids,
 				 const hda_nid_t *ssid_nids)
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->gen.autocfg;
 	int err;
 
-	err = snd_hda_parse_pin_defcfg(codec, cfg, ignore_nids,
+	err = snd_hda_parse_pin_defcfg(codec, cfg, igyesre_nids,
 				       spec->parse_flags);
 	if (err < 0)
 		return err;
@@ -1142,9 +1142,9 @@ static int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid)
 
 static int alc880_parse_auto_config(struct hda_codec *codec)
 {
-	static const hda_nid_t alc880_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc880_igyesre[] = { 0x1d, 0 };
 	static const hda_nid_t alc880_ssids[] = { 0x15, 0x1b, 0x14, 0 };
-	return alc_parse_auto_config(codec, alc880_ignore, alc880_ssids);
+	return alc_parse_auto_config(codec, alc880_igyesre, alc880_ssids);
 }
 
 /*
@@ -1178,13 +1178,13 @@ enum {
 	ALC880_FIXUP_6ST_AUTOMUTE,
 };
 
-/* enable the volume-knob widget support on NID 0x21 */
-static void alc880_fixup_vol_knob(struct hda_codec *codec,
+/* enable the volume-kyesb widget support on NID 0x21 */
+static void alc880_fixup_vol_kyesb(struct hda_codec *codec,
 				  const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PROBE)
 		snd_hda_jack_detect_enable_callback(codec, 0x21,
-						    alc_update_knob_master);
+						    alc_update_kyesb_master);
 }
 
 static const struct hda_fixup alc880_fixups[] = {
@@ -1256,7 +1256,7 @@ static const struct hda_fixup alc880_fixups[] = {
 	},
 	[ALC880_FIXUP_VOL_KNOB] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc880_fixup_vol_knob,
+		.v.func = alc880_fixup_vol_kyesb,
 	},
 	[ALC880_FIXUP_FUJITSU] = {
 		/* override all pins as BIOS on old Amilo is broken */
@@ -1279,7 +1279,7 @@ static const struct hda_fixup alc880_fixups[] = {
 		.chain_id = ALC880_FIXUP_VOL_KNOB,
 	},
 	[ALC880_FIXUP_F1734] = {
-		/* almost compatible with FUJITSU, but no bass and SPDIF */
+		/* almost compatible with FUJITSU, but yes bass and SPDIF */
 		.type = HDA_FIXUP_PINS,
 		.v.pins = (const struct hda_pintbl[]) {
 			{ 0x14, 0x0121401f }, /* HP */
@@ -1502,7 +1502,7 @@ static const struct snd_pci_quirk alc880_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x19db, 0x4188, "TCL S700", ALC880_FIXUP_TCL_S700),
 
 	/* Below is the copied entries from alc880_quirks.c.
-	 * It's not quite sure whether BIOS sets the correct pin-config table
+	 * It's yest quite sure whether BIOS sets the correct pin-config table
 	 * on these machines, thus they are kept to be compatible with
 	 * the old static quirks.  Once when it's confirmed to work without
 	 * these overrides, it'd be better to remove.
@@ -1588,7 +1588,7 @@ static int patch_alc880(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog) {
+	if (!spec->gen.yes_analog) {
 		err = set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 		if (err < 0)
 			goto error;
@@ -1609,9 +1609,9 @@ static int patch_alc880(struct hda_codec *codec)
  */
 static int alc260_parse_auto_config(struct hda_codec *codec)
 {
-	static const hda_nid_t alc260_ignore[] = { 0x17, 0 };
+	static const hda_nid_t alc260_igyesre[] = { 0x17, 0 };
 	static const hda_nid_t alc260_ssids[] = { 0x10, 0x15, 0x0f, 0 };
-	return alc_parse_auto_config(codec, alc260_ignore, alc260_ssids);
+	return alc_parse_auto_config(codec, alc260_igyesre, alc260_ssids);
 }
 
 /*
@@ -1841,7 +1841,7 @@ static int patch_alc260(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog) {
+	if (!spec->gen.yes_analog) {
 		err = set_beep_amp(spec, 0x07, 0x05, HDA_INPUT);
 		if (err < 0)
 			goto error;
@@ -1865,7 +1865,7 @@ static int patch_alc260(struct hda_codec *codec)
  * Each ADC is connected from a mixer of all inputs.  This makes possible
  * 6-channel independent captures.
  *
- * In addition, an independent DAC for the multi-playback (not used in this
+ * In addition, an independent DAC for the multi-playback (yest used in this
  * driver yet).
  */
 
@@ -2025,13 +2025,13 @@ static void alc889_fixup_mba21_vref(struct hda_codec *codec,
  * Strangely, the speaker output doesn't work on Vaio Z and some Vaio
  * all-in-one desktop PCs (for example VGC-LN51JGB) through DAC 0x05
  */
-static void alc882_fixup_no_primary_hp(struct hda_codec *codec,
+static void alc882_fixup_yes_primary_hp(struct hda_codec *codec,
 				       const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		spec->gen.no_primary_hp = 1;
-		spec->gen.no_multi_io = 1;
+		spec->gen.yes_primary_hp = 1;
+		spec->gen.yes_multi_io = 1;
 	}
 }
 
@@ -2110,7 +2110,7 @@ static void alc1220_fixup_clevo_p950(struct hda_codec *codec,
 	snd_hda_override_conn_list(codec, 0x1b, 1, conn1);
 }
 
-static void alc_fixup_headset_mode_no_hp_mic(struct hda_codec *codec,
+static void alc_fixup_headset_mode_yes_hp_mic(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action);
 
 static void alc1220_fixup_clevo_pb51ed(struct hda_codec *codec,
@@ -2118,7 +2118,7 @@ static void alc1220_fixup_clevo_pb51ed(struct hda_codec *codec,
 				     int action)
 {
 	alc1220_fixup_clevo_p950(codec, fix, action);
-	alc_fixup_headset_mode_no_hp_mic(codec, fix, action);
+	alc_fixup_headset_mode_yes_hp_mic(codec, fix, action);
 }
 
 static const struct hda_fixup alc882_fixups[] = {
@@ -2148,7 +2148,7 @@ static const struct hda_fixup alc882_fixups[] = {
 	},
 	[ALC882_FIXUP_ACER_ASPIRE_7736] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc_fixup_sku_ignore,
+		.v.func = alc_fixup_sku_igyesre,
 	},
 	[ALC882_FIXUP_ASUS_W90V] = {
 		.type = HDA_FIXUP_PINS,
@@ -2277,10 +2277,10 @@ static const struct hda_fixup alc882_fixups[] = {
 			 * The mics are only 1cm apart which makes the stereo
 			 * useless. However, either the mic or the ALC889
 			 * makes the signal become a difference/sum signal
-			 * instead of standard stereo, which is annoying.
+			 * instead of standard stereo, which is anyesying.
 			 * So instead we flip this bit which makes the
 			 * codec replicate the sum signal to both channels,
-			 * turning it into a normal mono mic.
+			 * turning it into a yesrmal moyes mic.
 			 */
 			/* DMIC_CONTROL? Init value = 0x0001 */
 			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x0b },
@@ -2342,7 +2342,7 @@ static const struct hda_fixup alc882_fixups[] = {
 	},
 	[ALC882_FIXUP_NO_PRIMARY_HP] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc882_fixup_no_primary_hp,
+		.v.func = alc882_fixup_yes_primary_hp,
 	},
 	[ALC887_FIXUP_ASUS_BASS] = {
 		.type = HDA_FIXUP_PINS,
@@ -2460,18 +2460,18 @@ static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1558, 0x67d1, "Clevo PB71[ER][CDF]", ALC1220_FIXUP_CLEVO_PB51ED_PINS),
 	SND_PCI_QUIRK_VENDOR(0x1558, "Clevo laptop", ALC882_FIXUP_EAPD),
 	SND_PCI_QUIRK(0x161f, 0x2054, "Medion laptop", ALC883_FIXUP_EAPD),
-	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Y530", ALC882_FIXUP_LENOVO_Y530),
+	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Leyesvo Y530", ALC882_FIXUP_LENOVO_Y530),
 	SND_PCI_QUIRK(0x8086, 0x0022, "DX58SO", ALC889_FIXUP_COEF),
 	{}
 };
 
 static const struct hda_model_fixup alc882_fixup_models[] = {
 	{.id = ALC882_FIXUP_ABIT_AW9D_MAX, .name = "abit-aw9d"},
-	{.id = ALC882_FIXUP_LENOVO_Y530, .name = "lenovo-y530"},
+	{.id = ALC882_FIXUP_LENOVO_Y530, .name = "leyesvo-y530"},
 	{.id = ALC882_FIXUP_ACER_ASPIRE_7736, .name = "acer-aspire-7736"},
 	{.id = ALC882_FIXUP_ASUS_W90V, .name = "asus-w90v"},
 	{.id = ALC889_FIXUP_CD, .name = "cd"},
-	{.id = ALC889_FIXUP_FRONT_HP_NO_PRESENCE, .name = "no-front-hp"},
+	{.id = ALC889_FIXUP_FRONT_HP_NO_PRESENCE, .name = "yes-front-hp"},
 	{.id = ALC889_FIXUP_VAIO_TT, .name = "vaio-tt"},
 	{.id = ALC888_FIXUP_EEE1601, .name = "eee1601"},
 	{.id = ALC882_FIXUP_EAPD, .name = "alc882-eapd"},
@@ -2493,7 +2493,7 @@ static const struct hda_model_fixup alc882_fixup_models[] = {
 	{.id = ALC889_FIXUP_MP11_VREF, .name = "mp11-vref"},
 	{.id = ALC889_FIXUP_MP41_VREF, .name = "mp41-vref"},
 	{.id = ALC882_FIXUP_INV_DMIC, .name = "inv-dmic"},
-	{.id = ALC882_FIXUP_NO_PRIMARY_HP, .name = "no-primary-hp"},
+	{.id = ALC882_FIXUP_NO_PRIMARY_HP, .name = "yes-primary-hp"},
 	{.id = ALC887_FIXUP_ASUS_BASS, .name = "asus-bass"},
 	{.id = ALC1220_FIXUP_GB_DUAL_CODECS, .name = "dual-codecs"},
 	{.id = ALC1220_FIXUP_CLEVO_P950, .name = "clevo-p950"},
@@ -2506,9 +2506,9 @@ static const struct hda_model_fixup alc882_fixup_models[] = {
 /* almost identical with ALC880 parser... */
 static int alc882_parse_auto_config(struct hda_codec *codec)
 {
-	static const hda_nid_t alc882_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc882_igyesre[] = { 0x1d, 0 };
 	static const hda_nid_t alc882_ssids[] = { 0x15, 0x1b, 0x14, 0 };
-	return alc_parse_auto_config(codec, alc882_ignore, alc882_ssids);
+	return alc_parse_auto_config(codec, alc882_igyesre, alc882_ssids);
 }
 
 /*
@@ -2553,7 +2553,7 @@ static int patch_alc882(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog && spec->gen.beep_nid) {
+	if (!spec->gen.yes_analog && spec->gen.beep_nid) {
 		err = set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 		if (err < 0)
 			goto error;
@@ -2574,9 +2574,9 @@ static int patch_alc882(struct hda_codec *codec)
  */
 static int alc262_parse_auto_config(struct hda_codec *codec)
 {
-	static const hda_nid_t alc262_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc262_igyesre[] = { 0x1d, 0 };
 	static const hda_nid_t alc262_ssids[] = { 0x15, 0x1b, 0x14, 0 };
-	return alc_parse_auto_config(codec, alc262_ignore, alc262_ssids);
+	return alc_parse_auto_config(codec, alc262_igyesre, alc262_ssids);
 }
 
 /*
@@ -2658,7 +2658,7 @@ static const struct hda_fixup alc262_fixups[] = {
 	},
 	[ALC262_FIXUP_INTEL_BAYLEYBAY] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc_fixup_no_depop_delay,
+		.v.func = alc_fixup_yes_depop_delay,
 	},
 };
 
@@ -2669,7 +2669,7 @@ static const struct snd_pci_quirk alc262_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x10f1, 0x2915, "Tyan Thunder n6650W", ALC262_FIXUP_TYAN),
 	SND_PCI_QUIRK(0x1734, 0x1141, "FSC ESPRIMO U9210", ALC262_FIXUP_FSC_H270),
 	SND_PCI_QUIRK(0x1734, 0x1147, "FSC Celsius H270", ALC262_FIXUP_FSC_H270),
-	SND_PCI_QUIRK(0x17aa, 0x384e, "Lenovo 3000", ALC262_FIXUP_LENOVO_3000),
+	SND_PCI_QUIRK(0x17aa, 0x384e, "Leyesvo 3000", ALC262_FIXUP_LENOVO_3000),
 	SND_PCI_QUIRK(0x17ff, 0x0560, "Benq ED8", ALC262_FIXUP_BENQ),
 	SND_PCI_QUIRK(0x17ff, 0x058d, "Benq T31-16", ALC262_FIXUP_BENQ_T31),
 	SND_PCI_QUIRK(0x8086, 0x7270, "BayleyBay", ALC262_FIXUP_INTEL_BAYLEYBAY),
@@ -2682,7 +2682,7 @@ static const struct hda_model_fixup alc262_fixup_models[] = {
 	{.id = ALC262_FIXUP_FSC_S7110, .name = "fsc-s7110"},
 	{.id = ALC262_FIXUP_HP_Z200, .name = "hp-z200"},
 	{.id = ALC262_FIXUP_TYAN, .name = "tyan"},
-	{.id = ALC262_FIXUP_LENOVO_3000, .name = "lenovo-3000"},
+	{.id = ALC262_FIXUP_LENOVO_3000, .name = "leyesvo-3000"},
 	{.id = ALC262_FIXUP_BENQ, .name = "benq"},
 	{.id = ALC262_FIXUP_BENQ_T31, .name = "benq-t31"},
 	{.id = ALC262_FIXUP_INTEL_BAYLEYBAY, .name = "bayleybay"},
@@ -2729,7 +2729,7 @@ static int patch_alc262(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog && spec->gen.beep_nid) {
+	if (!spec->gen.yes_analog && spec->gen.beep_nid) {
 		err = set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 		if (err < 0)
 			goto error;
@@ -2849,7 +2849,7 @@ static int patch_alc268(struct hda_codec *codec)
 	struct alc_spec *spec;
 	int i, err;
 
-	/* ALC268 has no aa-loopback mixer */
+	/* ALC268 has yes aa-loopback mixer */
 	err = alc_alloc_spec(codec, 0);
 	if (err < 0)
 		return err;
@@ -2870,7 +2870,7 @@ static int patch_alc268(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (err > 0 && !spec->gen.no_analog &&
+	if (err > 0 && !spec->gen.yes_analog &&
 	    spec->gen.autocfg.speaker_pins[0] != 0x1d) {
 		for (i = 0; i < ARRAY_SIZE(alc268_beep_mixer); i++) {
 			if (!snd_hda_gen_add_kctl(&spec->gen, NULL,
@@ -2939,7 +2939,7 @@ enum {
  */
 static int alc269_parse_auto_config(struct hda_codec *codec)
 {
-	static const hda_nid_t alc269_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc269_igyesre[] = { 0x1d, 0 };
 	static const hda_nid_t alc269_ssids[] = { 0, 0x1b, 0x14, 0x21 };
 	static const hda_nid_t alc269va_ssids[] = { 0x15, 0x1b, 0x14, 0 };
 	struct alc_spec *spec = codec->spec;
@@ -2975,7 +2975,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 		break;
 	}
 
-	return alc_parse_auto_config(codec, alc269_ignore, ssids);
+	return alc_parse_auto_config(codec, alc269_igyesre, ssids);
 }
 
 static void alc269vb_toggle_power_output(struct hda_codec *codec, int power_up)
@@ -3067,7 +3067,7 @@ static void alc282_init(struct hda_codec *codec)
 	if (hp_pin_sense)
 		msleep(100);
 
-	/* Headphone capless set to normal mode */
+	/* Headphone capless set to yesrmal mode */
 	alc_write_coef_idx(codec, 0x78, coef78);
 }
 
@@ -3096,7 +3096,7 @@ static void alc282_shutup(struct hda_codec *codec)
 	if (hp_pin_sense)
 		msleep(85);
 
-	if (!spec->no_shutup_pins)
+	if (!spec->yes_shutup_pins)
 		snd_hda_codec_write(codec, hp_pin, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
 
@@ -3182,7 +3182,7 @@ static void alc283_init(struct hda_codec *codec)
 	/* Index 0x46 Combo jack auto switch control 2 */
 	/* 3k pull low control for Headset jack. */
 	alc_update_coef_idx(codec, 0x46, 3 << 12, 0);
-	/* Headphone capless set to normal mode */
+	/* Headphone capless set to yesrmal mode */
 	alc_write_coef_idx(codec, 0x43, 0x9614);
 }
 
@@ -3210,7 +3210,7 @@ static void alc283_shutup(struct hda_codec *codec)
 	if (hp_pin_sense)
 		msleep(100);
 
-	if (!spec->no_shutup_pins)
+	if (!spec->yes_shutup_pins)
 		snd_hda_codec_write(codec, hp_pin, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
 
@@ -3292,7 +3292,7 @@ static void alc256_shutup(struct hda_codec *codec)
 	/* NOTE: call this before clearing the pin, otherwise codec stalls */
 	alc_update_coef_idx(codec, 0x46, 0, 3 << 12);
 
-	if (!spec->no_shutup_pins)
+	if (!spec->yes_shutup_pins)
 		snd_hda_codec_write(codec, hp_pin, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
 
@@ -3460,7 +3460,7 @@ static void alc_default_shutup(struct hda_codec *codec)
 	if (hp_pin_sense)
 		msleep(85);
 
-	if (!spec->no_shutup_pins)
+	if (!spec->yes_shutup_pins)
 		snd_hda_codec_write(codec, hp_pin, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
 
@@ -3485,7 +3485,7 @@ static void alc294_hp_init(struct hda_codec *codec)
 
 	msleep(100);
 
-	if (!spec->no_shutup_pins)
+	if (!spec->yes_shutup_pins)
 		snd_hda_codec_write(codec, hp_pin, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
 
@@ -3655,7 +3655,7 @@ static int alc269_resume(struct hda_codec *codec)
 }
 #endif /* CONFIG_PM */
 
-static void alc269_fixup_pincfg_no_hp_to_lineout(struct hda_codec *codec,
+static void alc269_fixup_pincfg_yes_hp_to_lineout(struct hda_codec *codec,
 						 const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
@@ -3719,7 +3719,7 @@ static void alc269_fixup_pcm_44k(struct hda_codec *codec,
 	if (action != HDA_FIXUP_ACT_PROBE)
 		return;
 
-	/* Due to a hardware problem on Lenovo Ideadpad, we need to
+	/* Due to a hardware problem on Leyesvo Ideadpad, we need to
 	 * fix the sample rate of analog I/O to 44.1kHz
 	 */
 	spec->gen.stream_analog_playback = &alc269_44k_pcm_analog_playback;
@@ -3730,9 +3730,9 @@ static void alc269_fixup_stereo_dmic(struct hda_codec *codec,
 				     const struct hda_fixup *fix, int action)
 {
 	/* The digital-mic unit sends PDM (differential signal) instead of
-	 * the standard PCM, thus you can't record a valid mono stream as is.
+	 * the standard PCM, thus you can't record a valid moyes stream as is.
 	 * Below is a workaround specific to ALC269 to control the dmic
-	 * signal source as mono.
+	 * signal source as moyes.
 	 */
 	if (action == HDA_FIXUP_ACT_INIT)
 		alc_update_coef_idx(codec, 0x07, 0, 0x80);
@@ -4142,7 +4142,7 @@ static void alc280_fixup_hp_gpio2_mic_hotkey(struct hda_codec *codec,
 /* Line2 = mic mute hotkey
  * GPIO2 = mic mute LED
  */
-static void alc233_fixup_lenovo_line2_mic_hotkey(struct hda_codec *codec,
+static void alc233_fixup_leyesvo_line2_mic_hotkey(struct hda_codec *codec,
 					     const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
@@ -4169,7 +4169,7 @@ static void alc233_fixup_lenovo_line2_mic_hotkey(struct hda_codec *codec,
 }
 #else /* INPUT */
 #define alc280_fixup_hp_gpio2_mic_hotkey	NULL
-#define alc233_fixup_lenovo_line2_mic_hotkey	NULL
+#define alc233_fixup_leyesvo_line2_mic_hotkey	NULL
 #endif /* INPUT */
 
 static void alc269_fixup_hp_line1_mic1_led(struct hda_codec *codec,
@@ -4327,13 +4327,13 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 {
 	static struct coef_fw coef0255[] = {
 		WRITE_COEFEX(0x57, 0x03, 0x8aa6),
-		WRITE_COEF(0x06, 0x6100), /* Set MIC2 Vref gate to normal */
+		WRITE_COEF(0x06, 0x6100), /* Set MIC2 Vref gate to yesrmal */
 		{}
 	};
 	static struct coef_fw coef0256[] = {
 		UPDATE_COEFEX(0x57, 0x05, 1<<14, 1<<14), /* Direct Drive HP Amp control(Set to verb control)*/
 		WRITE_COEFEX(0x57, 0x03, 0x09a3),
-		WRITE_COEF(0x06, 0x6100), /* Set MIC2 Vref gate to normal */
+		WRITE_COEF(0x06, 0x6100), /* Set MIC2 Vref gate to yesrmal */
 		{}
 	};
 	static struct coef_fw coef0233[] = {
@@ -4983,7 +4983,7 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 	}
 
 	codec_dbg(codec, "Headset jack detected iPhone-style headset: %s\n",
-		    is_ctia ? "yes" : "no");
+		    is_ctia ? "no" : "yes");
 	spec->current_headset_type = is_ctia ? ALC_HEADSET_TYPE_CTIA : ALC_HEADSET_TYPE_OMTP;
 }
 
@@ -5102,7 +5102,7 @@ static void alc_fixup_headset_mode(struct hda_codec *codec,
 	}
 }
 
-static void alc_fixup_headset_mode_no_hp_mic(struct hda_codec *codec,
+static void alc_fixup_headset_mode_yes_hp_mic(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
@@ -5153,7 +5153,7 @@ static void alc_fixup_headset_mode_alc255(struct hda_codec *codec,
 	alc_fixup_headset_mode(codec, fix, action);
 }
 
-static void alc_fixup_headset_mode_alc255_no_hp_mic(struct hda_codec *codec,
+static void alc_fixup_headset_mode_alc255_yes_hp_mic(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
@@ -5171,7 +5171,7 @@ static void alc288_update_headset_jack_cb(struct hda_codec *codec,
 	struct alc_spec *spec = codec->spec;
 
 	alc_update_headset_jack_cb(codec, jack);
-	/* Headset Mic enable or disable, only for Dell Dino */
+	/* Headset Mic enable or disable, only for Dell Diyes */
 	alc_update_gpio_data(codec, 0x40, spec->gen.hp_jack_present);
 }
 
@@ -5197,12 +5197,12 @@ static void alc_fixup_auto_mute_via_amp(struct hda_codec *codec,
 	}
 }
 
-static void alc_fixup_no_shutup(struct hda_codec *codec,
+static void alc_fixup_yes_shutup(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		struct alc_spec *spec = codec->spec;
-		spec->no_shutup_pins = 1;
+		spec->yes_shutup_pins = 1;
 	}
 }
 
@@ -5211,7 +5211,7 @@ static void alc_fixup_disable_aamix(struct hda_codec *codec,
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		struct alc_spec *spec = codec->spec;
-		/* Disable AA-loopback as it causes white noise */
+		/* Disable AA-loopback as it causes white yesise */
 		spec->gen.mixer_nid = 0;
 	}
 }
@@ -5228,9 +5228,9 @@ static void alc_fixup_tpt440_dock(struct hda_codec *codec,
 	struct alc_spec *spec = codec->spec;
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		spec->reboot_notify = snd_hda_gen_reboot_notify; /* reduce noise */
+		spec->reboot_yestify = snd_hda_gen_reboot_yestify; /* reduce yesise */
 		spec->parse_flags = HDA_PINCFG_NO_HP_FIXUP;
-		codec->power_save_node = 0; /* avoid click noises */
+		codec->power_save_yesde = 0; /* avoid click yesises */
 		snd_hda_apply_pincfgs(codec, pincfgs);
 	}
 }
@@ -5272,7 +5272,7 @@ static void alc_shutup_dell_xps13(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int hp_pin = alc_get_hp_pin(spec);
 
-	/* Prevent pop noises when headphones are plugged in */
+	/* Prevent pop yesises when headphones are plugged in */
 	snd_hda_codec_write(codec, hp_pin, 0,
 			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
 	msleep(20);
@@ -5288,7 +5288,7 @@ static void alc_fixup_dell_xps13(struct hda_codec *codec,
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		/* mic pin 0x19 must be initialized with Vref Hi-Z, otherwise
-		 * it causes a click noise at start up
+		 * it causes a click yesise at start up
 		 */
 		snd_hda_codec_set_pin_target(codec, 0x19, PIN_VREFHIZ);
 		spec->shutup = alc_shutup_dell_xps13;
@@ -5333,7 +5333,7 @@ static void alc_fixup_headset_mode_alc668(struct hda_codec *codec,
 	alc_fixup_headset_mode(codec, fix, action);
 }
 
-/* Returns the nid of the external mic input pin, or 0 if it cannot be found. */
+/* Returns the nid of the external mic input pin, or 0 if it canyest be found. */
 static int find_ext_mic_pin(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -5371,7 +5371,7 @@ static void alc271_hp_gate_mic_jack(struct hda_codec *codec,
 	}
 }
 
-static void alc256_fixup_dell_xps_13_headphone_noise2(struct hda_codec *codec,
+static void alc256_fixup_dell_xps_13_headphone_yesise2(struct hda_codec *codec,
 						      const struct hda_fixup *fix,
 						      int action)
 {
@@ -5390,7 +5390,7 @@ static void alc269_fixup_limit_int_mic_boost(struct hda_codec *codec,
 	struct auto_pin_cfg *cfg = &spec->gen.autocfg;
 	int i;
 
-	/* The mic boosts on level 2 and 3 are too noisy
+	/* The mic boosts on level 2 and 3 are too yesisy
 	   on the internal mic input.
 	   Therefore limit the boost to 0 or 1. */
 
@@ -5438,7 +5438,7 @@ static void alc283_fixup_chromebook(struct hda_codec *codec,
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		snd_hda_override_wcaps(codec, 0x03, 0);
-		/* Disable AA-loopback as it causes white noise */
+		/* Disable AA-loopback as it causes white yesise */
 		spec->gen.mixer_nid = 0;
 		break;
 	case HDA_FIXUP_ACT_INIT:
@@ -5512,13 +5512,13 @@ static void alc282_fixup_asus_tx300(struct hda_codec *codec,
 	}
 }
 
-static void alc290_fixup_mono_speakers(struct hda_codec *codec,
+static void alc290_fixup_moyes_speakers(struct hda_codec *codec,
 				       const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		/* DAC node 0x03 is giving mono output. We therefore want to
+		/* DAC yesde 0x03 is giving moyes output. We therefore want to
 		   make sure 0x14 (front speaker) and 0x15 (headphones) use the
-		   stereo DAC, while leaving 0x17 (bass speaker) for node 0x03. */
+		   stereo DAC, while leaving 0x17 (bass speaker) for yesde 0x03. */
 		hda_nid_t conn1[2] = { 0x0c };
 		snd_hda_override_conn_list(codec, 0x14, 1, conn1);
 		snd_hda_override_conn_list(codec, 0x15, 1, conn1);
@@ -5530,18 +5530,18 @@ static void alc298_fixup_speaker_volume(struct hda_codec *codec,
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		/* The speaker is routed to the Node 0x06 by a mistake, as a result
-		   we can't adjust the speaker's volume since this node does not has
+		   we can't adjust the speaker's volume since this yesde does yest has
 		   Amp-out capability. we change the speaker's route to:
 		   Node 0x02 (Audio Output) -> Node 0x0c (Audio Mixer) -> Node 0x17 (
 		   Pin Complex), since Node 0x02 has Amp-out caps, we can adjust
-		   speaker's volume now. */
+		   speaker's volume yesw. */
 
 		hda_nid_t conn1[1] = { 0x0c };
 		snd_hda_override_conn_list(codec, 0x17, 1, conn1);
 	}
 }
 
-/* disable DAC3 (0x06) selection on NID 0x17 as it has no volume amp control */
+/* disable DAC3 (0x06) selection on NID 0x17 as it has yes volume amp control */
 static void alc295_fixup_disable_dac3(struct hda_codec *codec,
 				      const struct hda_fixup *fix, int action)
 {
@@ -5606,7 +5606,7 @@ static void alc275_fixup_gpio4_off(struct hda_codec *codec,
 	}
 }
 
-static void alc233_alc662_fixup_lenovo_dual_codecs(struct hda_codec *codec,
+static void alc233_alc662_fixup_leyesvo_dual_codecs(struct hda_codec *codec,
 					 const struct hda_fixup *fix,
 					 int action)
 {
@@ -5614,7 +5614,7 @@ static void alc233_alc662_fixup_lenovo_dual_codecs(struct hda_codec *codec,
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		/* override card longname to provide a unique UCM profile */
-		strcpy(codec->card->longname, "HDAudio-Lenovo-DualCodecs");
+		strcpy(codec->card->longname, "HDAudio-Leyesvo-DualCodecs");
 		break;
 	case HDA_FIXUP_ACT_BUILD:
 		/* rename Capture controls depending on the codec */
@@ -5645,10 +5645,10 @@ static void alc274_fixup_bind_dacs(struct hda_codec *codec,
 
 	spec->gen.preferred_dacs = preferred_pairs;
 	spec->gen.auto_mute_via_amp = 1;
-	codec->power_save_node = 0;
+	codec->power_save_yesde = 0;
 }
 
-/* The DAC of NID 0x3 will introduce click/pop noise on headphones, so invalidate it */
+/* The DAC of NID 0x3 will introduce click/pop yesise on headphones, so invalidate it */
 static void alc285_fixup_invalidate_dacs(struct hda_codec *codec,
 			      const struct hda_fixup *fix, int action)
 {
@@ -5755,7 +5755,7 @@ static void alc_fixup_disable_mic_vref(struct hda_codec *codec,
 static void alc_fixup_thinkpad_acpi(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
-	alc_fixup_no_shutup(codec, fix, action); /* reduce click noise */
+	alc_fixup_yes_shutup(codec, fix, action); /* reduce click yesise */
 	hda_fixup_thinkpad_acpi(codec, fix, action);
 }
 
@@ -5941,7 +5941,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC269_FIXUP_SKU_IGNORE] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc_fixup_sku_ignore,
+		.v.func = alc_fixup_sku_igyesre,
 	},
 	[ALC269_FIXUP_ASUS_G73JW] = {
 		.type = HDA_FIXUP_PINS,
@@ -6017,7 +6017,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC269_FIXUP_LIFEBOOK_NO_HP_TO_LINEOUT] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc269_fixup_pincfg_no_hp_to_lineout,
+		.v.func = alc269_fixup_pincfg_yes_hp_to_lineout,
 	},
 	[ALC255_FIXUP_LIFEBOOK_U7x7_HEADSET_MIC] = {
 		.type = HDA_FIXUP_FUNC,
@@ -6099,7 +6099,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC269_FIXUP_NO_SHUTUP] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc_fixup_no_shutup,
+		.v.func = alc_fixup_yes_shutup,
 	},
 	[ALC269_FIXUP_LENOVO_DOCK] = {
 		.type = HDA_FIXUP_PINS,
@@ -6113,7 +6113,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC269_FIXUP_PINCFG_NO_HP_TO_LINEOUT] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc269_fixup_pincfg_no_hp_to_lineout,
+		.v.func = alc269_fixup_pincfg_yes_hp_to_lineout,
 		.chained = true,
 		.chain_id = ALC269_FIXUP_THINKPAD_ACPI,
 	},
@@ -6165,7 +6165,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC269_FIXUP_HEADSET_MODE_NO_HP_MIC] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc_fixup_headset_mode_no_hp_mic,
+		.v.func = alc_fixup_headset_mode_yes_hp_mic,
 	},
 	[ALC269_FIXUP_ASPIRE_HEADSET_MIC] = {
 		.type = HDA_FIXUP_PINS,
@@ -6350,11 +6350,11 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC290_FIXUP_MONO_SPEAKERS] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc290_fixup_mono_speakers,
+		.v.func = alc290_fixup_moyes_speakers,
 	},
 	[ALC290_FIXUP_MONO_SPEAKERS_HSJACK] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc290_fixup_mono_speakers,
+		.v.func = alc290_fixup_moyes_speakers,
 		.chained = true,
 		.chain_id = ALC269_FIXUP_DELL3_MIC_NO_PRESENCE,
 	},
@@ -6415,7 +6415,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC255_FIXUP_HEADSET_MODE_NO_HP_MIC] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc_fixup_headset_mode_alc255_no_hp_mic,
+		.v.func = alc_fixup_headset_mode_alc255_yes_hp_mic,
 	},
 	[ALC293_FIXUP_DELL1_MIC_NO_PRESENCE] = {
 		.type = HDA_FIXUP_PINS,
@@ -6601,7 +6601,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC256_FIXUP_DELL_XPS_13_HEADPHONE_NOISE2] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc256_fixup_dell_xps_13_headphone_noise2,
+		.v.func = alc256_fixup_dell_xps_13_headphone_yesise2,
 		.chained = true,
 		.chain_id = ALC256_FIXUP_DELL_XPS_13_HEADPHONE_NOISE
 	},
@@ -6613,7 +6613,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC233_FIXUP_LENOVO_LINE2_MIC_HOTKEY] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc233_fixup_lenovo_line2_mic_hotkey,
+		.v.func = alc233_fixup_leyesvo_line2_mic_hotkey,
 	},
 	[ALC255_FIXUP_DELL_SPK_NOISE] = {
 		.type = HDA_FIXUP_FUNC,
@@ -6737,7 +6737,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC233_FIXUP_LENOVO_MULTI_CODECS] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc233_alc662_fixup_lenovo_dual_codecs,
+		.v.func = alc233_alc662_fixup_leyesvo_dual_codecs,
 	},
 	[ALC233_FIXUP_ACER_HEADSET_MIC] = {
 		.type = HDA_FIXUP_VERBS,
@@ -7226,7 +7226,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1558, 0x8551, "System76 Gazelle (gaze14)", ALC293_FIXUP_SYSTEM76_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1558, 0x8560, "System76 Gazelle (gaze14)", ALC269_FIXUP_HEADSET_MIC),
 	SND_PCI_QUIRK(0x1558, 0x8561, "System76 Gazelle (gaze14)", ALC269_FIXUP_HEADSET_MIC),
-	SND_PCI_QUIRK(0x17aa, 0x1036, "Lenovo P520", ALC233_FIXUP_LENOVO_MULTI_CODECS),
+	SND_PCI_QUIRK(0x17aa, 0x1036, "Leyesvo P520", ALC233_FIXUP_LENOVO_MULTI_CODECS),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Thinkpad SL410/510", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x215e, "Thinkpad L512", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x21b8, "Thinkpad Edge 14", ALC269_FIXUP_SKU_IGNORE),
@@ -7272,9 +7272,9 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3151, "ThinkCentre Station", ALC283_FIXUP_HEADSET_MIC),
 	SND_PCI_QUIRK(0x17aa, 0x3176, "ThinkCentre Station", ALC283_FIXUP_HEADSET_MIC),
 	SND_PCI_QUIRK(0x17aa, 0x3178, "ThinkCentre Station", ALC283_FIXUP_HEADSET_MIC),
-	SND_PCI_QUIRK(0x17aa, 0x3902, "Lenovo E50-80", ALC269_FIXUP_DMIC_THINKPAD_ACPI),
+	SND_PCI_QUIRK(0x17aa, 0x3902, "Leyesvo E50-80", ALC269_FIXUP_DMIC_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x17aa, 0x3977, "IdeaPad S210", ALC283_FIXUP_INT_MIC),
-	SND_PCI_QUIRK(0x17aa, 0x3978, "Lenovo B50-70", ALC269_FIXUP_DMIC_THINKPAD_ACPI),
+	SND_PCI_QUIRK(0x17aa, 0x3978, "Leyesvo B50-70", ALC269_FIXUP_DMIC_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x17aa, 0x5013, "Thinkpad", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
 	SND_PCI_QUIRK(0x17aa, 0x501a, "Thinkpad", ALC283_FIXUP_INT_MIC),
 	SND_PCI_QUIRK(0x17aa, 0x501e, "Thinkpad L440", ALC292_FIXUP_TPT440_DOCK),
@@ -7296,7 +7296,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3bf8, "Quanta FL1", ALC269_FIXUP_PCM_44K),
 	SND_PCI_QUIRK(0x17aa, 0x9e54, "LENOVO NB", ALC269_FIXUP_LENOVO_EAPD),
 	SND_PCI_QUIRK(0x19e5, 0x3204, "Huawei MACH-WX9", ALC256_FIXUP_HUAWEI_MACH_WX9_PINS),
-	SND_PCI_QUIRK(0x1b7d, 0xa831, "Ordissimo EVE2 ", ALC269VB_FIXUP_ORDISSIMO_EVE2), /* Also known as Malata PC-B1303 */
+	SND_PCI_QUIRK(0x1b7d, 0xa831, "Ordissimo EVE2 ", ALC269VB_FIXUP_ORDISSIMO_EVE2), /* Also kyeswn as Malata PC-B1303 */
 	SND_PCI_QUIRK(0x1d72, 0x1901, "RedmiBook 14", ALC256_FIXUP_ASUS_HEADSET_MIC),
 	SND_PCI_QUIRK(0x10ec, 0x118c, "Medion EE4254 MD62100", ALC256_FIXUP_MEDION_HEADSET_NO_PRESENCE),
 
@@ -7368,8 +7368,8 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{.id = ALC269_FIXUP_INV_DMIC, .name = "inv-dmic"},
 	{.id = ALC269_FIXUP_HEADSET_MIC, .name = "headset-mic"},
 	{.id = ALC269_FIXUP_HEADSET_MODE, .name = "headset-mode"},
-	{.id = ALC269_FIXUP_HEADSET_MODE_NO_HP_MIC, .name = "headset-mode-no-hp-mic"},
-	{.id = ALC269_FIXUP_LENOVO_DOCK, .name = "lenovo-dock"},
+	{.id = ALC269_FIXUP_HEADSET_MODE_NO_HP_MIC, .name = "headset-mode-yes-hp-mic"},
+	{.id = ALC269_FIXUP_LENOVO_DOCK, .name = "leyesvo-dock"},
 	{.id = ALC269_FIXUP_HP_GPIO_LED, .name = "hp-gpio-led"},
 	{.id = ALC269_FIXUP_HP_DOCK_GPIO_MIC1_LED, .name = "hp-dock-gpio-mic1-led"},
 	{.id = ALC269_FIXUP_DELL1_MIC_NO_PRESENCE, .name = "dell-headset-multi"},
@@ -7387,7 +7387,7 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{.id = ALC269_FIXUP_SONY_VAIO, .name = "vaio"},
 	{.id = ALC269_FIXUP_DELL_M101Z, .name = "dell-m101z"},
 	{.id = ALC269_FIXUP_ASUS_G73JW, .name = "asus-g73jw"},
-	{.id = ALC269_FIXUP_LENOVO_EAPD, .name = "lenovo-eapd"},
+	{.id = ALC269_FIXUP_LENOVO_EAPD, .name = "leyesvo-eapd"},
 	{.id = ALC275_FIXUP_SONY_HWEQ, .name = "sony-hweq"},
 	{.id = ALC269_FIXUP_PCM_44K, .name = "pcm44k"},
 	{.id = ALC269_FIXUP_LIFEBOOK, .name = "lifebook"},
@@ -7401,8 +7401,8 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{.id = ALC269_FIXUP_HP_MUTE_LED_MIC3, .name = "hp-mute-led-mic3"},
 	{.id = ALC269_FIXUP_HP_GPIO_MIC1_LED, .name = "hp-gpio-mic1"},
 	{.id = ALC269_FIXUP_HP_LINE1_MIC1_LED, .name = "hp-line1-mic1"},
-	{.id = ALC269_FIXUP_NO_SHUTUP, .name = "noshutup"},
-	{.id = ALC286_FIXUP_SONY_MIC_NO_PRESENCE, .name = "sony-nomic"},
+	{.id = ALC269_FIXUP_NO_SHUTUP, .name = "yesshutup"},
+	{.id = ALC286_FIXUP_SONY_MIC_NO_PRESENCE, .name = "sony-yesmic"},
 	{.id = ALC269_FIXUP_ASPIRE_HEADSET_MIC, .name = "aspire-headset-mic"},
 	{.id = ALC269_FIXUP_ASUS_X101, .name = "asus-x101"},
 	{.id = ALC271_FIXUP_HP_GATE_MIC_JACK, .name = "acer-ao7xx"},
@@ -7414,7 +7414,7 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{.id = ALC269VB_FIXUP_ORDISSIMO_EVE2, .name = "ordissimo"},
 	{.id = ALC282_FIXUP_ASUS_TX300, .name = "asus-tx300"},
 	{.id = ALC283_FIXUP_INT_MIC, .name = "alc283-int-mic"},
-	{.id = ALC290_FIXUP_MONO_SPEAKERS_HSJACK, .name = "mono-speakers"},
+	{.id = ALC290_FIXUP_MONO_SPEAKERS_HSJACK, .name = "moyes-speakers"},
 	{.id = ALC290_FIXUP_SUBWOOFER_HSJACK, .name = "alc290-subwoofer"},
 	{.id = ALC269_FIXUP_THINKPAD_ACPI, .name = "thinkpad"},
 	{.id = ALC269_FIXUP_DMIC_THINKPAD_ACPI, .name = "dmic-thinkpad"},
@@ -7441,9 +7441,9 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{.id = ALC298_FIXUP_DELL_AIO_MIC_NO_PRESENCE, .name = "alc298-dell-aio"},
 	{.id = ALC275_FIXUP_DELL_XPS, .name = "alc275-dell-xps"},
 	{.id = ALC256_FIXUP_DELL_XPS_13_HEADPHONE_NOISE, .name = "alc256-dell-xps13"},
-	{.id = ALC293_FIXUP_LENOVO_SPK_NOISE, .name = "lenovo-spk-noise"},
-	{.id = ALC233_FIXUP_LENOVO_LINE2_MIC_HOTKEY, .name = "lenovo-hotkey"},
-	{.id = ALC255_FIXUP_DELL_SPK_NOISE, .name = "dell-spk-noise"},
+	{.id = ALC293_FIXUP_LENOVO_SPK_NOISE, .name = "leyesvo-spk-yesise"},
+	{.id = ALC233_FIXUP_LENOVO_LINE2_MIC_HOTKEY, .name = "leyesvo-hotkey"},
+	{.id = ALC255_FIXUP_DELL_SPK_NOISE, .name = "dell-spk-yesise"},
 	{.id = ALC225_FIXUP_DELL1_MIC_NO_PRESENCE, .name = "alc225-dell1"},
 	{.id = ALC295_FIXUP_DISABLE_DAC3, .name = "alc295-disable-dac3"},
 	{.id = ALC285_FIXUP_SPEAKER2_TO_DAC1, .name = "alc285-speaker2-to-dac1"},
@@ -7458,7 +7458,7 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{.id = ALC256_FIXUP_ASUS_AIO_GPIO2, .name = "alc256-asus-aio"},
 	{.id = ALC233_FIXUP_ASUS_MIC_NO_PRESENCE, .name = "alc233-asus"},
 	{.id = ALC233_FIXUP_EAPD_COEF_AND_MIC_NO_PRESENCE, .name = "alc233-eapd"},
-	{.id = ALC294_FIXUP_LENOVO_MIC_LOCATION, .name = "alc294-lenovo-mic"},
+	{.id = ALC294_FIXUP_LENOVO_MIC_LOCATION, .name = "alc294-leyesvo-mic"},
 	{.id = ALC225_FIXUP_DELL_WYSE_MIC_NO_PRESENCE, .name = "alc225-wyse"},
 	{.id = ALC274_FIXUP_DELL_AIO_LINEOUT_VERB, .name = "alc274-dell-aio"},
 	{.id = ALC255_FIXUP_DUMMY_LINEOUT_VERB, .name = "alc255-dummy-lineout"},
@@ -7541,24 +7541,24 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 		{0x1b, 0x01111010},
 		{0x1e, 0x01451130},
 		{0x21, 0x02211020}),
-	SND_HDA_PIN_QUIRK(0x10ec0235, 0x17aa, "Lenovo", ALC233_FIXUP_LENOVO_LINE2_MIC_HOTKEY,
+	SND_HDA_PIN_QUIRK(0x10ec0235, 0x17aa, "Leyesvo", ALC233_FIXUP_LENOVO_LINE2_MIC_HOTKEY,
 		{0x12, 0x90a60140},
 		{0x14, 0x90170110},
 		{0x19, 0x02a11030},
 		{0x21, 0x02211020}),
-	SND_HDA_PIN_QUIRK(0x10ec0235, 0x17aa, "Lenovo", ALC294_FIXUP_LENOVO_MIC_LOCATION,
+	SND_HDA_PIN_QUIRK(0x10ec0235, 0x17aa, "Leyesvo", ALC294_FIXUP_LENOVO_MIC_LOCATION,
 		{0x14, 0x90170110},
 		{0x19, 0x02a11030},
 		{0x1a, 0x02a11040},
 		{0x1b, 0x01014020},
 		{0x21, 0x0221101f}),
-	SND_HDA_PIN_QUIRK(0x10ec0235, 0x17aa, "Lenovo", ALC294_FIXUP_LENOVO_MIC_LOCATION,
+	SND_HDA_PIN_QUIRK(0x10ec0235, 0x17aa, "Leyesvo", ALC294_FIXUP_LENOVO_MIC_LOCATION,
 		{0x14, 0x90170110},
 		{0x19, 0x02a11030},
 		{0x1a, 0x02a11040},
 		{0x1b, 0x01011020},
 		{0x21, 0x0221101f}),
-	SND_HDA_PIN_QUIRK(0x10ec0235, 0x17aa, "Lenovo", ALC294_FIXUP_LENOVO_MIC_LOCATION,
+	SND_HDA_PIN_QUIRK(0x10ec0235, 0x17aa, "Leyesvo", ALC294_FIXUP_LENOVO_MIC_LOCATION,
 		{0x14, 0x90170110},
 		{0x19, 0x02a11020},
 		{0x1a, 0x02a11030},
@@ -7715,7 +7715,7 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 		{0x12, 0x90a60130},
 		{0x19, 0x03a11020},
 		{0x21, 0x0321101f}),
-	SND_HDA_PIN_QUIRK(0x10ec0285, 0x17aa, "Lenovo", ALC285_FIXUP_LENOVO_PC_BEEP_IN_NOISE,
+	SND_HDA_PIN_QUIRK(0x10ec0285, 0x17aa, "Leyesvo", ALC285_FIXUP_LENOVO_PC_BEEP_IN_NOISE,
 		{0x12, 0x90a60130},
 		{0x14, 0x90170110},
 		{0x19, 0x04a11040},
@@ -7917,7 +7917,7 @@ static int patch_alc269(struct hda_codec *codec)
 
 	spec = codec->spec;
 	spec->gen.shared_mic_vref_pin = 0x18;
-	codec->power_save_node = 0;
+	codec->power_save_yesde = 0;
 
 #ifdef CONFIG_PM
 	codec->patch_ops.suspend = alc269_suspend;
@@ -7997,7 +7997,7 @@ static int patch_alc269(struct hda_codec *codec)
 		spec->codec_variant = ALC269_TYPE_ALC256;
 		spec->shutup = alc256_shutup;
 		spec->init_hook = alc256_init;
-		spec->gen.mixer_nid = 0; /* ALC256 does not have any loopback mixer path */
+		spec->gen.mixer_nid = 0; /* ALC256 does yest have any loopback mixer path */
 		break;
 	case 0x10ec0257:
 		spec->codec_variant = ALC269_TYPE_ALC257;
@@ -8019,19 +8019,19 @@ static int patch_alc269(struct hda_codec *codec)
 		spec->codec_variant = ALC269_TYPE_ALC225;
 		spec->shutup = alc225_shutup;
 		spec->init_hook = alc225_init;
-		spec->gen.mixer_nid = 0; /* no loopback on ALC225, ALC295 and ALC299 */
+		spec->gen.mixer_nid = 0; /* yes loopback on ALC225, ALC295 and ALC299 */
 		break;
 	case 0x10ec0234:
 	case 0x10ec0274:
 	case 0x10ec0294:
 		spec->codec_variant = ALC269_TYPE_ALC294;
-		spec->gen.mixer_nid = 0; /* ALC2x4 does not have any loopback mixer path */
+		spec->gen.mixer_nid = 0; /* ALC2x4 does yest have any loopback mixer path */
 		alc_update_coef_idx(codec, 0x6b, 0x0018, (1<<4) | (1<<3)); /* UAJ MIC Vref control by verb */
 		spec->init_hook = alc294_init;
 		break;
 	case 0x10ec0300:
 		spec->codec_variant = ALC269_TYPE_ALC300;
-		spec->gen.mixer_nid = 0; /* no loopback on ALC300 */
+		spec->gen.mixer_nid = 0; /* yes loopback on ALC300 */
 		break;
 	case 0x10ec0623:
 		spec->codec_variant = ALC269_TYPE_ALC623;
@@ -8041,7 +8041,7 @@ static int patch_alc269(struct hda_codec *codec)
 	case 0x10ec0703:
 	case 0x10ec0711:
 		spec->codec_variant = ALC269_TYPE_ALC700;
-		spec->gen.mixer_nid = 0; /* ALC700 does not have any loopback mixer path */
+		spec->gen.mixer_nid = 0; /* ALC700 does yest have any loopback mixer path */
 		alc_update_coef_idx(codec, 0x4a, 1 << 15, 0); /* Combo jack auto trigger control */
 		spec->init_hook = alc294_init;
 		break;
@@ -8073,7 +8073,7 @@ static int patch_alc269(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog && spec->gen.beep_nid && spec->gen.mixer_nid) {
+	if (!spec->gen.yes_analog && spec->gen.beep_nid && spec->gen.mixer_nid) {
 		err = set_beep_amp(spec, spec->gen.mixer_nid, 0x04, HDA_INPUT);
 		if (err < 0)
 			goto error;
@@ -8094,9 +8094,9 @@ static int patch_alc269(struct hda_codec *codec)
 
 static int alc861_parse_auto_config(struct hda_codec *codec)
 {
-	static const hda_nid_t alc861_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc861_igyesre[] = { 0x1d, 0 };
 	static const hda_nid_t alc861_ssids[] = { 0x0e, 0x0f, 0x0b, 0 };
-	return alc_parse_auto_config(codec, alc861_ignore, alc861_ssids);
+	return alc_parse_auto_config(codec, alc861_igyesre, alc861_ssids);
 }
 
 /* Pin config fixes */
@@ -8126,11 +8126,11 @@ static void alc861_fixup_asus_amp_vref_0f(struct hda_codec *codec,
 }
 
 /* suppress the jack-detection */
-static void alc_fixup_no_jack_detect(struct hda_codec *codec,
+static void alc_fixup_yes_jack_detect(struct hda_codec *codec,
 				     const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE)
-		codec->no_jack_detect = 1;
+		codec->yes_jack_detect = 1;
 }
 
 static const struct hda_fixup alc861_fixups[] = {
@@ -8148,7 +8148,7 @@ static const struct hda_fixup alc861_fixups[] = {
 	},
 	[ALC861_FIXUP_NO_JACK_DETECT] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc_fixup_no_jack_detect,
+		.v.func = alc_fixup_yes_jack_detect,
 	},
 	[ALC861_FIXUP_ASUS_A6RP] = {
 		.type = HDA_FIXUP_FUNC,
@@ -8209,7 +8209,7 @@ static int patch_alc861(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog) {
+	if (!spec->gen.yes_analog) {
 		err = set_beep_amp(spec, 0x23, 0, HDA_OUTPUT);
 		if (err < 0)
 			goto error;
@@ -8233,9 +8233,9 @@ static int patch_alc861(struct hda_codec *codec)
  */
 static int alc861vd_parse_auto_config(struct hda_codec *codec)
 {
-	static const hda_nid_t alc861vd_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc861vd_igyesre[] = { 0x1d, 0 };
 	static const hda_nid_t alc861vd_ssids[] = { 0x15, 0x1b, 0x14, 0 };
-	return alc_parse_auto_config(codec, alc861vd_ignore, alc861vd_ssids);
+	return alc_parse_auto_config(codec, alc861vd_igyesre, alc861vd_ssids);
 }
 
 enum {
@@ -8309,7 +8309,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog) {
+	if (!spec->gen.yes_analog) {
 		err = set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 		if (err < 0)
 			goto error;
@@ -8332,7 +8332,7 @@ static int patch_alc861vd(struct hda_codec *codec)
  * Each ADC is connected from a mixer of all inputs.  This makes possible
  * 6-channel independent captures.
  *
- * In addition, an independent DAC for the multi-playback (not used in this
+ * In addition, an independent DAC for the multi-playback (yest used in this
  * driver yet).
  */
 
@@ -8342,7 +8342,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 
 static int alc662_parse_auto_config(struct hda_codec *codec)
 {
-	static const hda_nid_t alc662_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc662_igyesre[] = { 0x1d, 0 };
 	static const hda_nid_t alc663_ssids[] = { 0x15, 0x1b, 0x14, 0x21 };
 	static const hda_nid_t alc662_ssids[] = { 0x15, 0x1b, 0x14, 0 };
 	const hda_nid_t *ssids;
@@ -8353,7 +8353,7 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 		ssids = alc663_ssids;
 	else
 		ssids = alc662_ssids;
-	return alc_parse_auto_config(codec, alc662_ignore, ssids);
+	return alc_parse_auto_config(codec, alc662_igyesre, ssids);
 }
 
 static void alc272_fixup_mario(struct hda_codec *codec,
@@ -8585,7 +8585,7 @@ static const struct hda_fixup alc662_fixups[] = {
 	},
 	[ALC662_FIXUP_SKU_IGNORE] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc_fixup_sku_ignore,
+		.v.func = alc_fixup_sku_igyesre,
 	},
 	[ALC662_FIXUP_HP_RP5800] = {
 		.type = HDA_FIXUP_PINS,
@@ -8702,7 +8702,7 @@ static const struct hda_fixup alc662_fixups[] = {
 	},
 	[ALC662_FIXUP_NO_JACK_DETECT] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc_fixup_no_jack_detect,
+		.v.func = alc_fixup_yes_jack_detect,
 	},
 	[ALC662_FIXUP_ZOTAC_Z68] = {
 		.type = HDA_FIXUP_PINS,
@@ -8845,7 +8845,7 @@ static const struct hda_fixup alc662_fixups[] = {
 	[ALC662_FIXUP_ACER_VERITON] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = (const struct hda_pintbl[]) {
-			{ 0x15, 0x50170120 }, /* no internal speaker */
+			{ 0x15, 0x50170120 }, /* yes internal speaker */
 			{ }
 		}
 	},
@@ -8873,7 +8873,7 @@ static const struct hda_fixup alc662_fixups[] = {
 	},
 	[ALC662_FIXUP_LENOVO_MULTI_CODECS] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc233_alc662_fixup_lenovo_dual_codecs,
+		.v.func = alc233_alc662_fixup_leyesvo_dual_codecs,
 	},
 	[ALC669_FIXUP_ACER_ASPIRE_ETHOS_HEADSET] = {
 		.type = HDA_FIXUP_FUNC,
@@ -8928,9 +8928,9 @@ static const struct snd_pci_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x105b, 0x0cd6, "Foxconn", ALC662_FIXUP_ASUS_MODE2),
 	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x14cd, 0x5003, "USI", ALC662_FIXUP_USI_HEADSET_MODE),
-	SND_PCI_QUIRK(0x17aa, 0x1036, "Lenovo P520", ALC662_FIXUP_LENOVO_MULTI_CODECS),
-	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo Ideapad Y550P", ALC662_FIXUP_IDEAPAD),
-	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Ideapad Y550", ALC662_FIXUP_IDEAPAD),
+	SND_PCI_QUIRK(0x17aa, 0x1036, "Leyesvo P520", ALC662_FIXUP_LENOVO_MULTI_CODECS),
+	SND_PCI_QUIRK(0x17aa, 0x38af, "Leyesvo Ideapad Y550P", ALC662_FIXUP_IDEAPAD),
+	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Leyesvo Ideapad Y550", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x1849, 0x5892, "ASRock B150M", ALC892_FIXUP_ASROCK_MOBO),
 	SND_PCI_QUIRK(0x19da, 0xa130, "Zotac Z68", ALC662_FIXUP_ZOTAC_Z68),
 	SND_PCI_QUIRK(0x1b0a, 0x01b8, "ACER Veriton", ALC662_FIXUP_ACER_VERITON),
@@ -9126,7 +9126,7 @@ static int patch_alc662(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog && spec->gen.beep_nid) {
+	if (!spec->gen.yes_analog && spec->gen.beep_nid) {
 		switch (codec->core.vendor_id) {
 		case 0x10ec0662:
 			err = set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
@@ -9169,7 +9169,7 @@ static int patch_alc680(struct hda_codec *codec)
 {
 	int err;
 
-	/* ALC680 has no aa-loopback mixer */
+	/* ALC680 has yes aa-loopback mixer */
 	err = alc_alloc_spec(codec, 0);
 	if (err < 0)
 		return err;

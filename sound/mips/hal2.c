@@ -62,7 +62,7 @@ struct hal2_codec {
 	dma_addr_t desc_dma;
 	int desc_count;
 	struct hal2_pbus pbus;
-	int voices;			/* mono/stereo */
+	int voices;			/* moyes/stereo */
 	unsigned int sample_rate;
 	unsigned int master;		/* Master frequency */
 	unsigned short mod;		/* MOD value */
@@ -768,7 +768,7 @@ static void hal2_init_codec(struct hal2_codec *codec, struct hpc3_regs *hpc3,
 
 static int hal2_detect(struct snd_hal2 *hal2)
 {
-	unsigned short board, major, minor;
+	unsigned short board, major, miyesr;
 	unsigned short rev;
 
 	/* reset HAL2 */
@@ -786,10 +786,10 @@ static int hal2_detect(struct snd_hal2 *hal2)
 
 	board = (rev & H2_REV_BOARD_M) >> 12;
 	major = (rev & H2_REV_MAJOR_CHIP_M) >> 4;
-	minor = (rev & H2_REV_MINOR_CHIP_M);
+	miyesr = (rev & H2_REV_MINOR_CHIP_M);
 
 	printk(KERN_INFO "SGI HAL2 revision %i.%i.%i\n",
-	       board, major, minor);
+	       board, major, miyesr);
 
 	return 0;
 }
@@ -846,7 +846,7 @@ static int hal2_create(struct snd_card *card, struct snd_hal2 **rchip)
 			  (8 << HPC3_DMACFG_BURST_SHIFT) | \
 				HPC3_DMACFG_DRQLIVE)
 	/*
-	 * Ignore what's mentioned in the specification and write value which
+	 * Igyesre what's mentioned in the specification and write value which
 	 * works in The Real World (TM)
 	 */
 	hpc3->pbus_dmacfg[hal2->dac.pbus.pbusnr][0] = 0x8208844;

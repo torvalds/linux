@@ -111,7 +111,7 @@ static void __iomem *anatop_base;
  * entering WAIT mode.
  *
  * This function will set the ARM clk to max value within the 12:5 limit.
- * As IPG clock is fixed at 66MHz(so ARM freq must not exceed 158.4MHz),
+ * As IPG clock is fixed at 66MHz(so ARM freq must yest exceed 158.4MHz),
  * ARM freq are one of below setpoints: 396MHz, 792MHz and 996MHz, since
  * the clk APIs can NOT be called in idle thread(may cause kernel schedule
  * as there is sleep function in PLL wait function), so here we just slow
@@ -184,9 +184,9 @@ static const int uart_clk_ids[] __initconst = {
 
 static struct clk **uart_clks[ARRAY_SIZE(uart_clk_ids) + 1] __initdata;
 
-static void __init imx6sl_clocks_init(struct device_node *ccm_node)
+static void __init imx6sl_clocks_init(struct device_yesde *ccm_yesde)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *base;
 	int ret;
 	int i;
@@ -205,7 +205,7 @@ static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 	/* Clock source from external clock via CLK1 PAD */
 	hws[IMX6SL_CLK_ANACLK1] = imx_obtain_fixed_clock_hw("anaclk1", 0);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6sl-anatop");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx6sl-anatop");
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 	anatop_base = base;
@@ -235,7 +235,7 @@ static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 	hws[IMX6SL_PLL6_BYPASS] = imx_clk_hw_mux_flags("pll6_bypass", base + 0xe0, 16, 1, pll6_bypass_sels, ARRAY_SIZE(pll6_bypass_sels), CLK_SET_RATE_PARENT);
 	hws[IMX6SL_PLL7_BYPASS] = imx_clk_hw_mux_flags("pll7_bypass", base + 0x20, 16, 1, pll7_bypass_sels, ARRAY_SIZE(pll7_bypass_sels), CLK_SET_RATE_PARENT);
 
-	/* Do not bypass PLLs initially */
+	/* Do yest bypass PLLs initially */
 	clk_set_parent(hws[IMX6SL_PLL1_BYPASS]->clk, hws[IMX6SL_CLK_PLL1]->clk);
 	clk_set_parent(hws[IMX6SL_PLL2_BYPASS]->clk, hws[IMX6SL_CLK_PLL2]->clk);
 	clk_set_parent(hws[IMX6SL_PLL3_BYPASS]->clk, hws[IMX6SL_CLK_PLL3]->clk);
@@ -260,7 +260,7 @@ static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 	 * usbphy1 and usbphy2 are implemented as dummy gates using reserve
 	 * bit 20.  They are used by phy driver to keep the refcount of
 	 * parent PLL correct. usbphy1_gate and usbphy2_gate only needs to be
-	 * turned on during boot, and software will not need to control it
+	 * turned on during boot, and software will yest need to control it
 	 * anymore after that.
 	 */
 	hws[IMX6SL_CLK_USBPHY1]      = imx_clk_hw_gate("usbphy1",      "pll3_usb_otg",  base + 0x10, 20);
@@ -290,7 +290,7 @@ static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 	hws[IMX6SL_CLK_PLL3_80M]  = imx_clk_hw_fixed_factor("pll3_80m",  "pll3_usb_otg",   1, 6);
 	hws[IMX6SL_CLK_PLL3_60M]  = imx_clk_hw_fixed_factor("pll3_60m",  "pll3_usb_otg",   1, 8);
 
-	np = ccm_node;
+	np = ccm_yesde;
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 	ccm_base = base;

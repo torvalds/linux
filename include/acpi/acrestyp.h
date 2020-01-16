@@ -27,13 +27,13 @@ typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (Length+3) = (6
 #define ACPI_WRITE_COMBINING_MEMORY     (u8) 0x02
 #define ACPI_PREFETCHABLE_MEMORY        (u8) 0x03
 
-/*! [Begin] no source code translation */
+/*! [Begin] yes source code translation */
 /*
  * IO Attributes
  * The ISA IO ranges are:     n000-n0FFh,  n400-n4FFh, n800-n8FFh, nC00-nCFFh.
- * The non-ISA IO ranges are: n100-n3FFh,  n500-n7FFh, n900-nBFFh, nCD0-nFFFh.
+ * The yesn-ISA IO ranges are: n100-n3FFh,  n500-n7FFh, n900-nBFFh, nCD0-nFFFh.
  */
-/*! [End] no source code translation !*/
+/*! [End] yes source code translation !*/
 
 #define ACPI_NON_ISA_ONLY_RANGES        (u8) 0x01
 #define ACPI_ISA_ONLY_RANGES            (u8) 0x02
@@ -160,8 +160,8 @@ struct acpi_resource_start_dependent {
 };
 
 /*
- * The END_DEPENDENT_FUNCTIONS_RESOURCE struct is not
- * needed because it has no fields
+ * The END_DEPENDENT_FUNCTIONS_RESOURCE struct is yest
+ * needed because it has yes fields
  */
 
 struct acpi_resource_io {

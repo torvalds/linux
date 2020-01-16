@@ -20,7 +20,7 @@ Pin    Meaning  Pin    Meaning
 18     Gnd1	18     Gnd2
 =====  ======== ====   ==========
 
-Amiga digital joystick pinout
+Amiga digital joystick piyesut
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 === ============
@@ -37,7 +37,7 @@ Pin Meaning
 9   Thumb button
 === ============
 
-Amiga mouse pinout
+Amiga mouse piyesut
 ~~~~~~~~~~~~~~~~~~
 
 === ============
@@ -54,7 +54,7 @@ Pin Meaning
 9   Right button
 === ============
 
-Amiga analog joystick pinout
+Amiga analog joystick piyesut
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 === ==============
@@ -71,7 +71,7 @@ Pin Meaning
 9   Analog Y
 === ==============
 
-Amiga lightpen pinout
+Amiga lightpen piyesut
 ~~~~~~~~~~~~~~~~~~~~~
 
 === =============
@@ -212,11 +212,11 @@ POT1DAT  h  014   R   Paula  Pot counter data right pair (vert,horiz)
          | LEFT  | X    | LX  | 5   | 35    |
          +-------+------+-----+-----+-------+
 
-         With normal (NTSC or PAL) horiz. line rate, the pots will
+         With yesrmal (NTSC or PAL) horiz. line rate, the pots will
          give a full scale (FF) reading with about 500kohms in one
          frame time. With proportionally faster horiz line times,
          the counters will count proportionally faster.
-         This should be noted when doing variable beam displays.
+         This should be yested when doing variable beam displays.
 
 -------------------------------------------------------------------------------
 

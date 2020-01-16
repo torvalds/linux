@@ -9,9 +9,9 @@
 #include "misc.h"
 
 #define STATIC static
-#define STATIC_RW_DATA	/* non-static please */
+#define STATIC_RW_DATA	/* yesn-static please */
 
-/* Diagnostic functions */
+/* Diagyesstic functions */
 #ifdef DEBUG
 #  define Assert(cond,msg) {if(!(cond)) error(msg);}
 #  define Trace(x) fprintf x

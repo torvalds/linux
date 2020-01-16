@@ -91,7 +91,7 @@
 
 		nfc_sram: sram@100000 {
 			compatible = "mmio-sram";
-			no-memory-wc;
+			yes-memory-wc;
 			reg = <0x100000 0x2400>;
 		};
 

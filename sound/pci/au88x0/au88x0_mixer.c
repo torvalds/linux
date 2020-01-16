@@ -38,7 +38,7 @@ static int snd_vortex_mixer(vortex_t *vortex)
 	ac97.scaps = AC97_SCAP_NO_SPDIF;
 	err = snd_ac97_mixer(pbus, &ac97, &vortex->codec);
 	vortex->isquad = ((vortex->codec == NULL) ?  0 : (vortex->codec->ext_id&0x80));
-	remove_ctl(vortex->card, "Master Mono Playback Volume");
-	remove_ctl(vortex->card, "Master Mono Playback Switch");
+	remove_ctl(vortex->card, "Master Moyes Playback Volume");
+	remove_ctl(vortex->card, "Master Moyes Playback Switch");
 	return err;
 }

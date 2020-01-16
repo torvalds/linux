@@ -52,7 +52,7 @@ static void aperfmperf_snapshot_khz(void *dummy)
 	mperf_delta = mperf - s->mperf;
 
 	/*
-	 * There is no architectural guarantee that MPERF
+	 * There is yes architectural guarantee that MPERF
 	 * increments faster than we can read it.
 	 */
 	if (mperf_delta == 0)
@@ -64,9 +64,9 @@ static void aperfmperf_snapshot_khz(void *dummy)
 	s->khz = div64_u64((cpu_khz * aperf_delta), mperf_delta);
 }
 
-static bool aperfmperf_snapshot_cpu(int cpu, ktime_t now, bool wait)
+static bool aperfmperf_snapshot_cpu(int cpu, ktime_t yesw, bool wait)
 {
-	s64 time_delta = ktime_ms_delta(now, per_cpu(samples.time, cpu));
+	s64 time_delta = ktime_ms_delta(yesw, per_cpu(samples.time, cpu));
 
 	/* Don't bother re-computing within the cache threshold time. */
 	if (time_delta < APERFMPERF_CACHE_THRESHOLD_MS)
@@ -95,7 +95,7 @@ unsigned int aperfmperf_get_khz(int cpu)
 
 void arch_freq_prepare_all(void)
 {
-	ktime_t now = ktime_get();
+	ktime_t yesw = ktime_get();
 	bool wait = false;
 	int cpu;
 
@@ -108,7 +108,7 @@ void arch_freq_prepare_all(void)
 	for_each_online_cpu(cpu) {
 		if (!housekeeping_cpu(cpu, HK_FLAG_MISC))
 			continue;
-		if (!aperfmperf_snapshot_cpu(cpu, now, false))
+		if (!aperfmperf_snapshot_cpu(cpu, yesw, false))
 			wait = true;
 	}
 

@@ -78,7 +78,7 @@ static int dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	/* Only need dccph_dport & dccph_sport which are the first
 	 * 4 bytes in dccp header.
-	 * Our caller (icmpv6_notify()) already pulled 8 bytes for us.
+	 * Our caller (icmpv6_yestify()) already pulled 8 bytes for us.
 	 */
 	BUILD_BUG_ON(offsetofend(struct dccp_hdr, dccph_sport) > 8);
 	BUILD_BUG_ON(offsetofend(struct dccp_hdr, dccph_dport) > 8);
@@ -156,7 +156,7 @@ static int dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	/* Might be for an request_sock */
 	switch (sk->sk_state) {
 	case DCCP_REQUESTING:
-	case DCCP_RESPOND:  /* Cannot happen.
+	case DCCP_RESPOND:  /* Canyest happen.
 			       It can, it SYNs are crossed. --ANK */
 		if (!sock_owned_by_user(sk)) {
 			__DCCP_INC_STATS(DCCP_MIB_ATTEMPTFAILS);
@@ -281,7 +281,7 @@ static void dccp_v6_ctl_send_reset(const struct sock *sk, struct sk_buff *rxskb)
 	fl6.fl6_sport = dccp_hdr(skb)->dccph_sport;
 	security_skb_classify_flow(rxskb, flowi6_to_flowi(&fl6));
 
-	/* sk = NULL, but it is safe for now. RST socket required. */
+	/* sk = NULL, but it is safe for yesw. RST socket required. */
 	dst = ip6_dst_lookup_flow(sock_net(ctl_sk), ctl_sk, &fl6, NULL);
 	if (!IS_ERR(dst)) {
 		skb_dst_set(skb, dst);
@@ -324,7 +324,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	}
 	/*
-	 * There are no SYN attacks on IPv6, yet...
+	 * There are yes SYN attacks on IPv6, yet...
 	 */
 	dcb->dccpd_reset_code = DCCP_RESET_CODE_TOO_BUSY;
 	if (inet_csk_reqsk_queue_is_full(sk))
@@ -438,13 +438,13 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 
 		/*
 		 * No need to charge this sock to the relevant IPv6 refcnt debug socks count
-		 * here, dccp_create_openreq_child now does this for us, see the comment in
+		 * here, dccp_create_openreq_child yesw does this for us, see the comment in
 		 * that function for the gory details. -acme
 		 */
 
 		/* It is tricky place. Until this moment IPv4 tcp
 		   worked with IPv6 icsk.icsk_af_ops.
-		   Sync it now.
+		   Sync it yesw.
 		 */
 		dccp_sync_mss(newsk, inet_csk(newsk)->icsk_pmtu_cookie);
 
@@ -465,11 +465,11 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 
 	newsk = dccp_create_openreq_child(sk, req, skb);
 	if (newsk == NULL)
-		goto out_nonewsk;
+		goto out_yesnewsk;
 
 	/*
 	 * No need to charge this sock to the relevant IPv6 refcnt debug socks
-	 * count here, dccp_create_openreq_child now does this for us, see the
+	 * count here, dccp_create_openreq_child yesw does this for us, see the
 	 * comment in that function for the gory details. -acme
 	 */
 
@@ -490,7 +490,7 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 
 	/* Now IPv6 options...
 
-	   First: no IPv4 options.
+	   First: yes IPv4 options.
 	 */
 	newinet->inet_opt = NULL;
 
@@ -533,7 +533,7 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 		dccp_done(newsk);
 		goto out;
 	}
-	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash));
+	*own_req = inet_ehash_yeslisten(newsk, req_to_sk(req_unhash));
 	/* Clone pktoptions received with SYN, if we own the req */
 	if (*own_req && ireq->pktopts) {
 		newnp->pktoptions = skb_clone(ireq->pktopts, GFP_ATOMIC);
@@ -547,7 +547,7 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 
 out_overflow:
 	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
-out_nonewsk:
+out_yesnewsk:
 	dst_release(dst);
 out:
 	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENDROPS);
@@ -559,7 +559,7 @@ out:
  *
  * We have a potential double-lock case here, so even when
  * doing backlog processing we use the BH locking scheme.
- * This is because we cannot sleep with the original spinlock
+ * This is because we canyest sleep with the original spinlock
  * held.
  */
 static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
@@ -571,7 +571,7 @@ static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	   goes to IPv4 receive handler and backlogged.
 	   From backlog it always goes here. Kerboom...
 	   Fortunately, dccp_rcv_established and rcv_established
-	   handle them correctly, but it is not case with
+	   handle them correctly, but it is yest case with
 	   dccp_v6_hnd_req and dccp_v6_ctl_send_reset().   --ANK
 	 */
 
@@ -589,12 +589,12 @@ static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	/* Do Stevens' IPV6_PKTOPTIONS.
 
 	   Yes, guys, it is the only place in our code, where we
-	   may make it not affecting IPv4.
+	   may make it yest affecting IPv4.
 	   The rest of code is protocol independent,
-	   and I do not like idea to uglify IPv4.
+	   and I do yest like idea to uglify IPv4.
 
 	   Actually, all the idea behind IPV6_PKTOPTIONS
-	   looks not very well thought. For now we latch
+	   looks yest very well thought. For yesw we latch
 	   options, received in the last packet, enqueued
 	   by tcp. Feel free to propose better solution.
 					       --ANK (980728)
@@ -622,7 +622,7 @@ static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	 *	      (* Generate a new socket and switch to that socket *)
 	 *	      Set S := new socket for this port pair
 	 *	      S.state = RESPOND
-	 *	      Choose S.ISS (initial seqno) or set from Init Cookies
+	 *	      Choose S.ISS (initial seqyes) or set from Init Cookies
 	 *	      Initialize S.GAR := S.ISS
 	 *	      Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init Cookies
 	 *	      Continue with S.state == RESPOND
@@ -715,7 +715,7 @@ lookup:
 	if (!sk) {
 		dccp_pr_debug("failed to look up flow ID in table and "
 			      "get corresponding socket\n");
-		goto no_dccp_socket;
+		goto yes_dccp_socket;
 	}
 
 	/*
@@ -727,7 +727,7 @@ lookup:
 	if (sk->sk_state == DCCP_TIME_WAIT) {
 		dccp_pr_debug("sk->sk_state == DCCP_TIME_WAIT: do_time_wait\n");
 		inet_twsk_put(inet_twsk(sk));
-		goto no_dccp_socket;
+		goto yes_dccp_socket;
 	}
 
 	if (sk->sk_state == DCCP_NEW_SYN_RECV) {
@@ -763,7 +763,7 @@ lookup:
 	 */
 	min_cov = dccp_sk(sk)->dccps_pcrlen;
 	if (dh->dccph_cscov  &&  (min_cov == 0 || dh->dccph_cscov < min_cov))  {
-		dccp_pr_debug("Packet CsCov %d does not satisfy MinCsCov %d\n",
+		dccp_pr_debug("Packet CsCov %d does yest satisfy MinCsCov %d\n",
 			      dh->dccph_cscov, min_cov);
 		/* FIXME: send Data Dropped option (see also dccp_v4_rcv) */
 		goto discard_and_relse;
@@ -775,12 +775,12 @@ lookup:
 	return __sk_receive_skb(sk, skb, 1, dh->dccph_doff * 4,
 				refcounted) ? -1 : 0;
 
-no_dccp_socket:
+yes_dccp_socket:
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
 		goto discard_it;
 	/*
 	 * Step 2:
-	 *	If no socket ...
+	 *	If yes socket ...
 	 *		Generate Reset(No Connection) unless P.type == Reset
 	 *		Drop packet and return
 	 */
@@ -997,7 +997,7 @@ static const struct inet_connection_sock_af_ops dccp_ipv6_mapped = {
 };
 
 /* NOTE: A lot of things set to zero explicitly by call to
- *       sk_alloc() so need not be done here.
+ *       sk_alloc() so need yest be done here.
  */
 static int dccp_v6_init_sock(struct sock *sk)
 {
@@ -1067,7 +1067,7 @@ static const struct proto_ops inet6_dccp_ops = {
 	.release	   = inet6_release,
 	.bind		   = inet6_bind,
 	.connect	   = inet_stream_connect,
-	.socketpair	   = sock_no_socketpair,
+	.socketpair	   = sock_yes_socketpair,
 	.accept		   = inet_accept,
 	.getname	   = inet6_getname,
 	.poll		   = dccp_poll,
@@ -1079,8 +1079,8 @@ static const struct proto_ops inet6_dccp_ops = {
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = sock_common_recvmsg,
-	.mmap		   = sock_no_mmap,
-	.sendpage	   = sock_no_sendpage,
+	.mmap		   = sock_yes_mmap,
+	.sendpage	   = sock_yes_sendpage,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
@@ -1160,7 +1160,7 @@ module_exit(dccp_v6_exit);
 
 /*
  * __stringify doesn't likes enums, so use SOCK_DCCP (6) and IPPROTO_DCCP (33)
- * values directly, Also cover the case where the protocol is not specified,
+ * values directly, Also cover the case where the protocol is yest specified,
  * i.e. net-pf-PF_INET6-proto-0-type-SOCK_DCCP
  */
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_INET6, 33, 6);

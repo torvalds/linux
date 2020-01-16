@@ -15,7 +15,7 @@ struct user_struct {
 	atomic_t processes;	/* How many processes does this user have? */
 	atomic_t sigpending;	/* How many pending signals does this user have? */
 #ifdef CONFIG_FANOTIFY
-	atomic_t fanotify_listeners;
+	atomic_t fayestify_listeners;
 #endif
 #ifdef CONFIG_EPOLL
 	atomic_long_t epoll_watches; /* The number of file descriptors currently watched */
@@ -29,7 +29,7 @@ struct user_struct {
 	atomic_long_t pipe_bufs;  /* how many pages are allocated in pipe buffers */
 
 	/* Hash table maintenance information */
-	struct hlist_node uidhash_node;
+	struct hlist_yesde uidhash_yesde;
 	kuid_t uid;
 
 #if defined(CONFIG_PERF_EVENTS) || defined(CONFIG_BPF_SYSCALL) || \

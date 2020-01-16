@@ -26,7 +26,7 @@ static const struct mfd_cell tps65086_cells[] = {
 	{ .name = "tps65086-gpio", },
 };
 
-static const struct regmap_range tps65086_yes_ranges[] = {
+static const struct regmap_range tps65086_no_ranges[] = {
 	regmap_reg_range(TPS65086_IRQ, TPS65086_IRQ),
 	regmap_reg_range(TPS65086_PMICSTAT, TPS65086_SHUTDNSRC),
 	regmap_reg_range(TPS65086_GPOCTRL, TPS65086_GPOCTRL),
@@ -34,8 +34,8 @@ static const struct regmap_range tps65086_yes_ranges[] = {
 };
 
 static const struct regmap_access_table tps65086_volatile_table = {
-	.yes_ranges = tps65086_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tps65086_yes_ranges),
+	.no_ranges = tps65086_no_ranges,
+	.n_no_ranges = ARRAY_SIZE(tps65086_no_ranges),
 };
 
 static const struct regmap_config tps65086_regmap_config = {

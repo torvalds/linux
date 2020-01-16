@@ -2,7 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erryes.h>
 //#include <stdint.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -62,7 +62,7 @@ int ion_export_buffer_fd(struct ion_buffer_info *ion_info)
 	ionfd = open(ION_DEVICE, O_RDWR);
 	if (ionfd < 0) {
 		fprintf(stderr, "<%s>: Failed to open ion client: %s\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 		return -1;
 	}
 
@@ -73,7 +73,7 @@ int ion_export_buffer_fd(struct ion_buffer_info *ion_info)
 	ret = ioctl(ionfd, ION_IOC_HEAP_QUERY, &query);
 	if (ret < 0) {
 		fprintf(stderr, "<%s>: Failed: ION_IOC_HEAP_QUERY: %s\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 		goto err_query;
 	}
 
@@ -86,7 +86,7 @@ int ion_export_buffer_fd(struct ion_buffer_info *ion_info)
 	}
 
 	if (heap_id > MAX_HEAP_COUNT) {
-		fprintf(stderr, "<%s>: ERROR: heap type does not exists\n",
+		fprintf(stderr, "<%s>: ERROR: heap type does yest exists\n",
 			__func__);
 		goto err_heap;
 	}
@@ -99,7 +99,7 @@ int ion_export_buffer_fd(struct ion_buffer_info *ion_info)
 	ret = ioctl(ionfd, ION_IOC_ALLOC, &alloc_data);
 	if (ret < 0) {
 		fprintf(stderr, "<%s>: Failed: ION_IOC_ALLOC: %s\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 		goto err_alloc;
 	}
 
@@ -118,7 +118,7 @@ int ion_export_buffer_fd(struct ion_buffer_info *ion_info)
 			MAP_SHARED, buffer_fd, 0);
 	if (map_buffer == MAP_FAILED) {
 		fprintf(stderr, "<%s>: Failed: mmap: %s\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 		goto err_mmap;
 	}
 
@@ -171,7 +171,7 @@ int ion_import_buffer_fd(struct ion_buffer_info *ion_info)
 			MAP_SHARED, buffd, 0);
 	if (map_buf == MAP_FAILED) {
 		printf("<%s>: Failed - mmap: %s\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 		goto err_mmap;
 	}
 

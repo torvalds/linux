@@ -198,7 +198,7 @@ static s32 clr_alloc_bitmap(struct super_block *sb, u32 clu)
 				       (1 << p_fs->sectors_per_clu_bits),
 				       GFP_NOFS, 0);
 		if (ret == -EOPNOTSUPP) {
-			pr_warn("discard not supported by device, disabling");
+			pr_warn("discard yest supported by device, disabling");
 			opts->discard = 0;
 		} else {
 			return ret;
@@ -1022,7 +1022,7 @@ static s32 exfat_init_dir_entry(struct super_block *sb, struct chain_t *p_dir,
 
 	flags = (type == TYPE_FILE) ? 0x01 : 0x03;
 
-	/* we cannot use get_entry_set_in_dir here because file ep is not initialized yet */
+	/* we canyest use get_entry_set_in_dir here because file ep is yest initialized yet */
 	file_ep = (struct file_dentry_t *)get_entry_in_dir(sb, p_dir, entry,
 							   &sector);
 	if (!file_ep)
@@ -1585,7 +1585,7 @@ static s32 search_deleted_or_unused_entry(struct super_block *sb,
 	return -1;
 }
 
-static s32 find_empty_entry(struct inode *inode, struct chain_t *p_dir, s32 num_entries)
+static s32 find_empty_entry(struct iyesde *iyesde, struct chain_t *p_dir, s32 num_entries)
 {
 	s32 ret, dentry;
 	u32 last_clu;
@@ -1593,9 +1593,9 @@ static s32 find_empty_entry(struct inode *inode, struct chain_t *p_dir, s32 num_
 	u64 size = 0;
 	struct chain_t clu;
 	struct dentry_t *ep = NULL;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
-	struct file_id_t *fid = &(EXFAT_I(inode)->fid);
+	struct file_id_t *fid = &(EXFAT_I(iyesde)->fid);
 
 	if (p_dir->dir == CLUSTER_32(0)) /* FAT16 root_dir */
 		return search_deleted_or_unused_entry(sb, p_dir, num_entries);
@@ -1605,7 +1605,7 @@ static s32 find_empty_entry(struct inode *inode, struct chain_t *p_dir, s32 num_
 			break;
 
 		if (p_dir->dir != p_fs->root_dir)
-			size = i_size_read(inode);
+			size = i_size_read(iyesde);
 
 		last_clu = find_last_cluster(sb, p_dir);
 		clu.dir = last_clu + 1;
@@ -1657,11 +1657,11 @@ static s32 find_empty_entry(struct inode *inode, struct chain_t *p_dir, s32 num_
 					    fid->entry);
 		}
 
-		i_size_write(inode, i_size_read(inode) + p_fs->cluster_size);
-		EXFAT_I(inode)->mmu_private += p_fs->cluster_size;
-		EXFAT_I(inode)->fid.size += p_fs->cluster_size;
-		EXFAT_I(inode)->fid.flags = p_dir->flags;
-		inode->i_blocks += 1 << (p_fs->cluster_size_bits - 9);
+		i_size_write(iyesde, i_size_read(iyesde) + p_fs->cluster_size);
+		EXFAT_I(iyesde)->mmu_private += p_fs->cluster_size;
+		EXFAT_I(iyesde)->fid.size += p_fs->cluster_size;
+		EXFAT_I(iyesde)->fid.flags = p_dir->flags;
+		iyesde->i_blocks += 1 << (p_fs->cluster_size_bits - 9);
 	}
 
 	return dentry;
@@ -1687,7 +1687,7 @@ static s32 extract_uni_name_from_name_entry(struct name_dentry_t *ep, u16 *unina
 /* return values of exfat_find_dir_entry()
  * >= 0 : return dir entiry position with the name in dir
  * -1 : (root dir, ".") it is the root dir itself
- * -2 : entry with the name does not exist
+ * -2 : entry with the name does yest exist
  */
 static s32 exfat_find_dir_entry(struct super_block *sb, struct chain_t *p_dir,
 			 struct uni_name_t *p_uniname, s32 num_entries,
@@ -2076,13 +2076,13 @@ u16 calc_checksum_2byte(void *data, s32 len, u16 chksum, s32 type)
  * > 0 : return the length of the path
  * < 0 : return error
  */
-s32 resolve_path(struct inode *inode, char *path, struct chain_t *p_dir,
+s32 resolve_path(struct iyesde *iyesde, char *path, struct chain_t *p_dir,
 		 struct uni_name_t *p_uniname)
 {
 	bool lossy = false;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
-	struct file_id_t *fid = &(EXFAT_I(inode)->fid);
+	struct file_id_t *fid = &(EXFAT_I(iyesde)->fid);
 
 	if (strscpy(name_buf, path, sizeof(name_buf)) < 0)
 		return -EINVAL;
@@ -2091,7 +2091,7 @@ s32 resolve_path(struct inode *inode, char *path, struct chain_t *p_dir,
 	if (lossy)
 		return -EINVAL;
 
-	fid->size = i_size_read(inode);
+	fid->size = i_size_read(iyesde);
 
 	p_dir->dir = fid->start_clu;
 	p_dir->size = (s32)(fid->size >> p_fs->cluster_size_bits);
@@ -2178,14 +2178,14 @@ s32 exfat_mount(struct super_block *sb, struct pbr_sector_t *p_pbr)
 	return 0;
 }
 
-s32 create_dir(struct inode *inode, struct chain_t *p_dir,
+s32 create_dir(struct iyesde *iyesde, struct chain_t *p_dir,
 	       struct uni_name_t *p_uniname, struct file_id_t *fid)
 {
 	s32 ret, dentry, num_entries;
 	u64 size;
 	struct chain_t clu;
 	struct dos_name_t dos_name;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 	struct fs_func *fs_func = p_fs->fs_func;
 
@@ -2195,7 +2195,7 @@ s32 create_dir(struct inode *inode, struct chain_t *p_dir,
 		return ret;
 
 	/* find_empty_entry must be called before alloc_cluster */
-	dentry = find_empty_entry(inode, p_dir, num_entries);
+	dentry = find_empty_entry(iyesde, p_dir, num_entries);
 	if (dentry < 0)
 		return -ENOSPC;
 
@@ -2245,12 +2245,12 @@ s32 create_dir(struct inode *inode, struct chain_t *p_dir,
 	return 0;
 }
 
-s32 create_file(struct inode *inode, struct chain_t *p_dir,
+s32 create_file(struct iyesde *iyesde, struct chain_t *p_dir,
 		struct uni_name_t *p_uniname, u8 mode, struct file_id_t *fid)
 {
 	s32 ret, dentry, num_entries;
 	struct dos_name_t dos_name;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 	struct fs_func *fs_func = p_fs->fs_func;
 
@@ -2260,13 +2260,13 @@ s32 create_file(struct inode *inode, struct chain_t *p_dir,
 		return ret;
 
 	/* find_empty_entry must be called before alloc_cluster() */
-	dentry = find_empty_entry(inode, p_dir, num_entries);
+	dentry = find_empty_entry(iyesde, p_dir, num_entries);
 	if (dentry < 0)
 		return -ENOSPC;
 
 	/* (1) update the directory entry */
 	/* fill the dos name directory entry information of the created file.
-	 * the first cluster is not determined yet. (0)
+	 * the first cluster is yest determined yet. (0)
 	 */
 	ret = fs_func->init_dir_entry(sb, p_dir, dentry, TYPE_FILE | mode,
 				      CLUSTER_32(0), 0);
@@ -2295,12 +2295,12 @@ s32 create_file(struct inode *inode, struct chain_t *p_dir,
 	return 0;
 }
 
-void remove_file(struct inode *inode, struct chain_t *p_dir, s32 entry)
+void remove_file(struct iyesde *iyesde, struct chain_t *p_dir, s32 entry)
 {
 	s32 num_entries;
 	sector_t sector;
 	struct dentry_t *ep;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 	struct fs_func *fs_func = p_fs->fs_func;
 
@@ -2324,14 +2324,14 @@ void remove_file(struct inode *inode, struct chain_t *p_dir, s32 entry)
 	fs_func->delete_dir_entry(sb, p_dir, entry, 0, num_entries);
 }
 
-s32 exfat_rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
+s32 exfat_rename_file(struct iyesde *iyesde, struct chain_t *p_dir, s32 oldentry,
 		      struct uni_name_t *p_uniname, struct file_id_t *fid)
 {
 	s32 ret, newentry = -1, num_old_entries, num_new_entries;
 	sector_t sector_old, sector_new;
 	struct dos_name_t dos_name;
 	struct dentry_t *epold, *epnew;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 	struct fs_func *fs_func = p_fs->fs_func;
 
@@ -2358,7 +2358,7 @@ s32 exfat_rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
 	}
 
 	if (num_old_entries < num_new_entries) {
-		newentry = find_empty_entry(inode, p_dir, num_new_entries);
+		newentry = find_empty_entry(iyesde, p_dir, num_new_entries);
 		if (newentry < 0) {
 			exfat_buf_unlock(sb, sector_old);
 			return -ENOSPC;
@@ -2427,7 +2427,7 @@ s32 exfat_rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
 	return 0;
 }
 
-s32 move_file(struct inode *inode, struct chain_t *p_olddir, s32 oldentry,
+s32 move_file(struct iyesde *iyesde, struct chain_t *p_olddir, s32 oldentry,
 	      struct chain_t *p_newdir, struct uni_name_t *p_uniname,
 	      struct file_id_t *fid)
 {
@@ -2435,7 +2435,7 @@ s32 move_file(struct inode *inode, struct chain_t *p_olddir, s32 oldentry,
 	sector_t sector_mov, sector_new;
 	struct dos_name_t dos_name;
 	struct dentry_t *epmov, *epnew;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 	struct fs_func *fs_func = p_fs->fs_func;
 
@@ -2466,7 +2466,7 @@ s32 move_file(struct inode *inode, struct chain_t *p_olddir, s32 oldentry,
 		return ret;
 	}
 
-	newentry = find_empty_entry(inode, p_newdir, num_new_entries);
+	newentry = find_empty_entry(iyesde, p_newdir, num_new_entries);
 	if (newentry < 0) {
 		exfat_buf_unlock(sb, sector_mov);
 		return -ENOSPC;

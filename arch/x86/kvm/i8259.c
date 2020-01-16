@@ -12,7 +12,7 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -73,13 +73,13 @@ static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 	if (s != &s->pics_state->pics[0])
 		irq += 8;
 	/*
-	 * We are dropping lock while calling ack notifiers since ack
-	 * notifier callbacks for assigned devices call into PIC recursively.
+	 * We are dropping lock while calling ack yestifiers since ack
+	 * yestifier callbacks for assigned devices call into PIC recursively.
 	 * Other interrupt may be delivered to PIC while lock is dropped but
 	 * it should be safe since PIC state is already updated at this stage.
 	 */
 	pic_unlock(s->pics_state);
-	kvm_notify_acked_irq(s->pics_state->kvm, SELECT_PIC(irq), irq);
+	kvm_yestify_acked_irq(s->pics_state->kvm, SELECT_PIC(irq), irq);
 	pic_lock(s->pics_state);
 }
 
@@ -114,7 +114,7 @@ static inline int pic_set_irq1(struct kvm_kpic_state *s, int irq, int level)
 
 /*
  * return the highest priority found in mask (highest = smallest
- * number). Return 8 if no irq
+ * number). Return 8 if yes irq
  */
 static inline int get_priority(struct kvm_kpic_state *s, int mask)
 {
@@ -128,7 +128,7 @@ static inline int get_priority(struct kvm_kpic_state *s, int mask)
 }
 
 /*
- * return the pic wanted interrupt. return -1 if none
+ * return the pic wanted interrupt. return -1 if yesne
  */
 static int pic_get_irq(struct kvm_kpic_state *s)
 {
@@ -140,7 +140,7 @@ static int pic_get_irq(struct kvm_kpic_state *s)
 		return -1;
 	/*
 	 * compute current priority. If special fully nested mode on the
-	 * master, the IRQ coming from the slave is not taken into account
+	 * master, the IRQ coming from the slave is yest taken into account
 	 * for the priority computation.
 	 */
 	mask = s->isr;
@@ -212,7 +212,7 @@ void kvm_pic_clear_all(struct kvm_pic *s, int irq_source_id)
 }
 
 /*
- * acknowledge interrupt 'irq'
+ * ackyeswledge interrupt 'irq'
  */
 static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 {
@@ -233,7 +233,7 @@ static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 
 int kvm_pic_read_irq(struct kvm *kvm)
 {
-	int irq, irq2, intno;
+	int irq, irq2, intyes;
 	struct kvm_pic *s = kvm->arch.vpic;
 
 	s->output = 0;
@@ -251,21 +251,21 @@ int kvm_pic_read_irq(struct kvm *kvm)
 				 * spurious IRQ on slave controller
 				 */
 				irq2 = 7;
-			intno = s->pics[1].irq_base + irq2;
+			intyes = s->pics[1].irq_base + irq2;
 			irq = irq2 + 8;
 		} else
-			intno = s->pics[0].irq_base + irq;
+			intyes = s->pics[0].irq_base + irq;
 	} else {
 		/*
 		 * spurious IRQ on host controller
 		 */
 		irq = 7;
-		intno = s->pics[0].irq_base + irq;
+		intyes = s->pics[0].irq_base + irq;
 	}
 	pic_update_irq(s);
 	pic_unlock(s);
 
-	return intno;
+	return intyes;
 }
 
 static void kvm_pic_reset(struct kvm_kpic_state *s)
@@ -312,10 +312,10 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 		if (val & 0x10) {
 			s->init4 = val & 1;
 			if (val & 0x02)
-				pr_pic_unimpl("single mode not supported");
+				pr_pic_unimpl("single mode yest supported");
 			if (val & 0x08)
 				pr_pic_unimpl(
-						"level sensitive irq not supported");
+						"level sensitive irq yest supported");
 			kvm_pic_reset(s);
 		} else if (val & 0x08) {
 			if (val & 0x04)
@@ -358,18 +358,18 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 				pic_update_irq(s->pics_state);
 				break;
 			default:
-				break;	/* no operation */
+				break;	/* yes operation */
 			}
 		}
 	} else
 		switch (s->init_state) {
-		case 0: { /* normal mode */
+		case 0: { /* yesrmal mode */
 			u8 imr_diff = s->imr ^ val,
 				off = (s == &s->pics_state->pics[0]) ? 0 : 8;
 			s->imr = val;
 			for (irq = 0; irq < PIC_NUM_PINS/2; irq++)
 				if (imr_diff & (1 << irq))
-					kvm_fire_mask_notifiers(
+					kvm_fire_mask_yestifiers(
 						s->pics_state->kvm,
 						SELECT_PIC(irq + off),
 						irq + off,
@@ -454,7 +454,7 @@ static int picdev_write(struct kvm_pic *s,
 	unsigned char data = *(unsigned char *)val;
 
 	if (len != 1) {
-		pr_pic_unimpl("non byte write\n");
+		pr_pic_unimpl("yesn byte write\n");
 		return 0;
 	}
 	switch (addr) {
@@ -485,7 +485,7 @@ static int picdev_read(struct kvm_pic *s,
 
 	if (len != 1) {
 		memset(val, 0, len);
-		pr_pic_unimpl("non byte read\n");
+		pr_pic_unimpl("yesn byte read\n");
 		return 0;
 	}
 	switch (addr) {

@@ -199,7 +199,7 @@ void smt_srf_event(struct s_smc *smc, int code, int index, int cond)
 			return ;
 		}
 		/*
-		 * ignore condition if no change
+		 * igyesre condition if yes change
 		 */
 		if (SMT_IS_CONDITION(code)) {
 			if (*evc->evc_cond_state == cond)
@@ -392,8 +392,8 @@ static void smt_send_srf(struct s_smc *smc)
 	 * setup parameter status
 	 */
 	pcon.pc_len = SMT_MAX_INFO_LEN ;	/* max para length */
-	pcon.pc_err = 0 ;			/* no error */
-	pcon.pc_badset = 0 ;			/* no bad set count */
+	pcon.pc_err = 0 ;			/* yes error */
+	pcon.pc_badset = 0 ;			/* yes bad set count */
 	pcon.pc_p = (void *) (smt + 1) ;	/* paras start here */
 
 	smt_add_para(smc,&pcon,(u_short) SMT_P1033,0,0) ;
@@ -418,6 +418,6 @@ static void smt_send_srf(struct s_smc *smc)
 	clear_reported(smc) ;
 }
 
-#endif	/* no BOOT */
-#endif	/* no SLIM_SMT */
+#endif	/* yes BOOT */
+#endif	/* yes SLIM_SMT */
 

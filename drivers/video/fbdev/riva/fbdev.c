@@ -24,14 +24,14 @@
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
  *
- * Known bugs and issues:
+ * Kyeswn bugs and issues:
  *	restoring text mode fails
  *	doublescan modes are broken
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -200,8 +200,8 @@ MODULE_DEVICE_TABLE(pci, rivafb_pci_tbl);
 /* command line data, set in rivafb_setup() */
 static int flatpanel = -1; /* Autodetect later */
 static int forceCRTC = -1;
-static bool noaccel  = 0;
-static bool nomtrr = 0;
+static bool yesaccel  = 0;
+static bool yesmtrr = 0;
 #ifdef CONFIG_PMAC_BACKLIGHT
 static int backlight = 1;
 #else
@@ -265,7 +265,7 @@ static const struct riva_regs reg_template = {
  * Backlight control
  */
 #ifdef CONFIG_FB_RIVA_BACKLIGHT
-/* We do not have any information about which values are allowed, thus
+/* We do yest have any information about which values are allowed, thus
  * we used safe values.
  */
 #define MIN_LEVEL 0x158
@@ -337,7 +337,7 @@ static void riva_bl_init(struct riva_par *par)
 		return;
 #endif
 
-	snprintf(name, sizeof(name), "rivabl%d", info->node);
+	snprintf(name, sizeof(name), "rivabl%d", info->yesde);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
@@ -468,7 +468,7 @@ static inline void reverse_order(u32 *l)
 
 /**
  * rivafb_load_cursor_image - load cursor image to hardware
- * @data: address to monochrome bitmap (1 = foreground color, 0 = background)
+ * @data: address to moyeschrome bitmap (1 = foreground color, 0 = background)
  * @par:  pointer to private data
  * @w:    width of cursor image in pixels
  * @h:    height of cursor image in scanlines
@@ -476,7 +476,7 @@ static inline void reverse_order(u32 *l)
  * @fg:   foreground color (ARGB1555)
  *
  * DESCRIPTiON:
- * Loads cursor image based on a monochrome source and mask bitmap.  The
+ * Loads cursor image based on a moyeschrome source and mask bitmap.  The
  * image bits determines the color of the pixel, 0 for background, 1 for
  * foreground.  Only the affected region (as determined by @w and @h 
  * parameters) will be updated.
@@ -848,7 +848,7 @@ static void riva_update_var(struct fb_var_screeninfo *var,
  * rivafb_do_maximize - 
  * @info: pointer to fb_info object containing info for current riva board
  * @var:
- * @nom:
+ * @yesm:
  * @den:
  *
  * DESCRIPTION:
@@ -863,7 +863,7 @@ static void riva_update_var(struct fb_var_screeninfo *var,
  */
 static int rivafb_do_maximize(struct fb_info *info,
 			      struct fb_var_screeninfo *var,
-			      int nom, int den)
+			      int yesm, int den)
 {
 	static struct {
 		int xres, yres;
@@ -883,13 +883,13 @@ static int rivafb_do_maximize(struct fb_info *info,
 		printk(KERN_WARNING PFX
 		       "using maximum available virtual resolution\n");
 		for (i = 0; modes[i].xres != -1; i++) {
-			if (modes[i].xres * nom / den * modes[i].yres <
+			if (modes[i].xres * yesm / den * modes[i].yres <
 			    info->fix.smem_len)
 				break;
 		}
 		if (modes[i].xres == -1) {
 			printk(KERN_ERR PFX
-			       "could not find a virtual resolution that fits into video memory!!\n");
+			       "could yest find a virtual resolution that fits into video memory!!\n");
 			NVTRACE("EXIT - EINVAL error\n");
 			return -EINVAL;
 		}
@@ -901,18 +901,18 @@ static int rivafb_do_maximize(struct fb_info *info,
 		       var->xres_virtual, var->yres_virtual);
 	} else if (var->xres_virtual == -1) {
 		var->xres_virtual = (info->fix.smem_len * den /
-			(nom * var->yres_virtual)) & ~15;
+			(yesm * var->yres_virtual)) & ~15;
 		printk(KERN_WARNING PFX
 		       "setting virtual X resolution to %d\n", var->xres_virtual);
 	} else if (var->yres_virtual == -1) {
 		var->xres_virtual = (var->xres_virtual + 15) & ~15;
 		var->yres_virtual = info->fix.smem_len * den /
-			(nom * var->xres_virtual);
+			(yesm * var->xres_virtual);
 		printk(KERN_WARNING PFX
 		       "setting virtual Y resolution to %d\n", var->yres_virtual);
 	} else {
 		var->xres_virtual = (var->xres_virtual + 15) & ~15;
-		if (var->xres_virtual * nom / den * var->yres_virtual > info->fix.smem_len) {
+		if (var->xres_virtual * yesm / den * var->yres_virtual > info->fix.smem_len) {
 			printk(KERN_ERR PFX
 			       "mode %dx%dx%d rejected...resolution too high to fit into video memory!\n",
 			       var->xres, var->yres, var->bits_per_pixel);
@@ -921,11 +921,11 @@ static int rivafb_do_maximize(struct fb_info *info,
 		}
 	}
 	
-	if (var->xres_virtual * nom / den >= 8192) {
+	if (var->xres_virtual * yesm / den >= 8192) {
 		printk(KERN_WARNING PFX
 		       "virtual X resolution (%d) is too high, lowering to %d\n",
-		       var->xres_virtual, 8192 * den / nom - 16);
-		var->xres_virtual = 8192 * den / nom - 16;
+		       var->xres_virtual, 8192 * den / yesm - 16);
+		var->xres_virtual = 8192 * den / yesm - 16;
 	}
 	
 	if (var->xres_virtual < var->xres) {
@@ -939,10 +939,10 @@ static int rivafb_do_maximize(struct fb_info *info,
 		       "virtual Y resolution (%d) is smaller than real\n", var->yres_virtual);
 		return -EINVAL;
 	}
-	if (var->yres_virtual > 0x7fff/nom)
-		var->yres_virtual = 0x7fff/nom;
-	if (var->xres_virtual > 0x7fff/nom)
-		var->xres_virtual = 0x7fff/nom;
+	if (var->yres_virtual > 0x7fff/yesm)
+		var->yres_virtual = 0x7fff/yesm;
+	if (var->xres_virtual > 0x7fff/yesm)
+		var->xres_virtual = 0x7fff/yesm;
 	NVTRACE_LEAVE();
 	return 0;
 }
@@ -953,8 +953,8 @@ riva_set_pattern(struct riva_par *par, int clr0, int clr1, int pat0, int pat1)
 	RIVA_FIFO_FREE(par->riva, Patt, 4);
 	NV_WR32(&par->riva.Patt->Color0, 0, clr0);
 	NV_WR32(&par->riva.Patt->Color1, 0, clr1);
-	NV_WR32(par->riva.Patt->Monochrome, 0, pat0);
-	NV_WR32(par->riva.Patt->Monochrome, 4, pat1);
+	NV_WR32(par->riva.Patt->Moyeschrome, 0, pat0);
+	NV_WR32(par->riva.Patt->Moyeschrome, 4, pat1);
 }
 
 /* acceleration routines */
@@ -1016,7 +1016,7 @@ static int riva_get_cmap_len(const struct fb_var_screeninfo *var)
 		rc = 64;	/* 64 entries (2^6), 16 bpp, RGB565 */
 		break;		
 	default:
-		/* should not occur */
+		/* should yest occur */
 		break;
 	}
 	return rc;
@@ -1084,7 +1084,7 @@ static int rivafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	const struct fb_videomode *mode;
 	struct riva_par *par = info->par;
-	int nom, den;		/* translating from pixels->bytes */
+	int yesm, den;		/* translating from pixels->bytes */
 	int mode_valid = 0;
 	
 	NVTRACE_ENTER();
@@ -1093,7 +1093,7 @@ static int rivafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->red.offset = var->green.offset = var->blue.offset = 0;
 		var->red.length = var->green.length = var->blue.length = 8;
 		var->bits_per_pixel = 8;
-		nom = den = 1;
+		yesm = den = 1;
 		break;
 	case 9 ... 15:
 		var->green.length = 5;
@@ -1120,7 +1120,7 @@ static int rivafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 			var->green.length = 6;
 			var->blue.length = 5;
 		}
-		nom = 2;
+		yesm = 2;
 		den = 1;
 		break;
 	case 17 ... 32:
@@ -1129,12 +1129,12 @@ static int rivafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->red.offset = 16;
 		var->green.offset = 8;
 		var->blue.offset = 0;
-		nom = 4;
+		yesm = 4;
 		den = 1;
 		break;
 	default:
 		printk(KERN_ERR PFX
-		       "mode %dx%dx%d rejected...color depth not supported.\n",
+		       "mode %dx%dx%d rejected...color depth yest supported.\n",
 		       var->xres, var->yres, var->bits_per_pixel);
 		NVTRACE("EXIT, returning -EINVAL\n");
 		return -EINVAL;
@@ -1167,7 +1167,7 @@ static int rivafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->xres_virtual = var->xres;
 	if (var->yres_virtual <= var->yres)
 		var->yres_virtual = -1;
-	if (rivafb_do_maximize(info, var, nom, den) < 0)
+	if (rivafb_do_maximize(info, var, yesm, den) < 0)
 		return -EINVAL;
 
 	/* truncate xoffset and yoffset to maximum if too high */
@@ -1279,7 +1279,7 @@ static int rivafb_blank(int blank, struct fb_info *info)
 
 /**
  * rivafb_setcolreg
- * @regno: register index
+ * @regyes: register index
  * @red: red component
  * @green: green component
  * @blue: blue component
@@ -1291,12 +1291,12 @@ static int rivafb_blank(int blank, struct fb_info *info)
  * magnitude.
  *
  * RETURNS:
- * Return != 0 for invalid regno.
+ * Return != 0 for invalid regyes.
  *
  * CALLED FROM:
  * fbcmap.c:fb_set_cmap()
  */
-static int rivafb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int rivafb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			  unsigned blue, unsigned transp,
 			  struct fb_info *info)
 {
@@ -1304,7 +1304,7 @@ static int rivafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	RIVA_HW_INST *chip = &par->riva;
 	int i;
 
-	if (regno >= riva_get_cmap_len(&info->var))
+	if (regyes >= riva_get_cmap_len(&info->var))
 			return -EINVAL;
 
 	if (info->var.grayscale) {
@@ -1313,11 +1313,11 @@ static int rivafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		    (red * 77 + green * 151 + blue * 28) >> 8;
 	}
 
-	if (regno < 16 && info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
-		((u32 *) info->pseudo_palette)[regno] =
-			(regno << info->var.red.offset) |
-			(regno << info->var.green.offset) |
-			(regno << info->var.blue.offset);
+	if (regyes < 16 && info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
+		((u32 *) info->pseudo_palette)[regyes] =
+			(regyes << info->var.red.offset) |
+			(regyes << info->var.green.offset) |
+			(regyes << info->var.blue.offset);
 		/*
 		 * The Riva128 2D engine requires color information in
 		 * TrueColor format even if framebuffer is in DirectColor
@@ -1325,12 +1325,12 @@ static int rivafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		if (par->riva.Architecture == NV_ARCH_03) {
 			switch (info->var.bits_per_pixel) {
 			case 16:
-				par->palette[regno] = ((red & 0xf800) >> 1) |
+				par->palette[regyes] = ((red & 0xf800) >> 1) |
 					((green & 0xf800) >> 6) |
 					((blue & 0xf800) >> 11);
 				break;
 			case 32:
-				par->palette[regno] = ((red & 0xff00) << 8) |
+				par->palette[regyes] = ((red & 0xff00) << 8) |
 					((green & 0xff00)) |
 					((blue & 0xff00) >> 8);
 				break;
@@ -1340,36 +1340,36 @@ static int rivafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
-		/* "transparent" stuff is completely ignored. */
-		riva_wclut(chip, regno, red >> 8, green >> 8, blue >> 8);
+		/* "transparent" stuff is completely igyesred. */
+		riva_wclut(chip, regyes, red >> 8, green >> 8, blue >> 8);
 		break;
 	case 16:
 		if (info->var.green.length == 5) {
 			for (i = 0; i < 8; i++) {
-				riva_wclut(chip, regno*8+i, red >> 8,
+				riva_wclut(chip, regyes*8+i, red >> 8,
 					   green >> 8, blue >> 8);
 			}
 		} else {
 			u8 r, g, b;
 
-			if (regno < 32) {
+			if (regyes < 32) {
 				for (i = 0; i < 8; i++) {
-					riva_wclut(chip, regno*8+i,
+					riva_wclut(chip, regyes*8+i,
 						   red >> 8, green >> 8,
 						   blue >> 8);
 				}
 			}
-			riva_rclut(chip, regno*4, &r, &g, &b);
+			riva_rclut(chip, regyes*4, &r, &g, &b);
 			for (i = 0; i < 4; i++)
-				riva_wclut(chip, regno*4+i, r,
+				riva_wclut(chip, regyes*4+i, r,
 					   green >> 8, b);
 		}
 		break;
 	case 32:
-		riva_wclut(chip, regno, red >> 8, green >> 8, blue >> 8);
+		riva_wclut(chip, regyes, red >> 8, green >> 8, blue >> 8);
 		break;
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 	return 0;
@@ -1438,7 +1438,7 @@ static void rivafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect
  * @region: pointer to fb_copyarea structure
  *
  * DESCRIPTION:
- * This copies an area of pixels from one location to another
+ * This copies an area of pixels from one location to ayesther
  *
  * CALLED FROM:
  * framebuffer hook
@@ -1478,11 +1478,11 @@ static inline void convert_bgcolor_16(u32 *col)
  * @image: pointer to fb_image structure
  *
  * DESCRIPTION:
- * If the source is a monochrome bitmap, the function fills up a a region
+ * If the source is a moyeschrome bitmap, the function fills up a a region
  * of framebuffer memory with pixels whose color is determined by the bit
  * setting of the bitmap, 1 - foreground, 0 - background.
  *
- * If the source is not a monochrome bitmap, color expansion is not done.
+ * If the source is yest a moyeschrome bitmap, color expansion is yest done.
  * In this case, it is channeled to a software function.
  *
  * CALLED FROM:
@@ -1536,7 +1536,7 @@ static void rivafb_imageblit(struct fb_info *info,
 	NV_WR32(&par->riva.Bitmap->PointE, 0,
 		(image->dy << 16) | (image->dx & 0xFFFF));
 
-	d = &par->riva.Bitmap->MonochromeData01E;
+	d = &par->riva.Bitmap->MoyeschromeData01E;
 
 	width = (image->width + 31)/32;
 	size = width * image->height;
@@ -1702,8 +1702,8 @@ static int riva_set_fbinfo(struct fb_info *info)
 		    | FBINFO_HWACCEL_FILLRECT
 	            | FBINFO_HWACCEL_IMAGEBLIT;
 
-	/* Accel seems to not work properly on NV30 yet...*/
-	if ((par->riva.Architecture == NV_ARCH_30) || noaccel) {
+	/* Accel seems to yest work properly on NV30 yet...*/
+	if ((par->riva.Architecture == NV_ARCH_30) || yesaccel) {
 	    	printk(KERN_DEBUG PFX "disabling acceleration\n");
   		info->flags |= FBINFO_HWACCEL_DISABLED;
 	}
@@ -1729,7 +1729,7 @@ static int riva_set_fbinfo(struct fb_info *info)
 static int riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 {
 	struct riva_par *par = info->par;
-	struct device_node *dp;
+	struct device_yesde *dp;
 	const unsigned char *pedid = NULL;
 	const unsigned char *disptype = NULL;
 	static char *propnames[] = {
@@ -1737,7 +1737,7 @@ static int riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 	int i;
 
 	NVTRACE_ENTER();
-	dp = pci_device_to_OF_node(pd);
+	dp = pci_device_to_OF_yesde(pd);
 	for (; dp != NULL; dp = dp->child) {
 		disptype = of_get_property(dp, "display-type", NULL);
 		if (disptype == NULL)
@@ -1823,10 +1823,10 @@ static void riva_get_EDID(struct fb_info *info, struct pci_dev *pdev)
 		return;
 	}
 	if (IS_ENABLED(CONFIG_OF))
-		printk(PFX "could not retrieve EDID from OF\n");
+		printk(PFX "could yest retrieve EDID from OF\n");
 #if defined(CONFIG_FB_RIVA_I2C)
 	if (!riva_get_EDID_i2c(info))
-		printk(PFX "could not retrieve EDID from DDC/I2C\n");
+		printk(PFX "could yest retrieve EDID from DDC/I2C\n");
 #endif
 	NVTRACE_LEAVE();
 }
@@ -1885,7 +1885,7 @@ static u32 riva_get_arch(struct pci_dev *pd)
 		case 0x0010:   /* Riva128 */
 		     arch =  NV_ARCH_03;
 		     break;
-		default:   /* unknown architecture */
+		default:   /* unkyeswn architecture */
 		     break;
 	}
 	return arch;
@@ -1916,13 +1916,13 @@ static int rivafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 
 	ret = pci_enable_device(pd);
 	if (ret < 0) {
-		printk(KERN_ERR PFX "cannot enable PCI device\n");
+		printk(KERN_ERR PFX "canyest enable PCI device\n");
 		goto err_free_pixmap;
 	}
 
 	ret = pci_request_regions(pd, "rivafb");
 	if (ret < 0) {
-		printk(KERN_ERR PFX "cannot request PCI regions\n");
+		printk(KERN_ERR PFX "canyest request PCI regions\n");
 		goto err_disable_device;
 	}
 
@@ -1933,7 +1933,7 @@ static int rivafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 	printk(KERN_INFO PFX "nVidia device/chipset %X\n",default_par->Chipset);
 	
 	if(default_par->riva.Architecture == 0) {
-		printk(KERN_ERR PFX "unknown NV_ARCH\n");
+		printk(KERN_ERR PFX "unkyeswn NV_ARCH\n");
 		ret=-ENODEV;
 		goto err_release_region;
 	}
@@ -1954,7 +1954,7 @@ static int rivafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 	rivafb_fix.smem_len = pci_resource_len(pd, 1);
 
 	{
-		/* enable IO and mem if not already done */
+		/* enable IO and mem if yest already done */
 		unsigned short cmd;
 
 		pci_read_config_word(pd, PCI_COMMAND, &cmd);
@@ -1968,7 +1968,7 @@ static int rivafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 	default_par->ctrl_base = ioremap(rivafb_fix.mmio_start,
 					 rivafb_fix.mmio_len);
 	if (!default_par->ctrl_base) {
-		printk(KERN_ERR PFX "cannot ioremap MMIO base\n");
+		printk(KERN_ERR PFX "canyest ioremap MMIO base\n");
 		ret = -EIO;
 		goto err_release_region;
 	}
@@ -1981,7 +1981,7 @@ static int rivafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 		 */
 		default_par->riva.PRAMIN = ioremap(rivafb_fix.smem_start + 0x00C00000, 0x00008000);
 		if (!default_par->riva.PRAMIN) {
-			printk(KERN_ERR PFX "cannot ioremap PRAMIN region\n");
+			printk(KERN_ERR PFX "canyest ioremap PRAMIN region\n");
 			ret = -EIO;
 			goto err_iounmap_ctrl_base;
 		}
@@ -2008,12 +2008,12 @@ static int rivafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 	info->screen_base = ioremap_wc(rivafb_fix.smem_start,
 				       rivafb_fix.smem_len);
 	if (!info->screen_base) {
-		printk(KERN_ERR PFX "cannot ioremap FB base\n");
+		printk(KERN_ERR PFX "canyest ioremap FB base\n");
 		ret = -EIO;
 		goto err_iounmap_pramin;
 	}
 
-	if (!nomtrr)
+	if (!yesmtrr)
 		default_par->wc_cookie =
 			arch_phys_wc_add(rivafb_fix.smem_start,
 					 rivafb_fix.smem_len);
@@ -2129,12 +2129,12 @@ static int rivafb_setup(char *options)
 			flatpanel = 1;
 		} else if (!strncmp(this_opt, "backlight:", 10)) {
 			backlight = simple_strtoul(this_opt+10, NULL, 0);
-		} else if (!strncmp(this_opt, "nomtrr", 6)) {
-			nomtrr = 1;
+		} else if (!strncmp(this_opt, "yesmtrr", 6)) {
+			yesmtrr = 1;
 		} else if (!strncmp(this_opt, "strictmode", 10)) {
 			strictmode = 1;
-		} else if (!strncmp(this_opt, "noaccel", 7)) {
-			noaccel = 1;
+		} else if (!strncmp(this_opt, "yesaccel", 7)) {
+			yesaccel = 1;
 		} else
 			mode_option = this_opt;
 	}
@@ -2180,14 +2180,14 @@ static void __exit rivafb_exit(void)
 
 module_exit(rivafb_exit);
 
-module_param(noaccel, bool, 0);
-MODULE_PARM_DESC(noaccel, "bool: disable acceleration");
+module_param(yesaccel, bool, 0);
+MODULE_PARM_DESC(yesaccel, "bool: disable acceleration");
 module_param(flatpanel, int, 0);
 MODULE_PARM_DESC(flatpanel, "Enables experimental flat panel support for some chipsets. (0 or 1=enabled) (default=0)");
 module_param(forceCRTC, int, 0);
 MODULE_PARM_DESC(forceCRTC, "Forces usage of a particular CRTC in case autodetection fails. (0 or 1) (default=autodetect)");
-module_param(nomtrr, bool, 0);
-MODULE_PARM_DESC(nomtrr, "Disables MTRR support (0 or 1=disabled) (default=0)");
+module_param(yesmtrr, bool, 0);
+MODULE_PARM_DESC(yesmtrr, "Disables MTRR support (0 or 1=disabled) (default=0)");
 module_param(strictmode, bool, 0);
 MODULE_PARM_DESC(strictmode, "Only use video modes from EDID");
 

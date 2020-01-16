@@ -26,7 +26,7 @@
  * from the eeprom and store them into a file that can be then be used by
  * comedilib, use the comedi_calibrate program.
  *
- * Configuration options: none
+ * Configuration options: yesne
  *
  * The daqcard-1200 has quirky chanlist requirements when scanning multiple
  * channels. Multiple channel scan sequence must start at highest channel,

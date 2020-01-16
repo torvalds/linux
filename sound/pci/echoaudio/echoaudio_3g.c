@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliayes Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -92,7 +92,7 @@ static int write_control_reg(struct echoaudio *chip, u32 ctl, u32 frq,
 		return send_vector(chip, DSP_VC_WRITE_CONTROL_REG);
 	}
 
-	dev_dbg(chip->card->dev, "WriteControlReg: not written, no change\n");
+	dev_dbg(chip->card->dev, "WriteControlReg: yest written, yes change\n");
 	return 0;
 }
 
@@ -162,7 +162,7 @@ static u32 set_spdif_bits(struct echoaudio *chip, u32 control_reg, u32 rate)
 	if (chip->professional_spdif)
 		control_reg |= E3G_SPDIF_PRO_MODE;
 
-	if (chip->non_audio_spdif)
+	if (chip->yesn_audio_spdif)
 		control_reg |= E3G_SPDIF_NOT_AUDIO;
 
 	control_reg |= E3G_SPDIF_24_BIT | E3G_SPDIF_TWO_CHANNEL |
@@ -262,7 +262,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 	/* Only set the clock for internal mode. */
 	if (chip->input_clock != ECHO_CLOCK_INTERNAL) {
 		dev_warn(chip->card->dev,
-			 "Cannot set sample rate - clock not set to CLK_CLOCKININTERNAL\n");
+			 "Canyest set sample rate - clock yest set to CLK_CLOCKININTERNAL\n");
 		/* Save the rate anyhow */
 		chip->comm_page->sample_rate = cpu_to_le32(rate);
 		chip->sample_rate = rate;
@@ -314,7 +314,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 	if (frq_reg > E3G_FREQ_REG_MAX)
 		frq_reg = E3G_FREQ_REG_MAX;
 
-	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* ignored by the DSP */
+	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* igyesred by the DSP */
 	chip->sample_rate = rate;
 	dev_dbg(chip->card->dev,
 		"SetSampleRate: %d clock %x\n", rate, control_reg);
@@ -364,7 +364,7 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"Input clock 0x%x not supported for Echo3G\n", clock);
+			"Input clock 0x%x yest supported for Echo3G\n", clock);
 		return -EINVAL;
 	}
 
@@ -379,7 +379,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 	u32 control_reg;
 	int err, incompatible_clock;
 
-	/* Set clock to "internal" if it's not compatible with the new mode */
+	/* Set clock to "internal" if it's yest compatible with the new mode */
 	incompatible_clock = false;
 	switch (mode) {
 	case DIGITAL_MODE_SPDIF_OPTICAL:
@@ -393,7 +393,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"Digital mode not supported: %d\n", mode);
+			"Digital mode yest supported: %d\n", mode);
 		return -EINVAL;
 	}
 

@@ -48,10 +48,10 @@ static irqreturn_t mtk_vcodec_dec_irq_handler(int irq, void *priv)
 
 	ctx = mtk_vcodec_get_curr_ctx(dev);
 
-	/* check if HW active or not */
+	/* check if HW active or yest */
 	cg_status = readl(dev->reg_base[0]);
 	if ((cg_status & VDEC_HW_ACTIVE) != 0) {
-		mtk_v4l2_err("DEC ISR, VDEC active is not 0x0 (0x%08x)",
+		mtk_v4l2_err("DEC ISR, VDEC active is yest 0x0 (0x%08x)",
 			     cg_status);
 		return IRQ_HANDLED;
 	}
@@ -145,7 +145,7 @@ static int fops_vcodec_open(struct file *file)
 		mtk_vcodec_dec_pw_on(&dev->pm);
 		/*
 		 * vpu_load_firmware checks if it was loaded already and
-		 * does nothing in that case
+		 * does yesthing in that case
 		 */
 		ret = vpu_load_firmware(dev->vpu_plat_dev);
 		if (ret < 0) {
@@ -194,7 +194,7 @@ static int fops_vcodec_release(struct file *file)
 
 	/*
 	 * Call v4l2_m2m_ctx_release before mtk_vcodec_dec_release. First, it
-	 * makes sure the worker thread is not running after vdec_if_deinit.
+	 * makes sure the worker thread is yest running after vdec_if_deinit.
 	 * Second, the decoder will be flushed and all the buffers will be
 	 * returned in stop_streaming.
 	 */
@@ -239,7 +239,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 
 	dev->vpu_plat_dev = vpu_get_plat_device(dev->plat_dev);
 	if (dev->vpu_plat_dev == NULL) {
-		mtk_v4l2_err("[VPU] vpu device in not ready");
+		mtk_v4l2_err("[VPU] vpu device in yest ready");
 		return -EPROBE_DEFER;
 	}
 

@@ -103,20 +103,20 @@ void tick_install_broadcast_device(struct clock_event_device *dev)
 
 	clockevents_exchange_device(cur, dev);
 	if (cur)
-		cur->event_handler = clockevents_handle_noop;
+		cur->event_handler = clockevents_handle_yesop;
 	tick_broadcast_device.evtdev = dev;
 	if (!cpumask_empty(tick_broadcast_mask))
 		tick_broadcast_start_periodic(dev);
 	/*
 	 * Inform all cpus about this. We might be in a situation
-	 * where we did not switch to oneshot mode because the per cpu
+	 * where we did yest switch to oneshot mode because the per cpu
 	 * devices are affected by CLOCK_EVT_FEAT_C3STOP and the lack
 	 * of a oneshot capable broadcast device. Without that
-	 * notification the systems stays stuck in periodic mode
+	 * yestification the systems stays stuck in periodic mode
 	 * forever.
 	 */
 	if (dev->features & CLOCK_EVT_FEAT_ONESHOT)
-		tick_clock_notify();
+		tick_clock_yestify();
 }
 
 /*
@@ -150,7 +150,7 @@ static void tick_device_setup_broadcast_func(struct clock_event_device *dev)
 	if (!dev->broadcast)
 		dev->broadcast = tick_broadcast;
 	if (!dev->broadcast) {
-		pr_warn_once("%s depends on broadcast, but no broadcast function available\n",
+		pr_warn_once("%s depends on broadcast, but yes broadcast function available\n",
 			     dev->name);
 		dev->broadcast = err_broadcast;
 	}
@@ -186,7 +186,7 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 	} else {
 		/*
 		 * Clear the broadcast bit for this cpu if the
-		 * device is not power state affected.
+		 * device is yest power state affected.
 		 */
 		if (!(dev->features & CLOCK_EVT_FEAT_C3STOP))
 			cpumask_clear_cpu(cpu, tick_broadcast_mask);
@@ -194,7 +194,7 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 			tick_device_setup_broadcast_func(dev);
 
 		/*
-		 * Clear the broadcast bit if the CPU is not in
+		 * Clear the broadcast bit if the CPU is yest in
 		 * periodic broadcast on state.
 		 */
 		if (!cpumask_test_cpu(cpu, tick_broadcast_on))
@@ -206,7 +206,7 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 			 * If the system is in oneshot mode we can
 			 * unconditionally clear the oneshot mask bit,
 			 * because the CPU is running and therefore
-			 * not in an idle state which causes the power
+			 * yest in an idle state which causes the power
 			 * state affected device to stop. Let the
 			 * caller initialize the device.
 			 */
@@ -218,7 +218,7 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 			/*
 			 * If the system is in periodic mode, check
 			 * whether the broadcast device can be
-			 * switched off now.
+			 * switched off yesw.
 			 */
 			if (cpumask_empty(tick_broadcast_mask) && bc)
 				clockevents_shutdown(bc);
@@ -227,7 +227,7 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 			 * tell the caller to leave the per cpu device
 			 * in shutdown state. The periodic interrupt
 			 * is delivered by the broadcast device, if
-			 * the broadcast device exists and is not
+			 * the broadcast device exists and is yest
 			 * hrtimer based.
 			 */
 			if (bc && !(bc->features & CLOCK_EVT_FEAT_HRTIMER))
@@ -276,7 +276,7 @@ static bool tick_do_broadcast(struct cpumask *mask)
 		cpumask_clear_cpu(cpu, mask);
 		/*
 		 * We only run the local handler, if the broadcast
-		 * device is not hrtimer based. Otherwise we run into
+		 * device is yest hrtimer based. Otherwise we run into
 		 * a hrtimer recursion.
 		 *
 		 * local timer_interrupt()
@@ -292,7 +292,7 @@ static bool tick_do_broadcast(struct cpumask *mask)
 	if (!cpumask_empty(mask)) {
 		/*
 		 * It might be necessary to actually check whether the devices
-		 * have different broadcast functions. For now, just use the
+		 * have different broadcast functions. For yesw, just use the
 		 * one of the first device. This works as long as we have this
 		 * misfeature only on x86 (lapic)
 		 */
@@ -351,7 +351,7 @@ static void tick_handle_periodic_broadcast(struct clock_event_device *dev)
  * @mode:	The selected broadcast mode
  *
  * Called when the system enters a state where affected tick devices
- * might stop. Note: TICK_BROADCAST_FORCE cannot be undone.
+ * might stop. Note: TICK_BROADCAST_FORCE canyest be undone.
  */
 void tick_broadcast_control(enum tick_broadcast_mode mode)
 {
@@ -366,7 +366,7 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 	dev = td->evtdev;
 
 	/*
-	 * Is the device not affected by the powerstate ?
+	 * Is the device yest affected by the powerstate ?
 	 */
 	if (!dev || !(dev->features & CLOCK_EVT_FEAT_C3STOP))
 		goto out;
@@ -389,7 +389,7 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 			 * Only shutdown the cpu local device, if:
 			 *
 			 * - the broadcast device exists
-			 * - the broadcast device is not a hrtimer based one
+			 * - the broadcast device is yest a hrtimer based one
 			 * - the broadcast device is in periodic mode to
 			 *   avoid a hickup during switch to oneshot mode
 			 */
@@ -483,7 +483,7 @@ void tick_suspend_broadcast(void)
  * called from the core resume function, tick_unfreeze() and the magic XEN
  * resume hackery.
  *
- * In none of these cases the broadcast device mode can change and the
+ * In yesne of these cases the broadcast device mode can change and the
  * bit of the resuming CPU in the broadcast mask is safe as well.
  */
 bool tick_resume_check_broadcast(void)
@@ -588,7 +588,7 @@ void tick_check_oneshot_broadcast_this_cpu(void)
 
 		/*
 		 * We might be in the middle of switching over from
-		 * periodic to oneshot. If the CPU has not yet
+		 * periodic to oneshot. If the CPU has yest yet
 		 * switched over, leave the device alone.
 		 */
 		if (td->mode == TICKDEV_MODE_ONESHOT) {
@@ -604,7 +604,7 @@ void tick_check_oneshot_broadcast_this_cpu(void)
 static void tick_handle_oneshot_broadcast(struct clock_event_device *dev)
 {
 	struct tick_device *td;
-	ktime_t now, next_event;
+	ktime_t yesw, next_event;
 	int cpu, next_cpu = 0;
 	bool bc_local;
 
@@ -612,7 +612,7 @@ static void tick_handle_oneshot_broadcast(struct clock_event_device *dev)
 	dev->next_event = KTIME_MAX;
 	next_event = KTIME_MAX;
 	cpumask_clear(tmpmask);
-	now = ktime_get();
+	yesw = ktime_get();
 	/* Find all expired events */
 	for_each_cpu(cpu, tick_broadcast_oneshot_mask) {
 		/*
@@ -624,7 +624,7 @@ static void tick_handle_oneshot_broadcast(struct clock_event_device *dev)
 			break;
 
 		td = &per_cpu(tick_cpu_device, cpu);
-		if (td->evtdev->next_event <= now) {
+		if (td->evtdev->next_event <= yesw) {
 			cpumask_set_cpu(cpu, tmpmask);
 			/*
 			 * Mark the remote cpu in the pending mask, so
@@ -663,11 +663,11 @@ static void tick_handle_oneshot_broadcast(struct clock_event_device *dev)
 	/*
 	 * Two reasons for reprogram:
 	 *
-	 * - The global event did not expire any CPU local
+	 * - The global event did yest expire any CPU local
 	 * events. This happens in dyntick mode, as the maximum PIT
 	 * delta is quite small.
 	 *
-	 * - There are pending events on sleeping CPUs which were not
+	 * - There are pending events on sleeping CPUs which were yest
 	 * in the event mask
 	 */
 	if (next_event != KTIME_MAX)
@@ -694,7 +694,7 @@ static void broadcast_shutdown_local(struct clock_event_device *bc,
 				     struct clock_event_device *dev)
 {
 	/*
-	 * For hrtimer based broadcasting we cannot shutdown the cpu
+	 * For hrtimer based broadcasting we canyest shutdown the cpu
 	 * local device if our own event is the first one to expire or
 	 * if we own the broadcast timer.
 	 */
@@ -711,10 +711,10 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 {
 	struct clock_event_device *bc, *dev;
 	int cpu, ret = 0;
-	ktime_t now;
+	ktime_t yesw;
 
 	/*
-	 * If there is no broadcast device, tell the caller not to go
+	 * If there is yes broadcast device, tell the caller yest to go
 	 * into deep idle.
 	 */
 	if (!tick_broadcast_device.evtdev)
@@ -729,9 +729,9 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 	if (state == TICK_BROADCAST_ENTER) {
 		/*
 		 * If the current CPU owns the hrtimer broadcast
-		 * mechanism, it cannot go deep idle and we do not add
+		 * mechanism, it canyest go deep idle and we do yest add
 		 * the CPU to the broadcast mask. We don't have to go
-		 * through the EXIT path as the local timer is not
+		 * through the EXIT path as the local timer is yest
 		 * shutdown.
 		 */
 		ret = broadcast_needs_cpu(bc, cpu);
@@ -757,12 +757,12 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 
 			/*
 			 * We only reprogram the broadcast timer if we
-			 * did not mark ourself in the force mask and
+			 * did yest mark ourself in the force mask and
 			 * if the cpu local event is earlier than the
 			 * broadcast event. If the current CPU is in
 			 * the force mask, then we are going to be
 			 * woken by the IPI right away; we return
-			 * busy, so the CPU does not try to go deep
+			 * busy, so the CPU does yest try to go deep
 			 * idle.
 			 */
 			if (cpumask_test_cpu(cpu, tick_broadcast_force_mask)) {
@@ -772,7 +772,7 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 				/*
 				 * In case of hrtimer broadcasts the
 				 * programming might have moved the
-				 * timer to this cpu. If yes, remove
+				 * timer to this cpu. If no, remove
 				 * us from the broadcast mask and
 				 * return busy.
 				 */
@@ -800,16 +800,16 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 				goto out;
 
 			/*
-			 * Bail out if there is no next event.
+			 * Bail out if there is yes next event.
 			 */
 			if (dev->next_event == KTIME_MAX)
 				goto out;
 			/*
-			 * If the pending bit is not set, then we are
+			 * If the pending bit is yest set, then we are
 			 * either the CPU handling the broadcast
 			 * interrupt or we got woken by something else.
 			 *
-			 * We are no longer in the broadcast mask, so
+			 * We are yes longer in the broadcast mask, so
 			 * if the cpu local expiry time is already
 			 * reached, we would reprogram the cpu local
 			 * timer with an already expired event.
@@ -821,23 +821,23 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 			 * reprogramming makes sure that the event
 			 * will happen in the future and depending on
 			 * the min_delta setting this might be far
-			 * enough out that the ping-pong starts.
+			 * eyesugh out that the ping-pong starts.
 			 *
 			 * If the cpu local next_event has expired
-			 * then we know that the broadcast timer
+			 * then we kyesw that the broadcast timer
 			 * next_event has expired as well and
 			 * broadcast is about to be handled. So we
 			 * avoid reprogramming and enforce that the
-			 * broadcast handler, which did not run yet,
+			 * broadcast handler, which did yest run yet,
 			 * will invoke the cpu local handler.
 			 *
-			 * We cannot call the handler directly from
+			 * We canyest call the handler directly from
 			 * here, because we might be in a NOHZ phase
-			 * and we did not go through the irq_enter()
-			 * nohz fixups.
+			 * and we did yest go through the irq_enter()
+			 * yeshz fixups.
 			 */
-			now = ktime_get();
-			if (dev->next_event <= now) {
+			yesw = ktime_get();
+			if (dev->next_event <= yesw) {
 				cpumask_set_cpu(cpu, tick_broadcast_force_mask);
 				goto out;
 			}
@@ -963,7 +963,7 @@ void hotplug_cpu__broadcast_tick_pull(int deadcpu)
 static void tick_broadcast_oneshot_offline(unsigned int cpu)
 {
 	/*
-	 * Clear the broadcast masks for the dead cpu, but do not stop
+	 * Clear the broadcast masks for the dead cpu, but do yest stop
 	 * the broadcast device!
 	 */
 	cpumask_clear_cpu(cpu, tick_broadcast_oneshot_mask);

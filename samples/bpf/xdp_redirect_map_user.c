@@ -4,7 +4,7 @@
 #include <linux/bpf.h>
 #include <linux/if_link.h>
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,7 +41,7 @@ static void int_exit(int sig)
 	else if (!curr_prog_id)
 		printf("couldn't find a prog id on iface IN\n");
 	else
-		printf("program on iface IN changed, not removing\n");
+		printf("program on iface IN changed, yest removing\n");
 
 	if (ifindex_out_xdp_dummy_attached) {
 		curr_prog_id = 0;
@@ -55,7 +55,7 @@ static void int_exit(int sig)
 		else if (!curr_prog_id)
 			printf("couldn't find a prog id on iface OUT\n");
 		else
-			printf("program on iface OUT changed, not removing\n");
+			printf("program on iface OUT changed, yest removing\n");
 	}
 	exit(0);
 }
@@ -164,7 +164,7 @@ int main(int argc, char **argv)
 	 */
 	dummy_prog_fd = bpf_program__fd(dummy_prog);
 	if (prog_fd < 0 || dummy_prog_fd < 0) {
-		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
+		printf("bpf_prog_load_xattr: %s\n", strerror(erryes));
 		return 1;
 	}
 
@@ -182,7 +182,7 @@ int main(int argc, char **argv)
 
 	ret = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
 	if (ret) {
-		printf("can't get prog info - %s\n", strerror(errno));
+		printf("can't get prog info - %s\n", strerror(erryes));
 		return ret;
 	}
 	prog_id = info.id;
@@ -197,7 +197,7 @@ int main(int argc, char **argv)
 	memset(&info, 0, sizeof(info));
 	ret = bpf_obj_get_info_by_fd(dummy_prog_fd, &info, &info_len);
 	if (ret) {
-		printf("can't get prog info - %s\n", strerror(errno));
+		printf("can't get prog info - %s\n", strerror(erryes));
 		return ret;
 	}
 	dummy_prog_id = info.id;

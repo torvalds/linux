@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_AUDOUT:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_AUDOUT - VIDIOC_S_AUDOUT - Query or select the current audio output
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_AUDOUT, struct v4l2_audioout *argp )
@@ -46,22 +46,22 @@ To query the current audio output applications zero out the ``reserved``
 array of a struct :c:type:`v4l2_audioout` and call the
 ``VIDIOC_G_AUDOUT`` ioctl with a pointer to this structure. Drivers fill
 the rest of the structure or return an ``EINVAL`` error code when the device
-has no audio inputs, or none which combine with the current video
+has yes audio inputs, or yesne which combine with the current video
 output.
 
-Audio outputs have no writable properties. Nevertheless, to select the
+Audio outputs have yes writable properties. Nevertheless, to select the
 current audio output applications can initialize the ``index`` field and
 ``reserved`` array (which in the future may contain writable properties)
 of a struct :c:type:`v4l2_audioout` structure and call the
 ``VIDIOC_S_AUDOUT`` ioctl. Drivers switch to the requested output or
 return the ``EINVAL`` error code when the index is out of bounds. This is a
-write-only ioctl, it does not return the current audio output attributes
+write-only ioctl, it does yest return the current audio output attributes
 as ``VIDIOC_G_AUDOUT`` does.
 
-.. note::
+.. yeste::
 
    Connectors on a TV card to loop back the received audio signal
-   to a sound card are not audio outputs in this sense.
+   to a sound card are yest audio outputs in this sense.
 
 
 .. c:type:: v4l2_audioout
@@ -83,11 +83,11 @@ as ``VIDIOC_G_AUDOUT`` does.
 	preferably the connector label on the device itself.
     * - __u32
       - ``capability``
-      - Audio capability flags, none defined yet. Drivers must set this
+      - Audio capability flags, yesne defined yet. Drivers must set this
 	field to zero.
     * - __u32
       - ``mode``
-      - Audio mode, none defined yet. Drivers and applications (on
+      - Audio mode, yesne defined yet. Drivers and applications (on
 	``VIDIOC_S_AUDOUT``) must set this field to zero.
     * - __u32
       - ``reserved``\ [2]
@@ -98,11 +98,11 @@ as ``VIDIOC_G_AUDOUT`` does.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     No audio outputs combine with the current video output, or the
-    number of the selected audio output is out of bounds or it does not
+    number of the selected audio output is out of bounds or it does yest
     combine.

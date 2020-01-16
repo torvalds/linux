@@ -69,7 +69,7 @@ static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
 		config = &intel_soc_pmic_config_cht_crc;
 		break;
 	default:
-		dev_warn(dev, "Unknown hardware rev %llu, assuming BYT\n", hrv);
+		dev_warn(dev, "Unkyeswn hardware rev %llu, assuming BYT\n", hrv);
 		config = &intel_soc_pmic_config_byt_crc;
 	}
 

@@ -21,7 +21,7 @@
 #include <linux/of.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, I2C_CLIENT_END };
 
 /* JC42 registers. All registers are 16 bit. */
@@ -484,7 +484,7 @@ static int jc42_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		/*
 		 * Not all chips support this register, but from a
-		 * quick read of various datasheets no chip appears
+		 * quick read of various datasheets yes chip appears
 		 * incompatible with the below attempt to disable
 		 * the timeout. And the whole thing is opt-in...
 		 */
@@ -585,7 +585,7 @@ static struct i2c_driver jc42_driver = {
 	.remove		= jc42_remove,
 	.id_table	= jc42_id,
 	.detect		= jc42_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(jc42_driver);

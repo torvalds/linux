@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -69,7 +69,7 @@ static bool rsi_recalculate_weights(struct rsi_common *common)
 				tx_qinfo[ii].weight = tx_qinfo[ii].wme_params;
 				recontend_queue = true;
 			}
-		} else { /* No packets so no contention */
+		} else { /* No packets so yes contention */
 			tx_qinfo[ii].weight = 0;
 			tx_qinfo[ii].pkt_contended = 0;
 		}
@@ -388,7 +388,7 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 		goto xmit_fail;
 	}
 	if (common->fsm_state != FSM_MAC_INIT_DONE) {
-		rsi_dbg(ERR_ZONE, "%s: FSM state not open\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: FSM state yest open\n", __func__);
 		goto xmit_fail;
 	}
 	if (common->wow_flags & RSI_WOW_ENABLED) {
@@ -416,7 +416,7 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 			struct ieee80211_bss_conf *bss = &vif->bss_conf;
 
 			common->eapol4_confirm = false;
-			rsi_hal_send_sta_notify_frame(common,
+			rsi_hal_send_sta_yestify_frame(common,
 						      RSI_IFTYPE_STATION,
 						      STA_CONNECTED, bss->bssid,
 						      bss->qos, bss->aid, 0,
@@ -457,7 +457,7 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 		}
 
 		if (rsta) {
-			/* Start aggregation if not done for this tid */
+			/* Start aggregation if yest done for this tid */
 			if (!rsta->start_tx_aggr[tid]) {
 				rsta->start_tx_aggr[tid] = true;
 				ieee80211_start_tx_ba_session(rsta->sta,

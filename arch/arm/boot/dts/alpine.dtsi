@@ -9,11 +9,11 @@
  * without modification, are permitted provided that the following conditions
  * are met:
  *
- *   *   Redistributions of source code must retain the above copyright notice,
+ *   *   Redistributions of source code must retain the above copyright yestice,
  *       this list of conditions and the following disclaimer.
  *
  *   *   Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
+ *       yestice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
  *
@@ -157,7 +157,7 @@
 			interrupt-map =	<0x4000 0 0 1 &gic 0 43 4>,
 					<0x4800 0 0 1 &gic 0 44 4>;
 
-			/* 32 bit non prefetchable memory space */
+			/* 32 bit yesn prefetchable memory space */
 			ranges = <0x02000000 0x0 0xfe000000 0x0 0xfe000000 0x0 0x1000000>;
 
 			bus-range = <0x00 0x00>;

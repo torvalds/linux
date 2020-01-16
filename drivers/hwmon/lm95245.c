@@ -17,7 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x18, 0x19, 0x29, 0x4c, 0x4d, I2C_CLIENT_END };
 
 /* LM95245 registers */
@@ -601,7 +601,7 @@ static struct i2c_driver lm95245_driver = {
 	.probe		= lm95245_probe,
 	.id_table	= lm95245_id,
 	.detect		= lm95245_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm95245_driver);

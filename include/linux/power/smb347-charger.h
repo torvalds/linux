@@ -66,19 +66,19 @@ enum smb347_chg_enable {
  *				 current when temperature hits soft limits
  * @use_mains: AC/DC input can be used
  * @use_usb: USB input can be used
- * @use_usb_otg: USB OTG output can be used (not implemented yet)
- * @irq_gpio: GPIO number used for interrupts (%-1 if not used)
+ * @use_usb_otg: USB OTG output can be used (yest implemented yet)
+ * @irq_gpio: GPIO number used for interrupts (%-1 if yest used)
  * @enable_control: how charging enable/disable is controlled
  *		    (driver/pin controls)
  *
  * @use_main, @use_usb, and @use_usb_otg are means to enable/disable
  * hardware support for these. This is useful when we want to have for
- * example OTG charging controlled via OTG transceiver driver and not by
+ * example OTG charging controlled via OTG transceiver driver and yest by
  * the SMB347 hardware.
  *
  * Hard and soft temperature limit values are given as described in the
  * device data sheet and assuming NTC beta value is %3750. Even if this is
- * not the case, these values should be used. They can be mapped to the
+ * yest the case, these values should be used. They can be mapped to the
  * corresponding NTC beta values with the help of table %2 in the data
  * sheet. So for example if NTC beta is %3375 and we want to program hard
  * hot limit to be %53 deg C, @hard_hot_temp_limit should be set to %50.

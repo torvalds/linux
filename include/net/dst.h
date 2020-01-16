@@ -44,7 +44,7 @@ struct dst_entry {
 #define DST_XFRM_QUEUE		0x0040
 #define DST_METADATA		0x0080
 
-	/* A non-zero value of dst->obsolete forces by-hand validation
+	/* A yesn-zero value of dst->obsolete forces by-hand validation
 	 * of the route entry.  Positive values are set by the generic
 	 * dst layer to indicate that the entry has been forcefully
 	 * destroyed.
@@ -225,10 +225,10 @@ static inline void dst_hold(struct dst_entry *dst)
 	 * the placement of __refcnt in struct dst_entry
 	 */
 	BUILD_BUG_ON(offsetof(struct dst_entry, __refcnt) & 63);
-	WARN_ON(atomic_inc_not_zero(&dst->__refcnt) == 0);
+	WARN_ON(atomic_inc_yest_zero(&dst->__refcnt) == 0);
 }
 
-static inline void dst_use_noref(struct dst_entry *dst, unsigned long time)
+static inline void dst_use_yesref(struct dst_entry *dst, unsigned long time)
 {
 	if (unlikely(time != dst->lastuse)) {
 		dst->__use++;
@@ -239,7 +239,7 @@ static inline void dst_use_noref(struct dst_entry *dst, unsigned long time)
 static inline void dst_hold_and_use(struct dst_entry *dst, unsigned long time)
 {
 	dst_hold(dst);
-	dst_use_noref(dst, time);
+	dst_use_yesref(dst, time);
 }
 
 static inline struct dst_entry *dst_clone(struct dst_entry *dst)
@@ -289,24 +289,24 @@ static inline void skb_dst_copy(struct sk_buff *nskb, const struct sk_buff *oskb
  * dst_hold_safe - Take a reference on a dst if possible
  * @dst: pointer to dst entry
  *
- * This helper returns false if it could not safely
+ * This helper returns false if it could yest safely
  * take a reference on a dst.
  */
 static inline bool dst_hold_safe(struct dst_entry *dst)
 {
-	return atomic_inc_not_zero(&dst->__refcnt);
+	return atomic_inc_yest_zero(&dst->__refcnt);
 }
 
 /**
  * skb_dst_force - makes sure skb dst is refcounted
  * @skb: buffer
  *
- * If dst is not yet refcounted and not destroyed, grab a ref on it.
+ * If dst is yest yet refcounted and yest destroyed, grab a ref on it.
  * Returns true if dst is refcounted.
  */
 static inline bool skb_dst_force(struct sk_buff *skb)
 {
-	if (skb_dst_is_noref(skb)) {
+	if (skb_dst_is_yesref(skb)) {
 		struct dst_entry *dst = skb_dst(skb);
 
 		WARN_ON(!rcu_read_lock_held());
@@ -327,7 +327,7 @@ static inline bool skb_dst_force(struct sk_buff *skb)
  *	@net: netns for packet i/o
  *
  *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
- *	so make some cleanups. (no accounting done)
+ *	so make some cleanups. (yes accounting done)
  */
 static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
 				   struct net *net)
@@ -339,7 +339,7 @@ static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
 	 * encapsulated packet, unless we have already determine the hash
 	 * over the L4 4-tuple.
 	 */
-	skb_clear_hash_if_not_l4(skb);
+	skb_clear_hash_if_yest_l4(skb);
 	skb_set_queue_mapping(skb, 0);
 	skb_scrub_packet(skb, !net_eq(net, dev_net(dev)));
 }
@@ -352,7 +352,7 @@ static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
  *
  *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
  *	so make some cleanups, and perform accounting.
- *	Note: this accounting is not SMP safe.
+ *	Note: this accounting is yest SMP safe.
  */
 static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
 				 struct net *net)
@@ -519,8 +519,8 @@ static inline void skb_dst_update_pmtu(struct sk_buff *skb, u32 mtu)
 		dst->ops->update_pmtu(dst, NULL, skb, mtu, true);
 }
 
-/* update dst pmtu but not do neighbor confirm */
-static inline void skb_dst_update_pmtu_no_confirm(struct sk_buff *skb, u32 mtu)
+/* update dst pmtu but yest do neighbor confirm */
+static inline void skb_dst_update_pmtu_yes_confirm(struct sk_buff *skb, u32 mtu)
 {
 	struct dst_entry *dst = skb_dst(skb);
 
@@ -535,7 +535,7 @@ static inline void skb_tunnel_check_pmtu(struct sk_buff *skb,
 	u32 encap_mtu = dst_mtu(encap_dst);
 
 	if (skb->len > encap_mtu - headroom)
-		skb_dst_update_pmtu_no_confirm(skb, encap_mtu - headroom);
+		skb_dst_update_pmtu_yes_confirm(skb, encap_mtu - headroom);
 }
 
 #endif /* _NET_DST_H */

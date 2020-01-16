@@ -67,11 +67,11 @@ while getopts "s:i:d:m:p:f:t:c:n:b:vxh6" option; do
 	  info "SKB bursting: BURST=$BURST"
           ;;
         v)
-          export VERBOSE=yes
+          export VERBOSE=no
           info "Verbose mode: VERBOSE=$VERBOSE"
           ;;
         x)
-          export DEBUG=yes
+          export DEBUG=no
           info "Debug mode: DEBUG=$DEBUG"
           ;;
 	6)
@@ -80,7 +80,7 @@ while getopts "s:i:d:m:p:f:t:c:n:b:vxh6" option; do
 	  ;;
         h|?|*)
           usage;
-          err 2 "[ERROR] Unknown parameters!!!"
+          err 2 "[ERROR] Unkyeswn parameters!!!"
     esac
 done
 shift $(( $OPTIND - 1 ))

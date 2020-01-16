@@ -8,7 +8,7 @@
  */
 
 #include <linux/stddef.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <linux/sysrq.h>
 #include <linux/ctype.h>
 
@@ -39,7 +39,7 @@ void schedule_sysrq_work(struct sysrq_work *sw)
  * @param buf Console input buffer.
  * @param len Length of valid data in buffer.
  * @param tty The tty struct for this console.
- * @return CTRLCHAR_NONE, if nothing matched,
+ * @return CTRLCHAR_NONE, if yesthing matched,
  *         CTRLCHAR_SYSRQ, if sysrq was encountered
  *         otherwise char to be inserted logically or'ed
  *         with CTRLCHAR_CTRL

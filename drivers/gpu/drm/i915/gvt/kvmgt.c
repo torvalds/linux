@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -44,7 +44,7 @@
 #include <linux/mdev.h>
 #include <linux/debugfs.h>
 
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "i915_drv.h"
 #include "gvt.h"
@@ -85,13 +85,13 @@ struct vfio_edid_region {
 
 struct kvmgt_pgfn {
 	gfn_t gfn;
-	struct hlist_node hnode;
+	struct hlist_yesde hyesde;
 };
 
 struct kvmgt_guest_info {
 	struct kvm *kvm;
 	struct intel_vgpu *vgpu;
-	struct kvm_page_track_notifier_node track_node;
+	struct kvm_page_track_yestifier_yesde track_yesde;
 #define NR_BKT (1 << 18)
 	struct hlist_head ptable[NR_BKT];
 #undef NR_BKT
@@ -100,8 +100,8 @@ struct kvmgt_guest_info {
 
 struct gvt_dma {
 	struct intel_vgpu *vgpu;
-	struct rb_node gfn_node;
-	struct rb_node dma_addr_node;
+	struct rb_yesde gfn_yesde;
+	struct rb_yesde dma_addr_yesde;
 	gfn_t gfn;
 	dma_addr_t dma_addr;
 	unsigned long size;
@@ -134,7 +134,7 @@ static void gvt_unpin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 	}
 }
 
-/* Pin a normal or compound guest page for dma. */
+/* Pin a yesrmal or compound guest page for dma. */
 static int gvt_pin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		unsigned long size, struct page **page)
 {
@@ -161,7 +161,7 @@ static int gvt_pin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		}
 
 		if (!pfn_valid(pfn)) {
-			gvt_vgpu_err("pfn 0x%lx is not mem backed\n", pfn);
+			gvt_vgpu_err("pfn 0x%lx is yest mem backed\n", pfn);
 			npage++;
 			ret = -EFAULT;
 			goto err;
@@ -170,7 +170,7 @@ static int gvt_pin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		if (npage == 0)
 			base_pfn = pfn;
 		else if (base_pfn + npage != pfn) {
-			gvt_vgpu_err("The pages are not continuous\n");
+			gvt_vgpu_err("The pages are yest continuous\n");
 			ret = -EINVAL;
 			npage++;
 			goto err;
@@ -219,16 +219,16 @@ static void gvt_dma_unmap_page(struct intel_vgpu *vgpu, unsigned long gfn,
 static struct gvt_dma *__gvt_cache_find_dma_addr(struct intel_vgpu *vgpu,
 		dma_addr_t dma_addr)
 {
-	struct rb_node *node = vgpu->vdev.dma_addr_cache.rb_node;
+	struct rb_yesde *yesde = vgpu->vdev.dma_addr_cache.rb_yesde;
 	struct gvt_dma *itr;
 
-	while (node) {
-		itr = rb_entry(node, struct gvt_dma, dma_addr_node);
+	while (yesde) {
+		itr = rb_entry(yesde, struct gvt_dma, dma_addr_yesde);
 
 		if (dma_addr < itr->dma_addr)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (dma_addr > itr->dma_addr)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return itr;
 	}
@@ -237,16 +237,16 @@ static struct gvt_dma *__gvt_cache_find_dma_addr(struct intel_vgpu *vgpu,
 
 static struct gvt_dma *__gvt_cache_find_gfn(struct intel_vgpu *vgpu, gfn_t gfn)
 {
-	struct rb_node *node = vgpu->vdev.gfn_cache.rb_node;
+	struct rb_yesde *yesde = vgpu->vdev.gfn_cache.rb_yesde;
 	struct gvt_dma *itr;
 
-	while (node) {
-		itr = rb_entry(node, struct gvt_dma, gfn_node);
+	while (yesde) {
+		itr = rb_entry(yesde, struct gvt_dma, gfn_yesde);
 
 		if (gfn < itr->gfn)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (gfn > itr->gfn)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return itr;
 	}
@@ -257,7 +257,7 @@ static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 		dma_addr_t dma_addr, unsigned long size)
 {
 	struct gvt_dma *new, *itr;
-	struct rb_node **link, *parent = NULL;
+	struct rb_yesde **link, *parent = NULL;
 
 	new = kzalloc(sizeof(struct gvt_dma), GFP_KERNEL);
 	if (!new)
@@ -270,33 +270,33 @@ static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 	kref_init(&new->ref);
 
 	/* gfn_cache maps gfn to struct gvt_dma. */
-	link = &vgpu->vdev.gfn_cache.rb_node;
+	link = &vgpu->vdev.gfn_cache.rb_yesde;
 	while (*link) {
 		parent = *link;
-		itr = rb_entry(parent, struct gvt_dma, gfn_node);
+		itr = rb_entry(parent, struct gvt_dma, gfn_yesde);
 
 		if (gfn < itr->gfn)
 			link = &parent->rb_left;
 		else
 			link = &parent->rb_right;
 	}
-	rb_link_node(&new->gfn_node, parent, link);
-	rb_insert_color(&new->gfn_node, &vgpu->vdev.gfn_cache);
+	rb_link_yesde(&new->gfn_yesde, parent, link);
+	rb_insert_color(&new->gfn_yesde, &vgpu->vdev.gfn_cache);
 
 	/* dma_addr_cache maps dma addr to struct gvt_dma. */
 	parent = NULL;
-	link = &vgpu->vdev.dma_addr_cache.rb_node;
+	link = &vgpu->vdev.dma_addr_cache.rb_yesde;
 	while (*link) {
 		parent = *link;
-		itr = rb_entry(parent, struct gvt_dma, dma_addr_node);
+		itr = rb_entry(parent, struct gvt_dma, dma_addr_yesde);
 
 		if (dma_addr < itr->dma_addr)
 			link = &parent->rb_left;
 		else
 			link = &parent->rb_right;
 	}
-	rb_link_node(&new->dma_addr_node, parent, link);
-	rb_insert_color(&new->dma_addr_node, &vgpu->vdev.dma_addr_cache);
+	rb_link_yesde(&new->dma_addr_yesde, parent, link);
+	rb_insert_color(&new->dma_addr_yesde, &vgpu->vdev.dma_addr_cache);
 
 	vgpu->vdev.nr_cache_entries++;
 	return 0;
@@ -305,8 +305,8 @@ static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 static void __gvt_cache_remove_entry(struct intel_vgpu *vgpu,
 				struct gvt_dma *entry)
 {
-	rb_erase(&entry->gfn_node, &vgpu->vdev.gfn_cache);
-	rb_erase(&entry->dma_addr_node, &vgpu->vdev.dma_addr_cache);
+	rb_erase(&entry->gfn_yesde, &vgpu->vdev.gfn_cache);
+	rb_erase(&entry->dma_addr_yesde, &vgpu->vdev.dma_addr_cache);
 	kfree(entry);
 	vgpu->vdev.nr_cache_entries--;
 }
@@ -314,16 +314,16 @@ static void __gvt_cache_remove_entry(struct intel_vgpu *vgpu,
 static void gvt_cache_destroy(struct intel_vgpu *vgpu)
 {
 	struct gvt_dma *dma;
-	struct rb_node *node = NULL;
+	struct rb_yesde *yesde = NULL;
 
 	for (;;) {
 		mutex_lock(&vgpu->vdev.cache_lock);
-		node = rb_first(&vgpu->vdev.gfn_cache);
-		if (!node) {
+		yesde = rb_first(&vgpu->vdev.gfn_cache);
+		if (!yesde) {
 			mutex_unlock(&vgpu->vdev.cache_lock);
 			break;
 		}
-		dma = rb_entry(node, struct gvt_dma, gfn_node);
+		dma = rb_entry(yesde, struct gvt_dma, gfn_yesde);
 		gvt_dma_unmap_page(vgpu, dma->gfn, dma->dma_addr, dma->size);
 		__gvt_cache_remove_entry(vgpu, dma);
 		mutex_unlock(&vgpu->vdev.cache_lock);
@@ -346,11 +346,11 @@ static void kvmgt_protect_table_init(struct kvmgt_guest_info *info)
 static void kvmgt_protect_table_destroy(struct kvmgt_guest_info *info)
 {
 	struct kvmgt_pgfn *p;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	int i;
 
-	hash_for_each_safe(info->ptable, i, tmp, p, hnode) {
-		hash_del(&p->hnode);
+	hash_for_each_safe(info->ptable, i, tmp, p, hyesde) {
+		hash_del(&p->hyesde);
 		kfree(p);
 	}
 }
@@ -360,7 +360,7 @@ __kvmgt_protect_table_find(struct kvmgt_guest_info *info, gfn_t gfn)
 {
 	struct kvmgt_pgfn *p, *res = NULL;
 
-	hash_for_each_possible(info->ptable, p, hnode, gfn) {
+	hash_for_each_possible(info->ptable, p, hyesde, gfn) {
 		if (gfn == p->gfn) {
 			res = p;
 			break;
@@ -391,7 +391,7 @@ static void kvmgt_protect_table_add(struct kvmgt_guest_info *info, gfn_t gfn)
 		return;
 
 	p->gfn = gfn;
-	hash_add(info->ptable, &p->hnode, gfn);
+	hash_add(info->ptable, &p->hyesde, gfn);
 }
 
 static void kvmgt_protect_table_del(struct kvmgt_guest_info *info,
@@ -401,7 +401,7 @@ static void kvmgt_protect_table_del(struct kvmgt_guest_info *info,
 
 	p = __kvmgt_protect_table_find(info, gfn);
 	if (p) {
-		hash_del(&p->hnode);
+		hash_del(&p->hyesde);
 		kfree(p);
 	}
 }
@@ -583,7 +583,7 @@ static int kvmgt_set_opregion(void *p_vgpu)
 	void *base;
 	int ret;
 
-	/* Each vgpu has its own opregion, although VFIO would create another
+	/* Each vgpu has its own opregion, although VFIO would create ayesther
 	 * one later. This one is used to expose opregion to VFIO. And the
 	 * other one created by VFIO later, is used by guest actually.
 	 */
@@ -693,12 +693,12 @@ static int intel_vgpu_remove(struct mdev_device *mdev)
 	return 0;
 }
 
-static int intel_vgpu_iommu_notifier(struct notifier_block *nb,
+static int intel_vgpu_iommu_yestifier(struct yestifier_block *nb,
 				     unsigned long action, void *data)
 {
 	struct intel_vgpu *vgpu = container_of(nb,
 					struct intel_vgpu,
-					vdev.iommu_notifier);
+					vdev.iommu_yestifier);
 
 	if (action == VFIO_IOMMU_NOTIFY_DMA_UNMAP) {
 		struct vfio_iommu_type1_dma_unmap *unmap = data;
@@ -724,12 +724,12 @@ static int intel_vgpu_iommu_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static int intel_vgpu_group_notifier(struct notifier_block *nb,
+static int intel_vgpu_group_yestifier(struct yestifier_block *nb,
 				     unsigned long action, void *data)
 {
 	struct intel_vgpu *vgpu = container_of(nb,
 					struct intel_vgpu,
-					vdev.group_notifier);
+					vdev.group_yestifier);
 
 	/* the only action we care about */
 	if (action == VFIO_GROUP_NOTIFY_SET_KVM) {
@@ -748,23 +748,23 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 	unsigned long events;
 	int ret;
 
-	vgpu->vdev.iommu_notifier.notifier_call = intel_vgpu_iommu_notifier;
-	vgpu->vdev.group_notifier.notifier_call = intel_vgpu_group_notifier;
+	vgpu->vdev.iommu_yestifier.yestifier_call = intel_vgpu_iommu_yestifier;
+	vgpu->vdev.group_yestifier.yestifier_call = intel_vgpu_group_yestifier;
 
 	events = VFIO_IOMMU_NOTIFY_DMA_UNMAP;
-	ret = vfio_register_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY, &events,
-				&vgpu->vdev.iommu_notifier);
+	ret = vfio_register_yestifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY, &events,
+				&vgpu->vdev.iommu_yestifier);
 	if (ret != 0) {
-		gvt_vgpu_err("vfio_register_notifier for iommu failed: %d\n",
+		gvt_vgpu_err("vfio_register_yestifier for iommu failed: %d\n",
 			ret);
 		goto out;
 	}
 
 	events = VFIO_GROUP_NOTIFY_SET_KVM;
-	ret = vfio_register_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY, &events,
-				&vgpu->vdev.group_notifier);
+	ret = vfio_register_yestifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY, &events,
+				&vgpu->vdev.group_yestifier);
 	if (ret != 0) {
-		gvt_vgpu_err("vfio_register_notifier for group failed: %d\n",
+		gvt_vgpu_err("vfio_register_yestifier for group failed: %d\n",
 			ret);
 		goto undo_iommu;
 	}
@@ -785,12 +785,12 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 	return ret;
 
 undo_group:
-	vfio_unregister_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
-					&vgpu->vdev.group_notifier);
+	vfio_unregister_yestifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
+					&vgpu->vdev.group_yestifier);
 
 undo_iommu:
-	vfio_unregister_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
-					&vgpu->vdev.iommu_notifier);
+	vfio_unregister_yestifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
+					&vgpu->vdev.iommu_yestifier);
 out:
 	return ret;
 }
@@ -819,13 +819,13 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 
 	intel_gvt_ops->vgpu_release(vgpu);
 
-	ret = vfio_unregister_notifier(mdev_dev(vgpu->vdev.mdev), VFIO_IOMMU_NOTIFY,
-					&vgpu->vdev.iommu_notifier);
-	WARN(ret, "vfio_unregister_notifier for iommu failed: %d\n", ret);
+	ret = vfio_unregister_yestifier(mdev_dev(vgpu->vdev.mdev), VFIO_IOMMU_NOTIFY,
+					&vgpu->vdev.iommu_yestifier);
+	WARN(ret, "vfio_unregister_yestifier for iommu failed: %d\n", ret);
 
-	ret = vfio_unregister_notifier(mdev_dev(vgpu->vdev.mdev), VFIO_GROUP_NOTIFY,
-					&vgpu->vdev.group_notifier);
-	WARN(ret, "vfio_unregister_notifier for group failed: %d\n", ret);
+	ret = vfio_unregister_yestifier(mdev_dev(vgpu->vdev.mdev), VFIO_GROUP_NOTIFY,
+					&vgpu->vdev.group_yestifier);
+	WARN(ret, "vfio_unregister_yestifier for group failed: %d\n", ret);
 
 	/* dereference module reference taken at open */
 	module_put(THIS_MODULE);
@@ -873,7 +873,7 @@ static u64 intel_vgpu_get_bar_addr(struct intel_vgpu *vgpu, int bar)
 	case PCI_BASE_ADDRESS_MEM_TYPE_1M:
 		/* 1M mem BAR treated as 32-bit BAR */
 	default:
-		/* mem unknown type treated as 32-bit BAR */
+		/* mem unkyeswn type treated as 32-bit BAR */
 		start_hi = 0;
 		break;
 	}
@@ -1388,7 +1388,7 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 						vgpu->vdev.num_regions)
 					return -EINVAL;
 				info.index =
-					array_index_nospec(info.index,
+					array_index_yesspec(info.index,
 							VFIO_PCI_NUM_REGIONS +
 							vgpu->vdev.num_regions);
 
@@ -1684,10 +1684,10 @@ out:
 
 static void kvmgt_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		const u8 *val, int len,
-		struct kvm_page_track_notifier_node *node)
+		struct kvm_page_track_yestifier_yesde *yesde)
 {
-	struct kvmgt_guest_info *info = container_of(node,
-					struct kvmgt_guest_info, track_node);
+	struct kvmgt_guest_info *info = container_of(yesde,
+					struct kvmgt_guest_info, track_yesde);
 
 	if (kvmgt_gfn_is_write_protected(info, gpa_to_gfn(gpa)))
 		intel_gvt_ops->write_protect_handler(info->vgpu, gpa,
@@ -1696,12 +1696,12 @@ static void kvmgt_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 
 static void kvmgt_page_track_flush_slot(struct kvm *kvm,
 		struct kvm_memory_slot *slot,
-		struct kvm_page_track_notifier_node *node)
+		struct kvm_page_track_yestifier_yesde *yesde)
 {
 	int i;
 	gfn_t gfn;
-	struct kvmgt_guest_info *info = container_of(node,
-					struct kvmgt_guest_info, track_node);
+	struct kvmgt_guest_info *info = container_of(yesde,
+					struct kvmgt_guest_info, track_yesde);
 
 	spin_lock(&kvm->mmu_lock);
 	for (i = 0; i < slot->npages; i++) {
@@ -1771,9 +1771,9 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 
 	init_completion(&vgpu->vblank_done);
 
-	info->track_node.track_write = kvmgt_page_track_write;
-	info->track_node.track_flush_slot = kvmgt_page_track_flush_slot;
-	kvm_page_track_register_notifier(kvm, &info->track_node);
+	info->track_yesde.track_write = kvmgt_page_track_write;
+	info->track_yesde.track_flush_slot = kvmgt_page_track_flush_slot;
+	kvm_page_track_register_yestifier(kvm, &info->track_yesde);
 
 	info->debugfs_cache_entries = debugfs_create_ulong(
 						"kvmgt_nr_cache_entries",
@@ -1786,7 +1786,7 @@ static bool kvmgt_guest_exit(struct kvmgt_guest_info *info)
 {
 	debugfs_remove(info->debugfs_cache_entries);
 
-	kvm_page_track_unregister_notifier(info->kvm, &info->track_node);
+	kvm_page_track_unregister_yestifier(info->kvm, &info->track_yesde);
 	kvm_put_kvm(info->kvm);
 	kvmgt_protect_table_destroy(info);
 	gvt_cache_destroy(info->vgpu);
@@ -1797,7 +1797,7 @@ static bool kvmgt_guest_exit(struct kvmgt_guest_info *info)
 
 static int kvmgt_attach_vgpu(void *vgpu, unsigned long *handle)
 {
-	/* nothing to do here */
+	/* yesthing to do here */
 	return 0;
 }
 
@@ -1858,7 +1858,7 @@ static unsigned long kvmgt_gfn_to_pfn(unsigned long handle, unsigned long gfn)
 	info = (struct kvmgt_guest_info *)handle;
 
 	pfn = gfn_to_pfn(info->kvm, gfn);
-	if (is_error_noslot_pfn(pfn))
+	if (is_error_yesslot_pfn(pfn))
 		return INTEL_GVT_INVALID_ADDR;
 
 	return pfn;
@@ -1979,7 +1979,7 @@ static int kvmgt_rw_gpa(unsigned long handle, unsigned long gpa,
 	kvm = info->kvm;
 
 	if (kthread) {
-		if (!mmget_not_zero(kvm->mm))
+		if (!mmget_yest_zero(kvm->mm))
 			return -EFAULT;
 		use_mm(kvm->mm);
 	}

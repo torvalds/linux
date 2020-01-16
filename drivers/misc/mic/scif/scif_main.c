@@ -18,7 +18,7 @@
 
 struct scif_info scif_info = {
 	.mdev = {
-		.minor = MISC_DYNAMIC_MINOR,
+		.miyesr = MISC_DYNAMIC_MINOR,
 		.name = "scif",
 		.fops = &scif_fops,
 	}
@@ -37,14 +37,14 @@ static void scif_intr_bh_handler(struct work_struct *work)
 	if (scifdev_self(scifdev))
 		scif_loopb_msg_handler(scifdev, scifdev->qpairs);
 	else
-		scif_nodeqp_intrhandler(scifdev, scifdev->qpairs);
+		scif_yesdeqp_intrhandler(scifdev, scifdev->qpairs);
 }
 
 int scif_setup_intr_wq(struct scif_dev *scifdev)
 {
 	if (!scifdev->intr_wq) {
 		snprintf(scifdev->intr_wqname, sizeof(scifdev->intr_wqname),
-			 "SCIF INTR %d", scifdev->node);
+			 "SCIF INTR %d", scifdev->yesde);
 		scifdev->intr_wq =
 			alloc_ordered_workqueue(scifdev->intr_wqname, 0);
 		if (!scifdev->intr_wq)
@@ -80,7 +80,7 @@ static void scif_qp_setup_handler(struct work_struct *work)
 	dma_addr_t da = 0;
 	int err;
 
-	if (scif_is_mgmt_node()) {
+	if (scif_is_mgmt_yesde()) {
 		struct mic_bootparam *bp = sdev->dp;
 
 		da = bp->scif_card_dma_addr;
@@ -104,18 +104,18 @@ static void scif_qp_setup_handler(struct work_struct *work)
 
 static int scif_setup_scifdev(void)
 {
-	/* We support a maximum of 129 SCIF nodes including the mgmt node */
+	/* We support a maximum of 129 SCIF yesdes including the mgmt yesde */
 #define MAX_SCIF_NODES 129
 	int i;
-	u8 num_nodes = MAX_SCIF_NODES;
+	u8 num_yesdes = MAX_SCIF_NODES;
 
-	scif_dev = kcalloc(num_nodes, sizeof(*scif_dev), GFP_KERNEL);
+	scif_dev = kcalloc(num_yesdes, sizeof(*scif_dev), GFP_KERNEL);
 	if (!scif_dev)
 		return -ENOMEM;
-	for (i = 0; i < num_nodes; i++) {
+	for (i = 0; i < num_yesdes; i++) {
 		struct scif_dev *scifdev = &scif_dev[i];
 
-		scifdev->node = i;
+		scifdev->yesde = i;
 		scifdev->exit = OP_IDLE;
 		init_waitqueue_head(&scifdev->disconn_wq);
 		mutex_init(&scifdev->lock);
@@ -138,14 +138,14 @@ static void scif_destroy_scifdev(void)
 
 static int scif_probe(struct scif_hw_dev *sdev)
 {
-	struct scif_dev *scifdev = &scif_dev[sdev->dnode];
+	struct scif_dev *scifdev = &scif_dev[sdev->dyesde];
 	int rc;
 
 	dev_set_drvdata(&sdev->dev, sdev);
 	scifdev->sdev = sdev;
 
 	if (1 == atomic_add_return(1, &g_loopb_cnt)) {
-		struct scif_dev *loopb_dev = &scif_dev[sdev->snode];
+		struct scif_dev *loopb_dev = &scif_dev[sdev->syesde];
 
 		loopb_dev->sdev = sdev;
 		rc = scif_setup_loopback_qp(loopb_dev);
@@ -167,7 +167,7 @@ static int scif_probe(struct scif_hw_dev *sdev)
 		rc = PTR_ERR(scifdev->cookie);
 		goto free_qp;
 	}
-	if (scif_is_mgmt_node()) {
+	if (scif_is_mgmt_yesde()) {
 		struct mic_bootparam *bp = sdev->dp;
 
 		bp->c2h_scif_db = scifdev->db;
@@ -187,7 +187,7 @@ destroy_intr:
 	scif_destroy_intr_wq(scifdev);
 destroy_loopb:
 	if (atomic_dec_and_test(&g_loopb_cnt))
-		scif_destroy_loopback_qp(&scif_dev[sdev->snode]);
+		scif_destroy_loopback_qp(&scif_dev[sdev->syesde]);
 exit:
 	return rc;
 }
@@ -201,15 +201,15 @@ void scif_stop(struct scif_dev *scifdev)
 		dev = &scif_dev[i];
 		if (scifdev_self(dev))
 			continue;
-		scif_handle_remove_node(i);
+		scif_handle_remove_yesde(i);
 	}
 }
 
 static void scif_remove(struct scif_hw_dev *sdev)
 {
-	struct scif_dev *scifdev = &scif_dev[sdev->dnode];
+	struct scif_dev *scifdev = &scif_dev[sdev->dyesde];
 
-	if (scif_is_mgmt_node()) {
+	if (scif_is_mgmt_yesde()) {
 		struct mic_bootparam *bp = sdev->dp;
 
 		bp->c2h_scif_db = -1;
@@ -220,14 +220,14 @@ static void scif_remove(struct scif_hw_dev *sdev)
 		iowrite8(-1, &bp->h2c_scif_db);
 		writeq(0x0, &bp->scif_card_dma_addr);
 	}
-	if (scif_is_mgmt_node()) {
-		scif_disconnect_node(scifdev->node, true);
+	if (scif_is_mgmt_yesde()) {
+		scif_disconnect_yesde(scifdev->yesde, true);
 	} else {
 		scif_info.card_initiated_exit = true;
 		scif_stop(scifdev);
 	}
 	if (atomic_dec_and_test(&g_loopb_cnt))
-		scif_destroy_loopback_qp(&scif_dev[sdev->snode]);
+		scif_destroy_loopback_qp(&scif_dev[sdev->syesde]);
 	if (scifdev->cookie) {
 		sdev->hw_ops->free_irq(sdev, scifdev->cookie, scifdev);
 		scifdev->cookie = NULL;
@@ -270,7 +270,7 @@ static int _scif_init(void)
 	INIT_LIST_HEAD(&scif_info.disconnected);
 	INIT_LIST_HEAD(&scif_info.rma);
 	INIT_LIST_HEAD(&scif_info.rma_tc);
-	INIT_LIST_HEAD(&scif_info.mmu_notif_cleanup);
+	INIT_LIST_HEAD(&scif_info.mmu_yestif_cleanup);
 	INIT_LIST_HEAD(&scif_info.fence);
 	INIT_LIST_HEAD(&scif_info.nb_connect_list);
 	init_waitqueue_head(&scif_info.exitwq);
@@ -288,7 +288,7 @@ static int _scif_init(void)
 		goto free_sdev;
 	}
 	INIT_WORK(&scif_info.misc_work, scif_misc_handler);
-	INIT_WORK(&scif_info.mmu_notif_work, scif_mmu_notif_handler);
+	INIT_WORK(&scif_info.mmu_yestif_work, scif_mmu_yestif_handler);
 	INIT_WORK(&scif_info.conn_work, scif_conn_handler);
 	idr_init(&scif_ports);
 	return 0;

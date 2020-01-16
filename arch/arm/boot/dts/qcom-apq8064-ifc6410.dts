@@ -35,7 +35,7 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&notify_led>;
+		pinctrl-0 = <&yestify_led>;
 
 		led@1 {
 			label = "apq8064:green:user1";
@@ -294,16 +294,16 @@
 					wlan_default_gpios: wlan-gpios {
 						pios {
 							pins = "gpio43";
-							function = "normal";
+							function = "yesrmal";
 							bias-disable;
 							power-source = <PM8921_GPIO_S4>;
 						};
 					};
 
-					notify_led: nled {
+					yestify_led: nled {
 						pios {
 							pins = "gpio18";
-							function = "normal";
+							function = "yesrmal";
 							bias-disable;
 							power-source = <PM8921_GPIO_S4>;
 						};

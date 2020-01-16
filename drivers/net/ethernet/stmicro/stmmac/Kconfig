@@ -10,7 +10,7 @@ config STMMAC_ETH
 	select RESET_CONTROLLER
 	---help---
 	  This is the driver for the Ethernet IPs built around a
-	  Synopsys IP Core.
+	  Syyespsys IP Core.
 
 if STMMAC_ETH
 
@@ -74,9 +74,9 @@ config DWMAC_IPQ806X
 	  Support for QCA IPQ806X DWMAC Ethernet.
 
 	  This selects the IPQ806x SoC glue layer support for the stmmac
-	  device driver. This driver does not use any of the hardware
+	  device driver. This driver does yest use any of the hardware
 	  acceleration features available on this SoC. Network devices
-	  will behave like standard non-accelerated ethernet interfaces.
+	  will behave like standard yesn-accelerated ethernet interfaces.
 
 config DWMAC_LPC18XX
 	tristate "NXP LPC18xx/43xx DWMAC support"

@@ -1,7 +1,7 @@
 #
 # Kernel configuration file for the SMARTPQI
 #
-# Copyright (c) 2019 Microchip Technology Inc. and its subsidiaries
+# Copyright (c) 2019 Microchip Techyeslogy Inc. and its subsidiaries
 # Copyright (c) 2017-2018 Microsemi Corporation
 # Copyright (c) 2016 Microsemi Corporation
 # Copyright (c) 2016 PMC-Sierra, Inc.
@@ -24,7 +24,7 @@
 # MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
 # solely responsible for determining the appropriateness of using and
 # distributing the Program and assumes all risks associated with its
-# exercise of rights under this Agreement, including but not limited to
+# exercise of rights under this Agreement, including but yest limited to
 # the risks and costs of program errors, damage to or loss of data,
 # programs or equipment, and unavailability or interruption of operations.
 
@@ -50,7 +50,7 @@ config SCSI_SMARTPQI
 	To compile this driver as a module, choose M here: the
 	module will be called smartpqi.
 
-        Note: the aacraid driver will not manage a smartpqi
+        Note: the aacraid driver will yest manage a smartpqi
               controller. You need to enable smartpqi for smartpqi
               controllers. For more information, please see
               Documentation/scsi/smartpqi.txt

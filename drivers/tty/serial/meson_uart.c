@@ -219,7 +219,7 @@ static void meson_receive_chars(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, ch))
 			continue;
 
-		if ((status & port->ignore_status_mask) == 0)
+		if ((status & port->igyesre_status_mask) == 0)
 			tty_insert_flip_char(tport, ch, flag);
 
 		if (status & AML_UART_TX_FIFO_WERR)
@@ -373,9 +373,9 @@ static void meson_uart_set_termios(struct uart_port *port,
 		port->read_status_mask |= AML_UART_PARITY_ERR |
 					  AML_UART_FRAME_ERR;
 
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 	if (iflags & IGNPAR)
-		port->ignore_status_mask |= AML_UART_PARITY_ERR |
+		port->igyesre_status_mask |= AML_UART_PARITY_ERR |
 					    AML_UART_FRAME_ERR;
 
 	uart_update_timeout(port, termios->c_cflag, baud);
@@ -411,7 +411,7 @@ static int meson_uart_request_port(struct uart_port *port)
 		return -EBUSY;
 	}
 
-	port->membase = devm_ioremap_nocache(port->dev, port->mapbase,
+	port->membase = devm_ioremap_yescache(port->dev, port->mapbase,
 					     port->mapsize);
 	if (!port->membase)
 		return -ENOMEM;
@@ -564,7 +564,7 @@ meson_serial_early_console_setup(struct earlycon_device *device, const char *opt
 	device->con->write = meson_serial_early_console_write;
 	return 0;
 }
-/* Legacy bindings, should be removed when no more used */
+/* Legacy bindings, should be removed when yes more used */
 OF_EARLYCON_DECLARE(meson, "amlogic,meson-uart",
 		    meson_serial_early_console_setup);
 /* Stable bindings */
@@ -608,7 +608,7 @@ static inline struct clk *meson_uart_probe_clock(struct device *dev,
 }
 
 /*
- * This function gets clocks in the legacy non-stable DT bindings.
+ * This function gets clocks in the legacy yesn-stable DT bindings.
  * This code will be remove once all the platforms switch to the
  * new DT bindings.
  */
@@ -657,8 +657,8 @@ static int meson_uart_probe(struct platform_device *pdev)
 	int ret = 0;
 	int id = -1;
 
-	if (pdev->dev.of_node)
-		pdev->id = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (pdev->dev.of_yesde)
+		pdev->id = of_alias_get_id(pdev->dev.of_yesde, "serial");
 
 	if (pdev->id < 0) {
 		for (id = AML_UART_PORT_OFFSET; id < AML_UART_PORT_NUM; id++) {
@@ -690,7 +690,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* Use legacy way until all platforms switch to new bindings */
-	if (of_device_is_compatible(pdev->dev.of_node, "amlogic,meson-uart"))
+	if (of_device_is_compatible(pdev->dev.of_yesde, "amlogic,meson-uart"))
 		ret = meson_uart_probe_clocks_legacy(pdev, port);
 	else
 		ret = meson_uart_probe_clocks(pdev, port);
@@ -738,7 +738,7 @@ static int meson_uart_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id meson_uart_dt_match[] = {
-	/* Legacy bindings, should be removed when no more used */
+	/* Legacy bindings, should be removed when yes more used */
 	{ .compatible = "amlogic,meson-uart" },
 	/* Stable bindings */
 	{ .compatible = "amlogic,meson6-uart" },

@@ -630,8 +630,8 @@ void odm_DIG(void *pDM_VOID)
 		)
 	);
 
-	/* 1 Modify DIG lower bound, deal with abnormal case */
-	/* 2 Abnormal false alarm case */
+	/* 1 Modify DIG lower bound, deal with abyesrmal case */
+	/* 2 Abyesrmal false alarm case */
 	if (FirstDisConnect) {
 		pDM_DigTable->rx_gain_range_min = DIG_Dynamic_MIN;
 		pDM_DigTable->ForbiddenIGI = DIG_Dynamic_MIN;
@@ -650,7 +650,7 @@ void odm_DIG(void *pDM_VOID)
 				ODM_COMP_DIG,
 				ODM_DBG_LOUD,
 				(
-					"odm_DIG(): Abnormal #beacon (%d) case in STA mode: Force lower bound to 0x%x !!!!!!\n\n",
+					"odm_DIG(): Abyesrmal #beacon (%d) case in STA mode: Force lower bound to 0x%x !!!!!!\n\n",
 					pDM_Odm->PhyDbgInfo.NumQryBeaconPkt,
 					pDM_DigTable->rx_gain_range_min
 				)
@@ -658,7 +658,7 @@ void odm_DIG(void *pDM_VOID)
 		}
 	}
 
-	/* 2 Abnormal lower bound case */
+	/* 2 Abyesrmal lower bound case */
 	if (pDM_DigTable->rx_gain_range_min > pDM_DigTable->rx_gain_range_max) {
 		pDM_DigTable->rx_gain_range_min = pDM_DigTable->rx_gain_range_max;
 		ODM_RT_TRACE(
@@ -666,7 +666,7 @@ void odm_DIG(void *pDM_VOID)
 			ODM_COMP_DIG,
 			ODM_DBG_LOUD,
 			(
-				"odm_DIG(): Abnormal lower bound case: Force lower bound to 0x%x !!!!!!\n\n",
+				"odm_DIG(): Abyesrmal lower bound case: Force lower bound to 0x%x !!!!!!\n\n",
 				pDM_DigTable->rx_gain_range_min
 			)
 		);
@@ -727,7 +727,7 @@ void odm_DIG(void *pDM_VOID)
 					ODM_COMP_DIG,
 					ODM_DBG_LOUD,
 					(
-						"odm_DIG(): Abnormal #beacon (%d) case: IGI does one-shot to 0x%x\n",
+						"odm_DIG(): Abyesrmal #beacon (%d) case: IGI does one-shot to 0x%x\n",
 						pDM_Odm->PhyDbgInfo.NumQryBeaconPkt,
 						CurrentIGI
 					)
@@ -814,7 +814,7 @@ void odm_DIG(void *pDM_VOID)
 			else
 				ODM_Write_DIG(pDM_Odm, pDM_DigTable->BT30_CurIGI);/* ODM_Write_DIG(pDM_Odm, pDM_DigTable->CurIGValue); */
 		}
-	} else { /*  BT is not using */
+	} else { /*  BT is yest using */
 		ODM_Write_DIG(pDM_Odm, CurrentIGI);/* ODM_Write_DIG(pDM_Odm, pDM_DigTable->CurIGValue); */
 		pDM_DigTable->bMediaConnect_0 = pDM_Odm->bLinked;
 		pDM_DigTable->DIG_Dynamic_MIN_0 = DIG_Dynamic_MIN;
@@ -1084,7 +1084,7 @@ u8 odm_ForbiddenIGICheck(void *pDM_VOID, u8 DIG_Dynamic_MIN, u8 CurrentIGI)
 	u8 rx_gain_range_min = pDM_DigTable->rx_gain_range_min;
 
 	if (pFalseAlmCnt->Cnt_all > 10000) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG(): Abnormally false alarm case.\n"));
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG(): Abyesrmally false alarm case.\n"));
 
 		if (pDM_DigTable->LargeFAHit != 3)
 			pDM_DigTable->LargeFAHit++;
@@ -1102,7 +1102,7 @@ u8 odm_ForbiddenIGICheck(void *pDM_VOID, u8 DIG_Dynamic_MIN, u8 CurrentIGI)
 			else
 				rx_gain_range_min = (pDM_DigTable->ForbiddenIGI + 2);
 			pDM_DigTable->Recover_cnt = 1800;
-			ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG(): Abnormally false alarm case: Recover_cnt = %d\n", pDM_DigTable->Recover_cnt));
+			ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG(): Abyesrmally false alarm case: Recover_cnt = %d\n", pDM_DigTable->Recover_cnt));
 		}
 	} else {
 		if (pDM_DigTable->Recover_cnt != 0) {

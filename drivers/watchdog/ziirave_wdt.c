@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2015 Zodiac Inflight Innovations
+ * Copyright (C) 2015 Zodiac Inflight Inyesvations
  *
  * Author: Martyn Welch <martyn.welch@collabora.co.uk>
  *
- * Based on twl4030_wdt.c by Timo Kokkonen <timo.t.kokkonen at nokia.com>:
+ * Based on twl4030_wdt.c by Timo Kokkonen <timo.t.kokkonen at yeskia.com>:
  *
  * Copyright (C) Nokia Corporation
  */
@@ -38,7 +38,7 @@
 static char *ziirave_reasons[] = {"power cycle", "hw watchdog", NULL, NULL,
 				  "host request", NULL, "illegal configuration",
 				  "illegal instruction", "illegal trap",
-				  "unknown"};
+				  "unkyeswn"};
 
 #define ZIIRAVE_WDT_FIRM_VER_MAJOR	0x1
 #define ZIIRAVE_WDT_BOOT_VER_MAJOR	0x3
@@ -75,7 +75,7 @@ static char *ziirave_reasons[] = {"power cycle", "hw watchdog", NULL, NULL,
 
 struct ziirave_wdt_rev {
 	unsigned char major;
-	unsigned char minor;
+	unsigned char miyesr;
 };
 
 struct ziirave_wdt_data {
@@ -95,9 +95,9 @@ module_param(reset_duration, int, 0);
 MODULE_PARM_DESC(reset_duration,
 		 "Watchdog reset pulse duration in milliseconds");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static int ziirave_wdt_revision(struct i2c_client *client,
@@ -115,7 +115,7 @@ static int ziirave_wdt_revision(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	rev->minor = ret;
+	rev->miyesr = ret;
 
 	return 0;
 }
@@ -231,8 +231,8 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 	}
 
 	/*
-	 * Ignore packets that are targeting program memory outisde of
-	 * app partition, since they will be ignored by the
+	 * Igyesre packets that are targeting program memory outisde of
+	 * app partition, since they will be igyesred by the
 	 * bootloader. At the same time, we need to make sure we'll
 	 * allow zero length packet that will be sent as the last step
 	 * of firmware update
@@ -447,7 +447,7 @@ static ssize_t ziirave_wdt_sysfs_show_firm(struct device *dev,
 		return ret;
 
 	ret = sprintf(buf, ZIIRAVE_FW_VERSION_FMT, w_priv->firmware_rev.major,
-		      w_priv->firmware_rev.minor);
+		      w_priv->firmware_rev.miyesr);
 
 	mutex_unlock(&w_priv->sysfs_mutex);
 
@@ -470,7 +470,7 @@ static ssize_t ziirave_wdt_sysfs_show_boot(struct device *dev,
 		return ret;
 
 	ret = sprintf(buf, ZIIRAVE_BL_VERSION_FMT, w_priv->bootloader_rev.major,
-		      w_priv->bootloader_rev.minor);
+		      w_priv->bootloader_rev.miyesr);
 
 	mutex_unlock(&w_priv->sysfs_mutex);
 
@@ -538,7 +538,7 @@ static ssize_t ziirave_wdt_sysfs_store_firm(struct device *dev,
 
 	dev_info(&client->dev,
 		 "Firmware updated to version " ZIIRAVE_FW_VERSION_FMT "\n",
-		 w_priv->firmware_rev.major, w_priv->firmware_rev.minor);
+		 w_priv->firmware_rev.major, w_priv->firmware_rev.miyesr);
 
 	/* Restore the watchdog timeout */
 	err = ziirave_wdt_set_timeout(&w_priv->wdd, w_priv->wdd.timeout);
@@ -571,11 +571,11 @@ static int ziirave_wdt_init_duration(struct i2c_client *client)
 	int ret;
 
 	if (!reset_duration) {
-		/* See if the reset pulse duration is provided in an of_node */
-		if (!client->dev.of_node)
+		/* See if the reset pulse duration is provided in an of_yesde */
+		if (!client->dev.of_yesde)
 			ret = -ENODEV;
 		else
-			ret = of_property_read_u32(client->dev.of_node,
+			ret = of_property_read_u32(client->dev.of_yesde,
 						   "reset-duration-ms",
 						   &reset_duration);
 		if (ret) {
@@ -650,7 +650,7 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "Timeout set to %ds\n", w_priv->wdd.timeout);
 
-	watchdog_set_nowayout(&w_priv->wdd, nowayout);
+	watchdog_set_yeswayout(&w_priv->wdd, yeswayout);
 
 	i2c_set_clientdata(client, w_priv);
 
@@ -679,7 +679,7 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 
 	dev_info(&client->dev,
 		 "Firmware version: " ZIIRAVE_FW_VERSION_FMT "\n",
-		 w_priv->firmware_rev.major, w_priv->firmware_rev.minor);
+		 w_priv->firmware_rev.major, w_priv->firmware_rev.miyesr);
 
 	ret = ziirave_wdt_revision(client, &w_priv->bootloader_rev,
 				   ZIIRAVE_WDT_BOOT_VER_MAJOR);
@@ -690,7 +690,7 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 
 	dev_info(&client->dev,
 		 "Bootloader version: " ZIIRAVE_BL_VERSION_FMT "\n",
-		 w_priv->bootloader_rev.major, w_priv->bootloader_rev.minor);
+		 w_priv->bootloader_rev.major, w_priv->bootloader_rev.miyesr);
 
 	w_priv->reset_reason = i2c_smbus_read_byte_data(client,
 						ZIIRAVE_WDT_RESET_REASON);

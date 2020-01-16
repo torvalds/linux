@@ -24,12 +24,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -61,7 +61,7 @@
 typedef void (*pio_release_cb)(void *arg, int code);
 
 /* PIO release codes - in bits, as there could more than one that apply */
-#define PRC_OK		0	/* no known error */
+#define PRC_OK		0	/* yes kyeswn error */
 #define PRC_STATUS_ERR	0x01	/* credit return due to status error */
 #define PRC_PBC		0x02	/* credit return due to PBC */
 #define PRC_THRESHOLD	0x04	/* credit return due to threshold */
@@ -103,7 +103,7 @@ struct send_context {
 	u32 __percpu *buffers_allocated;/* count of buffers allocated */
 	u32 size;			/* context size, in bytes */
 
-	int node;			/* context home node */
+	int yesde;			/* context home yesde */
 	u32 sr_size;			/* size of the shadow ring */
 	u16 flags;			/* flags */
 	u8  type;			/* context type */
@@ -171,7 +171,7 @@ struct sc_config_sizes {
 /*
  * The diagram below details the relationship of the mapping structures
  *
- * Since the mapping now allows for non-uniform send contexts per vl, the
+ * Since the mapping yesw allows for yesn-uniform send contexts per vl, the
  * number of send contexts for a vl is either the vl_scontexts[vl] or
  * a computation based on num_kernel_send_contexts/num_vls:
  *

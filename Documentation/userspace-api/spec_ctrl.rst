@@ -37,16 +37,16 @@ Bit  Define                 Description
                             disabled.
 2    PR_SPEC_DISABLE        The speculation feature is disabled, mitigation is
                             enabled.
-3    PR_SPEC_FORCE_DISABLE  Same as PR_SPEC_DISABLE, but cannot be undone. A
+3    PR_SPEC_FORCE_DISABLE  Same as PR_SPEC_DISABLE, but canyest be undone. A
                             subsequent prctl(..., PR_SPEC_ENABLE) will fail.
 4    PR_SPEC_DISABLE_NOEXEC Same as PR_SPEC_DISABLE, but the state will be
                             cleared on :manpage:`execve(2)`.
 ==== ====================== ==================================================
 
-If all bits are 0 the CPU is not affected by the speculation misfeature.
+If all bits are 0 the CPU is yest affected by the speculation misfeature.
 
 If PR_SPEC_PRCTL is set, then the per-task control of the mitigation is
-available. If not set, prctl(PR_SET_SPECULATION_CTRL) for the speculation
+available. If yest set, prctl(PR_SET_SPECULATION_CTRL) for the speculation
 misfeature will fail.
 
 .. _set_spec_ctrl:
@@ -64,10 +64,10 @@ Common error codes
 ======= =================================================================
 Value   Meaning
 ======= =================================================================
-EINVAL  The prctl is not implemented by the architecture or unused
-        prctl(2) arguments are not 0.
+EINVAL  The prctl is yest implemented by the architecture or unused
+        prctl(2) arguments are yest 0.
 
-ENODEV  arg2 is selecting a not supported speculation misfeature.
+ENODEV  arg2 is selecting a yest supported speculation misfeature.
 ======= =================================================================
 
 PR_SET_SPECULATION_CTRL error codes
@@ -77,10 +77,10 @@ Value   Meaning
 ======= =================================================================
 0       Success
 
-ERANGE  arg3 is incorrect, i.e. it's neither PR_SPEC_ENABLE nor
-        PR_SPEC_DISABLE nor PR_SPEC_FORCE_DISABLE.
+ERANGE  arg3 is incorrect, i.e. it's neither PR_SPEC_ENABLE yesr
+        PR_SPEC_DISABLE yesr PR_SPEC_FORCE_DISABLE.
 
-ENXIO   Control of the selected speculation misfeature is not possible.
+ENXIO   Control of the selected speculation misfeature is yest possible.
         See PR_GET_SPECULATION_CTRL.
 
 EPERM   Speculation was disabled with PR_SPEC_FORCE_DISABLE and caller

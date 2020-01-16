@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Functions for setting up and using a MPC106 northbridge
+ * Functions for setting up and using a MPC106 yesrthbridge
  * Extracted from arch/powerpc/platforms/powermac/pci.c.
  *
  * Copyright (C) 2003 Benjamin Herrenschmuidt (benh@kernel.crashing.org)
@@ -36,7 +36,7 @@ static inline void grackle_set_stg(struct pci_controller* bp, int enable)
 	(void)in_le32(bp->cfg_data);
 }
 
-static inline void grackle_set_loop_snoop(struct pci_controller *bp, int enable)
+static inline void grackle_set_loop_syesop(struct pci_controller *bp, int enable)
 {
 	unsigned int val;
 
@@ -55,8 +55,8 @@ void __init setup_grackle(struct pci_controller *hose)
 	if (of_machine_is_compatible("PowerMac1,1"))
 		pci_add_flags(PCI_REASSIGN_ALL_BUS);
 	if (of_machine_is_compatible("AAPL,PowerBook1998"))
-		grackle_set_loop_snoop(hose, 1);
-#if 0	/* Disabled for now, HW problems ??? */
+		grackle_set_loop_syesop(hose, 1);
+#if 0	/* Disabled for yesw, HW problems ??? */
 	grackle_set_stg(hose, 1);
 #endif
 }

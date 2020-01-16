@@ -24,8 +24,8 @@
  * other events, and allow to use them from tools without special MSR
  * access code.
  *
- * The events only support system-wide mode counting. There is no
- * sampling support because it is not supported by the hardware.
+ * The events only support system-wide mode counting. There is yes
+ * sampling support because it is yest supported by the hardware.
  *
  * According to counters' scope and category, two PMUs are registered
  * with the perf_event core subsystem.
@@ -95,7 +95,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/perf_event.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include "../perf_event.h"
@@ -177,7 +177,7 @@ static struct attribute *attrs_empty[] = {
 };
 
 /*
- * There are no default events, but we need to create
+ * There are yes default events, but we need to create
  * "events" group (with empty attrs) before updating
  * it with detected events.
  */
@@ -307,7 +307,7 @@ static int cstate_pmu_event_init(struct perf_event *event)
 		return -ENOENT;
 
 	/* unsupported modes and filters */
-	if (event->attr.sample_period) /* no sampling */
+	if (event->attr.sample_period) /* yes sampling */
 		return -EINVAL;
 
 	if (event->cpu < 0)
@@ -316,7 +316,7 @@ static int cstate_pmu_event_init(struct perf_event *event)
 	if (event->pmu == &cstate_core_pmu) {
 		if (cfg >= PERF_CSTATE_CORE_EVENT_MAX)
 			return -EINVAL;
-		cfg = array_index_nospec((unsigned long)cfg, PERF_CSTATE_CORE_EVENT_MAX);
+		cfg = array_index_yesspec((unsigned long)cfg, PERF_CSTATE_CORE_EVENT_MAX);
 		if (!(core_msr_mask & (1 << cfg)))
 			return -EINVAL;
 		event->hw.event_base = core_msr[cfg].msr;
@@ -325,7 +325,7 @@ static int cstate_pmu_event_init(struct perf_event *event)
 	} else if (event->pmu == &cstate_pkg_pmu) {
 		if (cfg >= PERF_CSTATE_PKG_EVENT_MAX)
 			return -EINVAL;
-		cfg = array_index_nospec((unsigned long)cfg, PERF_CSTATE_PKG_EVENT_MAX);
+		cfg = array_index_yesspec((unsigned long)cfg, PERF_CSTATE_PKG_EVENT_MAX);
 		if (!(pkg_msr_mask & (1 << cfg)))
 			return -EINVAL;
 		event->hw.event_base = pkg_msr[cfg].msr;
@@ -676,8 +676,8 @@ static int __init cstate_probe(const struct cstate_model *cm)
 
 static inline void cstate_cleanup(void)
 {
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_ONLINE);
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_STARTING);
+	cpuhp_remove_state_yescalls(CPUHP_AP_PERF_X86_CSTATE_ONLINE);
+	cpuhp_remove_state_yescalls(CPUHP_AP_PERF_X86_CSTATE_STARTING);
 
 	if (has_cstate_core)
 		perf_pmu_unregister(&cstate_core_pmu);

@@ -26,7 +26,7 @@ static inline long syscall_get_nr(struct task_struct *task,
 static inline void syscall_rollback(struct task_struct *task,
 				    struct pt_regs *regs)
 {
-	/* do nothing */
+	/* do yesthing */
 }
 
 static inline long syscall_get_error(struct task_struct *task,

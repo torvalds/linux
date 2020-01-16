@@ -15,23 +15,23 @@
  *
  * Based on simple lists (include/linux/list.h).
  *
- * This is a priority-sorted list of nodes; each node has a
+ * This is a priority-sorted list of yesdes; each yesde has a
  * priority from INT_MIN (highest) to INT_MAX (lowest).
  *
- * Addition is O(K), removal is O(1), change of priority of a node is
+ * Addition is O(K), removal is O(1), change of priority of a yesde is
  * O(K) and K is the number of RT priority levels used in the system.
  * (1 <= K <= 99)
  *
  * This list is really a list of lists:
  *
- *  - The tier 1 list is the prio_list, different priority nodes.
+ *  - The tier 1 list is the prio_list, different priority yesdes.
  *
- *  - The tier 2 list is the node_list, serialized nodes.
+ *  - The tier 2 list is the yesde_list, serialized yesdes.
  *
  * Simple ASCII art explanation:
  *
- * pl:prio_list (only for plist_node)
- * nl:node_list
+ * pl:prio_list (only for plist_yesde)
+ * nl:yesde_list
  *   HEAD|             NODE(S)
  *       |
  *       ||------------------------------------|
@@ -42,25 +42,25 @@
  * |->|nl|<->|nl|<->|nl|<->|nl|<->|nl|<->|nl|<-|
  * |-------------------------------------------|
  *
- * The nodes on the prio_list list are sorted by priority to simplify
- * the insertion of new nodes. There are no nodes with duplicate
+ * The yesdes on the prio_list list are sorted by priority to simplify
+ * the insertion of new yesdes. There are yes yesdes with duplicate
  * priorites on the list.
  *
- * The nodes on the node_list are ordered by priority and can contain
+ * The yesdes on the yesde_list are ordered by priority and can contain
  * entries which have the same priority. Those entries are ordered
  * FIFO
  *
- * Addition means: look for the prio_list node in the prio_list
- * for the priority of the node and insert it before the node_list
- * entry of the next prio_list node. If it is the first node of
+ * Addition means: look for the prio_list yesde in the prio_list
+ * for the priority of the yesde and insert it before the yesde_list
+ * entry of the next prio_list yesde. If it is the first yesde of
  * that priority, add it to the prio_list in the right position and
- * insert it into the serialized node_list list
+ * insert it into the serialized yesde_list list
  *
- * Removal means remove it from the node_list and remove it from
- * the prio_list if the node_list list_head is non empty. In case
+ * Removal means remove it from the yesde_list and remove it from
+ * the prio_list if the yesde_list list_head is yesn empty. In case
  * of removal from the prio_list it must be checked whether other
- * entries of the same priority are on the list or not. If there
- * is another entry of the same priority then this entry has to
+ * entries of the same priority are on the list or yest. If there
+ * is ayesther entry of the same priority then this entry has to
  * replace the removed entry on the prio_list. If the entry which
  * is removed is the only entry of this priority then a simple
  * remove from both list is sufficient.
@@ -77,13 +77,13 @@
 #include <linux/list.h>
 
 struct plist_head {
-	struct list_head node_list;
+	struct list_head yesde_list;
 };
 
-struct plist_node {
+struct plist_yesde {
 	int			prio;
 	struct list_head	prio_list;
-	struct list_head	node_list;
+	struct list_head	yesde_list;
 };
 
 /**
@@ -92,7 +92,7 @@ struct plist_node {
  */
 #define PLIST_HEAD_INIT(head)				\
 {							\
-	.node_list = LIST_HEAD_INIT((head).node_list)	\
+	.yesde_list = LIST_HEAD_INIT((head).yesde_list)	\
 }
 
 /**
@@ -103,15 +103,15 @@ struct plist_node {
 	struct plist_head head = PLIST_HEAD_INIT(head)
 
 /**
- * PLIST_NODE_INIT - static struct plist_node initializer
- * @node:	struct plist_node variable name
- * @__prio:	initial node priority
+ * PLIST_NODE_INIT - static struct plist_yesde initializer
+ * @yesde:	struct plist_yesde variable name
+ * @__prio:	initial yesde priority
  */
-#define PLIST_NODE_INIT(node, __prio)			\
+#define PLIST_NODE_INIT(yesde, __prio)			\
 {							\
 	.prio  = (__prio),				\
-	.prio_list = LIST_HEAD_INIT((node).prio_list),	\
-	.node_list = LIST_HEAD_INIT((node).node_list),	\
+	.prio_list = LIST_HEAD_INIT((yesde).prio_list),	\
+	.yesde_list = LIST_HEAD_INIT((yesde).yesde_list),	\
 }
 
 /**
@@ -121,25 +121,25 @@ struct plist_node {
 static inline void
 plist_head_init(struct plist_head *head)
 {
-	INIT_LIST_HEAD(&head->node_list);
+	INIT_LIST_HEAD(&head->yesde_list);
 }
 
 /**
- * plist_node_init - Dynamic struct plist_node initializer
- * @node:	&struct plist_node pointer
- * @prio:	initial node priority
+ * plist_yesde_init - Dynamic struct plist_yesde initializer
+ * @yesde:	&struct plist_yesde pointer
+ * @prio:	initial yesde priority
  */
-static inline void plist_node_init(struct plist_node *node, int prio)
+static inline void plist_yesde_init(struct plist_yesde *yesde, int prio)
 {
-	node->prio = prio;
-	INIT_LIST_HEAD(&node->prio_list);
-	INIT_LIST_HEAD(&node->node_list);
+	yesde->prio = prio;
+	INIT_LIST_HEAD(&yesde->prio_list);
+	INIT_LIST_HEAD(&yesde->yesde_list);
 }
 
-extern void plist_add(struct plist_node *node, struct plist_head *head);
-extern void plist_del(struct plist_node *node, struct plist_head *head);
+extern void plist_add(struct plist_yesde *yesde, struct plist_head *head);
+extern void plist_del(struct plist_yesde *yesde, struct plist_head *head);
 
-extern void plist_requeue(struct plist_node *node, struct plist_head *head);
+extern void plist_requeue(struct plist_yesde *yesde, struct plist_head *head);
 
 /**
  * plist_for_each - iterate over the plist
@@ -147,7 +147,7 @@ extern void plist_requeue(struct plist_node *node, struct plist_head *head);
  * @head:	the head for your list
  */
 #define plist_for_each(pos, head)	\
-	 list_for_each_entry(pos, &(head)->node_list, node_list)
+	 list_for_each_entry(pos, &(head)->yesde_list, yesde_list)
 
 /**
  * plist_for_each_continue - continue iteration over the plist
@@ -157,18 +157,18 @@ extern void plist_requeue(struct plist_node *node, struct plist_head *head);
  * Continue to iterate over plist, continuing after the current position.
  */
 #define plist_for_each_continue(pos, head)	\
-	 list_for_each_entry_continue(pos, &(head)->node_list, node_list)
+	 list_for_each_entry_continue(pos, &(head)->yesde_list, yesde_list)
 
 /**
  * plist_for_each_safe - iterate safely over a plist of given type
  * @pos:	the type * to use as a loop counter
- * @n:	another type * to use as temporary storage
+ * @n:	ayesther type * to use as temporary storage
  * @head:	the head for your list
  *
  * Iterate over a plist of given type, safe against removal of list entry.
  */
 #define plist_for_each_safe(pos, n, head)	\
-	 list_for_each_entry_safe(pos, n, &(head)->node_list, node_list)
+	 list_for_each_entry_safe(pos, n, &(head)->yesde_list, yesde_list)
 
 /**
  * plist_for_each_entry	- iterate over list of given type
@@ -177,7 +177,7 @@ extern void plist_requeue(struct plist_node *node, struct plist_head *head);
  * @mem:	the name of the list_head within the struct
  */
 #define plist_for_each_entry(pos, head, mem)	\
-	 list_for_each_entry(pos, &(head)->node_list, mem.node_list)
+	 list_for_each_entry(pos, &(head)->yesde_list, mem.yesde_list)
 
 /**
  * plist_for_each_entry_continue - continue iteration over list of given type
@@ -189,19 +189,19 @@ extern void plist_requeue(struct plist_node *node, struct plist_head *head);
  * the current position.
  */
 #define plist_for_each_entry_continue(pos, head, m)	\
-	list_for_each_entry_continue(pos, &(head)->node_list, m.node_list)
+	list_for_each_entry_continue(pos, &(head)->yesde_list, m.yesde_list)
 
 /**
  * plist_for_each_entry_safe - iterate safely over list of given type
  * @pos:	the type * to use as a loop counter
- * @n:		another type * to use as temporary storage
+ * @n:		ayesther type * to use as temporary storage
  * @head:	the head for your list
  * @m:		the name of the list_head within the struct
  *
  * Iterate over list of given type, safe against removal of list entry.
  */
 #define plist_for_each_entry_safe(pos, n, head, m)	\
-	list_for_each_entry_safe(pos, n, &(head)->node_list, m.node_list)
+	list_for_each_entry_safe(pos, n, &(head)->yesde_list, m.yesde_list)
 
 /**
  * plist_head_empty - return !0 if a plist_head is empty
@@ -209,19 +209,19 @@ extern void plist_requeue(struct plist_node *node, struct plist_head *head);
  */
 static inline int plist_head_empty(const struct plist_head *head)
 {
-	return list_empty(&head->node_list);
+	return list_empty(&head->yesde_list);
 }
 
 /**
- * plist_node_empty - return !0 if plist_node is not on a list
- * @node:	&struct plist_node pointer
+ * plist_yesde_empty - return !0 if plist_yesde is yest on a list
+ * @yesde:	&struct plist_yesde pointer
  */
-static inline int plist_node_empty(const struct plist_node *node)
+static inline int plist_yesde_empty(const struct plist_yesde *yesde)
 {
-	return list_empty(&node->node_list);
+	return list_empty(&yesde->yesde_list);
 }
 
-/* All functions below assume the plist_head is not empty. */
+/* All functions below assume the plist_head is yest empty. */
 
 /**
  * plist_first_entry - get the struct for the first entry
@@ -262,37 +262,37 @@ static inline int plist_node_empty(const struct plist_node *node)
  * @pos:	the type * to cursor
  */
 #define plist_next(pos) \
-	list_next_entry(pos, node_list)
+	list_next_entry(pos, yesde_list)
 
 /**
  * plist_prev - get the prev entry in list
  * @pos:	the type * to cursor
  */
 #define plist_prev(pos) \
-	list_prev_entry(pos, node_list)
+	list_prev_entry(pos, yesde_list)
 
 /**
- * plist_first - return the first node (and thus, highest priority)
+ * plist_first - return the first yesde (and thus, highest priority)
  * @head:	the &struct plist_head pointer
  *
- * Assumes the plist is _not_ empty.
+ * Assumes the plist is _yest_ empty.
  */
-static inline struct plist_node *plist_first(const struct plist_head *head)
+static inline struct plist_yesde *plist_first(const struct plist_head *head)
 {
-	return list_entry(head->node_list.next,
-			  struct plist_node, node_list);
+	return list_entry(head->yesde_list.next,
+			  struct plist_yesde, yesde_list);
 }
 
 /**
- * plist_last - return the last node (and thus, lowest priority)
+ * plist_last - return the last yesde (and thus, lowest priority)
  * @head:	the &struct plist_head pointer
  *
- * Assumes the plist is _not_ empty.
+ * Assumes the plist is _yest_ empty.
  */
-static inline struct plist_node *plist_last(const struct plist_head *head)
+static inline struct plist_yesde *plist_last(const struct plist_head *head)
 {
-	return list_entry(head->node_list.prev,
-			  struct plist_node, node_list);
+	return list_entry(head->yesde_list.prev,
+			  struct plist_yesde, yesde_list);
 }
 
 #endif

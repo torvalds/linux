@@ -16,7 +16,7 @@
  *   contexts.
  *   Cache the record across multi-block reads from user space.
  *   Support > 64 cpus.
- *   Delete module_exit and MOD_INC/DEC_COUNT, salinfo cannot be a module.
+ *   Delete module_exit and MOD_INC/DEC_COUNT, salinfo canyest be a module.
  *
  * Jan 28 2004	kaos@sgi.com
  *   Periodically check for outstanding MCA or INIT records.
@@ -25,7 +25,7 @@
  *   Standardize which records are cleared automatically.
  *
  * Aug 18 2005	kaos@sgi.com
- *   mca.c may not pass a buffer, a NULL buffer just indicates that a new
+ *   mca.c may yest pass a buffer, a NULL buffer just indicates that a new
  *   record is available in SAL.
  *   Replace some NR_CPUS by cpus_online, for hotplug cpu.
  *
@@ -33,7 +33,7 @@
  *   Handle hotplug cpus coming online.
  *   Handle hotplug cpus going offline while they still have outstanding records.
  *   Use the cpu_* macros consistently.
- *   Replace the counting semaphore with a mutex and a test if the cpumask is non-empty.
+ *   Replace the counting semaphore with a mutex and a test if the cpumask is yesn-empty.
  *   Modify the locking to make the test for "work to do" an atomic operation.
  */
 
@@ -127,7 +127,7 @@ struct salinfo_data_saved {
  *    read data -> return the formatted oemdata.
  *    close -> unchanged.  Keep record areas.
  *
- * Closing the data file does not change the state.  This allows shell scripts
+ * Closing the data file does yest change the state.  This allows shell scripts
  * to manipulate salinfo data, each shell redirection opens the file, does one
  * action then closes it again.  The record areas are only freed at close when
  * the state is NO_DATA.
@@ -199,7 +199,7 @@ shift1_data_saved (struct salinfo_data *data, int shift)
 
 /* This routine is invoked in interrupt context.  Note: mca.c enables
  * interrupts before calling this code for CMC/CPE.  MCA and INIT events are
- * not irq safe, do not call any routines that use spinlocks, they may deadlock.
+ * yest irq safe, do yest call any routines that use spinlocks, they may deadlock.
  * MCA and INIT records are recorded, a timer event will look for any
  * outstanding events and wake up the user space code.
  *
@@ -272,7 +272,7 @@ salinfo_timeout(struct timer_list *unused)
 }
 
 static int
-salinfo_event_open(struct inode *inode, struct file *file)
+salinfo_event_open(struct iyesde *iyesde, struct file *file)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -282,7 +282,7 @@ salinfo_event_open(struct inode *inode, struct file *file)
 static ssize_t
 salinfo_event_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct salinfo_data *data = PDE_DATA(file_inode(file));
+	struct salinfo_data *data = PDE_DATA(file_iyesde(file));
 	char cmd[32];
 	size_t size;
 	int i, n, cpu = -1;
@@ -334,13 +334,13 @@ retry:
 static const struct file_operations salinfo_event_fops = {
 	.open  = salinfo_event_open,
 	.read  = salinfo_event_read,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static int
-salinfo_log_open(struct inode *inode, struct file *file)
+salinfo_log_open(struct iyesde *iyesde, struct file *file)
 {
-	struct salinfo_data *data = PDE_DATA(inode);
+	struct salinfo_data *data = PDE_DATA(iyesde);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -363,9 +363,9 @@ salinfo_log_open(struct inode *inode, struct file *file)
 }
 
 static int
-salinfo_log_release(struct inode *inode, struct file *file)
+salinfo_log_release(struct iyesde *iyesde, struct file *file)
 {
-	struct salinfo_data *data = PDE_DATA(inode);
+	struct salinfo_data *data = PDE_DATA(iyesde);
 
 	if (data->state == STATE_NO_DATA) {
 		vfree(data->log_buffer);
@@ -408,7 +408,7 @@ retry:
 			sal_log_record_header_t *rh = (sal_log_record_header_t *)(data_saved->buffer);
 			data->log_size = data_saved->size;
 			memcpy(data->log_buffer, rh, data->log_size);
-			barrier();	/* id check must not be moved */
+			barrier();	/* id check must yest be moved */
 			if (rh->id == data_saved->id) {
 				data->saved_num = i+1;
 				break;
@@ -433,7 +433,7 @@ retry:
 static ssize_t
 salinfo_log_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct salinfo_data *data = PDE_DATA(file_inode(file));
+	struct salinfo_data *data = PDE_DATA(file_iyesde(file));
 	u8 *buf;
 	u64 bufsize;
 
@@ -494,7 +494,7 @@ salinfo_log_clear(struct salinfo_data *data, int cpu)
 static ssize_t
 salinfo_log_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct salinfo_data *data = PDE_DATA(file_inode(file));
+	struct salinfo_data *data = PDE_DATA(file_iyesde(file));
 	char cmd[32];
 	size_t size;
 	u32 offset;

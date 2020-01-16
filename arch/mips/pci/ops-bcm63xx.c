@@ -104,13 +104,13 @@ static int bcm63xx_do_cfg_read(int type, unsigned int busn,
 	u32 data;
 
 	/* two phase cycle, first we write address, then read data at
-	 * another location, caller already has a spinlock so no need
+	 * ayesther location, caller already has a spinlock so yes need
 	 * to add one here  */
 	if (bcm63xx_setup_cfg_access(type, busn, devfn, where))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	iob();
 	data = le32_to_cpu(__raw_readl(pci_iospace_start));
-	/* restore IO space normal behaviour */
+	/* restore IO space yesrmal behaviour */
 	bcm_mpi_writel(0, MPI_L2PCFG_REG);
 
 	*val = postprocess_read(data, where, size);
@@ -125,7 +125,7 @@ static int bcm63xx_do_cfg_write(int type, unsigned int busn,
 	u32 data;
 
 	/* two phase cycle, first we write address, then write data to
-	 * another location, caller already has a spinlock so no need
+	 * ayesther location, caller already has a spinlock so yes need
 	 * to add one here  */
 	if (bcm63xx_setup_cfg_access(type, busn, devfn, where))
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -136,9 +136,9 @@ static int bcm63xx_do_cfg_write(int type, unsigned int busn,
 
 	__raw_writel(cpu_to_le32(data), pci_iospace_start);
 	wmb();
-	/* no way to know the access is done, we have to wait */
+	/* yes way to kyesw the access is done, we have to wait */
 	udelay(500);
-	/* restore IO space normal behaviour */
+	/* restore IO space yesrmal behaviour */
 	bcm_mpi_writel(0, MPI_L2PCFG_REG);
 
 	return PCIBIOS_SUCCESSFUL;
@@ -362,7 +362,7 @@ static int fake_cb_bridge_write(int where, int size, u32 val)
 static int bcm63xx_cb_read(struct pci_bus *bus, unsigned int devfn,
 			   int where, int size, u32 *val)
 {
-	/* snoop access to slot 0x1e on root bus, we fake a cardbus
+	/* syesop access to slot 0x1e on root bus, we fake a cardbus
 	 * bridge at this location */
 	if (!bus->parent && PCI_SLOT(devfn) == FAKE_CB_BRIDGE_SLOT) {
 		fake_cb_bridge_bus_number = bus->number;
@@ -407,7 +407,7 @@ struct pci_ops bcm63xx_cb_ops = {
 };
 
 /*
- * only one IO window, so it  cannot be shared by PCI and cardbus, use
+ * only one IO window, so it  canyest be shared by PCI and cardbus, use
  * fixup to choose and detect unhandled configuration
  */
 static void bcm63xx_fixup(struct pci_dev *dev)
@@ -445,7 +445,7 @@ static void bcm63xx_fixup(struct pci_dev *dev)
 
 	if (io_window != -1) {
 		printk(KERN_ERR "bcm63xx: both PCI and cardbus devices "
-		       "need IO, which hardware cannot do\n");
+		       "need IO, which hardware canyest do\n");
 		return;
 	}
 

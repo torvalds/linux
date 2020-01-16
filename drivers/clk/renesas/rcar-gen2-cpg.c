@@ -109,9 +109,9 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	writel(kick, zclk->kick_reg);
 
 	/*
-	 * Note: There is no HW information about the worst case latency.
+	 * Note: There is yes HW information about the worst case latency.
 	 *
-	 * Using experimental measurements, it seems that no more than
+	 * Using experimental measurements, it seems that yes more than
 	 * ~10 iterations are needed, independently of the CPU rate.
 	 * Since this value might be dependent on external xtal rate, pll1
 	 * rate or even the other emulation clocks rate, use 1000 as a
@@ -276,7 +276,7 @@ static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
 struct clk * __init rcar_gen2_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
 	struct clk **clks, void __iomem *base,
-	struct raw_notifier_head *notifiers)
+	struct raw_yestifier_head *yestifiers)
 {
 	const struct clk_div_table *table = NULL;
 	const struct clk *parent;
@@ -301,8 +301,8 @@ struct clk * __init rcar_gen2_cpg_clk_register(struct device *dev,
 		/*
 		 * PLL0 is a  configurable multiplier clock except on R-Car
 		 * V2H/E2. Register the PLL0 clock as a fixed factor clock for
-		 * now as there's no generic multiplier clock implementation and
-		 * we  currently  have no need to change  the multiplier value.
+		 * yesw as there's yes generic multiplier clock implementation and
+		 * we  currently  have yes need to change  the multiplier value.
 		 */
 		mult = cpg_pll_config->pll0_mult;
 		div  = cpg_pll0_div;

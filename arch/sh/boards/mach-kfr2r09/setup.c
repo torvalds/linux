@@ -48,7 +48,7 @@ static phys_addr_t ceu_dma_membase;
 #define CEU_MCLK_FREQ			25000000
 #define DRVCRB				0xA405018C
 
-static struct mtd_partition kfr2r09_nor_flash_partitions[] =
+static struct mtd_partition kfr2r09_yesr_flash_partitions[] =
 {
 	{
 		.name = "boot",
@@ -63,13 +63,13 @@ static struct mtd_partition kfr2r09_nor_flash_partitions[] =
 	},
 };
 
-static struct physmap_flash_data kfr2r09_nor_flash_data = {
+static struct physmap_flash_data kfr2r09_yesr_flash_data = {
 	.width		= 2,
-	.parts		= kfr2r09_nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(kfr2r09_nor_flash_partitions),
+	.parts		= kfr2r09_yesr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(kfr2r09_yesr_flash_partitions),
 };
 
-static struct resource kfr2r09_nor_flash_resources[] = {
+static struct resource kfr2r09_yesr_flash_resources[] = {
 	[0] = {
 		.name		= "NOR Flash",
 		.start		= 0x00000000,
@@ -78,12 +78,12 @@ static struct resource kfr2r09_nor_flash_resources[] = {
 	}
 };
 
-static struct platform_device kfr2r09_nor_flash_device = {
+static struct platform_device kfr2r09_yesr_flash_device = {
 	.name		= "physmap-flash",
-	.resource	= kfr2r09_nor_flash_resources,
-	.num_resources	= ARRAY_SIZE(kfr2r09_nor_flash_resources),
+	.resource	= kfr2r09_yesr_flash_resources,
+	.num_resources	= ARRAY_SIZE(kfr2r09_yesr_flash_resources),
 	.dev		= {
-		.platform_data = &kfr2r09_nor_flash_data,
+		.platform_data = &kfr2r09_yesr_flash_data,
 	},
 };
 
@@ -233,7 +233,7 @@ static struct platform_device kfr2r09_usb0_gadget_device = {
 	.name		= "r8a66597_udc",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= NULL,         /*  not use dma */
+		.dma_mask		= NULL,         /*  yest use dma */
 		.coherent_dma_mask	= 0xffffffff,
 		.platform_data	= &kfr2r09_usb0_gadget_data,
 	},
@@ -335,7 +335,7 @@ static struct platform_device kfr2r09_sh_sdhi0_device = {
 };
 
 static struct platform_device *kfr2r09_devices[] __initdata = {
-	&kfr2r09_nor_flash_device,
+	&kfr2r09_yesr_flash_device,
 	&kfr2r09_nand_flash_device,
 	&kfr2r09_sh_keysc_device,
 	&kfr2r09_sh_lcdc_device,
@@ -454,7 +454,7 @@ static int kfr2r09_usb0_gadget_setup(void)
 	gpio_direction_input(GPIO_PTN4);
 	plugged_in = gpio_get_value(GPIO_PTN4);
 	if (!plugged_in)
-		return -ENODEV; /* no cable plugged in */
+		return -ENODEV; /* yes cable plugged in */
 
 	if (kfr2r09_usb0_gadget_i2c_setup() != 0)
 		return -ENODEV; /* unable to configure using i2c */

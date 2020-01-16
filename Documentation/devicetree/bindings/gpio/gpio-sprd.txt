@@ -8,10 +8,10 @@ Required properties:
 - compatible: Should be "sprd,sc9860-gpio".
 - reg: Define the base and range of the I/O address space containing
 the GPIO controller registers.
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device yesde as a GPIO controller.
 - #gpio-cells: Should be <2>. The first cell is the gpio number and
 the second cell is used to specify optional parameters.
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device yesde as an interrupt controller.
 - #interrupt-cells: Should be <2>. Specifies the number of cells needed
 to encode interrupt source.
 - interrupts: Should be the port interrupt shared by all the gpios.

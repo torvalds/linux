@@ -18,8 +18,8 @@
 #include "atmel-classd.h"
 
 struct atmel_classd_pdata {
-	bool non_overlap_enable;
-	int non_overlap_time;
+	bool yesn_overlap_enable;
+	int yesn_overlap_time;
 	int pwm_type;
 	const char *card_name;
 };
@@ -46,13 +46,13 @@ MODULE_DEVICE_TABLE(of, atmel_classd_of_match);
 
 static struct atmel_classd_pdata *atmel_classd_dt_init(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct atmel_classd_pdata *pdata;
 	const char *pwm_type;
 	int ret;
 
 	if (!np) {
-		dev_err(dev, "device node not found\n");
+		dev_err(dev, "device yesde yest found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -67,11 +67,11 @@ static struct atmel_classd_pdata *atmel_classd_dt_init(struct device *dev)
 		pdata->pwm_type = CLASSD_MR_PWMTYP_SINGLE;
 
 	ret = of_property_read_u32(np,
-			"atmel,non-overlap-time", &pdata->non_overlap_time);
+			"atmel,yesn-overlap-time", &pdata->yesn_overlap_time);
 	if (ret)
-		pdata->non_overlap_enable = false;
+		pdata->yesn_overlap_enable = false;
 	else
-		pdata->non_overlap_enable = true;
+		pdata->yesn_overlap_enable = true;
 
 	ret = of_property_read_string(np, "atmel,model", &pdata->card_name);
 	if (ret)
@@ -190,13 +190,13 @@ atmel_classd_dmaengine_pcm_config = {
 };
 
 /* codec */
-static const char * const mono_mode_text[] = {
+static const char * const moyes_mode_text[] = {
 	"mix", "sat", "left", "right"
 };
 
-static SOC_ENUM_SINGLE_DECL(classd_mono_mode_enum,
+static SOC_ENUM_SINGLE_DECL(classd_moyes_mode_enum,
 			CLASSD_INTPMR, CLASSD_INTPMR_MONO_MODE_SHIFT,
-			mono_mode_text);
+			moyes_mode_text);
 
 static const char * const eqcfg_text[] = {
 	"Treble-12dB", "Treble-6dB",
@@ -232,11 +232,11 @@ SOC_DOUBLE_TLV("Playback Volume", CLASSD_INTPMR,
 SOC_SINGLE("Deemphasis Switch", CLASSD_INTPMR,
 		CLASSD_INTPMR_DEEMP_SHIFT, 1, 0),
 
-SOC_SINGLE("Mono Switch", CLASSD_INTPMR, CLASSD_INTPMR_MONO_SHIFT, 1, 0),
+SOC_SINGLE("Moyes Switch", CLASSD_INTPMR, CLASSD_INTPMR_MONO_SHIFT, 1, 0),
 
 SOC_SINGLE("Swap Switch", CLASSD_INTPMR, CLASSD_INTPMR_SWAP_SHIFT, 1, 0),
 
-SOC_ENUM("Mono Mode", classd_mono_mode_enum),
+SOC_ENUM("Moyes Mode", classd_moyes_mode_enum),
 
 SOC_ENUM("EQ", classd_eqcfg_enum),
 };
@@ -256,12 +256,12 @@ static int atmel_classd_component_probe(struct snd_soc_component *component)
 	val = pdata->pwm_type << CLASSD_MR_PWMTYP_SHIFT;
 
 	mask |= CLASSD_MR_NON_OVERLAP_MASK;
-	if (pdata->non_overlap_enable) {
+	if (pdata->yesn_overlap_enable) {
 		val |= (CLASSD_MR_NON_OVERLAP_EN
 			<< CLASSD_MR_NON_OVERLAP_SHIFT);
 
 		mask |= CLASSD_MR_NOVR_VAL_MASK;
-		switch (pdata->non_overlap_time) {
+		switch (pdata->yesn_overlap_time) {
 		case 5:
 			val |= (CLASSD_MR_NOVR_VAL_5NS
 				<< CLASSD_MR_NOVR_VAL_SHIFT);
@@ -282,8 +282,8 @@ static int atmel_classd_component_probe(struct snd_soc_component *component)
 			val |= (CLASSD_MR_NOVR_VAL_10NS
 				<< CLASSD_MR_NOVR_VAL_SHIFT);
 			dev_warn(component->dev,
-				"non-overlapping value %d is invalid, the default value 10 is specified\n",
-				pdata->non_overlap_time);
+				"yesn-overlapping value %d is invalid, the default value 10 is specified\n",
+				pdata->yesn_overlap_time);
 			break;
 		}
 	}
@@ -291,9 +291,9 @@ static int atmel_classd_component_probe(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, CLASSD_MR, mask, val);
 
 	dev_info(component->dev,
-		"PWM modulation type is %s, non-overlapping is %s\n",
+		"PWM modulation type is %s, yesn-overlapping is %s\n",
 		pwm_type[pdata->pwm_type],
-		pdata->non_overlap_enable?"enabled":"disabled");
+		pdata->yesn_overlap_enable?"enabled":"disabled");
 
 	return 0;
 }
@@ -314,7 +314,7 @@ static struct snd_soc_component_driver soc_component_dev_classd = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 /* codec dai component */
@@ -608,7 +608,7 @@ static int atmel_classd_probe(struct platform_device *pdev)
 					&atmel_classd_cpu_dai_component,
 					&atmel_classd_cpu_dai, 1);
 	if (ret) {
-		dev_err(dev, "could not register CPU DAI: %d\n", ret);
+		dev_err(dev, "could yest register CPU DAI: %d\n", ret);
 		return ret;
 	}
 
@@ -616,14 +616,14 @@ static int atmel_classd_probe(struct platform_device *pdev)
 					&atmel_classd_dmaengine_pcm_config,
 					0);
 	if (ret) {
-		dev_err(dev, "could not register platform: %d\n", ret);
+		dev_err(dev, "could yest register platform: %d\n", ret);
 		return ret;
 	}
 
 	ret = devm_snd_soc_register_component(dev, &soc_component_dev_classd,
 					&atmel_classd_codec_dai, 1);
 	if (ret) {
-		dev_err(dev, "could not register component: %d\n", ret);
+		dev_err(dev, "could yest register component: %d\n", ret);
 		return ret;
 	}
 

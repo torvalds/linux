@@ -13,7 +13,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
@@ -46,7 +46,7 @@ xfs_qm_log_quotaoff(
 
 	/*
 	 * We have to make sure that the transaction is secure on disk before we
-	 * return and actually stop quota accounting. So, make it synchronous.
+	 * return and actually stop quota accounting. So, make it synchroyesus.
 	 * We don't care about quotoff's performance.
 	 */
 	xfs_trans_set_sync(tp);
@@ -79,7 +79,7 @@ xfs_qm_log_quotaoff_end(
 
 	/*
 	 * We have to make sure that the transaction is secure on disk before we
-	 * return and actually stop quota accounting. So, make it synchronous.
+	 * return and actually stop quota accounting. So, make it synchroyesus.
 	 * We don't care about quotoff's performance.
 	 */
 	xfs_trans_set_sync(tp);
@@ -90,7 +90,7 @@ xfs_qm_log_quotaoff_end(
  * Turn off quota accounting and/or enforcement for all udquots and/or
  * gdquots. Called only at unmount time.
  *
- * This assumes that there are no dquots of this file system cached
+ * This assumes that there are yes dquots of this file system cached
  * incore, and modifies the ondisk dquot directly. Therefore, for example,
  * it is an error to call this twice, without purging the cache.
  */
@@ -106,9 +106,9 @@ xfs_qm_scall_quotaoff(
 	struct xfs_qoff_logitem	*qoffstart;
 
 	/*
-	 * No file system can have quotas enabled on disk but not in core.
+	 * No file system can have quotas enabled on disk but yest in core.
 	 * Note that quota utilities (like quotaoff) _expect_
-	 * errno == -EEXIST here.
+	 * erryes == -EEXIST here.
 	 */
 	if ((mp->m_qflags & flags) == 0)
 		return -EEXIST;
@@ -144,7 +144,7 @@ xfs_qm_scall_quotaoff(
 	inactivate_flags = 0;
 	/*
 	 * If accounting is off, we must turn enforcement off, clear the
-	 * quota 'CHKD' certificate to make it known that we have to
+	 * quota 'CHKD' certificate to make it kyeswn that we have to
 	 * do a quotacheck the next time this quota is turned on.
 	 */
 	if (flags & XFS_UQUOTA_ACCT) {
@@ -172,8 +172,8 @@ xfs_qm_scall_quotaoff(
 
 	/*
 	 * Write the LI_QUOTAOFF log record, and do SB changes atomically,
-	 * and synchronously. If we fail to write, we should abort the
-	 * operation as it cannot be recovered safely if we crash.
+	 * and synchroyesusly. If we fail to write, we should abort the
+	 * operation as it canyest be recovered safely if we crash.
 	 */
 	error = xfs_qm_log_quotaoff(mp, &qoffstart, flags);
 	if (error)
@@ -183,26 +183,26 @@ xfs_qm_scall_quotaoff(
 	 * Next we clear the XFS_MOUNT_*DQ_ACTIVE bit(s) in the mount struct
 	 * to take care of the race between dqget and quotaoff. We don't take
 	 * any special locks to reset these bits. All processes need to check
-	 * these bits *after* taking inode lock(s) to see if the particular
+	 * these bits *after* taking iyesde lock(s) to see if the particular
 	 * quota type is in the process of being turned off. If *ACTIVE, it is
-	 * guaranteed that all dquot structures and all quotainode ptrs will all
-	 * stay valid as long as that inode is kept locked.
+	 * guaranteed that all dquot structures and all quotaiyesde ptrs will all
+	 * stay valid as long as that iyesde is kept locked.
 	 *
-	 * There is no turning back after this.
+	 * There is yes turning back after this.
 	 */
 	mp->m_qflags &= ~inactivate_flags;
 
 	/*
-	 * Give back all the dquot reference(s) held by inodes.
-	 * Here we go thru every single incore inode in this file system, and
+	 * Give back all the dquot reference(s) held by iyesdes.
+	 * Here we go thru every single incore iyesde in this file system, and
 	 * do a dqrele on the i_udquot/i_gdquot that it may have.
-	 * Essentially, as long as somebody has an inode locked, this guarantees
-	 * that quotas will not be turned off. This is handy because in a
-	 * transaction once we lock the inode(s) and check for quotaon, we can
-	 * depend on the quota inodes (and other things) being valid as long as
+	 * Essentially, as long as somebody has an iyesde locked, this guarantees
+	 * that quotas will yest be turned off. This is handy because in a
+	 * transaction once we lock the iyesde(s) and check for quotaon, we can
+	 * depend on the quota iyesdes (and other things) being valid as long as
 	 * we keep the lock(s).
 	 */
-	xfs_qm_dqrele_all_inodes(mp, flags);
+	xfs_qm_dqrele_all_iyesdes(mp, flags);
 
 	/*
 	 * Next we make the changes in the quota flag in the mount struct.
@@ -223,14 +223,14 @@ xfs_qm_scall_quotaoff(
 	 * the first QUOTAOFF log record does. If we happen to crash when
 	 * the tail of the log has gone past the QUOTAOFF record, but
 	 * before the last dquot modification, those dquots __will__
-	 * recover, and that's not good.
+	 * recover, and that's yest good.
 	 *
 	 * So, we have QUOTAOFF start and end logitems; the start
 	 * logitem won't get overwritten until the end logitem appears...
 	 */
 	error = xfs_qm_log_quotaoff_end(mp, qoffstart, flags);
 	if (error) {
-		/* We're screwed now. Shutdown is the only option. */
+		/* We're screwed yesw. Shutdown is the only option. */
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		goto out_unlock;
 	}
@@ -245,7 +245,7 @@ xfs_qm_scall_quotaoff(
 	}
 
 	/*
-	 * Release our quotainode references if we don't need them anymore.
+	 * Release our quotaiyesde references if we don't need them anymore.
 	 */
 	if ((dqtype & XFS_QMOPT_UQUOTA) && q->qi_uquotaip) {
 		xfs_irele(q->qi_uquotaip);
@@ -268,16 +268,16 @@ out_unlock:
 STATIC int
 xfs_qm_scall_trunc_qfile(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino)
+	xfs_iyes_t		iyes)
 {
-	struct xfs_inode	*ip;
+	struct xfs_iyesde	*ip;
 	struct xfs_trans	*tp;
 	int			error;
 
-	if (ino == NULLFSINO)
+	if (iyes == NULLFSINO)
 		return 0;
 
-	error = xfs_iget(mp, NULL, ino, 0, 0, &ip);
+	error = xfs_iget(mp, NULL, iyes, 0, 0, &ip);
 	if (error)
 		return error;
 
@@ -293,7 +293,7 @@ xfs_qm_scall_trunc_qfile(
 	xfs_trans_ijoin(tp, ip, 0);
 
 	ip->i_d.di_size = 0;
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_iyesde(tp, ip, XFS_ILOG_CORE);
 
 	error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK, 0);
 	if (error) {
@@ -328,17 +328,17 @@ xfs_qm_scall_trunc_qfiles(
 	}
 
 	if (flags & XFS_DQ_USER) {
-		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_uquotino);
+		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_uquotiyes);
 		if (error)
 			return error;
 	}
 	if (flags & XFS_DQ_GROUP) {
-		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_gquotino);
+		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_gquotiyes);
 		if (error)
 			return error;
 	}
 	if (flags & XFS_DQ_PROJ)
-		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_pquotino);
+		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_pquotiyes);
 
 	return error;
 }
@@ -371,7 +371,7 @@ xfs_qm_scall_quotaon(
 	/*
 	 * Can't enforce without accounting. We check the superblock
 	 * qflags here instead of m_qflags because rootfs can have
-	 * quota acct on ondisk without m_qflags' knowing.
+	 * quota acct on ondisk without m_qflags' kyeswing.
 	 */
 	if (((mp->m_sb.sb_qflags & XFS_UQUOTA_ACCT) == 0 &&
 	     (flags & XFS_UQUOTA_ENFD)) ||
@@ -391,7 +391,7 @@ xfs_qm_scall_quotaon(
 		return -EEXIST;
 
 	/*
-	 * Change sb_qflags on disk but not incore mp->qflags
+	 * Change sb_qflags on disk but yest incore mp->qflags
 	 * if this is the root filesystem.
 	 */
 	spin_lock(&mp->m_sb_lock);
@@ -400,7 +400,7 @@ xfs_qm_scall_quotaon(
 	spin_unlock(&mp->m_sb_lock);
 
 	/*
-	 * There's nothing to change if it's the same.
+	 * There's yesthing to change if it's the same.
 	 */
 	if ((qf & flags) == flags)
 		return -EEXIST;
@@ -460,7 +460,7 @@ xfs_qm_scall_setqlim(
 
 	/*
 	 * We don't want to race with a quotaoff so take the quotaoff lock.
-	 * We don't hold an inode lock, so there's nothing else to stop
+	 * We don't hold an iyesde lock, so there's yesthing else to stop
 	 * a quotaoff from happening.
 	 */
 	mutex_lock(&q->qi_quotaofflock);
@@ -527,14 +527,14 @@ xfs_qm_scall_setqlim(
 	}
 
 	hard = (newlim->d_fieldmask & QC_INO_HARD) ?
-		(xfs_qcnt_t) newlim->d_ino_hardlimit :
-			be64_to_cpu(ddq->d_ino_hardlimit);
+		(xfs_qcnt_t) newlim->d_iyes_hardlimit :
+			be64_to_cpu(ddq->d_iyes_hardlimit);
 	soft = (newlim->d_fieldmask & QC_INO_SOFT) ?
-		(xfs_qcnt_t) newlim->d_ino_softlimit :
-			be64_to_cpu(ddq->d_ino_softlimit);
+		(xfs_qcnt_t) newlim->d_iyes_softlimit :
+			be64_to_cpu(ddq->d_iyes_softlimit);
 	if (hard == 0 || hard >= soft) {
-		ddq->d_ino_hardlimit = cpu_to_be64(hard);
-		ddq->d_ino_softlimit = cpu_to_be64(soft);
+		ddq->d_iyes_hardlimit = cpu_to_be64(hard);
+		ddq->d_iyes_softlimit = cpu_to_be64(soft);
 		if (id == 0) {
 			defq->ihardlimit = hard;
 			defq->isoftlimit = soft;
@@ -549,7 +549,7 @@ xfs_qm_scall_setqlim(
 	if (newlim->d_fieldmask & QC_SPC_WARNS)
 		ddq->d_bwarns = cpu_to_be16(newlim->d_spc_warns);
 	if (newlim->d_fieldmask & QC_INO_WARNS)
-		ddq->d_iwarns = cpu_to_be16(newlim->d_ino_warns);
+		ddq->d_iwarns = cpu_to_be16(newlim->d_iyes_warns);
 	if (newlim->d_fieldmask & QC_RT_SPC_WARNS)
 		ddq->d_rtbwarns = cpu_to_be16(newlim->d_rt_spc_warns);
 
@@ -566,8 +566,8 @@ xfs_qm_scall_setqlim(
 			ddq->d_btimer = cpu_to_be32(newlim->d_spc_timer);
 		}
 		if (newlim->d_fieldmask & QC_INO_TIMER) {
-			q->qi_itimelimit = newlim->d_ino_timer;
-			ddq->d_itimer = cpu_to_be32(newlim->d_ino_timer);
+			q->qi_itimelimit = newlim->d_iyes_timer;
+			ddq->d_itimer = cpu_to_be32(newlim->d_iyes_timer);
 		}
 		if (newlim->d_fieldmask & QC_RT_SPC_TIMER) {
 			q->qi_rtbtimelimit = newlim->d_rt_spc_timer;
@@ -576,13 +576,13 @@ xfs_qm_scall_setqlim(
 		if (newlim->d_fieldmask & QC_SPC_WARNS)
 			q->qi_bwarnlimit = newlim->d_spc_warns;
 		if (newlim->d_fieldmask & QC_INO_WARNS)
-			q->qi_iwarnlimit = newlim->d_ino_warns;
+			q->qi_iwarnlimit = newlim->d_iyes_warns;
 		if (newlim->d_fieldmask & QC_RT_SPC_WARNS)
 			q->qi_rtbwarnlimit = newlim->d_rt_spc_warns;
 	} else {
 		/*
-		 * If the user is now over quota, start the timelimit.
-		 * The user will not be 'warned'.
+		 * If the user is yesw over quota, start the timelimit.
+		 * The user will yest be 'warned'.
 		 * Note that we keep the timers ticking, whether enforcement
 		 * is on or off. We don't really want to bother with iterating
 		 * over all ondisk dquots and turning the timers on/off.
@@ -614,13 +614,13 @@ xfs_qm_scall_getquota_fill_qc(
 		XFS_FSB_TO_B(mp, be64_to_cpu(dqp->q_core.d_blk_hardlimit));
 	dst->d_spc_softlimit =
 		XFS_FSB_TO_B(mp, be64_to_cpu(dqp->q_core.d_blk_softlimit));
-	dst->d_ino_hardlimit = be64_to_cpu(dqp->q_core.d_ino_hardlimit);
-	dst->d_ino_softlimit = be64_to_cpu(dqp->q_core.d_ino_softlimit);
+	dst->d_iyes_hardlimit = be64_to_cpu(dqp->q_core.d_iyes_hardlimit);
+	dst->d_iyes_softlimit = be64_to_cpu(dqp->q_core.d_iyes_softlimit);
 	dst->d_space = XFS_FSB_TO_B(mp, dqp->q_res_bcount);
-	dst->d_ino_count = dqp->q_res_icount;
+	dst->d_iyes_count = dqp->q_res_icount;
 	dst->d_spc_timer = be32_to_cpu(dqp->q_core.d_btimer);
-	dst->d_ino_timer = be32_to_cpu(dqp->q_core.d_itimer);
-	dst->d_ino_warns = be16_to_cpu(dqp->q_core.d_iwarns);
+	dst->d_iyes_timer = be32_to_cpu(dqp->q_core.d_itimer);
+	dst->d_iyes_warns = be16_to_cpu(dqp->q_core.d_iwarns);
 	dst->d_spc_warns = be16_to_cpu(dqp->q_core.d_bwarns);
 	dst->d_rt_spc_hardlimit =
 		XFS_FSB_TO_B(mp, be64_to_cpu(dqp->q_core.d_rtb_hardlimit));
@@ -642,7 +642,7 @@ xfs_qm_scall_getquota_fill_qc(
 	    (!XFS_IS_PQUOTA_ENFORCED(mp) &&
 	     dqp->q_core.d_flags == XFS_DQ_PROJ)) {
 		dst->d_spc_timer = 0;
-		dst->d_ino_timer = 0;
+		dst->d_iyes_timer = 0;
 		dst->d_rt_spc_timer = 0;
 	}
 
@@ -655,9 +655,9 @@ xfs_qm_scall_getquota_fill_qc(
 		    (dst->d_spc_softlimit > 0)) {
 			ASSERT(dst->d_spc_timer != 0);
 		}
-		if ((dst->d_ino_count > dst->d_ino_softlimit) &&
-		    (dst->d_ino_softlimit > 0)) {
-			ASSERT(dst->d_ino_timer != 0);
+		if ((dst->d_iyes_count > dst->d_iyes_softlimit) &&
+		    (dst->d_iyes_softlimit > 0)) {
+			ASSERT(dst->d_iyes_timer != 0);
 		}
 	}
 #endif
@@ -726,12 +726,12 @@ xfs_qm_scall_getquota_next(
 }
 
 STATIC int
-xfs_dqrele_inode(
-	struct xfs_inode	*ip,
+xfs_dqrele_iyesde(
+	struct xfs_iyesde	*ip,
 	int			flags,
 	void			*args)
 {
-	/* skip quota inodes */
+	/* skip quota iyesdes */
 	if (ip == ip->i_mount->m_quotainfo->qi_uquotaip ||
 	    ip == ip->i_mount->m_quotainfo->qi_gquotaip ||
 	    ip == ip->i_mount->m_quotainfo->qi_pquotaip) {
@@ -760,17 +760,17 @@ xfs_dqrele_inode(
 
 
 /*
- * Go thru all the inodes in the file system, releasing their dquots.
+ * Go thru all the iyesdes in the file system, releasing their dquots.
  *
  * Note that the mount structure gets modified to indicate that quotas are off
  * AFTER this, in the case of quotaoff.
  */
 void
-xfs_qm_dqrele_all_inodes(
+xfs_qm_dqrele_all_iyesdes(
 	struct xfs_mount *mp,
 	uint		 flags)
 {
 	ASSERT(mp->m_quotainfo);
-	xfs_inode_ag_iterator_flags(mp, xfs_dqrele_inode, flags, NULL,
+	xfs_iyesde_ag_iterator_flags(mp, xfs_dqrele_iyesde, flags, NULL,
 				    XFS_AGITER_INEW_WAIT);
 }

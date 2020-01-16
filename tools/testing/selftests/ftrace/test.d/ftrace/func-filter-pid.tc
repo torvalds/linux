@@ -6,17 +6,17 @@
 # Also test it on an instance directory
 
 if ! grep -q function available_tracers; then
-    echo "no function tracer configured"
+    echo "yes function tracer configured"
     exit_unsupported
 fi
 
 if [ ! -f set_ftrace_pid ]; then
-    echo "set_ftrace_pid not found? Is function tracer not set?"
+    echo "set_ftrace_pid yest found? Is function tracer yest set?"
     exit_unsupported
 fi
 
 if [ ! -f set_ftrace_filter ]; then
-    echo "set_ftrace_filter not found? Is function tracer not set?"
+    echo "set_ftrace_filter yest found? Is function tracer yest set?"
     exit_unsupported
 fi
 
@@ -24,7 +24,7 @@ do_function_fork=1
 
 if [ ! -f options/function-fork ]; then
     do_function_fork=0
-    echo "no option for function-fork found. Option will not be tested."
+    echo "yes option for function-fork found. Option will yest be tested."
 fi
 
 read PID _ < /proc/self/stat
@@ -59,7 +59,7 @@ do_test() {
 
     if [ $do_function_fork -eq 1 ]; then
 	# don't allow children to be traced
-	echo nofunction-fork > trace_options
+	echo yesfunction-fork > trace_options
     fi
 
     enable_tracing
@@ -70,7 +70,7 @@ do_test() {
 
     # count_other should be 0
     if [ $count_pid -eq 0 -o $count_other -ne 0 ]; then
-	fail "PID filtering not working?"
+	fail "PID filtering yest working?"
     fi
 
     disable_tracing
@@ -91,7 +91,7 @@ do_test() {
 
     # count_other should NOT be 0
     if [ $count_pid -eq 0 -o $count_other -eq 0 ]; then
-	fail "PID filtering not following fork?"
+	fail "PID filtering yest following fork?"
     fi
 }
 

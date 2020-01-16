@@ -15,7 +15,7 @@
  * void __latent_entropy test(int argc, char *argv[])
  * {
  *	if (argc <= 1)
- *		printf("%s: no command arguments :(\n", *argv);
+ *		printf("%s: yes command arguments :(\n", *argv);
  *	else
  *		printf("%s: %d command arguments!\n", *argv, args - 1);
  * }
@@ -43,7 +43,7 @@
  *	if (argc <= 1) {
  *		// perturb_local_entropy()
  *		local_entropy += 4623067384293424948;
- *		printf("%s: no command arguments :(\n", *argv);
+ *		printf("%s: yes command arguments :(\n", *argv);
  *		// perturb_local_entropy()
  *	} else {
  *		local_entropy ^= 3896280633962944730;
@@ -56,13 +56,13 @@
  * }
  *
  * TODO:
- * - add ipa pass to identify not explicitly marked candidate functions
+ * - add ipa pass to identify yest explicitly marked candidate functions
  * - mix in more program state (function arguments/return values,
  *   loop variables, etc)
  * - more instrumentation control via attribute parameters
  *
  * BUGS:
- * - none known
+ * - yesne kyeswn
  *
  * Options:
  * -fplugin-arg-latent_entropy_plugin-disable
@@ -119,10 +119,10 @@ static tree tree_get_random_const(tree type)
 	return build_int_cst(type, mask & get_random_const());
 }
 
-static tree handle_latent_entropy_attribute(tree *node, tree name,
+static tree handle_latent_entropy_attribute(tree *yesde, tree name,
 						tree args __unused,
 						int flags __unused,
-						bool *no_add_attrs)
+						bool *yes_add_attrs)
 {
 	tree type;
 #if BUILDING_GCC_VERSION <= 4007
@@ -131,34 +131,34 @@ static tree handle_latent_entropy_attribute(tree *node, tree name,
 	vec<constructor_elt, va_gc> *vals;
 #endif
 
-	switch (TREE_CODE(*node)) {
+	switch (TREE_CODE(*yesde)) {
 	default:
-		*no_add_attrs = true;
+		*yes_add_attrs = true;
 		error("%qE attribute only applies to functions and variables",
 			name);
 		break;
 
 	case VAR_DECL:
-		if (DECL_INITIAL(*node)) {
-			*no_add_attrs = true;
-			error("variable %qD with %qE attribute must not be initialized",
-				*node, name);
+		if (DECL_INITIAL(*yesde)) {
+			*yes_add_attrs = true;
+			error("variable %qD with %qE attribute must yest be initialized",
+				*yesde, name);
 			break;
 		}
 
-		if (!TREE_STATIC(*node)) {
-			*no_add_attrs = true;
-			error("variable %qD with %qE attribute must not be local",
-				*node, name);
+		if (!TREE_STATIC(*yesde)) {
+			*yes_add_attrs = true;
+			error("variable %qD with %qE attribute must yest be local",
+				*yesde, name);
 			break;
 		}
 
-		type = TREE_TYPE(*node);
+		type = TREE_TYPE(*yesde);
 		switch (TREE_CODE(type)) {
 		default:
-			*no_add_attrs = true;
+			*yes_add_attrs = true;
 			error("variable %qD with %qE attribute must be an integer or a fixed length integer array type or a fixed sized structure with integer fields",
-				*node, name);
+				*yesde, name);
 			break;
 
 		case RECORD_TYPE: {
@@ -172,9 +172,9 @@ static tree handle_latent_entropy_attribute(tree *node, tree name,
 				if (TREE_CODE(fieldtype) == INTEGER_TYPE)
 					continue;
 
-				*no_add_attrs = true;
-				error("structure variable %qD with %qE attribute has a non-integer field %qE",
-					*node, name, fld);
+				*yes_add_attrs = true;
+				error("structure variable %qD with %qE attribute has a yesn-integer field %qE",
+					*yesde, name, fld);
 				break;
 			}
 
@@ -195,13 +195,13 @@ static tree handle_latent_entropy_attribute(tree *node, tree name,
 			}
 
 			/* Initialize the fields with random constants */
-			DECL_INITIAL(*node) = build_constructor(type, vals);
+			DECL_INITIAL(*yesde) = build_constructor(type, vals);
 			break;
 		}
 
 		/* Initialize the variable with a random constant */
 		case INTEGER_TYPE:
-			DECL_INITIAL(*node) = tree_get_random_const(type);
+			DECL_INITIAL(*yesde) = tree_get_random_const(type);
 			break;
 
 		case ARRAY_TYPE: {
@@ -215,9 +215,9 @@ static tree handle_latent_entropy_attribute(tree *node, tree name,
 
 			if (TREE_CODE(elt_type) != INTEGER_TYPE || !array_size
 				|| TREE_CODE(array_size) != INTEGER_CST) {
-				*no_add_attrs = true;
+				*yes_add_attrs = true;
 				error("array variable %qD with %qE attribute must be a fixed length integer array type",
-					*node, name);
+					*yesde, name);
 				break;
 			}
 
@@ -242,7 +242,7 @@ static tree handle_latent_entropy_attribute(tree *node, tree name,
 			 * Initialize the elements of the array with random
 			 * constants
 			 */
-			DECL_INITIAL(*node) = build_constructor(type, vals);
+			DECL_INITIAL(*yesde) = build_constructor(type, vals);
 			break;
 		}
 		}
@@ -270,11 +270,11 @@ static bool latent_entropy_gate(void)
 {
 	tree list;
 
-	/* don't bother with noreturn functions for now */
+	/* don't bother with yesreturn functions for yesw */
 	if (TREE_THIS_VOLATILE(current_function_decl))
 		return false;
 
-	/* gcc-4.5 doesn't discover some trivial noreturn functions */
+	/* gcc-4.5 doesn't discover some trivial yesreturn functions */
 	if (EDGE_COUNT(EXIT_BLOCK_PTR_FOR_FN(cfun)->preds) == 0)
 		return false;
 
@@ -301,7 +301,7 @@ static tree create_var(tree type, const char *name)
  *
  * The operation is one of add/xor/rol when instrumenting the local entropy
  * variable and one of add/xor when perturbing the global entropy variable.
- * Rotation is not used for the latter case because it would transmit less
+ * Rotation is yest used for the latter case because it would transmit less
  * entropy to the global variable than the other two operations.
  */
 static enum tree_code get_op(tree *rhs)
@@ -323,7 +323,7 @@ static enum tree_code get_op(tree *rhs)
 			 * This code limits the value of random_const to
 			 * the size of a long for the rotation
 			 */
-			random_const %= TYPE_PRECISION(long_unsigned_type_node);
+			random_const %= TYPE_PRECISION(long_unsigned_type_yesde);
 			break;
 		}
 
@@ -333,7 +333,7 @@ static enum tree_code get_op(tree *rhs)
 		break;
 	}
 	if (rhs)
-		*rhs = build_int_cstu(long_unsigned_type_node, random_const);
+		*rhs = build_int_cstu(long_unsigned_type_yesde, random_const);
 	return op;
 }
 
@@ -365,7 +365,7 @@ static void __perturb_latent_entropy(gimple_stmt_iterator *gsi,
 	enum tree_code op;
 
 	/* 1. create temporary copy of latent_entropy */
-	temp = create_var(long_unsigned_type_node, "temp_latent_entropy");
+	temp = create_var(long_unsigned_type_yesde, "temp_latent_entropy");
 
 	/* 2. read... */
 	add_referenced_var(latent_entropy_decl);
@@ -443,22 +443,22 @@ static void init_local_entropy(basic_block bb, tree local_entropy)
 	gimple_stmt_iterator gsi = gsi_after_labels(bb);
 
 	/* 1. create local_entropy_frameaddr */
-	frame_addr = create_var(ptr_type_node, "local_entropy_frameaddr");
+	frame_addr = create_var(ptr_type_yesde, "local_entropy_frameaddr");
 
 	/* 2. local_entropy_frameaddr = __builtin_frame_address() */
 	fndecl = builtin_decl_implicit(BUILT_IN_FRAME_ADDRESS);
-	call = gimple_build_call(fndecl, 1, integer_zero_node);
+	call = gimple_build_call(fndecl, 1, integer_zero_yesde);
 	gimple_call_set_lhs(call, frame_addr);
 	gsi_insert_before(&gsi, call, GSI_NEW_STMT);
 	update_stmt(call);
 
-	udi_frame_addr = fold_convert(long_unsigned_type_node, frame_addr);
+	udi_frame_addr = fold_convert(long_unsigned_type_yesde, frame_addr);
 	assign = gimple_build_assign(local_entropy, udi_frame_addr);
 	gsi_insert_after(&gsi, assign, GSI_NEW_STMT);
 	update_stmt(assign);
 
 	/* 3. create temporary copy of latent_entropy */
-	tmp = create_var(long_unsigned_type_node, "temp_latent_entropy");
+	tmp = create_var(long_unsigned_type_yesde, "temp_latent_entropy");
 
 	/* 4. read the global entropy variable into local entropy */
 	add_referenced_var(latent_entropy_decl);
@@ -473,7 +473,7 @@ static void init_local_entropy(basic_block bb, tree local_entropy)
 	update_stmt(assign);
 
 	rand_cst = get_random_const();
-	rand_const = build_int_cstu(long_unsigned_type_node, rand_cst);
+	rand_const = build_int_cstu(long_unsigned_type_yesde, rand_cst);
 	op = get_op(NULL);
 	assign = create_assign(op, local_entropy, local_entropy, rand_const);
 	gsi_insert_after(&gsi, assign, GSI_NEW_STMT);
@@ -482,13 +482,13 @@ static void init_local_entropy(basic_block bb, tree local_entropy)
 
 static bool create_latent_entropy_decl(void)
 {
-	varpool_node_ptr node;
+	varpool_yesde_ptr yesde;
 
 	if (latent_entropy_decl != NULL_TREE)
 		return true;
 
-	FOR_EACH_VARIABLE(node) {
-		tree name, var = NODE_DECL(node);
+	FOR_EACH_VARIABLE(yesde) {
+		tree name, var = NODE_DECL(yesde);
 
 		if (DECL_NAME_LENGTH(var) < sizeof("latent_entropy") - 1)
 			continue;
@@ -522,7 +522,7 @@ static unsigned int latent_entropy_execute(void)
 	}
 
 	/* 1. create the local entropy variable */
-	local_entropy = create_var(long_unsigned_type_node, "local_entropy");
+	local_entropy = create_var(long_unsigned_type_yesde, "local_entropy");
 
 	/* 2. initialize the local entropy variable */
 	init_local_entropy(bb, local_entropy);
@@ -555,8 +555,8 @@ static void latent_entropy_start_unit(void *gcc_data __unused,
 		return;
 
 	/* extern volatile unsigned long latent_entropy */
-	quals = TYPE_QUALS(long_unsigned_type_node) | TYPE_QUAL_VOLATILE;
-	type = build_qualified_type(long_unsigned_type_node, quals);
+	quals = TYPE_QUALS(long_unsigned_type_yesde) | TYPE_QUAL_VOLATILE;
+	type = build_qualified_type(long_unsigned_type_yesde, quals);
 	id = get_identifier("latent_entropy");
 	latent_entropy_decl = build_decl(UNKNOWN_LOCATION, VAR_DECL, id, type);
 
@@ -590,8 +590,8 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 			.base = &latent_entropy_decl,
 			.nelt = 1,
 			.stride = sizeof(latent_entropy_decl),
-			.cb = &gt_ggc_mx_tree_node,
-			.pchw = &gt_pch_nx_tree_node
+			.cb = &gt_ggc_mx_tree_yesde,
+			.pchw = &gt_pch_nx_tree_yesde
 		},
 		LAST_GGC_ROOT_TAB
 	};
@@ -608,7 +608,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 			enabled = false;
 			continue;
 		}
-		error(G_("unknown option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
+		error(G_("unkyeswn option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
 	}
 
 	register_callback(plugin_name, PLUGIN_INFO, NULL,

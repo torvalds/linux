@@ -29,7 +29,7 @@ struct fscache_objlist_data {
 #define FSCACHE_OBJLIST_CONFIG_READS	0x00000100	/* show objects with active reads */
 #define FSCACHE_OBJLIST_CONFIG_NOREADS	0x00000200	/* show objects without active reads */
 #define FSCACHE_OBJLIST_CONFIG_EVENTS	0x00000400	/* show objects with events */
-#define FSCACHE_OBJLIST_CONFIG_NOEVENTS	0x00000800	/* show objects without no events */
+#define FSCACHE_OBJLIST_CONFIG_NOEVENTS	0x00000800	/* show objects without yes events */
 #define FSCACHE_OBJLIST_CONFIG_WORK	0x00001000	/* show objects with work */
 #define FSCACHE_OBJLIST_CONFIG_NOWORK	0x00002000	/* show objects without work */
 };
@@ -42,7 +42,7 @@ struct fscache_objlist_data {
 void fscache_objlist_add(struct fscache_object *obj)
 {
 	struct fscache_object *xobj;
-	struct rb_node **p = &fscache_object_list.rb_node, *parent = NULL;
+	struct rb_yesde **p = &fscache_object_list.rb_yesde, *parent = NULL;
 
 	ASSERT(RB_EMPTY_NODE(&obj->objlist_link));
 
@@ -60,7 +60,7 @@ void fscache_objlist_add(struct fscache_object *obj)
 			BUG();
 	}
 
-	rb_link_node(&obj->objlist_link, parent, p);
+	rb_link_yesde(&obj->objlist_link, parent, p);
 	rb_insert_color(&obj->objlist_link, &fscache_object_list);
 
 	write_unlock(&fscache_object_list_lock);
@@ -87,8 +87,8 @@ void fscache_objlist_remove(struct fscache_object *obj)
  */
 static struct fscache_object *fscache_objlist_lookup(loff_t *_pos)
 {
-	struct fscache_object *pobj, *obj = NULL, *minobj = NULL;
-	struct rb_node *p;
+	struct fscache_object *pobj, *obj = NULL, *miyesbj = NULL;
+	struct rb_yesde *p;
 	unsigned long pos;
 
 	if (*_pos >= (unsigned long) ERR_PTR(-ENOENT))
@@ -103,27 +103,27 @@ static struct fscache_object *fscache_objlist_lookup(loff_t *_pos)
 		return (struct fscache_object *)pos;
 
 	pobj = (struct fscache_object *)pos;
-	p = fscache_object_list.rb_node;
+	p = fscache_object_list.rb_yesde;
 	while (p) {
 		obj = rb_entry(p, struct fscache_object, objlist_link);
 		if (pobj < obj) {
-			if (!minobj || minobj > obj)
-				minobj = obj;
+			if (!miyesbj || miyesbj > obj)
+				miyesbj = obj;
 			p = p->rb_left;
 		} else if (pobj > obj) {
 			p = p->rb_right;
 		} else {
-			minobj = obj;
+			miyesbj = obj;
 			break;
 		}
 		obj = NULL;
 	}
 
-	if (!minobj)
+	if (!miyesbj)
 		*_pos = (unsigned long) ERR_PTR(-ENOENT);
-	else if (minobj != obj)
-		*_pos = (unsigned long) minobj;
-	return minobj;
+	else if (miyesbj != obj)
+		*_pos = (unsigned long) miyesbj;
+	return miyesbj;
 }
 
 /*
@@ -197,15 +197,15 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 	}
 
 	/* filter out any unwanted objects */
-#define FILTER(criterion, _yes, _no)					\
+#define FILTER(criterion, _no, _yes)					\
 	do {								\
-		unsigned long yes = FSCACHE_OBJLIST_CONFIG_##_yes;	\
 		unsigned long no = FSCACHE_OBJLIST_CONFIG_##_no;	\
+		unsigned long yes = FSCACHE_OBJLIST_CONFIG_##_yes;	\
 		if (criterion) {					\
-			if (!(config & yes))				\
+			if (!(config & no))				\
 				return 0;				\
 		} else {						\
-			if (!(config & no))				\
+			if (!(config & yes))				\
 				return 0;				\
 		}							\
 	} while(0)
@@ -293,7 +293,7 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 		seq_puts(m, "\n");
 		fscache_unuse_cookie(obj);
 	} else {
-		seq_puts(m, "<no_netfs>\n");
+		seq_puts(m, "<yes_netfs>\n");
 	}
 	return 0;
 }
@@ -319,7 +319,7 @@ static void fscache_objlist_config(struct fscache_objlist_data *data)
 
 	key = request_key(&key_type_user, "fscache:objlist", NULL);
 	if (IS_ERR(key))
-		goto no_config;
+		goto yes_config;
 
 	config = 0;
 	rcu_read_lock();
@@ -329,7 +329,7 @@ static void fscache_objlist_config(struct fscache_objlist_data *data)
 		/* key was revoked */
 		rcu_read_unlock();
 		key_put(key);
-		goto no_config;
+		goto yes_config;
 	}
 
 	buf = confkey->data;
@@ -370,7 +370,7 @@ static void fscache_objlist_config(struct fscache_objlist_data *data)
 	data->config = config;
 	return;
 
-no_config:
+yes_config:
 #endif
 	data->config = ULONG_MAX;
 }
@@ -379,7 +379,7 @@ no_config:
  * open "/proc/fs/fscache/objects" to provide a list of active objects
  * - can be configured by a user-defined key added to the caller's keyrings
  */
-static int fscache_objlist_open(struct inode *inode, struct file *file)
+static int fscache_objlist_open(struct iyesde *iyesde, struct file *file)
 {
 	struct fscache_objlist_data *data;
 
@@ -396,13 +396,13 @@ static int fscache_objlist_open(struct inode *inode, struct file *file)
 /*
  * clean up on close
  */
-static int fscache_objlist_release(struct inode *inode, struct file *file)
+static int fscache_objlist_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 
 	kfree(m->private);
 	m->private = NULL;
-	return seq_release(inode, file);
+	return seq_release(iyesde, file);
 }
 
 const struct file_operations fscache_objlist_fops = {

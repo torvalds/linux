@@ -277,7 +277,7 @@ struct dsi_clk_calc_ctx {
 
 	const struct omap_dss_dsi_config *config;
 
-	unsigned long req_pck_min, req_pck_nom, req_pck_max;
+	unsigned long req_pck_min, req_pck_yesm, req_pck_max;
 
 	/* outputs */
 
@@ -299,7 +299,7 @@ struct dsi_module_id_data {
 };
 
 enum dsi_quirks {
-	DSI_QUIRK_PLL_PWR_BUG = (1 << 0),	/* DSI-PLL power command 0x3 is not working */
+	DSI_QUIRK_PLL_PWR_BUG = (1 << 0),	/* DSI-PLL power command 0x3 is yest working */
 	DSI_QUIRK_DCS_CMD_CONFIG_VC = (1 << 1),
 	DSI_QUIRK_VC_OCP_WIDTH = (1 << 2),
 	DSI_QUIRK_REVERSE_TXCLKESC = (1 << 3),
@@ -786,7 +786,7 @@ static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 
 	irqstatus = dsi_read_reg(dsi, DSI_IRQSTATUS);
 
-	/* IRQ is not for us */
+	/* IRQ is yest for us */
 	if (!irqstatus) {
 		spin_unlock(&dsi->irq_lock);
 		return IRQ_NONE;
@@ -1282,7 +1282,7 @@ static int dsi_pll_power(struct dsi_data *dsi, enum dsi_pll_power_state state)
 {
 	int t = 0;
 
-	/* DSI-PLL power command 0x3 is not working */
+	/* DSI-PLL power command 0x3 is yest working */
 	if ((dsi->data->quirks & DSI_QUIRK_PLL_PWR_BUG) &&
 	    state == DSI_PLL_POWER_ON_DIV)
 		state = DSI_PLL_POWER_ON_ALL;
@@ -1327,7 +1327,7 @@ static int dsi_pll_enable(struct dss_pll *pll)
 		return r;
 
 	/*
-	 * Note: SCP CLK is not required on OMAP3, but it is required on OMAP4.
+	 * Note: SCP CLK is yest required on OMAP3, but it is required on OMAP4.
 	 */
 	dsi_enable_scp_clk(dsi);
 
@@ -1335,17 +1335,17 @@ static int dsi_pll_enable(struct dss_pll *pll)
 	if (r)
 		goto err0;
 
-	/* XXX PLL does not come out of reset without this... */
+	/* XXX PLL does yest come out of reset without this... */
 	dispc_pck_free_enable(dsi->dss->dispc, 1);
 
 	if (!wait_for_bit_change(dsi, DSI_PLL_STATUS, 0, 1)) {
-		DSSERR("PLL not coming out of reset.\n");
+		DSSERR("PLL yest coming out of reset.\n");
 		r = -ENODEV;
 		dispc_pck_free_enable(dsi->dss->dispc, 0);
 		goto err1;
 	}
 
-	/* XXX ... but if left on, we get problems when planes do not
+	/* XXX ... but if left on, we get problems when planes do yest
 	 * fill the whole display. No idea about this */
 	dispc_pck_free_enable(dsi->dss->dispc, 0);
 
@@ -1904,7 +1904,7 @@ static int dsi_cio_wait_tx_clk_esc_reset(struct dsi_data *dsi)
 				if (!in_use[i] || (l & (1 << offsets[i])))
 					continue;
 
-				DSSERR("CIO TXCLKESC%d domain not coming " \
+				DSSERR("CIO TXCLKESC%d domain yest coming " \
 						"out of reset\n", i);
 			}
 			return -EIO;
@@ -2024,7 +2024,7 @@ static int dsi_cio_init(struct dsi_data *dsi)
 	dsi_read_reg(dsi, DSI_DSIPHY_CFG5);
 
 	if (!wait_for_bit_change(dsi, DSI_DSIPHY_CFG5, 30, 1)) {
-		DSSERR("CIO SCP Clock domain not coming out of reset.\n");
+		DSSERR("CIO SCP Clock domain yest coming out of reset.\n");
 		r = -EIO;
 		goto err_scp_clk_dom;
 	}
@@ -2048,9 +2048,9 @@ static int dsi_cio_init(struct dsi_data *dsi)
 		DSSDBG("manual ulps exit\n");
 
 		/* ULPS is exited by Mark-1 state for 1ms, followed by
-		 * stop state. DSS HW cannot do this via the normal
+		 * stop state. DSS HW canyest do this via the yesrmal
 		 * ULPS exit sequence, as after reset the DSS HW thinks
-		 * that we are not in ULPS mode, and refuses to send the
+		 * that we are yest in ULPS mode, and refuses to send the
 		 * sequence. So we need to send the ULPS exit sequence
 		 * manually by setting positive lines high and negative lines
 		 * low for 1ms.
@@ -2072,7 +2072,7 @@ static int dsi_cio_init(struct dsi_data *dsi)
 		goto err_cio_pwr;
 
 	if (!wait_for_bit_change(dsi, DSI_COMPLEXIO_CFG1, 29, 1)) {
-		DSSERR("CIO PWR clock domain not coming out of reset.\n");
+		DSSERR("CIO PWR clock domain yest coming out of reset.\n");
 		r = -ENODEV;
 		goto err_cio_pwr_dom;
 	}
@@ -2209,7 +2209,7 @@ static int dsi_force_tx_stop_mode_io(struct dsi_data *dsi)
 	dsi_write_reg(dsi, DSI_TIMING1, r);
 
 	if (!wait_for_bit_change(dsi, DSI_TIMING1, 15, 0)) {
-		DSSERR("TX_STOP bit not going down\n");
+		DSSERR("TX_STOP bit yest going down\n");
 		return -EIO;
 	}
 
@@ -2376,8 +2376,8 @@ static void dsi_vc_initial_config(struct dsi_data *dsi, int channel)
 	if (dsi->data->quirks & DSI_QUIRK_VC_OCP_WIDTH)
 		r = FLD_MOD(r, 3, 11, 10);	/* OCP_WIDTH = 32 bit */
 
-	r = FLD_MOD(r, 4, 29, 27); /* DMA_RX_REQ_NB = no dma */
-	r = FLD_MOD(r, 4, 23, 21); /* DMA_TX_REQ_NB = no dma */
+	r = FLD_MOD(r, 4, 29, 27); /* DMA_RX_REQ_NB = yes dma */
+	r = FLD_MOD(r, 4, 23, 21); /* DMA_TX_REQ_NB = yes dma */
 
 	dsi_write_reg(dsi, DSI_VC_CTRL(channel), r);
 
@@ -2477,11 +2477,11 @@ static void dsi_show_rx_ack_with_err(u16 err)
 	if (err & (1 << 8))
 		DSSERR("\t\tECC Error, single-bit (corrected)\n");
 	if (err & (1 << 9))
-		DSSERR("\t\tECC Error, multi-bit (not corrected)\n");
+		DSSERR("\t\tECC Error, multi-bit (yest corrected)\n");
 	if (err & (1 << 10))
 		DSSERR("\t\tChecksum Error\n");
 	if (err & (1 << 11))
-		DSSERR("\t\tData type not recognized\n");
+		DSSERR("\t\tData type yest recognized\n");
 	if (err & (1 << 12))
 		DSSERR("\t\tInvalid VC ID\n");
 	if (err & (1 << 13))
@@ -2515,7 +2515,7 @@ static u16 dsi_vc_flush_receive_data(struct dsi_data *dsi, int channel)
 					FLD_GET(val, 23, 8));
 			dsi_vc_flush_long_data(dsi, channel);
 		} else {
-			DSSERR("\tunknown datatype 0x%02x\n", dt);
+			DSSERR("\tunkyeswn datatype 0x%02x\n", dt);
 		}
 	}
 	return 0;
@@ -2530,7 +2530,7 @@ static int dsi_vc_send_bta(struct dsi_data *dsi, int channel)
 
 	/* RX_FIFO_NOT_EMPTY */
 	if (REG_GET(dsi, DSI_VC_CTRL(channel), 20, 20)) {
-		DSSERR("rx fifo not empty when sending BTA, dumping data:\n");
+		DSSERR("rx fifo yest empty when sending BTA, dumping data:\n");
 		dsi_vc_flush_receive_data(dsi, channel);
 	}
 
@@ -2712,7 +2712,7 @@ static int dsi_vc_send_null(struct dsi_data *dsi, int channel)
 	return dsi_vc_send_long(dsi, channel, MIPI_DSI_NULL_PACKET, NULL, 0, 0);
 }
 
-static int dsi_vc_write_nosync_common(struct dsi_data *dsi, int channel,
+static int dsi_vc_write_yessync_common(struct dsi_data *dsi, int channel,
 				      u8 *data, int len,
 				      enum dss_dsi_content_type type)
 {
@@ -2743,21 +2743,21 @@ static int dsi_vc_write_nosync_common(struct dsi_data *dsi, int channel,
 	return r;
 }
 
-static int dsi_vc_dcs_write_nosync(struct omap_dss_device *dssdev, int channel,
+static int dsi_vc_dcs_write_yessync(struct omap_dss_device *dssdev, int channel,
 		u8 *data, int len)
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 
-	return dsi_vc_write_nosync_common(dsi, channel, data, len,
+	return dsi_vc_write_yessync_common(dsi, channel, data, len,
 			DSS_DSI_CONTENT_DCS);
 }
 
-static int dsi_vc_generic_write_nosync(struct omap_dss_device *dssdev, int channel,
+static int dsi_vc_generic_write_yessync(struct omap_dss_device *dssdev, int channel,
 		u8 *data, int len)
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 
-	return dsi_vc_write_nosync_common(dsi, channel, data, len,
+	return dsi_vc_write_yessync_common(dsi, channel, data, len,
 			DSS_DSI_CONTENT_GENERIC);
 }
 
@@ -2768,7 +2768,7 @@ static int dsi_vc_write_common(struct omap_dss_device *dssdev,
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 	int r;
 
-	r = dsi_vc_write_nosync_common(dsi, channel, data, len, type);
+	r = dsi_vc_write_yessync_common(dsi, channel, data, len, type);
 	if (r)
 		goto err;
 
@@ -2778,7 +2778,7 @@ static int dsi_vc_write_common(struct omap_dss_device *dssdev,
 
 	/* RX_FIFO_NOT_EMPTY */
 	if (REG_GET(dsi, DSI_VC_CTRL(channel), 20, 20)) {
-		DSSERR("rx fifo not empty after write, dumping data:\n");
+		DSSERR("rx fifo yest empty after write, dumping data:\n");
 		dsi_vc_flush_receive_data(dsi, channel);
 		r = -EIO;
 		goto err;
@@ -2933,7 +2933,7 @@ static int dsi_vc_read_rx_fifo(struct dsi_data *dsi, int channel, u8 *buf,
 			goto err;
 		}
 
-		/* two byte checksum ends the packet, not included in len */
+		/* two byte checksum ends the packet, yest included in len */
 		for (w = 0; w < len + 2;) {
 			int b;
 			val = dsi_read_reg(dsi,
@@ -2955,7 +2955,7 @@ static int dsi_vc_read_rx_fifo(struct dsi_data *dsi, int channel, u8 *buf,
 
 		return len;
 	} else {
-		DSSERR("\tunknown datatype 0x%02x\n", dt);
+		DSSERR("\tunkyeswn datatype 0x%02x\n", dt);
 		r = -EIO;
 		goto err;
 	}
@@ -3854,10 +3854,10 @@ static void dsi_update_screen_dispc(struct dsi_data *dsi)
 		l = FLD_MOD(l, 1, 31, 31); /* TE_START */
 	dsi_write_reg(dsi, DSI_VC_TE(channel), l);
 
-	/* We put SIDLEMODE to no-idle for the duration of the transfer,
-	 * because DSS interrupts are not capable of waking up the CPU and the
+	/* We put SIDLEMODE to yes-idle for the duration of the transfer,
+	 * because DSS interrupts are yest capable of waking up the CPU and the
 	 * framedone interrupt could be delayed for quite a long time. I think
-	 * the same goes for any DSS interrupts, but for some reason I have not
+	 * the same goes for any DSS interrupts, but for some reason I have yest
 	 * seen the problem anywhere else than here.
 	 */
 	dispc_disable_sidle(dsi->dss->dispc);
@@ -3886,7 +3886,7 @@ static void dsi_update_screen_dispc(struct dsi_data *dsi)
 #ifdef DSI_CATCH_MISSING_TE
 static void dsi_te_timeout(struct timer_list *unused)
 {
-	DSSERR("TE not received for 250ms!\n");
+	DSSERR("TE yest received for 250ms!\n");
 }
 #endif
 
@@ -3917,7 +3917,7 @@ static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 	 * on the HW is buggy, and would probably require resetting the whole
 	 * DSI */
 
-	DSSERR("Framedone not received for 250ms!\n");
+	DSSERR("Framedone yest received for 250ms!\n");
 
 	dsi_handle_framedone(dsi, -ETIMEDOUT);
 }
@@ -4268,7 +4268,7 @@ static void print_dispc_vm(const char *str, const struct videomode *vm)
 #undef TO_DISPC_T
 }
 
-/* note: this is not quite accurate */
+/* yeste: this is yest quite accurate */
 static void print_dsi_dispc_vm(const char *str,
 		const struct omap_dss_dsi_videomode_timings *t)
 {
@@ -4358,7 +4358,7 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 
 	/*
 	 * Here we should calculate minimum txbyteclk to be able to send the
-	 * frame in time, and also to handle TE. That's not very simple, though,
+	 * frame in time, and also to handle TE. That's yest very simple, though,
 	 * especially as we go to LP between each pixel packet due to HW
 	 * "feature". So let's just estimate very roughly and multiply by 1.5.
 	 */
@@ -4371,7 +4371,7 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 	ctx->pll = &dsi->pll;
 	ctx->config = cfg;
 	ctx->req_pck_min = pck;
-	ctx->req_pck_nom = pck;
+	ctx->req_pck_yesm = pck;
 	ctx->req_pck_max = pck * 3 / 2;
 
 	pll_min = max(cfg->hs_clk_min * 4, txbyteclk * 4 * 4);
@@ -4391,7 +4391,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	unsigned long hsclk = ctx->dsi_cinfo.clkdco / 4;
 	unsigned long byteclk = hsclk / 4;
 
-	unsigned long dispc_pck, req_pck_min, req_pck_nom, req_pck_max;
+	unsigned long dispc_pck, req_pck_min, req_pck_yesm, req_pck_max;
 	int xres;
 	int panel_htot, panel_hbl; /* pixels */
 	int dispc_htot, dispc_hbl; /* pixels */
@@ -4407,7 +4407,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	req_vm = cfg->vm;
 	req_pck_min = ctx->req_pck_min;
 	req_pck_max = ctx->req_pck_max;
-	req_pck_nom = ctx->req_pck_nom;
+	req_pck_yesm = ctx->req_pck_yesm;
 
 	dispc_pck = ctx->dispc_cinfo.pck;
 	dispc_tput = (u64)dispc_pck * bitspp;
@@ -4421,7 +4421,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	dsi_hact = DIV_ROUND_UP(DIV_ROUND_UP(xres * bitspp, 8) + 6, ndl);
 
 	/*
-	 * When there are no line buffers, DISPC and DSI must have the
+	 * When there are yes line buffers, DISPC and DSI must have the
 	 * same tput. Otherwise DISPC tput needs to be higher than DSI's.
 	 */
 	if (dsi->line_buffer_size < xres * bitspp / 8) {
@@ -4436,7 +4436,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	if (dsi_tput < (u64)bitspp * req_pck_min)
 		return false;
 
-	/* When non-burst mode, DSI tput must be below max requirement. */
+	/* When yesn-burst mode, DSI tput must be below max requirement. */
 	if (cfg->trans_mode != OMAP_DSS_DSI_BURST_MODE) {
 		if (dsi_tput > (u64)bitspp * req_pck_max)
 			return false;
@@ -4453,10 +4453,10 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 		hse = 0;
 	}
 
-	/* DSI htot to match the panel's nominal pck */
-	dsi_htot = div64_u64((u64)panel_htot * byteclk, req_pck_nom);
+	/* DSI htot to match the panel's yesminal pck */
+	dsi_htot = div64_u64((u64)panel_htot * byteclk, req_pck_yesm);
 
-	/* fail if there would be no time for blanking */
+	/* fail if there would be yes time for blanking */
 	if (dsi_htot < hss + hse + dsi_hact)
 		return false;
 
@@ -4487,11 +4487,11 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	} else if (ndl == 3 && req_vm->hsync_len == 0) {
 		hsa = 0;
 	} else {
-		hsa = div64_u64((u64)req_vm->hsync_len * byteclk, req_pck_nom);
+		hsa = div64_u64((u64)req_vm->hsync_len * byteclk, req_pck_yesm);
 		hsa = max(hsa - hse, 1);
 	}
 
-	hbp = div64_u64((u64)req_vm->hback_porch * byteclk, req_pck_nom);
+	hbp = div64_u64((u64)req_vm->hback_porch * byteclk, req_pck_yesm);
 	hbp = max(hbp, 1);
 
 	hfp = dsi_hbl - (hss + hsa + hse + hbp);
@@ -4544,13 +4544,13 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	if (cfg->trans_mode == OMAP_DSS_DSI_PULSE_MODE) {
 		hsa = div64_u64((u64)req_vm->hsync_len * dispc_pck,
-				req_pck_nom);
+				req_pck_yesm);
 		hsa = max(hsa, 1);
 	} else {
 		hsa = 1;
 	}
 
-	hbp = div64_u64((u64)req_vm->hback_porch * dispc_pck, req_pck_nom);
+	hbp = div64_u64((u64)req_vm->hback_porch * dispc_pck, req_pck_yesm);
 	hbp = max(hbp, 1);
 
 	hfp = dispc_hbl - hsa - hbp;
@@ -4615,7 +4615,7 @@ static bool dsi_vm_calc_hsdiv_cb(int m_dispc, unsigned long dispc,
 
 	/*
 	 * In burst mode we can let the dispc pck be arbitrarily high, but it
-	 * limits our scaling abilities. So for now, don't aim too high.
+	 * limits our scaling abilities. So for yesw, don't aim too high.
 	 */
 
 	if (ctx->config->trans_mode == OMAP_DSS_DSI_BURST_MODE)
@@ -4665,7 +4665,7 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 
 	/* these limits should come from the panel driver */
 	ctx->req_pck_min = vm->pixelclock - 1000;
-	ctx->req_pck_nom = vm->pixelclock;
+	ctx->req_pck_yesm = vm->pixelclock;
 	ctx->req_pck_max = vm->pixelclock + 1000;
 
 	byteclk_min = div64_u64((u64)ctx->req_pck_min * bitspp, ndl * 8);
@@ -4811,7 +4811,7 @@ static int dsi_request_vc(struct omap_dss_device *dssdev, int *channel)
 		}
 	}
 
-	DSSERR("cannot get VC for display %s", dssdev->name);
+	DSSERR("canyest get VC for display %s", dssdev->name);
 	return -ENOSPC;
 }
 
@@ -4830,7 +4830,7 @@ static int dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id)
 	}
 
 	if (dsi->vc[channel].dssdev != dssdev) {
-		DSSERR("Virtual Channel not allocated to display %s\n",
+		DSSERR("Virtual Channel yest allocated to display %s\n",
 			dssdev->name);
 		return -EINVAL;
 	}
@@ -4907,11 +4907,11 @@ static const struct omap_dss_device_ops dsi_ops = {
 		.release_vc = dsi_release_vc,
 
 		.dcs_write = dsi_vc_dcs_write,
-		.dcs_write_nosync = dsi_vc_dcs_write_nosync,
+		.dcs_write_yessync = dsi_vc_dcs_write_yessync,
 		.dcs_read = dsi_vc_dcs_read,
 
 		.gen_write = dsi_vc_generic_write,
-		.gen_write_nosync = dsi_vc_generic_write_nosync,
+		.gen_write_yessync = dsi_vc_generic_write_yessync,
 		.gen_read = dsi_vc_generic_read,
 
 		.bta_sync = dsi_vc_send_bta_sync,
@@ -5140,15 +5140,15 @@ static void dsi_uninit_output(struct dsi_data *dsi)
 
 static int dsi_probe_of(struct dsi_data *dsi)
 {
-	struct device_node *node = dsi->dev->of_node;
+	struct device_yesde *yesde = dsi->dev->of_yesde;
 	struct property *prop;
 	u32 lane_arr[10];
 	int len, num_pins;
 	int r, i;
-	struct device_node *ep;
+	struct device_yesde *ep;
 	struct omap_dsi_pin_config pin_cfg;
 
-	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(yesde, 0, 0);
 	if (!ep)
 		return 0;
 
@@ -5184,12 +5184,12 @@ static int dsi_probe_of(struct dsi_data *dsi)
 		goto err;
 	}
 
-	of_node_put(ep);
+	of_yesde_put(ep);
 
 	return 0;
 
 err:
-	of_node_put(ep);
+	of_yesde_put(ep);
 	return r;
 }
 
@@ -5334,7 +5334,7 @@ static int dsi_probe(struct platform_device *pdev)
 	if (soc)
 		dsi->data = soc->data;
 	else
-		dsi->data = of_match_node(dsi_of_match, dev->of_node)->data;
+		dsi->data = of_match_yesde(dsi_of_match, dev->of_yesde)->data;
 
 	d = dsi->data->modules;
 	while (d->address != 0 && d->address != dsi_mem->start)
@@ -5349,20 +5349,20 @@ static int dsi_probe(struct platform_device *pdev)
 
 	if (dsi->data->model == DSI_MODEL_OMAP4 ||
 	    dsi->data->model == DSI_MODEL_OMAP5) {
-		struct device_node *np;
+		struct device_yesde *np;
 
 		/*
 		 * The OMAP4/5 display DT bindings don't reference the padconf
 		 * syscon. Our only option to retrieve it is to find it by name.
 		 */
-		np = of_find_node_by_name(NULL,
+		np = of_find_yesde_by_name(NULL,
 			dsi->data->model == DSI_MODEL_OMAP4 ?
 			"omap4_padconf_global" : "omap5_padconf_global");
 		if (!np)
 			return -ENODEV;
 
-		dsi->syscon = syscon_node_to_regmap(np);
-		of_node_put(np);
+		dsi->syscon = syscon_yesde_to_regmap(np);
+		of_yesde_put(np);
 	}
 
 	/* DSI VCs initialization */
@@ -5389,7 +5389,7 @@ static int dsi_probe(struct platform_device *pdev)
 		dsi->num_lanes_supported = 3;
 	}
 
-	r = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	r = of_platform_populate(dev->of_yesde, NULL, NULL, dev);
 	if (r) {
 		DSSERR("Failed to populate DSI child devices: %d\n", r);
 		goto err_pm_disable;

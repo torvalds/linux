@@ -54,7 +54,7 @@
  *	  v4    - ARMv4 without write buffer
  *	  v4wb  - ARMv4 with write buffer without I TLB flush entry instruction
  *	  v4wbi - ARMv4 with write buffer with I TLB flush entry instruction
- *	  fr    - Feroceon (v4wbi with non-outer-cacheable page table walks)
+ *	  fr    - Feroceon (v4wbi with yesn-outer-cacheable page table walks)
  *	  fa    - Faraday (v4 with write buffer with UTLB)
  *	  v6wbi - ARMv6 with write buffer with I TLB flush entry instruction
  *	  v7wbi - identical to v6wbi
@@ -197,7 +197,7 @@
 #endif
 
 #ifndef _TLB
-#error Unknown TLB model
+#error Unkyeswn TLB model
 #endif
 
 #ifndef __ASSEMBLY__
@@ -258,13 +258,13 @@ extern struct cpu_tlb_fns cpu_tlb;
  *		Invalidate a range of TLB entries in the specified
  *		address space.
  *		- mm	- mm_struct describing address space
- *		- start - start address (may not be aligned)
- *		- end	- end address (exclusive, may not be aligned)
+ *		- start - start address (may yest be aligned)
+ *		- end	- end address (exclusive, may yest be aligned)
  *
  *	flush_tlb_page(vaddr,vma)
  *
  *		Invalidate the specified page in the specified address range.
- *		- vaddr - virtual address (may not be aligned)
+ *		- vaddr - virtual address (may yest be aligned)
  *		- vma	- vma_struct describing address range
  *
  *	flush_kern_tlb_page(kaddr)
@@ -530,7 +530,7 @@ static inline void __flush_tlb_kernel_page(unsigned long kaddr)
 
 /*
  * Branch predictor maintenance is paired with full TLB invalidation, so
- * there is no need for any barriers here.
+ * there is yes need for any barriers here.
  */
 static inline void __local_flush_bp_all(void)
 {
@@ -623,7 +623,7 @@ extern void flush_bp_all(void);
 #endif
 
 /*
- * If PG_dcache_clean is not set for the page, we need to ensure that any
+ * If PG_dcache_clean is yest set for the page, we need to ensure that any
  * cache entries for the kernels virtual memory range are written
  * back to the page. On ARMv6 and later, the cache coherency is handled via
  * the set_pte_at() function.

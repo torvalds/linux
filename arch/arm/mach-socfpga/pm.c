@@ -26,37 +26,37 @@ static int socfpga_setup_ocram_self_refresh(void)
 {
 	struct platform_device *pdev;
 	phys_addr_t ocram_pbase;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct gen_pool *ocram_pool;
 	unsigned long ocram_base;
 	void __iomem *suspend_ocram_base;
 	int ret = 0;
 
-	np = of_find_compatible_node(NULL, NULL, "mmio-sram");
+	np = of_find_compatible_yesde(NULL, NULL, "mmio-sram");
 	if (!np) {
 		pr_err("%s: Unable to find mmio-sram in dtb\n", __func__);
 		return -ENODEV;
 	}
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev) {
 		pr_warn("%s: failed to find ocram device!\n", __func__);
 		ret = -ENODEV;
-		goto put_node;
+		goto put_yesde;
 	}
 
 	ocram_pool = gen_pool_get(&pdev->dev, NULL);
 	if (!ocram_pool) {
 		pr_warn("%s: ocram pool unavailable!\n", __func__);
 		ret = -ENODEV;
-		goto put_node;
+		goto put_yesde;
 	}
 
 	ocram_base = gen_pool_alloc(ocram_pool, socfpga_sdram_self_refresh_sz);
 	if (!ocram_base) {
 		pr_warn("%s: unable to alloc ocram!\n", __func__);
 		ret = -ENOMEM;
-		goto put_node;
+		goto put_yesde;
 	}
 
 	ocram_pbase = gen_pool_virt_to_phys(ocram_pool, ocram_base);
@@ -67,7 +67,7 @@ static int socfpga_setup_ocram_self_refresh(void)
 	if (!suspend_ocram_base) {
 		pr_warn("%s: __arm_ioremap_exec failed!\n", __func__);
 		ret = -ENOMEM;
-		goto put_node;
+		goto put_yesde;
 	}
 
 	/* Copy the code that puts DDR in self refresh to ocram */
@@ -77,12 +77,12 @@ static int socfpga_setup_ocram_self_refresh(void)
 			      socfpga_sdram_self_refresh_sz);
 
 	WARN(!socfpga_sdram_self_refresh_in_ocram,
-	     "could not copy function to ocram");
+	     "could yest copy function to ocram");
 	if (!socfpga_sdram_self_refresh_in_ocram)
 		ret = -EFAULT;
 
-put_node:
-	of_node_put(np);
+put_yesde:
+	of_yesde_put(np);
 
 	return ret;
 }

@@ -74,7 +74,7 @@
 /* AT803x supports either the XTAL input pad, an internal PLL or the
  * DSP as clock reference for the clock output pad. The XTAL reference
  * is only used for 25 MHz output, all other frequencies need the PLL.
- * The DSP as a clock reference is used in synchronous ethernet
+ * The DSP as a clock reference is used in synchroyesus ethernet
  * applications.
  *
  * By default the PLL is only enabled if there is a link. Otherwise
@@ -93,7 +93,7 @@
 #define AT803X_CLK_OUT_125MHZ_PLL		6
 #define AT803X_CLK_OUT_125MHZ_DSP		7
 
-/* The AR8035 has another mask which is compatible with the AR8031/AR8033 mask
+/* The AR8035 has ayesther mask which is compatible with the AR8031/AR8033 mask
  * but doesn't support choosing between XTAL/PLL and DSP.
  */
 #define AT8035_CLK_OUT_MASK			GENMASK(4, 3)
@@ -379,7 +379,7 @@ static bool at803x_match_phy_id(struct phy_device *phydev, u32 phy_id)
 
 static int at803x_parse_dt(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_yesde *yesde = phydev->mdio.dev.of_yesde;
 	struct at803x_priv *priv = phydev->priv;
 	unsigned int sel, mask;
 	u32 freq, strength;
@@ -388,7 +388,7 @@ static int at803x_parse_dt(struct phy_device *phydev)
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
 		return 0;
 
-	ret = of_property_read_u32(node, "qca,clk-out-frequency", &freq);
+	ret = of_property_read_u32(yesde, "qca,clk-out-frequency", &freq);
 	if (!ret) {
 		mask = AT803X_CLK_OUT_MASK;
 		switch (freq) {
@@ -412,13 +412,13 @@ static int at803x_parse_dt(struct phy_device *phydev)
 		priv->clk_25m_reg |= FIELD_PREP(mask, sel);
 		priv->clk_25m_mask |= mask;
 
-		/* Fixup for the AR8030/AR8035. This chip has another mask and
+		/* Fixup for the AR8030/AR8035. This chip has ayesther mask and
 		 * doesn't support the DSP reference. Eg. the lowest bit of the
 		 * mask. The upper two bits select the same frequencies. Mask
 		 * the lowest bit here.
 		 *
 		 * Warning:
-		 *   There was no datasheet for the AR8030 available so this is
+		 *   There was yes datasheet for the AR8030 available so this is
 		 *   just a guess. But the AR8035 is listed as pin compatible
 		 *   to the AR8030 so there might be a good chance it works on
 		 *   the AR8030 too.
@@ -430,7 +430,7 @@ static int at803x_parse_dt(struct phy_device *phydev)
 		}
 	}
 
-	ret = of_property_read_u32(node, "qca,clk-out-strength", &strength);
+	ret = of_property_read_u32(yesde, "qca,clk-out-strength", &strength);
 	if (!ret) {
 		priv->clk_25m_mask |= AT803X_CLK_OUT_STRENGTH_MASK;
 		switch (strength) {
@@ -453,7 +453,7 @@ static int at803x_parse_dt(struct phy_device *phydev)
 	 * options.
 	 */
 	if (at803x_match_phy_id(phydev, ATH8031_PHY_ID)) {
-		if (of_property_read_bool(node, "qca,keep-pll-enabled"))
+		if (of_property_read_bool(yesde, "qca,keep-pll-enabled"))
 			priv->flags |= AT803X_KEEP_PLL_ENABLED;
 
 		ret = at8031_register_regulators(phydev);
@@ -591,14 +591,14 @@ static int at803x_config_intr(struct phy_device *phydev)
 	return err;
 }
 
-static void at803x_link_change_notify(struct phy_device *phydev)
+static void at803x_link_change_yestify(struct phy_device *phydev)
 {
 	/*
 	 * Conduct a hardware reset for AT8030 every time a link loss is
 	 * signalled. This is necessary to circumvent a hardware bug that
 	 * occurs when the cable is unplugged while TX packets are pending
 	 * in the FIFO. In such cases, the FIFO enters an error mode it
-	 * cannot recover from by software.
+	 * canyest recover from by software.
 	 */
 	if (phydev->state == PHY_NOLINK && phydev->mdio.reset_gpio) {
 		struct at803x_context context;
@@ -637,7 +637,7 @@ static int at803x_aneg_done(struct phy_device *phydev)
 
 	/* check if the SGMII link is OK. */
 	if (!(phy_read(phydev, AT803X_PSSR) & AT803X_PSSR_MR_AN_COMPLETE)) {
-		phydev_warn(phydev, "803x_aneg_done: SGMII link is not ok\n");
+		phydev_warn(phydev, "803x_aneg_done: SGMII link is yest ok\n");
 		aneg_done = 0;
 	}
 	/* switch back to copper page */
@@ -655,7 +655,7 @@ static int at803x_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	/* why bother the PHY if nothing can have changed */
+	/* why bother the PHY if yesthing can have changed */
 	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
 		return 0;
 
@@ -670,7 +670,7 @@ static int at803x_read_status(struct phy_device *phydev)
 
 	/* Read the AT8035 PHY-Specific Status register, which indicates the
 	 * speed and duplex that the PHY is actually using, irrespective of
-	 * whether we are in autoneg mode or not.
+	 * whether we are in autoneg mode or yest.
 	 */
 	ss = phy_read(phydev, AT803X_SPECIFIC_STATUS);
 	if (ss < 0)
@@ -727,7 +727,7 @@ static struct phy_driver at803x_driver[] = {
 	.phy_id_mask		= AT803X_PHY_ID_MASK,
 	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
-	.link_change_notify	= at803x_link_change_notify,
+	.link_change_yestify	= at803x_link_change_yestify,
 	.set_wol		= at803x_set_wol,
 	.get_wol		= at803x_get_wol,
 	.suspend		= at803x_suspend,

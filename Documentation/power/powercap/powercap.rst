@@ -6,14 +6,14 @@ The power capping framework provides a consistent interface between the kernel
 and the user space that allows power capping drivers to expose the settings to
 user space in a uniform way.
 
-Terminology
+Termiyeslogy
 ===========
 
 The framework exposes power capping devices to user space via sysfs in the
 form of a tree of objects. The objects at the root level of the tree represent
 'control types', which correspond to different methods of power capping.  For
 example, the intel-rapl control type represents the Intel "Running Average
-Power Limit" (RAPL) technology, whereas the 'idle-injection' control type
+Power Limit" (RAPL) techyeslogy, whereas the 'idle-injection' control type
 corresponds to the use of idle injection for controlling power.
 
 Power zones represent different parts of the system, which can be controlled and
@@ -145,7 +145,7 @@ Example sysfs interface tree::
       ├──enabled
       └──uevent
 
-The above example illustrates a case in which the Intel RAPL technology,
+The above example illustrates a case in which the Intel RAPL techyeslogy,
 available in Intel® IA-64 and IA-32 Processor Architectures, is used. There is one
 control type called intel-rapl which contains two power zones, intel-rapl:0 and
 intel-rapl:1, representing CPU packages.  Each of these power zones contains
@@ -156,7 +156,7 @@ max_energy_range_uj) and constraint attributes (constraint_*) allowing controls
 to be applied (the constraints in the 'package' power zones apply to the whole
 CPU packages and the subzone constraints only apply to the respective parts of
 the given package individually). Since Intel RAPL doesn't provide instantaneous
-power value, there is no power_uw attribute.
+power value, there is yes power_uw attribute.
 
 In addition to that, each power zone contains a name attribute, allowing the
 part of the system represented by that zone to be identified.
@@ -167,7 +167,7 @@ For example::
 package-0
 ---------
 
-The Intel RAPL technology allows two constraints, short term and long term,
+The Intel RAPL techyeslogy allows two constraints, short term and long term,
 with two different time windows to be applied to each power zone.  Thus for
 each zone there are 2 attributes representing the constraint names, 2 power
 limits and 2 attributes representing the sizes of the time windows. Such that,
@@ -190,7 +190,7 @@ Monitoring attributes
 
 energy_uj (rw)
 	Current energy counter in micro joules. Write "0" to reset.
-	If the counter can not be reset, then this attribute is read only.
+	If the counter can yest be reset, then this attribute is read only.
 
 max_energy_range_uj (ro)
 	Range of the above energy counter in micro-joules.
@@ -247,7 +247,7 @@ The API summary:
 
 Call powercap_register_control_type() to register control type object.
 Call powercap_register_zone() to register a power zone (under a given
-control type), either as a top-level power zone or as a subzone of another
+control type), either as a top-level power zone or as a subzone of ayesther
 power zone registered earlier.
 The number of constraints in a power zone and the corresponding callbacks have
 to be defined prior to calling powercap_register_zone() to register that zone.

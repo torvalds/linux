@@ -11,8 +11,8 @@
 /*
  * These functions maintain a mapping from CPUs to some ordered set of
  * objects with CPU affinities.  This can be seen as a reverse-map of
- * CPU affinity.  However, we do not assume that the object affinities
- * cover all CPUs in the system.  For those CPUs not directly covered
+ * CPU affinity.  However, we do yest assume that the object affinities
+ * cover all CPUs in the system.  For those CPUs yest directly covered
  * by object affinities, we attempt to find a nearest object based on
  * CPU topology.
  */
@@ -44,9 +44,9 @@ struct cpu_rmap *alloc_cpu_rmap(unsigned int size, gfp_t flags)
 	rmap->obj = (void **)((char *)rmap + obj_offset);
 
 	/* Initially assign CPUs to objects on a rota, since we have
-	 * no idea where the objects are.  Use infinite distance, so
-	 * any object with known distance is preferable.  Include the
-	 * CPUs that are not present/online, since we definitely want
+	 * yes idea where the objects are.  Use infinite distance, so
+	 * any object with kyeswn distance is preferable.  Include the
+	 * CPUs that are yest present/online, since we definitely want
 	 * any newly-hotplugged CPUs to have some object assigned.
 	 */
 	for_each_possible_cpu(cpu) {
@@ -174,13 +174,13 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 	debug_print_rmap(rmap, "after invalidating old distances");
 
 	/* Set distance to 0 for all CPUs in the new affinity mask.
-	 * Mark all CPUs within their NUMA nodes for update.
+	 * Mark all CPUs within their NUMA yesdes for update.
 	 */
 	for_each_cpu(cpu, affinity) {
 		rmap->near[cpu].index = index;
 		rmap->near[cpu].dist = 0;
 		cpumask_or(update_mask, update_mask,
-			   cpumask_of_node(cpu_to_node(cpu)));
+			   cpumask_of_yesde(cpu_to_yesde(cpu)));
 	}
 
 	debug_print_rmap(rmap, "after updating neighbours");
@@ -194,9 +194,9 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 					topology_core_cpumask(cpu), 2))
 			continue;
 		if (cpu_rmap_copy_neigh(rmap, cpu,
-					cpumask_of_node(cpu_to_node(cpu)), 3))
+					cpumask_of_yesde(cpu_to_yesde(cpu)), 3))
 			continue;
-		/* We could continue into NUMA node distances, but for now
+		/* We could continue into NUMA yesde distances, but for yesw
 		 * we give up.
 		 */
 	}
@@ -208,10 +208,10 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 }
 EXPORT_SYMBOL(cpu_rmap_update);
 
-/* Glue between IRQ affinity notifiers and CPU rmaps */
+/* Glue between IRQ affinity yestifiers and CPU rmaps */
 
 struct irq_glue {
-	struct irq_affinity_notify notify;
+	struct irq_affinity_yestify yestify;
 	struct cpu_rmap *rmap;
 	u16 index;
 };
@@ -232,7 +232,7 @@ void free_irq_cpu_rmap(struct cpu_rmap *rmap)
 
 	for (index = 0; index < rmap->used; index++) {
 		glue = rmap->obj[index];
-		irq_set_affinity_notifier(glue->notify.irq, NULL);
+		irq_set_affinity_yestifier(glue->yestify.irq, NULL);
 	}
 
 	cpu_rmap_put(rmap);
@@ -240,32 +240,32 @@ void free_irq_cpu_rmap(struct cpu_rmap *rmap)
 EXPORT_SYMBOL(free_irq_cpu_rmap);
 
 /**
- * irq_cpu_rmap_notify - callback for IRQ subsystem when IRQ affinity updated
- * @notify: struct irq_affinity_notify passed by irq/manage.c
+ * irq_cpu_rmap_yestify - callback for IRQ subsystem when IRQ affinity updated
+ * @yestify: struct irq_affinity_yestify passed by irq/manage.c
  * @mask: cpu mask for new SMP affinity
  *
  * This is executed in workqueue context.
  */
 static void
-irq_cpu_rmap_notify(struct irq_affinity_notify *notify, const cpumask_t *mask)
+irq_cpu_rmap_yestify(struct irq_affinity_yestify *yestify, const cpumask_t *mask)
 {
 	struct irq_glue *glue =
-		container_of(notify, struct irq_glue, notify);
+		container_of(yestify, struct irq_glue, yestify);
 	int rc;
 
 	rc = cpu_rmap_update(glue->rmap, glue->index, mask);
 	if (rc)
-		pr_warn("irq_cpu_rmap_notify: update failed: %d\n", rc);
+		pr_warn("irq_cpu_rmap_yestify: update failed: %d\n", rc);
 }
 
 /**
  * irq_cpu_rmap_release - reclaiming callback for IRQ subsystem
- * @ref: kref to struct irq_affinity_notify passed by irq/manage.c
+ * @ref: kref to struct irq_affinity_yestify passed by irq/manage.c
  */
 static void irq_cpu_rmap_release(struct kref *ref)
 {
 	struct irq_glue *glue =
-		container_of(ref, struct irq_glue, notify.kref);
+		container_of(ref, struct irq_glue, yestify.kref);
 
 	cpu_rmap_put(glue->rmap);
 	kfree(glue);
@@ -276,7 +276,7 @@ static void irq_cpu_rmap_release(struct kref *ref)
  * @rmap: The reverse-map
  * @irq: The IRQ number
  *
- * This adds an IRQ affinity notifier that will update the reverse-map
+ * This adds an IRQ affinity yestifier that will update the reverse-map
  * automatically.
  *
  * Must be called in process context, after the IRQ is allocated but
@@ -289,12 +289,12 @@ int irq_cpu_rmap_add(struct cpu_rmap *rmap, int irq)
 
 	if (!glue)
 		return -ENOMEM;
-	glue->notify.notify = irq_cpu_rmap_notify;
-	glue->notify.release = irq_cpu_rmap_release;
+	glue->yestify.yestify = irq_cpu_rmap_yestify;
+	glue->yestify.release = irq_cpu_rmap_release;
 	glue->rmap = rmap;
 	cpu_rmap_get(rmap);
 	glue->index = cpu_rmap_add(rmap, glue);
-	rc = irq_set_affinity_notifier(irq, &glue->notify);
+	rc = irq_set_affinity_yestifier(irq, &glue->yestify);
 	if (rc) {
 		cpu_rmap_put(glue->rmap);
 		kfree(glue);

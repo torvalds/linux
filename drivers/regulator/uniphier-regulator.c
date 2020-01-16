@@ -92,9 +92,9 @@ static int uniphier_regulator_probe(struct platform_device *pdev)
 
 	config.dev = dev;
 	config.driver_data = priv;
-	config.of_node = dev->of_node;
+	config.of_yesde = dev->of_yesde;
 	config.regmap = regmap;
-	config.init_data = of_get_regulator_init_data(dev, dev->of_node,
+	config.init_data = of_get_regulator_init_data(dev, dev->of_yesde,
 						      priv->data->desc);
 	rdev = devm_regulator_register(dev, priv->data->desc, &config);
 	if (IS_ERR(rdev)) {

@@ -31,7 +31,7 @@ class LinuxSourceTreeOperations(object):
 		try:
 			subprocess.check_output(['make', 'mrproper'])
 		except OSError as e:
-			raise ConfigError('Could not call make command: ' + e)
+			raise ConfigError('Could yest call make command: ' + e)
 		except subprocess.CalledProcessError as e:
 			raise ConfigError(e.output)
 
@@ -42,7 +42,7 @@ class LinuxSourceTreeOperations(object):
 		try:
 			subprocess.check_output(command)
 		except OSError as e:
-			raise ConfigError('Could not call make command: ' + e)
+			raise ConfigError('Could yest call make command: ' + e)
 		except subprocess.CalledProcessError as e:
 			raise ConfigError(e.output)
 
@@ -53,7 +53,7 @@ class LinuxSourceTreeOperations(object):
 		try:
 			subprocess.check_output(command)
 		except OSError as e:
-			raise BuildError('Could not call execute make: ' + e)
+			raise BuildError('Could yest call execute make: ' + e)
 		except subprocess.CalledProcessError as e:
 			raise BuildError(e.output)
 
@@ -95,7 +95,7 @@ class LinuxSourceTree(object):
 
 	def build_config(self, build_dir):
 		kconfig_path = get_kconfig_path(build_dir)
-		if build_dir and not os.path.exists(build_dir):
+		if build_dir and yest os.path.exists(build_dir):
 			os.mkdir(build_dir)
 		self._kconfig.write_to_file(kconfig_path)
 		try:
@@ -105,18 +105,18 @@ class LinuxSourceTree(object):
 			return False
 		validated_kconfig = kunit_config.Kconfig()
 		validated_kconfig.read_from_file(kconfig_path)
-		if not self._kconfig.is_subset_of(validated_kconfig):
-			logging.error('Provided Kconfig is not contained in validated .config!')
+		if yest self._kconfig.is_subset_of(validated_kconfig):
+			logging.error('Provided Kconfig is yest contained in validated .config!')
 			return False
 		return True
 
 	def build_reconfig(self, build_dir):
-		"""Creates a new .config if it is not a subset of the .kunitconfig."""
+		"""Creates a new .config if it is yest a subset of the .kunitconfig."""
 		kconfig_path = get_kconfig_path(build_dir)
 		if os.path.exists(kconfig_path):
 			existing_kconfig = kunit_config.Kconfig()
 			existing_kconfig.read_from_file(kconfig_path)
-			if not self._kconfig.is_subset_of(existing_kconfig):
+			if yest self._kconfig.is_subset_of(existing_kconfig):
 				print('Regenerating .config ...')
 				os.remove(kconfig_path)
 				return self.build_config(build_dir)
@@ -135,8 +135,8 @@ class LinuxSourceTree(object):
 			return False
 		used_kconfig = kunit_config.Kconfig()
 		used_kconfig.read_from_file(get_kconfig_path(build_dir))
-		if not self._kconfig.is_subset_of(used_kconfig):
-			logging.error('Provided Kconfig is not contained in final config!')
+		if yest self._kconfig.is_subset_of(used_kconfig):
+			logging.error('Provided Kconfig is yest contained in final config!')
 			return False
 		return True
 

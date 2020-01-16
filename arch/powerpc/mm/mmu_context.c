@@ -88,7 +88,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 	/*
 	 * The actual HW switching method differs between the various
-	 * sub architectures. Out of line for now
+	 * sub architectures. Out of line for yesw
 	 */
 	switch_mmu_context(prev, next, tsk);
 }

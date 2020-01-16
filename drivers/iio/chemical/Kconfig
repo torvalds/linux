@@ -29,7 +29,7 @@ config BME680
 	select BME680_I2C if I2C
 	select BME680_SPI if SPI
 	help
-	  Say yes here to build support for Bosch Sensortec BME680 sensor with
+	  Say no here to build support for Bosch Sensortec BME680 sensor with
 	  temperature, pressure, humidity and gas sensing capability.
 
 	  This driver can also be built as a module. If so, the module for I2C

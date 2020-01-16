@@ -18,7 +18,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -363,7 +363,7 @@ static struct usb_ep *ast_vhub_udc_match_ep(struct usb_gadget *gadget,
 	DDBG(d, "Match EP type %d\n", usb_endpoint_type(desc));
 
 	/*
-	 * First we need to look for an existing unclaimed EP as another
+	 * First we need to look for an existing unclaimed EP as ayesther
 	 * configuration may have already associated a bunch of EPs with
 	 * this gadget. This duplicates the code in usb_ep_autoconfig_ss()
 	 * unfortunately.
@@ -572,7 +572,7 @@ int ast_vhub_init_dev(struct ast_vhub *vhub, unsigned int idx)
 	else
 		d->gadget.max_speed = USB_SPEED_HIGH;
 	d->gadget.speed = USB_SPEED_UNKNOWN;
-	d->gadget.dev.of_node = vhub->pdev->dev.of_node;
+	d->gadget.dev.of_yesde = vhub->pdev->dev.of_yesde;
 
 	rc = usb_add_gadget_udc(d->port_dev, &d->gadget);
 	if (rc != 0)

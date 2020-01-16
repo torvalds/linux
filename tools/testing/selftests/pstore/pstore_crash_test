@@ -7,7 +7,7 @@
 #  Written by Hiraku Toyooka <hiraku.toyooka.gu@hitachi.com>
 #
 
-# exit if pstore backend is not registered
+# exit if pstore backend is yest registered
 . ./common_tests
 
 prlog "Causing kernel crash ..."
@@ -26,5 +26,5 @@ sync
 
 # cause crash
 # Note: If you use kdump and want to see kmesg-* files after reboot, you should
-#       specify 'crash_kexec_post_notifiers' in 1st kernel's cmdline.
+#       specify 'crash_kexec_post_yestifiers' in 1st kernel's cmdline.
 echo c > /proc/sysrq-trigger

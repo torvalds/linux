@@ -86,7 +86,7 @@ static int bochs_connector_get_modes(struct drm_connector *connector)
 		count = drm_add_edid_modes(connector, bochs->edid);
 
 	if (!count) {
-		count = drm_add_modes_noedid(connector, 8192, 8192);
+		count = drm_add_modes_yesedid(connector, 8192, 8192);
 		drm_set_preferred_mode(connector, defx, defy);
 	}
 	return count;

@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include "reiserfs.h"
 #include <linux/buffer_head.h>
 
@@ -55,7 +55,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 
 	/*
 	 * old disk layout detection; those partitions can be mounted, but
-	 * cannot be resized
+	 * canyest be resized
 	 */
 	if (SB_BUFFER_WITH_SB(s)->b_blocknr * SB_BUFFER_WITH_SB(s)->b_size
 	    != REISERFS_DISK_OFFSET_IN_BYTES) {
@@ -89,8 +89,8 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 			return -ENOMEM;
 		}
 		/*
-		 * the new journal bitmaps are zero filled, now we copy i
-		 * the bitmap node pointers from the old journal bitmap
+		 * the new journal bitmaps are zero filled, yesw we copy i
+		 * the bitmap yesde pointers from the old journal bitmap
 		 * structs, and then transfer the new data structures
 		 * into the journal struct.
 		 *
@@ -99,9 +99,9 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 		 */
 		copy_size = bmap_nr_new < bmap_nr ? bmap_nr_new : bmap_nr;
 		copy_size =
-		    copy_size * sizeof(struct reiserfs_list_bitmap_node *);
+		    copy_size * sizeof(struct reiserfs_list_bitmap_yesde *);
 		for (i = 0; i < JOURNAL_NUM_BITMAPS; i++) {
-			struct reiserfs_bitmap_node **node_tmp;
+			struct reiserfs_bitmap_yesde **yesde_tmp;
 			jb = SB_JOURNAL(s)->j_list_bitmap + i;
 			memcpy(jbitmap[i].bitmaps, jb->bitmaps, copy_size);
 
@@ -110,9 +110,9 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 			 * pointer into the journal struct before freeing the
 			 * old one
 			 */
-			node_tmp = jb->bitmaps;
+			yesde_tmp = jb->bitmaps;
 			jb->bitmaps = jbitmap[i].bitmaps;
-			vfree(node_tmp);
+			vfree(yesde_tmp);
 		}
 
 		/*
@@ -172,7 +172,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 
 	/*
 	 * begin transaction, if there was an error, it's fine. Yes, we have
-	 * incorrect bitmaps now, but none of it is ever going to touch the
+	 * incorrect bitmaps yesw, but yesne of it is ever going to touch the
 	 * disk anyway.
 	 */
 	err = journal_begin(&th, s, 10);
@@ -197,7 +197,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	journal_mark_dirty(&th, bh);
 	brelse(bh);
 
-	/* Correct new last bitmap block - It may not be full */
+	/* Correct new last bitmap block - It may yest be full */
 	info = SB_AP_BITMAP(s) + bmap_nr_new - 1;
 	bh = reiserfs_read_bitmap_block(s, bmap_nr_new - 1);
 	if (!bh) {

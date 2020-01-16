@@ -62,7 +62,7 @@
  */
 #define MMU_FTR_USE_TLBILX		ASM_CONST(0x00080000)
 
-/* This indicates that the processor cannot handle multiple outstanding
+/* This indicates that the processor canyest handle multiple outstanding
  * broadcast tlbivax or tlbsync. This makes the code use a spinlock
  * around such invalidate forms.
  */
@@ -317,11 +317,11 @@ static inline bool strict_kernel_rwx_enabled(void)
  * The use of fixed constants for this purpose is better for performances
  * of the low level hash refill handlers.
  *
- * A non supported page size has a "shift" field set to 0
+ * A yesn supported page size has a "shift" field set to 0
  *
  * Any new page size being implemented can get a new entry in here. Whether
- * the kernel will use it or not is a different matter though. The actual page
- * size used by hugetlbfs is not defined here and may be made variable
+ * the kernel will use it or yest is a different matter though. The actual page
+ * size used by hugetlbfs is yest defined here and may be made variable
  *
  * Note: This array ended up being a false good idea as it's growing to the
  * point where I wonder if we should replace it with something different,
@@ -372,7 +372,7 @@ extern void *abatron_pteptrs[2];
 /* 32-bit classic hash table MMU */
 #include <asm/book3s/32/mmu-hash.h>
 #elif defined(CONFIG_PPC_MMU_NOHASH)
-#include <asm/nohash/mmu.h>
+#include <asm/yeshash/mmu.h>
 #endif
 
 #endif /* __KERNEL__ */

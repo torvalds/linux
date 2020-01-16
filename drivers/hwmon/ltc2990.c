@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver for Linear Technology LTC2990 power monitor
+ * Driver for Linear Techyeslogy LTC2990 power monitor
  *
  * Copyright (C) 2014 Topic Embedded Products
  * Author: Mike Looijmans <mike.looijmans@topic.nl>
@@ -217,7 +217,7 @@ static int ltc2990_i2c_probe(struct i2c_client *i2c,
 
 	data->i2c = i2c;
 
-	if (dev_fwnode(&i2c->dev)) {
+	if (dev_fwyesde(&i2c->dev)) {
 		ret = device_property_read_u32_array(&i2c->dev,
 						     "lltc,meas-mode",
 						     data->mode, 2);

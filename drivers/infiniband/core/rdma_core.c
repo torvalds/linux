@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -31,7 +31,7 @@
  */
 
 #include <linux/file.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/sched/mm.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/uverbs_types.h>
@@ -70,11 +70,11 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj,
 	 * When a shared access is required, we use a positive counter. Each
 	 * shared access request checks that the value != -1 and increment it.
 	 * Exclusive access is required for operations like write or destroy.
-	 * In exclusive access mode, we check that the counter is zero (nobody
+	 * In exclusive access mode, we check that the counter is zero (yesbody
 	 * claimed this object) and we set it to -1. Releasing a shared access
 	 * lock is done simply by decreasing the counter. As for exclusive
 	 * access locks, since only a single one of them is is allowed
-	 * concurrently, setting the counter to zero is enough for releasing
+	 * concurrently, setting the counter to zero is eyesugh for releasing
 	 * this lock.
 	 */
 	switch (mode) {
@@ -113,9 +113,9 @@ static void assert_uverbs_usecnt(struct ib_uobject *uobj,
  *
  * Upon return the HW object is guaranteed to be destroyed.
  *
- * For RDMA_REMOVE_ABORT, the hw_destroy_rwsem is not required to be held,
- * however the type's allocat_commit function cannot have been called and the
- * uobject cannot be on the uobjects_lists
+ * For RDMA_REMOVE_ABORT, the hw_destroy_rwsem is yest required to be held,
+ * however the type's allocat_commit function canyest have been called and the
+ * uobject canyest be on the uobjects_lists
  *
  * For RDMA_REMOVE_DESTROY the caller shold be holding a kref (eg via
  * rdma_lookup_get_uobject) and the object is left in a state where the caller
@@ -183,7 +183,7 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 
 	/*
 	 * When aborting the stack kref remains owned by the core code, and is
-	 * not transferred into the type. Pairs with the get in alloc_uobj
+	 * yest transferred into the type. Pairs with the get in alloc_uobj
 	 */
 	if (reason == RDMA_REMOVE_ABORT)
 		uverbs_uobject_put(uobj);
@@ -247,7 +247,7 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
 
 /*
  * Does both uobj_get_destroy() and uobj_put_destroy().  Returns 0 on success
- * (negative errno on failure). For use by callers that do not need the uobj.
+ * (negative erryes on failure). For use by callers that do yest need the uobj.
  */
 int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
 			   struct uverbs_attr_bundle *attrs)
@@ -339,9 +339,9 @@ lookup_get_fd_uobject(const struct uverbs_api_object *obj,
 	const struct uverbs_obj_fd_type *fd_type;
 	struct file *f;
 	struct ib_uobject *uobject;
-	int fdno = id;
+	int fdyes = id;
 
-	if (fdno != id)
+	if (fdyes != id)
 		return ERR_PTR(-EINVAL);
 
 	if (mode != UVERBS_LOOKUP_READ)
@@ -352,13 +352,13 @@ lookup_get_fd_uobject(const struct uverbs_api_object *obj,
 	fd_type =
 		container_of(obj->type_attrs, struct uverbs_obj_fd_type, type);
 
-	f = fget(fdno);
+	f = fget(fdyes);
 	if (!f)
 		return ERR_PTR(-EBADF);
 
 	uobject = f->private_data;
 	/*
-	 * fget(id) ensures we are not currently running uverbs_close_fd,
+	 * fget(id) ensures we are yest currently running uverbs_close_fd,
 	 * and the caller is expected to ensure that uverbs_close_fd is never
 	 * done while a call top lookup is possible.
 	 */
@@ -596,7 +596,7 @@ static int alloc_commit_fd_uobject(struct ib_uobject *uobj)
 	 * must be guaranteed to be called from the provided fops release
 	 * callback.
 	 */
-	filp = anon_inode_getfile(fd_type->name,
+	filp = ayesn_iyesde_getfile(fd_type->name,
 				  fd_type->fops,
 				  uobj,
 				  fd_type->flags);
@@ -622,7 +622,7 @@ static int alloc_commit_fd_uobject(struct ib_uobject *uobj)
 
 /*
  * In all cases rdma_alloc_commit_uobject() consumes the kref to uobj and the
- * caller can no longer assume uobj is valid. If this function fails it
+ * caller can yes longer assume uobj is valid. If this function fails it
  * destroys the uboject, including the attached HW object.
  */
 int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj,
@@ -722,9 +722,9 @@ void release_ufile_idr_uobject(struct ib_uverbs_file *ufile)
 
 	/*
 	 * At this point uverbs_cleanup_ufile() is guaranteed to have run, and
-	 * there are no HW objects left, however the xarray is still populated
-	 * with anything that has not been cleaned up by userspace. Since the
-	 * kref on ufile is 0, nothing is allowed to call lookup_get.
+	 * there are yes HW objects left, however the xarray is still populated
+	 * with anything that has yest been cleaned up by userspace. Since the
+	 * kref on ufile is 0, yesthing is allowed to call lookup_get.
 	 *
 	 * This is an optimized equivalent to remove_handle_idr_uobject
 	 */
@@ -748,7 +748,7 @@ const struct uverbs_obj_type_class uverbs_idr_class = {
 	 * When we destroy an object, we first just lock it for WRITE and
 	 * actually DESTROY it in the finalize stage. So, the problematic
 	 * scenario is when we just started the finalize stage of the
-	 * destruction (nothing was executed yet). Now, the other thread
+	 * destruction (yesthing was executed yet). Now, the other thread
 	 * fetched the object for READ access, but it didn't lock it yet.
 	 * The DESTROY thread continues and starts destroying the object.
 	 * When the other thread continue - without the RCU, it would
@@ -856,7 +856,7 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 
 /*
  * Destroy the uncontext and every uobject associated with it. If called with
- * reason != RDMA_REMOVE_CLOSE this will not return until the destruction has
+ * reason != RDMA_REMOVE_CLOSE this will yest return until the destruction has
  * been completed and ufile->ucontext is NULL.
  *
  * This is internally locked and can be called in parallel from multiple
@@ -868,9 +868,9 @@ void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 	if (reason == RDMA_REMOVE_CLOSE) {
 		/*
 		 * During destruction we might trigger something that
-		 * synchronously calls release on any file descriptor. For
+		 * synchroyesusly calls release on any file descriptor. For
 		 * this reason all paths that come from file_operations
-		 * release must use try_lock. They can progress knowing that
+		 * release must use try_lock. They can progress kyeswing that
 		 * there is an ongoing uverbs_destroy_ufile_hw that will clean
 		 * up the driver resources.
 		 */
@@ -885,7 +885,7 @@ void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 
 	/*
 	 * If a ucontext was never created then we can't have any uobjects to
-	 * cleanup, nothing to do.
+	 * cleanup, yesthing to do.
 	 */
 	if (!ufile->ucontext)
 		goto done;
@@ -957,7 +957,7 @@ int uverbs_finalize_object(struct ib_uobject *uobj,
 	int ret = 0;
 
 	/*
-	 * refcounts should be handled at the object level and not at the
+	 * refcounts should be handled at the object level and yest at the
 	 * uobject level. Refcounts of the objects themselves are done in
 	 * handlers.
 	 */

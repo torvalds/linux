@@ -45,7 +45,7 @@ static const char *const smt_class_name[] = {
 
 #define LAST_CLASS	(SMT_PMF_SET)
 
-static const struct fddi_addr SMT_Unknown = {
+static const struct fddi_addr SMT_Unkyeswn = {
 	{ 0,0,0x1f,0,0,0 }
 } ;
 
@@ -162,17 +162,17 @@ void smt_agent_init(struct s_smc *smc)
 	 */
 	smc->mib.fddiSMTStationId.sid_oem[0] = 0 ;
 	smc->mib.fddiSMTStationId.sid_oem[1] = 0 ;
-	driver_get_bia(smc,&smc->mib.fddiSMTStationId.sid_node) ;
+	driver_get_bia(smc,&smc->mib.fddiSMTStationId.sid_yesde) ;
 	for (i = 0 ; i < 6 ; i ++) {
-		smc->mib.fddiSMTStationId.sid_node.a[i] =
-			bitrev8(smc->mib.fddiSMTStationId.sid_node.a[i]);
+		smc->mib.fddiSMTStationId.sid_yesde.a[i] =
+			bitrev8(smc->mib.fddiSMTStationId.sid_yesde.a[i]);
 	}
 	smc->mib.fddiSMTManufacturerData[0] =
-		smc->mib.fddiSMTStationId.sid_node.a[0] ;
+		smc->mib.fddiSMTStationId.sid_yesde.a[0] ;
 	smc->mib.fddiSMTManufacturerData[1] =
-		smc->mib.fddiSMTStationId.sid_node.a[1] ;
+		smc->mib.fddiSMTStationId.sid_yesde.a[1] ;
 	smc->mib.fddiSMTManufacturerData[2] =
-		smc->mib.fddiSMTStationId.sid_node.a[2] ;
+		smc->mib.fddiSMTStationId.sid_yesde.a[2] ;
 	smc->sm.smt_tid = 0 ;
 	smc->mib.m[MAC0].fddiMACDupAddressTest = DA_NONE ;
 	smc->mib.m[MAC0].fddiMACUNDA_Flag = FALSE ;
@@ -215,7 +215,7 @@ void smt_emulate_token_ct(struct s_smc *smc, int mac_index)
 	/*
 	 * Only when ring is up we will have a token count. The
 	 * flag is unfortunately a single instance value. This
-	 * doesn't matter now, because we currently have only
+	 * doesn't matter yesw, because we currently have only
 	 * one MAC instance.
 	 */
 	if (smc->hw.mac_ring_is_up){
@@ -268,7 +268,7 @@ void smt_event(struct s_smc *smc, int event)
 
 	smt_srf_event(smc,0,0,0) ;
 
-#endif	/* no SLIM_SMT */
+#endif	/* yes SLIM_SMT */
 
 	time = smt_get_time() ;
 
@@ -366,24 +366,24 @@ void smt_event(struct s_smc *smc, int event)
 				phy->mib->fddiPORTEBError_Ct ;
 		}
 
-#endif	/* no SLIM_SMT */
+#endif	/* yes SLIM_SMT */
 	}
 
 #ifndef	SLIM_SMT
 
-	if (time - smc->sm.smt_last_notify >= (u_long)
+	if (time - smc->sm.smt_last_yestify >= (u_long)
 		(smc->mib.fddiSMTTT_Notify * TICKS_PER_SECOND) ) {
 		/*
-		 * we can either send an announcement or a request
+		 * we can either send an anyesuncement or a request
 		 * a request will trigger a reply so that we can update
 		 * our dna
-		 * note: same tid must be used until reply is received
+		 * yeste: same tid must be used until reply is received
 		 */
 		if (!smc->sm.pend[SMT_TID_NIF])
 			smc->sm.pend[SMT_TID_NIF] = smt_get_tid(smc) ;
 		smt_send_nif(smc,&fddi_broadcast, FC_SMT_NSA,
 			smc->sm.pend[SMT_TID_NIF], SMT_REQUEST,0) ;
-		smc->sm.smt_last_notify = time ;
+		smc->sm.smt_last_yestify = time ;
 	}
 
 	/*
@@ -395,12 +395,12 @@ void smt_event(struct s_smc *smc, int event)
 		smc->sm.smt_tvu = 0 ;
 
 		if (!is_equal(&smc->mib.m[MAC0].fddiMACUpstreamNbr,
-			&SMT_Unknown)){
-			/* Do not update unknown address */
+			&SMT_Unkyeswn)){
+			/* Do yest update unkyeswn address */
 			smc->mib.m[MAC0].fddiMACOldUpstreamNbr=
 				smc->mib.m[MAC0].fddiMACUpstreamNbr ;
 		}
-		smc->mib.m[MAC0].fddiMACUpstreamNbr = SMT_Unknown ;
+		smc->mib.m[MAC0].fddiMACUpstreamNbr = SMT_Unkyeswn ;
 		smc->mib.m[MAC0].fddiMACUNDA_Flag = FALSE ;
 		/*
 		 * Make sure the fddiMACUNDA_Flag = FALSE is
@@ -417,17 +417,17 @@ void smt_event(struct s_smc *smc, int event)
 		DB_SMT("SMT : DNA expired");
 		smc->sm.smt_tvd = 0 ;
 		if (!is_equal(&smc->mib.m[MAC0].fddiMACDownstreamNbr,
-			&SMT_Unknown)){
-			/* Do not update unknown address */
+			&SMT_Unkyeswn)){
+			/* Do yest update unkyeswn address */
 			smc->mib.m[MAC0].fddiMACOldDownstreamNbr=
 				smc->mib.m[MAC0].fddiMACDownstreamNbr ;
 		}
-		smc->mib.m[MAC0].fddiMACDownstreamNbr = SMT_Unknown ;
+		smc->mib.m[MAC0].fddiMACDownstreamNbr = SMT_Unkyeswn ;
 		smt_srf_event(smc, SMT_EVENT_MAC_NEIGHBOR_CHANGE,
 			INDEX_MAC,0) ;
 	}
 
-#endif	/* no SLIM_SMT */
+#endif	/* yes SLIM_SMT */
 
 #ifndef SMT_REAL_TOKEN_CT
 	/*
@@ -491,7 +491,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 		return ;
 	}
 #if	0		/* for DUP recognition, do NOT filter them */
-	/* ignore loop back packets */
+	/* igyesre loop back packets */
 	if (is_my_addr(smc,&sm->smt_source) && !local) {
 		smt_free_mbuf(smc,mb) ;
 		return ;
@@ -517,17 +517,17 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 #endif
 
 	/*
-	 * ignore any packet with NSA and A-indicator set
+	 * igyesre any packet with NSA and A-indicator set
 	 */
 	if ( (fs & A_INDICATOR) && m_fc(mb) == FC_SMT_NSA) {
-		DB_SMT("SMT : ignoring NSA with A-indicator set from %s",
+		DB_SMT("SMT : igyesring NSA with A-indicator set from %s",
 		       addr_to_string(&sm->smt_source));
 		smt_free_mbuf(smc,mb) ;
 		return ;
 	}
 
 	/*
-	 * ignore frames with illegal length
+	 * igyesre frames with illegal length
 	 */
 	if (((sm->smt_class == SMT_ECF) && (sm->smt_len > SMT_MAX_ECHO_LEN)) ||
 	    ((sm->smt_class != SMT_ECF) && (sm->smt_len > SMT_MAX_INFO_LEN))) {
@@ -568,7 +568,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 	switch (sm->smt_class) {
 	case SMT_NIF :
 		if (smt_check_para(smc,sm,plist_nif)) {
-			DB_SMT("SMT: NIF with para problem, ignoring");
+			DB_SMT("SMT: NIF with para problem, igyesring");
 			break ;
 		}
 		switch (sm->smt_type) {
@@ -585,8 +585,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 					DB_SMT("SMT : updated my UNA = %s",
 					       addr_to_string(&sm->smt_source));
 					if (!is_equal(&smc->mib.m[MAC0].
-					    fddiMACUpstreamNbr,&SMT_Unknown)){
-					 /* Do not update unknown address */
+					    fddiMACUpstreamNbr,&SMT_Unkyeswn)){
+					 /* Do yest update unkyeswn address */
 					 smc->mib.m[MAC0].fddiMACOldUpstreamNbr=
 					 smc->mib.m[MAC0].fddiMACUpstreamNbr ;
 					}
@@ -642,8 +642,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 					&sm->smt_source)) {
 					DB_SMT("SMT : updated my DNA");
 					if (!is_equal(&smc->mib.m[MAC0].
-					 fddiMACDownstreamNbr, &SMT_Unknown)){
-					 /* Do not update unknown address */
+					 fddiMACDownstreamNbr, &SMT_Unkyeswn)){
+					 /* Do yest update unkyeswn address */
 				smc->mib.m[MAC0].fddiMACOldDownstreamNbr =
 					 smc->mib.m[MAC0].fddiMACDownstreamNbr ;
 					}
@@ -758,7 +758,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 	case SMT_RDF :		/* request denied */
 		smc->mib.priv.fddiPRIVRDF_Rx++ ;
 		break ;
-	case SMT_ESF :		/* extended service - not supported */
+	case SMT_ESF :		/* extended service - yest supported */
 		if (sm->smt_type == SMT_REQUEST) {
 			DB_SMT("SMT - received ESF, sending RDF");
 			smt_send_rdf(smc,mb,m_fc(mb),SMT_RDF_CLASS,local) ;
@@ -774,11 +774,11 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 		else
 			smc->mib.priv.fddiPRIVPMF_Set_Rx++ ;
 		/*
-		 * ignore PMF SET with I/G set
+		 * igyesre PMF SET with I/G set
 		 */
 		if ((sm->smt_class == SMT_PMF_SET) &&
 			!is_individual(&sm->smt_dest)) {
-			DB_SMT("SMT: ignoring PMF-SET with I/G set");
+			DB_SMT("SMT: igyesring PMF-SET with I/G set");
 			break ;
 		}
 		smt_pmf_received_pack(smc,mb, local) ;
@@ -790,7 +790,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 		if (sm->smt_type != SMT_REQUEST)
 			break ;
 		/*
-		 * For frames with unknown class:
+		 * For frames with unkyeswn class:
 		 * we need to send a RDF frame according to 8.1.3.1.1,
 		 * only if it is a REQUEST.
 		 */
@@ -869,7 +869,7 @@ static void smt_send_rdf(struct s_smc *smc, SMbuf *rej, int fc, int reason,
 
 
 	/*
-	 * note: get framelength from MAC length, NOT from SMT header
+	 * yeste: get framelength from MAC length, NOT from SMT header
 	 * smt header length is included in sm_len
 	 */
 	frame_len = rej->sm_len ;
@@ -1073,7 +1073,7 @@ static void smt_send_sif_operation(struct s_smc *smc, struct fddi_addr *dest,
 	smt_fill_timestamp(smc,&sif->ts) ;	/* set time stamp */
 	smt_fill_mac_status(smc,&sif->status) ; /* set mac status */
 	smt_fill_mac_counter(smc,&sif->mc) ; /* set mac counter field */
-	smt_fill_mac_fnc(smc,&sif->fnc) ; /* set frame not copied counter */
+	smt_fill_mac_fnc(smc,&sif->fnc) ; /* set frame yest copied counter */
 	smt_fill_manufacturer(smc,&sif->man) ; /* set manufacturer field */
 	smt_fill_user(smc,&sif->user) ;		/* set user field */
 	smt_fill_setcount(smc,&sif->setcount) ;	/* set count */
@@ -1152,7 +1152,7 @@ static void smt_fill_una(struct s_smc *smc, struct smt_p_una *una)
 {
 	SMTSETPARA(una,SMT_P_UNA) ;
 	una->una_pad = 0 ;
-	una->una_node = smc->mib.m[MAC0].fddiMACUpstreamNbr ;
+	una->una_yesde = smc->mib.m[MAC0].fddiMACUpstreamNbr ;
 }
 
 /*
@@ -1161,7 +1161,7 @@ static void smt_fill_una(struct s_smc *smc, struct smt_p_una *una)
 static void smt_fill_sde(struct s_smc *smc, struct smt_p_sde *sde)
 {
 	SMTSETPARA(sde,SMT_P_SDE) ;
-	sde->sde_non_master = smc->mib.fddiSMTNonMaster_Ct ;
+	sde->sde_yesn_master = smc->mib.fddiSMTNonMaster_Ct ;
 	sde->sde_master = smc->mib.fddiSMTMaster_Ct ;
 	sde->sde_mac_count = NUMMACS ;		/* only 1 MAC */
 #ifdef	CONCENTRATOR
@@ -1293,7 +1293,7 @@ static void smt_fill_latency(struct s_smc *smc, struct smt_p_latency *latency)
 	latency->lt_phyout_idx1 = phy_index(smc,0) ;
 	latency->lt_latency1 = 10 ;	/* in octets (byte clock) */
 	/*
-	 * note: latency has two phy entries by definition
+	 * yeste: latency has two phy entries by definition
 	 * for a SAS, the 2nd one is null
 	 */
 	if (smc->s.sas == SMT_DAS) {
@@ -1430,7 +1430,7 @@ static void smt_fill_version(struct s_smc *smc, struct smt_p_version *vers)
 	SK_UNUSED(smc) ;
 	SMTSETPARA(vers,SMT_P_VERSION) ;
 	vers->v_pad = 0 ;
-	vers->v_n = 1 ;				/* one version is enough .. */
+	vers->v_n = 1 ;				/* one version is eyesugh .. */
 	vers->v_index = 1 ;
 	vers->v_version[0] = SMT_VID_2 ;
 	vers->v_pad2 = 0 ;
@@ -1441,7 +1441,7 @@ static void smt_fill_version(struct s_smc *smc, struct smt_p_version *vers)
  * fill frame status capabilities
  */
 /*
- * note: this para 200B is NOT in swap table, because it's also set in
+ * yeste: this para 200B is NOT in swap table, because it's also set in
  * PMF add_para
  */
 static void smt_fill_fsc(struct s_smc *smc, struct smt_p_fsc *fsc)
@@ -1453,7 +1453,7 @@ static void smt_fill_fsc(struct s_smc *smc, struct smt_p_fsc *fsc)
 						 * mac_index ()i !
 						 */
 	fsc->fsc_pad1 = 0 ;
-	fsc->fsc_value = FSC_TYPE0 ;		/* "normal" node */
+	fsc->fsc_value = FSC_TYPE0 ;		/* "yesrmal" yesde */
 #ifdef	LITTLE_ENDIAN
 	fsc->fsc_mac_index = smt_swap_short(INDEX_MAC) ;
 	fsc->fsc_value = smt_swap_short(FSC_TYPE0) ;
@@ -1474,7 +1474,7 @@ static void smt_fill_mac_counter(struct s_smc *smc, struct smt_p_mac_counter *mc
 }
 
 /*
- * fill mac frame not copied counter
+ * fill mac frame yest copied counter
  */
 static void smt_fill_mac_fnc(struct s_smc *smc, struct smt_p_mac_fnc *fnc)
 {
@@ -1543,14 +1543,14 @@ static void smt_fill_echo(struct s_smc *smc, struct smt_p_echo *echo, u_long see
  */
 static void smt_clear_una_dna(struct s_smc *smc)
 {
-	smc->mib.m[MAC0].fddiMACUpstreamNbr = SMT_Unknown ;
-	smc->mib.m[MAC0].fddiMACDownstreamNbr = SMT_Unknown ;
+	smc->mib.m[MAC0].fddiMACUpstreamNbr = SMT_Unkyeswn ;
+	smc->mib.m[MAC0].fddiMACDownstreamNbr = SMT_Unkyeswn ;
 }
 
 static void smt_clear_old_una_dna(struct s_smc *smc)
 {
-	smc->mib.m[MAC0].fddiMACOldUpstreamNbr = SMT_Unknown ;
-	smc->mib.m[MAC0].fddiMACOldDownstreamNbr = SMT_Unknown ;
+	smc->mib.m[MAC0].fddiMACOldUpstreamNbr = SMT_Unkyeswn ;
+	smc->mib.m[MAC0].fddiMACOldDownstreamNbr = SMT_Unkyeswn ;
 }
 
 u_long smt_get_tid(struct s_smc *smc)
@@ -1848,7 +1848,7 @@ void smt_swap_para(struct smt_header *sm, int len, int direction)
 			type = pa->p_type ;
 		}
 		/*
-		 * note: paras can have 0 length !
+		 * yeste: paras can have 0 length !
 		 */
 		if (plen < 0)
 			break ;
@@ -2011,7 +2011,7 @@ int smt_action(struct s_smc *smc, int class, int code, int index)
 }
 
 /*
- * canonical conversion of <len> bytes beginning form *data
+ * cayesnical conversion of <len> bytes beginning form *data
  */
 #ifdef  USE_CAN_ADDR
 static void hwm_conv_can(struct s_smc *smc, char *data, int len)
@@ -2025,5 +2025,5 @@ static void hwm_conv_can(struct s_smc *smc, char *data, int len)
 }
 #endif
 
-#endif	/* no SLIM_SMT */
+#endif	/* yes SLIM_SMT */
 

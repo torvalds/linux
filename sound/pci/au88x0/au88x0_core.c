@@ -28,10 +28,10 @@
    vortex_adb_addroutes();
    vortex_connect_codecplay();
    vortex_src_flushbuffers();
-   vortex_adbdma_setmode();  note: still some unknown arguments!
+   vortex_adbdma_setmode();  yeste: still some unkyeswn arguments!
    vortex_adbdma_startfifo();
    vortex_adbdma_stopfifo();
-   vortex_fifo_setadbctrl(); note: still some unknown arguments!
+   vortex_fifo_setadbctrl(); yeste: still some unkyeswn arguments!
    vortex_mix_setinputvolumebyte();
    vortex_mix_enableinput();
    vortex_mixer_addWTD(); (fixed)
@@ -55,7 +55,7 @@
  16-03-2003 More srcblock_setupchannel discoveries.
  12-04-2003 AU8830 playback support. Recording in the works.
  17-04-2003 vortex_route() and vortex_routes() bug fixes. AU8830 recording
- 			works now, but chipn' dale effect is still there.
+ 			works yesw, but chipn' dale effect is still there.
  16-05-2003 SrcSetupChannel cleanup. Moved the Src setup stuff entirely
             into au88x0_pcm.c .
  06-06-2003 Buffer shifter bugfix. Mixer volume fix.
@@ -533,7 +533,7 @@ vortex_src_checkratio(vortex_t * vortex, unsigned char src,
 		hwwrite(vortex->mmio, VORTEX_SRC_CONVRATIO + (src << 2), desired_ratio);
 
 		if ((lifeboat++) > 15) {
-			pr_err( "Vortex: could not set src-%d from %d to %d\n",
+			pr_err( "Vortex: could yest set src-%d from %d to %d\n",
 			       src, hw_ratio, desired_ratio);
 			break;
 		}
@@ -549,18 +549,18 @@ vortex_src_checkratio(vortex_t * vortex, unsigned char src,
 	card:	pointer to vortex_t strcut.
 	src:	Integer index of the SRC module.
 	cr:		Current sample rate conversion factor.
-	b:		unknown 16 bit value.
+	b:		unkyeswn 16 bit value.
 	sweep:	Enable Samplerate fade from cr toward tr flag.
 	dirplay: 1: playback, 0: recording.
 	sl:		Slow Lock flag.
 	tr:		Target samplerate conversion.
-	thsource: Throttle source flag (no idea what that means).
+	thsource: Throttle source flag (yes idea what that means).
 */
 static void vortex_src_setupchannel(vortex_t * card, unsigned char src,
 			unsigned int cr, unsigned int b, int sweep, int d,
 			int dirplay, int sl, unsigned int tr, int thsource)
 {
-	// noplayback: d=2,4,7,0xa,0xb when using first 2 src's.
+	// yesplayback: d=2,4,7,0xa,0xb when using first 2 src's.
 	// c: enables pitch sweep.
 	// looks like g is c related. Maybe g is a sweep parameter ?
 	// g = cvr
@@ -802,7 +802,7 @@ vortex_fifo_setadbctrl(vortex_t * vortex, int fifo, int stereo, int priority,
 	/* f seems priority related.
 	 * CAsp4AdbDma::SetPriority is the only place that calls SetAdbCtrl with f set to 1
 	 * every where else it is set to 0. It seems, however, that CAsp4AdbDma::SetPriority
-	 * is never called, thus the f related bits remain a mystery for now.
+	 * is never called, thus the f related bits remain a mystery for yesw.
 	 */
 	do {
 		temp = hwread(vortex->mmio, VORTEX_FIFO_ADBCTRL + (fifo << 2));
@@ -1144,7 +1144,7 @@ vortex_adbdma_setmode(vortex_t * vortex, int adbdma, int ie, int dir,
 {
 	stream_t *dma = &vortex->dma_adb[adbdma];
 
-	dma->dma_unknown = stereo;
+	dma->dma_unkyeswn = stereo;
 	dma->dma_ctrl =
 	    ((offset & OFFSET_MASK) | (dma->dma_ctrl & ~OFFSET_MASK));
 	/* Enable PCMOUT interrupts. */
@@ -1274,12 +1274,12 @@ static void vortex_adbdma_startfifo(vortex_t * vortex, int adbdma)
 		this_8 = 1;
 		hwwrite(vortex->mmio, VORTEX_ADBDMA_CTRL + (adbdma << 2),
 			dma->dma_ctrl);
-		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unknown,
+		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unkyeswn,
 				       this_4, this_8,
 				       dma->fifo_enabled ? 1 : 0, 0);
 		break;
 	case FIFO_PAUSE:
-		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unknown,
+		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unkyeswn,
 				       this_4, this_8,
 				       dma->fifo_enabled ? 1 : 0, 0);
 		break;
@@ -1296,12 +1296,12 @@ static void vortex_adbdma_resumefifo(vortex_t * vortex, int adbdma)
 	case FIFO_STOP:
 		hwwrite(vortex->mmio, VORTEX_ADBDMA_CTRL + (adbdma << 2),
 			dma->dma_ctrl);
-		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unknown,
+		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unkyeswn,
 				       this_4, this_8,
 				       dma->fifo_enabled ? 1 : 0, 0);
 		break;
 	case FIFO_PAUSE:
-		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unknown,
+		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unkyeswn,
 				       this_4, this_8,
 				       dma->fifo_enabled ? 1 : 0, 0);
 		break;
@@ -1316,13 +1316,13 @@ static void vortex_adbdma_pausefifo(vortex_t * vortex, int adbdma)
 	int this_8 = 0, this_4 = 0;
 	switch (dma->fifo_status) {
 	case FIFO_START:
-		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unknown,
+		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unkyeswn,
 				       this_4, this_8, 0, 0);
 		break;
 	case FIFO_STOP:
 		hwwrite(vortex->mmio, VORTEX_ADBDMA_CTRL + (adbdma << 2),
 			dma->dma_ctrl);
-		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unknown,
+		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unkyeswn,
 				       this_4, this_8, 0, 0);
 		break;
 	}
@@ -1335,7 +1335,7 @@ static void vortex_adbdma_stopfifo(vortex_t * vortex, int adbdma)
 
 	int this_4 = 0, this_8 = 0;
 	if (dma->fifo_status == FIFO_START)
-		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unknown,
+		vortex_fifo_setadbctrl(vortex, adbdma, dma->dma_unkyeswn,
 				       this_4, this_8, 0, 0);
 	else if (dma->fifo_status == FIFO_STOP)
 		return;
@@ -1416,7 +1416,7 @@ vortex_wtdma_setmode(vortex_t * vortex, int wtdma, int ie, int fmt, int d,
 	stream_t *dma = &vortex->dma_wt[wtdma];
 
 	//dma->this_08 = e;
-	dma->dma_unknown = d;
+	dma->dma_unkyeswn = d;
 	dma->dma_ctrl = 0;
 	dma->dma_ctrl =
 	    ((offset & OFFSET_MASK) | (dma->dma_ctrl & ~OFFSET_MASK));
@@ -1523,12 +1523,12 @@ static void vortex_wtdma_startfifo(vortex_t * vortex, int wtdma)
 		this_8 = 1;
 		hwwrite(vortex->mmio, VORTEX_WTDMA_CTRL + (wtdma << 2),
 			dma->dma_ctrl);
-		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unknown,
+		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unkyeswn,
 				      this_4, this_8,
 				      dma->fifo_enabled ? 1 : 0, 0);
 		break;
 	case FIFO_PAUSE:
-		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unknown,
+		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unkyeswn,
 				      this_4, this_8,
 				      dma->fifo_enabled ? 1 : 0, 0);
 		break;
@@ -1545,12 +1545,12 @@ static void vortex_wtdma_resumefifo(vortex_t * vortex, int wtdma)
 	case FIFO_STOP:
 		hwwrite(vortex->mmio, VORTEX_WTDMA_CTRL + (wtdma << 2),
 			dma->dma_ctrl);
-		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unknown,
+		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unkyeswn,
 				      this_4, this_8,
 				      dma->fifo_enabled ? 1 : 0, 0);
 		break;
 	case FIFO_PAUSE:
-		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unknown,
+		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unkyeswn,
 				      this_4, this_8,
 				      dma->fifo_enabled ? 1 : 0, 0);
 		break;
@@ -1565,13 +1565,13 @@ static void vortex_wtdma_pausefifo(vortex_t * vortex, int wtdma)
 	int this_8 = 0, this_4 = 0;
 	switch (dma->fifo_status) {
 	case FIFO_START:
-		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unknown,
+		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unkyeswn,
 				      this_4, this_8, 0, 0);
 		break;
 	case FIFO_STOP:
 		hwwrite(vortex->mmio, VORTEX_WTDMA_CTRL + (wtdma << 2),
 			dma->dma_ctrl);
-		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unknown,
+		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unkyeswn,
 				      this_4, this_8, 0, 0);
 		break;
 	}
@@ -1584,7 +1584,7 @@ static void vortex_wtdma_stopfifo(vortex_t * vortex, int wtdma)
 
 	int this_4 = 0, this_8 = 0;
 	if (dma->fifo_status == FIFO_START)
-		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unknown,
+		vortex_fifo_setwtctrl(vortex, wtdma, dma->dma_unkyeswn,
 				      this_4, this_8, 0, 0);
 	else if (dma->fifo_status == FIFO_STOP)
 		return;
@@ -1699,7 +1699,7 @@ vortex_adb_delroutes(vortex_t * vortex, unsigned char channel,
 			   VORTEX_ADB_RTBASE + (prev << 2)) & ADB_MASK;
 		if (((lifeboat++) > ADB_MASK) || (temp == ADB_MASK)) {
 			dev_err(vortex->card->dev,
-				"vortex_adb_delroutes: route not found! 0x%x\n",
+				"vortex_adb_delroutes: route yest found! 0x%x\n",
 				route0);
 			return;
 		}
@@ -1999,7 +1999,7 @@ static int resnum[VORTEX_RESOURCE_LAST] =
  restype: Indicates type of resource to be checked in or out.
 */
 static char
-vortex_adb_checkinout(vortex_t * vortex, int resmap[], int out, int restype)
+vortex_adb_checkiyesut(vortex_t * vortex, int resmap[], int out, int restype)
 {
 	int i, qty = resnum[restype], resinuse = 0;
 
@@ -2051,29 +2051,29 @@ vortex_adb_checkinout(vortex_t * vortex, int resmap[], int out, int restype)
 static void vortex_connect_default(vortex_t * vortex, int en)
 {
 	// Connect AC97 codec.
-	vortex->mixplayb[0] = vortex_adb_checkinout(vortex, vortex->fixed_res, en,
+	vortex->mixplayb[0] = vortex_adb_checkiyesut(vortex, vortex->fixed_res, en,
 				  VORTEX_RESOURCE_MIXOUT);
-	vortex->mixplayb[1] = vortex_adb_checkinout(vortex, vortex->fixed_res, en,
+	vortex->mixplayb[1] = vortex_adb_checkiyesut(vortex, vortex->fixed_res, en,
 				  VORTEX_RESOURCE_MIXOUT);
 	if (VORTEX_IS_QUAD(vortex)) {
-		vortex->mixplayb[2] = vortex_adb_checkinout(vortex, vortex->fixed_res, en,
+		vortex->mixplayb[2] = vortex_adb_checkiyesut(vortex, vortex->fixed_res, en,
 					  VORTEX_RESOURCE_MIXOUT);
-		vortex->mixplayb[3] = vortex_adb_checkinout(vortex, vortex->fixed_res, en,
+		vortex->mixplayb[3] = vortex_adb_checkiyesut(vortex, vortex->fixed_res, en,
 					  VORTEX_RESOURCE_MIXOUT);
 	}
 	vortex_connect_codecplay(vortex, en, vortex->mixplayb);
 
-	vortex->mixcapt[0] = vortex_adb_checkinout(vortex, vortex->fixed_res, en,
+	vortex->mixcapt[0] = vortex_adb_checkiyesut(vortex, vortex->fixed_res, en,
 				  VORTEX_RESOURCE_MIXIN);
-	vortex->mixcapt[1] = vortex_adb_checkinout(vortex, vortex->fixed_res, en,
+	vortex->mixcapt[1] = vortex_adb_checkiyesut(vortex, vortex->fixed_res, en,
 				  VORTEX_RESOURCE_MIXIN);
 	vortex_connect_codecrec(vortex, en, MIX_CAPT(0), MIX_CAPT(1));
 
 	// Connect SPDIF
 #ifndef CHIP_AU8820
-	vortex->mixspdif[0] = vortex_adb_checkinout(vortex, vortex->fixed_res, en,
+	vortex->mixspdif[0] = vortex_adb_checkiyesut(vortex, vortex->fixed_res, en,
 				  VORTEX_RESOURCE_MIXOUT);
-	vortex->mixspdif[1] = vortex_adb_checkinout(vortex, vortex->fixed_res, en,
+	vortex->mixspdif[1] = vortex_adb_checkiyesut(vortex, vortex->fixed_res, en,
 				  VORTEX_RESOURCE_MIXOUT);
 	vortex_connection_mix_adb(vortex, en, 0x14, vortex->mixspdif[0],
 				  ADB_SPDIFOUT(0));
@@ -2084,13 +2084,13 @@ static void vortex_connect_default(vortex_t * vortex, int en)
 #ifndef CHIP_AU8810
 	vortex_wt_connect(vortex, en);
 #endif
-	// A3D (crosstalk canceler and A3D slices). AU8810 disabled for now.
+	// A3D (crosstalk canceler and A3D slices). AU8810 disabled for yesw.
 #ifndef CHIP_AU8820
 	vortex_Vort3D_connect(vortex, en);
 #endif
 	// Connect I2S
 
-	// Connect DSP interface for SQ3500 turbo (not here i think...)
+	// Connect DSP interface for SQ3500 turbo (yest here i think...)
 
 	// Connect AC98 modem codec
 	
@@ -2115,13 +2115,13 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 	
 	if (dma >= 0) {
 		en = 0;
-		vortex_adb_checkinout(vortex,
+		vortex_adb_checkiyesut(vortex,
 				      vortex->dma_adb[dma].resources, en,
 				      VORTEX_RESOURCE_DMA);
 	} else {
 		en = 1;
 		if ((dma =
-		     vortex_adb_checkinout(vortex, NULL, en,
+		     vortex_adb_checkiyesut(vortex, NULL, en,
 					   VORTEX_RESOURCE_DMA)) < 0)
 			return -EBUSY;
 	}
@@ -2140,7 +2140,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 		/* Get SRC and MIXER hardware resources. */
 		if (stream->type != VORTEX_PCM_SPDIF) {
 			for (i = 0; i < nr_ch; i++) {
-				if ((src[i] = vortex_adb_checkinout(vortex,
+				if ((src[i] = vortex_adb_checkiyesut(vortex,
 							   stream->resources, en,
 							   VORTEX_RESOURCE_SRC)) < 0) {
 					memset(stream->resources, 0,
@@ -2148,7 +2148,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 					return -EBUSY;
 				}
 				if (stream->type != VORTEX_PCM_A3D) {
-					if ((mix[i] = vortex_adb_checkinout(vortex,
+					if ((mix[i] = vortex_adb_checkiyesut(vortex,
 								   stream->resources,
 								   en,
 								   VORTEX_RESOURCE_MIXIN)) < 0) {
@@ -2163,7 +2163,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 #ifndef CHIP_AU8820
 		if (stream->type == VORTEX_PCM_A3D) {
 			if ((a3d =
-			     vortex_adb_checkinout(vortex,
+			     vortex_adb_checkiyesut(vortex,
 						   stream->resources, en,
 						   VORTEX_RESOURCE_A3D)) < 0) {
 				memset(stream->resources, 0,
@@ -2279,7 +2279,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 		/* Get SRC and MIXER hardware resources. */
 		for (i = 0; i < nr_ch; i++) {
 			if ((mix[i] =
-			     vortex_adb_checkinout(vortex,
+			     vortex_adb_checkiyesut(vortex,
 						   stream->resources, en,
 						   VORTEX_RESOURCE_MIXOUT))
 			    < 0) {
@@ -2288,7 +2288,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 				return -EBUSY;
 			}
 			if ((src[i] =
-			     vortex_adb_checkinout(vortex,
+			     vortex_adb_checkiyesut(vortex,
 						   stream->resources, en,
 						   VORTEX_RESOURCE_SRC)) < 0) {
 				memset(stream->resources, 0,
@@ -2319,7 +2319,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 	vortex->dma_adb[dma].nr_ch = nr_ch;
 
 #if 0
-	/* AC97 Codec channel setup. FIXME: this has no effect on some cards !! */
+	/* AC97 Codec channel setup. FIXME: this has yes effect on some cards !! */
 	if (nr_ch < 4) {
 		/* Copy stereo to rear channel (surround) */
 		snd_ac97_write_cache(vortex->codec,
@@ -2444,7 +2444,7 @@ static irqreturn_t vortex_interrupt(int irq, void *dev_id)
 		handled = 1;
 	}
 	if (source & IRQ_PCMOUT) {
-		/* ALSA period acknowledge. */
+		/* ALSA period ackyeswledge. */
 		spin_lock(&vortex->lock);
 		for (i = 0; i < NR_ADB; i++) {
 			if (vortex->dma_adb[i].fifo_status == FIFO_START) {
@@ -2459,9 +2459,9 @@ static irqreturn_t vortex_interrupt(int irq, void *dev_id)
 #ifndef CHIP_AU8810
 		for (i = 0; i < NR_WT; i++) {
 			if (vortex->dma_wt[i].fifo_status == FIFO_START) {
-				/* FIXME: we ignore the return value from
+				/* FIXME: we igyesre the return value from
 				 * vortex_wtdma_bufshift() below as the delta
-				 * calculation seems not working for wavetable
+				 * calculation seems yest working for wavetable
 				 * by some reason
 				 */
 				vortex_wtdma_bufshift(vortex, i);
@@ -2475,7 +2475,7 @@ static irqreturn_t vortex_interrupt(int irq, void *dev_id)
 		spin_unlock(&vortex->lock);
 		handled = 1;
 	}
-	//Acknowledge the Timer interrupt
+	//Ackyeswledge the Timer interrupt
 	if (source & IRQ_TIMER) {
 		hwread(vortex->mmio, VORTEX_IRQ_STAT);
 		handled = 1;
@@ -2487,7 +2487,7 @@ static irqreturn_t vortex_interrupt(int irq, void *dev_id)
 	}
 
 	if (!handled) {
-		dev_err(vortex->card->dev, "unknown irq source %x\n", source);
+		dev_err(vortex->card->dev, "unkyeswn irq source %x\n", source);
 	}
 	return IRQ_RETVAL(handled);
 }
@@ -2799,7 +2799,7 @@ static int vortex_alsafmt_aspfmt(snd_pcm_format_t alsafmt, vortex_t *v)
 	return fmt;
 }
 
-/* Some not yet useful translations. */
+/* Some yest yet useful translations. */
 #if 0
 typedef enum {
 	ASPFMTLINEAR16 = 0,	/* 0x8 */

@@ -1635,7 +1635,7 @@ struct chan_info_params {
 	u32 err_code;
 	u32 freq;
 	u32 cmd_flags;
-	u32 noise_floor;
+	u32 yesise_floor;
 	u32 rx_clear_count;
 	u32 cycle_count;
 	u32 mac_clk_mhz;
@@ -1647,7 +1647,7 @@ struct wmi_tlv_chan_info_event {
 	__le32 err_code;
 	__le32 freq;
 	__le32 cmd_flags;
-	__le32 noise_floor;
+	__le32 yesise_floor;
 	__le32 rx_clear_count;
 	__le32 cycle_count;
 	__le32 chan_tx_pwr_range;
@@ -1792,7 +1792,7 @@ struct wmi_tlv_init_cmd {
 } __packed;
 
 struct wmi_tlv_pdev_get_temp_cmd {
-	__le32 pdev_id; /* not used */
+	__le32 pdev_id; /* yest used */
 } __packed;
 
 struct wmi_tlv_pdev_temperature_event {
@@ -1803,13 +1803,13 @@ struct wmi_tlv_pdev_temperature_event {
 } __packed;
 
 struct wmi_tlv_pdev_set_param_cmd {
-	__le32 pdev_id; /* not used yet */
+	__le32 pdev_id; /* yest used yet */
 	__le32 param_id;
 	__le32 param_value;
 } __packed;
 
 struct wmi_tlv_pdev_set_rd_cmd {
-	__le32 pdev_id; /* not used yet */
+	__le32 pdev_id; /* yest used yet */
 	__le32 regd;
 	__le32 regd_2ghz;
 	__le32 regd_5ghz;
@@ -1861,12 +1861,12 @@ struct wmi_tlv_vdev_start_cmd {
 	struct wmi_ssid ssid;
 	__le32 bcn_tx_rate;
 	__le32 bcn_tx_power;
-	__le32 num_noa_descr;
+	__le32 num_yesa_descr;
 	__le32 disable_hw_ack;
 } __packed;
 
 enum {
-	WMI_TLV_PEER_TYPE_DEFAULT = 0, /* generic / non-BSS / self-peer */
+	WMI_TLV_PEER_TYPE_DEFAULT = 0, /* generic / yesn-BSS / self-peer */
 	WMI_TLV_PEER_TYPE_BSS = 1,
 	WMI_TLV_PEER_TYPE_TDLS = 2,
 	WMI_TLV_PEER_TYPE_HOST_MAX = 127,
@@ -1900,13 +1900,13 @@ struct wmi_tlv_peer_assoc_cmd {
 } __packed;
 
 struct wmi_tlv_pdev_suspend {
-	__le32 pdev_id; /* not used yet */
+	__le32 pdev_id; /* yest used yet */
 	__le32 opt;
 } __packed;
 
 struct wmi_tlv_pdev_set_wmm_cmd {
-	__le32 pdev_id; /* not used yet */
-	__le32 dg_type; /* no idea.. */
+	__le32 pdev_id; /* yest used yet */
+	__le32 dg_type; /* yes idea.. */
 } __packed;
 
 struct wmi_tlv_vdev_wmm_params {
@@ -1994,7 +1994,7 @@ struct wmi_tlv_vdev_stats {
 	__le32 num_rts_success;
 	__le32 num_rx_err;
 	__le32 num_rx_discard;
-	__le32 num_tx_not_acked;
+	__le32 num_tx_yest_acked;
 	__le32 tx_rate_history[10];
 	__le32 beacon_rssi_history[10];
 } __packed;
@@ -2081,7 +2081,7 @@ struct wmi_tlv_stats_ev {
 	__le32 num_peer_stats_extd;
 } __packed;
 
-struct wmi_tlv_p2p_noa_ev {
+struct wmi_tlv_p2p_yesa_ev {
 	__le32 vdev_id;
 } __packed;
 
@@ -2182,7 +2182,7 @@ enum wmi_tlv_tdls_options {
 struct wmi_tdls_set_state_cmd {
 	__le32 vdev_id;
 	__le32 state;
-	__le32 notification_interval_ms;
+	__le32 yestification_interval_ms;
 	__le32 tx_discovery_threshold;
 	__le32 tx_teardown_threshold;
 	__le32 rssi_teardown_threshold;
@@ -2363,7 +2363,7 @@ enum wmi_nlo_ssid_bcastnwtype {
 /* Whether PNO event shall be triggered if the network is found on G band */
 #define WMI_ENLO_FLAG_G_BAND             4
 
-/* Whether strict matching is required (i.e. firmware shall not
+/* Whether strict matching is required (i.e. firmware shall yest
  * match on the entire SSID)
  */
 #define WMI_ENLO_FLAG_STRICT_MATCH       8
@@ -2396,7 +2396,7 @@ struct wmi_nlo_auth_param {
 struct wmi_nlo_bcast_nw_param {
 	__le32 valid;
 
-	/* If WMI_NLO_CONFIG_EPNO is not set. Supplicant PNO is enabled.
+	/* If WMI_NLO_CONFIG_EPNO is yest set. Supplicant PNO is enabled.
 	 * The value should be true/false. Otherwise EPNO is enabled.
 	 * bcast_nw_type would be used as a bit flag contains WMI_ENLO_FLAG_XXX
 	 */
@@ -2416,7 +2416,7 @@ struct nlo_configured_parameters {
 	struct wmi_nlo_auth_param auth_type;
 	struct wmi_nlo_rssi_param rssi_cond;
 
-	/* indicates if the SSID is hidden or not */
+	/* indicates if the SSID is hidden or yest */
 	struct wmi_nlo_bcast_nw_param bcast_nw_type;
 } __packed;
 
@@ -2443,8 +2443,8 @@ struct nlo_channel_prediction_cfg {
 	/* Periodic full channel scan in milliseconds unit.
 	 * After full_scan_period_ms since last full scan, channel prediction
 	 * scan is suppressed and will do full scan.
-	 * This is to help detecting sudden AP power-on or -off. Value 0 means no
-	 * full scan at all (not recommended).
+	 * This is to help detecting sudden AP power-on or -off. Value 0 means yes
+	 * full scan at all (yest recommended).
 	 */
 	__le32 full_scan_period_ms;
 } __packed;
@@ -2470,7 +2470,7 @@ struct enlo_candidate_score_params_t {
 	/* score bonus for all networks with the same network flag */
 	__le32 same_network_bonus;
 
-	/* score bonus for networks that are not open */
+	/* score bonus for networks that are yest open */
 	__le32 secure_bonus;
 
 	/* 5GHz RSSI score bonus (applied to all 5GHz networks) */
@@ -2526,7 +2526,7 @@ struct wmi_tlv_wow_nlo_config_cmd {
 	/* specific to windows */
 	__le32 slow_scan_period;
 
-	__le32 no_of_ssids;
+	__le32 yes_of_ssids;
 
 	__le32 num_of_channels;
 

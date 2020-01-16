@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * acl.h
  *
@@ -18,10 +18,10 @@ struct ocfs2_acl_entry {
 	__le32 e_id;
 };
 
-struct posix_acl *ocfs2_iop_get_acl(struct inode *inode, int type);
-int ocfs2_iop_set_acl(struct inode *inode, struct posix_acl *acl, int type);
-extern int ocfs2_acl_chmod(struct inode *, struct buffer_head *);
-extern int ocfs2_init_acl(handle_t *, struct inode *, struct inode *,
+struct posix_acl *ocfs2_iop_get_acl(struct iyesde *iyesde, int type);
+int ocfs2_iop_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type);
+extern int ocfs2_acl_chmod(struct iyesde *, struct buffer_head *);
+extern int ocfs2_init_acl(handle_t *, struct iyesde *, struct iyesde *,
 			  struct buffer_head *, struct buffer_head *,
 			  struct ocfs2_alloc_context *,
 			  struct ocfs2_alloc_context *);

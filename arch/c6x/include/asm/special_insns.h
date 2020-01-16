@@ -23,7 +23,7 @@
 		asm volatile ("mvc .s2 " #reg ",%0\n"	  \
 			      "or  .l2 %1,%0,%0\n"	  \
 			      "mvc .s2 %0," #reg "\n"	  \
-			      "nop\n"			  \
+			      "yesp\n"			  \
 			      : "=&b"(__x) : "b"(__n));	  \
 	} while (0)
 
@@ -32,7 +32,7 @@
 		asm volatile ("mvc .s2 " #reg ",%0\n"	  \
 			      "and .l2 %1,%0,%0\n"	  \
 			      "mvc .s2 %0," #reg "\n"	  \
-			      "nop\n"    \
+			      "yesp\n"    \
 			      : "=&b"(__x) : "b"(__n));	  \
 	} while (0)
 

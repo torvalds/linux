@@ -39,7 +39,7 @@ the ‘TRC’ prefix.
 :File:            ``reset`` (wo)
 :Trace Registers: All
 :Notes:
-    Reset all programming to trace nothing / no logic programmed.
+    Reset all programming to trace yesthing / yes logic programmed.
 
 :Syntax:
     ``echo 1 > reset``
@@ -167,7 +167,7 @@ the ‘TRC’ prefix.
 :Syntax:
     ``echo type > addr_ctxtype``
 
-    Type one of {all, vmid, ctxid, none}
+    Type one of {all, vmid, ctxid, yesne}
 :Example:
     ``$> echo ctxid > addr_ctxtype``
 
@@ -176,7 +176,7 @@ the ‘TRC’ prefix.
 :File:            ``addr_exlevel_s_ns`` (rw)
 :Trace Registers: ACATR[idx,{14:8}]
 :Notes:
-    Set the ELx secure and non-secure matching bits for the
+    Set the ELx secure and yesn-secure matching bits for the
     selected address comparator
 
 :Depends: ``addr_idx``
@@ -276,7 +276,7 @@ the ‘TRC’ prefix.
 :File:            ``ns_exlevel_vinst`` (rw)
 :Trace Registers: VICTLR{23:20}
 :Notes:
-    Program non-secure exception level filters. Set / clear NS
+    Program yesn-secure exception level filters. Set / clear NS
     exception filter bits. Setting ‘1’ excludes trace from the
     exception level.
 
@@ -328,7 +328,7 @@ the ‘TRC’ prefix.
 ----
 
 :File:            ``cntr_idx`` (rw)
-:Trace Registers: none
+:Trace Registers: yesne
 :Notes:
     Select the counter to access
 
@@ -407,7 +407,7 @@ the ‘TRC’ prefix.
     32 bit values made up of mask bytes, where mN represents a
     byte mask value for Context ID comparator N.
 
-    Second value not required on systems that have fewer than 4
+    Second value yest required on systems that have fewer than 4
     context ID comparators
 
 ----
@@ -450,7 +450,7 @@ the ‘TRC’ prefix.
     ``echo m3m2m1m0 [m7m6m5m4] > vmid_masks``
 
     Where mN represents a byte mask value for VMID comparator N.
-    Second value not required on systems that have fewer than 4
+    Second value yest required on systems that have fewer than 4
     VMID comparators.
 
 ----
@@ -768,14 +768,14 @@ Bit assignments shown below:-
     ETM_MODE_EXCL_KERN
 
 **description:**
-    Set default trace setup to exclude kernel mode trace (see note a)
+    Set default trace setup to exclude kernel mode trace (see yeste a)
 
 
 **bit (31):**
     ETM_MODE_EXCL_USER
 
 **description:**
-    Set default trace setup to exclude user space trace (see note a)
+    Set default trace setup to exclude user space trace (see yeste a)
 
 ----
 

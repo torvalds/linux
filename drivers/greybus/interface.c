@@ -62,7 +62,7 @@ static int gb_interface_read_ara_dme(struct gb_interface *intf)
 	 * standard GMP attributes.
 	 */
 	if (intf->ddbl1_manufacturer_id != TOSHIBA_DMID) {
-		dev_err(&intf->dev, "unknown manufacturer %08x\n",
+		dev_err(&intf->dev, "unkyeswn manufacturer %08x\n",
 			intf->ddbl1_manufacturer_id);
 		return -ENODEV;
 	}
@@ -353,7 +353,7 @@ EXPORT_SYMBOL_GPL(gb_interface_request_mode_switch);
 /*
  * T_TstSrcIncrement is written by the module on ES2 as a stand-in for the
  * init-status attribute DME_TOSHIBA_INIT_STATUS. The AP needs to read and
- * clear it after reading a non-zero value from it.
+ * clear it after reading a yesn-zero value from it.
  *
  * FIXME: This is module-hardware dependent and needs to be extended for every
  * type of module we want to support.
@@ -384,7 +384,7 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 		return ret;
 
 	/*
-	 * A nonzero init status indicates the module has finished
+	 * A yesnzero init status indicates the module has finished
 	 * initializing.
 	 */
 	if (!value) {
@@ -454,7 +454,7 @@ gb_interface_attr(vendor_id, "0x%08x");
 gb_interface_attr(product_id, "0x%08x");
 gb_interface_attr(serial_number, "0x%016llx");
 
-static ssize_t voltage_now_show(struct device *dev,
+static ssize_t voltage_yesw_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -471,9 +471,9 @@ static ssize_t voltage_now_show(struct device *dev,
 
 	return sprintf(buf, "%u\n", measurement);
 }
-static DEVICE_ATTR_RO(voltage_now);
+static DEVICE_ATTR_RO(voltage_yesw);
 
-static ssize_t current_now_show(struct device *dev,
+static ssize_t current_yesw_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -490,9 +490,9 @@ static ssize_t current_now_show(struct device *dev,
 
 	return sprintf(buf, "%u\n", measurement);
 }
-static DEVICE_ATTR_RO(current_now);
+static DEVICE_ATTR_RO(current_yesw);
 
-static ssize_t power_now_show(struct device *dev,
+static ssize_t power_yesw_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -509,7 +509,7 @@ static ssize_t power_now_show(struct device *dev,
 
 	return sprintf(buf, "%u\n", measurement);
 }
-static DEVICE_ATTR_RO(power_now);
+static DEVICE_ATTR_RO(power_yesw);
 
 static ssize_t power_state_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -572,7 +572,7 @@ static const char *gb_interface_type_string(struct gb_interface *intf)
 {
 	static const char * const types[] = {
 		[GB_INTERFACE_TYPE_INVALID] = "invalid",
-		[GB_INTERFACE_TYPE_UNKNOWN] = "unknown",
+		[GB_INTERFACE_TYPE_UNKNOWN] = "unkyeswn",
 		[GB_INTERFACE_TYPE_DUMMY] = "dummy",
 		[GB_INTERFACE_TYPE_UNIPRO] = "unipro",
 		[GB_INTERFACE_TYPE_GREYBUS] = "greybus",
@@ -604,9 +604,9 @@ static struct attribute *interface_greybus_attrs[] = {
 };
 
 static struct attribute *interface_power_attrs[] = {
-	&dev_attr_voltage_now.attr,
-	&dev_attr_current_now.attr,
-	&dev_attr_power_now.attr,
+	&dev_attr_voltage_yesw.attr,
+	&dev_attr_current_yesw.attr,
+	&dev_attr_power_yesw.attr,
 	&dev_attr_power_state.attr,
 	NULL
 };
@@ -888,18 +888,18 @@ static int gb_interface_activate_operation(struct gb_interface *intf,
 	switch (type) {
 	case GB_SVC_INTF_TYPE_DUMMY:
 		*intf_type = GB_INTERFACE_TYPE_DUMMY;
-		/* FIXME: handle as an error for now */
+		/* FIXME: handle as an error for yesw */
 		return -ENODEV;
 	case GB_SVC_INTF_TYPE_UNIPRO:
 		*intf_type = GB_INTERFACE_TYPE_UNIPRO;
-		dev_err(&intf->dev, "interface type UniPro not supported\n");
-		/* FIXME: handle as an error for now */
+		dev_err(&intf->dev, "interface type UniPro yest supported\n");
+		/* FIXME: handle as an error for yesw */
 		return -ENODEV;
 	case GB_SVC_INTF_TYPE_GREYBUS:
 		*intf_type = GB_INTERFACE_TYPE_GREYBUS;
 		break;
 	default:
-		dev_err(&intf->dev, "unknown interface type: %u\n", type);
+		dev_err(&intf->dev, "unkyeswn interface type: %u\n", type);
 		*intf_type = GB_INTERFACE_TYPE_UNKNOWN;
 		return -ENODEV;
 	}
@@ -1137,7 +1137,7 @@ int gb_interface_enable(struct gb_interface *intf)
 		goto err_destroy_bundles;
 
 	pm_runtime_use_autosuspend(&intf->dev);
-	pm_runtime_get_noresume(&intf->dev);
+	pm_runtime_get_yesresume(&intf->dev);
 	pm_runtime_set_active(&intf->dev);
 	pm_runtime_enable(&intf->dev);
 
@@ -1210,7 +1210,7 @@ void gb_interface_disable(struct gb_interface *intf)
 	pm_runtime_disable(&intf->dev);
 	pm_runtime_set_suspended(&intf->dev);
 	pm_runtime_dont_use_autosuspend(&intf->dev);
-	pm_runtime_put_noidle(&intf->dev);
+	pm_runtime_put_yesidle(&intf->dev);
 }
 
 /* Register an interface. */

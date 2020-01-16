@@ -79,7 +79,7 @@ void __init store_cpu_topology(unsigned int cpuid)
 	for_each_online_cpu(cpu) {
 		const struct cpuinfo_parisc *cpuinfo = &per_cpu(cpu_data, cpu);
 
-		if (cpu == cpuid) /* ignore current cpu */
+		if (cpu == cpuid) /* igyesre current cpu */
 			continue;
 
 		if (cpuinfo->cpu_loc == p->cpu_loc) {

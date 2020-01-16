@@ -3,7 +3,7 @@
 Required properties:
  - compatible: Must be "ti,ads8344"
  - reg: SPI chip select number for the device
- - vref-supply: phandle to a regulator node that supplies the
+ - vref-supply: phandle to a regulator yesde that supplies the
    reference voltage
 
 Recommended properties:

@@ -24,7 +24,7 @@ extern __wsum csum_partial(const void *, int, __wsum);
  * Here even more important to align src and dst on a 32-bit (or even
  * better 64-bit) boundary
  */
-extern __wsum csum_partial_copy_nocheck(const void *, void *, int, __wsum);
+extern __wsum csum_partial_copy_yescheck(const void *, void *, int, __wsum);
 
 /*
  * this is a new version of the above that records errors it finds in *errp,
@@ -86,7 +86,7 @@ static inline __sum16 csum_fold(__wsum csum)
 	return (__force __sum16)(~sum >> 16);
 }
  
-static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+static inline __wsum csum_tcpudp_yesfold(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
@@ -108,7 +108,7 @@ static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
+	return csum_fold(csum_tcpudp_yesfold(saddr,daddr,len,proto,sum));
 }
 
 /*

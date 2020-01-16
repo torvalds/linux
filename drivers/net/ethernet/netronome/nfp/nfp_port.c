@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
@@ -25,7 +25,7 @@ struct nfp_port *nfp_port_from_netdev(struct net_device *netdev)
 		return repr->port;
 	}
 
-	WARN(1, "Unknown netdev type for nfp_port\n");
+	WARN(1, "Unkyeswn netdev type for nfp_port\n");
 
 	return NULL;
 }
@@ -68,7 +68,7 @@ int nfp_port_set_features(struct net_device *netdev, netdev_features_t features)
 
 	if ((netdev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
 	    port->tc_offload_cnt) {
-		netdev_err(netdev, "Cannot disable HW TC offload while offloads active\n");
+		netdev_err(netdev, "Canyest disable HW TC offload while offloads active\n");
 		return -EBUSY;
 	}
 
@@ -166,7 +166,7 @@ nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
  * interface associated with the netdev.
  *
  * Return:
- * 0 - configuration successful (or no change);
+ * 0 - configuration successful (or yes change);
  * -ERRNO - configuration failed.
  */
 int nfp_port_configure(struct net_device *netdev, bool configed)
@@ -192,7 +192,7 @@ int nfp_port_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
 	/* Check if vNIC has external port associated and cfg is OK */
 	if (!pf->eth_tbl || id >= pf->eth_tbl->count) {
 		nfp_err(app->cpp,
-			"NSP port entries don't match vNICs (no entry %d)\n",
+			"NSP port entries don't match vNICs (yes entry %d)\n",
 			id);
 		return -EINVAL;
 	}

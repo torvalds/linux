@@ -19,7 +19,7 @@
  * The kernel driver is only responsible for loading the HuC firmware and
  * triggering its security authentication, which is performed by the GuC. For
  * The GuC to correctly perform the authentication, the HuC binary must be
- * loaded before the GuC one. Loading the HuC is optional; however, not using
+ * loaded before the GuC one. Loading the HuC is optional; however, yest using
  * the HuC might negatively impact power usage and/or performance of media
  * workloads, depending on the use-cases.
  *
@@ -68,9 +68,9 @@ static int intel_huc_rsa_data_create(struct intel_huc *huc)
 		return err;
 
 	/*
-	 * HuC firmware will sit above GUC_GGTT_TOP and will not map
-	 * through GTT. Unfortunately, this means GuC cannot perform
-	 * the HuC auth. as the rsa offset now falls within the GuC
+	 * HuC firmware will sit above GUC_GGTT_TOP and will yest map
+	 * through GTT. Unfortunately, this means GuC canyest perform
+	 * the HuC auth. as the rsa offset yesw falls within the GuC
 	 * inaccessible range. We resort to perma-pinning an additional
 	 * vma within the accessible range that only contains the rsa
 	 * signature. The GuC can use this extra pinning to perform
@@ -168,18 +168,18 @@ int intel_huc_auth(struct intel_huc *huc)
 	ret = intel_guc_auth_huc(guc,
 				 intel_guc_ggtt_offset(guc, huc->rsa_data));
 	if (ret) {
-		DRM_ERROR("HuC: GuC did not ack Auth request %d\n", ret);
+		DRM_ERROR("HuC: GuC did yest ack Auth request %d\n", ret);
 		goto fail;
 	}
 
-	/* Check authentication status, it should be done by now */
+	/* Check authentication status, it should be done by yesw */
 	ret = __intel_wait_for_register(gt->uncore,
 					huc->status.reg,
 					huc->status.mask,
 					huc->status.value,
 					2, 50, NULL);
 	if (ret) {
-		DRM_ERROR("HuC: Firmware not verified %d\n", ret);
+		DRM_ERROR("HuC: Firmware yest verified %d\n", ret);
 		goto fail;
 	}
 
@@ -200,8 +200,8 @@ fail:
  * firmware was successfully loaded.
  *
  * Returns: 1 if HuC firmware is loaded and verified,
- * 0 if HuC firmware is not loaded and -ENODEV if HuC
- * is not present on this platform.
+ * 0 if HuC firmware is yest loaded and -ENODEV if HuC
+ * is yest present on this platform.
  */
 int intel_huc_check_status(struct intel_huc *huc)
 {

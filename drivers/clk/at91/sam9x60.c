@@ -152,7 +152,7 @@ static const struct {
 	{ .n = "dbgu_gclk",   .id = 47, },
 };
 
-static void __init sam9x60_pmc_setup(struct device_node *np)
+static void __init sam9x60_pmc_setup(struct device_yesde *np)
 {
 	struct clk_range range = CLK_RANGE(0, 0);
 	const char *td_slck_name, *md_slck_name, *mainxtal_name;
@@ -180,7 +180,7 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 		return;
 	mainxtal_name = of_clk_get_parent_name(np, i);
 
-	regmap = syscon_node_to_regmap(np);
+	regmap = syscon_yesde_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 

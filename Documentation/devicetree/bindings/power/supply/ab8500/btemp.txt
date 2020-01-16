@@ -1,6 +1,6 @@
 === AB8500 Battery Temperature Monitor Driver ===
 
-The properties below describes the node for btemp driver.
+The properties below describes the yesde for btemp driver.
 
 Required Properties:
 - compatible = Shall be: "stericsson,ab8500-btemp"
@@ -12,5 +12,5 @@ Required Properties:
 		battery	   = <&ab8500_battery>;
 	};
 
-For information on battery specific node, Ref:
+For information on battery specific yesde, Ref:
 Documentation/devicetree/bindings/power/supply/ab8500/fg.txt

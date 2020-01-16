@@ -41,7 +41,7 @@ sbc_emulate_readcapacity(struct se_cmd *cmd)
 	/*
 	 * SBC-2 says:
 	 *   If the PMI bit is set to zero and the LOGICAL BLOCK
-	 *   ADDRESS field is not set to zero, the device server shall
+	 *   ADDRESS field is yest set to zero, the device server shall
 	 *   terminate the command with CHECK CONDITION status with
 	 *   the sense key set to ILLEGAL REQUEST and the additional
 	 *   sense code set to INVALID FIELD IN CDB.
@@ -90,7 +90,7 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	 */
 	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
 		/*
-		 * Only override a device's pi_prot_type if no T10-PI is
+		 * Only override a device's pi_prot_type if yes T10-PI is
 		 * available, and sess_prot_type has been explicitly enabled.
 		 */
 		if (!pi_prot_type)
@@ -141,7 +141,7 @@ sbc_emulate_startstop(struct se_cmd *cmd)
 
 	/*
 	 * See sbc3r36 section 5.25
-	 * Immediate bit should be set since there is nothing to complete
+	 * Immediate bit should be set since there is yesthing to complete
 	 * POWER CONDITION MODIFIER 0h
 	 */
 	if (!(cdb[1] & 1) || cdb[2] || cdb[3])
@@ -156,7 +156,7 @@ sbc_emulate_startstop(struct se_cmd *cmd)
 
 	/*
 	 * See sbc3r36 section 5.25
-	 * LOEJ 0h - nothing to load or unload
+	 * LOEJ 0h - yesthing to load or unload
 	 * START 1h - we are ready
 	 */
 	if (!(cdb[4] & 1) || (cdb[4] & 2) || (cdb[4] & 4))
@@ -178,7 +178,7 @@ sector_t sbc_get_write_same_sectors(struct se_cmd *cmd)
 		num_blocks = get_unaligned_be32(&cmd->t_task_cdb[28]);
 
 	/*
-	 * Use the explicit range when non zero is supplied, otherwise calculate
+	 * Use the explicit range when yesn zero is supplied, otherwise calculate
 	 * the remaining range based on ->get_blocks() - starting LBA.
 	 */
 	if (num_blocks)
@@ -193,11 +193,11 @@ static sense_reason_t
 sbc_execute_write_same_unmap(struct se_cmd *cmd)
 {
 	struct sbc_ops *ops = cmd->protocol_data;
-	sector_t nolb = sbc_get_write_same_sectors(cmd);
+	sector_t yeslb = sbc_get_write_same_sectors(cmd);
 	sense_reason_t ret;
 
-	if (nolb) {
-		ret = ops->execute_unmap(cmd, cmd->t_task_lba, nolb);
+	if (yeslb) {
+		ret = ops->execute_unmap(cmd, cmd->t_task_lba, yeslb);
 		if (ret)
 			return ret;
 	}
@@ -207,7 +207,7 @@ sbc_execute_write_same_unmap(struct se_cmd *cmd)
 }
 
 static sense_reason_t
-sbc_emulate_noop(struct se_cmd *cmd)
+sbc_emulate_yesop(struct se_cmd *cmd)
 {
 	target_complete_cmd(cmd, GOOD);
 	return 0;
@@ -288,7 +288,7 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 
 	if ((flags[0] & 0x04) || (flags[0] & 0x02)) {
 		pr_err("WRITE_SAME PBDATA and LBDATA"
-			" bits not supported for Block Discard"
+			" bits yest supported for Block Discard"
 			" Emulation\n");
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
@@ -309,7 +309,7 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 
 	/* We always have ANC_SUP == 0 so setting ANCHOR is always an error */
 	if (flags[0] & 0x10) {
-		pr_warn("WRITE SAME with ANCHOR not supported\n");
+		pr_warn("WRITE SAME with ANCHOR yest supported\n");
 		return TCM_INVALID_CDB_FIELD;
 	}
 	/*
@@ -443,7 +443,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 	unsigned char *buf = NULL, *addr;
 	struct sg_mapping_iter m;
 	unsigned int offset = 0, len;
-	unsigned int nlbas = cmd->t_task_nolb;
+	unsigned int nlbas = cmd->t_task_yeslb;
 	unsigned int block_size = dev->dev_attrib.block_size;
 	unsigned int compare_len = (nlbas * block_size);
 	sense_reason_t ret = TCM_NO_SENSE;
@@ -451,7 +451,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 
 	/*
 	 * Handle early failure in transport_generic_request_failure(),
-	 * which will not have taken ->caw_sem yet..
+	 * which will yest have taken ->caw_sem yet..
 	 */
 	if (!success && (!cmd->t_data_sg || !cmd->t_bidi_data_sg))
 		return TCM_NO_SENSE;
@@ -462,10 +462,10 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 		goto out;
 	/*
 	 * Immediately exit + release dev->caw_sem if command has already
-	 * been failed with a non-zero SCSI status.
+	 * been failed with a yesn-zero SCSI status.
 	 */
 	if (cmd->scsi_status) {
-		pr_debug("compare_and_write_callback: non zero scsi_status:"
+		pr_debug("compare_and_write_callback: yesn zero scsi_status:"
 			" 0x%02x\n", cmd->scsi_status);
 		*post_ret = 1;
 		if (cmd->scsi_status == SAM_STAT_CHECK_CONDITION)
@@ -523,7 +523,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 	}
 
 	i = 0;
-	len = cmd->t_task_nolb * block_size;
+	len = cmd->t_task_yeslb * block_size;
 	sg_miter_start(&m, cmd->t_data_sg, cmd->t_data_nents, SG_MITER_TO_SG);
 	/*
 	 * Currently assumes NoLB=1 and SGLs are PAGE_SIZE..
@@ -556,7 +556,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 	cmd->sam_task_attr = TCM_HEAD_TAG;
 	cmd->transport_complete_callback = compare_and_write_post;
 	/*
-	 * Now reset ->execute_cmd() to the normal sbc_execute_rw() handler
+	 * Now reset ->execute_cmd() to the yesrmal sbc_execute_rw() handler
 	 * for submitting the adjusted SGL to write instance user-data.
 	 */
 	cmd->execute_cmd = sbc_execute_rw;
@@ -603,11 +603,11 @@ sbc_compare_and_write(struct se_cmd *cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 	/*
-	 * Reset cmd->data_length to individual block_size in order to not
+	 * Reset cmd->data_length to individual block_size in order to yest
 	 * confuse backend drivers that depend on this value matching the
 	 * size of the I/O being submitted.
 	 */
-	cmd->data_length = cmd->t_task_nolb * dev->dev_attrib.block_size;
+	cmd->data_length = cmd->t_task_yeslb * dev->dev_attrib.block_size;
 
 	ret = ops->execute_rw(cmd, cmd->t_bidi_data_sg, cmd->t_bidi_data_nents,
 			      DMA_FROM_DEVICE);
@@ -698,7 +698,7 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 		if (unlikely(protect &&
 		    !dev->dev_attrib.pi_prot_type && !cmd->se_sess->sess_prot_type)) {
 			pr_err("CDB contains protect bit, but device + fabric does"
-			       " not advertise PROTECT=1 feature bit\n");
+			       " yest advertise PROTECT=1 feature bit\n");
 			return TCM_INVALID_CDB_FIELD;
 		}
 		if (cmd->prot_pto)
@@ -771,14 +771,14 @@ sbc_check_dpofua(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb)
 		/* see explanation in spc_emulate_modesense */
 		if (!target_check_fua(dev)) {
 			pr_err("Got CDB: 0x%02x with DPO bit set, but device"
-			       " does not advertise support for DPO\n", cdb[0]);
+			       " does yest advertise support for DPO\n", cdb[0]);
 			return -EINVAL;
 		}
 	}
 	if (cdb[1] & 0x8) {
 		if (!target_check_fua(dev)) {
 			pr_err("Got CDB: 0x%02x with FUA bit set, but device"
-			       " does not advertise support for FUA write\n",
+			       " does yest advertise support for FUA write\n",
 			       cdb[0]);
 			return -EINVAL;
 		}
@@ -941,7 +941,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		case WRITE_SAME_32:
 			sectors = transport_get_sectors_32(cdb);
 			if (!sectors) {
-				pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not"
+				pr_err("WSNZ=1, WRITE_SAME w/sectors=0 yest"
 				       " supported\n");
 				return TCM_INVALID_CDB_FIELD;
 			}
@@ -955,7 +955,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			break;
 		default:
 			pr_err("VARIABLE_LENGTH_CMD service action"
-				" 0x%04x not supported\n", service_action);
+				" 0x%04x yest supported\n", service_action);
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 		}
 		break;
@@ -981,12 +981,12 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return TCM_INVALID_CDB_FIELD;
 
 		/*
-		 * Double size because we have two buffers, note that
-		 * zero is not an error..
+		 * Double size because we have two buffers, yeste that
+		 * zero is yest an error..
 		 */
 		size = 2 * sbc_get_size(cmd, sectors);
 		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
-		cmd->t_task_nolb = sectors;
+		cmd->t_task_yeslb = sectors;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB | SCF_COMPARE_AND_WRITE;
 		cmd->execute_cmd = sbc_compare_and_write;
 		cmd->transport_complete_callback = compare_and_write_callback;
@@ -1024,7 +1024,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			goto check_lba;
 		}
 		size = 0;
-		cmd->execute_cmd = sbc_emulate_noop;
+		cmd->execute_cmd = sbc_emulate_yesop;
 		break;
 	case UNMAP:
 		if (!ops->execute_unmap)
@@ -1041,7 +1041,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 	case WRITE_SAME_16:
 		sectors = transport_get_sectors_16(cdb);
 		if (!sectors) {
-			pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not supported\n");
+			pr_err("WSNZ=1, WRITE_SAME w/sectors=0 yest supported\n");
 			return TCM_INVALID_CDB_FIELD;
 		}
 
@@ -1055,7 +1055,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 	case WRITE_SAME:
 		sectors = transport_get_sectors_10(cdb);
 		if (!sectors) {
-			pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not supported\n");
+			pr_err("WSNZ=1, WRITE_SAME w/sectors=0 yest supported\n");
 			return TCM_INVALID_CDB_FIELD;
 		}
 
@@ -1080,7 +1080,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			sectors = transport_get_sectors_16(cdb);
 			cmd->t_task_lba = transport_lba_64(cdb);
 		}
-		cmd->execute_cmd = sbc_emulate_noop;
+		cmd->execute_cmd = sbc_emulate_yesop;
 		goto check_lba;
 	case REZERO_UNIT:
 	case SEEK_6:
@@ -1092,7 +1092,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		 * iSCSI targets. Make them happy and return status GOOD.
 		 */
 		size = 0;
-		cmd->execute_cmd = sbc_emulate_noop;
+		cmd->execute_cmd = sbc_emulate_yesop;
 		break;
 	case START_STOP:
 		size = 0;
@@ -1170,7 +1170,7 @@ sbc_execute_unmap(struct se_cmd *cmd)
 
 	size = cmd->data_length - 8;
 	if (bd_dl > size)
-		pr_warn("UNMAP parameter list length %u too small, ignoring bd_dl %u\n",
+		pr_warn("UNMAP parameter list length %u too small, igyesring bd_dl %u\n",
 			cmd->data_length, bd_dl);
 	else
 		size = bd_dl;

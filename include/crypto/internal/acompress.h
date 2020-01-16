@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Asynchronous Compression operations
+ * Asynchroyesus Compression operations
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Weigang Li <weigang.li@intel.com>
@@ -50,9 +50,9 @@ static inline void __acomp_request_free(struct acomp_req *req)
 }
 
 /**
- * crypto_register_acomp() -- Register asynchronous compression algorithm
+ * crypto_register_acomp() -- Register asynchroyesus compression algorithm
  *
- * Function registers an implementation of an asynchronous
+ * Function registers an implementation of an asynchroyesus
  * compression algorithm
  *
  * @alg:	algorithm definition
@@ -62,9 +62,9 @@ static inline void __acomp_request_free(struct acomp_req *req)
 int crypto_register_acomp(struct acomp_alg *alg);
 
 /**
- * crypto_unregister_acomp() -- Unregister asynchronous compression algorithm
+ * crypto_unregister_acomp() -- Unregister asynchroyesus compression algorithm
  *
- * Function unregisters an implementation of an asynchronous
+ * Function unregisters an implementation of an asynchroyesus
  * compression algorithm
  *
  * @alg:	algorithm definition

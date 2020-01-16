@@ -5,7 +5,7 @@
  * Copyright (C) 2004 Alex Aizman
  * Copyright (C) 2005 Mike Christie
  * Copyright (c) 2005, 2006 Voltaire, Inc. All rights reserved.
- * Copyright (c) 2013-2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2014 Mellayesx Techyeslogies. All rights reserved.
  * maintained by openib-general@openib.org
  *
  * This software is available to you under a choice of one of two
@@ -19,11 +19,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -38,7 +38,7 @@
  *
  * Credits:
  *	Christoph Hellwig
- *	FUJITA Tomonori
+ *	FUJITA Tomoyesri
  *	Arne Redlich
  *	Zhenyu Wang
  * Modified by:
@@ -274,11 +274,11 @@ iscsi_iser_mtask_xmit(struct iscsi_conn *conn, struct iscsi_task *task)
 
 	error = iser_send_control(conn, task);
 
-	/* since iser xmits control with zero copy, tasks can not be recycled
+	/* since iser xmits control with zero copy, tasks can yest be recycled
 	 * right after sending them.
 	 * The recycling scheme is based on whether a response is expected
-	 * - if yes, the task is recycled at iscsi_complete_pdu
-	 * - if no,  the task is recycled at iser_snd_completion
+	 * - if no, the task is recycled at iscsi_complete_pdu
+	 * - if yes,  the task is recycled at iser_snd_completion
 	 */
 	return error;
 }
@@ -381,7 +381,7 @@ static void iscsi_iser_cleanup_task(struct iscsi_task *task)
 		tx_desc->mapped = false;
 	}
 
-	/* mgmt tasks do not need special cleanup */
+	/* mgmt tasks do yest need special cleanup */
 	if (!task->sc)
 		return;
 
@@ -396,7 +396,7 @@ static void iscsi_iser_cleanup_task(struct iscsi_task *task)
  * @task:     iscsi task
  * @sector:   error sector if exsists (output)
  *
- * Return: zero if no data-integrity errors have occured
+ * Return: zero if yes data-integrity errors have occured
  *         0x1: data-integrity error occured in the guard-block
  *         0x2: data-integrity error occured in the reference tag
  *         0x3: data-integrity error occured in the application tag
@@ -435,7 +435,7 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session,
 
 	/*
 	 * due to issues with the login code re iser sematics
-	 * this not set in iscsi_conn_setup - FIXME
+	 * this yest set in iscsi_conn_setup - FIXME
 	 */
 	conn->max_recv_dlength = ISER_RECV_DATA_SEG_LEN;
 
@@ -451,7 +451,7 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session,
  *
  * Return: zero on success, $error if iscsi_conn_bind fails and
  *         -EINVAL in case end-point doesn't exsits anymore or iser connection
- *         state is not UP (teardown already started).
+ *         state is yest UP (teardown already started).
  */
 static int
 iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
@@ -543,7 +543,7 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	iser_info("stopping iscsi_conn: %p, iser_conn: %p\n", conn, iser_conn);
 
 	/*
-	 * Userspace may have goofed up and not bound the connection or
+	 * Userspace may have goofed up and yest bound the connection or
 	 * might have only partially setup the connection.
 	 */
 	if (iser_conn) {
@@ -625,7 +625,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	shost->max_cmd_len = 16;
 
 	/*
-	 * older userspace tools (before 2.0-870) did not pass us
+	 * older userspace tools (before 2.0-870) did yest pass us
 	 * the leading conn's ep so this will be NULL;
 	 */
 	if (ep) {
@@ -786,7 +786,7 @@ static int iscsi_iser_get_ep_param(struct iscsi_endpoint *ep,
  * iscsi_iser_ep_connect() - Initiate iSER connection establishment
  * @shost:          scsi_host
  * @dst_addr:       destination address
- * @non_blocking:   indicate if routine can block
+ * @yesn_blocking:   indicate if routine can block
  *
  * Allocate an iscsi endpoint, an iser_conn structure and bind them.
  * After that start RDMA connection establishment via rdma_cm. We
@@ -799,7 +799,7 @@ static int iscsi_iser_get_ep_param(struct iscsi_endpoint *ep,
  */
 static struct iscsi_endpoint *
 iscsi_iser_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
-		      int non_blocking)
+		      int yesn_blocking)
 {
 	int err;
 	struct iser_conn *iser_conn;
@@ -819,7 +819,7 @@ iscsi_iser_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	iser_conn->ep = ep;
 	iser_conn_init(iser_conn);
 
-	err = iser_connect(iser_conn, NULL, dst_addr, non_blocking);
+	err = iser_connect(iser_conn, NULL, dst_addr, yesn_blocking);
 	if (err)
 		goto failure;
 
@@ -873,7 +873,7 @@ iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
  * iscsi_iser_ep_disconnect() - Initiate connection teardown process
  * @ep:    iscsi endpoint handle
  *
- * This routine is not blocked by iser and RDMA termination process
+ * This routine is yest blocked by iser and RDMA termination process
  * completion as we queue a deffered work for iser/RDMA destruction
  * and cleanup or actually call it immediately in case we didn't pass
  * iscsi conn bind/start stage, thus it is safe.

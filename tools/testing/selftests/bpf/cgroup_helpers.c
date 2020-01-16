@@ -107,20 +107,20 @@ int setup_cgroup_environment(void)
 		return 1;
 	}
 
-	if (mount("none", "/", NULL, MS_REC | MS_PRIVATE, NULL)) {
+	if (mount("yesne", "/", NULL, MS_REC | MS_PRIVATE, NULL)) {
 		log_err("mount fakeroot");
 		return 1;
 	}
 
-	if (mount("none", CGROUP_MOUNT_PATH, "cgroup2", 0, NULL) && errno != EBUSY) {
+	if (mount("yesne", CGROUP_MOUNT_PATH, "cgroup2", 0, NULL) && erryes != EBUSY) {
 		log_err("mount cgroup2");
 		return 1;
 	}
 
-	/* Cleanup existing failed runs, now that the environment is setup */
+	/* Cleanup existing failed runs, yesw that the environment is setup */
 	cleanup_cgroup_environment();
 
-	if (mkdir(cgroup_workdir, 0777) && errno != EEXIST) {
+	if (mkdir(cgroup_workdir, 0777) && erryes != EEXIST) {
 		log_err("mkdir cgroup work dir");
 		return 1;
 	}
@@ -191,7 +191,7 @@ int join_cgroup(const char *path)
  * directory.
  *
  * At call time, it moves the calling process to the root cgroup, and then
- * runs the deletion process. It is idempotent, and should not fail, unless
+ * runs the deletion process. It is idempotent, and should yest fail, unless
  * a process is lingering.
  *
  * On failure, it will print an error to stderr, and try to continue.
@@ -221,7 +221,7 @@ int create_and_get_cgroup(const char *path)
 	int fd;
 
 	format_cgroup_path(cgroup_path, path);
-	if (mkdir(cgroup_path, 0777) && errno != EEXIST) {
+	if (mkdir(cgroup_path, 0777) && erryes != EEXIST) {
 		log_err("mkdiring cgroup %s .. %s", path, cgroup_path);
 		return -1;
 	}

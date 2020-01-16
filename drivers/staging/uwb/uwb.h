@@ -45,7 +45,7 @@ struct uwb_dbg;
  */
 struct uwb_dev {
 	struct mutex mutex;
-	struct list_head list_node;
+	struct list_head list_yesde;
 	struct device dev;
 	struct uwb_rc *rc;		/* radio controller */
 	struct uwb_beca_e *bce;		/* Beacon Cache Entry */
@@ -70,7 +70,7 @@ enum { UWB_RC_CTX_MAX = 256 };
 
 
 /** Notification chain head for UWB generated events to listeners */
-struct uwb_notifs_chain {
+struct uwb_yestifs_chain {
 	struct list_head list;
 	struct mutex mutex;
 };
@@ -105,7 +105,7 @@ struct uwb_mas_bm {
 /**
  * uwb_rsv_state - UWB Reservation state.
  *
- * NONE - reservation is not active (no DRP IE being transmitted).
+ * NONE - reservation is yest active (yes DRP IE being transmitted).
  *
  * Owner reservation states:
  *
@@ -187,8 +187,8 @@ typedef void (*uwb_rsv_cb_f)(struct uwb_rsv *rsv);
  *
  * @rc:             the radio controller this reservation is for
  *                  (as target or owner)
- * @rc_node:        a list node for the RC
- * @pal_node:       a list node for the PAL
+ * @rc_yesde:        a list yesde for the RC
+ * @pal_yesde:       a list yesde for the PAL
  *
  * Owner and target parameters:
  *
@@ -224,8 +224,8 @@ typedef void (*uwb_rsv_cb_f)(struct uwb_rsv *rsv);
  */
 struct uwb_rsv {
 	struct uwb_rc *rc;
-	struct list_head rc_node;
-	struct list_head pal_node;
+	struct list_head rc_yesde;
+	struct list_head pal_yesde;
 	struct kref kref;
 
 	struct uwb_dev *owner;
@@ -266,7 +266,7 @@ static inline void uwb_mas_bm_copy_le(void *dst, const struct uwb_mas_bm *mas)
  * @local:    MAS unused by local established reservations
  * @pending:  MAS unused by local pending reservations
  * @ie:       DRP Availability IE to be included in the beacon
- * @ie_valid: true iff @ie is valid and does not need to regenerated from
+ * @ie_valid: true iff @ie is valid and does yest need to regenerated from
  *            @global and @local
  *
  * Each radio controller maintains a view of MAS usage or
@@ -345,7 +345,7 @@ void uwb_rsv_get_usable_mas(struct uwb_rsv *orig_rsv, struct uwb_mas_bm *mas);
  *               memcpy when setting it.
  *
  *               We set this up in uwb_rc_ie_setup(), where we alloc
- *               this struct, call get_ie() [so we know which IEs are
+ *               this struct, call get_ie() [so we kyesw which IEs are
  *               currently being sent, if any].
  *
  * @ies_capacity:Amount of space (in bytes) allocated in @ies. The
@@ -379,7 +379,7 @@ struct uwb_rc {
 	int scanning;
 	enum uwb_scan_type scan_type:3;
 	unsigned ready:1;
-	struct uwb_notifs_chain notifs_chain;
+	struct uwb_yestifs_chain yestifs_chain;
 	struct uwb_beca uwb_beca;
 
 	struct uwbd uwbd;
@@ -416,10 +416,10 @@ struct uwb_rc {
  * @channel_changed: called when the channel used by the radio changes.
  *           A channel of -1 means the channel has been stopped.
  * @new_rsv: called when a peer requests a reservation (may be NULL if
- *           the PAL cannot accept reservation requests).
+ *           the PAL canyest accept reservation requests).
  * @channel: channel being used by the PAL; 0 if the PAL isn't using
  *           the radio; -1 if the PAL wishes to use the radio but
- *           cannot.
+ *           canyest.
  * @debugfs_dir: a debugfs directory which the PAL can use for its own
  *           debugfs files.
  *
@@ -437,7 +437,7 @@ struct uwb_rc {
  * with uwb_pal_register().
  */
 struct uwb_pal {
-	struct list_head node;
+	struct list_head yesde;
 	const char *name;
 	struct device *device;
 	struct uwb_rc *rc;
@@ -596,54 +596,54 @@ static inline bool uwb_rsv_is_owner(struct uwb_rsv *rsv)
 }
 
 /**
- * enum uwb_notifs - UWB events that can be passed to any listeners
+ * enum uwb_yestifs - UWB events that can be passed to any listeners
  * @UWB_NOTIF_ONAIR: a new neighbour has joined the beacon group.
  * @UWB_NOTIF_OFFAIR: a neighbour has left the beacon group.
  *
  * Higher layers can register callback functions with the radio
- * controller using uwb_notifs_register(). The radio controller
- * maintains a list of all registered handlers and will notify all
- * nodes when an event occurs.
+ * controller using uwb_yestifs_register(). The radio controller
+ * maintains a list of all registered handlers and will yestify all
+ * yesdes when an event occurs.
  */
-enum uwb_notifs {
+enum uwb_yestifs {
 	UWB_NOTIF_ONAIR,
 	UWB_NOTIF_OFFAIR,
 };
 
 /* Callback function registered with UWB */
-struct uwb_notifs_handler {
-	struct list_head list_node;
-	void (*cb)(void *, struct uwb_dev *, enum uwb_notifs);
+struct uwb_yestifs_handler {
+	struct list_head list_yesde;
+	void (*cb)(void *, struct uwb_dev *, enum uwb_yestifs);
 	void *data;
 };
 
-int uwb_notifs_register(struct uwb_rc *, struct uwb_notifs_handler *);
-int uwb_notifs_deregister(struct uwb_rc *, struct uwb_notifs_handler *);
+int uwb_yestifs_register(struct uwb_rc *, struct uwb_yestifs_handler *);
+int uwb_yestifs_deregister(struct uwb_rc *, struct uwb_yestifs_handler *);
 
 
 /**
  * UWB radio controller Event Size Entry (for creating entry tables)
  *
- * WUSB and WHCI define events and notifications, and they might have
+ * WUSB and WHCI define events and yestifications, and they might have
  * fixed or variable size.
  *
- * Each event/notification has a size which is not necessarily known
+ * Each event/yestification has a size which is yest necessarily kyeswn
  * in advance based on the event code. As well, vendor specific
- * events/notifications will have a size impossible to determine
- * unless we know about the device's specific details.
+ * events/yestifications will have a size impossible to determine
+ * unless we kyesw about the device's specific details.
  *
- * It was way too smart of the spec writers not to think that it would
+ * It was way too smart of the spec writers yest to think that it would
  * be impossible for a generic driver to skip over vendor specific
- * events/notifications if there are no LENGTH fields in the HEADER of
- * each message...the transaction size cannot be counted on as the
- * spec does not forbid to pack more than one event in a single
+ * events/yestifications if there are yes LENGTH fields in the HEADER of
+ * each message...the transaction size canyest be counted on as the
+ * spec does yest forbid to pack more than one event in a single
  * transaction.
  *
- * Thus, we guess sizes with tables (or for events, when you know the
+ * Thus, we guess sizes with tables (or for events, when you kyesw the
  * size ahead of time you can use uwb_rc_neh_extra_size*()). We
- * register tables with the known events and their sizes, and then we
+ * register tables with the kyeswn events and their sizes, and then we
  * traverse those tables. For those with variable length, we provide a
- * way to lookup the size inside the event/notification's
+ * way to lookup the size inside the event/yestification's
  * payload. This allows device-specific event size tables to be
  * registered.
  *
@@ -691,8 +691,8 @@ void edc_init(struct edc *edc)
 
 /* Called when an error occurred.
  * This is way to determine if the number of acceptable errors per time
- * period has been exceeded. It is not accurate as there are cases in which
- * this scheme will not work, for example if there are periodic occurrences
+ * period has been exceeded. It is yest accurate as there are cases in which
+ * this scheme will yest work, for example if there are periodic occurrences
  * of errors that straddle updates to the start time. This scheme is
  * sufficient for our usage.
  *
@@ -700,15 +700,15 @@ void edc_init(struct edc *edc)
  */
 static inline int edc_inc(struct edc *err_hist, u16 max_err, u16 timeframe)
 {
-	unsigned long now;
+	unsigned long yesw;
 
-	now = jiffies;
-	if (now - err_hist->timestart > timeframe) {
+	yesw = jiffies;
+	if (yesw - err_hist->timestart > timeframe) {
 		err_hist->errorcount = 1;
-		err_hist->timestart = now;
+		err_hist->timestart = yesw;
 	} else if (++err_hist->errorcount > max_err) {
 			err_hist->errorcount = 0;
-			err_hist->timestart = now;
+			err_hist->timestart = yesw;
 			return 1;
 	}
 	return 0;
@@ -735,17 +735,17 @@ int uwb_rc_ie_rm(struct uwb_rc *uwb_rc, enum uwb_ie element_id);
  *
  * Now, statistically speaking, probably I am kicking the kidneys of
  * some books I have in my shelves collecting dust, but I just want to
- * get an approx, not the Nobel.
+ * get an approx, yest the Nobel.
  *
- * LOCKING: there is no locking per se, but we try to keep a lockless
+ * LOCKING: there is yes locking per se, but we try to keep a lockless
  * schema. Only _add_samples() modifies the values--as long as you
- * have other locking on top that makes sure that no two calls of
+ * have other locking on top that makes sure that yes two calls of
  * _add_sample() happen at the same time, then we are fine. Now, for
  * resetting the values we just set @samples to 0 and that makes the
  * next _add_sample() to start with defaults. Reading the values in
  * _show() currently can race, so you need to make sure the calls are
  * under the same lock that protects calls to _add_sample(). FIXME:
- * currently unlocked (It is not ultraprecise but does the trick. Bite
+ * currently unlocked (It is yest ultraprecise but does the trick. Bite
  * me).
  */
 struct stats {

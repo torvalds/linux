@@ -1,5 +1,5 @@
 ================
-Cyclades-Z notes
+Cyclades-Z yestes
 ================
 
 The Cyclades-Z must have firmware loaded onto the card before it will

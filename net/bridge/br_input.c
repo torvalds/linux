@@ -66,7 +66,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 		       br_netif_receive_skb);
 }
 
-/* note: already called with rcu_read_lock */
+/* yeste: already called with rcu_read_lock */
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
@@ -149,13 +149,13 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	}
 
 	if (dst) {
-		unsigned long now = jiffies;
+		unsigned long yesw = jiffies;
 
 		if (test_bit(BR_FDB_LOCAL, &dst->flags))
 			return br_pass_frame_up(skb);
 
-		if (now != dst->used)
-			dst->used = now;
+		if (yesw != dst->used)
+			dst->used = yesw;
 		br_forward(dst->dst, skb, local_rcv, false);
 	} else {
 		if (!mcast_hit)
@@ -188,7 +188,7 @@ static void __br_handle_local_finish(struct sk_buff *skb)
 		br_fdb_update(p->br, p, eth_hdr(skb)->h_source, vid, 0);
 }
 
-/* note: already called with rcu_read_lock */
+/* yeste: already called with rcu_read_lock */
 static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	__br_handle_local_finish(skb);
@@ -252,7 +252,7 @@ frame_finish:
 
 /*
  * Return NULL if skb is handled
- * note: already called with rcu_read_lock
+ * yeste: already called with rcu_read_lock
  */
 rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 {

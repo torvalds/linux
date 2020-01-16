@@ -85,10 +85,10 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
 /*
  * Some hardware wants to get fixmapped without caching.
  */
-#define set_fixmap_nocache(idx, phys) \
+#define set_fixmap_yescache(idx, phys) \
 	__set_fixmap(idx, phys, FIXMAP_PAGE_NOCACHE)
 
-#define set_fixmap_offset_nocache(idx, phys) \
+#define set_fixmap_offset_yescache(idx, phys) \
 	__set_fixmap_offset(idx, phys, FIXMAP_PAGE_NOCACHE)
 
 /*

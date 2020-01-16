@@ -9,7 +9,7 @@
  * John Brooks <john.brooks@bluecherry.net>
  */
 
-/* XXX: The SOLO6x10 i2c does not have separate interrupts for each i2c
+/* XXX: The SOLO6x10 i2c does yest have separate interrupts for each i2c
  * channel. The bus can only handle one i2c event at a time. The below handles
  * this all wrong. We should be using the status registers to see if the bus
  * is in use, and have a global lock to check the status register. Also,

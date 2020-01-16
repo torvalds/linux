@@ -104,7 +104,7 @@ static int platram_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "probe entered\n");
 
 	if (dev_get_platdata(&pdev->dev) == NULL) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
+		dev_err(&pdev->dev, "yes platform data supplied\n");
 		err = -ENOENT;
 		goto exit_error;
 	}

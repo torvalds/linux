@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -84,7 +84,7 @@ static void ath_btcoex_period_work(struct work_struct *work)
 
 	ath9k_hw_btcoex_enable(priv->ah);
 	timer_period = test_bit(OP_BT_SCAN, &priv->op_flags) ?
-		btcoex->btscan_no_stomp : btcoex->btcoex_no_stomp;
+		btcoex->btscan_yes_stomp : btcoex->btcoex_yes_stomp;
 	ieee80211_queue_delayed_work(priv->hw, &priv->duty_cycle_work,
 				     msecs_to_jiffies(timer_period));
 	ieee80211_queue_delayed_work(priv->hw, &priv->coex_period_work,
@@ -119,9 +119,9 @@ static void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv)
 	struct ath_btcoex *btcoex = &priv->btcoex;
 
 	btcoex->btcoex_period = ATH_BTCOEX_DEF_BT_PERIOD;
-	btcoex->btcoex_no_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
+	btcoex->btcoex_yes_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
 		btcoex->btcoex_period / 100;
-	btcoex->btscan_no_stomp = (100 - ATH_BTCOEX_BTSCAN_DUTY_CYCLE) *
+	btcoex->btscan_yes_stomp = (100 - ATH_BTCOEX_BTSCAN_DUTY_CYCLE) *
 				   btcoex->btcoex_period / 100;
 	INIT_DELAYED_WORK(&priv->coex_period_work, ath_btcoex_period_work);
 	INIT_DELAYED_WORK(&priv->duty_cycle_work, ath_btcoex_duty_cycle_work);

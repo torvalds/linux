@@ -349,7 +349,7 @@ static int b44_phy_reset(struct b44 *bp)
 	err = b44_readphy(bp, MII_BMCR, &val);
 	if (!err) {
 		if (val & BMCR_RESET) {
-			netdev_err(bp->dev, "PHY Reset would not complete\n");
+			netdev_err(bp->dev, "PHY Reset would yest complete\n");
 			err = -ENODEV;
 		}
 	}
@@ -427,7 +427,7 @@ static void b44_wap54g10_workaround(struct b44 *bp)
 	}
 	return;
 error:
-	pr_warn("PHY: cannot reset MII transceiver isolate bit\n");
+	pr_warn("PHY: canyest reset MII transceiver isolate bit\n");
 }
 #else
 static inline void b44_wap54g10_workaround(struct b44 *bp)
@@ -488,9 +488,9 @@ static int b44_setup_phy(struct b44 *bp)
 		if ((err = b44_writephy(bp, MII_BMCR, bmcr)) != 0)
 			goto out;
 
-		/* Since we will not be negotiating there is no safe way
+		/* Since we will yest be negotiating there is yes safe way
 		 * to determine if the link partner supports flow control
-		 * or not.  So just disable it completely in this case.
+		 * or yest.  So just disable it completely in this case.
 		 */
 		b44_set_flow_ctrl(bp, 0, 0);
 	}
@@ -580,11 +580,11 @@ static void b44_check_phy(struct b44 *bp)
 			    !b44_readphy(bp, MII_LPA, &remote_adv))
 				b44_set_flow_ctrl(bp, local_adv, remote_adv);
 
-			/* Link now up */
+			/* Link yesw up */
 			netif_carrier_on(bp->dev);
 			b44_link_report(bp);
 		} else if (netif_carrier_ok(bp->dev) && !(bmsr & BMSR_LSTATUS)) {
-			/* Link now down */
+			/* Link yesw down */
 			netif_carrier_off(bp->dev);
 			b44_link_report(bp);
 		}
@@ -799,7 +799,7 @@ static int b44_rx(struct b44 *bp, int budget)
 		    (rh->flags & cpu_to_le16(RX_FLAG_ERRORS))) {
 		drop_it:
 			b44_recycle_rx(bp, cons, bp->rx_prod);
-		drop_it_no_recycle:
+		drop_it_yes_recycle:
 			bp->dev->stats.rx_dropped++;
 			goto next_pkt;
 		}
@@ -835,7 +835,7 @@ static int b44_rx(struct b44 *bp, int budget)
 			b44_recycle_rx(bp, cons, bp->rx_prod);
 			copy_skb = napi_alloc_skb(&bp->napi, len);
 			if (copy_skb == NULL)
-				goto drop_it_no_recycle;
+				goto drop_it_yes_recycle;
 
 			skb_put(copy_skb, len);
 			/* DMA sync done above, copy just the actual packet */
@@ -843,7 +843,7 @@ static int b44_rx(struct b44 *bp, int budget)
 							 copy_skb->data, len);
 			skb = copy_skb;
 		}
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		netif_receive_skb(skb);
 		received++;
@@ -1084,8 +1084,8 @@ static int b44_change_mtu(struct net_device *dev, int new_mtu)
 /* Free up pending packets in all rx/tx rings.
  *
  * The chip has been shut down and the driver detached from
- * the networking, so no interrupts or new tx packets will
- * end up in the driver.  bp->lock is not held and we are not
+ * the networking, so yes interrupts or new tx packets will
+ * end up in the driver.  bp->lock is yest held and we are yest
  * in an interrupt context and thus may sleep.
  */
 static void b44_free_rings(struct b44 *bp)
@@ -1120,7 +1120,7 @@ static void b44_free_rings(struct b44 *bp)
 /* Initialize tx/rx rings for packet processing.
  *
  * The chip has been shut down and the driver detached from
- * the networking, so no interrupts or new tx packets will
+ * the networking, so yes interrupts or new tx packets will
  * end up in the driver.
  */
 static void b44_init_rings(struct b44 *bp)
@@ -1147,7 +1147,7 @@ static void b44_init_rings(struct b44 *bp)
 }
 
 /*
- * Must not be invoked with interrupt sources disabled and
+ * Must yest be invoked with interrupt sources disabled and
  * the hardware shutdown down.
  */
 static void b44_free_consistent(struct b44 *bp)
@@ -1181,7 +1181,7 @@ static void b44_free_consistent(struct b44 *bp)
 }
 
 /*
- * Must not be invoked with interrupt sources disabled and
+ * Must yest be invoked with interrupt sources disabled and
  * the hardware shutdown down.  Can sleep.
  */
 static int b44_alloc_consistent(struct b44 *bp, gfp_t gfp)
@@ -1321,7 +1321,7 @@ static void b44_chip_reset(struct b44 *bp, int reset_kind)
 		break;
 	case SSB_BUSTYPE_PCMCIA:
 	case SSB_BUSTYPE_SDIO:
-		WARN_ON(1); /* A device with this bus does not exist. */
+		WARN_ON(1); /* A device with this bus does yest exist. */
 		break;
 	}
 
@@ -1352,7 +1352,7 @@ static void b44_halt(struct b44 *bp)
 	/* power down PHY */
 	netdev_info(bp->dev, "powering down PHY\n");
 	bw32(bp, B44_MAC_CTRL, MAC_CTRL_PHY_PDOWN);
-	/* now reset the chip, but without enabling the MAC&PHY
+	/* yesw reset the chip, but without enabling the MAC&PHY
 	 * part of it. This has to be done _after_ we shut down the PHY */
 	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
 		b44_chip_reset(bp, B44_CHIP_RESET_FULL);
@@ -1487,7 +1487,7 @@ out:
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
- * Polling receive - used by netconsole and other diagnostic tools
+ * Polling receive - used by netconsole and other diagyesstic tools
  * to allow network i/o with interrupts disabled.
  */
 static void b44_poll_controller(struct net_device *dev)
@@ -1801,7 +1801,7 @@ static void b44_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *inf
 		break;
 	case SSB_BUSTYPE_PCMCIA:
 	case SSB_BUSTYPE_SDIO:
-		WARN_ON(1); /* A device with this bus does not exist. */
+		WARN_ON(1); /* A device with this bus does yest exist. */
 		break;
 	}
 }
@@ -1906,7 +1906,7 @@ static int b44_set_link_ksettings(struct net_device *dev,
 	ethtool_convert_link_mode_to_legacy_u32(&advertising,
 						cmd->link_modes.advertising);
 
-	/* We do not support gigabit. */
+	/* We do yest support gigabit. */
 	if (cmd->base.autoneg == AUTONEG_ENABLE) {
 		if (advertising &
 		    (ADVERTISED_1000baseT_Half |
@@ -2283,7 +2283,7 @@ static int b44_register_phy_one(struct b44 *bp)
 	    (sprom->boardflags_lo & (B44_BOARDFLAG_ROBO | B44_BOARDFLAG_ADM))) {
 
 		dev_info(sdev->dev,
-			 "could not find PHY at %i, use fixed one\n",
+			 "could yest find PHY at %i, use fixed one\n",
 			 bp->phy_addr);
 
 		bp->phy_addr = 0;
@@ -2297,7 +2297,7 @@ static int b44_register_phy_one(struct b44 *bp)
 	phydev = phy_connect(bp->dev, bus_id, &b44_adjust_link,
 			     PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(phydev)) {
-		dev_err(sdev->dev, "could not attach PHY at %i\n",
+		dev_err(sdev->dev, "could yest attach PHY at %i\n",
 			bp->phy_addr);
 		err = PTR_ERR(phydev);
 		goto err_out_mdiobus_unregister;
@@ -2423,7 +2423,7 @@ static int b44_init_one(struct ssb_device *sdev,
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(sdev->dev, "Cannot register net device, aborting\n");
+		dev_err(sdev->dev, "Canyest register net device, aborting\n");
 		goto err_out_powerdown;
 	}
 
@@ -2446,7 +2446,7 @@ static int b44_init_one(struct ssb_device *sdev,
 	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
 		err = b44_register_phy_one(bp);
 		if (err) {
-			dev_err(sdev->dev, "Cannot register PHY, aborting\n");
+			dev_err(sdev->dev, "Canyest register PHY, aborting\n");
 			goto err_out_unregister_netdev;
 		}
 	}

@@ -143,13 +143,13 @@ error:
 }
 
 /*
- * Demangle Java function signature (openJDK, not GCJ)
+ * Demangle Java function signature (openJDK, yest GCJ)
  * input:
- * 	str: string to parse. String is not modified
+ * 	str: string to parse. String is yest modified
  *    flags: comobination of JAVA_DEMANGLE_* flags to modify demangling
  * return:
  *	if input can be demangled, then a newly allocated string is returned.
- *	if input cannot be demangled, then NULL is returned
+ *	if input canyest be demangled, then NULL is returned
  *
  * Note: caller is responsible for freeing demangled string
  */

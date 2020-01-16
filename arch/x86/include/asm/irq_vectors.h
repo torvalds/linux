@@ -121,7 +121,7 @@
  * generously - it scales up linearly with the maximum number of CPUs,
  * and the maximum number of IO-APICs, whichever is higher.
  *
- * In other cases we size more conservatively, to not create too large
+ * In other cases we size more conservatively, to yest create too large
  * static arrays.
  */
 

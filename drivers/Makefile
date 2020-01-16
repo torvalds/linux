@@ -29,7 +29,7 @@ obj-y				+= char/ipmi/
 obj-$(CONFIG_ACPI)		+= acpi/
 obj-$(CONFIG_SFI)		+= sfi/
 # PnP must come after ACPI since it will eventually need to check if acpi
-# was used and do nothing if so
+# was used and do yesthing if so
 obj-$(CONFIG_PNP)		+= pnp/
 obj-y				+= amba/
 

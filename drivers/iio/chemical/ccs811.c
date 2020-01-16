@@ -312,7 +312,7 @@ static irqreturn_t ccs811_trigger_handler(int irq, void *p)
 	ret = i2c_smbus_read_i2c_block_data(client, CCS811_ALG_RESULT_DATA, 4,
 					    (u8 *)&buf);
 	if (ret != 4) {
-		dev_err(&client->dev, "cannot read sensor data\n");
+		dev_err(&client->dev, "canyest read sensor data\n");
 		goto err;
 	}
 
@@ -320,7 +320,7 @@ static irqreturn_t ccs811_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -363,7 +363,7 @@ static int ccs811_probe(struct i2c_client *client,
 		return ret;
 
 	if ((ret & CCS811_HW_VERSION_MASK) != CCS811_HW_VERSION_VALUE) {
-		dev_err(&client->dev, "no CCS811 sensor\n");
+		dev_err(&client->dev, "yes CCS811 sensor\n");
 		return -ENODEV;
 	}
 

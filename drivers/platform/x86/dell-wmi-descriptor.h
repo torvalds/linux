@@ -12,7 +12,7 @@
 
 /* possible return values:
  *  -ENODEV: Descriptor GUID missing from WMI bus
- *  -EPROBE_DEFER: probing for dell-wmi-descriptor not yet run
+ *  -EPROBE_DEFER: probing for dell-wmi-descriptor yest yet run
  *  0: valid descriptor, successfully probed
  *  < 0: invalid descriptor, don't probe dependent devices
  */

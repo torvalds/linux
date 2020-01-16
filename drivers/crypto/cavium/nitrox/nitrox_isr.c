@@ -347,7 +347,7 @@ int nitrox_register_interrupts(struct nitrox_device *ndev)
 		qvec->valid = true;
 	}
 
-	/* request irqs for non ring vectors */
+	/* request irqs for yesn ring vectors */
 	i = NON_RING_MSIX_BASE;
 	qvec = &ndev->qvec[i];
 	qvec->ndev = ndev;
@@ -408,7 +408,7 @@ int nitrox_sriov_register_interupts(struct nitrox_device *ndev)
 	int ret;
 
 	/**
-	 * only non ring vectors i.e Entry 192 is available
+	 * only yesn ring vectors i.e Entry 192 is available
 	 * for PF in SR-IOV mode.
 	 */
 	ndev->iov.msix.entry = NON_RING_MSIX_BASE;

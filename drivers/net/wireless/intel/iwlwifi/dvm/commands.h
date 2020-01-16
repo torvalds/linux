@@ -33,12 +33,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -82,7 +82,7 @@ enum {
 	/* Multi-Station support */
 	REPLY_ADD_STA = 0x18,
 	REPLY_REMOVE_STA = 0x19,
-	REPLY_REMOVE_ALL_STA = 0x1a,	/* not used */
+	REPLY_REMOVE_ALL_STA = 0x1a,	/* yest used */
 	REPLY_TXFIFO_FLUSH = 0x1e,
 
 	/* Security */
@@ -105,7 +105,7 @@ enum {
 	CALIBRATION_COMPLETE_NOTIFICATION = 0x67,
 
 	/* 802.11h related */
-	REPLY_QUIET_CMD = 0x71,		/* not used */
+	REPLY_QUIET_CMD = 0x71,		/* yest used */
 	REPLY_CHANNEL_SWITCH = 0x72,
 	CHANNEL_SWITCH_NOTIFICATION = 0x73,
 	REPLY_SPECTRUM_MEASUREMENT_CMD = 0x74,
@@ -116,7 +116,7 @@ enum {
 	PM_SLEEP_NOTIFICATION = 0x7A,
 	PM_DEBUG_STATISTIC_NOTIFIC = 0x7B,
 
-	/* Scan commands and notifications */
+	/* Scan commands and yestifications */
 	REPLY_SCAN_CMD = 0x80,
 	REPLY_SCAN_ABORT_CMD = 0x81,
 	SCAN_START_NOTIFICATION = 0x82,
@@ -126,15 +126,15 @@ enum {
 	/* IBSS/AP commands */
 	BEACON_NOTIFICATION = 0x90,
 	REPLY_TX_BEACON = 0x91,
-	WHO_IS_AWAKE_NOTIFICATION = 0x94,	/* not used */
+	WHO_IS_AWAKE_NOTIFICATION = 0x94,	/* yest used */
 
 	/* Miscellaneous commands */
 	REPLY_TX_POWER_DBM_CMD = 0x95,
-	QUIET_NOTIFICATION = 0x96,		/* not used */
+	QUIET_NOTIFICATION = 0x96,		/* yest used */
 	REPLY_TX_PWR_TABLE_CMD = 0x97,
 	REPLY_TX_POWER_DBM_CMD_V1 = 0x98,	/* old version of API */
 	TX_ANT_CONFIGURATION_CMD = 0x98,
-	MEASURE_ABORT_NOTIFICATION = 0x99,	/* not used */
+	MEASURE_ABORT_NOTIFICATION = 0x99,	/* yest used */
 
 	/* Bluetooth device coexistence config command */
 	REPLY_BT_CONFIG = 0x9b,
@@ -143,11 +143,11 @@ enum {
 	REPLY_STATISTICS_CMD = 0x9c,
 	STATISTICS_NOTIFICATION = 0x9d,
 
-	/* RF-KILL commands and notifications */
+	/* RF-KILL commands and yestifications */
 	REPLY_CARD_STATE_CMD = 0xa0,
 	CARD_STATE_NOTIFICATION = 0xa1,
 
-	/* Missed beacons notification */
+	/* Missed beacons yestification */
 	MISSED_BEACONS_NOTIFICATION = 0xa2,
 
 	REPLY_CT_KILL_CONFIG_CMD = 0xa4,
@@ -300,7 +300,7 @@ enum {
 #define RATE_MCS_DUP_POS 12
 #define RATE_MCS_DUP_MSK 0x1000
 
-/* Bit 13: (1) Short guard interval (0.4 usec), (0) normal GI (0.8 usec) */
+/* Bit 13: (1) Short guard interval (0.4 usec), (0) yesrmal GI (0.8 usec) */
 #define RATE_MCS_SGI_POS 13
 #define RATE_MCS_SGI_MSK 0x2000
 
@@ -367,11 +367,11 @@ struct iwl_tx_ant_config_cmd {
 #define UCODE_VALID_OK	cpu_to_le32(0x1)
 
 /**
- * REPLY_ALIVE = 0x1 (response only, not a command)
+ * REPLY_ALIVE = 0x1 (response only, yest a command)
  *
- * uCode issues this "alive" notification once the runtime image is ready
+ * uCode issues this "alive" yestification once the runtime image is ready
  * to receive commands from the driver.  This is the *second* "alive"
- * notification that the driver will receive after rebooting uCode;
+ * yestification that the driver will receive after rebooting uCode;
  * this "alive" is indicated by subtype field != 9.
  *
  * See comments documenting "BSM" (bootstrap state machine).
@@ -384,7 +384,7 @@ struct iwl_tx_ant_config_cmd {
  *     Its header format is:
  *
  *	__le32 log_size;     log capacity (in number of entries)
- *	__le32 type;         (1) timestamp with each entry, (0) no timestamp
+ *	__le32 type;         (1) timestamp with each entry, (0) yes timestamp
  *	__le32 wraps;        # times uCode has wrapped to top of circular buffer
  *      __le32 write_index;  next circular buffer entry that uCode would fill
  *
@@ -413,7 +413,7 @@ struct iwl_tx_ant_config_cmd {
  * need to be ordered correctly though!
  */
 struct iwl_error_event_table {
-	u32 valid;		/* (nonzero) valid, (0) log is empty */
+	u32 valid;		/* (yesnzero) valid, (0) log is empty */
 	u32 error_id;		/* type of error */
 	u32 pc;			/* program counter */
 	u32 blink1;		/* branch link */
@@ -460,12 +460,12 @@ struct iwl_error_event_table {
 } __packed;
 
 struct iwl_alive_resp {
-	u8 ucode_minor;
+	u8 ucode_miyesr;
 	u8 ucode_major;
 	__le16 reserved1;
 	u8 sw_rev[8];
 	u8 ver_type;
-	u8 ver_subtype;			/* not "9" for runtime alive */
+	u8 ver_subtype;			/* yest "9" for runtime alive */
 	__le16 reserved2;
 	__le32 log_event_table_ptr;	/* SRAM address for event log */
 	__le32 error_event_table_ptr;	/* SRAM address for error log */
@@ -474,7 +474,7 @@ struct iwl_alive_resp {
 } __packed;
 
 /*
- * REPLY_ERROR = 0x2 (response only, not a command)
+ * REPLY_ERROR = 0x2 (response only, yest a command)
  */
 struct iwl_error_resp {
 	__le32 error_type;
@@ -584,7 +584,7 @@ enum {
 #define RXON_FILTER_DIS_GRP_DECRYPT_MSK cpu_to_le32(1 << 4)
 /* STA is associated */
 #define RXON_FILTER_ASSOC_MSK           cpu_to_le32(1 << 5)
-/* transfer to host non bssid beacons in associated state */
+/* transfer to host yesn bssid beacons in associated state */
 #define RXON_FILTER_BCON_AWARE_MSK      cpu_to_le32(1 << 6)
 
 /**
@@ -606,7 +606,7 @@ enum {
  */
 
 struct iwl_rxon_cmd {
-	u8 node_addr[6];
+	u8 yesde_addr[6];
 	__le16 reserved1;
 	u8 bssid_addr[6];
 	__le16 reserved2;
@@ -709,9 +709,9 @@ struct iwl6000_channel_switch_cmd {
 } __packed;
 
 /*
- * CHANNEL_SWITCH_NOTIFICATION = 0x73 (notification only, not a command)
+ * CHANNEL_SWITCH_NOTIFICATION = 0x73 (yestification only, yest a command)
  */
-struct iwl_csa_notification {
+struct iwl_csa_yestification {
 	__le16 band;
 	__le16 channel;
 	__le32 status;		/* 0 - OK, 1 - fail */
@@ -817,7 +817,7 @@ struct iwl_qosparam_cmd {
 #define STA_KEY_MULTICAST_MSK        cpu_to_le16(0x4000)
 #define STA_KEY_MAX_NUM		8
 #define STA_KEY_MAX_NUM_PAN	16
-/* must not match WEP_INVALID_OFFSET */
+/* must yest match WEP_INVALID_OFFSET */
 #define IWLAGN_HW_KEY_DEFAULT	0xfe
 
 /* Flags indicate whether to modify vs. don't change various station params */
@@ -1087,17 +1087,17 @@ struct iwl_wep_cmd {
 #define IWLAGN_OFDM_RSSI_ALLBAND_C_BITMSK 0xff00
 #define IWLAGN_OFDM_RSSI_C_BIT_POS 0
 
-struct iwlagn_non_cfg_phy {
-	__le32 non_cfg_phy[IWLAGN_RX_RES_PHY_CNT];  /* up to 8 phy entries */
+struct iwlagn_yesn_cfg_phy {
+	__le32 yesn_cfg_phy[IWLAGN_RX_RES_PHY_CNT];  /* up to 8 phy entries */
 } __packed;
 
 
 /*
- * REPLY_RX = 0xc3 (response only, not a command)
- * Used only for legacy (non 11n) frames.
+ * REPLY_RX = 0xc3 (response only, yest a command)
+ * Used only for legacy (yesn 11n) frames.
  */
 struct iwl_rx_phy_res {
-	u8 non_cfg_phy_cnt;     /* non configurable DSP phy data byte count */
+	u8 yesn_cfg_phy_cnt;     /* yesn configurable DSP phy data byte count */
 	u8 cfg_phy_cnt;		/* configurable DSP phy data byte count */
 	u8 stat_id;		/* configurable DSP phy data set ID */
 	u8 reserved1;
@@ -1105,7 +1105,7 @@ struct iwl_rx_phy_res {
 	__le32 beacon_time_stamp; /* beacon at on-air rise */
 	__le16 phy_flags;	/* general phy flags: band, modulation, ... */
 	__le16 channel;		/* channel number */
-	u8 non_cfg_phy_buf[32]; /* for various implementations of non_cfg_phy */
+	u8 yesn_cfg_phy_buf[32]; /* for various implementations of yesn_cfg_phy */
 	__le32 rate_n_flags;	/* RATE_MCS_* */
 	__le16 byte_count;	/* frame's byte-count */
 	__le16 frame_time;	/* frame's time on the air */
@@ -1133,7 +1133,7 @@ struct iwl_rx_mpdu_res_start {
  * handle reception of block-acks; uCode updates the host driver via
  * REPLY_COMPRESSED_BA.
  *
- * uCode handles retrying Tx when an ACK is expected but not received.
+ * uCode handles retrying Tx when an ACK is expected but yest received.
  * This includes trying lower data rates than the one requested in the Tx
  * command, as set up by the REPLY_TX_LINK_QUALITY_CMD (agn).
  *
@@ -1152,7 +1152,7 @@ struct iwl_rx_mpdu_res_start {
 
 /* 1: Expect ACK from receiving station
  * 0: Don't expect ACK (MAC header's duration field s/b 0)
- * Set this for unicast frames, but not broadcast/multicast. */
+ * Set this for unicast frames, but yest broadcast/multicast. */
 #define TX_CMD_FLG_ACK_MSK cpu_to_le32(1 << 3)
 
 /* For agn devices:
@@ -1160,7 +1160,7 @@ struct iwl_rx_mpdu_res_start {
  *    Tx command's initial_rate_index indicates first rate to try;
  *    uCode walks through table for additional Tx attempts.
  * 0: Use Tx rate/MCS from Tx command's rate_n_flags field.
- *    This rate will be used for all Tx attempts; it will not be scaled. */
+ *    This rate will be used for all Tx attempts; it will yest be scaled. */
 #define TX_CMD_FLG_STA_RATE_MSK cpu_to_le32(1 << 4)
 
 /* 1: Expect immediate block-ack.
@@ -1170,18 +1170,18 @@ struct iwl_rx_mpdu_res_start {
 /* Tx antenna selection field; reserved (0) for agn devices. */
 #define TX_CMD_FLG_ANT_SEL_MSK cpu_to_le32(0xf00)
 
-/* 1: Ignore Bluetooth priority for this frame.
- * 0: Delay Tx until Bluetooth device is done (normal usage). */
+/* 1: Igyesre Bluetooth priority for this frame.
+ * 0: Delay Tx until Bluetooth device is done (yesrmal usage). */
 #define TX_CMD_FLG_IGNORE_BT cpu_to_le32(1 << 12)
 
 /* 1: uCode overrides sequence control field in MAC header.
  * 0: Driver provides sequence control field in MAC header.
- * Set this for management frames, non-QOS data frames, non-unicast frames,
+ * Set this for management frames, yesn-QOS data frames, yesn-unicast frames,
  * and also in Tx command embedded in REPLY_SCAN_CMD for active scans. */
 #define TX_CMD_FLG_SEQ_CTL_MSK cpu_to_le32(1 << 13)
 
-/* 1: This frame is non-last MPDU; more fragments are coming.
- * 0: Last fragment, or not using fragmentation. */
+/* 1: This frame is yesn-last MPDU; more fragments are coming.
+ * 0: Last fragment, or yest using fragmentation. */
 #define TX_CMD_FLG_MORE_FRAG_MSK cpu_to_le32(1 << 14)
 
 /* 1: uCode calculates and inserts Timestamp Function (TSF) in outgoing frame.
@@ -1193,12 +1193,12 @@ struct iwl_rx_mpdu_res_start {
  *    alignment of frame's payload data field.
  * 0: No pad
  * Set this for MAC headers with 26 or 30 bytes, i.e. those with QOS or ADDR4
- * field (but not both).  Driver must align frame data (i.e. data following
+ * field (but yest both).  Driver must align frame data (i.e. data following
  * MAC header) to DWORD boundary. */
 #define TX_CMD_FLG_MH_PAD_MSK cpu_to_le32(1 << 20)
 
 /* accelerate aggregation support
- * 0 - no CCMP encryption; 1 - CCMP encryption */
+ * 0 - yes CCMP encryption; 1 - CCMP encryption */
 #define TX_CMD_FLG_AGG_CCMP_MSK cpu_to_le32(1 << 22)
 
 /* HCCA-AP - disable duration overwriting. */
@@ -1233,10 +1233,10 @@ struct iwl_tx_cmd {
 	/*
 	 * MPDU byte count:
 	 * MAC header (24/26/30/32 bytes) + 2 bytes pad if 26/30 header size,
-	 * + 8 byte IV for CCM or TKIP (not used for WEP)
+	 * + 8 byte IV for CCM or TKIP (yest used for WEP)
 	 * + Data payload
-	 * + 8-byte MIC (not used for CCM/WEP)
-	 * NOTE:  Does not include Tx command bytes, post-MAC pad bytes,
+	 * + 8-byte MIC (yest used for CCM/WEP)
+	 * NOTE:  Does yest include Tx command bytes, post-MAC pad bytes,
 	 *        MIC (CCM) 8 bytes, ICV (WEP/TKIP/CKIP) 4 bytes, CRC 4 bytes.i
 	 * Range: 14-2342 bytes.
 	 */
@@ -1244,8 +1244,8 @@ struct iwl_tx_cmd {
 
 	/*
 	 * MPDU or MSDU byte count for next frame.
-	 * Used for fragmentation and bursting, but not 11n aggregation.
-	 * Same as "len", but for next frame.  Set to 0 if not applicable.
+	 * Used for fragmentation and bursting, but yest 11n aggregation.
+	 * Same as "len", but for next frame.  Set to 0 if yest applicable.
 	 */
 	__le16 next_frame_len;
 
@@ -1268,7 +1268,7 @@ struct iwl_tx_cmd {
 	 * Index into rate table (see REPLY_TX_LINK_QUALITY_CMD) for initial
 	 * Tx attempt, if TX_CMD_FLG_STA_RATE_MSK is set.  Normally "0" for
 	 * data frames, this field may be used to selectively reduce initial
-	 * rate (via non-0 value) for special frames (e.g. management), while
+	 * rate (via yesn-0 value) for special frames (e.g. management), while
 	 * still supporting rate scaling for all frames.
 	 */
 	u8 initial_rate_index;
@@ -1296,7 +1296,7 @@ struct iwl_tx_cmd {
 
 	/*
 	 * Duration of EDCA burst Tx Opportunity, in 32-usec units.
-	 * Set this if txop time is not specified by HCCA protocol (e.g. by AP).
+	 * Set this if txop time is yest specified by HCCA protocol (e.g. by AP).
 	 */
 	__le16 driver_txop;
 
@@ -1312,7 +1312,7 @@ struct iwl_tx_cmd {
  * TX command response is sent after *agn* transmission attempts.
  *
  * both postpone and abort status are expected behavior from uCode. there is
- * no special operation required from driver; except for RFKILL_FLUSH,
+ * yes special operation required from driver; except for RFKILL_FLUSH,
  * which required tx flush host command to flush all the tx frames in queues
  */
 enum {
@@ -1410,12 +1410,12 @@ enum {
  *     been made for this frame.
  *
  * 2)  Aggregation (frame_count > 1).  This reports Tx results for
- *     2 or more frames that used block-acknowledge.  All frames were
+ *     2 or more frames that used block-ackyeswledge.  All frames were
  *     transmitted at same rate.  Rate scaling may have been used if first
  *     frame in this new agg block failed in previous agg block(s).
  *
- *     Note that, for aggregation, ACK (block-ack) status is not delivered here;
- *     block-ack has not been received by the time the agn device records
+ *     Note that, for aggregation, ACK (block-ack) status is yest delivered here;
+ *     block-ack has yest been received by the time the agn device records
  *     this status.
  *     This status relates to reasons the tx might have been blocked or aborted
  *     within the sending station (this agn device), rather than whether it was
@@ -1433,20 +1433,20 @@ struct agg_tx_status {
 #define IWLAGN_TX_RES_RA_MSK	0xf0
 
 struct iwlagn_tx_resp {
-	u8 frame_count;		/* 1 no aggregation, >1 aggregation */
+	u8 frame_count;		/* 1 yes aggregation, >1 aggregation */
 	u8 bt_kill_count;	/* # blocked by bluetooth (unused for agg) */
 	u8 failure_rts;		/* # failures due to unsuccessful RTS */
-	u8 failure_frame;	/* # failures due to no ACK (unused for agg) */
+	u8 failure_frame;	/* # failures due to yes ACK (unused for agg) */
 
-	/* For non-agg:  Rate at which frame was successful.
+	/* For yesn-agg:  Rate at which frame was successful.
 	 * For agg:  Rate at which all frames were transmitted. */
 	__le32 rate_n_flags;	/* RATE_MCS_*  */
 
-	/* For non-agg:  RTS + CTS + frame tx attempts time + ACK.
+	/* For yesn-agg:  RTS + CTS + frame tx attempts time + ACK.
 	 * For agg:  RTS + CTS + aggregation tx time + block-ack time. */
 	__le16 wireless_media_time;	/* uSecs */
 
-	u8 pa_status;		/* RF power amplifier measurement (not used) */
+	u8 pa_status;		/* RF power amplifier measurement (yest used) */
 	u8 pa_integ_res_a[3];
 	u8 pa_integ_res_b[3];
 	u8 pa_integ_res_C[3];
@@ -1458,7 +1458,7 @@ struct iwlagn_tx_resp {
 	u8 ra_tid;		/* tid (0:3), sta_id (4:7) */
 	__le16 frame_ctrl;
 	/*
-	 * For non-agg:  frame status TX_STATUS_*
+	 * For yesn-agg:  frame status TX_STATUS_*
 	 * For agg:  status of 1st frame, AGG_TX_STATE_*; other frame status
 	 *           fields follow this one, up to frame_count.
 	 *           Bit fields:
@@ -1468,15 +1468,15 @@ struct iwlagn_tx_resp {
 	 *                   member of a previous aggregation block).  If rate
 	 *                   scaling is used, retry count indicates the rate
 	 *                   table entry used for all frames in the new agg.
-	 *           31-16:  Sequence # for this frame's Tx cmd (not SSN!)
+	 *           31-16:  Sequence # for this frame's Tx cmd (yest SSN!)
 	 */
 	struct agg_tx_status status;	/* TX status (in aggregation -
 					 * status of 1st frame) */
 } __packed;
 /*
- * REPLY_COMPRESSED_BA = 0xc5 (response only, not a command)
+ * REPLY_COMPRESSED_BA = 0xc5 (response only, yest a command)
  *
- * Reports Block-Acknowledge from recipient station
+ * Reports Block-Ackyeswledge from recipient station
  */
 struct iwl_compressed_ba_resp {
 	__le32 sta_addr_lo32;
@@ -1540,7 +1540,7 @@ struct iwl_link_qual_general_params {
 	 * Otherwise, driver should set all entries to 0.
 	 *
 	 * Entry usage:
-	 * 0 = Background, 1 = Best Effort (normal), 2 = Video, 3 = Voice
+	 * 0 = Background, 1 = Best Effort (yesrmal), 2 = Video, 3 = Voice
 	 * TX FIFOs above 3 use same value (typically 0) as TX FIFO 3.
 	 */
 	u8 start_rate_index[LINK_QUAL_AC_NUM];
@@ -1567,13 +1567,13 @@ struct iwl_link_qual_agg_params {
 
 	/*
 	 *Maximum number of uSec in aggregation.
-	 * default set to 4000 (4 milliseconds) if not configured in .cfg
+	 * default set to 4000 (4 milliseconds) if yest configured in .cfg
 	 */
 	__le16 agg_time_limit;
 
 	/*
 	 * Number of Tx retries allowed for a frame, before that frame will
-	 * no longer be considered for the start of an aggregation sequence
+	 * yes longer be considered for the start of an aggregation sequence
 	 * (scheduler will then try to tx it as single frame).
 	 * Driver should set this to 3.
 	 */
@@ -1581,7 +1581,7 @@ struct iwl_link_qual_agg_params {
 
 	/*
 	 * Maximum number of frames in aggregation.
-	 * 0 = no limit (default).  1 = no aggregation.
+	 * 0 = yes limit (default).  1 = yes aggregation.
 	 * Other values = max # frames in aggregation.
 	 */
 	u8 agg_frame_cnt_limit;
@@ -1597,7 +1597,7 @@ struct iwl_link_qual_agg_params {
  * Each station in the agn device's internal station table has its own table
  * of 16
  * Tx rates and modulation modes (e.g. legacy/SISO/MIMO) for retrying Tx when
- * an ACK is not received.  This command replaces the entire table for
+ * an ACK is yest received.  This command replaces the entire table for
  * one station.
  *
  * NOTE:  Station must already be in agn device's station table.
@@ -1618,12 +1618,12 @@ struct iwl_link_qual_agg_params {
  * 1)  If using High-throughput (HT) (SISO or MIMO) initial rate:
  *     a) Use this same initial rate for first 3 entries.
  *     b) Find next lower available rate using same mode (SISO or MIMO),
- *        use for next 3 entries.  If no lower rate available, switch to
- *        legacy mode (no HT40 channel, no MIMO, no short guard interval).
+ *        use for next 3 entries.  If yes lower rate available, switch to
+ *        legacy mode (yes HT40 channel, yes MIMO, yes short guard interval).
  *     c) If using MIMO, set command's mimo_delimiter to number of entries
  *        using MIMO (3 or 6).
- *     d) After trying 2 HT rates, switch to legacy mode (no HT40 channel,
- *        no MIMO, no short guard interval), at the next lower bit rate
+ *     d) After trying 2 HT rates, switch to legacy mode (yes HT40 channel,
+ *        yes MIMO, yes short guard interval), at the next lower bit rate
  *        (e.g. if second HT bit rate was 54, try 48 legacy), and follow
  *        legacy procedure for remaining table entries.
  *
@@ -1663,7 +1663,7 @@ struct iwl_link_qual_agg_params {
  * match the modulation characteristics of the history set.
  *
  * When using block-ack (aggregation), all frames are transmitted at the same
- * rate, since there is no per-attempt acknowledgment from the destination
+ * rate, since there is yes per-attempt ackyeswledgment from the destination
  * station.  The Tx response struct iwl_tx_resp indicates the Tx rate in
  * rate_n_flags field.  After receiving a block-ack, the driver can update
  * history for the entire block all at once.
@@ -1676,9 +1676,9 @@ struct iwl_link_qual_agg_params {
  * first entry in the Link Quality command's rate table.
  *
  * 1)  Calculate actual throughput (success ratio * expected throughput, see
- *     table below) for current initial rate.  Do this only if enough frames
+ *     table below) for current initial rate.  Do this only if eyesugh frames
  *     have been attempted to make the value meaningful:  at least 6 failed
- *     tx attempts, or at least 8 successes.  If not enough, don't try rate
+ *     tx attempts, or at least 8 successes.  If yest eyesugh, don't try rate
  *     scaling yet.
  *
  * 2)  Find available rates adjacent to current initial rate.  Available means:
@@ -1686,8 +1686,8 @@ struct iwl_link_qual_agg_params {
  *     b)  supported by association &&
  *     c)  within any constraints selected by user
  *
- * 3)  Gather measured throughputs for adjacent rates.  These might not have
- *     enough history to calculate a throughput.  That's okay, we might try
+ * 3)  Gather measured throughputs for adjacent rates.  These might yest have
+ *     eyesugh history to calculate a throughput.  That's okay, we might try
  *     using one of them anyway!
  *
  * 4)  Try decreasing rate if, for current rate:
@@ -1710,11 +1710,11 @@ struct iwl_link_qual_agg_params {
  *
  *     As a sanity check, if increase was determined above, leave rate
  *     unchanged if:
- *     a)  success ratio at current rate < 70%.  This is not particularly
+ *     a)  success ratio at current rate < 70%.  This is yest particularly
  *         good performance; higher rate is sure to have poorer success.
  *
  * 6)  Re-evaluate the rate after each tx frame.  If working with block-
- *     acknowledge, history and statistics may be calculated for the entire
+ *     ackyeswledge, history and statistics may be calculated for the entire
  *     block (including prior history that fits within the history windows),
  *     before re-evaluation.
  *
@@ -1747,7 +1747,7 @@ struct iwl_link_qual_agg_params {
  *
  * Actual throughput can be estimated by multiplying the expected throughput
  * by the success ratio (successful / attempted tx frames).  Frame size is
- * not considered in this calculation; it assumes that frame size will average
+ * yest considered in this calculation; it assumes that frame size will average
  * out to be fairly consistent over several samples.  The following are
  * metric values for expected throughput assuming 100% success ratio.
  * Only G band has support for CCK rates:
@@ -1782,7 +1782,7 @@ struct iwl_link_quality_cmd {
 	/* Index of destination/recipient station in uCode's station table */
 	u8 sta_id;
 	u8 reserved1;
-	__le16 control;		/* not used */
+	__le16 control;		/* yest used */
 	struct iwl_link_qual_general_params general_params;
 	struct iwl_link_qual_agg_params agg_params;
 
@@ -1799,7 +1799,7 @@ struct iwl_link_quality_cmd {
 
 /*
  * BT configuration enable flags:
- *   bit 0 - 1: BT channel announcement enabled
+ *   bit 0 - 1: BT channel anyesuncement enabled
  *           0: disable
  *   bit 1 - 1: priority of BT device enabled
  *           0: disable
@@ -2016,7 +2016,7 @@ struct iwl_spectrum_resp {
 	u8 token;
 	u8 id;			/* id of the prior command replaced, or 0xff */
 	__le16 status;		/* 0 - command will be handled
-				 * 1 - cannot handle (conflicts with another
+				 * 1 - canyest handle (conflicts with ayesther
 				 *     measurement) */
 } __packed;
 
@@ -2060,9 +2060,9 @@ enum iwl_measure_type {
 };
 
 /*
- * SPECTRUM_MEASURE_NOTIFICATION = 0x75 (notification only, not a command)
+ * SPECTRUM_MEASURE_NOTIFICATION = 0x75 (yestification only, yest a command)
  */
-struct iwl_spectrum_notification {
+struct iwl_spectrum_yestification {
 	u8 id;			/* measurement id -- 0 or 1 */
 	u8 token;
 	u8 channel_index;	/* index in measurement channel list */
@@ -2098,12 +2098,12 @@ struct iwl_spectrum_notification {
  * POWER_TABLE_CMD = 0x77 (command, has simple generic response)
  *
  * PM allow:
- *   bit 0 - '0' Driver not allow power management
+ *   bit 0 - '0' Driver yest allow power management
  *           '1' Driver allow PM (use rest of parameters)
  *
- * uCode send sleep notifications:
- *   bit 1 - '0' Don't send sleep notification
- *           '1' send sleep notification (SEND_PM_NOTIFICATION)
+ * uCode send sleep yestifications:
+ *   bit 1 - '0' Don't send sleep yestification
+ *           '1' send sleep yestification (SEND_PM_NOTIFICATION)
  *
  * Sleep over DTIM
  *   bit 2 - '0' PM have to walk up every DTIM
@@ -2151,10 +2151,10 @@ struct iwl_powertable_cmd {
 } __packed;
 
 /*
- * PM_SLEEP_NOTIFICATION = 0x7A (notification only, not a command)
+ * PM_SLEEP_NOTIFICATION = 0x7A (yestification only, yest a command)
  * all devices identical.
  */
-struct iwl_sleep_notification {
+struct iwl_sleep_yestification {
 	u8 pm_sleep_mode;
 	u8 pm_wakeup_src;
 	__le16 reserved;
@@ -2189,9 +2189,9 @@ struct iwl_card_state_cmd {
 } __packed;
 
 /*
- * CARD_STATE_NOTIFICATION = 0xa1 (notification only, not a command)
+ * CARD_STATE_NOTIFICATION = 0xa1 (yestification only, yest a command)
  */
-struct iwl_card_state_notif {
+struct iwl_card_state_yestif {
 	__le32 flags;
 } __packed;
 
@@ -2286,7 +2286,7 @@ struct iwl_ssid_ie {
  * REPLY_SCAN_CMD = 0x80 (command)
  *
  * The hardware scan command is very powerful; the driver can set it up to
- * maintain (relatively) normal network traffic while doing a scan in the
+ * maintain (relatively) yesrmal network traffic while doing a scan in the
  * background.  The max_out_time and suspend_time control the ratio of how
  * long the device stays on an associated network channel ("service channel")
  * vs. how long it's away from the service channel, i.e. tuned to other channels
@@ -2295,37 +2295,37 @@ struct iwl_ssid_ie {
  * max_out_time is the max time off-channel (in usec), and suspend_time
  * is how long (in "extended beacon" format) that the scan is "suspended"
  * after returning to the service channel.  That is, suspend_time is the
- * time that we stay on the service channel, doing normal work, between
+ * time that we stay on the service channel, doing yesrmal work, between
  * scan segments.  The driver may set these parameters differently to support
- * scanning when associated vs. not associated, and light vs. heavy traffic
+ * scanning when associated vs. yest associated, and light vs. heavy traffic
  * loads when associated.
  *
  * After receiving this command, the device's scan engine does the following;
  *
- * 1)  Sends SCAN_START notification to driver
+ * 1)  Sends SCAN_START yestification to driver
  * 2)  Checks to see if it has time to do scan for one channel
  * 3)  Sends NULL packet, with power-save (PS) bit set to 1,
  *     to tell AP that we're going off-channel
  * 4)  Tunes to first channel in scan list, does active or passive scan
- * 5)  Sends SCAN_RESULT notification to driver
+ * 5)  Sends SCAN_RESULT yestification to driver
  * 6)  Checks to see if it has time to do scan on *next* channel in list
- * 7)  Repeats 4-6 until it no longer has time to scan the next channel
+ * 7)  Repeats 4-6 until it yes longer has time to scan the next channel
  *     before max_out_time expires
  * 8)  Returns to service channel
  * 9)  Sends NULL packet with PS=0 to tell AP that we're back
  * 10) Stays on service channel until suspend_time expires
  * 11) Repeats entire process 2-10 until list is complete
- * 12) Sends SCAN_COMPLETE notification
+ * 12) Sends SCAN_COMPLETE yestification
  *
  * For fast, efficient scans, the scan command also has support for staying on
- * a channel for just a short time, if doing active scanning and getting no
+ * a channel for just a short time, if doing active scanning and getting yes
  * responses to the transmitted probe request.  This time is controlled by
  * quiet_time, and the number of received packets below which a channel is
  * considered "quiet" is controlled by quiet_plcp_threshold.
  *
  * For active scanning on channels that have regulatory restrictions against
  * blindly transmitting, the scan can listen before transmitting, to make sure
- * that there is already legitimate activity on the channel.  If enough
+ * that there is already legitimate activity on the channel.  If eyesugh
  * packets are cleanly received on the channel (controlled by good_CRC_th,
  * typical value 1), the scan engine starts transmitting probe requests.
  *
@@ -2359,7 +2359,7 @@ struct iwl_scan_cmd {
 	__le32 filter_flags;	/* RXON_FILTER_* */
 
 	/* For active scans (set to all-0s for passive scans).
-	 * Does not include payload.  Must specify Tx rate; no rate scaling. */
+	 * Does yest include payload.  Must specify Tx rate; yes rate scaling. */
 	struct iwl_tx_cmd tx_cmd;
 
 	/* For directed active scans (set to all-0s otherwise) */
@@ -2376,29 +2376,29 @@ struct iwl_scan_cmd {
 	 * struct iwl_scan_channel channels[0];
 	 *
 	 * NOTE:  Only one band of channels can be scanned per pass.  You
-	 * must not mix 2.4GHz channels and 5.2GHz channels, and you must wait
+	 * must yest mix 2.4GHz channels and 5.2GHz channels, and you must wait
 	 * for one scan to complete (i.e. receive SCAN_COMPLETE_NOTIFICATION)
-	 * before requesting another scan.
+	 * before requesting ayesther scan.
 	 */
 	u8 data[0];
 } __packed;
 
-/* Can abort will notify by complete notification with abort status. */
+/* Can abort will yestify by complete yestification with abort status. */
 #define CAN_ABORT_STATUS	cpu_to_le32(0x1)
-/* complete notification statuses */
+/* complete yestification statuses */
 #define ABORT_STATUS            0x2
 
 /*
  * REPLY_SCAN_CMD = 0x80 (response)
  */
-struct iwl_scanreq_notification {
-	__le32 status;		/* 1: okay, 2: cannot fulfill request */
+struct iwl_scanreq_yestification {
+	__le32 status;		/* 1: okay, 2: canyest fulfill request */
 } __packed;
 
 /*
- * SCAN_START_NOTIFICATION = 0x82 (notification only, not a command)
+ * SCAN_START_NOTIFICATION = 0x82 (yestification only, yest a command)
  */
-struct iwl_scanstart_notification {
+struct iwl_scanstart_yestification {
 	__le32 tsf_low;
 	__le32 tsf_high;
 	__le32 beacon_timer;
@@ -2419,22 +2419,22 @@ struct iwl_scanstart_notification {
 
 #define NUMBER_OF_STATISTICS 1	/* first __le32 is good CRC */
 /*
- * SCAN_RESULTS_NOTIFICATION = 0x83 (notification only, not a command)
+ * SCAN_RESULTS_NOTIFICATION = 0x83 (yestification only, yest a command)
  */
-struct iwl_scanresults_notification {
+struct iwl_scanresults_yestification {
 	u8 channel;
 	u8 band;
 	u8 probe_status;
-	u8 num_probe_not_sent; /* not enough time to send */
+	u8 num_probe_yest_sent; /* yest eyesugh time to send */
 	__le32 tsf_low;
 	__le32 tsf_high;
 	__le32 statistics[NUMBER_OF_STATISTICS];
 } __packed;
 
 /*
- * SCAN_COMPLETE_NOTIFICATION = 0x84 (notification only, not a command)
+ * SCAN_COMPLETE_NOTIFICATION = 0x84 (yestification only, yest a command)
  */
-struct iwl_scancomplete_notification {
+struct iwl_scancomplete_yestification {
 	u8 scanned_channels;
 	u8 status;
 	u8 bt_status;	/* BT On/Off status */
@@ -2456,11 +2456,11 @@ enum iwl_ibss_manager {
 };
 
 /*
- * BEACON_NOTIFICATION = 0x90 (notification only, not a command)
+ * BEACON_NOTIFICATION = 0x90 (yestification only, yest a command)
  */
 
-struct iwlagn_beacon_notif {
-	struct iwlagn_tx_resp beacon_notify_hdr;
+struct iwlagn_beacon_yestif {
+	struct iwlagn_tx_resp beacon_yestify_hdr;
 	__le32 low_tsf;
 	__le32 high_tsf;
 	__le32 ibss_mgr_status;
@@ -2551,14 +2551,14 @@ struct statistics_rx_ht_phy {
 
 #define INTERFERENCE_DATA_AVAILABLE      cpu_to_le32(1)
 
-struct statistics_rx_non_phy {
-	__le32 bogus_cts;	/* CTS received when not expecting CTS */
-	__le32 bogus_ack;	/* ACK received when not expecting ACK */
-	__le32 non_bssid_frames;	/* number of frames with BSSID that
+struct statistics_rx_yesn_phy {
+	__le32 bogus_cts;	/* CTS received when yest expecting CTS */
+	__le32 bogus_ack;	/* ACK received when yest expecting ACK */
+	__le32 yesn_bssid_frames;	/* number of frames with BSSID that
 					 * doesn't belong to the STA BSSID */
 	__le32 filtered_frames;	/* count frames that were dumped in the
 				 * filtering process */
-	__le32 non_channel_beacons;	/* beacons with our bss id but not on
+	__le32 yesn_channel_beacons;	/* beacons with our bss id but yest on
 					 * our serving channel */
 	__le32 channel_beacons;	/* beacons with our bss id and in our
 				 * serving channel */
@@ -2584,8 +2584,8 @@ struct statistics_rx_non_phy {
 	__le32 beacon_energy_c;
 } __packed;
 
-struct statistics_rx_non_phy_bt {
-	struct statistics_rx_non_phy common;
+struct statistics_rx_yesn_phy_bt {
+	struct statistics_rx_yesn_phy common;
 	/* additional stats for bt */
 	__le32 num_bt_kills;
 	__le32 reserved[2];
@@ -2594,14 +2594,14 @@ struct statistics_rx_non_phy_bt {
 struct statistics_rx {
 	struct statistics_rx_phy ofdm;
 	struct statistics_rx_phy cck;
-	struct statistics_rx_non_phy general;
+	struct statistics_rx_yesn_phy general;
 	struct statistics_rx_ht_phy ofdm_ht;
 } __packed;
 
 struct statistics_rx_bt {
 	struct statistics_rx_phy ofdm;
 	struct statistics_rx_phy cck;
-	struct statistics_rx_non_phy_bt general;
+	struct statistics_rx_yesn_phy_bt general;
 	struct statistics_rx_ht_phy ofdm_ht;
 } __packed;
 
@@ -2619,14 +2619,14 @@ struct statistics_tx_power {
 	u8 reserved;
 } __packed;
 
-struct statistics_tx_non_phy_agg {
+struct statistics_tx_yesn_phy_agg {
 	__le32 ba_timeout;
 	__le32 ba_reschedule_frames;
 	__le32 scd_query_agg_frame_cnt;
-	__le32 scd_query_no_agg;
+	__le32 scd_query_yes_agg;
 	__le32 scd_query_agg;
 	__le32 scd_query_mismatch;
-	__le32 frame_not_ready;
+	__le32 frame_yest_ready;
 	__le32 underrun;
 	__le32 bt_prio_kill;
 	__le32 rx_ba_rsp_cnt;
@@ -2647,7 +2647,7 @@ struct statistics_tx {
 	__le32 burst_abort_missing_next_frame_cnt;
 	__le32 cts_timeout_collision;
 	__le32 ack_or_ba_timeout_collision;
-	struct statistics_tx_non_phy_agg agg;
+	struct statistics_tx_yesn_phy_agg agg;
 	/*
 	 * "tx_power" are optional parameters provided by uCode,
 	 * 6000 series is the only device provide the information,
@@ -2724,11 +2724,11 @@ struct statistics_general_bt {
  *
  * If the CLEAR_STATS configuration flag is set, uCode will clear its
  * internal copy of the statistics (counters) after issuing the response.
- * This flag does not affect STATISTICS_NOTIFICATIONs after beacons (see below).
+ * This flag does yest affect STATISTICS_NOTIFICATIONs after beacons (see below).
  *
- * If the DISABLE_NOTIF configuration flag is set, uCode will not issue
+ * If the DISABLE_NOTIF configuration flag is set, uCode will yest issue
  * STATISTICS_NOTIFICATIONs after received beacons (see below).  This flag
- * does not affect the response to the REPLY_STATISTICS_CMD 0x9c itself.
+ * does yest affect the response to the REPLY_STATISTICS_CMD 0x9c itself.
  */
 #define IWL_STATS_CONF_CLEAR_STATS cpu_to_le32(0x1)	/* see above */
 #define IWL_STATS_CONF_DISABLE_NOTIF cpu_to_le32(0x2)/* see above */
@@ -2737,9 +2737,9 @@ struct iwl_statistics_cmd {
 } __packed;
 
 /*
- * STATISTICS_NOTIFICATION = 0x9d (notification only, not a command)
+ * STATISTICS_NOTIFICATION = 0x9d (yestification only, yest a command)
  *
- * By default, uCode issues this notification after receiving a beacon
+ * By default, uCode issues this yestification after receiving a beacon
  * while associated.  To disable this behavior, set DISABLE_NOTIF flag in the
  * REPLY_STATISTICS_CMD 0x9c, above.
  *
@@ -2747,21 +2747,21 @@ struct iwl_statistics_cmd {
  * cleared when changing channels or when driver issues REPLY_STATISTICS_CMD
  * 0x9c with CLEAR_STATS bit set (see above).
  *
- * uCode also issues this notification during scans.  uCode clears statistics
- * appropriately so that each notification contains statistics for only the
+ * uCode also issues this yestification during scans.  uCode clears statistics
+ * appropriately so that each yestification contains statistics for only the
  * one channel that has just been scanned.
  */
 #define STATISTICS_REPLY_FLG_BAND_24G_MSK         cpu_to_le32(0x2)
 #define STATISTICS_REPLY_FLG_HT40_MODE_MSK        cpu_to_le32(0x8)
 
-struct iwl_notif_statistics {
+struct iwl_yestif_statistics {
 	__le32 flag;
 	struct statistics_rx rx;
 	struct statistics_tx tx;
 	struct statistics_general general;
 } __packed;
 
-struct iwl_bt_notif_statistics {
+struct iwl_bt_yestif_statistics {
 	__le32 flag;
 	struct statistics_rx_bt rx;
 	struct statistics_tx tx;
@@ -2769,22 +2769,22 @@ struct iwl_bt_notif_statistics {
 } __packed;
 
 /*
- * MISSED_BEACONS_NOTIFICATION = 0xa2 (notification only, not a command)
+ * MISSED_BEACONS_NOTIFICATION = 0xa2 (yestification only, yest a command)
  *
  * uCode send MISSED_BEACONS_NOTIFICATION to driver when detect beacon missed
  * in regardless of how many missed beacons, which mean when driver receive the
- * notification, inside the command, it can find all the beacons information
+ * yestification, inside the command, it can find all the beacons information
  * which include number of total missed beacons, number of consecutive missed
  * beacons, number of beacons received and number of beacons expected to
  * receive.
  *
  * If uCode detected consecutive_missed_beacons > 5, it will reset the radio
- * in order to bring the radio/PHY back to working state; which has no relation
+ * in order to bring the radio/PHY back to working state; which has yes relation
  * to when driver will perform sensitivity calibration.
  *
  * Driver should set it own missed_beacon_threshold to decide when to perform
  * sensitivity calibration based on number of consecutive missed beacons in
- * order to improve overall performance, especially in noisy environment.
+ * order to improve overall performance, especially in yesisy environment.
  *
  */
 
@@ -2792,7 +2792,7 @@ struct iwl_bt_notif_statistics {
 #define IWL_MISSED_BEACON_THRESHOLD_DEF	(5)
 #define IWL_MISSED_BEACON_THRESHOLD_MAX	IWL_MISSED_BEACON_THRESHOLD_DEF
 
-struct iwl_missed_beacon_notif {
+struct iwl_missed_beacon_yestif {
 	__le32 consecutive_missed_beacons;
 	__le32 total_missed_becons;
 	__le32 num_expected_beacons;
@@ -2818,30 +2818,30 @@ struct iwl_missed_beacon_notif {
  * SENSITIVITY_CMD = 0xa8 (command, has simple generic response)
  *
  * This command sets up the Rx signal detector for a sensitivity level that
- * is high enough to lock onto all signals within the associated network,
- * but low enough to ignore signals that are below a certain threshold, so as
- * not to have too many "false alarms".  False alarms are signals that the
+ * is high eyesugh to lock onto all signals within the associated network,
+ * but low eyesugh to igyesre signals that are below a certain threshold, so as
+ * yest to have too many "false alarms".  False alarms are signals that the
  * Rx DSP tries to lock onto, but then discards after determining that they
- * are noise.
+ * are yesise.
  *
  * The optimum number of false alarms is between 5 and 50 per 200 TUs
  * (200 * 1024 uSecs, i.e. 204.8 milliseconds) of actual Rx time (i.e.
- * time listening, not transmitting).  Driver must adjust sensitivity so that
+ * time listening, yest transmitting).  Driver must adjust sensitivity so that
  * the ratio of actual false alarms to actual Rx time falls within this range.
  *
  * While associated, uCode delivers STATISTICS_NOTIFICATIONs after each
  * received beacon.  These provide information to the driver to analyze the
  * sensitivity.  Don't analyze statistics that come in from scanning, or any
- * other non-associated-network source.  Pertinent statistics include:
+ * other yesn-associated-network source.  Pertinent statistics include:
  *
- * From "general" statistics (struct statistics_rx_non_phy):
+ * From "general" statistics (struct statistics_rx_yesn_phy):
  *
  * (beacon_energy_[abc] & 0x0FF00) >> 8 (unsigned, higher value is lower level)
  *   Measure of energy of desired signal.  Used for establishing a level
- *   below which the device does not detect signals.
+ *   below which the device does yest detect signals.
  *
  * (beacon_silence_rssi_[abc] & 0x0FF00) >> 8 (unsigned, units in dB)
- *   Measure of background noise in silent period after beacon.
+ *   Measure of background yesise in silent period after beacon.
  *
  * channel_load
  *   uSecs of actual Rx time during beacon period (varies according to
@@ -2855,7 +2855,7 @@ struct iwl_missed_beacon_notif {
  * plcp_err
  *   Signal locks abandoned late (during phy-level header).
  *
- * NOTE:  Both false_alarm_cnt and plcp_err increment monotonically from
+ * NOTE:  Both false_alarm_cnt and plcp_err increment moyestonically from
  *        beacon to beacon, i.e. each value is an accumulation of all errors
  *        before and including the latest beacon.  Values will wrap around to 0
  *        after counting up to 2^32 - 1.  Driver must differentiate vs.
@@ -2865,7 +2865,7 @@ struct iwl_missed_beacon_notif {
  * Total number of false alarms = false_alarms + plcp_errs
  *
  * For OFDM, adjust the following table entries in struct iwl_sensitivity_cmd
- * (notice that the start points for OFDM are at or close to settings for
+ * (yestice that the start points for OFDM are at or close to settings for
  * maximum sensitivity):
  *
  *                                             START  /  MIN  /  MAX
@@ -2883,7 +2883,7 @@ struct iwl_missed_beacon_notif {
  *
  * For CCK sensitivity, keep track of the following:
  *
- *   1).  20-beacon history of maximum background noise, indicated by
+ *   1).  20-beacon history of maximum background yesise, indicated by
  *        (beacon_silence_rssi_[abc] & 0x0FF00), units in dB, across the
  *        3 receivers.  For any given beacon, the "silence reference" is
  *        the maximum of last 60 samples (20 beacons * 3 receivers).
@@ -2906,7 +2906,7 @@ struct iwl_missed_beacon_notif {
  *        "good" range (5 to 50 false alarms per 204.8 milliseconds rx).
  *
  * Then, adjust the following CCK table entries in struct iwl_sensitivity_cmd
- * (notice that the start points for CCK are at maximum sensitivity):
+ * (yestice that the start points for CCK are at maximum sensitivity):
  *
  *                                             START  /  MIN  /  MAX
  *   HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX         125   /  125  /  200
@@ -2936,7 +2936,7 @@ struct iwl_missed_beacon_notif {
  *   (less than 5 for each 204.8 msecs listening), method for increasing
  *   sensitivity is used only if:
  *
- *   1a)  Previous beacon did not have too many false alarms
+ *   1a)  Previous beacon did yest have too many false alarms
  *   1b)  AND difference between previous "silence reference" and current
  *        "silence reference" (prev - current) is 2 or more,
  *   OR 2)  100 or more consecutive beacon periods have had rate of
@@ -3062,24 +3062,24 @@ struct iwl_enhance_sensitivity_cmd {
  *
  * This command sets the relative gains of agn device's 3 radio receiver chains.
  *
- * After the first association, driver should accumulate signal and noise
+ * After the first association, driver should accumulate signal and yesise
  * statistics from the STATISTICS_NOTIFICATIONs that follow the first 20
  * beacons from the associated network (don't collect statistics that come
- * in from scanning, or any other non-network source).
+ * in from scanning, or any other yesn-network source).
  *
  * DISCONNECTED ANTENNA:
  *
  * Driver should determine which antennas are actually connected, by comparing
  * average beacon signal levels for the 3 Rx chains.  Accumulate (add) the
  * following values over 20 beacons, one accumulator for each of the chains
- * a/b/c, from struct statistics_rx_non_phy:
+ * a/b/c, from struct statistics_rx_yesn_phy:
  *
  * beacon_rssi_[abc] & 0x0FF (unsigned, units in dB)
  *
  * Find the strongest signal from among a/b/c.  Compare the other two to the
  * strongest.  If any signal is more than 15 dB (times 20, unless you
  * divide the accumulated values by 20) below the strongest, the driver
- * considers that antenna to be disconnected, and should not try to use that
+ * considers that antenna to be disconnected, and should yest try to use that
  * antenna/chain for Rx or Tx.  If both A and B seem to be disconnected,
  * driver should declare the stronger one as connected, and attempt to use it
  * (A and B are the only 2 Tx chains!).
@@ -3089,17 +3089,17 @@ struct iwl_enhance_sensitivity_cmd {
  *
  * Driver should balance the 3 receivers (but just the ones that are connected
  * to antennas, see above) for gain, by comparing the average signal levels
- * detected during the silence after each beacon (background noise).
+ * detected during the silence after each beacon (background yesise).
  * Accumulate (add) the following values over 20 beacons, one accumulator for
- * each of the chains a/b/c, from struct statistics_rx_non_phy:
+ * each of the chains a/b/c, from struct statistics_rx_yesn_phy:
  *
  * beacon_silence_rssi_[abc] & 0x0FF (unsigned, units in dB)
  *
- * Find the weakest background noise level from among a/b/c.  This Rx chain
+ * Find the weakest background yesise level from among a/b/c.  This Rx chain
  * will be the reference, with 0 gain adjustment.  Attenuate other channels by
- * finding noise difference:
+ * finding yesise difference:
  *
- * (accum_noise[i] - accum_noise[reference]) / 30
+ * (accum_yesise[i] - accum_yesise[reference]) / 30
  *
  * The "30" adjusts the dB in the 20 accumulated samples to units of 1.5 dB.
  * For use in diff_gain_[abc] fields of struct iwl_calibration_cmd, the
@@ -3214,13 +3214,13 @@ struct iwl_calib_temperature_offset_v2_cmd {
 } __packed;
 
 /* IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD */
-struct iwl_calib_chain_noise_reset_cmd {
+struct iwl_calib_chain_yesise_reset_cmd {
 	struct iwl_calib_hdr hdr;
 	u8 data[0];
 };
 
 /* IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD */
-struct iwl_calib_chain_noise_gain_cmd {
+struct iwl_calib_chain_yesise_gain_cmd {
 	struct iwl_calib_hdr hdr;
 	u8 delta_gain_1;
 	u8 delta_gain_2;
@@ -3407,7 +3407,7 @@ struct iwl_wimax_coex_cmd {
  * Coexistence MEDIUM NOTIFICATION
  * COEX_MEDIUM_NOTIFICATION = 0x5b
  *
- * notification from uCode to host to indicate medium changes
+ * yestification from uCode to host to indicate medium changes
  *
  */
 /*
@@ -3422,12 +3422,12 @@ struct iwl_wimax_coex_cmd {
 #define COEX_MEDIUM_PRE_RELEASE	(0x2) /* received radio release */
 #define COEX_MEDIUM_MSK		(0x7)
 
-/* send notification status (1 bit) */
+/* send yestification status (1 bit) */
 #define COEX_MEDIUM_CHANGED	(0x8)
 #define COEX_MEDIUM_CHANGED_MSK	(0x8)
 #define COEX_MEDIUM_SHIFT	(3)
 
-struct iwl_coex_medium_notification {
+struct iwl_coex_medium_yestification {
 	__le32 status;
 	__le32 events;
 } __packed;
@@ -3458,7 +3458,7 @@ struct iwl_coex_event_resp {
  *****************************************************************************/
 
 /*
- * BT Status notification
+ * BT Status yestification
  * REPLY_BT_COEX_PROFILE_NOTIF = 0xce
  */
 enum iwl_bt_coex_profile_traffic_load {
@@ -3467,7 +3467,7 @@ enum iwl_bt_coex_profile_traffic_load {
 	IWL_BT_COEX_TRAFFIC_LOAD_HIGH = 	2,
 	IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS =	3,
 /*
- * There are no more even though below is a u8, the
+ * There are yes more even though below is a u8, the
  * indication from the BT device only has two bits.
  */
 };
@@ -3665,11 +3665,11 @@ struct iwl_bt_uart_msg {
 	u8 frame7;
 } __packed;
 
-struct iwl_bt_coex_profile_notif {
+struct iwl_bt_coex_profile_yestif {
 	struct iwl_bt_uart_msg last_bt_uart_msg;
 	u8 bt_status; /* 0 - off, 1 - on */
 	u8 bt_traffic_load; /* 0 .. 3? */
-	u8 bt_ci_compliance; /* 0 - not complied, 1 - complied */
+	u8 bt_ci_compliance; /* 0 - yest complied, 1 - complied */
 	u8 reserved;
 } __packed;
 
@@ -3785,7 +3785,7 @@ enum iwlagn_wowlan_wakeup_filters {
 
 struct iwlagn_wowlan_wakeup_filter_cmd {
 	__le32 enabled;
-	__le16 non_qos_seq;
+	__le16 yesn_qos_seq;
 	__le16 reserved;
 	__le16 qos_seq[8];
 };
@@ -3877,7 +3877,7 @@ struct iwlagn_wowlan_status {
 	u8 pattern_number;
 	u8 reserved1;
 	__le16 qos_seq_ctr[8];
-	__le16 non_qos_seq_ctr;
+	__le16 yesn_qos_seq_ctr;
 	__le16 reserved2;
 	union iwlagn_all_tsc_rsc tsc_rsc;
 	__le16 reserved3;
@@ -3919,8 +3919,8 @@ struct iwl_wipan_slot {
  *   bit2: CP leave channel qith Quiet
  *   bit3: slotted mode
  *     1 - work in slotted mode
- *     0 - work in non slotted mode
- *   bit4: filter beacon notification
+ *     0 - work in yesn slotted mode
+ *   bit4: filter beacon yestification
  *   bit5: full tx slotted mode. if this flag is set,
  *         uCode will perform leaving channel methods in context switch
  *         also when working in same channel mode
@@ -3949,7 +3949,7 @@ struct iwl_wipan_p2p_channel_switch_cmd {
 /*
  * REPLY_WIPAN_NOA_NOTIFICATION = 0xbc
  *
- * This is used by the device to notify us of the
+ * This is used by the device to yestify us of the
  * NoA schedule it determined so we can forward it
  * to userspace for inclusion in probe responses.
  *
@@ -3957,25 +3957,25 @@ struct iwl_wipan_p2p_channel_switch_cmd {
  * to the frame we give the device.
  */
 
-struct iwl_wipan_noa_descriptor {
+struct iwl_wipan_yesa_descriptor {
 	u8 count;
 	__le32 duration;
 	__le32 interval;
 	__le32 starttime;
 } __packed;
 
-struct iwl_wipan_noa_attribute {
+struct iwl_wipan_yesa_attribute {
 	u8 id;
 	__le16 length;
 	u8 index;
 	u8 ct_window;
-	struct iwl_wipan_noa_descriptor descr0, descr1;
+	struct iwl_wipan_yesa_descriptor descr0, descr1;
 	u8 reserved;
 } __packed;
 
-struct iwl_wipan_noa_notification {
-	u32 noa_active;
-	struct iwl_wipan_noa_attribute noa_attribute;
+struct iwl_wipan_yesa_yestification {
+	u32 yesa_active;
+	struct iwl_wipan_yesa_attribute yesa_attribute;
 } __packed;
 
 #endif				/* __iwl_commands_h__ */

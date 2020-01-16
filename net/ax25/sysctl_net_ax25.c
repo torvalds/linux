@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * Copyright (C) 1996 Mike Shaver (shaver@zeroknowledge.com)
+ * Copyright (C) 1996 Mike Shaver (shaver@zerokyeswledge.com)
  */
 #include <linux/mm.h>
 #include <linux/slab.h>

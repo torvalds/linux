@@ -7,7 +7,7 @@
  * be split away from DISCONTIGMEM and are used on NUMA machines with
  * contiguous memory.
  * 		2002/08/07 Erich Focht <efocht@ess.nec.de>
- * Populate cpu entries in sysfs for non-numa systems as well
+ * Populate cpu entries in sysfs for yesn-numa systems as well
  *  	Intel Corporation - Ashok Raj
  * 02/27/2006 Zhang, Yanmin
  *	Populate cpu cache entries in sysfs for cpu cache info
@@ -16,12 +16,12 @@
 #include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/node.h>
+#include <linux/yesde.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
-#include <linux/nodemask.h>
-#include <linux/notifier.h>
+#include <linux/yesdemask.h>
+#include <linux/yestifier.h>
 #include <linux/export.h>
 #include <asm/mmzone.h>
 #include <asm/numa.h>
@@ -43,12 +43,12 @@ EXPORT_SYMBOL_GPL(arch_fix_phys_package_id);
 int __ref arch_register_cpu(int num)
 {
 	/*
-	 * If CPEI can be re-targeted or if this is not
+	 * If CPEI can be re-targeted or if this is yest
 	 * CPEI target, then it is hotpluggable
 	 */
 	if (can_cpei_retarget() || !is_cpu_cpei_target(num))
 		sysfs_cpus[num].cpu.hotpluggable = 1;
-	map_cpu_to_node(num, node_cpuid[num].nid);
+	map_cpu_to_yesde(num, yesde_cpuid[num].nid);
 	return register_cpu(&sysfs_cpus[num].cpu, num);
 }
 EXPORT_SYMBOL(arch_register_cpu);
@@ -56,7 +56,7 @@ EXPORT_SYMBOL(arch_register_cpu);
 void __ref arch_unregister_cpu(int num)
 {
 	unregister_cpu(&sysfs_cpus[num].cpu);
-	unmap_cpu_from_node(num, cpu_to_node(num));
+	unmap_cpu_from_yesde(num, cpu_to_yesde(num));
 }
 EXPORT_SYMBOL(arch_unregister_cpu);
 #else
@@ -73,10 +73,10 @@ static int __init topology_init(void)
 
 #ifdef CONFIG_NUMA
 	/*
-	 * MCD - Do we want to register all ONLINE nodes, or all POSSIBLE nodes?
+	 * MCD - Do we want to register all ONLINE yesdes, or all POSSIBLE yesdes?
 	 */
-	for_each_online_node(i) {
-		if ((err = register_one_node(i)))
+	for_each_online_yesde(i) {
+		if ((err = register_one_yesde(i)))
 			goto out;
 	}
 #endif
@@ -104,7 +104,7 @@ subsys_initcall(topology_init);
  *  A bunch of string array to get pretty printing
  */
 static const char *cache_types[] = {
-	"",			/* not used */
+	"",			/* yest used */
 	"Instruction",
 	"Data",
 	"Unified"	/* unified */

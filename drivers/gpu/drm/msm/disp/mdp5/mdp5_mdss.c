@@ -118,7 +118,7 @@ static int mdss_irq_domain_init(struct mdp5_mdss *mdp5_mdss)
 	struct device *dev = mdp5_mdss->base.dev->dev;
 	struct irq_domain *d;
 
-	d = irq_domain_add_linear(dev->of_node, 32, &mdss_hw_irqdomain_ops,
+	d = irq_domain_add_linear(dev->of_yesde, 32, &mdss_hw_irqdomain_ops,
 				  mdp5_mdss);
 	if (!d) {
 		DRM_DEV_ERROR(dev, "mdss irq domain add failed\n");
@@ -210,7 +210,7 @@ int mdp5_mdss_init(struct drm_device *dev)
 
 	DBG("");
 
-	if (!of_device_is_compatible(dev->dev->of_node, "qcom,mdss"))
+	if (!of_device_is_compatible(dev->dev->of_yesde, "qcom,mdss"))
 		return 0;
 
 	mdp5_mdss = devm_kzalloc(dev->dev, sizeof(*mdp5_mdss), GFP_KERNEL);

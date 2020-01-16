@@ -6,12 +6,12 @@
 
 struct dentry;
 struct iattr;
-struct inode;
+struct iyesde;
 struct iomap;
 struct super_block;
 struct vfsmount;
 
-/* limit the handle size to NFSv4 handle size now */
+/* limit the handle size to NFSv4 handle size yesw */
 #define MAX_HANDLE_SZ 128
 
 /*
@@ -20,7 +20,7 @@ struct vfsmount;
  * stick to conventions so we can share some generic code and don't confuse
  * sniffers like ethereal/wireshark.
  *
- * The filesystem must not use the value '0' or '0xff'.
+ * The filesystem must yest use the value '0' or '0xff'.
  */
 enum fid_type {
 	/*
@@ -30,13 +30,13 @@ enum fid_type {
 	FILEID_ROOT = 0,
 
 	/*
-	 * 32bit inode number, 32 bit generation number.
+	 * 32bit iyesde number, 32 bit generation number.
 	 */
 	FILEID_INO32_GEN = 1,
 
 	/*
-	 * 32bit inode number, 32 bit generation number,
-	 * 32 bit parent directory inode number.
+	 * 32bit iyesde number, 32 bit generation number,
+	 * 32 bit parent directory iyesde number.
 	 */
 	FILEID_INO32_GEN_PARENT = 2,
 
@@ -75,15 +75,15 @@ enum fid_type {
 	FILEID_UDF_WITH_PARENT = 0x52,
 
 	/*
-	 * 64 bit checkpoint number, 64 bit inode number,
+	 * 64 bit checkpoint number, 64 bit iyesde number,
 	 * 32 bit generation number.
 	 */
 	FILEID_NILFS_WITHOUT_PARENT = 0x61,
 
 	/*
-	 * 64 bit checkpoint number, 64 bit inode number,
+	 * 64 bit checkpoint number, 64 bit iyesde number,
 	 * 32 bit generation number, 32 bit parent generation.
-	 * 64 bit parent inode number.
+	 * 64 bit parent iyesde number.
 	 */
 	FILEID_NILFS_WITH_PARENT = 0x62,
 
@@ -110,7 +110,7 @@ enum fid_type {
 	FILEID_KERNFS = 0xfe,
 
 	/*
-	 * Filesystems must not use 0xff file ID.
+	 * Filesystems must yest use 0xff file ID.
 	 */
 	FILEID_INVALID = 0xff,
 };
@@ -118,9 +118,9 @@ enum fid_type {
 struct fid {
 	union {
 		struct {
-			u32 ino;
+			u32 iyes;
 			u32 gen;
-			u32 parent_ino;
+			u32 parent_iyes;
 			u32 parent_gen;
 		} i32;
  		struct {
@@ -140,7 +140,7 @@ struct fid {
  * @encode_fh:      encode a file handle fragment from a dentry
  * @fh_to_dentry:   find the implied object and get a dentry for it
  * @fh_to_parent:   find the implied object's parent and get a dentry for it
- * @get_name:       find the name for a given inode in a given directory
+ * @get_name:       find the name for a given iyesde in a given directory
  * @get_parent:     find the parent of a given directory
  * @commit_metadata: commit metadata changes to stable storage
  *
@@ -152,7 +152,7 @@ struct fid {
  *    @max_len bytes) information that can be used by @decode_fh to recover the
  *    file referred to by the &struct dentry @de.  If the @connectable flag is
  *    set, the encode_fh() should store sufficient information so that a good
- *    attempt can be made to find not only the file but also it's place in the
+ *    attempt can be made to find yest only the file but also it's place in the
  *    filesystem.   This typically means storing a reference to de->d_parent in
  *    the filehandle fragment.  encode_fh() should return the fileid_type on
  *    success and on error returns 255 (if the space needed to encode fh is
@@ -162,8 +162,8 @@ struct fid {
  * fh_to_dentry:
  *    @fh_to_dentry is given a &struct super_block (@sb) and a file handle
  *    fragment (@fh, @fh_len). It should return a &struct dentry which refers
- *    to the same file that the file handle fragment refers to.  If it cannot,
- *    it should return a %NULL pointer if the file cannot be found, or an
+ *    to the same file that the file handle fragment refers to.  If it canyest,
+ *    it should return a %NULL pointer if the file canyest be found, or an
  *    %ERR_PTR error code of %ENOMEM if a memory allocation failure occurred.
  *    Any other error code is treated like %NULL, and will cause an %ESTALE error
  *    for callers of exportfs_decode_fh().
@@ -184,20 +184,20 @@ struct fid {
  *
  * get_parent:
  *    @get_parent should find the parent directory for the given @child which
- *    is also a directory.  In the event that it cannot be found, or storage
- *    space cannot be allocated, a %ERR_PTR should be returned.
+ *    is also a directory.  In the event that it canyest be found, or storage
+ *    space canyest be allocated, a %ERR_PTR should be returned.
  *
  * commit_metadata:
  *    @commit_metadata should commit metadata changes to stable storage.
  *
  * Locking rules:
- *    get_parent is called with child->d_inode->i_mutex down
- *    get_name is not (which is possibly inconsistent)
+ *    get_parent is called with child->d_iyesde->i_mutex down
+ *    get_name is yest (which is possibly inconsistent)
  */
 
 struct export_operations {
-	int (*encode_fh)(struct inode *inode, __u32 *fh, int *max_len,
-			struct inode *parent);
+	int (*encode_fh)(struct iyesde *iyesde, __u32 *fh, int *max_len,
+			struct iyesde *parent);
 	struct dentry * (*fh_to_dentry)(struct super_block *sb, struct fid *fid,
 			int fh_len, int fh_type);
 	struct dentry * (*fh_to_parent)(struct super_block *sb, struct fid *fid,
@@ -205,18 +205,18 @@ struct export_operations {
 	int (*get_name)(struct dentry *parent, char *name,
 			struct dentry *child);
 	struct dentry * (*get_parent)(struct dentry *child);
-	int (*commit_metadata)(struct inode *inode);
+	int (*commit_metadata)(struct iyesde *iyesde);
 
 	int (*get_uuid)(struct super_block *sb, u8 *buf, u32 *len, u64 *offset);
-	int (*map_blocks)(struct inode *inode, loff_t offset,
+	int (*map_blocks)(struct iyesde *iyesde, loff_t offset,
 			  u64 len, struct iomap *iomap,
 			  bool write, u32 *device_generation);
-	int (*commit_blocks)(struct inode *inode, struct iomap *iomaps,
+	int (*commit_blocks)(struct iyesde *iyesde, struct iomap *iomaps,
 			     int nr_iomaps, struct iattr *iattr);
 };
 
-extern int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
-				    int *max_len, struct inode *parent);
+extern int exportfs_encode_iyesde_fh(struct iyesde *iyesde, struct fid *fid,
+				    int *max_len, struct iyesde *parent);
 extern int exportfs_encode_fh(struct dentry *dentry, struct fid *fid,
 	int *max_len, int connectable);
 extern struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
@@ -228,9 +228,9 @@ extern struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
  */
 extern struct dentry *generic_fh_to_dentry(struct super_block *sb,
 	struct fid *fid, int fh_len, int fh_type,
-	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
+	struct iyesde *(*get_iyesde) (struct super_block *sb, u64 iyes, u32 gen));
 extern struct dentry *generic_fh_to_parent(struct super_block *sb,
 	struct fid *fid, int fh_len, int fh_type,
-	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
+	struct iyesde *(*get_iyesde) (struct super_block *sb, u64 iyes, u32 gen));
 
 #endif /* LINUX_EXPORTFS_H */

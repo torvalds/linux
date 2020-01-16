@@ -34,7 +34,7 @@ config ARCH_USES_GETTIMEOFFSET
 config GENERIC_CLOCKEVENTS
 	bool
 
-# Architecture can handle broadcast in a driver-agnostic way
+# Architecture can handle broadcast in a driver-agyesstic way
 config ARCH_HAS_TICK_BROADCAST
 	bool
 
@@ -71,7 +71,7 @@ choice
 	default NO_HZ_IDLE if NO_HZ
 
 config HZ_PERIODIC
-	bool "Periodic timer ticks (constant rate, no dynticks)"
+	bool "Periodic timer ticks (constant rate, yes dynticks)"
 	help
 	  This option keeps the tick running periodically at a constant
 	  rate, even when the CPU doesn't need it.
@@ -107,7 +107,7 @@ config NO_HZ_FULL
 	 task on the CPU. Chances for running tickless are maximized when
 	 the task mostly runs in userspace and has few kernel activity.
 
-	 You need to fill up the nohz_full boot parameter with the
+	 You need to fill up the yeshz_full boot parameter with the
 	 desired range of dynticks CPUs.
 
 	 This is implemented at the expense of some overhead in user <-> kernel
@@ -134,7 +134,7 @@ config CONTEXT_TRACKING_FORCE
 	  This option stands for testing when an arch implements the
 	  context tracking backend but doesn't yet fullfill all the
 	  requirements to make the full dynticks feature working.
-	  Without the full dynticks, there is no way to test the support
+	  Without the full dynticks, there is yes way to test the support
 	  for context tracking and the subsystems that rely on it: RCU
 	  userspace extended quiescent state and tickless cputime
 	  accounting. This option copes with the absence of the full
@@ -161,7 +161,7 @@ config HIGH_RES_TIMERS
 	select TICK_ONESHOT
 	help
 	  This option enables high resolution timer support. If your
-	  hardware is not capable then this option only increases
+	  hardware is yest capable then this option only increases
 	  the size of the kernel image.
 
 endmenu

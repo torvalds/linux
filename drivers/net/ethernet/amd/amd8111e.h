@@ -27,9 +27,9 @@ Revision History:
 
 /* Command style register access
 
-Registers CMD0, CMD2, CMD3,CMD7 and INTEN0 uses a write access technique called command style access. It allows the write to selected bits of this register without altering the bits that are not selected. Command style registers are divided into 4 bytes that can be written independently. Higher order bit of each byte is the  value bit that specifies the value that will be written into the selected bits of register.
+Registers CMD0, CMD2, CMD3,CMD7 and INTEN0 uses a write access technique called command style access. It allows the write to selected bits of this register without altering the bits that are yest selected. Command style registers are divided into 4 bytes that can be written independently. Higher order bit of each byte is the  value bit that specifies the value that will be written into the selected bits of register.
 
-eg., if the value 10011010b is written into the least significant byte of a command style register, bits 1,3 and 4 of the register will be set to 1, and the other bits will not be altered. If the value 00011010b is written into the same byte, bits 1,3 and 4 will be cleared to 0 and the other bits will not be altered.
+eg., if the value 10011010b is written into the least significant byte of a command style register, bits 1,3 and 4 of the register will be set to 1, and the other bits will yest be altered. If the value 00011010b is written into the same byte, bits 1,3 and 4 will be cleared to 0 and the other bits will yest be altered.
 
 */
 
@@ -777,7 +777,7 @@ struct amd8111e_priv{
 
 };
 
-/* kernel provided writeq does not write 64 bits into the amd8111e device register instead writes only higher 32bits data into lower 32bits of the register.
+/* kernel provided writeq does yest write 64 bits into the amd8111e device register instead writes only higher 32bits data into lower 32bits of the register.
 BUG? */
 #define  amd8111e_writeq(_UlData,_memMap)   \
 		writel(*(u32*)(&_UlData), _memMap);	\

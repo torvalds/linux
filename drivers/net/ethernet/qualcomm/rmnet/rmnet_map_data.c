@@ -305,7 +305,7 @@ done:
 /* Deaggregates a single packet
  * A whole new buffer is allocated for each portion of an aggregated frame.
  * Caller should keep calling deaggregate() on the source skb until 0 is
- * returned, indicating that there are no more packets to deaggregate. Caller
+ * returned, indicating that there are yes more packets to deaggregate. Caller
  * is responsible for freeing the original skb.
  */
 struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
@@ -347,7 +347,7 @@ struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
  * the beginning of a buffer which contains the IP payload +
  * padding + checksum trailer.
  * Only IPv4 and IPv6 are supported along with TCP & UDP.
- * Fragmented or tunneled packets are not supported.
+ * Fragmented or tunneled packets are yest supported.
  */
 int rmnet_map_checksum_downlink_packet(struct sk_buff *skb, u16 len)
 {

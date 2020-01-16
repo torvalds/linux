@@ -89,10 +89,10 @@
 /* BATTERY */
 #define PALMLD_BAT_MAX_VOLTAGE		4000	/* 4.00V maximum voltage */
 #define PALMLD_BAT_MIN_VOLTAGE		3550	/* 3.55V critical voltage */
-#define PALMLD_BAT_MAX_CURRENT		0	/* unknown */
-#define PALMLD_BAT_MIN_CURRENT		0	/* unknown */
-#define PALMLD_BAT_MAX_CHARGE		1	/* unknown */
-#define PALMLD_BAT_MIN_CHARGE		1	/* unknown */
+#define PALMLD_BAT_MAX_CURRENT		0	/* unkyeswn */
+#define PALMLD_BAT_MIN_CURRENT		0	/* unkyeswn */
+#define PALMLD_BAT_MAX_CHARGE		1	/* unkyeswn */
+#define PALMLD_BAT_MIN_CHARGE		1	/* unkyeswn */
 #define PALMLD_MAX_LIFE_MINS		240	/* on-life in minutes */
 
 #define PALMLD_BAT_MEASURE_DELAY	(HZ * 1)

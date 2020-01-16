@@ -43,11 +43,11 @@ void sti_plane_update_fps(struct sti_plane *plane,
 			  bool new_field)
 {
 	struct drm_plane_state *state = plane->drm_plane.state;
-	ktime_t now;
+	ktime_t yesw;
 	struct sti_fps_info *fps;
 	int fpks, fipks, ms_since_last, num_frames, num_fields;
 
-	now = ktime_get();
+	yesw = ktime_get();
 
 	/* Compute number of frame updates */
 	fps = &plane->fps_info;
@@ -55,18 +55,18 @@ void sti_plane_update_fps(struct sti_plane *plane,
 	if (new_field)
 		fps->curr_field_counter++;
 
-	/* do not perform fps calcul if new_frame is false */
+	/* do yest perform fps calcul if new_frame is false */
 	if (!new_frame)
 		return;
 
 	fps->curr_frame_counter++;
-	ms_since_last = ktime_to_ms(ktime_sub(now, fps->last_timestamp));
+	ms_since_last = ktime_to_ms(ktime_sub(yesw, fps->last_timestamp));
 	num_frames = fps->curr_frame_counter - fps->last_frame_counter;
 
 	if (num_frames <= 0  || ms_since_last < STI_FPS_INTERVAL_MS)
 		return;
 
-	fps->last_timestamp = now;
+	fps->last_timestamp = yesw;
 	fps->last_frame_counter = fps->curr_frame_counter;
 
 	if (state->fb) {

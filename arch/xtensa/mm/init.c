@@ -17,13 +17,13 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/mman.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/mm.h>
 #include <linux/of_fdt.h>
 #include <linux/dma-contiguous.h>
@@ -76,7 +76,7 @@ void __init zones_init(void)
 		[ZONE_HIGHMEM] = max_pfn - max_low_pfn,
 #endif
 	};
-	free_area_init_node(0, zones_size, ARCH_PFN_OFFSET, NULL);
+	free_area_init_yesde(0, zones_size, ARCH_PFN_OFFSET, NULL);
 }
 
 #ifdef CONFIG_HIGHMEM
@@ -97,11 +97,11 @@ static void __init free_highpages(void)
 		unsigned long start = memblock_region_memory_base_pfn(mem);
 		unsigned long end = memblock_region_memory_end_pfn(mem);
 
-		/* Ignore complete lowmem entries */
+		/* Igyesre complete lowmem entries */
 		if (end <= max_low)
 			continue;
 
-		if (memblock_is_nomap(mem))
+		if (memblock_is_yesmap(mem))
 			continue;
 
 		/* Truncate partial highmem entries */
@@ -130,7 +130,7 @@ static void __init free_highpages(void)
 				break;
 		}
 
-		/* And now free anything which remains */
+		/* And yesw free anything which remains */
 		if (start < end)
 			free_area_high(start, end);
 	}

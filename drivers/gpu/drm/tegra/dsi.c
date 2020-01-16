@@ -197,10 +197,10 @@ static const struct debugfs_reg32 tegra_dsi_regs[] = {
 
 static int tegra_dsi_show_regs(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct tegra_dsi *dsi = node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct tegra_dsi *dsi = yesde->info_ent->data;
 	struct drm_crtc *crtc = dsi->output.encoder.crtc;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_device *drm = yesde->miyesr->dev;
 	unsigned int i;
 	int err = 0;
 
@@ -231,7 +231,7 @@ static int tegra_dsi_late_register(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
 	unsigned int i, count = ARRAY_SIZE(debugfs_files);
-	struct drm_minor *minor = connector->dev->primary;
+	struct drm_miyesr *miyesr = connector->dev->primary;
 	struct dentry *root = connector->debugfs_entry;
 	struct tegra_dsi *dsi = to_dsi(output);
 	int err;
@@ -244,7 +244,7 @@ static int tegra_dsi_late_register(struct drm_connector *connector)
 	for (i = 0; i < count; i++)
 		dsi->debugfs_files[i].data = dsi;
 
-	err = drm_debugfs_create_files(dsi->debugfs_files, count, root, minor);
+	err = drm_debugfs_create_files(dsi->debugfs_files, count, root, miyesr);
 	if (err < 0)
 		goto free;
 
@@ -280,9 +280,9 @@ static void tegra_dsi_early_unregister(struct drm_connector *connector)
 #define NUM_PKT_SEQ	12
 
 /*
- * non-burst mode with sync pulses
+ * yesn-burst mode with sync pulses
  */
-static const u32 pkt_seq_video_non_burst_sync_pulses[NUM_PKT_SEQ] = {
+static const u32 pkt_seq_video_yesn_burst_sync_pulses[NUM_PKT_SEQ] = {
 	[ 0] = PKT_ID0(MIPI_DSI_V_SYNC_START) | PKT_LEN0(0) |
 	       PKT_ID1(MIPI_DSI_BLANKING_PACKET) | PKT_LEN1(1) |
 	       PKT_ID2(MIPI_DSI_H_SYNC_END) | PKT_LEN2(0) |
@@ -318,9 +318,9 @@ static const u32 pkt_seq_video_non_burst_sync_pulses[NUM_PKT_SEQ] = {
 };
 
 /*
- * non-burst mode with sync events
+ * yesn-burst mode with sync events
  */
-static const u32 pkt_seq_video_non_burst_sync_events[NUM_PKT_SEQ] = {
+static const u32 pkt_seq_video_yesn_burst_sync_events[NUM_PKT_SEQ] = {
 	[ 0] = PKT_ID0(MIPI_DSI_V_SYNC_START) | PKT_LEN0(0) |
 	       PKT_ID1(MIPI_DSI_END_OF_TRANSMISSION) | PKT_LEN1(7) |
 	       PKT_LP,
@@ -502,10 +502,10 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 
 	if (dsi->flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
 		DRM_DEBUG_KMS("Non-burst video mode with sync pulses\n");
-		pkt_seq = pkt_seq_video_non_burst_sync_pulses;
+		pkt_seq = pkt_seq_video_yesn_burst_sync_pulses;
 	} else if (dsi->flags & MIPI_DSI_MODE_VIDEO) {
 		DRM_DEBUG_KMS("Non-burst video mode with sync events\n");
-		pkt_seq = pkt_seq_video_non_burst_sync_events;
+		pkt_seq = pkt_seq_video_yesn_burst_sync_events;
 	} else {
 		DRM_DEBUG_KMS("Command mode\n");
 		pkt_seq = pkt_seq_command_mode;
@@ -568,7 +568,7 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 		tegra_dsi_writel(dsi, hfp, DSI_PKT_LEN_4_5);
 		tegra_dsi_writel(dsi, 0x0f0f << 16, DSI_PKT_LEN_6_7);
 
-		/* set SOL delay (for non-burst mode only) */
+		/* set SOL delay (for yesn-burst mode only) */
 		tegra_dsi_writel(dsi, 8 * mul / div, DSI_SOL_DELAY);
 
 		/* TODO: implement ganged mode */
@@ -609,7 +609,7 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 			bclk_ganged = DIV_ROUND_UP(bclk * lanes / 2, lanes);
 			value = bclk - bclk_ganged + delay + 20;
 		} else {
-			/* TODO: revisit for non-ganged mode */
+			/* TODO: revisit for yesn-ganged mode */
 			value = 8 * mul / div;
 		}
 
@@ -1006,8 +1006,8 @@ tegra_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	 * that to make up for the fact that we divided the bit clock by a
 	 * factor of two above.
 	 *
-	 * It's not clear exactly why this is necessary, but the display is
-	 * not working properly otherwise. Perhaps the PLLs cannot generate
+	 * It's yest clear exactly why this is necessary, but the display is
+	 * yest working properly otherwise. Perhaps the PLLs canyest generate
 	 * frequencies sufficiently high.
 	 */
 	scdiv = ((8 * state->mul) / (state->div * state->lanes)) - 2;
@@ -1034,7 +1034,7 @@ static int tegra_dsi_init(struct host1x_client *client)
 	struct tegra_dsi *dsi = host1x_client_to_dsi(client);
 	int err;
 
-	/* Gangsters must not register their own outputs. */
+	/* Gangsters must yest register their own outputs. */
 	if (!dsi->master) {
 		dsi->output.dev = client->dev;
 
@@ -1131,7 +1131,7 @@ static ssize_t tegra_dsi_read_response(struct tegra_dsi *dsi,
 	switch (value & 0x3f) {
 	case MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT:
 		errors = (value >> 8) & 0xffff;
-		dev_dbg(dsi->dev, "Acknowledge and error report: %04x\n",
+		dev_dbg(dsi->dev, "Ackyeswledge and error report: %04x\n",
 			errors);
 		for (i = 0; i < ARRAY_SIZE(error_report); i++)
 			if (errors & BIT(i))
@@ -1213,7 +1213,7 @@ static int tegra_dsi_wait_for_response(struct tegra_dsi *dsi,
 		usleep_range(1000, 2000);
 	}
 
-	DRM_DEBUG_KMS("peripheral returned no data\n");
+	DRM_DEBUG_KMS("peripheral returned yes data\n");
 	return -ETIMEDOUT;
 }
 
@@ -1333,7 +1333,7 @@ static ssize_t tegra_dsi_host_transfer(struct mipi_dsi_host *host,
 			break;
 
 		default:
-			dev_err(dsi->dev, "unknown status: %08x\n", value);
+			dev_err(dsi->dev, "unkyeswn status: %08x\n", value);
 			break;
 		}
 
@@ -1409,7 +1409,7 @@ static int tegra_dsi_host_attach(struct mipi_dsi_host *host,
 	if (!dsi->master) {
 		struct tegra_output *output = &dsi->output;
 
-		output->panel = of_drm_find_panel(device->dev.of_node);
+		output->panel = of_drm_find_panel(device->dev.of_yesde);
 		if (IS_ERR(output->panel))
 			output->panel = NULL;
 
@@ -1446,14 +1446,14 @@ static const struct mipi_dsi_host_ops tegra_dsi_host_ops = {
 
 static int tegra_dsi_ganged_probe(struct tegra_dsi *dsi)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_parse_phandle(dsi->dev->of_node, "nvidia,ganged-mode", 0);
+	np = of_parse_phandle(dsi->dev->of_yesde, "nvidia,ganged-mode", 0);
 	if (np) {
-		struct platform_device *gangster = of_find_device_by_node(np);
+		struct platform_device *gangster = of_find_device_by_yesde(np);
 
 		dsi->slave = platform_get_drvdata(gangster);
-		of_node_put(np);
+		of_yesde_put(np);
 
 		if (!dsi->slave)
 			return -EPROBE_DEFER;
@@ -1505,31 +1505,31 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 
 	dsi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dsi->clk)) {
-		dev_err(&pdev->dev, "cannot get DSI clock\n");
+		dev_err(&pdev->dev, "canyest get DSI clock\n");
 		return PTR_ERR(dsi->clk);
 	}
 
 	dsi->clk_lp = devm_clk_get(&pdev->dev, "lp");
 	if (IS_ERR(dsi->clk_lp)) {
-		dev_err(&pdev->dev, "cannot get low-power clock\n");
+		dev_err(&pdev->dev, "canyest get low-power clock\n");
 		return PTR_ERR(dsi->clk_lp);
 	}
 
 	dsi->clk_parent = devm_clk_get(&pdev->dev, "parent");
 	if (IS_ERR(dsi->clk_parent)) {
-		dev_err(&pdev->dev, "cannot get parent clock\n");
+		dev_err(&pdev->dev, "canyest get parent clock\n");
 		return PTR_ERR(dsi->clk_parent);
 	}
 
 	dsi->vdd = devm_regulator_get(&pdev->dev, "avdd-dsi-csi");
 	if (IS_ERR(dsi->vdd)) {
-		dev_err(&pdev->dev, "cannot get VDD supply\n");
+		dev_err(&pdev->dev, "canyest get VDD supply\n");
 		return PTR_ERR(dsi->vdd);
 	}
 
 	err = tegra_dsi_setup_clocks(dsi);
 	if (err < 0) {
-		dev_err(&pdev->dev, "cannot setup clocks\n");
+		dev_err(&pdev->dev, "canyest setup clocks\n");
 		return err;
 	}
 
@@ -1633,13 +1633,13 @@ static int tegra_dsi_resume(struct device *dev)
 
 	err = clk_prepare_enable(dsi->clk);
 	if (err < 0) {
-		dev_err(dev, "cannot enable DSI clock: %d\n", err);
+		dev_err(dev, "canyest enable DSI clock: %d\n", err);
 		goto disable_vdd;
 	}
 
 	err = clk_prepare_enable(dsi->clk_lp);
 	if (err < 0) {
-		dev_err(dev, "cannot enable low-power clock: %d\n", err);
+		dev_err(dev, "canyest enable low-power clock: %d\n", err);
 		goto disable_clk;
 	}
 
@@ -1648,7 +1648,7 @@ static int tegra_dsi_resume(struct device *dev)
 	if (dsi->rst) {
 		err = reset_control_deassert(dsi->rst);
 		if (err < 0) {
-			dev_err(dev, "cannot assert reset: %d\n", err);
+			dev_err(dev, "canyest assert reset: %d\n", err);
 			goto disable_clk_lp;
 		}
 	}

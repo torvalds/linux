@@ -36,8 +36,8 @@ struct pvr2_device_client_desc {
 	   initialize the module.  It's safe to make this null terminated
 	   since we're never going to encounter an i2c device with an
 	   address of zero.  If this is a null pointer or zero-length,
-	   then no I2C addresses have been specified, in which case we'll
-	   try some compiled in defaults for now. */
+	   then yes I2C addresses have been specified, in which case we'll
+	   try some compiled in defaults for yesw. */
 	unsigned char *i2c_address_list;
 };
 
@@ -98,14 +98,14 @@ struct pvr2_device_desc {
 	const struct pvr2_dvb_props *dvb_props;
 
 #endif
-	/* Initial standard bits to use for this device, if not zero.
+	/* Initial standard bits to use for this device, if yest zero.
 	   Anything set here is also implied as an available standard.
-	   Note: This is ignored if overridden on the module load line via
+	   Note: This is igyesred if overridden on the module load line via
 	   the video_std module option. */
 	v4l2_std_id default_std_mask;
 
 	/* V4L tuner type ID to use with this device (only used if the
-	   driver could not discover the type any other way). */
+	   driver could yest discover the type any other way). */
 	int default_tuner_type;
 
 	/* Signal routing scheme used by device, contains one of
@@ -134,15 +134,15 @@ struct pvr2_device_desc {
 	/* If set, the encoder must be healthy in order for digital mode to
 	   work (otherwise we assume that digital streaming will work even
 	   if we fail to locate firmware for the encoder).  If the device
-	   doesn't support digital streaming then this flag has no
+	   doesn't support digital streaming then this flag has yes
 	   effect. */
 	unsigned int flag_digital_requires_cx23416:1;
 
 	/* Device has a hauppauge eeprom which we can interrogate. */
 	unsigned int flag_has_hauppauge_rom:1;
 
-	/* Device does not require a powerup command to be issued. */
-	unsigned int flag_no_powerup:1;
+	/* Device does yest require a powerup command to be issued. */
+	unsigned int flag_yes_powerup:1;
 
 	/* Device has a cx25840 - this enables special additional logic to
 	   handle it. */
@@ -152,7 +152,7 @@ struct pvr2_device_desc {
 	   ensure that it is found. */
 	unsigned int flag_has_wm8775:1;
 
-	/* Indicate IR scheme of hardware.  If not set, then it is assumed
+	/* Indicate IR scheme of hardware.  If yest set, then it is assumed
 	   that IR can work without any help from the driver. */
 	unsigned int ir_scheme:3;
 
@@ -165,7 +165,7 @@ struct pvr2_device_desc {
 	unsigned int flag_has_svideo:1;        /* Has s-video input */
 	unsigned int flag_fx2_16kb:1;          /* 16KB FX2 firmware OK here */
 
-	/* If this driver is considered experimental, i.e. not all aspects
+	/* If this driver is considered experimental, i.e. yest all aspects
 	   are working correctly and/or it is untested, mark that fact
 	   with this flag. */
 	unsigned int flag_is_experimental:1;

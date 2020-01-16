@@ -67,7 +67,7 @@ static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
 	if (blockCount_p1) {
 		RT_TRACE(
 			_module_hal_init_c_,
-			_drv_notice_,
+			_drv_yestice_,
 			(
 				"_BlockWrite: [P1] buffSize(%d) blockSize_p1(%d) blockCount_p1(%d) remainSize_p1(%d)\n",
 				buffSize,
@@ -96,7 +96,7 @@ static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
 		if (blockCount_p2) {
 				RT_TRACE(
 					_module_hal_init_c_,
-					_drv_notice_,
+					_drv_yestice_,
 					(
 						"_BlockWrite: [P2] buffSize_p2(%d) blockSize_p2(%d) blockCount_p2(%d) remainSize_p2(%d)\n",
 						(buffSize-offset),
@@ -115,7 +115,7 @@ static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
 
 		blockCount_p3 = remainSize_p2 / blockSize_p3;
 
-		RT_TRACE(_module_hal_init_c_, _drv_notice_,
+		RT_TRACE(_module_hal_init_c_, _drv_yestice_,
 				("_BlockWrite: [P3] buffSize_p3(%d) blockSize_p3(%d) blockCount_p3(%d)\n",
 				(buffSize-offset), blockSize_p3, blockCount_p3));
 
@@ -158,7 +158,7 @@ static int _WriteFW(struct adapter *padapter, void *buffer, u32 size)
 	u8 *bufferPtr = buffer;
 
 	pageNums = size / MAX_DLFW_PAGE_SIZE;
-	/* RT_ASSERT((pageNums <= 4), ("Page numbers should not greater then 4\n")); */
+	/* RT_ASSERT((pageNums <= 4), ("Page numbers should yest greater then 4\n")); */
 	remainSize = size % MAX_DLFW_PAGE_SIZE;
 
 	for (page = 0; page < pageNums; page++) {
@@ -334,10 +334,10 @@ void rtl8723b_FirmwareSelfReset(struct adapter *padapter)
 			udelay(50);
 			u1bTmp = rtw_read8(padapter, REG_SYS_FUNC_EN+1);
 		}
-		RT_TRACE(_module_hal_init_c_, _drv_notice_, ("-%s: 8051 reset success (%d)\n", __func__, Delay));
+		RT_TRACE(_module_hal_init_c_, _drv_yestice_, ("-%s: 8051 reset success (%d)\n", __func__, Delay));
 
 		if (Delay == 0) {
-			RT_TRACE(_module_hal_init_c_, _drv_notice_, ("%s: Force 8051 reset!!!\n", __func__));
+			RT_TRACE(_module_hal_init_c_, _drv_yestice_, ("%s: Force 8051 reset!!!\n", __func__));
 			/* force firmware reset */
 			u1bTmp = rtw_read8(padapter, REG_SYS_FUNC_EN+1);
 			rtw_write8(padapter, REG_SYS_FUNC_EN+1, u1bTmp&(~BIT2));
@@ -370,7 +370,7 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("+%s\n", __func__));
 #ifdef CONFIG_WOWLAN
-	RT_TRACE(_module_hal_init_c_, _drv_notice_, ("+%s, bUsedWoWLANFw:%d\n", __func__, bUsedWoWLANFw));
+	RT_TRACE(_module_hal_init_c_, _drv_yestice_, ("+%s, bUsedWoWLANFw:%d\n", __func__, bUsedWoWLANFw));
 #endif
 	pFirmware = kzalloc(sizeof(struct rt_firmware), GFP_KERNEL);
 	if (!pFirmware)
@@ -410,7 +410,7 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 	}
 
 	if (!fw) {
-		pr_err("Firmware %s not available\n", fwfilepath);
+		pr_err("Firmware %s yest available\n", fwfilepath);
 		rtStatus = _FAIL;
 		goto exit;
 	}
@@ -784,7 +784,7 @@ static void Hal_EfusePowerSwitch(
 
 
 	if (PwrState) {
-		/*  To avoid cannot access efuse regsiters after disable/enable several times during DTM test. */
+		/*  To avoid canyest access efuse regsiters after disable/enable several times during DTM test. */
 		/*  Suggested by SD1 IsaacHsu. 2013.07.08, added by tynli. */
 		tempval = rtw_read8(padapter, SDIO_LOCAL_BASE|SDIO_REG_HSUS_CTRL);
 		if (tempval & BIT(0)) { /*  SDIO local register is suspend */
@@ -1182,7 +1182,7 @@ static u16 hal_EfuseGetCurrentSize_WiFi(
 
 		if ((start_addr != 0) && (efuse_addr == start_addr)) {
 			count++;
-			DBG_8192C(FUNC_ADPT_FMT ": [WARNING] efuse raw 0x%X = 0x%02X not 0xFF!!(%d times)\n",
+			DBG_8192C(FUNC_ADPT_FMT ": [WARNING] efuse raw 0x%X = 0x%02X yest 0xFF!!(%d times)\n",
 				FUNC_ADPT_ARG(padapter), efuse_addr, efuse_data, count);
 
 			efuse_data = 0xFF;
@@ -1478,7 +1478,7 @@ static s32 Hal_EfusePgPacketRead(
 	/*  */
 	/*  <Roger_TODO> Efuse has been pre-programmed dummy 5Bytes at the end of Efuse by CP. */
 	/*  Skip dummy parts to prevent unexpected data read from Efuse. */
-	/*  By pass right now. 2009.02.19. */
+	/*  By pass right yesw. 2009.02.19. */
 	/*  */
 	while (AVAILABLE_EFUSE_ADDR(efuse_addr)) {
 		if (efuse_OneByteRead(padapter, efuse_addr++, &efuse_data, bPseudoTest) == false) {
@@ -1608,7 +1608,7 @@ static u8 hal_EfusePartialWriteCheck(
 		if (efuse_OneByteRead(padapter, startAddr, &efuse_data, bPseudoTest) && (efuse_data != 0xFF)) {
 #if 1
 			bRet = false;
-			DBG_8192C("%s: Something Wrong! last bytes(%#X = 0x%02X) is not 0xFF\n",
+			DBG_8192C("%s: Something Wrong! last bytes(%#X = 0x%02X) is yest 0xFF\n",
 				__func__, startAddr, efuse_data);
 			break;
 #else
@@ -1631,7 +1631,7 @@ static u8 hal_EfusePartialWriteCheck(
 			}
 
 			curPkt.word_cnts = Efuse_CalculateWordCnts(curPkt.word_en);
-			/*  if same header is found but no data followed */
+			/*  if same header is found but yes data followed */
 			/*  write some part of data followed by the header. */
 			if (
 				(curPkt.offset == pTargetPkt->offset) &&
@@ -1666,7 +1666,7 @@ static u8 hal_EfusePartialWriteCheck(
 			startAddr = startAddr + (curPkt.word_cnts*2) + 1;
 #endif
 		} else {
-			/*  not used header, 0xff */
+			/*  yest used header, 0xff */
 			*pAddr = startAddr;
 /* 			DBG_8192C("%s: Started from unused header offset =%d\n", __func__, startAddr)); */
 			bRet = true;
@@ -1954,7 +1954,7 @@ void rtl8723b_InitBeaconParameters(struct adapter *padapter)
 	rtw_write8(padapter, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME_8723B); /*  2ms */
 
 	/*  Suggested by designer timchen. Change beacon AIFS to the largest number */
-	/*  beacause test chip does not contension before sending beacon. by tynli. 2009.11.03 */
+	/*  beacause test chip does yest contension before sending beacon. by tynli. 2009.11.03 */
 	rtw_write16(padapter, REG_BCNTCFG, 0x660F);
 
 	pHalData->RegBcnCtrlVal = rtw_read8(padapter, REG_BCN_CTRL);
@@ -2112,13 +2112,13 @@ static void rtl8723b_SetHalODMVar(
 	SetHalODMVar(Adapter, eVariable, pValue1, bSet);
 }
 
-static void hal_notch_filter_8723b(struct adapter *adapter, bool enable)
+static void hal_yestch_filter_8723b(struct adapter *adapter, bool enable)
 {
 	if (enable) {
-		DBG_871X("Enable notch filter\n");
+		DBG_871X("Enable yestch filter\n");
 		rtw_write8(adapter, rOFDM0_RxDSP+1, rtw_read8(adapter, rOFDM0_RxDSP+1) | BIT1);
 	} else {
-		DBG_871X("Disable notch filter\n");
+		DBG_871X("Disable yestch filter\n");
 		rtw_write8(adapter, rOFDM0_RxDSP+1, rtw_read8(adapter, rOFDM0_RxDSP+1) & ~BIT1);
 	}
 }
@@ -2224,7 +2224,7 @@ void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->SetHalODMVarHandler = &rtl8723b_SetHalODMVar;
 
 	pHalFunc->xmit_thread_handler = &hal_xmit_handler;
-	pHalFunc->hal_notch_filter = &hal_notch_filter_8723b;
+	pHalFunc->hal_yestch_filter = &hal_yestch_filter_8723b;
 
 	pHalFunc->c2h_handler = c2h_handler_8723b;
 	pHalFunc->c2h_id_filter_ccx = c2h_id_filter_ccx_8723b;
@@ -2369,7 +2369,7 @@ static bool Hal_GetChnlGroup8723B(u8 Channel, u8 *pGroup)
 		else if (12 <= Channel && Channel <= 14)
 			*pGroup = 4;
 		else {
-			RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("==>Hal_GetChnlGroup8723B in 2.4 G, but Channel %d in Group not found\n", Channel));
+			RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("==>Hal_GetChnlGroup8723B in 2.4 G, but Channel %d in Group yest found\n", Channel));
 		}
 	} else {
 		bIn24G = false;
@@ -2403,7 +2403,7 @@ static bool Hal_GetChnlGroup8723B(u8 Channel, u8 *pGroup)
 		else if (173  <= Channel && Channel <= 177)
 			*pGroup = 13;
 		else {
-			RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("==>Hal_GetChnlGroup8723B in 5G, but Channel %d in Group not found\n", Channel));
+			RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("==>Hal_GetChnlGroup8723B in 5G, but Channel %d in Group yest found\n", Channel));
 		}
 
 	}
@@ -2431,7 +2431,7 @@ void Hal_InitPGData(struct adapter *padapter, u8 *PROMContent)
 			memcpy((void *)PROMContent, (void *)pEEPROM->efuse_eeprom_data, HWSET_MAX_SIZE_8723B);
 		}
 	} else {/* autoload fail */
-		RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("AutoLoad Fail reported from CR9346!!\n"));
+		RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("AutoLoad Fail reported from CR9346!!\n"));
 		if (!pEEPROM->EepromOrEfuse)
 			EFUSE_ShadowMapUpdate(padapter, EFUSE_WIFI, false);
 		memcpy((void *)PROMContent, (void *)pEEPROM->efuse_eeprom_data, HWSET_MAX_SIZE_8723B);
@@ -2453,7 +2453,7 @@ void Hal_EfuseParseIDCode(struct adapter *padapter, u8 *hwinfo)
 	} else
 		pEEPROM->bautoload_fail_flag = false;
 
-	RT_TRACE(_module_hal_init_c_, _drv_notice_, ("EEPROM ID = 0x%04x\n", EEPROMId));
+	RT_TRACE(_module_hal_init_c_, _drv_yestice_, ("EEPROM ID = 0x%04x\n", EEPROMId));
 }
 
 static void Hal_ReadPowerValueFromPROM_8723B(
@@ -2625,7 +2625,7 @@ void Hal_EfuseParseTxPowerInfo_8723B(
 	} else
 		pHalData->EEPROMRegulatory = 0;
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("EEPROMRegulatory = 0x%x\n", pHalData->EEPROMRegulatory));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("EEPROMRegulatory = 0x%x\n", pHalData->EEPROMRegulatory));
 }
 
 void Hal_EfuseParseBTCoexistInfo_8723B(
@@ -2710,12 +2710,12 @@ void Hal_EfuseParseEEPROMVer_8723B(
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
 
-/* 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("%s(): AutoLoadFail = %d\n", __func__, AutoLoadFail)); */
+/* 	RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("%s(): AutoLoadFail = %d\n", __func__, AutoLoadFail)); */
 	if (!AutoLoadFail)
 		pHalData->EEPROMVersion = hwinfo[EEPROM_VERSION_8723B];
 	else
 		pHalData->EEPROMVersion = 1;
-	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("Hal_EfuseParseEEPROMVer(), EEVer = %d\n",
+	RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("Hal_EfuseParseEEPROMVer(), EEVer = %d\n",
 		pHalData->EEPROMVersion));
 }
 
@@ -2784,7 +2784,7 @@ void Hal_EfuseParseChnlPlan_8723B(
 
 	Hal_ChannelPlanToRegulation(padapter, padapter->mlmepriv.ChannelPlan);
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("EEPROM ChannelPlan = 0x%02x\n", padapter->mlmepriv.ChannelPlan));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("EEPROM ChannelPlan = 0x%02x\n", padapter->mlmepriv.ChannelPlan));
 }
 
 void Hal_EfuseParseCustomerID_8723B(
@@ -2793,13 +2793,13 @@ void Hal_EfuseParseCustomerID_8723B(
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
 
-/* 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("%s(): AutoLoadFail = %d\n", __func__, AutoLoadFail)); */
+/* 	RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("%s(): AutoLoadFail = %d\n", __func__, AutoLoadFail)); */
 	if (!AutoLoadFail)
 		pHalData->EEPROMCustomerID = hwinfo[EEPROM_CustomID_8723B];
 	else
 		pHalData->EEPROMCustomerID = 0;
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("EEPROM Customer ID: 0x%2x\n", pHalData->EEPROMCustomerID));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("EEPROM Customer ID: 0x%2x\n", pHalData->EEPROMCustomerID));
 }
 
 void Hal_EfuseParseAntennaDiversity_8723B(
@@ -2816,7 +2816,7 @@ void Hal_EfuseParseXtal_8723B(
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
 
-/* 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("%s(): AutoLoadFail = %d\n", __func__, AutoLoadFail)); */
+/* 	RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("%s(): AutoLoadFail = %d\n", __func__, AutoLoadFail)); */
 	if (!AutoLoadFail) {
 		pHalData->CrystalCap = hwinfo[EEPROM_XTAL_8723B];
 		if (pHalData->CrystalCap == 0xFF)
@@ -2824,7 +2824,7 @@ void Hal_EfuseParseXtal_8723B(
 	} else
 		pHalData->CrystalCap = EEPROM_Default_CrystalCap_8723B;
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("EEPROM CrystalCap: 0x%2x\n", pHalData->CrystalCap));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("EEPROM CrystalCap: 0x%2x\n", pHalData->CrystalCap));
 }
 
 
@@ -2834,7 +2834,7 @@ void Hal_EfuseParseThermalMeter_8723B(
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
 
-/* 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("%s(): AutoLoadFail = %d\n", __func__, AutoLoadFail)); */
+/* 	RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("%s(): AutoLoadFail = %d\n", __func__, AutoLoadFail)); */
 	/*  */
 	/*  ThermalMeter from EEPROM */
 	/*  */
@@ -2844,11 +2844,11 @@ void Hal_EfuseParseThermalMeter_8723B(
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter_8723B;
 
 	if ((pHalData->EEPROMThermalMeter == 0xff) || AutoLoadFail) {
-		pHalData->bAPKThermalMeterIgnore = true;
+		pHalData->bAPKThermalMeterIgyesre = true;
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter_8723B;
 	}
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("EEPROM ThermalMeter = 0x%x\n", pHalData->EEPROMThermalMeter));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("EEPROM ThermalMeter = 0x%x\n", pHalData->EEPROMThermalMeter));
 }
 
 
@@ -3145,7 +3145,7 @@ static void rtl8723b_fill_default_txdesc(
 
 		ptxdesc->usb_txagg_num = pxmitframe->agg_num;
 	} else if (pxmitframe->frame_tag == MGNT_FRAMETAG) {
-/* 		RT_TRACE(_module_hal_xmit_c_, _drv_notice_, ("%s: MGNT_FRAMETAG\n", __func__)); */
+/* 		RT_TRACE(_module_hal_xmit_c_, _drv_yestice_, ("%s: MGNT_FRAMETAG\n", __func__)); */
 
 		ptxdesc->macid = pattrib->mac_id; /*  CAM_ID(MAC_ID) */
 		ptxdesc->qsel = pattrib->qsel;
@@ -3170,7 +3170,7 @@ static void rtl8723b_fill_default_txdesc(
 			DBG_8192C("%s set spe_rpt\n", __func__);
 			#endif
 			ptxdesc->spe_rpt = 1;
-			ptxdesc->sw_define = (u8)(GET_PRIMARY_ADAPTER(padapter)->xmitpriv.seq_no);
+			ptxdesc->sw_define = (u8)(GET_PRIMARY_ADAPTER(padapter)->xmitpriv.seq_yes);
 		}
 	} else if (pxmitframe->frame_tag == TXAGG_FRAMETAG) {
 		RT_TRACE(_module_hal_xmit_c_, _drv_warning_, ("%s: TXAGG_FRAMETAG\n", __func__));
@@ -3192,12 +3192,12 @@ static void rtl8723b_fill_default_txdesc(
 		ptxdesc->bmc = 1;
 
 	/*  2009.11.05. tynli_test. Suggested by SD4 Filen for FW LPS. */
-	/*  (1) The sequence number of each non-Qos frame / broadcast / multicast / */
+	/*  (1) The sequence number of each yesn-Qos frame / broadcast / multicast / */
 	/*  mgnt frame should be controled by Hw because Fw will also send null data */
-	/*  which we cannot control when Fw LPS enable. */
-	/*  --> default enable non-Qos data sequense number. 2010.06.23. by tynli. */
+	/*  which we canyest control when Fw LPS enable. */
+	/*  --> default enable yesn-Qos data sequense number. 2010.06.23. by tynli. */
 	/*  (2) Enable HW SEQ control for beacon packet, because we use Hw beacon. */
-	/*  (3) Use HW Qos SEQ to control the seq num of Ext port non-Qos packets. */
+	/*  (3) Use HW Qos SEQ to control the seq num of Ext port yesn-Qos packets. */
 	/*  2010.06.23. Added by tynli. */
 	if (!pattrib->qos_en) /*  Hw set sequence number */
 		ptxdesc->en_hwseq = 1; /*  HWSEQ_EN */
@@ -3232,7 +3232,7 @@ void rtl8723b_update_txdesc(struct xmit_frame *pxmitframe, u8 *pbuf)
 }
 
 /*  */
-/*  Description: In normal chip, we should send some packet to Hw which will be used by Fw */
+/*  Description: In yesrmal chip, we should send some packet to Hw which will be used by Fw */
 /* 			in FW LPS mode. The function is to fill the Tx descriptor of this packets, then */
 /* 			Fw can tell Hw to send these packet derectly. */
 /*  Added by tynli. 2009.10.15. */
@@ -3491,7 +3491,7 @@ static void hw_var_set_mlme_disconnect(struct adapter *padapter, u8 variable, u8
 {
 	u8 val8;
 
-	/*  Set RCR to not to receive data frame when NO LINK state */
+	/*  Set RCR to yest to receive data frame when NO LINK state */
 	/* rtw_write32(padapter, REG_RCR, rtw_read32(padapter, REG_RCR) & ~RCR_ADF); */
 	/*  reject all data frames */
 	rtw_write16(padapter, REG_RXFLTMAP2, 0);
@@ -3521,7 +3521,7 @@ static void hw_var_set_mlme_sitesurvey(struct adapter *padapter, u8 variable, u8
 
 	rcr_clear_bit = RCR_CBSSID_BCN;
 
-	/*  config RCR to receive different BSSID & not to receive data frame */
+	/*  config RCR to receive different BSSID & yest to receive data frame */
 	value_rxfltmap2 = 0;
 
 	if ((check_fwstate(pmlmepriv, WIFI_AP_STATE) == true))
@@ -3616,7 +3616,7 @@ static void hw_var_set_mlme_join(struct adapter *padapter, u8 variable, u8 *val)
 
 void CCX_FwC2HTxRpt_8723b(struct adapter *padapter, u8 *pdata, u8 len)
 {
-	u8 seq_no;
+	u8 seq_yes;
 
 #define	GET_8723B_C2H_TX_RPT_LIFE_TIME_OVER(_Header)	LE_BITS_TO_1BYTE((_Header + 0), 6, 1)
 #define	GET_8723B_C2H_TX_RPT_RETRY_OVER(_Header)	LE_BITS_TO_1BYTE((_Header + 0), 7, 1)
@@ -3624,14 +3624,14 @@ void CCX_FwC2HTxRpt_8723b(struct adapter *padapter, u8 *pdata, u8 len)
 	/* DBG_871X("%s, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x\n", __func__, */
 	/* 		*pdata, *(pdata+1), *(pdata+2), *(pdata+3), *(pdata+4), *(pdata+5), *(pdata+6), *(pdata+7)); */
 
-	seq_no = *(pdata+6);
+	seq_yes = *(pdata+6);
 
 	if (GET_8723B_C2H_TX_RPT_RETRY_OVER(pdata) | GET_8723B_C2H_TX_RPT_LIFE_TIME_OVER(pdata)) {
 		rtw_ack_tx_done(&padapter->xmitpriv, RTW_SCTX_DONE_CCX_PKT_FAIL);
 	}
 /*
-	else if (seq_no != padapter->xmitpriv.seq_no) {
-		DBG_871X("tx_seq_no =%d, rpt_seq_no =%d\n", padapter->xmitpriv.seq_no, seq_no);
+	else if (seq_yes != padapter->xmitpriv.seq_yes) {
+		DBG_871X("tx_seq_yes =%d, rpt_seq_yes =%d\n", padapter->xmitpriv.seq_yes, seq_yes);
 		rtw_ack_tx_done(&padapter->xmitpriv, RTW_SCTX_DONE_CCX_PKT_FAIL);
 	}
 */
@@ -3694,7 +3694,7 @@ s32 c2h_handler_8723b(struct adapter *padapter, u8 *buf)
 		break;
 	}
 
-	/*  Clear event to notify FW we have read the command. */
+	/*  Clear event to yestify FW we have read the command. */
 	/*  Note: */
 	/* 	If this field isn't clear, the FW won't update the next command message. */
 /* 	rtw_write8(padapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE); */
@@ -3763,7 +3763,7 @@ void C2HPacketHandler_8723B(struct adapter *padapter, u8 *pbuffer, u16 length)
 
 	/* DBG_871X("%s C2hEvent.CmdID:%x C2hEvent.CmdLen:%x C2hEvent.CmdSeq:%x\n", */
 	/* 		__func__, C2hEvent.CmdID, C2hEvent.CmdLen, C2hEvent.CmdSeq); */
-	RT_PRINT_DATA(_module_hal_init_c_, _drv_notice_, "C2HPacketHandler_8723B(): Command Content:\n", tmpBuf, C2hEvent.CmdLen);
+	RT_PRINT_DATA(_module_hal_init_c_, _drv_yestice_, "C2HPacketHandler_8723B(): Command Content:\n", tmpBuf, C2hEvent.CmdLen);
 
 	process_c2h_event(padapter, &C2hEvent, tmpBuf);
 	/* c2h_handler_8723b(padapter,&C2hEvent); */
@@ -4146,7 +4146,7 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 			u32 usNavUpper = *((u32 *)val);
 
 			if (usNavUpper > HAL_NAV_UPPER_UNIT_8723B * 0xFF) {
-				RT_TRACE(_module_hal_init_c_, _drv_notice_, ("The setting value (0x%08X us) of NAV_UPPER is larger than (%d * 0xFF)!!!\n", usNavUpper, HAL_NAV_UPPER_UNIT_8723B));
+				RT_TRACE(_module_hal_init_c_, _drv_yestice_, ("The setting value (0x%08X us) of NAV_UPPER is larger than (%d * 0xFF)!!!\n", usNavUpper, HAL_NAV_UPPER_UNIT_8723B));
 				break;
 			}
 
@@ -4267,7 +4267,7 @@ void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 				padapter->bSurpriseRemoved  ||
 				(adapter_to_pwrctl(padapter)->rf_pwrstate == rf_off)
 			) {
-				/*  If it is in HW/SW Radio OFF or IPS state, we do not check Fw LPS Leave, */
+				/*  If it is in HW/SW Radio OFF or IPS state, we do yest check Fw LPS Leave, */
 				/*  because Fw is unload. */
 				*val = true;
 			} else {

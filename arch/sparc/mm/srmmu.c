@@ -90,20 +90,20 @@ static int is_hypersparc;
 
 static int srmmu_cache_pagetables;
 
-/* these will be initialized in srmmu_nocache_calcsize() */
-static unsigned long srmmu_nocache_size;
-static unsigned long srmmu_nocache_end;
+/* these will be initialized in srmmu_yescache_calcsize() */
+static unsigned long srmmu_yescache_size;
+static unsigned long srmmu_yescache_end;
 
-/* 1 bit <=> 256 bytes of nocache <=> 64 PTEs */
+/* 1 bit <=> 256 bytes of yescache <=> 64 PTEs */
 #define SRMMU_NOCACHE_BITMAP_SHIFT (PAGE_SHIFT - 4)
 
-/* The context table is a nocache user with the biggest alignment needs. */
+/* The context table is a yescache user with the biggest alignment needs. */
 #define SRMMU_NOCACHE_ALIGN_MAX (sizeof(ctxd_t)*SRMMU_MAX_CONTEXTS)
 
-void *srmmu_nocache_pool;
-static struct bit_map srmmu_nocache_map;
+void *srmmu_yescache_pool;
+static struct bit_map srmmu_yescache_map;
 
-static inline int srmmu_pmd_none(pmd_t pmd)
+static inline int srmmu_pmd_yesne(pmd_t pmd)
 { return !(pmd_val(pmd) & 0xFFFFFFF); }
 
 /* XXX should we hyper_flush_whole_icache here - Anton */
@@ -111,7 +111,7 @@ static inline void srmmu_ctxd_set(ctxd_t *ctxp, pgd_t *pgdp)
 {
 	pte_t pte;
 
-	pte = __pte((SRMMU_ET_PTD | (__nocache_pa(pgdp) >> 4)));
+	pte = __pte((SRMMU_ET_PTD | (__yescache_pa(pgdp) >> 4)));
 	set_pte((pte_t *)ctxp, pte);
 }
 
@@ -123,7 +123,7 @@ static inline void srmmu_ctxd_set(ctxd_t *ctxp, pgd_t *pgdp)
 /*
  * Useful bits in the MSI Registers.
  */
-#define MSI_ASYNC_MODE  0x80000000	/* Operate the MSI asynchronously */
+#define MSI_ASYNC_MODE  0x80000000	/* Operate the MSI asynchroyesusly */
 
 static void msi_set_sync(void)
 {
@@ -139,7 +139,7 @@ void pmd_set(pmd_t *pmdp, pte_t *ptep)
 	unsigned long ptp;	/* Physical address, shifted right by 4 */
 	int i;
 
-	ptp = __nocache_pa(ptep) >> 4;
+	ptp = __yescache_pa(ptep) >> 4;
 	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++) {
 		set_pte((pte_t *)&pmdp->pmdv[i], __pte(SRMMU_ET_PTD | ptp));
 		ptp += (SRMMU_REAL_PTRS_PER_PTE * sizeof(pte_t) >> 4);
@@ -163,40 +163,40 @@ pte_t *pte_offset_kernel(pmd_t *dir, unsigned long address)
 {
 	void *pte;
 
-	pte = __nocache_va((dir->pmdv[0] & SRMMU_PTD_PMASK) << 4);
+	pte = __yescache_va((dir->pmdv[0] & SRMMU_PTD_PMASK) << 4);
 	return (pte_t *) pte +
 	    ((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
 }
 
 /*
- * size: bytes to allocate in the nocache area.
+ * size: bytes to allocate in the yescache area.
  * align: bytes, number to align at.
  * Returns the virtual address of the allocated area.
  */
-static void *__srmmu_get_nocache(int size, int align)
+static void *__srmmu_get_yescache(int size, int align)
 {
 	int offset;
 	unsigned long addr;
 
 	if (size < SRMMU_NOCACHE_BITMAP_SHIFT) {
-		printk(KERN_ERR "Size 0x%x too small for nocache request\n",
+		printk(KERN_ERR "Size 0x%x too small for yescache request\n",
 		       size);
 		size = SRMMU_NOCACHE_BITMAP_SHIFT;
 	}
 	if (size & (SRMMU_NOCACHE_BITMAP_SHIFT - 1)) {
-		printk(KERN_ERR "Size 0x%x unaligned int nocache request\n",
+		printk(KERN_ERR "Size 0x%x unaligned int yescache request\n",
 		       size);
 		size += SRMMU_NOCACHE_BITMAP_SHIFT - 1;
 	}
 	BUG_ON(align > SRMMU_NOCACHE_ALIGN_MAX);
 
-	offset = bit_map_string_get(&srmmu_nocache_map,
+	offset = bit_map_string_get(&srmmu_yescache_map,
 				    size >> SRMMU_NOCACHE_BITMAP_SHIFT,
 				    align >> SRMMU_NOCACHE_BITMAP_SHIFT);
 	if (offset == -1) {
-		printk(KERN_ERR "srmmu: out of nocache %d: %d/%d\n",
-		       size, (int) srmmu_nocache_size,
-		       srmmu_nocache_map.used << SRMMU_NOCACHE_BITMAP_SHIFT);
+		printk(KERN_ERR "srmmu: out of yescache %d: %d/%d\n",
+		       size, (int) srmmu_yescache_size,
+		       srmmu_yescache_map.used << SRMMU_NOCACHE_BITMAP_SHIFT);
 		return NULL;
 	}
 
@@ -204,11 +204,11 @@ static void *__srmmu_get_nocache(int size, int align)
 	return (void *)addr;
 }
 
-void *srmmu_get_nocache(int size, int align)
+void *srmmu_get_yescache(int size, int align)
 {
 	void *tmp;
 
-	tmp = __srmmu_get_nocache(size, align);
+	tmp = __srmmu_get_yescache(size, align);
 
 	if (tmp)
 		memset(tmp, 0, size);
@@ -216,24 +216,24 @@ void *srmmu_get_nocache(int size, int align)
 	return tmp;
 }
 
-void srmmu_free_nocache(void *addr, int size)
+void srmmu_free_yescache(void *addr, int size)
 {
 	unsigned long vaddr;
 	int offset;
 
 	vaddr = (unsigned long)addr;
 	if (vaddr < SRMMU_NOCACHE_VADDR) {
-		printk("Vaddr %lx is smaller than nocache base 0x%lx\n",
+		printk("Vaddr %lx is smaller than yescache base 0x%lx\n",
 		    vaddr, (unsigned long)SRMMU_NOCACHE_VADDR);
 		BUG();
 	}
-	if (vaddr + size > srmmu_nocache_end) {
-		printk("Vaddr %lx is bigger than nocache end 0x%lx\n",
-		    vaddr, srmmu_nocache_end);
+	if (vaddr + size > srmmu_yescache_end) {
+		printk("Vaddr %lx is bigger than yescache end 0x%lx\n",
+		    vaddr, srmmu_yescache_end);
 		BUG();
 	}
 	if (!is_power_of_2(size)) {
-		printk("Size 0x%x is not a power of 2\n", size);
+		printk("Size 0x%x is yest a power of 2\n", size);
 		BUG();
 	}
 	if (size < SRMMU_NOCACHE_BITMAP_SHIFT) {
@@ -241,14 +241,14 @@ void srmmu_free_nocache(void *addr, int size)
 		BUG();
 	}
 	if (vaddr & (size - 1)) {
-		printk("Vaddr %lx is not aligned to size 0x%x\n", vaddr, size);
+		printk("Vaddr %lx is yest aligned to size 0x%x\n", vaddr, size);
 		BUG();
 	}
 
 	offset = (vaddr - SRMMU_NOCACHE_VADDR) >> SRMMU_NOCACHE_BITMAP_SHIFT;
 	size = size >> SRMMU_NOCACHE_BITMAP_SHIFT;
 
-	bit_map_clear(&srmmu_nocache_map, offset, size);
+	bit_map_clear(&srmmu_yescache_map, offset, size);
 }
 
 static void srmmu_early_allocate_ptable_skeleton(unsigned long start,
@@ -267,33 +267,33 @@ static unsigned long __init probe_memory(void)
 }
 
 /*
- * Reserve nocache dynamically proportionally to the amount of
+ * Reserve yescache dynamically proportionally to the amount of
  * system RAM. -- Tomas Szepe <szepe@pinerecords.com>, June 2002
  */
-static void __init srmmu_nocache_calcsize(void)
+static void __init srmmu_yescache_calcsize(void)
 {
 	unsigned long sysmemavail = probe_memory() / 1024;
-	int srmmu_nocache_npages;
+	int srmmu_yescache_npages;
 
-	srmmu_nocache_npages =
+	srmmu_yescache_npages =
 		sysmemavail / SRMMU_NOCACHE_ALCRATIO / 1024 * 256;
 
  /* P3 XXX The 4x overuse: corroborated by /proc/meminfo. */
-	// if (srmmu_nocache_npages < 256) srmmu_nocache_npages = 256;
-	if (srmmu_nocache_npages < SRMMU_MIN_NOCACHE_PAGES)
-		srmmu_nocache_npages = SRMMU_MIN_NOCACHE_PAGES;
+	// if (srmmu_yescache_npages < 256) srmmu_yescache_npages = 256;
+	if (srmmu_yescache_npages < SRMMU_MIN_NOCACHE_PAGES)
+		srmmu_yescache_npages = SRMMU_MIN_NOCACHE_PAGES;
 
 	/* anything above 1280 blows up */
-	if (srmmu_nocache_npages > SRMMU_MAX_NOCACHE_PAGES)
-		srmmu_nocache_npages = SRMMU_MAX_NOCACHE_PAGES;
+	if (srmmu_yescache_npages > SRMMU_MAX_NOCACHE_PAGES)
+		srmmu_yescache_npages = SRMMU_MAX_NOCACHE_PAGES;
 
-	srmmu_nocache_size = srmmu_nocache_npages * PAGE_SIZE;
-	srmmu_nocache_end = SRMMU_NOCACHE_VADDR + srmmu_nocache_size;
+	srmmu_yescache_size = srmmu_yescache_npages * PAGE_SIZE;
+	srmmu_yescache_end = SRMMU_NOCACHE_VADDR + srmmu_yescache_size;
 }
 
-static void __init srmmu_nocache_init(void)
+static void __init srmmu_yescache_init(void)
 {
-	void *srmmu_nocache_bitmap;
+	void *srmmu_yescache_bitmap;
 	unsigned int bitmap_bits;
 	pgd_t *pgd;
 	p4d_t *p4d;
@@ -303,45 +303,45 @@ static void __init srmmu_nocache_init(void)
 	unsigned long paddr, vaddr;
 	unsigned long pteval;
 
-	bitmap_bits = srmmu_nocache_size >> SRMMU_NOCACHE_BITMAP_SHIFT;
+	bitmap_bits = srmmu_yescache_size >> SRMMU_NOCACHE_BITMAP_SHIFT;
 
-	srmmu_nocache_pool = memblock_alloc(srmmu_nocache_size,
+	srmmu_yescache_pool = memblock_alloc(srmmu_yescache_size,
 					    SRMMU_NOCACHE_ALIGN_MAX);
-	if (!srmmu_nocache_pool)
+	if (!srmmu_yescache_pool)
 		panic("%s: Failed to allocate %lu bytes align=0x%x\n",
-		      __func__, srmmu_nocache_size, SRMMU_NOCACHE_ALIGN_MAX);
-	memset(srmmu_nocache_pool, 0, srmmu_nocache_size);
+		      __func__, srmmu_yescache_size, SRMMU_NOCACHE_ALIGN_MAX);
+	memset(srmmu_yescache_pool, 0, srmmu_yescache_size);
 
-	srmmu_nocache_bitmap =
+	srmmu_yescache_bitmap =
 		memblock_alloc(BITS_TO_LONGS(bitmap_bits) * sizeof(long),
 			       SMP_CACHE_BYTES);
-	if (!srmmu_nocache_bitmap)
+	if (!srmmu_yescache_bitmap)
 		panic("%s: Failed to allocate %zu bytes\n", __func__,
 		      BITS_TO_LONGS(bitmap_bits) * sizeof(long));
-	bit_map_init(&srmmu_nocache_map, srmmu_nocache_bitmap, bitmap_bits);
+	bit_map_init(&srmmu_yescache_map, srmmu_yescache_bitmap, bitmap_bits);
 
-	srmmu_swapper_pg_dir = __srmmu_get_nocache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
-	memset(__nocache_fix(srmmu_swapper_pg_dir), 0, SRMMU_PGD_TABLE_SIZE);
+	srmmu_swapper_pg_dir = __srmmu_get_yescache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
+	memset(__yescache_fix(srmmu_swapper_pg_dir), 0, SRMMU_PGD_TABLE_SIZE);
 	init_mm.pgd = srmmu_swapper_pg_dir;
 
-	srmmu_early_allocate_ptable_skeleton(SRMMU_NOCACHE_VADDR, srmmu_nocache_end);
+	srmmu_early_allocate_ptable_skeleton(SRMMU_NOCACHE_VADDR, srmmu_yescache_end);
 
-	paddr = __pa((unsigned long)srmmu_nocache_pool);
+	paddr = __pa((unsigned long)srmmu_yescache_pool);
 	vaddr = SRMMU_NOCACHE_VADDR;
 
-	while (vaddr < srmmu_nocache_end) {
+	while (vaddr < srmmu_yescache_end) {
 		pgd = pgd_offset_k(vaddr);
-		p4d = p4d_offset(__nocache_fix(pgd), vaddr);
-		pud = pud_offset(__nocache_fix(p4d), vaddr);
-		pmd = pmd_offset(__nocache_fix(pgd), vaddr);
-		pte = pte_offset_kernel(__nocache_fix(pmd), vaddr);
+		p4d = p4d_offset(__yescache_fix(pgd), vaddr);
+		pud = pud_offset(__yescache_fix(p4d), vaddr);
+		pmd = pmd_offset(__yescache_fix(pgd), vaddr);
+		pte = pte_offset_kernel(__yescache_fix(pmd), vaddr);
 
 		pteval = ((paddr >> 4) | SRMMU_ET_PTE | SRMMU_PRIV);
 
 		if (srmmu_cache_pagetables)
 			pteval |= SRMMU_CACHE;
 
-		set_pte(__nocache_fix(pte), __pte(pteval));
+		set_pte(__yescache_fix(pte), __pte(pteval));
 
 		vaddr += PAGE_SIZE;
 		paddr += PAGE_SIZE;
@@ -355,7 +355,7 @@ pgd_t *get_pgd_fast(void)
 {
 	pgd_t *pgd = NULL;
 
-	pgd = __srmmu_get_nocache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
+	pgd = __srmmu_get_yescache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
 	if (pgd) {
 		pgd_t *init = pgd_offset_k(0);
 		memset(pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));
@@ -372,7 +372,7 @@ pgd_t *get_pgd_fast(void)
  * XXX Provide actual fragmentation statistics in /proc.
  *
  * Alignments up to the page size are the same for physical and virtual
- * addresses of the nocache area.
+ * addresses of the yescache area.
  */
 pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
@@ -381,7 +381,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm)
 
 	if ((pte = (unsigned long)pte_alloc_one_kernel(mm)) == 0)
 		return NULL;
-	page = pfn_to_page(__nocache_pa(pte) >> PAGE_SHIFT);
+	page = pfn_to_page(__yescache_pa(pte) >> PAGE_SHIFT);
 	if (!pgtable_pte_page_ctor(page)) {
 		__free_page(page);
 		return NULL;
@@ -399,8 +399,8 @@ void pte_free(struct mm_struct *mm, pgtable_t pte)
 		BUG();
 	p = page_to_pfn(pte) << PAGE_SHIFT;	/* Physical address */
 
-	/* free non cached virtual address*/
-	srmmu_free_nocache(__nocache_va(p), PTE_SIZE);
+	/* free yesn cached virtual address*/
+	srmmu_free_yescache(__yescache_va(p), PTE_SIZE);
 }
 
 /* context handling - a dynamically sized pool is used */
@@ -698,7 +698,7 @@ extern void hypersparc_setup_blockops(void);
 
 static void __init early_pgtable_allocfail(char *type)
 {
-	prom_printf("inherit_prom_mappings: Cannot alloc kernel %s.\n", type);
+	prom_printf("inherit_prom_mappings: Canyest alloc kernel %s.\n", type);
 	prom_halt();
 }
 
@@ -715,21 +715,21 @@ static void __init srmmu_early_allocate_ptable_skeleton(unsigned long start,
 		pgdp = pgd_offset_k(start);
 		p4dp = p4d_offset(pgdp, start);
 		pudp = pud_offset(p4dp, start);
-		if (pud_none(*(pud_t *)__nocache_fix(pudp))) {
-			pmdp = __srmmu_get_nocache(
+		if (pud_yesne(*(pud_t *)__yescache_fix(pudp))) {
+			pmdp = __srmmu_get_yescache(
 			    SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
-			memset(__nocache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
-			pud_set(__nocache_fix(pudp), pmdp);
+			memset(__yescache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
+			pud_set(__yescache_fix(pudp), pmdp);
 		}
-		pmdp = pmd_offset(__nocache_fix(pudp), start);
-		if (srmmu_pmd_none(*(pmd_t *)__nocache_fix(pmdp))) {
-			ptep = __srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
+		pmdp = pmd_offset(__yescache_fix(pudp), start);
+		if (srmmu_pmd_yesne(*(pmd_t *)__yescache_fix(pmdp))) {
+			ptep = __srmmu_get_yescache(PTE_SIZE, PTE_SIZE);
 			if (ptep == NULL)
 				early_pgtable_allocfail("pte");
-			memset(__nocache_fix(ptep), 0, PTE_SIZE);
-			pmd_set(__nocache_fix(pmdp), ptep);
+			memset(__yescache_fix(ptep), 0, PTE_SIZE);
+			pmd_set(__yescache_fix(pmdp), ptep);
 		}
 		if (start > (0xffffffffUL - PMD_SIZE))
 			break;
@@ -750,16 +750,16 @@ static void __init srmmu_allocate_ptable_skeleton(unsigned long start,
 		pgdp = pgd_offset_k(start);
 		p4dp = p4d_offset(pgdp, start);
 		pudp = pud_offset(p4dp, start);
-		if (pud_none(*pudp)) {
-			pmdp = __srmmu_get_nocache(SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
+		if (pud_yesne(*pudp)) {
+			pmdp = __srmmu_get_yescache(SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
 			memset(pmdp, 0, SRMMU_PMD_TABLE_SIZE);
 			pud_set((pud_t *)pgdp, pmdp);
 		}
 		pmdp = pmd_offset(pudp, start);
-		if (srmmu_pmd_none(*pmdp)) {
-			ptep = __srmmu_get_nocache(PTE_SIZE,
+		if (srmmu_pmd_yesne(*pmdp)) {
+			ptep = __srmmu_get_yescache(PTE_SIZE,
 							     PTE_SIZE);
 			if (ptep == NULL)
 				early_pgtable_allocfail("pte");
@@ -772,7 +772,7 @@ static void __init srmmu_allocate_ptable_skeleton(unsigned long start,
 	}
 }
 
-/* These flush types are not available on all chips... */
+/* These flush types are yest available on all chips... */
 static inline unsigned long srmmu_probe(unsigned long vaddr)
 {
 	unsigned long retval;
@@ -804,7 +804,7 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
-	int what; /* 0 = normal-pte, 1 = pmd-level pte, 2 = pgd-level pte */
+	int what; /* 0 = yesrmal-pte, 1 = pmd-level pte, 2 = pgd-level pte */
 
 	while (start <= end) {
 		if (start == 0)
@@ -836,25 +836,25 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 		p4dp = p4d_offset(pgdp, start);
 		pudp = pud_offset(p4dp, start);
 		if (what == 2) {
-			*(pgd_t *)__nocache_fix(pgdp) = __pgd(probed);
+			*(pgd_t *)__yescache_fix(pgdp) = __pgd(probed);
 			start += SRMMU_PGDIR_SIZE;
 			continue;
 		}
-		if (pud_none(*(pud_t *)__nocache_fix(pudp))) {
-			pmdp = __srmmu_get_nocache(SRMMU_PMD_TABLE_SIZE,
+		if (pud_yesne(*(pud_t *)__yescache_fix(pudp))) {
+			pmdp = __srmmu_get_yescache(SRMMU_PMD_TABLE_SIZE,
 						   SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
-			memset(__nocache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
-			pud_set(__nocache_fix(pudp), pmdp);
+			memset(__yescache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
+			pud_set(__yescache_fix(pudp), pmdp);
 		}
-		pmdp = pmd_offset(__nocache_fix(pgdp), start);
-		if (srmmu_pmd_none(*(pmd_t *)__nocache_fix(pmdp))) {
-			ptep = __srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
+		pmdp = pmd_offset(__yescache_fix(pgdp), start);
+		if (srmmu_pmd_yesne(*(pmd_t *)__yescache_fix(pmdp))) {
+			ptep = __srmmu_get_yescache(PTE_SIZE, PTE_SIZE);
 			if (ptep == NULL)
 				early_pgtable_allocfail("pte");
-			memset(__nocache_fix(ptep), 0, PTE_SIZE);
-			pmd_set(__nocache_fix(pmdp), ptep);
+			memset(__yescache_fix(ptep), 0, PTE_SIZE);
+			pmd_set(__yescache_fix(pmdp), ptep);
 		}
 		if (what == 1) {
 			/* We bend the rule where all 16 PTPs in a pmd_t point
@@ -865,12 +865,12 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 			unsigned long *val;
 			x = (start >> PMD_SHIFT) & 15;
 			val = &pmdp->pmdv[x];
-			*(unsigned long *)__nocache_fix(val) = probed;
+			*(unsigned long *)__yescache_fix(val) = probed;
 			start += SRMMU_REAL_PMD_SIZE;
 			continue;
 		}
-		ptep = pte_offset_kernel(__nocache_fix(pmdp), start);
-		*(pte_t *)__nocache_fix(ptep) = __pte(probed);
+		ptep = pte_offset_kernel(__yescache_fix(pmdp), start);
+		*(pte_t *)__yescache_fix(ptep) = __pte(probed);
 		start += PAGE_SIZE;
 	}
 }
@@ -884,7 +884,7 @@ static void __init do_large_mapping(unsigned long vaddr, unsigned long phys_base
 	unsigned long big_pte;
 
 	big_pte = KERNEL_PTE(phys_base >> 4);
-	*(pgd_t *)__nocache_fix(pgdp) = __pgd(big_pte);
+	*(pgd_t *)__yescache_fix(pgdp) = __pgd(big_pte);
 }
 
 /* Map sp_bank entry SP_ENTRY, starting at virtual address VBASE. */
@@ -928,8 +928,8 @@ void (*poke_srmmu)(void) = NULL;
 void __init srmmu_paging_init(void)
 {
 	int i;
-	phandle cpunode;
-	char node_str[128];
+	phandle cpuyesde;
+	char yesde_str[128];
 	pgd_t *pgd;
 	p4d_t *p4d;
 	pud_t *pud;
@@ -941,40 +941,40 @@ void __init srmmu_paging_init(void)
 	sparc_iomap.start = SUN4M_IOBASE_VADDR;	/* 16MB of IOSPACE on all sun4m's. */
 
 	if (sparc_cpu_model == sun4d)
-		num_contexts = 65536; /* We know it is Viking */
+		num_contexts = 65536; /* We kyesw it is Viking */
 	else {
 		/* Find the number of contexts on the srmmu. */
-		cpunode = prom_getchild(prom_root_node);
+		cpuyesde = prom_getchild(prom_root_yesde);
 		num_contexts = 0;
-		while (cpunode != 0) {
-			prom_getstring(cpunode, "device_type", node_str, sizeof(node_str));
-			if (!strcmp(node_str, "cpu")) {
-				num_contexts = prom_getintdefault(cpunode, "mmu-nctx", 0x8);
+		while (cpuyesde != 0) {
+			prom_getstring(cpuyesde, "device_type", yesde_str, sizeof(yesde_str));
+			if (!strcmp(yesde_str, "cpu")) {
+				num_contexts = prom_getintdefault(cpuyesde, "mmu-nctx", 0x8);
 				break;
 			}
-			cpunode = prom_getsibling(cpunode);
+			cpuyesde = prom_getsibling(cpuyesde);
 		}
 	}
 
 	if (!num_contexts) {
-		prom_printf("Something wrong, can't find cpu node in paging_init.\n");
+		prom_printf("Something wrong, can't find cpu yesde in paging_init.\n");
 		prom_halt();
 	}
 
 	pages_avail = 0;
 	last_valid_pfn = bootmem_init(&pages_avail);
 
-	srmmu_nocache_calcsize();
-	srmmu_nocache_init();
+	srmmu_yescache_calcsize();
+	srmmu_yescache_init();
 	srmmu_inherit_prom_mappings(0xfe400000, (LINUX_OPPROM_ENDVM - PAGE_SIZE));
 	map_kernel();
 
 	/* ctx table has to be physically aligned to its size */
-	srmmu_context_table = __srmmu_get_nocache(num_contexts * sizeof(ctxd_t), num_contexts * sizeof(ctxd_t));
-	srmmu_ctx_table_phys = (ctxd_t *)__nocache_pa(srmmu_context_table);
+	srmmu_context_table = __srmmu_get_yescache(num_contexts * sizeof(ctxd_t), num_contexts * sizeof(ctxd_t));
+	srmmu_ctx_table_phys = (ctxd_t *)__yescache_pa(srmmu_context_table);
 
 	for (i = 0; i < num_contexts; i++)
-		srmmu_ctxd_set((ctxd_t *)__nocache_fix(&srmmu_context_table[i]), srmmu_swapper_pg_dir);
+		srmmu_ctxd_set((ctxd_t *)__yescache_fix(&srmmu_context_table[i]), srmmu_swapper_pg_dir);
 
 	flush_cache_all();
 	srmmu_set_ctable_ptr((unsigned long)srmmu_ctx_table_phys);
@@ -1025,7 +1025,7 @@ void __init srmmu_paging_init(void)
 		zones_size[ZONE_HIGHMEM] = npages;
 		zholes_size[ZONE_HIGHMEM] = npages - calc_highpages();
 
-		free_area_init_node(0, zones_size, pfn_base, zholes_size);
+		free_area_init_yesde(0, zones_size, pfn_base, zholes_size);
 	}
 }
 
@@ -1034,12 +1034,12 @@ void mmu_info(struct seq_file *m)
 	seq_printf(m,
 		   "MMU type\t: %s\n"
 		   "contexts\t: %d\n"
-		   "nocache total\t: %ld\n"
-		   "nocache used\t: %d\n",
+		   "yescache total\t: %ld\n"
+		   "yescache used\t: %d\n",
 		   srmmu_name,
 		   num_contexts,
-		   srmmu_nocache_size,
-		   srmmu_nocache_map.used << SRMMU_NOCACHE_BITMAP_SHIFT);
+		   srmmu_yescache_size,
+		   srmmu_yescache_map.used << SRMMU_NOCACHE_BITMAP_SHIFT);
 }
 
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
@@ -1066,7 +1066,7 @@ void destroy_context(struct mm_struct *mm)
 /* Init various srmmu chip types. */
 static void __init srmmu_is_bad(void)
 {
-	prom_printf("Could not determine SRMMU chip type.\n");
+	prom_printf("Could yest determine SRMMU chip type.\n");
 	prom_halt();
 }
 
@@ -1074,17 +1074,17 @@ static void __init init_vac_layout(void)
 {
 	phandle nd;
 	int cache_lines;
-	char node_str[128];
+	char yesde_str[128];
 #ifdef CONFIG_SMP
 	int cpu = 0;
 	unsigned long max_size = 0;
 	unsigned long min_line_size = 0x10000000;
 #endif
 
-	nd = prom_getchild(prom_root_node);
+	nd = prom_getchild(prom_root_yesde);
 	while ((nd = prom_getsibling(nd)) != 0) {
-		prom_getstring(nd, "device_type", node_str, sizeof(node_str));
-		if (!strcmp(node_str, "cpu")) {
+		prom_getstring(nd, "device_type", yesde_str, sizeof(yesde_str));
+		if (!strcmp(yesde_str, "cpu")) {
 			vac_line_size = prom_getint(nd, "cache-line-size");
 			if (vac_line_size == -1) {
 				prom_printf("can't determine cache-line-size, halting.\n");
@@ -1102,7 +1102,7 @@ static void __init init_vac_layout(void)
 				max_size = vac_cache_size;
 			if (vac_line_size < min_line_size)
 				min_line_size = vac_line_size;
-			//FIXME: cpus not contiguous!!
+			//FIXME: cpus yest contiguous!!
 			cpu++;
 			if (cpu >= nr_cpu_ids || !cpu_online(cpu))
 				break;
@@ -1112,7 +1112,7 @@ static void __init init_vac_layout(void)
 		}
 	}
 	if (nd == 0) {
-		prom_printf("No CPU nodes found, halting.\n");
+		prom_printf("No CPU yesdes found, halting.\n");
 		prom_halt();
 	}
 #ifdef CONFIG_SMP
@@ -1239,7 +1239,7 @@ static void __init init_swift(void)
 		 * the ACC bits in kernel ptes).  Aha, sounds pretty
 		 * horrible eh?  But wait, after extensive testing it appears
 		 * that if you use pgd_t level large kernel pte's (like the
-		 * 4MB pages on the Pentium) the bug does not get tripped
+		 * 4MB pages on the Pentium) the bug does yest get tripped
 		 * at all.  This avoids almost all of the major overhead.
 		 * Welcome to a world where your vendor tells you to,
 		 * "apply this kernel patch" instead of "sorry for the
@@ -1266,7 +1266,7 @@ static void __init init_swift(void)
 	flush_page_for_dma_global = 0;
 
 	/*
-	 * Are you now convinced that the Swift is one of the
+	 * Are you yesw convinced that the Swift is one of the
 	 * biggest VLSI abortions of all time?  Bravo Fujitsu!
 	 * Fujitsu, the !#?!%$'d up processor people.  I bet if
 	 * you examined the microcode of the Swift you'd find
@@ -1307,7 +1307,7 @@ static void turbosparc_flush_cache_page(struct vm_area_struct *vma, unsigned lon
 	FLUSH_END
 }
 
-/* TurboSparc is copy-back, if we turn it on, but this does not work. */
+/* TurboSparc is copy-back, if we turn it on, but this does yest work. */
 static void turbosparc_flush_page_to_ram(unsigned long page)
 {
 #ifdef TURBOSPARC_WRITEBACK
@@ -1370,16 +1370,16 @@ static void poke_turbosparc(void)
 	ccreg = turbosparc_get_ccreg();
 
 #ifdef TURBOSPARC_WRITEBACK
-	ccreg |= (TURBOSPARC_SNENABLE);		/* Do DVMA snooping in Dcache */
+	ccreg |= (TURBOSPARC_SNENABLE);		/* Do DVMA syesoping in Dcache */
 	ccreg &= ~(TURBOSPARC_uS2 | TURBOSPARC_WTENABLE);
 			/* Write-back D-cache, emulate VLSI
-			 * abortion number three, not number one */
+			 * abortion number three, yest number one */
 #else
-	/* For now let's play safe, optimize later */
+	/* For yesw let's play safe, optimize later */
 	ccreg |= (TURBOSPARC_SNENABLE | TURBOSPARC_WTENABLE);
-			/* Do DVMA snooping in Dcache, Write-thru D-cache */
+			/* Do DVMA syesoping in Dcache, Write-thru D-cache */
 	ccreg &= ~(TURBOSPARC_uS2);
-			/* Emulate VLSI abortion number three, not number one */
+			/* Emulate VLSI abortion number three, yest number one */
 #endif
 
 	switch (ccreg & 7) {
@@ -1392,7 +1392,7 @@ static void poke_turbosparc(void)
 	turbosparc_set_ccreg(ccreg);
 
 	mreg |= (TURBOSPARC_ICENABLE | TURBOSPARC_DCENABLE); /* I & D caches on */
-	mreg |= (TURBOSPARC_ICSNOOP);		/* Icache snooping on */
+	mreg |= (TURBOSPARC_ICSNOOP);		/* Icache syesoping on */
 	srmmu_set_mmureg(mreg);
 }
 
@@ -1530,7 +1530,7 @@ static struct sparc32_cachetlb_ops viking_ops __ro_after_init = {
  * which guarentees we won't ever have too many pending.  It's a big
  * hammer, but a semaphore like system to make sure we only have N TLB
  * flushes going at once will require SMP locking anyways so there's
- * no real value in trying any harder than this.
+ * yes real value in trying any harder than this.
  */
 static struct sparc32_cachetlb_ops viking_sun4d_smp_ops __ro_after_init = {
 	.cache_all	= viking_flush_cache_all,
@@ -1558,9 +1558,9 @@ static void __init init_viking(void)
 		msi_set_sync();
 
 		/*
-		 * We need this to make sure old viking takes no hits
-		 * on it's cache for dma snoops to workaround the
-		 * "load from non-cacheable memory" interrupt bug.
+		 * We need this to make sure old viking takes yes hits
+		 * on it's cache for dma syesops to workaround the
+		 * "load from yesn-cacheable memory" interrupt bug.
 		 * This is only necessary because of the new way in
 		 * which we use the IOMMU.
 		 */
@@ -1623,7 +1623,7 @@ static void __init get_srmmu_type(void)
 		case 14:
 		case 15:
 		default:
-			prom_printf("Sparc-Linux Cypress support does not longer exit.\n");
+			prom_printf("Sparc-Linux Cypress support does yest longer exit.\n");
 			prom_halt();
 			break;
 		}
@@ -1640,16 +1640,16 @@ static void __init get_srmmu_type(void)
 
 	/* Next check for Fujitsu Swift. */
 	if (psr_typ == 0 && psr_vers == 4) {
-		phandle cpunode;
-		char node_str[128];
+		phandle cpuyesde;
+		char yesde_str[128];
 
-		/* Look if it is not a TurboSparc emulating Swift... */
-		cpunode = prom_getchild(prom_root_node);
-		while ((cpunode = prom_getsibling(cpunode)) != 0) {
-			prom_getstring(cpunode, "device_type", node_str, sizeof(node_str));
-			if (!strcmp(node_str, "cpu")) {
-				if (!prom_getintdefault(cpunode, "psr-implementation", 1) &&
-				    prom_getintdefault(cpunode, "psr-version", 1) == 5) {
+		/* Look if it is yest a TurboSparc emulating Swift... */
+		cpuyesde = prom_getchild(prom_root_yesde);
+		while ((cpuyesde = prom_getsibling(cpuyesde)) != 0) {
+			prom_getstring(cpuyesde, "device_type", yesde_str, sizeof(yesde_str));
+			if (!strcmp(yesde_str, "cpu")) {
+				if (!prom_getintdefault(cpuyesde, "psr-implementation", 1) &&
+				    prom_getintdefault(cpuyesde, "psr-version", 1) == 5) {
 					init_turbosparc();
 					return;
 				}

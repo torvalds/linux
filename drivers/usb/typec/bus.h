@@ -23,7 +23,7 @@ struct altmode {
 	struct altmode			*partner;
 	struct altmode			*plug[2];
 
-	struct blocking_notifier_head	nh;
+	struct blocking_yestifier_head	nh;
 };
 
 #define to_altmode(d) container_of(d, struct altmode, adev)

@@ -38,7 +38,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/input.h>
 
 #include <linux/adb.h>
@@ -62,9 +62,9 @@ MODULE_PARM_DESC(restore_capslock_events,
 #define KEYB_LEDREG	2	/* register # for leds on ADB keyboard */
 #define MOUSE_DATAREG	0	/* reg# for movement/button codes from mouse */
 
-static int adb_message_handler(struct notifier_block *, unsigned long, void *);
-static struct notifier_block adbhid_adb_notifier = {
-	.notifier_call	= adb_message_handler,
+static int adb_message_handler(struct yestifier_block *, unsigned long, void *);
+static struct yestifier_block adbhid_adb_yestifier = {
+	.yestifier_call	= adb_message_handler,
 };
 
 /* Some special keys */
@@ -244,7 +244,7 @@ static struct adb_ids keyboard_ids;
 static struct adb_ids mouse_ids;
 static struct adb_ids buttons_ids;
 
-/* Kind of keyboard, see Apple technote 1152  */
+/* Kind of keyboard, see Apple techyeste 1152  */
 #define ADB_KEYBOARD_UNKNOWN	0
 #define ADB_KEYBOARD_ANSI	0x0100
 #define ADB_KEYBOARD_ISO	0x0200
@@ -268,14 +268,14 @@ adbhid_keyboard_input(unsigned char *data, int nb, int apoll)
 	int id = (data[0] >> 4) & 0x0f;
 
 	if (!adbhid[id]) {
-		pr_err("ADB HID on ID %d not yet registered, packet %#02x, %#02x, %#02x, %#02x\n",
+		pr_err("ADB HID on ID %d yest yet registered, packet %#02x, %#02x, %#02x, %#02x\n",
 		       id, data[0], data[1], data[2], data[3]);
 		return;
 	}
 
 	/* first check this is from register 0 */
 	if (nb != 3 || (data[0] & 3) != KEYB_KEYREG)
-		return;		/* ignore it */
+		return;		/* igyesre it */
 	adbhid_input_keycode(id, data[1], 0);
 	if (!(data[2] == 0xff || (data[2] == 0x7f && data[1] == 0x7f)))
 		adbhid_input_keycode(id, data[2], 0);
@@ -407,7 +407,7 @@ adbhid_mouse_input(unsigned char *data, int nb, int autopoll)
 	int id = (data[0] >> 4) & 0x0f;
 
 	if (!adbhid[id]) {
-		pr_err("ADB HID on ID %d not yet registered\n", id);
+		pr_err("ADB HID on ID %d yest yet registered\n", id);
 		return;
 	}
 
@@ -445,8 +445,8 @@ adbhid_mouse_input(unsigned char *data, int nb, int autopoll)
     data[0] = dddd 1100 ADB command: Talk, register 0, for device dddd.
     data[1] = bxxx xxxx Left button and x-axis motion.
     data[2] = byyy yyyy Right button and y-axis motion.
-    data[3] = ???? ???? unknown
-    data[4] = ???? ???? unknown
+    data[3] = ???? ???? unkyeswn
+    data[4] = ???? ???? unkyeswn
 
   */
 
@@ -505,7 +505,7 @@ adbhid_buttons_input(unsigned char *data, int nb, int autopoll)
 	int id = (data[0] >> 4) & 0x0f;
 
 	if (!adbhid[id]) {
-		pr_err("ADB HID on ID %d not yet registered\n", id);
+		pr_err("ADB HID on ID %d yest yet registered\n", id);
 		return;
 	}
 
@@ -714,7 +714,7 @@ adbhid_kbd_capslock_remember(void)
 }
 
 static int
-adb_message_handler(struct notifier_block *this, unsigned long code, void *x)
+adb_message_handler(struct yestifier_block *this, unsigned long code, void *x)
 {
 	switch (code) {
 	case ADB_MSG_PRE_RESET:
@@ -736,7 +736,7 @@ adb_message_handler(struct notifier_block *this, unsigned long code, void *x)
 		 * send a "capslock down" key event. This confuses the
 		 * restore_capslock_events logic. Remember if the capslock
 		 * LED was on before suspend so the unwanted key event can
-		 * be ignored after resume. */
+		 * be igyesred after resume. */
 		if (restore_capslock_events)
 			adbhid_kbd_capslock_remember();
 
@@ -801,7 +801,7 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 
 		switch (original_handler_id) {
 		default:
-			keyboard_type = "<unknown>";
+			keyboard_type = "<unkyeswn>";
 			input_dev->id.version = ADB_KEYBOARD_UNKNOWN;
 			break;
 
@@ -884,7 +884,7 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 		/* else fall through */
 
 	default:
-		pr_info("Trying to register unknown ADB device to input layer.\n");
+		pr_info("Trying to register unkyeswn ADB device to input layer.\n");
 		err = -ENODEV;
 		goto fail;
 	}
@@ -1038,7 +1038,7 @@ adbhid_probe(void)
 			/*
 			 * Register 1 is usually used for device
 			 * identification.  Here, we try to identify
-			 * a known device and call the appropriate
+			 * a kyeswn device and call the appropriate
 			 * init function.
 			 */
 			adb_request(&req, NULL, ADBREQ_SYNC | ADBREQ_REPLY, 1,
@@ -1214,9 +1214,9 @@ init_microspeed(int id)
             0 -  3     Button is mouse (set also for double clicking!!!)
             4 -  7     Button is locking (affects change speed also)
             8 - 11     Button changes speed
-           12          1 = Extended mouse mode, 0 = normal mouse mode
+           12          1 = Extended mouse mode, 0 = yesrmal mouse mode
            13 - 15     unused 0
-           16 - 23     normal speed
+           16 - 23     yesrmal speed
            24 - 31     changed speed
 
        Register 1 talk holds version and product identification information.
@@ -1230,9 +1230,9 @@ init_microspeed(int id)
 	adb_request(&req, NULL, ADBREQ_SYNC, 5,
 	ADB_WRITEREG(id,1),
 	    0x20,	/* alt speed = 0x20 (rather slow) */
-	    0x00,	/* norm speed = 0x00 (fastest) */
-	    0x10,	/* extended protocol, no speed change */
-	    0x07);	/* all buttons enabled as mouse buttons, no locking */
+	    0x00,	/* yesrm speed = 0x00 (fastest) */
+	    0x10,	/* extended protocol, yes speed change */
+	    0x07);	/* all buttons enabled as mouse buttons, yes locking */
 
 
 	adb_request(&req, NULL, ADBREQ_SYNC, 1, ADB_FLUSH(id));
@@ -1262,8 +1262,8 @@ static int __init adbhid_init(void)
 
 	adbhid_probe();
 
-	blocking_notifier_chain_register(&adb_client_list,
-			&adbhid_adb_notifier);
+	blocking_yestifier_chain_register(&adb_client_list,
+			&adbhid_adb_yestifier);
 
 	return 0;
 }

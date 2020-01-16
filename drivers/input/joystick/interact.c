@@ -223,7 +223,7 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 			break;
 
 	if (!interact_type[i].length) {
-		printk(KERN_WARNING "interact.c: Unknown joystick on %s. [len %d d0 %08x d1 %08x i2 %08x]\n",
+		printk(KERN_WARNING "interact.c: Unkyeswn joystick on %s. [len %d d0 %08x d1 %08x i2 %08x]\n",
 			gameport->phys, i, data[0], data[1], data[2]);
 		err = -ENODEV;
 		goto fail2;

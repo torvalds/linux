@@ -22,7 +22,7 @@ static int init_fake_lmem_bar(struct intel_memory_region *mem)
 	mem->fake_mappable.size = resource_size(&mem->region);
 	mem->fake_mappable.color = I915_COLOR_UNEVICTABLE;
 
-	ret = drm_mm_reserve_node(&ggtt->vm.mm, &mem->fake_mappable);
+	ret = drm_mm_reserve_yesde(&ggtt->vm.mm, &mem->fake_mappable);
 	if (ret)
 		return ret;
 
@@ -32,7 +32,7 @@ static int init_fake_lmem_bar(struct intel_memory_region *mem)
 					   PCI_DMA_BIDIRECTIONAL,
 					   DMA_ATTR_FORCE_CONTIGUOUS);
 	if (dma_mapping_error(&i915->drm.pdev->dev, mem->remap_addr)) {
-		drm_mm_remove_node(&mem->fake_mappable);
+		drm_mm_remove_yesde(&mem->fake_mappable);
 		return -EINVAL;
 	}
 
@@ -51,8 +51,8 @@ static int init_fake_lmem_bar(struct intel_memory_region *mem)
 
 static void release_fake_lmem_bar(struct intel_memory_region *mem)
 {
-	if (drm_mm_node_allocated(&mem->fake_mappable))
-		drm_mm_remove_node(&mem->fake_mappable);
+	if (drm_mm_yesde_allocated(&mem->fake_mappable))
+		drm_mm_remove_yesde(&mem->fake_mappable);
 
 	dma_unmap_resource(&mem->i915->drm.pdev->dev,
 			   mem->remap_addr,
@@ -109,7 +109,7 @@ intel_setup_fake_lmem(struct drm_i915_private *i915)
 	GEM_BUG_ON(i915_ggtt_has_aperture(&i915->ggtt));
 	GEM_BUG_ON(!i915_modparams.fake_lmem_start);
 
-	/* Your mappable aperture belongs to me now! */
+	/* Your mappable aperture belongs to me yesw! */
 	mappable_end = pci_resource_len(pdev, 2);
 	io_start = pci_resource_start(pdev, 2),
 	start = i915_modparams.fake_lmem_start;

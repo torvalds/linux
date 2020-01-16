@@ -401,7 +401,7 @@ static const struct go7007_usb_board board_adlink_mpg24 = {
 		.i2c_devs	 = {
 			{
 				.type	= "tw2804",
-				.addr	= 0x00, /* yes, really */
+				.addr	= 0x00, /* no, really */
 				.flags  = I2C_CLIENT_TEN,
 				.is_video = 1,
 			},
@@ -507,7 +507,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
 					USB_DEVICE_ID_MATCH_INT_INFO,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techyeslogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x200,   /* Revision number of XMen */
 		.bcdDevice_hi	= 0x200,
@@ -518,7 +518,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	},
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techyeslogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x202,   /* Revision number of Matrix II */
 		.bcdDevice_hi	= 0x202,
@@ -526,7 +526,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	},
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techyeslogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x204,   /* Revision number of Matrix */
 		.bcdDevice_hi	= 0x204,   /*     Reloaded */
@@ -535,7 +535,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
 					USB_DEVICE_ID_MATCH_INT_INFO,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techyeslogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x205,   /* Revision number of XMen-II */
 		.bcdDevice_hi	= 0x205,
@@ -546,7 +546,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	},
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techyeslogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x208,   /* Revision number of Star Trek */
 		.bcdDevice_hi	= 0x208,
@@ -555,7 +555,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
 					USB_DEVICE_ID_MATCH_INT_INFO,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techyeslogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x209,   /* Revision number of XMen-III */
 		.bcdDevice_hi	= 0x209,
@@ -566,7 +566,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	},
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techyeslogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x210,   /* Revision number of Matrix */
 		.bcdDevice_hi	= 0x210,   /*     Revolution */
@@ -606,7 +606,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	},
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
-		.idVendor	= 0x06e1,  /* Vendor ID of ADS Technologies */
+		.idVendor	= 0x06e1,  /* Vendor ID of ADS Techyeslogies */
 		.idProduct	= 0x0709,  /* Product ID of DVD Xpress DX2 */
 		.bcdDevice_lo	= 0x204,
 		.bcdDevice_hi	= 0x204,
@@ -1084,11 +1084,11 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		board = &board_matrix_ii;
 		break;
 	case GO7007_BOARDID_PX_TV402U:
-		name = "Plextor PX-TV402U (unknown tuner)";
+		name = "Plextor PX-TV402U (unkyeswn tuner)";
 		board = &board_px_tv402u;
 		break;
 	case GO7007_BOARDID_LIFEVIEW_LR192:
-		dev_err(&intf->dev, "The Lifeview TV Walker Ultra is not supported. Sorry!\n");
+		dev_err(&intf->dev, "The Lifeview TV Walker Ultra is yest supported. Sorry!\n");
 		return -ENODEV;
 #if 0
 		name = "Lifeview TV Walker Ultra";
@@ -1105,7 +1105,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		board = &board_ads_usbav_709;
 		break;
 	default:
-		dev_err(&intf->dev, "unknown board ID %d!\n",
+		dev_err(&intf->dev, "unkyeswn board ID %d!\n",
 				(unsigned int)id->driver_info);
 		return -ENODEV;
 	}
@@ -1173,7 +1173,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 
 	/* Pelco and Adlink reused the XMen and XMen-III vendor and product
 	 * IDs for their own incompatible designs.  We can detect XMen boards
-	 * by probing the sensor, but there is no way to probe the sensors on
+	 * by probing the sensor, but there is yes way to probe the sensors on
 	 * the Pelco and Adlink designs so we default to the Adlink.  If it
 	 * is actually a Pelco, the user must set the assume_endura module
 	 * parameter. */

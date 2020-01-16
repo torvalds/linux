@@ -419,13 +419,13 @@ static int solo_enum_input(struct file *file, void *priv,
 		snprintf(input->name, sizeof(input->name), "Camera %d",
 			 input->index + 1);
 
-		/* We can only check this for normal inputs */
+		/* We can only check this for yesrmal inputs */
 		if (!tw28_get_video_status(solo_dev, input->index))
 			input->status = V4L2_IN_ST_NO_SIGNAL;
 	}
 
 	input->type = V4L2_INPUT_TYPE_CAMERA;
-	input->std = solo_dev->vfd->tvnorms;
+	input->std = solo_dev->vfd->tvyesrms;
 	return 0;
 }
 
@@ -436,7 +436,7 @@ static int solo_set_input(struct file *file, void *priv, unsigned int index)
 
 	if (!ret) {
 		while (erase_off(solo_dev))
-			/* Do nothing */;
+			/* Do yesthing */;
 	}
 
 	return ret;
@@ -488,7 +488,7 @@ static int solo_set_fmt_cap(struct file *file, void *priv,
 	if (vb2_is_busy(&solo_dev->vidq))
 		return -EBUSY;
 
-	/* For right now, if it doesn't match our running config,
+	/* For right yesw, if it doesn't match our running config,
 	 * then fail */
 	return solo_try_fmt_cap(file, priv, f);
 }
@@ -525,7 +525,7 @@ int solo_set_video_type(struct solo_dev *solo_dev, bool is_50hz)
 {
 	int i;
 
-	/* Make sure all video nodes are idle */
+	/* Make sure all video yesdes are idle */
 	if (vb2_is_busy(&solo_dev->vidq))
 		return -EBUSY;
 	for (i = 0; i < solo_dev->nr_chans; i++)
@@ -618,9 +618,9 @@ static const struct video_device solo_v4l2_template = {
 	.name			= SOLO6X10_NAME,
 	.fops			= &solo_v4l2_fops,
 	.ioctl_ops		= &solo_v4l2_ioctl_ops,
-	.minor			= -1,
+	.miyesr			= -1,
 	.release		= video_device_release,
-	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
+	.tvyesrms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
 	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 				  V4L2_CAP_STREAMING,
 };
@@ -684,13 +684,13 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 	for (i = 0; i < solo_dev->nr_chans; i++) {
 		solo_v4l2_set_ch(solo_dev, i);
 		while (erase_off(solo_dev))
-			/* Do nothing */;
+			/* Do yesthing */;
 	}
 
 	/* Set the default display channel */
 	solo_v4l2_set_ch(solo_dev, 0);
 	while (erase_off(solo_dev))
-		/* Do nothing */;
+		/* Do yesthing */;
 
 	ret = video_register_device(solo_dev->vfd, VFL_TYPE_GRABBER, nr);
 	if (ret < 0)

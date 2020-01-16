@@ -14,8 +14,8 @@ struct virtio_device {
 };
 
 struct virtqueue {
-	/* TODO: commented as list macros are empty stubs for now.
-	 * Broken but enough for virtio_ring.c
+	/* TODO: commented as list macros are empty stubs for yesw.
+	 * Broken but eyesugh for virtio_ring.c
 	 * struct list_head list; */
 	void (*callback)(struct virtqueue *vq);
 	const char *name;
@@ -60,7 +60,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      bool weak_barriers,
 				      bool ctx,
 				      void *pages,
-				      bool (*notify)(struct virtqueue *vq),
+				      bool (*yestify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),
 				      const char *name);
 void vring_del_virtqueue(struct virtqueue *vq);

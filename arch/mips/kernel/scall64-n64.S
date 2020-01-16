@@ -5,9 +5,9 @@
  *
  * Copyright (C) 1995, 96, 97, 98, 99, 2000, 01, 02 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techyeslogies, Inc.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/irqflags.h>
@@ -21,7 +21,7 @@
 #include <asm/war.h>
 
 #ifndef CONFIG_BINFMT_ELF32
-/* Neither O32 nor N32, so define handle_sys here */
+/* Neither O32 yesr N32, so define handle_sys here */
 #define handle_sys64 handle_sys
 #endif
 
@@ -32,7 +32,7 @@ NESTED(handle_sys64, PT_SIZE, sp)
 	 * When 32-bit compatibility is configured scall_o32.S
 	 * already did this.
 	 */
-	.set	noat
+	.set	yesat
 	SAVE_SOME
 	TRACE_IRQS_ON_RELOAD
 	STI

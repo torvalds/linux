@@ -243,7 +243,7 @@ struct chipcregs {
 #define	CC_CAP_FLASH_MASK	0x00000700	/* Type of flash */
 #define	CC_CAP_PLL_MASK		0x00038000	/* Type of PLL */
 #define CC_CAP_PWR_CTL		0x00040000	/* Power control */
-#define CC_CAP_OTPSIZE		0x00380000	/* OTP Size (0 = none) */
+#define CC_CAP_OTPSIZE		0x00380000	/* OTP Size (0 = yesne) */
 #define CC_CAP_OTPSIZE_SHIFT	19	/* OTP Size shift */
 #define CC_CAP_OTPSIZE_BASE	5	/* OTP Size base */
 #define CC_CAP_JTAGP		0x00400000	/* JTAG Master Present */

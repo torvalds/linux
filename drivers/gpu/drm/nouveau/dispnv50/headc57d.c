@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -124,7 +124,7 @@ headc57d_olut_load_8(struct drm_color_lut *in, int size, void __iomem *mem)
 	}
 
 	/* INTERPOLATE modes require a "next" entry to interpolate with,
-	 * so we replicate the last entry to deal with this for now.
+	 * so we replicate the last entry to deal with this for yesw.
 	 */
 	writew(readw(mem - 8), mem + 0);
 	writew(readw(mem - 6), mem + 2);
@@ -144,7 +144,7 @@ headc57d_olut_load(struct drm_color_lut *in, int size, void __iomem *mem)
 	}
 
 	/* INTERPOLATE modes require a "next" entry to interpolate with,
-	 * so we replicate the last entry to deal with this for now.
+	 * so we replicate the last entry to deal with this for yesw.
 	 */
 	writew(readw(mem - 8), mem + 0);
 	writew(readw(mem - 6), mem + 2);

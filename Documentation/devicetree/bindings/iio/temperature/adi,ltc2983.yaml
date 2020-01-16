@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Analog Devices LTC2983 Multi-sensor Temperature system
 
 maintainers:
-  - Nuno Sá <nuno.sa@analog.com>
+  - Nuyes Sá <nuyes.sa@analog.com>
 
 description: |
   Analog Devices LTC2983 Multi-Sensor Digital Temperature Measurement System
@@ -35,7 +35,7 @@ properties:
       rounded to nearest 100us.
     maximum: 255
 
-  adi,filter-notch-freq:
+  adi,filter-yestch-freq:
     description:
       Set's the default setting of the digital filter. The default is
       simultaneous 50/60Hz rejection.
@@ -156,7 +156,7 @@ patternProperties:
       adi,average-on:
         description:
           Boolean property which enables a running average of the diode
-          temperature reading. This reduces the noise when the diode is used
+          temperature reading. This reduces the yesise when the diode is used
           as a cold junction temperature element on an isothermal block
           where temperatures change slowly.
         type: boolean
@@ -225,7 +225,7 @@ patternProperties:
         description:
           Boolean property which enables excitation current rotation to
           automatically remove parasitic thermocouple effects. Note that
-          this property is not allowed for 2- and 3-wire RTDs.
+          this property is yest allowed for 2- and 3-wire RTDs.
         type: boolean
 
       adi,excitation-current-microamp:
@@ -301,7 +301,7 @@ patternProperties:
         description:
           Boolean property which enables Rsense sharing, where one sense
           resistor is used for multiple thermistors. Note that this property
-          is ignored if adi,single-ended is set.
+          is igyesred if adi,single-ended is set.
         type: boolean
 
       adi,current-rotate:
@@ -310,7 +310,7 @@ patternProperties:
           automatically remove parasitic thermocouple effects.
         type: boolean
 
-      adi,excitation-current-nanoamp:
+      adi,excitation-current-nayesamp:
         description:
           This property controls the magnitude of the excitation current
           applied to the thermistor. Value 0 set's the sensor in auto-range
@@ -436,7 +436,7 @@ examples:
                 rtd@14 {
                         reg = <14>;
                         adi,sensor-type = <15>; //PT1000
-                        /*2-wire, internal gnd, no current rotation*/
+                        /*2-wire, internal gnd, yes current rotation*/
                         adi,number-of-wires = <2>;
                         adi,rsense-share;
                         adi,excitation-current-microamp = <500>;

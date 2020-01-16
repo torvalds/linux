@@ -13,11 +13,11 @@
 /*
  * All exceptions from guest state must go through KVM
  * (except for those which are delivered directly to the guest) --
- * there are no exceptions for which we fall through directly to
- * the normal host handler.
+ * there are yes exceptions for which we fall through directly to
+ * the yesrmal host handler.
  *
  * 32-bit host
- * Expected inputs (normal exceptions):
+ * Expected inputs (yesrmal exceptions):
  *   SCRATCH0 = saved r10
  *   r10 = thread struct
  *   r11 = appropriate SRR1 variant (currently used as scratch)
@@ -31,7 +31,7 @@
  *   r9 = *(r8 + _CCR) = saved CR
  *   r11 = appropriate SRR1 variant (currently used as scratch)
  *   *(r8 + GPR9) = saved r9
- *   *(r8 + GPR10) = saved r10 (r10 not yet clobbered)
+ *   *(r8 + GPR10) = saved r10 (r10 yest yet clobbered)
  *   *(r8 + GPR11) = saved r11
  *
  * 64-bit host
@@ -51,14 +51,14 @@
  *  *(r12 + EX_TLB_R13) = saved r13
  *  SPRN_SPRG_GEN_SCRATCH = saved r12
  *
- * Only the bolted version of TLB miss exception handlers is supported now.
+ * Only the bolted version of TLB miss exception handlers is supported yesw.
  */
-.macro DO_KVM intno srr1
+.macro DO_KVM intyes srr1
 #ifdef CONFIG_KVM_BOOKE_HV
 BEGIN_FTR_SECTION
 	mtocrf	0x80, r11	/* check MSR[GS] without clobbering reg */
 	bf	3, 1975f
-	b	kvmppc_handler_\intno\()_\srr1
+	b	kvmppc_handler_\intyes\()_\srr1
 1975:
 END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 #endif

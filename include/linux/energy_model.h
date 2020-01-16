@@ -111,7 +111,7 @@ static inline unsigned long em_pd_energy(struct em_perf_domain *pd,
 	 *   cs->cap = --------------------                          (1)
 	 *                 cpu_max_freq
 	 *
-	 * So, ignoring the costs of idle states (which are not available in
+	 * So, igyesring the costs of idle states (which are yest available in
 	 * the EM), the energy consumed by this CPU at that capacity state is
 	 * estimated as:
 	 *

@@ -12,7 +12,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define nop()		__asm__ __volatile__ ("nop")
+#define yesp()		__asm__ __volatile__ ("yesp")
 
 #define RISCV_FENCE(p, s) \
 	__asm__ __volatile__ ("fence " #p "," #s : : : "memory")
@@ -22,7 +22,7 @@
 #define rmb()		RISCV_FENCE(ir,ir)
 #define wmb()		RISCV_FENCE(ow,ow)
 
-/* These barriers do not need to enforce ordering on devices, just memory. */
+/* These barriers do yest need to enforce ordering on devices, just memory. */
 #define __smp_mb()	RISCV_FENCE(rw,rw)
 #define __smp_rmb()	RISCV_FENCE(r,r)
 #define __smp_wmb()	RISCV_FENCE(w,w)
@@ -55,7 +55,7 @@ do {									\
  *    lr    lock
  *    sc.rl lock <= UNLOCKED
  *
- * The AQ/RL pair provides a RCpc critical section, but there's not really any
+ * The AQ/RL pair provides a RCpc critical section, but there's yest really any
  * way we can take advantage of that here because the ordering is only enforced
  * on that one lock.  Thus, we're just doing a full fence.
  */

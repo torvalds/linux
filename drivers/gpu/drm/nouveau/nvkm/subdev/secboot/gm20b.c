@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -47,7 +47,7 @@ gm20b_secboot_tegra_read_wpr(struct gm200_secboot *gsb, u32 mc_base)
 
 	mc = ioremap(mc_base, 0xd00);
 	if (!mc) {
-		nvkm_error(&sb->subdev, "Cannot map Tegra MC registers\n");
+		nvkm_error(&sb->subdev, "Canyest map Tegra MC registers\n");
 		return -ENOMEM;
 	}
 	sb->wpr_addr = ioread32_native(mc + MC_SECURITY_CARVEOUT2_BOM_0) |
@@ -64,7 +64,7 @@ gm20b_secboot_tegra_read_wpr(struct gm200_secboot *gsb, u32 mc_base)
 	}
 
 	if (!(cfg & TEGRA_MC_SECURITY_CARVEOUT_CFG_LOCKED)) {
-		nvkm_error(&sb->subdev, "WPR region not locked\n");
+		nvkm_error(&sb->subdev, "WPR region yest locked\n");
 		return -EINVAL;
 	}
 
@@ -74,7 +74,7 @@ gm20b_secboot_tegra_read_wpr(struct gm200_secboot *gsb, u32 mc_base)
 int
 gm20b_secboot_tegra_read_wpr(struct gm200_secboot *gsb, u32 mc_base)
 {
-	nvkm_error(&gsb->base.subdev, "Tegra support not compiled in\n");
+	nvkm_error(&gsb->base.subdev, "Tegra support yest compiled in\n");
 	return -EINVAL;
 }
 #endif
@@ -139,7 +139,7 @@ MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_sig.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gm20b/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/sw_yesnctx.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/gm20b/pmu/desc.bin");

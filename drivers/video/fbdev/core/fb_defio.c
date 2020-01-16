@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -56,7 +56,7 @@ static vm_fault_t fb_deferred_io_fault(struct vm_fault *vmf)
 	if (vmf->vma->vm_file)
 		page->mapping = vmf->vma->vm_file->f_mapping;
 	else
-		printk(KERN_ERR "no mapping available\n");
+		printk(KERN_ERR "yes mapping available\n");
 
 	BUG_ON(!page->mapping);
 	page->index = vmf->pgoff;
@@ -68,7 +68,7 @@ static vm_fault_t fb_deferred_io_fault(struct vm_fault *vmf)
 int fb_deferred_io_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct fb_info *info = file->private_data;
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	int err = file_write_and_wait_range(file, start, end);
 	if (err)
 		return err;
@@ -77,13 +77,13 @@ int fb_deferred_io_fsync(struct file *file, loff_t start, loff_t end, int datasy
 	if (!info->fbdefio)
 		return 0;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 	/* Kill off the delayed work */
 	cancel_delayed_work_sync(&info->deferred_work);
 
 	/* Run it immediately */
 	schedule_delayed_work(&info->deferred_work, 0);
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 
 	return 0;
 }
@@ -108,14 +108,14 @@ static vm_fault_t fb_deferred_io_mkwrite(struct vm_fault *vmf)
 	/* protect against the workqueue changing the page list */
 	mutex_lock(&fbdefio->lock);
 
-	/* first write in this cycle, notify the driver */
+	/* first write in this cycle, yestify the driver */
 	if (fbdefio->first_io && list_empty(&fbdefio->pagelist))
 		fbdefio->first_io(info);
 
 	/*
 	 * We want the page to remain locked from ->page_mkwrite until
 	 * the PTE is marked dirty to avoid page_mkclean() being called
-	 * before the PTE is updated, which would leave the page ignored
+	 * before the PTE is updated, which would leave the page igyesred
 	 * by defio.
 	 * Do this by locking the page here and informing the caller
 	 * about it with VM_FAULT_LOCKED.
@@ -178,7 +178,7 @@ static void fb_deferred_io_work(struct work_struct *work)
 {
 	struct fb_info *info = container_of(work, struct fb_info,
 						deferred_work.work);
-	struct list_head *node, *next;
+	struct list_head *yesde, *next;
 	struct page *cur;
 	struct fb_deferred_io *fbdefio = info->fbdefio;
 
@@ -194,8 +194,8 @@ static void fb_deferred_io_work(struct work_struct *work)
 	fbdefio->deferred_io(info, &fbdefio->pagelist);
 
 	/* clear the list */
-	list_for_each_safe(node, next, &fbdefio->pagelist) {
-		list_del(node);
+	list_for_each_safe(yesde, next, &fbdefio->pagelist) {
+		list_del(yesde);
 	}
 	mutex_unlock(&fbdefio->lock);
 }
@@ -215,7 +215,7 @@ void fb_deferred_io_init(struct fb_info *info)
 EXPORT_SYMBOL_GPL(fb_deferred_io_init);
 
 void fb_deferred_io_open(struct fb_info *info,
-			 struct inode *inode,
+			 struct iyesde *iyesde,
 			 struct file *file)
 {
 	file->f_mapping->a_ops = &fb_deferred_io_aops;

@@ -33,7 +33,7 @@
  *			a void *
  * @lock:		protects the buffers cnt fields
  * @kmap_cnt:		number of times the buffer is mapped to the kernel
- * @vaddr:		the kernel mapping if kmap_cnt is not zero
+ * @vaddr:		the kernel mapping if kmap_cnt is yest zero
  * @sg_table:		the sg table for the buffer
  * @attachments:	list of devices attached to this buffer
  */
@@ -55,7 +55,7 @@ struct ion_buffer {
 void ion_buffer_destroy(struct ion_buffer *buffer);
 
 /**
- * struct ion_device - the metadata of the ion device node
+ * struct ion_device - the metadata of the ion device yesde
  * @dev:		the actual misc device
  * @lock:		rwsem protecting the tree of heaps and clients
  */
@@ -75,12 +75,12 @@ struct ion_device {
  * @unmap_kernel	unmap memory to the kernel
  * @map_user		map memory to userspace
  *
- * allocate, phys, and map_user return 0 on success, -errno on error.
+ * allocate, phys, and map_user return 0 on success, -erryes on error.
  * map_dma and map_kernel return pointer on success, ERR_PTR on
  * error. @free will be called with ION_PRIV_FLAG_SHRINKER_FREE set in
  * the buffer's private_flags when called from a shrinker. In that
  * case, the pages being free'd must be truly free'd back to the
- * system, not put in a page pool or otherwise cached.
+ * system, yest put in a page pool or otherwise cached.
  */
 struct ion_heap_ops {
 	int (*allocate)(struct ion_heap *heap,
@@ -112,7 +112,7 @@ struct ion_heap_ops {
 
 /**
  * struct ion_heap - represents a heap in the system
- * @node:		rb node to put the heap on the device's tree of heaps
+ * @yesde:		rb yesde to put the heap on the device's tree of heaps
  * @dev:		back pointer to the ion_device
  * @type:		type of heap
  * @ops:		ops struct as above
@@ -137,7 +137,7 @@ struct ion_heap_ops {
  * that are allocated from a specially reserved heap.
  */
 struct ion_heap {
-	struct plist_node node;
+	struct plist_yesde yesde;
 	struct ion_device *dev;
 	enum ion_heap_type type;
 	struct ion_heap_ops *ops;
@@ -237,7 +237,7 @@ size_t ion_heap_freelist_drain(struct ion_heap *heap, size_t size);
  * page pools or otherwise cache the pages. Everything must be
  * genuinely free'd back to the system. If you're free'ing from a
  * shrinker you probably want to use this. Note that this relies on
- * the heap.ops.free callback honoring the ION_PRIV_FLAG_SHRINKER_FREE
+ * the heap.ops.free callback hoyesring the ION_PRIV_FLAG_SHRINKER_FREE
  * flag.
  */
 size_t ion_heap_freelist_shrink(struct ion_heap *heap,
@@ -267,7 +267,7 @@ size_t ion_heap_freelist_size(struct ion_heap *heap);
  *			item list
  * @gfp_mask:		gfp_mask to use from alloc
  * @order:		order of pages in the pool
- * @list:		plist node for list of pools
+ * @list:		plist yesde for list of pools
  *
  * Allows you to keep a pool of pre allocated pages to use from your heap.
  * Keeping a pool of pages that is ready for dma, ie any cached mapping have
@@ -282,7 +282,7 @@ struct ion_page_pool {
 	struct mutex mutex;
 	gfp_t gfp_mask;
 	unsigned int order;
-	struct plist_node list;
+	struct plist_yesde list;
 };
 
 struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_ASMAXP_PTRACE_H
 #define _UAPI_ASMAXP_PTRACE_H
 
@@ -8,7 +8,7 @@
  * kernel stack during a system call or other kernel entry
  *
  * NOTE! I want to minimize the overhead of system calls, so this
- * struct has as little information as possible. It does not have
+ * struct has as little information as possible. It does yest have
  *
  *  - floating point regs: the kernel doesn't change those
  *  - r9-15: saved by the C compiler
@@ -53,7 +53,7 @@ struct pt_regs {
 
 /*
  * This is the extended stack used by signal handlers and the context
- * switcher: it's pushed after the normal "struct pt_regs".
+ * switcher: it's pushed after the yesrmal "struct pt_regs".
  */
 struct switch_stack {
 	unsigned long r9;

@@ -65,7 +65,7 @@ struct nphy_gain_ctl_workaround_entry {
 	u16 wlclip;
 };
 
-/* Get entry with workaround values for gain ctl. Does not return NULL. */
+/* Get entry with workaround values for gain ctl. Does yest return NULL. */
 struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 	struct b43_wldev *dev, bool ghz5, bool ext_lna);
 
@@ -144,7 +144,7 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 #define B43_NTAB_TMAP_R3		B43_NTAB32(12,   0) /* TM AP  */
 #define B43_NTAB_INTLEVEL_R3		B43_NTAB32(13,   0) /* INT LV  */
 #define B43_NTAB_TDTRN_R3		B43_NTAB32(14,   0) /* TD TRN  */
-#define B43_NTAB_NOISEVAR_R3		B43_NTAB32(16,   0) /* noise variance */
+#define B43_NTAB_NOISEVAR_R3		B43_NTAB32(16,   0) /* yesise variance */
 #define B43_NTAB_MCS_R3			B43_NTAB16(18,   0) /* MCS  */
 #define B43_NTAB_TDI20A0_R3		B43_NTAB32(19, 128) /* TDI 20/0  */
 #define B43_NTAB_TDI20A1_R3		B43_NTAB32(19, 256) /* TDI 20/1  */
@@ -168,7 +168,7 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 
 /* Static N-PHY tables, PHY revision >= 7 */
 #define B43_NTAB_TMAP_R7		B43_NTAB32(12,   0) /* TM AP */
-#define B43_NTAB_NOISEVAR_R7		B43_NTAB32(16,   0) /* noise variance */
+#define B43_NTAB_NOISEVAR_R7		B43_NTAB32(16,   0) /* yesise variance */
 
 #define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_40_SIZE	18
 #define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_20_SIZE	18

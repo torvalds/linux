@@ -339,8 +339,8 @@ typedef u32 imgu_addr_t;
 
 /*
  * The host2sp_cmd_ready command is the only command written by the SP
- * It acknowledges that is previous command has been received.
- * (this does not mean that the command has been executed)
+ * It ackyeswledges that is previous command has been received.
+ * (this does yest mean that the command has been executed)
  * It also indicates that a new command can be send (it is a queue
  * with depth 1).
  */
@@ -714,7 +714,7 @@ struct imgu_abi_shd_black_level_config {
 	s32 bl_gr:12;
 	u32 reserved1:1;
 	/* aka 'nf' */
-	u32 normalization_shift:3;
+	u32 yesrmalization_shift:3;
 	/* reg 1 */
 	s32 bl_gb:12;
 	s32 reserved2:4;
@@ -783,14 +783,14 @@ struct imgu_abi_stripe_data {
 
 	/*
 	 *'bds-out-stripes' - after bayer down-scaling and padding.
-	 * used by all algos starting with norm up to the ref-frame for GDC
+	 * used by all algos starting with yesrm up to the ref-frame for GDC
 	 * (currently up to the output kernel)
 	 */
 	struct imgu_abi_stripes bds_out_stripes[IPU3_UAPI_MAX_STRIPES];
 
-	/* 'bds-out-stripes (no overlap)' - used for ref kernel */
+	/* 'bds-out-stripes (yes overlap)' - used for ref kernel */
 	struct imgu_abi_stripes
-			bds_out_stripes_no_overlap[IPU3_UAPI_MAX_STRIPES];
+			bds_out_stripes_yes_overlap[IPU3_UAPI_MAX_STRIPES];
 
 	/*
 	 * input resolution for output system (equal to bds_out - envelope)
@@ -801,7 +801,7 @@ struct imgu_abi_stripe_data {
 	u16 output_system_in_frame_height;
 
 	/*
-	 * 'output-stripes' - accounts for stiching on the output (no overlap)
+	 * 'output-stripes' - accounts for stiching on the output (yes overlap)
 	 * used by the output kernel
 	 */
 	struct imgu_abi_stripes output_stripes[IPU3_UAPI_MAX_STRIPES];
@@ -831,7 +831,7 @@ struct imgu_abi_stripe_data {
 	/* Display frame height as configured by user */
 	u16 display_frame_height;
 	u16 bds_aligned_frame_width;
-	/* Number of vectors to left-crop when writing stripes (not stripe 0) */
+	/* Number of vectors to left-crop when writing stripes (yest stripe 0) */
 	u16 half_overlap_vectors;
 	/* Decimate ISP and fixed func resolutions after BDS (ir_extraction) */
 	u16 ir_ext_decimation;
@@ -1661,7 +1661,7 @@ struct imgu_abi_binary_info {
 		u8 shd_acc;
 		u8 shd_ff;
 		u8 stats_3a_raw_buffer;
-		u8 acc_bayer_denoise;
+		u8 acc_bayer_deyesise;
 		u8 bnr_ff;
 		u8 awb_acc;
 		u8 awb_fr_acc;
@@ -1765,7 +1765,7 @@ struct imgu_abi_parameter_set_info {
 
 /* SP configuration information */
 struct imgu_abi_sp_config {
-	u8 no_isp_sync;		/* Signal host immediately after start */
+	u8 yes_isp_sync;		/* Signal host immediately after start */
 	u8 enable_raw_pool_locking;    /* Enable Raw Buffer Locking for HALv3 */
 	u8 lock_all;
 	u8 disable_cont_vf;
@@ -1780,10 +1780,10 @@ struct imgu_abi_sp_pipeline {
 	u32 thread_id;			/* the sp thread ID */
 	u32 pipe_config;		/* the pipe config */
 	u32 pipe_qos_config;		/* Bitmap of multiple QOS extension fw
-					 * state, 0xffffffff indicates non
+					 * state, 0xffffffff indicates yesn
 					 * QOS pipe.
 					 */
-	u32 inout_port_config;
+	u32 iyesut_port_config;
 	u32 required_bds_factor;
 	u32 dvs_frame_delay;
 	u32 num_stages;		/* the pipe config */
@@ -1983,7 +1983,7 @@ struct imgu_abi_buffer {
 	/*
 	 * kernel_ptr is present for host administration purposes only.
 	 * type is uint64_t in order to be 64-bit host compatible.
-	 * uint64_t does not exist on SP/ISP.
+	 * uint64_t does yest exist on SP/ISP.
 	 * Size of the struct is checked by sp.hive.c.
 	 */
 	u64 cookie_ptr __aligned(8);

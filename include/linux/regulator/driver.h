@@ -13,7 +13,7 @@
 #define __LINUX_REGULATOR_DRIVER_H_
 
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/regulator/consumer.h>
 #include <linux/ww_mutex.h>
 
@@ -28,12 +28,12 @@ enum regulator_status {
 	REGULATOR_STATUS_OFF,
 	REGULATOR_STATUS_ON,
 	REGULATOR_STATUS_ERROR,
-	/* fast/normal/idle/standby are flavors of "on" */
+	/* fast/yesrmal/idle/standby are flavors of "on" */
 	REGULATOR_STATUS_FAST,
 	REGULATOR_STATUS_NORMAL,
 	REGULATOR_STATUS_IDLE,
 	REGULATOR_STATUS_STANDBY,
-	/* The regulator is enabled but not regulating */
+	/* The regulator is enabled but yest regulating */
 	REGULATOR_STATUS_BYPASS,
 	/* in case that any other status doesn't apply */
 	REGULATOR_STATUS_UNDEFINED,
@@ -71,8 +71,8 @@ struct regulator_linear_range {
  *
  * @enable: Configure the regulator as enabled.
  * @disable: Configure the regulator as disabled.
- * @is_enabled: Return 1 if the regulator is enabled, 0 if not.
- *		May also return negative errno.
+ * @is_enabled: Return 1 if the regulator is enabled, 0 if yest.
+ *		May also return negative erryes.
  *
  * @set_voltage: Set the voltage for the regulator within the range specified.
  *               The driver should select the voltage closest to min_uV.
@@ -87,7 +87,7 @@ struct regulator_linear_range {
  *                   be read at bootup and hasn't been set yet.
  * @list_voltage: Return one of the supported voltages, in microvolts; zero
  *	if the selector indicates a voltage that is unusable on this system;
- *	or negative errno.  Selectors range from zero to one less than
+ *	or negative erryes.  Selectors range from zero to one less than
  *	regulator_desc.n_voltages.  Voltages may be reported in any order.
  *
  * @set_current_limit: Configure a limit for a current-limited regulator.
@@ -103,8 +103,8 @@ struct regulator_linear_range {
  * @set_mode: Set the configured operating mode for the regulator.
  * @get_mode: Get the configured operating mode for the regulator.
  * @get_error_flags: Get the current error(s) for the regulator.
- * @get_status: Return actual (not as-configured) status of regulator, as a
- *	REGULATOR_STATUS value (or negative errno)
+ * @get_status: Return actual (yest as-configured) status of regulator, as a
+ *	REGULATOR_STATUS value (or negative erryes)
  * @get_optimum_mode: Get the most efficient operating mode for the regulator
  *                    when running with the specified parameters.
  * @set_load: Set the load for the regulator.
@@ -189,7 +189,7 @@ struct regulator_ops {
 	/* report regulator status ... most other accessors report
 	 * control inputs, this reports results of combining inputs
 	 * from Linux (and other sources) with the actual load.
-	 * returns REGULATOR_STATUS_* or negative errno.
+	 * returns REGULATOR_STATUS_* or negative erryes.
 	 */
 	int (*get_status)(struct regulator_dev *);
 
@@ -234,20 +234,20 @@ enum regulator_type {
  *
  * Each regulator registered with the core is described with a
  * structure of this type and a struct regulator_config.  This
- * structure contains the non-varying parts of the regulator
+ * structure contains the yesn-varying parts of the regulator
  * description.
  *
  * @name: Identifying name for the regulator.
  * @supply_name: Identifying the regulator supply
  * @of_match: Name used to identify regulator in DT.
- * @regulators_node: Name of node containing regulator definitions in DT.
+ * @regulators_yesde: Name of yesde containing regulator definitions in DT.
  * @of_parse_cb: Optional callback called only if of_match is present.
  *               Will be called for each regulator parsed from DT, during
  *               init_data parsing.
  *               The regulator_config passed as argument to the callback will
  *               be a copy of config passed to regulator_register, valid only
  *               for this particular call. Callback may freely change the
- *               config but it cannot store it for later usage.
+ *               config but it canyest store it for later usage.
  *               Callback should return 0 on success or negative ERRNO
  *               indicating failure.
  * @id: Numerical identifier for the regulator.
@@ -282,7 +282,7 @@ enum regulator_type {
  * @vsel_reg: Register for selector when using regulator_regmap_X_voltage_
  * @vsel_mask: Mask for register bitfield used for selector
  * @vsel_step: Specify the resolution of selector stepping when setting
- *	       voltage. If 0, then no stepping is done (requested selector is
+ *	       voltage. If 0, then yes stepping is done (requested selector is
  *	       set directly), if >0 then the regulator API will ramp the
  *	       voltage up/down gradually each time increasing/decreasing the
  *	       selector by the specified step value.
@@ -328,8 +328,8 @@ struct regulator_desc {
 	const char *name;
 	const char *supply_name;
 	const char *of_match;
-	const char *regulators_node;
-	int (*of_parse_cb)(struct device_node *,
+	const char *regulators_yesde;
+	int (*of_parse_cb)(struct device_yesde *,
 			    const struct regulator_desc *,
 			    struct regulator_config *);
 	int id;
@@ -402,7 +402,7 @@ struct regulator_desc {
  * @dev: struct device for the regulator
  * @init_data: platform provided init data, passed through by driver
  * @driver_data: private regulator data
- * @of_node: OpenFirmware node to parse for device tree bindings (may be
+ * @of_yesde: OpenFirmware yesde to parse for device tree bindings (may be
  *           NULL).
  * @regmap: regmap to use for core regmap helpers if dev_get_regmap() is
  *          insufficient.
@@ -412,7 +412,7 @@ struct regulator_config {
 	struct device *dev;
 	const struct regulator_init_data *init_data;
 	void *driver_data;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	struct regmap *regmap;
 
 	struct gpio_desc *ena_gpiod;
@@ -439,9 +439,9 @@ struct coupling_desc {
  * Voltage / Current regulator class device. One for each
  * regulator.
  *
- * This should *not* be used directly by anything except the regulator
- * core and notification injection (which should take the mutex and do
- * no other direct access).
+ * This should *yest* be used directly by anything except the regulator
+ * core and yestification injection (which should take the mutex and do
+ * yes other direct access).
  */
 struct regulator_dev {
 	const struct regulator_desc *desc;
@@ -458,7 +458,7 @@ struct regulator_dev {
 
 	struct coupling_desc coupling_desc;
 
-	struct blocking_notifier_head notifier;
+	struct blocking_yestifier_head yestifier;
 	struct ww_mutex mutex; /* consumer lock */
 	struct task_struct *mutex_owner;
 	int ref_cnt;
@@ -494,7 +494,7 @@ devm_regulator_register(struct device *dev,
 void regulator_unregister(struct regulator_dev *rdev);
 void devm_regulator_unregister(struct device *dev, struct regulator_dev *rdev);
 
-int regulator_notifier_call_chain(struct regulator_dev *rdev,
+int regulator_yestifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data);
 
 void *rdev_get_drvdata(struct regulator_dev *rdev);

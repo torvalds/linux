@@ -16,7 +16,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/frontend.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/firmware.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -304,7 +304,7 @@ static int c8sectpfe_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 		tasklet_disable(&channel->tsklet);
 
-		/* now request memdma channel goes idle */
+		/* yesw request memdma channel goes idle */
 		idlereq = (1 << channel->tsin_id) | IDLEREQ;
 		writel(idlereq, fei->io + DMA_IDLE_REQ);
 
@@ -529,7 +529,7 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 				DMA_TO_DEVICE);
 
 	snprintf(tsin_pin_name, MAX_NAME, "tsin%d-%s", tsin->tsin_id,
-		(tsin->serial_not_parallel ? "serial" : "parallel"));
+		(tsin->serial_yest_parallel ? "serial" : "parallel"));
 
 	tsin->pstate = pinctrl_lookup_state(fei->pinctrl, tsin_pin_name);
 	if (IS_ERR(tsin->pstate)) {
@@ -552,13 +552,13 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 	tmp |= BIT(tsin->tsin_id);
 	writel(tmp, fei->io + SYS_INPUT_CLKEN);
 
-	if (tsin->serial_not_parallel)
+	if (tsin->serial_yest_parallel)
 		tmp |= C8SECTPFE_SERIAL_NOT_PARALLEL;
 
 	if (tsin->invert_ts_clk)
 		tmp |= C8SECTPFE_INVERT_TSCLK;
 
-	if (tsin->async_not_sync)
+	if (tsin->async_yest_sync)
 		tmp |= C8SECTPFE_ASYNC_NOT_SYNC;
 
 	tmp |= C8SECTPFE_ALIGN_BYTE_SOP | C8SECTPFE_BYTE_ENDIANNESS_MSB;
@@ -652,7 +652,7 @@ static irqreturn_t c8sectpfe_error_irq_handler(int irq, void *priv)
 {
 	struct c8sectpfei *fei = priv;
 
-	dev_err(fei->dev, "%s: error handling not yet implemented\n"
+	dev_err(fei->dev, "%s: error handling yest yet implemented\n"
 		, __func__);
 
 	/*
@@ -666,7 +666,7 @@ static irqreturn_t c8sectpfe_error_irq_handler(int irq, void *priv)
 static int c8sectpfe_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *np = dev->of_node;
+	struct device_yesde *child, *np = dev->of_yesde;
 	struct c8sectpfei *fei;
 	struct resource *res;
 	int ret, index = 0;
@@ -704,7 +704,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 
 	fei->c8sectpfeclk = devm_clk_get(dev, "c8sectpfe");
 	if (IS_ERR(fei->c8sectpfeclk)) {
-		dev_err(dev, "c8sectpfe clk not found\n");
+		dev_err(dev, "c8sectpfe clk yest found\n");
 		return PTR_ERR(fei->c8sectpfeclk);
 	}
 
@@ -758,8 +758,8 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
-	for_each_child_of_node(np, child) {
-		struct device_node *i2c_bus;
+	for_each_child_of_yesde(np, child) {
+		struct device_yesde *i2c_bus;
 
 		fei->channel_data[index] = devm_kzalloc(dev,
 						sizeof(struct channel_info),
@@ -792,11 +792,11 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		tsin->invert_ts_clk = of_property_read_bool(child,
 							"invert-ts-clk");
 
-		tsin->serial_not_parallel = of_property_read_bool(child,
-							"serial-not-parallel");
+		tsin->serial_yest_parallel = of_property_read_bool(child,
+							"serial-yest-parallel");
 
-		tsin->async_not_sync = of_property_read_bool(child,
-							"async-not-sync");
+		tsin->async_yest_sync = of_property_read_bool(child,
+							"async-yest-sync");
 
 		ret = of_property_read_u32(child, "dvb-card",
 					&tsin->dvb_card);
@@ -812,21 +812,21 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 			goto err_clk_disable;
 		}
 		tsin->i2c_adapter =
-			of_find_i2c_adapter_by_node(i2c_bus);
+			of_find_i2c_adapter_by_yesde(i2c_bus);
 		if (!tsin->i2c_adapter) {
 			dev_err(&pdev->dev, "No i2c adapter found\n");
-			of_node_put(i2c_bus);
+			of_yesde_put(i2c_bus);
 			ret = -ENODEV;
 			goto err_clk_disable;
 		}
-		of_node_put(i2c_bus);
+		of_yesde_put(i2c_bus);
 
 		tsin->rst_gpio = of_get_named_gpio(child, "reset-gpios", 0);
 
 		ret = gpio_is_valid(tsin->rst_gpio);
 		if (!ret) {
 			dev_err(dev,
-				"reset gpio for tsin%d not valid (gpio=%d)\n",
+				"reset gpio for tsin%d yest valid (gpio=%d)\n",
 				tsin->tsin_id, tsin->rst_gpio);
 			goto err_clk_disable;
 		}
@@ -850,10 +850,10 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		tsin->demux_mapping = index;
 
 		dev_dbg(fei->dev,
-			"channel=%p n=%d tsin_num=%d, invert-ts-clk=%d\n\tserial-not-parallel=%d pkt-clk-valid=%d dvb-card=%d\n",
+			"channel=%p n=%d tsin_num=%d, invert-ts-clk=%d\n\tserial-yest-parallel=%d pkt-clk-valid=%d dvb-card=%d\n",
 			fei->channel_data[index], index,
 			tsin->tsin_id, tsin->invert_ts_clk,
-			tsin->serial_not_parallel, tsin->async_not_sync,
+			tsin->serial_yest_parallel, tsin->async_yest_sync,
 			tsin->dvb_card);
 
 		index++;
@@ -926,10 +926,10 @@ static int configure_channels(struct c8sectpfei *fei)
 {
 	int index = 0, ret;
 	struct channel_info *tsin;
-	struct device_node *child, *np = fei->dev->of_node;
+	struct device_yesde *child, *np = fei->dev->of_yesde;
 
 	/* iterate round each tsin and configure memdma descriptor and IB hw */
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 
 		tsin = fei->channel_data[index];
 
@@ -1158,7 +1158,7 @@ static int load_c8sectpfe_fw(struct c8sectpfei *fei)
 		return err;
 	}
 
-	/* now the firmware is loaded configure the input blocks */
+	/* yesw the firmware is loaded configure the input blocks */
 	err = configure_channels(fei);
 	if (err) {
 		dev_err(fei->dev, "configure_channels failed err=(%d)\n", err);

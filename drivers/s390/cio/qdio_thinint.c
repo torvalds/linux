@@ -32,7 +32,7 @@
 /* device state change indicators */
 struct indicator_t {
 	u32 ind;	/* u32 because of compare-and-swap performance */
-	atomic_t count; /* use count, 0 or 1 for non-shared indicators */
+	atomic_t count; /* use count, 0 or 1 for yesn-shared indicators */
 };
 
 /* list of thin interrupt input queues */
@@ -98,7 +98,7 @@ static inline int shared_ind(struct qdio_irq *irq_ptr)
 		has_multiple_inq_on_dsci(irq_ptr);
 }
 
-void clear_nonshared_ind(struct qdio_irq *irq_ptr)
+void clear_yesnshared_ind(struct qdio_irq *irq_ptr)
 {
 	if (!is_thinint_irq(irq_ptr))
 		return;
@@ -107,7 +107,7 @@ void clear_nonshared_ind(struct qdio_irq *irq_ptr)
 	xchg(irq_ptr->dsci, 0);
 }
 
-int test_nonshared_ind(struct qdio_irq *irq_ptr)
+int test_yesnshared_ind(struct qdio_irq *irq_ptr)
 {
 	if (!is_thinint_irq(irq_ptr))
 		return 0;
@@ -152,7 +152,7 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 				xchg(irq->dsci, 0);
 
 			/*
-			 * Call inbound processing but not directly
+			 * Call inbound processing but yest directly
 			 * since that could starve other thinint queues.
 			 */
 			tasklet_schedule(&q->tasklet);
@@ -213,7 +213,7 @@ static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 	rc = chsc_sadc(irq_ptr->schid, scssc, summary_indicator_addr,
 		       subchannel_indicator_addr);
 	if (rc) {
-		DBF_ERROR("%4x SSI r:%4x", irq_ptr->schid.sch_no,
+		DBF_ERROR("%4x SSI r:%4x", irq_ptr->schid.sch_yes,
 			  scssc->response.code);
 		goto out;
 	}
@@ -225,7 +225,7 @@ out:
 	return rc;
 }
 
-/* allocate non-shared indicators and shared indicator */
+/* allocate yesn-shared indicators and shared indicator */
 int __init tiqdio_allocate_memory(void)
 {
 	q_indicators = kcalloc(TIQDIO_NR_INDICATORS,

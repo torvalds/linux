@@ -86,12 +86,12 @@
 
 /*
  * Tracking soft dirty bit when a page goes to a swap is tricky.
- * We need a bit which can be stored in pte _and_ not conflict
- * with swap entry format. On x86 bits 1-4 are *not* involved
+ * We need a bit which can be stored in pte _and_ yest conflict
+ * with swap entry format. On x86 bits 1-4 are *yest* involved
  * into swap entry computation, but bit 7 is used for thp migration,
  * so we borrow bit 1 for soft dirty tracking.
  *
- * Please note that this bit must be treated as swap dirty page
+ * Please yeste that this bit must be treated as swap dirty page
  * mark if and only if the PTE/PMD has present bit clear!
  */
 #ifdef CONFIG_MEM_SOFT_DIRTY
@@ -116,9 +116,9 @@
 				 _PAGE_ACCESSED | _PAGE_DIRTY)
 
 /*
- * Set of bits not changed in pte_modify.  The pte's
+ * Set of bits yest changed in pte_modify.  The pte's
  * protection key is treated like _PAGE_RW, for
- * instance, and is *not* included in this mask since
+ * instance, and is *yest* included in this mask since
  * pte_modify() does modify it.
  */
 #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
@@ -132,7 +132,7 @@
  *
  * The resulting bits for PWT, PCD and PAT should be chosen in a way
  * to have the WB mode at index 0 (all bits clear). This is the default
- * right now and likely would break too much if changed.
+ * right yesw and likely would break too much if changed.
  */
 #ifndef __ASSEMBLY__
 enum page_cache_mode {
@@ -240,7 +240,7 @@ enum page_cache_mode {
 #else
 #define PTE_IDENT_ATTR	 0x003		/* PRESENT+RW */
 #define PDE_IDENT_ATTR	 0x063		/* PRESENT+RW+DIRTY+ACCESSED */
-#define PGD_IDENT_ATTR	 0x001		/* PRESENT (no other attributes) */
+#define PGD_IDENT_ATTR	 0x001		/* PRESENT (yes other attributes) */
 #endif
 
 #ifdef CONFIG_X86_32
@@ -269,7 +269,7 @@ typedef struct { pgdval_t pgd; } pgd_t;
 #ifdef CONFIG_X86_PAE
 
 /*
- * PHYSICAL_PAGE_MASK might be non-constant when SME is compiled in, so we can't
+ * PHYSICAL_PAGE_MASK might be yesn-constant when SME is compiled in, so we can't
  * use it here.
  */
 
@@ -317,7 +317,7 @@ static inline p4dval_t native_p4d_val(p4d_t p4d)
 	return p4d.p4d;
 }
 #else
-#include <asm-generic/pgtable-nop4d.h>
+#include <asm-generic/pgtable-yesp4d.h>
 
 static inline p4d_t native_make_p4d(pudval_t val)
 {
@@ -343,7 +343,7 @@ static inline pudval_t native_pud_val(pud_t pud)
 	return pud.pud;
 }
 #else
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 
 static inline pud_t native_make_pud(pudval_t val)
 {
@@ -369,7 +369,7 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 	return pmd.pmd;
 }
 #else
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 
 static inline pmd_t native_make_pmd(pmdval_t val)
 {
@@ -554,7 +554,7 @@ static inline void update_page_count(int level, unsigned long pages) { }
 
 /*
  * Helper function that returns the kernel pagetable entry controlling
- * the virtual address 'address'. NULL means no pagetable entry present.
+ * the virtual address 'address'. NULL means yes pagetable entry present.
  * NOTE: the return type is pte_t but if the pmd is PSE then we return it
  * as a pte too.
  */

@@ -45,7 +45,7 @@ struct sockaddr_iucv {
 	sa_family_t	siucv_family;
 	unsigned short	siucv_port;		/* Reserved */
 	unsigned int	siucv_addr;		/* Reserved */
-	char		siucv_nodeid[8];	/* Reserved */
+	char		siucv_yesdeid[8];	/* Reserved */
 	char		siucv_user_id[8];	/* Guest User Id */
 	char		siucv_name[8];		/* Application Name */
 };
@@ -85,7 +85,7 @@ static inline struct af_iucv_trans_hdr *iucv_trans_hdr(struct sk_buff *skb)
 	return (struct af_iucv_trans_hdr *)skb_network_header(skb);
 }
 
-enum iucv_tx_notify {
+enum iucv_tx_yestify {
 	/* transmission of skb is completed and was successful */
 	TX_NOTIFY_OK = 0,
 	/* target is unreachable */
@@ -132,8 +132,8 @@ struct iucv_sock {
 	atomic_t		msg_recv;
 	atomic_t		pendings;
 	int			transport;
-	void                    (*sk_txnotify)(struct sk_buff *skb,
-					       enum iucv_tx_notify n);
+	void                    (*sk_txyestify)(struct sk_buff *skb,
+					       enum iucv_tx_yestify n);
 };
 
 struct iucv_skb_cb {

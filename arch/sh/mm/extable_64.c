@@ -1,7 +1,7 @@
 /*
  * arch/sh/mm/extable_64.c
  *
- * Copyright (C) 2003 Richard Curnow
+ * Copyright (C) 2003 Richard Curyesw
  * Copyright (C) 2003, 2004  Paul Mundt
  *
  * Cloned from the 2.5 SH version..

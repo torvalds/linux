@@ -69,7 +69,7 @@
 	pinctrl-0 = <&emmc_pins>;
 	vmmc-supply = <&vmmc_reg>;
 	bus-width = <8>;
-	ti,non-removable;
+	ti,yesn-removable;
 	status = "disabled";
 };
 
@@ -330,7 +330,7 @@
 	status = "okay";
 
 	serial_flash: m25p80@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		spi-max-frequency = <48000000>;
 		reg = <0x0>;
 		m25p,fast-read;

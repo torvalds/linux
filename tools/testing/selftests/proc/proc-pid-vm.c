@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -26,7 +26,7 @@
  */
 #undef NDEBUG
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -54,7 +54,7 @@ static inline long sys_execveat(int dirfd, const char *pathname, char **argv, ch
 static void make_private_tmp(void)
 {
 	if (unshare(CLONE_NEWNS) == -1) {
-		if (errno == ENOSYS || errno == EPERM) {
+		if (erryes == ENOSYS || erryes == EPERM) {
 			exit(4);
 		}
 		exit(1);
@@ -230,7 +230,7 @@ static void vsyscall(void)
 
 	pid = fork();
 	if (pid < 0) {
-		fprintf(stderr, "fork, errno %d\n", errno);
+		fprintf(stderr, "fork, erryes %d\n", erryes);
 		exit(1);
 	}
 	if (pid == 0) {
@@ -305,10 +305,10 @@ int main(void)
 			"%08lx-%08lx r-xp 00000000 %02lx:%02lx %llu",
 			VADDR, VADDR + PAGE_SIZE,
 			MAJOR(st.st_dev), MINOR(st.st_dev),
-			(unsigned long long)st.st_ino);
+			(unsigned long long)st.st_iyes);
 	buf0[len] = ' ';
 	snprintf(buf0 + MAPS_OFFSET, sizeof(buf0) - MAPS_OFFSET,
-		 "/tmp/#%llu (deleted)\n", (unsigned long long)st.st_ino);
+		 "/tmp/#%llu (deleted)\n", (unsigned long long)st.st_iyes);
 
 	/* Test /proc/$PID/maps */
 	{
@@ -360,8 +360,8 @@ int main(void)
 			"Size:                  4 kB\n",
 			"KernelPageSize:        4 kB\n",
 			"MMUPageSize:           4 kB\n",
-			"Anonymous:             0 kB\n",
-			"AnonHugePages:         0 kB\n",
+			"Ayesnymous:             0 kB\n",
+			"AyesnHugePages:         0 kB\n",
 			"Shared_Hugetlb:        0 kB\n",
 			"Private_Hugetlb:       0 kB\n",
 			"Locked:                0 kB\n",
@@ -409,8 +409,8 @@ int main(void)
 		       memmem(buf, rv, PSS2, strlen(PSS2)));
 
 		static const char *S[] = {
-			"Anonymous:             0 kB\n",
-			"AnonHugePages:         0 kB\n",
+			"Ayesnymous:             0 kB\n",
+			"AyesnHugePages:         0 kB\n",
 			"Shared_Hugetlb:        0 kB\n",
 			"Private_Hugetlb:       0 kB\n",
 			"Locked:                0 kB\n",

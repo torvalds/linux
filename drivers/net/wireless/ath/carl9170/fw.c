@@ -262,7 +262,7 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 
 	if (ilog2(le32_to_cpu(otus_desc->feature_set)) >=
 		__CARL9170FW_FEATURE_NUM) {
-		dev_warn(&ar->udev->dev, "driver does not support all "
+		dev_warn(&ar->udev->dev, "driver does yest support all "
 			 "firmware features.\n");
 	}
 
@@ -276,7 +276,7 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 		ieee80211_hw_set(ar->hw, SUPPORTS_PS);
 
 	if (!SUPP(CARL9170FW_USB_INIT_FIRMWARE)) {
-		dev_err(&ar->udev->dev, "firmware does not provide "
+		dev_err(&ar->udev->dev, "firmware does yest provide "
 			"mandatory interfaces.\n");
 		return -EINVAL;
 	}

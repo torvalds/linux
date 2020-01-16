@@ -70,7 +70,7 @@ Kirkwood family
   Linux kernel mach directory:
 	arch/arm/mach-mvebu
   Linux kernel plat directory:
-	none
+	yesne
 
 Discovery family
 ----------------
@@ -78,14 +78,14 @@ Discovery family
   Flavors:
         - MV78100
 
-                - Product Brief  : http://www.marvell.com/embedded-processors/discovery-innovation/assets/MV78100-003_WEB.pdf
-                - Hardware Spec  : http://www.marvell.com/embedded-processors/discovery-innovation/assets/HW_MV78100_OpenSource.pdf
-                - Functional Spec: http://www.marvell.com/embedded-processors/discovery-innovation/assets/FS_MV76100_78100_78200_OpenSource.pdf
+                - Product Brief  : http://www.marvell.com/embedded-processors/discovery-inyesvation/assets/MV78100-003_WEB.pdf
+                - Hardware Spec  : http://www.marvell.com/embedded-processors/discovery-inyesvation/assets/HW_MV78100_OpenSource.pdf
+                - Functional Spec: http://www.marvell.com/embedded-processors/discovery-inyesvation/assets/FS_MV76100_78100_78200_OpenSource.pdf
         - MV78200
 
-                - Product Brief  : http://www.marvell.com/embedded-processors/discovery-innovation/assets/MV78200-002_WEB.pdf
-                - Hardware Spec  : http://www.marvell.com/embedded-processors/discovery-innovation/assets/HW_MV78200_OpenSource.pdf
-                - Functional Spec: http://www.marvell.com/embedded-processors/discovery-innovation/assets/FS_MV76100_78100_78200_OpenSource.pdf
+                - Product Brief  : http://www.marvell.com/embedded-processors/discovery-inyesvation/assets/MV78200-002_WEB.pdf
+                - Hardware Spec  : http://www.marvell.com/embedded-processors/discovery-inyesvation/assets/HW_MV78200_OpenSource.pdf
+                - Functional Spec: http://www.marvell.com/embedded-processors/discovery-inyesvation/assets/FS_MV76100_78100_78200_OpenSource.pdf
         - MV76100
 
                 Not supported by the Linux kernel.
@@ -147,7 +147,7 @@ EBU Armada family
         - MV78460
 
     NOTE:
-	not to be confused with the non-SMP 78xx0 SoCs
+	yest to be confused with the yesn-SMP 78xx0 SoCs
 
     Product Brief:
 	http://www.marvell.com/embedded-processors/armada-xp/assets/Marvell-ArmadaXP-SoC-product%20brief.pdf
@@ -167,7 +167,7 @@ EBU Armada family
   Linux kernel mach directory:
 	arch/arm/mach-mvebu
   Linux kernel plat directory:
-	none
+	yesne
 
 EBU Armada family ARMv8
 -----------------------
@@ -241,9 +241,9 @@ Avanta family
 	ARMv5 compatible
 
   Linux kernel mach directory:
-	no code in mainline yet, planned for the future
+	yes code in mainline yet, planned for the future
   Linux kernel plat directory:
-	no code in mainline yet, planned for the future
+	yes code in mainline yet, planned for the future
 
 Storage family
 --------------
@@ -257,7 +257,7 @@ Storage family
   Core:
 	Sheeva ARMv7 comatible Quad-core PJ4C
 
-  (not supported in upstream Linux kernel)
+  (yest supported in upstream Linux kernel)
 
 Dove family (application processor)
 -----------------------------------
@@ -282,7 +282,7 @@ Dove family (application processor)
 
   Directory:
 	- arch/arm/mach-mvebu (DT enabled platforms)
-        - arch/arm/mach-dove (non-DT enabled platforms)
+        - arch/arm/mach-dove (yesn-DT enabled platforms)
 
 PXA 2xx/3xx/93x/95x family
 --------------------------
@@ -324,7 +324,7 @@ PXA 2xx/3xx/93x/95x family
       PXA26x, PXA27x, PXA3xx and PXA93x were developed by Intel, while
       the later PXA95x were developed by Marvell.
 
-    * Due to their XScale origin, these SoCs have virtually nothing in
+    * Due to their XScale origin, these SoCs have virtually yesthing in
       common with the other (Kirkwood, Dove, etc.) families of Marvell
       SoCs, except with the MMP/MMP2 family of SoCs.
 
@@ -344,7 +344,7 @@ MMP/MMP2/MMP3 family (communication processor)
              - Software manual      : http://www.marvell.com/application-processors/armada-100/assets/armada_16x_software_manual.pdf
              - Specification update : http://www.marvell.com/application-processors/armada-100/assets/ARMADA16x_Spec_update.pdf
              - Boot ROM manual      : http://www.marvell.com/application-processors/armada-100/assets/armada_16x_ref_manual.pdf
-             - App node package     : http://www.marvell.com/application-processors/armada-100/assets/armada_16x_app_note_package.pdf
+             - App yesde package     : http://www.marvell.com/application-processors/armada-100/assets/armada_16x_app_yeste_package.pdf
              - Application processor only
              - Core: ARMv5 compatible Marvell PJ1 88sv331 (Mohawk)
         - PXA910/PXA920
@@ -356,17 +356,17 @@ MMP/MMP2/MMP3 family (communication processor)
              - Product Brief        : http://www.marvell.com/application-processors/armada-600/assets/armada610_pb.pdf
              - Application processor only
              - Core: ARMv7 compatible Sheeva PJ4 88sv581x core
-	- PXA2128, a.k.a. MMP3 (OLPC XO4, Linux support not upstream)
+	- PXA2128, a.k.a. MMP3 (OLPC XO4, Linux support yest upstream)
 	     - Product Brief	  : http://www.marvell.com/application-processors/armada/pxa2128/assets/Marvell-ARMADA-PXA2128-SoC-PB.pdf
 	     - Application processor only
 	     - Core: Dual-core ARMv7 compatible Sheeva PJ4C core
-	- PXA960/PXA968/PXA978 (Linux support not upstream)
+	- PXA960/PXA968/PXA978 (Linux support yest upstream)
 	     - Application processor with Communication Processor
 	     - Core: ARMv7 compatible Sheeva PJ4 core
-	- PXA986/PXA988 (Linux support not upstream)
+	- PXA986/PXA988 (Linux support yest upstream)
 	     - Application processor with Communication Processor
 	     - Core: Dual-core ARMv7 compatible Sheeva PJ4B-MP core
-	- PXA1088/PXA1920 (Linux support not upstream)
+	- PXA1088/PXA1920 (Linux support yest upstream)
 	     - Application processor with Communication Processor
 	     - Core: quad-core ARMv7 Cortex-A7
 	- PXA1908/PXA1928/PXA1936
@@ -379,7 +379,7 @@ MMP/MMP2/MMP3 family (communication processor)
       Intel and acquired by Marvell in ~2006. All the processors of
       this MMP/MMP2 family were developed by Marvell.
 
-    * Due to their XScale origin, these SoCs have virtually nothing in
+    * Due to their XScale origin, these SoCs have virtually yesthing in
       common with the other (Kirkwood, Dove, etc.) families of Marvell
       SoCs, except with the PXA family of SoCs listed above.
 
@@ -392,7 +392,7 @@ Berlin family (Multimedia Solutions)
 -------------------------------------
 
   - Flavors:
-	- 88DE3010, Armada 1000 (no Linux support)
+	- 88DE3010, Armada 1000 (yes Linux support)
 		- Core:		Marvell PJ1 (ARMv5TE), Dual-core
 		- Product Brief:	http://www.marvell.com.cn/digital-entertainment/assets/armada_1000_pb.pdf
 	- 88DE3005, Armada 1500 Mini
@@ -419,7 +419,7 @@ Berlin family (Multimedia Solutions)
   Comments:
 
    * This line of SoCs is based on Marvell Sheeva or ARM Cortex CPUs
-     with Synopsys DesignWare (IRQ, GPIO, Timers, ...) and PXA IP (SDHCI, USB, ETH, ...).
+     with Syyespsys DesignWare (IRQ, GPIO, Timers, ...) and PXA IP (SDHCI, USB, ETH, ...).
 
    * The Berlin family was acquired by Synaptics from Marvell in 2017.
 

@@ -33,7 +33,7 @@ sdhci@d4280800 {
 	interrupts = <27>;
 	clocks = <&chip CLKID_SDIO1XIN>, <&chip CLKID_SDIO1>;
 	clock-names = "io", "core";
-	non-removable;
+	yesn-removable;
 	mrvl,clk-delay-cycles = <31>;
 };
 

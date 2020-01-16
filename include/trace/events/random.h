@@ -54,7 +54,7 @@ DEFINE_EVENT(random__mix_pool_bytes, mix_pool_bytes,
 	TP_ARGS(pool_name, bytes, IP)
 );
 
-DEFINE_EVENT(random__mix_pool_bytes, mix_pool_bytes_nolock,
+DEFINE_EVENT(random__mix_pool_bytes, mix_pool_bytes_yeslock,
 	TP_PROTO(const char *pool_name, int bytes, unsigned long IP),
 
 	TP_ARGS(pool_name, bytes, IP)
@@ -302,7 +302,7 @@ TRACE_EVENT(urandom_read,
 		__entry->input_left	= input_left;
 	),
 
-	TP_printk("got_bits %d nonblocking_pool_entropy_left %d "
+	TP_printk("got_bits %d yesnblocking_pool_entropy_left %d "
 		  "input_entropy_left %d", __entry->got_bits,
 		  __entry->pool_left, __entry->input_left)
 );

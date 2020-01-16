@@ -33,7 +33,7 @@ void pblk_write_to_cache(struct pblk *pblk, struct bio *bio,
 			      &pblk->disk->part0);
 
 	/* Update the write buffer head (mem) with the entries that we can
-	 * write. The write in itself cannot fail, so there is no need to
+	 * write. The write in itself canyest fail, so there is yes need to
 	 * rollback from here on.
 	 */
 retry:
@@ -87,8 +87,8 @@ out:
 }
 
 /*
- * On GC the incoming lbas are not necessarily sequential. Also, some of the
- * lbas might not be valid entries, which are marked as empty by the GC thread
+ * On GC the incoming lbas are yest necessarily sequential. Also, some of the
+ * lbas might yest be valid entries, which are marked as empty by the GC thread
  */
 int pblk_write_gc_to_cache(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 {
@@ -98,7 +98,7 @@ int pblk_write_gc_to_cache(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 	int i, valid_entries;
 
 	/* Update the write buffer head (mem) with the entries that we can
-	 * write. The write in itself cannot fail, so there is no need to
+	 * write. The write in itself canyest fail, so there is yes need to
 	 * rollback from here on.
 	 */
 retry:

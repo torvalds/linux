@@ -65,8 +65,8 @@ struct kasan_access_info {
 /* The layout of struct dictated by compiler */
 struct kasan_source_location {
 	const char *filename;
-	int line_no;
-	int column_no;
+	int line_yes;
+	int column_yes;
 };
 
 /* The layout of struct dictated by compiler */
@@ -111,14 +111,14 @@ struct kasan_alloc_meta {
 #endif
 };
 
-struct qlist_node {
-	struct qlist_node *next;
+struct qlist_yesde {
+	struct qlist_yesde *next;
 };
 struct kasan_free_meta {
 	/* This field is used while the object is in the quarantine.
 	 * Otherwise it might be used for the allocator freelist.
 	 */
-	struct qlist_node quarantine_link;
+	struct qlist_yesde quarantine_link;
 };
 
 struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
@@ -214,7 +214,7 @@ void __asan_register_globals(struct kasan_global *globals, size_t size);
 void __asan_unregister_globals(struct kasan_global *globals, size_t size);
 void __asan_loadN(unsigned long addr, size_t size);
 void __asan_storeN(unsigned long addr, size_t size);
-void __asan_handle_no_return(void);
+void __asan_handle_yes_return(void);
 void __asan_alloca_poison(unsigned long addr, size_t size);
 void __asan_allocas_unpoison(const void *stack_top, const void *stack_bottom);
 
@@ -229,16 +229,16 @@ void __asan_store8(unsigned long addr);
 void __asan_load16(unsigned long addr);
 void __asan_store16(unsigned long addr);
 
-void __asan_load1_noabort(unsigned long addr);
-void __asan_store1_noabort(unsigned long addr);
-void __asan_load2_noabort(unsigned long addr);
-void __asan_store2_noabort(unsigned long addr);
-void __asan_load4_noabort(unsigned long addr);
-void __asan_store4_noabort(unsigned long addr);
-void __asan_load8_noabort(unsigned long addr);
-void __asan_store8_noabort(unsigned long addr);
-void __asan_load16_noabort(unsigned long addr);
-void __asan_store16_noabort(unsigned long addr);
+void __asan_load1_yesabort(unsigned long addr);
+void __asan_store1_yesabort(unsigned long addr);
+void __asan_load2_yesabort(unsigned long addr);
+void __asan_store2_yesabort(unsigned long addr);
+void __asan_load4_yesabort(unsigned long addr);
+void __asan_store4_yesabort(unsigned long addr);
+void __asan_load8_yesabort(unsigned long addr);
+void __asan_store8_yesabort(unsigned long addr);
+void __asan_load16_yesabort(unsigned long addr);
+void __asan_store16_yesabort(unsigned long addr);
 
 void __asan_set_shadow_00(const void *addr, size_t size);
 void __asan_set_shadow_f1(const void *addr, size_t size);

@@ -100,7 +100,7 @@ static bool ingenic_tcu_enable_regs(struct clk_hw *hw)
 	bool enabled = false;
 
 	/*
-	 * If the SoC has no global TCU clock, we must ungate the channel's
+	 * If the SoC has yes global TCU clock, we must ungate the channel's
 	 * clock to be able to access its registers.
 	 * If we have a TCU clock, it will be enabled automatically as it has
 	 * been attached to the regmap.
@@ -324,15 +324,15 @@ static const struct of_device_id ingenic_tcu_of_match[] __initconst = {
 	{ /* sentinel */ }
 };
 
-static int __init ingenic_tcu_probe(struct device_node *np)
+static int __init ingenic_tcu_probe(struct device_yesde *np)
 {
-	const struct of_device_id *id = of_match_node(ingenic_tcu_of_match, np);
+	const struct of_device_id *id = of_match_yesde(ingenic_tcu_of_match, np);
 	struct ingenic_tcu *tcu;
 	struct regmap *map;
 	unsigned int i;
 	int ret;
 
-	map = device_node_to_regmap(np);
+	map = device_yesde_to_regmap(np);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
@@ -347,7 +347,7 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 		tcu->clk = of_clk_get_by_name(np, "tcu");
 		if (IS_ERR(tcu->clk)) {
 			ret = PTR_ERR(tcu->clk);
-			pr_crit("Cannot get TCU clock\n");
+			pr_crit("Canyest get TCU clock\n");
 			goto err_free_tcu;
 		}
 
@@ -372,7 +372,7 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 						 &ingenic_tcu_clk_info[i],
 						 tcu->clocks);
 		if (ret) {
-			pr_crit("cannot register clock %d\n", i);
+			pr_crit("canyest register clock %d\n", i);
 			goto err_unregister_timer_clocks;
 		}
 	}
@@ -388,7 +388,7 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 					 &ingenic_tcu_watchdog_clk_info,
 					 tcu->clocks);
 	if (ret) {
-		pr_crit("cannot register watchdog clock\n");
+		pr_crit("canyest register watchdog clock\n");
 		goto err_unregister_timer_clocks;
 	}
 
@@ -398,14 +398,14 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 						 &ingenic_tcu_ost_clk_info,
 						 tcu->clocks);
 		if (ret) {
-			pr_crit("cannot register ost clock\n");
+			pr_crit("canyest register ost clock\n");
 			goto err_unregister_watchdog_clock;
 		}
 	}
 
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, tcu->clocks);
 	if (ret) {
-		pr_crit("cannot add OF clock provider\n");
+		pr_crit("canyest add OF clock provider\n");
 		goto err_unregister_ost_clock;
 	}
 
@@ -457,7 +457,7 @@ static struct syscore_ops __maybe_unused tcu_pm_ops = {
 	.resume = tcu_pm_resume,
 };
 
-static void __init ingenic_tcu_init(struct device_node *np)
+static void __init ingenic_tcu_init(struct device_yesde *np)
 {
 	int ret = ingenic_tcu_probe(np);
 

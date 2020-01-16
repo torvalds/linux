@@ -21,7 +21,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
+ * this program; if yest, write to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Note: for more information, please refer "AMD Alchemy Au1200/Au1550 IDE
@@ -518,12 +518,12 @@ static int au_ide_probe(struct platform_device *dev)
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 
 	if (res == NULL) {
-		pr_debug("%s %d: no base address\n", DRV_NAME, dev->id);
+		pr_debug("%s %d: yes base address\n", DRV_NAME, dev->id);
 		ret = -ENODEV;
 		goto out;
 	}
 	if (ahwif->irq < 0) {
-		pr_debug("%s %d: no IRQ\n", DRV_NAME, dev->id);
+		pr_debug("%s %d: yes IRQ\n", DRV_NAME, dev->id);
 		ret = -ENODEV;
 		goto out;
 	}
@@ -542,7 +542,7 @@ static int au_ide_probe(struct platform_device *dev)
 
 	res = platform_get_resource(dev, IORESOURCE_DMA, 0);
 	if (!res) {
-		pr_debug("%s: no DDMA ID resource\n", DRV_NAME);
+		pr_debug("%s: yes DDMA ID resource\n", DRV_NAME);
 		ret = -ENODEV;
 		goto out;
 	}

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001
  * Brad Boyer (flar@allandria.com)
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  *
  * Option parsing
  */
@@ -23,8 +23,8 @@ enum {
 	opt_creator, opt_type,
 	opt_umask, opt_uid, opt_gid,
 	opt_part, opt_session, opt_nls,
-	opt_nodecompose, opt_decompose,
-	opt_barrier, opt_nobarrier,
+	opt_yesdecompose, opt_decompose,
+	opt_barrier, opt_yesbarrier,
 	opt_force, opt_err
 };
 
@@ -38,9 +38,9 @@ static const match_table_t tokens = {
 	{ opt_session, "session=%u" },
 	{ opt_nls, "nls=%s" },
 	{ opt_decompose, "decompose" },
-	{ opt_nodecompose, "nodecompose" },
+	{ opt_yesdecompose, "yesdecompose" },
 	{ opt_barrier, "barrier" },
-	{ opt_nobarrier, "nobarrier" },
+	{ opt_yesbarrier, "yesbarrier" },
 	{ opt_force, "force" },
 	{ opt_err, NULL }
 };
@@ -184,13 +184,13 @@ int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)
 		case opt_decompose:
 			clear_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags);
 			break;
-		case opt_nodecompose:
+		case opt_yesdecompose:
 			set_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags);
 			break;
 		case opt_barrier:
 			clear_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags);
 			break;
-		case opt_nobarrier:
+		case opt_yesbarrier:
 			set_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags);
 			break;
 		case opt_force:
@@ -232,8 +232,8 @@ int hfsplus_show_options(struct seq_file *seq, struct dentry *root)
 	if (sbi->nls)
 		seq_printf(seq, ",nls=%s", sbi->nls->charset);
 	if (test_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags))
-		seq_puts(seq, ",nodecompose");
+		seq_puts(seq, ",yesdecompose");
 	if (test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
-		seq_puts(seq, ",nobarrier");
+		seq_puts(seq, ",yesbarrier");
 	return 0;
 }

@@ -14,7 +14,7 @@
 
 #include <linux/perf_event.h>
 #include <linux/capability.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
 #include <linux/export.h>
@@ -27,7 +27,7 @@
 #include <linux/cpu.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
@@ -94,10 +94,10 @@ again:
 
 	/*
 	 * Now we have the new raw value and have updated the prev
-	 * timestamp already. We can now calculate the elapsed delta
+	 * timestamp already. We can yesw calculate the elapsed delta
 	 * (event-)time and add that to the generic event.
 	 *
-	 * Careful, not all hw sign-extends above the physical width
+	 * Careful, yest all hw sign-extends above the physical width
 	 * of the count.
 	 */
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
@@ -268,7 +268,7 @@ static bool check_hw_exists(void)
 
 msr_fail:
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
-		pr_cont("PMU not available due to virtualization, using software events only.\n");
+		pr_cont("PMU yest available due to virtualization, using software events only.\n");
 	} else {
 		pr_cont("Broken PMU hardware detected, using software events only.\n");
 		pr_err("Failed to access perfctr msr (MSR %x is %Lx)\n",
@@ -309,17 +309,17 @@ set_ext_hw_attr(struct hw_perf_event *hwc, struct perf_event *event)
 	cache_type = (config >> 0) & 0xff;
 	if (cache_type >= PERF_COUNT_HW_CACHE_MAX)
 		return -EINVAL;
-	cache_type = array_index_nospec(cache_type, PERF_COUNT_HW_CACHE_MAX);
+	cache_type = array_index_yesspec(cache_type, PERF_COUNT_HW_CACHE_MAX);
 
 	cache_op = (config >>  8) & 0xff;
 	if (cache_op >= PERF_COUNT_HW_CACHE_OP_MAX)
 		return -EINVAL;
-	cache_op = array_index_nospec(cache_op, PERF_COUNT_HW_CACHE_OP_MAX);
+	cache_op = array_index_yesspec(cache_op, PERF_COUNT_HW_CACHE_OP_MAX);
 
 	cache_result = (config >> 16) & 0xff;
 	if (cache_result >= PERF_COUNT_HW_CACHE_RESULT_MAX)
 		return -EINVAL;
-	cache_result = array_index_nospec(cache_result, PERF_COUNT_HW_CACHE_RESULT_MAX);
+	cache_result = array_index_yesspec(cache_result, PERF_COUNT_HW_CACHE_RESULT_MAX);
 
 	val = hw_cache_event_ids[cache_type][cache_op][cache_result];
 
@@ -338,7 +338,7 @@ int x86_reserve_hardware(void)
 {
 	int err = 0;
 
-	if (!atomic_inc_not_zero(&pmc_refcount)) {
+	if (!atomic_inc_yest_zero(&pmc_refcount)) {
 		mutex_lock(&pmc_reserve_mutex);
 		if (atomic_read(&pmc_refcount) == 0) {
 			if (!reserve_pmc_hardware())
@@ -364,7 +364,7 @@ void x86_release_hardware(void)
 }
 
 /*
- * Check if we can create event of a certain type (that no conflicting events
+ * Check if we can create event of a certain type (that yes conflicting events
  * are present).
  */
 int x86_add_exclusive(unsigned int what)
@@ -378,7 +378,7 @@ int x86_add_exclusive(unsigned int what)
 	if (x86_pmu.lbr_pt_coexist && what == x86_lbr_exclusive_pt)
 		goto out;
 
-	if (!atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what])) {
+	if (!atomic_inc_yest_zero(&x86_pmu.lbr_exclusive[what])) {
 		mutex_lock(&pmc_reserve_mutex);
 		for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++) {
 			if (i != what && atomic_read(&x86_pmu.lbr_exclusive[i]))
@@ -431,7 +431,7 @@ int x86_setup_perfctr(struct perf_event *event)
 	if (attr->config >= x86_pmu.max_events)
 		return -EINVAL;
 
-	attr->config = array_index_nospec((unsigned long)attr->config, x86_pmu.max_events);
+	attr->config = array_index_yesspec((unsigned long)attr->config, x86_pmu.max_events);
 
 	/*
 	 * The generic map:
@@ -473,7 +473,7 @@ static inline int precise_br_compat(struct perf_event *event)
 		b |= PERF_SAMPLE_BRANCH_KERNEL;
 
 	/*
-	 * ignore PERF_SAMPLE_BRANCH_HV, not supported on x86
+	 * igyesre PERF_SAMPLE_BRANCH_HV, yest supported on x86
 	 */
 
 	return m == b;
@@ -505,12 +505,12 @@ int x86_pmu_hw_config(struct perf_event *event)
 		if (event->attr.precise_ip > precise)
 			return -EOPNOTSUPP;
 
-		/* There's no sense in having PEBS for non sampling events: */
+		/* There's yes sense in having PEBS for yesn sampling events: */
 		if (!is_sampling_event(event))
 			return -EINVAL;
 	}
 	/*
-	 * check that PEBS LBR correction does not conflict with
+	 * check that PEBS LBR correction does yest conflict with
 	 * whatever the user is asking with attr->branch_sample_type
 	 */
 	if (event->attr.precise_ip > 1 && x86_pmu.intel_cap.pebs_format < 2) {
@@ -524,7 +524,7 @@ int x86_pmu_hw_config(struct perf_event *event)
 
 		} else {
 			/*
-			 * user did not specify  branch_sample_type
+			 * user did yest specify  branch_sample_type
 			 *
 			 * For PEBS fixups, we capture all
 			 * the branches at the priv level of the
@@ -545,12 +545,12 @@ int x86_pmu_hw_config(struct perf_event *event)
 
 	/*
 	 * Generate PMC IRQs:
-	 * (keep 'enabled' bit clear for now)
+	 * (keep 'enabled' bit clear for yesw)
 	 */
 	event->hw.config = ARCH_PERFMON_EVENTSEL_INT;
 
 	/*
-	 * Count user and OS events unless requested not to
+	 * Count user and OS events unless requested yest to
 	 */
 	if (!event->attr.exclude_user)
 		event->hw.config |= ARCH_PERFMON_EVENTSEL_USR;
@@ -635,10 +635,10 @@ void x86_pmu_disable_all(void)
  * after disable_all.
  *
  * If PMI hits before disable_all, the PMU will be disabled in the NMI handler.
- * It will not be re-enabled in the NMI handler again, because enabled=0. After
- * handling the NMI, disable_all will be called, which will not change the
+ * It will yest be re-enabled in the NMI handler again, because enabled=0. After
+ * handling the NMI, disable_all will be called, which will yest change the
  * state either. If PMI hits after disable_all, the PMU is already disabled
- * before entering NMI handler. The NMI handler will not change the state
+ * before entering NMI handler. The NMI handler will yest change the state
  * either.
  *
  * So either situation is harmless.
@@ -898,7 +898,7 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 
 		/*
 		 * Previously scheduled events should have a cached constraint,
-		 * while new events should not have one.
+		 * while new events should yest have one.
 		 */
 		WARN_ON_ONCE((c && i >= n0) || (!c && i < n0));
 
@@ -927,11 +927,11 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 		if (hwc->idx == -1)
 			break;
 
-		/* constraint still honored */
+		/* constraint still hoyesred */
 		if (!test_bit(hwc->idx, c->idxmsk))
 			break;
 
-		/* not already used */
+		/* yest already used */
 		if (test_bit(hwc->idx, used_mask))
 			break;
 
@@ -945,12 +945,12 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 		int gpmax = x86_pmu.num_counters;
 
 		/*
-		 * Do not allow scheduling of more than half the available
+		 * Do yest allow scheduling of more than half the available
 		 * generic counters.
 		 *
 		 * This helps avoid counter starvation of sibling thread by
-		 * ensuring at most half the counters cannot be in exclusive
-		 * mode. There is no designated counters for the limits. Any
+		 * ensuring at most half the counters canyest be in exclusive
+		 * mode. There is yes designated counters for the limits. Any
 		 * N/2 counters can be used. This helps with events with
 		 * specific counter constraints.
 		 */
@@ -964,12 +964,12 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 
 	/*
 	 * In case of success (unsched = 0), mark events as committed,
-	 * so we do not put_constraint() in case new events are added
+	 * so we do yest put_constraint() in case new events are added
 	 * and fail to be scheduled
 	 *
 	 * We invoke the lower level commit callback to lock the resource
 	 *
-	 * We do not need to do all of this in case we are called to
+	 * We do yest need to do all of this in case we are called to
 	 * validate an event group (assign == NULL)
 	 */
 	if (!unsched && assign) {
@@ -1024,7 +1024,7 @@ static int collect_events(struct cpu_hw_events *cpuc, struct perf_event *leader,
 			return -EINVAL;
 
 		/*
-		 * pebs_output: 0: no PEBS so far, 1: PT, 2: DS
+		 * pebs_output: 0: yes PEBS so far, 1: PT, 2: DS
 		 */
 		if (cpuc->pebs_output &&
 		    cpuc->pebs_output != is_pebs_pt(leader) + 1)
@@ -1140,7 +1140,7 @@ static void x86_pmu_enable(struct pmu *pmu)
 			 * we can avoid reprogramming counter if:
 			 * - assigned same counter as last time
 			 * - running on same CPU as last time
-			 * - no other event has used the counter since
+			 * - yes other event has used the counter since
 			 */
 			if (hwc->idx == -1 ||
 			    match_prev_assignment(hwc, cpuc, i))
@@ -1298,7 +1298,7 @@ static int x86_pmu_add(struct perf_event *event, int flags)
 	if (ret)
 		goto out;
 	/*
-	 * copy new assignment, now we know it is possible
+	 * copy new assignment, yesw we kyesw it is possible
 	 * will be used by hw_perf_enable()
 	 */
 	memcpy(cpuc->assign, assign, n*sizeof(int));
@@ -1627,12 +1627,12 @@ static void __init pmu_check_apic(void)
 		return;
 
 	x86_pmu.apic = 0;
-	pr_info("no APIC, boot with the \"lapic\" boot parameter to force-enable it.\n");
-	pr_info("no hardware sampling interrupt available.\n");
+	pr_info("yes APIC, boot with the \"lapic\" boot parameter to force-enable it.\n");
+	pr_info("yes hardware sampling interrupt available.\n");
 
 	/*
-	 * If we have a PMU initialized but no APIC
-	 * interrupts, we cannot sample hardware
+	 * If we have a PMU initialized but yes APIC
+	 * interrupts, we canyest sample hardware
 	 * events (user-space has to fall back and
 	 * sample via a hrtimer based software event):
 	 */
@@ -1672,9 +1672,9 @@ ssize_t events_ht_sysfs_show(struct device *dev, struct device_attribute *attr,
 	 * Report conditional events depending on Hyper-Threading.
 	 *
 	 * This is overly conservative as usually the HT special
-	 * handling is not needed if the other CPU thread is idle.
+	 * handling is yest needed if the other CPU thread is idle.
 	 *
-	 * Note this does not (and cannot) handle the case when thread
+	 * Note this does yest (and canyest) handle the case when thread
 	 * siblings are invisible, for example with virtualization
 	 * if they are owned by some other guest.  The user tool
 	 * has to re-read when a thread sibling gets onlined later.
@@ -1682,7 +1682,7 @@ ssize_t events_ht_sysfs_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(page, "%s",
 			topology_max_smt_threads() > 1 ?
 			pmu_attr->event_str_ht :
-			pmu_attr->event_str_noht);
+			pmu_attr->event_str_yesht);
 }
 
 EVENT_ATTR(cpu-cycles,			CPU_CYCLES		);
@@ -1799,7 +1799,7 @@ static int __init init_hw_perf_events(void)
 		err = -ENOTSUPP;
 	}
 	if (err != 0) {
-		pr_cont("no PMU driver, software events only.\n");
+		pr_cont("yes PMU driver, software events only.\n");
 		return 0;
 	}
 
@@ -1886,11 +1886,11 @@ static inline void x86_pmu_read(struct perf_event *event)
 
 /*
  * Start group events scheduling transaction
- * Set the flag to make pmu::enable() not perform the
+ * Set the flag to make pmu::enable() yest perform the
  * schedulability test, it will be performed at commit time
  *
  * We only support PERF_PMU_TXN_ADD transactions. Save the
- * transaction flags but otherwise ignore non-PERF_PMU_TXN_ADD
+ * transaction flags but otherwise igyesre yesn-PERF_PMU_TXN_ADD
  * transactions.
  */
 static void x86_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
@@ -1917,7 +1917,7 @@ static void x86_pmu_cancel_txn(struct pmu *pmu)
 	unsigned int txn_flags;
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
-	WARN_ON_ONCE(!cpuc->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuc->txn_flags);	/* yes txn in flight */
 
 	txn_flags = cpuc->txn_flags;
 	cpuc->txn_flags = 0;
@@ -1938,7 +1938,7 @@ static void x86_pmu_cancel_txn(struct pmu *pmu)
  * Perform the group schedulability test as a whole
  * Return 0 if success
  *
- * Does not cancel the transaction on failure; expects the caller to do this.
+ * Does yest cancel the transaction on failure; expects the caller to do this.
  */
 static int x86_pmu_commit_txn(struct pmu *pmu)
 {
@@ -1946,7 +1946,7 @@ static int x86_pmu_commit_txn(struct pmu *pmu)
 	int assign[X86_PMC_IDX_MAX];
 	int n, ret;
 
-	WARN_ON_ONCE(!cpuc->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuc->txn_flags);	/* yes txn in flight */
 
 	if (cpuc->txn_flags & ~PERF_PMU_TXN_ADD) {
 		cpuc->txn_flags = 0;
@@ -1963,7 +1963,7 @@ static int x86_pmu_commit_txn(struct pmu *pmu)
 		return ret;
 
 	/*
-	 * copy new assignment, now we know it is possible
+	 * copy new assignment, yesw we kyesw it is possible
 	 * will be used by hw_perf_enable()
 	 */
 	memcpy(cpuc->assign, assign, n*sizeof(int));
@@ -2036,7 +2036,7 @@ static int validate_event(struct perf_event *event)
  *
  * validation include:
  *	- check events are compatible which each other
- *	- events do not compete for the same counter
+ *	- events do yest compete for the same counter
  *	- number of events <= number of counters
  *
  * validation ensures the group can be loaded onto the
@@ -2052,7 +2052,7 @@ static int validate_group(struct perf_event *event)
 	if (IS_ERR(fake_cpuc))
 		return PTR_ERR(fake_cpuc);
 	/*
-	 * the event is not yet connected with its
+	 * the event is yest yet connected with its
 	 * siblings therefore we must first collect
 	 * existing siblings, then add the new event
 	 * before we can simulate the scheduling
@@ -2118,7 +2118,7 @@ static int x86_pmu_event_init(struct perf_event *event)
 	return err;
 }
 
-static void refresh_pce(void *ignored)
+static void refresh_pce(void *igyesred)
 {
 	load_mm_cr4_irqsoff(this_cpu_read(cpu_tlbstate.loaded_mm));
 }
@@ -2129,13 +2129,13 @@ static void x86_pmu_event_mapped(struct perf_event *event, struct mm_struct *mm)
 		return;
 
 	/*
-	 * This function relies on not being called concurrently in two
+	 * This function relies on yest being called concurrently in two
 	 * tasks in the same mm.  Otherwise one task could observe
 	 * perf_rdpmc_allowed > 1 and return all the way back to
-	 * userspace with CR4.PCE clear while another task is still
+	 * userspace with CR4.PCE clear while ayesther task is still
 	 * doing on_each_cpu_mask() to propagate CR4.PCE.
 	 *
-	 * For now, this can't happen because all callers hold mmap_sem
+	 * For yesw, this can't happen because all callers hold mmap_sem
 	 * for write.  If this changes, we'll need a different solution.
 	 */
 	lockdep_assert_held_write(&mm->mmap_sem);
@@ -2328,7 +2328,7 @@ static struct pmu pmu = {
 };
 
 void arch_perf_update_userpage(struct perf_event *event,
-			       struct perf_event_mmap_page *userpg, u64 now)
+			       struct perf_event_mmap_page *userpg, u64 yesw)
 {
 	struct cyc2ns_data data;
 	u64 offset;
@@ -2353,7 +2353,7 @@ void arch_perf_update_userpage(struct perf_event *event,
 	userpg->cap_user_time = 1;
 	userpg->time_mult = data.cyc2ns_mul;
 	userpg->time_shift = data.cyc2ns_shift;
-	userpg->time_offset = offset - now;
+	userpg->time_offset = offset - yesw;
 
 	/*
 	 * cap_user_time_zero doesn't make sense when we're using a different
@@ -2383,7 +2383,7 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 	unsigned long addr;
 
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		/* TODO: We don't support guest os callchain now */
+		/* TODO: We don't support guest os callchain yesw */
 		return;
 	}
 
@@ -2405,7 +2405,7 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 static inline int
 valid_user_frame(const void __user *fp, unsigned long size)
 {
-	return (__range_not_ok(fp, size, TASK_SIZE) == 0);
+	return (__range_yest_ok(fp, size, TASK_SIZE) == 0);
 }
 
 static unsigned long get_segment_base(unsigned int segment)
@@ -2492,12 +2492,12 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs
 	const unsigned long __user *fp;
 
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		/* TODO: We don't support guest os callchain now */
+		/* TODO: We don't support guest os callchain yesw */
 		return;
 	}
 
 	/*
-	 * We don't know what to do with VM86 stacks.. ignore them for now.
+	 * We don't kyesw what to do with VM86 stacks.. igyesre them for yesw.
 	 */
 	if (regs->flags & (X86_VM_MASK | PERF_EFLAGS_VM))
 		return;

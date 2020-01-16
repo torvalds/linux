@@ -14,7 +14,7 @@
 
 #include <asm/param.h> /* for HZ */
 
-/* Never flag non-existent other CPUs! */
+/* Never flag yesn-existent other CPUs! */
 static inline bool rcu_eqs_special_set(int cpu) { return false; }
 
 static inline unsigned long get_state_synchronize_rcu(void)
@@ -46,13 +46,13 @@ static inline void rcu_softirq_qs(void)
 	rcu_qs();
 }
 
-#define rcu_note_context_switch(preempt) \
+#define rcu_yeste_context_switch(preempt) \
 	do { \
 		rcu_qs(); \
 		rcu_tasks_qs(current); \
 	} while (0)
 
-static inline int rcu_needs_cpu(u64 basemono, u64 *nextevt)
+static inline int rcu_needs_cpu(u64 basemoyes, u64 *nextevt)
 {
 	*nextevt = KTIME_MAX;
 	return 0;
@@ -60,9 +60,9 @@ static inline int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 
 /*
  * Take advantage of the fact that there is only one CPU, which
- * allows us to ignore virtualization-based context switches.
+ * allows us to igyesre virtualization-based context switches.
  */
-static inline void rcu_virt_note_context_switch(int cpu) { }
+static inline void rcu_virt_yeste_context_switch(int cpu) { }
 static inline void rcu_cpu_stall_reset(void) { }
 static inline int rcu_jiffies_till_stall_check(void) { return 21 * HZ; }
 static inline void rcu_idle_enter(void) { }

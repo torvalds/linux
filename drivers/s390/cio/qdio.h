@@ -173,7 +173,7 @@ struct qdio_queue_perf_stat {
 	 */
 	unsigned int nr_sbals[8];
 	unsigned int nr_sbal_error;
-	unsigned int nr_sbal_nop;
+	unsigned int nr_sbal_yesp;
 	unsigned int nr_sbal_total;
 };
 
@@ -182,13 +182,13 @@ enum qdio_queue_irq_states {
 };
 
 struct qdio_input_q {
-	/* input buffer acknowledgement flag */
+	/* input buffer ackyeswledgement flag */
 	int polling;
 	/* first ACK'ed buffer */
 	int ack_start;
-	/* how much sbals are acknowledged with qebsm */
+	/* how much sbals are ackyeswledged with qebsm */
 	int ack_count;
-	/* last time of noticing incoming data */
+	/* last time of yesticing incoming data */
 	u64 timestamp;
 	/* upper-layer polling flag */
 	unsigned long queue_irq_state;
@@ -199,11 +199,11 @@ struct qdio_input_q {
 struct qdio_output_q {
 	/* PCIs are enabled for the queue */
 	int pci_out_enabled;
-	/* cq: use asynchronous output buffers */
+	/* cq: use asynchroyesus output buffers */
 	int use_cq;
 	/* cq: aobs used for particual SBAL */
 	struct qaob **aobs;
-	/* cq: sbal state related to asynchronous operation */
+	/* cq: sbal state related to asynchroyesus operation */
 	struct qdio_outbuf_state *sbal_state;
 	/* timer to check for more outbound work */
 	struct timer_list timer;
@@ -308,7 +308,7 @@ struct qdio_irq {
 
 /* helper functions */
 #define queue_type(q)	q->irq_ptr->qib.qfmt
-#define SCH_NO(q)	(q->irq_ptr->schid.sch_no)
+#define SCH_NO(q)	(q->irq_ptr->schid.sch_yes)
 
 #define is_thinint_irq(irq) \
 	(irq->qib.qfmt == QDIO_IQDIO_QFMT || \
@@ -379,8 +379,8 @@ int tiqdio_allocate_memory(void);
 void tiqdio_free_memory(void);
 int tiqdio_register_thinints(void);
 void tiqdio_unregister_thinints(void);
-void clear_nonshared_ind(struct qdio_irq *);
-int test_nonshared_ind(struct qdio_irq *);
+void clear_yesnshared_ind(struct qdio_irq *);
+int test_yesnshared_ind(struct qdio_irq *);
 
 /* prototypes for setup */
 void qdio_inbound_processing(unsigned long data);

@@ -19,15 +19,15 @@ KBUILD_DEFCONFIG := multi_defconfig
 ifneq ($(SUBARCH),$(ARCH))
 	ifeq ($(CROSS_COMPILE),)
 		CROSS_COMPILE := $(call cc-cross-prefix, \
-			m68k-linux-gnu- m68k-linux- m68k-unknown-linux-gnu-)
+			m68k-linux-gnu- m68k-linux- m68k-unkyeswn-linux-gnu-)
 	endif
 endif
 
 #
 #	Enable processor type. Ordering of these is important - we want to
 #	use the minimum processor type of the range we support. The logic
-#	for 680x0 will only allow use of the -m68060 or -m68040 if no other
-#	680x0 type is specified - and no option is specified for 68030 or
+#	for 680x0 will only allow use of the -m68060 or -m68040 if yes other
+#	680x0 type is specified - and yes option is specified for 68030 or
 #	68020. The other m68k/ColdFire types always specify some type of
 #	compiler cpu type flag.
 #
@@ -63,8 +63,8 @@ KBUILD_CFLAGS += $(cpuflags-y)
 KBUILD_CFLAGS += -pipe -ffreestanding
 
 ifdef CONFIG_MMU
-# without -fno-strength-reduce the 53c7xx.c driver fails ;-(
-KBUILD_CFLAGS += -fno-strength-reduce -ffixed-a2
+# without -fyes-strength-reduce the 53c7xx.c driver fails ;-(
+KBUILD_CFLAGS += -fyes-strength-reduce -ffixed-a2
 else
 # we can use a m68k-linux-gcc toolchain with these in place
 KBUILD_CFLAGS += -DUTS_SYSNAME=\"uClinux\"

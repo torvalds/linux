@@ -271,9 +271,9 @@ set_mmdc_io_lpm_done:
 	str	r9, [r11, #MX6Q_GPC_IMR4]
 
 	/*
-	 * now delay for a short while (3usec)
+	 * yesw delay for a short while (3usec)
 	 * ARM is at 1GHz at this point
-	 * so a short loop should be enough.
+	 * so a short loop should be eyesugh.
 	 * this delay is required to ensure that
 	 * the RBC counter can start counting in
 	 * case an interrupt is already pending
@@ -287,10 +287,10 @@ rbc_loop:
 
 	/* Zzz, enter stop mode */
 	wfi
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
 
 	/*
 	 * run to here means there is pending

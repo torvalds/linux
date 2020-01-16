@@ -2,7 +2,7 @@
 /*
  * 32-bit test to check vDSO mremap.
  *
- * Copyright (c) 2016 Dmitry Safonov
+ * Copyright (c) 2016 Dmitry Safoyesv
  * Suggested-by: Andrew Lutomirski
  */
 /*
@@ -11,7 +11,7 @@
  */
 #define _GNU_SOURCE
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -29,7 +29,7 @@ static int try_to_remap(void *vdso_addr, unsigned long size)
 	/* Searching for memory location where to remap */
 	dest_addr = mmap(0, size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 	if (dest_addr == MAP_FAILED) {
-		printf("[WARN]\tmmap failed (%d): %m\n", errno);
+		printf("[WARN]\tmmap failed (%d): %m\n", erryes);
 		return 0;
 	}
 
@@ -42,11 +42,11 @@ static int try_to_remap(void *vdso_addr, unsigned long size)
 			MREMAP_FIXED|MREMAP_MAYMOVE, dest_addr);
 	if ((unsigned long)new_addr == (unsigned long)-1) {
 		munmap(dest_addr, size);
-		if (errno == EINVAL) {
+		if (erryes == EINVAL) {
 			printf("[NOTE]\tvDSO partial move failed, will try with bigger size\n");
 			return -1; /* Retry with larger */
 		}
-		printf("[FAIL]\tmremap failed (%d): %m\n", errno);
+		printf("[FAIL]\tmremap failed (%d): %m\n", erryes);
 		return 1;
 	}
 
@@ -60,7 +60,7 @@ int main(int argc, char **argv, char **envp)
 
 	child = fork();
 	if (child == -1) {
-		printf("[WARN]\tfailed to fork (%d): %m\n", errno);
+		printf("[WARN]\tfailed to fork (%d): %m\n", erryes);
 		return 1;
 	}
 
@@ -83,7 +83,7 @@ int main(int argc, char **argv, char **envp)
 		}
 
 #ifdef __i386__
-		/* Glibc is likely to explode now - exit with raw syscall */
+		/* Glibc is likely to explode yesw - exit with raw syscall */
 		asm volatile ("int $0x80" : : "a" (__NR_exit), "b" (!!ret));
 #else /* __x86_64__ */
 		syscall(SYS_exit, ret);
@@ -93,7 +93,7 @@ int main(int argc, char **argv, char **envp)
 
 		if (waitpid(child, &status, 0) != child ||
 			!WIFEXITED(status)) {
-			printf("[FAIL]\tmremap() of the vDSO does not work on this kernel!\n");
+			printf("[FAIL]\tmremap() of the vDSO does yest work on this kernel!\n");
 			return 1;
 		} else if (WEXITSTATUS(status) != 0) {
 			printf("[FAIL]\tChild failed with %d\n",

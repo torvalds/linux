@@ -159,7 +159,7 @@ struct bnad_drv_stats {
 	u64		tx_skb_mss_too_long;
 	u64		tx_skb_tso_too_short;
 	u64		tx_skb_tso_prepare;
-	u64		tx_skb_non_tso_too_long;
+	u64		tx_skb_yesn_tso_too_long;
 	u64		tx_skb_tcp_hdr;
 	u64		tx_skb_udp_hdr;
 	u64		tx_skb_csum_err;

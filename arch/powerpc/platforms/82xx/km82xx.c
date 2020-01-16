@@ -29,15 +29,15 @@
 
 static void __init km82xx_pic_init(void)
 {
-	struct device_node *np = of_find_compatible_node(NULL, NULL,
+	struct device_yesde *np = of_find_compatible_yesde(NULL, NULL,
 							"fsl,pq2-pic");
 	if (!np) {
-		pr_err("PIC init: can not find cpm-pic node\n");
+		pr_err("PIC init: can yest find cpm-pic yesde\n");
 		return;
 	}
 
 	cpm2_pic_init(np);
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 struct cpm_pin {
@@ -165,7 +165,7 @@ static void __init km82xx_setup_arch(void)
 
 	cpm2_reset();
 
-	/* When this is set, snooping CPM DMA from RAM causes
+	/* When this is set, syesoping CPM DMA from RAM causes
 	 * machine checks.  See erratum SIU18.
 	 */
 	clrbits32(&cpm2_immr->im_siu_conf.siu_82xx.sc_bcr, MPC82XX_BCR_PLDP);

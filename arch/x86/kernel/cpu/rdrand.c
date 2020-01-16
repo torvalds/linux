@@ -17,7 +17,7 @@ static int __init x86_rdrand_setup(char *s)
 	setup_clear_cpu_cap(X86_FEATURE_RDSEED);
 	return 1;
 }
-__setup("nordrand", x86_rdrand_setup);
+__setup("yesrdrand", x86_rdrand_setup);
 
 /*
  * RDRAND has Built-In-Self-Test (BIST) that runs on every invocation.
@@ -60,7 +60,7 @@ void x86_init_rdrand(struct cpuinfo_x86 *c)
 
 	if (WARN_ON_ONCE(!changed))
 		pr_emerg(
-"RDRAND gives funky smelling output, might consider not using it by booting with \"nordrand\"");
+"RDRAND gives funky smelling output, might consider yest using it by booting with \"yesrdrand\"");
 
 }
 #endif

@@ -22,7 +22,7 @@ static inline void tlbiel_all(void)
 	 *
 	 * This uses early_radix_enabled and implementations use
 	 * early_cpu_has_feature etc because that works early in boot
-	 * and this is the machine check path which is not performance
+	 * and this is the machine check path which is yest performance
 	 * critical.
 	 */
 	if (early_radix_enabled())

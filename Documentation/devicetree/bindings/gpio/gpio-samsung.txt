@@ -1,14 +1,14 @@
-Samsung Exynos4 GPIO Controller
+Samsung Exyyess4 GPIO Controller
 
 Required properties:
-- compatible: Compatible property value should be "samsung,exynos4-gpio>".
+- compatible: Compatible property value should be "samsung,exyyess4-gpio>".
 
 - reg: Physical base address of the controller and length of memory mapped
   region.
 
-- #gpio-cells: Should be 4. The syntax of the gpio specifier used by client nodes
+- #gpio-cells: Should be 4. The syntax of the gpio specifier used by client yesdes
   should be the following with values derived from the SoC user manual.
-     <[phandle of the gpio controller node]
+     <[phandle of the gpio controller yesde]
       [pin number within the gpio controller]
       [mux function]
       [flags and pull up/down]
@@ -25,7 +25,7 @@ Required properties:
                     2 - 2x,
                     3 - 4x
 
-- gpio-controller: Specifies that the node is a gpio controller.
+- gpio-controller: Specifies that the yesde is a gpio controller.
 - #address-cells: should be 1.
 - #size-cells: should be 1.
 
@@ -34,7 +34,7 @@ Example:
 	gpa0: gpio-controller@11400000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "samsung,exynos4-gpio";
+		compatible = "samsung,exyyess4-gpio";
 		reg = <0x11400000 0x20>;
 		#gpio-cells = <4>;
 		gpio-controller;

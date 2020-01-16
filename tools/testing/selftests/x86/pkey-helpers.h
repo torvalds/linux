@@ -116,7 +116,7 @@ static inline void __pkey_access_allow(int pkey, int do_allow)
 	else
 		pkru |= (1<<bit);
 
-	dprintf4("pkru now: %08x\n", rdpkru());
+	dprintf4("pkru yesw: %08x\n", rdpkru());
 	wrpkru(pkru);
 }
 
@@ -131,7 +131,7 @@ static inline void __pkey_write_allow(int pkey, int do_allow_write)
 		pkru |= (1<<bit);
 
 	wrpkru(pkru);
-	dprintf4("pkru now: %08x\n", rdpkru());
+	dprintf4("pkru yesw: %08x\n", rdpkru());
 }
 
 #define PROT_PKEY0     0x10            /* protection key value (bit 0) */
@@ -171,11 +171,11 @@ static inline int cpu_has_pku(void)
 	__cpuid(&eax, &ebx, &ecx, &edx);
 
 	if (!(ecx & X86_FEATURE_PKU)) {
-		dprintf2("cpu does not have PKU\n");
+		dprintf2("cpu does yest have PKU\n");
 		return 0;
 	}
 	if (!(ecx & X86_FEATURE_OSPKE)) {
-		dprintf2("cpu does not have OSPKE\n");
+		dprintf2("cpu does yest have OSPKE\n");
 		return 0;
 	}
 	return 1;
@@ -209,7 +209,7 @@ int pkru_xstate_offset(void)
 	}
 
 	if (xstate_size == 0) {
-		printf("could not find size/offset of PKRU in xsave state\n");
+		printf("could yest find size/offset of PKRU in xsave state\n");
 		return 0;
 	}
 

@@ -19,7 +19,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 
 #define IMX290_STANDBY 0x3000
@@ -58,7 +58,7 @@ struct imx290 {
 	struct regmap *regmap;
 
 	struct v4l2_subdev sd;
-	struct v4l2_fwnode_endpoint ep;
+	struct v4l2_fwyesde_endpoint ep;
 	struct media_pad pad;
 	struct v4l2_mbus_framefmt current_format;
 	const struct imx290_mode *current_mode;
@@ -510,12 +510,12 @@ static int imx290_write_current_format(struct imx290 *imx290,
 						ARRAY_SIZE(
 							imx290_10bit_settings));
 		if (ret < 0) {
-			dev_err(imx290->dev, "Could not set format registers\n");
+			dev_err(imx290->dev, "Could yest set format registers\n");
 			return ret;
 		}
 		break;
 	default:
-		dev_err(imx290->dev, "Unknown pixel format\n");
+		dev_err(imx290->dev, "Unkyeswn pixel format\n");
 		return -EINVAL;
 	}
 
@@ -532,14 +532,14 @@ static int imx290_start_streaming(struct imx290 *imx290)
 					ARRAY_SIZE(
 						imx290_global_init_settings));
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set init registers\n");
+		dev_err(imx290->dev, "Could yest set init registers\n");
 		return ret;
 	}
 
 	/* Set current frame format */
 	ret = imx290_write_current_format(imx290, &imx290->current_format);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set frame format\n");
+		dev_err(imx290->dev, "Could yest set frame format\n");
 		return ret;
 	}
 
@@ -547,14 +547,14 @@ static int imx290_start_streaming(struct imx290 *imx290)
 	ret = imx290_set_register_array(imx290, imx290->current_mode->data,
 					imx290->current_mode->data_size);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set current mode\n");
+		dev_err(imx290->dev, "Could yest set current mode\n");
 		return ret;
 	}
 
 	/* Apply customized values from user */
 	ret = v4l2_ctrl_handler_setup(imx290->sd.ctrl_handler);
 	if (ret) {
-		dev_err(imx290->dev, "Could not sync v4l2 controls\n");
+		dev_err(imx290->dev, "Could yest sync v4l2 controls\n");
 		return ret;
 	}
 
@@ -576,7 +576,7 @@ static int imx290_set_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		ret = pm_runtime_get_sync(imx290->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(imx290->dev);
+			pm_runtime_put_yesidle(imx290->dev);
 			goto unlock_and_return;
 		}
 
@@ -674,7 +674,7 @@ static const struct media_entity_operations imx290_subdev_entity_ops = {
 static int imx290_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct fwnode_handle *endpoint;
+	struct fwyesde_handle *endpoint;
 	struct imx290 *imx290;
 	u32 xclk_freq;
 	int ret;
@@ -690,21 +690,21 @@ static int imx290_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	endpoint = fwyesde_graph_get_next_endpoint(dev_fwyesde(dev), NULL);
 	if (!endpoint) {
-		dev_err(dev, "Endpoint node not found\n");
+		dev_err(dev, "Endpoint yesde yest found\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &imx290->ep);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwyesde_endpoint_alloc_parse(endpoint, &imx290->ep);
+	fwyesde_handle_put(endpoint);
 	if (ret) {
-		dev_err(dev, "Parsing endpoint node failed\n");
+		dev_err(dev, "Parsing endpoint yesde failed\n");
 		goto free_err;
 	}
 
 	if (!imx290->ep.nr_of_link_frequencies) {
-		dev_err(dev, "link-frequency property not found in DT\n");
+		dev_err(dev, "link-frequency property yest found in DT\n");
 		ret = -EINVAL;
 		goto free_err;
 	}
@@ -715,7 +715,7 @@ static int imx290_probe(struct i2c_client *client)
 		goto free_err;
 	}
 
-	/* Only CSI2 is supported for now */
+	/* Only CSI2 is supported for yesw */
 	if (imx290->ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(dev, "Unsupported bus type, should be CSI2\n");
 		ret = -EINVAL;
@@ -728,21 +728,21 @@ static int imx290_probe(struct i2c_client *client)
 	/* get system clock (xclk) */
 	imx290->xclk = devm_clk_get(dev, "xclk");
 	if (IS_ERR(imx290->xclk)) {
-		dev_err(dev, "Could not get xclk");
+		dev_err(dev, "Could yest get xclk");
 		ret = PTR_ERR(imx290->xclk);
 		goto free_err;
 	}
 
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+	ret = fwyesde_property_read_u32(dev_fwyesde(dev), "clock-frequency",
 				       &xclk_freq);
 	if (ret) {
-		dev_err(dev, "Could not get xclk frequency\n");
+		dev_err(dev, "Could yest get xclk frequency\n");
 		goto free_err;
 	}
 
 	/* external clock must be 37.125 MHz */
 	if (xclk_freq != 37125000) {
-		dev_err(dev, "External clock frequency %u is not supported\n",
+		dev_err(dev, "External clock frequency %u is yest supported\n",
 			xclk_freq);
 		ret = -EINVAL;
 		goto free_err;
@@ -750,19 +750,19 @@ static int imx290_probe(struct i2c_client *client)
 
 	ret = clk_set_rate(imx290->xclk, xclk_freq);
 	if (ret) {
-		dev_err(dev, "Could not set xclk frequency\n");
+		dev_err(dev, "Could yest set xclk frequency\n");
 		goto free_err;
 	}
 
 	ret = imx290_get_regulators(dev, imx290);
 	if (ret < 0) {
-		dev_err(dev, "Cannot get regulators\n");
+		dev_err(dev, "Canyest get regulators\n");
 		goto free_err;
 	}
 
 	imx290->rst_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(imx290->rst_gpio)) {
-		dev_err(dev, "Cannot get reset gpio\n");
+		dev_err(dev, "Canyest get reset gpio\n");
 		ret = PTR_ERR(imx290->rst_gpio);
 		goto free_err;
 	}
@@ -805,20 +805,20 @@ static int imx290_probe(struct i2c_client *client)
 	imx290->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&imx290->sd.entity, 1, &imx290->pad);
 	if (ret < 0) {
-		dev_err(dev, "Could not register media entity\n");
+		dev_err(dev, "Could yest register media entity\n");
 		goto free_ctrl;
 	}
 
 	ret = v4l2_async_register_subdev(&imx290->sd);
 	if (ret < 0) {
-		dev_err(dev, "Could not register v4l2 device\n");
+		dev_err(dev, "Could yest register v4l2 device\n");
 		goto free_entity;
 	}
 
 	/* Power on the device to match runtime PM state below */
 	ret = imx290_power_on(dev);
 	if (ret < 0) {
-		dev_err(dev, "Could not power on the device\n");
+		dev_err(dev, "Could yest power on the device\n");
 		goto free_entity;
 	}
 
@@ -826,7 +826,7 @@ static int imx290_probe(struct i2c_client *client)
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
 
-	v4l2_fwnode_endpoint_free(&imx290->ep);
+	v4l2_fwyesde_endpoint_free(&imx290->ep);
 
 	return 0;
 
@@ -836,7 +836,7 @@ free_ctrl:
 	v4l2_ctrl_handler_free(&imx290->ctrls);
 	mutex_destroy(&imx290->lock);
 free_err:
-	v4l2_fwnode_endpoint_free(&imx290->ep);
+	v4l2_fwyesde_endpoint_free(&imx290->ep);
 
 	return ret;
 }

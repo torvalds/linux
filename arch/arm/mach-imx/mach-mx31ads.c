@@ -176,7 +176,7 @@ static void expio_mask_irq(struct irq_data *d)
 }
 
 /*
- * Acknowledge an expanded io pin's interrupt by clearing the bit in the isr.
+ * Ackyeswledge an expanded io pin's interrupt by clearing the bit in the isr.
  * @param d	an expio virtual irq description
  */
 static void expio_ack_irq(struct irq_data *d)
@@ -220,7 +220,7 @@ static void __init mx31ads_init_expio(void)
 	imx_writew(0xFFFF, PBC_INTMASK_CLEAR_REG);
 	imx_writew(0xFFFF, PBC_INTSTATUS_REG);
 
-	irq_base = irq_alloc_descs(-1, 0, MXC_MAX_EXP_IO_LINES, numa_node_id());
+	irq_base = irq_alloc_descs(-1, 0, MXC_MAX_EXP_IO_LINES, numa_yesde_id());
 	WARN_ON(irq_base < 0);
 
 	domain = irq_domain_add_legacy(NULL, MXC_MAX_EXP_IO_LINES, irq_base, 0,
@@ -239,7 +239,7 @@ static void __init mx31ads_init_expio(void)
 #ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
 /* This section defines setup for the Wolfson Microelectronics
  * 1133-EV1 PMU/audio board.  When other PMU boards are supported the
- * regulator definitions may be shared with them, but for now they can
+ * regulator definitions may be shared with them, but for yesw they can
  * only be used with this board so would generate warnings about
  * unused statics and some of the configuration is specific to this
  * module.

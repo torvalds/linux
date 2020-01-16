@@ -18,9 +18,9 @@ struct afs_xdr_AFSFetchStatus {
 	__be32	author;
 	__be32	owner;
 	__be32	caller_access;
-	__be32	anon_access;
+	__be32	ayesn_access;
 	__be32	mode;
-	__be32	parent_vnode;
+	__be32	parent_vyesde;
 	__be32	parent_unique;
 	__be32	seg_size;
 	__be32	mtime_client;
@@ -52,7 +52,7 @@ union afs_xdr_dirent {
 		u8		valid;
 		u8		unused[1];
 		__be16		hash_next;
-		__be32		vnode;
+		__be32		vyesde;
 		__be32		unique;
 		u8		name[16];
 		u8		overflow[4];	/* if any char of the name (inc

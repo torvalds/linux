@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
@@ -114,12 +114,12 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 
 	i = 0;
 	for (;;) {
-		int notnum = 0;
+		int yestnum = 0;
 
 		name = ++p;
 
 		for (; isalnum(*p) || *p == '-' || *p == '_'; p++)
-			notnum |= !isdigit(*p);
+			yestnum |= !isdigit(*p);
 
 		if (*p == '(') {
 			int recursion = 0;
@@ -133,7 +133,7 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 					break;
 			}
 
-			notnum = 1;
+			yestnum = 1;
 			p++;
 		}
 
@@ -141,7 +141,7 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 		if (!len)
 			goto err_free_param;
 
-		if (notnum) {
+		if (yestnum) {
 			param->attrs[i].alg.attr.rta_len =
 				sizeof(param->attrs[i].alg);
 			param->attrs[i].alg.attr.rta_type = CRYPTOA_ALG;
@@ -241,7 +241,7 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 	memcpy(param->alg, alg->cra_name, sizeof(param->alg));
 	type = alg->cra_flags;
 
-	/* Do not test internal algorithms. */
+	/* Do yest test internal algorithms. */
 	if (type & CRYPTO_ALG_INTERNAL)
 		type |= CRYPTO_ALG_TESTED;
 
@@ -261,7 +261,7 @@ err:
 	return NOTIFY_OK;
 }
 
-static int cryptomgr_notify(struct notifier_block *this, unsigned long msg,
+static int cryptomgr_yestify(struct yestifier_block *this, unsigned long msg,
 			    void *data)
 {
 	switch (msg) {
@@ -276,18 +276,18 @@ static int cryptomgr_notify(struct notifier_block *this, unsigned long msg,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block cryptomgr_notifier = {
-	.notifier_call = cryptomgr_notify,
+static struct yestifier_block cryptomgr_yestifier = {
+	.yestifier_call = cryptomgr_yestify,
 };
 
 static int __init cryptomgr_init(void)
 {
-	return crypto_register_notifier(&cryptomgr_notifier);
+	return crypto_register_yestifier(&cryptomgr_yestifier);
 }
 
 static void __exit cryptomgr_exit(void)
 {
-	int err = crypto_unregister_notifier(&cryptomgr_notifier);
+	int err = crypto_unregister_yestifier(&cryptomgr_yestifier);
 	BUG_ON(err);
 }
 

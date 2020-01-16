@@ -12,7 +12,7 @@ Optional properties:
 
 - psave-gpios: Power save control GPIO
 
-Required nodes:
+Required yesdes:
 
 The ADV7123 has two video ports. Their connections are modeled using the OF
 graph bindings specified in Documentation/devicetree/bindings/graph.txt.

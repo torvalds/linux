@@ -5,7 +5,7 @@
  * Copyright (C) 2018 Johan Hovold <johan@kernel.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gnss.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

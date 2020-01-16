@@ -878,12 +878,12 @@ static struct platform_device spitz_rom_device = {
 	},
 };
 
-static void __init spitz_nor_init(void)
+static void __init spitz_yesr_init(void)
 {
 	platform_device_register(&spitz_rom_device);
 }
 #else
-static inline void spitz_nor_init(void) {}
+static inline void spitz_yesr_init(void) {}
 #endif
 
 /******************************************************************************
@@ -1000,7 +1000,7 @@ static void __init spitz_init(void)
 	spitz_irda_init();
 	spitz_uhc_init();
 	spitz_lcd_init();
-	spitz_nor_init();
+	spitz_yesr_init();
 	spitz_nand_init();
 	spitz_i2c_init();
 	spitz_audio_init();

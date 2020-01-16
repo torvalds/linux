@@ -300,7 +300,7 @@ static ssize_t reset_write(struct file *file, const char __user *user_buf,
 static const struct file_operations reset_ops = {
 	.write = reset_write,
 	.open = simple_open,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 #endif
 
@@ -548,7 +548,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_STATS_ADD(tx_handlers_drop);
 	DEBUGFS_STATS_ADD(tx_handlers_queued);
 	DEBUGFS_STATS_ADD(tx_handlers_drop_wep);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_not_assoc);
+	DEBUGFS_STATS_ADD(tx_handlers_drop_yest_assoc);
 	DEBUGFS_STATS_ADD(tx_handlers_drop_unauth_port);
 	DEBUGFS_STATS_ADD(rx_handlers_drop);
 	DEBUGFS_STATS_ADD(rx_handlers_queued);

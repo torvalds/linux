@@ -9,7 +9,7 @@
  *         ATMEL CORP.
  *
  * Based on at91-ssc.c by
- * Frank Mandarino <fmandarino@endrelia.com>
+ * Frank Mandariyes <fmandariyes@endrelia.com>
  * Based on pxa2xx Platform drivers by
  * Liam Girdwood <lrg@slimlogic.co.uk>
  */

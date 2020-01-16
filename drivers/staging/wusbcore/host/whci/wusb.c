@@ -25,7 +25,7 @@ static int whc_update_di(struct whc *whc, int idx)
 
 /*
  * WHCI starts MMCs based on there being a valid GTK so these need
- * only start/stop the asynchronous and periodic schedules and send a
+ * only start/stop the asynchroyesus and periodic schedules and send a
  * channel stop command.
  */
 
@@ -42,14 +42,14 @@ int whc_wusbhc_start(struct wusbhc *wusbhc)
 void whc_wusbhc_stop(struct wusbhc *wusbhc, int delay)
 {
 	struct whc *whc = wusbhc_to_whc(wusbhc);
-	u32 stop_time, now_time;
+	u32 stop_time, yesw_time;
 	int ret;
 
 	pzl_stop(whc);
 	asl_stop(whc);
 
-	now_time = le_readl(whc->base + WUSBTIME) & WUSBTIME_CHANNEL_TIME_MASK;
-	stop_time = (now_time + ((delay * 8) << 7)) & 0x00ffffff;
+	yesw_time = le_readl(whc->base + WUSBTIME) & WUSBTIME_CHANNEL_TIME_MASK;
+	stop_time = (yesw_time + ((delay * 8) << 7)) & 0x00ffffff;
 	ret = whc_do_gencmd(whc, WUSBGENCMDSTS_CHAN_STOP, stop_time, NULL, 0);
 	if (ret == 0)
 		msleep(delay);
@@ -111,7 +111,7 @@ int whc_dev_info_set(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 
 /*
  * Set the number of Device Notification Time Slots (DNTS) and enable
- * device notifications.
+ * device yestifications.
  */
 int whc_set_num_dnts(struct wusbhc *wusbhc, u8 interval, u8 slots)
 {

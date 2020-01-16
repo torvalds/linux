@@ -257,7 +257,7 @@ static void msm_stop_dma(struct uart_port *port, struct msm_dma *dma)
 	 * DMA Stall happens if enqueue and flush command happens concurrently.
 	 * For example before changing the baud rate/protocol configuration and
 	 * sending flush command to ADM, disable the channel of UARTDM.
-	 * Note: should not reset the receiver here immediately as it is not
+	 * Note: should yest reset the receiver here immediately as it is yest
 	 * suggested to do disable/reset or reset/disable at the same time.
 	 */
 	val = msm_read(port, UARTDM_DMEN);
@@ -303,9 +303,9 @@ static void msm_request_tx_dma(struct msm_port *msm_port, resource_size_t base)
 	/* allocate DMA resources, if available */
 	dma->chan = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->chan))
-		goto no_tx;
+		goto yes_tx;
 
-	of_property_read_u32(dev->of_node, "qcom,tx-crci", &crci);
+	of_property_read_u32(dev->of_yesde, "qcom,tx-crci", &crci);
 
 	memset(&conf, 0, sizeof(conf));
 	conf.direction = DMA_MEM_TO_DEV;
@@ -329,7 +329,7 @@ static void msm_request_tx_dma(struct msm_port *msm_port, resource_size_t base)
 
 rel_tx:
 	dma_release_channel(dma->chan);
-no_tx:
+yes_tx:
 	memset(dma, 0, sizeof(*dma));
 }
 
@@ -346,9 +346,9 @@ static void msm_request_rx_dma(struct msm_port *msm_port, resource_size_t base)
 	/* allocate DMA resources, if available */
 	dma->chan = dma_request_chan(dev, "rx");
 	if (IS_ERR(dma->chan))
-		goto no_rx;
+		goto yes_rx;
 
-	of_property_read_u32(dev->of_node, "qcom,rx-crci", &crci);
+	of_property_read_u32(dev->of_yesde, "qcom,rx-crci", &crci);
 
 	dma->virt = kzalloc(UARTDM_RX_SIZE, GFP_KERNEL);
 	if (!dma->virt)
@@ -377,7 +377,7 @@ err:
 	kfree(dma->virt);
 rel_rx:
 	dma_release_channel(dma->chan);
-no_rx:
+yes_rx:
 	memset(dma, 0, sizeof(*dma));
 }
 
@@ -507,7 +507,7 @@ static int msm_handle_tx_dma(struct msm_port *msm_port, unsigned int count)
 		goto unmap;
 
 	/*
-	 * Using DMA complete for Tx FIFO reload, no need for
+	 * Using DMA complete for Tx FIFO reload, yes need for
 	 * "Tx FIFO below watermark" one, disable it
 	 */
 	msm_port->imr &= ~UART_IMR_TXLEV;
@@ -626,7 +626,7 @@ static void msm_start_rx_dma(struct msm_port *msm_port)
 	if (ret)
 		goto unmap;
 	/*
-	 * Using DMA for FIFO off-load, no need for "Rx FIFO over
+	 * Using DMA for FIFO off-load, yes need for "Rx FIFO over
 	 * watermark" or "stale" interrupts, disable them
 	 */
 	msm_port->imr &= ~(UART_IMR_RXLEV | UART_IMR_RXSTALE);
@@ -765,7 +765,7 @@ static void msm_handle_rx(struct uart_port *port)
 
 	/*
 	 * Handle overrun. My understanding of the hardware is that overrun
-	 * is not tied to the RX buffer, so we handle the case out of band.
+	 * is yest tied to the RX buffer, so we handle the case out of band.
 	 */
 	if ((msm_read(port, UART_SR) & UART_SR_OVERRUN)) {
 		port->icount.overrun++;
@@ -773,7 +773,7 @@ static void msm_handle_rx(struct uart_port *port)
 		msm_write(port, UART_CR_CMD_RESET_ERR, UART_CR);
 	}
 
-	/* and now the main RX loop */
+	/* and yesw the main RX loop */
 	while ((sr = msm_read(port, UART_SR)) & UART_SR_RX_READY) {
 		unsigned int c;
 		char flag = TTY_NORMAL;
@@ -791,7 +791,7 @@ static void msm_handle_rx(struct uart_port *port)
 			port->icount.rx++;
 		}
 
-		/* Mask conditions we're ignorning. */
+		/* Mask conditions we're igyesrning. */
 		sr &= port->read_status_mask;
 
 		if (sr & UART_SR_RX_BREAK)
@@ -850,7 +850,7 @@ static void msm_handle_tx_pio(struct uart_port *port, unsigned int tx_count)
 		tf_pointer += num_chars;
 	}
 
-	/* disable tx interrupts if nothing more to send */
+	/* disable tx interrupts if yesthing more to send */
 	if (uart_circ_empty(xmit))
 		msm_stop_tx(port);
 
@@ -1304,7 +1304,7 @@ static void msm_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 	msm_write(port, mr, UART_MR1);
 
-	/* Configure status bits to ignore based on termio flags. */
+	/* Configure status bits to igyesre based on termio flags. */
 	port->read_status_mask = 0;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= UART_SR_PAR_FRAME_ERR;
@@ -1405,7 +1405,7 @@ static void msm_power(struct uart_port *port, unsigned int state,
 		clk_disable_unprepare(msm_port->pclk);
 		break;
 	default:
-		pr_err("msm_serial: Unknown PM state %d\n", state);
+		pr_err("msm_serial: Unkyeswn PM state %d\n", state);
 	}
 }
 
@@ -1765,8 +1765,8 @@ static int msm_serial_probe(struct platform_device *pdev)
 	const struct of_device_id *id;
 	int irq, line;
 
-	if (pdev->dev.of_node)
-		line = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (pdev->dev.of_yesde)
+		line = of_alias_get_id(pdev->dev.of_yesde, "serial");
 	else
 		line = pdev->id;
 

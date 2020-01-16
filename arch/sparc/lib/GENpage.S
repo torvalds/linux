@@ -31,7 +31,7 @@ GENcopy_user_page:
 	bne,pt	%xcc, 1b
 	 add	%o0, 64, %o0
 	retl
-	 nop
+	 yesp
 
 GENclear_page:
 GENclear_user_page:
@@ -74,5 +74,5 @@ generic_patch_pageops:
 	GEN_DO_PATCH(_clear_page, GENclear_page)
 	GEN_DO_PATCH(clear_user_page, GENclear_user_page)
 	retl
-	 nop
+	 yesp
 	.size	generic_patch_pageops,.-generic_patch_pageops

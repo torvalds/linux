@@ -19,7 +19,7 @@ Supported adapters:
   * nForce MCP79               10de:0AA2
 
 Datasheet:
-           not publicly available, but seems to be similar to the
+           yest publicly available, but seems to be similar to the
            AMD-8111 SMBus 2.0 adapter.
 
 Authors:
@@ -34,8 +34,8 @@ i2c-nforce2 is a driver for the SMBuses included in the nVidia nForce2 MCP.
 
 If your ``lspci -v`` listing shows something like the following::
 
-  00:01.1 SMBus: nVidia Corporation: Unknown device 0064 (rev a2)
-          Subsystem: Asustek Computer, Inc.: Unknown device 0c11
+  00:01.1 SMBus: nVidia Corporation: Unkyeswn device 0064 (rev a2)
+          Subsystem: Asustek Computer, Inc.: Unkyeswn device 0c11
           Flags: 66Mhz, fast devsel, IRQ 5
           I/O ports at c000 [size=32]
           Capabilities: <available only to root>

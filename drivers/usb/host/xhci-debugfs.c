@@ -230,7 +230,7 @@ static struct xhci_file_map ring_files[] = {
 	{"trbs",		xhci_ring_trb_show, },
 };
 
-static int xhci_ring_open(struct inode *inode, struct file *file)
+static int xhci_ring_open(struct iyesde *iyesde, struct file *file)
 {
 	int			i;
 	struct xhci_file_map	*f_map;
@@ -243,7 +243,7 @@ static int xhci_ring_open(struct inode *inode, struct file *file)
 			break;
 	}
 
-	return single_open(file, f_map->show, inode->i_private);
+	return single_open(file, f_map->show, iyesde->i_private);
 }
 
 static const struct file_operations xhci_ring_fops = {
@@ -311,7 +311,7 @@ static struct xhci_file_map context_files[] = {
 	{"ep-context",		xhci_endpoint_context_show, },
 };
 
-static int xhci_context_open(struct inode *inode, struct file *file)
+static int xhci_context_open(struct iyesde *iyesde, struct file *file)
 {
 	int			i;
 	struct xhci_file_map	*f_map;
@@ -324,7 +324,7 @@ static int xhci_context_open(struct inode *inode, struct file *file)
 			break;
 	}
 
-	return single_open(file, f_map->show, inode->i_private);
+	return single_open(file, f_map->show, iyesde->i_private);
 }
 
 static const struct file_operations xhci_context_fops = {
@@ -347,9 +347,9 @@ static int xhci_portsc_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int xhci_port_open(struct inode *inode, struct file *file)
+static int xhci_port_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, xhci_portsc_show, inode->i_private);
+	return single_open(file, xhci_portsc_show, iyesde->i_private);
 }
 
 static ssize_t xhci_port_write(struct file *file,  const char __user *ubuf,

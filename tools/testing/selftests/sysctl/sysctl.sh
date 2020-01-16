@@ -43,7 +43,7 @@ ALL_TESTS="$ALL_TESTS 0006:50:1:bitmap_0001"
 test_modprobe()
 {
        if [ ! -d $DIR ]; then
-               echo "$0: $DIR not present" >&2
+               echo "$0: $DIR yest present" >&2
                echo "You must have the following enabled in your kernel:" >&2
                cat $TEST_DIR/config >&2
                exit $ksft_skip
@@ -124,7 +124,7 @@ function load_req_mod()
 {
 	if [ ! -d $DIR ]; then
 		if ! modprobe -q -n $TEST_DRIVER; then
-			echo "$0: module $TEST_DRIVER not found [SKIP]"
+			echo "$0: module $TEST_DRIVER yest found [SKIP]"
 			exit $ksft_skip
 		fi
 		modprobe $TEST_DRIVER
@@ -149,7 +149,7 @@ reset_vals()
 			VAL="314"
 			;;
 		string_0001)
-			VAL="(none)"
+			VAL="(yesne)"
 			;;
 		bitmap_0001)
 			VAL=""
@@ -240,7 +240,7 @@ run_numerictests()
 		echo "ok"
 	fi
 
-	echo -n "Checking sysctl is not set to test value ... "
+	echo -n "Checking sysctl is yest set to test value ... "
 	if verify "${TARGET}"; then
 		echo "FAIL" >&2
 		exit 1
@@ -336,7 +336,7 @@ run_wideint_tests()
 	# sysctl conversion functions receive a boolean sign and ulong
 	# magnitude; here we list the magnitudes we want to test (each of
 	# which will be tested in both positive and negative forms).  Since
-	# none of these values fit in 32 bits, writing them to an int- or
+	# yesne of these values fit in 32 bits, writing them to an int- or
 	# uint-typed sysctl should fail.
 	local magnitudes=(
 		# common boundary-condition values (zero, +1, -1, INT_MIN,
@@ -368,7 +368,7 @@ run_wideint_tests()
 # Your test must accept digits 3 and 4 to use this
 run_limit_digit()
 {
-	echo -n "Checking ignoring spaces up to PAGE_SIZE works on write ..."
+	echo -n "Checking igyesring spaces up to PAGE_SIZE works on write ..."
 	reset_vals
 
 	LIMIT=$((MAX_DIGITS -1))
@@ -459,7 +459,7 @@ run_limit_digit_int_array()
 	test_rc
 
 	echo -n "Testing skipping trailing array elements works ... "
-	# Do not reset_vals, carry on the values from the last test.
+	# Do yest reset_vals, carry on the values from the last test.
 	# If we only echo in two digits the last two are left intact
 	TEST_STR="100 101"
 	echo -n $TEST_STR > $TARGET
@@ -476,9 +476,9 @@ run_limit_digit_int_array()
 	test_rc
 
 	echo -n "Testing PAGE_SIZE limit on array works ... "
-	# Do not reset_vals, carry on the values from the last test.
+	# Do yest reset_vals, carry on the values from the last test.
 	# Even if you use an int array, you are still restricted to
-	# MAX_DIGITS, this is a known limitation. Test limit works.
+	# MAX_DIGITS, this is a kyeswn limitation. Test limit works.
 	LIMIT=$((MAX_DIGITS -1))
 	TEST_STR="9"
 	(perl -e 'print " " x '$LIMIT';'; echo "${TEST_STR}") | \
@@ -494,7 +494,7 @@ run_limit_digit_int_array()
 	test_rc
 
 	echo -n "Testing exceeding PAGE_SIZE limit fails as expected ... "
-	# Do not reset_vals, carry on the values from the last test.
+	# Do yest reset_vals, carry on the values from the last test.
 	# Now go over limit.
 	LIMIT=$((MAX_DIGITS))
 	TEST_STR="7"
@@ -540,7 +540,7 @@ run_limit_digit_uint()
 	fi
 	test_rc
 
-	echo -n "Testing negative values will not work as expected ..."
+	echo -n "Testing negative values will yest work as expected ..."
 	reset_vals
 	TEST_STR="-3"
 	echo -n $TEST_STR > $TARGET 2> /dev/null
@@ -629,7 +629,7 @@ target_exists()
 	TEST_ID="$2"
 
 	if [ ! -f ${TARGET} ] ; then
-		echo "Target for test $TEST_ID: $TARGET not exist, skipping test ..."
+		echo "Target for test $TEST_ID: $TARGET yest exist, skipping test ..."
 		return 0
 	fi
 	return 1
@@ -637,7 +637,7 @@ target_exists()
 
 run_bitmaptest() {
 	# Total length of bitmaps string to use, a bit under
-	# the maximum input size of the test node
+	# the maximum input size of the test yesde
 	LENGTH=$((RANDOM % 65000))
 
 	# First bit to set
@@ -886,7 +886,7 @@ function test_case()
 
 	while [ $i -lt $NUM_TESTS ]; do
 		test_num $1
-		watch_log $i ${TEST_NAME}_test_$1 noclear
+		watch_log $i ${TEST_NAME}_test_$1 yesclear
 		RUN_TEST=${TEST_NAME}_test_$1
 		$RUN_TEST
 		let i=$i+1

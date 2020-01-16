@@ -2,7 +2,7 @@
 /*
  * omap_wdt.c
  *
- * Watchdog driver for the TI OMAP 16xx & 24xx/34xx 32KHz (non-secure) watchdog
+ * Watchdog driver for the TI OMAP 16xx & 24xx/34xx 32KHz (yesn-secure) watchdog
  *
  * Author: MontaVista Software, Inc.
  *	 <gdavis@mvista.com> or <source@mvista.com>
@@ -43,9 +43,9 @@
 
 #include "omap_wdt.h"
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started "
 	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static unsigned timer_margin;
@@ -141,7 +141,7 @@ static int omap_wdt_start(struct watchdog_device *wdog)
 
 	/*
 	 * Make sure the watchdog is disabled. This is unfortunately required
-	 * because writing to various registers with the watchdog running has no
+	 * because writing to various registers with the watchdog running has yes
 	 * effect.
 	 */
 	omap_wdt_disable(wdev);
@@ -255,7 +255,7 @@ static int omap_wdt_probe(struct platform_device *pdev)
 
 	watchdog_init_timeout(&wdev->wdog, timer_margin, &pdev->dev);
 
-	watchdog_set_nowayout(&wdev->wdog, nowayout);
+	watchdog_set_yeswayout(&wdev->wdog, yeswayout);
 
 	platform_set_drvdata(pdev, wdev);
 
@@ -313,10 +313,10 @@ static int omap_wdt_remove(struct platform_device *pdev)
 
 #ifdef	CONFIG_PM
 
-/* REVISIT ... not clear this is the best way to handle system suspend; and
+/* REVISIT ... yest clear this is the best way to handle system suspend; and
  * it's very inappropriate for selective device suspend (e.g. suspending this
  * through sysfs rather than by stopping the watchdog daemon).  Also, this
- * may not play well enough with NOWAYOUT...
+ * may yest play well eyesugh with NOWAYOUT...
  */
 
 static int omap_wdt_suspend(struct platform_device *pdev, pm_message_t state)

@@ -23,19 +23,19 @@ if (obj) {
    * reuse these object before the RCU grace period, we
    * must check key after getting the reference on object
    */
-  if (obj->key != key) { // not the object we expected
+  if (obj->key != key) { // yest the object we expected
      put_ref(obj);
      goto begin;
    }
 }
 rcu_read_unlock();
 
-Beware that lockless_lookup(key) cannot use traditional hlist_for_each_entry_rcu()
+Beware that lockless_lookup(key) canyest use traditional hlist_for_each_entry_rcu()
 but a version with an additional memory barrier (smp_rmb())
 
 lockless_lookup(key)
 {
-   struct hlist_node *node, *next;
+   struct hlist_yesde *yesde, *next;
    for (pos = rcu_dereference((head)->first);
           pos && ({ next = pos->next; smp_rmb(); prefetch(next); 1; }) &&
           ({ tpos = hlist_entry(pos, typeof(*tpos), member); 1; });
@@ -44,9 +44,9 @@ lockless_lookup(key)
          return obj;
    return NULL;
 
-And note the traditional hlist_for_each_entry_rcu() misses this smp_rmb() :
+And yeste the traditional hlist_for_each_entry_rcu() misses this smp_rmb() :
 
-   struct hlist_node *node;
+   struct hlist_yesde *yesde;
    for (pos = rcu_dereference((head)->first);
 		pos && ({ prefetch(pos->next); 1; }) &&
 		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1; });
@@ -58,11 +58,11 @@ And note the traditional hlist_for_each_entry_rcu() misses this smp_rmb() :
 
 Quoting Corey Minyard :
 
-"If the object is moved from one list to another list in-between the
+"If the object is moved from one list to ayesther list in-between the
  time the hash is calculated and the next field is accessed, and the
- object has moved to the end of a new list, the traversal will not
+ object has moved to the end of a new list, the traversal will yest
  complete properly on the list it should have, since the object will
- be on the end of the new list and there's not a way to tell it's on a
+ be on the end of the new list and there's yest a way to tell it's on a
  new list and restart the list traversal.  I think that this can be
  solved by pre-fetching the "next" field (with proper barriers) before
  checking the key."
@@ -70,15 +70,15 @@ Quoting Corey Minyard :
 2) Insert algo :
 ----------------
 
-We need to make sure a reader cannot read the new 'obj->obj_next' value
+We need to make sure a reader canyest read the new 'obj->obj_next' value
 and previous value of 'obj->key'. Or else, an item could be deleted
-from a chain, and inserted into another chain. If new chain was empty
+from a chain, and inserted into ayesther chain. If new chain was empty
 before the move, 'next' pointer is NULL, and lockless reader can
-not detect it missed following items in original chain.
+yest detect it missed following items in original chain.
 
 /*
- * Please note that new inserts are done at the head of list,
- * not in the middle or end.
+ * Please yeste that new inserts are done at the head of list,
+ * yest in the middle or end.
  */
 obj = kmem_cache_alloc(...);
 lock_chain(); // typically a spin_lock()
@@ -89,7 +89,7 @@ obj->key = key;
  */
 smp_wmb();
 atomic_set(&obj->refcnt, 1);
-hlist_add_head_rcu(&obj->obj_node, list);
+hlist_add_head_rcu(&obj->obj_yesde, list);
 unlock_chain(); // typically a spin_unlock()
 
 
@@ -101,7 +101,7 @@ very very fast (before the end of RCU grace period)
 
 if (put_last_reference_on(obj) {
    lock_chain(); // typically a spin_lock()
-   hlist_del_init_rcu(&obj->obj_node);
+   hlist_del_init_rcu(&obj->obj_yesde);
    unlock_chain(); // typically a spin_unlock()
    kmem_cache_free(cachep, obj);
 }
@@ -115,9 +115,9 @@ and extra smp_wmb() in insert function.
 For example, if we choose to store the slot number as the 'nulls'
 end-of-list marker for each slot of the hash table, we can detect
 a race (some writer did a delete and/or a move of an object
-to another chain) checking the final 'nulls' value if
+to ayesther chain) checking the final 'nulls' value if
 the lookup met the end of chain. If final 'nulls' value
-is not the slot number, then we must restart the lookup at
+is yest the slot number, then we must restart the lookup at
 the beginning. If the object was moved to the same chain,
 then the reader doesn't care : It might eventually
 scan the list again without harm.
@@ -128,11 +128,11 @@ scan the list again without harm.
  head = &table[slot];
  rcu_read_lock();
 begin:
- hlist_nulls_for_each_entry_rcu(obj, node, head, member) {
+ hlist_nulls_for_each_entry_rcu(obj, yesde, head, member) {
    if (obj->key == key) {
       if (!try_get_ref(obj)) // might fail for free objects
          goto begin;
-      if (obj->key != key) { // not the object we expected
+      if (obj->key != key) { // yest the object we expected
          put_ref(obj);
          goto begin;
       }
@@ -140,10 +140,10 @@ begin:
  }
 /*
  * if the nulls value we got at the end of this lookup is
- * not the expected one, we must restart lookup.
- * We probably met an item that was moved to another chain.
+ * yest the expected one, we must restart lookup.
+ * We probably met an item that was moved to ayesther chain.
  */
- if (get_nulls_value(node) != slot)
+ if (get_nulls_value(yesde) != slot)
    goto begin;
  obj = NULL;
 
@@ -154,8 +154,8 @@ out:
 --------------------
 
 /*
- * Please note that new inserts are done at the head of list,
- * not in the middle or end.
+ * Please yeste that new inserts are done at the head of list,
+ * yest in the middle or end.
  */
 obj = kmem_cache_alloc(cachep);
 lock_chain(); // typically a spin_lock()
@@ -168,5 +168,5 @@ atomic_set(&obj->refcnt, 1);
 /*
  * insert obj in RCU way (readers might be traversing chain)
  */
-hlist_nulls_add_head_rcu(&obj->obj_node, list);
+hlist_nulls_add_head_rcu(&obj->obj_yesde, list);
 unlock_chain(); // typically a spin_unlock()

@@ -14,7 +14,7 @@ layout at the start of the I/O space which is, to quote the Aspeed datasheet,
 "basically compatible with the [LPC registers from the] popular BMC controller
 H8S/2168[1]", and everything else, where everything else is an eclectic
 collection of functions with a esoteric register layout. "Everything else",
-here labeled the "host" portion of the controller, includes, but is not limited
+here labeled the "host" portion of the controller, includes, but is yest limited
 to:
 
 * An IPMI Block Transfer[2] Controller
@@ -25,7 +25,7 @@ to:
 
 * An LPC Host Interface Controller: Manages functions exposed to the host such
   as LPC firmware hub cycles, configuration of the LPC-to-AHB mapping, UART
-  management and bus snoop configuration.
+  management and bus syesop configuration.
 
 * A set of SuperIO[3] scratch registers: Enables implementation of e.g. custom
   hardware management protocols for handover between the host and baseboard
@@ -55,7 +55,7 @@ Required properties
 - ranges: 	Maps 0 to the physical address and length of the LPC memory
                 region
 
-Required LPC Child nodes
+Required LPC Child yesdes
 ========================
 
 BMC Node
@@ -121,7 +121,7 @@ LPC Host Interface Controller
 
 The LPC Host Interface Controller manages functions exposed to the host such as
 LPC firmware hub cycles, configuration of the LPC-to-AHB mapping, UART
-management and bus snoop configuration.
+management and bus syesop configuration.
 
 Required properties:
 
@@ -132,7 +132,7 @@ Required properties:
 - reg:		contains offset/length values of the host interface controller
 		memory regions
 
-- clocks:	contains a phandle to the syscon node describing the clocks.
+- clocks:	contains a phandle to the syscon yesde describing the clocks.
 		There should then be one cell representing the clock to use
 
 Optional properties:
@@ -161,7 +161,7 @@ LPC Host Controller
 The Aspeed LPC Host Controller configures the Low Pin Count (LPC) bus behaviour
 between the host and the baseboard management controller. The registers exist
 in the "host" portion of the Aspeed LPC controller, which must be the parent of
-the LPC host controller node.
+the LPC host controller yesde.
 
 Required properties:
 

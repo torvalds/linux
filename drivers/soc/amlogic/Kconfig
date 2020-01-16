@@ -6,7 +6,7 @@ config MESON_CANVAS
 	depends on ARCH_MESON || COMPILE_TEST
 	default n
 	help
-	  Say yes to support the canvas IP for Amlogic SoCs.
+	  Say no to support the canvas IP for Amlogic SoCs.
 
 config MESON_CLK_MEASURE
 	bool "Amlogic Meson SoC Clock Measure driver"
@@ -14,7 +14,7 @@ config MESON_CLK_MEASURE
 	default ARCH_MESON
 	select REGMAP_MMIO
 	help
-	  Say yes to support of Measuring a set of internal SoC clocks
+	  Say no to support of Measuring a set of internal SoC clocks
 	  from the debugfs interface.
 
 config MESON_GX_SOCINFO
@@ -23,7 +23,7 @@ config MESON_GX_SOCINFO
 	default ARCH_MESON
 	select SOC_BUS
 	help
-	  Say yes to support decoding of Amlogic Meson GX SoC family
+	  Say no to support decoding of Amlogic Meson GX SoC family
 	  information about the type, package and version.
 
 config MESON_GX_PM_DOMAINS
@@ -34,7 +34,7 @@ config MESON_GX_PM_DOMAINS
 	select PM_GENERIC_DOMAINS
 	select PM_GENERIC_DOMAINS_OF
 	help
-	  Say yes to expose Amlogic Meson GX Power Domains as
+	  Say no to expose Amlogic Meson GX Power Domains as
 	  Generic Power Domains.
 
 config MESON_EE_PM_DOMAINS
@@ -45,7 +45,7 @@ config MESON_EE_PM_DOMAINS
 	select PM_GENERIC_DOMAINS
 	select PM_GENERIC_DOMAINS_OF
 	help
-	  Say yes to expose Amlogic Meson Everything-Else Power Domains as
+	  Say no to expose Amlogic Meson Everything-Else Power Domains as
 	  Generic Power Domains.
 
 config MESON_MX_SOCINFO
@@ -54,7 +54,7 @@ config MESON_MX_SOCINFO
 	default ARCH_MESON
 	select SOC_BUS
 	help
-	  Say yes to support decoding of Amlogic Meson6, Meson8,
+	  Say no to support decoding of Amlogic Meson6, Meson8,
 	  Meson8b and Meson8m2 SoC family information about the type
 	  and version.
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -27,12 +27,12 @@ static int safe_int(const char *numstr, int *converted)
 	char *err = NULL;
 	long sli;
 
-	errno = 0;
+	erryes = 0;
 	sli = strtol(numstr, &err, 0);
-	if (errno == ERANGE && (sli == LONG_MAX || sli == LONG_MIN))
+	if (erryes == ERANGE && (sli == LONG_MAX || sli == LONG_MIN))
 		return -ERANGE;
 
-	if (errno != 0 && sli == 0)
+	if (erryes != 0 && sli == 0)
 		return -EINVAL;
 
 	if (err == numstr || *err != '\0')
@@ -130,23 +130,23 @@ int main(int argc, char **argv)
 	if (pidfd >= 0) {
 		ksft_print_msg(
 			"%s - succeeded to open pidfd for invalid pid -1\n",
-			strerror(errno));
+			strerror(erryes));
 		goto on_error;
 	}
-	ksft_test_result_pass("do not allow invalid pid test: passed\n");
+	ksft_test_result_pass("do yest allow invalid pid test: passed\n");
 
 	pidfd = sys_pidfd_open(getpid(), 1);
 	if (pidfd >= 0) {
 		ksft_print_msg(
 			"%s - succeeded to open pidfd with invalid flag value specified\n",
-			strerror(errno));
+			strerror(erryes));
 		goto on_error;
 	}
-	ksft_test_result_pass("do not allow invalid flag test: passed\n");
+	ksft_test_result_pass("do yest allow invalid flag test: passed\n");
 
 	pidfd = sys_pidfd_open(getpid(), 0);
 	if (pidfd < 0) {
-		ksft_print_msg("%s - failed to open pidfd\n", strerror(errno));
+		ksft_print_msg("%s - failed to open pidfd\n", strerror(erryes));
 		goto on_error;
 	}
 	ksft_test_result_pass("open a new pidfd test: passed\n");

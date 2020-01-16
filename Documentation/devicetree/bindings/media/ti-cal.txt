@@ -14,8 +14,8 @@ Required properties:
 	     registers
 - interrupts: should contain IRQ line for the CAL;
 
-CAL supports 2 camera port nodes on MIPI bus. Each CSI2 camera port nodes
-should contain a 'port' child node with child 'endpoint' node. Please
+CAL supports 2 camera port yesdes on MIPI bus. Each CSI2 camera port yesdes
+should contain a 'port' child yesde with child 'endpoint' yesde. Please
 refer to the bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 

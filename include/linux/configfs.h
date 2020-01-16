@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * configfs.h - definitions for the device driver filesystem
  *
@@ -205,7 +205,7 @@ static struct configfs_bin_attribute _pfx##attr_##_name = {	\
  * default_groups on group->default_groups, it has automatically created
  * group children.  default_groups may coexist alongsize make_group() or
  * make_item(), but if the group wishes to have only default_groups
- * children (disallowing mkdir(2)), it need not provide either function.
+ * children (disallowing mkdir(2)), it need yest provide either function.
  * If the group has commit(), it supports pending and committed (active)
  * items.
  */
@@ -219,7 +219,7 @@ struct configfs_group_operations {
 	struct config_item *(*make_item)(struct config_group *group, const char *name);
 	struct config_group *(*make_group)(struct config_group *group, const char *name);
 	int (*commit_item)(struct config_item *item);
-	void (*disconnect_notify)(struct config_group *group, struct config_item *item);
+	void (*disconnect_yestify)(struct config_group *group, struct config_item *item);
 	void (*drop_item)(struct config_group *group, struct config_item *item);
 };
 
@@ -251,7 +251,7 @@ configfs_register_default_group(struct config_group *parent_group,
 void configfs_unregister_default_group(struct config_group *group);
 
 /* These functions can sleep and can alloc with GFP_KERNEL */
-/* WARNING: These cannot be called underneath configfs callbacks!! */
+/* WARNING: These canyest be called underneath configfs callbacks!! */
 int configfs_depend_item(struct configfs_subsystem *subsys,
 			 struct config_item *target);
 void configfs_undepend_item(struct config_item *target);
@@ -259,8 +259,8 @@ void configfs_undepend_item(struct config_item *target);
 /*
  * These functions can sleep and can alloc with GFP_KERNEL
  * NOTE: These should be called only underneath configfs callbacks.
- * NOTE: First parameter is a caller's subsystem, not target's.
- * WARNING: These cannot be called on newly created item
+ * NOTE: First parameter is a caller's subsystem, yest target's.
+ * WARNING: These canyest be called on newly created item
  *        (in make_group()/make_item() callback)
  */
 int configfs_depend_item_unlocked(struct configfs_subsystem *caller_subsys,

@@ -64,7 +64,7 @@
 #define U300_TIMER_APP_OSTIE					(0x001c)
 #define U300_TIMER_APP_OSTIE_IRQ_DISABLE			(0x00000000)
 #define U300_TIMER_APP_OSTIE_IRQ_ENABLE				(0x00000001)
-/* OS Timer Interrupt Acknowledge Register 32bit (-/W) */
+/* OS Timer Interrupt Ackyeswledge Register 32bit (-/W) */
 #define U300_TIMER_APP_OSTIA					(0x0020)
 #define U300_TIMER_APP_OSTIA_IRQ_ACK				(0x00000080)
 
@@ -100,7 +100,7 @@
 #define U300_TIMER_APP_DDTIE					(0x005c)
 #define U300_TIMER_APP_DDTIE_IRQ_DISABLE			(0x00000000)
 #define U300_TIMER_APP_DDTIE_IRQ_ENABLE				(0x00000001)
-/* DD Timer Interrupt Acknowledge Register 32bit (-/W) */
+/* DD Timer Interrupt Ackyeswledge Register 32bit (-/W) */
 #define U300_TIMER_APP_DDTIA					(0x0060)
 #define U300_TIMER_APP_DDTIA_IRQ_ACK				(0x00000080)
 
@@ -136,7 +136,7 @@
 #define U300_TIMER_APP_GPT1IE					(0x009c)
 #define U300_TIMER_APP_GPT1IE_IRQ_DISABLE			(0x00000000)
 #define U300_TIMER_APP_GPT1IE_IRQ_ENABLE			(0x00000001)
-/* GP1 Timer Interrupt Acknowledge Register 32bit (-/W) */
+/* GP1 Timer Interrupt Ackyeswledge Register 32bit (-/W) */
 #define U300_TIMER_APP_GPT1IA					(0x00a0)
 #define U300_TIMER_APP_GPT1IA_IRQ_ACK				(0x00000080)
 
@@ -172,7 +172,7 @@
 #define U300_TIMER_APP_GPT2IE					(0x00dc)
 #define U300_TIMER_APP_GPT2IE_IRQ_DISABLE			(0x00000000)
 #define U300_TIMER_APP_GPT2IE_IRQ_ENABLE			(0x00000001)
-/* GP2 Timer Interrupt Acknowledge Register 32bit (-/W) */
+/* GP2 Timer Interrupt Ackyeswledge Register 32bit (-/W) */
 #define U300_TIMER_APP_GPT2IA					(0x00e0)
 #define U300_TIMER_APP_GPT2IA_IRQ_ACK				(0x00000080)
 
@@ -340,11 +340,11 @@ static struct irqaction u300_timer_irq = {
  * Override the global weak sched_clock symbol with this
  * local implementation which uses the clocksource to get some
  * better resolution when scheduling the kernel. We accept that
- * this wraps around for now, since it is just a relative time
+ * this wraps around for yesw, since it is just a relative time
  * stamp. (Inspired by OMAP implementation.)
  */
 
-static u64 notrace u300_read_sched_clock(void)
+static u64 yestrace u300_read_sched_clock(void)
 {
 	return readl(u300_timer_base + U300_TIMER_APP_GPT2CC);
 }
@@ -359,7 +359,7 @@ static struct delay_timer u300_delay_timer;
 /*
  * This sets up the system timers, clock source and clock event.
  */
-static int __init u300_timer_init_of(struct device_node *np)
+static int __init u300_timer_init_of(struct device_yesde *np)
 {
 	unsigned int irq;
 	struct clk *clk;
@@ -368,14 +368,14 @@ static int __init u300_timer_init_of(struct device_node *np)
 
 	u300_timer_base = of_iomap(np, 0);
 	if (!u300_timer_base) {
-		pr_err("could not ioremap system timer\n");
+		pr_err("could yest ioremap system timer\n");
 		return -ENXIO;
 	}
 
 	/* Get the IRQ for the GP1 timer */
 	irq = irq_of_parse_and_map(np, 2);
 	if (!irq) {
-		pr_err("no IRQ for system timer\n");
+		pr_err("yes IRQ for system timer\n");
 		return -EINVAL;
 	}
 

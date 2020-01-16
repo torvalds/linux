@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -272,7 +272,7 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 
 /*
  * Return true if vbios enabled ecc by default, if umc info table is available
- * or false if ecc is not enabled or umc info table is not available
+ * or false if ecc is yest enabled or umc info table is yest available
  */
 bool amdgpu_atomfirmware_mem_ecc_supported(struct amdgpu_device *adev)
 {
@@ -306,7 +306,7 @@ union firmware_info {
 };
 
 /*
- * Return true if vbios supports sram ecc or false if not
+ * Return true if vbios supports sram ecc or false if yest
  */
 bool amdgpu_atomfirmware_sram_ecc_supported(struct amdgpu_device *adev)
 {
@@ -364,7 +364,7 @@ int amdgpu_atomfirmware_get_clock_info(struct amdgpu_device *adev)
 		adev->pm.current_sclk = adev->clock.default_sclk;
 		adev->pm.current_mclk = adev->clock.default_mclk;
 
-		/* not technically a clock, but... */
+		/* yest technically a clock, but... */
 		adev->mode_info.firmware_flags =
 			le32_to_cpu(firmware_info->v31.firmware_capability);
 
@@ -494,15 +494,15 @@ static bool gddr6_mem_train_vbios_support(struct amdgpu_device *adev)
 static int gddr6_mem_train_support(struct amdgpu_device *adev)
 {
 	int ret;
-	uint32_t major, minor, revision, hw_v;
+	uint32_t major, miyesr, revision, hw_v;
 
 	if (gddr6_mem_train_vbios_support(adev)) {
-		amdgpu_discovery_get_ip_version(adev, MP0_HWID, &major, &minor, &revision);
-		hw_v = HW_REV(major, minor, revision);
+		amdgpu_discovery_get_ip_version(adev, MP0_HWID, &major, &miyesr, &revision);
+		hw_v = HW_REV(major, miyesr, revision);
 		/*
 		 * treat 0 revision as a special case since register for MP0 and MMHUB is missing
 		 * for some Navi10 A0, preventing driver from discovering the hwip information since
-		 * none of the functions will be initialized, it should not cause any problems
+		 * yesne of the functions will be initialized, it should yest cause any problems
 		 */
 		switch (hw_v) {
 		case HW_REV(11, 0, 0):

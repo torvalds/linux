@@ -50,26 +50,26 @@ static u32 canvas_read(struct meson_canvas *canvas, u32 reg)
 
 struct meson_canvas *meson_canvas_get(struct device *dev)
 {
-	struct device_node *canvas_node;
+	struct device_yesde *canvas_yesde;
 	struct platform_device *canvas_pdev;
 	struct meson_canvas *canvas;
 
-	canvas_node = of_parse_phandle(dev->of_node, "amlogic,canvas", 0);
-	if (!canvas_node)
+	canvas_yesde = of_parse_phandle(dev->of_yesde, "amlogic,canvas", 0);
+	if (!canvas_yesde)
 		return ERR_PTR(-ENODEV);
 
-	canvas_pdev = of_find_device_by_node(canvas_node);
+	canvas_pdev = of_find_device_by_yesde(canvas_yesde);
 	if (!canvas_pdev) {
-		of_node_put(canvas_node);
+		of_yesde_put(canvas_yesde);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	of_node_put(canvas_node);
+	of_yesde_put(canvas_yesde);
 
 	/*
 	 * If priv is NULL, it's probably because the canvas hasn't
 	 * properly initialized. Bail out with -EINVAL because, in the
-	 * current state, this driver probe cannot return -EPROBE_DEFER
+	 * current state, this driver probe canyest return -EPROBE_DEFER
 	 */
 	canvas = dev_get_drvdata(&canvas_pdev->dev);
 	if (!canvas)
@@ -89,14 +89,14 @@ int meson_canvas_config(struct meson_canvas *canvas, u8 canvas_index,
 
 	if (endian && !canvas->supports_endianness) {
 		dev_err(canvas->dev,
-			"Endianness is not supported on this SoC\n");
+			"Endianness is yest supported on this SoC\n");
 		return -EINVAL;
 	}
 
 	spin_lock_irqsave(&canvas->lock, flags);
 	if (!canvas->used[canvas_index]) {
 		dev_err(canvas->dev,
-			"Trying to setup non allocated canvas %u\n",
+			"Trying to setup yesn allocated canvas %u\n",
 			canvas_index);
 		spin_unlock_irqrestore(&canvas->lock, flags);
 		return -EINVAL;

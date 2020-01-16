@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragr) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -791,7 +791,7 @@ nv10_gr_ctx_regs_find_offset(struct nv10_gr *gr, int reg)
 		if (nv10_gr_ctx_regs[i] == reg)
 			return i;
 	}
-	nvkm_error(subdev, "unknown offset nv10_ctx_regs %d\n", reg);
+	nvkm_error(subdev, "unkyeswn offset nv10_ctx_regs %d\n", reg);
 	return -1;
 }
 
@@ -804,7 +804,7 @@ nv17_gr_ctx_regs_find_offset(struct nv10_gr *gr, int reg)
 		if (nv17_gr_ctx_regs[i] == reg)
 			return i;
 	}
-	nvkm_error(subdev, "unknown offset nv17_ctx_regs %d\n", reg);
+	nvkm_error(subdev, "unkyeswn offset nv17_ctx_regs %d\n", reg);
 	return -1;
 }
 
@@ -818,7 +818,7 @@ nv10_gr_load_dma_vtxbuf(struct nv10_gr_chan *chan, int chid, u32 inst)
 	int i, subchan = -1;
 
 	/* NV10TCL_DMA_VTXBUF (method 0x18c) modifies hidden state
-	 * that cannot be restored via MMIO. Do it through the FIFO
+	 * that canyest be restored via MMIO. Do it through the FIFO
 	 * instead.
 	 */
 
@@ -1125,7 +1125,7 @@ nv10_gr_intr(struct nvkm_gr *base)
 				   "nstatus %08x [%s] ch %d [%s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
 			   show, msg, nsource, src, nstatus, sta, chid,
-			   chan ? chan->object.client->name : "unknown",
+			   chan ? chan->object.client->name : "unkyeswn",
 			   subc, class, mthd, data);
 	}
 

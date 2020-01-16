@@ -31,15 +31,15 @@ pvpanic_send_event(unsigned int event)
 }
 
 static int
-pvpanic_panic_notify(struct notifier_block *nb, unsigned long code,
+pvpanic_panic_yestify(struct yestifier_block *nb, unsigned long code,
 		     void *unused)
 {
 	pvpanic_send_event(PVPANIC_PANICKED);
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block pvpanic_panic_nb = {
-	.notifier_call = pvpanic_panic_notify,
+static struct yestifier_block pvpanic_panic_nb = {
+	.yestifier_call = pvpanic_panic_yestify,
 	.priority = 1, /* let this called before broken drm_fb_helper */
 };
 
@@ -101,7 +101,7 @@ static int pvpanic_add(struct acpi_device *device)
 	if (!base)
 		return -ENODEV;
 
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_yestifier_chain_register(&panic_yestifier_list,
 				       &pvpanic_panic_nb);
 
 	return 0;
@@ -110,7 +110,7 @@ static int pvpanic_add(struct acpi_device *device)
 static int pvpanic_remove(struct acpi_device *device)
 {
 
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_yestifier_chain_unregister(&panic_yestifier_list,
 					 &pvpanic_panic_nb);
 	iounmap(base);
 
@@ -147,7 +147,7 @@ static int pvpanic_mmio_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_yestifier_chain_register(&panic_yestifier_list,
 				       &pvpanic_panic_nb);
 
 	return 0;
@@ -156,7 +156,7 @@ static int pvpanic_mmio_probe(struct platform_device *pdev)
 static int pvpanic_mmio_remove(struct platform_device *pdev)
 {
 
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_yestifier_chain_unregister(&panic_yestifier_list,
 					 &pvpanic_panic_nb);
 
 	return 0;

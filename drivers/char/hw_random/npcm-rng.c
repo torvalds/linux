@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019 Nuvoton Technology corporation.
+// Copyright (c) 2019 Nuvoton Techyeslogy corporation.
 
 #include <linux/kernel.h>
 #include <linux/module.h>

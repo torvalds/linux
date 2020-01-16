@@ -15,7 +15,7 @@
  *		Linus Torvalds, <torvalds@cs.helsinki.fi>
  *		Alan Cox, <gw4pts@gw4pts.ampr.org>
  *		Matthew Dillon, <dillon@apollo.west.oic.com>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.yes>
  *		Jorge Cwik, <jorge@laser.satlink.net>
  */
 
@@ -62,19 +62,19 @@ static void tcp_write_err(struct sock *sk)
  *  @sk:        pointer to current socket
  *  @do_reset:  send a last packet with reset flag
  *
- *  Do not allow orphaned sockets to eat all our resources.
+ *  Do yest allow orphaned sockets to eat all our resources.
  *  This is direct violation of TCP specs, but it is required
  *  to prevent DoS attacks. It is called when a retransmission timeout
  *  or zero probe timeout occurs on orphaned socket.
  *
- *  Also close if our net namespace is exiting; in that case there is no
+ *  Also close if our net namespace is exiting; in that case there is yes
  *  hope of ever communicating again since all netns interfaces are already
  *  down (or about to be down), and we need to release our dst references,
  *  which have been moved to the netns loopback interface, so the namespace
  *  can finish exiting.  This condition is only possible if we are a kernel
- *  socket, as those do not hold references to the namespace.
+ *  socket, as those do yest hold references to the namespace.
  *
- *  Criteria is still not confirmed experimentally and may change.
+ *  Criteria is still yest confirmed experimentally and may change.
  *  We kill the socket, if:
  *  1. If number of orphaned sockets exceeds an administratively configured
  *     limit.
@@ -86,7 +86,7 @@ static int tcp_out_of_resources(struct sock *sk, bool do_reset)
 	struct tcp_sock *tp = tcp_sk(sk);
 	int shift = 0;
 
-	/* If peer does not open window for long time, or did not transmit
+	/* If peer does yest open window for long time, or did yest transmit
 	 * anything for long time, penalize it. */
 	if ((s32)(tcp_jiffies32 - tp->lsndtime) > 2*TCP_RTO_MAX || !do_reset)
 		shift++;
@@ -127,7 +127,7 @@ static int tcp_orphan_retries(struct sock *sk, bool alive)
 {
 	int retries = sock_net(sk)->ipv4.sysctl_tcp_orphan_retries; /* May be zero. */
 
-	/* We know from an ICMP that something is wrong. */
+	/* We kyesw from an ICMP that something is wrong. */
 	if (sk->sk_err_soft && !alive)
 		retries = 0;
 
@@ -377,14 +377,14 @@ static void tcp_probe_timer(struct sock *sk)
 	if (icsk->icsk_probes_out >= max_probes) {
 abort:		tcp_write_err(sk);
 	} else {
-		/* Only send another probe if we didn't close things up. */
+		/* Only send ayesther probe if we didn't close things up. */
 		tcp_send_probe0(sk);
 	}
 }
 
 /*
  *	Timer for Fast Open socket to retransmit SYNACK. Note that the
- *	sk here is the child socket, not the parent (listener) socket.
+ *	sk here is the child socket, yest the parent (listener) socket.
  */
 static void tcp_fastopen_synack_timer(struct sock *sk, struct request_sock *req)
 {
@@ -402,10 +402,10 @@ static void tcp_fastopen_synack_timer(struct sock *sk, struct request_sock *req)
 	/* Lower cwnd after certain SYNACK timeout like tcp_init_transfer() */
 	if (icsk->icsk_retransmits == 1)
 		tcp_enter_loss(sk);
-	/* XXX (TFO) - Unlike regular SYN-ACK retransmit, we ignore error
+	/* XXX (TFO) - Unlike regular SYN-ACK retransmit, we igyesre error
 	 * returned from rtx_syn_ack() to make it more persistent like
 	 * regular retransmit because if the child socket has been accepted
-	 * it's not good to give up too easily.
+	 * it's yest good to give up too easily.
 	 */
 	inet_rtx_syn_ack(sk, req);
 	req->num_timeout++;
@@ -460,9 +460,9 @@ void tcp_retransmit_timer(struct sock *sk)
 	if (!tp->snd_wnd && !sock_flag(sk, SOCK_DEAD) &&
 	    !((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))) {
 		/* Receiver dastardly shrinks window. Our retransmits
-		 * become zero probes, but we should not timeout this
+		 * become zero probes, but we should yest timeout this
 		 * connection. If the socket is an orphan, time it out,
-		 * we cannot allow such beasts to hang infinitely.
+		 * we canyest allow such beasts to hang infinitely.
 		 */
 		struct inet_sock *inet = inet_sk(sk);
 		if (sk->sk_family == AF_INET) {
@@ -530,7 +530,7 @@ void tcp_retransmit_timer(struct sock *sk)
 	}
 
 	/* Increase the timeout each time we retransmit.  Note that
-	 * we do not increase the rtt estimate.  rto is initialized
+	 * we do yest increase the rtt estimate.  rto is initialized
 	 * from rtt, but increases here.  Jacobson (SIGCOMM 88) suggests
 	 * that doubling rto each time is the least we can get away with.
 	 * In KA9Q, Karn uses this for the first few times, and then
@@ -563,7 +563,7 @@ out_reset_timer:
 		icsk->icsk_backoff = 0;
 		icsk->icsk_rto = min(__tcp_set_rto(tp), TCP_RTO_MAX);
 	} else {
-		/* Use normal (exponential) backoff */
+		/* Use yesrmal (exponential) backoff */
 		icsk->icsk_rto = min(icsk->icsk_rto << 1, TCP_RTO_MAX);
 	}
 	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
@@ -660,7 +660,7 @@ static void tcp_keepalive_timer (struct timer_list *t)
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 elapsed;
 
-	/* Only process if socket is not in use. */
+	/* Only process if socket is yest in use. */
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
 		/* Try again later. */

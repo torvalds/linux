@@ -36,9 +36,9 @@ static int komeda_register_show(struct seq_file *sf, void *x)
 	return 0;
 }
 
-static int komeda_register_open(struct inode *inode, struct file *filp)
+static int komeda_register_open(struct iyesde *iyesde, struct file *filp)
 {
-	return single_open(filp, komeda_register_show, inode->i_private);
+	return single_open(filp, komeda_register_show, iyesde->i_private);
 }
 
 static const struct file_operations komeda_register_fops = {
@@ -113,7 +113,7 @@ static struct attribute_group komeda_sysfs_attr_group = {
 	.attrs = komeda_sysfs_entries,
 };
 
-static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
+static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_yesde *np)
 {
 	struct komeda_pipeline *pipe;
 	struct clk *clk;
@@ -135,14 +135,14 @@ static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
 
 	/* enum ports */
 	pipe->of_output_links[0] =
-		of_graph_get_remote_node(np, KOMEDA_OF_PORT_OUTPUT, 0);
+		of_graph_get_remote_yesde(np, KOMEDA_OF_PORT_OUTPUT, 0);
 	pipe->of_output_links[1] =
-		of_graph_get_remote_node(np, KOMEDA_OF_PORT_OUTPUT, 1);
+		of_graph_get_remote_yesde(np, KOMEDA_OF_PORT_OUTPUT, 1);
 	pipe->of_output_port =
 		of_graph_get_port_by_id(np, KOMEDA_OF_PORT_OUTPUT);
 
 	pipe->dual_link = pipe->of_output_links[0] && pipe->of_output_links[1];
-	pipe->of_node = of_node_get(np);
+	pipe->of_yesde = of_yesde_get(np);
 
 	return 0;
 }
@@ -150,12 +150,12 @@ static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
 static int komeda_parse_dt(struct device *dev, struct komeda_dev *mdev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *child, *np = dev->of_node;
+	struct device_yesde *child, *np = dev->of_yesde;
 	int ret;
 
 	mdev->irq  = platform_get_irq(pdev, 0);
 	if (mdev->irq < 0) {
-		DRM_ERROR("could not get IRQ number.\n");
+		DRM_ERROR("could yest get IRQ number.\n");
 		return mdev->irq;
 	}
 
@@ -165,12 +165,12 @@ static int komeda_parse_dt(struct device *dev, struct komeda_dev *mdev)
 		return ret;
 	ret = 0;
 
-	for_each_available_child_of_node(np, child) {
-		if (of_node_cmp(child->name, "pipeline") == 0) {
+	for_each_available_child_of_yesde(np, child) {
+		if (of_yesde_cmp(child->name, "pipeline") == 0) {
 			ret = komeda_parse_pipe_dt(mdev, child);
 			if (ret) {
 				DRM_ERROR("parse pipeline dt error!\n");
-				of_node_put(child);
+				of_yesde_put(child);
 				break;
 			}
 		}

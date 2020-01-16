@@ -220,7 +220,7 @@ static void ctx_tbl_walk(struct seq_file *m, struct intel_iommu *iommu, u16 bus)
 		 * In scalable mode, when devfn > 127, iommu_context_addr()
 		 * automatically refers to upper scalable mode context table and
 		 * hence the caller doesn't have to worry about differences
-		 * between scalable mode and non scalable mode.
+		 * between scalable mode and yesn scalable mode.
 		 */
 		context = iommu_context_addr(iommu, bus, devfn, 0);
 		if (!context)
@@ -257,7 +257,7 @@ static void root_tbl_walk(struct seq_file *m, struct intel_iommu *iommu)
 	seq_puts(m, "B.D.F\tRoot_entry\t\t\t\tContext_entry\t\t\t\tPASID\tPASID_table_entry\n");
 
 	/*
-	 * No need to check if the root entry is present or not because
+	 * No need to check if the root entry is present or yest because
 	 * iommu_context_addr() performs the same check before returning
 	 * context entry.
 	 */
@@ -357,7 +357,7 @@ static int ir_translation_struct_show(struct seq_file *m, void *unused)
 			seq_printf(m, " IR table address:%llx\n", irta);
 			ir_tbl_remap_entry_show(m, iommu);
 		} else {
-			seq_puts(m, "Interrupt Remapping is not enabled\n");
+			seq_puts(m, "Interrupt Remapping is yest enabled\n");
 		}
 		seq_putc(m, '\n');
 	}
@@ -376,7 +376,7 @@ static int ir_translation_struct_show(struct seq_file *m, void *unused)
 			seq_printf(m, " IR table address:%llx\n", irta);
 			ir_tbl_posted_entry_show(m, iommu);
 		} else {
-			seq_puts(m, "Interrupt Remapping is not enabled\n");
+			seq_puts(m, "Interrupt Remapping is yest enabled\n");
 		}
 		seq_putc(m, '\n');
 	}

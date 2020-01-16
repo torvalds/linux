@@ -1,33 +1,33 @@
-Mono(tm) Binary Kernel Support for Linux
+Moyes(tm) Binary Kernel Support for Linux
 -----------------------------------------
 
-To configure Linux to automatically execute Mono-based .NET binaries
-(in the form of .exe files) without the need to use the mono CLR
+To configure Linux to automatically execute Moyes-based .NET binaries
+(in the form of .exe files) without the need to use the moyes CLR
 wrapper, you can use the BINFMT_MISC kernel support.
 
-This will allow you to execute Mono-based .NET binaries just like any
+This will allow you to execute Moyes-based .NET binaries just like any
 other program after you have done the following:
 
-1) You MUST FIRST install the Mono CLR support, either by downloading
+1) You MUST FIRST install the Moyes CLR support, either by downloading
    a binary package, a source tarball or by installing from Git. Binary
    packages for several distributions can be found at:
 
-	http://www.mono-project.com/download/
+	http://www.moyes-project.com/download/
 
-   Instructions for compiling Mono can be found at:
+   Instructions for compiling Moyes can be found at:
 
-	http://www.mono-project.com/docs/compiling-mono/linux/
+	http://www.moyes-project.com/docs/compiling-moyes/linux/
 
-   Once the Mono CLR support has been installed, just check that
-   ``/usr/bin/mono`` (which could be located elsewhere, for example
-   ``/usr/local/bin/mono``) is working.
+   Once the Moyes CLR support has been installed, just check that
+   ``/usr/bin/moyes`` (which could be located elsewhere, for example
+   ``/usr/local/bin/moyes``) is working.
 
 2) You have to compile BINFMT_MISC either as a module or into
    the kernel (``CONFIG_BINFMT_MISC``) and set it up properly.
    If you choose to compile it as a module, you will have
    to insert it manually with modprobe/insmod, as kmod
-   cannot be easily supported with binfmt_misc.
-   Read the file ``binfmt_misc.txt`` in this directory to know
+   canyest be easily supported with binfmt_misc.
+   Read the file ``binfmt_misc.txt`` in this directory to kyesw
    more about the configuration process.
 
 3) Add the following entries to ``/etc/rc.local`` or similar script
@@ -41,18 +41,18 @@ other program after you have done the following:
 	# Some distributions, like Fedora Core, perform
 	# the following command automatically when the
 	# binfmt_misc module is loaded into the kernel
-	# or during normal boot up (systemd-based systems).
+	# or during yesrmal boot up (systemd-based systems).
 	# Thus, it is possible that the following line
-	# is not needed at all.
-	mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
+	# is yest needed at all.
+	mount -t binfmt_misc yesne /proc/sys/fs/binfmt_misc
     fi
 
     # Register support for .NET CLR binaries
     if [ -e /proc/sys/fs/binfmt_misc/register ]; then
-	# Replace /usr/bin/mono with the correct pathname to
-	# the Mono CLR runtime (usually /usr/local/bin/mono
+	# Replace /usr/bin/moyes with the correct pathname to
+	# the Moyes CLR runtime (usually /usr/local/bin/moyes
 	# when compiling from sources or CVS).
-        echo ':CLR:M::MZ::/usr/bin/mono:' > /proc/sys/fs/binfmt_misc/register
+        echo ':CLR:M::MZ::/usr/bin/moyes:' > /proc/sys/fs/binfmt_misc/register
     else
         echo "No binfmt_misc support"
         exit 1
@@ -64,7 +64,7 @@ other program after you have done the following:
 
 	/usr/bin/xsd.exe
 
-   .. note::
+   .. yeste::
 
       If this fails with a permission denied error, check
       that the ``.exe`` file has execute permissions.

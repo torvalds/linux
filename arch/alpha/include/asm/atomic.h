@@ -166,8 +166,8 @@ ATOMIC_OPS(sub)
 #define atomic64_fetch_add_relaxed	atomic64_fetch_add_relaxed
 #define atomic64_fetch_sub_relaxed	atomic64_fetch_sub_relaxed
 
-#define atomic_andnot atomic_andnot
-#define atomic64_andnot atomic64_andnot
+#define atomic_andyest atomic_andyest
+#define atomic64_andyest atomic64_andyest
 
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, asm)						\
@@ -177,17 +177,17 @@ ATOMIC_OPS(sub)
 	ATOMIC64_FETCH_OP(op, asm)
 
 ATOMIC_OPS(and, and)
-ATOMIC_OPS(andnot, bic)
+ATOMIC_OPS(andyest, bic)
 ATOMIC_OPS(or, bis)
 ATOMIC_OPS(xor, xor)
 
 #define atomic_fetch_and_relaxed	atomic_fetch_and_relaxed
-#define atomic_fetch_andnot_relaxed	atomic_fetch_andnot_relaxed
+#define atomic_fetch_andyest_relaxed	atomic_fetch_andyest_relaxed
 #define atomic_fetch_or_relaxed		atomic_fetch_or_relaxed
 #define atomic_fetch_xor_relaxed	atomic_fetch_xor_relaxed
 
 #define atomic64_fetch_and_relaxed	atomic64_fetch_and_relaxed
-#define atomic64_fetch_andnot_relaxed	atomic64_fetch_andnot_relaxed
+#define atomic64_fetch_andyest_relaxed	atomic64_fetch_andyest_relaxed
 #define atomic64_fetch_or_relaxed	atomic64_fetch_or_relaxed
 #define atomic64_fetch_xor_relaxed	atomic64_fetch_xor_relaxed
 
@@ -211,7 +211,7 @@ ATOMIC_OPS(xor, xor)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, so long as it was not @u.
+ * Atomically adds @a to @v, so long as it was yest @u.
  * Returns the old value of @v.
  */
 static __inline__ int atomic_fetch_add_unless(atomic_t *v, int a, int u)
@@ -243,7 +243,7 @@ static __inline__ int atomic_fetch_add_unless(atomic_t *v, int a, int u)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, so long as it was not @u.
+ * Atomically adds @a to @v, so long as it was yest @u.
  * Returns the old value of @v.
  */
 static __inline__ s64 atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
@@ -274,7 +274,7 @@ static __inline__ s64 atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
  * @v: pointer of type atomic_t
  *
  * The function returns the old value of *v minus 1, even if
- * the atomic variable, v, was not decremented.
+ * the atomic variable, v, was yest decremented.
  */
 static inline s64 atomic64_dec_if_positive(atomic64_t *v)
 {

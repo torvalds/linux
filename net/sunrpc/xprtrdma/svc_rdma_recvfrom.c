@@ -15,14 +15,14 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      yestice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright yestice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. yesr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
@@ -63,7 +63,7 @@
  * RDMA Reads using pages in svc_rqst::rq_pages, which are
  * transferred to an svc_rdma_recv_ctxt for the duration of the
  * I/O. svc_rdma_recvfrom then returns zero, since the RPC message
- * is still not yet ready.
+ * is still yest yet ready.
  *
  * When the Read chunk payloads have become available on the
  * server, "Data Ready" is raised again, and svc_recv calls
@@ -172,10 +172,10 @@ static void svc_rdma_recv_ctxt_destroy(struct svcxprt_rdma *rdma,
 void svc_rdma_recv_ctxts_destroy(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_recv_ctxt *ctxt;
-	struct llist_node *node;
+	struct llist_yesde *yesde;
 
-	while ((node = llist_del_first(&rdma->sc_recv_ctxts))) {
-		ctxt = llist_entry(node, struct svc_rdma_recv_ctxt, rc_node);
+	while ((yesde = llist_del_first(&rdma->sc_recv_ctxts))) {
+		ctxt = llist_entry(yesde, struct svc_rdma_recv_ctxt, rc_yesde);
 		svc_rdma_recv_ctxt_destroy(rdma, ctxt);
 	}
 }
@@ -184,12 +184,12 @@ static struct svc_rdma_recv_ctxt *
 svc_rdma_recv_ctxt_get(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_recv_ctxt *ctxt;
-	struct llist_node *node;
+	struct llist_yesde *yesde;
 
-	node = llist_del_first(&rdma->sc_recv_ctxts);
-	if (!node)
+	yesde = llist_del_first(&rdma->sc_recv_ctxts);
+	if (!yesde)
 		goto out_empty;
-	ctxt = llist_entry(node, struct svc_rdma_recv_ctxt, rc_node);
+	ctxt = llist_entry(yesde, struct svc_rdma_recv_ctxt, rc_yesde);
 
 out:
 	ctxt->rc_page_count = 0;
@@ -217,7 +217,7 @@ void svc_rdma_recv_ctxt_put(struct svcxprt_rdma *rdma,
 		put_page(ctxt->rc_pages[i]);
 
 	if (!ctxt->rc_temp)
-		llist_add(&ctxt->rc_node, &rdma->sc_recv_ctxts);
+		llist_add(&ctxt->rc_yesde, &rdma->sc_recv_ctxts);
 	else
 		svc_rdma_recv_ctxt_destroy(rdma, ctxt);
 }
@@ -299,7 +299,7 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	if (svc_rdma_post_recv(rdma))
 		goto post_err;
 
-	/* All wc fields are now known to be valid */
+	/* All wc fields are yesw kyeswn to be valid */
 	ctxt->rc_byte_len = wc->byte_len;
 	ib_dma_sync_single_for_cpu(rdma->sc_pd->device,
 				   ctxt->rc_recv_sge.addr,
@@ -373,7 +373,7 @@ static void svc_rdma_build_arg_xdr(struct svc_rqst *rqstp,
  * - This implementation supports only one Read chunk.
  *
  * Sanity checks:
- * - Read list does not overflow buffer.
+ * - Read list does yest overflow buffer.
  * - Segment size limited by largest NFS data payload.
  *
  * The segment count is limited to how many segments can
@@ -437,7 +437,7 @@ static __be32 *xdr_check_write_chunk(__be32 *p, const __be32 *end,
  * - This implementation supports only one Write chunk.
  *
  * Sanity checks:
- * - Write list does not overflow buffer.
+ * - Write list does yest overflow buffer.
  * - Segment size limited by largest NFS data payload.
  *
  * Returns pointer to the following Reply chunk.
@@ -460,7 +460,7 @@ static __be32 *xdr_check_write_list(__be32 *p, const __be32 *end)
 /* Sanity check the Reply chunk.
  *
  * Sanity checks:
- * - Reply chunk does not overflow buffer.
+ * - Reply chunk does yest overflow buffer.
  * - Segment size limited by largest NFS data payload.
  *
  * Returns pointer to the following RPC header.
@@ -552,7 +552,7 @@ static int svc_rdma_xdr_decode_req(struct xdr_buf *rq_arg)
 	__be32 *p, *end, *rdma_argp;
 	unsigned int hdr_len;
 
-	/* Verify that there's enough bytes for header + something */
+	/* Verify that there's eyesugh bytes for header + something */
 	if (rq_arg->len <= RPCRDMA_HDRLEN_ERR)
 		goto out_short;
 
@@ -563,7 +563,7 @@ static int svc_rdma_xdr_decode_req(struct xdr_buf *rq_arg)
 	switch (*(rdma_argp + 3)) {
 	case rdma_msg:
 		break;
-	case rdma_nomsg:
+	case rdma_yesmsg:
 		break;
 
 	case rdma_done:
@@ -620,14 +620,14 @@ out_inval:
 static void rdma_read_complete(struct svc_rqst *rqstp,
 			       struct svc_rdma_recv_ctxt *head)
 {
-	int page_no;
+	int page_yes;
 
 	/* Move Read chunk pages to rqstp so that they will be released
 	 * when svc_process is done with them.
 	 */
-	for (page_no = 0; page_no < head->rc_page_count; page_no++) {
-		put_page(rqstp->rq_pages[page_no]);
-		rqstp->rq_pages[page_no] = head->rc_pages[page_no];
+	for (page_yes = 0; page_yes < head->rc_page_count; page_yes++) {
+		put_page(rqstp->rq_pages[page_yes]);
+		rqstp->rq_pages[page_yes] = head->rc_pages[page_yes];
 	}
 	head->rc_page_count = 0;
 
@@ -636,7 +636,7 @@ static void rdma_read_complete(struct svc_rqst *rqstp,
 	rqstp->rq_arg.page_len = head->rc_arg.page_len;
 
 	/* rq_respages starts after the last arg page */
-	rqstp->rq_respages = &rqstp->rq_pages[page_no];
+	rqstp->rq_respages = &rqstp->rq_pages[page_yes];
 	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
 	/* Rebuild rq_arg head and tail. */
@@ -723,14 +723,14 @@ static bool svc_rdma_is_backchannel_reply(struct svc_xprt *xprt,
  *
  * Returns:
  *	The positive number of bytes in the RPC Call message,
- *	%0 if there were no Calls ready to return,
+ *	%0 if there were yes Calls ready to return,
  *	%-EINVAL if the Read chunk data is too large,
  *	%-ENOMEM if rdma_rw context pool was exhausted,
  *	%-ENOTCONN if posting failed (connection is lost),
  *	%-EIO if rdma_rw initialization failed (DMA mapping, etc).
  *
  * Called in a loop when XPT_DATA is set. XPT_DATA is cleared only
- * when there are no remaining ctxt's to process.
+ * when there are yes remaining ctxt's to process.
  *
  * The next ctxt is removed from the "receive" lists.
  *
@@ -740,7 +740,7 @@ static bool svc_rdma_is_backchannel_reply(struct svc_xprt *xprt,
  * - If the ctxt completes a Receive, then construct the Call
  *   message from the contents of the Receive buffer.
  *
- *   - If there are no Read chunks in this message, then finish
+ *   - If there are yes Read chunks in this message, then finish
  *     assembling the Call message and return the number of bytes
  *     in the message.
  *

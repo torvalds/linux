@@ -70,14 +70,14 @@ I2C_M_NO_RD_ACK:
     In a read message, master A/NA bit is skipped.
 
 I2C_M_NOSTART:
-    In a combined transaction, no 'S Addr Wr/Rd [A]' is generated at some
+    In a combined transaction, yes 'S Addr Wr/Rd [A]' is generated at some
     point. For example, setting I2C_M_NOSTART on the second partial message
     generates something like::
 
       S Addr Rd [A] [Data] NA Data [A] P
 
     If you set the I2C_M_NOSTART variable for the first partial message,
-    we do not generate Addr, but we do generate the startbit S. This will
+    we do yest generate Addr, but we do generate the startbit S. This will
     probably confuse all other clients on your bus, so don't try this.
 
     This is often used to gather transmits from multiple data buffers in

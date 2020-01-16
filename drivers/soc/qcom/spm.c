@@ -166,7 +166,7 @@ static int qcom_pm_collapse(unsigned long int unused)
 	qcom_scm_cpu_power_down(QCOM_SCM_CPU_PWR_DOWN_L2_ON);
 
 	/*
-	 * Returns here only if there was a pending interrupt and we did not
+	 * Returns here only if there was a pending interrupt and we did yest
 	 * power down as a result.
 	 */
 	return -1;
@@ -181,7 +181,7 @@ static int qcom_cpu_spc(void)
 	ret = cpu_suspend(0, qcom_pm_collapse);
 	/*
 	 * ARM common code executes WFI without calling into our driver and
-	 * if the SPM mode is not reset, then we may accidently power down the
+	 * if the SPM mode is yest reset, then we may accidently power down the
 	 * cpu when we intended only to gate the cpu clock.
 	 * Ensure the state is set to standby before returning.
 	 */
@@ -200,10 +200,10 @@ static const struct of_device_id qcom_idle_state_match[] __initconst = {
 	{ },
 };
 
-static int __init qcom_cpuidle_init(struct device_node *cpu_node, int cpu)
+static int __init qcom_cpuidle_init(struct device_yesde *cpu_yesde, int cpu)
 {
 	const struct of_device_id *match_id;
-	struct device_node *state_node;
+	struct device_yesde *state_yesde;
 	int i;
 	int state_count = 1;
 	idle_fn idle_fns[CPUIDLE_STATE_MAX];
@@ -215,11 +215,11 @@ static int __init qcom_cpuidle_init(struct device_node *cpu_node, int cpu)
 		return -EPROBE_DEFER;
 
 	for (i = 0; ; i++) {
-		state_node = of_parse_phandle(cpu_node, "cpu-idle-states", i);
-		if (!state_node)
+		state_yesde = of_parse_phandle(cpu_yesde, "cpu-idle-states", i);
+		if (!state_yesde)
 			break;
 
-		if (!of_device_is_available(state_node))
+		if (!of_device_is_available(state_yesde))
 			continue;
 
 		if (i == CPUIDLE_STATE_MAX) {
@@ -228,7 +228,7 @@ static int __init qcom_cpuidle_init(struct device_node *cpu_node, int cpu)
 			break;
 		}
 
-		match_id = of_match_node(qcom_idle_state_match, state_node);
+		match_id = of_match_yesde(qcom_idle_state_match, state_yesde);
 		if (!match_id)
 			return -ENODEV;
 
@@ -262,9 +262,9 @@ static int __init qcom_cpuidle_init(struct device_node *cpu_node, int cpu)
 	per_cpu(qcom_idle_ops, cpu) = fns;
 
 	/*
-	 * SPM probe for the cpu should have happened by now, if the
-	 * SPM device does not exist, return -ENXIO to indicate that the
-	 * cpu does not support idle states.
+	 * SPM probe for the cpu should have happened by yesw, if the
+	 * SPM device does yest exist, return -ENXIO to indicate that the
+	 * cpu does yest support idle states.
 	 */
 check_spm:
 	return per_cpu(cpu_spm_drv, cpu) ? 0 : -ENXIO;
@@ -282,18 +282,18 @@ static struct spm_driver_data *spm_get_drv(struct platform_device *pdev,
 		int *spm_cpu)
 {
 	struct spm_driver_data *drv = NULL;
-	struct device_node *cpu_node, *saw_node;
+	struct device_yesde *cpu_yesde, *saw_yesde;
 	int cpu;
 	bool found = 0;
 
 	for_each_possible_cpu(cpu) {
-		cpu_node = of_cpu_device_node_get(cpu);
-		if (!cpu_node)
+		cpu_yesde = of_cpu_device_yesde_get(cpu);
+		if (!cpu_yesde)
 			continue;
-		saw_node = of_parse_phandle(cpu_node, "qcom,saw", 0);
-		found = (saw_node == pdev->dev.of_node);
-		of_node_put(saw_node);
-		of_node_put(cpu_node);
+		saw_yesde = of_parse_phandle(cpu_yesde, "qcom,saw", 0);
+		found = (saw_yesde == pdev->dev.of_yesde);
+		of_yesde_put(saw_yesde);
+		of_yesde_put(cpu_yesde);
 		if (found)
 			break;
 	}
@@ -334,7 +334,7 @@ static int spm_dev_probe(struct platform_device *pdev)
 	if (IS_ERR(drv->reg_base))
 		return PTR_ERR(drv->reg_base);
 
-	match_id = of_match_node(spm_match_table, pdev->dev.of_node);
+	match_id = of_match_yesde(spm_match_table, pdev->dev.of_yesde);
 	if (!match_id)
 		return -ENODEV;
 

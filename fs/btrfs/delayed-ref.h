@@ -8,18 +8,18 @@
 
 #include <linux/refcount.h>
 
-/* these are the possible values of struct btrfs_delayed_ref_node->action */
+/* these are the possible values of struct btrfs_delayed_ref_yesde->action */
 #define BTRFS_ADD_DELAYED_REF    1 /* add one backref to the tree */
 #define BTRFS_DROP_DELAYED_REF   2 /* delete one backref from the tree */
 #define BTRFS_ADD_DELAYED_EXTENT 3 /* record a full extent allocation */
-#define BTRFS_UPDATE_DELAYED_HEAD 4 /* not changing ref count on head ref */
+#define BTRFS_UPDATE_DELAYED_HEAD 4 /* yest changing ref count on head ref */
 
-struct btrfs_delayed_ref_node {
-	struct rb_node ref_node;
+struct btrfs_delayed_ref_yesde {
+	struct rb_yesde ref_yesde;
 	/*
-	 * If action is BTRFS_ADD_DELAYED_REF, also link this node to
-	 * ref_head->ref_add_list, then we do not need to iterate the
-	 * whole ref_head->ref_list to find BTRFS_ADD_DELAYED_REF nodes.
+	 * If action is BTRFS_ADD_DELAYED_REF, also link this yesde to
+	 * ref_head->ref_add_list, then we do yest need to iterate the
+	 * whole ref_head->ref_list to find BTRFS_ADD_DELAYED_REF yesdes.
 	 */
 	struct list_head add_list;
 
@@ -48,7 +48,7 @@ struct btrfs_delayed_ref_node {
 
 	unsigned int action:8;
 	unsigned int type:8;
-	/* is this node still in the rbtree? */
+	/* is this yesde still in the rbtree? */
 	unsigned int is_head:1;
 	unsigned int in_tree:1;
 };
@@ -80,17 +80,17 @@ struct btrfs_delayed_ref_head {
 
 	spinlock_t lock;
 	struct rb_root_cached ref_tree;
-	/* accumulate add BTRFS_ADD_DELAYED_REF nodes to this ref_add_list. */
+	/* accumulate add BTRFS_ADD_DELAYED_REF yesdes to this ref_add_list. */
 	struct list_head ref_add_list;
 
-	struct rb_node href_node;
+	struct rb_yesde href_yesde;
 
 	struct btrfs_delayed_extent_op *extent_op;
 
 	/*
 	 * This is used to track the final ref_mod from all the refs associated
-	 * with this head ref, this is not adjusted as delayed refs are run,
-	 * this is meant to track if we need to do the csum accounting or not.
+	 * with this head ref, this is yest adjusted as delayed refs are run,
+	 * this is meant to track if we need to do the csum accounting or yest.
 	 */
 	int total_ref_mod;
 
@@ -121,14 +121,14 @@ struct btrfs_delayed_ref_head {
 };
 
 struct btrfs_delayed_tree_ref {
-	struct btrfs_delayed_ref_node node;
+	struct btrfs_delayed_ref_yesde yesde;
 	u64 root;
 	u64 parent;
 	int level;
 };
 
 struct btrfs_delayed_data_ref {
-	struct btrfs_delayed_ref_node node;
+	struct btrfs_delayed_ref_yesde yesde;
 	u64 root;
 	u64 parent;
 	u64 objectid;
@@ -150,10 +150,10 @@ struct btrfs_delayed_ref_root {
 	 */
 	atomic_t num_entries;
 
-	/* total number of head nodes in tree */
+	/* total number of head yesdes in tree */
 	unsigned long num_heads;
 
-	/* total number of head nodes ready for processing */
+	/* total number of head yesdes ready for processing */
 	unsigned long num_heads_ready;
 
 	u64 pending_csums;
@@ -189,8 +189,8 @@ struct btrfs_data_ref {
 	/* Root which refers to this data extent */
 	u64 ref_root;
 
-	/* Inode which refers to this data extent */
-	u64 ino;
+	/* Iyesde which refers to this data extent */
+	u64 iyes;
 
 	/*
 	 * file_offset - extent_offset
@@ -205,7 +205,7 @@ struct btrfs_tree_ref {
 	/*
 	 * Level of this tree block
 	 *
-	 * Shared for skinny (TREE_BLOCK_REF) and normal tree ref.
+	 * Shared for skinny (TREE_BLOCK_REF) and yesrmal tree ref.
 	 */
 	int level;
 
@@ -216,7 +216,7 @@ struct btrfs_tree_ref {
 	 */
 	u64 root;
 
-	/* For non-skinny metadata, no special member needed */
+	/* For yesn-skinny metadata, yes special member needed */
 };
 
 struct btrfs_ref {
@@ -273,7 +273,7 @@ static inline void btrfs_init_generic_ref(struct btrfs_ref *generic_ref,
 static inline void btrfs_init_tree_ref(struct btrfs_ref *generic_ref,
 				int level, u64 root)
 {
-	/* If @real_root not set, use @root as fallback */
+	/* If @real_root yest set, use @root as fallback */
 	if (!generic_ref->real_root)
 		generic_ref->real_root = root;
 	generic_ref->tree_ref.level = level;
@@ -282,13 +282,13 @@ static inline void btrfs_init_tree_ref(struct btrfs_ref *generic_ref,
 }
 
 static inline void btrfs_init_data_ref(struct btrfs_ref *generic_ref,
-				u64 ref_root, u64 ino, u64 offset)
+				u64 ref_root, u64 iyes, u64 offset)
 {
-	/* If @real_root not set, use @root as fallback */
+	/* If @real_root yest set, use @root as fallback */
 	if (!generic_ref->real_root)
 		generic_ref->real_root = ref_root;
 	generic_ref->data_ref.ref_root = ref_root;
-	generic_ref->data_ref.ino = ino;
+	generic_ref->data_ref.iyes = iyes;
 	generic_ref->data_ref.offset = offset;
 	generic_ref->type = BTRFS_REF_DATA;
 }
@@ -306,7 +306,7 @@ btrfs_free_delayed_extent_op(struct btrfs_delayed_extent_op *op)
 		kmem_cache_free(btrfs_delayed_extent_op_cachep, op);
 }
 
-static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
+static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_yesde *ref)
 {
 	WARN_ON(refcount_read(&ref->refs) == 0);
 	if (refcount_dec_and_test(&ref->refs)) {
@@ -375,18 +375,18 @@ int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans);
 bool btrfs_check_space_for_delayed_refs(struct btrfs_fs_info *fs_info);
 
 /*
- * helper functions to cast a node into its container
+ * helper functions to cast a yesde into its container
  */
 static inline struct btrfs_delayed_tree_ref *
-btrfs_delayed_node_to_tree_ref(struct btrfs_delayed_ref_node *node)
+btrfs_delayed_yesde_to_tree_ref(struct btrfs_delayed_ref_yesde *yesde)
 {
-	return container_of(node, struct btrfs_delayed_tree_ref, node);
+	return container_of(yesde, struct btrfs_delayed_tree_ref, yesde);
 }
 
 static inline struct btrfs_delayed_data_ref *
-btrfs_delayed_node_to_data_ref(struct btrfs_delayed_ref_node *node)
+btrfs_delayed_yesde_to_data_ref(struct btrfs_delayed_ref_yesde *yesde)
 {
-	return container_of(node, struct btrfs_delayed_data_ref, node);
+	return container_of(yesde, struct btrfs_delayed_data_ref, yesde);
 }
 
 #endif

@@ -361,7 +361,7 @@ fail:
  * and we shouldn't have any floating point math in the kernel, anyway.
  *
  * These macros need to be re-written, but it's harmless to simply
- * return zero for now. */
+ * return zero for yesw. */
 #define CALCULATE_BER(avg_errors, count) \
 	((u32)(avg_errors * 4)/(count*64*188*8))
 #define CALCULATE_SNR(data) \

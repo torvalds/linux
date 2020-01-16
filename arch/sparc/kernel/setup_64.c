@@ -6,7 +6,7 @@
  *  Copyright (C) 1997       Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -117,7 +117,7 @@ static void __init process_switch(char c)
 	case 'P':
 		/* Force UltraSPARC-III P-Cache on. */
 		if (tlb_type != cheetah) {
-			printk("BOOT: Ignoring P-Cache force option.\n");
+			printk("BOOT: Igyesring P-Cache force option.\n");
 			break;
 		}
 		cheetah_pcache_forced_on = 1;
@@ -126,7 +126,7 @@ static void __init process_switch(char c)
 		break;
 
 	default:
-		printk("Unknown boot switch (-%c)\n", c);
+		printk("Unkyeswn boot switch (-%c)\n", c);
 		break;
 	}
 }
@@ -204,7 +204,7 @@ static void __init per_cpu_patch(void)
 			insns = &p->sun4v[0];
 			break;
 		default:
-			prom_printf("Unknown cpu type, halting.\n");
+			prom_printf("Unkyeswn cpu type, halting.\n");
 			prom_halt();
 		}
 
@@ -398,7 +398,7 @@ static const char *hwcaps[] = {
 	"ultra3", "blkinit", "n2",
 
 	/* These strings are as they appear in the machine description
-	 * 'hwcap-list' property for cpu nodes.
+	 * 'hwcap-list' property for cpu yesdes.
 	 */
 	"mul32", "div32", "fsmuld", "v8plus", "popc", "vis", "vis2",
 	"ASIBlkInit", "fmaf", "vis3", "hpc", "random", "trans", "fjfmau",
@@ -494,7 +494,7 @@ static unsigned long __init mdesc_cpu_hwcap_list(void)
 	if (!hp)
 		return 0;
 
-	pn = mdesc_node_by_name(hp, MDESC_NODE_NULL, "cpu");
+	pn = mdesc_yesde_by_name(hp, MDESC_NODE_NULL, "cpu");
 	if (pn == MDESC_NODE_NULL)
 		goto out;
 
@@ -617,21 +617,21 @@ static void __init init_sparc64_elf_hwcap(void)
 
 void __init alloc_irqstack_bootmem(void)
 {
-	unsigned int i, node;
+	unsigned int i, yesde;
 
 	for_each_possible_cpu(i) {
-		node = cpu_to_node(i);
+		yesde = cpu_to_yesde(i);
 
-		softirq_stack[i] = memblock_alloc_node(THREAD_SIZE,
-						       THREAD_SIZE, node);
+		softirq_stack[i] = memblock_alloc_yesde(THREAD_SIZE,
+						       THREAD_SIZE, yesde);
 		if (!softirq_stack[i])
 			panic("%s: Failed to allocate %lu bytes align=%lx nid=%d\n",
-			      __func__, THREAD_SIZE, THREAD_SIZE, node);
-		hardirq_stack[i] = memblock_alloc_node(THREAD_SIZE,
-						       THREAD_SIZE, node);
+			      __func__, THREAD_SIZE, THREAD_SIZE, yesde);
+		hardirq_stack[i] = memblock_alloc_yesde(THREAD_SIZE,
+						       THREAD_SIZE, yesde);
 		if (!hardirq_stack[i])
 			panic("%s: Failed to allocate %lu bytes align=%lx nid=%d\n",
-			      __func__, THREAD_SIZE, THREAD_SIZE, node);
+			      __func__, THREAD_SIZE, THREAD_SIZE, yesde);
 	}
 }
 
@@ -698,7 +698,7 @@ void __init setup_arch(char **cmdline_p)
 	smp_fill_in_cpu_possible_map();
 	/*
 	 * Once the OF device tree and MDESC have been setup and nr_cpus has
-	 * been parsed, we know the list of possible cpus.  Therefore we can
+	 * been parsed, we kyesw the list of possible cpus.  Therefore we can
 	 * allocate the IRQ stacks.
 	 */
 	alloc_irqstack_bootmem();

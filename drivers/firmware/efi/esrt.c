@@ -43,9 +43,9 @@ struct efi_system_resource_entry_v1 {
  * accounting info for the firmware when creating the table; it should never
  * have been exposed to us.  To wit, the spec says:
  * The maximum number of resource array entries that can be within the
- * table without reallocating the table, must not be zero.
- * Since there's no guidance about what that means in terms of memory layout,
- * it means nothing to us.
+ * table without reallocating the table, must yest be zero.
+ * Since there's yes guidance about what that means in terms of memory layout,
+ * it means yesthing to us.
  */
 struct efi_system_resource_table {
 	u32	fw_resource_count;
@@ -95,7 +95,7 @@ static ssize_t esre_attr_show(struct kobject *kobj,
 	struct esre_entry *entry = to_entry(kobj);
 	struct esre_attribute *attr = to_attr(_attr);
 
-	/* Don't tell normal users what firmware versions we've got... */
+	/* Don't tell yesrmal users what firmware versions we've got... */
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
@@ -258,7 +258,7 @@ void __init efi_esrt_init(void)
 	    (!(md.attribute & EFI_MEMORY_RUNTIME) &&
 	     md.type != EFI_BOOT_SERVICES_DATA &&
 	     md.type != EFI_RUNTIME_SERVICES_DATA)) {
-		pr_warn("ESRT header is not in the memory map.\n");
+		pr_warn("ESRT header is yest in the memory map.\n");
 		return;
 	}
 
@@ -316,12 +316,12 @@ void __init efi_esrt_init(void)
 	}
 
 	/*
-	 * We know it can't be larger than N * sizeof() here, and N is limited
-	 * by the previous test to a small number, so there's no overflow.
+	 * We kyesw it can't be larger than N * sizeof() here, and N is limited
+	 * by the previous test to a small number, so there's yes overflow.
 	 */
 	entries_size = tmpesrt.fw_resource_count * entry_size;
 	if (max < size + entries_size) {
-		pr_err("ESRT does not fit on single memory map entry (size: %zu max: %zu)\n",
+		pr_err("ESRT does yest fit on single memory map entry (size: %zu max: %zu)\n",
 		       size, max);
 		return;
 	}

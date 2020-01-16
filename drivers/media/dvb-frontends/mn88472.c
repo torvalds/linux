@@ -151,14 +151,14 @@ static int mn88472_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			goto err;
 
 		utmp1 = buf[0] << 8 | buf[1] << 0; /* signal */
-		utmp2 = buf[2] << 8 | buf[3] << 0; /* noise */
+		utmp2 = buf[2] << 8 | buf[3] << 0; /* yesise */
 		if (utmp1 && utmp2) {
-			/* CNR[dB]: 10 * log10(8 * (signal / noise)) */
+			/* CNR[dB]: 10 * log10(8 * (signal / yesise)) */
 			/* log10(8) = 15151336 */
 			stmp = ((u64)15151336 + intlog10(utmp1)
 			       - intlog10(utmp2)) * 10000 >> 24;
 
-			dev_dbg(&client->dev, "cnr=%d signal=%u noise=%u\n",
+			dev_dbg(&client->dev, "cnr=%d signal=%u yesise=%u\n",
 				stmp, utmp1, utmp2);
 		} else {
 			stmp = 0;
@@ -422,7 +422,7 @@ static int mn88472_init(struct dvb_frontend *fe)
 
 	ret = request_firmware(&firmware, name, &client->dev);
 	if (ret) {
-		dev_err(&client->dev, "firmware file '%s' not found\n", name);
+		dev_err(&client->dev, "firmware file '%s' yest found\n", name);
 		goto err;
 	}
 
@@ -450,7 +450,7 @@ static int mn88472_init(struct dvb_frontend *fe)
 		goto err_release_firmware;
 	if (utmp & 0x10) {
 		ret = -EINVAL;
-		dev_err(&client->dev, "firmware did not run\n");
+		dev_err(&client->dev, "firmware did yest run\n");
 		goto err_release_firmware;
 	}
 
@@ -609,7 +609,7 @@ static int mn88472_probe(struct i2c_client *client,
 	 * addresses are 0x18, 0x1a and 0x1c. We register two dummy clients,
 	 * 0x1a and 0x1c, in order to get own I2C client for each register bank.
 	 *
-	 * Also, register bank 2 do not support sequential I/O. Only single
+	 * Also, register bank 2 do yest support sequential I/O. Only single
 	 * register write or read is allowed to that bank.
 	 */
 	dev->client[1] = i2c_new_dummy_device(client->adapter, 0x1a);

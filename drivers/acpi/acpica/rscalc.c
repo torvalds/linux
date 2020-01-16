@@ -90,7 +90,7 @@ acpi_rs_struct_option_length(struct acpi_resource_source *resource_source)
  *              minimum_total_length - Minimum length of this resource, before
  *                                    any optional fields. Includes header size
  *
- * RETURN:      Length of optional string (0 if no string present)
+ * RETURN:      Length of optional string (0 if yes string present)
  *
  * DESCRIPTION: Common code to handle optional resource_source_index and
  *              resource_source fields in some Large descriptors. Used during
@@ -172,7 +172,7 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
 			return_ACPI_STATUS(AE_AML_INVALID_RESOURCE_TYPE);
 		}
 
-		/* Sanity check the length. It must not be zero, or we loop forever */
+		/* Sanity check the length. It must yest be zero, or we loop forever */
 
 		if (!resource->length) {
 			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
@@ -416,7 +416,7 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
 				 resource->length);
 	}
 
-	/* Did not find an end_tag resource descriptor */
+	/* Did yest find an end_tag resource descriptor */
 
 	return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
 }
@@ -468,7 +468,7 @@ acpi_rs_get_list_length(u8 *aml_buffer,
 					      &resource_index);
 		if (ACPI_FAILURE(status)) {
 			/*
-			 * Exit on failure. Cannot continue because the descriptor length
+			 * Exit on failure. Canyest continue because the descriptor length
 			 * may be bogus also.
 			 */
 			return_ACPI_STATUS(status);
@@ -528,7 +528,7 @@ acpi_rs_get_list_length(u8 *aml_buffer,
 
 		case ACPI_RESOURCE_NAME_END_TAG:
 			/*
-			 * End Tag: This is the normal exit
+			 * End Tag: This is the yesrmal exit
 			 */
 			return_ACPI_STATUS(AE_OK);
 
@@ -689,7 +689,7 @@ acpi_rs_get_list_length(u8 *aml_buffer,
 		aml_buffer += acpi_ut_get_descriptor_length(aml_buffer);
 	}
 
-	/* Did not find an end_tag resource descriptor */
+	/* Did yest find an end_tag resource descriptor */
 
 	return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
 }
@@ -754,7 +754,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 		}
 
 		/*
-		 * The sub_object_list will now point to an array of the
+		 * The sub_object_list will yesw point to an array of the
 		 * four IRQ elements: Address, Pin, Source and source_index
 		 */
 		sub_object_list = package_element->package.elements;
@@ -788,18 +788,18 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 		if (name_found) {
 			if ((*sub_object_list)->common.type == ACPI_TYPE_STRING) {
 				/*
-				 * The length String.Length field does not include the
+				 * The length String.Length field does yest include the
 				 * terminating NULL, add 1
 				 */
 				temp_size_needed += ((acpi_size)
 						     (*sub_object_list)->string.
 						     length + 1);
 			} else {
-				temp_size_needed += acpi_ns_get_pathname_length((*sub_object_list)->reference.node);
+				temp_size_needed += acpi_ns_get_pathname_length((*sub_object_list)->reference.yesde);
 			}
 		} else {
 			/*
-			 * If no name was found, then this is a NULL, which is
+			 * If yes name was found, then this is a NULL, which is
 			 * translated as a u32 zero.
 			 */
 			temp_size_needed += sizeof(u32);

@@ -145,7 +145,7 @@ static int stmpe_24xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		break;
 
 	default:
-		/* Should not happen as npwm is 3 */
+		/* Should yest happen as npwm is 3 */
 		return -ENODEV;
 	}
 
@@ -285,9 +285,9 @@ static int __init stmpe_pwm_probe(struct platform_device *pdev)
 		pwm->chip.npwm = 3;
 	} else {
 		if (stmpe->partnum == STMPE1601)
-			dev_err(&pdev->dev, "STMPE1601 not yet supported\n");
+			dev_err(&pdev->dev, "STMPE1601 yest yet supported\n");
 		else
-			dev_err(&pdev->dev, "Unknown STMPE PWM\n");
+			dev_err(&pdev->dev, "Unkyeswn STMPE PWM\n");
 
 		return -ENODEV;
 	}

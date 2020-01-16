@@ -93,8 +93,8 @@ head-y			:= head$(MMUEXT).o
 obj-$(CONFIG_DEBUG_LL)	+= debug.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 
-# This is executed very early using a temporary stack when no memory allocator
-# nor global data is available. Everything has to be allocated on the stack.
+# This is executed very early using a temporary stack when yes memory allocator
+# yesr global data is available. Everything has to be allocated on the stack.
 CFLAGS_head-inflate-data.o := $(call cc-option,-Wframe-larger-than=10240)
 obj-$(CONFIG_XIP_DEFLATED_DATA) += head-inflate-data.o
 

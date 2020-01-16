@@ -183,7 +183,7 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 
 	hw_link_info = &pi->phy.link_info;
 	if (hw_link_info->phy_type_low && hw_link_info->phy_type_high)
-		/* If more than one media type is selected, report unknown */
+		/* If more than one media type is selected, report unkyeswn */
 		return ICE_MEDIA_UNKNOWN;
 
 	if (hw_link_info->phy_type_low) {
@@ -374,7 +374,7 @@ static void ice_init_flex_flags(struct ice_hw *hw, enum ice_rxdid prof_id)
 		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_PKT_FRG,
 				   ICE_FLG_UDP_GRE, ICE_FLG_PKT_DSI,
 				   ICE_FLG_FIN, idx++);
-		/* flex flag 1 is not used for flexi-flag programming, skipping
+		/* flex flag 1 is yest used for flexi-flag programming, skipping
 		 * these four FLG64 bits.
 		 */
 		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_SYN, ICE_FLG_RST,
@@ -391,7 +391,7 @@ static void ice_init_flex_flags(struct ice_hw *hw, enum ice_rxdid prof_id)
 
 	default:
 		ice_debug(hw, ICE_DBG_INIT,
-			  "Flag programming for profile ID %d not supported\n",
+			  "Flag programming for profile ID %d yest supported\n",
 			  prof_id);
 	}
 }
@@ -424,7 +424,7 @@ static void ice_init_flex_flds(struct ice_hw *hw, enum ice_rxdid prof_id)
 
 	default:
 		ice_debug(hw, ICE_DBG_INIT,
-			  "Field init for profile ID %d not supported\n",
+			  "Field init for profile ID %d yest supported\n",
 			  prof_id);
 	}
 }
@@ -551,13 +551,13 @@ static enum ice_status ice_get_fw_log_cfg(struct ice_hw *hw)
  * just pass false in the "enable" parameter. On completion, the function will
  * update the "cur" element of the hw->fw_log.evnts array with the resulting
  * logging event configurations of the modules that are being re/configured. FW
- * logging modules that are not part of a reconfiguration operation retain their
+ * logging modules that are yest part of a reconfiguration operation retain their
  * previous states.
  *
  * Before resetting the device, it is recommended that the driver disables FW
  * logging before shutting down the control queue. When disabling FW logging
  * ("enable" = false), the latest configurations of FW logging events stored in
- * hw->fw_log.evnts[] are not overridden to allow them to be reconfigured after
+ * hw->fw_log.evnts[] are yest overridden to allow them to be reconfigured after
  * a device reset.
  *
  * When enabling FW logging to emit log messages via the Rx CQ during the
@@ -627,11 +627,11 @@ static enum ice_status ice_cfg_fw_log(struct ice_hw *hw, bool enable)
 		}
 
 		/* Only enable FW logging if at least one module is specified.
-		 * If FW logging is currently enabled but all modules are not
+		 * If FW logging is currently enabled but all modules are yest
 		 * enabled to emit log messages, disable FW logging altogether.
 		 */
 		if (actv_evnts) {
-			/* Leave if there is effectively no change */
+			/* Leave if there is effectively yes change */
 			if (!chgs)
 				goto out;
 
@@ -651,7 +651,7 @@ static enum ice_status ice_cfg_fw_log(struct ice_hw *hw, bool enable)
 	if (!status) {
 		/* Update the current configuration to reflect events enabled.
 		 * hw->fw_log.cq_en and hw->fw_log.uart_en indicate if the FW
-		 * logging mode is enabled for the device. They do not reflect
+		 * logging mode is enabled for the device. They do yest reflect
 		 * actual modules being enabled to emit log messages. So, their
 		 * values remain unchanged even when all modules are disabled.
 		 */
@@ -905,7 +905,7 @@ err_unroll_cqinit:
  * ice_deinit_hw - unroll initialization operations done by ice_init_hw
  * @hw: pointer to the hardware structure
  *
- * This should be called only during nominal operation, not as a result of
+ * This should be called only during yesminal operation, yest as a result of
  * ice_init_hw() failing since ice_init_hw() will take care of unrolling
  * applicable initializations if it fails for any reason.
  */
@@ -927,7 +927,7 @@ void ice_deinit_hw(struct ice_hw *hw)
 	ice_cfg_fw_log(hw, false);
 	ice_destroy_all_ctrlq(hw);
 
-	/* Clear VSI contexts if not already cleared */
+	/* Clear VSI contexts if yest already cleared */
 	ice_clear_all_vsi_ctx(hw);
 }
 
@@ -995,8 +995,8 @@ static enum ice_status ice_pf_reset(struct ice_hw *hw)
 	u32 cnt, reg;
 
 	/* If at function entry a global reset was already in progress, i.e.
-	 * state is not 'device active' or any of the reset done bits are not
-	 * set in GLNVM_ULD, there is no need for a PF Reset; poll until the
+	 * state is yest 'device active' or any of the reset done bits are yest
+	 * set in GLNVM_ULD, there is yes need for a PF Reset; poll until the
 	 * global reset is done.
 	 */
 	if ((rd32(hw, GLGEN_RSTAT) & GLGEN_RSTAT_DEVSTATE_M) ||
@@ -1131,7 +1131,7 @@ ice_get_pfa_module_tlv(struct ice_hw *hw, u16 *module_tlv, u16 *module_tlv_len,
 		 */
 		next_tlv = next_tlv + tlv_len + 2;
 	}
-	/* Module does not exist */
+	/* Module does yest exist */
 	return ICE_ERR_DOES_NOT_EXIST;
 }
 
@@ -1237,7 +1237,7 @@ const struct ice_ctx_ele ice_tlan_ctx_info[] = {
 	ICE_CTX_STORE(ice_tlan_ctx, tphwr_desc,			1,	104),
 	ICE_CTX_STORE(ice_tlan_ctx, cmpq_id,			9,	105),
 	ICE_CTX_STORE(ice_tlan_ctx, qnum_in_func,		14,	114),
-	ICE_CTX_STORE(ice_tlan_ctx, itr_notification_mode,	1,	128),
+	ICE_CTX_STORE(ice_tlan_ctx, itr_yestification_mode,	1,	128),
 	ICE_CTX_STORE(ice_tlan_ctx, adjust_prof_id,		6,	129),
 	ICE_CTX_STORE(ice_tlan_ctx, qlen,			13,	135),
 	ICE_CTX_STORE(ice_tlan_ctx, quanta_prof_idx,		4,	148),
@@ -1254,7 +1254,7 @@ const struct ice_ctx_ele ice_tlan_ctx_info[] = {
 /* FW Admin Queue command wrappers */
 
 /* Software lock/mutex that is meant to be held while the Global Config Lock
- * in firmware is acquired by the software to prevent most (but not all) types
+ * in firmware is acquired by the software to prevent most (but yest all) types
  * of AQ commands from being sent to FW
  */
 DEFINE_MUTEX(ice_global_cfg_lock_sw);
@@ -1329,12 +1329,12 @@ enum ice_status ice_aq_get_fw_ver(struct ice_hw *hw, struct ice_sq_cd *cd)
 	if (!status) {
 		hw->fw_branch = resp->fw_branch;
 		hw->fw_maj_ver = resp->fw_major;
-		hw->fw_min_ver = resp->fw_minor;
+		hw->fw_min_ver = resp->fw_miyesr;
 		hw->fw_patch = resp->fw_patch;
 		hw->fw_build = le32_to_cpu(resp->fw_build);
 		hw->api_branch = resp->api_branch;
 		hw->api_maj_ver = resp->api_major;
-		hw->api_min_ver = resp->api_minor;
+		hw->api_min_ver = resp->api_miyesr;
 		hw->api_patch = resp->api_patch;
 	}
 
@@ -1344,7 +1344,7 @@ enum ice_status ice_aq_get_fw_ver(struct ice_hw *hw, struct ice_sq_cd *cd)
 /**
  * ice_aq_send_driver_ver
  * @hw: pointer to the HW struct
- * @dv: driver's major, minor version
+ * @dv: driver's major, miyesr version
  * @cd: pointer to command details structure or NULL
  *
  * Send the driver version (0x0002) to the firmware
@@ -1366,7 +1366,7 @@ ice_aq_send_driver_ver(struct ice_hw *hw, struct ice_driver_ver *dv,
 
 	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
 	cmd->major_ver = dv->major_ver;
-	cmd->minor_ver = dv->minor_ver;
+	cmd->miyesr_ver = dv->miyesr_ver;
 	cmd->build_ver = dv->build_ver;
 	cmd->subbuild_ver = dv->subbuild_ver;
 
@@ -1384,7 +1384,7 @@ ice_aq_send_driver_ver(struct ice_hw *hw, struct ice_driver_ver *dv,
  * @unloading: is the driver unloading itself
  *
  * Tell the Firmware that we're shutting down the AdminQ and whether
- * or not the driver is unloading as well (0x0003).
+ * or yest the driver is unloading as well (0x0003).
  */
 enum ice_status ice_aq_q_shutdown(struct ice_hw *hw, bool unloading)
 {
@@ -1414,10 +1414,10 @@ enum ice_status ice_aq_q_shutdown(struct ice_hw *hw, bool unloading)
  * When attempting to acquire the Global Config Lock, the driver can
  * learn of three states:
  *  1) ICE_SUCCESS -        acquired lock, and can perform download package
- *  2) ICE_ERR_AQ_ERROR -   did not get lock, driver should fail to load
- *  3) ICE_ERR_AQ_NO_WORK - did not get lock, but another driver has
+ *  2) ICE_ERR_AQ_ERROR -   did yest get lock, driver should fail to load
+ *  3) ICE_ERR_AQ_NO_WORK - did yest get lock, but ayesther driver has
  *                          successfully downloaded the package; the driver does
- *                          not have to download the package and can continue
+ *                          yest have to download the package and can continue
  *                          loading
  *
  * Note that if the caller is in an acquire lock, perform action, release lock
@@ -1533,9 +1533,9 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 
 	status = ice_aq_req_res(hw, res, access, 0, &time_left, NULL);
 
-	/* A return code of ICE_ERR_AQ_NO_WORK means that another driver has
+	/* A return code of ICE_ERR_AQ_NO_WORK means that ayesther driver has
 	 * previously acquired the resource and performed any necessary updates;
-	 * in this case the caller does not obtain the resource and has no
+	 * in this case the caller does yest obtain the resource and has yes
 	 * further work to do.
 	 */
 	if (status == ICE_ERR_AQ_NO_WORK)
@@ -1553,7 +1553,7 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		status = ice_aq_req_res(hw, res, access, 0, &time_left, NULL);
 
 		if (status == ICE_ERR_AQ_NO_WORK)
-			/* lock free, but no work to do */
+			/* lock free, but yes work to do */
 			break;
 
 		if (!status)
@@ -1567,10 +1567,10 @@ ice_acquire_res_exit:
 	if (status == ICE_ERR_AQ_NO_WORK) {
 		if (access == ICE_RES_WRITE)
 			ice_debug(hw, ICE_DBG_RES,
-				  "resource indicates no work to do.\n");
+				  "resource indicates yes work to do.\n");
 		else
 			ice_debug(hw, ICE_DBG_RES,
-				  "Warning: ICE_ERR_AQ_NO_WORK not expected\n");
+				  "Warning: ICE_ERR_AQ_NO_WORK yest expected\n");
 	}
 	return status;
 }
@@ -1778,14 +1778,14 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 			break;
 		default:
 			ice_debug(hw, ICE_DBG_INIT,
-				  "%s: unknown capability[%d]: 0x%x\n", prefix,
+				  "%s: unkyeswn capability[%d]: 0x%x\n", prefix,
 				  i, cap);
 			break;
 		}
 	}
 
 	/* Re-calculate capabilities that are dependent on the number of
-	 * physical ports; i.e. some features are not supported or function
+	 * physical ports; i.e. some features are yest supported or function
 	 * differently on devices with more than 4 ports.
 	 */
 	if (hw->dev_caps.num_funcs > 4) {
@@ -1846,8 +1846,8 @@ ice_discover_caps(struct ice_hw *hw, enum ice_adminq_opc opc)
 	u16 cbuf_len;
 	u8 retries;
 
-	/* The driver doesn't know how many capabilities the device will return
-	 * so the buffer size required isn't known ahead of time. The driver
+	/* The driver doesn't kyesw how many capabilities the device will return
+	 * so the buffer size required isn't kyeswn ahead of time. The driver
 	 * starts with cbuf_len and if this turns out to be insufficient, the
 	 * device returns ICE_AQ_RC_ENOMEM and also the cap_count it needs.
 	 * The driver then allocates the buffer based on the count and retries
@@ -2027,7 +2027,7 @@ void ice_clear_pxe_mode(struct ice_hw *hw)
  * Note: In the structure of [phy_type_low, phy_type_high], there should
  * be one bit set, as this function will convert one PHY type to its
  * speed.
- * If no bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
+ * If yes bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
  * If more than one bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
  */
 static u16
@@ -2201,8 +2201,8 @@ ice_update_phy_type(u64 *phy_type_low, u64 *phy_type_high,
  * @cd: pointer to command details structure or NULL
  *
  * Set the various PHY configuration parameters supported on the Port.
- * One or more of the Set PHY config parameters may be ignored in an MFP
- * mode as the PF may not have the privilege to set some of the PHY Config
+ * One or more of the Set PHY config parameters may be igyesred in an MFP
+ * mode as the PF may yest have the privilege to set some of the PHY Config
  * parameters. This status will be indicated by the command response (0x0601).
  */
 enum ice_status
@@ -2452,7 +2452,7 @@ ice_cfg_phy_fec(struct ice_aqc_set_phy_cfg_data *cfg, enum ice_fec_mode fec)
  * @link_up: pointer to bool (true/false = linkup/linkdown)
  *
  * Variable link_up is true if link is up, false if link is down.
- * The variable link_up is invalid if status is non zero. As a
+ * The variable link_up is invalid if status is yesn zero. As a
  * result of this call, link status reporting becomes enabled
  */
 enum ice_status ice_get_link_status(struct ice_port_info *pi, bool *link_up)
@@ -2592,7 +2592,7 @@ ice_aq_set_port_id_led(struct ice_port_info *pi, bool is_orig_mode,
  * @bus_addr: I2C bus address of the eeprom (typically 0xA0, 0=topo default)
  * @mem_addr: I2C offset. lower 8 bits for address, 8 upper bits zero padding.
  * @page: QSFP page
- * @set_page: set or ignore the page
+ * @set_page: set or igyesre the page
  * @data: pointer to data buffer to be read/written to the I2C device.
  * @length: 1-16 for read, 1 for write.
  * @write: 0 read, 1 for write.
@@ -2854,7 +2854,7 @@ ice_aq_set_rss_key(struct ice_hw *hw, u16 vsi_handle,
  *
  * After add Tx LAN queue AQ command is completed:
  * Interrupts should be associated with specific queues,
- * Association of Tx queue to Doorbell queue is not part of Add LAN Tx queue
+ * Association of Tx queue to Doorbell queue is yest part of Add LAN Tx queue
  * flow.
  */
 static enum ice_status
@@ -2956,7 +2956,7 @@ ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 
 	/* flush pipe on time out */
 	cmd->cmd_type |= ICE_AQC_Q_DIS_CMD_FLUSH_PIPE;
-	/* If no queue group info, we are in a reset flow. Issue the AQ */
+	/* If yes queue group info, we are in a reset flow. Issue the AQ */
 	if (!qg_list)
 		goto do_aq;
 
@@ -3028,7 +3028,7 @@ ice_write_byte(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	memcpy(&dest_byte, dest, sizeof(dest_byte));
 
-	dest_byte &= ~mask;	/* get the bits not changing */
+	dest_byte &= ~mask;	/* get the bits yest changing */
 	dest_byte |= src_byte;	/* add in the new bits */
 
 	/* put it all back */
@@ -3071,7 +3071,7 @@ ice_write_word(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	memcpy(&dest_word, dest, sizeof(dest_word));
 
-	dest_word &= ~(cpu_to_le16(mask));	/* get the bits not changing */
+	dest_word &= ~(cpu_to_le16(mask));	/* get the bits yest changing */
 	dest_word |= cpu_to_le16(src_word);	/* add in the new bits */
 
 	/* put it all back */
@@ -3099,8 +3099,8 @@ ice_write_dword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 	shift_width = ce_info->lsb % 8;
 
 	/* if the field width is exactly 32 on an x86 machine, then the shift
-	 * operation will not work because the SHL instructions count is masked
-	 * to 5 bits so the shift will do nothing
+	 * operation will yest work because the SHL instructions count is masked
+	 * to 5 bits so the shift will do yesthing
 	 */
 	if (ce_info->width < 32)
 		mask = BIT(ce_info->width) - 1;
@@ -3122,7 +3122,7 @@ ice_write_dword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	memcpy(&dest_dword, dest, sizeof(dest_dword));
 
-	dest_dword &= ~(cpu_to_le32(mask));	/* get the bits not changing */
+	dest_dword &= ~(cpu_to_le32(mask));	/* get the bits yest changing */
 	dest_dword |= cpu_to_le32(src_dword);	/* add in the new bits */
 
 	/* put it all back */
@@ -3150,8 +3150,8 @@ ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 	shift_width = ce_info->lsb % 8;
 
 	/* if the field width is exactly 64 on an x86 machine, then the shift
-	 * operation will not work because the SHL instructions count is masked
-	 * to 6 bits so the shift will do nothing
+	 * operation will yest work because the SHL instructions count is masked
+	 * to 6 bits so the shift will do yesthing
 	 */
 	if (ce_info->width < 64)
 		mask = BIT_ULL(ce_info->width) - 1;
@@ -3173,7 +3173,7 @@ ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	memcpy(&dest_qword, dest, sizeof(dest_qword));
 
-	dest_qword &= ~(cpu_to_le64(mask));	/* get the bits not changing */
+	dest_qword &= ~(cpu_to_le64(mask));	/* get the bits yest changing */
 	dest_qword |= cpu_to_le64(src_qword);	/* add in the new bits */
 
 	/* put it all back */
@@ -3182,7 +3182,7 @@ ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 /**
  * ice_set_ctx - set context bits in packed structure
- * @src_ctx:  pointer to a generic non-packed context structure
+ * @src_ctx:  pointer to a generic yesn-packed context structure
  * @dest_ctx: pointer to memory for the packed structure
  * @ce_info:  a description of the structure to be transformed
  */
@@ -3259,8 +3259,8 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 		u8 num_qgrps, struct ice_aqc_add_tx_qgrp *buf, u16 buf_size,
 		struct ice_sq_cd *cd)
 {
-	struct ice_aqc_txsched_elem_data node = { 0 };
-	struct ice_sched_node *parent;
+	struct ice_aqc_txsched_elem_data yesde = { 0 };
+	struct ice_sched_yesde *parent;
 	struct ice_q_ctx *q_ctx;
 	enum ice_status status;
 	struct ice_hw *hw;
@@ -3286,7 +3286,7 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 		goto ena_txq_exit;
 	}
 
-	/* find a parent node */
+	/* find a parent yesde */
 	parent = ice_sched_get_free_qparent(pi, vsi_handle, tc,
 					    ICE_SCHED_NODE_OWNER_LAN);
 	if (!parent) {
@@ -3294,8 +3294,8 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 		goto ena_txq_exit;
 	}
 
-	buf->parent_teid = parent->info.node_teid;
-	node.parent_teid = parent->info.node_teid;
+	buf->parent_teid = parent->info.yesde_teid;
+	yesde.parent_teid = parent->info.yesde_teid;
 	/* Mark that the values in the "generic" section as valid. The default
 	 * value in the "generic" section is zero. This means that :
 	 * - Scheduling mode is Bytes Per Second (BPS), indicated by Bit 0.
@@ -3318,13 +3318,13 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 		goto ena_txq_exit;
 	}
 
-	node.node_teid = buf->txqs[0].q_teid;
-	node.data.elem_type = ICE_AQC_ELEM_TYPE_LEAF;
+	yesde.yesde_teid = buf->txqs[0].q_teid;
+	yesde.data.elem_type = ICE_AQC_ELEM_TYPE_LEAF;
 	q_ctx->q_handle = q_handle;
-	q_ctx->q_teid = le32_to_cpu(node.node_teid);
+	q_ctx->q_teid = le32_to_cpu(yesde.yesde_teid);
 
-	/* add a leaf node into scheduler tree queue layer */
-	status = ice_sched_add_node(pi, hw->num_tx_sched_layers - 1, &node);
+	/* add a leaf yesde into scheduler tree queue layer */
+	status = ice_sched_add_yesde(pi, hw->num_tx_sched_layers - 1, &yesde);
 	if (!status)
 		status = ice_sched_replay_q_bw(pi, q_ctx);
 
@@ -3341,12 +3341,12 @@ ena_txq_exit:
  * @num_queues: number of queues
  * @q_handles: pointer to software queue handle array
  * @q_ids: pointer to the q_id array
- * @q_teids: pointer to queue node teids
+ * @q_teids: pointer to queue yesde teids
  * @rst_src: if called due to reset, specifies the reset source
  * @vmvf_num: the relative VM or VF number that is undergoing the reset
  * @cd: pointer to command details structure or NULL
  *
- * This function removes queues and their corresponding nodes in SW DB
+ * This function removes queues and their corresponding yesdes in SW DB
  */
 enum ice_status
 ice_dis_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_queues,
@@ -3376,10 +3376,10 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_queues,
 	mutex_lock(&pi->sched_lock);
 
 	for (i = 0; i < num_queues; i++) {
-		struct ice_sched_node *node;
+		struct ice_sched_yesde *yesde;
 
-		node = ice_sched_find_node_by_teid(pi->root, q_teids[i]);
-		if (!node)
+		yesde = ice_sched_find_yesde_by_teid(pi->root, q_teids[i]);
+		if (!yesde)
 			continue;
 		q_ctx = ice_get_lan_q_ctx(pi->hw, vsi_handle, tc, q_handles[i]);
 		if (!q_ctx) {
@@ -3392,7 +3392,7 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_queues,
 				  q_ctx->q_handle, q_handles[i]);
 			continue;
 		}
-		qg_list.parent_teid = node->info.parent_teid;
+		qg_list.parent_teid = yesde->info.parent_teid;
 		qg_list.num_qs = 1;
 		qg_list.q_id[0] = cpu_to_le16(q_ids[i]);
 		status = ice_aq_dis_lan_txq(pi->hw, 1, &qg_list,
@@ -3401,7 +3401,7 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_queues,
 
 		if (status)
 			break;
-		ice_free_sched_node(pi, node);
+		ice_free_sched_yesde(pi, yesde);
 		q_ctx->q_handle = ICE_INVAL_Q_HANDLE;
 	}
 	mutex_unlock(&pi->sched_lock);
@@ -3434,8 +3434,8 @@ ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_handle, u8 tc_bitmap,
 	mutex_lock(&pi->sched_lock);
 
 	ice_for_each_traffic_class(i) {
-		/* configuration is possible only if TC node is present */
-		if (!ice_sched_get_tc_node(pi, i))
+		/* configuration is possible only if TC yesde is present */
+		if (!ice_sched_get_tc_yesde(pi, i))
 			continue;
 
 		status = ice_sched_cfg_vsi(pi, vsi_handle, i, maxqs[i], owner,
@@ -3542,7 +3542,7 @@ ice_stat_update40(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
 {
 	u64 new_data = rd64(hw, reg) & (BIT_ULL(40) - 1);
 
-	/* device stats are not reset at PFR, they likely will not be zeroed
+	/* device stats are yest reset at PFR, they likely will yest be zeroed
 	 * when the driver starts. Thus, save the value from the first read
 	 * without adding to the statistic value so that we report stats which
 	 * count up from zero.
@@ -3581,7 +3581,7 @@ ice_stat_update32(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
 
 	new_data = rd32(hw, reg);
 
-	/* device stats are not reset at PFR, they likely will not be zeroed
+	/* device stats are yest reset at PFR, they likely will yest be zeroed
 	 * when the driver starts. Thus, save the value from the first read
 	 * without adding to the statistic value so that we report stats which
 	 * count up from zero.
@@ -3607,13 +3607,13 @@ ice_stat_update32(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
 /**
  * ice_sched_query_elem - query element information from HW
  * @hw: pointer to the HW struct
- * @node_teid: node TEID to be queried
+ * @yesde_teid: yesde TEID to be queried
  * @buf: buffer to element information
  *
  * This function queries HW element information
  */
 enum ice_status
-ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
+ice_sched_query_elem(struct ice_hw *hw, u32 yesde_teid,
 		     struct ice_aqc_get_elem *buf)
 {
 	u16 buf_size, num_elem_ret = 0;
@@ -3621,7 +3621,7 @@ ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
 
 	buf_size = sizeof(*buf);
 	memset(buf, 0, buf_size);
-	buf->generic[0].node_teid = cpu_to_le32(node_teid);
+	buf->generic[0].yesde_teid = cpu_to_le32(yesde_teid);
 	status = ice_aq_query_sched_elems(hw, 1, buf, buf_size, &num_elem_ret,
 					  NULL);
 	if (status || num_elem_ret != 1)

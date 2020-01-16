@@ -10,7 +10,7 @@
 #include "bug_on.h"
 #include "preempt.h"
 
-int nondet_int(void);
+int yesndet_int(void);
 
 #define __acquire(x)
 #define __acquires(x)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Firmware Assisted dump: A robust mechanism to get reliable kernel crash
- * dump with assistance from firmware. This approach does not use kexec,
+ * dump with assistance from firmware. This approach does yest use kexec,
  * instead firmware assists in booting the kdump kernel while preserving
  * memory contents. The most of the code implementation has been adapted
  * from phyp assisted dump implementation written by Linas Vepstas and
@@ -51,7 +51,7 @@ static struct cma *fadump_cma;
  * The total size of fadump reserved memory covers for boot memory size
  * + cpu data size + hpte size and metadata.
  * Initialize only the area equivalent to boot memory size for CMA use.
- * The reamining portion of fadump reserved memory will be not given
+ * The reamining portion of fadump reserved memory will be yest given
  * to CMA and pages for thoes will stay reserved. boot memory size is
  * aligned per CMA requirement to satisy cma_init_reserved_mem() call.
  * But for some reason even if it fails we still have the memory reservation
@@ -66,10 +66,10 @@ int __init fadump_cma_init(void)
 		return 0;
 
 	/*
-	 * Do not use CMA if user has provided fadump=nocma kernel parameter.
+	 * Do yest use CMA if user has provided fadump=yescma kernel parameter.
 	 * Return 1 to continue with fadump old behaviour.
 	 */
-	if (fw_dump.nocma)
+	if (fw_dump.yescma)
 		return 1;
 
 	base = fw_dump.reserve_dump_area_start;
@@ -91,7 +91,7 @@ int __init fadump_cma_init(void)
 	}
 
 	/*
-	 * So we now have successfully initialized cma area for fadump.
+	 * So we yesw have successfully initialized cma area for fadump.
 	 */
 	pr_info("Initialized 0x%lx bytes cma area at %ldMB from 0x%lx "
 		"bytes of memory reserved for firmware-assisted dump\n",
@@ -105,19 +105,19 @@ static int __init fadump_cma_init(void) { return 1; }
 #endif /* CONFIG_CMA */
 
 /* Scan the Firmware Assisted dump configuration details. */
-int __init early_init_dt_scan_fw_dump(unsigned long node, const char *uname,
+int __init early_init_dt_scan_fw_dump(unsigned long yesde, const char *uname,
 				      int depth, void *data)
 {
 	if (depth != 1)
 		return 0;
 
 	if (strcmp(uname, "rtas") == 0) {
-		rtas_fadump_dt_scan(&fw_dump, node);
+		rtas_fadump_dt_scan(&fw_dump, yesde);
 		return 1;
 	}
 
 	if (strcmp(uname, "ibm,opal") == 0) {
-		opal_fadump_dt_scan(&fw_dump, node);
+		opal_fadump_dt_scan(&fw_dump, yesde);
 		return 1;
 	}
 
@@ -159,7 +159,7 @@ int is_fadump_active(void)
 }
 
 /*
- * Returns true, if there are no holes in memory area between d_start to d_end,
+ * Returns true, if there are yes holes in memory area between d_start to d_end,
  * false otherwise.
  */
 static bool is_fadump_mem_area_contiguous(u64 d_start, u64 d_end)
@@ -189,7 +189,7 @@ static bool is_fadump_mem_area_contiguous(u64 d_start, u64 d_end)
 }
 
 /*
- * Returns true, if there are no holes in boot memory area,
+ * Returns true, if there are yes holes in boot memory area,
  * false otherwise.
  */
 bool is_fadump_boot_mem_contiguous(void)
@@ -211,7 +211,7 @@ bool is_fadump_boot_mem_contiguous(void)
 }
 
 /*
- * Returns true, if there are no holes in reserved memory area,
+ * Returns true, if there are yes holes in reserved memory area,
  * false otherwise.
  */
 bool is_fadump_reserved_mem_contiguous(void)
@@ -229,15 +229,15 @@ static void fadump_show_config(void)
 	int i;
 
 	pr_debug("Support for firmware-assisted dump (fadump): %s\n",
-			(fw_dump.fadump_supported ? "present" : "no support"));
+			(fw_dump.fadump_supported ? "present" : "yes support"));
 
 	if (!fw_dump.fadump_supported)
 		return;
 
 	pr_debug("Fadump enabled    : %s\n",
-				(fw_dump.fadump_enabled ? "yes" : "no"));
+				(fw_dump.fadump_enabled ? "no" : "yes"));
 	pr_debug("Dump Active       : %s\n",
-				(fw_dump.dump_active ? "yes" : "no"));
+				(fw_dump.dump_active ? "no" : "yes"));
 	pr_debug("Dump section sizes:\n");
 	pr_debug("    CPU state data size: %lx\n", fw_dump.cpu_state_data_size);
 	pr_debug("    HPTE region size   : %lx\n", fw_dump.hpte_region_size);
@@ -275,7 +275,7 @@ static inline u64 fadump_calculate_reserve_size(void)
 
 	/*
 	 * Check if the size is specified through crashkernel= cmdline
-	 * option. If yes, then use that but ignore base as fadump reserves
+	 * option. If no, then use that but igyesre base as fadump reserves
 	 * memory at a predefined offset.
 	 */
 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
@@ -335,7 +335,7 @@ static unsigned long get_fadump_area_size(void)
 	size += fw_dump.boot_memory_size;
 	size += sizeof(struct fadump_crash_info_header);
 	size += sizeof(struct elfhdr); /* ELF core header.*/
-	size += sizeof(struct elf_phdr); /* place holder for cpu notes */
+	size += sizeof(struct elf_phdr); /* place holder for cpu yestes */
 	/* Program headers for crash memory regions. */
 	size += sizeof(struct elf_phdr) * (memblock_num_regions(memory) + 2);
 
@@ -366,7 +366,7 @@ static int __init add_boot_mem_region(unsigned long rstart,
 
 /*
  * Firmware usually has a hard limit on the data it can copy per region.
- * Honour that by splitting a memory range into multiple regions.
+ * Hoyesur that by splitting a memory range into multiple regions.
  */
 static int __init add_boot_mem_regions(unsigned long mstart,
 				       unsigned long msize)
@@ -439,7 +439,7 @@ int __init fadump_reserve_mem(void)
 		return 0;
 
 	if (!fw_dump.fadump_supported) {
-		pr_info("Firmware-Assisted Dump is not supported on this hardware\n");
+		pr_info("Firmware-Assisted Dump is yest supported on this hardware\n");
 		goto error_out;
 	}
 
@@ -452,7 +452,7 @@ int __init fadump_reserve_mem(void)
 		fw_dump.boot_memory_size =
 			PAGE_ALIGN(fadump_calculate_reserve_size());
 #ifdef CONFIG_CMA
-		if (!fw_dump.nocma) {
+		if (!fw_dump.yescma) {
 			align = FADUMP_CMA_ALIGNMENT;
 			fw_dump.boot_memory_size =
 				ALIGN(fw_dump.boot_memory_size, align);
@@ -486,7 +486,7 @@ int __init fadump_reserve_mem(void)
 		else
 			memory_limit = memblock_end_of_DRAM();
 		printk(KERN_INFO "Adjusted memory_limit for firmware-assisted"
-				" dump, now %#016llx\n", memory_limit);
+				" dump, yesw %#016llx\n", memory_limit);
 	}
 	if (memory_limit)
 		mem_boundary = memory_limit;
@@ -570,9 +570,9 @@ static int __init early_fadump_param(char *p)
 		fw_dump.fadump_enabled = 1;
 	else if (strncmp(p, "off", 3) == 0)
 		fw_dump.fadump_enabled = 0;
-	else if (strncmp(p, "nocma", 5) == 0) {
+	else if (strncmp(p, "yescma", 5) == 0) {
 		fw_dump.fadump_enabled = 1;
-		fw_dump.nocma = 1;
+		fw_dump.yescma = 1;
 	}
 
 	return 0;
@@ -614,7 +614,7 @@ void crash_fadump(struct pt_regs *regs, const char *str)
 		/*
 		 * We can't loop here indefinitely. Wait as long as fadump
 		 * is in force. If we race with fadump un-registration this
-		 * loop will break and then we go down to normal panic path
+		 * loop will break and then we go down to yesrmal panic path
 		 * and reboot. If fadump is in force the first crashing
 		 * cpu will definitely trigger fadump.
 		 */
@@ -637,7 +637,7 @@ void crash_fadump(struct pt_regs *regs, const char *str)
 	fw_dump.ops->fadump_trigger(fdh, str);
 }
 
-u32 *fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs)
+u32 *fadump_regs_to_elf_yestes(u32 *buf, struct pt_regs *regs)
 {
 	struct elf_prstatus prstatus;
 
@@ -647,7 +647,7 @@ u32 *fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs)
 	 * prstatus.pr_pid = ????
 	 */
 	elf_core_copy_kernel_regs(&prstatus.pr_reg, regs);
-	buf = append_elf_note(buf, CRASH_CORE_NOTE_NAME, NT_PRSTATUS,
+	buf = append_elf_yeste(buf, CRASH_CORE_NOTE_NAME, NT_PRSTATUS,
 			      &prstatus, sizeof(prstatus));
 	return buf;
 }
@@ -660,14 +660,14 @@ void fadump_update_elfcore_header(char *bufp)
 	elf = (struct elfhdr *)bufp;
 	bufp += sizeof(struct elfhdr);
 
-	/* First note is a place holder for cpu notes info. */
+	/* First yeste is a place holder for cpu yestes info. */
 	phdr = (struct elf_phdr *)bufp;
 
 	if (phdr->p_type == PT_NOTE) {
-		phdr->p_paddr	= __pa(fw_dump.cpu_notes_buf_vaddr);
+		phdr->p_paddr	= __pa(fw_dump.cpu_yestes_buf_vaddr);
 		phdr->p_offset	= phdr->p_paddr;
-		phdr->p_filesz	= fw_dump.cpu_notes_buf_size;
-		phdr->p_memsz = fw_dump.cpu_notes_buf_size;
+		phdr->p_filesz	= fw_dump.cpu_yestes_buf_size;
+		phdr->p_memsz = fw_dump.cpu_yestes_buf_size;
 	}
 	return;
 }
@@ -694,34 +694,34 @@ static void fadump_free_buffer(unsigned long vaddr, unsigned long size)
 	free_reserved_area((void *)vaddr, (void *)(vaddr + size), -1, NULL);
 }
 
-s32 fadump_setup_cpu_notes_buf(u32 num_cpus)
+s32 fadump_setup_cpu_yestes_buf(u32 num_cpus)
 {
-	/* Allocate buffer to hold cpu crash notes. */
-	fw_dump.cpu_notes_buf_size = num_cpus * sizeof(note_buf_t);
-	fw_dump.cpu_notes_buf_size = PAGE_ALIGN(fw_dump.cpu_notes_buf_size);
-	fw_dump.cpu_notes_buf_vaddr =
-		(unsigned long)fadump_alloc_buffer(fw_dump.cpu_notes_buf_size);
-	if (!fw_dump.cpu_notes_buf_vaddr) {
-		pr_err("Failed to allocate %ld bytes for CPU notes buffer\n",
-		       fw_dump.cpu_notes_buf_size);
+	/* Allocate buffer to hold cpu crash yestes. */
+	fw_dump.cpu_yestes_buf_size = num_cpus * sizeof(yeste_buf_t);
+	fw_dump.cpu_yestes_buf_size = PAGE_ALIGN(fw_dump.cpu_yestes_buf_size);
+	fw_dump.cpu_yestes_buf_vaddr =
+		(unsigned long)fadump_alloc_buffer(fw_dump.cpu_yestes_buf_size);
+	if (!fw_dump.cpu_yestes_buf_vaddr) {
+		pr_err("Failed to allocate %ld bytes for CPU yestes buffer\n",
+		       fw_dump.cpu_yestes_buf_size);
 		return -ENOMEM;
 	}
 
-	pr_debug("Allocated buffer for cpu notes of size %ld at 0x%lx\n",
-		 fw_dump.cpu_notes_buf_size,
-		 fw_dump.cpu_notes_buf_vaddr);
+	pr_debug("Allocated buffer for cpu yestes of size %ld at 0x%lx\n",
+		 fw_dump.cpu_yestes_buf_size,
+		 fw_dump.cpu_yestes_buf_vaddr);
 	return 0;
 }
 
-void fadump_free_cpu_notes_buf(void)
+void fadump_free_cpu_yestes_buf(void)
 {
-	if (!fw_dump.cpu_notes_buf_vaddr)
+	if (!fw_dump.cpu_yestes_buf_vaddr)
 		return;
 
-	fadump_free_buffer(fw_dump.cpu_notes_buf_vaddr,
-			   fw_dump.cpu_notes_buf_size);
-	fw_dump.cpu_notes_buf_vaddr = 0;
-	fw_dump.cpu_notes_buf_size = 0;
+	fadump_free_buffer(fw_dump.cpu_yestes_buf_vaddr,
+			   fw_dump.cpu_yestes_buf_size);
+	fw_dump.cpu_yestes_buf_vaddr = 0;
+	fw_dump.cpu_yestes_buf_size = 0;
 }
 
 static void fadump_free_mem_ranges(struct fadump_mrange_info *mrange_info)
@@ -961,11 +961,11 @@ static int fadump_create_elfcore_headers(char *bufp)
 	bufp += sizeof(struct elfhdr);
 
 	/*
-	 * setup ELF PT_NOTE, place holder for cpu notes info. The notes info
+	 * setup ELF PT_NOTE, place holder for cpu yestes info. The yestes info
 	 * will be populated during second kernel boot after crash. Hence
-	 * this PT_NOTE will always be the first elf note.
+	 * this PT_NOTE will always be the first elf yeste.
 	 *
-	 * NOTE: Any new ELF note addition should be placed after this note.
+	 * NOTE: Any new ELF yeste addition should be placed after this yeste.
 	 */
 	phdr = (struct elf_phdr *)bufp;
 	bufp += sizeof(struct elf_phdr);
@@ -989,7 +989,7 @@ static int fadump_create_elfcore_headers(char *bufp)
 	phdr->p_vaddr	= 0;
 	phdr->p_align	= 0;
 
-	phdr->p_paddr	= fadump_relocate(paddr_vmcoreinfo_note());
+	phdr->p_paddr	= fadump_relocate(paddr_vmcoreinfo_yeste());
 	phdr->p_offset	= phdr->p_paddr;
 	phdr->p_memsz	= phdr->p_filesz = VMCOREINFO_NOTE_SIZE;
 
@@ -1065,7 +1065,7 @@ static int register_fadump(void)
 	int ret;
 
 	/*
-	 * If no memory is reserved then we can not register for firmware-
+	 * If yes memory is reserved then we can yest register for firmware-
 	 * assisted dump.
 	 */
 	if (!fw_dump.reserve_dump_area_size)
@@ -1204,12 +1204,12 @@ static void sort_and_merge_mem_ranges(struct fadump_mrange_info *mrange_info)
  */
 static inline int fadump_scan_reserved_mem_ranges(void)
 {
-	struct device_node *root;
+	struct device_yesde *root;
 	const __be32 *prop;
 	int len, ret = -1;
 	unsigned long i;
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (!root)
 		return ret;
 
@@ -1231,7 +1231,7 @@ static inline int fadump_scan_reserved_mem_ranges(void)
 			ret = fadump_add_mem_range(&reserved_mrange_info,
 						   base, base + size);
 			if (ret < 0) {
-				pr_warn("some reserved ranges are ignored!\n");
+				pr_warn("some reserved ranges are igyesred!\n");
 				break;
 			}
 		}
@@ -1263,7 +1263,7 @@ static void fadump_release_memory(u64 begin, u64 end)
 	ret = fadump_add_mem_range(&reserved_mrange_info, ra_start, ra_end);
 	if (ret != 0) {
 		/*
-		 * Not enough memory to setup reserved ranges but the system is
+		 * Not eyesugh memory to setup reserved ranges but the system is
 		 * running shortage of memory. So, release all the memory except
 		 * Reserved dump area (reused for next fadump registration).
 		 */
@@ -1311,7 +1311,7 @@ static void fadump_invalidate_release_mem(void)
 	mutex_unlock(&fadump_mutex);
 
 	fadump_release_memory(fw_dump.boot_mem_top, memblock_end_of_DRAM());
-	fadump_free_cpu_notes_buf();
+	fadump_free_cpu_yestes_buf();
 
 	/*
 	 * Setup kernel metadata and initialize the kernel dump
@@ -1338,7 +1338,7 @@ static ssize_t fadump_release_memory_store(struct kobject *kobj,
 	if (input == 1) {
 		/*
 		 * Take away the '/proc/vmcore'. We are releasing the dump
-		 * memory, hence it will not be valid anymore.
+		 * memory, hence it will yest be valid anymore.
 		 */
 #ifdef CONFIG_PROC_VMCORE
 		vmcore_cleanup();
@@ -1497,13 +1497,13 @@ subsys_initcall(setup_fadump);
 #else /* !CONFIG_PRESERVE_FA_DUMP */
 
 /* Scan the Firmware Assisted dump configuration details. */
-int __init early_init_dt_scan_fw_dump(unsigned long node, const char *uname,
+int __init early_init_dt_scan_fw_dump(unsigned long yesde, const char *uname,
 				      int depth, void *data)
 {
 	if ((depth != 1) || (strcmp(uname, "ibm,opal") != 0))
 		return 0;
 
-	opal_fadump_dt_scan(&fw_dump, node);
+	opal_fadump_dt_scan(&fw_dump, yesde);
 	return 1;
 }
 

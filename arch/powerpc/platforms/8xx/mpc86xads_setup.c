@@ -92,23 +92,23 @@ static void __init init_ioports(void)
 
 static void __init mpc86xads_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 __iomem *bcsr_io;
 
 	cpm_reset();
 	init_ioports();
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc866ads-bcsr");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc866ads-bcsr");
 	if (!np) {
-		printk(KERN_CRIT "Could not find fsl,mpc866ads-bcsr node\n");
+		printk(KERN_CRIT "Could yest find fsl,mpc866ads-bcsr yesde\n");
 		return;
 	}
 
 	bcsr_io = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (bcsr_io == NULL) {
-		printk(KERN_CRIT "Could not remap BCSR\n");
+		printk(KERN_CRIT "Could yest remap BCSR\n");
 		return;
 	}
 

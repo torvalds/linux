@@ -2,7 +2,7 @@
 /*
  * IDT CPS Gen.2 Serial RapidIO switch family support
  *
- * Copyright 2010 Integrated Device Technology, Inc.
+ * Copyright 2010 Integrated Device Techyeslogy, Inc.
  * Alexandre Bounine <alexandre.bounine@idt.com>
  */
 
@@ -292,10 +292,10 @@ idtg2_em_init(struct rio_dev *rdev)
 	/* Disable JTAG and I2C Error reporting/logging */
 	rio_write_config_32(rdev, IDT_AUX_ERR_REPORT_EN, 0);
 
-	/* Disable Port-Write notification from JTAG */
+	/* Disable Port-Write yestification from JTAG */
 	rio_write_config_32(rdev, IDT_JTAG_CTRL, 0);
 
-	/* Disable Port-Write notification from I2C */
+	/* Disable Port-Write yestification from I2C */
 	rio_read_config_32(rdev, IDT_I2C_MCTRL, &regval);
 	rio_write_config_32(rdev, IDT_I2C_MCTRL, regval & ~IDT_I2C_MCTRL_GENPW);
 
@@ -486,5 +486,5 @@ device_initcall(idtg2_init);
 module_exit(idtg2_exit);
 
 MODULE_DESCRIPTION("IDT CPS Gen.2 Serial RapidIO switch family driver");
-MODULE_AUTHOR("Integrated Device Technology, Inc.");
+MODULE_AUTHOR("Integrated Device Techyeslogy, Inc.");
 MODULE_LICENSE("GPL");

@@ -2,7 +2,7 @@
 .. Copyright 2010 Julia Lawall <julia@diku.dk>
 .. Copyright 2010 Gilles Muller <Gilles.Muller@lip6.fr>
 
-.. highlight:: none
+.. highlight:: yesne
 
 .. _devtools_coccinelle:
 
@@ -89,7 +89,7 @@ Four basic modes are defined: ``patch``, ``report``, ``context``, and
 
 - ``org`` generates a report in the Org mode format of Emacs.
 
-Note that not all semantic patches implement all modes. For easy use
+Note that yest all semantic patches implement all modes. For easy use
 of Coccinelle, the default mode is "report".
 
 Two other modes provide some common combinations of these modes.
@@ -183,14 +183,14 @@ To check only newly edited code, use the value 2 for the C flag, i.e.::
 
     make C=2 CHECK="scripts/coccicheck"
 
-In these modes, which works on a file basis, there is no information
-about semantic patches displayed, and no commit message proposed.
+In these modes, which works on a file basis, there is yes information
+about semantic patches displayed, and yes commit message proposed.
 
 This runs every semantic patch in scripts/coccinelle by default. The
 COCCI variable may additionally be used to only apply a single
 semantic patch as shown in the previous section.
 
-The "report" mode is the default. You can select another one with the
+The "report" mode is the default. You can select ayesther one with the
 MODE variable explained above.
 
 Debugging Coccinelle SmPL patches
@@ -219,7 +219,7 @@ you may want to use::
     export COCCI=scripts/coccinelle/misc/irqf_oneshot.cocci
     make coccicheck DEBUG_FILE="err.log" MODE=report SPFLAGS="--profile --show-trying" M=./drivers/mfd/arizona-irq.c
 
-err.log will now have the profiling information, while stdout will
+err.log will yesw have the profiling information, while stdout will
 provide some progress information as Coccinelle moves forward with
 work.
 
@@ -240,7 +240,7 @@ Since coccicheck runs through make, it naturally runs from the kernel
 proper dir, as such the second rule above would be implied for picking up a
 .cocciconfig when using ``make coccicheck``.
 
-``make coccicheck`` also supports using M= targets. If you do not supply
+``make coccicheck`` also supports using M= targets. If you do yest supply
 any M= target, it is assumed you want to target the entire kernel.
 The kernel coccicheck script has::
 
@@ -252,29 +252,29 @@ The kernel coccicheck script has::
 
 KBUILD_EXTMOD is set when an explicit target with M= is used. For both cases
 the spatch --dir argument is used, as such third rule applies when whether M=
-is used or not, and when M= is used the target directory can have its own
-.cocciconfig file. When M= is not passed as an argument to coccicheck the
+is used or yest, and when M= is used the target directory can have its own
+.cocciconfig file. When M= is yest passed as an argument to coccicheck the
 target directory is the same as the directory from where spatch was called.
 
-If not using the kernel's coccicheck target, keep the above precedence
+If yest using the kernel's coccicheck target, keep the above precedence
 order logic of .cocciconfig reading. If using the kernel's coccicheck target,
 override any of the kernel's .coccicheck's settings using SPFLAGS.
 
 We help Coccinelle when used against Linux with a set of sensible defaults
 options for Linux with our own Linux .cocciconfig. This hints to coccinelle
 git can be used for ``git grep`` queries over coccigrep. A timeout of 200
-seconds should suffice for now.
+seconds should suffice for yesw.
 
-The options picked up by coccinelle when reading a .cocciconfig do not appear
+The options picked up by coccinelle when reading a .cocciconfig do yest appear
 as arguments to spatch processes running on your system, to confirm what
 options will be used by Coccinelle run::
 
       spatch --print-options-only
 
 You can override with your own preferred index option by using SPFLAGS. Take
-note that when there are conflicting options Coccinelle takes precedence for
+yeste that when there are conflicting options Coccinelle takes precedence for
 the last options passed. Using .cocciconfig is possible to use idutils, however
-given the order of precedence followed by Coccinelle, since the kernel now
+given the order of precedence followed by Coccinelle, since the kernel yesw
 carries its own .cocciconfig, you will need to use SPFLAGS to use idutils if
 desired. See below section "Additional flags" for more details on how to use
 idutils.
@@ -289,13 +289,13 @@ given to it when options are in conflict. ::
     make SPFLAGS=--use-glimpse coccicheck
 
 Coccinelle supports idutils as well but requires coccinelle >= 1.0.6.
-When no ID file is specified coccinelle assumes your ID database file
+When yes ID file is specified coccinelle assumes your ID database file
 is in the file .id-utils.index on the top level of the kernel, coccinelle
 carries a script scripts/idutils_index.sh which creates the database with::
 
     mkid -i C --output .id-utils.index
 
-If you have another database filename you can also just symlink with this
+If you have ayesther database filename you can also just symlink with this
 name. ::
 
     make SPFLAGS=--use-idutils coccicheck
@@ -320,7 +320,7 @@ SmPL patches can have their own requirements for options passed
 to Coccinelle. SmPL patch specific options can be provided by
 providing them at the top of the SmPL patch, for instance::
 
-	// Options: --no-includes --include-headers
+	// Options: --yes-includes --include-headers
 
 SmPL patch Coccinelle requirements
 ----------------------------------
@@ -429,7 +429,7 @@ in a diff-like style.
 
       **NOTE**: The diff-like output generated is NOT an applicable patch. The
       intent of the ``context`` mode is to highlight the important lines
-      (annotated with minus, ``-``) and gives some surrounding context
+      (anyestated with minus, ``-``) and gives some surrounding context
       lines around. This output can be used with the diff mode of
       Emacs to review the code.
 
@@ -453,9 +453,9 @@ will execute the following part of the SmPL script::
 This SmPL excerpt generates diff hunks on the standard output, as
 illustrated below::
 
-    diff -u -p /home/user/linux/crypto/ctr.c /tmp/nothing
+    diff -u -p /home/user/linux/crypto/ctr.c /tmp/yesthing
     --- /home/user/linux/crypto/ctr.c	2010-05-26 10:49:38.000000000 +0200
-    +++ /tmp/nothing
+    +++ /tmp/yesthing
     @@ -185,7 +185,6 @@ static struct crypto_instance *crypto_ct
  	alg = crypto_attr_alg(tb[1], CRYPTO_ALG_TYPE_CIPHER,
  				  CRYPTO_ALG_TYPE_MASK);

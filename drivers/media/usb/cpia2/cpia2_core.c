@@ -89,7 +89,7 @@ static void *rvmalloc(unsigned long size)
 	if (!mem)
 		return NULL;
 
-	memset(mem, 0, size);	/* Clear the ram out, no junk to the user */
+	memset(mem, 0, size);	/* Clear the ram out, yes junk to the user */
 	adr = (unsigned long) mem;
 
 	while ((long)size > 0) {
@@ -648,7 +648,7 @@ int cpia2_reset_camera(struct camera_data *cam)
 	cpia2_set_high_power(cam);
 
 	if (cam->params.pnp_id.device_type == DEVICE_STV_672) {
-		/* Enable button notification */
+		/* Enable button yestification */
 		cmd.req_mode = CAMERAACCESS_TYPE_RANDOM | CAMERAACCESS_SYSTEM;
 		cmd.buffer.registers[0].index = CPIA2_SYSTEM_INT_PACKET_CTRL;
 		cmd.buffer.registers[0].value =
@@ -867,12 +867,12 @@ static int cpia2_set_high_power(struct camera_data *cam)
 			break;
 		} else if (i == 50) {
 			cam->params.camera_state.power_mode = LO_POWER_MODE;
-			ERR("Camera did not wake up\n");
+			ERR("Camera did yest wake up\n");
 			return -EIO;
 		}
 	}
 
-	DBG("System now in high power state\n");
+	DBG("System yesw in high power state\n");
 	cam->params.camera_state.power_mode = HI_POWER_MODE;
 	return 0;
 }
@@ -1012,7 +1012,7 @@ static int set_default_user_mode(struct camera_data *cam)
  *  cpia2_match_video_size
  *
  *  return the best match, where 'best' is as always
- *  the largest that is not bigger than what is requested.
+ *  the largest that is yest bigger than what is requested.
  *****************************************************************************/
 int cpia2_match_video_size(int width, int height)
 {
@@ -2167,7 +2167,7 @@ static void reset_camera_struct(struct camera_data *cam)
  *
  *  cpia2_init_camera_struct
  *
- *  Initializes camera struct, does not call reset to fill in defaults.
+ *  Initializes camera struct, does yest call reset to fill in defaults.
  *****************************************************************************/
 struct camera_data *cpia2_init_camera_struct(struct usb_interface *intf)
 {
@@ -2302,7 +2302,7 @@ void cpia2_free_buffers(struct camera_data *cam)
  *
  *****************************************************************************/
 long cpia2_read(struct camera_data *cam,
-		char __user *buf, unsigned long count, int noblock)
+		char __user *buf, unsigned long count, int yesblock)
 {
 	struct framebuf *frame;
 
@@ -2327,7 +2327,7 @@ long cpia2_read(struct camera_data *cam,
 
 	/* Copy cam->curbuff in case it changes while we're processing */
 	frame = cam->curbuff;
-	if (noblock && frame->status != FRAME_READY) {
+	if (yesblock && frame->status != FRAME_READY) {
 		return -EAGAIN;
 	}
 

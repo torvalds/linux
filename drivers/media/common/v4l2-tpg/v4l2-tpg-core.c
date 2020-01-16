@@ -682,12 +682,12 @@ static void color_to_ycbcr(struct tpg_data *tpg, int r, int g, int b,
 		rgb2ycbcr(full ? bt601_full : bt601, r, g, b, y_offset, y, cb, cr);
 		break;
 	case V4L2_YCBCR_ENC_XV601:
-		/* Ignore quantization range, there is only one possible
+		/* Igyesre quantization range, there is only one possible
 		 * Y'CbCr encoding. */
 		rgb2ycbcr(bt601, r, g, b, 16, y, cb, cr);
 		break;
 	case V4L2_YCBCR_ENC_XV709:
-		/* Ignore quantization range, there is only one possible
+		/* Igyesre quantization range, there is only one possible
 		 * Y'CbCr encoding. */
 		rgb2ycbcr(rec709, r, g, b, 16, y, cb, cr);
 		break;
@@ -797,12 +797,12 @@ static void ycbcr_to_color(struct tpg_data *tpg, int y, int cb, int cr,
 		ycbcr2rgb(full ? bt601_full : bt601, y, cb, cr, y_offset, r, g, b);
 		break;
 	case V4L2_YCBCR_ENC_XV601:
-		/* Ignore quantization range, there is only one possible
+		/* Igyesre quantization range, there is only one possible
 		 * Y'CbCr encoding. */
 		ycbcr2rgb(bt601, y, cb, cr, 16, r, g, b);
 		break;
 	case V4L2_YCBCR_ENC_XV709:
-		/* Ignore quantization range, there is only one possible
+		/* Igyesre quantization range, there is only one possible
 		 * Y'CbCr encoding. */
 		ycbcr2rgb(rec709, y, cb, cr, 16, r, g, b);
 		break;
@@ -976,7 +976,7 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		cr >>= 4;
 		/*
 		 * XV601/709 use the header/footer margins to encode R', G'
-		 * and B' values outside the range [0-1]. So do not clamp
+		 * and B' values outside the range [0-1]. So do yest clamp
 		 * XV601/709 values.
 		 */
 		if (tpg->real_quantization == V4L2_QUANTIZATION_LIM_RANGE &&
@@ -1925,28 +1925,28 @@ typedef struct { u16 __; u8 _; } __packed x24;
 	}	\
 } while (0)
 
-static noinline void tpg_print_str_2(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+static yesinline void tpg_print_str_2(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 			unsigned p, unsigned first, unsigned div, unsigned step,
 			int y, int x, char *text, unsigned len)
 {
 	PRINTSTR(u8);
 }
 
-static noinline void tpg_print_str_4(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+static yesinline void tpg_print_str_4(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 			unsigned p, unsigned first, unsigned div, unsigned step,
 			int y, int x, char *text, unsigned len)
 {
 	PRINTSTR(u16);
 }
 
-static noinline void tpg_print_str_6(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+static yesinline void tpg_print_str_6(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 			unsigned p, unsigned first, unsigned div, unsigned step,
 			int y, int x, char *text, unsigned len)
 {
 	PRINTSTR(x24);
 }
 
-static noinline void tpg_print_str_8(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+static yesinline void tpg_print_str_8(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 			unsigned p, unsigned first, unsigned div, unsigned step,
 			int y, int x, char *text, unsigned len)
 {

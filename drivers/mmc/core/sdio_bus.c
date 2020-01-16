@@ -143,8 +143,8 @@ static int sdio_bus_probe(struct device *dev)
 	/* Unbound SDIO functions are always suspended.
 	 * During probe, the function is set active and the usage count
 	 * is incremented.  If the driver supports runtime PM,
-	 * it should call pm_runtime_put_noidle() in its probe routine and
-	 * pm_runtime_get_noresume() in its remove routine.
+	 * it should call pm_runtime_put_yesidle() in its probe routine and
+	 * pm_runtime_get_yesresume() in its remove routine.
 	 */
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD) {
 		ret = pm_runtime_get_sync(dev);
@@ -172,7 +172,7 @@ static int sdio_bus_probe(struct device *dev)
 disable_runtimepm:
 	atomic_dec(&func->card->sdio_funcs_probed);
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 	dev_pm_domain_detach(dev, false);
 	return ret;
 }
@@ -190,7 +190,7 @@ static int sdio_bus_remove(struct device *dev)
 	atomic_dec(&func->card->sdio_funcs_probed);
 
 	if (func->irq_handler) {
-		pr_warn("WARNING: driver %s did not remove its interrupt handler!\n",
+		pr_warn("WARNING: driver %s did yest remove its interrupt handler!\n",
 			drv->name);
 		sdio_claim_host(func);
 		sdio_release_irq(func);
@@ -199,7 +199,7 @@ static int sdio_bus_remove(struct device *dev)
 
 	/* First, undo the increment made directly above */
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 
 	/* Then undo the runtime PM settings in sdio_bus_probe() */
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
@@ -309,7 +309,7 @@ struct sdio_func *sdio_alloc_func(struct mmc_card *card)
 static void sdio_acpi_set_handle(struct sdio_func *func)
 {
 	struct mmc_host *host = func->card->host;
-	u64 addr = ((u64)host->slotno << 16) | func->num;
+	u64 addr = ((u64)host->slotyes << 16) | func->num;
 
 	acpi_preset_companion(&func->dev, ACPI_COMPANION(host->parent), addr);
 }
@@ -317,11 +317,11 @@ static void sdio_acpi_set_handle(struct sdio_func *func)
 static inline void sdio_acpi_set_handle(struct sdio_func *func) {}
 #endif
 
-static void sdio_set_of_node(struct sdio_func *func)
+static void sdio_set_of_yesde(struct sdio_func *func)
 {
 	struct mmc_host *host = func->card->host;
 
-	func->dev.of_node = mmc_of_find_child_device(host, func->num);
+	func->dev.of_yesde = mmc_of_find_child_device(host, func->num);
 }
 
 /*
@@ -333,7 +333,7 @@ int sdio_add_func(struct sdio_func *func)
 
 	dev_set_name(&func->dev, "%s:%d", mmc_card_id(func->card), func->num);
 
-	sdio_set_of_node(func);
+	sdio_set_of_yesde(func);
 	sdio_acpi_set_handle(func);
 	device_enable_async_suspend(&func->dev);
 	ret = device_add(&func->dev);
@@ -355,7 +355,7 @@ void sdio_remove_func(struct sdio_func *func)
 		return;
 
 	device_del(&func->dev);
-	of_node_put(func->dev.of_node);
+	of_yesde_put(func->dev.of_yesde);
 	put_device(&func->dev);
 }
 

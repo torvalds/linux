@@ -5,11 +5,11 @@
  * Copyright (C) 2018 Jacopo Mondi <jacopo+renesas@jmondi.org>
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  *
  * Based on ov772x driver, mt9m111 driver,
  *
- * Copyright (C) 2008 Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Copyright (C) 2008 Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  * Copyright (C) 2008, Robert Jarzmik <robert.jarzmik@free.fr>
  * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
  * Copyright (C) 2008 Magnus Damm
@@ -803,7 +803,7 @@ static int mt9t112_s_stream(struct v4l2_subdev *sd, int enable)
 		 * If user selected large output size, and used it long time,
 		 * mt9t112 camera will be very warm.
 		 *
-		 * But current driver can not stop mt9t112 camera.
+		 * But current driver can yest stop mt9t112 camera.
 		 * So, set small size here to solve this problem.
 		 */
 		mt9t112_set_a_frame_size(client, VGA_WIDTH, VGA_HEIGHT);
@@ -1130,5 +1130,5 @@ static struct i2c_driver mt9t112_i2c_driver = {
 module_i2c_driver(mt9t112_i2c_driver);
 
 MODULE_DESCRIPTION("V4L2 driver for MT9T111/MT9T112 camera sensor");
-MODULE_AUTHOR("Kuninori Morimoto");
+MODULE_AUTHOR("Kuniyesri Morimoto");
 MODULE_LICENSE("GPL v2");

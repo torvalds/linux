@@ -160,7 +160,7 @@ static const char qlcnic_83xx_rx_stats_strings[][ETH_GSTRING_LEN] = {
 	"ctx_num_lro_flows_added",
 	"ctx_num_lro_flows_removed",
 	"ctx_num_lro_flows_active",
-	"ctx_pkts_dropped_unknown",
+	"ctx_pkts_dropped_unkyeswn",
 };
 
 static const char qlcnic_gstrings_test[][ETH_GSTRING_LEN] = {
@@ -271,12 +271,12 @@ static void
 qlcnic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	u32 fw_major, fw_minor, fw_build;
+	u32 fw_major, fw_miyesr, fw_build;
 	fw_major = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_MAJOR);
-	fw_minor = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_MINOR);
+	fw_miyesr = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_MINOR);
 	fw_build = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_SUB);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		"%d.%d.%d", fw_major, fw_minor, fw_build);
+		"%d.%d.%d", fw_major, fw_miyesr, fw_build);
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
@@ -702,7 +702,7 @@ static int qlcnic_validate_ring_count(struct qlcnic_adapter *adapter,
 	if (rx_ring != 0) {
 		if (rx_ring > adapter->max_sds_rings) {
 			netdev_err(adapter->netdev,
-				   "Invalid ring count, SDS ring count %d should not be greater than max %d driver sds rings.\n",
+				   "Invalid ring count, SDS ring count %d should yest be greater than max %d driver sds rings.\n",
 				   rx_ring, adapter->max_sds_rings);
 			return -EINVAL;
 		}
@@ -711,7 +711,7 @@ static int qlcnic_validate_ring_count(struct qlcnic_adapter *adapter,
 	 if (tx_ring != 0) {
 		if (tx_ring > adapter->max_tx_rings) {
 			netdev_err(adapter->netdev,
-				   "Invalid ring count, Tx ring count %d should not be greater than max %d driver Tx rings.\n",
+				   "Invalid ring count, Tx ring count %d should yest be greater than max %d driver Tx rings.\n",
 				   tx_ring, adapter->max_tx_rings);
 			return -EINVAL;
 		}
@@ -738,7 +738,7 @@ static int qlcnic_set_channels(struct net_device *dev,
 	int err;
 
 	if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
-		netdev_err(dev, "No RSS/TSS support in non MSI-X mode\n");
+		netdev_err(dev, "No RSS/TSS support in yesn MSI-X mode\n");
 		return -EINVAL;
 	}
 
@@ -832,7 +832,7 @@ qlcnic_get_pauseparam(struct net_device *netdev,
 		else
 			pause->tx_pause = !(qlcnic_xg_get_xg1_mask(val));
 	} else {
-		dev_err(&netdev->dev, "Unknown board type: %x\n",
+		dev_err(&netdev->dev, "Unkyeswn board type: %x\n",
 					adapter->ahw->port_type);
 	}
 }
@@ -921,7 +921,7 @@ qlcnic_set_pauseparam(struct net_device *netdev,
 		}
 		QLCWR32(adapter, QLCNIC_NIU_XG_PAUSE_CTL, val);
 	} else {
-		dev_err(&netdev->dev, "Unknown board type: %x\n",
+		dev_err(&netdev->dev, "Unkyeswn board type: %x\n",
 				adapter->ahw->port_type);
 	}
 	return 0;
@@ -1067,7 +1067,7 @@ int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 
 		if (!adapter->ahw->diag_cnt)
 			dev_warn(&adapter->pdev->dev,
-				 "LB Test: packet #%d was not received\n",
+				 "LB Test: packet #%d was yest received\n",
 				 i + 1);
 		else
 			cnt++;
@@ -1098,7 +1098,7 @@ static int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 
 	if (!(ahw->capabilities & QLCNIC_FW_CAPABILITY_MULTI_LOOPBACK)) {
 		dev_info(&adapter->pdev->dev,
-			 "Firmware do not support loopback test\n");
+			 "Firmware do yest support loopback test\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1106,7 +1106,7 @@ static int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 		 mode == QLCNIC_ILB_MODE ? "internal" : "external");
 	if (ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
 		dev_warn(&adapter->pdev->dev,
-			 "Loopback test not supported in nonprivileged mode\n");
+			 "Loopback test yest supported in yesnprivileged mode\n");
 		return 0;
 	}
 
@@ -1408,7 +1408,7 @@ static int qlcnic_set_led(struct net_device *dev,
 		return qlcnic_83xx_set_led(dev, state);
 
 	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
-		netdev_warn(dev, "LED test not supported for non "
+		netdev_warn(dev, "LED test yest supported for yesn "
 				"privilege function\n");
 		return -EOPNOTSUPP;
 	}
@@ -1522,7 +1522,7 @@ qlcnic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 }
 
 /*
- * Set the coalescing parameters. Currently only normal is supported.
+ * Set the coalescing parameters. Currently only yesrmal is supported.
  * If rx_coalesce_usecs == 0 or rx_max_coalesced_frames == 0 then set the
  * firmware coalescing to default.
  */
@@ -1666,7 +1666,7 @@ qlcnic_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 
 	if (!fw_dump->tmpl_hdr) {
-		netdev_err(adapter->netdev, "FW Dump not supported\n");
+		netdev_err(adapter->netdev, "FW Dump yest supported\n");
 		return -ENOTSUPP;
 	}
 
@@ -1695,12 +1695,12 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 
 	if (!fw_dump->tmpl_hdr) {
-		netdev_err(netdev, "FW Dump not supported\n");
+		netdev_err(netdev, "FW Dump yest supported\n");
 		return -ENOTSUPP;
 	}
 
 	if (!fw_dump->clr) {
-		netdev_info(netdev, "Dump not available\n");
+		netdev_info(netdev, "Dump yest available\n");
 		return -EINVAL;
 	}
 
@@ -1731,7 +1731,7 @@ static int qlcnic_set_dump_mask(struct qlcnic_adapter *adapter, u32 mask)
 
 	if (!qlcnic_check_fw_dump_state(adapter)) {
 		netdev_info(netdev,
-			    "Can not change driver mask to 0x%x. FW dump not enabled\n",
+			    "Can yest change driver mask to 0x%x. FW dump yest enabled\n",
 			    mask);
 		return -EOPNOTSUPP;
 	}
@@ -1756,20 +1756,20 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 	switch (val->flag) {
 	case QLCNIC_FORCE_FW_DUMP_KEY:
 		if (!fw_dump->tmpl_hdr) {
-			netdev_err(netdev, "FW dump not supported\n");
+			netdev_err(netdev, "FW dump yest supported\n");
 			ret = -EOPNOTSUPP;
 			break;
 		}
 
 		if (!qlcnic_check_fw_dump_state(adapter)) {
-			netdev_info(netdev, "FW dump not enabled\n");
+			netdev_info(netdev, "FW dump yest enabled\n");
 			ret = -EOPNOTSUPP;
 			break;
 		}
 
 		if (fw_dump->clr) {
 			netdev_info(netdev,
-				    "Previous dump not cleared, not forcing dump\n");
+				    "Previous dump yest cleared, yest forcing dump\n");
 			break;
 		}
 
@@ -1778,7 +1778,7 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 		break;
 	case QLCNIC_DISABLE_FW_DUMP:
 		if (!fw_dump->tmpl_hdr) {
-			netdev_err(netdev, "FW dump not supported\n");
+			netdev_err(netdev, "FW dump yest supported\n");
 			ret = -EOPNOTSUPP;
 			break;
 		}
@@ -1788,7 +1788,7 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 
 	case QLCNIC_ENABLE_FW_DUMP:
 		if (!fw_dump->tmpl_hdr) {
-			netdev_err(netdev, "FW dump not supported\n");
+			netdev_err(netdev, "FW dump yest supported\n");
 			ret = -EOPNOTSUPP;
 			break;
 		}
@@ -1805,12 +1805,12 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 	case QLCNIC_SET_QUIESCENT:
 	case QLCNIC_RESET_QUIESCENT:
 		if (test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state))
-			netdev_info(netdev, "Device is in non-operational state\n");
+			netdev_info(netdev, "Device is in yesn-operational state\n");
 		break;
 
 	default:
 		if (!fw_dump->tmpl_hdr) {
-			netdev_err(netdev, "FW dump not supported\n");
+			netdev_err(netdev, "FW dump yest supported\n");
 			ret = -EOPNOTSUPP;
 			break;
 		}

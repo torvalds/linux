@@ -144,7 +144,7 @@ vc_vchi_audio_init(struct vchi_instance_handle *vchi_instance,
 		return -EPERM;
 	}
 
-	/* Finished with the service for now */
+	/* Finished with the service for yesw */
 	vchi_service_release(instance->vchi_handle);
 
 	return 0;
@@ -272,7 +272,7 @@ int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 	};
 	int err;
 
-	/* resend ctls - alsa_stream may not have been open when first send */
+	/* resend ctls - alsa_stream may yest have been open when first send */
 	err = bcm2835_audio_set_ctls(alsa_stream);
 	if (err)
 		return err;

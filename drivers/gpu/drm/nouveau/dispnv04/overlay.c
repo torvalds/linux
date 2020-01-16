@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -19,25 +19,25 @@
  * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Implementation based on the pre-KMS implementation in xf86-video-nouveau,
+ * Implementation based on the pre-KMS implementation in xf86-video-yesuveau,
  * written by Arthur Huillet.
  */
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
 
-#include "nouveau_drv.h"
+#include "yesuveau_drv.h"
 
-#include "nouveau_bo.h"
-#include "nouveau_connector.h"
-#include "nouveau_display.h"
+#include "yesuveau_bo.h"
+#include "yesuveau_connector.h"
+#include "yesuveau_display.h"
 #include "nvreg.h"
 #include "disp.h"
 
-struct nouveau_plane {
+struct yesuveau_plane {
 	struct drm_plane base;
 	bool flip;
-	struct nouveau_bo *cur;
+	struct yesuveau_bo *cur;
 
 	struct {
 		struct drm_property *colorkey;
@@ -54,7 +54,7 @@ struct nouveau_plane {
 	int saturation;
 	enum drm_color_encoding color_encoding;
 
-	void (*set_params)(struct nouveau_plane *);
+	void (*set_params)(struct yesuveau_plane *);
 };
 
 static uint32_t formats[] = {
@@ -68,7 +68,7 @@ static uint32_t formats[] = {
  * http://en.wikipedia.org/wiki/Bhaskara_I's_sine_approximation_formula
  * sin(x degrees) ~= 4 x (180 - x) / (40500 - x (180 - x) )
  * Note that this only works for the range [0, 180].
- * Also note that sin(x) == -sin(x - 180)
+ * Also yeste that sin(x) == -sin(x - 180)
  */
 static inline int
 sin_mul(int degrees, int factor)
@@ -116,13 +116,13 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  uint32_t src_w, uint32_t src_h,
 		  struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	struct yesuveau_drm *drm = yesuveau_drm(plane->dev);
 	struct nvif_object *dev = &drm->client.device.object;
-	struct nouveau_plane *nv_plane =
-		container_of(plane, struct nouveau_plane, base);
-	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct nouveau_bo *cur = nv_plane->cur;
+	struct yesuveau_plane *nv_plane =
+		container_of(plane, struct yesuveau_plane, base);
+	struct yesuveau_framebuffer *nv_fb = yesuveau_framebuffer(fb);
+	struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
+	struct yesuveau_bo *cur = nv_plane->cur;
 	bool flip = nv_plane->flip;
 	int soff = NV_PCRTC0_SIZE * nv_crtc->index;
 	int soff2 = NV_PCRTC0_SIZE * !nv_crtc->index;
@@ -130,7 +130,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	unsigned format = 0;
 	int ret;
 
-	/* Source parameters given in 16.16 fixed point, ignore fractional. */
+	/* Source parameters given in 16.16 fixed point, igyesre fractional. */
 	src_x >>= 16;
 	src_y >>= 16;
 	src_w >>= 16;
@@ -140,7 +140,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM, false);
+	ret = yesuveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM, false);
 	if (ret)
 		return ret;
 
@@ -181,7 +181,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	nv_plane->flip = !flip;
 
 	if (cur)
-		nouveau_bo_unpin(cur);
+		yesuveau_bo_unpin(cur);
 
 	return 0;
 }
@@ -190,13 +190,13 @@ static int
 nv10_disable_plane(struct drm_plane *plane,
 		   struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
-	struct nouveau_plane *nv_plane =
-		container_of(plane, struct nouveau_plane, base);
+	struct nvif_object *dev = &yesuveau_drm(plane->dev)->client.device.object;
+	struct yesuveau_plane *nv_plane =
+		container_of(plane, struct yesuveau_plane, base);
 
 	nvif_wr32(dev, NV_PVIDEO_STOP, 1);
 	if (nv_plane->cur) {
-		nouveau_bo_unpin(nv_plane->cur);
+		yesuveau_bo_unpin(nv_plane->cur);
 		nv_plane->cur = NULL;
 	}
 
@@ -212,9 +212,9 @@ nv_destroy_plane(struct drm_plane *plane)
 }
 
 static void
-nv10_set_params(struct nouveau_plane *plane)
+nv10_set_params(struct yesuveau_plane *plane)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->base.dev)->client.device.object;
+	struct nvif_object *dev = &yesuveau_drm(plane->base.dev)->client.device.object;
 	u32 luma = (plane->brightness - 512) << 16 | plane->contrast;
 	u32 chroma = ((sin_mul(plane->hue, plane->saturation) & 0xffff) << 16) |
 		(cos_mul(plane->hue, plane->saturation) & 0xffff);
@@ -243,8 +243,8 @@ nv_set_property(struct drm_plane *plane,
 		struct drm_property *property,
 		uint64_t value)
 {
-	struct nouveau_plane *nv_plane =
-		container_of(plane, struct nouveau_plane, base);
+	struct yesuveau_plane *nv_plane =
+		container_of(plane, struct yesuveau_plane, base);
 
 	if (property == nv_plane->props.colorkey)
 		nv_plane->colorkey = value;
@@ -276,8 +276,8 @@ static const struct drm_plane_funcs nv10_plane_funcs = {
 static void
 nv10_overlay_init(struct drm_device *device)
 {
-	struct nouveau_drm *drm = nouveau_drm(device);
-	struct nouveau_plane *plane = kzalloc(sizeof(struct nouveau_plane), GFP_KERNEL);
+	struct yesuveau_drm *drm = yesuveau_drm(device);
+	struct yesuveau_plane *plane = kzalloc(sizeof(struct yesuveau_plane), GFP_KERNEL);
 	unsigned int num_formats = ARRAY_SIZE(formats);
 	int ret;
 
@@ -365,16 +365,16 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  uint32_t src_w, uint32_t src_h,
 		  struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
-	struct nouveau_plane *nv_plane =
-		container_of(plane, struct nouveau_plane, base);
-	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
-	struct nouveau_bo *cur = nv_plane->cur;
+	struct nvif_object *dev = &yesuveau_drm(plane->dev)->client.device.object;
+	struct yesuveau_plane *nv_plane =
+		container_of(plane, struct yesuveau_plane, base);
+	struct yesuveau_framebuffer *nv_fb = yesuveau_framebuffer(fb);
+	struct yesuveau_bo *cur = nv_plane->cur;
 	uint32_t overlay = 1;
 	int brightness = (nv_plane->brightness - 512) * 62 / 512;
 	int ret, i;
 
-	/* Source parameters given in 16.16 fixed point, ignore fractional. */
+	/* Source parameters given in 16.16 fixed point, igyesre fractional. */
 	src_x >>= 16;
 	src_y >>= 16;
 	src_w >>= 16;
@@ -384,7 +384,7 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM, false);
+	ret = yesuveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM, false);
 	if (ret)
 		return ret;
 
@@ -430,7 +430,7 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	nvif_wr32(dev, NV_PVIDEO_SU_STATE, nvif_rd32(dev, NV_PVIDEO_SU_STATE) ^ (1 << 16));
 
 	if (cur)
-		nouveau_bo_unpin(cur);
+		yesuveau_bo_unpin(cur);
 
 	return 0;
 }
@@ -439,16 +439,16 @@ static int
 nv04_disable_plane(struct drm_plane *plane,
 		   struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
-	struct nouveau_plane *nv_plane =
-		container_of(plane, struct nouveau_plane, base);
+	struct nvif_object *dev = &yesuveau_drm(plane->dev)->client.device.object;
+	struct yesuveau_plane *nv_plane =
+		container_of(plane, struct yesuveau_plane, base);
 
 	nvif_mask(dev, NV_PVIDEO_OVERLAY, 1, 0);
 	nvif_wr32(dev, NV_PVIDEO_OE_STATE, 0);
 	nvif_wr32(dev, NV_PVIDEO_SU_STATE, 0);
 	nvif_wr32(dev, NV_PVIDEO_RM_STATE, 0);
 	if (nv_plane->cur) {
-		nouveau_bo_unpin(nv_plane->cur);
+		yesuveau_bo_unpin(nv_plane->cur);
 		nv_plane->cur = NULL;
 	}
 
@@ -465,8 +465,8 @@ static const struct drm_plane_funcs nv04_plane_funcs = {
 static void
 nv04_overlay_init(struct drm_device *device)
 {
-	struct nouveau_drm *drm = nouveau_drm(device);
-	struct nouveau_plane *plane = kzalloc(sizeof(struct nouveau_plane), GFP_KERNEL);
+	struct yesuveau_drm *drm = yesuveau_drm(device);
+	struct yesuveau_plane *plane = kzalloc(sizeof(struct yesuveau_plane), GFP_KERNEL);
 	int ret;
 
 	if (!plane)
@@ -505,9 +505,9 @@ err:
 }
 
 void
-nouveau_overlay_init(struct drm_device *device)
+yesuveau_overlay_init(struct drm_device *device)
 {
-	struct nvif_device *dev = &nouveau_drm(device)->client.device;
+	struct nvif_device *dev = &yesuveau_drm(device)->client.device;
 	if (dev->info.chipset < 0x10)
 		nv04_overlay_init(device);
 	else if (dev->info.chipset <= 0x40)

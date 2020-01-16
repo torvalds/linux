@@ -141,11 +141,11 @@ struct sti_hqvdp_top {
 	u32 crc_reset_ctrl;
 };
 
-/* Configs for interlaced : no IT, no pass thru, 3 fields */
+/* Configs for interlaced : yes IT, yes pass thru, 3 fields */
 #define TOP_CONFIG_INTER_BTM            0x00000000
 #define TOP_CONFIG_INTER_TOP            0x00000002
 
-/* Config for progressive : no IT, no pass thru, 3 fields */
+/* Config for progressive : yes IT, yes pass thru, 3 fields */
 #define TOP_CONFIG_PROGRESSIVE          0x00000001
 
 /* Default MemFormat: in=420_raster_dual out=444_raster;opaque Mem2Tv mode */
@@ -216,7 +216,7 @@ struct sti_hqvdp_csdi {
 #define CSDI_DCDI_CONFIG_DFLT           0x00203803
 
 struct sti_hqvdp_hvsrc {
-	u32 hor_panoramic_ctrl;
+	u32 hor_payesramic_ctrl;
 	u32 output_picture_size;
 	u32 init_horizontal;
 	u32 init_vertical;
@@ -332,7 +332,7 @@ struct sti_hqvdp_cmd {
  * @clk:               IP clock
  * @clk_pix_main:      pix main clock
  * @reset:             reset control
- * @vtg_nb:            notifier to handle VTG Vsync
+ * @vtg_nb:            yestifier to handle VTG Vsync
  * @btm_field_pending: is there any bottom field (interlaced frame) to display
  * @hqvdp_cmd:         buffer of commands
  * @hqvdp_cmd_paddr:   physical address of hqvdp_cmd
@@ -348,7 +348,7 @@ struct sti_hqvdp {
 	struct clk *clk;
 	struct clk *clk_pix_main;
 	struct reset_control *reset;
-	struct notifier_block vtg_nb;
+	struct yestifier_block vtg_nb;
 	bool btm_field_pending;
 	void *hqvdp_cmd;
 	u32 hqvdp_cmd_paddr;
@@ -367,7 +367,7 @@ static const uint32_t hqvdp_supported_formats[] = {
  * sti_hqvdp_get_free_cmd
  * @hqvdp: hqvdp structure
  *
- * Look for a hqvdp_cmd that is not being used (or about to be used) by the FW.
+ * Look for a hqvdp_cmd that is yest being used (or about to be used) by the FW.
  *
  * RETURNS:
  * the offset of the command to be used.
@@ -562,8 +562,8 @@ static void hqvdp_dbg_dump_cmd(struct seq_file *s, struct sti_hqvdp_cmd *c)
 
 static int hqvdp_dbg_show(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_hqvdp *hqvdp = (struct sti_hqvdp *)node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct sti_hqvdp *hqvdp = (struct sti_hqvdp *)yesde->info_ent->data;
 	int cmd, cmd_offset, infoxp70;
 	void *virt;
 
@@ -611,7 +611,7 @@ static int hqvdp_dbg_show(struct seq_file *s, void *data)
 	cmd = readl(hqvdp->regs + HQVDP_MBX_CURRENT_CMD);
 	cmd_offset = sti_hqvdp_get_curr_cmd(hqvdp);
 	if (cmd_offset == -1) {
-		seq_puts(s, "\n\n  Last command: unknown");
+		seq_puts(s, "\n\n  Last command: unkyeswn");
 	} else {
 		virt = hqvdp->hqvdp_cmd + cmd_offset;
 		seq_printf(s, "\n\n  Last command: address @ 0x%x (0x%p)",
@@ -623,7 +623,7 @@ static int hqvdp_dbg_show(struct seq_file *s, void *data)
 	cmd = readl(hqvdp->regs + HQVDP_MBX_NEXT_CMD);
 	cmd_offset = sti_hqvdp_get_next_cmd(hqvdp);
 	if (cmd_offset == -1) {
-		seq_puts(s, "\n\n  Next command: unknown");
+		seq_puts(s, "\n\n  Next command: unkyeswn");
 	} else {
 		virt = hqvdp->hqvdp_cmd + cmd_offset;
 		seq_printf(s, "\n\n  Next command address: @ 0x%x (0x%p)",
@@ -639,7 +639,7 @@ static struct drm_info_list hqvdp_debugfs_files[] = {
 	{ "hqvdp", hqvdp_dbg_show, 0, NULL },
 };
 
-static int hqvdp_debugfs_init(struct sti_hqvdp *hqvdp, struct drm_minor *minor)
+static int hqvdp_debugfs_init(struct sti_hqvdp *hqvdp, struct drm_miyesr *miyesr)
 {
 	unsigned int i;
 
@@ -648,7 +648,7 @@ static int hqvdp_debugfs_init(struct sti_hqvdp *hqvdp, struct drm_minor *minor)
 
 	return drm_debugfs_create_files(hqvdp_debugfs_files,
 					ARRAY_SIZE(hqvdp_debugfs_files),
-					minor->debugfs_root, minor);
+					miyesr->debugfs_root, miyesr);
 }
 
 /**
@@ -759,7 +759,7 @@ static void sti_hqvdp_disable(struct sti_hqvdp *hqvdp)
 
 	/* Unregister VTG Vsync callback */
 	if (sti_vtg_unregister_client(hqvdp->vtg, &hqvdp->vtg_nb))
-		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
+		DRM_DEBUG_DRIVER("Warning: canyest unregister VTG yestifier\n");
 
 	/* Set next cmd to NULL */
 	writel(0, hqvdp->regs + HQVDP_MBX_NEXT_CMD);
@@ -771,11 +771,11 @@ static void sti_hqvdp_disable(struct sti_hqvdp *hqvdp)
 		msleep(POLL_DELAY_MS);
 	}
 
-	/* VTG can stop now */
+	/* VTG can stop yesw */
 	clk_disable_unprepare(hqvdp->clk_pix_main);
 
 	if (i == POLL_MAX_ATTEMPT)
-		DRM_ERROR("XP70 could not revert to idle\n");
+		DRM_ERROR("XP70 could yest revert to idle\n");
 
 	hqvdp->plane.status = STI_PLANE_DISABLED;
 	hqvdp->vtg_registered = false;
@@ -783,7 +783,7 @@ static void sti_hqvdp_disable(struct sti_hqvdp *hqvdp)
 
 /**
  * sti_vdp_vtg_cb
- * @nb: notifier block
+ * @nb: yestifier block
  * @evt: event message
  * @data: private data
  *
@@ -792,14 +792,14 @@ static void sti_hqvdp_disable(struct sti_hqvdp *hqvdp)
  * RETURNS:
  * 0 on success.
  */
-static int sti_hqvdp_vtg_cb(struct notifier_block *nb, unsigned long evt, void *data)
+static int sti_hqvdp_vtg_cb(struct yestifier_block *nb, unsigned long evt, void *data)
 {
 	struct sti_hqvdp *hqvdp = container_of(nb, struct sti_hqvdp, vtg_nb);
 	int btm_cmd_offset, top_cmd_offest;
 	struct sti_hqvdp_cmd *btm_cmd, *top_cmd;
 
 	if ((evt != VTG_TOP_FIELD_EVENT) && (evt != VTG_BOTTOM_FIELD_EVENT)) {
-		DRM_DEBUG_DRIVER("Unknown event\n");
+		DRM_DEBUG_DRIVER("Unkyeswn event\n");
 		return 0;
 	}
 
@@ -816,7 +816,7 @@ static int sti_hqvdp_vtg_cb(struct notifier_block *nb, unsigned long evt, void *
 		btm_cmd_offset = sti_hqvdp_get_free_cmd(hqvdp);
 		top_cmd_offest = sti_hqvdp_get_curr_cmd(hqvdp);
 		if ((btm_cmd_offset == -1) || (top_cmd_offest == -1)) {
-			DRM_DEBUG_DRIVER("Warning: no cmd, will skip field\n");
+			DRM_DEBUG_DRIVER("Warning: yes cmd, will skip field\n");
 			return -EBUSY;
 		}
 
@@ -851,7 +851,7 @@ static void sti_hqvdp_init(struct sti_hqvdp *hqvdp)
 	int size;
 	dma_addr_t dma_addr;
 
-	hqvdp->vtg_nb.notifier_call = sti_hqvdp_vtg_cb;
+	hqvdp->vtg_nb.yestifier_call = sti_hqvdp_vtg_cb;
 
 	/* Allocate memory for the VDP commands */
 	size = NB_VDP_CMD * sizeof(struct sti_hqvdp_cmd);
@@ -921,7 +921,7 @@ static void sti_hqvdp_start_xp70(struct sti_hqvdp *hqvdp)
 
 	/* Check firmware parts */
 	if (!firmware) {
-		DRM_ERROR("Firmware not available\n");
+		DRM_ERROR("Firmware yest available\n");
 		return;
 	}
 
@@ -963,7 +963,7 @@ static void sti_hqvdp_start_xp70(struct sti_hqvdp *hqvdp)
 		msleep(POLL_DELAY_MS);
 	}
 	if (i == POLL_MAX_ATTEMPT) {
-		DRM_ERROR("Could not reset\n");
+		DRM_ERROR("Could yest reset\n");
 		clk_disable_unprepare(hqvdp->clk);
 		goto out;
 	}
@@ -1000,7 +1000,7 @@ static void sti_hqvdp_start_xp70(struct sti_hqvdp *hqvdp)
 		msleep(POLL_DELAY_MS);
 	}
 	if (i == POLL_MAX_ATTEMPT) {
-		DRM_ERROR("Could not boot\n");
+		DRM_ERROR("Could yest boot\n");
 		clk_disable_unprepare(hqvdp->clk);
 		goto out;
 	}
@@ -1028,7 +1028,7 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 	int dst_x, dst_y, dst_w, dst_h;
 	int src_x, src_y, src_w, src_h;
 
-	/* no need for further checks if the plane is being disabled */
+	/* yes need for further checks if the plane is being disabled */
 	if (!crtc || !fb)
 		return 0;
 
@@ -1088,7 +1088,7 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 		if (sti_vtg_register_client(hqvdp->vtg,
 					    &hqvdp->vtg_nb,
 					    crtc)) {
-			DRM_ERROR("Cannot register VTG notifier\n");
+			DRM_ERROR("Canyest register VTG yestifier\n");
 			clk_disable_unprepare(hqvdp->clk_pix_main);
 			return -EINVAL;
 		}
@@ -1134,8 +1134,8 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	    (oldstate->src_y == state->src_y) &&
 	    (oldstate->src_w == state->src_w) &&
 	    (oldstate->src_h == state->src_h)) {
-		/* No change since last update, do not post cmd */
-		DRM_DEBUG_DRIVER("No change, not posting cmd\n");
+		/* No change since last update, do yest post cmd */
+		DRM_DEBUG_DRIVER("No change, yest posting cmd\n");
 		plane->status = STI_PLANE_UPDATED;
 		return;
 	}
@@ -1153,7 +1153,7 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 
 	cmd_offset = sti_hqvdp_get_free_cmd(hqvdp);
 	if (cmd_offset == -1) {
-		DRM_DEBUG_DRIVER("Warning: no cmd, will skip frame\n");
+		DRM_DEBUG_DRIVER("Warning: yes cmd, will skip frame\n");
 		return;
 	}
 	cmd = hqvdp->hqvdp_cmd + cmd_offset;
@@ -1243,7 +1243,7 @@ static void sti_hqvdp_atomic_disable(struct drm_plane *drm_plane,
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 
 	if (!oldstate->crtc) {
-		DRM_DEBUG_DRIVER("drm plane:%d not enabled\n",
+		DRM_DEBUG_DRIVER("drm plane:%d yest enabled\n",
 				 drm_plane->base.id);
 		return;
 	}
@@ -1336,7 +1336,7 @@ static int sti_hqvdp_bind(struct device *dev, struct device *master, void *data)
 static void sti_hqvdp_unbind(struct device *dev,
 		struct device *master, void *data)
 {
-	/* do nothing */
+	/* do yesthing */
 }
 
 static const struct component_ops sti_hqvdp_ops = {
@@ -1347,7 +1347,7 @@ static const struct component_ops sti_hqvdp_ops = {
 static int sti_hqvdp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *vtg_np;
+	struct device_yesde *vtg_np;
 	struct sti_hqvdp *hqvdp;
 	struct resource *res;
 
@@ -1377,7 +1377,7 @@ static int sti_hqvdp_probe(struct platform_device *pdev)
 	hqvdp->clk = devm_clk_get(dev, "hqvdp");
 	hqvdp->clk_pix_main = devm_clk_get(dev, "pix_main");
 	if (IS_ERR(hqvdp->clk) || IS_ERR(hqvdp->clk_pix_main)) {
-		DRM_ERROR("Cannot get clocks\n");
+		DRM_ERROR("Canyest get clocks\n");
 		return -ENXIO;
 	}
 
@@ -1386,10 +1386,10 @@ static int sti_hqvdp_probe(struct platform_device *pdev)
 	if (!IS_ERR(hqvdp->reset))
 		reset_control_deassert(hqvdp->reset);
 
-	vtg_np = of_parse_phandle(pdev->dev.of_node, "st,vtg", 0);
+	vtg_np = of_parse_phandle(pdev->dev.of_yesde, "st,vtg", 0);
 	if (vtg_np)
 		hqvdp->vtg = of_vtg_find(vtg_np);
-	of_node_put(vtg_np);
+	of_yesde_put(vtg_np);
 
 	platform_set_drvdata(pdev, hqvdp);
 
@@ -1404,7 +1404,7 @@ static int sti_hqvdp_remove(struct platform_device *pdev)
 
 static const struct of_device_id hqvdp_of_match[] = {
 	{ .compatible = "st,stih407-hqvdp", },
-	{ /* end node */ }
+	{ /* end yesde */ }
 };
 MODULE_DEVICE_TABLE(of, hqvdp_of_match);
 

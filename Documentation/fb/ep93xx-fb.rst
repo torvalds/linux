@@ -125,7 +125,7 @@ Screenpage bug
 
 At least on the EP9315 there is a silicon bug which causes bit 27 of
 the VIDSCRNPAGE (framebuffer physical offset) to be tied low. There is
-an unofficial errata for this bug at::
+an uyesfficial errata for this bug at::
 
 	http://marc.info/?l=linux-arm-kernel&m=110061245502000&w=2
 

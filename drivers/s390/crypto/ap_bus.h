@@ -51,7 +51,7 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_RESPONSE_REQ_FAC_NOT_INST	0x16
 
 /*
- * Known device types
+ * Kyeswn device types
  */
 #define AP_DEVICE_TYPE_PCICC	3
 #define AP_DEVICE_TYPE_PCICA	4
@@ -66,7 +66,7 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_DEVICE_TYPE_CEX7	13
 
 /*
- * Known function facilities
+ * Kyeswn function facilities
  */
 #define AP_FUNC_MEX4K 1
 #define AP_FUNC_CRT4K 2
@@ -93,7 +93,7 @@ enum ap_state {
 	AP_STATE_QUEUE_FULL,
 	AP_STATE_SUSPEND_WAIT,
 	AP_STATE_REMOVE,	/* about to be removed from driver */
-	AP_STATE_UNBOUND,	/* momentary not bound to a driver */
+	AP_STATE_UNBOUND,	/* momentary yest bound to a driver */
 	AP_STATE_BORKED,	/* broken */
 	NR_AP_STATES
 };
@@ -114,7 +114,7 @@ enum ap_wait {
 	AP_WAIT_AGAIN,		/* retry immediately */
 	AP_WAIT_TIMEOUT,	/* wait for timeout */
 	AP_WAIT_INTERRUPT,	/* wait for thin interrupt (if available) */
-	AP_WAIT_NONE,		/* no wait */
+	AP_WAIT_NONE,		/* yes wait */
 	NR_AP_WAIT
 };
 
@@ -278,8 +278,8 @@ extern struct mutex ap_perms_mutex;
  * check APQN for owned/reserved by ap bus and default driver(s).
  * Checks if this APQN is or will be in use by the ap bus
  * and the default set of drivers.
- * If yes, returns 1, if not returns 0. On error a negative
- * errno value is returned.
+ * If no, returns 1, if yest returns 0. On error a negative
+ * erryes value is returned.
  */
 int ap_owned_by_def_drv(int card, int queue);
 
@@ -289,7 +289,7 @@ int ap_owned_by_def_drv(int card, int queue);
  * Checks if there is at least one APQN in the given 'matrix'
  * marked as owned/reserved by the ap bus and default driver(s).
  * If such an APQN is found the return value is 1, otherwise
- * 0 is returned. On error a negative errno value is returned.
+ * 0 is returned. On error a negative erryes value is returned.
  * The parameter apm is a bitmask which should be declared
  * as DECLARE_BITMAP(apm, AP_DEVICES), the aqm parameter is
  * similar, should be declared as DECLARE_BITMAP(aqm, AP_DOMAINS).
@@ -306,7 +306,7 @@ int ap_apqn_in_matrix_owned_by_def_drv(unsigned long *apm,
  * bits are cleared or set. Distinction is done based on the very
  * first character which may be '+' or '-' for the relative string
  * and othewise assume to be an absolute value string. If parsing fails
- * a negative errno value is returned. All arguments and bitmaps are
+ * a negative erryes value is returned. All arguments and bitmaps are
  * big endian order.
  */
 int ap_parse_mask_str(const char *str,

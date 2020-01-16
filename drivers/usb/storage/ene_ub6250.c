@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
@@ -82,7 +82,7 @@ static struct us_unusual_dev ene_ub6250_unusual_dev_list[] = {
 
 /* SRB Status */
 #define SS_SUCCESS		0x000000	/* No Sense */
-#define SS_NOT_READY		0x023A00	/* Medium not present */
+#define SS_NOT_READY		0x023A00	/* Medium yest present */
 #define SS_MEDIUM_ERR		0x031100	/* Unrecovered read error */
 #define SS_HW_ERR		0x040800	/* Communication failure */
 #define SS_ILLEGAL_REQUEST	0x052000	/* Invalid command */
@@ -1080,12 +1080,12 @@ static void ms_lib_free_writebuf(struct us_data *us)
 	ms_lib_clear_pagemap(info); /* (pdx)->MS_Lib.pagemap memset 0 in ms.h */
 
 	if (info->MS_Lib.blkpag) {
-		kfree(info->MS_Lib.blkpag);  /* Arnold test ... */
+		kfree(info->MS_Lib.blkpag);  /* Aryesld test ... */
 		info->MS_Lib.blkpag = NULL;
 	}
 
 	if (info->MS_Lib.blkext) {
-		kfree(info->MS_Lib.blkext);  /* Arnold test ... */
+		kfree(info->MS_Lib.blkext);  /* Aryesld test ... */
 		info->MS_Lib.blkext = NULL;
 	}
 }
@@ -1675,7 +1675,7 @@ static int ms_scsi_read(struct us_data *us, struct scsi_cmnd *srb)
 		u16 phyblk, logblk;
 		u8 PageNum;
 		u16 len;
-		u32 blkno;
+		u32 blkyes;
 
 		buf = kmalloc(blenByte, GFP_KERNEL);
 		if (buf == NULL)
@@ -1698,7 +1698,7 @@ static int ms_scsi_read(struct us_data *us, struct scsi_cmnd *srb)
 				len = blen;
 
 			phyblk = ms_libconv_to_physical(info, logblk);
-			blkno  = phyblk * 0x20 + PageNum;
+			blkyes  = phyblk * 0x20 + PageNum;
 
 			/* set up the command wrapper */
 			memset(bcb, 0, sizeof(struct bulk_cb_wrap));
@@ -1707,10 +1707,10 @@ static int ms_scsi_read(struct us_data *us, struct scsi_cmnd *srb)
 			bcb->Flags  = US_BULK_FLAG_IN;
 			bcb->CDB[0] = 0xF1;
 			bcb->CDB[1] = 0x02;
-			bcb->CDB[5] = (unsigned char)(blkno);
-			bcb->CDB[4] = (unsigned char)(blkno>>8);
-			bcb->CDB[3] = (unsigned char)(blkno>>16);
-			bcb->CDB[2] = (unsigned char)(blkno>>24);
+			bcb->CDB[5] = (unsigned char)(blkyes);
+			bcb->CDB[4] = (unsigned char)(blkyes>>8);
+			bcb->CDB[3] = (unsigned char)(blkyes>>16);
+			bcb->CDB[2] = (unsigned char)(blkyes>>24);
 
 			result = ene_send_scsi_cmd(us, FDIR_READ, buf+offset, 0);
 			if (result != USB_STOR_XFER_GOOD) {
@@ -1917,18 +1917,18 @@ static int ene_load_bincode(struct us_data *us, unsigned char flag)
 		fw_name = MS_RW_FIRMWARE;
 		break;
 	default:
-		usb_stor_dbg(us, "----------- Unknown PATTERN ----------\n");
-		goto nofw;
+		usb_stor_dbg(us, "----------- Unkyeswn PATTERN ----------\n");
+		goto yesfw;
 	}
 
 	err = request_firmware(&sd_fw, fw_name, &us->pusb_dev->dev);
 	if (err) {
 		usb_stor_dbg(us, "load firmware %s failed\n", fw_name);
-		goto nofw;
+		goto yesfw;
 	}
 	buf = kmemdup(sd_fw->data, sd_fw->size, GFP_KERNEL);
 	if (buf == NULL)
-		goto nofw;
+		goto yesfw;
 
 	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
@@ -1942,7 +1942,7 @@ static int ene_load_bincode(struct us_data *us, unsigned char flag)
 	info->BIN_FLAG = flag;
 	kfree(buf);
 
-nofw:
+yesfw:
 	release_firmware(sd_fw);
 	return result;
 }
@@ -2366,7 +2366,7 @@ static int ene_ub6250_probe(struct usb_interface *intf,
 	misc_reg03 = info->bbuf[0];
 	if (!(misc_reg03 & 0x01)) {
 		pr_info("ums_eneub6250: This driver only supports SD/MS cards. "
-			"It does not support SM cards.\n");
+			"It does yest support SM cards.\n");
 	}
 
 	return result;
@@ -2437,7 +2437,7 @@ static struct usb_driver ene_ub6250_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	ene_ub6250_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 };
 
 module_usb_stor_driver(ene_ub6250_driver, ene_ub6250_host_template, DRV_NAME);

@@ -276,7 +276,7 @@ static u16 ipack_crc_byte(u16 crc, u8 c)
 }
 
 /*
- * The algorithm in lib/crc-ccitt.c does not seem to apply since it uses the
+ * The algorithm in lib/crc-ccitt.c does yest seem to apply since it uses the
  * opposite bit ordering.
  */
 static u8 ipack_calc_crc1(struct ipack_device *dev)
@@ -409,7 +409,7 @@ static int ipack_device_read_id(struct ipack_device *dev)
 			dev->id[i] = ioread8(idmem + i);
 	}
 
-	/* now we can finally work with the copy */
+	/* yesw we can finally work with the copy */
 	switch (dev->id_format) {
 	case IPACK_ID_VERSION_1:
 		ipack_parse_id1(dev);

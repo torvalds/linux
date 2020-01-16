@@ -38,7 +38,7 @@ void __init corenet_gen_pic_init(void)
 	unsigned int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU |
 		MPIC_NO_RESET;
 
-	struct device_node *np;
+	struct device_yesde *np;
 
 	if (ppc_md.get_irq == mpic_get_coreint_irq)
 		flags |= MPIC_ENABLE_COREINT;
@@ -48,11 +48,11 @@ void __init corenet_gen_pic_init(void)
 
 	mpic_init(mpic);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,qe-ic");
 	if (np) {
 		qe_ic_init(np, 0, qe_ic_cascade_low_mpic,
 				qe_ic_cascade_high_mpic);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 }
 

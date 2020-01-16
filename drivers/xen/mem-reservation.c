@@ -46,7 +46,7 @@ void __xenmem_reservation_va_mapping_update(unsigned long count,
 
 		set_phys_to_machine(pfn, frames[i]);
 
-		/* Link back into the page tables if not highmem. */
+		/* Link back into the page tables if yest highmem. */
 		if (!PageHighMem(page)) {
 			int ret;
 

@@ -24,14 +24,14 @@ struct pinmux_ops;
 struct pinconf_ops;
 struct pin_config_item;
 struct gpio_chip;
-struct device_node;
+struct device_yesde;
 
 /**
  * struct pinctrl_pin_desc - boards/machines provide information on their
  * pins, pads or other muxable units in this struct
  * @number: unique pin number from the global pin number space
  * @name: a name for this pin
- * @drv_data: driver-defined per-pin data. pinctrl core does not touch this
+ * @drv_data: driver-defined per-pin data. pinctrl core does yest touch this
  */
 struct pinctrl_pin_desc {
 	unsigned number;
@@ -39,14 +39,14 @@ struct pinctrl_pin_desc {
 	void *drv_data;
 };
 
-/* Convenience macro to define a single named or anonymous pin descriptor */
+/* Convenience macro to define a single named or ayesnymous pin descriptor */
 #define PINCTRL_PIN(a, b) { .number = a, .name = b }
 #define PINCTRL_PIN_ANON(a) { .number = a }
 
 /**
  * struct pinctrl_gpio_range - each pin controller can provide subranges of
  * the GPIO number space to be handled by the controller
- * @node: list node for internal use
+ * @yesde: list yesde for internal use
  * @name: a name for the chip in this range
  * @id: an ID number for the chip in this range
  * @base: base offset of the GPIO range
@@ -56,7 +56,7 @@ struct pinctrl_pin_desc {
  * @gc: an optional pointer to a gpio_chip
  */
 struct pinctrl_gpio_range {
-	struct list_head node;
+	struct list_head yesde;
 	const char *name;
 	unsigned int id;
 	unsigned int base;
@@ -75,15 +75,15 @@ struct pinctrl_gpio_range {
  *	group selector @pins, and the size of the array in @num_pins
  * @pin_dbg_show: optional debugfs display hook that will provide per-device
  *	info for a certain pin in debugfs
- * @dt_node_to_map: parse a device tree "pin configuration node", and create
+ * @dt_yesde_to_map: parse a device tree "pin configuration yesde", and create
  *	mapping table entries for it. These are returned through the @map and
  *	@num_maps output parameters. This function is optional, and may be
- *	omitted for pinctrl drivers that do not support device tree.
- * @dt_free_map: free mapping table entries created via @dt_node_to_map. The
+ *	omitted for pinctrl drivers that do yest support device tree.
+ * @dt_free_map: free mapping table entries created via @dt_yesde_to_map. The
  *	top-level @map pointer must be freed, along with any dynamically
  *	allocated members of the mapping table entries themselves. This
  *	function is optional, and may be omitted for pinctrl drivers that do
- *	not support device tree.
+ *	yest support device tree.
  */
 struct pinctrl_ops {
 	int (*get_groups_count) (struct pinctrl_dev *pctldev);
@@ -95,8 +95,8 @@ struct pinctrl_ops {
 			       unsigned *num_pins);
 	void (*pin_dbg_show) (struct pinctrl_dev *pctldev, struct seq_file *s,
 			  unsigned offset);
-	int (*dt_node_to_map) (struct pinctrl_dev *pctldev,
-			       struct device_node *np_config,
+	int (*dt_yesde_to_map) (struct pinctrl_dev *pctldev,
+			       struct device_yesde *np_config,
 			       struct pinctrl_map **map, unsigned *num_maps);
 	void (*dt_free_map) (struct pinctrl_dev *pctldev,
 			     struct pinctrl_map *map, unsigned num_maps);
@@ -187,10 +187,10 @@ extern int pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 				unsigned *num_pins);
 
 #ifdef CONFIG_OF
-extern struct pinctrl_dev *of_pinctrl_get(struct device_node *np);
+extern struct pinctrl_dev *of_pinctrl_get(struct device_yesde *np);
 #else
 static inline
-struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
+struct pinctrl_dev *of_pinctrl_get(struct device_yesde *np)
 {
 	return NULL;
 }

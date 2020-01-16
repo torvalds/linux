@@ -19,7 +19,7 @@ typedef struct { pgd_t pgd; } p4d_t;
  * setup: the p4d is never bad, and a p4d always exists (as it's folded
  * into the pgd entry)
  */
-static inline int pgd_none(pgd_t pgd)		{ return 0; }
+static inline int pgd_yesne(pgd_t pgd)		{ return 0; }
 static inline int pgd_bad(pgd_t pgd)		{ return 0; }
 static inline int pgd_present(pgd_t pgd)	{ return 1; }
 static inline void pgd_clear(pgd_t *pgd)	{ }
@@ -46,7 +46,7 @@ static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 
 /*
  * allocating and freeing a p4d is trivial: the 1-entry p4d is
- * inside the pgd, so has no extra memory associated with it.
+ * inside the pgd, so has yes extra memory associated with it.
  */
 #define p4d_alloc_one(mm, address)		NULL
 #define p4d_free(mm, x)				do { } while (0)

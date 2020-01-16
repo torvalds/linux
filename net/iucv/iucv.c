@@ -32,7 +32,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
@@ -169,8 +169,8 @@ enum iucv_command_codes {
  * Error messages that are used with the iucv_sever function. They get
  * converted to EBCDIC.
  */
-static char iucv_error_no_listener[16] = "NO LISTENER";
-static char iucv_error_no_memory[16] = "NO MEMORY";
+static char iucv_error_yes_listener[16] = "NO LISTENER";
+static char iucv_error_yes_memory[16] = "NO MEMORY";
 static char iucv_error_pathid[16] = "INVALID PATHID";
 
 /*
@@ -201,9 +201,9 @@ static int iucv_active_cpu = -1;
 static DEFINE_MUTEX(iucv_register_mutex);
 
 /*
- * Counter for number of non-smp capable handlers.
+ * Counter for number of yesn-smp capable handlers.
  */
-static int iucv_nonsmp_handler;
+static int iucv_yesnsmp_handler;
 
 /*
  * IUCV control data structure. Used by iucv_path_accept, iucv_path_connect,
@@ -337,7 +337,7 @@ static inline int iucv_call_b2f0(int command, union iucv_param *parm)
  *
  * Determines the maximum number of connections that may be established.
  *
- * Returns the maximum number of connections or -EPERM is IUCV is not
+ * Returns the maximum number of connections or -EPERM is IUCV is yest
  * available.
  */
 static int __iucv_query_maxconn(void *param, unsigned long *max_pathid)
@@ -387,9 +387,9 @@ static void iucv_allow_cpu(void *data)
 	/*
 	 * Enable all iucv interrupts.
 	 * ipmask contains bits for the different interrupts
-	 *	0x80 - Flag to allow nonpriority message pending interrupts
+	 *	0x80 - Flag to allow yesnpriority message pending interrupts
 	 *	0x40 - Flag to allow priority message pending interrupts
-	 *	0x20 - Flag to allow nonpriority message completion interrupts
+	 *	0x20 - Flag to allow yesnpriority message completion interrupts
 	 *	0x10 - Flag to allow priority message completion interrupts
 	 *	0x08 - Flag to allow IUCV control interrupts
 	 */
@@ -480,7 +480,7 @@ static void iucv_declare_cpu(void *data)
 	parm->db.ipbfadr1 = virt_to_phys(iucv_irq_data[cpu]);
 	rc = iucv_call_b2f0(IUCV_DECLARE_BUFFER, parm);
 	if (rc) {
-		char *err = "Unknown";
+		char *err = "Unkyeswn";
 		switch (rc) {
 		case 0x03:
 			err = "Directory error";
@@ -506,7 +506,7 @@ static void iucv_declare_cpu(void *data)
 	/* Set indication that an iucv buffer exists for this cpu. */
 	cpumask_set_cpu(cpu, &iucv_buffer_cpumask);
 
-	if (iucv_nonsmp_handler == 0 || cpumask_empty(&iucv_irq_cpumask))
+	if (iucv_yesnsmp_handler == 0 || cpumask_empty(&iucv_irq_cpumask))
 		/* Enable iucv interrupts on this cpu. */
 		iucv_allow_cpu(NULL);
 	else
@@ -640,19 +640,19 @@ static int iucv_cpu_dead(unsigned int cpu)
 static int iucv_cpu_prepare(unsigned int cpu)
 {
 	/* Note: GFP_DMA used to get memory below 2G */
-	iucv_irq_data[cpu] = kmalloc_node(sizeof(struct iucv_irq_data),
-			     GFP_KERNEL|GFP_DMA, cpu_to_node(cpu));
+	iucv_irq_data[cpu] = kmalloc_yesde(sizeof(struct iucv_irq_data),
+			     GFP_KERNEL|GFP_DMA, cpu_to_yesde(cpu));
 	if (!iucv_irq_data[cpu])
 		goto out_free;
 
 	/* Allocate parameter blocks. */
-	iucv_param[cpu] = kmalloc_node(sizeof(union iucv_param),
-			  GFP_KERNEL|GFP_DMA, cpu_to_node(cpu));
+	iucv_param[cpu] = kmalloc_yesde(sizeof(union iucv_param),
+			  GFP_KERNEL|GFP_DMA, cpu_to_yesde(cpu));
 	if (!iucv_param[cpu])
 		goto out_free;
 
-	iucv_param_irq[cpu] = kmalloc_node(sizeof(union iucv_param),
-			  GFP_KERNEL|GFP_DMA, cpu_to_node(cpu));
+	iucv_param_irq[cpu] = kmalloc_yesde(sizeof(union iucv_param),
+			  GFP_KERNEL|GFP_DMA, cpu_to_yesde(cpu));
 	if (!iucv_param_irq[cpu])
 		goto out_free;
 
@@ -726,7 +726,7 @@ static void __iucv_cleanup_queue(void *dummy)
  * iucv_cleanup_queue
  *
  * Function called after a path has been severed to find all remaining
- * work items for the now stale pathid. The caller needs to hold the
+ * work items for the yesw stale pathid. The caller needs to hold the
  * iucv_table_lock.
  */
 static void iucv_cleanup_queue(void)
@@ -772,12 +772,12 @@ int iucv_register(struct iucv_handler *handler, int smp)
 		return -ENOSYS;
 	mutex_lock(&iucv_register_mutex);
 	if (!smp)
-		iucv_nonsmp_handler++;
+		iucv_yesnsmp_handler++;
 	if (list_empty(&iucv_handler_list)) {
 		rc = iucv_enable();
 		if (rc)
 			goto out_mutex;
-	} else if (!smp && iucv_nonsmp_handler == 1)
+	} else if (!smp && iucv_yesnsmp_handler == 1)
 		iucv_setmask_up();
 	INIT_LIST_HEAD(&handler->paths);
 
@@ -815,16 +815,16 @@ void iucv_unregister(struct iucv_handler *handler, int smp)
 	}
 	spin_unlock_bh(&iucv_table_lock);
 	if (!smp)
-		iucv_nonsmp_handler--;
+		iucv_yesnsmp_handler--;
 	if (list_empty(&iucv_handler_list))
 		iucv_disable();
-	else if (!smp && iucv_nonsmp_handler == 0)
+	else if (!smp && iucv_yesnsmp_handler == 0)
 		iucv_setmask_mp();
 	mutex_unlock(&iucv_register_mutex);
 }
 EXPORT_SYMBOL(iucv_unregister);
 
-static int iucv_reboot_event(struct notifier_block *this,
+static int iucv_reboot_event(struct yestifier_block *this,
 			     unsigned long event, void *ptr)
 {
 	int i;
@@ -845,8 +845,8 @@ static int iucv_reboot_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block iucv_reboot_notifier = {
-	.notifier_call = iucv_reboot_event,
+static struct yestifier_block iucv_reboot_yestifier = {
+	.yestifier_call = iucv_reboot_event,
 };
 
 /**
@@ -857,7 +857,7 @@ static struct notifier_block iucv_reboot_notifier = {
  * @private: private data passed to interrupt handlers for this path
  *
  * This function is issued after the user received a connection pending
- * external interrupt and now wishes to complete the IUCV communication path.
+ * external interrupt and yesw wishes to complete the IUCV communication path.
  *
  * Returns the result of the CP IUCV call.
  */
@@ -903,7 +903,7 @@ EXPORT_SYMBOL(iucv_path_accept);
  * @private: private data passed to interrupt handlers for this path
  *
  * This function establishes an IUCV path. Although the connect may complete
- * successfully, you are not able to use the path until you receive an IUCV
+ * successfully, you are yest able to use the path until you receive an IUCV
  * Connection Complete external interrupt.
  *
  * Returns the result of the CP IUCV call.
@@ -1151,7 +1151,7 @@ static int iucv_message_receive_iprmdata(struct iucv_path *path,
  * established paths. This function will deal with RMDATA messages
  * embedded in struct iucv_message as well.
  *
- * Locking:	no locking
+ * Locking:	yes locking
  *
  * Returns the result from the CP IUCV call.
  */
@@ -1226,7 +1226,7 @@ EXPORT_SYMBOL(iucv_message_receive);
  * @msg: address of iucv msg structure
  *
  * The reject function refuses a specified message. Between the time you
- * are notified of a message and the time that you complete the message,
+ * are yestified of a message and the time that you complete the message,
  * the message may be rejected.
  *
  * Returns the result from the CP IUCV call.
@@ -1312,11 +1312,11 @@ EXPORT_SYMBOL(iucv_message_reply);
  * @buffer: address of send buffer or address of struct iucv_array
  * @size: length of send buffer
  *
- * This function transmits data to another application. Data to be
+ * This function transmits data to ayesther application. Data to be
  * transmitted is in a buffer and this is a one-way message and the
- * receiver will not reply to the message.
+ * receiver will yest reply to the message.
  *
- * Locking:	no locking
+ * Locking:	yes locking
  *
  * Returns the result from the CP IUCV call.
  */
@@ -1366,9 +1366,9 @@ EXPORT_SYMBOL(__iucv_message_send);
  * @buffer: address of send buffer or address of struct iucv_array
  * @size: length of send buffer
  *
- * This function transmits data to another application. Data to be
+ * This function transmits data to ayesther application. Data to be
  * transmitted is in a buffer and this is a one-way message and the
- * receiver will not reply to the message.
+ * receiver will yest reply to the message.
  *
  * Locking:	local_bh_enable/local_bh_disable
  *
@@ -1398,7 +1398,7 @@ EXPORT_SYMBOL(iucv_message_send);
  * @ansbuf: address of answer buffer or address of struct iucv_array
  * @asize: size of reply buffer
  *
- * This function transmits data to another application. Data to be
+ * This function transmits data to ayesther application. Data to be
  * transmitted is in a buffer. The receiver of the send is expected to
  * reply to the message and a buffer is provided into which IUCV moves
  * the reply to this message.
@@ -1477,7 +1477,7 @@ static void iucv_path_pending(struct iucv_irq_data *data)
 
 	BUG_ON(iucv_path_table[ipp->ippathid]);
 	/* New pathid, handler found. Create a new path struct. */
-	error = iucv_error_no_memory;
+	error = iucv_error_yes_memory;
 	path = iucv_path_alloc(ipp->ipmsglim, ipp->ipflags1, GFP_ATOMIC);
 	if (!path)
 		goto out_sever;
@@ -1504,7 +1504,7 @@ static void iucv_path_pending(struct iucv_irq_data *data)
 	/* No handler wanted the path. */
 	iucv_path_table[path->pathid] = NULL;
 	iucv_path_free(path);
-	error = iucv_error_no_listener;
+	error = iucv_error_yes_listener;
 out_sever:
 	iucv_sever_pathid(ipp->ippathid, error);
 }
@@ -1726,7 +1726,7 @@ static void iucv_message_pending(struct iucv_irq_data *data)
  * iucv_external_interrupt, calls the appropriate action handler
  * and then frees the buffer.
  */
-static void iucv_tasklet_fn(unsigned long ignored)
+static void iucv_tasklet_fn(unsigned long igyesred)
 {
 	typedef void iucv_irq_fn(struct iucv_irq_data *);
 	static iucv_irq_fn *irq_fn[] = {
@@ -1811,7 +1811,7 @@ static void iucv_external_interrupt(struct ext_code ext_code,
 	p = iucv_irq_data[smp_processor_id()];
 	if (p->ippathid >= iucv_max_pathid) {
 		WARN_ON(p->ippathid >= iucv_max_pathid);
-		iucv_sever_pathid(p->ippathid, iucv_error_no_listener);
+		iucv_sever_pathid(p->ippathid, iucv_error_yes_listener);
 		return;
 	}
 	BUG_ON(p->iptype  < 0x01 || p->iptype > 0x09);
@@ -1859,7 +1859,7 @@ static void iucv_pm_complete(struct device *dev)
  * iucv_path_table_empty() - determine if iucv path table is empty
  *
  * Returns 0 if there are still iucv pathes defined
- *	   1 if there are no iucv pathes defined
+ *	   1 if there are yes iucv pathes defined
  */
 static int iucv_path_table_empty(void)
 {
@@ -1878,7 +1878,7 @@ static int iucv_path_table_empty(void)
  *
  * disable iucv interrupts
  * invoke callback function of the iucv-based driver
- * shut down iucv, if no iucv-pathes are established anymore
+ * shut down iucv, if yes iucv-pathes are established anymore
  */
 static int iucv_pm_freeze(struct device *dev)
 {
@@ -1897,7 +1897,7 @@ static int iucv_pm_freeze(struct device *dev)
 		list_for_each_entry_safe(p, n, &iucv_work_queue, list) {
 			list_del_init(&p->list);
 			iucv_sever_pathid(p->data.ippathid,
-					  iucv_error_no_listener);
+					  iucv_error_yes_listener);
 			kfree(p);
 		}
 	}
@@ -1931,7 +1931,7 @@ static int iucv_pm_thaw(struct device *dev)
 			goto out;
 	}
 	if (cpumask_empty(&iucv_irq_cpumask)) {
-		if (iucv_nonsmp_handler)
+		if (iucv_yesnsmp_handler)
 			/* enable interrupts on one cpu */
 			iucv_allow_cpu(NULL);
 		else
@@ -1960,7 +1960,7 @@ static int iucv_pm_restore(struct device *dev)
 	printk(KERN_WARNING "iucv_pm_restore %p\n", iucv_path_table);
 #endif
 	if ((iucv_pm_state != IUCV_PM_RESTORING) && iucv_path_table)
-		pr_warn("Suspending Linux did not completely close all IUCV connections\n");
+		pr_warn("Suspending Linux did yest completely close all IUCV connections\n");
 	iucv_pm_state = IUCV_PM_RESTORING;
 	if (cpumask_empty(&iucv_irq_cpumask)) {
 		rc = iucv_query_maxconn();
@@ -2032,11 +2032,11 @@ static int __init iucv_init(void)
 		goto out_prep;
 	iucv_online = rc;
 
-	rc = register_reboot_notifier(&iucv_reboot_notifier);
+	rc = register_reboot_yestifier(&iucv_reboot_yestifier);
 	if (rc)
 		goto out_remove_hp;
-	ASCEBC(iucv_error_no_listener, 16);
-	ASCEBC(iucv_error_no_memory, 16);
+	ASCEBC(iucv_error_yes_listener, 16);
+	ASCEBC(iucv_error_yes_memory, 16);
 	ASCEBC(iucv_error_pathid, 16);
 	iucv_available = 1;
 	rc = bus_register(&iucv_bus);
@@ -2047,7 +2047,7 @@ static int __init iucv_init(void)
 	return 0;
 
 out_reboot:
-	unregister_reboot_notifier(&iucv_reboot_notifier);
+	unregister_reboot_yestifier(&iucv_reboot_yestifier);
 out_remove_hp:
 	cpuhp_remove_state(iucv_online);
 out_prep:
@@ -2077,9 +2077,9 @@ static void __exit iucv_exit(void)
 	list_for_each_entry_safe(p, n, &iucv_work_queue, list)
 		kfree(p);
 	spin_unlock_irq(&iucv_queue_lock);
-	unregister_reboot_notifier(&iucv_reboot_notifier);
+	unregister_reboot_yestifier(&iucv_reboot_yestifier);
 
-	cpuhp_remove_state_nocalls(iucv_online);
+	cpuhp_remove_state_yescalls(iucv_online);
 	cpuhp_remove_state(CPUHP_NET_IUCV_PREPARE);
 	root_device_unregister(iucv_root);
 	bus_unregister(&iucv_bus);

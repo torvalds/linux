@@ -268,7 +268,7 @@ static int tps6598x_exec_cmd(struct tps6598x *tps, const char *cmd,
 	if (ret < 0)
 		return ret;
 
-	/* XXX: Using 1s for now, but it may not be enough for every command. */
+	/* XXX: Using 1s for yesw, but it may yest be eyesugh for every command. */
 	timeout = jiffies + msecs_to_jiffies(1000);
 
 	do {
@@ -473,7 +473,7 @@ static int tps6598x_probe(struct i2c_client *client)
 		return -ENODEV;
 
 	/*
-	 * Checking can the adapter handle SMBus protocol. If it can not, the
+	 * Checking can the adapter handle SMBus protocol. If it can yest, the
 	 * driver needs to take care of block reads separately.
 	 *
 	 * FIXME: Testing with I2C_FUNC_I2C. regmap-i2c uses I2C protocol

@@ -5,15 +5,15 @@ Required properties:
 	- reg: Should contain the DAC I2C address
 	- vdd-supply: Phandle to the Vdd power supply. This supply is used as a
 	  voltage reference on mcp4725. It is used as a voltage reference on
-	  mcp4726 if there is no vref-supply specified.
+	  mcp4726 if there is yes vref-supply specified.
 
 Optional properties (valid only for mcp4726):
 	- vref-supply: Optional phandle to the Vref power supply. Vref pin is
 	  used as a voltage reference when this supply is specified.
 	- microchip,vref-buffered: Boolean to enable buffering of the external
-	  Vref pin. This boolean is not valid without the vref-supply. Quoting
+	  Vref pin. This boolean is yest valid without the vref-supply. Quoting
 	  the datasheet: This is offered in cases where the reference voltage
-	  does not have the current capability not to drop its voltage when
+	  does yest have the current capability yest to drop its voltage when
 	  connected to the internal resistor ladder circuit.
 
 Examples:

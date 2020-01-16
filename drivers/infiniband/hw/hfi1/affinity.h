@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -72,7 +72,7 @@ struct cpu_mask_set {
 
 struct hfi1_msix_entry;
 
-/* Initialize non-HT cpu cores mask */
+/* Initialize yesn-HT cpu cores mask */
 void init_real_cpu_mask(void);
 /* Initialize driver affinity data */
 int hfi1_dev_affinity_init(struct hfi1_devdata *dd);
@@ -89,15 +89,15 @@ int hfi1_get_irq_affinity(struct hfi1_devdata *dd,
 void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 			   struct hfi1_msix_entry *msix);
 /*
- * Determine a CPU affinity for a user process, if the process does not
+ * Determine a CPU affinity for a user process, if the process does yest
  * have an affinity set yet.
  */
-int hfi1_get_proc_affinity(int node);
+int hfi1_get_proc_affinity(int yesde);
 /* Release a CPU used by a user process. */
 void hfi1_put_proc_affinity(int cpu);
 
-struct hfi1_affinity_node {
-	int node;
+struct hfi1_affinity_yesde {
+	int yesde;
 	u16 __percpu *comp_vect_affinity;
 	struct cpu_mask_set def_intr;
 	struct cpu_mask_set rcv_intr;
@@ -106,20 +106,20 @@ struct hfi1_affinity_node {
 	struct list_head list;
 };
 
-struct hfi1_affinity_node_list {
+struct hfi1_affinity_yesde_list {
 	struct list_head list;
 	struct cpumask real_cpu_mask;
 	struct cpu_mask_set proc;
 	int num_core_siblings;
-	int num_possible_nodes;
-	int num_online_nodes;
+	int num_possible_yesdes;
+	int num_online_yesdes;
 	int num_online_cpus;
-	struct mutex lock; /* protects affinity nodes */
+	struct mutex lock; /* protects affinity yesdes */
 };
 
-int node_affinity_init(void);
-void node_affinity_destroy_all(void);
-extern struct hfi1_affinity_node_list node_affinity;
+int yesde_affinity_init(void);
+void yesde_affinity_destroy_all(void);
+extern struct hfi1_affinity_yesde_list yesde_affinity;
 void hfi1_dev_affinity_clean_up(struct hfi1_devdata *dd);
 int hfi1_comp_vect_mappings_lookup(struct rvt_dev_info *rdi, int comp_vect);
 int hfi1_comp_vectors_set_up(struct hfi1_devdata *dd);

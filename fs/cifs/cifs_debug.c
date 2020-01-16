@@ -65,7 +65,7 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 			 mid_entry->callback_data,
 			 mid_entry->mid);
 #ifdef CONFIG_CIFS_STATS2
-		cifs_dbg(VFS, "IsLarge: %d buf: %p time rcv: %ld now: %ld\n",
+		cifs_dbg(VFS, "IsLarge: %d buf: %p time rcv: %ld yesw: %ld\n",
 			 mid_entry->large_buf,
 			 mid_entry->resp_buf,
 			 mid_entry->when_received,
@@ -109,8 +109,8 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 	    (tcon->ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA) ||
 	    (tcon->share_flags & SHI1005_FLAGS_ENCRYPT_DATA))
 		seq_printf(m, " Encrypted");
-	if (tcon->nocase)
-		seq_printf(m, " nocase");
+	if (tcon->yescase)
+		seq_printf(m, " yescase");
 	if (tcon->unix_ext)
 		seq_printf(m, " POSIX Extensions");
 	if (tcon->ses->server->ops->dump_share_caps)
@@ -278,7 +278,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			goto skip_rdma;
 
 		if (!server->smbd_conn) {
-			seq_printf(m, "\nSMBDirect transport not available");
+			seq_printf(m, "\nSMBDirect transport yest available");
 			goto skip_rdma;
 		}
 
@@ -367,7 +367,7 @@ skip_rdma:
 				if (ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST)
 					seq_printf(m, "Guest\t");
 				else if (ses->session_flags & SMB2_SESSION_FLAG_IS_NULL)
-					seq_printf(m, "Anonymous\t");
+					seq_printf(m, "Ayesnymous\t");
 			} else {
 				seq_printf(m,
 				    "\n%d) Name: %s  Domain: %s Uses: %d OS:"
@@ -411,7 +411,7 @@ skip_rdma:
 			if (ses->tcon_ipc)
 				cifs_debug_tcon(m, ses->tcon_ipc);
 			else
-				seq_puts(m, "none\n");
+				seq_puts(m, "yesne\n");
 
 			list_for_each(tmp3, &ses->tcon_list) {
 				tcon = list_entry(tmp3, struct cifs_tcon,
@@ -456,7 +456,7 @@ skip_rdma:
 	spin_unlock(&cifs_tcp_ses_lock);
 	seq_putc(m, '\n');
 
-	/* BB add code to dump additional info such as TCP session info now */
+	/* BB add code to dump additional info such as TCP session info yesw */
 	return 0;
 }
 
@@ -606,7 +606,7 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifs_stats_proc_open(struct inode *inode, struct file *file)
+static int cifs_stats_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, cifs_stats_proc_show, NULL);
 }
@@ -635,7 +635,7 @@ static int name##_proc_show(struct seq_file *m, void *v) \
 	seq_printf(m, "%d\n", name ); \
 	return 0; \
 } \
-static int name##_open(struct inode *inode, struct file *file) \
+static int name##_open(struct iyesde *iyesde, struct file *file) \
 { \
 	return single_open(file, name##_proc_show, NULL); \
 } \
@@ -749,7 +749,7 @@ static int cifsFYI_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifsFYI_proc_open(struct inode *inode, struct file *file)
+static int cifsFYI_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, cifsFYI_proc_show, NULL);
 }
@@ -788,7 +788,7 @@ static int cifs_linux_ext_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifs_linux_ext_proc_open(struct inode *inode, struct file *file)
+static int cifs_linux_ext_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, cifs_linux_ext_proc_show, NULL);
 }
@@ -819,7 +819,7 @@ static int cifs_lookup_cache_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifs_lookup_cache_proc_open(struct inode *inode, struct file *file)
+static int cifs_lookup_cache_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, cifs_lookup_cache_proc_show, NULL);
 }
@@ -850,7 +850,7 @@ static int traceSMB_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int traceSMB_proc_open(struct inode *inode, struct file *file)
+static int traceSMB_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, traceSMB_proc_show, NULL);
 }
@@ -881,7 +881,7 @@ static int cifs_security_flags_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifs_security_flags_proc_open(struct inode *inode, struct file *file)
+static int cifs_security_flags_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, cifs_security_flags_proc_show, NULL);
 }
@@ -970,7 +970,7 @@ static ssize_t cifs_security_flags_proc_write(struct file *file,
 	if (global_secflags & CIFSSEC_MUST_SIGN) {
 		/* requiring signing implies signing is allowed */
 		global_secflags |= CIFSSEC_MAY_SIGN;
-		cifs_dbg(FYI, "packet signing now required\n");
+		cifs_dbg(FYI, "packet signing yesw required\n");
 	} else if ((global_secflags & CIFSSEC_MAY_SIGN) == 0) {
 		cifs_dbg(FYI, "packet signing disabled\n");
 	}

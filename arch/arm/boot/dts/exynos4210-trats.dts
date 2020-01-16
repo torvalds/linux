@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4210 based Trats board device tree source
+ * Samsung's Exyyess4210 based Trats board device tree source
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Device tree source file for Samsung's Trats board which is based on
- * Samsung's Exynos4210 SoC.
+ * Samsung's Exyyess4210 SoC.
  */
 
 /dts-v1/;
-#include "exynos4210.dtsi"
+#include "exyyess4210.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Samsung Trats based on Exynos4210";
-	compatible = "samsung,trats", "samsung,exynos4210", "samsung,exynos4";
+	model = "Samsung Trats based on Exyyess4210";
+	compatible = "samsung,trats", "samsung,exyyess4210", "samsung,exyyess4";
 
 	memory@40000000 {
 		device_type = "memory";
@@ -198,7 +198,7 @@
 	};
 };
 
-&exynos_usbphy {
+&exyyess_usbphy {
 	status = "okay";
 	vbus-supply = <&safe1_sreg>;
 };
@@ -290,7 +290,7 @@
 		max8997,pmic-buck2-uses-gpio-dvs;
 		max8997,pmic-buck5-uses-gpio-dvs;
 
-		max8997,pmic-ignore-gpiodvs-side-effect;
+		max8997,pmic-igyesre-gpiodvs-side-effect;
 		max8997,pmic-buck125-default-dvs-idx = <0>;
 
 		max8997,pmic-buck125-dvs-gpios = <&gpx0 5 GPIO_ACTIVE_HIGH>,
@@ -405,7 +405,7 @@
 			varm_breg: BUCK1 {
 			     /*
 			      * HACK: The real name is VARM_1.2V_C210,
-			      * but exynos-cpufreq does not support
+			      * but exyyess-cpufreq does yest support
 			      * DT-based regulator lookup yet.
 			      */
 			     regulator-name = "vdd_arm";
@@ -455,7 +455,7 @@
 
 &sdhci_0 {
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus8>;
 	pinctrl-names = "default";
 	vmmc-supply = <&vemmc_reg>;

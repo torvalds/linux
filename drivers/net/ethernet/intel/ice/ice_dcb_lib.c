@@ -164,7 +164,7 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 
 	curr_cfg = &pf->hw.port_info->local_dcbx_cfg;
 
-	/* FW does not care if change happened */
+	/* FW does yest care if change happened */
 	if (!pf->hw.port_info->is_sw_lldp)
 		ret = ICE_DCB_HW_CHG_RST;
 
@@ -245,7 +245,7 @@ static void ice_cfg_etsrec_defaults(struct ice_port_info *pi)
 	struct ice_dcbx_cfg *dcbcfg = &pi->local_dcbx_cfg;
 	u8 i;
 
-	/* Ensure ETS recommended DCB configuration is not already set */
+	/* Ensure ETS recommended DCB configuration is yest already set */
 	if (dcbcfg->etsrec.maxtcs)
 		return;
 
@@ -326,7 +326,7 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 		goto dcb_error;
 	}
 
-	/* If DCB was not enabled previously, we are done */
+	/* If DCB was yest enabled previously, we are done */
 	if (!test_bit(ICE_FLAG_DCB_ENA, pf->flags))
 		return;
 
@@ -358,7 +358,7 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 
 	if (ice_dcb_need_recfg(pf, prev_cfg, local_dcbx_cfg)) {
 		/* difference in cfg detected - disable DCB till next MIB */
-		dev_err(dev, "Set local MIB not accurate\n");
+		dev_err(dev, "Set local MIB yest accurate\n");
 		kfree(prev_cfg);
 		goto dcb_error;
 	}
@@ -498,18 +498,18 @@ static bool ice_dcb_tc_contig(u8 *prio_table)
 }
 
 /**
- * ice_dcb_noncontig_cfg - Configure DCB for non-contiguous TCs
+ * ice_dcb_yesncontig_cfg - Configure DCB for yesn-contiguous TCs
  * @pf: pointer to the PF struct
  *
- * If non-contiguous TCs, then configure SW DCB with TC0 and ETS non-willing
+ * If yesn-contiguous TCs, then configure SW DCB with TC0 and ETS yesn-willing
  */
-static int ice_dcb_noncontig_cfg(struct ice_pf *pf)
+static int ice_dcb_yesncontig_cfg(struct ice_pf *pf)
 {
 	struct ice_dcbx_cfg *dcbcfg = &pf->hw.port_info->local_dcbx_cfg;
 	struct device *dev = ice_pf_to_dev(pf);
 	int ret;
 
-	/* Configure SW DCB default with ETS non-willing */
+	/* Configure SW DCB default with ETS yesn-willing */
 	ret = ice_dcb_sw_dflt_cfg(pf, false, true);
 	if (ret) {
 		dev_err(dev, "Failed to set local DCB config %d\n", ret);
@@ -549,12 +549,12 @@ void ice_pf_dcb_recfg(struct ice_pf *pf)
 		if (vsi->type == ICE_VSI_PF) {
 			tc_map = ice_dcb_get_ena_tc(dcbcfg);
 
-			/* If DCBX request non-contiguous TC, then configure
+			/* If DCBX request yesn-contiguous TC, then configure
 			 * default TC
 			 */
 			if (!ice_dcb_tc_contig(dcbcfg->etscfg.prio_table)) {
 				tc_map = ICE_DFLT_TRAFFIC_CLASS;
-				ice_dcb_noncontig_cfg(pf);
+				ice_dcb_yesncontig_cfg(pf);
 			}
 		} else {
 			tc_map = ICE_DFLT_TRAFFIC_CLASS;
@@ -610,7 +610,7 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 			goto dcb_init_err;
 		}
 
-		/* If the FW DCBX engine is not running then Rx LLDP packets
+		/* If the FW DCBX engine is yest running then Rx LLDP packets
 		 * need to be redirected up the stack.
 		 */
 		pf_vsi = ice_get_main_vsi(pf);
@@ -750,7 +750,7 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 
 	pi = pf->hw.port_info;
 	mib = (struct ice_aqc_lldp_get_mib *)&event->desc.params.raw;
-	/* Ignore if event is not for Nearest Bridge */
+	/* Igyesre if event is yest for Nearest Bridge */
 	type = ((mib->type >> ICE_AQ_LLDP_BRID_TYPE_S) &
 		ICE_AQ_LLDP_BRID_TYPE_M);
 	dev_dbg(dev, "LLDP event MIB bridge type 0x%x\n", type);

@@ -1,16 +1,16 @@
 /*
- * Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016-2018 Vadim Pasternak <vadimp@mellanox.com>
+ * Copyright (c) 2016-2018 Mellayesx Techyeslogies. All rights reserved.
+ * Copyright (c) 2016-2018 Vadim Pasternak <vadimp@mellayesx.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -74,7 +74,7 @@
  * @mask: top aggregation interrupt common mask;
  * @aggr_cache: last value of aggregation register status;
  * @after_probe: flag indication probing completion;
- * @not_asserted: number of entries in workqueue with no signal assertion;
+ * @yest_asserted: number of entries in workqueue with yes signal assertion;
  */
 struct mlxreg_hotplug_priv_data {
 	int irq;
@@ -94,7 +94,7 @@ struct mlxreg_hotplug_priv_data {
 	u32 mask;
 	u32 aggr_cache;
 	bool after_probe;
-	u8 not_asserted;
+	u8 yest_asserted;
 };
 
 static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
@@ -107,7 +107,7 @@ static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 
 	/*
 	 * Return if adapter number is negative. It could be in case hotplug
-	 * event is not associated with hotplug device.
+	 * event is yest associated with hotplug device.
 	 */
 	if (data->hpdev.nr < 0)
 		return 0;
@@ -297,7 +297,7 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 		}
 	}
 
-	/* Acknowledge event. */
+	/* Ackyeswledge event. */
 	ret = regmap_write(priv->regmap, item->reg + MLXREG_HOTPLUG_EVENT_OFF,
 			   0);
 	if (ret)
@@ -367,7 +367,7 @@ mlxreg_hotplug_health_work_helper(struct mlxreg_hotplug_priv_data *priv,
 		}
 		item->cache = regval;
 ack_event:
-		/* Acknowledge event. */
+		/* Ackyeswledge event. */
 		ret = regmap_write(priv->regmap, data->reg +
 				   MLXREG_HOTPLUG_EVENT_OFF, 0);
 		if (ret)
@@ -442,12 +442,12 @@ static void mlxreg_hotplug_work_handler(struct work_struct *work)
 	priv->aggr_cache = regval;
 
 	/*
-	 * Handler is invoked, but no assertion is detected at top aggregation
+	 * Handler is invoked, but yes assertion is detected at top aggregation
 	 * status level. Set aggr_asserted to mask value to allow handler extra
 	 * run over all relevant signals to recover any missed signal.
 	 */
-	if (priv->not_asserted == MLXREG_HOTPLUG_NOT_ASSERT) {
-		priv->not_asserted = 0;
+	if (priv->yest_asserted == MLXREG_HOTPLUG_NOT_ASSERT) {
+		priv->yest_asserted = 0;
 		aggr_asserted = pdata->mask;
 	}
 	if (!aggr_asserted)
@@ -471,7 +471,7 @@ static void mlxreg_hotplug_work_handler(struct work_struct *work)
 	 * case such signals will be missed. In order to handle these signals
 	 * delayed work is canceled and work task re-scheduled for immediate
 	 * execution. It allows to handle missed signals, if any. In other case
-	 * work handler just validates that no new signals have been received
+	 * work handler just validates that yes new signals have been received
 	 * during masking.
 	 */
 	cancel_delayed_work(&priv->dwork_irq);
@@ -482,8 +482,8 @@ static void mlxreg_hotplug_work_handler(struct work_struct *work)
 	return;
 
 unmask_event:
-	priv->not_asserted++;
-	/* Unmask aggregation event (no need acknowledge). */
+	priv->yest_asserted++;
+	/* Unmask aggregation event (yes need ackyeswledge). */
 	ret = regmap_write(priv->regmap, pdata->cell +
 			   MLXREG_HOTPLUG_AGGR_MASK_OFF, pdata->mask);
 
@@ -628,7 +628,7 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/* Defer probing if the necessary adapter is not configured yet. */
+	/* Defer probing if the necessary adapter is yest configured yet. */
 	deferred_adap = i2c_get_adapter(pdata->deferred_nr);
 	if (!deferred_adap)
 		return -EPROBE_DEFER;
@@ -706,7 +706,7 @@ static struct platform_driver mlxreg_hotplug_driver = {
 
 module_platform_driver(mlxreg_hotplug_driver);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox regmap hotplug platform driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx regmap hotplug platform driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:mlxreg-hotplug");

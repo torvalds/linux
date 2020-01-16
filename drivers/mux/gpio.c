@@ -2,7 +2,7 @@
 /*
  * GPIO-controlled multiplexer driver
  *
- * Copyright (C) 2017 Axentia Technologies AB
+ * Copyright (C) 2017 Axentia Techyeslogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */

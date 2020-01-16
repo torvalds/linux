@@ -126,7 +126,7 @@ static void vgic_debug_stop(struct seq_file *s, void *v)
 	struct vgic_state_iter *iter;
 
 	/*
-	 * If the seq file wasn't properly opened, there's nothing to clearn
+	 * If the seq file wasn't properly opened, there's yesthing to clearn
 	 * up.
 	 */
 	if (IS_ERR(v))
@@ -255,7 +255,7 @@ static const struct seq_operations vgic_debug_seq_ops = {
 	.show  = vgic_debug_show
 };
 
-static int debug_open(struct inode *inode, struct file *file)
+static int debug_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 	ret = seq_open(file, &vgic_debug_seq_ops);
@@ -263,7 +263,7 @@ static int debug_open(struct inode *inode, struct file *file)
 		struct seq_file *seq;
 		/* seq_open will have modified file->private_data */
 		seq = file->private_data;
-		seq->private = inode->i_private;
+		seq->private = iyesde->i_private;
 	}
 
 	return ret;

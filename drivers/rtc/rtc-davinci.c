@@ -416,18 +416,18 @@ static int davinci_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	if (alm->time.tm_mday <= 0 && alm->time.tm_mon < 0
 	    && alm->time.tm_year < 0) {
 		struct rtc_time tm;
-		unsigned long now, then;
+		unsigned long yesw, then;
 
 		davinci_rtc_read_time(dev, &tm);
-		rtc_tm_to_time(&tm, &now);
+		rtc_tm_to_time(&tm, &yesw);
 
 		alm->time.tm_mday = tm.tm_mday;
 		alm->time.tm_mon = tm.tm_mon;
 		alm->time.tm_year = tm.tm_year;
 		rtc_tm_to_time(&alm->time, &then);
 
-		if (then < now) {
-			rtc_time_to_tm(now + 24 * 60 * 60, &tm);
+		if (then < yesw) {
+			rtc_time_to_tm(yesw + 24 * 60 * 60, &tm);
 			alm->time.tm_mday = tm.tm_mday;
 			alm->time.tm_mon = tm.tm_mon;
 			alm->time.tm_year = tm.tm_year;

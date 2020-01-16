@@ -21,18 +21,18 @@ ACPI_MODULE_NAME("exdebug")
  *
  * PARAMETERS:  source_desc         - Object to be output to "Debug Object"
  *              level               - Indentation level (used for packages)
- *              index               - Current package element, zero if not pkg
+ *              index               - Current package element, zero if yest pkg
  *
  * RETURN:      None
  *
  * DESCRIPTION: Handles stores to the AML Debug Object. For example:
  *              Store(INT1, Debug)
  *
- * This function is not compiled if ACPI_NO_ERROR_MESSAGES is set.
+ * This function is yest compiled if ACPI_NO_ERROR_MESSAGES is set.
  *
  * This function is only enabled if acpi_gbl_enable_aml_debug_object is set, or
- * if ACPI_LV_DEBUG_OBJECT is set in the acpi_dbg_level. Thus, in the normal
- * operational case, stores to the debug object are ignored but can be easily
+ * if ACPI_LV_DEBUG_OBJECT is set in the acpi_dbg_level. Thus, in the yesrmal
+ * operational case, stores to the debug object are igyesred but can be easily
  * enabled if necessary.
  *
  ******************************************************************************/
@@ -67,7 +67,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	}
 
 	/*
-	 * Print line header as long as we are not in the middle of an
+	 * Print line header as long as we are yest in the middle of an
 	 * object display
 	 */
 	if (!((level > 0) && index == 0)) {
@@ -77,7 +77,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			 * debug output. Only need the lower 26 bits. This allows for 67
 			 * million microseconds or 67 seconds before rollover.
 			 *
-			 * Convert 100 nanosecond units to microseconds
+			 * Convert 100 nayessecond units to microseconds
 			 */
 			timer = ((u32)acpi_os_get_timer() / 10);
 			timer &= 0x03FFFFFF;
@@ -120,7 +120,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 		   ACPI_DESC_TYPE_NAMED) {
 		acpi_os_printf("%s (Node %p)\n",
 			       acpi_ut_get_type_name(((struct
-						       acpi_namespace_node *)
+						       acpi_namespace_yesde *)
 						      source_desc)->type),
 			       source_desc);
 		return_VOID;
@@ -200,24 +200,24 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 		acpi_os_printf(" ");
 
-		/* Check for valid node first, then valid object */
+		/* Check for valid yesde first, then valid object */
 
-		if (source_desc->reference.node) {
+		if (source_desc->reference.yesde) {
 			if (ACPI_GET_DESCRIPTOR_TYPE
-			    (source_desc->reference.node) !=
+			    (source_desc->reference.yesde) !=
 			    ACPI_DESC_TYPE_NAMED) {
 				acpi_os_printf
-				    (" %p - Not a valid namespace node\n",
-				     source_desc->reference.node);
+				    (" %p - Not a valid namespace yesde\n",
+				     source_desc->reference.yesde);
 			} else {
 				acpi_os_printf("Node %p [%4.4s] ",
-					       source_desc->reference.node,
-					       (source_desc->reference.node)->
+					       source_desc->reference.yesde,
+					       (source_desc->reference.yesde)->
 					       name.ascii);
 
-				switch ((source_desc->reference.node)->type) {
+				switch ((source_desc->reference.yesde)->type) {
 
-					/* These types have no attached object */
+					/* These types have yes attached object */
 
 				case ACPI_TYPE_DEVICE:
 					acpi_os_printf("Device\n");
@@ -231,7 +231,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 					acpi_ex_do_debug_object((source_desc->
 								 reference.
-								 node)->object,
+								 yesde)->object,
 								level + 4, 0);
 					break;
 				}
@@ -241,7 +241,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			    (source_desc->reference.object) ==
 			    ACPI_DESC_TYPE_NAMED) {
 
-				/* Reference object is a namespace node */
+				/* Reference object is a namespace yesde */
 
 				acpi_ex_do_debug_object(ACPI_CAST_PTR
 							(union
@@ -288,7 +288,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 				default:
 
 					acpi_os_printf
-					    ("Unknown Reference object type %X\n",
+					    ("Unkyeswn Reference object type %X\n",
 					     object_desc->common.type);
 					break;
 				}

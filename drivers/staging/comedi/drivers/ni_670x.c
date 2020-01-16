@@ -12,9 +12,9 @@
  * Author: Bart Joris <bjoris@advalvas.be>
  * Updated: Wed, 11 Dec 2002 18:25:35 -0800
  * Devices: [National Instruments] PCI-6703 (ni_670x), PCI-6704
- * Status: unknown
+ * Status: unkyeswn
  *
- * Commands are not supported.
+ * Commands are yest supported.
  *
  * Manuals:
  *   322110a.pdf	PCI/PXI-6704 User Manual

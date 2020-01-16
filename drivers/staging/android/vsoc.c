@@ -56,7 +56,7 @@ enum {
 static const int REGISTER_BAR;  /* Equal to 0 */
 static const int MAX_REGISTER_BAR_LEN = 0x100;
 /*
- * The MSI-x BAR is not used directly.
+ * The MSI-x BAR is yest used directly.
  *
  * static const int MSI_X_BAR = 1;
  */
@@ -87,7 +87,7 @@ struct vsoc_device {
 	/*
 	 * Pointer to the virtual address of the shared memory layout structure.
 	 * This is probably identical to kernel_mapped_shm, but saving this
-	 * here saves a lot of annoying casts.
+	 * here saves a lot of anyesying casts.
 	 */
 	struct vsoc_shm_layout_descriptor *layout;
 	/*
@@ -131,25 +131,25 @@ static struct vsoc_device vsoc_dev;
  * TODO(ghartman): Add a /sys filesystem entry that summarizes the permissions.
  */
 
-struct fd_scoped_permission_node {
+struct fd_scoped_permission_yesde {
 	struct fd_scoped_permission permission;
 	struct list_head list;
 };
 
 struct vsoc_private_data {
-	struct fd_scoped_permission_node *fd_scoped_permission_node;
+	struct fd_scoped_permission_yesde *fd_scoped_permission_yesde;
 };
 
 static long vsoc_ioctl(struct file *, unsigned int, unsigned long);
 static int vsoc_mmap(struct file *, struct vm_area_struct *);
-static int vsoc_open(struct inode *, struct file *);
-static int vsoc_release(struct inode *, struct file *);
+static int vsoc_open(struct iyesde *, struct file *);
+static int vsoc_release(struct iyesde *, struct file *);
 static ssize_t vsoc_read(struct file *, char __user *, size_t, loff_t *);
 static ssize_t vsoc_write(struct file *, const char __user *, size_t, loff_t *);
 static loff_t vsoc_lseek(struct file *filp, loff_t offset, int origin);
 static int
 do_create_fd_scoped_permission(struct vsoc_device_region *region_p,
-			       struct fd_scoped_permission_node *np,
+			       struct fd_scoped_permission_yesde *np,
 			       struct fd_scoped_permission_arg __user *arg);
 static void
 do_destroy_fd_scoped_permission(struct vsoc_device_region *owner_region_p,
@@ -161,11 +161,11 @@ static ssize_t vsoc_get_area(struct file *filp, __u32 *perm_off);
 /**
  * Validate arguments on entry points to the driver.
  */
-inline int vsoc_validate_inode(struct inode *inode)
+inline int vsoc_validate_iyesde(struct iyesde *iyesde)
 {
-	if (iminor(inode) >= vsoc_dev.layout->region_count) {
+	if (imiyesr(iyesde) >= vsoc_dev.layout->region_count) {
 		dev_err(&vsoc_dev.dev->dev,
-			"describe_region: invalid region %d\n", iminor(inode));
+			"describe_region: invalid region %d\n", imiyesr(iyesde));
 		return -ENODEV;
 	}
 	return 0;
@@ -173,14 +173,14 @@ inline int vsoc_validate_inode(struct inode *inode)
 
 inline int vsoc_validate_filep(struct file *filp)
 {
-	int ret = vsoc_validate_inode(file_inode(filp));
+	int ret = vsoc_validate_iyesde(file_iyesde(filp));
 
 	if (ret)
 		return ret;
 	if (!filp->private_data) {
 		dev_err(&vsoc_dev.dev->dev,
 			"No private data on fd, region %d\n",
-			iminor(file_inode(filp)));
+			imiyesr(file_iyesde(filp)));
 		return -EBADFD;
 	}
 	return 0;
@@ -199,19 +199,19 @@ static inline phys_addr_t shm_off_to_phys_addr(__u32 offset)
 }
 
 /**
- * Convenience functions to obtain the region from the inode or file.
- * Dangerous to call before validating the inode/file.
+ * Convenience functions to obtain the region from the iyesde or file.
+ * Dangerous to call before validating the iyesde/file.
  */
 static
-inline struct vsoc_device_region *vsoc_region_from_inode(struct inode *inode)
+inline struct vsoc_device_region *vsoc_region_from_iyesde(struct iyesde *iyesde)
 {
-	return &vsoc_dev.regions[iminor(inode)];
+	return &vsoc_dev.regions[imiyesr(iyesde)];
 }
 
 static
-inline struct vsoc_device_region *vsoc_region_from_filep(struct file *inode)
+inline struct vsoc_device_region *vsoc_region_from_filep(struct file *iyesde)
 {
-	return vsoc_region_from_inode(file_inode(inode));
+	return vsoc_region_from_iyesde(file_iyesde(iyesde));
 }
 
 static inline uint32_t vsoc_device_region_size(struct vsoc_device_region *r)
@@ -251,7 +251,7 @@ static struct pci_driver vsoc_pci_driver = {
 
 static int
 do_create_fd_scoped_permission(struct vsoc_device_region *region_p,
-			       struct fd_scoped_permission_node *np,
+			       struct fd_scoped_permission_yesde *np,
 			       struct fd_scoped_permission_arg __user *arg)
 {
 	struct file *managed_filp;
@@ -271,13 +271,13 @@ do_create_fd_scoped_permission(struct vsoc_device_region *region_p,
 		return -EPERM;
 	/* EEXIST if the given fd already has a permission. */
 	if (((struct vsoc_private_data *)managed_filp->private_data)->
-	    fd_scoped_permission_node)
+	    fd_scoped_permission_yesde)
 		return -EEXIST;
 	managed_region_p = vsoc_region_from_filep(managed_filp);
 	/* Check that the provided region is managed by this one */
 	if (&vsoc_dev.regions[managed_region_p->managed_by] != region_p)
 		return -EPERM;
-	/* The area must be well formed and have non-zero size */
+	/* The area must be well formed and have yesn-zero size */
 	if (np->permission.begin_offset >= np->permission.end_offset)
 		return -EINVAL;
 	/* The area must fit in the memory window */
@@ -318,7 +318,7 @@ do_create_fd_scoped_permission(struct vsoc_device_region *region_p,
 		return -EBUSY;
 	}
 	((struct vsoc_private_data *)managed_filp->private_data)->
-	    fd_scoped_permission_node = np;
+	    fd_scoped_permission_yesde = np;
 	/* The file offset needs to be adjusted if the calling
 	 * process did any read/write operations on the fd
 	 * before creating the permission.
@@ -345,16 +345,16 @@ do_create_fd_scoped_permission(struct vsoc_device_region *region_p,
 }
 
 static void
-do_destroy_fd_scoped_permission_node(struct vsoc_device_region *owner_region_p,
-				     struct fd_scoped_permission_node *node)
+do_destroy_fd_scoped_permission_yesde(struct vsoc_device_region *owner_region_p,
+				     struct fd_scoped_permission_yesde *yesde)
 {
-	if (node) {
+	if (yesde) {
 		do_destroy_fd_scoped_permission(owner_region_p,
-						&node->permission);
+						&yesde->permission);
 		mutex_lock(&vsoc_dev.mtx);
-		list_del(&node->list);
+		list_del(&yesde->list);
 		mutex_unlock(&vsoc_dev.mtx);
-		kfree(node);
+		kfree(yesde);
 	}
 }
 
@@ -399,7 +399,7 @@ static long do_vsoc_describe_region(struct file *filp,
 static int handle_vsoc_cond_wait(struct file *filp, struct vsoc_cond_wait *arg)
 {
 	DEFINE_WAIT(wait);
-	u32 region_number = iminor(file_inode(filp));
+	u32 region_number = imiyesr(file_iyesde(filp));
 	struct vsoc_region_data *data = vsoc_dev.regions_data + region_number;
 	struct hrtimer_sleeper timeout, *to = NULL;
 	int ret = 0;
@@ -507,7 +507,7 @@ static int do_vsoc_cond_wait(struct file *filp,
 static int do_vsoc_cond_wake(struct file *filp, uint32_t offset)
 {
 	struct vsoc_device_region *region_p = vsoc_region_from_filep(filp);
-	u32 region_number = iminor(file_inode(filp));
+	u32 region_number = imiyesr(file_iyesde(filp));
 	struct vsoc_region_data *data = vsoc_dev.regions_data + region_number;
 	/* Ensure that the offset is aligned */
 	if (offset & (sizeof(uint32_t) - 1))
@@ -537,28 +537,28 @@ static long vsoc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (retval)
 		return retval;
 	region_p = vsoc_region_from_filep(filp);
-	reg_num = iminor(file_inode(filp));
+	reg_num = imiyesr(file_iyesde(filp));
 	reg_data = vsoc_dev.regions_data + reg_num;
 	switch (cmd) {
 	case VSOC_CREATE_FD_SCOPED_PERMISSION:
 		{
-			struct fd_scoped_permission_node *node = NULL;
+			struct fd_scoped_permission_yesde *yesde = NULL;
 
-			node = kzalloc(sizeof(*node), GFP_KERNEL);
+			yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
 			/* We can't allocate memory for the permission */
-			if (!node)
+			if (!yesde)
 				return -ENOMEM;
-			INIT_LIST_HEAD(&node->list);
+			INIT_LIST_HEAD(&yesde->list);
 			rv = do_create_fd_scoped_permission
 				(region_p,
-				 node,
+				 yesde,
 				 (struct fd_scoped_permission_arg __user *)arg);
 			if (!rv) {
 				mutex_lock(&vsoc_dev.mtx);
-				list_add(&node->list, &vsoc_dev.permissions);
+				list_add(&yesde->list, &vsoc_dev.permissions);
 				mutex_unlock(&vsoc_dev.mtx);
 			} else {
-				kfree(node);
+				kfree(yesde);
 				return rv;
 			}
 		}
@@ -566,14 +566,14 @@ static long vsoc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case VSOC_GET_FD_SCOPED_PERMISSION:
 		{
-			struct fd_scoped_permission_node *node =
+			struct fd_scoped_permission_yesde *yesde =
 			    ((struct vsoc_private_data *)filp->private_data)->
-			    fd_scoped_permission_node;
-			if (!node)
+			    fd_scoped_permission_yesde;
+			if (!yesde)
 				return -ENOENT;
 			if (copy_to_user
 			    ((struct fd_scoped_permission __user *)arg,
-			     &node->permission, sizeof(node->permission)))
+			     &yesde->permission, sizeof(yesde->permission)))
 				return -EFAULT;
 		}
 		break;
@@ -734,7 +734,7 @@ static irqreturn_t vsoc_interrupt(int irq, void *region_data_v)
 	}
 	if (unlikely(vsoc_dev.regions_data + reg_num != region_data)) {
 		dev_err(&vsoc_dev.dev->dev,
-			"irq not aligned @%p reg_num=0x%04x\n",
+			"irq yest aligned @%p reg_num=0x%04x\n",
 			region_data, reg_num);
 		return IRQ_NONE;
 	}
@@ -776,7 +776,7 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 
 	if (!vsoc_dev.regs) {
 		dev_err(&pdev->dev,
-			"cannot map registers of size %zu\n",
+			"canyest map registers of size %zu\n",
 		       (size_t)reg_size);
 		vsoc_remove_device(pdev);
 		return -EBUSY;
@@ -790,7 +790,7 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 		 &vsoc_dev.shm_phys_start, vsoc_dev.shm_size);
 	vsoc_dev.kernel_mapped_shm = pci_iomap_wc(pdev, SHARED_MEMORY_BAR, 0);
 	if (!vsoc_dev.kernel_mapped_shm) {
-		dev_err(&vsoc_dev.dev->dev, "cannot iomap region\n");
+		dev_err(&vsoc_dev.dev->dev, "canyest iomap region\n");
 		vsoc_remove_device(pdev);
 		return -EBUSY;
 	}
@@ -799,8 +799,8 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 				vsoc_dev.kernel_mapped_shm;
 	dev_info(&pdev->dev, "major_version: %d\n",
 		 vsoc_dev.layout->major_version);
-	dev_info(&pdev->dev, "minor_version: %d\n",
-		 vsoc_dev.layout->minor_version);
+	dev_info(&pdev->dev, "miyesr_version: %d\n",
+		 vsoc_dev.layout->miyesr_version);
 	dev_info(&pdev->dev, "size: 0x%x\n", vsoc_dev.layout->size);
 	dev_info(&pdev->dev, "regions: %d\n", vsoc_dev.layout->region_count);
 	if (vsoc_dev.layout->major_version !=
@@ -873,7 +873,7 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 		if (!PAGE_ALIGNED(region->region_begin_offset) ||
 		    !PAGE_ALIGNED(region->region_end_offset)) {
 			dev_err(&vsoc_dev.dev->dev,
-				"region %d not aligned (%x:%x)", i,
+				"region %d yest aligned (%x:%x)", i,
 				region->region_begin_offset,
 				region->region_end_offset);
 			vsoc_remove_device(pdev);
@@ -960,7 +960,7 @@ static void vsoc_remove_device(struct pci_dev *pdev)
 	int i;
 	/*
 	 * pdev is the first thing to be set on probe and the last thing
-	 * to be cleared here. If it's NULL then there is no cleanup.
+	 * to be cleared here. If it's NULL then there is yes cleanup.
 	 */
 	if (!pdev || !vsoc_dev.dev)
 		return;
@@ -1016,7 +1016,7 @@ static void vsoc_remove_device(struct pci_dev *pdev)
 		pci_disable_device(pdev);
 		vsoc_dev.enabled_device = false;
 	}
-	/* Do this last: it indicates that the device is not initialized. */
+	/* Do this last: it indicates that the device is yest initialized. */
 	vsoc_dev.dev = NULL;
 }
 
@@ -1039,10 +1039,10 @@ static int __init vsoc_init_module(void)
 	return 0;
 }
 
-static int vsoc_open(struct inode *inode, struct file *filp)
+static int vsoc_open(struct iyesde *iyesde, struct file *filp)
 {
 	/* Can't use vsoc_validate_filep because filp is still incomplete */
-	int ret = vsoc_validate_inode(inode);
+	int ret = vsoc_validate_iyesde(iyesde);
 
 	if (ret)
 		return ret;
@@ -1053,10 +1053,10 @@ static int vsoc_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int vsoc_release(struct inode *inode, struct file *filp)
+static int vsoc_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct vsoc_private_data *private_data = NULL;
-	struct fd_scoped_permission_node *node = NULL;
+	struct fd_scoped_permission_yesde *yesde = NULL;
 	struct vsoc_device_region *owner_region_p = NULL;
 	int retval = vsoc_validate_filep(filp);
 
@@ -1066,15 +1066,15 @@ static int vsoc_release(struct inode *inode, struct file *filp)
 	if (!private_data)
 		return 0;
 
-	node = private_data->fd_scoped_permission_node;
-	if (node) {
-		owner_region_p = vsoc_region_from_inode(inode);
+	yesde = private_data->fd_scoped_permission_yesde;
+	if (yesde) {
+		owner_region_p = vsoc_region_from_iyesde(iyesde);
 		if (owner_region_p->managed_by != VSOC_REGION_WHOLE) {
 			owner_region_p =
 			    &vsoc_dev.regions[owner_region_p->managed_by];
 		}
-		do_destroy_fd_scoped_permission_node(owner_region_p, node);
-		private_data->fd_scoped_permission_node = NULL;
+		do_destroy_fd_scoped_permission_yesde(owner_region_p, yesde);
+		private_data->fd_scoped_permission_yesde = NULL;
 	}
 	kfree(private_data);
 	filp->private_data = NULL;
@@ -1084,9 +1084,9 @@ static int vsoc_release(struct inode *inode, struct file *filp)
 
 /*
  * Returns the device relative offset and length of the area specified by the
- * fd scoped permission. If there is no fd scoped permission set, a default
+ * fd scoped permission. If there is yes fd scoped permission set, a default
  * permission covering the entire region is assumed, unless the region is owned
- * by another one, in which case the default is a permission with zero size.
+ * by ayesther one, in which case the default is a permission with zero size.
  */
 static ssize_t vsoc_get_area(struct file *filp, __u32 *area_offset)
 {
@@ -1098,12 +1098,12 @@ static ssize_t vsoc_get_area(struct file *filp, __u32 *area_offset)
 	region_p = vsoc_region_from_filep(filp);
 	off = region_p->region_begin_offset;
 	perm = &((struct vsoc_private_data *)filp->private_data)->
-		fd_scoped_permission_node->permission;
+		fd_scoped_permission_yesde->permission;
 	if (perm) {
 		off += perm->begin_offset;
 		length = perm->end_offset - perm->begin_offset;
 	} else if (region_p->managed_by == VSOC_REGION_WHOLE) {
-		/* No permission set and the regions is not owned by another,
+		/* No permission set and the regions is yest owned by ayesther,
 		 * default to full region access.
 		 */
 		length = vsoc_device_region_size(region_p);
@@ -1132,7 +1132,7 @@ static int vsoc_mmap(struct file *filp, struct vm_area_struct *vma)
 	area_len -= (vma->vm_pgoff << PAGE_SHIFT);
 	if (area_len < len)
 		return -EINVAL;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	mem_off = shm_off_to_phys_addr(area_off);
 	if (io_remap_pfn_range(vma, vma->vm_start, mem_off >> PAGE_SHIFT,
 			       len, vma->vm_page_prot))

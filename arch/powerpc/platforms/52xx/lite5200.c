@@ -4,7 +4,7 @@
  *
  * Written by: Grant Likely <grant.likely@secretlab.ca>
  *
- * Copyright (C) Secret Lab Technologies Ltd. 2006. All rights reserved.
+ * Copyright (C) Secret Lab Techyeslogies Ltd. 2006. All rights reserved.
  * Copyright 2006 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Description:
@@ -53,14 +53,14 @@ static const struct of_device_id mpc5200_gpio_ids[] __initconst = {
 static void __init
 lite5200_fix_clock_config(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct mpc52xx_cdm  __iomem *cdm;
 	/* Map zones */
-	np = of_find_matching_node(NULL, mpc5200_cdm_ids);
+	np = of_find_matching_yesde(NULL, mpc5200_cdm_ids);
 	cdm = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!cdm) {
-		printk(KERN_ERR "%s() failed; expect abnormal behaviour\n",
+		printk(KERN_ERR "%s() failed; expect abyesrmal behaviour\n",
 		       __func__);
 		return;
 	}
@@ -87,15 +87,15 @@ lite5200_fix_clock_config(void)
 static void __init
 lite5200_fix_port_config(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct mpc52xx_gpio __iomem *gpio;
 	u32 port_config;
 
-	np = of_find_matching_node(NULL, mpc5200_gpio_ids);
+	np = of_find_matching_yesde(NULL, mpc5200_gpio_ids);
 	gpio = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!gpio) {
-		printk(KERN_ERR "%s() failed. expect abnormal behavior\n",
+		printk(KERN_ERR "%s() failed. expect abyesrmal behavior\n",
 		       __func__);
 		return;
 	}

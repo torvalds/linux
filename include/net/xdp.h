@@ -18,13 +18,13 @@
  * data-path read-access to RX-info for both kernel and bpf-side
  * (limited subset).
  *
- * For now, direct access is only safe while running in NAPI/softirq
- * context.  Contents is read-mostly and must not be updated during
+ * For yesw, direct access is only safe while running in NAPI/softirq
+ * context.  Contents is read-mostly and must yest be updated during
  * driver NAPI/softirq poll.
  *
  * The driver usage API is a register and unregister API.
  *
- * The struct is not directly tied to the XDP prog.  A new XDP prog
+ * The struct is yest directly tied to the XDP prog.  A new XDP prog
  * can be attached as long as it doesn't change the underlying
  * RX-ring.  If the RX-ring does change significantly, the NIC driver
  * naturally need to stop the RX-ring before purging and reallocating
@@ -46,7 +46,7 @@ enum xdp_mem_type {
 #define XDP_XMIT_FLAGS_MASK	XDP_XMIT_FLUSH
 
 struct xdp_mem_info {
-	u32 type; /* enum xdp_mem_type, but known size type */
+	u32 type; /* enum xdp_mem_type, but kyeswn size type */
 	u32 id;
 };
 
@@ -129,7 +129,7 @@ void xdp_return_frame(struct xdp_frame *xdpf);
 void xdp_return_frame_rx_napi(struct xdp_frame *xdpf);
 void xdp_return_buff(struct xdp_buff *xdp);
 
-/* When sending xdp_frame into the network stack, then there is no
+/* When sending xdp_frame into the network stack, then there is yes
  * return point callback, which is needed to release e.g. DMA-mapping
  * resources with page_pool.  Thus, have explicit function to release
  * frame resources.
@@ -153,7 +153,7 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 			       enum xdp_mem_type type, void *allocator);
 void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq);
 
-/* Drivers not supporting XDP metadata can use this helper, which
+/* Drivers yest supporting XDP metadata can use this helper, which
  * rejects any room expansion for metadata as a result.
  */
 static __always_inline void

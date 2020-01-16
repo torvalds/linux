@@ -95,7 +95,7 @@ static int qcom_dma_start(struct mmci_host *host, unsigned int *datactrl)
 	return 0;
 }
 
-static int of_get_dml_pipe_index(struct device_node *np, const char *name)
+static int of_get_dml_pipe_index(struct device_yesde *np, const char *name)
 {
 	int index;
 	struct of_phandle_args	dma_spec;
@@ -121,7 +121,7 @@ static int qcom_dma_setup(struct mmci_host *host)
 	u32 config;
 	void __iomem *base;
 	int consumer_id, producer_id;
-	struct device_node *np = host->mmc->parent->of_node;
+	struct device_yesde *np = host->mmc->parent->of_yesde;
 
 	if (mmci_dmae_setup(host))
 		return -EINVAL;

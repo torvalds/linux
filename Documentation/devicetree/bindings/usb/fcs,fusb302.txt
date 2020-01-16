@@ -5,9 +5,9 @@ Required properties :
 - reg                    : I2C slave address
 - interrupts             : Interrupt specifier
 
-Required sub-node:
+Required sub-yesde:
 - connector : The "usb-c-connector" attached to the FUSB302 IC. The bindings
-  of the connector node are specified in:
+  of the connector yesde are specified in:
 
 	Documentation/devicetree/bindings/connector/usb-connector.txt
 

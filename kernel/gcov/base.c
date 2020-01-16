@@ -51,7 +51,7 @@ void gcov_enable_events(void)
 
 #ifdef CONFIG_MODULES
 /* Update list and generate events when modules are unloaded. */
-static int gcov_module_notifier(struct notifier_block *nb, unsigned long event,
+static int gcov_module_yestifier(struct yestifier_block *nb, unsigned long event,
 				void *data)
 {
 	struct module *mod = data;
@@ -77,13 +77,13 @@ static int gcov_module_notifier(struct notifier_block *nb, unsigned long event,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block gcov_nb = {
-	.notifier_call	= gcov_module_notifier,
+static struct yestifier_block gcov_nb = {
+	.yestifier_call	= gcov_module_yestifier,
 };
 
 static int __init gcov_init(void)
 {
-	return register_module_notifier(&gcov_nb);
+	return register_module_yestifier(&gcov_nb);
 }
 device_initcall(gcov_init);
 #endif /* CONFIG_MODULES */

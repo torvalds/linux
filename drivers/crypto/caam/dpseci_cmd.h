@@ -102,15 +102,15 @@ struct dpseci_rsp_get_tx_queue {
 struct dpseci_rsp_get_sec_attr {
 	__le16 ip_id;
 	u8 major_rev;
-	u8 minor_rev;
+	u8 miyesr_rev;
 	u8 era;
 	u8 pad0[3];
 	u8 deco_num;
 	u8 zuc_auth_acc_num;
 	u8 zuc_enc_acc_num;
 	u8 pad1;
-	u8 snow_f8_acc_num;
-	u8 snow_f9_acc_num;
+	u8 syesw_f8_acc_num;
+	u8 syesw_f9_acc_num;
 	u8 crc_acc_num;
 	u8 pad2;
 	u8 pk_acc_num;
@@ -127,7 +127,7 @@ struct dpseci_rsp_get_sec_attr {
 
 struct dpseci_rsp_get_api_version {
 	__le16 major;
-	__le16 minor;
+	__le16 miyesr;
 };
 
 #define DPSECI_CGN_DEST_TYPE_SHIFT	0
@@ -135,9 +135,9 @@ struct dpseci_rsp_get_api_version {
 #define DPSECI_CGN_UNITS_SHIFT		4
 #define DPSECI_CGN_UNITS_SIZE		2
 
-struct dpseci_cmd_congestion_notification {
+struct dpseci_cmd_congestion_yestification {
 	__le32 dest_id;
-	__le16 notification_mode;
+	__le16 yestification_mode;
 	u8 priority;
 	u8 options;
 	__le64 message_iova;

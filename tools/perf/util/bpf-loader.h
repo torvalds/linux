@@ -10,7 +10,7 @@
 #include <linux/err.h>
 #include <bpf/libbpf.h>
 
-enum bpf_loader_errno {
+enum bpf_loader_erryes {
 	__BPF_LOADER_ERRNO__START = __LIBBPF_ERRNO__START - 100,
 	/* Invalid config string */
 	BPF_LOADER_ERRNO__CONFIG = __BPF_LOADER_ERRNO__START,
@@ -23,14 +23,14 @@ enum bpf_loader_errno {
 	BPF_LOADER_ERRNO__PROLOGUE2BIG,	/* Prologue too big for program */
 	BPF_LOADER_ERRNO__PROLOGUEOOB,	/* Offset out of bound for prologue */
 	BPF_LOADER_ERRNO__OBJCONF_OPT,	/* Invalid object config option */
-	BPF_LOADER_ERRNO__OBJCONF_CONF,	/* Config value not set (lost '=')) */
+	BPF_LOADER_ERRNO__OBJCONF_CONF,	/* Config value yest set (lost '=')) */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_OPT,	/* Invalid object map config option */
-	BPF_LOADER_ERRNO__OBJCONF_MAP_NOTEXIST,	/* Target map not exist */
+	BPF_LOADER_ERRNO__OBJCONF_MAP_NOTEXIST,	/* Target map yest exist */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_VALUE,	/* Incorrect value type for map */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE,	/* Incorrect map type */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_KEYSIZE,	/* Incorrect map key size */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_VALUESIZE,/* Incorrect map value size */
-	BPF_LOADER_ERRNO__OBJCONF_MAP_NOEVT,	/* Event not found for map setting */
+	BPF_LOADER_ERRNO__OBJCONF_MAP_NOEVT,	/* Event yest found for map setting */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_MAPSIZE,	/* Invalid map size for event setting */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_EVTDIM,	/* Event dimension too large */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_EVTINH,	/* Doesn't support inherit event */
@@ -83,7 +83,7 @@ int bpf__setup_stdout(struct evlist *evlist);
 struct evsel *bpf__setup_output_event(struct evlist *evlist, const char *name);
 int bpf__strerror_setup_output_event(struct evlist *evlist, int err, char *buf, size_t size);
 #else
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include "debug.h"
 

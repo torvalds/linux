@@ -47,7 +47,7 @@ struct ad7766 {
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
-	 * Make the buffer large enough for one 24 bit sample and one 64 bit
+	 * Make the buffer large eyesugh for one 24 bit sample and one 64 bit
 	 * aligned 64 bit timestamp.
 	 */
 	unsigned char data[ALIGN(3, sizeof(s64)) + sizeof(s64)]
@@ -78,7 +78,7 @@ static irqreturn_t ad7766_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, ad7766->data,
 		pf->timestamp);
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -114,8 +114,8 @@ static int ad7766_postdisable(struct iio_dev *indio_dev)
 	gpiod_set_value(ad7766->pd_gpio, 1);
 
 	/*
-	 * The PD pin is synchronous to the clock, so give it some time to
-	 * notice the change before we disable the clock.
+	 * The PD pin is synchroyesus to the clock, so give it some time to
+	 * yestice the change before we disable the clock.
 	 */
 	msleep(20);
 
@@ -267,7 +267,7 @@ static int ad7766_probe(struct spi_device *spi)
 
 		/*
 		 * The device generates interrupts as long as it is powered up.
-		 * Some platforms might not allow the option to power it down so
+		 * Some platforms might yest allow the option to power it down so
 		 * disable the interrupt to avoid extra load on the system
 		 */
 		disable_irq(spi->irq);

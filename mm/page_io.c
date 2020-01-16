@@ -5,8 +5,8 @@
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
  *
  *  Swap reorganised 29.12.95, 
- *  Asynchronous swapping added 30.12.95. Stephen Tweedie
- *  Removed race in async swapping. 14.4.1996. Bruno Haible
+ *  Asynchroyesus swapping added 30.12.95. Stephen Tweedie
+ *  Removed race in async swapping. 14.4.1996. Bruyes Haible
  *  Add swap of shared pages through the page cache. 20.2.1998. Stephen Tweedie
  *  Always use brw_page, life becomes simpler. 12 May 1998 Eric Biederman
  */
@@ -70,15 +70,15 @@ void end_swap_bio_write(struct bio *bio)
 	bio_put(bio);
 }
 
-static void swap_slot_free_notify(struct page *page)
+static void swap_slot_free_yestify(struct page *page)
 {
 	struct swap_info_struct *sis;
 	struct gendisk *disk;
 	swp_entry_t entry;
 
 	/*
-	 * There is no guarantee that the page is in swap cache - the software
-	 * suspend code (at least) uses end_swap_bio_read() against a non-
+	 * There is yes guarantee that the page is in swap cache - the software
+	 * suspend code (at least) uses end_swap_bio_read() against a yesn-
 	 * swapcache page.  So we must check PG_swapcache before proceeding with
 	 * this optimization.
 	 */
@@ -107,13 +107,13 @@ static void swap_slot_free_notify(struct page *page)
 	 */
 	disk = sis->bdev->bd_disk;
 	entry.val = page_private(page);
-	if (disk->fops->swap_slot_free_notify && __swap_count(entry) == 1) {
+	if (disk->fops->swap_slot_free_yestify && __swap_count(entry) == 1) {
 		unsigned long offset;
 
 		offset = swp_offset(entry);
 
 		SetPageDirty(page);
-		disk->fops->swap_slot_free_notify(sis->bdev,
+		disk->fops->swap_slot_free_yestify(sis->bdev,
 				offset);
 	}
 }
@@ -133,7 +133,7 @@ static void end_swap_bio_read(struct bio *bio)
 	}
 
 	SetPageUptodate(page);
-	swap_slot_free_notify(page);
+	swap_slot_free_yestify(page);
 out:
 	unlock_page(page);
 	WRITE_ONCE(bio->bi_private, NULL);
@@ -149,9 +149,9 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 				sector_t *span)
 {
 	struct address_space *mapping = swap_file->f_mapping;
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	unsigned blocks_per_page;
-	unsigned long page_no;
+	unsigned long page_yes;
 	unsigned blkbits;
 	sector_t probe_block;
 	sector_t last_block;
@@ -160,7 +160,7 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 	int nr_extents = 0;
 	int ret;
 
-	blkbits = inode->i_blkbits;
+	blkbits = iyesde->i_blkbits;
 	blocks_per_page = PAGE_SIZE >> blkbits;
 
 	/*
@@ -168,16 +168,16 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 	 * to be very smart.
 	 */
 	probe_block = 0;
-	page_no = 0;
-	last_block = i_size_read(inode) >> blkbits;
+	page_yes = 0;
+	last_block = i_size_read(iyesde) >> blkbits;
 	while ((probe_block + blocks_per_page) <= last_block &&
-			page_no < sis->max) {
+			page_yes < sis->max) {
 		unsigned block_in_page;
 		sector_t first_block;
 
 		cond_resched();
 
-		first_block = bmap(inode, probe_block);
+		first_block = bmap(iyesde, probe_block);
 		if (first_block == 0)
 			goto bad_bmap;
 
@@ -193,7 +193,7 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 					block_in_page++) {
 			sector_t block;
 
-			block = bmap(inode, probe_block + block_in_page);
+			block = bmap(iyesde, probe_block + block_in_page);
 			if (block == 0)
 				goto bad_bmap;
 			if (block != first_block + block_in_page) {
@@ -204,7 +204,7 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 		}
 
 		first_block >>= (PAGE_SHIFT - blkbits);
-		if (page_no) {	/* exclude the header page */
+		if (page_yes) {	/* exclude the header page */
 			if (first_block < lowest_block)
 				lowest_block = first_block;
 			if (first_block > highest_block)
@@ -214,22 +214,22 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 		/*
 		 * We found a PAGE_SIZE-length, PAGE_SIZE-aligned run of blocks
 		 */
-		ret = add_swap_extent(sis, page_no, 1, first_block);
+		ret = add_swap_extent(sis, page_yes, 1, first_block);
 		if (ret < 0)
 			goto out;
 		nr_extents += ret;
-		page_no++;
+		page_yes++;
 		probe_block += blocks_per_page;
 reprobe:
 		continue;
 	}
 	ret = nr_extents;
 	*span = 1 + highest_block - lowest_block;
-	if (page_no == 0)
-		page_no = 1;	/* force Empty message */
-	sis->max = page_no;
-	sis->pages = page_no - 1;
-	sis->highest_bit = page_no - 1;
+	if (page_yes == 0)
+		page_yes = 1;	/* force Empty message */
+	sis->max = page_yes;
+	sis->pages = page_yes - 1;
+	sis->highest_bit = page_yes - 1;
 out:
 	return ret;
 bad_bmap:
@@ -239,7 +239,7 @@ bad_bmap:
 }
 
 /*
- * We may have stale swap cache pages in memory: notice
+ * We may have stale swap cache pages in memory: yestice
  * them here and get rid of the unnecessary final write.
  */
 int swap_writepage(struct page *page, struct writeback_control *wbc)
@@ -311,8 +311,8 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 			 * memory for allocating transmit buffers.
 			 * Mark the page dirty and avoid
 			 * rotate_reclaimable_page but rate-limit the
-			 * messages but do not flag PageError like
-			 * the normal direct-to-bio case as it could
+			 * messages but do yest flag PageError like
+			 * the yesrmal direct-to-bio case as it could
 			 * be temporary.
 			 */
 			set_page_dirty(page);
@@ -348,7 +348,7 @@ out:
 	return ret;
 }
 
-int swap_readpage(struct page *page, bool synchronous)
+int swap_readpage(struct page *page, bool synchroyesus)
 {
 	struct bio *bio;
 	int ret = 0;
@@ -357,7 +357,7 @@ int swap_readpage(struct page *page, bool synchronous)
 	struct gendisk *disk;
 	unsigned long pflags;
 
-	VM_BUG_ON_PAGE(!PageSwapCache(page) && !synchronous, page);
+	VM_BUG_ON_PAGE(!PageSwapCache(page) && !synchroyesus, page);
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_PAGE(PageUptodate(page), page);
 
@@ -387,7 +387,7 @@ int swap_readpage(struct page *page, bool synchronous)
 	ret = bdev_read_page(sis->bdev, swap_page_sector(page), page);
 	if (!ret) {
 		if (trylock_page(page)) {
-			swap_slot_free_notify(page);
+			swap_slot_free_yestify(page);
 			unlock_page(page);
 		}
 
@@ -408,7 +408,7 @@ int swap_readpage(struct page *page, bool synchronous)
 	 * attempt to access it in the page fault retry time check.
 	 */
 	bio_set_op_attrs(bio, REQ_OP_READ, 0);
-	if (synchronous) {
+	if (synchroyesus) {
 		bio->bi_opf |= REQ_HIPRI;
 		get_task_struct(current);
 		bio->bi_private = current;
@@ -416,7 +416,7 @@ int swap_readpage(struct page *page, bool synchronous)
 	count_vm_event(PSWPIN);
 	bio_get(bio);
 	qc = submit_bio(bio);
-	while (synchronous) {
+	while (synchroyesus) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		if (!READ_ONCE(bio->bi_private))
 			break;
@@ -442,6 +442,6 @@ int swap_set_page_dirty(struct page *page)
 		VM_BUG_ON_PAGE(!PageSwapCache(page), page);
 		return mapping->a_ops->set_page_dirty(page);
 	} else {
-		return __set_page_dirty_no_writeback(page);
+		return __set_page_dirty_yes_writeback(page);
 	}
 }

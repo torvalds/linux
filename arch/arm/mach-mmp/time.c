@@ -58,7 +58,7 @@ static inline uint32_t timer_read(void)
 	return __raw_readl(mmp_timer_base + TMR_CVWR(1));
 }
 
-static u64 notrace mmp_read_sched_clock(void)
+static u64 yestrace mmp_read_sched_clock(void)
 {
 	return timer_read();
 }
@@ -196,7 +196,7 @@ void __init mmp_timer_init(int irq, unsigned long rate)
 	clockevents_config_and_register(&ckevt, rate, MIN_DELTA, MAX_DELTA);
 }
 
-static int __init mmp_dt_init_timer(struct device_node *np)
+static int __init mmp_dt_init_timer(struct device_yesde *np)
 {
 	struct clk *clk;
 	int irq, ret;

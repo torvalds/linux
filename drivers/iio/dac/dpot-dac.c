@@ -2,7 +2,7 @@
 /*
  * IIO DAC emulation driver using a digital potentiometer
  *
- * Copyright (C) 2016 Axentia Technologies AB
+ * Copyright (C) 2016 Axentia Techyeslogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -74,7 +74,7 @@ static int dpot_dac_read_raw(struct iio_dev *indio_dev,
 		case IIO_VAL_INT:
 			/*
 			 * Convert integer scale to fractional scale by
-			 * setting the denominator (val2) to one, and...
+			 * setting the deyesminator (val2) to one, and...
 			 */
 			*val2 = 1;
 			ret = IIO_VAL_FRACTIONAL;
@@ -139,7 +139,7 @@ static int dpot_dac_channel_max_ohms(struct iio_dev *indio_dev)
 
 	ret = iio_read_max_channel_raw(dac->dpot, &max);
 	if (ret < 0) {
-		dev_err(dev, "dpot does not indicate its raw maximum value\n");
+		dev_err(dev, "dpot does yest indicate its raw maximum value\n");
 		return ret;
 	}
 

@@ -341,7 +341,7 @@
 
 	bus-width = <8>;
 	max-frequency = <200000000>;
-	non-removable;
+	yesn-removable;
 	disable-wp;
 	cap-mmc-highspeed;
 	mmc-ddr-1_8v;

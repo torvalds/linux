@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/crypto.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
@@ -66,7 +66,7 @@ static const u32 ck[] = {
 	0x10171e25, 0x2c333a41, 0x484f565d, 0x646b7279
 };
 
-static u32 sm4_t_non_lin_sub(u32 x)
+static u32 sm4_t_yesn_lin_sub(u32 x)
 {
 	int i;
 	u8 *b = (u8 *)&x;
@@ -90,12 +90,12 @@ static u32 sm4_enc_lin_sub(u32 x)
 
 static u32 sm4_key_sub(u32 x)
 {
-	return sm4_key_lin_sub(sm4_t_non_lin_sub(x));
+	return sm4_key_lin_sub(sm4_t_yesn_lin_sub(x));
 }
 
 static u32 sm4_enc_sub(u32 x)
 {
-	return sm4_enc_lin_sub(sm4_t_non_lin_sub(x));
+	return sm4_enc_lin_sub(sm4_t_yesn_lin_sub(x));
 }
 
 static u32 sm4_round(const u32 *x, const u32 rk)

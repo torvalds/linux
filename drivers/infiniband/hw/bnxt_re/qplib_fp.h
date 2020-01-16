@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -265,7 +265,7 @@ struct bnxt_qplib_qp {
 	u32				max_inline_data;
 	u32				mtu;
 	u8				path_mtu;
-	bool				en_sqd_async_notify;
+	bool				en_sqd_async_yestify;
 	u16				pkey_index;
 	u32				qkey;
 	u32				dest_qp_id;
@@ -548,7 +548,7 @@ int bnxt_qplib_destroy_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq);
 int bnxt_qplib_poll_cq(struct bnxt_qplib_cq *cq, struct bnxt_qplib_cqe *cqe,
 		       int num, struct bnxt_qplib_qp **qp);
 bool bnxt_qplib_is_cq_empty(struct bnxt_qplib_cq *cq);
-void bnxt_qplib_req_notify_cq(struct bnxt_qplib_cq *cq, u32 arm_type);
+void bnxt_qplib_req_yestify_cq(struct bnxt_qplib_cq *cq, u32 arm_type);
 void bnxt_qplib_free_nq(struct bnxt_qplib_nq *nq);
 int bnxt_qplib_alloc_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq);
 void bnxt_qplib_add_flush_qp(struct bnxt_qplib_qp *qp);

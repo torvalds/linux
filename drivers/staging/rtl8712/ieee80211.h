@@ -379,14 +379,14 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_NUM_CCK_RATES	            4
 #define IEEE80211_OFDM_SHIFT_MASK_A         4
 
-/* NOTE: This data is for statistical purposes; not all hardware provides this
- *       information for frames received.  Not setting these will not cause
+/* NOTE: This data is for statistical purposes; yest all hardware provides this
+ *       information for frames received.  Not setting these will yest cause
  *       any adverse affects.
  */
 struct ieee80211_rx_stats {
 	s8 rssi;
 	u8 signal;
-	u8 noise;
+	u8 yesise;
 	u8 received_channel;
 	u16 rate; /* in 100 kbps */
 	u8 mask;
@@ -396,7 +396,7 @@ struct ieee80211_rx_stats {
 
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
- * concurrent frames, but it should be noted that each entry can consume about
+ * concurrent frames, but it should be yested that each entry can consume about
  * 2 kB of RAM and increasing cache size will slow down frame reassembly.
  */
 #define IEEE80211_FRAG_CACHE_LEN 4
@@ -429,7 +429,7 @@ struct ieee80211_stats {
 	uint rx_unicast_octets;
 	uint rx_multicast_octets;
 	uint rx_fcs_errors;
-	uint rx_discards_no_buffer;
+	uint rx_discards_yes_buffer;
 	uint tx_discards_wrong_sa;
 	uint rx_discards_undecryptable;
 	uint rx_message_in_msg_fragments;
@@ -446,8 +446,8 @@ struct ieee80211_softmac_stats {
 	uint rx_auth_rs_ok;
 	uint rx_auth_rs_err;
 	uint tx_auth_rq;
-	uint no_auth_rs;
-	uint no_ass_rs;
+	uint yes_auth_rs;
+	uint yes_ass_rs;
 	uint tx_ass_rq;
 	uint rx_ass_rq;
 	uint tx_probe_rq;
@@ -641,10 +641,10 @@ struct ieee80211_txb {
  */
 
 enum ieee80211_state {
-	/* the card is not linked at all */
+	/* the card is yest linked at all */
 	IEEE80211_NOLINK = 0,
 	/* IEEE80211_ASSOCIATING* are for BSS client mode
-	 * the driver shall not perform RX filtering unless
+	 * the driver shall yest perform RX filtering unless
 	 * the state is LINKED.
 	 * The driver shall just check for the state LINKED and
 	 * defaults to NOLINK for ALL the other states (including

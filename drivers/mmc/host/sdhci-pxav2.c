@@ -53,7 +53,7 @@ static void pxav2_reset(struct sdhci_host *host, u8 mask)
 
 		/*
 		 * tune timing of read data/command when crc error happen
-		 * no performance impact
+		 * yes performance impact
 		 */
 		if (pdata && pdata->clk_delay_sel == 1) {
 			tmp = readw(host->ioaddr + SD_CLOCK_BURST_SIZE_SETUP);
@@ -121,7 +121,7 @@ MODULE_DEVICE_TABLE(of, sdhci_pxav2_of_match);
 static struct sdhci_pxa_platdata *pxav2_get_mmc_pdata(struct device *dev)
 {
 	struct sdhci_pxa_platdata *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	u32 bus_width;
 	u32 clk_delay_cycles;
 
@@ -129,7 +129,7 @@ static struct sdhci_pxa_platdata *pxav2_get_mmc_pdata(struct device *dev)
 	if (!pdata)
 		return NULL;
 
-	if (of_find_property(np, "non-removable", NULL))
+	if (of_find_property(np, "yesn-removable", NULL))
 		pdata->flags |= PXA_FLAG_CARD_PERMANENT;
 
 	of_property_read_u32(np, "bus-width", &bus_width);

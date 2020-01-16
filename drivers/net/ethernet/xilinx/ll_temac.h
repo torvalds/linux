@@ -33,7 +33,7 @@
  *  This option defaults to enabled (set) */
 #define XTE_OPTION_FLOW_CONTROL                 (1 << 4)
 /*  Strip FCS and PAD from incoming frames.
- *  Note: PAD from VLAN frames is not stripped.
+ *  Note: PAD from VLAN frames is yest stripped.
  *  This option defaults to disabled (set) */
 #define XTE_OPTION_FCS_STRIP                    (1 << 5)
 /*  Generate FCS field and add PAD automatically for outgoing frames.
@@ -41,7 +41,7 @@
 #define XTE_OPTION_FCS_INSERT                   (1 << 6)
 /*  Enable Length/Type error checking for incoming frames. When this option is
 set, the MAC will filter frames that have a mismatched type/length field
-and if XTE_OPTION_REPORT_RXERR is set, the user is notified when these
+and if XTE_OPTION_REPORT_RXERR is set, the user is yestified when these
 types of frames are encountered. When this option is cleared, the MAC will
 allow these types of frames to be received.
 This option defaults to enabled (set) */
@@ -140,7 +140,7 @@ This option defaults to enabled (set) */
 #define IRQ_COAL        (1 << 0)
 #define IRQ_DLY         (1 << 1)
 #define IRQ_ERR         (1 << 2)
-#define IRQ_DMAERR      (1 << 7)            /* this is not documented ??? */
+#define IRQ_DMAERR      (1 << 7)            /* this is yest documented ??? */
 /*
  0:7      24:31       DltTmrValue
  8:15     16:23       ClscCntrValue
@@ -224,7 +224,7 @@ This option defaults to enabled (set) */
 #define	XTE_RXC1_OFFSET			0x00000240 /* Rx configuration word 1 */
 #define XTE_RXC1_RXRST_MASK		(1 << 31)  /* Receiver reset */
 #define XTE_RXC1_RXJMBO_MASK		(1 << 30)  /* Jumbo frame enable */
-#define XTE_RXC1_RXFCS_MASK		(1 << 29)  /* FCS not stripped */
+#define XTE_RXC1_RXFCS_MASK		(1 << 29)  /* FCS yest stripped */
 #define XTE_RXC1_RXEN_MASK		(1 << 28)  /* Receiver enable */
 #define XTE_RXC1_RXVLAN_MASK		(1 << 27)  /* VLAN enable */
 #define XTE_RXC1_RXHD_MASK		(1 << 26)  /* Half duplex */
@@ -333,8 +333,8 @@ struct temac_local {
 	struct device *dev;
 
 	/* Connection to PHY device */
-	struct device_node *phy_node;
-	/* For non-device-tree devices */
+	struct device_yesde *phy_yesde;
+	/* For yesn-device-tree devices */
 	char phy_name[MII_BUS_ID_SIZE + 3];
 	phy_interface_t phy_interface;
 

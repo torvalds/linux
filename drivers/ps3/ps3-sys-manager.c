@@ -21,7 +21,7 @@
 /**
  * ps3_sys_manager - PS3 system manager driver.
  *
- * The system manager provides an asynchronous system event notification
+ * The system manager provides an asynchroyesus system event yestification
  * mechanism for reporting events like thermal alert and button presses to
  * guests.  It also provides support to control system shutdown and startup.
  *
@@ -69,7 +69,7 @@ static void __maybe_unused _dump_sm_header(
  *
  * Currently all messages received from the system manager are either
  * (16 bytes header + 8 bytes payload = 24 bytes) or (16 bytes header
- * + 16 bytes payload = 32 bytes).  This knowledge is used to simplify
+ * + 16 bytes payload = 32 bytes).  This kyeswledge is used to simplify
  * the logic.
  */
 
@@ -107,13 +107,13 @@ enum ps3_sys_manager_service_id {
 /**
  * enum ps3_sys_manager_attr - Notification attribute (bit position mask).
  * @PS3_SM_ATTR_POWER: Power button.
- * @PS3_SM_ATTR_RESET: Reset button, not available on retail console.
+ * @PS3_SM_ATTR_RESET: Reset button, yest available on retail console.
  * @PS3_SM_ATTR_THERMAL: System thermal alert.
  * @PS3_SM_ATTR_CONTROLLER: Remote controller event.
  * @PS3_SM_ATTR_ALL: Logical OR of all.
  *
  * The guest tells the system manager which events it is interested in receiving
- * notice of by sending the system manager a logical OR of notification
+ * yestice of by sending the system manager a logical OR of yestification
  * attributes via the ps3_sys_manager_send_attr() routine.
  */
 
@@ -146,7 +146,7 @@ enum ps3_sys_manager_event {
 	PS3_SM_EVENT_RESET_RELEASED = 6,
 	PS3_SM_EVENT_THERMAL_ALERT = 7,
 	PS3_SM_EVENT_THERMAL_CLEARED = 8,
-	/* no info on controller events */
+	/* yes info on controller events */
 };
 
 /**
@@ -362,7 +362,7 @@ static int ps3_sys_manager_send_request_shutdown(
  * ps3_sys_manager_send_response - Send a 'response' to the system manager.
  * @status: zero = success, others fail.
  *
- * The guest sends this message to the system manager to acnowledge success or
+ * The guest sends this message to the system manager to acyeswledge success or
  * failure of a command sent by the system manager.
  */
 
@@ -432,7 +432,7 @@ static int ps3_sys_manager_handle_event(struct ps3_system_bus_device *dev)
 		/*
 		 * A memory barrier is use here to sync memory since
 		 * ps3_sys_manager_final_restart() could be called on
-		 * another cpu.
+		 * ayesther cpu.
 		 */
 		wmb();
 		kill_cad_pid(SIGINT, 1); /* ctrl_alt_del */
@@ -450,7 +450,7 @@ static int ps3_sys_manager_handle_event(struct ps3_system_bus_device *dev)
 		/*
 		 * A memory barrier is use here to sync memory since
 		 * ps3_sys_manager_final_restart() could be called on
-		 * another cpu.
+		 * ayesther cpu.
 		 */
 		wmb();
 		kill_cad_pid(SIGINT, 1); /* ctrl_alt_del */
@@ -469,7 +469,7 @@ static int ps3_sys_manager_handle_event(struct ps3_system_bus_device *dev)
 			__func__, __LINE__, event.value);
 		break;
 	default:
-		dev_dbg(&dev->core, "%s:%d: unknown event (%u)\n",
+		dev_dbg(&dev->core, "%s:%d: unkyeswn event (%u)\n",
 			__func__, __LINE__, event.type);
 		return -EIO;
 	}
@@ -508,7 +508,7 @@ static int ps3_sys_manager_handle_cmd(struct ps3_system_bus_device *dev)
 	}
 
 	if (cmd.type != PS3_SM_CMD_SHUTDOWN) {
-		dev_dbg(&dev->core, "%s:%d: unknown cmd (%u)\n",
+		dev_dbg(&dev->core, "%s:%d: unkyeswn cmd (%u)\n",
 			__func__, __LINE__, cmd.type);
 		return -EIO;
 	}
@@ -562,7 +562,7 @@ static int ps3_sys_manager_handle_msg(struct ps3_system_bus_device *dev)
 		dump_sm_header(&header);
 		break;
 	default:
-		dev_dbg(&dev->core, "%s:%d: unknown service_id (%u)\n",
+		dev_dbg(&dev->core, "%s:%d: unkyeswn service_id (%u)\n",
 			__func__, __LINE__, header.service_id);
 		break;
 	}
@@ -588,7 +588,7 @@ static void ps3_sys_manager_fin(struct ps3_system_bus_device *dev)
 	}
 
 	while (1) {
-		/* pause, ignoring DEC interrupt */
+		/* pause, igyesring DEC interrupt */
 		lv1_pause(1);
 	}
 }
@@ -596,10 +596,10 @@ static void ps3_sys_manager_fin(struct ps3_system_bus_device *dev)
 /**
  * ps3_sys_manager_final_power_off - The final platform machine_power_off routine.
  *
- * This routine never returns.  The routine disables asynchronous vuart reads
- * then spins calling ps3_sys_manager_handle_msg() to receive and acknowledge
+ * This routine never returns.  The routine disables asynchroyesus vuart reads
+ * then spins calling ps3_sys_manager_handle_msg() to receive and ackyeswledge
  * the shutdown command sent from the system manager.  Soon after the
- * acknowledgement is sent the lpar is destroyed by the HV.  This routine
+ * ackyeswledgement is sent the lpar is destroyed by the HV.  This routine
  * should only be called from ps3_power_off() through
  * ps3_sys_manager_ops.power_off.
  */
@@ -621,10 +621,10 @@ static void ps3_sys_manager_final_power_off(struct ps3_system_bus_device *dev)
 /**
  * ps3_sys_manager_final_restart - The final platform machine_restart routine.
  *
- * This routine never returns.  The routine disables asynchronous vuart reads
- * then spins calling ps3_sys_manager_handle_msg() to receive and acknowledge
+ * This routine never returns.  The routine disables asynchroyesus vuart reads
+ * then spins calling ps3_sys_manager_handle_msg() to receive and ackyeswledge
  * the shutdown command sent from the system manager.  Soon after the
- * acknowledgement is sent the lpar is destroyed by the HV.  This routine
+ * ackyeswledgement is sent the lpar is destroyed by the HV.  This routine
  * should only be called from ps3_restart() through ps3_sys_manager_ops.restart.
  */
 
@@ -684,7 +684,7 @@ void ps3_sys_manager_set_wol(int state)
 EXPORT_SYMBOL_GPL(ps3_sys_manager_set_wol);
 
 /**
- * ps3_sys_manager_work - Asynchronous read handler.
+ * ps3_sys_manager_work - Asynchroyesus read handler.
  *
  * Signaled when PS3_SM_RX_MSG_LEN_MIN bytes arrive at the vuart port.
  */
@@ -748,7 +748,7 @@ static int __init ps3_sys_manager_init(void)
 }
 
 module_init(ps3_sys_manager_init);
-/* Module remove not supported. */
+/* Module remove yest supported. */
 
 MODULE_AUTHOR("Sony Corporation");
 MODULE_LICENSE("GPL v2");

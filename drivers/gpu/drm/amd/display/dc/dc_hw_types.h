@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -40,7 +40,7 @@
  * 1. Generation pseudocode sequences for HW programming.
  * 2. Implementation of real HW programming by HW Sequencer of DAL3.
  *
- * Note: do *not* add any types which are *not* used for HW programming - this
+ * Note: do *yest* add any types which are *yest* used for HW programming - this
  * will ensure separation of Logic layer from HW layer.
  ******************************************************************************/
 
@@ -156,7 +156,7 @@ enum surface_pixel_format {
 	SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010,
 	/*swaped*/
 	SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010,
-	/*TOBE REMOVED swaped, XR_BIAS has no differance
+	/*TOBE REMOVED swaped, XR_BIAS has yes differance
 	 * for pixel layout than previous and we can
 	 * delete this after discusion*/
 	SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS,
@@ -317,7 +317,7 @@ union dc_tiling_info {
 		 *	contiguously for each tile.
 		 * If the tile data requires more storage than this
 		 *	amount, it is split into multiple slices.
-		 * This field must not be larger than
+		 * This field must yest be larger than
 		 *	GB_ADDR_CONFIG.DRAM_ROW_SIZE.
 		 * Only applies to 2D and 3D tiling modes.
 		 * For color render targets, TILE_SPLIT >= 256B.
@@ -670,12 +670,12 @@ struct dc_crtc_timing_flags {
 
 	uint32_t EXCLUSIVE_3D :1; /* if this bit set,
 	 timing can be driven in 3D format only
-	 and there is no corresponding 2D timing*/
+	 and there is yes corresponding 2D timing*/
 	uint32_t RIGHT_EYE_3D_POLARITY :1; /* 1 - means right eye polarity
 	 (right eye = '1', left eye = '0') */
 	uint32_t SUB_SAMPLE_3D :1; /* 1 - means left/right  images subsampled
 	 when mixed into 3D image. 0 - means summation (3D timing is doubled)*/
-	uint32_t USE_IN_3D_VIEW_ONLY :1; /* Do not use this timing in 2D View,
+	uint32_t USE_IN_3D_VIEW_ONLY :1; /* Do yest use this timing in 2D View,
 	 because corresponding 2D timing also present in the list*/
 	uint32_t STEREO_3D_PREFERENCE :1; /* Means this is 2D timing
 	 and we want to match priority of corresponding 3D timing*/
@@ -724,7 +724,7 @@ struct dc_dsc_config {
 	uint32_t bits_per_pixel; /* DSC target bitrate in 1/16 of bpp (e.g. 128 -> 8bpp) */
 	bool block_pred_enable; /* DSC block prediction enable */
 	uint32_t linebuf_depth; /* DSC line buffer depth */
-	uint32_t version_minor; /* DSC minor version. Full version is formed as 1.version_minor. */
+	uint32_t version_miyesr; /* DSC miyesr version. Full version is formed as 1.version_miyesr. */
 	bool ycbcr422_simple; /* Tell DSC engine to convert YCbCr 4:2:2 to 'YCbCr 4:2:2 simple'. */
 	int32_t rc_buffer_size; /* DSC RC buffer block size in bytes */
 };

@@ -47,7 +47,7 @@ config DRM_MSM_GPU_SUDO
 	  userspace kernel level access, but is useful for firmware
 	  debugging.
 
-	  Only use this if you are a driver developer.  This should *not*
+	  Only use this if you are a driver developer.  This should *yest*
 	  be enabled for production kernels.  If unsure, say N.
 
 config DRM_MSM_HDMI_HDCP

@@ -4,7 +4,7 @@
  *  Support for a cx23417 mpeg encoder via cx23885 host port.
  *
  *    (c) 2004 Jelle Foks <jelle@foks.us>
- *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
+ *    (c) 2004 Gerd Kyesrr <kraxel@bytesex.org>
  *    (c) 2008 Steven Toth <stoth@linuxtv.org>
  *      - CX23885/7/8 support
  *
@@ -50,7 +50,7 @@ MODULE_PARM_DESC(v4l_debug, "enable V4L debug messages");
 			__func__, ##arg); \
 	} while (0)
 
-static struct cx23885_tvnorm cx23885_tvnorms[] = {
+static struct cx23885_tvyesrm cx23885_tvyesrms[] = {
 	{
 		.name      = "NTSC-M",
 		.id        = V4L2_STD_NTSC_M,
@@ -103,7 +103,7 @@ enum cx23885_capture_bits {
 };
 enum cx23885_capture_end {
 	CX23885_END_AT_GOP, /* stop at the end of gop, generate irq */
-	CX23885_END_NOW, /* stop immediately, no irq */
+	CX23885_END_NOW, /* stop immediately, yes irq */
 };
 enum cx23885_framerate {
 	CX23885_FRAMERATE_NTSC_30, /* NTSC: 30fps */
@@ -152,14 +152,14 @@ enum cx23885_copyright {
 	CX23885_COPYRIGHT_OFF,
 	CX23885_COPYRIGHT_ON,
 };
-enum cx23885_notification_type {
+enum cx23885_yestification_type {
 	CX23885_NOTIFICATION_REFRESH,
 };
-enum cx23885_notification_status {
+enum cx23885_yestification_status {
 	CX23885_NOTIFICATION_OFF,
 	CX23885_NOTIFICATION_ON,
 };
-enum cx23885_notification_mailbox {
+enum cx23885_yestification_mailbox {
 	CX23885_NOTIFICATION_NO_MAILBOX = -1,
 };
 enum cx23885_field1_lines {
@@ -756,11 +756,11 @@ static int cx23885_mbox_func(void *priv,
 	dprintk(3, "%s: command(0x%X) = %s\n", __func__, command,
 		cmd_to_str(command));
 
-	/* this may not be 100% safe if we can't read any memory location
+	/* this may yest be 100% safe if we can't read any memory location
 	   without side effects */
 	mc417_memory_read(dev, dev->cx23417_mailbox - 4, &value);
 	if (value != 0x12345678) {
-		pr_err("Firmware and/or mailbox pointer not initialized or corrupted, signature = 0x%x, cmd = %s\n",
+		pr_err("Firmware and/or mailbox pointer yest initialized or corrupted, signature = 0x%x, cmd = %s\n",
 			value, cmd_to_str(command));
 		return -1;
 	}
@@ -877,7 +877,7 @@ static int cx23885_find_mailbox(struct cx23885_dev *dev)
 			return i+1;
 		}
 	}
-	pr_err("Mailbox signature values not found!\n");
+	pr_err("Mailbox signature values yest found!\n");
 	return -1;
 }
 
@@ -923,7 +923,7 @@ static int cx23885_load_firmware(struct cx23885_dev *dev)
 	if (retval != 0) {
 		pr_err("ERROR: Hotplug firmware request failed (%s).\n",
 		       CX23885_FIRM_IMAGE_NAME);
-		pr_err("Please fix your hotplug setup, the board will not work without firmware loaded!\n");
+		pr_err("Please fix your hotplug setup, the board will yest work without firmware loaded!\n");
 		return -1;
 	}
 
@@ -1009,7 +1009,7 @@ static void cx23885_codec_settings(struct cx23885_dev *dev)
 	dprintk(1, "%s()\n", __func__);
 
 	/* Dynamically change the height based on video standard */
-	if (dev->encodernorm.id & V4L2_STD_525_60)
+	if (dev->encoderyesrm.id & V4L2_STD_525_60)
 		dev->ts1.height = 480;
 	else
 		dev->ts1.height = 576;
@@ -1021,7 +1021,7 @@ static void cx23885_codec_settings(struct cx23885_dev *dev)
 	dev->cxhdl.width = dev->ts1.width;
 	dev->cxhdl.height = dev->ts1.height;
 	dev->cxhdl.is_50hz =
-		(dev->encodernorm.id & V4L2_STD_625_50) != 0;
+		(dev->encoderyesrm.id & V4L2_STD_625_50) != 0;
 
 	cx2341x_handler_setup(&dev->cxhdl);
 
@@ -1222,7 +1222,7 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct cx23885_dev *dev = video_drvdata(file);
 
-	*id = dev->tvnorm;
+	*id = dev->tvyesrm;
 	return 0;
 }
 
@@ -1232,15 +1232,15 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(cx23885_tvnorms); i++)
-		if (id & cx23885_tvnorms[i].id)
+	for (i = 0; i < ARRAY_SIZE(cx23885_tvyesrms); i++)
+		if (id & cx23885_tvyesrms[i].id)
 			break;
-	if (i == ARRAY_SIZE(cx23885_tvnorms))
+	if (i == ARRAY_SIZE(cx23885_tvyesrms))
 		return -EINVAL;
 
-	ret = cx23885_set_tvnorm(dev, id);
+	ret = cx23885_set_tvyesrm(dev, id);
 	if (!ret)
-		dev->encodernorm = cx23885_tvnorms[i];
+		dev->encoderyesrm = cx23885_tvyesrms[i];
 	return ret;
 }
 
@@ -1449,7 +1449,7 @@ static struct video_device cx23885_mpeg_template = {
 	.name          = "cx23885",
 	.fops          = &mpeg_fops,
 	.ioctl_ops     = &mpeg_ioctl_ops,
-	.tvnorms       = CX23885_NORMS,
+	.tvyesrms       = CX23885_NORMS,
 };
 
 void cx23885_417_unregister(struct cx23885_dev *dev)
@@ -1501,9 +1501,9 @@ int cx23885_417_register(struct cx23885_dev *dev)
 		return err;
 
 	/* Set default TV standard */
-	dev->encodernorm = cx23885_tvnorms[0];
+	dev->encoderyesrm = cx23885_tvyesrms[0];
 
-	if (dev->encodernorm.id & V4L2_STD_525_60)
+	if (dev->encoderyesrm.id & V4L2_STD_525_60)
 		tsport->height = 480;
 	else
 		tsport->height = 576;
@@ -1552,7 +1552,7 @@ int cx23885_417_register(struct cx23885_dev *dev)
 	}
 
 	pr_info("%s: registered device %s [mpeg]\n",
-	       dev->name, video_device_node_name(dev->v4l_device));
+	       dev->name, video_device_yesde_name(dev->v4l_device));
 
 	/* ST: Configure the encoder parameters, but don't begin
 	 * encoding, this resolves an issue where the first time the

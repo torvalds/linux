@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Header file for CPUFreq ondemand governor and related code.
+ * Header file for CPUFreq ondemand goveryesr and related code.
  *
  * Copyright (C) 2016, Intel Corporation
  * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  */
 
-#include "cpufreq_governor.h"
+#include "cpufreq_goveryesr.h"
 
 struct od_policy_dbs_info {
 	struct policy_dbs_info policy_dbs;

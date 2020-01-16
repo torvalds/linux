@@ -106,7 +106,7 @@ struct cx18_av_state {
 	 *
 	 * L = M+(S+D-1) = N-1+(S+D-1) = N + (S+D-2).
 	 *
-	 * L is the line in the field, not frame, from which the VBI data came.
+	 * L is the line in the field, yest frame, from which the VBI data came.
 	 * N is the line reported by the slicer in the ancillary data.
 	 * D is the slicer_line_delay value programmed into register 0x47f.
 	 * S is 6 for 625 line systems or 10 for 525 line systems
@@ -343,7 +343,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 /* cx18_av-core.c							   */
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value);
 int cx18_av_write4(struct cx18 *cx, u16 addr, u32 value);
-int cx18_av_write4_noretry(struct cx18 *cx, u16 addr, u32 value);
+int cx18_av_write4_yesretry(struct cx18 *cx, u16 addr, u32 value);
 int cx18_av_write_expect(struct cx18 *cx, u16 addr, u8 value, u8 eval, u8 mask);
 int cx18_av_write4_expect(struct cx18 *cx, u16 addr, u32 value, u32 eval,
 			  u32 mask);

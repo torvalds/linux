@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -109,20 +109,20 @@ nvkm_gpuobj_map(struct nvkm_gpuobj *gpuobj, u64 offset,
 		struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 		void *argv, u32 argc)
 {
-	return nvkm_memory_map(gpuobj->parent, gpuobj->node->offset + offset,
+	return nvkm_memory_map(gpuobj->parent, gpuobj->yesde->offset + offset,
 			       vmm, vma, argv, argc);
 }
 
 static u32
 nvkm_gpuobj_rd32(struct nvkm_gpuobj *gpuobj, u32 offset)
 {
-	return nvkm_ro32(gpuobj->parent, gpuobj->node->offset + offset);
+	return nvkm_ro32(gpuobj->parent, gpuobj->yesde->offset + offset);
 }
 
 static void
 nvkm_gpuobj_wr32(struct nvkm_gpuobj *gpuobj, u32 offset, u32 data)
 {
-	nvkm_wo32(gpuobj->parent, gpuobj->node->offset + offset, data);
+	nvkm_wo32(gpuobj->parent, gpuobj->yesde->offset + offset, data);
 }
 
 static const struct nvkm_gpuobj_func nvkm_gpuobj_func;
@@ -154,7 +154,7 @@ nvkm_gpuobj_acquire(struct nvkm_gpuobj *gpuobj)
 {
 	gpuobj->map = nvkm_kmap(gpuobj->parent);
 	if (likely(gpuobj->map)) {
-		gpuobj->map  = (u8 *)gpuobj->map + gpuobj->node->offset;
+		gpuobj->map  = (u8 *)gpuobj->map + gpuobj->yesde->offset;
 		gpuobj->func = &nvkm_gpuobj_fast;
 	} else {
 		gpuobj->func = &nvkm_gpuobj_slow;
@@ -178,18 +178,18 @@ nvkm_gpuobj_ctor(struct nvkm_device *device, u32 size, int align, bool zero,
 	if (parent) {
 		if (align >= 0) {
 			ret = nvkm_mm_head(&parent->heap, 0, 1, size, size,
-					   max(align, 1), &gpuobj->node);
+					   max(align, 1), &gpuobj->yesde);
 		} else {
 			ret = nvkm_mm_tail(&parent->heap, 0, 1, size, size,
-					   -align, &gpuobj->node);
+					   -align, &gpuobj->yesde);
 		}
 		if (ret)
 			return ret;
 
 		gpuobj->parent = parent;
 		gpuobj->func = &nvkm_gpuobj_func;
-		gpuobj->addr = parent->addr + gpuobj->node->offset;
-		gpuobj->size = gpuobj->node->length;
+		gpuobj->addr = parent->addr + gpuobj->yesde->offset;
+		gpuobj->size = gpuobj->yesde->length;
 
 		if (zero) {
 			nvkm_kmap(gpuobj);
@@ -217,7 +217,7 @@ nvkm_gpuobj_del(struct nvkm_gpuobj **pgpuobj)
 	struct nvkm_gpuobj *gpuobj = *pgpuobj;
 	if (gpuobj) {
 		if (gpuobj->parent)
-			nvkm_mm_free(&gpuobj->parent->heap, &gpuobj->node);
+			nvkm_mm_free(&gpuobj->parent->heap, &gpuobj->yesde);
 		nvkm_mm_fini(&gpuobj->heap);
 		nvkm_memory_unref(&gpuobj->memory);
 		kfree(*pgpuobj);
@@ -242,7 +242,7 @@ nvkm_gpuobj_new(struct nvkm_device *device, u32 size, int align, bool zero,
 }
 
 /* the below is basically only here to support sharing the paged dma object
- * for PCI(E)GART on <=nv4x chipsets, and should *not* be expected to work
+ * for PCI(E)GART on <=nv4x chipsets, and should *yest* be expected to work
  * anywhere else.
  */
 

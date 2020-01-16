@@ -46,7 +46,7 @@ static unsigned int da9063_wdt_timeout_to_sel(unsigned int secs)
 }
 
 /*
- * Return 0 if watchdog is disabled, else non zero.
+ * Return 0 if watchdog is disabled, else yesn zero.
  */
 static unsigned int da9063_wdt_is_running(struct da9063 *da9063)
 {
@@ -142,7 +142,7 @@ static int da9063_wdt_set_timeout(struct watchdog_device *wdd,
 	 * 2. The watchdog is already running and a new timeout value should be
 	 *    set.
 	 *
-	 * The watchdog can't store a timeout value not equal zero without
+	 * The watchdog can't store a timeout value yest equal zero without
 	 * enabling the watchdog, so the timeout must be buffered by the driver.
 	 */
 	if (watchdog_active(wdd))

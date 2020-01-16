@@ -50,7 +50,7 @@
 
 	idle-states {
 		/*
-		 * PSCI node is not added default, U-boot will add missing
+		 * PSCI yesde is yest added default, U-boot will add missing
 		 * parts if it determines to use PSCI.
 		 */
 		entry-method = "arm,psci";
@@ -408,9 +408,9 @@
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
 			/* combined secure interrupt */
 				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
-			/* global non-secure fault */
+			/* global yesn-secure fault */
 				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
-			/* combined non-secure interrupt */
+			/* combined yesn-secure interrupt */
 				     <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
 			/* performance counter interrupts 0-7 */
 				     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>,
@@ -629,15 +629,15 @@
 			dma-coherent;
 			msi-map = <0 &its 0x17 0xe>;
 			iommu-map = <0 &smmu 0x17 0xe>;
-				  /* PF0-6 BAR0 - non-prefetchable memory */
+				  /* PF0-6 BAR0 - yesn-prefetchable memory */
 			ranges = <0x82000000 0x0 0x00000000  0x1 0xf8000000  0x0 0x160000
 				  /* PF0-6 BAR2 - prefetchable memory */
 				  0xc2000000 0x0 0x00000000  0x1 0xf8160000  0x0 0x070000
-				  /* PF0: VF0-1 BAR0 - non-prefetchable memory */
+				  /* PF0: VF0-1 BAR0 - yesn-prefetchable memory */
 				  0x82000000 0x0 0x00000000  0x1 0xf81d0000  0x0 0x020000
 				  /* PF0: VF0-1 BAR2 - prefetchable memory */
 				  0xc2000000 0x0 0x00000000  0x1 0xf81f0000  0x0 0x020000
-				  /* PF1: VF0-1 BAR0 - non-prefetchable memory */
+				  /* PF1: VF0-1 BAR0 - yesn-prefetchable memory */
 				  0x82000000 0x0 0x00000000  0x1 0xf8210000  0x0 0x020000
 				  /* PF1: VF0-1 BAR2 - prefetchable memory */
 				  0xc2000000 0x0 0x00000000  0x1 0xf8230000  0x0 0x020000>;

@@ -181,7 +181,7 @@ static int rtd119x_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 
-	data->clk = of_clk_get(pdev->dev.of_node, 0);
+	data->clk = of_clk_get(pdev->dev.of_yesde, 0);
 	if (IS_ERR(data->clk))
 		return PTR_ERR(data->clk);
 

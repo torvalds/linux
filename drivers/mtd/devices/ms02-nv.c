@@ -43,7 +43,7 @@ static ulong ms02nv_addrs[] __initdata = {
 };
 
 static const char ms02nv_name[] = "DEC MS02-NV NVRAM";
-static const char ms02nv_res_diag_ram[] = "Diagnostic RAM";
+static const char ms02nv_res_diag_ram[] = "Diagyesstic RAM";
 static const char ms02nv_res_user_ram[] = "General-purpose RAM";
 static const char ms02nv_res_csr[] = "Control and status register";
 
@@ -83,7 +83,7 @@ static inline uint ms02nv_probe_one(ulong addr)
 
 	/*
 	 * The firmware writes MS02NV_ID at MS02NV_MAGIC and also
-	 * a diagnostic status at MS02NV_DIAG.
+	 * a diagyesstic status at MS02NV_DIAG.
 	 */
 	ms02nv_diagp = (ms02nv_uint *)(CKSEG1ADDR(addr + MS02NV_DIAG));
 	ms02nv_magicp = (ms02nv_uint *)(CKSEG1ADDR(addr + MS02NV_MAGIC));
@@ -148,7 +148,7 @@ static int __init ms02nv_init_one(ulong addr)
 	mtd->priv = mp;
 	mp->resource.module = mod_res;
 
-	/* Firmware's diagnostic NVRAM area. */
+	/* Firmware's diagyesstic NVRAM area. */
 	diag_res = kzalloc(sizeof(*diag_res), GFP_KERNEL);
 	if (!diag_res)
 		goto err_out_mp;
@@ -191,7 +191,7 @@ static int __init ms02nv_init_one(ulong addr)
 	mp->size = size;
 
 	/*
-	 * Hide the firmware's diagnostic area.  It may get destroyed
+	 * Hide the firmware's diagyesstic area.  It may get destroyed
 	 * upon a reboot.  Take paging into account for mapping support.
 	 */
 	fixaddr = (addr + MS02NV_RAM + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);

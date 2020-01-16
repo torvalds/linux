@@ -464,7 +464,7 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	master->max_speed_hz = 300000000;
 	master->num_chipselect = QSPI_NUM_CS;
 	master->bus_num = -1;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->mode_bits = SPI_MODE_0 |
 			    SPI_TX_DUAL | SPI_RX_DUAL |
 			    SPI_TX_QUAD | SPI_RX_QUAD;

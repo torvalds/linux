@@ -240,7 +240,7 @@ static void dkb_tpo_panel_power(int on)
 static struct mmp_mach_panel_info dkb_tpo_panel_info = {
 	.name = "tpo-hvga",
 	.plat_path_name = "mmp-parallel",
-	.plat_set_onoff = dkb_tpo_panel_power,
+	.plat_set_oyesff = dkb_tpo_panel_power,
 };
 
 static struct spi_board_info spi_board_info[] __initdata = {

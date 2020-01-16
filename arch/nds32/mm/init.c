@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 1995-2005 Russell King
 // Copyright (C) 2012 ARM Ltd.
-// Copyright (C) 2013-2017 Andes Technology Corporation
+// Copyright (C) 2013-2017 Andes Techyeslogy Corporation
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/mman.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/initrd.h>
 #include <linux/highmem.h>
 
@@ -19,7 +19,7 @@
 #include <asm/page.h>
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-DEFINE_SPINLOCK(anon_alias_lock);
+DEFINE_SPINLOCK(ayesn_alias_lock);
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 /*

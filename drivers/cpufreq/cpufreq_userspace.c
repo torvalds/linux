@@ -28,7 +28,7 @@ static DEFINE_MUTEX(userspace_mutex);
 static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 {
 	int ret = -EINVAL;
-	unsigned int *setspeed = policy->governor_data;
+	unsigned int *setspeed = policy->goveryesr_data;
 
 	pr_debug("cpufreq_set for cpu %u, freq %u kHz\n", policy->cpu, freq);
 
@@ -57,21 +57,21 @@ static int cpufreq_userspace_policy_init(struct cpufreq_policy *policy)
 	if (!setspeed)
 		return -ENOMEM;
 
-	policy->governor_data = setspeed;
+	policy->goveryesr_data = setspeed;
 	return 0;
 }
 
 static void cpufreq_userspace_policy_exit(struct cpufreq_policy *policy)
 {
 	mutex_lock(&userspace_mutex);
-	kfree(policy->governor_data);
-	policy->governor_data = NULL;
+	kfree(policy->goveryesr_data);
+	policy->goveryesr_data = NULL;
 	mutex_unlock(&userspace_mutex);
 }
 
 static int cpufreq_userspace_policy_start(struct cpufreq_policy *policy)
 {
-	unsigned int *setspeed = policy->governor_data;
+	unsigned int *setspeed = policy->goveryesr_data;
 
 	BUG_ON(!policy->cur);
 	pr_debug("started managing cpu %u\n", policy->cpu);
@@ -85,7 +85,7 @@ static int cpufreq_userspace_policy_start(struct cpufreq_policy *policy)
 
 static void cpufreq_userspace_policy_stop(struct cpufreq_policy *policy)
 {
-	unsigned int *setspeed = policy->governor_data;
+	unsigned int *setspeed = policy->goveryesr_data;
 
 	pr_debug("managing cpu %u stopped\n", policy->cpu);
 
@@ -97,7 +97,7 @@ static void cpufreq_userspace_policy_stop(struct cpufreq_policy *policy)
 
 static void cpufreq_userspace_policy_limits(struct cpufreq_policy *policy)
 {
-	unsigned int *setspeed = policy->governor_data;
+	unsigned int *setspeed = policy->goveryesr_data;
 
 	mutex_lock(&userspace_mutex);
 
@@ -114,7 +114,7 @@ static void cpufreq_userspace_policy_limits(struct cpufreq_policy *policy)
 	mutex_unlock(&userspace_mutex);
 }
 
-static struct cpufreq_governor cpufreq_gov_userspace = {
+static struct cpufreq_goveryesr cpufreq_gov_userspace = {
 	.name		= "userspace",
 	.init		= cpufreq_userspace_policy_init,
 	.exit		= cpufreq_userspace_policy_exit,
@@ -128,21 +128,21 @@ static struct cpufreq_governor cpufreq_gov_userspace = {
 
 static int __init cpufreq_gov_userspace_init(void)
 {
-	return cpufreq_register_governor(&cpufreq_gov_userspace);
+	return cpufreq_register_goveryesr(&cpufreq_gov_userspace);
 }
 
 static void __exit cpufreq_gov_userspace_exit(void)
 {
-	cpufreq_unregister_governor(&cpufreq_gov_userspace);
+	cpufreq_unregister_goveryesr(&cpufreq_gov_userspace);
 }
 
 MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>, "
 		"Russell King <rmk@arm.linux.org.uk>");
-MODULE_DESCRIPTION("CPUfreq policy governor 'userspace'");
+MODULE_DESCRIPTION("CPUfreq policy goveryesr 'userspace'");
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE
-struct cpufreq_governor *cpufreq_default_governor(void)
+struct cpufreq_goveryesr *cpufreq_default_goveryesr(void)
 {
 	return &cpufreq_gov_userspace;
 }

@@ -24,7 +24,7 @@ int i2c_dev_irq_from_resources(const struct resource *resources,
 
 /*
  * We only allow atomic transfers for very late communication, e.g. to send
- * the powerdown command to a PMIC. Atomic transfers are a corner case and not
+ * the powerdown command to a PMIC. Atomic transfers are a corner case and yest
  * for generic use!
  */
 static inline bool i2c_in_atomic_xfer_mode(void)
@@ -79,7 +79,7 @@ static inline int i2c_acpi_get_irq(struct i2c_client *client)
 	return 0;
 }
 #endif /* CONFIG_ACPI */
-extern struct notifier_block i2c_acpi_notifier;
+extern struct yestifier_block i2c_acpi_yestifier;
 
 #ifdef CONFIG_ACPI_I2C_OPREGION
 int i2c_acpi_install_space_handler(struct i2c_adapter *adapter);
@@ -94,4 +94,4 @@ void of_i2c_register_devices(struct i2c_adapter *adap);
 #else
 static inline void of_i2c_register_devices(struct i2c_adapter *adap) { }
 #endif
-extern struct notifier_block i2c_of_notifier;
+extern struct yestifier_block i2c_of_yestifier;

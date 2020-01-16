@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. All rights reserved */
 
 #ifndef _MLXSW_SPECTRUM_PTP_H
 #define _MLXSW_SPECTRUM_PTP_H
@@ -18,7 +18,7 @@ enum {
 	MLXSW_SP_PTP_MESSAGE_TYPE_PDELAY_RESP,
 };
 
-static inline int mlxsw_sp_ptp_get_ts_info_noptp(struct ethtool_ts_info *info)
+static inline int mlxsw_sp_ptp_get_ts_info_yesptp(struct ethtool_ts_info *info)
 {
 	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
 				SOF_TIMESTAMPING_SOFTWARE;
@@ -89,7 +89,7 @@ static inline void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 static inline void mlxsw_sp1_ptp_receive(struct mlxsw_sp *mlxsw_sp,
 					 struct sk_buff *skb, u8 local_port)
 {
-	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
+	mlxsw_sp_rx_listener_yes_mark_func(skb, local_port, mlxsw_sp);
 }
 
 static inline void mlxsw_sp1_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
@@ -127,7 +127,7 @@ static inline void mlxsw_sp1_ptp_shaper_work(struct work_struct *work)
 static inline int mlxsw_sp1_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 					    struct ethtool_ts_info *info)
 {
-	return mlxsw_sp_ptp_get_ts_info_noptp(info);
+	return mlxsw_sp_ptp_get_ts_info_yesptp(info);
 }
 
 static inline int mlxsw_sp1_get_stats_count(void)
@@ -168,7 +168,7 @@ static inline void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 static inline void mlxsw_sp2_ptp_receive(struct mlxsw_sp *mlxsw_sp,
 					 struct sk_buff *skb, u8 local_port)
 {
-	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
+	mlxsw_sp_rx_listener_yes_mark_func(skb, local_port, mlxsw_sp);
 }
 
 static inline void mlxsw_sp2_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
@@ -198,7 +198,7 @@ static inline void mlxsw_sp2_ptp_shaper_work(struct work_struct *work)
 static inline int mlxsw_sp2_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 					    struct ethtool_ts_info *info)
 {
-	return mlxsw_sp_ptp_get_ts_info_noptp(info);
+	return mlxsw_sp_ptp_get_ts_info_yesptp(info);
 }
 
 static inline int mlxsw_sp2_get_stats_count(void)

@@ -3,7 +3,7 @@
 // Renesas R-Car Gen1 SRU/SSI support
 //
 // Copyright (C) 2013 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 
 /*
  * #define DEBUG
@@ -469,7 +469,7 @@ int rsnd_gen_probe(struct rsnd_priv *priv)
 		ret = rsnd_gen2_probe(priv);
 
 	if (ret < 0)
-		dev_err(dev, "unknown generation R-Car sound device\n");
+		dev_err(dev, "unkyeswn generation R-Car sound device\n");
 
 	return ret;
 }

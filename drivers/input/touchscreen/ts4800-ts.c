@@ -109,27 +109,27 @@ static int ts4800_parse_dt(struct platform_device *pdev,
 			   struct ts4800_ts *ts)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *syscon_np;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *syscon_np;
 	u32 reg, bit;
 	int error;
 
 	syscon_np = of_parse_phandle(np, "syscon", 0);
 	if (!syscon_np) {
-		dev_err(dev, "no syscon property\n");
+		dev_err(dev, "yes syscon property\n");
 		return -ENODEV;
 	}
 
-	ts->regmap = syscon_node_to_regmap(syscon_np);
-	of_node_put(syscon_np);
+	ts->regmap = syscon_yesde_to_regmap(syscon_np);
+	of_yesde_put(syscon_np);
 	if (IS_ERR(ts->regmap)) {
-		dev_err(dev, "cannot get parent's regmap\n");
+		dev_err(dev, "canyest get parent's regmap\n");
 		return PTR_ERR(ts->regmap);
 	}
 
 	error = of_property_read_u32_index(np, "syscon", 1, &reg);
 	if (error < 0) {
-		dev_err(dev, "no offset in syscon\n");
+		dev_err(dev, "yes offset in syscon\n");
 		return error;
 	}
 
@@ -137,7 +137,7 @@ static int ts4800_parse_dt(struct platform_device *pdev,
 
 	error = of_property_read_u32_index(np, "syscon", 2, &bit);
 	if (error < 0) {
-		dev_err(dev, "no bit in syscon\n");
+		dev_err(dev, "yes bit in syscon\n");
 		return error;
 	}
 
@@ -203,7 +203,7 @@ static int ts4800_ts_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id ts4800_ts_of_match[] = {
-	{ .compatible = "technologic,ts4800-ts", },
+	{ .compatible = "techyeslogic,ts4800-ts", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ts4800_ts_of_match);

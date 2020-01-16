@@ -143,7 +143,7 @@ static inline const char *amic_micbias_str(enum amic_micbias micbias)
 	case AMIC_MICBIAS_VAMIC2:
 		return "VAMIC2";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -155,7 +155,7 @@ static inline const char *amic_type_str(enum amic_type type)
 	case AMIC_TYPE_SINGLE_ENDED:
 		return "SINGLE ENDED";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -205,13 +205,13 @@ static const char * const enum_ear_lineout_source[] = {"Headset Left",
 static SOC_ENUM_SINGLE_DECL(dapm_enum_ear_lineout_source, AB8500_DMICFILTCONF,
 			AB8500_DMICFILTCONF_DA3TOEAR, enum_ear_lineout_source);
 static const struct snd_kcontrol_new dapm_ear_lineout_source =
-	SOC_DAPM_ENUM("Earpiece or LineOut Mono Source",
+	SOC_DAPM_ENUM("Earpiece or LineOut Moyes Source",
 		dapm_enum_ear_lineout_source);
 
 /* LineOut */
 
 /* LineOut source selector */
-static const char * const enum_lineout_source[] = {"Mono Path", "Stereo Path"};
+static const char * const enum_lineout_source[] = {"Moyes Path", "Stereo Path"};
 static SOC_ENUM_DOUBLE_DECL(dapm_enum_lineout_source, AB8500_ANACONF5,
 			AB8500_ANACONF5_HSLDACTOLOL,
 			AB8500_ANACONF5_HSRDACTOLOR, enum_lineout_source);
@@ -388,7 +388,7 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 			AB8500_POWERUP, AB8500_POWERUP_ENANA, 0,
 			NULL, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	/* Main supply node */
+	/* Main supply yesde */
 	SND_SOC_DAPM_SUPPLY("Main Supply", SND_SOC_NOPM, 0, 0,
 			NULL, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
@@ -489,7 +489,7 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 
 	/* Earpiece path */
 
-	SND_SOC_DAPM_MUX("Earpiece or LineOut Mono Source",
+	SND_SOC_DAPM_MUX("Earpiece or LineOut Moyes Source",
 			SND_SOC_NOPM, 0, 0, &dapm_ear_lineout_source),
 	SND_SOC_DAPM_MIXER("EAR DAC",
 			AB8500_DAPATHCONF, AB8500_DAPATHCONF_ENDACEAR, 0,
@@ -831,12 +831,12 @@ static const struct snd_soc_dapm_route ab8500_dapm_routes[] = {
 
 	/* Earpiece path */
 
-	{"Earpiece or LineOut Mono Source", "Headset Left",
+	{"Earpiece or LineOut Moyes Source", "Headset Left",
 		"HSL Digital Volume"},
-	{"Earpiece or LineOut Mono Source", "Speaker Left",
+	{"Earpiece or LineOut Moyes Source", "Speaker Left",
 		"DA3 or ANC path to HfL"},
 
-	{"EAR DAC", NULL, "Earpiece or LineOut Mono Source"},
+	{"EAR DAC", NULL, "Earpiece or LineOut Moyes Source"},
 
 	{"EAR Mute", NULL, "EAR DAC"},
 
@@ -849,9 +849,9 @@ static const struct snd_soc_dapm_route ab8500_dapm_routes[] = {
 	{"LineOut Source", "Stereo Path", "HSL DAC Driver"},
 	{"LineOut Source", "Stereo Path", "HSR DAC Driver"},
 
-	/* LineOut path mono */
+	/* LineOut path moyes */
 
-	{"LineOut Source", "Mono Path", "EAR DAC"},
+	{"LineOut Source", "Moyes Path", "EAR DAC"},
 
 	/* LineOut path */
 
@@ -2021,7 +2021,7 @@ static int ab8500_audio_set_ear_cmv(struct snd_soc_component *component,
 		break;
 	default:
 		dev_err(component->dev,
-			"%s: Unknown earpiece CM-voltage (%d)!\n",
+			"%s: Unkyeswn earpiece CM-voltage (%d)!\n",
 			__func__, (int)ear_cmv);
 		return -EINVAL;
 	}
@@ -2182,20 +2182,20 @@ static int ab8500_codec_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-	case SND_SOC_DAIFMT_NB_NF: /* normal bit clock + frame */
+	case SND_SOC_DAIFMT_NB_NF: /* yesrmal bit clock + frame */
 		dev_dbg(dai->component->dev,
-			"%s: IF0: Normal bit clock, normal frame\n",
+			"%s: IF0: Normal bit clock, yesrmal frame\n",
 			__func__);
 		break;
-	case SND_SOC_DAIFMT_NB_IF: /* normal BCLK + inv FRM */
+	case SND_SOC_DAIFMT_NB_IF: /* yesrmal BCLK + inv FRM */
 		dev_dbg(dai->component->dev,
 			"%s: IF0: Normal bit clock, inverted frame\n",
 			__func__);
 		val |= BIT(AB8500_DIGIFCONF2_FSYNC0P);
 		break;
-	case SND_SOC_DAIFMT_IB_NF: /* invert BCLK + nor FRM */
+	case SND_SOC_DAIFMT_IB_NF: /* invert BCLK + yesr FRM */
 		dev_dbg(dai->component->dev,
-			"%s: IF0: Inverted bit clock, normal frame\n",
+			"%s: IF0: Inverted bit clock, yesrmal frame\n",
 			__func__);
 		val |= BIT(AB8500_DIGIFCONF2_BITCLK0P);
 		break;
@@ -2401,7 +2401,7 @@ static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 	}
 };
 
-static void ab8500_codec_of_probe(struct device *dev, struct device_node *np,
+static void ab8500_codec_of_probe(struct device *dev, struct device_yesde *np,
 				struct ab8500_codec_platform_data *codec)
 {
 	u32 value;
@@ -2416,7 +2416,7 @@ static void ab8500_codec_of_probe(struct device *dev, struct device_node *np,
 	else
 		codec->amics.mic2_type = AMIC_TYPE_DIFFERENTIAL;
 
-	/* Has a non-standard Vamic been requested? */
+	/* Has a yesn-standard Vamic been requested? */
 	if (of_property_read_bool(np, "stericsson,amic1a-bias-vamic2"))
 		codec->amics.mic1a_micbias = AMIC_MICBIAS_VAMIC2;
 	else
@@ -2460,7 +2460,7 @@ static int ab8500_codec_probe(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct device *dev = component->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(dev);
 	struct ab8500_codec_platform_data codec_pdata;
 	struct filter_control *fc;
@@ -2532,7 +2532,7 @@ static const struct snd_soc_component_driver ab8500_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int ab8500_codec_driver_probe(struct platform_device *pdev)

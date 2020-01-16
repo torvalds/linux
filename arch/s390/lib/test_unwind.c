@@ -36,7 +36,7 @@ static void print_backtrace(char *bt)
  * Calls unwind_for_each_frame(task, regs, sp) and verifies that the result
  * contains unwindme_func2 followed by unwindme_func1.
  */
-static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
+static yesinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 				unsigned long sp)
 {
 	int frame_count, prev_is_func2, seen_func2_func1;
@@ -87,7 +87,7 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 		ret = -EINVAL;
 	}
 	if (!seen_func2_func1) {
-		pr_err("unwindme_func2 and unwindme_func1 not found\n");
+		pr_err("unwindme_func2 and unwindme_func1 yest found\n");
 		ret = -EINVAL;
 	}
 	if (frame_count == max_frames) {
@@ -143,8 +143,8 @@ static int pgm_pre_handler(struct kprobe *p, struct pt_regs *regs)
 }
 #endif
 
-/* This function may or may not appear in the backtrace. */
-static noinline int unwindme_func4(struct unwindme *u)
+/* This function may or may yest appear in the backtrace. */
+static yesinline int unwindme_func4(struct unwindme *u)
 {
 	if (!(u->flags & UWM_CALLER))
 		u->sp = current_frame_address();
@@ -173,7 +173,7 @@ static noinline int unwindme_func4(struct unwindme *u)
 		 */
 		asm volatile(
 			"	mvcl	%%r1,%%r1\n"
-			"0:	nopr	%%r7\n"
+			"0:	yespr	%%r7\n"
 			EX_TABLE(0b, 0b)
 			:);
 
@@ -193,21 +193,21 @@ static noinline int unwindme_func4(struct unwindme *u)
 	}
 }
 
-/* This function may or may not appear in the backtrace. */
-static noinline int unwindme_func3(struct unwindme *u)
+/* This function may or may yest appear in the backtrace. */
+static yesinline int unwindme_func3(struct unwindme *u)
 {
 	u->sp = current_frame_address();
 	return unwindme_func4(u);
 }
 
 /* This function must appear in the backtrace. */
-static noinline int unwindme_func2(struct unwindme *u)
+static yesinline int unwindme_func2(struct unwindme *u)
 {
 	int rc;
 
 	if (u->flags & UWM_SWITCH_STACK) {
 		preempt_disable();
-		rc = CALL_ON_STACK(unwindme_func3, S390_lowcore.nodat_stack, 1, u);
+		rc = CALL_ON_STACK(unwindme_func3, S390_lowcore.yesdat_stack, 1, u);
 		preempt_enable();
 		return rc;
 	} else {
@@ -216,7 +216,7 @@ static noinline int unwindme_func2(struct unwindme *u)
 }
 
 /* This function must follow unwindme_func2 in the backtrace. */
-static noinline int unwindme_func1(void *u)
+static yesinline int unwindme_func1(void *u)
 {
 	return unwindme_func2((struct unwindme *)u);
 }

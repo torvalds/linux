@@ -110,7 +110,7 @@ static int lp_gpio_request(struct gpio_chip *chip, unsigned offset)
 		dev_err(&lg->pdev->dev, "gpio %d reserved for ACPI\n", offset);
 		return -EBUSY;
 	}
-	/* Fail if pin is in alternate function mode (not GPIO mode) */
+	/* Fail if pin is in alternate function mode (yest GPIO mode) */
 	if (!(inl(reg) & USE_SEL_BIT))
 		return -ENODEV;
 

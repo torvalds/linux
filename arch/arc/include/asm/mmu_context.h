@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * vineetg: May 2011
  *  -Refactored get_new_mmu_context( ) to only handle live-mm.
@@ -9,7 +9,7 @@
  * Vineetg: March 25th, 2008: Bug #92690
  *  -Major rewrite of Core ASID allocation routine get_new_mmu_context
  *
- * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
+ * Amit Bhor, Sameer Dhavale: Codito Techyeslogies 2004
  */
 
 #ifndef _ASM_ARC_MMU_CONTEXT_H
@@ -25,7 +25,7 @@
  *
  * ARC MMU provides 8-bit ASID (0..255) to TAG TLB entries, allowing entries
  * with same vaddr (different tasks) to co-exit. This provides for
- * "Fast Context Switch" i.e. no TLB flush on ctxt-switch
+ * "Fast Context Switch" i.e. yes TLB flush on ctxt-switch
  *
  * Linux assigns each task a unique ASID. A simple round-robin allocation
  * of H/w ASID is done using software tracker @asid_cpu.
@@ -63,7 +63,7 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 	local_irq_save(flags);
 
 	/*
-	 * Move to new ASID if it was not from current alloc-cycle/generation.
+	 * Move to new ASID if it was yest from current alloc-cycle/generation.
 	 * This is done by ensuring that the generation bits in both mm->ASID
 	 * and cpu's ASID counter are exactly same.
 	 *
@@ -82,8 +82,8 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 
 		/*
 		 * Above check for rollover of 8 bit ASID in 32 bit container.
-		 * If the container itself wrapped around, set it to a non zero
-		 * "generation" to distinguish from no context
+		 * If the container itself wrapped around, set it to a yesn zero
+		 * "generation" to distinguish from yes context
 		 */
 		if (!asid_cpu(cpu))
 			asid_cpu(cpu) = MM_CTXT_FIRST_CYCLE;
@@ -134,11 +134,11 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	/*
 	 * Note that the mm_cpumask is "aggregating" only, we don't clear it
 	 * for the switched-out task, unlike some other arches.
-	 * It is used to enlist cpus for sending TLB flush IPIs and not sending
+	 * It is used to enlist cpus for sending TLB flush IPIs and yest sending
 	 * it to CPUs where a task once ran-on, could cause stale TLB entry
 	 * re-use, specially for a multi-threaded task.
 	 * e.g. T1 runs on C1, migrates to C3. T2 running on C2 munmaps.
-	 *      For a non-aggregating mm_cpumask, IPI not sent C1, and if T1
+	 *      For a yesn-aggregating mm_cpumask, IPI yest sent C1, and if T1
 	 *      were to re-migrate to C1, it could access the unmapped region
 	 *      via any existing stale TLB entries.
 	 */

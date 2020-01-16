@@ -22,7 +22,7 @@ static void __hyp_text __activate_traps(struct kvm_vcpu *vcpu, u32 *fpexc_host)
 	/*
 	 * We are about to set HCPTR.TCP10/11 to trap all floating point
 	 * register accesses to HYP, however, the ARM ARM clearly states that
-	 * traps are only taken to HYP if the operation would not otherwise
+	 * traps are only taken to HYP if the operation would yest otherwise
 	 * trap to SVC.  Therefore, always make sure that for 32-bit guests,
 	 * we set FPEXC.EN to prevent traps to SVC, when setting the TCP bits.
 	 */
@@ -212,7 +212,7 @@ static const char * const __hyp_panic_string[] = {
 	[ARM_EXCEPTION_HVC]        = "\nHYP panic: HVC   PC:%08x CPSR:%08x",
 };
 
-void __hyp_text __noreturn __hyp_panic(int cause)
+void __hyp_text __yesreturn __hyp_panic(int cause)
 {
 	u32 elr = read_special(ELR_hyp);
 	u32 val;

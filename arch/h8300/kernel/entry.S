@@ -3,7 +3,7 @@
  *
  *  linux/arch/h8300/kernel/entry.S
  *
- *  Yoshinori Sato <ysato@users.sourceforge.jp>
+ *  Yoshiyesri Sato <ysato@users.sourceforge.jp>
  *  David McCullough <davidm@snapgear.com>
  *
  */
@@ -21,7 +21,7 @@
 #include <asm/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 #if defined(CONFIG_CPU_H8300H)
 #define USERRET 8
@@ -306,10 +306,10 @@ resume_userspace:
 work_pending:
 	btst	#TIF_NEED_RESCHED,r1l
 	bne	work_resched:8
-	/* work notifysig */
+	/* work yestifysig */
 	mov.l	sp,er0
 	subs	#4,er0			/* er0: pt_regs */
-	jsr	@do_notify_resume
+	jsr	@do_yestify_resume
 	bra	resume_userspace:8
 work_resched:
 	mov.l	sp,er0
@@ -352,9 +352,9 @@ _resume:
 	/*
 	 * Beware - when entering resume, offset of tss is in d1,
 	 * prev (the current task) is in a0, next (the new task)
-	 * is in a1 and d2.b is non-zero if the mm structure is
+	 * is in a1 and d2.b is yesn-zero if the mm structure is
 	 * shared between the tasks, so don't change these
-	 * registers until their contents are no longer needed.
+	 * registers until their contents are yes longer needed.
 	 */
 
 	/* save sr */
@@ -369,7 +369,7 @@ _resume:
 	mov.l	sp,@(THREAD_KSP:16,er0)
 
 	/* Skip address space switching if they are the same. */
-	/* FIXME: what did we hack out of here, this does nothing! */
+	/* FIXME: what did we hack out of here, this does yesthing! */
 
 	mov.l	@(THREAD_USP:16,er1),er0
 	mov.l	er0,@_sw_usp

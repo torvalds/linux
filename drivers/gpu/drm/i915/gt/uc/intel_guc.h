@@ -77,8 +77,8 @@ struct intel_guc {
 	/* GuC's FW specific event handler function */
 	void (*handler)(struct intel_guc *guc);
 
-	/* GuC's FW specific notify function */
-	void (*notify)(struct intel_guc *guc);
+	/* GuC's FW specific yestify function */
+	void (*yestify)(struct intel_guc *guc);
 };
 
 static
@@ -94,9 +94,9 @@ intel_guc_send_and_receive(struct intel_guc *guc, const u32 *action, u32 len,
 	return guc->send(guc, action, len, response_buf, response_buf_size);
 }
 
-static inline void intel_guc_notify(struct intel_guc *guc)
+static inline void intel_guc_yestify(struct intel_guc *guc)
 {
-	guc->notify(guc);
+	guc->yestify(guc);
 }
 
 static inline void intel_guc_to_host_event_handler(struct intel_guc *guc)
@@ -112,7 +112,7 @@ static inline void intel_guc_to_host_event_handler(struct intel_guc *guc)
  * @guc: intel_guc structure.
  * @vma: i915 graphics virtual memory area.
  *
- * GuC does not allow any gfx GGTT address that falls into range
+ * GuC does yest allow any gfx GGTT address that falls into range
  * [0, ggtt.pin_bias), which is reserved for Boot ROM, SRAM and WOPCM.
  * Currently, in order to exclude [0, ggtt.pin_bias) address space from
  * GGTT, all gfx objects used by GuC are allocated with intel_guc_allocate_vma()
@@ -136,12 +136,12 @@ void intel_guc_init_send_regs(struct intel_guc *guc);
 void intel_guc_write_params(struct intel_guc *guc);
 int intel_guc_init(struct intel_guc *guc);
 void intel_guc_fini(struct intel_guc *guc);
-int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
+int intel_guc_send_yesp(struct intel_guc *guc, const u32 *action, u32 len,
 		       u32 *response_buf, u32 response_buf_size);
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 			u32 *response_buf, u32 response_buf_size);
 void intel_guc_to_host_event_handler(struct intel_guc *guc);
-void intel_guc_to_host_event_handler_nop(struct intel_guc *guc);
+void intel_guc_to_host_event_handler_yesp(struct intel_guc *guc);
 int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
 				       const u32 *payload, u32 len);
 int intel_guc_sample_forcewake(struct intel_guc *guc);

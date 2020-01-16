@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -46,7 +46,7 @@
 #include <linux/slab.h>
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/qed_chain.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 enum dcbx_protocol_type {
 	DCBX_PROTOCOL_ISCSI,
@@ -371,10 +371,10 @@ struct qed_mfw_tlv_fcoe {
 	bool abort_task_sets_set;
 	u8 tx_tprlos;
 	bool tx_tprlos_set;
-	u8 tx_nos;
-	bool tx_nos_set;
-	u8 rx_nos;
-	bool rx_nos_set;
+	u8 tx_yess;
+	bool tx_yess_set;
+	u8 rx_yess;
+	bool rx_yess_set;
 	u8 ols;
 	bool ols_set;
 	u8 lr;
@@ -621,7 +621,7 @@ struct qed_dev_info {
 
 	/* FW version */
 	u16		fw_major;
-	u16		fw_minor;
+	u16		fw_miyesr;
 	u16		fw_rev;
 	u16		fw_eng;
 
@@ -771,7 +771,7 @@ struct qed_probe_params {
 struct qed_slowpath_params {
 	u32	int_mode;
 	u8	drv_major;
-	u8	drv_minor;
+	u8	drv_miyesr;
 	u8	drv_rev;
 	u8	drv_eng;
 	u8	name[QED_DRV_VER_STR_SIZE];
@@ -928,7 +928,7 @@ struct qed_common_ops {
 	int (*dbg_all_data_size) (struct qed_dev *cdev);
 
 /**
- * @brief can_link_change - can the instance change the link or not
+ * @brief can_link_change - can the instance change the link or yest
  *
  * @param cdev
  *
@@ -1051,7 +1051,7 @@ struct qed_common_ops {
 
 /**
  * @brief db_recovery_del - remove doorbell information from the doorbell
- * recovery mechanism. db_data serves as key (db_addr is not unique).
+ * recovery mechanism. db_data serves as key (db_addr is yest unique).
  *
  * @param cdev
  * @param db_addr - doorbell address
@@ -1189,7 +1189,7 @@ struct qed_common_ops {
 #define DP_NOTICE(cdev, fmt, ...)				      \
 	do {							      \
 		if (unlikely((cdev)->dp_level <= QED_LEVEL_NOTICE)) { \
-			pr_notice("[%s:%d(%s)]" fmt,		      \
+			pr_yestice("[%s:%d(%s)]" fmt,		      \
 				  __func__, __LINE__,		      \
 				  DP_NAME(cdev) ? DP_NAME(cdev) : "", \
 				  ## __VA_ARGS__);		      \
@@ -1200,7 +1200,7 @@ struct qed_common_ops {
 #define DP_INFO(cdev, fmt, ...)					      \
 	do {							      \
 		if (unlikely((cdev)->dp_level <= QED_LEVEL_INFO)) {   \
-			pr_notice("[%s:%d(%s)]" fmt,		      \
+			pr_yestice("[%s:%d(%s)]" fmt,		      \
 				  __func__, __LINE__,		      \
 				  DP_NAME(cdev) ? DP_NAME(cdev) : "", \
 				  ## __VA_ARGS__);		      \
@@ -1211,7 +1211,7 @@ struct qed_common_ops {
 	do {								\
 		if (unlikely(((cdev)->dp_level <= QED_LEVEL_VERBOSE) &&	\
 			     ((cdev)->dp_module & module))) {		\
-			pr_notice("[%s:%d(%s)]" fmt,			\
+			pr_yestice("[%s:%d(%s)]" fmt,			\
 				  __func__, __LINE__,			\
 				  DP_NAME(cdev) ? DP_NAME(cdev) : "",	\
 				  ## __VA_ARGS__);			\
@@ -1252,7 +1252,7 @@ enum qed_mf_mode {
 };
 
 struct qed_eth_stats_common {
-	u64	no_buff_discards;
+	u64	yes_buff_discards;
 	u64	packet_too_big_discard;
 	u64	ttl0_discard;
 	u64	rx_ucast_bytes;
@@ -1274,7 +1274,7 @@ struct qed_eth_stats_common {
 	u64	tpa_coalesced_pkts;
 	u64	tpa_coalesced_events;
 	u64	tpa_aborts_num;
-	u64	tpa_not_coalesced_pkts;
+	u64	tpa_yest_coalesced_pkts;
 	u64	tpa_coalesced_bytes;
 
 	/* port */

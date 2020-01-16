@@ -11,7 +11,7 @@
 #ifndef _ASM_MMU_CONTEXT_H
 #define _ASM_MMU_CONTEXT_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/smp.h>
@@ -166,7 +166,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	check_switch_mmu_context(next);
 
 	/*
-	 * Mark current->active_mm as not "active" anymore.
+	 * Mark current->active_mm as yest "active" anymore.
 	 * We don't want to mislead possible IPI tlb flush routines.
 	 */
 	cpumask_clear_cpu(cpu, mm_cpumask(prev));
@@ -202,7 +202,7 @@ drop_mmu_context(struct mm_struct *mm)
 	ctx = cpu_context(cpu, mm);
 
 	if (!ctx) {
-		/* no-op */
+		/* yes-op */
 	} else if (cpu_has_mmid) {
 		/*
 		 * Globally invalidating TLB entries associated with the MMID

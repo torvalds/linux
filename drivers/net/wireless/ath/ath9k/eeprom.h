@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -94,7 +94,7 @@
 #define POWER_CORRECTION_FOR_THREE_CHAIN	10 /* 10*log10(3)*2 */
 
 /*
- * For AR9285 and later chipsets, the following bits are not being programmed
+ * For AR9285 and later chipsets, the following bits are yest being programmed
  * in EEPROM and so need to be enabled always.
  *
  * Bit 0: en_fcc_mid
@@ -349,7 +349,7 @@ struct modal_eep_header {
 	u8 txEndToRxOn;
 	u8 txFrameToXpaOn;
 	u8 thresh62;
-	u8 noiseFloorThreshCh[AR5416_MAX_CHAINS];
+	u8 yesiseFloorThreshCh[AR5416_MAX_CHAINS];
 	u8 xpdGain;
 	u8 xpd;
 	u8 iqCalICh[AR5416_MAX_CHAINS];
@@ -399,7 +399,7 @@ struct modal_eep_4k_header {
 	u8 txEndToRxOn;
 	u8 txFrameToXpaOn;
 	u8 thresh62;
-	u8 noiseFloorThreshCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 yesiseFloorThreshCh[AR5416_EEP4K_MAX_CHAINS];
 	u8 xpdGain;
 	u8 xpd;
 	u8 iqCalICh[AR5416_EEP4K_MAX_CHAINS];
@@ -484,7 +484,7 @@ struct modal_eep_ar9287_header {
 	u8 txEndToRxOn;
 	u8 txFrameToXpaOn;
 	u8 thresh62;
-	int8_t noiseFloorThreshCh[AR9287_MAX_CHAINS];
+	int8_t yesiseFloorThreshCh[AR9287_MAX_CHAINS];
 	u8 xpdGain;
 	u8 xpd;
 	int8_t iqCalICh[AR9287_MAX_CHAINS];

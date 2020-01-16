@@ -39,7 +39,7 @@ static irqreturn_t meson_irq_handler(int irq, void *data)
 		}
 	}
 
-	dev_err(mc->dev, "%s %d from unknown irq\n", __func__, irq);
+	dev_err(mc->dev, "%s %d from unkyeswn irq\n", __func__, irq);
 	return IRQ_HANDLED;
 }
 
@@ -117,9 +117,9 @@ static int meson_dbgfs_read(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int meson_dbgfs_open(struct inode *inode, struct file *file)
+static int meson_dbgfs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, meson_dbgfs_read, inode->i_private);
+	return single_open(file, meson_dbgfs_read, iyesde->i_private);
 }
 
 static const struct file_operations meson_debugfs_fops = {
@@ -160,14 +160,14 @@ static int meson_allocate_chanlist(struct meson_dev *mc)
 
 		mc->chanlist[i].engine = crypto_engine_alloc_init(mc->dev, true);
 		if (!mc->chanlist[i].engine) {
-			dev_err(mc->dev, "Cannot allocate engine\n");
+			dev_err(mc->dev, "Canyest allocate engine\n");
 			i--;
 			err = -ENOMEM;
 			goto error_engine;
 		}
 		err = crypto_engine_start(mc->chanlist[i].engine);
 		if (err) {
-			dev_err(mc->dev, "Cannot start engine\n");
+			dev_err(mc->dev, "Canyest start engine\n");
 			goto error_engine;
 		}
 		mc->chanlist[i].tl = dma_alloc_coherent(mc->dev,
@@ -227,7 +227,7 @@ static int meson_crypto_probe(struct platform_device *pdev)
 	struct meson_dev *mc;
 	int err, i;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
@@ -240,13 +240,13 @@ static int meson_crypto_probe(struct platform_device *pdev)
 	mc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mc->base)) {
 		err = PTR_ERR(mc->base);
-		dev_err(&pdev->dev, "Cannot request MMIO err=%d\n", err);
+		dev_err(&pdev->dev, "Canyest request MMIO err=%d\n", err);
 		return err;
 	}
 	mc->busclk = devm_clk_get(&pdev->dev, "blkmv");
 	if (IS_ERR(mc->busclk)) {
 		err = PTR_ERR(mc->busclk);
-		dev_err(&pdev->dev, "Cannot get core clock err=%d\n", err);
+		dev_err(&pdev->dev, "Canyest get core clock err=%d\n", err);
 		return err;
 	}
 
@@ -254,21 +254,21 @@ static int meson_crypto_probe(struct platform_device *pdev)
 	for (i = 0; i < MAXFLOW; i++) {
 		mc->irqs[i] = platform_get_irq(pdev, i);
 		if (mc->irqs[i] < 0) {
-			dev_err(mc->dev, "Cannot get IRQ for flow %d\n", i);
+			dev_err(mc->dev, "Canyest get IRQ for flow %d\n", i);
 			return mc->irqs[i];
 		}
 
 		err = devm_request_irq(&pdev->dev, mc->irqs[i], meson_irq_handler, 0,
 				       "gxl-crypto", mc);
 		if (err < 0) {
-			dev_err(mc->dev, "Cannot request IRQ for flow %d\n", i);
+			dev_err(mc->dev, "Canyest request IRQ for flow %d\n", i);
 			return err;
 		}
 	}
 
 	err = clk_prepare_enable(mc->busclk);
 	if (err != 0) {
-		dev_err(&pdev->dev, "Cannot prepare_enable busclk\n");
+		dev_err(&pdev->dev, "Canyest prepare_enable busclk\n");
 		return err;
 	}
 

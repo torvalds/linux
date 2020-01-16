@@ -15,7 +15,7 @@ extern unsigned long page_offset_base;
 extern unsigned long vmalloc_base;
 extern unsigned long vmemmap_base;
 
-static inline unsigned long __phys_addr_nodebug(unsigned long x)
+static inline unsigned long __phys_addr_yesdebug(unsigned long x)
 {
 	unsigned long y = x - __START_KERNEL_map;
 
@@ -29,7 +29,7 @@ static inline unsigned long __phys_addr_nodebug(unsigned long x)
 extern unsigned long __phys_addr(unsigned long);
 extern unsigned long __phys_addr_symbol(unsigned long);
 #else
-#define __phys_addr(x)		__phys_addr_nodebug(x)
+#define __phys_addr(x)		__phys_addr_yesdebug(x)
 #define __phys_addr_symbol(x) \
 	((unsigned long)(x) - __START_KERNEL_map + phys_base)
 #endif

@@ -77,7 +77,7 @@ static int slirp_setup(char *str, char **mac_out, void *data)
 
 	str = split_if_spec(str, mac_out, NULL);
 
-	if (str == NULL) /* no command line given after MAC addr */
+	if (str == NULL) /* yes command line given after MAC addr */
 		return 1;
 
 	do {

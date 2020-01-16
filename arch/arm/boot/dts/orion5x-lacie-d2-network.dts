@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
- * Copyright (C) 2009 Simon Guinot <sguinot@lacie.com>
+ * Copyright (C) 2009 Simon Guiyest <sguiyest@lacie.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -100,7 +100,7 @@
 	devbus,keep-config;
 
 	/*
-	 * Currently the MTD code does not recognize the MX29LV400CBCT
+	 * Currently the MTD code does yest recognize the MX29LV400CBCT
 	 * as a bottom-type device. This could cause risks of
 	 * accidentally erasing critical flash sectors. We thus define
 	 * a single, write-protected partition covering the whole
@@ -158,7 +158,7 @@
 		compatible = "gmt,g762";
 		reg = <0x3e>;
 
-		/* Not enough HW info */
+		/* Not eyesugh HW info */
 		status = "disabled";
 	};
 

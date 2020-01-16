@@ -12,8 +12,8 @@
 #ifndef __CONFIG_DOT_H__
 #define __CONFIG_DOT_H__
 
-struct dlm_config_node {
-	int nodeid;
+struct dlm_config_yesde {
+	int yesdeid;
 	int weight;
 	int new;
 	uint32_t comm_seq;
@@ -42,10 +42,10 @@ extern struct dlm_config_info dlm_config;
 
 int dlm_config_init(void);
 void dlm_config_exit(void);
-int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
+int dlm_config_yesdes(char *lsname, struct dlm_config_yesde **yesdes_out,
 		     int *count_out);
-int dlm_comm_seq(int nodeid, uint32_t *seq);
-int dlm_our_nodeid(void);
+int dlm_comm_seq(int yesdeid, uint32_t *seq);
+int dlm_our_yesdeid(void);
 int dlm_our_addr(struct sockaddr_storage *addr, int num);
 
 #endif				/* __CONFIG_DOT_H__ */

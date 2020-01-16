@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -414,7 +414,7 @@ struct mlx5_ifc_ipsec_extended_cap_bits {
 	u8         reserved_0[0x12];
 	u8         v2_command[0x1];
 	u8         udp_encap[0x1];
-	u8         rx_no_trailer[0x1];
+	u8         rx_yes_trailer[0x1];
 	u8         ipv4_fragment[0x1];
 	u8         ipv6[0x1];
 	u8         esn[0x1];

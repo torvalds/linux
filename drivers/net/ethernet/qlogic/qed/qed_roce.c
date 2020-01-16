@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -34,7 +34,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -102,7 +102,7 @@ void qed_roce_stop(struct qed_hwfn *p_hwfn)
 	int wait_count = 0;
 
 	/* when destroying a_RoCE QP the control is returned to the user after
-	 * the synchronous part. The asynchronous part may take a little longer.
+	 * the synchroyesus part. The asynchroyesus part may take a little longer.
 	 * We delay for a short while if an async destroy QP is still expected.
 	 * Beyond the added delay we clear the bitmap anyway.
 	 */
@@ -264,7 +264,7 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 	if (!qp->irq) {
 		rc = -ENOMEM;
 		DP_NOTICE(p_hwfn,
-			  "qed create responder failed: cannot allocate memory (irq). rc = %d\n",
+			  "qed create responder failed: canyest allocate memory (irq). rc = %d\n",
 			  rc);
 		return rc;
 	}
@@ -405,7 +405,7 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 	if (!qp->orq) {
 		rc = -ENOMEM;
 		DP_NOTICE(p_hwfn,
-			  "qed create requester failed: cannot allocate memory (orq). rc = %d\n",
+			  "qed create requester failed: canyest allocate memory (orq). rc = %d\n",
 			  rc);
 		return rc;
 	}
@@ -743,7 +743,7 @@ static int qed_roce_sp_destroy_qp_responder(struct qed_hwfn *p_hwfn,
 	if (!p_ramrod_res) {
 		rc = -ENOMEM;
 		DP_NOTICE(p_hwfn,
-			  "qed destroy responder failed: cannot allocate memory (ramrod). rc = %d\n",
+			  "qed destroy responder failed: canyest allocate memory (ramrod). rc = %d\n",
 			  rc);
 		qed_sp_destroy_request(p_hwfn, p_ent);
 		return rc;
@@ -796,7 +796,7 @@ static int qed_roce_sp_destroy_qp_requester(struct qed_hwfn *p_hwfn,
 					  &ramrod_res_phys, GFP_KERNEL);
 	if (!p_ramrod_res) {
 		DP_NOTICE(p_hwfn,
-			  "qed destroy requester failed: cannot allocate memory (ramrod)\n");
+			  "qed destroy requester failed: canyest allocate memory (ramrod)\n");
 		return rc;
 	}
 
@@ -861,7 +861,7 @@ int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
 		out_params->sq_psn = qp->sq_psn;
 		out_params->state = qp->cur_state;
 
-		DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "No QPs as no offload\n");
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "No QPs as yes offload\n");
 		return 0;
 	}
 
@@ -878,7 +878,7 @@ int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
 			       &resp_ramrod_res_phys, GFP_KERNEL);
 	if (!p_resp_ramrod_res) {
 		DP_NOTICE(p_hwfn,
-			  "qed query qp failed: cannot allocate memory (ramrod)\n");
+			  "qed query qp failed: canyest allocate memory (ramrod)\n");
 		return rc;
 	}
 
@@ -928,7 +928,7 @@ int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
 	if (!p_req_ramrod_res) {
 		rc = -ENOMEM;
 		DP_NOTICE(p_hwfn,
-			  "qed query qp failed: cannot allocate memory (ramrod)\n");
+			  "qed query qp failed: canyest allocate memory (ramrod)\n");
 		return rc;
 	}
 
@@ -1138,7 +1138,7 @@ void qed_roce_dpm_dcbx(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	 * update. Otherwise enable it.
 	 */
 	val = qed_rdma_allocated_qps(p_hwfn) ? true : false;
-	p_hwfn->dcbx_no_edpm = (u8)val;
+	p_hwfn->dcbx_yes_edpm = (u8)val;
 
 	qed_rdma_dpm_conf(p_hwfn, p_ptt);
 }

@@ -8,7 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
@@ -487,7 +487,7 @@ static int wm9090_set_bias_level(struct snd_soc_component *component,
 
 		/* We keep VMID off during standby since the combination of
 		 * ground referenced outputs and class D speaker mean that
-		 * latency is not an issue.
+		 * latency is yest an issue.
 		 */
 		snd_soc_component_update_bits(component, WM9090_POWER_MANAGEMENT_1,
 				    WM9090_BIAS_ENA | WM9090_VMID_RES_MASK, 0);
@@ -544,7 +544,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm9090 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm9090_regmap = {
@@ -584,7 +584,7 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 		return ret;
 
 	if (reg != 0x9093) {
-		dev_err(&i2c->dev, "Device is not a WM9090, ID=%x\n", reg);
+		dev_err(&i2c->dev, "Device is yest a WM9090, ID=%x\n", reg);
 		return -ENODEV;
 	}
 

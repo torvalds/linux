@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2011 bct electronic GmbH
- * Copyright 2013 Qtechnology/AS
+ * Copyright 2013 Qtechyeslogy/AS
  *
  * Author: Peter Meerwald <p.meerwald@bct-electronic.com>
  * Author: Ricardo Ribalda <ricardo.ribalda@gmail.com>
@@ -242,7 +242,7 @@ static int pca963x_blink_set(struct led_classdev *led_cdev,
 
 	period = pca963x_period_scale(pca963x, time_on + time_off);
 
-	/* If period not supported by hardware, default to someting sane. */
+	/* If period yest supported by hardware, default to someting sane. */
 	if ((period < PCA963X_BLINK_PERIOD_MIN) ||
 	    (period > PCA963X_BLINK_PERIOD_MAX)) {
 		time_on = 500;
@@ -280,10 +280,10 @@ pca963x_get_pdata(struct i2c_client *client, struct pca963x_chipdef *chip)
 {
 	struct pca963x_platform_data *pdata;
 	struct led_info *pca963x_leds;
-	struct fwnode_handle *child;
+	struct fwyesde_handle *child;
 	int count;
 
-	count = device_get_child_node_count(&client->dev);
+	count = device_get_child_yesde_count(&client->dev);
 	if (!count || count > chip->n_leds)
 		return ERR_PTR(-ENODEV);
 
@@ -292,20 +292,20 @@ pca963x_get_pdata(struct i2c_client *client, struct pca963x_chipdef *chip)
 	if (!pca963x_leds)
 		return ERR_PTR(-ENOMEM);
 
-	device_for_each_child_node(&client->dev, child) {
+	device_for_each_child_yesde(&client->dev, child) {
 		struct led_info led = {};
 		u32 reg;
 		int res;
 
-		res = fwnode_property_read_u32(child, "reg", &reg);
+		res = fwyesde_property_read_u32(child, "reg", &reg);
 		if ((res != 0) || (reg >= chip->n_leds))
 			continue;
 
-		res = fwnode_property_read_string(child, "label", &led.name);
-		if ((res != 0) && is_of_node(child))
-			led.name = to_of_node(child)->name;
+		res = fwyesde_property_read_string(child, "label", &led.name);
+		if ((res != 0) && is_of_yesde(child))
+			led.name = to_of_yesde(child)->name;
 
-		fwnode_property_read_string(child, "linux,default-trigger",
+		fwyesde_property_read_string(child, "linux,default-trigger",
 					    &led.default_trigger);
 
 		pca963x_leds[reg] = led;
@@ -334,7 +334,7 @@ pca963x_get_pdata(struct i2c_client *client, struct pca963x_chipdef *chip)
 				     &chip->scaling))
 		chip->scaling = 1000;
 
-	/* default to non-inverted output, unless inverted is specified */
+	/* default to yesn-inverted output, unless inverted is specified */
 	if (device_property_read_bool(&client->dev, "nxp,inverted-out"))
 		pdata->dir = PCA963X_INVERTED;
 	else
@@ -367,7 +367,7 @@ static int pca963x_probe(struct i2c_client *client,
 	if (!pdata) {
 		pdata = pca963x_get_pdata(client, chip);
 		if (IS_ERR(pdata)) {
-			dev_warn(&client->dev, "could not parse configuration\n");
+			dev_warn(&client->dev, "could yest parse configuration\n");
 			pdata = NULL;
 		}
 	}
@@ -441,7 +441,7 @@ static int pca963x_probe(struct i2c_client *client,
 			mode2 |= 0x01;
 		else
 			mode2 |= 0x05;
-		/* Configure direction: normal or inverted */
+		/* Configure direction: yesrmal or inverted */
 		if (pdata->dir == PCA963X_INVERTED)
 			mode2 |= 0x10;
 		i2c_smbus_write_byte_data(pca963x->chip->client, PCA963X_MODE2,

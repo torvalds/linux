@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ9477 switch driver main logic
  *
- * Copyright (C) 2017-2019 Microchip Technology Inc.
+ * Copyright (C) 2017-2019 Microchip Techyeslogy Inc.
  */
 
 #include <linux/kernel.h>
@@ -273,7 +273,7 @@ static void ksz9477_freeze_mib(struct ksz_device *dev, int port, bool freeze)
 	mutex_lock(&p->mib.cnt_mutex);
 	ksz_pwrite32(dev, port, REG_PORT_MIB_CTRL_STAT__4, val);
 
-	/* used by MIB counter reading code to know freeze is enabled */
+	/* used by MIB counter reading code to kyesw freeze is enabled */
 	p->freeze = freeze;
 	mutex_unlock(&p->mib.cnt_mutex);
 }
@@ -313,7 +313,7 @@ static int ksz9477_phy_read16(struct dsa_switch *ds, int addr, int reg)
 	/* No real PHY after this. Simulate the PHY.
 	 * A fixed PHY can be setup in the device tree, but this function is
 	 * still called for that port during initialization.
-	 * For RGMII PHY there is no way to access it so the fixed PHY should
+	 * For RGMII PHY there is yes way to access it so the fixed PHY should
 	 * be used.  For SGMII PHY the supporting code will be added later.
 	 */
 	if (addr >= dev->phy_port_cnt) {
@@ -364,7 +364,7 @@ static int ksz9477_phy_write16(struct dsa_switch *ds, int addr, int reg,
 	if (addr >= dev->phy_port_cnt)
 		return 0;
 
-	/* No gigabit support.  Do not write to this register. */
+	/* No gigabit support.  Do yest write to this register. */
 	if (!(dev->features & GBIT_SUPPORT) && reg == MII_CTRL1000)
 		return 0;
 	ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
@@ -684,7 +684,7 @@ static int ksz9477_port_fdb_del(struct dsa_switch *ds, int port,
 		/* clear forwarding port */
 		alu_table[2] &= ~BIT(port);
 
-		/* if there is no port to forward, clear table */
+		/* if there is yes port to forward, clear table */
 		if ((alu_table[2] & ALU_V_PORT_MAP) == 0) {
 			alu_table[0] = 0;
 			alu_table[1] = 0;
@@ -832,7 +832,7 @@ static void ksz9477_port_mdb_add(struct dsa_switch *ds, int port,
 		}
 	}
 
-	/* no available entry */
+	/* yes available entry */
 	if (index == dev->num_statics)
 		goto exit;
 
@@ -902,7 +902,7 @@ static int ksz9477_port_mdb_del(struct dsa_switch *ds, int port,
 		}
 	}
 
-	/* no available entry */
+	/* yes available entry */
 	if (index == dev->num_statics)
 		goto exit;
 
@@ -980,11 +980,11 @@ static void ksz9477_phy_setup(struct ksz_device *dev, int port,
 	if (port >= dev->phy_port_cnt)
 		return;
 
-	/* The MAC actually cannot run in 1000 half-duplex mode. */
+	/* The MAC actually canyest run in 1000 half-duplex mode. */
 	phy_remove_link_mode(phy,
 			     ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 
-	/* PHY does not support gigabit. */
+	/* PHY does yest support gigabit. */
 	if (!(dev->features & GBIT_SUPPORT))
 		phy_remove_link_mode(phy,
 				     ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
@@ -1218,7 +1218,7 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	ksz_port_cfg(dev, port, P_PRIO_CTRL, PORT_802_1P_PRIO_ENABLE, true);
 
 	if (port < dev->phy_port_cnt) {
-		/* do not force flow control */
+		/* do yest force flow control */
 		ksz_port_cfg(dev, port, REG_PORT_CTRL_0,
 			     PORT_FORCE_TX_FLOW_CTRL | PORT_FORCE_RX_FLOW_CTRL,
 			     false);
@@ -1305,7 +1305,7 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 
 			/* Read from XMII register to determine host port
 			 * interface.  If set specifically in device tree
-			 * note the difference to help debugging.
+			 * yeste the difference to help debugging.
 			 */
 			interface = ksz9477_get_interface(dev, i);
 			if (!dev->interface)
@@ -1331,7 +1331,7 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 			continue;
 		p = &dev->ports[i];
 
-		/* Initialize to non-zero so that ksz_cfg_port_member() will
+		/* Initialize to yesn-zero so that ksz_cfg_port_member() will
 		 * be called.
 		 */
 		p->vid_member = (1 << i);
@@ -1343,7 +1343,7 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 		if (dev->chip_id == 0x00947700 && i == 6) {
 			p->sgmii = 1;
 
-			/* SGMII PHY detection code is not implemented yet. */
+			/* SGMII PHY detection code is yest implemented yet. */
 			p->phy = 0;
 		}
 	}
@@ -1369,7 +1369,7 @@ static int ksz9477_setup(struct dsa_switch *ds)
 	ksz9477_cfg32(dev, REG_SW_QM_CTRL__4, UNICAST_VLAN_BOUNDARY,
 		      true);
 
-	/* Do not work correctly with tail tagging. */
+	/* Do yest work correctly with tail tagging. */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_0, SW_CHECK_LENGTH, false);
 
 	/* accept packet up to 2000bytes */
@@ -1466,7 +1466,7 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 		/* Chip is from KSZ9893 design. */
 		dev->features |= IS_9893;
 
-		/* Chip does not support gigabit. */
+		/* Chip does yest support gigabit. */
 		if (data8 & SW_QW_ABLE)
 			dev->features &= ~GBIT_SUPPORT;
 		dev->mib_port_cnt = 3;
@@ -1475,12 +1475,12 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 		/* Chip uses new XMII register definitions. */
 		dev->features |= NEW_XMII;
 
-		/* Chip does not support gigabit. */
+		/* Chip does yest support gigabit. */
 		if (!(data8 & SW_GIGABIT_ABLE))
 			dev->features &= ~GBIT_SUPPORT;
 	}
 
-	/* Change chip id to known ones so it can be matched against them. */
+	/* Change chip id to kyeswn ones so it can be matched against them. */
 	id32 = (id_hi << 16) | (id_lo << 8);
 
 	dev->chip_id = id32;
@@ -1562,7 +1562,7 @@ static int ksz9477_switch_init(struct ksz_device *dev)
 		}
 	}
 
-	/* no switch found */
+	/* yes switch found */
 	if (!dev->port_cnt)
 		return -ENODEV;
 

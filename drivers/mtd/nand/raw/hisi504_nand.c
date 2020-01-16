@@ -2,7 +2,7 @@
 /*
  * Hisilicon NAND Flash controller driver
  *
- * Copyright © 2012-2014 HiSilicon Technologies Co., Ltd.
+ * Copyright © 2012-2014 HiSilicon Techyeslogies Co., Ltd.
  *              http://www.hisilicon.com
  *
  * Author: Zhou Wang <wangzhou.bry@gmail.com>
@@ -526,7 +526,7 @@ static int hisi_nand_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 
-	/* errors which can not be corrected by ECC */
+	/* errors which can yest be corrected by ECC */
 	if (host->irq_status & HINFC504_INTS_UE) {
 		mtd->ecc_stats.failed++;
 	} else if (host->irq_status & HINFC504_INTS_CE) {
@@ -590,7 +590,7 @@ static void hisi_nfc_host_init(struct hinfc_host *host)
 	host->cache_addr_value[1]	= ~0;
 	host->chipselect		= 0;
 
-	/* default page size: 2K, ecc_none. need modify */
+	/* default page size: 2K, ecc_yesne. need modify */
 	flag = HINFC504_CON_OP_MODE_NORMAL | HINFC504_CON_READY_BUSY_SEL
 		| ((0x001 & HINFC504_CON_PAGESIZE_MASK)
 			<< HINFC504_CON_PAGEISZE_SHIFT)
@@ -650,7 +650,7 @@ static int hisi_nfc_ecc_probe(struct hinfc_host *host)
 
 	if ((size == 1024) && ((strength != 8) && (strength != 16) &&
 				(strength != 24) && (strength != 40))) {
-		dev_err(dev, "ecc size and strength do not match\n");
+		dev_err(dev, "ecc size and strength do yest match\n");
 		return -EINVAL;
 	}
 
@@ -672,7 +672,7 @@ static int hisi_nfc_ecc_probe(struct hinfc_host *host)
 
 	/* TODO: add more ecc strength support */
 	default:
-		dev_err(dev, "not support strength: %d\n", chip->ecc.strength);
+		dev_err(dev, "yest support strength: %d\n", chip->ecc.strength);
 		return -EINVAL;
 	}
 
@@ -739,7 +739,7 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	struct nand_chip  *chip;
 	struct mtd_info   *mtd;
 	struct resource	  *res;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
@@ -770,15 +770,15 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	mtd->dev.parent         = &pdev->dev;
 
 	nand_set_controller_data(chip, host);
-	nand_set_flash_node(chip, np);
+	nand_set_flash_yesde(chip, np);
 	chip->legacy.cmdfunc	= hisi_nfc_cmdfunc;
 	chip->legacy.select_chip	= hisi_nfc_select_chip;
 	chip->legacy.read_byte	= hisi_nfc_read_byte;
 	chip->legacy.write_buf	= hisi_nfc_write_buf;
 	chip->legacy.read_buf	= hisi_nfc_read_buf;
 	chip->legacy.chip_delay	= HINFC504_CHIP_DELAY;
-	chip->legacy.set_features	= nand_get_set_features_notsupp;
-	chip->legacy.get_features	= nand_get_set_features_notsupp;
+	chip->legacy.set_features	= nand_get_set_features_yestsupp;
+	chip->legacy.get_features	= nand_get_set_features_yestsupp;
 
 	hisi_nfc_host_init(host);
 

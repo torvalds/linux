@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Synopsys DesignWare I2C adapter driver.
+ * Syyespsys DesignWare I2C adapter driver.
  *
  * Based on the TI DAVINCI I2C adapter driver.
  *
@@ -173,7 +173,7 @@
 
 /**
  * struct dw_i2c_dev - private i2c-designware data
- * @dev: driver model device node
+ * @dev: driver model device yesde
  * @base: IO registers pointer
  * @cmd_complete: tx completion indicator
  * @clk: input reference clock
@@ -194,7 +194,7 @@
  * @status: i2c master status, one of STATUS_*
  * @abort_source: copy of the TX_ABRT_SOURCE register
  * @irq: interrupt number for the i2c master
- * @adapter: i2c subsystem adapter node
+ * @adapter: i2c subsystem adapter yesde
  * @slave_cfg: configuration for the slave device
  * @tx_fifo_depth: depth of the hardware tx fifo
  * @rx_fifo_depth: depth of the hardware rx fifo
@@ -218,9 +218,9 @@
  * @mode: operation mode - DW_IC_MASTER or DW_IC_SLAVE
  * @suspended: set to true if the controller is suspended
  *
- * HCNT and LCNT parameters can be used if the platform knows more accurate
+ * HCNT and LCNT parameters can be used if the platform kyesws more accurate
  * values than the one computed based only on the input clock frequency.
- * Leave them to be %0 if not used.
+ * Leave them to be %0 if yest used.
  */
 struct dw_i2c_dev {
 	struct device		*dev;
@@ -295,7 +295,7 @@ unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev);
 int i2c_dw_prepare_clk(struct dw_i2c_dev *dev, bool prepare);
 int i2c_dw_acquire_lock(struct dw_i2c_dev *dev);
 void i2c_dw_release_lock(struct dw_i2c_dev *dev);
-int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev);
+int i2c_dw_wait_bus_yest_busy(struct dw_i2c_dev *dev);
 int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev);
 u32 i2c_dw_func(struct i2c_adapter *adap);
 void i2c_dw_disable(struct dw_i2c_dev *dev);
@@ -306,7 +306,7 @@ static inline void __i2c_dw_enable(struct dw_i2c_dev *dev)
 	dw_writel(dev, 1, DW_IC_ENABLE);
 }
 
-static inline void __i2c_dw_disable_nowait(struct dw_i2c_dev *dev)
+static inline void __i2c_dw_disable_yeswait(struct dw_i2c_dev *dev)
 {
 	dw_writel(dev, 0, DW_IC_ENABLE);
 }

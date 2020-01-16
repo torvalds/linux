@@ -15,12 +15,12 @@ that are accessed through memory-mapped registers.
 In order to support this and re-use the existing drivers as much as
 possible we decided to do following:
 
-  - Devices that have no bus connector resource are represented as
+  - Devices that have yes bus connector resource are represented as
     platform devices.
 
   - Devices behind real busses where there is a connector resource
     are represented as struct spi_device or struct i2c_device
-    (standard UARTs are not busses so there is no struct uart_device).
+    (standard UARTs are yest busses so there is yes struct uart_device).
 
 As both ACPI and Device Tree represent a tree of devices (and their
 resources) this implementation follows the Device Tree way as much as
@@ -30,18 +30,18 @@ The ACPI implementation enumerates devices behind busses (platform, SPI and
 I2C), creates the physical devices and binds them to their ACPI handle in
 the ACPI namespace.
 
-This means that when ACPI_HANDLE(dev) returns non-NULL the device was
+This means that when ACPI_HANDLE(dev) returns yesn-NULL the device was
 enumerated from ACPI namespace. This handle can be used to extract other
 device-specific configuration. There is an example of this below.
 
 Platform bus support
 ====================
 
-Since we are using platform devices to represent devices that are not
+Since we are using platform devices to represent devices that are yest
 connected to any physical bus we only need to implement a platform driver
 for the device and add supported ACPI IDs. If this same IP-block is used on
-some other non-ACPI platform, the driver might work out of the box or needs
-some minor changes.
+some other yesn-ACPI platform, the driver might work out of the box or needs
+some miyesr changes.
 
 Adding ACPI support for an existing driver should be pretty
 straightforward. Here is the simplest example::
@@ -75,10 +75,10 @@ dma_request_slave_channel() must register itself at the end of the probe
 function like this::
 
 	err = devm_acpi_dma_controller_register(dev, xlate_func, dw);
-	/* Handle the error if it's not a case of !CONFIG_ACPI */
+	/* Handle the error if it's yest a case of !CONFIG_ACPI */
 
 and implement custom xlate function if needed (usually acpi_dma_simple_xlate()
-is enough) which converts the FixedDMA resource provided by struct
+is eyesugh) which converts the FixedDMA resource provided by struct
 acpi_dma_spec into the corresponding DMA channel. A piece of code for that case
 could look like::
 
@@ -188,7 +188,7 @@ to at25 SPI eeprom driver (this is meant for the above ACPI snippet)::
 	};
 
 Note that this driver actually needs more information like page size of the
-eeprom etc. but at the time writing this there is no standard way of
+eeprom etc. but at the time writing this there is yes standard way of
 passing those. One idea is to return this in _DSM method like::
 
 	Device (EEP0)
@@ -353,7 +353,7 @@ we provide two ways:
   - The children share the parent ACPI handle.
   - The MFD cell can specify the ACPI id of the device.
 
-For the first case, the MFD drivers do not need to do anything. The
+For the first case, the MFD drivers do yest need to do anything. The
 resulting child platform device will have its ACPI_COMPANION() set to point
 to the parent device.
 
@@ -382,19 +382,19 @@ The Device Tree protocol uses device identification based on the "compatible"
 property whose value is a string or an array of strings recognized as device
 identifiers by drivers and the driver core.  The set of all those strings may be
 regarded as a device identification namespace analogous to the ACPI/PNP device
-ID namespace.  Consequently, in principle it should not be necessary to allocate
+ID namespace.  Consequently, in principle it should yest be necessary to allocate
 a new (and arguably redundant) ACPI/PNP device ID for a devices with an existing
 identification string in the Device Tree (DT) namespace, especially if that ID
-is only needed to indicate that a given device is compatible with another one,
+is only needed to indicate that a given device is compatible with ayesther one,
 presumably having a matching driver in the kernel already.
 
 In ACPI, the device identification object called _CID (Compatible ID) is used to
 list the IDs of devices the given one is compatible with, but those IDs must
 belong to one of the namespaces prescribed by the ACPI specification (see
-Section 6.1.2 of ACPI 6.0 for details) and the DT namespace is not one of them.
+Section 6.1.2 of ACPI 6.0 for details) and the DT namespace is yest one of them.
 Moreover, the specification mandates that either a _HID or an _ADR identification
 object be present for all ACPI objects representing devices (Section 6.1 of ACPI
-6.0).  For non-enumerable bus types that object must be _HID and its value must
+6.0).  For yesn-enumerable bus types that object must be _HID and its value must
 be a device ID from one of the namespaces prescribed by the specification too.
 
 The special DT namespace link device ID, PRP0001, provides a means to use the
@@ -403,8 +403,8 @@ requirements following from the ACPI specification at the same time.  Namely,
 if PRP0001 is returned by _HID, the ACPI subsystem will look for the
 "compatible" property in the device object's _DSD and will use the value of that
 property to identify the corresponding device in analogy with the original DT
-device identification algorithm.  If the "compatible" property is not present
-or its value is not valid, the device will not be enumerated by the ACPI
+device identification algorithm.  If the "compatible" property is yest present
+or its value is yest valid, the device will yest be enumerated by the ACPI
 subsystem.  Otherwise, it will be enumerated automatically as a platform device
 (except when an I2C or SPI link from the device to its parent is present, in
 which case the ACPI core will leave the device enumeration to the parent's

@@ -50,7 +50,7 @@ void save_fpu(struct task_struct *tsk)
 
 		     "fgetscr   fr63\n\t"
 		     "fst.s     %0, (32*8), fr63\n\t"
-		: /* no output */
+		: /* yes output */
 		: "r" (&tsk->thread.xstate->hardfpu)
 		: "memory");
 }
@@ -93,7 +93,7 @@ void restore_fpu(struct task_struct *tsk)
 		     "fputscr   fr63\n\t"
 
 		     "fld.p     %0, (31*8), fp62\n\t"
-		: /* no output */
+		: /* yes output */
 		: "r" (&tsk->thread.xstate->hardfpu)
 		: "memory");
 }

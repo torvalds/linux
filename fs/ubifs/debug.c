@@ -31,7 +31,7 @@ static const char *get_key_fmt(int fmt)
 	case UBIFS_SIMPLE_KEY_FMT:
 		return "simple";
 	default:
-		return "unknown/invalid format";
+		return "unkyeswn/invalid format";
 	}
 }
 
@@ -43,7 +43,7 @@ static const char *get_key_hash(int hash)
 	case UBIFS_KEY_HASH_TEST:
 		return "test";
 	default:
-		return "unknown/invalid name hash";
+		return "unkyeswn/invalid name hash";
 	}
 }
 
@@ -51,7 +51,7 @@ static const char *get_key_type(int type)
 {
 	switch (type) {
 	case UBIFS_INO_KEY:
-		return "inode";
+		return "iyesde";
 	case UBIFS_DENT_KEY:
 		return "direntry";
 	case UBIFS_XENT_KEY:
@@ -61,7 +61,7 @@ static const char *get_key_type(int type)
 	case UBIFS_TRUN_KEY:
 		return "truncate";
 	default:
-		return "unknown/invalid key";
+		return "unkyeswn/invalid key";
 	}
 }
 
@@ -83,7 +83,7 @@ static const char *get_dent_type(int type)
 	case UBIFS_ITYPE_SOCK:
 		return "socket";
 	default:
-		return "unknown/invalid type";
+		return "unkyeswn/invalid type";
 	}
 }
 
@@ -130,33 +130,33 @@ const char *dbg_ntype(int type)
 {
 	switch (type) {
 	case UBIFS_PAD_NODE:
-		return "padding node";
+		return "padding yesde";
 	case UBIFS_SB_NODE:
-		return "superblock node";
+		return "superblock yesde";
 	case UBIFS_MST_NODE:
-		return "master node";
+		return "master yesde";
 	case UBIFS_REF_NODE:
-		return "reference node";
+		return "reference yesde";
 	case UBIFS_INO_NODE:
-		return "inode node";
+		return "iyesde yesde";
 	case UBIFS_DENT_NODE:
-		return "direntry node";
+		return "direntry yesde";
 	case UBIFS_XENT_NODE:
-		return "xentry node";
+		return "xentry yesde";
 	case UBIFS_DATA_NODE:
-		return "data node";
+		return "data yesde";
 	case UBIFS_TRUN_NODE:
-		return "truncate node";
+		return "truncate yesde";
 	case UBIFS_IDX_NODE:
-		return "indexing node";
+		return "indexing yesde";
 	case UBIFS_CS_NODE:
-		return "commit start node";
+		return "commit start yesde";
 	case UBIFS_ORPH_NODE:
-		return "orphan node";
+		return "orphan yesde";
 	case UBIFS_AUTH_NODE:
-		return "auth node";
+		return "auth yesde";
 	default:
-		return "unknown node";
+		return "unkyeswn yesde";
 	}
 }
 
@@ -164,13 +164,13 @@ static const char *dbg_gtype(int type)
 {
 	switch (type) {
 	case UBIFS_NO_NODE_GROUP:
-		return "no node group";
+		return "yes yesde group";
 	case UBIFS_IN_NODE_GROUP:
-		return "in node group";
+		return "in yesde group";
 	case UBIFS_LAST_OF_NODE_GROUP:
-		return "last of node group";
+		return "last of yesde group";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -190,7 +190,7 @@ const char *dbg_cstate(int cmt_state)
 	case COMMIT_BROKEN:
 		return "broken commit";
 	default:
-		return "unknown commit state";
+		return "unkyeswn commit state";
 	}
 }
 
@@ -204,7 +204,7 @@ const char *dbg_jhead(int jhead)
 	case DATAHD:
 		return "2 (data)";
 	default:
-		return "unknown journal head";
+		return "unkyeswn journal head";
 	}
 }
 
@@ -212,8 +212,8 @@ static void dump_ch(const struct ubifs_ch *ch)
 {
 	pr_err("\tmagic          %#x\n", le32_to_cpu(ch->magic));
 	pr_err("\tcrc            %#x\n", le32_to_cpu(ch->crc));
-	pr_err("\tnode_type      %d (%s)\n", ch->node_type,
-	       dbg_ntype(ch->node_type));
+	pr_err("\tyesde_type      %d (%s)\n", ch->yesde_type,
+	       dbg_ntype(ch->yesde_type));
 	pr_err("\tgroup_type     %d (%s)\n", ch->group_type,
 	       dbg_gtype(ch->group_type));
 	pr_err("\tsqnum          %llu\n",
@@ -221,30 +221,30 @@ static void dump_ch(const struct ubifs_ch *ch)
 	pr_err("\tlen            %u\n", le32_to_cpu(ch->len));
 }
 
-void ubifs_dump_inode(struct ubifs_info *c, const struct inode *inode)
+void ubifs_dump_iyesde(struct ubifs_info *c, const struct iyesde *iyesde)
 {
-	const struct ubifs_inode *ui = ubifs_inode(inode);
+	const struct ubifs_iyesde *ui = ubifs_iyesde(iyesde);
 	struct fscrypt_name nm = {0};
 	union ubifs_key key;
-	struct ubifs_dent_node *dent, *pdent = NULL;
+	struct ubifs_dent_yesde *dent, *pdent = NULL;
 	int count = 2;
 
-	pr_err("Dump in-memory inode:");
-	pr_err("\tinode          %lu\n", inode->i_ino);
+	pr_err("Dump in-memory iyesde:");
+	pr_err("\tiyesde          %lu\n", iyesde->i_iyes);
 	pr_err("\tsize           %llu\n",
-	       (unsigned long long)i_size_read(inode));
-	pr_err("\tnlink          %u\n", inode->i_nlink);
-	pr_err("\tuid            %u\n", (unsigned int)i_uid_read(inode));
-	pr_err("\tgid            %u\n", (unsigned int)i_gid_read(inode));
+	       (unsigned long long)i_size_read(iyesde));
+	pr_err("\tnlink          %u\n", iyesde->i_nlink);
+	pr_err("\tuid            %u\n", (unsigned int)i_uid_read(iyesde));
+	pr_err("\tgid            %u\n", (unsigned int)i_gid_read(iyesde));
 	pr_err("\tatime          %u.%u\n",
-	       (unsigned int)inode->i_atime.tv_sec,
-	       (unsigned int)inode->i_atime.tv_nsec);
+	       (unsigned int)iyesde->i_atime.tv_sec,
+	       (unsigned int)iyesde->i_atime.tv_nsec);
 	pr_err("\tmtime          %u.%u\n",
-	       (unsigned int)inode->i_mtime.tv_sec,
-	       (unsigned int)inode->i_mtime.tv_nsec);
+	       (unsigned int)iyesde->i_mtime.tv_sec,
+	       (unsigned int)iyesde->i_mtime.tv_nsec);
 	pr_err("\tctime          %u.%u\n",
-	       (unsigned int)inode->i_ctime.tv_sec,
-	       (unsigned int)inode->i_ctime.tv_nsec);
+	       (unsigned int)iyesde->i_ctime.tv_sec,
+	       (unsigned int)iyesde->i_ctime.tv_nsec);
 	pr_err("\tcreat_sqnum    %llu\n", ui->creat_sqnum);
 	pr_err("\txattr_size     %u\n", ui->xattr_size);
 	pr_err("\txattr_cnt      %u\n", ui->xattr_cnt);
@@ -262,13 +262,13 @@ void ubifs_dump_inode(struct ubifs_info *c, const struct inode *inode)
 	pr_err("\tread_in_a_row  %lu\n", ui->read_in_a_row);
 	pr_err("\tdata_len       %d\n", ui->data_len);
 
-	if (!S_ISDIR(inode->i_mode))
+	if (!S_ISDIR(iyesde->i_mode))
 		return;
 
 	pr_err("List of directory entries:\n");
 	ubifs_assert(c, !mutex_is_locked(&c->tnc_mutex));
 
-	lowest_dent_key(c, &key, inode->i_ino);
+	lowest_dent_key(c, &key, iyesde->i_iyes);
 	while (1) {
 		dent = ubifs_tnc_next_ent(c, &key, &nm);
 		if (IS_ERR(dent)) {
@@ -277,7 +277,7 @@ void ubifs_dump_inode(struct ubifs_info *c, const struct inode *inode)
 			break;
 		}
 
-		pr_err("\t%d: inode %llu, type %s, len %d\n",
+		pr_err("\t%d: iyesde %llu, type %s, len %d\n",
 		       count++, (unsigned long long) le64_to_cpu(dent->inum),
 		       get_dent_type(dent->type),
 		       le16_to_cpu(dent->nlen));
@@ -291,35 +291,35 @@ void ubifs_dump_inode(struct ubifs_info *c, const struct inode *inode)
 	kfree(pdent);
 }
 
-void ubifs_dump_node(const struct ubifs_info *c, const void *node)
+void ubifs_dump_yesde(const struct ubifs_info *c, const void *yesde)
 {
 	int i, n;
 	union ubifs_key key;
-	const struct ubifs_ch *ch = node;
+	const struct ubifs_ch *ch = yesde;
 	char key_buf[DBG_KEY_BUF_LEN];
 
 	/* If the magic is incorrect, just hexdump the first bytes */
 	if (le32_to_cpu(ch->magic) != UBIFS_NODE_MAGIC) {
-		pr_err("Not a node, first %zu bytes:", UBIFS_CH_SZ);
+		pr_err("Not a yesde, first %zu bytes:", UBIFS_CH_SZ);
 		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 32, 1,
-			       (void *)node, UBIFS_CH_SZ, 1);
+			       (void *)yesde, UBIFS_CH_SZ, 1);
 		return;
 	}
 
 	spin_lock(&dbg_lock);
-	dump_ch(node);
+	dump_ch(yesde);
 
-	switch (ch->node_type) {
+	switch (ch->yesde_type) {
 	case UBIFS_PAD_NODE:
 	{
-		const struct ubifs_pad_node *pad = node;
+		const struct ubifs_pad_yesde *pad = yesde;
 
 		pr_err("\tpad_len        %u\n", le32_to_cpu(pad->pad_len));
 		break;
 	}
 	case UBIFS_SB_NODE:
 	{
-		const struct ubifs_sb_node *sup = node;
+		const struct ubifs_sb_yesde *sup = yesde;
 		unsigned int sup_flags = le32_to_cpu(sup->flags);
 
 		pr_err("\tkey_hash       %d (%s)\n",
@@ -341,7 +341,7 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 		pr_err("\tlpt_lebs       %u\n", le32_to_cpu(sup->lpt_lebs));
 		pr_err("\torph_lebs      %u\n", le32_to_cpu(sup->orph_lebs));
 		pr_err("\tjhead_cnt      %u\n", le32_to_cpu(sup->jhead_cnt));
-		pr_err("\tfanout         %u\n", le32_to_cpu(sup->fanout));
+		pr_err("\tfayesut         %u\n", le32_to_cpu(sup->fayesut));
 		pr_err("\tlsave_cnt      %u\n", le32_to_cpu(sup->lsave_cnt));
 		pr_err("\tdefault_compr  %u\n",
 		       (int)le16_to_cpu(sup->default_compr));
@@ -356,12 +356,12 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 	}
 	case UBIFS_MST_NODE:
 	{
-		const struct ubifs_mst_node *mst = node;
+		const struct ubifs_mst_yesde *mst = yesde;
 
 		pr_err("\thighest_inum   %llu\n",
 		       (unsigned long long)le64_to_cpu(mst->highest_inum));
 		pr_err("\tcommit number  %llu\n",
-		       (unsigned long long)le64_to_cpu(mst->cmt_no));
+		       (unsigned long long)le64_to_cpu(mst->cmt_yes));
 		pr_err("\tflags          %#x\n", le32_to_cpu(mst->flags));
 		pr_err("\tlog_lnum       %u\n", le32_to_cpu(mst->log_lnum));
 		pr_err("\troot_lnum      %u\n", le32_to_cpu(mst->root_lnum));
@@ -398,7 +398,7 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 	}
 	case UBIFS_REF_NODE:
 	{
-		const struct ubifs_ref_node *ref = node;
+		const struct ubifs_ref_yesde *ref = yesde;
 
 		pr_err("\tlnum           %u\n", le32_to_cpu(ref->lnum));
 		pr_err("\toffs           %u\n", le32_to_cpu(ref->offs));
@@ -407,41 +407,41 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 	}
 	case UBIFS_INO_NODE:
 	{
-		const struct ubifs_ino_node *ino = node;
+		const struct ubifs_iyes_yesde *iyes = yesde;
 
-		key_read(c, &ino->key, &key);
+		key_read(c, &iyes->key, &key);
 		pr_err("\tkey            %s\n",
 		       dbg_snprintf_key(c, &key, key_buf, DBG_KEY_BUF_LEN));
 		pr_err("\tcreat_sqnum    %llu\n",
-		       (unsigned long long)le64_to_cpu(ino->creat_sqnum));
+		       (unsigned long long)le64_to_cpu(iyes->creat_sqnum));
 		pr_err("\tsize           %llu\n",
-		       (unsigned long long)le64_to_cpu(ino->size));
-		pr_err("\tnlink          %u\n", le32_to_cpu(ino->nlink));
+		       (unsigned long long)le64_to_cpu(iyes->size));
+		pr_err("\tnlink          %u\n", le32_to_cpu(iyes->nlink));
 		pr_err("\tatime          %lld.%u\n",
-		       (long long)le64_to_cpu(ino->atime_sec),
-		       le32_to_cpu(ino->atime_nsec));
+		       (long long)le64_to_cpu(iyes->atime_sec),
+		       le32_to_cpu(iyes->atime_nsec));
 		pr_err("\tmtime          %lld.%u\n",
-		       (long long)le64_to_cpu(ino->mtime_sec),
-		       le32_to_cpu(ino->mtime_nsec));
+		       (long long)le64_to_cpu(iyes->mtime_sec),
+		       le32_to_cpu(iyes->mtime_nsec));
 		pr_err("\tctime          %lld.%u\n",
-		       (long long)le64_to_cpu(ino->ctime_sec),
-		       le32_to_cpu(ino->ctime_nsec));
-		pr_err("\tuid            %u\n", le32_to_cpu(ino->uid));
-		pr_err("\tgid            %u\n", le32_to_cpu(ino->gid));
-		pr_err("\tmode           %u\n", le32_to_cpu(ino->mode));
-		pr_err("\tflags          %#x\n", le32_to_cpu(ino->flags));
-		pr_err("\txattr_cnt      %u\n", le32_to_cpu(ino->xattr_cnt));
-		pr_err("\txattr_size     %u\n", le32_to_cpu(ino->xattr_size));
-		pr_err("\txattr_names    %u\n", le32_to_cpu(ino->xattr_names));
+		       (long long)le64_to_cpu(iyes->ctime_sec),
+		       le32_to_cpu(iyes->ctime_nsec));
+		pr_err("\tuid            %u\n", le32_to_cpu(iyes->uid));
+		pr_err("\tgid            %u\n", le32_to_cpu(iyes->gid));
+		pr_err("\tmode           %u\n", le32_to_cpu(iyes->mode));
+		pr_err("\tflags          %#x\n", le32_to_cpu(iyes->flags));
+		pr_err("\txattr_cnt      %u\n", le32_to_cpu(iyes->xattr_cnt));
+		pr_err("\txattr_size     %u\n", le32_to_cpu(iyes->xattr_size));
+		pr_err("\txattr_names    %u\n", le32_to_cpu(iyes->xattr_names));
 		pr_err("\tcompr_type     %#x\n",
-		       (int)le16_to_cpu(ino->compr_type));
-		pr_err("\tdata len       %u\n", le32_to_cpu(ino->data_len));
+		       (int)le16_to_cpu(iyes->compr_type));
+		pr_err("\tdata len       %u\n", le32_to_cpu(iyes->data_len));
 		break;
 	}
 	case UBIFS_DENT_NODE:
 	case UBIFS_XENT_NODE:
 	{
-		const struct ubifs_dent_node *dent = node;
+		const struct ubifs_dent_yesde *dent = yesde;
 		int nlen = le16_to_cpu(dent->nlen);
 
 		key_read(c, &dent->key, &key);
@@ -454,7 +454,7 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 		pr_err("\tname           ");
 
 		if (nlen > UBIFS_MAX_NLEN)
-			pr_err("(bad name length, not printing, bad or corrupted node)");
+			pr_err("(bad name length, yest printing, bad or corrupted yesde)");
 		else {
 			for (i = 0; i < nlen && dent->name[i]; i++)
 				pr_cont("%c", isprint(dent->name[i]) ?
@@ -466,7 +466,7 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 	}
 	case UBIFS_DATA_NODE:
 	{
-		const struct ubifs_data_node *dn = node;
+		const struct ubifs_data_yesde *dn = yesde;
 		int dlen = le32_to_cpu(ch->len) - UBIFS_DATA_NODE_SZ;
 
 		key_read(c, &dn->key, &key);
@@ -483,7 +483,7 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 	}
 	case UBIFS_TRUN_NODE:
 	{
-		const struct ubifs_trun_node *trun = node;
+		const struct ubifs_trun_yesde *trun = yesde;
 
 		pr_err("\tinum           %u\n", le32_to_cpu(trun->inum));
 		pr_err("\told_size       %llu\n",
@@ -494,14 +494,14 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 	}
 	case UBIFS_IDX_NODE:
 	{
-		const struct ubifs_idx_node *idx = node;
+		const struct ubifs_idx_yesde *idx = yesde;
 
 		n = le16_to_cpu(idx->child_cnt);
 		pr_err("\tchild_cnt      %d\n", n);
 		pr_err("\tlevel          %d\n", (int)le16_to_cpu(idx->level));
 		pr_err("\tBranches:\n");
 
-		for (i = 0; i < n && i < c->fanout - 1; i++) {
+		for (i = 0; i < n && i < c->fayesut - 1; i++) {
 			const struct ubifs_branch *br;
 
 			br = ubifs_idx_branch(c, idx, i);
@@ -518,18 +518,18 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 		break;
 	case UBIFS_ORPH_NODE:
 	{
-		const struct ubifs_orph_node *orph = node;
+		const struct ubifs_orph_yesde *orph = yesde;
 
 		pr_err("\tcommit number  %llu\n",
 		       (unsigned long long)
-				le64_to_cpu(orph->cmt_no) & LLONG_MAX);
-		pr_err("\tlast node flag %llu\n",
-		       (unsigned long long)(le64_to_cpu(orph->cmt_no)) >> 63);
+				le64_to_cpu(orph->cmt_yes) & LLONG_MAX);
+		pr_err("\tlast yesde flag %llu\n",
+		       (unsigned long long)(le64_to_cpu(orph->cmt_yes)) >> 63);
 		n = (le32_to_cpu(ch->len) - UBIFS_ORPH_NODE_SZ) >> 3;
-		pr_err("\t%d orphan inode numbers:\n", n);
+		pr_err("\t%d orphan iyesde numbers:\n", n);
 		for (i = 0; i < n; i++)
-			pr_err("\t  ino %llu\n",
-			       (unsigned long long)le64_to_cpu(orph->inos[i]));
+			pr_err("\t  iyes %llu\n",
+			       (unsigned long long)le64_to_cpu(orph->iyess[i]));
 		break;
 	}
 	case UBIFS_AUTH_NODE:
@@ -537,8 +537,8 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 		break;
 	}
 	default:
-		pr_err("node type %d was not recognized\n",
-		       (int)ch->node_type);
+		pr_err("yesde type %d was yest recognized\n",
+		       (int)ch->yesde_type);
 	}
 	spin_unlock(&dbg_lock);
 }
@@ -546,10 +546,10 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 void ubifs_dump_budget_req(const struct ubifs_budget_req *req)
 {
 	spin_lock(&dbg_lock);
-	pr_err("Budgeting request: new_ino %d, dirtied_ino %d\n",
-	       req->new_ino, req->dirtied_ino);
-	pr_err("\tnew_ino_d   %d, dirtied_ino_d %d\n",
-	       req->new_ino_d, req->dirtied_ino_d);
+	pr_err("Budgeting request: new_iyes %d, dirtied_iyes %d\n",
+	       req->new_iyes, req->dirtied_iyes);
+	pr_err("\tnew_iyes_d   %d, dirtied_iyes_d %d\n",
+	       req->new_iyes_d, req->dirtied_iyes_d);
 	pr_err("\tnew_page    %d, dirtied_page %d\n",
 	       req->new_page, req->dirtied_page);
 	pr_err("\tnew_dent    %d, mod_dent     %d\n",
@@ -575,7 +575,7 @@ void ubifs_dump_lstats(const struct ubifs_lp_stats *lst)
 void ubifs_dump_budg(struct ubifs_info *c, const struct ubifs_budg_info *bi)
 {
 	int i;
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 	struct ubifs_bud *bud;
 	struct ubifs_gced_idx_leb *idx_gc;
 	long long available, outstanding, free;
@@ -589,16 +589,16 @@ void ubifs_dump_budg(struct ubifs_info *c, const struct ubifs_budg_info *bi)
 	       bi->data_growth, bi->dd_growth, bi->idx_growth);
 	pr_err("\tmin_idx_lebs %d, old_idx_sz %llu, uncommitted_idx %lld\n",
 	       bi->min_idx_lebs, bi->old_idx_sz, bi->uncommitted_idx);
-	pr_err("\tpage_budget %d, inode_budget %d, dent_budget %d\n",
-	       bi->page_budget, bi->inode_budget, bi->dent_budget);
-	pr_err("\tnospace %u, nospace_rp %u\n", bi->nospace, bi->nospace_rp);
-	pr_err("\tdark_wm %d, dead_wm %d, max_idx_node_sz %d\n",
-	       c->dark_wm, c->dead_wm, c->max_idx_node_sz);
+	pr_err("\tpage_budget %d, iyesde_budget %d, dent_budget %d\n",
+	       bi->page_budget, bi->iyesde_budget, bi->dent_budget);
+	pr_err("\tyesspace %u, yesspace_rp %u\n", bi->yesspace, bi->yesspace_rp);
+	pr_err("\tdark_wm %d, dead_wm %d, max_idx_yesde_sz %d\n",
+	       c->dark_wm, c->dead_wm, c->max_idx_yesde_sz);
 
 	if (bi != &c->bi)
 		/*
-		 * If we are dumping saved budgeting data, do not print
-		 * additional information which is about the current state, not
+		 * If we are dumping saved budgeting data, do yest print
+		 * additional information which is about the current state, yest
 		 * the old one which corresponded to the saved budgeting data.
 		 */
 		goto out_unlock;
@@ -611,7 +611,7 @@ void ubifs_dump_budg(struct ubifs_info *c, const struct ubifs_budg_info *bi)
 	       atomic_long_read(&c->clean_zn_cnt));
 	pr_err("\tgc_lnum %d, ihead_lnum %d\n", c->gc_lnum, c->ihead_lnum);
 
-	/* If we are in R/O mode, journal heads do not exist */
+	/* If we are in R/O mode, journal heads do yest exist */
 	if (c->jheads)
 		for (i = 0; i < c->jhead_cnt; i++)
 			pr_err("\tjhead %s\t LEB %d\n",
@@ -631,7 +631,7 @@ void ubifs_dump_budg(struct ubifs_info *c, const struct ubifs_budg_info *bi)
 	/* Print budgeting predictions */
 	available = ubifs_calc_available(c, c->bi.min_idx_lebs);
 	outstanding = c->bi.data_growth + c->bi.dd_growth;
-	free = ubifs_get_free_space_nolock(c);
+	free = ubifs_get_free_space_yeslock(c);
 	pr_err("Budgeting predictions:\n");
 	pr_err("\tavailable: %lld, outstanding %lld, free %lld\n",
 	       available, outstanding, free);
@@ -643,7 +643,7 @@ out_unlock:
 void ubifs_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp)
 {
 	int i, spc, dark = 0, dead = 0;
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 	struct ubifs_bud *bud;
 
 	spc = lp->free + lp->dirty;
@@ -657,7 +657,7 @@ void ubifs_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp)
 		       lp->lnum, lp->free, lp->dirty, c->leb_size - spc, spc,
 		       lp->flags);
 	else
-		pr_err("LEB %-7d free %-8d dirty %-8d used %-8d free + dirty %-8d dark %-4d dead %-4d nodes fit %-3d flags %#-4x (",
+		pr_err("LEB %-7d free %-8d dirty %-8d used %-8d free + dirty %-8d dark %-4d dead %-4d yesdes fit %-3d flags %#-4x (",
 		       lp->lnum, lp->free, lp->dirty, c->leb_size - spc, spc,
 		       dark, dead, (int)(spc / UBIFS_MAX_NODE_SZ), lp->flags);
 
@@ -683,7 +683,7 @@ void ubifs_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp)
 		} else {
 			switch (lp->flags & LPROPS_CAT_MASK) {
 			case LPROPS_UNCAT:
-				s = "not categorized";
+				s = "yest categorized";
 				break;
 			case LPROPS_DIRTY:
 				s = "dirty";
@@ -713,7 +713,7 @@ void ubifs_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp)
 				/*
 				 * Note, if we are in R/O mode or in the middle
 				 * of mounting/re-mounting, the write-buffers do
-				 * not exist.
+				 * yest exist.
 				 */
 				if (c->jheads &&
 				    lp->lnum == c->jheads[i].wbuf.lnum) {
@@ -744,7 +744,7 @@ void ubifs_dump_lprops(struct ubifs_info *c)
 	for (lnum = c->main_first; lnum < c->leb_cnt; lnum++) {
 		err = ubifs_read_one_lp(c, lnum, &lp);
 		if (err) {
-			ubifs_err(c, "cannot read lprops for LEB %d", lnum);
+			ubifs_err(c, "canyest read lprops for LEB %d", lnum);
 			continue;
 		}
 
@@ -760,14 +760,14 @@ void ubifs_dump_lpt_info(struct ubifs_info *c)
 	spin_lock(&dbg_lock);
 	pr_err("(pid %d) dumping LPT information\n", current->pid);
 	pr_err("\tlpt_sz:        %lld\n", c->lpt_sz);
-	pr_err("\tpnode_sz:      %d\n", c->pnode_sz);
-	pr_err("\tnnode_sz:      %d\n", c->nnode_sz);
+	pr_err("\tpyesde_sz:      %d\n", c->pyesde_sz);
+	pr_err("\tnyesde_sz:      %d\n", c->nyesde_sz);
 	pr_err("\tltab_sz:       %d\n", c->ltab_sz);
 	pr_err("\tlsave_sz:      %d\n", c->lsave_sz);
 	pr_err("\tbig_lpt:       %d\n", c->big_lpt);
 	pr_err("\tlpt_hght:      %d\n", c->lpt_hght);
-	pr_err("\tpnode_cnt:     %d\n", c->pnode_cnt);
-	pr_err("\tnnode_cnt:     %d\n", c->nnode_cnt);
+	pr_err("\tpyesde_cnt:     %d\n", c->pyesde_cnt);
+	pr_err("\tnyesde_cnt:     %d\n", c->nyesde_cnt);
 	pr_err("\tdirty_pn_cnt:  %d\n", c->dirty_pn_cnt);
 	pr_err("\tdirty_nn_cnt:  %d\n", c->dirty_nn_cnt);
 	pr_err("\tlsave_cnt:     %d\n", c->lsave_cnt);
@@ -794,30 +794,30 @@ void ubifs_dump_lpt_info(struct ubifs_info *c)
 void ubifs_dump_sleb(const struct ubifs_info *c,
 		     const struct ubifs_scan_leb *sleb, int offs)
 {
-	struct ubifs_scan_node *snod;
+	struct ubifs_scan_yesde *syesd;
 
 	pr_err("(pid %d) start dumping scanned data from LEB %d:%d\n",
 	       current->pid, sleb->lnum, offs);
 
-	list_for_each_entry(snod, &sleb->nodes, list) {
+	list_for_each_entry(syesd, &sleb->yesdes, list) {
 		cond_resched();
-		pr_err("Dumping node at LEB %d:%d len %d\n",
-		       sleb->lnum, snod->offs, snod->len);
-		ubifs_dump_node(c, snod->node);
+		pr_err("Dumping yesde at LEB %d:%d len %d\n",
+		       sleb->lnum, syesd->offs, syesd->len);
+		ubifs_dump_yesde(c, syesd->yesde);
 	}
 }
 
 void ubifs_dump_leb(const struct ubifs_info *c, int lnum)
 {
 	struct ubifs_scan_leb *sleb;
-	struct ubifs_scan_node *snod;
+	struct ubifs_scan_yesde *syesd;
 	void *buf;
 
 	pr_err("(pid %d) start dumping LEB %d\n", current->pid, lnum);
 
 	buf = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
 	if (!buf) {
-		ubifs_err(c, "cannot allocate memory for dumping LEB %d", lnum);
+		ubifs_err(c, "canyest allocate memory for dumping LEB %d", lnum);
 		return;
 	}
 
@@ -827,14 +827,14 @@ void ubifs_dump_leb(const struct ubifs_info *c, int lnum)
 		goto out;
 	}
 
-	pr_err("LEB %d has %d nodes ending at %d\n", lnum,
-	       sleb->nodes_cnt, sleb->endpt);
+	pr_err("LEB %d has %d yesdes ending at %d\n", lnum,
+	       sleb->yesdes_cnt, sleb->endpt);
 
-	list_for_each_entry(snod, &sleb->nodes, list) {
+	list_for_each_entry(syesd, &sleb->yesdes, list) {
 		cond_resched();
-		pr_err("Dumping node at LEB %d:%d len %d\n", lnum,
-		       snod->offs, snod->len);
-		ubifs_dump_node(c, snod->node);
+		pr_err("Dumping yesde at LEB %d:%d len %d\n", lnum,
+		       syesd->offs, syesd->len);
+		ubifs_dump_yesde(c, syesd->yesde);
 	}
 
 	pr_err("(pid %d) finish dumping LEB %d\n", current->pid, lnum);
@@ -845,39 +845,39 @@ out:
 	return;
 }
 
-void ubifs_dump_znode(const struct ubifs_info *c,
-		      const struct ubifs_znode *znode)
+void ubifs_dump_zyesde(const struct ubifs_info *c,
+		      const struct ubifs_zyesde *zyesde)
 {
 	int n;
 	const struct ubifs_zbranch *zbr;
 	char key_buf[DBG_KEY_BUF_LEN];
 
 	spin_lock(&dbg_lock);
-	if (znode->parent)
-		zbr = &znode->parent->zbranch[znode->iip];
+	if (zyesde->parent)
+		zbr = &zyesde->parent->zbranch[zyesde->iip];
 	else
 		zbr = &c->zroot;
 
-	pr_err("znode %p, LEB %d:%d len %d parent %p iip %d level %d child_cnt %d flags %lx\n",
-	       znode, zbr->lnum, zbr->offs, zbr->len, znode->parent, znode->iip,
-	       znode->level, znode->child_cnt, znode->flags);
+	pr_err("zyesde %p, LEB %d:%d len %d parent %p iip %d level %d child_cnt %d flags %lx\n",
+	       zyesde, zbr->lnum, zbr->offs, zbr->len, zyesde->parent, zyesde->iip,
+	       zyesde->level, zyesde->child_cnt, zyesde->flags);
 
-	if (znode->child_cnt <= 0 || znode->child_cnt > c->fanout) {
+	if (zyesde->child_cnt <= 0 || zyesde->child_cnt > c->fayesut) {
 		spin_unlock(&dbg_lock);
 		return;
 	}
 
 	pr_err("zbranches:\n");
-	for (n = 0; n < znode->child_cnt; n++) {
-		zbr = &znode->zbranch[n];
-		if (znode->level > 0)
-			pr_err("\t%d: znode %p LEB %d:%d len %d key %s\n",
-			       n, zbr->znode, zbr->lnum, zbr->offs, zbr->len,
+	for (n = 0; n < zyesde->child_cnt; n++) {
+		zbr = &zyesde->zbranch[n];
+		if (zyesde->level > 0)
+			pr_err("\t%d: zyesde %p LEB %d:%d len %d key %s\n",
+			       n, zbr->zyesde, zbr->lnum, zbr->offs, zbr->len,
 			       dbg_snprintf_key(c, &zbr->key, key_buf,
 						DBG_KEY_BUF_LEN));
 		else
 			pr_err("\t%d: LNC %p LEB %d:%d len %d key %s\n",
-			       n, zbr->znode, zbr->lnum, zbr->offs, zbr->len,
+			       n, zbr->zyesde, zbr->lnum, zbr->offs, zbr->len,
 			       dbg_snprintf_key(c, &zbr->key, key_buf,
 						DBG_KEY_BUF_LEN));
 	}
@@ -900,18 +900,18 @@ void ubifs_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat)
 	pr_err("(pid %d) finish dumping heap\n", current->pid);
 }
 
-void ubifs_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
-		      struct ubifs_nnode *parent, int iip)
+void ubifs_dump_pyesde(struct ubifs_info *c, struct ubifs_pyesde *pyesde,
+		      struct ubifs_nyesde *parent, int iip)
 {
 	int i;
 
-	pr_err("(pid %d) dumping pnode:\n", current->pid);
+	pr_err("(pid %d) dumping pyesde:\n", current->pid);
 	pr_err("\taddress %zx parent %zx cnext %zx\n",
-	       (size_t)pnode, (size_t)parent, (size_t)pnode->cnext);
+	       (size_t)pyesde, (size_t)parent, (size_t)pyesde->cnext);
 	pr_err("\tflags %lu iip %d level %d num %d\n",
-	       pnode->flags, iip, pnode->level, pnode->num);
+	       pyesde->flags, iip, pyesde->level, pyesde->num);
 	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-		struct ubifs_lprops *lp = &pnode->lprops[i];
+		struct ubifs_lprops *lp = &pyesde->lprops[i];
 
 		pr_err("\t%d: free %d dirty %d flags %d lnum %d\n",
 		       i, lp->free, lp->dirty, lp->flags, lp->lnum);
@@ -920,29 +920,29 @@ void ubifs_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 
 void ubifs_dump_tnc(struct ubifs_info *c)
 {
-	struct ubifs_znode *znode;
+	struct ubifs_zyesde *zyesde;
 	int level;
 
 	pr_err("\n");
 	pr_err("(pid %d) start dumping TNC tree\n", current->pid);
-	znode = ubifs_tnc_levelorder_next(c, c->zroot.znode, NULL);
-	level = znode->level;
+	zyesde = ubifs_tnc_levelorder_next(c, c->zroot.zyesde, NULL);
+	level = zyesde->level;
 	pr_err("== Level %d ==\n", level);
-	while (znode) {
-		if (level != znode->level) {
-			level = znode->level;
+	while (zyesde) {
+		if (level != zyesde->level) {
+			level = zyesde->level;
 			pr_err("== Level %d ==\n", level);
 		}
-		ubifs_dump_znode(c, znode);
-		znode = ubifs_tnc_levelorder_next(c, c->zroot.znode, znode);
+		ubifs_dump_zyesde(c, zyesde);
+		zyesde = ubifs_tnc_levelorder_next(c, c->zroot.zyesde, zyesde);
 	}
 	pr_err("(pid %d) finish dumping TNC tree\n", current->pid);
 }
 
-static int dump_znode(struct ubifs_info *c, struct ubifs_znode *znode,
+static int dump_zyesde(struct ubifs_info *c, struct ubifs_zyesde *zyesde,
 		      void *priv)
 {
-	ubifs_dump_znode(c, znode);
+	ubifs_dump_zyesde(c, zyesde);
 	return 0;
 }
 
@@ -951,11 +951,11 @@ static int dump_znode(struct ubifs_info *c, struct ubifs_znode *znode,
  * @c: UBIFS file-system description object
  *
  * This function dumps whole UBIFS indexing B-tree, unlike 'ubifs_dump_tnc()'
- * which dumps only in-memory znodes and does not read znodes which from flash.
+ * which dumps only in-memory zyesdes and does yest read zyesdes which from flash.
  */
 void ubifs_dump_index(struct ubifs_info *c)
 {
-	dbg_walk_index(c, NULL, dump_znode, NULL);
+	dbg_walk_index(c, NULL, dump_zyesde, NULL);
 }
 
 /**
@@ -977,13 +977,13 @@ void dbg_save_space_info(struct ubifs_info *c)
 
 	/*
 	 * We use a dirty hack here and zero out @c->freeable_cnt, because it
-	 * affects the free space calculations, and UBIFS might not know about
-	 * all freeable eraseblocks. Indeed, we know about freeable eraseblocks
+	 * affects the free space calculations, and UBIFS might yest kyesw about
+	 * all freeable eraseblocks. Indeed, we kyesw about freeable eraseblocks
 	 * only when we read their lprops, and we do this only lazily, upon the
-	 * need. So at any given point of time @c->freeable_cnt might be not
+	 * need. So at any given point of time @c->freeable_cnt might be yest
 	 * exactly accurate.
 	 *
-	 * Just one example about the issue we hit when we did not zero
+	 * Just one example about the issue we hit when we did yest zero
 	 * @c->freeable_cnt.
 	 * 1. The file-system is mounted R/O, c->freeable_cnt is %0. We save the
 	 *    amount of free space in @d->saved_free
@@ -991,17 +991,17 @@ void dbg_save_space_info(struct ubifs_info *c)
 	 *    information from flash, where we cache LEBs from various
 	 *    categories ('ubifs_remount_fs()' -> 'ubifs_lpt_init()'
 	 *    -> 'lpt_init_wr()' -> 'read_lsave()' -> 'ubifs_lpt_lookup()'
-	 *    -> 'ubifs_get_pnode()' -> 'update_cats()'
+	 *    -> 'ubifs_get_pyesde()' -> 'update_cats()'
 	 *    -> 'ubifs_add_to_cat()').
 	 * 3. Lsave contains a freeable eraseblock, and @c->freeable_cnt
 	 *    becomes %1.
 	 * 4. We calculate the amount of free space when the re-mount is
-	 *    finished in 'dbg_check_space_info()' and it does not match
+	 *    finished in 'dbg_check_space_info()' and it does yest match
 	 *    @d->saved_free.
 	 */
 	freeable_cnt = c->freeable_cnt;
 	c->freeable_cnt = 0;
-	d->saved_free = ubifs_get_free_space_nolock(c);
+	d->saved_free = ubifs_get_free_space_yeslock(c);
 	c->freeable_cnt = freeable_cnt;
 	spin_unlock(&c->space_lock);
 }
@@ -1012,7 +1012,7 @@ void dbg_save_space_info(struct ubifs_info *c)
  *
  * This function compares current flash space information with the information
  * which was saved when the 'dbg_save_space_info()' function was called.
- * Returns zero if the information has not changed, and %-EINVAL it it has
+ * Returns zero if the information has yest changed, and %-EINVAL it it has
  * changed.
  */
 int dbg_check_space_info(struct ubifs_info *c)
@@ -1025,7 +1025,7 @@ int dbg_check_space_info(struct ubifs_info *c)
 	spin_lock(&c->space_lock);
 	freeable_cnt = c->freeable_cnt;
 	c->freeable_cnt = 0;
-	free = ubifs_get_free_space_nolock(c);
+	free = ubifs_get_free_space_yeslock(c);
 	c->freeable_cnt = freeable_cnt;
 	spin_unlock(&c->space_lock);
 
@@ -1053,32 +1053,32 @@ out:
 }
 
 /**
- * dbg_check_synced_i_size - check synchronized inode size.
+ * dbg_check_synced_i_size - check synchronized iyesde size.
  * @c: UBIFS file-system description object
- * @inode: inode to check
+ * @iyesde: iyesde to check
  *
- * If inode is clean, synchronized inode size has to be equivalent to current
- * inode size. This function has to be called only for locked inodes (@i_mutex
- * has to be locked). Returns %0 if synchronized inode size if correct, and
- * %-EINVAL if not.
+ * If iyesde is clean, synchronized iyesde size has to be equivalent to current
+ * iyesde size. This function has to be called only for locked iyesdes (@i_mutex
+ * has to be locked). Returns %0 if synchronized iyesde size if correct, and
+ * %-EINVAL if yest.
  */
-int dbg_check_synced_i_size(const struct ubifs_info *c, struct inode *inode)
+int dbg_check_synced_i_size(const struct ubifs_info *c, struct iyesde *iyesde)
 {
 	int err = 0;
-	struct ubifs_inode *ui = ubifs_inode(inode);
+	struct ubifs_iyesde *ui = ubifs_iyesde(iyesde);
 
 	if (!dbg_is_chk_gen(c))
 		return 0;
-	if (!S_ISREG(inode->i_mode))
+	if (!S_ISREG(iyesde->i_mode))
 		return 0;
 
 	mutex_lock(&ui->ui_mutex);
 	spin_lock(&ui->ui_lock);
 	if (ui->ui_size != ui->synced_i_size && !ui->dirty) {
-		ubifs_err(c, "ui_size is %lld, synced_i_size is %lld, but inode is clean",
+		ubifs_err(c, "ui_size is %lld, synced_i_size is %lld, but iyesde is clean",
 			  ui->ui_size, ui->synced_i_size);
-		ubifs_err(c, "i_ino %lu, i_mode %#x, i_size %lld", inode->i_ino,
-			  inode->i_mode, i_size_read(inode));
+		ubifs_err(c, "i_iyes %lu, i_mode %#x, i_size %lld", iyesde->i_iyes,
+			  iyesde->i_mode, i_size_read(iyesde));
 		dump_stack();
 		err = -EINVAL;
 	}
@@ -1088,7 +1088,7 @@ int dbg_check_synced_i_size(const struct ubifs_info *c, struct inode *inode)
 }
 
 /*
- * dbg_check_dir - check directory inode size and link count.
+ * dbg_check_dir - check directory iyesde size and link count.
  * @c: UBIFS file-system description object
  * @dir: the directory to calculate size for
  * @size: the result is returned here
@@ -1100,11 +1100,11 @@ int dbg_check_synced_i_size(const struct ubifs_info *c, struct inode *inode)
  * Note, it is good idea to make sure the @dir->i_mutex is locked before
  * calling this function.
  */
-int dbg_check_dir(struct ubifs_info *c, const struct inode *dir)
+int dbg_check_dir(struct ubifs_info *c, const struct iyesde *dir)
 {
 	unsigned int nlink = 2;
 	union ubifs_key key;
-	struct ubifs_dent_node *dent, *pdent = NULL;
+	struct ubifs_dent_yesde *dent, *pdent = NULL;
 	struct fscrypt_name nm = {0};
 	loff_t size = UBIFS_INO_NODE_SZ;
 
@@ -1114,7 +1114,7 @@ int dbg_check_dir(struct ubifs_info *c, const struct inode *dir)
 	if (!S_ISDIR(dir->i_mode))
 		return 0;
 
-	lowest_dent_key(c, &key, dir->i_ino);
+	lowest_dent_key(c, &key, dir->i_iyes);
 	while (1) {
 		int err;
 
@@ -1138,17 +1138,17 @@ int dbg_check_dir(struct ubifs_info *c, const struct inode *dir)
 	kfree(pdent);
 
 	if (i_size_read(dir) != size) {
-		ubifs_err(c, "directory inode %lu has size %llu, but calculated size is %llu",
-			  dir->i_ino, (unsigned long long)i_size_read(dir),
+		ubifs_err(c, "directory iyesde %lu has size %llu, but calculated size is %llu",
+			  dir->i_iyes, (unsigned long long)i_size_read(dir),
 			  (unsigned long long)size);
-		ubifs_dump_inode(c, dir);
+		ubifs_dump_iyesde(c, dir);
 		dump_stack();
 		return -EINVAL;
 	}
 	if (dir->i_nlink != nlink) {
-		ubifs_err(c, "directory inode %lu has nlink %u, but calculated nlink is %u",
-			  dir->i_ino, dir->i_nlink, nlink);
-		ubifs_dump_inode(c, dir);
+		ubifs_err(c, "directory iyesde %lu has nlink %u, but calculated nlink is %u",
+			  dir->i_iyes, dir->i_nlink, nlink);
+		ubifs_dump_iyesde(c, dir);
 		dump_stack();
 		return -EINVAL;
 	}
@@ -1166,14 +1166,14 @@ int dbg_check_dir(struct ubifs_info *c, const struct inode *dir)
  * names of the direntries/xentries which are referred by the keys. This
  * function reads direntries/xentries referred by @zbr1 and @zbr2 and makes
  * sure the name of direntry/xentry referred by @zbr1 is less than
- * direntry/xentry referred by @zbr2. Returns zero if this is true, %1 if not,
+ * direntry/xentry referred by @zbr2. Returns zero if this is true, %1 if yest,
  * and a negative error code in case of failure.
  */
 static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 			       struct ubifs_zbranch *zbr2)
 {
 	int err, nlen1, nlen2, cmp;
-	struct ubifs_dent_node *dent1, *dent2;
+	struct ubifs_dent_yesde *dent1, *dent2;
 	union ubifs_key key;
 	char key_buf[DBG_KEY_BUF_LEN];
 
@@ -1187,21 +1187,21 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		goto out_free;
 	}
 
-	err = ubifs_tnc_read_node(c, zbr1, dent1);
+	err = ubifs_tnc_read_yesde(c, zbr1, dent1);
 	if (err)
 		goto out_free;
 	err = ubifs_validate_entry(c, dent1);
 	if (err)
 		goto out_free;
 
-	err = ubifs_tnc_read_node(c, zbr2, dent2);
+	err = ubifs_tnc_read_yesde(c, zbr2, dent2);
 	if (err)
 		goto out_free;
 	err = ubifs_validate_entry(c, dent2);
 	if (err)
 		goto out_free;
 
-	/* Make sure node keys are the same as in zbranch */
+	/* Make sure yesde keys are the same as in zbranch */
 	err = 1;
 	key_read(c, &dent1->key, &key);
 	if (keys_cmp(c, &zbr1->key, &key)) {
@@ -1211,7 +1211,7 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		ubifs_err(c, "but it should have key %s according to tnc",
 			  dbg_snprintf_key(c, &zbr1->key, key_buf,
 					   DBG_KEY_BUF_LEN));
-		ubifs_dump_node(c, dent1);
+		ubifs_dump_yesde(c, dent1);
 		goto out_free;
 	}
 
@@ -1223,7 +1223,7 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		ubifs_err(c, "but it should have key %s according to tnc",
 			  dbg_snprintf_key(c, &zbr2->key, key_buf,
 					   DBG_KEY_BUF_LEN));
-		ubifs_dump_node(c, dent2);
+		ubifs_dump_yesde(c, dent2);
 		goto out_free;
 	}
 
@@ -1236,15 +1236,15 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		goto out_free;
 	}
 	if (cmp == 0 && nlen1 == nlen2)
-		ubifs_err(c, "2 xent/dent nodes with the same name");
+		ubifs_err(c, "2 xent/dent yesdes with the same name");
 	else
 		ubifs_err(c, "bad order of colliding key %s",
 			  dbg_snprintf_key(c, &key, key_buf, DBG_KEY_BUF_LEN));
 
-	ubifs_msg(c, "first node at %d:%d\n", zbr1->lnum, zbr1->offs);
-	ubifs_dump_node(c, dent1);
-	ubifs_msg(c, "second node at %d:%d\n", zbr2->lnum, zbr2->offs);
-	ubifs_dump_node(c, dent2);
+	ubifs_msg(c, "first yesde at %d:%d\n", zbr1->lnum, zbr1->offs);
+	ubifs_dump_yesde(c, dent1);
+	ubifs_msg(c, "second yesde at %d:%d\n", zbr2->lnum, zbr2->offs);
+	ubifs_dump_yesde(c, dent2);
 
 out_free:
 	kfree(dent2);
@@ -1253,42 +1253,42 @@ out_free:
 }
 
 /**
- * dbg_check_znode - check if znode is all right.
+ * dbg_check_zyesde - check if zyesde is all right.
  * @c: UBIFS file-system description object
- * @zbr: zbranch which points to this znode
+ * @zbr: zbranch which points to this zyesde
  *
- * This function makes sure that znode referred to by @zbr is all right.
- * Returns zero if it is, and %-EINVAL if it is not.
+ * This function makes sure that zyesde referred to by @zbr is all right.
+ * Returns zero if it is, and %-EINVAL if it is yest.
  */
-static int dbg_check_znode(struct ubifs_info *c, struct ubifs_zbranch *zbr)
+static int dbg_check_zyesde(struct ubifs_info *c, struct ubifs_zbranch *zbr)
 {
-	struct ubifs_znode *znode = zbr->znode;
-	struct ubifs_znode *zp = znode->parent;
+	struct ubifs_zyesde *zyesde = zbr->zyesde;
+	struct ubifs_zyesde *zp = zyesde->parent;
 	int n, err, cmp;
 
-	if (znode->child_cnt <= 0 || znode->child_cnt > c->fanout) {
+	if (zyesde->child_cnt <= 0 || zyesde->child_cnt > c->fayesut) {
 		err = 1;
 		goto out;
 	}
-	if (znode->level < 0) {
+	if (zyesde->level < 0) {
 		err = 2;
 		goto out;
 	}
-	if (znode->iip < 0 || znode->iip >= c->fanout) {
+	if (zyesde->iip < 0 || zyesde->iip >= c->fayesut) {
 		err = 3;
 		goto out;
 	}
 
 	if (zbr->len == 0)
-		/* Only dirty zbranch may have no on-flash nodes */
-		if (!ubifs_zn_dirty(znode)) {
+		/* Only dirty zbranch may have yes on-flash yesdes */
+		if (!ubifs_zn_dirty(zyesde)) {
 			err = 4;
 			goto out;
 		}
 
-	if (ubifs_zn_dirty(znode)) {
+	if (ubifs_zn_dirty(zyesde)) {
 		/*
-		 * If znode is dirty, its parent has to be dirty as well. The
+		 * If zyesde is dirty, its parent has to be dirty as well. The
 		 * order of the operation is important, so we have to have
 		 * memory barriers.
 		 */
@@ -1296,12 +1296,12 @@ static int dbg_check_znode(struct ubifs_info *c, struct ubifs_zbranch *zbr)
 		if (zp && !ubifs_zn_dirty(zp)) {
 			/*
 			 * The dirty flag is atomic and is cleared outside the
-			 * TNC mutex, so znode's dirty flag may now have
+			 * TNC mutex, so zyesde's dirty flag may yesw have
 			 * been cleared. The child is always cleared before the
 			 * parent, so we just need to check again.
 			 */
 			smp_mb();
-			if (ubifs_zn_dirty(znode)) {
+			if (ubifs_zn_dirty(zyesde)) {
 				err = 5;
 				goto out;
 			}
@@ -1311,40 +1311,40 @@ static int dbg_check_znode(struct ubifs_info *c, struct ubifs_zbranch *zbr)
 	if (zp) {
 		const union ubifs_key *min, *max;
 
-		if (znode->level != zp->level - 1) {
+		if (zyesde->level != zp->level - 1) {
 			err = 6;
 			goto out;
 		}
 
-		/* Make sure the 'parent' pointer in our znode is correct */
+		/* Make sure the 'parent' pointer in our zyesde is correct */
 		err = ubifs_search_zbranch(c, zp, &zbr->key, &n);
 		if (!err) {
-			/* This zbranch does not exist in the parent */
+			/* This zbranch does yest exist in the parent */
 			err = 7;
 			goto out;
 		}
 
-		if (znode->iip >= zp->child_cnt) {
+		if (zyesde->iip >= zp->child_cnt) {
 			err = 8;
 			goto out;
 		}
 
-		if (znode->iip != n) {
+		if (zyesde->iip != n) {
 			/* This may happen only in case of collisions */
 			if (keys_cmp(c, &zp->zbranch[n].key,
-				     &zp->zbranch[znode->iip].key)) {
+				     &zp->zbranch[zyesde->iip].key)) {
 				err = 9;
 				goto out;
 			}
-			n = znode->iip;
+			n = zyesde->iip;
 		}
 
 		/*
-		 * Make sure that the first key in our znode is greater than or
+		 * Make sure that the first key in our zyesde is greater than or
 		 * equal to the key in the pointing zbranch.
 		 */
 		min = &zbr->key;
-		cmp = keys_cmp(c, min, &znode->zbranch[0].key);
+		cmp = keys_cmp(c, min, &zyesde->zbranch[0].key);
 		if (cmp == 1) {
 			err = 10;
 			goto out;
@@ -1354,19 +1354,19 @@ static int dbg_check_znode(struct ubifs_info *c, struct ubifs_zbranch *zbr)
 			max = &zp->zbranch[n + 1].key;
 
 			/*
-			 * Make sure the last key in our znode is less or
+			 * Make sure the last key in our zyesde is less or
 			 * equivalent than the key in the zbranch which goes
 			 * after our pointing zbranch.
 			 */
 			cmp = keys_cmp(c, max,
-				&znode->zbranch[znode->child_cnt - 1].key);
+				&zyesde->zbranch[zyesde->child_cnt - 1].key);
 			if (cmp == -1) {
 				err = 11;
 				goto out;
 			}
 		}
 	} else {
-		/* This may only be root znode */
+		/* This may only be root zyesde */
 		if (zbr != &c->zroot) {
 			err = 12;
 			goto out;
@@ -1377,29 +1377,29 @@ static int dbg_check_znode(struct ubifs_info *c, struct ubifs_zbranch *zbr)
 	 * Make sure that next key is greater or equivalent then the previous
 	 * one.
 	 */
-	for (n = 1; n < znode->child_cnt; n++) {
-		cmp = keys_cmp(c, &znode->zbranch[n - 1].key,
-			       &znode->zbranch[n].key);
+	for (n = 1; n < zyesde->child_cnt; n++) {
+		cmp = keys_cmp(c, &zyesde->zbranch[n - 1].key,
+			       &zyesde->zbranch[n].key);
 		if (cmp > 0) {
 			err = 13;
 			goto out;
 		}
 		if (cmp == 0) {
 			/* This can only be keys with colliding hash */
-			if (!is_hash_key(c, &znode->zbranch[n].key)) {
+			if (!is_hash_key(c, &zyesde->zbranch[n].key)) {
 				err = 14;
 				goto out;
 			}
 
-			if (znode->level != 0 || c->replaying)
+			if (zyesde->level != 0 || c->replaying)
 				continue;
 
 			/*
 			 * Colliding keys should follow binary order of
 			 * corresponding xentry/dentry names.
 			 */
-			err = dbg_check_key_order(c, &znode->zbranch[n - 1],
-						  &znode->zbranch[n]);
+			err = dbg_check_key_order(c, &zyesde->zbranch[n - 1],
+						  &zyesde->zbranch[n]);
 			if (err < 0)
 				return err;
 			if (err) {
@@ -1409,34 +1409,34 @@ static int dbg_check_znode(struct ubifs_info *c, struct ubifs_zbranch *zbr)
 		}
 	}
 
-	for (n = 0; n < znode->child_cnt; n++) {
-		if (!znode->zbranch[n].znode &&
-		    (znode->zbranch[n].lnum == 0 ||
-		     znode->zbranch[n].len == 0)) {
+	for (n = 0; n < zyesde->child_cnt; n++) {
+		if (!zyesde->zbranch[n].zyesde &&
+		    (zyesde->zbranch[n].lnum == 0 ||
+		     zyesde->zbranch[n].len == 0)) {
 			err = 16;
 			goto out;
 		}
 
-		if (znode->zbranch[n].lnum != 0 &&
-		    znode->zbranch[n].len == 0) {
+		if (zyesde->zbranch[n].lnum != 0 &&
+		    zyesde->zbranch[n].len == 0) {
 			err = 17;
 			goto out;
 		}
 
-		if (znode->zbranch[n].lnum == 0 &&
-		    znode->zbranch[n].len != 0) {
+		if (zyesde->zbranch[n].lnum == 0 &&
+		    zyesde->zbranch[n].len != 0) {
 			err = 18;
 			goto out;
 		}
 
-		if (znode->zbranch[n].lnum == 0 &&
-		    znode->zbranch[n].offs != 0) {
+		if (zyesde->zbranch[n].lnum == 0 &&
+		    zyesde->zbranch[n].offs != 0) {
 			err = 19;
 			goto out;
 		}
 
-		if (znode->level != 0 && znode->zbranch[n].znode)
-			if (znode->zbranch[n].znode->parent != znode) {
+		if (zyesde->level != 0 && zyesde->zbranch[n].zyesde)
+			if (zyesde->zbranch[n].zyesde->parent != zyesde) {
 				err = 20;
 				goto out;
 			}
@@ -1446,11 +1446,11 @@ static int dbg_check_znode(struct ubifs_info *c, struct ubifs_zbranch *zbr)
 
 out:
 	ubifs_err(c, "failed, error %d", err);
-	ubifs_msg(c, "dump of the znode");
-	ubifs_dump_znode(c, znode);
+	ubifs_msg(c, "dump of the zyesde");
+	ubifs_dump_zyesde(c, zyesde);
 	if (zp) {
-		ubifs_msg(c, "dump of the parent znode");
-		ubifs_dump_znode(c, zp);
+		ubifs_msg(c, "dump of the parent zyesde");
+		ubifs_dump_zyesde(c, zp);
 	}
 	dump_stack();
 	return -EINVAL;
@@ -1461,12 +1461,12 @@ out:
  * @c: UBIFS file-system description object
  * @extra: do extra checks that are possible at start commit
  *
- * This function traverses whole TNC tree and checks every znode. Returns zero
+ * This function traverses whole TNC tree and checks every zyesde. Returns zero
  * if everything is all right and %-EINVAL if something is wrong with TNC.
  */
 int dbg_check_tnc(struct ubifs_info *c, int extra)
 {
-	struct ubifs_znode *znode;
+	struct ubifs_zyesde *zyesde;
 	long clean_cnt = 0, dirty_cnt = 0;
 	int err, last;
 
@@ -1474,52 +1474,52 @@ int dbg_check_tnc(struct ubifs_info *c, int extra)
 		return 0;
 
 	ubifs_assert(c, mutex_is_locked(&c->tnc_mutex));
-	if (!c->zroot.znode)
+	if (!c->zroot.zyesde)
 		return 0;
 
-	znode = ubifs_tnc_postorder_first(c->zroot.znode);
+	zyesde = ubifs_tnc_postorder_first(c->zroot.zyesde);
 	while (1) {
-		struct ubifs_znode *prev;
+		struct ubifs_zyesde *prev;
 		struct ubifs_zbranch *zbr;
 
-		if (!znode->parent)
+		if (!zyesde->parent)
 			zbr = &c->zroot;
 		else
-			zbr = &znode->parent->zbranch[znode->iip];
+			zbr = &zyesde->parent->zbranch[zyesde->iip];
 
-		err = dbg_check_znode(c, zbr);
+		err = dbg_check_zyesde(c, zbr);
 		if (err)
 			return err;
 
 		if (extra) {
-			if (ubifs_zn_dirty(znode))
+			if (ubifs_zn_dirty(zyesde))
 				dirty_cnt += 1;
 			else
 				clean_cnt += 1;
 		}
 
-		prev = znode;
-		znode = ubifs_tnc_postorder_next(c, znode);
-		if (!znode)
+		prev = zyesde;
+		zyesde = ubifs_tnc_postorder_next(c, zyesde);
+		if (!zyesde)
 			break;
 
 		/*
-		 * If the last key of this znode is equivalent to the first key
-		 * of the next znode (collision), then check order of the keys.
+		 * If the last key of this zyesde is equivalent to the first key
+		 * of the next zyesde (collision), then check order of the keys.
 		 */
 		last = prev->child_cnt - 1;
-		if (prev->level == 0 && znode->level == 0 && !c->replaying &&
+		if (prev->level == 0 && zyesde->level == 0 && !c->replaying &&
 		    !keys_cmp(c, &prev->zbranch[last].key,
-			      &znode->zbranch[0].key)) {
+			      &zyesde->zbranch[0].key)) {
 			err = dbg_check_key_order(c, &prev->zbranch[last],
-						  &znode->zbranch[0]);
+						  &zyesde->zbranch[0]);
 			if (err < 0)
 				return err;
 			if (err) {
-				ubifs_msg(c, "first znode");
-				ubifs_dump_znode(c, prev);
-				ubifs_msg(c, "second znode");
-				ubifs_dump_znode(c, znode);
+				ubifs_msg(c, "first zyesde");
+				ubifs_dump_zyesde(c, prev);
+				ubifs_msg(c, "second zyesde");
+				ubifs_dump_zyesde(c, zyesde);
 				return -EINVAL;
 			}
 		}
@@ -1546,74 +1546,74 @@ int dbg_check_tnc(struct ubifs_info *c, int extra)
 /**
  * dbg_walk_index - walk the on-flash index.
  * @c: UBIFS file-system description object
- * @leaf_cb: called for each leaf node
- * @znode_cb: called for each indexing node
+ * @leaf_cb: called for each leaf yesde
+ * @zyesde_cb: called for each indexing yesde
  * @priv: private data which is passed to callbacks
  *
  * This function walks the UBIFS index and calls the @leaf_cb for each leaf
- * node and @znode_cb for each indexing node. Returns zero in case of success
+ * yesde and @zyesde_cb for each indexing yesde. Returns zero in case of success
  * and a negative error code in case of failure.
  *
- * It would be better if this function removed every znode it pulled to into
- * the TNC, so that the behavior more closely matched the non-debugging
+ * It would be better if this function removed every zyesde it pulled to into
+ * the TNC, so that the behavior more closely matched the yesn-debugging
  * behavior.
  */
 int dbg_walk_index(struct ubifs_info *c, dbg_leaf_callback leaf_cb,
-		   dbg_znode_callback znode_cb, void *priv)
+		   dbg_zyesde_callback zyesde_cb, void *priv)
 {
 	int err;
 	struct ubifs_zbranch *zbr;
-	struct ubifs_znode *znode, *child;
+	struct ubifs_zyesde *zyesde, *child;
 
 	mutex_lock(&c->tnc_mutex);
-	/* If the root indexing node is not in TNC - pull it */
-	if (!c->zroot.znode) {
-		c->zroot.znode = ubifs_load_znode(c, &c->zroot, NULL, 0);
-		if (IS_ERR(c->zroot.znode)) {
-			err = PTR_ERR(c->zroot.znode);
-			c->zroot.znode = NULL;
+	/* If the root indexing yesde is yest in TNC - pull it */
+	if (!c->zroot.zyesde) {
+		c->zroot.zyesde = ubifs_load_zyesde(c, &c->zroot, NULL, 0);
+		if (IS_ERR(c->zroot.zyesde)) {
+			err = PTR_ERR(c->zroot.zyesde);
+			c->zroot.zyesde = NULL;
 			goto out_unlock;
 		}
 	}
 
 	/*
 	 * We are going to traverse the indexing tree in the postorder manner.
-	 * Go down and find the leftmost indexing node where we are going to
+	 * Go down and find the leftmost indexing yesde where we are going to
 	 * start from.
 	 */
-	znode = c->zroot.znode;
-	while (znode->level > 0) {
-		zbr = &znode->zbranch[0];
-		child = zbr->znode;
+	zyesde = c->zroot.zyesde;
+	while (zyesde->level > 0) {
+		zbr = &zyesde->zbranch[0];
+		child = zbr->zyesde;
 		if (!child) {
-			child = ubifs_load_znode(c, zbr, znode, 0);
+			child = ubifs_load_zyesde(c, zbr, zyesde, 0);
 			if (IS_ERR(child)) {
 				err = PTR_ERR(child);
 				goto out_unlock;
 			}
 		}
 
-		znode = child;
+		zyesde = child;
 	}
 
-	/* Iterate over all indexing nodes */
+	/* Iterate over all indexing yesdes */
 	while (1) {
 		int idx;
 
 		cond_resched();
 
-		if (znode_cb) {
-			err = znode_cb(c, znode, priv);
+		if (zyesde_cb) {
+			err = zyesde_cb(c, zyesde, priv);
 			if (err) {
-				ubifs_err(c, "znode checking function returned error %d",
+				ubifs_err(c, "zyesde checking function returned error %d",
 					  err);
-				ubifs_dump_znode(c, znode);
+				ubifs_dump_zyesde(c, zyesde);
 				goto out_dump;
 			}
 		}
-		if (leaf_cb && znode->level == 0) {
-			for (idx = 0; idx < znode->child_cnt; idx++) {
-				zbr = &znode->zbranch[idx];
+		if (leaf_cb && zyesde->level == 0) {
+			for (idx = 0; idx < zyesde->child_cnt; idx++) {
+				zbr = &zyesde->zbranch[idx];
 				err = leaf_cb(c, zbr, priv);
 				if (err) {
 					ubifs_err(c, "leaf checking function returned error %d, for leaf at LEB %d:%d",
@@ -1623,24 +1623,24 @@ int dbg_walk_index(struct ubifs_info *c, dbg_leaf_callback leaf_cb,
 			}
 		}
 
-		if (!znode->parent)
+		if (!zyesde->parent)
 			break;
 
-		idx = znode->iip + 1;
-		znode = znode->parent;
-		if (idx < znode->child_cnt) {
+		idx = zyesde->iip + 1;
+		zyesde = zyesde->parent;
+		if (idx < zyesde->child_cnt) {
 			/* Switch to the next index in the parent */
-			zbr = &znode->zbranch[idx];
-			child = zbr->znode;
+			zbr = &zyesde->zbranch[idx];
+			child = zbr->zyesde;
 			if (!child) {
-				child = ubifs_load_znode(c, zbr, znode, idx);
+				child = ubifs_load_zyesde(c, zbr, zyesde, idx);
 				if (IS_ERR(child)) {
 					err = PTR_ERR(child);
 					goto out_unlock;
 				}
-				zbr->znode = child;
+				zbr->zyesde = child;
 			}
-			znode = child;
+			zyesde = child;
 		} else
 			/*
 			 * This is the last child, switch to the parent and
@@ -1648,19 +1648,19 @@ int dbg_walk_index(struct ubifs_info *c, dbg_leaf_callback leaf_cb,
 			 */
 			continue;
 
-		/* Go to the lowest leftmost znode in the new sub-tree */
-		while (znode->level > 0) {
-			zbr = &znode->zbranch[0];
-			child = zbr->znode;
+		/* Go to the lowest leftmost zyesde in the new sub-tree */
+		while (zyesde->level > 0) {
+			zbr = &zyesde->zbranch[0];
+			child = zbr->zyesde;
 			if (!child) {
-				child = ubifs_load_znode(c, zbr, znode, 0);
+				child = ubifs_load_zyesde(c, zbr, zyesde, 0);
 				if (IS_ERR(child)) {
 					err = PTR_ERR(child);
 					goto out_unlock;
 				}
-				zbr->znode = child;
+				zbr->zyesde = child;
 			}
-			znode = child;
+			zyesde = child;
 		}
 	}
 
@@ -1668,33 +1668,33 @@ int dbg_walk_index(struct ubifs_info *c, dbg_leaf_callback leaf_cb,
 	return 0;
 
 out_dump:
-	if (znode->parent)
-		zbr = &znode->parent->zbranch[znode->iip];
+	if (zyesde->parent)
+		zbr = &zyesde->parent->zbranch[zyesde->iip];
 	else
 		zbr = &c->zroot;
-	ubifs_msg(c, "dump of znode at LEB %d:%d", zbr->lnum, zbr->offs);
-	ubifs_dump_znode(c, znode);
+	ubifs_msg(c, "dump of zyesde at LEB %d:%d", zbr->lnum, zbr->offs);
+	ubifs_dump_zyesde(c, zyesde);
 out_unlock:
 	mutex_unlock(&c->tnc_mutex);
 	return err;
 }
 
 /**
- * add_size - add znode size to partially calculated index size.
+ * add_size - add zyesde size to partially calculated index size.
  * @c: UBIFS file-system description object
- * @znode: znode to add size for
+ * @zyesde: zyesde to add size for
  * @priv: partially calculated index size
  *
  * This is a helper function for 'dbg_check_idx_size()' which is called for
- * every indexing node and adds its size to the 'long long' variable pointed to
+ * every indexing yesde and adds its size to the 'long long' variable pointed to
  * by @priv.
  */
-static int add_size(struct ubifs_info *c, struct ubifs_znode *znode, void *priv)
+static int add_size(struct ubifs_info *c, struct ubifs_zyesde *zyesde, void *priv)
 {
 	long long *idx_size = priv;
 	int add;
 
-	add = ubifs_idx_node_sz(c, znode->child_cnt);
+	add = ubifs_idx_yesde_sz(c, zyesde->child_cnt);
 	add = ALIGN(add, 8);
 	*idx_size += add;
 	return 0;
@@ -1734,28 +1734,28 @@ int dbg_check_idx_size(struct ubifs_info *c, long long idx_size)
 }
 
 /**
- * struct fsck_inode - information about an inode used when checking the file-system.
- * @rb: link in the RB-tree of inodes
- * @inum: inode number
- * @mode: inode type, permissions, etc
- * @nlink: inode link count
+ * struct fsck_iyesde - information about an iyesde used when checking the file-system.
+ * @rb: link in the RB-tree of iyesdes
+ * @inum: iyesde number
+ * @mode: iyesde type, permissions, etc
+ * @nlink: iyesde link count
  * @xattr_cnt: count of extended attributes
- * @references: how many directory/xattr entries refer this inode (calculated
+ * @references: how many directory/xattr entries refer this iyesde (calculated
  *              while walking the index)
- * @calc_cnt: for directory inode count of child directories
- * @size: inode size (read from on-flash inode)
+ * @calc_cnt: for directory iyesde count of child directories
+ * @size: iyesde size (read from on-flash iyesde)
  * @xattr_sz: summary size of all extended attributes (read from on-flash
- *            inode)
+ *            iyesde)
  * @calc_sz: for directories calculated directory size
  * @calc_xcnt: count of extended attributes
  * @calc_xsz: calculated summary size of all extended attributes
  * @xattr_nms: sum of lengths of all extended attribute names belonging to this
- *             inode (read from on-flash inode)
+ *             iyesde (read from on-flash iyesde)
  * @calc_xnms: calculated sum of lengths of all extended attribute names
  */
-struct fsck_inode {
-	struct rb_node rb;
-	ino_t inum;
+struct fsck_iyesde {
+	struct rb_yesde rb;
+	iyes_t inum;
 	umode_t mode;
 	unsigned int nlink;
 	unsigned int xattr_cnt;
@@ -1772,36 +1772,36 @@ struct fsck_inode {
 
 /**
  * struct fsck_data - private FS checking information.
- * @inodes: RB-tree of all inodes (contains @struct fsck_inode objects)
+ * @iyesdes: RB-tree of all iyesdes (contains @struct fsck_iyesde objects)
  */
 struct fsck_data {
-	struct rb_root inodes;
+	struct rb_root iyesdes;
 };
 
 /**
- * add_inode - add inode information to RB-tree of inodes.
+ * add_iyesde - add iyesde information to RB-tree of iyesdes.
  * @c: UBIFS file-system description object
  * @fsckd: FS checking information
- * @ino: raw UBIFS inode to add
+ * @iyes: raw UBIFS iyesde to add
  *
  * This is a helper function for 'check_leaf()' which adds information about
- * inode @ino to the RB-tree of inodes. Returns inode information pointer in
+ * iyesde @iyes to the RB-tree of iyesdes. Returns iyesde information pointer in
  * case of success and a negative error code in case of failure.
  */
-static struct fsck_inode *add_inode(struct ubifs_info *c,
+static struct fsck_iyesde *add_iyesde(struct ubifs_info *c,
 				    struct fsck_data *fsckd,
-				    struct ubifs_ino_node *ino)
+				    struct ubifs_iyes_yesde *iyes)
 {
-	struct rb_node **p, *parent = NULL;
-	struct fsck_inode *fscki;
-	ino_t inum = key_inum_flash(c, &ino->key);
-	struct inode *inode;
-	struct ubifs_inode *ui;
+	struct rb_yesde **p, *parent = NULL;
+	struct fsck_iyesde *fscki;
+	iyes_t inum = key_inum_flash(c, &iyes->key);
+	struct iyesde *iyesde;
+	struct ubifs_iyesde *ui;
 
-	p = &fsckd->inodes.rb_node;
+	p = &fsckd->iyesdes.rb_yesde;
 	while (*p) {
 		parent = *p;
-		fscki = rb_entry(parent, struct fsck_inode, rb);
+		fscki = rb_entry(parent, struct fsck_iyesde, rb);
 		if (inum < fscki->inum)
 			p = &(*p)->rb_left;
 		else if (inum > fscki->inum)
@@ -1811,45 +1811,45 @@ static struct fsck_inode *add_inode(struct ubifs_info *c,
 	}
 
 	if (inum > c->highest_inum) {
-		ubifs_err(c, "too high inode number, max. is %lu",
+		ubifs_err(c, "too high iyesde number, max. is %lu",
 			  (unsigned long)c->highest_inum);
 		return ERR_PTR(-EINVAL);
 	}
 
-	fscki = kzalloc(sizeof(struct fsck_inode), GFP_NOFS);
+	fscki = kzalloc(sizeof(struct fsck_iyesde), GFP_NOFS);
 	if (!fscki)
 		return ERR_PTR(-ENOMEM);
 
-	inode = ilookup(c->vfs_sb, inum);
+	iyesde = ilookup(c->vfs_sb, inum);
 
 	fscki->inum = inum;
 	/*
-	 * If the inode is present in the VFS inode cache, use it instead of
-	 * the on-flash inode which might be out-of-date. E.g., the size might
-	 * be out-of-date. If we do not do this, the following may happen, for
+	 * If the iyesde is present in the VFS iyesde cache, use it instead of
+	 * the on-flash iyesde which might be out-of-date. E.g., the size might
+	 * be out-of-date. If we do yest do this, the following may happen, for
 	 * example:
 	 *   1. A power cut happens
 	 *   2. We mount the file-system R/O, the replay process fixes up the
-	 *      inode size in the VFS cache, but on on-flash.
-	 *   3. 'check_leaf()' fails because it hits a data node beyond inode
+	 *      iyesde size in the VFS cache, but on on-flash.
+	 *   3. 'check_leaf()' fails because it hits a data yesde beyond iyesde
 	 *      size.
 	 */
-	if (!inode) {
-		fscki->nlink = le32_to_cpu(ino->nlink);
-		fscki->size = le64_to_cpu(ino->size);
-		fscki->xattr_cnt = le32_to_cpu(ino->xattr_cnt);
-		fscki->xattr_sz = le32_to_cpu(ino->xattr_size);
-		fscki->xattr_nms = le32_to_cpu(ino->xattr_names);
-		fscki->mode = le32_to_cpu(ino->mode);
+	if (!iyesde) {
+		fscki->nlink = le32_to_cpu(iyes->nlink);
+		fscki->size = le64_to_cpu(iyes->size);
+		fscki->xattr_cnt = le32_to_cpu(iyes->xattr_cnt);
+		fscki->xattr_sz = le32_to_cpu(iyes->xattr_size);
+		fscki->xattr_nms = le32_to_cpu(iyes->xattr_names);
+		fscki->mode = le32_to_cpu(iyes->mode);
 	} else {
-		ui = ubifs_inode(inode);
-		fscki->nlink = inode->i_nlink;
-		fscki->size = inode->i_size;
+		ui = ubifs_iyesde(iyesde);
+		fscki->nlink = iyesde->i_nlink;
+		fscki->size = iyesde->i_size;
 		fscki->xattr_cnt = ui->xattr_cnt;
 		fscki->xattr_sz = ui->xattr_size;
 		fscki->xattr_nms = ui->xattr_names;
-		fscki->mode = inode->i_mode;
-		iput(inode);
+		fscki->mode = iyesde->i_mode;
+		iput(iyesde);
 	}
 
 	if (S_ISDIR(fscki->mode)) {
@@ -1857,29 +1857,29 @@ static struct fsck_inode *add_inode(struct ubifs_info *c,
 		fscki->calc_cnt = 2;
 	}
 
-	rb_link_node(&fscki->rb, parent, p);
-	rb_insert_color(&fscki->rb, &fsckd->inodes);
+	rb_link_yesde(&fscki->rb, parent, p);
+	rb_insert_color(&fscki->rb, &fsckd->iyesdes);
 
 	return fscki;
 }
 
 /**
- * search_inode - search inode in the RB-tree of inodes.
+ * search_iyesde - search iyesde in the RB-tree of iyesdes.
  * @fsckd: FS checking information
- * @inum: inode number to search
+ * @inum: iyesde number to search
  *
- * This is a helper function for 'check_leaf()' which searches inode @inum in
- * the RB-tree of inodes and returns an inode information pointer or %NULL if
- * the inode was not found.
+ * This is a helper function for 'check_leaf()' which searches iyesde @inum in
+ * the RB-tree of iyesdes and returns an iyesde information pointer or %NULL if
+ * the iyesde was yest found.
  */
-static struct fsck_inode *search_inode(struct fsck_data *fsckd, ino_t inum)
+static struct fsck_iyesde *search_iyesde(struct fsck_data *fsckd, iyes_t inum)
 {
-	struct rb_node *p;
-	struct fsck_inode *fscki;
+	struct rb_yesde *p;
+	struct fsck_iyesde *fscki;
 
-	p = fsckd->inodes.rb_node;
+	p = fsckd->iyesdes.rb_yesde;
 	while (p) {
-		fscki = rb_entry(p, struct fsck_inode, rb);
+		fscki = rb_entry(p, struct fsck_iyesde, rb);
 		if (inum < fscki->inum)
 			p = p->rb_left;
 		else if (inum > fscki->inum)
@@ -1891,64 +1891,64 @@ static struct fsck_inode *search_inode(struct fsck_data *fsckd, ino_t inum)
 }
 
 /**
- * read_add_inode - read inode node and add it to RB-tree of inodes.
+ * read_add_iyesde - read iyesde yesde and add it to RB-tree of iyesdes.
  * @c: UBIFS file-system description object
  * @fsckd: FS checking information
- * @inum: inode number to read
+ * @inum: iyesde number to read
  *
- * This is a helper function for 'check_leaf()' which finds inode node @inum in
- * the index, reads it, and adds it to the RB-tree of inodes. Returns inode
+ * This is a helper function for 'check_leaf()' which finds iyesde yesde @inum in
+ * the index, reads it, and adds it to the RB-tree of iyesdes. Returns iyesde
  * information pointer in case of success and a negative error code in case of
  * failure.
  */
-static struct fsck_inode *read_add_inode(struct ubifs_info *c,
-					 struct fsck_data *fsckd, ino_t inum)
+static struct fsck_iyesde *read_add_iyesde(struct ubifs_info *c,
+					 struct fsck_data *fsckd, iyes_t inum)
 {
 	int n, err;
 	union ubifs_key key;
-	struct ubifs_znode *znode;
+	struct ubifs_zyesde *zyesde;
 	struct ubifs_zbranch *zbr;
-	struct ubifs_ino_node *ino;
-	struct fsck_inode *fscki;
+	struct ubifs_iyes_yesde *iyes;
+	struct fsck_iyesde *fscki;
 
-	fscki = search_inode(fsckd, inum);
+	fscki = search_iyesde(fsckd, inum);
 	if (fscki)
 		return fscki;
 
-	ino_key_init(c, &key, inum);
-	err = ubifs_lookup_level0(c, &key, &znode, &n);
+	iyes_key_init(c, &key, inum);
+	err = ubifs_lookup_level0(c, &key, &zyesde, &n);
 	if (!err) {
-		ubifs_err(c, "inode %lu not found in index", (unsigned long)inum);
+		ubifs_err(c, "iyesde %lu yest found in index", (unsigned long)inum);
 		return ERR_PTR(-ENOENT);
 	} else if (err < 0) {
-		ubifs_err(c, "error %d while looking up inode %lu",
+		ubifs_err(c, "error %d while looking up iyesde %lu",
 			  err, (unsigned long)inum);
 		return ERR_PTR(err);
 	}
 
-	zbr = &znode->zbranch[n];
+	zbr = &zyesde->zbranch[n];
 	if (zbr->len < UBIFS_INO_NODE_SZ) {
-		ubifs_err(c, "bad node %lu node length %d",
+		ubifs_err(c, "bad yesde %lu yesde length %d",
 			  (unsigned long)inum, zbr->len);
 		return ERR_PTR(-EINVAL);
 	}
 
-	ino = kmalloc(zbr->len, GFP_NOFS);
-	if (!ino)
+	iyes = kmalloc(zbr->len, GFP_NOFS);
+	if (!iyes)
 		return ERR_PTR(-ENOMEM);
 
-	err = ubifs_tnc_read_node(c, zbr, ino);
+	err = ubifs_tnc_read_yesde(c, zbr, iyes);
 	if (err) {
-		ubifs_err(c, "cannot read inode node at LEB %d:%d, error %d",
+		ubifs_err(c, "canyest read iyesde yesde at LEB %d:%d, error %d",
 			  zbr->lnum, zbr->offs, err);
-		kfree(ino);
+		kfree(iyes);
 		return ERR_PTR(err);
 	}
 
-	fscki = add_inode(c, fsckd, ino);
-	kfree(ino);
+	fscki = add_iyesde(c, fsckd, iyes);
+	kfree(iyes);
 	if (IS_ERR(fscki)) {
-		ubifs_err(c, "error %ld while adding inode %lu node",
+		ubifs_err(c, "error %ld while adding iyesde %lu yesde",
 			  PTR_ERR(fscki), (unsigned long)inum);
 		return fscki;
 	}
@@ -1957,29 +1957,29 @@ static struct fsck_inode *read_add_inode(struct ubifs_info *c,
 }
 
 /**
- * check_leaf - check leaf node.
+ * check_leaf - check leaf yesde.
  * @c: UBIFS file-system description object
- * @zbr: zbranch of the leaf node to check
+ * @zbr: zbranch of the leaf yesde to check
  * @priv: FS checking information
  *
  * This is a helper function for 'dbg_check_filesystem()' which is called for
- * every single leaf node while walking the indexing tree. It checks that the
- * leaf node referred from the indexing tree exists, has correct CRC, and does
+ * every single leaf yesde while walking the indexing tree. It checks that the
+ * leaf yesde referred from the indexing tree exists, has correct CRC, and does
  * some other basic validation. This function is also responsible for building
- * an RB-tree of inodes - it adds all inodes into the RB-tree. It also
- * calculates reference count, size, etc for each inode in order to later
- * compare them to the information stored inside the inodes and detect possible
+ * an RB-tree of iyesdes - it adds all iyesdes into the RB-tree. It also
+ * calculates reference count, size, etc for each iyesde in order to later
+ * compare them to the information stored inside the iyesdes and detect possible
  * inconsistencies. Returns zero in case of success and a negative error code
  * in case of failure.
  */
 static int check_leaf(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 		      void *priv)
 {
-	ino_t inum;
-	void *node;
+	iyes_t inum;
+	void *yesde;
 	struct ubifs_ch *ch;
 	int err, type = key_type(c, &zbr->key);
-	struct fsck_inode *fscki;
+	struct fsck_iyesde *fscki;
 
 	if (zbr->len < UBIFS_CH_SZ) {
 		ubifs_err(c, "bad leaf length %d (LEB %d:%d)",
@@ -1987,23 +1987,23 @@ static int check_leaf(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 		return -EINVAL;
 	}
 
-	node = kmalloc(zbr->len, GFP_NOFS);
-	if (!node)
+	yesde = kmalloc(zbr->len, GFP_NOFS);
+	if (!yesde)
 		return -ENOMEM;
 
-	err = ubifs_tnc_read_node(c, zbr, node);
+	err = ubifs_tnc_read_yesde(c, zbr, yesde);
 	if (err) {
-		ubifs_err(c, "cannot read leaf node at LEB %d:%d, error %d",
+		ubifs_err(c, "canyest read leaf yesde at LEB %d:%d, error %d",
 			  zbr->lnum, zbr->offs, err);
 		goto out_free;
 	}
 
-	/* If this is an inode node, add it to RB-tree of inodes */
+	/* If this is an iyesde yesde, add it to RB-tree of iyesdes */
 	if (type == UBIFS_INO_KEY) {
-		fscki = add_inode(c, priv, node);
+		fscki = add_iyesde(c, priv, yesde);
 		if (IS_ERR(fscki)) {
 			err = PTR_ERR(fscki);
-			ubifs_err(c, "error %d while adding inode node", err);
+			ubifs_err(c, "error %d while adding iyesde yesde", err);
 			goto out_dump;
 		}
 		goto out;
@@ -2011,13 +2011,13 @@ static int check_leaf(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 
 	if (type != UBIFS_DENT_KEY && type != UBIFS_XENT_KEY &&
 	    type != UBIFS_DATA_KEY) {
-		ubifs_err(c, "unexpected node type %d at LEB %d:%d",
+		ubifs_err(c, "unexpected yesde type %d at LEB %d:%d",
 			  type, zbr->lnum, zbr->offs);
 		err = -EINVAL;
 		goto out_free;
 	}
 
-	ch = node;
+	ch = yesde;
 	if (le64_to_cpu(ch->sqnum) > c->max_sqnum) {
 		ubifs_err(c, "too high sequence number, max. is %llu",
 			  c->max_sqnum);
@@ -2027,37 +2027,37 @@ static int check_leaf(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 
 	if (type == UBIFS_DATA_KEY) {
 		long long blk_offs;
-		struct ubifs_data_node *dn = node;
+		struct ubifs_data_yesde *dn = yesde;
 
 		ubifs_assert(c, zbr->len >= UBIFS_DATA_NODE_SZ);
 
 		/*
-		 * Search the inode node this data node belongs to and insert
-		 * it to the RB-tree of inodes.
+		 * Search the iyesde yesde this data yesde belongs to and insert
+		 * it to the RB-tree of iyesdes.
 		 */
 		inum = key_inum_flash(c, &dn->key);
-		fscki = read_add_inode(c, priv, inum);
+		fscki = read_add_iyesde(c, priv, inum);
 		if (IS_ERR(fscki)) {
 			err = PTR_ERR(fscki);
-			ubifs_err(c, "error %d while processing data node and trying to find inode node %lu",
+			ubifs_err(c, "error %d while processing data yesde and trying to find iyesde yesde %lu",
 				  err, (unsigned long)inum);
 			goto out_dump;
 		}
 
-		/* Make sure the data node is within inode size */
+		/* Make sure the data yesde is within iyesde size */
 		blk_offs = key_block_flash(c, &dn->key);
 		blk_offs <<= UBIFS_BLOCK_SHIFT;
 		blk_offs += le32_to_cpu(dn->size);
 		if (blk_offs > fscki->size) {
-			ubifs_err(c, "data node at LEB %d:%d is not within inode size %lld",
+			ubifs_err(c, "data yesde at LEB %d:%d is yest within iyesde size %lld",
 				  zbr->lnum, zbr->offs, fscki->size);
 			err = -EINVAL;
 			goto out_dump;
 		}
 	} else {
 		int nlen;
-		struct ubifs_dent_node *dent = node;
-		struct fsck_inode *fscki1;
+		struct ubifs_dent_yesde *dent = yesde;
+		struct fsck_iyesde *fscki1;
 
 		ubifs_assert(c, zbr->len >= UBIFS_DENT_NODE_SZ);
 
@@ -2066,26 +2066,26 @@ static int check_leaf(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 			goto out_dump;
 
 		/*
-		 * Search the inode node this entry refers to and the parent
-		 * inode node and insert them to the RB-tree of inodes.
+		 * Search the iyesde yesde this entry refers to and the parent
+		 * iyesde yesde and insert them to the RB-tree of iyesdes.
 		 */
 		inum = le64_to_cpu(dent->inum);
-		fscki = read_add_inode(c, priv, inum);
+		fscki = read_add_iyesde(c, priv, inum);
 		if (IS_ERR(fscki)) {
 			err = PTR_ERR(fscki);
-			ubifs_err(c, "error %d while processing entry node and trying to find inode node %lu",
+			ubifs_err(c, "error %d while processing entry yesde and trying to find iyesde yesde %lu",
 				  err, (unsigned long)inum);
 			goto out_dump;
 		}
 
-		/* Count how many direntries or xentries refers this inode */
+		/* Count how many direntries or xentries refers this iyesde */
 		fscki->references += 1;
 
 		inum = key_inum_flash(c, &dent->key);
-		fscki1 = read_add_inode(c, priv, inum);
+		fscki1 = read_add_iyesde(c, priv, inum);
 		if (IS_ERR(fscki1)) {
 			err = PTR_ERR(fscki1);
-			ubifs_err(c, "error %d while processing entry node and trying to find parent inode node %lu",
+			ubifs_err(c, "error %d while processing entry yesde and trying to find parent iyesde yesde %lu",
 				  err, (unsigned long)inum);
 			goto out_dump;
 		}
@@ -2104,107 +2104,107 @@ static int check_leaf(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 	}
 
 out:
-	kfree(node);
+	kfree(yesde);
 	return 0;
 
 out_dump:
-	ubifs_msg(c, "dump of node at LEB %d:%d", zbr->lnum, zbr->offs);
-	ubifs_dump_node(c, node);
+	ubifs_msg(c, "dump of yesde at LEB %d:%d", zbr->lnum, zbr->offs);
+	ubifs_dump_yesde(c, yesde);
 out_free:
-	kfree(node);
+	kfree(yesde);
 	return err;
 }
 
 /**
- * free_inodes - free RB-tree of inodes.
+ * free_iyesdes - free RB-tree of iyesdes.
  * @fsckd: FS checking information
  */
-static void free_inodes(struct fsck_data *fsckd)
+static void free_iyesdes(struct fsck_data *fsckd)
 {
-	struct fsck_inode *fscki, *n;
+	struct fsck_iyesde *fscki, *n;
 
-	rbtree_postorder_for_each_entry_safe(fscki, n, &fsckd->inodes, rb)
+	rbtree_postorder_for_each_entry_safe(fscki, n, &fsckd->iyesdes, rb)
 		kfree(fscki);
 }
 
 /**
- * check_inodes - checks all inodes.
+ * check_iyesdes - checks all iyesdes.
  * @c: UBIFS file-system description object
  * @fsckd: FS checking information
  *
  * This is a helper function for 'dbg_check_filesystem()' which walks the
- * RB-tree of inodes after the index scan has been finished, and checks that
- * inode nlink, size, etc are correct. Returns zero if inodes are fine,
- * %-EINVAL if not, and a negative error code in case of failure.
+ * RB-tree of iyesdes after the index scan has been finished, and checks that
+ * iyesde nlink, size, etc are correct. Returns zero if iyesdes are fine,
+ * %-EINVAL if yest, and a negative error code in case of failure.
  */
-static int check_inodes(struct ubifs_info *c, struct fsck_data *fsckd)
+static int check_iyesdes(struct ubifs_info *c, struct fsck_data *fsckd)
 {
 	int n, err;
 	union ubifs_key key;
-	struct ubifs_znode *znode;
+	struct ubifs_zyesde *zyesde;
 	struct ubifs_zbranch *zbr;
-	struct ubifs_ino_node *ino;
-	struct fsck_inode *fscki;
-	struct rb_node *this = rb_first(&fsckd->inodes);
+	struct ubifs_iyes_yesde *iyes;
+	struct fsck_iyesde *fscki;
+	struct rb_yesde *this = rb_first(&fsckd->iyesdes);
 
 	while (this) {
-		fscki = rb_entry(this, struct fsck_inode, rb);
+		fscki = rb_entry(this, struct fsck_iyesde, rb);
 		this = rb_next(this);
 
 		if (S_ISDIR(fscki->mode)) {
 			/*
 			 * Directories have to have exactly one reference (they
-			 * cannot have hardlinks), although root inode is an
+			 * canyest have hardlinks), although root iyesde is an
 			 * exception.
 			 */
 			if (fscki->inum != UBIFS_ROOT_INO &&
 			    fscki->references != 1) {
-				ubifs_err(c, "directory inode %lu has %d direntries which refer it, but should be 1",
+				ubifs_err(c, "directory iyesde %lu has %d direntries which refer it, but should be 1",
 					  (unsigned long)fscki->inum,
 					  fscki->references);
 				goto out_dump;
 			}
 			if (fscki->inum == UBIFS_ROOT_INO &&
 			    fscki->references != 0) {
-				ubifs_err(c, "root inode %lu has non-zero (%d) direntries which refer it",
+				ubifs_err(c, "root iyesde %lu has yesn-zero (%d) direntries which refer it",
 					  (unsigned long)fscki->inum,
 					  fscki->references);
 				goto out_dump;
 			}
 			if (fscki->calc_sz != fscki->size) {
-				ubifs_err(c, "directory inode %lu size is %lld, but calculated size is %lld",
+				ubifs_err(c, "directory iyesde %lu size is %lld, but calculated size is %lld",
 					  (unsigned long)fscki->inum,
 					  fscki->size, fscki->calc_sz);
 				goto out_dump;
 			}
 			if (fscki->calc_cnt != fscki->nlink) {
-				ubifs_err(c, "directory inode %lu nlink is %d, but calculated nlink is %d",
+				ubifs_err(c, "directory iyesde %lu nlink is %d, but calculated nlink is %d",
 					  (unsigned long)fscki->inum,
 					  fscki->nlink, fscki->calc_cnt);
 				goto out_dump;
 			}
 		} else {
 			if (fscki->references != fscki->nlink) {
-				ubifs_err(c, "inode %lu nlink is %d, but calculated nlink is %d",
+				ubifs_err(c, "iyesde %lu nlink is %d, but calculated nlink is %d",
 					  (unsigned long)fscki->inum,
 					  fscki->nlink, fscki->references);
 				goto out_dump;
 			}
 		}
 		if (fscki->xattr_sz != fscki->calc_xsz) {
-			ubifs_err(c, "inode %lu has xattr size %u, but calculated size is %lld",
+			ubifs_err(c, "iyesde %lu has xattr size %u, but calculated size is %lld",
 				  (unsigned long)fscki->inum, fscki->xattr_sz,
 				  fscki->calc_xsz);
 			goto out_dump;
 		}
 		if (fscki->xattr_cnt != fscki->calc_xcnt) {
-			ubifs_err(c, "inode %lu has %u xattrs, but calculated count is %lld",
+			ubifs_err(c, "iyesde %lu has %u xattrs, but calculated count is %lld",
 				  (unsigned long)fscki->inum,
 				  fscki->xattr_cnt, fscki->calc_xcnt);
 			goto out_dump;
 		}
 		if (fscki->xattr_nms != fscki->calc_xnms) {
-			ubifs_err(c, "inode %lu has xattr names' size %u, but calculated names' size is %lld",
+			ubifs_err(c, "iyesde %lu has xattr names' size %u, but calculated names' size is %lld",
 				  (unsigned long)fscki->inum, fscki->xattr_nms,
 				  fscki->calc_xnms);
 			goto out_dump;
@@ -2214,36 +2214,36 @@ static int check_inodes(struct ubifs_info *c, struct fsck_data *fsckd)
 	return 0;
 
 out_dump:
-	/* Read the bad inode and dump it */
-	ino_key_init(c, &key, fscki->inum);
-	err = ubifs_lookup_level0(c, &key, &znode, &n);
+	/* Read the bad iyesde and dump it */
+	iyes_key_init(c, &key, fscki->inum);
+	err = ubifs_lookup_level0(c, &key, &zyesde, &n);
 	if (!err) {
-		ubifs_err(c, "inode %lu not found in index",
+		ubifs_err(c, "iyesde %lu yest found in index",
 			  (unsigned long)fscki->inum);
 		return -ENOENT;
 	} else if (err < 0) {
-		ubifs_err(c, "error %d while looking up inode %lu",
+		ubifs_err(c, "error %d while looking up iyesde %lu",
 			  err, (unsigned long)fscki->inum);
 		return err;
 	}
 
-	zbr = &znode->zbranch[n];
-	ino = kmalloc(zbr->len, GFP_NOFS);
-	if (!ino)
+	zbr = &zyesde->zbranch[n];
+	iyes = kmalloc(zbr->len, GFP_NOFS);
+	if (!iyes)
 		return -ENOMEM;
 
-	err = ubifs_tnc_read_node(c, zbr, ino);
+	err = ubifs_tnc_read_yesde(c, zbr, iyes);
 	if (err) {
-		ubifs_err(c, "cannot read inode node at LEB %d:%d, error %d",
+		ubifs_err(c, "canyest read iyesde yesde at LEB %d:%d, error %d",
 			  zbr->lnum, zbr->offs, err);
-		kfree(ino);
+		kfree(iyes);
 		return err;
 	}
 
-	ubifs_msg(c, "dump of the inode %lu sitting in LEB %d:%d",
+	ubifs_msg(c, "dump of the iyesde %lu sitting in LEB %d:%d",
 		  (unsigned long)fscki->inum, zbr->lnum, zbr->offs);
-	ubifs_dump_node(c, ino);
-	kfree(ino);
+	ubifs_dump_yesde(c, iyes);
+	kfree(iyes);
 	return -EINVAL;
 }
 
@@ -2252,13 +2252,13 @@ out_dump:
  * @c: UBIFS file-system description object
  *
  * This function checks the file system, namely:
- * o makes sure that all leaf nodes exist and their CRCs are correct;
- * o makes sure inode nlink, size, xattr size/count are correct (for all
- *   inodes).
+ * o makes sure that all leaf yesdes exist and their CRCs are correct;
+ * o makes sure iyesde nlink, size, xattr size/count are correct (for all
+ *   iyesdes).
  *
- * The function reads whole indexing tree and all nodes, so it is pretty
+ * The function reads whole indexing tree and all yesdes, so it is pretty
  * heavy-weight. Returns zero if the file-system is consistent, %-EINVAL if
- * not, and a negative error code in case of failure.
+ * yest, and a negative error code in case of failure.
  */
 int dbg_check_filesystem(struct ubifs_info *c)
 {
@@ -2268,57 +2268,57 @@ int dbg_check_filesystem(struct ubifs_info *c)
 	if (!dbg_is_chk_fs(c))
 		return 0;
 
-	fsckd.inodes = RB_ROOT;
+	fsckd.iyesdes = RB_ROOT;
 	err = dbg_walk_index(c, check_leaf, NULL, &fsckd);
 	if (err)
 		goto out_free;
 
-	err = check_inodes(c, &fsckd);
+	err = check_iyesdes(c, &fsckd);
 	if (err)
 		goto out_free;
 
-	free_inodes(&fsckd);
+	free_iyesdes(&fsckd);
 	return 0;
 
 out_free:
 	ubifs_err(c, "file-system check failed with error %d", err);
 	dump_stack();
-	free_inodes(&fsckd);
+	free_iyesdes(&fsckd);
 	return err;
 }
 
 /**
- * dbg_check_data_nodes_order - check that list of data nodes is sorted.
+ * dbg_check_data_yesdes_order - check that list of data yesdes is sorted.
  * @c: UBIFS file-system description object
- * @head: the list of nodes ('struct ubifs_scan_node' objects)
+ * @head: the list of yesdes ('struct ubifs_scan_yesde' objects)
  *
- * This function returns zero if the list of data nodes is sorted correctly,
- * and %-EINVAL if not.
+ * This function returns zero if the list of data yesdes is sorted correctly,
+ * and %-EINVAL if yest.
  */
-int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head)
+int dbg_check_data_yesdes_order(struct ubifs_info *c, struct list_head *head)
 {
 	struct list_head *cur;
-	struct ubifs_scan_node *sa, *sb;
+	struct ubifs_scan_yesde *sa, *sb;
 
 	if (!dbg_is_chk_gen(c))
 		return 0;
 
 	for (cur = head->next; cur->next != head; cur = cur->next) {
-		ino_t inuma, inumb;
+		iyes_t inuma, inumb;
 		uint32_t blka, blkb;
 
 		cond_resched();
-		sa = container_of(cur, struct ubifs_scan_node, list);
-		sb = container_of(cur->next, struct ubifs_scan_node, list);
+		sa = container_of(cur, struct ubifs_scan_yesde, list);
+		sb = container_of(cur->next, struct ubifs_scan_yesde, list);
 
 		if (sa->type != UBIFS_DATA_NODE) {
-			ubifs_err(c, "bad node type %d", sa->type);
-			ubifs_dump_node(c, sa->node);
+			ubifs_err(c, "bad yesde type %d", sa->type);
+			ubifs_dump_yesde(c, sa->yesde);
 			return -EINVAL;
 		}
 		if (sb->type != UBIFS_DATA_NODE) {
-			ubifs_err(c, "bad node type %d", sb->type);
-			ubifs_dump_node(c, sb->node);
+			ubifs_err(c, "bad yesde type %d", sb->type);
+			ubifs_dump_yesde(c, sb->yesde);
 			return -EINVAL;
 		}
 
@@ -2341,7 +2341,7 @@ int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head)
 			goto error_dump;
 		}
 		if (blka == blkb) {
-			ubifs_err(c, "two data nodes for the same block");
+			ubifs_err(c, "two data yesdes for the same block");
 			goto error_dump;
 		}
 	}
@@ -2349,50 +2349,50 @@ int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head)
 	return 0;
 
 error_dump:
-	ubifs_dump_node(c, sa->node);
-	ubifs_dump_node(c, sb->node);
+	ubifs_dump_yesde(c, sa->yesde);
+	ubifs_dump_yesde(c, sb->yesde);
 	return -EINVAL;
 }
 
 /**
- * dbg_check_nondata_nodes_order - check that list of data nodes is sorted.
+ * dbg_check_yesndata_yesdes_order - check that list of data yesdes is sorted.
  * @c: UBIFS file-system description object
- * @head: the list of nodes ('struct ubifs_scan_node' objects)
+ * @head: the list of yesdes ('struct ubifs_scan_yesde' objects)
  *
- * This function returns zero if the list of non-data nodes is sorted correctly,
- * and %-EINVAL if not.
+ * This function returns zero if the list of yesn-data yesdes is sorted correctly,
+ * and %-EINVAL if yest.
  */
-int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head)
+int dbg_check_yesndata_yesdes_order(struct ubifs_info *c, struct list_head *head)
 {
 	struct list_head *cur;
-	struct ubifs_scan_node *sa, *sb;
+	struct ubifs_scan_yesde *sa, *sb;
 
 	if (!dbg_is_chk_gen(c))
 		return 0;
 
 	for (cur = head->next; cur->next != head; cur = cur->next) {
-		ino_t inuma, inumb;
+		iyes_t inuma, inumb;
 		uint32_t hasha, hashb;
 
 		cond_resched();
-		sa = container_of(cur, struct ubifs_scan_node, list);
-		sb = container_of(cur->next, struct ubifs_scan_node, list);
+		sa = container_of(cur, struct ubifs_scan_yesde, list);
+		sb = container_of(cur->next, struct ubifs_scan_yesde, list);
 
 		if (sa->type != UBIFS_INO_NODE && sa->type != UBIFS_DENT_NODE &&
 		    sa->type != UBIFS_XENT_NODE) {
-			ubifs_err(c, "bad node type %d", sa->type);
-			ubifs_dump_node(c, sa->node);
+			ubifs_err(c, "bad yesde type %d", sa->type);
+			ubifs_dump_yesde(c, sa->yesde);
 			return -EINVAL;
 		}
 		if (sb->type != UBIFS_INO_NODE && sb->type != UBIFS_DENT_NODE &&
 		    sb->type != UBIFS_XENT_NODE) {
-			ubifs_err(c, "bad node type %d", sb->type);
-			ubifs_dump_node(c, sb->node);
+			ubifs_err(c, "bad yesde type %d", sb->type);
+			ubifs_dump_yesde(c, sb->yesde);
 			return -EINVAL;
 		}
 
 		if (sa->type != UBIFS_INO_NODE && sb->type == UBIFS_INO_NODE) {
-			ubifs_err(c, "non-inode node goes before inode node");
+			ubifs_err(c, "yesn-iyesde yesde goes before iyesde yesde");
 			goto error_dump;
 		}
 
@@ -2400,9 +2400,9 @@ int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head)
 			continue;
 
 		if (sa->type == UBIFS_INO_NODE && sb->type == UBIFS_INO_NODE) {
-			/* Inode nodes are sorted in descending size order */
+			/* Iyesde yesdes are sorted in descending size order */
 			if (sa->len < sb->len) {
-				ubifs_err(c, "smaller inode node goes first");
+				ubifs_err(c, "smaller iyesde yesde goes first");
 				goto error_dump;
 			}
 			continue;
@@ -2410,7 +2410,7 @@ int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head)
 
 		/*
 		 * This is either a dentry or xentry, which should be sorted in
-		 * ascending (parent ino, hash) order.
+		 * ascending (parent iyes, hash) order.
 		 */
 		inuma = key_inum(c, &sa->key);
 		inumb = key_inum(c, &sb->key);
@@ -2436,10 +2436,10 @@ int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head)
 	return 0;
 
 error_dump:
-	ubifs_msg(c, "dumping first node");
-	ubifs_dump_node(c, sa->node);
-	ubifs_msg(c, "dumping second node");
-	ubifs_dump_node(c, sb->node);
+	ubifs_msg(c, "dumping first yesde");
+	ubifs_dump_yesde(c, sa->yesde);
+	ubifs_msg(c, "dumping second yesde");
+	ubifs_dump_yesde(c, sb->yesde);
 	return -EINVAL;
 	return 0;
 }
@@ -2526,7 +2526,7 @@ static int power_cut_emulated(struct ubifs_info *c, int lnum, int write)
 		   !ubifs_search_bud(c, lnum)) {
 		if (chance(19, 20))
 			return 0;
-		ubifs_warn(c, "failing in non-bud LEB %d", lnum);
+		ubifs_warn(c, "failing in yesn-bud LEB %d", lnum);
 	} else if (c->cmt_state == COMMIT_RUNNING_BACKGROUND ||
 		   c->cmt_state == COMMIT_RUNNING_REQUIRED) {
 		if (chance(999, 1000))
@@ -2535,7 +2535,7 @@ static int power_cut_emulated(struct ubifs_info *c, int lnum, int write)
 	} else {
 		if (chance(9999, 10000))
 			return 0;
-		ubifs_warn(c, "failing in bud LEB %d commit not running", lnum);
+		ubifs_warn(c, "failing in bud LEB %d commit yest running", lnum);
 	}
 
 	d->pc_happened = 1;
@@ -2642,10 +2642,10 @@ int dbg_leb_map(struct ubifs_info *c, int lnum)
  */
 static struct dentry *dfs_rootdir;
 
-static int dfs_file_open(struct inode *inode, struct file *file)
+static int dfs_file_open(struct iyesde *iyesde, struct file *file)
 {
-	file->private_data = inode->i_private;
-	return nonseekable_open(inode, file);
+	file->private_data = iyesde->i_private;
+	return yesnseekable_open(iyesde, file);
 }
 
 /**
@@ -2781,7 +2781,7 @@ static const struct file_operations dfs_fops = {
 	.read = dfs_file_read,
 	.write = dfs_file_write,
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 /**
@@ -2790,7 +2790,7 @@ static const struct file_operations dfs_fops = {
  *
  * This function creates all debugfs files for this instance of UBIFS.
  *
- * Note, the only reason we have not merged this function with the
+ * Note, the only reason we have yest merged this function with the
  * 'ubifs_debugging_init()' function is because it is better to initialize
  * debugfs interfaces at the very end of the mount process, and remove them at
  * the very beginning of the mount process.
@@ -2926,13 +2926,13 @@ static const struct file_operations dfs_global_fops = {
 	.read = dfs_global_file_read,
 	.write = dfs_global_file_write,
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 /**
  * dbg_debugfs_init - initialize debugfs file-system.
  *
- * UBIFS uses debugfs file-system to expose various debugging knobs to
+ * UBIFS uses debugfs file-system to expose various debugging kyesbs to
  * user-space. This function creates "ubifs" directory in the debugfs
  * file-system.
  */

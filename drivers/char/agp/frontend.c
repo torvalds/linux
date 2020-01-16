@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -639,7 +639,7 @@ out_again:
 	return -EAGAIN;
 }
 
-static int agp_release(struct inode *inode, struct file *file)
+static int agp_release(struct iyesde *iyesde, struct file *file)
 {
 	struct agp_file_private *priv = file->private_data;
 
@@ -670,13 +670,13 @@ static int agp_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int agp_open(struct inode *inode, struct file *file)
+static int agp_open(struct iyesde *iyesde, struct file *file)
 {
-	int minor = iminor(inode);
+	int miyesr = imiyesr(iyesde);
 	struct agp_file_private *priv;
 	struct agp_client *client;
 
-	if (minor != AGPGART_MINOR)
+	if (miyesr != AGPGART_MINOR)
 		return -ENXIO;
 
 	mutex_lock(&(agp_fe.agp_mutex));
@@ -718,7 +718,7 @@ static int agpioc_info_wrap(struct agp_file_private *priv, void __user *arg)
 
 	memset(&userinfo, 0, sizeof(userinfo));
 	userinfo.version.major = kerninfo.version.major;
-	userinfo.version.minor = kerninfo.version.minor;
+	userinfo.version.miyesr = kerninfo.version.miyesr;
 	userinfo.bridge_id = kerninfo.device->vendor |
 	    (kerninfo.device->device << 16);
 	userinfo.agp_mode = kerninfo.mode;
@@ -866,7 +866,7 @@ static int agpioc_reserve_wrap(struct agp_file_private *priv, void __user *arg)
 int agpioc_protect_wrap(struct agp_file_private *priv)
 {
 	DBG("");
-	/* This function is not currently implemented */
+	/* This function is yest currently implemented */
 	return -EINVAL;
 }
 
@@ -1032,7 +1032,7 @@ ioctl_out:
 static const struct file_operations agp_fops =
 {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.unlocked_ioctl	= agp_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= compat_agp_ioctl,
@@ -1044,7 +1044,7 @@ static const struct file_operations agp_fops =
 
 static struct miscdevice agp_miscdev =
 {
-	.minor	= AGPGART_MINOR,
+	.miyesr	= AGPGART_MINOR,
 	.name	= "agpgart",
 	.fops	= &agp_fops
 };
@@ -1055,7 +1055,7 @@ int agp_frontend_initialize(void)
 	mutex_init(&(agp_fe.agp_mutex));
 
 	if (misc_register(&agp_miscdev)) {
-		printk(KERN_ERR PFX "unable to get minor: %d\n", AGPGART_MINOR);
+		printk(KERN_ERR PFX "unable to get miyesr: %d\n", AGPGART_MINOR);
 		return -EIO;
 	}
 	return 0;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef _ASM_BITOPS_H
@@ -96,7 +96,7 @@ static inline int test_and_##op##_bit(unsigned long nr, volatile unsigned long *
  *
  * (1) The generic APIs have "signed" @nr while we have it "unsigned"
  *     This avoids extra code to be generated for pointer arithmatic, since
- *     is "not sure" that index is NOT -ve
+ *     is "yest sure" that index is NOT -ve
  * (2) Utilize the fact that ARCompact bit fidding insn (BSET/BCLR/ASL) etc
  *     only consider bottom 5 bits of @nr, so NO need to mask them off.
  *     (GCC Quirk: however for constant @nr we still need to do the masking
@@ -265,7 +265,7 @@ static inline __attribute__ ((const)) int clz(unsigned int x)
 	unsigned int res;
 
 	__asm__ __volatile__(
-	"	norm.f  %0, %1		\n"
+	"	yesrm.f  %0, %1		\n"
 	"	mov.n   %0, 0		\n"
 	"	add.p   %0, %0, 1	\n"
 	: "=r"(res)
@@ -359,7 +359,7 @@ static inline __attribute__ ((const)) int fls(unsigned long x)
 	asm volatile(
 	"	fls.f	%0, %1		\n"  /* 0:31; 0(Z) if src 0 */
 	"	add.nz	%0, %0, 1	\n"  /* 0:31 -> 1:32 */
-	: "=r"(n)	/* Early clobber not needed */
+	: "=r"(n)	/* Early clobber yest needed */
 	: "r"(x)
 	: "cc");
 
@@ -367,7 +367,7 @@ static inline __attribute__ ((const)) int fls(unsigned long x)
 }
 
 /*
- * __fls: Similar to fls, but zero based (0-31). Also 0 if no bit set
+ * __fls: Similar to fls, but zero based (0-31). Also 0 if yes bit set
  */
 static inline __attribute__ ((const)) int __fls(unsigned long x)
 {
@@ -387,7 +387,7 @@ static inline __attribute__ ((const)) int ffs(unsigned long x)
 	"	ffs.f	%0, %1		\n"  /* 0:31; 31(Z) if src 0 */
 	"	add.nz	%0, %0, 1	\n"  /* 0:31 -> 1:32 */
 	"	mov.z	%0, 0		\n"  /* 31(Z)-> 0 */
-	: "=r"(n)	/* Early clobber not needed */
+	: "=r"(n)	/* Early clobber yest needed */
 	: "r"(x)
 	: "cc");
 

@@ -125,7 +125,7 @@ static void stm32_dfsdm_clk_disable_unprepare(struct stm32_dfsdm *dfsdm)
 /**
  * stm32_dfsdm_start_dfsdm - start global dfsdm interface.
  *
- * Enable interface if n_active_ch is not null.
+ * Enable interface if n_active_ch is yest null.
  * @dfsdm: Handle used to retrieve dfsdm context.
  */
 int stm32_dfsdm_start_dfsdm(struct stm32_dfsdm *dfsdm)
@@ -138,7 +138,7 @@ int stm32_dfsdm_start_dfsdm(struct stm32_dfsdm *dfsdm)
 	if (atomic_inc_return(&priv->n_active_ch) == 1) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_yesidle(dev);
 			goto error_ret;
 		}
 
@@ -217,13 +217,13 @@ EXPORT_SYMBOL_GPL(stm32_dfsdm_stop_dfsdm);
 static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 				struct dfsdm_priv *priv)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct resource *res;
 	unsigned long clk_freq, divider;
 	unsigned int spi_freq, rem;
 	int ret;
 
-	if (!node)
+	if (!yesde)
 		return -EINVAL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -260,7 +260,7 @@ static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 		clk_freq = clk_get_rate(priv->clk);
 
 	/* SPI clock out frequency */
-	ret = of_property_read_u32(pdev->dev.of_node, "spi-max-frequency",
+	ret = of_property_read_u32(pdev->dev.of_yesde, "spi-max-frequency",
 				   &spi_freq);
 	if (ret < 0) {
 		/* No SPI master mode */
@@ -268,13 +268,13 @@ static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 	}
 
 	divider = div_u64_rem(clk_freq, spi_freq, &rem);
-	/* Round up divider when ckout isn't precise, not to exceed spi_freq */
+	/* Round up divider when ckout isn't precise, yest to exceed spi_freq */
 	if (rem)
 		divider++;
 
 	/* programmable divider is in range of [2:256] */
 	if (divider < 2 || divider > 256) {
-		dev_err(&pdev->dev, "spi-max-frequency not achievable\n");
+		dev_err(&pdev->dev, "spi-max-frequency yest achievable\n");
 		return -EINVAL;
 	}
 
@@ -283,7 +283,7 @@ static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 	priv->dfsdm.spi_master_freq = clk_freq / (priv->spi_clk_out_div + 1);
 
 	if (rem) {
-		dev_warn(&pdev->dev, "SPI clock not accurate\n");
+		dev_warn(&pdev->dev, "SPI clock yest accurate\n");
 		dev_warn(&pdev->dev, "%ld = %d * %d + %d\n",
 			 clk_freq, spi_freq, priv->spi_clk_out_div + 1, rem);
 	}
@@ -355,11 +355,11 @@ static int stm32_dfsdm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	ret = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	ret = of_platform_populate(pdev->dev.of_yesde, NULL, NULL, &pdev->dev);
 	if (ret)
 		goto pm_put;
 
@@ -370,7 +370,7 @@ static int stm32_dfsdm_probe(struct platform_device *pdev)
 pm_put:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	stm32_dfsdm_clk_disable_unprepare(dfsdm);
 
 	return ret;
@@ -384,7 +384,7 @@ static int stm32_dfsdm_core_remove(struct platform_device *pdev)
 	of_platform_depopulate(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	stm32_dfsdm_clk_disable_unprepare(dfsdm);
 
 	return 0;

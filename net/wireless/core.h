@@ -88,7 +88,7 @@ struct cfg80211_registered_device {
 
 	struct delayed_work dfs_update_channels_wk;
 
-	/* netlink port which started critical protocol (0 means not started) */
+	/* netlink port which started critical protocol (0 means yest started) */
 	u32 crit_proto_nlportid;
 
 	struct cfg80211_coalesce *coalesce;
@@ -152,7 +152,7 @@ extern int cfg80211_rdev_list_generation;
 struct cfg80211_internal_bss {
 	struct list_head list;
 	struct list_head hidden_list;
-	struct rb_node rbn;
+	struct rb_yesde rbn;
 	u64 ts_boottime;
 	unsigned long ts;
 	unsigned long refcount;
@@ -314,11 +314,11 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,
 			 struct cfg80211_ibss_params *params,
 			 struct cfg80211_cached_keys *connkeys);
-void cfg80211_clear_ibss(struct net_device *dev, bool nowext);
+void cfg80211_clear_ibss(struct net_device *dev, bool yeswext);
 int __cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev, bool nowext);
+			  struct net_device *dev, bool yeswext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
-			struct net_device *dev, bool nowext);
+			struct net_device *dev, bool yeswext);
 void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 			    struct ieee80211_channel *channel);
 int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
@@ -353,9 +353,9 @@ int cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
 
 /* AP */
 int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev, bool notify);
+		       struct net_device *dev, bool yestify);
 int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
-		     struct net_device *dev, bool notify);
+		     struct net_device *dev, bool yestify);
 
 /* MLME */
 int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
@@ -542,8 +542,8 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 #else
 /*
  * Trick to enable using it as a condition,
- * and also not give a warning when it's
- * not used that way.
+ * and also yest give a warning when it's
+ * yest used that way.
  */
 #define CFG80211_DEV_WARN_ON(cond)	({bool __r = (cond); __r; })
 #endif

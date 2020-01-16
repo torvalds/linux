@@ -466,7 +466,7 @@ emit_bswap_uxt:
 			emit(A64_UXTW(is64, dst, dst), ctx);
 			break;
 		case 64:
-			/* nop */
+			/* yesp */
 			break;
 		}
 		break;
@@ -768,7 +768,7 @@ emit_cond_jmp:
 		break;
 
 	default:
-		pr_err_once("unknown opcode %02x\n", code);
+		pr_err_once("unkyeswn opcode %02x\n", code);
 		return -EINVAL;
 	}
 
@@ -893,7 +893,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	ctx.epilogue_offset = ctx.idx;
 	build_epilogue(&ctx);
 
-	/* Now we know the actual image size. */
+	/* Now we kyesw the actual image size. */
 	image_size = sizeof(u32) * ctx.idx;
 	header = bpf_jit_binary_alloc(image_size, &image_ptr,
 				      sizeof(u32), jit_fill_hole);
@@ -966,7 +966,7 @@ out:
 
 void *bpf_jit_alloc_exec(unsigned long size)
 {
-	return __vmalloc_node_range(size, PAGE_SIZE, BPF_JIT_REGION_START,
+	return __vmalloc_yesde_range(size, PAGE_SIZE, BPF_JIT_REGION_START,
 				    BPF_JIT_REGION_END, GFP_KERNEL,
 				    PAGE_KERNEL, 0, NUMA_NO_NODE,
 				    __builtin_return_address(0));

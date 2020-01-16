@@ -5,14 +5,14 @@
 
 #define pr_fmt(fmt) "drm_format: " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 
 #include <drm/drm_fourcc.h>
 
 #include "test-drm_modeset_common.h"
 
-int igt_check_drm_format_block_width(void *ignored)
+int igt_check_drm_format_block_width(void *igyesred)
 {
 	const struct drm_format_info *info = NULL;
 
@@ -55,7 +55,7 @@ int igt_check_drm_format_block_width(void *ignored)
 	return 0;
 }
 
-int igt_check_drm_format_block_height(void *ignored)
+int igt_check_drm_format_block_height(void *igyesred)
 {
 	const struct drm_format_info *info = NULL;
 
@@ -98,7 +98,7 @@ int igt_check_drm_format_block_height(void *ignored)
 	return 0;
 }
 
-int igt_check_drm_format_min_pitch(void *ignored)
+int igt_check_drm_format_min_pitch(void *igyesred)
 {
 	const struct drm_format_info *info = NULL;
 

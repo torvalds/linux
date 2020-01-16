@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -242,8 +242,8 @@
 	SR(DOMAIN7_PG_CONFIG), \
 	SR(DOMAIN8_PG_CONFIG), \
 	SR(DOMAIN9_PG_CONFIG), \
-/*	SR(DOMAIN10_PG_CONFIG), Navi1x HUBP5 not powergate-able*/\
-/*	SR(DOMAIN11_PG_CONFIG), Navi1x DPP5 is not powergate-able */\
+/*	SR(DOMAIN10_PG_CONFIG), Navi1x HUBP5 yest powergate-able*/\
+/*	SR(DOMAIN11_PG_CONFIG), Navi1x DPP5 is yest powergate-able */\
 	SR(DOMAIN16_PG_CONFIG), \
 	SR(DOMAIN17_PG_CONFIG), \
 	SR(DOMAIN18_PG_CONFIG), \

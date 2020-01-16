@@ -71,7 +71,7 @@ snd_pmac_awacs_write_reg(struct snd_pmac *chip, int reg, int val)
 }
 
 static void
-snd_pmac_awacs_write_noreg(struct snd_pmac *chip, int reg, int val)
+snd_pmac_awacs_write_yesreg(struct snd_pmac *chip, int reg, int val)
 {
 	snd_pmac_awacs_write(chip, val | (reg << 12));
 }
@@ -84,17 +84,17 @@ static void screamer_recalibrate(struct snd_pmac *chip)
 		return;
 
 	/* Sorry for the horrible delays... I hope to get that improved
-	 * by making the whole PM process asynchronous in a future version
+	 * by making the whole PM process asynchroyesus in a future version
 	 */
-	snd_pmac_awacs_write_noreg(chip, 1, chip->awacs_reg[1]);
+	snd_pmac_awacs_write_yesreg(chip, 1, chip->awacs_reg[1]);
 	if (chip->manufacturer == 0x1)
 		/* delay for broken crystal part */
 		msleep(750);
-	snd_pmac_awacs_write_noreg(chip, 1,
+	snd_pmac_awacs_write_yesreg(chip, 1,
 				   chip->awacs_reg[1] | MASK_RECALIBRATE |
 				   MASK_CMUTE | MASK_AMUTE);
-	snd_pmac_awacs_write_noreg(chip, 1, chip->awacs_reg[1]);
-	snd_pmac_awacs_write_noreg(chip, 6, chip->awacs_reg[6]);
+	snd_pmac_awacs_write_yesreg(chip, 1, chip->awacs_reg[1]);
+	snd_pmac_awacs_write_yesreg(chip, 6, chip->awacs_reg[6]);
 }
 
 #else
@@ -193,7 +193,7 @@ static int snd_pmac_awacs_put_volume(struct snd_kcontrol *kcontrol,
   .private_value = (xreg) | ((xshift) << 8) | ((xinverted) << 16) }
 
 /*
- * mute master/ogain for AWACS: mono
+ * mute master/ogain for AWACS: moyes
  */
 static int snd_pmac_awacs_get_switch(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
@@ -238,7 +238,7 @@ static int snd_pmac_awacs_put_switch(struct snd_kcontrol *kcontrol,
 
 #define AWACS_SWITCH(xname, xreg, xshift, xinvert) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = 0, \
-  .info = snd_pmac_boolean_mono_info, \
+  .info = snd_pmac_boolean_moyes_info, \
   .get = snd_pmac_awacs_get_switch, \
   .put = snd_pmac_awacs_put_switch, \
   .private_value = (xreg) | ((xshift) << 8) | ((xinvert) << 16) }
@@ -585,7 +585,7 @@ static int snd_pmac_screamer_mic_boost_put(struct snd_kcontrol *kcontrol,
 static struct snd_kcontrol_new snd_pmac_awacs_mixers[] = {
 	AWACS_SWITCH("Master Capture Switch", 1, SHIFT_LOOPTHRU, 0),
 	AWACS_VOLUME("Master Capture Volume", 0, 4, 0),
-/*	AWACS_SWITCH("Unknown Playback Switch", 6, SHIFT_PAROUT0, 0), */
+/*	AWACS_SWITCH("Unkyeswn Playback Switch", 6, SHIFT_PAROUT0, 0), */
 };
 
 static struct snd_kcontrol_new snd_pmac_screamer_mixers_beige[] = {
@@ -718,21 +718,21 @@ static int build_mixers(struct snd_pmac *chip, int nums,
  */
 static void awacs_restore_all_regs(struct snd_pmac *chip)
 {
-	snd_pmac_awacs_write_noreg(chip, 0, chip->awacs_reg[0]);
-	snd_pmac_awacs_write_noreg(chip, 1, chip->awacs_reg[1]);
-	snd_pmac_awacs_write_noreg(chip, 2, chip->awacs_reg[2]);
-	snd_pmac_awacs_write_noreg(chip, 4, chip->awacs_reg[4]);
+	snd_pmac_awacs_write_yesreg(chip, 0, chip->awacs_reg[0]);
+	snd_pmac_awacs_write_yesreg(chip, 1, chip->awacs_reg[1]);
+	snd_pmac_awacs_write_yesreg(chip, 2, chip->awacs_reg[2]);
+	snd_pmac_awacs_write_yesreg(chip, 4, chip->awacs_reg[4]);
 	if (chip->model == PMAC_SCREAMER) {
-		snd_pmac_awacs_write_noreg(chip, 5, chip->awacs_reg[5]);
-		snd_pmac_awacs_write_noreg(chip, 6, chip->awacs_reg[6]);
-		snd_pmac_awacs_write_noreg(chip, 7, chip->awacs_reg[7]);
+		snd_pmac_awacs_write_yesreg(chip, 5, chip->awacs_reg[5]);
+		snd_pmac_awacs_write_yesreg(chip, 6, chip->awacs_reg[6]);
+		snd_pmac_awacs_write_yesreg(chip, 7, chip->awacs_reg[7]);
 	}
 }
 
 #ifdef CONFIG_PM
 static void snd_pmac_awacs_suspend(struct snd_pmac *chip)
 {
-	snd_pmac_awacs_write_noreg(chip, 1, (chip->awacs_reg[1]
+	snd_pmac_awacs_write_yesreg(chip, 1, (chip->awacs_reg[1]
 					     | MASK_AMUTE | MASK_CMUTE));
 }
 
@@ -750,7 +750,7 @@ static void snd_pmac_awacs_resume(struct snd_pmac *chip)
 	if (chip->model == PMAC_SCREAMER) {
 		/* reset power bits in reg 6 */
 		mdelay(5);
-		snd_pmac_awacs_write_noreg(chip, 6, chip->awacs_reg[6]);
+		snd_pmac_awacs_write_yesreg(chip, 6, chip->awacs_reg[6]);
 	}
 	screamer_recalibrate(chip);
 #ifdef PMAC_AMP_AVAIL
@@ -803,7 +803,7 @@ static int toggle_amp_mute(struct awacs_amp *amp, int index, int mute)
 }
 #endif
 
-static void snd_pmac_awacs_update_automute(struct snd_pmac *chip, int do_notify)
+static void snd_pmac_awacs_update_automute(struct snd_pmac *chip, int do_yestify)
 {
 	if (chip->auto_mute) {
 #ifdef PMAC_AMP_AVAIL
@@ -817,7 +817,7 @@ static void snd_pmac_awacs_update_automute(struct snd_pmac *chip, int do_notify)
 				changed = toggle_amp_mute(amp, AMP_CH_HD, 1);
 				changed |= toggle_amp_mute(amp, AMP_CH_SPK, 0);
 			}
-			if (do_notify && ! changed)
+			if (do_yestify && ! changed)
 				return;
 		} else
 #endif
@@ -839,16 +839,16 @@ static void snd_pmac_awacs_update_automute(struct snd_pmac *chip, int do_notify)
 				reg |= MASK_PAROUT1;
 			else
 				reg &= ~MASK_SPKMUTE;
-			if (do_notify && reg == chip->awacs_reg[1])
+			if (do_yestify && reg == chip->awacs_reg[1])
 				return;
 			snd_pmac_awacs_write_reg(chip, 1, reg);
 		}
-		if (do_notify) {
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		if (do_yestify) {
+			snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->master_sw_ctl->id);
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->speaker_sw_ctl->id);
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->hp_detect_ctl->id);
 		}
 	}
@@ -888,7 +888,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 	/* get default volume from nvram */
 	// vol = (~nvram_read_byte(0x1308) & 7) << 1;
 	// vol = ((pmac_xpram_read( 8 ) & 7 ) << 1 );
-	vol = 0x0f; /* no, on alsa, muted as default */
+	vol = 0x0f; /* yes, on alsa, muted as default */
 	vol = vol + (vol << 6);
 	chip->awacs_reg[2] = vol;
 	chip->awacs_reg[4] = vol;
@@ -1024,7 +1024,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 		 * to the amp.  the amp has its headphone and speaker
 		 * volumes and mute switches, so we use them instead of
 		 * screamer registers.
-		 * in this case, it seems the route C is not used.
+		 * in this case, it seems the route C is yest used.
 		 */
 		err = build_mixers(chip, ARRAY_SIZE(snd_pmac_awacs_amp_vol),
 					snd_pmac_awacs_amp_vol);
@@ -1126,8 +1126,8 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 	snd_pmac_awacs_update_automute(chip, 0); /* update the status only */
 #endif
 	if (chip->model == PMAC_SCREAMER) {
-		snd_pmac_awacs_write_noreg(chip, 6, chip->awacs_reg[6]);
-		snd_pmac_awacs_write_noreg(chip, 0, chip->awacs_reg[0]);
+		snd_pmac_awacs_write_yesreg(chip, 6, chip->awacs_reg[6]);
+		snd_pmac_awacs_write_yesreg(chip, 0, chip->awacs_reg[0]);
 	}
 
 	return 0;

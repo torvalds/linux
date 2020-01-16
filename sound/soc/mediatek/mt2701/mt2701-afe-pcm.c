@@ -87,7 +87,7 @@ static int mt2701_dai_num_to_i2s(struct mtk_base_afe *afe, int num)
 	int val = num - MT2701_IO_I2S;
 
 	if (val < 0 || val >= afe_priv->soc->i2s_num) {
-		dev_err(afe->dev, "%s, num not available, num %d, val %d\n",
+		dev_err(afe->dev, "%s, num yest available, num %d, val %d\n",
 			__func__, num, val);
 		return -EINVAL;
 	}
@@ -176,10 +176,10 @@ static int mt2701_i2s_path_enable(struct mtk_base_afe *afe,
 {
 	const struct mt2701_i2s_data *i2s_data = i2s_path->i2s_data[stream_dir];
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
-	int reg, fs, w_len = 1; /* now we support bck 64bits only */
+	int reg, fs, w_len = 1; /* yesw we support bck 64bits only */
 	unsigned int mask, val;
 
-	/* no need to enable if already done */
+	/* yes need to enable if already done */
 	if (++i2s_path->on[stream_dir] != 1)
 		return 0;
 
@@ -348,7 +348,7 @@ static void mt2701_btmrg_shutdown(struct snd_pcm_substream *substream,
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 
-	/* if the other direction stream is not occupied */
+	/* if the other direction stream is yest occupied */
 	if (!afe_priv->mrg_enable[!substream->stream]) {
 		regmap_update_bits(afe->regmap, AFE_DAIBT_CON0,
 				   AFE_DAIBT_CON0_DAIBT_EN, 0);
@@ -373,7 +373,7 @@ static int mt2701_simple_fe_startup(struct snd_pcm_substream *substream,
 	if (stream_dir == SNDRV_PCM_STREAM_PLAYBACK) {
 		memif_tmp = &afe->memif[MT2701_MEMIF_DLM];
 		if (memif_tmp->substream) {
-			dev_warn(afe->dev, "memif is not available");
+			dev_warn(afe->dev, "memif is yest available");
 			return -EBUSY;
 		}
 	}
@@ -993,8 +993,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 0,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 16,
+		.moyes_reg = AFE_DAC_CON3,
+		.moyes_shift = 16,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 1,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1011,8 +1011,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 5,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 17,
+		.moyes_reg = AFE_DAC_CON3,
+		.moyes_shift = 17,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 2,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1029,8 +1029,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 10,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 18,
+		.moyes_reg = AFE_DAC_CON3,
+		.moyes_shift = 18,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 3,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1047,8 +1047,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 15,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 19,
+		.moyes_reg = AFE_DAC_CON3,
+		.moyes_shift = 19,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 4,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1065,8 +1065,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 20,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 20,
+		.moyes_reg = AFE_DAC_CON3,
+		.moyes_shift = 20,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 5,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1083,8 +1083,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 0,
 		.fs_maskbit = 0x1f,
-		.mono_reg = -1,
-		.mono_shift = -1,
+		.moyes_reg = -1,
+		.moyes_shift = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 7,
 		.hd_reg = AFE_MEMIF_PBUF_SIZE,
@@ -1101,8 +1101,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 0,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON4,
-		.mono_shift = 0,
+		.moyes_reg = AFE_DAC_CON4,
+		.moyes_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 10,
 		.hd_reg = AFE_MEMIF_HD_CON1,
@@ -1119,8 +1119,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 5,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON4,
-		.mono_shift = 2,
+		.moyes_reg = AFE_DAC_CON4,
+		.moyes_shift = 2,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 11,
 		.hd_reg = AFE_MEMIF_HD_CON1,
@@ -1137,8 +1137,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 10,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON4,
-		.mono_shift = 4,
+		.moyes_reg = AFE_DAC_CON4,
+		.moyes_shift = 4,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 12,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1155,8 +1155,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 15,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON4,
-		.mono_shift = 6,
+		.moyes_reg = AFE_DAC_CON4,
+		.moyes_shift = 6,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 13,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1172,8 +1172,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.reg_ofs_cur = AFE_UL5_CUR,
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 20,
-		.mono_reg = AFE_DAC_CON4,
-		.mono_shift = 8,
+		.moyes_reg = AFE_DAC_CON4,
+		.moyes_shift = 8,
 		.fs_maskbit = 0x1f,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 14,
@@ -1191,8 +1191,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON3,
 		.fs_shift = 10,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 22,
+		.moyes_reg = AFE_DAC_CON3,
+		.moyes_shift = 22,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 8,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1209,8 +1209,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 30,
 		.fs_maskbit = 0x1,
-		.mono_reg = -1,
-		.mono_shift = -1,
+		.moyes_reg = -1,
+		.moyes_shift = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 17,
 		.hd_reg = AFE_MEMIF_HD_CON1,
@@ -1356,13 +1356,13 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, irq_id, mt2701_asys_isr,
 			       IRQF_TRIGGER_NONE, "asys-isr", (void *)afe);
 	if (ret) {
-		dev_err(dev, "could not request_irq for asys-isr\n");
+		dev_err(dev, "could yest request_irq for asys-isr\n");
 		return ret;
 	}
 
-	afe->regmap = syscon_node_to_regmap(dev->parent->of_node);
+	afe->regmap = syscon_yesde_to_regmap(dev->parent->of_yesde);
 	if (IS_ERR(afe->regmap)) {
-		dev_err(dev, "could not get regmap from parent\n");
+		dev_err(dev, "could yest get regmap from parent\n");
 		return PTR_ERR(afe->regmap);
 	}
 

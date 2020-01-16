@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroyesme Systems, Inc. */
 
 #include <linux/list.h>
 #include <stdlib.h>
@@ -14,7 +14,7 @@ struct cfg {
 	int func_num;
 };
 
-struct func_node {
+struct func_yesde {
 	struct list_head l;
 	struct list_head bbs;
 	struct bpf_insn *start;
@@ -23,7 +23,7 @@ struct func_node {
 	int bb_num;
 };
 
-struct bb_node {
+struct bb_yesde {
 	struct list_head l;
 	struct list_head e_prevs;
 	struct list_head e_succs;
@@ -35,10 +35,10 @@ struct bb_node {
 #define EDGE_FLAG_EMPTY		0x0
 #define EDGE_FLAG_FALLTHROUGH	0x1
 #define EDGE_FLAG_JUMP		0x2
-struct edge_node {
+struct edge_yesde {
 	struct list_head l;
-	struct bb_node *src;
-	struct bb_node *dst;
+	struct bb_yesde *src;
+	struct bb_yesde *dst;
 	int flags;
 };
 
@@ -52,17 +52,17 @@ struct edge_node {
 #define entry_bb(func)		func_first_bb(func)
 #define exit_bb(func)		func_last_bb(func)
 #define cfg_first_func(cfg)	\
-	list_first_entry(&cfg->funcs, struct func_node, l)
+	list_first_entry(&cfg->funcs, struct func_yesde, l)
 #define cfg_last_func(cfg)	\
-	list_last_entry(&cfg->funcs, struct func_node, l)
+	list_last_entry(&cfg->funcs, struct func_yesde, l)
 #define func_first_bb(func)	\
-	list_first_entry(&func->bbs, struct bb_node, l)
+	list_first_entry(&func->bbs, struct bb_yesde, l)
 #define func_last_bb(func)	\
-	list_last_entry(&func->bbs, struct bb_node, l)
+	list_last_entry(&func->bbs, struct bb_yesde, l)
 
-static struct func_node *cfg_append_func(struct cfg *cfg, struct bpf_insn *insn)
+static struct func_yesde *cfg_append_func(struct cfg *cfg, struct bpf_insn *insn)
 {
-	struct func_node *new_func, *func;
+	struct func_yesde *new_func, *func;
 
 	list_for_each_entry(func, &cfg->funcs, l) {
 		if (func->start == insn)
@@ -74,7 +74,7 @@ static struct func_node *cfg_append_func(struct cfg *cfg, struct bpf_insn *insn)
 	func = func_prev(func);
 	new_func = calloc(1, sizeof(*new_func));
 	if (!new_func) {
-		p_err("OOM when allocating FUNC node");
+		p_err("OOM when allocating FUNC yesde");
 		return NULL;
 	}
 	new_func->start = insn;
@@ -85,10 +85,10 @@ static struct func_node *cfg_append_func(struct cfg *cfg, struct bpf_insn *insn)
 	return new_func;
 }
 
-static struct bb_node *func_append_bb(struct func_node *func,
+static struct bb_yesde *func_append_bb(struct func_yesde *func,
 				      struct bpf_insn *insn)
 {
-	struct bb_node *new_bb, *bb;
+	struct bb_yesde *new_bb, *bb;
 
 	list_for_each_entry(bb, &func->bbs, l) {
 		if (bb->head == insn)
@@ -100,7 +100,7 @@ static struct bb_node *func_append_bb(struct func_node *func,
 	bb = bb_prev(bb);
 	new_bb = calloc(1, sizeof(*new_bb));
 	if (!new_bb) {
-		p_err("OOM when allocating BB node");
+		p_err("OOM when allocating BB yesde");
 		return NULL;
 	}
 	new_bb->head = insn;
@@ -111,13 +111,13 @@ static struct bb_node *func_append_bb(struct func_node *func,
 	return new_bb;
 }
 
-static struct bb_node *func_insert_dummy_bb(struct list_head *after)
+static struct bb_yesde *func_insert_dummy_bb(struct list_head *after)
 {
-	struct bb_node *bb;
+	struct bb_yesde *bb;
 
 	bb = calloc(1, sizeof(*bb));
 	if (!bb) {
-		p_err("OOM when allocating BB node");
+		p_err("OOM when allocating BB yesde");
 		return NULL;
 	}
 
@@ -131,7 +131,7 @@ static struct bb_node *func_insert_dummy_bb(struct list_head *after)
 static bool cfg_partition_funcs(struct cfg *cfg, struct bpf_insn *cur,
 				struct bpf_insn *end)
 {
-	struct func_node *func, *last_func;
+	struct func_yesde *func, *last_func;
 
 	func = cfg_append_func(cfg, cur);
 	if (!func)
@@ -162,10 +162,10 @@ static bool is_jmp_insn(u8 code)
 	return BPF_CLASS(code) == BPF_JMP || BPF_CLASS(code) == BPF_JMP32;
 }
 
-static bool func_partition_bb_head(struct func_node *func)
+static bool func_partition_bb_head(struct func_yesde *func)
 {
 	struct bpf_insn *cur, *end;
-	struct bb_node *bb;
+	struct bb_yesde *bb;
 
 	cur = func->start;
 	end = func->end;
@@ -196,10 +196,10 @@ static bool func_partition_bb_head(struct func_node *func)
 	return false;
 }
 
-static void func_partition_bb_tail(struct func_node *func)
+static void func_partition_bb_tail(struct func_yesde *func)
 {
 	unsigned int bb_idx = NUM_FIXED_BLOCKS;
-	struct bb_node *bb, *last;
+	struct bb_yesde *bb, *last;
 
 	last = func_last_bb(func);
 	last->tail = func->end;
@@ -213,9 +213,9 @@ static void func_partition_bb_tail(struct func_node *func)
 	func->bb_num = bb_idx;
 }
 
-static bool func_add_special_bb(struct func_node *func)
+static bool func_add_special_bb(struct func_yesde *func)
 {
-	struct bb_node *bb;
+	struct bb_yesde *bb;
 
 	bb = func_insert_dummy_bb(&func->bbs);
 	if (!bb)
@@ -230,7 +230,7 @@ static bool func_add_special_bb(struct func_node *func)
 	return false;
 }
 
-static bool func_partition_bb(struct func_node *func)
+static bool func_partition_bb(struct func_yesde *func)
 {
 	if (func_partition_bb_head(func))
 		return true;
@@ -240,10 +240,10 @@ static bool func_partition_bb(struct func_node *func)
 	return false;
 }
 
-static struct bb_node *func_search_bb_with_head(struct func_node *func,
+static struct bb_yesde *func_search_bb_with_head(struct func_yesde *func,
 						struct bpf_insn *insn)
 {
-	struct bb_node *bb;
+	struct bb_yesde *bb;
 
 	list_for_each_entry(bb, &func->bbs, l) {
 		if (bb->head == insn)
@@ -253,14 +253,14 @@ static struct bb_node *func_search_bb_with_head(struct func_node *func,
 	return NULL;
 }
 
-static struct edge_node *new_edge(struct bb_node *src, struct bb_node *dst,
+static struct edge_yesde *new_edge(struct bb_yesde *src, struct bb_yesde *dst,
 				  int flags)
 {
-	struct edge_node *e;
+	struct edge_yesde *e;
 
 	e = calloc(1, sizeof(*e));
 	if (!e) {
-		p_err("OOM when allocating edge node");
+		p_err("OOM when allocating edge yesde");
 		return NULL;
 	}
 
@@ -274,11 +274,11 @@ static struct edge_node *new_edge(struct bb_node *src, struct bb_node *dst,
 	return e;
 }
 
-static bool func_add_bb_edges(struct func_node *func)
+static bool func_add_bb_edges(struct func_yesde *func)
 {
 	struct bpf_insn *insn;
-	struct edge_node *e;
-	struct bb_node *bb;
+	struct edge_yesde *e;
+	struct bb_yesde *bb;
 
 	bb = entry_bb(func);
 	e = new_edge(bb, bb_next(bb), EDGE_FLAG_FALLTHROUGH);
@@ -333,7 +333,7 @@ static bool func_add_bb_edges(struct func_node *func)
 static bool cfg_build(struct cfg *cfg, struct bpf_insn *insn, unsigned int len)
 {
 	int cnt = len / sizeof(*insn);
-	struct func_node *func;
+	struct func_yesde *func;
 
 	INIT_LIST_HEAD(&cfg->funcs);
 
@@ -353,13 +353,13 @@ static bool cfg_build(struct cfg *cfg, struct bpf_insn *insn, unsigned int len)
 
 static void cfg_destroy(struct cfg *cfg)
 {
-	struct func_node *func, *func2;
+	struct func_yesde *func, *func2;
 
 	list_for_each_entry_safe(func, func2, &cfg->funcs, l) {
-		struct bb_node *bb, *bb2;
+		struct bb_yesde *bb, *bb2;
 
 		list_for_each_entry_safe(bb, bb2, &func->bbs, l) {
-			struct edge_node *e, *e2;
+			struct edge_yesde *e, *e2;
 
 			list_for_each_entry_safe(e, e2, &bb->e_prevs, l) {
 				list_del(&e->l);
@@ -380,7 +380,7 @@ static void cfg_destroy(struct cfg *cfg)
 	}
 }
 
-static void draw_bb_node(struct func_node *func, struct bb_node *bb)
+static void draw_bb_yesde(struct func_yesde *func, struct bb_yesde *bb)
 {
 	const char *shape;
 
@@ -411,12 +411,12 @@ static void draw_bb_node(struct func_node *func, struct bb_node *bb)
 	printf("\"];\n\n");
 }
 
-static void draw_bb_succ_edges(struct func_node *func, struct bb_node *bb)
+static void draw_bb_succ_edges(struct func_yesde *func, struct bb_yesde *bb)
 {
 	const char *style = "\"solid,bold\"";
 	const char *color = "black";
 	int func_idx = func->idx;
-	struct edge_node *e;
+	struct edge_yesde *e;
 	int weight = 10;
 
 	if (list_empty(&bb->e_succs))
@@ -430,19 +430,19 @@ static void draw_bb_succ_edges(struct func_node *func, struct bb_node *bb)
 	}
 }
 
-static void func_output_bb_def(struct func_node *func)
+static void func_output_bb_def(struct func_yesde *func)
 {
-	struct bb_node *bb;
+	struct bb_yesde *bb;
 
 	list_for_each_entry(bb, &func->bbs, l) {
-		draw_bb_node(func, bb);
+		draw_bb_yesde(func, bb);
 	}
 }
 
-static void func_output_edges(struct func_node *func)
+static void func_output_edges(struct func_yesde *func)
 {
 	int func_idx = func->idx;
-	struct bb_node *bb;
+	struct bb_yesde *bb;
 
 	list_for_each_entry(bb, &func->bbs, l) {
 		draw_bb_succ_edges(func, bb);
@@ -457,7 +457,7 @@ static void func_output_edges(struct func_node *func)
 
 static void cfg_dump(struct cfg *cfg)
 {
-	struct func_node *func;
+	struct func_yesde *func;
 
 	printf("digraph \"DOT graph for eBPF program\" {\n");
 	list_for_each_entry(func, &cfg->funcs, l) {

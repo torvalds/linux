@@ -37,7 +37,7 @@ static struct regmap *pmu;
 
 static struct reset_control *meson_smp_get_core_reset(int cpu)
 {
-	struct device_node *np = of_get_cpu_node(cpu, 0);
+	struct device_yesde *np = of_get_cpu_yesde(cpu, 0);
 
 	return of_reset_control_get_exclusive(np, NULL);
 }
@@ -61,16 +61,16 @@ static void __init meson_smp_prepare_cpus(const char *scu_compatible,
 					  const char *pmu_compatible,
 					  const char *sram_compatible)
 {
-	static struct device_node *node;
+	static struct device_yesde *yesde;
 
 	/* SMP SRAM */
-	node = of_find_compatible_node(NULL, NULL, sram_compatible);
-	if (!node) {
-		pr_err("Missing SRAM node\n");
+	yesde = of_find_compatible_yesde(NULL, NULL, sram_compatible);
+	if (!yesde) {
+		pr_err("Missing SRAM yesde\n");
 		return;
 	}
 
-	sram_base = of_iomap(node, 0);
+	sram_base = of_iomap(yesde, 0);
 	if (!sram_base) {
 		pr_err("Couldn't map SRAM registers\n");
 		return;
@@ -84,13 +84,13 @@ static void __init meson_smp_prepare_cpus(const char *scu_compatible,
 	}
 
 	/* SCU */
-	node = of_find_compatible_node(NULL, NULL, scu_compatible);
-	if (!node) {
-		pr_err("Missing SCU node\n");
+	yesde = of_find_compatible_yesde(NULL, NULL, scu_compatible);
+	if (!yesde) {
+		pr_err("Missing SCU yesde\n");
 		return;
 	}
 
-	scu_base = of_iomap(node, 0);
+	scu_base = of_iomap(yesde, 0);
 	if (!scu_base) {
 		pr_err("Couldn't map SCU registers\n");
 		return;
@@ -124,7 +124,7 @@ static void meson_smp_begin_secondary_boot(unsigned int cpu)
 
 	/*
 	 * SCU Power on CPU (needs to be done before starting the CPU,
-	 * otherwise the secondary CPU will not start).
+	 * otherwise the secondary CPU will yest start).
 	 */
 	scu_cpu_power_enable(scu_base, cpu);
 }

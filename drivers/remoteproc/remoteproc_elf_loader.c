@@ -99,7 +99,7 @@ EXPORT_SYMBOL(rproc_elf_sanity_check);
  * This function returns the entry point address of the ELF
  * image.
  *
- * Note that the boot address is not a configurable property of all remote
+ * Note that the boot address is yest a configurable property of all remote
  * processors. Some will always boot at a specific hard-coded address.
  */
 u32 rproc_elf_get_boot_addr(struct rproc *rproc, const struct firmware *fw)
@@ -130,8 +130,8 @@ EXPORT_SYMBOL(rproc_elf_get_boot_addr);
  *
  * Currently we only support remote processors that required carveout
  * allocations and got them mapped onto their iommus. Some processors
- * might be different: they might not have iommus, and would prefer to
- * directly allocate memory for every segment/resource. This is not yet
+ * might be different: they might yest have iommus, and would prefer to
+ * directly allocate memory for every segment/resource. This is yest yet
  * supported, though.
  */
 int rproc_elf_load_segments(struct rproc *rproc, const struct firmware *fw)
@@ -242,7 +242,7 @@ find_table(struct device *dev, struct elf32_hdr *ehdr, size_t fw_size)
 
 		/* make sure reserved bytes are zeroes */
 		if (table->reserved[0] || table->reserved[1]) {
-			dev_err(dev, "non zero reserved bytes\n");
+			dev_err(dev, "yesn zero reserved bytes\n");
 			return NULL;
 		}
 
@@ -266,7 +266,7 @@ find_table(struct device *dev, struct elf32_hdr *ehdr, size_t fw_size)
  * This function finds the resource table inside the remote processor's
  * firmware, load it into the @cached_table and update @table_ptr.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erryes on failure.
  */
 int rproc_elf_load_rsc_table(struct rproc *rproc, const struct firmware *fw)
 {

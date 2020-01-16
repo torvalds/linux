@@ -338,10 +338,10 @@ static ssize_t sysfs_service_op_show(struct kobject *kobj,
 	if (!new_op)
 		return -ENOMEM;
 
-	/* Can't do a service_operation if the client is not running... */
+	/* Can't do a service_operation if the client is yest running... */
 	rc = is_daemon_in_service();
 	if (rc) {
-		pr_info_ratelimited("%s: Client not running :%d:\n",
+		pr_info_ratelimited("%s: Client yest running :%d:\n",
 			__func__,
 			is_daemon_in_service());
 		goto out;
@@ -474,7 +474,7 @@ static ssize_t sysfs_service_op_show(struct kobject *kobj,
 				ORANGEFS_PERF_COUNT_REQUEST_NCACHE;
 
 	} else {
-		gossip_err("sysfs_service_op_show: unknown kobj_id:%s:\n",
+		gossip_err("sysfs_service_op_show: unkyeswn kobj_id:%s:\n",
 			   kobj->name);
 		rc = -EINVAL;
 		goto out;
@@ -487,7 +487,7 @@ static ssize_t sysfs_service_op_show(struct kobject *kobj,
 		ser_op_type = "orangefs_perf_count";
 
 	/*
-	 * The service_operation will return an errno return code on
+	 * The service_operation will return an erryes return code on
 	 * error, and zero on success.
 	 */
 	rc = service_operation(new_op, ser_op_type, ORANGEFS_OP_INTERRUPTIBLE);
@@ -530,7 +530,7 @@ out:
  * a lot of return code checking and mapping going on here.
  *
  * We want to return 1 if we think everything went OK, and
- * EINVAL if not.
+ * EINVAL if yest.
  */
 static ssize_t sysfs_service_op_store(struct kobject *kobj,
     struct orangefs_attribute *attr, const char *buf, size_t count)
@@ -547,10 +547,10 @@ static ssize_t sysfs_service_op_store(struct kobject *kobj,
 	if (!new_op)
 		return -EINVAL; /* sic */
 
-	/* Can't do a service_operation if the client is not running... */
+	/* Can't do a service_operation if the client is yest running... */
 	rc = is_daemon_in_service();
 	if (rc) {
-		pr_info("%s: Client not running :%d:\n",
+		pr_info("%s: Client yest running :%d:\n",
 			__func__,
 			is_daemon_in_service());
 		goto out;
@@ -798,7 +798,7 @@ static ssize_t sysfs_service_op_store(struct kobject *kobj,
 		}
 
 	} else {
-		gossip_err("sysfs_service_op_store: unknown kobj_id:%s:\n",
+		gossip_err("sysfs_service_op_store: unkyeswn kobj_id:%s:\n",
 			   kobj->name);
 		rc = -EINVAL;
 		goto out;
@@ -808,7 +808,7 @@ static ssize_t sysfs_service_op_store(struct kobject *kobj,
 value_set:
 
 	/*
-	 * The service_operation will return a errno return code on
+	 * The service_operation will return a erryes return code on
 	 * error, and zero on success.
 	 */
 	rc = service_operation(new_op, "orangefs_param", ORANGEFS_OP_INTERRUPTIBLE);

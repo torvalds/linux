@@ -13,7 +13,7 @@
 #include "xfs_bit.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_btree.h"
@@ -23,15 +23,15 @@
 #include "scrub/common.h"
 #include "scrub/btree.h"
 
-/* Set us up with an inode's bmap. */
+/* Set us up with an iyesde's bmap. */
 int
-xchk_setup_inode_bmap(
+xchk_setup_iyesde_bmap(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	int			error;
 
-	error = xchk_get_inode(sc, ip);
+	error = xchk_get_iyesde(sc, ip);
 	if (error)
 		goto out;
 
@@ -45,13 +45,13 @@ xchk_setup_inode_bmap(
 	 */
 	if (S_ISREG(VFS_I(sc->ip)->i_mode) &&
 	    sc->sm->sm_type == XFS_SCRUB_TYPE_BMBTD) {
-		inode_dio_wait(VFS_I(sc->ip));
+		iyesde_dio_wait(VFS_I(sc->ip));
 		error = filemap_write_and_wait(VFS_I(sc->ip)->i_mapping);
 		if (error)
 			goto out;
 	}
 
-	/* Got the inode, lock it and we're ready to go. */
+	/* Got the iyesde, lock it and we're ready to go. */
 	error = xchk_trans_alloc(sc, 0);
 	if (error)
 		goto out;
@@ -59,14 +59,14 @@ xchk_setup_inode_bmap(
 	xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
 
 out:
-	/* scrub teardown will unlock and release the inode */
+	/* scrub teardown will unlock and release the iyesde */
 	return error;
 }
 
 /*
- * Inode fork block mapping (BMBT) scrubber.
+ * Iyesde fork block mapping (BMBT) scrubber.
  * More complex than the others because we have to scrub
- * all the extents regardless of whether or not the fork
+ * all the extents regardless of whether or yest the fork
  * is in btree format.
  */
 
@@ -84,7 +84,7 @@ static inline bool
 xchk_bmap_get_rmap(
 	struct xchk_bmap_info	*info,
 	struct xfs_bmbt_irec	*irec,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbyes,
 	uint64_t		owner,
 	struct xfs_rmap_irec	*rmap)
 {
@@ -98,7 +98,7 @@ xchk_bmap_get_rmap(
 
 	/*
 	 * CoW staging extents are owned (on disk) by the refcountbt, so
-	 * their rmaps do not have offsets.
+	 * their rmaps do yest have offsets.
 	 */
 	if (info->whichfork == XFS_COW_FORK)
 		offset = 0;
@@ -107,11 +107,11 @@ xchk_bmap_get_rmap(
 
 	/*
 	 * If the caller thinks this could be a shared bmbt extent (IOWs,
-	 * any data fork extent of a reflink inode) then we have to use the
+	 * any data fork extent of a reflink iyesde) then we have to use the
 	 * range rmap lookup to make sure we get the correct owner/offset.
 	 */
 	if (info->is_shared) {
-		error = xfs_rmap_lookup_le_range(info->sc->sa.rmap_cur, agbno,
+		error = xfs_rmap_lookup_le_range(info->sc->sa.rmap_cur, agbyes,
 				owner, offset, rflags, rmap, &has_rmap);
 		if (!xchk_should_check_xref(info->sc, &error,
 				&info->sc->sa.rmap_cur))
@@ -122,7 +122,7 @@ xchk_bmap_get_rmap(
 	/*
 	 * Otherwise, use the (faster) regular lookup.
 	 */
-	error = xfs_rmap_lookup_le(info->sc->sa.rmap_cur, agbno, 0, owner,
+	error = xfs_rmap_lookup_le(info->sc->sa.rmap_cur, agbyes, 0, owner,
 			offset, rflags, &has_rmap);
 	if (!xchk_should_check_xref(info->sc, &error,
 			&info->sc->sa.rmap_cur))
@@ -147,7 +147,7 @@ STATIC void
 xchk_bmap_xref_rmap(
 	struct xchk_bmap_info	*info,
 	struct xfs_bmbt_irec	*irec,
-	xfs_agblock_t		agbno)
+	xfs_agblock_t		agbyes)
 {
 	struct xfs_rmap_irec	rmap;
 	unsigned long long	rmap_end;
@@ -159,16 +159,16 @@ xchk_bmap_xref_rmap(
 	if (info->whichfork == XFS_COW_FORK)
 		owner = XFS_RMAP_OWN_COW;
 	else
-		owner = info->sc->ip->i_ino;
+		owner = info->sc->ip->i_iyes;
 
 	/* Find the rmap record for this irec. */
-	if (!xchk_bmap_get_rmap(info, irec, agbno, owner, &rmap))
+	if (!xchk_bmap_get_rmap(info, irec, agbyes, owner, &rmap))
 		return;
 
 	/* Check the rmap. */
 	rmap_end = (unsigned long long)rmap.rm_startblock + rmap.rm_blockcount;
-	if (rmap.rm_startblock > agbno ||
-	    agbno + irec->br_blockcount > rmap_end)
+	if (rmap.rm_startblock > agbyes ||
+	    agbyes + irec->br_blockcount > rmap_end)
 		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
 
@@ -215,7 +215,7 @@ xchk_bmap_xref_rmap(
 /* Cross-reference a single rtdev extent record. */
 STATIC void
 xchk_bmap_rt_iextent_xref(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xchk_bmap_info	*info,
 	struct xfs_bmbt_irec	*irec)
 {
@@ -226,39 +226,39 @@ xchk_bmap_rt_iextent_xref(
 /* Cross-reference a single datadev extent record. */
 STATIC void
 xchk_bmap_iextent_xref(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xchk_bmap_info	*info,
 	struct xfs_bmbt_irec	*irec)
 {
 	struct xfs_mount	*mp = info->sc->mp;
-	xfs_agnumber_t		agno;
-	xfs_agblock_t		agbno;
+	xfs_agnumber_t		agyes;
+	xfs_agblock_t		agbyes;
 	xfs_extlen_t		len;
 	int			error;
 
-	agno = XFS_FSB_TO_AGNO(mp, irec->br_startblock);
-	agbno = XFS_FSB_TO_AGBNO(mp, irec->br_startblock);
+	agyes = XFS_FSB_TO_AGNO(mp, irec->br_startblock);
+	agbyes = XFS_FSB_TO_AGBNO(mp, irec->br_startblock);
 	len = irec->br_blockcount;
 
-	error = xchk_ag_init(info->sc, agno, &info->sc->sa);
+	error = xchk_ag_init(info->sc, agyes, &info->sc->sa);
 	if (!xchk_fblock_process_error(info->sc, info->whichfork,
 			irec->br_startoff, &error))
 		return;
 
-	xchk_xref_is_used_space(info->sc, agbno, len);
-	xchk_xref_is_not_inode_chunk(info->sc, agbno, len);
-	xchk_bmap_xref_rmap(info, irec, agbno);
+	xchk_xref_is_used_space(info->sc, agbyes, len);
+	xchk_xref_is_yest_iyesde_chunk(info->sc, agbyes, len);
+	xchk_bmap_xref_rmap(info, irec, agbyes);
 	switch (info->whichfork) {
 	case XFS_DATA_FORK:
-		if (xfs_is_reflink_inode(info->sc->ip))
+		if (xfs_is_reflink_iyesde(info->sc->ip))
 			break;
 		/* fall through */
 	case XFS_ATTR_FORK:
-		xchk_xref_is_not_shared(info->sc, agbno,
+		xchk_xref_is_yest_shared(info->sc, agbyes,
 				irec->br_blockcount);
 		break;
 	case XFS_COW_FORK:
-		xchk_xref_is_cow_staging(info->sc, agbno,
+		xchk_xref_is_cow_staging(info->sc, agbyes,
 				irec->br_blockcount);
 		break;
 	}
@@ -272,7 +272,7 @@ xchk_bmap_iextent_xref(
  */
 STATIC void
 xchk_bmap_dirattr_extent(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xchk_bmap_info	*info,
 	struct xfs_bmbt_irec	*irec)
 {
@@ -294,7 +294,7 @@ xchk_bmap_dirattr_extent(
 /* Scrub a single extent record. */
 STATIC int
 xchk_bmap_iextent(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xchk_bmap_info	*info,
 	struct xfs_bmbt_irec	*irec)
 {
@@ -304,7 +304,7 @@ xchk_bmap_iextent(
 
 	/*
 	 * Check for out-of-order extents.  This record could have come
-	 * from the incore list, for which there is no ordering check.
+	 * from the incore list, for which there is yes ordering check.
 	 */
 	if (irec->br_startoff < info->lastoff)
 		xchk_fblock_set_corrupt(info->sc, info->whichfork,
@@ -334,13 +334,13 @@ xchk_bmap_iextent(
 				irec->br_startoff);
 	end = irec->br_startblock + irec->br_blockcount - 1;
 	if (info->is_rt &&
-	    (!xfs_verify_rtbno(mp, irec->br_startblock) ||
-	     !xfs_verify_rtbno(mp, end)))
+	    (!xfs_verify_rtbyes(mp, irec->br_startblock) ||
+	     !xfs_verify_rtbyes(mp, end)))
 		xchk_fblock_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
 	if (!info->is_rt &&
-	    (!xfs_verify_fsbno(mp, irec->br_startblock) ||
-	     !xfs_verify_fsbno(mp, end) ||
+	    (!xfs_verify_fsbyes(mp, irec->br_startblock) ||
+	     !xfs_verify_fsbyes(mp, end) ||
 	     XFS_FSB_TO_AGNO(mp, irec->br_startblock) !=
 				XFS_FSB_TO_AGNO(mp, end)))
 		xchk_fblock_set_corrupt(info->sc, info->whichfork,
@@ -374,7 +374,7 @@ xchk_bmapbt_rec(
 	struct xfs_bmbt_irec	iext_irec;
 	struct xfs_iext_cursor	icur;
 	struct xchk_bmap_info	*info = bs->private;
-	struct xfs_inode	*ip = bs->cur->bc_private.b.ip;
+	struct xfs_iyesde	*ip = bs->cur->bc_private.b.ip;
 	struct xfs_buf		*bp = NULL;
 	struct xfs_btree_block	*block;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, info->whichfork);
@@ -390,7 +390,7 @@ xchk_bmapbt_rec(
 		for (i = 0; i < bs->cur->bc_nlevels - 1; i++) {
 			block = xfs_btree_get_block(bs->cur, i, &bp);
 			owner = be64_to_cpu(block->bb_u.l.bb_owner);
-			if (owner != ip->i_ino)
+			if (owner != ip->i_iyes)
 				xchk_fblock_set_corrupt(bs->sc,
 						info->whichfork, 0);
 		}
@@ -428,11 +428,11 @@ xchk_bmap_btree(
 	struct xfs_owner_info	oinfo;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(sc->ip, whichfork);
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_inode	*ip = sc->ip;
+	struct xfs_iyesde	*ip = sc->ip;
 	struct xfs_btree_cur	*cur;
 	int			error;
 
-	/* Load the incore bmap cache if it's not loaded. */
+	/* Load the incore bmap cache if it's yest loaded. */
 	info->was_loaded = ifp->if_flags & XFS_IFEXTENTS;
 	if (!info->was_loaded) {
 		error = xfs_iread_extents(sc->tp, ip, whichfork);
@@ -442,7 +442,7 @@ xchk_bmap_btree(
 
 	/* Check the btree structure. */
 	cur = xfs_bmbt_init_cursor(mp, sc->tp, ip, whichfork);
-	xfs_rmap_ino_bmbt_owner(&oinfo, ip->i_ino, whichfork);
+	xfs_rmap_iyes_bmbt_owner(&oinfo, ip->i_iyes, whichfork);
 	error = xchk_btree(sc, cur, xchk_bmapbt_rec, &oinfo, info);
 	xfs_btree_del_cursor(cur, error);
 out:
@@ -469,7 +469,7 @@ xchk_bmap_check_rmap(
 	bool				have_map;
 
 	/* Is this even the right fork? */
-	if (rec->rm_owner != sc->ip->i_ino)
+	if (rec->rm_owner != sc->ip->i_iyes)
 		return 0;
 	if ((sbcri->whichfork == XFS_ATTR_FORK) ^
 	    !!(rec->rm_flags & XFS_RMAP_ATTR_FORK))
@@ -501,7 +501,7 @@ xchk_bmap_check_rmap(
 			xchk_fblock_set_corrupt(sc, sbcri->whichfork,
 					rec->rm_offset);
 		if (irec.br_startblock != XFS_AGB_TO_FSB(sc->mp,
-				cur->bc_private.a.agno, rec->rm_startblock))
+				cur->bc_private.a.agyes, rec->rm_startblock))
 			xchk_fblock_set_corrupt(sc, sbcri->whichfork,
 					rec->rm_offset);
 		if (irec.br_blockcount > rec->rm_blockcount)
@@ -531,18 +531,18 @@ STATIC int
 xchk_bmap_check_ag_rmaps(
 	struct xfs_scrub		*sc,
 	int				whichfork,
-	xfs_agnumber_t			agno)
+	xfs_agnumber_t			agyes)
 {
 	struct xchk_bmap_check_rmap_info	sbcri;
 	struct xfs_btree_cur		*cur;
 	struct xfs_buf			*agf;
 	int				error;
 
-	error = xfs_alloc_read_agf(sc->mp, sc->tp, agno, 0, &agf);
+	error = xfs_alloc_read_agf(sc->mp, sc->tp, agyes, 0, &agf);
 	if (error)
 		return error;
 
-	cur = xfs_rmapbt_init_cursor(sc->mp, sc->tp, agf, agno);
+	cur = xfs_rmapbt_init_cursor(sc->mp, sc->tp, agf, agyes);
 	if (!cur) {
 		error = -ENOMEM;
 		goto out_agf;
@@ -567,7 +567,7 @@ xchk_bmap_check_rmaps(
 	int			whichfork)
 {
 	loff_t			size;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agyes;
 	int			error;
 
 	if (!xfs_sb_version_hasrmapbt(&sc->mp->m_sb) ||
@@ -582,7 +582,7 @@ xchk_bmap_check_rmaps(
 	/*
 	 * Only do this for complex maps that are in btree format, or for
 	 * situations where we would seem to have a size but zero extents.
-	 * The inode repair code can zap broken iforks, which means we have
+	 * The iyesde repair code can zap broken iforks, which means we have
 	 * to flag this bmap as corrupt if there are rmaps that need to be
 	 * reattached.
 	 */
@@ -601,8 +601,8 @@ xchk_bmap_check_rmaps(
 	    (size == 0 || XFS_IFORK_NEXTENTS(sc->ip, whichfork) > 0))
 		return 0;
 
-	for (agno = 0; agno < sc->mp->m_sb.sb_agcount; agno++) {
-		error = xchk_bmap_check_ag_rmaps(sc, whichfork, agno);
+	for (agyes = 0; agyes < sc->mp->m_sb.sb_agcount; agyes++) {
+		error = xchk_bmap_check_ag_rmaps(sc, whichfork, agyes);
 		if (error)
 			return error;
 		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
@@ -613,7 +613,7 @@ xchk_bmap_check_rmaps(
 }
 
 /*
- * Scrub an inode fork's block mappings.
+ * Scrub an iyesde fork's block mappings.
  *
  * First we scan every record in every btree block, if applicable.
  * Then we unconditionally scan the incore extent cache.
@@ -626,7 +626,7 @@ xchk_bmap(
 	struct xfs_bmbt_irec	irec;
 	struct xchk_bmap_info	info = { NULL };
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_inode	*ip = sc->ip;
+	struct xfs_iyesde	*ip = sc->ip;
 	struct xfs_ifork	*ifp;
 	xfs_fileoff_t		endoff;
 	struct xfs_iext_cursor	icur;
@@ -636,17 +636,17 @@ xchk_bmap(
 
 	info.is_rt = whichfork == XFS_DATA_FORK && XFS_IS_REALTIME_INODE(ip);
 	info.whichfork = whichfork;
-	info.is_shared = whichfork == XFS_DATA_FORK && xfs_is_reflink_inode(ip);
+	info.is_shared = whichfork == XFS_DATA_FORK && xfs_is_reflink_iyesde(ip);
 	info.sc = sc;
 
 	switch (whichfork) {
 	case XFS_COW_FORK:
-		/* Non-existent CoW forks are ignorable. */
+		/* Non-existent CoW forks are igyesrable. */
 		if (!ifp)
 			goto out;
-		/* No CoW forks on non-reflink inodes/filesystems. */
-		if (!xfs_is_reflink_inode(ip)) {
-			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		/* No CoW forks on yesn-reflink iyesdes/filesystems. */
+		if (!xfs_is_reflink_iyesde(ip)) {
+			xchk_iyes_set_corrupt(sc, sc->ip->i_iyes);
 			goto out;
 		}
 		break;
@@ -655,7 +655,7 @@ xchk_bmap(
 			goto out_check_rmap;
 		if (!xfs_sb_version_hasattr(&mp->m_sb) &&
 		    !xfs_sb_version_hasattr2(&mp->m_sb))
-			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+			xchk_iyes_set_corrupt(sc, sc->ip->i_iyes);
 		break;
 	default:
 		ASSERT(whichfork == XFS_DATA_FORK);
@@ -725,7 +725,7 @@ out:
 	return error;
 }
 
-/* Scrub an inode's data fork. */
+/* Scrub an iyesde's data fork. */
 int
 xchk_bmap_data(
 	struct xfs_scrub	*sc)
@@ -733,7 +733,7 @@ xchk_bmap_data(
 	return xchk_bmap(sc, XFS_DATA_FORK);
 }
 
-/* Scrub an inode's attr fork. */
+/* Scrub an iyesde's attr fork. */
 int
 xchk_bmap_attr(
 	struct xfs_scrub	*sc)
@@ -741,12 +741,12 @@ xchk_bmap_attr(
 	return xchk_bmap(sc, XFS_ATTR_FORK);
 }
 
-/* Scrub an inode's CoW fork. */
+/* Scrub an iyesde's CoW fork. */
 int
 xchk_bmap_cow(
 	struct xfs_scrub	*sc)
 {
-	if (!xfs_is_reflink_inode(sc->ip))
+	if (!xfs_is_reflink_iyesde(sc->ip))
 		return -ENOENT;
 
 	return xchk_bmap(sc, XFS_COW_FORK);

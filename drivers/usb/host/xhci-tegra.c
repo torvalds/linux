@@ -341,7 +341,7 @@ enum tegra_xusb_mbox_cmd {
 	MBOX_CMD_DEC_FALC_CLOCK,
 	MBOX_CMD_INC_SSPI_CLOCK,
 	MBOX_CMD_DEC_SSPI_CLOCK,
-	MBOX_CMD_SET_BW, /* no ACK/NAK required */
+	MBOX_CMD_SET_BW, /* yes ACK/NAK required */
 	MBOX_CMD_SET_SS_PWR_GATING,
 	MBOX_CMD_SET_SS_PWR_UNGATING,
 	MBOX_CMD_SAVE_DFE_CTLE_CTX,
@@ -508,7 +508,7 @@ static void tegra_xusb_mbox_handle(struct tegra_xusb *tegra,
 	case MBOX_CMD_SET_BW:
 		/*
 		 * TODO: Request bandwidth once EMC scaling is supported.
-		 * Ignore for now since ACK/NAK is not required for SET_BW
+		 * Igyesre for yesw since ACK/NAK is yest required for SET_BW
 		 * messages.
 		 */
 		break;
@@ -585,7 +585,7 @@ static void tegra_xusb_mbox_handle(struct tegra_xusb *tegra,
 		break;
 
 	default:
-		dev_warn(dev, "unknown message: %#x\n", msg->cmd);
+		dev_warn(dev, "unkyeswn message: %#x\n", msg->cmd);
 		break;
 	}
 
@@ -613,7 +613,7 @@ static irqreturn_t tegra_xusb_mbox_thread(int irq, void *data)
 	value &= ~MBOX_DEST_SMI;
 	fpci_writel(tegra, value, tegra->soc->mbox.cmd);
 
-	/* clear mailbox owner if no ACK/NAK is required */
+	/* clear mailbox owner if yes ACK/NAK is required */
 	if (!tegra_xusb_mbox_cmd_requires_ack(msg.cmd))
 		fpci_writel(tegra, MBOX_OWNER_NONE, tegra->soc->mbox.owner);
 
@@ -1076,7 +1076,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto put_padctl;
 	}
 
-	if (!of_property_read_bool(pdev->dev.of_node, "power-domains")) {
+	if (!of_property_read_bool(pdev->dev.of_yesde, "power-domains")) {
 		tegra->host_rst = devm_reset_control_get(&pdev->dev,
 							 "xusb_host");
 		if (IS_ERR(tegra->host_rst)) {
@@ -1285,7 +1285,7 @@ disable_phy:
 	tegra_xusb_phy_disable(tegra);
 	pm_runtime_disable(&pdev->dev);
 put_powerdomains:
-	if (!of_property_read_bool(pdev->dev.of_node, "power-domains")) {
+	if (!of_property_read_bool(pdev->dev.of_yesde, "power-domains")) {
 		tegra_powergate_power_off(TEGRA_POWERGATE_XUSBC);
 		tegra_powergate_power_off(TEGRA_POWERGATE_XUSBA);
 	} else {
@@ -1313,7 +1313,7 @@ static int tegra_xusb_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	if (!of_property_read_bool(pdev->dev.of_node, "power-domains")) {
+	if (!of_property_read_bool(pdev->dev.of_yesde, "power-domains")) {
 		tegra_powergate_power_off(TEGRA_POWERGATE_XUSBC);
 		tegra_powergate_power_off(TEGRA_POWERGATE_XUSBA);
 	} else {

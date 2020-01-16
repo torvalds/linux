@@ -34,7 +34,7 @@ static unsigned int cs5530_pio_timings[2][5] = {
 };
 
 /*
- * After chip reset, the PIO timings are set to 0x0000e132, which is not valid.
+ * After chip reset, the PIO timings are set to 0x0000e132, which is yest valid.
  */
 #define CS5530_BAD_PIO(timings) (((timings)&~0x80000000)==0x0000e132)
 #define CS5530_BASEREG(hwif)	(((hwif)->dma_base & ~0xf) + ((hwif)->channel ? 0x30 : 0x20))
@@ -66,11 +66,11 @@ static void cs5530_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
  *	cs5530_udma_filter() does UDMA mask filtering for the given drive
  *	taking into the consideration capabilities of the mate device.
  *
- *	The CS5530 specifies that two drives sharing a cable cannot mix
+ *	The CS5530 specifies that two drives sharing a cable canyest mix
  *	UDMA/MDMA.  It has to be one or the other, for the pair, though
  *	different timings can still be chosen for each drive.  We could
  *	set the appropriate timing bits on the fly, but that might be
- *	a bit confusing.  So, for now we statically handle this requirement
+ *	a bit confusing.  So, for yesw we statically handle this requirement
  *	by looking at our mate drive to see what it is capable of, before
  *	choosing a mode for our own drive.
  *

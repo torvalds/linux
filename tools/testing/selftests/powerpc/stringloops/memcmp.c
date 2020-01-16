@@ -57,7 +57,7 @@ static void test_one(char *s1, char *s2, unsigned long max_offset,
 			}
 
 			if (vmx_count != 0) {
-				printf("vmx enter/exit not paired.(offset:%ld size:%ld s1:%p s2:%p vc:%d\n",
+				printf("vmx enter/exit yest paired.(offset:%ld size:%ld s1:%p s2:%p vc:%d\n",
 					offset, size, s1, s2, vmx_count);
 				printf("\n");
 				abort();

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -70,13 +70,13 @@ union lut3d_control_flags {
 };
 
 enum tm_show_option_internal {
-	tm_show_option_internal_single_file		= 0,/*flags2 not in use*/
+	tm_show_option_internal_single_file		= 0,/*flags2 yest in use*/
 	tm_show_option_internal_duplicate_file,		/*use flags2*/
 	tm_show_option_internal_duplicate_sidebyside/*use flags2*/
 };
 
 enum lut3d_control_gamut_map {
-	lut3d_control_gamut_map_none = 0,
+	lut3d_control_gamut_map_yesne = 0,
 	lut3d_control_gamut_map_tonemap,
 	lut3d_control_gamut_map_chto,
 	lut3d_control_gamut_map_chso,
@@ -84,7 +84,7 @@ enum lut3d_control_gamut_map {
 };
 
 enum lut3d_control_rotation_mode {
-	lut3d_control_rotation_mode_none = 0,
+	lut3d_control_rotation_mode_yesne = 0,
 	lut3d_control_rotation_mode_hue,
 	lut3d_control_rotation_mode_cc,
 	lut3d_control_rotation_mode_hue_cc

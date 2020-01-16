@@ -10,7 +10,7 @@
 
 #include <linux/sys.h>
 #include <asm/processor.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/ppc_asm.h>
 #include <asm/export.h>
 
@@ -29,7 +29,7 @@ _GLOBAL(__csum_partial)
 	/*
 	 * If only halfword aligned, align to a double word. Since odd
 	 * aligned addresses should be rare and they would require more
-	 * work to calculate the correct checksum, we ignore that case
+	 * work to calculate the correct checksum, we igyesre that case
 	 * and take the potential slowdown of unaligned loads.
 	 */
 	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 >> 1) & 0x3 */
@@ -218,7 +218,7 @@ _GLOBAL(csum_partial_copy_generic)
 	/*
 	 * If only halfword aligned, align to a double word. Since odd
 	 * aligned addresses should be rare and they would require more
-	 * work to calculate the correct checksum, we ignore that case
+	 * work to calculate the correct checksum, we igyesre that case
 	 * and take the potential slowdown of unaligned loads.
 	 *
 	 * If the source and destination are relatively unaligned we only
@@ -452,7 +452,7 @@ _GLOBAL(csum_ipv6_magic)
 	srdi	r0, r3, 32
 	rotlwi	r3, r0, 16		/* fold two 16 bit halves together */
 	add	r3, r0, r3
-	not	r3, r3
+	yest	r3, r3
 	rlwinm	r3, r3, 16, 16, 31
 	blr
 EXPORT_SYMBOL(csum_ipv6_magic)

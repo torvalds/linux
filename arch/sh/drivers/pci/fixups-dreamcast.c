@@ -42,7 +42,7 @@ static void gapspci_fixup_resources(struct pci_dev *dev)
 		dev->resource[1].end	= dev->resource[1].start + 0x200 - 1;
 
 		/*
-		 * This is not a normal BAR, prevent any attempts to move
+		 * This is yest a yesrmal BAR, prevent any attempts to move
 		 * the BAR, as this will result in a bus lock.
 		 */
 		dev->resource[1].flags |= IORESOURCE_PCI_FIXED;
@@ -53,8 +53,8 @@ static void gapspci_fixup_resources(struct pci_dev *dev)
 		 * If this GAPSPCI region were mapped by a BAR, the CPU
 		 * phys_addr_t would be pci_resource_start(), and the bus
 		 * address would be pci_bus_address(pci_resource_start()).
-		 * But apparently there's no BAR mapping it, so we just
-		 * "know" its CPU address is GAPSPCI_DMA_BASE.
+		 * But apparently there's yes BAR mapping it, so we just
+		 * "kyesw" its CPU address is GAPSPCI_DMA_BASE.
 		 */
 		res.start = GAPSPCI_DMA_BASE;
 		res.end = GAPSPCI_DMA_BASE + GAPSPCI_DMA_SIZE - 1;

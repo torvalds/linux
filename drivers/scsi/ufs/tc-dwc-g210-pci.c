@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Synopsys G210 Test Chip driver
+ * Syyespsys G210 Test Chip driver
  *
- * Copyright (C) 2015-2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2015-2016 Syyespsys, Inc. (www.syyespsys.com)
  *
- * Authors: Joao Pinto <jpinto@synopsys.com>
+ * Authors: Joao Pinto <jpinto@syyespsys.com>
  */
 
 #include "ufshcd.h"
@@ -53,7 +53,7 @@ static int tc_dwc_g210_pci_runtime_idle(struct device *dev)
  */
 static struct ufs_hba_variant_ops tc_dwc_g210_pci_hba_vops = {
 	.name                   = "tc-dwc-g210-pci",
-	.link_startup_notify	= ufshcd_dwc_link_startup_notify,
+	.link_startup_yestify	= ufshcd_dwc_link_startup_yestify,
 };
 
 /**
@@ -75,7 +75,7 @@ static void tc_dwc_g210_pci_remove(struct pci_dev *pdev)
 	struct ufs_hba *hba = pci_get_drvdata(pdev);
 
 	pm_runtime_forbid(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	ufshcd_remove(hba);
 }
 
@@ -84,7 +84,7 @@ static void tc_dwc_g210_pci_remove(struct pci_dev *pdev)
  * @pdev: pointer to PCI device handle
  * @id: PCI device id
  *
- * Returns 0 on success, non-zero value on failure
+ * Returns 0 on success, yesn-zero value on failure
  */
 static int
 tc_dwc_g210_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -101,7 +101,7 @@ tc_dwc_g210_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		tc_dwc_g210_pci_hba_vops.phy_initialization =
 						tc_dwc_g210_config_40_bit;
 	} else {
-		dev_err(&pdev->dev, "test chip version not specified\n");
+		dev_err(&pdev->dev, "test chip version yest specified\n");
 		return -EPERM;
 	}
 
@@ -136,7 +136,7 @@ tc_dwc_g210_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	pci_set_drvdata(pdev, hba);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;
@@ -171,6 +171,6 @@ static struct pci_driver tc_dwc_g210_pci_driver = {
 
 module_pci_driver(tc_dwc_g210_pci_driver);
 
-MODULE_AUTHOR("Joao Pinto <Joao.Pinto@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys Test Chip G210 PCI glue driver");
+MODULE_AUTHOR("Joao Pinto <Joao.Pinto@syyespsys.com>");
+MODULE_DESCRIPTION("Syyespsys Test Chip G210 PCI glue driver");
 MODULE_LICENSE("Dual BSD/GPL");

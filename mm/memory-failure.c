@@ -8,19 +8,19 @@
  * failure.
  * 
  * In addition there is a "soft offline" entry point that allows stop using
- * not-yet-corrupted-by-suspicious pages without killing anything.
+ * yest-yet-corrupted-by-suspicious pages without killing anything.
  *
  * Handles page cache pages in various states.	The tricky part
- * here is that we can access any page asynchronously in respect to 
+ * here is that we can access any page asynchroyesusly in respect to 
  * other VM users, because memory failures could happen anytime and 
  * anywhere. This could violate some of their assumptions. This is why 
  * this code has to be extremely careful. Generally it tries to use 
- * normal locking rules, as in get the standard locks, even if that means 
+ * yesrmal locking rules, as in get the standard locks, even if that means 
  * the error handling takes potentially a long time.
  *
  * It can be very tempting to add handling for obscure cases here.
  * In general any code for handling new cases should only be added iff:
- * - You know how to test it.
+ * - You kyesw how to test it.
  * - You have a test that can be added to mce-test
  *   https://git.kernel.org/cgit/utils/cpu/mce/mce-test.git/
  * - The case actually shows up as a frequent (top 10) page state in
@@ -29,7 +29,7 @@
  * There are several operations here with exponential complexity because
  * of unsuitable VM data structures. For example the operation to map back 
  * from RMAP chains to processes has to walk the complete process list and 
- * has non linear complexity with the number. But since memory corruptions
+ * has yesn linear complexity with the number. But since memory corruptions
  * are rare we hope to get away with this. This avoids impacting the core 
  * VM.
  */
@@ -69,12 +69,12 @@ atomic_long_t num_poisoned_pages __read_mostly = ATOMIC_LONG_INIT(0);
 
 u32 hwpoison_filter_enable = 0;
 u32 hwpoison_filter_dev_major = ~0U;
-u32 hwpoison_filter_dev_minor = ~0U;
+u32 hwpoison_filter_dev_miyesr = ~0U;
 u64 hwpoison_filter_flags_mask;
 u64 hwpoison_filter_flags_value;
 EXPORT_SYMBOL_GPL(hwpoison_filter_enable);
 EXPORT_SYMBOL_GPL(hwpoison_filter_dev_major);
-EXPORT_SYMBOL_GPL(hwpoison_filter_dev_minor);
+EXPORT_SYMBOL_GPL(hwpoison_filter_dev_miyesr);
 EXPORT_SYMBOL_GPL(hwpoison_filter_flags_mask);
 EXPORT_SYMBOL_GPL(hwpoison_filter_flags_value);
 
@@ -84,11 +84,11 @@ static int hwpoison_filter_dev(struct page *p)
 	dev_t dev;
 
 	if (hwpoison_filter_dev_major == ~0U &&
-	    hwpoison_filter_dev_minor == ~0U)
+	    hwpoison_filter_dev_miyesr == ~0U)
 		return 0;
 
 	/*
-	 * page_mapping() does not accept slab pages.
+	 * page_mapping() does yest accept slab pages.
 	 */
 	if (PageSlab(p))
 		return -EINVAL;
@@ -101,8 +101,8 @@ static int hwpoison_filter_dev(struct page *p)
 	if (hwpoison_filter_dev_major != ~0U &&
 	    hwpoison_filter_dev_major != MAJOR(dev))
 		return -EINVAL;
-	if (hwpoison_filter_dev_minor != ~0U &&
-	    hwpoison_filter_dev_minor != MINOR(dev))
+	if (hwpoison_filter_dev_miyesr != ~0U &&
+	    hwpoison_filter_dev_miyesr != MINOR(dev))
 		return -EINVAL;
 
 	return 0;
@@ -125,7 +125,7 @@ static int hwpoison_filter_flags(struct page *p)
  * by putting them under some memcg. This prevents killing unrelated/important
  * processes such as /sbin/init. Note that the target task may share clean
  * pages with init (eg. libc text), which is harmless. If the target task
- * share _dirty_ pages with another task B, the test scheme must make sure B
+ * share _dirty_ pages with ayesther task B, the test scheme must make sure B
  * is also included in the memcg. At last, due to race conditions this filter
  * can only guarantee that the page either belongs to the memcg tasks, or is
  * a freed page.
@@ -138,7 +138,7 @@ static int hwpoison_filter_task(struct page *p)
 	if (!hwpoison_filter_memcg)
 		return 0;
 
-	if (page_cgroup_ino(p) != hwpoison_filter_memcg)
+	if (page_cgroup_iyes(p) != hwpoison_filter_memcg)
 		return -EINVAL;
 
 	return 0;
@@ -178,15 +178,15 @@ EXPORT_SYMBOL_GPL(hwpoison_filter);
  *
  * General strategy:
  * Find all processes having the page mapped and kill them.
- * But we keep a page reference around so that the page is not
+ * But we keep a page reference around so that the page is yest
  * actually freed yet.
  * Then stash the page away
  *
- * There's no convenient way to get back to mapped processes
+ * There's yes convenient way to get back to mapped processes
  * from the VMAs. So do a brute-force search over all
  * running processes.
  *
- * Remember that machine checks are not common (or rather
+ * Remember that machine checks are yest common (or rather
  * if they are common you have other problems), so this shouldn't
  * be a performance issue.
  *
@@ -203,7 +203,7 @@ struct to_kill {
 
 /*
  * Send all the processes who have the page mapped a signal.
- * ``action optional'' if they are not immediately affected by the error
+ * ``action optional'' if they are yest immediately affected by the error
  * ``action required'' if error happened in current execution context
  */
 static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
@@ -223,10 +223,10 @@ static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
 		 * Don't use force here, it's convenient if the signal
 		 * can be temporarily blocked.
 		 * This could cause a loop when the user sets SIGBUS
-		 * to SIG_IGN, but hopefully no one will do that?
+		 * to SIG_IGN, but hopefully yes one will do that?
 		 */
 		ret = send_sig_mceerr(BUS_MCEERR_AO, (void __user *)tk->addr,
-				      addr_lsb, t);  /* synchronous? */
+				      addr_lsb, t);  /* synchroyesus? */
 	}
 	if (ret < 0)
 		pr_info("Memory failure: Error sending signal to %s:%d: %d\n",
@@ -235,7 +235,7 @@ static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
 }
 
 /*
- * When a unknown page type is encountered drain as many buffers as possible
+ * When a unkyeswn page type is encountered drain as many buffers as possible
  * in the hope to turn the page into a LRU or free page, which we can handle.
  */
 void shake_page(struct page *p, int access)
@@ -253,11 +253,11 @@ void shake_page(struct page *p, int access)
 	}
 
 	/*
-	 * Only call shrink_node_slabs here (which would also shrink
-	 * other caches) if access is not potentially fatal.
+	 * Only call shrink_yesde_slabs here (which would also shrink
+	 * other caches) if access is yest potentially fatal.
 	 */
 	if (access)
-		drop_slab_node(page_to_nid(p));
+		drop_slab_yesde(page_to_nid(p));
 }
 EXPORT_SYMBOL_GPL(shake_page);
 
@@ -297,7 +297,7 @@ static unsigned long dev_pagemap_mapping_shift(struct page *page,
 
 /*
  * Failure handling: if we can't find or can't kill a process there's
- * not much we can do.	We just print a message and ignore otherwise.
+ * yest much we can do.	We just print a message and igyesre otherwise.
  */
 
 /*
@@ -324,10 +324,10 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
 
 	/*
 	 * Send SIGKILL if "tk->addr == -EFAULT". Also, as
-	 * "tk->size_shift" is always non-zero for !is_zone_device_page(),
-	 * so "tk->size_shift == 0" effectively checks no mapping on
+	 * "tk->size_shift" is always yesn-zero for !is_zone_device_page(),
+	 * so "tk->size_shift == 0" effectively checks yes mapping on
 	 * ZONE_DEVICE. Indeed, when a devdax page is mmapped N times
-	 * to a process' address space, it's possible not all N VMAs
+	 * to a process' address space, it's possible yest all N VMAs
 	 * contain mappings for the page, but at least one VMA does.
 	 * Only deliver SIGBUS with payload derived from the VMA that
 	 * has a mapping for the page.
@@ -349,7 +349,7 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
  * Kill the processes that have been collected earlier.
  *
  * Only do anything when DOIT is set, otherwise just free the list
- * (this is used for clean pages which do not need killing)
+ * (this is used for clean pages which do yest need killing)
  * Also when FAIL is set do a force kill because something went
  * wrong earlier.
  */
@@ -379,7 +379,7 @@ static void kill_procs(struct list_head *to_kill, int forcekill, bool fail,
 			 * process anyways.
 			 */
 			else if (kill_proc(tk, pfn, flags) < 0)
-				pr_err("Memory failure: %#lx: Cannot send advisory machine check signal to %s:%d\n",
+				pr_err("Memory failure: %#lx: Canyest send advisory machine check signal to %s:%d\n",
 				       pfn, tk->tsk->comm, tk->tsk->pid);
 		}
 		put_task_struct(tk->tsk);
@@ -428,29 +428,29 @@ static struct task_struct *task_early_kill(struct task_struct *tsk,
 }
 
 /*
- * Collect processes when the error hit an anonymous page.
+ * Collect processes when the error hit an ayesnymous page.
  */
-static void collect_procs_anon(struct page *page, struct list_head *to_kill,
+static void collect_procs_ayesn(struct page *page, struct list_head *to_kill,
 				int force_early)
 {
 	struct vm_area_struct *vma;
 	struct task_struct *tsk;
-	struct anon_vma *av;
+	struct ayesn_vma *av;
 	pgoff_t pgoff;
 
-	av = page_lock_anon_vma_read(page);
+	av = page_lock_ayesn_vma_read(page);
 	if (av == NULL)	/* Not actually mapped anymore */
 		return;
 
 	pgoff = page_to_pgoff(page);
 	read_lock(&tasklist_lock);
 	for_each_process (tsk) {
-		struct anon_vma_chain *vmac;
+		struct ayesn_vma_chain *vmac;
 		struct task_struct *t = task_early_kill(tsk, force_early);
 
 		if (!t)
 			continue;
-		anon_vma_interval_tree_foreach(vmac, &av->rb_root,
+		ayesn_vma_interval_tree_foreach(vmac, &av->rb_root,
 					       pgoff, pgoff) {
 			vma = vmac->vma;
 			if (!page_mapped_in_vma(page, vma))
@@ -460,7 +460,7 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
 		}
 	}
 	read_unlock(&tasklist_lock);
-	page_unlock_anon_vma_read(av);
+	page_unlock_ayesn_vma_read(av);
 }
 
 /*
@@ -485,7 +485,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
 				      pgoff) {
 			/*
 			 * Send early kill signal to tasks where a vma covers
-			 * the page but the corrupted page is not necessarily
+			 * the page but the corrupted page is yest necessarily
 			 * mapped it in its pte.
 			 * Assume applications who requested early kill want
 			 * to be informed of all such data corruptions.
@@ -507,14 +507,14 @@ static void collect_procs(struct page *page, struct list_head *tokill,
 	if (!page->mapping)
 		return;
 
-	if (PageAnon(page))
-		collect_procs_anon(page, tokill, force_early);
+	if (PageAyesn(page))
+		collect_procs_ayesn(page, tokill, force_early);
 	else
 		collect_procs_file(page, tokill, force_early);
 }
 
 static const char *action_name[] = {
-	[MF_IGNORED] = "Ignored",
+	[MF_IGNORED] = "Igyesred",
 	[MF_FAILED] = "Failed",
 	[MF_DELAYED] = "Delayed",
 	[MF_RECOVERED] = "Recovered",
@@ -528,7 +528,7 @@ static const char * const action_page_types[] = {
 	[MF_MSG_POISONED_HUGE]		= "huge page already hardware poisoned",
 	[MF_MSG_HUGE]			= "huge page",
 	[MF_MSG_FREE_HUGE]		= "free huge page",
-	[MF_MSG_NON_PMD_HUGE]		= "non-pmd-sized huge page",
+	[MF_MSG_NON_PMD_HUGE]		= "yesn-pmd-sized huge page",
 	[MF_MSG_UNMAP_FAILED]		= "unmapping failed page",
 	[MF_MSG_DIRTY_SWAPCACHE]	= "dirty swapcache page",
 	[MF_MSG_CLEAN_SWAPCACHE]	= "clean swapcache page",
@@ -542,7 +542,7 @@ static const char * const action_page_types[] = {
 	[MF_MSG_BUDDY]			= "free buddy page",
 	[MF_MSG_BUDDY_2ND]		= "free buddy page (2nd try)",
 	[MF_MSG_DAX]			= "dax page",
-	[MF_MSG_UNKNOWN]		= "unknown page",
+	[MF_MSG_UNKNOWN]		= "unkyeswn page",
 };
 
 /*
@@ -599,7 +599,7 @@ static int truncate_error_page(struct page *p, unsigned long pfn,
 		 * If the file system doesn't support it just invalidate
 		 * This fails on dirty or anything with private pages
 		 */
-		if (invalidate_inode_page(p))
+		if (invalidate_iyesde_page(p))
 			ret = MF_RECOVERED;
 		else
 			pr_info("Memory failure: %#lx: Failed to invalidate\n",
@@ -611,7 +611,7 @@ static int truncate_error_page(struct page *p, unsigned long pfn,
 
 /*
  * Error hit kernel page.
- * Do nothing, try to be lucky and not touch this instead. For a few cases we
+ * Do yesthing, try to be lucky and yest touch this instead. For a few cases we
  * could be more sophisticated.
  */
 static int me_kernel(struct page *p, unsigned long pfn)
@@ -620,11 +620,11 @@ static int me_kernel(struct page *p, unsigned long pfn)
 }
 
 /*
- * Page in unknown state. Do nothing.
+ * Page in unkyeswn state. Do yesthing.
  */
-static int me_unknown(struct page *p, unsigned long pfn)
+static int me_unkyeswn(struct page *p, unsigned long pfn)
 {
-	pr_err("Memory failure: %#lx: Unknown page state\n", pfn);
+	pr_err("Memory failure: %#lx: Unkyeswn page state\n", pfn);
 	return MF_FAILED;
 }
 
@@ -638,10 +638,10 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
 	delete_from_lru_cache(p);
 
 	/*
-	 * For anonymous pages we're done the only reference left
+	 * For ayesnymous pages we're done the only reference left
 	 * should be the one m_f() holds.
 	 */
-	if (PageAnon(p))
+	if (PageAyesn(p))
 		return MF_RECOVERED;
 
 	/*
@@ -649,7 +649,7 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
 	 * more like a "temporary hole punch"
 	 * Don't do this for block devices when someone else
 	 * has a reference, because it could be file system metadata
-	 * and that's not safe to truncate.
+	 * and that's yest safe to truncate.
 	 */
 	mapping = page_mapping(p);
 	if (!mapping) {
@@ -660,16 +660,16 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
 	}
 
 	/*
-	 * Truncation is a bit tricky. Enable it per file system for now.
+	 * Truncation is a bit tricky. Enable it per file system for yesw.
 	 *
-	 * Open: to take i_mutex or not for this? Right now we don't.
+	 * Open: to take i_mutex or yest for this? Right yesw we don't.
 	 */
 	return truncate_error_page(p, pfn, mapping);
 }
 
 /*
  * Dirty pagecache page
- * Issues: when the error hit a hole page the error is not properly
+ * Issues: when the error hit a hole page the error is yest properly
  * propagated.
  */
 static int me_pagecache_dirty(struct page *p, unsigned long pfn)
@@ -682,7 +682,7 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
 		/*
 		 * IO error will be reported by write(), fsync(), etc.
 		 * who check the mapping.
-		 * This way the application knows that something went
+		 * This way the application kyesws that something went
 		 * wrong with its dirty file data.
 		 *
 		 * There's one open issue:
@@ -702,15 +702,15 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
 		 * application assumes it will always get error on
 		 * fsync, but does other operations on the fd before
 		 * and the page is dropped between then the error
-		 * will not be properly reported.
+		 * will yest be properly reported.
 		 *
 		 * This can already happen even without hwpoisoned
 		 * pages: first on metadata IO errors (which only
 		 * report through AS_EIO) or when the page is dropped
 		 * at the wrong time.
 		 *
-		 * So right now we assume that the application DTRT on
-		 * the first EIO, but we're not worse than other parts
+		 * So right yesw we assume that the application DTRT on
+		 * the first EIO, but we're yest worse than other parts
 		 * of the kernel.
 		 */
 		mapping_set_error(mapping, -EIO);
@@ -725,18 +725,18 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
  * Dirty swap cache page is tricky to handle. The page could live both in page
  * cache and swap cache(ie. page is freshly swapped in). So it could be
  * referenced concurrently by 2 types of PTEs:
- * normal PTEs and swap PTEs. We try to handle them consistently by calling
- * try_to_unmap(TTU_IGNORE_HWPOISON) to convert the normal PTEs to swap PTEs,
+ * yesrmal PTEs and swap PTEs. We try to handle them consistently by calling
+ * try_to_unmap(TTU_IGNORE_HWPOISON) to convert the yesrmal PTEs to swap PTEs,
  * and then
  *      - clear dirty bit to prevent IO
  *      - remove from LRU
  *      - but keep in the swap cache, so that when we return to it on
- *        a later page fault, we know the application is accessing
+ *        a later page fault, we kyesw the application is accessing
  *        corrupted data and shall be killed (we installed simple
  *        interception code in do_swap_page to catch it).
  *
  * Clean swap cache pages can be directly isolated. A later page fault will
- * bring in the known good data from disk.
+ * bring in the kyeswn good data from disk.
  */
 static int me_swapcache_dirty(struct page *p, unsigned long pfn)
 {
@@ -763,7 +763,7 @@ static int me_swapcache_clean(struct page *p, unsigned long pfn)
 /*
  * Huge pages. Needs work.
  * Issues:
- * - Error on hugepage is contained in hugepage unit (not in raw page unit.)
+ * - Error on hugepage is contained in hugepage unit (yest in raw page unit.)
  *   To narrow down kill region to one page, we need to break up pmd.
  */
 static int me_huge_page(struct page *p, unsigned long pfn)
@@ -781,11 +781,11 @@ static int me_huge_page(struct page *p, unsigned long pfn)
 	} else {
 		unlock_page(hpage);
 		/*
-		 * migration entry prevents later access on error anonymous
+		 * migration entry prevents later access on error ayesnymous
 		 * hugepage, so we can free and dissolve it into buddy to
 		 * save healthy subpages.
 		 */
-		if (PageAnon(hpage))
+		if (PageAyesn(hpage))
 			put_page(hpage);
 		dissolve_free_huge_page(p);
 		res = MF_RECOVERED;
@@ -804,7 +804,7 @@ static int me_huge_page(struct page *p, unsigned long pfn)
  * This is quite tricky because we can access page at any time
  * in its live cycle, so all accesses have to be extremely careful.
  *
- * This is not complete. More states could be added.
+ * This is yest complete. More states could be added.
  * For any missing state don't attempt recovery.
  */
 
@@ -833,7 +833,7 @@ static struct page_state {
 	/*
 	 * Could in theory check if slab page is free or if we can drop
 	 * currently unused objects without touching them. But just
-	 * treat it as standard kernel for now.
+	 * treat it as standard kernel for yesw.
 	 */
 	{ slab,		slab,		MF_MSG_SLAB,	me_kernel },
 
@@ -854,7 +854,7 @@ static struct page_state {
 	/*
 	 * Catchall entry: must be at end.
 	 */
-	{ 0,		0,		MF_MSG_UNKNOWN,	me_unknown },
+	{ 0,		0,		MF_MSG_UNKNOWN,	me_unkyeswn },
 };
 
 #undef dirty
@@ -868,7 +868,7 @@ static struct page_state {
 #undef reserved
 
 /*
- * "Dirty/Clean" indication is not 100% accurate due to the possibility of
+ * "Dirty/Clean" indication is yest 100% accurate due to the possibility of
  * setting PG_dirty outside page lock. See also comment above set_page_dirty().
  */
 static void action_result(unsigned long pfn, enum mf_action_page_type type,
@@ -911,7 +911,7 @@ static int page_action(struct page_state *ps, struct page *p,
  * @page:	raw error page (hit by memory error)
  *
  * Return: return 0 if failed to grab the refcount, otherwise true (some
- * non-zero value.)
+ * yesn-zero value.)
  */
 int get_hwpoison_page(struct page *page)
 {
@@ -919,13 +919,13 @@ int get_hwpoison_page(struct page *page)
 
 	if (!PageHuge(head) && PageTransHuge(head)) {
 		/*
-		 * Non anonymous thp exists only in allocation/free time. We
+		 * Non ayesnymous thp exists only in allocation/free time. We
 		 * can't handle such a case correctly, so let's give it up.
 		 * This should be better than triggering BUG_ON when kernel
 		 * tries to touch the "partially handled" page.
 		 */
-		if (!PageAnon(head)) {
-			pr_err("Memory failure: %#lx: non anonymous thp\n",
+		if (!PageAyesn(head)) {
+			pr_err("Memory failure: %#lx: yesn ayesnymous thp\n",
 				page_to_pfn(page));
 			return 0;
 		}
@@ -935,7 +935,7 @@ int get_hwpoison_page(struct page *page)
 		if (head == compound_head(page))
 			return 1;
 
-		pr_info("Memory failure: %#lx cannot catch tail\n",
+		pr_info("Memory failure: %#lx canyest catch tail\n",
 			page_to_pfn(page));
 		put_page(head);
 	}
@@ -989,8 +989,8 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	/*
 	 * Propagate the dirty bit from PTEs to struct page first, because we
 	 * need this to decide if we should kill or just drop the page.
-	 * XXX: the dirty test could be racy: set_page_dirty() may not always
-	 * be called inside page lock (it's recommended but not enforced).
+	 * XXX: the dirty test could be racy: set_page_dirty() may yest always
+	 * be called inside page lock (it's recommended but yest enforced).
 	 */
 	mapping = page_mapping(hpage);
 	if (!(flags & MF_MUST_KILL) && !PageDirty(hpage) && mapping &&
@@ -1010,8 +1010,8 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	 * mapped in dirty form.  This has to be done before try_to_unmap,
 	 * because ttu takes the rmap data structures down.
 	 *
-	 * Error handling: We ignore errors here because
-	 * there's nothing that can be done.
+	 * Error handling: We igyesre errors here because
+	 * there's yesthing that can be done.
 	 */
 	if (kill)
 		collect_procs(hpage, &tokill, flags & MF_ACTION_REQUIRED);
@@ -1031,8 +1031,8 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	/*
 	 * Now that the dirty bit has been propagated to the
 	 * struct page and all unmaps done we can decide if
-	 * killing is needed or not.  Only kill when the page
-	 * was dirty or the process is not restartable,
+	 * killing is needed or yest.  Only kill when the page
+	 * was dirty or the process is yest restartable,
 	 * otherwise the tokill list is merely
 	 * freed.  When there was a problem unmapping earlier
 	 * use a more force-full uncatchable kill to prevent
@@ -1050,7 +1050,7 @@ static int identify_page_state(unsigned long pfn, struct page *p,
 	struct page_state *ps;
 
 	/*
-	 * The first check uses the current page flags which may not have any
+	 * The first check uses the current page flags which may yest have any
 	 * relevant information. The second check with the saved page flags is
 	 * carried out only if the first check can't determine the page status.
 	 */
@@ -1113,7 +1113,7 @@ static int memory_failure_hugetlb(unsigned long pfn, int flags)
 	}
 
 	/*
-	 * TODO: hwpoison for pud-sized hugetlb doesn't work right now, so
+	 * TODO: hwpoison for pud-sized hugetlb doesn't work right yesw, so
 	 * simply disable it. In order to make it work properly, we need
 	 * make sure that:
 	 *  - conversion of a pud that maps an error hugetlb into hwpoison
@@ -1152,9 +1152,9 @@ static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
 	dax_entry_t cookie;
 
 	/*
-	 * Prevent the inode from being freed while we are interrogating
+	 * Prevent the iyesde from being freed while we are interrogating
 	 * the address_space, typically this would be handled by
-	 * lock_page(), but dax pages do not use the page lock. This
+	 * lock_page(), but dax pages do yest use the page lock. This
 	 * also prevents changes to the mapping of this pfn until
 	 * poison signaling is complete.
 	 */
@@ -1182,7 +1182,7 @@ static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
 	SetPageHWPoison(page);
 
 	/*
-	 * Unlike System-RAM there is no possibility to swap in a
+	 * Unlike System-RAM there is yes possibility to swap in a
 	 * different physical page at a given virtual address, so all
 	 * userspace consumption of ZONE_DEVICE memory necessitates
 	 * SIGBUS (i.e. MF_MUST_KILL)
@@ -1229,7 +1229,7 @@ out:
  * detected by a background scrubber)
  *
  * Must run in process context (e.g. a work queue) with interrupts
- * enabled and no spinlocks hold.
+ * enabled and yes spinlocks hold.
  */
 int memory_failure(unsigned long pfn, int flags)
 {
@@ -1268,11 +1268,11 @@ int memory_failure(unsigned long pfn, int flags)
 	num_poisoned_pages_inc();
 
 	/*
-	 * We need/can do nothing about count=0 pages.
+	 * We need/can do yesthing about count=0 pages.
 	 * 1) it's a free page, and therefore in safe hand:
 	 *    prep_new_page() will be the gate keeper.
-	 * 2) it's part of a non-compound high order page.
-	 *    Implies some kernel user: cannot stop them from
+	 * 2) it's part of a yesn-compound high order page.
+	 *    Implies some kernel user: canyest stop them from
 	 *    R/W the page; let's pray that the page has been
 	 *    used and will be freed some time later.
 	 * In fact it's dangerous to directly bump up page count from 0,
@@ -1290,10 +1290,10 @@ int memory_failure(unsigned long pfn, int flags)
 
 	if (PageTransHuge(hpage)) {
 		lock_page(p);
-		if (!PageAnon(p) || unlikely(split_huge_page(p))) {
+		if (!PageAyesn(p) || unlikely(split_huge_page(p))) {
 			unlock_page(p);
-			if (!PageAnon(p))
-				pr_err("Memory failure: %#lx: non anonymous thp\n",
+			if (!PageAyesn(p))
+				pr_err("Memory failure: %#lx: yesn ayesnymous thp\n",
 					pfn);
 			else
 				pr_err("Memory failure: %#lx: thp split failed\n",
@@ -1309,12 +1309,12 @@ int memory_failure(unsigned long pfn, int flags)
 	}
 
 	/*
-	 * We ignore non-LRU pages for good reasons.
+	 * We igyesre yesn-LRU pages for good reasons.
 	 * - PG_locked is only well defined for LRU pages and a few others
 	 * - to avoid races with __SetPageLocked()
-	 * - to avoid races with __SetPageSlab*() (and more non-atomic ops)
-	 * The check (unnecessarily) ignores LRU pages being isolated and
-	 * walked by the page reclaim code, however that's not a big loss.
+	 * - to avoid races with __SetPageSlab*() (and more yesn-atomic ops)
+	 * The check (unnecessarily) igyesres LRU pages being isolated and
+	 * walked by the page reclaim code, however that's yest a big loss.
 	 */
 	shake_page(p, 0);
 	/* shake_page could have turned it free. */
@@ -1512,9 +1512,9 @@ core_initcall(memory_failure_init);
  * memory_failure() earlier.
  *
  * This is only done on the software-level, so it only works
- * for linux injected failures, not real hardware failures
+ * for linux injected failures, yest real hardware failures
  *
- * Returns 0 for success, otherwise -errno.
+ * Returns 0 for success, otherwise -erryes.
  */
 int unpoison_memory(unsigned long pfn)
 {
@@ -1549,18 +1549,18 @@ int unpoison_memory(unsigned long pfn)
 	}
 
 	if (page_mapping(page)) {
-		unpoison_pr_info("Unpoison: the hwpoison page has non-NULL mapping %#lx\n",
+		unpoison_pr_info("Unpoison: the hwpoison page has yesn-NULL mapping %#lx\n",
 				 pfn, &unpoison_rs);
 		return 0;
 	}
 
 	/*
 	 * unpoison_memory() can encounter thp only when the thp is being
-	 * worked by memory_failure() and the page lock is not held yet.
+	 * worked by memory_failure() and the page lock is yest held yet.
 	 * In such case, we yield to memory_failure() and make unpoison fail.
 	 */
 	if (!PageHuge(page) && PageTransHuge(page)) {
-		unpoison_pr_info("Unpoison: Memory failure is now running on %#lx\n",
+		unpoison_pr_info("Unpoison: Memory failure is yesw running on %#lx\n",
 				 pfn, &unpoison_rs);
 		return 0;
 	}
@@ -1600,14 +1600,14 @@ static struct page *new_page(struct page *p, unsigned long private)
 {
 	int nid = page_to_nid(p);
 
-	return new_page_nodemask(p, nid, &node_states[N_MEMORY]);
+	return new_page_yesdemask(p, nid, &yesde_states[N_MEMORY]);
 }
 
 /*
  * Safely get reference count of an arbitrary page.
  * Returns 0 for a free page, -EIO for a zero refcount page
- * that is not free, and 1 for any other page type.
- * For 1 the page is returned with increased page count, otherwise not.
+ * that is yest free, and 1 for any other page type.
+ * For 1 the page is returned with increased page count, otherwise yest.
  */
 static int __get_any_page(struct page *p, unsigned long pfn, int flags)
 {
@@ -1628,7 +1628,7 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
 			pr_info("%s: %#lx free buddy page\n", __func__, pfn);
 			ret = 0;
 		} else {
-			pr_info("%s: %#lx: unknown zero refcount page type %lx\n",
+			pr_info("%s: %#lx: unkyeswn zero refcount page type %lx\n",
 				__func__, pfn, p->flags);
 			ret = -EIO;
 		}
@@ -1658,7 +1658,7 @@ static int get_any_page(struct page *page, unsigned long pfn, int flags)
 		if (ret == 1 && !PageLRU(page)) {
 			/* Drop page reference which is from __get_any_page() */
 			put_hwpoison_page(page);
-			pr_info("soft_offline: %#lx: unknown non LRU page type %lx (%pGp)\n",
+			pr_info("soft_offline: %#lx: unkyeswn yesn LRU page type %lx (%pGp)\n",
 				pfn, page->flags, &page->flags);
 			return -EIO;
 		}
@@ -1711,7 +1711,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
 		 * We set PG_hwpoison only when the migration source hugepage
 		 * was successfully dissolved, because otherwise hwpoisoned
 		 * hugepage remains on free hugepage list, then userspace will
-		 * find it as SIGBUS by allocation failure. That's not expected
+		 * find it as SIGBUS by allocation failure. That's yest expected
 		 * in soft-offlining.
 		 */
 		ret = dissolve_free_huge_page(page);
@@ -1734,7 +1734,7 @@ static int __soft_offline_page(struct page *page, int flags)
 	 * Check PageHWPoison again inside page lock because PageHWPoison
 	 * is set by memory_failure() outside page lock. Note that
 	 * memory_failure() also double-checks PageHWPoison inside page lock,
-	 * so there's no race between soft_offline_page() and memory_failure().
+	 * so there's yes race between soft_offline_page() and memory_failure().
 	 */
 	lock_page(page);
 	wait_on_page_writeback(page);
@@ -1746,9 +1746,9 @@ static int __soft_offline_page(struct page *page, int flags)
 	}
 	/*
 	 * Try to invalidate first. This should work for
-	 * non dirty unmapped page cache pages.
+	 * yesn dirty unmapped page cache pages.
 	 */
-	ret = invalidate_inode_page(page);
+	ret = invalidate_iyesde_page(page);
 	unlock_page(page);
 	/*
 	 * RED-PEN would be better to keep it isolated here, but we
@@ -1773,7 +1773,7 @@ static int __soft_offline_page(struct page *page, int flags)
 		ret = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
 	/*
 	 * Drop page reference which is came from get_any_page()
-	 * successful isolate_lru_page() already took another one.
+	 * successful isolate_lru_page() already took ayesther one.
 	 */
 	put_hwpoison_page(page);
 	if (!ret) {
@@ -1781,10 +1781,10 @@ static int __soft_offline_page(struct page *page, int flags)
 		/*
 		 * After isolated lru page, the PageLRU will be cleared,
 		 * so use !__PageMovable instead for LRU page's mapping
-		 * cannot have PAGE_MAPPING_MOVABLE.
+		 * canyest have PAGE_MAPPING_MOVABLE.
 		 */
 		if (!__PageMovable(page))
-			inc_node_page_state(page, NR_ISOLATED_ANON +
+			inc_yesde_page_state(page, NR_ISOLATED_ANON +
 						page_is_file_cache(page));
 		list_add(&page->lru, &pagelist);
 		ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
@@ -1813,10 +1813,10 @@ static int soft_offline_in_use_page(struct page *page, int flags)
 
 	if (!PageHuge(page) && PageTransHuge(hpage)) {
 		lock_page(page);
-		if (!PageAnon(page) || unlikely(split_huge_page(page))) {
+		if (!PageAyesn(page) || unlikely(split_huge_page(page))) {
 			unlock_page(page);
-			if (!PageAnon(page))
-				pr_info("soft offline: %#lx: non anonymous thp\n", page_to_pfn(page));
+			if (!PageAyesn(page))
+				pr_info("soft offline: %#lx: yesn ayesnymous thp\n", page_to_pfn(page));
 			else
 				pr_info("soft offline: %#lx: thp split failed\n", page_to_pfn(page));
 			put_hwpoison_page(page);
@@ -1827,7 +1827,7 @@ static int soft_offline_in_use_page(struct page *page, int flags)
 
 	/*
 	 * Setting MIGRATE_ISOLATE here ensures that the page will be linked
-	 * to free list immediately (not via pcplist) when released after
+	 * to free list immediately (yest via pcplist) when released after
 	 * successful page migration. Otherwise we can't guarantee that the
 	 * page is really free after put_page() returns, so
 	 * set_hwpoison_free_buddy_page() highly likely fails.
@@ -1860,11 +1860,11 @@ static int soft_offline_free_page(struct page *page)
  * @pfn: pfn to soft-offline
  * @flags: flags. Same as memory_failure().
  *
- * Returns 0 on success, otherwise negated errno.
+ * Returns 0 on success, otherwise negated erryes.
  *
  * Soft offline a page, by migration or invalidation,
  * without killing anything. This is for the case when
- * a page is not corrupted yet (so it's still valid to access),
+ * a page is yest corrupted yet (so it's still valid to access),
  * but has had a number of corrected errors and is better taken
  * out.
  *
@@ -1874,8 +1874,8 @@ static int soft_offline_free_page(struct page *page)
  * This should never impact any application or cause data loss,
  * however it might take some time.
  *
- * This is not a 100% solution for all memory, but tries to be
- * ``good enough'' for the majority of memory.
+ * This is yest a 100% solution for all memory, but tries to be
+ * ``good eyesugh'' for the majority of memory.
  */
 int soft_offline_page(unsigned long pfn, int flags)
 {
@@ -1884,7 +1884,7 @@ int soft_offline_page(unsigned long pfn, int flags)
 
 	if (!pfn_valid(pfn))
 		return -ENXIO;
-	/* Only online pages can be soft-offlined (esp., not ZONE_DEVICE). */
+	/* Only online pages can be soft-offlined (esp., yest ZONE_DEVICE). */
 	page = pfn_to_online_page(pfn);
 	if (!page)
 		return -EIO;

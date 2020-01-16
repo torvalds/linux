@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -78,7 +78,7 @@ struct qp_entry {
 
 typedef struct qp_entry qp_table[];
 
-void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_comp bpc, float bpp, int slice_width, int slice_height, int minor_version);
+void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_comp bpc, float bpp, int slice_width, int slice_height, int miyesr_version);
 
 #endif
 

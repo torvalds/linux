@@ -3,7 +3,7 @@
 /* Based on Christian Brauner's clone3() example */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -82,8 +82,8 @@ static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 	pid = sys_clone3((struct clone_args *)&args_ext, size);
 	if (pid < 0) {
 		ksft_print_msg("%s - Failed to create new process\n",
-				strerror(errno));
-		return -errno;
+				strerror(erryes));
+		return -erryes;
 	}
 
 	if (pid == 0) {
@@ -95,8 +95,8 @@ static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 			getpid(), pid);
 
 	if (waitpid(-1, &status, __WALL) < 0) {
-		ksft_print_msg("Child returned %s\n", strerror(errno));
-		return -errno;
+		ksft_print_msg("Child returned %s\n", strerror(erryes));
+		return -erryes;
 	}
 	if (WEXITSTATUS(status))
 		return WEXITSTATUS(status);
@@ -153,13 +153,13 @@ int main(int argc, char *argv[])
 	/* Do a clone3() with sizeof(struct clone_args) + 8 */
 	test_clone3(0, sizeof(struct clone_args) + 8, 0, CLONE3_ARGS_NO_TEST);
 
-	/* Do a clone3() with exit_signal having highest 32 bits non-zero */
+	/* Do a clone3() with exit_signal having highest 32 bits yesn-zero */
 	test_clone3(0, 0, -EINVAL, CLONE3_ARGS_INVAL_EXIT_SIGNAL_BIG);
 
 	/* Do a clone3() with negative 32-bit exit_signal */
 	test_clone3(0, 0, -EINVAL, CLONE3_ARGS_INVAL_EXIT_SIGNAL_NEG);
 
-	/* Do a clone3() with exit_signal not fitting into CSIGNAL mask */
+	/* Do a clone3() with exit_signal yest fitting into CSIGNAL mask */
 	test_clone3(0, 0, -EINVAL, CLONE3_ARGS_INVAL_EXIT_SIGNAL_CSIG);
 
 	/* Do a clone3() with NSIG < exit_signal < CSIG */

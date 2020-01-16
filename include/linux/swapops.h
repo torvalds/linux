@@ -55,7 +55,7 @@ static inline pgoff_t swp_offset(swp_entry_t entry)
 /* check whether a pte points to a swap entry */
 static inline int is_swap_pte(pte_t pte)
 {
-	return !pte_none(pte) && !pte_present(pte);
+	return !pte_yesne(pte) && !pte_present(pte);
 }
 
 /*
@@ -349,12 +349,12 @@ static inline void num_poisoned_pages_inc(void)
 #endif
 
 #if defined(CONFIG_MEMORY_FAILURE) || defined(CONFIG_MIGRATION)
-static inline int non_swap_entry(swp_entry_t entry)
+static inline int yesn_swap_entry(swp_entry_t entry)
 {
 	return swp_type(entry) >= MAX_SWAPFILES;
 }
 #else
-static inline int non_swap_entry(swp_entry_t entry)
+static inline int yesn_swap_entry(swp_entry_t entry)
 {
 	return 0;
 }

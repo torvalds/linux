@@ -347,15 +347,15 @@ static int acpi_smbus_cmi_add_cap(struct acpi_smbus_cmi *smbus_cmi,
 static acpi_status acpi_smbus_cmi_query_methods(acpi_handle handle, u32 level,
 			void *context, void **return_value)
 {
-	char node_name[5];
-	struct acpi_buffer buffer = { sizeof(node_name), node_name };
+	char yesde_name[5];
+	struct acpi_buffer buffer = { sizeof(yesde_name), yesde_name };
 	struct acpi_smbus_cmi *smbus_cmi = context;
 	acpi_status status;
 
 	status = acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer);
 
 	if (ACPI_SUCCESS(status))
-		acpi_smbus_cmi_add_cap(smbus_cmi, node_name);
+		acpi_smbus_cmi_add_cap(smbus_cmi, yesde_name);
 
 	return AE_OK;
 }

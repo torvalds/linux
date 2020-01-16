@@ -12,8 +12,8 @@
  *	@drive: the drive to place in DMA mode
  *
  *	If the drive supports at least mode 2 DMA or UDMA of any kind
- *	then attempt to place it into DMA mode. Drives that are known to
- *	support DMA but predate the DMA properties or that are known
+ *	then attempt to place it into DMA mode. Drives that are kyeswn to
+ *	support DMA but predate the DMA properties or that are kyeswn
  *	to have DMA handling bugs are also set up appropriately based
  *	on the good/bad drive lists.
  */
@@ -44,7 +44,7 @@ int config_drive_for_dma(ide_drive_t *drive)
 	    (id[ATA_ID_SWDMA_MODES] & 0x404) == 0x404)
 		return 1;
 
-	/* Consult the list of known "good" drives */
+	/* Consult the list of kyeswn "good" drives */
 	if (ide_dma_good_drive(drive))
 		return 1;
 
@@ -230,7 +230,7 @@ EXPORT_SYMBOL_GPL(ide_dma_setup);
  *	in progress we continue to wait (arguably we need to add a
  *	secondary 'I don't care what the drive thinks' timeout here)
  *	Finally if we have an interrupt we let it complete the I/O.
- *	But only one time - we clear expiry and if it's still not
+ *	But only one time - we clear expiry and if it's still yest
  *	completed after WAIT_CMD, we error and retry in PIO.
  *	This can occur if an interrupt is lost or due to hang or bugs.
  */
@@ -246,7 +246,7 @@ int ide_dma_sff_timer_expiry(ide_drive_t *drive)
 	if ((dma_stat & 0x18) == 0x18)	/* BUSY Stupid Early Timer !! */
 		return WAIT_CMD;
 
-	hwif->expiry = NULL;	/* one free ride for now */
+	hwif->expiry = NULL;	/* one free ride for yesw */
 
 	if (dma_stat & ATA_DMA_ERR)	/* ERROR */
 		return -1;
@@ -257,7 +257,7 @@ int ide_dma_sff_timer_expiry(ide_drive_t *drive)
 	if (dma_stat & ATA_DMA_INTR)	/* Got an Interrupt */
 		return WAIT_CMD;
 
-	return 0;	/* Status is unknown -- reset the bus */
+	return 0;	/* Status is unkyeswn -- reset the bus */
 }
 EXPORT_SYMBOL_GPL(ide_dma_sff_timer_expiry);
 

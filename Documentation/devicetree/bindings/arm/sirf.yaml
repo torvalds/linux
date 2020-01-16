@@ -11,7 +11,7 @@ maintainers:
   - Barry Song <Baohua.Song@csr.com>
 
 properties:
-  $nodename:
+  $yesdename:
     const: '/'
   compatible:
     oneOf:

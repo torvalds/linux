@@ -31,12 +31,12 @@
 
 
 /*
- * Module compatibility interface.  For now it doesn't do anything,
+ * Module compatibility interface.  For yesw it doesn't do anything,
  * but its existence signals a certain level of functionality.
  *
  * The data buffer is used to pass information both to and from
  * libceph.  The return value indicates whether libceph determines
- * it is compatible with the caller (from another kernel module),
+ * it is compatible with the caller (from ayesther kernel module),
  * given the provided data.
  *
  * The data pointer can be null.
@@ -92,9 +92,9 @@ const char *ceph_msg_type_name(int type)
 	case CEPH_MSG_OSD_MAP: return "osd_map";
 	case CEPH_MSG_OSD_OP: return "osd_op";
 	case CEPH_MSG_OSD_OPREPLY: return "osd_opreply";
-	case CEPH_MSG_WATCH_NOTIFY: return "watch_notify";
+	case CEPH_MSG_WATCH_NOTIFY: return "watch_yestify";
 	case CEPH_MSG_OSD_BACKOFF: return "osd_backoff";
-	default: return "unknown";
+	default: return "unkyeswn";
 	}
 }
 EXPORT_SYMBOL(ceph_msg_type_name);
@@ -202,13 +202,13 @@ void *ceph_kvmalloc(size_t size, gfp_t flags)
 	if ((flags & (__GFP_IO | __GFP_FS)) == (__GFP_IO | __GFP_FS)) {
 		p = kvmalloc(size, flags);
 	} else if ((flags & (__GFP_IO | __GFP_FS)) == __GFP_IO) {
-		unsigned int nofs_flag = memalloc_nofs_save();
+		unsigned int yesfs_flag = memalloc_yesfs_save();
 		p = kvmalloc(size, GFP_KERNEL);
-		memalloc_nofs_restore(nofs_flag);
+		memalloc_yesfs_restore(yesfs_flag);
 	} else {
-		unsigned int noio_flag = memalloc_noio_save();
+		unsigned int yesio_flag = memalloc_yesio_save();
 		p = kvmalloc(size, GFP_KERNEL);
-		memalloc_noio_restore(noio_flag);
+		memalloc_yesio_restore(yesio_flag);
 	}
 
 	return p;
@@ -265,15 +265,15 @@ enum {
 	Opt_crc,
 	Opt_cephx_require_signatures,
 	Opt_cephx_sign_messages,
-	Opt_tcp_nodelay,
+	Opt_tcp_yesdelay,
 	Opt_abort_on_full,
 };
 
 static const struct fs_parameter_spec ceph_param_specs[] = {
 	fsparam_flag	("abort_on_full",		Opt_abort_on_full),
-	fsparam_flag_no ("cephx_require_signatures",	Opt_cephx_require_signatures),
-	fsparam_flag_no ("cephx_sign_messages",		Opt_cephx_sign_messages),
-	fsparam_flag_no ("crc",				Opt_crc),
+	fsparam_flag_yes ("cephx_require_signatures",	Opt_cephx_require_signatures),
+	fsparam_flag_yes ("cephx_sign_messages",		Opt_cephx_sign_messages),
+	fsparam_flag_yes ("crc",				Opt_crc),
 	fsparam_string	("fsid",			Opt_fsid),
 	fsparam_string	("ip",				Opt_ip),
 	fsparam_string	("key",				Opt_key),
@@ -285,8 +285,8 @@ static const struct fs_parameter_spec ceph_param_specs[] = {
 	__fsparam	(fs_param_is_s32, "osdtimeout", Opt_osdtimeout,
 			 fs_param_deprecated),
 	fsparam_string	("secret",			Opt_secret),
-	fsparam_flag_no ("share",			Opt_share),
-	fsparam_flag_no ("tcp_nodelay",			Opt_tcp_nodelay),
+	fsparam_flag_yes ("share",			Opt_share),
+	fsparam_flag_yes ("tcp_yesdelay",			Opt_tcp_yesdelay),
 	{}
 };
 
@@ -351,7 +351,7 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name,
 		key_err = PTR_ERR(ukey);
 		switch (key_err) {
 		case -ENOKEY:
-			errorf(fc, "libceph: Failed due to key not found: %s",
+			errorf(fc, "libceph: Failed due to key yest found: %s",
 			       name);
 			break;
 		case -EKEYEXPIRED:
@@ -459,17 +459,17 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 		return get_secret(opt->key, param->string, fc);
 
 	case Opt_osdtimeout:
-		warnf(fc, "libceph: Ignoring osdtimeout");
+		warnf(fc, "libceph: Igyesring osdtimeout");
 		break;
 	case Opt_osdkeepalivetimeout:
-		/* 0 isn't well defined right now, reject it */
+		/* 0 isn't well defined right yesw, reject it */
 		if (result.uint_32 < 1 || result.uint_32 > INT_MAX / 1000)
 			goto out_of_range;
 		opt->osd_keepalive_timeout =
 		    msecs_to_jiffies(result.uint_32 * 1000);
 		break;
 	case Opt_osd_idle_ttl:
-		/* 0 isn't well defined right now, reject it */
+		/* 0 isn't well defined right yesw, reject it */
 		if (result.uint_32 < 1 || result.uint_32 > INT_MAX / 1000)
 			goto out_of_range;
 		opt->osd_idle_ttl = msecs_to_jiffies(result.uint_32 * 1000);
@@ -512,7 +512,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 		else
 			opt->flags |= CEPH_OPT_NOMSGSIGN;
 		break;
-	case Opt_tcp_nodelay:
+	case Opt_tcp_yesdelay:
 		if (!result.negated)
 			opt->flags |= CEPH_OPT_TCP_NODELAY;
 		else
@@ -551,15 +551,15 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 	if (opt->flags & CEPH_OPT_FSID)
 		seq_printf(m, "fsid=%pU,", &opt->fsid);
 	if (opt->flags & CEPH_OPT_NOSHARE)
-		seq_puts(m, "noshare,");
+		seq_puts(m, "yesshare,");
 	if (opt->flags & CEPH_OPT_NOCRC)
-		seq_puts(m, "nocrc,");
+		seq_puts(m, "yescrc,");
 	if (opt->flags & CEPH_OPT_NOMSGAUTH)
-		seq_puts(m, "nocephx_require_signatures,");
+		seq_puts(m, "yescephx_require_signatures,");
 	if (opt->flags & CEPH_OPT_NOMSGSIGN)
-		seq_puts(m, "nocephx_sign_messages,");
+		seq_puts(m, "yescephx_sign_messages,");
 	if ((opt->flags & CEPH_OPT_TCP_NODELAY) == 0)
-		seq_puts(m, "notcp_nodelay,");
+		seq_puts(m, "yestcp_yesdelay,");
 	if (show_all && (opt->flags & CEPH_OPT_ABORT_ON_FULL))
 		seq_puts(m, "abort_on_full,");
 
@@ -674,7 +674,7 @@ EXPORT_SYMBOL(ceph_destroy_client);
 
 void ceph_reset_client_addr(struct ceph_client *client)
 {
-	ceph_messenger_reset_nonce(&client->msgr);
+	ceph_messenger_reset_yesnce(&client->msgr);
 	ceph_monc_reopen_session(&client->monc);
 	ceph_osdc_reopen_osds(&client->osdc);
 }
@@ -728,7 +728,7 @@ EXPORT_SYMBOL(__ceph_open_session);
 int ceph_open_session(struct ceph_client *client)
 {
 	int ret;
-	unsigned long started = jiffies;  /* note the start time */
+	unsigned long started = jiffies;  /* yeste the start time */
 
 	dout("open_session start\n");
 	mutex_lock(&client->mount_mutex);

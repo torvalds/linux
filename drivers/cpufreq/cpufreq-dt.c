@@ -58,12 +58,12 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
  */
 static const char *find_supply_name(struct device *dev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct property *pp;
 	int cpu = dev->id;
 	const char *name = NULL;
 
-	np = of_node_get(dev->of_node);
+	np = of_yesde_get(dev->of_yesde);
 
 	/* This must be valid for sure */
 	if (WARN_ON(!np))
@@ -74,19 +74,19 @@ static const char *find_supply_name(struct device *dev)
 		pp = of_find_property(np, "cpu0-supply", NULL);
 		if (pp) {
 			name = "cpu0";
-			goto node_put;
+			goto yesde_put;
 		}
 	}
 
 	pp = of_find_property(np, "cpu-supply", NULL);
 	if (pp) {
 		name = "cpu";
-		goto node_put;
+		goto yesde_put;
 	}
 
-	dev_dbg(dev, "no regulator for cpu%d\n", cpu);
-node_put:
-	of_node_put(np);
+	dev_dbg(dev, "yes regulator for cpu%d\n", cpu);
+yesde_put:
+	of_yesde_put(np);
 	return name;
 }
 
@@ -108,11 +108,11 @@ static int resources_available(void)
 	ret = PTR_ERR_OR_ZERO(cpu_clk);
 	if (ret) {
 		/*
-		 * If cpu's clk node is present, but clock is not yet
+		 * If cpu's clk yesde is present, but clock is yest yet
 		 * registered, we should try defering probe.
 		 */
 		if (ret == -EPROBE_DEFER)
-			dev_dbg(cpu_dev, "clock not ready, retry\n");
+			dev_dbg(cpu_dev, "clock yest ready, retry\n");
 		else
 			dev_err(cpu_dev, "failed to get clock: %d\n", ret);
 
@@ -130,13 +130,13 @@ static int resources_available(void)
 	ret = PTR_ERR_OR_ZERO(cpu_reg);
 	if (ret) {
 		/*
-		 * If cpu's regulator supply node is present, but regulator is
-		 * not yet registered, we should try defering probe.
+		 * If cpu's regulator supply yesde is present, but regulator is
+		 * yest yet registered, we should try defering probe.
 		 */
 		if (ret == -EPROBE_DEFER)
-			dev_dbg(cpu_dev, "cpu0 regulator not ready, retry\n");
+			dev_dbg(cpu_dev, "cpu0 regulator yest ready, retry\n");
 		else
-			dev_dbg(cpu_dev, "no regulator for cpu0: %d\n", ret);
+			dev_dbg(cpu_dev, "yes regulator for cpu0: %d\n", ret);
 
 		return ret;
 	}
@@ -177,7 +177,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 			goto out_put_clk;
 
 		/*
-		 * operating-points-v2 not supported, fallback to old method of
+		 * operating-points-v2 yest supported, fallback to old method of
 		 * finding shared-OPPs for backward compatibility if the
 		 * platform hasn't set sharing CPUs.
 		 */
@@ -186,7 +186,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	}
 
 	/*
-	 * OPP layer will be taking care of regulators now, but it needs to know
+	 * OPP layer will be taking care of regulators yesw, but it needs to kyesw
 	 * the name of the regulator first.
 	 */
 	name = find_supply_name(cpu_dev);
@@ -213,7 +213,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	 * Initialize OPP tables for all policy->cpus. They will be shared by
 	 * all CPUs which have marked their CPUs shared with OPP bindings.
 	 *
-	 * For platforms not using operating-points-v2 bindings, we do this
+	 * For platforms yest using operating-points-v2 bindings, we do this
 	 * before updating policy->cpus. Otherwise, we will end up creating
 	 * duplicate OPPs for policy->cpus.
 	 *
@@ -223,12 +223,12 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		priv->have_static_opps = true;
 
 	/*
-	 * But we need OPP table to function so if it is not there let's
+	 * But we need OPP table to function so if it is yest there let's
 	 * give platform code chance to provide it for us.
 	 */
 	ret = dev_pm_opp_get_opp_count(cpu_dev);
 	if (ret <= 0) {
-		dev_dbg(cpu_dev, "OPP table is not ready, deferring probe\n");
+		dev_dbg(cpu_dev, "OPP table is yest ready, deferring probe\n");
 		ret = -EPROBE_DEFER;
 		goto out_free_opp;
 	}
@@ -296,7 +296,7 @@ out_put_clk:
 
 static int cpufreq_online(struct cpufreq_policy *policy)
 {
-	/* We did light-weight tear down earlier, nothing to do here */
+	/* We did light-weight tear down earlier, yesthing to do here */
 	return 0;
 }
 
@@ -357,7 +357,7 @@ static int dt_cpufreq_probe(struct platform_device *pdev)
 		return ret;
 
 	if (data) {
-		if (data->have_governor_per_policy)
+		if (data->have_goveryesr_per_policy)
 			dt_cpufreq_driver.flags |= CPUFREQ_HAVE_GOVERNOR_PER_POLICY;
 
 		dt_cpufreq_driver.resume = data->resume;

@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <crypto/cast5.h>

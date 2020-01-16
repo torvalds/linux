@@ -48,9 +48,9 @@ class PluginMgr:
         for dirpath, dirnames, filenames in os.walk(plugindir):
             for fn in filenames:
                 if (fn.endswith('.py') and
-                    not fn == '__init__.py' and
-                    not fn.startswith('#') and
-                    not fn.startswith('.#')):
+                    yest fn == '__init__.py' and
+                    yest fn.startswith('#') and
+                    yest fn.startswith('.#')):
                     mn = fn[0:-3]
                     foo = importlib.import_module('plugins.' + mn)
                     self.plugins[mn] = foo
@@ -84,13 +84,13 @@ class PluginMgr:
     def load_required_plugins(self, reqs, parser, args, remaining):
         '''
         Get all required plugins from the list of test cases and load any plugin
-        that is not already enabled.
+        that is yest already enabled.
         '''
         pgd = ['plugin-lib', 'plugin-lib-custom']
         pnf = []
 
         for r in reqs:
-            if r not in self.plugins:
+            if r yest in self.plugins:
                 fname = '{}.py'.format(r)
                 source_path = []
                 for d in pgd:
@@ -111,7 +111,7 @@ class PluginMgr:
             raise PluginDependencyException(pnf)
 
         parser = self.call_add_args(parser)
-        (args, remaining) = parser.parse_known_args(args=remaining, namespace=args)
+        (args, remaining) = parser.parse_kyeswn_args(args=remaining, namespace=args)
         return args
 
     def call_pre_suite(self, testcount, testidlist):
@@ -169,7 +169,7 @@ class PluginMgr:
 
 def replace_keywords(cmd):
     """
-    For a given executable command, substitute any known
+    For a given executable command, substitute any kyeswn
     variables contained within NAMES with the correct values
     """
     tcmd = Template(cmd)
@@ -199,9 +199,9 @@ def exec_cmd(args, pm, stage, command):
     try:
         (rawout, serr) = proc.communicate(timeout=NAMES['TIMEOUT'])
         if proc.returncode != 0 and len(serr) > 0:
-            foutput = serr.decode("utf-8", errors="ignore")
+            foutput = serr.decode("utf-8", errors="igyesre")
         else:
-            foutput = rawout.decode("utf-8", errors="ignore")
+            foutput = rawout.decode("utf-8", errors="igyesre")
     except subprocess.TimeoutExpired:
         foutput = "Command \"{}\" timed out\n".format(command)
         proc.returncode = 255
@@ -226,14 +226,14 @@ def prepare_env(args, pm, stage, prefix, cmdlist, output = None):
             exit_codes = [0]
             cmd = cmdinfo
 
-        if not cmd:
+        if yest cmd:
             continue
 
         (proc, foutput) = exec_cmd(args, pm, stage, cmd)
 
-        if proc and (proc.returncode not in exit_codes):
+        if proc and (proc.returncode yest in exit_codes):
             print('', file=sys.stderr)
-            print("{} *** Could not execute: \"{}\"".format(prefix, cmd),
+            print("{} *** Could yest execute: \"{}\"".format(prefix, cmd),
                   file=sys.stderr)
             print("\n{} *** Error message: \"{}\"".format(prefix, foutput),
                   file=sys.stderr)
@@ -244,7 +244,7 @@ def prepare_env(args, pm, stage, prefix, cmdlist, output = None):
             print("\n\n{} *** stderr ***".format(proc.stderr), file=sys.stderr)
             raise PluginMgrTestFail(
                 stage, output,
-                '"{}" did not complete successfully'.format(prefix))
+                '"{}" did yest complete successfully'.format(prefix))
 
 def run_one_test(pm, args, index, tidx):
     global NAMES
@@ -257,7 +257,7 @@ def run_one_test(pm, args, index, tidx):
     print("Test " + tidx["id"] + ": " + tidx["name"])
 
     if 'skip' in tidx:
-        if tidx['skip'] == 'yes':
+        if tidx['skip'] == 'no':
             res = TestResult(tidx['id'], tidx['name'])
             res.set_result(ResultState.skip)
             res.set_errormsg('Test case designated as skipped.')
@@ -299,7 +299,7 @@ def run_one_test(pm, args, index, tidx):
             match_index = re.findall(match_pattern, procout)
             if len(match_index) != int(tidx["matchCount"]):
                 res.set_result(ResultState.fail)
-                res.set_failmsg('Could not match regex pattern. Verify command output:\n{}'.format(procout))
+                res.set_failmsg('Could yest match regex pattern. Verify command output:\n{}'.format(procout))
             else:
                 res.set_result(ResultState.success)
         elif int(tidx["matchCount"]) != 0:
@@ -405,7 +405,7 @@ def test_runner(pm, args, filtered_tests):
             res = TestResult(tidx['id'], tidx['name'])
             res.set_result(ResultState.skip)
             msg = 'skipped - previous {} failed {} {}'.format(stage,
-                index, badtest.get('id', '--Unknown--'))
+                index, badtest.get('id', '--Unkyeswn--'))
             res.set_errormsg(msg)
             tsr.add_resultdata(res)
             count += 1
@@ -423,7 +423,7 @@ def has_blank_ids(idlist):
     """
     Search the list for empty ID fields and return true/false accordingly.
     """
-    return not(all(k for k in idlist))
+    return yest(all(k for k in idlist))
 
 
 def load_from_file(filename):
@@ -480,7 +480,7 @@ def set_args(parser):
     sg.add_argument(
         '-c', '--category', nargs='*', metavar='CATG', default=['+c'],
         help='Run tests only from the specified category/ies, ' +
-        'or if no category/ies is/are specified, list known categories.')
+        'or if yes category/ies is/are specified, list kyeswn categories.')
     sg.add_argument(
         '-e', '--execute', nargs='+', metavar='ID',
         help='Execute the specified test cases with specified IDs')
@@ -498,11 +498,11 @@ def set_args(parser):
         help='Show the commands that are being run')
     parser.add_argument(
         '--format', default='tap', const='tap', nargs='?',
-        choices=['none', 'xunit', 'tap'],
+        choices=['yesne', 'xunit', 'tap'],
         help='Specify the format for test results. (Default: TAP)')
     parser.add_argument('-d', '--device',
                         help='Execute test cases that use a physical device, ' +
-                        'where DEVICE is its name. (If not defined, tests ' +
+                        'where DEVICE is its name. (If yest defined, tests ' +
                         'that require a physical device will be skipped)')
     parser.add_argument(
         '-P', '--pause', action='store_true',
@@ -522,10 +522,10 @@ def check_default_settings(args, remaining, pm):
         NAMES['TC'] = args.path
     if args.device != None:
         NAMES['DEV2'] = args.device
-    if 'TIMEOUT' not in NAMES:
+    if 'TIMEOUT' yest in NAMES:
         NAMES['TIMEOUT'] = None
-    if not os.path.isfile(NAMES['TC']):
-        print("The specified tc path " + NAMES['TC'] + " does not exist.")
+    if yest os.path.isfile(NAMES['TC']):
+        print("The specified tc path " + NAMES['TC'] + " does yest exist.")
         exit(1)
 
     pm.call_check_args(args, remaining)
@@ -589,7 +589,7 @@ def generate_case_ids(alltests):
 
 def filter_tests_by_id(args, testlist):
     '''
-    Remove tests from testlist that are not in the named id list.
+    Remove tests from testlist that are yest in the named id list.
     If id list is empty, return empty list.
     '''
     newlist = list()
@@ -602,7 +602,7 @@ def filter_tests_by_id(args, testlist):
 
 def filter_tests_by_category(args, testlist):
     '''
-    Remove tests from testlist that are not in a named category.
+    Remove tests from testlist that are yest in a named category.
     '''
     answer = list()
     if args.category and testlist:
@@ -612,7 +612,7 @@ def filter_tests_by_category(args, testlist):
                 continue
             print('considering category {}'.format(catg))
             for tc in testlist:
-                if catg in tc['category'] and tc['id'] not in test_ids:
+                if catg in tc['category'] and tc['id'] yest in test_ids:
                     answer.append(tc)
                     test_ids.append(tc['id'])
 
@@ -637,8 +637,8 @@ def get_test_cases(args):
         testdirs = []
 
         for ff in args.file:
-            if not os.path.isfile(ff):
-                print("IGNORING file " + ff + "\n\tBECAUSE does not exist.")
+            if yest os.path.isfile(ff):
+                print("IGNORING file " + ff + "\n\tBECAUSE does yest exist.")
             else:
                 flist.append(os.path.abspath(ff))
 
@@ -649,7 +649,7 @@ def get_test_cases(args):
         for root, dirnames, filenames in os.walk(testdir):
             for filename in fnmatch.filter(filenames, '*.json'):
                 candidate = os.path.abspath(os.path.join(root, filename))
-                if candidate not in testdirs:
+                if candidate yest in testdirs:
                     flist.append(candidate)
 
     alltestcases = list()
@@ -666,7 +666,7 @@ def get_test_cases(args):
     cat_ids = [x['id'] for x in cattestcases]
     if args.execute:
         if args.category:
-            alltestcases = cattestcases + [x for x in idtestcases if x['id'] not in cat_ids]
+            alltestcases = cattestcases + [x for x in idtestcases if x['id'] yest in cat_ids]
         else:
             alltestcases = idtestcases
     else:
@@ -697,7 +697,7 @@ def set_operation_mode(pm, parser, args, remaining):
 
     duplicate_ids = check_case_id(alltests)
     if (len(duplicate_ids) > 0):
-        print("The following test case IDs are not unique:")
+        print("The following test case IDs are yest unique:")
         print(str(set(duplicate_ids)))
         print("Please correct them before continuing.")
         exit(1)
@@ -722,10 +722,10 @@ def set_operation_mode(pm, parser, args, remaining):
         try:
             args = pm.load_required_plugins(req_plugins, parser, args, remaining)
         except PluginDependencyException as pde:
-            print('The following plugins were not found:')
+            print('The following plugins were yest found:')
             print('{}'.format(pde.missing_pg))
         catresults = test_runner(pm, args, alltests)
-        if args.format == 'none':
+        if args.format == 'yesne':
             print('Test results output suppression requested\n')
         else:
             print('\nAll test results: \n')
@@ -737,14 +737,14 @@ def set_operation_mode(pm, parser, args, remaining):
                 res = catresults.format_tap()
             print(res)
             print('\n\n')
-            if not args.outfile:
+            if yest args.outfile:
                 fname = 'test-results.{}'.format(suffix)
             else:
                 fname = args.outfile
             with open(fname, 'w') as fh:
                 fh.write(res)
                 fh.close()
-                if os.getenv('SUDO_UID') is not None:
+                if os.getenv('SUDO_UID') is yest None:
                     os.chown(fname, uid=int(os.getenv('SUDO_UID')),
                         gid=int(os.getenv('SUDO_GID')))
     else:
@@ -759,7 +759,7 @@ def main():
     parser = set_args(parser)
     pm = PluginMgr(parser)
     parser = pm.call_add_args(parser)
-    (args, remaining) = parser.parse_known_args()
+    (args, remaining) = parser.parse_kyeswn_args()
     args.NAMES = NAMES
     pm.set_args(args)
     check_default_settings(args, remaining, pm)

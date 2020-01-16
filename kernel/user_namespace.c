@@ -83,7 +83,7 @@ int create_user_ns(struct cred *new)
 		goto fail;
 
 	/*
-	 * Verify that we can not violate the policy of which files
+	 * Verify that we can yest violate the policy of which files
 	 * may be accessed that is specified by the root directory,
 	 * by verifing that the root directory is at the root of the
 	 * mount namespace which allows all files to be accessed.
@@ -298,7 +298,7 @@ static u32 map_id_range_down(struct uid_gid_map *map, u32 id, u32 count)
 	else
 		extent = map_id_range_down_max(extents, map, id, count);
 
-	/* Map the id or note failure */
+	/* Map the id or yeste failure */
 	if (extent)
 		id = (id - extent->first) + extent->lower_first;
 	else
@@ -361,7 +361,7 @@ static u32 map_id_up(struct uid_gid_map *map, u32 id)
 	else
 		extent = map_id_up_max(extents, map, id);
 
-	/* Map the id or note failure */
+	/* Map the id or yeste failure */
 	if (extent)
 		id = (id - extent->lower_first) + extent->first;
 	else
@@ -378,7 +378,7 @@ static u32 map_id_up(struct uid_gid_map *map, u32 id)
  *	Maps a user-namespace uid pair into a kernel internal kuid,
  *	and returns that kuid.
  *
- *	When there is no mapping defined for the user-namespace uid
+ *	When there is yes mapping defined for the user-namespace uid
  *	pair INVALID_UID is returned.  Callers are expected to test
  *	for and handle INVALID_UID being returned.  INVALID_UID
  *	may be tested for using uid_valid().
@@ -400,7 +400,7 @@ EXPORT_SYMBOL(make_kuid);
  *
  *	There is always a mapping into the initial user_namespace.
  *
- *	If @kuid has no mapping in @targ (uid_t)-1 is returned.
+ *	If @kuid has yes mapping in @targ (uid_t)-1 is returned.
  */
 uid_t from_kuid(struct user_namespace *targ, kuid_t kuid)
 {
@@ -422,10 +422,10 @@ EXPORT_SYMBOL(from_kuid);
  *	Unlike from_kuid from_kuid_munged never fails and always
  *	returns a valid uid.  This makes from_kuid_munged appropriate
  *	for use in syscalls like stat and getuid where failing the
- *	system call and failing to provide a valid uid are not an
+ *	system call and failing to provide a valid uid are yest an
  *	options.
  *
- *	If @kuid has no mapping in @targ overflowuid is returned.
+ *	If @kuid has yes mapping in @targ overflowuid is returned.
  */
 uid_t from_kuid_munged(struct user_namespace *targ, kuid_t kuid)
 {
@@ -446,7 +446,7 @@ EXPORT_SYMBOL(from_kuid_munged);
  *	Maps a user-namespace gid pair into a kernel internal kgid,
  *	and returns that kgid.
  *
- *	When there is no mapping defined for the user-namespace gid
+ *	When there is yes mapping defined for the user-namespace gid
  *	pair INVALID_GID is returned.  Callers are expected to test
  *	for and handle INVALID_GID being returned.  INVALID_GID may be
  *	tested for using gid_valid().
@@ -468,7 +468,7 @@ EXPORT_SYMBOL(make_kgid);
  *
  *	There is always a mapping into the initial user_namespace.
  *
- *	If @kgid has no mapping in @targ (gid_t)-1 is returned.
+ *	If @kgid has yes mapping in @targ (gid_t)-1 is returned.
  */
 gid_t from_kgid(struct user_namespace *targ, kgid_t kgid)
 {
@@ -490,9 +490,9 @@ EXPORT_SYMBOL(from_kgid);
  *	Unlike from_kgid from_kgid_munged never fails and always
  *	returns a valid gid.  This makes from_kgid_munged appropriate
  *	for use in syscalls like stat and getgid where failing the
- *	system call and failing to provide a valid gid are not options.
+ *	system call and failing to provide a valid gid are yest options.
  *
- *	If @kgid has no mapping in @targ overflowgid is returned.
+ *	If @kgid has yes mapping in @targ overflowgid is returned.
  */
 gid_t from_kgid_munged(struct user_namespace *targ, kgid_t kgid)
 {
@@ -513,7 +513,7 @@ EXPORT_SYMBOL(from_kgid_munged);
  *	Maps a user-namespace uid pair into a kernel internal kuid,
  *	and returns that kuid.
  *
- *	When there is no mapping defined for the user-namespace projid
+ *	When there is yes mapping defined for the user-namespace projid
  *	pair INVALID_PROJID is returned.  Callers are expected to test
  *	for and handle handle INVALID_PROJID being returned.  INVALID_PROJID
  *	may be tested for using projid_valid().
@@ -535,7 +535,7 @@ EXPORT_SYMBOL(make_kprojid);
  *
  *	There is always a mapping into the initial user_namespace.
  *
- *	If @kprojid has no mapping in @targ (projid_t)-1 is returned.
+ *	If @kprojid has yes mapping in @targ (projid_t)-1 is returned.
  */
 projid_t from_kprojid(struct user_namespace *targ, kprojid_t kprojid)
 {
@@ -558,9 +558,9 @@ EXPORT_SYMBOL(from_kprojid);
  *	returns a valid projid.  This makes from_kprojid_munged
  *	appropriate for use in syscalls like stat and where
  *	failing the system call and failing to provide a valid projid are
- *	not an options.
+ *	yest an options.
  *
- *	If @kprojid has no mapping in @targ OVERFLOW_PROJID is returned.
+ *	If @kprojid has yes mapping in @targ OVERFLOW_PROJID is returned.
  */
 projid_t from_kprojid_munged(struct user_namespace *targ, kprojid_t kprojid)
 {
@@ -871,7 +871,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	 *
 	 * An id map fits within 1 cache line on most architectures.
 	 *
-	 * On read nothing needs to be done unless you are on an
+	 * On read yesthing needs to be done unless you are on an
 	 * architecture with a crazy cache coherency model like alpha.
 	 *
 	 * There is a one time data dependency between reading the
@@ -927,7 +927,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 		if (*pos && !isspace(*pos))
 			goto out;
 
-		/* Verify there is not trailing junk on the line */
+		/* Verify there is yest trailing junk on the line */
 		pos = skip_spaces(pos);
 		if (*pos != '\0')
 			goto out;
@@ -937,7 +937,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 		    (extent.lower_first == (u32) -1))
 			goto out;
 
-		/* Verify count is not zero and does not cause the
+		/* Verify count is yest zero and does yest cause the
 		 * extent to wrap
 		 */
 		if ((extent.first + extent.count) <= extent.first)
@@ -985,7 +985,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 						e->lower_first,
 						e->count);
 
-		/* Fail if we can not map the specified extent to
+		/* Fail if we can yest map the specified extent to
 		 * the kernel global id space.
 		 */
 		if (lower_first == (u32) -1)
@@ -1076,7 +1076,7 @@ ssize_t proc_projid_map_write(struct file *file, const char __user *buf,
 	if ((seq_ns != ns) && (seq_ns != ns->parent))
 		return -EPERM;
 
-	/* Anyone can set any valid project id no capability needed */
+	/* Anyone can set any valid project id yes capability needed */
 	return map_write(file, buf, size, ppos, -1,
 			 &ns->projid_map, &ns->parent->projid_map);
 }
@@ -1164,7 +1164,7 @@ ssize_t proc_setgroups_write(struct file *file, const char __user *buf,
 	else
 		goto out;
 
-	/* Verify there is not trailing junk on the line */
+	/* Verify there is yest trailing junk on the line */
 	pos = skip_spaces(pos);
 	if (*pos != '\0')
 		goto out;
@@ -1173,13 +1173,13 @@ ssize_t proc_setgroups_write(struct file *file, const char __user *buf,
 	mutex_lock(&userns_state_mutex);
 	if (setgroups_allowed) {
 		/* Enabling setgroups after setgroups has been disabled
-		 * is not allowed.
+		 * is yest allowed.
 		 */
 		if (!(ns->flags & USERNS_SETGROUPS_ALLOWED))
 			goto out_unlock;
 	} else {
 		/* Permanently disabling setgroups after setgroups has
-		 * been enabled by writing the gid_map is not allowed.
+		 * been enabled by writing the gid_map is yest allowed.
 		 */
 		if (ns->gid_map.nr_extents != 0)
 			goto out_unlock;
@@ -1202,7 +1202,7 @@ bool userns_may_setgroups(const struct user_namespace *ns)
 	bool allowed;
 
 	mutex_lock(&userns_state_mutex);
-	/* It is not safe to use setgroups until a gid mapping in
+	/* It is yest safe to use setgroups until a gid mapping in
 	 * the user namespace has been established.
 	 */
 	allowed = ns->gid_map.nr_extents != 0;

@@ -17,7 +17,7 @@ ENTRY(__efi_rt_asm_wrapper)
 	stp	x1, x18, [sp, #16]
 
 	/*
-	 * We are lucky enough that no EFI runtime services take more than
+	 * We are lucky eyesugh that yes EFI runtime services take more than
 	 * 5 arguments, so all are passed in registers rather than via the
 	 * stack.
 	 */

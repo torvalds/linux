@@ -81,7 +81,7 @@ struct netlink_ext_ack {
 /* Always use this macro, this allows later putting the
  * message into a separate section or such for things
  * like translation or listing all possible messages.
- * Currently string formatting is not supported (due
+ * Currently string formatting is yest supported (due
  * to the lack of an output buffer.)
  */
 #define NL_SET_ERR_MSG(extack, msg) do {		\
@@ -128,7 +128,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 int netlink_has_listeners(struct sock *sk, unsigned int group);
 bool netlink_strict_get_check(struct sk_buff *skb);
 
-int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int nonblock);
+int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int yesnblock);
 int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, __u32 portid,
 		      __u32 group, gfp_t allocation);
 int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb,
@@ -136,8 +136,8 @@ int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb,
 			       int (*filter)(struct sock *dsk, struct sk_buff *skb, void *data),
 			       void *filter_data);
 int netlink_set_err(struct sock *ssk, __u32 portid, __u32 group, int code);
-int netlink_register_notifier(struct notifier_block *nb);
-int netlink_unregister_notifier(struct notifier_block *nb);
+int netlink_register_yestifier(struct yestifier_block *nb);
+int netlink_unregister_yestifier(struct yestifier_block *nb);
 
 /* finegrained unicast helpers: */
 struct sock *netlink_getsockbyfilp(struct file *filp);
@@ -164,8 +164,8 @@ netlink_skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 
 /*
  *	skb should fit one page. This choice is good for headerless malloc.
- *	But we should limit to 8K so that userspace does not have to
- *	use enormous buffer sizes on recvmsg() calls just to avoid
+ *	But we should limit to 8K so that userspace does yest have to
+ *	use eyesrmous buffer sizes on recvmsg() calls just to avoid
  *	MSG_TRUNC when PAGE_SIZE is very large.
  */
 #if PAGE_SIZE < 8192UL
@@ -202,7 +202,7 @@ struct netlink_callback {
 	};
 };
 
-struct netlink_notify {
+struct netlink_yestify {
 	struct net *net;
 	u32 portid;
 	int protocol;

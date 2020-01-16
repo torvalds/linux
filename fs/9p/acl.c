@@ -53,17 +53,17 @@ err_out:
 	return acl;
 }
 
-int v9fs_get_acl(struct inode *inode, struct p9_fid *fid)
+int v9fs_get_acl(struct iyesde *iyesde, struct p9_fid *fid)
 {
 	int retval = 0;
 	struct posix_acl *pacl, *dacl;
 	struct v9fs_session_info *v9ses;
 
-	v9ses = v9fs_inode2v9ses(inode);
+	v9ses = v9fs_iyesde2v9ses(iyesde);
 	if (((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) ||
 			((v9ses->flags & V9FS_ACL_MASK) != V9FS_POSIX_ACL)) {
-		set_cached_acl(inode, ACL_TYPE_DEFAULT, NULL);
-		set_cached_acl(inode, ACL_TYPE_ACCESS, NULL);
+		set_cached_acl(iyesde, ACL_TYPE_DEFAULT, NULL);
+		set_cached_acl(iyesde, ACL_TYPE_ACCESS, NULL);
 		return 0;
 	}
 	/* get the default/access acl values and cache them */
@@ -71,8 +71,8 @@ int v9fs_get_acl(struct inode *inode, struct p9_fid *fid)
 	pacl = __v9fs_get_acl(fid, XATTR_NAME_POSIX_ACL_ACCESS);
 
 	if (!IS_ERR(dacl) && !IS_ERR(pacl)) {
-		set_cached_acl(inode, ACL_TYPE_DEFAULT, dacl);
-		set_cached_acl(inode, ACL_TYPE_ACCESS, pacl);
+		set_cached_acl(iyesde, ACL_TYPE_DEFAULT, dacl);
+		set_cached_acl(iyesde, ACL_TYPE_ACCESS, pacl);
 	} else
 		retval = -EIO;
 
@@ -85,23 +85,23 @@ int v9fs_get_acl(struct inode *inode, struct p9_fid *fid)
 	return retval;
 }
 
-static struct posix_acl *v9fs_get_cached_acl(struct inode *inode, int type)
+static struct posix_acl *v9fs_get_cached_acl(struct iyesde *iyesde, int type)
 {
 	struct posix_acl *acl;
 	/*
 	 * 9p Always cache the acl value when
-	 * instantiating the inode (v9fs_inode_from_fid)
+	 * instantiating the iyesde (v9fs_iyesde_from_fid)
 	 */
-	acl = get_cached_acl(inode, type);
+	acl = get_cached_acl(iyesde, type);
 	BUG_ON(is_uncached_acl(acl));
 	return acl;
 }
 
-struct posix_acl *v9fs_iop_get_acl(struct inode *inode, int type)
+struct posix_acl *v9fs_iop_get_acl(struct iyesde *iyesde, int type)
 {
 	struct v9fs_session_info *v9ses;
 
-	v9ses = v9fs_inode2v9ses(inode);
+	v9ses = v9fs_iyesde2v9ses(iyesde);
 	if (((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) ||
 			((v9ses->flags & V9FS_ACL_MASK) != V9FS_POSIX_ACL)) {
 		/*
@@ -110,7 +110,7 @@ struct posix_acl *v9fs_iop_get_acl(struct inode *inode, int type)
 		 */
 		return NULL;
 	}
-	return v9fs_get_cached_acl(inode, type);
+	return v9fs_get_cached_acl(iyesde, type);
 
 }
 
@@ -147,30 +147,30 @@ err_free_out:
 	return retval;
 }
 
-int v9fs_acl_chmod(struct inode *inode, struct p9_fid *fid)
+int v9fs_acl_chmod(struct iyesde *iyesde, struct p9_fid *fid)
 {
 	int retval = 0;
 	struct posix_acl *acl;
 
-	if (S_ISLNK(inode->i_mode))
+	if (S_ISLNK(iyesde->i_mode))
 		return -EOPNOTSUPP;
-	acl = v9fs_get_cached_acl(inode, ACL_TYPE_ACCESS);
+	acl = v9fs_get_cached_acl(iyesde, ACL_TYPE_ACCESS);
 	if (acl) {
-		retval = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+		retval = __posix_acl_chmod(&acl, GFP_KERNEL, iyesde->i_mode);
 		if (retval)
 			return retval;
-		set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
+		set_cached_acl(iyesde, ACL_TYPE_ACCESS, acl);
 		retval = v9fs_set_acl(fid, ACL_TYPE_ACCESS, acl);
 		posix_acl_release(acl);
 	}
 	return retval;
 }
 
-int v9fs_set_create_acl(struct inode *inode, struct p9_fid *fid,
+int v9fs_set_create_acl(struct iyesde *iyesde, struct p9_fid *fid,
 			struct posix_acl *dacl, struct posix_acl *acl)
 {
-	set_cached_acl(inode, ACL_TYPE_DEFAULT, dacl);
-	set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
+	set_cached_acl(iyesde, ACL_TYPE_DEFAULT, dacl);
+	set_cached_acl(iyesde, ACL_TYPE_ACCESS, acl);
 	v9fs_set_acl(fid, ACL_TYPE_DEFAULT, dacl);
 	v9fs_set_acl(fid, ACL_TYPE_ACCESS, acl);
 	return 0;
@@ -183,7 +183,7 @@ void v9fs_put_acl(struct posix_acl *dacl,
 	posix_acl_release(acl);
 }
 
-int v9fs_acl_mode(struct inode *dir, umode_t *modep,
+int v9fs_acl_mode(struct iyesde *dir, umode_t *modep,
 		  struct posix_acl **dpacl, struct posix_acl **pacl)
 {
 	int retval = 0;
@@ -213,7 +213,7 @@ int v9fs_acl_mode(struct inode *dir, umode_t *modep,
 }
 
 static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
-			      struct dentry *dentry, struct inode *inode,
+			      struct dentry *dentry, struct iyesde *iyesde,
 			      const char *name, void *buffer, size_t size)
 {
 	struct v9fs_session_info *v9ses;
@@ -222,12 +222,12 @@ static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
 
 	v9ses = v9fs_dentry2v9ses(dentry);
 	/*
-	 * We allow set/get/list of acl when access=client is not specified
+	 * We allow set/get/list of acl when access=client is yest specified
 	 */
 	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT)
 		return v9fs_xattr_get(dentry, handler->name, buffer, size);
 
-	acl = v9fs_get_cached_acl(inode, handler->flags);
+	acl = v9fs_get_cached_acl(iyesde, handler->flags);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl == NULL)
@@ -239,7 +239,7 @@ static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
 }
 
 static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
-			      struct dentry *dentry, struct inode *inode,
+			      struct dentry *dentry, struct iyesde *iyesde,
 			      const char *name, const void *value,
 			      size_t size, int flags)
 {
@@ -256,9 +256,9 @@ static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
 		return v9fs_xattr_set(dentry, handler->name, value, size,
 				      flags);
 
-	if (S_ISLNK(inode->i_mode))
+	if (S_ISLNK(iyesde->i_mode))
 		return -EOPNOTSUPP;
-	if (!inode_owner_or_capable(inode))
+	if (!iyesde_owner_or_capable(iyesde))
 		return -EPERM;
 	if (value) {
 		/* update the cached acl value */
@@ -266,7 +266,7 @@ static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 		else if (acl) {
-			retval = posix_acl_valid(inode->i_sb->s_user_ns, acl);
+			retval = posix_acl_valid(iyesde->i_sb->s_user_ns, acl);
 			if (retval)
 				goto err_out;
 		}
@@ -279,7 +279,7 @@ static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
 			struct iattr iattr = { 0 };
 			struct posix_acl *old_acl = acl;
 
-			retval = posix_acl_update_mode(inode, &iattr.ia_mode, &acl);
+			retval = posix_acl_update_mode(iyesde, &iattr.ia_mode, &acl);
 			if (retval)
 				goto err_out;
 			if (!acl) {
@@ -301,7 +301,7 @@ static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
 		}
 		break;
 	case ACL_TYPE_DEFAULT:
-		if (!S_ISDIR(inode->i_mode)) {
+		if (!S_ISDIR(iyesde->i_mode)) {
 			retval = acl ? -EINVAL : 0;
 			goto err_out;
 		}
@@ -311,7 +311,7 @@ static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
 	}
 	retval = v9fs_xattr_set(dentry, handler->name, value, size, flags);
 	if (!retval)
-		set_cached_acl(inode, handler->flags, acl);
+		set_cached_acl(iyesde, handler->flags, acl);
 err_out:
 	posix_acl_release(acl);
 	return retval;

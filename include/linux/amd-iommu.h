@@ -39,7 +39,7 @@ extern int amd_iommu_init_hardware(void);
  * @erratum: The erratum workaround to enable
  *
  * The function needs to be called before amd_iommu_init_device().
- * Possible values for the erratum number are for now:
+ * Possible values for the erratum number are for yesw:
  * - AMD_PRI_DEV_ERRATUM_ENABLE_RESET - Reset PRI capability when PRI
  *					is enabled
  * - AMD_PRI_DEV_ERRATUM_LIMIT_REQ_ONE - Limit number of outstanding PRI
@@ -85,8 +85,8 @@ extern int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
  * @pdev: The device of the PASID
  * @pasid: The PASID to unbind
  *
- * When this function returns the device is no longer using the PASID
- * and the PASID is no longer bound to its task.
+ * When this function returns the device is yes longer using the PASID
+ * and the PASID is yes longer bound to its task.
  */
 extern void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid);
 
@@ -179,7 +179,7 @@ static inline int amd_iommu_detect(void) { return -ENODEV; }
 #if defined(CONFIG_AMD_IOMMU) && defined(CONFIG_IRQ_REMAP)
 
 /* IOMMU AVIC Function */
-extern int amd_iommu_register_ga_log_notifier(int (*notifier)(u32));
+extern int amd_iommu_register_ga_log_yestifier(int (*yestifier)(u32));
 
 extern int
 amd_iommu_update_ga(int cpu, bool is_run, void *data);
@@ -190,7 +190,7 @@ extern int amd_iommu_deactivate_guest_mode(void *data);
 #else /* defined(CONFIG_AMD_IOMMU) && defined(CONFIG_IRQ_REMAP) */
 
 static inline int
-amd_iommu_register_ga_log_notifier(int (*notifier)(u32))
+amd_iommu_register_ga_log_yestifier(int (*yestifier)(u32))
 {
 	return 0;
 }

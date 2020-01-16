@@ -219,7 +219,7 @@ static const struct watchdog_ops stm32_iwdg_ops = {
 static const struct of_device_id stm32_iwdg_of_match[] = {
 	{ .compatible = "st,stm32-iwdg", .data = &stm32_iwdg_data },
 	{ .compatible = "st,stm32mp1-iwdg", .data = &stm32mp1_iwdg_data },
-	{ /* end node */ }
+	{ /* end yesde */ }
 };
 MODULE_DEVICE_TABLE(of, stm32_iwdg_of_match);
 
@@ -241,7 +241,7 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 	/* This is the timer base. */
 	wdt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->regs)) {
-		dev_err(dev, "Could not get resource\n");
+		dev_err(dev, "Could yest get resource\n");
 		return PTR_ERR(wdt->regs);
 	}
 
@@ -259,7 +259,7 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 				    1000) / wdt->rate;
 
 	watchdog_set_drvdata(wdd, wdt);
-	watchdog_set_nowayout(wdd, WATCHDOG_NOWAYOUT);
+	watchdog_set_yeswayout(wdd, WATCHDOG_NOWAYOUT);
 	watchdog_init_timeout(wdd, 0, dev);
 
 	ret = devm_watchdog_register_device(dev, wdd);

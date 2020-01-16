@@ -3,7 +3,7 @@
 #include <elfutils/libdw.h>
 #include <elfutils/libdwfl.h>
 #include <inttypes.h>
-#include <errno.h>
+#include <erryes.h>
 #include "debug.h"
 #include "dso.h"
 #include "unwind.h"
@@ -109,7 +109,7 @@ static int access_dso_mem(struct unwind_info *ui, Dwarf_Addr addr,
 	ssize_t size;
 
 	if (!thread__find_map(ui->thread, PERF_RECORD_MISC_USER, addr, &al)) {
-		pr_debug("unwind: no map for %lx\n", (unsigned long)addr);
+		pr_debug("unwind: yes map for %lx\n", (unsigned long)addr);
 		return -1;
 	}
 
@@ -144,7 +144,7 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 	if (addr < start || addr + sizeof(Dwarf_Word) > end) {
 		ret = access_dso_mem(ui, addr, result);
 		if (ret) {
-			pr_debug("unwind: access_mem 0x%" PRIx64 " not inside range"
+			pr_debug("unwind: access_mem 0x%" PRIx64 " yest inside range"
 				 " 0x%" PRIx64 "-0x%" PRIx64 "\n",
 				addr, start, end);
 			return false;

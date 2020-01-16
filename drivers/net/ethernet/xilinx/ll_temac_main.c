@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2008 Nissin Systems Co., Ltd.,  Yoshio Kashiwagi
  * Copyright (c) 2005-2008 DLA Systems,  David H. Lynch Jr. <dhlii@dlasys.net>
- * Copyright (c) 2008-2009 Secret Lab Technologies Ltd.
+ * Copyright (c) 2008-2009 Secret Lab Techyeslogies Ltd.
  *
  * This is a driver for the Xilinx ll_temac ipcore which is often used
  * in the Virtex and Spartan series of chips.
@@ -17,7 +17,7 @@
  *   rather than busywait.  However, since only one indirect access can be
  *   in progress at any given time, that means that *all* indirect accesses
  *   could end up sleeping (to wait for an MDIO access to complete).
- *   Fortunately none of the indirect accesses are on the 'hot' path for tx
+ *   Fortunately yesne of the indirect accesses are on the 'hot' path for tx
  *   or rx, so this should be okay.
  *
  * TODO:
@@ -141,7 +141,7 @@ u32 temac_indirect_in32(struct temac_local *lp, int reg)
  */
 u32 temac_indirect_in32_locked(struct temac_local *lp, int reg)
 {
-	/* This initial wait should normally not spin, as we always
+	/* This initial wait should yesrmally yest spin, as we always
 	 * try to wait for indirect access to complete before
 	 * releasing the indirect_lock.
 	 */
@@ -150,13 +150,13 @@ u32 temac_indirect_in32_locked(struct temac_local *lp, int reg)
 	/* Initiate read from indirect register */
 	temac_iow(lp, XTE_CTL0_OFFSET, reg);
 	/* Wait for indirect register access to complete.  We really
-	 * should not see timeouts, and could even end up causing
+	 * should yest see timeouts, and could even end up causing
 	 * problem for following indirect access, so let's make a bit
-	 * of WARN noise.
+	 * of WARN yesise.
 	 */
 	if (WARN_ON(temac_indirect_busywait(lp)))
 		return -ETIMEDOUT;
-	/* Value is ready now */
+	/* Value is ready yesw */
 	return temac_ior(lp, XTE_LSW0_OFFSET);
 }
 
@@ -182,16 +182,16 @@ void temac_indirect_out32(struct temac_local *lp, int reg, u32 value)
  */
 void temac_indirect_out32_locked(struct temac_local *lp, int reg, u32 value)
 {
-	/* As in temac_indirect_in32_locked(), we should normally not
+	/* As in temac_indirect_in32_locked(), we should yesrmally yest
 	 * spin here.  And if it happens, we actually end up silently
-	 * ignoring the write request.  Ouch.
+	 * igyesring the write request.  Ouch.
 	 */
 	if (WARN_ON(temac_indirect_busywait(lp)))
 		return;
 	/* Initiate write to indirect register */
 	temac_iow(lp, XTE_LSW0_OFFSET, value);
 	temac_iow(lp, XTE_CTL0_OFFSET, CNTLREG_WRITE_ENABLE_MASK | reg);
-	/* As in temac_indirect_in32_locked(), we should not see timeouts
+	/* As in temac_indirect_in32_locked(), we should yest see timeouts
 	 * here.  And if it happens, we continue before the write has
 	 * completed.  Not good.
 	 */
@@ -257,7 +257,7 @@ static void temac_dma_dcr_out(struct temac_local *lp, int reg, u32 value)
  * I/O  functions
  */
 static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
-				struct device_node *np)
+				struct device_yesde *np)
 {
 	unsigned int dcrs;
 
@@ -271,18 +271,18 @@ static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
 		dev_dbg(&op->dev, "DCR base: %x\n", dcrs);
 		return 0;
 	}
-	/* no DCR in the device tree, indicate a failure */
+	/* yes DCR in the device tree, indicate a failure */
 	return -1;
 }
 
 #else
 
 /*
- * temac_dcr_setup - This is a stub for when DCR is not supported,
+ * temac_dcr_setup - This is a stub for when DCR is yest supported,
  * such as with MicroBlaze and x86
  */
 static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
-				struct device_node *np)
+				struct device_yesde *np)
 {
 	return -1;
 }
@@ -570,7 +570,7 @@ static struct temac_option {
 		.reg = XTE_AFM_OFFSET,
 		.m_or =XTE_AFM_EPPRM_MASK,
 	},
-	/* Enable transmitter if not already enabled */
+	/* Enable transmitter if yest already enabled */
 	{
 		.opt = XTE_OPTION_TXEN,
 		.reg = XTE_TXC_OFFSET,
@@ -911,7 +911,7 @@ static void ll_temac_recv(struct net_device *ndev)
 
 		skb_put(skb, length);
 		skb->protocol = eth_type_trans(skb, ndev);
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 
 		/* if we're doing rx csum offload, set it up */
 		if (((lp->temac_features & TEMAC_FEATURE_RX_CSUM) != 0) &&
@@ -1007,8 +1007,8 @@ static int temac_open(struct net_device *ndev)
 
 	dev_dbg(&ndev->dev, "temac_open()\n");
 
-	if (lp->phy_node) {
-		phydev = of_phy_connect(lp->ndev, lp->phy_node,
+	if (lp->phy_yesde) {
+		phydev = of_phy_connect(lp->ndev, lp->phy_yesde,
 					temac_adjust_link, 0, 0);
 		if (!phydev) {
 			dev_err(lp->dev, "of_phy_connect() failed\n");
@@ -1145,7 +1145,7 @@ static const struct ethtool_ops temac_ethtool_ops = {
 static int temac_probe(struct platform_device *pdev)
 {
 	struct ll_temac_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *temac_np = dev_of_node(&pdev->dev), *dma_np;
+	struct device_yesde *temac_np = dev_of_yesde(&pdev->dev), *dma_np;
 	struct temac_local *lp;
 	struct net_device *ndev;
 	struct resource *res;
@@ -1172,7 +1172,7 @@ static int temac_probe(struct platform_device *pdev)
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_TX; /* Transmit VLAN hw accel */
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_RX; /* Receive VLAN hw acceleration */
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER; /* Receive VLAN filtering */
-	ndev->features |= NETIF_F_VLAN_CHALLENGED; /* cannot handle VLAN pkts */
+	ndev->features |= NETIF_F_VLAN_CHALLENGED; /* canyest handle VLAN pkts */
 	ndev->features |= NETIF_F_GSO; /* Enable software GSO. */
 	ndev->features |= NETIF_F_MULTI_QUEUE; /* Has multiple TX/RX queues */
 	ndev->features |= NETIF_F_LRO; /* large receive offload */
@@ -1202,10 +1202,10 @@ static int temac_probe(struct platform_device *pdev)
 
 	/* map device registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	lp->regs = devm_ioremap_nocache(&pdev->dev, res->start,
+	lp->regs = devm_ioremap_yescache(&pdev->dev, res->start,
 					resource_size(res));
 	if (IS_ERR(lp->regs)) {
-		dev_err(&pdev->dev, "could not map TEMAC registers\n");
+		dev_err(&pdev->dev, "could yest map TEMAC registers\n");
 		return PTR_ERR(lp->regs);
 	}
 
@@ -1227,7 +1227,7 @@ static int temac_probe(struct platform_device *pdev)
 		lp->temac_iow = _temac_iow_be;
 	}
 
-	/* Setup checksum offload, but default to off if not specified */
+	/* Setup checksum offload, but default to off if yest specified */
 	lp->temac_features = 0;
 	if (temac_np) {
 		p = (__be32 *)of_get_property(temac_np, "xlnx,txcsum", NULL);
@@ -1248,12 +1248,12 @@ static int temac_probe(struct platform_device *pdev)
 
 	/* Setup LocalLink DMA */
 	if (temac_np) {
-		/* Find the DMA node, map the DMA registers, and
+		/* Find the DMA yesde, map the DMA registers, and
 		 * decode the DMA IRQs.
 		 */
 		dma_np = of_parse_phandle(temac_np, "llink-connected", 0);
 		if (!dma_np) {
-			dev_err(&pdev->dev, "could not find DMA node\n");
+			dev_err(&pdev->dev, "could yest find DMA yesde\n");
 			return -ENODEV;
 		}
 
@@ -1261,13 +1261,13 @@ static int temac_probe(struct platform_device *pdev)
 		 * memory mapped.
 		 */
 		if (temac_dcr_setup(lp, pdev, dma_np)) {
-			/* no DCR in the device tree, try non-DCR */
+			/* yes DCR in the device tree, try yesn-DCR */
 			lp->sdma_regs = devm_of_iomap(&pdev->dev, dma_np, 0,
 						      NULL);
 			if (IS_ERR(lp->sdma_regs)) {
 				dev_err(&pdev->dev,
 					"unable to map DMA registers\n");
-				of_node_put(dma_np);
+				of_yesde_put(dma_np);
 				return PTR_ERR(lp->sdma_regs);
 			}
 			if (of_get_property(dma_np, "little-endian", NULL)) {
@@ -1285,22 +1285,22 @@ static int temac_probe(struct platform_device *pdev)
 		lp->tx_irq = irq_of_parse_and_map(dma_np, 1);
 
 		/* Use defaults for IRQ delay/coalescing setup.  These
-		 * are configuration values, so does not belong in
+		 * are configuration values, so does yest belong in
 		 * device-tree.
 		 */
 		lp->tx_chnl_ctrl = 0x10220000;
 		lp->rx_chnl_ctrl = 0xff070000;
 
-		/* Finished with the DMA node; drop the reference */
-		of_node_put(dma_np);
+		/* Finished with the DMA yesde; drop the reference */
+		of_yesde_put(dma_np);
 	} else if (pdata) {
 		/* 2nd memory resource specifies DMA registers */
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		lp->sdma_regs = devm_ioremap_nocache(&pdev->dev, res->start,
+		lp->sdma_regs = devm_ioremap_yescache(&pdev->dev, res->start,
 						     resource_size(res));
 		if (IS_ERR(lp->sdma_regs)) {
 			dev_err(&pdev->dev,
-				"could not map DMA registers\n");
+				"could yest map DMA registers\n");
 			return PTR_ERR(lp->sdma_regs);
 		}
 		if (pdata->dma_little_endian) {
@@ -1331,12 +1331,12 @@ static int temac_probe(struct platform_device *pdev)
 	/* Error handle returned DMA RX and TX interrupts */
 	if (lp->rx_irq < 0) {
 		if (lp->rx_irq != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "could not get DMA RX irq\n");
+			dev_err(&pdev->dev, "could yest get DMA RX irq\n");
 		return lp->rx_irq;
 	}
 	if (lp->tx_irq < 0) {
 		if (lp->tx_irq != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "could not get DMA TX irq\n");
+			dev_err(&pdev->dev, "could yest get DMA TX irq\n");
 		return lp->tx_irq;
 	}
 
@@ -1344,7 +1344,7 @@ static int temac_probe(struct platform_device *pdev)
 		/* Retrieve the MAC address */
 		addr = of_get_mac_address(temac_np);
 		if (IS_ERR(addr)) {
-			dev_err(&pdev->dev, "could not find MAC address\n");
+			dev_err(&pdev->dev, "could yest find MAC address\n");
 			return -ENODEV;
 		}
 		temac_init_mac_address(ndev, addr);
@@ -1357,9 +1357,9 @@ static int temac_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "error registering MDIO bus\n");
 
 	if (temac_np) {
-		lp->phy_node = of_parse_phandle(temac_np, "phy-handle", 0);
-		if (lp->phy_node)
-			dev_dbg(lp->dev, "using PHY node %pOF\n", temac_np);
+		lp->phy_yesde = of_parse_phandle(temac_np, "phy-handle", 0);
+		if (lp->phy_yesde)
+			dev_dbg(lp->dev, "using PHY yesde %pOF\n", temac_np);
 	} else if (pdata) {
 		snprintf(lp->phy_name, sizeof(lp->phy_name),
 			 PHY_ID_FMT, lp->mii_bus->id, pdata->phy_addr);
@@ -1384,8 +1384,8 @@ static int temac_probe(struct platform_device *pdev)
 err_register_ndev:
 	sysfs_remove_group(&lp->dev->kobj, &temac_attr_group);
 err_sysfs_create:
-	if (lp->phy_node)
-		of_node_put(lp->phy_node);
+	if (lp->phy_yesde)
+		of_yesde_put(lp->phy_yesde);
 	temac_mdio_teardown(lp);
 	return rc;
 }
@@ -1397,8 +1397,8 @@ static int temac_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 	sysfs_remove_group(&lp->dev->kobj, &temac_attr_group);
-	if (lp->phy_node)
-		of_node_put(lp->phy_node);
+	if (lp->phy_yesde)
+		of_yesde_put(lp->phy_yesde);
 	temac_mdio_teardown(lp);
 	return 0;
 }

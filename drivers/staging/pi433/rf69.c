@@ -34,7 +34,7 @@ static u8 rf69_read_reg(struct spi_device *spi, u8 addr)
 	if (retval < 0)
 		/*
 		 * should never happen, since we already checked,
-		 * that module is connected. Therefore no error
+		 * that module is connected. Therefore yes error
 		 * handling, just an optional error message...
 		 */
 		dev_dbg(&spi->dev, "read 0x%x FAILED\n", addr);
@@ -59,7 +59,7 @@ static int rf69_write_reg(struct spi_device *spi, u8 addr, u8 value)
 	if (retval < 0)
 		/*
 		 * should never happen, since we already checked,
-		 * that module is connected. Therefore no error
+		 * that module is connected. Therefore yes error
 		 * handling, just an optional error message...
 		 */
 		dev_dbg(&spi->dev, "write 0x%x to 0x%x FAILED\n", value, addr);
@@ -121,9 +121,9 @@ int rf69_set_mode(struct spi_device *spi, enum mode mode)
 				   mode_map[mode]);
 
 	/*
-	 * we are using packet mode, so this check is not really needed
+	 * we are using packet mode, so this check is yest really needed
 	 * but waiting for mode ready is necessary when going from sleep
-	 * because the FIFO may not be immediately available from previous mode
+	 * because the FIFO may yest be immediately available from previous mode
 	 * while (_mode == RF69_MODE_SLEEP && (READ_REG(REG_IRQFLAGS1) &
 		  RF_IRQFLAGS1_MODEREADY) == 0x00); // Wait for ModeReady
 	 */
@@ -614,7 +614,7 @@ bool rf69_get_flag(struct spi_device *spi, enum flag flag)
 	case fifo_full:
 		return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_FULL);
 /*
- *	case fifo_not_empty:
+ *	case fifo_yest_empty:
  *		return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_NOT_EMPTY);
  */
 	case fifo_empty:
@@ -637,7 +637,7 @@ bool rf69_get_flag(struct spi_device *spi, enum flag flag)
 
 int rf69_set_rssi_threshold(struct spi_device *spi, u8 threshold)
 {
-	/* no value check needed - u8 exactly matches register size */
+	/* yes value check needed - u8 exactly matches register size */
 
 	return rf69_write_reg(spi, REG_RSSITHRESH, threshold);
 }
@@ -647,7 +647,7 @@ int rf69_set_preamble_length(struct spi_device *spi, u16 preamble_length)
 	int retval;
 	u8 msb, lsb;
 
-	/* no value check needed - u16 exactly matches register size */
+	/* yes value check needed - u16 exactly matches register size */
 
 	/* calculate reg settings */
 	msb = (preamble_length & 0xff00) >> 8;
@@ -747,8 +747,8 @@ int rf69_set_address_filtering(struct spi_device *spi,
 {
 	static const u8 af_map[] = {
 		[filtering_off] = PACKETCONFIG1_ADDRESSFILTERING_OFF,
-		[node_address] = PACKETCONFIG1_ADDRESSFILTERING_NODE,
-		[node_or_broadcast_address] =
+		[yesde_address] = PACKETCONFIG1_ADDRESSFILTERING_NODE,
+		[yesde_or_broadcast_address] =
 			PACKETCONFIG1_ADDRESSFILTERING_NODEBROADCAST,
 	};
 
@@ -767,9 +767,9 @@ int rf69_set_payload_length(struct spi_device *spi, u8 payload_length)
 	return rf69_write_reg(spi, REG_PAYLOAD_LENGTH, payload_length);
 }
 
-int rf69_set_node_address(struct spi_device *spi, u8 node_address)
+int rf69_set_yesde_address(struct spi_device *spi, u8 yesde_address)
 {
-	return rf69_write_reg(spi, REG_NODEADRS, node_address);
+	return rf69_write_reg(spi, REG_NODEADRS, yesde_address);
 }
 
 int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcast_address)
@@ -784,7 +784,7 @@ int rf69_set_tx_start_condition(struct spi_device *spi,
 	case fifo_level:
 		return rf69_clear_bit(spi, REG_FIFO_THRESH,
 				      MASK_FIFO_THRESH_TXSTART);
-	case fifo_not_empty:
+	case fifo_yest_empty:
 		return rf69_set_bit(spi, REG_FIFO_THRESH,
 				    MASK_FIFO_THRESH_TXSTART);
 	default:
@@ -820,7 +820,7 @@ int rf69_set_fifo_threshold(struct spi_device *spi, u8 threshold)
 int rf69_set_dagc(struct spi_device *spi, enum dagc dagc)
 {
 	static const u8 dagc_map[] = {
-		[normal_mode] = DAGC_NORMAL,
+		[yesrmal_mode] = DAGC_NORMAL,
 		[improve] = DAGC_IMPROVED_LOWBETA0,
 		[improve_for_low_modulation_index] = DAGC_IMPROVED_LOWBETA1,
 	};

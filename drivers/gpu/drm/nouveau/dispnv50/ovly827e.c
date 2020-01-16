@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,7 +22,7 @@
 #include "ovly.h"
 #include "atom.h"
 
-#include <nouveau_bo.h>
+#include <yesuveau_bo.h>
 
 static void
 ovly827e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
@@ -50,11 +50,11 @@ ovly827e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 }
 
 int
-ovly827e_ntfy_wait_begun(struct nouveau_bo *bo, u32 offset,
+ovly827e_ntfy_wait_begun(struct yesuveau_bo *bo, u32 offset,
 			 struct nvif_device *device)
 {
 	s64 time = nvif_msec(device, 2000ULL,
-		u32 data = nouveau_bo_rd32(bo, offset / 4 + 3);
+		u32 data = yesuveau_bo_rd32(bo, offset / 4 + 3);
 		if ((data & 0xffff0000) == 0xffff0000)
 			break;
 		usleep_range(1, 2);
@@ -63,12 +63,12 @@ ovly827e_ntfy_wait_begun(struct nouveau_bo *bo, u32 offset,
 }
 
 void
-ovly827e_ntfy_reset(struct nouveau_bo *bo, u32 offset)
+ovly827e_ntfy_reset(struct yesuveau_bo *bo, u32 offset)
 {
-	nouveau_bo_wr32(bo, offset / 4 + 0, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 1, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 2, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 3, 0x80000000);
+	yesuveau_bo_wr32(bo, offset / 4 + 0, 0x00000000);
+	yesuveau_bo_wr32(bo, offset / 4 + 1, 0x00000000);
+	yesuveau_bo_wr32(bo, offset / 4 + 2, 0x00000000);
+	yesuveau_bo_wr32(bo, offset / 4 + 3, 0x80000000);
 }
 
 static const struct nv50_wndw_func
@@ -96,7 +96,7 @@ ovly827e_format[] = {
 };
 
 int
-ovly827e_new(struct nouveau_drm *drm, int head, s32 oclass,
+ovly827e_new(struct yesuveau_drm *drm, int head, s32 oclass,
 	     struct nv50_wndw **pwndw)
 {
 	return ovly507e_new_(&ovly827e, ovly827e_format, drm, head, oclass,

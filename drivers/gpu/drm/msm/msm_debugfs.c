@@ -41,7 +41,7 @@ static int msm_gpu_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-static int msm_gpu_release(struct inode *inode, struct file *file)
+static int msm_gpu_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	struct msm_gpu_show_priv *show_priv = m->private;
@@ -54,12 +54,12 @@ static int msm_gpu_release(struct inode *inode, struct file *file)
 
 	kfree(show_priv);
 
-	return single_release(inode, file);
+	return single_release(iyesde, file);
 }
 
-static int msm_gpu_open(struct inode *inode, struct file *file)
+static int msm_gpu_open(struct iyesde *iyesde, struct file *file)
 {
-	struct drm_device *dev = inode->i_private;
+	struct drm_device *dev = iyesde->i_private;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gpu *gpu = priv->gpu;
 	struct msm_gpu_show_priv *show_priv;
@@ -159,10 +159,10 @@ static int msm_fb_show(struct drm_device *dev, struct seq_file *m)
 
 static int show_locked(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	int (*show)(struct drm_device *dev, struct seq_file *m) =
-			node->info_ent->data;
+			yesde->info_ent->data;
 	int ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -182,22 +182,22 @@ static struct drm_info_list msm_debugfs_list[] = {
 		{ "fb", show_locked, 0, msm_fb_show },
 };
 
-static int late_init_minor(struct drm_minor *minor)
+static int late_init_miyesr(struct drm_miyesr *miyesr)
 {
 	int ret;
 
-	if (!minor)
+	if (!miyesr)
 		return 0;
 
-	ret = msm_rd_debugfs_init(minor);
+	ret = msm_rd_debugfs_init(miyesr);
 	if (ret) {
-		DRM_DEV_ERROR(minor->dev->dev, "could not install rd debugfs\n");
+		DRM_DEV_ERROR(miyesr->dev->dev, "could yest install rd debugfs\n");
 		return ret;
 	}
 
-	ret = msm_perf_debugfs_init(minor);
+	ret = msm_perf_debugfs_init(miyesr);
 	if (ret) {
-		DRM_DEV_ERROR(minor->dev->dev, "could not install perf debugfs\n");
+		DRM_DEV_ERROR(miyesr->dev->dev, "could yest install perf debugfs\n");
 		return ret;
 	}
 
@@ -207,33 +207,33 @@ static int late_init_minor(struct drm_minor *minor)
 int msm_debugfs_late_init(struct drm_device *dev)
 {
 	int ret;
-	ret = late_init_minor(dev->primary);
+	ret = late_init_miyesr(dev->primary);
 	if (ret)
 		return ret;
-	ret = late_init_minor(dev->render);
+	ret = late_init_miyesr(dev->render);
 	return ret;
 }
 
-int msm_debugfs_init(struct drm_minor *minor)
+int msm_debugfs_init(struct drm_miyesr *miyesr)
 {
-	struct drm_device *dev = minor->dev;
+	struct drm_device *dev = miyesr->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	int ret;
 
 	ret = drm_debugfs_create_files(msm_debugfs_list,
 			ARRAY_SIZE(msm_debugfs_list),
-			minor->debugfs_root, minor);
+			miyesr->debugfs_root, miyesr);
 
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not install msm_debugfs_list\n");
+		DRM_DEV_ERROR(dev->dev, "could yest install msm_debugfs_list\n");
 		return ret;
 	}
 
-	debugfs_create_file("gpu", S_IRUSR, minor->debugfs_root,
+	debugfs_create_file("gpu", S_IRUSR, miyesr->debugfs_root,
 		dev, &msm_gpu_fops);
 
 	if (priv->kms && priv->kms->funcs->debugfs_init) {
-		ret = priv->kms->funcs->debugfs_init(priv->kms, minor);
+		ret = priv->kms->funcs->debugfs_init(priv->kms, miyesr);
 		if (ret)
 			return ret;
 	}

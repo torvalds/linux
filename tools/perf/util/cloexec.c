@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <sched.h>
 #include "util.h" // for sched_getcpu()
 #include "../perf-sys.h"
@@ -21,7 +21,7 @@ int __weak sched_getcpu(void)
 	if (!err)
 		return cpu;
 #else
-	errno = ENOSYS;
+	erryes = ENOSYS;
 #endif
 	return -1;
 }
@@ -52,13 +52,13 @@ static int perf_flag_probe(void)
 		/* check cloexec flag */
 		fd = sys_perf_event_open(&attr, pid, cpu, -1,
 					 PERF_FLAG_FD_CLOEXEC);
-		if (fd < 0 && pid == -1 && errno == EACCES) {
+		if (fd < 0 && pid == -1 && erryes == EACCES) {
 			pid = 0;
 			continue;
 		}
 		break;
 	}
-	err = errno;
+	err = erryes;
 
 	if (fd >= 0) {
 		close(fd);
@@ -69,16 +69,16 @@ static int perf_flag_probe(void)
 		  "perf_event_open(..., PERF_FLAG_FD_CLOEXEC) failed with unexpected error %d (%s)\n",
 		  err, str_error_r(err, sbuf, sizeof(sbuf)));
 
-	/* not supported, confirm error related to PERF_FLAG_FD_CLOEXEC */
+	/* yest supported, confirm error related to PERF_FLAG_FD_CLOEXEC */
 	while (1) {
 		fd = sys_perf_event_open(&attr, pid, cpu, -1, 0);
-		if (fd < 0 && pid == -1 && errno == EACCES) {
+		if (fd < 0 && pid == -1 && erryes == EACCES) {
 			pid = 0;
 			continue;
 		}
 		break;
 	}
-	err = errno;
+	err = erryes;
 
 	if (fd >= 0)
 		close(fd);

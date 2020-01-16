@@ -13,7 +13,7 @@
  *		Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Florian La Roche,
- *		Jonathan Layes <layes@loran.com>
+ *		Jonathan Lano <lano@loran.com>
  *		Arnaldo Carvalho de Melo <acme@conectiva.com.br> ARPHRD_HWX25
  */
 #ifndef _LINUX_IF_ARP_H

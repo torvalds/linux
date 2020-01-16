@@ -16,7 +16,7 @@
  * Description: General Standards Corporation High
  *    Speed Parallel Digital Interface rs485 boards
  * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
- * Status: only receive mode works, transmit not supported
+ * Status: only receive mode works, transmit yest supported
  * Updated: Thu, 01 Nov 2012 16:17:38 +0000
  * Devices: [General Standards Corporation] PCI-HPDI32 (gsc_hpdi),
  *   PMC-HPDI32
@@ -24,7 +24,7 @@
  * Configuration options:
  *    None.
  *
- * Manual configuration of supported devices is not supported; they are
+ * Manual configuration of supported devices is yest supported; they are
  * configured automatically.
  *
  * There are some additional hpdi models available from GSC for which
@@ -200,7 +200,7 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	if (hpdi_intr_status)
 		writel(hpdi_intr_status, dev->mmio + INTERRUPT_STATUS_REG);
 
-	/* spin lock makes sure no one else changes plx dma control reg */
+	/* spin lock makes sure yes one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(devpriv->plx9080_mmio + PLX_REG_DMACSR0);
 	if (plx_status & PLX_INTCSR_DMA0IA) {
@@ -213,7 +213,7 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	/* spin lock makes sure no one else changes plx dma control reg */
+	/* spin lock makes sure yes one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma1_status = readb(devpriv->plx9080_mmio + PLX_REG_DMACSR1);
 	if (plx_status & PLX_INTCSR_DMA1IA) {
@@ -642,7 +642,7 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 	}
 	if (devpriv->dma_desc_phys_addr & 0xf) {
 		dev_warn(dev->class_dev,
-			 " dma descriptors not quad-word aligned (bug)\n");
+			 " dma descriptors yest quad-word aligned (bug)\n");
 		return -EIO;
 	}
 

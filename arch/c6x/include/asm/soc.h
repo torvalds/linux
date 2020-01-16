@@ -13,7 +13,7 @@
 #define _ASM_C6X_SOC_H
 
 struct soc_ops {
-	/* Return active exception event or -1 if none */
+	/* Return active exception event or -1 if yesne */
 	int		(*get_exception)(void);
 
 	/* Assert an event */

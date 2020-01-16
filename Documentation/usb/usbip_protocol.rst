@@ -29,7 +29,7 @@ TCP/IP connection is closed.
           | <---------------------------------------------- |
           |                                                 |
 
-Once the client knows the list of exported USB devices it may decide to use one
+Once the client kyesws the list of exported USB devices it may decide to use one
 of them. First the client opens a TCP/IP connection towards the server and
 sends an OP_REQ_IMPORT packet. The server replies with OP_REP_IMPORT. If the
 import was successful the TCP/IP connection remains open and will be used
@@ -122,11 +122,11 @@ OP_REP_DEVLIST:
 +-----------+--------+------------+---------------------------------------------------+
 | 4         | 4      | 0x00000000 | Status: 0 for OK                                  |
 +-----------+--------+------------+---------------------------------------------------+
-| 8         | 4      | n          | Number of exported devices: 0 means no exported   |
+| 8         | 4      | n          | Number of exported devices: 0 means yes exported   |
 |           |        |            | devices.                                          |
 +-----------+--------+------------+---------------------------------------------------+
-| 0x0C      |        |            | From now on the exported n devices are described, |
-|           |        |            | if any. If no devices are exported the message    |
+| 0x0C      |        |            | From yesw on the exported n devices are described, |
+|           |        |            | if any. If yes devices are exported the message    |
 |           |        |            | ends with the previous "number of exported        |
 |           |        |            | devices" field.                                   |
 +-----------+--------+------------+---------------------------------------------------+
@@ -164,7 +164,7 @@ OP_REP_DEVLIST:
 +-----------+--------+------------+---------------------------------------------------+
 | 0x143     | 1      |            | bNumInterfaces                                    |
 +-----------+--------+------------+---------------------------------------------------+
-| 0x144     |        | m_0        | From now on each interface is described, all      |
+| 0x144     |        | m_0        | From yesw on each interface is described, all      |
 |           |        |            | together bNumInterfaces times, with the           |
 |           |        |            | the following 4 fields:                           |
 +-----------+--------+------------+---------------------------------------------------+
@@ -215,7 +215,7 @@ OP_REP_IMPORT:
 |           |        |            |   - 0 for OK                                      |
 |           |        |            |   - 1 for error                                   |
 +-----------+--------+------------+---------------------------------------------------+
-| 8         |        |            | From now on comes the details of the imported     |
+| 8         |        |            | From yesw on comes the details of the imported     |
 |           |        |            | device, if the previous status field was OK (0),  |
 |           |        |            | otherwise the reply ends with the status field.   |
 +-----------+--------+------------+---------------------------------------------------+
@@ -279,7 +279,7 @@ USBIP_CMD_SUBMIT:
 | 0x18      | 4      |            | transfer_buffer_length                            |
 +-----------+--------+------------+---------------------------------------------------+
 | 0x1C      | 4      |            | start_frame: specify the selected frame to        |
-|           |        |            | transmit an ISO frame, ignored if URB_ISO_ASAP    |
+|           |        |            | transmit an ISO frame, igyesred if URB_ISO_ASAP    |
 |           |        |            | is specified at transfer_flags                    |
 +-----------+--------+------------+---------------------------------------------------+
 | 0x20      | 4      |            | number_of_packets: number of ISO packets          |
@@ -288,29 +288,29 @@ USBIP_CMD_SUBMIT:
 |           |        |            | server-side host controller                       |
 +-----------+--------+------------+---------------------------------------------------+
 | 0x28      | 8      |            | setup: data bytes for USB setup, filled with      |
-|           |        |            | zeros if not used                                 |
+|           |        |            | zeros if yest used                                 |
 +-----------+--------+------------+---------------------------------------------------+
 | 0x30      |        |            | URB data. For ISO transfers the padding between   |
-|           |        |            | each ISO packets is not transmitted.              |
+|           |        |            | each ISO packets is yest transmitted.              |
 +-----------+--------+------------+---------------------------------------------------+
 
 
  +-------------------------+------------+---------+-----------+----------+-------------+
- | Allowed transfer_flags  | value      | control | interrupt | bulk     | isochronous |
+ | Allowed transfer_flags  | value      | control | interrupt | bulk     | isochroyesus |
  +=========================+============+=========+===========+==========+=============+
- | URB_SHORT_NOT_OK        | 0x00000001 | only in | only in   | only in  | no          |
+ | URB_SHORT_NOT_OK        | 0x00000001 | only in | only in   | only in  | yes          |
  +-------------------------+------------+---------+-----------+----------+-------------+
- | URB_ISO_ASAP            | 0x00000002 | no      | no        | no       | yes         |
+ | URB_ISO_ASAP            | 0x00000002 | yes      | yes        | yes       | no         |
  +-------------------------+------------+---------+-----------+----------+-------------+
- | URB_NO_TRANSFER_DMA_MAP | 0x00000004 | yes     | yes       | yes      | yes         |
+ | URB_NO_TRANSFER_DMA_MAP | 0x00000004 | no     | no       | no      | no         |
  +-------------------------+------------+---------+-----------+----------+-------------+
- | URB_ZERO_PACKET         | 0x00000040 | no      | no        | only out | no          |
+ | URB_ZERO_PACKET         | 0x00000040 | yes      | yes        | only out | yes          |
  +-------------------------+------------+---------+-----------+----------+-------------+
- | URB_NO_INTERRUPT        | 0x00000080 | yes     | yes       | yes      | yes         |
+ | URB_NO_INTERRUPT        | 0x00000080 | no     | no       | no      | no         |
  +-------------------------+------------+---------+-----------+----------+-------------+
- | URB_FREE_BUFFER         | 0x00000100 | yes     | yes       | yes      | yes         |
+ | URB_FREE_BUFFER         | 0x00000100 | no     | no       | no      | no         |
  +-------------------------+------------+---------+-----------+----------+-------------+
- | URB_DIR_MASK            | 0x00000200 | yes     | yes       | yes      | yes         |
+ | URB_DIR_MASK            | 0x00000200 | no     | no       | no      | no         |
  +-------------------------+------------+---------+-----------+----------+-------------+
 
 
@@ -346,10 +346,10 @@ USBIP_RET_SUBMIT:
 | 0x24      | 4      |            | error_count                                       |
 +-----------+--------+------------+---------------------------------------------------+
 | 0x28      | 8      |            | setup: data bytes for USB setup, filled with      |
-|           |        |            | zeros if not used                                 |
+|           |        |            | zeros if yest used                                 |
 +-----------+--------+------------+---------------------------------------------------+
 | 0x30      | n      |            | URB data bytes. For ISO transfers the padding     |
-|           |        |            | between each ISO packets is not transmitted.      |
+|           |        |            | between each ISO packets is yest transmitted.      |
 +-----------+--------+------------+---------------------------------------------------+
 
 USBIP_CMD_UNLINK:
@@ -378,7 +378,7 @@ USBIP_CMD_UNLINK:
 |           |        |            | at USBIP_CMD_SUBMIT.seqnum field                  |
 +-----------+--------+------------+---------------------------------------------------+
 | 0x30      | n      |            | URB data bytes. For ISO transfers the padding     |
-|           |        |            | between each ISO packets is not transmitted.      |
+|           |        |            | between each ISO packets is yest transmitted.      |
 +-----------+--------+------------+---------------------------------------------------+
 
 USBIP_RET_UNLINK:
@@ -407,5 +407,5 @@ USBIP_RET_UNLINK:
 |           |        |            |      a better explanation needed.                 |
 +-----------+--------+------------+---------------------------------------------------+
 | 0x30      | n      |            | URB data bytes. For ISO transfers the padding     |
-|           |        |            | between each ISO packets is not transmitted.      |
+|           |        |            | between each ISO packets is yest transmitted.      |
 +-----------+--------+------------+---------------------------------------------------+

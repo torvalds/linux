@@ -31,7 +31,7 @@
 #define FPSCR_UFE		(1<<13)
 #define FPSCR_IXE		(1<<12)
 #define FPSCR_HIE		(1<<11)
-#define FPSCR_NDE		(1<<10)	/* non denomal */
+#define FPSCR_NDE		(1<<10)	/* yesn deyesmal */
 
 /* flags */
 #define FPSCR_IDC		(1<<24)
@@ -47,4 +47,4 @@
 #define FPSCR_UFS		(1<<6)
 #define FPSCR_IXS		(1<<5)
 #define FPSCR_HIS		(1<<4)
-#define FPSCR_NDS		(1<<3)	/*non denomal */
+#define FPSCR_NDS		(1<<3)	/*yesn deyesmal */

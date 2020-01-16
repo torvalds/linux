@@ -1,4 +1,4 @@
-Release notes for Neterion's (Formerly S2io) Xframe I/II PCI-X 10GbE driver.
+Release yestes for Neterion's (Formerly S2io) Xframe I/II PCI-X 10GbE driver.
 
 Contents
 =======
@@ -49,7 +49,7 @@ significant performance improvement on certain platforms(SGI Altix,
 IBM xSeries).
 
 d. MSI/MSI-X. Can be enabled on platforms which support this feature
-(IA64, Xeon) resulting in noticeable performance improvement(up to 7%
+(IA64, Xeon) resulting in yesticeable performance improvement(up to 7%
 on certain platforms).
 
 e. Statistics. Comprehensive MAC-level and software statistics displayed
@@ -71,7 +71,7 @@ Default: 1
 
 c. tx_fifo_len
 Size of each transmit queue
-Valid range: Total length of all queues should not exceed 8192
+Valid range: Total length of all queues should yest exceed 8192
 Default: 4096
 
 d. rx_ring_sz 

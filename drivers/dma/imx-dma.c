@@ -118,7 +118,7 @@ struct imx_dma_2d_config {
 };
 
 struct imxdma_desc {
-	struct list_head		node;
+	struct list_head		yesde;
 	struct dma_async_tx_descriptor	desc;
 	enum dma_status			status;
 	dma_addr_t			src;
@@ -245,7 +245,7 @@ static inline bool imxdma_chan_is_doing_cyclic(struct imxdma_channel *imxdmac)
 
 	if (!list_empty(&imxdmac->ld_active)) {
 		desc = list_first_entry(&imxdmac->ld_active, struct imxdma_desc,
-					node);
+					yesde);
 		if (desc->type == IMXDMA_DESC_CYCLIC)
 			return true;
 	}
@@ -283,11 +283,11 @@ static inline void imxdma_sg_next(struct imxdma_desc *d)
 	struct imxdma_channel *imxdmac = to_imxdma_chan(d->desc.chan);
 	struct imxdma_engine *imxdma = imxdmac->imxdma;
 	struct scatterlist *sg = d->sg;
-	size_t now;
+	size_t yesw;
 
-	now = min_t(size_t, d->len, sg_dma_len(sg));
+	yesw = min_t(size_t, d->len, sg_dma_len(sg));
 	if (d->len != IMX_DMA_LENGTH_LOOP)
-		d->len -= now;
+		d->len -= yesw;
 
 	if (d->direction == DMA_DEV_TO_MEM)
 		imx_dmav1_writel(imxdma, sg->dma_address,
@@ -296,7 +296,7 @@ static inline void imxdma_sg_next(struct imxdma_desc *d)
 		imx_dmav1_writel(imxdma, sg->dma_address,
 				 DMA_SAR(imxdmac->channel));
 
-	imx_dmav1_writel(imxdma, now, DMA_CNTR(imxdmac->channel));
+	imx_dmav1_writel(imxdma, yesw, DMA_CNTR(imxdmac->channel));
 
 	dev_dbg(imxdma->dev, " %s channel: %d dst 0x%08x, src 0x%08x, "
 		"size 0x%08x\n", __func__, imxdmac->channel,
@@ -427,7 +427,7 @@ static irqreturn_t imxdma_err_handler(int irq, void *dev_id)
 static void dma_irq_handle_channel(struct imxdma_channel *imxdmac)
 {
 	struct imxdma_engine *imxdma = imxdmac->imxdma;
-	int chno = imxdmac->channel;
+	int chyes = imxdmac->channel;
 	struct imxdma_desc *desc;
 	unsigned long flags;
 
@@ -439,7 +439,7 @@ static void dma_irq_handle_channel(struct imxdma_channel *imxdmac)
 
 	desc = list_first_entry(&imxdmac->ld_active,
 				struct imxdma_desc,
-				node);
+				yesde);
 	spin_unlock_irqrestore(&imxdma->lock, flags);
 
 	if (desc->sg) {
@@ -449,7 +449,7 @@ static void dma_irq_handle_channel(struct imxdma_channel *imxdmac)
 		if (desc->sg) {
 			imxdma_sg_next(desc);
 
-			tmp = imx_dmav1_readl(imxdma, DMA_CCR(chno));
+			tmp = imx_dmav1_readl(imxdma, DMA_CCR(chyes));
 
 			if (imxdma_hw_chain(imxdmac)) {
 				/* FIXME: The timeout should probably be
@@ -459,14 +459,14 @@ static void dma_irq_handle_channel(struct imxdma_channel *imxdmac)
 					jiffies + msecs_to_jiffies(500));
 
 				tmp |= CCR_CEN | CCR_RPT | CCR_ACRPT;
-				imx_dmav1_writel(imxdma, tmp, DMA_CCR(chno));
+				imx_dmav1_writel(imxdma, tmp, DMA_CCR(chyes));
 			} else {
 				imx_dmav1_writel(imxdma, tmp & ~CCR_CEN,
-						 DMA_CCR(chno));
+						 DMA_CCR(chyes));
 				tmp |= CCR_CEN;
 			}
 
-			imx_dmav1_writel(imxdma, tmp, DMA_CCR(chno));
+			imx_dmav1_writel(imxdma, tmp, DMA_CCR(chyes));
 
 			if (imxdma_chan_is_doing_cyclic(imxdmac))
 				/* Tasklet progression */
@@ -482,7 +482,7 @@ static void dma_irq_handle_channel(struct imxdma_channel *imxdmac)
 	}
 
 out:
-	imx_dmav1_writel(imxdma, 0, DMA_CCR(chno));
+	imx_dmav1_writel(imxdma, 0, DMA_CCR(chyes));
 	/* Tasklet irq */
 	tasklet_schedule(&imxdmac->dma_tasklet);
 }
@@ -627,11 +627,11 @@ static void imxdma_tasklet(unsigned long data)
 		spin_unlock_irqrestore(&imxdma->lock, flags);
 		return;
 	}
-	desc = list_first_entry(&imxdmac->ld_active, struct imxdma_desc, node);
+	desc = list_first_entry(&imxdmac->ld_active, struct imxdma_desc, yesde);
 
 	/* If we are dealing with a cyclic descriptor, keep it on ld_active
 	 * and dont mark the descriptor as complete.
-	 * Only in non-cyclic cases it would be marked as complete
+	 * Only in yesn-cyclic cases it would be marked as complete
 	 */
 	if (imxdma_chan_is_doing_cyclic(imxdmac))
 		goto out;
@@ -648,7 +648,7 @@ static void imxdma_tasklet(unsigned long data)
 
 	if (!list_empty(&imxdmac->ld_queue)) {
 		next_desc = list_first_entry(&imxdmac->ld_queue,
-					     struct imxdma_desc, node);
+					     struct imxdma_desc, yesde);
 		list_move_tail(imxdmac->ld_queue.next, &imxdmac->ld_active);
 		if (imxdma_xfer_desc(next_desc) < 0)
 			dev_warn(imxdma->dev, "%s: channel: %d couldn't xfer desc\n",
@@ -777,7 +777,7 @@ static int imxdma_alloc_chan_resources(struct dma_chan *chan)
 		desc->desc.flags = DMA_CTRL_ACK;
 		desc->status = DMA_COMPLETE;
 
-		list_add_tail(&desc->node, &imxdmac->ld_free);
+		list_add_tail(&desc->yesde, &imxdmac->ld_free);
 		imxdmac->descs_allocated++;
 	}
 
@@ -802,7 +802,7 @@ static void imxdma_free_chan_resources(struct dma_chan *chan)
 
 	spin_unlock_irqrestore(&imxdma->lock, flags);
 
-	list_for_each_entry_safe(desc, _desc, &imxdmac->ld_free, node) {
+	list_for_each_entry_safe(desc, _desc, &imxdmac->ld_free, yesde) {
 		kfree(desc);
 		imxdmac->descs_allocated--;
 	}
@@ -826,7 +826,7 @@ static struct dma_async_tx_descriptor *imxdma_prep_slave_sg(
 	    imxdma_chan_is_doing_cyclic(imxdmac))
 		return NULL;
 
-	desc = list_first_entry(&imxdmac->ld_free, struct imxdma_desc, node);
+	desc = list_first_entry(&imxdmac->ld_free, struct imxdma_desc, yesde);
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		dma_length += sg_dma_len(sg);
@@ -881,7 +881,7 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_cyclic(
 	    imxdma_chan_is_doing_cyclic(imxdmac))
 		return NULL;
 
-	desc = list_first_entry(&imxdmac->ld_free, struct imxdma_desc, node);
+	desc = list_first_entry(&imxdmac->ld_free, struct imxdma_desc, yesde);
 
 	kfree(imxdmac->sg_list);
 
@@ -937,7 +937,7 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_memcpy(
 	    imxdma_chan_is_doing_cyclic(imxdmac))
 		return NULL;
 
-	desc = list_first_entry(&imxdmac->ld_free, struct imxdma_desc, node);
+	desc = list_first_entry(&imxdmac->ld_free, struct imxdma_desc, yesde);
 
 	desc->type = IMXDMA_DESC_MEMCPY;
 	desc->src = src;
@@ -974,7 +974,7 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_interleaved(
 	if (xt->frame_size != 1 || xt->numf <= 0 || xt->dir != DMA_MEM_TO_MEM)
 		return NULL;
 
-	desc = list_first_entry(&imxdmac->ld_free, struct imxdma_desc, node);
+	desc = list_first_entry(&imxdmac->ld_free, struct imxdma_desc, yesde);
 
 	desc->type = IMXDMA_DESC_INTERLEAVED;
 	desc->src = xt->src_start;
@@ -1007,7 +1007,7 @@ static void imxdma_issue_pending(struct dma_chan *chan)
 	if (list_empty(&imxdmac->ld_active) &&
 	    !list_empty(&imxdmac->ld_queue)) {
 		desc = list_first_entry(&imxdmac->ld_queue,
-					struct imxdma_desc, node);
+					struct imxdma_desc, yesde);
 
 		if (imxdma_xfer_desc(desc) < 0) {
 			dev_warn(imxdma->dev,
@@ -1176,7 +1176,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 		imxdmac->channel = i;
 
 		/* Add the channel to the DMAC list */
-		list_add_tail(&imxdmac->chan.device_node,
+		list_add_tail(&imxdmac->chan.device_yesde,
 			      &imxdma->dma_device.channels);
 	}
 
@@ -1205,8 +1205,8 @@ static int __init imxdma_probe(struct platform_device *pdev)
 		goto disable_dma_ahb_clk;
 	}
 
-	if (pdev->dev.of_node) {
-		ret = of_dma_controller_register(pdev->dev.of_node,
+	if (pdev->dev.of_yesde) {
+		ret = of_dma_controller_register(pdev->dev.of_yesde,
 				imxdma_xlate, imxdma);
 		if (ret) {
 			dev_err(&pdev->dev, "unable to register of_dma_controller\n");
@@ -1252,8 +1252,8 @@ static int imxdma_remove(struct platform_device *pdev)
 
         dma_async_device_unregister(&imxdma->dma_device);
 
-	if (pdev->dev.of_node)
-		of_dma_controller_free(pdev->dev.of_node);
+	if (pdev->dev.of_yesde)
+		of_dma_controller_free(pdev->dev.of_yesde);
 
 	clk_disable_unprepare(imxdma->dma_ipg);
 	clk_disable_unprepare(imxdma->dma_ahb);

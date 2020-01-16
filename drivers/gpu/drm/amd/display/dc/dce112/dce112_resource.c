@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -1126,7 +1126,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * memory_type_multiplier,
 		1000);
 
-	/* Now notify PPLib/SMU about which Watermarks sets they should select
+	/* Now yestify PPLib/SMU about which Watermarks sets they should select
 	 * depending on DPM state they are in. And update BW MGR GFX Engine and
 	 * Memory clock member variables for Watermarks calculations for each
 	 * Watermark Set
@@ -1173,7 +1173,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	clk_ranges.wm_clk_ranges[3].wm_max_mem_clk_in_khz = 5000000;
 
 	/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
-	dm_pp_notify_wm_clock_changes(dc->ctx, &clk_ranges);
+	dm_pp_yestify_wm_clock_changes(dc->ctx, &clk_ranges);
 }
 
 const struct resource_caps *dce112_resource_cap(

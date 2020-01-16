@@ -30,7 +30,7 @@ extern unsigned cachefiles_debug;
 #define cachefiles_gfp (__GFP_RECLAIM | __GFP_NORETRY | __GFP_NOMEMALLOC)
 
 /*
- * node records
+ * yesde records
  */
 struct cachefiles_object {
 	struct fscache_object		fscache;	/* fscache handle */
@@ -44,7 +44,7 @@ struct cachefiles_object {
 	uint8_t				type;		/* object type */
 	uint8_t				new;		/* T if object new */
 	spinlock_t			work_lock;
-	struct rb_node			active_node;	/* link in active tree (dentry is key) */
+	struct rb_yesde			active_yesde;	/* link in active tree (dentry is key) */
 };
 
 extern struct kmem_cache *cachefiles_object_jar;
@@ -60,8 +60,8 @@ struct cachefiles_cache {
 	const struct cred		*cache_cred;	/* security override for accessing cache */
 	struct mutex			daemon_mutex;	/* command serialisation mutex */
 	wait_queue_head_t		daemon_pollwq;	/* poll waitqueue for daemon */
-	struct rb_root			active_nodes;	/* active nodes (can't be culled) */
-	rwlock_t			active_lock;	/* lock for active_nodes */
+	struct rb_root			active_yesdes;	/* active yesdes (can't be culled) */
+	rwlock_t			active_lock;	/* lock for active_yesdes */
 	atomic_t			gravecounter;	/* graveyard uniquifier */
 	atomic_t			f_released;	/* number of objects released lately */
 	atomic_long_t			b_released;	/* number of blocks released lately */
@@ -123,7 +123,7 @@ struct cachefiles_xattr {
 #include <trace/events/cachefiles.h>
 
 /*
- * note change of state for daemon
+ * yeste change of state for daemon
  */
 static inline void cachefiles_state_changed(struct cachefiles_cache *cache)
 {
@@ -309,9 +309,9 @@ do {							\
 } while (0)
 
 #else
-#define _enter(FMT, ...) no_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
-#define _leave(FMT, ...) no_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
-#define _debug(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
+#define _enter(FMT, ...) yes_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
+#define _leave(FMT, ...) yes_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
+#define _debug(FMT, ...) yes_printk(FMT, ##__VA_ARGS__)
 #endif
 
 #if 1 /* defined(__KDEBUGALL) */

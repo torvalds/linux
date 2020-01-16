@@ -449,10 +449,10 @@ static struct omap_hwmod omap36xx_uart4_hwmod = {
 
 
 /*
- * XXX AM35xx UART4 cannot complete its softreset without uart1_fck or
+ * XXX AM35xx UART4 canyest complete its softreset without uart1_fck or
  * uart2_fck being enabled.  So we add uart1_fck as an optional clock,
  * below, and set the HWMOD_CONTROL_OPT_CLKS_IN_RESET.  This really
- * should not be needed.  The functional clock structure of the AM35xx
+ * should yest be needed.  The functional clock structure of the AM35xx
  * UART4 is extremely unclear and opaque; it is unclear what the role
  * of uart1/2_fck is for the UART4.  Any clarification from either
  * empirical testing or the AM3505/3517 hardware designers would be
@@ -488,7 +488,7 @@ static struct omap_hwmod_class i2c_class = {
 static struct omap_hwmod_opt_clk dss_opt_clks[] = {
 	/*
 	 * The DSS HW needs all DSS clocks enabled during reset. The dss_core
-	 * driver does not use these clocks.
+	 * driver does yest use these clocks.
 	 */
 	{ .role = "sys_clk", .clk = "dss2_alwon_fck" },
 	{ .role = "tv_clk", .clk = "dss_tv_fck" },
@@ -1146,7 +1146,7 @@ static struct omap_hwmod omap3xxx_mailbox_hwmod = {
 
 /*
  * 'mcspi' class
- * multichannel serial port interface (mcspi) / master/slave synchronous serial
+ * multichannel serial port interface (mcspi) / master/slave synchroyesus serial
  * bus
  */
 
@@ -1260,7 +1260,7 @@ static struct omap_hwmod omap3xxx_usbhsotg_hwmod = {
 	 * workaround is to disable the autoidle bit at module level.
 	 *
 	 * Enabling the device in any other MIDLEMODE setting but force-idle
-	 * causes core_pwrdm not enter idle states at least on OMAP3630.
+	 * causes core_pwrdm yest enter idle states at least on OMAP3630.
 	 * Note that musb has OTG_FORCESTDBY register that controls MSTANDBY
 	 * signal when MIDLEMODE is set to force-idle.
 	 */
@@ -1466,7 +1466,7 @@ static struct omap_hwmod omap3xxx_usb_host_hs_hwmod = {
 	 * - an USBHOST interrupt occurs before the module is able to answer
 	 *   idle_ack, typically a remote wakeup IRQ.
 	 * Then the USB HOST module will enter a deadlock situation where it
-	 * is no more accessible nor functional.
+	 * is yes more accessible yesr functional.
 	 *
 	 * Workaround:
 	 * Don't use smart idle; use only force idle, hence HWMOD_SWSUP_SIDLE
@@ -2406,7 +2406,7 @@ static struct omap_hwmod am35xx_mdio_hwmod = {
 };
 
 /*
- * XXX Should be connected to an IPSS hwmod, not the L3 directly;
+ * XXX Should be connected to an IPSS hwmod, yest the L3 directly;
  * but this will probably require some additional hwmod core support,
  * so is left as a future to-do item.
  */
@@ -2419,7 +2419,7 @@ static struct omap_hwmod_ocp_if am35xx_mdio__l3 = {
 
 /* l4_core -> davinci mdio  */
 /*
- * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
+ * XXX Should be connected to an IPSS hwmod, yest the L4_CORE directly;
  * but this will probably require some additional hwmod core support,
  * so is left as a future to-do item.
  */
@@ -2438,7 +2438,7 @@ static struct omap_hwmod am35xx_emac_hwmod = {
 	.name		= "davinci_emac",
 	.class		= &am35xx_emac_class,
 	/*
-	 * According to Mark Greer, the MPU will not return from WFI
+	 * According to Mark Greer, the MPU will yest return from WFI
 	 * when the EMAC signals an interrupt.
 	 * http://www.spinics.net/lists/arm-kernel/msg174734.html
 	 */
@@ -2447,7 +2447,7 @@ static struct omap_hwmod am35xx_emac_hwmod = {
 
 /* l3_core -> davinci emac interface */
 /*
- * XXX Should be connected to an IPSS hwmod, not the L3 directly;
+ * XXX Should be connected to an IPSS hwmod, yest the L3 directly;
  * but this will probably require some additional hwmod core support,
  * so is left as a future to-do item.
  */
@@ -2460,7 +2460,7 @@ static struct omap_hwmod_ocp_if am35xx_emac__l3 = {
 
 /* l4_core -> davinci emac  */
 /*
- * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
+ * XXX Should be connected to an IPSS hwmod, yest the L4_CORE directly;
  * but this will probably require some additional hwmod core support,
  * so is left as a future to-do item.
  */
@@ -2556,7 +2556,7 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__aes = {
 
 /*
  * 'ssi' class
- * synchronous serial interface (multichannel and full-duplex serial if)
+ * synchroyesus serial interface (multichannel and full-duplex serial if)
  */
 
 static struct omap_hwmod_class_sysconfig omap34xx_ssi_sysc = {
@@ -2685,7 +2685,7 @@ static struct omap_hwmod_ocp_if *omap36xx_aes_hwmod_ocp_ifs[] __initdata = {
 
 /*
  * Apparently the SHA/MD5 and AES accelerator IP blocks are
- * only present on some AM35xx chips, and no one knows which
+ * only present on some AM35xx chips, and yes one kyesws which
  * ones.  See
  * http://www.spinics.net/lists/arm-kernel/msg215466.html So
  * if you need these IP blocks on an AM35xx, try uncommenting
@@ -2801,33 +2801,33 @@ static struct omap_hwmod_ocp_if *omap3xxx_dss_hwmod_ocp_ifs[] __initdata = {
 
 /**
  * omap3xxx_hwmod_is_hs_ip_block_usable - is a security IP block accessible?
- * @bus: struct device_node * for the top-level OMAP DT data
+ * @bus: struct device_yesde * for the top-level OMAP DT data
  * @dev_name: device name used in the DT file
  *
  * Determine whether a "secure" IP block @dev_name is usable by Linux.
  * There doesn't appear to be a 100% reliable way to determine this,
- * so we rely on heuristics.  If @bus is null, meaning there's no DT
+ * so we rely on heuristics.  If @bus is null, meaning there's yes DT
  * data, then we only assume the IP block is accessible if the OMAP is
  * fused as a 'general-purpose' SoC.  If however DT data is present,
  * test to see if the IP block is described in the DT data and set to
  * 'status = "okay"'.  If so then we assume the ODM has configured the
  * OMAP firewalls to allow access to the IP block.
  *
- * Return: 0 if device named @dev_name is not likely to be accessible,
+ * Return: 0 if device named @dev_name is yest likely to be accessible,
  * or 1 if it is likely to be accessible.
  */
-static bool __init omap3xxx_hwmod_is_hs_ip_block_usable(struct device_node *bus,
+static bool __init omap3xxx_hwmod_is_hs_ip_block_usable(struct device_yesde *bus,
 							const char *dev_name)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	bool available;
 
 	if (!bus)
 		return omap_type() == OMAP2_DEVICE_TYPE_GP;
 
-	node = of_get_child_by_name(bus, dev_name);
-	available = of_device_is_available(node);
-	of_node_put(node);
+	yesde = of_get_child_by_name(bus, dev_name);
+	available = of_device_is_available(yesde);
+	of_yesde_put(yesde);
 
 	return available;
 }
@@ -2837,7 +2837,7 @@ int __init omap3xxx_hwmod_init(void)
 	int r;
 	struct omap_hwmod_ocp_if **h = NULL, **h_gp = NULL, **h_sham = NULL;
 	struct omap_hwmod_ocp_if **h_aes = NULL;
-	struct device_node *bus;
+	struct device_yesde *bus;
 	unsigned int rev;
 
 	omap_hwmod_init();
@@ -2873,7 +2873,7 @@ int __init omap3xxx_hwmod_init(void)
 		h_sham = omap36xx_sham_hwmod_ocp_ifs;
 		h_aes = omap36xx_aes_hwmod_ocp_ifs;
 	} else {
-		WARN(1, "OMAP3 hwmod family init: unknown chip type\n");
+		WARN(1, "OMAP3 hwmod family init: unkyeswn chip type\n");
 		return -EINVAL;
 	}
 
@@ -2889,24 +2889,24 @@ int __init omap3xxx_hwmod_init(void)
 	}
 
 	/*
-	 * Register crypto hwmod links only if they are not disabled in DT.
+	 * Register crypto hwmod links only if they are yest disabled in DT.
 	 * If DT information is missing, enable them only for GP devices.
 	 */
 
-	bus = of_find_node_by_name(NULL, "ocp");
+	bus = of_find_yesde_by_name(NULL, "ocp");
 
 	if (h_sham && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "sham")) {
 		r = omap_hwmod_register_links(h_sham);
 		if (r < 0)
-			goto put_node;
+			goto put_yesde;
 	}
 
 	if (h_aes && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "aes")) {
 		r = omap_hwmod_register_links(h_aes);
 		if (r < 0)
-			goto put_node;
+			goto put_yesde;
 	}
-	of_node_put(bus);
+	of_yesde_put(bus);
 
 	/*
 	 * Register hwmod links specific to certain ES levels of a
@@ -2956,7 +2956,7 @@ int __init omap3xxx_hwmod_init(void)
 
 	return r;
 
-put_node:
-	of_node_put(bus);
+put_yesde:
+	of_yesde_put(bus);
 	return r;
 }

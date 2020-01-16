@@ -27,7 +27,7 @@ KernelVersion:	2.6.19
 Contact:	"Lennart Poettering <mzxreary@0pointer.de>"
 Description:
 		Bluetooth subsystem enabled: contains either 0 or 1. Please
-		note that this file is constantly 0 if no Bluetooth hardware is
+		yeste that this file is constantly 0 if yes Bluetooth hardware is
 		available.
 
 What:		/sys/devices/platform/msi-laptop-pf/touchpad
@@ -48,7 +48,7 @@ Description:
 		overclocked. Turbo mode is available only if charging. It is
 		only possible to toggle turbo mode state by pressing Fn+F10,
 		and there is a few seconds cooldown between subsequent toggles.
-		If user presses Fn+F10 too frequent, turbo mode state is not
+		If user presses Fn+F10 too frequent, turbo mode state is yest
 		changed.
 
 What:		/sys/devices/platform/msi-laptop-pf/eco_mode
@@ -68,8 +68,8 @@ Contact:	"Maxim Mikityanskiy <maxtram95@gmail.com>"
 Description:
 		Contains value in range 0..3:
 			* 0 -> Turbo mode is off
-			* 1 -> Turbo mode is on, cannot be turned off yet
-			* 2 -> Turbo mode is off, cannot be turned on yet
+			* 1 -> Turbo mode is on, canyest be turned off yet
+			* 2 -> Turbo mode is off, canyest be turned on yet
 			* 3 -> Turbo mode is on
 
 What:		/sys/devices/platform/msi-laptop-pf/auto_fan

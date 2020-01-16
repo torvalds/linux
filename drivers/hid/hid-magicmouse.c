@@ -3,7 +3,7 @@
  *   Apple "Magic" Wireless Mouse driver
  *
  *   Copyright (c) 2010 Michael Poole <mdpoole@troilus.org>
- *   Copyright (c) 2010 Chase Douglas <chase.douglas@canonical.com>
+ *   Copyright (c) 2010 Chase Douglas <chase.douglas@cayesnical.com>
  */
 
 /*
@@ -55,7 +55,7 @@ MODULE_PARM_DESC(report_undeciphered, "Report undeciphered multi-touch state fie
 #define TRACKPAD2_BT_REPORT_ID 0x31
 #define MOUSE_REPORT_ID    0x29
 #define DOUBLE_REPORT_ID   0xf7
-/* These definitions are not precise, but they're close enough.  (Bits
+/* These definitions are yest precise, but they're close eyesugh.  (Bits
  * 0x03 seem to indicate the aspect ratio of the touch, bits 0x70 seem
  * to be some kind of bit mask -- 0x20 may be a near-field reading,
  * and 0x40 is actual contact, and 0x10 may be a start/stop or change
@@ -140,7 +140,7 @@ static int magicmouse_firm_touch(struct magicmouse_sc *msc)
 	for (ii = 0; ii < msc->ntouches; ii++) {
 		int idx = msc->tracking_ids[ii];
 		if (msc->touches[idx].size < 8) {
-			/* Ignore this touch. */
+			/* Igyesre this touch. */
 		} else if (touch >= 0) {
 			touch = -1;
 			break;
@@ -192,7 +192,7 @@ static void magicmouse_emit_buttons(struct magicmouse_sc *msc, int state)
 static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tdata)
 {
 	struct input_dev *input = msc->input;
-	int id, x, y, size, orientation, touch_major, touch_minor, state, down;
+	int id, x, y, size, orientation, touch_major, touch_miyesr, state, down;
 	int pressure = 0;
 
 	if (input->id.product == USB_DEVICE_ID_APPLE_MAGICMOUSE) {
@@ -202,7 +202,7 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 		size = tdata[5] & 0x3f;
 		orientation = (tdata[6] >> 2) - 32;
 		touch_major = tdata[3];
-		touch_minor = tdata[4];
+		touch_miyesr = tdata[4];
 		state = tdata[7] & TOUCH_STATE_MASK;
 		down = state != TOUCH_STATE_NONE;
 	} else if (input->id.product == USB_DEVICE_ID_APPLE_MAGICTRACKPAD2) {
@@ -212,7 +212,7 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 		size = tdata[6];
 		orientation = (tdata[8] >> 5) - 4;
 		touch_major = tdata[4];
-		touch_minor = tdata[5];
+		touch_miyesr = tdata[5];
 		pressure = tdata[7];
 		state = tdata[3] & 0xC0;
 		down = state == 0x80;
@@ -223,7 +223,7 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 		size = tdata[6] & 0x3f;
 		orientation = (tdata[7] >> 2) - 32;
 		touch_major = tdata[4];
-		touch_minor = tdata[5];
+		touch_miyesr = tdata[5];
 		state = tdata[8] & TOUCH_STATE_MASK;
 		down = state != TOUCH_STATE_NONE;
 	}
@@ -239,7 +239,7 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 	 */
 	if (emulate_scroll_wheel && (input->id.product !=
 			USB_DEVICE_ID_APPLE_MAGICTRACKPAD2)) {
-		unsigned long now = jiffies;
+		unsigned long yesw = jiffies;
 		int step_x = msc->touches[id].scroll_x - x;
 		int step_y = msc->touches[id].scroll_y - y;
 
@@ -250,7 +250,7 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 			msc->touches[id].scroll_y = y;
 
 			/* Reset acceleration after half a second. */
-			if (scroll_acceleration && time_before(now,
+			if (scroll_acceleration && time_before(yesw,
 						msc->scroll_jiffies + HZ / 2))
 				msc->scroll_accel = max_t(int,
 						msc->scroll_accel - 1, 1);
@@ -263,7 +263,7 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 			if (step_x != 0) {
 				msc->touches[id].scroll_x -= step_x *
 					(64 - scroll_speed) * msc->scroll_accel;
-				msc->scroll_jiffies = now;
+				msc->scroll_jiffies = yesw;
 				input_report_rel(input, REL_HWHEEL, -step_x);
 			}
 
@@ -271,7 +271,7 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 			if (step_y != 0) {
 				msc->touches[id].scroll_y -= step_y *
 					(64 - scroll_speed) * msc->scroll_accel;
-				msc->scroll_jiffies = now;
+				msc->scroll_jiffies = yesw;
 				input_report_rel(input, REL_WHEEL, step_y);
 			}
 			break;
@@ -287,7 +287,7 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 	/* Generate the input events for this touch. */
 	if (down) {
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, touch_major << 2);
-		input_report_abs(input, ABS_MT_TOUCH_MINOR, touch_minor << 2);
+		input_report_abs(input, ABS_MT_TOUCH_MINOR, touch_miyesr << 2);
 		input_report_abs(input, ABS_MT_ORIENTATION, -orientation);
 		input_report_abs(input, ABS_MT_POSITION_X, x);
 		input_report_abs(input, ABS_MT_POSITION_Y, y);
@@ -547,7 +547,7 @@ static int magicmouse_input_mapping(struct hid_device *hdev,
 	if (!msc->input)
 		msc->input = hi->input;
 
-	/* Magic Trackpad does not give relative data after switching to MT */
+	/* Magic Trackpad does yest give relative data after switching to MT */
 	if ((hi->input->id.product == USB_DEVICE_ID_APPLE_MAGICTRACKPAD ||
 	     hi->input->id.product == USB_DEVICE_ID_APPLE_MAGICTRACKPAD2) &&
 	    field->flags & HID_MAIN_ITEM_RELATIVE)
@@ -566,7 +566,7 @@ static int magicmouse_input_configured(struct hid_device *hdev,
 	ret = magicmouse_setup_input(msc->input, hdev);
 	if (ret) {
 		hid_err(hdev, "magicmouse setup input failed (%d)\n", ret);
-		/* clean msc->input to notify probe() of the failure */
+		/* clean msc->input to yestify probe() of the failure */
 		msc->input = NULL;
 		return ret;
 	}
@@ -617,7 +617,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	}
 
 	if (!msc->input) {
-		hid_err(hdev, "magicmouse input not registered\n");
+		hid_err(hdev, "magicmouse input yest registered\n");
 		ret = -ENOMEM;
 		goto err_stop_hw;
 	}
@@ -670,7 +670,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	 * report switching it into multitouch mode is sent to it.
 	 *
 	 * This results in -EIO from the _raw low-level transport callback,
-	 * but there seems to be no other way of switching the mode.
+	 * but there seems to be yes other way of switching the mode.
 	 * Thus the super-ugly hacky success check below.
 	 */
 	ret = hid_hw_raw_request(hdev, buf[0], buf, feature_size,

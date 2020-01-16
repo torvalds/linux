@@ -36,7 +36,7 @@ static enum hrtimer_restart stm_heartbeat_hrtimer_handler(struct hrtimer *hr)
 
 	stm_source_write(&heartbeat->data, 0, str, sizeof str);
 	if (heartbeat->active)
-		hrtimer_forward_now(hr, ms_to_ktime(interval_ms));
+		hrtimer_forward_yesw(hr, ms_to_ktime(interval_ms));
 
 	return heartbeat->active ? HRTIMER_RESTART : HRTIMER_NORESTART;
 }

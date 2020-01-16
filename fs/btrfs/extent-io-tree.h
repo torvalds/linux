@@ -63,7 +63,7 @@ struct extent_io_tree {
 struct extent_state {
 	u64 start;
 	u64 end; /* inclusive */
-	struct rb_node rb_node;
+	struct rb_yesde rb_yesde;
 
 	/* ADD NEW ELEMENTS AFTER THIS */
 	wait_queue_head_t wq;
@@ -151,7 +151,7 @@ int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   unsigned bits, u64 *failed_start,
 		   struct extent_state **cached_state, gfp_t mask);
-int set_extent_bits_nowait(struct extent_io_tree *tree, u64 start, u64 end,
+int set_extent_bits_yeswait(struct extent_io_tree *tree, u64 start, u64 end,
 			   unsigned bits);
 
 static inline int set_extent_bits(struct extent_io_tree *tree, u64 start,
@@ -233,9 +233,9 @@ int get_state_failrec(struct extent_io_tree *tree, u64 start,
 		      struct io_failure_record **failrec);
 int set_state_failrec(struct extent_io_tree *tree, u64 start,
 		      struct io_failure_record *failrec);
-void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start,
+void btrfs_free_io_failure_record(struct btrfs_iyesde *iyesde, u64 start,
 		u64 end);
-int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
+int btrfs_get_io_failure_record(struct iyesde *iyesde, u64 start, u64 end,
 				struct io_failure_record **failrec_ret);
 int free_io_failure(struct extent_io_tree *failure_tree,
 		    struct extent_io_tree *io_tree,
@@ -243,6 +243,6 @@ int free_io_failure(struct extent_io_tree *failure_tree,
 int clean_io_failure(struct btrfs_fs_info *fs_info,
 		     struct extent_io_tree *failure_tree,
 		     struct extent_io_tree *io_tree, u64 start,
-		     struct page *page, u64 ino, unsigned int pg_offset);
+		     struct page *page, u64 iyes, unsigned int pg_offset);
 
 #endif /* BTRFS_EXTENT_IO_TREE_H */

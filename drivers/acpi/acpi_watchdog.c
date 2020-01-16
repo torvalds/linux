@@ -19,7 +19,7 @@
 
 /*
  * There are several systems where the WDAT table is accessing RTC SRAM to
- * store persistent information. This does not work well with the Linux RTC
+ * store persistent information. This does yest work well with the Linux RTC
  * driver so on those systems we skip WDAT driver and prefer iTCO_wdt
  * instead.
  *
@@ -66,7 +66,7 @@ static const struct acpi_table_wdat *acpi_watchdog_get_wdat(void)
 	status = acpi_get_table(ACPI_SIG_WDAT, 0,
 				(struct acpi_table_header **)&wdat);
 	if (ACPI_FAILURE(status)) {
-		/* It is fine if there is no WDAT */
+		/* It is fine if there is yes WDAT */
 		return NULL;
 	}
 
@@ -101,7 +101,7 @@ void __init acpi_watchdog_init(void)
 
 	wdat = acpi_watchdog_get_wdat();
 	if (!wdat) {
-		/* It is fine if there is no WDAT */
+		/* It is fine if there is yes WDAT */
 		return;
 	}
 

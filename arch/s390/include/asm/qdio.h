@@ -123,12 +123,12 @@ struct slibe {
 };
 
 /**
- * struct qaob - queue asynchronous operation block
+ * struct qaob - queue asynchroyesus operation block
  * @res0: reserved parameters
  * @res1: reserved parameter
  * @res2: reserved parameter
  * @res3: reserved parameter
- * @aorc: asynchronous operation return code
+ * @aorc: asynchroyesus operation return code
  * @flags: internal flags
  * @cbtbs: control block type
  * @sb_count: number of storage blocks
@@ -247,7 +247,7 @@ struct slsb {
 } __attribute__ ((packed, aligned(256)));
 
 /**
- * struct qdio_outbuf_state - SBAL related asynchronous operation information
+ * struct qdio_outbuf_state - SBAL related asynchroyesus operation information
  *   (for communication with upper layer programs)
  *   (only required for use with completion queues)
  * @flags: flags indicating state of buffer
@@ -330,20 +330,20 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @qdr_ac: feature flags to set
  * @adapter_name: name for the adapter
  * @qib_param_field_format: format for qib_parm_field
- * @qib_param_field: pointer to 128 bytes or NULL, if no param field
+ * @qib_param_field: pointer to 128 bytes or NULL, if yes param field
  * @qib_rflags: rflags to set
- * @input_slib_elements: pointer to no_input_qs * 128 words of data or NULL
- * @output_slib_elements: pointer to no_output_qs * 128 words of data or NULL
- * @no_input_qs: number of input queues
- * @no_output_qs: number of output queues
+ * @input_slib_elements: pointer to yes_input_qs * 128 words of data or NULL
+ * @output_slib_elements: pointer to yes_output_qs * 128 words of data or NULL
+ * @yes_input_qs: number of input queues
+ * @yes_output_qs: number of output queues
  * @input_handler: handler to be called for input queues
  * @output_handler: handler to be called for output queues
  * @queue_start_poll_array: polling handlers (one per input queue or NULL)
  * @scan_threshold: # of in-use buffers that triggers scan on output queue
  * @int_parm: interruption parameter
- * @input_sbal_addr_array:  address of no_input_qs * 128 pointers
- * @output_sbal_addr_array: address of no_output_qs * 128 pointers
- * @output_sbal_state_array: no_output_qs * 128 state info (for CQ or NULL)
+ * @input_sbal_addr_array:  address of yes_input_qs * 128 pointers
+ * @output_sbal_addr_array: address of yes_output_qs * 128 pointers
+ * @output_sbal_state_array: yes_output_qs * 128 state info (for CQ or NULL)
  */
 struct qdio_initialize {
 	struct ccw_device *cdev;
@@ -355,8 +355,8 @@ struct qdio_initialize {
 	unsigned char qib_rflags;
 	unsigned long *input_slib_elements;
 	unsigned long *output_slib_elements;
-	unsigned int no_input_qs;
-	unsigned int no_output_qs;
+	unsigned int yes_input_qs;
+	unsigned int yes_output_qs;
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
 	void (**queue_start_poll_array) (struct ccw_device *, int,

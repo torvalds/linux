@@ -5,7 +5,7 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/sizes.h>
 #include "ipu-prv.h"

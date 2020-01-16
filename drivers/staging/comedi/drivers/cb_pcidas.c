@@ -24,13 +24,13 @@
  *
  * Status:
  * There are many reports of the driver being used with most of the
- * supported cards. Despite no detailed log is maintained, it can
+ * supported cards. Despite yes detailed log is maintained, it can
  * be said that the driver is quite tested and stable.
  *
  * The boards may be autocalibrated using the comedi_calibrate
  * utility.
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: yest applicable, uses PCI auto config
  *
  * For commands, the scanned channels must be consecutive
  * (i.e. 4-5-6-7, 2-3-4,...), and must all have the same
@@ -69,10 +69,10 @@
  */
 #define PCIDAS_CTRL_REG		0x00	/* INTERRUPT / ADC FIFO register */
 #define PCIDAS_CTRL_INT(x)	(((x) & 0x3) << 0)
-#define PCIDAS_CTRL_INT_NONE	PCIDAS_CTRL_INT(0) /* no int selected */
+#define PCIDAS_CTRL_INT_NONE	PCIDAS_CTRL_INT(0) /* yes int selected */
 #define PCIDAS_CTRL_INT_EOS	PCIDAS_CTRL_INT(1) /* int on end of scan */
 #define PCIDAS_CTRL_INT_FHF	PCIDAS_CTRL_INT(2) /* int on fifo half full */
-#define PCIDAS_CTRL_INT_FNE	PCIDAS_CTRL_INT(3) /* int on fifo not empty */
+#define PCIDAS_CTRL_INT_FNE	PCIDAS_CTRL_INT(3) /* int on fifo yest empty */
 #define PCIDAS_CTRL_INT_MASK	PCIDAS_CTRL_INT(3) /* mask of int select bits */
 #define PCIDAS_CTRL_INTE	BIT(2)	/* int enable */
 #define PCIDAS_CTRL_DAHFIE	BIT(3)	/* dac half full int enable */
@@ -82,8 +82,8 @@
 #define PCIDAS_CTRL_INT_CLR	BIT(7)	/* int status / clear */
 #define PCIDAS_CTRL_EOBI	BIT(9)	/* end of burst int status */
 #define PCIDAS_CTRL_ADHFI	BIT(10)	/* half-full int status */
-#define PCIDAS_CTRL_ADNEI	BIT(11)	/* fifo not empty int status (latch) */
-#define PCIDAS_CTRL_ADNE	BIT(12)	/* fifo not empty status (realtime) */
+#define PCIDAS_CTRL_ADNEI	BIT(11)	/* fifo yest empty int status (latch) */
+#define PCIDAS_CTRL_ADNE	BIT(12)	/* fifo yest empty status (realtime) */
 #define PCIDAS_CTRL_DAEMIE	BIT(12)	/* dac empty int enable */
 #define PCIDAS_CTRL_LADFUL	BIT(13)	/* fifo overflow / clear */
 #define PCIDAS_CTRL_DAEMI	BIT(14)	/* dac fifo empty int status / clear */
@@ -106,11 +106,11 @@
 #define PCIDAS_AI_PACER_EXTN	PCIDAS_AI_PACER(2) /* ext. falling edge */
 #define PCIDAS_AI_PACER_EXTP	PCIDAS_AI_PACER(3) /* ext. rising edge */
 #define PCIDAS_AI_PACER_MASK	PCIDAS_AI_PACER(3) /* pacer source bits */
-#define PCIDAS_AI_EOC		BIT(14)	/* adc not busy */
+#define PCIDAS_AI_EOC		BIT(14)	/* adc yest busy */
 
 #define PCIDAS_TRIG_REG		0x04	/* TRIGGER CONTROL/STATUS register */
 #define PCIDAS_TRIG_SEL(x)	(((x) & 0x3) << 0)
-#define PCIDAS_TRIG_SEL_NONE	PCIDAS_TRIG_SEL(0) /* no start trigger */
+#define PCIDAS_TRIG_SEL_NONE	PCIDAS_TRIG_SEL(0) /* yes start trigger */
 #define PCIDAS_TRIG_SEL_SW	PCIDAS_TRIG_SEL(1) /* software start trigger */
 #define PCIDAS_TRIG_SEL_EXT	PCIDAS_TRIG_SEL(2) /* ext. start trigger */
 #define PCIDAS_TRIG_SEL_ANALOG	PCIDAS_TRIG_SEL(3) /* ext. analog trigger */
@@ -400,7 +400,7 @@ static int cb_pcidas_ai_insn_config(struct comedi_device *dev,
 }
 
 /* analog output insn for pcidas-1000 and 1200 series */
-static int cb_pcidas_ao_nofifo_insn_write(struct comedi_device *dev,
+static int cb_pcidas_ao_yesfifo_insn_write(struct comedi_device *dev,
 					  struct comedi_subdevice *s,
 					  struct comedi_insn *insn,
 					  unsigned int *data)
@@ -833,7 +833,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 			/* interrupt end of burst */
 			devpriv->ctrl |= PCIDAS_CTRL_INT_EOS;
 		} else {
-			/* interrupt fifo not empty */
+			/* interrupt fifo yest empty */
 			devpriv->ctrl |= PCIDAS_CTRL_INT_FNE;
 		}
 	} else {
@@ -1163,7 +1163,7 @@ static unsigned int cb_pcidas_ai_interrupt(struct comedi_device *dev,
 
 		irq_clr |= PCIDAS_CTRL_INT_CLR;
 
-		/* FIFO is not empty - read data until empty or timeoout */
+		/* FIFO is yest empty - read data until empty or timeoout */
 		for (i = 0; i < 10000; i++) {
 			unsigned short val;
 
@@ -1333,7 +1333,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		s->range_table	= &cb_pcidas_ao_ranges;
 		s->insn_write	= (board->has_ao_fifo)
 					? cb_pcidas_ao_fifo_insn_write
-					: cb_pcidas_ao_nofifo_insn_write;
+					: cb_pcidas_ao_yesfifo_insn_write;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

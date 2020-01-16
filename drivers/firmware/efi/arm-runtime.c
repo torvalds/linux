@@ -100,7 +100,7 @@ static bool __init efi_virtmap_init(void)
 
 /*
  * Enable the UEFI Runtime Services if all prerequisites are in place, i.e.,
- * non-early mapping of the UEFI system table and virtual mappings for all
+ * yesn-early mapping of the UEFI system table and virtual mappings for all
  * EFI_MEMORY_RUNTIME regions.
  */
 static int __init arm_enable_runtime_services(void)
@@ -108,7 +108,7 @@ static int __init arm_enable_runtime_services(void)
 	u64 mapsize;
 
 	if (!efi_enabled(EFI_BOOT)) {
-		pr_info("EFI services will not be available.\n");
+		pr_info("EFI services will yest be available.\n");
 		return 0;
 	}
 
@@ -158,7 +158,7 @@ static int __init arm_enable_runtime_services(void)
 	pr_info("Remapping and enabling EFI services.\n");
 
 	if (!efi_virtmap_init()) {
-		pr_err("UEFI virtual mapping missing or invalid -- runtime services will not be available\n");
+		pr_err("UEFI virtual mapping missing or invalid -- runtime services will yest be available\n");
 		return -ENOMEM;
 	}
 

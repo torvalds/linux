@@ -9,7 +9,7 @@ the prefix for a property, indicates support by the ST Micro variant.
 
 Required properties:
 - compatible             : contains "arm,pl18x", "arm,primecell".
-- vmmc-supply            : phandle to the regulator device tree node, mentioned
+- vmmc-supply            : phandle to the regulator device tree yesde, mentioned
                            as the VCC/VDD supply in the eMMC/SD specs.
 
 Optional properties:
@@ -17,7 +17,7 @@ Optional properties:
                            the ID provided by the HW
 - resets                 : phandle to internal reset line.
 			   Should be defined for sdmmc variant.
-- vqmmc-supply           : phandle to the regulator device tree node, mentioned
+- vqmmc-supply           : phandle to the regulator device tree yesde, mentioned
                            as the VCCQ/VDD_IO supply in the eMMC/SD specs.
 specific for ux500 variant:
 - st,sig-dir-dat0        : bus signal direction pin used for DAT[0].

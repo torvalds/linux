@@ -63,10 +63,10 @@
  *					can be adjusted
  * 1	0x02	report max		query 0x0d gives max coord reported
  * 1	0x04	clearpad		sensor is ClearPad product
- * 1	0x08	advanced gesture	not particularly meaningful
+ * 1	0x08	advanced gesture	yest particularly meaningful
  * 1	0x10	clickpad bit 0		1-button ClickPad
  * 1	0x60	multifinger mode	identifies firmware finger counting
- *					(not reporting!) algorithm.
+ *					(yest reporting!) algorithm.
  *					Not particularly meaningful
  * 1	0x80	covered pad		W clipped to 14, 15 == pad mostly covered
  * 2	0x01	clickpad bit 1		2-button ClickPad
@@ -74,7 +74,7 @@
  *					ala multimedia control bar
  * 2	0x04	reduced filtering	firmware does less filtering on
  *					position data, driver should watch
- *					for noise.
+ *					for yesise.
  * 2	0x08	image sensor		image sensor tracks 5 fingers, but only
  *					reports 2.
  * 2	0x01	uniform clickpad	whole clickpad moves instead of being

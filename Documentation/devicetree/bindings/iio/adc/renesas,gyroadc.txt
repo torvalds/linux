@@ -18,16 +18,16 @@ Required properties:
 		Documentation/devicetree/bindings/clock/clock-bindings.txt.
 - clock-names:	Shall contain "fck". The "fck" is the GyroADC block clock.
 - power-domains: Must contain a reference to the PM domain, if available.
-- #address-cells: Should be <1> (setting for the subnodes) for all ADCs
+- #address-cells: Should be <1> (setting for the subyesdes) for all ADCs
 		except for "fujitsu,mb88101a". Should be <0> (setting for
-		only subnode) for "fujitsu,mb88101a".
-- #size-cells:	Should be <0> (setting for the subnodes)
+		only subyesde) for "fujitsu,mb88101a".
+- #size-cells:	Should be <0> (setting for the subyesdes)
 
-Sub-nodes:
-You must define subnode(s) which select the connected ADC type and reference
+Sub-yesdes:
+You must define subyesde(s) which select the connected ADC type and reference
 voltage for the GyroADC channels.
 
-Required properties for subnodes:
+Required properties for subyesdes:
 - compatible:	Should be either of:
 		"fujitsu,mb88101a"
 			- Fujitsu MB88101A compatible mode,
@@ -37,7 +37,7 @@ Required properties for subnodes:
 			  on the chip and thus for 4-channel operation, single
 			  MB88101A is required. The Cx chipselect lines of the
 			  MB88101A connect directly to two CHS lines of the
-			  GyroADC, no demuxer is required. The data out line
+			  GyroADC, yes demuxer is required. The data out line
 			  of each MB88101A connects to a shared input pin of
 			  the GyroADC.
 		"ti,adcs7476" or "ti,adc121" or "adi,ad7476"

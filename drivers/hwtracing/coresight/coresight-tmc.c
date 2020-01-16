@@ -142,7 +142,7 @@ static int tmc_read_unprepare(struct tmc_drvdata *drvdata)
 	return ret;
 }
 
-static int tmc_open(struct inode *inode, struct file *file)
+static int tmc_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 	struct tmc_drvdata *drvdata = container_of(file->private_data,
@@ -152,7 +152,7 @@ static int tmc_open(struct inode *inode, struct file *file)
 	if (ret)
 		return ret;
 
-	nonseekable_open(inode, file);
+	yesnseekable_open(iyesde, file);
 
 	dev_dbg(&drvdata->csdev->dev, "%s: successfully opened\n", __func__);
 	return 0;
@@ -195,7 +195,7 @@ static ssize_t tmc_read(struct file *file, char __user *data, size_t len,
 	return actual;
 }
 
-static int tmc_release(struct inode *inode, struct file *file)
+static int tmc_release(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 	struct tmc_drvdata *drvdata = container_of(file->private_data,
@@ -214,7 +214,7 @@ static const struct file_operations tmc_fops = {
 	.open		= tmc_open,
 	.read		= tmc_read,
 	.release	= tmc_release,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static enum tmc_mem_intf_width tmc_get_memwidth(u32 devid)
@@ -369,10 +369,10 @@ const struct attribute_group *coresight_tmc_groups[] = {
 
 static inline bool tmc_etr_can_use_sg(struct device *dev)
 {
-	return fwnode_property_present(dev->fwnode, "arm,scatter-gather");
+	return fwyesde_property_present(dev->fwyesde, "arm,scatter-gather");
 }
 
-static inline bool tmc_etr_has_non_secure_access(struct tmc_drvdata *drvdata)
+static inline bool tmc_etr_has_yesn_secure_access(struct tmc_drvdata *drvdata)
 {
 	u32 auth = readl_relaxed(drvdata->base + TMC_AUTHSTATUS);
 
@@ -386,7 +386,7 @@ static int tmc_etr_setup_caps(struct device *parent, u32 devid, void *dev_caps)
 	u32 dma_mask = 0;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(parent);
 
-	if (!tmc_etr_has_non_secure_access(drvdata))
+	if (!tmc_etr_has_yesn_secure_access(drvdata))
 		return -EACCES;
 
 	/* Set the unadvertised capabilities */
@@ -426,7 +426,7 @@ static u32 tmc_etr_get_default_buffer_size(struct device *dev)
 {
 	u32 size;
 
-	if (fwnode_property_read_u32(dev->fwnode, "arm,buffer-size", &size))
+	if (fwyesde_property_read_u32(dev->fwyesde, "arm,buffer-size", &size))
 		size = SZ_1M;
 	return size;
 }
@@ -464,7 +464,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	devid = readl_relaxed(drvdata->base + CORESIGHT_DEVID);
 	drvdata->config_type = BMVAL(devid, 6, 7);
 	drvdata->memwidth = tmc_get_memwidth(devid);
-	/* This device is not associated with a session */
+	/* This device is yest associated with a session */
 	drvdata->pid = -1;
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR)
@@ -527,7 +527,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	drvdata->miscdev.name = desc.name;
-	drvdata->miscdev.minor = MISC_DYNAMIC_MINOR;
+	drvdata->miscdev.miyesr = MISC_DYNAMIC_MINOR;
 	drvdata->miscdev.fops = &tmc_fops;
 	ret = misc_register(&drvdata->miscdev);
 	if (ret)

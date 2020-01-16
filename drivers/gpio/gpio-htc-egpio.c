@@ -2,14 +2,14 @@
  * Support for the GPIO/IRQ expander chips present on several HTC phones.
  * These are implemented in CPLD chips present on the board.
  *
- * Copyright (c) 2007 Kevin O'Connor <kevin@koconnor.net>
+ * Copyright (c) 2007 Kevin O'Conyesr <kevin@koconyesr.net>
  * Copyright (c) 2007 Philipp Zabel <philipp.zabel@gmail.com>
  *
  * This file may be distributed under the terms of the GNU GPL license.
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
@@ -75,8 +75,8 @@ static void egpio_ack(struct irq_data *data)
 {
 }
 
-/* There does not appear to be a way to proactively mask interrupts
- * on the egpio chip itself.  So, we simply ignore interrupts that
+/* There does yest appear to be a way to proactively mask interrupts
+ * on the egpio chip itself.  So, we simply igyesre interrupts that
  * aren't desired. */
 static void egpio_mask(struct irq_data *data)
 {

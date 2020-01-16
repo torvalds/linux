@@ -268,8 +268,8 @@ static int bq24257_get_input_current_limit(struct bq24257_device *bq,
 		return ret;
 
 	/*
-	 * The "External ILIM" and "Production & Test" modes are not exposed
-	 * through this driver and not being covered by the lookup table.
+	 * The "External ILIM" and "Production & Test" modes are yest exposed
+	 * through this driver and yest being covered by the lookup table.
 	 * Should such a mode have become active let's return an error rather
 	 * than exceeding the bounds of the lookup table and returning
 	 * garbage.
@@ -441,9 +441,9 @@ static int bq24257_get_chip_state(struct bq24257_device *bq,
 		/*
 		 * If we have a chip without a dedicated power-good GPIO or
 		 * some other explicit bit that would provide this information
-		 * assume the power is good if there is no supply related
-		 * fault - and not good otherwise. There is a possibility for
-		 * other errors to mask that power in fact is not good but this
+		 * assume the power is good if there is yes supply related
+		 * fault - and yest good otherwise. There is a possibility for
+		 * other errors to mask that power in fact is yest good but this
 		 * is probably the best we can do here.
 		 */
 		switch (state->fault) {
@@ -553,7 +553,7 @@ static int bq24257_iilimit_autoset(struct bq24257_device *bq)
 	iilimit = ret;
 
 	/*
-	 * All USB ports should be able to handle 500mA. If not, DPM will lower
+	 * All USB ports should be able to handle 500mA. If yest, DPM will lower
 	 * the charging current to accommodate the power source. No need to set
 	 * a lower IILIMIT value.
 	 */
@@ -907,7 +907,7 @@ static int bq24257_fw_probe(struct bq24257_device *bq)
 	bq->init_data.iterm = bq24257_find_idx(property, bq24257_iterm_map,
 					       BQ24257_ITERM_MAP_SIZE);
 
-	/* Optional properties. If not provided use reasonable default. */
+	/* Optional properties. If yest provided use reasonable default. */
 	ret = device_property_read_u32(bq->dev, "ti,current-limit",
 				       &property);
 	if (ret < 0) {
@@ -995,7 +995,7 @@ static int bq24257_probe(struct i2c_client *client,
 		bq->rmap_fields[i] = devm_regmap_field_alloc(dev, bq->rmap,
 							     reg_fields[i]);
 		if (IS_ERR(bq->rmap_fields[i])) {
-			dev_err(dev, "cannot allocate regmap field\n");
+			dev_err(dev, "canyest allocate regmap field\n");
 			return PTR_ERR(bq->rmap_fields[i]);
 		}
 	}
@@ -1005,7 +1005,7 @@ static int bq24257_probe(struct i2c_client *client,
 	if (!dev->platform_data) {
 		ret = bq24257_fw_probe(bq);
 		if (ret < 0) {
-			dev_err(dev, "Cannot read device properties.\n");
+			dev_err(dev, "Canyest read device properties.\n");
 			return ret;
 		}
 	} else {
@@ -1026,9 +1026,9 @@ static int bq24257_probe(struct i2c_client *client,
 
 	/*
 	 * The BQ24250 doesn't have a dedicated Power Good (PG) pin so let's
-	 * not probe for it and instead use a SW-based approach to determine
+	 * yest probe for it and instead use a SW-based approach to determine
 	 * the PG state. We also use a SW-based approach for all other devices
-	 * if the PG pin is either not defined or can't be probed.
+	 * if the PG pin is either yest defined or can't be probed.
 	 */
 	if (bq->chip != BQ24250)
 		bq24257_pg_gpio_probe(bq);
@@ -1046,7 +1046,7 @@ static int bq24257_probe(struct i2c_client *client,
 	/*
 	 * Put the RESET bit back to 0, in cache. For some reason the HW always
 	 * returns 1 on this bit, so this is the only way to avoid resetting the
-	 * chip every time we update another field in this register.
+	 * chip every time we update ayesther field in this register.
 	 */
 	ret = bq24257_field_write(bq, F_RESET, 0);
 	if (ret < 0)
@@ -1054,7 +1054,7 @@ static int bq24257_probe(struct i2c_client *client,
 
 	ret = bq24257_hw_init(bq);
 	if (ret < 0) {
-		dev_err(dev, "Cannot initialize the chip.\n");
+		dev_err(dev, "Canyest initialize the chip.\n");
 		return ret;
 	}
 
@@ -1101,7 +1101,7 @@ static int bq24257_suspend(struct device *dev)
 	/* reset all registers to default (and activate standalone mode) */
 	ret = bq24257_field_write(bq, F_RESET, 1);
 	if (ret < 0)
-		dev_err(bq->dev, "Cannot reset chip to standalone mode.\n");
+		dev_err(bq->dev, "Canyest reset chip to standalone mode.\n");
 
 	return ret;
 }
@@ -1121,7 +1121,7 @@ static int bq24257_resume(struct device *dev)
 
 	ret = bq24257_hw_init(bq);
 	if (ret < 0) {
-		dev_err(bq->dev, "Cannot init chip after resume.\n");
+		dev_err(bq->dev, "Canyest init chip after resume.\n");
 		return ret;
 	}
 

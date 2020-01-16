@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/kprobes.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/sched/cputime.h>
@@ -69,7 +69,7 @@ DEVICE_ATTR(idle_count, 0444, show_idle_count, NULL);
 static ssize_t show_idle_time(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	unsigned long long now, idle_time, idle_enter, idle_exit, in_idle;
+	unsigned long long yesw, idle_time, idle_enter, idle_exit, in_idle;
 	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
 	unsigned int seq;
 
@@ -80,12 +80,12 @@ static ssize_t show_idle_time(struct device *dev,
 		idle_exit = READ_ONCE(idle->clock_idle_exit);
 	} while (read_seqcount_retry(&idle->seqcount, seq));
 	in_idle = 0;
-	now = get_tod_clock();
+	yesw = get_tod_clock();
 	if (idle_enter) {
 		if (idle_exit) {
 			in_idle = idle_exit - idle_enter;
-		} else if (now > idle_enter) {
-			in_idle = now - idle_enter;
+		} else if (yesw > idle_enter) {
+			in_idle = yesw - idle_enter;
 		}
 	}
 	idle_time += in_idle;
@@ -96,7 +96,7 @@ DEVICE_ATTR(idle_time_us, 0444, show_idle_time, NULL);
 u64 arch_cpu_idle_time(int cpu)
 {
 	struct s390_idle_data *idle = &per_cpu(s390_idle, cpu);
-	unsigned long long now, idle_enter, idle_exit, in_idle;
+	unsigned long long yesw, idle_enter, idle_exit, in_idle;
 	unsigned int seq;
 
 	do {
@@ -105,12 +105,12 @@ u64 arch_cpu_idle_time(int cpu)
 		idle_exit = READ_ONCE(idle->clock_idle_exit);
 	} while (read_seqcount_retry(&idle->seqcount, seq));
 	in_idle = 0;
-	now = get_tod_clock();
+	yesw = get_tod_clock();
 	if (idle_enter) {
 		if (idle_exit) {
 			in_idle = idle_exit - idle_enter;
-		} else if (now > idle_enter) {
-			in_idle = now - idle_enter;
+		} else if (yesw > idle_enter) {
+			in_idle = yesw - idle_enter;
 		}
 	}
 	return cputime_to_nsecs(in_idle);

@@ -7,10 +7,10 @@ producer, gpio mux producer or generic register based mux producer.
 Required properties in addition to the MDIO Bus multiplexer properties:
 
 - compatible : should be "mmio-mux-multiplexer"
-- mux-controls : mux controller node to use for operating the mux
+- mux-controls : mux controller yesde to use for operating the mux
 - mdio-parent-bus : phandle to the parent MDIO bus.
 
-each child node of mdio bus multiplexer consumer device represent a mdio
+each child yesde of mdio bus multiplexer consumer device represent a mdio
 bus.
 
 for more information please refer
@@ -18,7 +18,7 @@ Documentation/devicetree/bindings/mux/mux-controller.txt
 and Documentation/devicetree/bindings/net/mdio-mux.txt
 
 Example:
-In below example the Mux producer and consumer are separate nodes.
+In below example the Mux producer and consumer are separate yesdes.
 
 &i2c0 {
 	fpga@66 { // fpga connected to i2c

@@ -12,12 +12,12 @@
  * OS via SFI tables.
  * Timer interrupts are routed via FW/HW emulated IOAPIC independently via
  * individual redirection table entries (RTE).
- * Unlike HPET, there is no master counter, therefore one of the timers are
+ * Unlike HPET, there is yes master counter, therefore one of the timers are
  * used as clocksource. The overall allocation looks like:
  *  - timer 0 - NR_CPUs for per cpu timer
  *  - one timer for clocksource
  *  - one timer for watchdog driver.
- * It is also worth notice that APB timer does not support true one-shot mode,
+ * It is also worth yestice that APB timer does yest support true one-shot mode,
  * free-running mode will be used here to emulate one-shot mode.
  * APB timer can also be used as broadcast timer along with per cpu local APIC
  * timer, but by default APB timer has higher rating than local APIC timers.
@@ -25,7 +25,7 @@
 
 #include <linux/delay.h>
 #include <linux/dw_apb_timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/pm.h>
@@ -95,11 +95,11 @@ static inline void apbt_set_mapping(void)
 		printk(KERN_WARNING "No timer base from SFI, use default\n");
 		apbt_address = APBT_DEFAULT_BASE;
 	}
-	apbt_virt_address = ioremap_nocache(apbt_address, APBT_MMAP_SIZE);
+	apbt_virt_address = ioremap_yescache(apbt_address, APBT_MMAP_SIZE);
 	if (!apbt_virt_address) {
 		pr_debug("Failed mapping APBT phy address at %lu\n",\
 			 (unsigned long)apbt_address);
-		goto panic_noapbt;
+		goto panic_yesapbt;
 	}
 	apbt_freq = mtmr->freq_hz;
 	sfi_free_mtmr(mtmr);
@@ -107,7 +107,7 @@ static inline void apbt_set_mapping(void)
 	/* Now figure out the physical timer id for clocksource device */
 	mtmr = sfi_get_mtmr(APBT_CLOCKSOURCE_NUM);
 	if (mtmr == NULL)
-		goto panic_noapbt;
+		goto panic_yesapbt;
 
 	/* Now figure out the physical timer id */
 	pr_debug("Use timer %d for clocksource\n",
@@ -120,7 +120,7 @@ static inline void apbt_set_mapping(void)
 		APBTMRS_REG_SIZE, apbt_freq);
 	return;
 
-panic_noapbt:
+panic_yesapbt:
 	panic("Failed to setup APB system timer\n");
 
 }
@@ -202,13 +202,13 @@ void apbt_setup_secondary_clock(void)
 }
 
 /*
- * this notify handler process CPU hotplug events. in case of S0i3, nonboot
+ * this yestify handler process CPU hotplug events. in case of S0i3, yesnboot
  * cpus are disabled/enabled frequently, for performance reasons, we keep the
  * per cpu timer irq registered so that we do need to do free_irq/request_irq.
  *
  * TODO: it might be more reliable to directly disable percpu clockevent device
- * without the notifier chain. currently, cpu 0 may get interrupts from other
- * cpu timers during the offline process due to the ordering of notification.
+ * without the yestifier chain. currently, cpu 0 may get interrupts from other
+ * cpu timers during the offline process due to the ordering of yestification.
  * the extra interrupt is harmless.
  */
 static int apbt_cpu_dead(unsigned int cpu)
@@ -242,7 +242,7 @@ void apbt_setup_secondary_clock(void) {}
 
 static int apbt_clocksource_register(void)
 {
-	u64 start, now;
+	u64 start, yesw;
 	u64 t1;
 
 	/* Start the counter, use timer 2 as source, timer 0/1 for event */
@@ -253,19 +253,19 @@ static int apbt_clocksource_register(void)
 	start = rdtsc();
 
 	/*
-	 * We don't know the TSC frequency yet, but waiting for
+	 * We don't kyesw the TSC frequency yet, but waiting for
 	 * 200000 TSC cycles is safe:
 	 * 4 GHz == 50us
 	 * 1 GHz == 200us
 	 */
 	do {
-		rep_nop();
-		now = rdtsc();
-	} while ((now - start) < 200000UL);
+		rep_yesp();
+		yesw = rdtsc();
+	} while ((yesw - start) < 200000UL);
 
 	/* APBT is the only always on clocksource, it has to work! */
 	if (t1 == dw_apb_clocksource_read(clocksource_apbt))
-		panic("APBT counter not counting. APBT disabled\n");
+		panic("APBT counter yest counting. APBT disabled\n");
 
 	dw_apb_clocksource_register(clocksource_apbt);
 
@@ -276,7 +276,7 @@ static int apbt_clocksource_register(void)
  * Early setup the APBT timer, only use timer 0 for booting then switch to
  * per CPU timer if possible.
  * returns 1 if per cpu apbt is setup
- * returns 0 if no per cpu apbt is chosen
+ * returns 0 if yes per cpu apbt is chosen
  * panic if set up failed, this is the only platform timer on Moorestown.
  */
 void __init apbt_time_init(void)
@@ -291,7 +291,7 @@ void __init apbt_time_init(void)
 		return;
 	apbt_set_mapping();
 	if (!apbt_virt_address)
-		goto out_noapbt;
+		goto out_yesapbt;
 	/*
 	 * Read the frequency and check for a sane value, for ESL model
 	 * we extend the possible clock range to allow time scaling.
@@ -299,17 +299,17 @@ void __init apbt_time_init(void)
 
 	if (apbt_freq < APBT_MIN_FREQ || apbt_freq > APBT_MAX_FREQ) {
 		pr_debug("APBT has invalid freq 0x%lx\n", apbt_freq);
-		goto out_noapbt;
+		goto out_yesapbt;
 	}
 	if (apbt_clocksource_register()) {
 		pr_debug("APBT has failed to register clocksource\n");
-		goto out_noapbt;
+		goto out_yesapbt;
 	}
 	if (!apbt_clockevent_register())
 		apb_timer_block_enabled = 1;
 	else {
 		pr_debug("APBT has failed to register clockevent\n");
-		goto out_noapbt;
+		goto out_yesapbt;
 	}
 #ifdef CONFIG_SMP
 	/* kernel cmdline disable apb timer, so we will use lapic timers */
@@ -340,7 +340,7 @@ void __init apbt_time_init(void)
 
 	return;
 
-out_noapbt:
+out_yesapbt:
 	apbt_clear_mapping();
 	apb_timer_block_enabled = 0;
 	panic("failed to enable APB timer\n");
@@ -388,7 +388,7 @@ unsigned long apbt_quick_calibrate(void)
 	shift = 5;
 	if (unlikely(loop >> shift == 0)) {
 		printk(KERN_INFO
-		       "APBT TSC calibration failed, not enough resolution\n");
+		       "APBT TSC calibration failed, yest eyesugh resolution\n");
 		return 0;
 	}
 	scale = (int)div_u64((t2 - t1), loop >> shift);

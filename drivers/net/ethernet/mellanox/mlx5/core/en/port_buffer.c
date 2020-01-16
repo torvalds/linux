@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -156,7 +156,7 @@ static int update_xoff_threshold(struct mlx5e_port_buffer *port_buffer,
 
 		if (port_buffer->buffer[i].size <
 		    (xoff + max_mtu + (1 << MLX5E_BUFFER_CELL_SHIFT))) {
-			pr_err("buffer_size[%d]=%d is not enough for lossless buffer\n",
+			pr_err("buffer_size[%d]=%d is yest eyesugh for lossless buffer\n",
 			       i, port_buffer->buffer[i].size);
 			return -ENOMEM;
 		}
@@ -185,7 +185,7 @@ static int update_xoff_threshold(struct mlx5e_port_buffer *port_buffer,
  *		mapped to this buffer lossy if all priorities mapped to
  *		this buffer are PFC disabled
  *
- *	@return: 0 if no error,
+ *	@return: 0 if yes error,
  *	sets change to true if buffer configuration was modified.
  */
 static int update_buffer_lossy(unsigned int max_mtu,
@@ -314,7 +314,7 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 		for (i = 0; i < MLX5E_MAX_BUFFER; i++) {
 			mlx5e_dbg(HW, priv, "%s: buffer[%d]=%d\n", __func__, i, buffer_size[i]);
 			if (!port_buffer.buffer[i].lossy && !buffer_size[i]) {
-				mlx5e_dbg(HW, priv, "%s: lossless buffer[%d] size cannot be zero\n",
+				mlx5e_dbg(HW, priv, "%s: lossless buffer[%d] size canyest be zero\n",
 					  __func__, i);
 				return -EINVAL;
 			}

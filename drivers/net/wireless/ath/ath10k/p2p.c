@@ -8,16 +8,16 @@
 #include "mac.h"
 #include "p2p.h"
 
-static void ath10k_p2p_noa_ie_fill(u8 *data, size_t len,
-				   const struct wmi_p2p_noa_info *noa)
+static void ath10k_p2p_yesa_ie_fill(u8 *data, size_t len,
+				   const struct wmi_p2p_yesa_info *yesa)
 {
-	struct ieee80211_p2p_noa_attr *noa_attr;
-	u8  ctwindow_oppps = noa->ctwindow_oppps;
+	struct ieee80211_p2p_yesa_attr *yesa_attr;
+	u8  ctwindow_oppps = yesa->ctwindow_oppps;
 	u8 ctwindow = ctwindow_oppps >> WMI_P2P_OPPPS_CTWINDOW_OFFSET;
 	bool oppps = !!(ctwindow_oppps & WMI_P2P_OPPPS_ENABLE_BIT);
-	__le16 *noa_attr_len;
+	__le16 *yesa_attr_len;
 	u16 attr_len;
-	u8 noa_descriptors = noa->num_descriptors;
+	u8 yesa_descriptors = yesa->num_descriptors;
 	int i;
 
 	/* P2P IE */
@@ -30,58 +30,58 @@ static void ath10k_p2p_noa_ie_fill(u8 *data, size_t len,
 
 	/* NOA ATTR */
 	data[6] = IEEE80211_P2P_ATTR_ABSENCE_NOTICE;
-	noa_attr_len = (__le16 *)&data[7]; /* 2 bytes */
-	noa_attr = (struct ieee80211_p2p_noa_attr *)&data[9];
+	yesa_attr_len = (__le16 *)&data[7]; /* 2 bytes */
+	yesa_attr = (struct ieee80211_p2p_yesa_attr *)&data[9];
 
-	noa_attr->index = noa->index;
-	noa_attr->oppps_ctwindow = ctwindow;
+	yesa_attr->index = yesa->index;
+	yesa_attr->oppps_ctwindow = ctwindow;
 	if (oppps)
-		noa_attr->oppps_ctwindow |= IEEE80211_P2P_OPPPS_ENABLE_BIT;
+		yesa_attr->oppps_ctwindow |= IEEE80211_P2P_OPPPS_ENABLE_BIT;
 
-	for (i = 0; i < noa_descriptors; i++) {
-		noa_attr->desc[i].count =
-			__le32_to_cpu(noa->descriptors[i].type_count);
-		noa_attr->desc[i].duration = noa->descriptors[i].duration;
-		noa_attr->desc[i].interval = noa->descriptors[i].interval;
-		noa_attr->desc[i].start_time = noa->descriptors[i].start_time;
+	for (i = 0; i < yesa_descriptors; i++) {
+		yesa_attr->desc[i].count =
+			__le32_to_cpu(yesa->descriptors[i].type_count);
+		yesa_attr->desc[i].duration = yesa->descriptors[i].duration;
+		yesa_attr->desc[i].interval = yesa->descriptors[i].interval;
+		yesa_attr->desc[i].start_time = yesa->descriptors[i].start_time;
 	}
 
 	attr_len = 2; /* index + oppps_ctwindow */
-	attr_len += noa_descriptors * sizeof(struct ieee80211_p2p_noa_desc);
-	*noa_attr_len = __cpu_to_le16(attr_len);
+	attr_len += yesa_descriptors * sizeof(struct ieee80211_p2p_yesa_desc);
+	*yesa_attr_len = __cpu_to_le16(attr_len);
 }
 
-static size_t ath10k_p2p_noa_ie_len_compute(const struct wmi_p2p_noa_info *noa)
+static size_t ath10k_p2p_yesa_ie_len_compute(const struct wmi_p2p_yesa_info *yesa)
 {
 	size_t len = 0;
 
-	if (!noa->num_descriptors &&
-	    !(noa->ctwindow_oppps & WMI_P2P_OPPPS_ENABLE_BIT))
+	if (!yesa->num_descriptors &&
+	    !(yesa->ctwindow_oppps & WMI_P2P_OPPPS_ENABLE_BIT))
 		return 0;
 
 	len += 1 + 1 + 4; /* EID + len + OUI */
-	len += 1 + 2; /* noa attr + attr len */
+	len += 1 + 2; /* yesa attr + attr len */
 	len += 1 + 1; /* index + oppps_ctwindow */
-	len += noa->num_descriptors * sizeof(struct ieee80211_p2p_noa_desc);
+	len += yesa->num_descriptors * sizeof(struct ieee80211_p2p_yesa_desc);
 
 	return len;
 }
 
-static void ath10k_p2p_noa_ie_assign(struct ath10k_vif *arvif, void *ie,
+static void ath10k_p2p_yesa_ie_assign(struct ath10k_vif *arvif, void *ie,
 				     size_t len)
 {
 	struct ath10k *ar = arvif->ar;
 
 	lockdep_assert_held(&ar->data_lock);
 
-	kfree(arvif->u.ap.noa_data);
+	kfree(arvif->u.ap.yesa_data);
 
-	arvif->u.ap.noa_data = ie;
-	arvif->u.ap.noa_len = len;
+	arvif->u.ap.yesa_data = ie;
+	arvif->u.ap.yesa_len = len;
 }
 
-static void __ath10k_p2p_noa_update(struct ath10k_vif *arvif,
-				    const struct wmi_p2p_noa_info *noa)
+static void __ath10k_p2p_yesa_update(struct ath10k_vif *arvif,
+				    const struct wmi_p2p_yesa_info *yesa)
 {
 	struct ath10k *ar = arvif->ar;
 	void *ie;
@@ -89,9 +89,9 @@ static void __ath10k_p2p_noa_update(struct ath10k_vif *arvif,
 
 	lockdep_assert_held(&ar->data_lock);
 
-	ath10k_p2p_noa_ie_assign(arvif, NULL, 0);
+	ath10k_p2p_yesa_ie_assign(arvif, NULL, 0);
 
-	len = ath10k_p2p_noa_ie_len_compute(noa);
+	len = ath10k_p2p_yesa_ie_len_compute(yesa);
 	if (!len)
 		return;
 
@@ -99,47 +99,47 @@ static void __ath10k_p2p_noa_update(struct ath10k_vif *arvif,
 	if (!ie)
 		return;
 
-	ath10k_p2p_noa_ie_fill(ie, len, noa);
-	ath10k_p2p_noa_ie_assign(arvif, ie, len);
+	ath10k_p2p_yesa_ie_fill(ie, len, yesa);
+	ath10k_p2p_yesa_ie_assign(arvif, ie, len);
 }
 
-void ath10k_p2p_noa_update(struct ath10k_vif *arvif,
-			   const struct wmi_p2p_noa_info *noa)
+void ath10k_p2p_yesa_update(struct ath10k_vif *arvif,
+			   const struct wmi_p2p_yesa_info *yesa)
 {
 	struct ath10k *ar = arvif->ar;
 
 	spin_lock_bh(&ar->data_lock);
-	__ath10k_p2p_noa_update(arvif, noa);
+	__ath10k_p2p_yesa_update(arvif, yesa);
 	spin_unlock_bh(&ar->data_lock);
 }
 
-struct ath10k_p2p_noa_arg {
+struct ath10k_p2p_yesa_arg {
 	u32 vdev_id;
-	const struct wmi_p2p_noa_info *noa;
+	const struct wmi_p2p_yesa_info *yesa;
 };
 
-static void ath10k_p2p_noa_update_vdev_iter(void *data, u8 *mac,
+static void ath10k_p2p_yesa_update_vdev_iter(void *data, u8 *mac,
 					    struct ieee80211_vif *vif)
 {
 	struct ath10k_vif *arvif = (void *)vif->drv_priv;
-	struct ath10k_p2p_noa_arg *arg = data;
+	struct ath10k_p2p_yesa_arg *arg = data;
 
 	if (arvif->vdev_id != arg->vdev_id)
 		return;
 
-	ath10k_p2p_noa_update(arvif, arg->noa);
+	ath10k_p2p_yesa_update(arvif, arg->yesa);
 }
 
-void ath10k_p2p_noa_update_by_vdev_id(struct ath10k *ar, u32 vdev_id,
-				      const struct wmi_p2p_noa_info *noa)
+void ath10k_p2p_yesa_update_by_vdev_id(struct ath10k *ar, u32 vdev_id,
+				      const struct wmi_p2p_yesa_info *yesa)
 {
-	struct ath10k_p2p_noa_arg arg = {
+	struct ath10k_p2p_yesa_arg arg = {
 		.vdev_id = vdev_id,
-		.noa = noa,
+		.yesa = yesa,
 	};
 
 	ieee80211_iterate_active_interfaces_atomic(ar->hw,
 						   IEEE80211_IFACE_ITER_NORMAL,
-						   ath10k_p2p_noa_update_vdev_iter,
+						   ath10k_p2p_yesa_update_vdev_iter,
 						   &arg);
 }

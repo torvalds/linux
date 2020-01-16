@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDEO_FREEZE:
 
@@ -20,7 +20,7 @@ VIDEO_FREEZE
 
 .. attention:: This ioctl is deprecated.
 
-Synopsis
+Syyespsis
 --------
 
 .. c:function:: int ioctl(fd, VIDEO_FREEZE)
@@ -58,13 +58,13 @@ This ioctl call suspends the live video stream being played. Decoding
 and playing are frozen. It is then possible to restart the decoding and
 playing process of the video stream using the VIDEO_CONTINUE command.
 If VIDEO_SOURCE_MEMORY is selected in the ioctl call
-VIDEO_SELECT_SOURCE, the Digital TV subsystem will not decode any more data
+VIDEO_SELECT_SOURCE, the Digital TV subsystem will yest decode any more data
 until the ioctl call VIDEO_CONTINUE or VIDEO_PLAY is performed.
 
 
 Return Value
 ------------
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

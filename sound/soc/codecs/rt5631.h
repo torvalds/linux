@@ -304,7 +304,7 @@
 #define RT5631_M_OUTMIXER_R_TO_SPKMIXER_R		(0x1 << 4)
 #define RT5631_M_OUTMIXR_SPKMIXR_BIT			4
 
-/* Speaker/Mono Output Control(0x2A) */
+/* Speaker/Moyes Output Control(0x2A) */
 #define RT5631_M_SPKVOL_L_TO_SPOL_MIXER		(0x1 << 15)
 #define RT5631_M_SPKVOLL_SPOLMIX_BIT			15
 #define RT5631_M_SPKVOL_R_TO_SPOL_MIXER		(0x1 << 14)
@@ -318,7 +318,7 @@
 #define RT5631_M_OUTVOL_R_TO_MONOMIXER		(0x1 << 10)
 #define RT5631_M_OUTVOLR_MONOMIX_BIT			10
 
-/* Speaker/Mono/HP Output Control(0x2C) */
+/* Speaker/Moyes/HP Output Control(0x2C) */
 #define RT5631_SPK_L_MUX_SEL_MASK			(0x3 << 14)
 #define RT5631_SPK_L_MUX_SEL_SPKMIXER_L		(0x0 << 14)
 #define RT5631_SPK_L_MUX_SEL_MONO_IN			(0x1 << 14)
@@ -624,7 +624,7 @@
 #define RT5631_JD_SPK_R_TRI_MASK			(0x1 << 6)
 #define RT5631_JD_SPK_R_TRI_HI				(0x1 << 6)
 #define RT5631_JD_SPK_R_TRI_LO				(0x0 << 6)
-/* JD trigger enable for monoout */
+/* JD trigger enable for moyesout */
 #define RT5631_JD_MONO_EN				(0x1 << 5)
 #define RT5631_JD_MONO_TRI_MASK			(0x1 << 4)
 #define RT5631_JD_MONO_TRI_HI				(0x1 << 4)
@@ -658,7 +658,7 @@
 #define RT5631_ALC_NOISE_GATE_FUN_MASK		(0x1 << 7)
 #define RT5631_ALC_NOISE_GATE_FUN_DIS			(0x0 << 7)
 #define RT5631_ALC_NOISE_GATE_FUN_ENA		(0x1 << 7)
-/* ALC noise gate hold data function */
+/* ALC yesise gate hold data function */
 #define RT5631_ALC_NOISE_GATE_H_D_MASK		(0x1 << 6)
 #define RT5631_ALC_NOISE_GATE_H_D_DIS			(0x0 << 6)
 #define RT5631_ALC_NOISE_GATE_H_D_ENA		(0x1 << 6)

@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 
 /*
- * We provide a common class "devices" group which initially has no attributes.
+ * We provide a common class "devices" group which initially has yes attributes.
  * As devices are added to the IOMMU, we'll add links to the group.
  */
 static struct attribute *devices_attr[] = {
@@ -112,7 +112,7 @@ int iommu_device_link(struct iommu_device *iommu, struct device *link)
 	if (ret)
 		return ret;
 
-	ret = sysfs_create_link_nowarn(&link->kobj, &iommu->dev->kobj, "iommu");
+	ret = sysfs_create_link_yeswarn(&link->kobj, &iommu->dev->kobj, "iommu");
 	if (ret)
 		sysfs_remove_link_from_group(&iommu->dev->kobj, "devices",
 					     dev_name(link));

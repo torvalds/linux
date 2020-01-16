@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2011 Ericsson AB.
  * Copyright (c) 2013, 2014, 2015 Guenter Roeck
- * Copyright (c) 2015 Linear Technology
+ * Copyright (c) 2015 Linear Techyeslogy
  * Copyright (c) 2018 Analog Devices Inc.
  */
 
@@ -88,7 +88,7 @@ enum chips { ltc2974, ltc2975, ltc2977, ltc2978, ltc2980, ltc3880, ltc3882,
 /*
  * LTC2978 clears peak data whenever the CLEAR_FAULTS command is executed, which
  * happens pretty much each time chip data is updated. Raw peak data therefore
- * does not provide much value. To be able to provide useful peak data, keep an
+ * does yest provide much value. To be able to provide useful peak data, keep an
  * internal cache of measured peak data, which is only cleared if an explicit
  * "clear peak" command is executed for the sensor in question.
  */
@@ -125,7 +125,7 @@ static int ltc_wait_ready(struct i2c_client *client)
 		return 0;
 
 	/*
-	 * LTC3883 does not support LTC_NOT_PENDING, even though
+	 * LTC3883 does yest support LTC_NOT_PENDING, even though
 	 * the datasheet claims that it does.
 	 */
 	mask = LTC_NOT_BUSY;
@@ -284,7 +284,7 @@ static int ltc2978_read_word_data(struct i2c_client *client, int page, int reg)
 		ret = ltc_read_word_data(client, page, LTC2978_MFR_VOUT_MIN);
 		if (ret >= 0) {
 			/*
-			 * VOUT_MIN is known to not be supported on some lots
+			 * VOUT_MIN is kyeswn to yest be supported on some lots
 			 * of LTC2978 revision 1, and will return the maximum
 			 * possible voltage if read. If VOUT_MAX is valid and
 			 * lower than the reading of VOUT_MIN, use it instead.

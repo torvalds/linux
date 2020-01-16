@@ -52,7 +52,7 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	submit->nr_bos = 0;
 	submit->nr_cmds = 0;
 
-	INIT_LIST_HEAD(&submit->node);
+	INIT_LIST_HEAD(&submit->yesde);
 	INIT_LIST_HEAD(&submit->bo_list);
 	ww_acquire_init(&submit->ticket, &reservation_ww_class);
 
@@ -62,7 +62,7 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 void msm_gem_submit_free(struct msm_gem_submit *submit)
 {
 	dma_fence_put(submit->fence);
-	list_del(&submit->node);
+	list_del(&submit->yesde);
 	put_pid(submit->pid);
 	msm_submitqueue_put(submit->queue);
 
@@ -114,7 +114,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 		struct drm_gem_object *obj;
 		struct msm_gem_object *msm_obj;
 
-		/* normally use drm_gem_object_lookup(), but for bulk lookup
+		/* yesrmally use drm_gem_object_lookup(), but for bulk lookup
 		 * all under single table_lock just hit object_idr directly:
 		 */
 		obj = idr_find(&file->object_idr, submit->bos[i].handle);
@@ -202,7 +202,7 @@ fail:
 
 	if (ret == -EDEADLK) {
 		struct msm_gem_object *msm_obj = submit->bos[contended].obj;
-		/* we lost out in a seqno race, lock and retry.. */
+		/* we lost out in a seqyes race, lock and retry.. */
 		ret = ww_mutex_lock_slow_interruptible(&msm_obj->base.resv->lock,
 				&submit->ticket);
 		if (!ret) {
@@ -215,7 +215,7 @@ fail:
 	return ret;
 }
 
-static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
+static int submit_fence_sync(struct msm_gem_submit *submit, bool yes_implicit)
 {
 	int i, ret = 0;
 
@@ -235,7 +235,7 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 				return ret;
 		}
 
-		if (no_implicit)
+		if (yes_implicit)
 			continue;
 
 		ret = msm_gem_sync_object(&msm_obj->base, submit->ring->fctx,
@@ -270,7 +270,7 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 			submit->bos[i].flags |= BO_VALID;
 		} else {
 			submit->bos[i].iova = iova;
-			/* iova changed, so address in cmdstream is not valid: */
+			/* iova changed, so address in cmdstream is yest valid: */
 			submit->bos[i].flags &= ~BO_VALID;
 			submit->valid = false;
 		}
@@ -310,12 +310,12 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 		return 0;
 
 	if (offset % 4) {
-		DRM_ERROR("non-aligned cmdstream buffer: %u\n", offset);
+		DRM_ERROR("yesn-aligned cmdstream buffer: %u\n", offset);
 		return -EINVAL;
 	}
 
-	/* For now, just map the entire thing.  Eventually we probably
-	 * to do it page-by-page, w/ kmap() if not vmap()d..
+	/* For yesw, just map the entire thing.  Eventually we probably
+	 * to do it page-by-page, w/ kmap() if yest vmap()d..
 	 */
 	ptr = msm_gem_get_vaddr(&obj->base);
 
@@ -339,7 +339,7 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 		}
 
 		if (submit_reloc.submit_offset % 4) {
-			DRM_ERROR("non-aligned reloc offset: %u\n",
+			DRM_ERROR("yesn-aligned reloc offset: %u\n",
 					submit_reloc.submit_offset);
 			ret = -EINVAL;
 			goto out;
@@ -413,7 +413,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (!gpu)
 		return -ENXIO;
 
-	/* for now, we just have 3d pipe.. eventually this would need to
+	/* for yesw, we just have 3d pipe.. eventually this would need to
 	 * be more clever to dispatch to appropriate gpu module:
 	 */
 	if (MSM_PIPE_ID(args->flags) != MSM_PIPE_3D0)
@@ -532,7 +532,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 			goto out;
 
 		if (submit_cmd.size % 4) {
-			DRM_ERROR("non-aligned cmdstream buffer size: %u\n",
+			DRM_ERROR("yesn-aligned cmdstream buffer size: %u\n",
 					submit_cmd.size);
 			ret = -EINVAL;
 			goto out;
@@ -579,7 +579,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	msm_gpu_submit(gpu, submit, ctx);
 
-	args->fence = submit->fence->seqno;
+	args->fence = submit->fence->seqyes;
 
 	if (args->flags & MSM_SUBMIT_FENCE_FD_OUT) {
 		fd_install(out_fence_fd, sync_file->file);

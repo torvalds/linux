@@ -23,7 +23,7 @@ $id
   with a leading '/' will have the hostname prepended. A $ref value a relative
   path or filename only will be prepended with the hostname and path components
   of the current schema file's '$id' value. A URL is used even for local files,
-  but there may not actually be files present at those locations.
+  but there may yest actually be files present at those locations.
 
 $schema
   Indicates the meta-schema the schema file adheres to.
@@ -42,9 +42,9 @@ description
   more information.
 
 select
-  Optional. A json-schema used to match nodes for applying the
-  schema. By default without 'select', nodes are matched against their possible
-  compatible string values or node name. Most bindings should not need select.
+  Optional. A json-schema used to match yesdes for applying the
+  schema. By default without 'select', yesdes are matched against their possible
+  compatible string values or yesde name. Most bindings should yest need select.
 
  allOf
   Optional. A list of other schemas to include. This is used to
@@ -53,10 +53,10 @@ select
 
  properties
   A set of sub-schema defining all the DT properties for the
-  binding. The exact schema syntax depends on whether properties are known,
+  binding. The exact schema syntax depends on whether properties are kyeswn,
   common properties (e.g. 'interrupts') or are binding/vendor specific properties.
 
-A property can also define a child DT node with child properties defined
+A property can also define a child DT yesde with child properties defined
 under it.
 
 For more details on properties sections, see 'Property Schema' section.
@@ -72,7 +72,7 @@ examples
   Optional. A list of one or more DTS hunks implementing the
   binding. Note: YAML doesn't allow leading tabs, so spaces must be used instead.
 
-Unless noted otherwise, all properties are required.
+Unless yested otherwise, all properties are required.
 
 Property Schema
 ---------------
@@ -82,7 +82,7 @@ binding. Each property contains a set of constraints using json-schema
 vocabulary for that property. The properties schemas are what is used for
 validation of DT files.
 
-For common properties, only additional constraints not covered by the common
+For common properties, only additional constraints yest covered by the common
 binding schema need to be defined such as how many values are valid or what
 possible values are valid.
 

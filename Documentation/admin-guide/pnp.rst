@@ -18,7 +18,7 @@ The User Interface
 ------------------
 
 The Linux Plug and Play user interface provides a means to activate PnP devices
-for legacy and user level drivers that do not support Linux Plug and Play.  The 
+for legacy and user level drivers that do yest support Linux Plug and Play.  The 
 user interface is integrated into sysfs.
 
 In addition to the standard sysfs file the following are created in each
@@ -46,7 +46,7 @@ manually activating a device
 	<depnum> - the configuration number
 	<mode> - static or dynamic
 		 static = for next boot
-		 dynamic = now
+		 dynamic = yesw
 
 disabling a device
 ^^^^^^^^^^^^^^^^^^
@@ -72,7 +72,7 @@ Suppose you need to activate the floppy disk controller.
 	# cat resources
 	DISABLED
 
-  - Notice the string "DISABLED".  This means the device is not active.
+  - Notice the string "DISABLED".  This means the device is yest active.
 
 3. check the device's possible configurations (optional)::
 
@@ -88,7 +88,7 @@ Suppose you need to activate the floppy disk controller.
 	    irq 6
 	    dma 2 8-bit compatible
 
-4. now activate the device::
+4. yesw activate the device::
 
 	# echo "auto" > resources
 
@@ -137,7 +137,7 @@ pnp_register_driver
 
   this includes driver model integration
   returns zero for success or a negative error number for failure; count
-  calls to the .add() method if you need to know how many devices bind to
+  calls to the .add() method if you need to kyesw how many devices bind to
   the driver
 
 pnp_unregister_driver
@@ -160,7 +160,7 @@ The following Protocols are currently available in the computing world:
     among its many uses, ACPI provides information about system level
     devices.
 
-It is meant to replace the PNPBIOS.  It is not currently supported by Linux
+It is meant to replace the PNPBIOS.  It is yest currently supported by Linux
 Plug and Play but it is planned to be in the near future.
 
 
@@ -214,12 +214,12 @@ The New Way
 		{.id = ""}
 	};
 
-   Please note that the character 'X' can be used as a wild card in the function
+   Please yeste that the character 'X' can be used as a wild card in the function
    portion (last four characters).
 
    ex::
 
-	/* Unknown PnP modems */
+	/* Unkyeswn PnP modems */
 	{	"PNPCXXX",		UNKNOWN_DEV	},
 
    Supported PnP card IDs can optionally be defined.
@@ -230,7 +230,7 @@ The New Way
 		{	"",			0	}
 	};
 
-2. Optionally define probe and remove functions.  It may make sense not to
+2. Optionally define probe and remove functions.  It may make sense yest to
    define these functions if the driver already has a reliable method of detecting
    the resources, such as the parport_pc driver.
 
@@ -262,7 +262,7 @@ The New Way
 		.remove		= serial_pnp_remove,
 	};
 
-   * name and id_table cannot be NULL.
+   * name and id_table canyest be NULL.
 
 4. register the driver
 

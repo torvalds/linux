@@ -56,7 +56,7 @@ static struct ctl_table x25_table[] = {
 		.extra2 =	&max_timer,
 	},
 	{
-		.procname =	"acknowledgement_hold_back_timeout",
+		.procname =	"ackyeswledgement_hold_back_timeout",
 		.data =		&sysctl_x25_ack_holdback_timeout,
 		.maxlen =	sizeof(int),
 		.mode =		0644,

@@ -172,7 +172,7 @@
  */
 #define IXP4XX_OST_ENABLE		0x00000001
 #define IXP4XX_OST_ONE_SHOT		0x00000002
-/* Low order bits of reload value ignored */
+/* Low order bits of reload value igyesred */
 #define IXP4XX_OST_RELOAD_MASK		0x00000003
 #define IXP4XX_OST_DISABLED		0x00000000
 #define IXP4XX_OSST_TIMER_1_PEND	0x00000001

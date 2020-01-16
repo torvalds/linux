@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * exynos_tmu.c - Samsung EXYNOS TMU (Thermal Management Unit)
+ * exyyess_tmu.c - Samsung EXYNOS TMU (Thermal Management Unit)
  *
  *  Copyright (C) 2014 Samsung Electronics
  *  Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
@@ -21,11 +21,11 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
-#include <dt-bindings/thermal/thermal_exynos.h>
+#include <dt-bindings/thermal/thermal_exyyess.h>
 
 #include "../thermal_core.h"
 
-/* Exynos generic registers */
+/* Exyyess generic registers */
 #define EXYNOS_TMU_REG_TRIMINFO		0x0
 #define EXYNOS_TMU_REG_CONTROL		0x20
 #define EXYNOS_TMU_REG_STATUS		0x28
@@ -41,14 +41,14 @@
 #define EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT	8
 #define EXYNOS_TMU_CORE_EN_SHIFT	0
 
-/* Exynos3250 specific registers */
+/* Exyyess3250 specific registers */
 #define EXYNOS_TMU_TRIMINFO_CON1	0x10
 
-/* Exynos4210 specific registers */
+/* Exyyess4210 specific registers */
 #define EXYNOS4210_TMU_REG_THRESHOLD_TEMP	0x44
 #define EXYNOS4210_TMU_REG_TRIG_LEVEL0	0x50
 
-/* Exynos5250, Exynos4412, Exynos3250 specific registers */
+/* Exyyess5250, Exyyess4412, Exyyess3250 specific registers */
 #define EXYNOS_TMU_TRIMINFO_CON2	0x14
 #define EXYNOS_THD_TEMP_RISE		0x50
 #define EXYNOS_THD_TEMP_FALL		0x54
@@ -71,17 +71,17 @@
 #define EXYNOS_EMUL_DATA_MASK	0xFF
 #define EXYNOS_EMUL_ENABLE	0x1
 
-/* Exynos5260 specific */
+/* Exyyess5260 specific */
 #define EXYNOS5260_TMU_REG_INTEN		0xC0
 #define EXYNOS5260_TMU_REG_INTSTAT		0xC4
 #define EXYNOS5260_TMU_REG_INTCLEAR		0xC8
 #define EXYNOS5260_EMUL_CON			0x100
 
-/* Exynos4412 specific */
+/* Exyyess4412 specific */
 #define EXYNOS4412_MUX_ADDR_VALUE          6
 #define EXYNOS4412_MUX_ADDR_SHIFT          20
 
-/* Exynos5433 specific registers */
+/* Exyyess5433 specific registers */
 #define EXYNOS5433_THD_TEMP_RISE3_0		0x050
 #define EXYNOS5433_THD_TEMP_RISE7_4		0x054
 #define EXYNOS5433_THD_TEMP_FALL3_0		0x060
@@ -104,7 +104,7 @@
 
 #define EXYNOS5433_G3D_BASE			0x10070000
 
-/* Exynos7 specific registers */
+/* Exyyess7 specific registers */
 #define EXYNOS7_THD_TEMP_RISE7_6		0x50
 #define EXYNOS7_THD_TEMP_FALL7_6		0x60
 #define EXYNOS7_TMU_REG_INTEN			0x110
@@ -137,7 +137,7 @@ enum soc_type {
 };
 
 /**
- * struct exynos_tmu_data : A structure to hold the private data of the TMU
+ * struct exyyess_tmu_data : A structure to hold the private data of the TMU
 	driver
  * @id: identifier of the one instance of the TMU controller.
  * @base: base address of the single instance of the TMU controller.
@@ -170,7 +170,7 @@ enum soc_type {
  * @tmu_set_emulation: SoC specific TMU emulation setting method
  * @tmu_clear_irqs: SoC specific TMU interrupts clearing method
  */
-struct exynos_tmu_data {
+struct exyyess_tmu_data {
 	int id;
 	void __iomem *base;
 	void __iomem *base_second;
@@ -191,22 +191,22 @@ struct exynos_tmu_data {
 	unsigned int ntrip;
 	bool enabled;
 
-	void (*tmu_set_trip_temp)(struct exynos_tmu_data *data, int trip,
+	void (*tmu_set_trip_temp)(struct exyyess_tmu_data *data, int trip,
 				 u8 temp);
-	void (*tmu_set_trip_hyst)(struct exynos_tmu_data *data, int trip,
+	void (*tmu_set_trip_hyst)(struct exyyess_tmu_data *data, int trip,
 				 u8 temp, u8 hyst);
 	void (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
-	int (*tmu_read)(struct exynos_tmu_data *data);
-	void (*tmu_set_emulation)(struct exynos_tmu_data *data, int temp);
-	void (*tmu_clear_irqs)(struct exynos_tmu_data *data);
+	int (*tmu_read)(struct exyyess_tmu_data *data);
+	void (*tmu_set_emulation)(struct exyyess_tmu_data *data, int temp);
+	void (*tmu_clear_irqs)(struct exyyess_tmu_data *data);
 };
 
 /*
  * TMU treats temperature as a mapped temperature code.
  * The temperature is converted differently depending on the calibration type.
  */
-static int temp_to_code(struct exynos_tmu_data *data, u8 temp)
+static int temp_to_code(struct exyyess_tmu_data *data, u8 temp)
 {
 	if (data->cal_type == TYPE_ONE_POINT_TRIMMING)
 		return temp + data->temp_error1 - EXYNOS_FIRST_POINT_TRIM;
@@ -221,7 +221,7 @@ static int temp_to_code(struct exynos_tmu_data *data, u8 temp)
  * Calculate a temperature value from a temperature code.
  * The unit of the temperature is degree Celsius.
  */
-static int code_to_temp(struct exynos_tmu_data *data, u16 temp_code)
+static int code_to_temp(struct exyyess_tmu_data *data, u16 temp_code)
 {
 	if (data->cal_type == TYPE_ONE_POINT_TRIMMING)
 		return temp_code - data->temp_error1 + EXYNOS_FIRST_POINT_TRIM;
@@ -232,7 +232,7 @@ static int code_to_temp(struct exynos_tmu_data *data, u16 temp_code)
 		EXYNOS_FIRST_POINT_TRIM;
 }
 
-static void sanitize_temp_error(struct exynos_tmu_data *data, u32 trim_info)
+static void sanitize_temp_error(struct exyyess_tmu_data *data, u32 trim_info)
 {
 	u16 tmu_temp_mask =
 		(data->soc == SOC_ARCH_EXYNOS7) ? EXYNOS7_TMU_TEMP_MASK
@@ -253,9 +253,9 @@ static void sanitize_temp_error(struct exynos_tmu_data *data, u32 trim_info)
 			EXYNOS_TMU_TEMP_MASK;
 }
 
-static int exynos_tmu_initialize(struct platform_device *pdev)
+static int exyyess_tmu_initialize(struct platform_device *pdev)
 {
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exyyess_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tzd = data->tzd;
 	const struct thermal_trip * const trips =
 		of_thermal_get_trip_points(tzd);
@@ -264,7 +264,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 
 	if (!trips) {
 		dev_err(&pdev->dev,
-			"Cannot get trip points from device tree!\n");
+			"Canyest get trip points from device tree!\n");
 		return -ENODEV;
 	}
 
@@ -326,7 +326,7 @@ out:
 	return ret;
 }
 
-static u32 get_con_reg(struct exynos_tmu_data *data, u32 con)
+static u32 get_con_reg(struct exyyess_tmu_data *data, u32 con)
 {
 	if (data->soc == SOC_ARCH_EXYNOS4412 ||
 	    data->soc == SOC_ARCH_EXYNOS3250)
@@ -344,9 +344,9 @@ static u32 get_con_reg(struct exynos_tmu_data *data, u32 con)
 	return con;
 }
 
-static void exynos_tmu_control(struct platform_device *pdev, bool on)
+static void exyyess_tmu_control(struct platform_device *pdev, bool on)
 {
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exyyess_tmu_data *data = platform_get_drvdata(pdev);
 
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
@@ -356,7 +356,7 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 	mutex_unlock(&data->lock);
 }
 
-static void exynos4210_tmu_set_trip_temp(struct exynos_tmu_data *data,
+static void exyyess4210_tmu_set_trip_temp(struct exyyess_tmu_data *data,
 					 int trip, u8 temp)
 {
 	const struct thermal_trip * const trips =
@@ -374,20 +374,20 @@ static void exynos4210_tmu_set_trip_temp(struct exynos_tmu_data *data,
 	writeb(temp, data->base + EXYNOS4210_TMU_REG_TRIG_LEVEL0 + trip * 4);
 }
 
-/* failing thresholds are not supported on Exynos4210 */
-static void exynos4210_tmu_set_trip_hyst(struct exynos_tmu_data *data,
+/* failing thresholds are yest supported on Exyyess4210 */
+static void exyyess4210_tmu_set_trip_hyst(struct exyyess_tmu_data *data,
 					 int trip, u8 temp, u8 hyst)
 {
 }
 
-static void exynos4210_tmu_initialize(struct platform_device *pdev)
+static void exyyess4210_tmu_initialize(struct platform_device *pdev)
 {
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exyyess_tmu_data *data = platform_get_drvdata(pdev);
 
 	sanitize_temp_error(data, readl(data->base + EXYNOS_TMU_REG_TRIMINFO));
 }
 
-static void exynos4412_tmu_set_trip_temp(struct exynos_tmu_data *data,
+static void exyyess4412_tmu_set_trip_temp(struct exyyess_tmu_data *data,
 					 int trip, u8 temp)
 {
 	u32 th, con;
@@ -404,7 +404,7 @@ static void exynos4412_tmu_set_trip_temp(struct exynos_tmu_data *data,
 	}
 }
 
-static void exynos4412_tmu_set_trip_hyst(struct exynos_tmu_data *data,
+static void exyyess4412_tmu_set_trip_hyst(struct exyyess_tmu_data *data,
 					 int trip, u8 temp, u8 hyst)
 {
 	u32 th;
@@ -416,9 +416,9 @@ static void exynos4412_tmu_set_trip_hyst(struct exynos_tmu_data *data,
 	writel(th, data->base + EXYNOS_THD_TEMP_FALL);
 }
 
-static void exynos4412_tmu_initialize(struct platform_device *pdev)
+static void exyyess4412_tmu_initialize(struct platform_device *pdev)
 {
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exyyess_tmu_data *data = platform_get_drvdata(pdev);
 	unsigned int trim_info, ctrl;
 
 	if (data->soc == SOC_ARCH_EXYNOS3250 ||
@@ -434,7 +434,7 @@ static void exynos4412_tmu_initialize(struct platform_device *pdev)
 		writel(ctrl, data->base + EXYNOS_TMU_TRIMINFO_CON2);
 	}
 
-	/* On exynos5420 the triminfo register is in the shared space */
+	/* On exyyess5420 the triminfo register is in the shared space */
 	if (data->soc == SOC_ARCH_EXYNOS5420_TRIMINFO)
 		trim_info = readl(data->base_second + EXYNOS_TMU_REG_TRIMINFO);
 	else
@@ -443,7 +443,7 @@ static void exynos4412_tmu_initialize(struct platform_device *pdev)
 	sanitize_temp_error(data, trim_info);
 }
 
-static void exynos5433_tmu_set_trip_temp(struct exynos_tmu_data *data,
+static void exyyess5433_tmu_set_trip_temp(struct exyyess_tmu_data *data,
 					 int trip, u8 temp)
 {
 	unsigned int reg_off, j;
@@ -463,7 +463,7 @@ static void exynos5433_tmu_set_trip_temp(struct exynos_tmu_data *data,
 	writel(th, data->base + reg_off);
 }
 
-static void exynos5433_tmu_set_trip_hyst(struct exynos_tmu_data *data,
+static void exyyess5433_tmu_set_trip_hyst(struct exyyess_tmu_data *data,
 					 int trip, u8 temp, u8 hyst)
 {
 	unsigned int reg_off, j;
@@ -483,9 +483,9 @@ static void exynos5433_tmu_set_trip_hyst(struct exynos_tmu_data *data,
 	writel(th, data->base + reg_off);
 }
 
-static void exynos5433_tmu_initialize(struct platform_device *pdev)
+static void exyyess5433_tmu_initialize(struct platform_device *pdev)
 {
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exyyess_tmu_data *data = platform_get_drvdata(pdev);
 	unsigned int trim_info;
 	int sensor_id, cal_type;
 
@@ -516,7 +516,7 @@ static void exynos5433_tmu_initialize(struct platform_device *pdev)
 			cal_type ?  2 : 1);
 }
 
-static void exynos7_tmu_set_trip_temp(struct exynos_tmu_data *data,
+static void exyyess7_tmu_set_trip_temp(struct exyyess_tmu_data *data,
 				      int trip, u8 temp)
 {
 	unsigned int reg_off, bit_off;
@@ -531,7 +531,7 @@ static void exynos7_tmu_set_trip_temp(struct exynos_tmu_data *data,
 	writel(th, data->base + EXYNOS7_THD_TEMP_RISE7_6 + reg_off);
 }
 
-static void exynos7_tmu_set_trip_hyst(struct exynos_tmu_data *data,
+static void exyyess7_tmu_set_trip_hyst(struct exyyess_tmu_data *data,
 				      int trip, u8 temp, u8 hyst)
 {
 	unsigned int reg_off, bit_off;
@@ -546,18 +546,18 @@ static void exynos7_tmu_set_trip_hyst(struct exynos_tmu_data *data,
 	writel(th, data->base + EXYNOS7_THD_TEMP_FALL7_6 + reg_off);
 }
 
-static void exynos7_tmu_initialize(struct platform_device *pdev)
+static void exyyess7_tmu_initialize(struct platform_device *pdev)
 {
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exyyess_tmu_data *data = platform_get_drvdata(pdev);
 	unsigned int trim_info;
 
 	trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO);
 	sanitize_temp_error(data, trim_info);
 }
 
-static void exynos4210_tmu_control(struct platform_device *pdev, bool on)
+static void exyyess4210_tmu_control(struct platform_device *pdev, bool on)
 {
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exyyess_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tz = data->tzd;
 	unsigned int con, interrupt_en = 0, i;
 
@@ -585,9 +585,9 @@ static void exynos4210_tmu_control(struct platform_device *pdev, bool on)
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
 }
 
-static void exynos5433_tmu_control(struct platform_device *pdev, bool on)
+static void exyyess5433_tmu_control(struct platform_device *pdev, bool on)
 {
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exyyess_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tz = data->tzd;
 	unsigned int con, interrupt_en = 0, pd_det_en, i;
 
@@ -616,9 +616,9 @@ static void exynos5433_tmu_control(struct platform_device *pdev, bool on)
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
 }
 
-static void exynos7_tmu_control(struct platform_device *pdev, bool on)
+static void exyyess7_tmu_control(struct platform_device *pdev, bool on)
 {
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exyyess_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tz = data->tzd;
 	unsigned int con, interrupt_en = 0, i;
 
@@ -647,9 +647,9 @@ static void exynos7_tmu_control(struct platform_device *pdev, bool on)
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
 }
 
-static int exynos_get_temp(void *p, int *temp)
+static int exyyess_get_temp(void *p, int *temp)
 {
-	struct exynos_tmu_data *data = p;
+	struct exyyess_tmu_data *data = p;
 	int value, ret = 0;
 
 	if (!data || !data->tmu_read)
@@ -677,7 +677,7 @@ static int exynos_get_temp(void *p, int *temp)
 }
 
 #ifdef CONFIG_THERMAL_EMULATION
-static u32 get_emul_con_reg(struct exynos_tmu_data *data, unsigned int val,
+static u32 get_emul_con_reg(struct exyyess_tmu_data *data, unsigned int val,
 			    int temp)
 {
 	if (temp) {
@@ -705,7 +705,7 @@ static u32 get_emul_con_reg(struct exynos_tmu_data *data, unsigned int val,
 	return val;
 }
 
-static void exynos4412_tmu_set_emulation(struct exynos_tmu_data *data,
+static void exyyess4412_tmu_set_emulation(struct exyyess_tmu_data *data,
 					 int temp)
 {
 	unsigned int val;
@@ -725,9 +725,9 @@ static void exynos4412_tmu_set_emulation(struct exynos_tmu_data *data,
 	writel(val, data->base + emul_con);
 }
 
-static int exynos_tmu_set_emulation(void *drv_data, int temp)
+static int exyyess_tmu_set_emulation(void *drv_data, int temp)
 {
-	struct exynos_tmu_data *data = drv_data;
+	struct exyyess_tmu_data *data = drv_data;
 	int ret = -EINVAL;
 
 	if (data->soc == SOC_ARCH_EXYNOS4210)
@@ -746,12 +746,12 @@ out:
 	return ret;
 }
 #else
-#define exynos4412_tmu_set_emulation NULL
-static int exynos_tmu_set_emulation(void *drv_data, int temp)
+#define exyyess4412_tmu_set_emulation NULL
+static int exyyess_tmu_set_emulation(void *drv_data, int temp)
 	{ return -EINVAL; }
 #endif /* CONFIG_THERMAL_EMULATION */
 
-static int exynos4210_tmu_read(struct exynos_tmu_data *data)
+static int exyyess4210_tmu_read(struct exyyess_tmu_data *data)
 {
 	int ret = readb(data->base + EXYNOS_TMU_REG_CURRENT_TEMP);
 
@@ -759,21 +759,21 @@ static int exynos4210_tmu_read(struct exynos_tmu_data *data)
 	return (ret < 75 || ret > 175) ? -ENODATA : ret;
 }
 
-static int exynos4412_tmu_read(struct exynos_tmu_data *data)
+static int exyyess4412_tmu_read(struct exyyess_tmu_data *data)
 {
 	return readb(data->base + EXYNOS_TMU_REG_CURRENT_TEMP);
 }
 
-static int exynos7_tmu_read(struct exynos_tmu_data *data)
+static int exyyess7_tmu_read(struct exyyess_tmu_data *data)
 {
 	return readw(data->base + EXYNOS_TMU_REG_CURRENT_TEMP) &
 		EXYNOS7_TMU_TEMP_MASK;
 }
 
-static void exynos_tmu_work(struct work_struct *work)
+static void exyyess_tmu_work(struct work_struct *work)
 {
-	struct exynos_tmu_data *data = container_of(work,
-			struct exynos_tmu_data, irq_work);
+	struct exyyess_tmu_data *data = container_of(work,
+			struct exyyess_tmu_data, irq_work);
 
 	thermal_zone_device_update(data->tzd, THERMAL_EVENT_UNSPECIFIED);
 
@@ -788,7 +788,7 @@ static void exynos_tmu_work(struct work_struct *work)
 	enable_irq(data->irq);
 }
 
-static void exynos4210_tmu_clear_irqs(struct exynos_tmu_data *data)
+static void exyyess4210_tmu_clear_irqs(struct exyyess_tmu_data *data)
 {
 	unsigned int val_irq;
 	u32 tmu_intstat, tmu_intclear;
@@ -809,78 +809,78 @@ static void exynos4210_tmu_clear_irqs(struct exynos_tmu_data *data)
 
 	val_irq = readl(data->base + tmu_intstat);
 	/*
-	 * Clear the interrupts.  Please note that the documentation for
-	 * Exynos3250, Exynos4412, Exynos5250 and Exynos5260 incorrectly
+	 * Clear the interrupts.  Please yeste that the documentation for
+	 * Exyyess3250, Exyyess4412, Exyyess5250 and Exyyess5260 incorrectly
 	 * states that INTCLEAR register has a different placing of bits
-	 * responsible for FALL IRQs than INTSTAT register.  Exynos5420
-	 * and Exynos5440 documentation is correct (Exynos4210 doesn't
+	 * responsible for FALL IRQs than INTSTAT register.  Exyyess5420
+	 * and Exyyess5440 documentation is correct (Exyyess4210 doesn't
 	 * support FALL IRQs at all).
 	 */
 	writel(val_irq, data->base + tmu_intclear);
 }
 
-static irqreturn_t exynos_tmu_irq(int irq, void *id)
+static irqreturn_t exyyess_tmu_irq(int irq, void *id)
 {
-	struct exynos_tmu_data *data = id;
+	struct exyyess_tmu_data *data = id;
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	schedule_work(&data->irq_work);
 
 	return IRQ_HANDLED;
 }
 
-static const struct of_device_id exynos_tmu_match[] = {
+static const struct of_device_id exyyess_tmu_match[] = {
 	{
-		.compatible = "samsung,exynos3250-tmu",
+		.compatible = "samsung,exyyess3250-tmu",
 		.data = (const void *)SOC_ARCH_EXYNOS3250,
 	}, {
-		.compatible = "samsung,exynos4210-tmu",
+		.compatible = "samsung,exyyess4210-tmu",
 		.data = (const void *)SOC_ARCH_EXYNOS4210,
 	}, {
-		.compatible = "samsung,exynos4412-tmu",
+		.compatible = "samsung,exyyess4412-tmu",
 		.data = (const void *)SOC_ARCH_EXYNOS4412,
 	}, {
-		.compatible = "samsung,exynos5250-tmu",
+		.compatible = "samsung,exyyess5250-tmu",
 		.data = (const void *)SOC_ARCH_EXYNOS5250,
 	}, {
-		.compatible = "samsung,exynos5260-tmu",
+		.compatible = "samsung,exyyess5260-tmu",
 		.data = (const void *)SOC_ARCH_EXYNOS5260,
 	}, {
-		.compatible = "samsung,exynos5420-tmu",
+		.compatible = "samsung,exyyess5420-tmu",
 		.data = (const void *)SOC_ARCH_EXYNOS5420,
 	}, {
-		.compatible = "samsung,exynos5420-tmu-ext-triminfo",
+		.compatible = "samsung,exyyess5420-tmu-ext-triminfo",
 		.data = (const void *)SOC_ARCH_EXYNOS5420_TRIMINFO,
 	}, {
-		.compatible = "samsung,exynos5433-tmu",
+		.compatible = "samsung,exyyess5433-tmu",
 		.data = (const void *)SOC_ARCH_EXYNOS5433,
 	}, {
-		.compatible = "samsung,exynos7-tmu",
+		.compatible = "samsung,exyyess7-tmu",
 		.data = (const void *)SOC_ARCH_EXYNOS7,
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, exynos_tmu_match);
+MODULE_DEVICE_TABLE(of, exyyess_tmu_match);
 
-static int exynos_map_dt_data(struct platform_device *pdev)
+static int exyyess_map_dt_data(struct platform_device *pdev)
 {
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exyyess_tmu_data *data = platform_get_drvdata(pdev);
 	struct resource res;
 
-	if (!data || !pdev->dev.of_node)
+	if (!data || !pdev->dev.of_yesde)
 		return -ENODEV;
 
-	data->id = of_alias_get_id(pdev->dev.of_node, "tmuctrl");
+	data->id = of_alias_get_id(pdev->dev.of_yesde, "tmuctrl");
 	if (data->id < 0)
 		data->id = 0;
 
-	data->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	data->irq = irq_of_parse_and_map(pdev->dev.of_yesde, 0);
 	if (data->irq <= 0) {
 		dev_err(&pdev->dev, "failed to get IRQ\n");
 		return -ENODEV;
 	}
 
-	if (of_address_to_resource(pdev->dev.of_node, 0, &res)) {
+	if (of_address_to_resource(pdev->dev.of_yesde, 0, &res)) {
 		dev_err(&pdev->dev, "failed to get Resource 0\n");
 		return -ENODEV;
 	}
@@ -895,12 +895,12 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 
 	switch (data->soc) {
 	case SOC_ARCH_EXYNOS4210:
-		data->tmu_set_trip_temp = exynos4210_tmu_set_trip_temp;
-		data->tmu_set_trip_hyst = exynos4210_tmu_set_trip_hyst;
-		data->tmu_initialize = exynos4210_tmu_initialize;
-		data->tmu_control = exynos4210_tmu_control;
-		data->tmu_read = exynos4210_tmu_read;
-		data->tmu_clear_irqs = exynos4210_tmu_clear_irqs;
+		data->tmu_set_trip_temp = exyyess4210_tmu_set_trip_temp;
+		data->tmu_set_trip_hyst = exyyess4210_tmu_set_trip_hyst;
+		data->tmu_initialize = exyyess4210_tmu_initialize;
+		data->tmu_control = exyyess4210_tmu_control;
+		data->tmu_read = exyyess4210_tmu_read;
+		data->tmu_clear_irqs = exyyess4210_tmu_clear_irqs;
 		data->ntrip = 4;
 		data->gain = 15;
 		data->reference_voltage = 7;
@@ -914,13 +914,13 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	case SOC_ARCH_EXYNOS5260:
 	case SOC_ARCH_EXYNOS5420:
 	case SOC_ARCH_EXYNOS5420_TRIMINFO:
-		data->tmu_set_trip_temp = exynos4412_tmu_set_trip_temp;
-		data->tmu_set_trip_hyst = exynos4412_tmu_set_trip_hyst;
-		data->tmu_initialize = exynos4412_tmu_initialize;
-		data->tmu_control = exynos4210_tmu_control;
-		data->tmu_read = exynos4412_tmu_read;
-		data->tmu_set_emulation = exynos4412_tmu_set_emulation;
-		data->tmu_clear_irqs = exynos4210_tmu_clear_irqs;
+		data->tmu_set_trip_temp = exyyess4412_tmu_set_trip_temp;
+		data->tmu_set_trip_hyst = exyyess4412_tmu_set_trip_hyst;
+		data->tmu_initialize = exyyess4412_tmu_initialize;
+		data->tmu_control = exyyess4210_tmu_control;
+		data->tmu_read = exyyess4412_tmu_read;
+		data->tmu_set_emulation = exyyess4412_tmu_set_emulation;
+		data->tmu_clear_irqs = exyyess4210_tmu_clear_irqs;
 		data->ntrip = 4;
 		data->gain = 8;
 		data->reference_voltage = 16;
@@ -933,13 +933,13 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->max_efuse_value = 100;
 		break;
 	case SOC_ARCH_EXYNOS5433:
-		data->tmu_set_trip_temp = exynos5433_tmu_set_trip_temp;
-		data->tmu_set_trip_hyst = exynos5433_tmu_set_trip_hyst;
-		data->tmu_initialize = exynos5433_tmu_initialize;
-		data->tmu_control = exynos5433_tmu_control;
-		data->tmu_read = exynos4412_tmu_read;
-		data->tmu_set_emulation = exynos4412_tmu_set_emulation;
-		data->tmu_clear_irqs = exynos4210_tmu_clear_irqs;
+		data->tmu_set_trip_temp = exyyess5433_tmu_set_trip_temp;
+		data->tmu_set_trip_hyst = exyyess5433_tmu_set_trip_hyst;
+		data->tmu_initialize = exyyess5433_tmu_initialize;
+		data->tmu_control = exyyess5433_tmu_control;
+		data->tmu_read = exyyess4412_tmu_read;
+		data->tmu_set_emulation = exyyess4412_tmu_set_emulation;
+		data->tmu_clear_irqs = exyyess4210_tmu_clear_irqs;
 		data->ntrip = 8;
 		data->gain = 8;
 		if (res.start == EXYNOS5433_G3D_BASE)
@@ -951,13 +951,13 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->max_efuse_value = 150;
 		break;
 	case SOC_ARCH_EXYNOS7:
-		data->tmu_set_trip_temp = exynos7_tmu_set_trip_temp;
-		data->tmu_set_trip_hyst = exynos7_tmu_set_trip_hyst;
-		data->tmu_initialize = exynos7_tmu_initialize;
-		data->tmu_control = exynos7_tmu_control;
-		data->tmu_read = exynos7_tmu_read;
-		data->tmu_set_emulation = exynos4412_tmu_set_emulation;
-		data->tmu_clear_irqs = exynos4210_tmu_clear_irqs;
+		data->tmu_set_trip_temp = exyyess7_tmu_set_trip_temp;
+		data->tmu_set_trip_hyst = exyyess7_tmu_set_trip_hyst;
+		data->tmu_initialize = exyyess7_tmu_initialize;
+		data->tmu_control = exyyess7_tmu_control;
+		data->tmu_read = exyyess7_tmu_read;
+		data->tmu_set_emulation = exyyess4412_tmu_set_emulation;
+		data->tmu_clear_irqs = exyyess4210_tmu_clear_irqs;
 		data->ntrip = 8;
 		data->gain = 9;
 		data->reference_voltage = 17;
@@ -966,7 +966,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->max_efuse_value = 100;
 		break;
 	default:
-		dev_err(&pdev->dev, "Platform not supported\n");
+		dev_err(&pdev->dev, "Platform yest supported\n");
 		return -EINVAL;
 	}
 
@@ -979,7 +979,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	if (data->soc != SOC_ARCH_EXYNOS5420_TRIMINFO)
 		return 0;
 
-	if (of_address_to_resource(pdev->dev.of_node, 1, &res)) {
+	if (of_address_to_resource(pdev->dev.of_yesde, 1, &res)) {
 		dev_err(&pdev->dev, "failed to get Resource 1\n");
 		return -ENODEV;
 	}
@@ -994,17 +994,17 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct thermal_zone_of_device_ops exynos_sensor_ops = {
-	.get_temp = exynos_get_temp,
-	.set_emul_temp = exynos_tmu_set_emulation,
+static const struct thermal_zone_of_device_ops exyyess_sensor_ops = {
+	.get_temp = exyyess_get_temp,
+	.set_emul_temp = exyyess_tmu_set_emulation,
 };
 
-static int exynos_tmu_probe(struct platform_device *pdev)
+static int exyyess_tmu_probe(struct platform_device *pdev)
 {
-	struct exynos_tmu_data *data;
+	struct exyyess_tmu_data *data;
 	int ret;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct exynos_tmu_data),
+	data = devm_kzalloc(&pdev->dev, sizeof(struct exyyess_tmu_data),
 					GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -1027,14 +1027,14 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	} else {
 		if (PTR_ERR(data->regulator) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(&pdev->dev, "Regulator node (vtmu) not found\n");
+		dev_info(&pdev->dev, "Regulator yesde (vtmu) yest found\n");
 	}
 
-	ret = exynos_map_dt_data(pdev);
+	ret = exyyess_map_dt_data(pdev);
 	if (ret)
 		goto err_sensor;
 
-	INIT_WORK(&data->irq_work, exynos_tmu_work);
+	INIT_WORK(&data->irq_work, exyyess_tmu_work);
 
 	data->clk = devm_clk_get(&pdev->dev, "tmu_apbif");
 	if (IS_ERR(data->clk)) {
@@ -1084,31 +1084,31 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * data->tzd must be registered before calling exynos_tmu_initialize(),
-	 * requesting irq and calling exynos_tmu_control().
+	 * data->tzd must be registered before calling exyyess_tmu_initialize(),
+	 * requesting irq and calling exyyess_tmu_control().
 	 */
 	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data,
-						    &exynos_sensor_ops);
+						    &exyyess_sensor_ops);
 	if (IS_ERR(data->tzd)) {
 		ret = PTR_ERR(data->tzd);
 		dev_err(&pdev->dev, "Failed to register sensor: %d\n", ret);
 		goto err_sclk;
 	}
 
-	ret = exynos_tmu_initialize(pdev);
+	ret = exyyess_tmu_initialize(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize TMU\n");
 		goto err_thermal;
 	}
 
-	ret = devm_request_irq(&pdev->dev, data->irq, exynos_tmu_irq,
+	ret = devm_request_irq(&pdev->dev, data->irq, exyyess_tmu_irq,
 		IRQF_TRIGGER_RISING | IRQF_SHARED, dev_name(&pdev->dev), data);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
 		goto err_thermal;
 	}
 
-	exynos_tmu_control(pdev, true);
+	exyyess_tmu_control(pdev, true);
 	return 0;
 
 err_thermal:
@@ -1127,13 +1127,13 @@ err_sensor:
 	return ret;
 }
 
-static int exynos_tmu_remove(struct platform_device *pdev)
+static int exyyess_tmu_remove(struct platform_device *pdev)
 {
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exyyess_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tzd = data->tzd;
 
 	thermal_zone_of_sensor_unregister(&pdev->dev, tzd);
-	exynos_tmu_control(pdev, false);
+	exyyess_tmu_control(pdev, false);
 
 	clk_disable_unprepare(data->sclk);
 	clk_unprepare(data->clk);
@@ -1147,43 +1147,43 @@ static int exynos_tmu_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int exynos_tmu_suspend(struct device *dev)
+static int exyyess_tmu_suspend(struct device *dev)
 {
-	exynos_tmu_control(to_platform_device(dev), false);
+	exyyess_tmu_control(to_platform_device(dev), false);
 
 	return 0;
 }
 
-static int exynos_tmu_resume(struct device *dev)
+static int exyyess_tmu_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 
-	exynos_tmu_initialize(pdev);
-	exynos_tmu_control(pdev, true);
+	exyyess_tmu_initialize(pdev);
+	exyyess_tmu_control(pdev, true);
 
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(exynos_tmu_pm,
-			 exynos_tmu_suspend, exynos_tmu_resume);
-#define EXYNOS_TMU_PM	(&exynos_tmu_pm)
+static SIMPLE_DEV_PM_OPS(exyyess_tmu_pm,
+			 exyyess_tmu_suspend, exyyess_tmu_resume);
+#define EXYNOS_TMU_PM	(&exyyess_tmu_pm)
 #else
 #define EXYNOS_TMU_PM	NULL
 #endif
 
-static struct platform_driver exynos_tmu_driver = {
+static struct platform_driver exyyess_tmu_driver = {
 	.driver = {
-		.name   = "exynos-tmu",
+		.name   = "exyyess-tmu",
 		.pm     = EXYNOS_TMU_PM,
-		.of_match_table = exynos_tmu_match,
+		.of_match_table = exyyess_tmu_match,
 	},
-	.probe = exynos_tmu_probe,
-	.remove	= exynos_tmu_remove,
+	.probe = exyyess_tmu_probe,
+	.remove	= exyyess_tmu_remove,
 };
 
-module_platform_driver(exynos_tmu_driver);
+module_platform_driver(exyyess_tmu_driver);
 
 MODULE_DESCRIPTION("EXYNOS TMU Driver");
 MODULE_AUTHOR("Donggeun Kim <dg77.kim@samsung.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:exynos-tmu");
+MODULE_ALIAS("platform:exyyess-tmu");

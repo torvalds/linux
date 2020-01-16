@@ -57,7 +57,7 @@ static void usb_urb_complete(struct urb *urb)
 				stream->complete(stream, b, urb->actual_length);
 			break;
 		default:
-			err("unknown endpoint type in completion handler.");
+			err("unkyeswn endpoint type in completion handler.");
 			return;
 	}
 	usb_submit_urb(urb,GFP_ATOMIC);
@@ -67,7 +67,7 @@ int usb_urb_kill(struct usb_data_stream *stream)
 {
 	int i;
 	for (i = 0; i < stream->urbs_submitted; i++) {
-		deb_ts("killing URB no. %d.\n",i);
+		deb_ts("killing URB yes. %d.\n",i);
 
 		/* stop the URB */
 		usb_kill_urb(stream->urb_list[i]);
@@ -80,9 +80,9 @@ int usb_urb_submit(struct usb_data_stream *stream)
 {
 	int i,ret;
 	for (i = 0; i < stream->urbs_initialized; i++) {
-		deb_ts("submitting URB no. %d\n",i);
+		deb_ts("submitting URB yes. %d\n",i);
 		if ((ret = usb_submit_urb(stream->urb_list[i],GFP_ATOMIC))) {
-			err("could not submit URB no. %d - get them all back",i);
+			err("could yest submit URB yes. %d - get them all back",i);
 			usb_urb_kill(stream);
 			return ret;
 		}
@@ -120,7 +120,7 @@ static int usb_allocate_stream_buffers(struct usb_data_stream *stream, int num, 
 		if (( stream->buf_list[stream->buf_num] =
 					usb_alloc_coherent(stream->udev, size, GFP_KERNEL,
 					&stream->dma_addr[stream->buf_num]) ) == NULL) {
-			deb_mem("not enough memory for urb-buffer allocation.\n");
+			deb_mem("yest eyesugh memory for urb-buffer allocation.\n");
 			usb_free_stream_buffers(stream);
 			return -ENOMEM;
 		}
@@ -147,7 +147,7 @@ static int usb_bulk_urb_init(struct usb_data_stream *stream)
 	for (i = 0; i < stream->props.count; i++) {
 		stream->urb_list[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!stream->urb_list[i]) {
-			deb_mem("not enough memory for urb_alloc_urb!.\n");
+			deb_mem("yest eyesugh memory for urb_alloc_urb!.\n");
 			for (j = 0; j < i; j++)
 				usb_free_urb(stream->urb_list[j]);
 			return -ENOMEM;
@@ -180,7 +180,7 @@ static int usb_isoc_urb_init(struct usb_data_stream *stream)
 
 		stream->urb_list[i] = usb_alloc_urb(stream->props.u.isoc.framesperurb, GFP_KERNEL);
 		if (!stream->urb_list[i]) {
-			deb_mem("not enough memory for urb_alloc_urb!\n");
+			deb_mem("yest eyesugh memory for urb_alloc_urb!\n");
 			for (j = 0; j < i; j++)
 				usb_free_urb(stream->urb_list[j]);
 			return -ENOMEM;
@@ -220,7 +220,7 @@ int usb_urb_init(struct usb_data_stream *stream, struct usb_data_stream_properti
 	usb_clear_halt(stream->udev,usb_rcvbulkpipe(stream->udev,stream->props.endpoint));
 
 	if (stream->complete == NULL) {
-		err("there is no data callback - this doesn't make sense.");
+		err("there is yes data callback - this doesn't make sense.");
 		return -EINVAL;
 	}
 
@@ -230,7 +230,7 @@ int usb_urb_init(struct usb_data_stream *stream, struct usb_data_stream_properti
 		case USB_ISOC:
 			return usb_isoc_urb_init(stream);
 		default:
-			err("unknown URB-type for data transfer.");
+			err("unkyeswn URB-type for data transfer.");
 			return -EINVAL;
 	}
 }
@@ -243,7 +243,7 @@ int usb_urb_exit(struct usb_data_stream *stream)
 
 	for (i = 0; i < stream->urbs_initialized; i++) {
 		if (stream->urb_list[i] != NULL) {
-			deb_mem("freeing URB no. %d.\n",i);
+			deb_mem("freeing URB yes. %d.\n",i);
 			/* free the URBs */
 			usb_free_urb(stream->urb_list[i]);
 		}

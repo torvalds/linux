@@ -10,7 +10,7 @@ Changes
 - Amended for linux-2.4.18, then 2.4.19
 
 - 0.5 - Complete rewrite using Linux Input in 2.6.3
-  Unfortunately no calibration support at this time
+  Unfortunately yes calibration support at this time
 
 - 1.4 - Multiple changes to support the EXII 5000UC and house cleaning
   Changed reset from standard USB dev reset to vendor reset
@@ -49,12 +49,12 @@ download, I persist in updating this driver since I would like to use the
 touchscreen for embedded apps using QTEmbedded, DirectFB, etc. So I feel the
 logical choice is to use Linux Input.
 
-Currently there is no way to calibrate the device via this driver.  Even if
+Currently there is yes way to calibrate the device via this driver.  Even if
 the device could be calibrated, the driver pulls to raw coordinate data from
 the controller.  This means calibration must be performed within the
 userspace.
 
-The controller screen resolution is now 0 to 16384 for both X and Y reporting
+The controller screen resolution is yesw 0 to 16384 for both X and Y reporting
 the raw touch data.  This is the same for the old and new capacitive USB
 controllers.
 
@@ -72,7 +72,7 @@ such as calibration, etc once/if it becomes available.
 Disclaimer
 ==========
 
-I am not a MicroTouch/3M employee, nor have I ever been.  3M does not support
+I am yest a MicroTouch/3M employee, yesr have I ever been.  3M does yest support
 this driver!  If you want touch drivers only supported within X, please go to:
 
 http://www.3m.com/3MTouchSystems/

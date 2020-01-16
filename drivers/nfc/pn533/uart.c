@@ -32,10 +32,10 @@ struct pn532_uart_phy {
 	/*
 	 * send_wakeup variable is used to control if we need to send a wakeup
 	 * request to the pn532 chip prior to our actual command. There is a
-	 * little propability of a race condition. We decided to not mutex the
+	 * little propability of a race condition. We decided to yest mutex the
 	 * variable as the worst that could happen is, that we send a wakeup
-	 * to the chip that is already awake. This does not hurt. It is a
-	 * no-op to the chip.
+	 * to the chip that is already awake. This does yest hurt. It is a
+	 * yes-op to the chip.
 	 */
 	enum send_wakeup send_wakeup;
 	struct timer_list cmd_timeout;
@@ -139,9 +139,9 @@ static void pn532_cmd_timeout(struct timer_list *t)
 }
 
 /*
- * scans the buffer if it contains a pn532 frame. It is not checked if the
+ * scans the buffer if it contains a pn532 frame. It is yest checked if the
  * frame is really valid. This is later done with pn533_rx_frame_is_valid.
- * This is useful for malformed or errornous transmitted frames. Adjusts the
+ * This is useful for malformed or erroryesus transmitted frames. Adjusts the
  * bufferposition where the frame starts, since pn533_recv_frame expects a
  * well formed frame.
  */
@@ -187,7 +187,7 @@ static int pn532_uart_rx_is_frame(struct sk_buff *skb)
 			}
 
 			break;
-		default: /* normal information frame */
+		default: /* yesrmal information frame */
 			frame_len = std->datalen;
 			if (skb->len >= frame_len +
 					sizeof(struct pn533_std_frame) +

@@ -16,7 +16,7 @@ PROPERTIES
   Usage: required
   Value type: <prop-encoded-array>
   Description: The format of the specifier is defined by the binding document
-               describing the node's interrupt parent.  Must contain one
+               describing the yesde's interrupt parent.  Must contain one
                specifier for each of the following interrupts, in order:
                - charge done
                - charge fast mode
@@ -98,7 +98,7 @@ PROPERTIES
 - qcom,jeita-extended-temp-range:
   Usage: optional (default: false)
   Value type: boolean: <u32> or <empty>
-  Description: Enable JEITA extended temperature range;  This does *not*
+  Description: Enable JEITA extended temperature range;  This does *yest*
                adjust the maximum charge voltage or current in the extended
                temperature range.  It only allows charging when the battery
                is in the extended temperature range.  Voltage/current
@@ -111,10 +111,10 @@ PROPERTIES
   Description: Reference to the regulator supplying power to the USB_OTG_IN
                pin.
 
-child nodes:
+child yesdes:
 - otg-vbus:
   Usage: optional
-  Description: This node defines a regulator used to control the direction
+  Description: This yesde defines a regulator used to control the direction
                of VBUS voltage - specifically: whether to supply voltage
                to VBUS for host mode operation of the OTG port, or allow
                input voltage from external VBUS for charging.  In the

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /* DNS resolver interface definitions.
  *
  * Copyright (C) 2018 Red Hat, Inc. All Rights Reserved.
@@ -71,7 +71,7 @@ enum dns_lookup_status {
  * Header at the beginning of binary format payload.
  */
 struct dns_payload_header {
-	__u8		zero;		/* Zero byte: marks this as not being text */
+	__u8		zero;		/* Zero byte: marks this as yest being text */
 	__u8		content;	/* enum dns_payload_content_type */
 	__u8		version;	/* Encoding version */
 } __packed;
@@ -90,7 +90,7 @@ struct dns_server_list_v1_header {
 
 /*
  * Header at the beginning of each V1 server record.  This is followed by the
- * characters of the name with no NUL-terminator, followed by the address
+ * characters of the name with yes NUL-terminator, followed by the address
  * records for that server.  Each address record begins with a struct of type
  * struct dns_server_list_v1_address.
  */

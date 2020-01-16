@@ -3,7 +3,7 @@ TPIC2810 GPIO controller bindings
 Required properties:
  - compatible		: Should be "ti,tpic2810".
  - reg			: The I2C address of the device
- - gpio-controller	: Marks the device node as a GPIO controller.
+ - gpio-controller	: Marks the device yesde as a GPIO controller.
  - #gpio-cells		: Should be two. For consumer use see gpio.txt.
 
 Example:

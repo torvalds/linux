@@ -7,7 +7,7 @@
  *
  *  Copyright (c) 2009-2010 Atheros Communications Inc.
  *
- *  Acknowledgements:
+ *  Ackyeswledgements:
  *  This file is based on hci_h4.c, which was written
  *  by Maxim Krasnyansky and Marcel Holtmann.
  */
@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioctl.h>
 #include <linux/skbuff.h>
 

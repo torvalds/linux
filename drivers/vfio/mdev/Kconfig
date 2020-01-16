@@ -8,7 +8,7 @@ config VFIO_MDEV
 	  Provides a framework to virtualize devices.
 	  See Documentation/driver-api/vfio-mediated-device.rst for more details.
 
-	  If you don't know what do here, say N.
+	  If you don't kyesw what do here, say N.
 
 config VFIO_MDEV_DEVICE
 	tristate "VFIO driver for Mediated devices"

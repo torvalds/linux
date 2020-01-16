@@ -15,7 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/extcon-provider.h>
 #include <linux/regmap.h>
 #include <linux/mfd/axp20x.h>
@@ -101,7 +101,7 @@ struct axp288_extcon_info {
 	int irq[EXTCON_IRQ_END];
 	struct extcon_dev *edev;
 	struct extcon_dev *id_extcon;
-	struct notifier_block id_nb;
+	struct yestifier_block id_nb;
 	unsigned int previous_cable;
 	bool vbus_attach;
 };
@@ -153,15 +153,15 @@ static void axp288_extcon_log_rsi(struct axp288_extcon_info *info)
  * may seem out of place, but there are 2 reasons why this is the best place
  * to control the USB role-switch on such devices:
  * 1) On many devices the USB role is controlled by AML code, but the AML code
- *    only switches between the host and none roles, because of Windows not
+ *    only switches between the host and yesne roles, because of Windows yest
  *    really using device mode. To make device mode work we need to toggle
- *    between the none/device roles based on Vbus presence, and this driver
+ *    between the yesne/device roles based on Vbus presence, and this driver
  *    gets interrupts on Vbus insertion / removal.
  * 2) In order for our BC1.2 charger detection to work properly the role
  *    mux must be properly set to device mode before we do the detection.
  */
 
-/* Returns the id-pin value, note pulled low / false == host-mode */
+/* Returns the id-pin value, yeste pulled low / false == host-mode */
 static bool axp288_get_id_pin(struct axp288_extcon_info *info)
 {
 	enum usb_role role;
@@ -169,7 +169,7 @@ static bool axp288_get_id_pin(struct axp288_extcon_info *info)
 	if (info->id_extcon)
 		return extcon_get_state(info->id_extcon, EXTCON_USB_HOST) <= 0;
 
-	/* We cannot access the id-pin, see what mode the AML code has set */
+	/* We canyest access the id-pin, see what mode the AML code has set */
 	role = usb_role_switch_get_role(info->role_sw);
 	return role != USB_ROLE_HOST;
 }
@@ -217,7 +217,7 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 
 	vbus_attach = axp288_get_vbus_attach(info);
 	if (!vbus_attach)
-		goto no_vbus;
+		goto yes_vbus;
 
 	/* Check charger detection completion status */
 	ret = regmap_read(info->regmap, AXP288_BC_GLOBAL_REG, &cfg);
@@ -248,11 +248,11 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 		cable = EXTCON_CHG_USB_DCP;
 		break;
 	default:
-		dev_warn(info->dev, "unknown (reserved) bc detect result\n");
+		dev_warn(info->dev, "unkyeswn (reserved) bc detect result\n");
 		cable = EXTCON_CHG_USB_SDP;
 	}
 
-no_vbus:
+yes_vbus:
 	extcon_set_state_sync(info->edev, info->previous_cable, false);
 	if (info->previous_cable == EXTCON_CHG_USB_SDP)
 		extcon_set_state_sync(info->edev, EXTCON_USB, false);
@@ -281,13 +281,13 @@ dev_det_ret:
 	return ret;
 }
 
-static int axp288_extcon_id_evt(struct notifier_block *nb,
+static int axp288_extcon_id_evt(struct yestifier_block *nb,
 				unsigned long event, void *param)
 {
 	struct axp288_extcon_info *info =
 		container_of(nb, struct axp288_extcon_info, id_nb);
 
-	/* We may not sleep and setting the role can take a while */
+	/* We may yest sleep and setting the role can take a while */
 	queue_work(system_long_wq, &info->role_work);
 
 	return NOTIFY_OK;
@@ -324,19 +324,19 @@ static void axp288_put_role_sw(void *data)
 
 static int axp288_extcon_find_role_sw(struct axp288_extcon_info *info)
 {
-	const struct software_node *swnode;
-	struct fwnode_handle *fwnode;
+	const struct software_yesde *swyesde;
+	struct fwyesde_handle *fwyesde;
 
 	if (!x86_match_cpu(cherry_trail_cpu_ids))
 		return 0;
 
-	swnode = software_node_find_by_name(NULL, "intel-xhci-usb-sw");
-	if (!swnode)
+	swyesde = software_yesde_find_by_name(NULL, "intel-xhci-usb-sw");
+	if (!swyesde)
 		return -EPROBE_DEFER;
 
-	fwnode = software_node_fwnode(swnode);
-	info->role_sw = usb_role_switch_find_by_fwnode(fwnode);
-	fwnode_handle_put(fwnode);
+	fwyesde = software_yesde_fwyesde(swyesde);
+	info->role_sw = usb_role_switch_find_by_fwyesde(fwyesde);
+	fwyesde_handle_put(fwyesde);
 
 	return info->role_sw ? 0 : -EPROBE_DEFER;
 }
@@ -358,7 +358,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	info->regmap_irqc = axp20x->regmap_irqc;
 	info->previous_cable = EXTCON_NONE;
 	INIT_WORK(&info->role_work, axp288_usb_role_work);
-	info->id_nb.notifier_call = axp288_extcon_id_evt;
+	info->id_nb.yestifier_call = axp288_extcon_id_evt;
 
 	platform_set_drvdata(pdev, info);
 
@@ -428,7 +428,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	}
 
 	if (info->id_extcon) {
-		ret = devm_extcon_register_notifier_all(dev, info->id_extcon,
+		ret = devm_extcon_register_yestifier_all(dev, info->id_extcon,
 							&info->id_nb);
 		if (ret)
 			return ret;

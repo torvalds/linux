@@ -21,7 +21,7 @@ Required properties:
 Optional properties:
 - clock-output-names: From common clock binding to override the
   default output clock name
-- rockchip,system-power-controller: Telling whether or not this pmic is controlling
+- rockchip,system-power-controller: Telling whether or yest this pmic is controlling
   the system power.
 
 Optional RK805 properties:
@@ -47,7 +47,7 @@ Optional RK808 properties:
 - dvs-gpios:  buck1/2 can be controlled by gpio dvs, this is GPIO specifiers
   for 2 host gpio's used for dvs. The format of the gpio specifier depends in
   the gpio controller. If DVS GPIOs aren't present, voltage changes will happen
-  very quickly with no slow ramp time.
+  very quickly with yes slow ramp time.
 
 Optional shared RK809 and RK817 properties:
 - vcc1-supply:  The input supply for DCDC_REG1
@@ -80,8 +80,8 @@ Optional RK818 properties:
 - usb-supply:   The input supply for OTG_SWITCH
 
 Regulators: All the regulators of RK8XX to be instantiated shall be
-listed in a child node named 'regulators'. Each regulator is represented
-by a child node of the 'regulators' node.
+listed in a child yesde named 'regulators'. Each regulator is represented
+by a child yesde of the 'regulators' yesde.
 
 	regulator-name {
 		/* standard regulator bindings here */
@@ -142,7 +142,7 @@ pins are "gpio_ts" "gpio_gt" "gpio_slp".
 		- power down
 		- sleep
 
-Standard regulator bindings are used inside regulator subnodes. Check
+Standard regulator bindings are used inside regulator subyesdes. Check
   Documentation/devicetree/bindings/regulator/regulator.txt
 for more details
 

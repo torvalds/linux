@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -83,19 +83,19 @@ int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw)
 	return 0;
 }
 
-/** amdgpu_ring_insert_nop - insert NOP packets
+/** amdgpu_ring_insert_yesp - insert NOP packets
  *
  * @ring: amdgpu_ring structure holding ring information
  * @count: the number of NOP packets to insert
  *
- * This is the generic insert_nop function for rings except SDMA
+ * This is the generic insert_yesp function for rings except SDMA
  */
-void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+void amdgpu_ring_insert_yesp(struct amdgpu_ring *ring, uint32_t count)
 {
 	int i;
 
 	for (i = 0; i < count; i++)
-		amdgpu_ring_write(ring, ring->funcs->nop);
+		amdgpu_ring_write(ring, ring->funcs->yesp);
 }
 
 /** amdgpu_ring_generic_pad_ib - pad IB with NOP packets
@@ -108,7 +108,7 @@ void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 {
 	while (ib->length_dw & ring->funcs->align_mask)
-		ib->ptr[ib->length_dw++] = ring->funcs->nop;
+		ib->ptr[ib->length_dw++] = ring->funcs->yesp;
 }
 
 /**
@@ -129,7 +129,7 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 	count = ring->funcs->align_mask + 1 -
 		(ring->wptr & ring->funcs->align_mask);
 	count %= ring->funcs->align_mask + 1;
-	ring->funcs->insert_nop(ring, count);
+	ring->funcs->insert_yesp(ring, count);
 
 	mb();
 	amdgpu_ring_set_wptr(ring);
@@ -172,12 +172,12 @@ void amdgpu_ring_priority_put(struct amdgpu_ring *ring,
 	if (atomic_dec_return(&ring->num_jobs[priority]) > 0)
 		return;
 
-	/* no need to restore if the job is already at the lowest priority */
+	/* yes need to restore if the job is already at the lowest priority */
 	if (priority == DRM_SCHED_PRIORITY_NORMAL)
 		return;
 
 	mutex_lock(&ring->priority_mutex);
-	/* something higher prio is executing, no need to decay */
+	/* something higher prio is executing, yes need to decay */
 	if (ring->priority > priority)
 		goto out_unlock;
 
@@ -229,7 +229,7 @@ out_unlock:
  * @adev: amdgpu_device pointer
  * @ring: amdgpu_ring structure holding ring information
  * @max_ndw: maximum number of dw for ring alloc
- * @nop: nop packet for this ring
+ * @yesp: yesp packet for this ring
  *
  * Initialize the driver information for the selected ring (all asics).
  * Returns 0 on success, error on failure.
@@ -353,7 +353,7 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 {
 	ring->sched.ready = false;
 
-	/* Not to finish a ring which is not initialized */
+	/* Not to finish a ring which is yest initialized */
 	if (!(ring->adev) || !(ring->adev->rings[ring->idx]))
 		return;
 
@@ -436,7 +436,7 @@ bool amdgpu_ring_soft_recovery(struct amdgpu_ring *ring, unsigned int vmid,
 static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_ring *ring = file_inode(f)->i_private;
+	struct amdgpu_ring *ring = file_iyesde(f)->i_private;
 	int r, i;
 	uint32_t value, result, early[3];
 
@@ -489,8 +489,8 @@ static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 				    struct amdgpu_ring *ring)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct drm_miyesr *miyesr = adev->ddev->primary;
+	struct dentry *ent, *root = miyesr->debugfs_root;
 	char name[32];
 
 	sprintf(name, "amdgpu_ring_%s", ring->name);
@@ -501,7 +501,7 @@ static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 	if (!ent)
 		return -ENOMEM;
 
-	i_size_write(ent->d_inode, ring->ring_size + 12);
+	i_size_write(ent->d_iyesde, ring->ring_size + 12);
 	ring->ent = ent;
 #endif
 	return 0;

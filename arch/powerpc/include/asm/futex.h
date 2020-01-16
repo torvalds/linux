@@ -6,7 +6,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/synch.h>
 #include <asm/asm-405.h>
 

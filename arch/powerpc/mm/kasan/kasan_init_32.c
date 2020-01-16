@@ -57,7 +57,7 @@ static int __ref kasan_init_shadow_page_tables(unsigned long k_start, unsigned l
 		smp_wmb(); /* See comment in __pte_alloc */
 
 		spin_lock(&init_mm.page_table_lock);
-			/* Has another populated it ? */
+			/* Has ayesther populated it ? */
 		if (likely((void *)pmd_page_vaddr(*pmd) == kasan_early_shadow_pte)) {
 			pmd_populate_kernel(&init_mm, pmd, new);
 			new = NULL;
@@ -170,7 +170,7 @@ void *module_alloc(unsigned long size)
 {
 	void *base;
 
-	base = __vmalloc_node_range(size, MODULE_ALIGN, VMALLOC_START, VMALLOC_END,
+	base = __vmalloc_yesde_range(size, MODULE_ALIGN, VMALLOC_START, VMALLOC_END,
 				    GFP_KERNEL, PAGE_KERNEL_EXEC, VM_FLUSH_RESET_PERMS,
 				    NUMA_NO_NODE, __builtin_return_address(0));
 

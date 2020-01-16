@@ -20,11 +20,11 @@ cfg_veth() {
 	ip link add type veth
 	ip link set dev veth0 up
 	ip addr add dev veth0 192.168.1.2/24
-	ip addr add dev veth0 2001:db8::2/64 nodad
+	ip addr add dev veth0 2001:db8::2/64 yesdad
 
 	ip link set dev veth1 netns "${PEER_NS}"
 	ip -netns "${PEER_NS}" addr add dev veth1 192.168.1.1/24
-	ip -netns "${PEER_NS}" addr add dev veth1 2001:db8::1/64 nodad
+	ip -netns "${PEER_NS}" addr add dev veth1 2001:db8::1/64 yesdad
 	ip -netns "${PEER_NS}" link set dev veth1 up
 	ip -n "${PEER_NS}" link set veth1 xdp object ../bpf/xdp_dummy.o section xdp_dummy
 }
@@ -68,7 +68,7 @@ run_one_nat() {
 		addr2=192.168.1.3/24
 	else
 		addr1=2001:db8::1
-		addr2="2001:db8::3/64 nodad"
+		addr2="2001:db8::3/64 yesdad"
 	fi
 
 	cfg_veth
@@ -133,11 +133,11 @@ run_all() {
 	local -r ipv6_args="${core_args} -6 -D 2001:db8::1"
 
 	echo "ipv4"
-	run_test "no GRO" "${ipv4_args} -M 10 -s 1400" "-4 -n 10 -l 1400"
+	run_test "yes GRO" "${ipv4_args} -M 10 -s 1400" "-4 -n 10 -l 1400"
 
-	# explicitly check we are not receiving UDP_SEGMENT cmsg (-S -1)
-	# when GRO does not take place
-	run_test "no GRO chk cmsg" "${ipv4_args} -M 10 -s 1400" "-4 -n 10 -l 1400 -S -1"
+	# explicitly check we are yest receiving UDP_SEGMENT cmsg (-S -1)
+	# when GRO does yest take place
+	run_test "yes GRO chk cmsg" "${ipv4_args} -M 10 -s 1400" "-4 -n 10 -l 1400 -S -1"
 
 	# the GSO packets are aggregated because:
 	# * veth schedule napi after each xmit
@@ -152,8 +152,8 @@ run_all() {
 	run_2sock_test "multiple GRO socks" "${ipv4_args} -M 1 -s 14720 -S 0 " "-4 -n 1 -l 14720 -S 1472"
 
 	echo "ipv6"
-	run_test "no GRO" "${ipv6_args} -M 10 -s 1400" "-n 10 -l 1400"
-	run_test "no GRO chk cmsg" "${ipv6_args} -M 10 -s 1400" "-n 10 -l 1400 -S -1"
+	run_test "yes GRO" "${ipv6_args} -M 10 -s 1400" "-n 10 -l 1400"
+	run_test "yes GRO chk cmsg" "${ipv6_args} -M 10 -s 1400" "-n 10 -l 1400 -S -1"
 	run_test "GRO" "${ipv6_args} -M 1 -s 14520 -S 0" "-n 1 -l 14520"
 	run_test "GRO chk cmsg" "${ipv6_args} -M 1 -s 14520 -S 0" "-n 1 -l 14520 -S 1452"
 	run_test "GRO with custom segment size" "${ipv6_args} -M 1 -s 14520 -S 500" "-n 1 -l 14520"

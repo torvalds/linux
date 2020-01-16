@@ -48,7 +48,7 @@ struct iio_poll_func
 void iio_dealloc_pollfunc(struct iio_poll_func *pf);
 irqreturn_t iio_pollfunc_store_time(int irq, void *p);
 
-void iio_trigger_notify_done(struct iio_trigger *trig);
+void iio_trigger_yestify_done(struct iio_trigger *trig);
 
 /*
  * Two functions for common case where all that happens is a pollfunc

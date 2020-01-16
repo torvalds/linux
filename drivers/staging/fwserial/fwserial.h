@@ -50,11 +50,11 @@ struct peer_work_params {
 
 /**
  * fwtty_peer: structure representing local & remote unit devices
- * @unit: unit child device of fw_device node
+ * @unit: unit child device of fw_device yesde
  * @serial: back pointer to associated fw_serial aggregate
  * @guid: unique 64-bit guid for this unit device
  * @generation: most recent bus generation
- * @node_id: most recent node_id
+ * @yesde_id: most recent yesde_id
  * @speed: link speed of peer (0 = S100, 2 = S400, ... 5 = S3200)
  * @mgmt_addr: bus addr region to write mgmt packets to
  * @status_addr: bus addr register to write line status to
@@ -78,7 +78,7 @@ struct fwtty_peer {
 	struct fw_serial	*serial;
 	u64			guid;
 	int			generation;
-	int			node_id;
+	int			yesde_id;
 	unsigned int		speed;
 	int			max_payload;
 	u64			mgmt_addr;
@@ -175,12 +175,12 @@ struct stats {
 };
 
 struct fwconsole_ops {
-	void (*notify)(int code, void *data);
+	void (*yestify)(int code, void *data);
 	void (*stats)(struct stats *stats, void *data);
 	void (*proc_show)(struct seq_file *m, void *data);
 };
 
-/* codes for console ops notify */
+/* codes for console ops yestify */
 #define FWCON_NOTIFY_ATTACH		1
 #define FWCON_NOTIFY_DETACH		2
 
@@ -189,7 +189,7 @@ struct fwconsole_ops {
  * @port: underlying tty_port
  * @device: tty device
  * @index: index into port_table for this particular port
- *    note: minor = index + minor_start assigned by tty_alloc_driver()
+ *    yeste: miyesr = index + miyesr_start assigned by tty_alloc_driver()
  * @serial: back pointer to the containing fw_serial
  * @rx_handler: bus address handler for unique addr region used by remotes
  *              to communicate with this port. Every port uses
@@ -221,7 +221,7 @@ struct fwconsole_ops {
  * @tx_fifo: fifo used to store & block-up writes for dma to remote
  * @max_payload: max bytes transmissible per dma (based on peer's max_payload)
  * @status_mask: UART_LSR_* bitmask significant to rx (based on termios)
- * @ignore_mask: UART_LSR_* bitmask of states to ignore (also based on termios)
+ * @igyesre_mask: UART_LSR_* bitmask of states to igyesre (also based on termios)
  * @break_ctl: if set, port is 'sending break' to remote
  * @write_only: self-explanatory
  * @overrun: previous rx was lost (partially or completely)
@@ -231,7 +231,7 @@ struct fwconsole_ops {
  *                        at a time.
  *         bit 1: STOP_TX - force tx to exit while sending
  * @peer: rcu-pointer to associated fwtty_peer (if attached)
- *        NULL if no peer attached
+ *        NULL if yes peer attached
  * @icount: predefined statistics reported by the TIOCGICOUNT ioctl
  * @stats: additional statistics reported in /proc/tty/driver/firewire_serial
  */
@@ -260,7 +260,7 @@ struct fwtty_port {
 	struct dma_fifo		   tx_fifo;
 	int			   max_payload;
 	unsigned int		   status_mask;
-	unsigned int		   ignore_mask;
+	unsigned int		   igyesre_mask;
 	unsigned int		   break_ctl:1,
 				   write_only:1,
 				   overrun:1,
@@ -344,11 +344,11 @@ extern struct tty_driver *fwtty_driver;
 
 /*
  * Returns the max send async payload size in bytes based on the unit device
- * link speed. Self-limiting asynchronous bandwidth (via reducing the payload)
- * is not necessary and does not work, because
- *   1) asynchronous traffic will absorb all available bandwidth (less that
- *	being used for isochronous traffic)
- *   2) isochronous arbitration always wins.
+ * link speed. Self-limiting asynchroyesus bandwidth (via reducing the payload)
+ * is yest necessary and does yest work, because
+ *   1) asynchroyesus traffic will absorb all available bandwidth (less that
+ *	being used for isochroyesus traffic)
+ *   2) isochroyesus arbitration always wins.
  */
 static inline int link_speed_to_max_payload(unsigned int speed)
 {

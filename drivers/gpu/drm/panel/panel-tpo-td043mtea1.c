@@ -6,7 +6,7 @@
  *
  * Based on the omapdrm-specific panel-tpo-td043mtea1 driver
  *
- * Author: Gražvydas Ignotas <notasas@gmail.com>
+ * Author: Gražvydas Igyestas <yestasas@gmail.com>
  */
 
 #include <linux/delay.h>
@@ -313,7 +313,7 @@ static int td043mtea1_prepare(struct drm_panel *panel)
 	int ret;
 
 	/*
-	 * If we are resuming from system suspend, SPI might not be enabled
+	 * If we are resuming from system suspend, SPI might yest be enabled
 	 * yet, so we'll program the LCD from SPI PM resume callback.
 	 */
 	if (lcd->spi_suspended)
@@ -510,6 +510,6 @@ static struct spi_driver td043mtea1_driver = {
 
 module_spi_driver(td043mtea1_driver);
 
-MODULE_AUTHOR("Gražvydas Ignotas <notasas@gmail.com>");
+MODULE_AUTHOR("Gražvydas Igyestas <yestasas@gmail.com>");
 MODULE_DESCRIPTION("TPO TD043MTEA1 Panel Driver");
 MODULE_LICENSE("GPL");

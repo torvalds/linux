@@ -19,14 +19,14 @@
  * Copied from efi_32.c to eliminate the duplicated code between EFI
  * 32/64 support code. --ying 2007-10-26
  *
- * All EFI Runtime Services are not implemented yet as EFI only
+ * All EFI Runtime Services are yest implemented yet as EFI only
  * supports physical mode addressing on SoftSDV. This is to be fixed
  * in a future version.  --drummond 1999-07-20
  *
  * Implemented EFI runtime services and virtual mode calls.  --davidm
  *
  * Goutham Rao: <goutham.rao@intel.com>
- *	Skip non-WB memory and ignore empty memory ranges.
+ *	Skip yesn-WB memory and igyesre empty memory ranges.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -207,11 +207,11 @@ static void __init do_add_efi_memmap(void)
 }
 
 /*
- * Given add_efi_memmap defaults to 0 and there there is no alternative
+ * Given add_efi_memmap defaults to 0 and there there is yes alternative
  * e820 mechanism for soft-reserved memory, import the full EFI memory
  * map if soft reservations are present and enabled. Otherwise, the
  * mechanism to disable the kernel's consideration of EFI_MEMORY_SP is
- * the efi=nosoftreserve option.
+ * the efi=yessoftreserve option.
  */
 static bool do_efi_soft_reserve(void)
 {
@@ -462,7 +462,7 @@ static int __init efi_runtime_init32(void)
 	runtime = early_memremap((unsigned long)efi.systab->runtime,
 			sizeof(efi_runtime_services_32_t));
 	if (!runtime) {
-		pr_err("Could not map the runtime service table!\n");
+		pr_err("Could yest map the runtime service table!\n");
 		return -ENOMEM;
 	}
 
@@ -486,7 +486,7 @@ static int __init efi_runtime_init64(void)
 	runtime = early_memremap((unsigned long)efi.systab->runtime,
 			sizeof(efi_runtime_services_64_t));
 	if (!runtime) {
-		pr_err("Could not map the runtime service table!\n");
+		pr_err("Could yest map the runtime service table!\n");
 		return -ENOMEM;
 	}
 
@@ -513,8 +513,8 @@ static int __init efi_runtime_init(void)
 	 * address of several of the EFI runtime functions, needed to
 	 * set the firmware into virtual mode.
 	 *
-	 * When EFI_PARAVIRT is in force then we could not map runtime
-	 * service memory region because we do not have direct access to it.
+	 * When EFI_PARAVIRT is in force then we could yest map runtime
+	 * service memory region because we do yest have direct access to it.
 	 * However, runtime services are available through proxy functions
 	 * (e.g. in case of Xen dom0 EFI implementation they call special
 	 * hypercall which executes relevant EFI functions) and that is why
@@ -539,7 +539,7 @@ static int __init efi_runtime_init(void)
 void __init efi_init(void)
 {
 	efi_char16_t *c16;
-	char vendor[100] = "unknown";
+	char vendor[100] = "unkyeswn";
 	int i = 0;
 	void *tmp;
 
@@ -564,7 +564,7 @@ void __init efi_init(void)
 	efi.runtime	 = (unsigned long)efi.systab->runtime;
 
 	/*
-	 * Show what we know for posterity
+	 * Show what we kyesw for posterity
 	 */
 	c16 = tmp = early_memremap(efi.systab->fw_vendor, 2);
 	if (c16) {
@@ -572,7 +572,7 @@ void __init efi_init(void)
 			vendor[i] = *c16++;
 		vendor[i] = '\0';
 	} else
-		pr_err("Could not map the firmware vendor!\n");
+		pr_err("Could yest map the firmware vendor!\n");
 	early_memunmap(tmp, 2);
 
 	pr_info("EFI v%u.%.02u by %s\n",
@@ -780,7 +780,7 @@ static void *efi_map_next_entry(void *entry)
 		 * out-of-order leads to the firmware accessing
 		 * unmapped addresses.
 		 *
-		 * Since we need to map things this way whether or not
+		 * Since we need to map things this way whether or yest
 		 * the kernel actually makes use of
 		 * EFI_PROPERTIES_TABLE, let's just switch to this
 		 * scheme by default for 64-bit.
@@ -899,7 +899,7 @@ static void __init kexec_enter_virtual_mode(void)
 
 	/*
 	 * We don't do virtual mode, since we don't do runtime services, on
-	 * non-native EFI. With efi=old_map, we don't do runtime services in
+	 * yesn-native EFI. With efi=old_map, we don't do runtime services in
 	 * kexec kernel because in the initial boot something else might
 	 * have been mapped at these virtual addresses.
 	 */
@@ -1006,7 +1006,7 @@ static void __init __efi_enter_virtual_mode(void)
 	efi_merge_regions();
 	new_memmap = efi_map_regions(&count, &pg_shift);
 	if (!new_memmap) {
-		pr_err("Error reallocating memory, EFI runtime non-functional!\n");
+		pr_err("Error reallocating memory, EFI runtime yesn-functional!\n");
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 		return;
 	}
@@ -1079,7 +1079,7 @@ static void __init __efi_enter_virtual_mode(void)
 	efi.set_virtual_address_map = NULL;
 
 	/*
-	 * Apply more restrictive page table mapping attributes now that
+	 * Apply more restrictive page table mapping attributes yesw that
 	 * SVAM() has been called and the firmware has performed all
 	 * necessary relocation fixups for the new virtual addresses.
 	 */

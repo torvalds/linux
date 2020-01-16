@@ -9,17 +9,17 @@ config DW_DMAC_CORE
 	select DMA_ENGINE
 
 config DW_DMAC
-	tristate "Synopsys DesignWare AHB DMA platform driver"
+	tristate "Syyespsys DesignWare AHB DMA platform driver"
 	select DW_DMAC_CORE
 	help
-	  Support the Synopsys DesignWare AHB DMA controller. This
+	  Support the Syyespsys DesignWare AHB DMA controller. This
 	  can be integrated in chips such as the Intel Cherrytrail.
 
 config DW_DMAC_PCI
-	tristate "Synopsys DesignWare AHB DMA PCI driver"
+	tristate "Syyespsys DesignWare AHB DMA PCI driver"
 	depends on PCI
 	select DW_DMAC_CORE
 	help
-	  Support the Synopsys DesignWare AHB DMA controller on the
+	  Support the Syyespsys DesignWare AHB DMA controller on the
 	  platforms that enumerate it as a PCI device. For example,
 	  Intel Medfield has integrated this GPDMA controller.

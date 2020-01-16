@@ -169,7 +169,7 @@ static s32 fm10k_update_vlan_vf(struct fm10k_hw *hw, u32 vid, u8 vsi, bool set)
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 msg[4];
 
-	/* verify the index is not set */
+	/* verify the index is yest set */
 	if (vsi)
 		return FM10K_ERR_PARAM;
 
@@ -283,12 +283,12 @@ static s32 fm10k_update_uc_addr_vf(struct fm10k_hw *hw,
 	if (!is_valid_ether_addr(mac))
 		return FM10K_ERR_PARAM;
 
-	/* verify we are not locked down on the MAC address */
+	/* verify we are yest locked down on the MAC address */
 	if (is_valid_ether_addr(hw->mac.perm_addr) &&
 	    !ether_addr_equal(hw->mac.perm_addr, mac))
 		return FM10K_ERR_PARAM;
 
-	/* add bit to notify us if this is a set or clear operation */
+	/* add bit to yestify us if this is a set or clear operation */
 	if (!add)
 		vid |= FM10K_VLAN_CLEAR;
 
@@ -326,7 +326,7 @@ static s32 fm10k_update_mc_addr_vf(struct fm10k_hw *hw,
 	if (!is_multicast_ether_addr(mac))
 		return FM10K_ERR_PARAM;
 
-	/* add bit to notify us if this is a set or clear operation */
+	/* add bit to yestify us if this is a set or clear operation */
 	if (!add)
 		vid |= FM10K_VLAN_CLEAR;
 
@@ -487,7 +487,7 @@ static s32 fm10k_configure_dglort_map_vf(struct fm10k_hw __always_unused *hw,
 	if (!dglort)
 		return FM10K_ERR_PARAM;
 
-	/* stub for now until we determine correct message for this */
+	/* stub for yesw until we determine correct message for this */
 
 	return 0;
 }

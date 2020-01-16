@@ -25,13 +25,13 @@ properties:
   reg:
     maxItems: 1
 
-# Client device subnode's properties
+# Client device subyesde's properties
 patternProperties:
   '-pins$':
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl yesde's client devices use subyesdes for desired pin configuration.
+      Client device subyesdes use below standard properties.
 
     properties:
       function:
@@ -97,7 +97,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Pinmux controller node
+  # Pinmux controller yesde
   - |
     pinctrl: pinctrl@e2880000 {
         compatible = "intel,lgm-pinctrl";

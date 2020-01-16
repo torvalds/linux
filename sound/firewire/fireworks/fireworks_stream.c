@@ -43,7 +43,7 @@ static int init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 		efw->tx_stream.flags |= CIP_DBC_IS_END_EVENT;
 		// Fireworks reset dbc at bus reset.
 		efw->tx_stream.flags |= CIP_SKIP_DBC_ZERO_CHECK;
-		// But Recent firmwares starts packets with non-zero dbc.
+		// But Recent firmwares starts packets with yesn-zero dbc.
 		// Driver version 5.7.6 installs firmware version 5.7.3.
 		if (efw->is_fireworks3 &&
 		    (efw->firmware_version == 0x5070000 ||
@@ -145,7 +145,7 @@ int snd_efw_stream_init_duplex(struct snd_efw *efw)
 		return err;
 	}
 
-	// set IEC61883 compliant mode (actually not fully compliant...).
+	// set IEC61883 compliant mode (actually yest fully compliant...).
 	err = snd_efw_command_set_tx_mode(efw, SND_EFW_TRANSPORT_MODE_IEC61883);
 	if (err < 0) {
 		destroy_stream(efw, &efw->tx_stream);
@@ -248,7 +248,7 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw)
 	unsigned int rate;
 	int err = 0;
 
-	// Need no substreams.
+	// Need yes substreams.
 	if (efw->substreams_counter == 0)
 		return -EIO;
 

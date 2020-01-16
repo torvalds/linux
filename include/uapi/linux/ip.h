@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -111,13 +111,13 @@ struct ip_auth_hdr {
 	__u8  hdrlen;		/* This one is measured in 32 bit units! */
 	__be16 reserved;
 	__be32 spi;
-	__be32 seq_no;		/* Sequence number */
+	__be32 seq_yes;		/* Sequence number */
 	__u8  auth_data[0];	/* Variable len but >=4. Mind the 64 bit alignment! */
 };
 
 struct ip_esp_hdr {
 	__be32 spi;
-	__be32 seq_no;		/* Sequence number */
+	__be32 seq_yes;		/* Sequence number */
 	__u8  enc_data[0];	/* Variable len but >=8. Mind the 64 bit alignment! */
 };
 

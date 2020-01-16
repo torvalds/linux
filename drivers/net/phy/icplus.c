@@ -6,7 +6,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -73,7 +73,7 @@ static int ip175c_config_init(struct phy_device *phydev)
 		if (err < 0)
 			return err;
 
-		/* ensure no bus delays overlap reset period */
+		/* ensure yes bus delays overlap reset period */
 		err = mdiobus_read(phydev->mdio.bus, 30, 0);
 
 		/* data sheet specifies reset period is 2 msec */
@@ -212,7 +212,7 @@ static int ip101a_g_probe(struct phy_device *phydev)
 	if (device_property_read_bool(dev, "icplus,select-rx-error") &&
 	    device_property_read_bool(dev, "icplus,select-interrupt")) {
 		dev_err(dev,
-			"RXER and INTR mode cannot be selected together\n");
+			"RXER and INTR mode canyest be selected together\n");
 		return -EINVAL;
 	}
 
@@ -255,11 +255,11 @@ static int ip101a_g_config_init(struct phy_device *phydev)
 		break;
 
 	default:
-		/* Don't touch IP101G_DIGITAL_IO_SPEC_CTRL because it's not
-		 * documented on IP101A and it's not clear whether this would
+		/* Don't touch IP101G_DIGITAL_IO_SPEC_CTRL because it's yest
+		 * documented on IP101A and it's yest clear whether this would
 		 * cause problems.
 		 * For the 32-pin IP101GR we simply keep the SEL_INTR32
-		 * configuration as set by the bootloader when not configured
+		 * configuration as set by the bootloader when yest configured
 		 * to one of the special functions.
 		 */
 		break;

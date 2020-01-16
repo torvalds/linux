@@ -48,8 +48,8 @@
  * with the current time, and take action if the difference exceeds the
  * watchdog threshold.
  *
- * The limitation of the soft-NMI watchdog is that it does not work when
- * interrupts are hard disabled or otherwise not being serviced. This is
+ * The limitation of the soft-NMI watchdog is that it does yest work when
+ * interrupts are hard disabled or otherwise yest being serviced. This is
  * solved by also having a SMP watchdog where all CPUs check all other
  * CPUs heartbeat.
  *
@@ -59,8 +59,8 @@
  * becomes empty, the last CPU to clear its pending bit updates a global
  * timestamp and refills the pending bitmask.
  *
- * In the heartbeat timer, if any CPU notices that the global timestamp has
- * not been updated for a period exceeding the watchdog threshold, then it
+ * In the heartbeat timer, if any CPU yestices that the global timestamp has
+ * yest been updated for a period exceeding the watchdog threshold, then it
  * means the CPU(s) with their bit still set in the pending mask have had
  * their heartbeat stop, and action is taken.
  *
@@ -125,16 +125,16 @@ static void wd_lockup_ipi(struct pt_regs *regs)
 	else
 		dump_stack();
 
-	/* Do not panic from here because that can recurse into NMI IPI layer */
+	/* Do yest panic from here because that can recurse into NMI IPI layer */
 }
 
 static void set_cpumask_stuck(const struct cpumask *cpumask, u64 tb)
 {
 	cpumask_or(&wd_smp_cpus_stuck, &wd_smp_cpus_stuck, cpumask);
-	cpumask_andnot(&wd_smp_cpus_pending, &wd_smp_cpus_pending, cpumask);
+	cpumask_andyest(&wd_smp_cpus_pending, &wd_smp_cpus_pending, cpumask);
 	if (cpumask_empty(&wd_smp_cpus_pending)) {
 		wd_smp_last_reset_tb = tb;
-		cpumask_andnot(&wd_smp_cpus_pending,
+		cpumask_andyest(&wd_smp_cpus_pending,
 				&wd_cpus_enabled,
 				&wd_smp_cpus_stuck);
 	}
@@ -183,7 +183,7 @@ static void watchdog_smp_panic(int cpu, u64 tb)
 
 	printk_safe_flush();
 	/*
-	 * printk_safe_flush() seems to require another print
+	 * printk_safe_flush() seems to require ayesther print
 	 * before anything actually goes out to console.
 	 */
 	if (sysctl_hardlockup_all_cpu_backtrace)
@@ -227,7 +227,7 @@ static void wd_smp_clear_cpu_pending(int cpu, u64 tb)
 		wd_smp_lock(&flags);
 		if (cpumask_empty(&wd_smp_cpus_pending)) {
 			wd_smp_last_reset_tb = tb;
-			cpumask_andnot(&wd_smp_cpus_pending,
+			cpumask_andyest(&wd_smp_cpus_pending,
 					&wd_cpus_enabled,
 					&wd_smp_cpus_stuck);
 		}
@@ -305,7 +305,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 
 	watchdog_timer_interrupt(cpu);
 
-	hrtimer_forward_now(hrtimer, ms_to_ktime(wd_timer_period_ms));
+	hrtimer_forward_yesw(hrtimer, ms_to_ktime(wd_timer_period_ms));
 
 	return HRTIMER_RESTART;
 }
@@ -419,12 +419,12 @@ int __init watchdog_nmi_probe(void)
 {
 	int err;
 
-	err = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	err = cpuhp_setup_state_yescalls(CPUHP_AP_ONLINE_DYN,
 					"powerpc/watchdog:online",
 					start_watchdog_on_cpu,
 					stop_watchdog_on_cpu);
 	if (err < 0) {
-		pr_warn("could not be initialized");
+		pr_warn("could yest be initialized");
 		return err;
 	}
 	return 0;

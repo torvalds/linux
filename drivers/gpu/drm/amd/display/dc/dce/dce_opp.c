@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -88,7 +88,7 @@ enum {
  * @param   : parameters   interface parameters
  *  @return void
  *
- *  @note
+ *  @yeste
  *
  *  @see
  *
@@ -148,13 +148,13 @@ static void set_truncation(
  *	2) set spatial dithering depth: 0 for 18bpp or 1 for 24bpp
  *	3) set random seed
  *	4) set random mode
- *		lfsr is reset every frame or not reset
+ *		lfsr is reset every frame or yest reset
  *		RGB dithering method
  *		0: RGB data are all dithered with x^28+x^3+1
  *		1: R data is dithered with x^28+x^3+1
  *		G data is dithered with x^28+X^9+1
  *		B data is dithered with x^28+x^13+1
- *		enable high pass filter or not
+ *		enable high pass filter or yest
  *	5) enable spatical dithering
  */
 static void set_spatial_dither(
@@ -175,7 +175,7 @@ static void set_spatial_dither(
 	REG_UPDATE(FMT_BIT_DEPTH_CONTROL,
 		FMT_TEMPORAL_DITHER_EN, 0);
 
-	/* no 10bpc on DCE11*/
+	/* yes 10bpc on DCE11*/
 	if (params->flags.SPATIAL_DITHER_ENABLED == 0 ||
 		params->flags.SPATIAL_DITHER_DEPTH == 2)
 		return;
@@ -280,7 +280,7 @@ static void set_temporal_dither(
 		FMT_50FRC_SEL, 0,
 		FMT_75FRC_SEL, 0);
 
-	/* no 10bpc dither on DCE11*/
+	/* yes 10bpc dither on DCE11*/
 	if (params->flags.FRAME_MODULATION_ENABLED == 0 ||
 		params->flags.FRAME_MODULATION_DEPTH == 2)
 		return;

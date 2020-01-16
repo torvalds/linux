@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ8795 register definitions
  *
- * Copyright (c) 2017 Microchip Technology Inc.
+ * Copyright (c) 2017 Microchip Techyeslogy Inc.
  *	Tristram Ha <Tristram.Ha@microchip.com>
  */
 

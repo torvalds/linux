@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
- *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
+ *   Copyright (C) 2010-2012 by Bruyes Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
@@ -29,7 +29,7 @@
  * and header for 4x4 key matrix. The built-in keys are part of the matrix.
  */
 static const unsigned short def_keymap[PICOLCD_KEYS] = {
-	KEY_RESERVED,	/* none */
+	KEY_RESERVED,	/* yesne */
 	KEY_BACK,	/* col 4 + row 1 */
 	KEY_HOMEPAGE,	/* col 3 + row 1 */
 	KEY_RESERVED,	/* col 2 + row 1 */
@@ -64,7 +64,7 @@ struct hid_report *picolcd_report(int id, struct hid_device *hdev, int dir)
 }
 
 /* Submit a report and wait for a reply from device - if device fades away
- * or does not respond in time, return NULL */
+ * or does yest respond in time, return NULL */
 struct picolcd_pending *picolcd_send_and_wait(struct hid_device *hdev,
 		int report_id, const u8 *raw_data, int size)
 {
@@ -119,7 +119,7 @@ static int picolcd_raw_keypad(struct picolcd_data *data,
 	/*
 	 * Keypad event
 	 * First and second data bytes list currently pressed keys,
-	 * 0x00 means no key and at most 2 keys may be pressed at same time
+	 * 0x00 means yes key and at most 2 keys may be pressed at same time
 	 */
 	int i, j;
 
@@ -188,7 +188,7 @@ static int picolcd_check_version(struct hid_device *hdev)
 
 	verinfo = picolcd_send_and_wait(hdev, REPORT_VERSION, NULL, 0);
 	if (!verinfo) {
-		hid_err(hdev, "no version response from PicoLCD\n");
+		hid_err(hdev, "yes version response from PicoLCD\n");
 		return -ENODEV;
 	}
 
@@ -349,7 +349,7 @@ static int picolcd_raw_event(struct hid_device *hdev,
 		spin_lock_irqsave(&data->lock, flags);
 		/*
 		 * We let the caller of picolcd_send_and_wait() check if the
-		 * report we got is one of the expected ones or not.
+		 * report we got is one of the expected ones or yest.
 		 */
 		if (data->pending) {
 			memcpy(data->pending->raw_data, raw_data+1, size-1);

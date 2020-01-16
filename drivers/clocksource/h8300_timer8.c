@@ -2,13 +2,13 @@
 /*
  *  linux/arch/h8300/kernel/cpu/timer/timer8.c
  *
- *  Yoshinori Sato <ysato@users.sourcefoge.jp>
+ *  Yoshiyesri Sato <ysato@users.sourcefoge.jp>
  *
  *  8bit Timer driver
  *
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -157,27 +157,27 @@ static struct timer8_priv timer8_priv = {
 	},
 };
 
-static int __init h8300_8timer_init(struct device_node *node)
+static int __init h8300_8timer_init(struct device_yesde *yesde)
 {
 	void __iomem *base;
 	int irq, ret;
 	struct clk *clk;
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(yesde, 0);
 	if (IS_ERR(clk)) {
 		pr_err("failed to get clock for clockevent\n");
 		return PTR_ERR(clk);
 	}
 
 	ret = ENXIO;
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base) {
 		pr_err("failed to map registers for clockevent\n");
 		goto free_clk;
 	}
 
 	ret = -EINVAL;
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (!irq) {
 		pr_err("failed to get irq for clockevent\n");
 		goto unmap_reg;

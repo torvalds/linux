@@ -35,7 +35,7 @@
 #define MAX_DEVICES 12
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -162,8 +162,8 @@ typedef struct _synclinkmp_info {
 	int			x_char;		/* xon/xoff character */
 	u16			read_status_mask1;  /* break detection (SR1 indications) */
 	u16			read_status_mask2;  /* parity/framing/overun (SR2 indications) */
-	unsigned char 		ignore_status_mask1;  /* break detection (SR1 indications) */
-	unsigned char		ignore_status_mask2;  /* parity/framing/overun (SR2 indications) */
+	unsigned char 		igyesre_status_mask1;  /* break detection (SR1 indications) */
+	unsigned char		igyesre_status_mask2;  /* parity/framing/overun (SR2 indications) */
 	unsigned char 		*tx_buf;
 	int			tx_put;
 	int			tx_get;
@@ -238,7 +238,7 @@ typedef struct _synclinkmp_info {
 
 	unsigned char serial_signals;		/* current serial signal states */
 
-	bool irq_occurred;			/* for diagnostics use */
+	bool irq_occurred;			/* for diagyesstics use */
 	unsigned int init_error;		/* Initialization startup error */
 
 	u32 last_mem_alloc;
@@ -450,7 +450,7 @@ static int synclinkmp_adapter_count = -1;
 static int synclinkmp_device_count = 0;
 
 /*
- * Set this param to non-zero to load eax with the
+ * Set this param to yesn-zero to load eax with the
  * .text section address and breakpoint on module load.
  * This is useful for use with gdb and add-symbol-file command.
  */
@@ -727,7 +727,7 @@ static int install(struct tty_driver *driver, struct tty_struct *tty)
 	if (sanity_check(info, tty->name, "open"))
 		return -ENODEV;
 	if (info->init_error) {
-		printk("%s(%d):%s device is not allocated, init error=%d\n",
+		printk("%s(%d):%s device is yest allocated, init error=%d\n",
 			__FILE__, __LINE__, info->device_name,
 			info->init_error);
 		return -ENODEV;
@@ -1162,7 +1162,7 @@ static void flush_chars(struct tty_struct *tty)
 	if (!info->tx_active) {
 		if ( (info->params.mode == MGSL_MODE_HDLC) &&
 			info->tx_count ) {
-			/* operating in synchronous (frame oriented) mode */
+			/* operating in synchroyesus (frame oriented) mode */
 			/* copy data from circular tx_buf to */
 			/* transmit DMA buffer. */
 			tx_load_dma_buffer(info,
@@ -1307,24 +1307,24 @@ static int get_icount(struct tty_struct *tty,
 				struct serial_icounter_struct *icount)
 {
 	SLMP_INFO *info = tty->driver_data;
-	struct mgsl_icount cnow;	/* kernel counter temps */
+	struct mgsl_icount cyesw;	/* kernel counter temps */
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->lock,flags);
-	cnow = info->icount;
+	cyesw = info->icount;
 	spin_unlock_irqrestore(&info->lock,flags);
 
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
+	icount->cts = cyesw.cts;
+	icount->dsr = cyesw.dsr;
+	icount->rng = cyesw.rng;
+	icount->dcd = cyesw.dcd;
+	icount->rx = cyesw.rx;
+	icount->tx = cyesw.tx;
+	icount->frame = cyesw.frame;
+	icount->overrun = cyesw.overrun;
+	icount->parity = cyesw.parity;
+	icount->brk = cyesw.brk;
+	icount->buf_overrun = cyesw.buf_overrun;
 
 	return 0;
 }
@@ -1944,7 +1944,7 @@ static void hdlcdev_exit(SLMP_INFO *info)
 
 
 /* Return next bottom half action to perform.
- * Return Value:	BH action code or 0 if nothing to do.
+ * Return Value:	BH action code or 0 if yesthing to do.
  */
 static int bh_action(SLMP_INFO *info)
 {
@@ -2007,8 +2007,8 @@ static void bh_handler(struct work_struct *work)
 			bh_status(info);
 			break;
 		default:
-			/* unknown work item ID */
-			printk("%s(%d):%s Unknown work item ID=%08X!\n",
+			/* unkyeswn work item ID */
+			printk("%s(%d):%s Unkyeswn work item ID=%08X!\n",
 				__FILE__,__LINE__,info->device_name,action);
 			break;
 		}
@@ -2101,9 +2101,9 @@ static void isr_rxint(SLMP_INFO * info)
 			icount->brk++;
 
 			/* process break detection if tty control
-			 * is not set to ignore it
+			 * is yest set to igyesre it
 			 */
-			if (!(status & info->ignore_status_mask1)) {
+			if (!(status & info->igyesre_status_mask1)) {
 				if (info->read_status_mask1 & BRKD) {
 					tty_insert_flip_char(&info->port, 0, TTY_BREAK);
 					if (tty && (info->port.flags & ASYNC_SAK))
@@ -2166,7 +2166,7 @@ static void isr_rxrdy(SLMP_INFO * info)
 				icount->overrun++;
 
 			/* discard char if tty control flags say so */
-			if (status & info->ignore_status_mask2)
+			if (status & info->igyesre_status_mask2)
 				continue;
 
 			status &= info->read_status_mask2;
@@ -2451,7 +2451,7 @@ static void isr_io_pin( SLMP_INFO *info, u16 status )
 		if (tty_port_check_carrier(&info->port) &&
 		     (status & MISCSTATUS_DCD_LATCHED) ) {
 			if ( debug_level >= DEBUG_LEVEL_ISR )
-				printk("%s CD now %s...", info->device_name,
+				printk("%s CD yesw %s...", info->device_name,
 				       (status & SerialSignal_DCD) ? "on" : "off");
 			if (status & SerialSignal_DCD)
 				wake_up_interruptible(&info->port.open_wait);
@@ -2589,11 +2589,11 @@ static irqreturn_t synclinkmp_interrupt(int dummy, void *dev_id)
 		SLMP_INFO * port = info->port_array[i];
 
 		/* Request bottom half processing if there's something
-		 * for it to do and the bh is not already running.
+		 * for it to do and the bh is yest already running.
 		 *
 		 * Note: startup adapter diags require interrupts.
-		 * do not request bottom half processing if the
-		 * device is not open in a normal mode.
+		 * do yest request bottom half processing if the
+		 * device is yest open in a yesrmal mode.
 		 */
 		if ( port && (port->port.count || port->netcount) &&
 		     port->pending_bh && !port->bh_running &&
@@ -2809,14 +2809,14 @@ static void change_params(SLMP_INFO *info)
  	if (I_BRKINT(info->port.tty) || I_PARMRK(info->port.tty))
  		info->read_status_mask1 |= BRKD;
 	if (I_IGNPAR(info->port.tty))
-		info->ignore_status_mask2 |= PE | FRME;
+		info->igyesre_status_mask2 |= PE | FRME;
 	if (I_IGNBRK(info->port.tty)) {
-		info->ignore_status_mask1 |= BRKD;
-		/* If ignoring parity and break indicators, ignore
+		info->igyesre_status_mask1 |= BRKD;
+		/* If igyesring parity and break indicators, igyesre
 		 * overruns too.  (For real raw support).
 		 */
 		if (I_IGNPAR(info->port.tty))
-			info->ignore_status_mask2 |= OVRN;
+			info->igyesre_status_mask2 |= OVRN;
 	}
 
 	program_hw(info);
@@ -2999,7 +2999,7 @@ static int wait_mgsl_event(SLMP_INFO * info, int __user *mask_ptr)
  	unsigned long flags;
 	int s;
 	int rc=0;
-	struct mgsl_icount cprev, cnow;
+	struct mgsl_icount cprev, cyesw;
 	int events;
 	int mask;
 	struct	_input_signal_events oldsigs, newsigs;
@@ -3060,12 +3060,12 @@ static int wait_mgsl_event(SLMP_INFO * info, int __user *mask_ptr)
 
 		/* get current irq counts */
 		spin_lock_irqsave(&info->lock,flags);
-		cnow = info->icount;
+		cyesw = info->icount;
 		newsigs = info->input_signal_events;
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&info->lock,flags);
 
-		/* if no change, wait aborted for some reason */
+		/* if yes change, wait aborted for some reason */
 		if (newsigs.dsr_up   == oldsigs.dsr_up   &&
 		    newsigs.dsr_down == oldsigs.dsr_down &&
 		    newsigs.dcd_up   == oldsigs.dcd_up   &&
@@ -3074,8 +3074,8 @@ static int wait_mgsl_event(SLMP_INFO * info, int __user *mask_ptr)
 		    newsigs.cts_down == oldsigs.cts_down &&
 		    newsigs.ri_up    == oldsigs.ri_up    &&
 		    newsigs.ri_down  == oldsigs.ri_down  &&
-		    cnow.exithunt    == cprev.exithunt   &&
-		    cnow.rxidle      == cprev.rxidle) {
+		    cyesw.exithunt    == cprev.exithunt   &&
+		    cyesw.rxidle      == cprev.rxidle) {
 			rc = -EIO;
 			break;
 		}
@@ -3089,12 +3089,12 @@ static int wait_mgsl_event(SLMP_INFO * info, int __user *mask_ptr)
 			  (newsigs.cts_down != oldsigs.cts_down ? MgslEvent_CtsInactive:0) +
 			  (newsigs.ri_up    != oldsigs.ri_up    ? MgslEvent_RiActive:0)    +
 			  (newsigs.ri_down  != oldsigs.ri_down  ? MgslEvent_RiInactive:0)  +
-			  (cnow.exithunt    != cprev.exithunt   ? MgslEvent_ExitHuntMode:0) +
-			  (cnow.rxidle      != cprev.rxidle     ? MgslEvent_IdleReceived:0) );
+			  (cyesw.exithunt    != cprev.exithunt   ? MgslEvent_ExitHuntMode:0) +
+			  (cyesw.rxidle      != cprev.rxidle     ? MgslEvent_IdleReceived:0) );
 		if (events)
 			break;
 
-		cprev = cnow;
+		cprev = cyesw;
 		oldsigs = newsigs;
 	}
 
@@ -3122,7 +3122,7 @@ static int modem_input_wait(SLMP_INFO *info,int arg)
 {
  	unsigned long flags;
 	int rc;
-	struct mgsl_icount cprev, cnow;
+	struct mgsl_icount cprev, cyesw;
 	DECLARE_WAITQUEUE(wait, current);
 
 	/* save current irq counts */
@@ -3141,27 +3141,27 @@ static int modem_input_wait(SLMP_INFO *info,int arg)
 
 		/* get new irq counts */
 		spin_lock_irqsave(&info->lock,flags);
-		cnow = info->icount;
+		cyesw = info->icount;
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&info->lock,flags);
 
-		/* if no change, wait aborted for some reason */
-		if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
-		    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts) {
+		/* if yes change, wait aborted for some reason */
+		if (cyesw.rng == cprev.rng && cyesw.dsr == cprev.dsr &&
+		    cyesw.dcd == cprev.dcd && cyesw.cts == cprev.cts) {
 			rc = -EIO;
 			break;
 		}
 
 		/* check for change in caller specified modem input */
-		if ((arg & TIOCM_RNG && cnow.rng != cprev.rng) ||
-		    (arg & TIOCM_DSR && cnow.dsr != cprev.dsr) ||
-		    (arg & TIOCM_CD  && cnow.dcd != cprev.dcd) ||
-		    (arg & TIOCM_CTS && cnow.cts != cprev.cts)) {
+		if ((arg & TIOCM_RNG && cyesw.rng != cprev.rng) ||
+		    (arg & TIOCM_DSR && cyesw.dsr != cprev.dsr) ||
+		    (arg & TIOCM_CD  && cyesw.dcd != cprev.dcd) ||
+		    (arg & TIOCM_CTS && cyesw.cts != cprev.cts)) {
 			rc = 0;
 			break;
 		}
 
-		cprev = cnow;
+		cprev = cyesw;
 	}
 	remove_wait_queue(&info->status_event_wait_q, &wait);
 	set_current_state(TASK_RUNNING);
@@ -3264,8 +3264,8 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 			 __FILE__,__LINE__, tty->driver->name );
 
 	if (filp->f_flags & O_NONBLOCK || tty_io_error(tty)) {
-		/* nonblock mode is set or port is not enabled */
-		/* just verify that callout device is not active */
+		/* yesnblock mode is set or port is yest enabled */
+		/* just verify that callout device is yest active */
 		tty_port_set_active(port, 1);
 		return 0;
 	}
@@ -3274,10 +3274,10 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		do_clocal = true;
 
 	/* Wait for carrier detect and the line to become
-	 * free (i.e., not in use by the callout).  While we are in
+	 * free (i.e., yest in use by the callout).  While we are in
 	 * this loop, port->count is dropped by one, so that
-	 * close() knows when to free things.  We restore it upon
-	 * exit, either normal or abnormal.
+	 * close() kyesws when to free things.  We restore it upon
+	 * exit, either yesrmal or abyesrmal.
 	 */
 
 	retval = 0;
@@ -3352,7 +3352,7 @@ static int alloc_dma_bufs(SLMP_INFO *info)
 
 	/* Calculate the number of DMA buffers necessary to hold the */
 	/* largest allowable frame size. Note: If the max frame size is */
-	/* not an even multiple of the DMA buffer size then we need to */
+	/* yest an even multiple of the DMA buffer size then we need to */
 	/* round the buffer count per frame up one. */
 
 	BuffersPerFrame = (unsigned short)(info->max_frame_size/SCABUFSIZE);
@@ -3369,7 +3369,7 @@ static int alloc_dma_bufs(SLMP_INFO *info)
 	if (BufferCount > BUFFERLISTSIZE/sizeof(SCADESC))
 		BufferCount = BUFFERLISTSIZE/sizeof(SCADESC);
 
-	/* use enough buffers to transmit one max size frame */
+	/* use eyesugh buffers to transmit one max size frame */
 	info->tx_buf_count = BuffersPerFrame + 1;
 
 	/* never use more than half the available buffers for transmit */
@@ -3495,7 +3495,7 @@ static void free_dma_bufs(SLMP_INFO *info)
 	info->tx_buf_list = NULL;
 }
 
-/* allocate buffer large enough to hold max_frame_size.
+/* allocate buffer large eyesugh to hold max_frame_size.
  * This buffer is used to pass an assembled frame to the line discipline.
  */
 static int alloc_tmp_rx_buf(SLMP_INFO *info)
@@ -3559,7 +3559,7 @@ static int claim_resources(SLMP_INFO *info)
 	else
 		info->sca_statctrl_requested = true;
 
-	info->memory_base = ioremap_nocache(info->phys_memory_base,
+	info->memory_base = ioremap_yescache(info->phys_memory_base,
 								SCA_MEM_SIZE);
 	if (!info->memory_base) {
 		printk( "%s(%d):%s Can't map shared memory, MemAddr=%08X\n",
@@ -3568,7 +3568,7 @@ static int claim_resources(SLMP_INFO *info)
 		goto errout;
 	}
 
-	info->lcr_base = ioremap_nocache(info->phys_lcr_base, PAGE_SIZE);
+	info->lcr_base = ioremap_yescache(info->phys_lcr_base, PAGE_SIZE);
 	if (!info->lcr_base) {
 		printk( "%s(%d):%s Can't map LCR memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_lcr_base );
@@ -3577,7 +3577,7 @@ static int claim_resources(SLMP_INFO *info)
 	}
 	info->lcr_base += info->lcr_offset;
 
-	info->sca_base = ioremap_nocache(info->phys_sca_base, PAGE_SIZE);
+	info->sca_base = ioremap_yescache(info->phys_sca_base, PAGE_SIZE);
 	if (!info->sca_base) {
 		printk( "%s(%d):%s Can't map SCA memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_sca_base );
@@ -3586,7 +3586,7 @@ static int claim_resources(SLMP_INFO *info)
 	}
 	info->sca_base += info->sca_offset;
 
-	info->statctrl_base = ioremap_nocache(info->phys_statctrl_base,
+	info->statctrl_base = ioremap_yescache(info->phys_statctrl_base,
 								PAGE_SIZE);
 	if (!info->statctrl_base) {
 		printk( "%s(%d):%s Can't map SCA Status/Control memory, MemAddr=%08X\n",
@@ -3782,7 +3782,7 @@ static SLMP_INFO *alloc_dev(int adapter_num, int port_num, struct pci_dev *pdev)
 		 */
 		info->misc_ctrl_value = 0x087e4546;
 
-		/* initial port state is unknown - if startup errors
+		/* initial port state is unkyeswn - if startup errors
 		 * occur, init_error will be set to indicate the
 		 * problem. Once the port is fully initialized,
 		 * this value will be set to 0 to indicate the
@@ -3964,7 +3964,7 @@ static int __init synclinkmp_init(void)
 	serial_driver->driver_name = "synclinkmp";
 	serial_driver->name = "ttySLM";
 	serial_driver->major = ttymajor;
-	serial_driver->minor_start = 64;
+	serial_driver->miyesr_start = 64;
 	serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	serial_driver->subtype = SERIAL_TYPE_NORMAL;
 	serial_driver->init_termios = tty_std_termios;
@@ -4027,7 +4027,7 @@ static void enable_loopback(SLMP_INFO *info, int enable)
 
 	} else {
 		/* MD2 (Mode Register 2)
-	 	 * 01..00  CNCT<1..0> Channel connection, 0=normal
+	 	 * 01..00  CNCT<1..0> Channel connection, 0=yesrmal
 		 */
 		write_reg(info, MD2, (unsigned char)(read_reg(info, MD2) & ~(BIT1 + BIT0)));
 
@@ -4271,13 +4271,13 @@ static void tx_stop( SLMP_INFO *info )
 }
 
 /* Fill the transmit FIFO until the FIFO is full or
- * there is no more data to load.
+ * there is yes more data to load.
  */
 static void tx_load_fifo(SLMP_INFO *info)
 {
 	u8 TwoBytes[2];
 
-	/* do nothing is now tx data available and no XON/XOFF pending */
+	/* do yesthing is yesw tx data available and yes XON/XOFF pending */
 
 	if ( !info->tx_count && !info->x_char )
 		return;
@@ -4320,7 +4320,7 @@ static void tx_load_fifo(SLMP_INFO *info)
 	}
 }
 
-/* Reset a port to a known state
+/* Reset a port to a kyeswn state
  */
 static void reset_port(SLMP_INFO *info)
 {
@@ -4344,7 +4344,7 @@ static void reset_port(SLMP_INFO *info)
 	}
 }
 
-/* Reset all the ports to a known state.
+/* Reset all the ports to a kyeswn state.
  */
 static void reset_adapter(SLMP_INFO *info)
 {
@@ -4356,7 +4356,7 @@ static void reset_adapter(SLMP_INFO *info)
 	}
 }
 
-/* Program port for asynchronous communications.
+/* Program port for asynchroyesus communications.
  */
 static void async_mode(SLMP_INFO *info)
 {
@@ -4386,7 +4386,7 @@ static void async_mode(SLMP_INFO *info)
 	 * 07..06  BRATE<1..0>, bit rate, 00=1/1 01=1/16 10=1/32 11=1/64
 	 * 05..04  TXCHR<1..0>, tx char size, 00=8 bits,01=7,10=6,11=5
 	 * 03..02  RXCHR<1..0>, rx char size
-	 * 01..00  PMPM<1..0>, Parity mode, 00=none 10=even 11=odd
+	 * 01..00  PMPM<1..0>, Parity mode, 00=yesne 10=even 11=odd
 	 *
 	 * 0100 0000
 	 */
@@ -4406,7 +4406,7 @@ static void async_mode(SLMP_INFO *info)
 	/* MD2, Mode Register 2
 	 *
 	 * 07..02  Reserved, must be 0
-	 * 01..00  CNCT<1..0> Channel connection, 00=normal 11=local loopback
+	 * 01..00  CNCT<1..0> Channel connection, 00=yesrmal 11=local loopback
 	 *
 	 * 0000 0000
 	 */
@@ -4534,10 +4534,10 @@ static void hdlc_mode(SLMP_INFO *info)
 
 	/* MD1, Mode Register 1
 	 *
-	 * 07..06  ADDRS<1..0>, Address detect, 00=no addr check
+	 * 07..06  ADDRS<1..0>, Address detect, 00=yes addr check
 	 * 05..04  TXCHR<1..0>, tx char size, 00=8 bits
 	 * 03..02  RXCHR<1..0>, rx char size, 00=8 bits
-	 * 01..00  PMPM<1..0>, Parity mode, 00=no parity
+	 * 01..00  PMPM<1..0>, Parity mode, 00=yes parity
 	 *
 	 * 0000 0000
 	 */
@@ -4550,7 +4550,7 @@ static void hdlc_mode(SLMP_INFO *info)
 	 * 06..05  CODE<1..0> Encoding, 00=NRZ
 	 * 04..03  DRATE<1..0> DPLL Divisor, 00=8
 	 * 02      Reserved, must be 0
-	 * 01..00  CNCT<1..0> Channel connection, 0=normal
+	 * 01..00  CNCT<1..0> Channel connection, 0=yesrmal
 	 *
 	 * 0000 0000
 	 */
@@ -4561,9 +4561,9 @@ static void hdlc_mode(SLMP_INFO *info)
 	case HDLC_ENCODING_BIPHASE_SPACE: RegValue |= BIT7 + BIT6; break; /* aka FM0 */
 	case HDLC_ENCODING_BIPHASE_LEVEL: RegValue |= BIT7; break; 	/* aka Manchester */
 #if 0
-	case HDLC_ENCODING_NRZB:	       				/* not supported */
-	case HDLC_ENCODING_NRZI_MARK:          				/* not supported */
-	case HDLC_ENCODING_DIFF_BIPHASE_LEVEL: 				/* not supported */
+	case HDLC_ENCODING_NRZB:	       				/* yest supported */
+	case HDLC_ENCODING_NRZI_MARK:          				/* yest supported */
+	case HDLC_ENCODING_DIFF_BIPHASE_LEVEL: 				/* yest supported */
 #endif
 	}
 	if ( info->params.flags & HDLC_FLAG_DPLL_DIV16 ) {
@@ -4685,7 +4685,7 @@ static void hdlc_mode(SLMP_INFO *info)
 		RegValue |= 0x01;
 	write_reg(info, CTL, RegValue);
 
-	/* preamble not supported ! */
+	/* preamble yest supported ! */
 
 	tx_set_idle(info);
 	tx_stop(info);
@@ -4829,14 +4829,14 @@ static bool rx_get_frame(SLMP_INFO *info)
 	SCADESC_EX *desc_ex;
 
 CheckAgain:
-	/* assume no frame returned, set zero length */
+	/* assume yes frame returned, set zero length */
 	framesize = 0;
 	addr_field = 0xff;
 
 	/*
 	 * current_rx_buf points to the 1st buffer of the next available
 	 * receive frame. To find the last buffer of the frame look for
-	 * a non-zero status field in the buffer entries. (The status
+	 * a yesn-zero status field in the buffer entries. (The status
 	 * field is set by the 16C32 after completing a receive frame.
 	 */
 	StartIndex = EndIndex = info->current_rx_buf;
@@ -4846,7 +4846,7 @@ CheckAgain:
 		desc_ex = &info->rx_buf_list_ex[EndIndex];
 
 		if (desc->status == 0xff)
-			goto Cleanup;	/* current desc still in use, no frames available */
+			goto Cleanup;	/* current desc still in use, yes frames available */
 
 		if (framesize == 0 && info->params.addr_filter != 0xff)
 			addr_field = desc_ex->virt_addr[0];
@@ -4862,7 +4862,7 @@ CheckAgain:
 			EndIndex = 0;
 
 		if (EndIndex == info->current_rx_buf) {
-			/* all buffers have been 'used' but none mark	   */
+			/* all buffers have been 'used' but yesne mark	   */
 			/* the end of a frame. Reset buffers and receiver. */
 			if ( info->rx_enabled ){
 				spin_lock_irqsave(&info->lock,flags);
@@ -4888,8 +4888,8 @@ CheckAgain:
 	 */
 	status = desc->status;
 
-	/* ignore CRC bit if not using CRC (bit is undefined) */
-	/* Note:CRC is not save to data buffer */
+	/* igyesre CRC bit if yest using CRC (bit is undefined) */
+	/* Note:CRC is yest save to data buffer */
 	if (info->params.crc_type == HDLC_CRC_NONE)
 		status &= ~BIT2;
 
@@ -5122,7 +5122,7 @@ static bool irq_test(SLMP_INFO *info)
  */
 static bool sca_init(SLMP_INFO *info)
 {
-	/* set wait controller to single mem partition (low), no wait states */
+	/* set wait controller to single mem partition (low), yes wait states */
 	write_reg(info, PABR0, 0);	/* wait controller addr boundary 0 */
 	write_reg(info, PABR1, 0);	/* wait controller addr boundary 1 */
 	write_reg(info, WCRL, 0);	/* wait controller low range */
@@ -5150,7 +5150,7 @@ static bool sca_init(SLMP_INFO *info)
 
 	/* ITCR, interrupt control register
 	 * 07      IPC, interrupt priority, 0=MSCI->DMA
-	 * 06..05  IAK<1..0>, Acknowledge cycle, 00=non-ack cycle
+	 * 06..05  IAK<1..0>, Ackyeswledge cycle, 00=yesn-ack cycle
 	 * 04      VOS, Vector Output, 0=unmodified vector
 	 * 03..00  Reserved, must be 0
 	 */
@@ -5283,7 +5283,7 @@ static bool loopback_test(SLMP_INFO *info)
 	return rc;
 }
 
-/* Perform diagnostics on hardware
+/* Perform diagyesstics on hardware
  */
 static int adapter_test( SLMP_INFO *info )
 {
@@ -5332,7 +5332,7 @@ static int adapter_test( SLMP_INFO *info )
 	}
 
 	if ( debug_level >= DEBUG_LEVEL_INFO )
-		printk( "%s(%d):device %s passed diagnostics\n",
+		printk( "%s(%d):device %s passed diagyesstics\n",
 			__FILE__,__LINE__,info->device_name );
 
 	info->port_array[0]->init_error = 0;
@@ -5389,9 +5389,9 @@ static bool memory_test(SLMP_INFO *info)
  * The PCI9050 releases control of the local bus
  * after completing the current read or write operation.
  *
- * While the PCI9050 write FIFO not empty, the
+ * While the PCI9050 write FIFO yest empty, the
  * PCI9050 treats all of the writes as a single transaction
- * and does not release the bus. This causes DMA latency problems
+ * and does yest release the bus. This causes DMA latency problems
  * at high speeds when copying large data blocks to the shared memory.
  *
  * This function breaks a write into multiple transations by

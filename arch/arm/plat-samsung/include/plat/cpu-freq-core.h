@@ -106,10 +106,10 @@ struct s3c_plltab {
  * @divs: The divisor settings for the core clocks.
  * @info: The current core driver information.
  * @board: The information for the board we are running on.
- * @lock_pll: Set if the PLL settings cannot be changed.
+ * @lock_pll: Set if the PLL settings canyest be changed.
  *
- * This is for the core drivers that need to know information about
- * the current settings and values. It should not be needed by any
+ * This is for the core drivers that need to kyesw information about
+ * the current settings and values. It should yest be needed by any
  * device drivers.
 */
 struct s3c_cpufreq_config {
@@ -118,7 +118,7 @@ struct s3c_cpufreq_config {
 	struct clk		*mpll;
 	struct cpufreq_frequency_table pll;
 	struct s3c_clkdivs	divs;
-	struct s3c_cpufreq_info *info;	/* for core, not drivers */
+	struct s3c_cpufreq_info *info;	/* for core, yest drivers */
 	struct s3c_cpufreq_board *board;
 
 	unsigned int	lock_pll:1;
@@ -134,7 +134,7 @@ struct s3c_cpufreq_config {
  * @locttime_bits: The number of bits each LOCKTIME field.
  * @need_pll: Set if this driver needs to change the PLL values to achieve
  *	any frequency changes. This is really only need by devices like the
- *	S3C2410 where there is no or limited divider between the PLL and the
+ *	S3C2410 where there is yes or limited divider between the PLL and the
  *	ARMCLK.
  * @get_iotiming: Get the current IO timing data, mainly for use at start.
  * @set_iotiming: Update the IO timings from the cached copies calculated
@@ -190,7 +190,7 @@ struct s3c_cpufreq_info {
 extern int s3c_cpufreq_register(struct s3c_cpufreq_info *info);
 
 extern int s3c_plltab_register(struct cpufreq_frequency_table *plls,
-			       unsigned int plls_no);
+			       unsigned int plls_yes);
 
 /* exports and utilities for debugfs */
 extern struct s3c_cpufreq_config *s3c_cpufreq_getconfig(void);

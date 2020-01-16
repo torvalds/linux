@@ -16,9 +16,9 @@ bool batadv_check_management_packet(struct sk_buff *skb,
 				    struct batadv_hard_iface *hard_iface,
 				    int header_len);
 void batadv_update_route(struct batadv_priv *bat_priv,
-			 struct batadv_orig_node *orig_node,
+			 struct batadv_orig_yesde *orig_yesde,
 			 struct batadv_hard_iface *recv_if,
-			 struct batadv_neigh_node *neigh_node);
+			 struct batadv_neigh_yesde *neigh_yesde);
 int batadv_recv_icmp_packet(struct sk_buff *skb,
 			    struct batadv_hard_iface *recv_if);
 int batadv_recv_unicast_packet(struct sk_buff *skb,
@@ -35,9 +35,9 @@ int batadv_recv_unicast_tvlv(struct sk_buff *skb,
 			     struct batadv_hard_iface *recv_if);
 int batadv_recv_unhandled_unicast_packet(struct sk_buff *skb,
 					 struct batadv_hard_iface *recv_if);
-struct batadv_neigh_node *
+struct batadv_neigh_yesde *
 batadv_find_router(struct batadv_priv *bat_priv,
-		   struct batadv_orig_node *orig_node,
+		   struct batadv_orig_yesde *orig_yesde,
 		   struct batadv_hard_iface *recv_if);
 bool batadv_window_protected(struct batadv_priv *bat_priv, s32 seq_num_diff,
 			     s32 seq_old_max_diff, unsigned long *last_reset,

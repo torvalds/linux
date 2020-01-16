@@ -42,12 +42,12 @@ static inline struct msm_dsi *dsi_mgr_get_other_dsi(int id)
 	return msm_dsim_glb.dsi[(id + 1) % DSI_MAX];
 }
 
-static int dsi_mgr_parse_dual_dsi(struct device_node *np, int id)
+static int dsi_mgr_parse_dual_dsi(struct device_yesde *np, int id)
 {
 	struct msm_dsi_manager *msm_dsim = &msm_dsim_glb;
 
-	/* We assume 2 dsi nodes have the same information of dual-dsi and
-	 * sync-mode, and only one node specifies master in case of dual mode.
+	/* We assume 2 dsi yesdes have the same information of dual-dsi and
+	 * sync-mode, and only one yesde specifies master in case of dual mode.
 	 */
 	if (!msm_dsim->is_dual_dsi)
 		msm_dsim->is_dual_dsi = of_property_read_bool(
@@ -91,9 +91,9 @@ static int dsi_mgr_setup_components(int id)
 		struct msm_dsi *slave_link_dsi = IS_MASTER_DSI_LINK(id) ?
 							other_dsi : msm_dsi;
 		/* Register slave host first, so that slave DSI device
-		 * has a chance to probe, and do not block the master
+		 * has a chance to probe, and do yest block the master
 		 * DSI device's probe.
-		 * Also, do not check defer for the slave host,
+		 * Also, do yest check defer for the slave host,
 		 * because only master DSI device adds the panel to global
 		 * panel list. The panel's device is the master DSI device.
 		 */
@@ -267,7 +267,7 @@ static int msm_dsi_manager_panel_init(struct drm_connector *conn, u8 id)
 	 */
 	panel = msm_dsi_host_get_panel(master_dsi->host);
 	if (IS_ERR(panel)) {
-		DRM_ERROR("Could not find panel for %u (%ld)\n", msm_dsi->id,
+		DRM_ERROR("Could yest find panel for %u (%ld)\n", msm_dsi->id,
 			  PTR_ERR(panel));
 		return PTR_ERR(panel);
 	}
@@ -386,7 +386,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	if (ret)
 		goto phy_en_fail;
 
-	/* Do nothing with the host if it is slave-DSI in case of dual DSI */
+	/* Do yesthing with the host if it is slave-DSI in case of dual DSI */
 	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
 		return;
 
@@ -488,7 +488,7 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 		return;
 
 	/*
-	 * Do nothing with the host if it is slave-DSI in case of dual DSI.
+	 * Do yesthing with the host if it is slave-DSI in case of dual DSI.
 	 * It is safe to call dsi_mgr_phy_disable() here because a single PHY
 	 * won't be diabled until both PHYs request disable.
 	 */
@@ -605,7 +605,7 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 	 */
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
-	/* Display driver doesn't support interlace now. */
+	/* Display driver doesn't support interlace yesw. */
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
@@ -728,7 +728,7 @@ int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg)
 
 	/* In dual master case, panel requires the same commands sent to
 	 * both DSI links. Host issues the command trigger to both links
-	 * when DSI_1 calls the cmd transfer function, no matter it happens
+	 * when DSI_1 calls the cmd transfer function, yes matter it happens
 	 * before or after DSI_0 cmd transfer.
 	 */
 	if (need_sync && (id == DSI_0))
@@ -737,7 +737,7 @@ int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg)
 	if (need_sync && msm_dsi0) {
 		ret = msm_dsi_host_xfer_prepare(msm_dsi0->host, msg);
 		if (ret) {
-			pr_err("%s: failed to prepare non-trigger host, %d\n",
+			pr_err("%s: failed to prepare yesn-trigger host, %d\n",
 				__func__, ret);
 			return ret;
 		}
@@ -795,7 +795,7 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 
 	msm_dsim->dsi[id] = msm_dsi;
 
-	ret = dsi_mgr_parse_dual_dsi(msm_dsi->pdev->dev.of_node, id);
+	ret = dsi_mgr_parse_dual_dsi(msm_dsi->pdev->dev.of_yesde, id);
 	if (ret) {
 		pr_err("%s: failed to parse dual DSI info\n", __func__);
 		goto fail;

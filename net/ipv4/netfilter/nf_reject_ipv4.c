@@ -118,7 +118,7 @@ void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook)
 		return;
 
 	/* ip_route_me_harder expects skb->dst to be set */
-	skb_dst_set_noref(nskb, skb_dst(oldskb));
+	skb_dst_set_yesref(nskb, skb_dst(oldskb));
 
 	nskb->mark = IP4_REPLY_MARK(net, oldskb->mark);
 

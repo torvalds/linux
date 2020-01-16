@@ -83,8 +83,8 @@ Dynamic reconfigurability is a useful addition to netconsole that enables
 remote logging targets to be dynamically added, removed, or have their
 parameters reconfigured at runtime from a configfs-based userspace interface.
 [ Note that the parameters of netconsole targets that were specified/created
-from the boot/module option are not exposed via this interface, and hence
-cannot be modified dynamically. ]
+from the boot/module option are yest exposed via this interface, and hence
+canyest be modified dynamically. ]
 
 To include this feature, select CONFIG_NETCONSOLE_DYNAMIC when building the
 netconsole module (or kernel, if netconsole is built-in).
@@ -119,7 +119,7 @@ The interface exposes these parameters of a netconsole target to userspace:
 	remote_mac	Remote agent's MAC address		(read-write)
 
 The "enabled" attribute is also used to control whether the parameters of
-a target can be updated or not -- you can modify the parameters of only
+a target can be updated or yest -- you can modify the parameters of only
 disabled targets (i.e. if "enabled" is 0).
 
 To update a target's parameters:
@@ -132,7 +132,7 @@ To update a target's parameters:
  echo 1 > enabled			# enable target again
 
 You can also update the local interface dynamically. This is especially
-useful if you want to use interfaces that have newly come up (and may not
+useful if you want to use interfaces that have newly come up (and may yest
 have existed when netconsole was loaded / initialized).
 
 Extended console:
@@ -150,7 +150,7 @@ following format which is the same as /dev/kmsg.
  <level>,<sequnum>,<timestamp>,<contflag>;<message text>
 
 Non printable characters in <message text> are escaped using "\xff"
-notation. If the message contains optional dictionary, verbatim
+yestation. If the message contains optional dictionary, verbatim
 newline is used as the delimeter.
 
 If a message doesn't fit in certain number of bytes (currently 1000),
@@ -165,7 +165,7 @@ chunk, the 2nd chunk." may be split as follows.
  6,416,1758426,-,ncfrag=0/31;the first chunk,
  6,416,1758426,-,ncfrag=16/31; the 2nd chunk.
 
-Miscellaneous notes:
+Miscellaneous yestes:
 ====================
 
 WARNING: the default target ethernet setting uses the broadcast
@@ -186,11 +186,11 @@ default gateway (you may use /sbin/route -n to find it out) as the
 remote MAC address instead.
 
 NOTE: the network device (eth1 in the above case) can run any kind
-of other network traffic, netconsole is not intrusive. Netconsole
+of other network traffic, netconsole is yest intrusive. Netconsole
 might cause slight delays in other traffic if the volume of kernel
-messages is high, but should have no other impact.
+messages is high, but should have yes other impact.
 
-NOTE: if you find that the remote logging agent is not receiving or
+NOTE: if you find that the remote logging agent is yest receiving or
 printing all messages from the sender, it is likely that you have set
 the "console_loglevel" parameter (on the sender) to only send high
 priority messages to the console. You can change this at runtime using:
@@ -204,7 +204,7 @@ dmesg(8) man page and Documentation/admin-guide/kernel-parameters.rst for detail
 
 Netconsole was designed to be as instantaneous as possible, to
 enable the logging of even the most critical kernel bugs. It works
-from IRQ contexts as well, and does not enable interrupts while
-sending packets. Due to these unique needs, configuration cannot
+from IRQ contexts as well, and does yest enable interrupts while
+sending packets. Due to these unique needs, configuration canyest
 be more automatic, and some fundamental limitations will remain:
 only IP networks, UDP packets and ethernet devices are supported.

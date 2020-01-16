@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/pagemap.h>
 #include <uapi/linux/mempolicy.h>
 
@@ -25,11 +25,11 @@ struct mm_struct;
  *
  * A mempolicy can be either associated with a process or with a VMA.
  * For VMA related allocations the VMA policy is preferred, otherwise
- * the process policy is used. Interrupts ignore the memory policy
+ * the process policy is used. Interrupts igyesre the memory policy
  * of the current process.
  *
  * Locking policy for interlave:
- * In process context there is no locking because only the process accesses
+ * In process context there is yes locking because only the process accesses
  * its own state. All vma manipulation is somewhat protected by a down_read on
  * mmap_sem.
  *
@@ -47,13 +47,13 @@ struct mempolicy {
 	unsigned short mode; 	/* See MPOL_* above */
 	unsigned short flags;	/* See set_mempolicy() MPOL_F_* above */
 	union {
-		short 		 preferred_node; /* preferred */
-		nodemask_t	 nodes;		/* interleave/bind */
+		short 		 preferred_yesde; /* preferred */
+		yesdemask_t	 yesdes;		/* interleave/bind */
 		/* undefined for default */
 	} v;
 	union {
-		nodemask_t cpuset_mems_allowed;	/* relative to these nodes */
-		nodemask_t user_nodemask;	/* nodemask passed by user */
+		yesdemask_t cpuset_mems_allowed;	/* relative to these yesdes */
+		yesdemask_t user_yesdemask;	/* yesdemask passed by user */
 	} w;
 };
 
@@ -111,13 +111,13 @@ static inline bool mpol_equal(struct mempolicy *a, struct mempolicy *b)
 /*
  * Tree of shared policies for a shared memory region.
  * Maintain the policies in a pseudo mm that contains vmas. The vmas
- * carry the policy. As a special twist the pseudo mm is indexed in pages, not
+ * carry the policy. As a special twist the pseudo mm is indexed in pages, yest
  * bytes, so that we can work with shared memory segments bigger than
  * unsigned long.
  */
 
-struct sp_node {
-	struct rb_node nd;
+struct sp_yesde {
+	struct rb_yesde nd;
 	unsigned long start, end;
 	struct mempolicy *policy;
 };
@@ -143,16 +143,16 @@ bool vma_policy_mof(struct vm_area_struct *vma);
 
 extern void numa_default_policy(void);
 extern void numa_policy_init(void);
-extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new);
-extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
+extern void mpol_rebind_task(struct task_struct *tsk, const yesdemask_t *new);
+extern void mpol_rebind_mm(struct mm_struct *mm, yesdemask_t *new);
 
-extern int huge_node(struct vm_area_struct *vma,
+extern int huge_yesde(struct vm_area_struct *vma,
 				unsigned long addr, gfp_t gfp_flags,
-				struct mempolicy **mpol, nodemask_t **nodemask);
-extern bool init_nodemask_of_mempolicy(nodemask_t *mask);
-extern bool mempolicy_nodemask_intersects(struct task_struct *tsk,
-				const nodemask_t *mask);
-extern unsigned int mempolicy_slab_node(void);
+				struct mempolicy **mpol, yesdemask_t **yesdemask);
+extern bool init_yesdemask_of_mempolicy(yesdemask_t *mask);
+extern bool mempolicy_yesdemask_intersects(struct task_struct *tsk,
+				const yesdemask_t *mask);
+extern unsigned int mempolicy_slab_yesde(void);
 
 extern enum zone_type policy_zone;
 
@@ -162,8 +162,8 @@ static inline void check_highest_zone(enum zone_type k)
 		policy_zone = k;
 }
 
-int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
-		     const nodemask_t *to, int flags);
+int do_migrate_pages(struct mm_struct *mm, const yesdemask_t *from,
+		     const yesdemask_t *to, int flags);
 
 
 #ifdef CONFIG_TMPFS
@@ -191,8 +191,8 @@ static inline bool vma_migratable(struct vm_area_struct *vma)
 #endif
 
 	/*
-	 * Migration allocates pages in the highest zone. If we cannot
-	 * do so then migration (at least from node to node) is not
+	 * Migration allocates pages in the highest zone. If we canyest
+	 * do so then migration (at least from yesde to yesde) is yest
 	 * possible.
 	 */
 	if (vma->vm_file &&
@@ -260,30 +260,30 @@ static inline void numa_default_policy(void)
 }
 
 static inline void mpol_rebind_task(struct task_struct *tsk,
-				const nodemask_t *new)
+				const yesdemask_t *new)
 {
 }
 
-static inline void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
+static inline void mpol_rebind_mm(struct mm_struct *mm, yesdemask_t *new)
 {
 }
 
-static inline int huge_node(struct vm_area_struct *vma,
+static inline int huge_yesde(struct vm_area_struct *vma,
 				unsigned long addr, gfp_t gfp_flags,
-				struct mempolicy **mpol, nodemask_t **nodemask)
+				struct mempolicy **mpol, yesdemask_t **yesdemask)
 {
 	*mpol = NULL;
-	*nodemask = NULL;
+	*yesdemask = NULL;
 	return 0;
 }
 
-static inline bool init_nodemask_of_mempolicy(nodemask_t *m)
+static inline bool init_yesdemask_of_mempolicy(yesdemask_t *m)
 {
 	return false;
 }
 
-static inline int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
-				   const nodemask_t *to, int flags)
+static inline int do_migrate_pages(struct mm_struct *mm, const yesdemask_t *from,
+				   const yesdemask_t *to, int flags)
 {
 	return 0;
 }
@@ -302,7 +302,7 @@ static inline int mpol_parse_str(char *str, struct mempolicy **mpol)
 static inline int mpol_misplaced(struct page *page, struct vm_area_struct *vma,
 				 unsigned long address)
 {
-	return -1; /* no node preference */
+	return -1; /* yes yesde preference */
 }
 
 static inline void mpol_put_task_policy(struct task_struct *task)

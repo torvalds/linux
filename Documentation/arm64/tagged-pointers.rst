@@ -12,7 +12,7 @@ in AArch64 Linux.
 
 The kernel configures the translation tables so that translations made
 via TTBR0 (i.e. userspace mappings) have the top byte (bits 63:56) of
-the virtual address ignored by the translation hardware. This frees up
+the virtual address igyesred by the translation hardware. This frees up
 this byte for application use.
 
 
@@ -24,7 +24,7 @@ an address tag of 0x00, unless the application enables the AArch64
 Tagged Address ABI explicitly
 (Documentation/arm64/tagged-address-abi.rst).
 
-This includes, but is not limited to, addresses found in:
+This includes, but is yest limited to, addresses found in:
 
  - pointer arguments to system calls, including pointers in structures
    passed to system calls,
@@ -35,17 +35,17 @@ This includes, but is not limited to, addresses found in:
  - the frame pointer (x29) and frame records, e.g. when interpreting
    them to generate a backtrace or call graph.
 
-Using non-zero address tags in any of these locations when the
-userspace application did not enable the AArch64 Tagged Address ABI may
+Using yesn-zero address tags in any of these locations when the
+userspace application did yest enable the AArch64 Tagged Address ABI may
 result in an error code being returned, a (fatal) signal being raised,
 or other modes of failure.
 
 For these reasons, when the AArch64 Tagged Address ABI is disabled,
-passing non-zero address tags to the kernel via system calls is
-forbidden, and using a non-zero address tag for sp is strongly
+passing yesn-zero address tags to the kernel via system calls is
+forbidden, and using a yesn-zero address tag for sp is strongly
 discouraged.
 
-Programs maintaining a frame pointer and frame records that use non-zero
+Programs maintaining a frame pointer and frame records that use yesn-zero
 address tags may suffer impaired or inaccurate debug and profiling
 visibility.
 
@@ -53,8 +53,8 @@ visibility.
 Preserving tags
 ---------------
 
-Non-zero tags are not preserved when delivering signals. This means that
-signal handlers in applications making use of tags cannot rely on the
+Non-zero tags are yest preserved when delivering signals. This means that
+signal handlers in applications making use of tags canyest rely on the
 tag information for user virtual addresses being maintained for fields
 inside siginfo_t. One exception to this rule is for signals raised in
 response to watchpoint debug exceptions, where the tag information will
@@ -71,5 +71,5 @@ Other considerations
 --------------------
 
 Special care should be taken when using tagged pointers, since it is
-likely that C compilers will not hazard two virtual addresses differing
+likely that C compilers will yest hazard two virtual addresses differing
 only in the upper byte.

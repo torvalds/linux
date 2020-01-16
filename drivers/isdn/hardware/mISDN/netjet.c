@@ -251,7 +251,7 @@ mode_tiger(struct tiger_ch *bc, u32 protocol)
 		}
 		break;
 	default:
-		pr_info("%s: %s protocol %x not handled\n", card->name,
+		pr_info("%s: %s protocol %x yest handled\n", card->name,
 			__func__, protocol);
 		return -ENOPROTOOPT;
 	}
@@ -275,7 +275,7 @@ nj_reset(struct tiger_hw *card)
 	outb(0xff, card->base + NJ_CTRL); /* Reset On */
 	mdelay(1);
 
-	/* now edge triggered for TJ320 GE 13/07/00 */
+	/* yesw edge triggered for TJ320 GE 13/07/00 */
 	/* see comment in IRQ function */
 	if (card->typ == NETJET_S_TJ320) /* TJ320 */
 		card->ctrlreg = 0x40;  /* Reset Off and status read clear */
@@ -310,12 +310,12 @@ inittiger(struct tiger_hw *card)
 	for (i = 0; i < 2; i++) {
 		card->bc[i].hsbuf = kmalloc(NJ_DMA_TXSIZE, GFP_ATOMIC);
 		if (!card->bc[i].hsbuf) {
-			pr_info("%s: no B%d send buffer\n", card->name, i + 1);
+			pr_info("%s: yes B%d send buffer\n", card->name, i + 1);
 			return -ENOMEM;
 		}
 		card->bc[i].hrbuf = kmalloc(NJ_DMA_RXSIZE, GFP_ATOMIC);
 		if (!card->bc[i].hrbuf) {
-			pr_info("%s: no B%d recv buffer\n", card->name, i + 1);
+			pr_info("%s: yes B%d recv buffer\n", card->name, i + 1);
 			return -ENOMEM;
 		}
 	}
@@ -330,7 +330,7 @@ inittiger(struct tiger_hw *card)
 	card->send.size = NJ_DMA_TXSIZE;
 
 	if (debug & DEBUG_HW)
-		pr_notice("%s: send buffer phy %#x - %#x - %#x  virt %p"
+		pr_yestice("%s: send buffer phy %#x - %#x - %#x  virt %p"
 			  " size %zu u32\n", card->name,
 			  card->send.dmastart, card->send.dmairq,
 			  card->send.dmaend, card->send.start, card->send.size);
@@ -348,7 +348,7 @@ inittiger(struct tiger_hw *card)
 	card->recv.size = NJ_DMA_RXSIZE;
 
 	if (debug & DEBUG_HW)
-		pr_notice("%s: recv buffer phy %#x - %#x - %#x  virt %p"
+		pr_yestice("%s: recv buffer phy %#x - %#x - %#x  virt %p"
 			  " size %zu u32\n", card->name,
 			  card->recv.dmastart, card->recv.dmairq,
 			  card->recv.dmaend, card->recv.start, card->recv.size);
@@ -641,7 +641,7 @@ send_tiger_bc(struct tiger_hw *card, struct tiger_ch *bc)
 			fill_hdlc_flag(bc);
 			return;
 		}
-		pr_debug("%s: B%1d TX no data free %d idx %d/%d\n", card->name,
+		pr_debug("%s: B%1d TX yes data free %d idx %d/%d\n", card->name,
 			 bc->bch.nr, bc->free, bc->idx, card->send.idx);
 		if (!(bc->txstate & (TX_IDLE | TX_INIT))) {
 			fill_mem(bc, bc->idx, bc->free, 0xff);
@@ -672,7 +672,7 @@ send_tiger(struct tiger_hw *card, u8 irq_stat)
 }
 
 static irqreturn_t
-nj_irq(int intno, void *dev_id)
+nj_irq(int intyes, void *dev_id)
 {
 	struct tiger_hw *card = dev_id;
 	u8 val, s1val, s0val;
@@ -812,7 +812,7 @@ nj_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		ret = channel_bctrl(bc, arg);
 		break;
 	default:
-		pr_info("%s: %s unknown prim(%x)\n", card->name, __func__, cmd);
+		pr_info("%s: %s unkyeswn prim(%x)\n", card->name, __func__, cmd);
 	}
 	return ret;
 }
@@ -838,7 +838,7 @@ channel_ctrl(struct tiger_hw *card, struct mISDN_ctrl_req *cq)
 		ret = card->isac.ctrl(&card->isac, HW_TIMER3_VALUE, cq->p1);
 		break;
 	default:
-		pr_info("%s: %s unknown Op %x\n", card->name, __func__, cq->op);
+		pr_info("%s: %s unkyeswn Op %x\n", card->name, __func__, cq->op);
 		ret = -EINVAL;
 		break;
 	}
@@ -886,7 +886,7 @@ nj_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		if (err)
 			break;
 		if (!try_module_get(THIS_MODULE))
-			pr_info("%s: cannot get module\n", card->name);
+			pr_info("%s: canyest get module\n", card->name);
 		break;
 	case CLOSE_CHANNEL:
 		pr_debug("%s: dev(%d) close from %p\n", card->name, dch->dev.id,
@@ -897,7 +897,7 @@ nj_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		err = channel_ctrl(card, arg);
 		break;
 	default:
-		pr_debug("%s: %s unknown command %x\n",
+		pr_debug("%s: %s unkyeswn command %x\n",
 			 card->name, __func__, cmd);
 		return -EINVAL;
 	}
@@ -1037,7 +1037,7 @@ setup_instance(struct tiger_hw *card)
 	err = nj_init_card(card);
 	if (!err)  {
 		nj_cnt++;
-		pr_notice("Netjet %d cards installed\n", nj_cnt);
+		pr_yestice("Netjet %d cards installed\n", nj_cnt);
 		return 0;
 	}
 error:
@@ -1054,19 +1054,19 @@ nj_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (pdev->subsystem_vendor == 0x8086 &&
 	    pdev->subsystem_device == 0x0003) {
-		pr_notice("Netjet: Digium X100P/X101P not handled\n");
+		pr_yestice("Netjet: Digium X100P/X101P yest handled\n");
 		return -ENODEV;
 	}
 
 	if (pdev->subsystem_vendor == 0x55 &&
 	    pdev->subsystem_device == 0x02) {
-		pr_notice("Netjet: Enter!Now not handled yet\n");
+		pr_yestice("Netjet: Enter!Now yest handled yet\n");
 		return -ENODEV;
 	}
 
 	if (pdev->subsystem_vendor == 0xb100 &&
 	    pdev->subsystem_device == 0x0003) {
-		pr_notice("Netjet: Digium TDM400P not handled yet\n");
+		pr_yestice("Netjet: Digium TDM400P yest handled yet\n");
 		return -ENODEV;
 	}
 
@@ -1120,9 +1120,9 @@ static void nj_remove(struct pci_dev *pdev)
 		pr_info("%s drvdata already removed\n", __func__);
 }
 
-/* We cannot select cards with PCI_SUB... IDs, since here are cards with
+/* We canyest select cards with PCI_SUB... IDs, since here are cards with
  * SUB IDs set to PCI_ANY_ID, so we need to match all and reject
- * known other cards which not work with this driver - see probe function */
+ * kyeswn other cards which yest work with this driver - see probe function */
 static const struct pci_device_id nj_pci_ids[] = {
 	{ PCI_VENDOR_ID_TIGERJET, PCI_DEVICE_ID_TIGERJET_300,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -1141,7 +1141,7 @@ static int __init nj_init(void)
 {
 	int err;
 
-	pr_notice("Netjet PCI driver Rev. %s\n", NETJET_REV);
+	pr_yestice("Netjet PCI driver Rev. %s\n", NETJET_REV);
 	err = pci_register_driver(&nj_driver);
 	return err;
 }

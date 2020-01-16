@@ -51,7 +51,7 @@
 			clock-frequency = <14745600>;
 			reg-shift = <2>;
 			reg-offset = <32>;
-			no-loopback-test = <1>;
+			yes-loopback-test = <1>;
 		};
 
 		timer0: timer@f0400000 {

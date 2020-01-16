@@ -6,7 +6,7 @@
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -414,7 +414,7 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 	err = gpiochip_irqchip_add(&ws16c48gpio->chip, &ws16c48_irqchip, 0,
 		handle_edge_irq, IRQ_TYPE_NONE);
 	if (err) {
-		dev_err(dev, "Could not add irqchip (%d)\n", err);
+		dev_err(dev, "Could yest add irqchip (%d)\n", err);
 		return err;
 	}
 

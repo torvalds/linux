@@ -91,7 +91,7 @@ static u8 _rtl92s_firmware_header_map_rftype(struct ieee80211_hw *hw)
 	case RF_2T2R:
 		return 0x22;
 	default:
-		pr_err("Unknown RF type(%x)\n", rtlphy->rf_type);
+		pr_err("Unkyeswn RF type(%x)\n", rtlphy->rf_type);
 		break;
 	}
 	return 0x22;
@@ -282,7 +282,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 		}
 
 		/* If right here, we can set TCR/RCR to desired value  */
-		/* and config MAC lookback mode to normal mode */
+		/* and config MAC lookback mode to yesrmal mode */
 		tmpu4b = rtl_read_dword(rtlpriv, TCR);
 		rtl_write_dword(rtlpriv, TCR, (tmpu4b & (~TCR_ICV)));
 
@@ -293,12 +293,12 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 			 "Current RCR settings(%#x)\n", tmpu4b);
 
-		/* Set to normal mode. */
+		/* Set to yesrmal mode. */
 		rtl_write_byte(rtlpriv, LBKMD_SEL, LBK_NORMAL);
 		break;
 
 	default:
-		pr_err("Unknown status check!\n");
+		pr_err("Unkyeswn status check!\n");
 		rtstatus = false;
 		break;
 	}
@@ -368,7 +368,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 		firmware->fw_emem_len = pfwheader->img_sram_size;
 	}
 
-	/* 4. download fw now */
+	/* 4. download fw yesw */
 	fwstatus = _rtl92s_firmware_get_nextstatus(firmware->fwstatus);
 	while (fwstatus != FW_STATUS_READY) {
 		/* Image buffer redirection. */
@@ -433,7 +433,7 @@ static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
 		/* 8 - Byte alignment */
 		len = H2C_TX_CMD_HDR_LEN + N_BYTE_ALIGMENT(pcmd_len[i], 8);
 
-		/* Buffer length is not enough */
+		/* Buffer length is yest eyesugh */
 		if (h2cbufferlen < totallen + len + tx_desclen)
 			break;
 
@@ -486,7 +486,7 @@ static u32 _rtl92s_get_h2c_cmdlen(u32 h2cbufferlen, u32 cmd_num, u32 *pcmd_len)
 		/* 8 - Byte alignment */
 		len = H2C_TX_CMD_HDR_LEN + N_BYTE_ALIGMENT(pcmd_len[i], 8);
 
-		/* Buffer length is not enough */
+		/* Buffer length is yest eyesugh */
 		if (h2cbufferlen < totallen + len + tx_desclen)
 			break;
 

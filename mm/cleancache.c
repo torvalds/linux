@@ -25,7 +25,7 @@ static const struct cleancache_ops *cleancache_ops __read_mostly;
 
 /*
  * Counters available via /sys/kernel/debug/cleancache (if debugfs is
- * properly configured.  These are for information only so are not protected
+ * properly configured.  These are for information only so are yest protected
  * against increment races.
  */
 static u64 cleancache_succ_gets;
@@ -60,7 +60,7 @@ int cleancache_register_ops(const struct cleancache_ops *ops)
 	 * for each active super block. To differentiate between local and
 	 * shared filesystems, we temporarily initialize sb->cleancache_poolid
 	 * to CLEANCACHE_NO_BACKEND or CLEANCACHE_NO_BACKEND_SHARED
-	 * respectively in case there is no backend registered at the time
+	 * respectively in case there is yes backend registered at the time
 	 * cleancache_init_fs or cleancache_init_shared_fs is called.
 	 *
 	 * Since filesystems can be mounted concurrently with cleancache
@@ -73,7 +73,7 @@ int cleancache_register_ops(const struct cleancache_ops *ops)
 	 * a) iterate_supers skips only those super blocks that has started
 	 *    ->kill_sb
 	 *
-	 * b) if iterate_supers encounters a super block that has not finished
+	 * b) if iterate_supers encounters a super block that has yest finished
 	 *    ->mount yet, it waits until it is finished
 	 *
 	 * c) cleancache_init_fs is called from ->mount and
@@ -82,7 +82,7 @@ int cleancache_register_ops(const struct cleancache_ops *ops)
 	 * d) we call iterate_supers after cleancache_ops has been set
 	 *
 	 * From a) it follows that if iterate_supers skips a super block, then
-	 * either the super block is already dead, in which case we do not need
+	 * either the super block is already dead, in which case we do yest need
 	 * to bother initializing cleancache for it, or it was mounted after we
 	 * initiated iterate_supers. In the latter case, it must have seen
 	 * cleancache_ops set according to d) and initialized cleancache from
@@ -92,15 +92,15 @@ int cleancache_register_ops(const struct cleancache_ops *ops)
 	 * From b) and c) it follows that if iterate_supers encounters a super
 	 * block that has already started ->init_fs, it will wait until ->mount
 	 * and hence ->init_fs has finished, then check cleancache_poolid, see
-	 * that it has already been set and therefore do nothing. This proves
-	 * that we call ->init_fs no more than once for each super block.
+	 * that it has already been set and therefore do yesthing. This proves
+	 * that we call ->init_fs yes more than once for each super block.
 	 *
 	 * Combined together, the last two paragraphs prove the function
 	 * correctness.
 	 *
 	 * Note that various cleancache callbacks may proceed before this
 	 * function is called or even concurrently with it, but since
-	 * CLEANCACHE_NO_BACKEND is negative, they will all result in a noop
+	 * CLEANCACHE_NO_BACKEND is negative, they will all result in a yesop
 	 * until the corresponding ->init_fs has been actually called and
 	 * cleancache_ops has been set.
 	 */
@@ -139,20 +139,20 @@ EXPORT_SYMBOL(__cleancache_init_shared_fs);
 
 /*
  * If the filesystem uses exportable filehandles, use the filehandle as
- * the key, else use the inode number.
+ * the key, else use the iyesde number.
  */
-static int cleancache_get_key(struct inode *inode,
+static int cleancache_get_key(struct iyesde *iyesde,
 			      struct cleancache_filekey *key)
 {
-	int (*fhfn)(struct inode *, __u32 *fh, int *, struct inode *);
+	int (*fhfn)(struct iyesde *, __u32 *fh, int *, struct iyesde *);
 	int len = 0, maxlen = CLEANCACHE_KEY_MAX;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 
-	key->u.ino = inode->i_ino;
+	key->u.iyes = iyesde->i_iyes;
 	if (sb->s_export_op != NULL) {
 		fhfn = sb->s_export_op->encode_fh;
 		if  (fhfn) {
-			len = (*fhfn)(inode, &key->u.fh[0], &maxlen, NULL);
+			len = (*fhfn)(iyesde, &key->u.fh[0], &maxlen, NULL);
 			if (len <= FILEID_ROOT || len == FILEID_INVALID)
 				return -1;
 			if (maxlen > CLEANCACHE_KEY_MAX)
@@ -163,7 +163,7 @@ static int cleancache_get_key(struct inode *inode,
 }
 
 /*
- * "Get" data from cleancache associated with the poolid/inode/index
+ * "Get" data from cleancache associated with the poolid/iyesde/index
  * that were specified when the data was put to cleanache and, if
  * successful, use it to fill the specified page with data and return 0.
  * The pageframe is unchanged and returns -1 if the get fails.
@@ -205,7 +205,7 @@ EXPORT_SYMBOL(__cleancache_get_page);
 /*
  * "Put" data from a page to cleancache and associate it with the
  * (previously-obtained per-filesystem) poolid and the page's,
- * inode and page index.  Page must be locked.  Note that a put_page
+ * iyesde and page index.  Page must be locked.  Note that a put_page
  * always "succeeds", though a subsequent get_page may succeed or fail.
  *
  * The function has two checks before any action is taken - whether
@@ -234,7 +234,7 @@ EXPORT_SYMBOL(__cleancache_put_page);
 
 /*
  * Invalidate any data from cleancache associated with the poolid and the
- * page's inode and page index so that a subsequent "get" will fail.
+ * page's iyesde and page index so that a subsequent "get" will fail.
  *
  * The function has two checks before any action is taken - whether
  * a backend is registered and whether the sb->cleancache_poolid
@@ -263,14 +263,14 @@ EXPORT_SYMBOL(__cleancache_invalidate_page);
 
 /*
  * Invalidate all data from cleancache associated with the poolid and the
- * mappings's inode so that all subsequent gets to this poolid/inode
+ * mappings's iyesde so that all subsequent gets to this poolid/iyesde
  * will fail.
  *
  * The function has two checks before any action is taken - whether
  * a backend is registered and whether the sb->cleancache_poolid
  * is correct.
  */
-void __cleancache_invalidate_inode(struct address_space *mapping)
+void __cleancache_invalidate_iyesde(struct address_space *mapping)
 {
 	int pool_id = mapping->host->i_sb->cleancache_poolid;
 	struct cleancache_filekey key = { .u.key = { 0 } };
@@ -279,13 +279,13 @@ void __cleancache_invalidate_inode(struct address_space *mapping)
 		return;
 
 	if (pool_id >= 0 && cleancache_get_key(mapping->host, &key) >= 0)
-		cleancache_ops->invalidate_inode(pool_id, key);
+		cleancache_ops->invalidate_iyesde(pool_id, key);
 }
-EXPORT_SYMBOL(__cleancache_invalidate_inode);
+EXPORT_SYMBOL(__cleancache_invalidate_iyesde);
 
 /*
  * Called by any cleancache-enabled filesystem at time of unmount;
- * note that pool_id is surrendered and may be returned by a subsequent
+ * yeste that pool_id is surrendered and may be returned by a subsequent
  * cleancache_init_fs or cleancache_init_shared_fs.
  */
 void __cleancache_invalidate_fs(struct super_block *sb)

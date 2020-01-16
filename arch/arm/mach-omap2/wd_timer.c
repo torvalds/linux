@@ -33,13 +33,13 @@ int omap2_wd_timer_disable(struct omap_hwmod *oh)
 	void __iomem *base;
 
 	if (!oh) {
-		pr_err("%s: Could not look up wdtimer_hwmod\n", __func__);
+		pr_err("%s: Could yest look up wdtimer_hwmod\n", __func__);
 		return -EINVAL;
 	}
 
 	base = omap_hwmod_get_mpu_rt_va(oh);
 	if (!base) {
-		pr_err("%s: Could not get the base address for %s\n",
+		pr_err("%s: Could yest get the base address for %s\n",
 				oh->name, __func__);
 		return -EINVAL;
 	}
@@ -63,12 +63,12 @@ int omap2_wd_timer_disable(struct omap_hwmod *oh)
  * After the WDTIMER IP blocks are reset on OMAP2/3, we must also take
  * care to execute the special watchdog disable sequence.  This is
  * because the watchdog is re-armed upon OCP softreset.  (On OMAP4,
- * this behavior was apparently changed and the watchdog is no longer
+ * this behavior was apparently changed and the watchdog is yes longer
  * re-armed after an OCP soft-reset.)  Returns -ETIMEDOUT if the reset
- * did not complete, or 0 upon success.
+ * did yest complete, or 0 upon success.
  *
  * XXX Most of this code should be moved to the omap_hwmod.c layer
- * during a normal merge window.  omap_hwmod_softreset() should be
+ * during a yesrmal merge window.  omap_hwmod_softreset() should be
  * renamed to omap_hwmod_set_ocp_softreset(), and omap_hwmod_softreset()
  * should call the hwmod _ocp_softreset() code.
  */

@@ -20,14 +20,14 @@
  * 10/26/2006   Russ Anderson	updated processor features to rev 2.2 spec
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/efi.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 
@@ -57,7 +57,7 @@ typedef struct {
  */
 
 static const char *cache_types[] = {
-	"",			/* not used */
+	"",			/* yest used */
 	"Instruction",
 	"Data",
 	"Data/Instruction"	/* unified */
@@ -203,7 +203,7 @@ static int power_info(struct seq_file *m)
 				   halt_info[i].pal_power_mgmt_info_s.power_consumption,
 				   halt_info[i].pal_power_mgmt_info_s.co ? "Yes" : "No");
 		} else {
-			seq_printf(m,"Power level %d: not implemented\n", i);
+			seq_printf(m,"Power level %d: yest implemented\n", i);
 		}
 	}
 	return 0;
@@ -226,7 +226,7 @@ static int cache_info(struct seq_file *m)
 
 	for (i=0; i < levels; i++) {
 		for (j=2; j >0 ; j--) {
-			/* even without unification some level may not be present */
+			/* even without unification some level may yest be present */
 			if ((status=ia64_pal_cache_config_info(i,j, &cci)) != 0)
 				continue;
 
@@ -278,7 +278,7 @@ static int cache_info(struct seq_file *m)
 				   1<<cci.pcci_alias_boundary, cci.pcci_tag_lsb,
 				   cci.pcci_tag_msb);
 
-			/* when unified, data(j=2) is enough */
+			/* when unified, data(j=2) is eyesugh */
 			if (cci.pcci_unified)
 				break;
 		}
@@ -346,7 +346,7 @@ static int vm_info(struct seq_file *m)
 			   "Number of DTR                  : %d\n"
 			   "Number of ITR                  : %d\n"
 			   "TLB insertable page sizes      : ",
-			   vm_info_1.pal_vm_info_1_s.vw ? "" : "not ",
+			   vm_info_1.pal_vm_info_1_s.vw ? "" : "yest ",
 			   vm_info_1.pal_vm_info_1_s.max_dtr_entry+1,
 			   vm_info_1.pal_vm_info_1_s.max_itr_entry+1);
 
@@ -379,7 +379,7 @@ static int vm_info(struct seq_file *m)
 			for (j=2; j>0 ; j--) {
 				tc_pages = 0; /* just in case */
 
-				/* even without unification, some levels may not be present */
+				/* even without unification, some levels may yest be present */
 				if ((status=ia64_pal_vm_info(i,j, &tc_info, &tc_pages)) != 0)
 					continue;
 
@@ -405,7 +405,7 @@ static int vm_info(struct seq_file *m)
 
 				bitvector_process(m, tc_pages);
 
-				/* when unified date (j=2) is enough */
+				/* when unified date (j=2) is eyesugh */
 				if (tc_info.tc_unified)
 					break;
 			}
@@ -477,7 +477,7 @@ static const char *const proc_features_0[]={		/* Feature set 0 */
 	"Disable P-states",
 	"Enable MCA on Data Poisoning",
 	"Enable vmsw instruction",
-	"Enable extern environmental notification",
+	"Enable extern environmental yestification",
 	"Disable BINIT on processor time-out",
 	"Disable dynamic power management (DPM)",
 	"Disable coherency",
@@ -492,7 +492,7 @@ static const char *const proc_features_16[]={		/* Feature set 16 */
 	"Disable ETM",
 	"Enable ETM",
 	"Enable MCA on half-way timer",
-	"Enable snoop WC",
+	"Enable syesop WC",
 	NULL,
 	"Enable Fast Deferral",
 	"Disable MCA on memory aliasing",
@@ -694,7 +694,7 @@ static int frequency_info(struct seq_file *m)
 	unsigned long base;
 
 	if (ia64_pal_freq_base(&base) == -1)
-		seq_puts(m, "Output clock            : not implemented\n");
+		seq_puts(m, "Output clock            : yest implemented\n");
 	else
 		seq_printf(m, "Output clock            : %ld ticks/s\n", base);
 
@@ -830,7 +830,7 @@ static struct proc_dir_entry *palinfo_dir;
  * This data structure is used to pass which cpu,function is being requested
  * It must fit in a 64bit quantity to be passed to the proc callback routine
  *
- * In SMP mode, when we get a request for another CPU, we must call that
+ * In SMP mode, when we get a request for ayesther CPU, we must call that
  * other CPU using IPI and wait for the result before returning.
  */
 typedef union {
@@ -870,7 +870,7 @@ palinfo_smp_call(void *info)
 /*
  * function called to trigger the IPI, we need to access a remote CPU
  * Return:
- *	0 : error or nothing to output
+ *	0 : error or yesthing to output
  *	otherwise how many bytes in the "page" buffer were written
  */
 static
@@ -896,7 +896,7 @@ int palinfo_handle_smp(struct seq_file *m, pal_func_cpu_u_t *f)
 static
 int palinfo_handle_smp(struct seq_file *m, pal_func_cpu_u_t *f)
 {
-	printk(KERN_ERR "palinfo: should not be called with non SMP kernel\n");
+	printk(KERN_ERR "palinfo: should yest be called with yesn SMP kernel\n");
 	return 0;
 }
 #endif /* CONFIG_SMP */
@@ -909,7 +909,7 @@ static int proc_palinfo_show(struct seq_file *m, void *v)
 	pal_func_cpu_u_t *f = (pal_func_cpu_u_t *)&m->private;
 
 	/*
-	 * in SMP mode, we may need to call another CPU to get correct
+	 * in SMP mode, we may need to call ayesther CPU to get correct
 	 * information. PAL, by definition, is processor specific
 	 */
 	if (f->req_cpu == get_cpu())

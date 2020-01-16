@@ -42,7 +42,7 @@ static void engine_retire(struct work_struct *work)
 
 		/*
 		 * Our goal here is to retire _idle_ timelines as soon as
-		 * possible (as they are idle, we do not expect userspace
+		 * possible (as they are idle, we do yest expect userspace
 		 * to be cleaning up anytime soon).
 		 *
 		 * If the timeline is currently locked, either it is being
@@ -66,12 +66,12 @@ static bool add_retire(struct intel_engine_cs *engine,
 
 	/*
 	 * We open-code a llist here to include the additional tag [BIT(0)]
-	 * so that we know when the timeline is already on a
-	 * retirement queue: either this engine or another.
+	 * so that we kyesw when the timeline is already on a
+	 * retirement queue: either this engine or ayesther.
 	 *
 	 * However, we rely on that a timeline can only be active on a single
 	 * engine at any one time and that add_retire() is called before the
-	 * engine releases the timeline and transferred to another to retire.
+	 * engine releases the timeline and transferred to ayesther to retire.
 	 */
 
 	if (READ_ONCE(tl->retire)) /* already queued */
@@ -172,7 +172,7 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 
 int intel_gt_wait_for_idle(struct intel_gt *gt, long timeout)
 {
-	/* If the device is asleep, we have no requests outstanding */
+	/* If the device is asleep, we have yes requests outstanding */
 	if (!intel_gt_pm_is_awake(gt))
 		return 0;
 

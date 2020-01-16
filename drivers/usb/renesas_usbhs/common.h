@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Copyright (C) 2019 Renesas Electronics Corporation
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 #ifndef RENESAS_USB_DRIVER_H
 #define RENESAS_USB_DRIVER_H
@@ -257,7 +257,7 @@ struct usbhs_priv {
 	const struct renesas_usbhs_platform_callback *pfunc;
 	struct renesas_usbhs_driver_param	dparam;
 
-	struct delayed_work notify_hotplug_work;
+	struct delayed_work yestify_hotplug_work;
 	struct platform_device *pdev;
 
 	struct extcon_dev *edev;
@@ -317,7 +317,7 @@ void usbhs_bus_send_sof_enable(struct usbhs_priv *priv);
 void usbhs_bus_send_reset(struct usbhs_priv *priv);
 int usbhs_bus_get_speed(struct usbhs_priv *priv);
 int usbhs_vbus_ctrl(struct usbhs_priv *priv, int enable);
-int usbhsc_schedule_notify_hotplug(struct platform_device *pdev);
+int usbhsc_schedule_yestify_hotplug(struct platform_device *pdev);
 
 /*
  * frame

@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -64,7 +64,7 @@ MODULE_PARM_DESC(cache_size, "Send and receive side cache size limit (in MB)");
  * to pin buffer pages in order to determine whether they should do so.
  * The function computes cache limits based on the configured ulimit and
  * cache size. Use of this function is especially important for caches
- * which are not limited in any other way (e.g. by HW resources) and, thus,
+ * which are yest limited in any other way (e.g. by HW resources) and, thus,
  * could keeping caching buffers.
  *
  */

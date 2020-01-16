@@ -23,7 +23,7 @@ Required properties:
 
   - clocks : Contains an entry for each entry in clock-names.
   - clock-names : Must include the following clocks:
-      "mclk" Master clock source for the sound card, should normally
+      "mclk" Master clock source for the sound card, should yesrmally
       be set to LOCHNAGAR_SOUNDCARD_MCLK provided by the Lochnagar
       clock driver.
 

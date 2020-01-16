@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/ptrace.h>
 #include <linux/personality.h>
@@ -139,12 +139,12 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	struct rt_sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
 	 * then 'sp' should be two-word aligned here.  If it's
-	 * not, then the user is trying to mess with us.
+	 * yest, then the user is trying to mess with us.
 	 */
 	if (regs->sp & 7)
 		goto badframe;
@@ -214,7 +214,7 @@ setup_sigframe(struct rt_sigframe __user * sf, struct pt_regs *regs,
 	err |= setup_sigcontext_fpu(regs, &sf->uc.uc_mcontext);
 #endif
 
-	__put_user_error(current->thread.trap_no, &sf->uc.uc_mcontext.trap_no,
+	__put_user_error(current->thread.trap_yes, &sf->uc.uc_mcontext.trap_yes,
 			 err);
 	__put_user_error(current->thread.error_code,
 			 &sf->uc.uc_mcontext.error_code, err);
@@ -232,7 +232,7 @@ static inline void __user *get_sigframe(struct ksignal *ksig,
 {
 	unsigned long sp;
 
-	/* Default to using normal stack */
+	/* Default to using yesrmal stack */
 	sp = regs->sp;
 
 	/*
@@ -333,7 +333,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  *
  * Note that we go through the signals twice: once to check the signals that
@@ -353,7 +353,7 @@ static void do_signal(struct pt_regs *regs)
 	 * If we were from a system call, check for system call restarting...
 	 */
 	if (in_syscall(regs)) {
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - yes handlers present */
 
 		/* Avoid additional syscall restarting via ret_slow_syscall. */
 		forget_syscall(regs);
@@ -374,13 +374,13 @@ static void do_signal(struct pt_regs *regs)
 }
 
 asmlinkage void
-do_notify_resume(struct pt_regs *regs, unsigned int thread_flags)
+do_yestify_resume(struct pt_regs *regs, unsigned int thread_flags)
 {
 	if (thread_flags & _TIF_SIGPENDING)
 		do_signal(regs);
 
 	if (thread_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 	}
 }

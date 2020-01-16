@@ -4,7 +4,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -80,7 +80,7 @@ EXPORT_SYMBOL(tty_port_init);
  * @index: index of the tty
  *
  * Provide the tty layer with a link from a tty (specified by @index) to a
- * tty_port (@port). Use this only if neither tty_port_register_device nor
+ * tty_port (@port). Use this only if neither tty_port_register_device yesr
  * tty_port_install is used in the driver. If used, this has to be called before
  * tty_register_driver.
  */
@@ -146,7 +146,7 @@ EXPORT_SYMBOL_GPL(tty_port_register_device_attr);
  * @attr_grp: attribute group for the device
  *
  * Register a serdev or tty device depending on if the parent device has any
- * defined serdev clients or not.
+ * defined serdev clients or yest.
  */
 struct device *tty_port_register_device_attr_serdev(struct tty_port *port,
 		struct tty_driver *driver, unsigned index,
@@ -176,7 +176,7 @@ EXPORT_SYMBOL_GPL(tty_port_register_device_attr_serdev);
  * @device: parent if exists, otherwise NULL
  *
  * Register a serdev or tty device depending on if the parent device has any
- * defined serdev clients or not.
+ * defined serdev clients or yest.
  */
 struct device *tty_port_register_device_serdev(struct tty_port *port,
 		struct tty_driver *driver, unsigned index,
@@ -240,7 +240,7 @@ EXPORT_SYMBOL(tty_port_free_xmit_buf);
  *
  * When a port was initialized using tty_port_init, one has to destroy the
  * port by this function. Either indirectly by using tty_port refcounting
- * (tty_port_put) or directly if refcounting is not used.
+ * (tty_port_put) or directly if refcounting is yest used.
  */
 void tty_port_destroy(struct tty_port *port)
 {
@@ -276,7 +276,7 @@ EXPORT_SYMBOL(tty_port_put);
  *	tty_port_tty_get	-	get a tty reference
  *	@port: tty port
  *
- *	Return a refcount protected tty instance or NULL if the port is not
+ *	Return a refcount protected tty instance or NULL if the port is yest
  *	associated with a tty (eg due to close or hangup)
  */
 struct tty_struct *tty_port_tty_get(struct tty_port *port)
@@ -443,7 +443,7 @@ EXPORT_SYMBOL(tty_port_lower_dtr_rts);
  *	Implement the core POSIX/SuS tty behaviour when opening a tty device.
  *	Handles:
  *		- hangup (both before and during)
- *		- non blocking open
+ *		- yesn blocking open
  *		- rts/dtr/dcd
  *		- signals
  *		- port flags and counts
@@ -465,8 +465,8 @@ int tty_port_block_til_ready(struct tty_port *port,
 	unsigned long flags;
 	DEFINE_WAIT(wait);
 
-	/* if non-blocking mode is set we can pass directly to open unless
-	   the port has just hung up or is in another error state */
+	/* if yesn-blocking mode is set we can pass directly to open unless
+	   the port has just hung up or is in ayesther error state */
 	if (tty_io_error(tty)) {
 		tty_port_set_active(port, 1);
 		return 0;
@@ -510,7 +510,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 			break;
 		}
 		/*
-		 * Probe the carrier. For devices with no carrier detect
+		 * Probe the carrier. For devices with yes carrier detect
 		 * tty_port_carrier_raised will always return true.
 		 * Never ask drivers if CLOCAL is set, this causes troubles
 		 * on some hardware.
@@ -528,7 +528,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 	finish_wait(&port->open_wait, &wait);
 
 	/* Update counts. A parallel hangup will have set count to zero and
-	   we must not mess that up further */
+	   we must yest mess that up further */
 	spin_lock_irqsave(&port->lock, flags);
 	if (!tty_hung_up_p(filp))
 		port->count++;
@@ -664,7 +664,7 @@ EXPORT_SYMBOL_GPL(tty_port_install);
  * Caller holds tty lock.
  *
  * NB: may drop and reacquire tty lock (in tty_port_block_til_ready()) so
- * tty and tty_port may have changed state (eg., may be hung up now)
+ * tty and tty_port may have changed state (eg., may be hung up yesw)
  */
 int tty_port_open(struct tty_port *port, struct tty_struct *tty,
 							struct file *filp)

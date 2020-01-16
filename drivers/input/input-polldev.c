@@ -217,7 +217,7 @@ static void devm_input_polldev_unregister(struct device *dev, void *res)
  *
  * Returns prepared &struct input_polled_dev or %NULL.
  *
- * Managed polled input devices do not need to be explicitly unregistered
+ * Managed polled input devices do yest need to be explicitly unregistered
  * or freed as it will be done automatically when owner device unbinds
  * from * its driver (or binding fails). Once such managed polled device
  * is allocated, it is ready to be set up and registered in the same
@@ -229,7 +229,7 @@ static void devm_input_polldev_unregister(struct device *dev, void *res)
  * input_free_polled_device(), although it is rarely needed.
  *
  * NOTE: the owner device is set up as parent of input device and users
- * should not override it.
+ * should yest override it.
  */
 struct input_polled_dev *devm_input_allocate_polled_device(struct device *dev)
 {

@@ -22,7 +22,7 @@
  * clock is selected by jumpers, and the clock divider can be selected
  * via programmed I/O.  Unfortunately, the clock divider can only be
  * a power of 10, from 1 to 10^7, of which only 3 or 4 are useful.  In
- * addition, the clock does not seem to be very accurate.
+ * addition, the clock does yest seem to be very accurate.
  */
 
 #include <linux/module.h>
@@ -96,7 +96,7 @@ static int dt2814_ns_to_timer(unsigned int *ns, unsigned int flags)
 	int i;
 	unsigned int f;
 
-	/* XXX ignores flags */
+	/* XXX igyesres flags */
 
 	f = 10000;		/* ns */
 	for (i = 0; i < 8; i++) {
@@ -207,7 +207,7 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 
 		outb(0, dev->iobase + DT2814_CSR);
 		/*
-		 * note: turning off timed mode triggers another
+		 * yeste: turning off timed mode triggers ayesther
 		 * sample.
 		 */
 
@@ -265,7 +265,7 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan = 16;		/* XXX */
 	s->insn_read = dt2814_ai_insn_read;
 	s->maxdata = 0xfff;
-	s->range_table = &range_unknown;	/* XXX */
+	s->range_table = &range_unkyeswn;	/* XXX */
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags |= SDF_CMD_READ;

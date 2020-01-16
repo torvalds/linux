@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -39,38 +39,38 @@
 #include <linux/interval_tree_generic.h>
 #include "usnic_uiom_interval_tree.h"
 
-#define START(node) ((node)->start)
-#define LAST(node) ((node)->last)
+#define START(yesde) ((yesde)->start)
+#define LAST(yesde) ((yesde)->last)
 
-#define MAKE_NODE(node, start, end, ref_cnt, flags, err, err_out)	\
+#define MAKE_NODE(yesde, start, end, ref_cnt, flags, err, err_out)	\
 		do {							\
-			node = usnic_uiom_interval_node_alloc(start,	\
+			yesde = usnic_uiom_interval_yesde_alloc(start,	\
 					end, ref_cnt, flags);		\
-				if (!node) {				\
+				if (!yesde) {				\
 					err = -ENOMEM;			\
 					goto err_out;			\
 				}					\
 		} while (0)
 
-#define MARK_FOR_ADD(node, list) (list_add_tail(&node->link, list))
+#define MARK_FOR_ADD(yesde, list) (list_add_tail(&yesde->link, list))
 
-#define MAKE_NODE_AND_APPEND(node, start, end, ref_cnt, flags, err,	\
+#define MAKE_NODE_AND_APPEND(yesde, start, end, ref_cnt, flags, err,	\
 				err_out, list)				\
 				do {					\
-					MAKE_NODE(node, start, end,	\
+					MAKE_NODE(yesde, start, end,	\
 						ref_cnt, flags, err,	\
 						err_out);		\
-					MARK_FOR_ADD(node, list);	\
+					MARK_FOR_ADD(yesde, list);	\
 				} while (0)
 
 #define FLAGS_EQUAL(flags1, flags2, mask)				\
 			(((flags1) & (mask)) == ((flags2) & (mask)))
 
-static struct usnic_uiom_interval_node*
-usnic_uiom_interval_node_alloc(long int start, long int last, int ref_cnt,
+static struct usnic_uiom_interval_yesde*
+usnic_uiom_interval_yesde_alloc(long int start, long int last, int ref_cnt,
 				int flags)
 {
-	struct usnic_uiom_interval_node *interval = kzalloc(sizeof(*interval),
+	struct usnic_uiom_interval_yesde *interval = kzalloc(sizeof(*interval),
 								GFP_ATOMIC);
 	if (!interval)
 		return NULL;
@@ -85,15 +85,15 @@ usnic_uiom_interval_node_alloc(long int start, long int last, int ref_cnt,
 
 static int interval_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
-	struct usnic_uiom_interval_node *node_a, *node_b;
+	struct usnic_uiom_interval_yesde *yesde_a, *yesde_b;
 
-	node_a = list_entry(a, struct usnic_uiom_interval_node, link);
-	node_b = list_entry(b, struct usnic_uiom_interval_node, link);
+	yesde_a = list_entry(a, struct usnic_uiom_interval_yesde, link);
+	yesde_b = list_entry(b, struct usnic_uiom_interval_yesde, link);
 
 	/* long to int */
-	if (node_a->start < node_b->start)
+	if (yesde_a->start < yesde_b->start)
 		return -1;
-	else if (node_a->start > node_b->start)
+	else if (yesde_a->start > yesde_b->start)
 		return 1;
 
 	return 0;
@@ -104,14 +104,14 @@ find_intervals_intersection_sorted(struct rb_root_cached *root,
 				   unsigned long start, unsigned long last,
 				   struct list_head *list)
 {
-	struct usnic_uiom_interval_node *node;
+	struct usnic_uiom_interval_yesde *yesde;
 
 	INIT_LIST_HEAD(list);
 
-	for (node = usnic_uiom_interval_tree_iter_first(root, start, last);
-		node;
-		node = usnic_uiom_interval_tree_iter_next(node, start, last))
-		list_add_tail(&node->link, list);
+	for (yesde = usnic_uiom_interval_tree_iter_first(root, start, last);
+		yesde;
+		yesde = usnic_uiom_interval_tree_iter_next(yesde, start, last))
+		list_add_tail(&yesde->link, list);
 
 	list_sort(NULL, list, interval_cmp);
 }
@@ -121,7 +121,7 @@ int usnic_uiom_get_intervals_diff(unsigned long start, unsigned long last,
 					struct rb_root_cached *root,
 					struct list_head *diff_set)
 {
-	struct usnic_uiom_interval_node *interval, *tmp;
+	struct usnic_uiom_interval_yesde *interval, *tmp;
 	int err = 0;
 	long int pivot = start;
 	LIST_HEAD(intersection_set);
@@ -141,7 +141,7 @@ int usnic_uiom_get_intervals_diff(unsigned long start, unsigned long last,
 
 		/*
 		 * Invariant: Set [start, pivot] is either in diff_set or root,
-		 * but not in both.
+		 * but yest in both.
 		 */
 
 		if (pivot > interval->last) {
@@ -170,7 +170,7 @@ err_out:
 
 void usnic_uiom_put_interval_set(struct list_head *intervals)
 {
-	struct usnic_uiom_interval_node *interval, *tmp;
+	struct usnic_uiom_interval_yesde *interval, *tmp;
 	list_for_each_entry_safe(interval, tmp, intervals, link)
 		kfree(interval);
 }
@@ -178,7 +178,7 @@ void usnic_uiom_put_interval_set(struct list_head *intervals)
 int usnic_uiom_insert_interval(struct rb_root_cached *root, unsigned long start,
 				unsigned long last, int flags)
 {
-	struct usnic_uiom_interval_node *interval, *tmp;
+	struct usnic_uiom_interval_yesde *interval, *tmp;
 	unsigned long istart, ilast;
 	int iref_cnt, iflags;
 	unsigned long lpivot = start;
@@ -250,7 +250,7 @@ void usnic_uiom_remove_interval(struct rb_root_cached *root,
 				unsigned long start, unsigned long last,
 				struct list_head *removed)
 {
-	struct usnic_uiom_interval_node *interval;
+	struct usnic_uiom_interval_yesde *interval;
 
 	for (interval = usnic_uiom_interval_tree_iter_first(root, start, last);
 			interval;
@@ -265,6 +265,6 @@ void usnic_uiom_remove_interval(struct rb_root_cached *root,
 		usnic_uiom_interval_tree_remove(interval, root);
 }
 
-INTERVAL_TREE_DEFINE(struct usnic_uiom_interval_node, rb,
+INTERVAL_TREE_DEFINE(struct usnic_uiom_interval_yesde, rb,
 			unsigned long, __subtree_last,
 			START, LAST, , usnic_uiom_interval_tree)

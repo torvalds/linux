@@ -305,7 +305,7 @@ static int  fxas21002c_pm_get(struct fxas21002c_data *data)
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 
 	return ret;
 }
@@ -446,7 +446,7 @@ static int fxas21002c_lpf_set(struct fxas21002c_data *data, int bw)
 
 	/*
 	 * From table 33 of the device spec, for ODR = 25Hz and 12.5 value 0.08
-	 * is not allowed and for ODR = 12.5 value 0.16 is also not allowed
+	 * is yest allowed and for ODR = 12.5 value 0.16 is also yest allowed
 	 */
 	ret = fxas21002c_odr_get(data, &odr);
 	if (ret < 0)
@@ -680,7 +680,7 @@ static irqreturn_t fxas21002c_trigger_handler(int irq, void *p)
 out_unlock:
 	mutex_unlock(&data->lock);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -697,7 +697,7 @@ static int fxas21002c_chip_init(struct fxas21002c_data *data)
 
 	if (chip_id != FXAS21002C_CHIP_ID_1 &&
 	    chip_id != FXAS21002C_CHIP_ID_2) {
-		dev_err(dev, "chip id 0x%02x is not supported\n", chip_id);
+		dev_err(dev, "chip id 0x%02x is yest supported\n", chip_id);
 		return -EINVAL;
 	}
 
@@ -761,7 +761,7 @@ static int fxas21002c_trigger_probe(struct fxas21002c_data *data)
 {
 	struct device *dev = regmap_get_device(data->regmap);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct device_node *np = indio_dev->dev.of_node;
+	struct device_yesde *np = indio_dev->dev.of_yesde;
 	unsigned long irq_trig;
 	bool irq_open_drain;
 	int irq1;
@@ -938,7 +938,7 @@ int fxas21002c_core_probe(struct device *dev, struct regmap *regmap, int irq,
 pm_disable:
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 	return ret;
 }
@@ -952,7 +952,7 @@ void fxas21002c_core_remove(struct device *dev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 }
 EXPORT_SYMBOL_GPL(fxas21002c_core_remove);
 

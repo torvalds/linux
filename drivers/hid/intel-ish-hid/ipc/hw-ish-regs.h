@@ -71,7 +71,7 @@
 
 /*
  * A0: bit means that host owns MSGnn registers and is reading them.
- * ISH FW may not write to them
+ * ISH FW may yest write to them
  */
 #define	IPC_HOST_OWNS_MSG_BIT		(1<<IPC_HOST_OWNS_MSG_OFFS)
 

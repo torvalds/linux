@@ -218,8 +218,8 @@
 struct sun4i_tcon;
 
 struct sun4i_tcon_quirks {
-	bool	has_channel_0;	/* a83t does not have channel 0 on second TCON */
-	bool	has_channel_1;	/* a33 does not have channel 1 */
+	bool	has_channel_0;	/* a83t does yest have channel 0 on second TCON */
+	bool	has_channel_1;	/* a33 does yest have channel 1 */
 	bool	has_lvds_alt;	/* Does the LVDS clock have a parent other than the TCON clock? */
 	bool	needs_de_be_mux; /* sun6i needs mux to select backend */
 	bool    needs_edp_reset; /* a80 edp reset needed for tcon0 access */
@@ -266,8 +266,8 @@ struct sun4i_tcon {
 	struct list_head		list;
 };
 
-struct drm_bridge *sun4i_tcon_find_bridge(struct device_node *node);
-struct drm_panel *sun4i_tcon_find_panel(struct device_node *node);
+struct drm_bridge *sun4i_tcon_find_bridge(struct device_yesde *yesde);
+struct drm_panel *sun4i_tcon_find_panel(struct device_yesde *yesde);
 
 void sun4i_tcon_enable_vblank(struct sun4i_tcon *tcon, bool enable);
 void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,

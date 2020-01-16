@@ -18,18 +18,18 @@
  *
  * SCM Microsystems (www.scmmicro.com) makes a device, sold to OEM's only, 
  * which does the USB-to-ATAPI conversion.  By obtaining the data sheet on
- * their device under nondisclosure agreement, I have been able to write
+ * their device under yesndisclosure agreement, I have been able to write
  * this driver for Linux.
  *
  * The chip used in the device can also be used for EPP and ISA translation
  * as well. This driver is only guaranteed to work with the ATAPI
  * translation.
  *
- * See the Kconfig help text for a list of devices known to be supported by
+ * See the Kconfig help text for a list of devices kyeswn to be supported by
  * this driver.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/cdrom.h>
@@ -100,7 +100,7 @@ MODULE_IMPORT_NS(USB_STORAGE);
 #define USBAT_ATA_DEVICE    0x16  /* head/device selection (R/W) */
 #define USBAT_ATA_STATUS    0x17  /* device status (R) */
 #define USBAT_ATA_CMD       0x17  /* device command (W) */
-#define USBAT_ATA_ALTSTATUS 0x0E  /* status (no clear IRQ) (R) */
+#define USBAT_ATA_ALTSTATUS 0x0E  /* status (yes clear IRQ) (R) */
 
 /* USBAT User I/O Data registers */
 #define USBAT_UIO_EPAD		0x80 /* Enable Peripheral Control Signals */
@@ -111,7 +111,7 @@ MODULE_IMPORT_NS(USB_STORAGE);
 #define USBAT_UIO_EPP_ATA	0x08 /* 1=EPP mode, 0=ATA mode */
 #define USBAT_UIO_UI1		0x04 /* Input 1 */
 #define USBAT_UIO_UI0		0x02 /* Input 0 */
-#define USBAT_UIO_INTR_ACK	0x01 /* Interrupt (ATA/ISA)/Acknowledge (EPP) */
+#define USBAT_UIO_INTR_ACK	0x01 /* Interrupt (ATA/ISA)/Ackyeswledge (EPP) */
 
 /* USBAT User I/O Enable registers */
 #define USBAT_UIO_DRVRST	0x80 /* Reset Peripheral */
@@ -357,7 +357,7 @@ static int usbat_set_shuttle_features(struct us_data *us,
 	/*
 	 * If FCQ is set in the qualifier (defined in R/W cmd), then bits U0, U1,
 	 * ET1 and ET2 define an external event to be checked for on event of a
-	 * _read_blocks or _write_blocks operation. The read/write will not take
+	 * _read_blocks or _write_blocks operation. The read/write will yest take
 	 * place unless the defined trigger signal is active.
 	 */
 	command[3] = external_trigger;
@@ -378,7 +378,7 @@ static int usbat_set_shuttle_features(struct us_data *us,
 	/*
 	 * If ALQ is set in the qualifier, this field contains the address of the
 	 * registers where the byte count should be read for transferring the data.
-	 * If ALQ is not set, then this field contains the number of bytes to be
+	 * If ALQ is yest set, then this field contains the number of bytes to be
 	 * transferred.
 	 */
 	command[6] = subcountL;
@@ -388,10 +388,10 @@ static int usbat_set_shuttle_features(struct us_data *us,
 }
 
 /*
- * Block, waiting for an ATA device to become not busy or to report
+ * Block, waiting for an ATA device to become yest busy or to report
  * an error condition.
  */
-static int usbat_wait_not_busy(struct us_data *us, int minutes)
+static int usbat_wait_yest_busy(struct us_data *us, int minutes)
 {
 	int i;
 	int result;
@@ -399,7 +399,7 @@ static int usbat_wait_not_busy(struct us_data *us, int minutes)
 
 	/*
 	 * Synchronizing cache on a CDR could take a heck of a long time,
-	 * but probably not more than 10 minutes or so. On the other hand,
+	 * but probably yest more than 10 minutes or so. On the other hand,
 	 * doing a full blank on a CDRW at speed 1 will take about 75
 	 * minutes!
 	 */
@@ -417,8 +417,8 @@ static int usbat_wait_not_busy(struct us_data *us, int minutes)
 		if (*status & 0x20) /* device fault */
 			return USB_STOR_TRANSPORT_FAILED;
 
-		if ((*status & 0x80)==0x00) { /* not busy */
-			usb_stor_dbg(us, "Waited not busy for %d steps\n", i);
+		if ((*status & 0x80)==0x00) { /* yest busy */
+			usb_stor_dbg(us, "Waited yest busy for %d steps\n", i);
 			return USB_STOR_TRANSPORT_GOOD;
 		}
 
@@ -432,7 +432,7 @@ static int usbat_wait_not_busy(struct us_data *us, int minutes)
 			msleep(1000); /* X minutes */
 	}
 
-	usb_stor_dbg(us, "Waited not busy for %d minutes, timing out\n",
+	usb_stor_dbg(us, "Waited yest busy for %d minutes, timing out\n",
 		     minutes);
 	return USB_STOR_TRANSPORT_FAILED;
 }
@@ -503,7 +503,7 @@ static int usbat_write_block(struct us_data *us,
 	if (result != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	return usbat_wait_not_busy(us, minutes);
+	return usbat_wait_yest_busy(us, minutes);
 }
 
 /*
@@ -603,7 +603,7 @@ static int usbat_hp8200e_rw_block_test(struct us_data *us,
 
 		/*
 		 * If we get a stall on the bulk download, we'll retry
-		 * the bulk download -- but not the SCSI command because
+		 * the bulk download -- but yest the SCSI command because
 		 * in some sense the SCSI command is still 'active' and
 		 * waiting for the data. Don't ask me why this should be;
 		 * I'm only following what the Windoze driver did.
@@ -612,7 +612,7 @@ static int usbat_hp8200e_rw_block_test(struct us_data *us,
 		 * that the test failed. In this case we're testing to make
 		 * sure that the device is error-free
 		 * (i.e. bit 0 -- CHK -- of status is 0). The most likely
-		 * hypothesis is that the USBAT chip somehow knows what
+		 * hypothesis is that the USBAT chip somehow kyesws what
 		 * the device will accept, but doesn't give the device any
 		 * data until all data is received. Thus, the device would
 		 * still be waiting for the first byte of data if a stall
@@ -657,7 +657,7 @@ static int usbat_hp8200e_rw_block_test(struct us_data *us,
 		} else if (result != USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 		else
-			return usbat_wait_not_busy(us, minutes);
+			return usbat_wait_yest_busy(us, minutes);
 
 	}
 
@@ -716,7 +716,7 @@ static int usbat_multiple_write(struct us_data *us,
 		return USB_STOR_TRANSPORT_ERROR;
 
 	if (usbat_get_device_type(us) == USBAT_DEV_HP8200)
-		return usbat_wait_not_busy(us, 0);
+		return usbat_wait_yest_busy(us, 0);
 	else
 		return USB_STOR_TRANSPORT_GOOD;
 }
@@ -725,11 +725,11 @@ static int usbat_multiple_write(struct us_data *us,
  * Conditionally read blocks from device:
  * Allows us to read blocks from a specific data register, based upon the
  * condition that a status register can be successfully masked with a status
- * qualifier. If this condition is not initially met, the read will wait
+ * qualifier. If this condition is yest initially met, the read will wait
  * up until a maximum amount of time has elapsed, as specified by timeout.
  * The read will start when the condition is met, otherwise the command aborts.
  *
- * The qualifier defined here is not the value that is masked, it defines
+ * The qualifier defined here is yest the value that is masked, it defines
  * conditions for the write to take place. The actual masked qualifier (and
  * other related details) are defined beforehand with _set_shuttle_features().
  */
@@ -767,11 +767,11 @@ static int usbat_read_blocks(struct us_data *us,
  * Conditionally write blocks to device:
  * Allows us to write blocks to a specific data register, based upon the
  * condition that a status register can be successfully masked with a status
- * qualifier. If this condition is not initially met, the write will wait
+ * qualifier. If this condition is yest initially met, the write will wait
  * up until a maximum amount of time has elapsed, as specified by timeout.
  * The read will start when the condition is met, otherwise the command aborts.
  *
- * The qualifier defined here is not the value that is masked, it defines
+ * The qualifier defined here is yest the value that is masked, it defines
  * conditions for the write to take place. The actual masked qualifier (and
  * other related details) are defined beforehand with _set_shuttle_features().
  */
@@ -898,7 +898,7 @@ static int usbat_flash_check_media_present(struct us_data *us,
 					   unsigned char *uio)
 {
 	if (*uio & USBAT_UIO_UI0) {
-		usb_stor_dbg(us, "no media detected\n");
+		usb_stor_dbg(us, "yes media detected\n");
 		return USBAT_FLASH_MEDIA_NONE;
 	}
 
@@ -920,7 +920,7 @@ static int usbat_flash_check_media_changed(struct us_data *us,
 }
 
 /*
- * Check for media change / no media and handle the situation appropriately
+ * Check for media change / yes media and handle the situation appropriately
  */
 static int usbat_flash_check_media(struct us_data *us,
 				   struct usbat_info *info)
@@ -988,7 +988,7 @@ static int usbat_identify_device(struct us_data *us,
 	msleep(500);
 
 	/*
-	 * In attempt to distinguish between HP CDRW's and Flash readers, we now
+	 * In attempt to distinguish between HP CDRW's and Flash readers, we yesw
 	 * execute the IDENTIFY PACKET DEVICE command. On ATA devices (i.e. flash
 	 * readers), this command should fail with error. On ATAPI devices (i.e.
 	 * CDROM drives), it should succeed.
@@ -1132,7 +1132,7 @@ static int usbat_flash_read_data(struct us_data *us,
 
 	/*
 	 * we're working in LBA mode.  according to the ATA spec,
-	 * we can support up to 28-bit addressing.  I don't know if Jumpshot
+	 * we can support up to 28-bit addressing.  I don't kyesw if Jumpshot
 	 * supports beyond 24-bit addressing.  It's kind of hard to test
 	 * since it requires > 8GB CF card.
 	 */
@@ -1223,7 +1223,7 @@ static int usbat_flash_write_data(struct us_data *us,
 
 	/*
 	 * we're working in LBA mode.  according to the ATA spec,
-	 * we can support up to 28-bit addressing.  I don't know if the device
+	 * we can support up to 28-bit addressing.  I don't kyesw if the device
 	 * supports beyond 24-bit addressing.  It's kind of hard to test
 	 * since it requires > 8GB media.
 	 */
@@ -1618,7 +1618,7 @@ static int usbat_hp8200e_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	if (len > 0xFFFF) {
-		usb_stor_dbg(us, "Error: len = %08X... what do I do now?\n",
+		usb_stor_dbg(us, "Error: len = %08X... what do I do yesw?\n",
 			     len);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
@@ -1710,8 +1710,8 @@ static int usbat_flash_transport(struct scsi_cmnd * srb, struct us_data *us)
 
 		/*
 		 * build the reply
-		 * note: must return the sector number of the last sector,
-		 * *not* the total number of sectors
+		 * yeste: must return the sector number of the last sector,
+		 * *yest* the total number of sectors
 		 */
 		((__be32 *) ptr)[0] = cpu_to_be32(info->sectors - 1);
 		((__be32 *) ptr)[1] = cpu_to_be32(info->ssize);
@@ -1804,13 +1804,13 @@ static int usbat_flash_transport(struct scsi_cmnd * srb, struct us_data *us)
 
 	if (srb->cmnd[0] == ALLOW_MEDIUM_REMOVAL) {
 		/*
-		 * sure.  whatever.  not like we can stop the user from popping
-		 * the media out of the device (no locking doors, etc)
+		 * sure.  whatever.  yest like we can stop the user from popping
+		 * the media out of the device (yes locking doors, etc)
 		 */
 		return USB_STOR_TRANSPORT_GOOD;
 	}
 
-	usb_stor_dbg(us, "Gah! Unknown command: %d (0x%x)\n",
+	usb_stor_dbg(us, "Gah! Unkyeswn command: %d (0x%x)\n",
 		     srb->cmnd[0], srb->cmnd[0]);
 	info->sense_key = 0x05;
 	info->sense_asc = 0x20;
@@ -1866,7 +1866,7 @@ static struct usb_driver usbat_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	usbat_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 };
 
 module_usb_stor_driver(usbat_driver, usbat_host_template, DRV_NAME);

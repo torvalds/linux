@@ -43,20 +43,20 @@ static LIST_HEAD(voltdm_list);
 
 /* Public functions */
 /**
- * voltdm_get_voltage() - Gets the current non-auto-compensated voltage
+ * voltdm_get_voltage() - Gets the current yesn-auto-compensated voltage
  * @voltdm:	pointer to the voltdm for which current voltage info is needed
  *
- * API to get the current non-auto-compensated voltage for a voltage domain.
+ * API to get the current yesn-auto-compensated voltage for a voltage domain.
  * Returns 0 in case of error else returns the current voltage.
  */
 unsigned long voltdm_get_voltage(struct voltagedomain *voltdm)
 {
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warn("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does yest exist!\n", __func__);
 		return 0;
 	}
 
-	return voltdm->nominal_volt;
+	return voltdm->yesminal_volt;
 }
 
 /**
@@ -74,7 +74,7 @@ int voltdm_scale(struct voltagedomain *voltdm,
 	unsigned long volt = 0;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warn("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does yest exist!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -91,22 +91,22 @@ int voltdm_scale(struct voltagedomain *voltdm,
 	}
 
 	/* Adjust voltage to the exact voltage from the OPP table */
-	for (i = 0; voltdm->volt_data[i].volt_nominal != 0; i++) {
-		if (voltdm->volt_data[i].volt_nominal >= target_volt) {
-			volt = voltdm->volt_data[i].volt_nominal;
+	for (i = 0; voltdm->volt_data[i].volt_yesminal != 0; i++) {
+		if (voltdm->volt_data[i].volt_yesminal >= target_volt) {
+			volt = voltdm->volt_data[i].volt_yesminal;
 			break;
 		}
 	}
 
 	if (!volt) {
-		pr_warn("%s: not scaling. OPP voltage for %lu, not found.\n",
+		pr_warn("%s: yest scaling. OPP voltage for %lu, yest found.\n",
 			__func__, target_volt);
 		return -EINVAL;
 	}
 
 	ret = voltdm->scale(voltdm, volt);
 	if (!ret)
-		voltdm->nominal_volt = volt;
+		voltdm->yesminal_volt = volt;
 
 	return ret;
 }
@@ -125,7 +125,7 @@ void voltdm_reset(struct voltagedomain *voltdm)
 	unsigned long target_volt;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warn("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does yest exist!\n", __func__);
 		return;
 	}
 
@@ -155,7 +155,7 @@ void omap_voltage_get_volttable(struct voltagedomain *voltdm,
 				struct omap_volt_data **volt_data)
 {
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warn("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does yest exist!\n", __func__);
 		return;
 	}
 
@@ -171,11 +171,11 @@ void omap_voltage_get_volttable(struct voltagedomain *voltdm,
  * This API searches through the voltage table for the required voltage
  * domain and tries to find a matching entry for the passed voltage volt.
  * If a matching entry is found volt_data is populated with that entry.
- * This API searches only through the non-compensated voltages int the
+ * This API searches only through the yesn-compensated voltages int the
  * voltage table.
  * Returns pointer to the voltage table entry corresponding to volt on
- * success. Returns -ENODATA if no voltage table exisits for the passed voltage
- * domain or if there is no matching entry.
+ * success. Returns -ENODATA if yes voltage table exisits for the passed voltage
+ * domain or if there is yes matching entry.
  */
 struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
 						 unsigned long volt)
@@ -183,22 +183,22 @@ struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
 	int i;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warn("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does yest exist!\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (!voltdm->volt_data) {
-		pr_warn("%s: voltage table does not exist for vdd_%s\n",
+		pr_warn("%s: voltage table does yest exist for vdd_%s\n",
 			__func__, voltdm->name);
 		return ERR_PTR(-ENODATA);
 	}
 
-	for (i = 0; voltdm->volt_data[i].volt_nominal != 0; i++) {
-		if (voltdm->volt_data[i].volt_nominal == volt)
+	for (i = 0; voltdm->volt_data[i].volt_yesminal != 0; i++) {
+		if (voltdm->volt_data[i].volt_yesminal == volt)
 			return &voltdm->volt_data[i];
 	}
 
-	pr_notice("%s: Unable to match the current voltage with the voltage table for vdd_%s\n",
+	pr_yestice("%s: Unable to match the current voltage with the voltage table for vdd_%s\n",
 		  __func__, voltdm->name);
 
 	return ERR_PTR(-ENODATA);
@@ -217,7 +217,7 @@ int omap_voltage_register_pmic(struct voltagedomain *voltdm,
 			       struct omap_voltdm_pmic *pmic)
 {
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warn("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does yest exist!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -238,12 +238,12 @@ int __init omap_voltage_late_init(void)
 	struct voltagedomain *voltdm;
 
 	if (list_empty(&voltdm_list)) {
-		pr_err("%s: Voltage driver support not added\n",
+		pr_err("%s: Voltage driver support yest added\n",
 			__func__);
 		return -EINVAL;
 	}
 
-	list_for_each_entry(voltdm, &voltdm_list, node) {
+	list_for_each_entry(voltdm, &voltdm_list, yesde) {
 		struct clk *sys_ck;
 
 		if (!voltdm->scalable)
@@ -251,7 +251,7 @@ int __init omap_voltage_late_init(void)
 
 		sys_ck = clk_get(NULL, voltdm->sys_clk.name);
 		if (IS_ERR(sys_ck)) {
-			pr_warn("%s: Could not get sys clk.\n", __func__);
+			pr_warn("%s: Could yest get sys clk.\n", __func__);
 			return -EINVAL;
 		}
 		voltdm->sys_clk.rate = clk_get_rate(sys_ck);
@@ -278,7 +278,7 @@ static struct voltagedomain *_voltdm_lookup(const char *name)
 
 	voltdm = NULL;
 
-	list_for_each_entry(temp_voltdm, &voltdm_list, node) {
+	list_for_each_entry(temp_voltdm, &voltdm_list, yesde) {
 		if (!strcmp(name, temp_voltdm->name)) {
 			voltdm = temp_voltdm;
 			break;
@@ -293,7 +293,7 @@ static int _voltdm_register(struct voltagedomain *voltdm)
 	if (!voltdm || !voltdm->name)
 		return -EINVAL;
 
-	list_add(&voltdm->node, &voltdm_list);
+	list_add(&voltdm->yesde, &voltdm_list);
 
 	pr_debug("voltagedomain: registered %s\n", voltdm->name);
 
@@ -325,7 +325,7 @@ struct voltagedomain *voltdm_lookup(const char *name)
  *
  * Loop through the array of voltagedomains @voltdm_list, registering all
  * that are available on the current CPU. If voltdm_list is supplied
- * and not null, all of the referenced voltagedomains will be
+ * and yest null, all of the referenced voltagedomains will be
  * registered.  No return value.
  */
 void voltdm_init(struct voltagedomain **voltdms)

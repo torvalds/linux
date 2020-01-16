@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -252,8 +252,8 @@ static void dump_cred_dist(struct htc_endpoint_credit_dist *ep_dist)
 		   ep_dist->endpoint, ep_dist->svc_id);
 	ath6kl_dbg(ATH6KL_DBG_CREDIT, " dist_flags     : 0x%X\n",
 		   ep_dist->dist_flags);
-	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_norm      : %d\n",
-		   ep_dist->cred_norm);
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_yesrm      : %d\n",
+		   ep_dist->cred_yesrm);
 	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_min       : %d\n",
 		   ep_dist->cred_min);
 	ath6kl_dbg(ATH6KL_DBG_CREDIT, " credits        : %d\n",
@@ -373,22 +373,22 @@ void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len)
 	return;
 }
 
-static int ath6kl_fwlog_open(struct inode *inode, struct file *file)
+static int ath6kl_fwlog_open(struct iyesde *iyesde, struct file *file)
 {
-	struct ath6kl *ar = inode->i_private;
+	struct ath6kl *ar = iyesde->i_private;
 
 	if (ar->debug.fwlog_open)
 		return -EBUSY;
 
 	ar->debug.fwlog_open = true;
 
-	file->private_data = inode->i_private;
+	file->private_data = iyesde->i_private;
 	return 0;
 }
 
-static int ath6kl_fwlog_release(struct inode *inode, struct file *file)
+static int ath6kl_fwlog_release(struct iyesde *iyesde, struct file *file)
 {
-	struct ath6kl *ar = inode->i_private;
+	struct ath6kl *ar = iyesde->i_private;
 
 	ar->debug.fwlog_open = false;
 
@@ -415,7 +415,7 @@ static ssize_t ath6kl_fwlog_read(struct file *file, char __user *user_buf,
 
 	while ((skb = __skb_dequeue(&ar->debug.fwlog_queue))) {
 		if (skb->len > count - len) {
-			/* not enough space, put skb back and leave */
+			/* yest eyesugh space, put skb back and leave */
 			__skb_queue_head(&ar->debug.fwlog_queue, skb);
 			break;
 		}
@@ -454,7 +454,7 @@ static ssize_t ath6kl_fwlog_block_read(struct file *file,
 	struct ath6kl *ar = file->private_data;
 	struct sk_buff *skb;
 	ssize_t ret_cnt;
-	size_t len = 0, not_copied;
+	size_t len = 0, yest_copied;
 	char *buf;
 	int ret;
 
@@ -482,7 +482,7 @@ static ssize_t ath6kl_fwlog_block_read(struct file *file,
 
 	while ((skb = __skb_dequeue(&ar->debug.fwlog_queue))) {
 		if (skb->len > count - len) {
-			/* not enough space, put skb back and leave */
+			/* yest eyesugh space, put skb back and leave */
 			__skb_queue_head(&ar->debug.fwlog_queue, skb);
 			break;
 		}
@@ -498,8 +498,8 @@ static ssize_t ath6kl_fwlog_block_read(struct file *file,
 
 	/* FIXME: what to do if len == 0? */
 
-	not_copied = copy_to_user(user_buf, buf, len);
-	if (not_copied != 0) {
+	yest_copied = copy_to_user(user_buf, buf, len);
+	if (yest_copied != 0) {
 		ret_cnt = -EFAULT;
 		goto out;
 	}
@@ -725,14 +725,14 @@ static ssize_t read_file_credit_dist_stats(struct file *file,
 			 target->credit_info->cur_free_credits);
 
 	len += scnprintf(buf + len, buf_len - len,
-			 " Epid  Flags    Cred_norm  Cred_min  Credits  Cred_assngd"
+			 " Epid  Flags    Cred_yesrm  Cred_min  Credits  Cred_assngd"
 			 "  Seek_cred  Cred_sz  Cred_per_msg  Cred_to_dist"
 			 "  qdepth\n");
 
 	list_for_each_entry(ep_list, &target->cred_dist_list, list) {
 		print_credit_info("  %2d", endpoint);
 		print_credit_info("%10x", dist_flags);
-		print_credit_info("%8d", cred_norm);
+		print_credit_info("%8d", cred_yesrm);
 		print_credit_info("%9d", cred_min);
 		print_credit_info("%9d", credits);
 		print_credit_info("%10d", cred_assngd);
@@ -935,9 +935,9 @@ static const struct file_operations fops_diag_reg_read = {
 	.llseek = default_llseek,
 };
 
-static int ath6kl_regdump_open(struct inode *inode, struct file *file)
+static int ath6kl_regdump_open(struct iyesde *iyesde, struct file *file)
 {
-	struct ath6kl *ar = inode->i_private;
+	struct ath6kl *ar = iyesde->i_private;
 	u8 *buf;
 	unsigned long int reg_len;
 	unsigned int len = 0, n_reg;
@@ -945,7 +945,7 @@ static int ath6kl_regdump_open(struct inode *inode, struct file *file)
 	__le32 reg_val;
 	int i, status;
 
-	/* Dump all the registers if no register is specified */
+	/* Dump all the registers if yes register is specified */
 	if (!ar->debug.dbgfs_diag_reg)
 		n_reg = ath6kl_get_num_reg();
 	else
@@ -1007,7 +1007,7 @@ static ssize_t ath6kl_regdump_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
 
-static int ath6kl_regdump_release(struct inode *inode, struct file *file)
+static int ath6kl_regdump_release(struct iyesde *iyesde, struct file *file)
 {
 	vfree(file->private_data);
 	return 0;
@@ -1485,7 +1485,7 @@ static ssize_t ath6kl_create_qos_write(struct file *file,
 		return -EINVAL;
 	if (kstrtou16(token, 0, &val16))
 		return -EINVAL;
-	pstream.nominal_msdu = cpu_to_le16(val16);
+	pstream.yesminal_msdu = cpu_to_le16(val16);
 
 	token = strsep(&sptr, " ");
 	if (!token)
@@ -1550,7 +1550,7 @@ static ssize_t ath6kl_create_qos_write(struct file *file,
 		return -EINVAL;
 	pstream.medium_time = cpu_to_le32(val32);
 
-	pstream.nominal_phy = le32_to_cpu(pstream.min_phy_rate) / 1000000;
+	pstream.yesminal_phy = le32_to_cpu(pstream.min_phy_rate) / 1000000;
 
 	ath6kl_wmi_create_pstream_cmd(ar->wmi, vif->fw_vif_idx, &pstream);
 
@@ -1775,7 +1775,7 @@ void ath6kl_debug_init(struct ath6kl *ar)
 	init_completion(&ar->debug.fwlog_completion);
 
 	/*
-	 * Actually we are lying here but don't know how to read the mask
+	 * Actually we are lying here but don't kyesw how to read the mask
 	 * value from the firmware.
 	 */
 	ar->debug.fwlog_mask = 0;

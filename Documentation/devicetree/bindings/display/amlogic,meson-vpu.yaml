@@ -29,7 +29,7 @@ description: |
   VIU: Video Input Unit
   ---------------------
 
-  The Video Input Unit is in charge of the pixel scanout from the DDR memory.
+  The Video Input Unit is in charge of the pixel scayesut from the DDR memory.
   It fetches the frames addresses, stride and parameters from the "Canvas" memory.
   This part is also in charge of the CSC (Colorspace Conversion).
   It can handle 2 OSD Planes and 2 Video Planes.
@@ -51,7 +51,7 @@ description: |
    - ENCP : Progressive Video Encoder for HDMI
    - ENCL : LCD LVDS Encoder
   The VENC Unit gets a Pixel Clocks (VCLK) from a dedicated HDMI PLL and clock
-  tree and provides the scanout clock to the VPP and VIU.
+  tree and provides the scayesut clock to the VPP and VIU.
   The ENCI is connected to a single VDAC for Composite Output.
   The ENCI and ENCP are connected to an on-chip HDMI Transceiver.
 
@@ -85,12 +85,12 @@ properties:
   port@0:
     type: object
     description:
-      A port node pointing to the CVBS VDAC port node.
+      A port yesde pointing to the CVBS VDAC port yesde.
 
   port@1:
     type: object
     description:
-      A port node pointing to the HDMI-TX port node.
+      A port yesde pointing to the HDMI-TX port yesde.
 
   "#address-cells":
     const: 1

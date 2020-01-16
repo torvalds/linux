@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/uio.h>
 #include <linux/net.h>
 #include <linux/in.h>
@@ -81,20 +81,20 @@ enum mountstat {
 
 static struct {
 	u32 status;
-	int errno;
+	int erryes;
 } mnt_errtbl[] = {
-	{ .status = MNT_OK,			.errno = 0,		},
-	{ .status = MNT_EPERM,			.errno = -EPERM,	},
-	{ .status = MNT_ENOENT,			.errno = -ENOENT,	},
-	{ .status = MNT_EACCES,			.errno = -EACCES,	},
-	{ .status = MNT_EINVAL,			.errno = -EINVAL,	},
+	{ .status = MNT_OK,			.erryes = 0,		},
+	{ .status = MNT_EPERM,			.erryes = -EPERM,	},
+	{ .status = MNT_ENOENT,			.erryes = -ENOENT,	},
+	{ .status = MNT_EACCES,			.erryes = -EACCES,	},
+	{ .status = MNT_EINVAL,			.erryes = -EINVAL,	},
 };
 
 /*
  * Defined by RFC 1813, section 5.1.5
  */
 enum mountstat3 {
-	MNT3_OK			= 0,		/* no error */
+	MNT3_OK			= 0,		/* yes error */
 	MNT3ERR_PERM		= 1,		/* Not owner */
 	MNT3ERR_NOENT		= 2,		/* No such file or directory */
 	MNT3ERR_IO		= 5,		/* I/O error */
@@ -102,28 +102,28 @@ enum mountstat3 {
 	MNT3ERR_NOTDIR		= 20,		/* Not a directory */
 	MNT3ERR_INVAL		= 22,		/* Invalid argument */
 	MNT3ERR_NAMETOOLONG	= 63,		/* Filename too long */
-	MNT3ERR_NOTSUPP		= 10004,	/* Operation not supported */
+	MNT3ERR_NOTSUPP		= 10004,	/* Operation yest supported */
 	MNT3ERR_SERVERFAULT	= 10006,	/* A failure on the server */
 };
 
 static struct {
 	u32 status;
-	int errno;
+	int erryes;
 } mnt3_errtbl[] = {
-	{ .status = MNT3_OK,			.errno = 0,		},
-	{ .status = MNT3ERR_PERM,		.errno = -EPERM,	},
-	{ .status = MNT3ERR_NOENT,		.errno = -ENOENT,	},
-	{ .status = MNT3ERR_IO,			.errno = -EIO,		},
-	{ .status = MNT3ERR_ACCES,		.errno = -EACCES,	},
-	{ .status = MNT3ERR_NOTDIR,		.errno = -ENOTDIR,	},
-	{ .status = MNT3ERR_INVAL,		.errno = -EINVAL,	},
-	{ .status = MNT3ERR_NAMETOOLONG,	.errno = -ENAMETOOLONG,	},
-	{ .status = MNT3ERR_NOTSUPP,		.errno = -ENOTSUPP,	},
-	{ .status = MNT3ERR_SERVERFAULT,	.errno = -EREMOTEIO,	},
+	{ .status = MNT3_OK,			.erryes = 0,		},
+	{ .status = MNT3ERR_PERM,		.erryes = -EPERM,	},
+	{ .status = MNT3ERR_NOENT,		.erryes = -ENOENT,	},
+	{ .status = MNT3ERR_IO,			.erryes = -EIO,		},
+	{ .status = MNT3ERR_ACCES,		.erryes = -EACCES,	},
+	{ .status = MNT3ERR_NOTDIR,		.erryes = -ENOTDIR,	},
+	{ .status = MNT3ERR_INVAL,		.erryes = -EINVAL,	},
+	{ .status = MNT3ERR_NAMETOOLONG,	.erryes = -ENAMETOOLONG,	},
+	{ .status = MNT3ERR_NOTSUPP,		.erryes = -ENOTSUPP,	},
+	{ .status = MNT3ERR_SERVERFAULT,	.erryes = -EREMOTEIO,	},
 };
 
 struct mountres {
-	int errno;
+	int erryes;
 	struct nfs_fh *fh;
 	unsigned int *auth_count;
 	rpc_authflavor_t *auth_flavors;
@@ -175,7 +175,7 @@ int nfs_mount(struct nfs_mount_request *info)
 	if (strlen(info->dirpath) > MNTPATHLEN)
 		return -ENAMETOOLONG;
 
-	if (info->noresvport)
+	if (info->yesresvport)
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
 	mnt_clnt = rpc_create(&args);
@@ -192,7 +192,7 @@ int nfs_mount(struct nfs_mount_request *info)
 
 	if (status < 0)
 		goto out_call_err;
-	if (result.errno != 0)
+	if (result.erryes != 0)
 		goto out_mnt_err;
 
 	dprintk("NFS: MNT request succeeded\n");
@@ -220,8 +220,8 @@ out_call_err:
 	goto out;
 
 out_mnt_err:
-	dprintk("NFS: MNT server returned result %d\n", result.errno);
-	status = result.errno;
+	dprintk("NFS: MNT server returned result %d\n", result.erryes);
+	status = result.erryes;
 	goto out;
 }
 
@@ -261,7 +261,7 @@ void nfs_umount(const struct nfs_mount_request *info)
 	if (strlen(info->dirpath) > MNTPATHLEN)
 		return;
 
-	if (info->noresvport)
+	if (info->yesresvport)
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
 	clnt = rpc_create(&args);
@@ -313,13 +313,13 @@ static void mnt_xdr_enc_dirpath(struct rpc_rqst *req, struct xdr_stream *xdr,
 }
 
 /*
- * RFC 1094: "A non-zero status indicates some sort of error.  In this
+ * RFC 1094: "A yesn-zero status indicates some sort of error.  In this
  * case, the status is a UNIX error number."  This can be problematic
- * if the server and client use different errno values for the same
+ * if the server and client use different erryes values for the same
  * error.
  *
  * However, the OpenGroup XNFS spec provides a simple mapping that is
- * independent of local errno values on the server and the client.
+ * independent of local erryes values on the server and the client.
  */
 static int decode_status(struct xdr_stream *xdr, struct mountres *res)
 {
@@ -334,13 +334,13 @@ static int decode_status(struct xdr_stream *xdr, struct mountres *res)
 
 	for (i = 0; i < ARRAY_SIZE(mnt_errtbl); i++) {
 		if (mnt_errtbl[i].status == status) {
-			res->errno = mnt_errtbl[i].errno;
+			res->erryes = mnt_errtbl[i].erryes;
 			return 0;
 		}
 	}
 
 	dprintk("NFS: unrecognized MNT status code: %u\n", status);
-	res->errno = -EACCES;
+	res->erryes = -EACCES;
 	return 0;
 }
 
@@ -366,7 +366,7 @@ static int mnt_xdr_dec_mountres(struct rpc_rqst *req,
 	int status;
 
 	status = decode_status(xdr, res);
-	if (unlikely(status != 0 || res->errno != 0))
+	if (unlikely(status != 0 || res->erryes != 0))
 		return status;
 	return decode_fhandle(xdr, res);
 }
@@ -384,13 +384,13 @@ static int decode_fhs_status(struct xdr_stream *xdr, struct mountres *res)
 
 	for (i = 0; i < ARRAY_SIZE(mnt3_errtbl); i++) {
 		if (mnt3_errtbl[i].status == status) {
-			res->errno = mnt3_errtbl[i].errno;
+			res->erryes = mnt3_errtbl[i].erryes;
 			return 0;
 		}
 	}
 
 	dprintk("NFS: unrecognized MNT3 status code: %u\n", status);
-	res->errno = -EACCES;
+	res->erryes = -EACCES;
 	return 0;
 }
 
@@ -459,11 +459,11 @@ static int mnt_xdr_dec_mountres3(struct rpc_rqst *req,
 	int status;
 
 	status = decode_fhs_status(xdr, res);
-	if (unlikely(status != 0 || res->errno != 0))
+	if (unlikely(status != 0 || res->erryes != 0))
 		return status;
 	status = decode_fhandle3(xdr, res);
 	if (unlikely(status != 0)) {
-		res->errno = -EBADHANDLE;
+		res->erryes = -EBADHANDLE;
 		return 0;
 	}
 	return decode_auth_flavors(xdr, res);

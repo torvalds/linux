@@ -1891,7 +1891,7 @@ static struct clk_branch gcc_sdcc1_ahb_clk = {
 		{
 			.name = "gcc_sdcc1_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1953,14 +1953,14 @@ static struct clk_branch gcc_sdcc4_apps_clk = {
 	},
 };
 
-static struct clk_branch gcc_sys_noc_ufs_axi_clk = {
+static struct clk_branch gcc_sys_yesc_ufs_axi_clk = {
 	.halt_reg = 0x1d7c,
 	.clkr = {
 		.enable_reg = 0x1d7c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data)
 		{
-			.name = "gcc_sys_noc_ufs_axi_clk",
+			.name = "gcc_sys_yesc_ufs_axi_clk",
 			.parent_names = (const char *[]) {
 				"ufs_axi_clk_src",
 			},
@@ -1971,14 +1971,14 @@ static struct clk_branch gcc_sys_noc_ufs_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_sys_noc_usb3_axi_clk = {
+static struct clk_branch gcc_sys_yesc_usb3_axi_clk = {
 	.halt_reg = 0x03fc,
 	.clkr = {
 		.enable_reg = 0x03fc,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data)
 		{
-			.name = "gcc_sys_noc_usb3_axi_clk",
+			.name = "gcc_sys_yesc_usb3_axi_clk",
 			.parent_names = (const char *[]) {
 				"usb30_master_clk_src",
 			},
@@ -2243,8 +2243,8 @@ static struct clk_regmap *gcc_msm8994_clocks[] = {
 	[GCC_SDCC3_APPS_CLK] = &gcc_sdcc3_apps_clk.clkr,
 	[GCC_SDCC4_APPS_CLK] = &gcc_sdcc4_apps_clk.clkr,
 	[GCC_SDCC1_AHB_CLK] = &gcc_sdcc1_ahb_clk.clkr,
-	[GCC_SYS_NOC_UFS_AXI_CLK] = &gcc_sys_noc_ufs_axi_clk.clkr,
-	[GCC_SYS_NOC_USB3_AXI_CLK] = &gcc_sys_noc_usb3_axi_clk.clkr,
+	[GCC_SYS_NOC_UFS_AXI_CLK] = &gcc_sys_yesc_ufs_axi_clk.clkr,
+	[GCC_SYS_NOC_USB3_AXI_CLK] = &gcc_sys_yesc_usb3_axi_clk.clkr,
 	[GCC_TSIF_REF_CLK] = &gcc_tsif_ref_clk.clkr,
 	[GCC_UFS_AXI_CLK] = &gcc_ufs_axi_clk.clkr,
 	[GCC_UFS_RX_CFG_CLK] = &gcc_ufs_rx_cfg_clk.clkr,

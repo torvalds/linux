@@ -24,8 +24,8 @@ acpi_ex_store_object_to_index(union acpi_operand_object *val_desc,
 			      struct acpi_walk_state *walk_state);
 
 static acpi_status
-acpi_ex_store_direct_to_node(union acpi_operand_object *source_desc,
-			     struct acpi_namespace_node *node,
+acpi_ex_store_direct_to_yesde(union acpi_operand_object *source_desc,
+			     struct acpi_namespace_yesde *yesde,
 			     struct acpi_walk_state *walk_state);
 
 /*******************************************************************************
@@ -33,7 +33,7 @@ acpi_ex_store_direct_to_node(union acpi_operand_object *source_desc,
  * FUNCTION:    acpi_ex_store
  *
  * PARAMETERS:  *source_desc        - Value to be stored
- *              *dest_desc          - Where to store it. Must be an NS node
+ *              *dest_desc          - Where to store it. Must be an NS yesde
  *                                    or union acpi_operand_object of type
  *                                    Reference;
  *              walk_state          - Current walk state
@@ -43,7 +43,7 @@ acpi_ex_store_direct_to_node(union acpi_operand_object *source_desc,
  * DESCRIPTION: Store the value described by source_desc into the location
  *              described by dest_desc. Called by various interpreter
  *              functions to store the result of an operation into
- *              the destination operand -- not just simply the actual "Store"
+ *              the destination operand -- yest just simply the actual "Store"
  *              ASL operator.
  *
  ******************************************************************************/
@@ -65,16 +65,16 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 		return_ACPI_STATUS(AE_AML_NO_OPERAND);
 	}
 
-	/* dest_desc can be either a namespace node or an ACPI object */
+	/* dest_desc can be either a namespace yesde or an ACPI object */
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(dest_desc) == ACPI_DESC_TYPE_NAMED) {
 		/*
-		 * Dest is a namespace node,
-		 * Storing an object into a Named node.
+		 * Dest is a namespace yesde,
+		 * Storing an object into a Named yesde.
 		 */
-		status = acpi_ex_store_object_to_node(source_desc,
+		status = acpi_ex_store_object_to_yesde(source_desc,
 						      (struct
-						       acpi_namespace_node *)
+						       acpi_namespace_yesde *)
 						      dest_desc, walk_state,
 						      ACPI_IMPLICIT_CONVERSION);
 
@@ -100,10 +100,10 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 
 	default:
 
-		/* Destination is not a Reference object */
+		/* Destination is yest a Reference object */
 
 		ACPI_ERROR((AE_INFO,
-			    "Target is not a Reference or Constant object - [%s] %p",
+			    "Target is yest a Reference or Constant object - [%s] %p",
 			    acpi_ut_get_object_type_name(dest_desc),
 			    dest_desc));
 
@@ -123,7 +123,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 
 		/* Storing an object into a Name "container" */
 
-		status = acpi_ex_store_object_to_node(source_desc,
+		status = acpi_ex_store_object_to_yesde(source_desc,
 						      ref_desc->reference.
 						      object, walk_state,
 						      ACPI_IMPLICIT_CONVERSION);
@@ -152,7 +152,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 	case ACPI_REFCLASS_DEBUG:
 		/*
 		 * Storing to the Debug object causes the value stored to be
-		 * displayed and otherwise has no effect -- see ACPI Specification
+		 * displayed and otherwise has yes effect -- see ACPI Specification
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "**** Write to Debug Object: Object %p [%s] ****:\n\n",
@@ -164,7 +164,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown Reference Class 0x%2.2X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn Reference Class 0x%2.2X",
 			    ref_desc->reference.class));
 		ACPI_DUMP_ENTRY(ref_desc, ACPI_LV_INFO);
 
@@ -263,7 +263,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 
 	case ACPI_TYPE_BUFFER_FIELD:
 		/*
-		 * Store into a Buffer or String (not actually a real buffer_field)
+		 * Store into a Buffer or String (yest actually a real buffer_field)
 		 * at a location defined by an Index.
 		 *
 		 * The first 8-bit element of the source object is written to the
@@ -273,7 +273,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 
 		/*
 		 * Make sure the target is a Buffer or String. An error should
-		 * not happen here, since the reference_object was constructed
+		 * yest happen here, since the reference_object was constructed
 		 * by the INDEX_OP code.
 		 */
 		obj_desc = index_desc->reference.object;
@@ -319,7 +319,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 
 	default:
 		ACPI_ERROR((AE_INFO,
-			    "Target is not of type [Package/BufferField]"));
+			    "Target is yest of type [Package/BufferField]"));
 		status = AE_AML_TARGET_TYPE;
 		break;
 	}
@@ -329,12 +329,12 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ex_store_object_to_node
+ * FUNCTION:    acpi_ex_store_object_to_yesde
  *
  * PARAMETERS:  source_desc             - Value to be stored
- *              node                    - Named object to receive the value
+ *              yesde                    - Named object to receive the value
  *              walk_state              - Current walk state
- *              implicit_conversion     - Perform implicit conversion (yes/no)
+ *              implicit_conversion     - Perform implicit conversion (no/yes)
  *
  * RETURN:      Status
  *
@@ -347,7 +347,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
  * When storing into an object the data is converted to the
  * target object type then stored in the object. This means
  * that the target object type (for an initialized target) will
- * not be changed by a store operation. A copy_object can change
+ * yest be changed by a store operation. A copy_object can change
  * the target type, however.
  *
  * The implicit_conversion flag is set to NO/FALSE only when
@@ -358,8 +358,8 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
  ******************************************************************************/
 
 acpi_status
-acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
-			     struct acpi_namespace_node *node,
+acpi_ex_store_object_to_yesde(union acpi_operand_object *source_desc,
+			     struct acpi_namespace_yesde *yesde,
 			     struct acpi_walk_state *walk_state,
 			     u8 implicit_conversion)
 {
@@ -368,16 +368,16 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 	union acpi_operand_object *new_desc;
 	acpi_object_type target_type;
 
-	ACPI_FUNCTION_TRACE_PTR(ex_store_object_to_node, source_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_store_object_to_yesde, source_desc);
 
-	/* Get current type of the node, and object attached to Node */
+	/* Get current type of the yesde, and object attached to Node */
 
-	target_type = acpi_ns_get_type(node);
-	target_desc = acpi_ns_get_attached_object(node);
+	target_type = acpi_ns_get_type(yesde);
+	target_desc = acpi_ns_get_attached_object(yesde);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Storing %p [%s] to node %p [%s]\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Storing %p [%s] to yesde %p [%s]\n",
 			  source_desc,
-			  acpi_ut_get_object_type_name(source_desc), node,
+			  acpi_ut_get_object_type_name(source_desc), yesde,
 			  acpi_ut_get_type_name(target_type)));
 
 	/* Only limited target types possible for everything except copy_object */
@@ -412,7 +412,7 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 				if (source_desc->common.type !=
 				    ACPI_TYPE_PACKAGE) {
 					ACPI_ERROR((AE_INFO,
-						    "Cannot assign type [%s] to [Package] "
+						    "Canyest assign type [%s] to [Package] "
 						    "(source must be type Pkg)",
 						    acpi_ut_get_object_type_name
 						    (source_desc)));
@@ -435,8 +435,8 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 			ACPI_ERROR((AE_INFO,
 				    "Target must be [Buffer/Integer/String/Reference]"
 				    ", found [%s] (%4.4s)",
-				    acpi_ut_get_type_name(node->type),
-				    node->name.ascii));
+				    acpi_ut_get_type_name(yesde->type),
+				    yesde->name.ascii));
 
 			return_ACPI_STATUS(AE_AML_TARGET_TYPE);
 
@@ -468,12 +468,12 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 		if ((walk_state->opcode == AML_COPY_OBJECT_OP) ||
 		    !implicit_conversion) {
 			/*
-			 * However, copy_object and Stores to arg_x do not perform
+			 * However, copy_object and Stores to arg_x do yest perform
 			 * an implicit conversion, as per the ACPI specification.
 			 * A direct store is performed instead.
 			 */
 			status =
-			    acpi_ex_store_direct_to_node(source_desc, node,
+			    acpi_ex_store_direct_to_yesde(source_desc, yesde,
 							 walk_state);
 			break;
 		}
@@ -493,12 +493,12 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 			 * the Name's type to that of the value being stored in it.
 			 * source_desc reference count is incremented by attach_object.
 			 *
-			 * Note: This may change the type of the node if an explicit
-			 * store has been performed such that the node/object type
+			 * Note: This may change the type of the yesde if an explicit
+			 * store has been performed such that the yesde/object type
 			 * has been changed.
 			 */
 			status =
-			    acpi_ns_attach_object(node, new_desc,
+			    acpi_ns_attach_object(yesde, new_desc,
 						  new_desc->common.type);
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -530,11 +530,11 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 		 * Instead, directly store a copy of the source object.
 		 *
 		 * This is the ACPI spec-defined behavior for the copy_object
-		 * operator. (Note, for this default case, all normal
+		 * operator. (Note, for this default case, all yesrmal
 		 * Store/Target operations exited above with an error).
 		 */
 		status =
-		    acpi_ex_store_direct_to_node(source_desc, node, walk_state);
+		    acpi_ex_store_direct_to_yesde(source_desc, yesde, walk_state);
 		break;
 	}
 
@@ -543,35 +543,35 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ex_store_direct_to_node
+ * FUNCTION:    acpi_ex_store_direct_to_yesde
  *
  * PARAMETERS:  source_desc             - Value to be stored
- *              node                    - Named object to receive the value
+ *              yesde                    - Named object to receive the value
  *              walk_state              - Current walk state
  *
  * RETURN:      Status
  *
- * DESCRIPTION: "Store" an object directly to a node. This involves a copy
+ * DESCRIPTION: "Store" an object directly to a yesde. This involves a copy
  *              and an attach.
  *
  ******************************************************************************/
 
 static acpi_status
-acpi_ex_store_direct_to_node(union acpi_operand_object *source_desc,
-			     struct acpi_namespace_node *node,
+acpi_ex_store_direct_to_yesde(union acpi_operand_object *source_desc,
+			     struct acpi_namespace_yesde *yesde,
 			     struct acpi_walk_state *walk_state)
 {
 	acpi_status status;
 	union acpi_operand_object *new_desc;
 
-	ACPI_FUNCTION_TRACE(ex_store_direct_to_node);
+	ACPI_FUNCTION_TRACE(ex_store_direct_to_yesde);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "Storing [%s] (%p) directly into node [%s] (%p)"
-			  " with no implicit conversion\n",
+			  "Storing [%s] (%p) directly into yesde [%s] (%p)"
+			  " with yes implicit conversion\n",
 			  acpi_ut_get_object_type_name(source_desc),
-			  source_desc, acpi_ut_get_type_name(node->type),
-			  node));
+			  source_desc, acpi_ut_get_type_name(yesde->type),
+			  yesde));
 
 	/* Copy the source object to a new object */
 
@@ -581,9 +581,9 @@ acpi_ex_store_direct_to_node(union acpi_operand_object *source_desc,
 		return_ACPI_STATUS(status);
 	}
 
-	/* Attach the new object to the node */
+	/* Attach the new object to the yesde */
 
-	status = acpi_ns_attach_object(node, new_desc, new_desc->common.type);
+	status = acpi_ns_attach_object(yesde, new_desc, new_desc->common.type);
 	acpi_ut_remove_reference(new_desc);
 	return_ACPI_STATUS(status);
 }

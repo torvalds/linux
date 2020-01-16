@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -61,7 +61,7 @@
 #include "dcn20/dcn20_dwb.h"
 #include "dcn20/dcn20_mmhubbub.h"
 
-#include "renoir_ip_offset.h"
+#include "reyesir_ip_offset.h"
 #include "dcn/dcn_2_1_0_offset.h"
 #include "dcn/dcn_2_1_0_sh_mask.h"
 
@@ -213,7 +213,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 				.dscclk_mhz = 489.0,
 				.dram_speed_mts = 4266.0,
 			},
-			/*Extra state, no dispclk ramping*/
+			/*Extra state, yes dispclk ramping*/
 			{
 				.state = 5,
 				.dcfclk_mhz = 810.0,
@@ -240,8 +240,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 80.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 75.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 40.0,
-	.max_avg_sdp_bw_use_normal_percent = 60.0,
-	.max_avg_dram_bw_use_normal_percent = 100.0,
+	.max_avg_sdp_bw_use_yesrmal_percent = 60.0,
+	.max_avg_dram_bw_use_yesrmal_percent = 100.0,
 	.writeback_latency_us = 12.0,
 	.max_request_size_bytes = 256,
 	.dram_channel_width_bytes = 4,
@@ -1011,7 +1011,7 @@ static void calculate_wm_set_for_vlevel(
 	wm_set->cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(dml, pipes, pipe_cnt) * 1000;
 	wm_set->pte_meta_urgent_ns = get_wm_memory_trip(dml, pipes, pipe_cnt) * 1000;
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
-	wm_set->frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(dml, pipes, pipe_cnt) * 1000;
+	wm_set->frac_urg_bw_yesm = get_fraction_of_urgent_bandwidth(dml, pipes, pipe_cnt) * 1000;
 	wm_set->frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(dml, pipes, pipe_cnt) * 1000;
 	wm_set->urgent_latency_ns = get_urgent_latency(dml, pipes, pipe_cnt) * 1000;
 #endif
@@ -1353,8 +1353,8 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 {
 	/*
 	TODO: Fix this function to calcualte correct values.
-	There are known issues with this function currently
-	that will need to be investigated. Use hardcoded known good values for now.
+	There are kyeswn issues with this function currently
+	that will need to be investigated. Use hardcoded kyeswn good values for yesw.
 
 
 	struct dcn21_resource_pool *pool = TO_DCN21_RES_POOL(dc->res_pool);
@@ -1739,7 +1739,7 @@ static bool construct(
 
 	pool->base.clk_src_count = DCN20_CLK_SRC_TOTAL_DCN21;
 
-	/* todo: not reuse phy_pll registers */
+	/* todo: yest reuse phy_pll registers */
 	pool->base.dp_clock_source =
 			dcn21_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,

@@ -155,11 +155,11 @@ static int apple_bl_add(struct acpi_device *dev)
 	pci_dev_put(host);
 
 	if (!hw_data) {
-		pr_err("unknown hardware\n");
+		pr_err("unkyeswn hardware\n");
 		return -ENODEV;
 	}
 
-	/* Check that the hardware responds - this may not work under EFI */
+	/* Check that the hardware responds - this may yest work under EFI */
 
 	intensity = hw_data->backlight_ops.get_brightness(NULL);
 

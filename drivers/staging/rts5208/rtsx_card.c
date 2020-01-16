@@ -689,7 +689,7 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 	return STATUS_SUCCESS;
 }
 
-int switch_normal_clock(struct rtsx_chip *chip, int clk)
+int switch_yesrmal_clock(struct rtsx_chip *chip, int clk)
 {
 	int retval;
 	u8 sel, div, mcu_cnt;
@@ -960,7 +960,7 @@ int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			}
 
 			if (!chip->rw_need_retry) {
-				dev_dbg(rtsx_dev(chip), "RW fail, but no need to retry\n");
+				dev_dbg(rtsx_dev(chip), "RW fail, but yes need to retry\n");
 				break;
 			}
 		} else {

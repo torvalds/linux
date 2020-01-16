@@ -77,7 +77,7 @@ struct chp_link;
  * @freeze: callback for freezing during hibernation snapshotting
  * @thaw: undo work done in @freeze
  * @restore: callback for restoring after hibernation
- * @settle: wait for asynchronous work to finish
+ * @settle: wait for asynchroyesus work to finish
  */
 struct css_driver {
 	struct css_device_id *subchannel_type;
@@ -108,8 +108,8 @@ extern struct subchannel *css_alloc_subchannel(struct subchannel_id,
 extern struct subchannel *get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
 extern int max_ssid;
-int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
-			       int (*fn_unknown)(struct subchannel_id,
+int for_each_subchannel_staged(int (*fn_kyeswn)(struct subchannel *, void *),
+			       int (*fn_unkyeswn)(struct subchannel_id,
 			       void *), void *data);
 extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
 void css_update_ssd_info(struct subchannel *sch);

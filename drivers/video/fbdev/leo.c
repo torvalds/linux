@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -122,11 +122,11 @@ struct leo_lc_ss0_usr {
 };
 
 struct leo_lc_ss1_krn {
-	u8	unknown;
+	u8	unkyeswn;
 };
 
 struct leo_lc_ss1_usr {
-	u8	unknown;
+	u8	unkyeswn;
 };
 
 struct leo_ld_ss0 {
@@ -175,7 +175,7 @@ struct leo_ld_ss1 {
 };
 
 struct leo_ld_gbl {
-	u8	unknown;
+	u8	unkyeswn;
 };
 
 struct leo_par {
@@ -262,14 +262,14 @@ static int leo_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 /**
  *      leo_setcolreg - Optional function. Sets a color register.
- *      @regno: boolean, 0 copy local, 1 get_user() function
+ *      @regyes: boolean, 0 copy local, 1 get_user() function
  *      @red: frame buffer colormap structure
  *      @green: The green value which can be up to 16 bits wide
  *      @blue:  The blue value which can be up to 16 bits wide.
  *      @transp: If supported the alpha value which can be up to 16 bits wide.
  *      @info: frame buffer info structure
  */
-static int leo_setcolreg(unsigned regno,
+static int leo_setcolreg(unsigned regyes,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp, struct fb_info *info)
 {
@@ -279,14 +279,14 @@ static int leo_setcolreg(unsigned regno,
 	u32 val;
 	int i;
 
-	if (regno >= 256)
+	if (regyes >= 256)
 		return 1;
 
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
 
-	par->clut_data[regno] = red | (green << 8) | (blue << 16);
+	par->clut_data[regyes] = red | (green << 8) | (blue << 16);
 
 	spin_lock_irqsave(&par->lock, flags);
 
@@ -433,7 +433,7 @@ static int leo_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
  */
 
 static void
-leo_init_fix(struct fb_info *info, struct device_node *dp)
+leo_init_fix(struct fb_info *info, struct device_yesde *dp)
 {
 	snprintf(info->fix.id, sizeof(info->fix.id), "%pOFn", dp);
 
@@ -550,7 +550,7 @@ static void leo_unmap_regs(struct platform_device *op, struct fb_info *info,
 
 static int leo_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct fb_info *info;
 	struct leo_par *par;
 	int linebytes, err;

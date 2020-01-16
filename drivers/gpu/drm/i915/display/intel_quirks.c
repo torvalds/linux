@@ -9,7 +9,7 @@
 #include "intel_quirks.h"
 
 /*
- * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason
+ * Some machines (Leyesvo U160) do yest work with SSC on LVDS for some reason
  */
 static void quirk_ssc_force_disable(struct drm_i915_private *i915)
 {
@@ -27,7 +27,7 @@ static void quirk_invert_brightness(struct drm_i915_private *i915)
 	DRM_INFO("applying inverted panel brightness quirk\n");
 }
 
-/* Some VBT's incorrectly indicate no backlight is present */
+/* Some VBT's incorrectly indicate yes backlight is present */
 static void quirk_backlight_present(struct drm_i915_private *i915)
 {
 	i915->quirks |= QUIRK_BACKLIGHT_PRESENT;
@@ -89,10 +89,10 @@ static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 };
 
 static struct intel_quirk intel_quirks[] = {
-	/* Lenovo U160 cannot use SSC on LVDS */
+	/* Leyesvo U160 canyest use SSC on LVDS */
 	{ 0x0046, 0x17aa, 0x3920, quirk_ssc_force_disable },
 
-	/* Sony Vaio Y cannot use SSC on LVDS */
+	/* Sony Vaio Y canyest use SSC on LVDS */
 	{ 0x0046, 0x104d, 0x9076, quirk_ssc_force_disable },
 
 	/* Acer Aspire 5734Z must invert backlight brightness */

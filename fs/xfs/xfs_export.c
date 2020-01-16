@@ -11,17 +11,17 @@
 #include "xfs_mount.h"
 #include "xfs_dir2.h"
 #include "xfs_export.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
+#include "xfs_iyesde_item.h"
 #include "xfs_icache.h"
 #include "xfs_log.h"
 #include "xfs_pnfs.h"
 
 /*
- * Note that we only accept fileids which are long enough rather than allow
+ * Note that we only accept fileids which are long eyesugh rather than allow
  * the parent generation number to default to zero.  XFS considers zero a
- * valid generation number not an invalid/wildcard value.
+ * valid generation number yest an invalid/wildcard value.
  */
 static int xfs_fileid_length(int fileid_type)
 {
@@ -40,10 +40,10 @@ static int xfs_fileid_length(int fileid_type)
 
 STATIC int
 xfs_fs_encode_fh(
-	struct inode	*inode,
+	struct iyesde	*iyesde,
 	__u32		*fh,
 	int		*max_len,
-	struct inode	*parent)
+	struct iyesde	*parent)
 {
 	struct fid		*fid = (struct fid *)fh;
 	struct xfs_fid64	*fid64 = (struct xfs_fid64 *)fh;
@@ -57,20 +57,20 @@ xfs_fs_encode_fh(
 		fileid_type = FILEID_INO32_GEN_PARENT;
 
 	/*
-	 * If the the filesystem may contain 64bit inode numbers, we need
+	 * If the the filesystem may contain 64bit iyesde numbers, we need
 	 * to use larger file handles that can represent them.
 	 *
-	 * While we only allocate inodes that do not fit into 32 bits any
-	 * large enough filesystem may contain them, thus the slightly
+	 * While we only allocate iyesdes that do yest fit into 32 bits any
+	 * large eyesugh filesystem may contain them, thus the slightly
 	 * confusing looking conditional below.
 	 */
-	if (!(XFS_M(inode->i_sb)->m_flags & XFS_MOUNT_SMALL_INUMS) ||
-	    (XFS_M(inode->i_sb)->m_flags & XFS_MOUNT_32BITINODES))
+	if (!(XFS_M(iyesde->i_sb)->m_flags & XFS_MOUNT_SMALL_INUMS) ||
+	    (XFS_M(iyesde->i_sb)->m_flags & XFS_MOUNT_32BITINODES))
 		fileid_type |= XFS_FILEID_TYPE_64FLAG;
 
 	/*
-	 * Only encode if there is enough space given.  In practice
-	 * this means we can't export a filesystem with 64bit inodes
+	 * Only encode if there is eyesugh space given.  In practice
+	 * this means we can't export a filesystem with 64bit iyesdes
 	 * over NFSv2 with the subtree_check export option; the other
 	 * seven combinations work.  The real answer is "don't use v2".
 	 */
@@ -83,56 +83,56 @@ xfs_fs_encode_fh(
 
 	switch (fileid_type) {
 	case FILEID_INO32_GEN_PARENT:
-		fid->i32.parent_ino = XFS_I(parent)->i_ino;
+		fid->i32.parent_iyes = XFS_I(parent)->i_iyes;
 		fid->i32.parent_gen = parent->i_generation;
 		/*FALLTHRU*/
 	case FILEID_INO32_GEN:
-		fid->i32.ino = XFS_I(inode)->i_ino;
-		fid->i32.gen = inode->i_generation;
+		fid->i32.iyes = XFS_I(iyesde)->i_iyes;
+		fid->i32.gen = iyesde->i_generation;
 		break;
 	case FILEID_INO32_GEN_PARENT | XFS_FILEID_TYPE_64FLAG:
-		fid64->parent_ino = XFS_I(parent)->i_ino;
+		fid64->parent_iyes = XFS_I(parent)->i_iyes;
 		fid64->parent_gen = parent->i_generation;
 		/*FALLTHRU*/
 	case FILEID_INO32_GEN | XFS_FILEID_TYPE_64FLAG:
-		fid64->ino = XFS_I(inode)->i_ino;
-		fid64->gen = inode->i_generation;
+		fid64->iyes = XFS_I(iyesde)->i_iyes;
+		fid64->gen = iyesde->i_generation;
 		break;
 	}
 
 	return fileid_type;
 }
 
-STATIC struct inode *
-xfs_nfs_get_inode(
+STATIC struct iyesde *
+xfs_nfs_get_iyesde(
 	struct super_block	*sb,
-	u64			ino,
+	u64			iyes,
 	u32			generation)
 {
  	xfs_mount_t		*mp = XFS_M(sb);
-	xfs_inode_t		*ip;
+	xfs_iyesde_t		*ip;
 	int			error;
 
 	/*
-	 * NFS can sometimes send requests for ino 0.  Fail them gracefully.
+	 * NFS can sometimes send requests for iyes 0.  Fail them gracefully.
 	 */
-	if (ino == 0)
+	if (iyes == 0)
 		return ERR_PTR(-ESTALE);
 
 	/*
-	 * The XFS_IGET_UNTRUSTED means that an invalid inode number is just
-	 * fine and not an indication of a corrupted filesystem as clients can
+	 * The XFS_IGET_UNTRUSTED means that an invalid iyesde number is just
+	 * fine and yest an indication of a corrupted filesystem as clients can
 	 * send invalid file handles and we have to handle it gracefully..
 	 */
-	error = xfs_iget(mp, NULL, ino, XFS_IGET_UNTRUSTED, 0, &ip);
+	error = xfs_iget(mp, NULL, iyes, XFS_IGET_UNTRUSTED, 0, &ip);
 	if (error) {
 
 		/*
-		 * EINVAL means the inode cluster doesn't exist anymore.
-		 * EFSCORRUPTED means the metadata pointing to the inode cluster
-		 * or the inode cluster itself is corrupt.  This implies the
+		 * EINVAL means the iyesde cluster doesn't exist anymore.
+		 * EFSCORRUPTED means the metadata pointing to the iyesde cluster
+		 * or the iyesde cluster itself is corrupt.  This implies the
 		 * filehandle is stale, so we should translate it here.
-		 * We don't use ESTALE directly down the chain to not
+		 * We don't use ESTALE directly down the chain to yest
 		 * confuse applications using bulkstat that expect EINVAL.
 		 */
 		switch (error) {
@@ -160,7 +160,7 @@ xfs_fs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 		 int fh_len, int fileid_type)
 {
 	struct xfs_fid64	*fid64 = (struct xfs_fid64 *)fid;
-	struct inode		*inode = NULL;
+	struct iyesde		*iyesde = NULL;
 
 	if (fh_len < xfs_fileid_length(fileid_type))
 		return NULL;
@@ -168,15 +168,15 @@ xfs_fs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 	switch (fileid_type) {
 	case FILEID_INO32_GEN_PARENT:
 	case FILEID_INO32_GEN:
-		inode = xfs_nfs_get_inode(sb, fid->i32.ino, fid->i32.gen);
+		iyesde = xfs_nfs_get_iyesde(sb, fid->i32.iyes, fid->i32.gen);
 		break;
 	case FILEID_INO32_GEN_PARENT | XFS_FILEID_TYPE_64FLAG:
 	case FILEID_INO32_GEN | XFS_FILEID_TYPE_64FLAG:
-		inode = xfs_nfs_get_inode(sb, fid64->ino, fid64->gen);
+		iyesde = xfs_nfs_get_iyesde(sb, fid64->iyes, fid64->gen);
 		break;
 	}
 
-	return d_obtain_alias(inode);
+	return d_obtain_alias(iyesde);
 }
 
 STATIC struct dentry *
@@ -184,23 +184,23 @@ xfs_fs_fh_to_parent(struct super_block *sb, struct fid *fid,
 		 int fh_len, int fileid_type)
 {
 	struct xfs_fid64	*fid64 = (struct xfs_fid64 *)fid;
-	struct inode		*inode = NULL;
+	struct iyesde		*iyesde = NULL;
 
 	if (fh_len < xfs_fileid_length(fileid_type))
 		return NULL;
 
 	switch (fileid_type) {
 	case FILEID_INO32_GEN_PARENT:
-		inode = xfs_nfs_get_inode(sb, fid->i32.parent_ino,
+		iyesde = xfs_nfs_get_iyesde(sb, fid->i32.parent_iyes,
 					      fid->i32.parent_gen);
 		break;
 	case FILEID_INO32_GEN_PARENT | XFS_FILEID_TYPE_64FLAG:
-		inode = xfs_nfs_get_inode(sb, fid64->parent_ino,
+		iyesde = xfs_nfs_get_iyesde(sb, fid64->parent_iyes,
 					      fid64->parent_gen);
 		break;
 	}
 
-	return d_obtain_alias(inode);
+	return d_obtain_alias(iyesde);
 }
 
 STATIC struct dentry *
@@ -208,9 +208,9 @@ xfs_fs_get_parent(
 	struct dentry		*child)
 {
 	int			error;
-	struct xfs_inode	*cip;
+	struct xfs_iyesde	*cip;
 
-	error = xfs_lookup(XFS_I(d_inode(child)), &xfs_name_dotdot, &cip, NULL);
+	error = xfs_lookup(XFS_I(d_iyesde(child)), &xfs_name_dotdot, &cip, NULL);
 	if (unlikely(error))
 		return ERR_PTR(error);
 
@@ -219,9 +219,9 @@ xfs_fs_get_parent(
 
 STATIC int
 xfs_fs_nfs_commit_metadata(
-	struct inode		*inode)
+	struct iyesde		*iyesde)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_lsn_t		lsn = 0;
 

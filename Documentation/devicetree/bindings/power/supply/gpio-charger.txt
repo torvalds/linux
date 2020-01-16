@@ -5,7 +5,7 @@ Required properties :
  - gpios : GPIO indicating the charger presence.
    See GPIO binding in bindings/gpio/gpio.txt .
  - charger-type : power supply type, one of
-     unknown
+     unkyeswn
      battery
      ups
      mains

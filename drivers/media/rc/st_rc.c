@@ -42,7 +42,7 @@ struct st_rc_device {
 #define IRB_MAX_SYM_PERIOD      0x54	/* max sym value      */
 #define IRB_RX_INT_CLEAR        0x58	/* overrun status     */
 #define IRB_RX_STATUS           0x6c	/* receive status     */
-#define IRB_RX_NOISE_SUPPR      0x5c	/* noise suppression  */
+#define IRB_RX_NOISE_SUPPR      0x5c	/* yesise suppression  */
 #define IRB_RX_POLARITY_INV     0x68	/* polarity inverter  */
 
 /*
@@ -101,7 +101,7 @@ static irqreturn_t st_rc_rx_interrupt(int irq, void *data)
 	if (dev->irq_wake)
 		pm_wakeup_event(dev->dev, 0);
 
-	/* FIXME: is 10ms good enough ? */
+	/* FIXME: is 10ms good eyesugh ? */
 	timeout = jiffies +  msecs_to_jiffies(10);
 	do {
 		status  = readl(dev->rx_base + IRB_RX_STATUS);
@@ -124,7 +124,7 @@ static irqreturn_t st_rc_rx_interrupt(int irq, void *data)
 		if (symbol == IRB_TIMEOUT)
 			last_symbol = 1;
 
-		 /* Ignore any noise */
+		 /* Igyesre any yesise */
 		if ((mark > 2) && (symbol > 1)) {
 			symbol -= mark;
 			if (dev->overclocking) { /* adjustments to timings */
@@ -225,7 +225,7 @@ static int st_rc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct st_rc_device *rc_dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const char *rx_mode;
 
 	rc_dev = devm_kzalloc(dev, sizeof(struct st_rc_device), GFP_KERNEL);
@@ -255,7 +255,7 @@ static int st_rc_probe(struct platform_device *pdev)
 
 	rc_dev->sys_clock = devm_clk_get(dev, NULL);
 	if (IS_ERR(rc_dev->sys_clock)) {
-		dev_err(dev, "System clock not found\n");
+		dev_err(dev, "System clock yest found\n");
 		ret = PTR_ERR(rc_dev->sys_clock);
 		goto err;
 	}

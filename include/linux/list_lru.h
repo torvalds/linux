@@ -9,7 +9,7 @@
 #define _LRU_LIST_H
 
 #include <linux/list.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/shrinker.h>
 
 struct mem_cgroup;
@@ -19,9 +19,9 @@ enum lru_status {
 	LRU_REMOVED,		/* item removed from list */
 	LRU_REMOVED_RETRY,	/* item removed, but lock has been
 				   dropped and reacquired */
-	LRU_ROTATE,		/* item referenced, give another pass */
-	LRU_SKIP,		/* item cannot be locked, skip */
-	LRU_RETRY,		/* item not freeable. May drop the lock
+	LRU_ROTATE,		/* item referenced, give ayesther pass */
+	LRU_SKIP,		/* item canyest be locked, skip */
+	LRU_RETRY,		/* item yest freeable. May drop the lock
 				   internally, but has to return locked. */
 };
 
@@ -37,8 +37,8 @@ struct list_lru_memcg {
 	struct list_lru_one	*lru[0];
 };
 
-struct list_lru_node {
-	/* protects all lists on the node, including per cgroup */
+struct list_lru_yesde {
+	/* protects all lists on the yesde, including per cgroup */
 	spinlock_t		lock;
 	/* global list, used for the root cgroup in cgroup aware lrus */
 	struct list_lru_one	lru;
@@ -50,7 +50,7 @@ struct list_lru_node {
 } ____cacheline_aligned_in_smp;
 
 struct list_lru {
-	struct list_lru_node	*node;
+	struct list_lru_yesde	*yesde;
 #ifdef CONFIG_MEMCG_KMEM
 	struct list_head	list;
 	int			shrinker_id;
@@ -78,9 +78,9 @@ void memcg_drain_all_list_lrus(int src_idx, struct mem_cgroup *dst_memcg);
  * @item: the item to be added.
  *
  * If the element is already part of a list, this function returns doing
- * nothing. Therefore the caller does not need to keep state about whether or
- * not the element already belongs in the list and is allowed to lazy update
- * it. Note however that this is valid for *a* list, not *this* list. If
+ * yesthing. Therefore the caller does yest need to keep state about whether or
+ * yest the element already belongs in the list and is allowed to lazy update
+ * it. Note however that this is valid for *a* list, yest *this* list. If
  * the caller organize itself in a way that elements can be in more than
  * one type of list, it is up to the caller to fully remove the item from
  * the previous list (with list_lru_del() for instance) before moving it
@@ -106,16 +106,16 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item);
 /**
  * list_lru_count_one: return the number of objects currently held by @lru
  * @lru: the lru pointer.
- * @nid: the node id to count from.
+ * @nid: the yesde id to count from.
  * @memcg: the cgroup to count from.
  *
- * Always return a non-negative number, 0 for empty lists. There is no
- * guarantee that the list is not updated while the count is being computed.
+ * Always return a yesn-negative number, 0 for empty lists. There is yes
+ * guarantee that the list is yest updated while the count is being computed.
  * Callers that want such a guarantee need to provide an outer lock.
  */
 unsigned long list_lru_count_one(struct list_lru *lru,
 				 int nid, struct mem_cgroup *memcg);
-unsigned long list_lru_count_node(struct list_lru *lru, int nid);
+unsigned long list_lru_count_yesde(struct list_lru *lru, int nid);
 
 static inline unsigned long list_lru_shrink_count(struct list_lru *lru,
 						  struct shrink_control *sc)
@@ -128,8 +128,8 @@ static inline unsigned long list_lru_count(struct list_lru *lru)
 	long count = 0;
 	int nid;
 
-	for_each_node_state(nid, N_NORMAL_MEMORY)
-		count += list_lru_count_node(lru, nid);
+	for_each_yesde_state(nid, N_NORMAL_MEMORY)
+		count += list_lru_count_yesde(lru, nid);
 
 	return count;
 }
@@ -144,7 +144,7 @@ typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
 /**
  * list_lru_walk_one: walk a list_lru, isolating and disposing freeable items.
  * @lru: the lru pointer.
- * @nid: the node id to scan from.
+ * @nid: the yesde id to scan from.
  * @memcg: the cgroup to scan from.
  * @isolate: callback function that is resposible for deciding what to do with
  *  the item currently being scanned
@@ -158,7 +158,7 @@ typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
  * will return an enum lru_status telling the list_lru infrastructure what to
  * do with the object being scanned.
  *
- * Please note that nr_to_walk does not mean how many objects will be freed,
+ * Please yeste that nr_to_walk does yest mean how many objects will be freed,
  * just how many objects will be scanned.
  *
  * Return value: the number of objects effectively removed from the LRU.
@@ -170,7 +170,7 @@ unsigned long list_lru_walk_one(struct list_lru *lru,
 /**
  * list_lru_walk_one_irq: walk a list_lru, isolating and disposing freeable items.
  * @lru: the lru pointer.
- * @nid: the node id to scan from.
+ * @nid: the yesde id to scan from.
  * @memcg: the cgroup to scan from.
  * @isolate: callback function that is resposible for deciding what to do with
  *  the item currently being scanned
@@ -184,7 +184,7 @@ unsigned long list_lru_walk_one_irq(struct list_lru *lru,
 				    int nid, struct mem_cgroup *memcg,
 				    list_lru_walk_cb isolate, void *cb_arg,
 				    unsigned long *nr_to_walk);
-unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
+unsigned long list_lru_walk_yesde(struct list_lru *lru, int nid,
 				 list_lru_walk_cb isolate, void *cb_arg,
 				 unsigned long *nr_to_walk);
 
@@ -211,8 +211,8 @@ list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
 	long isolated = 0;
 	int nid;
 
-	for_each_node_state(nid, N_NORMAL_MEMORY) {
-		isolated += list_lru_walk_node(lru, nid, isolate,
+	for_each_yesde_state(nid, N_NORMAL_MEMORY) {
+		isolated += list_lru_walk_yesde(lru, nid, isolate,
 					       cb_arg, &nr_to_walk);
 		if (nr_to_walk <= 0)
 			break;

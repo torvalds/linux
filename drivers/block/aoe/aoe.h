@@ -43,7 +43,7 @@ struct aoe_hdr {
 	unsigned char verfl;
 	unsigned char err;
 	__be16 major;
-	unsigned char minor;
+	unsigned char miyesr;
 	unsigned char cmd;
 	__be32 tag;
 };
@@ -72,7 +72,7 @@ struct aoe_cfghdr {
 
 enum {
 	DEVFL_UP = 1,	/* device is installed in system and ready for AoE->ATA commands */
-	DEVFL_TKILL = (1<<1),	/* flag for timer to know when to kill self */
+	DEVFL_TKILL = (1<<1),	/* flag for timer to kyesw when to kill self */
 	DEVFL_EXT = (1<<2),	/* device accepts lba48 commands */
 	DEVFL_GDALLOC = (1<<3),	/* need to alloc gendisk */
 	DEVFL_GD_NOW = (1<<4),	/* allocating gendisk */
@@ -96,7 +96,7 @@ enum {
 	RTTAVG_INIT = USEC_PER_SEC / 4 << RTTSCALE,
 	RTTDEV_INIT = RTTAVG_INIT / 4,
 
-	HARD_SCORN_SECS = 10,	/* try another remote port after this */
+	HARD_SCORN_SECS = 10,	/* try ayesther remote port after this */
 	MAX_TAINT = 1000,	/* cap on aoetgt taint */
 };
 
@@ -142,7 +142,7 @@ struct aoetgt {
 	struct list_head ffree;			/* list of free frames */
 	struct aoeif ifs[NAOEIFS];
 	struct aoeif *ifp;	/* current aoeif in use */
-	ushort nout;		/* number of AoE commands outstanding */
+	ushort yesut;		/* number of AoE commands outstanding */
 	ushort maxout;		/* current value for max outstanding */
 	ushort next_cwnd;	/* incr maxout after decrementing to zero */
 	ushort ssthresh;	/* slow start threshold */
@@ -150,18 +150,18 @@ struct aoetgt {
 	int taint;		/* how much we want to avoid this aoetgt */
 	int minbcnt;
 	int wpkts, rpkts;
-	char nout_probes;
+	char yesut_probes;
 };
 
 struct aoedev {
 	struct aoedev *next;
-	ulong sysminor;
+	ulong sysmiyesr;
 	ulong aoemajor;
 	u32 rttavg;		/* scaled AoE round trip time average */
 	u32 rttdev;		/* scaled round trip time mean deviation */
-	u16 aoeminor;
+	u16 aoemiyesr;
 	u16 flags;
-	u16 nopen;		/* (bd_openers isn't available without sleeping) */
+	u16 yespen;		/* (bd_openers isn't available without sleeping) */
 	u16 fw_ver;		/* version of blade's firmware */
 	u16 lasttag;		/* last tag sent */
 	u16 useme;
@@ -215,7 +215,7 @@ void aoechr_exit(void);
 void aoechr_error(char *);
 
 void aoecmd_work(struct aoedev *d);
-void aoecmd_cfg(ushort aoemajor, unsigned char aoeminor);
+void aoecmd_cfg(ushort aoemajor, unsigned char aoemiyesr);
 struct sk_buff *aoecmd_ata_rsp(struct sk_buff *);
 void aoecmd_cfg_rsp(struct sk_buff *);
 void aoecmd_sleepwork(struct work_struct *);

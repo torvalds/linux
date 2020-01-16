@@ -47,30 +47,30 @@ static int afs_probe_cell_name(struct dentry *dentry)
  * Try to auto mount the mountpoint with pseudo directory, if the autocell
  * operation is setted.
  */
-struct inode *afs_try_auto_mntpt(struct dentry *dentry, struct inode *dir)
+struct iyesde *afs_try_auto_mntpt(struct dentry *dentry, struct iyesde *dir)
 {
-	struct afs_vnode *vnode = AFS_FS_I(dir);
-	struct inode *inode;
+	struct afs_vyesde *vyesde = AFS_FS_I(dir);
+	struct iyesde *iyesde;
 	int ret = -ENOENT;
 
 	_enter("%p{%pd}, {%llx:%llu}",
-	       dentry, dentry, vnode->fid.vid, vnode->fid.vnode);
+	       dentry, dentry, vyesde->fid.vid, vyesde->fid.vyesde);
 
-	if (!test_bit(AFS_VNODE_AUTOCELL, &vnode->flags))
+	if (!test_bit(AFS_VNODE_AUTOCELL, &vyesde->flags))
 		goto out;
 
 	ret = afs_probe_cell_name(dentry);
 	if (ret < 0)
 		goto out;
 
-	inode = afs_iget_pseudo_dir(dir->i_sb, false);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
+	iyesde = afs_iget_pseudo_dir(dir->i_sb, false);
+	if (IS_ERR(iyesde)) {
+		ret = PTR_ERR(iyesde);
 		goto out;
 	}
 
-	_leave("= %p", inode);
-	return inode;
+	_leave("= %p", iyesde);
+	return iyesde;
 
 out:
 	_leave("= %d", ret);
@@ -129,12 +129,12 @@ out_p:
 /*
  * Look up an entry in a dynroot directory.
  */
-static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *afs_dynroot_lookup(struct iyesde *dir, struct dentry *dentry,
 					 unsigned int flags)
 {
 	_enter("%pd", dentry);
 
-	ASSERTCMP(d_inode(dentry), ==, NULL);
+	ASSERTCMP(d_iyesde(dentry), ==, NULL);
 
 	if (flags & LOOKUP_CREATE)
 		return ERR_PTR(-EOPNOTSUPP);
@@ -151,7 +151,7 @@ static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentr
 	return d_splice_alias(afs_try_auto_mntpt(dentry, dir), dentry);
 }
 
-const struct inode_operations afs_dynroot_inode_operations = {
+const struct iyesde_operations afs_dynroot_iyesde_operations = {
 	.lookup		= afs_dynroot_lookup,
 };
 
@@ -196,7 +196,7 @@ int afs_dynroot_mkdir(struct afs_net *net, struct afs_cell *cell)
 
 	/* Let the ->lookup op do the creation */
 	root = sb->s_root;
-	inode_lock(root->d_inode);
+	iyesde_lock(root->d_iyesde);
 	subdir = lookup_one_len(cell->name, root, cell->name_len);
 	if (IS_ERR(subdir)) {
 		ret = PTR_ERR(subdir);
@@ -207,7 +207,7 @@ int afs_dynroot_mkdir(struct afs_net *net, struct afs_cell *cell)
 	subdir->d_fsdata = (void *)1UL;
 	ret = 0;
 unlock:
-	inode_unlock(root->d_inode);
+	iyesde_unlock(root->d_iyesde);
 	return ret;
 }
 
@@ -224,13 +224,13 @@ void afs_dynroot_rmdir(struct afs_net *net, struct afs_cell *cell)
 		return;
 
 	root = sb->s_root;
-	inode_lock(root->d_inode);
+	iyesde_lock(root->d_iyesde);
 
 	/* Don't want to trigger a lookup call, which will re-add the cell */
 	subdir = try_lookup_one_len(cell->name, root, cell->name_len);
 	if (IS_ERR_OR_NULL(subdir)) {
 		_debug("lookup %ld", PTR_ERR(subdir));
-		goto no_dentry;
+		goto yes_dentry;
 	}
 
 	_debug("rmdir %pd %u", subdir, d_count(subdir));
@@ -241,8 +241,8 @@ void afs_dynroot_rmdir(struct afs_net *net, struct afs_cell *cell)
 		dput(subdir);
 	}
 	dput(subdir);
-no_dentry:
-	inode_unlock(root->d_inode);
+yes_dentry:
+	iyesde_unlock(root->d_iyesde);
 	_leave("");
 }
 
@@ -289,7 +289,7 @@ void afs_dynroot_depopulate(struct super_block *sb)
 		net->dynroot_sb = NULL;
 	mutex_unlock(&net->proc_cells_lock);
 
-	inode_lock(root->d_inode);
+	iyesde_lock(root->d_iyesde);
 
 	/* Remove all the pins for dirs created for manually added cells */
 	list_for_each_entry_safe(subdir, tmp, &root->d_subdirs, d_child) {
@@ -299,5 +299,5 @@ void afs_dynroot_depopulate(struct super_block *sb)
 		}
 	}
 
-	inode_unlock(root->d_inode);
+	iyesde_unlock(root->d_iyesde);
 }

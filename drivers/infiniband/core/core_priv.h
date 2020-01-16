@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -338,7 +338,7 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 	qp->uobject = uobj;
 	qp->real_qp = qp;
 	/*
-	 * We don't track XRC QPs for now, because they don't have PD
+	 * We don't track XRC QPs for yesw, because they don't have PD
 	 * and more importantly they are created internaly by driver,
 	 * see mlx5 create_dev_resources() as an example.
 	 */

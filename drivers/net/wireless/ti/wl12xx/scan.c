@@ -29,8 +29,8 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 		    (req->channels[i]->band == band) &&
 		    /*
 		     * In passive scans, we scan all remaining
-		     * channels, even if not marked as such.
-		     * In active scans, we only scan channels not
+		     * channels, even if yest marked as such.
+		     * In active scans, we only scan channels yest
 		     * marked as passive.
 		     */
 		    (passive || !(flags & IEEE80211_CHAN_NO_IR))) {
@@ -104,7 +104,7 @@ static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (passive)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
 
-	/* scan on the dev role if the regular one is not started */
+	/* scan on the dev role if the regular one is yest started */
 	if (wlcore_is_p2p_mgmt(wlvif))
 		cmd->params.role_id = wlvif->dev_role_id;
 	else
@@ -214,7 +214,7 @@ void wl1271_scan_stm(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	case WL1271_SCAN_STATE_2GHZ_ACTIVE:
 		band = NL80211_BAND_2GHZ;
 		mask = wlvif->bitrate_masks[band];
-		if (wl->scan.req->no_cck) {
+		if (wl->scan.req->yes_cck) {
 			mask &= ~CONF_TX_CCK_RATES;
 			if (!mask)
 				mask = CONF_TX_RATE_MASK_BASIC_P2P;
@@ -231,7 +231,7 @@ void wl1271_scan_stm(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	case WL1271_SCAN_STATE_2GHZ_PASSIVE:
 		band = NL80211_BAND_2GHZ;
 		mask = wlvif->bitrate_masks[band];
-		if (wl->scan.req->no_cck) {
+		if (wl->scan.req->yes_cck) {
 			mask &= ~CONF_TX_CCK_RATES;
 			if (!mask)
 				mask = CONF_TX_RATE_MASK_BASIC_P2P;
@@ -301,7 +301,7 @@ static void wl12xx_adjust_channels(struct wl1271_cmd_sched_scan_config *cmd,
 	       sizeof(cmd->channels_2));
 	memcpy(cmd->channels_5, cmd_channels->channels_5,
 	       sizeof(cmd->channels_5));
-	/* channels_4 are not supported, so no need to copy them */
+	/* channels_4 are yest supported, so yes need to copy them */
 }
 
 int wl1271_scan_sched_scan_config(struct wl1271 *wl,

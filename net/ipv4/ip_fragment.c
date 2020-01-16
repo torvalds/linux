@@ -52,8 +52,8 @@
 #include <net/l3mdev.h>
 
 /* NOTE. Logic of IP defragmentation is parallel to corresponding IPv6
- * code now. If you change something here, _PLEASE_ update ipv6/reassembly.c
- * as well. Or notify me, at least. --ANK
+ * code yesw. If you change something here, _PLEASE_ update ipv6/reassembly.c
+ * as well. Or yestify me, at least. --ANK
  */
 static const char ip_frag_cache_name[] = "ip4-frags";
 
@@ -110,7 +110,7 @@ static void ipq_put(struct ipq *ipq)
 	inet_frag_put(&ipq->q);
 }
 
-/* Kill ipq entry. It is not destroyed immediately,
+/* Kill ipq entry. It is yest destroyed immediately,
  * because caller (and someone more) holds reference count.
  */
 static void ipq_kill(struct ipq *ipq)
@@ -159,7 +159,7 @@ static void ip_expire(struct timer_list *t)
 	if (!(qp->q.flags & INET_FRAG_FIRST_IN))
 		goto out;
 
-	/* sk_buff::dev and sk_buff::rbnode are unionized. So we
+	/* sk_buff::dev and sk_buff::rbyesde are unionized. So we
 	 * pull the head out of the tree in order to be able to
 	 * deal with head->dev.
 	 */
@@ -171,9 +171,9 @@ static void ip_expire(struct timer_list *t)
 		goto out;
 
 
-	/* skb has no dst, perform route lookup again */
+	/* skb has yes dst, perform route lookup again */
 	iph = ip_hdr(head);
-	err = ip_route_input_noref(head, iph->daddr, iph->saddr,
+	err = ip_route_input_yesref(head, iph->daddr, iph->saddr,
 					   iph->tos, head->dev);
 	if (err)
 		goto out;
@@ -198,7 +198,7 @@ out_rcu_unlock:
 }
 
 /* Find the correct entry in the "incomplete datagrams" queue for
- * this IP datagram, and create new one, if nothing is found.
+ * this IP datagram, and create new one, if yesthing is found.
  */
 static struct ipq *ip_find(struct net *net, struct iphdr *iph,
 			   u32 user, int vif)
@@ -334,7 +334,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	if (err)
 		goto discard_qp;
 
-	/* Note : skb->rbnode and skb->dev share the same location. */
+	/* Note : skb->rbyesde and skb->dev share the same location. */
 	dev = skb->dev;
 	/* Makes sure compiler wont do silly aliasing games */
 	barrier();
@@ -419,7 +419,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 	/* Make the one we just received the head. */
 	reasm_data = inet_frag_reasm_prepare(&qp->q, skb, prev_tail);
 	if (!reasm_data)
-		goto out_nomem;
+		goto out_yesmem;
 
 	len = ip_hdrlen(skb) + qp->q.len;
 	err = -E2BIG;
@@ -442,7 +442,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 	 *
 	 * We only set DF/IPSKB_FRAG_PMTU if such DF fragment was the largest
 	 * frag seen to avoid sending tiny DF-fragments in case skb was built
-	 * from one very small df-fragment and one large non-df frag.
+	 * from one very small df-fragment and one large yesn-df frag.
 	 */
 	if (qp->max_df_size == qp->q.max_size) {
 		IPCB(skb)->flags |= IPSKB_FRAG_PMTU;
@@ -459,8 +459,8 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 	qp->q.last_run_head = NULL;
 	return 0;
 
-out_nomem:
-	net_dbg_ratelimited("queue_glue: no memory for gluing queue %p\n", qp);
+out_yesmem:
+	net_dbg_ratelimited("queue_glue: yes memory for gluing queue %p\n", qp);
 	err = -ENOMEM;
 	goto out_fail;
 out_oversize:
@@ -727,7 +727,7 @@ static int ip4_obj_cmpfn(struct rhashtable_compare_arg *arg, const void *ptr)
 }
 
 static const struct rhashtable_params ip4_rhash_params = {
-	.head_offset		= offsetof(struct inet_frag_queue, node),
+	.head_offset		= offsetof(struct inet_frag_queue, yesde),
 	.key_offset		= offsetof(struct inet_frag_queue, key),
 	.key_len		= sizeof(struct frag_v4_compare_key),
 	.hashfn			= ip4_key_hashfn,

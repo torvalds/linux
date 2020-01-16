@@ -11,7 +11,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
 #include "xfs_qm.h"
@@ -42,9 +42,9 @@ xfs_dquot_verify(
 {
 	/*
 	 * We can encounter an uninitialized dquot buffer for 2 reasons:
-	 * 1. If we crash while deleting the quotainode(s), and those blks got
+	 * 1. If we crash while deleting the quotaiyesde(s), and those blks got
 	 *    used for user data. This is because we take the path of regular
-	 *    file deletion; however, the size field of quotainodes is never
+	 *    file deletion; however, the size field of quotaiyesdes is never
 	 *    updated, so all the tricks that we play in itruncate_finish
 	 *    don't quite matter.
 	 *
@@ -78,8 +78,8 @@ xfs_dquot_verify(
 	    !ddq->d_btimer)
 		return __this_address;
 
-	if (ddq->d_ino_softlimit &&
-	    be64_to_cpu(ddq->d_icount) > be64_to_cpu(ddq->d_ino_softlimit) &&
+	if (ddq->d_iyes_softlimit &&
+	    be64_to_cpu(ddq->d_icount) > be64_to_cpu(ddq->d_iyes_softlimit) &&
 	    !ddq->d_itimer)
 		return __this_address;
 
@@ -147,8 +147,8 @@ xfs_dquot_buf_verify_crc(
 		return true;
 
 	/*
-	 * if we are in log recovery, the quota subsystem has not been
-	 * initialised so we have no quotainfo structure. In that case, we need
+	 * if we are in log recovery, the quota subsystem has yest been
+	 * initialised so we have yes quotainfo structure. In that case, we need
 	 * to manually calculate the number of dquots in the buffer.
 	 */
 	if (mp->m_quotainfo)
@@ -181,8 +181,8 @@ xfs_dquot_buf_verify(
 	int			i;
 
 	/*
-	 * if we are in log recovery, the quota subsystem has not been
-	 * initialised so we have no quotainfo structure. In that case, we need
+	 * if we are in log recovery, the quota subsystem has yest been
+	 * initialised so we have yes quotainfo structure. In that case, we need
 	 * to manually calculate the number of dquots in the buffer.
 	 */
 	if (mp->m_quotainfo)
@@ -192,8 +192,8 @@ xfs_dquot_buf_verify(
 
 	/*
 	 * On the first read of the buffer, verify that each dquot is valid.
-	 * We don't know what the id of the dquot is supposed to be, just that
-	 * they should be increasing monotonically within the buffer. If the
+	 * We don't kyesw what the id of the dquot is supposed to be, just that
+	 * they should be increasing moyestonically within the buffer. If the
 	 * first id is corrupt, then it will fail on the second dquot in the
 	 * buffer so corruptions could point to the wrong dquot in this case.
 	 */
@@ -241,7 +241,7 @@ xfs_dquot_buf_read_verify(
 /*
  * readahead errors are silent and simply leave the buffer as !done so a real
  * read will then be run with the xfs_dquot_buf_ops verifier. See
- * xfs_inode_buf_verify() for why we use EIO and ~XBF_DONE here rather than
+ * xfs_iyesde_buf_verify() for why we use EIO and ~XBF_DONE here rather than
  * reporting the failure.
  */
 static void

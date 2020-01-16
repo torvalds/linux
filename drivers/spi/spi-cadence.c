@@ -109,7 +109,7 @@
  * @tx_bytes:		Number of bytes left to transfer
  * @rx_bytes:		Number of bytes requested
  * @dev_busy:		Device busy flag
- * @is_decoded_cs:	Flag for decoder property set or not
+ * @is_decoded_cs:	Flag for decoder property set or yest
  */
 struct cdns_spi {
 	void __iomem *regs;
@@ -140,7 +140,7 @@ static inline void cdns_spi_write(struct cdns_spi *xspi, u32 offset, u32 val)
  * @xspi:	Pointer to the cdns_spi structure
  *
  * On reset the SPI controller is configured to be in master mode, baud rate
- * divisor is set to 4, threshold value for TX FIFO not full interrupt is set
+ * divisor is set to 4, threshold value for TX FIFO yest full interrupt is set
  * to 1 and size of the word to be transferred as 8 bit.
  * This function initializes the SPI controller to disable and clear all the
  * interrupts, enable manual slave select and manual start, deselect all the
@@ -218,7 +218,7 @@ static void cdns_spi_config_clock_mode(struct spi_device *spi)
 
 	if (new_ctrl_reg != ctrl_reg) {
 		/*
-		 * Just writing the CR register does not seem to apply the clock
+		 * Just writing the CR register does yest seem to apply the clock
 		 * setting changes. This is problematic when changing the clock
 		 * polarity as it will cause the SPI slave to see spurious clock
 		 * transitions. To workaround the issue toggle the ER register.
@@ -236,7 +236,7 @@ static void cdns_spi_config_clock_mode(struct spi_device *spi)
  *		information about next transfer setup parameters
  *
  * Sets the requested clock frequency.
- * Note: If the requested frequency is not an exact match with what can be
+ * Note: If the requested frequency is yest an exact match with what can be
  * obtained using the prescalar value the driver sets the clock frequency which
  * is lower than the requested frequency (maximum lower) for the transfer. If
  * the requested frequency is higher or lower than that is supported by the SPI
@@ -333,7 +333,7 @@ static void cdns_spi_fill_tx_fifo(struct cdns_spi *xspi)
  * fills the TX FIFO if there is any data remaining to be transferred.
  * On Mode Fault interrupt this function indicates that transfer is completed,
  * the SPI subsystem will identify the error as the remaining bytes to be
- * transferred is non-zero.
+ * transferred is yesn-zero.
  *
  * Return:	IRQ_HANDLED when handled; IRQ_NONE otherwise.
  */
@@ -350,7 +350,7 @@ static irqreturn_t cdns_spi_irq(int irq, void *dev_id)
 	if (intr_status & CDNS_SPI_IXR_MODF) {
 		/* Indicate that transfer is completed, the SPI subsystem will
 		 * identify the error as the remaining bytes to be
-		 * transferred is non-zero
+		 * transferred is yesn-zero
 		 */
 		cdns_spi_write(xspi, CDNS_SPI_IDR, CDNS_SPI_IXR_DEFAULT);
 		spi_finalize_current_transfer(master);
@@ -481,7 +481,7 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	xspi = spi_master_get_devdata(master);
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	platform_set_drvdata(pdev, master);
 
 	xspi->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -492,14 +492,14 @@ static int cdns_spi_probe(struct platform_device *pdev)
 
 	xspi->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(xspi->pclk)) {
-		dev_err(&pdev->dev, "pclk clock not found.\n");
+		dev_err(&pdev->dev, "pclk clock yest found.\n");
 		ret = PTR_ERR(xspi->pclk);
 		goto remove_master;
 	}
 
 	xspi->ref_clk = devm_clk_get(&pdev->dev, "ref_clk");
 	if (IS_ERR(xspi->ref_clk)) {
-		dev_err(&pdev->dev, "ref_clk clock not found.\n");
+		dev_err(&pdev->dev, "ref_clk clock yest found.\n");
 		ret = PTR_ERR(xspi->ref_clk);
 		goto remove_master;
 	}
@@ -516,13 +516,13 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		goto clk_dis_apb;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs);
+	ret = of_property_read_u32(pdev->dev.of_yesde, "num-cs", &num_cs);
 	if (ret < 0)
 		master->num_chipselect = CDNS_SPI_DEFAULT_NUM_CS;
 	else
 		master->num_chipselect = num_cs;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "is-decoded-cs",
+	ret = of_property_read_u32(pdev->dev.of_yesde, "is-decoded-cs",
 				   &xspi->is_decoded_cs);
 	if (ret < 0)
 		xspi->is_decoded_cs = 0;
@@ -659,13 +659,13 @@ static int __maybe_unused cnds_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(xspi->pclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable APB clock.\n");
+		dev_err(dev, "Canyest enable APB clock.\n");
 		return ret;
 	}
 
 	ret = clk_prepare_enable(xspi->ref_clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable device clock.\n");
+		dev_err(dev, "Canyest enable device clock.\n");
 		clk_disable_unprepare(xspi->pclk);
 		return ret;
 	}

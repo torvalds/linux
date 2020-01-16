@@ -40,7 +40,7 @@ static struct hppb_card hppb_card_head = {
  * hppb_probe - Determine if the hppb driver should claim this device.
  * @dev: The device which has been found
  *
- * Determine if hppb driver should claim this chip (return 0) or not 
+ * Determine if hppb driver should claim this chip (return 0) or yest 
  * (return 1). If so, initialize the chip and tell other partners in crime 
  * they have work to do.
  */
@@ -74,7 +74,7 @@ static int __init hppb_probe(struct parisc_device *dev)
 	pr_info("Found GeckoBoa at %pap, bus space %pR,%s claimed.\n",
 			&dev->hpa.start,
 			&card->mmio_region,
-			(status < 0) ? " not":"" );
+			(status < 0) ? " yest":"" );
 
         return 0;
 }

@@ -1,7 +1,7 @@
 /*-*- linux-c -*-
  *  linux/drivers/video/i810_accel.c -- Hardware Acceleration
  *
- *      Copyright (C) 2001 Antonino Daplas<adaplas@pol.net>
+ *      Copyright (C) 2001 Antoniyes Daplas<adaplas@pol.net>
  *      All Rights Reserved      
  *
  *  This file is subject to the terms and conditions of the GNU General Public
@@ -211,7 +211,7 @@ static inline void color_blit(int width, int height, int pitch,  int dest,
 }
  
 /**
- * mono_src_copy_imm_blit - color expand from system memory to framebuffer
+ * moyes_src_copy_imm_blit - color expand from system memory to framebuffer
  * @dwidth: width of destination
  * @dheight: height of destination
  * @dpitch: pixels per line of the buffer
@@ -232,7 +232,7 @@ static inline void color_blit(int width, int height, int pitch,  int dest,
  * REQUIREMENT:
  * The end of a scanline must be padded to the next word.
  */
-static inline void mono_src_copy_imm_blit(int dwidth, int dheight, int dpitch,
+static inline void moyes_src_copy_imm_blit(int dwidth, int dheight, int dpitch,
 					  int dsize, int blit_bpp, int rop,
 					  int dest, const u32 *src, int bg,
 					  int fg, struct fb_info *info)
@@ -395,7 +395,7 @@ void i810fb_imageblit(struct fb_info *info, const struct fb_image *image)
 	size *= image->height;
 	size += 7;
 	size &= ~7;
-	mono_src_copy_imm_blit(image->width * par->depth, 
+	moyes_src_copy_imm_blit(image->width * par->depth, 
 			       image->height, info->fix.line_length, 
 			       size/4, par->blit_bpp,
 			       PAT_COPY_ROP, dst, (u32 *) image->data, 

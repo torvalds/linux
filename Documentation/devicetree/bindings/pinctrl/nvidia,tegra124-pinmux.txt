@@ -13,7 +13,7 @@ Required properties:
     -- second entry - the pinmux registers
     -- third entry - the MIPI_PAD_CTRL register
 
-Tegra124 adds the following optional properties for pin configuration subnodes.
+Tegra124 adds the following optional properties for pin configuration subyesdes.
 The macros for options are defined in the
 	include/dt-binding/pinctrl/pinctrl-tegra.h.
 - nvidia,enable-input: Integer. Enable the pin's input path.
@@ -30,7 +30,7 @@ The macros for options are defined in the
 		enable: TEGRA_PIN_ENABLE.
 		disable: TEGRA_PIN_DISABLE.
 - nvidia,rcv-sel: Integer. Select VIL/VIH receivers.
-		normal: TEGRA_PIN_DISABLE
+		yesrmal: TEGRA_PIN_DISABLE
 		high: TEGRA_PIN_ENABLE
 
 Please refer the Tegra TRM for complete details regarding which groups
@@ -85,7 +85,7 @@ Valid values for pin and group names are:
   drive groups:
 
     These all support nvidia,pull-down-strength, nvidia,pull-up-strength,
-    nvidia,slew-rate-rising, nvidia,slew-rate-falling. Most but not all
+    nvidia,slew-rate-rising, nvidia,slew-rate-falling. Most but yest all
     support nvidia,high-speed-mode, nvidia,schmitt, nvidia,low-power-mode
     and nvidia,drive-type.
 

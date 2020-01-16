@@ -53,7 +53,7 @@
 #define KVM_REQ_WATCHDOG	KVM_ARCH_REQ(0)
 #define KVM_REQ_EPR_EXIT	KVM_ARCH_REQ(1)
 
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
 
@@ -461,7 +461,7 @@ struct kvmppc_passthru_irqmap {
 #define KVMPPC_BOOKE_MAX_DAC	2
 
 /* KVMPPC_EPR_USER takes precedence over KVMPPC_EPR_KERNEL */
-#define KVMPPC_EPR_NONE		0 /* EPR not supported */
+#define KVMPPC_EPR_NONE		0 /* EPR yest supported */
 #define KVMPPC_EPR_USER		1 /* exit to userspace to fill EPR */
 #define KVMPPC_EPR_KERNEL	2 /* in-kernel irqchip */
 

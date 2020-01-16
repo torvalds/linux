@@ -37,7 +37,7 @@ For Intel IOP based adapters, the controller IOP is accessed via PCI BAR0:
             0x40    Inbound Queue Port
             0x44    Outbound Queue Port
 
-For Marvell not Frey IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
+For Marvell yest Frey IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
 
      BAR0 offset    Register
          0x20400    Inbound Doorbell Register
@@ -173,7 +173,7 @@ The driver exposes following sysfs attributes:
 
 
 -----------------------------------------------------------------------------
-Copyright (C) 2006-2012 HighPoint Technologies, Inc. All Rights Reserved.
+Copyright (C) 2006-2012 HighPoint Techyeslogies, Inc. All Rights Reserved.
 
   This file is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of

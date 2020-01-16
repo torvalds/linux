@@ -35,7 +35,7 @@
 			interrupt-controller;
 		};
 
-		nor_flash@1,0 {
+		yesr_flash@1,0 {
 			compatible = "cfi-flash";
 			#address-cells = <1>;
 			#size-cells = <1>;

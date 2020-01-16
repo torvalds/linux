@@ -191,7 +191,7 @@ u32 cpsw_sl_reg_read(struct cpsw_sl *sl, enum cpsw_sl_regs reg)
 	int val;
 
 	if (sl->regs[reg] == CPSW_SL_REG_NOTUSED) {
-		dev_err(sl->dev, "cpsw_sl: not sup r reg: %04X\n",
+		dev_err(sl->dev, "cpsw_sl: yest sup r reg: %04X\n",
 			sl->regs[reg]);
 		return 0;
 	}
@@ -204,7 +204,7 @@ u32 cpsw_sl_reg_read(struct cpsw_sl *sl, enum cpsw_sl_regs reg)
 void cpsw_sl_reg_write(struct cpsw_sl *sl, enum cpsw_sl_regs reg, u32 val)
 {
 	if (sl->regs[reg] == CPSW_SL_REG_NOTUSED) {
-		dev_err(sl->dev, "cpsw_sl: not sup w reg: %04X\n",
+		dev_err(sl->dev, "cpsw_sl: yest sup w reg: %04X\n",
 			sl->regs[reg]);
 		return;
 	}
@@ -242,7 +242,7 @@ struct cpsw_sl *cpsw_sl_get(const char *device_id, struct device *dev,
 
 	sl_dev_id = cpsw_sl_match_id(cpsw_sl_id_match, device_id);
 	if (!sl_dev_id) {
-		dev_err(sl->dev, "cpsw_sl: dev_id %s not found.\n", device_id);
+		dev_err(sl->dev, "cpsw_sl: dev_id %s yest found.\n", device_id);
 		return ERR_PTR(-EINVAL);
 	}
 	sl->regs = sl_dev_id->regs;

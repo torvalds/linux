@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -82,7 +82,7 @@ init_exec_force(struct nvbios_init *init, bool exec)
 }
 
 /******************************************************************************
- * init parser wrappers for normal register/i2c/whatever accessors
+ * init parser wrappers for yesrmal register/i2c/whatever accessors
  *****************************************************************************/
 
 static inline int
@@ -173,7 +173,7 @@ init_nvreg(struct nvbios_init *init, u32 reg)
 	}
 
 	if (reg & ~0x00fffffc)
-		warn("unknown bits in register 0x%08x\n", reg);
+		warn("unkyeswn bits in register 0x%08x\n", reg);
 
 	return nvkm_devinit_mmio(devinit, reg);
 }
@@ -392,7 +392,7 @@ init_table_(struct nvbios_init *init, u16 offset, const char *name)
 		return 0x0000;
 	}
 
-	warn("init data not found\n");
+	warn("init data yest found\n");
 	return 0x0000;
 }
 
@@ -427,7 +427,7 @@ init_script(struct nvkm_bios *bios, int index)
 }
 
 static u16
-init_unknown_script(struct nvkm_bios *bios)
+init_unkyeswn_script(struct nvkm_bios *bios)
 {
 	u16 len, data = init_table(bios, &len);
 	if (data && len >= 16)
@@ -449,8 +449,8 @@ init_ram_restrict(struct nvbios_init *init)
 	 * avoid fucking up the memory controller (somehow) by reading it
 	 * on every INIT_RAM_RESTRICT_ZM_GROUP opcode.
 	 *
-	 * Preserving the non-caching behaviour on earlier chipsets just
-	 * in case *not* re-reading the strap causes similar breakage.
+	 * Preserving the yesn-caching behaviour on earlier chipsets just
+	 * in case *yest* re-reading the strap causes similar breakage.
 	 */
 	if (!init->ramcfg || init->subdev->device->bios->version.major < 0x70)
 		init->ramcfg = 0x80000000 | nvbios_ramcfg_index(init->subdev);
@@ -565,7 +565,7 @@ init_tmds_reg(struct nvbios_init *init, u8 tmds)
 		if (tmds < ARRAY_SIZE(pramdac_table))
 			return pramdac_table[tmds];
 
-		error("tmds selector 0x%02x unknown\n", tmds);
+		error("tmds selector 0x%02x unkyeswn\n", tmds);
 	}
 
 	return 0;
@@ -576,7 +576,7 @@ init_tmds_reg(struct nvbios_init *init, u8 tmds)
  *****************************************************************************/
 
 /**
- * init_reserved - stub for various unknown/unused single-byte opcodes
+ * init_reserved - stub for various unkyeswn/unused single-byte opcodes
  *
  */
 static void
@@ -764,7 +764,7 @@ init_copy(struct nvbios_init *init)
  *
  */
 static void
-init_not(struct nvbios_init *init)
+init_yest(struct nvbios_init *init)
 {
 	trace("NOT\n");
 	init->offset += 1;
@@ -834,7 +834,7 @@ init_generic_condition(struct nvbios_init *init)
 		init_exec_set(init, false);
 		break;
 	default:
-		warn("INIT_GENERIC_CONDITION: unknown 0x%02x\n", cond);
+		warn("INIT_GENERIC_CONDITION: unkyeswn 0x%02x\n", cond);
 		init->offset += size;
 		break;
 	}
@@ -1631,7 +1631,7 @@ init_io(struct nvbios_init *init)
 	trace("IO\t\tI[0x%04x] &= 0x%02x |= 0x%02x\n", port, mask, data);
 	init->offset += 5;
 
-	/* ummm.. yes.. should really figure out wtf this is and why it's
+	/* ummm.. no.. should really figure out wtf this is and why it's
 	 * needed some day..  it's almost certainly wrong, but, it also
 	 * somehow makes things work...
 	 */
@@ -2232,7 +2232,7 @@ static struct nvbios_init_opcode {
 	[0x34] = { init_io_restrict_pll },
 	[0x36] = { init_end_repeat },
 	[0x37] = { init_copy },
-	[0x38] = { init_not },
+	[0x38] = { init_yest },
 	[0x39] = { init_io_flag_condition },
 	[0x3a] = { init_generic_condition },
 	[0x3b] = { init_io_mask_or },
@@ -2308,7 +2308,7 @@ nvbios_exec(struct nvbios_init *init)
 		u8 opcode = nvbios_rd08(bios, init->offset);
 		if (opcode >= ARRAY_SIZE(init_opcode) ||
 		    !init_opcode[opcode].exec) {
-			error("unknown opcode 0x%02x\n", opcode);
+			error("unkyeswn opcode 0x%02x\n", opcode);
 			return -EINVAL;
 		}
 
@@ -2334,10 +2334,10 @@ nvbios_post(struct nvkm_subdev *subdev, bool execute)
 		      );
 	}
 
-	/* the vbios parser will run this right after the normal init
+	/* the vbios parser will run this right after the yesrmal init
 	 * tables, whereas the binary driver appears to run it later.
 	 */
-	if (!ret && (data = init_unknown_script(bios))) {
+	if (!ret && (data = init_unkyeswn_script(bios))) {
 		ret = nvbios_init(subdev, data,
 			init.execute = execute ? 1 : 0;
 		      );

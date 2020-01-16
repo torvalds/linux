@@ -232,7 +232,7 @@ int ui__help_window(const char *text)
 	return ui__question_window("Help", text, "Press any key...", 0);
 }
 
-int ui__dialog_yesno(const char *msg)
+int ui__dialog_noyes(const char *msg)
 {
 	return ui__question_window(NULL, msg, "Enter: Yes, ESC: No", 0);
 }

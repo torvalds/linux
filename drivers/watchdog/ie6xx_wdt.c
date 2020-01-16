@@ -52,10 +52,10 @@ MODULE_PARM_DESC(timeout,
 		__MODULE_STRING(DEFAULT_TIME) "s)."
 		"The range is from 1 to 600");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static u8 resetmode = 0x10;
@@ -104,7 +104,7 @@ static int ie6xx_wdt_set_timeout(struct watchdog_device *wdd, unsigned int t)
 	preload = (t * clock) >> 15;
 	/*
 	 * Manual states preload must be one less.
-	 * Does not wrap as t is at least 1
+	 * Does yest wrap as t is at least 1
 	 */
 	preload -= 1;
 
@@ -241,7 +241,7 @@ static int ie6xx_wdt_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "WDT = 0x%X\n", ie6xx_wdt_data.sch_wdtba);
 
 	ie6xx_wdt_dev.timeout = timeout;
-	watchdog_set_nowayout(&ie6xx_wdt_dev, nowayout);
+	watchdog_set_yeswayout(&ie6xx_wdt_dev, yeswayout);
 	ie6xx_wdt_dev.parent = &pdev->dev;
 
 	spin_lock_init(&ie6xx_wdt_data.unlock_sequence);

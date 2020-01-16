@@ -7,9 +7,9 @@ Required properties :
  - cm-num-chargers : number of chargers
  - cm-chargers : name of chargers
  - cm-fuel-gauge : name of battery fuel gauge
- - subnode <regulator> :
+ - subyesde <regulator> :
 	- cm-regulator-name : name of charger regulator
-	- subnode <cable> :
+	- subyesde <cable> :
 		- cm-cable-name : name of charger cable
 		- cm-cable-extcon : name of extcon dev
 (optional)	- cm-cable-min : minimum current of cable

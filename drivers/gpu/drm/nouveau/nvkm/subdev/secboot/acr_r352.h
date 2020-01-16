@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -142,7 +142,7 @@ struct acr_r352 {
 
 	/* To keep track of the state of all managed falcons */
 	enum {
-		/* In non-secure state, no firmware loaded, no privileges*/
+		/* In yesn-secure state, yes firmware loaded, yes privileges*/
 		NON_SECURE = 0,
 		/* In low-secure mode and ready to be started */
 		RESET,

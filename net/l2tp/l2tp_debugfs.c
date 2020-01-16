@@ -122,8 +122,8 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 	struct l2tp_tunnel *tunnel = v;
 	int session_count = 0;
 	int hash;
-	struct hlist_node *walk;
-	struct hlist_node *tmp;
+	struct hlist_yesde *walk;
+	struct hlist_yesde *tmp;
 
 	read_lock_bh(&tunnel->hlist_lock);
 	for (hash = 0; hash < L2TP_HASH_SIZE; hash++) {
@@ -264,7 +264,7 @@ static const struct seq_operations l2tp_dfs_seq_ops = {
 	.show		= l2tp_dfs_seq_show,
 };
 
-static int l2tp_dfs_seq_open(struct inode *inode, struct file *file)
+static int l2tp_dfs_seq_open(struct iyesde *iyesde, struct file *file)
 {
 	struct l2tp_dfs_seq_data *pd;
 	struct seq_file *seq;
@@ -300,7 +300,7 @@ err_free_pd:
 	goto out;
 }
 
-static int l2tp_dfs_seq_release(struct inode *inode, struct file *file)
+static int l2tp_dfs_seq_release(struct iyesde *iyesde, struct file *file)
 {
 	struct l2tp_dfs_seq_data *pd;
 	struct seq_file *seq;
@@ -310,7 +310,7 @@ static int l2tp_dfs_seq_release(struct inode *inode, struct file *file)
 	if (pd->net)
 		put_net(pd->net);
 	kfree(pd);
-	seq_release(inode, file);
+	seq_release(iyesde, file);
 
 	return 0;
 }

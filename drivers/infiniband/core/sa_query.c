@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -846,7 +846,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 	if (!skb)
 		return -ENOMEM;
 
-	/* Put nlmsg header only for now */
+	/* Put nlmsg header only for yesw */
 	data = ibnl_put_msg(skb, &nlh, query->seq, 0, RDMA_NL_LS,
 			    RDMA_NL_LS_OP_RESOLVE, NLM_F_REQUEST);
 	if (!data) {
@@ -1170,7 +1170,7 @@ EXPORT_SYMBOL(ib_sa_unregister_client);
  * @query:query pointer to cancel
  *
  * Try to cancel an SA query.  If the id and query don't match up or
- * the query has already completed, nothing is done.  Otherwise the
+ * the query has already completed, yesthing is done.  Otherwise the
  * query is canceled and will complete with a status of -EINTR.
  */
 void ib_sa_cancel_query(int id, struct ib_sa_query *query)
@@ -1392,9 +1392,9 @@ static int send_mad(struct ib_sa_query *query, unsigned long timeout_ms,
 	}
 
 	/*
-	 * It's not safe to dereference query any more, because the
+	 * It's yest safe to dereference query any more, because the
 	 * send may already have completed and freed the query in
-	 * another context.
+	 * ayesther context.
 	 */
 	return ret ? ret : id;
 }
@@ -1444,7 +1444,7 @@ enum opa_pr_supported {
 
 /**
  * Check if current PR query can be an OPA query.
- * Retuns PR_NOT_SUPPORTED if a path record query is not
+ * Retuns PR_NOT_SUPPORTED if a path record query is yest
  * possible, PR_OPA_SUPPORTED if an OPA path record query
  * is possible and PR_IB_SUPPORTED if an IB path record
  * query is possible.
@@ -2113,7 +2113,7 @@ static void update_ib_cpi(struct work_struct *work)
 	unsigned long flags;
 	int ret;
 
-	/* If the classport info is valid, nothing
+	/* If the classport info is valid, yesthing
 	 * to do here.
 	 */
 	spin_lock_irqsave(&port->classport_lock, flags);
@@ -2125,7 +2125,7 @@ static void update_ib_cpi(struct work_struct *work)
 
 	cb_context = kmalloc(sizeof(*cb_context), GFP_KERNEL);
 	if (!cb_context)
-		goto err_nomem;
+		goto err_yesmem;
 
 	init_completion(&cb_context->done);
 
@@ -2139,7 +2139,7 @@ free_cb_err:
 	kfree(cb_context);
 	spin_lock_irqsave(&port->classport_lock, flags);
 
-	/* If the classport info is still not valid, the query should have
+	/* If the classport info is still yest valid, the query should have
 	 * failed for some reason. Retry issuing the query
 	 */
 	if (!port->classport_info.valid) {
@@ -2154,7 +2154,7 @@ free_cb_err:
 	}
 	spin_unlock_irqrestore(&port->classport_lock, flags);
 
-err_nomem:
+err_yesmem:
 	return;
 }
 

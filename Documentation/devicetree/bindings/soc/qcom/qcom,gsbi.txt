@@ -1,7 +1,7 @@
 QCOM GSBI (General Serial Bus Interface) Driver
 
-The GSBI controller is modeled as a node with zero or more child nodes, each
-representing a serial sub-node device that is mux'd as part of the GSBI
+The GSBI controller is modeled as a yesde with zero or more child yesdes, each
+representing a serial sub-yesde device that is mux'd as part of the GSBI
 configuration settings.  The mode setting will govern the input/output mode of
 the 4 GSBI IOs.
 
@@ -17,21 +17,21 @@ Required properties:
 Optional properties:
 - qcom,crci : indicates CRCI MUX value for QUP CRCI ports.  Please reference
   dt-bindings/soc/qcom,gsbi.h for valid CRCI mux values.
-- syscon-tcsr: indicates phandle of TCSR syscon node.  Required if child uses
+- syscon-tcsr: indicates phandle of TCSR syscon yesde.  Required if child uses
   dma.
 
-Required properties if child node exists:
+Required properties if child yesde exists:
 - #address-cells: Must be 1
 - #size-cells: Must be 1
 - ranges: Must be present
 
 Properties for children:
 
-A GSBI controller node can contain 0 or more child nodes representing serial
+A GSBI controller yesde can contain 0 or more child yesdes representing serial
 devices.  These serial devices can be a QCOM UART, I2C controller, spi
 controller, or some combination of aforementioned devices.
 
-See the following for child node definitions:
+See the following for child yesde definitions:
 Documentation/devicetree/bindings/i2c/qcom,i2c-qup.txt
 Documentation/devicetree/bindings/spi/qcom,spi-qup.txt
 Documentation/devicetree/bindings/serial/qcom,msm-uartdm.txt
@@ -54,7 +54,7 @@ Example for APQ8064:
 
 		syscon-tcsr = <&tcsr>;
 
-		/* child nodes go under here */
+		/* child yesdes go under here */
 
 		i2c_qup4: i2c@16380000 {
 			compatible = "qcom,i2c-qup-v1.1.1";

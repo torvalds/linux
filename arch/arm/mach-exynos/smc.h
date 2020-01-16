@@ -34,7 +34,7 @@
 
 #ifndef __ASSEMBLY__
 
-extern void exynos_smc(u32 cmd, u32 arg1, u32 arg2, u32 arg3);
+extern void exyyess_smc(u32 cmd, u32 arg1, u32 arg2, u32 arg3);
 
 #endif /* __ASSEMBLY__ */
 

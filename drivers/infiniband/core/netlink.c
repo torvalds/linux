@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies Inc.  All rights reserved.
+ * Copyright (c) 2017 Mellayesx Techyeslogies Inc.  All rights reserved.
  * Copyright (c) 2010 Voltaire Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -85,7 +85,7 @@ get_cb_table(const struct sk_buff *skb, unsigned int type, unsigned int op)
 
 	/*
 	 * Currently only NLDEV client is supporting netlink commands in
-	 * non init_net net namespace.
+	 * yesn init_net net namespace.
 	 */
 	if (sock_net(skb->sk) != &init_net && type != RDMA_NL_NLDEV)
 		return NULL;

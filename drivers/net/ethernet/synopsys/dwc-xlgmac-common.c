@@ -1,17 +1,17 @@
-/* Synopsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
+/* Syyespsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
  *
- * Copyright (c) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (c) 2017 Syyespsys, Inc. (www.syyespsys.com)
  *
  * This program is dual-licensed; you may select either version 2 of
  * the GNU General Public License ("GPL") or BSD license ("BSD").
  *
- * This Synopsys DWC XLGMAC software driver and associated documentation
+ * This Syyespsys DWC XLGMAC software driver and associated documentation
  * (hereinafter the "Software") is an unsupported proprietary work of
- * Synopsys, Inc. unless otherwise expressly agreed to in writing between
- * Synopsys and you. The Software IS NOT an item of Licensed Software or a
+ * Syyespsys, Inc. unless otherwise expressly agreed to in writing between
+ * Syyespsys and you. The Software IS NOT an item of Licensed Software or a
  * Licensed Product under any End User Software License Agreement or
- * Agreement for Licensed Products with Synopsys or any supplement thereto.
- * Synopsys is a registered trademark of Synopsys, Inc. Other names included
+ * Agreement for Licensed Products with Syyespsys or any supplement thereto.
+ * Syyespsys is a registered trademark of Syyespsys, Inc. Other names included
  * in the SOFTWARE may be the trademarks of their respective owners.
  */
 
@@ -25,7 +25,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 static int debug = -1;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "DWC ethernet debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "DWC ethernet debug level (0=yesne,...,16=all)");
 static const u32 default_msg_level = (NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
 				      NETIF_MSG_IFUP);
 
@@ -110,7 +110,7 @@ static int xlgmac_init(struct xlgmac_pdata *pdata)
 	BUILD_BUG_ON_NOT_POWER_OF_2(XLGMAC_TX_DESC_CNT);
 	pdata->tx_desc_count = XLGMAC_TX_DESC_CNT;
 	if (pdata->tx_desc_count & (pdata->tx_desc_count - 1)) {
-		dev_err(pdata->dev, "tx descriptor count (%d) is not valid\n",
+		dev_err(pdata->dev, "tx descriptor count (%d) is yest valid\n",
 			pdata->tx_desc_count);
 		ret = -EINVAL;
 		return ret;
@@ -118,7 +118,7 @@ static int xlgmac_init(struct xlgmac_pdata *pdata)
 	BUILD_BUG_ON_NOT_POWER_OF_2(XLGMAC_RX_DESC_CNT);
 	pdata->rx_desc_count = XLGMAC_RX_DESC_CNT;
 	if (pdata->rx_desc_count & (pdata->rx_desc_count - 1)) {
-		dev_err(pdata->dev, "rx descriptor count (%d) is not valid\n",
+		dev_err(pdata->dev, "rx descriptor count (%d) is yest valid\n",
 			pdata->rx_desc_count);
 		ret = -EINVAL;
 		return ret;

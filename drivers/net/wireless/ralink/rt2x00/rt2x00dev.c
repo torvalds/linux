@@ -120,7 +120,7 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	/*
 	 * It is possible the radio was disabled while the work had been
 	 * scheduled. If that happens we should return here immediately,
-	 * note that in the spinlock protected area above the delayed_flags
+	 * yeste that in the spinlock protected area above the delayed_flags
 	 * have been cleared correctly.
 	 */
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
@@ -270,7 +270,7 @@ static inline int rt2x00lib_txdone_bar_status(struct queue_entry *entry)
 
 	/*
 	 * Unlike all other frames, the status report for BARs does
-	 * not directly come from the hardware as it is incapable of
+	 * yest directly come from the hardware as it is incapable of
 	 * matching a BA to a previously send BAR. The hardware will
 	 * report all BARs as if they weren't acked at all.
 	 *
@@ -288,7 +288,7 @@ static inline int rt2x00lib_txdone_bar_status(struct queue_entry *entry)
 			continue;
 
 		spin_lock_bh(&rt2x00dev->bar_list_lock);
-		/* Return whether this BAR was blockacked or not */
+		/* Return whether this BAR was blockacked or yest */
 		ret = bar_entry->block_acked;
 		/* Remove the BAR from our checklist */
 		list_del_rcu(&bar_entry->list);
@@ -407,7 +407,7 @@ static void rt2x00lib_clear_entry(struct rt2x00_dev *rt2x00dev,
 	spin_unlock_bh(&entry->queue->tx_lock);
 }
 
-void rt2x00lib_txdone_nomatch(struct queue_entry *entry,
+void rt2x00lib_txdone_yesmatch(struct queue_entry *entry,
 			      struct txdone_entry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
@@ -421,7 +421,7 @@ void rt2x00lib_txdone_nomatch(struct queue_entry *entry,
 	rt2x00queue_unmap_skb(entry);
 
 	/*
-	 * Signal that the TX descriptor is no longer in the skb.
+	 * Signal that the TX descriptor is yes longer in the skb.
 	 */
 	skbdesc->flags &= ~SKBDESC_DESC_IN_SKB;
 
@@ -449,13 +449,13 @@ void rt2x00lib_txdone_nomatch(struct queue_entry *entry,
 
 		rt2x00lib_fill_tx_status(rt2x00dev, &txinfo, skbdesc, txdesc,
 					 success);
-		ieee80211_tx_status_noskb(rt2x00dev->hw, skbdesc->sta, &txinfo);
+		ieee80211_tx_status_yesskb(rt2x00dev->hw, skbdesc->sta, &txinfo);
 	}
 
 	dev_kfree_skb_any(entry->skb);
 	rt2x00lib_clear_entry(rt2x00dev, entry);
 }
-EXPORT_SYMBOL_GPL(rt2x00lib_txdone_nomatch);
+EXPORT_SYMBOL_GPL(rt2x00lib_txdone_yesmatch);
 
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)
@@ -478,7 +478,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	skb_pull(entry->skb, rt2x00dev->extra_tx_headroom);
 
 	/*
-	 * Signal that the TX descriptor is no longer in the skb.
+	 * Signal that the TX descriptor is yes longer in the skb.
 	 */
 	skbdesc->flags &= ~SKBDESC_DESC_IN_SKB;
 
@@ -495,7 +495,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 
 	/*
 	 * If the IV/EIV data was stripped from the frame before it was
-	 * passed to the hardware, we should now reinsert it again because
+	 * passed to the hardware, we should yesw reinsert it again because
 	 * mac80211 will expect the same data to be present it the
 	 * frame as it was passed to us.
 	 */
@@ -529,7 +529,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	/*
 	 * Only send the status report to mac80211 when it's a frame
 	 * that originated in mac80211. If this was a extra frame coming
-	 * through a mac80211 library call (RTS/CTS) then we should not
+	 * through a mac80211 library call (RTS/CTS) then we should yest
 	 * send the status report back.
 	 */
 	if (!(skbdesc_flags & SKBDESC_NOT_MAC80211)) {
@@ -545,7 +545,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
 
-void rt2x00lib_txdone_noinfo(struct queue_entry *entry, u32 status)
+void rt2x00lib_txdone_yesinfo(struct queue_entry *entry, u32 status)
 {
 	struct txdone_entry_desc txdesc;
 
@@ -555,7 +555,7 @@ void rt2x00lib_txdone_noinfo(struct queue_entry *entry, u32 status)
 
 	rt2x00lib_txdone(entry, &txdesc);
 }
-EXPORT_SYMBOL_GPL(rt2x00lib_txdone_noinfo);
+EXPORT_SYMBOL_GPL(rt2x00lib_txdone_yesinfo);
 
 static u8 *rt2x00lib_find_ie(u8 *data, unsigned int len, u8 ie)
 {
@@ -648,9 +648,9 @@ static void rt2x00lib_rxdone_check_ps(struct rt2x00_dev *rt2x00dev,
 	u8 tim_len;
 	bool cam;
 
-	/* If this is not a beacon, or if mac80211 has no powersaving
+	/* If this is yest a beacon, or if mac80211 has yes powersaving
 	 * configured, or if the device is already in powersaving mode
-	 * we can exit now. */
+	 * we can exit yesw. */
 	if (likely(!ieee80211_is_beacon(hdr->frame_control) ||
 		   !(rt2x00dev->hw->conf.flags & IEEE80211_CONF_PS)))
 		return;
@@ -701,7 +701,7 @@ static int rt2x00lib_rxdone_read_signal(struct rt2x00_dev *rt2x00dev,
 	case RATE_MODE_CCK:
 	case RATE_MODE_OFDM:
 		/*
-		 * For non-HT rates the MCS value needs to contain the
+		 * For yesn-HT rates the MCS value needs to contain the
 		 * actually used rate modulation (CCK or OFDM).
 		 */
 		if (rxdesc->dev_flags & RXDONE_SIGNAL_MCS)
@@ -751,7 +751,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 		goto submit_entry;
 
 	/*
-	 * Allocate a new sk_buffer. If no new buffer available, drop the
+	 * Allocate a new sk_buffer. If yes new buffer available, drop the
 	 * received frame and reuse the existing buffer.
 	 */
 	skb = rt2x00queue_alloc_rxskb(entry, gfp);
@@ -992,7 +992,7 @@ void rt2x00lib_set_mac_address(struct rt2x00_dev *rt2x00dev, u8 *eeprom_mac_addr
 {
 	const char *mac_addr;
 
-	mac_addr = of_get_mac_address(rt2x00dev->dev->of_node);
+	mac_addr = of_get_mac_address(rt2x00dev->dev->of_yesde);
 	if (!IS_ERR(mac_addr))
 		ether_addr_copy(eeprom_mac_addr, mac_addr);
 
@@ -1267,7 +1267,7 @@ int rt2x00lib_start(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * If this is the first interface which is added,
-	 * we should load the firmware now.
+	 * we should load the firmware yesw.
 	 */
 	retval = rt2x00lib_load_firmware(rt2x00dev);
 	if (retval)
@@ -1303,7 +1303,7 @@ void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * Perhaps we can add something smarter here,
-	 * but for now just disabling the radio should do.
+	 * but for yesw just disabling the radio should do.
 	 */
 	rt2x00lib_disable_radio(rt2x00dev);
 
@@ -1594,9 +1594,9 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 	 * on some hardware this call seems to consistently fail.
 	 * From the specifications it is hard to tell why it fails,
 	 * and if this is a "bad thing".
-	 * Overall it is safe to just ignore the failure and
+	 * Overall it is safe to just igyesre the failure and
 	 * continue suspending. The only downside is that the
-	 * device will not be in optimal power save mode, but with
+	 * device will yest be in optimal power save mode, but with
 	 * the radio and the other components already disabled the
 	 * device is as good as disabled.
 	 */

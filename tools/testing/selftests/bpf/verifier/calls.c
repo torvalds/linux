@@ -11,7 +11,7 @@
 	.result = ACCEPT,
 },
 {
-	"calls: not on unpriviledged",
+	"calls: yest on unpriviledged",
 	.insns = {
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 2),
 	BPF_MOV64_IMM(BPF_REG_0, 1),
@@ -115,7 +115,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "last insn is not an exit or jmp",
+	.errstr = "last insn is yest an exit or jmp",
 	.result = REJECT,
 },
 {
@@ -614,7 +614,7 @@
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, -2),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "not an exit",
+	.errstr = "yest an exit",
 	.result = REJECT,
 },
 {
@@ -666,7 +666,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "BPF_LD_[ABS|IND] instructions cannot be mixed",
+	.errstr = "BPF_LD_[ABS|IND] instructions canyest be mixed",
 	.result = REJECT,
 },
 {
@@ -687,7 +687,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "not an exit",
+	.errstr = "yest an exit",
 	.result = REJECT,
 },
 {
@@ -987,7 +987,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_XDP,
-	.errstr = "cannot spill",
+	.errstr = "canyest spill",
 	.result = REJECT,
 },
 {
@@ -1018,7 +1018,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_XDP,
-	.errstr = "cannot return stack pointer",
+	.errstr = "canyest return stack pointer",
 	.result = REJECT,
 },
 {
@@ -1600,7 +1600,7 @@
 	/* spill unchecked pkt_ptr into stack of caller */
 	BPF_STX_MEM(BPF_DW, BPF_REG_4, BPF_REG_2, 0),
 	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 2),
-	/* now the pkt range is verified, read pkt_ptr from stack */
+	/* yesw the pkt range is verified, read pkt_ptr from stack */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_4, 0),
 	/* write 4 bytes into packet */
 	BPF_ST_MEM(BPF_W, BPF_REG_2, 0, 0),
@@ -1617,7 +1617,7 @@
 	BPF_MOV64_REG(BPF_REG_4, BPF_REG_10),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, -8),
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 3),
-	/* Marking is still kept, but not in all cases safe. */
+	/* Marking is still kept, but yest in all cases safe. */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_4, BPF_REG_10, -8),
 	BPF_ST_MEM(BPF_W, BPF_REG_4, 0, 0),
 	BPF_EXIT_INSN(),
@@ -1632,7 +1632,7 @@
 	/* spill unchecked pkt_ptr into stack of caller */
 	BPF_STX_MEM(BPF_DW, BPF_REG_4, BPF_REG_2, 0),
 	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 2),
-	/* now the pkt range is verified, read pkt_ptr from stack */
+	/* yesw the pkt range is verified, read pkt_ptr from stack */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_4, 0),
 	/* write 4 bytes into packet */
 	BPF_ST_MEM(BPF_W, BPF_REG_2, 0, 0),
@@ -1667,7 +1667,7 @@
 	BPF_MOV64_IMM(BPF_REG_5, 0),
 	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 3),
 	BPF_MOV64_IMM(BPF_REG_5, 1),
-	/* now the pkt range is verified, read pkt_ptr from stack */
+	/* yesw the pkt range is verified, read pkt_ptr from stack */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_4, 0),
 	/* write 4 bytes into packet */
 	BPF_ST_MEM(BPF_W, BPF_REG_2, 0, 0),
@@ -1744,7 +1744,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "same insn cannot be used with different",
+	.errstr = "same insn canyest be used with different",
 	.result = REJECT,
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
@@ -1940,7 +1940,7 @@
 	.insns = {
 	/* first make allocated_stack 16 byte */
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -16, 0),
-	/* now fork the execution such that the false branch
+	/* yesw fork the execution such that the false branch
 	 * of JGT insn will be verified second and it skisp zero
 	 * init of fp-8 stack slot. If stack liveness marking
 	 * is missing live_read marks from call map_lookup

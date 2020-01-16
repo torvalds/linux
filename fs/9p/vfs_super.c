@@ -11,7 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/stat.h>
@@ -45,7 +45,7 @@ static const struct super_operations v9fs_super_ops, v9fs_super_ops_dotl;
 static int v9fs_set_super(struct super_block *s, void *data)
 {
 	s->s_fs_info = data;
-	return set_anon_super(s, data);
+	return set_ayesn_super(s, data);
 }
 
 /**
@@ -108,7 +108,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 		       const char *dev_name, void *data)
 {
 	struct super_block *sb = NULL;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	struct dentry *root = NULL;
 	struct v9fs_session_info *v9ses = NULL;
 	umode_t mode = S_IRWXUGO | S_ISVTX;
@@ -141,13 +141,13 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	else
 		sb->s_d_op = &v9fs_dentry_operations;
 
-	inode = v9fs_get_inode(sb, S_IFDIR | mode, 0);
-	if (IS_ERR(inode)) {
-		retval = PTR_ERR(inode);
+	iyesde = v9fs_get_iyesde(sb, S_IFDIR | mode, 0);
+	if (IS_ERR(iyesde)) {
+		retval = PTR_ERR(iyesde);
 		goto release_sb;
 	}
 
-	root = d_make_root(inode);
+	root = d_make_root(iyesde);
 	if (!root) {
 		retval = -ENOMEM;
 		goto release_sb;
@@ -160,8 +160,8 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 			retval = PTR_ERR(st);
 			goto release_sb;
 		}
-		d_inode(root)->i_ino = v9fs_qid2ino(&st->qid);
-		v9fs_stat2inode_dotl(st, d_inode(root), 0);
+		d_iyesde(root)->i_iyes = v9fs_qid2iyes(&st->qid);
+		v9fs_stat2iyesde_dotl(st, d_iyesde(root), 0);
 		kfree(st);
 	} else {
 		struct p9_wstat *st = NULL;
@@ -171,13 +171,13 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 			goto release_sb;
 		}
 
-		d_inode(root)->i_ino = v9fs_qid2ino(&st->qid);
-		v9fs_stat2inode(st, d_inode(root), sb, 0);
+		d_iyesde(root)->i_iyes = v9fs_qid2iyes(&st->qid);
+		v9fs_stat2iyesde(st, d_iyesde(root), sb, 0);
 
 		p9stat_free(st);
 		kfree(st);
 	}
-	retval = v9fs_get_acl(inode, fid);
+	retval = v9fs_get_acl(iyesde, fid);
 	if (retval)
 		goto release_sb;
 	v9fs_fid_add(root, fid);
@@ -216,7 +216,7 @@ static void v9fs_kill_super(struct super_block *s)
 
 	p9_debug(P9_DEBUG_VFS, " %p\n", s);
 
-	kill_anon_super(s);
+	kill_ayesn_super(s);
 
 	v9fs_session_cancel(v9ses);
 	v9fs_session_close(v9ses);
@@ -270,86 +270,86 @@ done:
 	return res;
 }
 
-static int v9fs_drop_inode(struct inode *inode)
+static int v9fs_drop_iyesde(struct iyesde *iyesde)
 {
 	struct v9fs_session_info *v9ses;
-	v9ses = v9fs_inode2v9ses(inode);
+	v9ses = v9fs_iyesde2v9ses(iyesde);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
-		return generic_drop_inode(inode);
+		return generic_drop_iyesde(iyesde);
 	/*
-	 * in case of non cached mode always drop the
-	 * the inode because we want the inode attribute
+	 * in case of yesn cached mode always drop the
+	 * the iyesde because we want the iyesde attribute
 	 * to always match that on the server.
 	 */
 	return 1;
 }
 
-static int v9fs_write_inode(struct inode *inode,
+static int v9fs_write_iyesde(struct iyesde *iyesde,
 			    struct writeback_control *wbc)
 {
 	int ret;
 	struct p9_wstat wstat;
-	struct v9fs_inode *v9inode;
+	struct v9fs_iyesde *v9iyesde;
 	/*
 	 * send an fsync request to server irrespective of
 	 * wbc->sync_mode.
 	 */
-	p9_debug(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
-	v9inode = V9FS_I(inode);
-	if (!v9inode->writeback_fid)
+	p9_debug(P9_DEBUG_VFS, "%s: iyesde %p\n", __func__, iyesde);
+	v9iyesde = V9FS_I(iyesde);
+	if (!v9iyesde->writeback_fid)
 		return 0;
 	v9fs_blank_wstat(&wstat);
 
-	ret = p9_client_wstat(v9inode->writeback_fid, &wstat);
+	ret = p9_client_wstat(v9iyesde->writeback_fid, &wstat);
 	if (ret < 0) {
-		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+		__mark_iyesde_dirty(iyesde, I_DIRTY_DATASYNC);
 		return ret;
 	}
 	return 0;
 }
 
-static int v9fs_write_inode_dotl(struct inode *inode,
+static int v9fs_write_iyesde_dotl(struct iyesde *iyesde,
 				 struct writeback_control *wbc)
 {
 	int ret;
-	struct v9fs_inode *v9inode;
+	struct v9fs_iyesde *v9iyesde;
 	/*
 	 * send an fsync request to server irrespective of
 	 * wbc->sync_mode.
 	 */
-	v9inode = V9FS_I(inode);
-	p9_debug(P9_DEBUG_VFS, "%s: inode %p, writeback_fid %p\n",
-		 __func__, inode, v9inode->writeback_fid);
-	if (!v9inode->writeback_fid)
+	v9iyesde = V9FS_I(iyesde);
+	p9_debug(P9_DEBUG_VFS, "%s: iyesde %p, writeback_fid %p\n",
+		 __func__, iyesde, v9iyesde->writeback_fid);
+	if (!v9iyesde->writeback_fid)
 		return 0;
 
-	ret = p9_client_fsync(v9inode->writeback_fid, 0);
+	ret = p9_client_fsync(v9iyesde->writeback_fid, 0);
 	if (ret < 0) {
-		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+		__mark_iyesde_dirty(iyesde, I_DIRTY_DATASYNC);
 		return ret;
 	}
 	return 0;
 }
 
 static const struct super_operations v9fs_super_ops = {
-	.alloc_inode = v9fs_alloc_inode,
-	.free_inode = v9fs_free_inode,
+	.alloc_iyesde = v9fs_alloc_iyesde,
+	.free_iyesde = v9fs_free_iyesde,
 	.statfs = simple_statfs,
-	.evict_inode = v9fs_evict_inode,
+	.evict_iyesde = v9fs_evict_iyesde,
 	.show_options = v9fs_show_options,
 	.umount_begin = v9fs_umount_begin,
-	.write_inode = v9fs_write_inode,
+	.write_iyesde = v9fs_write_iyesde,
 };
 
 static const struct super_operations v9fs_super_ops_dotl = {
-	.alloc_inode = v9fs_alloc_inode,
-	.free_inode = v9fs_free_inode,
+	.alloc_iyesde = v9fs_alloc_iyesde,
+	.free_iyesde = v9fs_free_iyesde,
 	.statfs = v9fs_statfs,
-	.drop_inode = v9fs_drop_inode,
-	.evict_inode = v9fs_evict_inode,
+	.drop_iyesde = v9fs_drop_iyesde,
+	.evict_iyesde = v9fs_evict_iyesde,
 	.show_options = v9fs_show_options,
 	.umount_begin = v9fs_umount_begin,
-	.write_inode = v9fs_write_inode_dotl,
+	.write_iyesde = v9fs_write_iyesde_dotl,
 };
 
 struct file_system_type v9fs_fs_type = {

@@ -21,7 +21,7 @@
 *  Compiler specifics
 *********************************************************/
 #define FORCE_INLINE static __always_inline
-#define FORCE_NOINLINE static noinline
+#define FORCE_NOINLINE static yesinline
 
 /*-*************************************
 *  Dependencies
@@ -82,12 +82,12 @@ static const U32 repStartValue[ZSTD_REP_NUM] = {1, 4, 8};
 static const size_t ZSTD_fcs_fieldSize[4] = {0, 2, 4, 8};
 static const size_t ZSTD_did_fieldSize[4] = {0, 1, 2, 4};
 
-#define ZSTD_BLOCKHEADERSIZE 3 /* C standard doesn't allow `static const` variable to be init using another `static const` variable */
+#define ZSTD_BLOCKHEADERSIZE 3 /* C standard doesn't allow `static const` variable to be init using ayesther `static const` variable */
 static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
 typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 
 #define MIN_SEQUENCES_SIZE 1									  /* nbSeq==0 */
-#define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */) /* for a non-null block */
+#define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */) /* for a yesn-null block */
 
 #define HufLog 12
 typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingType_e;
@@ -183,7 +183,7 @@ typedef struct {
 	BYTE *llCode;
 	BYTE *mlCode;
 	BYTE *ofCode;
-	U32 longLengthID; /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
+	U32 longLengthID; /* 0 == yes longLength; 1 == Lit.longLength; 2 == Match.longLength; */
 	U32 longLengthPos;
 	/* opt */
 	ZSTD_optimal_t *priceTable;
@@ -248,9 +248,9 @@ ZSTD_STATIC U32 ZSTD_highbit32(U32 val) { return 31 - __builtin_clz(val); }
 /* hidden functions */
 
 /* ZSTD_invalidateRepCodes() :
- * ensures next compression will not use repcodes from previous block.
+ * ensures next compression will yest use repcodes from previous block.
  * Note : only works with regular variant;
- *        do not use with extDict variant ! */
+ *        do yest use with extDict variant ! */
 void ZSTD_invalidateRepCodes(ZSTD_CCtx *cctx);
 
 size_t ZSTD_freeCCtx(ZSTD_CCtx *cctx);

@@ -88,7 +88,7 @@ static enum usb_role cdsn3_hw_role_state_machine(struct cdns3 *cdns);
  * cdns3_core_init_role - initialize role of operation
  * @cdns: Pointer to cdns3 structure
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erryes
  */
 static int cdns3_core_init_role(struct cdns3 *cdns)
 {
@@ -204,7 +204,7 @@ static enum usb_role cdsn3_hw_role_state_machine(struct cdns3 *cdns)
 	int id, vbus;
 
 	if (cdns->dr_mode != USB_DR_MODE_OTG)
-		goto not_otg;
+		goto yest_otg;
 
 	id = cdns3_get_id(cdns);
 	vbus = cdns3_get_vbus(cdns);
@@ -220,7 +220,7 @@ static enum usb_role cdsn3_hw_role_state_machine(struct cdns3 *cdns)
 	switch (role) {
 	case USB_ROLE_NONE:
 		/*
-		 * Driver treats USB_ROLE_NONE synonymous to IDLE state from
+		 * Driver treats USB_ROLE_NONE syyesnymous to IDLE state from
 		 * controller specification.
 		 */
 		if (!id)
@@ -242,7 +242,7 @@ static enum usb_role cdsn3_hw_role_state_machine(struct cdns3 *cdns)
 
 	return role;
 
-not_otg:
+yest_otg:
 	if (cdns3_is_host(cdns))
 		role = USB_ROLE_HOST;
 	if (cdns3_is_device(cdns))
@@ -291,7 +291,7 @@ int cdns3_hw_role_switch(struct cdns3 *cdns)
 	enum usb_role real_role, current_role;
 	int ret = 0;
 
-	/* Do nothing if role based on syfs. */
+	/* Do yesthing if role based on syfs. */
 	if (cdns->role_override)
 		return 0;
 
@@ -300,7 +300,7 @@ int cdns3_hw_role_switch(struct cdns3 *cdns)
 	current_role = cdns->role;
 	real_role = cdsn3_hw_role_state_machine(cdns);
 
-	/* Do nothing if nothing changed */
+	/* Do yesthing if yesthing changed */
 	if (current_role == real_role)
 		goto exit;
 
@@ -433,7 +433,7 @@ static const struct usb_role_switch_desc cdns3_switch_desc = {
  * cdns3_probe - probe for cdns3 core device
  * @pdev: Pointer to cdns3 core platform device
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erryes
  */
 static int cdns3_probe(struct platform_device *pdev)
 {
@@ -579,7 +579,7 @@ err1:
  * cdns3_remove - unbind drd driver and clean up
  * @pdev: Pointer to Linux platform device
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erryes
  */
 static int cdns3_remove(struct platform_device *pdev)
 {
@@ -587,7 +587,7 @@ static int cdns3_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	cdns3_exit_roles(cdns);
 	usb_role_switch_unregister(cdns->role_sw);
 	phy_power_off(cdns->usb2_phy);

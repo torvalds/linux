@@ -13,7 +13,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_icache.h"
 #include "xfs_alloc.h"
 #include "xfs_alloc_btree.h"
@@ -40,17 +40,17 @@
  * The *_process_error() family of functions are used to process error return
  * codes from functions called as part of a scrub operation.
  *
- * If there's no error, we return true to tell the caller that it's ok
+ * If there's yes error, we return true to tell the caller that it's ok
  * to move on to the next check in its list.
  *
- * For non-verifier errors (e.g. ENOMEM) we return false to tell the
+ * For yesn-verifier errors (e.g. ENOMEM) we return false to tell the
  * caller that something bad happened, and we preserve *error so that
  * the caller can return the *error up the stack to userspace.
  *
  * Verifier errors (EFSBADCRC/EFSCORRUPTED) are recorded by setting
  * OFLAG_CORRUPT in sm_flags and the *error is cleared.  In other words,
  * we track verifier errors (and failed scrub checks) via OFLAG_CORRUPT,
- * not via return codes.  We return false to tell the caller that
+ * yest via return codes.  We return false to tell the caller that
  * something bad happened.  Since the error has been cleared, the caller
  * will (presumably) return that zero and scrubbing will move on to
  * whatever's next.
@@ -63,8 +63,8 @@
 static bool
 __xchk_process_error(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		bno,
+	xfs_agnumber_t		agyes,
+	xfs_agblock_t		byes,
 	int			*error,
 	__u32			errflag,
 	void			*ret_ip)
@@ -83,7 +83,7 @@ __xchk_process_error(
 		*error = 0;
 		/* fall through */
 	default:
-		trace_xchk_op_error(sc, agno, bno, *error,
+		trace_xchk_op_error(sc, agyes, byes, *error,
 				ret_ip);
 		break;
 	}
@@ -93,22 +93,22 @@ __xchk_process_error(
 bool
 xchk_process_error(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		bno,
+	xfs_agnumber_t		agyes,
+	xfs_agblock_t		byes,
 	int			*error)
 {
-	return __xchk_process_error(sc, agno, bno, error,
+	return __xchk_process_error(sc, agyes, byes, error,
 			XFS_SCRUB_OFLAG_CORRUPT, __return_address);
 }
 
 bool
 xchk_xref_process_error(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		bno,
+	xfs_agnumber_t		agyes,
+	xfs_agblock_t		byes,
 	int			*error)
 {
-	return __xchk_process_error(sc, agno, bno, error,
+	return __xchk_process_error(sc, agyes, byes, error,
 			XFS_SCRUB_OFLAG_XFAIL, __return_address);
 }
 
@@ -171,7 +171,7 @@ xchk_fblock_xref_process_error(
  * The *_set_{corrupt,preen,warning}() family of functions are used to
  * record the presence of metadata that is incorrect (corrupt), could be
  * optimized somehow (preen), or should be flagged for administrative
- * review but is not incorrect (warn).
+ * review but is yest incorrect (warn).
  *
  * ftrace can be used to record the precise metadata location and
  * approximate code location of the failed check.
@@ -188,17 +188,17 @@ xchk_block_set_preen(
 }
 
 /*
- * Record an inode which could be optimized.  The trace data will
+ * Record an iyesde which could be optimized.  The trace data will
  * include the block given by bp if bp is given; otherwise it will use
- * the block location of the inode record itself.
+ * the block location of the iyesde record itself.
  */
 void
-xchk_ino_set_preen(
+xchk_iyes_set_preen(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		ino)
+	xfs_iyes_t		iyes)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_PREEN;
-	trace_xchk_ino_preen(sc, ino, __return_address);
+	trace_xchk_iyes_preen(sc, iyes, __return_address);
 }
 
 /* Record something being wrong with the filesystem primary superblock. */
@@ -231,27 +231,27 @@ xchk_block_xref_set_corrupt(
 }
 
 /*
- * Record a corrupt inode.  The trace data will include the block given
+ * Record a corrupt iyesde.  The trace data will include the block given
  * by bp if bp is given; otherwise it will use the block location of the
- * inode record itself.
+ * iyesde record itself.
  */
 void
-xchk_ino_set_corrupt(
+xchk_iyes_set_corrupt(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		ino)
+	xfs_iyes_t		iyes)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
-	trace_xchk_ino_error(sc, ino, __return_address);
+	trace_xchk_iyes_error(sc, iyes, __return_address);
 }
 
-/* Record a corruption while cross-referencing with an inode. */
+/* Record a corruption while cross-referencing with an iyesde. */
 void
-xchk_ino_xref_set_corrupt(
+xchk_iyes_xref_set_corrupt(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		ino)
+	xfs_iyes_t		iyes)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
-	trace_xchk_ino_error(sc, ino, __return_address);
+	trace_xchk_iyes_error(sc, iyes, __return_address);
 }
 
 /* Record corruption in a block indexed by a file fork. */
@@ -277,16 +277,16 @@ xchk_fblock_xref_set_corrupt(
 }
 
 /*
- * Warn about inodes that need administrative review but is not
+ * Warn about iyesdes that need administrative review but is yest
  * incorrect.
  */
 void
-xchk_ino_set_warning(
+xchk_iyes_set_warning(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		ino)
+	xfs_iyes_t		iyes)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_WARNING;
-	trace_xchk_ino_warning(sc, ino, __return_address);
+	trace_xchk_iyes_warning(sc, iyes, __return_address);
 }
 
 /* Warn about a block indexed by a file fork that needs review. */
@@ -401,7 +401,7 @@ want_ag_read_header_failure(
 int
 xchk_ag_read_headers(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
+	xfs_agnumber_t		agyes,
 	struct xfs_buf		**agi,
 	struct xfs_buf		**agf,
 	struct xfs_buf		**agfl)
@@ -409,15 +409,15 @@ xchk_ag_read_headers(
 	struct xfs_mount	*mp = sc->mp;
 	int			error;
 
-	error = xfs_ialloc_read_agi(mp, sc->tp, agno, agi);
+	error = xfs_ialloc_read_agi(mp, sc->tp, agyes, agi);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
 		goto out;
 
-	error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, agf);
+	error = xfs_alloc_read_agf(mp, sc->tp, agyes, 0, agf);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGF))
 		goto out;
 
-	error = xfs_alloc_read_agfl(mp, sc->tp, agno, agfl);
+	error = xfs_alloc_read_agfl(mp, sc->tp, agyes, agfl);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
 		goto out;
 	error = 0;
@@ -434,20 +434,20 @@ xchk_ag_btcur_free(
 		xfs_btree_del_cursor(sa->refc_cur, XFS_BTREE_ERROR);
 	if (sa->rmap_cur)
 		xfs_btree_del_cursor(sa->rmap_cur, XFS_BTREE_ERROR);
-	if (sa->fino_cur)
-		xfs_btree_del_cursor(sa->fino_cur, XFS_BTREE_ERROR);
-	if (sa->ino_cur)
-		xfs_btree_del_cursor(sa->ino_cur, XFS_BTREE_ERROR);
+	if (sa->fiyes_cur)
+		xfs_btree_del_cursor(sa->fiyes_cur, XFS_BTREE_ERROR);
+	if (sa->iyes_cur)
+		xfs_btree_del_cursor(sa->iyes_cur, XFS_BTREE_ERROR);
 	if (sa->cnt_cur)
 		xfs_btree_del_cursor(sa->cnt_cur, XFS_BTREE_ERROR);
-	if (sa->bno_cur)
-		xfs_btree_del_cursor(sa->bno_cur, XFS_BTREE_ERROR);
+	if (sa->byes_cur)
+		xfs_btree_del_cursor(sa->byes_cur, XFS_BTREE_ERROR);
 
 	sa->refc_cur = NULL;
 	sa->rmap_cur = NULL;
-	sa->fino_cur = NULL;
-	sa->ino_cur = NULL;
-	sa->bno_cur = NULL;
+	sa->fiyes_cur = NULL;
+	sa->iyes_cur = NULL;
+	sa->byes_cur = NULL;
 	sa->cnt_cur = NULL;
 }
 
@@ -458,59 +458,59 @@ xchk_ag_btcur_init(
 	struct xchk_ag		*sa)
 {
 	struct xfs_mount	*mp = sc->mp;
-	xfs_agnumber_t		agno = sa->agno;
+	xfs_agnumber_t		agyes = sa->agyes;
 
 	xchk_perag_get(sc->mp, sa);
 	if (sa->agf_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_BNO)) {
-		/* Set up a bnobt cursor for cross-referencing. */
-		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				agno, XFS_BTNUM_BNO);
-		if (!sa->bno_cur)
+	    xchk_ag_btree_healthy_eyesugh(sc, sa->pag, XFS_BTNUM_BNO)) {
+		/* Set up a byesbt cursor for cross-referencing. */
+		sa->byes_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
+				agyes, XFS_BTNUM_BNO);
+		if (!sa->byes_cur)
 			goto err;
 	}
 
 	if (sa->agf_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_CNT)) {
+	    xchk_ag_btree_healthy_eyesugh(sc, sa->pag, XFS_BTNUM_CNT)) {
 		/* Set up a cntbt cursor for cross-referencing. */
 		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				agno, XFS_BTNUM_CNT);
+				agyes, XFS_BTNUM_CNT);
 		if (!sa->cnt_cur)
 			goto err;
 	}
 
-	/* Set up a inobt cursor for cross-referencing. */
+	/* Set up a iyesbt cursor for cross-referencing. */
 	if (sa->agi_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_INO)) {
-		sa->ino_cur = xfs_inobt_init_cursor(mp, sc->tp, sa->agi_bp,
-					agno, XFS_BTNUM_INO);
-		if (!sa->ino_cur)
+	    xchk_ag_btree_healthy_eyesugh(sc, sa->pag, XFS_BTNUM_INO)) {
+		sa->iyes_cur = xfs_iyesbt_init_cursor(mp, sc->tp, sa->agi_bp,
+					agyes, XFS_BTNUM_INO);
+		if (!sa->iyes_cur)
 			goto err;
 	}
 
-	/* Set up a finobt cursor for cross-referencing. */
-	if (sa->agi_bp && xfs_sb_version_hasfinobt(&mp->m_sb) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_FINO)) {
-		sa->fino_cur = xfs_inobt_init_cursor(mp, sc->tp, sa->agi_bp,
-				agno, XFS_BTNUM_FINO);
-		if (!sa->fino_cur)
+	/* Set up a fiyesbt cursor for cross-referencing. */
+	if (sa->agi_bp && xfs_sb_version_hasfiyesbt(&mp->m_sb) &&
+	    xchk_ag_btree_healthy_eyesugh(sc, sa->pag, XFS_BTNUM_FINO)) {
+		sa->fiyes_cur = xfs_iyesbt_init_cursor(mp, sc->tp, sa->agi_bp,
+				agyes, XFS_BTNUM_FINO);
+		if (!sa->fiyes_cur)
 			goto err;
 	}
 
 	/* Set up a rmapbt cursor for cross-referencing. */
 	if (sa->agf_bp && xfs_sb_version_hasrmapbt(&mp->m_sb) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_RMAP)) {
+	    xchk_ag_btree_healthy_eyesugh(sc, sa->pag, XFS_BTNUM_RMAP)) {
 		sa->rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				agno);
+				agyes);
 		if (!sa->rmap_cur)
 			goto err;
 	}
 
 	/* Set up a refcountbt cursor for cross-referencing. */
 	if (sa->agf_bp && xfs_sb_version_hasreflink(&mp->m_sb) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_REFC)) {
+	    xchk_ag_btree_healthy_eyesugh(sc, sa->pag, XFS_BTNUM_REFC)) {
 		sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
-				sa->agf_bp, agno);
+				sa->agf_bp, agyes);
 		if (!sa->refc_cur)
 			goto err;
 	}
@@ -543,7 +543,7 @@ xchk_ag_free(
 		xfs_perag_put(sa->pag);
 		sa->pag = NULL;
 	}
-	sa->agno = NULLAGNUMBER;
+	sa->agyes = NULLAGNUMBER;
 }
 
 /*
@@ -556,13 +556,13 @@ xchk_ag_free(
 int
 xchk_ag_init(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
+	xfs_agnumber_t		agyes,
 	struct xchk_ag		*sa)
 {
 	int			error;
 
-	sa->agno = agno;
-	error = xchk_ag_read_headers(sc, agno, &sa->agi_bp,
+	sa->agyes = agyes;
+	error = xchk_ag_read_headers(sc, agyes, &sa->agi_bp,
 			&sa->agf_bp, &sa->agfl_bp);
 	if (error)
 		return error;
@@ -580,7 +580,7 @@ xchk_perag_get(
 	struct xchk_ag		*sa)
 {
 	if (!sa->pag)
-		sa->pag = xfs_perag_get(mp, sa->agno);
+		sa->pag = xfs_perag_get(mp, sa->agyes);
 }
 
 /* Per-scrubber setup functions */
@@ -611,7 +611,7 @@ xchk_trans_alloc(
 int
 xchk_setup_fs(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	uint			resblks;
 
@@ -623,7 +623,7 @@ xchk_setup_fs(
 int
 xchk_setup_ag_btree(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	bool			force_log)
 {
 	struct xfs_mount	*mp = sc->mp;
@@ -645,7 +645,7 @@ xchk_setup_ag_btree(
 	if (error)
 		return error;
 
-	return xchk_ag_init(sc, sc->sm->sm_agno, &sc->sa);
+	return xchk_ag_init(sc, sc->sm->sm_agyes, &sc->sa);
 }
 
 /* Push everything out of the log onto disk. */
@@ -663,52 +663,52 @@ xchk_checkpoint_log(
 }
 
 /*
- * Given an inode and the scrub control structure, grab either the
- * inode referenced in the control structure or the inode passed in.
- * The inode is not locked.
+ * Given an iyesde and the scrub control structure, grab either the
+ * iyesde referenced in the control structure or the iyesde passed in.
+ * The iyesde is yest locked.
  */
 int
-xchk_get_inode(
+xchk_get_iyesde(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip_in)
+	struct xfs_iyesde	*ip_in)
 {
 	struct xfs_imap		imap;
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_inode	*ip = NULL;
+	struct xfs_iyesde	*ip = NULL;
 	int			error;
 
-	/* We want to scan the inode we already had opened. */
-	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
+	/* We want to scan the iyesde we already had opened. */
+	if (sc->sm->sm_iyes == 0 || sc->sm->sm_iyes == ip_in->i_iyes) {
 		sc->ip = ip_in;
 		return 0;
 	}
 
-	/* Look up the inode, see if the generation number matches. */
-	if (xfs_internal_inum(mp, sc->sm->sm_ino))
+	/* Look up the iyesde, see if the generation number matches. */
+	if (xfs_internal_inum(mp, sc->sm->sm_iyes))
 		return -ENOENT;
-	error = xfs_iget(mp, NULL, sc->sm->sm_ino,
+	error = xfs_iget(mp, NULL, sc->sm->sm_iyes,
 			XFS_IGET_UNTRUSTED | XFS_IGET_DONTCACHE, 0, &ip);
 	switch (error) {
 	case -ENOENT:
-		/* Inode doesn't exist, just bail out. */
+		/* Iyesde doesn't exist, just bail out. */
 		return error;
 	case 0:
-		/* Got an inode, continue. */
+		/* Got an iyesde, continue. */
 		break;
 	case -EINVAL:
 		/*
 		 * -EINVAL with IGET_UNTRUSTED could mean one of several
-		 * things: userspace gave us an inode number that doesn't
-		 * correspond to fs space, or doesn't have an inobt entry;
-		 * or it could simply mean that the inode buffer failed the
+		 * things: userspace gave us an iyesde number that doesn't
+		 * correspond to fs space, or doesn't have an iyesbt entry;
+		 * or it could simply mean that the iyesde buffer failed the
 		 * read verifiers.
 		 *
-		 * Try just the inode mapping lookup -- if it succeeds, then
-		 * the inode buffer verifier failed and something needs fixing.
+		 * Try just the iyesde mapping lookup -- if it succeeds, then
+		 * the iyesde buffer verifier failed and something needs fixing.
 		 * Otherwise, we really couldn't find it so tell userspace
-		 * that it no longer exists.
+		 * that it yes longer exists.
 		 */
-		error = xfs_imap(sc->mp, sc->tp, sc->sm->sm_ino, &imap,
+		error = xfs_imap(sc->mp, sc->tp, sc->sm->sm_iyes, &imap,
 				XFS_IGET_UNTRUSTED | XFS_IGET_DONTCACHE);
 		if (error)
 			return -ENOENT;
@@ -716,8 +716,8 @@ xchk_get_inode(
 		/* fall through */
 	default:
 		trace_xchk_op_error(sc,
-				XFS_INO_TO_AGNO(mp, sc->sm->sm_ino),
-				XFS_INO_TO_AGBNO(mp, sc->sm->sm_ino),
+				XFS_INO_TO_AGNO(mp, sc->sm->sm_iyes),
+				XFS_INO_TO_AGBNO(mp, sc->sm->sm_iyes),
 				error, __return_address);
 		return error;
 	}
@@ -732,18 +732,18 @@ xchk_get_inode(
 
 /* Set us up to scrub a file's contents. */
 int
-xchk_setup_inode_contents(
+xchk_setup_iyesde_contents(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	unsigned int		resblks)
 {
 	int			error;
 
-	error = xchk_get_inode(sc, ip);
+	error = xchk_get_iyesde(sc, ip);
 	if (error)
 		return error;
 
-	/* Got the inode, lock it and we're ready to go. */
+	/* Got the iyesde, lock it and we're ready to go. */
 	sc->ilock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
 	xfs_ilock(sc->ip, sc->ilock_flags);
 	error = xchk_trans_alloc(sc, resblks);
@@ -753,7 +753,7 @@ xchk_setup_inode_contents(
 	xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
 
 out:
-	/* scrub teardown will unlock and release the inode for us */
+	/* scrub teardown will unlock and release the iyesde for us */
 	return error;
 }
 
@@ -768,7 +768,7 @@ xchk_should_check_xref(
 	int			*error,
 	struct xfs_btree_cur	**curpp)
 {
-	/* No point in xref if we already know we're corrupt. */
+	/* No point in xref if we already kyesw we're corrupt. */
 	if (xchk_skip_xref(sc->sm))
 		return false;
 
@@ -789,8 +789,8 @@ xchk_should_check_xref(
 	trace_xchk_xref_error(sc, *error, __return_address);
 
 	/*
-	 * Errors encountered during cross-referencing with another
-	 * data structure should not cause this scrubber to abort.
+	 * Errors encountered during cross-referencing with ayesther
+	 * data structure should yest cause this scrubber to abort.
 	 */
 	*error = 0;
 	return false;
@@ -820,11 +820,11 @@ xchk_buffer_recheck(
 }
 
 /*
- * Scrub the attr/data forks of a metadata inode.  The metadata inode must be
+ * Scrub the attr/data forks of a metadata iyesde.  The metadata iyesde must be
  * pointed to by sc->ip and the ILOCK must be held.
  */
 int
-xchk_metadata_inode_forks(
+xchk_metadata_iyesde_forks(
 	struct xfs_scrub	*sc)
 {
 	__u32			smtype;
@@ -834,21 +834,21 @@ xchk_metadata_inode_forks(
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return 0;
 
-	/* Metadata inodes don't live on the rt device. */
+	/* Metadata iyesdes don't live on the rt device. */
 	if (sc->ip->i_d.di_flags & XFS_DIFLAG_REALTIME) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_iyes_set_corrupt(sc, sc->ip->i_iyes);
 		return 0;
 	}
 
 	/* They should never participate in reflink. */
-	if (xfs_is_reflink_inode(sc->ip)) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+	if (xfs_is_reflink_iyesde(sc->ip)) {
+		xchk_iyes_set_corrupt(sc, sc->ip->i_iyes);
 		return 0;
 	}
 
 	/* They also should never have extended attributes. */
-	if (xfs_inode_hasattr(sc->ip)) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+	if (xfs_iyesde_hasattr(sc->ip)) {
+		xchk_iyes_set_corrupt(sc, sc->ip->i_iyes);
 		return 0;
 	}
 
@@ -862,34 +862,34 @@ xchk_metadata_inode_forks(
 
 	/* Look for incorrect shared blocks. */
 	if (xfs_sb_version_hasreflink(&sc->mp->m_sb)) {
-		error = xfs_reflink_inode_has_shared_extents(sc->tp, sc->ip,
+		error = xfs_reflink_iyesde_has_shared_extents(sc->tp, sc->ip,
 				&shared);
 		if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0,
 				&error))
 			return error;
 		if (shared)
-			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+			xchk_iyes_set_corrupt(sc, sc->ip->i_iyes);
 	}
 
 	return error;
 }
 
 /*
- * Try to lock an inode in violation of the usual locking order rules.  For
+ * Try to lock an iyesde in violation of the usual locking order rules.  For
  * example, trying to get the IOLOCK while in transaction context, or just
- * plain breaking AG-order or inode-order inode locking rules.  Either way,
+ * plain breaking AG-order or iyesde-order iyesde locking rules.  Either way,
  * the only way to avoid an ABBA deadlock is to use trylock and back off if
  * we can't.
  */
 int
 xchk_ilock_inverted(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	uint			lock_mode)
 {
 	int			i;
 
 	for (i = 0; i < 20; i++) {
-		if (xfs_ilock_nowait(ip, lock_mode))
+		if (xfs_ilock_yeswait(ip, lock_mode))
 			return 0;
 		delay(1);
 	}

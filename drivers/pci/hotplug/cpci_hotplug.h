@@ -76,7 +76,7 @@ int cpci_hp_start(void);
 int cpci_hp_stop(void);
 
 /*
- * Internal function prototypes, these functions should not be used by
+ * Internal function prototypes, these functions should yest be used by
  * board/chassis drivers.
  */
 u8 cpci_get_attention_status(struct slot *slot);

@@ -6,14 +6,14 @@ config JFFS2_FS
 	help
 	  JFFS2 is the second generation of the Journalling Flash File System
 	  for use on diskless embedded devices. It provides improved wear
-	  levelling, compression and support for hard links. You cannot use
-	  this on normal block devices, only on 'MTD' devices.
+	  levelling, compression and support for hard links. You canyest use
+	  this on yesrmal block devices, only on 'MTD' devices.
 
 	  Further information on the design and implementation of JFFS2 is
 	  available at <http://sources.redhat.com/jffs2/>.
 
 config JFFS2_FS_DEBUG
-	int "JFFS2 debugging verbosity (0 = quiet, 2 = noisy)"
+	int "JFFS2 debugging verbosity (0 = quiet, 2 = yesisy)"
 	depends on JFFS2_FS
 	default "0"
 	help
@@ -21,7 +21,7 @@ config JFFS2_FS_DEBUG
 	  code. Set it to zero for use in production systems. For evaluation,
 	  testing and debugging, it's advisable to set it to one. This will
 	  enable a few assertions and will print debugging messages at the
-	  KERN_DEBUG loglevel, where they won't normally be visible. Level 2
+	  KERN_DEBUG loglevel, where they won't yesrmally be visible. Level 2
 	  is unlikely to be useful - it enables extra debugging in certain
 	  areas which at one point needed debugging, but when the bugs were
 	  located and fixed, the detailed messages were relegated to level 2.
@@ -68,7 +68,7 @@ config JFFS2_FS_XATTR
 	depends on JFFS2_FS
 	default n
 	help
-	  Extended attributes are name:value pairs associated with inodes by
+	  Extended attributes are name:value pairs associated with iyesdes by
 	  the kernel or by users (see the attr(5) manual page for details).
 
 	  If unsure, say N.
@@ -82,7 +82,7 @@ config JFFS2_FS_POSIX_ACL
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  If you don't know what Access Control Lists are, say N
+	  If you don't kyesw what Access Control Lists are, say N
 
 config JFFS2_FS_SECURITY
 	bool "JFFS2 Security Labels"
@@ -94,7 +94,7 @@ config JFFS2_FS_SECURITY
 	  enables an extended attribute handler for file security
 	  labels in the jffs2 filesystem.
 
-	  If you are not using a security module that requires using
+	  If you are yest using a security module that requires using
 	  extended attributes for file security labels, say N.
 
 config JFFS2_COMPRESSION_OPTIONS
@@ -104,9 +104,9 @@ config JFFS2_COMPRESSION_OPTIONS
 	help
 	  Enabling this option allows you to explicitly choose which
 	  compression modules, if any, are enabled in JFFS2. Removing
-	  compressors can mean you cannot read existing file systems,
+	  compressors can mean you canyest read existing file systems,
 	  and enabling experimental compressors can mean that you
-	  write a file system which cannot be read by a standard kernel.
+	  write a file system which canyest be read by a standard kernel.
 
 	  If unsure, you should _definitely_ say 'N'.
 
@@ -159,9 +159,9 @@ choice
 	  the available compression modes. Don't touch if unsure.
 
 config JFFS2_CMODE_NONE
-	bool "no compression"
+	bool "yes compression"
 	help
-	  Uses no compression.
+	  Uses yes compression.
 
 config JFFS2_CMODE_PRIORITY
 	bool "priority"

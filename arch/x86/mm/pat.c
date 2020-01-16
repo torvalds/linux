@@ -49,7 +49,7 @@ void pat_disable(const char *reason)
 		return;
 
 	if (boot_cpu_done) {
-		WARN_ONCE(1, "x86/PAT: PAT cannot be disabled after initialization\n");
+		WARN_ONCE(1, "x86/PAT: PAT canyest be disabled after initialization\n");
 		return;
 	}
 
@@ -57,12 +57,12 @@ void pat_disable(const char *reason)
 	pr_info("x86/PAT: %s\n", reason);
 }
 
-static int __init nopat(char *str)
+static int __init yespat(char *str)
 {
 	pat_disable("PAT support disabled.");
 	return 0;
 }
-early_param("nopat", nopat);
+early_param("yespat", yespat);
 
 bool pat_enabled(void)
 {
@@ -215,7 +215,7 @@ static void pat_bsp_init(u64 pat)
 	u64 tmp_pat;
 
 	if (!boot_cpu_has(X86_FEATURE_PAT)) {
-		pat_disable("PAT not supported by CPU.");
+		pat_disable("PAT yest supported by CPU.");
 		return;
 	}
 
@@ -236,9 +236,9 @@ static void pat_ap_init(u64 pat)
 	if (!boot_cpu_has(X86_FEATURE_PAT)) {
 		/*
 		 * If this happens we are on a secondary CPU, but switched to
-		 * PAT on the boot CPU. We have no way to undo PAT.
+		 * PAT on the boot CPU. We have yes way to undo PAT.
 		 */
-		panic("x86/PAT: PAT enabled, but not supported by secondary CPU\n");
+		panic("x86/PAT: PAT enabled, but yest supported by secondary CPU\n");
 	}
 
 	wrmsrl(MSR_IA32_CR_PAT, pat);
@@ -254,7 +254,7 @@ void init_cache_modes(void)
 	if (boot_cpu_has(X86_FEATURE_PAT)) {
 		/*
 		 * CPU supports PAT. Set PAT table to be consistent with
-		 * PAT MSR. This case supports "nopat" boot option, and
+		 * PAT MSR. This case supports "yespat" boot option, and
 		 * virtual machine environments which support PAT without
 		 * MTRRs. In specific, Xen has unique setup to PAT MSR.
 		 *
@@ -337,11 +337,11 @@ void pat_init(void)
 		/*
 		 * Full PAT support.  We put WT in slot 7 to improve
 		 * robustness in the presence of errata that might cause
-		 * the high PAT bit to be ignored.  This way, a buggy slot 7
+		 * the high PAT bit to be igyesred.  This way, a buggy slot 7
 		 * access will hit slot 3, and slot 3 is UC, so at worst
 		 * we lose performance without causing a correctness issue.
 		 * Pentium 4 erratum N46 is an example for such an erratum,
-		 * although we try not to use PAT at all on affected CPUs.
+		 * although we try yest to use PAT at all on affected CPUs.
 		 *
 		 *  PTE encoding:
 		 *      PAT
@@ -379,7 +379,7 @@ static DEFINE_SPINLOCK(memtype_lock);	/* protects memtype accesses */
 /*
  * Does intersection of PAT memory type and MTRR memory type and returns
  * the resulting memory type as PAT understands it.
- * (Type in pat and mtrr will not have same value)
+ * (Type in pat and mtrr will yest have same value)
  * The intersection is based on "Effective Memory Type" tables in IA-32
  * SDM vol 3a
  */
@@ -406,7 +406,7 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end,
 struct pagerange_state {
 	unsigned long		cur_pfn;
 	int			ram;
-	int			not_ram;
+	int			yest_ram;
 };
 
 static int
@@ -414,11 +414,11 @@ pagerange_is_ram_callback(unsigned long initial_pfn, unsigned long total_nr_page
 {
 	struct pagerange_state *state = arg;
 
-	state->not_ram	|= initial_pfn > state->cur_pfn;
+	state->yest_ram	|= initial_pfn > state->cur_pfn;
 	state->ram	|= total_nr_pages > 0;
 	state->cur_pfn	 = initial_pfn + total_nr_pages;
 
-	return state->ram && state->not_ram;
+	return state->ram && state->yest_ram;
 }
 
 static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
@@ -430,9 +430,9 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
 
 	/*
 	 * For legacy reasons, physical address range in the legacy ISA
-	 * region is tracked as non-RAM. This will allow users of
+	 * region is tracked as yesn-RAM. This will allow users of
 	 * /dev/mem to map portions of legacy ISA region, even when
-	 * some of those portions are listed(or not even listed) with
+	 * some of those portions are listed(or yest even listed) with
 	 * different e820 types(RAM/reserved/..)
 	 */
 	if (start_pfn < ISA_END_ADDRESS >> PAGE_SHIFT)
@@ -455,7 +455,7 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
  *
  * Here we do two passes:
  * - Find the memtype of all the pages in the range, look for any conflicts.
- * - In case of no conflicts, set the new memtype for pages in the range.
+ * - In case of yes conflicts, set the new memtype for pages in the range.
  */
 static int reserve_ram_pages_type(u64 start, u64 end,
 				  enum page_cache_mode req_type,
@@ -471,7 +471,7 @@ static int reserve_ram_pages_type(u64 start, u64 end,
 	}
 
 	if (req_type == _PAGE_CACHE_MODE_UC) {
-		/* We do not support strong UC */
+		/* We do yest support strong UC */
 		WARN_ON_ONCE(1);
 		req_type = _PAGE_CACHE_MODE_UC_MINUS;
 	}
@@ -521,8 +521,8 @@ static u64 sanitize_phys(u64 address)
 	 * set_memory_X(). __pa() on a "decoy" address results in a
 	 * physical address with bit 63 set.
 	 *
-	 * Decoy addresses are not present for 32-bit builds, see
-	 * set_mce_nospec().
+	 * Decoy addresses are yest present for 32-bit builds, see
+	 * set_mce_yesspec().
 	 */
 	if (IS_ENABLED(CONFIG_X86_64))
 		return address & __PHYSICAL_MASK;
@@ -537,9 +537,9 @@ static u64 sanitize_phys(u64 address)
  * - _PAGE_CACHE_MODE_UC
  * - _PAGE_CACHE_MODE_WT
  *
- * If new_type is NULL, function will return an error if it cannot reserve the
- * region with req_type. If new_type is non-NULL, function will return
- * available type in new_type in case of no error. In case of any error
+ * If new_type is NULL, function will return an error if it canyest reserve the
+ * region with req_type. If new_type is yesn-NULL, function will return
+ * available type in new_type in case of yes error. In case of any error
  * it will return a negative return value.
  */
 int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
@@ -705,7 +705,7 @@ static enum page_cache_mode lookup_memtype(u64 paddr)
 
 /**
  * pat_pfn_immune_to_uc_mtrr - Check whether the PAT memory type
- * of @pfn cannot be overridden by UC MTRR memory type.
+ * of @pfn canyest be overridden by UC MTRR memory type.
  *
  * Only to be called when PAT is enabled.
  *
@@ -730,7 +730,7 @@ EXPORT_SYMBOL_GPL(pat_pfn_immune_to_uc_mtrr);
  * or any other compatible type that was available for the region is returned
  *
  * On success, returns 0
- * On failure, returns non-zero
+ * On failure, returns yesn-zero
  */
 int io_reserve_memtype(resource_size_t start, resource_size_t end,
 			enum page_cache_mode *type)
@@ -852,7 +852,7 @@ int kernel_map_sync_memtype(u64 base, unsigned long size,
 
 	/*
 	 * some areas in the middle of the kernel identity range
-	 * are not mapped, like the PCI space.
+	 * are yest mapped, like the PCI space.
 	 */
 	if (!page_is_ram(base >> PAGE_SHIFT))
 		return 0;
@@ -873,7 +873,7 @@ int kernel_map_sync_memtype(u64 base, unsigned long size,
 
 /*
  * Internal interface to reserve a range of physical memory with prot.
- * Reserved non RAM regions only and after successful reserve_memtype,
+ * Reserved yesn RAM regions only and after successful reserve_memtype,
  * this func also keeps identity mapping (if any) in sync with this new prot.
  */
 static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
@@ -887,7 +887,7 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 	is_ram = pat_pagerange_is_ram(paddr, paddr + size);
 
 	/*
-	 * reserve_pfn_range() for RAM pages. We do not refcount to keep
+	 * reserve_pfn_range() for RAM pages. We do yest refcount to keep
 	 * track of number of mappings of RAM pages. We can assert that
 	 * the type requested matches the type of first page in the range.
 	 */
@@ -928,7 +928,7 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 		}
 		/*
 		 * We allow returning different type than the one requested in
-		 * non strict case.
+		 * yesn strict case.
 		 */
 		*vma_prot = __pgprot((pgprot_val(*vma_prot) &
 				      (~_PAGE_CACHE_MASK)) |
@@ -944,7 +944,7 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 
 /*
  * Internal interface to free a range of physical memory.
- * Frees non RAM regions only.
+ * Frees yesn RAM regions only.
  */
 static void free_pfn_range(u64 paddr, unsigned long size)
 {
@@ -987,7 +987,7 @@ int track_pfn_copy(struct vm_area_struct *vma)
 
 /*
  * prot is passed in as a parameter for the new mapping. If the vma has
- * a linear pfn mapping for the entire range, or no vma is provided,
+ * a linear pfn mapping for the entire range, or yes vma is provided,
  * reserve the entire pfn + size range with single reserve_pfn_range
  * call.
  */
@@ -1158,7 +1158,7 @@ static const struct seq_operations memtype_seq_ops = {
 	.show  = memtype_seq_show,
 };
 
-static int memtype_seq_open(struct inode *inode, struct file *file)
+static int memtype_seq_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &memtype_seq_ops);
 }

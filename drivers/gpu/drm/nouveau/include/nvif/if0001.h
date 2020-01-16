@@ -27,7 +27,7 @@ struct nvif_control_pstate_attr_v0 {
 		      * out: pstate identifier
 		      */
 	__u8  index; /*  in: index of attribute to query
-		      * out: index of next attribute, or 0 if no more
+		      * out: index of next attribute, or 0 if yes more
 		      */
 	__u8  pad03[5];
 	__u32 min;

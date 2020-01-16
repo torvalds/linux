@@ -41,7 +41,7 @@ local->comm_tallies.name += le16_to_cpu(tallies->name)
 	ADD_COMM_TALLIES(rx_unicast_octets);
 	ADD_COMM_TALLIES(rx_multicast_octets);
 	ADD_COMM_TALLIES(rx_fcs_errors);
-	ADD_COMM_TALLIES(rx_discards_no_buffer);
+	ADD_COMM_TALLIES(rx_discards_yes_buffer);
 	ADD_COMM_TALLIES(tx_discards_wrong_sa);
 	ADD_COMM_TALLIES(rx_discards_wep_undecryptable);
 	ADD_COMM_TALLIES(rx_message_in_msg_fragments);
@@ -81,7 +81,7 @@ local->comm_tallies.name += le32_to_cpu(tallies->name)
 	ADD_COMM_TALLIES(rx_unicast_octets);
 	ADD_COMM_TALLIES(rx_multicast_octets);
 	ADD_COMM_TALLIES(rx_fcs_errors);
-	ADD_COMM_TALLIES(rx_discards_no_buffer);
+	ADD_COMM_TALLIES(rx_discards_yes_buffer);
 	ADD_COMM_TALLIES(tx_discards_wrong_sa);
 	ADD_COMM_TALLIES(rx_discards_wep_undecryptable);
 	ADD_COMM_TALLIES(rx_message_in_msg_fragments);
@@ -119,7 +119,7 @@ static const char* hfa384x_linkstatus_str(u16 linkstatus)
 	case HFA384X_LINKSTATUS_ASSOC_FAILED:
 		return "Association failed";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 #endif /* PRISM2_NO_DEBUG */
@@ -130,7 +130,7 @@ static void prism2_info_linkstatus(local_info_t *local, unsigned char *buf,
 				    int left)
 {
 	u16 val;
-	int non_sta_mode;
+	int yesn_sta_mode;
 
 	/* Alloc new JoinRequests to occur since LinkStatus for the previous
 	 * has been received */
@@ -142,17 +142,17 @@ static void prism2_info_linkstatus(local_info_t *local, unsigned char *buf,
 		return;
 	}
 
-	non_sta_mode = local->iw_mode == IW_MODE_MASTER ||
+	yesn_sta_mode = local->iw_mode == IW_MODE_MASTER ||
 		local->iw_mode == IW_MODE_REPEAT ||
 		local->iw_mode == IW_MODE_MONITOR;
 
 	val = buf[0] | (buf[1] << 8);
-	if (!non_sta_mode || val != HFA384X_LINKSTATUS_DISCONNECTED) {
+	if (!yesn_sta_mode || val != HFA384X_LINKSTATUS_DISCONNECTED) {
 		PDEBUG(DEBUG_EXTRA, "%s: LinkStatus=%d (%s)\n",
 		       local->dev->name, val, hfa384x_linkstatus_str(val));
 	}
 
-	if (non_sta_mode) {
+	if (yesn_sta_mode) {
 		netif_carrier_on(local->dev);
 		netif_carrier_on(local->ddev);
 		return;
@@ -175,7 +175,7 @@ static void prism2_host_roaming(local_info_t *local)
 
 	if (local->last_join_time &&
 	    time_before(jiffies, local->last_join_time + 10 * HZ)) {
-		PDEBUG(DEBUG_EXTRA, "%s: last join request has not yet been "
+		PDEBUG(DEBUG_EXTRA, "%s: last join request has yest yet been "
 		       "completed - waiting for it before issuing new one\n",
 		       dev->name);
 		return;
@@ -193,7 +193,7 @@ static void prism2_host_roaming(local_info_t *local)
 	if (local->last_scan_results == NULL ||
 	    local->last_scan_results_count == 0) {
 		spin_unlock_irqrestore(&local->lock, flags);
-		PDEBUG(DEBUG_EXTRA, "%s: no scan results for host roaming\n",
+		PDEBUG(DEBUG_EXTRA, "%s: yes scan results for host roaming\n",
 		       dev->name);
 		return;
 	}
@@ -402,7 +402,7 @@ void hostap_info_process(local_info_t *local, struct sk_buff *skb)
 		PDEBUG(DEBUG_EXTRA, "%s: INFO - len=%d type=0x%04x\n",
 		       local->dev->name, le16_to_cpu(info->len),
 		       le16_to_cpu(info->type));
-		PDEBUG(DEBUG_EXTRA, "Unknown info frame:");
+		PDEBUG(DEBUG_EXTRA, "Unkyeswn info frame:");
 		for (i = 0; i < (left < 100 ? left : 100); i++)
 			PDEBUG2(DEBUG_EXTRA, " %02x", buf[i]);
 		PDEBUG2(DEBUG_EXTRA, "\n");
@@ -426,7 +426,7 @@ static void handle_info_queue_linkstatus(local_info_t *local)
 
 	if (local->func->get_rid(local->dev, HFA384X_RID_CURRENTBSSID,
 				 local->bssid, ETH_ALEN, 1) < 0) {
-		printk(KERN_DEBUG "%s: could not read CURRENTBSSID after "
+		printk(KERN_DEBUG "%s: could yest read CURRENTBSSID after "
 		       "LinkStatus event\n", local->dev->name);
 	} else {
 		PDEBUG(DEBUG_EXTRA, "%s: LinkStatus: BSSID=%pM\n",
@@ -449,7 +449,7 @@ static void handle_info_queue_linkstatus(local_info_t *local)
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 
 	/*
-	 * Filter out sequential disconnect events in order not to cause a
+	 * Filter out sequential disconnect events in order yest to cause a
 	 * flood of SIOCGIWAP events that have a race condition with EAPOL
 	 * frames and can confuse wpa_supplicant about the current association
 	 * status.
@@ -470,7 +470,7 @@ static void handle_info_queue_scanresults(local_info_t *local)
 		/*
 		 * Firmware seems to be getting into odd state in host_roaming
 		 * mode 2 when hostscan is used without join command, so try
-		 * to fix this by re-joining the current AP. This does not
+		 * to fix this by re-joining the current AP. This does yest
 		 * actually trigger a new association if the current AP is
 		 * still in the scan results.
 		 */

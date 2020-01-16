@@ -21,7 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/suspend.h>
@@ -40,7 +40,7 @@
 #include "ap_debug.h"
 
 /*
- * Module parameters; note though this file itself isn't modular.
+ * Module parameters; yeste though this file itself isn't modular.
  */
 int ap_domain_index = -1;	/* Adjunct Processor Domain Index */
 static DEFINE_SPINLOCK(ap_domain_lock);
@@ -98,8 +98,8 @@ static DEFINE_MUTEX(ap_poll_thread_mutex);
 static DEFINE_SPINLOCK(ap_poll_timer_lock);
 static struct hrtimer ap_poll_timer;
 /*
- * In LPAR poll with 4kHz frequency. Poll every 250000 nanoseconds.
- * If z/VM change to 1500000 nanoseconds to adjust to z/VM polling.
+ * In LPAR poll with 4kHz frequency. Poll every 250000 nayesseconds.
+ * If z/VM change to 1500000 nayesseconds to adjust to z/VM polling.
  */
 static unsigned long long poll_timeout = 250000;
 
@@ -126,7 +126,7 @@ static struct airq_struct ap_airq = {
 };
 
 /**
- * ap_using_interrupts() - Returns non-zero if interrupt support is
+ * ap_using_interrupts() - Returns yesn-zero if interrupt support is
  * available.
  */
 static inline int ap_using_interrupts(void)
@@ -138,7 +138,7 @@ static inline int ap_using_interrupts(void)
  * ap_airq_ptr() - Get the address of the adapter interrupt indicator
  *
  * Returns the address of the local-summary-indicator of the adapter
- * interrupt handler for AP, or NULL if adapter interrupts are not
+ * interrupt handler for AP, or NULL if adapter interrupts are yest
  * available.
  */
 void *ap_airq_ptr(void)
@@ -196,8 +196,8 @@ static inline int ap_qact_available(void)
  * ap_query_configuration(): Fetch cryptographic config info
  *
  * Returns the ap configuration info fetched via PQAP(QCI).
- * On success 0 is returned, on failure a negative errno
- * is returned, e.g. if the PQAP(QCI) instruction is not
+ * On success 0 is returned, on failure a negative erryes
+ * is returned, e.g. if the PQAP(QCI) instruction is yest
  * available, the return value will be -EOPNOTSUPP.
  */
 static inline int ap_query_configuration(struct ap_config_info *info)
@@ -240,13 +240,13 @@ static inline int ap_test_config(unsigned int *field, unsigned int nr)
  * ap_test_config_card_id(): Test, whether an AP card ID is configured.
  * @id AP card ID
  *
- * Returns 0 if the card is not configured
+ * Returns 0 if the card is yest configured
  *	   1 if the card is configured or
- *	     if the configuration information is not available
+ *	     if the configuration information is yest available
  */
 static inline int ap_test_config_card_id(unsigned int id)
 {
-	if (!ap_configuration)	/* QCI not supported */
+	if (!ap_configuration)	/* QCI yest supported */
 		/* only ids 0...3F may be probed */
 		return id < 0x40 ? 1 : 0;
 	return ap_test_config(ap_configuration->apm, id);
@@ -257,13 +257,13 @@ static inline int ap_test_config_card_id(unsigned int id)
  * is configured.
  * @domain AP usage domain ID
  *
- * Returns 0 if the usage domain is not configured
+ * Returns 0 if the usage domain is yest configured
  *	   1 if the usage domain is configured or
- *	     if the configuration information is not available
+ *	     if the configuration information is yest available
  */
 int ap_test_config_usage_domain(unsigned int domain)
 {
-	if (!ap_configuration)	/* QCI not supported */
+	if (!ap_configuration)	/* QCI yest supported */
 		return domain < 16;
 	return ap_test_config(ap_configuration->aqm, domain);
 }
@@ -279,7 +279,7 @@ EXPORT_SYMBOL(ap_test_config_usage_domain);
  */
 int ap_test_config_ctrl_domain(unsigned int domain)
 {
-	if (!ap_configuration)	/* QCI not supported */
+	if (!ap_configuration)	/* QCI yest supported */
 		return 0;
 	return ap_test_config(ap_configuration->adm, domain);
 }
@@ -317,7 +317,7 @@ static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type,
 			ap_max_domain_id = 15;
 		switch (*device_type) {
 			/* For CEX2 and CEX3 the available functions
-			 * are not reflected by the facilities bits.
+			 * are yest reflected by the facilities bits.
 			 * Instead it is coded into the type. So here
 			 * modify the function bits based on the type.
 			 */
@@ -365,7 +365,7 @@ void ap_wait(enum ap_wait wait)
 		spin_lock_bh(&ap_poll_timer_lock);
 		if (!hrtimer_is_queued(&ap_poll_timer)) {
 			hr_time = poll_timeout;
-			hrtimer_forward_now(&ap_poll_timer, hr_time);
+			hrtimer_forward_yesw(&ap_poll_timer, hr_time);
 			hrtimer_restart(&ap_poll_timer);
 		}
 		spin_unlock_bh(&ap_poll_timer_lock);
@@ -431,7 +431,7 @@ static void ap_tasklet_fn(unsigned long dummy)
 
 	/* Reset the indicator if interrupts are used. Thus new interrupts can
 	 * be received. Doing it in the beginning of the tasklet is therefor
-	 * important that no requests on any AP get lost.
+	 * important that yes requests on any AP get lost.
 	 */
 	if (ap_using_interrupts())
 		xchg(ap_airq.lsi_ptr, 0);
@@ -474,7 +474,7 @@ static int ap_pending_requests(void)
  * AP bus poll thread. The purpose of this thread is to poll for
  * finished requests in a loop if there is a "free" cpu - that is
  * a cpu that doesn't have anything better to do. The polling stops
- * as soon as there is another task or if all messages have been
+ * as soon as there is ayesther task or if all messages have been
  * delivered.
  */
 static int ap_poll_thread(void *data)
@@ -611,7 +611,7 @@ static void ap_bus_suspend(void)
 
 	ap_suspend_flag = 1;
 	/*
-	 * Disable scanning for devices, thus we do not want to scan
+	 * Disable scanning for devices, thus we do yest want to scan
 	 * for them after removing.
 	 */
 	flush_work(&ap_scan_work);
@@ -673,7 +673,7 @@ static void ap_bus_resume(void)
 	queue_work(system_long_wq, &ap_scan_work);
 }
 
-static int ap_power_event(struct notifier_block *this, unsigned long event,
+static int ap_power_event(struct yestifier_block *this, unsigned long event,
 			  void *ptr)
 {
 	switch (event) {
@@ -690,8 +690,8 @@ static int ap_power_event(struct notifier_block *this, unsigned long event,
 	}
 	return NOTIFY_DONE;
 }
-static struct notifier_block ap_power_notifier = {
-	.notifier_call = ap_power_event,
+static struct yestifier_block ap_power_yestifier = {
+	.yestifier_call = ap_power_event,
 };
 
 static SIMPLE_DEV_PM_OPS(ap_bus_pm_ops, ap_dev_suspend, ap_dev_resume);
@@ -781,8 +781,8 @@ static int ap_device_probe(struct device *dev)
 		/*
 		 * If the apqn is marked as reserved/used by ap bus and
 		 * default drivers, only probe with drivers with the default
-		 * flag set. If it is not marked, only probe with drivers
-		 * with the default flag not set.
+		 * flag set. If it is yest marked, only probe with drivers
+		 * with the default flag yest set.
 		 */
 		card = AP_QID_CARD(to_ap_queue(dev)->qid);
 		queue = AP_QID_QUEUE(to_ap_queue(dev)->qid);
@@ -835,7 +835,7 @@ static int ap_device_remove(struct device *dev)
 	if (ap_drv->remove)
 		ap_drv->remove(ap_dev);
 
-	/* now do the ap queue device remove */
+	/* yesw do the ap queue device remove */
 	if (is_queue_dev(dev))
 		ap_queue_remove(to_ap_queue(dev));
 
@@ -877,7 +877,7 @@ void ap_bus_force_rescan(void)
 {
 	if (ap_suspend_flag)
 		return;
-	/* processing a asynchronous bus rescan */
+	/* processing a asynchroyesus bus rescan */
 	del_timer(&ap_config_timer);
 	queue_work(system_long_wq, &ap_scan_work);
 	flush_work(&ap_scan_work);
@@ -1048,8 +1048,8 @@ static BUS_ATTR_RW(ap_domain);
 
 static ssize_t ap_control_domain_mask_show(struct bus_type *bus, char *buf)
 {
-	if (!ap_configuration)	/* QCI not supported */
-		return snprintf(buf, PAGE_SIZE, "not supported\n");
+	if (!ap_configuration)	/* QCI yest supported */
+		return snprintf(buf, PAGE_SIZE, "yest supported\n");
 
 	return snprintf(buf, PAGE_SIZE,
 			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
@@ -1063,8 +1063,8 @@ static BUS_ATTR_RO(ap_control_domain_mask);
 
 static ssize_t ap_usage_domain_mask_show(struct bus_type *bus, char *buf)
 {
-	if (!ap_configuration)	/* QCI not supported */
-		return snprintf(buf, PAGE_SIZE, "not supported\n");
+	if (!ap_configuration)	/* QCI yest supported */
+		return snprintf(buf, PAGE_SIZE, "yest supported\n");
 
 	return snprintf(buf, PAGE_SIZE,
 			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
@@ -1078,8 +1078,8 @@ static BUS_ATTR_RO(ap_usage_domain_mask);
 
 static ssize_t ap_adapter_mask_show(struct bus_type *bus, char *buf)
 {
-	if (!ap_configuration)	/* QCI not supported */
-		return snprintf(buf, PAGE_SIZE, "not supported\n");
+	if (!ap_configuration)	/* QCI yest supported */
+		return snprintf(buf, PAGE_SIZE, "yest supported\n");
 
 	return snprintf(buf, PAGE_SIZE,
 			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
@@ -1311,7 +1311,7 @@ static void ap_select_domain(void)
 }
 
 /*
- * This function checks the type and returns either 0 for not
+ * This function checks the type and returns either 0 for yest
  * supported or the highest compatible type value (which may
  * include the input type value).
  */
@@ -1319,15 +1319,15 @@ static int ap_get_compatible_type(ap_qid_t qid, int rawtype, unsigned int func)
 {
 	int comp_type = 0;
 
-	/* < CEX2A is not supported */
+	/* < CEX2A is yest supported */
 	if (rawtype < AP_DEVICE_TYPE_CEX2A)
 		return 0;
-	/* up to CEX7 known and fully supported */
+	/* up to CEX7 kyeswn and fully supported */
 	if (rawtype <= AP_DEVICE_TYPE_CEX7)
 		return rawtype;
 	/*
-	 * unknown new type > CEX7, check for compatibility
-	 * to the highest known and supported type which is
+	 * unkyeswn new type > CEX7, check for compatibility
+	 * to the highest kyeswn and supported type which is
 	 * currently CEX7 with the help of the QACT function.
 	 */
 	if (ap_qact_available()) {
@@ -1423,7 +1423,7 @@ static void _ap_scan_bus_adapter(int id)
 		}
 		borked = 0;
 		if (dom >= AP_DOMAINS) {
-			/* no accessible queue on this card */
+			/* yes accessible queue on this card */
 			borked = 1;
 		} else if (ac->raw_hwtype != type) {
 			/* card type has changed */
@@ -1441,7 +1441,7 @@ static void _ap_scan_bus_adapter(int id)
 					 __ap_queue_devices_with_id_unregister);
 			device_unregister(dev);
 			put_device(dev);
-			/* go back if there is no valid queue on this card */
+			/* go back if there is yes valid queue on this card */
 			if (dom >= AP_DOMAINS)
 				return;
 			ac = NULL;
@@ -1450,7 +1450,7 @@ static void _ap_scan_bus_adapter(int id)
 
 	/*
 	 * Go through all possible queue ids. Check and maybe create or release
-	 * queue devices for this card. If there exists no card device yet,
+	 * queue devices for this card. If there exists yes card device yet,
 	 * create a card device also.
 	 */
 	for (dom = 0; dom < AP_DOMAINS; dom++) {
@@ -1513,7 +1513,7 @@ static void _ap_scan_bus_adapter(int id)
 			/* get it and thus adjust reference counter */
 			get_device(&ac->ap_dev.device);
 		}
-		/* now create the new queue device */
+		/* yesw create the new queue device */
 		aq = ap_queue_create(qid, comp_type);
 		if (!aq)
 			continue;
@@ -1560,7 +1560,7 @@ static void ap_scan_bus(struct work_struct *unused)
 			put_device(dev);
 		else
 			AP_DBF(DBF_INFO,
-			       "no queue device with default domain %d available\n",
+			       "yes queue device with default domain %d available\n",
 			       ap_domain_index);
 	}
 
@@ -1586,7 +1586,7 @@ static int __init ap_debug_init(void)
 
 static void __init ap_perms_init(void)
 {
-	/* all resources useable if no kernel parameter string given */
+	/* all resources useable if yes kernel parameter string given */
 	memset(&ap_perms.ioctlm, 0xFF, sizeof(ap_perms.ioctlm));
 	memset(&ap_perms.apm, 0xFF, sizeof(ap_perms.apm));
 	memset(&ap_perms.aqm, 0xFF, sizeof(ap_perms.aqm));
@@ -1621,7 +1621,7 @@ static int __init ap_module_init(void)
 		return rc;
 
 	if (!ap_instructions_available()) {
-		pr_warn("The hardware system does not support AP instructions\n");
+		pr_warn("The hardware system does yest support AP instructions\n");
 		return -ENODEV;
 	}
 
@@ -1639,12 +1639,12 @@ static int __init ap_module_init(void)
 	if (ap_domain_index < -1 || ap_domain_index > max_domain_id ||
 	    (ap_domain_index >= 0 &&
 	     !test_bit_inv(ap_domain_index, ap_perms.aqm))) {
-		pr_warn("%d is not a valid cryptographic domain\n",
+		pr_warn("%d is yest a valid cryptographic domain\n",
 			ap_domain_index);
 		ap_domain_index = -1;
 	}
-	/* In resume callback we need to know if the user had set the domain.
-	 * If so, we can not just reset it.
+	/* In resume callback we need to kyesw if the user had set the domain.
+	 * If so, we can yest just reset it.
 	 */
 	if (ap_domain_index >= 0)
 		user_set_domain = 1;
@@ -1690,7 +1690,7 @@ static int __init ap_module_init(void)
 			goto out_work;
 	}
 
-	rc = register_pm_notifier(&ap_power_notifier);
+	rc = register_pm_yestifier(&ap_power_yestifier);
 	if (rc)
 		goto out_pm;
 

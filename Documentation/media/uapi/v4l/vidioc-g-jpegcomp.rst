@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_JPEGCOMP:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_JPEGCOMP - VIDIOC_S_JPEGCOMP
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_JPEGCOMP, v4l2_jpegcompression *argp )
@@ -76,7 +76,7 @@ encoding. You usually do want to add them.
       - Deprecated. If
 	:ref:`V4L2_CID_JPEG_COMPRESSION_QUALITY <jpeg-quality-control>`
 	control is exposed by a driver applications should use it instead
-	and ignore this field.
+	and igyesre this field.
     * - int
       - ``APPn``
       -
@@ -97,7 +97,7 @@ encoding. You usually do want to add them.
       - See :ref:`jpeg-markers`. Deprecated. If
 	:ref:`V4L2_CID_JPEG_ACTIVE_MARKER <jpeg-active-marker-control>`
 	control is exposed by a driver applications should use it instead
-	and ignore this field.
+	and igyesre this field.
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
@@ -129,6 +129,6 @@ encoding. You usually do want to add them.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

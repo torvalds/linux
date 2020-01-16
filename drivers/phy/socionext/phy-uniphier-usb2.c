@@ -85,7 +85,7 @@ static struct phy *uniphier_u2phy_xlate(struct device *dev,
 {
 	struct uniphier_u2phy_priv *priv = dev_get_drvdata(dev);
 
-	while (priv && args->np != priv->phy->dev.of_node)
+	while (priv && args->np != priv->phy->dev.of_yesde)
 		priv = priv->next;
 
 	if (!priv) {
@@ -106,7 +106,7 @@ static const struct phy_ops uniphier_u2phy_ops = {
 static int uniphier_u2phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *parent, *child;
+	struct device_yesde *parent, *child;
 	struct uniphier_u2phy_priv *priv = NULL, *next = NULL;
 	struct phy_provider *phy_provider;
 	struct regmap *regmap;
@@ -121,15 +121,15 @@ static int uniphier_u2phy_probe(struct platform_device *pdev)
 	for (ndatas = 0; data[ndatas].config0.offset; ndatas++)
 		;
 
-	parent = of_get_parent(dev->of_node);
-	regmap = syscon_node_to_regmap(parent);
-	of_node_put(parent);
+	parent = of_get_parent(dev->of_yesde);
+	regmap = syscon_yesde_to_regmap(parent);
+	of_yesde_put(parent);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "Failed to get regmap\n");
 		return PTR_ERR(regmap);
 	}
 
-	for_each_child_of_node(dev->of_node, child) {
+	for_each_child_of_yesde(dev->of_yesde, child) {
 		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 		if (!priv) {
 			ret = -ENOMEM;
@@ -176,7 +176,7 @@ static int uniphier_u2phy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 
 out_put_child:
-	of_node_put(child);
+	of_yesde_put(child);
 
 	return ret;
 }

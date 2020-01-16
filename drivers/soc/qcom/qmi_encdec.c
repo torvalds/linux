@@ -7,7 +7,7 @@
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/soc/qcom/qmi.h>
 
@@ -70,7 +70,7 @@ static int qmi_decode(struct qmi_elem_info *ei_array, void *out_c_struct,
  * @level: Depth level of encoding/decoding to identify nested structures.
  *
  * This function is used while encoding optional elements. If the flag
- * corresponding to an optional element is not set, then encoding the
+ * corresponding to an optional element is yest set, then encoding the
  * optional element can be skipped. This function can be used to perform
  * that operation.
  *
@@ -111,7 +111,7 @@ static int qmi_calc_min_msg_len(struct qmi_elem_info *ei_array,
 		return min_msg_len;
 
 	while (temp_ei->data_type != QMI_EOTI) {
-		/* Optional elements do not count in minimum length */
+		/* Optional elements do yest count in minimum length */
 		if (temp_ei->data_type == QMI_OPT_FLAG) {
 			temp_ei = skip_to_next_elem(temp_ei, level);
 			continue;
@@ -138,7 +138,7 @@ static int qmi_calc_min_msg_len(struct qmi_elem_info *ei_array,
 		}
 
 		/*
-		 * Type & Length info. not prepended for elements in the
+		 * Type & Length info. yest prepended for elements in the
 		 * nested structure.
 		 */
 		if (level == 1)
@@ -192,7 +192,7 @@ static int qmi_encode_basic_elem(void *buf_dst, const void *buf_src,
  * function returns the number of bytes of encoded information.
  *
  * Return: The number of bytes of encoded information on success or negative
- * errno on error.
+ * erryes on error.
  */
 static int qmi_encode_struct_elem(struct qmi_elem_info *ei_array,
 				  void *buf_dst, const void *buf_src,
@@ -231,7 +231,7 @@ static int qmi_encode_struct_elem(struct qmi_elem_info *ei_array,
  * of encoded information.
  *
  * Return: The number of bytes of encoded information on success or negative
- * errno on error.
+ * erryes on error.
  */
 static int qmi_encode_string_elem(struct qmi_elem_info *ei_array,
 				  void *buf_dst, const void *buf_src,
@@ -287,7 +287,7 @@ static int qmi_encode_string_elem(struct qmi_elem_info *ei_array,
  *             within the main structure, being encoded.
  *
  * Return: The number of bytes of encoded information on success or negative
- * errno on error.
+ * erryes on error.
  */
 static int qmi_encode(struct qmi_elem_info *ei_array, void *out_buf,
 		      const void *in_c_struct, u32 out_buf_len,
@@ -466,7 +466,7 @@ static int qmi_decode_basic_elem(void *buf_dst, const void *buf_src,
  * function returns the number of bytes of decoded information.
  *
  * Return: The total size of the decoded data elements on success, negative
- * errno on error.
+ * erryes on error.
  */
 static int qmi_decode_struct_elem(struct qmi_elem_info *ei_array,
 				  void *buf_dst, const void *buf_src,
@@ -512,7 +512,7 @@ static int qmi_decode_struct_elem(struct qmi_elem_info *ei_array,
  * decoded from the input buffer.
  *
  * Return: The total size of the decoded data elements on success, negative
- * errno on error.
+ * erryes on error.
  */
 static int qmi_decode_string_elem(struct qmi_elem_info *ei_array,
 				  void *buf_dst, const void *buf_src,
@@ -588,7 +588,7 @@ static struct qmi_elem_info *find_ei(struct qmi_elem_info *ei_array,
  *             within the main structure, being decoded
  *
  * Return: The number of bytes of decoded information on success, negative
- * errno on error.
+ * erryes on error.
  */
 static int qmi_decode(struct qmi_elem_info *ei_array, void *out_c_struct,
 		      const void *in_buf, u32 in_buf_len,
@@ -764,7 +764,7 @@ EXPORT_SYMBOL(qmi_encode_message);
  * @c_struct:	Reference to structure to decode into
  *
  * Return: The number of bytes of decoded information on success, negative
- * errno on error.
+ * erryes on error.
  */
 int qmi_decode_message(const void *buf, size_t len,
 		       struct qmi_elem_info *ei, void *c_struct)

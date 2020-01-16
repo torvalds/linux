@@ -21,7 +21,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 
 /*
  * MT9M111, MT9M112 and MT9M131:
@@ -133,7 +133,7 @@
 #define MT9M111_RM_SKIP2_MASK		GENMASK(3, 2)
 
 /*
- * Camera control register addresses (0x200..0x2ff not implemented)
+ * Camera control register addresses (0x200..0x2ff yest implemented)
  */
 
 #define reg_read(reg) mt9m111_reg_read(client, MT9M111_##reg)
@@ -606,7 +606,7 @@ static int mt9m111_set_pixfmt(struct mt9m111 *mt9m111,
 			MT9M111_OUTFMT_SWAP_YCbCr_Cb_Cr_RGB_R_B;
 		break;
 	default:
-		dev_err(&client->dev, "Pixel format not handled: %x\n", code);
+		dev_err(&client->dev, "Pixel format yest handled: %x\n", code);
 		return -EINVAL;
 	}
 
@@ -656,7 +656,7 @@ static int mt9m111_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	if (fmt->code == MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE) {
-		/* IFP bypass mode, no scaling */
+		/* IFP bypass mode, yes scaling */
 		mf->width = rect->width;
 		mf->height = rect->height;
 	} else {
@@ -712,16 +712,16 @@ mt9m111_find_mode(struct mt9m111 *mt9m111, unsigned int req_fps,
 	if (sensor_rect->width != MT9M111_MAX_WIDTH ||
 	    sensor_rect->height != MT9M111_MAX_HEIGHT) {
 		dev_info(mt9m111->subdev.dev,
-			 "Framerate selection is not supported for cropped "
+			 "Framerate selection is yest supported for cropped "
 			 "images\n");
 		return NULL;
 	}
 
-	/* 30fps only supported for images not exceeding 640x512 */
+	/* 30fps only supported for images yest exceeding 640x512 */
 	if (width > MT9M111_MAX_WIDTH / 2 || height > MT9M111_MAX_HEIGHT / 2) {
 		dev_dbg(mt9m111->subdev.dev,
 			"Framerates > 15fps are supported only for images "
-			"not exceeding 640x512\n");
+			"yest exceeding 640x512\n");
 		skip_30fps = true;
 	}
 
@@ -847,7 +847,7 @@ static int mt9m111_set_autowhitebalance(struct mt9m111 *mt9m111, int on)
 
 static const char * const mt9m111_test_pattern_menu[] = {
 	"Disabled",
-	"Vertical monochrome gradient",
+	"Vertical moyeschrome gradient",
 	"Flat color type 1",
 	"Flat color type 2",
 	"Flat color type 3",
@@ -1077,19 +1077,19 @@ static int mt9m111_s_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (fract->numerator == 0) {
-		fract->denominator = 30;
+		fract->deyesminator = 30;
 		fract->numerator = 1;
 	}
 
-	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	fps = DIV_ROUND_CLOSEST(fract->deyesminator, fract->numerator);
 
-	/* Find best fitting mode. Do not update the mode if no one was found. */
+	/* Find best fitting mode. Do yest update the mode if yes one was found. */
 	mode = mt9m111_find_mode(mt9m111, fps, mt9m111->width, mt9m111->height);
 	if (!mode)
 		return 0;
 
 	if (mode->max_fps != fps) {
-		fract->denominator = mode->max_fps;
+		fract->deyesminator = mode->max_fps;
 		fract->numerator = 1;
 	}
 
@@ -1221,17 +1221,17 @@ done:
 
 static int mt9m111_probe_fw(struct i2c_client *client, struct mt9m111 *mt9m111)
 {
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct v4l2_fwyesde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_PARALLEL
 	};
-	struct fwnode_handle *np;
+	struct fwyesde_handle *np;
 	int ret;
 
-	np = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
+	np = fwyesde_graph_get_next_endpoint(dev_fwyesde(&client->dev), NULL);
 	if (!np)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(np, &bus_cfg);
+	ret = v4l2_fwyesde_endpoint_parse(np, &bus_cfg);
 	if (ret)
 		goto out_put_fw;
 
@@ -1239,7 +1239,7 @@ static int mt9m111_probe_fw(struct i2c_client *client, struct mt9m111 *mt9m111)
 				  V4L2_MBUS_PCLK_SAMPLE_RISING);
 
 out_put_fw:
-	fwnode_handle_put(np);
+	fwyesde_handle_put(np);
 	return ret;
 }
 
@@ -1259,7 +1259,7 @@ static int mt9m111_probe(struct i2c_client *client)
 	if (!mt9m111)
 		return -ENOMEM;
 
-	if (dev_fwnode(&client->dev)) {
+	if (dev_fwyesde(&client->dev)) {
 		ret = mt9m111_probe_fw(client, mt9m111);
 		if (ret)
 			return ret;
@@ -1271,7 +1271,7 @@ static int mt9m111_probe(struct i2c_client *client)
 
 	mt9m111->regulator = devm_regulator_get(&client->dev, "vdd");
 	if (IS_ERR(mt9m111->regulator)) {
-		dev_err(&client->dev, "regulator not found: %ld\n",
+		dev_err(&client->dev, "regulator yest found: %ld\n",
 			PTR_ERR(mt9m111->regulator));
 		return PTR_ERR(mt9m111->regulator);
 	}
@@ -1323,7 +1323,7 @@ static int mt9m111_probe(struct i2c_client *client)
 
 	mt9m111->current_mode = &mt9m111_mode_data[MT9M111_MODE_SXGA_15FPS];
 	mt9m111->frame_interval.numerator = 1;
-	mt9m111->frame_interval.denominator = mt9m111->current_mode->max_fps;
+	mt9m111->frame_interval.deyesminator = mt9m111->current_mode->max_fps;
 
 	/* Second stage probe - when a capture adapter is there */
 	mt9m111->rect.left	= MT9M111_MIN_DARK_COLS;

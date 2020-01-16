@@ -6,7 +6,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu.h>
 #include <linux/percpu.h>
 #include <linux/delay.h>
@@ -132,14 +132,14 @@ void __init setup_smp_ipi(void)
 
 void __init setup_smp(void)
 {
-	struct device_node *node = NULL;
+	struct device_yesde *yesde = NULL;
 	int cpu;
 
-	for_each_of_cpu_node(node) {
-		if (!of_device_is_available(node))
+	for_each_of_cpu_yesde(yesde) {
+		if (!of_device_is_available(yesde))
 			continue;
 
-		if (of_property_read_u32(node, "reg", &cpu))
+		if (of_property_read_u32(yesde, "reg", &cpu))
 			continue;
 
 		if (cpu >= NR_CPUS)
@@ -223,7 +223,7 @@ void csky_start_secondary(void)
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
 
-	notify_cpu_starting(cpu);
+	yestify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
 
 	pr_info("CPU%u Online: %s...\n", cpu, __func__);
@@ -253,7 +253,7 @@ void __cpu_die(unsigned int cpu)
 		pr_crit("CPU%u: shutdown failed\n", cpu);
 		return;
 	}
-	pr_notice("CPU%u: shutdown\n", cpu);
+	pr_yestice("CPU%u: shutdown\n", cpu);
 }
 
 void arch_cpu_idle_dead(void)

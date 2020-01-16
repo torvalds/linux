@@ -16,7 +16,7 @@ enum dscr_devstate_t {
  *
  * Individual drivers should use this to enable or disable the
  * hardware device. The devid used to identify the device being
- * controlled should be a property in the device's tree node.
+ * controlled should be a property in the device's tree yesde.
  */
 extern void dscr_set_devstate(int devid, enum dscr_devstate_t state);
 

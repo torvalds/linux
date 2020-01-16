@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, see <http://www.gnu.org/licenses/>.            *
+ * with this program; if yest, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -85,7 +85,7 @@ static int tricn_init(adapter_t *adapter)
 	int i, sme = 1;
 
 	if (!(readl(adapter->regs + A_ESPI_RX_RESET)  & F_RX_CLK_STATUS)) {
-		pr_err("%s: ESPI clock not ready\n", adapter->name);
+		pr_err("%s: ESPI clock yest ready\n", adapter->name);
 		return -1;
 	}
 
@@ -119,11 +119,11 @@ void t1_espi_intr_enable(struct peespi *espi)
 	u32 enable, pl_intr = readl(espi->adapter->regs + A_PL_ENABLE);
 
 	/*
-	 * Cannot enable ESPI interrupts on T1B because HW asserts the
+	 * Canyest enable ESPI interrupts on T1B because HW asserts the
 	 * interrupt incorrectly, namely the driver gets ESPI interrupts
-	 * but no data is actually dropped (can verify this reading the ESPI
+	 * but yes data is actually dropped (can verify this reading the ESPI
 	 * drop registers).  Also, once the ESPI interrupt is asserted it
-	 * cannot be cleared (HW bug).
+	 * canyest be cleared (HW bug).
 	 */
 	enable = t1_is_T1B(espi->adapter) ? 0 : ESPI_INTR_MASK;
 	writel(enable, espi->adapter->regs + A_ESPI_INTR_ENABLE);
@@ -340,7 +340,7 @@ u32 t1_espi_get_mon(adapter_t *adapter, u32 addr, u8 wait)
 /*
  * This function is for T204 only.
  * compare with t1_espi_get_mon(), it reads espiInTxSop[0 ~ 3] in
- * one shot, since there is no per port counter on the out side.
+ * one shot, since there is yes per port counter on the out side.
  */
 int t1_espi_get_mon_t204(adapter_t *adapter, u32 *valp, u8 wait)
 {

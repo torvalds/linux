@@ -3,7 +3,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_flash.c
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
@@ -37,7 +37,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -138,7 +138,7 @@ static void esas2r_fmapi_callback(struct esas2r_adapter *a,
 		(struct esas2r_flash_context *)rq->interrupt_cx;
 
 	if (rq->req_stat == RS_SUCCESS) {
-		/* Last request was successful.  See what to do now. */
+		/* Last request was successful.  See what to do yesw. */
 		switch (vrq->sub_func) {
 		case VDA_FLASH_BEGINW:
 			if (fc->sgc.cur_offset == NULL)
@@ -202,7 +202,7 @@ static void build_flash_msg(struct esas2r_adapter *a,
 
 	/*
 	 * remember the length we asked for.  we have to keep track of
-	 * the current amount done so we know how much to compare when
+	 * the current amount done so we kyesw how much to compare when
 	 * doing the verification phase.
 	 */
 	fc->curr_len = fc->sgc.length;
@@ -232,7 +232,7 @@ static bool load_image(struct esas2r_adapter *a, struct esas2r_request *rq)
 	 */
 	rq->req_stat = RS_PENDING;
 	if (test_bit(AF_DEGRADED_MODE, &a->flags))
-		/* not suppported for now */;
+		/* yest suppported for yesw */;
 	else
 		build_flash_msg(a, rq);
 
@@ -335,7 +335,7 @@ static void fw_download_proc(struct esas2r_adapter *a,
 		goto error;
 
 	/*
-	 * If an upload just completed and the compare length is non-zero,
+	 * If an upload just completed and the compare length is yesn-zero,
 	 * then we just read back part of the image we just wrote.  verify the
 	 * section and continue reading until the entire image is verified.
 	 */
@@ -347,11 +347,11 @@ static void fw_download_proc(struct esas2r_adapter *a,
 		q = (u8 *)fi                    /* start of the whole gob     */
 		    + ch->image_offset          /* start of the current image */
 		    + ch->length                /* end of the current image   */
-		    - fc->cmp_len;              /* where we are now           */
+		    - fc->cmp_len;              /* where we are yesw           */
 
 		/*
 		 * NOTE - curr_len is the exact count of bytes for the read
-		 *        even when the end is read and its not a full buffer
+		 *        even when the end is read and its yest a full buffer
 		 */
 		for (len = fc->curr_len; len; len--)
 			if (*p++ != *q++)
@@ -372,7 +372,7 @@ static void fw_download_proc(struct esas2r_adapter *a,
 	/*
 	 * This code uses a 'while' statement since the next component may
 	 * have a length = zero.  This can happen since some components are
-	 * not required.  At the end of this 'while' we set up the length
+	 * yest required.  At the end of this 'while' we set up the length
 	 * for the next request and therefore sgc.length can be = 0.
 	 */
 	while (fc->sgc.length == 0) {
@@ -383,7 +383,7 @@ static void fw_download_proc(struct esas2r_adapter *a,
 			/* the BIOS image is written next */
 			ch = &fi->cmp_hdr[CH_IT_BIOS];
 			if (ch->length == 0)
-				goto no_bios;
+				goto yes_bios;
 
 			fc->task = FMTSK_WRTBIOS;
 			fc->func = VDA_FLASH_BEGINW;
@@ -410,7 +410,7 @@ static void fw_download_proc(struct esas2r_adapter *a,
 			break;
 
 		case FMTSK_READBIOS:
-no_bios:
+yes_bios:
 			/*
 			 * Mark the component header status for the image
 			 * completed
@@ -420,7 +420,7 @@ no_bios:
 			/* The MAC image is written next */
 			ch = &fi->cmp_hdr[CH_IT_MAC];
 			if (ch->length == 0)
-				goto no_mac;
+				goto yes_mac;
 
 			fc->task = FMTSK_WRTMAC;
 			fc->func = VDA_FLASH_BEGINW;
@@ -445,7 +445,7 @@ no_bios:
 			break;
 
 		case FMTSK_READMAC:
-no_mac:
+yes_mac:
 			/*
 			 * Mark the component header status for the image
 			 * completed
@@ -455,7 +455,7 @@ no_mac:
 			/* The EFI image is written next */
 			ch = &fi->cmp_hdr[CH_IT_EFI];
 			if (ch->length == 0)
-				goto no_efi;
+				goto yes_efi;
 
 			fc->task = FMTSK_WRTEFI;
 			fc->func = VDA_FLASH_BEGINW;
@@ -481,7 +481,7 @@ no_mac:
 			break;
 
 		case FMTSK_READEFI:
-no_efi:
+yes_efi:
 			/*
 			 * Mark the component header status for the image
 			 * completed
@@ -492,7 +492,7 @@ no_efi:
 			ch = &fi->cmp_hdr[CH_IT_CFG];
 
 			if (ch->length == 0)
-				goto no_cfg;
+				goto yes_cfg;
 			fc->task = FMTSK_WRTCFG;
 			fc->func = VDA_FLASH_BEGINW;
 			fc->comp_typ = CH_IT_CFG;
@@ -515,7 +515,7 @@ no_efi:
 			break;
 
 		case FMTSK_READCFG:
-no_cfg:
+yes_cfg:
 			/*
 			 * Mark the component header status for the image
 			 * completed
@@ -970,7 +970,7 @@ static bool esas2r_flash_access(struct esas2r_adapter *a, u32 function)
 		if ((jiffies_to_msecs(jiffies) - starttime) > timeout) {
 			/*
 			 * Iimeout.  If we were requesting flash access,
-			 * indicate we are done so the firmware knows we gave
+			 * indicate we are done so the firmware kyesws we gave
 			 * up.  If this was a REQ, we also need to re-enable
 			 * chip interrupts.
 			 */
@@ -1088,7 +1088,7 @@ bool esas2r_print_flash_rev(struct esas2r_adapter *a)
 	    || month > 12
 	    || year < 2006
 	    || year > 9999) {
-		strcpy(a->flash_rev, "not found");
+		strcpy(a->flash_rev, "yest found");
 		a->flash_ver = 0;
 		return false;
 	}
@@ -1178,7 +1178,7 @@ bool esas2r_read_image_type(struct esas2r_adapter *a)
 	}
 
 invalid_rev:
-	strcpy(a->image_type, "no boot images");
+	strcpy(a->image_type, "yes boot images");
 	return false;
 }
 
@@ -1215,7 +1215,7 @@ static void esas2r_nvram_callback(struct esas2r_adapter *a,
 	struct atto_vda_flash_req *vrq = &rq->vrq->flash;
 
 	if (rq->req_stat == RS_SUCCESS) {
-		/* last request was successful.  see what to do now. */
+		/* last request was successful.  see what to do yesw. */
 
 		switch (vrq->sub_func) {
 		case VDA_FLASH_BEGINW:
@@ -1355,7 +1355,7 @@ bool esas2r_nvram_validate(struct esas2r_adapter *a)
 }
 
 /*
- * Set the cached NVRAM to defaults.  note that this function sets the default
+ * Set the cached NVRAM to defaults.  yeste that this function sets the default
  * NVRAM when it has been determined that the physical NVRAM is invalid.
  * In this case, the SAS address is fabricated.
  */

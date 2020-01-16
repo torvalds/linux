@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/console.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include <linux/selection.h>
 #include <linux/vt_kern.h>
@@ -140,10 +140,10 @@ static void vc_refresh(struct vc_data *vc)
  * Link to keyboard
  */
 
-static int keyboard_notifier_call(struct notifier_block *blk,
+static int keyboard_yestifier_call(struct yestifier_block *blk,
 				  unsigned long code, void *_param)
 {
-	struct keyboard_notifier_param *param = _param;
+	struct keyboard_yestifier_param *param = _param;
 	struct vc_data *vc = param->vc;
 	int ret = NOTIFY_OK;
 
@@ -255,14 +255,14 @@ static int keyboard_notifier_call(struct notifier_block *blk,
 	return ret;
 }
 
-static struct notifier_block keyboard_notifier_block = {
-	.notifier_call = keyboard_notifier_call,
+static struct yestifier_block keyboard_yestifier_block = {
+	.yestifier_call = keyboard_yestifier_call,
 };
 
-static int vt_notifier_call(struct notifier_block *blk,
+static int vt_yestifier_call(struct yestifier_block *blk,
 			    unsigned long code, void *_param)
 {
-	struct vt_notifier_param *param = _param;
+	struct vt_yestifier_param *param = _param;
 	struct vc_data *vc = param->vc;
 	switch (code) {
 	case VT_ALLOCATE:
@@ -293,7 +293,7 @@ static int vt_notifier_call(struct notifier_block *blk,
 			/* Fallthrough */
 		default:
 			if (c < 32)
-				/* Ignore other control sequences */
+				/* Igyesre other control sequences */
 				break;
 			if (console_newline) {
 				memset(console_buf, 0, sizeof(console_buf));
@@ -334,8 +334,8 @@ static int vt_notifier_call(struct notifier_block *blk,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block vt_notifier_block = {
-	.notifier_call = vt_notifier_call,
+static struct yestifier_block vt_yestifier_block = {
+	.yestifier_call = vt_yestifier_call,
 };
 
 /*
@@ -350,7 +350,7 @@ int braille_register_console(struct console *console, int index,
 	if (!(console->flags & CON_BRL))
 		return 0;
 	if (!console_options)
-		/* Only support VisioBraille for now */
+		/* Only support VisioBraille for yesw */
 		console_options = "57600o8";
 	if (braille_co)
 		return -ENODEV;
@@ -362,8 +362,8 @@ int braille_register_console(struct console *console, int index,
 	console->flags |= CON_ENABLED;
 	console->index = index;
 	braille_co = console;
-	register_keyboard_notifier(&keyboard_notifier_block);
-	register_vt_notifier(&vt_notifier_block);
+	register_keyboard_yestifier(&keyboard_yestifier_block);
+	register_vt_yestifier(&vt_yestifier_block);
 	return 1;
 }
 
@@ -373,8 +373,8 @@ int braille_unregister_console(struct console *console)
 		return -EINVAL;
 	if (!(console->flags & CON_BRL))
 		return 0;
-	unregister_keyboard_notifier(&keyboard_notifier_block);
-	unregister_vt_notifier(&vt_notifier_block);
+	unregister_keyboard_yestifier(&keyboard_yestifier_block);
+	unregister_vt_yestifier(&vt_yestifier_block);
 	braille_co = NULL;
 	return 1;
 }

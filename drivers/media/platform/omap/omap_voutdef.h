@@ -68,9 +68,9 @@ enum dss_rotation {
 };
 
 /* Enum for choosing rotation type for vout
- * DSS2 doesn't understand no rotation as an
+ * DSS2 doesn't understand yes rotation as an
  * option while V4L2 driver doesn't support
- * rotation in the case where VRFB is not built in
+ * rotation in the case where VRFB is yest built in
  * the kernel
  */
 enum vout_rotaion_type {
@@ -137,7 +137,7 @@ struct omap_vout_device {
 	struct v4l2_ctrl_handler ctrl_handler;
 	int vid;
 
-	/* allow to reuse previously allocated buffer which is big enough */
+	/* allow to reuse previously allocated buffer which is big eyesugh */
 	int buffer_size;
 	enum omap_color_mode dss_mode;
 

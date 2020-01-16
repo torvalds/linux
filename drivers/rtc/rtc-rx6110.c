@@ -166,9 +166,9 @@ static int rx6110_data_to_rtc_tm(u8 *data, struct rtc_time *tm)
  * @tm: holds date and time
  *
  * BUG: The HW assumes every year that is a multiple of 4 to be a leap
- * year. Next time this is wrong is 2100, which will not be a leap year
+ * year. Next time this is wrong is 2100, which will yest be a leap year
  *
- * Note: If STOP is not set/cleared, the clock will start when the seconds
+ * Note: If STOP is yest set/cleared, the clock will start when the seconds
  *       register is written
  *
  */

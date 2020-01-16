@@ -141,7 +141,7 @@ static const struct drm_panel_funcs panel_lvds_funcs = {
 
 static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 {
-	struct device_node *np = lvds->dev->of_node;
+	struct device_yesde *np = lvds->dev->of_yesde;
 	struct display_timing timing;
 	const char *mapping;
 	int ret;
@@ -247,7 +247,7 @@ static int panel_lvds_probe(struct platform_device *pdev)
 		return PTR_ERR(lvds->backlight);
 
 	/*
-	 * TODO: Handle all power supplies specified in the DT node in a generic
+	 * TODO: Handle all power supplies specified in the DT yesde in a generic
 	 * way for panels that don't care about power supply ordering. LVDS
 	 * panels that require a specific power sequence will need a dedicated
 	 * driver.

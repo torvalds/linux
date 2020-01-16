@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -21,7 +21,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 
@@ -154,7 +154,7 @@ static int drm_calc_scale(int src, int dst)
  * pessimistic limit calculation.
  *
  * RETURNS:
- * The horizontal scaling factor, or errno of out of limits.
+ * The horizontal scaling factor, or erryes of out of limits.
  */
 int drm_rect_calc_hscale(const struct drm_rect *src,
 			 const struct drm_rect *dst,
@@ -189,7 +189,7 @@ EXPORT_SYMBOL(drm_rect_calc_hscale);
  * pessimistic limit calculation.
  *
  * RETURNS:
- * The vertical scaling factor, or errno of out of limits.
+ * The vertical scaling factor, or erryes of out of limits.
  */
 int drm_rect_calc_vscale(const struct drm_rect *src,
 			 const struct drm_rect *dst,

@@ -7,14 +7,14 @@
 #include <linux/elf.h>
 
 #define CRASH_CORE_NOTE_NAME	   "CORE"
-#define CRASH_CORE_NOTE_HEAD_BYTES ALIGN(sizeof(struct elf_note), 4)
+#define CRASH_CORE_NOTE_HEAD_BYTES ALIGN(sizeof(struct elf_yeste), 4)
 #define CRASH_CORE_NOTE_NAME_BYTES ALIGN(sizeof(CRASH_CORE_NOTE_NAME), 4)
 #define CRASH_CORE_NOTE_DESC_BYTES ALIGN(sizeof(struct elf_prstatus), 4)
 
 /*
- * The per-cpu notes area is a list of notes terminated by a "NULL"
- * note header.  For kdump, the code in vmcore.c runs in the context
- * of the second kernel to combine them into one note.
+ * The per-cpu yestes area is a list of yestes terminated by a "NULL"
+ * yeste header.  For kdump, the code in vmcore.c runs in the context
+ * of the second kernel to combine them into one yeste.
  */
 #define CRASH_CORE_NOTE_BYTES	   ((CRASH_CORE_NOTE_HEAD_BYTES * 2) +	\
 				     CRASH_CORE_NOTE_NAME_BYTES +	\
@@ -27,14 +27,14 @@
 				     VMCOREINFO_NOTE_NAME_BYTES +	\
 				     VMCOREINFO_BYTES)
 
-typedef u32 note_buf_t[CRASH_CORE_NOTE_BYTES/4];
+typedef u32 yeste_buf_t[CRASH_CORE_NOTE_BYTES/4];
 
 void crash_update_vmcoreinfo_safecopy(void *ptr);
 void crash_save_vmcoreinfo(void);
 void arch_crash_save_vmcoreinfo(void);
 __printf(1, 2)
 void vmcoreinfo_append_str(const char *fmt, ...);
-phys_addr_t paddr_vmcoreinfo_note(void);
+phys_addr_t paddr_vmcoreinfo_yeste(void);
 
 #define VMCOREINFO_OSRELEASE(value) \
 	vmcoreinfo_append_str("OSRELEASE=%s\n", value)
@@ -62,11 +62,11 @@ phys_addr_t paddr_vmcoreinfo_note(void);
 
 extern unsigned char *vmcoreinfo_data;
 extern size_t vmcoreinfo_size;
-extern u32 *vmcoreinfo_note;
+extern u32 *vmcoreinfo_yeste;
 
-Elf_Word *append_elf_note(Elf_Word *buf, char *name, unsigned int type,
+Elf_Word *append_elf_yeste(Elf_Word *buf, char *name, unsigned int type,
 			  void *data, size_t data_len);
-void final_note(Elf_Word *buf);
+void final_yeste(Elf_Word *buf);
 
 int __init parse_crashkernel(char *cmdline, unsigned long long system_ram,
 		unsigned long long *crash_size, unsigned long long *crash_base);

@@ -32,7 +32,7 @@
  *
  * The caller is responsibe for doing any fencing.
  *
- * The calling process will normally identify a currently free area of
+ * The calling process will yesrmally identify a currently free area of
  * memory. It will construct a proposed fd_scoped_permission_arg structure:
  *
  *   begin_offset and end_offset describe the area being claimed
@@ -48,7 +48,7 @@
  *
  * The driver ensures that, for any group of simultaneous callers proposing
  * compatible fd_scoped_permissions, it will accept exactly one of the
- * propopsals. The other callers will get a failure with errno of EAGAIN.
+ * propopsals. The other callers will get a failure with erryes of EAGAIN.
  *
  * A process receiving a file descriptor can identify the region being
  * granted using the VSOC_GET_FD_SCOPED_PERMISSION ioctl.
@@ -62,8 +62,8 @@ struct fd_scoped_permission {
 
 /*
  * This value represents a free area of memory. The driver expects to see this
- * value at owner_offset when creating a permission otherwise it will not do it,
- * and will write this value back once the permission is no longer needed.
+ * value at owner_offset when creating a permission otherwise it will yest do it,
+ * and will write this value back once the permission is yes longer needed.
  */
 #define VSOC_REGION_FREE ((__u32)0)
 
@@ -78,9 +78,9 @@ struct fd_scoped_permission_arg {
 #define VSOC_NODE_FREE ((__u32)0)
 
 /*
- * Describes a signal table in shared memory. Each non-zero entry in the
+ * Describes a signal table in shared memory. Each yesn-zero entry in the
  * table indicates that the receiver should signal the futex at the given
- * offset. Offsets are relative to the region, not the shared memory window.
+ * offset. Offsets are relative to the region, yest the shared memory window.
  *
  * interrupt_signalled_offset is used to reliably signal interrupts across the
  * vmm boundary. There are two roles: transmitter and receiver. For example,
@@ -88,18 +88,18 @@ struct fd_scoped_permission_arg {
  * guest is the receiver. The protocol is as follows:
  *
  * 1. The transmitter should convert the offset of the futex to an offset
- *    in the signal table [0, (1 << num_nodes_lg2))
+ *    in the signal table [0, (1 << num_yesdes_lg2))
  *    The transmitter can choose any appropriate hashing algorithm, including
- *    hash = futex_offset & ((1 << num_nodes_lg2) - 1)
+ *    hash = futex_offset & ((1 << num_yesdes_lg2) - 1)
  *
  * 3. The transmitter should atomically compare and swap futex_offset with 0
  *    at hash. There are 3 possible outcomes
  *      a. The swap fails because the futex_offset is already in the table.
  *         The transmitter should stop.
  *      b. Some other offset is in the table. This is a hash collision. The
- *         transmitter should move to another table slot and try again. One
+ *         transmitter should move to ayesther table slot and try again. One
  *         possible algorithm:
- *         hash = (hash + 1) & ((1 << num_nodes_lg2) - 1)
+ *         hash = (hash + 1) & ((1 << num_yesdes_lg2) - 1)
  *      c. The swap worked. Continue below.
  *
  * 3. The transmitter atomically swaps 1 with the value at the
@@ -115,26 +115,26 @@ struct fd_scoped_permission_arg {
  *    should be rare.
  *
  * 5. The receiver scans the signal table by atomicaly exchanging 0 at each
- *    location. If a non-zero offset is returned from the exchange the
+ *    location. If a yesn-zero offset is returned from the exchange the
  *    receiver wakes all sleepers at the given offset:
  *      futex((int*)(region_base + old_value), FUTEX_WAKE, MAX_INT);
  *
  * 6. The receiver thread then does a conditional wait, waking immediately
- *    if the value at interrupt_signalled_offset is non-zero. This catches cases
+ *    if the value at interrupt_signalled_offset is yesn-zero. This catches cases
  *    here additional  signals were posted while the table was being scanned.
  *    On the guest the wait is handled via the VSOC_WAIT_FOR_INCOMING_INTERRUPT
  *    ioctl.
  */
 struct vsoc_signal_table_layout {
 	/* log_2(Number of signal table entries) */
-	__u32 num_nodes_lg2;
+	__u32 num_yesdes_lg2;
 	/*
 	 * Offset to the first signal table entry relative to the start of the
 	 * region
 	 */
 	__u32 futex_uaddr_table_offset;
 	/*
-	 * Offset to an atomic_t / atomic uint32_t. A non-zero value indicates
+	 * Offset to an atomic_t / atomic uint32_t. A yesn-zero value indicates
 	 * that one or more offsets are currently posted in the table.
 	 * semi-unique access to an entry in the table
 	 */
@@ -148,9 +148,9 @@ struct vsoc_signal_table_layout {
  * Each HAL would (usually) talk to a single device region
  * Mulitple entities care about these regions:
  * - The ivshmem_server will populate the regions in shared memory
- * - The guest kernel will read the region, create minor device nodes, and
+ * - The guest kernel will read the region, create miyesr device yesdes, and
  *   allow interested parties to register for FUTEX_WAKE events in the region
- * - HALs will access via the minor device nodes published by the guest kernel
+ * - HALs will access via the miyesr device yesdes published by the guest kernel
  * - Host side processes will access the region via the ivshmem_server:
  *   1. Pass name to ivshmem_server at a UNIX socket
  *   2. ivshmemserver will reply with 2 fds:
@@ -159,7 +159,7 @@ struct vsoc_signal_table_layout {
  *     - fd for the shared memory region
  *     - region offset
  *   3. Start a futex receiver thread on the doorbell fd pointed at the
- *      signal_nodes
+ *      signal_yesdes
  */
 struct vsoc_device_region {
 	__u16 current_version;
@@ -175,8 +175,8 @@ struct vsoc_device_region {
 	char device_name[VSOC_DEVICE_NAME_SZ];
 	/* There are two ways that permissions to access regions are handled:
 	 *   - When subdivided_by is VSOC_REGION_WHOLE, any process that can
-	 *     open the device node for the region gains complete access to it.
-	 *   - When subdivided is set processes that open the region cannot
+	 *     open the device yesde for the region gains complete access to it.
+	 *   - When subdivided is set processes that open the region canyest
 	 *     access it. Access to a sub-region must be established by invoking
 	 *     the VSOC_CREATE_FD_SCOPE_PERMISSION ioctl on the region
 	 *     referenced in subdivided_by, providing a fileinstance
@@ -193,7 +193,7 @@ struct vsoc_device_region {
 
 struct vsoc_shm_layout_descriptor {
 	__u16 major_version;
-	__u16 minor_version;
+	__u16 miyesr_version;
 
 	/* size of the shm. This may be redundant but nice to have */
 	__u32 size;
@@ -208,12 +208,12 @@ struct vsoc_shm_layout_descriptor {
 /*
  * This specifies the current version that should be stored in
  * vsoc_shm_layout_descriptor.major_version and
- * vsoc_shm_layout_descriptor.minor_version.
+ * vsoc_shm_layout_descriptor.miyesr_version.
  * It should be updated only if the vsoc_device_region and
  * vsoc_shm_layout_descriptor structures have changed.
  * Versioning within each region is transferred
  * via the min_compatible_version and current_version fields in
- * vsoc_device_region. The driver does not consult these fields: they are left
+ * vsoc_device_region. The driver does yest consult these fields: they are left
  * for the HALs and host processes and will change independently of the layout
  * version.
  */
@@ -226,7 +226,7 @@ struct vsoc_shm_layout_descriptor {
 
 /*
  * This is used to signal the host to scan the guest_to_host_signal_table
- * for new futexes to wake. This sends an interrupt if one is not already
+ * for new futexes to wake. This sends an interrupt if one is yest already
  * in flight.
  */
 #define VSOC_MAYBE_SEND_INTERRUPT_TO_HOST _IO(0xF5, 2)
@@ -240,7 +240,7 @@ struct vsoc_shm_layout_descriptor {
 
 /*
  * Guest HALs will use this to retrieve the region description after
- * opening their device node.
+ * opening their device yesde.
  */
 #define VSOC_DESCRIBE_REGION _IOR(0xF5, 4, struct vsoc_device_region)
 
@@ -273,9 +273,9 @@ struct vsoc_cond_wait {
 	__u32 offset;
 	/* Input: Value that will be compared with the offset */
 	__u32 value;
-	/* Monotonic time to wake at in seconds */
+	/* Moyestonic time to wake at in seconds */
 	__u64 wake_time_sec;
-	/* Input: Monotonic time to wait in nanoseconds */
+	/* Input: Moyestonic time to wait in nayesseconds */
 	__u32 wake_time_nsec;
 	/* Input: Type of wait */
 	__u32 wait_type;

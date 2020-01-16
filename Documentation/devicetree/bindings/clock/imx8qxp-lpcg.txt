@@ -7,7 +7,7 @@ is used to locally gate the clocks for the associated peripheral.
 Note:
 This level of clock gating is provided after the clocks are generated
 by the SCU resources and clock controls. Thus even if the clock is
-enabled by these control bits, it might still not be running based
+enabled by these control bits, it might still yest be running based
 on the base resource.
 
 Required properties:

@@ -58,7 +58,7 @@ struct rtas_t {
 	unsigned long size;
 	arch_spinlock_t lock;
 	struct rtas_args args;
-	struct device_node *dev;	/* virtual address pointer */
+	struct device_yesde *dev;	/* virtual address pointer */
 };
 
 struct rtas_suspend_me_data {
@@ -123,7 +123,7 @@ struct rtas_suspend_me_data {
 #define RTAS_TYPE_DEALLOC		0xE3
 #define RTAS_TYPE_DUMP			0xE4
 #define RTAS_TYPE_HOTPLUG		0xE5
-/* I don't add PowerMGM events right now, this is a different topic */ 
+/* I don't add PowerMGM events right yesw, this is a different topic */ 
 #define RTAS_TYPE_PMGM_POWER_SW_ON	0x60
 #define RTAS_TYPE_PMGM_POWER_SW_OFF	0x61
 #define RTAS_TYPE_PMGM_LID_OPEN		0x62
@@ -354,9 +354,9 @@ extern int rtas_service_present(const char *service);
 extern int rtas_call(int token, int, int, int *, ...);
 void rtas_call_unlocked(struct rtas_args *args, int token, int nargs,
 			int nret, ...);
-extern void __noreturn rtas_restart(char *cmd);
+extern void __yesreturn rtas_restart(char *cmd);
 extern void rtas_power_off(void);
-extern void __noreturn rtas_halt(void);
+extern void __yesreturn rtas_halt(void);
 extern void rtas_os_term(char *str);
 extern int rtas_get_sensor(int sensor, int index, int *state);
 extern int rtas_get_sensor_fast(int sensor, int index, int *state);
@@ -380,7 +380,7 @@ extern int rtas_set_rtc_time(struct rtc_time *rtc_time);
 extern unsigned int rtas_busy_delay_time(int status);
 extern unsigned int rtas_busy_delay(int status);
 
-extern int early_init_dt_scan_rtas(unsigned long node,
+extern int early_init_dt_scan_rtas(unsigned long yesde,
 		const char *uname, int depth, void *data);
 
 extern void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
@@ -407,7 +407,7 @@ static inline void rtas_cancel_event_scan(void) { }
 #define ERR_TYPE_KERNEL_PANIC	0x4	/* from die()/panic() */
 #define ERR_TYPE_KERNEL_PANIC_GZ 0x8	/* ditto, compressed */
 
-/* All the types and not flags */
+/* All the types and yest flags */
 #define ERR_TYPE_MASK \
 	(ERR_TYPE_RTAS_LOG | ERR_TYPE_KERNEL_PANIC | ERR_TYPE_KERNEL_PANIC_GZ)
 
@@ -444,18 +444,18 @@ extern unsigned long rtas_rmo_buf;
 #define GLOBAL_INTERRUPT_QUEUE 9005
 
 /**
- * rtas_config_addr - Format a busno, devfn and reg for RTAS.
- * @busno: The bus number.
+ * rtas_config_addr - Format a busyes, devfn and reg for RTAS.
+ * @busyes: The bus number.
  * @devfn: The device and function number as encoded by PCI_DEVFN().
  * @reg: The register number.
  *
- * This function encodes the given busno, devfn and register number as
+ * This function encodes the given busyes, devfn and register number as
  * required for RTAS calls that take a "config_addr" parameter.
  * See PAPR requirement 7.3.4-1 for more info.
  */
-static inline u32 rtas_config_addr(int busno, int devfn, int reg)
+static inline u32 rtas_config_addr(int busyes, int devfn, int reg)
 {
-	return ((reg & 0xf00) << 20) | ((busno & 0xff) << 16) |
+	return ((reg & 0xf00) << 20) | ((busyes & 0xff) << 16) |
 			(devfn << 8) | (reg & 0xff);
 }
 

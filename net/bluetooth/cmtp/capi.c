@@ -24,7 +24,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
@@ -268,9 +268,9 @@ static void cmtp_recv_interopmsg(struct cmtp_session *session, struct sk_buff *s
 
 			if (!info && ctrl) {
 				ctrl->version.majorversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 16);
-				ctrl->version.minorversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 20);
+				ctrl->version.miyesrversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 20);
 				ctrl->version.majormanuversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 24);
-				ctrl->version.minormanuversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 28);
+				ctrl->version.miyesrmanuversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 28);
 			}
 
 			break;

@@ -303,5 +303,5 @@ void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work)
 
 	mwifiex_dbg(priv->adapter, MSG,
 		    "indicating channel switch completion to kernel\n");
-	cfg80211_ch_switch_notify(priv->netdev, &priv->dfs_chandef);
+	cfg80211_ch_switch_yestify(priv->netdev, &priv->dfs_chandef);
 }

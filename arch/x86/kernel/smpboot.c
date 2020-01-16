@@ -137,7 +137,7 @@ static inline void smpboot_restore_warm_reset_vector(void)
 	unsigned long flags;
 
 	/*
-	 * Paranoid:  Set warm reset code and vector here back
+	 * Parayesid:  Set warm reset code and vector here back
 	 * to default values.
 	 */
 	spin_lock_irqsave(&rtc_lock, flags);
@@ -159,7 +159,7 @@ static void smp_callin(void)
 	 * If waken up by an INIT in an 82489DX configuration
 	 * cpu_callout_mask guarantees we don't get here before
 	 * an INIT_deassert IPI reaches our local APIC, so it is
-	 * now safe to touch our local APIC.
+	 * yesw safe to touch our local APIC.
 	 */
 	cpuid = smp_processor_id();
 
@@ -179,14 +179,14 @@ static void smp_callin(void)
 
 	/*
 	 * The topology information must be up to date before
-	 * calibrate_delay() and notify_cpu_starting().
+	 * calibrate_delay() and yestify_cpu_starting().
 	 */
 	set_cpu_sibling_map(raw_smp_processor_id());
 
 	/*
 	 * Get our bogomips.
 	 * Update loops_per_jiffy in cpu_data. Previous call to
-	 * smp_store_cpu_info() stored a value that is close but not as
+	 * smp_store_cpu_info() stored a value that is close but yest as
 	 * accurate as the value just calculated.
 	 */
 	calibrate_delay();
@@ -195,7 +195,7 @@ static void smp_callin(void)
 
 	wmb();
 
-	notify_cpu_starting(cpuid);
+	yestify_cpu_starting(cpuid);
 
 	/*
 	 * Allow the master to continue.
@@ -208,7 +208,7 @@ static int enable_start_cpu0;
 /*
  * Activate a secondary processor.
  */
-static void notrace start_secondary(void *unused)
+static void yestrace start_secondary(void *unused)
 {
 	/*
 	 * Don't put *anything* except direct CPU state initialization
@@ -284,7 +284,7 @@ bool topology_smt_supported(void)
 /**
  * topology_phys_to_logical_pkg - Map a physical package id to a logical
  *
- * Returns logical package id or -1 if not found
+ * Returns logical package id or -1 if yest found
  */
 int topology_phys_to_logical_pkg(unsigned int phys_pkg)
 {
@@ -302,7 +302,7 @@ EXPORT_SYMBOL(topology_phys_to_logical_pkg);
 /**
  * topology_phys_to_logical_die - Map a physical die id to logical
  *
- * Returns logical die id or -1 if not found
+ * Returns logical die id or -1 if yest found
  */
 int topology_phys_to_logical_die(unsigned int die_id, unsigned int cur_cpu)
 {
@@ -400,11 +400,11 @@ void smp_store_cpu_info(int id)
 }
 
 static bool
-topology_same_node(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+topology_same_yesde(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
-	return (cpu_to_node(cpu1) == cpu_to_node(cpu2));
+	return (cpu_to_yesde(cpu1) == cpu_to_yesde(cpu2));
 }
 
 static bool
@@ -412,10 +412,10 @@ topology_sane(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o, const char *name)
 {
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
-	return !WARN_ONCE(!topology_same_node(c, o),
-		"sched: CPU #%d's %s-sibling CPU #%d is not on the same node! "
-		"[node: %d != %d]. Ignoring dependency.\n",
-		cpu1, name, cpu2, cpu_to_node(cpu1), cpu_to_node(cpu2));
+	return !WARN_ONCE(!topology_same_yesde(c, o),
+		"sched: CPU #%d's %s-sibling CPU #%d is yest on the same yesde! "
+		"[yesde: %d != %d]. Igyesring dependency.\n",
+		cpu1, name, cpu2, cpu_to_yesde(cpu1), cpu_to_yesde(cpu2));
 }
 
 #define link_mask(mfunc, c1, c2)					\
@@ -454,15 +454,15 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
  * Define snc_cpu[] for SNC (Sub-NUMA Cluster) CPUs.
  *
  * These are Intel CPUs that enumerate an LLC that is shared by
- * multiple NUMA nodes. The LLC on these systems is shared for
- * off-package data access but private to the NUMA node (half
+ * multiple NUMA yesdes. The LLC on these systems is shared for
+ * off-package data access but private to the NUMA yesde (half
  * of the package) for on-package access.
  *
  * CPUID (the source of the information about the LLC) can only
- * enumerate the cache as being shared *or* unshared, but not
+ * enumerate the cache as being shared *or* unshared, but yest
  * this particular configuration. The CPU in this case enumerates
  * the cache to be shared across the entire package (spanning both
- * NUMA nodes).
+ * NUMA yesdes).
  */
 
 static const struct x86_cpu_id snc_cpu[] = {
@@ -474,28 +474,28 @@ static bool match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
-	/* Do not match if we do not have a valid APICID for cpu: */
+	/* Do yest match if we do yest have a valid APICID for cpu: */
 	if (per_cpu(cpu_llc_id, cpu1) == BAD_APICID)
 		return false;
 
-	/* Do not match if LLC id does not match: */
+	/* Do yest match if LLC id does yest match: */
 	if (per_cpu(cpu_llc_id, cpu1) != per_cpu(cpu_llc_id, cpu2))
 		return false;
 
 	/*
 	 * Allow the SNC topology without warning. Return of false
-	 * means 'c' does not share the LLC of 'o'. This will be
+	 * means 'c' does yest share the LLC of 'o'. This will be
 	 * reflected to userspace.
 	 */
-	if (!topology_same_node(c, o) && x86_match_cpu(snc_cpu))
+	if (!topology_same_yesde(c, o) && x86_match_cpu(snc_cpu))
 		return false;
 
 	return topology_sane(c, o, "llc");
 }
 
 /*
- * Unlike the other levels, we do not enforce keeping a
- * multicore group inside a NUMA node.  If this happens, we will
+ * Unlike the other levels, we do yest enforce keeping a
+ * multicore group inside a NUMA yesde.  If this happens, we will
  * discard the MC level of the topology later.
  */
 static bool match_pkg(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
@@ -556,7 +556,7 @@ static struct sched_domain_topology_level x86_topology[] = {
 };
 
 /*
- * Set if a package/die has multiple NUMA nodes inside.
+ * Set if a package/die has multiple NUMA yesdes inside.
  * AMD Magny-Cours, Intel Cluster-on-Die, and Intel
  * Sub-NUMA Clustering have this.
  */
@@ -623,7 +623,7 @@ void set_cpu_sibling_map(int cpu)
 			} else if (i != cpu && !c->booted_cores)
 				c->booted_cores = cpu_data(i).booted_cores;
 		}
-		if (match_pkg(c, o) && !topology_same_node(c, o))
+		if (match_pkg(c, o) && !topology_same_yesde(c, o))
 			x86_has_numa_in_package = true;
 
 		if ((i == cpu) || (has_mp && match_die(c, o)))
@@ -726,7 +726,7 @@ static void __init smp_quirk_init_udelay(void)
 	if (init_udelay != UINT_MAX)
 		return;
 
-	/* if modern processor, use no delay */
+	/* if modern processor, use yes delay */
 	if (((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) && (boot_cpu_data.x86 == 6)) ||
 	    ((boot_cpu_data.x86_vendor == X86_VENDOR_HYGON) && (boot_cpu_data.x86 >= 0x18)) ||
 	    ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) && (boot_cpu_data.x86 >= 0xF))) {
@@ -738,7 +738,7 @@ static void __init smp_quirk_init_udelay(void)
 }
 
 /*
- * Poke the other CPU in the eye via NMI to wake it up. Remember that the normal
+ * Poke the other CPU in the eye via NMI to wake it up. Remember that the yesrmal
  * INIT, INIT, STARTUP sequence will reset the chip hard for us, and this
  * won't ... remember to clear down the APIC, etc later.
  */
@@ -785,7 +785,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	maxlvt = lapic_get_maxlvt();
 
 	/*
-	 * Be paranoid about clearing APIC errors.
+	 * Be parayesid about clearing APIC errors.
 	 */
 	if (APIC_INTEGRATED(boot_cpu_apic_version)) {
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
@@ -891,29 +891,29 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 }
 
 /* reduce the number of lines printed when booting a large cpu count system */
-static void announce_cpu(int cpu, int apicid)
+static void anyesunce_cpu(int cpu, int apicid)
 {
-	static int current_node = NUMA_NO_NODE;
-	int node = early_cpu_to_node(cpu);
-	static int width, node_width;
+	static int current_yesde = NUMA_NO_NODE;
+	int yesde = early_cpu_to_yesde(cpu);
+	static int width, yesde_width;
 
 	if (!width)
 		width = num_digits(num_possible_cpus()) + 1; /* + '#' sign */
 
-	if (!node_width)
-		node_width = num_digits(num_possible_nodes()) + 1; /* + '#' */
+	if (!yesde_width)
+		yesde_width = num_digits(num_possible_yesdes()) + 1; /* + '#' */
 
 	if (cpu == 1)
 		printk(KERN_INFO "x86: Booting SMP configuration:\n");
 
 	if (system_state < SYSTEM_RUNNING) {
-		if (node != current_node) {
-			if (current_node > (-1))
+		if (yesde != current_yesde) {
+			if (current_yesde > (-1))
 				pr_cont("\n");
-			current_node = node;
+			current_yesde = yesde;
 
-			printk(KERN_INFO ".... node %*s#%d, CPUs:  ",
-			       node_width - num_digits(node), " ", node);
+			printk(KERN_INFO ".... yesde %*s#%d, CPUs:  ",
+			       yesde_width - num_digits(yesde), " ", yesde);
 		}
 
 		/* Add padding for the BSP */
@@ -924,7 +924,7 @@ static void announce_cpu(int cpu, int apicid)
 
 	} else
 		pr_info("Booting Node %d Processor %d APIC 0x%x\n",
-			node, cpu, apicid);
+			yesde, cpu, apicid);
 }
 
 static int wakeup_cpu0_nmi(unsigned int cmd, struct pt_regs *regs)
@@ -942,7 +942,7 @@ static int wakeup_cpu0_nmi(unsigned int cmd, struct pt_regs *regs)
  * Wake up AP by INIT, INIT, STARTUP sequence.
  *
  * Instead of waiting for STARTUP after INITs, BSP will execute the BIOS
- * boot-strap code which is not a desired behavior for waking up BSP. To
+ * boot-strap code which is yest a desired behavior for waking up BSP. To
  * void the boot-strap code, wake up CPU0 by NMI instead.
  *
  * This works to wake up soft offlined CPU0 only. If CPU0 is hard offlined
@@ -1038,7 +1038,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 	init_espfix_ap(cpu);
 
 	/* So we see what's up */
-	announce_cpu(cpu, apicid);
+	anyesunce_cpu(cpu, apicid);
 
 	/*
 	 * This grunge runs the startup process for
@@ -1051,7 +1051,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 
 		smpboot_setup_warm_reset_vector(start_ip);
 		/*
-		 * Be paranoid about clearing APIC errors.
+		 * Be parayesid about clearing APIC errors.
 		*/
 		if (APIC_INTEGRATED(boot_cpu_apic_version)) {
 			apic_write(APIC_ESR, 0);
@@ -1161,7 +1161,7 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	if (err && err != -EBUSY)
 		return err;
 
-	/* the FPU context is blank, nobody can own it */
+	/* the FPU context is blank, yesbody can own it */
 	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
 
 	err = common_cpu_up(cpu, tidle);
@@ -1208,7 +1208,7 @@ void arch_disable_smp_support(void)
 }
 
 /*
- * Fall back to non SMP mode after errors.
+ * Fall back to yesn SMP mode after errors.
  *
  * RED-PEN audit/test this more. I bet there is more state messed up here.
  */
@@ -1264,18 +1264,18 @@ static void __init smp_sanity_check(void)
 #endif
 
 	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
-		pr_warn("weird, boot CPU (#%d) not listed by the BIOS\n",
+		pr_warn("weird, boot CPU (#%d) yest listed by the BIOS\n",
 			hard_smp_processor_id());
 
 		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
 	}
 
 	/*
-	 * Should not be necessary because the MP table should list the boot
+	 * Should yest be necessary because the MP table should list the boot
 	 * CPU too, but we do it for the sake of robustness anyway.
 	 */
 	if (!apic->check_phys_apicid_present(boot_cpu_physical_apicid)) {
-		pr_notice("weird, boot CPU (#%d) not listed by the BIOS\n",
+		pr_yestice("weird, boot CPU (#%d) yest listed by the BIOS\n",
 			  boot_cpu_physical_apicid);
 		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
 	}
@@ -1329,7 +1329,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	/*
 	 * Set 'default' x86 topology, this matches default_topology() in that
-	 * it has NUMA nodes as a topology level. See also
+	 * it has NUMA yesdes as a topology level. See also
 	 * native_smp_cpus_done().
 	 *
 	 * Must be done before set_cpus_sibling_map() is ran.
@@ -1372,12 +1372,12 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	speculative_store_bypass_ht_init();
 }
 
-void arch_enable_nonboot_cpus_begin(void)
+void arch_enable_yesnboot_cpus_begin(void)
 {
 	set_mtrr_aps_delayed_init();
 }
 
-void arch_enable_nonboot_cpus_end(void)
+void arch_enable_yesnboot_cpus_end(void)
 {
 	mtrr_aps_init();
 }
@@ -1400,7 +1400,7 @@ void __init calculate_max_logical_packages(void)
 	int ncpus;
 
 	/*
-	 * Today neither Intel nor AMD support heterogenous systems so
+	 * Today neither Intel yesr AMD support heterogeyesus systems so
 	 * extrapolate the boot cpu's data to all packages.
 	 */
 	ncpus = cpu_data(0).booted_cores * topology_max_smt_threads();
@@ -1432,12 +1432,12 @@ early_param("possible_cpus", _setup_possible_cpus);
 
 
 /*
- * cpu_possible_mask should be static, it cannot change as cpu's
+ * cpu_possible_mask should be static, it canyest change as cpu's
  * are onlined, or offlined. The reason is per-cpu data-structures
  * are allocated by some modules at init time, and dont expect to
  * do this dynamically on cpu arrival/departure.
  * cpu_present_mask on the other hand can change dynamically.
- * In case when cpu_hotplug is not compiled, then we resort to current
+ * In case when cpu_hotplug is yest compiled, then we resort to current
  * behaviour, which is cpu_possible == cpu_present.
  * - Ashok Raj
  *
@@ -1458,7 +1458,7 @@ __init void prefill_possible_map(void)
 			int apicid = boot_cpu_physical_apicid;
 			int cpu = hard_smp_processor_id();
 
-			pr_warn("Boot CPU (id %d) not listed by BIOS\n", cpu);
+			pr_warn("Boot CPU (id %d) yest listed by BIOS\n", cpu);
 
 			/* Make sure boot cpu is enumerated */
 			if (apic->cpu_present_to_apicid(0) == BAD_APICID &&
@@ -1575,7 +1575,7 @@ void cpu_disable_common(void)
 
 	remove_siblinginfo(cpu);
 
-	/* It's now safe to remove this processor from the online map */
+	/* It's yesw safe to remove this processor from the online map */
 	lock_vector_lock();
 	remove_cpu_from_maps(cpu);
 	unlock_vector_lock();
@@ -1593,7 +1593,7 @@ int native_cpu_disable(void)
 
 	/*
 	 * Disable the local APIC. Otherwise IPI broadcasts will reach
-	 * it. It still responds normally to INIT, NMI, SMI, and SIPI
+	 * it. It still responds yesrmally to INIT, NMI, SMI, and SIPI
 	 * messages.
 	 */
 	apic_soft_disable();
@@ -1611,7 +1611,7 @@ int common_cpu_die(unsigned int cpu)
 	/* They ack this in play_dead() by setting CPU_DEAD */
 	if (cpu_wait_death(cpu, 5)) {
 		if (system_state == SYSTEM_RUNNING)
-			pr_info("CPU %u is now offline\n", cpu);
+			pr_info("CPU %u is yesw offline\n", cpu);
 	} else {
 		pr_err("CPU %u didn't die...\n", cpu);
 		ret = -1;
@@ -1673,7 +1673,7 @@ static inline void mwait_play_dead(void)
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 
 	/*
-	 * eax will be 0 if EDX enumeration is not valid.
+	 * eax will be 0 if EDX enumeration is yest valid.
 	 * Initialized below to cstate, sub_cstate value when EDX is valid.
 	 */
 	if (!(ecx & CPUID5_ECX_EXTENSIONS_SUPPORTED)) {
@@ -1693,7 +1693,7 @@ static inline void mwait_play_dead(void)
 	/*
 	 * This should be a memory location in a cache line which is
 	 * unlikely to be touched by other processors.  The actual
-	 * content is immaterial as it is not actually modified in any way.
+	 * content is immaterial as it is yest actually modified in any way.
 	 */
 	mwait_ptr = &current_thread_info()->flags;
 
@@ -1702,7 +1702,7 @@ static inline void mwait_play_dead(void)
 	while (1) {
 		/*
 		 * The CLFLUSH is a workaround for erratum AAI65 for
-		 * the Xeon 7400 series.  It's not clear it is actually
+		 * the Xeon 7400 series.  It's yest clear it is actually
 		 * needed, but it should be harmless in either case.
 		 * The WBINVD is insufficient due to the spurious-wakeup
 		 * case where we return around the loop.
@@ -1754,7 +1754,7 @@ int native_cpu_disable(void)
 
 void native_cpu_die(unsigned int cpu)
 {
-	/* We said "no" in __cpu_disable */
+	/* We said "yes" in __cpu_disable */
 	BUG();
 }
 

@@ -9,7 +9,7 @@
 #include <linux/export.h>
 #include <linux/oid_registry.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bug.h>
 #include "oid_registry_data.c"
 
@@ -100,7 +100,7 @@ EXPORT_SYMBOL_GPL(look_up_OID);
  * @bufsize: The size of the buffer
  *
  * The OID is rendered into the buffer in "a.b.c.d" format and the number of
- * bytes is returned.  -EBADMSG is returned if the data could not be intepreted
+ * bytes is returned.  -EBADMSG is returned if the data could yest be intepreted
  * and -ENOBUFS if the buffer was too small.
  */
 int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)

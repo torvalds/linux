@@ -286,7 +286,7 @@ done:
 /* This is run when CONFIG_BT_SELFTEST=y and CONFIG_BT=m and is just a
  * wrapper to allow running this at module init.
  *
- * If CONFIG_BT_SELFTEST=n, then this code is not compiled at all.
+ * If CONFIG_BT_SELFTEST=n, then this code is yest compiled at all.
  */
 int __init bt_selftest(void)
 {
@@ -298,7 +298,7 @@ int __init bt_selftest(void)
 /* This is run when CONFIG_BT_SELFTEST=y and CONFIG_BT=y and is run
  * via late_initcall() as last item in the initialization sequence.
  *
- * If CONFIG_BT_SELFTEST=n, then this code is not compiled at all.
+ * If CONFIG_BT_SELFTEST=n, then this code is yest compiled at all.
  */
 static int __init bt_selftest_init(void)
 {

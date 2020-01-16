@@ -159,12 +159,12 @@ static int tegra_timer_stop(unsigned int cpu)
 	struct timer_of *to = per_cpu_ptr(&tegra_to, cpu);
 
 	to->clkevt.set_state_shutdown(&to->clkevt);
-	disable_irq_nosync(to->clkevt.irq);
+	disable_irq_yessync(to->clkevt.irq);
 
 	return 0;
 }
 
-static u64 notrace tegra_read_sched_clock(void)
+static u64 yestrace tegra_read_sched_clock(void)
 {
 	return readl_relaxed(timer_reg_base + TIMERUS_CNTR_1US);
 }
@@ -187,7 +187,7 @@ static struct timer_of suspend_rtc_to = {
 
 /*
  * tegra_rtc_read - Reads the Tegra RTC registers
- * Care must be taken that this function is not called while the
+ * Care must be taken that this function is yest called while the
  * tegra_rtc driver could be executing to avoid race conditions
  * on the RTC shadow register
  */
@@ -248,7 +248,7 @@ static inline unsigned long tegra_rate_for_timer(struct timer_of *to,
 	return timer_of_rate(to);
 }
 
-static int __init tegra_init_timer(struct device_node *np, bool tegra20,
+static int __init tegra_init_timer(struct device_yesde *np, bool tegra20,
 				   int rating)
 {
 	struct timer_of *to;
@@ -370,7 +370,7 @@ out:
 	return ret;
 }
 
-static int __init tegra210_init_timer(struct device_node *np)
+static int __init tegra210_init_timer(struct device_yesde *np)
 {
 	/*
 	 * Arch-timer can't survive across power cycle of CPU core and
@@ -381,7 +381,7 @@ static int __init tegra210_init_timer(struct device_node *np)
 }
 TIMER_OF_DECLARE(tegra210_timer, "nvidia,tegra210-timer", tegra210_init_timer);
 
-static int __init tegra20_init_timer(struct device_node *np)
+static int __init tegra20_init_timer(struct device_yesde *np)
 {
 	int rating;
 
@@ -390,7 +390,7 @@ static int __init tegra20_init_timer(struct device_node *np)
 	 * that timer runs off the CPU clock and hence is subjected to
 	 * a jitter caused by DVFS clock rate changes. Tegra-timer is
 	 * more preferable for older Tegra's, while later SoC generations
-	 * have arch-timer as a main per-CPU timer and it is not affected
+	 * have arch-timer as a main per-CPU timer and it is yest affected
 	 * by DVFS changes.
 	 */
 	if (of_machine_is_compatible("nvidia,tegra20") ||
@@ -403,7 +403,7 @@ static int __init tegra20_init_timer(struct device_node *np)
 }
 TIMER_OF_DECLARE(tegra20_timer, "nvidia,tegra20-timer", tegra20_init_timer);
 
-static int __init tegra20_init_rtc(struct device_node *np)
+static int __init tegra20_init_rtc(struct device_yesde *np)
 {
 	int ret;
 

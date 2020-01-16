@@ -77,7 +77,7 @@ void dp_enable_link_phy(
 	struct clock_source *dp_cs =
 			link->dc->res_pool->dp_clock_source;
 	unsigned int i;
-	/* If the current pixel clock source is not DTO(happens after
+	/* If the current pixel clock source is yest DTO(happens after
 	 * switching from HDMI passive dongle to DP on the same connector),
 	 * switch the pixel clock source to DTO.
 	 */
@@ -200,7 +200,7 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 
 void dp_disable_link_phy_mst(struct dc_link *link, enum signal_type signal)
 {
-	/* MST disable link only when no stream use the link */
+	/* MST disable link only when yes stream use the link */
 	if (link->mst_stream_alloc_table.stream_count > 0)
 		return;
 
@@ -323,7 +323,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 					link_setting);
 
 			if (pipes[i].stream_res.audio) {
-				/* notify audio driver for
+				/* yestify audio driver for
 				 * audio modes of monitor */
 				pipes[i].stream_res.audio->funcs->az_enable(
 						pipes[i].stream_res.audio);
@@ -350,7 +350,7 @@ static void dsc_optc_config_log(struct display_stream_compressor *dsc,
 	uint32_t bytes_per_pixel_mod = config->bytes_per_pixel % precision;
 	uint64_t ll_bytes_per_pix_fraq = bytes_per_pixel_mod;
 
-	/* 7 fractional digits decimal precision for bytes per pixel is enough because DSC
+	/* 7 fractional digits decimal precision for bytes per pixel is eyesugh because DSC
 	 * bits per pixel precision is 1/16th of a pixel, which means bytes per pixel precision is
 	 * 1/16/8 = 1/128 of a byte, or 0.0078125 decimal
 	 */

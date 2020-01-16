@@ -155,18 +155,18 @@ static const struct regmap_range slg51000_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table slg51000_writeable_table = {
-	.yes_ranges	= slg51000_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(slg51000_writeable_ranges),
+	.no_ranges	= slg51000_writeable_ranges,
+	.n_no_ranges	= ARRAY_SIZE(slg51000_writeable_ranges),
 };
 
 static const struct regmap_access_table slg51000_readable_table = {
-	.yes_ranges	= slg51000_readable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(slg51000_readable_ranges),
+	.no_ranges	= slg51000_readable_ranges,
+	.n_no_ranges	= ARRAY_SIZE(slg51000_readable_ranges),
 };
 
 static const struct regmap_access_table slg51000_volatile_table = {
-	.yes_ranges	= slg51000_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(slg51000_volatile_ranges),
+	.no_ranges	= slg51000_volatile_ranges,
+	.n_no_ranges	= ARRAY_SIZE(slg51000_volatile_ranges),
 };
 
 static const struct regmap_config slg51000_regmap_config = {
@@ -194,13 +194,13 @@ static const struct regulator_ops slg51000_switch_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 };
 
-static int slg51000_of_parse_cb(struct device_node *np,
+static int slg51000_of_parse_cb(struct device_yesde *np,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
 {
 	struct gpio_desc *ena_gpiod;
 
-	ena_gpiod = fwnode_gpiod_get_index(of_fwnode_handle(np), "enable", 0,
+	ena_gpiod = fwyesde_gpiod_get_index(of_fwyesde_handle(np), "enable", 0,
 					   GPIOD_OUT_LOW |
 						GPIOD_FLAGS_BIT_NONEXCLUSIVE,
 					   "gpio-en-ldo");
@@ -218,7 +218,7 @@ static int slg51000_of_parse_cb(struct device_node *np,
 		.of_match = of_match_ptr(#_name),                  \
 		.of_parse_cb = slg51000_of_parse_cb,               \
 		.ops = &slg51000_regl_ops,                         \
-		.regulators_node = of_match_ptr("regulators"),     \
+		.regulators_yesde = of_match_ptr("regulators"),     \
 		.n_voltages = 256,                                 \
 		.min_uV = _min,                                    \
 		.uV_step = _step,                                  \
@@ -379,7 +379,7 @@ static irqreturn_t slg51000_irq_handler(int irq, void *data)
 	if ((evt_otp & SLG51000_EVT_CRC_MASK) &&
 	    !(mask_otp & SLG51000_IRQ_CRC_MASK)) {
 		dev_info(chip->dev,
-			 "OTP has been read or OTP crc is not zero\n");
+			 "OTP has been read or OTP crc is yest zero\n");
 		handled = IRQ_HANDLED;
 	}
 
@@ -387,7 +387,7 @@ static irqreturn_t slg51000_irq_handler(int irq, void *data)
 		if (!(evt[i][R2] & SLG51000_IRQ_ILIM_FLAG_MASK) &&
 		    (evt[i][R0] & SLG51000_EVT_ILIM_FLAG_MASK)) {
 			regulator_lock(chip->rdev[i]);
-			regulator_notifier_call_chain(chip->rdev[i],
+			regulator_yestifier_call_chain(chip->rdev[i],
 					    REGULATOR_EVENT_OVER_CURRENT, NULL);
 			regulator_unlock(chip->rdev[i]);
 
@@ -404,7 +404,7 @@ static irqreturn_t slg51000_irq_handler(int irq, void *data)
 			if (!(evt[i][R1] & SLG51000_STA_ILIM_FLAG_MASK) &&
 			    (evt[i][R1] & SLG51000_STA_VOUT_OK_FLAG_MASK)) {
 				regulator_lock(chip->rdev[i]);
-				regulator_notifier_call_chain(chip->rdev[i],
+				regulator_yestifier_call_chain(chip->rdev[i],
 					       REGULATOR_EVENT_OVER_TEMP, NULL);
 				regulator_unlock(chip->rdev[i]);
 			}

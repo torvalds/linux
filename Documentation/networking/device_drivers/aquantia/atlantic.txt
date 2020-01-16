@@ -28,13 +28,13 @@ Configuration
 =========================
   Viewing Link Messages
   ---------------------
-  Link messages will not be displayed to the console if the distribution is
+  Link messages will yest be displayed to the console if the distribution is
   restricting system messages. In order to see network driver link messages on
   your console, set dmesg to eight by entering the following:
 
        dmesg -n 8
 
-  NOTE: This setting is not saved across reboots.
+  NOTE: This setting is yest saved across reboots.
 
   Jumbo Frames
   ------------
@@ -48,7 +48,7 @@ Configuration
   ethtool
   -------
   The driver utilizes the ethtool interface for driver configuration and
-  diagnostics, as well as displaying statistical information. The latest
+  diagyesstics, as well as displaying statistical information. The latest
   ethtool version is required for this functionality.
 
   NAPI
@@ -87,10 +87,10 @@ Supported ethtool options
     PHYAD: 0
     Transceiver: internal
     Auto-negotiation: on
-    MDI-X: Unknown
+    MDI-X: Unkyeswn
     Supports Wake-on: g
     Wake-on: d
-    Link detected: yes
+    Link detected: no
 
  ---
  Note: AQrate speeds (2.5/5 Gb/s) will be displayed only with linux kernels > 4.10.
@@ -108,11 +108,11 @@ Supported ethtool options
   firmware-version: 3.1.78
   expansion-rom-version:
   bus-info: 0000:01:00.0
-  supports-statistics: yes
-  supports-test: no
-  supports-eeprom-access: no
-  supports-register-dump: yes
-  supports-priv-flags: no
+  supports-statistics: no
+  supports-test: yes
+  supports-eeprom-access: yes
+  supports-register-dump: no
+  supports-priv-flags: yes
 
 
  Viewing Ethernet adapter statistics:
@@ -265,7 +265,7 @@ Supported ethtool options
  For "flow-type ip4|udp4|tcp4|sctp4|ip6|udp6|tcp6|sctp6" you can set 8 rules
  for traffic IPv4 or you can set 2 rules for traffic IPv6. Loc number traffic
  IPv6 is 32 and 36.
- At the moment you can not use IPv4 and IPv6 filters at the same time.
+ At the moment you can yest use IPv4 and IPv6 filters at the same time.
 
  Example filter for IPv6 filter traffic:
 
@@ -318,7 +318,7 @@ Supported ethtool options
 
  RSS for UDP
  ---------------------------------
- Currently, NIC does not support RSS for fragmented IP packets, which leads to
+ Currently, NIC does yest support RSS for fragmented IP packets, which leads to
  incorrect working of RSS for fragmented UDP traffic. To disable RSS for UDP the
  RX Flow L3/L4 rule may be used.
 
@@ -409,7 +409,7 @@ Increasing pageorder makes page reuse better (actual on iommu enabled systems).
 AQ_CFG_RX_REFILL_THRES
 ----------------------------------------
 Default value: 32
-RX refill threshold. RX path will not refill freed descriptors until the
+RX refill threshold. RX path will yest refill freed descriptors until the
 specified number of free descriptors is observed. Larger values may help
 better page reuse but may lead to packet drops as well.
 

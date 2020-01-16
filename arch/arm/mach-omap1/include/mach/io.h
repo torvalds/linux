@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if yest, write to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Modifications:
@@ -37,7 +37,7 @@
 #define IO_SPACE_LIMIT 0xffffffff
 
 /*
- * We don't actually have real ISA nor PCI buses, but there is so many
+ * We don't actually have real ISA yesr PCI buses, but there is so many
  * drivers out there that might just work if we fake them...
  */
 #define __io(a)		__typesafe_io(a)

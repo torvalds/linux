@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -29,17 +29,17 @@
 #include <nvif/ioctl.h>
 
 static int
-nvkm_ioctl_nop(struct nvkm_client *client,
+nvkm_ioctl_yesp(struct nvkm_client *client,
 	       struct nvkm_object *object, void *data, u32 size)
 {
 	union {
-		struct nvif_ioctl_nop_v0 v0;
+		struct nvif_ioctl_yesp_v0 v0;
 	} *args = data;
 	int ret = -ENOSYS;
 
-	nvif_ioctl(object, "nop size %d\n", size);
+	nvif_ioctl(object, "yesp size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "nop vers %lld\n", args->v0.version);
+		nvif_ioctl(object, "yesp vers %lld\n", args->v0.version);
 		args->v0.version = NVIF_VERSION_LATEST;
 	}
 
@@ -100,7 +100,7 @@ nvkm_ioctl_new(struct nvkm_client *client,
 		return ret;
 
 	if (!parent->func->sclass) {
-		nvif_ioctl(parent, "cannot have children\n");
+		nvif_ioctl(parent, "canyest have children\n");
 		return -EINVAL;
 	}
 
@@ -147,12 +147,12 @@ nvkm_ioctl_del(struct nvkm_client *client,
 	       struct nvkm_object *object, void *data, u32 size)
 {
 	union {
-		struct nvif_ioctl_del none;
+		struct nvif_ioctl_del yesne;
 	} *args = data;
 	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "delete size %d\n", size);
-	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
+	if (!(ret = nvif_unvers(ret, &data, &size, args->yesne))) {
 		nvif_ioctl(object, "delete\n");
 		nvkm_object_fini(object, false);
 		nvkm_object_del(&object);
@@ -280,12 +280,12 @@ nvkm_ioctl_unmap(struct nvkm_client *client,
 		 struct nvkm_object *object, void *data, u32 size)
 {
 	union {
-		struct nvif_ioctl_unmap none;
+		struct nvif_ioctl_unmap yesne;
 	} *args = data;
 	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "unmap size %d\n", size);
-	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
+	if (!(ret = nvif_unvers(ret, &data, &size, args->yesne))) {
 		nvif_ioctl(object, "unmap\n");
 		ret = nvkm_object_unmap(object);
 	}
@@ -309,7 +309,7 @@ nvkm_ioctl_ntfy_new(struct nvkm_client *client,
 			   args->v0.version, args->v0.event);
 		ret = nvkm_object_ntfy(object, args->v0.event, &event);
 		if (ret == 0) {
-			ret = nvkm_client_notify_new(object, event, data, size);
+			ret = nvkm_client_yestify_new(object, event, data, size);
 			if (ret >= 0) {
 				args->v0.index = ret;
 				ret = 0;
@@ -333,7 +333,7 @@ nvkm_ioctl_ntfy_del(struct nvkm_client *client,
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "ntfy del vers %d index %d\n",
 			   args->v0.version, args->v0.index);
-		ret = nvkm_client_notify_del(client, args->v0.index);
+		ret = nvkm_client_yestify_del(client, args->v0.index);
 	}
 
 	return ret;
@@ -352,7 +352,7 @@ nvkm_ioctl_ntfy_get(struct nvkm_client *client,
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "ntfy get vers %d index %d\n",
 			   args->v0.version, args->v0.index);
-		ret = nvkm_client_notify_get(client, args->v0.index);
+		ret = nvkm_client_yestify_get(client, args->v0.index);
 	}
 
 	return ret;
@@ -371,7 +371,7 @@ nvkm_ioctl_ntfy_put(struct nvkm_client *client,
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "ntfy put vers %d index %d\n",
 			   args->v0.version, args->v0.index);
-		ret = nvkm_client_notify_put(client, args->v0.index);
+		ret = nvkm_client_yestify_put(client, args->v0.index);
 	}
 
 	return ret;
@@ -382,7 +382,7 @@ static struct {
 	int (*func)(struct nvkm_client *, struct nvkm_object *, void *, u32);
 }
 nvkm_ioctl_v0[] = {
-	{ 0x00, nvkm_ioctl_nop },
+	{ 0x00, nvkm_ioctl_yesp },
 	{ 0x00, nvkm_ioctl_sclass },
 	{ 0x00, nvkm_ioctl_new },
 	{ 0x00, nvkm_ioctl_del },
@@ -406,7 +406,7 @@ nvkm_ioctl_path(struct nvkm_client *client, u64 handle, u32 type,
 
 	object = nvkm_object_search(client, handle, NULL);
 	if (IS_ERR(object)) {
-		nvif_ioctl(&client->object, "object not found\n");
+		nvif_ioctl(&client->object, "object yest found\n");
 		return PTR_ERR(object);
 	}
 

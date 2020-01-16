@@ -63,7 +63,7 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found PIIX4M\n"));
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found unknown PIIX4\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found unkyeswn PIIX4\n"));
 		break;
 	}
 
@@ -207,7 +207,7 @@ static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 	}
 
 	/*
-	 * CPU got hot-added, but cpu_data is not initialized yet.  Set a flag
+	 * CPU got hot-added, but cpu_data is yest initialized yet.  Set a flag
 	 * to delay cpu_idle/throttling initialization and do it when the CPU
 	 * gets online for the first time.
 	 */
@@ -281,7 +281,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	if (acpi_duplicate_processor_id(pr->acpi_id)) {
 		if (pr->acpi_id == 0xff)
 			dev_info_once(&device->dev,
-				"Entry not well-defined, consider updating BIOS\n");
+				"Entry yest well-defined, consider updating BIOS\n");
 		else
 			dev_err(&device->dev,
 				"Failed to get unique processor _UID (0x%x)\n",
@@ -298,7 +298,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	if (!cpu0_initialized && !acpi_has_cpu_in_madt()) {
 		cpu0_initialized = 1;
 		/*
-		 * Handle UP system running SMP kernel, with no CPU
+		 * Handle UP system running SMP kernel, with yes CPU
 		 * entry in MADT
 		 */
 		if (invalid_logical_cpuid(pr->id) && (num_online_cpus() == 1))
@@ -307,11 +307,11 @@ static int acpi_processor_get_info(struct acpi_device *device)
 
 	/*
 	 *  Extra Processor objects may be enumerated on MP systems with
-	 *  less than the max # of CPUs. They should be ignored _iff
-	 *  they are physically not present.
+	 *  less than the max # of CPUs. They should be igyesred _iff
+	 *  they are physically yest present.
 	 *
-	 *  NOTE: Even if the processor has a cpuid, it may not be present
-	 *  because cpuid <-> apicid mapping is persistent now.
+	 *  NOTE: Even if the processor has a cpuid, it may yest be present
+	 *  because cpuid <-> apicid mapping is persistent yesw.
 	 */
 	if (invalid_logical_cpuid(pr->id) || !cpu_present(pr->id)) {
 		int ret = acpi_processor_hotadd_init(pr);
@@ -358,7 +358,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 }
 
 /*
- * Do not put anything in here which needs the core to be online.
+ * Do yest put anything in here which needs the core to be online.
  * For example MSR access or setting up things which check for cpuinfo_x86
  * (cpu_data(cpu)) values, like CPU feature flags, family, model, etc.
  * Such things have to be put in and set up by the processor driver's .probe().
@@ -387,7 +387,7 @@ static int acpi_processor_add(struct acpi_device *device,
 	device->driver_data = pr;
 
 	result = acpi_processor_get_info(device);
-	if (result) /* Processor is not physically present or unavailable */
+	if (result) /* Processor is yest physically present or unavailable */
 		return 0;
 
 	BUG_ON(pr->id >= nr_cpu_ids);
@@ -402,11 +402,11 @@ static int acpi_processor_add(struct acpi_device *device,
 		dev_warn(&device->dev,
 			"BIOS reported wrong ACPI id %d for the processor\n",
 			pr->id);
-		/* Give up, but do not abort the namespace scan. */
+		/* Give up, but do yest abort the namespace scan. */
 		goto err;
 	}
 	/*
-	 * processor_device_array is not cleared on errors to allow buggy BIOS
+	 * processor_device_array is yest cleared on errors to allow buggy BIOS
 	 * checks.
 	 */
 	per_cpu(processor_device_array, pr->id) = device;
@@ -428,7 +428,7 @@ static int acpi_processor_add(struct acpi_device *device,
 	if (device_attach(dev) >= 0)
 		return 1;
 
-	dev_err(dev, "Processor driver could not be attached\n");
+	dev_err(dev, "Processor driver could yest be attached\n");
 	acpi_unbind_one(dev);
 
  err:
@@ -481,7 +481,7 @@ static void acpi_processor_remove(struct acpi_device *device)
 	cpu_hotplug_done();
 	cpu_maps_update_done();
 
-	try_offline_node(cpu_to_node(pr->id));
+	try_offline_yesde(cpu_to_yesde(pr->id));
 
  out:
 	free_cpumask_var(pr->throttling.shared_cpu_map);
@@ -542,7 +542,7 @@ void __init acpi_early_processor_osc(void)
 #endif
 
 /*
- * The following ACPI IDs are known to be suitable for representing as
+ * The following ACPI IDs are kyeswn to be suitable for representing as
  * processor devices.
  */
 static const struct acpi_device_id processor_device_ids[] = {
@@ -605,7 +605,7 @@ static void __init processor_validated_ids_update(int proc_id)
 
 	/*
 	 * Firstly, compare the proc_id with duplicate IDs, if the proc_id is
-	 * already in the IDs, do nothing.
+	 * already in the IDs, do yesthing.
 	 */
 	for (i = 0; i < nr_duplicate_ids; i++) {
 		if (duplicate_processor_ids[i] == proc_id)

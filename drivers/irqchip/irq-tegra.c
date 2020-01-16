@@ -126,7 +126,7 @@ static int tegra_set_wake(struct irq_data *d, unsigned int enable)
 		lic->ictlr_wake_mask[index] &= ~mask;
 
 	/*
-	 * Do *not* call into the parent, as the GIC doesn't have any
+	 * Do *yest* call into the parent, as the GIC doesn't have any
 	 * wake-up facility...
 	 */
 	return 0;
@@ -217,7 +217,7 @@ static int tegra_ictlr_domain_translate(struct irq_domain *d,
 					unsigned long *hwirq,
 					unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_yesde(fwspec->fwyesde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
@@ -261,7 +261,7 @@ static int tegra_ictlr_domain_alloc(struct irq_domain *domain,
 	}
 
 	parent_fwspec = *fwspec;
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwyesde = domain->parent->fwyesde;
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs,
 					    &parent_fwspec);
 }
@@ -272,8 +272,8 @@ static const struct irq_domain_ops tegra_ictlr_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int __init tegra_ictlr_init(struct device_node *node,
-				   struct device_node *parent)
+static int __init tegra_ictlr_init(struct device_yesde *yesde,
+				   struct device_yesde *parent)
 {
 	struct irq_domain *parent_domain, *domain;
 	const struct of_device_id *match;
@@ -282,17 +282,17 @@ static int __init tegra_ictlr_init(struct device_node *node,
 	int err;
 
 	if (!parent) {
-		pr_err("%pOF: no parent, giving up\n", node);
+		pr_err("%pOF: yes parent, giving up\n", yesde);
 		return -ENODEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: unable to obtain parent domain\n", node);
+		pr_err("%pOF: unable to obtain parent domain\n", yesde);
 		return -ENXIO;
 	}
 
-	match = of_match_node(ictlr_matches, node);
+	match = of_match_yesde(ictlr_matches, yesde);
 	if (!match)		/* Should never happen... */
 		return -ENODEV;
 
@@ -305,7 +305,7 @@ static int __init tegra_ictlr_init(struct device_node *node,
 	for (i = 0; i < TEGRA_MAX_NUM_ICTLRS; i++) {
 		void __iomem *base;
 
-		base = of_iomap(node, i);
+		base = of_iomap(yesde, i);
 		if (!base)
 			break;
 
@@ -320,21 +320,21 @@ static int __init tegra_ictlr_init(struct device_node *node,
 	}
 
 	if (!num_ictlrs) {
-		pr_err("%pOF: no valid regions, giving up\n", node);
+		pr_err("%pOF: yes valid regions, giving up\n", yesde);
 		err = -ENOMEM;
 		goto out_free;
 	}
 
 	WARN(num_ictlrs != soc->num_ictlrs,
 	     "%pOF: Found %u interrupt controllers in DT; expected %u.\n",
-	     node, num_ictlrs, soc->num_ictlrs);
+	     yesde, num_ictlrs, soc->num_ictlrs);
 
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0, num_ictlrs * 32,
-					  node, &tegra_ictlr_domain_ops,
+					  yesde, &tegra_ictlr_domain_ops,
 					  lic);
 	if (!domain) {
-		pr_err("%pOF: failed to allocated domain\n", node);
+		pr_err("%pOF: failed to allocated domain\n", yesde);
 		err = -ENOMEM;
 		goto out_unmap;
 	}
@@ -342,7 +342,7 @@ static int __init tegra_ictlr_init(struct device_node *node,
 	tegra_ictlr_syscore_init();
 
 	pr_info("%pOF: %d interrupts forwarded to %pOF\n",
-		node, num_ictlrs * 32, parent);
+		yesde, num_ictlrs * 32, parent);
 
 	return 0;
 

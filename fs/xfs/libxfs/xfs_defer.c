@@ -13,8 +13,8 @@
 #include "xfs_defer.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
-#include "xfs_inode.h"
-#include "xfs_inode_item.h"
+#include "xfs_iyesde.h"
+#include "xfs_iyesde_item.h"
 #include "xfs_trace.h"
 
 /*
@@ -36,11 +36,11 @@
  * roll a transaction to facilitate this, but using this facility
  * requires us to log "intent" items in case log recovery needs to
  * redo the operation, and to log "done" items to indicate that redo
- * is not necessary.
+ * is yest necessary.
  *
  * Deferred work is tracked in xfs_defer_pending items.  Each pending
  * item tracks one type of deferred work.  Incoming work items (which
- * have not yet had an intent logged) are attached to a pending item
+ * have yest yet had an intent logged) are attached to a pending item
  * on the dop_intake list, where they wait for the caller to finish
  * the deferred operations.
  *
@@ -84,7 +84,7 @@
  * If ->finish_item decides that it needs a fresh transaction to
  * finish the work, it must ask its caller (xfs_defer_finish) for a
  * continuation.  The most likely cause of this circumstance are the
- * refcount adjust functions deciding that they've logged enough items
+ * refcount adjust functions deciding that they've logged eyesugh items
  * to be at risk of exceeding the transaction reservation.
  *
  * To get a fresh transaction, we want to log the existing log done
@@ -92,7 +92,7 @@
  * a new log intent item with the unfinished work items, roll the
  * transaction, and re-call ->finish_item wherever it left off.  The
  * log done item and the new log intent item must be in the same
- * transaction or atomicity cannot be guaranteed; defer_finish ensures
+ * transaction or atomicity canyest be guaranteed; defer_finish ensures
  * that this happens.
  *
  * This requires some coordination between ->finish_item and
@@ -104,7 +104,7 @@
  * with the remaining work items, and leaves the xfs_defer_pending
  * item at the head of the dop_work queue.  Then it rolls the
  * transaction and picks up processing where it left off.  It is
- * required that ->finish_item must be careful to leave enough
+ * required that ->finish_item must be careful to leave eyesugh
  * transaction reservation to fit the new log intent item.
  *
  * This is an example of remapping the extent (E, E+B) into file X at
@@ -230,10 +230,10 @@ xfs_defer_trans_roll(
 {
 	struct xfs_trans		*tp = *tpp;
 	struct xfs_buf_log_item		*bli;
-	struct xfs_inode_log_item	*ili;
+	struct xfs_iyesde_log_item	*ili;
 	struct xfs_log_item		*lip;
 	struct xfs_buf			*bplist[XFS_DEFER_OPS_NR_BUFS];
-	struct xfs_inode		*iplist[XFS_DEFER_OPS_NR_INODES];
+	struct xfs_iyesde		*iplist[XFS_DEFER_OPS_NR_INODES];
 	int				bpcount = 0, ipcount = 0;
 	int				i;
 	int				error;
@@ -253,16 +253,16 @@ xfs_defer_trans_roll(
 			}
 			break;
 		case XFS_LI_INODE:
-			ili = container_of(lip, struct xfs_inode_log_item,
+			ili = container_of(lip, struct xfs_iyesde_log_item,
 					   ili_item);
 			if (ili->ili_lock_flags == 0) {
 				if (ipcount >= XFS_DEFER_OPS_NR_INODES) {
 					ASSERT(0);
 					return -EFSCORRUPTED;
 				}
-				xfs_trans_log_inode(tp, ili->ili_inode,
+				xfs_trans_log_iyesde(tp, ili->ili_iyesde,
 						    XFS_ILOG_CORE);
-				iplist[ipcount++] = ili->ili_inode;
+				iplist[ipcount++] = ili->ili_iyesde;
 			}
 			break;
 		default:
@@ -276,13 +276,13 @@ xfs_defer_trans_roll(
 	 * Roll the transaction.  Rolling always given a new transaction (even
 	 * if committing the old one fails!) to hand back to the caller, so we
 	 * join the held resources to the new transaction so that we always
-	 * return with the held resources joined to @tpp, no matter what
+	 * return with the held resources joined to @tpp, yes matter what
 	 * happened.
 	 */
 	error = xfs_trans_roll(tpp);
 	tp = *tpp;
 
-	/* Rejoin the joined inodes. */
+	/* Rejoin the joined iyesdes. */
 	for (i = 0; i < ipcount; i++)
 		xfs_trans_ijoin(tp, iplist[i], 0);
 
@@ -308,7 +308,7 @@ xfs_defer_reset(
 
 	/*
 	 * Low mode state transfers across transaction rolls to mirror dfops
-	 * lifetime. Clear it now that dfops is reset.
+	 * lifetime. Clear it yesw that dfops is reset.
 	 */
 	tp->t_flags &= ~XFS_TRANS_LOWMODE;
 }
@@ -351,10 +351,10 @@ xfs_defer_cancel_list(
  * one has even happened), rolling the transaction, and finishing the
  * work items in the first item on the logged-and-pending list.
  *
- * If an inode is provided, relog it to the new transaction.
+ * If an iyesde is provided, relog it to the new transaction.
  */
 int
-xfs_defer_finish_noroll(
+xfs_defer_finish_yesroll(
 	struct xfs_trans		**tp)
 {
 	struct xfs_defer_pending	*dfp;
@@ -464,7 +464,7 @@ xfs_defer_finish(
 	 * Finish and roll the transaction once more to avoid returning to the
 	 * caller with a dirty transaction.
 	 */
-	error = xfs_defer_finish_noroll(tp);
+	error = xfs_defer_finish_yesroll(tp);
 	if (error)
 		return error;
 	if ((*tp)->t_flags & XFS_TRANS_DIRTY) {
@@ -531,7 +531,7 @@ xfs_defer_add(
 }
 
 /*
- * Move deferred ops from one transaction to another and reset the source to
+ * Move deferred ops from one transaction to ayesther and reset the source to
  * initial state. This is primarily used to carry state forward across
  * transaction rolls with pending dfops.
  */

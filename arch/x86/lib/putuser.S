@@ -6,14 +6,14 @@
  * (C) Copyright 2005 Andi Kleen
  * (C) Copyright 2008 Glauber Costa
  *
- * These functions have a non-standard call interface
+ * These functions have a yesn-standard call interface
  * to make them more efficient, especially as they
  * return an error value in addition to the "real"
  * return value.
  */
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
 #include <asm/export.h>
@@ -27,7 +27,7 @@
  *
  * Outputs:	%eax is error code (0 or -EFAULT)
  *
- * These functions should not modify any other registers,
+ * These functions should yest modify any other registers,
  * as they get called from within inline assembly.
  */
 

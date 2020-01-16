@@ -35,8 +35,8 @@
  * declare that
  * a) the module shall be probed upon discovery of CPU feature 'feature'
  *    (typically at boot time using udev)
- * b) the module must not be loaded if CPU feature 'feature' is not present
- *    (not even by manual insmod).
+ * b) the module must yest be loaded if CPU feature 'feature' is yest present
+ *    (yest even by manual insmod).
  *
  * For a list of legal values for 'feature', please consult the file
  * 'asm/cpufeature.h' of your favorite architecture.

@@ -104,7 +104,7 @@ void rxrpc_process_local_events(struct rxrpc_local *local)
 			break;
 
 		default:
-			/* Just ignore anything we don't understand */
+			/* Just igyesre anything we don't understand */
 			break;
 		}
 

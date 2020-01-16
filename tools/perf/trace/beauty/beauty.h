@@ -89,7 +89,7 @@ struct syscall_arg_fmt;
 
 /**
  * @val: value of syscall argument being formatted
- * @len: for tracepoint dynamic arrays, if fmt->nr_entries == 0, then its not a fixed array, look at arg->len
+ * @len: for tracepoint dynamic arrays, if fmt->nr_entries == 0, then its yest a fixed array, look at arg->len
  * @args: All the args, use syscall_args__val(arg, nth) to access one
  * @augmented_args: Extra data that can be collected, for instance, with eBPF for expanding the pathname for open, etc
  * @augmented_args_size: augmented_args total payload size
@@ -97,8 +97,8 @@ struct syscall_arg_fmt;
  * @trace: 'perf trace' internals: all threads, etc
  * @parm: private area, may be an strarray, for instance
  * @idx: syscall arg idx (is this the first?)
- * @mask: a syscall arg may mask another arg, see syscall_arg__scnprintf_futex_op
- * @show_string_prefix: When there is a common prefix in a string table, show it or not
+ * @mask: a syscall arg may mask ayesther arg, see syscall_arg__scnprintf_futex_op
+ * @show_string_prefix: When there is a common prefix in a string table, show it or yest
  */
 
 struct syscall_arg {
@@ -242,6 +242,6 @@ size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool sh
 void syscall_arg__set_ret_scnprintf(struct syscall_arg *arg,
 				    size_t (*ret_scnprintf)(char *bf, size_t size, struct syscall_arg *arg));
 
-const char *arch_syscalls__strerrno(const char *arch, int err);
+const char *arch_syscalls__strerryes(const char *arch, int err);
 
 #endif /* _PERF_TRACE_BEAUTY_H */

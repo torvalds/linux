@@ -49,7 +49,7 @@ EXPORT_SYMBOL(isa_io_base);
 
 static int pci_bus_count;
 
-struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
+struct pci_controller *pcibios_alloc_controller(struct device_yesde *dev)
 {
 	struct pci_controller *phb;
 
@@ -58,7 +58,7 @@ struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 		return NULL;
 	spin_lock(&hose_spinlock);
 	phb->global_number = global_phb_number++;
-	list_add_tail(&phb->list_node, &hose_list);
+	list_add_tail(&phb->list_yesde, &hose_list);
 	spin_unlock(&hose_spinlock);
 	phb->dn = dev;
 	phb->is_dynamic = mem_init_done;
@@ -68,7 +68,7 @@ struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 void pcibios_free_controller(struct pci_controller *phb)
 {
 	spin_lock(&hose_spinlock);
-	list_del(&phb->list_node);
+	list_del(&phb->list_yesde);
 	spin_unlock(&hose_spinlock);
 
 	if (phb->is_dynamic)
@@ -87,7 +87,7 @@ int pcibios_vaddr_is_ioport(void __iomem *address)
 	resource_size_t size;
 
 	spin_lock(&hose_spinlock);
-	list_for_each_entry(hose, &hose_list, list_node) {
+	list_for_each_entry(hose, &hose_list, list_yesde) {
 		size = pcibios_io_size(hose);
 		if (address >= hose->io_base_virt &&
 		    address < (hose->io_base_virt + size)) {
@@ -106,7 +106,7 @@ unsigned long pci_address_to_pio(phys_addr_t address)
 	unsigned long ret = ~0;
 
 	spin_lock(&hose_spinlock);
-	list_for_each_entry(hose, &hose_list, list_node) {
+	list_for_each_entry(hose, &hose_list, list_yesde) {
 		size = pcibios_io_size(hose);
 		if (address >= hose->io_base_phys &&
 		    address < (hose->io_base_phys + size)) {
@@ -123,20 +123,20 @@ unsigned long pci_address_to_pio(phys_addr_t address)
 EXPORT_SYMBOL_GPL(pci_address_to_pio);
 
 /* This routine is meant to be used early during boot, when the
- * PCI bus numbers have not yet been assigned, and you need to
+ * PCI bus numbers have yest yet been assigned, and you need to
  * issue PCI config cycles to an OF device.
  * It could also be used to "fix" RTAS config cycles if you want
  * to set pci_assign_all_buses to 1 and still use RTAS for PCI
  * config cycles.
  */
-struct pci_controller *pci_find_hose_for_OF_device(struct device_node *node)
+struct pci_controller *pci_find_hose_for_OF_device(struct device_yesde *yesde)
 {
-	while (node) {
+	while (yesde) {
 		struct pci_controller *hose, *tmp;
-		list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
-			if (hose->dn == node)
+		list_for_each_entry_safe(hose, tmp, &hose_list, list_yesde)
+			if (hose->dn == yesde)
 				return hose;
-		node = node->parent;
+		yesde = yesde->parent;
 	}
 	return NULL;
 }
@@ -166,7 +166,7 @@ int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma)
 }
 
 /*
- * This one is used by /dev/mem and fbdev who have no clue about the
+ * This one is used by /dev/mem and fbdev who have yes clue about the
  * PCI device, it tries to find the PCI device first and calls the
  * above routine
  */
@@ -183,7 +183,7 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 	if (page_is_ram(pfn))
 		return prot;
 
-	prot = pgprot_noncached(prot);
+	prot = pgprot_yesncached(prot);
 	for_each_pci_dev(pdev) {
 		for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
 			struct resource *rp = &pdev->resource[i];
@@ -204,7 +204,7 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 	}
 	if (found) {
 		if (found->flags & IORESOURCE_PREFETCH)
-			prot = pgprot_noncached_wc(prot);
+			prot = pgprot_yesncached_wc(prot);
 		pci_dev_put(pdev);
 	}
 
@@ -223,8 +223,8 @@ int pci_legacy_read(struct pci_bus *bus, loff_t port, u32 *val, size_t size)
 	void __iomem *addr;
 
 	/* Check if port can be supported by that bus. We only check
-	 * the ranges of the PHB though, not the bus itself as the rules
-	 * for forwarding legacy cycles down bridges are not our problem
+	 * the ranges of the PHB though, yest the bus itself as the rules
+	 * for forwarding legacy cycles down bridges are yest our problem
 	 * here. So if the host bridge supports it, we do it.
 	 */
 	offset = (unsigned long)hose->io_base_virt - _IO_BASE;
@@ -263,8 +263,8 @@ int pci_legacy_write(struct pci_bus *bus, loff_t port, u32 val, size_t size)
 	void __iomem *addr;
 
 	/* Check if port can be supported by that bus. We only check
-	 * the ranges of the PHB though, not the bus itself as the rules
-	 * for forwarding legacy cycles down bridges are not our problem
+	 * the ranges of the PHB though, yest the bus itself as the rules
+	 * for forwarding legacy cycles down bridges are yest our problem
 	 * here. So if the host bridge supports it, we do it.
 	 */
 	offset = (unsigned long)hose->io_base_virt - _IO_BASE;
@@ -321,12 +321,12 @@ int pci_mmap_legacy_page_range(struct pci_bus *bus,
 		 *
 		 * Because X is lame and can fail starting if it gets an error
 		 * trying to mmap legacy_mem (instead of just moving on without
-		 * legacy memory access) we fake it here by giving it anonymous
+		 * legacy memory access) we fake it here by giving it ayesnymous
 		 * memory, effectively behaving just like /dev/zero
 		 */
 		if ((offset + size) > hose->isa_mem_size) {
 #ifdef CONFIG_MMU
-			pr_debug("Process %s (pid:%d) mapped non-existing PCI",
+			pr_debug("Process %s (pid:%d) mapped yesn-existing PCI",
 				current->comm, current->pid);
 			pr_debug("legacy memory for 0%04x:%02x\n",
 				pci_domain_nr(bus), bus->number);
@@ -350,7 +350,7 @@ int pci_mmap_legacy_page_range(struct pci_bus *bus,
 	pr_debug(" -> mapping phys %llx\n", (unsigned long long)offset);
 
 	vma->vm_pgoff = offset >> PAGE_SHIFT;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	return remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			       vma->vm_end - vma->vm_start,
 			       vma->vm_page_prot);
@@ -384,11 +384,11 @@ void pci_resource_to_user(const struct pci_dev *dev, int bar,
 /**
  * pci_process_bridge_OF_ranges - Parse PCI bridge resources from device tree
  * @hose: newly allocated pci_controller to be setup
- * @dev: device node of the host bridge
+ * @dev: device yesde of the host bridge
  * @primary: set if primary bus (32 bits only, soon to be deprecated)
  *
  * This function will parse the "ranges" property of a PCI host bridge device
- * node and setup the resource mapping of a pci controller based on its
+ * yesde and setup the resource mapping of a pci controller based on its
  * content.
  *
  * Life would be boring if it wasn't for a few issues that we have to deal
@@ -403,11 +403,11 @@ void pci_resource_to_user(const struct pci_dev *dev, int bar,
  *     are setup for a large 1:1 mapping along with a small "window" which
  *     maps PCI address 0 to some arbitrary high address of the CPU space in
  *     order to give access to the ISA memory hole.
- *     The way out of here that I've chosen for now is to always set the
+ *     The way out of here that I've chosen for yesw is to always set the
  *     offset based on the first resource found, then override it if we
  *     have a different offset and the previous was set by an ISA hole.
  *
- *   - Some busses have IO space not starting at 0, which causes trouble with
+ *   - Some busses have IO space yest starting at 0, which causes trouble with
  *     the way we do our IO resource renumbering. The code somewhat deals with
  *     it for 64 bits but I would expect problems on 32 bits.
  *
@@ -415,9 +415,9 @@ void pci_resource_to_user(const struct pci_dev *dev, int bar,
  *     32 bits so we need to use 64 bits values for the parsing
  */
 void pci_process_bridge_OF_ranges(struct pci_controller *hose,
-				  struct device_node *dev, int primary)
+				  struct device_yesde *dev, int primary)
 {
-	int memno = 0, isa_hole = -1;
+	int memyes = 0, isa_hole = -1;
 	unsigned long long isa_mb = 0;
 	struct resource *res;
 	struct of_pci_range range;
@@ -439,7 +439,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 					range.cpu_addr, range.size);
 
 		/* If we failed translation or got a zero-sized region
-		 * (some FW try to feed us with non sensical zero sized regions
+		 * (some FW try to feed us with yesn sensical zero sized regions
 		 * such as power3 which look like some kind of attempt
 		 * at exposing the VGA memory hole)
 		 */
@@ -467,7 +467,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			hose->io_base_virt = ioremap(range.cpu_addr,
 						range.size);
 
-			/* Expect trouble if pci_addr is not 0 */
+			/* Expect trouble if pci_addr is yest 0 */
 			if (primary)
 				isa_io_base =
 					(unsigned long)hose->io_base_virt;
@@ -490,14 +490,14 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 				"Prefetch" : "");
 
 			/* We support only 3 memory ranges */
-			if (memno >= 3) {
+			if (memyes >= 3) {
 				pr_info(" \\--> Skipped (too many) !\n");
 				continue;
 			}
 			/* Handles ISA memory hole space here */
 			if (range.pci_addr == 0) {
 				isa_mb = range.cpu_addr;
-				isa_hole = memno;
+				isa_hole = memyes;
 				if (primary || isa_mem_base == 0)
 					isa_mem_base = range.cpu_addr;
 				hose->isa_mem_phys = range.cpu_addr;
@@ -508,7 +508,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			 * the, current one if the offset came from an ISA
 			 * hole. If they don't match, bugger.
 			 */
-			if (memno == 0 ||
+			if (memyes == 0 ||
 			    (isa_hole >= 0 && range.pci_addr != 0 &&
 			     hose->pci_mem_offset == isa_mb))
 				hose->pci_mem_offset = range.cpu_addr -
@@ -521,7 +521,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			}
 
 			/* Build resource */
-			res = &hose->mem_resources[memno++];
+			res = &hose->mem_resources[memyes++];
 			break;
 		}
 		if (res != NULL) {
@@ -533,18 +533,18 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 		}
 	}
 
-	/* If there's an ISA hole and the pci_mem_offset is -not- matching
+	/* If there's an ISA hole and the pci_mem_offset is -yest- matching
 	 * the ISA hole offset, then we need to remove the ISA hole from
 	 * the resource list for that brige
 	 */
 	if (isa_hole >= 0 && hose->pci_mem_offset != isa_mb) {
 		unsigned int next = isa_hole + 1;
 		pr_info(" Removing ISA hole at 0x%016llx\n", isa_mb);
-		if (next < memno)
+		if (next < memyes)
 			memmove(&hose->mem_resources[isa_hole],
 				&hose->mem_resources[next],
-				sizeof(struct resource) * (memno - next));
-		hose->mem_resources[--memno].flags = 0;
+				sizeof(struct resource) * (memyes - next));
+		hose->mem_resources[--memyes].flags = 0;
 	}
 }
 
@@ -555,7 +555,7 @@ int pci_proc_domain(struct pci_bus *bus)
 }
 
 /* This header fixup will do the resource fixup for all devices as they are
- * probed, but not for bridge ranges
+ * probed, but yest for bridge ranges
  */
 static void pcibios_fixup_resources(struct pci_dev *dev)
 {
@@ -617,7 +617,7 @@ static int __init reparent_resources(struct resource *parent,
 		if (res->end < p->start)
 			break;
 		if (p->start < res->start || p->end > res->end)
-			return -1;	/* not completely contained */
+			return -1;	/* yest completely contained */
 		if (firstpp == NULL)
 			firstpp = pp;
 	}
@@ -640,15 +640,15 @@ static int __init reparent_resources(struct resource *parent,
 
 /*
  *  Handle resources of PCI devices.  If the world were perfect, we could
- *  just allocate all the resource regions and do nothing more.  It isn't.
- *  On the other hand, we cannot just re-allocate all devices, as it would
- *  require us to know lots of host bridge internals.  So we attempt to
+ *  just allocate all the resource regions and do yesthing more.  It isn't.
+ *  On the other hand, we canyest just re-allocate all devices, as it would
+ *  require us to kyesw lots of host bridge internals.  So we attempt to
  *  keep as much of the original configuration as possible, but tweak it
  *  when it's found to be wrong.
  *
- *  Known BIOS problems we have to work around:
- *	- I/O or memory regions not configured
- *	- regions configured, but not enabled in the command register
+ *  Kyeswn BIOS problems we have to work around:
+ *	- I/O or memory regions yest configured
+ *	- regions configured, but yest enabled in the command register
  *	- bogus I/O addresses above 64K used
  *	- expansion ROMs left enabled (this may sound harmless, but given
  *	  the fact the PCI specs explicitly allow address decoders to be
@@ -666,7 +666,7 @@ static int __init reparent_resources(struct resource *parent,
  *	    if they weren't, they won't disturb allocation of other
  *	    resources.
  *	(4) Assign new addresses to resources which were either
- *	    not configured at all or misconfigured.  If explicitly
+ *	    yest configured at all or misconfigured.  If explicitly
  *	    requested by the user, configure expansion ROM address
  *	    as well.
  */
@@ -688,7 +688,7 @@ static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 			pr = (res->flags & IORESOURCE_IO) ?
 				&ioport_resource : &iomem_resource;
 		else {
-			/* Don't bother with non-root busses when
+			/* Don't bother with yesn-root busses when
 			 * re-assigning all resources. We clear the
 			 * resource flags as if they were colliding
 			 * and as such ensure proper re-allocation
@@ -732,13 +732,13 @@ static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 				continue;
 
 		}
-		pr_warn("PCI: Cannot allocate resource region ");
+		pr_warn("PCI: Canyest allocate resource region ");
 		pr_cont("%d of PCI bridge %d, will remap\n", i, bus->number);
 		res->start = res->end = 0;
 		res->flags = 0;
 	}
 
-	list_for_each_entry(b, &bus->children, node)
+	list_for_each_entry(b, &bus->children, yesde)
 		pcibios_allocate_bus_resources(b);
 }
 
@@ -755,7 +755,7 @@ static inline void alloc_resource(struct pci_dev *dev, int idx)
 	pr = pci_find_parent_resource(dev, r);
 	if (!pr || (pr->flags & IORESOURCE_UNSET) ||
 	    request_resource(pr, r) < 0) {
-		pr_warn("PCI: Cannot allocate resource region %d ", idx);
+		pr_warn("PCI: Canyest allocate resource region %d ", idx);
 		pr_cont("of device %s, will remap\n", pci_name(dev));
 		if (pr)
 			pr_debug("PCI:  parent is %p: %016llx-%016llx [%x]\n",
@@ -829,7 +829,7 @@ static void __init pcibios_reserve_legacy_regions(struct pci_bus *bus)
 
 	/* Check for IO */
 	if (!(hose->io_resource.flags & IORESOURCE_IO))
-		goto no_io;
+		goto yes_io;
 	offset = (unsigned long)hose->io_base_virt - _IO_BASE;
 	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	BUG_ON(res == NULL);
@@ -839,12 +839,12 @@ static void __init pcibios_reserve_legacy_regions(struct pci_bus *bus)
 	res->end = (offset + 0xfff) & 0xfffffffful;
 	pr_debug("Candidate legacy IO: %pR\n", res);
 	if (request_resource(&hose->io_resource, res)) {
-		pr_debug("PCI %04x:%02x Cannot reserve Legacy IO %pR\n",
+		pr_debug("PCI %04x:%02x Canyest reserve Legacy IO %pR\n",
 		       pci_domain_nr(bus), bus->number, res);
 		kfree(res);
 	}
 
- no_io:
+ yes_io:
 	/* Check for memory */
 	offset = hose->pci_mem_offset;
 	pr_debug("hose mem offset: %016llx\n", (unsigned long long)offset);
@@ -867,7 +867,7 @@ static void __init pcibios_reserve_legacy_regions(struct pci_bus *bus)
 	res->end = 0xbffff + offset;
 	pr_debug("Candidate VGA memory: %pR\n", res);
 	if (request_resource(pres, res)) {
-		pr_debug("PCI %04x:%02x Cannot reserve VGA memory %pR\n",
+		pr_debug("PCI %04x:%02x Canyest reserve VGA memory %pR\n",
 		       pci_domain_nr(bus), bus->number, res);
 		kfree(res);
 	}
@@ -880,7 +880,7 @@ void __init pcibios_resource_survey(void)
 	/* Allocate and assign resources. If we re-assign everything, then
 	 * we skip the allocate phase
 	 */
-	list_for_each_entry(b, &pci_root_buses, node)
+	list_for_each_entry(b, &pci_root_buses, yesde)
 		pcibios_allocate_bus_resources(b);
 
 	pcibios_allocate_resources(0);
@@ -890,7 +890,7 @@ void __init pcibios_resource_survey(void)
 	 * the low IO area and the VGA memory area if they intersect the
 	 * bus available resources to avoid allocating things on top of them
 	 */
-	list_for_each_entry(b, &pci_root_buses, node)
+	list_for_each_entry(b, &pci_root_buses, yesde)
 		pcibios_reserve_legacy_regions(b);
 
 	/* Now proceed to assigning things that were left unassigned */
@@ -914,7 +914,7 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 	res->end = (res->end + io_offset) & 0xffffffffu;
 
 	if (!res->flags) {
-		pr_warn("PCI: I/O resource not set for host ");
+		pr_warn("PCI: I/O resource yest set for host ");
 		pr_cont("bridge %pOF (domain %d)\n",
 			hose->dn, hose->global_number);
 		/* Workaround for lack of IO resource only on 32-bit */
@@ -936,7 +936,7 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 		if (!res->flags) {
 			if (i > 0)
 				continue;
-			pr_err("PCI: Memory resource 0 not set for ");
+			pr_err("PCI: Memory resource 0 yest set for ");
 			pr_cont("host bridge %pOF (domain %d)\n",
 				hose->dn, hose->global_number);
 
@@ -964,13 +964,13 @@ static void pcibios_scan_phb(struct pci_controller *hose)
 {
 	LIST_HEAD(resources);
 	struct pci_bus *bus;
-	struct device_node *node = hose->dn;
+	struct device_yesde *yesde = hose->dn;
 
-	pr_debug("PCI: Scanning PHB %pOF\n", node);
+	pr_debug("PCI: Scanning PHB %pOF\n", yesde);
 
 	pcibios_setup_phb_resources(hose, &resources);
 
-	bus = pci_scan_root_bus(hose->parent, hose->first_busno,
+	bus = pci_scan_root_bus(hose->parent, hose->first_busyes,
 				hose->ops, hose, &resources);
 	if (bus == NULL) {
 		pr_err("Failed to create bus for PCI domain %04x\n",
@@ -978,31 +978,31 @@ static void pcibios_scan_phb(struct pci_controller *hose)
 		pci_free_resource_list(&resources);
 		return;
 	}
-	bus->busn_res.start = hose->first_busno;
+	bus->busn_res.start = hose->first_busyes;
 	hose->bus = bus;
 
-	hose->last_busno = bus->busn_res.end;
+	hose->last_busyes = bus->busn_res.end;
 }
 
 static int __init pcibios_init(void)
 {
 	struct pci_controller *hose, *tmp;
-	int next_busno = 0;
+	int next_busyes = 0;
 
 	pr_info("PCI: Probing PCI hardware\n");
 
 	/* Scan all of the recorded PCI controllers.  */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		hose->last_busno = 0xff;
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_yesde) {
+		hose->last_busyes = 0xff;
 		pcibios_scan_phb(hose);
-		if (next_busno <= hose->last_busno)
-			next_busno = hose->last_busno + 1;
+		if (next_busyes <= hose->last_busyes)
+			next_busyes = hose->last_busyes + 1;
 	}
-	pci_bus_count = next_busno;
+	pci_bus_count = next_busyes;
 
 	/* Call common code to handle resource allocation */
 	pcibios_resource_survey();
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_yesde) {
 		if (hose->bus)
 			pci_bus_add_devices(hose->bus);
 	}
@@ -1016,8 +1016,8 @@ static struct pci_controller *pci_bus_to_hose(int bus)
 {
 	struct pci_controller *hose, *tmp;
 
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
-		if (bus >= hose->first_busno && bus <= hose->last_busno)
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_yesde)
+		if (bus >= hose->first_busyes && bus <= hose->last_busyes)
 			return hose;
 	return NULL;
 }
@@ -1039,7 +1039,7 @@ long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
 
 	switch (which) {
 	case IOBASE_BRIDGE_NUMBER:
-		return (long)hose->first_busno;
+		return (long)hose->first_busyes;
 	case IOBASE_MEMORY:
 		return (long)hose->pci_mem_offset;
 	case IOBASE_IO:

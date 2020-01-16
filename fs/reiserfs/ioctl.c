@@ -12,27 +12,27 @@
 #include <linux/compat.h>
 
 /*
- * reiserfs_ioctl - handler for ioctl for inode
+ * reiserfs_ioctl - handler for ioctl for iyesde
  * supported commands:
  *  1) REISERFS_IOC_UNPACK - try to unpack tail from direct item into indirect
  *                           and prevent packing file (argument arg has t
- *			      be non-zero)
+ *			      be yesn-zero)
  *  2) REISERFS_IOC_[GS]ETFLAGS, REISERFS_IOC_[GS]ETVERSION
  *  3) That's all for a while ...
  */
 long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 	unsigned int flags;
 	int err = 0;
 
-	reiserfs_write_lock(inode->i_sb);
+	reiserfs_write_lock(iyesde->i_sb);
 
 	switch (cmd) {
 	case REISERFS_IOC_UNPACK:
-		if (S_ISREG(inode->i_mode)) {
+		if (S_ISREG(iyesde->i_mode)) {
 			if (arg)
-				err = reiserfs_unpack(inode, filp);
+				err = reiserfs_unpack(iyesde, filp);
 		} else
 			err = -ENOTTY;
 		break;
@@ -41,16 +41,16 @@ long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		 * Card (card@masi.ibp.fr)
 		 */
 	case REISERFS_IOC_GETFLAGS:
-		if (!reiserfs_attrs(inode->i_sb)) {
+		if (!reiserfs_attrs(iyesde->i_sb)) {
 			err = -ENOTTY;
 			break;
 		}
 
-		flags = REISERFS_I(inode)->i_attrs;
+		flags = REISERFS_I(iyesde)->i_attrs;
 		err = put_user(flags, (int __user *)arg);
 		break;
 	case REISERFS_IOC_SETFLAGS:{
-			if (!reiserfs_attrs(inode->i_sb)) {
+			if (!reiserfs_attrs(iyesde->i_sb)) {
 				err = -ENOTTY;
 				break;
 			}
@@ -59,7 +59,7 @@ long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			if (err)
 				break;
 
-			if (!inode_owner_or_capable(inode)) {
+			if (!iyesde_owner_or_capable(iyesde)) {
 				err = -EPERM;
 				goto setflags_out;
 			}
@@ -68,52 +68,52 @@ long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				goto setflags_out;
 			}
 			/*
-			 * Is it quota file? Do not allow user to mess with it
+			 * Is it quota file? Do yest allow user to mess with it
 			 */
-			if (IS_NOQUOTA(inode)) {
+			if (IS_NOQUOTA(iyesde)) {
 				err = -EPERM;
 				goto setflags_out;
 			}
-			err = vfs_ioc_setflags_prepare(inode,
-						     REISERFS_I(inode)->i_attrs,
+			err = vfs_ioc_setflags_prepare(iyesde,
+						     REISERFS_I(iyesde)->i_attrs,
 						     flags);
 			if (err)
 				goto setflags_out;
 			if ((flags & REISERFS_NOTAIL_FL) &&
-			    S_ISREG(inode->i_mode)) {
+			    S_ISREG(iyesde->i_mode)) {
 				int result;
 
-				result = reiserfs_unpack(inode, filp);
+				result = reiserfs_unpack(iyesde, filp);
 				if (result) {
 					err = result;
 					goto setflags_out;
 				}
 			}
-			sd_attrs_to_i_attrs(flags, inode);
-			REISERFS_I(inode)->i_attrs = flags;
-			inode->i_ctime = current_time(inode);
-			mark_inode_dirty(inode);
+			sd_attrs_to_i_attrs(flags, iyesde);
+			REISERFS_I(iyesde)->i_attrs = flags;
+			iyesde->i_ctime = current_time(iyesde);
+			mark_iyesde_dirty(iyesde);
 setflags_out:
 			mnt_drop_write_file(filp);
 			break;
 		}
 	case REISERFS_IOC_GETVERSION:
-		err = put_user(inode->i_generation, (int __user *)arg);
+		err = put_user(iyesde->i_generation, (int __user *)arg);
 		break;
 	case REISERFS_IOC_SETVERSION:
-		if (!inode_owner_or_capable(inode)) {
+		if (!iyesde_owner_or_capable(iyesde)) {
 			err = -EPERM;
 			break;
 		}
 		err = mnt_want_write_file(filp);
 		if (err)
 			break;
-		if (get_user(inode->i_generation, (int __user *)arg)) {
+		if (get_user(iyesde->i_generation, (int __user *)arg)) {
 			err = -EFAULT;
 			goto setversion_out;
 		}
-		inode->i_ctime = current_time(inode);
-		mark_inode_dirty(inode);
+		iyesde->i_ctime = current_time(iyesde);
+		mark_iyesde_dirty(iyesde);
 setversion_out:
 		mnt_drop_write_file(filp);
 		break;
@@ -121,7 +121,7 @@ setversion_out:
 		err = -ENOTTY;
 	}
 
-	reiserfs_write_unlock(inode->i_sb);
+	reiserfs_write_unlock(iyesde->i_sb);
 
 	return err;
 }
@@ -163,39 +163,39 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 /*
  * reiserfs_unpack
  * Function try to convert tail from direct item into indirect.
- * It set up nopack attribute in the REISERFS_I(inode)->nopack
+ * It set up yespack attribute in the REISERFS_I(iyesde)->yespack
  */
-int reiserfs_unpack(struct inode *inode, struct file *filp)
+int reiserfs_unpack(struct iyesde *iyesde, struct file *filp)
 {
 	int retval = 0;
 	int index;
 	struct page *page;
 	struct address_space *mapping;
 	unsigned long write_from;
-	unsigned long blocksize = inode->i_sb->s_blocksize;
+	unsigned long blocksize = iyesde->i_sb->s_blocksize;
 
-	if (inode->i_size == 0) {
-		REISERFS_I(inode)->i_flags |= i_nopack_mask;
+	if (iyesde->i_size == 0) {
+		REISERFS_I(iyesde)->i_flags |= i_yespack_mask;
 		return 0;
 	}
 	/* ioctl already done */
-	if (REISERFS_I(inode)->i_flags & i_nopack_mask) {
+	if (REISERFS_I(iyesde)->i_flags & i_yespack_mask) {
 		return 0;
 	}
 
-	/* we need to make sure nobody is changing the file size beneath us */
+	/* we need to make sure yesbody is changing the file size beneath us */
 {
-	int depth = reiserfs_write_unlock_nested(inode->i_sb);
-	inode_lock(inode);
-	reiserfs_write_lock_nested(inode->i_sb, depth);
+	int depth = reiserfs_write_unlock_nested(iyesde->i_sb);
+	iyesde_lock(iyesde);
+	reiserfs_write_lock_nested(iyesde->i_sb, depth);
 }
 
-	reiserfs_write_lock(inode->i_sb);
+	reiserfs_write_lock(iyesde->i_sb);
 
-	write_from = inode->i_size & (blocksize - 1);
+	write_from = iyesde->i_size & (blocksize - 1);
 	/* if we are on a block boundary, we are already unpacked.  */
 	if (write_from == 0) {
-		REISERFS_I(inode)->i_flags |= i_nopack_mask;
+		REISERFS_I(iyesde)->i_flags |= i_yespack_mask;
 		goto out;
 	}
 
@@ -204,8 +204,8 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 	 * __reiserfs_write_begin on that page.  This will force a
 	 * reiserfs_get_block to unpack the tail for us.
 	 */
-	index = inode->i_size >> PAGE_SHIFT;
-	mapping = inode->i_mapping;
+	index = iyesde->i_size >> PAGE_SHIFT;
+	mapping = iyesde->i_mapping;
 	page = grab_cache_page(mapping, index);
 	retval = -ENOMEM;
 	if (!page) {
@@ -218,14 +218,14 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 	/* conversion can change page contents, must flush */
 	flush_dcache_page(page);
 	retval = reiserfs_commit_write(NULL, page, write_from, write_from);
-	REISERFS_I(inode)->i_flags |= i_nopack_mask;
+	REISERFS_I(iyesde)->i_flags |= i_yespack_mask;
 
 out_unlock:
 	unlock_page(page);
 	put_page(page);
 
 out:
-	inode_unlock(inode);
-	reiserfs_write_unlock(inode->i_sb);
+	iyesde_unlock(iyesde);
+	reiserfs_write_unlock(iyesde->i_sb);
 	return retval;
 }

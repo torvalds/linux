@@ -72,7 +72,7 @@ struct usb_dr_host {
 	u32 frindex;		/* Frame Index Register */
 	u8 res4[4];
 	u32 periodiclistbase;	/* Periodic Frame List Base Address Register */
-	u32 asynclistaddr;	/* Current Asynchronous List Address Register */
+	u32 asynclistaddr;	/* Current Asynchroyesus List Address Register */
 	u8 res5[4];
 	u32 burstsize;		/* Master Interface Data Burst Size Register */
 	u32 txttfilltuning;	/* Transmit FIFO Tuning Controls Register */
@@ -90,10 +90,10 @@ struct usb_dr_host {
 	u32 endptctrl[6];	/* Endpoint Control Registers */
 };
 
- /* non-EHCI USB system interface registers (Big Endian) */
+ /* yesn-EHCI USB system interface registers (Big Endian) */
 struct usb_sys_interface {
-	u32 snoop1;
-	u32 snoop2;
+	u32 syesop1;
+	u32 syesop2;
 	u32 age_cnt_thresh;	/* Age Count Threshold Register */
 	u32 pri_ctrl;		/* Priority Control Register */
 	u32 si_ctrl;		/* System Interface Control Register */
@@ -319,8 +319,8 @@ struct usb_sys_interface {
 
 /* SNOOPn Register Bit Masks */
 #define  SNOOP_ADDRESS_MASK                   0xFFFFF000
-#define  SNOOP_SIZE_ZERO                      0x00	/* snooping disable */
-#define  SNOOP_SIZE_4KB                       0x0B	/* 4KB snoop size */
+#define  SNOOP_SIZE_ZERO                      0x00	/* syesoping disable */
+#define  SNOOP_SIZE_4KB                       0x0B	/* 4KB syesop size */
 #define  SNOOP_SIZE_8KB                       0x0C
 #define  SNOOP_SIZE_16KB                      0x0D
 #define  SNOOP_SIZE_32KB                      0x0E
@@ -339,7 +339,7 @@ struct usb_sys_interface {
 #define  SNOOP_SIZE_256MB                     0x1B
 #define  SNOOP_SIZE_512MB                     0x1C
 #define  SNOOP_SIZE_1GB                       0x1D
-#define  SNOOP_SIZE_2GB                       0x1E	/* 2GB snoop size */
+#define  SNOOP_SIZE_2GB                       0x1E	/* 2GB syesop size */
 
 /* pri_ctrl Register Bit Masks */
 #define  PRI_CTRL_PRI_LVL1                    0x0000000C

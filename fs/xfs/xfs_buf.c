@@ -56,8 +56,8 @@ xfs_buf_is_vmapped(
 	/*
 	 * Return true if the buffer is vmapped.
 	 *
-	 * b_addr is null if the buffer is not mapped, but the code is clever
-	 * enough to know it doesn't have to map a single page, so the check has
+	 * b_addr is null if the buffer is yest mapped, but the code is clever
+	 * eyesugh to kyesw it doesn't have to map a single page, so the check has
 	 * to be both for b_addr and bp->b_page_count > 1.
 	 */
 	return bp->b_addr && bp->b_page_count > 1;
@@ -141,17 +141,17 @@ xfs_buf_stale(
 	bp->b_flags |= XBF_STALE;
 
 	/*
-	 * Clear the delwri status so that a delwri queue walker will not
-	 * flush this buffer to disk now that it is stale. The delwri queue has
+	 * Clear the delwri status so that a delwri queue walker will yest
+	 * flush this buffer to disk yesw that it is stale. The delwri queue has
 	 * a reference to the buffer, so this is safe to do.
 	 */
 	bp->b_flags &= ~_XBF_DELWRI_Q;
 
 	/*
 	 * Once the buffer is marked stale and unlocked, a subsequent lookup
-	 * could reset b_flags. There is no guarantee that the buffer is
+	 * could reset b_flags. There is yes guarantee that the buffer is
 	 * unaccounted (released to LRU) before that occurs. Drop in-flight
-	 * status now to preserve accounting consistency.
+	 * status yesw to preserve accounting consistency.
 	 */
 	spin_lock(&bp->b_lock);
 	__xfs_buf_ioacct_dec(bp);
@@ -225,7 +225,7 @@ _xfs_buf_alloc(
 	INIT_LIST_HEAD(&bp->b_lru);
 	INIT_LIST_HEAD(&bp->b_list);
 	INIT_LIST_HEAD(&bp->b_li_list);
-	sema_init(&bp->b_sema, 0); /* held, no waiters */
+	sema_init(&bp->b_sema, 0); /* held, yes waiters */
 	spin_lock_init(&bp->b_lock);
 	bp->b_target = target;
 	bp->b_mount = target->bt_mount;
@@ -301,7 +301,7 @@ _xfs_buf_free_pages(
  *	Releases the specified buffer.
  *
  * 	The modification state of any associated pages is left unchanged.
- * 	The buffer must not be on any hash - use xfs_buf_rele instead for
+ * 	The buffer must yest be on any hash - use xfs_buf_rele instead for
  * 	hashed and refcounted buffers
  */
 static void
@@ -348,7 +348,7 @@ xfs_buf_allocate_memory(
 	xfs_km_flags_t		kmflag_mask = 0;
 
 	/*
-	 * assure zeroed buffer for non-read cases.
+	 * assure zeroed buffer for yesn-read cases.
 	 */
 	if (!(flags & XBF_READ)) {
 		kmflag_mask |= KM_ZERO;
@@ -357,7 +357,7 @@ xfs_buf_allocate_memory(
 
 	/*
 	 * for buffers that are contained within a single page, just allocate
-	 * the memory from the heap - there's no need for the complexity of
+	 * the memory from the heap - there's yes need for the complexity of
 	 * page arrays to keep allocation down to order 0.
 	 */
 	size = BBTOB(bp->b_length);
@@ -458,7 +458,7 @@ _xfs_buf_map_pages(
 		bp->b_addr = NULL;
 	} else {
 		int retried = 0;
-		unsigned nofs_flag;
+		unsigned yesfs_flag;
 
 		/*
 		 * vm_map_ram() will allocate auxiliary structures (e.g.
@@ -468,7 +468,7 @@ _xfs_buf_map_pages(
 		 * memory reclaim re-entering the filesystem here and
 		 * potentially deadlocking.
 		 */
-		nofs_flag = memalloc_nofs_save();
+		yesfs_flag = memalloc_yesfs_save();
 		do {
 			bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
 						-1, PAGE_KERNEL);
@@ -476,7 +476,7 @@ _xfs_buf_map_pages(
 				break;
 			vm_unmap_aliases();
 		} while (retried++ <= 1);
-		memalloc_nofs_restore(nofs_flag);
+		memalloc_yesfs_restore(yesfs_flag);
 
 		if (!bp->b_addr)
 			return -ENOMEM;
@@ -511,7 +511,7 @@ _xfs_buf_obj_cmp(
 		 * found a block number match. If the range doesn't
 		 * match, the only way this is allowed is if the buffer
 		 * in the cache is stale and the transaction that made
-		 * it stale has not yet committed. i.e. we are
+		 * it stale has yest yet committed. i.e. we are
 		 * reallocating a busy extent. Skip this buffer and
 		 * continue searching for an exact match.
 		 */
@@ -584,7 +584,7 @@ xfs_buf_find(
 	for (i = 0; i < nmaps; i++)
 		cmap.bm_len += map[i].bm_len;
 
-	/* Check for IOs smaller than the sector size / not sector aligned */
+	/* Check for IOs smaller than the sector size / yest sector aligned */
 	ASSERT(!(BBTOB(cmap.bm_len) < btp->bt_meta_sectorsize));
 	ASSERT(!(BBTOB(cmap.bm_bn) & (xfs_off_t)btp->bt_meta_sectormask));
 
@@ -602,7 +602,7 @@ xfs_buf_find(
 	}
 
 	pag = xfs_perag_get(btp->bt_mount,
-			    xfs_daddr_to_agno(btp->bt_mount, cmap.bm_bn));
+			    xfs_daddr_to_agyes(btp->bt_mount, cmap.bm_bn));
 
 	spin_lock(&pag->pag_buf_lock);
 	bp = rhashtable_lookup_fast(&pag->pag_buf_hash, &cmap,
@@ -663,13 +663,13 @@ found:
 struct xfs_buf *
 xfs_buf_incore(
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkyes,
 	size_t			numblks,
 	xfs_buf_flags_t		flags)
 {
 	struct xfs_buf		*bp;
 	int			error;
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkyes, numblks);
 
 	error = xfs_buf_find(target, &map, 1, flags, NULL, &bp);
 	if (error)
@@ -776,10 +776,10 @@ _xfs_buf_read(
  *
  * If the caller passed an ops structure and the buffer doesn't have ops
  * assigned, set the ops and use it to verify the contents. If verification
- * fails, clear XBF_DONE. We assume the buffer has no recorded errors and is
+ * fails, clear XBF_DONE. We assume the buffer has yes recorded errors and is
  * already in XBF_DONE state on entry.
  *
- * Under normal operations, every in-core buffer is verified on read I/O
+ * Under yesrmal operations, every in-core buffer is verified on read I/O
  * completion. There are two scenarios that can lead to in-core buffers without
  * an assigned ->b_ops. The first is during log recovery of buffers on a V4
  * filesystem, though these buffers are purged at the end of recovery. The
@@ -842,14 +842,14 @@ xfs_buf_read_map(
 		return NULL;
 	}
 
-	/* We do not want read in the flags */
+	/* We do yest want read in the flags */
 	bp->b_flags &= ~XBF_READ;
 	ASSERT(bp->b_ops != NULL || ops == NULL);
 	return bp;
 }
 
 /*
- *	If we are not low on memory then do the readahead in a deadlock
+ *	If we are yest low on memory then do the readahead in a deadlock
  *	safe manner.
  */
 void
@@ -868,7 +868,7 @@ xfs_buf_readahead_map(
 
 /*
  * Read an uncached buffer from disk. Allocates and returns a locked
- * buffer containing the disk contents or nothing.
+ * buffer containing the disk contents or yesthing.
  */
 int
 xfs_buf_read_uncached(
@@ -956,7 +956,7 @@ xfs_buf_get_uncached(
 
 /*
  *	Increment reference count on buffer, to hold the buffer concurrently
- *	with another thread which may release (free) the buffer asynchronously.
+ *	with ayesther thread which may release (free) the buffer asynchroyesusly.
  *	Must hold the buffer already to call this function.
  */
 void
@@ -996,7 +996,7 @@ xfs_buf_rele(
 	 * We grab the b_lock here first to serialise racing xfs_buf_rele()
 	 * calls. The pag_buf_lock being taken on the last reference only
 	 * serialises against racing lookups in xfs_buf_find(). IOWs, the second
-	 * to last reference we drop here is not serialised against the last
+	 * to last reference we drop here is yest serialised against the last
 	 * reference until we take bp->b_lock. Hence if we don't grab b_lock
 	 * first, the last "release" reference can win the race to the lock and
 	 * free the buffer before the second-to-last reference is processed,
@@ -1021,7 +1021,7 @@ xfs_buf_rele(
 	if (!(bp->b_flags & XBF_STALE) && atomic_read(&bp->b_lru_ref)) {
 		/*
 		 * If the buffer is added to the LRU take a new reference to the
-		 * buffer for the LRU and clear the (now stale) dispose list
+		 * buffer for the LRU and clear the (yesw stale) dispose list
 		 * state flag
 		 */
 		if (list_lru_add(&bp->b_target->bt_lru, &bp->b_lru)) {
@@ -1059,15 +1059,15 @@ out_unlock:
 
 
 /*
- *	Lock a buffer object, if it is not already locked.
+ *	Lock a buffer object, if it is yest already locked.
  *
- *	If we come across a stale, pinned, locked buffer, we know that we are
+ *	If we come across a stale, pinned, locked buffer, we kyesw that we are
  *	being asked to lock a buffer that has been reallocated. Because it is
- *	pinned, we know that the log has not been pushed to disk and hence it
+ *	pinned, we kyesw that the log has yest been pushed to disk and hence it
  *	will still be locked.  Rather than continuing to have trylock attempts
  *	fail until someone else pushes the log, push it ourselves before
- *	returning.  This means that the xfsaild will not get stuck trying
- *	to push on stale inode buffers.
+ *	returning.  This means that the xfsaild will yest get stuck trying
+ *	to push on stale iyesde buffers.
  */
 int
 xfs_buf_trylock(
@@ -1086,9 +1086,9 @@ xfs_buf_trylock(
 /*
  *	Lock a buffer object.
  *
- *	If we come across a stale, pinned, locked buffer, we know that we
+ *	If we come across a stale, pinned, locked buffer, we kyesw that we
  *	are being asked to lock a buffer that has been reallocated. Because
- *	it is pinned, we know that the log has not been pushed to disk and
+ *	it is pinned, we kyesw that the log has yest been pushed to disk and
  *	hence it will still be locked. Rather than sleeping until someone
  *	else pushes the log, push it ourselves before trying to get the lock.
  */
@@ -1150,7 +1150,7 @@ xfs_buf_ioend(
 	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 
 	/*
-	 * Pull in IO completion errors now. We are guaranteed to be running
+	 * Pull in IO completion errors yesw. We are guaranteed to be running
 	 * single threaded, so we don't need the lock to read b_io_error.
 	 */
 	if (!bp->b_error && bp->b_io_error)
@@ -1242,7 +1242,7 @@ xfs_buf_bio_end_io(
 	 * buffers that require multiple bios to complete.
 	 */
 	if (bio->bi_status) {
-		int error = blk_status_to_errno(bio->bi_status);
+		int error = blk_status_to_erryes(bio->bi_status);
 
 		cmpxchg(&bp->b_io_error, 0, error);
 	}
@@ -1325,7 +1325,7 @@ next_chunk:
 			goto next_chunk;
 	} else {
 		/*
-		 * This is guaranteed not to be the last io reference count
+		 * This is guaranteed yest to be the last io reference count
 		 * because the caller (xfs_buf_submit) holds a count itself.
 		 */
 		atomic_dec(&bp->b_io_remaining);
@@ -1357,7 +1357,7 @@ _xfs_buf_ioapply(
 		/*
 		 * Run the write verifier callback function if it exists. If
 		 * this function fails it will mark the buffer with an error and
-		 * the IO should not be dispatched.
+		 * the IO should yest be dispatched.
 		 */
 		if (bp->b_ops) {
 			bp->b_ops->verify_write(bp);
@@ -1370,12 +1370,12 @@ _xfs_buf_ioapply(
 			struct xfs_mount *mp = bp->b_mount;
 
 			/*
-			 * non-crc filesystems don't attach verifiers during
+			 * yesn-crc filesystems don't attach verifiers during
 			 * log recovery, so don't warn for such filesystems.
 			 */
 			if (xfs_sb_version_hascrc(&mp->m_sb)) {
 				xfs_warn(mp,
-					"%s: no buf ops on daddr 0x%llx len %d",
+					"%s: yes buf ops on daddr 0x%llx len %d",
 					__func__, bp->b_bn, bp->b_length);
 				xfs_hex_dump(bp->b_addr,
 						XFS_CORRUPTION_DUMP_LEN);
@@ -1427,8 +1427,8 @@ xfs_buf_iowait(
 }
 
 /*
- * Buffer I/O submission path, read or write. Asynchronous submission transfers
- * the buffer lock ownership and the current reference to the IO. It is not
+ * Buffer I/O submission path, read or write. Asynchroyesus submission transfers
+ * the buffer lock ownership and the current reference to the IO. It is yest
  * safe to reference the buffer after a call to this function unless the caller
  * holds an additional reference itself.
  */
@@ -1453,7 +1453,7 @@ __xfs_buf_submit(
 	}
 
 	/*
-	 * Grab a reference so the buffer does not go away underneath us. For
+	 * Grab a reference so the buffer does yest go away underneath us. For
 	 * async buffers, I/O completion drops the callers reference, which
 	 * could occur before submission returns.
 	 */
@@ -1492,7 +1492,7 @@ __xfs_buf_submit(
 
 	/*
 	 * Release the hold that keeps the buffer referenced for the entire
-	 * I/O. Note that if the buffer is async, it is not safe to reference
+	 * I/O. Note that if the buffer is async, it is yest safe to reference
 	 * after this release.
 	 */
 	xfs_buf_rele(bp);
@@ -1546,7 +1546,7 @@ xfs_buf_zero(
  */
 
 /*
- * Wait for any bufs with callbacks that have been submitted but have not yet
+ * Wait for any bufs with callbacks that have been submitted but have yest yet
  * returned. These buffers will have an elevated hold count, so wait on those
  * while freeing all the buffers only held by the LRU.
  */
@@ -1571,7 +1571,7 @@ xfs_buftarg_wait_rele(
 
 	/*
 	 * clear the LRU reference count so the buffer doesn't get
-	 * ignored in xfs_buf_rele().
+	 * igyesred in xfs_buf_rele().
 	 */
 	atomic_set(&bp->b_lru_ref, 0);
 	bp->b_state |= XFS_BSTATE_DISPOSE;
@@ -1589,12 +1589,12 @@ xfs_wait_buftarg(
 
 	/*
 	 * First wait on the buftarg I/O count for all in-flight buffers to be
-	 * released. This is critical as new buffers do not make the LRU until
+	 * released. This is critical as new buffers do yest make the LRU until
 	 * they are released.
 	 *
 	 * Next, flush the buffer workqueue to ensure all completion processing
-	 * has finished. Just waiting on buffer locks is not sufficient for
-	 * async IO as the reference count held over IO is not released until
+	 * has finished. Just waiting on buffer locks is yest sufficient for
+	 * async IO as the reference count held over IO is yest released until
 	 * after the buffer lock is dropped. Hence we need to ensure here that
 	 * all reference counts have been dropped before we start walking the
 	 * LRU list.
@@ -1603,7 +1603,7 @@ xfs_wait_buftarg(
 		delay(100);
 	flush_workqueue(btp->bt_mount->m_buf_workqueue);
 
-	/* loop until there is nothing left on the lru list. */
+	/* loop until there is yesthing left on the lru list. */
 	while (list_lru_count(&btp->bt_lru)) {
 		list_lru_walk(&btp->bt_lru, xfs_buftarg_wait_rele,
 			      &dispose, LONG_MAX);
@@ -1645,7 +1645,7 @@ xfs_buftarg_isolate(
 	/*
 	 * Decrement the b_lru_ref count unless the value is already
 	 * zero. If the value is already zero, we need to reclaim the
-	 * buffer, otherwise it gets another trip through the LRU.
+	 * buffer, otherwise it gets ayesther trip through the LRU.
 	 */
 	if (atomic_add_unless(&bp->b_lru_ref, -1, 0)) {
 		spin_unlock(&bp->b_lock);
@@ -1716,7 +1716,7 @@ xfs_setsize_buftarg(
 
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {
 		xfs_warn(btp->bt_mount,
-			"Cannot set_blocksize to %u on device %pg",
+			"Canyest set_blocksize to %u on device %pg",
 			sectorsize, btp->bt_bdev);
 		return -EINVAL;
 	}
@@ -1729,8 +1729,8 @@ xfs_setsize_buftarg(
 }
 
 /*
- * When allocating the initial buffer target we have not yet
- * read in the superblock, so don't know what sized sectors
+ * When allocating the initial buffer target we have yest yet
+ * read in the superblock, so don't kyesw what sized sectors
  * are being used at this early stage.  Play safe.
  */
 STATIC int
@@ -1808,7 +1808,7 @@ xfs_buf_delwri_cancel(
  * Add a buffer to the delayed write list.
  *
  * This queues a buffer for writeout if it hasn't already been.  Note that
- * neither this routine nor the buffer list submission functions perform
+ * neither this routine yesr the buffer list submission functions perform
  * any internal synchronization.  It is expected that the lists are thread-local
  * to the callers.
  *
@@ -1825,7 +1825,7 @@ xfs_buf_delwri_queue(
 
 	/*
 	 * If the buffer is already marked delwri it already is queued up
-	 * by someone else for imediate writeout.  Just ignore it in that
+	 * by someone else for imediate writeout.  Just igyesre it in that
 	 * case.
 	 */
 	if (bp->b_flags & _XBF_DELWRI_Q) {
@@ -1836,11 +1836,11 @@ xfs_buf_delwri_queue(
 	trace_xfs_buf_delwri_queue(bp, _RET_IP_);
 
 	/*
-	 * If a buffer gets written out synchronously or marked stale while it
+	 * If a buffer gets written out synchroyesusly or marked stale while it
 	 * is on a delwri list we lazily remove it. To do this, the other party
 	 * clears the  _XBF_DELWRI_Q flag but otherwise leaves the buffer alone.
 	 * It remains referenced and on the list.  In a rare corner case it
-	 * might get readded to a delwri list after the synchronous writeout, in
+	 * might get readded to a delwri list after the synchroyesus writeout, in
 	 * which case we need just need to re-add the flag here.
 	 */
 	bp->b_flags |= _XBF_DELWRI_Q;
@@ -1907,7 +1907,7 @@ xfs_buf_delwri_submit_buffers(
 		}
 
 		/*
-		 * Someone else might have written the buffer synchronously or
+		 * Someone else might have written the buffer synchroyesusly or
 		 * marked it stale in the meantime.  In that case only the
 		 * _XBF_DELWRI_Q flag got cleared, and we have to drop the
 		 * reference and remove it from the list here.
@@ -1923,7 +1923,7 @@ xfs_buf_delwri_submit_buffers(
 		/*
 		 * If we have a wait list, each buffer (and associated delwri
 		 * queue reference) transfers to it and is submitted
-		 * synchronously. Otherwise, drop the buffer from the delwri
+		 * synchroyesusly. Otherwise, drop the buffer from the delwri
 		 * queue and submit async.
 		 */
 		bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_WRITE_FAIL);
@@ -1943,10 +1943,10 @@ xfs_buf_delwri_submit_buffers(
 }
 
 /*
- * Write out a buffer list asynchronously.
+ * Write out a buffer list asynchroyesusly.
  *
- * This will take the @buffer_list, write all non-locked and non-pinned buffers
- * out and not wait for I/O completion on any of the buffers.  This interface
+ * This will take the @buffer_list, write all yesn-locked and yesn-pinned buffers
+ * out and yest wait for I/O completion on any of the buffers.  This interface
  * is only safely useable for callers that can track I/O completion by higher
  * level means, e.g. AIL pushing as the @buffer_list is consumed in this
  * function.
@@ -1959,14 +1959,14 @@ xfs_buf_delwri_submit_buffers(
  * at unmount time.
  */
 int
-xfs_buf_delwri_submit_nowait(
+xfs_buf_delwri_submit_yeswait(
 	struct list_head	*buffer_list)
 {
 	return xfs_buf_delwri_submit_buffers(buffer_list, NULL);
 }
 
 /*
- * Write out a buffer list synchronously.
+ * Write out a buffer list synchroyesusly.
  *
  * This will take the @buffer_list, write all buffers out and wait for I/O
  * completion on all of the buffers. @buffer_list is consumed by the function,
@@ -2014,7 +2014,7 @@ xfs_buf_delwri_submit(
  * Note the buffer transitions from the queued state, to the submitted and wait
  * listed state and back to the queued state during this call. The buffer
  * locking and queue management logic between _delwri_pushbuf() and
- * _delwri_queue() guarantee that the buffer cannot be queued to another list
+ * _delwri_queue() guarantee that the buffer canyest be queued to ayesther list
  * before returning.
  */
 int
@@ -2046,7 +2046,7 @@ xfs_buf_delwri_pushbuf(
 	xfs_buf_delwri_submit_buffers(&submit_list, buffer_list);
 
 	/*
-	 * The buffer is now locked, under I/O and wait listed on the original
+	 * The buffer is yesw locked, under I/O and wait listed on the original
 	 * delwri queue. Wait for I/O completion, restore the DELWRI_Q flag and
 	 * return with the buffer unlocked and on the original queue.
 	 */

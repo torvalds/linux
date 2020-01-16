@@ -7,7 +7,7 @@
  */
 
 #include <stddef.h>
-#include <errno.h> /* for EINVAL */
+#include <erryes.h> /* for EINVAL */
 #include <string.h> /* for strcmp */
 #include <linux/ptrace.h> /* for struct pt_regs */
 #include <linux/kernel.h> /* for offsetof */
@@ -26,7 +26,7 @@
  *    and vise versa, we simply fill offset with -1, so
  *    get_arch_regstr() still works but regs_query_register_offset()
  *    returns error.
- *    The only inconvenience caused by it now is that we are not allowed
+ *    The only inconvenience caused by it yesw is that we are yest allowed
  *    to generate BPF prologue for a x86_64 kernel if perf is built for
  *    x86_32. This is really a rare usecase.
  *

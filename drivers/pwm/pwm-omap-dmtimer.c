@@ -58,7 +58,7 @@ static void pwm_omap_dmtimer_start(struct pwm_omap_dmtimer_chip *omap)
 	 * that the PWM line is toggled on the first event.
 	 *
 	 * Note that omap_dm_timer_enable/disable is for register access and
-	 * not the timer counter itself.
+	 * yest the timer counter itself.
 	 */
 	omap->pdata->enable(omap->dm_timer);
 	omap->pdata->write_counter(omap->dm_timer, DM_TIMER_LOAD_MIN);
@@ -132,7 +132,7 @@ static int pwm_omap_dmtimer_config(struct pwm_chip *chip,
 	 *
 	 * The period lasts for (DM_TIMER_MAX-load_value+1) clock cycles.
 	 * Similarly, the active time lasts (match_value-load_value+1) cycles.
-	 * The non-active time is the remainder: (DM_TIMER_MAX-match_value)
+	 * The yesn-active time is the remainder: (DM_TIMER_MAX-match_value)
 	 * clock cycles.
 	 *
 	 * NOTE: It is required that: load_value <= match_value < DM_TIMER_MAX
@@ -215,7 +215,7 @@ static int pwm_omap_dmtimer_set_polarity(struct pwm_chip *chip,
 	struct pwm_omap_dmtimer_chip *omap = to_pwm_omap_dmtimer_chip(chip);
 
 	/*
-	 * PWM core will not call set_polarity while PWM is enabled so it's
+	 * PWM core will yest call set_polarity while PWM is enabled so it's
 	 * safe to reconfigure the timer here without stopping it first.
 	 */
 	mutex_lock(&omap->mutex);
@@ -238,8 +238,8 @@ static const struct pwm_ops pwm_omap_dmtimer_ops = {
 
 static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *timer;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *timer;
 	struct platform_device *timer_pdev;
 	struct pwm_omap_dmtimer_chip *omap;
 	struct dmtimer_platform_data *timer_pdata;
@@ -252,7 +252,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 	if (!timer)
 		return -ENODEV;
 
-	timer_pdev = of_find_device_by_node(timer);
+	timer_pdev = of_find_device_by_yesde(timer);
 	if (!timer_pdev) {
 		dev_err(&pdev->dev, "Unable to find Timer pdev\n");
 		ret = -ENODEV;
@@ -269,7 +269,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 
 	pdata = timer_pdata->timer_ops;
 
-	if (!pdata || !pdata->request_by_node ||
+	if (!pdata || !pdata->request_by_yesde ||
 	    !pdata->free ||
 	    !pdata->enable ||
 	    !pdata->disable ||
@@ -292,14 +292,14 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 		goto put;
 	}
 
-	dm_timer = pdata->request_by_node(timer);
+	dm_timer = pdata->request_by_yesde(timer);
 	if (!dm_timer) {
 		ret = -EPROBE_DEFER;
 		goto put;
 	}
 
 put:
-	of_node_put(timer);
+	of_yesde_put(timer);
 	if (ret < 0)
 		return ret;
 
@@ -320,11 +320,11 @@ put:
 	if (pm_runtime_active(&omap->dm_timer_pdev->dev))
 		omap->pdata->stop(omap->dm_timer);
 
-	if (!of_property_read_u32(pdev->dev.of_node, "ti,prescaler", &v))
+	if (!of_property_read_u32(pdev->dev.of_yesde, "ti,prescaler", &v))
 		omap->pdata->set_prescaler(omap->dm_timer, v);
 
 	/* setup dmtimer clock source */
-	if (!of_property_read_u32(pdev->dev.of_node, "ti,clock-source", &v))
+	if (!of_property_read_u32(pdev->dev.of_yesde, "ti,clock-source", &v))
 		omap->pdata->set_source(omap->dm_timer, v);
 
 	omap->chip.dev = &pdev->dev;

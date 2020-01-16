@@ -63,7 +63,7 @@ enum iavf_debug_mask {
 
 /* These are structs for managing the hardware information and the operations.
  * The structures of function pointers are filled out at init time when we
- * know for sure exactly which hardware we're working with.  This gives us the
+ * kyesw for sure exactly which hardware we're working with.  This gives us the
  * flexibility of using the same main driver code but adapting to slightly
  * different hardware needs as new parts are developed.  For this architecture,
  * the Firmware and AdminQ are intended to insulate the driver from most of the
@@ -119,7 +119,7 @@ struct iavf_mac_info {
 
 /* PCI bus types */
 enum iavf_bus_type {
-	iavf_bus_type_unknown = 0,
+	iavf_bus_type_unkyeswn = 0,
 	iavf_bus_type_pci,
 	iavf_bus_type_pcix,
 	iavf_bus_type_pci_express,
@@ -128,7 +128,7 @@ enum iavf_bus_type {
 
 /* PCI bus speeds */
 enum iavf_bus_speed {
-	iavf_bus_speed_unknown	= 0,
+	iavf_bus_speed_unkyeswn	= 0,
 	iavf_bus_speed_33	= 33,
 	iavf_bus_speed_66	= 66,
 	iavf_bus_speed_100	= 100,
@@ -142,7 +142,7 @@ enum iavf_bus_speed {
 
 /* PCI bus widths */
 enum iavf_bus_width {
-	iavf_bus_width_unknown	= 0,
+	iavf_bus_width_unkyeswn	= 0,
 	iavf_bus_width_pcie_x1	= 1,
 	iavf_bus_width_pcie_x2	= 2,
 	iavf_bus_width_pcie_x4	= 4,
@@ -194,7 +194,7 @@ struct iavf_hw {
 
 struct iavf_driver_version {
 	u8 major_version;
-	u8 minor_version;
+	u8 miyesr_version;
 	u8 build_version;
 	u8 subbuild_version;
 	u8 driver_string[32];
@@ -294,7 +294,7 @@ enum iavf_rx_desc_status_bits {
 	IAVF_RX_DESC_STATUS_LPBK_SHIFT		= 14,
 	IAVF_RX_DESC_STATUS_IPV6EXADD_SHIFT	= 15,
 	IAVF_RX_DESC_STATUS_RESERVED_SHIFT	= 16, /* 2 BITS */
-	/* Note: For non-tunnel packets INT_UDP_0 is the right status for
+	/* Note: For yesn-tunnel packets INT_UDP_0 is the right status for
 	 * UDP header
 	 */
 	IAVF_RX_DESC_STATUS_INT_UDP_0_SHIFT	= 18,
@@ -347,7 +347,7 @@ enum iavf_rx_desc_error_l3l4e_fcoe_masks {
 #define IAVF_RXD_QW1_PTYPE_SHIFT	30
 #define IAVF_RXD_QW1_PTYPE_MASK		(0xFFULL << IAVF_RXD_QW1_PTYPE_SHIFT)
 
-/* Packet type non-ip values */
+/* Packet type yesn-ip values */
 enum iavf_rx_l2_ptype {
 	IAVF_RX_PTYPE_L2_RESERVED			= 0,
 	IAVF_RX_PTYPE_L2_MAC_PAY2			= 1,
@@ -379,7 +379,7 @@ enum iavf_rx_l2_ptype {
 
 struct iavf_rx_ptype_decoded {
 	u32 ptype:8;
-	u32 known:1;
+	u32 kyeswn:1;
 	u32 outer_ip:1;
 	u32 outer_ip_ver:1;
 	u32 outer_frag:1;
@@ -592,7 +592,7 @@ enum iavf_tx_ctx_desc_cmd_bits {
 /* Packet Classifier Types for filters */
 enum iavf_filter_pctype {
 	/* Note: Values 0-28 are reserved for future use.
-	 * Value 29, 30, 32 are not supported on XL710 and X710.
+	 * Value 29, 30, 32 are yest supported on XL710 and X710.
 	 */
 	IAVF_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP	= 29,
 	IAVF_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP	= 30,
@@ -603,7 +603,7 @@ enum iavf_filter_pctype {
 	IAVF_FILTER_PCTYPE_NONF_IPV4_OTHER		= 35,
 	IAVF_FILTER_PCTYPE_FRAG_IPV4			= 36,
 	/* Note: Values 37-38 are reserved for future use.
-	 * Value 39, 40, 42 are not supported on XL710 and X710.
+	 * Value 39, 40, 42 are yest supported on XL710 and X710.
 	 */
 	IAVF_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP	= 39,
 	IAVF_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP	= 40,
@@ -677,7 +677,7 @@ struct iavf_eth_stats {
 	u64 rx_multicast;		/* mprc */
 	u64 rx_broadcast;		/* bprc */
 	u64 rx_discards;		/* rdpc */
-	u64 rx_unknown_protocol;	/* rupp */
+	u64 rx_unkyeswn_protocol;	/* rupp */
 	u64 tx_bytes;			/* gotc */
 	u64 tx_unicast;			/* uptc */
 	u64 tx_multicast;		/* mptc */

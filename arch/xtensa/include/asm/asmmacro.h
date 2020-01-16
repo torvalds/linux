@@ -33,7 +33,7 @@
  *	   ncond	false condition (used in b'ncond')
  *
  * __loop  as
- *	   restart loop. 'as' register must not have been modified!
+ *	   restart loop. 'as' register must yest have been modified!
  *
  * __endla ar, as, incr
  *	   ar	start address (modified)
@@ -131,7 +131,7 @@
 	.endm
 
 /*
- * end of loop with no increment of the address.
+ * end of loop with yes increment of the address.
  */
 
 	.macro	__endl	ar, as

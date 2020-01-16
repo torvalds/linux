@@ -6,14 +6,14 @@ Properties:
 - #size-cells : Should be 0
 - compatible : Should contain "nvidia,tegra20-emc".
 - reg : Offset and length of the register set for the device
-- nvidia,use-ram-code : If present, the sub-nodes will be addressed
+- nvidia,use-ram-code : If present, the sub-yesdes will be addressed
   and chosen using the ramcode board selector. If omitted, only one
   set of tables can be present and said tables will be used
   irrespective of ram-code configuration.
 - interrupts : Should contain EMC General interrupt.
 - clocks : Should contain EMC clock.
 
-Child device nodes describe the memory settings for different configurations and clock rates.
+Child device yesdes describe the memory settings for different configurations and clock rates.
 
 Example:
 
@@ -29,18 +29,18 @@ Example:
 
 Embedded Memory Controller ram-code table
 
-If the emc node has the nvidia,use-ram-code property present, then the
-next level of nodes below the emc table are used to specify which settings
+If the emc yesde has the nvidia,use-ram-code property present, then the
+next level of yesdes below the emc table are used to specify which settings
 apply for which ram-code settings.
 
-If the emc node lacks the nvidia,use-ram-code property, this level is omitted
-and the tables are stored directly under the emc node (see below).
+If the emc yesde lacks the nvidia,use-ram-code property, this level is omitted
+and the tables are stored directly under the emc yesde (see below).
 
 Properties:
 
 - name : Should be emc-tables
 - nvidia,ram-code : the binary representation of the ram-code board strappings
-  for which this node (and children) are valid.
+  for which this yesde (and children) are valid.
 
 
 
@@ -48,7 +48,7 @@ Embedded Memory Controller configuration table
 
 This is a table containing the EMC register settings for the various
 operating speeds of the memory controller. They are always located as
-subnodes of the emc controller node.
+subyesdes of the emc controller yesde.
 
 There are two ways of specifying which tables to use:
 

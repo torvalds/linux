@@ -38,7 +38,7 @@ static int wait_for_ack(int fd, int retries)
 		usleep(10);
 	}
 
-	log_err("Did not receive ACK");
+	log_err("Did yest receive ACK");
 	return -1;
 }
 

@@ -33,7 +33,7 @@
 
 /*
  * Low-level SAL-based PCI configuration access functions. Note that SAL
- * calls are already serialized (via sal_lock), so we don't need another
+ * calls are already serialized (via sal_lock), so we don't need ayesther
  * synchronization mechanism here.
  */
 
@@ -181,7 +181,7 @@ static int add_io_space(struct device *dev, struct pci_root_info *info,
 
 	/*
 	 * The SDM guarantees the legacy 0-64K space is sparse, but if the
-	 * mapping is done by the processor (not the bridge), ACPI may not
+	 * mapping is done by the processor (yest the bridge), ACPI may yest
 	 * mark it as sparse.
 	 */
 	if (space_nr == 0)
@@ -247,7 +247,7 @@ static int pci_acpi_root_prepare_resources(struct acpi_pci_root_info *ci)
 			if (res->flags & IORESOURCE_MEM) {
 				/*
 				 * HP's firmware has a hack to work around a
-				 * Windows bug. Ignore these tiny memory ranges.
+				 * Windows bug. Igyesre these tiny memory ranges.
 				 */
 				if (resource_size(res) <= 16) {
 					resource_list_del(entry);
@@ -295,14 +295,14 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		dev_err(&device->dev,
-			"pci_bus %04x:%02x: ignored (out of memory)\n",
+			"pci_bus %04x:%02x: igyesred (out of memory)\n",
 			root->segment, (int)root->secondary.start);
 		return NULL;
 	}
 
 	info->controller.segment = root->segment;
 	info->controller.companion = device;
-	info->controller.node = acpi_get_node(device->handle);
+	info->controller.yesde = acpi_get_yesde(device->handle);
 	INIT_LIST_HEAD(&info->io_resources);
 	return acpi_pci_root_create(root, &pci_acpi_root_ops,
 				    &info->common, &info->controller);
@@ -311,7 +311,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
 	/*
-	 * We pass NULL as parent to pci_create_root_bus(), so if it is not NULL
+	 * We pass NULL as parent to pci_create_root_bus(), so if it is yest NULL
 	 * here, pci_create_root_bus() has been called by someone else and
 	 * sysdata is likely to be different from what we expect.  Let it go in
 	 * that case.

@@ -118,7 +118,7 @@ static bool rt_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 	} else if (rtinfo->flags & IP6T_RT_FST_NSTRICT) {
 		pr_debug("Not strict ");
 		if (rtinfo->addrnr > (unsigned int)((hdrlen - 8) / 16)) {
-			pr_debug("There isn't enough space\n");
+			pr_debug("There isn't eyesugh space\n");
 			return false;
 		} else {
 			unsigned int i = 0;
@@ -155,7 +155,7 @@ static bool rt_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 	} else {
 		pr_debug("Strict ");
 		if (rtinfo->addrnr > (unsigned int)((hdrlen - 8) / 16)) {
-			pr_debug("There isn't enough space\n");
+			pr_debug("There isn't eyesugh space\n");
 			return false;
 		} else {
 			pr_debug("#%d ", rtinfo->addrnr);
@@ -191,7 +191,7 @@ static int rt_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_rt *rtinfo = par->matchinfo;
 
 	if (rtinfo->invflags & ~IP6T_RT_INV_MASK) {
-		pr_debug("unknown flags %X\n", rtinfo->invflags);
+		pr_debug("unkyeswn flags %X\n", rtinfo->invflags);
 		return -EINVAL;
 	}
 	if ((rtinfo->flags & (IP6T_RT_RES | IP6T_RT_FST_MASK)) &&

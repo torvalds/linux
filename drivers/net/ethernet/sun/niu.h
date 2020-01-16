@@ -1434,7 +1434,7 @@
 #define FCRAM_SIZE			0x800000
 #define FCRAM_NUM_PARTITIONS		8
 
-/* Generic HASH entry header, used for all non-optimized formats.  */
+/* Generic HASH entry header, used for all yesn-optimized formats.  */
 #define HASH_HEADER_FMT			0x8000000000000000ULL
 #define HASH_HEADER_EXT			0x4000000000000000ULL
 #define HASH_HEADER_VALID		0x2000000000000000ULL
@@ -2710,7 +2710,7 @@ struct rx_pkt_hdr0 {
 		class:5;
 	u8	vlan:1,
 		llcsnap:1,
-		noport:1,
+		yesport:1,
 		badip:1,
 		tcamhit:1,
 		tres:2,
@@ -2723,7 +2723,7 @@ struct rx_pkt_hdr0 {
 		tres:2,
 		tcamhit:1,
 		badip:1,
-		noport:1,
+		yesport:1,
 		llcsnap:1,
 		vlan:1;
 #endif
@@ -2933,8 +2933,8 @@ struct rx_ring_info {
 	u64			rbr_dma;
 
 	/* WRED */
-	int			nonsyn_window;
-	int			nonsyn_threshold;
+	int			yesnsyn_window;
+	int			yesnsyn_threshold;
 	int			syn_window;
 	int			syn_threshold;
 
@@ -2990,7 +2990,7 @@ struct niu_vpd {
 	u8			__pad;
 	u8			local_mac[6];
 	int			fcode_major;
-	int			fcode_minor;
+	int			fcode_miyesr;
 };
 
 struct niu_altmac_rdc {
@@ -3052,14 +3052,14 @@ struct niu_tcam_entry {
 	u64			assoc_data;
 };
 
-struct device_node;
+struct device_yesde;
 union niu_parent_id {
 	struct {
 		int		domain;
 		int		bus;
 		int		device;
 	} pci;
-	struct device_node	*of;
+	struct device_yesde	*of;
 };
 
 struct niu;

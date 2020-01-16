@@ -90,11 +90,11 @@ static int wm8350_charger_config(struct wm8350 *wm8350,
 
 	if (!policy) {
 		dev_warn(wm8350->dev,
-			 "No charger policy, charger not configured.\n");
+			 "No charger policy, charger yest configured.\n");
 		return -EINVAL;
 	}
 
-	/* make sure USB fast charge current is not > 500mA */
+	/* make sure USB fast charge current is yest > 500mA */
 	if (policy->fast_limit_USB_mA > 500) {
 		dev_err(wm8350->dev, "USB fast charge > 500mA\n");
 		return -EINVAL;
@@ -222,8 +222,8 @@ static irqreturn_t wm8350_charger_handler(int irq, void *data)
 		dev_warn(wm8350->dev, "battery < 2.85V\n");
 		break;
 
-		/* Supply change.  We will overnotify but it should do
-		 * no harm. */
+		/* Supply change.  We will overyestify but it should do
+		 * yes harm. */
 	case WM8350_IRQ_EXT_USB_FB:
 	case WM8350_IRQ_EXT_WALL_FB:
 		wm8350_charger_config(wm8350, policy);
@@ -235,7 +235,7 @@ static irqreturn_t wm8350_charger_handler(int irq, void *data)
 		break;
 
 	default:
-		dev_err(wm8350->dev, "Unknown interrupt %d\n", irq);
+		dev_err(wm8350->dev, "Unkyeswn interrupt %d\n", irq);
 	}
 
 	return IRQ_HANDLED;

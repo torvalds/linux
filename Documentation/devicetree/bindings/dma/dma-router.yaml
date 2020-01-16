@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: DMA Router Generic Binding
 
 maintainers:
-  - Vinod Koul <vkoul@kernel.org>
+  - Viyesd Koul <vkoul@kernel.org>
 
 allOf:
   - $ref: "dma-common.yaml#"
@@ -19,7 +19,7 @@ description:
   controller can handle directly.
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^dma-router(@.*)?$"
 
   dma-masters:

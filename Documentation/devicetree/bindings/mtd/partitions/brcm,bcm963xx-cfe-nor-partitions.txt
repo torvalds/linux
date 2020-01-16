@@ -9,7 +9,7 @@ header found at beginning of the second erase block, containing the rootfs and
 kernel offsets and sizes within the firmware partition.
 
 Required properties:
-- compatible : must be "brcm,bcm963xx-cfe-nor-partitions"
+- compatible : must be "brcm,bcm963xx-cfe-yesr-partitions"
 
 Example:
 
@@ -19,6 +19,6 @@ flash@1fc00000 {
 	bank-width = <2>;
 
 	partitions {
-		compatible = "brcm,bcm963xx-cfe-nor-partitions";
+		compatible = "brcm,bcm963xx-cfe-yesr-partitions";
 	};
 };

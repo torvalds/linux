@@ -1,8 +1,8 @@
 #
-# List of known perf commands.
+# List of kyeswn perf commands.
 # command name			category [deprecated] [common]
 #
-perf-annotate			mainporcelain common
+perf-anyestate			mainporcelain common
 perf-archive			mainporcelain common
 perf-bench			mainporcelain common
 perf-buildid-cache		mainporcelain common

@@ -19,18 +19,18 @@ Usage:
         diff DTx_1 and DTx_2
 
 
-      --annotate    synonym for -T
-      --color       synonym for -c (requires diff with --color support)
+      --anyestate    syyesnym for -T
+      --color       syyesnym for -c (requires diff with --color support)
        -c           enable colored output
        -f           print full dts in diff (--unified=99999)
-       -h           synonym for --help
-       -help        synonym for --help
+       -h           syyesnym for --help
+       -help        syyesnym for --help
       --help        print this message and exit
        -s SRCTREE   linux kernel source tree is at path SRCTREE
                         (default is current directory)
        -S           linux kernel source tree is at root of current git repo
-       -T           Annotate output .dts with input source file and line (-T -T for more details)
-       -u           unsorted, do not sort DTx
+       -T           Anyestate output .dts with input source file and line (-T -T for more details)
+       -u           unsorted, do yest sort DTx
 
 
 Each DTx is processed by the dtc compiler to produce a sorted dts source
@@ -48,7 +48,7 @@ If DTx contains the binary blob magic value in the first four bytes,
 
 Otherwise DTx is treated as a dts source file (aka .dts).
 
-   If this script is not run from the root of the linux source tree,
+   If this script is yest run from the root of the linux source tree,
    and DTx utilizes '#include' or '/include/' then the path of the
    linux source tree can be provided by '-s SRCTREE' or '-S' so that
    include paths will be set properly.
@@ -58,7 +58,7 @@ Otherwise DTx is treated as a dts source file (aka .dts).
    or '/include/' to be processed.
 
    If DTx_1 and DTx_2 are in different architectures, then this script
-   may not work since \${ARCH} is part of the include path.  Two possible
+   may yest work since \${ARCH} is part of the include path.  Two possible
    workarounds:
 
       `basename $0` \\
@@ -122,14 +122,14 @@ compile_to_dts() {
 
 		echo ""                                                      >&2
 		echo "Possible hints to resolve the above error:"            >&2
-		echo "  (hints might not fix the problem)"                   >&2
+		echo "  (hints might yest fix the problem)"                   >&2
 
 		hint_given=0
 
 		if [ "${ARCH}" = "" ] ; then
 			hint_given=1
 			echo ""                                              >&2
-			echo "  shell variable \$ARCH not set"               >&2
+			echo "  shell variable \$ARCH yest set"               >&2
 		fi
 
 		dtx_arch=`echo "/${dtx}" | sed -e 's|.*/arch/||' -e 's|/.*||'`
@@ -138,14 +138,14 @@ compile_to_dts() {
 			hint_given=1
 			echo ""                                              >&2
 			echo "  architecture ${dtx_arch} is in file path,"   >&2
-			echo "  but does not match shell variable \$ARCH"    >&2
+			echo "  but does yest match shell variable \$ARCH"    >&2
 			echo "  >>\$ARCH<< is: >>${ARCH}<<"                  >&2
 		fi
 
 		if [ ! -d ${srctree}/arch/${ARCH} ] ; then
 			hint_given=1
 			echo ""                                              >&2
-			echo "  ${srctree}/arch/${ARCH}/ does not exist"     >&2
+			echo "  ${srctree}/arch/${ARCH}/ does yest exist"     >&2
 			echo "  Is \$ARCH='${ARCH}' correct?"                >&2
 			echo "  Possible fix: use '-s' option"               >&2
 
@@ -166,7 +166,7 @@ compile_to_dts() {
 
 	else
 		echo ""                                                     >&2
-		echo "ERROR: ${dtx} does not exist or is not readable"      >&2
+		echo "ERROR: ${dtx} does yest exist or is yest readable"      >&2
 		echo ""                                                     >&2
 		exit 2
 	fi
@@ -176,7 +176,7 @@ compile_to_dts() {
 
 # -----  start of script
 
-annotate=""
+anyestate=""
 cmd_diff=0
 diff_flags="-u"
 diff_color=""
@@ -219,11 +219,11 @@ while [ $# -gt 0 ] ; do
 		shift
 		;;
 
-	-T | --annotate )
-		if [ "${annotate}"  = "" ] ; then
-			annotate="-T"
-		elif [ "${annotate}"  = "-T" ] ; then
-			annotate="-T -T"
+	-T | --anyestate )
+		if [ "${anyestate}"  = "" ] ; then
+			anyestate="-T"
+		elif [ "${anyestate}"  = "-T" ] ; then
+			anyestate="-T -T"
 		fi
 		shift
 		;;
@@ -301,15 +301,15 @@ if [ ! -x ${DTC} ] ; then
 
 ERROR: unable to find a 'dtc' program
 
-   Preferred 'dtc' (built from Linux kernel source tree) was not found or
-   is not executable.
+   Preferred 'dtc' (built from Linux kernel source tree) was yest found or
+   is yest executable.
 
       'dtc' is: ${DTC}
 
-      If it does not exist, create it from the root of the Linux source tree:
+      If it does yest exist, create it from the root of the Linux source tree:
 ${make_command}
 
-      If not at the root of the Linux kernel source tree -s SRCTREE or -S
+      If yest at the root of the Linux kernel source tree -s SRCTREE or -S
       may need to be specified to find 'dtc'.
 
       If 'O=\${dir}' is specified in your Linux builds, this script requires
@@ -319,7 +319,7 @@ ${make_command}
       If \${KBUILD_OUTPUT} is a relative path, then '-s SRCDIR', -S, or run
       this script from the root of the Linux kernel source tree is required.
 
-   Fallback '${__DTC}' was also not in \${PATH} or is not executable.
+   Fallback '${__DTC}' was also yest in \${PATH} or is yest executable.
 
 eod
 		exit 2
@@ -339,14 +339,14 @@ if (( ${cmd_diff} )) ; then
 fi
 
 cpp_flags="\
-	-nostdinc                                  \
+	-yesstdinc                                  \
 	-I${srctree}/scripts/dtc/include-prefixes  \
 	-undef -D__DTS__"
 
 DTC="\
 	${DTC}                                     \
 	-i ${srctree}/scripts/dtc/include-prefixes \
-	-O dts -qq -f ${dtc_sort} ${annotate} -o -"
+	-O dts -qq -f ${dtc_sort} ${anyestate} -o -"
 
 
 # -----  do the diff or decompile

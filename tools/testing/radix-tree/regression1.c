@@ -9,11 +9,11 @@
  * 0.  The radix tree contains two items, one has the index 0.
  * 1.  The reader (in this case find_get_pages) takes the rcu_read_lock.
  * 2.  The reader acquires slot(s) for item(s) including the index 0 item.
- * 3.  The non-zero index item is deleted, and as a consequence the other item
+ * 3.  The yesn-zero index item is deleted, and as a consequence the other item
  *     is moved to the root of the tree. The place where it used to be is queued
  *     for deletion after the readers finish.
  * 3b. The zero item is deleted, removing it from the direct slot, it remains in
- *     the rcu-delayed indirect node.
+ *     the rcu-delayed indirect yesde.
  * 4.  The reader looks at the index 0 slot, and finds that the page has 0 ref
  *     count
  * 5.  The reader looks at it again, hoping that the item will either be freed

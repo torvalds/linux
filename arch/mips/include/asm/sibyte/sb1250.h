@@ -42,7 +42,7 @@ extern void bcm1480_unmask_irq(int cpu, int irq);
 
 #define AT_spin \
 	__asm__ __volatile__ (		\
-		".set noat\n"		\
+		".set yesat\n"		\
 		"li $at, 0\n"		\
 		"1: beqz $at, 1b\n"	\
 		".set at\n"		\

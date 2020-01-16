@@ -9,7 +9,7 @@
  * enable register instead of separate mask/set/clear registers.
  *
  * The BCM3380 has a similar mask/status register layout, but each pair
- * of words is at separate locations (and SMP is not supported).
+ * of words is at separate locations (and SMP is yest supported).
  *
  * ENABLE/STATUS words are packed next to each other for each CPU:
  *
@@ -233,7 +233,7 @@ static int bcm6345_l1_set_affinity(struct irq_data *d,
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
 
-static int __init bcm6345_l1_init_one(struct device_node *dn,
+static int __init bcm6345_l1_init_one(struct device_yesde *dn,
 				      unsigned int idx,
 				      struct bcm6345_l1_chip *intc)
 {
@@ -299,8 +299,8 @@ static const struct irq_domain_ops bcm6345_l1_domain_ops = {
 	.map			= bcm6345_l1_map,
 };
 
-static int __init bcm6345_l1_of_init(struct device_node *dn,
-			      struct device_node *parent)
+static int __init bcm6345_l1_of_init(struct device_yesde *dn,
+			      struct device_yesde *parent)
 {
 	struct bcm6345_l1_chip *intc;
 	unsigned int idx;

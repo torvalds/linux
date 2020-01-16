@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -182,7 +182,7 @@ static int tegra_mipi_power_down(struct tegra_mipi *mipi)
 
 	/*
 	 * The MIPI_CAL_BIAS_PAD_PDVREG controls a voltage regulator that
-	 * supplies the DSI pads. This must be kept enabled until none of the
+	 * supplies the DSI pads. This must be kept enabled until yesne of the
 	 * DSI lanes are used anymore.
 	 */
 	value = tegra_mipi_readl(mipi, MIPI_CAL_BIAS_PAD_CFG2);
@@ -193,7 +193,7 @@ static int tegra_mipi_power_down(struct tegra_mipi *mipi)
 	 * MIPI_CAL_BIAS_PAD_PDVCLAMP and MIPI_CAL_BIAS_PAD_E_VCLAMP_REF
 	 * control a regulator that supplies current to the pre-driver logic.
 	 * Powering down this regulator causes DSI to fail, so it must remain
-	 * powered on until none of the DSI lanes are used anymore.
+	 * powered on until yesne of the DSI lanes are used anymore.
 	 */
 	value = tegra_mipi_readl(mipi, MIPI_CAL_BIAS_PAD_CFG0);
 
@@ -208,7 +208,7 @@ static int tegra_mipi_power_down(struct tegra_mipi *mipi)
 
 struct tegra_mipi_device *tegra_mipi_request(struct device *device)
 {
-	struct device_node *np = device->of_node;
+	struct device_yesde *np = device->of_yesde;
 	struct tegra_mipi_device *dev;
 	struct of_phandle_args args;
 	int err;
@@ -225,7 +225,7 @@ struct tegra_mipi_device *tegra_mipi_request(struct device *device)
 		goto out;
 	}
 
-	dev->pdev = of_find_device_by_node(args.np);
+	dev->pdev = of_find_device_by_yesde(args.np);
 	if (!dev->pdev) {
 		err = -ENODEV;
 		goto free;
@@ -237,7 +237,7 @@ struct tegra_mipi_device *tegra_mipi_request(struct device *device)
 		goto put;
 	}
 
-	of_node_put(args.np);
+	of_yesde_put(args.np);
 
 	dev->pads = args.args[0];
 	dev->device = device;
@@ -249,7 +249,7 @@ put:
 free:
 	kfree(dev);
 out:
-	of_node_put(args.np);
+	of_yesde_put(args.np);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(tegra_mipi_request);
@@ -501,7 +501,7 @@ static int tegra_mipi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err;
 
-	match = of_match_node(tegra_mipi_of_match, pdev->dev.of_node);
+	match = of_match_yesde(tegra_mipi_of_match, pdev->dev.of_yesde);
 	if (!match)
 		return -ENODEV;
 

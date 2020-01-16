@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 /*
- * On most systems <limits.h> would have given us this, but  not on some systems
+ * On most systems <limits.h> would have given us this, but  yest on some systems
  * (e.g. GNU/Hurd).
  */
 #ifndef PATH_MAX

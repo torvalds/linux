@@ -49,7 +49,7 @@ config GCOV_PROFILE_ALL
 
 	Note that a kernel compiled with profiling flags will be significantly
 	larger and run slower. Also be sure to exclude files from profiling
-	which are not linked to the kernel image to prevent linker errors.
+	which are yest linked to the kernel image to prevent linker errors.
 
 choice
 	prompt "Specify GCOV format"

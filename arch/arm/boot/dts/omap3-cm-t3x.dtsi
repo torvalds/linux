@@ -41,14 +41,14 @@
 
 	/* HS USB Host PHY on PORT 1 */
 	hsusb1_phy: hsusb1_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-yesp-xceiv";
 		vcc-supply = <&hsusb1_power>;
 		#phy-cells = <0>;
 	};
 
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-yesp-xceiv";
 		vcc-supply = <&hsusb2_power>;
 		#phy-cells = <0>;
 	};

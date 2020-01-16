@@ -9,7 +9,7 @@
 #include <linux/acpi.h>
 #include <linux/arm-smccc.h>
 #include <linux/cpuidle.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/linkage.h>
 #include <linux/of.h>
 #include <linux/pm.h>
@@ -140,9 +140,9 @@ static unsigned long __invoke_psci_fn_smc(unsigned long function_id,
 	return res.a0;
 }
 
-static int psci_to_linux_errno(int errno)
+static int psci_to_linux_erryes(int erryes)
 {
-	switch (errno) {
+	switch (erryes) {
 	case PSCI_RET_SUCCESS:
 		return 0;
 	case PSCI_RET_NOT_SUPPORTED:
@@ -169,7 +169,7 @@ static int psci_cpu_suspend(u32 state, unsigned long entry_point)
 
 	fn = psci_function_id[PSCI_FN_CPU_SUSPEND];
 	err = invoke_psci_fn(fn, state, entry_point, 0);
-	return psci_to_linux_errno(err);
+	return psci_to_linux_erryes(err);
 }
 
 static int psci_cpu_off(u32 state)
@@ -179,7 +179,7 @@ static int psci_cpu_off(u32 state)
 
 	fn = psci_function_id[PSCI_FN_CPU_OFF];
 	err = invoke_psci_fn(fn, state, 0, 0);
-	return psci_to_linux_errno(err);
+	return psci_to_linux_erryes(err);
 }
 
 static int psci_cpu_on(unsigned long cpuid, unsigned long entry_point)
@@ -189,7 +189,7 @@ static int psci_cpu_on(unsigned long cpuid, unsigned long entry_point)
 
 	fn = psci_function_id[PSCI_FN_CPU_ON];
 	err = invoke_psci_fn(fn, cpuid, entry_point, 0);
-	return psci_to_linux_errno(err);
+	return psci_to_linux_erryes(err);
 }
 
 static int psci_migrate(unsigned long cpuid)
@@ -199,7 +199,7 @@ static int psci_migrate(unsigned long cpuid)
 
 	fn = psci_function_id[PSCI_FN_MIGRATE];
 	err = invoke_psci_fn(fn, cpuid, 0, 0);
-	return psci_to_linux_errno(err);
+	return psci_to_linux_erryes(err);
 }
 
 static int psci_affinity_info(unsigned long target_affinity,
@@ -236,7 +236,7 @@ static void set_conduit(enum arm_smccc_conduit conduit)
 	psci_ops.conduit = conduit;
 }
 
-static int get_set_conduit_method(struct device_node *np)
+static int get_set_conduit_method(struct device_yesde *np)
 {
 	const char *method;
 
@@ -265,7 +265,7 @@ static void psci_sys_reset(enum reboot_mode reboot_mode, const char *cmd)
 		/*
 		 * reset_type[31] = 0 (architectural)
 		 * reset_type[30:0] = 0 (SYSTEM_WARM_RESET)
-		 * cookie = 0 (ignored by the implementation)
+		 * cookie = 0 (igyesred by the implementation)
 		 */
 		invoke_psci_fn(PSCI_FN_NATIVE(1_1, SYSTEM_RESET2), 0, 0, 0);
 	} else {
@@ -364,18 +364,18 @@ static void __init psci_init_migrate(void)
 	type = psci_ops.migrate_info_type();
 
 	if (type == PSCI_0_2_TOS_MP) {
-		pr_info("Trusted OS migration not required\n");
+		pr_info("Trusted OS migration yest required\n");
 		return;
 	}
 
 	if (type == PSCI_RET_NOT_SUPPORTED) {
-		pr_info("MIGRATE_INFO_TYPE not supported.\n");
+		pr_info("MIGRATE_INFO_TYPE yest supported.\n");
 		return;
 	}
 
 	if (type != PSCI_0_2_TOS_UP_MIGRATE &&
 	    type != PSCI_0_2_TOS_UP_NO_MIGRATE) {
-		pr_err("MIGRATE_INFO_TYPE returned unknown type (%d)\n", type);
+		pr_err("MIGRATE_INFO_TYPE returned unkyeswn type (%d)\n", type);
 		return;
 	}
 
@@ -474,14 +474,14 @@ static int __init psci_probe(void)
 	return 0;
 }
 
-typedef int (*psci_initcall_t)(const struct device_node *);
+typedef int (*psci_initcall_t)(const struct device_yesde *);
 
 /*
  * PSCI init function for PSCI versions >=0.2
  *
  * Probe based on PSCI PSCI_VERSION function
  */
-static int __init psci_0_2_init(struct device_node *np)
+static int __init psci_0_2_init(struct device_yesde *np)
 {
 	int err;
 
@@ -502,7 +502,7 @@ static int __init psci_0_2_init(struct device_node *np)
 /*
  * PSCI < v0.2 get PSCI Function IDs via DT.
  */
-static int __init psci_0_1_init(struct device_node *np)
+static int __init psci_0_1_init(struct device_yesde *np)
 {
 	u32 id;
 	int err;
@@ -536,7 +536,7 @@ static int __init psci_0_1_init(struct device_node *np)
 	return 0;
 }
 
-static int __init psci_1_0_init(struct device_node *np)
+static int __init psci_1_0_init(struct device_yesde *np)
 {
 	int err;
 
@@ -559,12 +559,12 @@ static const struct of_device_id psci_of_match[] __initconst = {
 
 int __init psci_dt_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id *matched_np;
 	psci_initcall_t init_fn;
 	int ret;
 
-	np = of_find_matching_node_and_match(NULL, psci_of_match, &matched_np);
+	np = of_find_matching_yesde_and_match(NULL, psci_of_match, &matched_np);
 
 	if (!np || !of_device_is_available(np))
 		return -ENODEV;
@@ -572,7 +572,7 @@ int __init psci_dt_init(void)
 	init_fn = (psci_initcall_t)matched_np->data;
 	ret = init_fn(np);
 
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }
 
@@ -584,7 +584,7 @@ int __init psci_dt_init(void)
 int __init psci_acpi_init(void)
 {
 	if (!acpi_psci_present()) {
-		pr_info("is not implemented in ACPI.\n");
+		pr_info("is yest implemented in ACPI.\n");
 		return -EOPNOTSUPP;
 	}
 

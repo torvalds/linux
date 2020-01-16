@@ -20,7 +20,7 @@ user space.
 
 NOTE: We currently rely on delay accounting for extracting information
 about tasks blocked on I/O. If CONFIG_TASK_DELAY_ACCT is disabled, this
-information will not be available.
+information will yest be available.
 
 To extract cgroup statistics a utility very similar to getdelays.c
 has been developed, the sample output of the utility is shown below::

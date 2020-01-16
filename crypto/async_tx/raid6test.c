@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * asynchronous raid6 recovery self test
+ * asynchroyesus raid6 recovery self test
  * Copyright (c) 2009, Intel Corporation.
  *
  * based on drivers/md/raid6test/test.c:
@@ -211,7 +211,7 @@ static int raid6_test(void)
 
 	/* the 24 disk case is special for ioatdma as it is the boudary point
 	 * at which it needs to switch from 8-source ops to 16-source
-	 * ops for continuation (assumes DMA_HAS_PQ_CONTINUE is not set)
+	 * ops for continuation (assumes DMA_HAS_PQ_CONTINUE is yest set)
 	 */
 	if (NDISKS > 24)
 		err += test(24, &tests);
@@ -238,5 +238,5 @@ static void raid6_test_exit(void)
 late_initcall(raid6_test);
 module_exit(raid6_test_exit);
 MODULE_AUTHOR("Dan Williams <dan.j.williams@intel.com>");
-MODULE_DESCRIPTION("asynchronous RAID-6 recovery self tests");
+MODULE_DESCRIPTION("asynchroyesus RAID-6 recovery self tests");
 MODULE_LICENSE("GPL");

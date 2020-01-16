@@ -232,7 +232,7 @@ struct cudbg_vpd_data {
 	u8 na[MACADDR_LEN + 1];
 	u8 mn[ID_LEN + 1];
 	u16 fw_major;
-	u16 fw_minor;
+	u16 fw_miyesr;
 	u16 fw_micro;
 	u16 fw_build;
 	u32 scfg_vers;

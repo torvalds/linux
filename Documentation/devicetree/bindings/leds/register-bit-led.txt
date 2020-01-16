@@ -7,10 +7,10 @@ syscon device, with the proper compatible string. For the
 syscon bindings see:
 Documentation/devicetree/bindings/mfd/syscon.txt
 
-Each LED is represented as a sub-node of the syscon device. Each
-node's name represents the name of the corresponding LED.
+Each LED is represented as a sub-yesde of the syscon device. Each
+yesde's name represents the name of the corresponding LED.
 
-LED sub-node properties:
+LED sub-yesde properties:
 
 Required properties:
 - compatible : must be "register-bit-led"

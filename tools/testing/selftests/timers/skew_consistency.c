@@ -3,7 +3,7 @@
  *		(C) Copyright IBM 2012
  *		Licensed under the GPLv2
  *
- *  NOTE: This is a meta-test which cranks the ADJ_FREQ knob back
+ *  NOTE: This is a meta-test which cranks the ADJ_FREQ kyesb back
  *  and forth and watches for consistency problems. Thus this test requires
  *  that the inconsistency-check tests be present in the same directory it
  *  is run from.
@@ -45,7 +45,7 @@ int main(int argv, char **argc)
 	pid_t pid;
 
 
-	printf("Running Asynchronous Frequency Changing Tests...\n");
+	printf("Running Asynchroyesus Frequency Changing Tests...\n");
 
 	pid = fork();
 	if (!pid)

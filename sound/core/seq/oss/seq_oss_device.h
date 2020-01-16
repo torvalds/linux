@@ -46,7 +46,7 @@ typedef unsigned int abstime_t;
  * synthesizer channel information
  */
 struct seq_oss_chinfo {
-	int note, vel;
+	int yeste, vel;
 };
 
 /*
@@ -129,7 +129,7 @@ void snd_seq_oss_readq_info_read(struct seq_oss_readq *q, struct snd_info_buffer
 /* file mode macros */
 #define is_read_mode(mode)	((mode) & SNDRV_SEQ_OSS_FILE_READ)
 #define is_write_mode(mode)	((mode) & SNDRV_SEQ_OSS_FILE_WRITE)
-#define is_nonblock_mode(mode)	((mode) & SNDRV_SEQ_OSS_FILE_NONBLOCK)
+#define is_yesnblock_mode(mode)	((mode) & SNDRV_SEQ_OSS_FILE_NONBLOCK)
 
 /* dispatch event */
 static inline int

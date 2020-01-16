@@ -18,11 +18,11 @@
 /*
 	prefetch(x) attempts to pre-emptively get the memory pointed to
 	by address "x" into the CPU L1 cache. 
-	prefetch(x) should not cause any kind of exception, prefetch(0) is
+	prefetch(x) should yest cause any kind of exception, prefetch(0) is
 	specifically ok.
 
-	prefetch() should be defined by the architecture, if not, the 
-	#define below provides a no-op define.	
+	prefetch() should be defined by the architecture, if yest, the 
+	#define below provides a yes-op define.	
 	
 	There are 3 prefetch() macros:
 	

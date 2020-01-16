@@ -11,7 +11,7 @@
 
 /*
  * Required alignment of base addresses for bulk transfer, if unaligned
- * transfers are not enabled
+ * transfers are yest enabled
  * Really determined by the message driver, and should be available from
  * a run-time call.
  */
@@ -25,7 +25,7 @@
 
 /*
  * Required length multiple for bulk transfers, if unaligned transfers are
- * not enabled
+ * yest enabled
  * May be less than or greater than VCHI_BULK_ALIGN
  * Really determined by the message driver, and should be available from
  * a run-time call.
@@ -48,7 +48,7 @@
 #endif
 
 /******************************************************************************
- * Defines below are system configuration options, and should not be used by
+ * Defines below are system configuration options, and should yest be used by
  * VCHI services.
  ******************************************************************************/
 
@@ -118,7 +118,7 @@
 
 /*
  * After we've sent an XOFF, the peer will be told to resume transmission
- * once the local service has dequeued/released enough messages that it's now
+ * once the local service has dequeued/released eyesugh messages that it's yesw
  * occupying VCHI_XON_THRESHOLD slots or fewer.
  */
 #ifndef VCHI_XON_THRESHOLD
@@ -139,7 +139,7 @@
  * Maximum size of bulk transmission chunks, for each interface type.
  * A trade-off between speed and latency; the smaller the chunk size the better
  * change of messages and other bulk transmissions getting in when big bulk
- * transfers are happening. Set to 0 to not break transmissions into chunks.
+ * transfers are happening. Set to 0 to yest break transmissions into chunks.
  */
 #ifndef VCHI_MAX_BULK_CHUNK_SIZE_MPHI
 #  define VCHI_MAX_BULK_CHUNK_SIZE_MPHI (16 * 1024)
@@ -217,7 +217,7 @@
 
 /*
  * Timeout (in milliseconds) for putting the CCP2TX interface into IDLE state.
- * Set negative for no IDLE.
+ * Set negative for yes IDLE.
  */
 #  ifndef VCHI_CCP2TX_IDLE_TIMEOUT
 #    define VCHI_CCP2TX_IDLE_TIMEOUT        5
@@ -225,7 +225,7 @@
 
 /*
  * Timeout (in milliseconds) for putting the CCP2TX interface into OFF state.
- * Set negative for no OFF.
+ * Set negative for yes OFF.
  */
 #  ifndef VCHI_CCP2TX_OFF_TIMEOUT
 #    define VCHI_CCP2TX_OFF_TIMEOUT         1000

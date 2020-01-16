@@ -403,7 +403,7 @@ int w1_reset_select_slave(struct w1_slave *sl)
 EXPORT_SYMBOL_GPL(w1_reset_select_slave);
 
 /**
- * w1_reset_resume_command() - resume instead of another match ROM
+ * w1_reset_resume_command() - resume instead of ayesther match ROM
  * @dev:	the master device
  *
  * When the workflow with a slave amongst many requires several

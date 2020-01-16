@@ -20,7 +20,7 @@
 
 /*
  * The fs value determines whether argument validity checking should be
- * performed or not.  If get_fs() == USER_DS, checking is performed, with
+ * performed or yest.  If get_fs() == USER_DS, checking is performed, with
  * get_fs() == KERNEL_DS, checking is bypassed.
  *
  * For historical reasons, these macros are grossly misnamed.
@@ -190,7 +190,7 @@ static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long s
 })
 
 
-int __put_user_bad(void) __attribute__((noreturn));
+int __put_user_bad(void) __attribute__((yesreturn));
 
 #define __get_user(x, ptr)					\
 ({								\
@@ -238,7 +238,7 @@ int __put_user_bad(void) __attribute__((noreturn));
 	__get_user(x, ptr);					\
 })
 
-int __get_user_bad(void) __attribute__((noreturn));
+int __get_user_bad(void) __attribute__((yesreturn));
 
 unsigned long __must_check
 raw_copy_in_user(void __user *to, const void __user *from, unsigned long n);

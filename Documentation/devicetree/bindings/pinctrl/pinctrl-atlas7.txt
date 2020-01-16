@@ -44,7 +44,7 @@ For example, pinctrl might have properties like the following:
 
 			sample2_cfg: sample2@0 {
 				sample2 {
-					groups = "uart4_nopause_grp";
+					groups = "uart4_yespause_grp";
 					bias-pull-down;
 				};
 			};
@@ -60,10 +60,10 @@ For example, pinctrl might have properties like the following:
 Please refer to pinctrl-bindings.txt in this directory for details of the common
 pinctrl bindings used by client devices.
 
-SiRFatlas7's pinmux nodes act as a container for an abitrary number of subnodes.
-Each of these subnodes represents some desired configuration for a group of pins.
+SiRFatlas7's pinmux yesdes act as a container for an abitrary number of subyesdes.
+Each of these subyesdes represents some desired configuration for a group of pins.
 
-Required subnode-properties:
+Required subyesde-properties:
 - groups : An array of strings. Each string contains the name of a group.
 - function: A string containing the name of the function to mux to the
   group.
@@ -72,7 +72,7 @@ Required subnode-properties:
   group and function arrays in driver files:
   drivers/pinctrl/pinctrl-sirf.c
 
-For example, pinctrl might have subnodes like the following:
+For example, pinctrl might have subyesdes like the following:
 	sd0_pmx: sd0@0 {
 		sd0 {
 			groups = "sd0_grp";

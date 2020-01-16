@@ -8,7 +8,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -106,7 +106,7 @@ static const unsigned int ack_rates_high[] =
  * @shortpre: Indicate short preample
  *
  * Calculate tx duration of a frame given it's rate and length
- * It extends ieee80211_generic_frame_duration for non standard
+ * It extends ieee80211_generic_frame_duration for yesn standard
  * bwmodes.
  */
 int
@@ -300,7 +300,7 @@ ath5k_hw_write_rate_duration(struct ath5k_hw *ah)
 
 		/* An ACK frame consists of 10 bytes. If you add the FCS,
 		 * which ieee80211_generic_frame_duration() adds,
-		 * its 14 bytes. Note we use the control rate and not the
+		 * its 14 bytes. Note we use the control rate and yest the
 		 * actual rate for this rate. See mac80211 tx.c
 		 * ieee80211_duration() for a brief description of
 		 * what rate we should choose to TX ACKs. */
@@ -437,7 +437,7 @@ ath5k_hw_set_bssid(struct ath5k_hw *ah)
  * which bits of the interface's MAC address should be looked at when trying
  * to decide which packets to ACK. In station mode and AP mode with a single
  * BSS every bit matters since we lock to only one BSS. In AP mode with
- * multiple BSSes (virtual interfaces) not every bit matters because hw must
+ * multiple BSSes (virtual interfaces) yest every bit matters because hw must
  * accept frames for all BSSes and so we tweak some bits of our mac address
  * in order to have multiple BSSes.
  *
@@ -571,7 +571,7 @@ ath5k_hw_get_tsf64(struct ath5k_hw *ah)
 	 * While reading TSF upper and then lower part, the clock is still
 	 * counting (or jumping in case of IBSS merge) so we might get
 	 * inconsistent values. To avoid this, we read the upper part again
-	 * and check it has not been changed. We make the hypothesis that a
+	 * and check it has yest been changed. We make the hypothesis that a
 	 * maximum of 3 changes can happens in a row (we use 10 as a safe
 	 * value).
 	 *
@@ -665,14 +665,14 @@ ath5k_hw_init_beacon_timers(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 			timer1 = 0x0000ffff;
 			timer2 = 0x0007ffff;
 		}
-		/* Mark associated AP as PCF incapable for now */
+		/* Mark associated AP as PCF incapable for yesw */
 		AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1, AR5K_STA_ID1_PCF);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		AR5K_REG_ENABLE_BITS(ah, AR5K_TXCFG, AR5K_TXCFG_ADHOC_BCN_ATIM);
 		/* fall through */
 	default:
-		/* On non-STA modes timer1 is used as next DMA
+		/* On yesn-STA modes timer1 is used as next DMA
 		 * beacon alert (DBA) timer and timer2 as next
 		 * software beacon alert. Both in 1/8TUs. */
 		timer1 = (next_beacon - AR5K_TUNE_DMA_BEACON_RESP) << 3;
@@ -681,8 +681,8 @@ ath5k_hw_init_beacon_timers(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 	}
 
 	/* Timer3 marks the end of our ATIM window
-	 * a zero length window is not allowed because
-	 * we 'll get no beacons */
+	 * a zero length window is yest allowed because
+	 * we 'll get yes beacons */
 	timer3 = next_beacon + 1;
 
 	/*
@@ -741,7 +741,7 @@ ath5k_check_timer_win(int a, int b, int window, int intval)
 {
 	/*
 	 * 1.) usually B should be A + window
-	 * 2.) A already updated, B not updated yet
+	 * 2.) A already updated, B yest updated yet
 	 * 3.) A already updated and has wrapped around
 	 * 4.) B has wrapped around
 	 */
@@ -769,22 +769,22 @@ ath5k_check_timer_win(int a, int b, int window, int intval)
  *
  * The reception of a beacon with the same BSSID can update the local HW TSF
  * at any time - this is something we can't avoid. If the TSF jumps to a
- * time which is later than the time stored in a timer, this timer will not
+ * time which is later than the time stored in a timer, this timer will yest
  * be updated until the TSF in TU wraps around at 16 bit (the size of the
  * timers) and reaches the time which is stored in the timer.
  *
  * The problem is that these timers are closely related to TIMER0 (NBTT) and
  * that they define a time "window". When the TSF jumps between two timers
- * (e.g. ATIM and NBTT), the one in the past will be left behind (not
+ * (e.g. ATIM and NBTT), the one in the past will be left behind (yest
  * updated), while the one in the future will be updated every beacon
  * interval. This causes the window to get larger, until the TSF wraps
  * around as described above and the timer which was left behind gets
- * updated again. But - because the beacon interval is usually not an exact
+ * updated again. But - because the beacon interval is usually yest an exact
  * divisor of the size of the timers (16 bit), an unwanted "window" between
  * these timers has developed!
  *
  * This is especially important with the ATIM window, because during
- * the ATIM window only ATIM frames and no data frames are allowed to be
+ * the ATIM window only ATIM frames and yes data frames are allowed to be
  * sent, which creates transmission pauses after each beacon. This symptom
  * has been described as "ramping ping" because ping times increase linearly
  * for some time and then drop down again. A wrong window on the DMA beacon
@@ -801,7 +801,7 @@ ath5k_hw_check_beacon_timers(struct ath5k_hw *ah, int intval)
 	atim = ath5k_hw_reg_read(ah, AR5K_TIMER3);
 	dma = ath5k_hw_reg_read(ah, AR5K_TIMER1) >> 3;
 
-	/* NOTE: SWBA is different. Having a wrong window there does not
+	/* NOTE: SWBA is different. Having a wrong window there does yest
 	 * stop us from sending data and this condition is caught by
 	 * other means (SWBA interrupt) */
 

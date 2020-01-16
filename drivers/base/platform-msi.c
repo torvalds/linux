@@ -164,7 +164,7 @@ static int platform_msi_alloc_descs(struct device *dev, int nvec,
 
 /**
  * platform_msi_create_irq_domain - Create a platform MSI interrupt domain
- * @fwnode:		Optional fwnode of the interrupt controller
+ * @fwyesde:		Optional fwyesde of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  *
@@ -174,7 +174,7 @@ static int platform_msi_alloc_descs(struct device *dev, int nvec,
  * Returns:
  * A domain pointer or NULL in case of failure.
  */
-struct irq_domain *platform_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *platform_msi_create_irq_domain(struct fwyesde_handle *fwyesde,
 						  struct msi_domain_info *info,
 						  struct irq_domain *parent)
 {
@@ -185,7 +185,7 @@ struct irq_domain *platform_msi_create_irq_domain(struct fwnode_handle *fwnode,
 	if (info->flags & MSI_FLAG_USE_DEF_CHIP_OPS)
 		platform_msi_update_chip_ops(info);
 
-	domain = msi_create_irq_domain(fwnode, info, parent);
+	domain = msi_create_irq_domain(fwyesde, info, parent);
 	if (domain)
 		irq_domain_update_bus_token(domain, DOMAIN_BUS_PLATFORM_MSI);
 
@@ -339,7 +339,7 @@ __platform_msi_create_device_domain(struct device *dev,
 	data->host_data = host_data;
 	domain = irq_domain_create_hierarchy(dev->msi_domain, 0,
 					     is_tree ? 0 : nvec,
-					     dev->fwnode, ops, data);
+					     dev->fwyesde, ops, data);
 	if (!domain)
 		goto free_priv;
 

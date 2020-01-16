@@ -17,16 +17,16 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If yest, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright yestice and this permission yestice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -105,7 +105,7 @@ static int carl9170_check_sequence(struct ar9170 *ar, unsigned int seq)
 		ar->cmd_seq = seq;
 
 	/*
-	 * The sequence is strictly monotonic increasing and it never skips!
+	 * The sequence is strictly moyestonic increasing and it never skips!
 	 *
 	 * Therefore we can safely assume that whenever we received an
 	 * unexpected sequence we have lost some valuable data.
@@ -130,8 +130,8 @@ static void carl9170_cmd_callback(struct ar9170 *ar, u32 len, void *buffer)
 {
 	/*
 	 * Some commands may have a variable response length
-	 * and we cannot predict the correct length in advance.
-	 * So we only check if we provided enough space for the data.
+	 * and we canyest predict the correct length in advance.
+	 * So we only check if we provided eyesugh space for the data.
 	 */
 	if (unlikely(ar->readlen != (len - 4))) {
 		dev_warn(&ar->udev->dev, "received invalid command response:"
@@ -141,7 +141,7 @@ static void carl9170_cmd_callback(struct ar9170 *ar, u32 len, void *buffer)
 		print_hex_dump_bytes("carl9170 rsp:", DUMP_PREFIX_OFFSET,
 			buffer, len);
 		/*
-		 * Do not complete. The command times out,
+		 * Do yest complete. The command times out,
 		 * and we get a stack trace from there.
 		 */
 		carl9170_restart(ar, CARL9170_RR_INVALID_RSP);
@@ -215,13 +215,13 @@ void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 
 
 	case CARL9170_RSP_TXCOMP:
-		/* TX status notification */
+		/* TX status yestification */
 		carl9170_tx_process_status(ar, cmd);
 		break;
 
 	case CARL9170_RSP_BEACON_CONFIG:
 		/*
-		 * (IBSS) beacon send notification
+		 * (IBSS) beacon send yestification
 		 * bytes: 04 c2 XX YY B4 B3 B2 B1
 		 *
 		 * XX always 80
@@ -456,7 +456,7 @@ static void carl9170_rx_phy_status(struct ar9170 *ar,
 			phy->rssi[i] = ((~phy->rssi[i] & 0x7f) + 1) & 0x7f;
 
 	/* TODO: we could do something with phy_errors */
-	status->signal = ar->noise[0] + phy->rssi_combined;
+	status->signal = ar->yesise[0] + phy->rssi_combined;
 }
 
 static struct sk_buff *carl9170_rx_copy_data(u8 *buf, int len)
@@ -624,8 +624,8 @@ static bool carl9170_ampdu_check(struct ar9170 *ar, u8 *buf, u8 ms,
 
 	if ((ms & AR9170_RX_STATUS_MPDU) == AR9170_RX_STATUS_MPDU_SINGLE) {
 		/*
-		 * This frame is not part of an aMPDU.
-		 * Therefore it is not subjected to any
+		 * This frame is yest part of an aMPDU.
+		 * Therefore it is yest subjected to any
 		 * of the following content restrictions.
 		 */
 		return true;
@@ -692,7 +692,7 @@ static int carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len,
  * submit to mac80211 the SKB directly. However, since
  * there may be multiple packets in one SKB in stream
  * mode, and we need to observe the proper ordering,
- * this is non-trivial.
+ * this is yesn-trivial.
  */
 static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 {
@@ -774,7 +774,7 @@ static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 			if (!net_ratelimit())
 				return;
 
-			wiphy_err(ar->hw->wiphy, "rx stream does not start "
+			wiphy_err(ar->hw->wiphy, "rx stream does yest start "
 					"with a first_mpdu frame tag.\n");
 
 			goto drop;
@@ -896,7 +896,7 @@ static void carl9170_rx_stream(struct ar9170 *ar, void *buf, unsigned int len)
 			/* check if the frame can be repaired. */
 			if (!ar->rx_failover_missing) {
 
-				/* this is not "short read". */
+				/* this is yest "short read". */
 				if (net_ratelimit()) {
 					wiphy_err(ar->hw->wiphy,
 						"missing tag!\n");

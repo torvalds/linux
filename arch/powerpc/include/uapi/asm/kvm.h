@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2, as
@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2007
@@ -70,7 +70,7 @@ struct kvm_regs {
 /*
  * Feature bits indicate which sections of the sregs struct are valid,
  * both in KVM_GET_SREGS and KVM_SET_SREGS.  On KVM_SET_SREGS, registers
- * corresponding to unset feature bits will not be modified.  This allows
+ * corresponding to unset feature bits will yest be modified.  This allows
  * restoring a checkpoint made without that feature, while keeping the
  * default values of the new registers.
  *
@@ -148,16 +148,16 @@ struct kvm_regs {
 /*
  * Special updates:
  *
- * Some registers may change even while a vcpu is not running.
+ * Some registers may change even while a vcpu is yest running.
  * To avoid losing these changes, by default these registers are
- * not updated by KVM_SET_SREGS.  To force an update, set the bit
+ * yest updated by KVM_SET_SREGS.  To force an update, set the bit
  * in u.e.update_special corresponding to the register to be updated.
  *
  * The update_special field is zero on return from KVM_GET_SREGS.
  *
  * When restoring a checkpoint, the caller can set update_special
  * to 0xffffffff to ensure that everything is restored, even new features
- * that the caller doesn't know about.
+ * that the caller doesn't kyesw about.
  */
 #define KVM_SREGS_E_UPDATE_MCSR		(1 << 0)
 #define KVM_SREGS_E_UPDATE_TSR		(1 << 1)
@@ -169,9 +169,9 @@ struct kvm_regs {
  * previous KVM_GET_REGS.
  *
  * Unless otherwise indicated, setting any register with KVM_SET_SREGS
- * directly sets its value.  It does not trigger any special semantics such
+ * directly sets its value.  It does yest trigger any special semantics such
  * as write-one-to-clear.  Calling KVM_SET_SREGS on an unmodified struct
- * just received from KVM_GET_SREGS is always a no-op.
+ * just received from KVM_GET_SREGS is always a yes-op.
  */
 struct kvm_sregs {
 	__u32 pvr;
@@ -306,7 +306,7 @@ struct kvm_guest_debug_arch {
 		/* H/W breakpoint/watchpoint address */
 		__u64 addr;
 		/*
-		 * Type denotes h/w breakpoint, read watchpoint, write
+		 * Type deyestes h/w breakpoint, read watchpoint, write
 		 * watchpoint or watchpoint (both read and write).
 		 */
 		__u32 type;
@@ -379,7 +379,7 @@ struct kvm_book3e_206_tlb_params {
 	 * - TLB1 must be fully associative.
 	 * - The size of TLB0 must be a multiple of the number of ways, and
 	 *   the number of sets must be a power of two.
-	 * - The size of TLB1 may not exceed 64 entries.
+	 * - The size of TLB1 may yest exceed 64 entries.
 	 * - TLB0 supports 4 KiB pages.
 	 * - The page sizes supported by TLB1 are as indicated by
 	 *   TLB1CFG (if MMUCFG[MAVN] = 0) or TLB1PS (if MMUCFG[MAVN] = 1)
@@ -414,7 +414,7 @@ struct kvm_get_htab_fd {
  * records, each consisting of a header followed by a series of
  * `n_valid' HPTEs (16 bytes each), which are all valid.  Following
  * those valid HPTEs there are `n_invalid' invalid HPTEs, which
- * are not represented explicitly in the stream.  The same format
+ * are yest represented explicitly in the stream.  The same format
  * is used for writing.
  */
 struct kvm_get_htab_header {

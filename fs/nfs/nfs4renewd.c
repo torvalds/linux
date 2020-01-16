@@ -11,11 +11,11 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     yestice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -33,7 +33,7 @@
  *
  * Implementation of the NFSv4 "renew daemon", which wakes up periodically to
  * send a RENEW, to keep state alive on the server.  The daemon is implemented
- * as an rpc_task, not a real kernel thread, so it always runs in rpciod's
+ * as an rpc_task, yest a real kernel thread, so it always runs in rpciod's
  * context.  There is one renewd per nfs_server.
  *
  */
@@ -59,7 +59,7 @@ nfs4_renew_state(struct work_struct *work)
 		container_of(work, struct nfs_client, cl_renewd.work);
 	const struct cred *cred;
 	long lease;
-	unsigned long last, now;
+	unsigned long last, yesw;
 	unsigned renew_flags = 0;
 
 	ops = clp->cl_mvops->state_renewal_ops;
@@ -70,9 +70,9 @@ nfs4_renew_state(struct work_struct *work)
 
 	lease = clp->cl_lease_time;
 	last = clp->cl_last_renewal;
-	now = jiffies;
+	yesw = jiffies;
 	/* Are we close to a lease timeout? */
-	if (time_after(now, last + lease/3))
+	if (time_after(yesw, last + lease/3))
 		renew_flags |= NFS4_RENEW_TIMEOUT;
 	if (nfs_delegations_present(clp))
 		renew_flags |= NFS4_RENEW_DELEGATION_CB;
@@ -88,7 +88,7 @@ nfs4_renew_state(struct work_struct *work)
 		} else {
 			int ret;
 
-			/* Queue an asynchronous RENEW. */
+			/* Queue an asynchroyesus RENEW. */
 			ret = ops->sched_state_renewal(clp, cred, renew_flags);
 			put_cred(cred);
 			switch (ret) {
@@ -100,7 +100,7 @@ nfs4_renew_state(struct work_struct *work)
 			}
 		}
 	} else {
-		dprintk("%s: failed to call renewd. Reason: lease not expired \n",
+		dprintk("%s: failed to call renewd. Reason: lease yest expired \n",
 				__func__);
 	}
 	nfs4_schedule_state_renewal(clp);

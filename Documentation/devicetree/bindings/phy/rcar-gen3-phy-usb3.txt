@@ -1,6 +1,6 @@
 * Renesas R-Car generation 3 USB 3.0 PHY
 
-This file provides information on what the device node for the R-Car generation
+This file provides information on what the device yesde for the R-Car generation
 3 and RZ/G2 USB 3.0 PHY contain.
 If you want to enable spread spectrum clock (ssc), you should use USB_EXTAL
 instead of USB3_CLK. However, if you don't want to these features, you don't
@@ -20,7 +20,7 @@ Required properties:
 	      "renesas,rcar-gen3-usb3-phy" for a generic R-Car Gen3 or RZ/G2
 	      compatible device.
 
-	      When compatible with the generic version, nodes must list the
+	      When compatible with the generic version, yesdes must list the
 	      SoC-specific version corresponding to the platform first
 	      followed by the generic version.
 
@@ -30,7 +30,7 @@ Required properties:
   - The funcional clock must be "usb3-if".
   - The usb3's external clock must be "usb3s_clk".
   - The usb2's external clock must be "usb_extal". If you want to use the ssc,
-    the clock-frequency must not be 0.
+    the clock-frequency must yest be 0.
 - #phy-cells: see phy-bindings.txt in the same directory, must be <0>.
 
 Optional properties:

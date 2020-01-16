@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -217,11 +217,11 @@
 #define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_sys_shift  20
 #define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_DST_SYS(x) (((x) & SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_sys_mask) << SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_sys_shift)
 
-/*define for dst_snoop field*/
-#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_snoop_offset 2
-#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_snoop_mask   0x00000001
-#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_snoop_shift  22
-#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_DST_SNOOP(x) (((x) & SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_snoop_mask) << SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_snoop_shift)
+/*define for dst_syesop field*/
+#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_syesop_offset 2
+#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_syesop_mask   0x00000001
+#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_syesop_shift  22
+#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_DST_SNOOP(x) (((x) & SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_syesop_mask) << SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_syesop_shift)
 
 /*define for dst_gpa field*/
 #define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_dst_gpa_offset 2
@@ -241,11 +241,11 @@
 #define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_sys_shift  28
 #define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_SRC_SYS(x) (((x) & SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_sys_mask) << SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_sys_shift)
 
-/*define for src_snoop field*/
-#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_snoop_offset 2
-#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_snoop_mask   0x00000001
-#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_snoop_shift  30
-#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_SRC_SNOOP(x) (((x) & SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_snoop_mask) << SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_snoop_shift)
+/*define for src_syesop field*/
+#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_syesop_offset 2
+#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_syesop_mask   0x00000001
+#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_syesop_shift  30
+#define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_SRC_SNOOP(x) (((x) & SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_syesop_mask) << SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_syesop_shift)
 
 /*define for src_gpa field*/
 #define SDMA_PKT_COPY_DIRTY_PAGE_PARAMETER_src_gpa_offset 2
@@ -337,11 +337,11 @@
 #define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_log_shift  21
 #define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_DST_LOG(x) (((x) & SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_log_mask) << SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_log_shift)
 
-/*define for dst_snoop field*/
-#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_snoop_offset 2
-#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_snoop_mask   0x00000001
-#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_snoop_shift  22
-#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_DST_SNOOP(x) (((x) & SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_snoop_mask) << SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_snoop_shift)
+/*define for dst_syesop field*/
+#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_syesop_offset 2
+#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_syesop_mask   0x00000001
+#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_syesop_shift  22
+#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_DST_SNOOP(x) (((x) & SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_syesop_mask) << SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_syesop_shift)
 
 /*define for dst_gpa field*/
 #define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_dst_gpa_offset 2
@@ -367,11 +367,11 @@
 #define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_sys_shift  28
 #define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_SRC_SYS(x) (((x) & SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_sys_mask) << SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_sys_shift)
 
-/*define for src_snoop field*/
-#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_snoop_offset 2
-#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_snoop_mask   0x00000001
-#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_snoop_shift  30
-#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_SRC_SNOOP(x) (((x) & SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_snoop_mask) << SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_snoop_shift)
+/*define for src_syesop field*/
+#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_syesop_offset 2
+#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_syesop_mask   0x00000001
+#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_syesop_shift  30
+#define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_SRC_SNOOP(x) (((x) & SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_syesop_mask) << SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_syesop_shift)
 
 /*define for src_gpa field*/
 #define SDMA_PKT_COPY_PHYSICAL_LINEAR_PARAMETER_src_gpa_offset 2

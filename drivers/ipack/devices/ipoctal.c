@@ -276,7 +276,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	ipoctal->board_id = ipoctal->dev->id_device;
 
 	region = &ipoctal->dev->region[IPACK_IO_SPACE];
-	addr = devm_ioremap_nocache(&ipoctal->dev->dev,
+	addr = devm_ioremap_yescache(&ipoctal->dev->dev,
 				    region->start, region->size);
 	if (!addr) {
 		dev_err(&ipoctal->dev->dev,
@@ -292,7 +292,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 	region = &ipoctal->dev->region[IPACK_INT_SPACE];
 	ipoctal->int_space =
-		devm_ioremap_nocache(&ipoctal->dev->dev,
+		devm_ioremap_yescache(&ipoctal->dev->dev,
 				     region->start, region->size);
 	if (!ipoctal->int_space) {
 		dev_err(&ipoctal->dev->dev,
@@ -303,7 +303,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 	region = &ipoctal->dev->region[IPACK_MEM8_SPACE];
 	ipoctal->mem8_space =
-		devm_ioremap_nocache(&ipoctal->dev->dev,
+		devm_ioremap_yescache(&ipoctal->dev->dev,
 				     region->start, 0x8000);
 	if (!ipoctal->mem8_space) {
 		dev_err(&ipoctal->dev->dev,
@@ -361,7 +361,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	tty->name = name;
 	tty->major = 0;
 
-	tty->minor_start = 0;
+	tty->miyesr_start = 0;
 	tty->type = TTY_DRIVER_TYPE_SERIAL;
 	tty->subtype = SERIAL_TYPE_NORMAL;
 	tty->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
@@ -405,7 +405,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 	/*
 	 * IP-OCTAL has different addresses to copy its IRQ vector.
-	 * Depending of the carrier these addresses are accesible or not.
+	 * Depending of the carrier these addresses are accesible or yest.
 	 * More info in the datasheet.
 	 */
 	ipoctal->dev->bus->ops->request_irq(ipoctal->dev,
@@ -514,7 +514,7 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	else
 		mr1 |= MR1_PARITY_OFF;
 
-	/* Mark or space parity is not supported */
+	/* Mark or space parity is yest supported */
 	tty->termios.c_cflag &= ~CMSPAR;
 
 	/* Set stop bits */

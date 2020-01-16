@@ -9,7 +9,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -62,7 +62,7 @@ bool __read_mostly __vmalloc_start_set = false;
 /*
  * Creates a middle page table and puts a pointer to it in the
  * given global directory entry. This only returns the gd entry
- * in non-PAE compilation mode, since the middle layer is folded.
+ * in yesn-PAE compilation mode, since the middle layer is folded.
  */
 static pmd_t * __init one_md_table_init(pgd_t *pgd)
 {
@@ -162,8 +162,8 @@ static pte_t *__init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
 	/*
 	 * Something (early fixmap) may already have put a pte
 	 * page here, which causes the page table allocation
-	 * to become nonlinear. Attempt to fix it, and if it
-	 * is still nonlinear then we have to bug.
+	 * to become yesnlinear. Attempt to fix it, and if it
+	 * is still yesnlinear then we have to bug.
 	 */
 	int pmd_idx_kmap_begin = fix_to_virt(FIX_KMAP_END) >> PMD_SHIFT;
 	int pmd_idx_kmap_end = fix_to_virt(FIX_KMAP_BEGIN) >> PMD_SHIFT;
@@ -277,9 +277,9 @@ kernel_physical_mapping_init(unsigned long start,
 	 * Second iteration will setup the appropriate attributes (NX, GLOBAL..)
 	 * as desired for the kernel identity mapping.
 	 *
-	 * This two pass mechanism conforms to the TLB app note which says:
+	 * This two pass mechanism conforms to the TLB app yeste which says:
 	 *
-	 *     "Software should not write to a paging-structure entry in a way
+	 *     "Software should yest write to a paging-structure entry in a way
 	 *      that would change, for any linear address, both the page size
 	 *      and either the page frame or attributes."
 	 */
@@ -310,7 +310,7 @@ repeat:
 
 			/*
 			 * Map with big pages if possible, otherwise
-			 * create normal page tables:
+			 * create yesrmal page tables:
 			 */
 			if (use_pse) {
 				unsigned int addr2;
@@ -484,7 +484,7 @@ void __init native_pagetable_init(void)
 	 * from VMALLOC_END to pkmap or fixmap according to VMALLOC_END
 	 * definition. And max_low_pfn is set to VMALLOC_END physical
 	 * address. If initial memory mapping is doing right job, we
-	 * should have pte used near max_low_pfn or one pmd is not present.
+	 * should have pte used near max_low_pfn or one pmd is yest present.
 	 */
 	for (pfn = max_low_pfn; pfn < 1<<(32-PAGE_SHIFT); pfn++) {
 		va = PAGE_OFFSET + (pfn<<PAGE_SHIFT);
@@ -498,9 +498,9 @@ void __init native_pagetable_init(void)
 		if (!pmd_present(*pmd))
 			break;
 
-		/* should not be large page here */
+		/* should yest be large page here */
 		if (pmd_large(*pmd)) {
-			pr_warn("try to clear pte for ram above max_low_pfn: pfn: %lx pmd: %p pmd phys: %lx, but pmd is big page and is not using pte !\n",
+			pr_warn("try to clear pte for ram above max_low_pfn: pfn: %lx pmd: %p pmd phys: %lx, but pmd is big page and is yest using pte !\n",
 				pfn, pmd, __pa(pmd));
 			BUG_ON(1);
 		}
@@ -528,7 +528,7 @@ void __init native_pagetable_init(void)
  *
  * If we're booting paravirtualized under a hypervisor, then there are
  * more options: we may already be running PAE, and the pagetable may
- * or may not be based in swapper_pg_dir.  In any case,
+ * or may yest be based in swapper_pg_dir.  In any case,
  * paravirt_pagetable_init() will set up swapper_pg_dir
  * appropriately for the rest of the initialization to work.
  *
@@ -561,7 +561,7 @@ static void __init pagetable_init(void)
 #define DEFAULT_PTE_MASK ~(_PAGE_NX | _PAGE_GLOBAL)
 /* Bits supported by the hardware: */
 pteval_t __supported_pte_mask __read_mostly = DEFAULT_PTE_MASK;
-/* Bits allowed in normal kernel mappings: */
+/* Bits allowed in yesrmal kernel mappings: */
 pteval_t __default_kernel_pte_mask __read_mostly = DEFAULT_PTE_MASK;
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
 /* Used in PAGE_KERNEL_* macros which are reasonably used out-of-tree: */
@@ -572,7 +572,7 @@ static unsigned int highmem_pages = -1;
 
 /*
  * highmem=size forces highmem to be exactly 'size' bytes.
- * This works even on boxes that have no highmem otherwise.
+ * This works even on boxes that have yes highmem otherwise.
  * This also works to reduce highmem size on bigger boxes.
  */
 static int __init parse_highmem(char *arg)
@@ -589,7 +589,7 @@ early_param("highmem", parse_highmem);
 	"highmem size (%luMB) is bigger than pages available (%luMB)!\n"
 
 #define MSG_LOWMEM_TOO_SMALL \
-	"highmem size (%luMB) results in <64MB lowmem, ignoring it!\n"
+	"highmem size (%luMB) results in <64MB lowmem, igyesring it!\n"
 /*
  * All of RAM fits into lowmem - but if user wants highmem
  * artificially via the highmem=x boot parameter then create
@@ -618,12 +618,12 @@ static void __init lowmem_pfn_init(void)
 	}
 #else
 	if (highmem_pages)
-		printk(KERN_ERR "ignoring highmem size on non-highmem kernel!\n");
+		printk(KERN_ERR "igyesring highmem size on yesn-highmem kernel!\n");
 #endif
 }
 
 #define MSG_HIGHMEM_TOO_SMALL \
-	"only %luMB highmem pages available, ignoring highmem size of %luMB!\n"
+	"only %luMB highmem pages available, igyesring highmem size of %luMB!\n"
 
 #define MSG_HIGHMEM_TRIMMED \
 	"Warning: only 4GB will be used. Use a HIGHMEM64G enabled kernel!\n"
@@ -692,7 +692,7 @@ void __init initmem_init(void)
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
 #endif
 
-	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
+	memblock_set_yesde(0, PHYS_ADDR_MAX, &memblock.memory, 0);
 	sparse_memory_present_with_active_regions(0);
 
 #ifdef CONFIG_FLATMEM
@@ -715,7 +715,7 @@ void __init setup_bootmem_allocator(void)
 }
 
 /*
- * paging_init() sets up the page tables - note that the first 8MB are
+ * paging_init() sets up the page tables - yeste that the first 8MB are
  * already mapped by head.S.
  *
  * This routines also unmaps the page at virtual kernel address 0, so
@@ -748,7 +748,7 @@ static void __init test_wp_bit(void)
 {
 	char z = 0;
 
-	printk(KERN_INFO "Checking if this processor honours the WP bit even in supervisor mode...");
+	printk(KERN_INFO "Checking if this processor hoyesurs the WP bit even in supervisor mode...");
 
 	__set_fixmap(FIX_WP_TEST, __pa_symbol(empty_zero_page), PAGE_KERNEL_RO);
 
@@ -774,8 +774,8 @@ void __init mem_init(void)
 	 * be done before memblock_free_all(). Memblock use free low memory for
 	 * temporary data (see find_range_array()) and for this purpose can use
 	 * pages that was already passed to the buddy allocator, hence marked as
-	 * not accessible in the page tables when compiled with
-	 * CONFIG_DEBUG_PAGEALLOC. Otherwise order of initialization is not
+	 * yest accessible in the page tables when compiled with
+	 * CONFIG_DEBUG_PAGEALLOC. Otherwise order of initialization is yest
 	 * important here.
 	 */
 	set_highmem_pages_init();

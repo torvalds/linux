@@ -10,8 +10,8 @@
  *      http://download.intel.com/design/chipsets/datashts/318378.pdf
  *
  * The intel 5100 has two independent channels. EDAC core currently
- * can not reflect this configuration so instead the chip-select
- * rows for each respective channel are laid out one after another,
+ * can yest reflect this configuration so instead the chip-select
+ * rows for each respective channel are laid out one after ayesther,
  * the first half belonging to channel 0, the second half belonging
  * to channel 1.
  *
@@ -79,7 +79,7 @@
 #define I5100_DINJ0 0x9a
 
 /* device 21 and 22, func 0 */
-#define I5100_MTR_0	0x154	/* Memory Technology Registers 0-3 */
+#define I5100_MTR_0	0x154	/* Memory Techyeslogy Registers 0-3 */
 #define I5100_DMIR	0x15c	/* DIMM Interleave Range */
 #define	I5100_VALIDLOG	0x18c	/* Valid Log Markers */
 #define	I5100_NRECMEMA	0x190	/* Non-Recoverable Memory Error Log Reg A */
@@ -88,7 +88,7 @@
 #define	I5100_REDMEMB	0x19c	/* Recoverable Memory Data Error Log Reg B */
 #define	I5100_RECMEMA	0x1a0	/* Recoverable Memory Error Log Reg A */
 #define	I5100_RECMEMB	0x1a4	/* Recoverable Memory Error Log Reg B */
-#define I5100_MTR_4	0x1b0	/* Memory Technology Registers 4,5 */
+#define I5100_MTR_4	0x1b0	/* Memory Techyeslogy Registers 4,5 */
 
 /* bit field accessors */
 
@@ -300,13 +300,13 @@ static inline u32 i5100_recmemb_ras(u32 a)
 #define I5100_SCRUB_REFRESH_RATE	(5 * 60 * HZ)
 
 struct i5100_priv {
-	/* ranks on each dimm -- 0 maps to not present -- obtained via SPD */
+	/* ranks on each dimm -- 0 maps to yest present -- obtained via SPD */
 	int dimm_numrank[I5100_CHANNELS][I5100_MAX_DIMM_SLOTS_PER_CHAN];
 
 	/*
 	 * mainboard chip select map -- maps i5100 chip selects to
 	 * DIMM slot chip selects.  In the case of only 4 ranks per
-	 * channel, the mapping is fairly obvious but not unique.
+	 * channel, the mapping is fairly obvious but yest unique.
 	 * we map -1 -> NC and assume both channels use the same
 	 * map...
 	 *
@@ -328,7 +328,7 @@ struct i5100_priv {
 		u64	 limit;
 	} dmir[I5100_CHANNELS][I5100_MAX_DMIRS];
 
-	/* memory technology registers... */
+	/* memory techyeslogy registers... */
 	struct {
 		unsigned present;	/* 0 or 1 */
 		unsigned ethrottle;	/* 0 or 1 */
@@ -384,26 +384,26 @@ static int i5100_rank_to_slot(const struct mem_ctl_info *mci,
 static const char *i5100_err_msg(unsigned err)
 {
 	static const char *merrs[] = {
-		"unknown", /* 0 */
+		"unkyeswn", /* 0 */
 		"uncorrectable data ECC on replay", /* 1 */
-		"unknown", /* 2 */
-		"unknown", /* 3 */
+		"unkyeswn", /* 2 */
+		"unkyeswn", /* 3 */
 		"aliased uncorrectable demand data ECC", /* 4 */
 		"aliased uncorrectable spare-copy data ECC", /* 5 */
 		"aliased uncorrectable patrol data ECC", /* 6 */
-		"unknown", /* 7 */
-		"unknown", /* 8 */
-		"unknown", /* 9 */
-		"non-aliased uncorrectable demand data ECC", /* 10 */
-		"non-aliased uncorrectable spare-copy data ECC", /* 11 */
-		"non-aliased uncorrectable patrol data ECC", /* 12 */
-		"unknown", /* 13 */
+		"unkyeswn", /* 7 */
+		"unkyeswn", /* 8 */
+		"unkyeswn", /* 9 */
+		"yesn-aliased uncorrectable demand data ECC", /* 10 */
+		"yesn-aliased uncorrectable spare-copy data ECC", /* 11 */
+		"yesn-aliased uncorrectable patrol data ECC", /* 12 */
+		"unkyeswn", /* 13 */
 		"correctable demand data ECC", /* 14 */
 		"correctable spare-copy data ECC", /* 15 */
 		"correctable patrol data ECC", /* 16 */
-		"unknown", /* 17 */
+		"unkyeswn", /* 17 */
 		"SPD protocol error", /* 18 */
-		"unknown", /* 19 */
+		"unkyeswn", /* 19 */
 		"spare copy initiated", /* 20 */
 		"spare copy completed", /* 21 */
 	};
@@ -413,7 +413,7 @@ static const char *i5100_err_msg(unsigned err)
 		if (1 << i & err)
 			return merrs[i];
 
-	return "none";
+	return "yesne";
 }
 
 /* convert csrow index into a rank (per channel -- 0..5) */
@@ -514,7 +514,7 @@ static void i5100_read_log(struct mem_ctl_info *mci, int chan,
 		cas = i5100_recmemb_cas(dw2);
 		ras = i5100_recmemb_ras(dw2);
 
-		/* FIXME:  not really sure if this is what merr is...
+		/* FIXME:  yest really sure if this is what merr is...
 		 */
 		if (!merr)
 			msg = i5100_err_msg(ferr);
@@ -536,7 +536,7 @@ static void i5100_read_log(struct mem_ctl_info *mci, int chan,
 		cas = i5100_nrecmemb_cas(dw2);
 		ras = i5100_nrecmemb_ras(dw2);
 
-		/* FIXME:  not really sure if this is what merr is...
+		/* FIXME:  yest really sure if this is what merr is...
 		 */
 		if (!merr)
 			msg = i5100_err_msg(ferr);
@@ -743,7 +743,7 @@ static int i5100_read_spd_byte(const struct mem_ctl_info *mci,
  * fill dimm chip select map
  *
  * FIXME:
- *   o not the only way to may chip selects to dimm slots
+ *   o yest the only way to may chip selects to dimm slots
  *   o investigate if there is some way to obtain this map from the bios
  */
 static void i5100_init_dimm_csmap(struct mem_ctl_info *mci)
@@ -914,7 +914,7 @@ static void i5100_do_inject(struct mem_ctl_info *mci)
 
 	/* Error Injection Response Function
 	 * Intel 5100 Memory Controller Hub Chipset (318378) datasheet
-	 * hints about this register but carry no data about them. All
+	 * hints about this register but carry yes data about them. All
 	 * data regarding device 19 is based on experimentation and the
 	 * Intel 7300 Chipset Memory Controller Hub (318082) datasheet
 	 * which appears to be accurate for the i5100 in this area.
@@ -1007,7 +1007,7 @@ static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* ECC enabled? */
 	pci_read_config_dword(pdev, I5100_MC, &dw);
 	if (!i5100_mc_errdeten(dw)) {
-		printk(KERN_INFO "i5100_edac: ECC not enabled.\n");
+		printk(KERN_INFO "i5100_edac: ECC yest enabled.\n");
 		ret = -ENODEV;
 		goto bail_pdev;
 	}
@@ -1121,7 +1121,7 @@ static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	i5100_init_csrows(mci);
 
-	/* this strange construction seems to be in every driver, dunno why */
+	/* this strange construction seems to be in every driver, dunyes why */
 	switch (edac_op_state) {
 	case EDAC_OPSTATE_POLL:
 	case EDAC_OPSTATE_NMI:

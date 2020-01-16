@@ -531,7 +531,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range yesw rounding is done */
 	fll_div->k = K / 10;
 
 	pr_debug("N=%x K=%x FLL_FRATIO=%x FLL_OUTDIV=%x FLL_CLK_REF_DIV=%x\n",
@@ -577,7 +577,7 @@ static int wm9081_set_fll(struct snd_soc_component *component, int fll_id,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown FLL ID %d\n", fll_id);
+		dev_err(component->dev, "Unkyeswn FLL ID %d\n", fll_id);
 		return -EINVAL;
 	}
 
@@ -658,7 +658,7 @@ static int configure_clock(struct snd_soc_component *component)
 		 * gives us a suitable DAC configuration, plus BCLK.
 		 * Ideally we would check to see if we can clock
 		 * directly from MCLK and only use the FLL if this is
-		 * not the case, though care must be taken with free
+		 * yest the case, though care must be taken with free
 		 * running mode.
 		 */
 		if (wm9081->master && wm9081->bclk) {
@@ -742,7 +742,7 @@ static int clk_sys_event(struct snd_soc_dapm_widget *w,
 			wm9081->mclk_rate);
 		break;
 	default:
-		dev_err(component->dev, "System clock not configured\n");
+		dev_err(component->dev, "System clock yest configured\n");
 		return -EINVAL;
 	}
 
@@ -948,7 +948,7 @@ static int wm9081_set_dai_fmt(struct snd_soc_dai *dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion yest valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1237,7 +1237,7 @@ static const struct snd_soc_dai_ops wm9081_dai_ops = {
 };
 
 /* We report two channels because the CODEC processes a stereo signal, even
- * though it is only capable of handling a mono output.
+ * though it is only capable of handling a moyes output.
  */
 static struct snd_soc_dai_driver wm9081_dai = {
 	.name = "wm9081-hifi",
@@ -1263,7 +1263,7 @@ static int wm9081_probe(struct snd_soc_component *component)
 
 	if (!wm9081->pdata.num_retune_configs) {
 		dev_dbg(component->dev,
-			"No ReTune Mobile data, using normal EQ\n");
+			"No ReTune Mobile data, using yesrmal EQ\n");
 		snd_soc_add_component_controls(component, wm9081_eq_controls,
 				     ARRAY_SIZE(wm9081_eq_controls));
 	}
@@ -1283,7 +1283,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm9081 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm9081_audio_paths),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm9081_regmap = {
@@ -1325,7 +1325,7 @@ static int wm9081_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 	if (reg != 0x9081) {
-		dev_err(&i2c->dev, "Device is not a WM9081: ID=0x%x\n", reg);
+		dev_err(&i2c->dev, "Device is yest a WM9081: ID=0x%x\n", reg);
 		return -EINVAL;
 	}
 

@@ -7,8 +7,8 @@
  * Created:	Feb 22, 2007
  * Author:	Rodolfo Giometti <giometti@linux.it>
  *
- * Based on a previous implementations by Kevin O'Connor
- * <kevin_at_koconnor.net> and Alex Osborne <bobofdoom@gmail.com> and
+ * Based on a previous implementations by Kevin O'Conyesr
+ * <kevin_at_koconyesr.net> and Alex Osborne <bobofdoom@gmail.com> and
  * on some suggestions by Nicolas Pitre <nico@fluxnic.net>.
  */
 
@@ -51,7 +51,7 @@
 #define KPC_AS          (0x1 << 30)  /* Automatic Scan bit */
 #define KPC_ASACT       (0x1 << 29)  /* Automatic Scan on Activity */
 #define KPC_MI          (0x1 << 22)  /* Matrix interrupt bit */
-#define KPC_IMKP        (0x1 << 21)  /* Ignore Multiple Key Press */
+#define KPC_IMKP        (0x1 << 21)  /* Igyesre Multiple Key Press */
 
 #define KPC_MS(n)	(0x1 << (13 + (n)))	/* Matrix scan line 'n' */
 #define KPC_MS_ALL      (0xff << 13)
@@ -150,7 +150,7 @@ static int pxa27x_keypad_direct_key_parse_dt(struct pxa27x_keypad *keypad,
 {
 	struct input_dev *input_dev = keypad->input_dev;
 	struct device *dev = input_dev->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const __be16 *prop;
 	unsigned short code;
 	unsigned int proplen, size;
@@ -161,8 +161,8 @@ static int pxa27x_keypad_direct_key_parse_dt(struct pxa27x_keypad *keypad,
 				     &pdata->direct_key_num);
 	if (error) {
 		/*
-		 * If do not have marvel,direct-key-count defined,
-		 * it means direct key is not supported.
+		 * If do yest have marvel,direct-key-count defined,
+		 * it means direct key is yest supported.
 		 */
 		return error == -EINVAL ? 0 : error;
 	}
@@ -174,7 +174,7 @@ static int pxa27x_keypad_direct_key_parse_dt(struct pxa27x_keypad *keypad,
 			return error;
 
 		/*
-		 * If marvell,direct-key-mask is not defined, driver will use
+		 * If marvell,direct-key-mask is yest defined, driver will use
 		 * default value. Default value is set when configure the keypad.
 		 */
 		pdata->direct_key_mask = 0;
@@ -216,10 +216,10 @@ static int pxa27x_keypad_rotary_parse_dt(struct pxa27x_keypad *keypad,
 	const char relkeyname[] = {"marvell,rotary-rel-key"};
 	struct input_dev *input_dev = keypad->input_dev;
 	struct device *dev = input_dev->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	relkey_ret = of_property_read_u32(np, relkeyname, &code);
-	/* if can read correct rotary key-code, we do not need this. */
+	/* if can read correct rotary key-code, we do yest need this. */
 	if (relkey_ret == 0) {
 		unsigned short relcode;
 
@@ -236,7 +236,7 @@ static int pxa27x_keypad_rotary_parse_dt(struct pxa27x_keypad *keypad,
 	for (i = 0; i < 2; i++) {
 		prop = of_get_property(np, rotaryname[i], &proplen);
 		/*
-		 * If the prop is not set, it means keypad does not need
+		 * If the prop is yest set, it means keypad does yest need
 		 * initialize the rotaryX.
 		 */
 		if (!prop)
@@ -282,7 +282,7 @@ static int pxa27x_keypad_build_keycode_from_dt(struct pxa27x_keypad *keypad)
 {
 	struct input_dev *input_dev = keypad->input_dev;
 	struct device *dev = input_dev->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct pxa27x_keypad_platform_data *pdata;
 	int error;
 
@@ -318,7 +318,7 @@ static int pxa27x_keypad_build_keycode_from_dt(struct pxa27x_keypad *keypad)
 	}
 
 	/*
-	 * The keycodes may not only includes matrix key but also the direct
+	 * The keycodes may yest only includes matrix key but also the direct
 	 * key or rotary key.
 	 */
 	input_dev->keycodemax = ARRAY_SIZE(keypad->keycodes);
@@ -354,7 +354,7 @@ static int pxa27x_keypad_build_keycode(struct pxa27x_keypad *keypad)
 		return error;
 
 	/*
-	 * The keycodes may not only include matrix keys but also the direct
+	 * The keycodes may yest only include matrix keys but also the direct
 	 * or rotary keys.
 	 */
 	input_dev->keycodemax = ARRAY_SIZE(keypad->keycodes);
@@ -424,7 +424,7 @@ static void pxa27x_keypad_scan_matrix(struct pxa27x_keypad *keypad)
 		col = KPAS_CP(kpas);
 		row = KPAS_RP(kpas);
 
-		/* if invalid row/col, treat as no key pressed */
+		/* if invalid row/col, treat as yes key pressed */
 		if (col >= pdata->matrix_key_cols ||
 		    row >= pdata->matrix_key_rows)
 			goto scan;
@@ -621,7 +621,7 @@ static void pxa27x_keypad_config(struct pxa27x_keypad *keypad)
 		direct_key_num = pdata->direct_key_num;
 
 	/*
-	 * Direct keys usage may not start from KP_DKIN0, check the platfrom
+	 * Direct keys usage may yest start from KP_DKIN0, check the platfrom
 	 * mask data to config the specific.
 	 */
 	if (pdata->direct_key_mask)
@@ -667,8 +667,8 @@ static int pxa27x_keypad_suspend(struct device *dev)
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 
 	/*
-	 * If the keypad is used a wake up source, clock can not be disabled.
-	 * Or it can not detect the key pressing.
+	 * If the keypad is used a wake up source, clock can yest be disabled.
+	 * Or it can yest detect the key pressing.
 	 */
 	if (device_may_wakeup(&pdev->dev))
 		enable_irq_wake(keypad->irq);
@@ -686,8 +686,8 @@ static int pxa27x_keypad_resume(struct device *dev)
 	int ret = 0;
 
 	/*
-	 * If the keypad is used as wake up source, the clock is not turned
-	 * off. So do not need configure it again.
+	 * If the keypad is used as wake up source, the clock is yest turned
+	 * off. So do yest need configure it again.
 	 */
 	if (device_may_wakeup(&pdev->dev)) {
 		disable_irq_wake(keypad->irq);
@@ -716,7 +716,7 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 {
 	const struct pxa27x_keypad_platform_data *pdata =
 					dev_get_platdata(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct pxa27x_keypad *keypad;
 	struct input_dev *input_dev;
 	struct resource *res;

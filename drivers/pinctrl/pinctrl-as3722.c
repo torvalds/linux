@@ -15,7 +15,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  * 02111-1307, USA
  */
@@ -200,7 +200,7 @@ static const struct pinctrl_ops as3722_pinctrl_ops = {
 	.get_groups_count = as3722_pinctrl_get_groups_count,
 	.get_group_name = as3722_pinctrl_get_group_name,
 	.get_group_pins = as3722_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -314,7 +314,7 @@ static int as3722_pinctrl_gpio_set_direction(struct pinctrl_dev *pctldev,
 	mode = as3722_pinctrl_gpio_get_mode(
 			as_pci->gpio_control[offset].mode_prop, input);
 	if (mode < 0) {
-		dev_err(as_pci->dev, "%s direction for GPIO %d not supported\n",
+		dev_err(as_pci->dev, "%s direction for GPIO %d yest supported\n",
 			(input) ? "Input" : "Output", offset);
 		return mode;
 	}
@@ -366,7 +366,7 @@ static int as3722_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		dev_err(as_pci->dev, "Properties not supported\n");
+		dev_err(as_pci->dev, "Properties yest supported\n");
 		return -ENOTSUPP;
 	}
 
@@ -415,7 +415,7 @@ static int as3722_pinconf_set(struct pinctrl_dev *pctldev,
 			break;
 
 		default:
-			dev_err(as_pci->dev, "Properties not supported\n");
+			dev_err(as_pci->dev, "Properties yest supported\n");
 			return -ENOTSUPP;
 		}
 
@@ -556,7 +556,7 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	as_pci->dev = &pdev->dev;
-	as_pci->dev->of_node = pdev->dev.parent->of_node;
+	as_pci->dev->of_yesde = pdev->dev.parent->of_yesde;
 	as_pci->as3722 = dev_get_drvdata(pdev->dev.parent);
 	platform_set_drvdata(pdev, as_pci);
 
@@ -578,7 +578,7 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 
 	as_pci->gpio_chip = as3722_gpio_chip;
 	as_pci->gpio_chip.parent = &pdev->dev;
-	as_pci->gpio_chip.of_node = pdev->dev.parent->of_node;
+	as_pci->gpio_chip.of_yesde = pdev->dev.parent->of_yesde;
 	ret = gpiochip_add_data(&as_pci->gpio_chip, as_pci);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Couldn't register gpiochip, %d\n", ret);

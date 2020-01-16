@@ -99,7 +99,7 @@ static int stk17ta8_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned int century;
 	u8 flags;
 
-	/* give enough time to update RTC in case of continuous read */
+	/* give eyesugh time to update RTC in case of continuous read */
 	if (pdata->last_jiffies == jiffies)
 		msleep(1);
 	pdata->last_jiffies = jiffies;
@@ -280,7 +280,7 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 	pdata->ioaddr = ioaddr;
 	pdata->irq = platform_get_irq(pdev, 0);
 
-	/* turn RTC on if it was not on */
+	/* turn RTC on if it was yest on */
 	cal = readb(ioaddr + RTC_CALIBRATION);
 	if (cal & RTC_STOP) {
 		cal &= RTC_CAL_MASK;
@@ -301,7 +301,7 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 				stk17ta8_rtc_interrupt,
 				IRQF_SHARED,
 				pdev->name, pdev) < 0) {
-			dev_warn(&pdev->dev, "interrupt not available.\n");
+			dev_warn(&pdev->dev, "interrupt yest available.\n");
 			pdata->irq = 0;
 		}
 	}

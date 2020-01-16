@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #if defined(__i386__) || defined(__x86_64__)
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdint.h>
 
@@ -81,12 +81,12 @@ static int get_cof(int family, union msr_pstate pstate)
  * pstates -> a pointer to an array of size MAX_HW_PSTATES
  *            must be initialized with zeros.
  *            All available  HW pstates (including boost states)
- * no      -> amount of pstates above array got filled up with
+ * yes      -> amount of pstates above array got filled up with
  *
  * returns zero on success, -1 on failure
  */
 int decode_pstates(unsigned int cpu, unsigned int cpu_family,
-		   int boost_states, unsigned long *pstates, int *no)
+		   int boost_states, unsigned long *pstates, int *yes)
 {
 	int i, psmax, pscur;
 	union msr_pstate pstate;
@@ -126,7 +126,7 @@ int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 
 		pstates[i] = get_cof(cpu_family, pstate);
 	}
-	*no = i;
+	*yes = i;
 	return 0;
 }
 

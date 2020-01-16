@@ -53,8 +53,8 @@ static bool branch_insn_requires_update(struct alt_instr *alt, unsigned long pc)
 		return false;
 
 	/*
-	 * Branching into *another* alternate sequence is doomed, and
-	 * we're not even trying to fix it up.
+	 * Branching into *ayesther* alternate sequence is doomed, and
+	 * we're yest even trying to fix it up.
 	 */
 	BUG();
 }
@@ -75,7 +75,7 @@ static u32 get_alt_insn(struct alt_instr *alt, __le32 *insnptr, __le32 *altinsnp
 
 		/*
 		 * If we're branching inside the alternate sequence,
-		 * do not rewrite the instruction, as it is already
+		 * do yest rewrite the instruction, as it is already
 		 * correct. Otherwise, generate the new instruction.
 		 */
 		if (branch_insn_requires_update(alt, target)) {
@@ -126,7 +126,7 @@ static void patch_alternative(struct alt_instr *alt,
  * accidentally call into the cache.S code, which is patched by us at
  * runtime.
  */
-static void clean_dcache_range_nopatch(u64 start, u64 end)
+static void clean_dcache_range_yespatch(u64 start, u64 end)
 {
 	u64 cur, d_size, ctr_el0;
 
@@ -182,7 +182,7 @@ static void __apply_alternatives(void *alt_region,  bool is_module,
 		alt_cb(alt, origptr, updptr, nr_inst);
 
 		if (!is_module) {
-			clean_dcache_range_nopatch((u64)origptr,
+			clean_dcache_range_yespatch((u64)origptr,
 						   (u64)(origptr + nr_inst));
 		}
 	}
@@ -196,7 +196,7 @@ static void __apply_alternatives(void *alt_region,  bool is_module,
 		__flush_icache_all();
 		isb();
 
-		/* Ignore ARM64_CB bit from feature mask */
+		/* Igyesre ARM64_CB bit from feature mask */
 		bitmap_or(applied_alternatives, applied_alternatives,
 			  feature_mask, ARM64_NCAPS);
 		bitmap_and(applied_alternatives, applied_alternatives,
@@ -237,7 +237,7 @@ static int __apply_alternatives_multi_stop(void *unused)
 
 void __init apply_alternatives_all(void)
 {
-	/* better not try code patching on a live SMP system */
+	/* better yest try code patching on a live SMP system */
 	stop_machine(__apply_alternatives_multi_stop, NULL, cpu_online_mask);
 }
 
@@ -253,7 +253,7 @@ void __init apply_boot_alternatives(void)
 		.end	= (struct alt_instr *)__alt_instructions_end,
 	};
 
-	/* If called on non-boot cpu things could go wrong */
+	/* If called on yesn-boot cpu things could go wrong */
 	WARN_ON(smp_processor_id() != 0);
 
 	__apply_alternatives(&region, false, &boot_capabilities[0]);

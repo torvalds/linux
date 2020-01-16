@@ -67,7 +67,7 @@ int br_switchdev_set_port_flag(struct net_bridge_port *p,
 		.id = SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS,
 		.u.brport_flags = mask,
 	};
-	struct switchdev_notifier_port_attr_info info = {
+	struct switchdev_yestifier_port_attr_info info = {
 		.attr = &attr,
 	};
 	int err;
@@ -76,15 +76,15 @@ int br_switchdev_set_port_flag(struct net_bridge_port *p,
 		return 0;
 
 	/* We run from atomic context here */
-	err = call_switchdev_notifiers(SWITCHDEV_PORT_ATTR_SET, p->dev,
+	err = call_switchdev_yestifiers(SWITCHDEV_PORT_ATTR_SET, p->dev,
 				       &info.info, NULL);
-	err = notifier_to_errno(err);
+	err = yestifier_to_erryes(err);
 	if (err == -EOPNOTSUPP)
 		return 0;
 
 	if (err) {
-		br_warn(p->br, "bridge flag offload is not supported %u(%s)\n",
-			(unsigned int)p->port_no, p->dev->name);
+		br_warn(p->br, "bridge flag offload is yest supported %u(%s)\n",
+			(unsigned int)p->port_yes, p->dev->name);
 		return -EOPNOTSUPP;
 	}
 
@@ -95,7 +95,7 @@ int br_switchdev_set_port_flag(struct net_bridge_port *p,
 	err = switchdev_port_attr_set(p->dev, &attr);
 	if (err) {
 		br_warn(p->br, "error setting offload flag on port %u(%s)\n",
-			(unsigned int)p->port_no, p->dev->name);
+			(unsigned int)p->port_yes, p->dev->name);
 		return err;
 	}
 
@@ -103,30 +103,30 @@ int br_switchdev_set_port_flag(struct net_bridge_port *p,
 }
 
 static void
-br_switchdev_fdb_call_notifiers(bool adding, const unsigned char *mac,
+br_switchdev_fdb_call_yestifiers(bool adding, const unsigned char *mac,
 				u16 vid, struct net_device *dev,
 				bool added_by_user, bool offloaded)
 {
-	struct switchdev_notifier_fdb_info info;
-	unsigned long notifier_type;
+	struct switchdev_yestifier_fdb_info info;
+	unsigned long yestifier_type;
 
 	info.addr = mac;
 	info.vid = vid;
 	info.added_by_user = added_by_user;
 	info.offloaded = offloaded;
-	notifier_type = adding ? SWITCHDEV_FDB_ADD_TO_DEVICE : SWITCHDEV_FDB_DEL_TO_DEVICE;
-	call_switchdev_notifiers(notifier_type, dev, &info.info, NULL);
+	yestifier_type = adding ? SWITCHDEV_FDB_ADD_TO_DEVICE : SWITCHDEV_FDB_DEL_TO_DEVICE;
+	call_switchdev_yestifiers(yestifier_type, dev, &info.info, NULL);
 }
 
 void
-br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
+br_switchdev_fdb_yestify(const struct net_bridge_fdb_entry *fdb, int type)
 {
 	if (!fdb->dst)
 		return;
 
 	switch (type) {
 	case RTM_DELNEIGH:
-		br_switchdev_fdb_call_notifiers(false, fdb->key.addr.addr,
+		br_switchdev_fdb_call_yestifiers(false, fdb->key.addr.addr,
 						fdb->key.vlan_id,
 						fdb->dst->dev,
 						test_bit(BR_FDB_ADDED_BY_USER,
@@ -135,7 +135,7 @@ br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
 							 &fdb->flags));
 		break;
 	case RTM_NEWNEIGH:
-		br_switchdev_fdb_call_notifiers(true, fdb->key.addr.addr,
+		br_switchdev_fdb_call_yestifiers(true, fdb->key.addr.addr,
 						fdb->key.vlan_id,
 						fdb->dst->dev,
 						test_bit(BR_FDB_ADDED_BY_USER,

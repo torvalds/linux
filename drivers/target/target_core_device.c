@@ -3,7 +3,7 @@
  * Filename:  target_core_device.c (based on iscsi_target_device.c)
  *
  * This file contains the TCM Virtual Device and Disk Transport
- * agnostic related functions.
+ * agyesstic related functions.
  *
  * (c) Copyright 2003-2013 Datera, Inc.
  *
@@ -41,7 +41,7 @@ static LIST_HEAD(device_list);
 static DEFINE_IDR(devices_idr);
 
 static struct se_hba *lun0_hba;
-/* not static, needed by tpg.c */
+/* yest static, needed by tpg.c */
 struct se_device *g_lun0_dev;
 
 sense_reason_t
@@ -49,7 +49,7 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u64 unpacked_lun)
 {
 	struct se_lun *se_lun = NULL;
 	struct se_session *se_sess = se_cmd->se_sess;
-	struct se_node_acl *nacl = se_sess->se_node_acl;
+	struct se_yesde_acl *nacl = se_sess->se_yesde_acl;
 	struct se_dev_entry *deve;
 	sense_reason_t ret = TCM_NO_SENSE;
 
@@ -95,7 +95,7 @@ out_unlock:
 	if (!se_lun) {
 		/*
 		 * Use the se_portal_group->tpg_virt_lun0 to allow for
-		 * REPORT_LUNS, et al to be returned when no active
+		 * REPORT_LUNS, et al to be returned when yes active
 		 * MappedLUN=0 exists for this Initiator Port.
 		 */
 		if (unpacked_lun != 0) {
@@ -149,7 +149,7 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u64 unpacked_lun)
 	struct se_dev_entry *deve;
 	struct se_lun *se_lun = NULL;
 	struct se_session *se_sess = se_cmd->se_sess;
-	struct se_node_acl *nacl = se_sess->se_node_acl;
+	struct se_yesde_acl *nacl = se_sess->se_yesde_acl;
 	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
 	unsigned long flags;
 
@@ -197,7 +197,7 @@ bool target_lun_is_rdonly(struct se_cmd *cmd)
 	bool ret;
 
 	rcu_read_lock();
-	deve = target_nacl_find_deve(se_sess->se_node_acl, cmd->orig_fe_lun);
+	deve = target_nacl_find_deve(se_sess->se_yesde_acl, cmd->orig_fe_lun);
 	ret = deve && deve->lun_access_ro;
 	rcu_read_unlock();
 
@@ -211,7 +211,7 @@ EXPORT_SYMBOL(target_lun_is_rdonly);
  * when a matching rtpi is found.
  */
 struct se_dev_entry *core_get_se_deve_from_rtpi(
-	struct se_node_acl *nacl,
+	struct se_yesde_acl *nacl,
 	u16 rtpi)
 {
 	struct se_dev_entry *deve;
@@ -240,8 +240,8 @@ struct se_dev_entry *core_get_se_deve_from_rtpi(
 	return NULL;
 }
 
-void core_free_device_list_for_node(
-	struct se_node_acl *nacl,
+void core_free_device_list_for_yesde(
+	struct se_yesde_acl *nacl,
 	struct se_portal_group *tpg)
 {
 	struct se_dev_entry *deve;
@@ -250,7 +250,7 @@ void core_free_device_list_for_node(
 	hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link) {
 		struct se_lun *lun = rcu_dereference_check(deve->se_lun,
 					lockdep_is_held(&nacl->lun_entry_mutex));
-		core_disable_device_list_for_node(lun, deve, nacl, tpg);
+		core_disable_device_list_for_yesde(lun, deve, nacl, tpg);
 	}
 	mutex_unlock(&nacl->lun_entry_mutex);
 }
@@ -258,7 +258,7 @@ void core_free_device_list_for_node(
 void core_update_device_list_access(
 	u64 mapped_lun,
 	bool lun_access_ro,
-	struct se_node_acl *nacl)
+	struct se_yesde_acl *nacl)
 {
 	struct se_dev_entry *deve;
 
@@ -272,7 +272,7 @@ void core_update_device_list_access(
 /*
  * Called with rcu_read_lock or nacl->device_list_lock held.
  */
-struct se_dev_entry *target_nacl_find_deve(struct se_node_acl *nacl, u64 mapped_lun)
+struct se_dev_entry *target_nacl_find_deve(struct se_yesde_acl *nacl, u64 mapped_lun)
 {
 	struct se_dev_entry *deve;
 
@@ -292,7 +292,7 @@ void target_pr_kref_release(struct kref *kref)
 }
 
 static void
-target_luns_data_has_changed(struct se_node_acl *nacl, struct se_dev_entry *new,
+target_luns_data_has_changed(struct se_yesde_acl *nacl, struct se_dev_entry *new,
 			     bool skip_new)
 {
 	struct se_dev_entry *tmp;
@@ -307,12 +307,12 @@ target_luns_data_has_changed(struct se_node_acl *nacl, struct se_dev_entry *new,
 	rcu_read_unlock();
 }
 
-int core_enable_device_list_for_node(
+int core_enable_device_list_for_yesde(
 	struct se_lun *lun,
 	struct se_lun_acl *lun_acl,
 	u64 mapped_lun,
 	bool lun_access_ro,
-	struct se_node_acl *nacl,
+	struct se_yesde_acl *nacl,
 	struct se_portal_group *tpg)
 {
 	struct se_dev_entry *orig, *new;
@@ -391,10 +391,10 @@ int core_enable_device_list_for_node(
 	return 0;
 }
 
-void core_disable_device_list_for_node(
+void core_disable_device_list_for_yesde(
 	struct se_lun *lun,
 	struct se_dev_entry *orig,
-	struct se_node_acl *nacl,
+	struct se_yesde_acl *nacl,
 	struct se_portal_group *tpg)
 {
 	/*
@@ -407,12 +407,12 @@ void core_disable_device_list_for_node(
 
 	/*
 	 * If the MappedLUN entry is being disabled, the entry in
-	 * lun->lun_deve_list must be removed now before clearing the
+	 * lun->lun_deve_list must be removed yesw before clearing the
 	 * struct se_dev_entry pointers below as logic in
 	 * core_alua_do_transition_tg_pt() depends on these being present.
 	 *
 	 * deve->se_lun_acl will be NULL for demo-mode created LUNs
-	 * that have not been explicitly converted to MappedLUNs ->
+	 * that have yest been explicitly converted to MappedLUNs ->
 	 * struct se_lun_acl, but we remove deve->lun_link from
 	 * lun->lun_deve_list. This also means that active UAs and
 	 * NodeACL context specific PR metadata for demo-mode
@@ -453,11 +453,11 @@ void core_disable_device_list_for_node(
  */
 void core_clear_lun_from_tpg(struct se_lun *lun, struct se_portal_group *tpg)
 {
-	struct se_node_acl *nacl;
+	struct se_yesde_acl *nacl;
 	struct se_dev_entry *deve;
 
-	mutex_lock(&tpg->acl_node_mutex);
-	list_for_each_entry(nacl, &tpg->acl_node_list, acl_list) {
+	mutex_lock(&tpg->acl_yesde_mutex);
+	list_for_each_entry(nacl, &tpg->acl_yesde_list, acl_list) {
 
 		mutex_lock(&nacl->lun_entry_mutex);
 		hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link) {
@@ -467,11 +467,11 @@ void core_clear_lun_from_tpg(struct se_lun *lun, struct se_portal_group *tpg)
 			if (lun != tmp_lun)
 				continue;
 
-			core_disable_device_list_for_node(lun, deve, nacl, tpg);
+			core_disable_device_list_for_yesde(lun, deve, nacl, tpg);
 		}
 		mutex_unlock(&nacl->lun_entry_mutex);
 	}
-	mutex_unlock(&tpg->acl_node_mutex);
+	mutex_unlock(&tpg->acl_yesde_mutex);
 }
 
 int core_alloc_rtpi(struct se_lun *lun, struct se_device *dev)
@@ -494,8 +494,8 @@ again:
 	 *
 	 * Code      Description
 	 * 0h        Reserved
-	 * 1h        Relative port 1, historically known as port A
-	 * 2h        Relative port 2, historically known as port B
+	 * 1h        Relative port 1, historically kyeswn as port A
+	 * 2h        Relative port 2, historically kyeswn as port B
 	 * 3h to FFFFh    Relative port 3 through 65 535
 	 */
 	lun->lun_rtpi = dev->dev_rpti_counter++;
@@ -563,20 +563,20 @@ int core_dev_add_lun(
 		tpg->se_tpg_tfo->fabric_name, dev->se_hba->hba_id);
 	/*
 	 * Update LUN maps for dynamically added initiators when
-	 * generate_node_acl is enabled.
+	 * generate_yesde_acl is enabled.
 	 */
 	if (tpg->se_tpg_tfo->tpg_check_demo_mode(tpg)) {
-		struct se_node_acl *acl;
+		struct se_yesde_acl *acl;
 
-		mutex_lock(&tpg->acl_node_mutex);
-		list_for_each_entry(acl, &tpg->acl_node_list, acl_list) {
-			if (acl->dynamic_node_acl &&
+		mutex_lock(&tpg->acl_yesde_mutex);
+		list_for_each_entry(acl, &tpg->acl_yesde_list, acl_list) {
+			if (acl->dynamic_yesde_acl &&
 			    (!tpg->se_tpg_tfo->tpg_check_demo_mode_login_only ||
 			     !tpg->se_tpg_tfo->tpg_check_demo_mode_login_only(tpg))) {
-				core_tpg_add_node_to_devs(acl, tpg, lun);
+				core_tpg_add_yesde_to_devs(acl, tpg, lun);
 			}
 		}
-		mutex_unlock(&tpg->acl_node_mutex);
+		mutex_unlock(&tpg->acl_yesde_mutex);
 	}
 
 	return 0;
@@ -598,9 +598,9 @@ void core_dev_del_lun(
 	core_tpg_remove_lun(tpg, lun);
 }
 
-struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
+struct se_lun_acl *core_dev_init_initiator_yesde_lun_acl(
 	struct se_portal_group *tpg,
-	struct se_node_acl *nacl,
+	struct se_yesde_acl *nacl,
 	u64 mapped_lun,
 	int *ret)
 {
@@ -625,13 +625,13 @@ struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
 	return lacl;
 }
 
-int core_dev_add_initiator_node_lun_acl(
+int core_dev_add_initiator_yesde_lun_acl(
 	struct se_portal_group *tpg,
 	struct se_lun_acl *lacl,
 	struct se_lun *lun,
 	bool lun_access_ro)
 {
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_yesde_acl *nacl = lacl->se_lun_nacl;
 	/*
 	 * rcu_dereference_raw protected by se_lun->lun_group symlink
 	 * reference to se_device->dev_group.
@@ -646,7 +646,7 @@ int core_dev_add_initiator_node_lun_acl(
 
 	lacl->se_lun = lun;
 
-	if (core_enable_device_list_for_node(lun, lacl, lacl->mapped_lun,
+	if (core_enable_device_list_for_yesde(lun, lacl, lacl->mapped_lun,
 			lun_access_ro, nacl, tpg) < 0)
 		return -EINVAL;
 
@@ -664,12 +664,12 @@ int core_dev_add_initiator_node_lun_acl(
 	return 0;
 }
 
-int core_dev_del_initiator_node_lun_acl(
+int core_dev_del_initiator_yesde_lun_acl(
 	struct se_lun *lun,
 	struct se_lun_acl *lacl)
 {
 	struct se_portal_group *tpg = lun->lun_tpg;
-	struct se_node_acl *nacl;
+	struct se_yesde_acl *nacl;
 	struct se_dev_entry *deve;
 
 	nacl = lacl->se_lun_nacl;
@@ -679,7 +679,7 @@ int core_dev_del_initiator_node_lun_acl(
 	mutex_lock(&nacl->lun_entry_mutex);
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (deve)
-		core_disable_device_list_for_node(lun, deve, nacl, tpg);
+		core_disable_device_list_for_yesde(lun, deve, nacl, tpg);
 	mutex_unlock(&nacl->lun_entry_mutex);
 
 	pr_debug("%s_TPG[%hu]_LUN[%llu] - Removed ACL for"
@@ -691,7 +691,7 @@ int core_dev_del_initiator_node_lun_acl(
 	return 0;
 }
 
-void core_dev_free_initiator_node_lun_acl(
+void core_dev_free_initiator_yesde_lun_acl(
 	struct se_portal_group *tpg,
 	struct se_lun_acl *lacl)
 {
@@ -777,7 +777,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE0_PROT;
 	dev->dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
 	dev->dev_attrib.force_pr_aptpl = DA_FORCE_PR_APTPL;
-	dev->dev_attrib.is_nonrot = DA_IS_NONROT;
+	dev->dev_attrib.is_yesnrot = DA_IS_NONROT;
 	dev->dev_attrib.emulate_rest_reord = DA_EMULATE_REST_REORD;
 	dev->dev_attrib.max_unmap_lba_count = DA_MAX_UNMAP_LBA_COUNT;
 	dev->dev_attrib.max_unmap_block_desc_count =
@@ -871,7 +871,7 @@ static int target_devices_idr_iter(int id, void *p, void *data)
 
 	/*
 	 * We add the device early to the idr, so it can be used
-	 * by backend modules during configuration. We do not want
+	 * by backend modules during configuration. We do yest want
 	 * to allow other callers to access partially setup devices,
 	 * so we skip them here.
 	 */
@@ -894,7 +894,7 @@ static int target_devices_idr_iter(int id, void *p, void *data)
  * @fn: iterator function
  * @data: pointer to data that will be passed to fn
  *
- * fn must return 0 to continue looping over devices. non-zero will break
+ * fn must return 0 to continue looping over devices. yesn-zero will break
  * from the loop and return that value to the caller.
  */
 int target_for_each_device(int (*fn)(struct se_device *dev, void *data),
@@ -942,7 +942,7 @@ int target_configure_device(struct se_device *dev)
 	if (ret)
 		goto out_free_index;
 	/*
-	 * XXX: there is not much point to have two different values here..
+	 * XXX: there is yest much point to have two different values here..
 	 */
 	dev->dev_attrib.block_size = dev->dev_attrib.hw_block_size;
 	dev->dev_attrib.queue_depth = dev->dev_attrib.hw_queue_depth;
@@ -1085,7 +1085,7 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 
 	/*
 	 * With emulate_pr disabled, all reservation requests should fail,
-	 * regardless of whether or not TRANSPORT_FLAG_PASSTHROUGH_PGR is set.
+	 * regardless of whether or yest TRANSPORT_FLAG_PASSTHROUGH_PGR is set.
 	 */
 	if (!dev->dev_attrib.emulate_pr &&
 	    ((cdb[0] == PERSISTENT_RESERVE_IN) ||
@@ -1097,7 +1097,7 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 
 	/*
 	 * For PERSISTENT RESERVE IN/OUT, RELEASE, and RESERVE we need to
-	 * emulate the response, since tcmu does not have the information
+	 * emulate the response, since tcmu does yest have the information
 	 * required to process these commands.
 	 */
 	if (!(dev->transport->transport_flags &

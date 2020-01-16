@@ -198,7 +198,7 @@ static int fm_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		ctrl->val = fm_tx_get_tune_cap_val(fmdev);
 		break;
 	default:
-		fmwarn("%s: Unknown IOCTL: %d\n", __func__, ctrl->id);
+		fmwarn("%s: Unkyeswn IOCTL: %d\n", __func__, ctrl->id);
 		break;
 	}
 
@@ -255,7 +255,7 @@ static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
 	struct fmdev *fmdev = video_drvdata(file);
 	u32 bottom_freq;
 	u32 top_freq;
-	u16 stereo_mono_mode;
+	u16 stereo_moyes_mode;
 	u16 rssilvl;
 	int ret;
 
@@ -269,7 +269,7 @@ static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
 	if (ret != 0)
 		return ret;
 
-	ret = fm_rx_get_stereo_mono(fmdev, &stereo_mono_mode);
+	ret = fm_rx_get_stereo_moyes(fmdev, &stereo_moyes_mode);
 	if (ret != 0)
 		return ret;
 
@@ -288,7 +288,7 @@ static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
 			    V4L2_TUNER_CAP_LOW |
 			    V4L2_TUNER_CAP_HWSEEK_BOUNDED |
 			    V4L2_TUNER_CAP_HWSEEK_WRAP;
-	tuner->audmode = (stereo_mono_mode ?
+	tuner->audmode = (stereo_moyes_mode ?
 			  V4L2_TUNER_MODE_MONO : V4L2_TUNER_MODE_STEREO);
 
 	/*
@@ -309,7 +309,7 @@ static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
 
 /*
  * Set tuner attributes. If current mode is NOT RX, set to RX.
- * Currently, we set only audio mode (mono/stereo) and RDS state (on/off).
+ * Currently, we set only audio mode (moyes/stereo) and RDS state (on/off).
  * Should we set other tuner attributes, too?
  */
 static int fm_v4l2_vidioc_s_tuner(struct file *file, void *priv,
@@ -336,9 +336,9 @@ static int fm_v4l2_vidioc_s_tuner(struct file *file, void *priv,
 		}
 	}
 
-	ret = fmc_set_stereo_mono(fmdev, aud_mode);
+	ret = fmc_set_stereo_moyes(fmdev, aud_mode);
 	if (ret < 0) {
-		fmerr("Failed to set RX stereo/mono mode\n");
+		fmerr("Failed to set RX stereo/moyes mode\n");
 		return ret;
 	}
 
@@ -406,7 +406,7 @@ static int fm_v4l2_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 
 	return ret;
 }
-/* Get modulator attributes. If mode is not TX, return no attributes. */
+/* Get modulator attributes. If mode is yest TX, return yes attributes. */
 static int fm_v4l2_vidioc_g_modulator(struct file *file, void *priv,
 		struct v4l2_modulator *mod)
 {
@@ -429,7 +429,7 @@ static int fm_v4l2_vidioc_g_modulator(struct file *file, void *priv,
 	return 0;
 }
 
-/* Set modulator attributes. If mode is not TX, set to TX. */
+/* Set modulator attributes. If mode is yest TX, set to TX. */
 static int fm_v4l2_vidioc_s_modulator(struct file *file, void *priv,
 		const struct v4l2_modulator *mod)
 {
@@ -453,9 +453,9 @@ static int fm_v4l2_vidioc_s_modulator(struct file *file, void *priv,
 			FM_STEREO_MODE : FM_MONO_MODE;
 	rds_mode = (mod->txsubchans & V4L2_TUNER_SUB_RDS) ?
 			FM_RDS_ENABLE : FM_RDS_DISABLE;
-	ret = fm_tx_set_stereo_mono(fmdev, aud_mode);
+	ret = fm_tx_set_stereo_moyes(fmdev, aud_mode);
 	if (ret < 0) {
-		fmerr("Failed to set mono/stereo mode for TX\n");
+		fmerr("Failed to set moyes/stereo mode for TX\n");
 		return ret;
 	}
 	ret = fm_tx_set_rds_mode(fmdev, rds_mode);
@@ -502,7 +502,7 @@ static const struct video_device fm_viddev_template = {
 	 * To ensure both the tuner and modulator ioctls are accessible we
 	 * set the vfl_dir to M2M to indicate this.
 	 *
-	 * It is not really a mem2mem device of course, but it can both receive
+	 * It is yest really a mem2mem device of course, but it can both receive
 	 * and transmit using the same radio device. It's the only radio driver
 	 * that does this and it should really be split in two radio devices,
 	 * but that would affect applications using this driver.
@@ -538,7 +538,7 @@ int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)
 	/* Register with V4L2 subsystem as RADIO device */
 	if (video_register_device(&gradio_dev, VFL_TYPE_RADIO, radio_nr)) {
 		v4l2_device_unregister(&fmdev->v4l2_dev);
-		fmerr("Could not register video device\n");
+		fmerr("Could yest register video device\n");
 		return -ENOMEM;
 	}
 

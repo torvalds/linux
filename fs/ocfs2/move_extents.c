@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * move_extents.c
  *
@@ -21,7 +21,7 @@
 #include "aops.h"
 #include "dlmglue.h"
 #include "extent_map.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "journal.h"
 #include "suballoc.h"
 #include "uptodate.h"
@@ -33,7 +33,7 @@
 #include "move_extents.h"
 
 struct ocfs2_move_extents_context {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct file *file;
 	int auto_defrag;
 	int partial;
@@ -54,37 +54,37 @@ static int __ocfs2_move_extent(handle_t *handle,
 			       int ext_flags)
 {
 	int ret = 0, index;
-	struct inode *inode = context->inode;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct iyesde *iyesde = context->iyesde;
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 	struct ocfs2_extent_rec *rec, replace_rec;
 	struct ocfs2_path *path = NULL;
 	struct ocfs2_extent_list *el;
-	u64 ino = ocfs2_metadata_cache_owner(context->et.et_ci);
-	u64 old_blkno = ocfs2_clusters_to_blocks(inode->i_sb, p_cpos);
+	u64 iyes = ocfs2_metadata_cache_owner(context->et.et_ci);
+	u64 old_blkyes = ocfs2_clusters_to_blocks(iyesde->i_sb, p_cpos);
 
-	ret = ocfs2_duplicate_clusters_by_page(handle, inode, cpos,
+	ret = ocfs2_duplicate_clusters_by_page(handle, iyesde, cpos,
 					       p_cpos, new_p_cpos, len);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
 	memset(&replace_rec, 0, sizeof(replace_rec));
 	replace_rec.e_cpos = cpu_to_le32(cpos);
 	replace_rec.e_leaf_clusters = cpu_to_le16(len);
-	replace_rec.e_blkno = cpu_to_le64(ocfs2_clusters_to_blocks(inode->i_sb,
+	replace_rec.e_blkyes = cpu_to_le64(ocfs2_clusters_to_blocks(iyesde->i_sb,
 								   new_p_cpos));
 
 	path = ocfs2_new_path_from_et(&context->et);
 	if (!path) {
 		ret = -ENOMEM;
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
-	ret = ocfs2_find_path(INODE_CACHE(inode), path, cpos);
+	ret = ocfs2_find_path(INODE_CACHE(iyesde), path, cpos);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
@@ -92,9 +92,9 @@ static int __ocfs2_move_extent(handle_t *handle,
 
 	index = ocfs2_search_extent_list(el, cpos);
 	if (index == -1) {
-		ret = ocfs2_error(inode->i_sb,
-				  "Inode %llu has an extent at cpos %u which can no longer be found\n",
-				  (unsigned long long)ino, cpos);
+		ret = ocfs2_error(iyesde->i_sb,
+				  "Iyesde %llu has an extent at cpos %u which can yes longer be found\n",
+				  (unsigned long long)iyes, cpos);
 		goto out;
 	}
 
@@ -102,16 +102,16 @@ static int __ocfs2_move_extent(handle_t *handle,
 
 	BUG_ON(ext_flags != rec->e_flags);
 	/*
-	 * after moving/defraging to new location, the extent is not going
+	 * after moving/defraging to new location, the extent is yest going
 	 * to be refcounted anymore.
 	 */
 	replace_rec.e_flags = ext_flags & ~OCFS2_EXT_REFCOUNTED;
 
-	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode),
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(iyesde),
 				      context->et.et_root_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
@@ -119,7 +119,7 @@ static int __ocfs2_move_extent(handle_t *handle,
 				 &replace_rec, context->meta_ac,
 				 &context->dealloc);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
@@ -130,19 +130,19 @@ static int __ocfs2_move_extent(handle_t *handle,
 	/*
 	 * need I to append truncate log for old clusters?
 	 */
-	if (old_blkno) {
+	if (old_blkyes) {
 		if (ext_flags & OCFS2_EXT_REFCOUNTED)
-			ret = ocfs2_decrease_refcount(inode, handle,
+			ret = ocfs2_decrease_refcount(iyesde, handle,
 					ocfs2_blocks_to_clusters(osb->sb,
-								 old_blkno),
+								 old_blkyes),
 					len, context->meta_ac,
 					&context->dealloc, 1);
 		else
 			ret = ocfs2_truncate_log_append(osb, handle,
-							old_blkno, len);
+							old_blkyes, len);
 	}
 
-	ocfs2_update_inode_fsync_trans(handle, inode, 0);
+	ocfs2_update_iyesde_fsync_trans(handle, iyesde, 0);
 out:
 	ocfs2_free_path(path);
 	return ret;
@@ -152,7 +152,7 @@ out:
  * lock allocator, and reserve appropriate number of bits for
  * meta blocks.
  */
-static int ocfs2_lock_meta_allocator_move_extents(struct inode *inode,
+static int ocfs2_lock_meta_allocator_move_extents(struct iyesde *iyesde,
 					struct ocfs2_extent_tree *et,
 					u32 clusters_to_move,
 					u32 extents_to_split,
@@ -162,12 +162,12 @@ static int ocfs2_lock_meta_allocator_move_extents(struct inode *inode,
 {
 	int ret, num_free_extents;
 	unsigned int max_recs_needed = 2 * extents_to_split + clusters_to_move;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
 	num_free_extents = ocfs2_num_free_extents(et);
 	if (num_free_extents < 0) {
 		ret = num_free_extents;
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
@@ -177,7 +177,7 @@ static int ocfs2_lock_meta_allocator_move_extents(struct inode *inode,
 
 	ret = ocfs2_reserve_new_metadata_blocks(osb, extra_blocks, meta_ac);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
@@ -202,50 +202,50 @@ out:
  * crash happens anywhere.
  *
  *  XXX: defrag can end up with finishing partial extent as requested,
- * due to not enough contiguous clusters can be found in allocator.
+ * due to yest eyesugh contiguous clusters can be found in allocator.
  */
 static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 			       u32 cpos, u32 phys_cpos, u32 *len, int ext_flags)
 {
 	int ret, credits = 0, extra_blocks = 0, partial = context->partial;
 	handle_t *handle;
-	struct inode *inode = context->inode;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct inode *tl_inode = osb->osb_tl_inode;
+	struct iyesde *iyesde = context->iyesde;
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
+	struct iyesde *tl_iyesde = osb->osb_tl_iyesde;
 	struct ocfs2_refcount_tree *ref_tree = NULL;
 	u32 new_phys_cpos, new_len;
-	u64 phys_blkno = ocfs2_clusters_to_blocks(inode->i_sb, phys_cpos);
+	u64 phys_blkyes = ocfs2_clusters_to_blocks(iyesde->i_sb, phys_cpos);
 	int need_free = 0;
 
 	if ((ext_flags & OCFS2_EXT_REFCOUNTED) && *len) {
-		BUG_ON(!ocfs2_is_refcount_inode(inode));
+		BUG_ON(!ocfs2_is_refcount_iyesde(iyesde));
 		BUG_ON(!context->refcount_loc);
 
 		ret = ocfs2_lock_refcount_tree(osb, context->refcount_loc, 1,
 					       &ref_tree, NULL);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			return ret;
 		}
 
-		ret = ocfs2_prepare_refcount_change_for_del(inode,
+		ret = ocfs2_prepare_refcount_change_for_del(iyesde,
 							context->refcount_loc,
-							phys_blkno,
+							phys_blkyes,
 							*len,
 							&credits,
 							&extra_blocks);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out;
 		}
 	}
 
-	ret = ocfs2_lock_meta_allocator_move_extents(inode, &context->et,
+	ret = ocfs2_lock_meta_allocator_move_extents(iyesde, &context->et,
 						*len, 1,
 						&context->meta_ac,
 						extra_blocks, &credits);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
@@ -253,15 +253,15 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 	 * should be using allocation reservation strategy there?
 	 *
 	 * if (context->data_ac)
-	 *	context->data_ac->ac_resv = &OCFS2_I(inode)->ip_la_data_resv;
+	 *	context->data_ac->ac_resv = &OCFS2_I(iyesde)->ip_la_data_resv;
 	 */
 
-	inode_lock(tl_inode);
+	iyesde_lock(tl_iyesde);
 
 	if (ocfs2_truncate_log_needs_flush(osb)) {
 		ret = __ocfs2_flush_truncate_log(osb);
 		if (ret < 0) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out_unlock_mutex;
 		}
 	}
@@ -277,21 +277,21 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 	 */
 	ret = ocfs2_reserve_clusters(osb, *len, &context->data_ac);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out_unlock_mutex;
 	}
 
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out_unlock_mutex;
 	}
 
 	ret = __ocfs2_claim_clusters(handle, context->data_ac, 1, *len,
 				     &new_phys_cpos, &new_len);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out_commit;
 	}
 
@@ -317,7 +317,7 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 	ret = __ocfs2_move_extent(handle, context, cpos, new_len, phys_cpos,
 				  new_phys_cpos, ext_flags);
 	if (ret)
-		mlog_errno(ret);
+		mlog_erryes(ret);
 
 	if (partial && (new_len != *len))
 		*len = new_len;
@@ -326,9 +326,9 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 	 * Here we should write the new page out first if we are
 	 * in write-back mode.
 	 */
-	ret = ocfs2_cow_sync_writeback(inode->i_sb, context->inode, cpos, *len);
+	ret = ocfs2_cow_sync_writeback(iyesde->i_sb, context->iyesde, cpos, *len);
 	if (ret)
-		mlog_errno(ret);
+		mlog_erryes(ret);
 
 out_commit:
 	if (need_free && context->data_ac) {
@@ -339,7 +339,7 @@ out_commit:
 					new_phys_cpos, new_len);
 		else
 			ocfs2_free_clusters(handle,
-					data_ac->ac_inode,
+					data_ac->ac_iyesde,
 					data_ac->ac_bh,
 					ocfs2_clusters_to_blocks(osb->sb, new_phys_cpos),
 					new_len);
@@ -348,7 +348,7 @@ out_commit:
 	ocfs2_commit_trans(osb, handle);
 
 out_unlock_mutex:
-	inode_unlock(tl_inode);
+	iyesde_unlock(tl_iyesde);
 
 	if (context->data_ac) {
 		ocfs2_free_alloc_context(context->data_ac);
@@ -368,51 +368,51 @@ out:
 }
 
 /*
- * find the victim alloc group, where #blkno fits.
+ * find the victim alloc group, where #blkyes fits.
  */
-static int ocfs2_find_victim_alloc_group(struct inode *inode,
-					 u64 vict_blkno,
+static int ocfs2_find_victim_alloc_group(struct iyesde *iyesde,
+					 u64 vict_blkyes,
 					 int type, int slot,
 					 int *vict_bit,
 					 struct buffer_head **ret_bh)
 {
 	int ret, i, bits_per_unit = 0;
-	u64 blkno;
+	u64 blkyes;
 	char namebuf[40];
 
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 	struct buffer_head *ac_bh = NULL, *gd_bh = NULL;
 	struct ocfs2_chain_list *cl;
 	struct ocfs2_chain_rec *rec;
-	struct ocfs2_dinode *ac_dinode;
+	struct ocfs2_diyesde *ac_diyesde;
 	struct ocfs2_group_desc *bg;
 
-	ocfs2_sprintf_system_inode_name(namebuf, sizeof(namebuf), type, slot);
-	ret = ocfs2_lookup_ino_from_name(osb->sys_root_inode, namebuf,
-					 strlen(namebuf), &blkno);
+	ocfs2_sprintf_system_iyesde_name(namebuf, sizeof(namebuf), type, slot);
+	ret = ocfs2_lookup_iyes_from_name(osb->sys_root_iyesde, namebuf,
+					 strlen(namebuf), &blkyes);
 	if (ret) {
 		ret = -ENOENT;
 		goto out;
 	}
 
-	ret = ocfs2_read_blocks_sync(osb, blkno, 1, &ac_bh);
+	ret = ocfs2_read_blocks_sync(osb, blkyes, 1, &ac_bh);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
-	ac_dinode = (struct ocfs2_dinode *)ac_bh->b_data;
-	cl = &(ac_dinode->id2.i_chain);
+	ac_diyesde = (struct ocfs2_diyesde *)ac_bh->b_data;
+	cl = &(ac_diyesde->id2.i_chain);
 	rec = &(cl->cl_recs[0]);
 
 	if (type == GLOBAL_BITMAP_SYSTEM_INODE)
 		bits_per_unit = osb->s_clustersize_bits -
-					inode->i_sb->s_blocksize_bits;
+					iyesde->i_sb->s_blocksize_bits;
 	/*
-	 * 'vict_blkno' was out of the valid range.
+	 * 'vict_blkyes' was out of the valid range.
 	 */
-	if ((vict_blkno < le64_to_cpu(rec->c_blkno)) ||
-	    (vict_blkno >= ((u64)le32_to_cpu(ac_dinode->id1.bitmap1.i_total) <<
+	if ((vict_blkyes < le64_to_cpu(rec->c_blkyes)) ||
+	    (vict_blkyes >= ((u64)le32_to_cpu(ac_diyesde->id1.bitmap1.i_total) <<
 				bits_per_unit))) {
 		ret = -EINVAL;
 		goto out;
@@ -428,32 +428,32 @@ static int ocfs2_find_victim_alloc_group(struct inode *inode,
 
 		do {
 			if (!bg)
-				blkno = le64_to_cpu(rec->c_blkno);
+				blkyes = le64_to_cpu(rec->c_blkyes);
 			else
-				blkno = le64_to_cpu(bg->bg_next_group);
+				blkyes = le64_to_cpu(bg->bg_next_group);
 
 			if (gd_bh) {
 				brelse(gd_bh);
 				gd_bh = NULL;
 			}
 
-			ret = ocfs2_read_blocks_sync(osb, blkno, 1, &gd_bh);
+			ret = ocfs2_read_blocks_sync(osb, blkyes, 1, &gd_bh);
 			if (ret) {
-				mlog_errno(ret);
+				mlog_erryes(ret);
 				goto out;
 			}
 
 			bg = (struct ocfs2_group_desc *)gd_bh->b_data;
 
-			if (vict_blkno < (le64_to_cpu(bg->bg_blkno) +
+			if (vict_blkyes < (le64_to_cpu(bg->bg_blkyes) +
 						le16_to_cpu(bg->bg_bits))) {
 
 				*ret_bh = gd_bh;
-				*vict_bit = (vict_blkno - blkno) >>
+				*vict_bit = (vict_blkyes - blkyes) >>
 							bits_per_unit;
 				mlog(0, "find the victim group: #%llu, "
 				     "total_bits: %u, vict_bit: %u\n",
-				     blkno, le16_to_cpu(bg->bg_bits),
+				     blkyes, le16_to_cpu(bg->bg_bits),
 				     *vict_bit);
 				goto out;
 			}
@@ -474,27 +474,27 @@ out:
 /*
  * XXX: helper to validate and adjust moving goal.
  */
-static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
+static int ocfs2_validate_and_adjust_move_goal(struct iyesde *iyesde,
 					       struct ocfs2_move_extents *range)
 {
 	int ret, goal_bit = 0;
 
 	struct buffer_head *gd_bh = NULL;
 	struct ocfs2_group_desc *bg;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 	int c_to_b = 1 << (osb->s_clustersize_bits -
-					inode->i_sb->s_blocksize_bits);
+					iyesde->i_sb->s_blocksize_bits);
 
 	/*
 	 * make goal become cluster aligned.
 	 */
-	range->me_goal = ocfs2_block_to_cluster_start(inode->i_sb,
+	range->me_goal = ocfs2_block_to_cluster_start(iyesde->i_sb,
 						      range->me_goal);
 	/*
 	 * validate goal sits within global_bitmap, and return the victim
 	 * group desc
 	 */
-	ret = ocfs2_find_victim_alloc_group(inode, range->me_goal,
+	ret = ocfs2_find_victim_alloc_group(iyesde, range->me_goal,
 					    GLOBAL_BITMAP_SYSTEM_INODE,
 					    OCFS2_INVALID_SLOT,
 					    &goal_bit, &gd_bh);
@@ -504,14 +504,14 @@ static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
 	bg = (struct ocfs2_group_desc *)gd_bh->b_data;
 
 	/*
-	 * moving goal is not allowd to start with a group desc blok(#0 blk)
+	 * moving goal is yest allowd to start with a group desc blok(#0 blk)
 	 * let's compromise to the latter cluster.
 	 */
-	if (range->me_goal == le64_to_cpu(bg->bg_blkno))
+	if (range->me_goal == le64_to_cpu(bg->bg_blkyes))
 		range->me_goal += c_to_b;
 
 	/*
-	 * movement is not gonna cross two groups.
+	 * movement is yest gonna cross two groups.
 	 */
 	if ((le16_to_cpu(bg->bg_bits) - goal_bit) * osb->s_clustersize <
 								range->me_len) {
@@ -531,14 +531,14 @@ out:
 	return ret;
 }
 
-static void ocfs2_probe_alloc_group(struct inode *inode, struct buffer_head *bh,
+static void ocfs2_probe_alloc_group(struct iyesde *iyesde, struct buffer_head *bh,
 				    int *goal_bit, u32 move_len, u32 max_hop,
 				    u32 *phys_cpos)
 {
 	int i, used, last_free_bits = 0, base_bit = *goal_bit;
 	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
-	u32 base_cpos = ocfs2_blocks_to_clusters(inode->i_sb,
-						 le64_to_cpu(gd->bg_blkno));
+	u32 base_cpos = ocfs2_blocks_to_clusters(iyesde->i_sb,
+						 le64_to_cpu(gd->bg_blkyes));
 
 	for (i = base_bit; i < le16_to_cpu(gd->bg_bits); i++) {
 
@@ -576,54 +576,54 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 {
 	int ret, credits = 0, extra_blocks = 0, goal_bit = 0;
 	handle_t *handle;
-	struct inode *inode = context->inode;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct inode *tl_inode = osb->osb_tl_inode;
-	struct inode *gb_inode = NULL;
+	struct iyesde *iyesde = context->iyesde;
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
+	struct iyesde *tl_iyesde = osb->osb_tl_iyesde;
+	struct iyesde *gb_iyesde = NULL;
 	struct buffer_head *gb_bh = NULL;
 	struct buffer_head *gd_bh = NULL;
 	struct ocfs2_group_desc *gd;
 	struct ocfs2_refcount_tree *ref_tree = NULL;
-	u32 move_max_hop = ocfs2_blocks_to_clusters(inode->i_sb,
+	u32 move_max_hop = ocfs2_blocks_to_clusters(iyesde->i_sb,
 						    context->range->me_threshold);
-	u64 phys_blkno, new_phys_blkno;
+	u64 phys_blkyes, new_phys_blkyes;
 
-	phys_blkno = ocfs2_clusters_to_blocks(inode->i_sb, phys_cpos);
+	phys_blkyes = ocfs2_clusters_to_blocks(iyesde->i_sb, phys_cpos);
 
 	if ((ext_flags & OCFS2_EXT_REFCOUNTED) && len) {
-		BUG_ON(!ocfs2_is_refcount_inode(inode));
+		BUG_ON(!ocfs2_is_refcount_iyesde(iyesde));
 		BUG_ON(!context->refcount_loc);
 
 		ret = ocfs2_lock_refcount_tree(osb, context->refcount_loc, 1,
 					       &ref_tree, NULL);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			return ret;
 		}
 
-		ret = ocfs2_prepare_refcount_change_for_del(inode,
+		ret = ocfs2_prepare_refcount_change_for_del(iyesde,
 							context->refcount_loc,
-							phys_blkno,
+							phys_blkyes,
 							len,
 							&credits,
 							&extra_blocks);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out;
 		}
 	}
 
-	ret = ocfs2_lock_meta_allocator_move_extents(inode, &context->et,
+	ret = ocfs2_lock_meta_allocator_move_extents(iyesde, &context->et,
 						len, 1,
 						&context->meta_ac,
 						extra_blocks, &credits);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
 	/*
-	 * need to count 2 extra credits for global_bitmap inode and
+	 * need to count 2 extra credits for global_bitmap iyesde and
 	 * group descriptor.
 	 */
 	credits += OCFS2_INODE_UPDATE_CREDITS + 1;
@@ -632,38 +632,38 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 	 * ocfs2_move_extent() didn't reserve any clusters in lock_allocators()
 	 * logic, while we still need to lock the global_bitmap.
 	 */
-	gb_inode = ocfs2_get_system_file_inode(osb, GLOBAL_BITMAP_SYSTEM_INODE,
+	gb_iyesde = ocfs2_get_system_file_iyesde(osb, GLOBAL_BITMAP_SYSTEM_INODE,
 					       OCFS2_INVALID_SLOT);
-	if (!gb_inode) {
-		mlog(ML_ERROR, "unable to get global_bitmap inode\n");
+	if (!gb_iyesde) {
+		mlog(ML_ERROR, "unable to get global_bitmap iyesde\n");
 		ret = -EIO;
 		goto out;
 	}
 
-	inode_lock(gb_inode);
+	iyesde_lock(gb_iyesde);
 
-	ret = ocfs2_inode_lock(gb_inode, &gb_bh, 1);
+	ret = ocfs2_iyesde_lock(gb_iyesde, &gb_bh, 1);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out_unlock_gb_mutex;
 	}
 
-	inode_lock(tl_inode);
+	iyesde_lock(tl_iyesde);
 
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
-		mlog_errno(ret);
-		goto out_unlock_tl_inode;
+		mlog_erryes(ret);
+		goto out_unlock_tl_iyesde;
 	}
 
-	new_phys_blkno = ocfs2_clusters_to_blocks(inode->i_sb, *new_phys_cpos);
-	ret = ocfs2_find_victim_alloc_group(inode, new_phys_blkno,
+	new_phys_blkyes = ocfs2_clusters_to_blocks(iyesde->i_sb, *new_phys_cpos);
+	ret = ocfs2_find_victim_alloc_group(iyesde, new_phys_blkyes,
 					    GLOBAL_BITMAP_SYSTEM_INODE,
 					    OCFS2_INVALID_SLOT,
 					    &goal_bit, &gd_bh);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out_commit;
 	}
 
@@ -673,7 +673,7 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 	 * a best-effort attempt by compromising to a threshold
 	 * around the goal.
 	 */
-	ocfs2_probe_alloc_group(inode, gd_bh, &goal_bit, len, move_max_hop,
+	ocfs2_probe_alloc_group(iyesde, gd_bh, &goal_bit, len, move_max_hop,
 				new_phys_cpos);
 	if (!*new_phys_cpos) {
 		ret = -ENOSPC;
@@ -683,46 +683,46 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 	ret = __ocfs2_move_extent(handle, context, cpos, len, phys_cpos,
 				  *new_phys_cpos, ext_flags);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out_commit;
 	}
 
 	gd = (struct ocfs2_group_desc *)gd_bh->b_data;
-	ret = ocfs2_alloc_dinode_update_counts(gb_inode, handle, gb_bh, len,
+	ret = ocfs2_alloc_diyesde_update_counts(gb_iyesde, handle, gb_bh, len,
 					       le16_to_cpu(gd->bg_chain));
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out_commit;
 	}
 
-	ret = ocfs2_block_group_set_bits(handle, gb_inode, gd, gd_bh,
+	ret = ocfs2_block_group_set_bits(handle, gb_iyesde, gd, gd_bh,
 					 goal_bit, len);
 	if (ret) {
-		ocfs2_rollback_alloc_dinode_counts(gb_inode, gb_bh, len,
+		ocfs2_rollback_alloc_diyesde_counts(gb_iyesde, gb_bh, len,
 					       le16_to_cpu(gd->bg_chain));
-		mlog_errno(ret);
+		mlog_erryes(ret);
 	}
 
 	/*
 	 * Here we should write the new page out first if we are
 	 * in write-back mode.
 	 */
-	ret = ocfs2_cow_sync_writeback(inode->i_sb, context->inode, cpos, len);
+	ret = ocfs2_cow_sync_writeback(iyesde->i_sb, context->iyesde, cpos, len);
 	if (ret)
-		mlog_errno(ret);
+		mlog_erryes(ret);
 
 out_commit:
 	ocfs2_commit_trans(osb, handle);
 	brelse(gd_bh);
 
-out_unlock_tl_inode:
-	inode_unlock(tl_inode);
+out_unlock_tl_iyesde:
+	iyesde_unlock(tl_iyesde);
 
-	ocfs2_inode_unlock(gb_inode, 1);
+	ocfs2_iyesde_unlock(gb_iyesde, 1);
 out_unlock_gb_mutex:
-	inode_unlock(gb_inode);
+	iyesde_unlock(gb_iyesde);
 	brelse(gb_bh);
-	iput(gb_inode);
+	iput(gb_iyesde);
 
 out:
 	if (context->meta_ac) {
@@ -773,20 +773,20 @@ static int __ocfs2_move_extents_range(struct buffer_head *di_bh,
 	u32 cpos, phys_cpos, move_start, len_to_move, alloc_size;
 	u32 len_defraged = 0, defrag_thresh = 0, new_phys_cpos = 0;
 
-	struct inode *inode = context->inode;
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+	struct iyesde *iyesde = context->iyesde;
+	struct ocfs2_diyesde *di = (struct ocfs2_diyesde *)di_bh->b_data;
 	struct ocfs2_move_extents *range = context->range;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
-	if ((i_size_read(inode) == 0) || (range->me_len == 0))
+	if ((i_size_read(iyesde) == 0) || (range->me_len == 0))
 		return 0;
 
-	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
+	if (OCFS2_I(iyesde)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		return 0;
 
 	context->refcount_loc = le64_to_cpu(di->i_refcount_loc);
 
-	ocfs2_init_dinode_extent_tree(&context->et, INODE_CACHE(inode), di_bh);
+	ocfs2_init_diyesde_extent_tree(&context->et, INODE_CACHE(iyesde), di_bh);
 	ocfs2_init_dealloc_ctxt(&context->dealloc);
 
 	/*
@@ -799,7 +799,7 @@ static int __ocfs2_move_extents_range(struct buffer_head *di_bh,
 
 	/*
 	 * extents moving happens in unit of clusters, for the sake
-	 * of simplicity, we may ignore two clusters where 'byte_start'
+	 * of simplicity, we may igyesre two clusters where 'byte_start'
 	 * and 'byte_start + len' were within.
 	 */
 	move_start = ocfs2_clusters_for_bytes(osb->sb, range->me_start);
@@ -815,22 +815,22 @@ static int __ocfs2_move_extents_range(struct buffer_head *di_bh,
 		if (defrag_thresh <= 1)
 			goto done;
 	} else
-		new_phys_cpos = ocfs2_blocks_to_clusters(inode->i_sb,
+		new_phys_cpos = ocfs2_blocks_to_clusters(iyesde->i_sb,
 							 range->me_goal);
 
-	mlog(0, "Inode: %llu, start: %llu, len: %llu, cstart: %u, clen: %u, "
+	mlog(0, "Iyesde: %llu, start: %llu, len: %llu, cstart: %u, clen: %u, "
 	     "thresh: %u\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+	     (unsigned long long)OCFS2_I(iyesde)->ip_blkyes,
 	     (unsigned long long)range->me_start,
 	     (unsigned long long)range->me_len,
 	     move_start, len_to_move, defrag_thresh);
 
 	cpos = move_start;
 	while (len_to_move) {
-		ret = ocfs2_get_clusters(inode, cpos, &phys_cpos, &alloc_size,
+		ret = ocfs2_get_clusters(iyesde, cpos, &phys_cpos, &alloc_size,
 					 &flags);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out;
 		}
 
@@ -876,7 +876,7 @@ static int __ocfs2_move_extents_range(struct buffer_head *di_bh,
 		}
 
 		if (ret < 0) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out;
 		}
 
@@ -905,42 +905,42 @@ static int ocfs2_move_extents(struct ocfs2_move_extents_context *context)
 {
 	int status;
 	handle_t *handle;
-	struct inode *inode = context->inode;
-	struct ocfs2_dinode *di;
+	struct iyesde *iyesde = context->iyesde;
+	struct ocfs2_diyesde *di;
 	struct buffer_head *di_bh = NULL;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
 		return -EROFS;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
 	/*
-	 * This prevents concurrent writes from other nodes
+	 * This prevents concurrent writes from other yesdes
 	 */
-	status = ocfs2_rw_lock(inode, 1);
+	status = ocfs2_rw_lock(iyesde, 1);
 	if (status) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto out;
 	}
 
-	status = ocfs2_inode_lock(inode, &di_bh, 1);
+	status = ocfs2_iyesde_lock(iyesde, &di_bh, 1);
 	if (status) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto out_rw_unlock;
 	}
 
 	/*
 	 * rememer ip_xattr_sem also needs to be held if necessary
 	 */
-	down_write(&OCFS2_I(inode)->ip_alloc_sem);
+	down_write(&OCFS2_I(iyesde)->ip_alloc_sem);
 
 	status = __ocfs2_move_extents_range(di_bh, context);
 
-	up_write(&OCFS2_I(inode)->ip_alloc_sem);
+	up_write(&OCFS2_I(iyesde)->ip_alloc_sem);
 	if (status) {
-		mlog_errno(status);
-		goto out_inode_unlock;
+		mlog_erryes(status);
+		goto out_iyesde_unlock;
 	}
 
 	/*
@@ -949,35 +949,35 @@ static int ocfs2_move_extents(struct ocfs2_move_extents_context *context)
 	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
-		mlog_errno(status);
-		goto out_inode_unlock;
+		mlog_erryes(status);
+		goto out_iyesde_unlock;
 	}
 
-	status = ocfs2_journal_access_di(handle, INODE_CACHE(inode), di_bh,
+	status = ocfs2_journal_access_di(handle, INODE_CACHE(iyesde), di_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto out_commit;
 	}
 
-	di = (struct ocfs2_dinode *)di_bh->b_data;
-	inode->i_ctime = current_time(inode);
-	di->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
-	di->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
-	ocfs2_update_inode_fsync_trans(handle, inode, 0);
+	di = (struct ocfs2_diyesde *)di_bh->b_data;
+	iyesde->i_ctime = current_time(iyesde);
+	di->i_ctime = cpu_to_le64(iyesde->i_ctime.tv_sec);
+	di->i_ctime_nsec = cpu_to_le32(iyesde->i_ctime.tv_nsec);
+	ocfs2_update_iyesde_fsync_trans(handle, iyesde, 0);
 
 	ocfs2_journal_dirty(handle, di_bh);
 
 out_commit:
 	ocfs2_commit_trans(osb, handle);
 
-out_inode_unlock:
+out_iyesde_unlock:
 	brelse(di_bh);
-	ocfs2_inode_unlock(inode, 1);
+	ocfs2_iyesde_unlock(iyesde, 1);
 out_rw_unlock:
-	ocfs2_rw_unlock(inode, 1);
+	ocfs2_rw_unlock(iyesde, 1);
 out:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 
 	return status;
 }
@@ -986,7 +986,7 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 {
 	int status;
 
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 	struct ocfs2_move_extents range;
 	struct ocfs2_move_extents_context *context;
 
@@ -997,12 +997,12 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 	if (status)
 		return status;
 
-	if ((!S_ISREG(inode->i_mode)) || !(filp->f_mode & FMODE_WRITE)) {
+	if ((!S_ISREG(iyesde->i_mode)) || !(filp->f_mode & FMODE_WRITE)) {
 		status = -EPERM;
 		goto out_drop;
 	}
 
-	if (inode->i_flags & (S_IMMUTABLE|S_APPEND)) {
+	if (iyesde->i_flags & (S_IMMUTABLE|S_APPEND)) {
 		status = -EPERM;
 		goto out_drop;
 	}
@@ -1010,11 +1010,11 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 	context = kzalloc(sizeof(struct ocfs2_move_extents_context), GFP_NOFS);
 	if (!context) {
 		status = -ENOMEM;
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto out_drop;
 	}
 
-	context->inode = inode;
+	context->iyesde = iyesde;
 	context->file = filp;
 
 	if (copy_from_user(&range, argp, sizeof(range))) {
@@ -1022,13 +1022,13 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 		goto out_free;
 	}
 
-	if (range.me_start > i_size_read(inode)) {
+	if (range.me_start > i_size_read(iyesde)) {
 		status = -EINVAL;
 		goto out_free;
 	}
 
-	if (range.me_start + range.me_len > i_size_read(inode))
-			range.me_len = i_size_read(inode) - range.me_start;
+	if (range.me_start + range.me_len > i_size_read(iyesde))
+			range.me_len = i_size_read(iyesde) - range.me_start;
 
 	context->range = &range;
 
@@ -1042,8 +1042,8 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 		if (!range.me_threshold)
 			range.me_threshold = 1024 * 1024;
 
-		if (range.me_threshold > i_size_read(inode))
-			range.me_threshold = i_size_read(inode);
+		if (range.me_threshold > i_size_read(iyesde))
+			range.me_threshold = i_size_read(iyesde);
 
 		if (range.me_flags & OCFS2_MOVE_EXT_FL_PART_DEFRAG)
 			context->partial = 1;
@@ -1055,14 +1055,14 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 		 * change a bit over time.
 		 */
 
-		status = ocfs2_validate_and_adjust_move_goal(inode, &range);
+		status = ocfs2_validate_and_adjust_move_goal(iyesde, &range);
 		if (status)
 			goto out_copy;
 	}
 
 	status = ocfs2_move_extents(context);
 	if (status)
-		mlog_errno(status);
+		mlog_erryes(status);
 out_copy:
 	/*
 	 * movement/defragmentation may end up being partially completed,

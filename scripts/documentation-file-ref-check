@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Treewide grep for references to files under Documentation, and report
-# non-existing files in stderr.
+# yesn-existing files in stderr.
 
 use warnings;
 use strict;
-use Getopt::Long qw(:config no_auto_abbrev);
+use Getopt::Long qw(:config yes_auto_abbrev);
 
 # NOTE: only add things here when the file was gone, but the text wants
 # to mention a past documentation file, for example, to give credits for
@@ -25,7 +25,7 @@ my $fix = 0;
 my $warn = 0;
 
 if (! -d ".git") {
-	printf "Warning: can't check if file exists, as this is not a git tree";
+	printf "Warning: can't check if file exists, as this is yest a git tree";
 	exit 0;
 }
 
@@ -90,7 +90,7 @@ while (<IN>) {
 	# Skip this script
 	next if ($f eq $scriptname);
 
-	# Ignore the dir where documentation will be built
+	# Igyesre the dir where documentation will be built
 	next if ($ln =~ m,\b(\S*)Documentation/output,);
 
 	if ($ln =~ m,\b(\S*)(Documentation/[A-Za-z0-9\_\.\,\~/\*\[\]\?+-]*)(.*),) {
@@ -101,10 +101,10 @@ while (<IN>) {
 
 		# some file references are like:
 		# /usr/src/linux/Documentation/DMA-{API,mapping}.txt
-		# For now, ignore them
+		# For yesw, igyesre them
 		next if ($extra =~ m/^{/);
 
-		# Remove footnotes at the end like:
+		# Remove footyestes at the end like:
 		# Documentation/devicetree/dt-object-internal.txt[1]
 		$ref =~ s/(txt|rst)\[\d+]$/$1/;
 
@@ -140,7 +140,7 @@ while (<IN>) {
 			next if (grep -e, glob("$path/$ref $path/../$ref $path/$fulref"));
 		}
 
-		# Discard known false-positives
+		# Discard kyeswn false-positives
 		if (defined($false_positives{$f})) {
 			next if ($false_positives{$f} eq $fulref);
 		}
@@ -208,7 +208,7 @@ foreach my $ref (keys %broken_ref) {
 		$f=qx(find $basedir -iname $new) if ($new);
 	}
 
-	# Wild guess: seek for the same name on another place
+	# Wild guess: seek for the same name on ayesther place
 	if (!$f) {
 		$f = qx(find $basedir -iname $new) if ($new);
 	}

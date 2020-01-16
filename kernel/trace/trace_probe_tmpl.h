@@ -3,7 +3,7 @@
  * Traceprobe fetch helper inlines
  */
 
-static nokprobe_inline void
+static yeskprobe_inline void
 fetch_store_raw(unsigned long val, struct fetch_insn *code, void *buf)
 {
 	switch (code->size) {
@@ -25,7 +25,7 @@ fetch_store_raw(unsigned long val, struct fetch_insn *code, void *buf)
 	}
 }
 
-static nokprobe_inline void
+static yeskprobe_inline void
 fetch_apply_bitfield(struct fetch_insn *code, void *buf)
 {
 	switch (code->basesize) {
@@ -56,19 +56,19 @@ fetch_apply_bitfield(struct fetch_insn *code, void *buf)
 static int
 process_fetch_insn(struct fetch_insn *code, struct pt_regs *regs,
 		   void *dest, void *base);
-static nokprobe_inline int fetch_store_strlen(unsigned long addr);
-static nokprobe_inline int
+static yeskprobe_inline int fetch_store_strlen(unsigned long addr);
+static yeskprobe_inline int
 fetch_store_string(unsigned long addr, void *dest, void *base);
-static nokprobe_inline int fetch_store_strlen_user(unsigned long addr);
-static nokprobe_inline int
+static yeskprobe_inline int fetch_store_strlen_user(unsigned long addr);
+static yeskprobe_inline int
 fetch_store_string_user(unsigned long addr, void *dest, void *base);
-static nokprobe_inline int
+static yeskprobe_inline int
 probe_mem_read(void *dest, void *src, size_t size);
-static nokprobe_inline int
+static yeskprobe_inline int
 probe_mem_read_user(void *dest, void *src, size_t size);
 
 /* From the 2nd stage, routine is same */
-static nokprobe_inline int
+static yeskprobe_inline int
 process_fetch_insn_bottom(struct fetch_insn *code, unsigned long val,
 			   void *dest, void *base)
 {
@@ -168,7 +168,7 @@ array:
 }
 
 /* Sum up total data length for dynamic arraies (strings) */
-static nokprobe_inline int
+static yeskprobe_inline int
 __get_data_size(struct trace_probe *tp, struct pt_regs *regs)
 {
 	struct probe_arg *arg;
@@ -187,7 +187,7 @@ __get_data_size(struct trace_probe *tp, struct pt_regs *regs)
 }
 
 /* Store the value of each argument */
-static nokprobe_inline void
+static yeskprobe_inline void
 store_trace_args(void *data, struct trace_probe *tp, struct pt_regs *regs,
 		 int header_size, int maxlen)
 {

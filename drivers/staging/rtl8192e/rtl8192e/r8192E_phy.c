@@ -207,7 +207,7 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	if (priv->rtllib->eRFPowerState != eRfOn && !priv->being_init_adapter)
 		return;
 
-	RT_TRACE(COMP_PHY, "FW RF CTRL is not ready now\n");
+	RT_TRACE(COMP_PHY, "FW RF CTRL is yest ready yesw\n");
 	if (priv->Rf_Mode == RF_OP_By_FW) {
 		if (BitMask != bMask12Bits) {
 			Original_Value = _rtl92e_phy_rf_fw_read(dev, eRFPath,
@@ -785,7 +785,7 @@ static u8 _rtl92e_phy_set_sw_chnl_cmd_array(struct net_device *dev,
 	struct sw_chnl_cmd *pCmd;
 
 	if (CmdTable == NULL) {
-		netdev_err(dev, "%s(): CmdTable cannot be NULL.\n", __func__);
+		netdev_err(dev, "%s(): CmdTable canyest be NULL.\n", __func__);
 		return false;
 	}
 	if (CmdTableIdx >= CmdTableSz) {
@@ -889,7 +889,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 			break;
 
 		default:
-			netdev_warn(dev, "Unknown RF Chip ID\n");
+			netdev_warn(dev, "Unkyeswn RF Chip ID\n");
 			return false;
 		}
 
@@ -992,7 +992,7 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 
 	RT_TRACE(COMP_PHY, "=====>%s()\n", __func__);
 	if (!priv->up) {
-		netdev_err(dev, "%s(): Driver is not initialized\n", __func__);
+		netdev_err(dev, "%s(): Driver is yest initialized\n", __func__);
 		return false;
 	}
 	if (priv->SwChnlInProgress)
@@ -1004,7 +1004,7 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 	case WIRELESS_MODE_N_5G:
 		if (channel <= 14) {
 			netdev_warn(dev,
-				    "Channel %d not available in 802.11a.\n",
+				    "Channel %d yest available in 802.11a.\n",
 				    channel);
 			return false;
 		}
@@ -1012,7 +1012,7 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 	case WIRELESS_MODE_B:
 		if (channel > 14) {
 			netdev_warn(dev,
-				    "Channel %d not available in 802.11b.\n",
+				    "Channel %d yest available in 802.11b.\n",
 				    channel);
 			return false;
 		}
@@ -1021,7 +1021,7 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 	case WIRELESS_MODE_N_24G:
 		if (channel > 14) {
 			netdev_warn(dev,
-				    "Channel %d not available in 802.11g.\n",
+				    "Channel %d yest available in 802.11g.\n",
 				    channel);
 			return false;
 		}
@@ -1165,7 +1165,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		return;
 	}
 	if (!priv->up) {
-		netdev_err(dev, "%s(): Driver is not initialized\n", __func__);
+		netdev_err(dev, "%s(): Driver is yest initialized\n", __func__);
 		return;
 	}
 	regBwOpMode = rtl92e_readb(dev, BW_OPMODE);
@@ -1182,7 +1182,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		break;
 
 	default:
-		netdev_err(dev, "%s(): unknown Bandwidth: %#X\n", __func__,
+		netdev_err(dev, "%s(): unkyeswn Bandwidth: %#X\n", __func__,
 			   priv->CurrentChannelBW);
 		break;
 	}
@@ -1223,7 +1223,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x00100000, 0);
 		break;
 	default:
-		netdev_err(dev, "%s(): unknown Bandwidth: %#X\n", __func__,
+		netdev_err(dev, "%s(): unkyeswn Bandwidth: %#X\n", __func__,
 			   priv->CurrentChannelBW);
 		break;
 
@@ -1244,7 +1244,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		break;
 
 	default:
-		netdev_info(dev, "%s(): Unknown RFChipID: %d\n", __func__,
+		netdev_info(dev, "%s(): Unkyeswn RFChipID: %d\n", __func__,
 			    priv->rf_chip);
 		break;
 	}
@@ -1384,7 +1384,7 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 				rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x1);
 			break;
 		default:
-			RT_TRACE(COMP_SCAN, "Unknown IG Operation.\n");
+			RT_TRACE(COMP_SCAN, "Unkyeswn IG Operation.\n");
 			break;
 		}
 	}
@@ -1541,7 +1541,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 		default:
 			bResult = false;
 			netdev_warn(dev,
-				    "%s(): Unknown state requested: 0x%X.\n",
+				    "%s(): Unkyeswn state requested: 0x%X.\n",
 				    __func__, eRFPowerState);
 			break;
 		}
@@ -1549,7 +1549,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 		break;
 
 	default:
-		netdev_warn(dev, "%s(): Unknown RF type\n", __func__);
+		netdev_warn(dev, "%s(): Unkyeswn RF type\n", __func__);
 		break;
 	}
 
@@ -1561,7 +1561,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 			break;
 
 		default:
-			netdev_warn(dev, "%s(): Unknown RF type\n", __func__);
+			netdev_warn(dev, "%s(): Unkyeswn RF type\n", __func__);
 			break;
 		}
 	}
@@ -1615,7 +1615,7 @@ void rtl92e_scan_op_backup(struct net_device *dev, u8 Operation)
 			break;
 
 		default:
-			RT_TRACE(COMP_SCAN, "Unknown Scan Backup Operation.\n");
+			RT_TRACE(COMP_SCAN, "Unkyeswn Scan Backup Operation.\n");
 			break;
 		}
 	}

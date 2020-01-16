@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliayes Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -43,7 +43,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 
 	if ((err = init_dsp_comm_page(chip))) {
 		dev_err(chip->card->dev,
-			"init_hw - could not initialize DSP comm page\n");
+			"init_hw - could yest initialize DSP comm page\n");
 		return err;
 	}
 
@@ -51,7 +51,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	chip->subdevice_id = subdevice_id;
 	chip->bad_board = true;
 	chip->dsp_code_to_load = FW_INDIGO_IO_DSP;
-	/* Since this card has no ASIC, mark it as loaded so everything
+	/* Since this card has yes ASIC, mark it as loaded so everything
 	   works OK */
 	chip->asic_loaded = true;
 	chip->input_clock_types = ECHO_CLOCK_BIT_INTERNAL;
@@ -79,7 +79,7 @@ static u32 detect_input_clocks(const struct echoaudio *chip)
 
 
 
-/* The IndigoIO has no ASIC. Just do nothing */
+/* The IndigoIO has yes ASIC. Just do yesthing */
 static int load_asic(struct echoaudio *chip)
 {
 	return 0;

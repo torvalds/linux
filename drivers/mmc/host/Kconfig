@@ -110,7 +110,7 @@ config MMC_RICOH_MMC
 	help
 	  This adds a pci quirk to disable Ricoh MMC Controller. This
 	  proprietary controller is unnecessary because the SDHCI driver
-	  supports MMC cards on the SD controller, but if it is not
+	  supports MMC cards on the SD controller, but if it is yest
 	  disabled, it will steal the MMC cards away - rendering them
 	  useless. It is safe to select this even if you don't
 	  have a Ricoh based card reader.
@@ -203,12 +203,12 @@ config MMC_SDHCI_OF_HLWD
 	  If unsure, say N.
 
 config MMC_SDHCI_OF_DWCMSHC
-	tristate "SDHCI OF support for the Synopsys DWC MSHC"
+	tristate "SDHCI OF support for the Syyespsys DWC MSHC"
 	depends on MMC_SDHCI_PLTFM
 	depends on OF
 	depends on COMMON_CLK
 	help
-	  This selects Synopsys DesignWare Cores Mobile Storage Controller
+	  This selects Syyespsys DesignWare Cores Mobile Storage Controller
 	  support.
 	  If you have a controller with this interface, say Y or M here.
 	  If unsure, say N.
@@ -584,7 +584,7 @@ config MMC_SPI
 	  advantage of working on many systems without dedicated MMC/SD/SDIO
 	  controllers.
 
-	  If unsure, or if your system has no SPI master driver, say N.
+	  If unsure, or if your system has yes SPI master driver, say N.
 
 config MMC_S3C
 	tristate "Samsung S3C SD/MMC Card Interface support"
@@ -623,7 +623,7 @@ config MMC_S3C_DMA
 	help
 	  Use DMA to transfer data between memory and the hardare.
 
-	  Currently, the DMA support in this driver seems to not be
+	  Currently, the DMA support in this driver seems to yest be
 	  working properly and needs to be debugged before this
 	  option is useful.
 
@@ -747,68 +747,68 @@ config MMC_CAVIUM_THUNDERX
 	  the module will be called thunderx_mmc.ko.
 
 config MMC_DW
-	tristate "Synopsys DesignWare Memory Card Interface"
+	tristate "Syyespsys DesignWare Memory Card Interface"
 	depends on ARC || ARM || ARM64 || MIPS || COMPILE_TEST
 	help
-	  This selects support for the Synopsys DesignWare Mobile Storage IP
+	  This selects support for the Syyespsys DesignWare Mobile Storage IP
 	  block, this provides host support for SD and MMC interfaces, in both
 	  PIO, internal DMA mode and external DMA mode.
 
 config MMC_DW_PLTFM
-	tristate "Synopsys Designware MCI Support as platform device"
+	tristate "Syyespsys Designware MCI Support as platform device"
 	depends on MMC_DW
 	default y
 	help
 	  This selects the common helper functions support for Host Controller
 	  Interface based platform driver. Please select this option if the IP
 	  is present as a platform device. This is the common interface for the
-	  Synopsys Designware IP.
+	  Syyespsys Designware IP.
 
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say Y.
 
 config MMC_DW_BLUEFIELD
-	tristate "BlueField specific extensions for Synopsys DW Memory Card Interface"
+	tristate "BlueField specific extensions for Syyespsys DW Memory Card Interface"
 	depends on MMC_DW
 	select MMC_DW_PLTFM
 	help
-	  This selects support for Mellanox BlueField SoC specific extensions to
-	  the Synopsys DesignWare Memory Card Interface driver. Select this
-	  option for platforms based on Mellanox BlueField SoC's.
+	  This selects support for Mellayesx BlueField SoC specific extensions to
+	  the Syyespsys DesignWare Memory Card Interface driver. Select this
+	  option for platforms based on Mellayesx BlueField SoC's.
 
 config MMC_DW_EXYNOS
-	tristate "Exynos specific extensions for Synopsys DW Memory Card Interface"
+	tristate "Exyyess specific extensions for Syyespsys DW Memory Card Interface"
 	depends on MMC_DW
 	select MMC_DW_PLTFM
 	help
-	  This selects support for Samsung Exynos SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
-	  for platforms based on Exynos4 and Exynos5 SoC's.
+	  This selects support for Samsung Exyyess SoC specific extensions to the
+	  Syyespsys DesignWare Memory Card Interface driver. Select this option
+	  for platforms based on Exyyess4 and Exyyess5 SoC's.
 
 config MMC_DW_HI3798CV200
-	tristate "Hi3798CV200 specific extensions for Synopsys DW Memory Card Interface"
+	tristate "Hi3798CV200 specific extensions for Syyespsys DW Memory Card Interface"
 	depends on MMC_DW
 	select MMC_DW_PLTFM
 	help
 	  This selects support for HiSilicon Hi3798CV200 SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  Syyespsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on HiSilicon Hi3798CV200 SoC.
 
 config MMC_DW_K3
-	tristate "K3 specific extensions for Synopsys DW Memory Card Interface"
+	tristate "K3 specific extensions for Syyespsys DW Memory Card Interface"
 	depends on MMC_DW
 	select MMC_DW_PLTFM
 	help
 	  This selects support for Hisilicon K3 SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  Syyespsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on Hisilicon K3 SoC's.
 
 config MMC_DW_PCI
-	tristate "Synopsys Designware MCI support on PCI bus"
+	tristate "Syyespsys Designware MCI support on PCI bus"
 	depends on MMC_DW && PCI
 	help
-	  This selects the PCI bus for the Synopsys Designware Mobile Storage IP.
+	  This selects the PCI bus for the Syyespsys Designware Mobile Storage IP.
 	  Select this option if the IP is present on PCI platform.
 
 	  If you have a controller with this interface, say Y or M here.
@@ -816,21 +816,21 @@ config MMC_DW_PCI
 	  If unsure, say N.
 
 config MMC_DW_ROCKCHIP
-	tristate "Rockchip specific extensions for Synopsys DW Memory Card Interface"
+	tristate "Rockchip specific extensions for Syyespsys DW Memory Card Interface"
 	depends on MMC_DW && ARCH_ROCKCHIP
 	select MMC_DW_PLTFM
 	help
 	  This selects support for Rockchip SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  Syyespsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on RK3066, RK3188 and RK3288 SoC's.
 
 config MMC_DW_ZX
-	tristate "ZTE specific extensions for Synopsys DW Memory Card Interface"
+	tristate "ZTE specific extensions for Syyespsys DW Memory Card Interface"
 	depends on MMC_DW && ARCH_ZX
 	select MMC_DW_PLTFM
 	help
 	  This selects support for ZTE SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  Syyespsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on ZX296718 SoC's.
 
 config MMC_SH_MMCIF
@@ -872,7 +872,7 @@ config MMC_VUB300
 	  Download these "Offload Pseudocode" from Elan Digital Systems'
 	  web-site http://www.elandigitalsystems.com/support/downloads.php
 	  and put them in /lib/firmware. Note that without these additional
-	  firmware files the VUB300 chip will still function, but not at
+	  firmware files the VUB300 chip will still function, but yest at
 	  the best obtainable data rate.
 
 	  To compile this mmc host controller driver as a module,
@@ -893,7 +893,7 @@ config MMC_USHC
 	  CSR boards with this device include: USB<>SDIO (M1985v2),
 	  and Ultrasira.
 
-	  Note: These controllers only support SDIO cards and do not
+	  Note: These controllers only support SDIO cards and do yest
 	  support MMC or SD memory cards.
 
 config MMC_WMT
@@ -940,7 +940,7 @@ config MMC_CQHCI
 	depends on HAS_DMA
 	help
 	  This selects the Command Queue Host Controller Interface (CQHCI)
-	  support present in host controllers of Qualcomm Technologies, Inc
+	  support present in host controllers of Qualcomm Techyeslogies, Inc
 	  amongst others.
 	  This controller supports eMMC devices with command queue support.
 
@@ -998,10 +998,10 @@ config MMC_SDHCI_BRCMSTB
 	  If unsure, say Y.
 
 config MMC_SDHCI_XENON
-	tristate "Marvell Xenon eMMC/SD/SDIO SDHCI driver"
+	tristate "Marvell Xeyesn eMMC/SD/SDIO SDHCI driver"
 	depends on MMC_SDHCI_PLTFM
 	help
-	  This selects Marvell Xenon eMMC/SD/SDIO SDHCI.
+	  This selects Marvell Xeyesn eMMC/SD/SDIO SDHCI.
 	  If you have a controller with this interface, say Y or M here.
 	  If unsure, say N.
 

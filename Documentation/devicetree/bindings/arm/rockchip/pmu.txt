@@ -4,7 +4,7 @@ Rockchip power-management-unit:
 The pmu is used to turn off and on different power domains of the SoCs
 This includes the power to the CPU cores.
 
-Required node properties:
+Required yesde properties:
 - compatible value : = "rockchip,rk3066-pmu";
 - reg : physical base address and the size of the registers window
 

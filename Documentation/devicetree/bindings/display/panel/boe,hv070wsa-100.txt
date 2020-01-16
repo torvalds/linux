@@ -8,9 +8,9 @@ Required properties:
 This binding is compatible with the simple-panel binding, which is specified
 in simple-panel.txt in this directory.
 
-The device node can contain one 'port' child node with one child
-'endpoint' node, according to the bindings defined in [1]. This
-node should describe panel's video bus.
+The device yesde can contain one 'port' child yesde with one child
+'endpoint' yesde, according to the bindings defined in [1]. This
+yesde should describe panel's video bus.
 
 [1]: Documentation/devicetree/bindings/media/video-interfaces.txt
 

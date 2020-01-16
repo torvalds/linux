@@ -244,7 +244,7 @@ static int adxrs450_initial_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 	if (t != 0x01)
-		dev_warn(&st->us->dev, "The initial power on response is not correct! Restart without reset?\n");
+		dev_warn(&st->us->dev, "The initial power on response is yest correct! Restart without reset?\n");
 
 	msleep(ADXRS450_STARTUP_DELAY);
 	ret = adxrs450_spi_initial(st, &t, 0);
@@ -256,7 +256,7 @@ static int adxrs450_initial_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 	if (((t & 0xff) | 0x01) != 0xff || ADXRS450_GET_ST(t) != 2) {
-		dev_err(&st->us->dev, "The second response is not correct!\n");
+		dev_err(&st->us->dev, "The second response is yest correct!\n");
 		return -EIO;
 
 	}
@@ -264,7 +264,7 @@ static int adxrs450_initial_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 	if (((t & 0xff) | 0x01) != 0xff || ADXRS450_GET_ST(t) != 2) {
-		dev_err(&st->us->dev, "The third response is not correct!\n");
+		dev_err(&st->us->dev, "The third response is yest correct!\n");
 		return -EIO;
 
 	}
@@ -272,7 +272,7 @@ static int adxrs450_initial_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 	if (data & 0x0fff) {
-		dev_err(&st->us->dev, "The device is not in normal status!\n");
+		dev_err(&st->us->dev, "The device is yest in yesrmal status!\n");
 		return -EINVAL;
 	}
 

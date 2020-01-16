@@ -26,7 +26,7 @@
 #define UNIPHIER_PINCTRL_IECTRL_BASE	0x1d00
 
 struct uniphier_pinctrl_reg_region {
-	struct list_head node;
+	struct list_head yesde;
 	unsigned int base;
 	unsigned int nregs;
 	u32 vals[0];
@@ -132,7 +132,7 @@ static const struct pinctrl_ops uniphier_pctlops = {
 #ifdef CONFIG_DEBUG_FS
 	.pin_dbg_show = uniphier_pctl_pin_dbg_show,
 #endif
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -187,7 +187,7 @@ static int uniphier_conf_get_drvctrl_data(struct pinctrl_dev *pctldev,
 		*strengths = uniphier_conf_drv_strengths_fixed8;
 		break;
 	default:
-		/* drive strength control is not supported for this pin */
+		/* drive strength control is yest supported for this pin */
 		return -EINVAL;
 	}
 
@@ -356,7 +356,7 @@ static int uniphier_conf_pin_bias_set(struct pinctrl_dev *pctldev,
 		if (pull_dir == UNIPHIER_PIN_PULL_UP_FIXED ||
 		    pull_dir == UNIPHIER_PIN_PULL_DOWN_FIXED) {
 			dev_err(pctldev->dev,
-				"can not disable pull register for pin %s\n",
+				"can yest disable pull register for pin %s\n",
 				desc->name);
 			return -EINVAL;
 		}
@@ -372,7 +372,7 @@ static int uniphier_conf_pin_bias_set(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		}
 		if (arg == 0) {
-			dev_err(pctldev->dev, "pull-up can not be total\n");
+			dev_err(pctldev->dev, "pull-up can yest be total\n");
 			return -EINVAL;
 		}
 		break;
@@ -386,7 +386,7 @@ static int uniphier_conf_pin_bias_set(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		}
 		if (arg == 0) {
-			dev_err(pctldev->dev, "pull-down can not be total\n");
+			dev_err(pctldev->dev, "pull-down can yest be total\n");
 			return -EINVAL;
 		}
 		break;
@@ -425,7 +425,7 @@ static int uniphier_conf_pin_drive_set(struct pinctrl_dev *pctldev,
 	ret = uniphier_conf_get_drvctrl_data(pctldev, pin, &reg, &shift,
 					     &mask, &strengths);
 	if (ret) {
-		dev_err(pctldev->dev, "cannot set drive strength for pin %s\n",
+		dev_err(pctldev->dev, "canyest set drive strength for pin %s\n",
 			desc->name);
 		return ret;
 	}
@@ -589,7 +589,7 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 		return ret;
 
 	if (muxval < 0)
-		return 0;	/* dedicated pin; nothing to do for pin-mux */
+		return 0;	/* dedicated pin; yesthing to do for pin-mux */
 
 	if (priv->socdata->caps & UNIPHIER_PINCTRL_CAPS_DBGMUX_SEPARATE) {
 		/*
@@ -702,7 +702,7 @@ static int uniphier_pinctrl_suspend(struct device *dev)
 	struct uniphier_pinctrl_reg_region *r;
 	int ret;
 
-	list_for_each_entry(r, &priv->reg_regions, node) {
+	list_for_each_entry(r, &priv->reg_regions, yesde) {
 		ret = regmap_bulk_read(priv->regmap, r->base, r->vals,
 				       r->nregs);
 		if (ret)
@@ -718,7 +718,7 @@ static int uniphier_pinctrl_resume(struct device *dev)
 	struct uniphier_pinctrl_reg_region *r;
 	int ret;
 
-	list_for_each_entry(r, &priv->reg_regions, node) {
+	list_for_each_entry(r, &priv->reg_regions, yesde) {
 		ret = regmap_bulk_write(priv->regmap, r->base, r->vals,
 					r->nregs);
 		if (ret)
@@ -757,7 +757,7 @@ static int uniphier_pinctrl_add_reg_region(struct device *dev,
 	region->base = base;
 	region->nregs = nregs;
 
-	list_add_tail(&region->node, &priv->reg_regions);
+	list_add_tail(&region->yesde, &priv->reg_regions);
 
 	return 0;
 }
@@ -863,7 +863,7 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 {
 	struct device *dev = &pdev->dev;
 	struct uniphier_pinctrl_priv *priv;
-	struct device_node *parent;
+	struct device_yesde *parent;
 	int ret;
 
 	if (!socdata ||
@@ -878,9 +878,9 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 	if (!priv)
 		return -ENOMEM;
 
-	parent = of_get_parent(dev->of_node);
-	priv->regmap = syscon_node_to_regmap(parent);
-	of_node_put(parent);
+	parent = of_get_parent(dev->of_yesde);
+	priv->regmap = syscon_yesde_to_regmap(parent);
+	of_yesde_put(parent);
 
 	if (IS_ERR(priv->regmap)) {
 		dev_err(dev, "failed to get regmap\n");

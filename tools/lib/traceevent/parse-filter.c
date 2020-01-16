@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/types.h>
 
 #include "event-parse.h"
@@ -255,7 +255,7 @@ static int event_match(struct tep_event *event,
 		!regexec(ereg, event->name, 0, NULL, 0);
 }
 
-static enum tep_errno
+static enum tep_erryes
 find_event(struct tep_handle *tep, struct event_list **events,
 	   char *sys_name, char *event_name)
 {
@@ -269,7 +269,7 @@ find_event(struct tep_handle *tep, struct event_list **events,
 	int i;
 
 	if (!event_name) {
-		/* if no name is given, then swap sys and name */
+		/* if yes name is given, then swap sys and name */
 		event_name = sys_name;
 		sys_name = NULL;
 	}
@@ -333,7 +333,7 @@ static void free_events(struct event_list *events)
 	}
 }
 
-static enum tep_errno
+static enum tep_erryes
 create_arg_item(struct tep_event *event, const char *token,
 		enum tep_event_type type, struct tep_filter_arg **parg, char *error_str)
 {
@@ -377,7 +377,7 @@ create_arg_item(struct tep_event *event, const char *token,
 			} else if (strcmp(token, CPU) == 0) {
 				field = &cpu;
 			} else {
-				/* not a field, Make it false */
+				/* yest a field, Make it false */
 				arg->type = TEP_FILTER_ARG_BOOLEAN;
 				arg->boolean.value = TEP_FILTER_FALSE;
 				break;
@@ -441,7 +441,7 @@ create_arg_cmp(enum tep_filter_cmp_type ctype)
 	return arg;
 }
 
-static enum tep_errno
+static enum tep_erryes
 add_right(struct tep_filter_arg *op, struct tep_filter_arg *arg, char *error_str)
 {
 	struct tep_filter_arg *left;
@@ -486,7 +486,7 @@ add_right(struct tep_filter_arg *op, struct tep_filter_arg *arg, char *error_str
 			/*
 			 * A char should be converted to number if
 			 * the string is 1 byte, and the compare
-			 * is not a REGEX.
+			 * is yest a REGEX.
 			 */
 			if (strlen(arg->value.str) == 1 &&
 			    op->num.type != TEP_FILTER_CMP_REGEX &&
@@ -506,7 +506,7 @@ add_right(struct tep_filter_arg *op, struct tep_filter_arg *arg, char *error_str
 			memset(op, 0, sizeof(*op));
 
 			/*
-			 * If left arg was a field not found then
+			 * If left arg was a field yest found then
 			 * NULL the entire op.
 			 */
 			if (left->type == TEP_FILTER_ARG_BOOLEAN) {
@@ -538,7 +538,7 @@ add_right(struct tep_filter_arg *op, struct tep_filter_arg *arg, char *error_str
 				ret = regcomp(&op->str.reg, str, REG_ICASE|REG_NOSUB);
 				if (ret) {
 					show_error(error_str,
-						   "RegEx '%s' did not compute",
+						   "RegEx '%s' did yest compute",
 						   str);
 					return TEP_ERRNO__INVALID_REGEX;
 				}
@@ -568,7 +568,7 @@ add_right(struct tep_filter_arg *op, struct tep_filter_arg *arg, char *error_str
 			/* Null terminate this buffer */
 			op->str.buffer[op->str.field->size] = 0;
 
-			/* We no longer have left or right args */
+			/* We yes longer have left or right args */
 			free_arg(arg);
 			free_arg(left);
 
@@ -581,7 +581,7 @@ add_right(struct tep_filter_arg *op, struct tep_filter_arg *arg, char *error_str
 			case TEP_FILTER_CMP_REGEX:
 			case TEP_FILTER_CMP_NOT_REGEX:
 				show_error(error_str,
-					   "Op not allowed with integers");
+					   "Op yest allowed with integers");
 				return TEP_ERRNO__ILLEGAL_INTEGER_CMP;
 
 			default:
@@ -616,7 +616,7 @@ rotate_op_right(struct tep_filter_arg *a, struct tep_filter_arg *b)
 	return arg;
 }
 
-static enum tep_errno add_left(struct tep_filter_arg *op, struct tep_filter_arg *arg)
+static enum tep_erryes add_left(struct tep_filter_arg *op, struct tep_filter_arg *arg)
 {
 	switch (op->type) {
 	case TEP_FILTER_ARG_EXP:
@@ -738,7 +738,7 @@ static int check_op_done(struct tep_filter_arg *arg)
 		return 1;
 
 	case TEP_FILTER_ARG_BOOLEAN:
-		/* field not found, is ok */
+		/* field yest found, is ok */
 		return 1;
 
 	default:
@@ -752,7 +752,7 @@ enum filter_vals {
 	FILTER_VAL_TRUE,
 };
 
-static enum tep_errno
+static enum tep_erryes
 reparent_op_arg(struct tep_filter_arg *parent, struct tep_filter_arg *old_child,
 		struct tep_filter_arg *arg, char *error_str)
 {
@@ -761,7 +761,7 @@ reparent_op_arg(struct tep_filter_arg *parent, struct tep_filter_arg *old_child,
 
 	if (parent->type != TEP_FILTER_ARG_OP &&
 	    arg->type != TEP_FILTER_ARG_OP) {
-		show_error(error_str, "can not reparent other than OP");
+		show_error(error_str, "can yest reparent other than OP");
 		return TEP_ERRNO__REPARENT_NOT_OP;
 	}
 
@@ -804,7 +804,7 @@ reparent_op_arg(struct tep_filter_arg *parent, struct tep_filter_arg *old_child,
 	return 0;
 }
 
-/* Returns either filter_vals (success) or tep_errno (failfure) */
+/* Returns either filter_vals (success) or tep_erryes (failfure) */
 static int test_arg(struct tep_filter_arg *parent, struct tep_filter_arg *arg,
 		    char *error_str)
 {
@@ -904,7 +904,7 @@ static int test_arg(struct tep_filter_arg *parent, struct tep_filter_arg *arg,
 	return FILTER_VAL_NORM;
 }
 
-/* Remove any unknown event fields */
+/* Remove any unkyeswn event fields */
 static int collapse_tree(struct tep_filter_arg *arg,
 			 struct tep_filter_arg **arg_collapsed, char *error_str)
 {
@@ -939,9 +939,9 @@ static int collapse_tree(struct tep_filter_arg *arg,
 	return ret;
 }
 
-static enum tep_errno
+static enum tep_erryes
 process_filter(struct tep_event *event, struct tep_filter_arg **parg,
-	       char *error_str, int not)
+	       char *error_str, int yest)
 {
 	enum tep_event_type type;
 	char *token = NULL;
@@ -953,7 +953,7 @@ process_filter(struct tep_event *event, struct tep_filter_arg **parg,
 	enum tep_filter_op_type btype;
 	enum tep_filter_exp_type etype;
 	enum tep_filter_cmp_type ctype;
-	enum tep_errno ret;
+	enum tep_erryes ret;
 
 	*parg = NULL;
 
@@ -975,7 +975,7 @@ process_filter(struct tep_event *event, struct tep_filter_arg **parg,
 					goto fail;
 				left_item = NULL;
 				/* Not's only one one expression */
-				if (not) {
+				if (yest) {
 					arg = NULL;
 					if (current_op)
 						goto fail_syntax;
@@ -998,13 +998,13 @@ process_filter(struct tep_event *event, struct tep_filter_arg **parg,
 			if (*token == '(') {
 				if (left_item) {
 					show_error(error_str,
-						   "Open paren can not come after item");
+						   "Open paren can yest come after item");
 					ret = TEP_ERRNO__INVALID_PAREN;
 					goto fail;
 				}
 				if (current_exp) {
 					show_error(error_str,
-						   "Open paren can not come after expression");
+						   "Open paren can yest come after expression");
 					ret = TEP_ERRNO__INVALID_PAREN;
 					goto fail;
 				}
@@ -1020,8 +1020,8 @@ process_filter(struct tep_event *event, struct tep_filter_arg **parg,
 				}
 				ret = 0;
 
-				/* A not wants just one expression */
-				if (not) {
+				/* A yest wants just one expression */
+				if (yest) {
 					if (current_op)
 						goto fail_syntax;
 					*parg = arg;
@@ -1077,7 +1077,7 @@ process_filter(struct tep_event *event, struct tep_filter_arg **parg,
 				break;
 			case OP_NONE:
 				show_error(error_str,
-					   "Unknown op token %s", token);
+					   "Unkyeswn op token %s", token);
 				ret = TEP_ERRNO__UNKNOWN_TOKEN;
 				goto fail;
 			}
@@ -1179,7 +1179,7 @@ process_filter(struct tep_event *event, struct tep_filter_arg **parg,
 	return ret;
 }
 
-static enum tep_errno
+static enum tep_erryes
 process_event(struct tep_event *event, const char *filter_str,
 	      struct tep_filter_arg **parg, char *error_str)
 {
@@ -1204,13 +1204,13 @@ process_event(struct tep_event *event, const char *filter_str,
 	return 0;
 }
 
-static enum tep_errno
+static enum tep_erryes
 filter_event(struct tep_event_filter *filter, struct tep_event *event,
 	     const char *filter_str, char *error_str)
 {
 	struct tep_filter_type *filter_type;
 	struct tep_filter_arg *arg;
-	enum tep_errno ret;
+	enum tep_erryes ret;
 
 	if (filter_str) {
 		ret = process_event(event, filter_str, &arg, error_str);
@@ -1254,7 +1254,7 @@ static void filter_init_error_buf(struct tep_event_filter *filter)
  * negative error code.  Use tep_filter_strerror() to see
  * actual error message in case of error.
  */
-enum tep_errno tep_filter_add_filter_str(struct tep_event_filter *filter,
+enum tep_erryes tep_filter_add_filter_str(struct tep_event_filter *filter,
 					 const char *filter_str)
 {
 	struct tep_handle *tep = filter->tep;
@@ -1266,7 +1266,7 @@ enum tep_errno tep_filter_add_filter_str(struct tep_event_filter *filter,
 	char *event_name = NULL;
 	char *sys_name = NULL;
 	char *sp;
-	enum tep_errno rtn = 0; /* TEP_ERRNO__SUCCESS */
+	enum tep_erryes rtn = 0; /* TEP_ERRNO__SUCCESS */
 	int len;
 	int ret;
 
@@ -1363,7 +1363,7 @@ static void free_filter_type(struct tep_filter_type *filter_type)
  *
  * Returns 0 if message was filled successfully, -1 if error
  */
-int tep_filter_strerror(struct tep_event_filter *filter, enum tep_errno err,
+int tep_filter_strerror(struct tep_event_filter *filter, enum tep_erryes err,
 			char *buf, size_t buflen)
 {
 	if (err <= __TEP_ERRNO__START || err >= __TEP_ERRNO__END)
@@ -1389,7 +1389,7 @@ int tep_filter_strerror(struct tep_event_filter *filter, enum tep_errno err,
  * from the @filter.
  *
  * Returns 1: if an event was removed
- *   0: if the event was not found
+ *   0: if the event was yest found
  */
 int tep_filter_remove_event(struct tep_event_filter *filter,
 			    int event_id)
@@ -1504,11 +1504,11 @@ static int copy_filter_type(struct tep_event_filter *filter,
 }
 
 /**
- * tep_filter_copy - copy a filter using another filter
+ * tep_filter_copy - copy a filter using ayesther filter
  * @dest - the filter to copy to
  * @source - the filter to copy from
  *
- * Returns 0 on success and -1 if not all filters were copied
+ * Returns 0 on success and -1 if yest all filters were copied
  */
 int tep_filter_copy(struct tep_event_filter *dest, struct tep_event_filter *source)
 {
@@ -1525,7 +1525,7 @@ int tep_filter_copy(struct tep_event_filter *dest, struct tep_event_filter *sour
 }
 
 static int test_filter(struct tep_event *event, struct tep_filter_arg *arg,
-		       struct tep_record *record, enum tep_errno *err);
+		       struct tep_record *record, enum tep_erryes *err);
 
 static const char *
 get_comm(struct tep_event *event, struct tep_record *record)
@@ -1576,11 +1576,11 @@ get_value(struct tep_event *event,
 
 static unsigned long long
 get_arg_value(struct tep_event *event, struct tep_filter_arg *arg,
-	      struct tep_record *record, enum tep_errno *err);
+	      struct tep_record *record, enum tep_erryes *err);
 
 static unsigned long long
 get_exp_value(struct tep_event *event, struct tep_filter_arg *arg,
-	      struct tep_record *record, enum tep_errno *err)
+	      struct tep_record *record, enum tep_erryes *err)
 {
 	unsigned long long lval, rval;
 
@@ -1589,7 +1589,7 @@ get_exp_value(struct tep_event *event, struct tep_filter_arg *arg,
 
 	if (*err) {
 		/*
-		 * There was an error, no need to process anymore.
+		 * There was an error, yes need to process anymore.
 		 */
 		return 0;
 	}
@@ -1635,7 +1635,7 @@ get_exp_value(struct tep_event *event, struct tep_filter_arg *arg,
 
 static unsigned long long
 get_arg_value(struct tep_event *event, struct tep_filter_arg *arg,
-	      struct tep_record *record, enum tep_errno *err)
+	      struct tep_record *record, enum tep_erryes *err)
 {
 	switch (arg->type) {
 	case TEP_FILTER_ARG_FIELD:
@@ -1659,7 +1659,7 @@ get_arg_value(struct tep_event *event, struct tep_filter_arg *arg,
 }
 
 static int test_num(struct tep_event *event, struct tep_filter_arg *arg,
-		    struct tep_record *record, enum tep_errno *err)
+		    struct tep_record *record, enum tep_erryes *err)
 {
 	unsigned long long lval, rval;
 
@@ -1668,7 +1668,7 @@ static int test_num(struct tep_event *event, struct tep_filter_arg *arg,
 
 	if (*err) {
 		/*
-		 * There was an error, no need to process anymore.
+		 * There was an error, yes need to process anymore.
 		 */
 		return 0;
 	}
@@ -1708,7 +1708,7 @@ static const char *get_field_str(struct tep_filter_arg *arg, struct tep_record *
 	unsigned int size;
 	char hex[64];
 
-	/* If the field is not a string convert it */
+	/* If the field is yest a string convert it */
 	if (arg->str.field->flags & TEP_FIELD_IS_STRING) {
 		val = record->data + arg->str.field->offset;
 		size = arg->str.field->size;
@@ -1750,7 +1750,7 @@ static const char *get_field_str(struct tep_filter_arg *arg, struct tep_record *
 }
 
 static int test_str(struct tep_event *event, struct tep_filter_arg *arg,
-		    struct tep_record *record, enum tep_errno *err)
+		    struct tep_record *record, enum tep_erryes *err)
 {
 	const char *val;
 
@@ -1781,7 +1781,7 @@ static int test_str(struct tep_event *event, struct tep_filter_arg *arg,
 }
 
 static int test_op(struct tep_event *event, struct tep_filter_arg *arg,
-		   struct tep_record *record, enum tep_errno *err)
+		   struct tep_record *record, enum tep_erryes *err)
 {
 	switch (arg->op.type) {
 	case TEP_FILTER_OP_AND:
@@ -1803,11 +1803,11 @@ static int test_op(struct tep_event *event, struct tep_filter_arg *arg,
 }
 
 static int test_filter(struct tep_event *event, struct tep_filter_arg *arg,
-		       struct tep_record *record, enum tep_errno *err)
+		       struct tep_record *record, enum tep_erryes *err)
 {
 	if (*err) {
 		/*
-		 * There was an error, no need to process anymore.
+		 * There was an error, yes need to process anymore.
 		 */
 		return 0;
 	}
@@ -1831,7 +1831,7 @@ static int test_filter(struct tep_event *event, struct tep_filter_arg *arg,
 	case TEP_FILTER_ARG_FIELD:
 		/*
 		 * Expressions, fields and values evaluate
-		 * to true if they return non zero
+		 * to true if they return yesn zero
 		 */
 		return !!get_arg_value(event, arg, record, err);
 
@@ -1869,19 +1869,19 @@ int tep_event_filtered(struct tep_event_filter *filter, int event_id)
  *
  * Returns: match result or error code (prefixed with TEP_ERRNO__)
  * FILTER_MATCH - filter found for event and @record matches
- * FILTER_MISS  - filter found for event and @record does not match
- * FILTER_NOT_FOUND - no filter found for @record's event
- * NO_FILTER - if no filters exist
+ * FILTER_MISS  - filter found for event and @record does yest match
+ * FILTER_NOT_FOUND - yes filter found for @record's event
+ * NO_FILTER - if yes filters exist
  * otherwise - error occurred during test
  */
-enum tep_errno tep_filter_match(struct tep_event_filter *filter,
+enum tep_erryes tep_filter_match(struct tep_event_filter *filter,
 				struct tep_record *record)
 {
 	struct tep_handle *tep = filter->tep;
 	struct tep_filter_type *filter_type;
 	int event_id;
 	int ret;
-	enum tep_errno err = 0;
+	enum tep_erryes err = 0;
 
 	filter_init_error_buf(filter);
 
@@ -2198,7 +2198,7 @@ static char *arg_to_str(struct tep_event_filter *filter, struct tep_filter_arg *
  *
  * Returns a string that displays the filter contents.
  *  This string must be freed with free(str).
- *  NULL is returned if no filter is found or allocation failed.
+ *  NULL is returned if yes filter is found or allocation failed.
  */
 char *
 tep_filter_make_string(struct tep_event_filter *filter, int event_id)
@@ -2223,7 +2223,7 @@ tep_filter_make_string(struct tep_event_filter *filter, int event_id)
  *
  * Returns:
  *  1 if the two filters hold the same content.
- *  0 if they do not.
+ *  0 if they do yest.
  */
 int tep_filter_compare(struct tep_event_filter *filter1, struct tep_event_filter *filter2)
 {

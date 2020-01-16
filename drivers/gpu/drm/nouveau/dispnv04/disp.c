@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,12 +24,12 @@
 
 #include <drm/drm_crtc_helper.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_reg.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_reg.h"
 #include "hw.h"
-#include "nouveau_encoder.h"
-#include "nouveau_connector.h"
-#include "nouveau_bo.h"
+#include "yesuveau_encoder.h"
+#include "yesuveau_connector.h"
+#include "yesuveau_bo.h"
 
 #include <nvif/if0004.h>
 
@@ -40,7 +40,7 @@ nv04_display_fini(struct drm_device *dev, bool suspend)
 	struct drm_crtc *crtc;
 
 	/* Disable flip completion events. */
-	nvif_notify_put(&disp->flip);
+	nvif_yestify_put(&disp->flip);
 
 	/* Disable vblank interrupts. */
 	NVWriteCRTC(dev, 0, NV_PCRTC_INTR_EN_0, 0);
@@ -52,21 +52,21 @@ nv04_display_fini(struct drm_device *dev, bool suspend)
 
 	/* Un-pin FB and cursors so they'll be evicted to system memory. */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_framebuffer *nouveau_fb;
+		struct yesuveau_framebuffer *yesuveau_fb;
 
-		nouveau_fb = nouveau_framebuffer(crtc->primary->fb);
-		if (!nouveau_fb || !nouveau_fb->nvbo)
+		yesuveau_fb = yesuveau_framebuffer(crtc->primary->fb);
+		if (!yesuveau_fb || !yesuveau_fb->nvbo)
 			continue;
 
-		nouveau_bo_unpin(nouveau_fb->nvbo);
+		yesuveau_bo_unpin(yesuveau_fb->nvbo);
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 		if (nv_crtc->cursor.nvbo) {
 			if (nv_crtc->cursor.set_offset)
-				nouveau_bo_unmap(nv_crtc->cursor.nvbo);
-			nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+				yesuveau_bo_unmap(nv_crtc->cursor.nvbo);
+			yesuveau_bo_unpin(nv_crtc->cursor.nvbo);
 		}
 	}
 }
@@ -75,21 +75,21 @@ static int
 nv04_display_init(struct drm_device *dev, bool resume, bool runtime)
 {
 	struct nv04_display *disp = nv04_display(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_encoder *encoder;
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
+	struct yesuveau_encoder *encoder;
 	struct drm_crtc *crtc;
 	int ret;
 
 	/* meh.. modeset apparently doesn't setup all the regs and depends
-	 * on pre-existing state, for now load the state of the card *before*
-	 * nouveau was loaded, and then do a modeset.
+	 * on pre-existing state, for yesw load the state of the card *before*
+	 * yesuveau was loaded, and then do a modeset.
 	 *
-	 * best thing to do probably is to make save/restore routines not
+	 * best thing to do probably is to make save/restore routines yest
 	 * save/restore "pre-load" state, but more general so we can save
 	 * on suspend too.
 	 */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 		nv_crtc->save(&nv_crtc->base);
 	}
 
@@ -97,39 +97,39 @@ nv04_display_init(struct drm_device *dev, bool resume, bool runtime)
 		encoder->enc_save(&encoder->base.base);
 
 	/* Enable flip completion events. */
-	nvif_notify_get(&disp->flip);
+	nvif_yestify_get(&disp->flip);
 
 	if (!resume)
 		return 0;
 
 	/* Re-pin FB/cursors. */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_framebuffer *nouveau_fb;
+		struct yesuveau_framebuffer *yesuveau_fb;
 
-		nouveau_fb = nouveau_framebuffer(crtc->primary->fb);
-		if (!nouveau_fb || !nouveau_fb->nvbo)
+		yesuveau_fb = yesuveau_framebuffer(crtc->primary->fb);
+		if (!yesuveau_fb || !yesuveau_fb->nvbo)
 			continue;
 
-		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM, true);
+		ret = yesuveau_bo_pin(yesuveau_fb->nvbo, TTM_PL_FLAG_VRAM, true);
 		if (ret)
-			NV_ERROR(drm, "Could not pin framebuffer\n");
+			NV_ERROR(drm, "Could yest pin framebuffer\n");
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 		if (!nv_crtc->cursor.nvbo)
 			continue;
 
-		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, true);
+		ret = yesuveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, true);
 		if (!ret && nv_crtc->cursor.set_offset)
-			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
+			ret = yesuveau_bo_map(nv_crtc->cursor.nvbo);
 		if (ret)
-			NV_ERROR(drm, "Could not pin/map cursor.\n");
+			NV_ERROR(drm, "Could yest pin/map cursor.\n");
 	}
 
 	/* Force CLUT to get re-loaded during modeset. */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 
 		nv_crtc->lut.depth = 0;
 	}
@@ -145,7 +145,7 @@ nv04_display_init(struct drm_device *dev, bool resume, bool runtime)
 	drm_helper_resume_force_mode(dev);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		struct yesuveau_crtc *nv_crtc = yesuveau_crtc(crtc);
 
 		if (!nv_crtc->cursor.nvbo)
 			continue;
@@ -163,9 +163,9 @@ static void
 nv04_display_destroy(struct drm_device *dev)
 {
 	struct nv04_display *disp = nv04_display(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_encoder *encoder;
-	struct nouveau_crtc *nv_crtc;
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
+	struct yesuveau_encoder *encoder;
+	struct yesuveau_crtc *nv_crtc;
 
 	/* Restore state */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.base.head)
@@ -174,11 +174,11 @@ nv04_display_destroy(struct drm_device *dev)
 	list_for_each_entry(nv_crtc, &dev->mode_config.crtc_list, base.head)
 		nv_crtc->restore(&nv_crtc->base);
 
-	nouveau_hw_save_vga_fonts(dev, 0);
+	yesuveau_hw_save_vga_fonts(dev, 0);
 
-	nvif_notify_fini(&disp->flip);
+	nvif_yestify_fini(&disp->flip);
 
-	nouveau_display(dev)->priv = NULL;
+	yesuveau_display(dev)->priv = NULL;
 	kfree(disp);
 
 	nvif_object_unmap(&drm->client.device.object);
@@ -187,13 +187,13 @@ nv04_display_destroy(struct drm_device *dev)
 int
 nv04_display_create(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *ct;
 	struct drm_encoder *encoder;
-	struct nouveau_encoder *nv_encoder;
-	struct nouveau_crtc *crtc;
+	struct yesuveau_encoder *nv_encoder;
+	struct yesuveau_crtc *crtc;
 	struct nv04_display *disp;
 	int i, ret;
 
@@ -203,22 +203,22 @@ nv04_display_create(struct drm_device *dev)
 
 	nvif_object_map(&drm->client.device.object, NULL, 0);
 
-	nouveau_display(dev)->priv = disp;
-	nouveau_display(dev)->dtor = nv04_display_destroy;
-	nouveau_display(dev)->init = nv04_display_init;
-	nouveau_display(dev)->fini = nv04_display_fini;
+	yesuveau_display(dev)->priv = disp;
+	yesuveau_display(dev)->dtor = nv04_display_destroy;
+	yesuveau_display(dev)->init = nv04_display_init;
+	yesuveau_display(dev)->fini = nv04_display_fini;
 
 	/* Pre-nv50 doesn't support atomic, so don't expose the ioctls */
 	dev->driver_features &= ~DRIVER_ATOMIC;
 
 	/* Request page flip completion event. */
 	if (drm->nvsw.client) {
-		nvif_notify_init(&drm->nvsw, nv04_flip_complete,
+		nvif_yestify_init(&drm->nvsw, nv04_flip_complete,
 				 false, NV04_NVSW_NTFY_UEVENT,
 				 NULL, 0, 0, &disp->flip);
 	}
 
-	nouveau_hw_save_vga_fonts(dev, 1);
+	yesuveau_hw_save_vga_fonts(dev, 1);
 
 	nv04_crtc_create(dev, 0);
 	if (nv_two_heads(dev))
@@ -227,7 +227,7 @@ nv04_display_create(struct drm_device *dev)
 	for (i = 0; i < dcb->entries; i++) {
 		struct dcb_output *dcbent = &dcb->entry[i];
 
-		connector = nouveau_connector_create(dev, dcbent);
+		connector = yesuveau_connector_create(dev, dcbent);
 		if (IS_ERR(connector))
 			continue;
 
@@ -246,7 +246,7 @@ nv04_display_create(struct drm_device *dev)
 				ret = nv04_tv_create(connector, dcbent);
 			break;
 		default:
-			NV_WARN(drm, "DCB type %d not known\n", dcbent->type);
+			NV_WARN(drm, "DCB type %d yest kyeswn\n", dcbent->type);
 			continue;
 		}
 
@@ -257,14 +257,14 @@ nv04_display_create(struct drm_device *dev)
 	list_for_each_entry_safe(connector, ct,
 				 &dev->mode_config.connector_list, head) {
 		if (!connector->possible_encoders) {
-			NV_WARN(drm, "%s has no encoders, removing\n",
+			NV_WARN(drm, "%s has yes encoders, removing\n",
 				connector->name);
 			connector->funcs->destroy(connector);
 		}
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+		struct yesuveau_encoder *nv_encoder = yesuveau_encoder(encoder);
 		struct nvkm_i2c_bus *bus =
 			nvkm_i2c_bus_find(i2c, nv_encoder->dcb->i2c_index);
 		nv_encoder->i2c = bus ? &bus->i2c : NULL;
@@ -277,7 +277,7 @@ nv04_display_create(struct drm_device *dev)
 	list_for_each_entry(nv_encoder, &dev->mode_config.encoder_list, base.base.head)
 		nv_encoder->enc_save(&nv_encoder->base.base);
 
-	nouveau_overlay_init(dev);
+	yesuveau_overlay_init(dev);
 
 	return 0;
 }

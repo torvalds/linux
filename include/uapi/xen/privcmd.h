@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR MIT) */
 /******************************************************************************
  * privcmd.h
  *
@@ -19,7 +19,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -46,7 +46,7 @@ struct privcmd_hypercall {
 struct privcmd_mmap_entry {
 	__u64 va;
 	/*
-	 * This should be a GFN. It's not possible to change the name because
+	 * This should be a GFN. It's yest possible to change the name because
 	 * it's exposed to the user-space.
 	 */
 	__u64 mfn;
@@ -107,9 +107,9 @@ struct privcmd_mmap_resource {
  * @arg: &struct privcmd_mmapbatch_v2
  * Return: 0 on success (i.e., arg->err contains valid error codes for
  * each frame).  On an error other than a failed frame remap, -1 is
- * returned and errno is set to EINVAL, EFAULT etc.  As an exception,
+ * returned and erryes is set to EINVAL, EFAULT etc.  As an exception,
  * if the operation was otherwise successful but any frame failed with
- * -ENOENT, then -1 is returned and errno is set to ENOENT.
+ * -ENOENT, then -1 is returned and erryes is set to ENOENT.
  */
 #define IOCTL_PRIVCMD_HYPERCALL					\
 	_IOC(_IOC_NONE, 'P', 0, sizeof(struct privcmd_hypercall))

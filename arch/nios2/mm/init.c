@@ -15,7 +15,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -64,7 +64,7 @@ void __init paging_init(void)
 
 void __init mem_init(void)
 {
-	unsigned long end_mem   = memory_end; /* this must not include
+	unsigned long end_mem   = memory_end; /* this must yest include
 						kernel stack at top */
 
 	pr_debug("mem_init: start=%lx, end=%lx\n", memory_start, memory_end);

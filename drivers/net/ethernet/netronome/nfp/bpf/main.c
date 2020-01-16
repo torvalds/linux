@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <net/pkt_cls.h>
 
@@ -120,7 +120,7 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 		return -EOPNOTSUPP;
 	if (!nfp_net_ebpf_capable(nn)) {
 		NL_SET_ERR_MSG_MOD(cls_bpf->common.extack,
-				   "NFP firmware does not support eBPF offload");
+				   "NFP firmware does yest support eBPF offload");
 		return -EOPNOTSUPP;
 	}
 	if (cls_bpf->common.protocol != htons(ETH_P_ALL)) {
@@ -133,7 +133,7 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	if (!cls_bpf->exts_integrated ||
 	    tcf_exts_has_actions(cls_bpf->exts)) {
 		NL_SET_ERR_MSG_MOD(cls_bpf->common.extack,
-				   "only direct action with no legacy actions supported");
+				   "only direct action with yes legacy actions supported");
 		return -EOPNOTSUPP;
 	}
 
@@ -189,7 +189,7 @@ nfp_bpf_check_mtu(struct nfp_app *app, struct net_device *netdev, int new_mtu)
 
 	max_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
 	if (new_mtu > max_mtu) {
-		nn_info(nn, "BPF offload active, MTU over %u not supported\n",
+		nn_info(nn, "BPF offload active, MTU over %u yest supported\n",
 			max_mtu);
 		return -EBUSY;
 	}
@@ -389,7 +389,7 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 				goto err_release_free;
 			break;
 		default:
-			nfp_dbg(cpp, "unknown BPF capability: %d\n", type);
+			nfp_dbg(cpp, "unkyeswn BPF capability: %d\n", type);
 			break;
 		}
 	}

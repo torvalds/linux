@@ -5,7 +5,7 @@
 /*
  * Most CPUs support enhanced REP MOVSB/STOSB instructions. It is
  * recommended to use this when possible and we do use them by default.
- * If enhanced REP MOVSB/STOSB is not available, try to use fast string.
+ * If enhanced REP MOVSB/STOSB is yest available, try to use fast string.
  * Otherwise, use original.
  */
 
@@ -38,7 +38,7 @@ SYM_FUNC_START(clear_page_orig)
 	PUT(7)
 	leaq	64(%rdi),%rdi
 	jnz	.Lloop
-	nop
+	yesp
 	ret
 SYM_FUNC_END(clear_page_orig)
 EXPORT_SYMBOL_GPL(clear_page_orig)

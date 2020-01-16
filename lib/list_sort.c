@@ -7,15 +7,15 @@
 #include <linux/list_sort.h>
 #include <linux/list.h>
 
-typedef int __attribute__((nonnull(2,3))) (*cmp_func)(void *,
+typedef int __attribute__((yesnnull(2,3))) (*cmp_func)(void *,
 		struct list_head const *, struct list_head const *);
 
 /*
  * Returns a list organized in an intermediate format suited
- * to chaining of merge() calls: null-terminated, no reserved or
- * sentinel head node, "prev" links not maintained.
+ * to chaining of merge() calls: null-terminated, yes reserved or
+ * sentinel head yesde, "prev" links yest maintained.
  */
-__attribute__((nonnull(2,3,4)))
+__attribute__((yesnnull(2,3,4)))
 static struct list_head *merge(void *priv, cmp_func cmp,
 				struct list_head *a, struct list_head *b)
 {
@@ -51,7 +51,7 @@ static struct list_head *merge(void *priv, cmp_func cmp,
  * prev-link restoration pass, or maintaining the prev links
  * throughout.
  */
-__attribute__((nonnull(2,3,4,5)))
+__attribute__((yesnnull(2,3,4,5)))
 static void merge_final(void *priv, cmp_func cmp, struct list_head *head,
 			struct list_head *a, struct list_head *b)
 {
@@ -85,7 +85,7 @@ static void merge_final(void *priv, cmp_func cmp, struct list_head *head,
 		/*
 		 * If the merge is highly unbalanced (e.g. the input is
 		 * already sorted), this loop may run many iterations.
-		 * Continue callbacks to the client even though no
+		 * Continue callbacks to the client even though yes
 		 * element comparison is needed, so the client's cmp()
 		 * routine can invoke cond_resched() periodically.
 		 */
@@ -111,7 +111,7 @@ static void merge_final(void *priv, cmp_func cmp, struct list_head *head,
  * @b ("@a > @b" if you want an ascending sort), and <= 0 if @a should
  * sort before @b *or* their original order should be preserved.  It is
  * always called with the element that came first in the input in @a,
- * and list_sort is a stable sort, so it is not necessary to distinguish
+ * and list_sort is a stable sort, so it is yest necessary to distinguish
  * the @a < @b and @a == @b cases.
  *
  * This is compatible with two styles of @cmp function:
@@ -159,11 +159,11 @@ static void merge_final(void *priv, cmp_func cmp, struct list_head *head,
  * state of bit k of "count" plus two extra pieces of information:
  *
  * - The state of bit k-1 (when k == 0, consider bit -1 always set), and
- * - Whether the higher-order bits are zero or non-zero (i.e.
+ * - Whether the higher-order bits are zero or yesn-zero (i.e.
  *   is count >= 2^(k+1)).
  *
  * There are six states we distinguish.  "x" represents some arbitrary
- * bits, and "y" represents some arbitrary non-zero bits:
+ * bits, and "y" represents some arbitrary yesn-zero bits:
  * 0:  00x: 0 pending of size 2^k;           x pending of sizes < 2^k
  * 1:  01x: 0 pending of size 2^k; 2^(k-1) + x pending of sizes < 2^k
  * 2: x10x: 0 pending of size 2^k; 2^k     + x pending of sizes < 2^k
@@ -173,7 +173,7 @@ static void merge_final(void *priv, cmp_func cmp, struct list_head *head,
  * (merge and loop back to state 2)
  *
  * We gain lists of size 2^k in the 2->3 and 4->5 transitions (because
- * bit k-1 is set while the more significant bits are non-zero) and
+ * bit k-1 is set while the more significant bits are yesn-zero) and
  * merge them away in the 5->2 transition.  Note in particular that just
  * before the 5->2 transition, all lower-order bits are 11 (state 3),
  * so there is one list of each smaller size.
@@ -184,7 +184,7 @@ static void merge_final(void *priv, cmp_func cmp, struct list_head *head,
  * of size 2^k varies from 2^(k-1) (cases 3 and 5 when x == 0) to
  * 2^(k+1) - 1 (second merge of case 5 when x == 2^(k-1) - 1).
  */
-__attribute__((nonnull(2,3)))
+__attribute__((yesnnull(2,3)))
 void list_sort(void *priv, struct list_head *head,
 		int (*cmp)(void *priv, struct list_head *a,
 			struct list_head *b))
@@ -201,7 +201,7 @@ void list_sort(void *priv, struct list_head *head,
 	/*
 	 * Data structure invariants:
 	 * - All lists are singly linked and null-terminated; prev
-	 *   pointers are not maintained.
+	 *   pointers are yest maintained.
 	 * - pending is a prev-linked "list of lists" of sorted
 	 *   sublists awaiting further merging.
 	 * - Each of the sorted sublists is power-of-two in size.

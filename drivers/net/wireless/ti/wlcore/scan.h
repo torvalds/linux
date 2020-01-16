@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009-2010 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #ifndef __SCAN_H__
@@ -63,7 +63,7 @@ struct wl1271_cmd_trigger_scan_to {
  * This max value here is used only for the struct definition of
  * wlcore_scan_channels. This struct is used by both 12xx
  * and 18xx (which have different max 5ghz channels value).
- * In order to make sure this is large enough, just use the
+ * In order to make sure this is large eyesugh, just use the
  * max possible 5ghz channels.
  */
 #define MAX_CHANNELS_5GHZ	42

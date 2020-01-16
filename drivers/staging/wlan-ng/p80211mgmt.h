@@ -9,7 +9,7 @@
  * linux-wlan
  *
  *   The contents of this file are subject to the Mozilla Public
- *   License Version 1.1 (the "License"); you may not use this file
+ *   License Version 1.1 (the "License"); you may yest use this file
  *   except in compliance with the License. You may obtain a copy of
  *   the License at http://www.mozilla.org/MPL/
  *
@@ -22,10 +22,10 @@
  *   terms of the GNU Public License version 2 (the "GPL"), in which
  *   case the provisions of the GPL are applicable instead of the
  *   above.  If you wish to allow the use of your version of this file
- *   only under the terms of the GPL and not to allow others to use
+ *   only under the terms of the GPL and yest to allow others to use
  *   your version of this file under the MPL, indicate your decision
- *   by deleting the provisions above and replace them with the notice
- *   and other provisions required by the GPL.  If you do not delete
+ *   by deleting the provisions above and replace them with the yestice
+ *   and other provisions required by the GPL.  If you do yest delete
  *   the provisions above, a recipient may use your version of this
  *   file under either the MPL or the GPL.
  *
@@ -72,7 +72,7 @@
  *    mf.buf = b
  *    mf.len = len
  * 5) call mgmt_decode( mf )
- * 6) the frame field pointers in mf are now set.  Note that any
+ * 6) the frame field pointers in mf are yesw set.  Note that any
  *    multi-byte frame field values accessed using the frame field
  *    pointers are in ieee byte order and will have to be converted
  *    to host order.
@@ -87,7 +87,7 @@
  *    mf.buf = <allocated buffer address>
  * 4) call mgmt_encode( mf )
  * 5) all of the fixed field pointers and fixed length information element
- *    pointers in mf are now set to their respective locations in the
+ *    pointers in mf are yesw set to their respective locations in the
  *    allocated space (fortunately, all variable length information elements
  *    fall at the end of their respective frames).
  * 5a) The length field is set to include the last of the fixed and fixed

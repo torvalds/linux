@@ -1,7 +1,7 @@
 /*
  * Copyright 2012 Red Hat Inc.
  * Parts based on xf86-video-ast
- * Copyright (c) 2005 ASPEED Technology Inc.
+ * Copyright (c) 2005 ASPEED Techyeslogy Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -19,7 +19,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -576,7 +576,7 @@ static int ast_crtc_mode_set(struct drm_crtc *crtc,
 	struct ast_vbios_mode_info vbios_mode;
 	bool ret;
 	if (ast->chip == AST1180) {
-		DRM_ERROR("AST 1180 modesetting not supported\n");
+		DRM_ERROR("AST 1180 modesetting yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1227,7 +1227,7 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 
 	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
-		DRM_ERROR("Cannot find cursor object %x for crtc\n", handle);
+		DRM_ERROR("Canyest find cursor object %x for crtc\n", handle);
 		return -ENOENT;
 	}
 	gbo = drm_gem_vram_of_gem(obj);

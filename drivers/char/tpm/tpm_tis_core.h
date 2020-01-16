@@ -55,7 +55,7 @@ enum tis_defaults {
 	TIS_LONG_TIMEOUT = 2000,	/* 2 sec */
 };
 
-/* Some timeout values are needed before it is known whether the chip is
+/* Some timeout values are needed before it is kyeswn whether the chip is
  * TPM 1.0 or TPM 2.0.
  */
 #define TIS_TIMEOUT_A_MAX	max_t(int, TIS_SHORT_TIMEOUT, TPM2_TIMEOUT_A)

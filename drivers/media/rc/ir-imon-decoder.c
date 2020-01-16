@@ -23,7 +23,7 @@
  * both the preceding and current bit are zero, else space. IMON_CHKBITS
  * defines which bits are of type check.
  *
- * There is no way to distinguish an incomplete message from one where
+ * There is yes way to distinguish an incomplete message from one where
  * the lower bits are all set, iow. the last pulse is for the lowest
  * bit which is 0.
  */
@@ -101,7 +101,7 @@ static int ir_imon_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	}
 
 	dev_dbg(&dev->dev,
-		"iMON decode started at state %d bitno %d (%uus %s)\n",
+		"iMON decode started at state %d bityes %d (%uus %s)\n",
 		data->state, data->count, TO_US(ev.duration),
 		TO_STR(ev.pulse));
 
@@ -168,7 +168,7 @@ static int ir_imon_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 err_out:
 	dev_dbg(&dev->dev,
-		"iMON decode failed at state %d bitno %d (%uus %s)\n",
+		"iMON decode failed at state %d bityes %d (%uus %s)\n",
 		data->state, data->count, TO_US(ev.duration),
 		TO_STR(ev.pulse));
 
@@ -186,7 +186,7 @@ err_out:
  * @max:	maximum size of @events
  *
  * Returns:	The number of events written.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-ENOBUFS if there isn't eyesugh space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  */
 static int ir_imon_encode(enum rc_proto protocol, u32 scancode,

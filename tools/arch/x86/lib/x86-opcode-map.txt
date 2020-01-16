@@ -31,7 +31,7 @@
 #  - (66): the last prefix is 0x66
 #  - (F3): the last prefix is 0xF3
 #  - (F2): the last prefix is 0xF2
-#  - (!F3) : the last prefix is not 0xF3 (including non-last prefix case)
+#  - (!F3) : the last prefix is yest 0xF3 (including yesn-last prefix case)
 #  - (66&F2): Both 0x66 and 0xF2 prefixes are specified.
 
 Table: one byte opcode
@@ -278,7 +278,7 @@ dd: ESC
 de: ESC
 df: ESC
 # 0xe0 - 0xef
-# Note: "forced64" is Intel CPU behavior: they ignore 0x66 prefix
+# Note: "forced64" is Intel CPU behavior: they igyesre 0x66 prefix
 # in 64-bit mode. AMD CPUs accept 0x66 prefix, it causes RIP truncation
 # to 16 bits. In 32-bit mode, 0x66 is accepted by both Intel and AMD.
 e0: LOOPNE/LOOPNZ Jb (f64)
@@ -292,7 +292,7 @@ e7: OUT Ib,eAX
 # With 0x66 prefix in 64-bit mode, for AMD CPUs immediate offset
 # in "near" jumps and calls is 16-bit. For CALL,
 # push of return address is 16-bit wide, RSP is decremented by 2
-# but is not truncated to 16 bits, unlike RIP.
+# but is yest truncated to 16 bits, unlike RIP.
 e8: CALL Jz (f64)
 e9: JMP-near Jz (f64)
 ea: JMP-far Ap (i64)
@@ -343,7 +343,7 @@ AVXcode: 1
 # 3DNow! uses the last imm byte as opcode extension.
 0f: 3DNow! Pq,Qq,Ib
 # 0x0f 0x10-0x1f
-# NOTE: According to Intel SDM opcode map, vmovups and vmovupd has no operands
+# NOTE: According to Intel SDM opcode map, vmovups and vmovupd has yes operands
 # but it actually has operands. And also, vmovss and vmovsd only accept 128bit.
 # MOVSS/MOVSD has too many forms(3) on SDM. This map just shows a typical form.
 # Many AVX instructions lack v1 superscript, according to Intel AVX-Prgramming
@@ -358,9 +358,9 @@ AVXcode: 1
 17: vmovhps Mq,Vq (v1) | vmovhpd Mq,Vq (66),(v1)
 18: Grp16 (1A)
 19:
-# Intel SDM opcode map does not list MPX instructions. For now using Gv for
+# Intel SDM opcode map does yest list MPX instructions. For yesw using Gv for
 # bnd registers and Ev for everything else is OK because the instruction
-# decoder does not use the information except as an indication that there is
+# decoder does yest use the information except as an indication that there is
 # a ModR/M byte.
 1a: BNDCL Gv,Ev (F3) | BNDCU Gv,Ev (F2) | BNDMOV Gv,Ev (66) | BNDLDX Gv,Ev
 1b: BNDCN Gv,Ev (F2) | BNDMOV Ev,Gv (66) | BNDMK Gv,Ev (F3) | BNDSTX Ev,Gv
@@ -407,9 +407,9 @@ AVXcode: 1
 41: CMOVNO Gv,Ev | kandw/q Vk,Hk,Uk | kandb/d Vk,Hk,Uk (66)
 42: CMOVB/C/NAE Gv,Ev | kandnw/q Vk,Hk,Uk | kandnb/d Vk,Hk,Uk (66)
 43: CMOVAE/NB/NC Gv,Ev
-44: CMOVE/Z Gv,Ev | knotw/q Vk,Uk | knotb/d Vk,Uk (66)
+44: CMOVE/Z Gv,Ev | kyestw/q Vk,Uk | kyestb/d Vk,Uk (66)
 45: CMOVNE/NZ Gv,Ev | korw/q Vk,Hk,Uk | korb/d Vk,Hk,Uk (66)
-46: CMOVBE/NA Gv,Ev | kxnorw/q Vk,Hk,Uk | kxnorb/d Vk,Hk,Uk (66)
+46: CMOVBE/NA Gv,Ev | kxyesrw/q Vk,Hk,Uk | kxyesrb/d Vk,Hk,Uk (66)
 47: CMOVA/NBE Gv,Ev | kxorw/q Vk,Hk,Uk | kxorb/d Vk,Hk,Uk (66)
 48: CMOVS Gv,Ev
 49: CMOVNS Gv,Ev

@@ -8,7 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/oprofile.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 
 

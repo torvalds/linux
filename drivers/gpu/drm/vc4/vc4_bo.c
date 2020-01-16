@@ -6,8 +6,8 @@
 /**
  * DOC: VC4 GEM BO management support
  *
- * The VC4 GPU architecture (both scanout and rendering) has direct
- * access to system memory with no MMU in between.  To support it, we
+ * The VC4 GPU architecture (both scayesut and rendering) has direct
+ * access to system memory with yes MMU in between.  To support it, we
  * use the GEM CMA helper functions to allocate contiguous ranges of
  * physical memory for our BOs.
  *
@@ -65,8 +65,8 @@ static void vc4_bo_stats_print(struct drm_printer *p, struct vc4_dev *vc4)
 
 static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_printer p = drm_seq_file_printer(m);
 
@@ -80,8 +80,8 @@ static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
  *
  * This is inefficient and could use a hash table instead of walking
  * an array and strcmp()ing.  However, the assumption is that user
- * labeling will be infrequent (scanout buffers and other long-lived
- * objects, or debug driver builds), so we can live with it for now.
+ * labeling will be infrequent (scayesut buffers and other long-lived
+ * objects, or debug driver builds), so we can live with it for yesw.
  */
 static int vc4_get_user_label(struct vc4_dev *vc4, const char *name)
 {
@@ -291,7 +291,7 @@ static void vc4_bo_purge(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&bo->madv_lock));
 	WARN_ON(bo->madv != VC4_MADV_DONTNEED);
 
-	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+	drm_vma_yesde_unmap(&obj->vma_yesde, dev->ayesn_iyesde->i_mapping);
 
 	dma_free_wc(dev->dev, obj->size, bo->base.vaddr, bo->base.paddr);
 	bo->base.vaddr = NULL;
@@ -324,9 +324,9 @@ static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
 		 * and re-used it in the meantime.
 		 * Before purging the BO we need to make sure
 		 * - it is still marked as DONTNEED
-		 * - it has not been re-inserted in the purgeable list
-		 * - it is not used by HW blocks
-		 * If one of these conditions is not met, just skip the entry.
+		 * - it has yest been re-inserted in the purgeable list
+		 * - it is yest used by HW blocks
+		 * If one of these conditions is yest met, just skip the entry.
 		 */
 		if (bo->madv == VC4_MADV_DONTNEED &&
 		    list_empty(&bo->size_head) &&
@@ -434,7 +434,7 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 
 	if (IS_ERR(cma_obj)) {
 		/*
-		 * Still not enough CMA memory, purge the userspace BO
+		 * Still yest eyesugh CMA memory, purge the userspace BO
 		 * cache and retry.
 		 * This is sub-optimal since we purge the whole userspace
 		 * BO cache which forces user that want to re-use the BO to
@@ -456,7 +456,7 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 	}
 	bo = to_vc4_bo(&cma_obj->base);
 
-	/* By default, BOs do not support the MADV ioctl. This will be enabled
+	/* By default, BOs do yest support the MADV ioctl. This will be enabled
 	 * only on BOs that are exposed to userspace (V3D, V3D_SHADER and DUMB
 	 * BOs).
 	 */
@@ -601,16 +601,16 @@ int vc4_bo_inc_usecnt(struct vc4_bo *bo)
 {
 	int ret;
 
-	/* Fast path: if the BO is already retained by someone, no need to
+	/* Fast path: if the BO is already retained by someone, yes need to
 	 * check the madv status.
 	 */
-	if (refcount_inc_not_zero(&bo->usecnt))
+	if (refcount_inc_yest_zero(&bo->usecnt))
 		return 0;
 
 	mutex_lock(&bo->madv_lock);
 	switch (bo->madv) {
 	case VC4_MADV_WILLNEED:
-		if (!refcount_inc_not_zero(&bo->usecnt))
+		if (!refcount_inc_yest_zero(&bo->usecnt))
 			refcount_set(&bo->usecnt, 1);
 		ret = 0;
 		break;
@@ -635,10 +635,10 @@ int vc4_bo_inc_usecnt(struct vc4_bo *bo)
 
 void vc4_bo_dec_usecnt(struct vc4_bo *bo)
 {
-	/* Fast path: if the BO is still retained by someone, no need to test
+	/* Fast path: if the BO is still retained by someone, yes need to test
 	 * the madv value.
 	 */
-	if (refcount_dec_not_one(&bo->usecnt))
+	if (refcount_dec_yest_one(&bo->usecnt))
 		return;
 
 	mutex_lock(&bo->madv_lock);
@@ -667,7 +667,7 @@ struct dma_buf * vc4_prime_export(struct drm_gem_object *obj, int flags)
 	}
 
 	/* Note: as soon as the BO is exported it becomes unpurgeable, because
-	 * noone ever decrements the usecnt even if the reference held by the
+	 * yesone ever decrements the usecnt even if the reference held by the
 	 * exported BO is released. This shouldn't be a problem since we don't
 	 * expect exported BOs to be marked as purgeable.
 	 */
@@ -715,12 +715,12 @@ int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 	bo = to_vc4_bo(gem_obj);
 
 	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
-		DRM_DEBUG("mmaping of shader BOs for writing not allowed.\n");
+		DRM_DEBUG("mmaping of shader BOs for writing yest allowed.\n");
 		return -EINVAL;
 	}
 
 	if (bo->madv != VC4_MADV_WILLNEED) {
-		DRM_DEBUG("mmaping of %s BO not allowed\n",
+		DRM_DEBUG("mmaping of %s BO yest allowed\n",
 			  bo->madv == VC4_MADV_DONTNEED ?
 			  "purgeable" : "purged");
 		return -EINVAL;
@@ -739,9 +739,9 @@ int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 	 *   the DRM core is a virtual offset encoding the GEM object-id)
 	 * - the mmap() core logic needs ->vm_pgoff to be restored to its
 	 *   initial value before returning from this function because it
-	 *   encodes the  offset of this GEM in the dev->anon_inode pseudo-file
+	 *   encodes the  offset of this GEM in the dev->ayesn_iyesde pseudo-file
 	 *   and this information will be used when we invalidate userspace
-	 *   mappings  with drm_vma_node_unmap() (called from vc4_gem_purge()).
+	 *   mappings  with drm_vma_yesde_unmap() (called from vc4_gem_purge()).
 	 */
 	vm_pgoff = vma->vm_pgoff;
 	vma->vm_pgoff = 0;
@@ -760,7 +760,7 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
-		DRM_DEBUG("mmaping of shader BOs for writing not allowed.\n");
+		DRM_DEBUG("mmaping of shader BOs for writing yest allowed.\n");
 		return -EINVAL;
 	}
 
@@ -772,7 +772,7 @@ void *vc4_prime_vmap(struct drm_gem_object *obj)
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader) {
-		DRM_DEBUG("mmaping of shader BOs not allowed.\n");
+		DRM_DEBUG("mmaping of shader BOs yest allowed.\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -852,7 +852,7 @@ int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 	}
 
 	/* The mmap offset was set up at BO allocation time. */
-	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
+	args->offset = drm_vma_yesde_offset_addr(&gem_obj->vma_yesde);
 
 	drm_gem_object_put_unlocked(gem_obj);
 	return 0;
@@ -875,7 +875,7 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (args->flags != 0) {
-		DRM_INFO("Unknown flags set: 0x%08x\n", args->flags);
+		DRM_INFO("Unkyeswn flags set: 0x%08x\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -930,7 +930,7 @@ fail:
  * @file_priv: DRM file for this fd
  *
  * The tiling state of the BO decides the default modifier of an fb if
- * no specific modifier was set by userspace, and the return value of
+ * yes specific modifier was set by userspace, and the return value of
  * vc4_get_tiling_ioctl() (so that userspace can treat a BO it
  * received from dmabuf as the same tiling format as the producer
  * used).

@@ -19,7 +19,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -43,7 +43,7 @@
 #include <linux/ctype.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/export.h>
 
 #include <asm/page.h>
@@ -56,13 +56,13 @@
 #include "xenbus.h"
 
 /* backend/<type>/<fe-uuid>/<id> => <type>-<fe-domid>-<id> */
-static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
+static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *yesdename)
 {
 	int domid, err;
 	const char *devid, *type, *frontend;
 	unsigned int typelen;
 
-	type = strchr(nodename, '/');
+	type = strchr(yesdename, '/');
 	if (!type)
 		return -EINVAL;
 	type++;
@@ -70,9 +70,9 @@ static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
 	if (!typelen || type[typelen] != '/')
 		return -EINVAL;
 
-	devid = strrchr(nodename, '/') + 1;
+	devid = strrchr(yesdename, '/') + 1;
 
-	err = xenbus_gather(XBT_NIL, nodename, "frontend-id", "%i", &domid,
+	err = xenbus_gather(XBT_NIL, yesdename, "frontend-id", "%i", &domid,
 			    "frontend", NULL, &frontend,
 			    NULL);
 	if (err)
@@ -114,7 +114,7 @@ static int xenbus_uevent_backend(struct device *dev,
 	if (add_uevent_var(env, "XENBUS_TYPE=%s", xdev->devicetype))
 		return -ENOMEM;
 
-	if (add_uevent_var(env, "XENBUS_PATH=%s", xdev->nodename))
+	if (add_uevent_var(env, "XENBUS_PATH=%s", xdev->yesdename))
 		return -ENOMEM;
 
 	if (add_uevent_var(env, "XENBUS_BASE_PATH=%s", bus->root))
@@ -135,17 +135,17 @@ static int xenbus_probe_backend_unit(struct xen_bus_type *bus,
 				     const char *type,
 				     const char *name)
 {
-	char *nodename;
+	char *yesdename;
 	int err;
 
-	nodename = kasprintf(GFP_KERNEL, "%s/%s", dir, name);
-	if (!nodename)
+	yesdename = kasprintf(GFP_KERNEL, "%s/%s", dir, name);
+	if (!yesdename)
 		return -ENOMEM;
 
-	DPRINTK("%s\n", nodename);
+	DPRINTK("%s\n", yesdename);
 
-	err = xenbus_probe_node(bus, type, nodename);
-	kfree(nodename);
+	err = xenbus_probe_yesde(bus, type, yesdename);
+	kfree(yesdename);
 	return err;
 }
 
@@ -153,30 +153,30 @@ static int xenbus_probe_backend_unit(struct xen_bus_type *bus,
 static int xenbus_probe_backend(struct xen_bus_type *bus, const char *type,
 				const char *domid)
 {
-	char *nodename;
+	char *yesdename;
 	int err = 0;
 	char **dir;
 	unsigned int i, dir_n = 0;
 
 	DPRINTK("");
 
-	nodename = kasprintf(GFP_KERNEL, "%s/%s/%s", bus->root, type, domid);
-	if (!nodename)
+	yesdename = kasprintf(GFP_KERNEL, "%s/%s/%s", bus->root, type, domid);
+	if (!yesdename)
 		return -ENOMEM;
 
-	dir = xenbus_directory(XBT_NIL, nodename, "", &dir_n);
+	dir = xenbus_directory(XBT_NIL, yesdename, "", &dir_n);
 	if (IS_ERR(dir)) {
-		kfree(nodename);
+		kfree(yesdename);
 		return PTR_ERR(dir);
 	}
 
 	for (i = 0; i < dir_n; i++) {
-		err = xenbus_probe_backend_unit(bus, nodename, type, dir[i]);
+		err = xenbus_probe_backend_unit(bus, yesdename, type, dir[i]);
 		if (err)
 			break;
 	}
 	kfree(dir);
-	kfree(nodename);
+	kfree(yesdename);
 	return err;
 }
 
@@ -211,7 +211,7 @@ static void backend_changed(struct xenbus_watch *watch,
 }
 
 static struct xenbus_watch be_watch = {
-	.node = "backend",
+	.yesde = "backend",
 	.callback = backend_changed,
 };
 
@@ -222,7 +222,7 @@ static int read_frontend_details(struct xenbus_device *xendev)
 
 int xenbus_dev_is_online(struct xenbus_device *dev)
 {
-	return !!xenbus_read_unsigned(dev->nodename, "online", 0);
+	return !!xenbus_read_unsigned(dev->yesdename, "online", 0);
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_is_online);
 
@@ -236,7 +236,7 @@ int __xenbus_register_backend(struct xenbus_driver *drv, struct module *owner,
 }
 EXPORT_SYMBOL_GPL(__xenbus_register_backend);
 
-static int backend_probe_and_watch(struct notifier_block *notifier,
+static int backend_probe_and_watch(struct yestifier_block *yestifier,
 				   unsigned long event,
 				   void *data)
 {
@@ -249,8 +249,8 @@ static int backend_probe_and_watch(struct notifier_block *notifier,
 
 static int __init xenbus_probe_backend_init(void)
 {
-	static struct notifier_block xenstore_notifier = {
-		.notifier_call = backend_probe_and_watch
+	static struct yestifier_block xenstore_yestifier = {
+		.yestifier_call = backend_probe_and_watch
 	};
 	int err;
 
@@ -261,7 +261,7 @@ static int __init xenbus_probe_backend_init(void)
 	if (err)
 		return err;
 
-	register_xenstore_notifier(&xenstore_notifier);
+	register_xenstore_yestifier(&xenstore_yestifier);
 
 	return 0;
 }

@@ -2,7 +2,7 @@
  * ADV7393 header file
  *
  * Copyright (C) 2010-2012 ADVANSEE - http://www.advansee.com/
- * Benoît Thébaudeau <benoit.thebaudeau@advansee.com>
+ * Beyesît Thébaudeau <beyesit.thebaudeau@advansee.com>
  *
  * Based on ADV7343 driver,
  *

@@ -17,7 +17,7 @@
 
 /* iova structure */
 struct iova {
-	struct rb_node	node;
+	struct rb_yesde	yesde;
 	unsigned long	pfn_hi; /* Highest allocated pfn */
 	unsigned long	pfn_lo; /* Lowest allocated pfn */
 };
@@ -68,8 +68,8 @@ struct iova_fq {
 struct iova_domain {
 	spinlock_t	iova_rbtree_lock; /* Lock to protect update of rbtree */
 	struct rb_root	rbroot;		/* iova domain rbtree root */
-	struct rb_node	*cached_node;	/* Save last alloced node */
-	struct rb_node	*cached32_node; /* Save last 32-bit alloced node */
+	struct rb_yesde	*cached_yesde;	/* Save last alloced yesde */
+	struct rb_yesde	*cached32_yesde; /* Save last 32-bit alloced yesde */
 	unsigned long	granule;	/* pfn granularity for this domain */
 	unsigned long	start_pfn;	/* Lower limit for this domain */
 	unsigned long	dma_32bit_pfn;
@@ -94,7 +94,7 @@ struct iova_domain {
 	struct timer_list fq_timer;		/* Timer to regularily empty the
 						   flush-queues */
 	atomic_t fq_timer_on;			/* 1 when timer is active, 0
-						   when not */
+						   when yest */
 };
 
 static inline unsigned long iova_size(struct iova *iova)

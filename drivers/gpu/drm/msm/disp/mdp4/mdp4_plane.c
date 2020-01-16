@@ -41,7 +41,7 @@ enum mdp4_frame_format mdp4_get_frame_format(struct drm_framebuffer *fb)
 	return FRAME_LINEAR;
 }
 
-static void mdp4_plane_set_scanout(struct drm_plane *plane,
+static void mdp4_plane_set_scayesut(struct drm_plane *plane,
 		struct drm_framebuffer *fb);
 static int mdp4_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
@@ -134,7 +134,7 @@ static const struct drm_plane_helper_funcs mdp4_plane_helper_funcs = {
 		.atomic_update = mdp4_plane_atomic_update,
 };
 
-static void mdp4_plane_set_scanout(struct drm_plane *plane,
+static void mdp4_plane_set_scayesut(struct drm_plane *plane,
 		struct drm_framebuffer *fb)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
@@ -294,7 +294,7 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 			MDP4_PIPE_DST_XY_X(crtc_x) |
 			MDP4_PIPE_DST_XY_Y(crtc_y));
 
-	mdp4_plane_set_scanout(plane, fb);
+	mdp4_plane_set_scayesut(plane, fb);
 
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRC_FORMAT(pipe),
 			MDP4_PIPE_SRC_FORMAT_A_BPC(format->bpc_a) |

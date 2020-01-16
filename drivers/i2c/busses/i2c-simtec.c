@@ -72,7 +72,7 @@ static int simtec_i2c_probe(struct platform_device *dev)
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&dev->dev, "cannot find IO resource\n");
+		dev_err(&dev->dev, "canyest find IO resource\n");
 		ret = -ENOENT;
 		goto err;
 	}
@@ -81,14 +81,14 @@ static int simtec_i2c_probe(struct platform_device *dev)
 
 	pd->ioarea = request_mem_region(res->start, size, dev->name);
 	if (pd->ioarea == NULL) {
-		dev_err(&dev->dev, "cannot request IO\n");
+		dev_err(&dev->dev, "canyest request IO\n");
 		ret = -ENXIO;
 		goto err;
 	}
 
 	pd->reg = ioremap(res->start, size);
 	if (pd->reg == NULL) {
-		dev_err(&dev->dev, "cannot map IO\n");
+		dev_err(&dev->dev, "canyest map IO\n");
 		ret = -ENXIO;
 		goto err_res;
 	}

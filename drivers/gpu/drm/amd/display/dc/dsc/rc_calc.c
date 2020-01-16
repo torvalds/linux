@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -173,15 +173,15 @@ int median3(int a, int b, int c)
 	return b;
 }
 
-void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_comp bpc, float bpp, int slice_width, int slice_height, int minor_version)
+void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_comp bpc, float bpp, int slice_width, int slice_height, int miyesr_version)
 {
 	float bpp_group;
 	float initial_xmit_delay_factor;
 	int padding_pixels;
 	int i;
 
-	rc->rc_quant_incr_limit0 = ((bpc == BPC_8) ? 11 : (bpc == BPC_10 ? 15 : 19)) - ((minor_version == 1 && cm == CM_444) ? 1 : 0);
-	rc->rc_quant_incr_limit1 = ((bpc == BPC_8) ? 11 : (bpc == BPC_10 ? 15 : 19)) - ((minor_version == 1 && cm == CM_444) ? 1 : 0);
+	rc->rc_quant_incr_limit0 = ((bpc == BPC_8) ? 11 : (bpc == BPC_10 ? 15 : 19)) - ((miyesr_version == 1 && cm == CM_444) ? 1 : 0);
+	rc->rc_quant_incr_limit1 = ((bpc == BPC_8) ? 11 : (bpc == BPC_10 ? 15 : 19)) - ((miyesr_version == 1 && cm == CM_444) ? 1 : 0);
 
 	bpp_group = MODE_SELECT(bpp, bpp * 2.0, bpp * 2.0);
 
@@ -216,13 +216,13 @@ void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_com
 			rc->initial_xmit_delay++;
 	}
 
-	rc->flatness_min_qp     = ((bpc == BPC_8) ?  (3) : ((bpc == BPC_10) ? (7)  : (11))) - ((minor_version == 1 && cm == CM_444) ? 1 : 0);
-	rc->flatness_max_qp     = ((bpc == BPC_8) ? (12) : ((bpc == BPC_10) ? (16) : (20))) - ((minor_version == 1 && cm == CM_444) ? 1 : 0);
+	rc->flatness_min_qp     = ((bpc == BPC_8) ?  (3) : ((bpc == BPC_10) ? (7)  : (11))) - ((miyesr_version == 1 && cm == CM_444) ? 1 : 0);
+	rc->flatness_max_qp     = ((bpc == BPC_8) ? (12) : ((bpc == BPC_10) ? (16) : (20))) - ((miyesr_version == 1 && cm == CM_444) ? 1 : 0);
 	rc->flatness_det_thresh = 2 << (bpc - 8);
 
 	get_qp_set(rc->qp_min, cm, bpc, MM_MIN, bpp);
 	get_qp_set(rc->qp_max, cm, bpc, MM_MAX, bpp);
-	if (cm == CM_444 && minor_version == 1) {
+	if (cm == CM_444 && miyesr_version == 1) {
 		for (i = 0; i < QP_SET_SIZE; ++i) {
 			rc->qp_min[i] = rc->qp_min[i] > 0 ? rc->qp_min[i] - 1 : 0;
 			rc->qp_max[i] = rc->qp_max[i] > 0 ? rc->qp_max[i] - 1 : 0;

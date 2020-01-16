@@ -118,7 +118,7 @@ static inline void cmx255_init_rtc(void) {}
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
-static struct mtd_partition cmx255_nor_partitions[] = {
+static struct mtd_partition cmx255_yesr_partitions[] = {
 	{
 		.name		= "ARMmon",
 		.size		= 0x00030000,
@@ -140,36 +140,36 @@ static struct mtd_partition cmx255_nor_partitions[] = {
 	}
 };
 
-static struct physmap_flash_data cmx255_nor_flash_data[] = {
+static struct physmap_flash_data cmx255_yesr_flash_data[] = {
 	{
 		.width		= 2,	/* bankwidth in bytes */
-		.parts		= cmx255_nor_partitions,
-		.nr_parts	= ARRAY_SIZE(cmx255_nor_partitions)
+		.parts		= cmx255_yesr_partitions,
+		.nr_parts	= ARRAY_SIZE(cmx255_yesr_partitions)
 	}
 };
 
-static struct resource cmx255_nor_resource = {
+static struct resource cmx255_yesr_resource = {
 	.start	= PXA_CS0_PHYS,
 	.end	= PXA_CS0_PHYS + SZ_8M - 1,
 	.flags	= IORESOURCE_MEM,
 };
 
-static struct platform_device cmx255_nor = {
+static struct platform_device cmx255_yesr = {
 	.name	= "physmap-flash",
 	.id	= -1,
 	.dev	= {
-		.platform_data = cmx255_nor_flash_data,
+		.platform_data = cmx255_yesr_flash_data,
 	},
-	.resource = &cmx255_nor_resource,
+	.resource = &cmx255_yesr_resource,
 	.num_resources = 1,
 };
 
-static void __init cmx255_init_nor(void)
+static void __init cmx255_init_yesr(void)
 {
-	platform_device_register(&cmx255_nor);
+	platform_device_register(&cmx255_yesr);
 }
 #else
-static inline void cmx255_init_nor(void) {}
+static inline void cmx255_init_yesr(void) {}
 #endif
 
 #if defined(CONFIG_MTD_NAND_GPIO) || defined(CONFIG_MTD_NAND_GPIO_MODULE)
@@ -235,6 +235,6 @@ void __init cmx255_init(void)
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(cmx255_pin_config));
 
 	cmx255_init_rtc();
-	cmx255_init_nor();
+	cmx255_init_yesr();
 	cmx255_init_nand();
 }

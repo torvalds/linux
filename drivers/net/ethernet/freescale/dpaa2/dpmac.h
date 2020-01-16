@@ -123,7 +123,7 @@ int dpmac_get_attributes(struct fsl_mc_io *mc_io,
  * @rate: Rate in Mbps
  * @options: Enable/Disable DPMAC link cfg features (bitmap)
  * @up: Link state
- * @state_valid: Ignore/Update the state of the link
+ * @state_valid: Igyesre/Update the state of the link
  * @supported: Speeds capability of the phy (bitmap)
  * @advertising: Speeds that are advertised for autoneg (bitmap)
  */

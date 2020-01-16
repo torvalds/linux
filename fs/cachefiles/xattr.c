@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/quotaops.h>
 #include <linux/xattr.h>
 #include <linux/slab.h>
@@ -29,7 +29,7 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 	int ret;
 
 	ASSERT(dentry);
-	ASSERT(d_backing_inode(dentry));
+	ASSERT(d_backing_iyesde(dentry));
 
 	if (!object->fscache.cookie)
 		strcpy(type, "C3");
@@ -48,7 +48,7 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 
 	if (ret != -EEXIST) {
 		pr_err("Can't set xattr on %pd [%lu] (err %d)\n",
-		       dentry, d_backing_inode(dentry)->i_ino,
+		       dentry, d_backing_iyesde(dentry)->i_iyes,
 		       -ret);
 		goto error;
 	}
@@ -60,7 +60,7 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 			goto bad_type_length;
 
 		pr_err("Can't read xattr on %pd [%lu] (err %d)\n",
-		       dentry, d_backing_inode(dentry)->i_ino,
+		       dentry, d_backing_iyesde(dentry)->i_iyes,
 		       -ret);
 		goto error;
 	}
@@ -80,14 +80,14 @@ error:
 
 bad_type_length:
 	pr_err("Cache object %lu type xattr length incorrect\n",
-	       d_backing_inode(dentry)->i_ino);
+	       d_backing_iyesde(dentry)->i_iyes);
 	ret = -EIO;
 	goto error;
 
 bad_type:
 	xtype[2] = 0;
-	pr_err("Cache object %pd [%lu] type %s not %s\n",
-	       dentry, d_backing_inode(dentry)->i_ino,
+	pr_err("Cache object %pd [%lu] type %s yest %s\n",
+	       dentry, d_backing_iyesde(dentry)->i_iyes,
 	       xtype, type);
 	ret = -EIO;
 	goto error;
@@ -164,7 +164,7 @@ int cachefiles_check_auxdata(struct cachefiles_object *object)
 	int ret;
 
 	ASSERT(dentry);
-	ASSERT(d_backing_inode(dentry));
+	ASSERT(d_backing_iyesde(dentry));
 	ASSERT(object->fscache.cookie->def->check_aux);
 
 	auxbuf = kmalloc(sizeof(struct cachefiles_xattr) + 512, GFP_KERNEL);
@@ -180,7 +180,7 @@ int cachefiles_check_auxdata(struct cachefiles_object *object)
 
 	xlen--;
 	validity = fscache_check_aux(&object->fscache, &auxbuf->data, xlen,
-				     i_size_read(d_backing_inode(dentry)));
+				     i_size_read(d_backing_iyesde(dentry)));
 	if (validity != FSCACHE_CHECKAUX_OKAY)
 		goto error;
 
@@ -204,7 +204,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 	_enter("%p,#%d", object, auxdata->len);
 
 	ASSERT(dentry);
-	ASSERT(d_backing_inode(dentry));
+	ASSERT(d_backing_iyesde(dentry));
 
 	auxbuf = kmalloc(sizeof(struct cachefiles_xattr) + 512, cachefiles_gfp);
 	if (!auxbuf) {
@@ -217,7 +217,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 			   &auxbuf->type, 512 + 1);
 	if (ret < 0) {
 		if (ret == -ENODATA)
-			goto stale; /* no attribute - power went off
+			goto stale; /* yes attribute - power went off
 				     * mid-cull? */
 
 		if (ret == -ERANGE)
@@ -225,7 +225,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 
 		cachefiles_io_error_obj(object,
 					"Can't read xattr on %lu (err %d)",
-					d_backing_inode(dentry)->i_ino, -ret);
+					d_backing_iyesde(dentry)->i_iyes, -ret);
 		goto error;
 	}
 
@@ -250,7 +250,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 
 		result = fscache_check_aux(&object->fscache,
 					   &auxbuf->data, dlen,
-					   i_size_read(d_backing_inode(dentry)));
+					   i_size_read(d_backing_iyesde(dentry)));
 
 		switch (result) {
 			/* entry okay as is */
@@ -277,7 +277,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 			cachefiles_io_error_obj(object,
 						"Can't update xattr on %lu"
 						" (error %d)",
-						d_backing_inode(dentry)->i_ino, -ret);
+						d_backing_iyesde(dentry)->i_iyes, -ret);
 			goto error;
 		}
 	}
@@ -292,7 +292,7 @@ error:
 
 bad_type_length:
 	pr_err("Cache object %lu xattr length incorrect\n",
-	       d_backing_inode(dentry)->i_ino);
+	       d_backing_iyesde(dentry)->i_iyes);
 	ret = -EIO;
 	goto error;
 
@@ -317,7 +317,7 @@ int cachefiles_remove_object_xattr(struct cachefiles_cache *cache,
 			cachefiles_io_error(cache,
 					    "Can't remove xattr from %lu"
 					    " (error %d)",
-					    d_backing_inode(dentry)->i_ino, -ret);
+					    d_backing_iyesde(dentry)->i_iyes, -ret);
 	}
 
 	_leave(" = %d", ret);

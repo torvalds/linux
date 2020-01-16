@@ -46,9 +46,9 @@ struct tdo24m {
 
 static const uint32_t lcd_panel_reset[] = {
 	CMD0(0x1), /* reset */
-	CMD0(0x0), /* nop */
-	CMD0(0x0), /* nop */
-	CMD0(0x0), /* nop */
+	CMD0(0x0), /* yesp */
+	CMD0(0x0), /* yesp */
+	CMD0(0x0), /* yesp */
 	CMD_NULL,
 };
 
@@ -94,7 +94,7 @@ static const uint32_t lcd_vga_transfer_tdo24m[] = {
 	CMD2(0xd3, 0x1a, 0x0f),	/* OEV timing control */
 	CMD2(0xd4, 0x1f, 0xaf),	/* ASW timing control (1) */
 	CMD1(0xd5, 0x14),	/* ASW timing control (2) */
-	CMD0(0x21),		/* Invert for normally black display */
+	CMD0(0x21),		/* Invert for yesrmally black display */
 	CMD0(0x29),		/* Display on */
 	CMD_NULL,
 };
@@ -107,7 +107,7 @@ static const uint32_t lcd_qvga_transfer[] = {
 	CMD2(0xde, 0x05, 0x0a),	/* OEV timing control */
 	CMD2(0xdf, 0x0a, 0x19),	/* ASW timing control (1) */
 	CMD1(0xe0, 0x0a),	/* ASW timing control (2) */
-	CMD0(0x21),		/* Invert for normally black display */
+	CMD0(0x21),		/* Invert for yesrmally black display */
 	CMD0(0x29),		/* Display on */
 	CMD_NULL,
 };
@@ -136,7 +136,7 @@ static const uint32_t lcd_vga_transfer_tdo35s[] = {
 	CMD2(0xd3, 0x14, 0x28),	/* OEV timing control */
 	CMD2(0xd4, 0x28, 0x64),	/* ASW timing control (1) */
 	CMD1(0xd5, 0x28),	/* ASW timing control (2) */
-	CMD0(0x21),		/* Invert for normally black display */
+	CMD0(0x21),		/* Invert for yesrmally black display */
 	CMD0(0x29),		/* Display on */
 	CMD_NULL,
 };

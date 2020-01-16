@@ -6,7 +6,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -110,7 +110,7 @@ static void bcd2000_midi_handle_input(struct bcd2000 *bcd2k,
 
 	payload_length = buf[0];
 
-	/* ignore packets without payload */
+	/* igyesre packets without payload */
 	if (payload_length == 0)
 		return;
 
@@ -348,7 +348,7 @@ static int bcd2000_init_midi(struct bcd2000 *bcd2k)
 static void bcd2000_free_usb_related_resources(struct bcd2000 *bcd2k,
 						struct usb_interface *interface)
 {
-	/* usb_kill_urb not necessary, urb is aborted automatically */
+	/* usb_kill_urb yest necessary, urb is aborted automatically */
 
 	usb_free_urb(bcd2k->midi_out_urb);
 	usb_free_urb(bcd2k->midi_in_urb);
@@ -432,7 +432,7 @@ static void bcd2000_disconnect(struct usb_interface *interface)
 
 	mutex_lock(&devices_mutex);
 
-	/* make sure that userspace cannot create new requests */
+	/* make sure that userspace canyest create new requests */
 	snd_card_disconnect(bcd2k->card);
 
 	bcd2000_free_usb_related_resources(bcd2k, interface);

@@ -28,7 +28,7 @@
  * CPER record length contains the CPER fields which are relevant for further
  * handling of a memory error in userspace (we don't carry all the fields
  * defined in the UEFI spec because some of them don't make any sense.)
- * Currently, a length of 256 should be more than enough.
+ * Currently, a length of 256 should be more than eyesugh.
  */
 #define CPER_REC_LEN					256
 /*
@@ -53,7 +53,7 @@ enum {
 
 /*
  * Notification type used to generate error record, used in
- * notification_type in struct cper_record_header.  These UUIDs are defined
+ * yestification_type in struct cper_record_header.  These UUIDs are defined
  * in the UEFI spec v2.7, sec N.2.1.
  */
 
@@ -122,7 +122,7 @@ enum {
  */
 #define CPER_SEC_PRIMARY			0x0001
 /*
- * If set, the error was not contained within the processor or memory
+ * If set, the error was yest contained within the processor or memory
  * hierarchy and the error may have propagated to persistent storage
  * or network
  */
@@ -132,15 +132,15 @@ enum {
 /* If set, Linux may choose to discontinue use of the resource */
 #define CPER_SEC_ERROR_THRESHOLD_EXCEEDED	0x0008
 /*
- * If set, resource could not be queried for error information due to
+ * If set, resource could yest be queried for error information due to
  * conflicts with other system software or resources. Some fields of
  * the section will be invalid
  */
 #define CPER_SEC_RESOURCE_NOT_ACCESSIBLE	0x0010
 /*
  * If set, action has been taken to ensure error containment (such as
- * poisoning data), but the error has not been fully corrected and the
- * data has not been consumed. Linux may choose to take further
+ * poisoning data), but the error has yest been fully corrected and the
+ * data has yest been consumed. Linux may choose to take further
  * corrective action before the data is consumed
  */
 #define CPER_SEC_LATENT_ERROR			0x0020
@@ -321,7 +321,7 @@ struct cper_record_header {
 	guid_t	platform_id;
 	guid_t	partition_id;
 	guid_t	creator_id;
-	guid_t	notification_type;
+	guid_t	yestification_type;
 	u64	record_id;
 	u32	flags;
 	u64	persistence_information;
@@ -429,7 +429,7 @@ struct cper_sec_mem_err_old {
 	u64	error_status;
 	u64	physical_addr;
 	u64	physical_addr_mask;
-	u16	node;
+	u16	yesde;
 	u16	card;
 	u16	module;
 	u16	bank;
@@ -449,7 +449,7 @@ struct cper_sec_mem_err {
 	u64	error_status;
 	u64	physical_addr;
 	u64	physical_addr_mask;
-	u16	node;
+	u16	yesde;
 	u16	card;
 	u16	module;
 	u16	bank;
@@ -469,7 +469,7 @@ struct cper_sec_mem_err {
 
 struct cper_mem_err_compact {
 	u64	validation_bits;
-	u16	node;
+	u16	yesde;
 	u16	card;
 	u16	module;
 	u16	bank;
@@ -490,7 +490,7 @@ struct cper_sec_pcie {
 	u64		validation_bits;
 	u32		port_type;
 	struct {
-		u8	minor;
+		u8	miyesr;
 		u8	major;
 		u8	reserved[2];
 	}		version;

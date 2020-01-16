@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -176,7 +176,7 @@ struct chcr_ipsec_wr {
 #define ESN_IV_INSERT_OFFSET 12
 struct chcr_ipsec_aadiv {
 	__be32 spi;
-	u8 seq_no[8];
+	u8 seq_yes[8];
 	u8 iv[8];
 };
 

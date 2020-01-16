@@ -55,7 +55,7 @@ static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 
 static int debug = -1;
 module_param(debug, int, 0444);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=yesne,...,16=all)");
 
 static LIST_HEAD(netvsc_dev_list);
 
@@ -133,7 +133,7 @@ static int netvsc_open(struct net_device *net)
 	if (vf_netdev) {
 		/* Setting synthetic device up transparently sets
 		 * slave as up. If open fails, then slave will be
-		 * still be offline (and not used).
+		 * still be offline (and yest used).
 		 */
 		ret = dev_open(vf_netdev, NULL);
 		if (ret)
@@ -160,7 +160,7 @@ static int netvsc_wait_until_empty(struct netvsc_device *nvdev)
 			if (!chn)
 				continue;
 
-			/* make sure receive not running now */
+			/* make sure receive yest running yesw */
 			napi_synchronize(&nvdev->chan_table[i].napi);
 
 			aread = hv_get_bytes_to_read(&chn->inbound);
@@ -187,7 +187,7 @@ static void netvsc_tx_disable(struct netvsc_device *nvscdev,
 {
 	if (nvscdev) {
 		nvscdev->tx_disable = true;
-		virt_wmb(); /* ensure txq will not wake up after stop */
+		virt_wmb(); /* ensure txq will yest wake up after stop */
 	}
 
 	netif_tx_disable(ndev);
@@ -215,7 +215,7 @@ static int netvsc_close(struct net_device *net)
 
 	ret = netvsc_wait_until_empty(nvdev);
 	if (ret)
-		netdev_err(net, "Ring buffer not empty after closing rndis\n");
+		netdev_err(net, "Ring buffer yest empty after closing rndis\n");
 
 	if (vf_netdev)
 		dev_close(vf_netdev);
@@ -243,7 +243,7 @@ static inline void *init_ppi_data(struct rndis_message *msg,
 	return ppi + 1;
 }
 
-/* Azure hosts don't support non-TCP port numbers in hashing for fragmented
+/* Azure hosts don't support yesn-TCP port numbers in hashing for fragmented
  * packets. We can use ethtool to change UDP hash level when necessary.
  */
 static inline u32 netvsc_get_hash(
@@ -318,9 +318,9 @@ static inline int netvsc_get_tx_queue(struct net_device *ndev,
  * Otherwise compute tx queue based on hash and the send table.
  *
  * This is basically similar to default (netdev_pick_tx) with the added step
- * of using the host send_table when no other queue has been assigned.
+ * of using the host send_table when yes other queue has been assigned.
  *
- * TODO support XPS - but get_xps_queue not exported
+ * TODO support XPS - but get_xps_queue yest exported
  */
 static u16 netvsc_pick_tx(struct net_device *ndev, struct sk_buff *skb)
 {
@@ -377,7 +377,7 @@ static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
 {
 	int j = 0;
 
-	/* Deal with compound pages by ignoring unused part
+	/* Deal with compound pages by igyesring unused part
 	 * of the page.
 	 */
 	page += (offset >> PAGE_SHIFT);
@@ -551,7 +551,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		++net_device_ctx->eth_stats.tx_scattered;
 
 		if (skb_linearize(skb))
-			goto no_memory;
+			goto yes_memory;
 
 		num_data_pgs = netvsc_get_slots(skb) + 2;
 		if (num_data_pgs > MAX_PAGE_BUFFER_COUNT) {
@@ -567,7 +567,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	 */
 	ret = skb_cow_head(skb, RNDIS_AND_PPI_SIZE);
 	if (ret)
-		goto no_memory;
+		goto yes_memory;
 
 	/* Use the skb control buffer for building up the packet */
 	BUILD_BUG_ON(sizeof(struct hv_netvsc_packet) >
@@ -696,7 +696,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	}
 
 	if (ret == -ENOSPC)
-		++net_device_ctx->eth_stats.tx_no_space;
+		++net_device_ctx->eth_stats.tx_yes_space;
 
 drop:
 	dev_kfree_skb_any(skb);
@@ -704,13 +704,13 @@ drop:
 
 	return NETDEV_TX_OK;
 
-no_memory:
-	++net_device_ctx->eth_stats.tx_no_memory;
+yes_memory:
+	++net_device_ctx->eth_stats.tx_yes_memory;
 	goto drop;
 }
 
 /*
- * netvsc_linkstatus_callback - Link up/down notification
+ * netvsc_linkstatus_callback - Link up/down yestification
  */
 void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp)
@@ -720,7 +720,7 @@ void netvsc_linkstatus_callback(struct net_device *net,
 	struct netvsc_reconfig *event;
 	unsigned long flags;
 
-	/* Update the physical link speed when changing to another vSwitch */
+	/* Update the physical link speed when changing to ayesther vSwitch */
 	if (indicate->status == RNDIS_STATUS_LINK_SPEED_CHANGE) {
 		u32 speed;
 
@@ -776,7 +776,7 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 
 	/*
 	 * Copy to skb. This copy is needed here since the memory pointed by
-	 * hv_netvsc_packet cannot be deallocated
+	 * hv_netvsc_packet canyest be deallocated
 	 */
 	for (i = 0; i < nvchan->rsc.cnt; i++)
 		skb_put_data(skb, nvchan->rsc.data[i], nvchan->rsc.len[i]);
@@ -784,10 +784,10 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	skb->protocol = eth_type_trans(skb, net);
 
 	/* skb is already created with CHECKSUM_NONE */
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
 	/* Incoming packets may have IP header checksum verified by the host.
-	 * They may not have IP header checksum computed after coalescing.
+	 * They may yest have IP header checksum computed after coalescing.
 	 * We compute it here if the flags are set, because on Linux, the IP
 	 * checksum is always checked.
 	 */
@@ -838,7 +838,7 @@ int netvsc_recv_callback(struct net_device *net,
 	skb = netvsc_alloc_recv_skb(net, nvchan);
 
 	if (unlikely(!skb)) {
-		++net_device_ctx->eth_stats.rx_no_memory;
+		++net_device_ctx->eth_stats.rx_yes_memory;
 		return NVSP_STAT_FAIL;
 	}
 
@@ -847,7 +847,7 @@ int netvsc_recv_callback(struct net_device *net,
 	/*
 	 * Even if injecting the packet, record the statistics
 	 * on the synthetic device because modifying the VF device
-	 * statistics will not work correctly.
+	 * statistics will yest work correctly.
 	 */
 	rx_stats = &nvchan->rx_stats;
 	u64_stats_update_begin(&rx_stats->syncp);
@@ -941,7 +941,7 @@ static int netvsc_detach(struct net_device *ndev,
 		ret = netvsc_wait_until_empty(nvdev);
 		if (ret) {
 			netdev_err(ndev,
-				   "Ring buffer not empty after closing rndis\n");
+				   "Ring buffer yest empty after closing rndis\n");
 			return ret;
 		}
 	}
@@ -976,7 +976,7 @@ static int netvsc_attach(struct net_device *ndev,
 		}
 	}
 
-	/* In any case device is now ready */
+	/* In any case device is yesw ready */
 	netif_device_attach(ndev);
 
 	/* Note: enable and attach happen when sub-channels setup */
@@ -1011,7 +1011,7 @@ static int netvsc_set_channels(struct net_device *net,
 	struct netvsc_device_info *device_info;
 	int ret;
 
-	/* We do not support separate count for rx, tx, or other */
+	/* We do yest support separate count for rx, tx, or other */
 	if (count == 0 ||
 	    channels->rx_count || channels->tx_count || channels->other_count)
 		return -EINVAL;
@@ -1338,13 +1338,13 @@ static const struct {
 	u16 offset;
 } netvsc_stats[] = {
 	{ "tx_scattered", offsetof(struct netvsc_ethtool_stats, tx_scattered) },
-	{ "tx_no_memory", offsetof(struct netvsc_ethtool_stats, tx_no_memory) },
-	{ "tx_no_space",  offsetof(struct netvsc_ethtool_stats, tx_no_space) },
+	{ "tx_yes_memory", offsetof(struct netvsc_ethtool_stats, tx_yes_memory) },
+	{ "tx_yes_space",  offsetof(struct netvsc_ethtool_stats, tx_yes_space) },
 	{ "tx_too_big",	  offsetof(struct netvsc_ethtool_stats, tx_too_big) },
 	{ "tx_busy",	  offsetof(struct netvsc_ethtool_stats, tx_busy) },
 	{ "tx_send_full", offsetof(struct netvsc_ethtool_stats, tx_send_full) },
 	{ "rx_comp_busy", offsetof(struct netvsc_ethtool_stats, rx_comp_busy) },
-	{ "rx_no_memory", offsetof(struct netvsc_ethtool_stats, rx_no_memory) },
+	{ "rx_yes_memory", offsetof(struct netvsc_ethtool_stats, rx_yes_memory) },
 	{ "stop_queue", offsetof(struct netvsc_ethtool_stats, stop_queue) },
 	{ "wake_queue", offsetof(struct netvsc_ethtool_stats, wake_queue) },
 }, pcpu_stats[] = {
@@ -1705,7 +1705,7 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 	return rndis_filter_set_rss_param(rndis_dev, key);
 }
 
-/* Hyper-V RNDIS protocol does not have ring in the HW sense.
+/* Hyper-V RNDIS protocol does yest have ring in the HW sense.
  * It does have pre-allocated receive area which is divided into sections.
  */
 static void __netvsc_get_ringparam(struct netvsc_device *nvdev,
@@ -1761,7 +1761,7 @@ static int netvsc_set_ringparam(struct net_device *ndev,
 
 	if (new_tx == orig.tx_pending &&
 	    new_rx == orig.rx_pending)
-		return 0;	 /* no change */
+		return 0;	 /* yes change */
 
 	device_info = netvsc_devinfo_get(nvdev);
 
@@ -1886,7 +1886,7 @@ static const struct net_device_ops device_ops = {
 /*
  * Handle link status changes. For RNDIS_STATUS_NETWORK_CHANGE emulate link
  * down/up sequence. In case of RNDIS_STATUS_MEDIA_CONNECT when carrier is
- * present send GARP packet to network peers with netif_notify_peers().
+ * present send GARP packet to network peers with netif_yestify_peers().
  */
 static void netvsc_link_change(struct work_struct *w)
 {
@@ -1897,7 +1897,7 @@ static void netvsc_link_change(struct work_struct *w)
 	struct netvsc_device *net_device;
 	struct rndis_device *rdev;
 	struct netvsc_reconfig *event = NULL;
-	bool notify = false, reschedule = false;
+	bool yestify = false, reschedule = false;
 	unsigned long flags, next_reconfig, delay;
 
 	/* if changes are happening, comeback later */
@@ -1914,7 +1914,7 @@ static void netvsc_link_change(struct work_struct *w)
 
 	next_reconfig = ndev_ctx->last_reconfig + LINKCHANGE_INT;
 	if (time_is_after_jiffies(next_reconfig)) {
-		/* link_watch only sends one notification with current state
+		/* link_watch only sends one yestification with current state
 		 * per second, avoid doing reconfig more frequently. Handle
 		 * wrap around.
 		 */
@@ -1947,7 +1947,7 @@ static void netvsc_link_change(struct work_struct *w)
 			netif_carrier_on(net);
 			netvsc_tx_enable(net_device, net);
 		} else {
-			notify = true;
+			yestify = true;
 		}
 		kfree(event);
 		break;
@@ -1976,10 +1976,10 @@ static void netvsc_link_change(struct work_struct *w)
 
 	rtnl_unlock();
 
-	if (notify)
-		netdev_notify_peers(net);
+	if (yestify)
+		netdev_yestify_peers(net);
 
-	/* link_watch only sends one notification with current state per
+	/* link_watch only sends one yestification with current state per
 	 * second, handle next reconfig event in 2 seconds.
 	 */
 	if (reschedule)
@@ -1998,7 +1998,7 @@ static struct net_device *get_netvsc_byref(struct net_device *vf_netdev)
 
 	dev = netdev_master_upper_dev_get(vf_netdev);
 	if (!dev || dev->netdev_ops != &device_ops)
-		return NULL;	/* not a netvsc device */
+		return NULL;	/* yest a netvsc device */
 
 	net_device_ctx = netdev_priv(dev);
 	if (!rtnl_dereference(net_device_ctx->nvdev))
@@ -2009,7 +2009,7 @@ static struct net_device *get_netvsc_byref(struct net_device *vf_netdev)
 
 /* Called when VF is injecting data into network stack.
  * Change the associated network device from VF to netvsc.
- * note: already called with rcu_read_lock
+ * yeste: already called with rcu_read_lock
  */
 static rx_handler_result_t netvsc_vf_handle_frame(struct sk_buff **pskb)
 {
@@ -2045,7 +2045,7 @@ static int netvsc_vf_join(struct net_device *vf_netdev,
 					 netvsc_vf_handle_frame, ndev);
 	if (ret != 0) {
 		netdev_err(vf_netdev,
-			   "can not register netvsc VF receive handler (err = %d)\n",
+			   "can yest register netvsc VF receive handler (err = %d)\n",
 			   ret);
 		goto rx_handler_failed;
 	}
@@ -2054,7 +2054,7 @@ static int netvsc_vf_join(struct net_device *vf_netdev,
 					   NULL, NULL, NULL);
 	if (ret != 0) {
 		netdev_err(vf_netdev,
-			   "can not set master device %s (err = %d)\n",
+			   "can yest set master device %s (err = %d)\n",
 			   ndev->name, ret);
 		goto upper_link_failed;
 	}
@@ -2064,7 +2064,7 @@ static int netvsc_vf_join(struct net_device *vf_netdev,
 
 	schedule_delayed_work(&ndev_ctx->vf_takeover, VF_TAKEOVER_INT);
 
-	call_netdevice_notifiers(NETDEV_JOIN, vf_netdev);
+	call_netdevice_yestifiers(NETDEV_JOIN, vf_netdev);
 
 	netdev_info(vf_netdev, "joined to %s\n", ndev->name);
 	return 0;
@@ -2136,16 +2136,16 @@ static struct net_device *get_netvsc_byslot(const struct net_device *vf_netdev)
 	u32 serial;
 
 	if (!parent || !dev_is_pci(parent))
-		return NULL; /* not a PCI device */
+		return NULL; /* yest a PCI device */
 
 	pdev = to_pci_dev(parent);
 	if (!pdev->slot) {
-		netdev_notice(vf_netdev, "no PCI slot information\n");
+		netdev_yestice(vf_netdev, "yes PCI slot information\n");
 		return NULL;
 	}
 
 	if (kstrtou32(pci_slot_name(pdev->slot), 10, &serial)) {
-		netdev_notice(vf_netdev, "Invalid vf serial:%s\n",
+		netdev_yestice(vf_netdev, "Invalid vf serial:%s\n",
 			      pci_slot_name(pdev->slot));
 		return NULL;
 	}
@@ -2158,8 +2158,8 @@ static struct net_device *get_netvsc_byslot(const struct net_device *vf_netdev)
 			return hv_get_drvdata(ndev_ctx->device_ctx);
 	}
 
-	netdev_notice(vf_netdev,
-		      "no netdev found for vf serial:%u\n", serial);
+	netdev_yestice(vf_netdev,
+		      "yes netdev found for vf serial:%u\n", serial);
 	return NULL;
 }
 
@@ -2191,7 +2191,7 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 					       dev_net(ndev), "eth%d");
 		if (ret)
 			netdev_err(vf_netdev,
-				   "could not move to same namespace as %s: %d\n",
+				   "could yest move to same namespace as %s: %d\n",
 				   ndev->name, ret);
 		else
 			netdev_info(vf_netdev,
@@ -2272,7 +2272,7 @@ static int netvsc_probe(struct hv_device *dev,
 	net = alloc_etherdev_mq(sizeof(struct net_device_context),
 				VRSS_CHANNEL_MAX);
 	if (!net)
-		goto no_net;
+		goto yes_net;
 
 	netif_carrier_off(net);
 
@@ -2296,7 +2296,7 @@ static int netvsc_probe(struct hv_device *dev,
 	net_device_ctx->vf_stats
 		= netdev_alloc_pcpu_stats(struct netvsc_vf_pcpu_stats);
 	if (!net_device_ctx->vf_stats)
-		goto no_stats;
+		goto yes_stats;
 
 	net->netdev_ops = &device_ops;
 	net->ethtool_ops = &ethtool_ops;
@@ -2330,8 +2330,8 @@ static int netvsc_probe(struct hv_device *dev,
 
 	/* We must get rtnl lock before scheduling nvdev->subchan_work,
 	 * otherwise netvsc_subchan_work() can get rtnl lock first and wait
-	 * all subchannels to show up, but that may not happen because
-	 * netvsc_probe() can't get rtnl lock and as a result vmbus_onoffer()
+	 * all subchannels to show up, but that may yest happen because
+	 * netvsc_probe() can't get rtnl lock and as a result vmbus_oyesffer()
 	 * -> ... -> device_add() -> ... -> __device_attach() can't get
 	 * the device lock, so all the subchannels can't be processed --
 	 * finally netvsc_subchan_work() hangs forever.
@@ -2373,10 +2373,10 @@ rndis_failed:
 	kfree(device_info);
 devinfo_failed:
 	free_percpu(net_device_ctx->vf_stats);
-no_stats:
+yes_stats:
 	hv_set_drvdata(dev, NULL);
 	free_netdev(net);
-no_net:
+yes_net:
 	return ret;
 }
 
@@ -2402,7 +2402,7 @@ static int netvsc_remove(struct hv_device *dev)
 		cancel_work_sync(&nvdev->subchan_work);
 
 	/*
-	 * Call to the vsc driver to let it know that the device is being
+	 * Call to the vsc driver to let it kyesw that the device is being
 	 * removed. Also blocks mtu and channel changes.
 	 */
 	vf_netdev = rtnl_dereference(ndev_ctx->vf_netdev);
@@ -2506,16 +2506,16 @@ static struct  hv_driver netvsc_drv = {
  * to the guest. When the corresponding VF instance is registered,
  * we will take care of switching the data path.
  */
-static int netvsc_netdev_event(struct notifier_block *this,
+static int netvsc_netdev_event(struct yestifier_block *this,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *event_dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *event_dev = netdev_yestifier_info_to_dev(ptr);
 
 	/* Skip our own events */
 	if (event_dev->netdev_ops == &device_ops)
 		return NOTIFY_DONE;
 
-	/* Avoid non-Ethernet type devices */
+	/* Avoid yesn-Ethernet type devices */
 	if (event_dev->type != ARPHRD_ETHER)
 		return NOTIFY_DONE;
 
@@ -2541,13 +2541,13 @@ static int netvsc_netdev_event(struct notifier_block *this,
 	}
 }
 
-static struct notifier_block netvsc_netdev_notifier = {
-	.notifier_call = netvsc_netdev_event,
+static struct yestifier_block netvsc_netdev_yestifier = {
+	.yestifier_call = netvsc_netdev_event,
 };
 
 static void __exit netvsc_drv_exit(void)
 {
-	unregister_netdevice_notifier(&netvsc_netdev_notifier);
+	unregister_netdevice_yestifier(&netvsc_netdev_yestifier);
 	vmbus_driver_unregister(&netvsc_drv);
 }
 
@@ -2566,7 +2566,7 @@ static int __init netvsc_drv_init(void)
 	if (ret)
 		return ret;
 
-	register_netdevice_notifier(&netvsc_netdev_notifier);
+	register_netdevice_yestifier(&netvsc_netdev_yestifier);
 	return 0;
 }
 

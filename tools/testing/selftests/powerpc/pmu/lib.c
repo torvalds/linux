@@ -5,7 +5,7 @@
 
 #define _GNU_SOURCE	/* For CPU_ZERO etc. */
 
-#include <errno.h>
+#include <erryes.h>
 #include <sched.h>
 #include <setjmp.h>
 #include <stdlib.h>
@@ -52,7 +52,7 @@ int wait_for_parent(union pipe read_pipe)
 	return 0;
 }
 
-int notify_parent(union pipe write_pipe)
+int yestify_parent(union pipe write_pipe)
 {
 	char c = CHILD_TOKEN;
 
@@ -61,7 +61,7 @@ int notify_parent(union pipe write_pipe)
 	return 0;
 }
 
-int notify_parent_of_error(union pipe write_pipe)
+int yestify_parent_of_error(union pipe write_pipe)
 {
 	char c = ~CHILD_TOKEN;
 
@@ -104,7 +104,7 @@ static int eat_cpu_child(union pipe read_pipe, union pipe write_pipe)
 	 */
 	signal(SIGTERM, SIG_DFL);
 
-	notify_parent(write_pipe);
+	yestify_parent(write_pipe);
 	wait_for_parent(read_pipe);
 
 	/* Soak up cpu forever */
@@ -163,7 +163,7 @@ int parse_proc_maps(void)
 	}
 
 	do {
-		/* This skips line with no executable which is what we want */
+		/* This skips line with yes executable which is what we want */
 		rc = fscanf(f, "%lx-%lx %*c%*c%c%*c %*x %*d:%*d %*d %127s\n",
 			    &start, &end, &execute, name);
 		if (rc <= 0)
@@ -186,9 +186,9 @@ int parse_proc_maps(void)
 	return 0;
 }
 
-#define PARANOID_PATH	"/proc/sys/kernel/perf_event_paranoid"
+#define PARANOID_PATH	"/proc/sys/kernel/perf_event_parayesid"
 
-bool require_paranoia_below(int level)
+bool require_parayesia_below(int level)
 {
 	long current;
 	char *end, buf[16];

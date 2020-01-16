@@ -37,7 +37,7 @@ tcpoptstrip_mangle_packet(struct sk_buff *skb,
 	u_int8_t *opt;
 	int tcp_hdrlen;
 
-	/* This is a fragment, no TCP header is available */
+	/* This is a fragment, yes TCP header is available */
 	if (par->fragoff != 0)
 		return XT_CONTINUE;
 

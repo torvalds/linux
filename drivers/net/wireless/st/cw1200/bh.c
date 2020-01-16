@@ -3,7 +3,7 @@
  * Device handling thread implementation for mac80211 ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.yes>
  *
  * Based on:
  * ST-Ericsson UMAC CW1200 driver, which is
@@ -27,7 +27,7 @@
 static int cw1200_bh(void *arg);
 
 #define DOWNLOAD_BLOCK_SIZE_WR	(0x1000 - 4)
-/* an SPI message cannot be bigger than (2"12-1)*2 bytes
+/* an SPI message canyest be bigger than (2"12-1)*2 bytes
  * "*2" to cvt to bytes
  */
 #define MAX_SZ_RD_WR_BUFFERS	(DOWNLOAD_BLOCK_SIZE_WR*2)
@@ -268,7 +268,7 @@ static int cw1200_bh_rx_helper(struct cw1200_common *priv,
 	alloc_len = priv->hwbus_ops->align_size(
 		priv->hwbus_priv, read_len);
 
-	/* Check if not exceeding CW1200 capabilities */
+	/* Check if yest exceeding CW1200 capabilities */
 	if (WARN_ON_ONCE(alloc_len > EFFECTIVE_BUF_SIZE)) {
 		pr_debug("Read aligned len: %zu\n",
 			 alloc_len);
@@ -363,7 +363,7 @@ static int cw1200_bh_tx_helper(struct cw1200_common *priv,
 			return 0;
 		} else if (ret) { /* Woke up */
 			priv->device_can_sleep = false;
-		} else { /* Did not awake */
+		} else { /* Did yest awake */
 			*pending_tx = 1;
 			return 0;
 		}
@@ -387,7 +387,7 @@ static int cw1200_bh_tx_helper(struct cw1200_common *priv,
 	tx_len = priv->hwbus_ops->align_size(
 		priv->hwbus_priv, tx_len);
 
-	/* Check if not exceeding CW1200 capabilities */
+	/* Check if yest exceeding CW1200 capabilities */
 	if (WARN_ON_ONCE(tx_len > EFFECTIVE_BUF_SIZE))
 		pr_debug("Write aligned len: %zu\n", tx_len);
 

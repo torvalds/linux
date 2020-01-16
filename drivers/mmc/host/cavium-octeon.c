@@ -33,7 +33,7 @@ static inline void *phys_to_ptr(u64 address)
 
 /*
  * Lock a single line into L2. The line is zeroed before locking
- * to make sure no dram accesses are made.
+ * to make sure yes dram accesses are made.
  */
 static void l2c_lock_line(u64 addr)
 {
@@ -146,7 +146,7 @@ static void octeon_mmc_dmar_fixup_done(struct cvm_mmc_host *host)
 
 static int octeon_mmc_probe(struct platform_device *pdev)
 {
-	struct device_node *cn, *node = pdev->dev.of_node;
+	struct device_yesde *cn, *yesde = pdev->dev.of_yesde;
 	struct cvm_mmc_host *host;
 	void __iomem *base;
 	int mmc_irq[9];
@@ -173,7 +173,7 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 
 	host->sys_freq = octeon_get_io_clock_rate();
 
-	if (of_device_is_compatible(node, "cavium,octeon-7890-mmc")) {
+	if (of_device_is_compatible(yesde, "cavium,octeon-7890-mmc")) {
 		host->big_dma_addr = true;
 		host->need_irq_handler_lock = true;
 		host->has_ciu3 = true;
@@ -266,7 +266,7 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 
 	i = 0;
-	for_each_child_of_node(node, cn) {
+	for_each_child_of_yesde(yesde, cn) {
 		host->slot_pdev[i] =
 			of_platform_device_create(cn, NULL, &pdev->dev);
 		if (!host->slot_pdev[i]) {

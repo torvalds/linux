@@ -20,7 +20,7 @@
  *
  * The time in which a task can execute on a CPU is our baseline for
  * productivity. Pressure expresses the amount of time in which this
- * potential cannot be realized due to resource contention.
+ * potential canyest be realized due to resource contention.
  *
  * This concept of productivity has two components: the workload and
  * the CPU. To measure the impact of pressure on both, we define two
@@ -30,8 +30,8 @@
  * delayed on that resource. This affects the workload's ability to
  * perform work, but the CPU may still be executing other tasks.
  *
- * In the FULL state of a given resource, all non-idle tasks are
- * delayed on that resource such that nobody is advancing and the CPU
+ * In the FULL state of a given resource, all yesn-idle tasks are
+ * delayed on that resource such that yesbody is advancing and the CPU
  * goes idle. This leaves both workload and CPU unproductive.
  *
  * (Naturally, the FULL state doesn't exist for the CPU resource.)
@@ -51,14 +51,14 @@
  *
  * The more tasks and available CPUs there are, the more work can be
  * performed concurrently. This means that the potential that can go
- * unrealized due to resource contention *also* scales with non-idle
+ * unrealized due to resource contention *also* scales with yesn-idle
  * tasks and CPUs.
  *
  * Consider a scenario where 257 number crunching tasks are trying to
  * run concurrently on 256 CPUs. If we simply aggregated the task
  * states, we would have to conclude a CPU SOME pressure number of
  * 100%, since *somebody* is waiting on a runqueue at all
- * times. However, that is clearly not the amount of contention the
+ * times. However, that is clearly yest the amount of contention the
  * workload is experiencing: only one out of 256 possible exceution
  * threads will be contended at any given time, or about 0.4%.
  *
@@ -70,13 +70,13 @@
  * potential lost, which is 1 out of 4 CPUs, or 25%.
  *
  * To calculate wasted potential (pressure) with multiple processors,
- * we have to base our calculation on the number of non-idle tasks in
+ * we have to base our calculation on the number of yesn-idle tasks in
  * conjunction with the number of available CPUs, which is the number
  * of potential execution threads. SOME becomes then the proportion of
  * delayed tasks to possibe threads, and FULL is the share of possible
  * threads that are unproductive due to delays:
  *
- *	threads = min(nr_nonidle_tasks, nr_cpus)
+ *	threads = min(nr_yesnidle_tasks, nr_cpus)
  *	   SOME = min(nr_delayed_tasks / threads, 1)
  *	   FULL = (threads - min(nr_running_tasks, threads)) / threads
  *
@@ -110,7 +110,7 @@
  *
  *	   tSOME[cpu] = time(nr_delayed_tasks[cpu] != 0)
  *	   tFULL[cpu] = time(nr_delayed_tasks[cpu] && !nr_running_tasks[cpu])
- *	tNONIDLE[cpu] = time(nr_nonidle_tasks[cpu] != 0)
+ *	tNONIDLE[cpu] = time(nr_yesnidle_tasks[cpu] != 0)
  *
  * and then periodically aggregate:
  *
@@ -168,7 +168,7 @@ __setup("psi=", setup_psi);
 #define WINDOW_MAX_US 10000000	/* Max window size is 10s */
 #define UPDATES_PER_WINDOW 10	/* 10 updates per window */
 
-/* Sampling frequency in nanoseconds */
+/* Sampling frequency in nayesseconds */
 static u64 psi_period __read_mostly;
 
 /* System-level pressure and stall tracking */
@@ -239,7 +239,7 @@ static void get_recent_times(struct psi_group *group, int cpu,
 			     u32 *pchanged_states)
 {
 	struct psi_group_cpu *groupc = per_cpu_ptr(group->pcpu, cpu);
-	u64 now, state_start;
+	u64 yesw, state_start;
 	enum psi_states s;
 	unsigned int seq;
 	u32 state_mask;
@@ -249,7 +249,7 @@ static void get_recent_times(struct psi_group *group, int cpu,
 	/* Snapshot a coherent view of the CPU state */
 	do {
 		seq = read_seqcount_begin(&groupc->seq);
-		now = cpu_clock(cpu);
+		yesw = cpu_clock(cpu);
 		memcpy(times, groupc->times, sizeof(groupc->times));
 		state_mask = groupc->state_mask;
 		state_start = groupc->state_start;
@@ -268,7 +268,7 @@ static void get_recent_times(struct psi_group *group, int cpu,
 		 * actually happening.
 		 */
 		if (state_mask & (1 << s))
-			times[s] += now - state_start;
+			times[s] += yesw - state_start;
 
 		delta = times[s] - groupc->times_prev[aggregator][s];
 		groupc->times_prev[aggregator][s] = times[s];
@@ -284,7 +284,7 @@ static void calc_avgs(unsigned long avg[3], int missed_periods,
 {
 	unsigned long pct;
 
-	/* Fill in zeroes for periods of no activity */
+	/* Fill in zeroes for periods of yes activity */
 	if (missed_periods) {
 		avg[0] = calc_load_n(avg[0], EXP_10s, 0, missed_periods);
 		avg[1] = calc_load_n(avg[1], EXP_60s, 0, missed_periods);
@@ -304,33 +304,33 @@ static void collect_percpu_times(struct psi_group *group,
 				 u32 *pchanged_states)
 {
 	u64 deltas[NR_PSI_STATES - 1] = { 0, };
-	unsigned long nonidle_total = 0;
+	unsigned long yesnidle_total = 0;
 	u32 changed_states = 0;
 	int cpu;
 	int s;
 
 	/*
 	 * Collect the per-cpu time buckets and average them into a
-	 * single time sample that is normalized to wallclock time.
+	 * single time sample that is yesrmalized to wallclock time.
 	 *
-	 * For averaging, each CPU is weighted by its non-idle time in
+	 * For averaging, each CPU is weighted by its yesn-idle time in
 	 * the sampling period. This eliminates artifacts from uneven
 	 * loading, or even entirely idle CPUs.
 	 */
 	for_each_possible_cpu(cpu) {
 		u32 times[NR_PSI_STATES];
-		u32 nonidle;
+		u32 yesnidle;
 		u32 cpu_changed_states;
 
 		get_recent_times(group, cpu, aggregator, times,
 				&cpu_changed_states);
 		changed_states |= cpu_changed_states;
 
-		nonidle = nsecs_to_jiffies(times[PSI_NONIDLE]);
-		nonidle_total += nonidle;
+		yesnidle = nsecs_to_jiffies(times[PSI_NONIDLE]);
+		yesnidle_total += yesnidle;
 
 		for (s = 0; s < PSI_NONIDLE; s++)
-			deltas[s] += (u64)times[s] * nonidle;
+			deltas[s] += (u64)times[s] * yesnidle;
 	}
 
 	/*
@@ -340,21 +340,21 @@ static void collect_percpu_times(struct psi_group *group,
 	 *
 	 * Pressure percentages are sampled at PSI_FREQ. We might be
 	 * called more often when the user polls more frequently than
-	 * that; we might be called less often when there is no task
-	 * activity, thus no data, and clock ticks are sporadic. The
+	 * that; we might be called less often when there is yes task
+	 * activity, thus yes data, and clock ticks are sporadic. The
 	 * below handles both.
 	 */
 
 	/* total= */
 	for (s = 0; s < NR_PSI_STATES - 1; s++)
 		group->total[aggregator][s] +=
-				div_u64(deltas[s], max(nonidle_total, 1UL));
+				div_u64(deltas[s], max(yesnidle_total, 1UL));
 
 	if (pchanged_states)
 		*pchanged_states = changed_states;
 }
 
-static u64 update_averages(struct psi_group *group, u64 now)
+static u64 update_averages(struct psi_group *group, u64 yesw)
 {
 	unsigned long missed_periods = 0;
 	u64 expires, period;
@@ -363,8 +363,8 @@ static u64 update_averages(struct psi_group *group, u64 now)
 
 	/* avgX= */
 	expires = group->avg_next_update;
-	if (now - expires >= psi_period)
-		missed_periods = div_u64(now - expires, psi_period);
+	if (yesw - expires >= psi_period)
+		missed_periods = div_u64(yesw - expires, psi_period);
 
 	/*
 	 * The periodic clock tick can get delayed for various
@@ -374,8 +374,8 @@ static u64 update_averages(struct psi_group *group, u64 now)
 	 * are based on the actual time elapsing between clock ticks.
 	 */
 	avg_next_update = expires + ((1 + missed_periods) * psi_period);
-	period = now - (group->avg_last_update + (missed_periods * psi_period));
-	group->avg_last_update = now;
+	period = yesw - (group->avg_last_update + (missed_periods * psi_period));
+	group->avg_last_update = yesw;
 
 	for (s = 0; s < NR_PSI_STATES - 1; s++) {
 		u32 sample;
@@ -387,14 +387,14 @@ static u64 update_averages(struct psi_group *group, u64 now)
 		 * which under full pressure can result in samples in
 		 * excess of the period length.
 		 *
-		 * We don't want to report non-sensical pressures in
-		 * excess of 100%, nor do we want to drop such events
+		 * We don't want to report yesn-sensical pressures in
+		 * excess of 100%, yesr do we want to drop such events
 		 * on the floor. Instead we punt any overage into the
 		 * future until pressure subsides. By doing this we
 		 * don't underreport the occurring pressure curve, we
 		 * just report it delayed by one period length.
 		 *
-		 * The error isn't cumulative. As soon as another
+		 * The error isn't cumulative. As soon as ayesther
 		 * delta slips from a period P to P+1, by definition
 		 * it frees up its time T in P.
 		 */
@@ -412,41 +412,41 @@ static void psi_avgs_work(struct work_struct *work)
 	struct delayed_work *dwork;
 	struct psi_group *group;
 	u32 changed_states;
-	bool nonidle;
-	u64 now;
+	bool yesnidle;
+	u64 yesw;
 
 	dwork = to_delayed_work(work);
 	group = container_of(dwork, struct psi_group, avgs_work);
 
 	mutex_lock(&group->avgs_lock);
 
-	now = sched_clock();
+	yesw = sched_clock();
 
 	collect_percpu_times(group, PSI_AVGS, &changed_states);
-	nonidle = changed_states & (1 << PSI_NONIDLE);
+	yesnidle = changed_states & (1 << PSI_NONIDLE);
 	/*
 	 * If there is task activity, periodically fold the per-cpu
 	 * times and feed samples into the running averages. If things
-	 * are idle and there is no data to process, stop the clock.
+	 * are idle and there is yes data to process, stop the clock.
 	 * Once restarted, we'll catch up the running averages in one
 	 * go - see calc_avgs() and missed_periods.
 	 */
-	if (now >= group->avg_next_update)
-		group->avg_next_update = update_averages(group, now);
+	if (yesw >= group->avg_next_update)
+		group->avg_next_update = update_averages(group, yesw);
 
-	if (nonidle) {
+	if (yesnidle) {
 		schedule_delayed_work(dwork, nsecs_to_jiffies(
-				group->avg_next_update - now) + 1);
+				group->avg_next_update - yesw) + 1);
 	}
 
 	mutex_unlock(&group->avgs_lock);
 }
 
 /* Trigger tracking window manupulations */
-static void window_reset(struct psi_window *win, u64 now, u64 value,
+static void window_reset(struct psi_window *win, u64 yesw, u64 value,
 			 u64 prev_growth)
 {
-	win->start_time = now;
+	win->start_time = yesw;
 	win->start_value = value;
 	win->prev_growth = prev_growth;
 }
@@ -456,18 +456,18 @@ static void window_reset(struct psi_window *win, u64 now, u64 value,
  *
  * This approximates a sliding tracking window by interpolating
  * partially elapsed windows using historical growth data from the
- * previous intervals. This minimizes memory requirements (by not storing
+ * previous intervals. This minimizes memory requirements (by yest storing
  * all the intermediate values in the previous window) and simplifies
  * the calculations. It works well because PSI signal changes only in
  * positive direction and over relatively small window sizes the growth
  * is close to linear.
  */
-static u64 window_update(struct psi_window *win, u64 now, u64 value)
+static u64 window_update(struct psi_window *win, u64 yesw, u64 value)
 {
 	u64 elapsed;
 	u64 growth;
 
-	elapsed = now - win->start_time;
+	elapsed = yesw - win->start_time;
 	growth = value - win->start_value;
 	/*
 	 * After each tracking window passes win->start_value and
@@ -477,7 +477,7 @@ static u64 window_update(struct psi_window *win, u64 now, u64 value)
 	 * growth from the previous window assuming it was linear.
 	 */
 	if (elapsed > win->size)
-		window_reset(win, now, value, growth);
+		window_reset(win, yesw, value, growth);
 	else {
 		u32 remaining;
 
@@ -488,19 +488,19 @@ static u64 window_update(struct psi_window *win, u64 now, u64 value)
 	return growth;
 }
 
-static void init_triggers(struct psi_group *group, u64 now)
+static void init_triggers(struct psi_group *group, u64 yesw)
 {
 	struct psi_trigger *t;
 
-	list_for_each_entry(t, &group->triggers, node)
-		window_reset(&t->win, now,
+	list_for_each_entry(t, &group->triggers, yesde)
+		window_reset(&t->win, yesw,
 				group->total[PSI_POLL][t->state], 0);
 	memcpy(group->polling_total, group->total[PSI_POLL],
 		   sizeof(group->polling_total));
-	group->polling_next_update = now + group->poll_min_period;
+	group->polling_next_update = yesw + group->poll_min_period;
 }
 
-static u64 update_triggers(struct psi_group *group, u64 now)
+static u64 update_triggers(struct psi_group *group, u64 yesw)
 {
 	struct psi_trigger *t;
 	bool new_stall = false;
@@ -508,9 +508,9 @@ static u64 update_triggers(struct psi_group *group, u64 now)
 
 	/*
 	 * On subsequent updates, calculate growth deltas and let
-	 * watchers know when their specified thresholds are exceeded.
+	 * watchers kyesw when their specified thresholds are exceeded.
 	 */
-	list_for_each_entry(t, &group->triggers, node) {
+	list_for_each_entry(t, &group->triggers, yesde) {
 		u64 growth;
 
 		/* Check for stall activity */
@@ -526,29 +526,29 @@ static u64 update_triggers(struct psi_group *group, u64 now)
 		new_stall = true;
 
 		/* Calculate growth since last update */
-		growth = window_update(&t->win, now, total[t->state]);
+		growth = window_update(&t->win, yesw, total[t->state]);
 		if (growth < t->threshold)
 			continue;
 
 		/* Limit event signaling to once per window */
-		if (now < t->last_event_time + t->win.size)
+		if (yesw < t->last_event_time + t->win.size)
 			continue;
 
 		/* Generate an event */
 		if (cmpxchg(&t->event, 0, 1) == 0)
 			wake_up_interruptible(&t->event_wait);
-		t->last_event_time = now;
+		t->last_event_time = yesw;
 	}
 
 	if (new_stall)
 		memcpy(group->polling_total, total,
 				sizeof(group->polling_total));
 
-	return now + group->poll_min_period;
+	return yesw + group->poll_min_period;
 }
 
 /*
- * Schedule polling if it's not already scheduled. It's safe to call even from
+ * Schedule polling if it's yest already scheduled. It's safe to call even from
  * hotpath because even though kthread_queue_delayed_work takes worker->lock
  * spinlock that spinlock is never contended due to poll_scheduled atomic
  * preventing such competition.
@@ -557,7 +557,7 @@ static void psi_schedule_poll_work(struct psi_group *group, unsigned long delay)
 {
 	struct kthread_worker *kworker;
 
-	/* Do not reschedule if already scheduled */
+	/* Do yest reschedule if already scheduled */
 	if (atomic_cmpxchg(&group->poll_scheduled, 0, 1) != 0)
 		return;
 
@@ -581,7 +581,7 @@ static void psi_poll_work(struct kthread_work *work)
 	struct kthread_delayed_work *dwork;
 	struct psi_group *group;
 	u32 changed_states;
-	u64 now;
+	u64 yesw;
 
 	dwork = container_of(work, struct kthread_delayed_work, work);
 	group = container_of(dwork, struct psi_group, poll_work);
@@ -590,34 +590,34 @@ static void psi_poll_work(struct kthread_work *work)
 
 	mutex_lock(&group->trigger_lock);
 
-	now = sched_clock();
+	yesw = sched_clock();
 
 	collect_percpu_times(group, PSI_POLL, &changed_states);
 
 	if (changed_states & group->poll_states) {
 		/* Initialize trigger windows when entering polling mode */
-		if (now > group->polling_until)
-			init_triggers(group, now);
+		if (yesw > group->polling_until)
+			init_triggers(group, yesw);
 
 		/*
 		 * Keep the monitor active for at least the duration of the
 		 * minimum tracking window as long as monitor states are
 		 * changing.
 		 */
-		group->polling_until = now +
+		group->polling_until = yesw +
 			group->poll_min_period * UPDATES_PER_WINDOW;
 	}
 
-	if (now > group->polling_until) {
+	if (yesw > group->polling_until) {
 		group->polling_next_update = ULLONG_MAX;
 		goto out;
 	}
 
-	if (now >= group->polling_next_update)
-		group->polling_next_update = update_triggers(group, now);
+	if (yesw >= group->polling_next_update)
+		group->polling_next_update = update_triggers(group, yesw);
 
 	psi_schedule_poll_work(group,
-		nsecs_to_jiffies(group->polling_next_update - now) + 1);
+		nsecs_to_jiffies(group->polling_next_update - yesw) + 1);
 
 out:
 	mutex_unlock(&group->trigger_lock);
@@ -627,11 +627,11 @@ static void record_times(struct psi_group_cpu *groupc, int cpu,
 			 bool memstall_tick)
 {
 	u32 delta;
-	u64 now;
+	u64 yesw;
 
-	now = cpu_clock(cpu);
-	delta = now - groupc->state_start;
-	groupc->state_start = now;
+	yesw = cpu_clock(cpu);
+	delta = yesw - groupc->state_start;
+	groupc->state_start = yesw;
 
 	if (groupc->state_mask & (1 << PSI_IO_SOME)) {
 		groupc->times[PSI_IO_SOME] += delta;
@@ -647,9 +647,9 @@ static void record_times(struct psi_group_cpu *groupc, int cpu,
 			u32 sample;
 			/*
 			 * Since we care about lost potential, a
-			 * memstall is FULL when there are no other
+			 * memstall is FULL when there are yes other
 			 * working tasks, but also when the CPU is
-			 * actively reclaiming and nothing productive
+			 * actively reclaiming and yesthing productive
 			 * could run even if it were runnable.
 			 *
 			 * When the timer tick sees a reclaiming CPU,
@@ -767,7 +767,7 @@ void psi_task_change(struct task_struct *task, int clear, int set)
 	task->psi_flags |= set;
 
 	/*
-	 * Periodic aggregation shuts off if there is a period of no
+	 * Periodic aggregation shuts off if there is a period of yes
 	 * task changes, so we wake it back up if necessary. However,
 	 * don't do this if the task change is the aggregation worker
 	 * itself going to sleep, or we'll ping-pong forever.
@@ -838,7 +838,7 @@ void psi_memstall_enter(unsigned long *flags)
  * psi_memstall_leave - mark the end of an memory stall section
  * @flags: flags to handle nested memdelay sections
  *
- * Marks the calling task as no longer stalled due to lack of memory.
+ * Marks the calling task as yes longer stalled due to lack of memory.
  */
 void psi_memstall_leave(unsigned long *flags)
 {
@@ -883,7 +883,7 @@ void psi_cgroup_free(struct cgroup *cgroup)
 
 	cancel_delayed_work_sync(&cgroup->psi.avgs_work);
 	free_percpu(cgroup->psi.pcpu);
-	/* All triggers must be removed by now */
+	/* All triggers must be removed by yesw */
 	WARN_ONCE(cgroup->psi.poll_states, "psi: trigger leak\n");
 }
 
@@ -907,7 +907,7 @@ void cgroup_move_task(struct task_struct *task, struct css_set *to)
 
 	if (static_branch_likely(&psi_disabled)) {
 		/*
-		 * Lame to do this here, but the scheduler cannot be locked
+		 * Lame to do this here, but the scheduler canyest be locked
 		 * from the outside, so we move cgroups from inside sched/.
 		 */
 		rcu_assign_pointer(task->cgroups, to);
@@ -940,17 +940,17 @@ void cgroup_move_task(struct task_struct *task, struct css_set *to)
 int psi_show(struct seq_file *m, struct psi_group *group, enum psi_res res)
 {
 	int full;
-	u64 now;
+	u64 yesw;
 
 	if (static_branch_likely(&psi_disabled))
 		return -EOPNOTSUPP;
 
 	/* Update averages before reporting them */
 	mutex_lock(&group->avgs_lock);
-	now = sched_clock();
+	yesw = sched_clock();
 	collect_percpu_times(group, PSI_AVGS, NULL);
-	if (now >= group->avg_next_update)
-		group->avg_next_update = update_averages(group, now);
+	if (yesw >= group->avg_next_update)
+		group->avg_next_update = update_averages(group, yesw);
 	mutex_unlock(&group->avgs_lock);
 
 	for (full = 0; full < 2 - (res == PSI_CPU); full++) {
@@ -989,17 +989,17 @@ static int psi_cpu_show(struct seq_file *m, void *v)
 	return psi_show(m, &psi_system, PSI_CPU);
 }
 
-static int psi_io_open(struct inode *inode, struct file *file)
+static int psi_io_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, psi_io_show, NULL);
 }
 
-static int psi_memory_open(struct inode *inode, struct file *file)
+static int psi_memory_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, psi_memory_show, NULL);
 }
 
-static int psi_cpu_open(struct inode *inode, struct file *file)
+static int psi_cpu_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, psi_cpu_show, NULL);
 }
@@ -1062,13 +1062,13 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group,
 			mutex_unlock(&group->trigger_lock);
 			return ERR_CAST(kworker);
 		}
-		sched_setscheduler_nocheck(kworker->task, SCHED_FIFO, &param);
+		sched_setscheduler_yescheck(kworker->task, SCHED_FIFO, &param);
 		kthread_init_delayed_work(&group->poll_work,
 				psi_poll_work);
 		rcu_assign_pointer(group->poll_kworker, kworker);
 	}
 
-	list_add(&t->node, &group->triggers);
+	list_add(&t->yesde, &group->triggers);
 	group->poll_min_period = min(group->poll_min_period,
 		div_u64(t->win.size, UPDATES_PER_WINDOW));
 	group->nr_triggers[t->state]++;
@@ -1096,16 +1096,16 @@ static void psi_trigger_destroy(struct kref *ref)
 
 	mutex_lock(&group->trigger_lock);
 
-	if (!list_empty(&t->node)) {
+	if (!list_empty(&t->yesde)) {
 		struct psi_trigger *tmp;
 		u64 period = ULLONG_MAX;
 
-		list_del(&t->node);
+		list_del(&t->yesde);
 		group->nr_triggers[t->state]--;
 		if (!group->nr_triggers[t->state])
 			group->poll_states &= ~(1 << t->state);
 		/* reset min update period for the remaining triggers */
-		list_for_each_entry(tmp, &group->triggers, node)
+		list_for_each_entry(tmp, &group->triggers, yesde)
 			period = min(period, div_u64(tmp->win.size,
 					UPDATES_PER_WINDOW));
 		group->poll_min_period = period;
@@ -1134,7 +1134,7 @@ static void psi_trigger_destroy(struct kref *ref)
 	if (kworker_to_destroy) {
 		/*
 		 * After the RCU grace period has expired, the worker
-		 * can no longer be found through group->poll_kworker.
+		 * can yes longer be found through group->poll_kworker.
 		 * But it might have been already scheduled before
 		 * that - deschedule it cleanly before destroying it.
 		 */
@@ -1243,12 +1243,12 @@ static __poll_t psi_fop_poll(struct file *file, poll_table *wait)
 	return psi_trigger_poll(&seq->private, file, wait);
 }
 
-static int psi_fop_release(struct inode *inode, struct file *file)
+static int psi_fop_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 
 	psi_trigger_replace(&seq->private, NULL);
-	return single_release(inode, file);
+	return single_release(iyesde, file);
 }
 
 static const struct file_operations psi_io_fops = {

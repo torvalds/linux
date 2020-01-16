@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -531,7 +531,7 @@
 #define   S_000009_ENABLE_PAGE_TABLES(x)               (((x) & 0x1) << 26)
 #define   G_000009_ENABLE_PAGE_TABLES(x)               (((x) >> 26) & 0x1)
 #define   C_000009_ENABLE_PAGE_TABLES                  0xFBFFFFFF
-/* FIXME don't know the various field size need feedback from AMD */
+/* FIXME don't kyesw the various field size need feedback from AMD */
 #define R_000100_MC_PT0_CNTL                         0x000100
 #define   S_000100_ENABLE_PT(x)                        (((x) & 0x1) << 0)
 #define   G_000100_ENABLE_PT(x)                        (((x) >> 0) & 0x1)

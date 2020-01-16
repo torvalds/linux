@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -22,63 +22,63 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nouveau_drv.h"
-#include "nouveau_gem.h"
-#include "nouveau_mem.h"
-#include "nouveau_ttm.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_gem.h"
+#include "yesuveau_mem.h"
+#include "yesuveau_ttm.h"
 
 #include <drm/drm_legacy.h>
 
 #include <core/tegra.h>
 
 static int
-nouveau_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
+yesuveau_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
 	return 0;
 }
 
 static int
-nouveau_manager_fini(struct ttm_mem_type_manager *man)
+yesuveau_manager_fini(struct ttm_mem_type_manager *man)
 {
 	return 0;
 }
 
 static void
-nouveau_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *reg)
+yesuveau_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *reg)
 {
-	nouveau_mem_del(reg);
+	yesuveau_mem_del(reg);
 }
 
 static void
-nouveau_manager_debug(struct ttm_mem_type_manager *man,
+yesuveau_manager_debug(struct ttm_mem_type_manager *man,
 		      struct drm_printer *printer)
 {
 }
 
 static int
-nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
+yesuveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
 			 struct ttm_mem_reg *reg)
 {
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
-	struct nouveau_mem *mem;
+	struct yesuveau_bo *nvbo = yesuveau_bo(bo);
+	struct yesuveau_drm *drm = yesuveau_bdev(bo->bdev);
+	struct yesuveau_mem *mem;
 	int ret;
 
 	if (drm->client.device.info.ram_size == 0)
 		return -ENOMEM;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
-	mem = nouveau_mem(reg);
+	ret = yesuveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	mem = yesuveau_mem(reg);
 	if (ret)
 		return ret;
 
-	ret = nouveau_mem_vram(reg, nvbo->contig, nvbo->page);
+	ret = yesuveau_mem_vram(reg, nvbo->contig, nvbo->page);
 	if (ret) {
-		nouveau_mem_del(reg);
+		yesuveau_mem_del(reg);
 		if (ret == -ENOSPC) {
-			reg->mm_node = NULL;
+			reg->mm_yesde = NULL;
 			return 0;
 		}
 		return ret;
@@ -87,27 +87,27 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	return 0;
 }
 
-const struct ttm_mem_type_manager_func nouveau_vram_manager = {
-	.init = nouveau_manager_init,
-	.takedown = nouveau_manager_fini,
-	.get_node = nouveau_vram_manager_new,
-	.put_node = nouveau_manager_del,
-	.debug = nouveau_manager_debug,
+const struct ttm_mem_type_manager_func yesuveau_vram_manager = {
+	.init = yesuveau_manager_init,
+	.takedown = yesuveau_manager_fini,
+	.get_yesde = yesuveau_vram_manager_new,
+	.put_yesde = yesuveau_manager_del,
+	.debug = yesuveau_manager_debug,
 };
 
 static int
-nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
+yesuveau_gart_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
 			 struct ttm_mem_reg *reg)
 {
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
-	struct nouveau_mem *mem;
+	struct yesuveau_bo *nvbo = yesuveau_bo(bo);
+	struct yesuveau_drm *drm = yesuveau_bdev(bo->bdev);
+	struct yesuveau_mem *mem;
 	int ret;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
-	mem = nouveau_mem(reg);
+	ret = yesuveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	mem = yesuveau_mem(reg);
 	if (ret)
 		return ret;
 
@@ -115,12 +115,12 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	return 0;
 }
 
-const struct ttm_mem_type_manager_func nouveau_gart_manager = {
-	.init = nouveau_manager_init,
-	.takedown = nouveau_manager_fini,
-	.get_node = nouveau_gart_manager_new,
-	.put_node = nouveau_manager_del,
-	.debug = nouveau_manager_debug
+const struct ttm_mem_type_manager_func yesuveau_gart_manager = {
+	.init = yesuveau_manager_init,
+	.takedown = yesuveau_manager_fini,
+	.get_yesde = yesuveau_gart_manager_new,
+	.put_yesde = yesuveau_manager_del,
+	.debug = yesuveau_manager_debug
 };
 
 static int
@@ -129,22 +129,22 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 		      const struct ttm_place *place,
 		      struct ttm_mem_reg *reg)
 {
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
-	struct nouveau_mem *mem;
+	struct yesuveau_bo *nvbo = yesuveau_bo(bo);
+	struct yesuveau_drm *drm = yesuveau_bdev(bo->bdev);
+	struct yesuveau_mem *mem;
 	int ret;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
-	mem = nouveau_mem(reg);
+	ret = yesuveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	mem = yesuveau_mem(reg);
 	if (ret)
 		return ret;
 
 	ret = nvif_vmm_get(&mem->cli->vmm.vmm, PTES, false, 12, 0,
 			   reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
 	if (ret) {
-		nouveau_mem_del(reg);
+		yesuveau_mem_del(reg);
 		if (ret == -ENOSPC) {
-			reg->mm_node = NULL;
+			reg->mm_yesde = NULL;
 			return 0;
 		}
 		return ret;
@@ -155,24 +155,24 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func nv04_gart_manager = {
-	.init = nouveau_manager_init,
-	.takedown = nouveau_manager_fini,
-	.get_node = nv04_gart_manager_new,
-	.put_node = nouveau_manager_del,
-	.debug = nouveau_manager_debug
+	.init = yesuveau_manager_init,
+	.takedown = yesuveau_manager_fini,
+	.get_yesde = nv04_gart_manager_new,
+	.put_yesde = yesuveau_manager_del,
+	.debug = yesuveau_manager_debug
 };
 
 int
-nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
+yesuveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *file_priv = filp->private_data;
-	struct nouveau_drm *drm = nouveau_drm(file_priv->minor->dev);
+	struct yesuveau_drm *drm = yesuveau_drm(file_priv->miyesr->dev);
 
 	return ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
 }
 
 static int
-nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
+yesuveau_ttm_init_host(struct yesuveau_drm *drm, u8 kind)
 {
 	struct nvif_mmu *mmu = &drm->client.mmu;
 	int typei;
@@ -193,7 +193,7 @@ nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
 }
 
 int
-nouveau_ttm_init(struct nouveau_drm *drm)
+yesuveau_ttm_init(struct yesuveau_drm *drm)
 {
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nvkm_pci *pci = device->pci;
@@ -201,13 +201,13 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	struct drm_device *dev = drm->dev;
 	int typei, ret;
 
-	ret = nouveau_ttm_init_host(drm, 0);
+	ret = yesuveau_ttm_init_host(drm, 0);
 	if (ret)
 		return ret;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
 	    drm->client.device.info.chipset != 0x50) {
-		ret = nouveau_ttm_init_host(drm, NVIF_MEM_KIND);
+		ret = yesuveau_ttm_init_host(drm, NVIF_MEM_KIND);
 		if (ret)
 			return ret;
 	}
@@ -234,8 +234,8 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	}
 
 	ret = ttm_bo_device_init(&drm->ttm.bdev,
-				  &nouveau_bo_driver,
-				  dev->anon_inode->i_mapping,
+				  &yesuveau_bo_driver,
+				  dev->ayesn_iyesde->i_mapping,
 				  dev->vma_offset_manager,
 				  drm->client.mmu.dmabits <= 32 ? true : false);
 	if (ret) {
@@ -279,7 +279,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 }
 
 void
-nouveau_ttm_fini(struct nouveau_drm *drm)
+yesuveau_ttm_fini(struct yesuveau_drm *drm)
 {
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 

@@ -30,17 +30,17 @@
 
 		memory@85800000 {
 			reg = <0x0 0x85800000 0x0 0x800000>;
-			no-map;
+			yes-map;
 		};
 
 		smem_mem: smem-mem@86000000 {
 			reg = <0x0 0x86000000 0x0 0x200000>;
-			no-map;
+			yes-map;
 		};
 
 		memory@86200000 {
 			reg = <0x0 0x86200000 0x0 0x2d00000>;
-			no-map;
+			yes-map;
 		};
 
 		rmtfs {
@@ -48,7 +48,7 @@
 
 			size = <0x0 0x200000>;
 			alloc-ranges = <0x0 0xa0000000 0x0 0x2000000>;
-			no-map;
+			yes-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <15>;
@@ -348,11 +348,11 @@
 						opp-level = <192>;
 					};
 
-					rpmpd_opp_nom: opp7 {
+					rpmpd_opp_yesm: opp7 {
 						opp-level = <256>;
 					};
 
-					rpmpd_opp_nom_plus: opp8 {
+					rpmpd_opp_yesm_plus: opp8 {
 						opp-level = <320>;
 					};
 
@@ -832,7 +832,7 @@
 			#thermal-sensor-cells = <1>;
 		};
 
-		anoc1_smmu: iommu@1680000 {
+		ayesc1_smmu: iommu@1680000 {
 			compatible = "qcom,msm8998-smmu-v2", "qcom,smmu-v2";
 			reg = <0x01680000 0x10000>;
 			#iommu-cells = <1>;
@@ -883,7 +883,7 @@
 			clock-names = "pipe", "bus_master", "bus_slave", "cfg", "aux";
 
 			power-domains = <&gcc PCIE_0_GDSC>;
-			iommu-map = <0x100 &anoc1_smmu 0x1480 1>;
+			iommu-map = <0x100 &ayesc1_smmu 0x1480 1>;
 			perst-gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
 		};
 
@@ -1484,7 +1484,7 @@
 				 <&gcc GCC_AGGRE1_USB3_AXI_CLK>,
 				 <&gcc GCC_USB30_MOCK_UTMI_CLK>,
 				 <&gcc GCC_USB30_SLEEP_CLK>;
-			clock-names = "cfg_noc", "core", "iface", "mock_utmi",
+			clock-names = "cfg_yesc", "core", "iface", "mock_utmi",
 				      "sleep";
 
 			assigned-clocks = <&gcc GCC_USB30_MOCK_UTMI_CLK>,

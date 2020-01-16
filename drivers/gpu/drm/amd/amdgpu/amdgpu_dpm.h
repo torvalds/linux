@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -433,7 +433,7 @@ struct amdgpu_pm {
 	enum amdgpu_int_thermal_type int_thermal_type;
 	struct device	        *int_hwmon_dev;
 	/* fan control parameters */
-	bool                    no_fan;
+	bool                    yes_fan;
 	u8                      fan_pulses_per_revolution;
 	u8                      fan_min_rpm;
 	u8                      fan_max_rpm;

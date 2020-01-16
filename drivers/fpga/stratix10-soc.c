@@ -65,7 +65,7 @@ static int s10_svc_send_msg(struct s10_priv *priv,
 }
 
 /*
- * Free buffers allocated from the service layer's pool that are not in use.
+ * Free buffers allocated from the service layer's pool that are yest in use.
  * Return true when all buffers are freed.
  */
 static bool s10_free_buffers(struct fpga_manager *mgr)
@@ -93,7 +93,7 @@ static bool s10_free_buffers(struct fpga_manager *mgr)
 }
 
 /*
- * Returns count of how many buffers are not in use.
+ * Returns count of how many buffers are yest in use.
  */
 static uint s10_free_buffer_count(struct fpga_manager *mgr)
 {
@@ -130,7 +130,7 @@ static void s10_unlock_bufs(struct s10_priv *priv, void *kaddr)
 			return;
 		}
 
-	WARN(1, "Unknown buffer returned from service layer %p\n", kaddr);
+	WARN(1, "Unkyeswn buffer returned from service layer %p\n", kaddr);
 }
 
 /*
@@ -250,7 +250,7 @@ static int s10_send_buf(struct fpga_manager *mgr, const char *buf, size_t count)
 	int ret;
 	uint i;
 
-	/* get/lock a buffer that that's not being used */
+	/* get/lock a buffer that that's yest being used */
 	for (i = 0; i < NUM_SVC_BUFS; i++)
 		if (!test_and_set_bit_lock(SVC_BUF_LOCK,
 					   &priv->svc_bufs[i].lock))
@@ -317,7 +317,7 @@ static int s10_ops_write(struct fpga_manager *mgr, const char *buf,
 		 * If callback hasn't already happened, wait for buffers to be
 		 * returned from service layer
 		 */
-		wait_status = 1; /* not timed out */
+		wait_status = 1; /* yest timed out */
 		if (!priv->status)
 			wait_status = wait_for_completion_interruptible_timeout(
 				&priv->status_return_completion,
@@ -353,7 +353,7 @@ static int s10_ops_write(struct fpga_manager *mgr, const char *buf,
 	}
 
 	if (!s10_free_buffers(mgr))
-		dev_err(dev, "%s not all buffers were freed\n", __func__);
+		dev_err(dev, "%s yest all buffers were freed\n", __func__);
 
 	return ret;
 }
@@ -499,24 +499,24 @@ static struct platform_driver s10_driver = {
 
 static int __init s10_init(void)
 {
-	struct device_node *fw_np;
-	struct device_node *np;
+	struct device_yesde *fw_np;
+	struct device_yesde *np;
 	int ret;
 
-	fw_np = of_find_node_by_name(NULL, "svc");
+	fw_np = of_find_yesde_by_name(NULL, "svc");
 	if (!fw_np)
 		return -ENODEV;
 
-	of_node_get(fw_np);
-	np = of_find_matching_node(fw_np, s10_of_match);
+	of_yesde_get(fw_np);
+	np = of_find_matching_yesde(fw_np, s10_of_match);
 	if (!np) {
-		of_node_put(fw_np);
+		of_yesde_put(fw_np);
 		return -ENODEV;
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 	ret = of_platform_populate(fw_np, s10_of_match, NULL, NULL);
-	of_node_put(fw_np);
+	of_yesde_put(fw_np);
 	if (ret)
 		return ret;
 

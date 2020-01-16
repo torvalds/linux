@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -174,7 +174,7 @@ void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 	for (i = 0; i < ARRAY_SIZE(dev->cmd.stats); i++) {
 		stats = &dev->cmd.stats[i];
 		namep = mlx5_command_str(i);
-		if (strcmp(namep, "unknown command opcode")) {
+		if (strcmp(namep, "unkyeswn command opcode")) {
 			stats->root = debugfs_create_dir(namep, *cmd);
 
 			debugfs_create_file("average", 0400, stats->root, stats,
@@ -207,7 +207,7 @@ static u64 qp_read_field(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 	u64 param = 0;
 	u32 *out;
 	int err;
-	int no_sq;
+	int yes_sq;
 
 	out = kzalloc(outlen, GFP_KERNEL);
 	if (!out)
@@ -264,8 +264,8 @@ static u64 qp_read_field(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 		param = 1 << ((ctx->rq_size_stride & 7) + 4);
 		break;
 	case QP_N_SEND:
-		no_sq = be16_to_cpu(ctx->sq_crq_size) >> 15;
-		if (!no_sq)
+		yes_sq = be16_to_cpu(ctx->sq_crq_size) >> 15;
+		if (!yes_sq)
 			param = 1 << (be16_to_cpu(ctx->sq_crq_size) >> 11);
 		else
 			param = 0;

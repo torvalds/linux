@@ -54,7 +54,7 @@
 						/* be modified independently of each other.	*/
 #define PTR_CHANNELNUM_MASK	0x0000003f	/* For each per-channel register, indicates the	*/
 						/* channel number of the register to be		*/
-						/* accessed.  For non per-channel registers the	*/
+						/* accessed.  For yesn per-channel registers the	*/
 						/* value should be set to zero.			*/
 #define PTR_ADDRESS_MASK	0x07ff0000	/* Register index				*/
 #define A_PTR_ADDRESS_MASK	0x0fff0000
@@ -66,7 +66,7 @@
 						/* the relevant bits and zero to the other bits	*/
 #define IPR_P16V		0x80000000	/* Bit set when the CA0151 P16V chip wishes
 						   to interrupt */
-#define IPR_GPIOMSG		0x20000000	/* GPIO message interrupt (RE'd, still not sure 
+#define IPR_GPIOMSG		0x20000000	/* GPIO message interrupt (RE'd, still yest sure 
 						   which INTE bits enable it)			*/
 
 /* The next two interrupts are for the midi port on the Audigy Drive (A_MPU1)			*/
@@ -122,7 +122,7 @@
 #define INTE_FORCEINT		0x00100000	/* Continuously assert INTAN			*/
 
 #define INTE_MRHANDENABLE	0x00080000	/* Enable the "Mr. Hand" logic			*/
-						/* NOTE: There is no reason to use this under	*/
+						/* NOTE: There is yes reason to use this under	*/
 						/* Linux, and it will cause odd hardware 	*/
 						/* behavior and possibly random segfaults and	*/
 						/* lockups if enabled.				*/
@@ -156,7 +156,7 @@
 						/* period to be serviced.			*/
 
 #define HCFG			0x14		/* Hardware config register			*/
-						/* NOTE: There is no reason to use the legacy	*/
+						/* NOTE: There is yes reason to use the legacy	*/
 						/* SoundBlaster emulation stuff described below	*/
 						/* under Linux, and all kinds of weird hardware	*/
 						/* behavior can result if you try.  Don't.	*/
@@ -184,18 +184,18 @@
 #define HCFG_CODECFORMAT_AC97_2	0x00010000	/* AC97 CODEC format -- Ver 2.1			*/
 #define HCFG_AUTOMUTE_ASYNC	0x00008000	/* When set, the async sample rate convertors	*/
 						/* will automatically mute their output when	*/
-						/* they are not rate-locked to the external	*/
+						/* they are yest rate-locked to the external	*/
 						/* async audio source  				*/
 #define HCFG_AUTOMUTE_SPDIF	0x00004000	/* When set, the async sample rate convertors	*/
 						/* will automatically mute their output when	*/
 						/* the SPDIF V-bit indicates invalid audio	*/
 #define HCFG_EMU32_SLAVE	0x00002000	/* 0 = Master, 1 = Slave. Slave for EMU1010	*/
 #define HCFG_SLOW_RAMP		0x00001000	/* Increases Send Smoothing time constant	*/
-/* 0x00000800 not used on Alice2 */
+/* 0x00000800 yest used on Alice2 */
 #define HCFG_PHASE_TRACK_MASK	0x00000700	/* When set, forces corresponding input to	*/
 						/* phase track the previous input.		*/
 						/* I2S0 can phase track the last S/PDIF input	*/
-#define HCFG_I2S_ASRC_ENABLE	0x00000070	/* When set, enables asynchronous sample rate   */
+#define HCFG_I2S_ASRC_ENABLE	0x00000070	/* When set, enables asynchroyesus sample rate   */
 						/* conversion for the corresponding		*/
  						/* I2S format input				*/
 /* Rest of HCFG 0x0000000f same as below. LOCKSOUNDCACHE etc.  */
@@ -221,7 +221,7 @@
 #define HCFG_AC3ENABLE_GPSPDIF  0x00000020      /* Channels 0 and 1 replace GPSPDIF             */
 #define HCFG_AUTOMUTE		0x00000010	/* When set, the async sample rate convertors	*/
 						/* will automatically mute their output when	*/
-						/* they are not rate-locked to the external	*/
+						/* they are yest rate-locked to the external	*/
 						/* async audio source  				*/
 #define HCFG_LOCKSOUNDCACHE	0x00000008	/* 1 = Cancel bustmaster accesses to soundcache */
 						/* NOTE: This should generally never be used.  	*/
@@ -231,8 +231,8 @@
 #define HCFG_MUTEBUTTONENABLE	0x00000002	/* 1 = Master mute button sets AUDIOENABLE = 0.	*/
 						/* NOTE: This is a 'cheap' way to implement a	*/
 						/* master mute function on the mute button, and	*/
-						/* in general should not be used unless a more	*/
-						/* sophisticated master mute function has not	*/
+						/* in general should yest be used unless a more	*/
+						/* sophisticated master mute function has yest	*/
 						/* been written.       				*/
 #define HCFG_AUDIOENABLE	0x00000001	/* 0 = CODECs transmit zero-valued samples	*/
 						/* Should be set to 1 when the EMU10K1 is	*/
@@ -245,7 +245,7 @@
 #define MUCMD			0x19		/* MPU401 command register (8 bits)    		*/
 #define MUCMD_RESET		0xff		/* RESET command				*/
 #define MUCMD_ENTERUARTMODE	0x3f		/* Enter_UART_mode command			*/
-						/* NOTE: All other commands are ignored		*/
+						/* NOTE: All other commands are igyesred		*/
 
 #define MUSTAT			MUCMD		/* MPU401 status register (8 bits)     		*/
 #define MUSTAT_IRDYN		0x80		/* 0 = MIDI data or command ACK			*/
@@ -282,7 +282,7 @@
 						/* of 1024 sample periods should be allowed	*/
 						/* before the new rate is guaranteed accurate.	*/
 #define TIMER_RATE_MASK		0x000003ff	/* Timer interrupt rate in sample periods	*/
-						/* 0 == 1024 periods, [1..4] are not useful	*/
+						/* 0 == 1024 periods, [1..4] are yest useful	*/
 #define TIMER_RATE		0x0a00001a
 
 #define AC97DATA		0x1c		/* AC97 register set data register (16 bit)	*/
@@ -317,7 +317,7 @@
 						/* 0x00000000 2-channel output. */
 						/* 0x00000200 8-channel output. */
 						/* 0x00000004 pauses stream/irq fail. */
-						/* Rest of bits no nothing to sound output */
+						/* Rest of bits yes yesthing to sound output */
 						/* bit 0: Enable P16V audio.
 						 * bit 1: Lock P16V record memory cache.
 						 * bit 2: Lock P16V playback memory cache.
@@ -435,7 +435,7 @@
 #define CCR_CACHELOOPADDRHI	0x000000ff	/* DSL_LOOPSTARTADDR's hi byte if CACHELOOPFLAG is set	*/
 
 #define CLP			0x0a		/* Cache loop register (valid if CCR_CACHELOOPFLAG = 1) */
-						/* NOTE: This register is normally not used		*/
+						/* NOTE: This register is yesrmally yest used		*/
 #define CLP_CACHELOOPADDR	0x0000ffff	/* Cache loop address (DSL_LOOPSTARTADDR [0..15])	*/
 
 #define FXRT			0x0b		/* Effects send routing register			*/
@@ -545,9 +545,9 @@
 #define TEMPENV 		0x1e		/* Tempory envelope register				*/
 #define TEMPENV_MASK		0x0000ffff	/* 16-bit value						*/
 						/* NOTE: All channels contain internal variables; do	*/
-						/* not write to these locations.			*/
+						/* yest write to these locations.			*/
 
-/* 0x1f: not used */
+/* 0x1f: yest used */
 
 #define CD0			0x20		/* Cache data 0 register				*/
 #define CD1			0x21		/* Cache data 1 register				*/
@@ -741,8 +741,8 @@
 #define SPCS_EMPHASISMASK	0x00000038	/* Emphasis					*/
 #define SPCS_EMPHASIS_NONE	0x00000000	/* No emphasis					*/
 #define SPCS_EMPHASIS_50_15	0x00000008	/* 50/15 usec 2 channel				*/
-#define SPCS_COPYRIGHT		0x00000004	/* Copyright asserted flag -- do not modify	*/
-#define SPCS_NOTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = not audio		*/
+#define SPCS_COPYRIGHT		0x00000004	/* Copyright asserted flag -- do yest modify	*/
+#define SPCS_NOTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = yest audio		*/
 #define SPCS_PROFESSIONAL	0x00000001	/* 0 = Consumer (IEC-958), 1 = pro (AES3-1992)	*/
 
 /* 0x57: Not used */
@@ -781,14 +781,14 @@
 #define GPSRCS			0x61		/* General Purpose SPDIF sample rate cvt status */
 
 #define ZVSRCS			0x62		/* ZVideo sample rate converter status		*/
-						/* NOTE: This one has no SPDIFLOCKED field	*/
+						/* NOTE: This one has yes SPDIFLOCKED field	*/
 						/* Assumes sample lock				*/
 
-/* These three bitfields apply to CDSRCS, GPSRCS, and (except as noted) ZVSRCS.			*/
+/* These three bitfields apply to CDSRCS, GPSRCS, and (except as yested) ZVSRCS.			*/
 #define SRCS_SPDIFVALID		0x04000000	/* SPDIF stream valid				*/
 #define SRCS_SPDIFLOCKED	0x02000000	/* SPDIF stream locked				*/
 #define SRCS_RATELOCKED		0x01000000	/* Sample rate locked				*/
-#define SRCS_ESTSAMPLERATE	0x0007ffff	/* Do not modify this field.			*/
+#define SRCS_ESTSAMPLERATE	0x0007ffff	/* Do yest modify this field.			*/
 
 /* Note that these values can vary +/- by a small amount                                        */
 #define SRCS_SPDIFRATE_44	0x0003acd9
@@ -854,8 +854,8 @@
 /* Extended Hardware Control */
 #define A_SPDIF_SAMPLERATE	0x76		/* Set the sample rate of SPDIF output		*/
 #define A_SAMPLE_RATE		0x76		/* Various sample rate settings. */
-#define A_SAMPLE_RATE_NOT_USED  0x0ffc111e	/* Bits that are not used and cannot be set. 	*/
-#define A_SAMPLE_RATE_UNKNOWN	0xf0030001	/* Bits that can be set, but have unknown use. 	*/
+#define A_SAMPLE_RATE_NOT_USED  0x0ffc111e	/* Bits that are yest used and canyest be set. 	*/
+#define A_SAMPLE_RATE_UNKNOWN	0xf0030001	/* Bits that can be set, but have unkyeswn use. 	*/
 #define A_SPDIF_RATE_MASK	0x000000e0	/* Any other values for rates, just use 48000	*/
 #define A_SPDIF_48000		0x00000000
 #define A_SPDIF_192000		0x00000020
@@ -1057,7 +1057,7 @@
 #define EMU_HANA_MIDI_OUT_DOCK1	0x02 /* Audio Dock MIDI1 front, from Alice 2. 0 = A, 1 = B */
 #define EMU_HANA_MIDI_OUT_DOCK2	0x04 /* Audio Dock MIDI2 rear, from Alice 2. 0 = A, 1 = B */
 #define EMU_HANA_MIDI_OUT_SYNC2	0x08 /* Sync card. Not the actual MIDI out jack. 0 = A, 1 = B */
-#define EMU_HANA_MIDI_OUT_LOOP	0x10 /* 0 = bits (3:0) normal. 1 = MIDI loopback enabled. */
+#define EMU_HANA_MIDI_OUT_LOOP	0x10 /* 0 = bits (3:0) yesrmal. 1 = MIDI loopback enabled. */
 
 #define EMU_HANA_DAC_PADS	0x13	/* 00xxxxx  5 bit  DAC 14dB attenuation pads */
 #define EMU_HANA_DOCK_DAC_PAD1	0x01	/* 14dB Attenuation on AudioDock DAC 1. Left and Right */
@@ -1079,15 +1079,15 @@
 #define EMU_HANA_OPTION_HAMOA	0x01	/* HAMOA card present */
 #define EMU_HANA_OPTION_SYNC	0x02	/* Sync card present */
 #define EMU_HANA_OPTION_DOCK_ONLINE	0x04	/* Audio Dock online and FPGA configured */
-#define EMU_HANA_OPTION_DOCK_OFFLINE	0x08	/* Audio Dock online and FPGA not configured */
+#define EMU_HANA_OPTION_DOCK_OFFLINE	0x08	/* Audio Dock online and FPGA yest configured */
 
 #define EMU_HANA_ID		0x22	/* 1010101  7 bits ID byte & 0x7f = 0x55 */
 
 #define EMU_HANA_MAJOR_REV	0x23	/* 0000xxx  3 bit  Hana FPGA Major rev */
-#define EMU_HANA_MINOR_REV	0x24	/* 0000xxx  3 bit  Hana FPGA Minor rev */
+#define EMU_HANA_MINOR_REV	0x24	/* 0000xxx  3 bit  Hana FPGA Miyesr rev */
 
 #define EMU_DOCK_MAJOR_REV	0x25	/* 0000xxx  3 bit  Audio Dock FPGA Major rev */
-#define EMU_DOCK_MINOR_REV	0x26	/* 0000xxx  3 bit  Audio Dock FPGA Minor rev */
+#define EMU_DOCK_MINOR_REV	0x26	/* 0000xxx  3 bit  Audio Dock FPGA Miyesr rev */
 
 #define EMU_DOCK_BOARD_ID	0x27	/* 00000xx  2 bits Audio Dock ID pins */
 #define EMU_DOCK_BOARD_ID0	0x00	/* ID bit 0 */
@@ -1127,8 +1127,8 @@
  * 0x01, 0x1e: S/PDIF Right
  * 0x02, 0x00: Hana S/PDIF Left
  * 0x02, 0x01: Hana S/PDIF Right
- * 0x03, 0x00: Hanoa DAC Left
- * 0x03, 0x01: Hanoa DAC Right
+ * 0x03, 0x00: Hayesa DAC Left
+ * 0x03, 0x01: Hayesa DAC Right
  * 0x04, 0x00-0x07: Hana ADAT
  * 0x05, 0x00: I2S0 Left to Alice2
  * 0x05, 0x01: I2S0 Right to Alice2
@@ -1155,8 +1155,8 @@
  * 0x01, 0x18-0x1f: Dock ADAT 0-7
  * 0x02, 0x00: Hana3 S/PDIF Left
  * 0x02, 0x01: Hana3 S/PDIF Right
- * 0x03, 0x00: Hanoa DAC Left
- * 0x03, 0x01: Hanoa DAC Right
+ * 0x03, 0x00: Hayesa DAC Left
+ * 0x03, 0x01: Hayesa DAC Right
  * 0x04, 0x00-0x07: Hana3 ADAT 0-7
  * 0x05, 0x00-0x0f: 16 EMU32B channels to Tina
  * 0x06-0x07: Not used
@@ -1347,8 +1347,8 @@
  * 0x01, 0x18-0x1f: Dock ADAT 0-7
  * 0x01, 0x18: Dock ADC 3 Left
  * 0x01, 0x1c: Dock ADC 3 Right
- * 0x02, 0x00: Hanoa ADC Left
- * 0x02, 0x01: Hanoa ADC Right
+ * 0x02, 0x00: Hayesa ADC Left
+ * 0x02, 0x01: Hayesa ADC Right
  * 0x03, 0x00-0x0f: 16 inputs from Tina Emu32A output
  * 0x03, 0x10-0x1f: 16 inputs from Tina Emu32B output
  * 0x04, 0x00-0x07: Hana3 ADAT
@@ -1471,7 +1471,7 @@
 /* Microdock ADAT 8 channel in +8 to +f */
 #define EMU_SRC_MDOCK_ADAT		0x0118
 
-/* 0x600 and 0x700 no used */
+/* 0x600 and 0x700 yes used */
 
 /* ------------------- STRUCTURES -------------------- */
 
@@ -1516,7 +1516,7 @@ struct snd_emu10k1_pcm {
 	struct snd_util_memblk *memblk;
 	unsigned int start_addr;
 	unsigned int ccca_start_addr;
-	unsigned int capture_ipr;	/* interrupt acknowledge mask */
+	unsigned int capture_ipr;	/* interrupt ackyeswledge mask */
 	unsigned int capture_inte;	/* interrupt enable mask */
 	unsigned int capture_ba_reg;	/* buffer address register */
 	unsigned int capture_bs_reg;	/* buffer size register */
@@ -1528,7 +1528,7 @@ struct snd_emu10k1_pcm {
 };
 
 struct snd_emu10k1_pcm_mixer {
-	/* mono, left, right x 8 sends (4 on emu10k1) */
+	/* moyes, left, right x 8 sends (4 on emu10k1) */
 	unsigned char send_routing[3][8];
 	unsigned char send_volume[3][8];
 	unsigned short attn[3];
@@ -1662,7 +1662,7 @@ struct snd_emu_chip_details {
 	unsigned char invert_shared_spdif; /* analog/digital switch inverted */
 	const char *driver;
 	const char *name;
-	const char *id;		/* for backward compatibility - can be NULL if not needed */
+	const char *id;		/* for backward compatibility - can be NULL if yest needed */
 };
 
 struct snd_emu1010 {

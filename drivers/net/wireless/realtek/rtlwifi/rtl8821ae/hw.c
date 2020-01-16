@@ -459,7 +459,7 @@ void rtl8821ae_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n", variable);
+			 "switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -650,7 +650,7 @@ void rtl8821ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				break;
 			default:
 				RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-					 "switch case %#x not processed\n",
+					 "switch case %#x yest processed\n",
 					 e_aci);
 				break;
 			}
@@ -780,7 +780,7 @@ void rtl8821ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break; }
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n", variable);
+			 "switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -1021,7 +1021,7 @@ static void _rtl8821ae_hw_configure(struct ieee80211_hw *hw)
 	/* ARFB table 12 for 11ac 24G 1SS */
 	rtl_write_dword(rtlpriv, REG_ARFR3, 0x00000015);
 	rtl_write_dword(rtlpriv, REG_ARFR3 + 4, 0xffcff000);
-	/* 0x420[7] = 0 , enable retry AMPDU in new AMPD not singal MPDU. */
+	/* 0x420[7] = 0 , enable retry AMPDU in new AMPD yest singal MPDU. */
 	rtl_write_word(rtlpriv, REG_FWHW_TXQ_CTRL, 0x1F00);
 	rtl_write_byte(rtlpriv, REG_AMPDU_MAX_TIME, 0x70);
 
@@ -1168,7 +1168,7 @@ void rtl8821ae_enable_hw_security_config(struct ieee80211_hw *hw)
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-			 "not open hw encryption\n");
+			 "yest open hw encryption\n");
 		return;
 	}
 
@@ -1265,7 +1265,7 @@ static bool _rtl8821ae_reset_pcie_interface_dma(struct ieee80211_hw *hw,
 	/* write 0x301 = 0xFF */
 	tmp = rtl_read_byte(rtlpriv, REG_RXDMA_CONTROL);
 	if (tmp & BIT(2)) {
-		/* Already pause before the function for another purpose. */
+		/* Already pause before the function for ayesther purpose. */
 		release_mac_rx_pause = false;
 	} else {
 		rtl_write_byte(rtlpriv, REG_RXDMA_CONTROL, (tmp | BIT(2)));
@@ -1302,7 +1302,7 @@ static bool _rtl8821ae_reset_pcie_interface_dma(struct ieee80211_hw *hw,
 	}
 
 	/* 7. Restore PCIe autoload down bit */
-	/* 8812AE does not has the defination. */
+	/* 8812AE does yest has the defination. */
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8821AE) {
 		/* write 0xF8 bit[17] = 1'b1 */
 		tmp = rtl_read_byte(rtlpriv, REG_MAC_PHY_CTRL_NORMAL + 2);
@@ -1411,7 +1411,7 @@ static void _rtl8821ae_get_wakeup_reason(struct ieee80211_hw *hw)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG,
-			 "WOL Read 0x1c7 = %02X, Unknown reason!\n",
+			 "WOL Read 0x1c7 = %02X, Unkyeswn reason!\n",
 			  fw_reason);
 		break;
 	}
@@ -1501,7 +1501,7 @@ static bool _rtl8821ae_dynamic_rqpn(struct ieee80211_hw *hw, u32 boundary,
 		count++;
 		if ((count % 200) == 0) {
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-				 "Tx queue is not empty for 20ms!\n");
+				 "Tx queue is yest empty for 20ms!\n");
 		}
 		if (count >= 1000) {
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
@@ -1631,7 +1631,7 @@ static void _rtl8821ae_simple_initialize_adapter(struct ieee80211_hw *hw)
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtlpriv);
 
 #if (USE_SPECIFIC_FW_TO_SUPPORT_WOWLAN == 1)
-	/* Re-download normal Fw. */
+	/* Re-download yesrmal Fw. */
 	rtl8821ae_set_fw_related_for_wowlan(hw, false);
 #endif
 
@@ -1715,7 +1715,7 @@ static bool _rtl8821ae_wowlan_initialize_adapter(struct ieee80211_hw *hw)
 	_rtl8821ae_get_wakeup_reason(hw);
 
 	/* Patch Pcie Rx DMA hang after S3/S4 several times.
-	 * The root cause has not be found. */
+	 * The root cause has yest be found. */
 	if (_rtl8821ae_check_pcie_dma_hang(hw))
 		_rtl8821ae_reset_pcie_interface_dma(hw, true, false);
 
@@ -1857,7 +1857,7 @@ int rtl8821ae_hw_init(struct ieee80211_hw *hw)
 				      (u8 *)(&support_remote_wakeup));
 	rtlpriv->intf_ops->disable_aspm(hw);
 
-	/*YP wowlan not considered*/
+	/*YP wowlan yest considered*/
 
 	tmp_u1b = rtl_read_byte(rtlpriv, REG_CR);
 	if (tmp_u1b != 0 && tmp_u1b != 0xEA) {
@@ -1885,7 +1885,7 @@ int rtl8821ae_hw_init(struct ieee80211_hw *hw)
 		rtlhal->mac_func_enable = false;
 	}
 
-	/* Reset MAC/BB/RF status if it is not powered off
+	/* Reset MAC/BB/RF status if it is yest powered off
 	 * before calling initialize Hw flow to prevent
 	 * from interface and MAC status mismatch.
 	 * 2013.06.21, by tynli. Suggested by SD1 JackieLau. */
@@ -1908,7 +1908,7 @@ int rtl8821ae_hw_init(struct ieee80211_hw *hw)
 	err = rtl8821ae_download_fw(hw, false);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "Failed to download FW. Init HW without FW now\n");
+			 "Failed to download FW. Init HW without FW yesw\n");
 		err = 1;
 		rtlhal->fw_ready = false;
 		return err;
@@ -2086,7 +2086,7 @@ static enum version_8821ae _rtl8821ae_read_chip_version(struct ieee80211_hw *hw)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-			 "Chip Version ID: Unknown (0x%X)\n", version);
+			 "Chip Version ID: Unkyeswn (0x%X)\n", version);
 		break;
 	}
 
@@ -2143,7 +2143,7 @@ static int _rtl8821ae_set_media_status(struct ieee80211_hw *hw,
 			 "Set Network type to AP!\n");
 		break;
 	default:
-		pr_err("Network type %d not support!\n", type);
+		pr_err("Network type %d yest support!\n", type);
 		return 1;
 	}
 
@@ -2250,7 +2250,7 @@ void rtl8821ae_enable_interrupt(struct ieee80211_hw *hw)
 	/* there are some C2H CMDs have been sent before
 	system interrupt is enabled, e.g., C2H, CPWM.
 	*So we need to clear all C2H events that FW has
-	notified, otherwise FW won't schedule any commands anymore.
+	yestified, otherwise FW won't schedule any commands anymore.
 	*/
 	/* rtl_write_byte(rtlpriv, REG_C2HEVT_CLEAR, 0); */
 	/*enable system interrupt*/
@@ -2332,7 +2332,7 @@ static void _rtl8821ae_clear_pci_pme_status(struct ieee80211_hw *hw)
 		}
 	} else {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_WARNING,
-			 "Cannot find PME Capability\n");
+			 "Canyest find PME Capability\n");
 	}
 }
 
@@ -2571,7 +2571,7 @@ static u8 _rtl8821ae_get_chnl_group(u8 chnl)
 			group = 13;
 	else
 		WARN_ONCE(true,
-			  "rtl8821ae: 5G, Channel %d in Group not found\n",
+			  "rtl8821ae: 5G, Channel %d in Group yest found\n",
 			  chnl);
 	}
 	return group;
@@ -3171,7 +3171,7 @@ static void _rtl8821ae_read_adapter_info(struct ieee80211_hw *hw, bool b_pseudo_
 	rtlefuse->eeprom_thermalmeter = *(u8 *)&hwinfo[EEPROM_THERMAL_METER];
 	if ((rtlefuse->eeprom_thermalmeter == 0xff) ||
 	    rtlefuse->autoload_failflag) {
-		rtlefuse->apk_thermalmeterignore = true;
+		rtlefuse->apk_thermalmeterigyesre = true;
 		rtlefuse->eeprom_thermalmeter = 0xff;
 	}
 
@@ -3453,7 +3453,7 @@ static u8 _rtl8821ae_get_ra_ldpc(struct ieee80211_hw *hw,
 			     enum wireless_mode wirelessmode)
 {
 	u8 b_ldpc = 0;
-	/*not support ldpc, do not open*/
+	/*yest support ldpc, do yest open*/
 	return b_ldpc << 2;
 }
 
@@ -3869,7 +3869,7 @@ void rtl8821ae_set_key(struct ieee80211_hw *hw, u32 key_index,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case %#x not processed\n", enc_algo);
+				 "switch case %#x yest processed\n", enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
 		}
@@ -3885,7 +3885,7 @@ void rtl8821ae_set_key(struct ieee80211_hw *hw, u32 key_index,
 				if (mac->opmode == NL80211_IFTYPE_AP) {
 					entry_id = rtl_cam_get_free_entry(hw, p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("an not find free hwsecurity cam entry\n");
+						pr_err("an yest find free hwsecurity cam entry\n");
 						return;
 					}
 				} else {

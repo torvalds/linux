@@ -7,7 +7,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -153,7 +153,7 @@ struct dce110_clk_src_regs {
 	uint32_t PLL_CNTL;
 
 	/* below are for DTO.
-	 * todo: should probably use different struct to not waste space
+	 * todo: should probably use different struct to yest waste space
 	 */
 	uint32_t PHASE[MAX_PIPES];
 	uint32_t MODULO[MAX_PIPES];

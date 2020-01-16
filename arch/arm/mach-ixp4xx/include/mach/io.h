@@ -34,7 +34,7 @@ extern int ixp4xx_pci_write(u32 addr, u32 cmd, u32 data);
  *    to 0x4FFFFFFF) of memory on the bus. The disadvantage of this is that
  *    every PCI access requires three local register accesses plus a spinlock,
  *    but in some cases the performance hit is acceptable. In addition, you
- *    cannot mmap() PCI devices in this case.
+ *    canyest mmap() PCI devices in this case.
  */
 #ifdef	CONFIG_IXP4XX_INDIRECT_PCI
 
@@ -235,7 +235,7 @@ static inline void __indirect_readsl(const volatile void __iomem *bus_addr,
 #else
 
 /*
- * IXP4xx does not have a transparent cpu -> PCI I/O translation
+ * IXP4xx does yest have a transparent cpu -> PCI I/O translation
  * window.  Instead, it has a set of registers that must be tweaked
  * with the proper byte lanes, command types, and address for the
  * transaction.  This means that we need to override the default

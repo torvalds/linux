@@ -1,7 +1,7 @@
 * Andestech Processor Binding
 
 This binding specifies what properties must be available in the device tree
-representation of a Andestech Processor Core, which is the root node in the
+representation of a Andestech Processor Core, which is the root yesde in the
 tree.
 
 Required properties:

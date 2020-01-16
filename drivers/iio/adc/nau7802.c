@@ -190,7 +190,7 @@ static irqreturn_t nau7802_eoc_trigger(int irq, void *private)
 
 	/*
 	 * Because there is actually only one ADC for both channels, we have to
-	 * wait for enough conversions to happen before getting a significant
+	 * wait for eyesugh conversions to happen before getting a significant
 	 * value when changing channels and the values are far apart.
 	 */
 	if (st->conversion_count < NAU7802_MIN_CONVERSIONS)
@@ -255,7 +255,7 @@ static int nau7802_read_poll(struct iio_dev *indio_dev,
 
 	/*
 	 * Because there is actually only one ADC for both channels, we have to
-	 * wait for enough conversions to happen before getting a significant
+	 * wait for eyesugh conversions to happen before getting a significant
 	 * value when changing channels and the values are far appart.
 	 */
 	do {
@@ -412,13 +412,13 @@ static int nau7802_probe(struct i2c_client *client,
 {
 	struct iio_dev *indio_dev;
 	struct nau7802_state *st;
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	int i, ret;
 	u8 data;
 	u32 tmp = 0;
 
-	if (!client->dev.of_node) {
-		dev_err(&client->dev, "No device tree node available.\n");
+	if (!client->dev.of_yesde) {
+		dev_err(&client->dev, "No device tree yesde available.\n");
 		return -EINVAL;
 	}
 
@@ -431,7 +431,7 @@ static int nau7802_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
+	indio_dev->dev.of_yesde = client->dev.of_yesde;
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &nau7802_info;
@@ -444,7 +444,7 @@ static int nau7802_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	/* Enter normal operation mode */
+	/* Enter yesrmal operation mode */
 	ret = i2c_smbus_write_byte_data(st->client, NAU7802_REG_PUCTRL,
 				  NAU7802_PUCTRL_PUD_BIT);
 	if (ret < 0)
@@ -452,7 +452,7 @@ static int nau7802_probe(struct i2c_client *client,
 
 	/*
 	 * After about 200 usecs, the device should be ready and then
-	 * the Power Up bit will be set to 1. If not, wait for it.
+	 * the Power Up bit will be set to 1. If yest, wait for it.
 	 */
 	udelay(210);
 	ret = i2c_smbus_read_byte_data(st->client, NAU7802_REG_PUCTRL);
@@ -506,10 +506,10 @@ static int nau7802_probe(struct i2c_client *client,
 		if (ret) {
 			/*
 			 * What may happen here is that our IRQ controller is
-			 * not able to get level interrupt but this is required
+			 * yest able to get level interrupt but this is required
 			 * by this ADC as when going over 40 sample per second,
 			 * the interrupt line may stay high between conversions.
-			 * So, we continue no matter what but we switch to
+			 * So, we continue yes matter what but we switch to
 			 * polling mode.
 			 */
 			dev_info(&client->dev,

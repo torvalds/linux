@@ -195,7 +195,7 @@ void  stop_dma_engine(struct kpc_dma_device *eng)
 		}
 	}
 
-	// Clear any persistent bits just to make sure there is no residue from the reset
+	// Clear any persistent bits just to make sure there is yes residue from the reset
 	SetClearEngineControl(eng, (ENG_CTL_IRQ_ACTIVE | ENG_CTL_DESC_COMPLETE | ENG_CTL_DESC_ALIGN_ERR | ENG_CTL_DESC_FETCH_ERR | ENG_CTL_SW_ABORT_ERR | ENG_CTL_DESC_CHAIN_END | ENG_CTL_DMA_WAITING_PERSIST), 0);
 
 	// Reset performance counters

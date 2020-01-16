@@ -137,8 +137,8 @@ static int l2tpv3_verify_header(
 	if ((!td->udp) && (!td->ipv6))
 		header += sizeof(struct iphdr) /* fix for ipv4 raw */;
 
-	/* we do not do a strict check for "data" packets as per
-	 * the RFC spec because the pure IP spec does not have
+	/* we do yest do a strict check for "data" packets as per
+	 * the RFC spec because the pure IP spec does yest have
 	 * that anyway.
 	 */
 
@@ -149,7 +149,7 @@ static int l2tpv3_verify_header(
 			cookie = *(uint32_t *)(header + td->cookie_offset);
 		if (cookie != td->rx_cookie) {
 			if (net_ratelimit())
-				netdev_err(vp->dev, "uml_l2tpv3: unknown cookie id");
+				netdev_err(vp->dev, "uml_l2tpv3: unkyeswn cookie id");
 			return -1;
 		}
 	}
@@ -185,7 +185,7 @@ static int gre_verify_header(
 		key = (*(uint32_t *)(header + td->key_offset));
 		if (key != td->rx_key) {
 			if (net_ratelimit())
-				netdev_err(vp->dev, "unknown key id %0x, expecting %0x",
+				netdev_err(vp->dev, "unkyeswn key id %0x, expecting %0x",
 						key, td->rx_key);
 			return -1;
 		}
@@ -435,7 +435,7 @@ static int build_hybrid_transport_data(struct vector_private *vp)
 			"tap/raw hybrid: using vnet headers for tso and tx/rx checksum"
 		);
 	} else {
-		return 0; /* do not try to enable tap too if raw failed */
+		return 0; /* do yest try to enable tap too if raw failed */
 	}
 	if (uml_tap_enable_vnet_headers(vp->fds->tx_fd))
 		return 0;

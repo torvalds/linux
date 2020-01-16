@@ -53,7 +53,7 @@
    1) which SCART input to use for each SCART output
 
    Depending on how the msp is wired to the other components you can
-   ignore or mute certain inputs or outputs.
+   igyesre or mute certain inputs or outputs.
 
    Also, depending on the msp version only a subset of the inputs or
    outputs may be present. At the end of this header some tables are
@@ -85,16 +85,16 @@
 
    The DSP outputs are: loudspeaker output (aka MAIN), headphones output
    (aka AUX), SCART1 DA output, SCART2 DA output and an I2S output.
-   There also is a quasi-peak detector output, but that is not used by
+   There also is a quasi-peak detector output, but that is yest used by
    this driver and is set to the same input as the loudspeaker output.
    Not all outputs are supported by all msp models. Setting the input
-   of an unsupported output will be ignored by the driver.
+   of an unsupported output will be igyesred by the driver.
 
    There are up to 16 DSP inputs to choose from, so each output is
    assigned 4 bits.
 
    Note: the 44x8G can mix two inputs and feed the result back to the
-   DSP. This is currently not implemented. Also not implemented is the
+   DSP. This is currently yest implemented. Also yest implemented is the
    multi-channel capable I2S3 input of the 44x0G. If someone can demonstrate
    a need for one of those features then additional support can be added. */
 #define MSP_DSP_IN_TUNER	0  /* Tuner DSP input */

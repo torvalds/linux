@@ -320,7 +320,7 @@ static int gxt4500_var_to_par(struct fb_var_screeninfo *var,
 }
 
 static const struct fb_bitfield eightbits = {0, 8};
-static const struct fb_bitfield nobits = {0, 0};
+static const struct fb_bitfield yesbits = {0, 0};
 
 static void gxt4500_unpack_pixfmt(struct fb_var_screeninfo *var,
 				  int pixfmt)
@@ -329,7 +329,7 @@ static void gxt4500_unpack_pixfmt(struct fb_var_screeninfo *var,
 	var->red = eightbits;
 	var->green = eightbits;
 	var->blue = eightbits;
-	var->transp = nobits;
+	var->transp = yesbits;
 
 	switch (pixfmt) {
 	case DFA_PIX_16BIT_565:
@@ -390,7 +390,7 @@ static int gxt4500_set_par(struct fb_info *info)
 		return err;
 	}
 
-	/* turn off DTG for now */
+	/* turn off DTG for yesw */
 	ctrlreg = readreg(par, DTG_CONTROL);
 	ctrlreg &= ~(DTG_CTL_ENABLE | DTG_CTL_SCREEN_REFRESH);
 	writereg(par, DTG_CONTROL, ctrlreg);
@@ -623,7 +623,7 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "gxt4500: cannot enable PCI device: %d\n",
+		dev_err(&pdev->dev, "gxt4500: canyest enable PCI device: %d\n",
 			err);
 		return err;
 	}
@@ -631,14 +631,14 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	reg_phys = pci_resource_start(pdev, 0);
 	if (!request_mem_region(reg_phys, pci_resource_len(pdev, 0),
 				"gxt4500 regs")) {
-		dev_err(&pdev->dev, "gxt4500: cannot get registers\n");
-		goto err_nodev;
+		dev_err(&pdev->dev, "gxt4500: canyest get registers\n");
+		goto err_yesdev;
 	}
 
 	fb_phys = pci_resource_start(pdev, 1);
 	if (!request_mem_region(fb_phys, pci_resource_len(pdev, 1),
 				"gxt4500 FB")) {
-		dev_err(&pdev->dev, "gxt4500: cannot get framebuffer\n");
+		dev_err(&pdev->dev, "gxt4500: canyest get framebuffer\n");
 		goto err_free_regs;
 	}
 
@@ -657,7 +657,7 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	info->fix.mmio_start = reg_phys;
 	par->regs = pci_ioremap_bar(pdev, 0);
 	if (!par->regs) {
-		dev_err(&pdev->dev, "gxt4500: cannot map registers\n");
+		dev_err(&pdev->dev, "gxt4500: canyest map registers\n");
 		goto err_free_all;
 	}
 
@@ -665,7 +665,7 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	info->fix.smem_len = pci_resource_len(pdev, 1);
 	info->screen_base = pci_ioremap_wc_bar(pdev, 1);
 	if (!info->screen_base) {
-		dev_err(&pdev->dev, "gxt4500: cannot map framebuffer\n");
+		dev_err(&pdev->dev, "gxt4500: canyest map framebuffer\n");
 		goto err_unmap_regs;
 	}
 
@@ -678,7 +678,7 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Set byte-swapping for DFA aperture for all pixel sizes */
 	pci_write_config_dword(pdev, CFG_ENDIAN0, 0x333300);
 #else /* __LITTLE_ENDIAN */
-	/* not sure what this means but fgl23 driver does that */
+	/* yest sure what this means but fgl23 driver does that */
 	pci_write_config_dword(pdev, CFG_ENDIAN0, 0x2300);
 /*	pci_write_config_dword(pdev, CFG_ENDIAN0 + 4, 0x400000);*/
 	pci_write_config_dword(pdev, CFG_ENDIAN0 + 8, 0x98530000);
@@ -690,24 +690,24 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (err) {
-		dev_err(&pdev->dev, "gxt4500: cannot allocate cmap\n");
+		dev_err(&pdev->dev, "gxt4500: canyest allocate cmap\n");
 		goto err_unmap_all;
 	}
 
 	gxt4500_blank(FB_BLANK_UNBLANK, info);
 
 	if (!fb_find_mode(&var, info, mode_option, NULL, 0, &defaultmode, 8)) {
-		dev_err(&pdev->dev, "gxt4500: cannot find valid video mode\n");
+		dev_err(&pdev->dev, "gxt4500: canyest find valid video mode\n");
 		goto err_free_cmap;
 	}
 	info->var = var;
 	if (gxt4500_set_par(info)) {
-		printk(KERN_ERR "gxt4500: cannot set video mode\n");
+		printk(KERN_ERR "gxt4500: canyest set video mode\n");
 		goto err_free_cmap;
 	}
 
 	if (register_framebuffer(info) < 0) {
-		dev_err(&pdev->dev, "gxt4500: cannot register framebuffer\n");
+		dev_err(&pdev->dev, "gxt4500: canyest register framebuffer\n");
 		goto err_free_cmap;
 	}
 	fb_info(info, "%s frame buffer device\n", info->fix.id);
@@ -726,7 +726,7 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	release_mem_region(fb_phys, pci_resource_len(pdev, 1));
  err_free_regs:
 	release_mem_region(reg_phys, pci_resource_len(pdev, 0));
- err_nodev:
+ err_yesdev:
 	return -ENODEV;
 }
 

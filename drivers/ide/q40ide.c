@@ -144,12 +144,12 @@ static int __init q40ide_init(void)
 	const char *name = q40_ide_names[i];
 
 	if (!request_region(pcide_bases[i], 8, name)) {
-		printk("could not reserve ports %lx-%lx for %s\n",
+		printk("could yest reserve ports %lx-%lx for %s\n",
 		       pcide_bases[i],pcide_bases[i]+8,name);
 		continue;
 	}
 	if (!request_region(pcide_bases[i]+0x206, 1, name)) {
-		printk("could not reserve port %lx for %s\n",
+		printk("could yest reserve port %lx for %s\n",
 		       pcide_bases[i]+0x206,name);
 		release_region(pcide_bases[i], 8);
 		continue;

@@ -7,7 +7,7 @@
 #include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include "test.h"
 
@@ -69,8 +69,8 @@ void idr_replace_test(void)
 
 /*
  * Unlike the radix tree, you can put a NULL pointer -- with care -- into
- * the IDR.  Some interfaces, like idr_find() do not distinguish between
- * "present, value is NULL" and "not present", but that's exactly what some
+ * the IDR.  Some interfaces, like idr_find() do yest distinguish between
+ * "present, value is NULL" and "yest present", but that's exactly what some
  * users want.
  */
 void idr_null_test(void)
@@ -127,7 +127,7 @@ void idr_null_test(void)
 	assert(idr_is_empty(&idr));
 }
 
-void idr_nowait_test(void)
+void idr_yeswait_test(void)
 {
 	unsigned int i;
 	DEFINE_IDR(idr);
@@ -189,7 +189,7 @@ void idr_u32_test1(struct idr *idr, u32 handle)
 	BUG_ON(idr_alloc_u32(idr, DUMMY_PTR, &id, id, GFP_KERNEL) != -ENOSPC);
 	BUG_ON(id != handle);
 	if (!warned && id > INT_MAX)
-		printk("vvv Ignore these warnings\n");
+		printk("vvv Igyesre these warnings\n");
 	ptr = idr_get_next(idr, &sid);
 	if (id > INT_MAX) {
 		BUG_ON(ptr != NULL);
@@ -397,7 +397,7 @@ void idr_checks(void)
 	idr_replace_test();
 	idr_alloc_test();
 	idr_null_test();
-	idr_nowait_test();
+	idr_yeswait_test();
 	idr_get_next_test(0);
 	idr_get_next_test(1);
 	idr_get_next_test(4);
@@ -420,10 +420,10 @@ void ida_dump(struct ida *);
 /*
  * Check that we get the correct error when we run out of memory doing
  * allocations.  In userspace, GFP_NOWAIT will always fail an allocation.
- * The first test is for not having a bitmap available, and the second test
- * is for not being able to allocate a level of the radix tree.
+ * The first test is for yest having a bitmap available, and the second test
+ * is for yest being able to allocate a level of the radix tree.
  */
-void ida_check_nomem(void)
+void ida_check_yesmem(void)
 {
 	DEFINE_IDA(ida);
 	int id;
@@ -507,7 +507,7 @@ void user_ida_checks(void)
 {
 	radix_tree_cpu_dead(1);
 
-	ida_check_nomem();
+	ida_check_yesmem();
 	ida_check_conv_user();
 	ida_check_random();
 	ida_simple_get_remove_test();

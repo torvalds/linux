@@ -175,11 +175,11 @@ static struct irqaction timer_iact = {
 void __init timer64_init(void)
 {
 	struct clock_event_device *cd = &t64_clockevent_device;
-	struct device_node *np, *first = NULL;
+	struct device_yesde *np, *first = NULL;
 	u32 val;
 	int err, found = 0;
 
-	for_each_compatible_node(np, NULL, "ti,c64x+timer64") {
+	for_each_compatible_yesde(np, NULL, "ti,c64x+timer64") {
 		err = of_property_read_u32(np, "ti,core-mask", &val);
 		if (!err) {
 			if (val & (1 << get_coreid())) {
@@ -190,25 +190,25 @@ void __init timer64_init(void)
 			first = np;
 	}
 	if (!found) {
-		/* try first one with no core-mask */
+		/* try first one with yes core-mask */
 		if (first)
-			np = of_node_get(first);
+			np = of_yesde_get(first);
 		else {
-			pr_debug("Cannot find ti,c64x+timer64 timer.\n");
+			pr_debug("Canyest find ti,c64x+timer64 timer.\n");
 			return;
 		}
 	}
 
 	timer = of_iomap(np, 0);
 	if (!timer) {
-		pr_debug("%pOF: Cannot map timer registers.\n", np);
+		pr_debug("%pOF: Canyest map timer registers.\n", np);
 		goto out;
 	}
 	pr_debug("%pOF: Timer registers=%p.\n", np, timer);
 
 	cd->irq	= irq_of_parse_and_map(np, 0);
 	if (cd->irq == NO_IRQ) {
-		pr_debug("%pOF: Cannot find interrupt.\n", np);
+		pr_debug("%pOF: Canyest find interrupt.\n", np);
 		iounmap(timer);
 		goto out;
 	}
@@ -241,6 +241,6 @@ void __init timer64_init(void)
 	setup_irq(cd->irq, &timer_iact);
 
 out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return;
 }

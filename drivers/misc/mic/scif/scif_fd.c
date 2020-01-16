@@ -8,7 +8,7 @@
  */
 #include "scif_main.h"
 
-static int scif_fdopen(struct inode *inode, struct file *f)
+static int scif_fdopen(struct iyesde *iyesde, struct file *f)
 {
 	struct scif_endpt *priv = scif_open();
 
@@ -18,7 +18,7 @@ static int scif_fdopen(struct inode *inode, struct file *f)
 	return 0;
 }
 
-static int scif_fdclose(struct inode *inode, struct file *f)
+static int scif_fdclose(struct iyesde *iyesde, struct file *f)
 {
 	struct scif_endpt *priv = f->private_data;
 
@@ -75,9 +75,9 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	void __user *argp = (void __user *)arg;
 	int err = 0;
 	struct scifioctl_msg request;
-	bool non_block = false;
+	bool yesn_block = false;
 
-	non_block = !!(f->f_flags & O_NONBLOCK);
+	yesn_block = !!(f->f_flags & O_NONBLOCK);
 
 	switch (cmd) {
 	case SCIF_BIND:
@@ -106,11 +106,11 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&req, argp, sizeof(req)))
 			return -EFAULT;
 
-		err = __scif_connect(priv, &req.peer, non_block);
+		err = __scif_connect(priv, &req.peer, yesn_block);
 		if (err < 0)
 			return err;
 
-		req.self.node = ep->port.node;
+		req.self.yesde = ep->port.yesde;
 		req.self.port = ep->port.port;
 
 		if (copy_to_user(argp, &req, sizeof(req)))
@@ -143,7 +143,7 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		}
 		/*
 		 * Add to the list of user mode eps where the second half
-		 * of the accept is not yet completed.
+		 * of the accept is yest yet completed.
 		 */
 		mutex_lock(&scif_info.eplock);
 		list_add_tail(&((*ep)->miacceptlist), &scif_info.uaccept);
@@ -198,7 +198,7 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		mutex_unlock(&scif_info.eplock);
 
 		/* Free the resources automatically created from the open. */
-		scif_anon_inode_fput(priv);
+		scif_ayesn_iyesde_fput(priv);
 		scif_teardown_ep(priv);
 		scif_add_epd_to_zombie_list(priv, !SCIF_EPLOCK_HELD);
 		f->private_data = newep;
@@ -256,44 +256,44 @@ recv_err:
 	}
 	case SCIF_GET_NODEIDS:
 	{
-		struct scifioctl_node_ids node_ids;
+		struct scifioctl_yesde_ids yesde_ids;
 		int entries;
-		u16 *nodes;
-		void __user *unodes, *uself;
+		u16 *yesdes;
+		void __user *uyesdes, *uself;
 		u16 self;
 
-		if (copy_from_user(&node_ids, argp, sizeof(node_ids))) {
+		if (copy_from_user(&yesde_ids, argp, sizeof(yesde_ids))) {
 			err = -EFAULT;
-			goto getnodes_err2;
+			goto getyesdes_err2;
 		}
 
-		entries = min_t(int, scif_info.maxid, node_ids.len);
-		nodes = kmalloc_array(entries, sizeof(u16), GFP_KERNEL);
-		if (entries && !nodes) {
+		entries = min_t(int, scif_info.maxid, yesde_ids.len);
+		yesdes = kmalloc_array(entries, sizeof(u16), GFP_KERNEL);
+		if (entries && !yesdes) {
 			err = -ENOMEM;
-			goto getnodes_err2;
+			goto getyesdes_err2;
 		}
-		node_ids.len = scif_get_node_ids(nodes, entries, &self);
+		yesde_ids.len = scif_get_yesde_ids(yesdes, entries, &self);
 
-		unodes = (void __user *)node_ids.nodes;
-		if (copy_to_user(unodes, nodes, sizeof(u16) * entries)) {
+		uyesdes = (void __user *)yesde_ids.yesdes;
+		if (copy_to_user(uyesdes, yesdes, sizeof(u16) * entries)) {
 			err = -EFAULT;
-			goto getnodes_err1;
+			goto getyesdes_err1;
 		}
 
-		uself = (void __user *)node_ids.self;
+		uself = (void __user *)yesde_ids.self;
 		if (copy_to_user(uself, &self, sizeof(u16))) {
 			err = -EFAULT;
-			goto getnodes_err1;
+			goto getyesdes_err1;
 		}
 
-		if (copy_to_user(argp, &node_ids, sizeof(node_ids))) {
+		if (copy_to_user(argp, &yesde_ids, sizeof(yesde_ids))) {
 			err = -EFAULT;
-			goto getnodes_err1;
+			goto getyesdes_err1;
 		}
-getnodes_err1:
-		kfree(nodes);
-getnodes_err2:
+getyesdes_err1:
+		kfree(yesdes);
+getyesdes_err2:
 		return err;
 	}
 	case SCIF_REG:

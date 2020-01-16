@@ -216,7 +216,7 @@ struct cec_pin {
 
 	u32				tx_custom_low_usecs;
 	u32				tx_custom_high_usecs;
-	bool				tx_ignore_nack_until_eom;
+	bool				tx_igyesre_nack_until_eom;
 	bool				tx_custom_pulse;
 	bool				tx_generated_poll;
 	bool				tx_post_eom;

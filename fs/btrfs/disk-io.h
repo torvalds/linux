@@ -16,7 +16,7 @@
  * Fixed blocksize for all devices, applies to specific ways of reading
  * metadata like superblock. Must meet the set_blocksize requirements.
  *
- * Do not change.
+ * Do yest change.
  */
 #define BTRFS_BDEV_BLOCKSIZE	(4096)
 
@@ -71,7 +71,7 @@ struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
 				     struct btrfs_key *key,
 				     bool check_ref);
 static inline struct btrfs_root *
-btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
+btrfs_read_fs_root_yes_name(struct btrfs_fs_info *fs_info,
 			   struct btrfs_key *location)
 {
 	return btrfs_get_fs_root(fs_info, location, true);
@@ -79,7 +79,7 @@ btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 
 int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info);
 void btrfs_btree_balance_dirty(struct btrfs_fs_info *fs_info);
-void btrfs_btree_balance_dirty_nodelay(struct btrfs_fs_info *fs_info);
+void btrfs_btree_balance_dirty_yesdelay(struct btrfs_fs_info *fs_info);
 void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 				 struct btrfs_root *root);
 void btrfs_free_fs_root(struct btrfs_root *root);
@@ -90,14 +90,14 @@ struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info);
 
 /*
  * This function is used to grab the root, and avoid it is freed when we
- * access it. But it doesn't ensure that the tree is not dropped.
+ * access it. But it doesn't ensure that the tree is yest dropped.
  *
  * If you want to ensure the whole tree is safe, you should use
  * 	fs_info->subvol_srcu
  */
 static inline struct btrfs_root *btrfs_grab_fs_root(struct btrfs_root *root)
 {
-	if (refcount_inc_not_zero(&root->refs))
+	if (refcount_inc_yest_zero(&root->refs))
 		return root;
 	return NULL;
 }
@@ -133,7 +133,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 				     u64 objectid);
 int btree_lock_page_hook(struct page *page, void *data,
 				void (*flush_fn)(void *));
-struct extent_map *btree_get_extent(struct btrfs_inode *inode,
+struct extent_map *btree_get_extent(struct btrfs_iyesde *iyesde,
 		struct page *page, size_t pg_offset, u64 start, u64 len,
 		int create);
 int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);

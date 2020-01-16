@@ -58,7 +58,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <time.h>
 #include <sys/time.h>
 #include <netinet/in.h>
@@ -80,7 +80,7 @@ static int rcvbuf; /* Default: autotuning.  Can be set with -r <integer> option 
 static int sndbuf; /* Default: autotuning.  Can be set with -w <integer> option */
 static int zflg; /* zero copy option. (MSG_ZEROCOPY for sender, mmap() for receiver */
 static int xflg; /* hash received data (simple xor) (-h option) */
-static int keepflag; /* -k option: receiver shall keep all received file in memory (no munmap() calls) */
+static int keepflag; /* -k option: receiver shall keep all received file in memory (yes munmap() calls) */
 
 static size_t chunk_size  = 512*1024;
 
@@ -306,14 +306,14 @@ static void do_accept(int fdlisten)
 		res = pthread_create(&th, &attr, child_thread,
 				     (void *)(unsigned long)fd);
 		if (res) {
-			errno = res;
+			erryes = res;
 			perror("pthread_create");
 			close(fd);
 		}
 	}
 }
 
-/* Each thread should reserve a big enough vma to avoid
+/* Each thread should reserve a big eyesugh vma to avoid
  * spinlock collisions in ptl locks.
  * This size is 2MB on x86_64, and is exported in /proc/meminfo.
  */
@@ -400,7 +400,7 @@ int main(int argc, char *argv[])
 	}
 	if (!map_align) {
 		map_align = default_huge_page_size();
-		/* if really /proc/meminfo is not helping,
+		/* if really /proc/meminfo is yest helping,
 		 * we use the default x86_64 hugepagesize.
 		 */
 		if (!map_align)

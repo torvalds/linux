@@ -25,7 +25,7 @@ module_param(extra_sensor_type, ushort, 0);
 MODULE_PARM_DESC(extra_sensor_type, "Type of extra sensor (0=autodetect, 1=temperature, 2=voltage)");
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
 /*
  * Many GL520 constants specified below
@@ -441,7 +441,7 @@ static ssize_t fan_div_store(struct device *dev,
 		break;
 	default:
 		dev_err(&client->dev,
-	"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n", v);
+	"fan_div value %ld yest supported. Choose one of 1, 2, 4 or 8!\n", v);
 		return -EINVAL;
 	}
 
@@ -807,7 +807,7 @@ static int gl520_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if ((gl520_read_value(client, GL520_REG_CHIP_ID) != 0x20) ||
 	    ((gl520_read_value(client, GL520_REG_REVISION) & 0x7f) != 0x00) ||
 	    ((gl520_read_value(client, GL520_REG_CONF) & 0x80) != 0x00)) {
-		dev_dbg(&client->dev, "Unknown chip type, skipping\n");
+		dev_dbg(&client->dev, "Unkyeswn chip type, skipping\n");
 		return -ENODEV;
 	}
 
@@ -899,7 +899,7 @@ static struct i2c_driver gl520_driver = {
 	.probe		= gl520_probe,
 	.id_table	= gl520_id,
 	.detect		= gl520_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(gl520_driver);

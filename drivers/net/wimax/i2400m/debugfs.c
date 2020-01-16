@@ -34,7 +34,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_netdev_queue_stopped,
  * We don't allow partial reads of this file, as then the reader would
  * get weirdly confused data as it is updated.
  *
- * So or you read it all or nothing; if you try to read with an offset
+ * So or you read it all or yesthing; if you try to read with an offset
  * != 0, we consider you are done reading.
  */
 static
@@ -212,7 +212,7 @@ void i2400m_debugfs_add(struct i2400m *i2400m)
 	 *
 	 * In order to tap the bidirectional message stream in the
 	 * 'msg' pipe, user space can read from the 'msg' pipe;
-	 * however, due to limitations in libnl, we can't know what
+	 * however, due to limitations in libnl, we can't kyesw what
 	 * the different applications are sending down to the kernel.
 	 *
 	 * So we have this hack where the driver will echo any message
@@ -226,7 +226,7 @@ void i2400m_debugfs_add(struct i2400m *i2400m)
 	 *
 	 * Write 1 to activate, 0 to clear.
 	 *
-	 * It is not really very atomic, but it is also not too
+	 * It is yest really very atomic, but it is also yest too
 	 * critical.
 	 */
 	debugfs_create_u8("trace_msg_from_user", 0600, dentry,

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -64,7 +64,7 @@ struct intel_gvt_mmio_info {
 	gvt_mmio_func read;
 	gvt_mmio_func write;
 	u32 addr_range;
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 };
 
 int intel_gvt_render_mmio_to_ring_id(struct intel_gvt *gvt,
@@ -94,7 +94,7 @@ int intel_vgpu_default_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 int intel_vgpu_default_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 				  void *p_data, unsigned int bytes);
 
-bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
+bool intel_gvt_in_force_yesnpriv_whitelist(struct intel_gvt *gvt,
 					  unsigned int offset);
 
 int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,

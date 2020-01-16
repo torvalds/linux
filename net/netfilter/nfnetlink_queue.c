@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
 #include <linux/proc_fs.h>
@@ -55,7 +55,7 @@
 #define NFQNL_MAX_COPY_RANGE (0xffff - NLA_HDRLEN)
 
 struct nfqnl_instance {
-	struct hlist_node hlist;		/* global list of queues */
+	struct hlist_yesde hlist;		/* global list of queues */
 	struct rcu_head rcu;
 
 	u32 peer_portid;
@@ -752,7 +752,7 @@ __nfqnl_enqueue_packet_gso(struct net *net, struct nfqnl_instance *queue,
 
 	nf_bridge_adjust_segmented_data(skb);
 
-	if (skb->next == NULL) { /* last packet, no need to copy entry */
+	if (skb->next == NULL) { /* last packet, yes need to copy entry */
 		struct sk_buff *gso_skb = entry->skb;
 		entry->skb = skb;
 		ret = __nfqnl_enqueue_packet(net, queue, entry);
@@ -761,7 +761,7 @@ __nfqnl_enqueue_packet_gso(struct net *net, struct nfqnl_instance *queue,
 		return ret;
 	}
 
-	skb_mark_not_on_list(skb);
+	skb_mark_yest_on_list(skb);
 
 	entry_seg = nf_queue_entry_dup(entry);
 	if (entry_seg) {
@@ -807,9 +807,9 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 
 	nf_bridge_adjust_skb_data(skb);
 	segs = skb_gso_segment(skb, 0);
-	/* Does not use PTR_ERR to limit the number of error codes that can be
+	/* Does yest use PTR_ERR to limit the number of error codes that can be
 	 * returned by nf_queue.  For instance, callers rely on -ESRCH to
-	 * mean 'ignore this hook'.
+	 * mean 'igyesre this hook'.
 	 */
 	if (IS_ERR_OR_NULL(segs))
 		goto out_err;
@@ -941,10 +941,10 @@ nfqnl_dev_drop(struct net *net, int ifindex)
 }
 
 static int
-nfqnl_rcv_dev_event(struct notifier_block *this,
+nfqnl_rcv_dev_event(struct yestifier_block *this,
 		    unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	/* Drop any packets associated with the downed device */
 	if (event == NETDEV_DOWN)
@@ -952,8 +952,8 @@ nfqnl_rcv_dev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block nfqnl_dev_notifier = {
-	.notifier_call	= nfqnl_rcv_dev_event,
+static struct yestifier_block nfqnl_dev_yestifier = {
+	.yestifier_call	= nfqnl_rcv_dev_event,
 };
 
 static void nfqnl_nf_hook_drop(struct net *net)
@@ -971,10 +971,10 @@ static void nfqnl_nf_hook_drop(struct net *net)
 }
 
 static int
-nfqnl_rcv_nl_event(struct notifier_block *this,
+nfqnl_rcv_nl_event(struct yestifier_block *this,
 		   unsigned long event, void *ptr)
 {
-	struct netlink_notify *n = ptr;
+	struct netlink_yestify *n = ptr;
 	struct nfnl_queue_net *q = nfnl_queue_pernet(n->net);
 
 	if (event == NETLINK_URELEASE && n->protocol == NETLINK_NETFILTER) {
@@ -983,7 +983,7 @@ nfqnl_rcv_nl_event(struct notifier_block *this,
 		/* destroy all instances for this portid */
 		spin_lock(&q->instances_lock);
 		for (i = 0; i < INSTANCE_BUCKETS; i++) {
-			struct hlist_node *t2;
+			struct hlist_yesde *t2;
 			struct nfqnl_instance *inst;
 			struct hlist_head *head = &q->instance_table[i];
 
@@ -997,8 +997,8 @@ nfqnl_rcv_nl_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block nfqnl_rtnl_notifier = {
-	.notifier_call	= nfqnl_rcv_nl_event,
+static struct yestifier_block nfqnl_rtnl_yestifier = {
+	.yestifier_call	= nfqnl_rcv_nl_event,
 };
 
 static const struct nla_policy nfqa_vlan_policy[NFQA_VLAN_MAX + 1] = {
@@ -1275,7 +1275,7 @@ static int nfqnl_recv_config(struct net *net, struct sock *ctnl,
 	}
 
 	/* Check if we support these flags in first place, dependencies should
-	 * be there too not to break atomicity.
+	 * be there too yest to break atomicity.
 	 */
 	if (nfqa[NFQA_CFG_FLAGS]) {
 		if (!nfqa[NFQA_CFG_MASK]) {
@@ -1405,7 +1405,7 @@ struct iter_state {
 	unsigned int bucket;
 };
 
-static struct hlist_node *get_first(struct seq_file *seq)
+static struct hlist_yesde *get_first(struct seq_file *seq)
 {
 	struct iter_state *st = seq->private;
 	struct net *net;
@@ -1423,7 +1423,7 @@ static struct hlist_node *get_first(struct seq_file *seq)
 	return NULL;
 }
 
-static struct hlist_node *get_next(struct seq_file *seq, struct hlist_node *h)
+static struct hlist_yesde *get_next(struct seq_file *seq, struct hlist_yesde *h)
 {
 	struct iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
@@ -1441,9 +1441,9 @@ static struct hlist_node *get_next(struct seq_file *seq, struct hlist_node *h)
 	return h;
 }
 
-static struct hlist_node *get_idx(struct seq_file *seq, loff_t pos)
+static struct hlist_yesde *get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct hlist_node *head;
+	struct hlist_yesde *head;
 	head = get_first(seq);
 
 	if (head)
@@ -1547,16 +1547,16 @@ static int __init nfnetlink_queue_init(void)
 		goto out;
 	}
 
-	netlink_register_notifier(&nfqnl_rtnl_notifier);
+	netlink_register_yestifier(&nfqnl_rtnl_yestifier);
 	status = nfnetlink_subsys_register(&nfqnl_subsys);
 	if (status < 0) {
 		pr_err("failed to create netlink socket\n");
-		goto cleanup_netlink_notifier;
+		goto cleanup_netlink_yestifier;
 	}
 
-	status = register_netdevice_notifier(&nfqnl_dev_notifier);
+	status = register_netdevice_yestifier(&nfqnl_dev_yestifier);
 	if (status < 0) {
-		pr_err("failed to register netdevice notifier\n");
+		pr_err("failed to register netdevice yestifier\n");
 		goto cleanup_netlink_subsys;
 	}
 
@@ -1564,8 +1564,8 @@ static int __init nfnetlink_queue_init(void)
 
 cleanup_netlink_subsys:
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
-cleanup_netlink_notifier:
-	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
+cleanup_netlink_yestifier:
+	netlink_unregister_yestifier(&nfqnl_rtnl_yestifier);
 	unregister_pernet_subsys(&nfnl_queue_net_ops);
 out:
 	return status;
@@ -1573,9 +1573,9 @@ out:
 
 static void __exit nfnetlink_queue_fini(void)
 {
-	unregister_netdevice_notifier(&nfqnl_dev_notifier);
+	unregister_netdevice_yestifier(&nfqnl_dev_yestifier);
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
-	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
+	netlink_unregister_yestifier(&nfqnl_rtnl_yestifier);
 	unregister_pernet_subsys(&nfnl_queue_net_ops);
 
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */

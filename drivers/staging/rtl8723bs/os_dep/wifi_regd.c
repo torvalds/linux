@@ -54,7 +54,7 @@ static int rtw_ieee80211_channel_to_frequency(int chan, int band)
 	else if (chan < 14)
 		return 2407 + chan * 5;
 	else
-		return 0;	/* not supported */
+		return 0;	/* yest supported */
 }
 
 static void _rtw_reg_apply_flags(struct wiphy *wiphy)
@@ -101,7 +101,7 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 	}
 }
 
-static int _rtw_reg_notifier_apply(struct wiphy *wiphy,
+static int _rtw_reg_yestifier_apply(struct wiphy *wiphy,
 				   struct regulatory_request *request,
 				   struct rtw_regulatory *reg)
 {
@@ -119,14 +119,14 @@ static const struct ieee80211_regdomain *_rtw_regdomain_select(struct
 
 static void _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 				 struct wiphy *wiphy,
-				 void (*reg_notifier)(struct wiphy *wiphy,
+				 void (*reg_yestifier)(struct wiphy *wiphy,
 						      struct
 						      regulatory_request *
 						      request))
 {
 	const struct ieee80211_regdomain *regd;
 
-	wiphy->reg_notifier = reg_notifier;
+	wiphy->reg_yestifier = reg_yestifier;
 
 	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
 	wiphy->regulatory_flags &= ~REGULATORY_STRICT_REG;
@@ -140,21 +140,21 @@ static void _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 }
 
 int rtw_regd_init(struct adapter *padapter,
-		  void (*reg_notifier)(struct wiphy *wiphy,
+		  void (*reg_yestifier)(struct wiphy *wiphy,
 				       struct regulatory_request *request))
 {
 	struct wiphy *wiphy = padapter->rtw_wdev->wiphy;
 
-	_rtw_regd_init_wiphy(NULL, wiphy, reg_notifier);
+	_rtw_regd_init_wiphy(NULL, wiphy, reg_yestifier);
 
 	return 0;
 }
 
-void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+void rtw_reg_yestifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct rtw_regulatory *reg = NULL;
 
 	DBG_8192C("%s\n", __func__);
 
-	_rtw_reg_notifier_apply(wiphy, request, reg);
+	_rtw_reg_yestifier_apply(wiphy, request, reg);
 }

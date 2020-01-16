@@ -12,12 +12,12 @@
 /*
  * Template for implementing interval trees
  *
- * ITSTRUCT:   struct type of the interval tree nodes
- * ITRB:       name of struct rb_node field within ITSTRUCT
+ * ITSTRUCT:   struct type of the interval tree yesdes
+ * ITRB:       name of struct rb_yesde field within ITSTRUCT
  * ITTYPE:     type of the interval endpoints
  * ITSUBTREE:  name of ITTYPE field within ITSTRUCT holding last-in-subtree
- * ITSTART(n): start endpoint of ITSTRUCT node n
- * ITLAST(n):  last endpoint of ITSTRUCT node n
+ * ITSTART(n): start endpoint of ITSTRUCT yesde n
+ * ITLAST(n):  last endpoint of ITSTRUCT yesde n
  * ITSTATIC:   'static' or empty
  * ITPREFIX:   prefix to use for the inline tree definitions
  *
@@ -33,13 +33,13 @@
 RB_DECLARE_CALLBACKS_MAX(static, ITPREFIX ## _augment,			      \
 			 ITSTRUCT, ITRB, ITTYPE, ITSUBTREE, ITLAST)	      \
 									      \
-/* Insert / remove interval nodes from the tree */			      \
+/* Insert / remove interval yesdes from the tree */			      \
 									      \
-ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node,			      \
+ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *yesde,			      \
 				  struct rb_root_cached *root)	 	      \
 {									      \
-	struct rb_node **link = &root->rb_root.rb_node, *rb_parent = NULL;    \
-	ITTYPE start = ITSTART(node), last = ITLAST(node);		      \
+	struct rb_yesde **link = &root->rb_root.rb_yesde, *rb_parent = NULL;    \
+	ITTYPE start = ITSTART(yesde), last = ITLAST(yesde);		      \
 	ITSTRUCT *parent;						      \
 	bool leftmost = true;						      \
 									      \
@@ -56,58 +56,58 @@ ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node,			      \
 		}							      \
 	}								      \
 									      \
-	node->ITSUBTREE = last;						      \
-	rb_link_node(&node->ITRB, rb_parent, link);			      \
-	rb_insert_augmented_cached(&node->ITRB, root,			      \
+	yesde->ITSUBTREE = last;						      \
+	rb_link_yesde(&yesde->ITRB, rb_parent, link);			      \
+	rb_insert_augmented_cached(&yesde->ITRB, root,			      \
 				   leftmost, &ITPREFIX ## _augment);	      \
 }									      \
 									      \
-ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node,			      \
+ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *yesde,			      \
 				  struct rb_root_cached *root)		      \
 {									      \
-	rb_erase_augmented_cached(&node->ITRB, root, &ITPREFIX ## _augment);  \
+	rb_erase_augmented_cached(&yesde->ITRB, root, &ITPREFIX ## _augment);  \
 }									      \
 									      \
 /*									      \
  * Iterate over intervals intersecting [start;last]			      \
  *									      \
- * Note that a node's interval intersects [start;last] iff:		      \
- *   Cond1: ITSTART(node) <= last					      \
+ * Note that a yesde's interval intersects [start;last] iff:		      \
+ *   Cond1: ITSTART(yesde) <= last					      \
  * and									      \
- *   Cond2: start <= ITLAST(node)					      \
+ *   Cond2: start <= ITLAST(yesde)					      \
  */									      \
 									      \
 static ITSTRUCT *							      \
-ITPREFIX ## _subtree_search(ITSTRUCT *node, ITTYPE start, ITTYPE last)	      \
+ITPREFIX ## _subtree_search(ITSTRUCT *yesde, ITTYPE start, ITTYPE last)	      \
 {									      \
 	while (true) {							      \
 		/*							      \
-		 * Loop invariant: start <= node->ITSUBTREE		      \
-		 * (Cond2 is satisfied by one of the subtree nodes)	      \
+		 * Loop invariant: start <= yesde->ITSUBTREE		      \
+		 * (Cond2 is satisfied by one of the subtree yesdes)	      \
 		 */							      \
-		if (node->ITRB.rb_left) {				      \
-			ITSTRUCT *left = rb_entry(node->ITRB.rb_left,	      \
+		if (yesde->ITRB.rb_left) {				      \
+			ITSTRUCT *left = rb_entry(yesde->ITRB.rb_left,	      \
 						  ITSTRUCT, ITRB);	      \
 			if (start <= left->ITSUBTREE) {			      \
 				/*					      \
-				 * Some nodes in left subtree satisfy Cond2.  \
-				 * Iterate to find the leftmost such node N.  \
+				 * Some yesdes in left subtree satisfy Cond2.  \
+				 * Iterate to find the leftmost such yesde N.  \
 				 * If it also satisfies Cond1, that's the     \
 				 * match we are looking for. Otherwise, there \
-				 * is no matching interval as nodes to the    \
+				 * is yes matching interval as yesdes to the    \
 				 * right of N can't satisfy Cond1 either.     \
 				 */					      \
-				node = left;				      \
+				yesde = left;				      \
 				continue;				      \
 			}						      \
 		}							      \
-		if (ITSTART(node) <= last) {		/* Cond1 */	      \
-			if (start <= ITLAST(node))	/* Cond2 */	      \
-				return node;	/* node is leftmost match */  \
-			if (node->ITRB.rb_right) {			      \
-				node = rb_entry(node->ITRB.rb_right,	      \
+		if (ITSTART(yesde) <= last) {		/* Cond1 */	      \
+			if (start <= ITLAST(yesde))	/* Cond2 */	      \
+				return yesde;	/* yesde is leftmost match */  \
+			if (yesde->ITRB.rb_right) {			      \
+				yesde = rb_entry(yesde->ITRB.rb_right,	      \
 						ITSTRUCT, ITRB);	      \
-				if (start <= node->ITSUBTREE)		      \
+				if (start <= yesde->ITSUBTREE)		      \
 					continue;			      \
 			}						      \
 		}							      \
@@ -119,9 +119,9 @@ ITSTATIC ITSTRUCT *							      \
 ITPREFIX ## _iter_first(struct rb_root_cached *root,			      \
 			ITTYPE start, ITTYPE last)			      \
 {									      \
-	ITSTRUCT *node, *leftmost;					      \
+	ITSTRUCT *yesde, *leftmost;					      \
 									      \
-	if (!root->rb_root.rb_node)					      \
+	if (!root->rb_root.rb_yesde)					      \
 		return NULL;						      \
 									      \
 	/*								      \
@@ -132,32 +132,32 @@ ITPREFIX ## _iter_first(struct rb_root_cached *root,			      \
 	 *								      \
 	 *  ... where A holds the lock range and B holds the smallest	      \
 	 * 'start' and largest 'last' in the tree. For the later, we	      \
-	 * rely on the root node, which by augmented interval tree	      \
+	 * rely on the root yesde, which by augmented interval tree	      \
 	 * property, holds the largest value in its last-in-subtree.	      \
 	 * This allows mitigating some of the tree walk overhead for	      \
-	 * for non-intersecting ranges, maintained and consulted in O(1).     \
+	 * for yesn-intersecting ranges, maintained and consulted in O(1).     \
 	 */								      \
-	node = rb_entry(root->rb_root.rb_node, ITSTRUCT, ITRB);		      \
-	if (node->ITSUBTREE < start)					      \
+	yesde = rb_entry(root->rb_root.rb_yesde, ITSTRUCT, ITRB);		      \
+	if (yesde->ITSUBTREE < start)					      \
 		return NULL;						      \
 									      \
 	leftmost = rb_entry(root->rb_leftmost, ITSTRUCT, ITRB);		      \
 	if (ITSTART(leftmost) > last)					      \
 		return NULL;						      \
 									      \
-	return ITPREFIX ## _subtree_search(node, start, last);		      \
+	return ITPREFIX ## _subtree_search(yesde, start, last);		      \
 }									      \
 									      \
 ITSTATIC ITSTRUCT *							      \
-ITPREFIX ## _iter_next(ITSTRUCT *node, ITTYPE start, ITTYPE last)	      \
+ITPREFIX ## _iter_next(ITSTRUCT *yesde, ITTYPE start, ITTYPE last)	      \
 {									      \
-	struct rb_node *rb = node->ITRB.rb_right, *prev;		      \
+	struct rb_yesde *rb = yesde->ITRB.rb_right, *prev;		      \
 									      \
 	while (true) {							      \
 		/*							      \
 		 * Loop invariants:					      \
-		 *   Cond1: ITSTART(node) <= last			      \
-		 *   rb == node->ITRB.rb_right				      \
+		 *   Cond1: ITSTART(yesde) <= last			      \
+		 *   rb == yesde->ITRB.rb_right				      \
 		 *							      \
 		 * First, search right subtree if suitable		      \
 		 */							      \
@@ -168,20 +168,20 @@ ITPREFIX ## _iter_next(ITSTRUCT *node, ITTYPE start, ITTYPE last)	      \
 								start, last); \
 		}							      \
 									      \
-		/* Move up the tree until we come from a node's left child */ \
+		/* Move up the tree until we come from a yesde's left child */ \
 		do {							      \
-			rb = rb_parent(&node->ITRB);			      \
+			rb = rb_parent(&yesde->ITRB);			      \
 			if (!rb)					      \
 				return NULL;				      \
-			prev = &node->ITRB;				      \
-			node = rb_entry(rb, ITSTRUCT, ITRB);		      \
-			rb = node->ITRB.rb_right;			      \
+			prev = &yesde->ITRB;				      \
+			yesde = rb_entry(rb, ITSTRUCT, ITRB);		      \
+			rb = yesde->ITRB.rb_right;			      \
 		} while (prev == rb);					      \
 									      \
-		/* Check if the node intersects [start;last] */		      \
-		if (last < ITSTART(node))		/* !Cond1 */	      \
+		/* Check if the yesde intersects [start;last] */		      \
+		if (last < ITSTART(yesde))		/* !Cond1 */	      \
 			return NULL;					      \
-		else if (start <= ITLAST(node))		/* Cond2 */	      \
-			return node;					      \
+		else if (start <= ITLAST(yesde))		/* Cond2 */	      \
+			return yesde;					      \
 	}								      \
 }

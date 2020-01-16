@@ -10,7 +10,7 @@
  * Manage DRP Availability (the MAS available for DRP
  * reservations). Thus:
  *
- * - Handle DRP Availability Change notifications
+ * - Handle DRP Availability Change yestifications
  *
  * - Allow the reservation manager to indicate MAS reserved/released
  *   by local (owned by/targeted at the radio controller)
@@ -22,7 +22,7 @@
  * See also the documentation for struct uwb_drp_avail.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/bitmap.h>
@@ -67,7 +67,7 @@ int uwb_drp_avail_reserve_pending(struct uwb_rc *rc, struct uwb_mas_bm *mas)
 	if (!bitmap_subset(mas->bm, avail.bm, UWB_NUM_MAS))
 		return -EBUSY;
 
-	bitmap_andnot(rc->drp_avail.pending, rc->drp_avail.pending, mas->bm, UWB_NUM_MAS);
+	bitmap_andyest(rc->drp_avail.pending, rc->drp_avail.pending, mas->bm, UWB_NUM_MAS);
 	return 0;
 }
 
@@ -79,7 +79,7 @@ int uwb_drp_avail_reserve_pending(struct uwb_rc *rc, struct uwb_mas_bm *mas)
 void uwb_drp_avail_reserve(struct uwb_rc *rc, struct uwb_mas_bm *mas)
 {
 	bitmap_or(rc->drp_avail.pending, rc->drp_avail.pending, mas->bm, UWB_NUM_MAS);
-	bitmap_andnot(rc->drp_avail.local, rc->drp_avail.local, mas->bm, UWB_NUM_MAS);
+	bitmap_andyest(rc->drp_avail.local, rc->drp_avail.local, mas->bm, UWB_NUM_MAS);
 	rc->drp_avail.ie_valid = false;
 }
 
@@ -119,10 +119,10 @@ void uwb_drp_avail_ie_update(struct uwb_rc *rc)
  *
  * @array: pointer to buffer
  * @itr:   index of buffer from where we start
- * @len:   the buffer's remaining size may not be exact multiple of
+ * @len:   the buffer's remaining size may yest be exact multiple of
  *         sizeof(unsigned long), @len is the length of buffer that needs
  *         to be converted. This will be sizeof(unsigned long) or smaller
- *         (BUG if not). If it is smaller then we will pad the remaining
+ *         (BUG if yest). If it is smaller then we will pad the remaining
  *         space of the result with zeroes.
  */
 static
@@ -158,7 +158,7 @@ unsigned long get_val(u8 *array, size_t itr, size_t len)
  *
  * The DRP Availability bitmap is in octets from 0 to 32, so octet
  * 32 contains bits for MAS 1-8, etc. If the bitmap is smaller than 32
- * octets, the bits in octets not included at the end of the bitmap are
+ * octets, the bits in octets yest included at the end of the bitmap are
  * treated as zero. In this case (when the bitmap is smaller than 32
  * octets) the MAS represented range from MAS 1 to MAS (size of bitmap)
  * with the last octet still containing bits for MAS 1-8, etc.
@@ -206,9 +206,9 @@ void buffer_to_bmp(unsigned long *bmp_itr, void *_buffer,
 
 
 /**
- * Extract DRP Availability bitmap from the notification.
+ * Extract DRP Availability bitmap from the yestification.
  *
- * The notification that comes in contains a bitmap of (UWB_NUM_MAS / 8) bytes
+ * The yestification that comes in contains a bitmap of (UWB_NUM_MAS / 8) bytes
  * We convert that to our internal representation.
  */
 static
@@ -218,14 +218,14 @@ int uwbd_evt_get_drp_avail(struct uwb_event *evt, unsigned long *bmp)
 	struct uwb_rc_evt_drp_avail *drp_evt;
 	int result = -EINVAL;
 
-	/* Is there enough data to decode the event? */
-	if (evt->notif.size < sizeof(*drp_evt)) {
-		dev_err(dev, "DRP Availability Change: Not enough "
+	/* Is there eyesugh data to decode the event? */
+	if (evt->yestif.size < sizeof(*drp_evt)) {
+		dev_err(dev, "DRP Availability Change: Not eyesugh "
 			"data to decode event [%zu bytes, %zu "
-			"needed]\n", evt->notif.size, sizeof(*drp_evt));
+			"needed]\n", evt->yestif.size, sizeof(*drp_evt));
 		goto error;
 	}
-	drp_evt = container_of(evt->notif.rceb, struct uwb_rc_evt_drp_avail, rceb);
+	drp_evt = container_of(evt->yestif.rceb, struct uwb_rc_evt_drp_avail, rceb);
 	buffer_to_bmp(bmp, drp_evt->bmp, UWB_NUM_MAS/8);
 	result = 0;
 error:
@@ -234,7 +234,7 @@ error:
 
 
 /**
- * Process an incoming DRP Availability notification.
+ * Process an incoming DRP Availability yestification.
  *
  * @evt:	Event information (packs the actual event data, which
  *              radio controller it came to, etc).
@@ -248,8 +248,8 @@ error:
  *
  * So we clear available slots, we set used slots :)
  *
- * The notification only marks non-availability based on the BP and
- * received DRP IEs that are not for this radio controller.  A copy of
+ * The yestification only marks yesn-availability based on the BP and
+ * received DRP IEs that are yest for this radio controller.  A copy of
  * this bitmap is needed to generate the real availability (which
  * includes local and pending reservations).
  *

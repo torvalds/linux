@@ -46,7 +46,7 @@ static void op_overflow_handler(struct perf_event *event,
 	if (id != num_counters)
 		oprofile_add_sample(regs, id);
 	else
-		pr_warn("oprofile: ignoring spurious overflow on cpu %u\n",
+		pr_warn("oprofile: igyesring spurious overflow on cpu %u\n",
 			cpu);
 }
 
@@ -281,7 +281,7 @@ int __init oprofile_perf_init(struct oprofile_operations *ops)
 
 	num_counters = perf_num_counters();
 	if (num_counters <= 0) {
-		pr_info("oprofile: no performance counters\n");
+		pr_info("oprofile: yes performance counters\n");
 		ret = -ENODEV;
 		goto out;
 	}

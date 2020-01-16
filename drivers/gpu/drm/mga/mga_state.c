@@ -12,7 +12,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -1010,7 +1010,7 @@ int mga_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	int value;
 
 	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
+		DRM_ERROR("called with yes initialization\n");
 		return -EINVAL;
 	}
 
@@ -1042,13 +1042,13 @@ static int mga_set_fence(struct drm_device *dev, void *data, struct drm_file *fi
 	DMA_LOCALS;
 
 	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
+		DRM_ERROR("called with yes initialization\n");
 		return -EINVAL;
 	}
 
 	DRM_DEBUG("pid=%d\n", task_pid_nr(current));
 
-	/* I would normal do this assignment in the declaration of fence,
+	/* I would yesrmal do this assignment in the declaration of fence,
 	 * but dev_priv may be NULL.
 	 */
 
@@ -1071,7 +1071,7 @@ file_priv)
 	u32 *fence = data;
 
 	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
+		DRM_ERROR("called with yes initialization\n");
 		return -EINVAL;
 	}
 

@@ -130,7 +130,7 @@ EXPORT_SYMBOL_GPL(nfs_path);
  * @path - The mountpoint
  *
  * When we encounter a mountpoint on the server, we want to set up
- * a mountpoint on the client too, to prevent inode numbers from
+ * a mountpoint on the client too, to prevent iyesde numbers from
  * colliding, and to allow "df" to work properly.
  * On NFSv4, we also want to allow for the fact that different
  * filesystems may be migrated to different servers in a failover
@@ -140,7 +140,7 @@ EXPORT_SYMBOL_GPL(nfs_path);
 struct vfsmount *nfs_d_automount(struct path *path)
 {
 	struct vfsmount *mnt;
-	struct nfs_server *server = NFS_SERVER(d_inode(path->dentry));
+	struct nfs_server *server = NFS_SERVER(d_iyesde(path->dentry));
 	struct nfs_fh *fh = NULL;
 	struct nfs_fattr *fattr = NULL;
 
@@ -174,26 +174,26 @@ static int
 nfs_namespace_getattr(const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int query_flags)
 {
-	if (NFS_FH(d_inode(path->dentry))->size != 0)
+	if (NFS_FH(d_iyesde(path->dentry))->size != 0)
 		return nfs_getattr(path, stat, request_mask, query_flags);
-	generic_fillattr(d_inode(path->dentry), stat);
+	generic_fillattr(d_iyesde(path->dentry), stat);
 	return 0;
 }
 
 static int
 nfs_namespace_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	if (NFS_FH(d_inode(dentry))->size != 0)
+	if (NFS_FH(d_iyesde(dentry))->size != 0)
 		return nfs_setattr(dentry, attr);
 	return -EACCES;
 }
 
-const struct inode_operations nfs_mountpoint_inode_operations = {
+const struct iyesde_operations nfs_mountpoint_iyesde_operations = {
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,
 };
 
-const struct inode_operations nfs_referral_inode_operations = {
+const struct iyesde_operations nfs_referral_iyesde_operations = {
 	.getattr	= nfs_namespace_getattr,
 	.setattr	= nfs_namespace_setattr,
 };
@@ -227,7 +227,7 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
  * nfs_do_submount - set up mountpoint when crossing a filesystem boundary
  * @dentry: parent directory
  * @fh: filehandle for new root dentry
- * @fattr: attributes for new root inode
+ * @fattr: attributes for new root iyesde
  * @authflavor: security flavor to use when performing the mount
  *
  */
@@ -266,7 +266,7 @@ struct vfsmount *nfs_submount(struct nfs_server *server, struct dentry *dentry,
 	struct dentry *parent = dget_parent(dentry);
 
 	/* Look it up again to get its attributes */
-	err = server->nfs_client->rpc_ops->lookup(d_inode(parent), &dentry->d_name, fh, fattr, NULL);
+	err = server->nfs_client->rpc_ops->lookup(d_iyesde(parent), &dentry->d_name, fh, fattr, NULL);
 	dput(parent);
 	if (err != 0)
 		return ERR_PTR(err);

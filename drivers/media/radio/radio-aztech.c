@@ -62,7 +62,7 @@ struct aztech {
 #define AZTECH_BIT_TUN_CE	(1 << 1)
 #define AZTECH_BIT_TUN_CLK	(1 << 6)
 #define AZTECH_BIT_TUN_DATA	(1 << 7)
-/* bits 0 and 2 are volume control, bits 3..5 are not connected */
+/* bits 0 and 2 are volume control, bits 3..5 are yest connected */
 
 static void aztech_set_pins(void *handle, u8 pins)
 {

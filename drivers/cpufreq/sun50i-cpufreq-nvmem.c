@@ -33,7 +33,7 @@ static struct platform_device *cpufreq_dt_pdev, *sun50i_cpufreq_pdev;
 static int sun50i_cpufreq_get_efuse(u32 *versions)
 {
 	struct nvmem_cell *speedbin_nvmem;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct device *cpu_dev;
 	u32 *speedbin, efuse_value;
 	size_t len;
@@ -43,22 +43,22 @@ static int sun50i_cpufreq_get_efuse(u32 *versions)
 	if (!cpu_dev)
 		return -ENODEV;
 
-	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+	np = dev_pm_opp_of_get_opp_desc_yesde(cpu_dev);
 	if (!np)
 		return -ENOENT;
 
 	ret = of_device_is_compatible(np,
 				      "allwinner,sun50i-h6-operating-points");
 	if (!ret) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENOENT;
 	}
 
 	speedbin_nvmem = of_nvmem_cell_get(np, NULL);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (IS_ERR(speedbin_nvmem)) {
 		if (PTR_ERR(speedbin_nvmem) != -EPROBE_DEFER)
-			pr_err("Could not get nvmem cell: %ld\n",
+			pr_err("Could yest get nvmem cell: %ld\n",
 			       PTR_ERR(speedbin_nvmem));
 		return PTR_ERR(speedbin_nvmem);
 	}
@@ -168,14 +168,14 @@ static const struct of_device_id sun50i_cpufreq_match_list[] = {
 	{}
 };
 
-static const struct of_device_id *sun50i_cpufreq_match_node(void)
+static const struct of_device_id *sun50i_cpufreq_match_yesde(void)
 {
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_node_by_path("/");
-	match = of_match_node(sun50i_cpufreq_match_list, np);
-	of_node_put(np);
+	np = of_find_yesde_by_path("/");
+	match = of_match_yesde(sun50i_cpufreq_match_list, np);
+	of_yesde_put(np);
 
 	return match;
 }
@@ -190,7 +190,7 @@ static int __init sun50i_cpufreq_init(void)
 	const struct of_device_id *match;
 	int ret;
 
-	match = sun50i_cpufreq_match_node();
+	match = sun50i_cpufreq_match_yesde();
 	if (!match)
 		return -ENODEV;
 

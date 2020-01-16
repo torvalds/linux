@@ -9,7 +9,7 @@
  * MAXA.S: FPR[fd] = maxNumMag(FPR[fs],FPR[ft])
  *
  * MIPS floating point support
- * Copyright (C) 2015 Imagination Technologies, Ltd.
+ * Copyright (C) 2015 Imagination Techyeslogies, Ltd.
  * Author: Markos Chandras <markos.chandras@imgtec.com>
  */
 

@@ -414,14 +414,14 @@ static void flexrm_enqueue_desc(u32 nhpos, u32 nhcnt, u32 reqid,
 
 	/*
 	 * Each request or packet start with a HEADER descriptor followed
-	 * by one or more non-HEADER descriptors (SRC, SRCT, MSRC, DST,
-	 * DSTT, MDST, IMM, and IMMT). The number of non-HEADER descriptors
+	 * by one or more yesn-HEADER descriptors (SRC, SRCT, MSRC, DST,
+	 * DSTT, MDST, IMM, and IMMT). The number of yesn-HEADER descriptors
 	 * following a HEADER descriptor is represented by BDCOUNT field
 	 * of HEADER descriptor. The max value of BDCOUNT field is 31 which
-	 * means we can only have 31 non-HEADER descriptors following one
+	 * means we can only have 31 yesn-HEADER descriptors following one
 	 * HEADER descriptor.
 	 *
-	 * In general use, number of non-HEADER descriptors can easily go
+	 * In general use, number of yesn-HEADER descriptors can easily go
 	 * beyond 31. To tackle this situation, we have packet (or request)
 	 * extenstion bits (STARTPKT and ENDPKT) in the HEADER descriptor.
 	 *
@@ -430,7 +430,7 @@ static void flexrm_enqueue_desc(u32 nhpos, u32 nhcnt, u32 reqid,
 	 * HEADER descriptors will have STARTPKT=0 and ENDPKT=0. The last
 	 * HEADER descriptor will have STARTPKT=0 and ENDPKT=1. Also, the
 	 * TOGGLE bit of the first HEADER will be set to invalid state to
-	 * ensure that FlexRM does not start fetching descriptors till all
+	 * ensure that FlexRM does yest start fetching descriptors till all
 	 * descriptors are enqueued. The user of this function will flip
 	 * the TOGGLE bit of first HEADER after all descriptors are
 	 * enqueued.
@@ -599,7 +599,7 @@ static bool flexrm_spu_sanity_check(struct brcm_message *msg)
 	return true;
 }
 
-static u32 flexrm_spu_estimate_nonheader_desc_count(struct brcm_message *msg)
+static u32 flexrm_spu_estimate_yesnheader_desc_count(struct brcm_message *msg)
 {
 	u32 cnt = 0;
 	unsigned int dst_target = 0;
@@ -741,7 +741,7 @@ static bool flexrm_sba_sanity_check(struct brcm_message *msg)
 	return true;
 }
 
-static u32 flexrm_sba_estimate_nonheader_desc_count(struct brcm_message *msg)
+static u32 flexrm_sba_estimate_yesnheader_desc_count(struct brcm_message *msg)
 {
 	u32 i, cnt;
 
@@ -856,16 +856,16 @@ static bool flexrm_sanity_check(struct brcm_message *msg)
 	};
 }
 
-static u32 flexrm_estimate_nonheader_desc_count(struct brcm_message *msg)
+static u32 flexrm_estimate_yesnheader_desc_count(struct brcm_message *msg)
 {
 	if (!msg)
 		return 0;
 
 	switch (msg->type) {
 	case BRCM_MESSAGE_SPU:
-		return flexrm_spu_estimate_nonheader_desc_count(msg);
+		return flexrm_spu_estimate_yesnheader_desc_count(msg);
 	case BRCM_MESSAGE_SBA:
-		return flexrm_sba_estimate_nonheader_desc_count(msg);
+		return flexrm_sba_estimate_yesnheader_desc_count(msg);
 	default:
 		return 0;
 	};
@@ -998,7 +998,7 @@ static int flexrm_new_request(struct flexrm_ring *ring,
 		return -EIO;
 	msg->error = 0;
 
-	/* If no requests possible then save data pointer and goto done. */
+	/* If yes requests possible then save data pointer and goto done. */
 	spin_lock_irqsave(&ring->lock, flags);
 	reqid = bitmap_find_free_region(ring->requests_bmap,
 					RING_MAX_REQ_COUNT, 0);
@@ -1024,11 +1024,11 @@ static int flexrm_new_request(struct flexrm_ring *ring,
 	read_offset += (u32)(BD_START_ADDR_DECODE(val) - ring->bd_dma_base);
 
 	/*
-	 * Number required descriptors = number of non-header descriptors +
+	 * Number required descriptors = number of yesn-header descriptors +
 	 *				 number of header descriptors +
 	 *				 1x null descriptor
 	 */
-	nhcnt = flexrm_estimate_nonheader_desc_count(msg);
+	nhcnt = flexrm_estimate_yesnheader_desc_count(msg);
 	count = flexrm_estimate_header_desc_count(nhcnt) + nhcnt + 1;
 
 	/* Check for available descriptor space. */
@@ -1107,7 +1107,7 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 
 	spin_unlock_irqrestore(&ring->lock, flags);
 
-	/* For each completed request notify mailbox clients */
+	/* For each completed request yestify mailbox clients */
 	reqid = 0;
 	while (cmpl_read_offset != cmpl_write_offset) {
 		/* Dequeue next completion descriptor */
@@ -1277,7 +1277,7 @@ static int flexrm_startup(struct mbox_chan *chan)
 	/* Request IRQ */
 	if (ring->irq == UINT_MAX) {
 		dev_err(ring->mbox->dev,
-			"ring%d IRQ not available\n", ring->num);
+			"ring%d IRQ yest available\n", ring->num);
 		ret = -ENODEV;
 		goto fail_free_cmpl_memory;
 	}

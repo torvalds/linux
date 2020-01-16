@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * file.c - operations for regular (text) files.
  *
@@ -133,7 +133,7 @@ out:
  *	We check whether we need to refill the buffer. If so we will
  *	call the attributes' attr->read() twice. The first time we
  *	will pass a NULL as a buffer pointer, which the attributes' method
- *	will use to return the size of the buffer required. If no error
+ *	will use to return the size of the buffer required. If yes error
  *	occurs we will allocate the buffer using vmalloc and call
  *	attr->read() again passing that buffer as an argument.
  *	Then we just copy to user-space using simple_read_from_buffer.
@@ -170,7 +170,7 @@ configfs_read_bin_file(struct file *file, char __user *buf,
 			goto out;
 		}
 
-		/* do not exceed the maximum value */
+		/* do yest exceed the maximum value */
 		if (buffer->cb_max_size && len > buffer->cb_max_size) {
 			retval = -EFBIG;
 			goto out;
@@ -264,7 +264,7 @@ flush_write_buffer(struct file *file, struct configfs_buffer *buffer, size_t cou
  *	Similar to configfs_read_file(), though working in the opposite direction.
  *	We allocate and fill the data from the user in fill_write_buffer(),
  *	then push it to the config_item in flush_write_buffer().
- *	There is no easy way for us to know if userspace is only doing a partial
+ *	There is yes easy way for us to kyesw if userspace is only doing a partial
  *	write, so we don't support them. We expect the entire buffer to come
  *	on the first write.
  *	Hint: if you're writing a value, first read the file, modify only the
@@ -294,8 +294,8 @@ configfs_write_file(struct file *file, const char __user *buf, size_t count, lof
  *	@count:	number of bytes
  *	@ppos:	starting offset
  *
- *	Writing to a binary attribute file is similar to a normal read.
- *	We buffer the consecutive writes (binary attribute files do not
+ *	Writing to a binary attribute file is similar to a yesrmal read.
+ *	We buffer the consecutive writes (binary attribute files do yest
  *	support lseek) in a continuously growing buffer, but we don't
  *	commit until the close of the file.
  */
@@ -353,7 +353,7 @@ out:
 	return len;
 }
 
-static int __configfs_open_file(struct inode *inode, struct file *file, int type)
+static int __configfs_open_file(struct iyesde *iyesde, struct file *file, int type)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct configfs_fragment *frag = to_frag(file);
@@ -400,11 +400,11 @@ static int __configfs_open_file(struct inode *inode, struct file *file, int type
 	buffer->ops = buffer->item->ci_type->ct_item_ops;
 
 	/* File needs write support.
-	 * The inode's perms must say it's ok,
+	 * The iyesde's perms must say it's ok,
 	 * and we must have a store method.
 	 */
 	if (file->f_mode & FMODE_WRITE) {
-		if (!(inode->i_mode & S_IWUGO))
+		if (!(iyesde->i_mode & S_IWUGO))
 			goto out_put_module;
 		if ((type & CONFIGFS_ITEM_ATTR) && !attr->store)
 			goto out_put_module;
@@ -413,11 +413,11 @@ static int __configfs_open_file(struct inode *inode, struct file *file, int type
 	}
 
 	/* File needs read support.
-	 * The inode's perms must say it's ok, and we there
+	 * The iyesde's perms must say it's ok, and we there
 	 * must be a show method for it.
 	 */
 	if (file->f_mode & FMODE_READ) {
-		if (!(inode->i_mode & S_IRUGO))
+		if (!(iyesde->i_mode & S_IRUGO))
 			goto out_put_module;
 		if ((type & CONFIGFS_ITEM_ATTR) && !attr->show)
 			goto out_put_module;
@@ -444,7 +444,7 @@ out:
 	return error;
 }
 
-static int configfs_release(struct inode *inode, struct file *filp)
+static int configfs_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct configfs_buffer *buffer = filp->private_data;
 
@@ -456,17 +456,17 @@ static int configfs_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int configfs_open_file(struct inode *inode, struct file *filp)
+static int configfs_open_file(struct iyesde *iyesde, struct file *filp)
 {
-	return __configfs_open_file(inode, filp, CONFIGFS_ITEM_ATTR);
+	return __configfs_open_file(iyesde, filp, CONFIGFS_ITEM_ATTR);
 }
 
-static int configfs_open_bin_file(struct inode *inode, struct file *filp)
+static int configfs_open_bin_file(struct iyesde *iyesde, struct file *filp)
 {
-	return __configfs_open_file(inode, filp, CONFIGFS_ITEM_BIN_ATTR);
+	return __configfs_open_file(iyesde, filp, CONFIGFS_ITEM_BIN_ATTR);
 }
 
-static int configfs_release_bin_file(struct inode *inode, struct file *file)
+static int configfs_release_bin_file(struct iyesde *iyesde, struct file *file)
 {
 	struct configfs_buffer *buffer = file->private_data;
 
@@ -478,7 +478,7 @@ static int configfs_release_bin_file(struct inode *inode, struct file *file)
 
 		down_read(&frag->frag_sem);
 		if (!frag->frag_dead) {
-			/* result of ->release() is ignored */
+			/* result of ->release() is igyesred */
 			buffer->bin_attr->write(buffer->item,
 					buffer->bin_buffer,
 					buffer->bin_buffer_size);
@@ -491,7 +491,7 @@ static int configfs_release_bin_file(struct inode *inode, struct file *file)
 		buffer->needs_read_fill = 1;
 	}
 
-	configfs_release(inode, file);
+	configfs_release(iyesde, file);
 	return 0;
 }
 
@@ -507,7 +507,7 @@ const struct file_operations configfs_file_operations = {
 const struct file_operations configfs_bin_file_operations = {
 	.read		= configfs_read_bin_file,
 	.write		= configfs_write_bin_file,
-	.llseek		= NULL,		/* bin file is not seekable */
+	.llseek		= NULL,		/* bin file is yest seekable */
 	.open		= configfs_open_bin_file,
 	.release	= configfs_release_bin_file,
 };
@@ -525,10 +525,10 @@ int configfs_create_file(struct config_item * item, const struct configfs_attrib
 	umode_t mode = (attr->ca_mode & S_IALLUGO) | S_IFREG;
 	int error = 0;
 
-	inode_lock_nested(d_inode(dir), I_MUTEX_NORMAL);
+	iyesde_lock_nested(d_iyesde(dir), I_MUTEX_NORMAL);
 	error = configfs_make_dirent(parent_sd, NULL, (void *) attr, mode,
 				     CONFIGFS_ITEM_ATTR, parent_sd->s_frag);
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 
 	return error;
 }
@@ -547,10 +547,10 @@ int configfs_create_bin_file(struct config_item *item,
 	umode_t mode = (bin_attr->cb_attr.ca_mode & S_IALLUGO) | S_IFREG;
 	int error = 0;
 
-	inode_lock_nested(dir->d_inode, I_MUTEX_NORMAL);
+	iyesde_lock_nested(dir->d_iyesde, I_MUTEX_NORMAL);
 	error = configfs_make_dirent(parent_sd, NULL, (void *) bin_attr, mode,
 				     CONFIGFS_ITEM_BIN_ATTR, parent_sd->s_frag);
-	inode_unlock(dir->d_inode);
+	iyesde_unlock(dir->d_iyesde);
 
 	return error;
 }

@@ -1,8 +1,8 @@
 MediaTek MT6397/MT6323 PMIC Keys Device Driver
 
 There are two key functions provided by MT6397/MT6323 PMIC, pwrkey
-and homekey. The key functions are defined as the subnode of the function
-node provided by MT6397/MT6323 PMIC that is being defined as one kind
+and homekey. The key functions are defined as the subyesde of the function
+yesde provided by MT6397/MT6323 PMIC that is being defined as one kind
 of Muti-Function Device (MFD)
 
 For MT6397/MT6323 MFD bindings see:

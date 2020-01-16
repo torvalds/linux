@@ -130,7 +130,7 @@ static unsigned int wrt350n_v2_mpp_modes[] __initdata = {
 #define WRT350N_V2_NOR_BOOT_BASE	0xf4000000
 #define WRT350N_V2_NOR_BOOT_SIZE	SZ_8M
 
-static struct mtd_partition wrt350n_v2_nor_flash_partitions[] = {
+static struct mtd_partition wrt350n_v2_yesr_flash_partitions[] = {
 	{
 		.name		= "kernel",
 		.offset		= 0x00000000,
@@ -154,26 +154,26 @@ static struct mtd_partition wrt350n_v2_nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data wrt350n_v2_nor_flash_data = {
+static struct physmap_flash_data wrt350n_v2_yesr_flash_data = {
 	.width		= 1,
-	.parts		= wrt350n_v2_nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(wrt350n_v2_nor_flash_partitions),
+	.parts		= wrt350n_v2_yesr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(wrt350n_v2_yesr_flash_partitions),
 };
 
-static struct resource wrt350n_v2_nor_flash_resource = {
+static struct resource wrt350n_v2_yesr_flash_resource = {
 	.flags		= IORESOURCE_MEM,
 	.start		= WRT350N_V2_NOR_BOOT_BASE,
 	.end		= WRT350N_V2_NOR_BOOT_BASE + WRT350N_V2_NOR_BOOT_SIZE - 1,
 };
 
-static struct platform_device wrt350n_v2_nor_flash = {
+static struct platform_device wrt350n_v2_yesr_flash = {
 	.name			= "physmap-flash",
 	.id			= 0,
 	.dev		= {
-		.platform_data	= &wrt350n_v2_nor_flash_data,
+		.platform_data	= &wrt350n_v2_yesr_flash_data,
 	},
 	.num_resources		= 1,
-	.resource		= &wrt350n_v2_nor_flash_resource,
+	.resource		= &wrt350n_v2_yesr_flash_resource,
 };
 
 static struct mv643xx_eth_platform_data wrt350n_v2_eth_data = {
@@ -212,7 +212,7 @@ static void __init wrt350n_v2_init(void)
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
 				    WRT350N_V2_NOR_BOOT_BASE,
 				    WRT350N_V2_NOR_BOOT_SIZE);
-	platform_device_register(&wrt350n_v2_nor_flash);
+	platform_device_register(&wrt350n_v2_yesr_flash);
 	platform_device_register(&wrt350n_v2_leds);
 	platform_device_register(&wrt350n_v2_button_device);
 }

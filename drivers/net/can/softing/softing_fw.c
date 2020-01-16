@@ -30,13 +30,13 @@ static int _softing_fct_cmd(struct softing *card, int16_t cmd, uint16_t vector,
 	stamp = jiffies + 1 * HZ;
 	/* wait for card */
 	do {
-		/* DPRAM_FCT_HOST is _not_ aligned */
+		/* DPRAM_FCT_HOST is _yest_ aligned */
 		ret = ioread8(&card->dpram[DPRAM_FCT_HOST]) +
 			(ioread8(&card->dpram[DPRAM_FCT_HOST + 1]) << 8);
 		/* don't have any cached variables */
 		rmb();
 		if (ret == RES_OK)
-			/* read return-value now */
+			/* read return-value yesw */
 			return ioread16(&card->dpram[DPRAM_FCT_RESULT]);
 
 		if ((ret != vector) || time_after(jiffies, stamp))
@@ -168,7 +168,7 @@ int softing_load_fw(const char *file, struct softing *card,
 		if (ret < 0)
 			goto failed;
 		if (type == 3) {
-			/* start address, not used here */
+			/* start address, yest used here */
 			continue;
 		} else if (type == 1) {
 			/* eof */
@@ -197,14 +197,14 @@ int softing_load_fw(const char *file, struct softing *card,
 		/* verify record data */
 		memcpy_fromio(buf, &dpram[addr + offset], len);
 		if (memcmp(buf, dat, len)) {
-			/* is not ok */
+			/* is yest ok */
 			dev_alert(&card->pdev->dev, "DPRAM readback failed\n");
 			ret = -EIO;
 			goto failed;
 		}
 	}
 	if (!type_end)
-		/* no end record seen */
+		/* yes end record seen */
 		goto failed;
 	ret = 0;
 failed:
@@ -268,7 +268,7 @@ int softing_load_app_fw(const char *file, struct softing *card)
 			break;
 		} else if (type != 0) {
 			dev_alert(&card->pdev->dev,
-					"unknown record type 0x%04x\n", type);
+					"unkyeswn record type 0x%04x\n", type);
 			ret = -EINVAL;
 			goto failed;
 		}
@@ -385,12 +385,12 @@ static void softing_initialize_timestamp(struct softing *card)
 ktime_t softing_raw2ktime(struct softing *card, u32 raw)
 {
 	uint64_t rawl;
-	ktime_t now, real_offset;
+	ktime_t yesw, real_offset;
 	ktime_t target;
 	ktime_t tmp;
 
-	now = ktime_get();
-	real_offset = ktime_sub(ktime_get_real(), now);
+	yesw = ktime_get();
+	real_offset = ktime_sub(ktime_get_real(), yesw);
 
 	/* find nsec from card */
 	rawl = raw * 16;
@@ -398,7 +398,7 @@ ktime_t softing_raw2ktime(struct softing *card, u32 raw)
 	target = ktime_add_us(card->ts_ref, rawl);
 	/* test for overflows */
 	tmp = ktime_add(target, card->ts_overflow);
-	while (unlikely(ktime_to_ns(tmp) > ktime_to_ns(now))) {
+	while (unlikely(ktime_to_ns(tmp) > ktime_to_ns(yesw))) {
 		card->ts_ref = ktime_add(card->ts_ref, card->ts_overflow);
 		target = tmp;
 		tmp = ktime_add(target, card->ts_overflow);
@@ -474,7 +474,7 @@ int softing_startstop(struct net_device *dev, int up)
 	if (ret)
 		goto failed;
 	if (!bus_bitmask_start)
-		/* no busses to be brought up */
+		/* yes busses to be brought up */
 		goto card_done;
 
 	if ((bus_bitmask_start & 1) && (bus_bitmask_start & 2)
@@ -568,7 +568,7 @@ int softing_startstop(struct net_device *dev, int up)
 	/* enable_error_frame */
 	/*
 	 * Error reporting is switched off at the moment since
-	 * the receiving of them is not yet 100% verified
+	 * the receiving of them is yest yet 100% verified
 	 * This should be enabled sooner or later
 	 *
 	if (error_reporting) {
@@ -618,8 +618,8 @@ int softing_startstop(struct net_device *dev, int up)
 	softing_initialize_timestamp(card);
 
 	/*
-	 * do socketcan notifications/status changes
-	 * from here, no errors should occur, or the failed: part
+	 * do socketcan yestifications/status changes
+	 * from here, yes errors should occur, or the failed: part
 	 * must be reviewed
 	 */
 	memset(&msg, 0, sizeof(msg));
@@ -635,7 +635,7 @@ int softing_startstop(struct net_device *dev, int up)
 		priv->can.state = CAN_STATE_ERROR_ACTIVE;
 		open_candev(netdev);
 		if (dev != netdev) {
-			/* notify other busses on the restart */
+			/* yestify other busses on the restart */
 			softing_netdev_rx(netdev, &msg, 0);
 			++priv->can.can_stats.restarts;
 		}

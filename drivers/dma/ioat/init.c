@@ -254,7 +254,7 @@ bool is_bwd_ioat(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD1:
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD2:
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD3:
-	/* even though not Atom, BDX-DE has same DMA silicon */
+	/* even though yest Atom, BDX-DE has same DMA silicon */
 	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE0:
 	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE1:
 	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE2:
@@ -265,7 +265,7 @@ bool is_bwd_ioat(struct pci_dev *pdev)
 	}
 }
 
-static bool is_bwd_noraid(struct pci_dev *pdev)
+static bool is_bwd_yesraid(struct pci_dev *pdev)
 {
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD2:
@@ -328,9 +328,9 @@ static int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
 
 	/* Start copy, using first DMA channel */
 	dma_chan = container_of(dma->channels.next, struct dma_chan,
-				device_node);
+				device_yesde);
 	if (dma->device_alloc_chan_resources(dma_chan) < 1) {
-		dev_err(dev, "selftest cannot allocate chan resource\n");
+		dev_err(dev, "selftest canyest allocate chan resource\n");
 		err = -ENODEV;
 		goto out;
 	}
@@ -417,7 +417,7 @@ int ioat_dma_setup_interrupts(struct ioatdma_device *ioat_dma)
 	if (!strcmp(ioat_interrupt_style, "intx"))
 		goto intx;
 	dev_err(dev, "invalid ioat_interrupt_style %s\n", ioat_interrupt_style);
-	goto err_no_irq;
+	goto err_yes_irq;
 
 msix:
 	/* The number of MSI-X vectors should equal the number of channels */
@@ -466,7 +466,7 @@ intx:
 	err = devm_request_irq(dev, pdev->irq, ioat_dma_do_interrupt,
 			       IRQF_SHARED, "ioat-intx", ioat_dma);
 	if (err)
-		goto err_no_irq;
+		goto err_yes_irq;
 
 	ioat_dma->irq_mode = IOAT_INTX;
 done:
@@ -476,11 +476,11 @@ done:
 	writeb(intrctrl, ioat_dma->reg_base + IOAT_INTRCTRL_OFFSET);
 	return 0;
 
-err_no_irq:
+err_yes_irq:
 	/* Disable all interrupt generation */
 	writeb(0, ioat_dma->reg_base + IOAT_INTRCTRL_OFFSET);
 	ioat_dma->irq_mode = IOAT_NOIRQ;
-	dev_err(dev, "no usable interrupts\n");
+	dev_err(dev, "yes usable interrupts\n");
 	return err;
 }
 
@@ -775,7 +775,7 @@ ioat_init_channel(struct ioatdma_device *ioat_dma,
 	spin_lock_init(&ioat_chan->cleanup_lock);
 	ioat_chan->dma_chan.device = dma;
 	dma_cookie_init(&ioat_chan->dma_chan);
-	list_add_tail(&ioat_chan->dma_chan.device_node, &dma->channels);
+	list_add_tail(&ioat_chan->dma_chan.device_yesde, &dma->channels);
 	ioat_dma->idx[idx] = ioat_chan;
 	timer_setup(&ioat_chan->timer, ioat_timer_event, 0);
 	tasklet_init(&ioat_chan->cleanup_task, ioat_cleanup_event, data);
@@ -841,7 +841,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	memset(page_address(dest), 0, PAGE_SIZE);
 
 	dma_chan = container_of(dma->channels.next, struct dma_chan,
-				device_node);
+				device_yesde);
 	if (dma->device_alloc_chan_resources(dma_chan) < 1) {
 		err = -ENODEV;
 		goto out;
@@ -912,7 +912,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 
 	dma_unmap_page(dev, dest_dma, PAGE_SIZE, DMA_FROM_DEVICE);
 
-	/* skip validate if the capability is not present */
+	/* skip validate if the capability is yest present */
 	if (!dma_has_cap(DMA_XOR_VAL, dma_chan->device->cap_mask))
 		goto free_resources;
 
@@ -974,7 +974,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 
 	memset(page_address(dest), 0, PAGE_SIZE);
 
-	/* test for non-zero parity sum */
+	/* test for yesn-zero parity sum */
 	op = IOAT_OP_XOR_VAL;
 
 	xor_val_result = 0;
@@ -1074,7 +1074,7 @@ static void ioat_intr_quirk(struct ioatdma_device *ioat_dma)
 	 * error interrupts
 	 */
 	if (ioat_dma->cap & IOAT_CAP_DWBES) {
-		list_for_each_entry(c, &dma->channels, device_node) {
+		list_for_each_entry(c, &dma->channels, device_yesde) {
 			ioat_chan = to_ioat_chan(c);
 			errmask = readl(ioat_chan->reg_base +
 					IOAT_CHANERR_MASK_OFFSET);
@@ -1107,7 +1107,7 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 
 	ioat_dma->cap = readl(ioat_dma->reg_base + IOAT_DMA_CAP_OFFSET);
 
-	if (is_xeon_cb32(pdev) || is_bwd_noraid(pdev))
+	if (is_xeon_cb32(pdev) || is_bwd_yesraid(pdev))
 		ioat_dma->cap &=
 			~(IOAT_CAP_XOR | IOAT_CAP_PQ | IOAT_CAP_RAID16SS);
 
@@ -1177,7 +1177,7 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	if (err)
 		return err;
 
-	list_for_each_entry(c, &dma->channels, device_node) {
+	list_for_each_entry(c, &dma->channels, device_yesde) {
 		ioat_chan = to_ioat_chan(c);
 		writel(IOAT_DMA_DCA_ANY_CPU,
 		       ioat_chan->reg_base + IOAT_DCACTRL_OFFSET);
@@ -1229,9 +1229,9 @@ static void ioat_shutdown(struct pci_dev *pdev)
 		spin_unlock_bh(&ioat_chan->prep_lock);
 		/*
 		 * Synchronization rule for del_timer_sync():
-		 *  - The caller must not hold locks which would prevent
+		 *  - The caller must yest hold locks which would prevent
 		 *    completion of the timer's handler.
-		 * So prep_lock cannot be held before calling it.
+		 * So prep_lock canyest be held before calling it.
 		 */
 		del_timer_sync(&ioat_chan->timer);
 
@@ -1260,7 +1260,7 @@ static void ioat_resume(struct ioatdma_device *ioat_dma)
 		chanerr = readl(ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
 		writel(chanerr, ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
 
-		/* no need to reset as shutdown already did that */
+		/* yes need to reset as shutdown already did that */
 	}
 }
 
@@ -1415,7 +1415,7 @@ static int __init ioat_init_module(void)
 {
 	int err = -ENOMEM;
 
-	pr_info("%s: Intel(R) QuickData Technology Driver %s\n",
+	pr_info("%s: Intel(R) QuickData Techyeslogy Driver %s\n",
 		DRV_NAME, IOAT_DMA_VERSION);
 
 	ioat_cache = kmem_cache_create("ioat", sizeof(struct ioat_ring_ent),

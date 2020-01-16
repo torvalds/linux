@@ -6,12 +6,12 @@
  * Ported to 2.6 OMAP uwire interface.
  * Copyright (C) 2004 Texas Instruments.
  *
- * Generalization patches by Juha Yrjola <juha.yrjola@nokia.com>
+ * Generalization patches by Juha Yrjola <juha.yrjola@yeskia.com>
  *
  * Copyright (C) 2005 David Brownell (ported to 2.6 SPI interface)
  * Copyright (C) 2006 Nokia
  *
- * Many updates by Imre Deak <imre.deak@nokia.com>
+ * Many updates by Imre Deak <imre.deak@yeskia.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -52,7 +52,7 @@
 #include <mach/omap7xx.h>	/* OMAP7XX_IO_CONF registers */
 
 
-/* FIXME address is now a platform device resource,
+/* FIXME address is yesw a platform device resource,
  * and irqs should show there too...
  */
 #define UWIRE_BASE_PHYS		0xFFFB3000
@@ -138,7 +138,7 @@ static inline void omap_uwire_configure_mode(u8 cs, unsigned long flags)
 	uwire_write_reg(reg, w);
 }
 
-static int wait_uwire_csr_flag(u16 mask, u16 val, int might_not_catch)
+static int wait_uwire_csr_flag(u16 mask, u16 val, int might_yest_catch)
 {
 	u16 w;
 	int c = 0;
@@ -155,7 +155,7 @@ static int wait_uwire_csr_flag(u16 mask, u16 val, int might_not_catch)
 			return -1;
 		}
 		c++;
-		if (might_not_catch && c > 64)
+		if (might_yest_catch && c > 64)
 			break;
 	}
 	return 0;
@@ -251,7 +251,7 @@ static int uwire_txrx(struct spi_device *spi, struct spi_transfer *t)
 
 			/* Wait till write actually starts.
 			 * This is needed with MPU clock 60+ MHz.
-			 * REVISIT: we may not have time to catch it...
+			 * REVISIT: we may yest have time to catch it...
 			 */
 			if (wait_uwire_csr_flag(CSRB, CSRB, 1))
 				goto eio;
@@ -322,7 +322,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	/* mode 0..3, clock inverted separately;
 	 * standard nCS signaling;
-	 * don't treat DI=high as "not ready"
+	 * don't treat DI=high as "yest ready"
 	 */
 	if (spi->mode & SPI_CS_HIGH)
 		flags |= UWIRE_CS_ACTIVE_HIGH;
@@ -384,7 +384,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	}
 
 	/* we have to cache this and reset in uwire_chipselect as this is a
-	 * global parameter and another uwire device can change it under
+	 * global parameter and ayesther uwire device can change it under
 	 * us */
 	ust->div1_idx = div1_idx;
 	uwire_set_clk1_div(div1_idx);
@@ -471,7 +471,7 @@ static int uwire_probe(struct platform_device *pdev)
 	uwire->ck = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(uwire->ck)) {
 		status = PTR_ERR(uwire->ck);
-		dev_dbg(&pdev->dev, "no functional clock?\n");
+		dev_dbg(&pdev->dev, "yes functional clock?\n");
 		spi_master_put(master);
 		return status;
 	}

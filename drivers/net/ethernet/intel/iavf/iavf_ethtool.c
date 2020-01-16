@@ -11,7 +11,7 @@
 /**
  * struct iavf_stats - definition for an ethtool statistic
  * @stat_string: statistic name to display in ethtool -S output
- * @sizeof_stat: the sizeof() the stat, must be no greater than sizeof(u64)
+ * @sizeof_stat: the sizeof() the stat, must be yes greater than sizeof(u64)
  * @stat_offset: offsetof() the stat from a base pointer
  *
  * This structure defines a statistic to be added to the ethtool stats buffer.
@@ -21,7 +21,7 @@
  * stat_offset.
  *
  * The @sizeof_stat is expected to be sizeof(u8), sizeof(u16), sizeof(u32) or
- * sizeof(u64). Other sizes are not expected and will produce a WARN_ONCE from
+ * sizeof(u64). Other sizes are yest expected and will produce a WARN_ONCE from
  * the iavf_add_ethtool_stat() helper function.
  *
  * The @stat_string is interpreted as a format string, allowing formatted
@@ -166,7 +166,7 @@ iavf_add_queue_stats(u64 **data, struct iavf_ring *ring)
 	/* To avoid invalid statistics values, ensure that we keep retrying
 	 * the copy until we get a consistent value according to
 	 * u64_stats_fetch_retry_irq. But first, make sure our ring is
-	 * non-null before attempting to access its syncp.
+	 * yesn-null before attempting to access its syncp.
 	 */
 	do {
 		start = !ring ? 0 : u64_stats_fetch_begin_irq(&ring->syncp);
@@ -226,7 +226,7 @@ static const struct iavf_stats iavf_gstrings_stats[] = {
 	VF_STAT("rx_multicast", current_stats.rx_multicast),
 	VF_STAT("rx_broadcast", current_stats.rx_broadcast),
 	VF_STAT("rx_discards", current_stats.rx_discards),
-	VF_STAT("rx_unknown_protocol", current_stats.rx_unknown_protocol),
+	VF_STAT("rx_unkyeswn_protocol", current_stats.rx_unkyeswn_protocol),
 	VF_STAT("tx_bytes", current_stats.tx_bytes),
 	VF_STAT("tx_unicast", current_stats.tx_unicast),
 	VF_STAT("tx_multicast", current_stats.tx_multicast),
@@ -239,7 +239,7 @@ static const struct iavf_stats iavf_gstrings_stats[] = {
 
 #define IAVF_QUEUE_STATS_LEN	ARRAY_SIZE(iavf_gstrings_queue_stats)
 
-/* For now we have one and only one private flag and it is only defined
+/* For yesw we have one and only one private flag and it is only defined
  * when we have support for the SKIP_CPU_SYNC DMA attribute.  Instead
  * of leaving all this code sitting around empty we will strip it unless
  * our one private flag is actually available.
@@ -267,7 +267,7 @@ static const struct iavf_priv_flags iavf_gstrings_priv_flags[] = {
  * @netdev: network interface device structure
  * @cmd: ethtool command
  *
- * Reports speed/duplex settings. Because this is a VF, we don't know what
+ * Reports speed/duplex settings. Because this is a VF, we don't kyesw what
  * kind of link we really have, so we fake it.
  **/
 static int iavf_get_link_ksettings(struct net_device *netdev,
@@ -288,7 +288,7 @@ static int iavf_get_link_ksettings(struct net_device *netdev,
 		cmd->base.speed = SPEED_25000;
 #else
 		netdev_info(netdev,
-			    "Speed is 25G, display not supported by this version of ethtool.\n");
+			    "Speed is 25G, display yest supported by this version of ethtool.\n");
 #endif
 		break;
 	case IAVF_LINK_SPEED_20GB:
@@ -495,7 +495,7 @@ static int iavf_set_priv_flags(struct net_device *netdev, u32 flags)
 	 */
 	if (cmpxchg(&adapter->flags, orig_flags, new_flags) != orig_flags) {
 		dev_warn(&adapter->pdev->dev,
-			 "Unable to update adapter->flags as it was modified by another thread...\n");
+			 "Unable to update adapter->flags as it was modified by ayesther thread...\n");
 		return -EAGAIN;
 	}
 
@@ -536,7 +536,7 @@ static u32 iavf_get_msglevel(struct net_device *netdev)
  * @data: message level
  *
  * Set current debug message level. Higher values cause the driver to
- * be noisier.
+ * be yesisier.
  **/
 static void iavf_set_msglevel(struct net_device *netdev, u32 data)
 {
@@ -572,7 +572,7 @@ static void iavf_get_drvinfo(struct net_device *netdev,
  * @ring: ethtool ringparam structure
  *
  * Returns current ring parameters. TX and RX rings are reported separately,
- * but the number of rings is not reported.
+ * but the number of rings is yest reported.
  **/
 static void iavf_get_ringparam(struct net_device *netdev,
 			       struct ethtool_ringparam *ring)
@@ -591,7 +591,7 @@ static void iavf_get_ringparam(struct net_device *netdev,
  * @ring: ethtool ringparam structure
  *
  * Sets ring parameters. TX and RX rings are controlled separately, but the
- * number of rings is not specified, so all rings get the same settings.
+ * number of rings is yest specified, so all rings get the same settings.
  **/
 static int iavf_set_ringparam(struct net_device *netdev,
 			      struct ethtool_ringparam *ring)
@@ -612,7 +612,7 @@ static int iavf_set_ringparam(struct net_device *netdev,
 			       IAVF_MAX_RXD);
 	new_rx_count = ALIGN(new_rx_count, IAVF_REQ_DESCRIPTOR_MULTIPLE);
 
-	/* if nothing to do return success */
+	/* if yesthing to do return success */
 	if ((new_tx_count == adapter->tx_desc_count) &&
 	    (new_rx_count == adapter->rx_desc_count))
 		return 0;
@@ -735,7 +735,7 @@ static void iavf_set_itr_per_queue(struct iavf_adapter *adapter,
 
 	/* The interrupt handler itself will take care of programming
 	 * the Tx and Rx ITR values based on the values we have entered
-	 * into the q_vector, no need to write the values now.
+	 * into the q_vector, yes need to write the values yesw.
 	 */
 }
 
@@ -838,7 +838,7 @@ static int iavf_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		break;
 	case ETHTOOL_GRXFH:
 		netdev_info(netdev,
-			    "RSS hash info is not available to vf, use pf.\n");
+			    "RSS hash info is yest available to vf, use pf.\n");
 		break;
 	default:
 		break;
@@ -886,13 +886,13 @@ static int iavf_set_channels(struct net_device *netdev,
 	if (num_req != adapter->num_active_queues &&
 	    !(adapter->vf_res->vf_cap_flags &
 	      VIRTCHNL_VF_OFFLOAD_REQ_QUEUES)) {
-		dev_info(&adapter->pdev->dev, "PF is not capable of queue negotiation.\n");
+		dev_info(&adapter->pdev->dev, "PF is yest capable of queue negotiation.\n");
 		return -EINVAL;
 	}
 
 	if ((adapter->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ) &&
 	    adapter->num_tc) {
-		dev_info(&adapter->pdev->dev, "Cannot set channels since ADq is enabled.\n");
+		dev_info(&adapter->pdev->dev, "Canyest set channels since ADq is enabled.\n");
 		return -EINVAL;
 	}
 
@@ -980,7 +980,7 @@ static int iavf_set_rxfh(struct net_device *netdev, const u32 *indir,
 	struct iavf_adapter *adapter = netdev_priv(netdev);
 	u16 i;
 
-	/* We do not allow change in unsupported parameters */
+	/* We do yest allow change in unsupported parameters */
 	if (key ||
 	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
 		return -EOPNOTSUPP;

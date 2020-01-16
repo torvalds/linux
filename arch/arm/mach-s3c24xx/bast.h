@@ -64,7 +64,7 @@
 /* map */
 
 /*
- * ok, we've used up to 0x13000000, now we need to find space for the
+ * ok, we've used up to 0x13000000, yesw we need to find space for the
  * peripherals that live in the nGCS[x] areas, which are quite numerous
  * in their space. We also have the board's CPLD to find register space
  * for.

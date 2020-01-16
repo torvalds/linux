@@ -592,7 +592,7 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 	ret = mtk_ddp_comp_register(drm_dev, &dpi->ddp_comp);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register component %pOF: %d\n",
-			dev->of_node, ret);
+			dev->of_yesde, ret);
 		return ret;
 	}
 
@@ -725,20 +725,20 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
+	ret = drm_of_find_panel_or_bridge(dev->of_yesde, 0, 0,
 					  NULL, &dpi->bridge);
 	if (ret)
 		return ret;
 
-	dev_info(dev, "Found bridge node: %pOF\n", dpi->bridge->of_node);
+	dev_info(dev, "Found bridge yesde: %pOF\n", dpi->bridge->of_yesde);
 
-	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DPI);
+	comp_id = mtk_ddp_comp_get_id(dev->of_yesde, MTK_DPI);
 	if (comp_id < 0) {
 		dev_err(dev, "Failed to identify by alias: %d\n", comp_id);
 		return comp_id;
 	}
 
-	ret = mtk_ddp_comp_init(dev, dev->of_node, &dpi->ddp_comp, comp_id,
+	ret = mtk_ddp_comp_init(dev, dev->of_yesde, &dpi->ddp_comp, comp_id,
 				&mtk_dpi_funcs);
 	if (ret) {
 		dev_err(dev, "Failed to initialize component: %d\n", ret);

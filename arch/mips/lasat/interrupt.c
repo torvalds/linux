@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999,2000 MIPS Techyeslogies, Inc.  All rights reserved.
  *
  * Routines for generic manipulation of the interrupts found on the
  * Lasat boards.
@@ -91,7 +91,7 @@ asmlinkage void plat_irq_dispatch(void)
 }
 
 static struct irqaction cascade = {
-	.handler	= no_action,
+	.handler	= yes_action,
 	.name		= "cascade",
 	.flags		= IRQF_NO_THREAD,
 };

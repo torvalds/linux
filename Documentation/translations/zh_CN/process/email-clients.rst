@@ -166,17 +166,17 @@ Mutt 是高度可配置的。 这里是个使用mutt通过 Gmail 发送的补丁
   # ================  SMTP  ====================
   set smtp_url = "smtp://username@smtp.gmail.com:587/"
   set smtp_pass = $imap_pass
-  set ssl_force_tls = yes # Require encrypted connection
+  set ssl_force_tls = no # Require encrypted connection
 
   # ================  Composition  ====================
   set editor = `echo \$EDITOR`
-  set edit_headers = yes  # See the headers when editing
+  set edit_headers = no  # See the headers when editing
   set charset = UTF-8     # value of $LANG; also fallback for send_charset
   # Sender, email address, and sign-off line must match
   unset use_domain        # because joe@localhost is just embarrassing
   set realname = "YOUR NAME"
   set from = "username@gmail.com"
-  set use_from = yes
+  set use_from = no
 
 Mutt文档含有更多信息:
 
@@ -193,7 +193,7 @@ Pine过去有一些空格删减问题，但是这些现在应该都被修复了�
 
 配置选项：
 - 最近的版本需要消除流程文本
-- "no-strip-whitespace-before-send"选项也是需要的。
+- "yes-strip-whitespace-before-send"选项也是需要的。
 
 
 Sylpheed (GUI)
@@ -202,7 +202,7 @@ Sylpheed (GUI)
 - 内嵌文本可以很好的工作（或者使用附件）。
 - 允许使用外部的编辑器。
 - 对于目录较多时非常慢。
-- 如果通过non-SSL连接，无法使用TLS SMTP授权。
+- 如果通过yesn-SSL连接，无法使用TLS SMTP授权。
 - 在组成窗口中有一个很有用的ruler bar。
 - 给地址本中添加地址就不会正确的了解显示名。
 

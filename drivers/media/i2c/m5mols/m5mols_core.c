@@ -134,7 +134,7 @@ static u32 m5mols_swap_byte(u8 *data, u8 length)
  * @reg: combination of size, category and command for the I2C packet
  * @val: read value
  *
- * Returns 0 on success, or else negative errno.
+ * Returns 0 on success, or else negative erryes.
  */
 static int m5mols_read(struct v4l2_subdev *sd, u32 size, u32 reg, u32 *val)
 {
@@ -234,7 +234,7 @@ int m5mols_read_u32(struct v4l2_subdev *sd, u32 reg, u32 *val)
  * @reg: combination of size, category and command for the I2C packet
  * @val: value to write
  *
- * Returns 0 on success, or else negative errno.
+ * Returns 0 on success, or else negative erryes.
  */
 int m5mols_write(struct v4l2_subdev *sd, u32 reg, u32 val)
 {
@@ -292,7 +292,7 @@ int m5mols_write(struct v4l2_subdev *sd, u32 reg, u32 val)
  * The @reg register value is ORed with @mask before comparing with @value.
  *
  * Return: 0 if the requested condition became true within less than
- *         @timeout ms, or else negative errno.
+ *         @timeout ms, or else negative erryes.
  */
 int m5mols_busy_wait(struct v4l2_subdev *sd, u32 reg, u32 value, u32 mask,
 		     int timeout)
@@ -671,7 +671,7 @@ static const struct v4l2_subdev_pad_ops m5mols_pad_ops = {
  * m5mols_restore_controls - Apply current control values to the registers
  * @info: M-5MOLS driver data structure
  *
- * m5mols_do_scenemode() handles all parameters for which there is yet no
+ * m5mols_do_scenemode() handles all parameters for which there is yet yes
  * individual control. It should be replaced at some point by setting each
  * control individually, in required register set up order.
  */
@@ -954,7 +954,7 @@ static int m5mols_probe(struct i2c_client *client,
 	}
 
 	if (!client->irq) {
-		dev_err(&client->dev, "Interrupt not assigned\n");
+		dev_err(&client->dev, "Interrupt yest assigned\n");
 		return -EINVAL;
 	}
 

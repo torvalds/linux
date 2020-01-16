@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 library code, needed by static components when full IPv6 support is
- * not configured or static.  These functions are needed by GSO/GRO implementation.
+ * yest configured or static.  These functions are needed by GSO/GRO implementation.
  */
 #include <linux/export.h>
 #include <net/ip.h>
@@ -24,7 +24,7 @@ static u32 __ipv6_select_ident(struct net *net,
 	};
 	u32 hash, id;
 
-	/* Note the following code is not safe, but this is okay. */
+	/* Note the following code is yest safe, but this is okay. */
 	if (unlikely(siphash_key_is_zero(&net->ipv4.ip_id_key)))
 		get_random_bytes(&net->ipv4.ip_id_key,
 				 sizeof(net->ipv4.ip_id_key));

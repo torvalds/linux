@@ -95,7 +95,7 @@
 #define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
 #define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
-/* We actually can't write halfwords properly if not word aligned */
+/* We actually can't write halfwords properly if yest word aligned */
 static inline void _SMC_outw_align4(u16 val, void __iomem *ioaddr, int reg,
 				    bool use_align4_workaround)
 {
@@ -285,8 +285,8 @@ struct smc_local {
 #ifdef CONFIG_ARCH_PXA
 /*
  * Let's use the DMA engine on the XScale PXA2xx for RX packets. This is
- * always happening in irq context so no need to worry about races.  TX is
- * different and probably not worth it for that reason, and not as critical
+ * always happening in irq context so yes need to worry about races.  TX is
+ * different and probably yest worth it for that reason, and yest as critical
  * as RX which can overrun memory and lose packets.
  */
 #include <linux/dma-mapping.h>
@@ -328,7 +328,7 @@ smc_pxa_dma_insl(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 	struct dma_slave_config	config;
 	int ret;
 
-	/* fallback if no DMA available */
+	/* fallback if yes DMA available */
 	if (!lp->dma_chan) {
 		readsl(ioaddr + reg, buf, len);
 		return;
@@ -371,7 +371,7 @@ smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 	struct dma_slave_config	config;
 	int ret;
 
-	/* fallback if no DMA available */
+	/* fallback if yes DMA available */
 	if (!lp->dma_chan) {
 		readsw(ioaddr + reg, buf, len);
 		return;
@@ -491,7 +491,7 @@ smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 #define TCR_LOOP	0x0002	// Controls output pin LBK
 #define TCR_FORCOL	0x0004	// When 1 will force a collision
 #define TCR_PAD_EN	0x0080	// When 1 will pad tx frames < 64 bytes w/0
-#define TCR_NOCRC	0x0100	// When 1 will not append CRC to tx frames
+#define TCR_NOCRC	0x0100	// When 1 will yest append CRC to tx frames
 #define TCR_MON_CSN	0x0400	// When 1 tx monitors carrier
 #define TCR_FDUPLX    	0x0800  // When 1 enables full duplex operation
 #define TCR_STP_SQET	0x1000	// When 1 stops tx if Signal Quality Error
@@ -534,7 +534,7 @@ smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 #define RCR_FILT_CAR	0x0400	// When set filters leading 12 bit s of carrier
 #define RCR_SOFTRST	0x8000 	// resets the chip
 
-/* the normal settings for the RCR register : */
+/* the yesrmal settings for the RCR register : */
 #define RCR_DEFAULT	(RCR_STRIP_CRC | RCR_RXEN)
 #define RCR_CLEAR	0x0	// set it to a base state
 
@@ -580,7 +580,7 @@ smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 #define CONFIG_REG(lp)	SMC_REG(lp, 0x0000,	1)
 #define CONFIG_EXT_PHY	0x0200	// 1=external MII, 0=internal Phy
 #define CONFIG_GPCNTRL	0x0400	// Inverse value drives pin nCNTRL
-#define CONFIG_NO_WAIT	0x1000	// When 1 no extra wait states on ISA bus
+#define CONFIG_NO_WAIT	0x1000	// When 1 yes extra wait states on ISA bus
 #define CONFIG_EPH_POWER_EN 0x8000 // When 0 EPH is placed into low power mode.
 
 // Default is powered-up, Internal Phy, Wait States, and pin nCNTRL=low
@@ -620,7 +620,7 @@ smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 // MMU Command Register
 /* BANK 2 */
 #define MMU_CMD_REG(lp)	SMC_REG(lp, 0x0000, 2)
-#define MC_BUSY		1	// When 1 the last release has not completed
+#define MC_BUSY		1	// When 1 the last release has yest completed
 #define MC_NOP		(0<<5)	// No Op
 #define MC_ALLOC	(1<<5) 	// OR with number of 256 byte packets
 #define MC_RESET	(2<<5)	// Reset MMU to initial state
@@ -667,7 +667,7 @@ smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 #define DATA_REG(lp)	SMC_REG(lp, 0x0008, 2)
 
 
-// Interrupt Status/Acknowledge Register
+// Interrupt Status/Ackyeswledge Register
 /* BANK 2 */
 #define INT_REG(lp)		SMC_REG(lp, 0x000C, 2)
 
@@ -831,15 +831,15 @@ static const char * chip_ids[ 16 ] =  {
 
 /*
  * Macros to abstract register access according to the data bus
- * capabilities.  Please use those and not the in/out primitives.
- * Note: the following macros do *not* select the bank -- this must
+ * capabilities.  Please use those and yest the in/out primitives.
+ * Note: the following macros do *yest* select the bank -- this must
  * be done separately as needed in the main code.  The SMC_REG() macro
  * only uses the bank argument for debugging purposes (when enabled).
  *
  * Note: despite inline functions being safer, everything leading to this
  * should preferably be macros to let BUG() display the line number in
  * the core source code since we're interested in the top call site
- * not in any inline function location.
+ * yest in any inline function location.
  */
 
 #if SMC_DEBUG > 0
@@ -858,13 +858,13 @@ static const char * chip_ids[ 16 ] =  {
 #endif
 
 /*
- * Hack Alert: Some setups just can't write 8 or 16 bits reliably when not
+ * Hack Alert: Some setups just can't write 8 or 16 bits reliably when yest
  * aligned to a 32 bit boundary.  I tell you that does exist!
  * Fortunately the affected register accesses can be easily worked around
  * since we can write zeroes to the preceding 16 bits without adverse
  * effects and use a 32-bit access.
  *
- * Enforce it on any 32-bit capable setup for now.
+ * Enforce it on any 32-bit capable setup for yesw.
  */
 #define SMC_MUST_ALIGN_WRITE(lp)	SMC_32BIT(lp)
 

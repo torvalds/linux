@@ -76,7 +76,7 @@ struct gc {
 	struct timer_list timer;
 	int pad_count[GC_MAX];
 	int used;
-	int parportno;
+	int parportyes;
 	struct mutex mutex;
 };
 
@@ -104,7 +104,7 @@ static const short gc_n64_btn[] = {
 	BTN_TL, BTN_TR, BTN_TRIGGER, BTN_START
 };
 
-#define GC_N64_LENGTH		32		/* N64 bit length, not including stop bit */
+#define GC_N64_LENGTH		32		/* N64 bit length, yest including stop bit */
 #define GC_N64_STOP_LENGTH	5		/* Length of encoded stop bit */
 #define GC_N64_CMD_00		0x11111111UL
 #define GC_N64_CMD_01		0xd1111111UL
@@ -116,11 +116,11 @@ static const short gc_n64_btn[] = {
 #define GC_N64_REQUEST_DATA	GC_N64_CMD_01	/* the request data command */
 #define GC_N64_DELAY		133		/* delay between transmit request, and response ready (us) */
 #define GC_N64_DWS		3		/* delay between write segments (required for sound playback because of ISA DMA) */
-						/* GC_N64_DWS > 24 is known to fail */
+						/* GC_N64_DWS > 24 is kyeswn to fail */
 #define GC_N64_POWER_W		0xe2		/* power during write (transmit request) */
 #define GC_N64_POWER_R		0xfd		/* power during read */
 #define GC_N64_OUT		0x1d		/* output bits to the 4 pads */
-						/* Reading the main axes of any N64 pad is known to fail if the corresponding bit */
+						/* Reading the main axes of any N64 pad is kyeswn to fail if the corresponding bit */
 						/* in GC_N64_OUT is pulled low on the output port (by any routine) for more */
 						/* than 123 us */
 #define GC_N64_CLOCK		0x02		/* clock bits for read */
@@ -184,7 +184,7 @@ static void gc_n64_read_packet(struct gc *gc, unsigned char *data)
 	udelay(GC_N64_DELAY);
 
 /*
- * Grab data (ignoring the last bit, which is a stop bit)
+ * Grab data (igyesring the last bit, which is a stop bit)
  */
 
 	for (i = 0; i < GC_N64_LENGTH; i++) {
@@ -702,7 +702,7 @@ static void gc_psx_report_one(struct gc_pad *pad, unsigned char psx_type,
 
 		break;
 
-	default: /* not a pad, ignore */
+	default: /* yest a pad, igyesre */
 		break;
 	}
 }
@@ -805,13 +805,13 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 	int err;
 
 	if (pad_type < 1 || pad_type >= GC_MAX) {
-		pr_err("Pad type %d unknown\n", pad_type);
+		pr_err("Pad type %d unkyeswn\n", pad_type);
 		return -EINVAL;
 	}
 
 	pad->dev = input_dev = input_allocate_device();
 	if (!input_dev) {
-		pr_err("Not enough memory for input device\n");
+		pr_err("Not eyesugh memory for input device\n");
 		return -ENOMEM;
 	}
 
@@ -954,13 +954,13 @@ static void gc_attach(struct parport *pp)
 
 	gc = kzalloc(sizeof(struct gc), GFP_KERNEL);
 	if (!gc) {
-		pr_err("Not enough memory\n");
+		pr_err("Not eyesugh memory\n");
 		goto err_unreg_pardev;
 	}
 
 	mutex_init(&gc->mutex);
 	gc->pd = pd;
-	gc->parportno = pp->number;
+	gc->parportyes = pp->number;
 	timer_setup(&gc->timer, gc_timer, 0);
 
 	for (i = 0; i < n_pads && i < GC_MAX_DEVICES; i++) {
@@ -997,7 +997,7 @@ static void gc_detach(struct parport *port)
 	struct gc *gc;
 
 	for (i = 0; i < GC_MAX_PORTS; i++) {
-		if (gc_base[i] && gc_base[i]->parportno == port->number)
+		if (gc_base[i] && gc_base[i]->parportyes == port->number)
 			break;
 	}
 

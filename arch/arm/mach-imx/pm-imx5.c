@@ -43,9 +43,9 @@
 /*
  * The WAIT_UNCLOCKED_POWER_OFF state only requires <= 500ns to exit.
  * This is also the lowest power state possible without affecting
- * non-cpu parts of the system.  For these reasons, imx5 should default
+ * yesn-cpu parts of the system.  For these reasons, imx5 should default
  * to always using this state for cpu idling.  The PM_SUSPEND_STANDBY also
- * uses this state and needs to take no action when registers remain confgiured
+ * uses this state and needs to take yes action when registers remain confgiured
  * for this state.
  */
 #define IMX5_DEFAULT_CPU_IDLE_STATE WAIT_UNCLOCKED_POWER_OFF
@@ -269,7 +269,7 @@ static int __init imx_suspend_alloc_ocram(
 				void __iomem **virt_out,
 				phys_addr_t *phys_out)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct platform_device *pdev;
 	struct gen_pool *ocram_pool;
 	unsigned long ocram_base;
@@ -278,31 +278,31 @@ static int __init imx_suspend_alloc_ocram(
 	int ret = 0;
 
 	/* Copied from imx6: TODO factorize */
-	node = of_find_compatible_node(NULL, NULL, "mmio-sram");
-	if (!node) {
-		pr_warn("%s: failed to find ocram node!\n", __func__);
+	yesde = of_find_compatible_yesde(NULL, NULL, "mmio-sram");
+	if (!yesde) {
+		pr_warn("%s: failed to find ocram yesde!\n", __func__);
 		return -ENODEV;
 	}
 
-	pdev = of_find_device_by_node(node);
+	pdev = of_find_device_by_yesde(yesde);
 	if (!pdev) {
 		pr_warn("%s: failed to find ocram device!\n", __func__);
 		ret = -ENODEV;
-		goto put_node;
+		goto put_yesde;
 	}
 
 	ocram_pool = gen_pool_get(&pdev->dev, NULL);
 	if (!ocram_pool) {
 		pr_warn("%s: ocram pool unavailable!\n", __func__);
 		ret = -ENODEV;
-		goto put_node;
+		goto put_yesde;
 	}
 
 	ocram_base = gen_pool_alloc(ocram_pool, size);
 	if (!ocram_base) {
 		pr_warn("%s: unable to alloc ocram!\n", __func__);
 		ret = -ENOMEM;
-		goto put_node;
+		goto put_yesde;
 	}
 
 	phys = gen_pool_virt_to_phys(ocram_pool, ocram_base);
@@ -312,8 +312,8 @@ static int __init imx_suspend_alloc_ocram(
 	if (virt_out)
 		*virt_out = virt;
 
-put_node:
-	of_node_put(node);
+put_yesde:
+	of_yesde_put(yesde);
 
 	return ret;
 }

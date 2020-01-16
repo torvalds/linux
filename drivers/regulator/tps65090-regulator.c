@@ -59,7 +59,7 @@ static struct regulator_ops tps65090_ext_control_ops = {
  * @ri:		Overall regulator data
  * @rdev:	Regulator device
  *
- * Return: 0 if no error, non-zero if there was an error writing the register.
+ * Return: 0 if yes error, yesn-zero if there was an error writing the register.
  */
 static int tps65090_reg_set_overcurrent_wait(struct tps65090_regulator *ri,
 					     struct regulator_dev *rdev)
@@ -82,8 +82,8 @@ static int tps65090_reg_set_overcurrent_wait(struct tps65090_regulator *ri,
  *
  * @rdev:	Regulator device
  *
- * Return: 0 if ok, -ENOTRECOVERABLE if the FET power good bit did not get
- * set, or some other -ve value if another error occurred (e.g. i2c error)
+ * Return: 0 if ok, -ENOTRECOVERABLE if the FET power good bit did yest get
+ * set, or some other -ve value if ayesther error occurred (e.g. i2c error)
  */
 static int tps65090_try_enable_fet(struct regulator_dev *rdev)
 {
@@ -128,7 +128,7 @@ static int tps65090_try_enable_fet(struct regulator_dev *rdev)
  *
  * @rdev:	Regulator device
  *
- * Return: 0 if ok, non-zero if it fails.
+ * Return: 0 if ok, yesn-zero if it fails.
  */
 static int tps65090_fet_enable(struct regulator_dev *rdev)
 {
@@ -311,8 +311,8 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 		struct of_regulator_match **tps65090_reg_matches)
 {
 	struct tps65090_platform_data *tps65090_pdata;
-	struct device_node *np = pdev->dev.parent->of_node;
-	struct device_node *regulators;
+	struct device_yesde *np = pdev->dev.parent->of_yesde;
+	struct device_yesde *regulators;
 	int idx = 0, ret;
 	struct tps65090_regulator_plat_data *reg_pdata;
 
@@ -329,13 +329,13 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 
 	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
-		dev_err(&pdev->dev, "regulator node not found\n");
+		dev_err(&pdev->dev, "regulator yesde yest found\n");
 		return ERR_PTR(-ENODEV);
 	}
 
 	ret = of_regulator_match(&pdev->dev, regulators, tps65090_matches,
 			ARRAY_SIZE(tps65090_matches));
-	of_node_put(regulators);
+	of_yesde_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"Error parsing regulator init data: %d\n", ret);
@@ -346,14 +346,14 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 	for (idx = 0; idx < ARRAY_SIZE(tps65090_matches); idx++) {
 		struct regulator_init_data *ri_data;
 		struct tps65090_regulator_plat_data *rpdata;
-		struct device_node *np;
+		struct device_yesde *np;
 
 		rpdata = &reg_pdata[idx];
 		ri_data = tps65090_matches[idx].init_data;
 		if (!ri_data)
 			continue;
 
-		np = tps65090_matches[idx].of_node;
+		np = tps65090_matches[idx].of_yesde;
 		if (!np)
 			continue;
 
@@ -370,15 +370,15 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 				gflags = GPIOD_OUT_LOW;
 			gflags |= GPIOD_FLAGS_BIT_NONEXCLUSIVE;
 
-			rpdata->gpiod = devm_fwnode_gpiod_get(
+			rpdata->gpiod = devm_fwyesde_gpiod_get(
 							&pdev->dev,
-							of_fwnode_handle(np),
+							of_fwyesde_handle(np),
 							"dcdc-ext-control",
 							gflags,
 							"tps65090");
 			if (PTR_ERR(rpdata->gpiod) == -ENOENT) {
 				dev_err(&pdev->dev,
-					"could not find DCDC external control GPIO\n");
+					"could yest find DCDC external control GPIO\n");
 				rpdata->gpiod = NULL;
 			} else if (IS_ERR(rpdata->gpiod))
 				return ERR_CAST(rpdata->gpiod);
@@ -418,7 +418,7 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Probing regulator\n");
 
 	tps65090_pdata = dev_get_platdata(pdev->dev.parent);
-	if (!tps65090_pdata && tps65090_mfd->dev->of_node)
+	if (!tps65090_pdata && tps65090_mfd->dev->of_yesde)
 		tps65090_pdata = tps65090_parse_dt_reg_data(pdev,
 					&tps65090_reg_matches);
 	if (IS_ERR_OR_NULL(tps65090_pdata)) {
@@ -471,9 +471,9 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 		else
 			config.init_data = NULL;
 		if (tps65090_reg_matches)
-			config.of_node = tps65090_reg_matches[num].of_node;
+			config.of_yesde = tps65090_reg_matches[num].of_yesde;
 		else
-			config.of_node = NULL;
+			config.of_yesde = NULL;
 
 		/*
 		 * Hand the GPIO descriptor management over to the regulator

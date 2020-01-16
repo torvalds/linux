@@ -96,15 +96,15 @@ static int sirf_audio_probe(struct platform_device *pdev)
 	if (sirf_audio_card == NULL)
 		return -ENOMEM;
 
-	sirf_audio_dai_link[0].cpus->of_node =
-		of_parse_phandle(pdev->dev.of_node, "sirf,audio-platform", 0);
-	sirf_audio_dai_link[0].platforms->of_node =
-		of_parse_phandle(pdev->dev.of_node, "sirf,audio-platform", 0);
-	sirf_audio_dai_link[0].codecs->of_node =
-		of_parse_phandle(pdev->dev.of_node, "sirf,audio-codec", 0);
-	sirf_audio_card->gpio_spk_pa = of_get_named_gpio(pdev->dev.of_node,
+	sirf_audio_dai_link[0].cpus->of_yesde =
+		of_parse_phandle(pdev->dev.of_yesde, "sirf,audio-platform", 0);
+	sirf_audio_dai_link[0].platforms->of_yesde =
+		of_parse_phandle(pdev->dev.of_yesde, "sirf,audio-platform", 0);
+	sirf_audio_dai_link[0].codecs->of_yesde =
+		of_parse_phandle(pdev->dev.of_yesde, "sirf,audio-codec", 0);
+	sirf_audio_card->gpio_spk_pa = of_get_named_gpio(pdev->dev.of_yesde,
 			"spk-pa-gpios", 0);
-	sirf_audio_card->gpio_hp_pa =  of_get_named_gpio(pdev->dev.of_node,
+	sirf_audio_card->gpio_hp_pa =  of_get_named_gpio(pdev->dev.of_yesde,
 			"hp-pa-gpios", 0);
 	if (gpio_is_valid(sirf_audio_card->gpio_spk_pa)) {
 		ret = devm_gpio_request_one(&pdev->dev,

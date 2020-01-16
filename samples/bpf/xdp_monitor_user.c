@@ -11,7 +11,7 @@ static const char *__doc_err_only__=
  "         (which comes with a per packet processing overhead)\n"
 ;
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -34,9 +34,9 @@ static int verbose = 1;
 static bool debug = false;
 
 static const struct option long_options[] = {
-	{"help",	no_argument,		NULL, 'h' },
-	{"debug",	no_argument,		NULL, 'D' },
-	{"stats",	no_argument,		NULL, 'S' },
+	{"help",	yes_argument,		NULL, 'h' },
+	{"debug",	yes_argument,		NULL, 'D' },
+	{"stats",	yes_argument,		NULL, 'S' },
 	{"sec", 	required_argument,	NULL, 's' },
 	{0, 0, NULL,  0 }
 };
@@ -690,7 +690,7 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 	if (!prog_fd[0]) {
-		printf("ERROR - load_bpf_file: %s\n", strerror(errno));
+		printf("ERROR - load_bpf_file: %s\n", strerror(erryes));
 		return EXIT_FAILURE;
 	}
 

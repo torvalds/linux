@@ -3,14 +3,14 @@
  * Copyright 2013 Google Inc.
  * Author: Willem de Bruijn (willemb@google.com)
  *
- * A basic test of packet socket fanout behavior.
+ * A basic test of packet socket fayesut behavior.
  *
  * Control:
- * - create fanout fails as expected with illegal flag combinations
- * - join   fanout fails as expected with diverging types or flags
+ * - create fayesut fails as expected with illegal flag combinations
+ * - join   fayesut fails as expected with diverging types or flags
  *
  * Datapath:
- *   Open a pair of packet sockets and a pair of INET sockets, send a known
+ *   Open a pair of packet sockets and a pair of INET sockets, send a kyeswn
  *   number of packets across the two INET sockets and count the number of
  *   packets enqueued onto the two packet sockets.
  *
@@ -30,7 +30,7 @@
 #define _GNU_SOURCE		/* for sched_setaffinity */
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <linux/unistd.h>	/* for __NR_bpf */
 #include <linux/filter.h>
@@ -56,9 +56,9 @@
 
 #define RING_NUM_FRAMES			20
 
-/* Open a socket in a given fanout mode.
+/* Open a socket in a given fayesut mode.
  * @return -1 if mode is bad, a valid socket otherwise */
-static int sock_fanout_open(uint16_t typeflags, uint16_t group_id)
+static int sock_fayesut_open(uint16_t typeflags, uint16_t group_id)
 {
 	struct sockaddr_ll addr = {0};
 	int fd, val;
@@ -95,7 +95,7 @@ static int sock_fanout_open(uint16_t typeflags, uint16_t group_id)
 	return fd;
 }
 
-static void sock_fanout_set_cbpf(int fd)
+static void sock_fayesut_set_cbpf(int fd)
 {
 	struct sock_filter bpf_filter[] = {
 		BPF_STMT(BPF_LD+BPF_B+BPF_ABS, 80),	      /* ldb [80] */
@@ -108,12 +108,12 @@ static void sock_fanout_set_cbpf(int fd)
 
 	if (setsockopt(fd, SOL_PACKET, PACKET_FANOUT_DATA, &bpf_prog,
 		       sizeof(bpf_prog))) {
-		perror("fanout data cbpf");
+		perror("fayesut data cbpf");
 		exit(1);
 	}
 }
 
-static void sock_fanout_getopts(int fd, uint16_t *typeflags, uint16_t *group_id)
+static void sock_fayesut_getopts(int fd, uint16_t *typeflags, uint16_t *group_id)
 {
 	int sockopt;
 	socklen_t sockopt_len = sizeof(sockopt);
@@ -127,7 +127,7 @@ static void sock_fanout_getopts(int fd, uint16_t *typeflags, uint16_t *group_id)
 	*group_id = sockopt & 0xfffff;
 }
 
-static void sock_fanout_set_ebpf(int fd)
+static void sock_fayesut_set_ebpf(int fd)
 {
 	static char log_buf[65536];
 
@@ -163,7 +163,7 @@ static void sock_fanout_set_ebpf(int fd)
 	}
 
 	if (setsockopt(fd, SOL_PACKET, PACKET_FANOUT_DATA, &pfd, sizeof(pfd))) {
-		perror("fanout data ebpf");
+		perror("fayesut data ebpf");
 		exit(1);
 	}
 
@@ -173,7 +173,7 @@ static void sock_fanout_set_ebpf(int fd)
 	}
 }
 
-static char *sock_fanout_open_ring(int fd)
+static char *sock_fayesut_open_ring(int fd)
 {
 	struct tpacket_req req = {
 		.tp_block_size = getpagesize(),
@@ -205,7 +205,7 @@ static char *sock_fanout_open_ring(int fd)
 	return ring;
 }
 
-static int sock_fanout_read_ring(int fd, void *ring)
+static int sock_fayesut_read_ring(int fd, void *ring)
 {
 	struct tpacket2_hdr *header = ring;
 	int count = 0;
@@ -218,12 +218,12 @@ static int sock_fanout_read_ring(int fd, void *ring)
 	return count;
 }
 
-static int sock_fanout_read(int fds[], char *rings[], const int expect[])
+static int sock_fayesut_read(int fds[], char *rings[], const int expect[])
 {
 	int ret[2];
 
-	ret[0] = sock_fanout_read_ring(fds[0], rings[0]);
-	ret[1] = sock_fanout_read_ring(fds[1], rings[1]);
+	ret[0] = sock_fayesut_read_ring(fds[0], rings[0]);
+	ret[1] = sock_fayesut_read_ring(fds[1], rings[1]);
 
 	fprintf(stderr, "info: count=%d,%d, expect=%d,%d\n",
 			ret[0], ret[1], expect[0], expect[1]);
@@ -242,7 +242,7 @@ static void test_control_single(void)
 {
 	fprintf(stderr, "test: control single socket\n");
 
-	if (sock_fanout_open(PACKET_FANOUT_ROLLOVER |
+	if (sock_fayesut_open(PACKET_FANOUT_ROLLOVER |
 			       PACKET_FANOUT_FLAG_ROLLOVER, 0) != -1) {
 		fprintf(stderr, "ERROR: opened socket with dual rollover\n");
 		exit(1);
@@ -256,26 +256,26 @@ static void test_control_group(void)
 
 	fprintf(stderr, "test: control multiple sockets\n");
 
-	fds[0] = sock_fanout_open(PACKET_FANOUT_HASH, 0);
+	fds[0] = sock_fayesut_open(PACKET_FANOUT_HASH, 0);
 	if (fds[0] == -1) {
 		fprintf(stderr, "ERROR: failed to open HASH socket\n");
 		exit(1);
 	}
-	if (sock_fanout_open(PACKET_FANOUT_HASH |
+	if (sock_fayesut_open(PACKET_FANOUT_HASH |
 			       PACKET_FANOUT_FLAG_DEFRAG, 0) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong flag defrag\n");
 		exit(1);
 	}
-	if (sock_fanout_open(PACKET_FANOUT_HASH |
+	if (sock_fayesut_open(PACKET_FANOUT_HASH |
 			       PACKET_FANOUT_FLAG_ROLLOVER, 0) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong flag ro\n");
 		exit(1);
 	}
-	if (sock_fanout_open(PACKET_FANOUT_CPU, 0) != -1) {
+	if (sock_fayesut_open(PACKET_FANOUT_CPU, 0) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong mode\n");
 		exit(1);
 	}
-	fds[1] = sock_fanout_open(PACKET_FANOUT_HASH, 0);
+	fds[1] = sock_fayesut_open(PACKET_FANOUT_HASH, 0);
 	if (fds[1] == -1) {
 		fprintf(stderr, "ERROR: failed to join group\n");
 		exit(1);
@@ -286,40 +286,40 @@ static void test_control_group(void)
 	}
 }
 
-/* Test creating a unique fanout group ids */
-static void test_unique_fanout_group_ids(void)
+/* Test creating a unique fayesut group ids */
+static void test_unique_fayesut_group_ids(void)
 {
 	int fds[3];
 	uint16_t typeflags, first_group_id, second_group_id;
 
 	fprintf(stderr, "test: unique ids\n");
 
-	fds[0] = sock_fanout_open(PACKET_FANOUT_HASH |
+	fds[0] = sock_fayesut_open(PACKET_FANOUT_HASH |
 				  PACKET_FANOUT_FLAG_UNIQUEID, 0);
 	if (fds[0] == -1) {
 		fprintf(stderr, "ERROR: failed to create a unique id group.\n");
 		exit(1);
 	}
 
-	sock_fanout_getopts(fds[0], &typeflags, &first_group_id);
+	sock_fayesut_getopts(fds[0], &typeflags, &first_group_id);
 	if (typeflags != PACKET_FANOUT_HASH) {
 		fprintf(stderr, "ERROR: unexpected typeflags %x\n", typeflags);
 		exit(1);
 	}
 
-	if (sock_fanout_open(PACKET_FANOUT_CPU, first_group_id) != -1) {
+	if (sock_fayesut_open(PACKET_FANOUT_CPU, first_group_id) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong type.\n");
 		exit(1);
 	}
 
-	fds[1] = sock_fanout_open(PACKET_FANOUT_HASH, first_group_id);
+	fds[1] = sock_fayesut_open(PACKET_FANOUT_HASH, first_group_id);
 	if (fds[1] == -1) {
 		fprintf(stderr,
 			"ERROR: failed to join previously created group.\n");
 		exit(1);
 	}
 
-	fds[2] = sock_fanout_open(PACKET_FANOUT_HASH |
+	fds[2] = sock_fayesut_open(PACKET_FANOUT_HASH |
 				  PACKET_FANOUT_FLAG_UNIQUEID, 0);
 	if (fds[2] == -1) {
 		fprintf(stderr,
@@ -327,8 +327,8 @@ static void test_unique_fanout_group_ids(void)
 		exit(1);
 	}
 
-	sock_fanout_getopts(fds[2], &typeflags, &second_group_id);
-	if (sock_fanout_open(PACKET_FANOUT_HASH | PACKET_FANOUT_FLAG_UNIQUEID,
+	sock_fayesut_getopts(fds[2], &typeflags, &second_group_id);
+	if (sock_fayesut_open(PACKET_FANOUT_HASH | PACKET_FANOUT_FLAG_UNIQUEID,
 			     second_group_id) != -1) {
 		fprintf(stderr,
 			"ERROR: specified a group id when requesting unique id\n");
@@ -352,32 +352,32 @@ static int test_datapath(uint16_t typeflags, int port_off,
 	fprintf(stderr, "\ntest: datapath 0x%hx ports %hu,%hu\n",
 		typeflags, PORT_BASE, PORT_BASE + port_off);
 
-	fds[0] = sock_fanout_open(typeflags, 0);
-	fds[1] = sock_fanout_open(typeflags, 0);
+	fds[0] = sock_fayesut_open(typeflags, 0);
+	fds[1] = sock_fayesut_open(typeflags, 0);
 	if (fds[0] == -1 || fds[1] == -1) {
 		fprintf(stderr, "ERROR: failed open\n");
 		exit(1);
 	}
 	if (type == PACKET_FANOUT_CBPF)
-		sock_fanout_set_cbpf(fds[0]);
+		sock_fayesut_set_cbpf(fds[0]);
 	else if (type == PACKET_FANOUT_EBPF)
-		sock_fanout_set_ebpf(fds[0]);
+		sock_fayesut_set_ebpf(fds[0]);
 
-	rings[0] = sock_fanout_open_ring(fds[0]);
-	rings[1] = sock_fanout_open_ring(fds[1]);
+	rings[0] = sock_fayesut_open_ring(fds[0]);
+	rings[1] = sock_fayesut_open_ring(fds[1]);
 	pair_udp_open(fds_udp[0], PORT_BASE);
 	pair_udp_open(fds_udp[1], PORT_BASE + port_off);
-	sock_fanout_read(fds, rings, expect0);
+	sock_fayesut_read(fds, rings, expect0);
 
-	/* Send data, but not enough to overflow a queue */
+	/* Send data, but yest eyesugh to overflow a queue */
 	pair_udp_send(fds_udp[0], 15);
 	pair_udp_send_char(fds_udp[1], 5, DATA_CHAR_1);
-	ret = sock_fanout_read(fds, rings, expect1);
+	ret = sock_fayesut_read(fds, rings, expect1);
 
 	/* Send more data, overflow the queue */
 	pair_udp_send_char(fds_udp[0], 15, DATA_CHAR_1);
 	/* TODO: ensure consistent order between expect1 and expect2 */
-	ret |= sock_fanout_read(fds, rings, expect2);
+	ret |= sock_fayesut_read(fds, rings, expect2);
 
 	if (munmap(rings[1], RING_NUM_FRAMES * getpagesize()) ||
 	    munmap(rings[0], RING_NUM_FRAMES * getpagesize())) {
@@ -401,7 +401,7 @@ static int set_cpuaffinity(int cpuid)
 	CPU_ZERO(&mask);
 	CPU_SET(cpuid, &mask);
 	if (sched_setaffinity(0, sizeof(mask), &mask)) {
-		if (errno != EINVAL) {
+		if (erryes != EINVAL) {
 			fprintf(stderr, "setaffinity %d\n", cpuid);
 			exit(1);
 		}
@@ -425,9 +425,9 @@ int main(int argc, char **argv)
 
 	test_control_single();
 	test_control_group();
-	test_unique_fanout_group_ids();
+	test_unique_fayesut_group_ids();
 
-	/* find a set of ports that do not collide onto the same socket */
+	/* find a set of ports that do yest collide onto the same socket */
 	ret = test_datapath(PACKET_FANOUT_HASH, port_off,
 			    expect_hash[0], expect_hash[1]);
 	while (ret) {

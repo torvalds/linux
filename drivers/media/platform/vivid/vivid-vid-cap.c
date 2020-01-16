@@ -5,7 +5,7 @@
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
@@ -90,8 +90,8 @@ static int vid_cap_queue_setup(struct vb2_queue *vq,
 
 	if (dev->field_cap == V4L2_FIELD_ALTERNATE) {
 		/*
-		 * You cannot use read() with FIELD_ALTERNATE since the field
-		 * information (TOP/BOTTOM) cannot be passed back to the user.
+		 * You canyest use read() with FIELD_ALTERNATE since the field
+		 * information (TOP/BOTTOM) canyest be passed back to the user.
 		 */
 		if (vb2_fileio_is_active(vq))
 			return -EINVAL;
@@ -163,7 +163,7 @@ static int vid_cap_buf_prepare(struct vb2_buffer *vb)
 			dev->fmt_cap->data_offset[p];
 
 		if (vb2_plane_size(vb, p) < size) {
-			dprintk(dev, 1, "%s data will not fit into plane %u (%lu < %lu)\n",
+			dprintk(dev, 1, "%s data will yest fit into plane %u (%lu < %lu)\n",
 					__func__, p, vb2_plane_size(vb, p), size);
 			return -EINVAL;
 		}
@@ -277,7 +277,7 @@ const struct vb2_ops vivid_vid_cap_qops = {
 /*
  * Determine the 'picture' quality based on the current TV frequency: either
  * COLOR for a good 'signal', GRAY (grayscale picture) for a slightly off
- * signal or NOISE for no signal.
+ * signal or NOISE for yes signal.
  */
 void vivid_update_quality(struct vivid_dev *dev)
 {
@@ -285,7 +285,7 @@ void vivid_update_quality(struct vivid_dev *dev)
 
 	if (dev->loop_video && (vivid_is_svid_cap(dev) || vivid_is_hdmi_cap(dev))) {
 		/*
-		 * The 'noise' will only be replaced by the actual video
+		 * The 'yesise' will only be replaced by the actual video
 		 * if the output video matches the input video settings.
 		 */
 		tpg_s_quality(&dev->tpg, TPG_QUAL_NOISE, 0);
@@ -310,7 +310,7 @@ void vivid_update_quality(struct vivid_dev *dev)
 	 * There is a fake channel every 6 MHz at 49.25, 55.25, etc.
 	 * From +/- 0.25 MHz around the channel there is color, and from
 	 * +/- 1 MHz there is grayscale (chroma is lost).
-	 * Everywhere else it is just noise.
+	 * Everywhere else it is just yesise.
 	 */
 	freq_modulus = (dev->tv_freq - 676 /* (43.25-1) * 16 */) % (6 * 16);
 	if (freq_modulus > 2 * 16) {
@@ -563,7 +563,7 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = vivid_get_format(dev, mp->pixelformat);
 	if (!fmt) {
-		dprintk(dev, 1, "Fourcc format (0x%08x) unknown.\n",
+		dprintk(dev, 1, "Fourcc format (0x%08x) unkyeswn.\n",
 			mp->pixelformat);
 		mp->pixelformat = V4L2_PIX_FMT_YUYV;
 		fmt = vivid_get_format(dev, mp->pixelformat);
@@ -1025,11 +1025,11 @@ int vivid_vid_cap_g_pixelaspect(struct file *file, void *priv,
 	switch (vivid_get_pixel_aspect(dev)) {
 	case TPG_PIXEL_ASPECT_NTSC:
 		f->numerator = 11;
-		f->denominator = 10;
+		f->deyesminator = 10;
 		break;
 	case TPG_PIXEL_ASPECT_PAL:
 		f->numerator = 54;
-		f->denominator = 59;
+		f->deyesminator = 59;
 		break;
 	default:
 		break;
@@ -1362,13 +1362,13 @@ int vidioc_s_input(struct file *file, void *priv, unsigned i)
 		return -EBUSY;
 
 	dev->input = i;
-	dev->vid_cap_dev.tvnorms = 0;
+	dev->vid_cap_dev.tvyesrms = 0;
 	if (dev->input_type[i] == TV || dev->input_type[i] == SVID) {
 		dev->tv_audio_input = (dev->input_type[i] == TV) ? 0 : 1;
-		dev->vid_cap_dev.tvnorms = V4L2_STD_ALL;
+		dev->vid_cap_dev.tvyesrms = V4L2_STD_ALL;
 	}
-	dev->vbi_cap_dev.tvnorms = dev->vid_cap_dev.tvnorms;
-	dev->meta_cap_dev.tvnorms = dev->vid_cap_dev.tvnorms;
+	dev->vbi_cap_dev.tvyesrms = dev->vid_cap_dev.tvyesrms;
+	dev->meta_cap_dev.tvyesrms = dev->vid_cap_dev.tvyesrms;
 	vivid_update_format_cap(dev, false);
 
 	if (dev->colorspace) {
@@ -1628,26 +1628,26 @@ int vivid_vid_cap_s_std(struct file *file, void *priv, v4l2_std_id id)
 }
 
 static void find_aspect_ratio(u32 width, u32 height,
-			       u32 *num, u32 *denom)
+			       u32 *num, u32 *deyesm)
 {
 	if (!(height % 3) && ((height * 4 / 3) == width)) {
 		*num = 4;
-		*denom = 3;
+		*deyesm = 3;
 	} else if (!(height % 9) && ((height * 16 / 9) == width)) {
 		*num = 16;
-		*denom = 9;
+		*deyesm = 9;
 	} else if (!(height % 10) && ((height * 16 / 10) == width)) {
 		*num = 16;
-		*denom = 10;
+		*deyesm = 10;
 	} else if (!(height % 4) && ((height * 5 / 4) == width)) {
 		*num = 5;
-		*denom = 4;
+		*deyesm = 4;
 	} else if (!(height % 9) && ((height * 15 / 9) == width)) {
 		*num = 15;
-		*denom = 9;
+		*deyesm = 9;
 	} else { /* default to 16:9 */
 		*num = 16;
-		*denom = 9;
+		*deyesm = 9;
 	}
 }
 
@@ -1678,7 +1678,7 @@ static bool valid_cvt_gtf_timings(struct v4l2_dv_timings *timings)
 
 		find_aspect_ratio(bt->width, bt->height,
 				  &aspect_ratio.numerator,
-				  &aspect_ratio.denominator);
+				  &aspect_ratio.deyesminator);
 		if (v4l2_detect_gtf(total_v_lines, h_freq, bt->vsync,
 				    bt->polarities, bt->interlaced,
 				    aspect_ratio, timings))
@@ -1898,7 +1898,7 @@ int vivid_vid_cap_s_parm(struct file *file, void *priv,
 
 	tpf = parm->parm.capture.timeperframe;
 
-	if (tpf.denominator == 0)
+	if (tpf.deyesminator == 0)
 		tpf = webcam_intervals[ival_sz - 1];
 	for (i = 0; i < ival_sz; i++)
 		if (V4L2_FRACT_COMPARE(tpf, >=, webcam_intervals[i]))

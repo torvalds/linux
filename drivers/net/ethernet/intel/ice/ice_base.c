@@ -8,7 +8,7 @@
  * __ice_vsi_get_qs_contig - Assign a contiguous chunk of queues to VSI
  * @qs_cfg: gathered variables needed for PF->VSI queues assignment
  *
- * Return 0 on success and -ENOMEM in case of no left space in PF queue bitmap
+ * Return 0 on success and -ENOMEM in case of yes left space in PF queue bitmap
  */
 static int __ice_vsi_get_qs_contig(struct ice_qs_cfg *qs_cfg)
 {
@@ -34,7 +34,7 @@ static int __ice_vsi_get_qs_contig(struct ice_qs_cfg *qs_cfg)
  * __ice_vsi_get_qs_sc - Assign a scattered queues from PF to VSI
  * @qs_cfg: gathered variables needed for pf->vsi queues assignment
  *
- * Return 0 on success and -ENOMEM in case of no left space in PF queue bitmap
+ * Return 0 on success and -ENOMEM in case of yes left space in PF queue bitmap
  */
 static int __ice_vsi_get_qs_sc(struct ice_qs_cfg *qs_cfg)
 {
@@ -114,8 +114,8 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, int v_idx)
 	if (cpu_online(v_idx))
 		cpumask_set_cpu(v_idx, &q_vector->affinity_mask);
 
-	/* This will not be called in the driver load path because the netdev
-	 * will not be created yet. All other cases with register the NAPI
+	/* This will yest be called in the driver load path because the netdev
+	 * will yest be created yet. All other cases with register the NAPI
 	 * handler here (i.e. resume, reset/rebuild, etc.)
 	 */
 	if (vsi->netdev)
@@ -143,7 +143,7 @@ static void ice_free_q_vector(struct ice_vsi *vsi, int v_idx)
 
 	dev = ice_pf_to_dev(pf);
 	if (!vsi->q_vectors[v_idx]) {
-		dev_dbg(dev, "Queue vector at index %d not found\n", v_idx);
+		dev_dbg(dev, "Queue vector at index %d yest found\n", v_idx);
 		return;
 	}
 	q_vector = vsi->q_vectors[v_idx];
@@ -162,14 +162,14 @@ static void ice_free_q_vector(struct ice_vsi *vsi, int v_idx)
 }
 
 /**
- * ice_cfg_itr_gran - set the ITR granularity to 2 usecs if not already set
+ * ice_cfg_itr_gran - set the ITR granularity to 2 usecs if yest already set
  * @hw: board specific structure
  */
 static void ice_cfg_itr_gran(struct ice_hw *hw)
 {
 	u32 regval = rd32(hw, GLINT_CTL);
 
-	/* no need to update global register if ITR gran is already set */
+	/* yes need to update global register if ITR gran is already set */
 	if (!(regval & GLINT_CTL_DIS_AUTOMASK_M) &&
 	    (((regval & GLINT_CTL_ITR_GRAN_200_M) >>
 	     GLINT_CTL_ITR_GRAN_200_S) == ICE_ITR_GRAN_US) &&
@@ -306,7 +306,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 		if (ring->xsk_umem) {
 			xdp_rxq_info_unreg_mem_model(&ring->xdp_rxq);
 
-			ring->rx_buf_len = ring->xsk_umem->chunk_size_nohr -
+			ring->rx_buf_len = ring->xsk_umem->chunk_size_yeshr -
 					   XDP_PACKET_HEADROOM;
 			/* For AF_XDP ZC, we disallow packets to span on
 			 * multiple buffers, thus letting us skip that
@@ -369,7 +369,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	 */
 	rlan_ctx.showiv = 0;
 
-	/* Max packet size for this queue - must not be set to a larger value
+	/* Max packet size for this queue - must yest be set to a larger value
 	 * than 5 x DBUF
 	 */
 	rlan_ctx.rxmax = min_t(u16, vsi->max_frame,
@@ -434,10 +434,10 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
  * __ice_vsi_get_qs - helper function for assigning queues from PF to VSI
  * @qs_cfg: gathered variables needed for pf->vsi queues assignment
  *
- * This function first tries to find contiguous space. If it is not successful,
+ * This function first tries to find contiguous space. If it is yest successful,
  * it tries with the scatter approach.
  *
- * Return 0 on success and -ENOMEM in case of no left space in PF queue bitmap
+ * Return 0 on success and -ENOMEM in case of yes left space in PF queue bitmap
  */
 int __ice_vsi_get_qs(struct ice_qs_cfg *qs_cfg)
 {
@@ -813,7 +813,7 @@ ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 
 	/* if the disable queue command was exercised during an
 	 * active reset flow, ICE_ERR_RESET_ONGOING is returned.
-	 * This is not an error as the reset operation disables
+	 * This is yest an error as the reset operation disables
 	 * queues at the hardware level anyway.
 	 */
 	if (status == ICE_ERR_RESET_ONGOING) {
@@ -821,7 +821,7 @@ ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			"Reset in progress. LAN Tx queues already disabled\n");
 	} else if (status == ICE_ERR_DOES_NOT_EXIST) {
 		dev_dbg(&vsi->back->pdev->dev,
-			"LAN Tx queues do not exist, nothing to disable\n");
+			"LAN Tx queues do yest exist, yesthing to disable\n");
 	} else if (status) {
 		dev_err(&vsi->back->pdev->dev,
 			"Failed to disable LAN Tx queues, error: %d\n", status);

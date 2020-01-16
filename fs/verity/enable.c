@@ -13,13 +13,13 @@
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 
-static int build_merkle_tree_level(struct inode *inode, unsigned int level,
+static int build_merkle_tree_level(struct iyesde *iyesde, unsigned int level,
 				   u64 num_blocks_to_hash,
 				   const struct merkle_tree_params *params,
 				   u8 *pending_hashes,
 				   struct ahash_request *req)
 {
-	const struct fsverity_operations *vops = inode->i_sb->s_vop;
+	const struct fsverity_operations *vops = iyesde->i_sb->s_vop;
 	unsigned int pending_size = 0;
 	u64 dst_block_num;
 	u64 i;
@@ -45,28 +45,28 @@ static int build_merkle_tree_level(struct inode *inode, unsigned int level,
 
 		if (level == 0) {
 			/* Leaf: hashing a data block */
-			src_page = read_mapping_page(inode->i_mapping, i, NULL);
+			src_page = read_mapping_page(iyesde->i_mapping, i, NULL);
 			if (IS_ERR(src_page)) {
 				err = PTR_ERR(src_page);
-				fsverity_err(inode,
+				fsverity_err(iyesde,
 					     "Error %d reading data page %llu",
 					     err, i);
 				return err;
 			}
 		} else {
 			/* Non-leaf: hashing hash block from level below */
-			src_page = vops->read_merkle_tree_page(inode,
+			src_page = vops->read_merkle_tree_page(iyesde,
 					params->level_start[level - 1] + i);
 			if (IS_ERR(src_page)) {
 				err = PTR_ERR(src_page);
-				fsverity_err(inode,
+				fsverity_err(iyesde,
 					     "Error %d reading Merkle tree page %llu",
 					     err, params->level_start[level - 1] + i);
 				return err;
 			}
 		}
 
-		err = fsverity_hash_page(params, inode, req, src_page,
+		err = fsverity_hash_page(params, iyesde, req, src_page,
 					 &pending_hashes[pending_size]);
 		put_page(src_page);
 		if (err)
@@ -81,12 +81,12 @@ static int build_merkle_tree_level(struct inode *inode, unsigned int level,
 			/* Flush the pending hash block */
 			memset(&pending_hashes[pending_size], 0,
 			       params->block_size - pending_size);
-			err = vops->write_merkle_tree_block(inode,
+			err = vops->write_merkle_tree_block(iyesde,
 					pending_hashes,
 					dst_block_num,
 					params->log_blocksize);
 			if (err) {
-				fsverity_err(inode,
+				fsverity_err(iyesde,
 					     "Error %d writing Merkle tree block %llu",
 					     err, dst_block_num);
 				return err;
@@ -103,14 +103,14 @@ static int build_merkle_tree_level(struct inode *inode, unsigned int level,
 }
 
 /*
- * Build the Merkle tree for the given inode using the given parameters, and
+ * Build the Merkle tree for the given iyesde using the given parameters, and
  * return the root hash in @root_hash.
  *
  * The tree is written to a filesystem-specific location as determined by the
  * ->write_merkle_tree_block() method.  However, the blocks that comprise the
  * tree are the same for all filesystems.
  */
-static int build_merkle_tree(struct inode *inode,
+static int build_merkle_tree(struct iyesde *iyesde,
 			     const struct merkle_tree_params *params,
 			     u8 *root_hash)
 {
@@ -120,7 +120,7 @@ static int build_merkle_tree(struct inode *inode,
 	unsigned int level;
 	int err = -ENOMEM;
 
-	if (inode->i_size == 0) {
+	if (iyesde->i_size == 0) {
 		/* Empty file is a special case; root hash is all 0's */
 		memset(root_hash, 0, params->digest_size);
 		return 0;
@@ -133,13 +133,13 @@ static int build_merkle_tree(struct inode *inode,
 
 	/*
 	 * Build each level of the Merkle tree, starting at the leaf level
-	 * (level 0) and ascending to the root node (level 'num_levels - 1').
+	 * (level 0) and ascending to the root yesde (level 'num_levels - 1').
 	 * Then at the end (level 'num_levels'), calculate the root hash.
 	 */
-	blocks = (inode->i_size + params->block_size - 1) >>
+	blocks = (iyesde->i_size + params->block_size - 1) >>
 		 params->log_blocksize;
 	for (level = 0; level <= params->num_levels; level++) {
-		err = build_merkle_tree_level(inode, level, blocks, params,
+		err = build_merkle_tree_level(iyesde, level, blocks, params,
 					      pending_hashes, req);
 		if (err)
 			goto out;
@@ -157,8 +157,8 @@ out:
 static int enable_verity(struct file *filp,
 			 const struct fsverity_enable_arg *arg)
 {
-	struct inode *inode = file_inode(filp);
-	const struct fsverity_operations *vops = inode->i_sb->s_vop;
+	struct iyesde *iyesde = file_iyesde(filp);
+	const struct fsverity_operations *vops = iyesde->i_sb->s_vop;
 	struct merkle_tree_params params = { };
 	struct fsverity_descriptor *desc;
 	size_t desc_size = sizeof(*desc) + arg->sig_size;
@@ -193,10 +193,10 @@ static int enable_verity(struct file *filp,
 	}
 	desc->sig_size = cpu_to_le32(arg->sig_size);
 
-	desc->data_size = cpu_to_le64(inode->i_size);
+	desc->data_size = cpu_to_le64(iyesde->i_size);
 
 	/* Prepare the Merkle tree parameters */
-	err = fsverity_init_merkle_tree_params(&params, inode,
+	err = fsverity_init_merkle_tree_params(&params, iyesde,
 					       arg->hash_algorithm,
 					       desc->log_blocksize,
 					       desc->salt, desc->salt_size);
@@ -204,32 +204,32 @@ static int enable_verity(struct file *filp,
 		goto out;
 
 	/*
-	 * Start enabling verity on this file, serialized by the inode lock.
+	 * Start enabling verity on this file, serialized by the iyesde lock.
 	 * Fail if verity is already enabled or is already being enabled.
 	 */
-	inode_lock(inode);
-	if (IS_VERITY(inode))
+	iyesde_lock(iyesde);
+	if (IS_VERITY(iyesde))
 		err = -EEXIST;
 	else
 		err = vops->begin_enable_verity(filp);
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	if (err)
 		goto out;
 
 	/*
-	 * Build the Merkle tree.  Don't hold the inode lock during this, since
+	 * Build the Merkle tree.  Don't hold the iyesde lock during this, since
 	 * on huge files this may take a very long time and we don't want to
 	 * force unrelated syscalls like chown() to block forever.  We don't
-	 * need the inode lock here because deny_write_access() already prevents
+	 * need the iyesde lock here because deny_write_access() already prevents
 	 * the file from being written to or truncated, and we still serialize
-	 * ->begin_enable_verity() and ->end_enable_verity() using the inode
+	 * ->begin_enable_verity() and ->end_enable_verity() using the iyesde
 	 * lock and only allow one process to be here at a time on a given file.
 	 */
 	pr_debug("Building Merkle tree...\n");
 	BUILD_BUG_ON(sizeof(desc->root_hash) < FS_VERITY_MAX_DIGEST_SIZE);
-	err = build_merkle_tree(inode, &params, desc->root_hash);
+	err = build_merkle_tree(iyesde, &params, desc->root_hash);
 	if (err) {
-		fsverity_err(inode, "Error %d building Merkle tree", err);
+		fsverity_err(iyesde, "Error %d building Merkle tree", err);
 		goto rollback;
 	}
 	pr_debug("Done building Merkle tree.  Root hash is %s:%*phN\n",
@@ -242,7 +242,7 @@ static int enable_verity(struct file *filp,
 	 * from disk.  This is simpler, and it serves as an extra check that the
 	 * metadata we're writing is valid before actually enabling verity.
 	 */
-	vi = fsverity_create_info(inode, desc, desc_size);
+	vi = fsverity_create_info(iyesde, desc, desc_size);
 	if (IS_ERR(vi)) {
 		err = PTR_ERR(vi);
 		goto rollback;
@@ -254,16 +254,16 @@ static int enable_verity(struct file *filp,
 
 	/*
 	 * Tell the filesystem to finish enabling verity on the file.
-	 * Serialized with ->begin_enable_verity() by the inode lock.
+	 * Serialized with ->begin_enable_verity() by the iyesde lock.
 	 */
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 	err = vops->end_enable_verity(filp, desc, desc_size, params.tree_size);
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	if (err) {
-		fsverity_err(inode, "%ps() failed with err %d",
+		fsverity_err(iyesde, "%ps() failed with err %d",
 			     vops->end_enable_verity, err);
 		fsverity_free_info(vi);
-	} else if (WARN_ON(!IS_VERITY(inode))) {
+	} else if (WARN_ON(!IS_VERITY(iyesde))) {
 		err = -EINVAL;
 		fsverity_free_info(vi);
 	} else {
@@ -274,7 +274,7 @@ static int enable_verity(struct file *filp,
 		 * can't be rolled back once set.  So don't set it until just
 		 * after the filesystem has successfully enabled verity.
 		 */
-		fsverity_set_info(inode, vi);
+		fsverity_set_info(iyesde, vi);
 	}
 out:
 	kfree(params.hashstate);
@@ -282,9 +282,9 @@ out:
 	return err;
 
 rollback:
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 	(void)vops->end_enable_verity(filp, NULL, 0, params.tree_size);
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	goto out;
 }
 
@@ -294,11 +294,11 @@ rollback:
  * Enable fs-verity on a file.  See the "FS_IOC_ENABLE_VERITY" section of
  * Documentation/filesystems/fsverity.rst for the documentation.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 {
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 	struct fsverity_enable_arg arg;
 	int err;
 
@@ -324,21 +324,21 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 	/*
 	 * Require a regular file with write access.  But the actual fd must
 	 * still be readonly so that we can lock out all writers.  This is
-	 * needed to guarantee that no writable fds exist to the file once it
+	 * needed to guarantee that yes writable fds exist to the file once it
 	 * has verity enabled, and to stabilize the data being hashed.
 	 */
 
-	err = inode_permission(inode, MAY_WRITE);
+	err = iyesde_permission(iyesde, MAY_WRITE);
 	if (err)
 		return err;
 
-	if (IS_APPEND(inode))
+	if (IS_APPEND(iyesde))
 		return -EPERM;
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(iyesde->i_mode))
 		return -EISDIR;
 
-	if (!S_ISREG(inode->i_mode))
+	if (!S_ISREG(iyesde->i_mode))
 		return -EINVAL;
 
 	err = mnt_want_write_file(filp);
@@ -356,13 +356,13 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 	/*
 	 * Some pages of the file may have been evicted from pagecache after
 	 * being used in the Merkle tree construction, then read into pagecache
-	 * again by another process reading from the file concurrently.  Since
+	 * again by ayesther process reading from the file concurrently.  Since
 	 * these pages didn't undergo verification against the file measurement
-	 * which fs-verity now claims to be enforcing, we have to wipe the
+	 * which fs-verity yesw claims to be enforcing, we have to wipe the
 	 * pagecache to ensure that all future reads are verified.
 	 */
-	filemap_write_and_wait(inode->i_mapping);
-	invalidate_inode_pages2(inode->i_mapping);
+	filemap_write_and_wait(iyesde->i_mapping);
+	invalidate_iyesde_pages2(iyesde->i_mapping);
 
 	/*
 	 * allow_write_access() is needed to pair with deny_write_access().

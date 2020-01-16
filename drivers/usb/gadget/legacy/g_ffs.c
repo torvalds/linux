@@ -193,7 +193,7 @@ static int __init gfs_init(void)
 	f_ffs[0] = kcalloc(func_num * N_CONF, sizeof(*f_ffs), GFP_KERNEL);
 	if (!f_ffs[0]) {
 		ret = -ENOMEM;
-		goto no_func;
+		goto yes_func;
 	}
 	for (i = 1; i < N_CONF; ++i)
 		f_ffs[i] = f_ffs[0] + i * func_num;
@@ -201,7 +201,7 @@ static int __init gfs_init(void)
 	fi_ffs = kcalloc(func_num, sizeof(*fi_ffs), GFP_KERNEL);
 	if (!fi_ffs) {
 		ret = -ENOMEM;
-		goto no_func;
+		goto yes_func;
 	}
 
 	for (i = 0; i < func_num; i++) {
@@ -209,7 +209,7 @@ static int __init gfs_init(void)
 		if (IS_ERR(fi_ffs[i])) {
 			ret = PTR_ERR(fi_ffs[i]);
 			--i;
-			goto no_dev;
+			goto yes_dev;
 		}
 		opts = to_f_fs_opts(fi_ffs[i]);
 		if (gfs_single_func)
@@ -217,22 +217,22 @@ static int __init gfs_init(void)
 		else
 			ret = ffs_name_dev(opts->dev, func_names[i]);
 		if (ret)
-			goto no_dev;
+			goto yes_dev;
 		opts->dev->ffs_ready_callback = functionfs_ready_callback;
 		opts->dev->ffs_closed_callback = functionfs_closed_callback;
 		opts->dev->ffs_acquire_dev_callback = functionfs_acquire_dev;
 		opts->dev->ffs_release_dev_callback = functionfs_release_dev;
-		opts->no_configfs = true;
+		opts->yes_configfs = true;
 	}
 
 	missing_funcs = func_num;
 
 	return 0;
-no_dev:
+yes_dev:
 	while (i >= 0)
 		usb_put_function_instance(fi_ffs[i--]);
 	kfree(fi_ffs);
-no_func:
+yes_func:
 	kfree(f_ffs[0]);
 	return ret;
 }
@@ -514,7 +514,7 @@ static int gfs_do_config(struct usb_configuration *c)
 	 * pointers in c->interface array.  This happens every time
 	 * a user space function with fewer interfaces than a user
 	 * space function that was run before the new one is run.  The
-	 * compasit's set_config() assumes that if there is no more
+	 * compasit's set_config() assumes that if there is yes more
 	 * then MAX_CONFIG_INTERFACES interfaces in a configuration
 	 * then there is a NULL pointer after the last interface in
 	 * c->interface array.  We need to make sure this is true.

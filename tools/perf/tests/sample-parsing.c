@@ -276,7 +276,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		goto out_free;
 	}
 
-	/* The data does not contain 0xff so we use that to check the size */
+	/* The data does yest contain 0xff so we use that to check the size */
 	for (i = bufsz; i > 0; i--) {
 		if (*(i - 1 + (u8 *)event) != 0xff)
 			break;
@@ -327,7 +327,7 @@ int test__sample_parsing(struct test *test __maybe_unused, int subtest __maybe_u
 	int err;
 
 	/*
-	 * Fail the test if it has not been updated when new sample format bits
+	 * Fail the test if it has yest been updated when new sample format bits
 	 * were added.  Please actually update the test rather than just change
 	 * the condition below.
 	 */

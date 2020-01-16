@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -88,8 +88,8 @@
  *                Message-specific Data/Reserved
  *
  * Message Origin (Should always be 1)
- * A legacy out-of-tree QAT driver allowed for a set of messages not supported
- * by this driver; these had a Msg Origin of 0 and are ignored by this driver.
+ * A legacy out-of-tree QAT driver allowed for a set of messages yest supported
+ * by this driver; these had a Msg Origin of 0 and are igyesred by this driver.
  *
  * When a PF or VF attempts to send a message in the lower or upper 16 bits,
  * respectively, the other 16 bits are written to first with a defined

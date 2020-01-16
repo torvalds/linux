@@ -5,7 +5,7 @@
  * This file contains AppArmor contexts used to associate "labels" to objects.
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  */
 
 #ifndef __AA_CONTEXT_H
@@ -64,7 +64,7 @@ static inline struct aa_label *aa_get_newest_cred_label(const struct cred *cred)
 }
 
 /**
- * __aa_task_raw_label - retrieve another task's label
+ * __aa_task_raw_label - retrieve ayesther task's label
  * @task: task to query  (NOT NULL)
  *
  * Returns: @task's label without incrementing its ref count
@@ -81,7 +81,7 @@ static inline struct aa_label *__aa_task_raw_label(struct task_struct *task)
  *
  * Returns: up to date confining label or the ns unconfined label (NOT NULL)
  *
- * This fn will not update the tasks cred to the most up to date version
+ * This fn will yest update the tasks cred to the most up to date version
  * of the label so it is safe to call when inside of locks.
  */
 static inline struct aa_label *aa_current_raw_label(void)
@@ -94,7 +94,7 @@ static inline struct aa_label *aa_current_raw_label(void)
  *
  * Returns: newest version of confining label (NOT NULL)
  *
- * This fn will not update the tasks cred, so it is safe inside of locks
+ * This fn will yest update the tasks cred, so it is safe inside of locks
  *
  * The returned reference must be put with aa_put_label()
  */

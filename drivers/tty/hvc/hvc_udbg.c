@@ -19,7 +19,7 @@
 
 struct hvc_struct *hvc_udbg_dev;
 
-static int hvc_udbg_put(uint32_t vtermno, const char *buf, int count)
+static int hvc_udbg_put(uint32_t vtermyes, const char *buf, int count)
 {
 	int i;
 
@@ -29,7 +29,7 @@ static int hvc_udbg_put(uint32_t vtermno, const char *buf, int count)
 	return i;
 }
 
-static int hvc_udbg_get(uint32_t vtermno, char *buf, int count)
+static int hvc_udbg_get(uint32_t vtermyes, char *buf, int count)
 {
 	int i, c;
 

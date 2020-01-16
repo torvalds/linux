@@ -112,7 +112,7 @@ static int rtl28xxu_wr_reg_mask(struct dvb_usb_device *d, u16 reg, u8 val,
 	int ret;
 	u8 tmp;
 
-	/* no need for read if whole reg is written */
+	/* yes need for read if whole reg is written */
 	if (mask != 0xff) {
 		ret = rtl28xxu_rd_reg(d, reg, &tmp);
 		if (ret)
@@ -136,7 +136,7 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	struct rtl28xxu_req req;
 
 	/*
-	 * It is not known which are real I2C bus xfer limits, but testing
+	 * It is yest kyeswn which are real I2C bus xfer limits, but testing
 	 * with RTL2831U + MT2060 gives max RD 24 and max WR 22 bytes.
 	 * TODO: find out RTL2832U lens
 	 */
@@ -149,9 +149,9 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	 * 3) new I2C access
 	 *
 	 * Used method is selected in order 1, 2, 3. Method 3 can handle all
-	 * requests but there is two reasons why not use it always;
+	 * requests but there is two reasons why yest use it always;
 	 * 1) It is most expensive, usually two USB messages are needed
-	 * 2) At least RTL2831U does not support it
+	 * 2) At least RTL2831U does yest support it
 	 *
 	 * Method 3 is needed in case of I2C write+read (typical register read)
 	 * where write is more than one byte.
@@ -298,7 +298,7 @@ static int rtl2831u_read_config(struct dvb_usb_device *d)
 		goto err;
 
 	/*
-	 * Probe used tuner. We need to know used tuner before demod attach
+	 * Probe used tuner. We need to kyesw used tuner before demod attach
 	 * since there is some demod params needed to set according to tuner.
 	 */
 
@@ -387,7 +387,7 @@ static int rtl2832u_read_config(struct dvb_usb_device *d)
 		goto err;
 
 	/*
-	 * Probe used tuner. We need to know used tuner before demod attach
+	 * Probe used tuner. We need to kyesw used tuner before demod attach
 	 * since there is some demod params needed to set according to tuner.
 	 */
 
@@ -615,7 +615,7 @@ static int rtl28xxu_identify_state(struct dvb_usb_device *d, const char **name)
 	dev_dbg(&d->intf->dev, "\n");
 
 	/*
-	 * Detect chip type using I2C command that is not supported
+	 * Detect chip type using I2C command that is yest supported
 	 * by old RTL2831U.
 	 */
 	ret = rtl28xxu_ctrl_msg(d, &req_demod_i2c);
@@ -686,7 +686,7 @@ static int rtl2831u_frontend_attach(struct dvb_usb_adapter *adap)
 		*pdata = rtl2830_mxl5005s_platform_data;
 		break;
 	default:
-		dev_err(&d->intf->dev, "unknown tuner %s\n", dev->tuner_name);
+		dev_err(&d->intf->dev, "unkyeswn tuner %s\n", dev->tuner_name);
 		ret = -ENODEV;
 		goto err;
 	}
@@ -907,7 +907,7 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 		*pdata = rtl2832_si2157_platform_data;
 		break;
 	default:
-		dev_err(&d->intf->dev, "unknown tuner %s\n", dev->tuner_name);
+		dev_err(&d->intf->dev, "unkyeswn tuner %s\n", dev->tuner_name);
 		ret = -ENODEV;
 		goto err;
 	}
@@ -1138,7 +1138,7 @@ static int rtl2831u_tuner_attach(struct dvb_usb_adapter *adap)
 		break;
 	default:
 		fe = NULL;
-		dev_err(&d->intf->dev, "unknown tuner %d\n", dev->tuner);
+		dev_err(&d->intf->dev, "unkyeswn tuner %d\n", dev->tuner);
 	}
 
 	if (fe == NULL) {
@@ -1339,7 +1339,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 		}
 		break;
 	default:
-		dev_err(&d->intf->dev, "unknown tuner %d\n", dev->tuner);
+		dev_err(&d->intf->dev, "unkyeswn tuner %d\n", dev->tuner);
 	}
 	if (fe == NULL && dev->i2c_client_tuner == NULL) {
 		ret = -ENODEV;
@@ -1371,7 +1371,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 		dev->platform_device_sdr = pdev;
 		break;
 	default:
-		dev_dbg(&d->intf->dev, "no SDR for tuner=%d\n", dev->tuner);
+		dev_dbg(&d->intf->dev, "yes SDR for tuner=%d\n", dev->tuner);
 	}
 
 	return 0;
@@ -1448,12 +1448,12 @@ err:
 	return ret;
 }
 
-static int rtl2831u_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int rtl2831u_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
 	int ret;
 	u8 gpio, sys0, epa_ctl[2];
 
-	dev_dbg(&d->intf->dev, "onoff=%d\n", onoff);
+	dev_dbg(&d->intf->dev, "oyesff=%d\n", oyesff);
 
 	/* demod adc */
 	ret = rtl28xxu_rd_reg(d, SYS_SYS0, &sys0);
@@ -1467,7 +1467,7 @@ static int rtl2831u_power_ctrl(struct dvb_usb_device *d, int onoff)
 
 	dev_dbg(&d->intf->dev, "RD SYS0=%02x GPIO_OUT_VAL=%02x\n", sys0, gpio);
 
-	if (onoff) {
+	if (oyesff) {
 		gpio |= 0x01; /* GPIO0 = 1 */
 		gpio &= (~0x10); /* GPIO4 = 0 */
 		gpio |= 0x04; /* GPIO2 = 1, LED on */
@@ -1501,7 +1501,7 @@ static int rtl2831u_power_ctrl(struct dvb_usb_device *d, int onoff)
 	if (ret)
 		goto err;
 
-	if (onoff)
+	if (oyesff)
 		usb_clear_halt(d->udev, usb_rcvbulkpipe(d->udev, 0x81));
 
 	return ret;
@@ -1510,13 +1510,13 @@ err:
 	return ret;
 }
 
-static int rtl2832u_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int rtl2832u_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
 	int ret;
 
-	dev_dbg(&d->intf->dev, "onoff=%d\n", onoff);
+	dev_dbg(&d->intf->dev, "oyesff=%d\n", oyesff);
 
-	if (onoff) {
+	if (oyesff) {
 		/* GPIO3=1, GPIO4=0 */
 		ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_OUT_VAL, 0x08, 0x18);
 		if (ret)
@@ -1568,17 +1568,17 @@ err:
 	return ret;
 }
 
-static int rtl28xxu_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int rtl28xxu_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
 	struct rtl28xxu_dev *dev = d_to_priv(d);
 
 	if (dev->chip_id == CHIP_ID_RTL2831U)
-		return rtl2831u_power_ctrl(d, onoff);
+		return rtl2831u_power_ctrl(d, oyesff);
 	else
-		return rtl2832u_power_ctrl(d, onoff);
+		return rtl2832u_power_ctrl(d, oyesff);
 }
 
-static int rtl28xxu_frontend_ctrl(struct dvb_frontend *fe, int onoff)
+static int rtl28xxu_frontend_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 	struct rtl28xxu_dev *dev = fe_to_priv(fe);
@@ -1586,14 +1586,14 @@ static int rtl28xxu_frontend_ctrl(struct dvb_frontend *fe, int onoff)
 	int ret;
 	u8 val;
 
-	dev_dbg(&d->intf->dev, "fe=%d onoff=%d\n", fe->id, onoff);
+	dev_dbg(&d->intf->dev, "fe=%d oyesff=%d\n", fe->id, oyesff);
 
 	if (dev->chip_id == CHIP_ID_RTL2831U)
 		return 0;
 
 	if (fe->id == 0) {
 		/* control internal demod ADC */
-		if (onoff)
+		if (oyesff)
 			val = 0x48; /* enable ADC */
 		else
 			val = 0x00; /* disable ADC */
@@ -1603,7 +1603,7 @@ static int rtl28xxu_frontend_ctrl(struct dvb_frontend *fe, int onoff)
 			goto err;
 	} else if (fe->id == 1) {
 		/* bypass slave demod TS through master demod */
-		ret = pdata->slave_ts_ctrl(dev->i2c_client_demod, onoff);
+		ret = pdata->slave_ts_ctrl(dev->i2c_client_demod, oyesff);
 		if (ret)
 			goto err;
 	}
@@ -1823,34 +1823,34 @@ static int rtl28xxu_get_rc_config(struct dvb_usb_device *d,
 #define rtl28xxu_get_rc_config NULL
 #endif
 
-static int rtl28xxu_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int rtl28xxu_pid_filter_ctrl(struct dvb_usb_adapter *adap, int oyesff)
 {
 	struct rtl28xxu_dev *dev = adap_to_priv(adap);
 
 	if (dev->chip_id == CHIP_ID_RTL2831U) {
 		struct rtl2830_platform_data *pdata = &dev->rtl2830_platform_data;
 
-		return pdata->pid_filter_ctrl(adap->fe[0], onoff);
+		return pdata->pid_filter_ctrl(adap->fe[0], oyesff);
 	} else {
 		struct rtl2832_platform_data *pdata = &dev->rtl2832_platform_data;
 
-		return pdata->pid_filter_ctrl(adap->fe[0], onoff);
+		return pdata->pid_filter_ctrl(adap->fe[0], oyesff);
 	}
 }
 
 static int rtl28xxu_pid_filter(struct dvb_usb_adapter *adap, int index,
-			       u16 pid, int onoff)
+			       u16 pid, int oyesff)
 {
 	struct rtl28xxu_dev *dev = adap_to_priv(adap);
 
 	if (dev->chip_id == CHIP_ID_RTL2831U) {
 		struct rtl2830_platform_data *pdata = &dev->rtl2830_platform_data;
 
-		return pdata->pid_filter(adap->fe[0], index, pid, onoff);
+		return pdata->pid_filter(adap->fe[0], index, pid, oyesff);
 	} else {
 		struct rtl2832_platform_data *pdata = &dev->rtl2832_platform_data;
 
-		return pdata->pid_filter(adap->fe[0], index, pid, onoff);
+		return pdata->pid_filter(adap->fe[0], index, pid, oyesff);
 	}
 }
 
@@ -1974,7 +1974,7 @@ static struct usb_driver rtl28xxu_usb_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

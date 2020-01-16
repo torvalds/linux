@@ -9,7 +9,7 @@ gpios property as described in section VIII.1 in the following order:
 MDC, MDIO.
 
 Note: Each gpio-mdio bus should have an alias correctly numbered in "aliases"
-node.
+yesde.
 
 Example:
 

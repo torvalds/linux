@@ -19,12 +19,12 @@ MODULE_LICENSE("GPL");
 #define deb_info(args...) dprintk(debug,0x01,args)
 
 /* common stuff used by the different dibusb modules */
-int dibusb_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+int dibusb_streaming_ctrl(struct dvb_usb_adapter *adap, int oyesff)
 {
 	if (adap->priv != NULL) {
 		struct dibusb_state *st = adap->priv;
 		if (st->ops.fifo_ctrl != NULL)
-			if (st->ops.fifo_ctrl(adap->fe_adap[0].fe, onoff)) {
+			if (st->ops.fifo_ctrl(adap->fe_adap[0].fe, oyesff)) {
 				err("error while controlling the fifo of the demod.");
 				return -ENODEV;
 			}
@@ -33,31 +33,31 @@ int dibusb_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 }
 EXPORT_SYMBOL(dibusb_streaming_ctrl);
 
-int dibusb_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
+int dibusb_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int oyesff)
 {
 	if (adap->priv != NULL) {
 		struct dibusb_state *st = adap->priv;
 		if (st->ops.pid_ctrl != NULL)
 			st->ops.pid_ctrl(adap->fe_adap[0].fe,
-					 index, pid, onoff);
+					 index, pid, oyesff);
 	}
 	return 0;
 }
 EXPORT_SYMBOL(dibusb_pid_filter);
 
-int dibusb_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
+int dibusb_pid_filter_ctrl(struct dvb_usb_adapter *adap, int oyesff)
 {
 	if (adap->priv != NULL) {
 		struct dibusb_state *st = adap->priv;
 		if (st->ops.pid_parse != NULL)
-			if (st->ops.pid_parse(adap->fe_adap[0].fe, onoff) < 0)
-				err("could not handle pid_parser");
+			if (st->ops.pid_parse(adap->fe_adap[0].fe, oyesff) < 0)
+				err("could yest handle pid_parser");
 	}
 	return 0;
 }
 EXPORT_SYMBOL(dibusb_pid_filter_ctrl);
 
-int dibusb_power_ctrl(struct dvb_usb_device *d, int onoff)
+int dibusb_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
 	u8 *b;
 	int ret;
@@ -68,7 +68,7 @@ int dibusb_power_ctrl(struct dvb_usb_device *d, int onoff)
 
 	b[0] = DIBUSB_REQ_SET_IOCTL;
 	b[1] = DIBUSB_IOCTL_CMD_POWER_MODE;
-	b[2] = onoff ? DIBUSB_IOCTL_POWER_WAKEUP : DIBUSB_IOCTL_POWER_SLEEP;
+	b[2] = oyesff ? DIBUSB_IOCTL_POWER_WAKEUP : DIBUSB_IOCTL_POWER_SLEEP;
 
 	ret = dvb_usb_generic_write(d, b, 3);
 
@@ -80,7 +80,7 @@ int dibusb_power_ctrl(struct dvb_usb_device *d, int onoff)
 }
 EXPORT_SYMBOL(dibusb_power_ctrl);
 
-int dibusb2_0_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+int dibusb2_0_streaming_ctrl(struct dvb_usb_adapter *adap, int oyesff)
 {
 	int ret;
 	u8 *b;
@@ -89,10 +89,10 @@ int dibusb2_0_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	if (!b)
 		return -ENOMEM;
 
-	if ((ret = dibusb_streaming_ctrl(adap,onoff)) < 0)
+	if ((ret = dibusb_streaming_ctrl(adap,oyesff)) < 0)
 		goto ret;
 
-	if (onoff) {
+	if (oyesff) {
 		b[0] = DIBUSB_REQ_SET_STREAMING_MODE;
 		b[1] = 0x00;
 		ret = dvb_usb_generic_write(adap->dev, b, 2);
@@ -101,7 +101,7 @@ int dibusb2_0_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	}
 
 	b[0] = DIBUSB_REQ_SET_IOCTL;
-	b[1] = onoff ? DIBUSB_IOCTL_CMD_ENABLE_STREAM : DIBUSB_IOCTL_CMD_DISABLE_STREAM;
+	b[1] = oyesff ? DIBUSB_IOCTL_CMD_ENABLE_STREAM : DIBUSB_IOCTL_CMD_DISABLE_STREAM;
 	ret = dvb_usb_generic_write(adap->dev, b, 3);
 
 ret:
@@ -110,12 +110,12 @@ ret:
 }
 EXPORT_SYMBOL(dibusb2_0_streaming_ctrl);
 
-int dibusb2_0_power_ctrl(struct dvb_usb_device *d, int onoff)
+int dibusb2_0_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
 	u8 *b;
 	int ret;
 
-	if (!onoff)
+	if (!oyesff)
 		return 0;
 
 	b = kmalloc(3, GFP_KERNEL);
@@ -268,7 +268,7 @@ struct rc_map_table rc_map_dibusb_table[] = {
 	{ 0x004c, KEY_PAUSE },
 	{ 0x004d, KEY_SCREEN }, /* Full screen mode. */
 	{ 0x0054, KEY_AUDIO }, /* MTS - Switch to secondary audio. */
-	/* additional keys TwinHan VisionPlus, the Artec seemingly not have */
+	/* additional keys TwinHan VisionPlus, the Artec seemingly yest have */
 	{ 0x000c, KEY_CANCEL }, /* Cancel */
 	{ 0x001c, KEY_EPG }, /* EPG */
 	{ 0x0000, KEY_TAB }, /* Tab */

@@ -69,7 +69,7 @@ struct msp_usbhs_regs {
 	union {
 		struct {
 			u32 flb_addr; /* 0x54: Frame list base address */
-			u32 next_async_addr; /* 0x58: next asynchronous addr */
+			u32 next_async_addr; /* 0x58: next asynchroyesus addr */
 			u32 ttctrl; /* 0x5c: embedded transaction translator
 							async buffer status */
 			u32 burst_size; /* 0x60: Controller burst size */
@@ -109,7 +109,7 @@ struct msp_usbhs_regs {
 };
 /*
  * Container for the more-generic platform_device.
- * This exists mainly as a way to map the non-standard register
+ * This exists mainly as a way to map the yesn-standard register
  * spaces and make them accessible to the USB ISR.
  */
 struct mspusb_device {

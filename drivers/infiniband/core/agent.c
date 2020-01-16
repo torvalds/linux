@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2005 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2004, 2005 Mellayesx Techyeslogies Ltd.  All rights reserved.
  * Copyright (c) 2004, 2005 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004, 2005 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004, 2005 Topspin Corporation.  All rights reserved.
@@ -17,11 +17,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -206,7 +206,7 @@ int ib_agent_port_close(struct ib_device *device, int port_num)
 	port_priv = __ib_get_agent_port(device, port_num);
 	if (port_priv == NULL) {
 		spin_unlock_irqrestore(&ib_agent_port_list_lock, flags);
-		dev_err(&device->dev, "Port %d not found\n", port_num);
+		dev_err(&device->dev, "Port %d yest found\n", port_num);
 		return -ENODEV;
 	}
 	list_del(&port_priv->port_list);

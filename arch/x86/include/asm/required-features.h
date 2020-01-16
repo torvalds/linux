@@ -5,7 +5,7 @@
    really early to actually display a visible error message before the
    kernel dies.  Make sure to assign features to the proper mask!
 
-   Some requirements that are not in CPUID yet are also in the
+   Some requirements that are yest in CPUID yet are also in the
    CONFIG_X86_MINIMUM_CPU_FAMILY which is checked too.
 
    The real information is in arch/x86/Kconfig.cpu, this just converts
@@ -55,7 +55,7 @@
 
 #ifdef CONFIG_X86_64
 #ifdef CONFIG_PARAVIRT
-/* Paravirtualized systems may not have PSE or PGE available */
+/* Paravirtualized systems may yest have PSE or PGE available */
 #define NEED_PSE	0
 #define NEED_PGE	0
 #else

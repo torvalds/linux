@@ -17,7 +17,7 @@
  * based also on:
  *  - portions of rtl8187se Linux staging driver, Copyright Realtek corp.
  *    (available in drivers/staging/rtl8187se directory of Linux 3.14)
- *  - other GPL, unpublished (until now), Linux driver code,
+ *  - other GPL, unpublished (until yesw), Linux driver code,
  *    Copyright Larry Finger <Larry.Finger@lwfinger.net>
  *
  * A huge thanks goes to Sara V. Nari who forgives me when I'm
@@ -133,10 +133,10 @@ static const struct ieee80211_channel rtl818x_channels[] = {
  * static const int rtl8187se_queues_map[RTL8187SE_NR_TX_QUEUES] =
  *	{1, 6, 5, 4, 3, 2, 7};
  *
- * .. but.. Because for mac80211 4 queues are enough for QoS we use this
+ * .. but.. Because for mac80211 4 queues are eyesugh for QoS we use this
  *
  * name | reg  |  queue
- *  BC  |  7   |   4  <- currently not used yet
+ *  BC  |  7   |   4  <- currently yest used yet
  *  MG  |  1   |   x  <- Not used
  *  HI  |  6   |   x  <- Not used
  *  VO  |  5   |   0  <- used
@@ -144,21 +144,21 @@ static const struct ieee80211_channel rtl818x_channels[] = {
  *  BE  |  3   |   2  <- used
  *  BK  |  2   |   3  <- used
  *
- * Beacon queue could be used, but this is not finished yet.
+ * Beacon queue could be used, but this is yest finished yet.
  *
- * I thougth about using the other two queues but I decided not to do this:
+ * I thougth about using the other two queues but I decided yest to do this:
  *
  * - I'm unsure whether the mac80211 will ever try to use more than 4 queues
  *   by itself.
  *
  * - I could route MGMT frames (currently sent over VO queue) to the MGMT
- *   queue but since mac80211 will do not know about it, I will probably gain
- *   some HW priority whenever the VO queue is not empty, but this gain is
+ *   queue but since mac80211 will do yest kyesw about it, I will probably gain
+ *   some HW priority whenever the VO queue is yest empty, but this gain is
  *   limited by the fact that I had to stop the mac80211 queue whenever one of
  *   the VO or MGMT queues is full, stopping also submitting of MGMT frame
  *   to the driver.
  *
- * - I don't know how to set in the HW the contention window params for MGMT
+ * - I don't kyesw how to set in the HW the contention window params for MGMT
  *   and HI-prio queues.
  */
 
@@ -177,13 +177,13 @@ static const int rtl8187se_queues_map[RTL8187SE_NR_TX_QUEUES] = {5, 4, 3, 2, 7};
  *
  * .. but .. Because the mac80211 needs at least 4 queues for QoS or
  * otherwise QoS can't be done, we use just one.
- * Beacon queue could be used, but this is not finished yet.
+ * Beacon queue could be used, but this is yest finished yet.
  * Actual map is:
  *
  * name | reg  |  prio
- *  BC  |  7   |   1  <- currently not used yet.
- *  HI  |  6   |   x  <- not used
- *  NO  |  5   |   x  <- not used
+ *  BC  |  7   |   1  <- currently yest used yet.
+ *  HI  |  6   |   x  <- yest used
+ *  NO  |  5   |   x  <- yest used
  *  LO  |  4   |   0  <- used
  */
 
@@ -228,7 +228,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 
 			flags = le32_to_cpu(desc->flags);
 			/* if ownership flag is set, then we can trust the
-			 * HW has written other fields. We must not trust
+			 * HW has written other fields. We must yest trust
 			 * other descriptor data read before we checked (read)
 			 * the ownership flag
 			 */
@@ -412,7 +412,7 @@ static irqreturn_t rtl8187se_interrupt(int irq, void *dev_id)
 	if (reg & (IMR_ROK | IMR_RER | RTL818X_INT_SE_RX_DU | IMR_RQOSOK))
 		rtl8180_handle_rx(dev);
 	/* The interface sometimes generates several RX DMA descriptor errors
-	 * at startup. Do not report these.
+	 * at startup. Do yest report these.
 	 */
 	if ((reg & RTL818X_INT_SE_RX_DU) && desc_err++ > 2)
 		if (net_ratelimit())
@@ -536,9 +536,9 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
 		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
-			priv->seqno += 0x10;
+			priv->seqyes += 0x10;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		hdr->seq_ctrl |= cpu_to_le16(priv->seqno);
+		hdr->seq_ctrl |= cpu_to_le16(priv->seqyes);
 	}
 
 	idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
@@ -560,7 +560,7 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 	entry->retry_limit = info->control.rates[0].count - 1;
 
 	/* We must be sure that tx_flags is written last because the HW
-	 * looks at it to check if the rest of data is valid or not
+	 * looks at it to check if the rest of data is valid or yest
 	 */
 	wmb();
 	entry->flags = cpu_to_le32(tx_flags);
@@ -670,7 +670,7 @@ static void rtl8187se_mac_config(struct ieee80211_hw *dev)
 	rtl818x_iowrite16(priv, REG_ADDR2(0x37C), 0x00EC);
 	rtl818x_iowrite16(priv, REG_ADDR2(0x37E), 0x00EC);
 	rtl818x_iowrite8(priv, REG_ADDR1(0x24E), 0x01);
-	/* unknown, needed for suspend to RAM resume */
+	/* unkyeswn, needed for suspend to RAM resume */
 	rtl818x_iowrite8(priv, REG_ADDR1(0x0A), 0x72);
 }
 
@@ -752,8 +752,8 @@ static void rtl8180_conf_basic_rates(struct ieee80211_hw *dev,
 
 	resp_mask = basic_mask;
 	/* IEEE80211 says the response rate should be equal to the highest basic
-	 * rate that is not faster than received frame. But it says also that if
-	 * the basic rate set does not contains any rate for the current
+	 * rate that is yest faster than received frame. But it says also that if
+	 * the basic rate set does yest contains any rate for the current
 	 * modulation class then mandatory rate set must be used for that
 	 * modulation class. Eventually add OFDM mandatory rates..
 	 */
@@ -854,7 +854,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 
 	rtl818x_iowrite32(priv, &priv->map->RDSAR, priv->rx_ring_dma);
 	/* mac80211 queue have higher prio for lower index. The last queue
-	 * (that mac80211 is not aware of) is reserved for beacons (and have
+	 * (that mac80211 is yest aware of) is reserved for beacons (and have
 	 * the highest priority on the NIC)
 	 */
 	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8187SE) {
@@ -875,7 +875,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 				  priv->tx_ring[3].dma);
 	}
 
-	/* TODO: necessary? specs indicate not */
+	/* TODO: necessary? specs indicate yest */
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG2);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG2, reg & ~(1 << 3));
@@ -927,7 +927,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 		rtl818x_iowrite16(priv, ARFR, 0xFFF);
 		rtl818x_ioread16(priv, ARFR);
 
-		/* stop unused queus (no dma alloc) */
+		/* stop unused queus (yes dma alloc) */
 		rtl818x_iowrite8(priv, &priv->map->TPPOLL_STOP,
 			       RTL818x_TPPOLL_STOP_MG | RTL818x_TPPOLL_STOP_HI);
 
@@ -969,7 +969,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 		reg32 |= 0xb8000054;
 		rtl818x_iowrite32(priv, &priv->map->RF_PARA, reg32);
 	} else
-		/* stop unused queus (no dma alloc) */
+		/* stop unused queus (yes dma alloc) */
 		rtl818x_iowrite8(priv, &priv->map->TX_DMA_POLLING,
 			    (1<<1) | (1<<2));
 
@@ -1007,7 +1007,7 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 	priv->rx_ring = pci_zalloc_consistent(priv->pdev, priv->rx_ring_sz * 32,
 					      &priv->rx_ring_dma);
 	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
-		wiphy_err(dev->wiphy, "Cannot allocate RX ring\n");
+		wiphy_err(dev->wiphy, "Canyest allocate RX ring\n");
 		return -ENOMEM;
 	}
 
@@ -1020,7 +1020,7 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 		if (!skb) {
 			pci_free_consistent(priv->pdev, priv->rx_ring_sz * 32,
 					priv->rx_ring, priv->rx_ring_dma);
-			wiphy_err(dev->wiphy, "Cannot allocate RX skb\n");
+			wiphy_err(dev->wiphy, "Canyest allocate RX skb\n");
 			return -ENOMEM;
 		}
 		priv->rx_buf[i] = skb;
@@ -1032,7 +1032,7 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 			kfree_skb(skb);
 			pci_free_consistent(priv->pdev, priv->rx_ring_sz * 32,
 					priv->rx_ring, priv->rx_ring_dma);
-			wiphy_err(dev->wiphy, "Cannot map DMA for RX skb\n");
+			wiphy_err(dev->wiphy, "Canyest map DMA for RX skb\n");
 			return -ENOMEM;
 		}
 
@@ -1076,7 +1076,7 @@ static int rtl8180_init_tx_ring(struct ieee80211_hw *dev,
 	ring = pci_zalloc_consistent(priv->pdev, sizeof(*ring) * entries,
 				     &dma);
 	if (!ring || (unsigned long)ring & 0xFF) {
-		wiphy_err(dev->wiphy, "Cannot allocate TX ring (prio = %d)\n",
+		wiphy_err(dev->wiphy, "Canyest allocate TX ring (prio = %d)\n",
 			  prio);
 		return -ENOMEM;
 	}
@@ -1180,20 +1180,20 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
 		reg = rtl818x_ioread8(priv, &priv->map->CW_CONF);
 
-		/* CW is not on per-packet basis.
+		/* CW is yest on per-packet basis.
 		 * in rtl8185 the CW_VALUE reg is used.
 		 * in rtl8187se the AC param regs are used.
 		 */
 		reg &= ~RTL818X_CW_CONF_PERPACKET_CW;
 		/* retry limit IS on per-packet basis.
 		 * the short and long retry limit in TX_CONF
-		 * reg are ignored
+		 * reg are igyesred
 		 */
 		reg |= RTL818X_CW_CONF_PERPACKET_RETRY;
 		rtl818x_iowrite8(priv, &priv->map->CW_CONF, reg);
 
 		reg = rtl818x_ioread8(priv, &priv->map->TX_AGC_CTL);
-		/* TX antenna and TX gain are not on per-packet basis.
+		/* TX antenna and TX gain are yest on per-packet basis.
 		 * TX Antenna is selected by ANTSEL reg (RX in BB regs).
 		 * TX gain is selected with CCK_TX_AGC and OFDM_TX_AGC regs
 		 */
@@ -1422,7 +1422,7 @@ static int rtl8180_conf_tx(struct ieee80211_hw *dev,
 	struct rtl8180_priv *priv = dev->priv;
 	u8 cw_min, cw_max;
 
-	/* nothing to do ? */
+	/* yesthing to do ? */
 	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180)
 		return 0;
 
@@ -1731,14 +1731,14 @@ static int rtl8180_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR "%s (rtl8180): Cannot enable new PCI device\n",
+		printk(KERN_ERR "%s (rtl8180): Canyest enable new PCI device\n",
 		       pci_name(pdev));
 		return err;
 	}
 
 	err = pci_request_regions(pdev, KBUILD_MODNAME);
 	if (err) {
-		printk(KERN_ERR "%s (rtl8180): Cannot obtain PCI resources\n",
+		printk(KERN_ERR "%s (rtl8180): Canyest obtain PCI resources\n",
 		       pci_name(pdev));
 		goto err_disable_dev;
 	}
@@ -1786,7 +1786,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	}
 
 	if (!priv->map) {
-		dev_err(&pdev->dev, "Cannot map device memory/PIO\n");
+		dev_err(&pdev->dev, "Canyest map device memory/PIO\n");
 		err = -ENOMEM;
 		goto err_free_dev;
 	}
@@ -1839,7 +1839,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		chip_name = "RTL8187SE";
 		if (priv->map_pio) {
 			dev_err(&pdev->dev,
-				"MMIO failed. PIO not supported on RTL8187SE\n");
+				"MMIO failed. PIO yest supported on RTL8187SE\n");
 			err = -ENOMEM;
 			goto err_iounmap;
 		}
@@ -1847,7 +1847,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		break;
 
 	default:
-		printk(KERN_ERR "%s (rtl8180): Unknown chip! (0x%x)\n",
+		printk(KERN_ERR "%s (rtl8180): Unkyeswn chip! (0x%x)\n",
 		       pci_name(pdev), reg >> 25);
 		err = -ENODEV;
 		goto err_iounmap;
@@ -1900,14 +1900,14 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		rf_name = "RTL8255";
 		break;
 	default:
-		printk(KERN_ERR "%s (rtl8180): Unknown RF! (0x%x)\n",
+		printk(KERN_ERR "%s (rtl8180): Unkyeswn RF! (0x%x)\n",
 		       pci_name(pdev), priv->rf_type);
 		err = -ENODEV;
 		goto err_iounmap;
 	}
 
 	if (!priv->rf) {
-		printk(KERN_ERR "%s (rtl8180): %s RF frontend not supported!\n",
+		printk(KERN_ERR "%s (rtl8180): %s RF frontend yest supported!\n",
 		       pci_name(pdev), rf_name);
 		err = -ENODEV;
 		goto err_iounmap;
@@ -1924,7 +1924,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
-		printk(KERN_ERR "%s (rtl8180): Cannot register device\n",
+		printk(KERN_ERR "%s (rtl8180): Canyest register device\n",
 		       pci_name(pdev));
 		goto err_iounmap;
 	}

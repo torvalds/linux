@@ -125,7 +125,7 @@ struct nfc_llcp_sdp_tlv *nfc_llcp_build_sdres_tlv(u8 tid, u8 sap)
 	sdres->tid = tid;
 	sdres->sap = sap;
 
-	INIT_HLIST_NODE(&sdres->node);
+	INIT_HLIST_NODE(&sdres->yesde);
 
 	return sdres;
 }
@@ -166,7 +166,7 @@ struct nfc_llcp_sdp_tlv *nfc_llcp_build_sdreq_tlv(u8 tid, char *uri,
 
 	sdreq->time = jiffies;
 
-	INIT_HLIST_NODE(&sdreq->node);
+	INIT_HLIST_NODE(&sdreq->yesde);
 
 	return sdreq;
 }
@@ -180,10 +180,10 @@ void nfc_llcp_free_sdp_tlv(struct nfc_llcp_sdp_tlv *sdp)
 void nfc_llcp_free_sdp_tlv_list(struct hlist_head *head)
 {
 	struct nfc_llcp_sdp_tlv *sdp;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
-	hlist_for_each_entry_safe(sdp, n, head, node) {
-		hlist_del(&sdp->node);
+	hlist_for_each_entry_safe(sdp, n, head, yesde) {
+		hlist_del(&sdp->yesde);
 
 		nfc_llcp_free_sdp_tlv(sdp);
 	}
@@ -320,7 +320,7 @@ static struct sk_buff *llcp_allocate_pdu(struct nfc_llcp_sock *sock,
 	skb = nfc_alloc_send_skb(sock->dev, &sock->sk, MSG_DONTWAIT,
 				 size + LLCP_HEADER_SIZE, &err);
 	if (skb == NULL) {
-		pr_err("Could not allocate PDU\n");
+		pr_err("Could yest allocate PDU\n");
 		return NULL;
 	}
 
@@ -414,7 +414,7 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 		size += service_name_tlv_length;
 	}
 
-	/* If the socket parameters are not set, use the local ones */
+	/* If the socket parameters are yest set, use the local ones */
 	miux = be16_to_cpu(sock->miux) > LLCP_MAX_MIUX ?
 		local->miux : sock->miux;
 	rw = sock->rw > LLCP_MAX_RW ? local->rw : sock->rw;
@@ -477,7 +477,7 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 	if (local == NULL)
 		return -ENODEV;
 
-	/* If the socket parameters are not set, use the local ones */
+	/* If the socket parameters are yest set, use the local ones */
 	miux = be16_to_cpu(sock->miux) > LLCP_MAX_MIUX ?
 		local->miux : sock->miux;
 	rw = sock->rw > LLCP_MAX_RW ? local->rw : sock->rw;
@@ -553,17 +553,17 @@ int nfc_llcp_send_snl_sdres(struct nfc_llcp_local *local,
 			    struct hlist_head *tlv_list, size_t tlvs_len)
 {
 	struct nfc_llcp_sdp_tlv *sdp;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct sk_buff *skb;
 
 	skb = nfc_llcp_allocate_snl(local, tlvs_len);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
-	hlist_for_each_entry_safe(sdp, n, tlv_list, node) {
+	hlist_for_each_entry_safe(sdp, n, tlv_list, yesde) {
 		skb_put_data(skb, sdp->tlv, sdp->tlv_len);
 
-		hlist_del(&sdp->node);
+		hlist_del(&sdp->yesde);
 
 		nfc_llcp_free_sdp_tlv(sdp);
 	}
@@ -577,7 +577,7 @@ int nfc_llcp_send_snl_sdreq(struct nfc_llcp_local *local,
 			    struct hlist_head *tlv_list, size_t tlvs_len)
 {
 	struct nfc_llcp_sdp_tlv *sdreq;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct sk_buff *skb;
 
 	skb = nfc_llcp_allocate_snl(local, tlvs_len);
@@ -590,14 +590,14 @@ int nfc_llcp_send_snl_sdreq(struct nfc_llcp_local *local,
 		mod_timer(&local->sdreq_timer,
 			  jiffies + msecs_to_jiffies(3 * local->remote_lto));
 
-	hlist_for_each_entry_safe(sdreq, n, tlv_list, node) {
+	hlist_for_each_entry_safe(sdreq, n, tlv_list, yesde) {
 		pr_debug("tid %d for %s\n", sdreq->tid, sdreq->uri);
 
 		skb_put_data(skb, sdreq->tlv, sdreq->tlv_len);
 
-		hlist_del(&sdreq->node);
+		hlist_del(&sdreq->yesde);
 
-		hlist_add_head(&sdreq->node, &local->pending_sdreqs);
+		hlist_add_head(&sdreq->yesde, &local->pending_sdreqs);
 	}
 
 	mutex_unlock(&local->sdreq_lock);
@@ -656,7 +656,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 	if (local == NULL)
 		return -ENODEV;
 
-	/* Remote is ready but has not acknowledged our frames */
+	/* Remote is ready but has yest ackyeswledged our frames */
 	if((sock->remote_ready &&
 	    skb_queue_len(&sock->tx_pending_queue) >= sock->remote_rw &&
 	    skb_queue_len(&sock->tx_queue) >= 2 * sock->remote_rw)) {
@@ -665,7 +665,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 		return -ENOBUFS;
 	}
 
-	/* Remote is not ready and we've been queueing enough frames */
+	/* Remote is yest ready and we've been queueing eyesugh frames */
 	if ((!sock->remote_ready &&
 	     skb_queue_len(&sock->tx_queue) >= 2 * sock->remote_rw)) {
 		pr_err("Tx queue is full %d frames\n",
@@ -763,7 +763,7 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 		pdu = nfc_alloc_send_skb(sock->dev, &sock->sk, 0,
 					 frag_len + LLCP_HEADER_SIZE, &err);
 		if (pdu == NULL) {
-			pr_err("Could not allocate PDU (error=%d)\n", err);
+			pr_err("Could yest allocate PDU (error=%d)\n", err);
 			len -= remaining_len;
 			if (len == 0)
 				len = err;

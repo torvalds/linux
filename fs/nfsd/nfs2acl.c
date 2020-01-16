@@ -33,7 +33,7 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst *rqstp)
 	struct nfsd3_getaclargs *argp = rqstp->rq_argp;
 	struct nfsd3_getaclres *resp = rqstp->rq_resp;
 	struct posix_acl *acl;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	svc_fh *fh;
 	__be32 nfserr = 0;
 
@@ -44,7 +44,7 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst *rqstp)
 	if (nfserr)
 		RETURN_STATUS(nfserr);
 
-	inode = d_inode(fh->fh_dentry);
+	iyesde = d_iyesde(fh->fh_dentry);
 
 	if (argp->mask & ~NFS_ACL_MASK)
 		RETURN_STATUS(nfserr_inval);
@@ -55,23 +55,23 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst *rqstp)
 		RETURN_STATUS(nfserr);
 
 	if (resp->mask & (NFS_ACL|NFS_ACLCNT)) {
-		acl = get_acl(inode, ACL_TYPE_ACCESS);
+		acl = get_acl(iyesde, ACL_TYPE_ACCESS);
 		if (acl == NULL) {
-			/* Solaris returns the inode's minimum ACL. */
-			acl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
+			/* Solaris returns the iyesde's minimum ACL. */
+			acl = posix_acl_from_mode(iyesde->i_mode, GFP_KERNEL);
 		}
 		if (IS_ERR(acl)) {
-			nfserr = nfserrno(PTR_ERR(acl));
+			nfserr = nfserryes(PTR_ERR(acl));
 			goto fail;
 		}
 		resp->acl_access = acl;
 	}
 	if (resp->mask & (NFS_DFACL|NFS_DFACLCNT)) {
 		/* Check how Solaris handles requests for the Default ACL
-		   of a non-directory! */
-		acl = get_acl(inode, ACL_TYPE_DEFAULT);
+		   of a yesn-directory! */
+		acl = get_acl(iyesde, ACL_TYPE_DEFAULT);
 		if (IS_ERR(acl)) {
-			nfserr = nfserrno(PTR_ERR(acl));
+			nfserr = nfserryes(PTR_ERR(acl));
 			goto fail;
 		}
 		resp->acl_default = acl;
@@ -93,7 +93,7 @@ static __be32 nfsacld_proc_setacl(struct svc_rqst *rqstp)
 {
 	struct nfsd3_setaclargs *argp = rqstp->rq_argp;
 	struct nfsd_attrstat *resp = rqstp->rq_resp;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	svc_fh *fh;
 	__be32 nfserr = 0;
 	int error;
@@ -105,18 +105,18 @@ static __be32 nfsacld_proc_setacl(struct svc_rqst *rqstp)
 	if (nfserr)
 		goto out;
 
-	inode = d_inode(fh->fh_dentry);
+	iyesde = d_iyesde(fh->fh_dentry);
 
 	error = fh_want_write(fh);
 	if (error)
-		goto out_errno;
+		goto out_erryes;
 
 	fh_lock(fh);
 
-	error = set_posix_acl(inode, ACL_TYPE_ACCESS, argp->acl_access);
+	error = set_posix_acl(iyesde, ACL_TYPE_ACCESS, argp->acl_access);
 	if (error)
 		goto out_drop_lock;
-	error = set_posix_acl(inode, ACL_TYPE_DEFAULT, argp->acl_default);
+	error = set_posix_acl(iyesde, ACL_TYPE_DEFAULT, argp->acl_default);
 	if (error)
 		goto out_drop_lock;
 
@@ -135,8 +135,8 @@ out:
 out_drop_lock:
 	fh_unlock(fh);
 	fh_drop_write(fh);
-out_errno:
-	nfserr = nfserrno(error);
+out_erryes:
+	nfserr = nfserryes(error);
 	goto out;
 }
 
@@ -262,7 +262,7 @@ static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_getaclres *resp = rqstp->rq_resp;
 	struct dentry *dentry = resp->fh.fh_dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct kvec *head = rqstp->rq_res.head;
 	unsigned int base;
 	int n;
@@ -270,12 +270,12 @@ static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p)
 
 	/*
 	 * Since this is version 2, the check for nfserr in
-	 * nfsd_dispatch actually ensures the following cannot happen.
+	 * nfsd_dispatch actually ensures the following canyest happen.
 	 * However, it seems fragile to depend on that.
 	 */
 	if (dentry == NULL || d_really_is_negative(dentry))
 		return 0;
-	inode = d_inode(dentry);
+	iyesde = d_iyesde(dentry);
 
 	p = nfs2svc_encode_fattr(rqstp, p, &resp->fh, &resp->stat);
 	*p++ = htonl(resp->mask);
@@ -292,11 +292,11 @@ static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p)
 		w -= PAGE_SIZE;
 	}
 
-	n = nfsacl_encode(&rqstp->rq_res, base, inode,
+	n = nfsacl_encode(&rqstp->rq_res, base, iyesde,
 			  resp->acl_access,
 			  resp->mask & NFS_ACL, 0);
 	if (n > 0)
-		n = nfsacl_encode(&rqstp->rq_res, base + n, inode,
+		n = nfsacl_encode(&rqstp->rq_res, base + n, iyesde,
 				  resp->acl_default,
 				  resp->mask & NFS_DFACL,
 				  NFS_ACL_DEFAULT);

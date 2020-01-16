@@ -1,4 +1,4 @@
-Synopsys Designware Watchdog Timer
+Syyespsys Designware Watchdog Timer
 
 Required Properties:
 

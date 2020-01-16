@@ -128,7 +128,7 @@ static void labpc_ai_set_chan_and_gain(struct comedi_device *dev,
 
 	if (board->is_labpc1200) {
 		/*
-		 * The LabPC-1200 boards do not have a gain
+		 * The LabPC-1200 boards do yest have a gain
 		 * of '0x10'. Skip the range values that would
 		 * result in this gain.
 		 */
@@ -239,7 +239,7 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 
 	labpc_ai_set_chan_and_gain(dev, MODE_SINGLE_CHAN, chan, range, aref);
 
-	labpc_setup_cmd6_reg(dev, s, MODE_SINGLE_CHAN, fifo_not_empty_transfer,
+	labpc_setup_cmd6_reg(dev, s, MODE_SINGLE_CHAN, fifo_yest_empty_transfer,
 			     range, aref, false);
 
 	/* setup cmd4 register */
@@ -458,21 +458,21 @@ static int labpc_ai_check_chanlist(struct comedi_device *dev,
 		case MODE_SINGLE_CHAN_INTERVAL:
 			if (chan != chan0) {
 				dev_dbg(dev->class_dev,
-					"channel scanning order specified in chanlist is not supported by hardware\n");
+					"channel scanning order specified in chanlist is yest supported by hardware\n");
 				return -EINVAL;
 			}
 			break;
 		case MODE_MULT_CHAN_UP:
 			if (chan != i) {
 				dev_dbg(dev->class_dev,
-					"channel scanning order specified in chanlist is not supported by hardware\n");
+					"channel scanning order specified in chanlist is yest supported by hardware\n");
 				return -EINVAL;
 			}
 			break;
 		case MODE_MULT_CHAN_DOWN:
 			if (chan != (cmd->chanlist_len - i - 1)) {
 				dev_dbg(dev->class_dev,
-					"channel scanning order specified in chanlist is not supported by hardware\n");
+					"channel scanning order specified in chanlist is yest supported by hardware\n");
 				return -EINVAL;
 			}
 			break;
@@ -543,7 +543,7 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 		err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	case TRIG_EXT:
-		/* start_arg value is ignored */
+		/* start_arg value is igyesred */
 		break;
 	}
 
@@ -557,7 +557,7 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 						    board->ai_speed);
 	}
 
-	/* make sure scan timing is not too fast */
+	/* make sure scan timing is yest too fast */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		if (cmd->convert_src == TRIG_TIMER) {
 			err |= comedi_check_trigger_arg_min(&cmd->
@@ -659,13 +659,13 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		   (cmd->flags & CMDF_WAKE_EOS) == 0 &&
 		   (cmd->stop_src != TRIG_COUNT || devpriv->count > 256)) {
 		/*
-		 * pc-plus has no fifo-half full interrupt
-		 * wake-end-of-scan should interrupt on fifo not empty
+		 * pc-plus has yes fifo-half full interrupt
+		 * wake-end-of-scan should interrupt on fifo yest empty
 		 * make sure we are taking more than just a few points
 		 */
 		xfer = fifo_half_full_transfer;
 	} else {
-		xfer = fifo_not_empty_transfer;
+		xfer = fifo_yest_empty_transfer;
 	}
 	devpriv->current_transfer = xfer;
 
@@ -680,7 +680,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/*
 		 * Need a brief delay before enabling scan, or scan
 		 * list will get screwed when you switch between
-		 * scan up to scan down mode - dunno why.
+		 * scan up to scan down mode - dunyes why.
 		 */
 		udelay(1);
 		devpriv->write_byte(dev, devpriv->cmd1, CMD1_REG);
@@ -719,8 +719,8 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/*  enable error interrupts */
 	devpriv->cmd3 |= CMD3_ERRINTEN;
-	/*  enable fifo not empty interrupt? */
-	if (xfer == fifo_not_empty_transfer)
+	/*  enable fifo yest empty interrupt? */
+	if (xfer == fifo_yest_empty_transfer)
 		devpriv->cmd3 |= CMD3_FIFOINTEN;
 	devpriv->write_byte(dev, devpriv->cmd3, CMD3_REG);
 
@@ -730,7 +730,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->cmd4 |= CMD4_ECLKRCV;
 	/*
 	 * XXX should discard first scan when using interval scanning
-	 * since manual says it is not synced with scan clock.
+	 * since manual says it is yest synced with scan clock.
 	 */
 	if (!labpc_use_continuous_mode(cmd, mode)) {
 		devpriv->cmd4 |= CMD4_INTSCAN;
@@ -915,7 +915,7 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 
 	/*
 	 * Turn off pacing of analog output channel.
-	 * NOTE: hardware bug in daqcard-1200 means pacing cannot
+	 * NOTE: hardware bug in daqcard-1200 means pacing canyest
 	 * be independently enabled/disabled for its the two channels.
 	 */
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -1279,7 +1279,7 @@ int labpc_common_attach(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		/* initialize analog outputs to a known value */
+		/* initialize analog outputs to a kyeswn value */
 		for (i = 0; i < s->n_chan; i++)
 			labpc_ao_write(dev, s, i, s->maxdata / 2);
 	} else {

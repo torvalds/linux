@@ -14,7 +14,7 @@ extern const char *const pptp_msg_name[];
 
 /* state of the control session */
 enum pptp_ctrlsess_state {
-	PPTP_SESSION_NONE,			/* no session present */
+	PPTP_SESSION_NONE,			/* yes session present */
 	PPTP_SESSION_ERROR,			/* some session error */
 	PPTP_SESSION_STOPREQ,			/* stop_sess request seen */
 	PPTP_SESSION_REQUESTED,			/* start_sess request seen */

@@ -250,7 +250,7 @@ void __init dm365_init_spi0(unsigned chipselect_mask,
 	davinci_cfg_reg(DM365_SPI0_SDI);
 	davinci_cfg_reg(DM365_SPI0_SDO);
 
-	/* not all slaves will be wired up */
+	/* yest all slaves will be wired up */
 	if (chipselect_mask & BIT(0))
 		davinci_cfg_reg(DM365_SPI0_SDENA0);
 	if (chipselect_mask & BIT(1))
@@ -310,7 +310,7 @@ static struct resource dm365_gpio_resources[] = {
 };
 
 static struct davinci_gpio_platform_data dm365_gpio_platform_data = {
-	.no_auto_base	= true,
+	.yes_auto_base	= true,
 	.base		= 0,
 	.ngpio		= 104,
 	.gpio_unbanked	= 8,
@@ -453,7 +453,7 @@ static u8 dm365_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 
 /* Four Transfer Controllers on DM365 */
 static s8 dm365_queue_priority_mapping[][2] = {
-	/* {event queue no, Priority} */
+	/* {event queue yes, Priority} */
 	{0, 7},
 	{1, 7},
 	{2, 7},
@@ -528,7 +528,7 @@ static struct resource edma_resources[] = {
 		.start	= DAVINCI_INTC_IRQ(IRQ_CCERRINT),
 		.flags	= IORESOURCE_IRQ,
 	},
-	/* not using TC*_ERR */
+	/* yest using TC*_ERR */
 };
 
 static const struct platform_device_info dm365_edma_device __initconst = {
@@ -646,14 +646,14 @@ static struct platform_device dm365_ks_device = {
 static struct davinci_id dm365_ids[] = {
 	{
 		.variant	= 0x0,
-		.part_no	= 0xb83e,
+		.part_yes	= 0xb83e,
 		.manufacturer	= 0x017,
 		.cpu_id		= DAVINCI_CPU_ID_DM365,
 		.name		= "dm365_rev1.1",
 	},
 	{
 		.variant	= 0x8,
-		.part_no	= 0xb83e,
+		.part_yes	= 0xb83e,
 		.manufacturer	= 0x017,
 		.cpu_id		= DAVINCI_CPU_ID_DM365,
 		.name		= "dm365_rev1.2",

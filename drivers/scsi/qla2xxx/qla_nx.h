@@ -16,7 +16,7 @@
 #define PHAN_INITIALIZE_FAILED	      0xffff
 #define PHAN_INITIALIZE_COMPLETE      0xff01
 
-/* Host writes the following to notify that it has done the init-handshake */
+/* Host writes the following to yestify that it has done the init-handshake */
 #define PHAN_INITIALIZE_ACK	      0xf00f
 #define PHAN_PEG_RCV_INITIALIZED      0xff01
 
@@ -780,7 +780,7 @@ struct qla82xx_legacy_intr_set {
 #define	IMAGE_START		0x100000
 #define FLASH_ADDR_START	0x43000
 
-/* Magic number to let user know flash is programmed */
+/* Magic number to let user kyesw flash is programmed */
 #define QLA82XX_BDINFO_MAGIC	0x12345678
 #define QLA82XX_FW_MAGIC_OFFSET	(BRDCFG_START + 0x128)
 #define FW_SIZE_OFFSET		(0x3e840c)
@@ -913,7 +913,7 @@ struct ct6_dsd {
 /*
  * Version of the template
  * 4 Bytes
- * X.Major.Minor.RELEASE
+ * X.Major.Miyesr.RELEASE
  */
 #define QLA82XX_MINIDUMP_VERSION         0x10101
 
@@ -1009,7 +1009,7 @@ struct qla82xx_md_template_hdr {
 
 /*
  * Driver Code is for driver to write some info about the entry.
- * Currently not used.
+ * Currently yest used.
  */
 typedef struct qla82xx_md_entry_hdr {
 	uint32_t entry_type;

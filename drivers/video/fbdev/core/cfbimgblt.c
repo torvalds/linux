@@ -13,9 +13,9 @@
  *  image can be a bitmap where each 0 represents the background color and
  *  each 1 represents the foreground color. Great for font handling. It can
  *  also be a color image. This is determined by image_depth. The color image
- *  must be laid out exactly in the same format as the framebuffer. Yes I know
+ *  must be laid out exactly in the same format as the framebuffer. Yes I kyesw
  *  their are cards with hardware that coverts images of various depths to the
- *  framebuffer depth. But not every card has this. All images must be rounded
+ *  framebuffer depth. But yest every card has this. All images must be rounded
  *  up to the nearest byte. For example a bitmap 12 bits wide must be two 
  *  bytes width. 
  *
@@ -23,7 +23,7 @@
  *  Incorporate mask tables similar to fbcon-cfb*.c in 2.4 API.  This speeds 
  *  up the code significantly.
  *  
- *  Code for depths not multiples of BITS_PER_LONG is still kludgy, which is
+ *  Code for depths yest multiples of BITS_PER_LONG is still kludgy, which is
  *  still processed a bit at a time.   
  *
  *  Also need to add code to deal with cards endians that are different than
@@ -205,7 +205,7 @@ static inline void slow_imageblit(const struct fb_image *image, struct fb_info *
 }
 
 /*
- * fast_imageblit - optimized monochrome color expansion
+ * fast_imageblit - optimized moyeschrome color expansion
  *
  * Only if:  bits_per_pixel == 8, 16, or 32
  *           image->width is divisible by pixel/dword (ppw);

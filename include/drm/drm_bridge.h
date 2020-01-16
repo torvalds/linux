@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -66,7 +66,7 @@ struct drm_bridge_funcs {
 	 * This callback is used to check if a specific mode is valid in this
 	 * bridge. This should be implemented if the bridge has some sort of
 	 * restriction in the modes it can display. For example, a given bridge
-	 * may be responsible to set a clock value. If the clock can not
+	 * may be responsible to set a clock value. If the clock can yest
 	 * produce all the values for the available modes then this callback
 	 * can be used to restrict the number of modes to only the ones that
 	 * can be displayed.
@@ -81,7 +81,7 @@ struct drm_bridge_funcs {
 	 * NOTE:
 	 *
 	 * Since this function is both called from the check phase of an atomic
-	 * commit, and the mode validation in the probe paths it is not allowed
+	 * commit, and the mode validation in the probe paths it is yest allowed
 	 * to look at anything else but the passed-in mode, and validate it
 	 * against configuration-invariant hardward constraints. Any further
 	 * limits which depend upon the configuration can only be checked in
@@ -101,7 +101,7 @@ struct drm_bridge_funcs {
 	 * mode is the display mode that should be fed to the next element in
 	 * the display chain, either the final &drm_connector or the next
 	 * &drm_bridge. The parameter adjusted_mode is the input mode the bridge
-	 * requires. It can be modified by this callback and does not need to
+	 * requires. It can be modified by this callback and does yest need to
 	 * match mode. See also &drm_crtc_state.adjusted_mode for more details.
 	 *
 	 * This is the only hook that allows a bridge to reject a modeset. If
@@ -119,7 +119,7 @@ struct drm_bridge_funcs {
 	 * structures except the passed in @state parameter.
 	 *
 	 * Also beware that userspace can request its own custom modes, neither
-	 * core nor helpers filter modes to the list of probe modes reported by
+	 * core yesr helpers filter modes to the list of probe modes reported by
 	 * the GETCONNECTOR IOCTL and stored in &drm_connector.modes. To ensure
 	 * that modes are filtered consistently put any bridge constraints and
 	 * limits checks into @mode_valid.
@@ -162,7 +162,7 @@ struct drm_bridge_funcs {
 	 * or &drm_encoder_helper_funcs.dpms hook.
 	 *
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
-	 * singals) feeding it is no longer running when this callback is
+	 * singals) feeding it is yes longer running when this callback is
 	 * called.
 	 *
 	 * The @post_disable callback is optional.
@@ -210,8 +210,8 @@ struct drm_bridge_funcs {
 	 * &drm_encoder_helper_funcs.dpms hook.
 	 *
 	 * The display pipe (i.e. clocks and timing signals) feeding this bridge
-	 * will not yet be running when this callback is called. The bridge must
-	 * not enable the display link feeding the next bridge in the chain (if
+	 * will yest yet be running when this callback is called. The bridge must
+	 * yest enable the display link feeding the next bridge in the chain (if
 	 * there is one) when this callback is called.
 	 *
 	 * The @pre_enable callback is optional.
@@ -249,12 +249,12 @@ struct drm_bridge_funcs {
 	 * &drm_encoder_helper_funcs.atomic_enable hook.
 	 *
 	 * The display pipe (i.e. clocks and timing signals) feeding this bridge
-	 * will not yet be running when this callback is called. The bridge must
-	 * not enable the display link feeding the next bridge in the chain (if
+	 * will yest yet be running when this callback is called. The bridge must
+	 * yest enable the display link feeding the next bridge in the chain (if
 	 * there is one) when this callback is called.
 	 *
 	 * Note that this function will only be invoked in the context of an
-	 * atomic commit. It will not be invoked from &drm_bridge_pre_enable. It
+	 * atomic commit. It will yest be invoked from &drm_bridge_pre_enable. It
 	 * would be prudent to also provide an implementation of @pre_enable if
 	 * you are expecting driver calls into &drm_bridge_pre_enable.
 	 *
@@ -279,7 +279,7 @@ struct drm_bridge_funcs {
 	 * chain if there is one.
 	 *
 	 * Note that this function will only be invoked in the context of an
-	 * atomic commit. It will not be invoked from &drm_bridge_enable. It
+	 * atomic commit. It will yest be invoked from &drm_bridge_enable. It
 	 * would be prudent to also provide an implementation of @enable if
 	 * you are expecting driver calls into &drm_bridge_enable.
 	 *
@@ -301,7 +301,7 @@ struct drm_bridge_funcs {
 	 * signals) feeding it is still running when this callback is called.
 	 *
 	 * Note that this function will only be invoked in the context of an
-	 * atomic commit. It will not be invoked from &drm_bridge_disable. It
+	 * atomic commit. It will yest be invoked from &drm_bridge_disable. It
 	 * would be prudent to also provide an implementation of @disable if
 	 * you are expecting driver calls into &drm_bridge_disable.
 	 *
@@ -321,11 +321,11 @@ struct drm_bridge_funcs {
 	 * &drm_encoder_helper_funcs.atomic_disable hook.
 	 *
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
-	 * signals) feeding it is no longer running when this callback is
+	 * signals) feeding it is yes longer running when this callback is
 	 * called.
 	 *
 	 * Note that this function will only be invoked in the context of an
-	 * atomic commit. It will not be invoked from &drm_bridge_post_disable.
+	 * atomic commit. It will yest be invoked from &drm_bridge_post_disable.
 	 * It would be prudent to also provide an implementation of
 	 * @post_disable if you are expecting driver calls into
 	 * &drm_bridge_post_disable.
@@ -383,8 +383,8 @@ struct drm_bridge {
 	/** @next: the next bridge in the encoder chain */
 	struct drm_bridge *next;
 #ifdef CONFIG_OF
-	/** @of_node: device node pointer to the bridge */
-	struct device_node *of_node;
+	/** @of_yesde: device yesde pointer to the bridge */
+	struct device_yesde *of_yesde;
 #endif
 	/** @list: to keep track of all added bridges */
 	struct list_head list;
@@ -402,7 +402,7 @@ struct drm_bridge {
 
 void drm_bridge_add(struct drm_bridge *bridge);
 void drm_bridge_remove(struct drm_bridge *bridge);
-struct drm_bridge *of_drm_find_bridge(struct device_node *np);
+struct drm_bridge *of_drm_find_bridge(struct device_yesde *np);
 int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 		      struct drm_bridge *previous);
 

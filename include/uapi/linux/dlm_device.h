@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /******************************************************************************
 *******************************************************************************
 **
@@ -50,12 +50,12 @@ struct dlm_lock_params {
 
 struct dlm_lspace_params {
 	__u32 flags;
-	__u32 minor;
+	__u32 miyesr;
 	char name[0];
 };
 
 struct dlm_purge_params {
-	__u32 nodeid;
+	__u32 yesdeid;
 	__u32 pid;
 };
 
@@ -88,7 +88,7 @@ struct dlm_lock_result {
 	struct dlm_lksb lksb;
 	__u8 bast_mode;
 	__u8 unused[3];
-	/* Offsets may be zero if no data is present */
+	/* Offsets may be zero if yes data is present */
 	__u32 lvb_offset;
 };
 

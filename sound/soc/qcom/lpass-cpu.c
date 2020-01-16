@@ -416,15 +416,15 @@ static struct regmap_config lpass_cpu_regmap_config = {
 int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata;
-	struct device_node *dsp_of_node;
+	struct device_yesde *dsp_of_yesde;
 	struct resource *res;
 	struct lpass_variant *variant;
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
 	int ret, i, dai_id;
 
-	dsp_of_node = of_parse_phandle(pdev->dev.of_node, "qcom,adsp", 0);
-	if (dsp_of_node) {
+	dsp_of_yesde = of_parse_phandle(pdev->dev.of_yesde, "qcom,adsp", 0);
+	if (dsp_of_yesde) {
 		dev_err(&pdev->dev, "DSP exists and holds audio resources\n");
 		return -EBUSY;
 	}

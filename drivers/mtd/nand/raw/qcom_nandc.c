@@ -214,7 +214,7 @@ nandc_set_reg(nandc, NAND_READ_LOCATION_##reg,			\
 #define NAND_BAM_NO_EOT			BIT(0)
 /* Set the NWD flag in current BAM sgl */
 #define NAND_BAM_NWD			BIT(1)
-/* Finish writing in the current BAM sgl and start writing in another BAM sgl */
+/* Finish writing in the current BAM sgl and start writing in ayesther BAM sgl */
 #define NAND_BAM_NEXT_SGL		BIT(2)
 /*
  * Erased codeword status is being used two times in single transfer so this
@@ -273,7 +273,7 @@ struct bam_transaction {
  * @dma_desc - low level DMA engine descriptor
  */
 struct desc_info {
-	struct list_head node;
+	struct list_head yesde;
 
 	enum dma_data_direction dir;
 	union {
@@ -331,7 +331,7 @@ struct nandc_regs {
  * @base_phys:			physical base address of controller registers
  * @base_dma:			dma base address of controller registers
  * @core_clk:			controller clock
- * @aon_clk:			another controller clock
+ * @aon_clk:			ayesther controller clock
  *
  * @chan:			dma channel
  * @cmd_crci:			ADM DMA CRCI for command flow control
@@ -408,7 +408,7 @@ struct qcom_nand_controller {
  * NAND chip structure
  *
  * @chip:			base NAND chip structure
- * @node:			list node to add itself to host_list in
+ * @yesde:			list yesde to add itself to host_list in
  *				qcom_nand_controller
  *
  * @cs:				chip select value for this chip
@@ -428,12 +428,12 @@ struct qcom_nand_controller {
  *				for reading correct status
  *
  * @cfg0, cfg1, cfg0_raw..:	NANDc register configurations needed for
- *				ecc/non-ecc mode for the current nand flash
+ *				ecc/yesn-ecc mode for the current nand flash
  *				device
  */
 struct qcom_nand_host {
 	struct nand_chip chip;
-	struct list_head node;
+	struct list_head yesde;
 
 	int cs;
 	int cw_size;
@@ -546,7 +546,7 @@ static void qpic_bam_dma_done(void *data)
 
 	/*
 	 * In case of data transfer with NAND, 2 callbacks will be generated.
-	 * One for command channel and another one for data channel.
+	 * One for command channel and ayesther one for data channel.
 	 * If current transaction has data descriptors
 	 * (i.e. wait_second_completion is true), then set this to false
 	 * and wait for second DMA descriptor completion.
@@ -789,7 +789,7 @@ static int prepare_bam_async_desc(struct qcom_nand_controller *nandc,
 	else
 		bam_txn->last_data_desc = dma_desc;
 
-	list_add_tail(&desc->node, &nandc->desc_list);
+	list_add_tail(&desc->yesde, &nandc->desc_list);
 
 	return 0;
 }
@@ -876,7 +876,7 @@ static int prep_bam_dma_desc_data(struct qcom_nand_controller *nandc, bool read,
 
 		/*
 		 * BAM will only set EOT for DMA_PREP_INTERRUPT so if this flag
-		 * is not set, form the DMA descriptor
+		 * is yest set, form the DMA descriptor
 		 */
 		if (!(flags & NAND_BAM_NO_EOT)) {
 			ret = prepare_bam_async_desc(nandc, nandc->tx_chan,
@@ -950,7 +950,7 @@ static int prep_adm_dma_desc(struct qcom_nand_controller *nandc, bool read,
 
 	desc->dma_desc = dma_desc;
 
-	list_add_tail(&desc->node, &nandc->desc_list);
+	list_add_tail(&desc->yesde, &nandc->desc_list);
 
 	return 0;
 err:
@@ -1158,7 +1158,7 @@ static int nandc_param(struct qcom_nand_host *host)
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 
 	/*
-	 * NAND_CMD_PARAM is called before we know much about the FLASH chip
+	 * NAND_CMD_PARAM is called before we kyesw much about the FLASH chip
 	 * in use. we configure the controller to perform a raw read of 512
 	 * bytes to read onfi params
 	 */
@@ -1309,7 +1309,7 @@ static int submit_descs(struct qcom_nand_controller *nandc)
 		}
 	}
 
-	list_for_each_entry(desc, &nandc->desc_list, node)
+	list_for_each_entry(desc, &nandc->desc_list, yesde)
 		cookie = dmaengine_submit(desc->dma_desc);
 
 	if (nandc->props->is_bam) {
@@ -1340,8 +1340,8 @@ static void free_descs(struct qcom_nand_controller *nandc)
 {
 	struct desc_info *desc, *n;
 
-	list_for_each_entry_safe(desc, n, &nandc->desc_list, node) {
-		list_del(&desc->node);
+	list_for_each_entry_safe(desc, n, &nandc->desc_list, yesde) {
+		list_del(&desc->yesde);
 
 		if (nandc->props->is_bam)
 			dma_unmap_sg(nandc->dev, desc->bam_sgl,
@@ -1467,7 +1467,7 @@ static void qcom_nandc_command(struct nand_chip *chip, unsigned int command,
 		break;
 
 	case NAND_CMD_READ0:
-		/* we read the entire page for now */
+		/* we read the entire page for yesw */
 		WARN_ON(column != 0);
 
 		host->use_ecc = true;
@@ -1512,10 +1512,10 @@ static void qcom_nandc_command(struct nand_chip *chip, unsigned int command,
  * an erased CW, and reports an erased CW in NAND_ERASED_CW_DETECT_STATUS.
  *
  * when using RS ECC, the HW reports the same erros when reading an erased CW,
- * but it notifies that it is an erased CW by placing special characters at
+ * but it yestifies that it is an erased CW by placing special characters at
  * certain offsets in the buffer.
  *
- * verify if the page is erased or not, and fix up the page for RS ECC by
+ * verify if the page is erased or yest, and fix up the page for RS ECC by
  * replacing the special characters with 0xff.
  */
 static bool erased_chunk_check_and_fixup(u8 *data_buf, int data_len)
@@ -1542,7 +1542,7 @@ static bool erased_chunk_check_and_fixup(u8 *data_buf, int data_len)
 	}
 
 	/*
-	 * check if the entire chunk contains 0xffs or not. if it doesn't, then
+	 * check if the entire chunk contains 0xffs or yest. if it doesn't, then
 	 * restore the original values at the special offsets
 	 */
 	if (memchr_inv(data_buf, 0xff, data_len)) {
@@ -1700,7 +1700,7 @@ check_for_erased_page(struct qcom_nand_host *host, u8 *data_buf,
 
 		/*
 		 * make sure it isn't an erased page reported
-		 * as not-erased by HW because of a few bitflips
+		 * as yest-erased by HW because of a few bitflips
 		 */
 		ret = nand_check_erased_ecc_chunk(cw_data_buf, data_size,
 						  cw_oob_buf + host->bbm_size,
@@ -1718,7 +1718,7 @@ check_for_erased_page(struct qcom_nand_host *host, u8 *data_buf,
 }
 
 /*
- * reads back status registers set by the controller to notify page read
+ * reads back status registers set by the controller to yestify page read
  * errors. this is equivalent to what 'ecc->correct()' would do.
  */
 static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
@@ -1763,7 +1763,7 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 		 */
 		if ((flash & FS_OP_ERR) && (buffer & BS_UNCORRECTABLE_BIT)) {
 			/*
-			 * For BCH ECC, ignore erased codeword errors, if
+			 * For BCH ECC, igyesre erased codeword errors, if
 			 * ERASED_CW bits are set.
 			 */
 			if (host->bch_enabled) {
@@ -1773,7 +1773,7 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 			 * For RS ECC, HW reports the erased CW by placing
 			 * special characters at certain offsets in the buffer.
 			 * These special characters will be valid only if
-			 * complete page is read i.e. data_buf is not NULL.
+			 * complete page is read i.e. data_buf is yest NULL.
 			 */
 			} else if (data_buf) {
 				erased = erased_chunk_check_and_fixup(data_buf,
@@ -2140,7 +2140,7 @@ static int qcom_nandc_write_page_raw(struct nand_chip *chip,
 /*
  * implements ecc->write_oob()
  *
- * the NAND controller cannot write only data or only OOB within a codeword
+ * the NAND controller canyest write only data or only OOB within a codeword
  * since ECC is calculated for the combined codeword. So update the OOB from
  * chip->oob_poi, and pad the data area with OxFF before writing.
  */
@@ -2312,7 +2312,7 @@ static void qcom_nandc_write_buf(struct nand_chip *chip, const uint8_t *buf,
 	nandc->buf_start += real_len;
 }
 
-/* we support only one external chip for now */
+/* we support only one external chip for yesw */
 static void qcom_nandc_select_chip(struct nand_chip *chip, int chipnr)
 {
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
@@ -2355,7 +2355,7 @@ static void qcom_nandc_select_chip(struct nand_chip *chip, int chipnr)
  * 12/16 bytes consist of ECC and reserved data. The nth codeword contains
  * both user data and spare(oobavail) bytes that sum up to 516 bytes.
  *
- * When we access a page with ECC enabled, the reserved bytes(s) are not
+ * When we access a page with ECC enabled, the reserved bytes(s) are yest
  * accessible at all. When reading, we fill up these unreadable positions
  * with 0xffs. When writing, the controller skips writing the inaccessible
  * bytes.
@@ -2380,7 +2380,7 @@ static void qcom_nandc_select_chip(struct nand_chip *chip, int chipnr)
  * size1/size2 = function of codeword size and 'n'
  *
  * when the ECC block is disabled, one reserved byte (or two for 16 bit bus
- * width) is now accessible. For the first n - 1 codewords, these are dummy Bad
+ * width) is yesw accessible. For the first n - 1 codewords, these are dummy Bad
  * Block Markers. In the last codeword, this position contains the real BBM
  *
  * In order to have a consistent layout between RAW and ECC modes, we assume
@@ -2403,7 +2403,7 @@ static void qcom_nandc_select_chip(struct nand_chip *chip, int chipnr)
  * b = Real bad block byte(s) (inaccessible when ECC enabled)
  *
  * This layout is read as is when ECC is disabled. When ECC is enabled, the
- * inaccessible Bad Block byte(s) are ignored when we write to a page/oob,
+ * inaccessible Bad Block byte(s) are igyesred when we write to a page/oob,
  * and assumed as 0xffs when we read a page/oob. The ECC, unused and
  * dummy/real bad block bytes are grouped as ecc bytes (i.e, ecc->bytes is
  * the sum of the three).
@@ -2534,7 +2534,7 @@ static int qcom_nand_attach_chip(struct nand_chip *chip)
 	}
 
 	/*
-	 * we consider ecc->bytes as the sum of all the non-data content in a
+	 * we consider ecc->bytes as the sum of all the yesn-data content in a
 	 * step. It gives us a clean representation of the oob area (even if
 	 * all the bytes aren't used for ECC).It is always 16 bytes for 8 bit
 	 * ECC and 12 bytes for 4 bit ECC
@@ -2772,7 +2772,7 @@ static int qcom_nandc_setup(struct qcom_nand_controller *nandc)
 
 static int qcom_nand_host_init_and_register(struct qcom_nand_controller *nandc,
 					    struct qcom_nand_host *host,
-					    struct device_node *dn)
+					    struct device_yesde *dn)
 {
 	struct nand_chip *chip = &host->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
@@ -2785,7 +2785,7 @@ static int qcom_nand_host_init_and_register(struct qcom_nand_controller *nandc,
 		return -ENXIO;
 	}
 
-	nand_set_flash_node(chip, dn);
+	nand_set_flash_yesde(chip, dn);
 	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "qcom_nand.%d", host->cs);
 	if (!mtd->name)
 		return -ENOMEM;
@@ -2798,8 +2798,8 @@ static int qcom_nand_host_init_and_register(struct qcom_nand_controller *nandc,
 	chip->legacy.read_byte	= qcom_nandc_read_byte;
 	chip->legacy.read_buf	= qcom_nandc_read_buf;
 	chip->legacy.write_buf	= qcom_nandc_write_buf;
-	chip->legacy.set_features	= nand_get_set_features_notsupp;
-	chip->legacy.get_features	= nand_get_set_features_notsupp;
+	chip->legacy.set_features	= nand_get_set_features_yestsupp;
+	chip->legacy.get_features	= nand_get_set_features_yestsupp;
 
 	/*
 	 * the bad block marker is readable only when we read the last codeword
@@ -2843,14 +2843,14 @@ static int qcom_nand_host_init_and_register(struct qcom_nand_controller *nandc,
 static int qcom_probe_nand_devices(struct qcom_nand_controller *nandc)
 {
 	struct device *dev = nandc->dev;
-	struct device_node *dn = dev->of_node, *child;
+	struct device_yesde *dn = dev->of_yesde, *child;
 	struct qcom_nand_host *host;
 	int ret;
 
-	for_each_available_child_of_node(dn, child) {
+	for_each_available_child_of_yesde(dn, child) {
 		host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 		if (!host) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return -ENOMEM;
 		}
 
@@ -2860,7 +2860,7 @@ static int qcom_probe_nand_devices(struct qcom_nand_controller *nandc)
 			continue;
 		}
 
-		list_add_tail(&host->node, &nandc->host_list);
+		list_add_tail(&host->yesde, &nandc->host_list);
 	}
 
 	if (list_empty(&nandc->host_list))
@@ -2873,7 +2873,7 @@ static int qcom_probe_nand_devices(struct qcom_nand_controller *nandc)
 static int qcom_nandc_parse_dt(struct platform_device *pdev)
 {
 	struct qcom_nand_controller *nandc = platform_get_drvdata(pdev);
-	struct device_node *np = nandc->dev->of_node;
+	struct device_yesde *np = nandc->dev->of_yesde;
 	int ret;
 
 	if (!nandc->props->is_bam) {
@@ -2983,7 +2983,7 @@ static int qcom_nandc_remove(struct platform_device *pdev)
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct qcom_nand_host *host;
 
-	list_for_each_entry(host, &nandc->host_list, node)
+	list_for_each_entry(host, &nandc->host_list, yesde)
 		nand_release(&host->chip);
 
 

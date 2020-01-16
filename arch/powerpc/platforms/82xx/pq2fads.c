@@ -30,14 +30,14 @@
 
 static void __init pq2fads_pic_init(void)
 {
-	struct device_node *np = of_find_compatible_node(NULL, NULL, "fsl,cpm2-pic");
+	struct device_yesde *np = of_find_compatible_yesde(NULL, NULL, "fsl,cpm2-pic");
 	if (!np) {
-		printk(KERN_ERR "PIC init: can not find fsl,cpm2-pic node\n");
+		printk(KERN_ERR "PIC init: can yest find fsl,cpm2-pic yesde\n");
 		return;
 	}
 
 	cpm2_pic_init(np);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	/* Initialize stuff for the 82xx CPLD IC and install demux  */
 	pq2ads_pci_init_irq();
@@ -114,7 +114,7 @@ static void __init init_ioports(void)
 
 static void __init pq2fads_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	__be32 __iomem *bcsr;
 
 	if (ppc_md.progress)
@@ -122,16 +122,16 @@ static void __init pq2fads_setup_arch(void)
 
 	cpm2_reset();
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,pq2fads-bcsr");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,pq2fads-bcsr");
 	if (!np) {
 		printk(KERN_ERR "No fsl,pq2fads-bcsr in device tree\n");
 		return;
 	}
 
 	bcsr = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!bcsr) {
-		printk(KERN_ERR "Cannot map BCSR registers\n");
+		printk(KERN_ERR "Canyest map BCSR registers\n");
 		return;
 	}
 

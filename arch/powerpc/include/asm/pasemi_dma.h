@@ -18,7 +18,7 @@ struct pasdma_status {
 
 
 /* All these registers live in the PCI configuration space for the DMA PCI
- * device. Use the normal PCI config access functions for them.
+ * device. Use the yesrmal PCI config access functions for them.
  */
 enum {
 	PAS_DMA_CAP_TXCH  = 0x44,	/* Transmit Channel Info      */
@@ -456,7 +456,7 @@ enum {
 
 /* Prototypes for the shared DMA functions in the platform code. */
 
-/* DMA TX Channel type. Right now only limitations used are event types 0/1,
+/* DMA TX Channel type. Right yesw only limitations used are event types 0/1,
  * for event-triggered DMA transactions.
  */
 
@@ -468,7 +468,7 @@ enum pasemi_dmachan_type {
 };
 
 struct pasemi_dmachan {
-	int		 chno;		/* Channel number */
+	int		 chyes;		/* Channel number */
 	enum pasemi_dmachan_type chan_type;	/* TX / RX */
 	u64		*status;	/* Ptr to cacheable status */
 	int		 irq;		/* IRQ used by channel */

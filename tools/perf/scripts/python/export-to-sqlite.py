@@ -65,12 +65,12 @@ import datetime
 # exported-sql-viewer.py.  Refer to that script for details.
 #
 # The database structure is practically the same as created by the script
-# export-to-postgresql.py. Refer to that script for details.  A notable
+# export-to-postgresql.py. Refer to that script for details.  A yestable
 # difference is  the 'transaction' column of the 'samples' table which is
 # renamed 'transaction_' in sqlite because 'transaction' is a reserved word.
 
 pyside_version_1 = True
-if not "pyside-version-1" in sys.argv:
+if yest "pyside-version-1" in sys.argv:
 	try:
 		from PySide2.QtSql import *
 		pyside_version_1 = False
@@ -83,7 +83,7 @@ if pyside_version_1:
 sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 	'/scripts/python/Perf-Trace-Util/lib/Perf/Trace')
 
-# These perf imports are not used at present
+# These perf imports are yest used at present
 #from perf_trace_context import *
 #from Core import *
 
@@ -115,7 +115,7 @@ if (len(sys.argv) >= 3):
 else:
 	columns = "all"
 
-if columns not in ("all", "branches"):
+if columns yest in ("all", "branches"):
 	usage()
 
 branches = (columns == "branches")
@@ -336,7 +336,7 @@ do_query(query, 'CREATE VIEW machines_view AS '
 		'id,'
 		'pid,'
 		'root_dir,'
-		'CASE WHEN id=0 THEN \'unknown\' WHEN pid=-1 THEN \'host\' ELSE \'guest\' END AS host_or_guest'
+		'CASE WHEN id=0 THEN \'unkyeswn\' WHEN pid=-1 THEN \'host\' ELSE \'guest\' END AS host_or_guest'
 	' FROM machines')
 
 do_query(query, 'CREATE VIEW dsos_view AS '
@@ -416,7 +416,7 @@ if perf_db_export_calls:
 			'CASE WHEN cyc_count=0 THEN CAST(0 AS FLOAT) ELSE ROUND(CAST(insn_count AS FLOAT) / cyc_count, 2) END AS IPC,'
 			'call_id,'
 			'return_id,'
-			'CASE WHEN flags=0 THEN \'\' WHEN flags=1 THEN \'no call\' WHEN flags=2 THEN \'no return\' WHEN flags=3 THEN \'no call/return\' WHEN flags=6 THEN \'jump\' ELSE flags END AS flags,'
+			'CASE WHEN flags=0 THEN \'\' WHEN flags=1 THEN \'yes call\' WHEN flags=2 THEN \'yes return\' WHEN flags=3 THEN \'yes call/return\' WHEN flags=6 THEN \'jump\' ELSE flags END AS flags,'
 			'parent_call_path_id,'
 			'calls.parent_id'
 		' FROM calls INNER JOIN call_paths ON call_paths.id = call_path_id')
@@ -611,13 +611,13 @@ context_switch_query.prepare("INSERT INTO context_switches VALUES (?, ?, ?, ?, ?
 def trace_begin():
 	printdate("Writing records...")
 	do_query(query, 'BEGIN TRANSACTION')
-	# id == 0 means unknown.  It is easier to create records for them than replace the zeroes with NULLs
-	evsel_table(0, "unknown")
-	machine_table(0, 0, "unknown")
+	# id == 0 means unkyeswn.  It is easier to create records for them than replace the zeroes with NULLs
+	evsel_table(0, "unkyeswn")
+	machine_table(0, 0, "unkyeswn")
 	thread_table(0, 0, 0, -1, -1)
-	comm_table(0, "unknown", 0, 0, 0)
-	dso_table(0, 0, "unknown", "unknown", "")
-	symbol_table(0, 0, 0, 0, 0, "unknown")
+	comm_table(0, "unkyeswn", 0, 0, 0)
+	dso_table(0, 0, "unkyeswn", "unkyeswn", "")
+	symbol_table(0, 0, 0, 0, 0, "unkyeswn")
 	sample_table(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	if perf_db_export_calls or perf_db_export_callchains:
 		call_path_table(0, 0, 0, 0)

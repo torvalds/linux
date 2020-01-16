@@ -37,7 +37,7 @@ bool cxllib_slot_is_supported(struct pci_dev *dev, unsigned long flags)
 	if (cxl_slot_is_switched(dev))
 		return false;
 
-	/* on p9, some pci slots are not connected to a CAPP unit */
+	/* on p9, some pci slots are yest connected to a CAPP unit */
 	rc = cxl_calc_capp_routing(dev, &chip_id, &phb_index, &capp_unit_id);
 	if (rc)
 		return false;
@@ -121,9 +121,9 @@ int cxllib_switch_phb_mode(struct pci_dev *dev, enum cxllib_mode mode,
 		 * We currently don't support going back to PCI mode
 		 * However, we'll turn the invalidations off, so that
 		 * the firmware doesn't have to ack them and can do
-		 * things like reset, etc.. with no worries.
+		 * things like reset, etc.. with yes worries.
 		 * So always return EPERM (can't go back to PCI) or
-		 * EBUSY if we couldn't even turn off snooping
+		 * EBUSY if we couldn't even turn off syesoping
 		 */
 		rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_SNOOP_OFF);
 		if (rc)
@@ -152,7 +152,7 @@ EXPORT_SYMBOL_GPL(cxllib_switch_phb_mode);
  * the Partitionable Endpoint is set in bypass mode, like
  * in PCI mode.
  * Configure the device dma to use TVT#1, which is done
- * by calling dma_set_mask() with a mask large enough.
+ * by calling dma_set_mask() with a mask large eyesugh.
  */
 int cxllib_set_device_dma(struct pci_dev *dev, unsigned long flags)
 {
@@ -254,8 +254,8 @@ int cxllib_handle_fault(struct mm_struct *mm, u64 addr, u64 size, u64 flags)
 			 * It means the VMAs can be altered between 2
 			 * loop iterations and we could theoretically
 			 * miss a page (however unlikely). But that's
-			 * not really a problem, as the driver will
-			 * retry access, get another page fault on the
+			 * yest really a problem, as the driver will
+			 * retry access, get ayesther page fault on the
 			 * missing page and call us again.
 			 */
 			rc = get_vma_info(mm, dar, &vma_start, &vma_end,

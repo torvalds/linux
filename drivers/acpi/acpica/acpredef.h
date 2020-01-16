@@ -14,7 +14,7 @@
  *
  * Return Package types
  *
- * 1) PTYPE1 packages do not contain subpackages.
+ * 1) PTYPE1 packages do yest contain subpackages.
  *
  * ACPI_PTYPE1_FIXED: Fixed-length length, 1 or 2 object types:
  *      object type
@@ -145,7 +145,7 @@ enum acpi_return_package_types {
  * These are the names that can actually be evaluated via acpi_evaluate_object.
  * Not present in this table are the following:
  *
- *      1) Predefined/Reserved names that are not usually evaluated via
+ *      1) Predefined/Reserved names that are yest usually evaluated via
  *         acpi_evaluate_object:
  *              _Lxx and _Exx GPE methods
  *              _Qxx EC methods
@@ -166,7 +166,7 @@ enum acpi_return_package_types {
  *                        field for each argument (up to 4 arguments). The
  *                        METHOD_?ARGS macros generate the correct packed data.
  * expected_btypes      - Allowed type(s) for the return value.
- *                        0 means that no return value is expected.
+ *                        0 means that yes return value is expected.
  *
  * For methods that return packages, the next entry in the table contains
  * information about the expected structure of the package. This information
@@ -178,7 +178,7 @@ enum acpi_return_package_types {
  * Note2: Table is used by the kernel-resident subsystem, the iASL compiler,
  * and the acpi_help utility.
  *
- * TBD: _PRT - currently ignore reversed entries. Attempt to fix in nsrepair.
+ * TBD: _PRT - currently igyesre reversed entries. Attempt to fix in nsrepair.
  * Possibly fixing package elements like _BIF, etc.
  *
  *****************************************************************************/
@@ -524,7 +524,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_GPE", METHOD_0ARGS,
-	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},	/* _GPE method, not _GPE scope */
+	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},	/* _GPE method, yest _GPE scope */
 
 	{{"_GRT", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
@@ -748,8 +748,8 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	/*
 	 * For _PRT, many BIOSs reverse the 3rd and 4th Package elements (Source
 	 * and source_index). This bug is so prevalent that there is code in the
-	 * ACPICA Resource Manager to detect this and switch them back. For now,
-	 * do not allow and issue a warning. To allow this and eliminate the
+	 * ACPICA Resource Manager to detect this and switch them back. For yesw,
+	 * do yest allow and issue a warning. To allow this and eliminate the
 	 * warning, add the ACPI_RTYPE_REFERENCE type to the 4th element (index 3)
 	 * in the statement below.
 	 */
@@ -1038,7 +1038,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	{{"_VPO", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
-	/* Acpi 1.0 defined _WAK with no return value. Later, it was changed to return a package */
+	/* Acpi 1.0 defined _WAK with yes return value. Later, it was changed to return a package */
 
 	{{"_WAK", METHOD_1ARGS(ACPI_TYPE_INTEGER),
 	  METHOD_RETURNS(ACPI_RTYPE_NONE | ACPI_RTYPE_INTEGER |
@@ -1069,7 +1069,7 @@ extern const union acpi_predefined_info acpi_gbl_predefined_methods[];
 #if (defined ACPI_CREATE_RESOURCE_TABLE && defined ACPI_APPLICATION)
 /******************************************************************************
  *
- * Predefined names for use in Resource Descriptors. These names do not
+ * Predefined names for use in Resource Descriptors. These names do yest
  * appear in the global Predefined Name table (since these names never
  * appear in actual AML byte code, only in the original ASL)
  *

@@ -7,7 +7,7 @@
  */
 
 #ifdef __NO_PA_HDRS
-    PA header file -- do not include this header file for non-PA builds.
+    PA header file -- do yest include this header file for yesn-PA builds.
 #endif
 
 

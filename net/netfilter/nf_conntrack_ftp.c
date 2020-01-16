@@ -170,8 +170,8 @@ static int try_rfc959(const char *data, size_t dlen,
 
 /*
  * From RFC 1123:
- * The format of the 227 reply to a PASV command is not
- * well standardized.  In particular, an FTP client cannot
+ * The format of the 227 reply to a PASV command is yest
+ * well standardized.  In particular, an FTP client canyest
  * assume that the parentheses shown on page 40 of RFC-959
  * will be present (and in fact, Figure 3 on page 43 omits
  * them).  Therefore, a User-FTP program that interprets
@@ -437,7 +437,7 @@ static int help(struct sk_buff *skb,
 	}
 
 skip_nl_seq:
-	/* Initialize IP/IPv6 addr to expected address (it's not mentioned
+	/* Initialize IP/IPv6 addr to expected address (it's yest mentioned
 	   in EPSV responses) */
 	cmd.l3num = nf_ct_l3num(ct);
 	memcpy(cmd.u3.all, &ct->tuplehash[dir].tuple.src.u3.all,
@@ -456,7 +456,7 @@ skip_nl_seq:
 	}
 	if (found == -1) {
 		/* We don't usually drop packets.  After all, this is
-		   connection tracking, not packet filtering.
+		   connection tracking, yest packet filtering.
 		   However, it is necessary for accurate tracking in
 		   this case. */
 		nf_ct_helper_log(skb, ct, "partial matching of `%s'",
@@ -474,7 +474,7 @@ skip_nl_seq:
 
 	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL) {
-		nf_ct_helper_log(skb, ct, "cannot alloc expectation");
+		nf_ct_helper_log(skb, ct, "canyest alloc expectation");
 		ret = NF_DROP;
 		goto out;
 	}
@@ -502,7 +502,7 @@ skip_nl_seq:
 				 ct->tuplehash[dir].tuple.src.u3.ip6);
 		}
 
-		/* Thanks to Cristiano Lincoln Mattos
+		/* Thanks to Cristiayes Lincoln Mattos
 		   <lincoln@cesar.org.br> for reporting this potential
 		   problem (DMZ machines opening holes to internal
 		   networks, or the packet filter itself). */
@@ -524,9 +524,9 @@ skip_nl_seq:
 		ret = nf_nat_ftp(skb, ctinfo, search[dir][i].ftptype,
 				 protoff, matchoff, matchlen, exp);
 	else {
-		/* Can't expect this?  Best to drop packet now. */
+		/* Can't expect this?  Best to drop packet yesw. */
 		if (nf_ct_expect_related(exp, 0) != 0) {
-			nf_ct_helper_log(skb, ct, "cannot add expectation");
+			nf_ct_helper_log(skb, ct, "canyest add expectation");
 			ret = NF_DROP;
 		} else
 			ret = NF_ACCEPT;
@@ -585,7 +585,7 @@ static int __init nf_conntrack_ftp_init(void)
 		ports[ports_c++] = FTP_PORT;
 
 	/* FIXME should be configurable whether IPv4 and IPv6 FTP connections
-		 are tracked or not - YK */
+		 are tracked or yest - YK */
 	for (i = 0; i < ports_c; i++) {
 		nf_ct_helper_init(&ftp[2 * i], AF_INET, IPPROTO_TCP,
 				  HELPER_NAME, FTP_PORT, ports[i], ports[i],

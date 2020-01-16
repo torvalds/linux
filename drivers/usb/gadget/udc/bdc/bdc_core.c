@@ -28,7 +28,7 @@
 #include "bdc.h"
 #include "bdc_dbg.h"
 
-/* Poll till controller status is not OIP */
+/* Poll till controller status is yest OIP */
 static int poll_oip(struct bdc *bdc, int usec)
 {
 	u32 status;
@@ -104,7 +104,7 @@ int bdc_run(struct bdc *bdc)
 
 	dev_dbg(bdc->dev, "%s ()\n", __func__);
 	temp = bdc_readl(bdc->regs, BDC_BDCSC);
-	/* if BDC is already in running state then do not do anything */
+	/* if BDC is already in running state then do yest do anything */
 	if (BDC_CSTS(temp) == BDC_NOR) {
 		dev_warn(bdc->dev, "bdc is already in running state\n");
 		return 0;
@@ -120,7 +120,7 @@ int bdc_run(struct bdc *bdc)
 	}
 	temp = bdc_readl(bdc->regs, BDC_BDCSC);
 	if (BDC_CSTS(temp) != BDC_NOR) {
-		dev_err(bdc->dev, "bdc not in normal mode after RUN op :%d\n",
+		dev_err(bdc->dev, "bdc yest in yesrmal mode after RUN op :%d\n",
 								BDC_CSTS(temp));
 		return -ESHUTDOWN;
 	}
@@ -166,7 +166,7 @@ static int scratchpad_setup(struct bdc *bdc)
 	sp_buff_size = BDC_SPB(bdc_readl(bdc->regs, BDC_BDCCFG0));
 	dev_dbg(bdc->dev, "%s() sp_buff_size=%d\n", __func__, sp_buff_size);
 	if (!sp_buff_size) {
-		dev_dbg(bdc->dev, "Scratchpad buffer not needed\n");
+		dev_dbg(bdc->dev, "Scratchpad buffer yest needed\n");
 		return 0;
 	}
 	/* Refer to BDC spec, Table 4 for description of SPB */
@@ -491,13 +491,13 @@ static int bdc_probe(struct platform_device *pdev)
 
 	clk = devm_clk_get(dev, "sw_usbd");
 	if (IS_ERR(clk)) {
-		dev_info(dev, "Clock not found in Device Tree\n");
+		dev_info(dev, "Clock yest found in Device Tree\n");
 		clk = NULL;
 	}
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {
-		dev_err(dev, "could not enable clock\n");
+		dev_err(dev, "could yest enable clock\n");
 		return ret;
 	}
 
@@ -521,7 +521,7 @@ static int bdc_probe(struct platform_device *pdev)
 	bdc->dev = dev;
 	dev_dbg(dev, "bdc->regs: %p irq=%d\n", bdc->regs, bdc->irq);
 
-	bdc->num_phys = of_count_phandle_with_args(dev->of_node,
+	bdc->num_phys = of_count_phandle_with_args(dev->of_yesde,
 						"phys", "#phy-cells");
 	if (bdc->num_phys > 0) {
 		bdc->phys = devm_kcalloc(dev, bdc->num_phys,
@@ -535,11 +535,11 @@ static int bdc_probe(struct platform_device *pdev)
 
 	for (phy_num = 0; phy_num < bdc->num_phys; phy_num++) {
 		bdc->phys[phy_num] = devm_of_phy_get_by_index(
-			dev, dev->of_node, phy_num);
+			dev, dev->of_yesde, phy_num);
 		if (IS_ERR(bdc->phys[phy_num])) {
 			ret = PTR_ERR(bdc->phys[phy_num]);
 			dev_err(bdc->dev,
-				"BDC phy specified but not found:%d\n", ret);
+				"BDC phy specified but yest found:%d\n", ret);
 			return ret;
 		}
 	}

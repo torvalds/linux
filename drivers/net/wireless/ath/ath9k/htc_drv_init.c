@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -26,9 +26,9 @@ static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
 module_param_named(debug, ath9k_debug, uint, 0);
 MODULE_PARM_DESC(debug, "Debugging mask");
 
-int htc_modparam_nohwcrypt;
-module_param_named(nohwcrypt, htc_modparam_nohwcrypt, int, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
+int htc_modparam_yeshwcrypt;
+module_param_named(yeshwcrypt, htc_modparam_yeshwcrypt, int, 0444);
+MODULE_PARM_DESC(yeshwcrypt, "Disable hardware encryption");
 
 static int ath9k_htc_btcoex_enable;
 module_param_named(btcoex_enable, ath9k_htc_btcoex_enable, int, 0444);
@@ -221,13 +221,13 @@ err:
 	return ret;
 }
 
-static void ath9k_reg_notifier(struct wiphy *wiphy,
+static void ath9k_reg_yestifier(struct wiphy *wiphy,
 			       struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath9k_htc_priv *priv = hw->priv;
 
-	ath_reg_notifier_apply(wiphy, request,
+	ath_reg_yestifier_apply(wiphy, request,
 			       ath9k_hw_regulatory(priv->ah));
 }
 
@@ -795,28 +795,28 @@ static int ath9k_init_firmware_version(struct ath9k_htc_priv *priv)
 		return -EINVAL;
 
 	priv->fw_version_major = be16_to_cpu(cmd_rsp.major);
-	priv->fw_version_minor = be16_to_cpu(cmd_rsp.minor);
+	priv->fw_version_miyesr = be16_to_cpu(cmd_rsp.miyesr);
 
 	snprintf(hw->wiphy->fw_version, sizeof(hw->wiphy->fw_version), "%d.%d",
 		 priv->fw_version_major,
-		 priv->fw_version_minor);
+		 priv->fw_version_miyesr);
 
 	dev_info(priv->dev, "ath9k_htc: FW Version: %d.%d\n",
 		 priv->fw_version_major,
-		 priv->fw_version_minor);
+		 priv->fw_version_miyesr);
 
 	/*
 	 * Check if the available FW matches the driver's
 	 * required version.
 	 */
 	if (priv->fw_version_major != MAJOR_VERSION_REQ ||
-	    priv->fw_version_minor < MINOR_VERSION_REQ) {
+	    priv->fw_version_miyesr < MINOR_VERSION_REQ) {
 		dev_err(priv->dev, "ath9k_htc: Please upgrade to FW version %d.%d\n",
 			MAJOR_VERSION_REQ, MINOR_VERSION_REQ);
 		return -EINVAL;
 	}
 
-	if (priv->fw_version_major == 1 && priv->fw_version_minor < 4)
+	if (priv->fw_version_major == 1 && priv->fw_version_miyesr < 4)
 		set_bit(HTC_FWFLAG_NO_RMW, &priv->fw_flags);
 
 	dev_info(priv->dev, "FW RMW support: %s\n",
@@ -850,7 +850,7 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 
 	/* Initialize regulatory */
 	error = ath_regd_init(&common->regulatory, priv->hw->wiphy,
-			      ath9k_reg_notifier);
+			      ath9k_reg_yestifier);
 	if (error)
 		goto err_regd;
 
@@ -1014,7 +1014,7 @@ int ath9k_htc_resume(struct htc_target *htc_handle)
 static int __init ath9k_htc_init(void)
 {
 	if (ath9k_hif_usb_init() < 0) {
-		pr_err("No USB devices found, driver not installed\n");
+		pr_err("No USB devices found, driver yest installed\n");
 		return -ENODEV;
 	}
 

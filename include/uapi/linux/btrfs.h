@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
  *
@@ -12,7 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
+ * License along with this program; if yest, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 021110-1307, USA.
  */
@@ -136,19 +136,19 @@ struct btrfs_scrub_progress {
 	__u64 read_errors;		/* # of read errors encountered (EIO) */
 	__u64 csum_errors;		/* # of failed csum checks */
 	__u64 verify_errors;		/* # of occurences, where the metadata
-					 * of a tree block did not match the
+					 * of a tree block did yest match the
 					 * expected values, like generation or
 					 * logical */
-	__u64 no_csum;			/* # of 4k data block for which no csum
+	__u64 yes_csum;			/* # of 4k data block for which yes csum
 					 * is present, probably the result of
-					 * data written with nodatasum */
-	__u64 csum_discards;		/* # of csum for which no data was found
+					 * data written with yesdatasum */
+	__u64 csum_discards;		/* # of csum for which yes data was found
 					 * in the extent tree. */
 	__u64 super_errors;		/* # of bad super blocks encountered */
 	__u64 malloc_errors;		/* # of internal kmalloc errors. These
 					 * will likely cause an incomplete
 					 * scrub */
-	__u64 uncorrectable_errors;	/* # of errors where either no intact
+	__u64 uncorrectable_errors;	/* # of errors where either yes intact
 					 * copy was found or the writeback
 					 * failed */
 	__u64 corrected_errors;		/* # of errors corrected */
@@ -228,7 +228,7 @@ struct btrfs_ioctl_fs_info_args {
 	__u64 max_id;				/* out */
 	__u64 num_devices;			/* out */
 	__u8 fsid[BTRFS_FSID_SIZE];		/* out */
-	__u32 nodesize;				/* out */
+	__u32 yesdesize;				/* out */
 	__u32 sectorsize;			/* out */
 	__u32 clone_alignment;			/* out */
 	__u32 reserved32;
@@ -245,10 +245,10 @@ struct btrfs_ioctl_fs_info_args {
 /*
  * Older kernels (< 4.9) on big-endian systems produced broken free space tree
  * bitmaps, and btrfs-progs also used to corrupt the free space tree (versions
- * < 4.7.3).  If this bit is clear, then the free space tree cannot be trusted.
+ * < 4.7.3).  If this bit is clear, then the free space tree canyest be trusted.
  * btrfs-progs can also intentionally clear this bit to ask the kernel to
- * rebuild the free space tree, however this might not work on older kernels
- * that do not know about this bit. If not sure, clear the cache manually on
+ * rebuild the free space tree, however this might yest work on older kernels
+ * that do yest kyesw about this bit. If yest sure, clear the cache manually on
  * first mount when booting older kernel versions.
  */
 #define BTRFS_FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID	(1ULL << 1)
@@ -261,7 +261,7 @@ struct btrfs_ioctl_fs_info_args {
 
 /*
  * older kernels tried to do bigger metadata blocks, but the
- * code was pretty buggy.  Lets not let them try anymore.
+ * code was pretty buggy.  Lets yest let them try anymore.
  */
 #define BTRFS_FEATURE_INCOMPAT_BIG_METADATA	(1ULL << 5)
 
@@ -418,15 +418,15 @@ struct btrfs_ioctl_balance_args {
 };
 
 #define BTRFS_INO_LOOKUP_PATH_MAX 4080
-struct btrfs_ioctl_ino_lookup_args {
+struct btrfs_ioctl_iyes_lookup_args {
 	__u64 treeid;
 	__u64 objectid;
 	char name[BTRFS_INO_LOOKUP_PATH_MAX];
 };
 
 #define BTRFS_INO_LOOKUP_USER_PATH_MAX (4080 - BTRFS_VOL_NAME_MAX - 1)
-struct btrfs_ioctl_ino_lookup_user_args {
-	/* in, inode number containing the subvolume of 'subvolid' */
+struct btrfs_ioctl_iyes_lookup_user_args {
+	/* in, iyesde number containing the subvolume of 'subvolid' */
 	__u64 dirid;
 	/* in */
 	__u64 treeid;
@@ -446,7 +446,7 @@ struct btrfs_ioctl_search_key {
 	 * extent tree, etc...
 	 *
 	 * A special tree_id value of 0 will cause a search in the subvolume
-	 * tree that the inode which is passed to the ioctl is part of.
+	 * tree that the iyesde which is passed to the ioctl is part of.
 	 */
 	__u64 tree_id;		/* in */
 
@@ -464,9 +464,9 @@ struct btrfs_ioctl_search_key {
 	 *
 	 * Additionally, we can filter the items returned on transaction id of
 	 * the metadata block they're stored in by specifying a transid range.
-	 * Be aware that this transaction id only denotes when the metadata
+	 * Be aware that this transaction id only deyestes when the metadata
 	 * page that currently contains the item got written the last time as
-	 * result of a COW operation.  The number does not have any meaning
+	 * result of a COW operation.  The number does yest have any meaning
 	 * related to the transaction in which an individual item that is being
 	 * returned was created or changed.
 	 */
@@ -609,14 +609,14 @@ struct btrfs_ioctl_space_args {
 };
 
 struct btrfs_data_container {
-	__u32	bytes_left;	/* out -- bytes not needed to deliver output */
+	__u32	bytes_left;	/* out -- bytes yest needed to deliver output */
 	__u32	bytes_missing;	/* out -- additional bytes needed for result */
 	__u32	elem_cnt;	/* out */
 	__u32	elem_missed;	/* out */
 	__u64	val[0];		/* out */
 };
 
-struct btrfs_ioctl_ino_path_args {
+struct btrfs_ioctl_iyes_path_args {
 	__u64				inum;		/* in */
 	__u64				size;		/* in */
 	__u64				reserved[4];
@@ -624,15 +624,15 @@ struct btrfs_ioctl_ino_path_args {
 	__u64				fspath;		/* out */
 };
 
-struct btrfs_ioctl_logical_ino_args {
+struct btrfs_ioctl_logical_iyes_args {
 	__u64				logical;	/* in */
 	__u64				size;		/* in */
-	__u64				reserved[3];	/* must be 0 for now */
+	__u64				reserved[3];	/* must be 0 for yesw */
 	__u64				flags;		/* in, v2 only */
-	/* struct btrfs_data_container	*inodes;	out   */
-	__u64				inodes;
+	/* struct btrfs_data_container	*iyesdes;	out   */
+	__u64				iyesdes;
 };
-/* Return every ref to the extent, not just those containing logical block.
+/* Return every ref to the extent, yest just those containing logical block.
  * Requires logical == extent bytenr. */
 #define BTRFS_LOGICAL_INO_ARGS_IGNORE_OFFSET	(1ULL << 0)
 
@@ -649,7 +649,7 @@ enum btrfs_dev_stat_values {
 					 * during read or write, or written to
 					 * wrong location or read from wrong
 					 * location */
-	BTRFS_DEV_STAT_GENERATION_ERRS, /* an indication that blocks have not
+	BTRFS_DEV_STAT_GENERATION_ERRS, /* an indication that blocks have yest
 					 * been written */
 
 	BTRFS_DEV_STAT_VALUES_MAX
@@ -669,7 +669,7 @@ struct btrfs_ioctl_get_dev_stats {
 	/*
 	 * This pads the struct to 1032 bytes. It was originally meant to pad to
 	 * 1024 bytes, but when adding the flags field, the padding calculation
-	 * was not adjusted.
+	 * was yest adjusted.
 	 */
 	__u64 unused[128 - 2 - BTRFS_DEV_STAT_VALUES_MAX];
 };
@@ -721,7 +721,7 @@ struct btrfs_ioctl_received_subvol_args {
 #define BTRFS_SEND_FLAG_NO_FILE_DATA		0x1
 
 /*
- * Do not add the leading stream header. Used when multiple snapshots
+ * Do yest add the leading stream header. Used when multiple snapshots
  * are sent back to back.
  */
 #define BTRFS_SEND_FLAG_OMIT_STREAM_HEADER	0x2
@@ -766,7 +766,7 @@ struct btrfs_ioctl_get_subvol_info_args {
 	__u64 parent_id;
 
 	/*
-	 * Inode number of the directory which contains this subvolume.
+	 * Iyesde number of the directory which contains this subvolume.
 	 * Zero for top-level subvolume or a deleted subvolume
 	 */
 	__u64 dirid;
@@ -782,13 +782,13 @@ struct btrfs_ioctl_get_subvol_info_args {
 
 	/*
 	 * UUID of the subvolume of which this subvolume is a snapshot.
-	 * All zero for a non-snapshot subvolume.
+	 * All zero for a yesn-snapshot subvolume.
 	 */
 	__u8 parent_uuid[BTRFS_UUID_SIZE];
 
 	/*
 	 * UUID of the subvolume from which this subvolume was received.
-	 * All zero for non-received subvolume.
+	 * All zero for yesn-received subvolume.
 	 */
 	__u8 received_uuid[BTRFS_UUID_SIZE];
 
@@ -848,7 +848,7 @@ enum btrfs_err_code {
 #define BTRFS_IOC_FORGET_DEV _IOW(BTRFS_IOCTL_MAGIC, 5, \
 				   struct btrfs_ioctl_vol_args)
 /* trans start and trans end are dangerous, and only for
- * use by applications that know how to avoid the
+ * use by applications that kyesw how to avoid the
  * resulting deadlocks
  */
 #define BTRFS_IOC_TRANS_START  _IO(BTRFS_IOCTL_MAGIC, 6)
@@ -877,7 +877,7 @@ enum btrfs_err_code {
 #define BTRFS_IOC_TREE_SEARCH_V2 _IOWR(BTRFS_IOCTL_MAGIC, 17, \
 					   struct btrfs_ioctl_search_args_v2)
 #define BTRFS_IOC_INO_LOOKUP _IOWR(BTRFS_IOCTL_MAGIC, 18, \
-				   struct btrfs_ioctl_ino_lookup_args)
+				   struct btrfs_ioctl_iyes_lookup_args)
 #define BTRFS_IOC_DEFAULT_SUBVOL _IOW(BTRFS_IOCTL_MAGIC, 19, __u64)
 #define BTRFS_IOC_SPACE_INFO _IOWR(BTRFS_IOCTL_MAGIC, 20, \
 				    struct btrfs_ioctl_space_args)
@@ -904,9 +904,9 @@ enum btrfs_err_code {
 #define BTRFS_IOC_BALANCE_PROGRESS _IOR(BTRFS_IOCTL_MAGIC, 34, \
 					struct btrfs_ioctl_balance_args)
 #define BTRFS_IOC_INO_PATHS _IOWR(BTRFS_IOCTL_MAGIC, 35, \
-					struct btrfs_ioctl_ino_path_args)
+					struct btrfs_ioctl_iyes_path_args)
 #define BTRFS_IOC_LOGICAL_INO _IOWR(BTRFS_IOCTL_MAGIC, 36, \
-					struct btrfs_ioctl_logical_ino_args)
+					struct btrfs_ioctl_logical_iyes_args)
 #define BTRFS_IOC_SET_RECEIVED_SUBVOL _IOWR(BTRFS_IOCTL_MAGIC, 37, \
 				struct btrfs_ioctl_received_subvol_args)
 #define BTRFS_IOC_SEND _IOW(BTRFS_IOCTL_MAGIC, 38, struct btrfs_ioctl_send_args)
@@ -942,12 +942,12 @@ enum btrfs_err_code {
 #define BTRFS_IOC_RM_DEV_V2 _IOW(BTRFS_IOCTL_MAGIC, 58, \
 				   struct btrfs_ioctl_vol_args_v2)
 #define BTRFS_IOC_LOGICAL_INO_V2 _IOWR(BTRFS_IOCTL_MAGIC, 59, \
-					struct btrfs_ioctl_logical_ino_args)
+					struct btrfs_ioctl_logical_iyes_args)
 #define BTRFS_IOC_GET_SUBVOL_INFO _IOR(BTRFS_IOCTL_MAGIC, 60, \
 				struct btrfs_ioctl_get_subvol_info_args)
 #define BTRFS_IOC_GET_SUBVOL_ROOTREF _IOWR(BTRFS_IOCTL_MAGIC, 61, \
 				struct btrfs_ioctl_get_subvol_rootref_args)
 #define BTRFS_IOC_INO_LOOKUP_USER _IOWR(BTRFS_IOCTL_MAGIC, 62, \
-				struct btrfs_ioctl_ino_lookup_user_args)
+				struct btrfs_ioctl_iyes_lookup_user_args)
 
 #endif /* _UAPI_LINUX_BTRFS_H */

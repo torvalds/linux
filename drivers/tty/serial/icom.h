@@ -39,7 +39,7 @@ struct icom_regs {
 	u32 interrupt;		/* Adapter Interrupt Register   */
 	u32 int_mask;		/* Adapter Interrupt Mask Reg   */
 	u32 int_pri;		/* Adapter Interrupt Priority r */
-	u32 int_reg_b;		/* Adapter non-masked Interrupt */
+	u32 int_reg_b;		/* Adapter yesn-masked Interrupt */
 	u32 resvd01;
 	u32 resvd02;
 	u32 resvd03;
@@ -47,7 +47,7 @@ struct icom_regs {
 	u32 interrupt_2;	/* Adapter Interrupt Register 2 */
 	u32 int_mask_2;		/* Adapter Interrupt Mask 2     */
 	u32 int_pri_2;		/* Adapter Interrupt Prior 2    */
-	u32 int_reg_2b;		/* Adapter non-masked 2         */
+	u32 int_reg_2b;		/* Adapter yesn-masked 2         */
 };
 
 struct func_dram {
@@ -80,7 +80,7 @@ struct func_dram {
 	u8 dce_command;		/* 1E7     dce command reg    */
 	u8 dce_cmd_status;	/* 1E8     dce command stat   */
 	u8 x21_r1_ioff;		/* 1E9     dce ready counter  */
-	u8 x21_r0_ioff;		/* 1EA     dce not ready ctr  */
+	u8 x21_r0_ioff;		/* 1EA     dce yest ready ctr  */
 	u8 x21_ralt_ioff;	/* 1EB     dce CNR counter    */
 	u8 x21_r1_ion;		/* 1EC     dce ready I on ctr */
 	u8 rsvd_ier;		/* 1ED     Rsvd for IER (if ne */
@@ -201,7 +201,7 @@ struct statusArea {
 #define SA_FLAGS_PARITY_ERROR    0x0080
 #define SA_FLAGS_FRAME_ERROR     0x0001
 #define SA_FLAGS_FRAME_TRUNC     0x0002
-#define SA_FLAGS_BREAK_DET       0x0004	/* set conditionally by device driver, not hardware */
+#define SA_FLAGS_BREAK_DET       0x0004	/* set conditionally by device driver, yest hardware */
 #define SA_FLAGS_RCV_MASK        0xFFE6
 	} rcv[NUM_RBUFFS];
 };
@@ -220,7 +220,7 @@ struct icom_port {
 #define ICOM_IMBED_MODEM	3
 	unsigned char cable_id;
 	unsigned char read_status_mask;
-	unsigned char ignore_status_mask;
+	unsigned char igyesre_status_mask;
 	void __iomem * int_reg;
 	struct icom_regs __iomem *global_reg;
 	struct func_dram __iomem *dram;
@@ -237,7 +237,7 @@ struct icom_port {
 	int put_length;
 	int status;
 #define ICOM_PORT_ACTIVE	1	/* Port exists. */
-#define ICOM_PORT_OFF		0	/* Port does not exist. */
+#define ICOM_PORT_OFF		0	/* Port does yest exist. */
 	int load_in_progress;
 	struct icom_adapter *adapter;
 };

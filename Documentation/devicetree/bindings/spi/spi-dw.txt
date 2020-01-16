@@ -1,4 +1,4 @@
-Synopsys DesignWare SPI master
+Syyespsys DesignWare SPI master
 
 Required properties:
 - compatible: should be "snps,designware-spi"

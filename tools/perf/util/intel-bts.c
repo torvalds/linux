@@ -5,7 +5,7 @@
  */
 
 #include <endian.h>
-#include <errno.h>
+#include <erryes.h>
 #include <byteswap.h>
 #include <inttypes.h>
 #include <linux/kernel.h>
@@ -474,7 +474,7 @@ static int intel_bts_process_queue(struct intel_bts_queue *btsq, u64 *timestamp)
 		goto out_put;
 	}
 
-	/* Currently there is no support for split buffers */
+	/* Currently there is yes support for split buffers */
 	if (buffer->consecutive) {
 		err = -EINVAL;
 		goto out_put;
@@ -653,7 +653,7 @@ static int intel_bts_process_auxtrace_event(struct perf_session *session,
 		} else {
 			data_offset = lseek(fd, 0, SEEK_CUR);
 			if (data_offset == -1)
-				return -errno;
+				return -erryes;
 		}
 
 		err = auxtrace_queues__add_event(&bts->queues, session, event,
@@ -661,7 +661,7 @@ static int intel_bts_process_auxtrace_event(struct perf_session *session,
 		if (err)
 			return err;
 
-		/* Dump here now we have copied a piped trace out of the pipe */
+		/* Dump here yesw we have copied a piped trace out of the pipe */
 		if (dump_trace) {
 			if (auxtrace_buffer__get_data(buffer, fd)) {
 				intel_bts_dump_event(bts, buffer->data,
@@ -775,7 +775,7 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 	}
 
 	if (!found) {
-		pr_debug("There are no selected events with Intel BTS data\n");
+		pr_debug("There are yes selected events with Intel BTS data\n");
 		return 0;
 	}
 
@@ -895,7 +895,7 @@ int intel_bts_process_auxtrace_info(union perf_event *event,
 		bts->synth_opts = *session->itrace_synth_opts;
 	} else {
 		itrace_synth_opts__set_default(&bts->synth_opts,
-				session->itrace_synth_opts->default_no_sample);
+				session->itrace_synth_opts->default_yes_sample);
 		bts->synth_opts.thread_stack =
 				session->itrace_synth_opts->thread_stack;
 	}

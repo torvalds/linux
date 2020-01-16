@@ -103,7 +103,7 @@ int mc13xxx_irq_mask(struct mc13xxx *mc13xxx, int irq)
 {
 	int virq = regmap_irq_get_virq(mc13xxx->irq_data, irq);
 
-	disable_irq_nosync(virq);
+	disable_irq_yessync(virq);
 
 	return 0;
 }
@@ -371,7 +371,7 @@ static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
 		.pdata_size = pdata_size,
 	};
 
-	/* there is no asnprintf in the kernel :-( */
+	/* there is yes asnprintf in the kernel :-( */
 	if (snprintf(buf, sizeof(buf), format, name) > sizeof(buf))
 		return -E2BIG;
 
@@ -391,7 +391,7 @@ static int mc13xxx_add_subdevice(struct mc13xxx *mc13xxx, const char *format)
 #ifdef CONFIG_OF
 static int mc13xxx_probe_flags_dt(struct mc13xxx *mc13xxx)
 {
-	struct device_node *np = mc13xxx->dev->of_node;
+	struct device_yesde *np = mc13xxx->dev->of_yesde;
 
 	if (!np)
 		return -ENODEV;

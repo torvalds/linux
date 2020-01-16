@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -129,14 +129,14 @@ bool mlxsw_core_res_query_enabled(const struct mlxsw_core *mlxsw_core)
 EXPORT_SYMBOL(mlxsw_core_res_query_enabled);
 
 bool
-mlxsw_core_fw_rev_minor_subminor_validate(const struct mlxsw_fw_rev *rev,
+mlxsw_core_fw_rev_miyesr_submiyesr_validate(const struct mlxsw_fw_rev *rev,
 					  const struct mlxsw_fw_rev *req_rev)
 {
-	return rev->minor > req_rev->minor ||
-	       (rev->minor == req_rev->minor &&
-		rev->subminor >= req_rev->subminor);
+	return rev->miyesr > req_rev->miyesr ||
+	       (rev->miyesr == req_rev->miyesr &&
+		rev->submiyesr >= req_rev->submiyesr);
 }
-EXPORT_SYMBOL(mlxsw_core_fw_rev_minor_subminor_validate);
+EXPORT_SYMBOL(mlxsw_core_fw_rev_miyesr_submiyesr_validate);
 
 struct mlxsw_rx_listener_item {
 	struct list_head list;
@@ -173,13 +173,13 @@ MLXSW_ITEM_BUF(emad, eth_hdr, smac, 0x06, 6);
 MLXSW_ITEM32(emad, eth_hdr, ethertype, 0x0C, 16, 16);
 
 /* emad_eth_hdr_mlx_proto
- * Mellanox protocol.
+ * Mellayesx protocol.
  * Must be set to 0x0.
  */
 MLXSW_ITEM32(emad, eth_hdr, mlx_proto, 0x0C, 8, 8);
 
 /* emad_eth_hdr_ver
- * Mellanox protocol version.
+ * Mellayesx protocol version.
  * Must be set to 0x0.
  */
 MLXSW_ITEM32(emad, eth_hdr, ver, 0x0C, 4, 4);
@@ -200,7 +200,7 @@ MLXSW_ITEM32(emad, op_tlv, len, 0x00, 16, 11);
  * Direct route bit. Setting to 1 indicates the EMAD is a direct route
  * EMAD. DR TLV must follow.
  *
- * Note: Currently not supported and must not be set.
+ * Note: Currently yest supported and must yest be set.
  */
 MLXSW_ITEM32(emad, op_tlv, dr, 0x00, 15, 1);
 
@@ -209,14 +209,14 @@ MLXSW_ITEM32(emad, op_tlv, dr, 0x00, 15, 1);
  * of EMAD request.
  * 0x0 - success
  * 0x1 - device is busy. Requester should retry
- * 0x2 - Mellanox protocol version not supported
- * 0x3 - unknown TLV
- * 0x4 - register not supported
- * 0x5 - operation class not supported
- * 0x6 - EMAD method not supported
+ * 0x2 - Mellayesx protocol version yest supported
+ * 0x3 - unkyeswn TLV
+ * 0x4 - register yest supported
+ * 0x5 - operation class yest supported
+ * 0x6 - EMAD method yest supported
  * 0x7 - bad parameter (e.g. port out of range)
- * 0x8 - resource not available
- * 0x9 - message receipt acknowledgment. Requester should retry
+ * 0x8 - resource yest available
+ * 0x9 - message receipt ackyeswledgment. Requester should retry
  * 0x70 - internal error
  */
 MLXSW_ITEM32(emad, op_tlv, status, 0x00, 8, 7);
@@ -235,7 +235,7 @@ MLXSW_ITEM32(emad, op_tlv, r, 0x04, 15, 1);
  * EMAD method type.
  * 0x1 - query
  * 0x2 - write
- * 0x3 - send (currently not supported)
+ * 0x3 - send (currently yest supported)
  * 0x4 - event
  */
 MLXSW_ITEM32(emad, op_tlv, method, 0x04, 8, 7);
@@ -1075,7 +1075,7 @@ mlxsw_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 	char fw_info_psid[MLXSW_REG_MGIR_FW_INFO_PSID_SIZE];
-	u32 hw_rev, fw_major, fw_minor, fw_sub_minor;
+	u32 hw_rev, fw_major, fw_miyesr, fw_sub_miyesr;
 	char mgir_pl[MLXSW_REG_MGIR_LEN];
 	char buf[32];
 	int err;
@@ -1090,7 +1090,7 @@ mlxsw_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	if (err)
 		return err;
 	mlxsw_reg_mgir_unpack(mgir_pl, &hw_rev, fw_info_psid, &fw_major,
-			      &fw_minor, &fw_sub_minor);
+			      &fw_miyesr, &fw_sub_miyesr);
 
 	sprintf(buf, "%X", hw_rev);
 	err = devlink_info_version_fixed_put(req, "hw.revision", buf);
@@ -1101,7 +1101,7 @@ mlxsw_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	if (err)
 		return err;
 
-	sprintf(buf, "%d.%d.%d", fw_major, fw_minor, fw_sub_minor);
+	sprintf(buf, "%d.%d.%d", fw_major, fw_miyesr, fw_sub_miyesr);
 	err = devlink_info_version_running_put(req, "fw.version", buf);
 	if (err)
 		return err;
@@ -1386,7 +1386,7 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 		devlink_reload_disable(devlink);
 	if (devlink_is_reload_failed(devlink)) {
 		if (!reload)
-			/* Only the parts that were not de-initialized in the
+			/* Only the parts that were yest de-initialized in the
 			 * failed reload attempt need to be de-initialized.
 			 */
 			goto reload_fail_deinit;
@@ -1572,7 +1572,7 @@ int mlxsw_core_event_listener_register(struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_rx_listener_register;
 
-	/* No reason to save item if we did not manage to register an RX
+	/* No reason to save item if we did yest manage to register an RX
 	 * listener for it.
 	 */
 	list_add_rcu(&el_item->list, &mlxsw_core->event_listener_list);
@@ -1874,7 +1874,7 @@ static int mlxsw_core_reg_access(struct mlxsw_core *mlxsw_core,
 	LIST_HEAD(bulk_list);
 	int err;
 
-	/* During initialization EMAD interface is not available to us,
+	/* During initialization EMAD interface is yest available to us,
 	 * so we default to command interface. We switch to EMAD interface
 	 * after setting the appropriate traps.
 	 */
@@ -1919,7 +1919,7 @@ void mlxsw_core_skb_receive(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 		dev_dbg_ratelimited(mlxsw_core->bus_info->dev, "%s: lag_id = %d, lag_port_index = 0x%x\n",
 				    __func__, rx_info->u.lag_id,
 				    rx_info->trap_id);
-		/* Upper layer does not care if the skb came from LAG or not,
+		/* Upper layer does yest care if the skb came from LAG or yest,
 		 * so just get the local_port for the lag port and push it up.
 		 */
 		local_port = mlxsw_core_lag_mapping_get(mlxsw_core,
@@ -2377,5 +2377,5 @@ module_init(mlxsw_core_module_init);
 module_exit(mlxsw_core_module_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox switch device core driver");
+MODULE_AUTHOR("Jiri Pirko <jiri@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx switch device core driver");

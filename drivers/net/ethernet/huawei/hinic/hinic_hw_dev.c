@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
@@ -404,7 +404,7 @@ static int wait_for_io_stopped(struct hinic_hwdev *hwdev)
 }
 
 /**
- * clear_io_resource - set the IO resources as not active in the NIC
+ * clear_io_resource - set the IO resources as yest active in the NIC
  * @hwdev: the NIC HW device
  *
  * Return 0 - Success, negative - Failure
@@ -424,7 +424,7 @@ static int clear_io_resources(struct hinic_hwdev *hwdev)
 
 	err = wait_for_io_stopped(hwdev);
 	if (err) {
-		dev_err(&pdev->dev, "IO has not stopped yet\n");
+		dev_err(&pdev->dev, "IO has yest stopped yet\n");
 		return err;
 	}
 
@@ -682,7 +682,7 @@ static void nic_mgmt_msg_handler(void *handle, u8 cmd, void *buf_in,
 
 	if ((cmd < HINIC_MGMT_MSG_CMD_BASE) ||
 	    (cmd >= HINIC_MGMT_MSG_CMD_MAX)) {
-		dev_err(&pdev->dev, "unknown L2NIC event, cmd = %d\n", cmd);
+		dev_err(&pdev->dev, "unkyeswn L2NIC event, cmd = %d\n", cmd);
 		return;
 	}
 

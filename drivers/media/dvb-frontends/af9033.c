@@ -621,7 +621,7 @@ static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	*status = 0;
 
-	/* Radio channel status: 0=no result, 1=has signal, 2=no signal */
+	/* Radio channel status: 0=yes result, 1=has signal, 2=yes signal */
 	ret = regmap_read(dev->regmap, 0x800047, &utmp);
 	if (ret)
 		goto err;
@@ -959,15 +959,15 @@ err:
 	return ret;
 }
 
-static int af9033_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+static int af9033_pid_filter_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
 	int ret;
 
-	dev_dbg(&client->dev, "onoff=%d\n", onoff);
+	dev_dbg(&client->dev, "oyesff=%d\n", oyesff);
 
-	ret = regmap_update_bits(dev->regmap, 0x80f993, 0x01, onoff);
+	ret = regmap_update_bits(dev->regmap, 0x80f993, 0x01, oyesff);
 	if (ret)
 		goto err;
 
@@ -978,15 +978,15 @@ err:
 }
 
 static int af9033_pid_filter(struct dvb_frontend *fe, int index, u16 pid,
-			     int onoff)
+			     int oyesff)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
 	int ret;
 	u8 wbuf[2] = {(pid >> 0) & 0xff, (pid >> 8) & 0xff};
 
-	dev_dbg(&client->dev, "index=%d pid=%04x onoff=%d\n",
-		index, pid, onoff);
+	dev_dbg(&client->dev, "index=%d pid=%04x oyesff=%d\n",
+		index, pid, oyesff);
 
 	if (pid > 0x1fff)
 		return 0;
@@ -994,7 +994,7 @@ static int af9033_pid_filter(struct dvb_frontend *fe, int index, u16 pid,
 	ret = regmap_bulk_write(dev->regmap, 0x80f996, wbuf, 2);
 	if (ret)
 		goto err;
-	ret = regmap_write(dev->regmap, 0x80f994, onoff);
+	ret = regmap_write(dev->regmap, 0x80f994, oyesff);
 	if (ret)
 		goto err;
 	ret = regmap_write(dev->regmap, 0x80f995, index);
@@ -1128,7 +1128,7 @@ static int af9033_probe(struct i2c_client *client,
 		 buf[4], buf[5], buf[6], buf[7]);
 
 	/* Sleep as chip seems to be partly active by default */
-	/* IT9135 did not like to sleep at that early */
+	/* IT9135 did yest like to sleep at that early */
 	if (dev->is_af9035) {
 		ret = regmap_write(dev->regmap, 0x80004c, 0x01);
 		if (ret)

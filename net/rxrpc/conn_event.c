@@ -44,7 +44,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	chan = &conn->channels[channel];
 
 	/* If the last call got moved on whilst we were waiting to run, just
-	 * ignore this packet.
+	 * igyesre this packet.
 	 */
 	call_id = READ_ONCE(chan->last_call);
 	/* Sync with __rxrpc_disconnect_call() */
@@ -176,7 +176,7 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 			if (rxrpc_set_call_completion(call, compl,
 						      conn->abort_code,
 						      conn->error))
-				rxrpc_notify_socket(call);
+				rxrpc_yestify_socket(call);
 		}
 	}
 
@@ -261,7 +261,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 }
 
 /*
- * mark a call as being on a now-secured channel
+ * mark a call as being on a yesw-secured channel
  * - must be called with BH's disabled.
  */
 static void rxrpc_call_is_secure(struct rxrpc_call *call)
@@ -271,7 +271,7 @@ static void rxrpc_call_is_secure(struct rxrpc_call *call)
 		write_lock_bh(&call->state_lock);
 		if (call->state == RXRPC_CALL_SERVER_SECURING) {
 			call->state = RXRPC_CALL_SERVER_ACCEPTING;
-			rxrpc_notify_socket(call);
+			rxrpc_yestify_socket(call);
 		}
 		write_unlock_bh(&call->state_lock);
 	}
@@ -304,7 +304,7 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		return 0;
 
 	case RXRPC_PACKET_TYPE_BUSY:
-		/* Just ignore BUSY packets for now. */
+		/* Just igyesre BUSY packets for yesw. */
 		return 0;
 
 	case RXRPC_PACKET_TYPE_ABORT:

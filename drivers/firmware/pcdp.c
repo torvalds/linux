@@ -56,7 +56,7 @@ setup_vga_console(struct pcdp_device *dev)
 	if (if_ptr[0] == PCDP_IF_PCI) {
 		struct pcdp_if_pci if_pci;
 
-		/* struct copy since ifptr might not be correctly aligned */
+		/* struct copy since ifptr might yest be correctly aligned */
 
 		memcpy(&if_pci, if_ptr, sizeof(if_pci));
 
@@ -68,7 +68,7 @@ setup_vga_console(struct pcdp_device *dev)
 	}
 
 	if (efi_mem_type(vga_console_membase + 0xA0000) == EFI_CONVENTIONAL_MEMORY) {
-		printk(KERN_ERR "PCDP: VGA selected, but frame buffer is not MMIO!\n");
+		printk(KERN_ERR "PCDP: VGA selected, but frame buffer is yest MMIO!\n");
 		return -ENODEV;
 	}
 
@@ -99,7 +99,7 @@ efi_setup_pcdp_console(char *cmdline)
 		if (pcdp->rev < 3)
 			serial = 1;
 	} else if (strstr(cmdline, "console=")) {
-		printk(KERN_INFO "Explicit \"console=\"; ignoring PCDP\n");
+		printk(KERN_INFO "Explicit \"console=\"; igyesring PCDP\n");
 		goto out;
 	}
 

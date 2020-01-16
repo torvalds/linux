@@ -261,7 +261,7 @@ static int amd8131_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	/*
-	 * we do not allocate extra private structure for
+	 * we do yest allocate extra private structure for
 	 * edac_pci_ctl_info, but make use of existing
 	 * one instead.
 	 */

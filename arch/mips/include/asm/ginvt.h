@@ -26,7 +26,7 @@ static __always_inline void ginvt(unsigned long addr, enum ginvt_type type)
 		_ASM_SET_GINV
 		"	ginvt	%0, %1\n"
 		".set	pop"
-		: /* no outputs */
+		: /* yes outputs */
 		: "r"(addr), "i"(type)
 		: "memory");
 }

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -33,7 +33,7 @@
 #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 
 #define SO_TYPE		0x1008	/* Compatible name for SO_STYLE.  */
-#define SO_STYLE	SO_TYPE /* Synonym */
+#define SO_STYLE	SO_TYPE /* Syyesnym */
 #define SO_ERROR	0x1007	/* get error status and clear */
 #define SO_SNDBUF	0x1001	/* Send buffer size. */
 #define SO_RCVBUF	0x1002	/* Receive buffer. */

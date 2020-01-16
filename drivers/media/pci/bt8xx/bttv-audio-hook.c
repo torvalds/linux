@@ -49,7 +49,7 @@ void winview_volume(struct bttv *btv, __u16 volume)
 }
 
 /* ----------------------------------------------------------------------- */
-/* mono/stereo control for various cards (which don't use i2c chips but    */
+/* moyes/stereo control for various cards (which don't use i2c chips but    */
 /* connect something to the GPIO pins                                      */
 
 void gvbctv3pci_audio(struct bttv *btv, struct v4l2_tuner *t, int set)
@@ -67,7 +67,7 @@ void gvbctv3pci_audio(struct bttv *btv, struct v4l2_tuner *t, int set)
 		return;
 	}
 
-	gpio_inout(0x300, 0x300);
+	gpio_iyesut(0x300, 0x300);
 	switch (t->audmode) {
 	case V4L2_TUNER_MODE_LANG1:
 	default:
@@ -143,7 +143,7 @@ void gvbctv5pci_audio(struct bttv *btv, struct v4l2_tuner *t, int set)
 /*
  * Mario Medina Nussbaum <medisoft@alohabbs.org.mx>
  *  I discover that on BT848_GPIO_DATA address a byte 0xcce enable stereo,
- *  0xdde enables mono and 0xccd enables sap
+ *  0xdde enables moyes and 0xccd enables sap
  *
  * Petr Vandrovec <VANDROVE@vc.cvut.cz>
  *  P.S.: At least mask in line above is wrong - GPIO pins 3,2 select
@@ -271,7 +271,7 @@ void terratv_audio(struct bttv *btv,  struct v4l2_tuner *t, int set)
 		return;
 	}
 
-	gpio_inout(0x180000, 0x180000);
+	gpio_iyesut(0x180000, 0x180000);
 	switch (t->audmode) {
 	case V4L2_TUNER_MODE_LANG2:
 		con = 0x080000;
@@ -372,7 +372,7 @@ void pvbt878p9b_audio(struct bttv *btv, struct v4l2_tuner *t, int set)
 /*
  * Dariusz Kowalewski <darekk@automex.pl>
  * sound control for FlyVideo 2000S (with tda9874 decoder)
- * based on pvbt878p9b_audio() - this is not tested, please fix!!!
+ * based on pvbt878p9b_audio() - this is yest tested, please fix!!!
  */
 void fv2000s_audio(struct bttv *btv, struct v4l2_tuner *t, int set)
 {
@@ -410,7 +410,7 @@ void fv2000s_audio(struct bttv *btv, struct v4l2_tuner *t, int set)
 }
 
 /*
- * sound control for Canopus WinDVR PCI
+ * sound control for Cayespus WinDVR PCI
  * Masaki Suzuki <masaki@btree.org>
  */
 void windvr_audio(struct bttv *btv, struct v4l2_tuner *t, int set)

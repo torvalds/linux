@@ -55,7 +55,7 @@ SYM_FUNC_START(startup_32)
 	cld
 	/*
 	 * Test KEEP_SEGMENTS flag to see if the bootloader is asking
-	 * us to not reload segments
+	 * us to yest reload segments
 	 */
 	testb $KEEP_SEGMENTS, BP_loadflags(%esi)
 	jnz 1f
@@ -87,7 +87,7 @@ SYM_FUNC_START(startup_32)
 
 	call	verify_cpu
 	testl	%eax, %eax
-	jnz	.Lno_longmode
+	jnz	.Lyes_longmode
 
 /*
  * Compute the delta between where we were compiled to run at
@@ -103,7 +103,7 @@ SYM_FUNC_START(startup_32)
 	movl	BP_kernel_alignment(%esi), %eax
 	decl	%eax
 	addl	%eax, %ebx
-	notl	%eax
+	yestl	%eax
 	andl	%eax, %ebx
 	cmpl	$LOAD_PHYSICAL_ADDR, %ebx
 	jge	1f
@@ -279,7 +279,7 @@ SYM_CODE_START(startup_64)
 	 * from load address aligned to 2MB addr, otherwise decompress and
 	 * run the kernel from LOAD_PHYSICAL_ADDR
 	 *
-	 * We cannot rely on the calculation done in 32-bit mode, since we
+	 * We canyest rely on the calculation done in 32-bit mode, since we
 	 * may have been invoked via the 64-bit entry point.
 	 */
 
@@ -289,7 +289,7 @@ SYM_CODE_START(startup_64)
 	movl	BP_kernel_alignment(%rsi), %eax
 	decl	%eax
 	addq	%rax, %rbp
-	notq	%rax
+	yestq	%rax
 	andq	%rax, %rbp
 	cmpq	$LOAD_PHYSICAL_ADDR, %rbp
 	jge	1f
@@ -309,8 +309,8 @@ SYM_CODE_START(startup_64)
 	 * paging_prepare() and cleanup_trampoline() below can have GOT
 	 * references. Adjust the table with address we are running at.
 	 *
-	 * Zero RAX for adjust_got: the GOT was not adjusted before;
-	 * there's no adjustment to undo.
+	 * Zero RAX for adjust_got: the GOT was yest adjusted before;
+	 * there's yes adjustment to undo.
 	 */
 	xorq	%rax, %rax
 
@@ -328,7 +328,7 @@ SYM_CODE_START(startup_64)
 	 * At this point we are in long mode with 4-level paging enabled,
 	 * but we might want to enable 5-level paging or vice versa.
 	 *
-	 * The problem is that we cannot do it directly. Setting or clearing
+	 * The problem is that we canyest do it directly. Setting or clearing
 	 * CR4.LA57 in long mode would trigger #GP. So we need to switch off
 	 * long mode and paging first.
 	 *
@@ -651,12 +651,12 @@ SYM_FUNC_END(.Lpaging_enabled)
 	.org	trampoline_32bit_src + TRAMPOLINE_32BIT_CODE_SIZE
 
 	.code32
-SYM_FUNC_START_LOCAL_NOALIGN(.Lno_longmode)
-	/* This isn't an x86-64 CPU, so hang intentionally, we cannot continue */
+SYM_FUNC_START_LOCAL_NOALIGN(.Lyes_longmode)
+	/* This isn't an x86-64 CPU, so hang intentionally, we canyest continue */
 1:
 	hlt
 	jmp     1b
-SYM_FUNC_END(.Lno_longmode)
+SYM_FUNC_END(.Lyes_longmode)
 
 #include "../../kernel/verify_cpu.S"
 
@@ -707,9 +707,9 @@ SYM_DATA_START_LOCAL(boot_stack)
 SYM_DATA_END_LABEL(boot_stack, SYM_L_LOCAL, boot_stack_end)
 
 /*
- * Space for page tables (not in .bss so not zeroed)
+ * Space for page tables (yest in .bss so yest zeroed)
  */
-	.section ".pgtable","a",@nobits
+	.section ".pgtable","a",@yesbits
 	.balign 4096
 SYM_DATA_LOCAL(pgtable,		.fill BOOT_PGT_SIZE, 1, 0)
 

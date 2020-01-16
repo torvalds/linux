@@ -45,7 +45,7 @@ struct counter_signal_ext {
 };
 
 /**
- * struct counter_signal - Counter Signal node
+ * struct counter_signal - Counter Signal yesde
  * @id:		unique ID used to identify signal
  * @name:	device-specific Signal name; ideally, this should match the name
  *		as it appears in the datasheet documentation
@@ -129,7 +129,7 @@ enum counter_synapse_action {
 };
 
 /**
- * struct counter_synapse - Counter Synapse node
+ * struct counter_synapse - Counter Synapse yesde
  * @action:		index of current action mode
  * @actions_list:	array of available action modes
  * @num_actions:	number of action modes specified in @actions_list
@@ -174,7 +174,7 @@ enum counter_count_function {
 };
 
 /**
- * struct counter_count - Counter Count node
+ * struct counter_count - Counter Count yesde
  * @id:			unique ID used to identify Count
  * @name:		device-specific Count name; ideally, this should match
  *			the name as it appears in the datasheet documentation

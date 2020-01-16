@@ -15,11 +15,11 @@
 #define __ASM_OPENRISC_IO_H
 
 /*
- * PCI: can we really do 0 here if we have no port IO?
+ * PCI: can we really do 0 here if we have yes port IO?
  */
 #define IO_SPACE_LIMIT		0
 
-/* OpenRISC has no port IO */
+/* OpenRISC has yes port IO */
 #define HAVE_ARCH_PIO_SIZE	1
 #define PIO_RESERVED		0X0UL
 #define PIO_OFFSET		0

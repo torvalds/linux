@@ -6,7 +6,7 @@
  */
 #include "qla_def.h"
 #include <linux/delay.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/pci.h>
 #include <linux/ratelimit.h>
 #include <linux/vmalloc.h>
@@ -337,7 +337,7 @@ static unsigned qla82xx_crb_hub_agt[64] = {
 
 /* Device states */
 static char *q_dev_state[] = {
-	 "Unknown",
+	 "Unkyeswn",
 	"Cold",
 	"Initializing",
 	"Ready",
@@ -407,7 +407,7 @@ qla82xx_pci_set_crbwindow(struct qla_hw_data *ha, u64 off)
 			return off;
 
 		/* We are in the QM or direct access
-		 * register region - do nothing
+		 * register region - do yesthing
 		 */
 		if ((off >= QLA82XX_PCI_DIRECT_CRB) &&
 			(off < QLA82XX_PCI_CAMQM_MAX))
@@ -416,7 +416,7 @@ qla82xx_pci_set_crbwindow(struct qla_hw_data *ha, u64 off)
 	/* strange address given */
 	ql_dbg(ql_dbg_p3p, vha, 0xb001,
 	    "%s: Warning: unm_nic_pci_set_crbwindow "
-	    "called with an unknown address(%llx).\n",
+	    "called with an unkyeswn address(%llx).\n",
 	    QLA2XXX_DRIVER_NAME, off);
 	return off;
 }
@@ -566,7 +566,7 @@ void qla82xx_idc_unlock(struct qla_hw_data *ha)
 
 /*
  * check memory access boundary.
- * used by test agent. support ddr access only for now
+ * used by test agent. support ddr access only for yesw
  */
 static unsigned long
 qla82xx_pci_mem_bound_check(struct qla_hw_data *ha,
@@ -612,7 +612,7 @@ qla82xx_pci_set_window(struct qla_hw_data *ha, unsigned long long addr)
 
 		if ((addr & 0x00ff800) == 0xff800) {
 			ql_log(ql_log_warn, vha, 0xb004,
-			    "%s: QM access not handled.\n", __func__);
+			    "%s: QM access yest handled.\n", __func__);
 			addr = -1UL;
 		}
 		window = OCM_WIN(addr);
@@ -653,7 +653,7 @@ qla82xx_pci_set_window(struct qla_hw_data *ha, unsigned long long addr)
 		if ((qla82xx_pci_set_window_warning_count++ < 8) ||
 		    (qla82xx_pci_set_window_warning_count%64 == 0)) {
 			ql_log(ql_log_warn, vha, 0xb007,
-			    "%s: Warning:%s Unknown address range!.\n",
+			    "%s: Warning:%s Unkyeswn address range!.\n",
 			    __func__, QLA2XXX_DRIVER_NAME);
 		}
 		addr = -1UL;
@@ -704,8 +704,8 @@ static int qla82xx_pci_mem_read_direct(struct qla_hw_data *ha,
 	write_lock_irqsave(&ha->hw_lock, flags);
 
 	/*
-	 * If attempting to access unknown address or straddle hw windows,
-	 * do not access.
+	 * If attempting to access unkyeswn address or straddle hw windows,
+	 * do yest access.
 	 */
 	start = qla82xx_pci_set_window(ha, off);
 	if ((start == -1UL) ||
@@ -776,8 +776,8 @@ qla82xx_pci_mem_write_direct(struct qla_hw_data *ha,
 	write_lock_irqsave(&ha->hw_lock, flags);
 
 	/*
-	 * If attempting to access unknown address or straddle hw windows,
-	 * do not access.
+	 * If attempting to access unkyeswn address or straddle hw windows,
+	 * do yest access.
 	 */
 	start = qla82xx_pci_set_window(ha, off);
 	if ((start == -1UL) ||
@@ -1226,10 +1226,10 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 	offset = n & 0xffffU;
 	n = (n >> 16) & 0xffffU;
 
-	/* number of addr/value pair should not exceed 1024 entries */
+	/* number of addr/value pair should yest exceed 1024 entries */
 	if (n  >= 1024) {
 		ql_log(ql_log_fatal, vha, 0x0071,
-		    "Card flash not initialized:n=0x%x.\n", n);
+		    "Card flash yest initialized:n=0x%x.\n", n);
 		return -1;
 	}
 
@@ -1268,7 +1268,7 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 		if (off == QLA82XX_CAM_RAM(0x1fc))
 			continue;
 
-		/* do not reset PCI */
+		/* do yest reset PCI */
 		if (off == (ROMUSB_GLB + 0xbc))
 			continue;
 
@@ -1291,7 +1291,7 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 
 		if (off == ADDR_ERROR) {
 			ql_log(ql_log_fatal, vha, 0x0116,
-			    "Unknown addr: 0x%08lx.\n", buf[i].addr);
+			    "Unkyeswn addr: 0x%08lx.\n", buf[i].addr);
 			continue;
 		}
 
@@ -1338,7 +1338,7 @@ qla82xx_pci_mem_write_2M(struct qla_hw_data *ha,
 	uint64_t off8, mem_crb, tmpw, word[2] = {0, 0};
 
 	/*
-	 * If not MN, go check for MS or invalid.
+	 * If yest MN, go check for MS or invalid.
 	 */
 	if (off >= QLA82XX_ADDR_QDR_NET && off <= QLA82XX_P3_ADDR_QDR_NET_MAX)
 		mem_crb = QLA82XX_CRB_QDR_NET;
@@ -1475,7 +1475,7 @@ qla82xx_pci_mem_read_2M(struct qla_hw_data *ha,
 	uint64_t      off8, val, mem_crb, word[2] = {0, 0};
 
 	/*
-	 * If not MN, go check for MS or invalid.
+	 * If yest MN, go check for MS or invalid.
 	 */
 
 	if (off >= QLA82XX_ADDR_QDR_NET && off <= QLA82XX_P3_ADDR_QDR_NET_MAX)
@@ -1676,7 +1676,7 @@ qla82xx_iospace_config(struct qla_hw_data *ha)
 	/* Use MMIO operations for all accesses. */
 	if (!(pci_resource_flags(ha->pdev, 0) & IORESOURCE_MEM)) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x000d,
-		    "Region #0 not an MMIO resource, aborting.\n");
+		    "Region #0 yest an MMIO resource, aborting.\n");
 		goto iospace_error_exit;
 	}
 
@@ -1684,7 +1684,7 @@ qla82xx_iospace_config(struct qla_hw_data *ha)
 	ha->nx_pcibase = ioremap(pci_resource_start(ha->pdev, 0), len);
 	if (!ha->nx_pcibase) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x000e,
-		    "Cannot remap pcibase MMIO, aborting.\n");
+		    "Canyest remap pcibase MMIO, aborting.\n");
 		goto iospace_error_exit;
 	}
 
@@ -1700,7 +1700,7 @@ qla82xx_iospace_config(struct qla_hw_data *ha)
 		    (ha->pdev->devfn << 12)), 4);
 		if (!ha->nxdb_wr_ptr) {
 			ql_log_pci(ql_log_fatal, ha->pdev, 0x000f,
-			    "Cannot remap MMIO, aborting.\n");
+			    "Canyest remap MMIO, aborting.\n");
 			goto iospace_error_exit;
 		}
 
@@ -2333,7 +2333,7 @@ qla82xx_set_idc_version(scsi_qla_host_t *vha)
 		idc_ver = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_IDC_VERSION);
 		if (idc_ver != QLA82XX_IDC_VERSION)
 			ql_log(ql_log_info, vha, 0xb083,
-			    "qla2xxx driver IDC version %d is not compatible "
+			    "qla2xxx driver IDC version %d is yest compatible "
 			    "with IDC version %d of the other drivers\n",
 			    QLA82XX_IDC_VERSION, idc_ver);
 	}
@@ -2479,7 +2479,7 @@ try_blob_fw:
 	blob = ha->hablob = qla2x00_request_firmware(vha);
 	if (!blob) {
 		ql_log(ql_log_fatal, vha, 0x00a3,
-		    "Firmware image not present.\n");
+		    "Firmware image yest present.\n");
 		goto fw_load_failed;
 	}
 
@@ -2989,7 +2989,7 @@ qla82xx_need_qsnt_handler(scsi_qla_host_t *vha)
 *    Wait for device state to change from given current state
 *
 * Note:
-*     IDC lock must not be held upon entry
+*     IDC lock must yest be held upon entry
 *
 * Return:
 *    Changed device state.
@@ -3066,7 +3066,7 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 	drv_active = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
 	if (!ha->flags.nic_core_reset_owner) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb028,
-		    "reset_acknowledged by 0x%x\n", ha->portnum);
+		    "reset_ackyeswledged by 0x%x\n", ha->portnum);
 		qla82xx_set_rst_ready(ha);
 	} else {
 		active_mask = ~(QLA82XX_DRV_ACTIVE << (ha->portnum * 4));
@@ -3112,7 +3112,7 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 	ql_log(ql_log_info, vha, 0x00b6,
 	    "Device state is 0x%x = %s.\n",
 	    dev_state,
-	    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unknown");
+	    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unkyeswn");
 
 	/* Force to DEV_COLD unless someone else is starting a reset */
 	if (dev_state != QLA8XXX_DEV_INITIALIZING &&
@@ -3124,7 +3124,7 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 		if (ql2xmdenable) {
 			if (qla82xx_md_collect(vha))
 				ql_log(ql_log_warn, vha, 0xb02c,
-				    "Minidump not collected.\n");
+				    "Minidump yest collected.\n");
 		} else
 			ql_log(ql_log_warn, vha, 0xb04f,
 			    "Minidump disabled.\n");
@@ -3135,12 +3135,12 @@ int
 qla82xx_check_md_needed(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
-	uint16_t fw_major_version, fw_minor_version, fw_subminor_version;
+	uint16_t fw_major_version, fw_miyesr_version, fw_submiyesr_version;
 	int rval = QLA_SUCCESS;
 
 	fw_major_version = ha->fw_major_version;
-	fw_minor_version = ha->fw_minor_version;
-	fw_subminor_version = ha->fw_subminor_version;
+	fw_miyesr_version = ha->fw_miyesr_version;
+	fw_submiyesr_version = ha->fw_submiyesr_version;
 
 	rval = qla2x00_get_fw_version(vha);
 	if (rval != QLA_SUCCESS)
@@ -3149,16 +3149,16 @@ qla82xx_check_md_needed(scsi_qla_host_t *vha)
 	if (ql2xmdenable) {
 		if (!ha->fw_dumped) {
 			if ((fw_major_version != ha->fw_major_version ||
-			    fw_minor_version != ha->fw_minor_version ||
-			    fw_subminor_version != ha->fw_subminor_version) ||
+			    fw_miyesr_version != ha->fw_miyesr_version ||
+			    fw_submiyesr_version != ha->fw_submiyesr_version) ||
 			    (ha->prev_minidump_failed)) {
 				ql_dbg(ql_dbg_p3p, vha, 0xb02d,
 				    "Firmware version differs Previous version: %d:%d:%d - New version: %d:%d:%d, prev_minidump_failed: %d.\n",
-				    fw_major_version, fw_minor_version,
-				    fw_subminor_version,
+				    fw_major_version, fw_miyesr_version,
+				    fw_submiyesr_version,
 				    ha->fw_major_version,
-				    ha->fw_minor_version,
-				    ha->fw_subminor_version,
+				    ha->fw_miyesr_version,
+				    ha->fw_submiyesr_version,
 				    ha->prev_minidump_failed);
 				/* Release MiniDump resources */
 				qla82xx_md_free(vha);
@@ -3181,7 +3181,7 @@ qla82xx_check_fw_alive(scsi_qla_host_t *vha)
 
 	fw_heartbeat_counter = qla82xx_rd_32(vha->hw,
 		QLA82XX_PEG_ALIVE_COUNTER);
-	/* all 0xff, assume AER/EEH in progress, ignore */
+	/* all 0xff, assume AER/EEH in progress, igyesre */
 	if (fw_heartbeat_counter == 0xffffffff) {
 		ql_dbg(ql_dbg_timer, vha, 0x6003,
 		    "FW heartbeat counter is 0xffffffff, "
@@ -3190,7 +3190,7 @@ qla82xx_check_fw_alive(scsi_qla_host_t *vha)
 	}
 	if (vha->fw_heartbeat_counter == fw_heartbeat_counter) {
 		vha->seconds_since_last_heartbeat++;
-		/* FW not alive after 2 seconds */
+		/* FW yest alive after 2 seconds */
 		if (vha->seconds_since_last_heartbeat == 2) {
 			vha->seconds_since_last_heartbeat = 0;
 			status = 1;
@@ -3236,7 +3236,7 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 	ql_log(ql_log_info, vha, 0x009b,
 	    "Device state is 0x%x = %s.\n",
 	    dev_state,
-	    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unknown");
+	    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unkyeswn");
 
 	/* wait for 30 seconds for device to go ready */
 	dev_init_timeout = jiffies + (ha->fcoe_dev_init_timeout * HZ);
@@ -3259,7 +3259,7 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 			    "Device state is 0x%x = %s.\n",
 			    dev_state,
 			    dev_state < MAX_STATES ? qdev_state(dev_state) :
-			    "Unknown");
+			    "Unkyeswn");
 		}
 
 		switch (dev_state) {
@@ -3490,7 +3490,7 @@ qla82xx_set_reset_owner(scsi_qla_host_t *vha)
 		ql_log(ql_log_info, vha, 0xb031,
 		    "Device state is 0x%x = %s.\n",
 		    dev_state,
-		    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unknown");
+		    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unkyeswn");
 }
 
 /*
@@ -3556,7 +3556,7 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 				clear_bit(ISP_ABORT_RETRY,
 				    &vha->dpc_flags);
 				rval = QLA_SUCCESS;
-			} else { /* schedule another ISP abort */
+			} else { /* schedule ayesther ISP abort */
 				ha->isp_abort_cnt--;
 				ql_log(ql_log_warn, vha, 0x8036,
 				    "ISP abort - retry remaining %d.\n",
@@ -3618,7 +3618,7 @@ int qla82xx_fcoe_ctx_reset(scsi_qla_host_t *vha)
  *
  * Return:
  *    Success (fcoe_ctx reset is done) : 0
- *    Failed  (fcoe_ctx reset not completed within max loop timout ) : 1
+ *    Failed  (fcoe_ctx reset yest completed within max loop timout ) : 1
  */
 int qla2x00_wait_for_fcoe_ctx_reset(scsi_qla_host_t *vha)
 {
@@ -3652,7 +3652,7 @@ qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 	unsigned long flags;
 	struct qla_hw_data *ha = vha->hw;
 
-	/* Check if 82XX firmware is alive or not
+	/* Check if 82XX firmware is alive or yest
 	 * We may have arrived here from NEED_RESET
 	 * detection only
 	 */
@@ -4079,13 +4079,13 @@ qla82xx_minidump_process_rdmem(scsi_qla_host_t *vha,
 
 	if (r_addr & 0xf) {
 		ql_log(ql_log_warn, vha, 0xb033,
-		    "Read addr 0x%x not 16 bytes aligned\n", r_addr);
+		    "Read addr 0x%x yest 16 bytes aligned\n", r_addr);
 		return rval;
 	}
 
 	if (m_hdr->read_data_size % 16) {
 		ql_log(ql_log_warn, vha, 0xb034,
-		    "Read data[0x%x] not multiple of 16 bytes\n",
+		    "Read data[0x%x] yest multiple of 16 bytes\n",
 		    m_hdr->read_data_size);
 		return rval;
 	}
@@ -4161,7 +4161,7 @@ int
 qla82xx_md_collect(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
-	int no_entry_hdr = 0;
+	int yes_entry_hdr = 0;
 	qla82xx_md_entry_hdr_t *entry_hdr;
 	struct qla82xx_md_template_hdr *tmplt_hdr;
 	uint32_t *data_ptr;
@@ -4174,7 +4174,7 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 	if (ha->fw_dumped) {
 		ql_log(ql_log_warn, vha, 0xb037,
 		    "Firmware has been previously dumped (%p) "
-		    "-- ignoring request.\n", ha->fw_dump);
+		    "-- igyesring request.\n", ha->fw_dump);
 		goto md_failed;
 	}
 
@@ -4182,15 +4182,15 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 
 	if (!ha->md_tmplt_hdr || !ha->md_dump) {
 		ql_log(ql_log_warn, vha, 0xb038,
-		    "Memory not allocated for minidump capture\n");
+		    "Memory yest allocated for minidump capture\n");
 		goto md_failed;
 	}
 
-	if (ha->flags.isp82xx_no_md_cap) {
+	if (ha->flags.isp82xx_yes_md_cap) {
 		ql_log(ql_log_warn, vha, 0xb054,
 		    "Forced reset from application, "
-		    "ignore minidump capture\n");
-		ha->flags.isp82xx_no_md_cap = 0;
+		    "igyesre minidump capture\n");
+		ha->flags.isp82xx_yes_md_cap = 0;
 		goto md_failed;
 	}
 
@@ -4200,9 +4200,9 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 		goto md_failed;
 	}
 
-	no_entry_hdr = tmplt_hdr->num_of_entries;
+	yes_entry_hdr = tmplt_hdr->num_of_entries;
 	ql_dbg(ql_dbg_p3p, vha, 0xb03a,
-	    "No of entry headers in Template: 0x%x\n", no_entry_hdr);
+	    "No of entry headers in Template: 0x%x\n", yes_entry_hdr);
 
 	ql_dbg(ql_dbg_p3p, vha, 0xb03b,
 	    "Capture Mask obtained: 0x%x\n", tmplt_hdr->capture_debug_level);
@@ -4212,13 +4212,13 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 	/* Validate whether required debug level is set */
 	if ((f_capture_mask & 0x3) != 0x3) {
 		ql_log(ql_log_warn, vha, 0xb03c,
-		    "Minimum required capture mask[0x%x] level not set\n",
+		    "Minimum required capture mask[0x%x] level yest set\n",
 		    f_capture_mask);
 		goto md_failed;
 	}
 	tmplt_hdr->driver_capture_mask = ql2xmdcapmask;
 
-	tmplt_hdr->driver_info[0] = vha->host_no;
+	tmplt_hdr->driver_info[0] = vha->host_yes;
 	tmplt_hdr->driver_info[1] = (QLA_DRIVER_MAJOR_VER << 24) |
 	    (QLA_DRIVER_MINOR_VER << 16) | (QLA_DRIVER_PATCH_VER << 8) |
 	    QLA_DRIVER_BETA_VER;
@@ -4240,7 +4240,7 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 	    (((uint8_t *)ha->md_tmplt_hdr) + tmplt_hdr->first_entry_offset);
 
 	/* Walk through the entry headers */
-	for (i = 0; i < no_entry_hdr; i++) {
+	for (i = 0; i < yes_entry_hdr; i++) {
 
 		if (data_collected > total_data_size) {
 			ql_log(ql_log_warn, vha, 0xb03e,
@@ -4357,7 +4357,7 @@ skip_nxt_entry:
 
 	ql_log(ql_log_info, vha, 0xb044,
 	    "Firmware dump saved to temp buffer (%ld/%p %ld/%p).\n",
-	    vha->host_no, ha->md_tmplt_hdr, vha->host_no, ha->md_dump);
+	    vha->host_yes, ha->md_tmplt_hdr, vha->host_yes, ha->md_dump);
 	ha->fw_dumped = 1;
 	qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 
@@ -4523,7 +4523,7 @@ qla82xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		return;
 
 	scsi_block_requests(vha->host);
-	ha->flags.isp82xx_no_md_cap = 1;
+	ha->flags.isp82xx_yes_md_cap = 1;
 	qla82xx_idc_lock(ha);
 	qla82xx_set_reset_owner(vha);
 	qla82xx_idc_unlock(ha);

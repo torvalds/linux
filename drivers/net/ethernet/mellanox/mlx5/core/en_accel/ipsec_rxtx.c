@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -171,7 +171,7 @@ void mlx5e_ipsec_set_iv_esn(struct sk_buff *skb, struct xfrm_state *x,
 	struct xfrm_replay_state_esn *replay_esn = x->replay_esn;
 	__u32 oseq = replay_esn->oseq;
 	int iv_offset;
-	__be64 seqno;
+	__be64 seqyes;
 	u32 seq_hi;
 
 	if (unlikely(skb_is_gso(skb) && oseq < MLX5E_IPSEC_ESN_SCOPE_MID &&
@@ -182,21 +182,21 @@ void mlx5e_ipsec_set_iv_esn(struct sk_buff *skb, struct xfrm_state *x,
 	}
 
 	/* Place the SN in the IV field */
-	seqno = cpu_to_be64(xo->seq.low + ((u64)seq_hi << 32));
+	seqyes = cpu_to_be64(xo->seq.low + ((u64)seq_hi << 32));
 	iv_offset = skb_transport_offset(skb) + sizeof(struct ip_esp_hdr);
-	skb_store_bits(skb, iv_offset, &seqno, 8);
+	skb_store_bits(skb, iv_offset, &seqyes, 8);
 }
 
 void mlx5e_ipsec_set_iv(struct sk_buff *skb, struct xfrm_state *x,
 			struct xfrm_offload *xo)
 {
 	int iv_offset;
-	__be64 seqno;
+	__be64 seqyes;
 
 	/* Place the SN in the IV field */
-	seqno = cpu_to_be64(xo->seq.low + ((u64)xo->seq.hi << 32));
+	seqyes = cpu_to_be64(xo->seq.low + ((u64)xo->seq.hi << 32));
 	iv_offset = skb_transport_offset(skb) + sizeof(struct ip_esp_hdr);
-	skb_store_bits(skb, iv_offset, &seqno, 8);
+	skb_store_bits(skb, iv_offset, &seqyes, 8);
 }
 
 static void mlx5e_ipsec_set_metadata(struct sk_buff *skb,
@@ -218,7 +218,7 @@ static void mlx5e_ipsec_set_metadata(struct sk_buff *skb,
 		netdev_dbg(skb->dev, "   Offloading GSO packet of len %u; mss %u; TCP sp %u dp %u seq 0x%x ESP seq 0x%x\n",
 			   skb->len, skb_shinfo(skb)->gso_size,
 			   ntohs(tcph->source), ntohs(tcph->dest),
-			   ntohl(tcph->seq), ntohl(esph->seq_no));
+			   ntohl(tcph->seq), ntohl(esph->seq_yes));
 		mdata->syndrome = MLX5E_IPSEC_TX_SYNDROME_OFFLOAD_WITH_LSO_TCP;
 		mdata->content.tx.mss_inv = mlx5e_ipsec_mss_inv(skb);
 		mdata->content.tx.seq = htons(ntohl(tcph->seq) & 0xFFFF);
@@ -255,14 +255,14 @@ struct sk_buff *mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
 
 	x = xfrm_input_state(skb);
 	if (unlikely(!x)) {
-		atomic64_inc(&priv->ipsec->sw_stats.ipsec_tx_drop_no_state);
+		atomic64_inc(&priv->ipsec->sw_stats.ipsec_tx_drop_yes_state);
 		goto drop;
 	}
 
 	if (unlikely(!x->xso.offload_handle ||
 		     (skb->protocol != htons(ETH_P_IP) &&
 		      skb->protocol != htons(ETH_P_IPV6)))) {
-		atomic64_inc(&priv->ipsec->sw_stats.ipsec_tx_drop_not_ip);
+		atomic64_inc(&priv->ipsec->sw_stats.ipsec_tx_drop_yest_ip);
 		goto drop;
 	}
 
@@ -320,7 +320,7 @@ mlx5e_ipsec_build_sp(struct net_device *netdev, struct sk_buff *skb,
 	switch (mdata->syndrome) {
 	case MLX5E_IPSEC_RX_SYNDROME_DECRYPTED:
 		xo->status = CRYPTO_SUCCESS;
-		if (likely(priv->ipsec->no_trailer)) {
+		if (likely(priv->ipsec->yes_trailer)) {
 			xo->flags |= XFRM_ESP_NO_TRAILER;
 			xo->proto = mdata->content.rx.nexthdr;
 		}

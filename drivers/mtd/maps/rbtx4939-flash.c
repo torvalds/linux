@@ -65,7 +65,7 @@ static int rbtx4939_flash_probe(struct platform_device *dev)
 	platform_set_drvdata(dev, info);
 
 	size = resource_size(res);
-	pr_notice("rbtx4939 platform flash device: %pR\n", res);
+	pr_yestice("rbtx4939 platform flash device: %pR\n", res);
 
 	if (!devm_request_mem_region(&dev->dev, res->start, size,
 				     dev_name(&dev->dev)))

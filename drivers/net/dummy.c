@@ -2,7 +2,7 @@
 /* dummy.c: a dummy net driver
 
 	The purpose of this driver is to provide a device to point a
-	route through, but not to actually transmit packets.
+	route through, but yest to actually transmit packets.
 
 	Why?  If you have a machine whose only connection is an occasional
 	PPP/SLIP/PLIP link, you can only connect to your own hostname
@@ -13,7 +13,7 @@
 	but this seems (to me) too much overhead for too little gain.
 	This driver provides a small alternative. Thus you can do
 
-	[when not running slip]
+	[when yest running slip]
 		ifconfig dummy slip.addr.ess.here up
 	[to go to slip]
 		ifconfig dummy down

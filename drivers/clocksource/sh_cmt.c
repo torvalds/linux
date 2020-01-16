@@ -32,7 +32,7 @@
 struct sh_cmt_device;
 
 /*
- * The CMT comes in 5 different identified flavours, depending not only on the
+ * The CMT comes in 5 different identified flavours, depending yest only on the
  * SoC but also on the particular instance. The following table lists the main
  * characteristics of those flavours.
  *
@@ -325,7 +325,7 @@ static int sh_cmt_enable(struct sh_cmt_channel *ch)
 	/* enable clock */
 	ret = clk_enable(ch->cmt->clk);
 	if (ret) {
-		dev_err(&ch->cmt->pdev->dev, "ch%u: cannot enable clock\n",
+		dev_err(&ch->cmt->pdev->dev, "ch%u: canyest enable clock\n",
 			ch->index);
 		goto err0;
 	}
@@ -365,7 +365,7 @@ static int sh_cmt_enable(struct sh_cmt_channel *ch)
 	}
 
 	if (sh_cmt_read_cmcnt(ch)) {
-		dev_err(&ch->cmt->pdev->dev, "ch%u: cannot clear CMCNT\n",
+		dev_err(&ch->cmt->pdev->dev, "ch%u: canyest clear CMCNT\n",
 			ch->index);
 		ret = -ETIMEDOUT;
 		goto err1;
@@ -410,10 +410,10 @@ static void sh_cmt_clock_event_program_verify(struct sh_cmt_channel *ch,
 	u32 value = ch->next_match_value;
 	u32 new_match;
 	u32 delay = 0;
-	u32 now = 0;
+	u32 yesw = 0;
 	u32 has_wrapped;
 
-	now = sh_cmt_get_counter(ch, &has_wrapped);
+	yesw = sh_cmt_get_counter(ch, &has_wrapped);
 	ch->flags |= FLAG_REPROGRAM; /* force reprogram */
 
 	if (has_wrapped) {
@@ -426,19 +426,19 @@ static void sh_cmt_clock_event_program_verify(struct sh_cmt_channel *ch,
 	}
 
 	if (absolute)
-		now = 0;
+		yesw = 0;
 
 	do {
 		/* reprogram the timer hardware,
 		 * but don't save the new match value yet.
 		 */
-		new_match = now + value + delay;
+		new_match = yesw + value + delay;
 		if (new_match > ch->max_match_value)
 			new_match = ch->max_match_value;
 
 		sh_cmt_write_cmcor(ch, new_match);
 
-		now = sh_cmt_get_counter(ch, &has_wrapped);
+		yesw = sh_cmt_get_counter(ch, &has_wrapped);
 		if (has_wrapped && (new_match > ch->match_value)) {
 			/* we are changing to a greater match value,
 			 * so this wrap must be caused by the counter
@@ -462,7 +462,7 @@ static void sh_cmt_clock_event_program_verify(struct sh_cmt_channel *ch,
 		}
 
 		/* be safe: verify hardware settings */
-		if (now < new_match) {
+		if (yesw < new_match) {
 			/* timer value is below match value, all good.
 			 * this makes sure we won't miss any match events.
 			 * -> save programmed match value.
@@ -571,7 +571,7 @@ static int sh_cmt_start(struct sh_cmt_channel *ch, unsigned long flag)
 		goto out;
 	ch->flags |= flag;
 
-	/* setup timeout if no clockevent */
+	/* setup timeout if yes clockevent */
 	if ((flag == FLAG_CLOCKSOURCE) && (!(ch->flags & FLAG_CLOCKEVENT)))
 		__sh_cmt_set_next(ch, ch->max_match_value);
  out:
@@ -905,7 +905,7 @@ static int sh_cmt_map_memory(struct sh_cmt_device *cmt)
 		return -ENXIO;
 	}
 
-	cmt->mapbase = ioremap_nocache(mem->start, resource_size(mem));
+	cmt->mapbase = ioremap_yescache(mem->start, resource_size(mem));
 	if (cmt->mapbase == NULL) {
 		dev_err(&cmt->pdev->dev, "failed to remap I/O memory\n");
 		return -ENXIO;
@@ -969,7 +969,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	cmt->pdev = pdev;
 	raw_spin_lock_init(&cmt->lock);
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_yesde) {
 		cmt->info = of_device_get_match_data(&pdev->dev);
 		cmt->hw_channels = cmt->info->channels_mask;
 	} else if (pdev->dev.platform_data) {
@@ -986,7 +986,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	/* Get hold of clock. */
 	cmt->clk = clk_get(&cmt->pdev->dev, "fck");
 	if (IS_ERR(cmt->clk)) {
-		dev_err(&cmt->pdev->dev, "cannot get clock\n");
+		dev_err(&cmt->pdev->dev, "canyest get clock\n");
 		return PTR_ERR(cmt->clk);
 	}
 
@@ -1090,7 +1090,7 @@ static int sh_cmt_probe(struct platform_device *pdev)
 
 static int sh_cmt_remove(struct platform_device *pdev)
 {
-	return -EBUSY; /* cannot unregister clockevent and clocksource */
+	return -EBUSY; /* canyest unregister clockevent and clocksource */
 }
 
 static struct platform_driver sh_cmt_device_driver = {

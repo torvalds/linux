@@ -5,7 +5,7 @@
 #include <linux/interrupt.h>
 
 #if ((BITS_PER_LONG != 32) && (BITS_PER_LONG != 64))
-#error "BITS_PER_LONG not defined or not valid"
+#error "BITS_PER_LONG yest defined or yest valid"
 #endif
 
 
@@ -673,7 +673,7 @@ struct eeprom_rncd_info {
 /* Phase 1 region (starts are word offset 0x80) */
 struct phase1_hdr{
 	u32	jump;
-	u32	noop;
+	u32	yesop;
 	struct seg_hdr phase2Seg;
 };
 
@@ -794,7 +794,7 @@ struct rr_info {
  * The linux structure for the RoadRunner.
  *
  * RX/TX descriptors are put first to make sure they are properly
- * aligned and do not cross cache-line boundaries.
+ * aligned and do yest cross cache-line boundaries.
  */
 
 struct rr_private

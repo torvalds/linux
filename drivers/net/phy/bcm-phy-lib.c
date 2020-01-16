@@ -228,7 +228,7 @@ int bcm_phy_downshift_get(struct phy_device *phydev, u8 *count)
 	if (val < 0)
 		return val;
 
-	/* Check if wirespeed is enabled or not */
+	/* Check if wirespeed is enabled or yest */
 	if (!(val & MII_BCM54XX_AUXCTL_SHDWSEL_MISC_WIRESPEED_EN)) {
 		*count = DOWNSHIFT_DEV_DISABLE;
 		return 0;
@@ -313,13 +313,13 @@ struct bcm_phy_hw_stat {
 	u8 bits;
 };
 
-/* Counters freeze at either 0xffff or 0xff, better than nothing */
+/* Counters freeze at either 0xffff or 0xff, better than yesthing */
 static const struct bcm_phy_hw_stat bcm_phy_hw_stats[] = {
 	{ "phy_receive_errors", MII_BRCM_CORE_BASE12, 0, 16 },
 	{ "phy_serdes_ber_errors", MII_BRCM_CORE_BASE13, 8, 8 },
 	{ "phy_false_carrier_sense_errors", MII_BRCM_CORE_BASE13, 0, 8 },
-	{ "phy_local_rcvr_nok", MII_BRCM_CORE_BASE14, 8, 8 },
-	{ "phy_remote_rcv_nok", MII_BRCM_CORE_BASE14, 0, 8 },
+	{ "phy_local_rcvr_yesk", MII_BRCM_CORE_BASE14, 8, 8 },
+	{ "phy_remote_rcv_yesk", MII_BRCM_CORE_BASE14, 0, 8 },
 };
 
 int bcm_phy_get_sset_count(struct phy_device *phydev)

@@ -96,7 +96,7 @@ static int zynq_reset_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, priv);
 
-	priv->slcr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	priv->slcr = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 						     "syscon");
 	if (IS_ERR(priv->slcr)) {
 		dev_err(&pdev->dev, "unable to get zynq-slcr regmap");
@@ -114,7 +114,7 @@ static int zynq_reset_probe(struct platform_device *pdev)
 	priv->rcdev.owner = THIS_MODULE;
 	priv->rcdev.nr_resets = resource_size(res) / 4 * BITS_PER_LONG;
 	priv->rcdev.ops = &zynq_reset_ops;
-	priv->rcdev.of_node = pdev->dev.of_node;
+	priv->rcdev.of_yesde = pdev->dev.of_yesde;
 
 	return devm_reset_controller_register(&pdev->dev, &priv->rcdev);
 }

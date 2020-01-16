@@ -10,7 +10,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -29,9 +29,9 @@ module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds (default="
 	__MODULE_STRING(WDT_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, S_IRUGO);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, S_IRUGO);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static int sun4v_wdt_stop(struct watchdog_device *wdd)
@@ -92,10 +92,10 @@ static struct watchdog_device wdd = {
 static int __init sun4v_wdt_init(void)
 {
 	struct mdesc_handle *handle;
-	u64 node;
+	u64 yesde;
 	const u64 *value;
 	int err = 0;
-	unsigned long major = 1, minor = 1;
+	unsigned long major = 1, miyesr = 1;
 
 	/*
 	 * There are 2 properties that can be set from the control
@@ -111,20 +111,20 @@ static int __init sun4v_wdt_init(void)
 	if (!handle)
 		return -ENODEV;
 
-	node = mdesc_node_by_name(handle, MDESC_NODE_NULL, "platform");
+	yesde = mdesc_yesde_by_name(handle, MDESC_NODE_NULL, "platform");
 	err = -ENODEV;
-	if (node == MDESC_NODE_NULL)
+	if (yesde == MDESC_NODE_NULL)
 		goto out_release;
 
 	/*
 	 * This is a safe way to validate if we are on the right
 	 * platform.
 	 */
-	if (sun4v_hvapi_register(HV_GRP_CORE, major, &minor))
+	if (sun4v_hvapi_register(HV_GRP_CORE, major, &miyesr))
 		goto out_hv_unreg;
 
 	/* Allow value of watchdog-resolution up to 1s (default) */
-	value = mdesc_get_property(handle, node, "watchdog-resolution", NULL);
+	value = mdesc_get_property(handle, yesde, "watchdog-resolution", NULL);
 	err = -EINVAL;
 	if (value) {
 		if (*value == 0 ||
@@ -132,7 +132,7 @@ static int __init sun4v_wdt_init(void)
 			goto out_hv_unreg;
 	}
 
-	value = mdesc_get_property(handle, node, "watchdog-max-timeout", NULL);
+	value = mdesc_get_property(handle, yesde, "watchdog-max-timeout", NULL);
 	if (value) {
 		/*
 		 * If the property value (in ms) is smaller than
@@ -152,14 +152,14 @@ static int __init sun4v_wdt_init(void)
 
 	watchdog_init_timeout(&wdd, timeout, NULL);
 
-	watchdog_set_nowayout(&wdd, nowayout);
+	watchdog_set_yeswayout(&wdd, yeswayout);
 
 	err = watchdog_register_device(&wdd);
 	if (err)
 		goto out_hv_unreg;
 
-	pr_info("initialized (timeout=%ds, nowayout=%d)\n",
-		 wdd.timeout, nowayout);
+	pr_info("initialized (timeout=%ds, yeswayout=%d)\n",
+		 wdd.timeout, yeswayout);
 
 	mdesc_release(handle);
 

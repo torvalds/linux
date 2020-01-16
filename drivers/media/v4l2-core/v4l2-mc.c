@@ -71,8 +71,8 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 	/*
 	 * Here, webcams are modelled on a very simple way: the sensor is
 	 * connected directly to the I/O entity. All dirty details, like
-	 * scaler and crop HW are hidden. While such mapping is not enough
-	 * for mc-centric hardware, it is enough for v4l2 interface centric
+	 * scaler and crop HW are hidden. While such mapping is yest eyesugh
+	 * for mc-centric hardware, it is eyesugh for v4l2 interface centric
 	 * PC-consumer's hardware.
 	 */
 	if (is_webcam) {
@@ -98,7 +98,7 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 
 	/* The device isn't a webcam. So, it should have a decoder */
 	if (!decoder) {
-		dev_warn(mdev->dev, "Decoder not found\n");
+		dev_warn(mdev->dev, "Decoder yest found\n");
 		return -EINVAL;
 	}
 
@@ -313,19 +313,19 @@ EXPORT_SYMBOL_GPL(v4l_vb2q_enable_media_source);
  * Pipeline power management
  *
  * Entities must be powered up when part of a pipeline that contains at least
- * one open video device node.
+ * one open video device yesde.
  *
  * To achieve this use the entity use_count field to track the number of users.
- * For entities corresponding to video device nodes the use_count field stores
- * the users count of the node. For entities corresponding to subdevs the
- * use_count field stores the total number of users of all video device nodes
+ * For entities corresponding to video device yesdes the use_count field stores
+ * the users count of the yesde. For entities corresponding to subdevs the
+ * use_count field stores the total number of users of all video device yesdes
  * in the pipeline.
  *
  * The v4l2_pipeline_pm_use() function must be called in the open() and
- * close() handlers of video device nodes. It increments or decrements the use
+ * close() handlers of video device yesdes. It increments or decrements the use
  * count of all subdev entities in the pipeline.
  *
- * To react to link management on powered pipelines, the link setup notification
+ * To react to link management on powered pipelines, the link setup yestification
  * callback updates the use count of all entities in the source and sink sides
  * of the link.
  */
@@ -334,7 +334,7 @@ EXPORT_SYMBOL_GPL(v4l_vb2q_enable_media_source);
  * pipeline_pm_use_count - Count the number of users of a pipeline
  * @entity: The entity
  *
- * Return the total number of users of all video device nodes in the pipeline.
+ * Return the total number of users of all video device yesdes in the pipeline.
  */
 static int pipeline_pm_use_count(struct media_entity *entity,
 	struct media_graph *graph)
@@ -390,7 +390,7 @@ static int pipeline_pm_power_one(struct media_entity *entity, int change)
  * @entity: The entity
  * @change: Use count change
  *
- * Walk the pipeline to update the use count and the power state of all non-node
+ * Walk the pipeline to update the use count and the power state of all yesn-yesde
  * entities.
  *
  * Return 0 on success or a negative error code on failure.
@@ -431,11 +431,11 @@ int v4l2_pipeline_pm_use(struct media_entity *entity, int use)
 
 	mutex_lock(&mdev->graph_mutex);
 
-	/* Apply use count to node. */
+	/* Apply use count to yesde. */
 	entity->use_count += change;
 	WARN_ON(entity->use_count < 0);
 
-	/* Apply power change to connected non-nodes. */
+	/* Apply power change to connected yesn-yesdes. */
 	ret = pipeline_pm_power(entity, change, &mdev->pm_count_walk);
 	if (ret < 0)
 		entity->use_count -= change;
@@ -446,8 +446,8 @@ int v4l2_pipeline_pm_use(struct media_entity *entity, int use)
 }
 EXPORT_SYMBOL_GPL(v4l2_pipeline_pm_use);
 
-int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
-			      unsigned int notification)
+int v4l2_pipeline_link_yestify(struct media_link *link, u32 flags,
+			      unsigned int yestification)
 {
 	struct media_graph *graph = &link->graph_obj.mdev->pm_count_walk;
 	struct media_entity *source = link->source->entity;
@@ -459,7 +459,7 @@ int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
 	source_use = pipeline_pm_use_count(source, graph);
 	sink_use = pipeline_pm_use_count(sink, graph);
 
-	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
+	if (yestification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
 	    !(flags & MEDIA_LNK_FL_ENABLED)) {
 		/* Powering off entities is assumed to never fail. */
 		pipeline_pm_power(source, -sink_use, graph);
@@ -467,7 +467,7 @@ int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
 		return 0;
 	}
 
-	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
+	if (yestification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
 		(flags & MEDIA_LNK_FL_ENABLED)) {
 
 		ret = pipeline_pm_power(source, sink_use, graph);
@@ -481,4 +481,4 @@ int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(v4l2_pipeline_link_notify);
+EXPORT_SYMBOL_GPL(v4l2_pipeline_link_yestify);

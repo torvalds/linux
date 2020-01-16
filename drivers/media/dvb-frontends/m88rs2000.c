@@ -26,7 +26,7 @@ struct m88rs2000_state {
 	struct i2c_adapter *i2c;
 	const struct m88rs2000_config *config;
 	struct dvb_frontend frontend;
-	u8 no_lock_count;
+	u8 yes_lock_count;
 	u32 tuner_frequency;
 	u32 symbol_rate;
 	enum fe_code_rate fec_inner;
@@ -103,7 +103,7 @@ static u32 m88rs2000_get_mclk(struct dvb_frontend *fe)
 	struct m88rs2000_state *state = fe->demodulator_priv;
 	u32 mclk;
 	u8 reg;
-	/* Must not be 0x00 or 0xff */
+	/* Must yest be 0x00 or 0xff */
 	reg = m88rs2000_readreg(state, 0x86);
 	if (!reg || reg == 0xff)
 		return 0;
@@ -603,7 +603,7 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	s16 offset = 0;
 	u8 reg;
 
-	state->no_lock_count = 0;
+	state->yes_lock_count = 0;
 
 	if (c->delivery_system != SYS_DVBS) {
 		deb_info("%s: unsupported delivery system selected (%d)\n",
@@ -677,19 +677,19 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 			status = FE_HAS_LOCK;
 			break;
 		}
-		state->no_lock_count++;
-		if (state->no_lock_count == 15) {
+		state->yes_lock_count++;
+		if (state->yes_lock_count == 15) {
 			reg = m88rs2000_readreg(state, 0x70);
 			reg ^= 0x4;
 			m88rs2000_writereg(state, 0x70, reg);
-			state->no_lock_count = 0;
+			state->yes_lock_count = 0;
 		}
 		msleep(20);
 	}
 
 	if (status & FE_HAS_LOCK) {
 		state->fec_inner = m88rs2000_get_fec(state);
-		/* Unknown suspect SNR level */
+		/* Unkyeswn suspect SNR level */
 		reg = m88rs2000_readreg(state, 0x65);
 	}
 

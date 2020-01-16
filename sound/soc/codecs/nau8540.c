@@ -2,7 +2,7 @@
 /*
  * NAU85L40 ALSA SoC audio driver
  *
- * Copyright 2016 Nuvoton Technology Corp.
+ * Copyright 2016 Nuvoton Techyeslogy Corp.
  * Author: John Hsu <KCHSU0@nuvoton.com>
  */
 
@@ -476,9 +476,9 @@ static int nau8540_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
  * nau8540_set_tdm_slot - configure DAI TX TDM.
  * @dai: DAI
  * @tx_mask: bitmask representing active TX slots. Ex.
- *                 0xf for normal 4 channel TDM.
+ *                 0xf for yesrmal 4 channel TDM.
  *                 0xf0 for shifted 4 channel TDM
- * @rx_mask: no used.
+ * @rx_mask: yes used.
  * @slots: Number of slots in use.
  * @slot_width: Width in bits for each slot.
  *
@@ -575,7 +575,7 @@ static int nau8540_calc_fll_param(unsigned int fll_in,
 	fll_param->ratio = fll_ratio[i].val;
 
 	/* Calculate the frequency of DCO (FDCO) given freq_out = 256 * Fs.
-	 * FDCO must be within the 90MHz - 124MHz or the FFL cannot be
+	 * FDCO must be within the 90MHz - 124MHz or the FFL canyest be
 	 * guaranteed across the full range of operation.
 	 * FDCO = freq_out * 2 * mclk_src_scaling
 	 */
@@ -806,7 +806,7 @@ static const struct snd_soc_component_driver nau8540_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config nau8540_regmap_config = {

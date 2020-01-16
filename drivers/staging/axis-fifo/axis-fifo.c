@@ -114,9 +114,9 @@ static int write_timeout = 1000; /* ms to wait before write() times out */
  */
 
 module_param(read_timeout, int, 0444);
-MODULE_PARM_DESC(read_timeout, "ms to wait before blocking read() timing out; set to -1 for no timeout");
+MODULE_PARM_DESC(read_timeout, "ms to wait before blocking read() timing out; set to -1 for yes timeout");
 module_param(write_timeout, int, 0444);
-MODULE_PARM_DESC(write_timeout, "ms to wait before blocking write() timing out; set to -1 for no timeout");
+MODULE_PARM_DESC(write_timeout, "ms to wait before blocking write() timing out; set to -1 for yes timeout");
 
 /* ----------------------------
  *            types
@@ -132,9 +132,9 @@ struct axis_fifo {
 	int has_rx_fifo; /* whether the IP has the rx fifo enabled */
 	int has_tx_fifo; /* whether the IP has the tx fifo enabled */
 
-	wait_queue_head_t read_queue; /* wait queue for asynchronos read */
+	wait_queue_head_t read_queue; /* wait queue for asynchroyess read */
 	spinlock_t read_queue_lock; /* lock for reading waitqueue */
-	wait_queue_head_t write_queue; /* wait queue for asynchronos write */
+	wait_queue_head_t write_queue; /* wait queue for asynchroyess write */
 	spinlock_t write_queue_lock; /* lock for writing waitqueue */
 	unsigned int write_flags; /* write file flags */
 	unsigned int read_flags; /* read file flags */
@@ -350,15 +350,15 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 	u32 tmp_buf[READ_BUF_SIZE];
 
 	if (fifo->read_flags & O_NONBLOCK) {
-		/* opened in non-blocking mode
-		 * return if there are no packets available
+		/* opened in yesn-blocking mode
+		 * return if there are yes packets available
 		 */
 		if (!ioread32(fifo->base_addr + XLLF_RDFO_OFFSET))
 			return -EAGAIN;
 	} else {
 		/* opened in blocking mode
 		 * wait for a packet available interrupt (or timeout)
-		 * if nothing is currently available
+		 * if yesthing is currently available
 		 */
 		spin_lock_irq(&fifo->read_queue_lock);
 		ret = wait_event_interruptible_lock_irq_timeout
@@ -465,8 +465,8 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 	}
 
 	if (fifo->write_flags & O_NONBLOCK) {
-		/* opened in non-blocking mode
-		 * return if there is not enough room available in the fifo
+		/* opened in yesn-blocking mode
+		 * return if there is yest eyesugh room available in the fifo
 		 */
 		if (words_to_write > ioread32(fifo->base_addr +
 					      XLLF_TDFV_OFFSET)) {
@@ -476,7 +476,7 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 		/* opened in blocking mode */
 
 		/* wait for an interrupt (or timeout) if there isn't
-		 * currently enough room in the fifo
+		 * currently eyesugh room in the fifo
 		 */
 		spin_lock_irq(&fifo->write_queue_lock);
 		ret = wait_event_interruptible_lock_irq_timeout
@@ -497,7 +497,7 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 			/* signal received */
 			return -ERESTARTSYS;
 		} else if (ret < 0) {
-			/* unknown error */
+			/* unkyeswn error */
 			dev_err(fifo->dt_device,
 				"wait_event_interruptible_timeout() error in write (ret=%i)\n",
 				ret);
@@ -625,9 +625,9 @@ static irqreturn_t axis_fifo_irq(int irq, void *dw)
 			iowrite32(XLLF_INT_TSE_MASK & XLLF_INT_ALL_MASK,
 				  fifo->base_addr + XLLF_ISR_OFFSET);
 		} else if (pending_interrupts) {
-			/* unknown interrupt type */
+			/* unkyeswn interrupt type */
 			dev_err(fifo->dt_device,
-				"unknown interrupt(s) 0x%x\n",
+				"unkyeswn interrupt(s) 0x%x\n",
 				pending_interrupts);
 
 			iowrite32(XLLF_INT_ALL_MASK,
@@ -638,9 +638,9 @@ static irqreturn_t axis_fifo_irq(int irq, void *dw)
 	return IRQ_HANDLED;
 }
 
-static int axis_fifo_open(struct inode *inod, struct file *f)
+static int axis_fifo_open(struct iyesde *iyesd, struct file *f)
 {
-	struct axis_fifo *fifo = (struct axis_fifo *)container_of(inod->i_cdev,
+	struct axis_fifo *fifo = (struct axis_fifo *)container_of(iyesd->i_cdev,
 					struct axis_fifo, char_device);
 	f->private_data = fifo;
 
@@ -667,7 +667,7 @@ static int axis_fifo_open(struct inode *inod, struct file *f)
 	return 0;
 }
 
-static int axis_fifo_close(struct inode *inod, struct file *f)
+static int axis_fifo_close(struct iyesde *iyesd, struct file *f)
 {
 	f->private_data = NULL;
 
@@ -688,7 +688,7 @@ static int get_dts_property(struct axis_fifo *fifo,
 {
 	int rc;
 
-	rc = of_property_read_u32(fifo->dt_device->of_node, name, var);
+	rc = of_property_read_u32(fifo->dt_device->of_yesde, name, var);
 	if (rc) {
 		dev_err(fifo->dt_device, "couldn't read IP dts property '%s'",
 			name);
@@ -840,7 +840,7 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	/* get IRQ resource */
 	r_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!r_irq) {
-		dev_err(fifo->dt_device, "no IRQ found for 0x%pa\n",
+		dev_err(fifo->dt_device, "yes IRQ found for 0x%pa\n",
 			&r_mem->start);
 		rc = -EIO;
 		goto err_initial;
@@ -865,7 +865,7 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	rc = alloc_chrdev_region(&fifo->devt, 0, 1, DRIVER_NAME);
 	if (rc < 0)
 		goto err_initial;
-	dev_dbg(fifo->dt_device, "allocated device number major %i minor %i\n",
+	dev_dbg(fifo->dt_device, "allocated device number major %i miyesr %i\n",
 		MAJOR(fifo->devt), MINOR(fifo->devt));
 
 	/* create driver file */
@@ -894,7 +894,7 @@ static int axis_fifo_probe(struct platform_device *pdev)
 		goto err_cdev;
 	}
 
-	dev_info(fifo->dt_device, "axis-fifo created at %pa mapped to 0x%pa, irq=%i, major=%i, minor=%i\n",
+	dev_info(fifo->dt_device, "axis-fifo created at %pa mapped to 0x%pa, irq=%i, major=%i, miyesr=%i\n",
 		 &r_mem->start, &fifo->base_addr, fifo->irq,
 		 MAJOR(fifo->devt), MINOR(fifo->devt));
 

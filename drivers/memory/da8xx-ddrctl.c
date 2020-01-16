@@ -16,24 +16,24 @@
 
 /*
  * REVISIT: Linux doesn't have a good framework for the kind of performance
- * knobs this driver controls. We can't use device tree properties as it deals
+ * kyesbs this driver controls. We can't use device tree properties as it deals
  * with hardware configuration rather than description. We also don't want to
  * commit to maintaining some random sysfs attributes.
  *
- * For now we just hardcode the register values for the boards that need
+ * For yesw we just hardcode the register values for the boards that need
  * some changes (as is the case for the LCD controller on da850-lcdk - the
  * first board we support here). When linux gets an appropriate framework,
  * we'll easily convert the driver to it.
  */
 
-struct da8xx_ddrctl_config_knob {
+struct da8xx_ddrctl_config_kyesb {
 	const char *name;
 	u32 reg;
 	u32 mask;
 	u32 shift;
 };
 
-static const struct da8xx_ddrctl_config_knob da8xx_ddrctl_knobs[] = {
+static const struct da8xx_ddrctl_config_kyesb da8xx_ddrctl_kyesbs[] = {
 	{
 		.name = "da850-pbbpr",
 		.reg = 0x20,
@@ -67,17 +67,17 @@ static const struct da8xx_ddrctl_board_settings da8xx_ddrctl_board_confs[] = {
 	},
 };
 
-static const struct da8xx_ddrctl_config_knob *
-da8xx_ddrctl_match_knob(const struct da8xx_ddrctl_setting *setting)
+static const struct da8xx_ddrctl_config_kyesb *
+da8xx_ddrctl_match_kyesb(const struct da8xx_ddrctl_setting *setting)
 {
-	const struct da8xx_ddrctl_config_knob *knob;
+	const struct da8xx_ddrctl_config_kyesb *kyesb;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(da8xx_ddrctl_knobs); i++) {
-		knob = &da8xx_ddrctl_knobs[i];
+	for (i = 0; i < ARRAY_SIZE(da8xx_ddrctl_kyesbs); i++) {
+		kyesb = &da8xx_ddrctl_kyesbs[i];
 
-		if (strcmp(knob->name, setting->name) == 0)
-			return knob;
+		if (strcmp(kyesb->name, setting->name) == 0)
+			return kyesb;
 	}
 
 	return NULL;
@@ -100,20 +100,20 @@ static const struct da8xx_ddrctl_setting *da8xx_ddrctl_get_board_settings(void)
 
 static int da8xx_ddrctl_probe(struct platform_device *pdev)
 {
-	const struct da8xx_ddrctl_config_knob *knob;
+	const struct da8xx_ddrctl_config_kyesb *kyesb;
 	const struct da8xx_ddrctl_setting *setting;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct resource *res;
 	void __iomem *ddrctl;
 	struct device *dev;
 	u32 reg;
 
 	dev = &pdev->dev;
-	node = dev->of_node;
+	yesde = dev->of_yesde;
 
 	setting = da8xx_ddrctl_get_board_settings();
 	if (!setting) {
-		dev_err(dev, "no settings defined for this board\n");
+		dev_err(dev, "yes settings defined for this board\n");
 		return -EINVAL;
 	}
 
@@ -125,27 +125,27 @@ static int da8xx_ddrctl_probe(struct platform_device *pdev)
 	}
 
 	for (; setting->name; setting++) {
-		knob = da8xx_ddrctl_match_knob(setting);
-		if (!knob) {
+		kyesb = da8xx_ddrctl_match_kyesb(setting);
+		if (!kyesb) {
 			dev_warn(dev,
-				 "no such config option: %s\n", setting->name);
+				 "yes such config option: %s\n", setting->name);
 			continue;
 		}
 
-		if (knob->reg + sizeof(u32) > resource_size(res)) {
+		if (kyesb->reg + sizeof(u32) > resource_size(res)) {
 			dev_warn(dev,
 				 "register offset of '%s' exceeds mapped memory size\n",
-				 knob->name);
+				 kyesb->name);
 			continue;
 		}
 
-		reg = readl(ddrctl + knob->reg);
-		reg &= knob->mask;
-		reg |= setting->val << knob->shift;
+		reg = readl(ddrctl + kyesb->reg);
+		reg &= kyesb->mask;
+		reg |= setting->val << kyesb->shift;
 
 		dev_dbg(dev, "writing 0x%08x to %s\n", reg, setting->name);
 
-		writel(reg, ddrctl + knob->reg);
+		writel(reg, ddrctl + kyesb->reg);
 	}
 
 	return 0;

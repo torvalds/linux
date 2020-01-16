@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/err.h>

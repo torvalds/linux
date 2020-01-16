@@ -30,7 +30,7 @@
  * scrub type (call it A).  Scrub and repair functions can override the default
  * sick_mask value if they choose.
  *
- * 2. If the scrubber returns a runtime error code, we exit making no changes
+ * 2. If the scrubber returns a runtime error code, we exit making yes changes
  * to the incore sick state.
  *
  * 3. If the scrubber finds that A is clean, use sick_mask to clear the incore
@@ -40,20 +40,20 @@
  * sick flags.  If the user didn't want to repair then we exit, leaving the
  * metadata structure unfixed and the sick flag set.
  *
- * 5. Now we know that A is corrupt and the user wants to repair, so run the
+ * 5. Now we kyesw that A is corrupt and the user wants to repair, so run the
  * repairer.  If the repairer returns an error code, we exit with that error
- * code, having made no further changes to the incore sick state.
+ * code, having made yes further changes to the incore sick state.
  *
  * 6. If repair rebuilds A correctly and the subsequent re-scrub of A is clean,
  * use sick_mask to clear the incore sick flags.  This should have the effect
- * that A is no longer marked sick.
+ * that A is yes longer marked sick.
  *
  * 7. If repair rebuilds A incorrectly, the re-scrub will find it corrupt and
- * use sick_mask to set the incore sick flags.  This should have no externally
+ * use sick_mask to set the incore sick flags.  This should have yes externally
  * visible effect since we already set them in step (4).
  *
  * There are some complications to this story, however.  For certain types of
- * complementary metadata indices (e.g. inobt/finobt), it is easier to rebuild
+ * complementary metadata indices (e.g. iyesbt/fiyesbt), it is easier to rebuild
  * both structures at the same time.  The following principles apply to this
  * type of repair strategy:
  *
@@ -117,10 +117,10 @@ xchk_health_mask_for_scrub_type(
  * Update filesystem health assessments based on what we found and did.
  *
  * If the scrubber finds errors, we mark sick whatever's mentioned in
- * sick_mask, no matter whether this is a first scan or an
+ * sick_mask, yes matter whether this is a first scan or an
  * evaluation of repair effectiveness.
  *
- * Otherwise, no direct corruption was found, so mark whatever's in
+ * Otherwise, yes direct corruption was found, so mark whatever's in
  * sick_mask as healthy.
  */
 void
@@ -136,7 +136,7 @@ xchk_update_health(
 	bad = (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT);
 	switch (type_to_health_flag[sc->sm->sm_type].group) {
 	case XHG_AG:
-		pag = xfs_perag_get(sc->mp, sc->sm->sm_agno);
+		pag = xfs_perag_get(sc->mp, sc->sm->sm_agyes);
 		if (bad)
 			xfs_ag_mark_sick(pag, sc->sick_mask);
 		else
@@ -147,9 +147,9 @@ xchk_update_health(
 		if (!sc->ip)
 			return;
 		if (bad)
-			xfs_inode_mark_sick(sc->ip, sc->sick_mask);
+			xfs_iyesde_mark_sick(sc->ip, sc->sick_mask);
 		else
-			xfs_inode_mark_healthy(sc->ip, sc->sick_mask);
+			xfs_iyesde_mark_healthy(sc->ip, sc->sick_mask);
 		break;
 	case XHG_FS:
 		if (bad)
@@ -169,9 +169,9 @@ xchk_update_health(
 	}
 }
 
-/* Is the given per-AG btree healthy enough for scanning? */
+/* Is the given per-AG btree healthy eyesugh for scanning? */
 bool
-xchk_ag_btree_healthy_enough(
+xchk_ag_btree_healthy_eyesugh(
 	struct xfs_scrub	*sc,
 	struct xfs_perag	*pag,
 	xfs_btnum_t		btnum)
@@ -180,10 +180,10 @@ xchk_ag_btree_healthy_enough(
 
 	/*
 	 * We always want the cursor if it's the same type as whatever we're
-	 * scrubbing, even if we already know the structure is corrupt.
+	 * scrubbing, even if we already kyesw the structure is corrupt.
 	 *
 	 * Otherwise, we're only interested in the btree for cross-referencing.
-	 * If we know the btree is bad then don't bother, just set XFAIL.
+	 * If we kyesw the btree is bad then don't bother, just set XFAIL.
 	 */
 	switch (btnum) {
 	case XFS_BTNUM_BNO:

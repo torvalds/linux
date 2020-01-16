@@ -276,7 +276,7 @@ enum hash_algo {
 
 /**
  * enum hash_op - Enumeration for selecting between HASH or HMAC mode.
- * @HASH_OPER_MODE_HASH: Indicates usage of normal HASH mode.
+ * @HASH_OPER_MODE_HASH: Indicates usage of yesrmal HASH mode.
  * @HASH_OPER_MODE_HMAC: Indicates usage of HMAC.
  */
 enum hash_op {
@@ -337,7 +337,7 @@ struct hash_ctx {
  * struct hash_ctx - The request context used for hash calculations.
  * @state:	The state of the current calculations.
  * @dma_mode:	Used in special cases (workaround), e.g. need to change to
- *		cpu mode, if not supported/working in dma mode.
+ *		cpu mode, if yest supported/working in dma mode.
  * @updated:	Indicates if hardware is initialized for new operations.
  */
 struct hash_req_ctx {
@@ -350,7 +350,7 @@ struct hash_req_ctx {
  * struct hash_device_data - structure for a hash device.
  * @base:		Pointer to virtual base address of the hash device.
  * @phybase:		Pointer to physical memory location of the hash device.
- * @list_node:		For inclusion in klist.
+ * @list_yesde:		For inclusion in klist.
  * @dev:		Pointer to the device dev structure.
  * @ctx_lock:		Spinlock for current_ctx.
  * @current_ctx:	Pointer to the currently allocated context.
@@ -358,13 +358,13 @@ struct hash_req_ctx {
  * @power_state_lock:	Spinlock for power_state.
  * @regulator:		Pointer to the device's power control.
  * @clk:		Pointer to the device's clock control.
- * @restore_dev_state:	TRUE = saved state, FALSE = no saved state.
+ * @restore_dev_state:	TRUE = saved state, FALSE = yes saved state.
  * @dma:		Structure used for dma.
  */
 struct hash_device_data {
 	struct hash_register __iomem	*base;
 	phys_addr_t             phybase;
-	struct klist_node	list_node;
+	struct klist_yesde	list_yesde;
 	struct device		*dev;
 	spinlock_t		ctx_lock;
 	struct hash_ctx		*current_ctx;

@@ -903,9 +903,9 @@ struct dss_debugfs_entry {
 	void *data;
 };
 
-static int dss_debug_open(struct inode *inode, struct file *file)
+static int dss_debug_open(struct iyesde *iyesde, struct file *file)
 {
-	struct dss_debugfs_entry *entry = inode->i_private;
+	struct dss_debugfs_entry *entry = iyesde->i_private;
 
 	return single_open(file, entry->show_fn, entry->data);
 }
@@ -1053,7 +1053,7 @@ static const struct dss_features omap24xx_dss_feats = {
 	.model			=	DSS_MODEL_OMAP2,
 	/*
 	 * fck div max is really 16, but the divider range has gaps. The range
-	 * from 1 to 6 has no gaps, so let's use that as a max.
+	 * from 1 to 6 has yes gaps, so let's use that as a max.
 	 */
 	.fck_div_max		=	6,
 	.fck_freq_max		=	133000000,
@@ -1154,8 +1154,8 @@ static const struct dss_features dra7xx_dss_feats = {
 static int dss_init_ports(struct dss_device *dss)
 {
 	struct platform_device *pdev = dss->pdev;
-	struct device_node *parent = pdev->dev.of_node;
-	struct device_node *port;
+	struct device_yesde *parent = pdev->dev.of_yesde;
+	struct device_yesde *port;
 	unsigned int i;
 	int r;
 
@@ -1188,8 +1188,8 @@ static int dss_init_ports(struct dss_device *dss)
 static void dss_uninit_ports(struct dss_device *dss)
 {
 	struct platform_device *pdev = dss->pdev;
-	struct device_node *parent = pdev->dev.of_node;
-	struct device_node *port;
+	struct device_yesde *parent = pdev->dev.of_yesde;
+	struct device_yesde *port;
 	int i;
 
 	for (i = 0; i < dss->feat->num_ports; i++) {
@@ -1213,7 +1213,7 @@ static void dss_uninit_ports(struct dss_device *dss)
 static int dss_video_pll_probe(struct dss_device *dss)
 {
 	struct platform_device *pdev = dss->pdev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct regulator *pll_regulator;
 	int r;
 
@@ -1376,7 +1376,7 @@ static int dss_probe_hardware(struct dss_device *dss)
 #ifdef CONFIG_OMAP2_DSS_VENC
 	REG_FLD_MOD(dss, DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
 	REG_FLD_MOD(dss, DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
-	REG_FLD_MOD(dss, DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
+	REG_FLD_MOD(dss, DSS_CONTROL, 0, 2, 2);	/* venc clock mode = yesrmal */
 #endif
 	dss->dsi_clk_source[0] = DSS_CLK_SRC_FCK;
 	dss->dsi_clk_source[1] = DSS_CLK_SRC_FCK;
@@ -1466,7 +1466,7 @@ static int dss_probe(struct platform_device *pdev)
 						   dss);
 
 	/* Add all the child devices as components. */
-	r = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	r = of_platform_populate(pdev->dev.of_yesde, NULL, NULL, &pdev->dev);
 	if (r)
 		goto err_uninit_debugfs;
 
@@ -1570,7 +1570,7 @@ static int dss_runtime_resume(struct device *dev)
 	/*
 	 * Set an arbitrarily high tput request to ensure OPP100.
 	 * What we should really do is to make a request to stay in OPP100,
-	 * without any tput requirements, but that is not currently possible
+	 * without any tput requirements, but that is yest currently possible
 	 * via the PM layer.
 	 */
 

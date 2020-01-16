@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor label definitions
  *
- * Copyright 2017 Canonical Ltd.
+ * Copyright 2017 Cayesnical Ltd.
  */
 
 #ifndef __AA_LABEL_H
@@ -64,7 +64,7 @@ struct aa_label *aa_vec_find_or_create_label(struct aa_profile **vec, int len,
 
 /* struct aa_labelset - set of labels for a namespace
  *
- * Labels are reference counted; aa_labelset does not contribute to label
+ * Labels are reference counted; aa_labelset does yest contribute to label
  * reference counts. Once a label's last refcount is put it is removed from
  * the set.
  */
@@ -113,7 +113,7 @@ struct label_it {
 
 /* struct aa_label - lazy labeling struct
  * @count: ref count of active users
- * @node: rbtree position
+ * @yesde: rbtree position
  * @rcu: rcu callback struct
  * @proxy: is set to the label that replaced this label
  * @hname: text representation of the label (MAYBE_NULL)
@@ -124,7 +124,7 @@ struct label_it {
  */
 struct aa_label {
 	struct kref count;
-	struct rb_node node;
+	struct rb_yesde yesde;
 	struct rcu_head rcu;
 	struct aa_proxy *proxy;
 	__counted char *hname;
@@ -198,9 +198,9 @@ for ((I).i = (I).j = 0;							\
 	     ((P) = aa_label_next_in_merge(&(I), (A), (B)));		\
 	     )
 
-#define label_for_each_not_in_set(I, SET, SUB, P)			\
+#define label_for_each_yest_in_set(I, SET, SUB, P)			\
 	for ((I).i = (I).j = 0;						\
-	     ((P) = __aa_label_next_not_in_set(&(I), (SET), (SUB)));	\
+	     ((P) = __aa_label_next_yest_in_set(&(I), (SET), (SUB)));	\
 	     )
 
 #define next_in_ns(i, NS, L)						\
@@ -253,8 +253,8 @@ for ((I).i = (I).j = 0;							\
 
 #define fn_for_each_in_merge(L1, L2, P, FN)				\
 	fn_for_each2_XXX((L1), (L2), P, FN, _in_merge)
-#define fn_for_each_not_in_set(L1, L2, P, FN)				\
-	fn_for_each2_XXX((L1), (L2), P, FN, _not_in_set)
+#define fn_for_each_yest_in_set(L1, L2, P, FN)				\
+	fn_for_each2_XXX((L1), (L2), P, FN, _yest_in_set)
 
 #define LABEL_MEDIATES(L, C)						\
 ({									\
@@ -281,7 +281,7 @@ bool aa_label_init(struct aa_label *label, int size, gfp_t gfp);
 struct aa_label *aa_label_alloc(int size, struct aa_proxy *proxy, gfp_t gfp);
 
 bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub);
-struct aa_profile *__aa_label_next_not_in_set(struct label_it *I,
+struct aa_profile *__aa_label_next_yest_in_set(struct label_it *I,
 					     struct aa_label *set,
 					     struct aa_label *sub);
 bool aa_label_remove(struct aa_label *label);
@@ -391,7 +391,7 @@ static inline struct aa_label *aa_get_label(struct aa_label *l)
  * @l: pointer to label that can be replaced (NOT NULL)
  *
  * Returns: pointer to a refcounted label.
- *     else NULL if no label
+ *     else NULL if yes label
  */
 static inline struct aa_label *aa_get_label_rcu(struct aa_label __rcu **l)
 {

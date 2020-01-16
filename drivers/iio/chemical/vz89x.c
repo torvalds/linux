@@ -3,7 +3,7 @@
  * vz89x.c - Support for SGX Sensortech MiCS VZ89X VOC sensors
  *
  * Copyright (C) 2015-2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Rayesstay <matt.rayesstay@konsulko.com>
  */
 
 #include <linux/module.h>
@@ -410,6 +410,6 @@ static struct i2c_driver vz89x_driver = {
 };
 module_i2c_driver(vz89x_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Rayesstay <matt.rayesstay@konsulko.com>");
 MODULE_DESCRIPTION("SGX Sensortech MiCS VZ89X VOC sensors");
 MODULE_LICENSE("GPL v2");

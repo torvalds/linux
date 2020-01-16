@@ -16,7 +16,7 @@
 #include <linux/log2.h>
 
 /*
- * DOC: basic adjustable divider clock that cannot gate
+ * DOC: basic adjustable divider clock that canyest gate
  *
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared
@@ -136,7 +136,7 @@ unsigned long divider_recalc_rate(struct clk_hw *hw, unsigned long parent_rate,
 	div = _get_div(table, val, flags, width);
 	if (!div) {
 		WARN(!(flags & CLK_DIVIDER_ALLOW_ZERO),
-			"%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
+			"%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO yest set\n",
 			clk_hw_get_name(hw));
 		return parent_rate;
 	}
@@ -263,13 +263,13 @@ static int _div_round(const struct clk_div_table *table,
 	return _div_round_up(table, parent_rate, rate, flags);
 }
 
-static bool _is_best_div(unsigned long rate, unsigned long now,
+static bool _is_best_div(unsigned long rate, unsigned long yesw,
 			 unsigned long best, unsigned long flags)
 {
 	if (flags & CLK_DIVIDER_ROUND_CLOSEST)
-		return abs(rate - now) < abs(rate - best);
+		return abs(rate - yesw) < abs(rate - best);
 
-	return now <= rate && now > best;
+	return yesw <= rate && yesw > best;
 }
 
 static int _next_div(const struct clk_div_table *table, int div,
@@ -292,7 +292,7 @@ static int clk_divider_bestdiv(struct clk_hw *hw, struct clk_hw *parent,
 			       unsigned long flags)
 {
 	int i, bestdiv = 0;
-	unsigned long parent_rate, best = 0, now, maxdiv;
+	unsigned long parent_rate, best = 0, yesw, maxdiv;
 	unsigned long parent_rate_saved = *best_parent_rate;
 
 	if (!rate)
@@ -326,10 +326,10 @@ static int clk_divider_bestdiv(struct clk_hw *hw, struct clk_hw *parent,
 			return i;
 		}
 		parent_rate = clk_hw_round_rate(parent, rate * i);
-		now = DIV_ROUND_UP_ULL((u64)parent_rate, i);
-		if (_is_best_div(rate, now, best, flags)) {
+		yesw = DIV_ROUND_UP_ULL((u64)parent_rate, i);
+		if (_is_best_div(rate, yesw, best, flags)) {
 			bestdiv = i;
-			best = now;
+			best = yesw;
 			*best_parent_rate = parent_rate;
 		}
 	}

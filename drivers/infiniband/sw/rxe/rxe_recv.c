@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -226,7 +226,7 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 	}
 
 	if (unlikely(qpn == 0)) {
-		pr_warn_once("QP 0 not supported");
+		pr_warn_once("QP 0 yest supported");
 		goto err1;
 	}
 
@@ -235,7 +235,7 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 
 		qp = rxe_pool_get_index(&rxe->qp_pool, index);
 		if (unlikely(!qp)) {
-			pr_warn_ratelimited("no qp matches qpn 0x%x\n", qpn);
+			pr_warn_ratelimited("yes qp matches qpn 0x%x\n", qpn);
 			goto err1;
 		}
 
@@ -252,7 +252,7 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 			goto err2;
 	} else {
 		if (unlikely((pkt->mask & RXE_GRH_MASK) == 0)) {
-			pr_warn_ratelimited("no grh for mcast qpn\n");
+			pr_warn_ratelimited("yes grh for mcast qpn\n");
 			goto err1;
 		}
 	}
@@ -292,7 +292,7 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 	/* lookup mcast group corresponding to mgid, takes a ref */
 	mcg = rxe_pool_get_key(&rxe->mc_grp_pool, &dgid);
 	if (!mcg)
-		goto err1;	/* mcast group not registered */
+		goto err1;	/* mcast group yest registered */
 
 	spin_lock_bh(&mcg->mcg_lock);
 
@@ -309,7 +309,7 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		if (err)
 			continue;
 
-		/* if *not* the last qp in the list
+		/* if *yest* the last qp in the list
 		 * increase the users of the skb then post to the next qp
 		 */
 		if (mce->qp_list.next != &mcg->qp_list)
@@ -399,7 +399,7 @@ void rxe_rcv(struct sk_buff *skb)
 			pr_warn_ratelimited("bad ICRC from %pI4\n",
 					    &ip_hdr(skb)->saddr);
 		else
-			pr_warn_ratelimited("bad ICRC from unknown\n");
+			pr_warn_ratelimited("bad ICRC from unkyeswn\n");
 
 		goto drop;
 	}

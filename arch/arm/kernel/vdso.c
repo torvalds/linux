@@ -83,7 +83,7 @@ bool cntvct_ok __ro_after_init;
 
 static bool __init cntvct_functional(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	bool ret = false;
 
 	if (!IS_ENABLED(CONFIG_ARM_ARCH_TIMER))
@@ -93,17 +93,17 @@ static bool __init cntvct_functional(void)
 	 * arch_timer_use_virtual or similar so we don't have to do
 	 * this.
 	 */
-	np = of_find_compatible_node(NULL, NULL, "arm,armv7-timer");
+	np = of_find_compatible_yesde(NULL, NULL, "arm,armv7-timer");
 	if (!np)
 		goto out_put;
 
-	if (of_property_read_bool(np, "arm,cpu-registers-not-fw-configured"))
+	if (of_property_read_bool(np, "arm,cpu-registers-yest-fw-configured"))
 		goto out_put;
 
 	ret = true;
 
 out_put:
-	of_node_put(np);
+	of_yesde_put(np);
 out:
 	return ret;
 }
@@ -175,7 +175,7 @@ static void __init patch_vdso(void *ehdr)
 	einfo.dynsym = find_section(einfo.hdr, ".dynsym", &einfo.dynsymsize);
 	einfo.dynstr = find_section(einfo.hdr, ".dynstr", NULL);
 
-	/* If the virtual counter is absent or non-functional we don't
+	/* If the virtual counter is absent or yesn-functional we don't
 	 * want programs to incur the slight additional overhead of
 	 * dispatching through the VDSO only to fall back to syscalls.
 	 */
@@ -191,7 +191,7 @@ static int __init vdso_init(void)
 	int i;
 
 	if (memcmp(vdso_start, "\177ELF", 4)) {
-		pr_err("VDSO is not a valid ELF object!\n");
+		pr_err("VDSO is yest a valid ELF object!\n");
 		return -ENOEXEC;
 	}
 

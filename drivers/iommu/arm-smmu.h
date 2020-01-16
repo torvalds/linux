@@ -14,7 +14,7 @@
 #include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/device.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-yesnatomic-hi-lo.h>
 #include <linux/io-pgtable.h>
 #include <linux/iommu.h>
 #include <linux/mutex.h>
@@ -312,7 +312,7 @@ struct arm_smmu_domain {
 	const struct iommu_flush_ops	*flush_ops;
 	struct arm_smmu_cfg		cfg;
 	enum arm_smmu_domain_stage	stage;
-	bool				non_strict;
+	bool				yesn_strict;
 	struct mutex			init_mutex; /* Protects smmu pointer */
 	spinlock_t			cb_lock; /* Serialises ATS1* ops and TLB syncs */
 	struct iommu_domain		domain;

@@ -2,7 +2,7 @@
 /*
  * ARC PGU DRM driver.
  *
- * Copyright (C) 2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2016 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef _ARCPGU_H_
@@ -31,7 +31,7 @@ static inline u32 arc_pgu_read(struct arcpgu_drm_private *arcpgu,
 }
 
 int arc_pgu_setup_crtc(struct drm_device *dev);
-int arcpgu_drm_hdmi_init(struct drm_device *drm, struct device_node *np);
-int arcpgu_drm_sim_init(struct drm_device *drm, struct device_node *np);
+int arcpgu_drm_hdmi_init(struct drm_device *drm, struct device_yesde *np);
+int arcpgu_drm_sim_init(struct drm_device *drm, struct device_yesde *np);
 
 #endif

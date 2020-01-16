@@ -23,7 +23,7 @@
 /* Skylake thermal reporting device */
 #define PCI_DEVICE_ID_PROC_SKL_THERMAL	0x1903
 
-/* CannonLake thermal reporting device */
+/* CanyesnLake thermal reporting device */
 #define PCI_DEVICE_ID_PROC_CNL_THERMAL	0x5a03
 #define PCI_DEVICE_ID_PROC_CFL_THERMAL	0x3E83
 
@@ -76,7 +76,7 @@ struct rapl_mmio_regs {
 
 /*
  * We can have only one type of enumeration, PCI or Platform,
- * not both. So we don't need instance specific data.
+ * yest both. So we don't need instance specific data.
  */
 static enum proc_thermal_emum_mode_type proc_thermal_emum_mode =
 							PROC_THERMAL_NONE;
@@ -322,7 +322,7 @@ free_buffer:
 }
 
 #define PROC_POWER_CAPABILITY_CHANGED	0x83
-static void proc_thermal_notify(acpi_handle handle, u32 event, void *data)
+static void proc_thermal_yestify(acpi_handle handle, u32 event, void *data)
 {
 	struct proc_thermal_device *proc_priv = data;
 
@@ -370,7 +370,7 @@ static int proc_thermal_add(struct device *dev,
 
 	status = acpi_evaluate_integer(adev->handle, "_TMP", NULL, &tmp);
 	if (ACPI_FAILURE(status)) {
-		/* there is no _TMP method, add local method */
+		/* there is yes _TMP method, add local method */
 		stored_tjmax = get_tjmax();
 		if (stored_tjmax > 0)
 			ops = &proc_thermal_local_ops;
@@ -382,8 +382,8 @@ static int proc_thermal_add(struct device *dev,
 	} else
 		ret = 0;
 
-	ret = acpi_install_notify_handler(adev->handle, ACPI_DEVICE_NOTIFY,
-					  proc_thermal_notify,
+	ret = acpi_install_yestify_handler(adev->handle, ACPI_DEVICE_NOTIFY,
+					  proc_thermal_yestify,
 					  (void *)proc_priv);
 	if (ret)
 		goto remove_zone;
@@ -398,8 +398,8 @@ remove_zone:
 
 static void proc_thermal_remove(struct proc_thermal_device *proc_priv)
 {
-	acpi_remove_notify_handler(proc_priv->adev->handle,
-				   ACPI_DEVICE_NOTIFY, proc_thermal_notify);
+	acpi_remove_yestify_handler(proc_priv->adev->handle,
+				   ACPI_DEVICE_NOTIFY, proc_thermal_yestify);
 	int340x_thermal_zone_remove(proc_priv->int340x_zone);
 	sysfs_remove_file(&proc_priv->dev->kobj, &dev_attr_tcc_offset_degree_celsius.attr);
 	sysfs_remove_group(&proc_priv->dev->kobj,
@@ -466,7 +466,7 @@ static int rapl_mmio_cpu_online(unsigned int cpu)
 {
 	struct rapl_package *rp;
 
-	/* mmio rapl supports package 0 only for now */
+	/* mmio rapl supports package 0 only for yesw */
 	if (topology_physical_package_id(cpu))
 		return 0;
 
@@ -535,7 +535,7 @@ static int proc_thermal_rapl_add(struct pci_dev *pdev,
 
 	ret = pcim_iomap_regions(pdev, 1 << MCHBAR, DRV_NAME);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot reserve PCI memory region\n");
+		dev_err(&pdev->dev, "canyest reserve PCI memory region\n");
 		return -ENOMEM;
 	}
 
@@ -615,7 +615,7 @@ static int  proc_thermal_pci_probe(struct pci_dev *pdev,
 
 	ret = pcim_enable_device(pdev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "error: could not enable device\n");
+		dev_err(&pdev->dev, "error: could yest enable device\n");
 		return ret;
 	}
 
@@ -637,8 +637,8 @@ static int  proc_thermal_pci_probe(struct pci_dev *pdev,
 	if (pdev->device == PCI_DEVICE_ID_PROC_BSW_THERMAL) {
 		/*
 		 * Enumerate additional DTS sensors available via IOSF.
-		 * But we are not treating as a failure condition, if
-		 * there are no aux DTSs enabled or fails. This driver
+		 * But we are yest treating as a failure condition, if
+		 * there are yes aux DTSs enabled or fails. This driver
 		 * already exposes sensors, which can be accessed via
 		 * ACPI/MSR. So we don't want to fail for auxiliary DTSs.
 		 */

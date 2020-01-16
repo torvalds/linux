@@ -19,7 +19,7 @@ compiled version of this file into combinations with other programs,
 and to distribute those combinations without any restriction coming
 from the use of this file.  (The General Public License restrictions
 do apply in other respects; for example, they cover modification of
-the file, and distribution when not linked into a combine
+the file, and distribution when yest linked into a combine
 executable.)
 
 This file is distributed in the hope that it will be useful, but
@@ -28,7 +28,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; see the file COPYING.  If not, write to
+along with this program; see the file COPYING.  If yest, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -169,7 +169,7 @@ Boston, MA 02111-1307, USA.  */
 
 	@ Perform all needed subtractions to keep only the reminder.
 	@ Do comparisons in batch of 4 first.
-	subs	\order, \order, #3		@ yes, 3 is intended here
+	subs	\order, \order, #3		@ no, 3 is intended here
 	blt	2f
 
 1:	cmp	\dividend, \divisor

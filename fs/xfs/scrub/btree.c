@@ -140,7 +140,7 @@ xchk_btree_rec(
 	trace_xchk_btree_rec(bs->sc, cur, 0);
 
 	/* If this isn't the first record, are they in order? */
-	if (!bs->firstrec && !cur->bc_ops->recs_inorder(cur, &bs->lastrec, rec))
+	if (!bs->firstrec && !cur->bc_ops->recs_iyesrder(cur, &bs->lastrec, rec))
 		xchk_btree_set_corrupt(bs->sc, cur, 0);
 	bs->firstrec = false;
 	memcpy(&bs->lastrec, rec, cur->bc_ops->rec_len);
@@ -158,7 +158,7 @@ xchk_btree_rec(
 	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
 		return;
 
-	/* Is this no larger than the parent high key? */
+	/* Is this yes larger than the parent high key? */
 	cur->bc_ops->init_high_key_from_rec(&hkey, rec);
 	keyp = xfs_btree_high_key_addr(cur, cur->bc_ptrs[1], keyblock);
 	if (cur->bc_ops->diff_two_keys(cur, keyp, &hkey) < 0)
@@ -188,7 +188,7 @@ xchk_btree_key(
 
 	/* If this isn't the first key, are they in order? */
 	if (!bs->firstkey[level] &&
-	    !cur->bc_ops->keys_inorder(cur, &bs->lastkey[level], key))
+	    !cur->bc_ops->keys_iyesrder(cur, &bs->lastkey[level], key))
 		xchk_btree_set_corrupt(bs->sc, cur, level);
 	bs->firstkey[level] = false;
 	memcpy(&bs->lastkey[level], key, cur->bc_ops->key_len);
@@ -205,7 +205,7 @@ xchk_btree_key(
 	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
 		return;
 
-	/* Is this no larger than the parent high key? */
+	/* Is this yes larger than the parent high key? */
 	key = xfs_btree_high_key_addr(cur, cur->bc_ptrs[level], block);
 	keyp = xfs_btree_high_key_addr(cur, cur->bc_ptrs[level + 1], keyblock);
 	if (cur->bc_ops->diff_two_keys(cur, keyp, key) < 0)
@@ -214,7 +214,7 @@ xchk_btree_key(
 
 /*
  * Check a btree pointer.  Returns true if it's ok to use this pointer.
- * Callers do not need to set the corrupt flag.
+ * Callers do yest need to set the corrupt flag.
  */
 static bool
 xchk_btree_ptr_ok(
@@ -224,7 +224,7 @@ xchk_btree_ptr_ok(
 {
 	bool			res;
 
-	/* A btree rooted in an inode has no block pointer to the root. */
+	/* A btree rooted in an iyesde has yes block pointer to the root. */
 	if ((bs->cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
 	    level == bs->cur->bc_nlevels)
 		return true;
@@ -358,8 +358,8 @@ xchk_btree_check_block_owner(
 	int			level,
 	xfs_daddr_t		daddr)
 {
-	xfs_agnumber_t		agno;
-	xfs_agblock_t		agbno;
+	xfs_agnumber_t		agyes;
+	xfs_agblock_t		agbyes;
 	xfs_btnum_t		btnum;
 	bool			init_sa;
 	int			error = 0;
@@ -368,27 +368,27 @@ xchk_btree_check_block_owner(
 		return 0;
 
 	btnum = bs->cur->bc_btnum;
-	agno = xfs_daddr_to_agno(bs->cur->bc_mp, daddr);
-	agbno = xfs_daddr_to_agbno(bs->cur->bc_mp, daddr);
+	agyes = xfs_daddr_to_agyes(bs->cur->bc_mp, daddr);
+	agbyes = xfs_daddr_to_agbyes(bs->cur->bc_mp, daddr);
 
 	init_sa = bs->cur->bc_flags & XFS_BTREE_LONG_PTRS;
 	if (init_sa) {
-		error = xchk_ag_init(bs->sc, agno, &bs->sc->sa);
+		error = xchk_ag_init(bs->sc, agyes, &bs->sc->sa);
 		if (!xchk_btree_xref_process_error(bs->sc, bs->cur,
 				level, &error))
 			return error;
 	}
 
-	xchk_xref_is_used_space(bs->sc, agbno, 1);
+	xchk_xref_is_used_space(bs->sc, agbyes, 1);
 	/*
-	 * The bnobt scrubber aliases bs->cur to bs->sc->sa.bno_cur, so we
+	 * The byesbt scrubber aliases bs->cur to bs->sc->sa.byes_cur, so we
 	 * have to nullify it (to shut down further block owner checks) if
 	 * self-xref encounters problems.
 	 */
-	if (!bs->sc->sa.bno_cur && btnum == XFS_BTNUM_BNO)
+	if (!bs->sc->sa.byes_cur && btnum == XFS_BTNUM_BNO)
 		bs->cur = NULL;
 
-	xchk_xref_is_owned_by(bs->sc, agbno, 1, bs->oinfo);
+	xchk_xref_is_owned_by(bs->sc, agbyes, 1, bs->oinfo);
 	if (!bs->sc->sa.rmap_cur && btnum == XFS_BTNUM_RMAP)
 		bs->cur = NULL;
 
@@ -410,7 +410,7 @@ xchk_btree_check_owner(
 
 	/*
 	 * In theory, xfs_btree_get_block should only give us a null buffer
-	 * pointer for the root of a root-in-inode btree type, but we need
+	 * pointer for the root of a root-in-iyesde btree type, but we need
 	 * to check defensively here in case the cursor state is also screwed
 	 * up.
 	 */
@@ -421,10 +421,10 @@ xchk_btree_check_owner(
 	}
 
 	/*
-	 * We want to cross-reference each btree block with the bnobt
-	 * and the rmapbt.  We cannot cross-reference the bnobt or
-	 * rmapbt while scanning the bnobt or rmapbt, respectively,
-	 * because we cannot alter the cursor and we'd prefer not to
+	 * We want to cross-reference each btree block with the byesbt
+	 * and the rmapbt.  We canyest cross-reference the byesbt or
+	 * rmapbt while scanning the byesbt or rmapbt, respectively,
+	 * because we canyest alter the cursor and we'd prefer yest to
 	 * duplicate cursors.  Therefore, save the buffer daddr for
 	 * later scanning.
 	 */
@@ -467,7 +467,7 @@ xchk_btree_check_minrecs(
 	 * btree block are allowed to violate this constraint.
 	 *
 	 * For a btree rooted in a block, the btree root can have fewer than
-	 * minrecs records.  If the btree is rooted in an inode and does not
+	 * minrecs records.  If the btree is rooted in an iyesde and does yest
 	 * store records in the root, the direct children of the root and the
 	 * root itself can have fewer than minrecs records.
 	 */
@@ -579,7 +579,7 @@ xchk_btree_block_keys(
 }
 
 /*
- * Visit all nodes and leaves of a btree.  Check that all pointers and
+ * Visit all yesdes and leaves of a btree.  Check that all pointers and
  * records are in order, that the keys reflect the records, and use a callback
  * so that the caller can verify individual records.
  */
@@ -665,7 +665,7 @@ xchk_btree(
 			continue;
 		}
 
-		/* End of node, pop back towards the root. */
+		/* End of yesde, pop back towards the root. */
 		if (cur->bc_ptrs[level] > be16_to_cpu(block->bb_numrecs)) {
 			xchk_btree_block_keys(&bs, level, block);
 			if (level < cur->bc_nlevels - 1)
@@ -677,7 +677,7 @@ xchk_btree(
 		/* Keys in order for scrub? */
 		xchk_btree_key(&bs, level);
 
-		/* Drill another level deeper. */
+		/* Drill ayesther level deeper. */
 		pp = xfs_btree_ptr_addr(cur, cur->bc_ptrs[level], block);
 		if (!xchk_btree_ptr_ok(&bs, level, pp)) {
 			cur->bc_ptrs[level]++;

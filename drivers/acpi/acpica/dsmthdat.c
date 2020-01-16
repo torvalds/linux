@@ -40,7 +40,7 @@ acpi_ds_method_data_get_type(u16 opcode,
  * RETURN:      Status
  *
  * DESCRIPTION: Initialize the data structures that hold the method's arguments
- *              and locals. The data struct is an array of namespace nodes for
+ *              and locals. The data struct is an array of namespace yesdes for
  *              each - this allows ref_of and de_ref_of to work properly for these
  *              special data types.
  *
@@ -95,7 +95,7 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
  * RETURN:      None
  *
  * DESCRIPTION: Delete method locals and arguments. Arguments are only
- *              deleted if this method was called from another method.
+ *              deleted if this method was called from ayesther method.
  *
  ******************************************************************************/
 
@@ -177,7 +177,7 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 		/*
 		 * A valid parameter.
 		 * Store the argument in the method/walk descriptor.
-		 * Do not copy the arg in order to implement call by reference
+		 * Do yest copy the arg in order to implement call by reference
 		 */
 		status =
 		    acpi_ds_method_data_set_value(ACPI_REFCLASS_ARG, index,
@@ -195,27 +195,27 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ds_method_data_get_node
+ * FUNCTION:    acpi_ds_method_data_get_yesde
  *
  * PARAMETERS:  type                - Either ACPI_REFCLASS_LOCAL or
  *                                    ACPI_REFCLASS_ARG
  *              index               - Which Local or Arg whose type to get
  *              walk_state          - Current walk state object
- *              node                - Where the node is returned.
+ *              yesde                - Where the yesde is returned.
  *
- * RETURN:      Status and node
+ * RETURN:      Status and yesde
  *
  * DESCRIPTION: Get the Node associated with a local or arg.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ds_method_data_get_node(u8 type,
+acpi_ds_method_data_get_yesde(u8 type,
 			     u32 index,
 			     struct acpi_walk_state *walk_state,
-			     struct acpi_namespace_node **node)
+			     struct acpi_namespace_yesde **yesde)
 {
-	ACPI_FUNCTION_TRACE(ds_method_data_get_node);
+	ACPI_FUNCTION_TRACE(ds_method_data_get_yesde);
 
 	/*
 	 * Method Locals and Arguments are supported
@@ -230,9 +230,9 @@ acpi_ds_method_data_get_node(u8 type,
 			return_ACPI_STATUS(AE_AML_INVALID_INDEX);
 		}
 
-		/* Return a pointer to the pseudo-node */
+		/* Return a pointer to the pseudo-yesde */
 
-		*node = &walk_state->local_variables[index];
+		*yesde = &walk_state->local_variables[index];
 		break;
 
 	case ACPI_REFCLASS_ARG:
@@ -244,9 +244,9 @@ acpi_ds_method_data_get_node(u8 type,
 			return_ACPI_STATUS(AE_AML_INVALID_INDEX);
 		}
 
-		/* Return a pointer to the pseudo-node */
+		/* Return a pointer to the pseudo-yesde */
 
-		*node = &walk_state->arguments[index];
+		*yesde = &walk_state->arguments[index];
 		break;
 
 	default:
@@ -271,7 +271,7 @@ acpi_ds_method_data_get_node(u8 type,
  * RETURN:      Status
  *
  * DESCRIPTION: Insert an object onto the method stack at entry Opcode:Index.
- *              Note: There is no "implicit conversion" for locals.
+ *              Note: There is yes "implicit conversion" for locals.
  *
  ******************************************************************************/
 
@@ -282,7 +282,7 @@ acpi_ds_method_data_set_value(u8 type,
 			      struct acpi_walk_state *walk_state)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 
 	ACPI_FUNCTION_TRACE(ds_method_data_set_value);
 
@@ -291,16 +291,16 @@ acpi_ds_method_data_set_value(u8 type,
 			  type, object->common.reference_count,
 			  acpi_ut_get_type_name(object->common.type)));
 
-	/* Get the namespace node for the arg/local */
+	/* Get the namespace yesde for the arg/local */
 
-	status = acpi_ds_method_data_get_node(type, index, walk_state, &node);
+	status = acpi_ds_method_data_get_yesde(type, index, walk_state, &yesde);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
 	/*
 	 * Increment ref count so object can't be deleted while installed.
-	 * NOTE: We do not copy the object in order to preserve the call by
+	 * NOTE: We do yest copy the object in order to preserve the call by
 	 * reference semantics of ACPI Control Method invocation.
 	 * (See ACPI Specification 2.0C)
 	 */
@@ -308,7 +308,7 @@ acpi_ds_method_data_set_value(u8 type,
 
 	/* Install the object */
 
-	node->object = object;
+	yesde->object = object;
 	return_ACPI_STATUS(status);
 }
 
@@ -336,7 +336,7 @@ acpi_ds_method_data_get_value(u8 type,
 			      union acpi_operand_object **dest_desc)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_operand_object *object;
 
 	ACPI_FUNCTION_TRACE(ds_method_data_get_value);
@@ -348,16 +348,16 @@ acpi_ds_method_data_get_value(u8 type,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Get the namespace node for the arg/local */
+	/* Get the namespace yesde for the arg/local */
 
-	status = acpi_ds_method_data_get_node(type, index, walk_state, &node);
+	status = acpi_ds_method_data_get_yesde(type, index, walk_state, &yesde);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	/* Get the object from the node */
+	/* Get the object from the yesde */
 
-	object = node->object;
+	object = yesde->object;
 
 	/* Examine the returned object, it must be valid. */
 
@@ -365,7 +365,7 @@ acpi_ds_method_data_get_value(u8 type,
 		/*
 		 * Index points to uninitialized object.
 		 * This means that either 1) The expected argument was
-		 * not passed to the method, or 2) A local variable
+		 * yest passed to the method, or 2) A local variable
 		 * was referenced by the method (via the ASL)
 		 * before it was initialized. Either case is an error.
 		 */
@@ -378,7 +378,7 @@ acpi_ds_method_data_get_value(u8 type,
 				return_ACPI_STATUS(AE_NO_MEMORY);
 			}
 
-			node->object = object;
+			yesde->object = object;
 		}
 
 		/* Otherwise, return the error */
@@ -388,15 +388,15 @@ acpi_ds_method_data_get_value(u8 type,
 			case ACPI_REFCLASS_ARG:
 
 				ACPI_ERROR((AE_INFO,
-					    "Uninitialized Arg[%u] at node %p",
-					    index, node));
+					    "Uninitialized Arg[%u] at yesde %p",
+					    index, yesde));
 
 				return_ACPI_STATUS(AE_AML_UNINITIALIZED_ARG);
 
 			case ACPI_REFCLASS_LOCAL:
 				/*
 				 * No error message for this case, will be trapped again later to
-				 * detect and ignore cases of Store(local_x,local_x)
+				 * detect and igyesre cases of Store(local_x,local_x)
 				 */
 				return_ACPI_STATUS(AE_AML_UNINITIALIZED_LOCAL);
 
@@ -440,28 +440,28 @@ acpi_ds_method_data_delete_value(u8 type,
 				 u32 index, struct acpi_walk_state *walk_state)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_operand_object *object;
 
 	ACPI_FUNCTION_TRACE(ds_method_data_delete_value);
 
-	/* Get the namespace node for the arg/local */
+	/* Get the namespace yesde for the arg/local */
 
-	status = acpi_ds_method_data_get_node(type, index, walk_state, &node);
+	status = acpi_ds_method_data_get_yesde(type, index, walk_state, &yesde);
 	if (ACPI_FAILURE(status)) {
 		return_VOID;
 	}
 
 	/* Get the associated object */
 
-	object = acpi_ns_get_attached_object(node);
+	object = acpi_ns_get_attached_object(yesde);
 
 	/*
 	 * Undefine the Arg or Local by setting its descriptor
 	 * pointer to NULL. Locals/Args can contain both
 	 * ACPI_OPERAND_OBJECTS and ACPI_NAMESPACE_NODEs
 	 */
-	node->object = NULL;
+	yesde->object = NULL;
 
 	if ((object) &&
 	    (ACPI_GET_DESCRIPTOR_TYPE(object) == ACPI_DESC_TYPE_OPERAND)) {
@@ -501,7 +501,7 @@ acpi_ds_store_object_to_local(u8 type,
 			      struct acpi_walk_state *walk_state)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_operand_object *current_obj_desc;
 	union acpi_operand_object *new_obj_desc;
 
@@ -515,14 +515,14 @@ acpi_ds_store_object_to_local(u8 type,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Get the namespace node for the arg/local */
+	/* Get the namespace yesde for the arg/local */
 
-	status = acpi_ds_method_data_get_node(type, index, walk_state, &node);
+	status = acpi_ds_method_data_get_yesde(type, index, walk_state, &yesde);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	current_obj_desc = acpi_ns_get_attached_object(node);
+	current_obj_desc = acpi_ns_get_attached_object(yesde);
 	if (current_obj_desc == obj_desc) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Obj=%p already installed!\n",
 				  obj_desc));
@@ -534,7 +534,7 @@ acpi_ds_store_object_to_local(u8 type,
 	 * take a copy of the object before we store. A reference count
 	 * of exactly 1 means that the object was just created during the
 	 * evaluation of an expression, and we can safely use it since it
-	 * is not used anywhere else.
+	 * is yest used anywhere else.
 	 */
 	new_obj_desc = obj_desc;
 	if (obj_desc->common.reference_count > 1) {
@@ -581,7 +581,7 @@ acpi_ds_store_object_to_local(u8 type,
 			    (current_obj_desc->reference.class ==
 			     ACPI_REFCLASS_REFOF)) {
 				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-						  "Arg (%p) is an ObjRef(Node), storing in node %p\n",
+						  "Arg (%p) is an ObjRef(Node), storing in yesde %p\n",
 						  new_obj_desc,
 						  current_obj_desc));
 
@@ -591,7 +591,7 @@ acpi_ds_store_object_to_local(u8 type,
 				 * specification rules on storing to Locals/Args.
 				 */
 				status =
-				    acpi_ex_store_object_to_node(new_obj_desc,
+				    acpi_ex_store_object_to_yesde(new_obj_desc,
 								 current_obj_desc->
 								 reference.
 								 object,
@@ -652,21 +652,21 @@ acpi_ds_method_data_get_type(u16 opcode,
 			     u32 index, struct acpi_walk_state *walk_state)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_operand_object *object;
 
 	ACPI_FUNCTION_TRACE(ds_method_data_get_type);
 
-	/* Get the namespace node for the arg/local */
+	/* Get the namespace yesde for the arg/local */
 
-	status = acpi_ds_method_data_get_node(opcode, index, walk_state, &node);
+	status = acpi_ds_method_data_get_yesde(opcode, index, walk_state, &yesde);
 	if (ACPI_FAILURE(status)) {
 		return_VALUE((ACPI_TYPE_NOT_FOUND));
 	}
 
 	/* Get the object */
 
-	object = acpi_ns_get_attached_object(node);
+	object = acpi_ns_get_attached_object(yesde);
 	if (!object) {
 
 		/* Uninitialized local/arg, return TYPE_ANY */

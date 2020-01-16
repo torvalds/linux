@@ -16,7 +16,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -47,32 +47,32 @@ struct drm_info_list {
 	 * @show:
 	 *
 	 * Show callback. &seq_file->private will be set to the &struct
-	 * drm_info_node corresponding to the instance of this info on a given
-	 * &struct drm_minor.
+	 * drm_info_yesde corresponding to the instance of this info on a given
+	 * &struct drm_miyesr.
 	 */
 	int (*show)(struct seq_file*, void*);
 	/** @driver_features: Required driver features for this entry */
 	u32 driver_features;
-	/** @data: Driver-private data, should not be device-specific. */
+	/** @data: Driver-private data, should yest be device-specific. */
 	void *data;
 };
 
 /**
- * struct drm_info_node - Per-minor debugfs node structure
+ * struct drm_info_yesde - Per-miyesr debugfs yesde structure
  *
  * This structure represents a debugfs file, as an instantiation of a &struct
- * drm_info_list on a &struct drm_minor.
+ * drm_info_list on a &struct drm_miyesr.
  *
  * FIXME:
  *
  * No it doesn't make a hole lot of sense that we duplicate debugfs entries for
- * both the render and the primary nodes, but that's how this has organically
+ * both the render and the primary yesdes, but that's how this has organically
  * grown. It should probably be fixed, with a compatibility link, if needed.
  */
-struct drm_info_node {
-	/** @minor: &struct drm_minor for this node. */
-	struct drm_minor *minor;
-	/** @info_ent: template for this node. */
+struct drm_info_yesde {
+	/** @miyesr: &struct drm_miyesr for this yesde. */
+	struct drm_miyesr *miyesr;
+	/** @info_ent: template for this yesde. */
 	const struct drm_info_list *info_ent;
 	/* private: */
 	struct list_head list;
@@ -82,19 +82,19 @@ struct drm_info_node {
 #if defined(CONFIG_DEBUG_FS)
 int drm_debugfs_create_files(const struct drm_info_list *files,
 			     int count, struct dentry *root,
-			     struct drm_minor *minor);
+			     struct drm_miyesr *miyesr);
 int drm_debugfs_remove_files(const struct drm_info_list *files,
-			     int count, struct drm_minor *minor);
+			     int count, struct drm_miyesr *miyesr);
 #else
 static inline int drm_debugfs_create_files(const struct drm_info_list *files,
 					   int count, struct dentry *root,
-					   struct drm_minor *minor)
+					   struct drm_miyesr *miyesr)
 {
 	return 0;
 }
 
 static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
-					   int count, struct drm_minor *minor)
+					   int count, struct drm_miyesr *miyesr)
 {
 	return 0;
 }

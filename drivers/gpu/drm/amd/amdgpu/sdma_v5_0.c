@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -159,7 +159,7 @@ static void sdma_v5_0_init_golden_registers(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  *
  * Use the firmware interface to load the ucode images into
- * the driver (not loaded into hw).
+ * the driver (yest loaded into hw).
  * Returns 0 on success, error on failure.
  */
 
@@ -205,7 +205,7 @@ static int sdma_v5_0_init_microcode(struct amdgpu_device *adev)
 		adev->sdma.instance[i].fw_version = le32_to_cpu(hdr->header.ucode_version);
 		adev->sdma.instance[i].feature_version = le32_to_cpu(hdr->ucode_feature_version);
 		if (adev->sdma.instance[i].feature_version >= 20)
-			adev->sdma.instance[i].burst_nop = true;
+			adev->sdma.instance[i].burst_yesp = true;
 		DRM_DEBUG("psp_load == '%s'\n",
 				adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ? "true" : "false");
 
@@ -353,17 +353,17 @@ static void sdma_v5_0_ring_set_wptr(struct amdgpu_ring *ring)
 	}
 }
 
-static void sdma_v5_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+static void sdma_v5_0_ring_insert_yesp(struct amdgpu_ring *ring, uint32_t count)
 {
 	struct amdgpu_sdma_instance *sdma = amdgpu_sdma_get_instance_from_ring(ring);
 	int i;
 
 	for (i = 0; i < count; i++)
-		if (sdma && sdma->burst_nop && (i == 0))
-			amdgpu_ring_write(ring, ring->funcs->nop |
+		if (sdma && sdma->burst_yesp && (i == 0))
+			amdgpu_ring_write(ring, ring->funcs->yesp |
 				SDMA_PKT_NOP_HEADER_COUNT(count - 1));
 		else
-			amdgpu_ring_write(ring, ring->funcs->nop);
+			amdgpu_ring_write(ring, ring->funcs->yesp);
 }
 
 /**
@@ -383,7 +383,7 @@ static void sdma_v5_0_ring_emit_ib(struct amdgpu_ring *ring,
 	uint64_t csa_mc_addr = amdgpu_sdma_get_csa_mc_addr(ring, vmid);
 
 	/* IB packet must end on a 8 DW boundary */
-	sdma_v5_0_ring_insert_nop(ring, (10 - (lower_32_bits(ring->wptr) & 7)) % 8);
+	sdma_v5_0_ring_insert_yesp(ring, (10 - (lower_32_bits(ring->wptr) & 7)) % 8);
 
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_INDIRECT) |
 			  SDMA_PKT_INDIRECT_HEADER_VMID(vmid & 0xf));
@@ -460,7 +460,7 @@ static void sdma_v5_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 se
 		amdgpu_ring_write(ring, upper_32_bits(seq));
 	}
 
-	/* Interrupt not work fine on GFX10.1 model yet. Use fallback instead */
+	/* Interrupt yest work fine on GFX10.1 model yet. Use fallback instead */
 	if ((flags & AMDGPU_FENCE_FLAG_INT) && adev->pdev->device != 0x50) {
 		/* generate an interrupt */
 		amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_TRAP));
@@ -649,7 +649,7 @@ static int sdma_v5_0_gfx_resume(struct amdgpu_device *adev)
 		WREG32(sdma_v5_0_get_reg_offset(adev, i, mmSDMA0_GFX_RB_WPTR_POLL_CNTL),
 		       wptr_poll_cntl);
 
-		/* set the wb address whether it's enabled or not */
+		/* set the wb address whether it's enabled or yest */
 		WREG32(sdma_v5_0_get_reg_offset(adev, i, mmSDMA0_GFX_RB_RPTR_ADDR_HI),
 		       upper_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFF);
 		WREG32(sdma_v5_0_get_reg_offset(adev, i, mmSDMA0_GFX_RB_RPTR_ADDR_LO),
@@ -662,7 +662,7 @@ static int sdma_v5_0_gfx_resume(struct amdgpu_device *adev)
 
 		ring->wptr = 0;
 
-		/* before programing wptr to a less value, need set minor_ptr_update first */
+		/* before programing wptr to a less value, need set miyesr_ptr_update first */
 		WREG32(sdma_v5_0_get_reg_offset(adev, i, mmSDMA0_GFX_MINOR_PTR_UPDATE), 1);
 
 		if (!amdgpu_sriov_vf(adev)) { /* only bare-metal use register write for wptr */
@@ -689,7 +689,7 @@ static int sdma_v5_0_gfx_resume(struct amdgpu_device *adev)
 		if (amdgpu_sriov_vf(adev))
 			sdma_v5_0_ring_set_wptr(ring);
 
-		/* set minor_ptr_update to 0 after wptr programed */
+		/* set miyesr_ptr_update to 0 after wptr programed */
 		WREG32(sdma_v5_0_get_reg_offset(adev, i, mmSDMA0_GFX_MINOR_PTR_UPDATE), 0);
 
 		/* set utc l1 enable flag always to 1 */
@@ -700,7 +700,7 @@ static int sdma_v5_0_gfx_resume(struct amdgpu_device *adev)
 		temp = REG_SET_FIELD(temp, SDMA0_CNTL, MIDCMD_PREEMPT_ENABLE, 1);
 		WREG32(sdma_v5_0_get_reg_offset(adev, i, mmSDMA0_CNTL), temp);
 
-		/* Set up RESP_MODE to non-copy addresses */
+		/* Set up RESP_MODE to yesn-copy addresses */
 		temp = RREG32(sdma_v5_0_get_reg_offset(adev, i, mmSDMA0_UTCL1_CNTL));
 		temp = REG_SET_FIELD(temp, SDMA0_UTCL1_CNTL, RESP_MODE, 3);
 		temp = REG_SET_FIELD(temp, SDMA0_UTCL1_CNTL, REDO_DELAY, 9);
@@ -771,7 +771,7 @@ static int sdma_v5_0_rlc_resume(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  *
  * Loads the sDMA0/1 ucode.
- * Returns 0 for success, -EINVAL if the ucode is not available.
+ * Returns 0 for success, -EINVAL if the ucode is yest available.
  */
 static int sdma_v5_0_load_microcode(struct amdgpu_device *adev)
 {
@@ -1099,7 +1099,7 @@ static void sdma_v5_0_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib
 
 	pad_count = (8 - (ib->length_dw & 0x7)) % 8;
 	for (i = 0; i < pad_count; i++)
-		if (sdma && sdma->burst_nop && (i == 0))
+		if (sdma && sdma->burst_yesp && (i == 0))
 			ib->ptr[ib->length_dw++] =
 				SDMA_PKT_HEADER_OP(SDMA_OP_NOP) |
 				SDMA_PKT_NOP_HEADER_COUNT(pad_count - 1);
@@ -1585,7 +1585,7 @@ const struct amd_ip_funcs sdma_v5_0_ip_funcs = {
 static const struct amdgpu_ring_funcs sdma_v5_0_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
 	.align_mask = 0xf,
-	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
+	.yesp = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
 	.vmhub = AMDGPU_GFXHUB_0,
 	.get_rptr = sdma_v5_0_ring_get_rptr,
@@ -1608,7 +1608,7 @@ static const struct amdgpu_ring_funcs sdma_v5_0_ring_funcs = {
 	.emit_hdp_flush = sdma_v5_0_ring_emit_hdp_flush,
 	.test_ring = sdma_v5_0_ring_test_ring,
 	.test_ib = sdma_v5_0_ring_test_ib,
-	.insert_nop = sdma_v5_0_ring_insert_nop,
+	.insert_yesp = sdma_v5_0_ring_insert_yesp,
 	.pad_ib = sdma_v5_0_ring_pad_ib,
 	.emit_wreg = sdma_v5_0_ring_emit_wreg,
 	.emit_reg_wait = sdma_v5_0_ring_emit_reg_wait,
@@ -1738,7 +1738,7 @@ static void sdma_v5_0_set_vm_pte_funcs(struct amdgpu_device *adev)
 const struct amdgpu_ip_block_version sdma_v5_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_SDMA,
 	.major = 5,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &sdma_v5_0_ip_funcs,
 };

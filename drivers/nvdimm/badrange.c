@@ -62,7 +62,7 @@ static int add_badrange(struct badrange *badrange, u64 addr, u64 length)
 
 	/*
 	 * There is a chance this is a duplicate, check for those first.
-	 * This will be the common case as ARS_STATUS returns all known
+	 * This will be the common case as ARS_STATUS returns all kyeswn
 	 * errors in the SPA space, and we can't query it per region
 	 */
 	list_for_each_entry(bre, &badrange->list, list)
@@ -75,7 +75,7 @@ static int add_badrange(struct badrange *badrange, u64 addr, u64 length)
 		}
 
 	/*
-	 * If not a duplicate or a simple length update, add the entry as is,
+	 * If yest a duplicate or a simple length update, add the entry as is,
 	 * as any overlapping ranges will get resolved when the list is consumed
 	 * and converted to badblocks
 	 */
@@ -118,7 +118,7 @@ void badrange_forget(struct badrange *badrange, phys_addr_t start,
 	list_for_each_entry_safe(bre, next, badrange_list, list) {
 		u64 bre_end = bre->start + bre->length - 1;
 
-		/* Skip intervals with no intersection */
+		/* Skip intervals with yes intersection */
 		if (bre_end < start)
 			continue;
 		if (bre->start >  clr_end)
@@ -221,7 +221,7 @@ static void badblocks_populate(struct badrange *badrange,
 	list_for_each_entry(bre, &badrange->list, list) {
 		u64 bre_end = bre->start + bre->length - 1;
 
-		/* Discard intervals with no intersection */
+		/* Discard intervals with yes intersection */
 		if (bre_end < res->start)
 			continue;
 		if (bre->start >  res->end)

@@ -12,7 +12,7 @@ menuconfig VIRTUALIZATION
 	---help---
 	  Say Y here to get to see options for using your Linux host to run other
 	  operating systems inside virtual machines (guests).
-	  This option alone does not add any kernel code.
+	  This option alone does yest add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
@@ -52,7 +52,7 @@ config KVM
 	  need to select one or more of the processor modules below.
 
 	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  a character device yesde named /dev/kvm.
 
 	  To compile this as a module, choose M here: the module
 	  will be called kvm.

@@ -394,7 +394,7 @@ static int mscan_rx_poll(struct napi_struct *napi, int quota)
 		skb = alloc_can_skb(dev, &frame);
 		if (!skb) {
 			if (printk_ratelimit())
-				netdev_notice(dev, "packet dropped\n");
+				netdev_yestice(dev, "packet dropped\n");
 			stats->rx_dropped++;
 			out_8(&regs->canrflg, canrflg);
 			continue;

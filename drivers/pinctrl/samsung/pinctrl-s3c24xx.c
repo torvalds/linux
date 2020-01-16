@@ -469,8 +469,8 @@ static int s3c24xx_eint_init(struct samsung_pinctrl_drv_data *d)
 {
 	struct device *dev = d->dev;
 	const struct of_device_id *match;
-	struct device_node *eint_np = NULL;
-	struct device_node *np;
+	struct device_yesde *eint_np = NULL;
+	struct device_yesde *np;
 	struct samsung_pin_bank *bank;
 	struct s3c24xx_eint_data *eint_data;
 	const struct irq_domain_ops *ops;
@@ -478,8 +478,8 @@ static int s3c24xx_eint_init(struct samsung_pinctrl_drv_data *d)
 	bool eint0_3_parent_only;
 	irq_flow_handler_t *handlers;
 
-	for_each_child_of_node(dev->of_node, np) {
-		match = of_match_node(s3c24xx_eint_irq_ids, np);
+	for_each_child_of_yesde(dev->of_yesde, np) {
+		match = of_match_yesde(s3c24xx_eint_irq_ids, np);
 		if (match) {
 			eint_np = np;
 			eint0_3_parent_only = (bool)match->data;
@@ -491,7 +491,7 @@ static int s3c24xx_eint_init(struct samsung_pinctrl_drv_data *d)
 
 	eint_data = devm_kzalloc(dev, sizeof(*eint_data), GFP_KERNEL);
 	if (!eint_data) {
-		of_node_put(eint_np);
+		of_yesde_put(eint_np);
 		return -ENOMEM;
 	}
 
@@ -505,14 +505,14 @@ static int s3c24xx_eint_init(struct samsung_pinctrl_drv_data *d)
 		irq = irq_of_parse_and_map(eint_np, i);
 		if (!irq) {
 			dev_err(dev, "failed to get wakeup EINT IRQ %d\n", i);
-			of_node_put(eint_np);
+			of_yesde_put(eint_np);
 			return -ENXIO;
 		}
 
 		eint_data->parents[i] = irq;
 		irq_set_chained_handler_and_data(irq, handlers[i], eint_data);
 	}
-	of_node_put(eint_np);
+	of_yesde_put(eint_np);
 
 	bank = d->pin_banks;
 	for (i = 0; i < d->nr_banks; ++i, ++bank) {
@@ -535,7 +535,7 @@ static int s3c24xx_eint_init(struct samsung_pinctrl_drv_data *d)
 		ops = (bank->eint_offset == 0) ? &s3c24xx_gpf_irq_ops
 					       : &s3c24xx_gpg_irq_ops;
 
-		bank->irq_domain = irq_domain_add_linear(bank->of_node,
+		bank->irq_domain = irq_domain_add_linear(bank->of_yesde,
 				bank->nr_pins, ops, ddata);
 		if (!bank->irq_domain) {
 			dev_err(dev, "wkup irq domain add failed\n");

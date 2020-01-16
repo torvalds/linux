@@ -7,7 +7,7 @@
 #define MAX_PACKS_HS	(MAX_PACKS * 8)	/* in high speed mode */
 #define MAX_URBS	12
 #define SYNC_URBS	4	/* always four urbs for sync */
-#define MAX_QUEUE	18	/* try not to exceed this queue length, in ms */
+#define MAX_QUEUE	18	/* try yest to exceed this queue length, in ms */
 
 struct audioformat {
 	struct list_head list;
@@ -15,7 +15,7 @@ struct audioformat {
 	unsigned int channels;		/* # channels */
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
 	unsigned int fmt_bits;		/* number of significant bits */
-	unsigned int frame_size;	/* samples per frame for non-audio */
+	unsigned int frame_size;	/* samples per frame for yesn-audio */
 	int iface;			/* interface number */
 	unsigned char altsetting;	/* corresponding alternate setting */
 	unsigned char altset_idx;	/* array index of altenate setting */
@@ -84,7 +84,7 @@ struct snd_usb_endpoint {
 	dma_addr_t sync_dma;		/* DMA address of syncbuf */
 
 	unsigned int pipe;		/* the data i/o pipe */
-	unsigned int freqn;		/* nominal sampling rate in fs/fps in Q16.16 format */
+	unsigned int freqn;		/* yesminal sampling rate in fs/fps in Q16.16 format */
 	unsigned int freqm;		/* momentary sampling rate in fs/fps in Q16.16 format */
 	int	   freqshift;		/* how much to shift the feedback value to get Q16.16 */
 	unsigned int freqmax;		/* maximum sampling rate, used for buffer management */
@@ -96,13 +96,13 @@ struct snd_usb_endpoint {
 	unsigned int curframesize;      /* current packet size in frames (for capture) */
 	unsigned int syncmaxsize;	/* sync endpoint packet size */
 	unsigned int fill_max:1;	/* fill max packet size always */
-	unsigned int tenor_fb_quirk:1;	/* corrupted feedback data */
+	unsigned int teyesr_fb_quirk:1;	/* corrupted feedback data */
 	unsigned int datainterval;      /* log_2 of data packet interval */
 	unsigned int syncinterval;	/* P for adaptive mode, 0 otherwise */
 	unsigned char silence_value;
 	unsigned int stride;
 	int iface, altsetting;
-	int skip_packets;		/* quirks for devices to ignore the first n packets
+	int skip_packets;		/* quirks for devices to igyesre the first n packets
 					   in a stream */
 
 	spinlock_t lock;
@@ -131,7 +131,7 @@ struct snd_usb_substream {
 	unsigned int txfr_quirk:1;	/* allow sub-frame alignment */
 	unsigned int tx_length_quirk:1;	/* add length specifier to transfers */
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
-	unsigned int pkt_offset_adj;	/* Bytes to drop from beginning of packets (for non-compliant devices) */
+	unsigned int pkt_offset_adj;	/* Bytes to drop from beginning of packets (for yesn-compliant devices) */
 
 	unsigned int running: 1;	/* running status */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -44,12 +44,12 @@
 #include "mlx4_en.h"
 
 MODULE_AUTHOR("Liran Liss, Yevgeny Petrilin");
-MODULE_DESCRIPTION("Mellanox ConnectX HCA Ethernet driver");
+MODULE_DESCRIPTION("Mellayesx ConnectX HCA Ethernet driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
 static const char mlx4_en_version[] =
-	DRV_NAME ": Mellanox ConnectX HCA Ethernet driver v"
+	DRV_NAME ": Mellayesx ConnectX HCA Ethernet driver v"
 	DRV_VERSION "\n";
 
 #define MLX4_EN_PARM_INT(X, def_val, desc) \
@@ -111,8 +111,8 @@ void mlx4_en_update_loopback_state(struct net_device *dev,
 	priv->flags &= ~(MLX4_EN_FLAG_RX_FILTER_NEEDED|
 			MLX4_EN_FLAG_ENABLE_HW_LOOPBACK);
 
-	/* Drop the packet if SRIOV is not enabled
-	 * and not performing the selftest or flb disabled
+	/* Drop the packet if SRIOV is yest enabled
+	 * and yest performing the selftest or flb disabled
 	 */
 	if (mlx4_is_mfunc(priv->mdev->dev) &&
 	    !(features & NETIF_F_LOOPBACK) && !priv->validate_loopback)
@@ -159,7 +159,7 @@ static void mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 
 	if (params->udp_rss && !(mdev->dev->caps.flags
 					& MLX4_DEV_CAP_FLAG_UDP_RSS)) {
-		mlx4_warn(mdev, "UDP RSS is not supported on this device\n");
+		mlx4_warn(mdev, "UDP RSS is yest supported on this device\n");
 		params->udp_rss = 0;
 	}
 	for (i = 1; i <= MLX4_MAX_PORTS; i++) {
@@ -243,8 +243,8 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 	iounmap(mdev->uar_map);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 	mlx4_pd_free(dev, mdev->priv_pdn);
-	if (mdev->nb.notifier_call)
-		unregister_netdevice_notifier(&mdev->nb);
+	if (mdev->nb.yestifier_call)
+		unregister_netdevice_yestifier(&mdev->nb);
 	kfree(mdev);
 }
 
@@ -260,11 +260,11 @@ static void mlx4_en_activate(struct mlx4_dev *dev, void *ctx)
 			mdev->pndev[i] = NULL;
 	}
 
-	/* register notifier */
-	mdev->nb.notifier_call = mlx4_en_netdev_event;
-	if (register_netdevice_notifier(&mdev->nb)) {
-		mdev->nb.notifier_call = NULL;
-		mlx4_err(mdev, "Failed to create notifier\n");
+	/* register yestifier */
+	mdev->nb.yestifier_call = mlx4_en_netdev_event;
+	if (register_netdevice_yestifier(&mdev->nb)) {
+		mdev->nb.yestifier_call = NULL;
+		mlx4_err(mdev, "Failed to create yestifier\n");
 	}
 }
 
@@ -298,7 +298,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 
 	mdev->LSO_support = !!(dev->caps.flags & (1 << 15));
 	if (!mdev->LSO_support)
-		mlx4_warn(mdev, "LSO not supported, please upgrade to later FW version to enable LSO\n");
+		mlx4_warn(mdev, "LSO yest supported, please upgrade to later FW version to enable LSO\n");
 
 	if (mlx4_mr_alloc(mdev->dev, mdev->priv_pdn, 0, ~0ull,
 			 MLX4_PERM_LOCAL_WRITE |  MLX4_PERM_LOCAL_READ,
@@ -323,13 +323,13 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	mlx4_en_set_num_rx_rings(mdev);
 
 	/* Create our own workqueue for reset/multicast tasks
-	 * Note: we cannot use the shared workqueue because of deadlocks caused
+	 * Note: we canyest use the shared workqueue because of deadlocks caused
 	 *       by the rtnl lock */
 	mdev->workqueue = create_singlethread_workqueue("mlx4_en");
 	if (!mdev->workqueue)
 		goto err_mr;
 
-	/* At this stage all non-port specific tasks are complete:
+	/* At this stage all yesn-port specific tasks are complete:
 	 * mark the card state as up */
 	mutex_init(&mdev->state_lock);
 	mdev->device_up = true;

@@ -10,12 +10,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -51,7 +51,7 @@
  *
  * THE DATA / CONTROL PROTOCOL
  *
- * This is the normal protocol spoken with the device once the
+ * This is the yesrmal protocol spoken with the device once the
  * firmware is uploaded. It transports data payloads and control
  * messages back and forth.
  *
@@ -91,21 +91,21 @@
  *   COMMAND:  implies a request from the host to the device requesting
  *             an action being performed. The device will reply with a
  *             message (with the same type as the command), status and
- *             no (TLV) payload. Execution of a command might cause
+ *             yes (TLV) payload. Execution of a command might cause
  *             events (of different type) to be sent later on as
  *             device's state changes.
  *
- *   GET/SET:  similar to COMMAND, but will not cause other
+ *   GET/SET:  similar to COMMAND, but will yest cause other
  *             EVENTs. The reply, in the case of GET, will contain
  *             TLVs with the requested information.
  *
- *   EVENT:    asynchronous messages sent from the device, maybe as a
+ *   EVENT:    asynchroyesus messages sent from the device, maybe as a
  *             consequence of previous COMMANDs but disassociated from
  *             them.
  *
  * Only one request might be pending at the same time (ie: don't
- * parallelize nor post another GET request before the previous
- * COMMAND has been acknowledged with it's corresponding reply by the
+ * parallelize yesr post ayesther GET request before the previous
+ * COMMAND has been ackyeswledged with it's corresponding reply by the
  * device).
  *
  * The different requests and their formats are described below:
@@ -217,7 +217,7 @@ struct i2400m_pl_data_hdr {
  *
  * New in fw v1.4
  *
- * @reorder: if this payload has to be reorder or not (and how)
+ * @reorder: if this payload has to be reorder or yest (and how)
  * @cs: the type of data in the packet, as defined per (802.16e
  *     T11.13.19.1). Currently only 2 (IPv4 packet) supported.
  *
@@ -259,7 +259,7 @@ enum {
 	I2400M_PL_ALIGN = 16,	/* Payload data size alignment */
 	I2400M_PL_SIZE_MAX = 0x3EFF,
 	I2400M_MAX_PLS_IN_MSG = 60,
-	/* protocol barkers: sync sequences; for notifications they
+	/* protocol barkers: sync sequences; for yestifications they
 	 * are sent in groups of four. */
 	I2400M_H2D_PREVIEW_BARKER = 0xcafe900d,
 	I2400M_COLD_RESET_BARKER = 0xc01dc01d,
@@ -478,7 +478,7 @@ struct i2400m_tlv_system_state {
 struct i2400m_tlv_l4_message_versions {
 	struct i2400m_tlv_hdr hdr;
 	__le16 major;
-	__le16 minor;
+	__le16 miyesr;
 	__le16 branch;
 	__le16 reserved;
 } __attribute__((packed));

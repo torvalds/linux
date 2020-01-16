@@ -19,7 +19,7 @@
  *
  * "ad-hoc" partitioning:
  *    the expanded memory can be partitioned among several devices 
- *    (with different minors). The partitioning set up can be
+ *    (with different miyesrs). The partitioning set up can be
  *    set by kernel or module parameters (int devs & int sizes[])
  *
  * Potential future improvements:
@@ -32,7 +32,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/ctype.h>  /* isdigit, isxdigit */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
@@ -74,7 +74,7 @@ MODULE_PARM_DESC(devs, "number of devices (\"partitions\"), " \
 MODULE_PARM_DESC(sizes, "list of device (partition) sizes " \
 		 "the defaults are 0s \n" \
 		 "All devices with size 0 equally partition the "
-		 "remaining space on the expanded strorage not "
+		 "remaining space on the expanded strorage yest "
 		 "claimed by explicit sizes\n");
 MODULE_LICENSE("GPL");
 
@@ -195,10 +195,10 @@ static blk_qc_t xpram_make_request(struct request_queue *q, struct bio *bio)
 
 	if ((bio->bi_iter.bi_sector & 7) != 0 ||
 	    (bio->bi_iter.bi_size & 4095) != 0)
-		/* Request is not page-aligned. */
+		/* Request is yest page-aligned. */
 		goto fail;
 	if ((bio->bi_iter.bi_size >> 12) > xdev->size)
-		/* Request size is no page-aligned. */
+		/* Request size is yes page-aligned. */
 		goto fail;
 	if ((bio->bi_iter.bi_sector >> 3) > 0xffffffffU - xdev->offset)
 		goto fail;
@@ -208,7 +208,7 @@ static blk_qc_t xpram_make_request(struct request_queue *q, struct bio *bio)
 			kmap(bvec.bv_page) + bvec.bv_offset;
 		bytes = bvec.bv_len;
 		if ((page_addr & 4095) != 0 || (bytes & 4095) != 0)
-			/* More paranoia. */
+			/* More parayesia. */
 			goto fail;
 		while (bytes > 0) {
 			if (bio_data_dir(bio) == READ) {
@@ -262,12 +262,12 @@ static int __init xpram_setup_sizes(unsigned long pages)
 	unsigned long mem_auto;
 	unsigned long long size;
 	char *sizes_end;
-	int mem_auto_no;
+	int mem_auto_yes;
 	int i;
 
 	/* Check number of devices. */
 	if (devs <= 0 || devs > XPRAM_MAX_DEVS) {
-		pr_err("%d is not a valid number of XPRAM devices\n",devs);
+		pr_err("%d is yest a valid number of XPRAM devices\n",devs);
 		return -EINVAL;
 	}
 	xpram_devs = devs;
@@ -277,7 +277,7 @@ static int __init xpram_setup_sizes(unsigned long pages)
 	 * sizes to page boundary.
 	 */
 	mem_needed = 0;
-	mem_auto_no = 0;
+	mem_auto_yes = 0;
 	for (i = 0; i < xpram_devs; i++) {
 		if (sizes[i]) {
 			size = simple_strtoull(sizes[i], &sizes_end, 0);
@@ -295,7 +295,7 @@ static int __init xpram_setup_sizes(unsigned long pages)
 		if (xpram_sizes[i])
 			mem_needed += xpram_sizes[i];
 		else
-			mem_auto_no++;
+			mem_auto_yes++;
 	}
 	
 	pr_info("  number of devices (partitions): %d \n", xpram_devs);
@@ -310,10 +310,10 @@ static int __init xpram_setup_sizes(unsigned long pages)
 	pr_info("  memory needed (for sized partitions): %lu kB\n",
 		mem_needed);
 	pr_info("  partitions to be sized automatically: %d\n",
-		mem_auto_no);
+		mem_auto_yes);
 
 	if (mem_needed > pages * 4) {
-		pr_err("Not enough expanded memory available\n");
+		pr_err("Not eyesugh expanded memory available\n");
 		return -EINVAL;
 	}
 
@@ -323,8 +323,8 @@ static int __init xpram_setup_sizes(unsigned long pages)
 	 * else:             ; all partitions with zero xpram_sizes[i]
 	 *                     partition equally the remaining space
 	 */
-	if (mem_auto_no) {
-		mem_auto = ((pages - mem_needed / 4) / mem_auto_no) * 4;
+	if (mem_auto_yes) {
+		mem_auto = ((pages - mem_needed / 4) / mem_auto_yes) * 4;
 		pr_info("  automatically determined "
 			"partition size: %lu kB\n", mem_auto);
 		for (i = 0; i < xpram_devs; i++)
@@ -372,7 +372,7 @@ static int __init xpram_setup_blkdev(void)
 		xpram_devices[i].offset = offset;
 		offset += xpram_devices[i].size;
 		disk->major = XPRAM_MAJOR;
-		disk->first_minor = i;
+		disk->first_miyesr = i;
 		disk->fops = &xpram_devops;
 		disk->private_data = &xpram_devices[i];
 		disk->queue = xpram_queues[i];

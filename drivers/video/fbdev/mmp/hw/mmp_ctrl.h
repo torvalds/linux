@@ -2,7 +2,7 @@
 /*
  * drivers/video/mmp/hw/mmp_ctrl.h
  *
- * Copyright (C) 2012 Marvell Technology Group Ltd.
+ * Copyright (C) 2012 Marvell Techyeslogy Group Ltd.
  * Authors:  Guoqing Li <ligq@marvell.com>
  *          Lisa Du <cldu@marvell.com>
  *          Zhou Zhu <zzhu3@marvell.com>
@@ -1002,8 +1002,8 @@ struct lcd_regs {
 #define MODE_ALPHA_CFG			0x2
 
 /* alpha value */
-#define ALPHA_NOGRAPHIC			0xFF	  /* all video, no graphic */
-#define ALPHA_NOVIDEO			0x00	  /* all graphic, no video */
+#define ALPHA_NOGRAPHIC			0xFF	  /* all video, yes graphic */
+#define ALPHA_NOVIDEO			0x00	  /* all graphic, yes video */
 #define ALPHA_GRAPHNVIDEO		0x0F	  /* Selects graphic & video */
 
 /*
@@ -1376,7 +1376,7 @@ enum {
 
 /*
  * mmp path describes part of mmp path related info:
- * which is hiden in display driver and not exported to buffer driver
+ * which is hiden in display driver and yest exported to buffer driver
  */
 struct mmphw_ctrl;
 struct mmphw_path_plat {

@@ -107,7 +107,7 @@ struct arch_specific_insn {
 };
 
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
-extern int kprobe_exceptions_notify(struct notifier_block *self,
+extern int kprobe_exceptions_yestify(struct yestifier_block *self,
 				    unsigned long val, void *data);
 
 extern void invalidate_stacked_regs(void);

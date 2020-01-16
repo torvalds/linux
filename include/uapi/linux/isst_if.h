@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Intel Speed Select Interface: OS to hardware Interface
  * Copyright (c) 2019, Intel Corporation.
@@ -18,7 +18,7 @@
  *			can communicate
  * @driver_version:	Driver version, which will help user to send right
  *			commands. Even if the firmware is capable, driver may
- *			not be ready
+ *			yest be ready
  * @max_cmds_per_ioctl:	Returns the maximum number of commands driver will
  *			accept in a single ioctl
  * @mbox_supported:	Support of mail box interface
@@ -56,7 +56,7 @@ struct isst_if_cpu_map {
  *
  * This structure used with ioctl ISST_IF_GET_PHY_ID to send
  * one or more CPU mapping commands. Here IOCTL return value indicates
- * number of commands sent or error number if no commands have been sent.
+ * number of commands sent or error number if yes commands have been sent.
  */
 struct isst_if_cpu_maps {
 	__u32 cmd_count;
@@ -87,7 +87,7 @@ struct isst_if_io_reg {
  *
  * This structure used with ioctl ISST_IF_IO_CMD to send
  * one or more read/write commands to PUNIT. Here IOCTL return value
- * indicates number of requests sent or error number if no requests have
+ * indicates number of requests sent or error number if yes requests have
  * been sent.
  */
 struct isst_if_io_regs {
@@ -124,7 +124,7 @@ struct isst_if_mbox_cmd {
  *
  * This structure used with ioctl ISST_IF_MBOX_COMMAND to send
  * one or more mailbox commands to PUNIT. Here IOCTL return value
- * indicates number of commands sent or error number if no commands have
+ * indicates number of commands sent or error number if yes commands have
  * been sent.
  */
 struct isst_if_mbox_cmds {
@@ -156,7 +156,7 @@ struct isst_if_msr_cmd {
  *
  * This structure used with ioctl ISST_IF_MSR_COMMAND to send
  * one or more MSR commands. IOCTL return value indicates number of
- * commands sent or error number if no commands have been sent.
+ * commands sent or error number if yes commands have been sent.
  */
 struct isst_if_msr_cmds {
 	__u32 cmd_count;

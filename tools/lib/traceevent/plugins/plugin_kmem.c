@@ -5,7 +5,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
+ * version 2.1 of the License (yest later!)
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not,  see <http://www.gnu.org/licenses>
+ * License along with this program; if yest,  see <http://www.gnu.org/licenses>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -57,14 +57,14 @@ int TEP_PLUGIN_LOADER(struct tep_handle *tep)
 	tep_register_event_handler(tep, -1, "kmem", "kmalloc",
 				   call_site_handler, NULL);
 
-	tep_register_event_handler(tep, -1, "kmem", "kmalloc_node",
+	tep_register_event_handler(tep, -1, "kmem", "kmalloc_yesde",
 				   call_site_handler, NULL);
 
 	tep_register_event_handler(tep, -1, "kmem", "kmem_cache_alloc",
 				   call_site_handler, NULL);
 
 	tep_register_event_handler(tep, -1, "kmem",
-				   "kmem_cache_alloc_node",
+				   "kmem_cache_alloc_yesde",
 				   call_site_handler, NULL);
 
 	tep_register_event_handler(tep, -1, "kmem", "kmem_cache_free",
@@ -80,14 +80,14 @@ void TEP_PLUGIN_UNLOADER(struct tep_handle *tep)
 	tep_unregister_event_handler(tep, -1, "kmem", "kmalloc",
 				     call_site_handler, NULL);
 
-	tep_unregister_event_handler(tep, -1, "kmem", "kmalloc_node",
+	tep_unregister_event_handler(tep, -1, "kmem", "kmalloc_yesde",
 				     call_site_handler, NULL);
 
 	tep_unregister_event_handler(tep, -1, "kmem", "kmem_cache_alloc",
 				     call_site_handler, NULL);
 
 	tep_unregister_event_handler(tep, -1, "kmem",
-				     "kmem_cache_alloc_node",
+				     "kmem_cache_alloc_yesde",
 				     call_site_handler, NULL);
 
 	tep_unregister_event_handler(tep, -1, "kmem", "kmem_cache_free",

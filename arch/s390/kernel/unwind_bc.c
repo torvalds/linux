@@ -31,7 +31,7 @@ static bool update_stack_info(struct unwind_state *state, unsigned long sp)
 	/* New stack pointer leaves the current stack */
 	if (get_stack_info(sp, state->task, info, mask) != 0 ||
 	    !on_stack(info, sp, sizeof(struct stack_frame)))
-		/* 'sp' does not point to a valid stack */
+		/* 'sp' does yest point to a valid stack */
 		return false;
 	return true;
 }

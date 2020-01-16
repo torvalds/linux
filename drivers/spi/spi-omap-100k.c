@@ -5,8 +5,8 @@
  * from original omap1_mcspi driver
  *
  * Copyright (C) 2005, 2006 Nokia Corporation
- * Author:      Samuel Ortiz <samuel.ortiz@nokia.com> and
- *              Juha Yrj�l� <juha.yrjola@nokia.com>
+ * Author:      Samuel Ortiz <samuel.ortiz@yeskia.com> and
+ *              Juha Yrj�l� <juha.yrjola@yeskia.com>
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -229,7 +229,7 @@ omap1_spi100k_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 	return count - c;
 }
 
-/* called only when no transfer is active to this device */
+/* called only when yes transfer is active to this device */
 static int omap1_spi100k_setup_transfer(struct spi_device *spi,
 		struct spi_transfer *t)
 {
@@ -323,7 +323,7 @@ static int omap1_spi100k_transfer_one_message(struct spi_master *master,
 
 		spi_transfer_delay_exec(t);
 
-		/* ignore the "leave it on after last xfer" hint */
+		/* igyesre the "leave it on after last xfer" hint */
 
 		if (t->cs_change) {
 			omap1_spi100k_force_cs(spi100k, 0);

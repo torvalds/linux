@@ -318,9 +318,9 @@ static void smsdvb_print_isdb_stats_ex(struct smsdvb_debugfs *debug_data,
 	wake_up(&debug_data->stats_queue);
 }
 
-static int smsdvb_stats_open(struct inode *inode, struct file *file)
+static int smsdvb_stats_open(struct iyesde *iyesde, struct file *file)
 {
-	struct smsdvb_client_t *client = inode->i_private;
+	struct smsdvb_client_t *client = iyesde->i_private;
 	struct smsdvb_debugfs *debug_data = client->debug_data;
 
 	kref_get(&debug_data->refcount);
@@ -417,7 +417,7 @@ ret:
 	return rc;
 }
 
-static int smsdvb_stats_release(struct inode *inode, struct file *file)
+static int smsdvb_stats_release(struct iyesde *iyesde, struct file *file)
 {
 	struct smsdvb_debugfs *debug_data = file->private_data;
 
@@ -505,18 +505,18 @@ void smsdvb_debugfs_register(void)
 	struct dentry *d;
 
 	/*
-	 * FIXME: This was written to debug Siano USB devices. So, it creates
-	 * the debugfs node under <debugfs>/usb.
-	 * A similar logic would be needed for Siano sdio devices, but, in that
-	 * case, usb_debug_root is not a good choice.
+	 * FIXME: This was written to debug Siayes USB devices. So, it creates
+	 * the debugfs yesde under <debugfs>/usb.
+	 * A similar logic would be needed for Siayes sdio devices, but, in that
+	 * case, usb_debug_root is yest a good choice.
 	 *
-	 * Perhaps the right fix here would be to create another sysfs root
-	 * node for sdio-based boards, but this may need some logic at sdio
+	 * Perhaps the right fix here would be to create ayesther sysfs root
+	 * yesde for sdio-based boards, but this may need some logic at sdio
 	 * subsystem.
 	 */
 	d = debugfs_create_dir("smsdvb", usb_debug_root);
 	if (IS_ERR_OR_NULL(d)) {
-		pr_err("Couldn't create sysfs node for smsdvb\n");
+		pr_err("Couldn't create sysfs yesde for smsdvb\n");
 		return;
 	}
 	smsdvb_debugfs_usb_root = d;

@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -233,14 +233,14 @@ static int cg14_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 /**
  *      cg14_setcolreg - Optional function. Sets a color register.
- *      @regno: boolean, 0 copy local, 1 get_user() function
+ *      @regyes: boolean, 0 copy local, 1 get_user() function
  *      @red: frame buffer colormap structure
  *      @green: The green value which can be up to 16 bits wide
  *      @blue:  The blue value which can be up to 16 bits wide.
  *      @transp: If supported the alpha value which can be up to 16 bits wide.
  *      @info: frame buffer info structure
  */
-static int cg14_setcolreg(unsigned regno,
+static int cg14_setcolreg(unsigned regyes,
 			  unsigned red, unsigned green, unsigned blue,
 			  unsigned transp, struct fb_info *info)
 {
@@ -249,7 +249,7 @@ static int cg14_setcolreg(unsigned regno,
 	unsigned long flags;
 	u32 val;
 
-	if (regno >= 256)
+	if (regyes >= 256)
 		return 1;
 
 	red >>= 8;
@@ -258,7 +258,7 @@ static int cg14_setcolreg(unsigned regno,
 	val = (red | (green << 8) | (blue << 16));
 
 	spin_lock_irqsave(&par->lock, flags);
-	sbus_writel(val, &clut->c_clut[regno]);
+	sbus_writel(val, &clut->c_clut[regyes]);
 	spin_unlock_irqrestore(&par->lock, flags);
 
 	return 0;
@@ -354,7 +354,7 @@ static int cg14_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
  */
 
 static void cg14_init_fix(struct fb_info *info, int linebytes,
-			  struct device_node *dp)
+			  struct device_yesde *dp)
 {
 	snprintf(info->fix.id, sizeof(info->fix.id), "%pOFn", dp);
 
@@ -464,7 +464,7 @@ static void cg14_unmap_regs(struct platform_device *op, struct fb_info *info,
 
 static int cg14_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct fb_info *info;
 	struct cg14_par *par;
 	int is_8mb, linebytes, i, err;
@@ -487,8 +487,8 @@ static int cg14_probe(struct platform_device *op)
 					  info->var.xres);
 	info->fix.smem_len = PAGE_ALIGN(linebytes * info->var.yres);
 
-	if (of_node_name_eq(dp->parent, "sbus") ||
-	    of_node_name_eq(dp->parent, "sbi")) {
+	if (of_yesde_name_eq(dp->parent, "sbus") ||
+	    of_yesde_name_eq(dp->parent, "sbi")) {
 		info->fix.smem_start = op->resource[0].start;
 		par->iospace = op->resource[0].flags & IORESOURCE_BITS;
 	} else {

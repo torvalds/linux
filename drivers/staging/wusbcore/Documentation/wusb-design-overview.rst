@@ -16,7 +16,7 @@ Linux UWB + Wireless USB + WiNET
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
    02110-1301, USA.
 
@@ -135,10 +135,10 @@ DWA: Device Wired Adaptor, a Wireless USB hub for wired devices
 
 These are the complement to HWAs. They are a USB host for connecting
 wired devices, but it is connected to your PC connected via Wireless
-USB. To the system it looks like yet another USB host. To the untrained
+USB. To the system it looks like yet ayesther USB host. To the untrained
 eye, it looks like a hub that connects upstream wirelessly.
 
-We still offer no support for this; however, it should share a lot of
+We still offer yes support for this; however, it should share a lot of
 code with the HWA-RC driver; there is a bunch of factorization work that
 has been done to support that in upcoming releases.
 
@@ -151,7 +151,7 @@ to EHCI, it allows your wireless USB devices (including DWAs) to connect
 to your host via a PCI interface. As in the case of the HWA, it has a
 Radio Control interface and the WUSB Host Controller interface per se.
 
-There is still no driver support for this, but will be in upcoming
+There is still yes driver support for this, but will be in upcoming
 releases.
 
 
@@ -161,7 +161,7 @@ The UWB stack
 The main mission of the UWB stack is to keep a tally of which devices
 are in radio proximity to allow drivers to connect to them. As well, it
 provides an API for controlling the local radio controllers (RCs from
-now on), such as to start/stop beaconing, scan, allocate bandwidth, etc.
+yesw on), such as to start/stop beaconing, scan, allocate bandwidth, etc.
 
 
 Devices and hosts: the basic structure
@@ -177,10 +177,10 @@ created. An entry is also created in /sys/class/uwb_rc for each RC.
 
 Each RC driver is implemented by a separate driver that plugs into the
 interface that the UWB stack provides through a struct uwb_rc_ops. The
-spec creators have been nice enough to make the message format the same
+spec creators have been nice eyesugh to make the message format the same
 for HWA and WHCI RCs, so the driver is really a very thin transport that
 moves the requests from the UWB API to the device [/uwb_rc_ops->cmd()/]
-and sends the replies and notifications back to the API
+and sends the replies and yestifications back to the API
 [/uwb_rc_neh_grok()/]. Notifications are handled to the UWB daemon, that
 is chartered, among other things, to keep the tab of how the UWB radio
 neighborhood looks, creating and destroying devices as they show up or
@@ -212,11 +212,11 @@ the world [/drivers/uwb/lc-rc.c:uwb_rc_add()/].
       [*] The stack should put a new RC to scan for devices
       [/uwb_rc_scan()/] so it finds what's available around and tries to
       connect to them, but this is policy stuff and should be driven
-      from user space. As of now, the operator is expected to do it
-      manually; see the release notes for documentation on the procedure.
+      from user space. As of yesw, the operator is expected to do it
+      manually; see the release yestes for documentation on the procedure.
 
 When a dongle is disconnected, /drivers/uwb/hwa-rc.c:hwarc_disconnect()/
-takes time of tearing everything down safely (or not...).
+takes time of tearing everything down safely (or yest...).
 
 
 On the air: beacons and enumerating the radio neighborhood
@@ -231,16 +231,16 @@ on (let's say 9), we put the new RC to beacon:
 
 Now it is visible. If there were other devices in the same radio channel
 and beacon group (that's what the zero is for), the dongle's radio
-control interface will send beacon notifications on its
-notification/event endpoint (NEEP). The beacon notifications are part of
+control interface will send beacon yestifications on its
+yestification/event endpoint (NEEP). The beacon yestifications are part of
 the event stream that is funneled into the API with
 /drivers/uwb/neh.c:uwb_rc_neh_grok()/ and delivered to the UWBD, the UWB
-daemon through a notification list.
+daemon through a yestification list.
 
 UWBD wakes up and scans the event list; finds a beacon and adds it to
 the BEACON CACHE (/uwb_beca/). If he receives a number of beacons from
 the same device, he considers it to be 'onair' and creates a new device
-[/drivers/uwb/lc-dev.c:uwbd_dev_onair()/]. Similarly, when no beacons
+[/drivers/uwb/lc-dev.c:uwbd_dev_onair()/]. Similarly, when yes beacons
 are received in some time, the device is considered gone and wiped out
 [uwbd calls periodically /uwb/beacon.c:uwb_beca_purge()/ that will purge
 the beacon cache of dead devices].
@@ -256,14 +256,14 @@ Bandwidth allocation
 --------------------
 
 The UWB stack maintains a local copy of DRP availability through
-processing of incoming *DRP Availability Change* notifications. This
+processing of incoming *DRP Availability Change* yestifications. This
 local copy is currently used to present the current bandwidth
 availability to the user through the sysfs file
 /sys/class/uwb_rc/uwbx/bw_avail. In the future the bandwidth
 availability information will be used by the bandwidth reservation
 routines.
 
-The bandwidth reservation routines are in progress and are thus not
+The bandwidth reservation routines are in progress and are thus yest
 present in the current release. When completed they will enable a user
 to initiate DRP reservation requests through interaction with sysfs. DRP
 reservation requests from remote UWB devices will also be handled. The
@@ -283,7 +283,7 @@ world: HWA-HC, DWA-HC and WHCI-HC.
 
 HWA-HC and DWA-HC share that they are Wire-Adapters (USB or WUSB
 connected controllers), and their transfer management system is almost
-identical. So is their notification delivery system.
+identical. So is their yestification delivery system.
 
 HWA-HC and WHCI-HC share that they are both WUSB host controllers, so
 they have to deal with WUSB device life cycle and maintenance, wireless
@@ -291,7 +291,7 @@ root-hub
 
 HWA exposes a Host Controller interface (HWA-HC 0xe0/02/02). This has
 three endpoints (Notifications, Data Transfer In and Data Transfer
-Out--known as NEP, DTI and DTO in the code).
+Out--kyeswn as NEP, DTI and DTO in the code).
 
 We reserve UWB bandwidth for our Wireless USB Cluster, create a Cluster
 ID and tell the HC to use all that. Then we start it. This means the HC
@@ -301,7 +301,7 @@ starts sending MMCs.
 
       The MMCs are blocks of data defined somewhere in the WUSB1.0 spec
       that define a stream in the UWB channel time allocated for sending
-      WUSB IEs (host to device commands/notifications) and Device
+      WUSB IEs (host to device commands/yestifications) and Device
       Notifications (device initiated to host). Each host defines a
       unique Wireless USB cluster through MMCs. Devices can connect to a
       single cluster at the time. The IEs are Information Elements, and
@@ -316,20 +316,20 @@ New device connection
 A new device pops up, it scans the radio looking for MMCs that give out
 the existence of Wireless USB channels. Once one (or more) are found,
 selects which one to connect to. Sends a /DN_Connect/ (device
-notification connect) during the DNTS (Device Notification Time
-Slot--announced in the MMCs
+yestification connect) during the DNTS (Device Notification Time
+Slot--anyesunced in the MMCs
 
-HC picks the /DN_Connect/ out (nep module sends to notif.c for delivery
+HC picks the /DN_Connect/ out (nep module sends to yestif.c for delivery
 into /devconnect/). This process starts the authentication process for
 the device. First we allocate a /fake port/ and assign an
 unauthenticated address (128 to 255--what we really do is
 0x80 | fake_port_idx). We fiddle with the fake port status and /hub_wq/
 sees a new connection, so he moves on to enable the fake port with a reset.
 
-So now we are in the reset path -- we know we have a non-yet enumerated
+So yesw we are in the reset path -- we kyesw we have a yesn-yet enumerated
 device with an unauthorized address; we ask user space to authenticate
-(FIXME: not yet done, similar to bluetooth pairing), then we do the key
-exchange (FIXME: not yet done) and issue a /set address 0/ to bring the
+(FIXME: yest yet done, similar to bluetooth pairing), then we do the key
+exchange (FIXME: yest yet done) and issue a /set address 0/ to bring the
 device to the default state. Device is authenticated.
 
 From here, the USB stack takes control through the usb_hcd ops. hub_wq
@@ -341,10 +341,10 @@ Device life cycle and keep alives
 ---------------------------------
 
 Every time there is a successful transfer to/from a device, we update a
-per-device activity timestamp. If not, every now and then we check and
+per-device activity timestamp. If yest, every yesw and then we check and
 if the activity timestamp gets old, we ping the device by sending it a
 Keep Alive IE; it responds with a /DN_Alive/ pong during the DNTS (this
-arrives to us as a notification through
+arrives to us as a yestification through
 devconnect.c:wusb_handle_dn_alive(). If a device times out, we
 disconnect it from the system (cleaning up internal information and
 toggling the bits in the fake hub port, which kicks hub_wq into removing
@@ -375,23 +375,23 @@ buffer is bigger than the max segment size, then we just do multiple
 requests.
 
 [This sucks, because doing USB scatter gatter in Linux is resource
-intensive, if any...not that the current approach is not. It just has to
+intensive, if any...yest that the current approach is yest. It just has to
 be cleaned up a lot :)].
 
 If reading, we don't send data buffers, just the segment headers saying
 we want to read segments.
 
-When the xfer is executed, we receive a notification that says data is
+When the xfer is executed, we receive a yestification that says data is
 ready in the DTI endpoint (handled through
-xfer.c:wa_handle_notif_xfer()). In there we read from the DTI endpoint a
+xfer.c:wa_handle_yestif_xfer()). In there we read from the DTI endpoint a
 descriptor that gives us the status of the transfer, its identification
 (given when we issued it) and the segment number. If it was a data read,
-we issue another URB to read into the destination buffer the chunk of
+we issue ayesther URB to read into the destination buffer the chunk of
 data coming out of the remote endpoint. Done, wait for the next guy. The
 callbacks for the URBs issued from here are the ones that will declare
 the xfer complete at some point and call its callback.
 
-Seems simple, but the implementation is not trivial.
+Seems simple, but the implementation is yest trivial.
 
     *
 
@@ -402,7 +402,7 @@ array of segments, tallys on segments and buffers and callback
 information. Buried in there is a lot of URBs for executing the segments
 and buffer transfers.
 
-For OUT xfers, there is an array of segments, one URB for each, another
+For OUT xfers, there is an array of segments, one URB for each, ayesther
 one of buffer URB. When submitting, we submit URBs for segment request
 1, buffer 1, segment 2, buffer 2...etc. Then we wait on the DTI for xfer
 result data; when all the segments are complete, we call the callback to
@@ -421,7 +421,7 @@ called and we assign the status bits and release the xfer resources.
 
 In dequeue() we are basically cancelling/aborting the transfer. We issue
 a xfer abort request to the HC, cancel all the URBs we had submitted
-and not yet done and when all that is done, the xfer callback will be
+and yest yet done and when all that is done, the xfer callback will be
 called--this will call the URB callback.
 
 
@@ -439,14 +439,14 @@ with Wireless USB.
 
 *NEH* -- Notification/Event Handle
 
-Handle/file descriptor for receiving notifications or events. The WA
-code requires you to get one of this to listen for notifications or
+Handle/file descriptor for receiving yestifications or events. The WA
+code requires you to get one of this to listen for yestifications or
 events on the NEEP.
 
 *NEEP* -- Notification/Event EndPoint
 
 Stuff related to the management of the first endpoint of a HWA USB
-dongle that is used to deliver an stream of events and notifications to
+dongle that is used to deliver an stream of events and yestifications to
 the host.
 
 *NOTIFICATION* -- Message coming in the NEEP as response to something.

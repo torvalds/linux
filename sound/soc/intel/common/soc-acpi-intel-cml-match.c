@@ -22,7 +22,7 @@ static struct snd_soc_acpi_codecs max98357a_spk_codecs = {
 /*
  * The order of the three entries with .id = "10EC5682" matters
  * here, because DSDT tables expose an ACPI HID for the MAX98357A
- * speaker amplifier which is not populated on the board.
+ * speaker amplifier which is yest populated on the board.
  */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 	{

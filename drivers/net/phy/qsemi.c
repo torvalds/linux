@@ -10,7 +10,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -65,7 +65,7 @@ static int qs6612_config_init(struct phy_device *phydev)
 	 * set to one, bit 10, which specifies it should be set
 	 * to 0, and bit 7, which doesn't specify.  However, my
 	 * docs are preliminary, and I will leave it like this
-	 * until someone more knowledgable corrects me or it.
+	 * until someone more kyeswledgable corrects me or it.
 	 * -- Andy Fleming
 	 */
 	return phy_write(phydev, MII_QS6612_PCR, 0x0dc0);

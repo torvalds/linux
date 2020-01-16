@@ -497,7 +497,7 @@ static ssize_t pch_phub_bin_read(struct file *filp, struct kobject *kobj,
 	ret = mutex_lock_interruptible(&pch_phub_mutex);
 	if (ret) {
 		err = -ERESTARTSYS;
-		goto return_err_nomutex;
+		goto return_err_yesmutex;
 	}
 
 	/* Get Rom signature */
@@ -545,7 +545,7 @@ return_err:
 	pci_unmap_rom(chip->pdev, chip->pch_phub_extrom_base_address);
 exrom_map_err:
 	mutex_unlock(&pch_phub_mutex);
-return_err_nomutex:
+return_err_yesmutex:
 	return err;
 }
 
@@ -702,8 +702,8 @@ static int pch_phub_probe(struct pci_dev *pdev,
 		const char *board_name;
 		unsigned int prefetch = 0x000affaa;
 
-		if (pdev->dev.of_node)
-			of_property_read_u32(pdev->dev.of_node,
+		if (pdev->dev.of_yesde)
+			of_property_read_u32(pdev->dev.of_yesde,
 						  "intel,eg20t-prefetch",
 						  &prefetch);
 
@@ -738,7 +738,7 @@ static int pch_phub_probe(struct pci_dev *pdev,
 		chip->pch_mac_start_address = PCH_PHUB_MAC_START_ADDR_EG20T;
 
 		/* quirk for MIPS Boston platform */
-		if (pdev->dev.of_node) {
+		if (pdev->dev.of_yesde) {
 			if (of_machine_is_compatible("img,boston")) {
 				pch_phub_read_modify_write_reg(chip,
 					(unsigned int)CLKCFG_REG_OFFSET,

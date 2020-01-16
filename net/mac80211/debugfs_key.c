@@ -92,7 +92,7 @@ static ssize_t key_tx_spec_write(struct file *file, const char __user *userbuf,
 	case WLAN_CIPHER_SUITE_WEP104:
 		return -EINVAL;
 	case WLAN_CIPHER_SUITE_TKIP:
-		/* not supported yet */
+		/* yest supported yet */
 		return -EOPNOTSUPP;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:

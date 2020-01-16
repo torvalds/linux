@@ -12,28 +12,28 @@
 static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
 	asm_volatile_goto("1:\n\t"
-		 WASM(nop) "\n\t"
+		 WASM(yesp) "\n\t"
 		 ".pushsection __jump_table,  \"aw\"\n\t"
-		 ".word 1b, %l[l_yes], %c0\n\t"
+		 ".word 1b, %l[l_no], %c0\n\t"
 		 ".popsection\n\t"
-		 : :  "i" (&((char *)key)[branch]) :  : l_yes);
+		 : :  "i" (&((char *)key)[branch]) :  : l_no);
 
 	return false;
-l_yes:
+l_no:
 	return true;
 }
 
 static __always_inline bool arch_static_branch_jump(struct static_key *key, bool branch)
 {
 	asm_volatile_goto("1:\n\t"
-		 WASM(b) " %l[l_yes]\n\t"
+		 WASM(b) " %l[l_no]\n\t"
 		 ".pushsection __jump_table,  \"aw\"\n\t"
-		 ".word 1b, %l[l_yes], %c0\n\t"
+		 ".word 1b, %l[l_no], %c0\n\t"
 		 ".popsection\n\t"
-		 : :  "i" (&((char *)key)[branch]) :  : l_yes);
+		 : :  "i" (&((char *)key)[branch]) :  : l_no);
 
 	return false;
-l_yes:
+l_no:
 	return true;
 }
 

@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 1996,1997,1998 Russell King.
  *  ARM700 fix by Matthew Godbolt (linux-user@willothewisp.demon.co.uk)
- *  nommu support by Hyok S. Choi (hyok.choi@samsung.com)
+ *  yesmmu support by Hyok S. Choi (hyok.choi@samsung.com)
  *
  *  Low-level vector interface routines
  *
@@ -22,7 +22,7 @@
 #ifndef CONFIG_GENERIC_IRQ_MULTI_HANDLER
 #include <mach/entry-macro.S>
 #endif
-#include <asm/thread_notify.h>
+#include <asm/thread_yestify.h>
 #include <asm/unwind.h>
 #include <asm/unistd.h>
 #include <asm/tls.h>
@@ -168,7 +168,7 @@ ENDPROC(__und_invalid)
 	mov	r3, lr
 
 	@
-	@ We are now ready to fill in the remaining blanks on the stack:
+	@ We are yesw ready to fill in the remaining blanks on the stack:
 	@
 	@  r2 - sp_svc
 	@  r3 - lr_svc
@@ -339,7 +339,7 @@ __fiq_abt:
  THUMB( mov	r0, #ABT_MODE | PSR_I_BIT | PSR_F_BIT )
  THUMB( msr	cpsr_c, r0 )
 	mov	r1, lr		@ Save lr_abt
-	mrs	r2, spsr	@ Save spsr_abt, abort is now safe
+	mrs	r2, spsr	@ Save spsr_abt, abort is yesw safe
  ARM(	msr	cpsr_c, #SVC_MODE | PSR_I_BIT | PSR_F_BIT )
  THUMB( mov	r0, #SVC_MODE | PSR_I_BIT | PSR_F_BIT )
  THUMB( msr	cpsr_c, r0 )
@@ -365,7 +365,7 @@ ENDPROC(__fiq_abt)
 /*
  * User mode handlers
  *
- * EABI note: sp_svc is always 64-bit aligned here, so should PT_REGS_SIZE
+ * EABI yeste: sp_svc is always 64-bit aligned here, so should PT_REGS_SIZE
  */
 
 #if defined(CONFIG_AEABI) && (__LINUX_ARM_ARCH__ >= 5) && (PT_REGS_SIZE & 7)
@@ -392,7 +392,7 @@ ENDPROC(__fiq_abt)
  ATRAP(	ldr	r8, [r8, #0])
 
 	@
-	@ We are now ready to fill in the remaining blanks on the stack:
+	@ We are yesw ready to fill in the remaining blanks on the stack:
 	@
 	@  r4 - lr_<exception>, already fixed up for correct return/restart
 	@  r5 - spsr_<exception>
@@ -428,7 +428,7 @@ ENDPROC(__fiq_abt)
 	.macro	kuser_cmpxchg_check
 #if !defined(CONFIG_CPU_32v6K) && defined(CONFIG_KUSER_HELPERS)
 #ifndef CONFIG_MMU
-#warning "NPTL on non MMU needs fixing"
+#warning "NPTL on yesn MMU needs fixing"
 #else
 	@ Make sure our user space atomic helper is restarted
 	@ if it was interrupted in a critical region.  Here we
@@ -482,7 +482,7 @@ __und_usr:
 
 	@ IRQs must be enabled before attempting to read the instruction from
 	@ user space since that could cause a page/translation fault if the
-	@ page table was modified by another CPU.
+	@ page table was modified by ayesther CPU.
 	enable_irq
 
 	tst	r3, #PSR_T_BIT			@ Thumb mode?
@@ -506,12 +506,12 @@ __und_usr_thumb:
 #if CONFIG_ARM_THUMB && __LINUX_ARM_ARCH__ >= 6 && CONFIG_CPU_V7
 /*
  * Thumb-2 instruction handling.  Note that because pre-v6 and >= v6 platforms
- * can never be supported in a single kernel, this code is not applicable at
+ * can never be supported in a single kernel, this code is yest applicable at
  * all when __LINUX_ARM_ARCH__ < 6.  This allows simplifying assumptions to be
  * made about .arch directives.
  */
 #if __LINUX_ARM_ARCH__ < 7
-/* If the target CPU may not be Thumb-2-capable, a run-time check is needed: */
+/* If the target CPU may yest be Thumb-2-capable, a run-time check is needed: */
 #define NEED_CPU_ARCHITECTURE
 	ldr	r5, .LCcpu_architecture
 	ldr	r5, [r5]
@@ -572,7 +572,7 @@ ENDPROC(__und_usr)
 
 /*
  * Check whether the instruction is a co-processor instruction.
- * If yes, we need to call the relevant co-processor handler.
+ * If no, we need to call the relevant co-processor handler.
  *
  * Note that we don't do a full check here for the co-processor
  * instructions; all instructions with bit 27 set are well
@@ -590,7 +590,7 @@ ENDPROC(__und_usr)
  * Emulators may wish to make use of the following registers:
  *  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
  *  r2  = PC value to resume execution after successful emulation
- *  r9  = normal "successful" return address
+ *  r9  = yesrmal "successful" return address
  *  r10 = this threads thread_info structure
  *  lr  = unrecognised instruction return address
  * IRQs enabled, FIQs enabled.
@@ -639,7 +639,7 @@ call_fpe:
  ARM(	add	pc, pc, r8, lsr #6	)
  THUMB(	lsl	r8, r8, #2		)
  THUMB(	add	pc, r8			)
-	nop
+	yesp
 
 	ret.w	lr				@ CP#0
 	W(b)	do_fpe				@ CP#1 (FPE)
@@ -708,7 +708,7 @@ do_fpe:
  * The FP module is called with these registers set:
  *  r0  = instruction
  *  r2  = PC+4
- *  r9  = normal "successful" return address
+ *  r9  = yesrmal "successful" return address
  *  r10 = FP workspace
  *  lr  = unrecognised FP instruction return address
  */
@@ -716,12 +716,12 @@ do_fpe:
 	.pushsection .data
 	.align	2
 ENTRY(fp_enter)
-	.word	no_fp
+	.word	yes_fp
 	.popsection
 
-ENTRY(no_fp)
+ENTRY(yes_fp)
 	ret	lr
-ENDPROC(no_fp)
+ENDPROC(yes_fp)
 
 __und_usr_fault_32:
 	mov	r1, #4
@@ -770,7 +770,7 @@ ENDPROC(__fiq_usr)
 /*
  * Register switch for ARMv3 and ARMv4 processors
  * r0 = previous task_struct, r1 = previous thread_info, r2 = next thread_info
- * previous and next are guaranteed not to be the same.
+ * previous and next are guaranteed yest to be the same.
  */
 ENTRY(__switch_to)
  UNWIND(.fnstart	)
@@ -801,9 +801,9 @@ ENTRY(__switch_to)
 #endif
 	mov	r5, r0
 	add	r4, r2, #TI_CPU_SAVE
-	ldr	r0, =thread_notify_head
+	ldr	r0, =thread_yestify_head
 	mov	r1, #THREAD_NOTIFY_SWITCH
-	bl	atomic_notifier_call_chain
+	bl	atomic_yestifier_call_chain
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
 	str	r7, [r8]
 #endif
@@ -824,7 +824,7 @@ ENDPROC(__switch_to)
  * Each segment is 32-byte aligned and will be moved to the top of the high
  * vector page.  New segments (if ever needed) must be added in front of
  * existing ones.  This mechanism should be used only for things that are
- * really small and justified, and not be abused freely.
+ * really small and justified, and yest be abused freely.
  *
  * See Documentation/arm/kernel_user_helpers.rst for formal definitions.
  */
@@ -856,7 +856,7 @@ __kuser_helper_start:
 
 /*
  * Due to the length of some sequences, __kuser_cmpxchg64 spans 2 regular
- * kuser "slots", therefore 0xffff0f80 is not used as a valid entry point.
+ * kuser "slots", therefore 0xffff0f80 is yest used as a valid entry point.
  */
 
 __kuser_cmpxchg64:				@ 0xffff0f60
@@ -872,7 +872,7 @@ __kuser_cmpxchg64:				@ 0xffff0f60
 	eorseq	r3, r1, r5			@ compare with oldval (2)
 	strexdeq r3, r6, r7, [r2]		@ store newval if eq
 	teqeq	r3, #1				@ success?
-	beq	1b				@ if no then retry
+	beq	1b				@ if yes then retry
 	smp_dmb	arm
 	rsbs	r0, r3, #0			@ set returned val and C flag
 	ldmfd	sp!, {r4, r5, r6, r7}
@@ -885,7 +885,7 @@ __kuser_cmpxchg64:				@ 0xffff0f60
 	/*
 	 * The only thing that can break atomicity in this cmpxchg64
 	 * implementation is either an IRQ or a data abort exception
-	 * causing another process/thread to be scheduled in the middle of
+	 * causing ayesther process/thread to be scheduled in the middle of
 	 * the critical sequence.  The same strategy as for cmpxchg is used.
 	 */
 	stmfd	sp!, {r4, r5, r6, lr}
@@ -917,7 +917,7 @@ kuser_cmpxchg64_fixup:
 	.previous
 
 #else
-#warning "NPTL on non MMU needs fixing"
+#warning "NPTL on yesn MMU needs fixing"
 	mov	r0, #-1
 	adds	r0, r0, #0
 	usr_ret	lr
@@ -944,7 +944,7 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	/*
 	 * The only thing that can break atomicity in this cmpxchg
 	 * implementation is either an IRQ or a data abort exception
-	 * causing another process/thread to be scheduled in the middle
+	 * causing ayesther process/thread to be scheduled in the middle
 	 * of the critical sequence.  To prevent this, code is added to
 	 * the IRQ and data abort exception handlers to set the pc back
 	 * to the beginning of the critical section if it is found to be
@@ -972,7 +972,7 @@ kuser_cmpxchg32_fixup:
 	.previous
 
 #else
-#warning "NPTL on non MMU needs fixing"
+#warning "NPTL on yesn MMU needs fixing"
 	mov	r0, #-1
 	adds	r0, r0, #0
 	usr_ret	lr
@@ -1018,7 +1018,7 @@ __kuser_helper_end:
  * Vector stubs.
  *
  * This code is copied to 0xffff1000 so we can use branches in the
- * vectors, rather than ldr's.  Note that this code must not exceed
+ * vectors, rather than ldr's.  Note that this code must yest exceed
  * a page size.
  *
  * Common stub entry macro:
@@ -1073,7 +1073,7 @@ ENDPROC(vector_\name)
 vector_rst:
  ARM(	swi	SYS_ERROR0	)
  THUMB(	svc	#0		)
- THUMB(	nop			)
+ THUMB(	yesp			)
 	b	vector_und
 
 /*
@@ -1173,7 +1173,7 @@ vector_rst:
  * Address exception handler
  *-----------------------------------------------------------------------------
  * These aren't too critical.
- * (they're not supposed to happen, and won't happen in 32-bit data mode).
+ * (they're yest supposed to happen, and won't happen in 32-bit data mode).
  */
 
 vector_addrexcptn:

@@ -679,7 +679,7 @@ int geni_se_rx_dma_prep(struct geni_se *se, void *buf, size_t len,
 	writel_relaxed(val, se->base + SE_DMA_RX_IRQ_EN_SET);
 	writel_relaxed(lower_32_bits(*iova), se->base + SE_DMA_RX_PTR_L);
 	writel_relaxed(upper_32_bits(*iova), se->base + SE_DMA_RX_PTR_H);
-	/* RX does not have EOT buffer type bit. So just reset RX_ATTR */
+	/* RX does yest have EOT buffer type bit. So just reset RX_ATTR */
 	writel_relaxed(0, se->base + SE_DMA_RX_ATTR);
 	writel_relaxed(len, se->base + SE_DMA_RX_LEN);
 	return 0;

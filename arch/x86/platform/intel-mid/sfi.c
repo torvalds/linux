@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/export.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
 #include <linux/blkdev.h>
@@ -60,9 +60,9 @@ int sfi_mtimer_num;
 struct sfi_rtc_table_entry sfi_mrtc_array[SFI_MRTC_MAX];
 EXPORT_SYMBOL_GPL(sfi_mrtc_array);
 
-struct blocking_notifier_head intel_scu_notifier =
-			BLOCKING_NOTIFIER_INIT(intel_scu_notifier);
-EXPORT_SYMBOL_GPL(intel_scu_notifier);
+struct blocking_yestifier_head intel_scu_yestifier =
+			BLOCKING_NOTIFIER_INIT(intel_scu_yestifier);
+EXPORT_SYMBOL_GPL(intel_scu_yestifier);
 
 #define intel_mid_sfi_get_pdata(dev, priv)	\
 	((dev)->get_platform_data ? (dev)->get_platform_data(priv) : NULL)
@@ -202,7 +202,7 @@ static int __init sfi_parse_gpio(struct sfi_table_header *table)
 		" pin = %d\n", i,
 			pentry->controller_name,
 			pentry->pin_name,
-			pentry->pin_no);
+			pentry->pin_yes);
 	return 0;
 }
 
@@ -215,7 +215,7 @@ int get_gpio_by_name(const char *name)
 		return -1;
 	for (i = 0; i < gpio_num_entry; i++, pentry++) {
 		if (!strncmp(name, pentry->pin_name, SFI_NAME_LEN))
-			return pentry->pin_no;
+			return pentry->pin_yes;
 	}
 	return -EINVAL;
 }
@@ -294,7 +294,7 @@ void intel_scu_devices_create(void)
 		} else
 			i2c_register_board_info(i2c_bus[i], i2c_devs[i], 1);
 	}
-	intel_scu_notifier_post(SCU_AVAILABLE, NULL);
+	intel_scu_yestifier_post(SCU_AVAILABLE, NULL);
 }
 EXPORT_SYMBOL_GPL(intel_scu_devices_create);
 
@@ -303,7 +303,7 @@ void intel_scu_devices_destroy(void)
 {
 	int i;
 
-	intel_scu_notifier_post(SCU_DOWN, NULL);
+	intel_scu_yestifier_post(SCU_DOWN, NULL);
 
 	for (i = 0; i < ipc_next_dev; i++)
 		platform_device_del(ipc_devs[i]);
@@ -436,7 +436,7 @@ static void __init sfi_handle_sd_dev(struct sfi_device_table_entry *pentry,
 	if (IS_ERR(pdata))
 		return;
 
-	/* Nothing we can do with this for now */
+	/* Nothing we can do with this for yesw */
 	sd_info.platform_data = pdata;
 
 	pr_debug("Successfully registered %16.16s", sd_info.name);
@@ -478,7 +478,7 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 		int irq = pentry->irq;
 
 		if (irq != (u8)0xff) { /* native RTE case */
-			/* these SPI2 devices are not exposed to system as PCI
+			/* these SPI2 devices are yest exposed to system as PCI
 			 * devices, but they have separate RTE entry in IOAPIC
 			 * so we have to enable them one by one here
 			 */

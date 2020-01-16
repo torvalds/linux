@@ -33,7 +33,7 @@ __kernel_gettimeofday:
 	stcke	0(%r15)				/* Store TOD clock */
 	lg	%r1,1(%r15)
 	lg	%r0,__VDSO_TS_END(%r5)		/* TOD steering end time */
-	slgr	%r0,%r1				/* now - ts_steering_end */
+	slgr	%r0,%r1				/* yesw - ts_steering_end */
 	ltgr	%r0,%r0				/* past end of steering ? */
 	jm	6f
 	srlg	%r0,%r0,15			/* 1 per 2^16 */

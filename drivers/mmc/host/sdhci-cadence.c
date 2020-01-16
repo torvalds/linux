@@ -52,9 +52,9 @@
 #define SDHCI_CDNS_PHY_DLY_STROBE	0x0d
 
 /*
- * The tuned val register is 6 bit-wide, but not the whole of the range is
+ * The tuned val register is 6 bit-wide, but yest the whole of the range is
  * available.  The range 0-42 seems to be available (then 43 wraps around to 0)
- * but I am not quite sure if it is official.  Use only 0 to 39 for safety.
+ * but I am yest quite sure if it is official.  Use only 0 to 39 for safety.
  */
 #define SDHCI_CDNS_MAX_TUNING_LOOP	40
 
@@ -113,7 +113,7 @@ static int sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
 	return 0;
 }
 
-static unsigned int sdhci_cdns_phy_param_count(struct device_node *np)
+static unsigned int sdhci_cdns_phy_param_count(struct device_yesde *np)
 {
 	unsigned int count = 0;
 	int i;
@@ -125,7 +125,7 @@ static unsigned int sdhci_cdns_phy_param_count(struct device_node *np)
 	return count;
 }
 
-static void sdhci_cdns_phy_param_parse(struct device_node *np,
+static void sdhci_cdns_phy_param_parse(struct device_yesde *np,
 				       struct sdhci_cdns_priv *priv)
 {
 	struct sdhci_cdns_phy_param *p = priv->phy_params;
@@ -304,7 +304,7 @@ static int sdhci_cdns_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	}
 
 	if (!max_streak) {
-		dev_err(mmc_dev(host->mmc), "no tuning point found\n");
+		dev_err(mmc_dev(host->mmc), "yes tuning point found\n");
 		return -EIO;
 	}
 
@@ -350,7 +350,7 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	nr_phy_params = sdhci_cdns_phy_param_count(dev->of_node);
+	nr_phy_params = sdhci_cdns_phy_param_count(dev->of_yesde);
 	host = sdhci_pltfm_init(pdev, &sdhci_cdns_pltfm_data,
 				struct_size(priv, phy_params, nr_phy_params));
 	if (IS_ERR(host)) {
@@ -378,7 +378,7 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	if (ret)
 		goto free;
 
-	sdhci_cdns_phy_param_parse(dev->of_node, priv);
+	sdhci_cdns_phy_param_parse(dev->of_yesde, priv);
 
 	ret = sdhci_cdns_phy_init(priv);
 	if (ret)

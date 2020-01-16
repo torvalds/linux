@@ -28,7 +28,7 @@
  * plus an additional digital input subdevice to handle change-of-state (COS)
  * interrupts (if an interrupt handler can be set up successfully).
  *
- * The COS subdevice supports comedi asynchronous read commands.
+ * The COS subdevice supports comedi asynchroyesus read commands.
  *
  * Change-Of-State (COS) interrupt configuration:
  *
@@ -48,12 +48,12 @@
  *     inputs to release the IRQ logic
  *
  * The COS subdevice must be configured before setting up a comedi
- * asynchronous command:
+ * asynchroyesus command:
  *
  *   data[0] : INSN_CONFIG_DIGITAL_TRIG
  *   data[1] : trigger number (= 0)
  *   data[2] : configuration operation:
- *             - COMEDI_DIGITAL_TRIG_DISABLE = no interrupts
+ *             - COMEDI_DIGITAL_TRIG_DISABLE = yes interrupts
  *             - COMEDI_DIGITAL_TRIG_ENABLE_EDGES = OR (edge) interrupts
  *             - COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = AND (level) interrupts
  *   data[3] : left-shift for data[4] and data[5]

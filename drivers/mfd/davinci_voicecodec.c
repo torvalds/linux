@@ -41,7 +41,7 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 	davinci_vc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(davinci_vc->clk)) {
 		dev_dbg(&pdev->dev,
-			    "could not get the clock for voice codec\n");
+			    "could yest get the clock for voice codec\n");
 		return -ENODEV;
 	}
 	clk_enable(davinci_vc->clk);
@@ -65,7 +65,7 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "no DMA resource\n");
+		dev_err(&pdev->dev, "yes DMA resource\n");
 		ret = -ENXIO;
 		goto fail;
 	}
@@ -75,7 +75,7 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!res) {
-		dev_err(&pdev->dev, "no DMA resource\n");
+		dev_err(&pdev->dev, "yes DMA resource\n");
 		ret = -ENXIO;
 		goto fail;
 	}

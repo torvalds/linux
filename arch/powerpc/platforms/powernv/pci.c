@@ -36,9 +36,9 @@
 
 static DEFINE_MUTEX(tunnel_mutex);
 
-int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
+int pnv_pci_get_slot_id(struct device_yesde *np, uint64_t *id)
 {
-	struct device_node *parent = np;
+	struct device_yesde *parent = np;
 	u32 bdfn;
 	u64 phbid;
 	int ret;
@@ -50,19 +50,19 @@ int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
 	bdfn = ((bdfn & 0x00ffff00) >> 8);
 	while ((parent = of_get_parent(parent))) {
 		if (!PCI_DN(parent)) {
-			of_node_put(parent);
+			of_yesde_put(parent);
 			break;
 		}
 
 		if (!of_device_is_compatible(parent, "ibm,ioda2-phb") &&
 		    !of_device_is_compatible(parent, "ibm,ioda3-phb")) {
-			of_node_put(parent);
+			of_yesde_put(parent);
 			continue;
 		}
 
 		ret = of_property_read_u64(parent, "ibm,opal-phbid", &phbid);
 		if (ret) {
-			of_node_put(parent);
+			of_yesde_put(parent);
 			return -ENXIO;
 		}
 
@@ -169,7 +169,7 @@ int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	if (WARN_ON(!phb) || !phb->msi_bmp.bitmap)
 		return -ENODEV;
 
-	if (pdev->no_64bit_msi && !phb->msi32_support)
+	if (pdev->yes_64bit_msi && !phb->msi32_support)
 		return -ENODEV;
 
 	for_each_pci_msi_entry(entry, pdev) {
@@ -551,7 +551,7 @@ void pnv_pci_dump_phb_diag_data(struct pci_controller *hose,
 	}
 }
 
-static void pnv_pci_handle_eeh_config(struct pnv_phb *phb, u32 pe_no)
+static void pnv_pci_handle_eeh_config(struct pnv_phb *phb, u32 pe_yes)
 {
 	unsigned long flags, rc;
 	int has_diag, ret = 0;
@@ -566,26 +566,26 @@ static void pnv_pci_handle_eeh_config(struct pnv_phb *phb, u32 pe_no)
 	/* If PHB supports compound PE, to handle it */
 	if (phb->unfreeze_pe) {
 		ret = phb->unfreeze_pe(phb,
-				       pe_no,
+				       pe_yes,
 				       OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 	} else {
 		rc = opal_pci_eeh_freeze_clear(phb->opal_id,
-					     pe_no,
+					     pe_yes,
 					     OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 		if (rc) {
 			pr_warn("%s: Failure %ld clearing frozen "
 				"PHB#%x-PE#%x\n",
 				__func__, rc, phb->hose->global_number,
-				pe_no);
+				pe_yes);
 			ret = -EIO;
 		}
 	}
 
 	/*
-	 * For now, let's only display the diag buffer when we fail to clear
+	 * For yesw, let's only display the diag buffer when we fail to clear
 	 * the EEH status. We'll do more sensible things later when we have
 	 * proper EEH support. We need to make sure we don't pollute ourselves
-	 * with the normal errors generated when probing empty slots
+	 * with the yesrmal errors generated when probing empty slots
 	 */
 	if (has_diag && ret)
 		pnv_pci_dump_phb_diag_data(phb->hose, phb->diag_data);
@@ -598,17 +598,17 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 	struct pnv_phb *phb = pdn->phb->private_data;
 	u8	fstate = 0;
 	__be16	pcierr = 0;
-	unsigned int pe_no;
+	unsigned int pe_yes;
 	s64	rc;
 
 	/*
-	 * Get the PE#. During the PCI probe stage, we might not
+	 * Get the PE#. During the PCI probe stage, we might yest
 	 * setup that yet. So all ER errors should be mapped to
 	 * reserved PE.
 	 */
-	pe_no = pdn->pe_number;
-	if (pe_no == IODA_INVALID_PE) {
-		pe_no = phb->ioda.reserved_pe_idx;
+	pe_yes = pdn->pe_number;
+	if (pe_yes == IODA_INVALID_PE) {
+		pe_yes = phb->ioda.reserved_pe_idx;
 	}
 
 	/*
@@ -616,22 +616,22 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 	 * we need handle that case.
 	 */
 	if (phb->get_pe_state) {
-		fstate = phb->get_pe_state(phb, pe_no);
+		fstate = phb->get_pe_state(phb, pe_yes);
 	} else {
 		rc = opal_pci_eeh_freeze_status(phb->opal_id,
-						pe_no,
+						pe_yes,
 						&fstate,
 						&pcierr,
 						NULL);
 		if (rc) {
 			pr_warn("%s: Failure %lld getting PHB#%x-PE#%x state\n",
-				__func__, rc, phb->hose->global_number, pe_no);
+				__func__, rc, phb->hose->global_number, pe_yes);
 			return;
 		}
 	}
 
 	pr_devel(" -> EEH check, bdfn=%04x PE#%x fstate=%x\n",
-		 (pdn->busno << 8) | (pdn->devfn), pe_no, fstate);
+		 (pdn->busyes << 8) | (pdn->devfn), pe_yes, fstate);
 
 	/* Clear the frozen state if applicable */
 	if (fstate == OPAL_EEH_STOPPED_MMIO_FREEZE ||
@@ -642,9 +642,9 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 		 * consistency.
 		 */
 		if (phb->freeze_pe)
-			phb->freeze_pe(phb, pe_no);
+			phb->freeze_pe(phb, pe_yes);
 
-		pnv_pci_handle_eeh_config(phb, pe_no);
+		pnv_pci_handle_eeh_config(phb, pe_yes);
 	}
 }
 
@@ -652,7 +652,7 @@ int pnv_pci_cfg_read(struct pci_dn *pdn,
 		     int where, int size, u32 *val)
 {
 	struct pnv_phb *phb = pdn->phb->private_data;
-	u32 bdfn = (pdn->busno << 8) | pdn->devfn;
+	u32 bdfn = (pdn->busyes << 8) | pdn->devfn;
 	s64 rc;
 
 	switch (size) {
@@ -680,7 +680,7 @@ int pnv_pci_cfg_read(struct pci_dn *pdn,
 	}
 
 	pr_devel("%s: bus: %x devfn: %x +%x/%x -> %08x\n",
-		 __func__, pdn->busno, pdn->devfn, where, size, *val);
+		 __func__, pdn->busyes, pdn->devfn, where, size, *val);
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -688,10 +688,10 @@ int pnv_pci_cfg_write(struct pci_dn *pdn,
 		      int where, int size, u32 val)
 {
 	struct pnv_phb *phb = pdn->phb->private_data;
-	u32 bdfn = (pdn->busno << 8) | pdn->devfn;
+	u32 bdfn = (pdn->busyes << 8) | pdn->devfn;
 
 	pr_devel("%s: bus: %x devfn: %x +%x/%x -> %08x\n",
-		 __func__, pdn->busno, pdn->devfn, where, size, val);
+		 __func__, pdn->busyes, pdn->devfn, where, size, val);
 	switch (size) {
 	case 1:
 		opal_pci_config_write_byte(phb->opal_id, bdfn, where, val);
@@ -715,7 +715,7 @@ static bool pnv_pci_cfg_check(struct pci_dn *pdn)
 	struct eeh_dev *edev = NULL;
 	struct pnv_phb *phb = pdn->phb->private_data;
 
-	/* EEH not enabled ? */
+	/* EEH yest enabled ? */
 	if (!(phb->flags & PNV_PHB_FLAG_EEH))
 		return true;
 
@@ -800,7 +800,7 @@ struct iommu_table *pnv_pci_table_alloc(int nid)
 {
 	struct iommu_table *tbl;
 
-	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL, nid);
+	tbl = kzalloc_yesde(sizeof(struct iommu_table), GFP_KERNEL, nid);
 	if (!tbl)
 		return NULL;
 
@@ -857,13 +857,13 @@ void pnv_pci_dma_bus_setup(struct pci_bus *bus)
 	}
 }
 
-struct device_node *pnv_pci_get_phb_node(struct pci_dev *dev)
+struct device_yesde *pnv_pci_get_phb_yesde(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 
-	return of_node_get(hose->dn);
+	return of_yesde_get(hose->dn);
 }
-EXPORT_SYMBOL(pnv_pci_get_phb_node);
+EXPORT_SYMBOL(pnv_pci_get_phb_yesde);
 
 int pnv_pci_set_tunnel_bar(struct pci_dev *dev, u64 addr, int enable)
 {
@@ -923,7 +923,7 @@ void pnv_pci_shutdown(void)
 {
 	struct pci_controller *hose;
 
-	list_for_each_entry(hose, &hose_list, list_node)
+	list_for_each_entry(hose, &hose_list, list_yesde)
 		if (hose->controller_ops.shutdown)
 			hose->controller_ops.shutdown(hose);
 }
@@ -937,7 +937,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_IBM, 0x3b9, pnv_p7ioc_rc_quirk);
 
 void __init pnv_pci_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	pci_add_flags(PCI_CAN_SKIP_ISA_ALIGN);
 
@@ -948,11 +948,11 @@ void __init pnv_pci_init(void)
 #ifdef CONFIG_PCIEPORTBUS
 	/*
 	 * On PowerNV PCIe devices are (currently) managed in cooperation
-	 * with firmware. This isn't *strictly* required, but there's enough
+	 * with firmware. This isn't *strictly* required, but there's eyesugh
 	 * assumptions baked into both firmware and the platform code that
 	 * it's unwise to allow the portbus services to be used.
 	 *
-	 * We need to fix this eventually, but for now set this flag to disable
+	 * We need to fix this eventually, but for yesw set this flag to disable
 	 * the portbus driver. The AER service isn't required since that AER
 	 * events are handled via EEH. The pciehp hotplug driver can't work
 	 * without kernel changes (and portbus binding breaks pnv_php). The
@@ -963,38 +963,38 @@ void __init pnv_pci_init(void)
 #endif
 
 	/* Look for IODA IO-Hubs. */
-	for_each_compatible_node(np, NULL, "ibm,ioda-hub") {
+	for_each_compatible_yesde(np, NULL, "ibm,ioda-hub") {
 		pnv_pci_init_ioda_hub(np);
 	}
 
 	/* Look for ioda2 built-in PHB3's */
-	for_each_compatible_node(np, NULL, "ibm,ioda2-phb")
+	for_each_compatible_yesde(np, NULL, "ibm,ioda2-phb")
 		pnv_pci_init_ioda2_phb(np);
 
 	/* Look for ioda3 built-in PHB4's, we treat them as IODA2 */
-	for_each_compatible_node(np, NULL, "ibm,ioda3-phb")
+	for_each_compatible_yesde(np, NULL, "ibm,ioda3-phb")
 		pnv_pci_init_ioda2_phb(np);
 
 	/* Look for NPU PHBs */
-	for_each_compatible_node(np, NULL, "ibm,ioda2-npu-phb")
+	for_each_compatible_yesde(np, NULL, "ibm,ioda2-npu-phb")
 		pnv_pci_init_npu_phb(np);
 
 	/*
 	 * Look for NPU2 PHBs which we treat mostly as NPU PHBs with
 	 * the exception of TCE kill which requires an OPAL call.
 	 */
-	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-phb")
+	for_each_compatible_yesde(np, NULL, "ibm,ioda2-npu2-phb")
 		pnv_pci_init_npu_phb(np);
 
 	/* Look for NPU2 OpenCAPI PHBs */
-	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-opencapi-phb")
+	for_each_compatible_yesde(np, NULL, "ibm,ioda2-npu2-opencapi-phb")
 		pnv_pci_init_npu2_opencapi_phb(np);
 
 	/* Configure IOMMU DMA hooks */
 	set_pci_dma_ops(&dma_iommu_ops);
 }
 
-static int pnv_tce_iommu_bus_notifier(struct notifier_block *nb,
+static int pnv_tce_iommu_bus_yestifier(struct yestifier_block *nb,
 		unsigned long action, void *data)
 {
 	struct device *dev = data;
@@ -1028,13 +1028,13 @@ static int pnv_tce_iommu_bus_notifier(struct notifier_block *nb,
 	}
 }
 
-static struct notifier_block pnv_tce_iommu_bus_nb = {
-	.notifier_call = pnv_tce_iommu_bus_notifier,
+static struct yestifier_block pnv_tce_iommu_bus_nb = {
+	.yestifier_call = pnv_tce_iommu_bus_yestifier,
 };
 
-static int __init pnv_tce_iommu_bus_notifier_init(void)
+static int __init pnv_tce_iommu_bus_yestifier_init(void)
 {
-	bus_register_notifier(&pci_bus_type, &pnv_tce_iommu_bus_nb);
+	bus_register_yestifier(&pci_bus_type, &pnv_tce_iommu_bus_nb);
 	return 0;
 }
-machine_subsys_initcall_sync(powernv, pnv_tce_iommu_bus_notifier_init);
+machine_subsys_initcall_sync(powernv, pnv_tce_iommu_bus_yestifier_init);

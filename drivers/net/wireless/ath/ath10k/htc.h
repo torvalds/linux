@@ -61,7 +61,7 @@ struct ath10k_htc_hdr {
 		u8 control_byte0;
 	} __packed;
 	union {
-		u8 seq_no; /* for tx */
+		u8 seq_yes; /* for tx */
 		u8 control_byte1;
 	} __packed;
 	u8 pad0;
@@ -110,7 +110,7 @@ struct ath10k_ath10k_htc_msg_hdr {
 	__le16 message_id; /* @enum htc_message_id */
 } __packed;
 
-struct ath10k_htc_unknown {
+struct ath10k_htc_unkyeswn {
 	u8 pad0;
 	u8 pad1;
 } __packed;
@@ -161,7 +161,7 @@ struct ath10k_htc_msg {
 		struct ath10k_htc_conn_svc connect_service;
 		struct ath10k_htc_ready ready;
 		struct ath10k_htc_ready_extended ready_ext;
-		struct ath10k_htc_unknown unknown;
+		struct ath10k_htc_unkyeswn unkyeswn;
 		struct ath10k_htc_setup_complete_extended setup_complete_ext;
 
 		/* target-to-host */
@@ -217,7 +217,7 @@ struct ath10k_htc_record {
 } __packed __aligned(4);
 
 /*
- * note: the trailer offset is dynamic depending
+ * yeste: the trailer offset is dynamic depending
  * on payload length. this is only a struct layout draft
  */
 struct ath10k_htc_frame {
@@ -332,7 +332,7 @@ struct ath10k_htc_ep {
 	u8 ul_pipe_id;
 	u8 dl_pipe_id;
 
-	u8 seq_no; /* for debugging */
+	u8 seq_yes; /* for debugging */
 	int tx_credits;
 	bool tx_credit_flow_enabled;
 };
@@ -372,7 +372,7 @@ int ath10k_htc_send(struct ath10k_htc *htc, enum ath10k_htc_ep_id eid,
 struct sk_buff *ath10k_htc_alloc_skb(struct ath10k *ar, int size);
 void ath10k_htc_tx_completion_handler(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb);
-void ath10k_htc_notify_tx_completion(struct ath10k_htc_ep *ep,
+void ath10k_htc_yestify_tx_completion(struct ath10k_htc_ep *ep,
 				     struct sk_buff *skb);
 int ath10k_htc_process_trailer(struct ath10k_htc *htc,
 			       u8 *buffer,

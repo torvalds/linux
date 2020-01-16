@@ -203,7 +203,7 @@ int __max730x_probe(struct max7301 *ts)
 		 * initialize port_config with "0xAA", which means
 		 * input with internal pullup disabled. This is needed
 		 * to avoid writing zeros (in the inner for loop),
-		 * which is not allowed according to the datasheet.
+		 * which is yest allowed according to the datasheet.
 		 */
 		ts->port_config[i] = 0xAA;
 		for (j = 0; j < 4; j++) {

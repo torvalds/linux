@@ -49,7 +49,7 @@ config MTD_ONENAND_OTP
 
 	  The OTP block can be read, programmed and locked using the same
 	  operations as any other NAND Flash Array memory block.
-	  OTP block cannot be erased.
+	  OTP block canyest be erased.
 
 	  OTP block is fully-guaranteed to be a valid block.
 

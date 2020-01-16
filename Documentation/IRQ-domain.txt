@@ -6,7 +6,7 @@ The current design of the Linux kernel uses a single large number
 space where each separate IRQ source is assigned a different number.
 This is simple when there is only one interrupt controller, but in
 systems with multiple interrupt controllers the kernel must ensure
-that each one gets assigned non-overlapping allocations of Linux
+that each one gets assigned yesn-overlapping allocations of Linux
 IRQ numbers.
 
 The number of interrupt controllers registered as unique irqchips
@@ -19,7 +19,7 @@ Here the interrupt number loose all kind of correspondence to
 hardware interrupt numbers: whereas in the past, IRQ numbers could
 be chosen so they matched the hardware IRQ line into the root
 interrupt controller (i.e. the component actually fireing the
-interrupt line to the CPU) nowadays this number is just a number.
+interrupt line to the CPU) yeswadays this number is just a number.
 
 For this reason we need a mechanism to separate controller-local
 interrupt numbers, called hardware irq's, from Linux IRQ numbers.
@@ -59,11 +59,11 @@ When an interrupt is received, irq_find_mapping() function should
 be used to find the Linux IRQ number from the hwirq number.
 
 The irq_create_mapping() function must be called *atleast once*
-before any call to irq_find_mapping(), lest the descriptor will not
+before any call to irq_find_mapping(), lest the descriptor will yest
 be allocated.
 
 If the driver has the Linux IRQ number or the irq_data pointer, and
-needs to know the associated hwirq number (such as in the irq_chip
+needs to kyesw the associated hwirq number (such as in the irq_chip
 callbacks) then it can be directly obtained from irq_data->hwirq.
 
 Types of irq_domain mappings
@@ -94,8 +94,8 @@ as large as the largest possible hwirq number.
 
 irq_domain_add_linear() and irq_domain_create_linear() are functionally
 equivalent, except for the first argument is different - the former
-accepts an Open Firmware specific 'struct device_node', while the latter
-accepts a more general abstraction 'struct fwnode_handle'.
+accepts an Open Firmware specific 'struct device_yesde', while the latter
+accepts a more general abstraction 'struct fwyesde_handle'.
 
 The majority of drivers should use the linear map.
 
@@ -118,8 +118,8 @@ dependent on how many entries are in the table.
 
 irq_domain_add_tree() and irq_domain_create_tree() are functionally
 equivalent, except for the first argument is different - the former
-accepts an Open Firmware specific 'struct device_node', while the latter
-accepts a more general abstraction 'struct fwnode_handle'.
+accepts an Open Firmware specific 'struct device_yesde', while the latter
+accepts a more general abstraction 'struct fwyesde_handle'.
 
 Very few drivers should need this mapping.
 
@@ -128,16 +128,16 @@ No Map
 
 ::
 
-	irq_domain_add_nomap()
+	irq_domain_add_yesmap()
 
 The No Map mapping is to be used when the hwirq number is
 programmable in the hardware.  In this case it is best to program the
-Linux IRQ number into the hardware itself so that no mapping is
+Linux IRQ number into the hardware itself so that yes mapping is
 required.  Calling irq_create_direct_mapping() will allocate a Linux
 IRQ number and call the .map() callback so that driver can program the
 Linux IRQ number into the hardware.
 
-Most drivers cannot use this mapping.
+Most drivers canyest use this mapping.
 
 Legacy
 ------
@@ -150,10 +150,10 @@ Legacy
 
 The Legacy mapping is a special case for drivers that already have a
 range of irq_descs allocated for the hwirqs.  It is used when the
-driver cannot be immediately converted to use the linear mapping.  For
+driver canyest be immediately converted to use the linear mapping.  For
 example, many embedded system board support files use a set of #defines
 for IRQ numbers that are passed to struct device registrations.  In that
-case the Linux IRQ numbers cannot be dynamically assigned and the legacy
+case the Linux IRQ numbers canyest be dynamically assigned and the legacy
 mapping should be used.
 
 The legacy map assumes a contiguous range of IRQ numbers has already
@@ -172,15 +172,15 @@ Most users of legacy mappings should use irq_domain_add_simple() which
 will use a legacy domain only if an IRQ range is supplied by the
 system and will otherwise use a linear domain mapping. The semantics
 of this call are such that if an IRQ range is specified then
-descriptors will be allocated on-the-fly for it, and if no range is
+descriptors will be allocated on-the-fly for it, and if yes range is
 specified it will fall through to irq_domain_add_linear() which means
-*no* irq descriptors will be allocated.
+*yes* irq descriptors will be allocated.
 
 A typical use case for simple domains is where an irqchip provider
 is supporting both dynamic and static IRQ assignments.
 
 In order to avoid ending up in a situation where a linear domain is
-used and no descriptor gets allocated it is very important to make sure
+used and yes descriptor gets allocated it is very important to make sure
 that the driver using the simple domain call irq_create_mapping()
 before any irq_find_mapping() since the latter will actually work
 for the static IRQ assignment case.
@@ -260,7 +260,7 @@ needs to:
 4) No need to implement irq_domain_ops.map and irq_domain_ops.unmap,
    they are unused with hierarchy irq_domain.
 
-Hierarchy irq_domain is in no way x86 specific, and is heavily used to
+Hierarchy irq_domain is in yes way x86 specific, and is heavily used to
 support other architectures, such as ARM, ARM64 etc.
 
 === Debugging ===

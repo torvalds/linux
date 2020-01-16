@@ -229,7 +229,7 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 /*
  * Helper function to walk the array of sample rate triplets reported by
  * the device. The problem is that we need to parse whole array first to
- * get to know how many sample rates we have to expect.
+ * get to kyesw how many sample rates we have to expect.
  * Then fp->rate_table can be allocated and filled.
  */
 static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
@@ -250,8 +250,8 @@ static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
 			continue;
 
 		/*
-		 * for ranges with res == 1, we announce a continuous sample
-		 * rate range, and this function should return 0 for no further
+		 * for ranges with res == 1, we anyesunce a continuous sample
+		 * rate range, and this function should return 0 for yes further
 		 * parsing.
 		 */
 		if (res == 1) {
@@ -286,7 +286,7 @@ static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
 }
 
 /* Line6 Helix series don't support the UAC2_CS_RANGE usb function
- * call. Return a static table of known clock rates.
+ * call. Return a static table of kyeswn clock rates.
  */
 static int line6_parse_audio_format_rates_quirk(struct snd_usb_audio *chip,
 						struct audioformat *fp)
@@ -343,7 +343,7 @@ static int parse_audio_format_rates_v2v3(struct snd_usb_audio *chip,
 		/* line6 helix devices don't support UAC2_CS_CONTROL_SAM_FREQ call */
 		ret_l6 = line6_parse_audio_format_rates_quirk(chip, fp);
 		if (ret_l6 == -ENODEV) {
-			/* no line6 device found continue showing the error */
+			/* yes line6 device found continue showing the error */
 			dev_err(&dev->dev,
 				"%s(): unable to retrieve number of sample rates (clock %d)\n",
 				__func__, clock);
@@ -367,7 +367,7 @@ static int parse_audio_format_rates_v2v3(struct snd_usb_audio *chip,
 		goto err;
 	}
 
-	/* now get the full information */
+	/* yesw get the full information */
 	ret = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_RANGE,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
 			      UAC2_CS_CONTROL_SAM_FREQ << 8,
@@ -383,7 +383,7 @@ static int parse_audio_format_rates_v2v3(struct snd_usb_audio *chip,
 	}
 
 	/* Call the triplet parser, and make sure fp->rate_table is NULL.
-	 * We just use the return value to know how many sample rates we
+	 * We just use the return value to kyesw how many sample rates we
 	 * will have to deal with. */
 	kfree(fp->rate_table);
 	fp->rate_table = NULL;
@@ -440,7 +440,7 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 
 	if (fmt_type == UAC_FORMAT_TYPE_III) {
 		/* FIXME: the format type is really IECxxx
-		 *        but we give normal PCM format to get the existing
+		 *        but we give yesrmal PCM format to get the existing
 		 *        apps working...
 		 */
 		switch (chip->usb_id) {
@@ -505,7 +505,7 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 
 	switch (format) {
 	case UAC_FORMAT_TYPE_II_AC3:
-		/* FIXME: there is no AC3 format defined yet */
+		/* FIXME: there is yes AC3 format defined yet */
 		// fp->formats = SNDRV_PCM_FMTBIT_AC3;
 		fp->formats = SNDRV_PCM_FMTBIT_U8; /* temporary hack to receive byte streams */
 		break;
@@ -514,7 +514,7 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 		break;
 	default:
 		usb_audio_info(chip,
-			 "%u:%d : unknown format tag %#llx is detected.  processed as MPEG.\n",
+			 "%u:%d : unkyeswn format tag %#llx is detected.  processed as MPEG.\n",
 			 fp->iface, fp->altsetting, format);
 		fp->formats = SNDRV_PCM_FMTBIT_MPEG;
 		break;
@@ -564,7 +564,7 @@ int snd_usb_parse_audio_format(struct snd_usb_audio *chip,
 		break;
 	default:
 		usb_audio_info(chip,
-			 "%u:%d : format type %d is not supported yet\n",
+			 "%u:%d : format type %d is yest supported yet\n",
 			 fp->iface, fp->altsetting,
 			 fmt->bFormatType);
 		return -ENOTSUPP;
@@ -575,7 +575,7 @@ int snd_usb_parse_audio_format(struct snd_usb_audio *chip,
 #if 1
 	/* FIXME: temporary hack for extigy/audigy 2 nx/zs */
 	/* extigy apparently supports sample rates other than 48k
-	 * but not in ordinary way.  so we enable only 48k atm.
+	 * but yest in ordinary way.  so we enable only 48k atm.
 	 */
 	if (chip->usb_id == USB_ID(0x041e, 0x3000) ||
 	    chip->usb_id == USB_ID(0x041e, 0x3020) ||
@@ -599,7 +599,7 @@ int snd_usb_parse_audio_format_v3(struct snd_usb_audio *chip,
 
 	/*
 	 * Type I format bits are D0..D6
-	 * This test works because type IV is not supported
+	 * This test works because type IV is yest supported
 	 */
 	if (format & 0x7f)
 		fp->fmt_type = UAC_FORMAT_TYPE_I;

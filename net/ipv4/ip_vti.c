@@ -159,8 +159,8 @@ static bool vti_state_check(const struct xfrm_state *x, __be32 dst, __be32 src)
 	xfrm_address_t *daddr = (xfrm_address_t *)&dst;
 	xfrm_address_t *saddr = (xfrm_address_t *)&src;
 
-	/* if there is no transform then this tunnel is not functional.
-	 * Or if the xfrm is not mode tunnel.
+	/* if there is yes transform then this tunnel is yest functional.
+	 * Or if the xfrm is yest mode tunnel.
 	 */
 	if (!x || x->props.mode != XFRM_MODE_TUNNEL ||
 	    x->props.family != AF_INET)
@@ -214,7 +214,7 @@ static netdev_tx_t vti_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	mtu = dst_mtu(dst);
 	if (skb->len > mtu) {
-		skb_dst_update_pmtu_no_confirm(skb, mtu);
+		skb_dst_update_pmtu_yes_confirm(skb, mtu);
 		if (skb->protocol == htons(ETH_P_IP)) {
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 				  htonl(mtu));

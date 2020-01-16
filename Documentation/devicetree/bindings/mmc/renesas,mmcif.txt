@@ -36,7 +36,7 @@ Required properties:
 - dma-names: must contain "tx" for the transmit DMA channel and "rx" for the
   receive DMA channel.
 - max-frequency: Maximum operating clock frequency, driver uses default clock
-  frequency if it is not set.
+  frequency if it is yest set.
 
 
 Example: R8A7790 (R-Car H2) MMCIF0

@@ -199,7 +199,7 @@ static int max34451_set_supported_funcs(struct i2c_client *client,
 	 * Each of the channel 0-15 can be configured to monitor the following
 	 * functions based on MFR_CHANNEL_CONFIG[5:0]
 	 * 0x10: Sequencing + voltage monitoring (only valid for PAGES 0–11)
-	 * 0x20: Voltage monitoring (no sequencing)
+	 * 0x20: Voltage monitoring (yes sequencing)
 	 * 0x21: Voltage read only
 	 * 0x22: Current monitoring
 	 * 0x23: Current read only

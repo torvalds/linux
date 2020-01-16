@@ -2,7 +2,7 @@
 /*
  * BIOS Flash chip on Intel 440GX board.
  *
- * Bugs this currently does not work under linuxBIOS.
+ * Bugs this currently does yest work under linuxBIOS.
  */
 
 #include <linux/module.h>
@@ -73,12 +73,12 @@ static int __init init_l440gx(void)
 	pci_dev_put(dev);
 
 	if (!dev || !pm_dev) {
-		printk(KERN_NOTICE "L440GX flash mapping: failed to find PIIX4 ISA bridge, cannot continue\n");
+		printk(KERN_NOTICE "L440GX flash mapping: failed to find PIIX4 ISA bridge, canyest continue\n");
 		pci_dev_put(pm_dev);
 		return -ENODEV;
 	}
 
-	l440gx_map.virt = ioremap_nocache(WINDOW_ADDR, WINDOW_SIZE);
+	l440gx_map.virt = ioremap_yescache(WINDOW_ADDR, WINDOW_SIZE);
 
 	if (!l440gx_map.virt) {
 		printk(KERN_WARNING "Failed to ioremap L440GX flash region\n");
@@ -112,7 +112,7 @@ static int __init init_l440gx(void)
 		if (pci_assign_resource(pm_dev, PIIXE_IOBASE_RESOURCE) != 0) {
 			pci_dev_put(dev);
 			pci_dev_put(pm_dev);
-			printk(KERN_WARNING "Could not allocate pm iobase resource\n");
+			printk(KERN_WARNING "Could yest allocate pm iobase resource\n");
 			iounmap(l440gx_map.virt);
 			return -ENXIO;
 		}

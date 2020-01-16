@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -60,7 +60,7 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 	rdsdebug("conn %p id %p handling event %u (%s)\n", conn, cm_id,
 		 event->event, rdma_event_msg(event->event));
 
-	if (cm_id->device->node_type == RDMA_NODE_IB_CA)
+	if (cm_id->device->yesde_type == RDMA_NODE_IB_CA)
 		trans = &rds_ib_transport;
 
 	/* Prevent shutdown from tearing down the connection
@@ -162,7 +162,7 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 
 	default:
 		/* things like device disconnect? */
-		printk(KERN_ERR "RDS: unknown event %u (%s)!\n",
+		printk(KERN_ERR "RDS: unkyeswn event %u (%s)!\n",
 		       event->event, rdma_event_msg(event->event));
 		break;
 	}
@@ -267,9 +267,9 @@ static int rds_rdma_listen_init(void)
 	ret = rds_rdma_listen_init_common(rds6_rdma_cm_event_handler,
 					  (struct sockaddr *)&sin6,
 					  &rds6_rdma_listen_id);
-	/* Keep going even when IPv6 is not enabled in the system. */
+	/* Keep going even when IPv6 is yest enabled in the system. */
 	if (ret != 0)
-		rdsdebug("Cannot set up IPv6 RDMA listener\n");
+		rdsdebug("Canyest set up IPv6 RDMA listener\n");
 #endif
 	return 0;
 }
@@ -308,7 +308,7 @@ module_init(rds_rdma_init);
 
 static void rds_rdma_exit(void)
 {
-	/* stop listening first to ensure no new connections are attempted */
+	/* stop listening first to ensure yes new connections are attempted */
 	rds_rdma_listen_stop();
 	rds_ib_exit();
 }

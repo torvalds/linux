@@ -6,13 +6,13 @@
  *
  * Copyright (C) 2001, 2002 Andreas Dilger <adilger@clusterfs.com>
  *
- * This could probably be made into a module, because it is not often in use.
+ * This could probably be made into a module, because it is yest often in use.
  */
 
 
 #define EXT4FS_DEBUG
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 
 #include "ext4_jbd2.h"
@@ -26,8 +26,8 @@ int ext4_resize_begin(struct super_block *sb)
 		return -EPERM;
 
 	/*
-	 * If we are not using the primary superblock/GDT copy don't resize,
-         * because the user tools have no way of handling this.  Probably a
+	 * If we are yest using the primary superblock/GDT copy don't resize,
+         * because the user tools have yes way of handling this.  Probably a
          * bad time to do it anyways.
          */
 	if (EXT4_B2C(sbi, sbi->s_sbh->b_blocknr) !=
@@ -38,12 +38,12 @@ int ext4_resize_begin(struct super_block *sb)
 	}
 
 	/*
-	 * We are not allowed to do online-resizing on a filesystem mounted
+	 * We are yest allowed to do online-resizing on a filesystem mounted
 	 * with error, because it can destroy the filesystem easily.
 	 */
 	if (EXT4_SB(sb)->s_mount_state & EXT4_ERROR_FS) {
 		ext4_warning(sb, "There are errors in the filesystem, "
-			     "so online resizing is not allowed");
+			     "so online resizing is yest allowed");
 		return -EPERM;
 	}
 
@@ -66,10 +66,10 @@ static ext4_group_t ext4_meta_bg_first_group(struct super_block *sb,
 	       EXT4_DESC_PER_BLOCK_BITS(sb);
 }
 
-static ext4_fsblk_t ext4_meta_bg_first_block_no(struct super_block *sb,
+static ext4_fsblk_t ext4_meta_bg_first_block_yes(struct super_block *sb,
 					     ext4_group_t group) {
 	group = ext4_meta_bg_first_group(sb, group);
-	return ext4_group_first_block_no(sb, group);
+	return ext4_group_first_block_yes(sb, group);
 }
 
 static ext4_grpblk_t ext4_group_overhead_blocks(struct super_block *sb,
@@ -93,7 +93,7 @@ static int verify_group_input(struct super_block *sb,
 	ext4_fsblk_t start = ext4_blocks_count(es);
 	ext4_fsblk_t end = start + input->blocks_count;
 	ext4_group_t group = input->group;
-	ext4_fsblk_t itend = input->inode_table + sbi->s_itb_per_group;
+	ext4_fsblk_t itend = input->iyesde_table + sbi->s_itb_per_group;
 	unsigned overhead;
 	ext4_fsblk_t metaend;
 	struct buffer_head *bh = NULL;
@@ -101,7 +101,7 @@ static int verify_group_input(struct super_block *sb,
 	int err = -EINVAL;
 
 	if (group != sbi->s_groups_count) {
-		ext4_warning(sb, "Cannot add at group %u (only %u groups)",
+		ext4_warning(sb, "Canyest add at group %u (only %u groups)",
 			     input->group, sbi->s_groups_count);
 		return -EINVAL;
 	}
@@ -114,13 +114,13 @@ static int verify_group_input(struct super_block *sb,
 	if (test_opt(sb, DEBUG))
 		printk(KERN_DEBUG "EXT4-fs: adding %s group %u: %u blocks "
 		       "(%d free, %u reserved)\n",
-		       ext4_bg_has_super(sb, input->group) ? "normal" :
-		       "no-super", input->group, input->blocks_count,
+		       ext4_bg_has_super(sb, input->group) ? "yesrmal" :
+		       "yes-super", input->group, input->blocks_count,
 		       free_blocks_count, input->reserved_blocks);
 
-	ext4_get_group_no_and_offset(sb, start, NULL, &offset);
+	ext4_get_group_yes_and_offset(sb, start, NULL, &offset);
 	if (offset != 0)
-			ext4_warning(sb, "Last group not full");
+			ext4_warning(sb, "Last group yest full");
 	else if (input->reserved_blocks > input->blocks_count / 5)
 		ext4_warning(sb, "Reserved blocks too high (%u)",
 			     input->reserved_blocks);
@@ -130,44 +130,44 @@ static int verify_group_input(struct super_block *sb,
 	else if (IS_ERR(bh = ext4_sb_bread(sb, end - 1, 0))) {
 		err = PTR_ERR(bh);
 		bh = NULL;
-		ext4_warning(sb, "Cannot read last block (%llu)",
+		ext4_warning(sb, "Canyest read last block (%llu)",
 			     end - 1);
 	} else if (outside(input->block_bitmap, start, end))
-		ext4_warning(sb, "Block bitmap not in group (block %llu)",
+		ext4_warning(sb, "Block bitmap yest in group (block %llu)",
 			     (unsigned long long)input->block_bitmap);
-	else if (outside(input->inode_bitmap, start, end))
-		ext4_warning(sb, "Inode bitmap not in group (block %llu)",
-			     (unsigned long long)input->inode_bitmap);
-	else if (outside(input->inode_table, start, end) ||
+	else if (outside(input->iyesde_bitmap, start, end))
+		ext4_warning(sb, "Iyesde bitmap yest in group (block %llu)",
+			     (unsigned long long)input->iyesde_bitmap);
+	else if (outside(input->iyesde_table, start, end) ||
 		 outside(itend - 1, start, end))
-		ext4_warning(sb, "Inode table not in group (blocks %llu-%llu)",
-			     (unsigned long long)input->inode_table, itend - 1);
-	else if (input->inode_bitmap == input->block_bitmap)
-		ext4_warning(sb, "Block bitmap same as inode bitmap (%llu)",
+		ext4_warning(sb, "Iyesde table yest in group (blocks %llu-%llu)",
+			     (unsigned long long)input->iyesde_table, itend - 1);
+	else if (input->iyesde_bitmap == input->block_bitmap)
+		ext4_warning(sb, "Block bitmap same as iyesde bitmap (%llu)",
 			     (unsigned long long)input->block_bitmap);
-	else if (inside(input->block_bitmap, input->inode_table, itend))
-		ext4_warning(sb, "Block bitmap (%llu) in inode table "
+	else if (inside(input->block_bitmap, input->iyesde_table, itend))
+		ext4_warning(sb, "Block bitmap (%llu) in iyesde table "
 			     "(%llu-%llu)",
 			     (unsigned long long)input->block_bitmap,
-			     (unsigned long long)input->inode_table, itend - 1);
-	else if (inside(input->inode_bitmap, input->inode_table, itend))
-		ext4_warning(sb, "Inode bitmap (%llu) in inode table "
+			     (unsigned long long)input->iyesde_table, itend - 1);
+	else if (inside(input->iyesde_bitmap, input->iyesde_table, itend))
+		ext4_warning(sb, "Iyesde bitmap (%llu) in iyesde table "
 			     "(%llu-%llu)",
-			     (unsigned long long)input->inode_bitmap,
-			     (unsigned long long)input->inode_table, itend - 1);
+			     (unsigned long long)input->iyesde_bitmap,
+			     (unsigned long long)input->iyesde_table, itend - 1);
 	else if (inside(input->block_bitmap, start, metaend))
 		ext4_warning(sb, "Block bitmap (%llu) in GDT table (%llu-%llu)",
 			     (unsigned long long)input->block_bitmap,
 			     start, metaend - 1);
-	else if (inside(input->inode_bitmap, start, metaend))
-		ext4_warning(sb, "Inode bitmap (%llu) in GDT table (%llu-%llu)",
-			     (unsigned long long)input->inode_bitmap,
+	else if (inside(input->iyesde_bitmap, start, metaend))
+		ext4_warning(sb, "Iyesde bitmap (%llu) in GDT table (%llu-%llu)",
+			     (unsigned long long)input->iyesde_bitmap,
 			     start, metaend - 1);
-	else if (inside(input->inode_table, start, metaend) ||
+	else if (inside(input->iyesde_table, start, metaend) ||
 		 inside(itend - 1, start, metaend))
-		ext4_warning(sb, "Inode table (%llu-%llu) overlaps GDT table "
+		ext4_warning(sb, "Iyesde table (%llu-%llu) overlaps GDT table "
 			     "(%llu-%llu)",
-			     (unsigned long long)input->inode_table,
+			     (unsigned long long)input->iyesde_table,
 			     itend - 1, start, metaend - 1);
 	else
 		err = 0;
@@ -236,8 +236,8 @@ static void free_flex_gd(struct ext4_new_flex_group_data *flex_gd)
 }
 
 /*
- * ext4_alloc_group_tables() allocates block bitmaps, inode bitmaps
- * and inode tables for a flex group.
+ * ext4_alloc_group_tables() allocates block bitmaps, iyesde bitmaps
+ * and iyesde tables for a flex group.
  *
  * This function is used by 64bit-resize.  Note that this function allocates
  * group tables from the 1st group of groups contained by @flexgd, which may
@@ -276,7 +276,7 @@ next_group:
 	group = group_data[0].group;
 	if (src_group >= group_data[0].group + flex_gd->count)
 		return -ENOSPC;
-	start_blk = ext4_group_first_block_no(sb, src_group);
+	start_blk = ext4_group_first_block_yes(sb, src_group);
 	last_blk = start_blk + group_data[src_group - group].blocks_count;
 
 	overhead = ext4_group_overhead_blocks(sb, src_group);
@@ -304,27 +304,27 @@ next_group:
 		flex_gd->bg_flags[group] &= uninit_mask;
 	}
 
-	/* Allocate inode bitmaps */
+	/* Allocate iyesde bitmaps */
 	for (; ib_index < flex_gd->count; ib_index++) {
 		if (start_blk >= last_blk)
 			goto next_group;
-		group_data[ib_index].inode_bitmap = start_blk++;
+		group_data[ib_index].iyesde_bitmap = start_blk++;
 		group = ext4_get_group_number(sb, start_blk - 1);
 		group -= group_data[0].group;
 		group_data[group].mdata_blocks++;
 		flex_gd->bg_flags[group] &= uninit_mask;
 	}
 
-	/* Allocate inode tables */
+	/* Allocate iyesde tables */
 	for (; it_index < flex_gd->count; it_index++) {
 		unsigned int itb = EXT4_SB(sb)->s_itb_per_group;
 		ext4_fsblk_t next_group_start;
 
 		if (start_blk + itb > last_blk)
 			goto next_group;
-		group_data[it_index].inode_table = start_blk;
+		group_data[it_index].iyesde_table = start_blk;
 		group = ext4_get_group_number(sb, start_blk);
-		next_group_start = ext4_group_first_block_no(sb, group + 1);
+		next_group_start = ext4_group_first_block_yes(sb, group + 1);
 		group -= group_data[0].group;
 
 		if (start_blk + itb > next_group_start) {
@@ -357,8 +357,8 @@ next_group:
 		for (i = 0; i < flex_gd->count; i++) {
 			ext4_debug(
 			       "adding %s group %u: %u blocks (%d free, %d mdata blocks)\n",
-			       ext4_bg_has_super(sb, group + i) ? "normal" :
-			       "no-super", group + i,
+			       ext4_bg_has_super(sb, group + i) ? "yesrmal" :
+			       "yes-super", group + i,
 			       group_data[i].blocks_count,
 			       group_data[i].free_clusters_count,
 			       group_data[i].mdata_blocks);
@@ -421,7 +421,7 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 		int err;
 
 		group = ext4_get_group_number(sb, EXT4_C2B(sbi, first_cluster));
-		start = EXT4_B2C(sbi, ext4_group_first_block_no(sb, group));
+		start = EXT4_B2C(sbi, ext4_group_first_block_yes(sb, group));
 		group -= flex_gd->groups[0].group;
 
 		count2 = EXT4_CLUSTERS_PER_GROUP(sb) - (first_cluster - start);
@@ -461,7 +461,7 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 }
 
 /*
- * Set up the block and inode bitmaps, and the inode table for the new groups.
+ * Set up the block and iyesde bitmaps, and the iyesde table for the new groups.
  * This doesn't need to be part of the main transaction, since we are only
  * changing blocks outside the actual filesystem.  We still do journaling to
  * ensure the recovery is correct in case of a failure just after resize.
@@ -507,7 +507,7 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 		ext4_grpblk_t overhead;
 
 		gdblocks = ext4_bg_num_gdb(sb, group);
-		start = ext4_group_first_block_no(sb, group);
+		start = ext4_group_first_block_yes(sb, group);
 
 		if (meta_bg == 0 && !ext4_bg_has_super(sb, group))
 			goto handle_itb;
@@ -569,9 +569,9 @@ handle_itb:
 		if (!(bg_flags[i] & EXT4_BG_INODE_ZEROED))
 			goto handle_bb;
 
-		/* Zero out all of the inode table blocks */
-		block = group_data[i].inode_table;
-		ext4_debug("clear inode table blocks %#04llx -> %#04lx\n",
+		/* Zero out all of the iyesde table blocks */
+		block = group_data[i].iyesde_table;
+		ext4_debug("clear iyesde table blocks %#04llx -> %#04lx\n",
 			   block, sbi->s_itb_per_group);
 		err = sb_issue_zeroout(sb, block, sbi->s_itb_per_group,
 				       GFP_NOFS);
@@ -611,12 +611,12 @@ handle_ib:
 		if (bg_flags[i] & EXT4_BG_INODE_UNINIT)
 			continue;
 
-		/* Initialize inode bitmap of the @group */
-		block = group_data[i].inode_bitmap;
+		/* Initialize iyesde bitmap of the @group */
+		block = group_data[i].iyesde_bitmap;
 		err = ext4_resize_ensure_credits_batch(handle, 1);
 		if (err < 0)
 			goto out;
-		/* Mark unused entries in inode bitmap used */
+		/* Mark unused entries in iyesde bitmap used */
 		bh = bclean(handle, sb, block);
 		if (IS_ERR(bh)) {
 			err = PTR_ERR(bh);
@@ -680,7 +680,7 @@ out:
  * ext4 filesystem.  The counters should be initialized to 1, 5, and 7 before
  * calling this for the first time.  In a sparse filesystem it will be the
  * sequence of powers of 3, 5, and 7: 1, 3, 5, 7, 9, 25, 27, 49, 81, ...
- * For a non-sparse filesystem it will be every group: 1, 2, 3, 4, ...
+ * For a yesn-sparse filesystem it will be every group: 1, 2, 3, 4, ...
  */
 static unsigned ext4_list_backups(struct super_block *sb, unsigned *three,
 				  unsigned *five, unsigned *seven)
@@ -747,21 +747,21 @@ static int verify_reserved_gdb(struct super_block *sb,
 
 /*
  * Called when we need to bring a reserved group descriptor table block into
- * use from the resize inode.  The primary copy of the new GDT block currently
- * is an indirect block (under the double indirect block in the resize inode).
+ * use from the resize iyesde.  The primary copy of the new GDT block currently
+ * is an indirect block (under the double indirect block in the resize iyesde).
  * The new backup GDT blocks will be stored as leaf blocks in this indirect
- * block, in group order.  Even though we know all the block numbers we need,
- * we check to ensure that the resize inode has actually reserved these blocks.
+ * block, in group order.  Even though we kyesw all the block numbers we need,
+ * we check to ensure that the resize iyesde has actually reserved these blocks.
  *
  * Don't need to update the block bitmaps because the blocks are still in use.
  *
- * We get all of the error cases out of the way, so that we are sure to not
- * fail once we start modifying the data on disk, because JBD has no rollback.
+ * We get all of the error cases out of the way, so that we are sure to yest
+ * fail once we start modifying the data on disk, because JBD has yes rollback.
  */
-static int add_new_gdb(handle_t *handle, struct inode *inode,
+static int add_new_gdb(handle_t *handle, struct iyesde *iyesde,
 		       ext4_group_t group)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 	unsigned long gdb_num = group / EXT4_DESC_PER_BLOCK(sb);
 	ext4_fsblk_t gdblock = EXT4_SB(sb)->s_sbh->b_blocknr + 1 + gdb_num;
@@ -788,7 +788,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 		goto errout;
 	}
 
-	data = EXT4_I(inode)->i_data + EXT4_DIND_BLOCK;
+	data = EXT4_I(iyesde)->i_data + EXT4_DIND_BLOCK;
 	dind = ext4_sb_bread(sb, le32_to_cpu(*data), 0);
 	if (IS_ERR(dind)) {
 		err = PTR_ERR(dind);
@@ -798,7 +798,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 
 	data = (__le32 *)dind->b_data;
 	if (le32_to_cpu(data[gdb_num % EXT4_ADDR_PER_BLOCK(sb)]) != gdblock) {
-		ext4_warning(sb, "new group %u GDT block %llu not reserved",
+		ext4_warning(sb, "new group %u GDT block %llu yest reserved",
 			     group, gdblock);
 		err = -EINVAL;
 		goto errout;
@@ -819,8 +819,8 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	if (unlikely(err))
 		ext4_std_error(sb, err);
 
-	/* ext4_reserve_inode_write() gets a reference on the iloc */
-	err = ext4_reserve_inode_write(handle, inode, &iloc);
+	/* ext4_reserve_iyesde_write() gets a reference on the iloc */
+	err = ext4_reserve_iyesde_write(handle, iyesde, &iloc);
 	if (unlikely(err))
 		goto errout;
 
@@ -829,7 +829,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 				     GFP_NOFS);
 	if (!n_group_desc) {
 		err = -ENOMEM;
-		ext4_warning(sb, "not enough memory for %lu groups",
+		ext4_warning(sb, "yest eyesugh memory for %lu groups",
 			     gdb_num + 1);
 		goto errout;
 	}
@@ -837,11 +837,11 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	/*
 	 * Finally, we have all of the possible failures behind us...
 	 *
-	 * Remove new GDT block from inode double-indirect block and clear out
+	 * Remove new GDT block from iyesde double-indirect block and clear out
 	 * the new GDT block for use (which also "frees" the backup GDT blocks
-	 * from the reserved inode).  We don't need to change the bitmaps for
+	 * from the reserved iyesde).  We don't need to change the bitmaps for
 	 * these blocks, because they are marked as in-use from being in the
-	 * reserved inode, and will become GDT blocks (primary and backup).
+	 * reserved iyesde, and will become GDT blocks (primary and backup).
 	 */
 	data[gdb_num % EXT4_ADDR_PER_BLOCK(sb)] = 0;
 	err = ext4_handle_dirty_metadata(handle, NULL, dind);
@@ -849,9 +849,9 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 		ext4_std_error(sb, err);
 		goto errout;
 	}
-	inode->i_blocks -= (gdbackups + 1) * sb->s_blocksize >>
+	iyesde->i_blocks -= (gdbackups + 1) * sb->s_blocksize >>
 			   (9 - EXT4_SB(sb)->s_cluster_bits);
-	ext4_mark_iloc_dirty(handle, inode, &iloc);
+	ext4_mark_iloc_dirty(handle, iyesde, &iloc);
 	memset(gdb_bh->b_data, 0, sb->s_blocksize);
 	err = ext4_handle_dirty_metadata(handle, NULL, gdb_bh);
 	if (unlikely(err)) {
@@ -895,7 +895,7 @@ static int add_new_gdb_meta_bg(struct super_block *sb,
 	unsigned long gdb_num = group / EXT4_DESC_PER_BLOCK(sb);
 	int err;
 
-	gdblock = ext4_meta_bg_first_block_no(sb, group) +
+	gdblock = ext4_meta_bg_first_block_yes(sb, group) +
 		   ext4_bg_has_super(sb, group);
 	gdb_bh = ext4_sb_bread(sb, gdblock, 0);
 	if (IS_ERR(gdb_bh))
@@ -906,7 +906,7 @@ static int add_new_gdb_meta_bg(struct super_block *sb,
 	if (!n_group_desc) {
 		brelse(gdb_bh);
 		err = -ENOMEM;
-		ext4_warning(sb, "not enough memory for %lu groups",
+		ext4_warning(sb, "yest eyesugh memory for %lu groups",
 			     gdb_num + 1);
 		return err;
 	}
@@ -933,20 +933,20 @@ static int add_new_gdb_meta_bg(struct super_block *sb,
 /*
  * Called when we are adding a new group which has a backup copy of each of
  * the GDT blocks (i.e. sparse group) and there are reserved GDT blocks.
- * We need to add these reserved backup GDT blocks to the resize inode, so
- * that they are kept for future resizing and not allocated to files.
+ * We need to add these reserved backup GDT blocks to the resize iyesde, so
+ * that they are kept for future resizing and yest allocated to files.
  *
  * Each reserved backup GDT block will go into a different indirect block.
  * The indirect blocks are actually the primary reserved GDT blocks,
- * so we know in advance what their block numbers are.  We only get the
+ * so we kyesw in advance what their block numbers are.  We only get the
  * double-indirect block to verify it is pointing to the primary reserved
  * GDT blocks so we don't overwrite a data block by accident.  The reserved
  * backup GDT blocks are stored in their reserved primary GDT block.
  */
-static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
+static int reserve_backup_gdb(handle_t *handle, struct iyesde *iyesde,
 			      ext4_group_t group)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	int reserved_gdb =le16_to_cpu(EXT4_SB(sb)->s_es->s_reserved_gdt_blocks);
 	int cluster_bits = EXT4_SB(sb)->s_cluster_bits;
 	struct buffer_head **primary;
@@ -962,7 +962,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	if (!primary)
 		return -ENOMEM;
 
-	data = EXT4_I(inode)->i_data + EXT4_DIND_BLOCK;
+	data = EXT4_I(iyesde)->i_data + EXT4_DIND_BLOCK;
 	dind = ext4_sb_bread(sb, le32_to_cpu(*data), 0);
 	if (IS_ERR(dind)) {
 		err = PTR_ERR(dind);
@@ -979,7 +979,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	for (res = 0; res < reserved_gdb; res++, blk++) {
 		if (le32_to_cpu(*data) != blk) {
 			ext4_warning(sb, "reserved block %llu"
-				     " not at offset %ld",
+				     " yest at offset %ld",
 				     blk,
 				     (long)(data - (__le32 *)dind->b_data));
 			err = -EINVAL;
@@ -1007,7 +1007,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 			goto exit_bh;
 	}
 
-	if ((err = ext4_reserve_inode_write(handle, inode, &iloc)))
+	if ((err = ext4_reserve_iyesde_write(handle, iyesde, &iloc)))
 		goto exit_bh;
 
 	/*
@@ -1027,8 +1027,8 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 			err = err2;
 	}
 
-	inode->i_blocks += reserved_gdb * sb->s_blocksize >> (9 - cluster_bits);
-	ext4_mark_iloc_dirty(handle, inode, &iloc);
+	iyesde->i_blocks += reserved_gdb * sb->s_blocksize >> (9 - cluster_bits);
+	ext4_mark_iloc_dirty(handle, iyesde, &iloc);
 
 exit_bh:
 	while (--res >= 0)
@@ -1047,14 +1047,14 @@ exit_free:
  * is a problem (basically only OOM will cause a problem).  However, we
  * _should_ update the backups if possible, in case the primary gets trashed
  * for some reason and we need to run e2fsck from a backup superblock.  The
- * important part is that the new block and inode counts are in the backup
+ * important part is that the new block and iyesde counts are in the backup
  * superblocks, and the location of the new group metadata in the GDT backups.
  *
- * We do not need take the s_resize_lock for this, because these
- * blocks are not otherwise touched by the filesystem code when it is
+ * We do yest need take the s_resize_lock for this, because these
+ * blocks are yest otherwise touched by the filesystem code when it is
  * mounted.  We don't need to worry about last changing from
  * sbi->s_groups_count, because the worst that can happen is that we
- * do not copy the full number of backups at this time.  The resize
+ * do yest copy the full number of backups at this time.  The resize
  * which changed s_groups_count will backup again.
  */
 static void update_backups(struct super_block *sb, sector_t blk_off, char *data,
@@ -1098,7 +1098,7 @@ static void update_backups(struct super_block *sb, sector_t blk_off, char *data,
 		if (meta_bg == 0)
 			backup_block = ((ext4_fsblk_t)group) * bpg + blk_off;
 		else
-			backup_block = (ext4_group_first_block_no(sb, group) +
+			backup_block = (ext4_group_first_block_yes(sb, group) +
 					ext4_bg_has_super(sb, group));
 
 		bh = sb_getblk(sb, backup_block);
@@ -1108,7 +1108,7 @@ static void update_backups(struct super_block *sb, sector_t blk_off, char *data,
 		}
 		ext4_debug("update metadata backup %llu(+%llu)\n",
 			   backup_block, backup_block -
-			   ext4_group_first_block_no(sb, group));
+			   ext4_group_first_block_yes(sb, group));
 		BUFFER_TRACE(bh, "get_write_access");
 		if ((err = ext4_journal_get_write_access(handle, bh))) {
 			brelse(bh);
@@ -1143,7 +1143,7 @@ static void update_backups(struct super_block *sb, sector_t blk_off, char *data,
 	 * However, if we got here we have a journal problem too, so we
 	 * can't really start a transaction to mark the superblock.
 	 * Chicken out and just set the flag on the hope it will be written
-	 * to disk, and if not - we will simply wait until next fsck.
+	 * to disk, and if yest - we will simply wait until next fsck.
 	 */
 exit_err:
 	if (err) {
@@ -1161,12 +1161,12 @@ exit_err:
  *
  * @handle: journal handle
  * @sb: super block
- * @group: the group no. of the first group desc to be added
- * @resize_inode: the resize inode
+ * @group: the group yes. of the first group desc to be added
+ * @resize_iyesde: the resize iyesde
  * @count: number of group descriptors to be added
  */
 static int ext4_add_new_descs(handle_t *handle, struct super_block *sb,
-			      ext4_group_t group, struct inode *resize_inode,
+			      ext4_group_t group, struct iyesde *resize_iyesde,
 			      ext4_group_t count)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -1187,7 +1187,7 @@ static int ext4_add_new_descs(handle_t *handle, struct super_block *sb,
 		 * We will only either add reserved group blocks to a backup group
 		 * or remove reserved blocks for the first group in a new group block.
 		 * Doing both would be mean more complex code, and sane people don't
-		 * use non-sparse filesystems anymore.  This is already checked above.
+		 * use yesn-sparse filesystems anymore.  This is already checked above.
 		 */
 		if (gdb_off) {
 			gdb_bh = sbi->s_group_desc[gdb_num];
@@ -1195,11 +1195,11 @@ static int ext4_add_new_descs(handle_t *handle, struct super_block *sb,
 			err = ext4_journal_get_write_access(handle, gdb_bh);
 
 			if (!err && reserved_gdb && ext4_bg_num_gdb(sb, group))
-				err = reserve_backup_gdb(handle, resize_inode, group);
+				err = reserve_backup_gdb(handle, resize_iyesde, group);
 		} else if (meta_bg != 0) {
 			err = add_new_gdb_meta_bg(sb, handle, group);
 		} else {
-			err = add_new_gdb(handle, resize_inode, group);
+			err = add_new_gdb(handle, resize_iyesde, group);
 		}
 		if (err)
 			break;
@@ -1232,10 +1232,10 @@ static int ext4_set_bitmap_checksums(struct super_block *sb,
 	if (!ext4_has_metadata_csum(sb))
 		return 0;
 
-	bh = ext4_get_bitmap(sb, group_data->inode_bitmap);
+	bh = ext4_get_bitmap(sb, group_data->iyesde_bitmap);
 	if (!bh)
 		return -EIO;
-	ext4_inode_bitmap_csum_set(sb, group, gdp, bh,
+	ext4_iyesde_bitmap_csum_set(sb, group, gdp, bh,
 				   EXT4_INODES_PER_GROUP(sb) / 8);
 	brelse(bh);
 
@@ -1279,17 +1279,17 @@ static int ext4_setup_new_descs(handle_t *handle, struct super_block *sb,
 
 		memset(gdp, 0, EXT4_DESC_SIZE(sb));
 		ext4_block_bitmap_set(sb, gdp, group_data->block_bitmap);
-		ext4_inode_bitmap_set(sb, gdp, group_data->inode_bitmap);
+		ext4_iyesde_bitmap_set(sb, gdp, group_data->iyesde_bitmap);
 		err = ext4_set_bitmap_checksums(sb, group, gdp, group_data);
 		if (err) {
 			ext4_std_error(sb, err);
 			break;
 		}
 
-		ext4_inode_table_set(sb, gdp, group_data->inode_table);
+		ext4_iyesde_table_set(sb, gdp, group_data->iyesde_table);
 		ext4_free_group_clusters_set(sb, gdp,
 					     group_data->free_clusters_count);
-		ext4_free_inodes_set(sb, gdp, EXT4_INODES_PER_GROUP(sb));
+		ext4_free_iyesdes_set(sb, gdp, EXT4_INODES_PER_GROUP(sb));
 		if (ext4_has_group_desc_csum(sb))
 			ext4_itable_unused_set(sb, gdp,
 					       EXT4_INODES_PER_GROUP(sb));
@@ -1333,13 +1333,13 @@ static void ext4_update_super(struct super_block *sb,
 
 	BUG_ON(flex_gd->count == 0 || group_data == NULL);
 	/*
-	 * Make the new blocks and inodes valid next.  We do this before
+	 * Make the new blocks and iyesdes valid next.  We do this before
 	 * increasing the group count so that once the group is enabled,
-	 * all of its blocks and inodes are already valid.
+	 * all of its blocks and iyesdes are already valid.
 	 *
 	 * We always allocate group-by-group, then block-by-block or
-	 * inode-by-inode within a group, so enabling these
-	 * blocks/inodes before the group is live won't actually let us
+	 * iyesde-by-iyesde within a group, so enabling these
+	 * blocks/iyesdes before the group is live won't actually let us
 	 * allocate the new space yet.
 	 */
 	for (i = 0; i < flex_gd->count; i++) {
@@ -1354,9 +1354,9 @@ static void ext4_update_super(struct super_block *sb,
 
 	ext4_blocks_count_set(es, ext4_blocks_count(es) + blocks_count);
 	ext4_free_blocks_count_set(es, ext4_free_blocks_count(es) + free_blocks);
-	le32_add_cpu(&es->s_inodes_count, EXT4_INODES_PER_GROUP(sb) *
+	le32_add_cpu(&es->s_iyesdes_count, EXT4_INODES_PER_GROUP(sb) *
 		     flex_gd->count);
-	le32_add_cpu(&es->s_free_inodes_count, EXT4_INODES_PER_GROUP(sb) *
+	le32_add_cpu(&es->s_free_iyesdes_count, EXT4_INODES_PER_GROUP(sb) *
 		     flex_gd->count);
 
 	ext4_debug("free blocks count %llu", ext4_free_blocks_count(es));
@@ -1393,7 +1393,7 @@ static void ext4_update_super(struct super_block *sb,
 	/* Update the free space counts */
 	percpu_counter_add(&sbi->s_freeclusters_counter,
 			   EXT4_NUM_B2C(sbi, free_blocks));
-	percpu_counter_add(&sbi->s_freeinodes_counter,
+	percpu_counter_add(&sbi->s_freeiyesdes_counter,
 			   EXT4_INODES_PER_GROUP(sb) * flex_gd->count);
 
 	ext4_debug("free blocks count %llu",
@@ -1404,7 +1404,7 @@ static void ext4_update_super(struct super_block *sb,
 		atomic64_add(EXT4_NUM_B2C(sbi, free_blocks),
 			     &sbi->s_flex_groups[flex_group].free_clusters);
 		atomic_add(EXT4_INODES_PER_GROUP(sb) * flex_gd->count,
-			   &sbi->s_flex_groups[flex_group].free_inodes);
+			   &sbi->s_flex_groups[flex_group].free_iyesdes);
 	}
 
 	/*
@@ -1419,11 +1419,11 @@ static void ext4_update_super(struct super_block *sb,
 }
 
 /* Add a flex group to an fs. Ensure we handle all possible error conditions
- * _before_ we start modifying the filesystem, because we cannot abort the
- * transaction and not have it write the data to disk.
+ * _before_ we start modifying the filesystem, because we canyest abort the
+ * transaction and yest have it write the data to disk.
  */
 static int ext4_flex_group_add(struct super_block *sb,
-			       struct inode *resize_inode,
+			       struct iyesde *resize_iyesde,
 			       struct ext4_new_flex_group_data *flex_gd)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -1439,7 +1439,7 @@ static int ext4_flex_group_add(struct super_block *sb,
 
 	reserved_gdb = le16_to_cpu(es->s_reserved_gdt_blocks);
 	o_blocks_count = ext4_blocks_count(es);
-	ext4_get_group_no_and_offset(sb, o_blocks_count, &group, &last);
+	ext4_get_group_yes_and_offset(sb, o_blocks_count, &group, &last);
 	BUG_ON(last);
 
 	err = setup_new_flex_group_blocks(sb, flex_gd);
@@ -1448,11 +1448,11 @@ static int ext4_flex_group_add(struct super_block *sb,
 	/*
 	 * We will always be modifying at least the superblock and  GDT
 	 * blocks.  If we are adding a group past the last current GDT block,
-	 * we will also modify the inode and the dindirect block.  If we
+	 * we will also modify the iyesde and the dindirect block.  If we
 	 * are adding a group with superblock/GDT backups  we will also
 	 * modify each of the reserved GDT dindirect blocks.
 	 */
-	credit = 3;	/* sb, resize inode, resize inode dindirect */
+	credit = 3;	/* sb, resize iyesde, resize iyesde dindirect */
 	/* GDT blocks */
 	credit += 1 + DIV_ROUND_UP(flex_gd->count, EXT4_DESC_PER_BLOCK(sb));
 	credit += reserved_gdb;	/* Reserved GDT dindirect blocks */
@@ -1470,7 +1470,7 @@ static int ext4_flex_group_add(struct super_block *sb,
 	group = flex_gd->groups[0].group;
 	BUG_ON(group != sbi->s_groups_count);
 	err = ext4_add_new_descs(handle, sb, group,
-				resize_inode, flex_gd->count);
+				resize_iyesde, flex_gd->count);
 	if (err)
 		goto exit_journal;
 
@@ -1534,9 +1534,9 @@ static int ext4_setup_next_flex_gd(struct super_block *sb,
 	if (o_blocks_count == n_blocks_count)
 		return 0;
 
-	ext4_get_group_no_and_offset(sb, o_blocks_count, &group, &last);
+	ext4_get_group_yes_and_offset(sb, o_blocks_count, &group, &last);
 	BUG_ON(last);
-	ext4_get_group_no_and_offset(sb, n_blocks_count - 1, &n_group, &last);
+	ext4_get_group_yes_and_offset(sb, n_blocks_count - 1, &n_group, &last);
 
 	last_group = group | (flexbg_size - 1);
 	if (last_group > n_group)
@@ -1576,7 +1576,7 @@ static int ext4_setup_next_flex_gd(struct super_block *sb,
 
 /* Add group descriptor data to an existing or new group descriptor block.
  * Ensure we handle all possible error conditions _before_ we start modifying
- * the filesystem, because we cannot abort the transaction and not have it
+ * the filesystem, because we canyest abort the transaction and yest have it
  * write the data to disk.
  *
  * If we are on a GDT block boundary, we need to get the reserved GDT block.
@@ -1584,7 +1584,7 @@ static int ext4_setup_next_flex_gd(struct super_block *sb,
  *
  * We only need to hold the superblock lock while we are actually adding
  * in the new group's counts to the superblock.  Prior to that we have
- * not really "added" the group at all.  We re-check that we are still
+ * yest really "added" the group at all.  We re-check that we are still
  * adding in the last group in case things have changed since verifying.
  */
 int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
@@ -1594,7 +1594,7 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	struct ext4_super_block *es = sbi->s_es;
 	int reserved_gdb = ext4_bg_has_super(sb, input->group) ?
 		le16_to_cpu(es->s_reserved_gdt_blocks) : 0;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	int gdb_off;
 	int err;
 	__u16 bg_flags = 0;
@@ -1602,7 +1602,7 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	gdb_off = input->group % EXT4_DESC_PER_BLOCK(sb);
 
 	if (gdb_off == 0 && !ext4_has_feature_sparse_super(sb)) {
-		ext4_warning(sb, "Can't resize non-sparse filesystem further");
+		ext4_warning(sb, "Can't resize yesn-sparse filesystem further");
 		return -EPERM;
 	}
 
@@ -1612,23 +1612,23 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 		return -EINVAL;
 	}
 
-	if (le32_to_cpu(es->s_inodes_count) + EXT4_INODES_PER_GROUP(sb) <
-	    le32_to_cpu(es->s_inodes_count)) {
-		ext4_warning(sb, "inodes_count overflow");
+	if (le32_to_cpu(es->s_iyesdes_count) + EXT4_INODES_PER_GROUP(sb) <
+	    le32_to_cpu(es->s_iyesdes_count)) {
+		ext4_warning(sb, "iyesdes_count overflow");
 		return -EINVAL;
 	}
 
 	if (reserved_gdb || gdb_off == 0) {
-		if (!ext4_has_feature_resize_inode(sb) ||
+		if (!ext4_has_feature_resize_iyesde(sb) ||
 		    !le16_to_cpu(es->s_reserved_gdt_blocks)) {
 			ext4_warning(sb,
 				     "No reserved GDT blocks, can't resize");
 			return -EPERM;
 		}
-		inode = ext4_iget(sb, EXT4_RESIZE_INO, EXT4_IGET_SPECIAL);
-		if (IS_ERR(inode)) {
-			ext4_warning(sb, "Error opening resize inode");
-			return PTR_ERR(inode);
+		iyesde = ext4_iget(sb, EXT4_RESIZE_INO, EXT4_IGET_SPECIAL);
+		if (IS_ERR(iyesde)) {
+			ext4_warning(sb, "Error opening resize iyesde");
+			return PTR_ERR(iyesde);
 		}
 	}
 
@@ -1648,16 +1648,16 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	flex_gd.count = 1;
 	flex_gd.groups = input;
 	flex_gd.bg_flags = &bg_flags;
-	err = ext4_flex_group_add(sb, inode, &flex_gd);
+	err = ext4_flex_group_add(sb, iyesde, &flex_gd);
 out:
-	iput(inode);
+	iput(iyesde);
 	return err;
 } /* ext4_group_add */
 
 /*
  * extend a group without checking assuming that checking has been done.
  */
-static int ext4_group_extend_no_check(struct super_block *sb,
+static int ext4_group_extend_yes_check(struct super_block *sb,
 				      ext4_fsblk_t o_blocks_count, ext4_grpblk_t add)
 {
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
@@ -1711,10 +1711,10 @@ errout:
  * Extend the filesystem to the new number of blocks specified.  This entry
  * point is only used to extend the current filesystem to the end of the last
  * existing group.  It can be accessed via ioctl, or by "remount,resize=<size>"
- * for emergencies (because it has no dependencies on reserved blocks).
+ * for emergencies (because it has yes dependencies on reserved blocks).
  *
  * If we _really_ wanted, we could use default values to call ext4_group_add()
- * allow the "remount" trick to work for arbitrary resizing, assuming enough
+ * allow the "remount" trick to work for arbitrary resizing, assuming eyesugh
  * GDT blocks are reserved to grow to the desired size.
  */
 int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
@@ -1750,7 +1750,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	}
 
 	/* Handle the remaining blocks in the last group only. */
-	ext4_get_group_no_and_offset(sb, o_blocks_count, &group, &last);
+	ext4_get_group_yes_and_offset(sb, o_blocks_count, &group, &last);
 
 	if (last == 0) {
 		ext4_warning(sb, "need to use ext2online to resize further");
@@ -1779,7 +1779,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	}
 	brelse(bh);
 
-	err = ext4_group_extend_no_check(sb, o_blocks_count, add);
+	err = ext4_group_extend_yes_check(sb, o_blocks_count, add);
 	return err;
 } /* ext4_group_extend */
 
@@ -1790,43 +1790,43 @@ static int num_desc_blocks(struct super_block *sb, ext4_group_t groups)
 }
 
 /*
- * Release the resize inode and drop the resize_inode feature if there
- * are no more reserved gdt blocks, and then convert the file system
+ * Release the resize iyesde and drop the resize_iyesde feature if there
+ * are yes more reserved gdt blocks, and then convert the file system
  * to enable meta_bg
  */
-static int ext4_convert_meta_bg(struct super_block *sb, struct inode *inode)
+static int ext4_convert_meta_bg(struct super_block *sb, struct iyesde *iyesde)
 {
 	handle_t *handle;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_iyesde_info *ei = EXT4_I(iyesde);
 	ext4_fsblk_t nr;
 	int i, ret, err = 0;
 	int credits = 1;
 
 	ext4_msg(sb, KERN_INFO, "Converting file system to meta_bg");
-	if (inode) {
+	if (iyesde) {
 		if (es->s_reserved_gdt_blocks) {
-			ext4_error(sb, "Unexpected non-zero "
+			ext4_error(sb, "Unexpected yesn-zero "
 				   "s_reserved_gdt_blocks");
 			return -EPERM;
 		}
 
-		/* Do a quick sanity check of the resize inode */
-		if (inode->i_blocks != 1 << (inode->i_blkbits -
+		/* Do a quick sanity check of the resize iyesde */
+		if (iyesde->i_blocks != 1 << (iyesde->i_blkbits -
 					     (9 - sbi->s_cluster_bits)))
-			goto invalid_resize_inode;
+			goto invalid_resize_iyesde;
 		for (i = 0; i < EXT4_N_BLOCKS; i++) {
 			if (i == EXT4_DIND_BLOCK) {
 				if (ei->i_data[i])
 					continue;
 				else
-					goto invalid_resize_inode;
+					goto invalid_resize_iyesde;
 			}
 			if (ei->i_data[i])
-				goto invalid_resize_inode;
+				goto invalid_resize_iyesde;
 		}
-		credits += 3;	/* block bitmap, bg descriptor, resize inode */
+		credits += 3;	/* block bitmap, bg descriptor, resize iyesde */
 	}
 
 	handle = ext4_journal_start_sb(sb, EXT4_HT_RESIZE, credits);
@@ -1838,7 +1838,7 @@ static int ext4_convert_meta_bg(struct super_block *sb, struct inode *inode)
 	if (err)
 		goto errout;
 
-	ext4_clear_feature_resize_inode(sb);
+	ext4_clear_feature_resize_iyesde(sb);
 	ext4_set_feature_meta_bg(sb);
 	sbi->s_es->s_first_meta_bg =
 		cpu_to_le32(num_desc_blocks(sb, sbi->s_groups_count));
@@ -1849,15 +1849,15 @@ static int ext4_convert_meta_bg(struct super_block *sb, struct inode *inode)
 		goto errout;
 	}
 
-	if (inode) {
+	if (iyesde) {
 		nr = le32_to_cpu(ei->i_data[EXT4_DIND_BLOCK]);
-		ext4_free_blocks(handle, inode, NULL, nr, 1,
+		ext4_free_blocks(handle, iyesde, NULL, nr, 1,
 				 EXT4_FREE_BLOCKS_METADATA |
 				 EXT4_FREE_BLOCKS_FORGET);
 		ei->i_data[EXT4_DIND_BLOCK] = 0;
-		inode->i_blocks = 0;
+		iyesde->i_blocks = 0;
 
-		err = ext4_mark_inode_dirty(handle, inode);
+		err = ext4_mark_iyesde_dirty(handle, iyesde);
 		if (err)
 			ext4_std_error(sb, err);
 	}
@@ -1868,8 +1868,8 @@ errout:
 		err = ret;
 	return ret;
 
-invalid_resize_inode:
-	ext4_error(sb, "corrupted/inconsistent resize inode");
+invalid_resize_iyesde:
+	ext4_error(sb, "corrupted/inconsistent resize iyesde");
 	return -EINVAL;
 }
 
@@ -1885,7 +1885,7 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
 	struct buffer_head *bh;
-	struct inode *resize_inode = NULL;
+	struct iyesde *resize_iyesde = NULL;
 	ext4_grpblk_t add, offset;
 	unsigned long n_desc_blocks;
 	unsigned long o_desc_blocks;
@@ -1912,7 +1912,7 @@ retry:
 		 "to %llu blocks", o_blocks_count, n_blocks_count);
 
 	if (n_blocks_count < o_blocks_count) {
-		/* On-line shrinking not supported */
+		/* On-line shrinking yest supported */
 		ext4_warning(sb, "can't shrink FS - resize aborted");
 		return -EINVAL;
 	}
@@ -1923,19 +1923,19 @@ retry:
 
 	n_group = ext4_get_group_number(sb, n_blocks_count - 1);
 	if (n_group >= (0xFFFFFFFFUL / EXT4_INODES_PER_GROUP(sb))) {
-		ext4_warning(sb, "resize would cause inodes_count overflow");
+		ext4_warning(sb, "resize would cause iyesdes_count overflow");
 		return -EINVAL;
 	}
-	ext4_get_group_no_and_offset(sb, o_blocks_count - 1, &o_group, &offset);
+	ext4_get_group_yes_and_offset(sb, o_blocks_count - 1, &o_group, &offset);
 
 	n_desc_blocks = num_desc_blocks(sb, n_group + 1);
 	o_desc_blocks = num_desc_blocks(sb, sbi->s_groups_count);
 
 	meta_bg = ext4_has_feature_meta_bg(sb);
 
-	if (ext4_has_feature_resize_inode(sb)) {
+	if (ext4_has_feature_resize_iyesde(sb)) {
 		if (meta_bg) {
-			ext4_error(sb, "resize_inode and meta_bg enabled "
+			ext4_error(sb, "resize_iyesde and meta_bg enabled "
 				   "simultaneously");
 			return -EINVAL;
 		}
@@ -1951,22 +1951,22 @@ retry:
 			n_group--; /* set to last group number */
 		}
 
-		if (!resize_inode)
-			resize_inode = ext4_iget(sb, EXT4_RESIZE_INO,
+		if (!resize_iyesde)
+			resize_iyesde = ext4_iget(sb, EXT4_RESIZE_INO,
 						 EXT4_IGET_SPECIAL);
-		if (IS_ERR(resize_inode)) {
-			ext4_warning(sb, "Error opening resize inode");
-			return PTR_ERR(resize_inode);
+		if (IS_ERR(resize_iyesde)) {
+			ext4_warning(sb, "Error opening resize iyesde");
+			return PTR_ERR(resize_iyesde);
 		}
 	}
 
-	if ((!resize_inode && !meta_bg) || n_blocks_count == o_blocks_count) {
-		err = ext4_convert_meta_bg(sb, resize_inode);
+	if ((!resize_iyesde && !meta_bg) || n_blocks_count == o_blocks_count) {
+		err = ext4_convert_meta_bg(sb, resize_iyesde);
 		if (err)
 			goto out;
-		if (resize_inode) {
-			iput(resize_inode);
-			resize_inode = NULL;
+		if (resize_iyesde) {
+			iput(resize_iyesde);
+			resize_iyesde = NULL;
 		}
 		if (n_blocks_count_retry) {
 			n_blocks_count = n_blocks_count_retry;
@@ -1976,21 +1976,21 @@ retry:
 	}
 
 	/*
-	 * Make sure the last group has enough space so that it's
-	 * guaranteed to have enough space for all metadata blocks
-	 * that it might need to hold.  (We might not need to store
-	 * the inode table blocks in the last block group, but there
+	 * Make sure the last group has eyesugh space so that it's
+	 * guaranteed to have eyesugh space for all metadata blocks
+	 * that it might need to hold.  (We might yest need to store
+	 * the iyesde table blocks in the last block group, but there
 	 * will be cases where this might be needed.)
 	 */
-	if ((ext4_group_first_block_no(sb, n_group) +
+	if ((ext4_group_first_block_yes(sb, n_group) +
 	     ext4_group_overhead_blocks(sb, n_group) + 2 +
 	     sbi->s_itb_per_group + sbi->s_cluster_ratio) >= n_blocks_count) {
-		n_blocks_count = ext4_group_first_block_no(sb, n_group);
+		n_blocks_count = ext4_group_first_block_yes(sb, n_group);
 		n_group--;
 		n_blocks_count_retry = 0;
-		if (resize_inode) {
-			iput(resize_inode);
-			resize_inode = NULL;
+		if (resize_iyesde) {
+			iput(resize_iyesde);
+			resize_iyesde = NULL;
 		}
 		goto retry;
 	}
@@ -2001,7 +2001,7 @@ retry:
 	else
 		add = EXT4_C2B(sbi, EXT4_CLUSTERS_PER_GROUP(sb) - (offset + 1));
 	if (add > 0) {
-		err = ext4_group_extend_no_check(sb, o_blocks_count, add);
+		err = ext4_group_extend_yes_check(sb, o_blocks_count, add);
 		if (err)
 			goto out;
 	}
@@ -2037,7 +2037,7 @@ retry:
 		}
 		if (ext4_alloc_group_tables(sb, flex_gd, flexbg_size) != 0)
 			break;
-		err = ext4_flex_group_add(sb, resize_inode, flex_gd);
+		err = ext4_flex_group_add(sb, resize_iyesde, flex_gd);
 		if (unlikely(err))
 			break;
 	}
@@ -2047,9 +2047,9 @@ retry:
 		n_blocks_count_retry = 0;
 		free_flex_gd(flex_gd);
 		flex_gd = NULL;
-		if (resize_inode) {
-			iput(resize_inode);
-			resize_inode = NULL;
+		if (resize_iyesde) {
+			iput(resize_iyesde);
+			resize_iyesde = NULL;
 		}
 		goto retry;
 	}
@@ -2057,8 +2057,8 @@ retry:
 out:
 	if (flex_gd)
 		free_flex_gd(flex_gd);
-	if (resize_inode != NULL)
-		iput(resize_inode);
+	if (resize_iyesde != NULL)
+		iput(resize_iyesde);
 	if (err)
 		ext4_warning(sb, "error (%d) occurred during "
 			     "file system resize", err);

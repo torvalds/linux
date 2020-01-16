@@ -21,14 +21,14 @@
 	TEST_ARG_REG(reg, val)					\
 	TEST_ARG_REG(14, 99f)					\
 	TEST_ARG_END("")					\
-	"50:	nop			\n\t"			\
+	"50:	yesp			\n\t"			\
 	"1:	"code1 #reg code2"	\n\t"			\
 	"	bx	lr		\n\t"			\
 	".thumb				\n\t"			\
 	"3:	adr	lr, 2f		\n\t"			\
 	"	bx	lr		\n\t"			\
 	".arm				\n\t"			\
-	"2:	nop			\n\t"			\
+	"2:	yesp			\n\t"			\
 	TESTCASE_END
 
 #define TEST_ARM_TO_THUMB_INTERWORK_P(code1, reg, val, code2)	\
@@ -37,14 +37,14 @@
 	TEST_ARG_REG(14, 99f)					\
 	TEST_ARG_MEM(15, 3f+1)					\
 	TEST_ARG_END("")					\
-	"50:	nop			\n\t"			\
+	"50:	yesp			\n\t"			\
 	"1:	"code1 #reg code2"	\n\t"			\
 	"	bx	lr		\n\t"			\
 	".thumb				\n\t"			\
 	"3:	adr	lr, 2f		\n\t"			\
 	"	bx	lr		\n\t"			\
 	".arm				\n\t"			\
-	"2:	nop			\n\t"			\
+	"2:	yesp			\n\t"			\
 	TESTCASE_END
 
 
@@ -633,7 +633,7 @@ void kprobe_arm_test_cases(void)
 #if __LINUX_ARM_ARCH__ >= 7
 	TEST_SUPPORTED("yield")
 	TEST("sev")
-	TEST("nop")
+	TEST("yesp")
 	TEST("wfi")
 	TEST_SUPPORTED("wfe")
 	TEST_UNSUPPORTED("dbg #0")
@@ -1168,8 +1168,8 @@ void kprobe_arm_test_cases(void)
 
 	/*
 	 * We can't really test these by executing them, so all
-	 * we can do is check that probes are, or are not allowed.
-	 * At the moment none are allowed...
+	 * we can do is check that probes are, or are yest allowed.
+	 * At the moment yesne are allowed...
 	 */
 #define TEST_COPROCESSOR(code) TEST_UNSUPPORTED(code)
 

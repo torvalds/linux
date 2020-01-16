@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -24,7 +24,7 @@
  *    Eric Anholt <eric@anholt.net>
  *    Thomas Richter <thor@math.tu-berlin.de>
  *
- * Minor modifications (Dithering enable):
+ * Miyesr modifications (Dithering enable):
  *    Thomas Richter <thor@math.tu-berlin.de>
  *
  */
@@ -57,7 +57,7 @@
 /*
  * Enables the LCD display.
  *
- * This must not be set while VR01_DVO_BYPASS_ENABLE is set.
+ * This must yest be set while VR01_DVO_BYPASS_ENABLE is set.
  */
 # define VR01_LCD_ENABLE		(1 << 2)
 /* Enables the DVO repeater. */
@@ -98,7 +98,7 @@
  * Panel power down status
  */
 #define VR30		0x30
-/* Read only bit indicating that the panel is not in a safe poweroff state. */
+/* Read only bit indicating that the panel is yest in a safe poweroff state. */
 # define VR30_PANEL_ON			(1 << 15)
 
 #define VR40		0x40
@@ -157,7 +157,7 @@
 # define VR8F_POWER_MASK		(0x3c)
 # define VR8F_POWER_POS			(2)
 
-/* Some Bios implementations do not restore the DVO state upon
+/* Some Bios implementations do yest restore the DVO state upon
  * resume from standby. Thus, this driver has to handle it
  * instead. The following list contains all registers that
  * require saving.

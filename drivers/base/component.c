@@ -23,11 +23,11 @@
  * including their bound drivers, into an aggregate driver. Various subsystems
  * already provide functions to get hold of such components, e.g.
  * of_clk_get_by_name(). The component helper can be used when such a
- * subsystem-specific way to find a device is not available: The component
+ * subsystem-specific way to find a device is yest available: The component
  * helper fills the niche of aggregate drivers for specific hardware, where
- * further standardization into a subsystem would not be practical. The common
+ * further standardization into a subsystem would yest be practical. The common
  * example is when a logical device (e.g. a DRM display driver) is spread around
- * the SoC on various components (scanout engines, blending blocks, transcoders
+ * the SoC on various components (scayesut engines, blending blocks, transcoders
  * for various outputs and so on).
  *
  * The component helper also doesn't solve runtime dependencies, e.g. for system
@@ -60,7 +60,7 @@ struct component_match {
 };
 
 struct master {
-	struct list_head node;
+	struct list_head yesde;
 	bool bound;
 
 	const struct component_master_ops *ops;
@@ -70,7 +70,7 @@ struct master {
 };
 
 struct component {
-	struct list_head node;
+	struct list_head yesde;
 	struct master *master;
 	bool bound;
 
@@ -97,7 +97,7 @@ static int component_devices_show(struct seq_file *s, void *data)
 	seq_printf(s, "%-40s %20s\n", "master name", "status");
 	seq_puts(s, "-------------------------------------------------------------\n");
 	seq_printf(s, "%-40s %20s\n\n",
-		   dev_name(m->dev), m->bound ? "bound" : "not bound");
+		   dev_name(m->dev), m->bound ? "bound" : "yest bound");
 
 	seq_printf(s, "%-40s %20s\n", "device name", "status");
 	seq_puts(s, "-------------------------------------------------------------\n");
@@ -106,7 +106,7 @@ static int component_devices_show(struct seq_file *s, void *data)
 
 		seq_printf(s, "%-40s %20s\n", dev_name(d),
 			   match->compare[i].component ?
-			   "registered" : "not registered");
+			   "registered" : "yest registered");
 	}
 	mutex_unlock(&component_mutex);
 
@@ -152,7 +152,7 @@ static struct master *__master_find(struct device *dev,
 {
 	struct master *m;
 
-	list_for_each_entry(m, &masters, node)
+	list_for_each_entry(m, &masters, yesde)
 		if (m->dev == dev && (!ops || m->ops == ops))
 			return m;
 
@@ -164,7 +164,7 @@ static struct component *find_component(struct master *master,
 {
 	struct component *c;
 
-	list_for_each_entry(c, &component_list, node) {
+	list_for_each_entry(c, &component_list, yesde) {
 		if (c->master && c->master != master)
 			continue;
 
@@ -230,7 +230,7 @@ static void remove_component(struct master *master, struct component *c)
  * this master, otherwise it's a component which must be present to try
  * and bring up the master.
  *
- * Returns 1 for successful bringup, 0 if not ready, or -ve errno.
+ * Returns 1 for successful bringup, 0 if yest ready, or -ve erryes.
  */
 static int try_to_bring_up_master(struct master *master,
 	struct component *component)
@@ -245,7 +245,7 @@ static int try_to_bring_up_master(struct master *master,
 	}
 
 	if (component && component->master != master) {
-		dev_dbg(master->dev, "master is not for this component (%s)\n",
+		dev_dbg(master->dev, "master is yest for this component (%s)\n",
 			dev_name(component->dev));
 		return 0;
 	}
@@ -270,7 +270,7 @@ static int try_to_bring_up_masters(struct component *component)
 	struct master *m;
 	int ret = 0;
 
-	list_for_each_entry(m, &masters, node) {
+	list_for_each_entry(m, &masters, yesde) {
 		if (!m->bound) {
 			ret = try_to_bring_up_master(m, component);
 			if (ret != 0)
@@ -392,8 +392,8 @@ static void __component_match_add(struct device *master,
  *
  * The allocated match list in @matchptr is automatically released using devm
  * actions, where upon @release will be called to free any references held by
- * @compare_data, e.g. when @compare_data is a &device_node that must be
- * released with of_node_put().
+ * @compare_data, e.g. when @compare_data is a &device_yesde that must be
+ * released with of_yesde_put().
  *
  * See also component_match_add() and component_match_add_typed().
  */
@@ -439,7 +439,7 @@ static void free_master(struct master *master)
 	int i;
 
 	component_master_debugfs_del(master);
-	list_del(&master->node);
+	list_del(&master->yesde);
 
 	if (match) {
 		for (i = 0; i < match->num; i++) {
@@ -487,7 +487,7 @@ int component_master_add_with_match(struct device *dev,
 	component_master_debugfs_add(master);
 	/* Add to the list of available masters. */
 	mutex_lock(&component_mutex);
-	list_add(&master->node, &masters);
+	list_add(&master->yesde, &masters);
 
 	ret = try_to_bring_up_master(master, NULL);
 
@@ -678,13 +678,13 @@ static int __component_add(struct device *dev, const struct component_ops *ops,
 	dev_dbg(dev, "adding component (ops %ps)\n", ops);
 
 	mutex_lock(&component_mutex);
-	list_add_tail(&component->node, &component_list);
+	list_add_tail(&component->yesde, &component_list);
 
 	ret = try_to_bring_up_masters(component);
 	if (ret < 0) {
 		if (component->master)
 			remove_component(component->master, component);
-		list_del(&component->node);
+		list_del(&component->yesde);
 
 		kfree(component);
 	}
@@ -697,13 +697,13 @@ static int __component_add(struct device *dev, const struct component_ops *ops,
  * component_add_typed - register a component
  * @dev: component device
  * @ops: component callbacks
- * @subcomponent: nonzero identifier for subcomponents
+ * @subcomponent: yesnzero identifier for subcomponents
  *
  * Register a new component for @dev. Functions in @ops will be call when the
  * aggregate driver is ready to bind the overall driver by calling
  * component_bind_all(). See also &struct component_ops.
  *
- * @subcomponent must be nonzero and is used to differentiate between multiple
+ * @subcomponent must be yesnzero and is used to differentiate between multiple
  * components registerd on the same device @dev. These components are match
  * using component_match_add_typed().
  *
@@ -757,9 +757,9 @@ void component_del(struct device *dev, const struct component_ops *ops)
 	struct component *c, *component = NULL;
 
 	mutex_lock(&component_mutex);
-	list_for_each_entry(c, &component_list, node)
+	list_for_each_entry(c, &component_list, yesde)
 		if (c->dev == dev && c->ops == ops) {
-			list_del(&c->node);
+			list_del(&c->yesde);
 			component = c;
 			break;
 		}

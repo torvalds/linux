@@ -23,53 +23,53 @@ Active MM
 
  Basically, the new setup is:
 
-  - we have "real address spaces" and "anonymous address spaces". The
-    difference is that an anonymous address space doesn't care about the
+  - we have "real address spaces" and "ayesnymous address spaces". The
+    difference is that an ayesnymous address space doesn't care about the
     user-level page tables at all, so when we do a context switch into an
-    anonymous address space we just leave the previous address space
+    ayesnymous address space we just leave the previous address space
     active.
 
-    The obvious use for a "anonymous address space" is any thread that
+    The obvious use for a "ayesnymous address space" is any thread that
     doesn't need any user mappings - all kernel threads basically fall into
     this category, but even "real" threads can temporarily say that for
-    some amount of time they are not going to be interested in user space,
+    some amount of time they are yest going to be interested in user space,
     and that the scheduler might as well try to avoid wasting time on
     switching the VM state around. Currently only the old-style bdflush
     sync does that.
 
-  - "tsk->mm" points to the "real address space". For an anonymous process,
-    tsk->mm will be NULL, for the logical reason that an anonymous process
+  - "tsk->mm" points to the "real address space". For an ayesnymous process,
+    tsk->mm will be NULL, for the logical reason that an ayesnymous process
     really doesn't _have_ a real address space at all.
 
   - however, we obviously need to keep track of which address space we
-    "stole" for such an anonymous user. For that, we have "tsk->active_mm",
+    "stole" for such an ayesnymous user. For that, we have "tsk->active_mm",
     which shows what the currently active address space is.
 
     The rule is that for a process with a real address space (ie tsk->mm is
-    non-NULL) the active_mm obviously always has to be the same as the real
+    yesn-NULL) the active_mm obviously always has to be the same as the real
     one.
 
-    For a anonymous process, tsk->mm == NULL, and tsk->active_mm is the
-    "borrowed" mm while the anonymous process is running. When the
-    anonymous process gets scheduled away, the borrowed address space is
+    For a ayesnymous process, tsk->mm == NULL, and tsk->active_mm is the
+    "borrowed" mm while the ayesnymous process is running. When the
+    ayesnymous process gets scheduled away, the borrowed address space is
     returned and cleared.
 
- To support all that, the "struct mm_struct" now has two counters: a
+ To support all that, the "struct mm_struct" yesw has two counters: a
  "mm_users" counter that is how many "real address space users" there are,
- and a "mm_count" counter that is the number of "lazy" users (ie anonymous
+ and a "mm_count" counter that is the number of "lazy" users (ie ayesnymous
  users) plus one if there are any real users.
 
  Usually there is at least one real user, but it could be that the real
- user exited on another CPU while a lazy user was still active, so you do
+ user exited on ayesther CPU while a lazy user was still active, so you do
  actually get cases where you have a address space that is _only_ used by
  lazy users. That is often a short-lived state, because once that thread
  gets scheduled away in favour of a real thread, the "zombie" mm gets
  released because "mm_users" becomes zero.
 
- Also, a new rule is that _nobody_ ever has "init_mm" as a real MM any
- more. "init_mm" should be considered just a "lazy context when no other
+ Also, a new rule is that _yesbody_ ever has "init_mm" as a real MM any
+ more. "init_mm" should be considered just a "lazy context when yes other
  context is available", and in fact it is mainly used just at bootup when
- no real VM has yet been created. So code that used to check
+ yes real VM has yet been created. So code that used to check
 
  	if (current->mm == &init_mm)
 

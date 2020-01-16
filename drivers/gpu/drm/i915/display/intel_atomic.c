@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -63,7 +63,7 @@ int intel_digital_connector_atomic_get_property(struct drm_connector *connector,
 	else if (property == dev_priv->broadcast_rgb_property)
 		*val = intel_conn_state->broadcast_rgb;
 	else {
-		DRM_DEBUG_ATOMIC("Unknown property [PROP:%d:%s]\n",
+		DRM_DEBUG_ATOMIC("Unkyeswn property [PROP:%d:%s]\n",
 				 property->base.id, property->name);
 		return -EINVAL;
 	}
@@ -100,7 +100,7 @@ int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
 		return 0;
 	}
 
-	DRM_DEBUG_ATOMIC("Unknown property [PROP:%d:%s]\n",
+	DRM_DEBUG_ATOMIC("Unkyeswn property [PROP:%d:%s]\n",
 			 property->base.id, property->name);
 	return -EINVAL;
 }
@@ -136,7 +136,7 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 	crtc_state = drm_atomic_get_new_crtc_state(state, new_state->crtc);
 
 	/*
-	 * These properties are handled by fastset, and might not end
+	 * These properties are handled by fastset, and might yest end
 	 * up in a modeset.
 	 */
 	if (new_conn_state->force_audio != old_conn_state->force_audio ||
@@ -245,7 +245,7 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
 		}
 	}
 
-	if (WARN(*scaler_id < 0, "Cannot find scaler for %s:%d\n", name, idx))
+	if (WARN(*scaler_id < 0, "Canyest find scaler for %s:%d\n", name, idx))
 		return;
 
 	/* set scaler mode */
@@ -304,7 +304,7 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
  * is a supportable request, it attaches scalers to requested planes and crtc.
  *
  * This function takes into account the current scaler(s) in use by any planes
- * not being part of this atomic state
+ * yest being part of this atomic state
  *
  *  Returns:
  *         0 - scalers were setup succesfully
@@ -351,7 +351,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 		const char *name;
 		int idx;
 
-		/* skip if scaler not required */
+		/* skip if scaler yest required */
 		if (!(scaler_state->scaler_users & (1 << i)))
 			continue;
 
@@ -395,7 +395,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 			intel_plane = to_intel_plane(plane);
 			idx = plane->base.id;
 
-			/* plane on different crtc cannot be a scaler user of this crtc */
+			/* plane on different crtc canyest be a scaler user of this crtc */
 			if (WARN_ON(intel_plane->pipe != intel_crtc->pipe))
 				continue;
 

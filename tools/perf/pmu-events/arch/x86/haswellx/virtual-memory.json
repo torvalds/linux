@@ -64,7 +64,7 @@
         "BriefDescription": "Load misses that miss the  DTLB and hit the STLB (4K)",
         "Counter": "0,1,2,3",
         "EventName": "DTLB_LOAD_MISSES.STLB_HIT_4K",
-        "PublicDescription": "This event counts load operations from a 4K page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts load operations from a 4K page that miss the first DTLB level but hit the second and do yest cause page walks.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -74,14 +74,14 @@
         "BriefDescription": "Load misses that miss the  DTLB and hit the STLB (2M)",
         "Counter": "0,1,2,3",
         "EventName": "DTLB_LOAD_MISSES.STLB_HIT_2M",
-        "PublicDescription": "This event counts load operations from a 2M page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts load operations from a 2M page that miss the first DTLB level but hit the second and do yest cause page walks.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0x08",
         "UMask": "0x60",
-        "BriefDescription": "Load operations that miss the first DTLB level but hit the second and do not cause page walks",
+        "BriefDescription": "Load operations that miss the first DTLB level but hit the second and do yest cause page walks",
         "Counter": "0,1,2,3",
         "EventName": "DTLB_LOAD_MISSES.STLB_HIT",
         "PublicDescription": "Number of cache load STLB hits. No page walk.",
@@ -163,7 +163,7 @@
         "BriefDescription": "Store misses that miss the  DTLB and hit the STLB (4K)",
         "Counter": "0,1,2,3",
         "EventName": "DTLB_STORE_MISSES.STLB_HIT_4K",
-        "PublicDescription": "This event counts store operations from a 4K page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts store operations from a 4K page that miss the first DTLB level but hit the second and do yest cause page walks.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -173,17 +173,17 @@
         "BriefDescription": "Store misses that miss the  DTLB and hit the STLB (2M)",
         "Counter": "0,1,2,3",
         "EventName": "DTLB_STORE_MISSES.STLB_HIT_2M",
-        "PublicDescription": "This event counts store operations from a 2M page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts store operations from a 2M page that miss the first DTLB level but hit the second and do yest cause page walks.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0x49",
         "UMask": "0x60",
-        "BriefDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks",
+        "BriefDescription": "Store operations that miss the first TLB level but hit the second and do yest cause page walks",
         "Counter": "0,1,2,3",
         "EventName": "DTLB_STORE_MISSES.STLB_HIT",
-        "PublicDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "Store operations that miss the first TLB level but hit the second and do yest cause page walks.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -288,7 +288,7 @@
     {
         "EventCode": "0x85",
         "UMask": "0x60",
-        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do not cause any page walks",
+        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do yest cause any page walks",
         "Counter": "0,1,2,3",
         "EventName": "ITLB_MISSES.STLB_HIT",
         "PublicDescription": "ITLB misses that hit STLB. No page walk.",

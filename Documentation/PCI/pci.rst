@@ -10,7 +10,7 @@ How To Write Linux PCI Drivers
 The world of PCI is vast and full of (mostly unpleasant) surprises.
 Since each CPU architecture implements different chip-sets and PCI devices
 have different requirements (erm, "features"), the result is the PCI support
-in the Linux kernel is not as trivial as one would wish. This short paper
+in the Linux kernel is yest as trivial as one would wish. This short paper
 tries to introduce all potential driver authors to Linux APIs for
 PCI device drivers.
 
@@ -20,7 +20,7 @@ LDD3 is available for free (under Creative Commons License) from:
 http://lwn.net/Kernel/LDD3/.
 
 However, keep in mind that all documents are subject to "bit rot".
-Refer to the source code if things are not working as described here.
+Refer to the source code if things are yest working as described here.
 
 Please send questions/comments/patches about Linux PCI API to the
 "Linux PCI" <linux-pci@atrey.karlin.mff.cuni.cz> mailing list.
@@ -30,7 +30,7 @@ Structure of PCI drivers
 ========================
 PCI drivers "discover" PCI devices in a system via pci_register_driver().
 Actually, it's the other way around. When the PCI generic code discovers
-a new device, the driver with a matching "description" will be notified.
+a new device, the driver with a matching "description" will be yestified.
 Details on this below.
 
 pci_register_driver() leaves most of the probing for devices to
@@ -39,7 +39,7 @@ supporting hot-pluggable PCI, CardBus, and Express-Card in a single driver].
 pci_register_driver() call requires passing in a table of function
 pointers and thus dictates the high level structure of a driver.
 
-Once the driver knows about a PCI device and takes ownership, the
+Once the driver kyesws about a PCI device and takes ownership, the
 driver generally needs to perform the following initialization:
 
   - Enable the device
@@ -48,7 +48,7 @@ driver generally needs to perform the following initialization:
   - Allocate and initialize shared control data (pci_allocate_coherent())
   - Access device configuration space (if needed)
   - Register IRQ handler (request_irq())
-  - Initialize non-PCI (i.e. LAN/SCSI/etc parts of the chip)
+  - Initialize yesn-PCI (i.e. LAN/SCSI/etc parts of the chip)
   - Enable DMA/processing engines
 
 When done using the device, and perhaps the module needs to be unloaded,
@@ -65,7 +65,7 @@ the driver needs to take the follow steps:
 Most of these topics are covered in the following sections.
 For the rest look at LDD3 or <linux/pci.h> .
 
-If the PCI subsystem is not configured (CONFIG_PCI is not set), most of
+If the PCI subsystem is yest configured (CONFIG_PCI is yest set), most of
 the PCI functions described below are defined as inline functions either
 completely empty or just returning an appropriate error codes to avoid
 lots of ifdefs in the drivers.
@@ -96,7 +96,7 @@ as shown below::
   echo "vendor device subvendor subdevice class class_mask driver_data" > \
   /sys/bus/pci/drivers/{driver}/new_id
 
-All fields are passed in as hexadecimal values (no leading 0x).
+All fields are passed in as hexadecimal values (yes leading 0x).
 The vendor and device fields are mandatory, the others are optional. Users
 need pass only as many optional fields as necessary:
 
@@ -106,7 +106,7 @@ need pass only as many optional fields as necessary:
 
 Note that driver_data must match the value used by any of the pci_device_id
 entries defined in the driver. This makes the driver_data field mandatory
-if all the pci_device_id entries have a non-zero driver_data value.
+if all the pci_device_id entries have a yesn-zero driver_data value.
 
 Once added, the driver probe routine will be invoked for any unclaimed
 PCI devices listed in its (newly updated) pci_ids list.
@@ -124,7 +124,7 @@ Please mark the initialization and cleanup functions where appropriate
 	======		=================================================
 	__init		Initialization code. Thrown away after the driver
 			initializes.
-	__exit		Exit code. Ignored for non-modular drivers.
+	__exit		Exit code. Igyesred for yesn-modular drivers.
 	======		=================================================
 
 Tips on when/where to use the above attributes:
@@ -132,16 +132,16 @@ Tips on when/where to use the above attributes:
 	  initialization functions called _only_ from these)
 	  should be marked __init/__exit.
 
-	- Do not mark the struct pci_driver.
+	- Do yest mark the struct pci_driver.
 
-	- Do NOT mark a function if you are not sure which mark to use.
-	  Better to not mark the function than mark the function wrong.
+	- Do NOT mark a function if you are yest sure which mark to use.
+	  Better to yest mark the function than mark the function wrong.
 
 
 How to find PCI devices manually
 ================================
 
-PCI drivers should have a really good reason for not using the
+PCI drivers should have a really good reason for yest using the
 pci_register_driver() interface to search for PCI devices.
 The main reason PCI devices are controlled by multiple drivers
 is because one PCI device implements several different HW services.
@@ -175,7 +175,7 @@ decrement the reference count on these devices by calling pci_dev_put().
 Device Initialization Steps
 ===========================
 
-As noted in the introduction, most PCI drivers need the following steps
+As yested in the introduction, most PCI drivers need the following steps
 for device initialization:
 
   - Enable the device
@@ -184,7 +184,7 @@ for device initialization:
   - Allocate and initialize shared control data (pci_allocate_coherent())
   - Access device configuration space (if needed)
   - Register IRQ handler (request_irq())
-  - Initialize non-PCI (i.e. LAN/SCSI/etc parts of the chip)
+  - Initialize yesn-PCI (i.e. LAN/SCSI/etc parts of the chip)
   - Enable DMA/processing engines.
 
 The driver can access PCI config space registers at any time.
@@ -199,10 +199,10 @@ Before touching any device registers, the driver needs to enable
 the PCI device by calling pci_enable_device(). This will:
 
   - wake up the device if it was in suspended state,
-  - allocate I/O and memory regions of the device (if BIOS did not),
-  - allocate an IRQ (if BIOS did not).
+  - allocate I/O and memory regions of the device (if BIOS did yest),
+  - allocate an IRQ (if BIOS did yest).
 
-.. note::
+.. yeste::
    pci_enable_device() can fail! Check the return value.
 
 .. warning::
@@ -210,10 +210,10 @@ the PCI device by calling pci_enable_device(). This will:
    resources. The sequence would make more sense if we called
    pci_request_resources() before calling pci_enable_device().
    Currently, the device drivers can't detect the bug when when two
-   devices have been allocated the same range. This is not a common
+   devices have been allocated the same range. This is yest a common
    problem and unlikely to get fixed soon.
 
-   This has been discussed before but not changed as of 2.6.19:
+   This has been discussed before but yest changed as of 2.6.19:
    http://lkml.org/lkml/2006/3/2/194
 
 
@@ -225,9 +225,9 @@ disable DMA by clearing the bus master bit.
 If the PCI device can use the PCI Memory-Write-Invalidate transaction,
 call pci_set_mwi().  This enables the PCI_COMMAND bit for Mem-Wr-Inval
 and also ensures that the cache line size register is set correctly.
-Check the return value of pci_set_mwi() as not all architectures
+Check the return value of pci_set_mwi() as yest all architectures
 or chip-sets may support Memory-Write-Invalidate.  Alternatively,
-if Mem-Wr-Inval would be nice to have but is not required, call
+if Mem-Wr-Inval would be nice to have but is yest required, call
 pci_try_set_mwi() to have the system do its best effort at enabling
 Mem-Wr-Inval.
 
@@ -243,7 +243,7 @@ See Documentation/io-mapping.txt for how to access device registers
 or device memory.
 
 The device driver needs to call pci_request_region() to verify
-no other device is already using the same address resource.
+yes other device is already using the same address resource.
 Conversely, drivers should call pci_release_region() AFTER
 calling pci_disable_device().
 The idea is to prevent two devices colliding on the same address range.
@@ -255,7 +255,7 @@ The idea is to prevent two devices colliding on the same address range.
 
 Generic flavors of pci_request_region() are request_mem_region()
 (for MMIO ranges) and request_region() (for IO Port ranges).
-Use these for address resources that are not described by "normal" PCI
+Use these for address resources that are yest described by "yesrmal" PCI
 BARs.
 
 Also see pci_request_selected_regions() below.
@@ -263,10 +263,10 @@ Also see pci_request_selected_regions() below.
 
 Set the DMA mask size
 ---------------------
-.. note::
+.. yeste::
    If anything below doesn't make sense, please refer to
    Documentation/DMA-API.txt. This section is just a reminder that
-   drivers need to indicate DMA capabilities of the device and is not
+   drivers need to indicate DMA capabilities of the device and is yest
    an authoritative source for DMA interfaces.
 
 While all drivers should explicitly indicate the DMA capability
@@ -284,7 +284,7 @@ can directly address "consistent memory" in System RAM above 4G physical
 address by calling pci_set_consistent_dma_mask().
 Again, this includes drivers for all PCI-X and PCIe compliant devices.
 Many 64-bit "PCI" devices (before PCI-X) and some PCI-X devices are
-64-bit DMA capable for payload ("streaming") data but not control
+64-bit DMA capable for payload ("streaming") data but yest control
 ("consistent") data.
 
 
@@ -306,7 +306,7 @@ E.g. clearing pending interrupts.
 Register IRQ handler
 --------------------
 While calling request_irq() is the last step described here,
-this is often just another intermediate step to initialize a device.
+this is often just ayesther intermediate step to initialize a device.
 This step can often be deferred until the device is opened for use.
 
 All interrupt handlers for IRQ lines should be registered with IRQF_SHARED
@@ -319,7 +319,7 @@ IRQ lines which run from the PCI device to the Interrupt controller.
 With MSI and MSI-X (more below) the interrupt number is a CPU "vector".
 
 request_irq() also enables the interrupt. Make sure the device is
-quiesced and does not have any interrupts pending before registering
+quiesced and does yest have any interrupts pending before registering
 the interrupt handler.
 
 MSI and MSI-X are PCI capabilities. Both are "Message Signaled Interrupts"
@@ -374,30 +374,30 @@ steps need to be performed:
 
 Stop IRQs on the device
 -----------------------
-How to do this is chip/device specific. If it's not done, it opens
+How to do this is chip/device specific. If it's yest done, it opens
 the possibility of a "screaming interrupt" if (and only if)
-the IRQ is shared with another device.
+the IRQ is shared with ayesther device.
 
 When the shared IRQ handler is "unhooked", the remaining devices
 using the same IRQ line will still need the IRQ enabled. Thus if the
 "unhooked" device asserts IRQ line, the system will respond assuming
-it was one of the remaining devices asserted the IRQ line. Since none
+it was one of the remaining devices asserted the IRQ line. Since yesne
 of the other devices will handle the IRQ, the system will "hang" until
 it decides the IRQ isn't going to get handled and masks the IRQ (100,000
 iterations later). Once the shared IRQ is masked, the remaining devices
 will stop functioning properly. Not a nice situation.
 
-This is another reason to use MSI or MSI-X if it's available.
+This is ayesther reason to use MSI or MSI-X if it's available.
 MSI and MSI-X are defined to be exclusive interrupts and thus
-are not susceptible to the "screaming interrupt" problem.
+are yest susceptible to the "screaming interrupt" problem.
 
 
 Release the IRQ
 ---------------
-Once the device is quiesced (no more IRQs), one can call free_irq().
+Once the device is quiesced (yes more IRQs), one can call free_irq().
 This function will return control once any pending IRQs are handled,
 "unhook" the drivers IRQ handler from that IRQ, and finally release
-the IRQ if no one else is using it.
+the IRQ if yes one else is using it.
 
 
 Stop all DMA activity
@@ -437,7 +437,7 @@ Disable Device from responding to MMIO/IO Port addresses
 --------------------------------------------------------
 io_unmap() MMIO or IO Port resources and then call pci_disable_device().
 This is the symmetric opposite of pci_enable_device().
-Do not access device registers after calling pci_disable_device().
+Do yest access device registers after calling pci_disable_device().
 
 
 Release MMIO/IO Port Resource(s)
@@ -501,17 +501,17 @@ can be pretty complex.
 
 Don't try to turn on Fast Back to Back writes in your driver.  All devices
 on the bus need to be capable of doing it, so this is something which needs
-to be handled by platform and generic code, not individual drivers.
+to be handled by platform and generic code, yest individual drivers.
 
 
 Vendor and device identifications
 =================================
 
-Do not add new device or vendor IDs to include/linux/pci_ids.h unless they
+Do yest add new device or vendor IDs to include/linux/pci_ids.h unless they
 are shared across multiple drivers.  You can add private definitions in
 your driver if they're helpful, or just use plain hex constants.
 
-The device IDs are arbitrary hex numbers (vendor controlled) and normally used
+The device IDs are arbitrary hex numbers (vendor controlled) and yesrmally used
 only in a single location, the pci_device_id table.
 
 Please DO submit new vendor/device IDs to http://pci-ids.ucw.cz/.
@@ -523,7 +523,7 @@ Obsolete functions
 ==================
 
 There are several functions which you might come across when trying to
-port an old driver to the new PCI interface.  They are no longer present
+port an old driver to the new PCI interface.  They are yes longer present
 in the kernel as they aren't compatible with hotplug or PCI domains or
 having sane locking.
 
@@ -567,12 +567,12 @@ The same sequence for MMIO space should be::
                udelay(10);
        }
 
-It is important that "safe_mmio_reg" not have any side effects that
+It is important that "safe_mmio_reg" yest have any side effects that
 interferes with the correct operation of the device.
 
-Another case to watch out for is when resetting a PCI device. Use PCI
+Ayesther case to watch out for is when resetting a PCI device. Use PCI
 Configuration space reads to flush the writel(). This will gracefully
 handle the PCI master abort on all platforms if the PCI device is
-expected to not respond to a readl().  Most x86 platforms will allow
+expected to yest respond to a readl().  Most x86 platforms will allow
 MMIO reads to master abort (a.k.a. "Soft Fail") and return garbage
 (e.g. ~0). But many RISC platforms will crash (a.k.a."Hard Fail").

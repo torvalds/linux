@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -133,7 +133,7 @@ static unsigned int calc_v_total_from_refresh(
 			frame_duration_in_ns) * (stream->timing.pix_clk_100hz / 10)),
 			stream->timing.h_total), 1000000);
 
-	/* v_total cannot be less than nominal */
+	/* v_total canyest be less than yesminal */
 	if (v_total < stream->timing.v_total) {
 		ASSERT(v_total < stream->timing.v_total);
 		v_total = stream->timing.v_total;
@@ -159,7 +159,7 @@ static unsigned int calc_v_total_from_duration(
 				duration_in_us) * (stream->timing.pix_clk_100hz / 10)),
 				stream->timing.h_total), 1000);
 
-	/* v_total cannot be less than nominal */
+	/* v_total canyest be less than yesminal */
 	if (v_total < stream->timing.v_total) {
 		ASSERT(v_total < stream->timing.v_total);
 		v_total = stream->timing.v_total;
@@ -234,7 +234,7 @@ static void update_v_total_for_static_ramp(
 			current_duration_in_us) * (stream->timing.pix_clk_100hz / 10)),
 				stream->timing.h_total), 1000);
 
-	/* v_total cannot be less than nominal */
+	/* v_total canyest be less than yesminal */
 	if (v_total < stream->timing.v_total)
 		v_total = stream->timing.v_total;
 
@@ -274,7 +274,7 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		in_out_vrr->btr.btr_active = true;
 	}
 
-	/* BTR set to "not active" so disengage */
+	/* BTR set to "yest active" so disengage */
 	if (!in_out_vrr->btr.btr_active) {
 		in_out_vrr->btr.inserted_duration_in_us = 0;
 		in_out_vrr->btr.frames_to_insert = 0;
@@ -467,7 +467,7 @@ bool mod_freesync_get_vmin_vmax(struct mod_freesync *mod_freesync,
 
 bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
 		struct dc_stream_state *stream,
-		unsigned int *nom_v_pos,
+		unsigned int *yesm_v_pos,
 		unsigned int *v_pos)
 {
 	struct core_freesync *core_freesync = NULL;
@@ -480,9 +480,9 @@ bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
 
 	if (dc_stream_get_crtc_position(core_freesync->dc, &stream, 1,
 					&position.vertical_count,
-					&position.nominal_vcount)) {
+					&position.yesminal_vcount)) {
 
-		*nom_v_pos = position.nominal_vcount;
+		*yesm_v_pos = position.yesminal_vcount;
 		*v_pos = position.vertical_count;
 
 		return true;
@@ -576,7 +576,7 @@ static void build_vrr_infopacket_header_v1(enum signal_type signal,
 
 		/* HEADER */
 
-		/* HB0  = Secondary-data Packet ID = 0 - Only non-zero
+		/* HB0  = Secondary-data Packet ID = 0 - Only yesn-zero
 		 *	  when used to associate audio related info packets
 		 */
 		infopacket->hb0 = 0x00;
@@ -625,7 +625,7 @@ static void build_vrr_infopacket_header_v2(enum signal_type signal,
 
 		/* HEADER */
 
-		/* HB0  = Secondary-data Packet ID = 0 - Only non-zero
+		/* HB0  = Secondary-data Packet ID = 0 - Only yesn-zero
 		 *	  when used to associate audio related info packets
 		 */
 		infopacket->hb0 = 0x00;
@@ -733,7 +733,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		struct mod_vrr_params *in_out_vrr)
 {
 	struct core_freesync *core_freesync = NULL;
-	unsigned long long nominal_field_rate_in_uhz = 0;
+	unsigned long long yesminal_field_rate_in_uhz = 0;
 	unsigned int refresh_range = 0;
 	unsigned long long min_refresh_in_uhz = 0;
 	unsigned long long max_refresh_in_uhz = 0;
@@ -743,13 +743,13 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
 
-	/* Calculate nominal field rate for stream */
-	nominal_field_rate_in_uhz =
-			mod_freesync_calc_nominal_field_rate(stream);
+	/* Calculate yesminal field rate for stream */
+	yesminal_field_rate_in_uhz =
+			mod_freesync_calc_yesminal_field_rate(stream);
 
 	/* Rounded to the nearest Hz */
-	nominal_field_rate_in_uhz = 1000000ULL *
-			div_u64(nominal_field_rate_in_uhz + 500000, 1000000);
+	yesminal_field_rate_in_uhz = 1000000ULL *
+			div_u64(yesminal_field_rate_in_uhz + 500000, 1000000);
 
 	min_refresh_in_uhz = in_config->min_refresh_in_uhz;
 	max_refresh_in_uhz = in_config->max_refresh_in_uhz;
@@ -758,13 +758,13 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 	if (min_refresh_in_uhz > max_refresh_in_uhz)
 		min_refresh_in_uhz = max_refresh_in_uhz;
 
-	// Full range may be larger than current video timing, so cap at nominal
-	if (max_refresh_in_uhz > nominal_field_rate_in_uhz)
-		max_refresh_in_uhz = nominal_field_rate_in_uhz;
+	// Full range may be larger than current video timing, so cap at yesminal
+	if (max_refresh_in_uhz > yesminal_field_rate_in_uhz)
+		max_refresh_in_uhz = yesminal_field_rate_in_uhz;
 
-	// Full range may be larger than current video timing, so cap at nominal
-	if (min_refresh_in_uhz > nominal_field_rate_in_uhz)
-		min_refresh_in_uhz = nominal_field_rate_in_uhz;
+	// Full range may be larger than current video timing, so cap at yesminal
+	if (min_refresh_in_uhz > yesminal_field_rate_in_uhz)
+		min_refresh_in_uhz = yesminal_field_rate_in_uhz;
 
 	if (!vrr_settings_require_update(core_freesync,
 			in_config, (unsigned int)min_refresh_in_uhz, (unsigned int)max_refresh_in_uhz,
@@ -837,7 +837,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 				in_out_vrr->min_refresh_in_uhz;
 		if (in_out_vrr->fixed.ramping_active &&
 				in_out_vrr->fixed.fixed_active) {
-			/* Do not update vtotals if ramping is already active
+			/* Do yest update vtotals if ramping is already active
 			 * in order to continue ramp from current refresh.
 			 */
 			in_out_vrr->fixed.fixed_active = true;
@@ -959,7 +959,7 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 		}
 	}
 
-	/* If in fullscreen freesync mode or in video, do not program
+	/* If in fullscreen freesync mode or in video, do yest program
 	 * static screen ramp values
 	 */
 	if (in_out_vrr->state == VRR_STATE_ACTIVE_VARIABLE)
@@ -996,19 +996,19 @@ void mod_freesync_get_settings(struct mod_freesync *mod_freesync,
 	}
 }
 
-unsigned long long mod_freesync_calc_nominal_field_rate(
+unsigned long long mod_freesync_calc_yesminal_field_rate(
 			const struct dc_stream_state *stream)
 {
-	unsigned long long nominal_field_rate_in_uhz = 0;
+	unsigned long long yesminal_field_rate_in_uhz = 0;
 	unsigned int total = stream->timing.h_total * stream->timing.v_total;
 
-	/* Calculate nominal field rate for stream, rounded up to nearest integer */
-	nominal_field_rate_in_uhz = stream->timing.pix_clk_100hz / 10;
-	nominal_field_rate_in_uhz *= 1000ULL * 1000ULL * 1000ULL;
+	/* Calculate yesminal field rate for stream, rounded up to nearest integer */
+	yesminal_field_rate_in_uhz = stream->timing.pix_clk_100hz / 10;
+	yesminal_field_rate_in_uhz *= 1000ULL * 1000ULL * 1000ULL;
 
-	nominal_field_rate_in_uhz =	div_u64(nominal_field_rate_in_uhz, total);
+	yesminal_field_rate_in_uhz =	div_u64(yesminal_field_rate_in_uhz, total);
 
-	return nominal_field_rate_in_uhz;
+	return yesminal_field_rate_in_uhz;
 }
 
 bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
@@ -1018,18 +1018,18 @@ bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
 		uint32_t min_refresh_request_in_uhz,
 		uint32_t max_refresh_request_in_uhz)
 {
-	/* Calculate nominal field rate for stream */
-	unsigned long long nominal_field_rate_in_uhz =
-			mod_freesync_calc_nominal_field_rate(stream);
+	/* Calculate yesminal field rate for stream */
+	unsigned long long yesminal_field_rate_in_uhz =
+			mod_freesync_calc_yesminal_field_rate(stream);
 
-	/* Typically nominal refresh calculated can have some fractional part.
+	/* Typically yesminal refresh calculated can have some fractional part.
 	 * Allow for some rounding error of actual video timing by taking floor
-	 * of caps and request. Round the nominal refresh rate.
+	 * of caps and request. Round the yesminal refresh rate.
 	 *
 	 * Dividing will convert everything to units in Hz although input
 	 * variable name is in uHz!
 	 *
-	 * Also note, this takes care of rounding error on the nominal refresh
+	 * Also yeste, this takes care of rounding error on the yesminal refresh
 	 * so by rounding error we only expect it to be off by a small amount,
 	 * such as < 0.1 Hz. i.e. 143.9xxx or 144.1xxx.
 	 *
@@ -1047,29 +1047,29 @@ bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
 	 *            Request Min = 40 Hz, Max = 144 Hz
 	 *                    Nominal = 120.xx Hz rounded to 120 Hz
 	 *            This function should return NOT valid since the requested
-	 *            max is greater than current timing's nominal
+	 *            max is greater than current timing's yesminal
 	 *
 	 * Example 4. Caps    Min = 40 Hz, Max = 120 Hz
 	 *            Request Min = 40 Hz, Max = 120 Hz
 	 *                    Nominal = 144.xx Hz rounded to 144 Hz
-	 *            This function should return NOT valid since the nominal
+	 *            This function should return NOT valid since the yesminal
 	 *            is greater than the capability's max refresh
 	 */
-	nominal_field_rate_in_uhz =
-			div_u64(nominal_field_rate_in_uhz + 500000, 1000000);
+	yesminal_field_rate_in_uhz =
+			div_u64(yesminal_field_rate_in_uhz + 500000, 1000000);
 	min_refresh_cap_in_uhz /= 1000000;
 	max_refresh_cap_in_uhz /= 1000000;
 	min_refresh_request_in_uhz /= 1000000;
 	max_refresh_request_in_uhz /= 1000000;
 
-	// Check nominal is within range
-	if (nominal_field_rate_in_uhz > max_refresh_cap_in_uhz ||
-		nominal_field_rate_in_uhz < min_refresh_cap_in_uhz)
+	// Check yesminal is within range
+	if (yesminal_field_rate_in_uhz > max_refresh_cap_in_uhz ||
+		yesminal_field_rate_in_uhz < min_refresh_cap_in_uhz)
 		return false;
 
-	// If nominal is less than max, limit the max allowed refresh rate
-	if (nominal_field_rate_in_uhz < max_refresh_cap_in_uhz)
-		max_refresh_cap_in_uhz = nominal_field_rate_in_uhz;
+	// If yesminal is less than max, limit the max allowed refresh rate
+	if (yesminal_field_rate_in_uhz < max_refresh_cap_in_uhz)
+		max_refresh_cap_in_uhz = yesminal_field_rate_in_uhz;
 
 	// Don't allow min > max
 	if (min_refresh_request_in_uhz > max_refresh_request_in_uhz)

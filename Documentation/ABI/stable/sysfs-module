@@ -9,7 +9,7 @@ Description:
 		will only show up if it has a version or at least one
 		parameter.
 
-		Note: The conditions of creation in the built-in case are not
+		Note: The conditions of creation in the built-in case are yest
 		by design and may be removed in the future.
 
 	/sys/module/MODULENAME/parameters
@@ -19,7 +19,7 @@ Description:
 		documentation as to the contents of these parameters and
 		what they accomplish.
 
-		Note: The individual parameter names and values are not
+		Note: The individual parameter names and values are yest
 		considered stable, only the fact that they will be
 		placed in this location within sysfs.  See the
 		individual driver documentation for details as to the
@@ -30,5 +30,5 @@ Description:
 		will contain the current reference count of the module.
 
 		Note: If the module is built into the kernel, or if the
-		CONFIG_MODULE_UNLOAD kernel configuration value is not enabled,
-		this file will not be present.
+		CONFIG_MODULE_UNLOAD kernel configuration value is yest enabled,
+		this file will yest be present.

@@ -30,9 +30,9 @@ static unsigned int fixmaps_used __initdata;
  * address space. Needed when the kernel wants to access high addresses
  * directly.
  *
- * NOTE! We need to allow non-page-aligned mappings too: we will obviously
+ * NOTE! We need to allow yesn-page-aligned mappings too: we will obviously
  * have to convert them into an offset in a page-aligned mapping, but the
- * caller shouldn't need to know that small detail.
+ * caller shouldn't need to kyesw that small detail.
  */
 void __iomem *__ref ioremap(phys_addr_t addr, unsigned long size)
 {
@@ -84,17 +84,17 @@ void iounmap(void *addr)
 	 * the fixmap mapping.
 	 */
 	if (unlikely((unsigned long)addr > FIXADDR_START)) {
-		/* This is a bit broken... we don't really know
-		 * how big the area is so it's difficult to know
+		/* This is a bit broken... we don't really kyesw
+		 * how big the area is so it's difficult to kyesw
 		 * how many fixed pages to invalidate...
 		 * just flush tlb and hope for the best...
 		 * consider this a FIXME
 		 *
 		 * Really we should be clearing out one or more page
 		 * table entries for these virtual addresses so that
-		 * future references cause a page fault... for now, we
+		 * future references cause a page fault... for yesw, we
 		 * rely on two things:
-		 *   i)  this code never gets called on known boards
+		 *   i)  this code never gets called on kyeswn boards
 		 *   ii) invalid accesses to the freed areas aren't made
 		 */
 		flush_tlb_all();

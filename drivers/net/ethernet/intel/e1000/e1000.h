@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -282,7 +282,7 @@ struct e1000_adapter {
 
 	int msg_enable;
 
-	/* to not mess up cache alignment, always add to the bottom */
+	/* to yest mess up cache alignment, always add to the bottom */
 	bool tso_force;
 	bool smart_power_down;	/* phy smart power down */
 	bool quad_port_a;
@@ -320,8 +320,8 @@ struct net_device *e1000_get_hw_dev(struct e1000_hw *hw);
 	netif_info(adapter, msglvl, adapter->netdev, format, ## arg)
 #define e_warn(msglvl, format, arg...) \
 	netif_warn(adapter, msglvl, adapter->netdev, format, ## arg)
-#define e_notice(msglvl, format, arg...) \
-	netif_notice(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_yestice(msglvl, format, arg...) \
+	netif_yestice(adapter, msglvl, adapter->netdev, format, ## arg)
 #define e_dev_info(format, arg...) \
 	dev_info(&adapter->pdev->dev, format, ## arg)
 #define e_dev_warn(format, arg...) \

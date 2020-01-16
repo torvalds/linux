@@ -60,7 +60,7 @@
 	display: display@0 {
 	    panels {
 		panel0: panel@0 {
-			panel-name = "Innolux TFT";
+			panel-name = "Inyeslux TFT";
 			hactive = <800>;
 			vactive = <480>;
 			left_margin = <20>;

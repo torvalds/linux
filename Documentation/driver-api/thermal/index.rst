@@ -11,8 +11,8 @@ Thermal
    sysfs-api
    power_allocator
 
-   exynos_thermal
-   exynos_thermal_emulation
+   exyyess_thermal
+   exyyess_thermal_emulation
    intel_powerclamp
-   nouveau_thermal
+   yesuveau_thermal
    x86_pkg_temperature_thermal

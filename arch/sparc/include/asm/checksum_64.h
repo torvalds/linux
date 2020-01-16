@@ -38,7 +38,7 @@ __wsum csum_partial(const void * buff, int len, __wsum sum);
  * here even more important to align src and dst on a 32-bit (or even
  * better 64-bit) boundary
  */
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
+__wsum csum_partial_copy_yescheck(const void *src, void *dst,
 				 int len, __wsum sum);
 
 long __csum_partial_copy_from_user(const void __user *src,
@@ -89,14 +89,14 @@ static inline __sum16 csum_fold(__wsum sum)
 "	addcc		%0, %1, %1\n"
 "	srl		%1, 16, %1\n"
 "	addc		%1, %%g0, %1\n"
-"	xnor		%%g0, %1, %0\n"
+"	xyesr		%%g0, %1, %0\n"
 	: "=&r" (sum), "=r" (tmp)
 	: "0" (sum), "1" ((__force u32)sum<<16)
 	: "cc");
 	return (__force __sum16)sum;
 }
 
-static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+static inline __wsum csum_tcpudp_yesfold(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
@@ -119,7 +119,7 @@ static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
+	return csum_fold(csum_tcpudp_yesfold(saddr,daddr,len,proto,sum));
 }
 
 #define _HAVE_ARCH_IPV6_CSUM

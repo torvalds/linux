@@ -2,7 +2,7 @@
 /*
  * Dynamic DMA mapping support.
  *
- * This implementation is a fallback for platforms that do not support
+ * This implementation is a fallback for platforms that do yest support
  * I/O TLBs (aka DMA address translation hardware).
  * Copyright (C) 2000 Asit Mallick <Asit.K.Mallick@intel.com>
  * Copyright (C) 2000 Goutham Rao <goutham.rao@intel.com>
@@ -90,7 +90,7 @@ static unsigned int io_tlb_index;
 
 /*
  * Max segment that we can provide which (if pages are contingous) will
- * not be bounced (unless SWIOTLB_FORCE is set).
+ * yest be bounced (unless SWIOTLB_FORCE is set).
  */
 unsigned int max_segment;
 
@@ -120,7 +120,7 @@ setup_io_tlb_npages(char *str)
 		++str;
 	if (!strcmp(str, "force")) {
 		swiotlb_force = SWIOTLB_FORCE;
-	} else if (!strcmp(str, "noforce")) {
+	} else if (!strcmp(str, "yesforce")) {
 		swiotlb_force = SWIOTLB_NO_FORCE;
 		io_tlb_nslabs = 1;
 	}
@@ -129,17 +129,17 @@ setup_io_tlb_npages(char *str)
 }
 early_param("swiotlb", setup_io_tlb_npages);
 
-static bool no_iotlb_memory;
+static bool yes_iotlb_memory;
 
 unsigned long swiotlb_nr_tbl(void)
 {
-	return unlikely(no_iotlb_memory) ? 0 : io_tlb_nslabs;
+	return unlikely(yes_iotlb_memory) ? 0 : io_tlb_nslabs;
 }
 EXPORT_SYMBOL_GPL(swiotlb_nr_tbl);
 
 unsigned int swiotlb_max_segment(void)
 {
-	return unlikely(no_iotlb_memory) ? 0 : max_segment;
+	return unlikely(yes_iotlb_memory) ? 0 : max_segment;
 }
 EXPORT_SYMBOL_GPL(swiotlb_max_segment);
 
@@ -166,7 +166,7 @@ void swiotlb_print_info(void)
 {
 	unsigned long bytes = io_tlb_nslabs << IO_TLB_SHIFT;
 
-	if (no_iotlb_memory) {
+	if (yes_iotlb_memory) {
 		pr_warn("No low mem\n");
 		return;
 	}
@@ -188,7 +188,7 @@ void __init swiotlb_update_mem_attributes(void)
 	void *vaddr;
 	unsigned long bytes;
 
-	if (no_iotlb_memory || late_alloc)
+	if (yes_iotlb_memory || late_alloc)
 		return;
 
 	vaddr = phys_to_virt(io_tlb_start);
@@ -264,8 +264,8 @@ swiotlb_init(int verbose)
 	if (io_tlb_start)
 		memblock_free_early(io_tlb_start,
 				    PAGE_ALIGN(io_tlb_nslabs << IO_TLB_SHIFT));
-	pr_warn("Cannot allocate buffer");
-	no_iotlb_memory = true;
+	pr_warn("Canyest allocate buffer");
+	yes_iotlb_memory = true;
 }
 
 /*
@@ -412,7 +412,7 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
 	unsigned char *vaddr = phys_to_virt(tlb_addr);
 
 	if (PageHighMem(pfn_to_page(pfn))) {
-		/* The buffer does not have a mapping.  Map it in and copy */
+		/* The buffer does yest have a mapping.  Map it in and copy */
 		unsigned int offset = orig_addr & ~PAGE_MASK;
 		char *buffer;
 		unsigned int sz = 0;
@@ -459,8 +459,8 @@ phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
 	unsigned long max_slots;
 	unsigned long tmp_io_tlb_used;
 
-	if (no_iotlb_memory)
-		panic("Can not allocate SWIOTLB buffer earlier and can't now provide you with the DMA bounce buffer");
+	if (yes_iotlb_memory)
+		panic("Can yest allocate SWIOTLB buffer earlier and can't yesw provide you with the DMA bounce buffer");
 
 	if (mem_encrypt_active())
 		pr_warn_once("Memory encryption is active and system is using DMA bounce buffers\n");
@@ -503,7 +503,7 @@ phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
 	spin_lock_irqsave(&io_tlb_lock, flags);
 
 	if (unlikely(nslots > io_tlb_nslabs - io_tlb_used))
-		goto not_found;
+		goto yest_found;
 
 	index = ALIGN(io_tlb_index, stride);
 	if (index >= io_tlb_nslabs)
@@ -517,7 +517,7 @@ phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
 			if (index >= io_tlb_nslabs)
 				index = 0;
 			if (index == wrap)
-				goto not_found;
+				goto yest_found;
 		}
 
 		/*
@@ -548,7 +548,7 @@ phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
 			index = 0;
 	} while (index != wrap);
 
-not_found:
+yest_found:
 	tmp_io_tlb_used = io_tlb_used;
 
 	spin_unlock_irqrestore(&io_tlb_lock, flags);
@@ -614,7 +614,7 @@ void swiotlb_tbl_unmap_single(struct device *hwdev, phys_addr_t tlb_addr,
 		}
 		/*
 		 * Step 2: merge the returned slots with the preceding slots,
-		 * if available (non zero)
+		 * if available (yesn zero)
 		 */
 		for (i = index - 1; (OFFSET(i, IO_TLB_SEGSIZE) != IO_TLB_SEGSIZE -1) && io_tlb_list[i]; i--)
 			io_tlb_list[i] = ++count;
@@ -666,7 +666,7 @@ bool swiotlb_map(struct device *dev, phys_addr_t *phys, dma_addr_t *dma_addr,
 
 	if (unlikely(swiotlb_force == SWIOTLB_NO_FORCE)) {
 		dev_warn_ratelimited(dev,
-			"Cannot do DMA to address %pa\n", phys);
+			"Canyest do DMA to address %pa\n", phys);
 		return false;
 	}
 

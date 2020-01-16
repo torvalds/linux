@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techyeslogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -370,11 +370,11 @@ static int img_ascii_lcd_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (cfg->external_regmap) {
-		ctx->regmap = syscon_node_to_regmap(pdev->dev.parent->of_node);
+		ctx->regmap = syscon_yesde_to_regmap(pdev->dev.parent->of_yesde);
 		if (IS_ERR(ctx->regmap))
 			return PTR_ERR(ctx->regmap);
 
-		if (of_property_read_u32(pdev->dev.of_node, "offset",
+		if (of_property_read_u32(pdev->dev.of_yesde, "offset",
 					 &ctx->offset))
 			return -EINVAL;
 	} else {
@@ -438,6 +438,6 @@ static struct platform_driver img_ascii_lcd_driver = {
 };
 module_platform_driver(img_ascii_lcd_driver);
 
-MODULE_DESCRIPTION("Imagination Technologies ASCII LCD Display");
+MODULE_DESCRIPTION("Imagination Techyeslogies ASCII LCD Display");
 MODULE_AUTHOR("Paul Burton <paul.burton@mips.com>");
 MODULE_LICENSE("GPL");

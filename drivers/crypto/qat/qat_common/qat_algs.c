@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -264,7 +264,7 @@ static void qat_alg_init_hdr_iv_updt(struct icp_qat_fw_comn_req_hdr *header)
 				       ICP_QAT_FW_LA_UPDATE_STATE);
 }
 
-static void qat_alg_init_hdr_no_iv_updt(struct icp_qat_fw_comn_req_hdr *header)
+static void qat_alg_init_hdr_yes_iv_updt(struct icp_qat_fw_comn_req_hdr *header)
 {
 	ICP_QAT_FW_LA_CIPH_IV_FLD_FLAG_SET(header->serv_specif_flags,
 					   ICP_QAT_FW_CIPH_IV_16BYTE_DATA);
@@ -284,7 +284,7 @@ static void qat_alg_init_common_hdr(struct icp_qat_fw_comn_req_hdr *header,
 	ICP_QAT_FW_LA_PARTIAL_SET(header->serv_specif_flags,
 				  ICP_QAT_FW_LA_PARTIAL_NONE);
 	if (aead)
-		qat_alg_init_hdr_no_iv_updt(header);
+		qat_alg_init_hdr_yes_iv_updt(header);
 	else
 		qat_alg_init_hdr_iv_updt(header);
 	ICP_QAT_FW_LA_PROTO_SET(header->serv_specif_flags,
@@ -615,11 +615,11 @@ static int qat_alg_aead_newkey(struct crypto_aead *tfm, const uint8_t *key,
 {
 	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct qat_crypto_instance *inst = NULL;
-	int node = get_current_node();
+	int yesde = get_current_yesde();
 	struct device *dev;
 	int ret;
 
-	inst = qat_crypto_get_instance_node(node);
+	inst = qat_crypto_get_instance_yesde(yesde);
 	if (!inst)
 		return -EINVAL;
 	dev = &GET_DEV(inst->accel_dev);
@@ -723,8 +723,8 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 	if (unlikely(!n))
 		return -EINVAL;
 
-	bufl = kzalloc_node(sz, GFP_ATOMIC,
-			    dev_to_node(&GET_DEV(inst->accel_dev)));
+	bufl = kzalloc_yesde(sz, GFP_ATOMIC,
+			    dev_to_yesde(&GET_DEV(inst->accel_dev)));
 	if (unlikely(!bufl))
 		return -ENOMEM;
 
@@ -757,8 +757,8 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 		n = sg_nents(sglout);
 		sz_out = struct_size(buflout, bufers, n + 1);
 		sg_nctr = 0;
-		buflout = kzalloc_node(sz_out, GFP_ATOMIC,
-				       dev_to_node(&GET_DEV(inst->accel_dev)));
+		buflout = kzalloc_yesde(sz_out, GFP_ATOMIC,
+				       dev_to_yesde(&GET_DEV(inst->accel_dev)));
 		if (unlikely(!buflout))
 			goto err_in;
 		bloutp = dma_map_single(dev, buflout, sz_out, DMA_TO_DEVICE);
@@ -968,10 +968,10 @@ static int qat_alg_skcipher_newkey(struct qat_alg_skcipher_ctx *ctx,
 {
 	struct qat_crypto_instance *inst = NULL;
 	struct device *dev;
-	int node = get_current_node();
+	int yesde = get_current_yesde();
 	int ret;
 
-	inst = qat_crypto_get_instance_node(node);
+	inst = qat_crypto_get_instance_yesde(yesde);
 	if (!inst)
 		return -EINVAL;
 	dev = &GET_DEV(inst->accel_dev);

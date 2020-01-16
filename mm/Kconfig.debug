@@ -5,7 +5,7 @@ config PAGE_EXTENSION
 	  Extend memmap on extra space for more information on page. This
 	  could be used for debugging features that need to insert extra
 	  field for every page. This extension enables us to save memory
-	  by not allocating this extra memory according to boottime
+	  by yest allocating this extra memory according to boottime
 	  configuration.
 
 config DEBUG_PAGEALLOC
@@ -27,12 +27,12 @@ config DEBUG_PAGEALLOC
 
 	  For architectures which don't enable ARCH_SUPPORTS_DEBUG_PAGEALLOC,
 	  fill the pages with poison patterns after free_pages() and verify
-	  the patterns before alloc_pages(). Additionally, this option cannot
+	  the patterns before alloc_pages(). Additionally, this option canyest
 	  be enabled in combination with hibernation as that would result in
 	  incorrect warnings of memory corruption after a resume because free
-	  pages are not saved to the suspend image.
+	  pages are yest saved to the suspend image.
 
-	  By default this option will have a small overhead, e.g. by not
+	  By default this option will have a small overhead, e.g. by yest
 	  allowing the kernel mapping to be backed by large pages on some
 	  architectures. Even bigger overhead comes when the debugging is
 	  enabled by DEBUG_PAGEALLOC_ENABLE_DEFAULT or the debug_pagealloc
@@ -72,7 +72,7 @@ config PAGE_POISONING
 	  have a potential performance impact if enabled with the
 	  "page_poison=1" kernel boot option.
 
-	  Note that "poison" here is not the same thing as the "HWPoison"
+	  Note that "poison" here is yest the same thing as the "HWPoison"
 	  for CONFIG_MEMORY_FAILURE. This is software poisoning only.
 
 	  If unsure, say N
@@ -95,7 +95,7 @@ config PAGE_POISONING_ZERO
 	   Instead of using the existing poison value, fill the pages with
 	   zeros. This makes it harder to detect when errors are occurring
 	   due to sanitization but the zeroing at free means that it is
-	   no longer necessary to write zeros when GFP_ZERO is used on
+	   yes longer necessary to write zeros when GFP_ZERO is used on
 	   allocation.
 
 	   If unsure, say N
@@ -106,7 +106,7 @@ config DEBUG_PAGE_REF
 	depends on TRACEPOINTS
 	---help---
 	  This is a feature to add tracepoint for tracking down page reference
-	  manipulation. This tracking is useful to diagnose functional failure
+	  manipulation. This tracking is useful to diagyesse functional failure
 	  due to migration failures caused by page reference mismatches.  Be
 	  careful when enabling this feature because it adds about 30 KB to the
 	  kernel code.  However the runtime performance overhead is virtually

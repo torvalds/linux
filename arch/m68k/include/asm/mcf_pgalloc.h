@@ -59,7 +59,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm)
 		clear_page(pte);
 		__flush_page_to_ram(pte);
 		flush_tlb_kernel_page(pte);
-		nocache_page(pte);
+		yescache_page(pte);
 	}
 	kunmap(page);
 

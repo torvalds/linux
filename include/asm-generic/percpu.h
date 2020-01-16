@@ -112,16 +112,16 @@ do {									\
 	(__ret);							\
 })
 
-#define __this_cpu_generic_read_nopreempt(pcp)				\
+#define __this_cpu_generic_read_yespreempt(pcp)				\
 ({									\
 	typeof(pcp) __ret;						\
-	preempt_disable_notrace();					\
+	preempt_disable_yestrace();					\
 	__ret = READ_ONCE(*raw_cpu_ptr(&(pcp)));			\
-	preempt_enable_notrace();					\
+	preempt_enable_yestrace();					\
 	__ret;								\
 })
 
-#define __this_cpu_generic_read_noirq(pcp)				\
+#define __this_cpu_generic_read_yesirq(pcp)				\
 ({									\
 	typeof(pcp) __ret;						\
 	unsigned long __flags;						\
@@ -135,9 +135,9 @@ do {									\
 ({									\
 	typeof(pcp) __ret;						\
 	if (__native_word(pcp))						\
-		__ret = __this_cpu_generic_read_nopreempt(pcp);		\
+		__ret = __this_cpu_generic_read_yespreempt(pcp);		\
 	else								\
-		__ret = __this_cpu_generic_read_noirq(pcp);		\
+		__ret = __this_cpu_generic_read_yesirq(pcp);		\
 	__ret;								\
 })
 

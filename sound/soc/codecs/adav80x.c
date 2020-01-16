@@ -808,7 +808,7 @@ static int adav80x_probe(struct snd_soc_component *component)
 	snd_soc_dapm_force_enable_pin(dapm, "PLL1");
 	snd_soc_dapm_force_enable_pin(dapm, "PLL2");
 
-	/* Power down S/PDIF receiver, since it is currently not supported */
+	/* Power down S/PDIF receiver, since it is currently yest supported */
 	regmap_write(adav80x->regmap, ADAV80X_PLL_OUTE, 0x20);
 	/* Disable DAC zero flag */
 	regmap_write(adav80x->regmap, ADAV80X_DAC_CTRL3, 0x6);
@@ -841,7 +841,7 @@ static const struct snd_soc_component_driver adav80x_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 int adav80x_bus_probe(struct device *dev, struct regmap *regmap)

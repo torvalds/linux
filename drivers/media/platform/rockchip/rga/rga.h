@@ -42,7 +42,7 @@ struct rga_frame {
 
 struct rockchip_rga_version {
 	u32 major;
-	u32 minor;
+	u32 miyesr;
 };
 
 struct rga_ctx {

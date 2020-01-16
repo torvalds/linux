@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_init.c
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)mpt3sas/mpt3sas_trigger_diag.
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
@@ -36,7 +36,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -107,7 +107,7 @@ static bool alloc_vda_req(struct esas2r_adapter *a,
 		sizeof(struct esas2r_mem_desc), GFP_KERNEL);
 
 	if (memdesc == NULL) {
-		esas2r_hdebug("could not alloc mem for vda request memdesc\n");
+		esas2r_hdebug("could yest alloc mem for vda request memdesc\n");
 		return false;
 	}
 
@@ -115,7 +115,7 @@ static bool alloc_vda_req(struct esas2r_adapter *a,
 			ESAS2R_DATA_BUF_LEN;
 
 	if (!esas2r_initmem_alloc(a, memdesc, 256)) {
-		esas2r_hdebug("could not alloc mem for vda request\n");
+		esas2r_hdebug("could yest alloc mem for vda request\n");
 		kfree(memdesc);
 		return false;
 	}
@@ -222,7 +222,7 @@ use_legacy_interrupts:
 
 	default:
 		esas2r_log(ESAS2R_LOG_WARN,
-			   "unknown interrupt_mode %d requested, "
+			   "unkyeswn interrupt_mode %d requested, "
 			   "falling back to legacy interrupt",
 			   interrupt_mode);
 		goto use_legacy_interrupts;
@@ -349,7 +349,7 @@ int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 		     num_requests);
 
 	if (esas2r_map_regions(a) != 0) {
-		esas2r_log(ESAS2R_LOG_CRIT, "could not map PCI regions!");
+		esas2r_log(ESAS2R_LOG_CRIT, "could yest map PCI regions!");
 		esas2r_kill_adapter(index);
 		return 0;
 	}
@@ -445,7 +445,7 @@ static void esas2r_adapter_power_down(struct esas2r_adapter *a,
 		esas2r_power_down(a);
 
 		/*
-		 * There are versions of firmware that do not handle the sync
+		 * There are versions of firmware that do yest handle the sync
 		 * cache command correctly.  Stall here to ensure that the
 		 * cache is lazily flushed.
 		 */
@@ -694,7 +694,7 @@ int esas2r_resume(struct pci_dev *pdev)
 	}
 
 	if (esas2r_map_regions(a) != 0) {
-		esas2r_log(ESAS2R_LOG_CRIT, "could not re-map PCI regions!");
+		esas2r_log(ESAS2R_LOG_CRIT, "could yest re-map PCI regions!");
 		rez = -ENOMEM;
 		goto error_exit;
 	}
@@ -724,7 +724,7 @@ int esas2r_resume(struct pci_dev *pdev)
 		esas2r_kickoff_timer(a);
 	} else {
 		esas2r_debug("yikes, unable to claim IRQ");
-		esas2r_log(ESAS2R_LOG_CRIT, "could not re-claim IRQ!");
+		esas2r_log(ESAS2R_LOG_CRIT, "could yest re-claim IRQ!");
 		rez = -ENOMEM;
 		goto error_exit;
 	}
@@ -805,14 +805,14 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 		return false;
 	}
 
-	/* allocate requests for asynchronous events */
+	/* allocate requests for asynchroyesus events */
 	a->first_ae_req =
 		kcalloc(num_ae_requests, sizeof(struct esas2r_request),
 			GFP_KERNEL);
 
 	if (a->first_ae_req == NULL) {
 		esas2r_log(ESAS2R_LOG_CRIT,
-			   "failed to allocate memory for asynchronous events");
+			   "failed to allocate memory for asynchroyesus events");
 		return false;
 	}
 
@@ -1017,7 +1017,7 @@ bool esas2r_check_adapter(struct esas2r_adapter *a)
 				a->build_sgl = esas2r_build_sg_list_prd;
 			} else {
 				return esas2r_set_degraded_mode(a,
-								"unknown firmware version");
+								"unkyeswn firmware version");
 			}
 			break;
 		}
@@ -1033,7 +1033,7 @@ bool esas2r_check_adapter(struct esas2r_adapter *a)
 		}
 	}
 
-	/* purge any asynchronous events since we will repost them later */
+	/* purge any asynchroyesus events since we will repost them later */
 	esas2r_write_register_dword(a, MU_DOORBELL_IN, DRBL_MSG_IFC_DOWN);
 	starttime = jiffies_to_msecs(jiffies);
 
@@ -1119,7 +1119,7 @@ skip_chip_reset:
 	esas2r_write_register_dword(a, MU_OUT_LIST_CONFIG, dw);
 
 	/*
-	 * notify the firmware that we're done setting up the communication
+	 * yestify the firmware that we're done setting up the communication
 	 * list registers.  wait here until the firmware is done configuring
 	 * its lists.  it will signal that it is done by enabling the lists.
 	 */
@@ -1195,7 +1195,7 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 	case ESAS2R_INIT_MSG_INIT:
 		if (rq->req_stat == RS_SUCCESS) {
 			u32 major;
-			u32 minor;
+			u32 miyesr;
 			u16 fw_release;
 
 			a->fw_version = le16_to_cpu(
@@ -1204,14 +1204,14 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 			fw_release = le16_to_cpu(
 				rq->func_rsp.cfg_rsp.fw_release);
 			major = LOBYTE(fw_release);
-			minor = HIBYTE(fw_release);
-			a->fw_version += (major << 16) + (minor << 24);
+			miyesr = HIBYTE(fw_release);
+			a->fw_version += (major << 16) + (miyesr << 24);
 		} else {
 			esas2r_hdebug("FAILED");
 		}
 
 		/*
-		 * the 2.71 and earlier releases of R6xx firmware did not error
+		 * the 2.71 and earlier releases of R6xx firmware did yest error
 		 * unsupported config requests correctly.
 		 */
 
@@ -1435,7 +1435,7 @@ bool esas2r_init_adapter_hw(struct esas2r_adapter *a, bool init_poll)
 	/*
 	 * For cases where (a) the initialization messages processing may
 	 * handle an interrupt for a port event and a discovery is waiting, but
-	 * we are not waiting for devices, or (b) the device wait time has been
+	 * we are yest waiting for devices, or (b) the device wait time has been
 	 * exhausted but there is still discovery pending, start any leftover
 	 * discovery in interrupt driven mode.
 	 */
@@ -1458,7 +1458,7 @@ exit:
 		/*
 		 * Reinitialization was performed during the first
 		 * initialization.  Only clear the chip reset flag so the
-		 * original device polling is not cancelled.
+		 * original device polling is yest cancelled.
 		 */
 		if (!rslt)
 			clear_bit(AF_CHPRST_PENDING, &a->flags);
@@ -1497,7 +1497,7 @@ void esas2r_reset_chip(struct esas2r_adapter *a)
 	/*
 	 * Before we reset the chip, save off the VDA core dump.  The VDA core
 	 * dump is located in the upper 512KB of the onchip SRAM.  Make sure
-	 * to not overwrite a previous crash that was saved.
+	 * to yest overwrite a previous crash that was saved.
 	 */
 	if (test_bit(AF2_COREDUMP_AVAIL, &a->flags2) &&
 	    !test_bit(AF2_COREDUMP_SAVED, &a->flags2)) {
@@ -1524,7 +1524,7 @@ void esas2r_reset_chip(struct esas2r_adapter *a)
 	mdelay(10);
 }
 
-static void esas2r_power_down_notify_firmware(struct esas2r_adapter *a)
+static void esas2r_power_down_yestify_firmware(struct esas2r_adapter *a)
 {
 	u32 starttime;
 	u32 doorbell;
@@ -1599,7 +1599,7 @@ void esas2r_power_down(struct esas2r_adapter *a)
 		 * is powering down.
 		 */
 		if (test_bit(AF2_VDA_POWER_DOWN, &a->flags2))
-			esas2r_power_down_notify_firmware(a);
+			esas2r_power_down_yestify_firmware(a);
 	}
 
 	/* Suspend I/O processing. */
@@ -1609,7 +1609,7 @@ void esas2r_power_down(struct esas2r_adapter *a)
 
 	esas2r_process_adapter_reset(a);
 
-	/* Remove devices now that I/O is cleaned up. */
+	/* Remove devices yesw that I/O is cleaned up. */
 	a->prev_dev_cnt = esas2r_targ_db_get_tgt_cnt(a);
 	esas2r_targ_db_remove_all(a, false);
 }
@@ -1632,7 +1632,7 @@ bool esas2r_power_up(struct esas2r_adapter *a, bool init_poll)
 	if (!esas2r_init_adapter_hw(a, init_poll))
 		ret = false;
 
-	/* send the reset asynchronous event */
+	/* send the reset asynchroyesus event */
 	esas2r_send_reset_ae(a, true);
 
 	/* clear this flag after initialization. */
@@ -1718,5 +1718,5 @@ const char *esas2r_get_model_name_short(struct esas2r_adapter *a)
 		return "SH 1068";
 	}
 
-	return "unknown";
+	return "unkyeswn";
 }

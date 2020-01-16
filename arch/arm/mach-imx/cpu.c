@@ -36,7 +36,7 @@ unsigned int imx_get_soc_revision(void)
 void imx_print_silicon_rev(const char *cpu, int srev)
 {
 	if (srev == IMX_CHIP_REVISION_UNKNOWN)
-		pr_info("CPU identified as %s, unknown revision\n", cpu);
+		pr_info("CPU identified as %s, unkyeswn revision\n", cpu);
 	else
 		pr_info("CPU identified as %s, silicon rev %d.%d\n",
 				cpu, (srev >> 4) & 0xf, srev & 0xf);
@@ -46,14 +46,14 @@ void __init imx_set_aips(void __iomem *base)
 {
 	unsigned int reg;
 /*
- * Set all MPROTx to be non-bufferable, trusted for R/W,
- * not forced to user-mode.
+ * Set all MPROTx to be yesn-bufferable, trusted for R/W,
+ * yest forced to user-mode.
  */
 	imx_writel(0x77777777, base + 0x0);
 	imx_writel(0x77777777, base + 0x4);
 
 /*
- * Set all OPACRx to be non-bufferable, to not require
+ * Set all OPACRx to be yesn-bufferable, to yest require
  * supervisor privilege level for access, allow for
  * write access and untrusted master access.
  */
@@ -69,9 +69,9 @@ void __init imx_aips_allow_unprivileged_access(
 		const char *compat)
 {
 	void __iomem *aips_base_addr;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	for_each_compatible_node(np, NULL, compat) {
+	for_each_compatible_yesde(np, NULL, compat) {
 		aips_base_addr = of_iomap(np, 0);
 		WARN_ON(!aips_base_addr);
 		imx_set_aips(aips_base_addr);
@@ -83,7 +83,7 @@ struct device * __init imx_soc_device_init(void)
 	struct soc_device_attribute *soc_dev_attr;
 	const char *ocotp_compat = NULL;
 	struct soc_device *soc_dev;
-	struct device_node *root;
+	struct device_yesde *root;
 	struct regmap *ocotp = NULL;
 	const char *soc_id;
 	u64 soc_uid = 0;
@@ -96,9 +96,9 @@ struct device * __init imx_soc_device_init(void)
 
 	soc_dev_attr->family = "Freescale i.MX";
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	ret = of_property_read_string(root, "model", &soc_dev_attr->machine);
-	of_node_put(root);
+	of_yesde_put(root);
 	if (ret)
 		goto free_soc;
 
@@ -167,7 +167,7 @@ struct device * __init imx_soc_device_init(void)
 		soc_id = "i.MX7ULP";
 		break;
 	default:
-		soc_id = "Unknown";
+		soc_id = "Unkyeswn";
 	}
 	soc_dev_attr->soc_id = soc_id;
 

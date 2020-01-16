@@ -54,7 +54,7 @@ typedef unsigned int RING_IDX;
  *     struct mytag_front_ring - The 'front' half of the ring.
  *     struct mytag_back_ring  - The 'back' half of the ring.
  *
- * To initialize a ring in your code you need to know the location and size
+ * To initialize a ring in your code you need to kyesw the location and size
  * of the shared memory area (PAGE_SIZE, for instance). To initialise
  * the front half:
  *
@@ -63,7 +63,7 @@ typedef unsigned int RING_IDX;
  *     FRONT_RING_INIT(&front_ring, (struct mytag_sring *)shared_page,
  *		       PAGE_SIZE);
  *
- * Initializing the back follows similarly (note that only the front
+ * Initializing the back follows similarly (yeste that only the front
  * initializes the shared ring):
  *
  *     struct mytag_back_ring back_ring;
@@ -177,7 +177,7 @@ struct __name##_back_ring {						\
  * Get a local copy of a request.
  *
  * Use this in preference to RING_GET_REQUEST() so all processing is
- * done on a local copy that cannot be modified by the other end.
+ * done on a local copy that canyest be modified by the other end.
  *
  * Note that https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58145 may cause this
  * to be ineffective where _req is a struct which consists of only bitfields.
@@ -212,50 +212,50 @@ struct __name##_back_ring {						\
 /*
  * Notification hold-off (req_event and rsp_event):
  *
- * When queueing requests or responses on a shared ring, it may not always be
- * necessary to notify the remote end. For example, if requests are in flight
+ * When queueing requests or responses on a shared ring, it may yest always be
+ * necessary to yestify the remote end. For example, if requests are in flight
  * in a backend, the front may be able to queue further requests without
- * notifying the back (if the back checks for new requests when it queues
+ * yestifying the back (if the back checks for new requests when it queues
  * responses).
  *
  * When enqueuing requests or responses:
  *
  *  Use RING_PUSH_{REQUESTS,RESPONSES}_AND_CHECK_NOTIFY(). The second argument
  *  is a boolean return value. True indicates that the receiver requires an
- *  asynchronous notification.
+ *  asynchroyesus yestification.
  *
  * After dequeuing requests or responses (before sleeping the connection):
  *
  *  Use RING_FINAL_CHECK_FOR_REQUESTS() or RING_FINAL_CHECK_FOR_RESPONSES().
  *  The second argument is a boolean return value. True indicates that there
- *  are pending messages on the ring (i.e., the connection should not be put
+ *  are pending messages on the ring (i.e., the connection should yest be put
  *  to sleep).
  *
  *  These macros will set the req_event/rsp_event field to trigger a
- *  notification on the very next message that is enqueued. If you want to
- *  create batches of work (i.e., only receive a notification after several
+ *  yestification on the very next message that is enqueued. If you want to
+ *  create batches of work (i.e., only receive a yestification after several
  *  messages have been enqueued) then you will need to create a customised
  *  version of the FINAL_CHECK macro in your own code, which sets the event
  *  field appropriately.
  */
 
-#define RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(_r, _notify) do {		\
+#define RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(_r, _yestify) do {		\
     RING_IDX __old = (_r)->sring->req_prod;				\
     RING_IDX __new = (_r)->req_prod_pvt;				\
     virt_wmb(); /* back sees requests /before/ updated producer index */	\
     (_r)->sring->req_prod = __new;					\
     virt_mb(); /* back sees new requests /before/ we check req_event */	\
-    (_notify) = ((RING_IDX)(__new - (_r)->sring->req_event) <		\
+    (_yestify) = ((RING_IDX)(__new - (_r)->sring->req_event) <		\
 		 (RING_IDX)(__new - __old));				\
 } while (0)
 
-#define RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(_r, _notify) do {		\
+#define RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(_r, _yestify) do {		\
     RING_IDX __old = (_r)->sring->rsp_prod;				\
     RING_IDX __new = (_r)->rsp_prod_pvt;				\
     virt_wmb(); /* front sees responses /before/ updated producer index */	\
     (_r)->sring->rsp_prod = __new;					\
     virt_mb(); /* front sees new responses /before/ we check rsp_event */	\
-    (_notify) = ((RING_IDX)(__new - (_r)->sring->rsp_event) <		\
+    (_yestify) = ((RING_IDX)(__new - (_r)->sring->rsp_event) <		\
 		 (RING_IDX)(__new - __old));				\
 } while (0)
 
@@ -277,12 +277,12 @@ struct __name##_back_ring {						\
 
 
 /*
- * DEFINE_XEN_FLEX_RING_AND_INTF defines two monodirectional rings and
+ * DEFINE_XEN_FLEX_RING_AND_INTF defines two moyesdirectional rings and
  * functions to check if there is data on the ring, and to read and
  * write to them.
  *
  * DEFINE_XEN_FLEX_RING is similar to DEFINE_XEN_FLEX_RING_AND_INTF, but
- * does not define the indexes page. As different protocols can have
+ * does yest define the indexes page. As different protocols can have
  * extensions to the basic format, this macro allow them to define their
  * own struct.
  *

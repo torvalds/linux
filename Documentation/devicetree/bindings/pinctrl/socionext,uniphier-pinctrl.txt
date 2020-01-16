@@ -13,7 +13,7 @@ Required properties:
     "socionext,uniphier-pxs3-pinctrl" - for PXs3 SoC
 
 Note:
-The UniPhier pinctrl should be a subnode of a "syscon" compatible node.
+The UniPhier pinctrl should be a subyesde of a "syscon" compatible yesde.
 
 Example:
 	soc-glue@5f800000 {

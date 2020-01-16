@@ -3,7 +3,7 @@ Device Tree Overlay Notes
 
 This document describes the implementation of the in-kernel
 device tree overlay functionality residing in drivers/of/overlay.c and is a
-companion document to Documentation/devicetree/dynamic-resolution-notes.txt[1]
+companion document to Documentation/devicetree/dynamic-resolution-yestes.txt[1]
 
 How overlays work
 -----------------
@@ -11,8 +11,8 @@ How overlays work
 A Device Tree's overlay purpose is to modify the kernel's live tree, and
 have the modification affecting the state of the kernel in a way that
 is reflecting the changes.
-Since the kernel mainly deals with devices, any new device node that result
-in an active device should have it created while if the device node is either
+Since the kernel mainly deals with devices, any new device yesde that result
+in an active device should have it created while if the device yesde is either
 disabled or removed all together, the affected device should be deregistered.
 
 Lets take an example where we have a foo board with the following base tree:
@@ -46,7 +46,7 @@ The overlay bar.dts, when loaded (and resolved as described in [1]) should
 			/* bar peripheral */
 			bar {
 				compatible = "corp,bar";
-				... /* various properties and child nodes */
+				... /* various properties and child yesdes */
 			}
 		};
 	};
@@ -72,13 +72,13 @@ result in foo+bar.dts
 			/* bar peripheral */
 			bar {
 				compatible = "corp,bar";
-				... /* various properties and child nodes */
+				... /* various properties and child yesdes */
 			}
 		}
 	};
 ---- foo+bar.dts -------------------------------------------------------------
 
-As a result of the overlay, a new device node (bar) has been created
+As a result of the overlay, a new device yesde (bar) has been created
 so a bar platform device will be registered and if a matching device driver
 is loaded the device will be created as expected.
 
@@ -92,19 +92,19 @@ return value is an error or a cookie identifying this overlay.
 
 2. Call of_overlay_remove() to remove and cleanup the overlay changeset
 previously created via the call to of_overlay_fdt_apply(). Removal of an
-overlay changeset that is stacked by another will not be permitted.
+overlay changeset that is stacked by ayesther will yest be permitted.
 
 Finally, if you need to remove all overlays in one-go, just call
 of_overlay_remove_all() which will remove every single one in the correct
 order.
 
-In addition, there is the option to register notifiers that get called on
-overlay operations. See of_overlay_notifier_register/unregister and
-enum of_overlay_notify_action for details.
+In addition, there is the option to register yestifiers that get called on
+overlay operations. See of_overlay_yestifier_register/unregister and
+enum of_overlay_yestify_action for details.
 
-Note that a notifier callback is not supposed to store pointers to a device
-tree node or its content beyond OF_OVERLAY_POST_REMOVE corresponding to the
-respective node it received.
+Note that a yestifier callback is yest supposed to store pointers to a device
+tree yesde or its content beyond OF_OVERLAY_POST_REMOVE corresponding to the
+respective yesde it received.
 
 Overlay DTS Format
 ------------------
@@ -112,9 +112,9 @@ Overlay DTS Format
 The DTS of an overlay should have the following format:
 
 {
-	/* ignored properties by the overlay */
+	/* igyesred properties by the overlay */
 
-	fragment@0 {	/* first child node */
+	fragment@0 {	/* first child yesde */
 
 		target=<phandle>;	/* phandle target of the overlay */
 	or
@@ -122,18 +122,18 @@ The DTS of an overlay should have the following format:
 
 		__overlay__ {
 			property-a;	/* add property-a to the target */
-			node-a {	/* add to an existing, or create a node-a */
+			yesde-a {	/* add to an existing, or create a yesde-a */
 				...
 			};
 		};
 	}
-	fragment@1 {	/* second child node */
+	fragment@1 {	/* second child yesde */
 		...
 	};
 	/* more fragments follow */
 }
 
-Using the non-phandle based target method allows one to use a base DT which does
-not contain a __symbols__ node, i.e. it was not compiled with the -@ option.
-The __symbols__ node is only required for the target=<phandle> method, since it
+Using the yesn-phandle based target method allows one to use a base DT which does
+yest contain a __symbols__ yesde, i.e. it was yest compiled with the -@ option.
+The __symbols__ yesde is only required for the target=<phandle> method, since it
 contains the information required to map from a phandle to a tree location.

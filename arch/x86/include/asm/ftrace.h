@@ -4,7 +4,7 @@
 
 #ifdef CONFIG_FUNCTION_TRACER
 #ifndef CC_USING_FENTRY
-# error Compiler does not support fentry?
+# error Compiler does yest support fentry?
 #endif
 # define MCOUNT_ADDR		((unsigned long)(__fentry__))
 #define MCOUNT_INSN_SIZE	5 /* sizeof mcount call */
@@ -76,9 +76,9 @@ static inline bool arch_syscall_match_sym_name(const char *sym, const char *name
 #include <linux/compat.h>
 
 /*
- * Because ia32 syscalls do not map to x86_64 syscall numbers
+ * Because ia32 syscalls do yest map to x86_64 syscall numbers
  * this screws up the trace output when tracing a ia32 task.
- * Instead of reporting bogus syscalls, just do not trace them.
+ * Instead of reporting bogus syscalls, just do yest trace them.
  *
  * If the user really wants these, then they should use the
  * raw syscall tracepoints with filtering.

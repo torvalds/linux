@@ -74,7 +74,7 @@ enum intel_pt_blk_type {
 };
 
 /*
- * The block type numbers are not sequential but here they are given sequential
+ * The block type numbers are yest sequential but here they are given sequential
  * positions to avoid wasting space for array placement.
  */
 enum intel_pt_blk_type_pos {
@@ -245,7 +245,7 @@ struct intel_pt_params {
 	bool branch_enable;
 	uint64_t period;
 	enum intel_pt_period_type period_type;
-	unsigned max_non_turbo_ratio;
+	unsigned max_yesn_turbo_ratio;
 	unsigned int mtc_period;
 	uint32_t tsc_ctc_ratio_n;
 	uint32_t tsc_ctc_ratio_d;

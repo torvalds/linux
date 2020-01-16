@@ -36,15 +36,15 @@
 
 static int __init cpm_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,cpm1");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,cpm1");
 	if (!np)
-		np = of_find_compatible_node(NULL, NULL, "fsl,cpm2");
+		np = of_find_compatible_yesde(NULL, NULL, "fsl,cpm2");
 	if (!np)
 		return -ENODEV;
 	cpm_muram_init();
-	of_node_put(np);
+	of_yesde_put(np);
 	return 0;
 }
 subsys_initcall(cpm_init);
@@ -189,7 +189,7 @@ static int cpm2_gpio32_dir_in(struct gpio_chip *gc, unsigned int gpio)
 
 int cpm2_gpiochip_add32(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct cpm2_gpio32_chip *cpm2_gc;
 	struct of_mm_gpio_chip *mm_gc;
 	struct gpio_chip *gc;

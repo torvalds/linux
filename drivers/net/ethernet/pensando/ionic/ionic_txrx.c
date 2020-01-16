@@ -155,7 +155,7 @@ static void ionic_rx_clean(struct ionic_queue *q, struct ionic_desc_info *desc_i
 	if (comp->status)
 		return;
 
-	/* no packet processing while resetting */
+	/* yes packet processing while resetting */
 	if (unlikely(test_bit(IONIC_LIF_QUEUE_RESET, q->lif->state)))
 		return;
 
@@ -196,7 +196,7 @@ static void ionic_rx_clean(struct ionic_queue *q, struct ionic_desc_info *desc_i
 			stats->csum_complete++;
 		}
 	} else {
-		stats->csum_none++;
+		stats->csum_yesne++;
 	}
 
 	if (unlikely((comp->csum_flags & IONIC_RXQ_COMP_CSUM_F_TCP_BAD) ||
@@ -510,7 +510,7 @@ static void ionic_tx_clean(struct ionic_queue *q, struct ionic_desc_info *desc_i
 	decode_txq_desc_cmd(le64_to_cpu(desc->cmd),
 			    &opcode, &flags, &nsge, &addr);
 
-	/* use unmap_single only if either this is not TSO,
+	/* use unmap_single only if either this is yest TSO,
 	 * or this is first descriptor of a TSO
 	 */
 	if (opcode != IONIC_TXQ_DESC_OPCODE_TSO ||
@@ -868,7 +868,7 @@ static int ionic_tx_calc_csum(struct ionic_queue *q, struct sk_buff *skb)
 	desc->csum_start = cpu_to_le16(skb_checksum_start_offset(skb));
 	desc->csum_offset = cpu_to_le16(skb->csum_offset);
 
-	if (skb->csum_not_inet)
+	if (skb->csum_yest_inet)
 		stats->crc32_csum++;
 	else
 		stats->csum++;
@@ -876,7 +876,7 @@ static int ionic_tx_calc_csum(struct ionic_queue *q, struct sk_buff *skb)
 	return 0;
 }
 
-static int ionic_tx_calc_no_csum(struct ionic_queue *q, struct sk_buff *skb)
+static int ionic_tx_calc_yes_csum(struct ionic_queue *q, struct sk_buff *skb)
 {
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct ionic_txq_desc *desc = q->head->desc;
@@ -903,7 +903,7 @@ static int ionic_tx_calc_no_csum(struct ionic_queue *q, struct sk_buff *skb)
 	desc->len = cpu_to_le16(skb_headlen(skb));
 	desc->vlan_tci = cpu_to_le16(skb_vlan_tag_get(skb));
 
-	stats->no_csum++;
+	stats->yes_csum++;
 
 	return 0;
 }
@@ -942,7 +942,7 @@ static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		err = ionic_tx_calc_csum(q, skb);
 	else
-		err = ionic_tx_calc_no_csum(q, skb);
+		err = ionic_tx_calc_yes_csum(q, skb);
 	if (err)
 		return err;
 
@@ -970,7 +970,7 @@ static int ionic_tx_descs_needed(struct ionic_queue *q, struct sk_buff *skb)
 	if (skb_is_gso(skb))
 		return (skb->len / skb_shinfo(skb)->gso_size) + 1;
 
-	/* If non-TSO, just need 1 desc and nr_frags sg elems */
+	/* If yesn-TSO, just need 1 desc and nr_frags sg elems */
 	if (skb_shinfo(skb)->nr_frags <= IONIC_TX_MAX_SG_ELEMS)
 		return 1;
 

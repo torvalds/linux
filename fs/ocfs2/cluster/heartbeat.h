@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * heartbeat.h
  *
@@ -36,8 +36,8 @@ enum o2hb_callback_type {
 	O2HB_NUM_CB
 };
 
-struct o2nm_node;
-typedef void (o2hb_cb_func)(struct o2nm_node *, int, void *);
+struct o2nm_yesde;
+typedef void (o2hb_cb_func)(struct o2nm_yesde *, int, void *);
 
 struct o2hb_callback_func {
 	u32			hc_magic;
@@ -60,12 +60,12 @@ int o2hb_register_callback(const char *region_uuid,
 			   struct o2hb_callback_func *hc);
 void o2hb_unregister_callback(const char *region_uuid,
 			      struct o2hb_callback_func *hc);
-void o2hb_fill_node_map(unsigned long *map,
+void o2hb_fill_yesde_map(unsigned long *map,
 			unsigned bytes);
 void o2hb_exit(void);
 void o2hb_init(void);
-int o2hb_check_node_heartbeating_no_sem(u8 node_num);
-int o2hb_check_node_heartbeating_from_callback(u8 node_num);
+int o2hb_check_yesde_heartbeating_yes_sem(u8 yesde_num);
+int o2hb_check_yesde_heartbeating_from_callback(u8 yesde_num);
 void o2hb_stop_all_regions(void);
 int o2hb_get_all_regions(char *region_uuids, u8 numregions);
 int o2hb_global_heartbeat_active(void);

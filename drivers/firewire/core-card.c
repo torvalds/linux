@@ -7,7 +7,7 @@
 #include <linux/completion.h>
 #include <linux/crc-itu-t.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/jiffies.h>
@@ -38,7 +38,7 @@ void func(const struct fw_card *card, const char *fmt, ...)	\
 	va_end(args);						\
 }
 define_fw_printk_level(fw_err, KERN_ERR);
-define_fw_printk_level(fw_notice, KERN_NOTICE);
+define_fw_printk_level(fw_yestice, KERN_NOTICE);
 
 int fw_compute_block_crc(__be32 *block)
 {
@@ -130,7 +130,7 @@ static void generate_config_rom(struct fw_card *card, __be32 *config_rom)
 	/* Update root directory length. */
 	config_rom[5] = cpu_to_be32((i - 5 - 1) << 16);
 
-	/* End of root directory, now copy in descriptors. */
+	/* End of root directory, yesw copy in descriptors. */
 	list_for_each_entry (desc, &descriptor_list, link) {
 		for (k = 0; k < desc->length; k++)
 			config_rom[i + k] = cpu_to_be32(desc->data[k]);
@@ -263,7 +263,7 @@ static void allocate_broadcast_channel(struct fw_card *card, int generation)
 		fw_iso_resource_manage(card, generation, 1ULL << 31,
 				       &channel, &bandwidth, true);
 		if (channel != 31) {
-			fw_notice(card, "failed to allocate broadcast channel\n");
+			fw_yestice(card, "failed to allocate broadcast channel\n");
 			return;
 		}
 		card->broadcast_channel_allocated = true;
@@ -288,7 +288,7 @@ static void bm_work(struct work_struct *work)
 {
 	struct fw_card *card = container_of(work, struct fw_card, bm_work.work);
 	struct fw_device *root_device, *irm_device;
-	struct fw_node *root_node;
+	struct fw_yesde *root_yesde;
 	int root_id, new_root_id, irm_id, bm_id, local_id;
 	int gap_count, generation, grace, rcode;
 	bool do_reset = false;
@@ -300,31 +300,31 @@ static void bm_work(struct work_struct *work)
 
 	spin_lock_irq(&card->lock);
 
-	if (card->local_node == NULL) {
+	if (card->local_yesde == NULL) {
 		spin_unlock_irq(&card->lock);
 		goto out_put_card;
 	}
 
 	generation = card->generation;
 
-	root_node = card->root_node;
-	fw_node_get(root_node);
-	root_device = root_node->data;
+	root_yesde = card->root_yesde;
+	fw_yesde_get(root_yesde);
+	root_device = root_yesde->data;
 	root_device_is_running = root_device &&
 			atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
 	root_device_is_cmc = root_device && root_device->cmc;
 
-	irm_device = card->irm_node->data;
+	irm_device = card->irm_yesde->data;
 	irm_is_1394_1995_only = irm_device && irm_device->config_rom &&
 			(irm_device->config_rom[2] & 0x000000f0) == 0;
 
-	/* Canon MV5i works unreliably if it is not root node. */
+	/* Cayesn MV5i works unreliably if it is yest root yesde. */
 	keep_this_irm = irm_device && irm_device->config_rom &&
 			irm_device->config_rom[3] >> 8 == CANON_OUI;
 
-	root_id  = root_node->node_id;
-	irm_id   = card->irm_node->node_id;
-	local_id = card->local_node->node_id;
+	root_id  = root_yesde->yesde_id;
+	irm_id   = card->irm_yesde->yesde_id;
+	local_id = card->local_yesde->yesde_id;
 
 	grace = time_after64(get_jiffies_64(),
 			     card->reset_jiffies + DIV_ROUND_UP(HZ, 8));
@@ -334,9 +334,9 @@ static void bm_work(struct work_struct *work)
 	    (card->bm_generation != generation && grace)) {
 		/*
 		 * This first step is to figure out who is IRM and
-		 * then try to become bus manager.  If the IRM is not
-		 * well defined (e.g. does not have an active link
-		 * layer or does not responds to our lock request, we
+		 * then try to become bus manager.  If the IRM is yest
+		 * well defined (e.g. does yest have an active link
+		 * layer or does yest responds to our lock request, we
 		 * will have to do a little vigilante bus management.
 		 * In that case, we do a goto into the gap count logic
 		 * so that when we do the reset, we still optimize the
@@ -344,17 +344,17 @@ static void bm_work(struct work_struct *work)
 		 * next generation.
 		 */
 
-		if (!card->irm_node->link_on) {
+		if (!card->irm_yesde->link_on) {
 			new_root_id = local_id;
-			fw_notice(card, "%s, making local node (%02x) root\n",
+			fw_yestice(card, "%s, making local yesde (%02x) root\n",
 				  "IRM has link off", new_root_id);
 			goto pick_me;
 		}
 
 		if (irm_is_1394_1995_only && !keep_this_irm) {
 			new_root_id = local_id;
-			fw_notice(card, "%s, making local node (%02x) root\n",
-				  "IRM is not 1394a compliant", new_root_id);
+			fw_yestice(card, "%s, making local yesde (%02x) root\n",
+				  "IRM is yest 1394a compliant", new_root_id);
 			goto pick_me;
 		}
 
@@ -369,14 +369,14 @@ static void bm_work(struct work_struct *work)
 				transaction_data, 8);
 
 		if (rcode == RCODE_GENERATION)
-			/* Another bus reset, BM work has been rescheduled. */
+			/* Ayesther bus reset, BM work has been rescheduled. */
 			goto out;
 
 		bm_id = be32_to_cpu(transaction_data[0]);
 
 		spin_lock_irq(&card->lock);
 		if (rcode == RCODE_COMPLETE && generation == card->generation)
-			card->bm_node_id =
+			card->bm_yesde_id =
 			    bm_id == 0x3f ? local_id : 0xffc0 | bm_id;
 		spin_unlock_irq(&card->lock);
 
@@ -404,11 +404,11 @@ static void bm_work(struct work_struct *work)
 			/*
 			 * The lock request failed, maybe the IRM
 			 * isn't really IRM capable after all. Let's
-			 * do a bus reset and pick the local node as
+			 * do a bus reset and pick the local yesde as
 			 * root, and thus, IRM.
 			 */
 			new_root_id = local_id;
-			fw_notice(card, "BM lock failed (%s), making local node (%02x) root\n",
+			fw_yestice(card, "BM lock failed (%s), making local yesde (%02x) root\n",
 				  fw_rcode_string(rcode), new_root_id);
 			goto pick_me;
 		}
@@ -432,12 +432,12 @@ static void bm_work(struct work_struct *work)
 	if (root_device == NULL) {
 		/*
 		 * Either link_on is false, or we failed to read the
-		 * config rom.  In either case, pick another root.
+		 * config rom.  In either case, pick ayesther root.
 		 */
 		new_root_id = local_id;
 	} else if (!root_device_is_running) {
 		/*
-		 * If we haven't probed this device yet, bail out now
+		 * If we haven't probed this device yet, bail out yesw
 		 * and let's try again once that's done.
 		 */
 		spin_unlock_irq(&card->lock);
@@ -445,13 +445,13 @@ static void bm_work(struct work_struct *work)
 	} else if (root_device_is_cmc) {
 		/*
 		 * We will send out a force root packet for this
-		 * node as part of the gap count optimization.
+		 * yesde as part of the gap count optimization.
 		 */
 		new_root_id = root_id;
 	} else {
 		/*
 		 * Current root has an active link layer and we
-		 * successfully read the config rom, but it's not
+		 * successfully read the config rom, but it's yest
 		 * cycle master capable.
 		 */
 		new_root_id = local_id;
@@ -463,13 +463,13 @@ static void bm_work(struct work_struct *work)
 	 * the typically much larger 1394b beta repeater delays though.
 	 */
 	if (!card->beta_repeaters_present &&
-	    root_node->max_hops < ARRAY_SIZE(gap_count_table))
-		gap_count = gap_count_table[root_node->max_hops];
+	    root_yesde->max_hops < ARRAY_SIZE(gap_count_table))
+		gap_count = gap_count_table[root_yesde->max_hops];
 	else
 		gap_count = 63;
 
 	/*
-	 * Finally, figure out if we should do a reset or not.  If we have
+	 * Finally, figure out if we should do a reset or yest.  If we have
 	 * done less than 5 resets with the same physical topology and we
 	 * have either a new root or a new gap count setting, let's do it.
 	 */
@@ -481,7 +481,7 @@ static void bm_work(struct work_struct *work)
 	spin_unlock_irq(&card->lock);
 
 	if (do_reset) {
-		fw_notice(card, "phy config: new root=%x, gap_count=%d\n",
+		fw_yestice(card, "phy config: new root=%x, gap_count=%d\n",
 			  new_root_id, gap_count);
 		fw_send_phy_config(card, new_root_id, generation, gap_count);
 		reset_bus(card, true);
@@ -506,7 +506,7 @@ static void bm_work(struct work_struct *work)
 		allocate_broadcast_channel(card, generation);
 
  out:
-	fw_node_put(root_node);
+	fw_yesde_put(root_yesde);
  out_put_card:
 	fw_card_put(card);
 }
@@ -536,7 +536,7 @@ void fw_card_initialize(struct fw_card *card,
 	INIT_LIST_HEAD(&card->phy_receiver_list);
 	spin_lock_init(&card->lock);
 
-	card->local_node = NULL;
+	card->local_yesde = NULL;
 
 	INIT_DELAYED_WORK(&card->br_work, br_work);
 	INIT_DELAYED_WORK(&card->bm_work, bm_work);
@@ -605,7 +605,7 @@ static int dummy_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 }
 
 static int dummy_enable_phys_dma(struct fw_card *card,
-				 int node_id, int generation)
+				 int yesde_id, int generation)
 {
 	return -ENODEV;
 }
@@ -682,7 +682,7 @@ void fw_core_remove_card(struct fw_card *card)
 	dummy_driver.stop_iso		= card->driver->stop_iso;
 	card->driver = &dummy_driver;
 
-	fw_destroy_nodes(card);
+	fw_destroy_yesdes(card);
 
 	/* Wait for all users, especially device workqueue jobs, to finish. */
 	fw_card_put(card);

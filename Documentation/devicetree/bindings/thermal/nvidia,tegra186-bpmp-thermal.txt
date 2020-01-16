@@ -5,10 +5,10 @@ interface that is used to read system temperatures, including CPU cluster
 and GPU temperatures. This binding describes the thermal sensor that is
 exposed by BPMP.
 
-The BPMP thermal node must be located directly inside the main BPMP node. See
+The BPMP thermal yesde must be located directly inside the main BPMP yesde. See
 ../firmware/nvidia,tegra186-bpmp.txt for details of the BPMP binding.
 
-This node represents a thermal sensor. See thermal.txt for details of the
+This yesde represents a thermal sensor. See thermal.txt for details of the
 core thermal binding.
 
 Required properties:

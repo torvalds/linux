@@ -8,7 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/console.h>
 #include <linux/mm.h>
@@ -24,7 +24,7 @@
 #include "lxfb.h"
 
 static char *mode_option;
-static int noclear, nopanel, nocrt;
+static int yesclear, yespanel, yescrt;
 static int vram;
 static int vt_switch;
 
@@ -254,7 +254,7 @@ static int lxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	var->transp.offset = 0; var->transp.length = 0;
 
-	/* Enough video memory? */
+	/* Eyesugh video memory? */
 	if ((lx_get_pitch(var->xres, var->bits_per_pixel) * var->yres)
 	    > info->fix.smem_len)
 	  return -EINVAL;
@@ -283,7 +283,7 @@ static inline u_int chan_to_field(u_int chan, struct fb_bitfield *bf)
 	return chan << bf->offset;
 }
 
-static int lxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int lxfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
@@ -297,19 +297,19 @@ static int lxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		u32 *pal = info->pseudo_palette;
 		u32 v;
 
-		if (regno >= 16)
+		if (regyes >= 16)
 			return -EINVAL;
 
 		v  = chan_to_field(red, &info->var.red);
 		v |= chan_to_field(green, &info->var.green);
 		v |= chan_to_field(blue, &info->var.blue);
 
-		pal[regno] = v;
+		pal[regyes] = v;
 	} else {
-		if (regno >= 256)
+		if (regyes >= 256)
 			return -EINVAL;
 
-		lx_set_palette_reg(info, regno, red, green, blue);
+		lx_set_palette_reg(info, regyes, red, green, blue);
 	}
 
 	return 0;
@@ -392,7 +392,7 @@ static struct fb_ops lxfb_ops = {
 	.fb_set_par	= lxfb_set_par,
 	.fb_setcolreg	= lxfb_setcolreg,
 	.fb_blank       = lxfb_blank,
-	/* No HW acceleration for now. */
+	/* No HW acceleration for yesw. */
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
@@ -403,7 +403,7 @@ static struct fb_info *lxfb_init_fbinfo(struct device *dev)
 	struct lxfb_par *par;
 	struct fb_info *info;
 
-	/* Alloc enough space for the pseudo palette. */
+	/* Alloc eyesugh space for the pseudo palette. */
 	info = framebuffer_alloc(sizeof(struct lxfb_par) + sizeof(u32) * 16,
 				 dev);
 	if (!info)
@@ -420,7 +420,7 @@ static struct fb_info *lxfb_init_fbinfo(struct device *dev)
 	info->fix.ywrapstep	= 0;
 	info->fix.accel		= FB_ACCEL_NONE;
 
-	info->var.nonstd	= 0;
+	info->var.yesnstd	= 0;
 	info->var.activate	= FB_ACTIVATE_NOW;
 	info->var.height	= -1;
 	info->var.width	= -1;
@@ -429,7 +429,7 @@ static struct fb_info *lxfb_init_fbinfo(struct device *dev)
 
 	info->fbops		= &lxfb_ops;
 	info->flags		= FBINFO_DEFAULT;
-	info->node		= -1;
+	info->yesde		= -1;
 
 	info->pseudo_palette	= (void *)par + sizeof(struct lxfb_par);
 
@@ -455,7 +455,7 @@ static int lxfb_suspend(struct pci_dev *pdev, pm_message_t state)
 		console_unlock();
 	}
 
-	/* there's no point in setting PCI states; we emulate PCI, so
+	/* there's yes point in setting PCI states; we emulate PCI, so
 	 * we don't end up getting power savings anyways */
 
 	return 0;
@@ -509,8 +509,8 @@ static int lxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Set up the desired outputs */
 
 	par->output = 0;
-	par->output |= (nopanel) ? 0 : OUTPUT_PANEL;
-	par->output |= (nocrt) ? 0 : OUTPUT_CRT;
+	par->output |= (yespanel) ? 0 : OUTPUT_PANEL;
+	par->output |= (yescrt) ? 0 : OUTPUT_CRT;
 
 	/* Set up the mode database */
 
@@ -519,15 +519,15 @@ static int lxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			   modedb_ptr, modedb_size, NULL, 16);
 
 	if (ret == 0 || ret == 4) {
-		dev_err(&pdev->dev, "could not find valid video mode\n");
+		dev_err(&pdev->dev, "could yest find valid video mode\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	/* Clear the screen of garbage, unless noclear was specified,
-	 * in which case we assume the user knows what he is doing */
+	/* Clear the screen of garbage, unless yesclear was specified,
+	 * in which case we assume the user kyesws what he is doing */
 
-	if (!noclear)
+	if (!yesclear)
 		memset_io(info->screen_base, 0, info->fix.smem_len);
 
 	/* Set the mode */
@@ -621,12 +621,12 @@ static int __init lxfb_setup(char *options)
 		if (!*opt)
 			continue;
 
-		if (!strcmp(opt, "noclear"))
-			noclear = 1;
-		else if (!strcmp(opt, "nopanel"))
-			nopanel = 1;
-		else if (!strcmp(opt, "nocrt"))
-			nocrt = 1;
+		if (!strcmp(opt, "yesclear"))
+			yesclear = 1;
+		else if (!strcmp(opt, "yespanel"))
+			yespanel = 1;
+		else if (!strcmp(opt, "yescrt"))
+			yescrt = 1;
 		else
 			mode_option = opt;
 	}

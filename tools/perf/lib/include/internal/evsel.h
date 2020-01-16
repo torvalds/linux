@@ -16,7 +16,7 @@ struct xyarray;
  * more than one entry in the evlist.
  */
 struct perf_sample_id {
-	struct hlist_node	 node;
+	struct hlist_yesde	 yesde;
 	u64			 id;
 	struct perf_evsel	*evsel;
        /*
@@ -35,7 +35,7 @@ struct perf_sample_id {
 };
 
 struct perf_evsel {
-	struct list_head	 node;
+	struct list_head	 yesde;
 	struct perf_event_attr	 attr;
 	struct perf_cpu_map	*cpus;
 	struct perf_cpu_map	*own_cpus;

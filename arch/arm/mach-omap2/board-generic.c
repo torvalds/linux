@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005 Nokia Corporation
- * Author: Paul Mundt <paul.mundt@nokia.com>
+ * Author: Paul Mundt <paul.mundt@yeskia.com>
  *
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  *
@@ -68,7 +68,7 @@ MACHINE_END
 #ifdef CONFIG_ARCH_OMAP3
 /* Some boards need board name for legacy userspace in /proc/cpuinfo */
 static const char *const n900_boards_compat[] __initconst = {
-	"nokia,omap3-n900",
+	"yeskia,omap3-n900",
 	NULL,
 };
 
@@ -89,7 +89,7 @@ static void __init rx51_set_system_rev(const struct tag *tags)
 }
 
 /* Legacy userspace on Nokia N900 needs ATAGS exported in /proc/atags,
- * save them while the data is still not overwritten
+ * save them while the data is still yest overwritten
  */
 static void __init rx51_reserve(void)
 {

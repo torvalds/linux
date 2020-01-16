@@ -25,14 +25,14 @@ PING6=ping6
 MZ=mausezahn
 # Time to wait after interfaces participating in the test are all UP
 WAIT_TIME=5
-# Whether to pause on failure or not.
-PAUSE_ON_FAIL=no
-# Whether to pause on cleanup or not.
-PAUSE_ON_CLEANUP=no
+# Whether to pause on failure or yest.
+PAUSE_ON_FAIL=yes
+# Whether to pause on cleanup or yest.
+PAUSE_ON_CLEANUP=yes
 # Type of network interface to create
 NETIF_TYPE=veth
-# Whether to create virtual interfaces (veth) or not
-NETIF_CREATE=yes
+# Whether to create virtual interfaces (veth) or yest
+NETIF_CREATE=no
 # Timeout (in seconds) before ping exits regardless of how many packets have
 # been sent or received
 PING_TIMEOUT=5

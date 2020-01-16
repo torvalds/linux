@@ -25,7 +25,7 @@ enum {
 /**
  * How many different events we track in the global PMU mask.
  *
- * It is also used to know to needed number of event reference counters.
+ * It is also used to kyesw to needed number of event reference counters.
  */
 #define I915_PMU_MASK_BITS \
 	((1 << I915_PMU_SAMPLE_BITS) + \
@@ -39,9 +39,9 @@ struct i915_pmu_sample {
 
 struct i915_pmu {
 	/**
-	 * @node: List node for CPU hotplug handling.
+	 * @yesde: List yesde for CPU hotplug handling.
 	 */
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 	/**
 	 * @base: PMU base.
 	 */
@@ -66,7 +66,7 @@ struct i915_pmu {
 	 * bit 0), and higher bits correspond to other events (for instance
 	 * I915_PMU_ACTUAL_FREQUENCY is bit 16 etc).
 	 *
-	 * In other words, low 16 bits are not per engine but per engine
+	 * In other words, low 16 bits are yest per engine but per engine
 	 * sampler type, while the upper bits are directly mapped to other
 	 * event types.
 	 */

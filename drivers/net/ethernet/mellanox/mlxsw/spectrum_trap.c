@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <net/devlink.h>
@@ -132,7 +132,7 @@ static int mlxsw_sp_rx_listener(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 	struct mlxsw_sp_port_pcpu_stats *pcpu_stats;
 
 	if (unlikely(!mlxsw_sp_port)) {
-		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: skb received for non-existent port\n",
+		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: skb received for yesn-existent port\n",
 				     local_port);
 		kfree_skb(skb);
 		return -EINVAL;

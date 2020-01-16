@@ -34,7 +34,7 @@
 #define PMB_NO_ENTRY		(-1)
 
 #ifndef __ASSEMBLY__
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/threads.h>
 #include <asm/page.h>
 

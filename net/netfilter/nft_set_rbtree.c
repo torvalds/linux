@@ -23,7 +23,7 @@ struct nft_rbtree {
 };
 
 struct nft_rbtree_elem {
-	struct rb_node		node;
+	struct rb_yesde		yesde;
 	struct nft_set_ext	ext;
 };
 
@@ -46,16 +46,16 @@ static bool __nft_rbtree_lookup(const struct net *net, const struct nft_set *set
 	struct nft_rbtree *priv = nft_set_priv(set);
 	const struct nft_rbtree_elem *rbe, *interval = NULL;
 	u8 genmask = nft_genmask_cur(net);
-	const struct rb_node *parent;
+	const struct rb_yesde *parent;
 	const void *this;
 	int d;
 
-	parent = rcu_dereference_raw(priv->root.rb_node);
+	parent = rcu_dereference_raw(priv->root.rb_yesde);
 	while (parent != NULL) {
 		if (read_seqcount_retry(&priv->count, seq))
 			return false;
 
-		rbe = rb_entry(parent, struct nft_rbtree_elem, node);
+		rbe = rb_entry(parent, struct nft_rbtree_elem, yesde);
 
 		this = nft_set_ext_key(&rbe->ext);
 		d = memcmp(this, key, set->klen);
@@ -75,7 +75,7 @@ static bool __nft_rbtree_lookup(const struct net *net, const struct nft_set *set
 				continue;
 			}
 			if (nft_rbtree_interval_end(rbe)) {
-				if (nft_set_is_anonymous(set))
+				if (nft_set_is_ayesnymous(set))
 					return false;
 				parent = rcu_dereference_raw(parent->rb_left);
 				interval = NULL;
@@ -122,16 +122,16 @@ static bool __nft_rbtree_get(const struct net *net, const struct nft_set *set,
 {
 	struct nft_rbtree_elem *rbe, *interval = NULL;
 	struct nft_rbtree *priv = nft_set_priv(set);
-	const struct rb_node *parent;
+	const struct rb_yesde *parent;
 	const void *this;
 	int d;
 
-	parent = rcu_dereference_raw(priv->root.rb_node);
+	parent = rcu_dereference_raw(priv->root.rb_yesde);
 	while (parent != NULL) {
 		if (read_seqcount_retry(&priv->count, seq))
 			return false;
 
-		rbe = rb_entry(parent, struct nft_rbtree_elem, node);
+		rbe = rb_entry(parent, struct nft_rbtree_elem, yesde);
 
 		this = nft_set_ext_key(&rbe->ext);
 		d = memcmp(this, key, set->klen);
@@ -207,14 +207,14 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 	struct nft_rbtree *priv = nft_set_priv(set);
 	u8 genmask = nft_genmask_next(net);
 	struct nft_rbtree_elem *rbe;
-	struct rb_node *parent, **p;
+	struct rb_yesde *parent, **p;
 	int d;
 
 	parent = NULL;
-	p = &priv->root.rb_node;
+	p = &priv->root.rb_yesde;
 	while (*p != NULL) {
 		parent = *p;
-		rbe = rb_entry(parent, struct nft_rbtree_elem, node);
+		rbe = rb_entry(parent, struct nft_rbtree_elem, yesde);
 		d = memcmp(nft_set_ext_key(&rbe->ext),
 			   nft_set_ext_key(&new->ext),
 			   set->klen);
@@ -237,8 +237,8 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 			}
 		}
 	}
-	rb_link_node_rcu(&new->node, parent, p);
-	rb_insert_color(&new->node, &priv->root);
+	rb_link_yesde_rcu(&new->yesde, parent, p);
+	rb_insert_color(&new->yesde, &priv->root);
 	return 0;
 }
 
@@ -268,7 +268,7 @@ static void nft_rbtree_remove(const struct net *net,
 
 	write_lock_bh(&priv->lock);
 	write_seqcount_begin(&priv->count);
-	rb_erase(&rbe->node, &priv->root);
+	rb_erase(&rbe->yesde, &priv->root);
 	write_seqcount_end(&priv->count);
 	write_unlock_bh(&priv->lock);
 }
@@ -301,13 +301,13 @@ static void *nft_rbtree_deactivate(const struct net *net,
 				   const struct nft_set_elem *elem)
 {
 	const struct nft_rbtree *priv = nft_set_priv(set);
-	const struct rb_node *parent = priv->root.rb_node;
+	const struct rb_yesde *parent = priv->root.rb_yesde;
 	struct nft_rbtree_elem *rbe, *this = elem->priv;
 	u8 genmask = nft_genmask_next(net);
 	int d;
 
 	while (parent != NULL) {
-		rbe = rb_entry(parent, struct nft_rbtree_elem, node);
+		rbe = rb_entry(parent, struct nft_rbtree_elem, yesde);
 
 		d = memcmp(nft_set_ext_key(&rbe->ext), &elem->key.val,
 					   set->klen);
@@ -342,11 +342,11 @@ static void nft_rbtree_walk(const struct nft_ctx *ctx,
 	struct nft_rbtree *priv = nft_set_priv(set);
 	struct nft_rbtree_elem *rbe;
 	struct nft_set_elem elem;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	read_lock_bh(&priv->lock);
-	for (node = rb_first(&priv->root); node != NULL; node = rb_next(node)) {
-		rbe = rb_entry(node, struct nft_rbtree_elem, node);
+	for (yesde = rb_first(&priv->root); yesde != NULL; yesde = rb_next(yesde)) {
+		rbe = rb_entry(yesde, struct nft_rbtree_elem, yesde);
 
 		if (iter->count < iter->skip)
 			goto cont;
@@ -371,7 +371,7 @@ static void nft_rbtree_gc(struct work_struct *work)
 	struct nft_rbtree_elem *rbe, *rbe_end = NULL, *rbe_prev = NULL;
 	struct nft_set_gc_batch *gcb = NULL;
 	struct nft_rbtree *priv;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct nft_set *set;
 
 	priv = container_of(work, struct nft_rbtree, gc_work.work);
@@ -379,8 +379,8 @@ static void nft_rbtree_gc(struct work_struct *work)
 
 	write_lock_bh(&priv->lock);
 	write_seqcount_begin(&priv->count);
-	for (node = rb_first(&priv->root); node != NULL; node = rb_next(node)) {
-		rbe = rb_entry(node, struct nft_rbtree_elem, node);
+	for (yesde = rb_first(&priv->root); yesde != NULL; yesde = rb_next(yesde)) {
+		rbe = rb_entry(yesde, struct nft_rbtree_elem, yesde);
 
 		if (nft_rbtree_interval_end(rbe)) {
 			rbe_end = rbe;
@@ -392,7 +392,7 @@ static void nft_rbtree_gc(struct work_struct *work)
 			continue;
 
 		if (rbe_prev) {
-			rb_erase(&rbe_prev->node, &priv->root);
+			rb_erase(&rbe_prev->yesde, &priv->root);
 			rbe_prev = NULL;
 		}
 		gcb = nft_set_gc_batch_check(set, gcb, GFP_ATOMIC);
@@ -406,15 +406,15 @@ static void nft_rbtree_gc(struct work_struct *work)
 		if (rbe_end) {
 			atomic_dec(&set->nelems);
 			nft_set_gc_batch_add(gcb, rbe_end);
-			rb_erase(&rbe_end->node, &priv->root);
+			rb_erase(&rbe_end->yesde, &priv->root);
 			rbe_end = NULL;
 		}
-		node = rb_next(node);
-		if (!node)
+		yesde = rb_next(yesde);
+		if (!yesde)
 			break;
 	}
 	if (rbe_prev)
-		rb_erase(&rbe_prev->node, &priv->root);
+		rb_erase(&rbe_prev->yesde, &priv->root);
 	write_seqcount_end(&priv->count);
 	write_unlock_bh(&priv->lock);
 
@@ -452,13 +452,13 @@ static void nft_rbtree_destroy(const struct nft_set *set)
 {
 	struct nft_rbtree *priv = nft_set_priv(set);
 	struct nft_rbtree_elem *rbe;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	cancel_delayed_work_sync(&priv->gc_work);
 	rcu_barrier();
-	while ((node = priv->root.rb_node) != NULL) {
-		rb_erase(node, &priv->root);
-		rbe = rb_entry(node, struct nft_rbtree_elem, node);
+	while ((yesde = priv->root.rb_yesde) != NULL) {
+		rb_erase(yesde, &priv->root);
+		rbe = rb_entry(yesde, struct nft_rbtree_elem, yesde);
 		nft_set_elem_destroy(set, rbe, true);
 	}
 }

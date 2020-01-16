@@ -76,7 +76,7 @@
 #define DRAM_BASE_ADDR_USER		0x20000000
 
 #if (DRAM_DRIVER_END_ADDR > DRAM_BASE_ADDR_USER)
-#error "Driver must reserve no more than 512MB"
+#error "Driver must reserve yes more than 512MB"
 #endif
 
 /*

@@ -102,8 +102,8 @@ static inline void spitfire_put_dcache_tag(unsigned long addr, unsigned long tag
 			     : "r" (tag), "r" (addr), "i" (ASI_DCACHE_TAG));
 }
 
-/* The instruction cache lines are flushed with this, but note that
- * this does not flush the pipeline.  It is possible for a line to
+/* The instruction cache lines are flushed with this, but yeste that
+ * this does yest flush the pipeline.  It is possible for a line to
  * get flushed but stale instructions to still be in the pipeline,
  * a flush instruction (to any address) is sufficient to handle
  * this issue after the line is invalidated.
@@ -198,7 +198,7 @@ static inline void spitfire_flush_itlb_nucleus_page(unsigned long page)
 			     : "r" (page | 0x20), "i" (ASI_IMMU_DEMAP));
 }
 
-/* Cheetah has "all non-locked" tlb flushes. */
+/* Cheetah has "all yesn-locked" tlb flushes. */
 static inline void cheetah_flush_dtlb_all(void)
 {
 	__asm__ __volatile__("stxa	%%g0, [%0] %1\n\t"
@@ -220,9 +220,9 @@ static inline void cheetah_flush_itlb_all(void)
  * used only for locked and >8K sized translations.  One exists for
  * data accesses and one for instruction accesses.
  *
- * The third TLB is for data accesses to 8K non-locked translations, is
+ * The third TLB is for data accesses to 8K yesn-locked translations, is
  * 2 way assosciative, and holds 512 entries.  The fourth TLB is for
- * instruction accesses to 8K non-locked translations, is 2 way
+ * instruction accesses to 8K yesn-locked translations, is 2 way
  * assosciative, and holds 128 entries.
  *
  * Cheetah has some bug where bogus data can be returned from

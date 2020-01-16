@@ -17,7 +17,7 @@
  *   It then outputs 3 bytes: X, Y, and a copy of Y.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>

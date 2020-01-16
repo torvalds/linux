@@ -18,10 +18,10 @@ Please refer to ../gpio/gpio.txt.
 
 Please refer to pinctrl-bindings.txt for pin configuration.
 
-Required properties for pin configuration sub-nodes:
+Required properties for pin configuration sub-yesdes:
 - pins: list of pins to which the configuration applies.
 
-Optional properties for pin configuration sub-nodes (pinconf-generic ones):
+Optional properties for pin configuration sub-yesdes (pinconf-generic ones):
 - bias-disable: disable any bias on the pin.
 - bias-pull-up: the pin will be pulled up.
 - bias-pull-pin-default: use the pin-default pull state.
@@ -35,11 +35,11 @@ Note that STMFX pins[15:0] are called "gpio[15:0]", and STMFX pins[23:16] are
 called "agpio[7:0]". Example, to refer to pin 18 of STMFX, use "agpio2".
 
 Concerning gpio-ranges property:
-- if all STMFX pins[24:0] are available (no other STMFX function in use), you
+- if all STMFX pins[24:0] are available (yes other STMFX function in use), you
   should use gpio-ranges = <&stmfx_pinctrl 0 0 24>;
-- if agpio[3:0] are not available (STMFX Touchscreen function in use), you
+- if agpio[3:0] are yest available (STMFX Touchscreen function in use), you
   should use gpio-ranges = <&stmfx_pinctrl 0 0 16>, <&stmfx_pinctrl 20 20 4>;
-- if agpio[7:4] are not available (STMFX IDD function in use), you
+- if agpio[7:4] are yest available (STMFX IDD function in use), you
   should use gpio-ranges = <&stmfx_pinctrl 0 0 20>;
 
 

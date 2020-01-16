@@ -30,9 +30,9 @@ static void iscsit_dump_seq_list(struct iscsi_cmd *cmd)
 		seq = &cmd->seq_list[i];
 		pr_debug("i: %d, pdu_start: %d, pdu_count: %d,"
 			" offset: %d, xfer_len: %d, seq_send_order: %d,"
-			" seq_no: %d\n", i, seq->pdu_start, seq->pdu_count,
+			" seq_yes: %d\n", i, seq->pdu_start, seq->pdu_count,
 			seq->offset, seq->xfer_len, seq->seq_send_order,
-			seq->seq_no);
+			seq->seq_yes);
 	}
 }
 
@@ -47,8 +47,8 @@ static void iscsit_dump_pdu_list(struct iscsi_cmd *cmd)
 	for (i = 0; i < cmd->pdu_count; i++) {
 		pdu = &cmd->pdu_list[i];
 		pr_debug("i: %d, offset: %d, length: %d,"
-			" pdu_send_order: %d, seq_no: %d\n", i, pdu->offset,
-			pdu->length, pdu->pdu_send_order, pdu->seq_no);
+			" pdu_send_order: %d, seq_yes: %d\n", i, pdu->offset,
+			pdu->length, pdu->pdu_send_order, pdu->seq_yes);
 	}
 }
 #else
@@ -73,15 +73,15 @@ static void iscsit_ordered_pdu_lists(
 	struct iscsi_cmd *cmd,
 	u8 type)
 {
-	u32 i, pdu_send_order = 0, seq_no = 0;
+	u32 i, pdu_send_order = 0, seq_yes = 0;
 
 	for (i = 0; i < cmd->pdu_count; i++) {
 redo:
-		if (cmd->pdu_list[i].seq_no == seq_no) {
+		if (cmd->pdu_list[i].seq_yes == seq_yes) {
 			cmd->pdu_list[i].pdu_send_order = pdu_send_order++;
 			continue;
 		}
-		seq_no++;
+		seq_yes++;
 		pdu_send_order = 0;
 		goto redo;
 	}
@@ -121,11 +121,11 @@ static int iscsit_randomize_pdu_lists(
 	u8 type)
 {
 	int i = 0;
-	u32 *array, pdu_count, seq_count = 0, seq_no = 0, seq_offset = 0;
+	u32 *array, pdu_count, seq_count = 0, seq_yes = 0, seq_offset = 0;
 
 	for (pdu_count = 0; pdu_count < cmd->pdu_count; pdu_count++) {
 redo:
-		if (cmd->pdu_list[pdu_count].seq_no == seq_no) {
+		if (cmd->pdu_list[pdu_count].seq_yes == seq_yes) {
 			seq_count++;
 			continue;
 		}
@@ -144,7 +144,7 @@ redo:
 
 		seq_offset += seq_count;
 		seq_count = 0;
-		seq_no++;
+		seq_yes++;
 		goto redo;
 	}
 
@@ -286,9 +286,9 @@ static int iscsit_do_build_pdu_and_seq_lists(
 	struct iscsi_cmd *cmd,
 	struct iscsi_build_list *bl)
 {
-	int check_immediate = 0, datapduinorder, datasequenceinorder;
+	int check_immediate = 0, datapduiyesrder, datasequenceiyesrder;
 	u32 burstlength = 0, offset = 0, i = 0, mdsl;
-	u32 pdu_count = 0, seq_no = 0, unsolicited_data_length = 0;
+	u32 pdu_count = 0, seq_yes = 0, unsolicited_data_length = 0;
 	struct iscsi_conn *conn = cmd->conn;
 	struct iscsi_pdu *pdu = cmd->pdu_list;
 	struct iscsi_seq *seq = cmd->seq_list;
@@ -298,8 +298,8 @@ static int iscsit_do_build_pdu_and_seq_lists(
 	else
 		mdsl = cmd->conn->conn_ops->MaxRecvDataSegmentLength;
 
-	datapduinorder = conn->sess->sess_ops->DataPDUInOrder;
-	datasequenceinorder = conn->sess->sess_ops->DataSequenceInOrder;
+	datapduiyesrder = conn->sess->sess_ops->DataPDUInOrder;
+	datasequenceiyesrder = conn->sess->sess_ops->DataSequenceInOrder;
 
 	if ((bl->type == PDULIST_IMMEDIATE) ||
 	    (bl->type == PDULIST_IMMEDIATE_AND_UNSOLICITED))
@@ -312,32 +312,32 @@ static int iscsit_do_build_pdu_and_seq_lists(
 
 	while (offset < cmd->se_cmd.data_length) {
 		pdu_count++;
-		if (!datapduinorder) {
+		if (!datapduiyesrder) {
 			pdu[i].offset = offset;
-			pdu[i].seq_no = seq_no;
+			pdu[i].seq_yes = seq_yes;
 		}
-		if (!datasequenceinorder && (pdu_count == 1)) {
-			seq[seq_no].pdu_start = i;
-			seq[seq_no].seq_no = seq_no;
-			seq[seq_no].offset = offset;
-			seq[seq_no].orig_offset = offset;
+		if (!datasequenceiyesrder && (pdu_count == 1)) {
+			seq[seq_yes].pdu_start = i;
+			seq[seq_yes].seq_yes = seq_yes;
+			seq[seq_yes].offset = offset;
+			seq[seq_yes].orig_offset = offset;
 		}
 
 		if (check_immediate) {
 			check_immediate = 0;
-			if (!datapduinorder) {
+			if (!datapduiyesrder) {
 				pdu[i].type = PDUTYPE_IMMEDIATE;
 				pdu[i++].length = bl->immediate_data_length;
 			}
-			if (!datasequenceinorder) {
-				seq[seq_no].type = SEQTYPE_IMMEDIATE;
-				seq[seq_no].pdu_count = 1;
-				seq[seq_no].xfer_len =
+			if (!datasequenceiyesrder) {
+				seq[seq_yes].type = SEQTYPE_IMMEDIATE;
+				seq[seq_yes].pdu_count = 1;
+				seq[seq_yes].xfer_len =
 					bl->immediate_data_length;
 			}
 			offset += bl->immediate_data_length;
 			pdu_count = 0;
-			seq_no++;
+			seq_yes++;
 			if (unsolicited_data_length)
 				unsolicited_data_length -=
 					bl->immediate_data_length;
@@ -345,15 +345,15 @@ static int iscsit_do_build_pdu_and_seq_lists(
 		}
 		if (unsolicited_data_length > 0) {
 			if ((offset + mdsl) >= cmd->se_cmd.data_length) {
-				if (!datapduinorder) {
+				if (!datapduiyesrder) {
 					pdu[i].type = PDUTYPE_UNSOLICITED;
 					pdu[i].length =
 						(cmd->se_cmd.data_length - offset);
 				}
-				if (!datasequenceinorder) {
-					seq[seq_no].type = SEQTYPE_UNSOLICITED;
-					seq[seq_no].pdu_count = pdu_count;
-					seq[seq_no].xfer_len = (burstlength +
+				if (!datasequenceiyesrder) {
+					seq[seq_yes].type = SEQTYPE_UNSOLICITED;
+					seq[seq_yes].pdu_count = pdu_count;
+					seq[seq_yes].xfer_len = (burstlength +
 						(cmd->se_cmd.data_length - offset));
 				}
 				unsolicited_data_length -=
@@ -363,16 +363,16 @@ static int iscsit_do_build_pdu_and_seq_lists(
 			}
 			if ((offset + mdsl) >=
 					conn->sess->sess_ops->FirstBurstLength) {
-				if (!datapduinorder) {
+				if (!datapduiyesrder) {
 					pdu[i].type = PDUTYPE_UNSOLICITED;
 					pdu[i++].length =
 					   (conn->sess->sess_ops->FirstBurstLength -
 						offset);
 				}
-				if (!datasequenceinorder) {
-					seq[seq_no].type = SEQTYPE_UNSOLICITED;
-					seq[seq_no].pdu_count = pdu_count;
-					seq[seq_no].xfer_len = (burstlength +
+				if (!datasequenceiyesrder) {
+					seq[seq_yes].type = SEQTYPE_UNSOLICITED;
+					seq[seq_yes].pdu_count = pdu_count;
+					seq[seq_yes].xfer_len = (burstlength +
 					   (conn->sess->sess_ops->FirstBurstLength -
 						offset));
 				}
@@ -383,11 +383,11 @@ static int iscsit_do_build_pdu_and_seq_lists(
 						offset);
 				burstlength = 0;
 				pdu_count = 0;
-				seq_no++;
+				seq_yes++;
 				continue;
 			}
 
-			if (!datapduinorder) {
+			if (!datapduiyesrder) {
 				pdu[i].type = PDUTYPE_UNSOLICITED;
 				pdu[i++].length = mdsl;
 			}
@@ -397,14 +397,14 @@ static int iscsit_do_build_pdu_and_seq_lists(
 			continue;
 		}
 		if ((offset + mdsl) >= cmd->se_cmd.data_length) {
-			if (!datapduinorder) {
+			if (!datapduiyesrder) {
 				pdu[i].type = PDUTYPE_NORMAL;
 				pdu[i].length = (cmd->se_cmd.data_length - offset);
 			}
-			if (!datasequenceinorder) {
-				seq[seq_no].type = SEQTYPE_NORMAL;
-				seq[seq_no].pdu_count = pdu_count;
-				seq[seq_no].xfer_len = (burstlength +
+			if (!datasequenceiyesrder) {
+				seq[seq_yes].type = SEQTYPE_NORMAL;
+				seq[seq_yes].pdu_count = pdu_count;
+				seq[seq_yes].xfer_len = (burstlength +
 					(cmd->se_cmd.data_length - offset));
 			}
 			offset += (cmd->se_cmd.data_length - offset);
@@ -412,16 +412,16 @@ static int iscsit_do_build_pdu_and_seq_lists(
 		}
 		if ((burstlength + mdsl) >=
 		     conn->sess->sess_ops->MaxBurstLength) {
-			if (!datapduinorder) {
+			if (!datapduiyesrder) {
 				pdu[i].type = PDUTYPE_NORMAL;
 				pdu[i++].length =
 					(conn->sess->sess_ops->MaxBurstLength -
 						burstlength);
 			}
-			if (!datasequenceinorder) {
-				seq[seq_no].type = SEQTYPE_NORMAL;
-				seq[seq_no].pdu_count = pdu_count;
-				seq[seq_no].xfer_len = (burstlength +
+			if (!datasequenceiyesrder) {
+				seq[seq_yes].type = SEQTYPE_NORMAL;
+				seq[seq_yes].pdu_count = pdu_count;
+				seq[seq_yes].xfer_len = (burstlength +
 					(conn->sess->sess_ops->MaxBurstLength -
 					burstlength));
 			}
@@ -429,11 +429,11 @@ static int iscsit_do_build_pdu_and_seq_lists(
 					burstlength);
 			burstlength = 0;
 			pdu_count = 0;
-			seq_no++;
+			seq_yes++;
 			continue;
 		}
 
-		if (!datapduinorder) {
+		if (!datapduiyesrder) {
 			pdu[i].type = PDUTYPE_NORMAL;
 			pdu[i++].length = mdsl;
 		}
@@ -441,7 +441,7 @@ static int iscsit_do_build_pdu_and_seq_lists(
 		offset += mdsl;
 	}
 
-	if (!datasequenceinorder) {
+	if (!datasequenceiyesrder) {
 		if (bl->data_direction & ISCSI_PDU_WRITE) {
 			if (bl->randomize & RANDOM_R2T_OFFSETS) {
 				if (iscsit_randomize_seq_lists(cmd, bl->type)
@@ -460,7 +460,7 @@ static int iscsit_do_build_pdu_and_seq_lists(
 
 		iscsit_dump_seq_list(cmd);
 	}
-	if (!datapduinorder) {
+	if (!datapduiyesrder) {
 		if (bl->data_direction & ISCSI_PDU_WRITE) {
 			if (bl->randomize & RANDOM_DATAOUT_PDU_OFFSETS) {
 				if (iscsit_randomize_pdu_lists(cmd, bl->type)
@@ -494,10 +494,10 @@ int iscsit_build_pdu_and_seq_lists(
 	struct iscsi_seq *seq = NULL;
 
 	struct iscsi_session *sess = conn->sess;
-	struct iscsi_node_attrib *na;
+	struct iscsi_yesde_attrib *na;
 
 	/*
-	 * Do nothing if no OOO shenanigans
+	 * Do yesthing if yes OOO shenanigans
 	 */
 	if (sess->sess_ops->DataSequenceInOrder &&
 	    sess->sess_ops->DataPDUInOrder)
@@ -506,7 +506,7 @@ int iscsit_build_pdu_and_seq_lists(
 	if (cmd->data_direction == DMA_NONE)
 		return 0;
 
-	na = iscsit_tpg_get_node_attrib(sess);
+	na = iscsit_tpg_get_yesde_attrib(sess);
 	memset(&bl, 0, sizeof(struct iscsi_build_list));
 
 	if (cmd->data_direction == DMA_FROM_DEVICE) {
@@ -599,10 +599,10 @@ struct iscsi_pdu *iscsit_get_pdu_holder_for_seq(
 redo:
 		pdu = &cmd->pdu_list[cmd->pdu_start];
 
-		for (i = 0; pdu[i].seq_no != cmd->seq_no; i++) {
-			pr_debug("pdu[i].seq_no: %d, pdu[i].pdu"
+		for (i = 0; pdu[i].seq_yes != cmd->seq_yes; i++) {
+			pr_debug("pdu[i].seq_yes: %d, pdu[i].pdu"
 				"_send_order: %d, pdu[i].offset: %d,"
-				" pdu[i].length: %d\n", pdu[i].seq_no,
+				" pdu[i].length: %d\n", pdu[i].seq_yes,
 				pdu[i].pdu_send_order, pdu[i].offset,
 				pdu[i].length);
 
@@ -614,7 +614,7 @@ redo:
 
 		cmd->pdu_start += cmd->pdu_send_order;
 		cmd->pdu_send_order = 0;
-		cmd->seq_no++;
+		cmd->seq_yes++;
 
 		if (cmd->pdu_start < cmd->pdu_count)
 			goto redo;
@@ -630,8 +630,8 @@ redo:
 		}
 
 		pr_debug("seq->pdu_start: %d, seq->pdu_count: %d,"
-			" seq->seq_no: %d\n", seq->pdu_start, seq->pdu_count,
-			seq->seq_no);
+			" seq->seq_yes: %d\n", seq->pdu_start, seq->pdu_count,
+			seq->seq_yes);
 
 		pdu = &cmd->pdu_list[seq->pdu_start];
 
@@ -673,9 +673,9 @@ struct iscsi_seq *iscsit_get_seq_holder(
 
 	for (i = 0; i < cmd->seq_count; i++) {
 		pr_debug("seq_list[i].orig_offset: %d, seq_list[i]."
-			"xfer_len: %d, seq_list[i].seq_no %u\n",
+			"xfer_len: %d, seq_list[i].seq_yes %u\n",
 			cmd->seq_list[i].orig_offset, cmd->seq_list[i].xfer_len,
-			cmd->seq_list[i].seq_no);
+			cmd->seq_list[i].seq_yes);
 
 		if ((cmd->seq_list[i].orig_offset +
 				cmd->seq_list[i].xfer_len) >=

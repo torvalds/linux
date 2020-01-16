@@ -52,7 +52,7 @@ void edac_debugfs_exit(void)
 	debugfs_remove_recursive(edac_debugfs);
 }
 
-void edac_create_debugfs_nodes(struct mem_ctl_info *mci)
+void edac_create_debugfs_yesdes(struct mem_ctl_info *mci)
 {
 	struct dentry *parent;
 	char name[80];

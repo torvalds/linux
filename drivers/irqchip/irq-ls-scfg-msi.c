@@ -73,7 +73,7 @@ static int msi_affinity_flag = 1;
 
 static int __init early_parse_ls_scfg_msi(char *p)
 {
-	if (p && strncmp(p, "no-affinity", 11) == 0)
+	if (p && strncmp(p, "yes-affinity", 11) == 0)
 		msi_affinity_flag = 0;
 	else
 		msi_affinity_flag = 1;
@@ -118,7 +118,7 @@ static int ls_scfg_msi_set_affinity(struct irq_data *irq_data,
 		return -EINVAL;
 
 	if (msi_data->msir[cpu].gic_irq <= 0) {
-		pr_warn("cannot bind the irq to cpu%d\n", cpu);
+		pr_warn("canyest bind the irq to cpu%d\n", cpu);
 		return -EINVAL;
 	}
 
@@ -227,7 +227,7 @@ static int ls_scfg_msi_domains_init(struct ls_scfg_msi *msi_data)
 	}
 
 	msi_data->msi_domain = pci_msi_create_irq_domain(
-				of_node_to_fwnode(msi_data->pdev->dev.of_node),
+				of_yesde_to_fwyesde(msi_data->pdev->dev.of_yesde),
 				&ls_scfg_msi_domain_info,
 				msi_data->parent);
 	if (!msi_data->msi_domain) {
@@ -376,7 +376,7 @@ static int ls_scfg_msi_probe(struct platform_device *pdev)
 	 */
 	bitmap_set(msi_data->used, 0, msi_data->irqs_num);
 
-	msi_data->msir_num = of_irq_count(pdev->dev.of_node);
+	msi_data->msir_num = of_irq_count(pdev->dev.of_yesde);
 
 	if (msi_affinity_flag) {
 		u32 cpu_num;

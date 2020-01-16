@@ -18,7 +18,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -203,7 +203,7 @@ void ast_vhub_init_hw(struct ast_vhub *vhub)
 	 * recommendation
 	 *
 	 * VHUB_CTRL_ISO_RSP_CTRL: When set tells the HW to respond
-	 * with 0 bytes data packet to ISO IN endpoints when no data
+	 * with 0 bytes data packet to ISO IN endpoints when yes data
 	 * is available.
 	 *
 	 * VHUB_CTRL_SPLIT_IN: This makes a SOF complete a split IN

@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -75,7 +75,7 @@ static int vmw_dx_shader_bind(struct vmw_resource *res,
 static int vmw_dx_shader_unbind(struct vmw_resource *res,
 				 bool readback,
 				 struct ttm_validate_buffer *val_buf);
-static void vmw_dx_shader_commit_notify(struct vmw_resource *res,
+static void vmw_dx_shader_commit_yestify(struct vmw_resource *res,
 					enum vmw_cmdbuf_res_state state);
 static bool vmw_shader_id_ok(u32 user_key, SVGA3dShaderType shader_type);
 static u32 vmw_shader_key(u32 user_key, SVGA3dShaderType shader_type);
@@ -117,12 +117,12 @@ static const struct vmw_res_func vmw_dx_shader_func = {
 	/*
 	 * The destroy callback is only called with a committed resource on
 	 * context destroy, in which case we destroy the cotable anyway,
-	 * so there's no need to destroy DX shaders separately.
+	 * so there's yes need to destroy DX shaders separately.
 	 */
 	.destroy = NULL,
 	.bind = vmw_dx_shader_bind,
 	.unbind = vmw_dx_shader_unbind,
-	.commit_notify = vmw_dx_shader_commit_notify,
+	.commit_yestify = vmw_dx_shader_commit_yestify,
 };
 
 /**
@@ -214,18 +214,18 @@ static int vmw_gb_shader_create(struct vmw_resource *res)
 	ret = vmw_resource_alloc_id(res);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed to allocate a shader id.\n");
-		goto out_no_id;
+		goto out_yes_id;
 	}
 
 	if (unlikely(res->id >= VMWGFX_NUM_GB_SHADER)) {
 		ret = -EBUSY;
-		goto out_no_fifo;
+		goto out_yes_fifo;
 	}
 
 	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		ret = -ENOMEM;
-		goto out_no_fifo;
+		goto out_yes_fifo;
 	}
 
 	cmd->header.id = SVGA_3D_CMD_DEFINE_GB_SHADER;
@@ -238,9 +238,9 @@ static int vmw_gb_shader_create(struct vmw_resource *res)
 
 	return 0;
 
-out_no_fifo:
+out_yes_fifo:
 	vmw_resource_release_id(res);
-out_no_id:
+out_yes_id:
 	return ret;
 }
 
@@ -346,14 +346,14 @@ static int vmw_gb_shader_destroy(struct vmw_resource *res)
  */
 
 /**
- * vmw_dx_shader_commit_notify - Notify that a shader operation has been
+ * vmw_dx_shader_commit_yestify - Notify that a shader operation has been
  * committed to hardware from a user-supplied command stream.
  *
  * @res: Pointer to the shader resource.
  * @state: Indicating whether a creation or removal has been committed.
  *
  */
-static void vmw_dx_shader_commit_notify(struct vmw_resource *res,
+static void vmw_dx_shader_commit_yestify(struct vmw_resource *res,
 					enum vmw_cmdbuf_res_state state)
 {
 	struct vmw_dx_shader *shader = vmw_res_to_dx_shader(res);
@@ -596,7 +596,7 @@ int vmw_dx_shader_add(struct vmw_cmdbuf_res_manager *man,
 	struct vmw_private *dev_priv = ctx->dev_priv;
 	struct ttm_operation_ctx ttm_opt_ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	int ret;
 
@@ -634,7 +634,7 @@ int vmw_dx_shader_add(struct vmw_cmdbuf_res_manager *man,
 		goto out_resource_init;
 
 	/*
-	 * The user_key name-space is not per shader type for DX shaders,
+	 * The user_key name-space is yest per shader type for DX shaders,
 	 * so when hashing, use a single zero shader type.
 	 */
 	ret = vmw_cmdbuf_res_add(man, vmw_cmdbuf_res_shader,
@@ -687,7 +687,7 @@ static void vmw_shader_free(struct vmw_resource *res)
 }
 
 /**
- * This function is called when user space has no more references on the
+ * This function is called when user space has yes more references on the
  * base object. It releases the base-object's reference on the resource object.
  */
 
@@ -724,7 +724,7 @@ static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
 	struct vmw_resource *res, *tmp;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	int ret;
 
@@ -795,7 +795,7 @@ static struct vmw_resource *vmw_shader_alloc(struct vmw_private *dev_priv,
 	struct vmw_resource *res;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	int ret;
 
@@ -898,7 +898,7 @@ out_bad_arg:
  * @user_key: User space id of the shader.
  * @shader_type: Shader type.
  *
- * Returns true if valid false if not.
+ * Returns true if valid false if yest.
  */
 static bool vmw_shader_id_ok(u32 user_key, SVGA3dShaderType shader_type)
 {
@@ -985,14 +985,14 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 
 	ret = ttm_bo_reserve(&buf->base, false, true, NULL);
 	if (unlikely(ret != 0))
-		goto no_reserve;
+		goto yes_reserve;
 
 	/* Map and copy shader bytecode. */
 	ret = ttm_bo_kmap(&buf->base, 0, PAGE_ALIGN(size) >> PAGE_SHIFT,
 			  &map);
 	if (unlikely(ret != 0)) {
 		ttm_bo_unreserve(&buf->base);
-		goto no_reserve;
+		goto yes_reserve;
 	}
 
 	memcpy(ttm_kmap_obj_virtual(&map, &is_iomem), bytecode, size);
@@ -1005,13 +1005,13 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 
 	res = vmw_shader_alloc(dev_priv, buf, size, 0, shader_type);
 	if (unlikely(ret != 0))
-		goto no_reserve;
+		goto yes_reserve;
 
 	ret = vmw_cmdbuf_res_add(man, vmw_cmdbuf_res_shader,
 				 vmw_shader_key(user_key, shader_type),
 				 res, list);
 	vmw_resource_unreference(&res);
-no_reserve:
+yes_reserve:
 	vmw_bo_unreference(&buf);
 out:
 	return ret;

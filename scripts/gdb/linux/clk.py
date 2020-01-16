@@ -12,7 +12,7 @@ clk_core_type = utils.CachedType("struct clk_core")
 
 def clk_core_for_each_child(hlist_head):
     return lists.hlist_for_each_entry(hlist_head,
-            clk_core_type.get_type().pointer(), "child_node")
+            clk_core_type.get_type().pointer(), "child_yesde")
 
 
 class LxClkSummary(gdb.Command):

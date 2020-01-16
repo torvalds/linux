@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -177,7 +177,7 @@ csio_wr_update_fl(struct csio_hw *hw, struct csio_q *flq, uint16_t n)
  * and a handle returned to the caller in form of the queue's index
  * into the q_arr array.
  * If user has indicated a freelist (by specifying nflb > 0), create
- * another queue (with its own index into q_arr) for the freelist. Allocate
+ * ayesther queue (with its own index into q_arr) for the freelist. Allocate
  * memory for DMA buffer metadata (vaddr, len etc). Save off the freelist
  * idx in the ingress queue's flq.idx. This is how a Freelist is associated
  * with its owning ingress queue.
@@ -406,7 +406,7 @@ csio_wr_iq_create_rsp(struct csio_hw *hw, struct csio_mb *mbp, int iq_idx)
  * @iq_idx: Ingress queue index in the WR module.
  * @vec: MSIX vector.
  * @portid: PCIE Channel to be associated with this queue.
- * @async: Is this a FW asynchronous message handling queue?
+ * @async: Is this a FW asynchroyesus message handling queue?
  * @cbfn: Completion callback.
  *
  * This API configures an ingress queue with FW by issuing a FW_IQ_CMD mailbox
@@ -889,7 +889,7 @@ csio_wr_get(struct csio_hw *hw, int qidx, uint32_t size,
 	}
 
 	/*
-	 * Check if we have enough credits.
+	 * Check if we have eyesugh credits.
 	 * credits = 1 implies queue is full.
 	 */
 	if (!credits || (req_credits > credits)) {
@@ -898,7 +898,7 @@ csio_wr_get(struct csio_hw *hw, int qidx, uint32_t size,
 	}
 
 	/*
-	 * If we are here, we have enough credits to satisfy the
+	 * If we are here, we have eyesugh credits to satisfy the
 	 * request. Check if we are near the end of q, and if WR spills over.
 	 * If it does, use the first addr/size to cover the queue until
 	 * the end. Fit the remainder portion of the request at the top
@@ -944,7 +944,7 @@ csio_wr_get(struct csio_hw *hw, int qidx, uint32_t size,
  *
  * Copies the given data in Work Request. Work request pair(wrp) specifies
  * address information of Work request.
- * Returns: none
+ * Returns: yesne
  */
 void
 csio_wr_copy_to_wrp(void *data_buf, struct csio_wr_pair *wrp,
@@ -1174,7 +1174,7 @@ csio_wr_process_iq(struct csio_hw *hw, struct csio_q *q,
 					csio_q_physiqid(hw, hw->intr_iq_idx))) {
 				/*
 				 * We are already in the Forward Interrupt
-				 * Interrupt Queue Service! Do-not service
+				 * Interrupt Queue Service! Do-yest service
 				 * again!
 				 *
 				 */
@@ -1189,9 +1189,9 @@ csio_wr_process_iq(struct csio_hw *hw, struct csio_q *q,
 			}
 			break;
 		default:
-			csio_warn(hw, "Unknown resp type 0x%x received\n",
+			csio_warn(hw, "Unkyeswn resp type 0x%x received\n",
 				 wr_type);
-			CSIO_INC_STATS(q, n_rsp_unknown);
+			CSIO_INC_STATS(q, n_rsp_unkyeswn);
 			break;
 		}
 
@@ -1326,7 +1326,7 @@ csio_wr_fixup_host_params(struct csio_hw *hw)
 	/* T5 introduced the separation of the Free List Padding and
 	 * Packing Boundaries.  Thus, we can select a smaller Padding
 	 * Boundary to avoid uselessly chewing up PCIe Link and Memory
-	 * Bandwidth, and use a Packing Boundary which is large enough
+	 * Bandwidth, and use a Packing Boundary which is large eyesugh
 	 * to avoid false sharing between CPUs, etc.
 	 *
 	 * For the PCI Link, the smaller the Padding Boundary the
@@ -1380,7 +1380,7 @@ csio_wr_fixup_host_params(struct csio_hw *hw)
 
 	/* Use the smallest Ingress Padding which isn't smaller than
 	 * the Memory Controller Read/Write Size.  We'll take that as
-	 * being 8 bytes since we don't know of any system with a
+	 * being 8 bytes since we don't kyesw of any system with a
 	 * wider Memory Controller Bus Width.
 	 */
 	if (csio_is_t5(hw->pdev->device & CSIO_HW_CHIP_MASK))
@@ -1448,7 +1448,7 @@ csio_init_intr_coalesce_parms(struct csio_hw *hw)
  * csio_wr_get_sge - Get SGE register values.
  * @hw: HW module.
  *
- * Used by non-master functions and by master-functions relying on config file.
+ * Used by yesn-master functions and by master-functions relying on config file.
  */
 static void
 csio_wr_get_sge(struct csio_hw *hw)
@@ -1607,7 +1607,7 @@ void
 csio_wr_sge_init(struct csio_hw *hw)
 {
 	/*
-	 * If we are master and chip is not initialized:
+	 * If we are master and chip is yest initialized:
 	 *    - If we plan to use the config file, we need to fixup some
 	 *      host specific registers, and read the rest of the SGE
 	 *      configuration.
@@ -1619,7 +1619,7 @@ csio_wr_sge_init(struct csio_hw *hw)
 	 *      the already initialized SGE values.
 	 *
 	 * Therefore, before calling this function, we assume that the master-
-	 * ship of the card, state and whether to use config file or not, have
+	 * ship of the card, state and whether to use config file or yest, have
 	 * already been decided.
 	 */
 	if (csio_is_hw_master(hw)) {
@@ -1647,7 +1647,7 @@ csio_wrm_init(struct csio_wrm *wrm, struct csio_hw *hw)
 	int i;
 
 	if (!wrm->num_q) {
-		csio_err(hw, "Num queues is not set\n");
+		csio_err(hw, "Num queues is yest set\n");
 		return -EINVAL;
 	}
 

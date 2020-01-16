@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
@@ -25,9 +25,9 @@
 
 /****************
  * Sometimes we have MSL (most significant limbs) which are 0;
- * this is for some reasons not good, so this function removes them.
+ * this is for some reasons yest good, so this function removes them.
  */
-void mpi_normalize(MPI a)
+void mpi_yesrmalize(MPI a)
 {
 	for (; a->nlimbs && !a->d[a->nlimbs - 1]; a->nlimbs--)
 		;
@@ -40,7 +40,7 @@ unsigned mpi_get_nbits(MPI a)
 {
 	unsigned n;
 
-	mpi_normalize(a);
+	mpi_yesrmalize(a);
 
 	if (a->nlimbs) {
 		mpi_limb_t alimb = a->d[a->nlimbs - 1];

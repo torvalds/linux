@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -43,7 +43,7 @@
  * occurrence until the next modeset on a given pipe.
  *
  * Note that underrun detection on gmch platforms is a bit more ugly since there
- * is no interrupt (despite that the signalling bit is in the PIPESTAT pipe
+ * is yes interrupt (despite that the signalling bit is in the PIPESTAT pipe
  * interrupt register). Also on some other platforms underrun interrupts are
  * shared, which means that if we detect an underrun we need to disable underrun
  * reporting on all pipes.
@@ -277,7 +277,7 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
  * intel_set_cpu_fifo_underrun_reporting - set cpu fifo underrrun reporting state
  * @dev_priv: i915 device instance
  * @pipe: (CPU) pipe to set state for
- * @enable: whether underruns should be reported or not
+ * @enable: whether underruns should be reported or yest
  *
  * This function sets the fifo underrun state for @pipe. It is used in the
  * modeset code to avoid false positives since on many platforms underruns are
@@ -307,7 +307,7 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
  * intel_set_pch_fifo_underrun_reporting - set PCH fifo underrun reporting state
  * @dev_priv: i915 device instance
  * @pch_transcoder: the PCH transcoder (same as pipe on IVB and older)
- * @enable: whether underruns should be reported or not
+ * @enable: whether underruns should be reported or yest
  *
  * This function makes us disable or enable PCH fifo underruns for a specific
  * PCH transcoder. Notice that on some PCHs (e.g. CPT/PPT), disabling FIFO
@@ -331,7 +331,7 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 	 * has only one pch transcoder A that all pipes can use. To avoid racy
 	 * pch transcoder -> pipe lookups from interrupt code simply store the
 	 * underrun statistics in crtc A. Since we never expose this anywhere
-	 * nor use it outside of the fifo underrun code here using the "wrong"
+	 * yesr use it outside of the fifo underrun code here using the "wrong"
 	 * crtc on LPT won't cause issues.
 	 */
 

@@ -28,7 +28,7 @@
 
 #include "../dss/omapdss.h"
 
-/* DSI Virtual channel. Hardcoded for now. */
+/* DSI Virtual channel. Hardcoded for yesw. */
 #define TCH 0
 
 #define DCS_READ_NUM_ERRORS	0x05
@@ -180,7 +180,7 @@ static int dsicm_sleep_in(struct panel_drv_data *ddata)
 	hw_guard_wait(ddata);
 
 	cmd = MIPI_DCS_ENTER_SLEEP_MODE;
-	r = src->ops->dsi.dcs_write_nosync(src, ddata->channel, &cmd, 1);
+	r = src->ops->dsi.dcs_write_yessync(src, ddata->channel, &cmd, 1);
 	if (r)
 		return r;
 
@@ -242,7 +242,7 @@ static int dsicm_set_update_window(struct panel_drv_data *ddata,
 	buf[3] = (x2 >> 8) & 0xff;
 	buf[4] = (x2 >> 0) & 0xff;
 
-	r = src->ops->dsi.dcs_write_nosync(src, ddata->channel, buf, sizeof(buf));
+	r = src->ops->dsi.dcs_write_yessync(src, ddata->channel, buf, sizeof(buf));
 	if (r)
 		return r;
 
@@ -252,7 +252,7 @@ static int dsicm_set_update_window(struct panel_drv_data *ddata,
 	buf[3] = (y2 >> 8) & 0xff;
 	buf[4] = (y2 >> 0) & 0xff;
 
-	r = src->ops->dsi.dcs_write_nosync(src, ddata->channel, buf, sizeof(buf));
+	r = src->ops->dsi.dcs_write_yessync(src, ddata->channel, buf, sizeof(buf));
 	if (r)
 		return r;
 
@@ -864,7 +864,7 @@ static void dsicm_te_timeout_work_callback(struct work_struct *work)
 					te_timeout_work.work);
 	struct omap_dss_device *src = ddata->src;
 
-	dev_err(&ddata->pdev->dev, "TE not received for 250ms!\n");
+	dev_err(&ddata->pdev->dev, "TE yest received for 250ms!\n");
 
 	atomic_set(&ddata->do_update, 0);
 	src->ops->dsi.bus_unlock(src);
@@ -891,7 +891,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	/* XXX no need to send this every frame, but dsi break if not done */
+	/* XXX yes need to send this every frame, but dsi break if yest done */
 	r = dsicm_set_update_window(ddata, 0, 0, ddata->vm.hactive,
 				    ddata->vm.vactive);
 	if (r)
@@ -908,7 +908,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 			goto err;
 	}
 
-	/* note: no bus_unlock here. unlock is src framedone_cb */
+	/* yeste: yes bus_unlock here. unlock is src framedone_cb */
 	mutex_unlock(&ddata->lock);
 	return 0;
 err:
@@ -1162,8 +1162,8 @@ static const struct omap_dss_driver dsicm_dss_driver = {
 
 static int dsicm_probe_of(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *backlight;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *backlight;
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct display_timing timing;
 	int err;
@@ -1183,7 +1183,7 @@ static int dsicm_probe_of(struct platform_device *pdev)
 		return err;
 	}
 
-	err = of_get_display_timing(node, "panel-timing", &timing);
+	err = of_get_display_timing(yesde, "panel-timing", &timing);
 	if (!err) {
 		videomode_from_timing(&timing, &ddata->vm);
 		if (!ddata->vm.pixelclock)
@@ -1195,10 +1195,10 @@ static int dsicm_probe_of(struct platform_device *pdev)
 	}
 
 	ddata->width_mm = 0;
-	of_property_read_u32(node, "width-mm", &ddata->width_mm);
+	of_property_read_u32(yesde, "width-mm", &ddata->width_mm);
 
 	ddata->height_mm = 0;
-	of_property_read_u32(node, "height-mm", &ddata->height_mm);
+	of_property_read_u32(yesde, "height-mm", &ddata->height_mm);
 
 	ddata->vpnl = devm_regulator_get_optional(&pdev->dev, "vpnl");
 	if (IS_ERR(ddata->vpnl)) {
@@ -1216,10 +1216,10 @@ static int dsicm_probe_of(struct platform_device *pdev)
 		ddata->vddi = NULL;
 	}
 
-	backlight = of_parse_phandle(node, "backlight", 0);
+	backlight = of_parse_phandle(yesde, "backlight", 0);
 	if (backlight) {
-		ddata->extbldev = of_find_backlight_by_node(backlight);
-		of_node_put(backlight);
+		ddata->extbldev = of_find_backlight_by_yesde(backlight);
+		of_yesde_put(backlight);
 
 		if (!ddata->extbldev)
 			return -EPROBE_DEFER;

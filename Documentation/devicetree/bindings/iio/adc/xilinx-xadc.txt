@@ -23,7 +23,7 @@ Required properties:
 
 Optional properties:
 	- xlnx,external-mux:
-		* "none": No external multiplexer is used, this is the default
+		* "yesne": No external multiplexer is used, this is the default
 		  if the property is omitted.
 		* "single": External multiplexer mode is used with one
 		   multiplexer.
@@ -45,17 +45,17 @@ Optional properties:
 
 	  This property needs to be present if the device is configured for
 	  external multiplexer mode (either single or dual). If the device is
-	  not using external multiplexer mode the property is ignored.
+	  yest using external multiplexer mode the property is igyesred.
 	- xnlx,channels: List of external channels that are connected to the ADC
 	  Required properties:
 		* #address-cells: Should be 1.
 		* #size-cells: Should be 0.
 
-	  The child nodes of this node represent the external channels which are
-	  connected to the ADC. If the property is no present no external
+	  The child yesdes of this yesde represent the external channels which are
+	  connected to the ADC. If the property is yes present yes external
 	  channels will be assumed to be connected.
 
-	  Each child node represents one channel and has the following
+	  Each child yesde represents one channel and has the following
 	  properties:
 		Required properties:
 			* reg: Pair of pins the channel is connected to.

@@ -65,7 +65,7 @@ static const struct snd_soc_component_driver max98357a_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_dai_ops max98357a_dai_ops = {
@@ -113,8 +113,8 @@ static int max98357a_platform_probe(struct platform_device *pdev)
 	if (ret) {
 		max98357a->sdmode_delay = 0;
 		dev_dbg(&pdev->dev,
-			"no optional property 'sdmode-delay' found, "
-			"default: no delay\n");
+			"yes optional property 'sdmode-delay' found, "
+			"default: yes delay\n");
 	}
 
 	dev_set_drvdata(&pdev->dev, max98357a);

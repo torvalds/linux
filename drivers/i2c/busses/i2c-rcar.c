@@ -6,7 +6,7 @@
  * Copyright (C) 2011-2019 Renesas Electronics Corporation
  *
  * Copyright (C) 2012-14 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  *
  * This file is based on the drivers/i2c/busses/i2c-sh7760.c
  * (c) 2005-2008 MSC Vertriebsges.m.b.H, Manuel Lauss <mlau@msc-ge.com>
@@ -46,10 +46,10 @@
 #define SDBS	(1 << 3)	/* slave data buffer select */
 #define SIE	(1 << 2)	/* slave interface enable */
 #define GCAE	(1 << 1)	/* general call address enable */
-#define FNA	(1 << 0)	/* forced non acknowledgment */
+#define FNA	(1 << 0)	/* forced yesn ackyeswledgment */
 
 /* ICMCR */
-#define MDBS	(1 << 7)	/* non-fifo mode switch */
+#define MDBS	(1 << 7)	/* yesn-fifo mode switch */
 #define FSCL	(1 << 6)	/* override SCL pin */
 #define FSDA	(1 << 5)	/* override SDA pin */
 #define OBPC	(1 << 4)	/* override pins */
@@ -224,13 +224,13 @@ static int rcar_i2c_bus_barrier(struct rcar_i2c_priv *priv)
 	int i;
 
 	for (i = 0; i < LOOP_TIMEOUT; i++) {
-		/* make sure that bus is not busy */
+		/* make sure that bus is yest busy */
 		if (!(rcar_i2c_read(priv, ICMCR) & FSDA))
 			return 0;
 		udelay(1);
 	}
 
-	/* Waiting did not help, try to recover */
+	/* Waiting did yest help, try to recover */
 	priv->recovery_icmcr = MDBS | OBPC | FSDA | FSCL;
 	return i2c_recover_bus(&priv->adap);
 }
@@ -241,7 +241,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv, struct i2c_timin
 	unsigned long rate;
 	struct device *dev = rcar_i2c_priv_to_dev(priv);
 
-	/* Fall back to previously used values if not supplied */
+	/* Fall back to previously used values if yest supplied */
 	t->bus_freq_hz = t->bus_freq_hz ?: 100000;
 	t->scl_fall_ns = t->scl_fall_ns ?: 35;
 	t->scl_rise_ns = t->scl_rise_ns ?: 200;
@@ -305,7 +305,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv, struct i2c_timin
 	 *	div = ick / (bus_speed + 1) + 1;
 	 *	scgd = (div - 20 - round + 7) / 8;
 	 *	scl = ick / (20 + (scgd * 8) + round);
-	 * (not fully verified) but that would get pretty involved
+	 * (yest fully verified) but that would get pretty involved
 	 */
 	for (scgd = 0; scgd < 0x40; scgd++) {
 		scl = ick / (20 + (scgd * 8) + round);
@@ -477,7 +477,7 @@ static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 {
 	struct i2c_msg *msg = priv->msg;
 
-	/* FIXME: sometimes, unknown interrupt happened. Do nothing */
+	/* FIXME: sometimes, unkyeswn interrupt happened. Do yesthing */
 	if (!(msr & MDE))
 		return;
 
@@ -524,13 +524,13 @@ static void rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 {
 	struct i2c_msg *msg = priv->msg;
 
-	/* FIXME: sometimes, unknown interrupt happened. Do nothing */
+	/* FIXME: sometimes, unkyeswn interrupt happened. Do yesthing */
 	if (!(msr & MDR))
 		return;
 
 	if (msr & MAT) {
 		/*
-		 * Address transfer phase finished, but no data at this point.
+		 * Address transfer phase finished, but yes data at this point.
 		 * Try to use DMA to receive data.
 		 */
 		rcar_i2c_dma(priv);
@@ -618,7 +618,7 @@ static bool rcar_i2c_slave_irq(struct rcar_i2c_priv *priv)
  * the interrupt was generated, otherwise an unwanted repeated message gets
  * generated. It turned out that taking a spinlock at the beginning of the ISR
  * was already causing repeated messages. Thus, this driver was converted to
- * the now lockless behaviour. Please keep this in mind when hacking the driver.
+ * the yesw lockless behaviour. Please keep this in mind when hacking the driver.
  */
 static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 {
@@ -862,7 +862,7 @@ static int rcar_unreg_slave(struct i2c_client *slave)
 
 	WARN_ON(!priv->slave);
 
-	/* disable irqs and ensure none is running before clearing ptr */
+	/* disable irqs and ensure yesne is running before clearing ptr */
 	rcar_i2c_write(priv, ICSIER, 0);
 	rcar_i2c_write(priv, ICSCR, 0);
 
@@ -932,7 +932,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "cannot get clock\n");
+		dev_err(dev, "canyest get clock\n");
 		return PTR_ERR(priv->clk);
 	}
 
@@ -951,7 +951,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	adap->class = I2C_CLASS_DEPRECATED;
 	adap->retries = 3;
 	adap->dev.parent = dev;
-	adap->dev.of_node = dev->of_node;
+	adap->dev.of_yesde = dev->of_yesde;
 	adap->bus_recovery_info = &rcar_i2c_bri;
 	adap->quirks = &rcar_i2c_quirks;
 	i2c_set_adapdata(adap, priv);
@@ -981,7 +981,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	}
 
 	/* Stay always active when multi-master to keep arbitration working */
-	if (of_property_read_bool(dev->of_node, "multi-master"))
+	if (of_property_read_bool(dev->of_yesde, "multi-master"))
 		priv->flags |= ID_P_PM_BLOCKED;
 	else
 		pm_runtime_put(dev);
@@ -990,7 +990,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	priv->irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(dev, priv->irq, rcar_i2c_irq, 0, dev_name(dev), priv);
 	if (ret < 0) {
-		dev_err(dev, "cannot get irq %d\n", priv->irq);
+		dev_err(dev, "canyest get irq %d\n", priv->irq);
 		goto out_pm_disable;
 	}
 
@@ -1065,4 +1065,4 @@ module_platform_driver(rcar_i2c_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Renesas R-Car I2C bus driver");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>");

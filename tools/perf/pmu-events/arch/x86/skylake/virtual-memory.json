@@ -1,6 +1,6 @@
 [
     {
-        "PublicDescription": "Counts demand data loads that caused a page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels, but the walk need not have completed.",
+        "PublicDescription": "Counts demand data loads that caused a page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels, but the walk need yest have completed.",
         "EventCode": "0x08",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -81,7 +81,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts demand data stores that caused a page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels, but the walk need not have completed.",
+        "PublicDescription": "Counts demand data stores that caused a page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels, but the walk need yest have completed.",
         "EventCode": "0x49",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -172,7 +172,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts page walks of any page size (4K/2M/4M/1G) caused by a code fetch. This implies it missed in the ITLB and further levels of TLB, but the walk need not have completed.",
+        "PublicDescription": "Counts page walks of any page size (4K/2M/4M/1G) caused by a code fetch. This implies it missed in the ITLB and further levels of TLB, but the walk need yest have completed.",
         "EventCode": "0x85",
         "Counter": "0,1,2,3",
         "UMask": "0x1",

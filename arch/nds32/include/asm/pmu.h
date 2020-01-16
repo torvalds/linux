@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2008-2018 Andes Technology Corporation */
+/* Copyright (C) 2008-2018 Andes Techyeslogy Corporation */
 
 #ifndef __ASM_PMU_H
 #define __ASM_PMU_H
@@ -14,7 +14,7 @@
 #define C(_x)				PERF_COUNT_HW_CACHE_##_x
 #define CACHE_OP_UNSUPPORTED		0x0
 
-/* Enough for both software and hardware defined events */
+/* Eyesugh for both software and hardware defined events */
 #define SOFTWARE_EVENT_MASK		0xFF
 
 #define PFM_OFFSET_MAGIC_0		2	/* DO NOT START FROM 0 */
@@ -97,9 +97,9 @@ int nds32_pmu_event_set_period(struct perf_event *event);
 /*
  * Common NDS32 SPAv3 event types
  *
- * Note: An implementation may not be able to count all of these events
+ * Note: An implementation may yest be able to count all of these events
  * but the encodings are considered to be `reserved' in the case that
- * they are not available.
+ * they are yest available.
  *
  * SEL_TOTAL_CYCLES will add an offset is due to ZERO is defined as
  * NOT_SUPPORTED EVENT mapping in generic perf code.
@@ -222,7 +222,7 @@ static inline u32 get_converted_evet_hw_num(u32 event)
  * NDS32 HW events mapping
  *
  * The hardware events that we support. We do support cache operations but
- * we have harvard caches and no way to combine instruction and data
+ * we have harvard caches and yes way to combine instruction and data
  * accesses/misses in hardware.
  */
 static const unsigned int nds32_pfm_perf_map[PERF_COUNT_HW_MAX] = {
@@ -296,7 +296,7 @@ static const unsigned int nds32_pfm_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 				       [C(RESULT_MISS)] = CACHE_OP_UNSUPPORTED,
 				       },
 		   },
-	/* NDS32 PMU does not support TLB read/write hit/miss,
+	/* NDS32 PMU does yest support TLB read/write hit/miss,
 	 * However, it can count access/miss, which mixed with read and write.
 	 * Therefore, only READ counter will use it.
 	 * We do as possible as we can.

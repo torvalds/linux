@@ -4,7 +4,7 @@
  *          platforms Cherrytrail and Braswell, with nau8824 codec.
  *
  *  Copyright (C) 2018 Intel Corp
- *  Copyright (C) 2018 Nuvoton Technology Corp
+ *  Copyright (C) 2018 Nuvoton Techyeslogy Corp
  *
  *  Author: Wang, Joseph C <joequant@gmail.com>
  *  Co-author: John Hsu <KCHSU0@nuvoton.com>
@@ -147,7 +147,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	channels->min = channels->max = 2;
 
 	/* set SSP2 to 24-bit */
-	snd_mask_none(fmt);
+	snd_mask_yesne(fmt);
 	params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
 
 	return 0;
@@ -193,7 +193,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -203,7 +203,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &cht_aif1_ops,
@@ -219,7 +219,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		/* SSP2 - Codec */
 		.name = "SSP2-Codec",
 		.id = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_IB_NF
 			| SND_SOC_DAIFMT_CBS_CFS,
 		.init = cht_codec_init,

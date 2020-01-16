@@ -16,7 +16,7 @@
  * SOFTWARE.
  */
 #include <linux/mempool.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/workqueue.h>
 #include <linux/pci.h>
@@ -79,7 +79,7 @@ static const char *fcpio_status_str[] =  {
 const char *fnic_state_to_str(unsigned int state)
 {
 	if (state >= ARRAY_SIZE(fnic_state_str) || !fnic_state_str[state])
-		return "unknown";
+		return "unkyeswn";
 
 	return fnic_state_str[state];
 }
@@ -88,7 +88,7 @@ static const char *fnic_ioreq_state_to_str(unsigned int state)
 {
 	if (state >= ARRAY_SIZE(fnic_ioreq_state_str) ||
 	    !fnic_ioreq_state_str[state])
-		return "unknown";
+		return "unkyeswn";
 
 	return fnic_ioreq_state_str[state];
 }
@@ -96,7 +96,7 @@ static const char *fnic_ioreq_state_to_str(unsigned int state)
 static const char *fnic_fcpio_status_to_str(unsigned int status)
 {
 	if (status >= ARRAY_SIZE(fcpio_status_str) || !fcpio_status_str[status])
-		return "unknown";
+		return "unkyeswn";
 
 	return fcpio_status_str[status];
 }
@@ -142,7 +142,7 @@ static void fnic_release_ioreq_buf(struct fnic *fnic,
 /* Free up Copy Wq descriptors. Called with copy_wq lock held */
 static int free_wq_copy_descs(struct fnic *fnic, struct vnic_wq_copy *wq)
 {
-	/* if no Ack received from firmware, then nothing to clean */
+	/* if yes Ack received from firmware, then yesthing to clean */
 	if (!fnic->fw_ack_recd[0])
 		return 1;
 
@@ -373,7 +373,7 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 	if (unlikely(!vnic_wq_copy_desc_avail(wq))) {
 		spin_unlock_irqrestore(&fnic->wq_copy_lock[0], intr_flags);
 		FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
-			  "fnic_queue_wq_copy_desc failure - no descriptors\n");
+			  "fnic_queue_wq_copy_desc failure - yes descriptors\n");
 		atomic64_inc(&misc_stats->io_cpwq_alloc_failures);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
@@ -451,8 +451,8 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 	ret = fc_remote_port_chkready(rport);
 	if (ret) {
 		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
-				"rport is not ready\n");
-		atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
+				"rport is yest ready\n");
+		atomic64_inc(&fnic_stats->misc_stats.rport_yest_ready);
 		sc->result = ret;
 		done(sc);
 		return 0;
@@ -464,7 +464,7 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 			"rport 0x%x removed, returning DID_NO_CONNECT\n",
 			rport->port_id);
 
-		atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
+		atomic64_inc(&fnic_stats->misc_stats.rport_yest_ready);
 		sc->result = DID_NO_CONNECT<<16;
 		done(sc);
 		return 0;
@@ -506,7 +506,7 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 	/* Map the data buffer */
 	sg_count = scsi_dma_map(sc);
 	if (sg_count < 0) {
-		FNIC_TRACE(fnic_queuecommand, sc->device->host->host_no,
+		FNIC_TRACE(fnic_queuecommand, sc->device->host->host_yes,
 			  sc->request->tag, sc, 0, sc->cmnd[0],
 			  sg_count, CMD_STATE(sc));
 		mempool_free(io_req, fnic->io_req_pool);
@@ -563,10 +563,10 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 	ret = fnic_queue_wq_copy_desc(fnic, wq, io_req, sc, sg_count);
 	if (ret) {
 		/*
-		 * In case another thread cancelled the request,
+		 * In case ayesther thread cancelled the request,
 		 * refetch the pointer under the lock.
 		 */
-		FNIC_TRACE(fnic_queuecommand, sc->device->host->host_no,
+		FNIC_TRACE(fnic_queuecommand, sc->device->host->host_yes,
 			  sc->request->tag, sc, 0, 0, 0,
 			  (((u64)CMD_FLAGS(sc) << 32) | CMD_STATE(sc)));
 		io_req = (struct fnic_io_req *)CMD_SP(sc);
@@ -598,7 +598,7 @@ out:
 			(u64)sc->cmnd[3] << 16 | (u64)sc->cmnd[4] << 8 |
 			sc->cmnd[5]);
 
-	FNIC_TRACE(fnic_queuecommand, sc->device->host->host_no,
+	FNIC_TRACE(fnic_queuecommand, sc->device->host->host_yes,
 		  sc->request->tag, sc, io_req,
 		  sg_count, cmd_trace,
 		  (((u64)CMD_FLAGS(sc) >> 32) | CMD_STATE(sc)));
@@ -657,7 +657,7 @@ static int fnic_fcpio_fw_reset_cmpl_handler(struct fnic *fnic,
 				      fnic_fcpio_status_to_str(hdr_status));
 
 			/*
-			 * Unable to change to eth mode, cannot send out flogi
+			 * Unable to change to eth mode, canyest send out flogi
 			 * Change state to fc mode, so that subsequent Flogi
 			 * requests from libFC will cause more attempts to
 			 * reset the firmware. Free the cached flogi
@@ -805,7 +805,7 @@ static inline void fnic_fcpio_ack_handler(struct fnic *fnic,
 
 	spin_unlock_irqrestore(&fnic->wq_copy_lock[0], flags);
 	FNIC_TRACE(fnic_fcpio_ack_handler,
-		  fnic->lport->host->host_no, 0, 0, ox_id_tag[2], ox_id_tag[3],
+		  fnic->lport->host->host_yes, 0, 0, ox_id_tag[2], ox_id_tag[3],
 		  ox_id_tag[4], ox_id_tag[5]);
 }
 
@@ -852,7 +852,7 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 			  "hdr status = %s tag = 0x%x desc = 0x%p\n",
 			  fnic_fcpio_status_to_str(hdr_status), id, desc);
 		FNIC_TRACE(fnic_fcpio_icmnd_cmpl_handler,
-			  fnic->lport->host->host_no, id,
+			  fnic->lport->host->host_yes, id,
 			  ((u64)icmnd_cmpl->_resvd0[1] << 16 |
 			  (u64)icmnd_cmpl->_resvd0[0]),
 			  ((u64)hdr_status << 16 |
@@ -889,7 +889,7 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 
 		/*
 		 * set the FNIC_IO_DONE so that this doesn't get
-		 * flagged as 'out of order' if it was not aborted
+		 * flagged as 'out of order' if it was yest aborted
 		 */
 		CMD_FLAGS(sc) |= FNIC_IO_DONE;
 		CMD_FLAGS(sc) |= FNIC_IO_ABTS_PENDING;
@@ -950,8 +950,8 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 		sc->result = (DID_REQUEUE << 16) | icmnd_cmpl->scsi_status;
 		break;
 
-	case FCPIO_IO_NOT_FOUND:     /* requested I/O was not found */
-		atomic64_inc(&fnic_stats->io_stats.io_not_found);
+	case FCPIO_IO_NOT_FOUND:     /* requested I/O was yest found */
+		atomic64_inc(&fnic_stats->io_stats.io_yest_found);
 		sc->result = (DID_ERROR << 16) | icmnd_cmpl->scsi_status;
 		break;
 
@@ -972,7 +972,7 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 
 	case FCPIO_INVALID_HEADER:   /* header contains invalid data */
 	case FCPIO_INVALID_PARAM:    /* some parameter in request invalid */
-	case FCPIO_REQ_NOT_SUPPORTED:/* request type is not supported */
+	case FCPIO_REQ_NOT_SUPPORTED:/* request type is yest supported */
 	default:
 		sc->result = (DID_ERROR << 16) | icmnd_cmpl->scsi_status;
 		break;
@@ -1001,7 +1001,7 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 		  (u64)sc->cmnd[4] << 8 | sc->cmnd[5];
 
 	FNIC_TRACE(fnic_fcpio_icmnd_cmpl_handler,
-		  sc->device->host->host_no, id, sc,
+		  sc->device->host->host_yes, id, sc,
 		  ((u64)icmnd_cmpl->_resvd0[1] << 56 |
 		  (u64)icmnd_cmpl->_resvd0[0] << 48 |
 		  jiffies_to_msecs(jiffies - start_time)),
@@ -1137,10 +1137,10 @@ static void fnic_fcpio_itmf_cmpl_handler(struct fnic *fnic,
 			break;
 		case FCPIO_IO_NOT_FOUND:
 			if (CMD_FLAGS(sc) & FNIC_IO_ABTS_ISSUED)
-				atomic64_inc(&abts_stats->abort_io_not_found);
+				atomic64_inc(&abts_stats->abort_io_yest_found);
 			else
 				atomic64_inc(
-					&term_stats->terminate_io_not_found);
+					&term_stats->terminate_io_yest_found);
 			break;
 		default:
 			if (CMD_FLAGS(sc) & FNIC_IO_ABTS_ISSUED)
@@ -1151,7 +1151,7 @@ static void fnic_fcpio_itmf_cmpl_handler(struct fnic *fnic,
 			break;
 		}
 		if (CMD_STATE(sc) != FNIC_IOREQ_ABTS_PENDING) {
-			/* This is a late completion. Ignore it */
+			/* This is a late completion. Igyesre it */
 			spin_unlock_irqrestore(io_lock, flags);
 			return;
 		}
@@ -1159,12 +1159,12 @@ static void fnic_fcpio_itmf_cmpl_handler(struct fnic *fnic,
 		CMD_FLAGS(sc) |= FNIC_IO_ABT_TERM_DONE;
 		CMD_ABTS_STATUS(sc) = hdr_status;
 
-		/* If the status is IO not found consider it as success */
+		/* If the status is IO yest found consider it as success */
 		if (hdr_status == FCPIO_IO_NOT_FOUND)
 			CMD_ABTS_STATUS(sc) = FCPIO_SUCCESS;
 
 		if (!(CMD_FLAGS(sc) & (FNIC_IO_ABORTED | FNIC_IO_DONE)))
-			atomic64_inc(&misc_stats->no_icmnd_itmf_cmpls);
+			atomic64_inc(&misc_stats->yes_icmnd_itmf_cmpls);
 
 		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
 			      "abts cmpl recd. id %d status %s\n",
@@ -1191,7 +1191,7 @@ static void fnic_fcpio_itmf_cmpl_handler(struct fnic *fnic,
 			mempool_free(io_req, fnic->io_req_pool);
 			if (sc->scsi_done) {
 				FNIC_TRACE(fnic_fcpio_itmf_cmpl_handler,
-					sc->device->host->host_no, id,
+					sc->device->host->host_yes, id,
 					sc,
 					jiffies_to_msecs(jiffies - start_time),
 					desc,
@@ -1218,7 +1218,7 @@ static void fnic_fcpio_itmf_cmpl_handler(struct fnic *fnic,
 			spin_unlock_irqrestore(io_lock, flags);
 			CMD_FLAGS(sc) |= FNIC_DEV_RST_ABTS_PENDING;
 			FNIC_TRACE(fnic_fcpio_itmf_cmpl_handler,
-				  sc->device->host->host_no, id, sc,
+				  sc->device->host->host_yes, id, sc,
 				  jiffies_to_msecs(jiffies - start_time),
 				  desc, 0,
 				  (((u64)CMD_FLAGS(sc) << 32) | CMD_STATE(sc)));
@@ -1233,7 +1233,7 @@ static void fnic_fcpio_itmf_cmpl_handler(struct fnic *fnic,
 			/* Need to wait for terminate completion */
 			spin_unlock_irqrestore(io_lock, flags);
 			FNIC_TRACE(fnic_fcpio_itmf_cmpl_handler,
-				  sc->device->host->host_no, id, sc,
+				  sc->device->host->host_yes, id, sc,
 				  jiffies_to_msecs(jiffies - start_time),
 				  desc, 0,
 				  (((u64)CMD_FLAGS(sc) << 32) | CMD_STATE(sc)));
@@ -1429,11 +1429,11 @@ cleanup_scsi_cmd:
 		if (sc->scsi_done) {
 			if (!(CMD_FLAGS(sc) & FNIC_IO_ISSUED))
 				shost_printk(KERN_ERR, fnic->lport->host,
-				"Calling done for IO not issued to fw: tag:0x%x sc:0x%p\n",
+				"Calling done for IO yest issued to fw: tag:0x%x sc:0x%p\n",
 				 sc->request->tag, sc);
 
 			FNIC_TRACE(fnic_cleanup_io,
-				  sc->device->host->host_no, i, sc,
+				  sc->device->host->host_yes, i, sc,
 				  jiffies_to_msecs(jiffies - start_time),
 				  0, ((u64)sc->cmnd[0] << 32 |
 				  (u64)sc->cmnd[2] << 24 |
@@ -1474,7 +1474,7 @@ void fnic_wq_copy_cleanup_handler(struct vnic_wq_copy *wq,
 	/* Get the IO context which this desc refers to */
 	io_req = (struct fnic_io_req *)CMD_SP(sc);
 
-	/* fnic interrupts are turned off by now */
+	/* fnic interrupts are turned off by yesw */
 
 	if (!io_req) {
 		spin_unlock_irqrestore(io_lock, flags);
@@ -1496,7 +1496,7 @@ wq_copy_cleanup_scsi_cmd:
 
 	if (sc->scsi_done) {
 		FNIC_TRACE(fnic_wq_copy_cleanup_handler,
-			  sc->device->host->host_no, id, sc,
+			  sc->device->host->host_yes, id, sc,
 			  jiffies_to_msecs(jiffies - start_time),
 			  0, ((u64)sc->cmnd[0] << 32 |
 			  (u64)sc->cmnd[2] << 24 | (u64)sc->cmnd[3] << 16 |
@@ -1534,7 +1534,7 @@ static inline int fnic_queue_abort_io_req(struct fnic *fnic, int tag,
 		spin_unlock_irqrestore(&fnic->wq_copy_lock[0], flags);
 		atomic_dec(&fnic->in_flight);
 		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
-			"fnic_queue_abort_io_req: failure: no descriptors\n");
+			"fnic_queue_abort_io_req: failure: yes descriptors\n");
 		atomic64_inc(&misc_stats->abts_cpwq_alloc_failures);
 		return 1;
 	}
@@ -1596,7 +1596,7 @@ static void fnic_rport_exch_reset(struct fnic *fnic, u32 port_id)
 		if ((CMD_FLAGS(sc) & FNIC_DEVICE_RESET) &&
 			(!(CMD_FLAGS(sc) & FNIC_DEV_RST_ISSUED))) {
 			FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
-			"fnic_rport_exch_reset dev rst not pending sc 0x%p\n",
+			"fnic_rport_exch_reset dev rst yest pending sc 0x%p\n",
 			sc);
 			spin_unlock_irqrestore(io_lock, flags);
 			continue;
@@ -1620,7 +1620,7 @@ static void fnic_rport_exch_reset(struct fnic *fnic, u32 port_id)
 		if (!(CMD_FLAGS(sc) & FNIC_IO_ISSUED)) {
 			shost_printk(KERN_ERR, fnic->lport->host,
 				  "rport_exch_reset "
-				  "IO not yet issued %p tag 0x%x flags "
+				  "IO yest yet issued %p tag 0x%x flags "
 				  "%x state %d\n",
 				  sc, tag, CMD_FLAGS(sc), CMD_STATE(sc));
 		}
@@ -1712,7 +1712,7 @@ void fnic_terminate_rport_io(struct fc_rport *rport)
 	FNIC_SCSI_DBG(KERN_DEBUG,
 		      fnic->lport->host, "fnic_terminate_rport_io called"
 		      " wwpn 0x%llx, wwnn0x%llx, rport 0x%p, portid 0x%06x\n",
-		      rport->port_name, rport->node_name, rport,
+		      rport->port_name, rport->yesde_name, rport,
 		      rport->port_id);
 
 	if (fnic->in_remove)
@@ -1747,7 +1747,7 @@ void fnic_terminate_rport_io(struct fc_rport *rport)
 		if ((CMD_FLAGS(sc) & FNIC_DEVICE_RESET) &&
 			(!(CMD_FLAGS(sc) & FNIC_DEV_RST_ISSUED))) {
 			FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
-			"fnic_terminate_rport_io dev rst not pending sc 0x%p\n",
+			"fnic_terminate_rport_io dev rst yest pending sc 0x%p\n",
 			sc);
 			spin_unlock_irqrestore(io_lock, flags);
 			continue;
@@ -1769,7 +1769,7 @@ void fnic_terminate_rport_io(struct fc_rport *rport)
 		if (!(CMD_FLAGS(sc) & FNIC_IO_ISSUED)) {
 			FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
 				  "fnic_terminate_rport_io "
-				  "IO not yet issued %p tag 0x%x flags "
+				  "IO yest yet issued %p tag 0x%x flags "
 				  "%x state %d\n",
 				  sc, tag, CMD_FLAGS(sc), CMD_STATE(sc));
 		}
@@ -1883,7 +1883,7 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	 * happened, the completion wont actually complete the command
 	 * and it will be considered as an aborted command
 	 *
-	 * The CMD_SP will not be cleared except while holding io_req_lock.
+	 * The CMD_SP will yest be cleared except while holding io_req_lock.
 	 */
 	io_lock = fnic_io_lock_hash(fnic, sc);
 	spin_lock_irqsave(io_lock, flags);
@@ -1938,7 +1938,7 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	if (fc_remote_port_chkready(rport) == 0)
 		task_req = FCPIO_ITMF_ABT_TASK;
 	else {
-		atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
+		atomic64_inc(&fnic_stats->misc_stats.rport_yest_ready);
 		task_req = FCPIO_ITMF_ABT_TASK_TERM;
 	}
 
@@ -1989,7 +1989,7 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	}
 	io_req->abts_done = NULL;
 
-	/* fw did not complete abort, timed out */
+	/* fw did yest complete abort, timed out */
 	if (CMD_ABTS_STATUS(sc) == FCPIO_INVALID_CODE) {
 		spin_unlock_irqrestore(io_lock, flags);
 		if (task_req == FCPIO_ITMF_ABT_TASK) {
@@ -2046,7 +2046,7 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	}
 
 fnic_abort_cmd_end:
-	FNIC_TRACE(fnic_abort_cmd, sc->device->host->host_no,
+	FNIC_TRACE(fnic_abort_cmd, sc->device->host->host_yes,
 		  sc->request->tag, sc,
 		  jiffies_to_msecs(jiffies - start_time),
 		  0, ((u64)sc->cmnd[0] << 32 |
@@ -2088,7 +2088,7 @@ static inline int fnic_queue_dr_io_req(struct fnic *fnic,
 
 	if (!vnic_wq_copy_desc_avail(wq)) {
 		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
-			  "queue_dr_io_req failure - no descriptors\n");
+			  "queue_dr_io_req failure - yes descriptors\n");
 		atomic64_inc(&misc_stats->devrst_cpwq_alloc_failures);
 		ret = -EAGAIN;
 		goto lr_io_req_end;
@@ -2117,7 +2117,7 @@ lr_io_req_end:
 
 /*
  * Clean up any pending aborts on the lun
- * For each outstanding IO on this lun, whose abort is not completed by fw,
+ * For each outstanding IO on this lun, whose abort is yest completed by fw,
  * issue a local abort. Wait for abort to complete. Return 0 if all commands
  * successfully aborted, 1 otherwise
  */
@@ -2142,8 +2142,8 @@ static int fnic_clean_pending_aborts(struct fnic *fnic,
 		spin_lock_irqsave(io_lock, flags);
 		sc = scsi_host_find_tag(fnic->lport->host, tag);
 		/*
-		 * ignore this lun reset cmd if issued using new SC
-		 * or cmds that do not belong to this lun
+		 * igyesre this lun reset cmd if issued using new SC
+		 * or cmds that do yest belong to this lun
 		 */
 		if (!sc || ((sc == lr_sc) && new_sc) || sc->device != lun_dev) {
 			spin_unlock_irqrestore(io_lock, flags);
@@ -2172,7 +2172,7 @@ static int fnic_clean_pending_aborts(struct fnic *fnic,
 		if ((CMD_FLAGS(sc) & FNIC_DEVICE_RESET) &&
 			(!(CMD_FLAGS(sc) & FNIC_DEV_RST_ISSUED))) {
 			FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
-				"%s dev rst not pending sc 0x%p\n", __func__,
+				"%s dev rst yest pending sc 0x%p\n", __func__,
 				sc);
 			spin_unlock_irqrestore(io_lock, flags);
 			continue;
@@ -2185,7 +2185,7 @@ static int fnic_clean_pending_aborts(struct fnic *fnic,
 		old_ioreq_state = CMD_STATE(sc);
 		/*
 		 * Any pending IO issued prior to reset is expected to be
-		 * in abts pending state, if not we need to set
+		 * in abts pending state, if yest we need to set
 		 * FNIC_IOREQ_ABTS_PENDING to indicate the IO is abort pending.
 		 * When IO is completed, the IO will be handed over and
 		 * handled in this function.
@@ -2232,7 +2232,7 @@ static int fnic_clean_pending_aborts(struct fnic *fnic,
 					    msecs_to_jiffies
 					    (fnic->config.ed_tov));
 
-		/* Recheck cmd state to check if it is now aborted */
+		/* Recheck cmd state to check if it is yesw aborted */
 		spin_lock_irqsave(io_lock, flags);
 		io_req = (struct fnic_io_req *)CMD_SP(sc);
 		if (!io_req) {
@@ -2362,12 +2362,12 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 
 	/* Check if remote port up */
 	if (fc_remote_port_chkready(rport)) {
-		atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
+		atomic64_inc(&fnic_stats->misc_stats.rport_yest_ready);
 		goto fnic_device_reset_end;
 	}
 
 	CMD_FLAGS(sc) = FNIC_DEVICE_RESET;
-	/* Allocate tag if not present */
+	/* Allocate tag if yest present */
 
 	tag = sc->request->tag;
 	if (unlikely(tag < 0)) {
@@ -2423,7 +2423,7 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 
 	/*
 	 * Wait on the local completion for LUN reset.  The io_req may be
-	 * freed while we wait since we hold no lock.
+	 * freed while we wait since we hold yes lock.
 	 */
 	wait_for_completion_timeout(&tm_done,
 				    msecs_to_jiffies(FNIC_LUN_RESET_TIMEOUT));
@@ -2441,7 +2441,7 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 	status = CMD_LR_STATUS(sc);
 
 	/*
-	 * If lun reset not completed, bail out with failed. io_req
+	 * If lun reset yest completed, bail out with failed. io_req
 	 * gets cleaned up during higher levels of EH
 	 */
 	if (status == FCPIO_INVALID_CODE) {
@@ -2497,7 +2497,7 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 		spin_unlock_irqrestore(io_lock, flags);
 	}
 
-	/* Completed, but not successful, clean up the io_req, return fail */
+	/* Completed, but yest successful, clean up the io_req, return fail */
 	if (status != FCPIO_SUCCESS) {
 		spin_lock_irqsave(io_lock, flags);
 		FNIC_SCSI_DBG(KERN_DEBUG,
@@ -2508,7 +2508,7 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 	}
 
 	/*
-	 * Clean up any aborts on this lun that have still not
+	 * Clean up any aborts on this lun that have still yest
 	 * completed. If any of these fail, then LUN reset fails.
 	 * clean_pending_aborts cleans all cmds on this lun except
 	 * the lun reset cmd. If all cmds get cleaned, the lun reset
@@ -2519,7 +2519,7 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 		io_req = (struct fnic_io_req *)CMD_SP(sc);
 		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
 			      "Device reset failed"
-			      " since could not abort all IOs\n");
+			      " since could yest abort all IOs\n");
 		goto fnic_device_reset_clean;
 	}
 
@@ -2543,7 +2543,7 @@ fnic_device_reset_clean:
 	}
 
 fnic_device_reset_end:
-	FNIC_TRACE(fnic_device_reset, sc->device->host->host_no,
+	FNIC_TRACE(fnic_device_reset, sc->device->host->host_yes,
 		  sc->request->tag, sc,
 		  jiffies_to_msecs(jiffies - start_time),
 		  0, ((u64)sc->cmnd[0] << 32 |
@@ -2626,7 +2626,7 @@ int fnic_host_reset(struct scsi_cmnd *sc)
 	} else {
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
-			"host reset in progress skipping another host reset\n");
+			"host reset in progress skipping ayesther host reset\n");
 		return SUCCESS;
 	}
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
@@ -2747,7 +2747,7 @@ void fnic_exch_mgr_reset(struct fc_lport *lp, u32 sid, u32 did)
 {
 	struct fnic *fnic = lport_priv(lp);
 
-	/* Non-zero sid, nothing to do */
+	/* Non-zero sid, yesthing to do */
 	if (sid)
 		goto call_fc_exch_mgr_reset;
 
@@ -2775,7 +2775,7 @@ call_fc_exch_mgr_reset:
  * fnic_is_abts_pending() is a helper function that
  * walks through tag map to check if there is any IOs pending,if there is one,
  * then it returns 1 (true), otherwise 0 (false)
- * if @lr_sc is non NULL, then it checks IOs specific to particular LUN,
+ * if @lr_sc is yesn NULL, then it checks IOs specific to particular LUN,
  * otherwise, it checks for all IOs.
  */
 int fnic_is_abts_pending(struct fnic *fnic, struct scsi_cmnd *lr_sc)
@@ -2795,7 +2795,7 @@ int fnic_is_abts_pending(struct fnic *fnic, struct scsi_cmnd *lr_sc)
 	for (tag = 0; tag < fnic->fnic_max_tag_id; tag++) {
 		sc = scsi_host_find_tag(fnic->lport->host, tag);
 		/*
-		 * ignore this lun reset cmd or cmds that do not belong to
+		 * igyesre this lun reset cmd or cmds that do yest belong to
 		 * this lun
 		 */
 		if (!sc || (lr_sc && (sc->device != lun_dev || sc == lr_sc)))

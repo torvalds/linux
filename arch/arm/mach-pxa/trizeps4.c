@@ -317,7 +317,7 @@ static void board_backlight_power(int on)
 	BCR_writew(trizeps_conxs_bcr);
 }
 
-/* a I2C based RTC is known on CONXS board */
+/* a I2C based RTC is kyeswn on CONXS board */
 static struct i2c_board_info trizeps4_i2c_devices[] __initdata = {
 	{ I2C_BOARD_INFO("rtc-pcf8593", 0x51) }
 };
@@ -350,8 +350,8 @@ static struct pxamci_platform_data trizeps4_mci_platform_data = {
 	.detect_delay_ms= 10,
 	.init 		= trizeps4_mci_init,
 	.exit		= trizeps4_mci_exit,
-	.get_ro		= NULL,	/* write-protection not supported */
-	.setpower 	= NULL,	/* power-switching not supported */
+	.get_ro		= NULL,	/* write-protection yest supported */
+	.setpower 	= NULL,	/* power-switching yest supported */
 };
 
 /****************************************************************************
@@ -510,7 +510,7 @@ static void __init trizeps4_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	if (0)	/* dont know how to determine LCD */
+	if (0)	/* dont kyesw how to determine LCD */
 		pxa_set_fb_info(NULL, &sharp_lcd);
 	else
 		pxa_set_fb_info(NULL, &toshiba_lcd);

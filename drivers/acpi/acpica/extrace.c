@@ -51,10 +51,10 @@ static u8 acpi_ex_interpreter_trace_enabled(char *name)
 	 *
 	 * 1. If the tracer is started, acpi_gbl_trace_method_object should have
 	 *    been filled by the trace starter
-	 * 2. If the tracer is not started, acpi_gbl_trace_method_name should be
+	 * 2. If the tracer is yest started, acpi_gbl_trace_method_name should be
 	 *    matched if it is specified
 	 * 3. If the tracer is oneshot style, acpi_gbl_trace_method_name should
-	 *    not be cleared by the trace stopper during the first match
+	 *    yest be cleared by the trace stopper during the first match
 	 */
 	if (acpi_gbl_trace_method_object) {
 		return (TRUE);
@@ -151,9 +151,9 @@ acpi_ex_trace_point(acpi_trace_event_type type,
  *
  * FUNCTION:    acpi_ex_start_trace_method
  *
- * PARAMETERS:  method_node         - Node of the method
+ * PARAMETERS:  method_yesde         - Node of the method
  *              obj_desc            - The method object
- *              walk_state          - current state, NULL if not yet executing
+ *              walk_state          - current state, NULL if yest yet executing
  *                                    a method.
  *
  * RETURN:      None
@@ -163,7 +163,7 @@ acpi_ex_trace_point(acpi_trace_event_type type,
  ******************************************************************************/
 
 void
-acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
+acpi_ex_start_trace_method(struct acpi_namespace_yesde *method_yesde,
 			   union acpi_operand_object *obj_desc,
 			   struct acpi_walk_state *walk_state)
 {
@@ -172,8 +172,8 @@ acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
 
 	ACPI_FUNCTION_NAME(ex_start_trace_method);
 
-	if (method_node) {
-		pathname = acpi_ns_get_normalized_pathname(method_node, TRUE);
+	if (method_yesde) {
+		pathname = acpi_ns_get_yesrmalized_pathname(method_yesde, TRUE);
 	}
 
 	enabled = acpi_ex_interpreter_trace_enabled(pathname);
@@ -208,9 +208,9 @@ acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
  *
  * FUNCTION:    acpi_ex_stop_trace_method
  *
- * PARAMETERS:  method_node         - Node of the method
+ * PARAMETERS:  method_yesde         - Node of the method
  *              obj_desc            - The method object
- *              walk_state          - current state, NULL if not yet executing
+ *              walk_state          - current state, NULL if yest yet executing
  *                                    a method.
  *
  * RETURN:      None
@@ -220,7 +220,7 @@ acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
  ******************************************************************************/
 
 void
-acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
+acpi_ex_stop_trace_method(struct acpi_namespace_yesde *method_yesde,
 			  union acpi_operand_object *obj_desc,
 			  struct acpi_walk_state *walk_state)
 {
@@ -229,8 +229,8 @@ acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
 
 	ACPI_FUNCTION_NAME(ex_stop_trace_method);
 
-	if (method_node) {
-		pathname = acpi_ns_get_normalized_pathname(method_node, TRUE);
+	if (method_yesde) {
+		pathname = acpi_ns_get_yesrmalized_pathname(method_yesde, TRUE);
 	}
 
 	enabled = acpi_ex_interpreter_trace_enabled(NULL);
@@ -266,7 +266,7 @@ acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
  * FUNCTION:    acpi_ex_start_trace_opcode
  *
  * PARAMETERS:  op                  - The parser opcode object
- *              walk_state          - current state, NULL if not yet executing
+ *              walk_state          - current state, NULL if yest yet executing
  *                                    a method.
  *
  * RETURN:      None
@@ -294,7 +294,7 @@ acpi_ex_start_trace_opcode(union acpi_parse_object *op,
  * FUNCTION:    acpi_ex_stop_trace_opcode
  *
  * PARAMETERS:  op                  - The parser opcode object
- *              walk_state          - current state, NULL if not yet executing
+ *              walk_state          - current state, NULL if yest yet executing
  *                                    a method.
  *
  * RETURN:      None

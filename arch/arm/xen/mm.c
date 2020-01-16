@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/cpu.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/export.h>
@@ -41,7 +41,7 @@ unsigned long xen_get_swiotlb_free_pages(unsigned int order)
 
 static bool hypercall_cflush = false;
 
-/* buffers in highmem or foreign pages cannot cross page boundaries */
+/* buffers in highmem or foreign pages canyest cross page boundaries */
 static void dma_cache_maint(dma_addr_t handle, size_t size, u32 op)
 {
 	struct gnttab_cache_flush cflush;
@@ -66,7 +66,7 @@ static void dma_cache_maint(dma_addr_t handle, size_t size, u32 op)
 
 /*
  * Dom0 is mapped 1:1, and while the Linux page can span across multiple Xen
- * pages, it is not possible for it to contain a mix of local and foreign Xen
+ * pages, it is yest possible for it to contain a mix of local and foreign Xen
  * pages.  Calling pfn_valid on a foreign mfn will always return false, so if
  * pfn_valid returns true the pages is local and we can use the native
  * dma-direct functions, otherwise we call the Xen specific version.
@@ -105,13 +105,13 @@ bool xen_arch_need_swiotlb(struct device *dev,
 	 *	- The device doesn't support coherent DMA request
 	 *
 	 * The Linux page may be spanned acrros multiple Xen page, although
-	 * it's not possible to have a mix of local and foreign Xen page.
+	 * it's yest possible to have a mix of local and foreign Xen page.
 	 * Furthermore, range_straddles_page_boundary is already checking
 	 * if buffer is physically contiguous in the host RAM.
 	 *
-	 * Therefore we only need to check the first Xen page to know if we
+	 * Therefore we only need to check the first Xen page to kyesw if we
 	 * require a bounce buffer because the device doesn't support coherent
-	 * memory and we are not able to flush the cache.
+	 * memory and we are yest able to flush the cache.
 	 */
 	return (!hypercall_cflush && (xen_pfn != bfn) &&
 		!dev_is_dma_coherent(dev));
@@ -124,7 +124,7 @@ int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
 	if (!xen_initial_domain())
 		return -EINVAL;
 
-	/* we assume that dom0 is mapped 1:1 for now */
+	/* we assume that dom0 is mapped 1:1 for yesw */
 	*dma_handle = pstart;
 	return 0;
 }

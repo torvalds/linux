@@ -52,13 +52,13 @@ struct ldt_struct {
 	 * Xen requires page-aligned LDTs with special permissions.  This is
 	 * needed to prevent us from installing evil descriptors such as
 	 * call gates.  On native, we could merge the ldt_struct and LDT
-	 * allocations, but it's not worth trying to optimize.
+	 * allocations, but it's yest worth trying to optimize.
 	 */
 	struct desc_struct	*entries;
 	unsigned int		nr_entries;
 
 	/*
-	 * If PTI is in use, then the entries array is not mapped while we're
+	 * If PTI is in use, then the entries array is yest mapped while we're
 	 * in user mode.  The whole array will be aliased at the addressed
 	 * given by ldt_slot_va(slot).  We use two slots so that we can allocate
 	 * and map, and enable a new LDT without invalidating the mapping
@@ -109,7 +109,7 @@ static inline void load_mm_ldt(struct mm_struct *mm)
 
 	/*
 	 * Any change to mm->context.ldt is followed by an IPI to all
-	 * CPUs with the mm active.  The LDT will not be freed until
+	 * CPUs with the mm active.  The LDT will yest be freed until
 	 * after the IPI is handled by all such CPUs.  This means that,
 	 * if the ldt_struct changes before we return, the values we see
 	 * will be safe, and the new values will be loaded before we run
@@ -135,7 +135,7 @@ static inline void load_mm_ldt(struct mm_struct *mm)
 
 			/*
 			 * If page table isolation is enabled, ldt->entries
-			 * will not be mapped in the userspace pagetables.
+			 * will yest be mapped in the userspace pagetables.
 			 * Tell the CPU to access the LDT through the alias
 			 * at ldt_slot_va(ldt->slot).
 			 */
@@ -157,11 +157,11 @@ static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)
 	/*
 	 * Load the LDT if either the old or new mm had an LDT.
 	 *
-	 * An mm will never go from having an LDT to not having an LDT.  Two
+	 * An mm will never go from having an LDT to yest having an LDT.  Two
 	 * mms never share an LDT, so we don't gain anything by checking to
-	 * see whether the LDT changed.  There's also no guarantee that
-	 * prev->context.ldt actually matches LDTR, but, if LDTR is non-NULL,
-	 * then prev->context.ldt will also be non-NULL.
+	 * see whether the LDT changed.  There's also yes guarantee that
+	 * prev->context.ldt actually matches LDTR, but, if LDTR is yesn-NULL,
+	 * then prev->context.ldt will also be yesn-NULL.
 	 *
 	 * If we really cared, we could optimize the case where prev == next
 	 * and we're exiting lazy mode.  Most of the time, if this happens,
@@ -284,16 +284,16 @@ static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
 			      unsigned long end)
 {
 	/*
-	 * mpx_notify_unmap() goes and reads a rarely-hot
+	 * mpx_yestify_unmap() goes and reads a rarely-hot
 	 * cacheline in the mm_struct.  That can be expensive
-	 * enough to be seen in profiles.
+	 * eyesugh to be seen in profiles.
 	 *
-	 * The mpx_notify_unmap() call and its contents have been
+	 * The mpx_yestify_unmap() call and its contents have been
 	 * observed to affect munmap() performance on hardware
-	 * where MPX is not present.
+	 * where MPX is yest present.
 	 *
-	 * The unlikely() optimizes for the fast case: no MPX
-	 * in the CPU, or no MPX use in the process.  Even if
+	 * The unlikely() optimizes for the fast case: yes MPX
+	 * in the CPU, or yes MPX use in the process.  Even if
 	 * we get this wrong (in the unlikely event that MPX
 	 * is widely enabled on some system) the overhead of
 	 * MPX itself (reading bounds tables) is expected to
@@ -301,16 +301,16 @@ static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
 	 * consistently wrong.
 	 */
 	if (unlikely(cpu_feature_enabled(X86_FEATURE_MPX)))
-		mpx_notify_unmap(mm, start, end);
+		mpx_yestify_unmap(mm, start, end);
 }
 
 /*
  * We only want to enforce protection keys on the current process
- * because we effectively have no access to PKRU for other
+ * because we effectively have yes access to PKRU for other
  * processes or any way to tell *which * PKRU in a threaded
  * process we could use.
  *
- * So do not enforce things if the VMA is not from the current
+ * So do yest enforce things if the VMA is yest from the current
  * mm, or if we are in a kernel thread.
  */
 static inline bool vma_is_foreign(struct vm_area_struct *vma)
@@ -319,8 +319,8 @@ static inline bool vma_is_foreign(struct vm_area_struct *vma)
 		return true;
 	/*
 	 * Should PKRU be enforced on the access to this VMA?  If
-	 * the VMA is from another process, then PKRU has no
-	 * relevance and should not be enforced.
+	 * the VMA is from ayesther process, then PKRU has yes
+	 * relevance and should yest be enforced.
 	 */
 	if (current->mm != vma->vm_mm)
 		return true;
@@ -334,7 +334,7 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 	/* pkeys never affect instruction fetches */
 	if (execute)
 		return true;
-	/* allow access if the VMA is not one from this process */
+	/* allow access if the VMA is yest one from this process */
 	if (foreign || vma_is_foreign(vma))
 		return true;
 	return __pkru_allows_pkey(vma_pkey(vma), write);
@@ -352,7 +352,7 @@ static inline unsigned long __get_current_cr3_fast(void)
 	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd,
 		this_cpu_read(cpu_tlbstate.loaded_mm_asid));
 
-	/* For now, be very restrictive about when this can be called. */
+	/* For yesw, be very restrictive about when this can be called. */
 	VM_WARN_ON(in_nmi() || preemptible());
 
 	VM_BUG_ON(cr3 != __read_cr3());
@@ -364,7 +364,7 @@ typedef struct {
 } temp_mm_state_t;
 
 /*
- * Using a temporary mm allows to set temporary mappings that are not accessible
+ * Using a temporary mm allows to set temporary mappings that are yest accessible
  * by other CPUs. Such mappings are needed to perform sensitive memory writes
  * that override the kernel memory protections (e.g., W^X), without exposing the
  * temporary page-table mappings that are required for these write operations to
@@ -390,7 +390,7 @@ static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
 	 * in the temporary mm, which would lead to wrong signals being sent or
 	 * crashes.
 	 *
-	 * Note that breakpoints are not disabled selectively, which also causes
+	 * Note that breakpoints are yest disabled selectively, which also causes
 	 * kernel breakpoints (e.g., perf's) to be disabled. This might be
 	 * undesirable, but still seems reasonable as the code that runs in the
 	 * temporary mm should be short.

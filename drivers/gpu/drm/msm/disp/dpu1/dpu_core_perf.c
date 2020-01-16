@@ -5,7 +5,7 @@
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mutex.h>
 #include <linux/sort.h>
 #include <linux/clk.h>
@@ -155,7 +155,7 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 		if (!dpu_cstate->bw_control) {
 			DPU_DEBUG("bypass bandwidth check\n");
 		} else if (!threshold) {
-			DPU_ERROR("no bandwidth limits specified\n");
+			DPU_ERROR("yes bandwidth limits specified\n");
 			return -E2BIG;
 		} else if (bw > threshold) {
 			DPU_ERROR("exceeds bandwidth: %ukb > %ukb\n", bw,
@@ -198,7 +198,7 @@ static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
  * @crtc - pointer to a crtc
  *
  * Function checks a state variable for the crtc, if all pending commit
- * requests are done, meaning no more bandwidth is needed, release
+ * requests are done, meaning yes more bandwidth is needed, release
  * bandwidth request.
  */
 void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc)
@@ -395,7 +395,7 @@ static ssize_t _dpu_core_perf_mode_write(struct file *file,
 		/* reset the perf tune params to 0 */
 		perf->perf_tune.min_core_clk = 0;
 		perf->perf_tune.min_bus_vote = 0;
-		DRM_INFO("normal performance mode\n");
+		DRM_INFO("yesrmal performance mode\n");
 	}
 	perf->perf_tune.mode = perf_mode;
 

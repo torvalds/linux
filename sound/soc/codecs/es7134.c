@@ -9,7 +9,7 @@
 #include <sound/soc.h>
 
 /*
- * The everest 7134 is a very simple DA converter with no register
+ * The everest 7134 is a very simple DA converter with yes register
  */
 
 struct es7134_clock_mode {
@@ -57,7 +57,7 @@ static int es7134_check_mclk(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	/* should not happen */
+	/* should yest happen */
 	dev_err(dai->dev, "unsupported rate: %u\n", rate);
 	return -EINVAL;
 }
@@ -68,7 +68,7 @@ static int es7134_hw_params(struct snd_pcm_substream *substream,
 {
 	struct es7134_data *priv = snd_soc_dai_get_drvdata(dai);
 
-	/* mclk has not been provided, assume it is OK */
+	/* mclk has yest been provided, assume it is OK */
 	if (!priv->mclk)
 		return 0;
 
@@ -213,7 +213,7 @@ static const struct snd_soc_component_driver es7134_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static struct snd_soc_dai_driver es7154_dai = {

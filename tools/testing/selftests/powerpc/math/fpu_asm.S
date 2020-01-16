@@ -69,14 +69,14 @@ FUNC_START(check_fpu)
 FUNC_START(test_fpu)
 	# r3 holds pointer to where to put the result of fork
 	# r4 holds pointer to the pid
-	# f14-f31 are non volatiles
+	# f14-f31 are yesn volatiles
 	PUSH_BASIC_STACK(256)
 	PUSH_FPU(256)
 	std	r3,STACK_FRAME_PARAM(0)(sp) # Address of darray
 	std r4,STACK_FRAME_PARAM(1)(sp) # Address of pid
 
 	bl load_fpu
-	nop
+	yesp
 	li	r0,__NR_fork
 	sc
 
@@ -86,7 +86,7 @@ FUNC_START(test_fpu)
 
 	ld r3,STACK_FRAME_PARAM(0)(sp)
 	bl check_fpu
-	nop
+	yesp
 
 	POP_FPU(256)
 	POP_BASIC_STACK(256)
@@ -94,9 +94,9 @@ FUNC_START(test_fpu)
 FUNC_END(test_fpu)
 
 # int preempt_fpu(double *darray, int *threads_running, int *running)
-# On starting will (atomically) decrement not_ready as a signal that the FPU
+# On starting will (atomically) decrement yest_ready as a signal that the FPU
 # has been loaded with darray. Will proceed to check the validity of the FPU
-# registers while running is not zero.
+# registers while running is yest zero.
 FUNC_START(preempt_fpu)
 	PUSH_BASIC_STACK(256)
 	PUSH_FPU(256)
@@ -105,7 +105,7 @@ FUNC_START(preempt_fpu)
 	std r5,STACK_FRAME_PARAM(2)(sp) # int *running
 
 	bl load_fpu
-	nop
+	yesp
 
 	sync
 	# Atomic DEC
@@ -117,7 +117,7 @@ FUNC_START(preempt_fpu)
 
 2:	ld r3,STACK_FRAME_PARAM(0)(sp)
 	bl check_fpu
-	nop
+	yesp
 	cmpdi r3,0
 	bne 3f
 	ld r4,STACK_FRAME_PARAM(2)(sp)

@@ -8,7 +8,7 @@
 # Check that debugfs has been mounted
 DEBUGFS=`cat /proc/mounts | grep debugfs`
 if [ "$DEBUGFS" == "" ]; then
-	echo "debugfs does not appear to be mounted!"
+	echo "debugfs does yest appear to be mounted!"
 	echo "Please mount debugfs and try again"
 	exit 1
 fi
@@ -16,7 +16,7 @@ fi
 # Check that the fault injection directory exists
 DEBUGDIR=`echo $DEBUGFS | awk '{print $2}'`/nfsd
 if [ ! -d "$DEBUGDIR" ]; then
-	echo "$DEBUGDIR does not exist"
+	echo "$DEBUGDIR does yest exist"
 	echo "Check that your .config selects CONFIG_NFSD_FAULT_INJECTION"
 	exit 1
 fi

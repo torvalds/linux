@@ -12,7 +12,7 @@
  *
  *  Coding optimized and cleaned up by Florian La Roche.
  *  Note: Error returns are optimized for NFS_OK, which isn't translated via
- *  nfs_stat_to_errno(), but happens to be already the right return code.
+ *  nfs_stat_to_erryes(), but happens to be already the right return code.
  *
  *  Also, the code currently doesn't check the size of the packet, when
  *  it decodes the packet.
@@ -32,7 +32,7 @@
 #include <linux/param.h>
 #include <linux/time.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/in.h>
 #include <linux/pagemap.h>
@@ -100,7 +100,7 @@ nfs_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 static int
 nfs_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 		struct nfs_fattr *fattr, struct nfs4_label *label,
-		struct inode *inode)
+		struct iyesde *iyesde)
 {
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs_procedures[NFSPROC_GETATTR],
@@ -120,9 +120,9 @@ static int
 nfs_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 		 struct iattr *sattr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 	struct nfs_sattrargs	arg = { 
-		.fh	= NFS_FH(inode),
+		.fh	= NFS_FH(iyesde),
 		.sattr	= sattr
 	};
 	struct rpc_message msg = {
@@ -132,22 +132,22 @@ nfs_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	};
 	int	status;
 
-	/* Mask out the non-modebit related stuff from attr->ia_mode */
+	/* Mask out the yesn-modebit related stuff from attr->ia_mode */
 	sattr->ia_mode &= S_IALLUGO;
 
 	dprintk("NFS call  setattr\n");
 	if (sattr->ia_valid & ATTR_FILE)
 		msg.rpc_cred = nfs_file_cred(sattr->ia_file);
 	nfs_fattr_init(fattr);
-	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
+	status = rpc_call_sync(NFS_CLIENT(iyesde), &msg, 0);
 	if (status == 0)
-		nfs_setattr_update_inode(inode, sattr, fattr);
+		nfs_setattr_update_iyesde(iyesde, sattr, fattr);
 	dprintk("NFS reply setattr: %d\n", status);
 	return status;
 }
 
 static int
-nfs_proc_lookup(struct inode *dir, const struct qstr *name,
+nfs_proc_lookup(struct iyesde *dir, const struct qstr *name,
 		struct nfs_fh *fhandle, struct nfs_fattr *fattr,
 		struct nfs4_label *label)
 {
@@ -174,11 +174,11 @@ nfs_proc_lookup(struct inode *dir, const struct qstr *name,
 	return status;
 }
 
-static int nfs_proc_readlink(struct inode *inode, struct page *page,
+static int nfs_proc_readlink(struct iyesde *iyesde, struct page *page,
 		unsigned int pgbase, unsigned int pglen)
 {
 	struct nfs_readlinkargs	args = {
-		.fh		= NFS_FH(inode),
+		.fh		= NFS_FH(iyesde),
 		.pgbase		= pgbase,
 		.pglen		= pglen,
 		.pages		= &page
@@ -190,7 +190,7 @@ static int nfs_proc_readlink(struct inode *inode, struct page *page,
 	int			status;
 
 	dprintk("NFS call  readlink\n");
-	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
+	status = rpc_call_sync(NFS_CLIENT(iyesde), &msg, 0);
 	dprintk("NFS reply readlink: %d\n", status);
 	return status;
 }
@@ -202,7 +202,7 @@ struct nfs_createdata {
 	struct nfs_fattr fattr;
 };
 
-static struct nfs_createdata *nfs_alloc_createdata(struct inode *dir,
+static struct nfs_createdata *nfs_alloc_createdata(struct iyesde *dir,
 		struct dentry *dentry, struct iattr *sattr)
 {
 	struct nfs_createdata *data;
@@ -228,7 +228,7 @@ static void nfs_free_createdata(const struct nfs_createdata *data)
 }
 
 static int
-nfs_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
+nfs_proc_create(struct iyesde *dir, struct dentry *dentry, struct iattr *sattr,
 		int flags)
 {
 	struct nfs_createdata *data;
@@ -254,10 +254,10 @@ out:
 }
 
 /*
- * In NFSv2, mknod is grafted onto the create call.
+ * In NFSv2, mkyesd is grafted onto the create call.
  */
 static int
-nfs_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
+nfs_proc_mkyesd(struct iyesde *dir, struct dentry *dentry, struct iattr *sattr,
 	       dev_t rdev)
 {
 	struct nfs_createdata *data;
@@ -267,7 +267,7 @@ nfs_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	umode_t mode;
 	int status = -ENOMEM;
 
-	dprintk("NFS call  mknod %pd\n", dentry);
+	dprintk("NFS call  mkyesd %pd\n", dentry);
 
 	mode = sattr->ia_mode;
 	if (S_ISFIFO(mode)) {
@@ -296,12 +296,12 @@ nfs_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		status = nfs_instantiate(dentry, data->res.fh, data->res.fattr, NULL);
 	nfs_free_createdata(data);
 out:
-	dprintk("NFS reply mknod: %d\n", status);
+	dprintk("NFS reply mkyesd: %d\n", status);
 	return status;
 }
   
 static int
-nfs_proc_remove(struct inode *dir, struct dentry *dentry)
+nfs_proc_remove(struct iyesde *dir, struct dentry *dentry)
 {
 	struct nfs_removeargs arg = {
 		.fh = NFS_FH(dir),
@@ -324,7 +324,7 @@ nfs_proc_remove(struct inode *dir, struct dentry *dentry)
 static void
 nfs_proc_unlink_setup(struct rpc_message *msg,
 		struct dentry *dentry,
-		struct inode *inode)
+		struct iyesde *iyesde)
 {
 	msg->rpc_proc = &nfs_procedures[NFSPROC_REMOVE];
 }
@@ -334,7 +334,7 @@ static void nfs_proc_unlink_rpc_prepare(struct rpc_task *task, struct nfs_unlink
 	rpc_call_start(task);
 }
 
-static int nfs_proc_unlink_done(struct rpc_task *task, struct inode *dir)
+static int nfs_proc_unlink_done(struct rpc_task *task, struct iyesde *dir)
 {
 	nfs_mark_for_revalidate(dir);
 	return 1;
@@ -354,8 +354,8 @@ static void nfs_proc_rename_rpc_prepare(struct rpc_task *task, struct nfs_rename
 }
 
 static int
-nfs_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
-		     struct inode *new_dir)
+nfs_proc_rename_done(struct rpc_task *task, struct iyesde *old_dir,
+		     struct iyesde *new_dir)
 {
 	nfs_mark_for_revalidate(old_dir);
 	nfs_mark_for_revalidate(new_dir);
@@ -363,10 +363,10 @@ nfs_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
 }
 
 static int
-nfs_proc_link(struct inode *inode, struct inode *dir, const struct qstr *name)
+nfs_proc_link(struct iyesde *iyesde, struct iyesde *dir, const struct qstr *name)
 {
 	struct nfs_linkargs	arg = {
-		.fromfh		= NFS_FH(inode),
+		.fromfh		= NFS_FH(iyesde),
 		.tofh		= NFS_FH(dir),
 		.toname		= name->name,
 		.tolen		= name->len
@@ -378,15 +378,15 @@ nfs_proc_link(struct inode *inode, struct inode *dir, const struct qstr *name)
 	int			status;
 
 	dprintk("NFS call  link %s\n", name->name);
-	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
-	nfs_mark_for_revalidate(inode);
+	status = rpc_call_sync(NFS_CLIENT(iyesde), &msg, 0);
+	nfs_mark_for_revalidate(iyesde);
 	nfs_mark_for_revalidate(dir);
 	dprintk("NFS reply link: %d\n", status);
 	return status;
 }
 
 static int
-nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct page *page,
+nfs_proc_symlink(struct iyesde *dir, struct dentry *dentry, struct page *page,
 		 unsigned int len, struct iattr *sattr)
 {
 	struct nfs_fh *fh;
@@ -436,7 +436,7 @@ out:
 }
 
 static int
-nfs_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
+nfs_proc_mkdir(struct iyesde *dir, struct dentry *dentry, struct iattr *sattr)
 {
 	struct nfs_createdata *data;
 	struct rpc_message msg = {
@@ -462,7 +462,7 @@ out:
 }
 
 static int
-nfs_proc_rmdir(struct inode *dir, const struct qstr *name)
+nfs_proc_rmdir(struct iyesde *dir, const struct qstr *name)
 {
 	struct nfs_diropargs	arg = {
 		.fh		= NFS_FH(dir),
@@ -493,7 +493,7 @@ static int
 nfs_proc_readdir(struct dentry *dentry, const struct cred *cred,
 		 u64 cookie, struct page **pages, unsigned int count, bool plus)
 {
-	struct inode		*dir = d_inode(dentry);
+	struct iyesde		*dir = d_iyesde(dentry);
 	struct nfs_readdirargs	arg = {
 		.fh		= NFS_FH(dir),
 		.cookie		= cookie,
@@ -586,12 +586,12 @@ nfs_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 
 static int nfs_read_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 {
-	struct inode *inode = hdr->inode;
+	struct iyesde *iyesde = hdr->iyesde;
 
-	nfs_invalidate_atime(inode);
+	nfs_invalidate_atime(iyesde);
 	if (task->tk_status >= 0) {
-		nfs_refresh_inode(inode, hdr->res.fattr);
-		/* Emulate the eof flag, which isn't normally needed in NFSv2
+		nfs_refresh_iyesde(iyesde, hdr->res.fattr);
+		/* Emulate the eof flag, which isn't yesrmally needed in NFSv2
 		 * as it is guaranteed to always return the file attributes
 		 */
 		if ((hdr->res.count == 0 && hdr->args.count > 0) ||
@@ -618,7 +618,7 @@ static int nfs_write_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 {
 	if (task->tk_status >= 0) {
 		hdr->res.count = hdr->args.count;
-		nfs_writeback_update_inode(hdr);
+		nfs_writeback_update_iyesde(hdr);
 	}
 	return 0;
 }
@@ -627,7 +627,7 @@ static void nfs_proc_write_setup(struct nfs_pgio_header *hdr,
 				 struct rpc_message *msg,
 				 struct rpc_clnt **clnt)
 {
-	/* Note: NFSv2 ignores @stable and always uses NFS_FILE_SYNC */
+	/* Note: NFSv2 igyesres @stable and always uses NFS_FILE_SYNC */
 	hdr->args.stable = NFS_FILE_SYNC;
 	msg->rpc_proc = &nfs_procedures[NFSPROC_WRITE];
 }
@@ -647,9 +647,9 @@ nfs_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg,
 static int
 nfs_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 
-	return nlmclnt_proc(NFS_SERVER(inode)->nlm_host, cmd, fl, NULL);
+	return nlmclnt_proc(NFS_SERVER(iyesde)->nlm_host, cmd, fl, NULL);
 }
 
 /* Helper functions for NFS lock bounds checking */
@@ -676,12 +676,12 @@ out_einval:
 	return -EINVAL;
 }
 
-static int nfs_have_delegation(struct inode *inode, fmode_t flags)
+static int nfs_have_delegation(struct iyesde *iyesde, fmode_t flags)
 {
 	return 0;
 }
 
-static const struct inode_operations nfs_dir_inode_operations = {
+static const struct iyesde_operations nfs_dir_iyesde_operations = {
 	.create		= nfs_create,
 	.lookup		= nfs_lookup,
 	.link		= nfs_link,
@@ -689,14 +689,14 @@ static const struct inode_operations nfs_dir_inode_operations = {
 	.symlink	= nfs_symlink,
 	.mkdir		= nfs_mkdir,
 	.rmdir		= nfs_rmdir,
-	.mknod		= nfs_mknod,
+	.mkyesd		= nfs_mkyesd,
 	.rename		= nfs_rename,
 	.permission	= nfs_permission,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,
 };
 
-static const struct inode_operations nfs_file_inode_operations = {
+static const struct iyesde_operations nfs_file_iyesde_operations = {
 	.permission	= nfs_permission,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,
@@ -705,8 +705,8 @@ static const struct inode_operations nfs_file_inode_operations = {
 const struct nfs_rpc_ops nfs_v2_clientops = {
 	.version	= 2,		       /* protocol version */
 	.dentry_ops	= &nfs_dentry_operations,
-	.dir_inode_ops	= &nfs_dir_inode_operations,
-	.file_inode_ops	= &nfs_file_inode_operations,
+	.dir_iyesde_ops	= &nfs_dir_iyesde_operations,
+	.file_iyesde_ops	= &nfs_file_iyesde_operations,
 	.file_ops	= &nfs_file_operations,
 	.getroot	= nfs_proc_get_root,
 	.submount	= nfs_submount,
@@ -729,7 +729,7 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.mkdir		= nfs_proc_mkdir,
 	.rmdir		= nfs_proc_rmdir,
 	.readdir	= nfs_proc_readdir,
-	.mknod		= nfs_proc_mknod,
+	.mkyesd		= nfs_proc_mkyesd,
 	.statfs		= nfs_proc_statfs,
 	.fsinfo		= nfs_proc_fsinfo,
 	.pathconf	= nfs_proc_pathconf,

@@ -2,7 +2,7 @@
 /* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  */
 
-/* Qualcomm Technologies, Inc. EMAC SGMII Controller driver.
+/* Qualcomm Techyeslogies, Inc. EMAC SGMII Controller driver.
  */
 
 #include <linux/interrupt.h>
@@ -91,7 +91,7 @@ static void emac_sgmii_link_init(struct emac_adapter *adpt)
 	struct emac_sgmii *phy = &adpt->phy;
 	u32 val;
 
-	/* Always use autonegotiation. It works no matter how the external
+	/* Always use autonegotiation. It works yes matter how the external
 	 * PHY is configured.
 	 */
 	val = readl(phy->base + EMAC_SGMII_PHY_AUTONEG_CFG2);
@@ -147,7 +147,7 @@ static irqreturn_t emac_sgmii_interrupt(int irq, void *data)
 	if (!status)
 		return IRQ_HANDLED;
 
-	/* If we get a decoding error and CDR is not locked, then try
+	/* If we get a decoding error and CDR is yest locked, then try
 	 * resetting the internal PHY.  The internal PHY uses an embedded
 	 * clock with Clock and Data Recovery (CDR) to recover the
 	 * clock and data.
@@ -205,7 +205,7 @@ static void emac_sgmii_common_reset(struct emac_adapter *adpt)
 	ret = emac_sgmii_init(adpt);
 	if (ret)
 		netdev_err(adpt->netdev,
-			   "could not reinitialize internal PHY (error=%i)\n",
+			   "could yest reinitialize internal PHY (error=%i)\n",
 			   ret);
 }
 
@@ -225,7 +225,7 @@ static int emac_sgmii_common_open(struct emac_adapter *adpt)
 				  "emac-sgmii", adpt);
 		if (ret) {
 			netdev_err(adpt->netdev,
-				   "could not register handler for internal PHY\n");
+				   "could yest register handler for internal PHY\n");
 			return ret;
 		}
 	}
@@ -312,7 +312,7 @@ static int emac_sgmii_acpi_match(struct device *dev, void *data)
 		if (status) {
 			if (status == AE_NOT_FOUND)
 				/* Older versions of the QDF2432 ACPI tables do
-				 * not have an _HRV property.
+				 * yest have an _HRV property.
 				 */
 				hrv = 1;
 			else
@@ -360,23 +360,23 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 					emac_sgmii_acpi_match);
 
 		if (!dev) {
-			dev_warn(&pdev->dev, "cannot find internal phy node\n");
+			dev_warn(&pdev->dev, "canyest find internal phy yesde\n");
 			return 0;
 		}
 
 		sgmii_pdev = to_platform_device(dev);
 	} else {
 		const struct of_device_id *match;
-		struct device_node *np;
+		struct device_yesde *np;
 
-		np = of_parse_phandle(pdev->dev.of_node, "internal-phy", 0);
+		np = of_parse_phandle(pdev->dev.of_yesde, "internal-phy", 0);
 		if (!np) {
 			dev_err(&pdev->dev, "missing internal-phy property\n");
 			return -ENODEV;
 		}
 
-		sgmii_pdev = of_find_device_by_node(np);
-		of_node_put(np);
+		sgmii_pdev = of_find_device_by_yesde(np);
+		of_yesde_put(np);
 		if (!sgmii_pdev) {
 			dev_err(&pdev->dev, "invalid internal-phy property\n");
 			return -ENODEV;
@@ -384,7 +384,7 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 
 		match = of_match_device(emac_sgmii_dt_match, &sgmii_pdev->dev);
 		if (!match) {
-			dev_err(&pdev->dev, "unrecognized internal phy node\n");
+			dev_err(&pdev->dev, "unrecognized internal phy yesde\n");
 			ret = -ENODEV;
 			goto error_put_device;
 		}
@@ -426,7 +426,7 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 		phy->irq = ret;
 
 	/* We've remapped the addresses, so we don't need the device any
-	 * more.  of_find_device_by_node() says we should release it.
+	 * more.  of_find_device_by_yesde() says we should release it.
 	 */
 	put_device(&sgmii_pdev->dev);
 

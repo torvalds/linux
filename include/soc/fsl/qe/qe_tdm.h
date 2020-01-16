@@ -84,7 +84,7 @@ struct ucc_tdm {
 	u32 rx_ts_mask;		/* rx time slot mask */
 };
 
-int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
+int ucc_of_parse_tdm(struct device_yesde *np, struct ucc_tdm *utdm,
 		     struct ucc_tdm_info *ut_info);
 void ucc_tdm_init(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info);
 #endif

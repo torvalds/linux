@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -303,18 +303,18 @@ static int vmw_gb_context_create(struct vmw_resource *res)
 	ret = vmw_resource_alloc_id(res);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed to allocate a context id.\n");
-		goto out_no_id;
+		goto out_yes_id;
 	}
 
 	if (unlikely(res->id >= VMWGFX_NUM_GB_CONTEXT)) {
 		ret = -EBUSY;
-		goto out_no_fifo;
+		goto out_yes_fifo;
 	}
 
 	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		ret = -ENOMEM;
-		goto out_no_fifo;
+		goto out_yes_fifo;
 	}
 
 	cmd->header.id = SVGA_3D_CMD_DEFINE_GB_CONTEXT;
@@ -325,9 +325,9 @@ static int vmw_gb_context_create(struct vmw_resource *res)
 
 	return 0;
 
-out_no_fifo:
+out_yes_fifo:
 	vmw_resource_release_id(res);
-out_no_id:
+out_yes_id:
 	return ret;
 }
 
@@ -470,18 +470,18 @@ static int vmw_dx_context_create(struct vmw_resource *res)
 	ret = vmw_resource_alloc_id(res);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed to allocate a context id.\n");
-		goto out_no_id;
+		goto out_yes_id;
 	}
 
 	if (unlikely(res->id >= VMWGFX_NUM_DXCONTEXT)) {
 		ret = -EBUSY;
-		goto out_no_fifo;
+		goto out_yes_fifo;
 	}
 
 	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		ret = -ENOMEM;
-		goto out_no_fifo;
+		goto out_yes_fifo;
 	}
 
 	cmd->header.id = SVGA_3D_CMD_DX_DEFINE_CONTEXT;
@@ -492,9 +492,9 @@ static int vmw_dx_context_create(struct vmw_resource *res)
 
 	return 0;
 
-out_no_fifo:
+out_yes_fifo:
 	vmw_resource_release_id(res);
-out_no_id:
+out_yes_id:
 	return ret;
 }
 
@@ -534,7 +534,7 @@ static int vmw_dx_context_bind(struct vmw_resource *res,
  * @readback: Whether to save the otable contents on scrubbing.
  *
  * COtables must be unbound before their context, but unbinding requires
- * the backup buffer being reserved, whereas scrubbing does not.
+ * the backup buffer being reserved, whereas scrubbing does yest.
  * This function scrubs all cotables of a context, potentially reading back
  * the contents into their backup buffers. However, scrubbing cotables
  * also makes the device context invalid, so scrub all bindings first so
@@ -692,7 +692,7 @@ static void vmw_user_context_free(struct vmw_resource *res)
 }
 
 /**
- * This function is called when user space has no more references on the
+ * This function is called when user space has yes more references on the
  * base object. It releases the base-object's reference on the resource object.
  */
 
@@ -727,12 +727,12 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	struct ttm_operation_ctx ttm_opt_ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	int ret;
 
 	if (!dev_priv->has_dx && dx) {
-		VMW_DEBUG_USER("DX contexts not supported by device.\n");
+		VMW_DEBUG_USER("DX contexts yest supported by device.\n");
 		return -EINVAL;
 	}
 
@@ -870,7 +870,7 @@ vmw_context_binding_state(struct vmw_resource *ctx)
  * @ctx_res: The context resource
  * @mob: a reference to the query MOB
  *
- * Returns -EINVAL if a MOB has already been set and does not match the one
+ * Returns -EINVAL if a MOB has already been set and does yest match the one
  * specified in the parameter.  0 otherwise.
  */
 int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
@@ -902,7 +902,7 @@ int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
 }
 
 /**
- * vmw_context_get_dx_query_mob - Returns non-counted reference to DX query mob
+ * vmw_context_get_dx_query_mob - Returns yesn-counted reference to DX query mob
  *
  * @ctx_res: The context resource
  */

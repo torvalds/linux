@@ -169,7 +169,7 @@ static int igt_mock_contiguous(void *arg)
 
 	igt_object_release(obj);
 
-	/* Internal fragmentation should not bleed into the object size */
+	/* Internal fragmentation should yest bleed into the object size */
 	target = i915_prandom_u64_state(&prng);
 	div64_u64_rem(target, total, &target);
 	target = round_up(target, PAGE_SIZE);
@@ -234,7 +234,7 @@ static int igt_mock_contiguous(void *arg)
 	igt_object_release(obj);
 
 	/*
-	 * Even though we have enough free space, we don't have a big enough
+	 * Even though we have eyesugh free space, we don't have a big eyesugh
 	 * contiguous block. Make sure that holds true.
 	 */
 
@@ -454,8 +454,8 @@ random_engine_class(struct drm_i915_private *i915,
 	count = 0;
 	for (engine = intel_engine_lookup_user(i915, class, 0);
 	     engine && engine->uabi_class == class;
-	     engine = rb_entry_safe(rb_next(&engine->uabi_node),
-				    typeof(*engine), uabi_node))
+	     engine = rb_entry_safe(rb_next(&engine->uabi_yesde),
+				    typeof(*engine), uabi_yesde))
 		count++;
 
 	count = i915_prandom_u32_max_state(count, prng);
@@ -505,7 +505,7 @@ static int igt_lmem_write_cpu(void *arg)
 		goto out_put;
 	}
 
-	/* Put the pages into a known state -- from the gpu for added fun */
+	/* Put the pages into a kyeswn state -- from the gpu for added fun */
 	err = i915_gem_object_fill_blt(obj, engine->kernel_context, 0xdeadbeaf);
 	if (err)
 		goto out_unpin;

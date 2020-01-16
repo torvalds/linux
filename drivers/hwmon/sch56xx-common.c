@@ -20,9 +20,9 @@
 #include "sch56xx-common.h"
 
 /* Insmod parameters */
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static int yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, int, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 #define SIO_SCH56XX_LD_EM	0x0C	/* Embedded uController Logical Dev */
@@ -172,13 +172,13 @@ static int sch56xx_send_cmd(u16 addr, u8 cmd, u16 reg, u8 v)
 	}
 
 	/*
-	 * According to the SMSC app note we should now do:
+	 * According to the SMSC app yeste we should yesw do:
 	 *
 	 * Set Mailbox Address Pointer to first location in Region 1 *
 	 * outb(0x00, addr + 2);
 	 * outb(0x80, addr + 3);
 	 *
-	 * But if we do that things don't work, so let's not.
+	 * But if we do that things don't work, so let's yest.
 	 */
 
 	/* Read Value field */
@@ -277,7 +277,7 @@ static int watchdog_set_timeout(struct watchdog_device *wddev,
 	}
 
 	/*
-	 * Remember new timeout value, but do not write as that (re)starts
+	 * Remember new timeout value, but do yest write as that (re)starts
 	 * the watchdog countdown.
 	 */
 	data->watchdog_preset = DIV_ROUND_UP(timeout, resolution);
@@ -293,7 +293,7 @@ static int watchdog_start(struct watchdog_device *wddev)
 	u8 val;
 
 	/*
-	 * The sch56xx's watchdog cannot really be started / stopped
+	 * The sch56xx's watchdog canyest really be started / stopped
 	 * it is always running, but we can avoid the timer expiring
 	 * from causing a system reset by clearing the output enable bit.
 	 *
@@ -303,7 +303,7 @@ static int watchdog_start(struct watchdog_device *wddev)
 	 *
 	 * This will only cause a system reset if the 0-1 flank happens when
 	 * output enable is true. Setting output enable after the flank will
-	 * not cause a reset, nor will the timer expiring a second time.
+	 * yest cause a reset, yesr will the timer expiring a second time.
 	 * This means we must clear the watchdog event bit in case it is set.
 	 *
 	 * The timer may still be running (after a recent watchdog_stop) and
@@ -397,7 +397,7 @@ struct sch56xx_watchdog_data *sch56xx_watchdog_register(struct device *parent,
 	if (output_enable < 0)
 		return NULL;
 	if (check_enabled && !(output_enable & SCH56XX_WDOG_OUTPUT_ENABLE)) {
-		pr_warn("Watchdog not enabled by BIOS, not registering\n");
+		pr_warn("Watchdog yest enabled by BIOS, yest registering\n");
 		return NULL;
 	}
 
@@ -412,7 +412,7 @@ struct sch56xx_watchdog_data *sch56xx_watchdog_register(struct device *parent,
 		sizeof(data->wdinfo.identity));
 	data->wdinfo.firmware_version = revision;
 	data->wdinfo.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT;
-	if (!nowayout)
+	if (!yeswayout)
 		data->wdinfo.options |= WDIOF_MAGICCLOSE;
 
 	data->wddev.info = &data->wdinfo;
@@ -421,12 +421,12 @@ struct sch56xx_watchdog_data *sch56xx_watchdog_register(struct device *parent,
 	data->wddev.timeout = 60;
 	data->wddev.min_timeout = 1;
 	data->wddev.max_timeout = 255 * 60;
-	if (nowayout)
+	if (yeswayout)
 		set_bit(WDOG_NO_WAY_OUT, &data->wddev.status);
 	if (output_enable & SCH56XX_WDOG_OUTPUT_ENABLE)
 		set_bit(WDOG_ACTIVE, &data->wddev.status);
 
-	/* Since the watchdog uses a downcounter there is no register to read
+	/* Since the watchdog uses a downcounter there is yes register to read
 	   the BIOS set timeout from (if any was set at all) ->
 	   Choose a preset which will give us a 1 minute timeout */
 	if (control & SCH56XX_WDOG_TIME_BASE_SEC)
@@ -488,7 +488,7 @@ static int __init sch56xx_find(int sioaddr, const char **name)
 	superio_select(sioaddr, SIO_SCH56XX_LD_EM);
 
 	if (!(superio_inb(sioaddr, SIO_REG_ENABLE) & 0x01)) {
-		pr_warn("Device not activated\n");
+		pr_warn("Device yest activated\n");
 		err = -ENODEV;
 		goto exit;
 	}
@@ -500,7 +500,7 @@ static int __init sch56xx_find(int sioaddr, const char **name)
 	address = superio_inb(sioaddr, SIO_REG_ADDR) |
 		   superio_inb(sioaddr, SIO_REG_ADDR + 1) << 8;
 	if (address == 0) {
-		pr_warn("Base address not set\n");
+		pr_warn("Base address yest set\n");
 		err = -ENODEV;
 		goto exit;
 	}

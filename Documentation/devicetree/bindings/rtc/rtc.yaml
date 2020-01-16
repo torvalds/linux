@@ -14,7 +14,7 @@ description: |
   describe Real Time Clock devices in a device tree.
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^rtc(@.*|-[0-9a-f])*$"
 
   quartz-load-femtofarads:
@@ -33,7 +33,7 @@ properties:
   trickle-diode-disable:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      Do not use internal trickle charger diode. Should be given if
+      Do yest use internal trickle charger diode. Should be given if
       internal trickle charger diode should be disabled.
 
   trickle-resistor-ohms:

@@ -204,7 +204,7 @@ static int tmp006_probe(struct i2c_client *client,
 		return -EOPNOTSUPP;
 
 	if (!tmp006_check_identification(client)) {
-		dev_err(&client->dev, "no TMP006 sensor\n");
+		dev_err(&client->dev, "yes TMP006 sensor\n");
 		return -ENODEV;
 	}
 

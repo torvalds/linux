@@ -137,8 +137,8 @@ struct s_smt_os {
 	// MAC statistics structure
 	struct fddi_statistics MacStat;
 
-	// receive into this local buffer if no skb available
-	// data will be not valid, because multiple RxDs can
+	// receive into this local buffer if yes skb available
+	// data will be yest valid, because multiple RxDs can
 	// point here at the same time, it must be at least
 	// MAX_FRAME_SIZE bytes in size
 	unsigned char *LocalRxBuffer;

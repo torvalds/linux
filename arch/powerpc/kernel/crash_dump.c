@@ -38,7 +38,7 @@ static void __init create_trampoline(unsigned long addr)
 
 	/* The maximum range of a single instruction branch, is the current
 	 * instruction's address + (32 MB - 4) bytes. For the trampoline we
-	 * need to branch to current address + 32 MB. So we insert a nop at
+	 * need to branch to current address + 32 MB. So we insert a yesp at
 	 * the trampoline address, then the next instruction (+ 4 bytes)
 	 * does a branch to (32 MB - 4). The net effect is that when we
 	 * branch to "addr" we jump to ("addr" + 32 MB). Although it requires
@@ -89,7 +89,7 @@ static size_t copy_oldmem_vaddr(void *vaddr, char *buf, size_t csize,
  * @userbuf: if set, @buf is in user address space, use copy_to_user(),
  *      otherwise @buf is in kernel address space, use memcpy().
  *
- * Copy a page from "oldmem". For this page, there is no pte mapped
+ * Copy a page from "oldmem". For this page, there is yes pte mapped
  * in the current kernel. We stitch up a pte, similar to kmap_atomic.
  */
 ssize_t copy_oldmem_page(unsigned long pfn, char *buf,

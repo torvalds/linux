@@ -101,7 +101,7 @@ extern __must_check long strnlen_user(const char __user *s, long n);
 	: "r" (addr), "i" (-EFAULT));					\
 }
 
-#define __get_user_unknown(val, size, ptr, err) do {			\
+#define __get_user_unkyeswn(val, size, ptr, err) do {			\
 	err = 0;							\
 	if (__copy_from_user(&(val), ptr, size)) {			\
 		err = -EFAULT;						\
@@ -121,7 +121,7 @@ do {									\
 		__get_user_asm(val, "ldw", ptr, err);			\
 		break;							\
 	default:							\
-		__get_user_unknown(val, size, ptr, err);		\
+		__get_user_unkyeswn(val, size, ptr, err);		\
 		break;							\
 	}								\
 } while (0)

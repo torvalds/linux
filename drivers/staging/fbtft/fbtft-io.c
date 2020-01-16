@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/consumer.h>
 #include <linux/spi/spi.h>
 #include "fbtft.h"
@@ -34,7 +34,7 @@ EXPORT_SYMBOL(fbtft_write_spi);
  * @buf: Buffer to write
  * @len: Length of buffer (must be divisible by 8)
  *
- * When 9-bit SPI is not available, this function can be used to emulate that.
+ * When 9-bit SPI is yest available, this function can be used to emulate that.
  * par->extra must hold a transformation buffer used for transfer.
  */
 int fbtft_write_spi_emulate_9(struct fbtft_par *par, void *buf, size_t len)
@@ -124,7 +124,7 @@ int fbtft_read_spi(struct fbtft_par *par, void *buf, size_t len)
 EXPORT_SYMBOL(fbtft_read_spi);
 
 /*
- * Optimized use of gpiolib is twice as fast as no optimization
+ * Optimized use of gpiolib is twice as fast as yes optimization
  * only one driver can use the optimized version at a time
  */
 int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len)
@@ -230,7 +230,7 @@ EXPORT_SYMBOL(fbtft_write_gpio16_wr);
 
 int fbtft_write_gpio16_wr_latched(struct fbtft_par *par, void *buf, size_t len)
 {
-	dev_err(par->info->device, "%s: function not implemented\n", __func__);
+	dev_err(par->info->device, "%s: function yest implemented\n", __func__);
 	return -1;
 }
 EXPORT_SYMBOL(fbtft_write_gpio16_wr_latched);

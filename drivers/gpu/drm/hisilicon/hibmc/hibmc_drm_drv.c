@@ -53,7 +53,7 @@ static struct drm_driver hibmc_driver = {
 	.date			= "20160828",
 	.desc			= "hibmc drm driver",
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 	.dumb_create            = hibmc_dumb_create,
 	.dumb_map_offset        = drm_gem_vram_driver_dumb_mmap_offset,
 	.gem_prime_mmap		= drm_gem_prime_mmap,
@@ -188,7 +188,7 @@ static void hibmc_hw_config(struct hibmc_drm_private *priv)
 
 	/*
 	 * Reset the memory controller. If the memory controller
-	 * is not reset in chip,the system might hang when sw accesses
+	 * is yest reset in chip,the system might hang when sw accesses
 	 * the memory.The memory should be resetted after
 	 * changing the MXCLK.
 	 */
@@ -211,9 +211,9 @@ static int hibmc_hw_map(struct hibmc_drm_private *priv)
 
 	ioaddr = pci_resource_start(pdev, 1);
 	iosize = pci_resource_len(pdev, 1);
-	priv->mmio = devm_ioremap_nocache(dev->dev, ioaddr, iosize);
+	priv->mmio = devm_ioremap_yescache(dev->dev, ioaddr, iosize);
 	if (!priv->mmio) {
-		DRM_ERROR("Cannot map mmio region\n");
+		DRM_ERROR("Canyest map mmio region\n");
 		return -ENOMEM;
 	}
 
@@ -221,7 +221,7 @@ static int hibmc_hw_map(struct hibmc_drm_private *priv)
 	size = pci_resource_len(pdev, 0);
 	priv->fb_map = devm_ioremap(dev->dev, addr, size);
 	if (!priv->fb_map) {
-		DRM_ERROR("Cannot map framebuffer\n");
+		DRM_ERROR("Canyest map framebuffer\n");
 		return -ENOMEM;
 	}
 	priv->fb_base = addr;
@@ -269,7 +269,7 @@ static int hibmc_load(struct drm_device *dev)
 
 	priv = devm_kzalloc(dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		DRM_ERROR("no memory to allocate for hibmc_drm_private\n");
+		DRM_ERROR("yes memory to allocate for hibmc_drm_private\n");
 		return -ENOMEM;
 	}
 	dev->dev_private = priv;

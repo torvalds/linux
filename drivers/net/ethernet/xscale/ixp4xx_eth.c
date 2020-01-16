@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2007 Krzysztof Halasa <khc@pm.waw.pl>
  *
- * Ethernet port config (0x00 is not present on IXP42X):
+ * Ethernet port config (0x00 is yest present on IXP42X):
  *
  * logical port		0x00		0x10		0x20
  * NPE			0 (NPE-A)	1 (NPE-B)	2 (NPE-C)
@@ -441,7 +441,7 @@ static int ixp4xx_mdio_cmd(struct mii_bus *bus, int phy_id, int location,
 	int cycles = 0;
 
 	if (__raw_readl(&mdio_regs->mdio_command[3]) & 0x80) {
-		printk(KERN_ERR "%s: MII not ready to transmit\n", bus->name);
+		printk(KERN_ERR "%s: MII yest ready to transmit\n", bus->name);
 		return -1;
 	}
 
@@ -629,7 +629,7 @@ static inline int queue_get_desc(unsigned int queue, struct port *port,
 	if (!(phys = qmgr_get_entry(queue)))
 		return -1;
 
-	phys &= ~0x1F; /* mask out non-address bits */
+	phys &= ~0x1F; /* mask out yesn-address bits */
 	tab_phys = is_tx ? tx_desc_phys(port, 0) : rx_desc_phys(port, 0);
 	tab = is_tx ? tx_desc_ptr(port, 0) : rx_desc_ptr(port, 0);
 	n_desc = (phys - tab_phys) / sizeof(struct desc);
@@ -703,7 +703,7 @@ static int eth_poll(struct napi_struct *napi, int budget)
 			napi_complete(napi);
 			qmgr_enable_irq(rxq);
 			if (!qmgr_stat_below_low_watermark(rxq) &&
-			    napi_reschedule(napi)) { /* not empty again */
+			    napi_reschedule(napi)) { /* yest empty again */
 #if DEBUG_RX
 				printk(KERN_DEBUG "%s: eth_poll napi_reschedule succeeded\n",
 				       dev->name);
@@ -778,9 +778,9 @@ static int eth_poll(struct napi_struct *napi, int budget)
 	}
 
 #if DEBUG_RX
-	printk(KERN_DEBUG "eth_poll(): end, not all work done\n");
+	printk(KERN_DEBUG "eth_poll(): end, yest all work done\n");
 #endif
-	return received;		/* not all work done */
+	return received;		/* yest all work done */
 }
 
 
@@ -801,13 +801,13 @@ static void eth_txdone_irq(void *unused)
 		BUG_ON(npe_id >= MAX_NPES);
 		port = npe_port_tab[npe_id];
 		BUG_ON(!port);
-		phys &= ~0x1F; /* mask out non-address bits */
+		phys &= ~0x1F; /* mask out yesn-address bits */
 		n_desc = (phys - tx_desc_phys(port, 0)) / sizeof(struct desc);
 		BUG_ON(n_desc >= TX_DESCS);
 		desc = tx_desc_ptr(port, n_desc);
 		debug_desc(phys, desc);
 
-		if (port->tx_buff_tab[n_desc]) { /* not the draining packet */
+		if (port->tx_buff_tab[n_desc]) { /* yest the draining packet */
 			port->netdev->stats.tx_packets++;
 			port->netdev->stats.tx_bytes += desc->pkt_len;
 
@@ -855,7 +855,7 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	len = skb->len;
 #ifdef __ARMEB__
-	offset = 0; /* no need to keep alignment */
+	offset = 0; /* yes need to keep alignment */
 	bytes = len;
 	mem = skb->data;
 #else
@@ -1186,7 +1186,7 @@ static int eth_open(struct net_device *dev)
 			return err;
 
 		if (npe_recv_message(npe, &msg, "ETH_GET_STATUS")) {
-			printk(KERN_ERR "%s: %s not responding\n", dev->name,
+			printk(KERN_ERR "%s: %s yest responding\n", dev->name,
 			       npe_name(npe));
 			return -EIO;
 		}
@@ -1248,7 +1248,7 @@ static int eth_open(struct net_device *dev)
 	__raw_writel(0x80, &port->regs->slot_time);
 	__raw_writel(0x01, &port->regs->int_clock_threshold);
 
-	/* Populate queues with buffers, no failure after this point */
+	/* Populate queues with buffers, yes failure after this point */
 	for (i = 0; i < TX_DESCS; i++)
 		queue_put_desc(port->plat->txreadyq,
 			       tx_desc_phys(port, i), tx_desc_ptr(port, i));

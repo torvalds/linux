@@ -5,7 +5,7 @@
  * Based on palmld-gpio.h by Alex Osborne
  *
  * Authors:	Marek Vasut <marek.vasut@gmail.com>
- *		Cristiano P. <cristianop@users.sourceforge.net>
+ *		Cristiayes P. <cristiayesp@users.sourceforge.net>
  *		Jan Herman <2hp@seznam.cz>
  */
 
@@ -92,10 +92,10 @@
 /* BATTERY */
 #define PALMTX_BAT_MAX_VOLTAGE		4000	/* 4.00v current voltage */
 #define PALMTX_BAT_MIN_VOLTAGE		3550	/* 3.55v critical voltage */
-#define PALMTX_BAT_MAX_CURRENT		0	/* unknown */
-#define PALMTX_BAT_MIN_CURRENT		0	/* unknown */
-#define PALMTX_BAT_MAX_CHARGE		1	/* unknown */
-#define PALMTX_BAT_MIN_CHARGE		1	/* unknown */
+#define PALMTX_BAT_MAX_CURRENT		0	/* unkyeswn */
+#define PALMTX_BAT_MIN_CURRENT		0	/* unkyeswn */
+#define PALMTX_BAT_MAX_CHARGE		1	/* unkyeswn */
+#define PALMTX_BAT_MIN_CHARGE		1	/* unkyeswn */
 #define PALMTX_MAX_LIFE_MINS		360	/* on-life in minutes */
 
 #define PALMTX_BAT_MEASURE_DELAY	(HZ * 1)

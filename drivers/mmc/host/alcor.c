@@ -128,7 +128,7 @@ static void alcor_data_set_dma(struct alcor_sdmmc_host *host)
 		return;
 
 	if (!host->sg) {
-		dev_err(host->dev, "have blocks, but no SG\n");
+		dev_err(host->dev, "have blocks, but yes SG\n");
 		return;
 	}
 
@@ -291,7 +291,7 @@ static void alcor_send_cmd(struct alcor_sdmmc_host *host,
 		ctrl = AU6601_CMD_6_BYTE_WO_CRC;
 		break;
 	default:
-		dev_err(host->dev, "%s: cmd->flag (0x%02x) is not valid\n",
+		dev_err(host->dev, "%s: cmd->flag (0x%02x) is yest valid\n",
 			mmc_hostname(mmc_from_priv(host)), mmc_resp_type(cmd));
 		break;
 	}
@@ -346,9 +346,9 @@ static void alcor_finish_data(struct alcor_sdmmc_host *host)
 
 	/*
 	 * The specification states that the block count register must
-	 * be updated, but it does not specify at what point in the
+	 * be updated, but it does yest specify at what point in the
 	 * data flow. That makes the register entirely useless to read
-	 * back so we have to assume that nothing made it to the card
+	 * back so we have to assume that yesthing made it to the card
 	 * in the event of an error.
 	 */
 	if (data->error)
@@ -358,7 +358,7 @@ static void alcor_finish_data(struct alcor_sdmmc_host *host)
 
 	/*
 	 * Need to send CMD12 if -
-	 * a) open-ended multiblock transfer (no CMD23)
+	 * a) open-ended multiblock transfer (yes CMD23)
 	 * b) error in multiblock transfer
 	 */
 	if (data->stop &&
@@ -413,7 +413,7 @@ static int alcor_cmd_irq_done(struct alcor_sdmmc_host *host, u32 intmask)
 	if (!intmask)
 		return true;
 
-	/* got CMD_END but no CMD is in progress, wake thread an process the
+	/* got CMD_END but yes CMD is in progress, wake thread an process the
 	 * error
 	 */
 	if (!host->cmd)
@@ -456,7 +456,7 @@ static void alcor_cmd_irq_thread(struct alcor_sdmmc_host *host, u32 intmask)
 		return;
 
 	if (!host->cmd && intmask & AU6601_INT_CMD_END) {
-		dev_dbg(host->dev, "Got command interrupt 0x%08x even though no command operation was in progress.\n",
+		dev_dbg(host->dev, "Got command interrupt 0x%08x even though yes command operation was in progress.\n",
 			intmask);
 	}
 
@@ -474,12 +474,12 @@ static int alcor_data_irq_done(struct alcor_sdmmc_host *host, u32 intmask)
 
 	intmask &= AU6601_INT_DATA_MASK;
 
-	/* nothing here to do */
+	/* yesthing here to do */
 	if (!intmask)
 		return 1;
 
 	/* we was too fast and got DATA_END after it was processed?
-	 * lets ignore it for now.
+	 * lets igyesre it for yesw.
 	 */
 	if (!host->data && intmask == AU6601_INT_DATA_END)
 		return 1;
@@ -530,7 +530,7 @@ static void alcor_data_irq_thread(struct alcor_sdmmc_host *host, u32 intmask)
 		return;
 
 	if (!host->data) {
-		dev_dbg(host->dev, "Got data interrupt 0x%08x even though no data operation was in progress.\n",
+		dev_dbg(host->dev, "Got data interrupt 0x%08x even though yes data operation was in progress.\n",
 			intmask);
 		alcor_reset(host, AU6601_RESET_DATA);
 		return;
@@ -606,7 +606,7 @@ static irqreturn_t alcor_irq_thread(int irq, void *d)
 	}
 
 	if (intmask)
-		dev_dbg(host->dev, "got not handled IRQ: 0x%04x\n", intmask);
+		dev_dbg(host->dev, "got yest handled IRQ: 0x%04x\n", intmask);
 
 exit:
 	mutex_unlock(&host->cmd_mutex);
@@ -713,7 +713,7 @@ static void alcor_set_bus_width(struct mmc_host *mmc, struct mmc_ios *ios)
 		alcor_write8(priv, AU6601_BUS_WIDTH_4BIT,
 			      AU6601_REG_BUS_CTRL);
 	} else
-		dev_err(host->dev, "Unknown BUS mode\n");
+		dev_err(host->dev, "Unkyeswn BUS mode\n");
 
 }
 
@@ -792,9 +792,9 @@ static void alcor_pre_req(struct mmc_host *mmc,
 		return;
 	/*
 	 * We don't do DMA on "complex" transfers, i.e. with
-	 * non-word-aligned buffers or lengths. A future improvement
+	 * yesn-word-aligned buffers or lengths. A future improvement
 	 * could be made to use temporary DMA bounce-buffers when these
-	 * requirements are not met.
+	 * requirements are yest met.
 	 *
 	 * Also, we don't bother with all the DMA setup overhead for
 	 * short transfers.
@@ -870,7 +870,7 @@ static void alcor_set_power_mode(struct mmc_host *mmc, struct mmc_ios *ios)
 			      AU6601_ACTIVE_CTRL);
 		/* set signal voltage to 3.3V */
 		alcor_write8(priv, 0, AU6601_OPT);
-		/* no documentation about clk delay, for now just try to mimic
+		/* yes documentation about clk delay, for yesw just try to mimic
 		 * original driver.
 		 */
 		alcor_write8(priv, 0x20, AU6601_CLK_DELAY);
@@ -889,7 +889,7 @@ static void alcor_set_power_mode(struct mmc_host *mmc, struct mmc_ios *ios)
 		/* enable output */
 		alcor_write8(priv, AU6601_SD_CARD,
 			      AU6601_OUTPUT_ENABLE);
-		/* The clk will not work on au6621. We need to trigger data
+		/* The clk will yest work on au6621. We need to trigger data
 		 * transfer.
 		 */
 		alcor_write8(priv, AU6601_DATA_WRITE,
@@ -899,7 +899,7 @@ static void alcor_set_power_mode(struct mmc_host *mmc, struct mmc_ios *ios)
 		mdelay(100);
 		break;
 	default:
-		dev_err(host->dev, "Unknown power parameter\n");
+		dev_err(host->dev, "Unkyeswn power parameter\n");
 	}
 }
 
@@ -1011,13 +1011,13 @@ static void alcor_hw_init(struct alcor_sdmmc_host *host)
 	alcor_write8(priv, 0, AU6601_DMA_BOUNDARY);
 
 	alcor_write8(priv, 0, AU6601_INTERFACE_MODE_CTRL);
-	/* not clear what we are doing here. */
+	/* yest clear what we are doing here. */
 	alcor_write8(priv, 0x44, AU6601_PAD_DRIVE0);
 	alcor_write8(priv, 0x44, AU6601_PAD_DRIVE1);
 	alcor_write8(priv, 0x00, AU6601_PAD_DRIVE2);
 
 	/* for 6601 - dma_boundary; for 6621 - dma_page_cnt
-	 * exact meaning of this register is not clear.
+	 * exact meaning of this register is yest clear.
 	 */
 	alcor_write8(priv, cfg->dma, AU6601_DMA_BOUNDARY);
 
@@ -1026,7 +1026,7 @@ static void alcor_hw_init(struct alcor_sdmmc_host *host)
 	alcor_write8(priv, 0, AU6601_POWER_CONTROL);
 
 	alcor_write8(priv, AU6601_DETECT_EN, AU6601_DETECT_STATUS);
-	/* now we should be safe to enable IRQs */
+	/* yesw we should be safe to enable IRQs */
 	alcor_unmask_sd_irqs(host);
 }
 
@@ -1059,7 +1059,7 @@ static void alcor_init_mmc(struct alcor_sdmmc_host *host)
 	mmc->ops = &alcor_sdc_ops;
 
 	/* The hardware does DMA data transfer of 4096 bytes to/from a single
-	 * buffer address. Scatterlists are not supported at the hardware
+	 * buffer address. Scatterlists are yest supported at the hardware
 	 * level, however we can work with them at the driver level,
 	 * provided that each segment is exactly 4096 bytes in size.
 	 * Upon DMA completion of a single segment (signalled via IRQ), we

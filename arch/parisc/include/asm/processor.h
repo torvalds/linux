@@ -159,7 +159,7 @@ struct task_struct;
 void show_trace(struct task_struct *task, unsigned long *stack);
 
 /*
- * Start user thread in another space.
+ * Start user thread in ayesther space.
  *
  * Note that we set both the iaoq and r31 to the new pc. When
  * the kernel initially calls execve it will return through an
@@ -171,7 +171,7 @@ void show_trace(struct task_struct *task, unsigned long *stack);
  * the address of the finalizer function.
  *
  * We also initialize sr3 to an illegal value (illegal for our
- * implementation, not for the architecture).
+ * implementation, yest for the architecture).
  */
 typedef unsigned int elf_caddr_t;
 
@@ -179,14 +179,14 @@ typedef unsigned int elf_caddr_t;
  * som does.  Supporting this behavior here avoids
  * having our own version of create_elf_tables.
  *
- * Oh, and yes, that is not a typo, we are really passing argc in r25
+ * Oh, and no, that is yest a typo, we are really passing argc in r25
  * and argv in r24 (rather than r26 and r25).  This is because that's
  * where __libc_start_main wants them.
  *
  * Duplicated from dl-machine.h for the benefit of readers:
  *
  *  Our initial stack layout is rather different from everyone else's
- *  due to the unique PA-RISC ABI.  As far as I know it looks like
+ *  due to the unique PA-RISC ABI.  As far as I kyesw it looks like
  *  this:
 
    -----------------------------------  (user startup code creates this frame)
@@ -291,8 +291,8 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 /*
  * parisc_requires_coherency() is used to identify the combined VIPT/PIPT
- * cached CPUs which require a guarantee of coherency (no inequivalent aliases
- * with different data, whether clean or not) to operate
+ * cached CPUs which require a guarantee of coherency (yes inequivalent aliases
+ * with different data, whether clean or yest) to operate
  */
 #ifdef CONFIG_PA8X00
 extern int _parisc_requires_coherency;

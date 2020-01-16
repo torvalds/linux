@@ -40,7 +40,7 @@ static int retrode_input_configured(struct hid_device *hdev,
 		break;
 	default:
 		hid_err(hdev, "Got unhandled report id %d\n", field->report->id);
-		suffix = "Unknown";
+		suffix = "Unkyeswn";
 	}
 
 	if (number)
@@ -65,7 +65,7 @@ static int retrode_probe(struct hid_device *hdev,
 
 	int ret;
 
-	/* Has no effect on the mouse device */
+	/* Has yes effect on the mouse device */
 	hdev->quirks |= HID_QUIRK_MULTI_INPUT;
 
 	ret = hid_parse(hdev);

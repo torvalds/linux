@@ -32,7 +32,7 @@ MODULE_LICENSE("GPL");
 struct kmem_cache *cachefiles_object_jar;
 
 static struct miscdevice cachefiles_dev = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.miyesr	= MISC_DYNAMIC_MINOR,
 	.name	= "cachefiles",
 	.fops	= &cachefiles_daemon_fops,
 };
@@ -65,7 +65,7 @@ static int __init cachefiles_init(void)
 				  SLAB_HWCACHE_ALIGN,
 				  cachefiles_object_init_once);
 	if (!cachefiles_object_jar) {
-		pr_notice("Failed to allocate an object jar\n");
+		pr_yestice("Failed to allocate an object jar\n");
 		goto error_object_jar;
 	}
 

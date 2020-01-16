@@ -4,7 +4,7 @@
   Broadcom B43legacy wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-		     Stefano Brivio <stefano.brivio@polimi.it>
+		     Stefayes Brivio <stefayes.brivio@polimi.it>
 		     Michael Buesch <m@bues.ch>
 		     Danny van Dyk <kugelfang@gentoo.org>
 		     Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -213,7 +213,7 @@ static void b43legacy_synth_pu_workaround(struct b43legacy_wldev *dev,
 	might_sleep();
 
 	if (phy->radio_ver != 0x2050 || phy->radio_rev >= 6)
-		/* We do not need the workaround. */
+		/* We do yest need the workaround. */
 		return;
 
 	if (channel <= 10)
@@ -1743,7 +1743,7 @@ int b43legacy_radio_selectchannel(struct b43legacy_wldev *dev,
 		}
 	}
 
-/* TODO: Check if channel is valid - return -EINVAL if not */
+/* TODO: Check if channel is valid - return -EINVAL if yest */
 	if (synthetic_pu_workaround)
 		b43legacy_synth_pu_workaround(dev, channel);
 

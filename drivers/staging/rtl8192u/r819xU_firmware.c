@@ -89,7 +89,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		skb_put(skb, i);
 
 		index = tcb_desc->queue_index;
-		if (!priv->ieee80211->check_nic_enough_desc(dev, index) ||
+		if (!priv->ieee80211->check_nic_eyesugh_desc(dev, index) ||
 		       (!skb_queue_empty(&priv->ieee80211->skb_waitQ[index])) ||
 		       (priv->ieee80211->queue_stop)) {
 			RT_TRACE(COMP_FIRMWARE, "=====================================================> tx full!\n");
@@ -121,7 +121,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
  *				be terminated
  *        NDIS_STATUS_SUCCESS - if firmware initialization process success
  */
-static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
+static bool CPUcheck_maincodeok_turyesnCPU(struct net_device *dev)
 {
 	bool		rt_status = true;
 	int		check_putcodeOK_time = 200000, check_bootOk_time = 200000;
@@ -305,9 +305,9 @@ bool init_firmware(struct net_device *dev)
 			pfirmware->firmware_status = FW_STATUS_2_MOVE_MAIN_CODE;
 
 			/* Check Put Code OK and Turn On CPU */
-			rt_status = CPUcheck_maincodeok_turnonCPU(dev);
+			rt_status = CPUcheck_maincodeok_turyesnCPU(dev);
 			if (!rt_status) {
-				RT_TRACE(COMP_ERR, "CPUcheck_maincodeok_turnonCPU fail!\n");
+				RT_TRACE(COMP_ERR, "CPUcheck_maincodeok_turyesnCPU fail!\n");
 				goto download_firmware_fail;
 			}
 

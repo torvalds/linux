@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -56,7 +56,7 @@ struct vmw_cmdbuf_res {
  * @list: List of commited command buffer resources.
  * @dev_priv: Pointer to a device private structure.
  *
- * @resources and @list are protected by the cmdbuf mutex for now.
+ * @resources and @list are protected by the cmdbuf mutex for yesw.
  */
 struct vmw_cmdbuf_res_manager {
 	struct drm_open_hash resources;
@@ -126,8 +126,8 @@ void vmw_cmdbuf_res_commit(struct list_head *list)
 
 	list_for_each_entry_safe(entry, next, list, head) {
 		list_del(&entry->head);
-		if (entry->res->func->commit_notify)
-			entry->res->func->commit_notify(entry->res,
+		if (entry->res->func->commit_yestify)
+			entry->res->func->commit_yestify(entry->res,
 							entry->state);
 		switch (entry->state) {
 		case VMW_CMDBUF_RES_ADD:
@@ -230,7 +230,7 @@ out_invalid_key:
  * @list: The staging list.
  * @res_p: If the resource is in an already committed state, points to the
  * struct vmw_resource on successful return. The pointer will be
- * non ref-counted.
+ * yesn ref-counted.
  *
  * This function looks up the struct vmw_cmdbuf_res entry from the manager
  * hash table and, if it exists, removes it. Depending on its current staging

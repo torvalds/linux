@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -95,7 +95,7 @@ struct driver_info {
 	char		*description;
 
 	int		flags;
-/* framing is CDC Ethernet, not writing ZLPs (hw issues), or optionally: */
+/* framing is CDC Ethernet, yest writing ZLPs (hw issues), or optionally: */
 #define FLAG_FRAMING_NC	0x0001		/* guard against device dropouts */
 #define FLAG_FRAMING_GL	0x0002		/* genelink batches packets */
 #define FLAG_FRAMING_Z	0x0004		/* zaurus adds a trailer */
@@ -188,15 +188,15 @@ extern int usbnet_read_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, void *data, u16 size);
 extern int usbnet_write_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, const void *data, u16 size);
-extern int usbnet_read_cmd_nopm(struct usbnet *dev, u8 cmd, u8 reqtype,
+extern int usbnet_read_cmd_yespm(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, void *data, u16 size);
-extern int usbnet_write_cmd_nopm(struct usbnet *dev, u8 cmd, u8 reqtype,
+extern int usbnet_write_cmd_yespm(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, const void *data, u16 size);
 extern int usbnet_write_cmd_async(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, const void *data, u16 size);
 
 /* Drivers that reuse some of the standard USB CDC infrastructure
- * (notably, using multiple interfaces according to the CDC
+ * (yestably, using multiple interfaces according to the CDC
  * union descriptor) get some helper code.
  */
 struct cdc_state {

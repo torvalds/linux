@@ -331,7 +331,7 @@ static int s3c_onenand_wait(struct mtd_info *mtd, int state)
 		break;
 	}
 
-	/* The 20 msec is enough */
+	/* The 20 msec is eyesugh */
 	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
 		stat = s3c_read_reg(INT_ERR_STAT_OFFSET);
@@ -537,9 +537,9 @@ static int s5pc110_dma_poll(dma_addr_t dst, dma_addr_t src, size_t count, int di
 	writel(S5PC110_DMA_TRANS_CMD_TR, base + S5PC110_DMA_TRANS_CMD);
 
 	/*
-	 * There's no exact timeout values at Spec.
+	 * There's yes exact timeout values at Spec.
 	 * In real case it takes under 1 msec.
-	 * So 20 msecs are enough.
+	 * So 20 msecs are eyesugh.
 	 */
 	timeout = jiffies + msecs_to_jiffies(20);
 
@@ -632,7 +632,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 
 	if (offset & 3 || (size_t) buf & 3 ||
 		!onenand->dma_addr || count != mtd->writesize)
-		goto normal;
+		goto yesrmal;
 
 	/* Handle vmalloc address */
 	if (buf >= high_memory) {
@@ -640,10 +640,10 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 
 		if (((size_t) buf & PAGE_MASK) !=
 		    ((size_t) (buf + count - 1) & PAGE_MASK))
-			goto normal;
+			goto yesrmal;
 		page = vmalloc_to_page(buf);
 		if (!page)
-			goto normal;
+			goto yesrmal;
 
 		/* Page offset */
 		ofs = ((size_t) buf & ~PAGE_MASK);
@@ -659,7 +659,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 	}
 	if (dma_mapping_error(dev, dma_dst)) {
 		dev_err(dev, "Couldn't map a %d byte buffer for DMA\n", count);
-		goto normal;
+		goto yesrmal;
 	}
 	err = s5pc110_dma_ops(dma_dst, dma_src,
 			count, S5PC110_DMA_DIR_READ);
@@ -672,7 +672,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 	if (!err)
 		return 0;
 
-normal:
+yesrmal:
 	if (count != mtd->writesize) {
 		/* Copy the bufferram to memory to prevent unaligned access */
 		memcpy_fromio(this->page_buf, p, mtd->writesize);
@@ -696,7 +696,7 @@ static int s3c_onenand_bbt_wait(struct mtd_info *mtd, int state)
 	unsigned int stat;
 	unsigned long timeout;
 
-	/* The 20 msec is enough */
+	/* The 20 msec is eyesugh */
 	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
 		stat = s3c_read_reg(INT_ERR_STAT_OFFSET);
@@ -788,7 +788,7 @@ static void s3c_unlock_all(struct mtd_info *mtd)
 			return;
 		}
 
-		/* All blocks on another chip */
+		/* All blocks on ayesther chip */
 		ofs = this->chipsize >> 1;
 		len = this->chipsize >> 1;
 	}

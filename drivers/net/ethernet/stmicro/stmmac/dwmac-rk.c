@@ -124,7 +124,7 @@ static void px30_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 				__func__, ret);
 
 	} else {
-		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RMII! speed=%d", speed);
 	}
 }
 
@@ -212,7 +212,7 @@ static void rk3128_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 		regmap_write(bsp_priv->grf, RK3128_GRF_MAC_CON1,
 			     RK3128_GMAC_CLK_125M);
 	else
-		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RGMII! speed=%d", speed);
 }
 
 static void rk3128_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
@@ -233,7 +233,7 @@ static void rk3128_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 			     RK3128_GMAC_RMII_CLK_25M |
 			     RK3128_GMAC_SPEED_100M);
 	} else {
-		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RMII! speed=%d", speed);
 	}
 }
 
@@ -333,7 +333,7 @@ static void rk3228_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 		regmap_write(bsp_priv->grf, RK3228_GRF_MAC_CON1,
 			     RK3228_GMAC_CLK_125M);
 	else
-		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RGMII! speed=%d", speed);
 }
 
 static void rk3228_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
@@ -354,7 +354,7 @@ static void rk3228_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 			     RK3228_GMAC_RMII_CLK_25M |
 			     RK3228_GMAC_SPEED_100M);
 	else
-		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RMII! speed=%d", speed);
 }
 
 static void rk3228_integrated_phy_powerup(struct rk_priv_data *priv)
@@ -450,7 +450,7 @@ static void rk3288_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 		regmap_write(bsp_priv->grf, RK3288_GRF_SOC_CON1,
 			     RK3288_GMAC_CLK_125M);
 	else
-		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RGMII! speed=%d", speed);
 }
 
 static void rk3288_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
@@ -471,7 +471,7 @@ static void rk3288_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 			     RK3288_GMAC_RMII_CLK_25M |
 			     RK3288_GMAC_SPEED_100M);
 	} else {
-		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RMII! speed=%d", speed);
 	}
 }
 
@@ -573,7 +573,7 @@ static void rk3328_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 		regmap_write(bsp_priv->grf, RK3328_GRF_MAC_CON1,
 			     RK3328_GMAC_CLK_125M);
 	else
-		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RGMII! speed=%d", speed);
 }
 
 static void rk3328_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
@@ -598,7 +598,7 @@ static void rk3328_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 			     RK3328_GMAC_RMII_CLK_25M |
 			     RK3328_GMAC_SPEED_100M);
 	else
-		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RMII! speed=%d", speed);
 }
 
 static void rk3328_integrated_phy_powerup(struct rk_priv_data *priv)
@@ -694,7 +694,7 @@ static void rk3366_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 		regmap_write(bsp_priv->grf, RK3366_GRF_SOC_CON6,
 			     RK3366_GMAC_CLK_125M);
 	else
-		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RGMII! speed=%d", speed);
 }
 
 static void rk3366_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
@@ -715,7 +715,7 @@ static void rk3366_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 			     RK3366_GMAC_RMII_CLK_25M |
 			     RK3366_GMAC_SPEED_100M);
 	} else {
-		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RMII! speed=%d", speed);
 	}
 }
 
@@ -805,7 +805,7 @@ static void rk3368_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 		regmap_write(bsp_priv->grf, RK3368_GRF_SOC_CON15,
 			     RK3368_GMAC_CLK_125M);
 	else
-		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RGMII! speed=%d", speed);
 }
 
 static void rk3368_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
@@ -826,7 +826,7 @@ static void rk3368_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 			     RK3368_GMAC_RMII_CLK_25M |
 			     RK3368_GMAC_SPEED_100M);
 	} else {
-		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RMII! speed=%d", speed);
 	}
 }
 
@@ -916,7 +916,7 @@ static void rk3399_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 		regmap_write(bsp_priv->grf, RK3399_GRF_SOC_CON5,
 			     RK3399_GMAC_CLK_125M);
 	else
-		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RGMII! speed=%d", speed);
 }
 
 static void rk3399_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
@@ -937,7 +937,7 @@ static void rk3399_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 			     RK3399_GMAC_RMII_CLK_25M |
 			     RK3399_GMAC_SPEED_100M);
 	} else {
-		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RMII! speed=%d", speed);
 	}
 }
 
@@ -991,7 +991,7 @@ static void rv1108_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 			     RV1108_GMAC_RMII_CLK_25M |
 			     RV1108_GMAC_SPEED_100M);
 	} else {
-		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		dev_err(dev, "unkyeswn speed value for RMII! speed=%d", speed);
 	}
 }
 
@@ -1054,47 +1054,47 @@ static int rk_gmac_clk_init(struct plat_stmmacenet_data *plat)
 
 	bsp_priv->mac_clk_rx = devm_clk_get(dev, "mac_clk_rx");
 	if (IS_ERR(bsp_priv->mac_clk_rx))
-		dev_err(dev, "cannot get clock %s\n",
+		dev_err(dev, "canyest get clock %s\n",
 			"mac_clk_rx");
 
 	bsp_priv->mac_clk_tx = devm_clk_get(dev, "mac_clk_tx");
 	if (IS_ERR(bsp_priv->mac_clk_tx))
-		dev_err(dev, "cannot get clock %s\n",
+		dev_err(dev, "canyest get clock %s\n",
 			"mac_clk_tx");
 
 	bsp_priv->aclk_mac = devm_clk_get(dev, "aclk_mac");
 	if (IS_ERR(bsp_priv->aclk_mac))
-		dev_err(dev, "cannot get clock %s\n",
+		dev_err(dev, "canyest get clock %s\n",
 			"aclk_mac");
 
 	bsp_priv->pclk_mac = devm_clk_get(dev, "pclk_mac");
 	if (IS_ERR(bsp_priv->pclk_mac))
-		dev_err(dev, "cannot get clock %s\n",
+		dev_err(dev, "canyest get clock %s\n",
 			"pclk_mac");
 
 	bsp_priv->clk_mac = devm_clk_get(dev, "stmmaceth");
 	if (IS_ERR(bsp_priv->clk_mac))
-		dev_err(dev, "cannot get clock %s\n",
+		dev_err(dev, "canyest get clock %s\n",
 			"stmmaceth");
 
 	if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RMII) {
 		bsp_priv->clk_mac_ref = devm_clk_get(dev, "clk_mac_ref");
 		if (IS_ERR(bsp_priv->clk_mac_ref))
-			dev_err(dev, "cannot get clock %s\n",
+			dev_err(dev, "canyest get clock %s\n",
 				"clk_mac_ref");
 
 		if (!bsp_priv->clock_input) {
 			bsp_priv->clk_mac_refout =
 				devm_clk_get(dev, "clk_mac_refout");
 			if (IS_ERR(bsp_priv->clk_mac_refout))
-				dev_err(dev, "cannot get clock %s\n",
+				dev_err(dev, "canyest get clock %s\n",
 					"clk_mac_refout");
 		}
 	}
 
 	bsp_priv->clk_mac_speed = devm_clk_get(dev, "clk_mac_speed");
 	if (IS_ERR(bsp_priv->clk_mac_speed))
-		dev_err(dev, "cannot get clock %s\n", "clk_mac_speed");
+		dev_err(dev, "canyest get clock %s\n", "clk_mac_speed");
 
 	if (bsp_priv->clock_input) {
 		dev_info(dev, "clock input from PHY\n");
@@ -1103,11 +1103,11 @@ static int rk_gmac_clk_init(struct plat_stmmacenet_data *plat)
 			clk_set_rate(bsp_priv->clk_mac, 50000000);
 	}
 
-	if (plat->phy_node && bsp_priv->integrated_phy) {
-		bsp_priv->clk_phy = of_clk_get(plat->phy_node, 0);
+	if (plat->phy_yesde && bsp_priv->integrated_phy) {
+		bsp_priv->clk_phy = of_clk_get(plat->phy_yesde, 0);
 		if (IS_ERR(bsp_priv->clk_phy)) {
 			ret = PTR_ERR(bsp_priv->clk_phy);
-			dev_err(dev, "Cannot get PHY clock: %d\n", ret);
+			dev_err(dev, "Canyest get PHY clock: %d\n", ret);
 			return -EINVAL;
 		}
 		clk_set_rate(bsp_priv->clk_phy, 50000000);
@@ -1224,22 +1224,22 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	if (!bsp_priv)
 		return ERR_PTR(-ENOMEM);
 
-	of_get_phy_mode(dev->of_node, &bsp_priv->phy_iface);
+	of_get_phy_mode(dev->of_yesde, &bsp_priv->phy_iface);
 	bsp_priv->ops = ops;
 
 	bsp_priv->regulator = devm_regulator_get_optional(dev, "phy");
 	if (IS_ERR(bsp_priv->regulator)) {
 		if (PTR_ERR(bsp_priv->regulator) == -EPROBE_DEFER) {
-			dev_err(dev, "phy regulator is not available yet, deferred probing\n");
+			dev_err(dev, "phy regulator is yest available yet, deferred probing\n");
 			return ERR_PTR(-EPROBE_DEFER);
 		}
-		dev_err(dev, "no regulator found\n");
+		dev_err(dev, "yes regulator found\n");
 		bsp_priv->regulator = NULL;
 	}
 
-	ret = of_property_read_string(dev->of_node, "clock_in_out", &strings);
+	ret = of_property_read_string(dev->of_yesde, "clock_in_out", &strings);
 	if (ret) {
-		dev_err(dev, "Can not read property: clock_in_out.\n");
+		dev_err(dev, "Can yest read property: clock_in_out.\n");
 		bsp_priv->clock_input = true;
 	} else {
 		dev_info(dev, "clock input or output? (%s).\n",
@@ -1250,10 +1250,10 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 			bsp_priv->clock_input = false;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "tx_delay", &value);
+	ret = of_property_read_u32(dev->of_yesde, "tx_delay", &value);
 	if (ret) {
 		bsp_priv->tx_delay = 0x30;
-		dev_err(dev, "Can not read property: tx_delay.");
+		dev_err(dev, "Can yest read property: tx_delay.");
 		dev_err(dev, "set tx_delay to 0x%x\n",
 			bsp_priv->tx_delay);
 	} else {
@@ -1261,10 +1261,10 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 		bsp_priv->tx_delay = value;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "rx_delay", &value);
+	ret = of_property_read_u32(dev->of_yesde, "rx_delay", &value);
 	if (ret) {
 		bsp_priv->rx_delay = 0x10;
-		dev_err(dev, "Can not read property: rx_delay.");
+		dev_err(dev, "Can yest read property: rx_delay.");
 		dev_err(dev, "set rx_delay to 0x%x\n",
 			bsp_priv->rx_delay);
 	} else {
@@ -1272,14 +1272,14 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 		bsp_priv->rx_delay = value;
 	}
 
-	bsp_priv->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+	bsp_priv->grf = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 							"rockchip,grf");
 
-	if (plat->phy_node) {
-		bsp_priv->integrated_phy = of_property_read_bool(plat->phy_node,
+	if (plat->phy_yesde) {
+		bsp_priv->integrated_phy = of_property_read_bool(plat->phy_yesde,
 								 "phy-is-integrated");
 		if (bsp_priv->integrated_phy) {
-			bsp_priv->phy_reset = of_reset_control_get(plat->phy_node, NULL);
+			bsp_priv->phy_reset = of_reset_control_get(plat->phy_yesde, NULL);
 			if (IS_ERR(bsp_priv->phy_reset)) {
 				dev_err(&pdev->dev, "No PHY reset control found.\n");
 				bsp_priv->phy_reset = NULL;
@@ -1287,7 +1287,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 		}
 	}
 	dev_info(dev, "integrated PHY? (%s).\n",
-		 bsp_priv->integrated_phy ? "yes" : "no");
+		 bsp_priv->integrated_phy ? "no" : "yes");
 
 	bsp_priv->pdev = pdev;
 
@@ -1388,7 +1388,7 @@ static int rk_gmac_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
-		dev_err(&pdev->dev, "no of match data provided\n");
+		dev_err(&pdev->dev, "yes of match data provided\n");
 		return -EINVAL;
 	}
 

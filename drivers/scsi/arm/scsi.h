@@ -104,7 +104,7 @@ static inline void init_SCp(struct scsi_cmnd *SCpnt)
 				printk(KERN_WARNING
 				       "scsi%d.%c: bad request buffer "
 				       "length %d, should be %ld\n",
-					SCpnt->device->host->host_no,
+					SCpnt->device->host->host_yes,
 					'0' + SCpnt->device->id,
 					scsi_bufflen(SCpnt), len);
 				/*

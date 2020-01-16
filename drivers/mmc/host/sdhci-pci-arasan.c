@@ -74,7 +74,7 @@
 #define DDR50_MODE	BIT(3)
 
 /*
- * Controller has no specific bits for HS200/HS.
+ * Controller has yes specific bits for HS200/HS.
  * Used BIT(4), BIT(5) for software programming.
  */
 #define HS200_MODE	BIT(4)

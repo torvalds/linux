@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -41,8 +41,8 @@
  *	Blob property to set the degamma lookup table (LUT) mapping pixel data
  *	from the framebuffer before it is given to the transformation matrix.
  *	The data is interpreted as an array of &struct drm_color_lut elements.
- *	Hardware might choose not to use the full precision of the LUT elements
- *	nor use all the elements of the LUT (for example the hardware might
+ *	Hardware might choose yest to use the full precision of the LUT elements
+ *	yesr use all the elements of the LUT (for example the hardware might
  *	choose to interpolate between LUT[0] and LUT[4]).
  *
  *	Setting this to NULL (blob property value set to 0) means a
@@ -72,8 +72,8 @@
  *	Blob property to set the gamma lookup table (LUT) mapping pixel data
  *	after the transformation matrix to data sent to the connector. The
  *	data is interpreted as an array of &struct drm_color_lut elements.
- *	Hardware might choose not to use the full precision of the LUT elements
- *	nor use all the elements of the LUT (for example the hardware might
+ *	Hardware might choose yest to use the full precision of the LUT elements
+ *	yesr use all the elements of the LUT (for example the hardware might
  *	choose to interpolate between LUT[0] and LUT[4]).
  *
  *	Setting this to NULL (blob property value set to 0) means a
@@ -93,17 +93,17 @@
  * drm_atomic_helper_legacy_gamma_set() to alias the legacy gamma ramp with the
  * "GAMMA_LUT" property above.
  *
- * Support for different non RGB color encodings is controlled through
+ * Support for different yesn RGB color encodings is controlled through
  * &drm_plane specific COLOR_ENCODING and COLOR_RANGE properties. They
  * are set up by calling drm_plane_create_color_properties().
  *
  * "COLOR_ENCODING"
- * 	Optional plane enum property to support different non RGB
+ * 	Optional plane enum property to support different yesn RGB
  * 	color encodings. The driver can provide a subset of standard
  * 	enum values supported by the DRM plane.
  *
  * "COLOR_RANGE"
- * 	Optional plane enum property to support different non RGB
+ * 	Optional plane enum property to support different yesn RGB
  * 	color parameter ranges. The driver can provide a subset of
  * 	standard enum values supported by the DRM plane.
  */
@@ -122,7 +122,7 @@ uint32_t drm_color_lut_extract(uint32_t user_input, uint32_t bit_precision)
 	uint32_t val = user_input;
 	uint32_t max = 0xffff >> (16 - bit_precision);
 
-	/* Round only if we're not using full precision. */
+	/* Round only if we're yest using full precision. */
 	if (bit_precision < 16) {
 		val += 1UL << (16 - bit_precision - 1);
 		val >>= 16 - bit_precision;
@@ -144,7 +144,7 @@ EXPORT_SYMBOL(drm_color_lut_extract);
  * properties that userspace can set and 2 size properties to inform
  * the userspace of the lut sizes. Each of the properties are
  * optional. The gamma and degamma properties are only attached if
- * their size is not 0 and ctm_property is only attached if has_ctm is
+ * their size is yest 0 and ctm_property is only attached if has_ctm is
  * true.
  *
  * Drivers should use drm_atomic_helper_legacy_gamma_set() to implement the
@@ -190,7 +190,7 @@ EXPORT_SYMBOL(drm_crtc_enable_color_mgmt);
  * fixed gamma table size.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 				 int gamma_size)
@@ -233,7 +233,7 @@ EXPORT_SYMBOL(drm_mode_crtc_set_gamma_size);
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv)
@@ -302,7 +302,7 @@ out:
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv)
@@ -369,7 +369,7 @@ static const char * const color_range_name[] = {
 const char *drm_get_color_encoding_name(enum drm_color_encoding encoding)
 {
 	if (WARN_ON(encoding >= ARRAY_SIZE(color_encoding_name)))
-		return "unknown";
+		return "unkyeswn";
 
 	return color_encoding_name[encoding];
 }
@@ -384,7 +384,7 @@ const char *drm_get_color_encoding_name(enum drm_color_encoding encoding)
 const char *drm_get_color_range_name(enum drm_color_range range)
 {
 	if (WARN_ON(range >= ARRAY_SIZE(color_range_name)))
-		return "unknown";
+		return "unkyeswn";
 
 	return color_range_name[range];
 }

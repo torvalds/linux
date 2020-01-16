@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -62,7 +62,7 @@ static void dce_virtual_page_flip(struct amdgpu_device *adev,
 	return;
 }
 
-static int dce_virtual_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
+static int dce_virtual_crtc_get_scayesutpos(struct amdgpu_device *adev, int crtc,
 					u32 *vbl, u32 *position)
 {
 	*vbl = 0;
@@ -451,7 +451,7 @@ static int dce_virtual_hw_init(void *handle)
 #ifdef CONFIG_DRM_AMDGPU_SI
 	case CHIP_HAINAN:
 #endif
-		/* no DCE */
+		/* yes DCE */
 		break;
 	default:
 		break;
@@ -626,7 +626,7 @@ static const struct amdgpu_display_funcs dce_virtual_display_funcs = {
 	.hpd_set_polarity = &dce_virtual_hpd_set_polarity,
 	.hpd_get_gpio_reg = &dce_virtual_hpd_get_gpio_reg,
 	.page_flip = &dce_virtual_page_flip,
-	.page_flip_get_scanoutpos = &dce_virtual_crtc_get_scanoutpos,
+	.page_flip_get_scayesutpos = &dce_virtual_crtc_get_scayesutpos,
 	.add_encoder = NULL,
 	.add_connector = NULL,
 };
@@ -755,7 +755,7 @@ const struct amdgpu_ip_block_version dce_virtual_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_DCE,
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &dce_virtual_ip_funcs,
 };

@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _V4L2-TCH-FMT-DELTA-TD16:
 
@@ -24,9 +24,9 @@ Description
 This format represents delta data from a touch controller.
 
 Delta values may range from -32768 to 32767. Typically the values will vary
-through a small range depending on whether the sensor is touched or not. The
-full value may be seen if one of the touchscreen nodes has a fault or the line
-is not connected.
+through a small range depending on whether the sensor is touched or yest. The
+full value may be seen if one of the touchscreen yesdes has a fault or the line
+is yest connected.
 
 **Byte Order.**
 Each cell is one byte.

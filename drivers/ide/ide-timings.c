@@ -13,9 +13,9 @@
 #include <linux/module.h>
 
 /*
- * PIO 0-5, MWDMA 0-2 and UDMA 0-6 timings (in nanoseconds).
+ * PIO 0-5, MWDMA 0-2 and UDMA 0-6 timings (in nayesseconds).
  * These were taken from ATA/ATAPI-6 standard, rev 0a, except
- * for PIO 5, which is a nonstandard extension and UDMA6, which
+ * for PIO 5, which is a yesnstandard extension and UDMA6, which
  * is currently supported only by Maxtor drives.
  */
 

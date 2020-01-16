@@ -1,10 +1,10 @@
-Qualcomm Technologies, Inc. GENI Serial Engine QUP Wrapper Controller
+Qualcomm Techyeslogies, Inc. GENI Serial Engine QUP Wrapper Controller
 
 Generic Interface (GENI) based Qualcomm Universal Peripheral (QUP) wrapper
 is a programmable module for supporting a wide range of serial interfaces
 like UART, SPI, I2C, I3C, etc. A single QUP module can provide upto 8 Serial
 Interfaces, using its internal Serial Engines. The GENI Serial Engine QUP
-Wrapper controller is modeled as a node with zero or more child nodes each
+Wrapper controller is modeled as a yesde with zero or more child yesdes each
 representing a serial engine.
 
 Required properties:
@@ -13,20 +13,20 @@ Required properties:
 - clock-names:		Must contain "m-ahb" and "s-ahb".
 - clocks:		AHB clocks needed by the device.
 
-Required properties if child node exists:
+Required properties if child yesde exists:
 - #address-cells: 	Must be <1> for Serial Engine Address
 - #size-cells: 		Must be <1> for Serial Engine Address Size
 - ranges: 		Must be present
 
 Properties for children:
 
-A GENI based QUP wrapper controller node can contain 0 or more child nodes
+A GENI based QUP wrapper controller yesde can contain 0 or more child yesdes
 representing serial devices.  These serial devices can be a QCOM UART, I2C
 controller, SPI controller, or some combination of aforementioned devices.
-Please refer below the child node definitions for the supported serial
+Please refer below the child yesde definitions for the supported serial
 interface protocols.
 
-Qualcomm Technologies Inc. GENI Serial Engine based I2C Controller
+Qualcomm Techyeslogies Inc. GENI Serial Engine based I2C Controller
 
 Required properties:
 - compatible:		Must be "qcom,geni-i2c".
@@ -35,15 +35,15 @@ Required properties:
 - clock-names: 		Must contain "se".
 - clocks: 		Serial engine core clock needed by the device.
 - #address-cells:	Must be <1> for I2C device address.
-- #size-cells:		Must be <0> as I2C addresses have no size component.
+- #size-cells:		Must be <0> as I2C addresses have yes size component.
 
 Optional property:
 - clock-frequency:	Desired I2C bus clock frequency in Hz.
 			When missing default to 100000Hz.
 
-Child nodes should conform to I2C bus binding as described in i2c.txt.
+Child yesdes should conform to I2C bus binding as described in i2c.txt.
 
-Qualcomm Technologies Inc. GENI Serial Engine based UART Controller
+Qualcomm Techyeslogies Inc. GENI Serial Engine based UART Controller
 
 Required properties:
 - compatible:		Must be "qcom,geni-debug-uart" or "qcom,geni-uart".
@@ -52,8 +52,8 @@ Required properties:
 - clock-names:		Must contain "se".
 - clocks:		Serial engine core clock needed by the device.
 
-Qualcomm Technologies Inc. GENI Serial Engine based SPI Controller
-node binding is described in
+Qualcomm Techyeslogies Inc. GENI Serial Engine based SPI Controller
+yesde binding is described in
 Documentation/devicetree/bindings/spi/qcom,spi-geni-qcom.txt.
 
 Example:

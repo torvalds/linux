@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -149,7 +149,7 @@ ex:
 	return err;
 }
 
-static int set_vf_node_guid(struct ib_device *device, int vf, u8 port, u64 guid)
+static int set_vf_yesde_guid(struct ib_device *device, int vf, u8 port, u64 guid)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
 	struct mlx5_core_dev *mdev = dev->mdev;
@@ -162,10 +162,10 @@ static int set_vf_node_guid(struct ib_device *device, int vf, u8 port, u64 guid)
 		return -ENOMEM;
 
 	in->field_select = MLX5_HCA_VPORT_SEL_NODE_GUID;
-	in->node_guid = guid;
+	in->yesde_guid = guid;
 	err = mlx5_core_modify_hca_vport_context(mdev, 1, 1, vf + 1, in);
 	if (!err)
-		vfs_ctx[vf].node_guid = guid;
+		vfs_ctx[vf].yesde_guid = guid;
 	kfree(in);
 	return err;
 }
@@ -195,7 +195,7 @@ int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
 			u64 guid, int type)
 {
 	if (type == IFLA_VF_IB_NODE_GUID)
-		return set_vf_node_guid(device, vf, port, guid);
+		return set_vf_yesde_guid(device, vf, port, guid);
 	else if (type == IFLA_VF_IB_PORT_GUID)
 		return set_vf_port_guid(device, vf, port, guid);
 
@@ -203,7 +203,7 @@ int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
 }
 
 int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
-			struct ifla_vf_guid *node_guid,
+			struct ifla_vf_guid *yesde_guid,
 			struct ifla_vf_guid *port_guid)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
@@ -220,7 +220,7 @@ int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
 		goto ex;
 
 	port_guid->guid = rep->port_guid;
-	node_guid->guid = rep->node_guid;
+	yesde_guid->guid = rep->yesde_guid;
 ex:
 	kfree(rep);
 	return err;

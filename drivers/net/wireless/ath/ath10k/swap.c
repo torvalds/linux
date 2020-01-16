@@ -27,7 +27,7 @@ static int ath10k_swap_code_seg_fill(struct ath10k *ar,
 
 	/* Parse swap bin and copy the content to host allocated memory.
 	 * The format is Address, length and value. The last 4-bytes is
-	 * target write address. Currently address field is not used.
+	 * target write address. Currently address field is yest used.
 	 */
 	seg_info->target_addr = -1;
 	while (size_left >= sizeof(*swap_item)) {

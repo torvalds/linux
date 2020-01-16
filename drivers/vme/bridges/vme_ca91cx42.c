@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/poll.h>
@@ -554,7 +554,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 		goto err_resource;
 	}
 
-	image->kern_base = ioremap_nocache(
+	image->kern_base = ioremap_yescache(
 		image->bus_resource.start, size);
 	if (!image->kern_base) {
 		dev_err(ca91cx42_bridge->parent, "Failed to remap resource\n");
@@ -859,12 +859,12 @@ static ssize_t ca91cx42_master_read(struct vme_master_resource *image,
 
 	spin_lock(&image->lock);
 
-	/* The following code handles VME address alignment. We cannot use
+	/* The following code handles VME address alignment. We canyest use
 	 * memcpy_xxx here because it may cut data transfers in to 8-bit
 	 * cycles when D16 or D32 cycles are required on the VME bus.
 	 * On the other hand, the bridge itself assures that the maximum data
 	 * cycle configured for the transfer is used and splits it
-	 * automatically for non-aligned addresses, so we don't want the
+	 * automatically for yesn-aligned addresses, so we don't want the
 	 * overhead of needlessly forcing small transfers for the entire cycle.
 	 */
 	if ((uintptr_t)addr & 0x1) {
@@ -984,7 +984,7 @@ static unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 
 	/* Address must be 4-byte aligned */
 	if (pci_addr & 0x3) {
-		dev_err(dev, "RMW Address not 4-byte aligned\n");
+		dev_err(dev, "RMW Address yest 4-byte aligned\n");
 		result = -EINVAL;
 		goto out;
 	}
@@ -1036,7 +1036,7 @@ static int ca91cx42_dma_list_add(struct vme_dma_list *list,
 
 	/* Test descriptor alignment */
 	if ((unsigned long)&entry->descriptor & CA91CX42_DCPP_M) {
-		dev_err(dev, "Descriptor not aligned to 16 byte boundary as "
+		dev_err(dev, "Descriptor yest aligned to 16 byte boundary as "
 			"required: %p\n", &entry->descriptor);
 		retval = -EINVAL;
 		goto err_align;
@@ -1074,7 +1074,7 @@ static int ca91cx42_dma_list_add(struct vme_dma_list *list,
 	if (!(((src->type == VME_DMA_PCI) && (dest->type == VME_DMA_VME)) ||
 		((src->type == VME_DMA_VME) && (dest->type == VME_DMA_PCI)))) {
 
-		dev_err(dev, "Cannot perform transfer with this "
+		dev_err(dev, "Canyest perform transfer with this "
 			"source-destination combination\n");
 		retval = -EINVAL;
 		goto err_direct;
@@ -1287,7 +1287,7 @@ static int ca91cx42_dma_list_empty(struct vme_dma_list *list)
  * All 4 location monitors reside at the same base - this is therefore a
  * system wide configuration.
  *
- * This does not enable the LM monitor - that should be done when the first
+ * This does yest enable the LM monitor - that should be done when the first
  * callback is attached and disabled when the last callback is removed.
  */
 static int ca91cx42_lm_set(struct vme_lm_resource *lm,
@@ -1417,7 +1417,7 @@ static int ca91cx42_lm_attach(struct vme_lm_resource *lm, int monitor,
 	lm_ctl = ioread32(bridge->base + LM_CTL);
 	if ((lm_ctl & (CA91CX42_LM_CTL_PGM | CA91CX42_LM_CTL_DATA)) == 0) {
 		mutex_unlock(&lm->mtx);
-		dev_err(dev, "Location monitor not properly configured\n");
+		dev_err(dev, "Location monitor yest properly configured\n");
 		return -EINVAL;
 	}
 
@@ -1549,7 +1549,7 @@ static int ca91cx42_crcsr_init(struct vme_bridge *ca91cx42_bridge,
 
 	dev_info(&pdev->dev, "CR/CSR Offset: %d\n", slot);
 	if (slot == 0) {
-		dev_err(&pdev->dev, "Slot number is unset, not configuring "
+		dev_err(&pdev->dev, "Slot number is unset, yest configuring "
 			"CR/CSR space\n");
 		return -EINVAL;
 	}
@@ -1638,7 +1638,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* map registers in BAR 0 */
-	ca91cx42_device->base = ioremap_nocache(pci_resource_start(pdev, 0),
+	ca91cx42_device->base = ioremap_yescache(pci_resource_start(pdev, 0),
 		4096);
 	if (!ca91cx42_device->base) {
 		dev_err(&pdev->dev, "Unable to remap CRG region\n");
@@ -1771,7 +1771,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	data = ioread32(ca91cx42_device->base + MISC_CTL);
 	dev_info(&pdev->dev, "Board is%s the VME system controller\n",
-		(data & CA91CX42_MISC_CTL_SYSCON) ? "" : " not");
+		(data & CA91CX42_MISC_CTL_SYSCON) ? "" : " yest");
 	dev_info(&pdev->dev, "Slot ID is %d\n",
 		ca91cx42_slot_get(ca91cx42_bridge));
 

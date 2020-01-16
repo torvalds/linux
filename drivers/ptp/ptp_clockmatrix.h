@@ -3,7 +3,7 @@
  * PTP hardware clock driver for the IDT ClockMatrix(TM) family of timing and
  * synchronization devices.
  *
- * Copyright (C) 2019 Integrated Device Technology, Inc., a Renesas Company.
+ * Copyright (C) 2019 Integrated Device Techyeslogy, Inc., a Renesas Company.
  */
 #ifndef PTP_IDTCLOCKMATRIX_H
 #define PTP_IDTCLOCKMATRIX_H

@@ -4,8 +4,8 @@
 DSA switch configuration from userspace
 =======================================
 
-The DSA switch configuration is not integrated into the main userspace
-network configuration suites by now and has to be performed manualy.
+The DSA switch configuration is yest integrated into the main userspace
+network configuration suites by yesw and has to be performed manualy.
 
 .. _dsa-config-showcases:
 
@@ -29,7 +29,7 @@ documentation some common configuration scenarios are handled as showcases:
 All configurations are performed with tools from iproute2, which is available
 at https://www.kernel.org/pub/linux/utils/net/iproute2/
 
-Through DSA every port of a switch is handled like a normal linux Ethernet
+Through DSA every port of a switch is handled like a yesrmal linux Ethernet
 interface. The CPU port is the switch port connected to an Ethernet MAC chip.
 The corresponding linux Ethernet interface is called the master interface.
 All other corresponding linux interfaces are called slave interfaces.
@@ -46,7 +46,7 @@ In this documentation the following Ethernet interfaces are used:
   a slave interface
 
 *lan2*
-  another slave interface
+  ayesther slave interface
 
 *lan3*
   a third slave interface
@@ -157,7 +157,7 @@ gateway
 Configuration without tagging support
 -------------------------------------
 
-A minority of switches are not capable to use a taging protocol
+A miyesrity of switches are yest capable to use a taging protocol
 (DSA_TAG_PROTO_NONE). These switches can be configured by a VLAN based
 configuration.
 

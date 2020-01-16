@@ -83,7 +83,7 @@ enum bnx2x_int_mode {
 
 /* regular debug print */
 #define DP_INNER(fmt, ...)					\
-	pr_notice("[%s:%d(%s)]" fmt,				\
+	pr_yestice("[%s:%d(%s)]" fmt,				\
 		  __func__, __LINE__,				\
 		  bp->dev ? (bp->dev->name) : "?",		\
 		  ##__VA_ARGS__);
@@ -268,7 +268,7 @@ enum {
 	BNX2X_MAX_CNIC_ETH_CL_ID_IDX,
 };
 
-/* use a value high enough to be above all the PFs, which has least significant
+/* use a value high eyesugh to be above all the PFs, which has least significant
  * nibble as 8, so when cnic needs to come up with a CID for UIO to use to
  * calculate doorbell address according to old doorbell configuration scheme
  * (db_msg_sz 1 << 7 * cid + 0x40 DPM offset) it can come up with a valid number
@@ -942,11 +942,11 @@ struct bnx2x_common {
 #define CHIP_IS_E3A0(bp)		(CHIP_IS_E3(bp) && \
 					 (CHIP_REV(bp) == CHIP_REV_Ax))
 /* This define is used in two main places:
- * 1. In the early stages of nic_load, to know if to configure Parser / Searcher
+ * 1. In the early stages of nic_load, to kyesw if to configure Parser / Searcher
  * to nic-only mode or to offload mode. Offload mode is configured if either the
- * chip is E1x (where MIC_MODE register is not applicable), or if cnic already
+ * chip is E1x (where MIC_MODE register is yest applicable), or if cnic already
  * registered for this port (which means that the user wants storage services).
- * 2. During cnic-related load, to know if offload mode is already configured in
+ * 2. During cnic-related load, to kyesw if offload mode is already configured in
  * the HW or needs to be configured.
  * Since the transition from nic-mode to offload-mode in HW causes traffic
  * corruption, nic-mode is configured only in ports on which storage services
@@ -1037,7 +1037,7 @@ struct bnx2x_port {
 #define BNX2X_VF_ID_INVALID	0xFF
 
 /* the number of VF CIDS multiplied by the amount of bytes reserved for each
- * cid must not exceed the size of the VF doorbell
+ * cid must yest exceed the size of the VF doorbell
  */
 #define BNX2X_VF_BAR_SIZE	512
 #if (BNX2X_VF_BAR_SIZE < BNX2X_CIDS_PER_VF * (1 << BNX2X_DB_SHIFT))
@@ -1047,10 +1047,10 @@ struct bnx2x_port {
 /*
  * The total number of L2 queues, MSIX vectors and HW contexts (CIDs) is
  * control by the number of fast-path status blocks supported by the
- * device (HW/FW). Each fast-path status block (FP-SB) aka non-default
+ * device (HW/FW). Each fast-path status block (FP-SB) aka yesn-default
  * status block represents an independent interrupts context that can
  * serve a regular L2 networking queue. However special L2 queues such
- * as the FCoE queue do not require a FP-SB and other components like
+ * as the FCoE queue do yest require a FP-SB and other components like
  * the CNIC may consume FP-SB reducing the number of possible L2 queues
  *
  * If the maximum number of FP-SB available is X then:
@@ -1110,7 +1110,7 @@ union cdu_context {
 
 #define MAX_DMAE_C		8
 
-/* DMA memory not used in fastpath */
+/* DMA memory yest used in fastpath */
 struct bnx2x_slowpath {
 	union {
 		struct mac_configuration_cmd		e1x;
@@ -1146,7 +1146,7 @@ struct bnx2x_slowpath {
 		struct flow_control_configuration pfc_config;
 	} func_rdata;
 
-	/* afex ramrod can not be a part of func_rdata union because these
+	/* afex ramrod can yest be a part of func_rdata union because these
 	 * events might arrive in parallel to other events from func_rdata.
 	 * Therefore, if they would have been defined in the same union,
 	 * data can get corrupted.
@@ -1897,7 +1897,7 @@ struct bnx2x_func_init_params {
 #define for_each_eth_queue(bp, var) \
 	for ((var) = 0; (var) < BNX2X_NUM_ETH_QUEUES(bp); (var)++)
 
-#define for_each_nondefault_eth_queue(bp, var) \
+#define for_each_yesndefault_eth_queue(bp, var) \
 	for ((var) = 1; (var) < BNX2X_NUM_ETH_QUEUES(bp); (var)++)
 
 #define for_each_queue(bp, var) \
@@ -1952,7 +1952,7 @@ struct bnx2x_func_init_params {
 			continue;		\
 		else
 
-#define for_each_nondefault_queue(bp, var) \
+#define for_each_yesndefault_queue(bp, var) \
 	for ((var) = 1; (var) < BNX2X_NUM_QUEUES(bp); (var)++) \
 		if (skip_queue(bp, var))	\
 			continue;		\
@@ -2432,7 +2432,7 @@ static const u32 dmae_reg_go_c[] = {
 };
 
 void bnx2x_set_ethtool_ops(struct bnx2x *bp, struct net_device *netdev);
-void bnx2x_notify_link_changed(struct bnx2x *bp);
+void bnx2x_yestify_link_changed(struct bnx2x *bp);
 
 #define BNX2X_MF_SD_PROTOCOL(bp) \
 	((bp)->mf_config[BP_VN(bp)] & FUNC_MF_CFG_PROTOCOL_MASK)

@@ -8,8 +8,8 @@ Required properties:
   be 8 interrupts specified.
 - #gpio-cells : Should be two. The first cell is the pin number and the
   second cell is used to specify optional parameters:
-  - bit 0 specifies polarity (0 for normal, 1 for inverted)
-- gpio-controller : Marks the device node as a GPIO controller.
+  - bit 0 specifies polarity (0 for yesrmal, 1 for inverted)
+- gpio-controller : Marks the device yesde as a GPIO controller.
 - #interrupt-cells : Should be 2.
   The first cell is the GPIO number.
   The second cell is used to specify flags:
@@ -19,7 +19,7 @@ Required properties:
       4 = active high level-sensitive.
       8 = active low level-sensitive.
       Valid combinations are 1, 2, 3, 4, 8.
-- interrupt-controller : Marks the device node as an interrupt controller.
+- interrupt-controller : Marks the device yesde as an interrupt controller.
 
 Example:
 

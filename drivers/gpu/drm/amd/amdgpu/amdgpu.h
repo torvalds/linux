@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -167,7 +167,7 @@ extern int amdgpu_async_gfx_ring;
 extern int amdgpu_mcbp;
 extern int amdgpu_discovery;
 extern int amdgpu_mes;
-extern int amdgpu_noretry;
+extern int amdgpu_yesretry;
 extern int amdgpu_force_asic_type;
 #ifdef CONFIG_HSA_AMD
 extern int sched_policy;
@@ -285,13 +285,13 @@ struct amdgpu_ip_block_status {
 struct amdgpu_ip_block_version {
 	const enum amd_ip_block_type type;
 	const u32 major;
-	const u32 minor;
+	const u32 miyesr;
 	const u32 rev;
 	const struct amd_ip_funcs *funcs;
 };
 
-#define HW_REV(_Major, _Minor, _Rev) \
-	((((uint32_t) (_Major)) << 16) | ((uint32_t) (_Minor) << 8) | ((uint32_t) (_Rev)))
+#define HW_REV(_Major, _Miyesr, _Rev) \
+	((((uint32_t) (_Major)) << 16) | ((uint32_t) (_Miyesr) << 8) | ((uint32_t) (_Rev)))
 
 struct amdgpu_ip_block {
 	struct amdgpu_ip_block_status status;
@@ -300,7 +300,7 @@ struct amdgpu_ip_block {
 
 int amdgpu_device_ip_block_version_cmp(struct amdgpu_device *adev,
 				       enum amd_ip_block_type type,
-				       u32 major, u32 minor);
+				       u32 major, u32 miyesr);
 
 struct amdgpu_ip_block *
 amdgpu_device_ip_get_ip_block(struct amdgpu_device *adev,
@@ -334,7 +334,7 @@ struct amdgpu_clock {
 	uint32_t max_pixel_clock;
 };
 
-/* sub-allocation manager, it has to be protected by another lock.
+/* sub-allocation manager, it has to be protected by ayesther lock.
  * By conception this is an helper for other part of the driver
  * like the indirect buffer or semaphore, which both have their
  * locking.
@@ -347,13 +347,13 @@ struct amdgpu_clock {
  * the end total_size - (last_object_offset + last_object_size) >=
  * alloc_size. If so we allocate new object there.
  *
- * When there is not enough room at the end, we start waiting for
+ * When there is yest eyesugh room at the end, we start waiting for
  * each sub object until we reach object_offset+object_size >=
  * alloc_size, this object then become the sub object we return.
  *
  * Alignment can't be bigger than page size.
  *
- * Hole are not considered for allocation to keep things simple.
+ * Hole are yest considered for allocation to keep things simple.
  * Assumption is that there won't be hole (all object on same
  * alignment).
  */
@@ -747,7 +747,7 @@ struct amdgpu_device {
 	bool				shutdown;
 	bool				need_swiotlb;
 	bool				accel_working;
-	struct notifier_block		acpi_nb;
+	struct yestifier_block		acpi_nb;
 	struct amdgpu_i2c_chan		*i2c_bus[AMDGPU_MAX_I2C_BUS];
 	struct amdgpu_debugfs		debugfs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
 	unsigned			debugfs_count;
@@ -967,7 +967,7 @@ struct amdgpu_device {
 	struct mutex  lock_reset;
 	struct amdgpu_doorbell_index doorbell_index;
 
-	struct mutex			notifier_lock;
+	struct mutex			yestifier_lock;
 
 	int asic_reset_res;
 	struct work_struct		xgmi_reset_work;
@@ -1207,7 +1207,7 @@ void amdgpu_acpi_fini(struct amdgpu_device *adev);
 bool amdgpu_acpi_is_pcie_performance_request_supported(struct amdgpu_device *adev);
 int amdgpu_acpi_pcie_performance_request(struct amdgpu_device *adev,
 						u8 perf_req, bool advertise);
-int amdgpu_acpi_pcie_notify_device_ready(struct amdgpu_device *adev);
+int amdgpu_acpi_pcie_yestify_device_ready(struct amdgpu_device *adev);
 
 void amdgpu_acpi_get_backlight_caps(struct amdgpu_device *adev,
 		struct amdgpu_dm_backlight_caps *caps);

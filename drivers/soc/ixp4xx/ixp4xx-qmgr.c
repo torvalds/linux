@@ -28,7 +28,7 @@ char qmgr_queue_descs[QUEUES][32];
 void qmgr_put_entry(unsigned int queue, u32 val)
 {
 #if DEBUG_QMGR
-	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+	BUG_ON(!qmgr_queue_descs[queue]); /* yest yet requested */
 
 	printk(KERN_DEBUG "Queue %s(%i) put %X\n",
 	       qmgr_queue_descs[queue], queue, val);
@@ -41,7 +41,7 @@ u32 qmgr_get_entry(unsigned int queue)
 	u32 val;
 	val = __raw_readl(&qmgr_regs->acc[queue][0]);
 #if DEBUG_QMGR
-	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+	BUG_ON(!qmgr_queue_descs[queue]); /* yest yet requested */
 
 	printk(KERN_DEBUG "Queue %s(%i) get %X\n",
 	       qmgr_queue_descs[queue], queue, val);
@@ -66,7 +66,7 @@ static int __qmgr_get_stat2(unsigned int queue)
  * qmgr_stat_empty() - checks if a hardware queue is empty
  * @queue:	queue number
  *
- * Returns non-zero value if the queue is empty.
+ * Returns yesn-zero value if the queue is empty.
  */
 int qmgr_stat_empty(unsigned int queue)
 {
@@ -78,7 +78,7 @@ int qmgr_stat_empty(unsigned int queue)
  * qmgr_stat_below_low_watermark() - checks if a queue is below low watermark
  * @queue:	queue number
  *
- * Returns non-zero value if the queue is below low watermark.
+ * Returns yesn-zero value if the queue is below low watermark.
  */
 int qmgr_stat_below_low_watermark(unsigned int queue)
 {
@@ -92,7 +92,7 @@ int qmgr_stat_below_low_watermark(unsigned int queue)
  * qmgr_stat_full() - checks if a hardware queue is full
  * @queue:	queue number
  *
- * Returns non-zero value if the queue is full.
+ * Returns yesn-zero value if the queue is full.
  */
 int qmgr_stat_full(unsigned int queue)
 {
@@ -106,7 +106,7 @@ int qmgr_stat_full(unsigned int queue)
  * qmgr_stat_overflow() - checks if a hardware queue experienced overflow
  * @queue:	queue number
  *
- * Returns non-zero value if the queue experienced overflow.
+ * Returns yesn-zero value if the queue experienced overflow.
  */
 int qmgr_stat_overflow(unsigned int queue)
 {
@@ -297,7 +297,7 @@ int __qmgr_request_queue(unsigned int queue, unsigned int len /* dwords */,
 		addr++;
 		shift_mask(mask);
 		if (addr + len > ARRAY_SIZE(qmgr_regs->sram)) {
-			printk(KERN_ERR "qmgr: no free SRAM space for"
+			printk(KERN_ERR "qmgr: yes free SRAM space for"
 			       " queue %i\n", queue);
 			err = -ENOMEM;
 			goto err;
@@ -328,13 +328,13 @@ void qmgr_release_queue(unsigned int queue)
 {
 	u32 cfg, addr, mask[4];
 
-	BUG_ON(queue >= QUEUES); /* not in valid range */
+	BUG_ON(queue >= QUEUES); /* yest in valid range */
 
 	spin_lock_irq(&qmgr_lock);
 	cfg = __raw_readl(&qmgr_regs->sram[queue]);
 	addr = (cfg >> 14) & 0xFF;
 
-	BUG_ON(!addr);		/* not requested */
+	BUG_ON(!addr);		/* yest requested */
 
 	switch ((cfg >> 24) & 3) {
 	case 0: mask[0] = 0x1; break;
@@ -355,7 +355,7 @@ void qmgr_release_queue(unsigned int queue)
 #endif
 
 	while ((addr = qmgr_get_entry(queue)))
-		printk(KERN_ERR "qmgr: released queue %i not empty: 0x%08X\n",
+		printk(KERN_ERR "qmgr: released queue %i yest empty: 0x%08X\n",
 		       queue, addr);
 
 	__raw_writel(0, &qmgr_regs->sram[queue]);

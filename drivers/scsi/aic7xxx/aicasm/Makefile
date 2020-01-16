@@ -21,7 +21,7 @@ LEX= flex
 YACC= bison
 YFLAGS= -d
 
-NOMAN=	noman
+NOMAN=	yesman
 
 ifneq ($(HOSTCC),)
 AICASM_CC= $(HOSTCC)

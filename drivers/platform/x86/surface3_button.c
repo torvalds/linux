@@ -27,7 +27,7 @@
 
 /*
  * Some of the buttons like volume up/down are auto repeat, while others
- * are not. To support both, we register two platform devices, and put
+ * are yest. To support both, we register two platform devices, and put
  * buttons into them based on whether the key should be auto repeat.
  */
 #define BUTTON_TYPES			2
@@ -36,14 +36,14 @@
  * Power button, Home button, Volume buttons support is supposed to
  * be covered by drivers/input/misc/soc_button_array.c, which is implemented
  * according to "Windows ACPI Design Guide for SoC Platforms".
- * However surface 3 seems not to obey the specs, instead it uses
+ * However surface 3 seems yest to obey the specs, instead it uses
  * device TEV2(MSHW0028) for declaring the GPIOs. The gpios are also slightly
  * different in which the Home button is active high.
  * Compared to surfacepro3_button.c which also handles MSHW0028, the Surface 3
- * is a reduce platform and thus uses GPIOs, not ACPI events.
+ * is a reduce platform and thus uses GPIOs, yest ACPI events.
  * We choose an I2C driver here because we need to access the resources
- * declared under the device node, while surfacepro3_button.c only needs
- * the ACPI companion node.
+ * declared under the device yesde, while surfacepro3_button.c only needs
+ * the ACPI companion yesde.
  */
 static const struct acpi_device_id surface3_acpi_match[] = {
 	{ "MSHW0028", 0 },
@@ -194,7 +194,7 @@ static int surface3_button_probe(struct i2c_client *client,
 
 	error = gpiod_count(dev, NULL);
 	if (error < 0) {
-		dev_dbg(dev, "no GPIO attached, ignoring...\n");
+		dev_dbg(dev, "yes GPIO attached, igyesring...\n");
 		return error;
 	}
 

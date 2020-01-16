@@ -875,7 +875,7 @@ static const struct tegra_xusb_lane_soc tegra210_usb2_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra210_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra210_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_yesde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_usb2_lane *usb2;
@@ -949,7 +949,7 @@ static int tegra210_usb2_phy_power_on(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, index);
 	if (!port) {
-		dev_err(&phy->dev, "no port found for USB2 lane %u\n", index);
+		dev_err(&phy->dev, "yes port found for USB2 lane %u\n", index);
 		return -ENODEV;
 	}
 
@@ -1110,7 +1110,7 @@ static int tegra210_usb2_phy_power_off(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, lane->index);
 	if (!port) {
-		dev_err(&phy->dev, "no port found for USB2 lane %u\n",
+		dev_err(&phy->dev, "yes port found for USB2 lane %u\n",
 			lane->index);
 		return -ENODEV;
 	}
@@ -1170,7 +1170,7 @@ static const struct phy_ops tegra210_usb2_phy_ops = {
 static struct tegra_xusb_pad *
 tegra210_usb2_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_yesde *np)
 {
 	struct tegra_xusb_usb2_pad *usb2;
 	struct tegra_xusb_pad *pad;
@@ -1240,7 +1240,7 @@ static const struct tegra_xusb_lane_soc tegra210_hsic_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra210_hsic_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra210_hsic_lane_probe(struct tegra_xusb_pad *pad, struct device_yesde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_hsic_lane *hsic;
@@ -1421,7 +1421,7 @@ static const struct phy_ops tegra210_hsic_phy_ops = {
 static struct tegra_xusb_pad *
 tegra210_hsic_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_yesde *np)
 {
 	struct tegra_xusb_hsic_pad *hsic;
 	struct tegra_xusb_pad *pad;
@@ -1499,7 +1499,7 @@ static const struct tegra_xusb_lane_soc tegra210_pcie_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra210_pcie_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra210_pcie_lane_probe(struct tegra_xusb_pad *pad, struct device_yesde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_pcie_lane *pcie;
@@ -1598,7 +1598,7 @@ static const struct phy_ops tegra210_pcie_phy_ops = {
 static struct tegra_xusb_pad *
 tegra210_pcie_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_yesde *np)
 {
 	struct tegra_xusb_pcie_pad *pcie;
 	struct tegra_xusb_pad *pad;
@@ -1670,7 +1670,7 @@ static const struct tegra_xusb_lane_soc tegra210_sata_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra210_sata_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra210_sata_lane_probe(struct tegra_xusb_pad *pad, struct device_yesde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_sata_lane *sata;
@@ -1769,7 +1769,7 @@ static const struct phy_ops tegra210_sata_phy_ops = {
 static struct tegra_xusb_pad *
 tegra210_sata_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_yesde *np)
 {
 	struct tegra_xusb_sata_pad *sata;
 	struct tegra_xusb_pad *pad;
@@ -1901,7 +1901,7 @@ static int tegra210_usb3_port_enable(struct tegra_xusb_port *port)
 	/*
 	 * TODO: move this code into the PCIe/SATA PHY ->power_on() callbacks
 	 * and conditionalize based on mux function? This seems to work, but
-	 * might not be the exact proper sequence.
+	 * might yest be the exact proper sequence.
 	 */
 	err = regulator_enable(usb3->supply);
 	if (err < 0)

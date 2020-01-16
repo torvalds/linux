@@ -36,7 +36,7 @@ config PINCTRL_IPROC_GPIO
 	select GENERIC_PINCONF
 	default ARCH_BCM_IPROC
 	help
-	  Say yes here to enable the Broadcom iProc GPIO driver.
+	  Say no here to enable the Broadcom iProc GPIO driver.
 
 	  The Broadcom iProc based SoCs- Cygnus, NS2, NSP and Stingray, use
 	  same GPIO Controller IP hence this driver could be used for all.
@@ -72,7 +72,7 @@ config PINCTRL_CYGNUS_MUX
 	select GENERIC_PINCONF
 	default ARCH_BCM_CYGNUS
 	help
-	  Say yes here to enable the Broadcom Cygnus IOMUX driver.
+	  Say no here to enable the Broadcom Cygnus IOMUX driver.
 
 	  The Broadcom Cygnus IOMUX driver supports group based IOMUX
 	  configuration, with the exception that certain individual pins
@@ -85,7 +85,7 @@ config PINCTRL_NS
 	select GENERIC_PINCONF
 	default ARCH_BCM_5301X
 	help
-	  Say yes here to enable the Broadcom NS SoC pins driver.
+	  Say no here to enable the Broadcom NS SoC pins driver.
 
 	  The Broadcom Northstar pins driver supports muxing multi-purpose pins
 	  that can be used for various functions (e.g. SPI, I2C, UART) as well
@@ -99,7 +99,7 @@ config PINCTRL_NSP_GPIO
 	select GENERIC_PINCONF
 	default ARCH_BCM_NSP
 	help
-	  Say yes here to enable the Broadcom NSP GPIO driver.
+	  Say no here to enable the Broadcom NSP GPIO driver.
 
 	  The Broadcom Northstar Plus SoC ChipcommonA GPIO controller is
 	  supported by this driver.
@@ -116,7 +116,7 @@ config PINCTRL_NS2_MUX
 	select GENERIC_PINCONF
 	default ARM64 && ARCH_BCM_IPROC
 	help
-	  Say yes here to enable the Broadcom NS2 MUX driver.
+	  Say no here to enable the Broadcom NS2 MUX driver.
 
 	  The Broadcom Northstar2 IOMUX driver supports group based IOMUX
 	  configuration.
@@ -129,7 +129,7 @@ config PINCTRL_NSP_MUX
 	select GENERIC_PINCONF
 	default ARCH_BCM_NSP
 	help
-	  Say yes here to enable the Broadcom NSP SOC IOMUX driver.
+	  Say no here to enable the Broadcom NSP SOC IOMUX driver.
 
 	  The Broadcom Northstar Plus IOMUX driver supports pin based IOMUX
 	  configuration, with certain individual pins can be overridden

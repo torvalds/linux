@@ -58,8 +58,8 @@ void cros_ec_lpc_mec_destroy(void);
  * @offset: Address offset
  * @length: Number of bytes to check
  *
- * Return: 1 if in range, 0 if not, and -EINVAL on failure
- *         such as the mec range not being initialized
+ * Return: 1 if in range, 0 if yest, and -EINVAL on failure
+ *         such as the mec range yest being initialized
  */
 int cros_ec_lpc_mec_in_range(unsigned int offset, unsigned int length);
 

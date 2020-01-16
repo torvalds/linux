@@ -26,8 +26,8 @@ Specifying reset lines connected to IP modules
 
 The system reset controller can be used to reset the GPU, VPU,
 IPU, and OpenVG IP modules on i.MX5 and i.MX6 ICs. Those device
-nodes should specify the reset line on the SRC in their resets
-property, containing a phandle to the SRC device node and a
+yesdes should specify the reset line on the SRC in their resets
+property, containing a phandle to the SRC device yesde and a
 RESET_INDEX specifying which module to reset, as described in
 reset.txt
 

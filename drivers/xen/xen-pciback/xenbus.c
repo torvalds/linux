@@ -148,7 +148,7 @@ static int xen_pcibk_attach(struct xen_pcibk_device *pdev)
 
 	mutex_lock(&pdev->dev_lock);
 	/* Make sure we only do this setup once */
-	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
+	if (xenbus_read_driver_state(pdev->xdev->yesdename) !=
 	    XenbusStateInitialised)
 		goto out;
 
@@ -214,7 +214,7 @@ static int xen_pcibk_publish_pci_dev(struct xen_pcibk_device *pdev,
 	}
 
 	/* Note: The PV protocol uses %02x, don't change it */
-	err = xenbus_printf(XBT_NIL, pdev->xdev->nodename, str,
+	err = xenbus_printf(XBT_NIL, pdev->xdev->yesdename, str,
 			    "%04x:%02x:%02x.%02x", domain, bus,
 			    PCI_SLOT(devfn), PCI_FUNC(devfn));
 
@@ -261,7 +261,7 @@ static int xen_pcibk_export_device(struct xen_pcibk_device *pdev,
 	 * get exported with it. This may be best done in xend (which will
 	 * have to calculate resource usage anyway) but we probably want to
 	 * put something in here to ensure that if a bridge gets given to a
-	 * driver domain, that all devices under that bridge are not given
+	 * driver domain, that all devices under that bridge are yest given
 	 * to other driver domains (as he who controls the bridge can disable
 	 * it and stop the other devices from working).
 	 */
@@ -282,7 +282,7 @@ static int xen_pcibk_remove_device(struct xen_pcibk_device *pdev,
 	if (!dev) {
 		err = -EINVAL;
 		dev_dbg(&pdev->xdev->dev, "Couldn't locate PCI device "
-			"(%04x:%02x:%02x.%d)! not owned by this domain\n",
+			"(%04x:%02x:%02x.%d)! yest owned by this domain\n",
 			domain, bus, slot, func);
 		goto out;
 	}
@@ -307,7 +307,7 @@ static int xen_pcibk_publish_pci_root(struct xen_pcibk_device *pdev,
 
 	dev_dbg(&pdev->xdev->dev, "Publishing pci roots\n");
 
-	err = xenbus_scanf(XBT_NIL, pdev->xdev->nodename,
+	err = xenbus_scanf(XBT_NIL, pdev->xdev->yesdename,
 			   "root_num", "%d", &root_num);
 	if (err == 0 || err == -ENOENT)
 		root_num = 0;
@@ -322,7 +322,7 @@ static int xen_pcibk_publish_pci_root(struct xen_pcibk_device *pdev,
 			goto out;
 		}
 
-		err = xenbus_scanf(XBT_NIL, pdev->xdev->nodename,
+		err = xenbus_scanf(XBT_NIL, pdev->xdev->yesdename,
 				   str, "%x:%x", &d, &b);
 		if (err < 0)
 			goto out;
@@ -346,12 +346,12 @@ static int xen_pcibk_publish_pci_root(struct xen_pcibk_device *pdev,
 	dev_dbg(&pdev->xdev->dev, "writing root %d at %04x:%02x\n",
 		root_num, domain, bus);
 
-	err = xenbus_printf(XBT_NIL, pdev->xdev->nodename, str,
+	err = xenbus_printf(XBT_NIL, pdev->xdev->yesdename, str,
 			    "%04x:%02x", domain, bus);
 	if (err)
 		goto out;
 
-	err = xenbus_printf(XBT_NIL, pdev->xdev->nodename,
+	err = xenbus_printf(XBT_NIL, pdev->xdev->yesdename,
 			    "root_num", "%d", (root_num + 1));
 
 out:
@@ -373,11 +373,11 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 
 	mutex_lock(&pdev->dev_lock);
 	/* Make sure we only reconfigure once */
-	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
+	if (xenbus_read_driver_state(pdev->xdev->yesdename) !=
 	    XenbusStateReconfiguring)
 		goto out;
 
-	err = xenbus_scanf(XBT_NIL, pdev->xdev->nodename, "num_devs", "%d",
+	err = xenbus_scanf(XBT_NIL, pdev->xdev->yesdename, "num_devs", "%d",
 			   &num_devs);
 	if (err != 1) {
 		if (err >= 0)
@@ -396,8 +396,8 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 					 "configuration");
 			goto out;
 		}
-		substate = xenbus_read_unsigned(pdev->xdev->nodename, state_str,
-						XenbusStateUnknown);
+		substate = xenbus_read_unsigned(pdev->xdev->yesdename, state_str,
+						XenbusStateUnkyeswn);
 
 		switch (substate) {
 		case XenbusStateInitialising:
@@ -411,7 +411,7 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 						 "reading configuration");
 				goto out;
 			}
-			err = xenbus_scanf(XBT_NIL, pdev->xdev->nodename,
+			err = xenbus_scanf(XBT_NIL, pdev->xdev->yesdename,
 					   dev_str, "%x:%x:%x.%x",
 					   &domain, &bus, &slot, &func);
 			if (err < 0) {
@@ -443,7 +443,7 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 				goto out;
 			}
 
-			err = xenbus_printf(XBT_NIL, pdev->xdev->nodename,
+			err = xenbus_printf(XBT_NIL, pdev->xdev->yesdename,
 					    state_str, "%d",
 					    XenbusStateInitialised);
 			if (err) {
@@ -465,7 +465,7 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 						 "reading configuration");
 				goto out;
 			}
-			err = xenbus_scanf(XBT_NIL, pdev->xdev->nodename,
+			err = xenbus_scanf(XBT_NIL, pdev->xdev->yesdename,
 					   dev_str, "%x:%x:%x.%x",
 					   &domain, &bus, &slot, &func);
 			if (err < 0) {
@@ -489,7 +489,7 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 
 			/* TODO: If at some point we implement support for pci
 			 * root hot-remove on pcifront side, we'll need to
-			 * remove unnecessary xenstore nodes of pci roots here.
+			 * remove unnecessary xenstore yesdes of pci roots here.
 			 */
 
 			break;
@@ -544,8 +544,8 @@ static void xen_pcibk_frontend_changed(struct xenbus_device *xdev,
 		xenbus_switch_state(xdev, XenbusStateClosed);
 		if (xenbus_dev_is_online(xdev))
 			break;
-		/* fall through - if not online */
-	case XenbusStateUnknown:
+		/* fall through - if yest online */
+	case XenbusStateUnkyeswn:
 		dev_dbg(&xdev->dev, "frontend is gone! unregister device\n");
 		device_unregister(&xdev->dev);
 		break;
@@ -557,7 +557,7 @@ static void xen_pcibk_frontend_changed(struct xenbus_device *xdev,
 
 static int xen_pcibk_setup_backend(struct xen_pcibk_device *pdev)
 {
-	/* Get configuration from xend (if available now) */
+	/* Get configuration from xend (if available yesw) */
 	int domain, bus, slot, func;
 	int err = 0;
 	int i, num_devs;
@@ -566,15 +566,15 @@ static int xen_pcibk_setup_backend(struct xen_pcibk_device *pdev)
 
 	mutex_lock(&pdev->dev_lock);
 	/* It's possible we could get the call to setup twice, so make sure
-	 * we're not already connected.
+	 * we're yest already connected.
 	 */
-	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
+	if (xenbus_read_driver_state(pdev->xdev->yesdename) !=
 	    XenbusStateInitWait)
 		goto out;
 
 	dev_dbg(&pdev->xdev->dev, "getting be setup\n");
 
-	err = xenbus_scanf(XBT_NIL, pdev->xdev->nodename, "num_devs", "%d",
+	err = xenbus_scanf(XBT_NIL, pdev->xdev->yesdename, "num_devs", "%d",
 			   &num_devs);
 	if (err != 1) {
 		if (err >= 0)
@@ -594,7 +594,7 @@ static int xen_pcibk_setup_backend(struct xen_pcibk_device *pdev)
 			goto out;
 		}
 
-		err = xenbus_scanf(XBT_NIL, pdev->xdev->nodename, dev_str,
+		err = xenbus_scanf(XBT_NIL, pdev->xdev->yesdename, dev_str,
 				   "%x:%x:%x.%x", &domain, &bus, &slot, &func);
 		if (err < 0) {
 			xenbus_dev_fatal(pdev->xdev, err,
@@ -622,7 +622,7 @@ static int xen_pcibk_setup_backend(struct xen_pcibk_device *pdev)
 					 "configuration");
 			goto out;
 		}
-		err = xenbus_printf(XBT_NIL, pdev->xdev->nodename, state_str,
+		err = xenbus_printf(XBT_NIL, pdev->xdev->yesdename, state_str,
 				    "%d", XenbusStateInitialised);
 		if (err) {
 			xenbus_dev_fatal(pdev->xdev, err, "Error switching "
@@ -647,7 +647,7 @@ static int xen_pcibk_setup_backend(struct xen_pcibk_device *pdev)
 out:
 	mutex_unlock(&pdev->dev_lock);
 	if (!err)
-		/* see if pcifront is already configured (if not, we'll wait) */
+		/* see if pcifront is already configured (if yest, we'll wait) */
 		xen_pcibk_attach(pdev);
 	return err;
 }
@@ -658,7 +658,7 @@ static void xen_pcibk_be_watch(struct xenbus_watch *watch,
 	struct xen_pcibk_device *pdev =
 	    container_of(watch, struct xen_pcibk_device, be_watch);
 
-	switch (xenbus_read_driver_state(pdev->xdev->nodename)) {
+	switch (xenbus_read_driver_state(pdev->xdev->yesdename)) {
 	case XenbusStateInitWait:
 		xen_pcibk_setup_backend(pdev);
 		break;
@@ -686,8 +686,8 @@ static int xen_pcibk_xenbus_probe(struct xenbus_device *dev,
 	if (err)
 		goto out;
 
-	/* watch the backend node for backend configuration information */
-	err = xenbus_watch_path(dev, dev->nodename, &pdev->be_watch,
+	/* watch the backend yesde for backend configuration information */
+	err = xenbus_watch_path(dev, dev->yesdename, &pdev->be_watch,
 				xen_pcibk_be_watch);
 	if (err)
 		goto out;

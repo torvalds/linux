@@ -88,7 +88,7 @@
 #include "is-a.h"
 #endif
 
-#include "diagnostic.h"
+#include "diagyesstic.h"
 #include "tree-dump.h"
 #include "tree-pass.h"
 #if BUILDING_GCC_VERSION >= 4009
@@ -126,7 +126,7 @@
 
 #if BUILDING_GCC_VERSION >= 4009
 #include "tree-ssa-operands.h"
-#include "tree-phinodes.h"
+#include "tree-phiyesdes.h"
 #include "tree-cfg.h"
 #include "gimple-iterator.h"
 #include "gimple-ssa.h"
@@ -157,10 +157,10 @@ void dump_gimple_stmt(pretty_printer *, gimple, int, int);
 #define __visible __attribute__((visibility("default")))
 #endif
 
-#define DECL_NAME_POINTER(node) IDENTIFIER_POINTER(DECL_NAME(node))
-#define DECL_NAME_LENGTH(node) IDENTIFIER_LENGTH(DECL_NAME(node))
-#define TYPE_NAME_POINTER(node) IDENTIFIER_POINTER(TYPE_NAME(node))
-#define TYPE_NAME_LENGTH(node) IDENTIFIER_LENGTH(TYPE_NAME(node))
+#define DECL_NAME_POINTER(yesde) IDENTIFIER_POINTER(DECL_NAME(yesde))
+#define DECL_NAME_LENGTH(yesde) IDENTIFIER_LENGTH(DECL_NAME(yesde))
+#define TYPE_NAME_POINTER(yesde) IDENTIFIER_POINTER(TYPE_NAME(yesde))
+#define TYPE_NAME_LENGTH(yesde) IDENTIFIER_LENGTH(TYPE_NAME(yesde))
 
 /* should come from c-tree.h if only it were installed for gcc 4.5... */
 #define C_TYPE_FIELDS_READONLY(TYPE) TREE_LANG_FLAG_1(TYPE)
@@ -170,7 +170,7 @@ static inline tree build_const_char_string(int len, const char *str)
 	tree cstr, elem, index, type;
 
 	cstr = build_string(len, str);
-	elem = build_type_variant(char_type_node, 1, 0);
+	elem = build_type_variant(char_type_yesde, 1, 0);
 	index = build_index_type(size_int(len - 1));
 	type = build_array_type(elem, index);
 	TREE_TYPE(cstr) = type;
@@ -203,7 +203,7 @@ struct register_pass_info NAME##_pass_info = {	\
 #define O_BINARY 0
 #endif
 
-typedef struct varpool_node *varpool_node_ptr;
+typedef struct varpool_yesde *varpool_yesde_ptr;
 
 static inline bool gimple_call_builtin_p(gimple stmt, enum built_in_function code)
 {
@@ -263,13 +263,13 @@ static inline void add_local_decl(struct function *fun, tree d)
 #define HOST_WIDE_INT_PRINT_HEX_PURE "%" HOST_WIDE_INT_PRINT "x"
 #define flag_fat_lto_objects true
 
-#define get_random_seed(noinit) ({						\
+#define get_random_seed(yesinit) ({						\
 	unsigned HOST_WIDE_INT seed;						\
-	sscanf(get_random_seed(noinit), "%" HOST_WIDE_INT_PRINT "x", &seed);	\
+	sscanf(get_random_seed(yesinit), "%" HOST_WIDE_INT_PRINT "x", &seed);	\
 	seed * seed; })
 
-#define int_const_binop(code, arg1, arg2)	\
-	int_const_binop((code), (arg1), (arg2), 0)
+#define int_const_biyesp(code, arg1, arg2)	\
+	int_const_biyesp((code), (arg1), (arg2), 0)
 
 static inline bool gimple_clobber_p(gimple s __unused)
 {
@@ -295,65 +295,65 @@ static inline tree builtin_decl_implicit(enum built_in_function fncode)
 	return implicit_built_in_decls[fncode];
 }
 
-static inline int ipa_reverse_postorder(struct cgraph_node **order)
+static inline int ipa_reverse_postorder(struct cgraph_yesde **order)
 {
 	return cgraph_postorder(order);
 }
 
-static inline struct cgraph_node *cgraph_create_node(tree decl)
+static inline struct cgraph_yesde *cgraph_create_yesde(tree decl)
 {
-	return cgraph_node(decl);
+	return cgraph_yesde(decl);
 }
 
-static inline struct cgraph_node *cgraph_get_create_node(tree decl)
+static inline struct cgraph_yesde *cgraph_get_create_yesde(tree decl)
 {
-	struct cgraph_node *node = cgraph_get_node(decl);
+	struct cgraph_yesde *yesde = cgraph_get_yesde(decl);
 
-	return node ? node : cgraph_node(decl);
+	return yesde ? yesde : cgraph_yesde(decl);
 }
 
-static inline bool cgraph_function_with_gimple_body_p(struct cgraph_node *node)
+static inline bool cgraph_function_with_gimple_body_p(struct cgraph_yesde *yesde)
 {
-	return node->analyzed && !node->thunk.thunk_p && !node->alias;
+	return yesde->analyzed && !yesde->thunk.thunk_p && !yesde->alias;
 }
 
-static inline struct cgraph_node *cgraph_first_function_with_gimple_body(void)
+static inline struct cgraph_yesde *cgraph_first_function_with_gimple_body(void)
 {
-	struct cgraph_node *node;
+	struct cgraph_yesde *yesde;
 
-	for (node = cgraph_nodes; node; node = node->next)
-		if (cgraph_function_with_gimple_body_p(node))
-			return node;
+	for (yesde = cgraph_yesdes; yesde; yesde = yesde->next)
+		if (cgraph_function_with_gimple_body_p(yesde))
+			return yesde;
 	return NULL;
 }
 
-static inline struct cgraph_node *cgraph_next_function_with_gimple_body(struct cgraph_node *node)
+static inline struct cgraph_yesde *cgraph_next_function_with_gimple_body(struct cgraph_yesde *yesde)
 {
-	for (node = node->next; node; node = node->next)
-		if (cgraph_function_with_gimple_body_p(node))
-			return node;
+	for (yesde = yesde->next; yesde; yesde = yesde->next)
+		if (cgraph_function_with_gimple_body_p(yesde))
+			return yesde;
 	return NULL;
 }
 
-static inline bool cgraph_for_node_and_aliases(cgraph_node_ptr node, bool (*callback)(cgraph_node_ptr, void *), void *data, bool include_overwritable)
+static inline bool cgraph_for_yesde_and_aliases(cgraph_yesde_ptr yesde, bool (*callback)(cgraph_yesde_ptr, void *), void *data, bool include_overwritable)
 {
-	cgraph_node_ptr alias;
+	cgraph_yesde_ptr alias;
 
-	if (callback(node, data))
+	if (callback(yesde, data))
 		return true;
 
-	for (alias = node->same_body; alias; alias = alias->next) {
+	for (alias = yesde->same_body; alias; alias = alias->next) {
 		if (include_overwritable || cgraph_function_body_availability(alias) > AVAIL_OVERWRITABLE)
-			if (cgraph_for_node_and_aliases(alias, callback, data, include_overwritable))
+			if (cgraph_for_yesde_and_aliases(alias, callback, data, include_overwritable))
 				return true;
 	}
 
 	return false;
 }
 
-#define FOR_EACH_FUNCTION_WITH_GIMPLE_BODY(node) \
-	for ((node) = cgraph_first_function_with_gimple_body(); (node); \
-		(node) = cgraph_next_function_with_gimple_body(node))
+#define FOR_EACH_FUNCTION_WITH_GIMPLE_BODY(yesde) \
+	for ((yesde) = cgraph_first_function_with_gimple_body(); (yesde); \
+		(yesde) = cgraph_next_function_with_gimple_body(yesde))
 
 static inline void varpool_add_new_variable(tree decl)
 {
@@ -362,13 +362,13 @@ static inline void varpool_add_new_variable(tree decl)
 #endif
 
 #if BUILDING_GCC_VERSION <= 4007
-#define FOR_EACH_FUNCTION(node)	\
-	for (node = cgraph_nodes; node; node = node->next)
-#define FOR_EACH_VARIABLE(node)	\
-	for (node = varpool_nodes; node; node = node->next)
+#define FOR_EACH_FUNCTION(yesde)	\
+	for (yesde = cgraph_yesdes; yesde; yesde = yesde->next)
+#define FOR_EACH_VARIABLE(yesde)	\
+	for (yesde = varpool_yesdes; yesde; yesde = yesde->next)
 #define PROP_loops 0
-#define NODE_SYMBOL(node) (node)
-#define NODE_DECL(node) (node)->decl
+#define NODE_SYMBOL(yesde) (yesde)
+#define NODE_DECL(yesde) (yesde)->decl
 #define INSN_LOCATION(INSN) RTL_LOCATION(INSN)
 #define vNULL NULL
 
@@ -390,9 +390,9 @@ static inline void gimple_init_singleton(gimple g __unused)
 #endif
 
 #if BUILDING_GCC_VERSION == 4007 || BUILDING_GCC_VERSION == 4008
-static inline struct cgraph_node *cgraph_alias_target(struct cgraph_node *n)
+static inline struct cgraph_yesde *cgraph_alias_target(struct cgraph_yesde *n)
 {
-	return cgraph_alias_aliased_node(n);
+	return cgraph_alias_aliased_yesde(n);
 }
 #endif
 
@@ -406,7 +406,7 @@ static inline struct cgraph_node *cgraph_alias_target(struct cgraph_node *n)
 #define label_to_block_map_for_fn(FN)	((FN)->cfg->x_label_to_block_map)
 #define profile_status_for_fn(FN)	((FN)->cfg->x_profile_status)
 #define BASIC_BLOCK_FOR_FN(FN, N)	BASIC_BLOCK_FOR_FUNCTION((FN), (N))
-#define NODE_IMPLICIT_ALIAS(node)	(node)->same_body_alias
+#define NODE_IMPLICIT_ALIAS(yesde)	(yesde)->same_body_alias
 #define VAR_P(NODE)			(TREE_CODE(NODE) == VAR_DECL)
 
 static inline bool tree_fits_shwi_p(const_tree t)
@@ -449,7 +449,7 @@ static inline const char *get_tree_code_name(enum tree_code code)
 	return tree_code_name[code];
 }
 
-#define ipa_remove_stmt_references(cnode, stmt)
+#define ipa_remove_stmt_references(cyesde, stmt)
 
 typedef union gimple_statement_d gasm;
 typedef union gimple_statement_d gassign;
@@ -542,14 +542,14 @@ static inline const greturn *as_a_const_greturn(const_gimple stmt)
 #endif
 
 #if BUILDING_GCC_VERSION == 4008
-#define NODE_SYMBOL(node) (&(node)->symbol)
-#define NODE_DECL(node) (node)->symbol.decl
+#define NODE_SYMBOL(yesde) (&(yesde)->symbol)
+#define NODE_DECL(yesde) (yesde)->symbol.decl
 #endif
 
 #if BUILDING_GCC_VERSION >= 4008
 #define add_referenced_var(var)
 #define mark_sym_for_renaming(var)
-#define varpool_mark_needed_node(node)
+#define varpool_mark_needed_yesde(yesde)
 #define create_var_ann(var)
 #define TODO_dump_func 0
 #define TODO_dump_cgraph 0
@@ -574,12 +574,12 @@ static inline const char *get_decl_section_name(const_tree decl)
 	return TREE_STRING_POINTER(DECL_SECTION_NAME(decl));
 }
 
-static inline void set_decl_section_name(tree node, const char *value)
+static inline void set_decl_section_name(tree yesde, const char *value)
 {
 	if (value)
-		DECL_SECTION_NAME(node) = build_string(strlen(value) + 1, value);
+		DECL_SECTION_NAME(yesde) = build_string(strlen(value) + 1, value);
 	else
-		DECL_SECTION_NAME(node) = NULL;
+		DECL_SECTION_NAME(yesde) = NULL;
 }
 #endif
 
@@ -676,10 +676,10 @@ static inline const greturn *as_a_const_greturn(const_gimple stmt)
 
 #if BUILDING_GCC_VERSION >= 4009
 #define TODO_ggc_collect 0
-#define NODE_SYMBOL(node) (node)
-#define NODE_DECL(node) (node)->decl
-#define cgraph_node_name(node) (node)->name()
-#define NODE_IMPLICIT_ALIAS(node) (node)->cpp_implicit_alias
+#define NODE_SYMBOL(yesde) (yesde)
+#define NODE_DECL(yesde) (yesde)->decl
+#define cgraph_yesde_name(yesde) (yesde)->name()
+#define NODE_IMPLICIT_ALIAS(yesde) (yesde)->cpp_implicit_alias
 
 static inline opt_pass *get_pass_for_id(int id)
 {
@@ -711,14 +711,14 @@ static inline const char *get_decl_section_name(const_tree decl)
 }
 
 /* symtab/cgraph related */
-#define debug_cgraph_node(node) (node)->debug()
-#define cgraph_get_node(decl) cgraph_node::get(decl)
-#define cgraph_get_create_node(decl) cgraph_node::get_create(decl)
-#define cgraph_create_node(decl) cgraph_node::create(decl)
-#define cgraph_n_nodes symtab->cgraph_count
+#define debug_cgraph_yesde(yesde) (yesde)->debug()
+#define cgraph_get_yesde(decl) cgraph_yesde::get(decl)
+#define cgraph_get_create_yesde(decl) cgraph_yesde::get_create(decl)
+#define cgraph_create_yesde(decl) cgraph_yesde::create(decl)
+#define cgraph_n_yesdes symtab->cgraph_count
 #define cgraph_max_uid symtab->cgraph_max_uid
-#define varpool_get_node(decl) varpool_node::get(decl)
-#define dump_varpool_node(file, node) (node)->dump(file)
+#define varpool_get_yesde(decl) varpool_yesde::get(decl)
+#define dump_varpool_yesde(file, yesde) (yesde)->dump(file)
 
 #if BUILDING_GCC_VERSION >= 8000
 #define cgraph_create_edge(caller, callee, call_stmt, count, freq) \
@@ -738,9 +738,9 @@ static inline const char *get_decl_section_name(const_tree decl)
 		(old_call_stmt), (call_stmt), (count), (freq), (reason))
 #endif
 
-typedef struct cgraph_node *cgraph_node_ptr;
+typedef struct cgraph_yesde *cgraph_yesde_ptr;
 typedef struct cgraph_edge *cgraph_edge_p;
-typedef struct varpool_node *varpool_node_ptr;
+typedef struct varpool_yesde *varpool_yesde_ptr;
 
 static inline void change_decl_assembler_name(tree decl, tree name)
 {
@@ -749,12 +749,12 @@ static inline void change_decl_assembler_name(tree decl, tree name)
 
 static inline void varpool_finalize_decl(tree decl)
 {
-	varpool_node::finalize_decl(decl);
+	varpool_yesde::finalize_decl(decl);
 }
 
 static inline void varpool_add_new_variable(tree decl)
 {
-	varpool_node::add(decl);
+	varpool_yesde::add(decl);
 }
 
 static inline unsigned int rebuild_cgraph_edges(void)
@@ -762,69 +762,69 @@ static inline unsigned int rebuild_cgraph_edges(void)
 	return cgraph_edge::rebuild_edges();
 }
 
-static inline cgraph_node_ptr cgraph_function_node(cgraph_node_ptr node, enum availability *availability)
+static inline cgraph_yesde_ptr cgraph_function_yesde(cgraph_yesde_ptr yesde, enum availability *availability)
 {
-	return node->function_symbol(availability);
+	return yesde->function_symbol(availability);
 }
 
-static inline cgraph_node_ptr cgraph_function_or_thunk_node(cgraph_node_ptr node, enum availability *availability = NULL)
+static inline cgraph_yesde_ptr cgraph_function_or_thunk_yesde(cgraph_yesde_ptr yesde, enum availability *availability = NULL)
 {
-	return node->ultimate_alias_target(availability);
+	return yesde->ultimate_alias_target(availability);
 }
 
-static inline bool cgraph_only_called_directly_p(cgraph_node_ptr node)
+static inline bool cgraph_only_called_directly_p(cgraph_yesde_ptr yesde)
 {
-	return node->only_called_directly_p();
+	return yesde->only_called_directly_p();
 }
 
-static inline enum availability cgraph_function_body_availability(cgraph_node_ptr node)
+static inline enum availability cgraph_function_body_availability(cgraph_yesde_ptr yesde)
 {
-	return node->get_availability();
+	return yesde->get_availability();
 }
 
-static inline cgraph_node_ptr cgraph_alias_target(cgraph_node_ptr node)
+static inline cgraph_yesde_ptr cgraph_alias_target(cgraph_yesde_ptr yesde)
 {
-	return node->get_alias_target();
+	return yesde->get_alias_target();
 }
 
-static inline bool cgraph_for_node_and_aliases(cgraph_node_ptr node, bool (*callback)(cgraph_node_ptr, void *), void *data, bool include_overwritable)
+static inline bool cgraph_for_yesde_and_aliases(cgraph_yesde_ptr yesde, bool (*callback)(cgraph_yesde_ptr, void *), void *data, bool include_overwritable)
 {
-	return node->call_for_symbol_thunks_and_aliases(callback, data, include_overwritable);
+	return yesde->call_for_symbol_thunks_and_aliases(callback, data, include_overwritable);
 }
 
-static inline struct cgraph_node_hook_list *cgraph_add_function_insertion_hook(cgraph_node_hook hook, void *data)
+static inline struct cgraph_yesde_hook_list *cgraph_add_function_insertion_hook(cgraph_yesde_hook hook, void *data)
 {
 	return symtab->add_cgraph_insertion_hook(hook, data);
 }
 
-static inline void cgraph_remove_function_insertion_hook(struct cgraph_node_hook_list *entry)
+static inline void cgraph_remove_function_insertion_hook(struct cgraph_yesde_hook_list *entry)
 {
 	symtab->remove_cgraph_insertion_hook(entry);
 }
 
-static inline struct cgraph_node_hook_list *cgraph_add_node_removal_hook(cgraph_node_hook hook, void *data)
+static inline struct cgraph_yesde_hook_list *cgraph_add_yesde_removal_hook(cgraph_yesde_hook hook, void *data)
 {
 	return symtab->add_cgraph_removal_hook(hook, data);
 }
 
-static inline void cgraph_remove_node_removal_hook(struct cgraph_node_hook_list *entry)
+static inline void cgraph_remove_yesde_removal_hook(struct cgraph_yesde_hook_list *entry)
 {
 	symtab->remove_cgraph_removal_hook(entry);
 }
 
-static inline struct cgraph_2node_hook_list *cgraph_add_node_duplication_hook(cgraph_2node_hook hook, void *data)
+static inline struct cgraph_2yesde_hook_list *cgraph_add_yesde_duplication_hook(cgraph_2yesde_hook hook, void *data)
 {
 	return symtab->add_cgraph_duplication_hook(hook, data);
 }
 
-static inline void cgraph_remove_node_duplication_hook(struct cgraph_2node_hook_list *entry)
+static inline void cgraph_remove_yesde_duplication_hook(struct cgraph_2yesde_hook_list *entry)
 {
 	symtab->remove_cgraph_duplication_hook(entry);
 }
 
-static inline void cgraph_call_node_duplication_hooks(cgraph_node_ptr node, cgraph_node_ptr node2)
+static inline void cgraph_call_yesde_duplication_hooks(cgraph_yesde_ptr yesde, cgraph_yesde_ptr yesde2)
 {
-	symtab->call_cgraph_duplication_hooks(node, node2);
+	symtab->call_cgraph_duplication_hooks(yesde, yesde2);
 }
 
 static inline void cgraph_call_edge_duplication_hooks(cgraph_edge *cs1, cgraph_edge *cs2)
@@ -927,14 +927,14 @@ static inline const greturn *as_a_const_greturn(const_gimple stmt)
 #define ipa_ref_list_reference_iterate(L, I, P)	\
 	(L)->reference.iterate((I), &(P))
 
-static inline cgraph_node_ptr ipa_ref_referring_node(struct ipa_ref *ref)
+static inline cgraph_yesde_ptr ipa_ref_referring_yesde(struct ipa_ref *ref)
 {
-	return dyn_cast<cgraph_node_ptr>(ref->referring);
+	return dyn_cast<cgraph_yesde_ptr>(ref->referring);
 }
 
-static inline void ipa_remove_stmt_references(symtab_node *referring_node, gimple stmt)
+static inline void ipa_remove_stmt_references(symtab_yesde *referring_yesde, gimple stmt)
 {
-	referring_node->remove_stmt_references(stmt);
+	referring_yesde->remove_stmt_references(stmt);
 }
 #endif
 

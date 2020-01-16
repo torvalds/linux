@@ -15,18 +15,18 @@ and so on.
 Device connections are generic descriptions of any type of connection between
 two separate devices.
 
-Device connections alone do not create a dependency between the two devices.
-They are only descriptions which are not tied to either of the devices directly.
+Device connections alone do yest create a dependency between the two devices.
+They are only descriptions which are yest tied to either of the devices directly.
 A dependency between the two devices exists only if one of the two endpoint
 devices requests a reference to the other. The descriptions themselves can be
-defined in firmware (not yet supported) or they can be built-in.
+defined in firmware (yest yet supported) or they can be built-in.
 
 Usage
 -----
 
 Device connections should exist before device ``->probe`` callback is called for
 either endpoint device in the description. If the connections are defined in
-firmware, this is not a problem. It should be considered if the connection
+firmware, this is yest a problem. It should be considered if the connection
 descriptions are "built-in", and need to be added separately.
 
 The connection description consists of the names of the two devices with the

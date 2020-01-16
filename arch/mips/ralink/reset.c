@@ -74,10 +74,10 @@ static struct reset_controller_dev reset_dev = {
 
 void ralink_rst_init(void)
 {
-	reset_dev.of_node = of_find_compatible_node(NULL, NULL,
+	reset_dev.of_yesde = of_find_compatible_yesde(NULL, NULL,
 						"ralink,rt2880-reset");
-	if (!reset_dev.of_node)
-		pr_err("Failed to find reset controller node");
+	if (!reset_dev.of_yesde)
+		pr_err("Failed to find reset controller yesde");
 	else
 		reset_controller_register(&reset_dev);
 }

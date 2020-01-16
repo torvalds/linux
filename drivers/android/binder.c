@@ -15,14 +15,14 @@
  * 1) proc->outer_lock : protects binder_ref
  *    binder_proc_lock() and binder_proc_unlock() are
  *    used to acq/rel.
- * 2) node->lock : protects most fields of binder_node.
- *    binder_node_lock() and binder_node_unlock() are
+ * 2) yesde->lock : protects most fields of binder_yesde.
+ *    binder_yesde_lock() and binder_yesde_unlock() are
  *    used to acq/rel
- * 3) proc->inner_lock : protects the thread and node lists
- *    (proc->threads, proc->waiting_threads, proc->nodes)
+ * 3) proc->inner_lock : protects the thread and yesde lists
+ *    (proc->threads, proc->waiting_threads, proc->yesdes)
  *    and all todo lists associated with the binder_proc
  *    (proc->todo, thread->todo, proc->delivered_death and
- *    node->async_todo), as well as thread->transaction_stack
+ *    yesde->async_todo), as well as thread->transaction_stack
  *    binder_inner_proc_lock() and binder_inner_proc_unlock()
  *    are used to acq/rel
  *
@@ -32,11 +32,11 @@
  * Functions that require a lock held on entry indicate which lock
  * in the suffix of the function name:
  *
- * foo_olocked() : requires node->outer_lock
- * foo_nlocked() : requires node->lock
+ * foo_olocked() : requires yesde->outer_lock
+ * foo_nlocked() : requires yesde->lock
  * foo_ilocked() : requires proc->inner_lock
  * foo_oilocked(): requires proc->outer_lock and proc->inner_lock
- * foo_nilocked(): requires node->lock and proc->inner_lock
+ * foo_nilocked(): requires yesde->lock and proc->inner_lock
  * ...
  */
 
@@ -83,8 +83,8 @@ static HLIST_HEAD(binder_devices);
 static HLIST_HEAD(binder_procs);
 static DEFINE_MUTEX(binder_procs_lock);
 
-static HLIST_HEAD(binder_dead_nodes);
-static DEFINE_SPINLOCK(binder_dead_nodes_lock);
+static HLIST_HEAD(binder_dead_yesdes);
+static DEFINE_SPINLOCK(binder_dead_yesdes_lock);
 
 static struct dentry *binder_debugfs_dir_entry_root;
 static struct dentry *binder_debugfs_dir_entry_proc;
@@ -215,10 +215,10 @@ static struct binder_transaction_log_entry *binder_transaction_log_add(
 
 /**
  * struct binder_work - work enqueued on a worklist
- * @entry:             node enqueued on list
+ * @entry:             yesde enqueued on list
  * @type:              type of work to be performed
  *
- * There are separate work lists for proc, thread, and node (async).
+ * There are separate work lists for proc, thread, and yesde (async).
  */
 struct binder_work {
 	struct list_head entry;
@@ -240,19 +240,19 @@ struct binder_error {
 };
 
 /**
- * struct binder_node - binder node bookkeeping
+ * struct binder_yesde - binder yesde bookkeeping
  * @debug_id:             unique ID for debugging
  *                        (invariant after initialized)
- * @lock:                 lock for node fields
- * @work:                 worklist element for node work
+ * @lock:                 lock for yesde fields
+ * @work:                 worklist element for yesde work
  *                        (protected by @proc->inner_lock)
- * @rb_node:              element for proc->nodes tree
+ * @rb_yesde:              element for proc->yesdes tree
  *                        (protected by @proc->inner_lock)
- * @dead_node:            element for binder_dead_nodes list
- *                        (protected by binder_dead_nodes_lock)
- * @proc:                 binder_proc that owns this node
+ * @dead_yesde:            element for binder_dead_yesdes list
+ *                        (protected by binder_dead_yesdes_lock)
+ * @proc:                 binder_proc that owns this yesde
  *                        (invariant after initialized)
- * @refs:                 list of references on this node
+ * @refs:                 list of references on this yesde
  *                        (protected by @lock)
  * @internal_strong_refs: used to take strong references when
  *                        initiating a transaction
@@ -266,29 +266,29 @@ struct binder_error {
  *                        and by @lock)
  * @tmp_refs:             temporary kernel refs
  *                        (protected by @proc->inner_lock while @proc
- *                        is valid, and by binder_dead_nodes_lock
- *                        if @proc is NULL. During inc/dec and node release
+ *                        is valid, and by binder_dead_yesdes_lock
+ *                        if @proc is NULL. During inc/dec and yesde release
  *                        it is also protected by @lock to provide safety
- *                        as the node dies and @proc becomes NULL)
- * @ptr:                  userspace pointer for node
- *                        (invariant, no lock needed)
- * @cookie:               userspace cookie for node
- *                        (invariant, no lock needed)
- * @has_strong_ref:       userspace notified of strong ref
+ *                        as the yesde dies and @proc becomes NULL)
+ * @ptr:                  userspace pointer for yesde
+ *                        (invariant, yes lock needed)
+ * @cookie:               userspace cookie for yesde
+ *                        (invariant, yes lock needed)
+ * @has_strong_ref:       userspace yestified of strong ref
  *                        (protected by @proc->inner_lock if @proc
  *                        and by @lock)
- * @pending_strong_ref:   userspace has acked notification of strong ref
+ * @pending_strong_ref:   userspace has acked yestification of strong ref
  *                        (protected by @proc->inner_lock if @proc
  *                        and by @lock)
- * @has_weak_ref:         userspace notified of weak ref
+ * @has_weak_ref:         userspace yestified of weak ref
  *                        (protected by @proc->inner_lock if @proc
  *                        and by @lock)
- * @pending_weak_ref:     userspace has acked notification of weak ref
+ * @pending_weak_ref:     userspace has acked yestification of weak ref
  *                        (protected by @proc->inner_lock if @proc
  *                        and by @lock)
- * @has_async_transaction: async transaction to node in progress
+ * @has_async_transaction: async transaction to yesde in progress
  *                        (protected by @lock)
- * @accept_fds:           file descriptor operations supported for node
+ * @accept_fds:           file descriptor operations supported for yesde
  *                        (invariant after initialized)
  * @min_priority:         minimum scheduling priority
  *                        (invariant after initialized)
@@ -297,15 +297,15 @@ struct binder_error {
  * @async_todo:           list of async work items
  *                        (protected by @proc->inner_lock)
  *
- * Bookkeeping structure for binder nodes.
+ * Bookkeeping structure for binder yesdes.
  */
-struct binder_node {
+struct binder_yesde {
 	int debug_id;
 	spinlock_t lock;
 	struct binder_work work;
 	union {
-		struct rb_node rb_node;
-		struct hlist_node dead_node;
+		struct rb_yesde rb_yesde;
+		struct hlist_yesde dead_yesde;
 	};
 	struct binder_proc *proc;
 	struct hlist_head refs;
@@ -339,7 +339,7 @@ struct binder_node {
 
 struct binder_ref_death {
 	/**
-	 * @work: worklist element for death notifications
+	 * @work: worklist element for death yestifications
 	 *        (protected by inner_lock of the proc that
 	 *        this ref belongs to)
 	 */
@@ -351,8 +351,8 @@ struct binder_ref_death {
  * struct binder_ref_data - binder_ref counts and id
  * @debug_id:        unique ID for the ref
  * @desc:            unique userspace handle for ref
- * @strong:          strong ref count (debugging only if not locked)
- * @weak:            weak ref count (debugging only if not locked)
+ * @strong:          strong ref count (debugging only if yest locked)
+ * @weak:            weak ref count (debugging only if yest locked)
  *
  * Structure to hold ref count and ref id information. Since
  * the actual ref can only be accessed with a lock, this structure
@@ -367,33 +367,33 @@ struct binder_ref_data {
 };
 
 /**
- * struct binder_ref - struct to track references on nodes
+ * struct binder_ref - struct to track references on yesdes
  * @data:        binder_ref_data containing id, handle, and current refcounts
- * @rb_node_desc: node for lookup by @data.desc in proc's rb_tree
- * @rb_node_node: node for lookup by @node in proc's rb_tree
- * @node_entry:  list entry for node->refs list in target node
- *               (protected by @node->lock)
+ * @rb_yesde_desc: yesde for lookup by @data.desc in proc's rb_tree
+ * @rb_yesde_yesde: yesde for lookup by @yesde in proc's rb_tree
+ * @yesde_entry:  list entry for yesde->refs list in target yesde
+ *               (protected by @yesde->lock)
  * @proc:        binder_proc containing ref
- * @node:        binder_node of target node. When cleaning up a
- *               ref for deletion in binder_cleanup_ref, a non-NULL
- *               @node indicates the node must be freed
- * @death:       pointer to death notification (ref_death) if requested
- *               (protected by @node->lock)
+ * @yesde:        binder_yesde of target yesde. When cleaning up a
+ *               ref for deletion in binder_cleanup_ref, a yesn-NULL
+ *               @yesde indicates the yesde must be freed
+ * @death:       pointer to death yestification (ref_death) if requested
+ *               (protected by @yesde->lock)
  *
- * Structure to track references from procA to target node (on procB). This
+ * Structure to track references from procA to target yesde (on procB). This
  * structure is unsafe to access without holding @proc->outer_lock.
  */
 struct binder_ref {
 	/* Lookups needed: */
-	/*   node + proc => ref (transaction) */
+	/*   yesde + proc => ref (transaction) */
 	/*   desc + proc => ref (transaction, inc/dec ref) */
-	/*   node => refs + procs (proc exit) */
+	/*   yesde => refs + procs (proc exit) */
 	struct binder_ref_data data;
-	struct rb_node rb_node_desc;
-	struct rb_node rb_node_node;
-	struct hlist_node node_entry;
+	struct rb_yesde rb_yesde_desc;
+	struct rb_yesde rb_yesde_yesde;
+	struct hlist_yesde yesde_entry;
 	struct binder_proc *proc;
-	struct binder_node *node;
+	struct binder_yesde *yesde;
 	struct binder_ref_death *death;
 };
 
@@ -404,15 +404,15 @@ enum binder_deferred_state {
 
 /**
  * struct binder_proc - binder process bookkeeping
- * @proc_node:            element for binder_procs list
+ * @proc_yesde:            element for binder_procs list
  * @threads:              rbtree of binder_threads in this proc
  *                        (protected by @inner_lock)
- * @nodes:                rbtree of binder nodes associated with
- *                        this proc ordered by node->ptr
+ * @yesdes:                rbtree of binder yesdes associated with
+ *                        this proc ordered by yesde->ptr
  *                        (protected by @inner_lock)
  * @refs_by_desc:         rbtree of refs ordered by ref->desc
  *                        (protected by @outer_lock)
- * @refs_by_node:         rbtree of refs ordered by ref->node
+ * @refs_by_yesde:         rbtree of refs ordered by ref->yesde
  *                        (protected by @outer_lock)
  * @waiting_threads:      threads currently waiting for proc work
  *                        (protected by @inner_lock)
@@ -420,7 +420,7 @@ enum binder_deferred_state {
  *                        (invariant after initialized)
  * @tsk                   task_struct for group_leader of process
  *                        (invariant after initialized)
- * @deferred_work_node:   element for binder_deferred_list
+ * @deferred_work_yesde:   element for binder_deferred_list
  *                        (protected by binder_deferred_lock)
  * @deferred_work:        bitmap of deferred work to perform
  *                        (protected by binder_deferred_lock)
@@ -430,12 +430,12 @@ enum binder_deferred_state {
  * @todo:                 list of work for this process
  *                        (protected by @inner_lock)
  * @stats:                per-process binder statistics
- *                        (atomics, no lock needed)
- * @delivered_death:      list of delivered death notification
+ *                        (atomics, yes lock needed)
+ * @delivered_death:      list of delivered death yestification
  *                        (protected by @inner_lock)
  * @max_threads:          cap on number of binder threads
  *                        (protected by @inner_lock)
- * @requested_threads:    number of binder threads requested but not
+ * @requested_threads:    number of binder threads requested but yest
  *                        yet started. In current implementation, can
  *                        only be 0 or 1.
  *                        (protected by @inner_lock)
@@ -445,27 +445,27 @@ enum binder_deferred_state {
  *                        (protected by @inner_lock)
  * @default_priority:     default scheduler priority
  *                        (invariant after initialized)
- * @debugfs_entry:        debugfs node
+ * @debugfs_entry:        debugfs yesde
  * @alloc:                binder allocator bookkeeping
  * @context:              binder_context for this proc
  *                        (invariant after initialized)
- * @inner_lock:           can nest under outer_lock and/or node lock
- * @outer_lock:           no nesting under innor or node lock
- *                        Lock order: 1) outer, 2) node, 3) inner
+ * @inner_lock:           can nest under outer_lock and/or yesde lock
+ * @outer_lock:           yes nesting under inyesr or yesde lock
+ *                        Lock order: 1) outer, 2) yesde, 3) inner
  * @binderfs_entry:       process-specific binderfs log file
  *
  * Bookkeeping structure for binder processes
  */
 struct binder_proc {
-	struct hlist_node proc_node;
+	struct hlist_yesde proc_yesde;
 	struct rb_root threads;
-	struct rb_root nodes;
+	struct rb_root yesdes;
 	struct rb_root refs_by_desc;
-	struct rb_root refs_by_node;
+	struct rb_root refs_by_yesde;
 	struct list_head waiting_threads;
 	int pid;
 	struct task_struct *tsk;
-	struct hlist_node deferred_work_node;
+	struct hlist_yesde deferred_work_yesde;
 	int deferred_work;
 	bool is_dead;
 
@@ -498,16 +498,16 @@ enum {
  * struct binder_thread - binder thread bookkeeping
  * @proc:                 binder process for this thread
  *                        (invariant after initialization)
- * @rb_node:              element for proc->threads rbtree
+ * @rb_yesde:              element for proc->threads rbtree
  *                        (protected by @proc->inner_lock)
- * @waiting_thread_node:  element for @proc->waiting_threads list
+ * @waiting_thread_yesde:  element for @proc->waiting_threads list
  *                        (protected by @proc->inner_lock)
  * @pid:                  PID for this thread
  *                        (invariant after initialization)
  * @looper:               bitmap of looping state
  *                        (only accessed by this thread)
  * @looper_needs_return:  looping thread needs to exit driver
- *                        (no lock needed)
+ *                        (yes lock needed)
  * @transaction_stack:    stack of in-progress transactions for this thread
  *                        (protected by @proc->inner_lock)
  * @todo:                 list of work to do for this thread
@@ -520,9 +520,9 @@ enum {
  *                        (protected by @proc->inner_lock)
  * @wait:                 wait queue for thread work
  * @stats:                per-thread statistics
- *                        (atomics, no lock needed)
+ *                        (atomics, yes lock needed)
  * @tmp_ref:              temporary reference to indicate thread is in use
- *                        (atomic since @proc->inner_lock cannot
+ *                        (atomic since @proc->inner_lock canyest
  *                        always be acquired)
  * @is_dead:              thread is dead and awaiting free
  *                        when outstanding transactions are cleaned up
@@ -532,8 +532,8 @@ enum {
  */
 struct binder_thread {
 	struct binder_proc *proc;
-	struct rb_node rb_node;
-	struct list_head waiting_thread_node;
+	struct rb_yesde rb_yesde;
+	struct list_head waiting_thread_yesde;
 	int pid;
 	int looper;              /* only modified by this thread */
 	bool looper_need_return; /* can be written by other thread */
@@ -574,7 +574,7 @@ struct binder_transaction {
 	struct binder_thread *to_thread;
 	struct binder_transaction *to_parent;
 	unsigned need_reply:1;
-	/* unsigned is_dead:1; */	/* not used at the moment */
+	/* unsigned is_dead:1; */	/* yest used at the moment */
 
 	struct binder_buffer *buffer;
 	unsigned int	code;
@@ -596,7 +596,7 @@ struct binder_transaction {
 /**
  * struct binder_object - union of flat binder object types
  * @hdr:   generic object header
- * @fbo:   binder object (nodes and refs)
+ * @fbo:   binder object (yesdes and refs)
  * @fdo:   file descriptor object
  * @bbo:   binder buffer pointer
  * @fdao:  file descriptor array
@@ -679,80 +679,80 @@ _binder_inner_proc_unlock(struct binder_proc *proc, int line)
 }
 
 /**
- * binder_node_lock() - Acquire spinlock for given binder_node
- * @node:         struct binder_node to acquire
+ * binder_yesde_lock() - Acquire spinlock for given binder_yesde
+ * @yesde:         struct binder_yesde to acquire
  *
- * Acquires node->lock. Used to protect binder_node fields
+ * Acquires yesde->lock. Used to protect binder_yesde fields
  */
-#define binder_node_lock(node) _binder_node_lock(node, __LINE__)
+#define binder_yesde_lock(yesde) _binder_yesde_lock(yesde, __LINE__)
 static void
-_binder_node_lock(struct binder_node *node, int line)
-	__acquires(&node->lock)
+_binder_yesde_lock(struct binder_yesde *yesde, int line)
+	__acquires(&yesde->lock)
 {
 	binder_debug(BINDER_DEBUG_SPINLOCKS,
 		     "%s: line=%d\n", __func__, line);
-	spin_lock(&node->lock);
+	spin_lock(&yesde->lock);
 }
 
 /**
- * binder_node_unlock() - Release spinlock for given binder_proc
- * @node:         struct binder_node to acquire
+ * binder_yesde_unlock() - Release spinlock for given binder_proc
+ * @yesde:         struct binder_yesde to acquire
  *
- * Release lock acquired via binder_node_lock()
+ * Release lock acquired via binder_yesde_lock()
  */
-#define binder_node_unlock(node) _binder_node_unlock(node, __LINE__)
+#define binder_yesde_unlock(yesde) _binder_yesde_unlock(yesde, __LINE__)
 static void
-_binder_node_unlock(struct binder_node *node, int line)
-	__releases(&node->lock)
+_binder_yesde_unlock(struct binder_yesde *yesde, int line)
+	__releases(&yesde->lock)
 {
 	binder_debug(BINDER_DEBUG_SPINLOCKS,
 		     "%s: line=%d\n", __func__, line);
-	spin_unlock(&node->lock);
+	spin_unlock(&yesde->lock);
 }
 
 /**
- * binder_node_inner_lock() - Acquire node and inner locks
- * @node:         struct binder_node to acquire
+ * binder_yesde_inner_lock() - Acquire yesde and inner locks
+ * @yesde:         struct binder_yesde to acquire
  *
- * Acquires node->lock. If node->proc also acquires
- * proc->inner_lock. Used to protect binder_node fields
+ * Acquires yesde->lock. If yesde->proc also acquires
+ * proc->inner_lock. Used to protect binder_yesde fields
  */
-#define binder_node_inner_lock(node) _binder_node_inner_lock(node, __LINE__)
+#define binder_yesde_inner_lock(yesde) _binder_yesde_inner_lock(yesde, __LINE__)
 static void
-_binder_node_inner_lock(struct binder_node *node, int line)
-	__acquires(&node->lock) __acquires(&node->proc->inner_lock)
+_binder_yesde_inner_lock(struct binder_yesde *yesde, int line)
+	__acquires(&yesde->lock) __acquires(&yesde->proc->inner_lock)
 {
 	binder_debug(BINDER_DEBUG_SPINLOCKS,
 		     "%s: line=%d\n", __func__, line);
-	spin_lock(&node->lock);
-	if (node->proc)
-		binder_inner_proc_lock(node->proc);
+	spin_lock(&yesde->lock);
+	if (yesde->proc)
+		binder_inner_proc_lock(yesde->proc);
 	else
-		/* annotation for sparse */
-		__acquire(&node->proc->inner_lock);
+		/* anyestation for sparse */
+		__acquire(&yesde->proc->inner_lock);
 }
 
 /**
- * binder_node_unlock() - Release node and inner locks
- * @node:         struct binder_node to acquire
+ * binder_yesde_unlock() - Release yesde and inner locks
+ * @yesde:         struct binder_yesde to acquire
  *
- * Release lock acquired via binder_node_lock()
+ * Release lock acquired via binder_yesde_lock()
  */
-#define binder_node_inner_unlock(node) _binder_node_inner_unlock(node, __LINE__)
+#define binder_yesde_inner_unlock(yesde) _binder_yesde_inner_unlock(yesde, __LINE__)
 static void
-_binder_node_inner_unlock(struct binder_node *node, int line)
-	__releases(&node->lock) __releases(&node->proc->inner_lock)
+_binder_yesde_inner_unlock(struct binder_yesde *yesde, int line)
+	__releases(&yesde->lock) __releases(&yesde->proc->inner_lock)
 {
-	struct binder_proc *proc = node->proc;
+	struct binder_proc *proc = yesde->proc;
 
 	binder_debug(BINDER_DEBUG_SPINLOCKS,
 		     "%s: line=%d\n", __func__, line);
 	if (proc)
 		binder_inner_proc_unlock(proc);
 	else
-		/* annotation for sparse */
-		__release(&node->proc->inner_lock);
-	spin_unlock(&node->lock);
+		/* anyestation for sparse */
+		__release(&yesde->proc->inner_lock);
+	spin_unlock(&yesde->lock);
 }
 
 static bool binder_worklist_empty_ilocked(struct list_head *list)
@@ -761,11 +761,11 @@ static bool binder_worklist_empty_ilocked(struct list_head *list)
 }
 
 /**
- * binder_worklist_empty() - Check if no items on the work list
+ * binder_worklist_empty() - Check if yes items on the work list
  * @proc:       binder_proc associated with list
  * @list:	list to check
  *
- * Return: true if there are no items on list, else false
+ * Return: true if there are yes items on list, else false
  */
 static bool binder_worklist_empty(struct binder_proc *proc,
 				  struct list_head *list)
@@ -784,7 +784,7 @@ static bool binder_worklist_empty(struct binder_proc *proc,
  * @target_list:  list to add work to
  *
  * Adds the work to the specified list. Asserts that work
- * is not already on a list.
+ * is yest already on a list.
  *
  * Requires the proc->inner_lock to be held.
  */
@@ -812,7 +812,7 @@ static void
 binder_enqueue_deferred_thread_work_ilocked(struct binder_thread *thread,
 					    struct binder_work *work)
 {
-	WARN_ON(!list_empty(&thread->waiting_thread_node));
+	WARN_ON(!list_empty(&thread->waiting_thread_yesde));
 	binder_enqueue_work_ilocked(work, &thread->todo);
 }
 
@@ -830,7 +830,7 @@ static void
 binder_enqueue_thread_work_ilocked(struct binder_thread *thread,
 				   struct binder_work *work)
 {
-	WARN_ON(!list_empty(&thread->waiting_thread_node));
+	WARN_ON(!list_empty(&thread->waiting_thread_yesde));
 	binder_enqueue_work_ilocked(work, &thread->todo);
 	thread->process_todo = true;
 }
@@ -864,7 +864,7 @@ binder_dequeue_work_ilocked(struct binder_work *work)
  * @work:         struct binder_work to remove from list
  *
  * Removes the specified work item from whatever list it is on.
- * Can safely be called if work is not on any list.
+ * Can safely be called if work is yest on any list.
  */
 static void
 binder_dequeue_work(struct binder_proc *proc, struct binder_work *work)
@@ -910,7 +910,7 @@ static void
 binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer);
 static void binder_free_thread(struct binder_thread *thread);
 static void binder_free_proc(struct binder_proc *proc);
-static void binder_inc_node_tmpref_ilocked(struct binder_node *node);
+static void binder_inc_yesde_tmpref_ilocked(struct binder_yesde *yesde);
 
 static bool binder_has_work_ilocked(struct binder_thread *thread,
 				    bool do_proc_work)
@@ -943,11 +943,11 @@ static bool binder_available_for_proc_work_ilocked(struct binder_thread *thread)
 static void binder_wakeup_poll_threads_ilocked(struct binder_proc *proc,
 					       bool sync)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 	struct binder_thread *thread;
 
 	for (n = rb_first(&proc->threads); n != NULL; n = rb_next(n)) {
-		thread = rb_entry(n, struct binder_thread, rb_node);
+		thread = rb_entry(n, struct binder_thread, rb_yesde);
 		if (thread->looper & BINDER_LOOPER_STATE_POLL &&
 		    binder_available_for_proc_work_ilocked(thread)) {
 			if (sync)
@@ -978,10 +978,10 @@ binder_select_thread_ilocked(struct binder_proc *proc)
 	assert_spin_locked(&proc->inner_lock);
 	thread = list_first_entry_or_null(&proc->waiting_threads,
 					  struct binder_thread,
-					  waiting_thread_node);
+					  waiting_thread_yesde);
 
 	if (thread)
-		list_del_init(&thread->waiting_thread_node);
+		list_del_init(&thread->waiting_thread_yesde);
 
 	return thread;
 }
@@ -990,7 +990,7 @@ binder_select_thread_ilocked(struct binder_proc *proc)
  * binder_wakeup_thread_ilocked() - wakes up a thread for doing proc work.
  * @proc:	process to wake up a thread in
  * @thread:	specific thread to wake-up (may be NULL)
- * @sync:	whether to do a synchronous wake-up
+ * @sync:	whether to do a synchroyesus wake-up
  *
  * This function wakes up a thread in the @proc process.
  * The caller may provide a specific thread to wake-up in
@@ -1024,9 +1024,9 @@ static void binder_wakeup_thread_ilocked(struct binder_proc *proc,
 	 * 2. Threads are using the (e)poll interface, in which case
 	 *    they may be blocked on the waitqueue without having been
 	 *    added to waiting_threads. For this case, we just iterate
-	 *    over all threads not handling transaction work, and
-	 *    wake them all up. We wake all because we don't know whether
-	 *    a thread that called into (e)poll is handling non-binder
+	 *    over all threads yest handling transaction work, and
+	 *    wake them all up. We wake all because we don't kyesw whether
+	 *    a thread that called into (e)poll is handling yesn-binder
 	 *    work currently.
 	 */
 	binder_wakeup_poll_threads_ilocked(proc, sync);
@@ -1049,61 +1049,61 @@ static void binder_set_nice(long nice)
 	}
 	min_nice = rlimit_to_nice(rlimit(RLIMIT_NICE));
 	binder_debug(BINDER_DEBUG_PRIORITY_CAP,
-		     "%d: nice value %ld not allowed use %ld instead\n",
+		     "%d: nice value %ld yest allowed use %ld instead\n",
 		      current->pid, nice, min_nice);
 	set_user_nice(current, min_nice);
 	if (min_nice <= MAX_NICE)
 		return;
-	binder_user_error("%d RLIMIT_NICE not set\n", current->pid);
+	binder_user_error("%d RLIMIT_NICE yest set\n", current->pid);
 }
 
-static struct binder_node *binder_get_node_ilocked(struct binder_proc *proc,
+static struct binder_yesde *binder_get_yesde_ilocked(struct binder_proc *proc,
 						   binder_uintptr_t ptr)
 {
-	struct rb_node *n = proc->nodes.rb_node;
-	struct binder_node *node;
+	struct rb_yesde *n = proc->yesdes.rb_yesde;
+	struct binder_yesde *yesde;
 
 	assert_spin_locked(&proc->inner_lock);
 
 	while (n) {
-		node = rb_entry(n, struct binder_node, rb_node);
+		yesde = rb_entry(n, struct binder_yesde, rb_yesde);
 
-		if (ptr < node->ptr)
+		if (ptr < yesde->ptr)
 			n = n->rb_left;
-		else if (ptr > node->ptr)
+		else if (ptr > yesde->ptr)
 			n = n->rb_right;
 		else {
 			/*
 			 * take an implicit weak reference
-			 * to ensure node stays alive until
-			 * call to binder_put_node()
+			 * to ensure yesde stays alive until
+			 * call to binder_put_yesde()
 			 */
-			binder_inc_node_tmpref_ilocked(node);
-			return node;
+			binder_inc_yesde_tmpref_ilocked(yesde);
+			return yesde;
 		}
 	}
 	return NULL;
 }
 
-static struct binder_node *binder_get_node(struct binder_proc *proc,
+static struct binder_yesde *binder_get_yesde(struct binder_proc *proc,
 					   binder_uintptr_t ptr)
 {
-	struct binder_node *node;
+	struct binder_yesde *yesde;
 
 	binder_inner_proc_lock(proc);
-	node = binder_get_node_ilocked(proc, ptr);
+	yesde = binder_get_yesde_ilocked(proc, ptr);
 	binder_inner_proc_unlock(proc);
-	return node;
+	return yesde;
 }
 
-static struct binder_node *binder_init_node_ilocked(
+static struct binder_yesde *binder_init_yesde_ilocked(
 						struct binder_proc *proc,
-						struct binder_node *new_node,
+						struct binder_yesde *new_yesde,
 						struct flat_binder_object *fp)
 {
-	struct rb_node **p = &proc->nodes.rb_node;
-	struct rb_node *parent = NULL;
-	struct binder_node *node;
+	struct rb_yesde **p = &proc->yesdes.rb_yesde;
+	struct rb_yesde *parent = NULL;
+	struct binder_yesde *yesde;
 	binder_uintptr_t ptr = fp ? fp->binder : 0;
 	binder_uintptr_t cookie = fp ? fp->cookie : 0;
 	__u32 flags = fp ? fp->flags : 0;
@@ -1113,186 +1113,186 @@ static struct binder_node *binder_init_node_ilocked(
 	while (*p) {
 
 		parent = *p;
-		node = rb_entry(parent, struct binder_node, rb_node);
+		yesde = rb_entry(parent, struct binder_yesde, rb_yesde);
 
-		if (ptr < node->ptr)
+		if (ptr < yesde->ptr)
 			p = &(*p)->rb_left;
-		else if (ptr > node->ptr)
+		else if (ptr > yesde->ptr)
 			p = &(*p)->rb_right;
 		else {
 			/*
-			 * A matching node is already in
+			 * A matching yesde is already in
 			 * the rb tree. Abandon the init
 			 * and return it.
 			 */
-			binder_inc_node_tmpref_ilocked(node);
-			return node;
+			binder_inc_yesde_tmpref_ilocked(yesde);
+			return yesde;
 		}
 	}
-	node = new_node;
+	yesde = new_yesde;
 	binder_stats_created(BINDER_STAT_NODE);
-	node->tmp_refs++;
-	rb_link_node(&node->rb_node, parent, p);
-	rb_insert_color(&node->rb_node, &proc->nodes);
-	node->debug_id = atomic_inc_return(&binder_last_id);
-	node->proc = proc;
-	node->ptr = ptr;
-	node->cookie = cookie;
-	node->work.type = BINDER_WORK_NODE;
-	node->min_priority = flags & FLAT_BINDER_FLAG_PRIORITY_MASK;
-	node->accept_fds = !!(flags & FLAT_BINDER_FLAG_ACCEPTS_FDS);
-	node->txn_security_ctx = !!(flags & FLAT_BINDER_FLAG_TXN_SECURITY_CTX);
-	spin_lock_init(&node->lock);
-	INIT_LIST_HEAD(&node->work.entry);
-	INIT_LIST_HEAD(&node->async_todo);
+	yesde->tmp_refs++;
+	rb_link_yesde(&yesde->rb_yesde, parent, p);
+	rb_insert_color(&yesde->rb_yesde, &proc->yesdes);
+	yesde->debug_id = atomic_inc_return(&binder_last_id);
+	yesde->proc = proc;
+	yesde->ptr = ptr;
+	yesde->cookie = cookie;
+	yesde->work.type = BINDER_WORK_NODE;
+	yesde->min_priority = flags & FLAT_BINDER_FLAG_PRIORITY_MASK;
+	yesde->accept_fds = !!(flags & FLAT_BINDER_FLAG_ACCEPTS_FDS);
+	yesde->txn_security_ctx = !!(flags & FLAT_BINDER_FLAG_TXN_SECURITY_CTX);
+	spin_lock_init(&yesde->lock);
+	INIT_LIST_HEAD(&yesde->work.entry);
+	INIT_LIST_HEAD(&yesde->async_todo);
 	binder_debug(BINDER_DEBUG_INTERNAL_REFS,
-		     "%d:%d node %d u%016llx c%016llx created\n",
-		     proc->pid, current->pid, node->debug_id,
-		     (u64)node->ptr, (u64)node->cookie);
+		     "%d:%d yesde %d u%016llx c%016llx created\n",
+		     proc->pid, current->pid, yesde->debug_id,
+		     (u64)yesde->ptr, (u64)yesde->cookie);
 
-	return node;
+	return yesde;
 }
 
-static struct binder_node *binder_new_node(struct binder_proc *proc,
+static struct binder_yesde *binder_new_yesde(struct binder_proc *proc,
 					   struct flat_binder_object *fp)
 {
-	struct binder_node *node;
-	struct binder_node *new_node = kzalloc(sizeof(*node), GFP_KERNEL);
+	struct binder_yesde *yesde;
+	struct binder_yesde *new_yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
 
-	if (!new_node)
+	if (!new_yesde)
 		return NULL;
 	binder_inner_proc_lock(proc);
-	node = binder_init_node_ilocked(proc, new_node, fp);
+	yesde = binder_init_yesde_ilocked(proc, new_yesde, fp);
 	binder_inner_proc_unlock(proc);
-	if (node != new_node)
+	if (yesde != new_yesde)
 		/*
-		 * The node was already added by another thread
+		 * The yesde was already added by ayesther thread
 		 */
-		kfree(new_node);
+		kfree(new_yesde);
 
-	return node;
+	return yesde;
 }
 
-static void binder_free_node(struct binder_node *node)
+static void binder_free_yesde(struct binder_yesde *yesde)
 {
-	kfree(node);
+	kfree(yesde);
 	binder_stats_deleted(BINDER_STAT_NODE);
 }
 
-static int binder_inc_node_nilocked(struct binder_node *node, int strong,
+static int binder_inc_yesde_nilocked(struct binder_yesde *yesde, int strong,
 				    int internal,
 				    struct list_head *target_list)
 {
-	struct binder_proc *proc = node->proc;
+	struct binder_proc *proc = yesde->proc;
 
-	assert_spin_locked(&node->lock);
+	assert_spin_locked(&yesde->lock);
 	if (proc)
 		assert_spin_locked(&proc->inner_lock);
 	if (strong) {
 		if (internal) {
 			if (target_list == NULL &&
-			    node->internal_strong_refs == 0 &&
-			    !(node->proc &&
-			      node == node->proc->context->binder_context_mgr_node &&
-			      node->has_strong_ref)) {
-				pr_err("invalid inc strong node for %d\n",
-					node->debug_id);
+			    yesde->internal_strong_refs == 0 &&
+			    !(yesde->proc &&
+			      yesde == yesde->proc->context->binder_context_mgr_yesde &&
+			      yesde->has_strong_ref)) {
+				pr_err("invalid inc strong yesde for %d\n",
+					yesde->debug_id);
 				return -EINVAL;
 			}
-			node->internal_strong_refs++;
+			yesde->internal_strong_refs++;
 		} else
-			node->local_strong_refs++;
-		if (!node->has_strong_ref && target_list) {
+			yesde->local_strong_refs++;
+		if (!yesde->has_strong_ref && target_list) {
 			struct binder_thread *thread = container_of(target_list,
 						    struct binder_thread, todo);
-			binder_dequeue_work_ilocked(&node->work);
+			binder_dequeue_work_ilocked(&yesde->work);
 			BUG_ON(&thread->todo != target_list);
 			binder_enqueue_deferred_thread_work_ilocked(thread,
-								   &node->work);
+								   &yesde->work);
 		}
 	} else {
 		if (!internal)
-			node->local_weak_refs++;
-		if (!node->has_weak_ref && list_empty(&node->work.entry)) {
+			yesde->local_weak_refs++;
+		if (!yesde->has_weak_ref && list_empty(&yesde->work.entry)) {
 			if (target_list == NULL) {
-				pr_err("invalid inc weak node for %d\n",
-					node->debug_id);
+				pr_err("invalid inc weak yesde for %d\n",
+					yesde->debug_id);
 				return -EINVAL;
 			}
 			/*
 			 * See comment above
 			 */
-			binder_enqueue_work_ilocked(&node->work, target_list);
+			binder_enqueue_work_ilocked(&yesde->work, target_list);
 		}
 	}
 	return 0;
 }
 
-static int binder_inc_node(struct binder_node *node, int strong, int internal,
+static int binder_inc_yesde(struct binder_yesde *yesde, int strong, int internal,
 			   struct list_head *target_list)
 {
 	int ret;
 
-	binder_node_inner_lock(node);
-	ret = binder_inc_node_nilocked(node, strong, internal, target_list);
-	binder_node_inner_unlock(node);
+	binder_yesde_inner_lock(yesde);
+	ret = binder_inc_yesde_nilocked(yesde, strong, internal, target_list);
+	binder_yesde_inner_unlock(yesde);
 
 	return ret;
 }
 
-static bool binder_dec_node_nilocked(struct binder_node *node,
+static bool binder_dec_yesde_nilocked(struct binder_yesde *yesde,
 				     int strong, int internal)
 {
-	struct binder_proc *proc = node->proc;
+	struct binder_proc *proc = yesde->proc;
 
-	assert_spin_locked(&node->lock);
+	assert_spin_locked(&yesde->lock);
 	if (proc)
 		assert_spin_locked(&proc->inner_lock);
 	if (strong) {
 		if (internal)
-			node->internal_strong_refs--;
+			yesde->internal_strong_refs--;
 		else
-			node->local_strong_refs--;
-		if (node->local_strong_refs || node->internal_strong_refs)
+			yesde->local_strong_refs--;
+		if (yesde->local_strong_refs || yesde->internal_strong_refs)
 			return false;
 	} else {
 		if (!internal)
-			node->local_weak_refs--;
-		if (node->local_weak_refs || node->tmp_refs ||
-				!hlist_empty(&node->refs))
+			yesde->local_weak_refs--;
+		if (yesde->local_weak_refs || yesde->tmp_refs ||
+				!hlist_empty(&yesde->refs))
 			return false;
 	}
 
-	if (proc && (node->has_strong_ref || node->has_weak_ref)) {
-		if (list_empty(&node->work.entry)) {
-			binder_enqueue_work_ilocked(&node->work, &proc->todo);
+	if (proc && (yesde->has_strong_ref || yesde->has_weak_ref)) {
+		if (list_empty(&yesde->work.entry)) {
+			binder_enqueue_work_ilocked(&yesde->work, &proc->todo);
 			binder_wakeup_proc_ilocked(proc);
 		}
 	} else {
-		if (hlist_empty(&node->refs) && !node->local_strong_refs &&
-		    !node->local_weak_refs && !node->tmp_refs) {
+		if (hlist_empty(&yesde->refs) && !yesde->local_strong_refs &&
+		    !yesde->local_weak_refs && !yesde->tmp_refs) {
 			if (proc) {
-				binder_dequeue_work_ilocked(&node->work);
-				rb_erase(&node->rb_node, &proc->nodes);
+				binder_dequeue_work_ilocked(&yesde->work);
+				rb_erase(&yesde->rb_yesde, &proc->yesdes);
 				binder_debug(BINDER_DEBUG_INTERNAL_REFS,
-					     "refless node %d deleted\n",
-					     node->debug_id);
+					     "refless yesde %d deleted\n",
+					     yesde->debug_id);
 			} else {
-				BUG_ON(!list_empty(&node->work.entry));
-				spin_lock(&binder_dead_nodes_lock);
+				BUG_ON(!list_empty(&yesde->work.entry));
+				spin_lock(&binder_dead_yesdes_lock);
 				/*
 				 * tmp_refs could have changed so
 				 * check it again
 				 */
-				if (node->tmp_refs) {
-					spin_unlock(&binder_dead_nodes_lock);
+				if (yesde->tmp_refs) {
+					spin_unlock(&binder_dead_yesdes_lock);
 					return false;
 				}
-				hlist_del(&node->dead_node);
-				spin_unlock(&binder_dead_nodes_lock);
+				hlist_del(&yesde->dead_yesde);
+				spin_unlock(&binder_dead_yesdes_lock);
 				binder_debug(BINDER_DEBUG_INTERNAL_REFS,
-					     "dead node %d deleted\n",
-					     node->debug_id);
+					     "dead yesde %d deleted\n",
+					     yesde->debug_id);
 			}
 			return true;
 		}
@@ -1300,101 +1300,101 @@ static bool binder_dec_node_nilocked(struct binder_node *node,
 	return false;
 }
 
-static void binder_dec_node(struct binder_node *node, int strong, int internal)
+static void binder_dec_yesde(struct binder_yesde *yesde, int strong, int internal)
 {
-	bool free_node;
+	bool free_yesde;
 
-	binder_node_inner_lock(node);
-	free_node = binder_dec_node_nilocked(node, strong, internal);
-	binder_node_inner_unlock(node);
-	if (free_node)
-		binder_free_node(node);
+	binder_yesde_inner_lock(yesde);
+	free_yesde = binder_dec_yesde_nilocked(yesde, strong, internal);
+	binder_yesde_inner_unlock(yesde);
+	if (free_yesde)
+		binder_free_yesde(yesde);
 }
 
-static void binder_inc_node_tmpref_ilocked(struct binder_node *node)
+static void binder_inc_yesde_tmpref_ilocked(struct binder_yesde *yesde)
 {
 	/*
-	 * No call to binder_inc_node() is needed since we
+	 * No call to binder_inc_yesde() is needed since we
 	 * don't need to inform userspace of any changes to
 	 * tmp_refs
 	 */
-	node->tmp_refs++;
+	yesde->tmp_refs++;
 }
 
 /**
- * binder_inc_node_tmpref() - take a temporary reference on node
- * @node:	node to reference
+ * binder_inc_yesde_tmpref() - take a temporary reference on yesde
+ * @yesde:	yesde to reference
  *
- * Take reference on node to prevent the node from being freed
+ * Take reference on yesde to prevent the yesde from being freed
  * while referenced only by a local variable. The inner lock is
- * needed to serialize with the node work on the queue (which
- * isn't needed after the node is dead). If the node is dead
- * (node->proc is NULL), use binder_dead_nodes_lock to protect
- * node->tmp_refs against dead-node-only cases where the node
- * lock cannot be acquired (eg traversing the dead node list to
- * print nodes)
+ * needed to serialize with the yesde work on the queue (which
+ * isn't needed after the yesde is dead). If the yesde is dead
+ * (yesde->proc is NULL), use binder_dead_yesdes_lock to protect
+ * yesde->tmp_refs against dead-yesde-only cases where the yesde
+ * lock canyest be acquired (eg traversing the dead yesde list to
+ * print yesdes)
  */
-static void binder_inc_node_tmpref(struct binder_node *node)
+static void binder_inc_yesde_tmpref(struct binder_yesde *yesde)
 {
-	binder_node_lock(node);
-	if (node->proc)
-		binder_inner_proc_lock(node->proc);
+	binder_yesde_lock(yesde);
+	if (yesde->proc)
+		binder_inner_proc_lock(yesde->proc);
 	else
-		spin_lock(&binder_dead_nodes_lock);
-	binder_inc_node_tmpref_ilocked(node);
-	if (node->proc)
-		binder_inner_proc_unlock(node->proc);
+		spin_lock(&binder_dead_yesdes_lock);
+	binder_inc_yesde_tmpref_ilocked(yesde);
+	if (yesde->proc)
+		binder_inner_proc_unlock(yesde->proc);
 	else
-		spin_unlock(&binder_dead_nodes_lock);
-	binder_node_unlock(node);
+		spin_unlock(&binder_dead_yesdes_lock);
+	binder_yesde_unlock(yesde);
 }
 
 /**
- * binder_dec_node_tmpref() - remove a temporary reference on node
- * @node:	node to reference
+ * binder_dec_yesde_tmpref() - remove a temporary reference on yesde
+ * @yesde:	yesde to reference
  *
- * Release temporary reference on node taken via binder_inc_node_tmpref()
+ * Release temporary reference on yesde taken via binder_inc_yesde_tmpref()
  */
-static void binder_dec_node_tmpref(struct binder_node *node)
+static void binder_dec_yesde_tmpref(struct binder_yesde *yesde)
 {
-	bool free_node;
+	bool free_yesde;
 
-	binder_node_inner_lock(node);
-	if (!node->proc)
-		spin_lock(&binder_dead_nodes_lock);
+	binder_yesde_inner_lock(yesde);
+	if (!yesde->proc)
+		spin_lock(&binder_dead_yesdes_lock);
 	else
-		__acquire(&binder_dead_nodes_lock);
-	node->tmp_refs--;
-	BUG_ON(node->tmp_refs < 0);
-	if (!node->proc)
-		spin_unlock(&binder_dead_nodes_lock);
+		__acquire(&binder_dead_yesdes_lock);
+	yesde->tmp_refs--;
+	BUG_ON(yesde->tmp_refs < 0);
+	if (!yesde->proc)
+		spin_unlock(&binder_dead_yesdes_lock);
 	else
-		__release(&binder_dead_nodes_lock);
+		__release(&binder_dead_yesdes_lock);
 	/*
-	 * Call binder_dec_node() to check if all refcounts are 0
+	 * Call binder_dec_yesde() to check if all refcounts are 0
 	 * and cleanup is needed. Calling with strong=0 and internal=1
-	 * causes no actual reference to be released in binder_dec_node().
+	 * causes yes actual reference to be released in binder_dec_yesde().
 	 * If that changes, a change is needed here too.
 	 */
-	free_node = binder_dec_node_nilocked(node, 0, 1);
-	binder_node_inner_unlock(node);
-	if (free_node)
-		binder_free_node(node);
+	free_yesde = binder_dec_yesde_nilocked(yesde, 0, 1);
+	binder_yesde_inner_unlock(yesde);
+	if (free_yesde)
+		binder_free_yesde(yesde);
 }
 
-static void binder_put_node(struct binder_node *node)
+static void binder_put_yesde(struct binder_yesde *yesde)
 {
-	binder_dec_node_tmpref(node);
+	binder_dec_yesde_tmpref(yesde);
 }
 
 static struct binder_ref *binder_get_ref_olocked(struct binder_proc *proc,
 						 u32 desc, bool need_strong_ref)
 {
-	struct rb_node *n = proc->refs_by_desc.rb_node;
+	struct rb_yesde *n = proc->refs_by_desc.rb_yesde;
 	struct binder_ref *ref;
 
 	while (n) {
-		ref = rb_entry(n, struct binder_ref, rb_node_desc);
+		ref = rb_entry(n, struct binder_ref, rb_yesde_desc);
 
 		if (desc < ref->data.desc) {
 			n = n->rb_left;
@@ -1411,41 +1411,41 @@ static struct binder_ref *binder_get_ref_olocked(struct binder_proc *proc,
 }
 
 /**
- * binder_get_ref_for_node_olocked() - get the ref associated with given node
+ * binder_get_ref_for_yesde_olocked() - get the ref associated with given yesde
  * @proc:	binder_proc that owns the ref
- * @node:	binder_node of target
+ * @yesde:	binder_yesde of target
  * @new_ref:	newly allocated binder_ref to be initialized or %NULL
  *
- * Look up the ref for the given node and return it if it exists
+ * Look up the ref for the given yesde and return it if it exists
  *
  * If it doesn't exist and the caller provides a newly allocated
  * ref, initialize the fields of the newly allocated ref and insert
- * into the given proc rb_trees and node refs list.
+ * into the given proc rb_trees and yesde refs list.
  *
- * Return:	the ref for node. It is possible that another thread
+ * Return:	the ref for yesde. It is possible that ayesther thread
  *		allocated/initialized the ref first in which case the
  *		returned ref would be different than the passed-in
  *		new_ref. new_ref must be kfree'd by the caller in
  *		this case.
  */
-static struct binder_ref *binder_get_ref_for_node_olocked(
+static struct binder_ref *binder_get_ref_for_yesde_olocked(
 					struct binder_proc *proc,
-					struct binder_node *node,
+					struct binder_yesde *yesde,
 					struct binder_ref *new_ref)
 {
 	struct binder_context *context = proc->context;
-	struct rb_node **p = &proc->refs_by_node.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &proc->refs_by_yesde.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct binder_ref *ref;
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 	while (*p) {
 		parent = *p;
-		ref = rb_entry(parent, struct binder_ref, rb_node_node);
+		ref = rb_entry(parent, struct binder_ref, rb_yesde_yesde);
 
-		if (node < ref->node)
+		if (yesde < ref->yesde)
 			p = &(*p)->rb_left;
-		else if (node > ref->node)
+		else if (yesde > ref->yesde)
 			p = &(*p)->rb_right;
 		else
 			return ref;
@@ -1456,22 +1456,22 @@ static struct binder_ref *binder_get_ref_for_node_olocked(
 	binder_stats_created(BINDER_STAT_REF);
 	new_ref->data.debug_id = atomic_inc_return(&binder_last_id);
 	new_ref->proc = proc;
-	new_ref->node = node;
-	rb_link_node(&new_ref->rb_node_node, parent, p);
-	rb_insert_color(&new_ref->rb_node_node, &proc->refs_by_node);
+	new_ref->yesde = yesde;
+	rb_link_yesde(&new_ref->rb_yesde_yesde, parent, p);
+	rb_insert_color(&new_ref->rb_yesde_yesde, &proc->refs_by_yesde);
 
-	new_ref->data.desc = (node == context->binder_context_mgr_node) ? 0 : 1;
+	new_ref->data.desc = (yesde == context->binder_context_mgr_yesde) ? 0 : 1;
 	for (n = rb_first(&proc->refs_by_desc); n != NULL; n = rb_next(n)) {
-		ref = rb_entry(n, struct binder_ref, rb_node_desc);
+		ref = rb_entry(n, struct binder_ref, rb_yesde_desc);
 		if (ref->data.desc > new_ref->data.desc)
 			break;
 		new_ref->data.desc = ref->data.desc + 1;
 	}
 
-	p = &proc->refs_by_desc.rb_node;
+	p = &proc->refs_by_desc.rb_yesde;
 	while (*p) {
 		parent = *p;
-		ref = rb_entry(parent, struct binder_ref, rb_node_desc);
+		ref = rb_entry(parent, struct binder_ref, rb_yesde_desc);
 
 		if (new_ref->data.desc < ref->data.desc)
 			p = &(*p)->rb_left;
@@ -1480,54 +1480,54 @@ static struct binder_ref *binder_get_ref_for_node_olocked(
 		else
 			BUG();
 	}
-	rb_link_node(&new_ref->rb_node_desc, parent, p);
-	rb_insert_color(&new_ref->rb_node_desc, &proc->refs_by_desc);
+	rb_link_yesde(&new_ref->rb_yesde_desc, parent, p);
+	rb_insert_color(&new_ref->rb_yesde_desc, &proc->refs_by_desc);
 
-	binder_node_lock(node);
-	hlist_add_head(&new_ref->node_entry, &node->refs);
+	binder_yesde_lock(yesde);
+	hlist_add_head(&new_ref->yesde_entry, &yesde->refs);
 
 	binder_debug(BINDER_DEBUG_INTERNAL_REFS,
-		     "%d new ref %d desc %d for node %d\n",
+		     "%d new ref %d desc %d for yesde %d\n",
 		      proc->pid, new_ref->data.debug_id, new_ref->data.desc,
-		      node->debug_id);
-	binder_node_unlock(node);
+		      yesde->debug_id);
+	binder_yesde_unlock(yesde);
 	return new_ref;
 }
 
 static void binder_cleanup_ref_olocked(struct binder_ref *ref)
 {
-	bool delete_node = false;
+	bool delete_yesde = false;
 
 	binder_debug(BINDER_DEBUG_INTERNAL_REFS,
-		     "%d delete ref %d desc %d for node %d\n",
+		     "%d delete ref %d desc %d for yesde %d\n",
 		      ref->proc->pid, ref->data.debug_id, ref->data.desc,
-		      ref->node->debug_id);
+		      ref->yesde->debug_id);
 
-	rb_erase(&ref->rb_node_desc, &ref->proc->refs_by_desc);
-	rb_erase(&ref->rb_node_node, &ref->proc->refs_by_node);
+	rb_erase(&ref->rb_yesde_desc, &ref->proc->refs_by_desc);
+	rb_erase(&ref->rb_yesde_yesde, &ref->proc->refs_by_yesde);
 
-	binder_node_inner_lock(ref->node);
+	binder_yesde_inner_lock(ref->yesde);
 	if (ref->data.strong)
-		binder_dec_node_nilocked(ref->node, 1, 1);
+		binder_dec_yesde_nilocked(ref->yesde, 1, 1);
 
-	hlist_del(&ref->node_entry);
-	delete_node = binder_dec_node_nilocked(ref->node, 0, 1);
-	binder_node_inner_unlock(ref->node);
+	hlist_del(&ref->yesde_entry);
+	delete_yesde = binder_dec_yesde_nilocked(ref->yesde, 0, 1);
+	binder_yesde_inner_unlock(ref->yesde);
 	/*
-	 * Clear ref->node unless we want the caller to free the node
+	 * Clear ref->yesde unless we want the caller to free the yesde
 	 */
-	if (!delete_node) {
+	if (!delete_yesde) {
 		/*
-		 * The caller uses ref->node to determine
-		 * whether the node needs to be freed. Clear
-		 * it since the node is still alive.
+		 * The caller uses ref->yesde to determine
+		 * whether the yesde needs to be freed. Clear
+		 * it since the yesde is still alive.
 		 */
-		ref->node = NULL;
+		ref->yesde = NULL;
 	}
 
 	if (ref->death) {
 		binder_debug(BINDER_DEBUG_DEAD_BINDER,
-			     "%d delete ref %d desc %d has death notification\n",
+			     "%d delete ref %d desc %d has death yestification\n",
 			      ref->proc->pid, ref->data.debug_id,
 			      ref->data.desc);
 		binder_dequeue_work(ref->proc, &ref->death->work);
@@ -1540,11 +1540,11 @@ static void binder_cleanup_ref_olocked(struct binder_ref *ref)
  * binder_inc_ref_olocked() - increment the ref for given handle
  * @ref:         ref to be incremented
  * @strong:      if true, strong increment, else weak
- * @target_list: list to queue node work on
+ * @target_list: list to queue yesde work on
  *
  * Increment the ref. @ref->proc->outer_lock must be held on entry
  *
- * Return: 0, if successful, else errno
+ * Return: 0, if successful, else erryes
  */
 static int binder_inc_ref_olocked(struct binder_ref *ref, int strong,
 				  struct list_head *target_list)
@@ -1553,14 +1553,14 @@ static int binder_inc_ref_olocked(struct binder_ref *ref, int strong,
 
 	if (strong) {
 		if (ref->data.strong == 0) {
-			ret = binder_inc_node(ref->node, 1, 1, target_list);
+			ret = binder_inc_yesde(ref->yesde, 1, 1, target_list);
 			if (ret)
 				return ret;
 		}
 		ref->data.strong++;
 	} else {
 		if (ref->data.weak == 0) {
-			ret = binder_inc_node(ref->node, 0, 1, target_list);
+			ret = binder_inc_yesde(ref->yesde, 0, 1, target_list);
 			if (ret)
 				return ret;
 		}
@@ -1590,7 +1590,7 @@ static bool binder_dec_ref_olocked(struct binder_ref *ref, int strong)
 		}
 		ref->data.strong--;
 		if (ref->data.strong == 0)
-			binder_dec_node(ref->node, strong, 1);
+			binder_dec_yesde(ref->yesde, strong, 1);
 	} else {
 		if (ref->data.weak == 0) {
 			binder_user_error("%d invalid dec weak, ref %d desc %d s %d w %d\n",
@@ -1609,41 +1609,41 @@ static bool binder_dec_ref_olocked(struct binder_ref *ref, int strong)
 }
 
 /**
- * binder_get_node_from_ref() - get the node from the given proc/desc
+ * binder_get_yesde_from_ref() - get the yesde from the given proc/desc
  * @proc:	proc containing the ref
  * @desc:	the handle associated with the ref
- * @need_strong_ref: if true, only return node if ref is strong
+ * @need_strong_ref: if true, only return yesde if ref is strong
  * @rdata:	the id/refcount data for the ref
  *
- * Given a proc and ref handle, return the associated binder_node
+ * Given a proc and ref handle, return the associated binder_yesde
  *
- * Return: a binder_node or NULL if not found or not strong when strong required
+ * Return: a binder_yesde or NULL if yest found or yest strong when strong required
  */
-static struct binder_node *binder_get_node_from_ref(
+static struct binder_yesde *binder_get_yesde_from_ref(
 		struct binder_proc *proc,
 		u32 desc, bool need_strong_ref,
 		struct binder_ref_data *rdata)
 {
-	struct binder_node *node;
+	struct binder_yesde *yesde;
 	struct binder_ref *ref;
 
 	binder_proc_lock(proc);
 	ref = binder_get_ref_olocked(proc, desc, need_strong_ref);
 	if (!ref)
-		goto err_no_ref;
-	node = ref->node;
+		goto err_yes_ref;
+	yesde = ref->yesde;
 	/*
-	 * Take an implicit reference on the node to ensure
-	 * it stays alive until the call to binder_put_node()
+	 * Take an implicit reference on the yesde to ensure
+	 * it stays alive until the call to binder_put_yesde()
 	 */
-	binder_inc_node_tmpref(node);
+	binder_inc_yesde_tmpref(yesde);
 	if (rdata)
 		*rdata = ref->data;
 	binder_proc_unlock(proc);
 
-	return node;
+	return yesde;
 
-err_no_ref:
+err_yes_ref:
 	binder_proc_unlock(proc);
 	return NULL;
 }
@@ -1652,13 +1652,13 @@ err_no_ref:
  * binder_free_ref() - free the binder_ref
  * @ref:	ref to free
  *
- * Free the binder_ref. Free the binder_node indicated by ref->node
- * (if non-NULL) and the binder_ref_death indicated by ref->death.
+ * Free the binder_ref. Free the binder_yesde indicated by ref->yesde
+ * (if yesn-NULL) and the binder_ref_death indicated by ref->death.
  */
 static void binder_free_ref(struct binder_ref *ref)
 {
-	if (ref->node)
-		binder_free_node(ref->node);
+	if (ref->yesde)
+		binder_free_yesde(ref->yesde);
 	kfree(ref->death);
 	kfree(ref);
 }
@@ -1674,7 +1674,7 @@ static void binder_free_ref(struct binder_ref *ref)
  * Given a proc and ref handle, increment or decrement the ref
  * according to "increment" arg.
  *
- * Return: 0 if successful, else errno
+ * Return: 0 if successful, else erryes
  */
 static int binder_update_ref_for_handle(struct binder_proc *proc,
 		uint32_t desc, bool increment, bool strong,
@@ -1688,7 +1688,7 @@ static int binder_update_ref_for_handle(struct binder_proc *proc,
 	ref = binder_get_ref_olocked(proc, desc, strong);
 	if (!ref) {
 		ret = -EINVAL;
-		goto err_no_ref;
+		goto err_yes_ref;
 	}
 	if (increment)
 		ret = binder_inc_ref_olocked(ref, strong, NULL);
@@ -1703,7 +1703,7 @@ static int binder_update_ref_for_handle(struct binder_proc *proc,
 		binder_free_ref(ref);
 	return ret;
 
-err_no_ref:
+err_yes_ref:
 	binder_proc_unlock(proc);
 	return ret;
 }
@@ -1717,7 +1717,7 @@ err_no_ref:
  *
  * Just calls binder_update_ref_for_handle() to decrement the ref.
  *
- * Return: 0 if successful, else errno
+ * Return: 0 if successful, else erryes
  */
 static int binder_dec_ref_for_handle(struct binder_proc *proc,
 		uint32_t desc, bool strong, struct binder_ref_data *rdata)
@@ -1727,20 +1727,20 @@ static int binder_dec_ref_for_handle(struct binder_proc *proc,
 
 
 /**
- * binder_inc_ref_for_node() - increment the ref for given proc/node
+ * binder_inc_ref_for_yesde() - increment the ref for given proc/yesde
  * @proc:	 proc containing the ref
- * @node:	 target node
+ * @yesde:	 target yesde
  * @strong:	 true=strong reference, false=weak reference
- * @target_list: worklist to use if node is incremented
+ * @target_list: worklist to use if yesde is incremented
  * @rdata:	 the id/refcount data for the ref
  *
- * Given a proc and node, increment the ref. Create the ref if it
+ * Given a proc and yesde, increment the ref. Create the ref if it
  * doesn't already exist
  *
- * Return: 0 if successful, else errno
+ * Return: 0 if successful, else erryes
  */
-static int binder_inc_ref_for_node(struct binder_proc *proc,
-			struct binder_node *node,
+static int binder_inc_ref_for_yesde(struct binder_proc *proc,
+			struct binder_yesde *yesde,
 			bool strong,
 			struct list_head *target_list,
 			struct binder_ref_data *rdata)
@@ -1750,21 +1750,21 @@ static int binder_inc_ref_for_node(struct binder_proc *proc,
 	int ret = 0;
 
 	binder_proc_lock(proc);
-	ref = binder_get_ref_for_node_olocked(proc, node, NULL);
+	ref = binder_get_ref_for_yesde_olocked(proc, yesde, NULL);
 	if (!ref) {
 		binder_proc_unlock(proc);
 		new_ref = kzalloc(sizeof(*ref), GFP_KERNEL);
 		if (!new_ref)
 			return -ENOMEM;
 		binder_proc_lock(proc);
-		ref = binder_get_ref_for_node_olocked(proc, node, new_ref);
+		ref = binder_get_ref_for_yesde_olocked(proc, yesde, new_ref);
 	}
 	ret = binder_inc_ref_olocked(ref, strong, target_list);
 	*rdata = ref->data;
 	binder_proc_unlock(proc);
 	if (new_ref && ref != new_ref)
 		/*
-		 * Another thread created the ref first so
+		 * Ayesther thread created the ref first so
 		 * free the one we allocated
 		 */
 		kfree(new_ref);
@@ -1793,13 +1793,13 @@ static void binder_pop_transaction_ilocked(struct binder_thread *target_thread,
  * indicated by t->from from being freed. When done with that
  * binder_thread, this function is called to decrement the
  * tmp_ref and free if appropriate (thread has been released
- * and no transaction being processed by the driver)
+ * and yes transaction being processed by the driver)
  */
 static void binder_thread_dec_tmpref(struct binder_thread *thread)
 {
 	/*
 	 * atomic is used to protect the counter value while
-	 * it cannot reach zero or thread->is_dead is false
+	 * it canyest reach zero or thread->is_dead is false
 	 */
 	binder_inner_proc_lock(thread->proc);
 	atomic_dec(&thread->tmp_ref);
@@ -1821,7 +1821,7 @@ static void binder_thread_dec_tmpref(struct binder_thread *thread)
  * by threads that are being released. When done with the binder_proc,
  * this function is called to decrement the counter and free the
  * proc if appropriate (proc has been released, all threads have
- * been released and not currenly in-use to process a transaction).
+ * been released and yest currenly in-use to process a transaction).
  */
 static void binder_proc_dec_tmpref(struct binder_proc *proc)
 {
@@ -1864,7 +1864,7 @@ static struct binder_thread *binder_get_txn_from(
  * @t:	binder transaction for t->from
  *
  * Same as binder_get_txn_from() except it also acquires the proc->inner_lock
- * to guarantee that the thread cannot be released while operating on it.
+ * to guarantee that the thread canyest be released while operating on it.
  * The caller must call binder_inner_proc_unlock() to release the inner lock
  * as well as call binder_dec_thread_txn() to release the reference.
  *
@@ -1924,7 +1924,7 @@ static void binder_free_transaction(struct binder_transaction *t)
 		binder_inner_proc_unlock(target_proc);
 	}
 	/*
-	 * If the transaction has no target_proc, then
+	 * If the transaction has yes target_proc, then
 	 * t->buffer->transaction has already been cleared.
 	 */
 	binder_free_txn_fixups(t);
@@ -1957,10 +1957,10 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 				wake_up_interruptible(&target_thread->wait);
 			} else {
 				/*
-				 * Cannot get here for normal operation, but
-				 * we can if multiple synchronous transactions
+				 * Canyest get here for yesrmal operation, but
+				 * we can if multiple synchroyesus transactions
 				 * are sent without blocking for responses.
-				 * Just ignore the 2nd error in this case.
+				 * Just igyesre the 2nd error in this case.
 				 */
 				pr_warn("Unexpected reply error: %u\n",
 					target_thread->reply_error.cmd);
@@ -1981,12 +1981,12 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 		binder_free_transaction(t);
 		if (next == NULL) {
 			binder_debug(BINDER_DEBUG_DEAD_BINDER,
-				     "reply failed, no target thread at root\n");
+				     "reply failed, yes target thread at root\n");
 			return;
 		}
 		t = next;
 		binder_debug(BINDER_DEBUG_DEAD_BINDER,
-			     "reply failed, no target thread -- retry %d\n",
+			     "reply failed, yes target thread -- retry %d\n",
 			      t->debug_id);
 	}
 }
@@ -1995,13 +1995,13 @@ static void binder_send_failed_reply(struct binder_transaction *t,
  * binder_cleanup_transaction() - cleans up undelivered transaction
  * @t:		transaction that needs to be cleaned up
  * @reason:	reason the transaction wasn't delivered
- * @error_code:	error to return to caller (if synchronous call)
+ * @error_code:	error to return to caller (if synchroyesus call)
  */
 static void binder_cleanup_transaction(struct binder_transaction *t,
 				       const char *reason,
 				       uint32_t error_code)
 {
-	if (t->buffer->target_node && !(t->flags & TF_ONE_WAY)) {
+	if (t->buffer->target_yesde && !(t->flags & TF_ONE_WAY)) {
 		binder_send_failed_reply(t, error_code);
 	} else {
 		binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
@@ -2037,7 +2037,7 @@ static size_t binder_get_object(struct binder_proc *proc,
 					  offset, read_size))
 		return 0;
 
-	/* Ok, now see if we read a complete object. */
+	/* Ok, yesw see if we read a complete object. */
 	hdr = &object->hdr;
 	switch (hdr->type) {
 	case BINDER_TYPE_BINDER:
@@ -2081,10 +2081,10 @@ static size_t binder_get_object(struct binder_proc *proc,
  *		binder_buffer_object at the offset found in index @index
  *		of the offset array, that object is returned. Otherwise,
  *		%NULL is returned.
- *		Note that the offset found in index @index itself is not
+ *		Note that the offset found in index @index itself is yest
  *		verified; this function assumes that @num_valid elements
  *		from @start were previously verified to have valid offsets.
- *		If @object_offsetp is non-NULL, then the offset within
+ *		If @object_offsetp is yesn-NULL, then the offset within
  *		@b is written to it.
  */
 static struct binder_buffer_object *binder_validate_ptr(
@@ -2142,7 +2142,7 @@ static struct binder_buffer_object *binder_validate_ptr(
  *     D (parent = C, offset = 0)
  *   E (parent = A, offset = 32) // min_offset is 16 (C.parent_offset)
  *
- * Examples of what is not allowed:
+ * Examples of what is yest allowed:
  *
  * Decreasing offsets within the same parent:
  * A
@@ -2154,7 +2154,7 @@ static struct binder_buffer_object *binder_validate_ptr(
  *   B (parent = A, offset = 0)
  *   C (parent = A, offset = 0)
  *   C (parent = A, offset = 16)
- *     D (parent = B, offset = 0) // B is not A or any of A's parents
+ *     D (parent = B, offset = 0) // B is yest A or any of A's parents
  */
 static bool binder_validate_fixup(struct binder_proc *proc,
 				  struct binder_buffer *b,
@@ -2215,7 +2215,7 @@ struct binder_task_work_cb {
  * binder_do_fd_close() - close list of file descriptors
  * @twork:	callback head for task work
  *
- * It is not safe to call ksys_close() during the binder_ioctl()
+ * It is yest safe to call ksys_close() during the binder_ioctl()
  * function if there is a chance that binder's own file descriptor
  * might be closed. This is to meet the requirements for using
  * fdget() (see comments for __fget_light()). Therefore use
@@ -2269,8 +2269,8 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 		     buffer->data_size, buffer->offsets_size,
 		     (unsigned long long)failed_at);
 
-	if (buffer->target_node)
-		binder_dec_node(buffer->target_node, 1, 0);
+	if (buffer->target_yesde)
+		binder_dec_yesde(buffer->target_yesde, 1, 0);
 
 	off_start_offset = ALIGN(buffer->data_size, sizeof(void *));
 	off_end_offset = is_failure ? failed_at :
@@ -2297,21 +2297,21 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 		case BINDER_TYPE_BINDER:
 		case BINDER_TYPE_WEAK_BINDER: {
 			struct flat_binder_object *fp;
-			struct binder_node *node;
+			struct binder_yesde *yesde;
 
 			fp = to_flat_binder_object(hdr);
-			node = binder_get_node(proc, fp->binder);
-			if (node == NULL) {
-				pr_err("transaction release %d bad node %016llx\n",
+			yesde = binder_get_yesde(proc, fp->binder);
+			if (yesde == NULL) {
+				pr_err("transaction release %d bad yesde %016llx\n",
 				       debug_id, (u64)fp->binder);
 				break;
 			}
 			binder_debug(BINDER_DEBUG_TRANSACTION,
-				     "        node %d u%016llx\n",
-				     node->debug_id, (u64)node->ptr);
-			binder_dec_node(node, hdr->type == BINDER_TYPE_BINDER,
+				     "        yesde %d u%016llx\n",
+				     yesde->debug_id, (u64)yesde->ptr);
+			binder_dec_yesde(yesde, hdr->type == BINDER_TYPE_BINDER,
 					0);
-			binder_put_node(node);
+			binder_put_yesde(yesde);
 		} break;
 		case BINDER_TYPE_HANDLE:
 		case BINDER_TYPE_WEAK_HANDLE: {
@@ -2339,7 +2339,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 			 * closes it for for successfully delivered
 			 * transactions. For transactions that weren't
 			 * delivered, the new fd was never allocated so
-			 * there is no need to close and the fput on the
+			 * there is yes need to close and the fput on the
 			 * file is done when the transaction is torn
 			 * down.
 			 */
@@ -2364,7 +2364,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 			if (proc->tsk != current->group_leader) {
 				/*
 				 * Nothing to do if running in sender context
-				 * The fd fixups have not been applied so no
+				 * The fd fixups have yest been applied so yes
 				 * fds need to be closed.
 				 */
 				continue;
@@ -2392,7 +2392,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 			if (fd_buf_size > parent->length ||
 			    fda->parent_offset > parent->length - fd_buf_size) {
 				/* No space for all file descriptors here. */
-				pr_err("transaction release %d not enough space for %lld fds in buffer\n",
+				pr_err("transaction release %d yest eyesugh space for %lld fds in buffer\n",
 				       debug_id, (u64)fda->num_fds);
 				continue;
 			}
@@ -2433,23 +2433,23 @@ static int binder_translate_binder(struct flat_binder_object *fp,
 				   struct binder_transaction *t,
 				   struct binder_thread *thread)
 {
-	struct binder_node *node;
+	struct binder_yesde *yesde;
 	struct binder_proc *proc = thread->proc;
 	struct binder_proc *target_proc = t->to_proc;
 	struct binder_ref_data rdata;
 	int ret = 0;
 
-	node = binder_get_node(proc, fp->binder);
-	if (!node) {
-		node = binder_new_node(proc, fp);
-		if (!node)
+	yesde = binder_get_yesde(proc, fp->binder);
+	if (!yesde) {
+		yesde = binder_new_yesde(proc, fp);
+		if (!yesde)
 			return -ENOMEM;
 	}
-	if (fp->cookie != node->cookie) {
-		binder_user_error("%d:%d sending u%016llx node %d, cookie mismatch %016llx != %016llx\n",
+	if (fp->cookie != yesde->cookie) {
+		binder_user_error("%d:%d sending u%016llx yesde %d, cookie mismatch %016llx != %016llx\n",
 				  proc->pid, thread->pid, (u64)fp->binder,
-				  node->debug_id, (u64)fp->cookie,
-				  (u64)node->cookie);
+				  yesde->debug_id, (u64)fp->cookie,
+				  (u64)yesde->cookie);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -2458,7 +2458,7 @@ static int binder_translate_binder(struct flat_binder_object *fp,
 		goto done;
 	}
 
-	ret = binder_inc_ref_for_node(target_proc, node,
+	ret = binder_inc_ref_for_yesde(target_proc, yesde,
 			fp->hdr.type == BINDER_TYPE_BINDER,
 			&thread->todo, &rdata);
 	if (ret)
@@ -2472,13 +2472,13 @@ static int binder_translate_binder(struct flat_binder_object *fp,
 	fp->handle = rdata.desc;
 	fp->cookie = 0;
 
-	trace_binder_transaction_node_to_ref(t, node, &rdata);
+	trace_binder_transaction_yesde_to_ref(t, yesde, &rdata);
 	binder_debug(BINDER_DEBUG_TRANSACTION,
-		     "        node %d u%016llx -> ref %d desc %d\n",
-		     node->debug_id, (u64)node->ptr,
+		     "        yesde %d u%016llx -> ref %d desc %d\n",
+		     yesde->debug_id, (u64)yesde->ptr,
 		     rdata.debug_id, rdata.desc);
 done:
-	binder_put_node(node);
+	binder_put_yesde(yesde);
 	return ret;
 }
 
@@ -2488,13 +2488,13 @@ static int binder_translate_handle(struct flat_binder_object *fp,
 {
 	struct binder_proc *proc = thread->proc;
 	struct binder_proc *target_proc = t->to_proc;
-	struct binder_node *node;
+	struct binder_yesde *yesde;
 	struct binder_ref_data src_rdata;
 	int ret = 0;
 
-	node = binder_get_node_from_ref(proc, fp->handle,
+	yesde = binder_get_yesde_from_ref(proc, fp->handle,
 			fp->hdr.type == BINDER_TYPE_HANDLE, &src_rdata);
-	if (!node) {
+	if (!yesde) {
 		binder_user_error("%d:%d got transaction with invalid handle, %d\n",
 				  proc->pid, thread->pid, fp->handle);
 		return -EINVAL;
@@ -2504,36 +2504,36 @@ static int binder_translate_handle(struct flat_binder_object *fp,
 		goto done;
 	}
 
-	binder_node_lock(node);
-	if (node->proc == target_proc) {
+	binder_yesde_lock(yesde);
+	if (yesde->proc == target_proc) {
 		if (fp->hdr.type == BINDER_TYPE_HANDLE)
 			fp->hdr.type = BINDER_TYPE_BINDER;
 		else
 			fp->hdr.type = BINDER_TYPE_WEAK_BINDER;
-		fp->binder = node->ptr;
-		fp->cookie = node->cookie;
-		if (node->proc)
-			binder_inner_proc_lock(node->proc);
+		fp->binder = yesde->ptr;
+		fp->cookie = yesde->cookie;
+		if (yesde->proc)
+			binder_inner_proc_lock(yesde->proc);
 		else
-			__acquire(&node->proc->inner_lock);
-		binder_inc_node_nilocked(node,
+			__acquire(&yesde->proc->inner_lock);
+		binder_inc_yesde_nilocked(yesde,
 					 fp->hdr.type == BINDER_TYPE_BINDER,
 					 0, NULL);
-		if (node->proc)
-			binder_inner_proc_unlock(node->proc);
+		if (yesde->proc)
+			binder_inner_proc_unlock(yesde->proc);
 		else
-			__release(&node->proc->inner_lock);
-		trace_binder_transaction_ref_to_node(t, node, &src_rdata);
+			__release(&yesde->proc->inner_lock);
+		trace_binder_transaction_ref_to_yesde(t, yesde, &src_rdata);
 		binder_debug(BINDER_DEBUG_TRANSACTION,
-			     "        ref %d desc %d -> node %d u%016llx\n",
-			     src_rdata.debug_id, src_rdata.desc, node->debug_id,
-			     (u64)node->ptr);
-		binder_node_unlock(node);
+			     "        ref %d desc %d -> yesde %d u%016llx\n",
+			     src_rdata.debug_id, src_rdata.desc, yesde->debug_id,
+			     (u64)yesde->ptr);
+		binder_yesde_unlock(yesde);
 	} else {
 		struct binder_ref_data dest_rdata;
 
-		binder_node_unlock(node);
-		ret = binder_inc_ref_for_node(target_proc, node,
+		binder_yesde_unlock(yesde);
+		ret = binder_inc_ref_for_yesde(target_proc, yesde,
 				fp->hdr.type == BINDER_TYPE_HANDLE,
 				NULL, &dest_rdata);
 		if (ret)
@@ -2542,16 +2542,16 @@ static int binder_translate_handle(struct flat_binder_object *fp,
 		fp->binder = 0;
 		fp->handle = dest_rdata.desc;
 		fp->cookie = 0;
-		trace_binder_transaction_ref_to_ref(t, node, &src_rdata,
+		trace_binder_transaction_ref_to_ref(t, yesde, &src_rdata,
 						    &dest_rdata);
 		binder_debug(BINDER_DEBUG_TRANSACTION,
-			     "        ref %d desc %d -> ref %d desc %d (node %d)\n",
+			     "        ref %d desc %d -> ref %d desc %d (yesde %d)\n",
 			     src_rdata.debug_id, src_rdata.desc,
 			     dest_rdata.debug_id, dest_rdata.desc,
-			     node->debug_id);
+			     yesde->debug_id);
 	}
 done:
-	binder_put_node(node);
+	binder_put_yesde(yesde);
 	return ret;
 }
 
@@ -2570,14 +2570,14 @@ static int binder_translate_fd(u32 fd, binder_size_t fd_offset,
 	if (in_reply_to)
 		target_allows_fd = !!(in_reply_to->flags & TF_ACCEPT_FDS);
 	else
-		target_allows_fd = t->buffer->target_node->accept_fds;
+		target_allows_fd = t->buffer->target_yesde->accept_fds;
 	if (!target_allows_fd) {
-		binder_user_error("%d:%d got %s with fd, %d, but target does not allow fds\n",
+		binder_user_error("%d:%d got %s with fd, %d, but target does yest allow fds\n",
 				  proc->pid, thread->pid,
 				  in_reply_to ? "reply" : "transaction",
 				  fd);
 		ret = -EPERM;
-		goto err_fd_not_accepted;
+		goto err_fd_yest_accepted;
 	}
 
 	file = fget(fd);
@@ -2614,7 +2614,7 @@ err_alloc:
 err_security:
 	fput(file);
 err_fget:
-err_fd_not_accepted:
+err_fd_yest_accepted:
 	return ret;
 }
 
@@ -2638,7 +2638,7 @@ static int binder_translate_fd_array(struct binder_fd_array_object *fda,
 	if (fd_buf_size > parent->length ||
 	    fda->parent_offset > parent->length - fd_buf_size) {
 		/* No space for all file descriptors here. */
-		binder_user_error("%d:%d not enough space to store %lld fds in buffer\n",
+		binder_user_error("%d:%d yest eyesugh space to store %lld fds in buffer\n",
 				  proc->pid, thread->pid, (u64)fda->num_fds);
 		return -EINVAL;
 	}
@@ -2652,7 +2652,7 @@ static int binder_translate_fd_array(struct binder_fd_array_object *fda,
 	fda_offset = (parent->buffer - (uintptr_t)t->buffer->user_data) +
 		fda->parent_offset;
 	if (!IS_ALIGNED((unsigned long)fda_offset, sizeof(u32))) {
-		binder_user_error("%d:%d parent offset not aligned correctly.\n",
+		binder_user_error("%d:%d parent offset yest aligned correctly.\n",
 				  proc->pid, thread->pid);
 		return -EINVAL;
 	}
@@ -2737,10 +2737,10 @@ static int binder_fixup_parent(struct binder_transaction *t,
  *
  * This function queues a transaction to the specified process. It will try
  * to find a thread in the target process to handle the transaction and
- * wake it up. If no thread is found, the work is queued to the proc
+ * wake it up. If yes thread is found, the work is queued to the proc
  * waitqueue.
  *
- * If the @thread parameter is not NULL, the transaction is always queued
+ * If the @thread parameter is yest NULL, the transaction is always queued
  * to the waitlist of that specific thread.
  *
  * Return:	true if the transactions was successfully queued
@@ -2750,18 +2750,18 @@ static bool binder_proc_transaction(struct binder_transaction *t,
 				    struct binder_proc *proc,
 				    struct binder_thread *thread)
 {
-	struct binder_node *node = t->buffer->target_node;
+	struct binder_yesde *yesde = t->buffer->target_yesde;
 	bool oneway = !!(t->flags & TF_ONE_WAY);
 	bool pending_async = false;
 
-	BUG_ON(!node);
-	binder_node_lock(node);
+	BUG_ON(!yesde);
+	binder_yesde_lock(yesde);
 	if (oneway) {
 		BUG_ON(thread);
-		if (node->has_async_transaction) {
+		if (yesde->has_async_transaction) {
 			pending_async = true;
 		} else {
-			node->has_async_transaction = true;
+			yesde->has_async_transaction = true;
 		}
 	}
 
@@ -2769,7 +2769,7 @@ static bool binder_proc_transaction(struct binder_transaction *t,
 
 	if (proc->is_dead || (thread && thread->is_dead)) {
 		binder_inner_proc_unlock(proc);
-		binder_node_unlock(node);
+		binder_yesde_unlock(yesde);
 		return false;
 	}
 
@@ -2781,57 +2781,57 @@ static bool binder_proc_transaction(struct binder_transaction *t,
 	else if (!pending_async)
 		binder_enqueue_work_ilocked(&t->work, &proc->todo);
 	else
-		binder_enqueue_work_ilocked(&t->work, &node->async_todo);
+		binder_enqueue_work_ilocked(&t->work, &yesde->async_todo);
 
 	if (!pending_async)
 		binder_wakeup_thread_ilocked(proc, thread, !oneway /* sync */);
 
 	binder_inner_proc_unlock(proc);
-	binder_node_unlock(node);
+	binder_yesde_unlock(yesde);
 
 	return true;
 }
 
 /**
- * binder_get_node_refs_for_txn() - Get required refs on node for txn
- * @node:         struct binder_node for which to get refs
- * @proc:         returns @node->proc if valid
- * @error:        if no @proc then returns BR_DEAD_REPLY
+ * binder_get_yesde_refs_for_txn() - Get required refs on yesde for txn
+ * @yesde:         struct binder_yesde for which to get refs
+ * @proc:         returns @yesde->proc if valid
+ * @error:        if yes @proc then returns BR_DEAD_REPLY
  *
- * User-space normally keeps the node alive when creating a transaction
+ * User-space yesrmally keeps the yesde alive when creating a transaction
  * since it has a reference to the target. The local strong ref keeps it
  * alive if the sending process dies before the target process processes
  * the transaction. If the source process is malicious or has a reference
  * counting bug, relying on the local strong ref can fail.
  *
  * Since user-space can cause the local strong ref to go away, we also take
- * a tmpref on the node to ensure it survives while we are constructing
+ * a tmpref on the yesde to ensure it survives while we are constructing
  * the transaction. We also need a tmpref on the proc while we are
  * constructing the transaction, so we take that here as well.
  *
- * Return: The target_node with refs taken or NULL if no @node->proc is NULL.
- * Also sets @proc if valid. If the @node->proc is NULL indicating that the
+ * Return: The target_yesde with refs taken or NULL if yes @yesde->proc is NULL.
+ * Also sets @proc if valid. If the @yesde->proc is NULL indicating that the
  * target proc has died, @error is set to BR_DEAD_REPLY
  */
-static struct binder_node *binder_get_node_refs_for_txn(
-		struct binder_node *node,
+static struct binder_yesde *binder_get_yesde_refs_for_txn(
+		struct binder_yesde *yesde,
 		struct binder_proc **procp,
 		uint32_t *error)
 {
-	struct binder_node *target_node = NULL;
+	struct binder_yesde *target_yesde = NULL;
 
-	binder_node_inner_lock(node);
-	if (node->proc) {
-		target_node = node;
-		binder_inc_node_nilocked(node, 1, 0, NULL);
-		binder_inc_node_tmpref_ilocked(node);
-		node->proc->tmp_ref++;
-		*procp = node->proc;
+	binder_yesde_inner_lock(yesde);
+	if (yesde->proc) {
+		target_yesde = yesde;
+		binder_inc_yesde_nilocked(yesde, 1, 0, NULL);
+		binder_inc_yesde_tmpref_ilocked(yesde);
+		yesde->proc->tmp_ref++;
+		*procp = yesde->proc;
 	} else
 		*error = BR_DEAD_REPLY;
-	binder_node_inner_unlock(node);
+	binder_yesde_inner_unlock(yesde);
 
-	return target_node;
+	return target_yesde;
 }
 
 static void binder_transaction(struct binder_proc *proc,
@@ -2849,7 +2849,7 @@ static void binder_transaction(struct binder_proc *proc,
 	binder_size_t sg_buf_offset, sg_buf_end_offset;
 	struct binder_proc *target_proc = NULL;
 	struct binder_thread *target_thread = NULL;
-	struct binder_node *target_node = NULL;
+	struct binder_yesde *target_yesde = NULL;
 	struct binder_transaction *in_reply_to = NULL;
 	struct binder_transaction_log_entry *e;
 	uint32_t return_error = 0;
@@ -2877,7 +2877,7 @@ static void binder_transaction(struct binder_proc *proc,
 		in_reply_to = thread->transaction_stack;
 		if (in_reply_to == NULL) {
 			binder_inner_proc_unlock(proc);
-			binder_user_error("%d:%d got reply transaction with no transaction stack\n",
+			binder_user_error("%d:%d got reply transaction with yes transaction stack\n",
 					  proc->pid, thread->pid);
 			return_error = BR_FAILED_REPLY;
 			return_error_param = -EPROTO;
@@ -2905,7 +2905,7 @@ static void binder_transaction(struct binder_proc *proc,
 		binder_set_nice(in_reply_to->saved_priority);
 		target_thread = binder_get_txn_from_and_acq_inner(in_reply_to);
 		if (target_thread == NULL) {
-			/* annotation for sparse */
+			/* anyestation for sparse */
 			__release(&target_thread->proc->inner_lock);
 			return_error = BR_DEAD_REPLY;
 			return_error_line = __LINE__;
@@ -2934,8 +2934,8 @@ static void binder_transaction(struct binder_proc *proc,
 
 			/*
 			 * There must already be a strong ref
-			 * on this node. If so, do a strong
-			 * increment on the node to ensure it
+			 * on this yesde. If so, do a strong
+			 * increment on the yesde to ensure it
 			 * stays alive until the transaction is
 			 * done.
 			 */
@@ -2943,8 +2943,8 @@ static void binder_transaction(struct binder_proc *proc,
 			ref = binder_get_ref_olocked(proc, tr->target.handle,
 						     true);
 			if (ref) {
-				target_node = binder_get_node_refs_for_txn(
-						ref->node, &target_proc,
+				target_yesde = binder_get_yesde_refs_for_txn(
+						ref->yesde, &target_proc,
 						&return_error);
 			} else {
 				binder_user_error("%d:%d got transaction to invalid handle\n",
@@ -2953,16 +2953,16 @@ static void binder_transaction(struct binder_proc *proc,
 			}
 			binder_proc_unlock(proc);
 		} else {
-			mutex_lock(&context->context_mgr_node_lock);
-			target_node = context->binder_context_mgr_node;
-			if (target_node)
-				target_node = binder_get_node_refs_for_txn(
-						target_node, &target_proc,
+			mutex_lock(&context->context_mgr_yesde_lock);
+			target_yesde = context->binder_context_mgr_yesde;
+			if (target_yesde)
+				target_yesde = binder_get_yesde_refs_for_txn(
+						target_yesde, &target_proc,
 						&return_error);
 			else
 				return_error = BR_DEAD_REPLY;
-			mutex_unlock(&context->context_mgr_node_lock);
-			if (target_node && target_proc->pid == proc->pid) {
+			mutex_unlock(&context->context_mgr_yesde_lock);
+			if (target_yesde && target_proc->pid == proc->pid) {
 				binder_user_error("%d:%d got transaction to context manager from process owning it\n",
 						  proc->pid, thread->pid);
 				return_error = BR_FAILED_REPLY;
@@ -2971,7 +2971,7 @@ static void binder_transaction(struct binder_proc *proc,
 				goto err_invalid_target_handle;
 			}
 		}
-		if (!target_node) {
+		if (!target_yesde) {
 			/*
 			 * return_error is set above
 			 */
@@ -2979,7 +2979,7 @@ static void binder_transaction(struct binder_proc *proc,
 			return_error_line = __LINE__;
 			goto err_dead_binder;
 		}
-		e->to_node = target_node->debug_id;
+		e->to_yesde = target_yesde->debug_id;
 		if (security_binder_transaction(proc->tsk,
 						target_proc->tsk) < 0) {
 			return_error = BR_FAILED_REPLY;
@@ -2994,15 +2994,15 @@ static void binder_transaction(struct binder_proc *proc,
 		if (!(tr->flags & TF_ONE_WAY) && w &&
 		    w->type == BINDER_WORK_TRANSACTION) {
 			/*
-			 * Do not allow new outgoing transaction from a
+			 * Do yest allow new outgoing transaction from a
 			 * thread that has a transaction at the head of
 			 * its todo list. Only need to check the head
 			 * because binder_select_thread_ilocked picks a
 			 * thread from proc->waiting_threads to enqueue
-			 * the transaction, and nothing is queued to the
+			 * the transaction, and yesthing is queued to the
 			 * todo list while the thread is on waiting_threads.
 			 */
-			binder_user_error("%d:%d new transaction not allowed when there is a transaction on thread todo\n",
+			binder_user_error("%d:%d new transaction yest allowed when there is a transaction on thread todo\n",
 					  proc->pid, thread->pid);
 			binder_inner_proc_unlock(proc);
 			return_error = BR_FAILED_REPLY;
@@ -3084,9 +3084,9 @@ static void binder_transaction(struct binder_proc *proc,
 			     (u64)extra_buffers_size);
 	else
 		binder_debug(BINDER_DEBUG_TRANSACTION,
-			     "%d:%d BC_TRANSACTION %d -> %d - node %d, data %016llx-%016llx size %lld-%lld-%lld\n",
+			     "%d:%d BC_TRANSACTION %d -> %d - yesde %d, data %016llx-%016llx size %lld-%lld-%lld\n",
 			     proc->pid, thread->pid, t->debug_id,
-			     target_proc->pid, target_node->debug_id,
+			     target_proc->pid, target_yesde->debug_id,
 			     (u64)tr->data.ptr.buffer,
 			     (u64)tr->data.ptr.offsets,
 			     (u64)tr->data_size, (u64)tr->offsets_size,
@@ -3103,7 +3103,7 @@ static void binder_transaction(struct binder_proc *proc,
 	t->flags = tr->flags;
 	t->priority = task_nice(current);
 
-	if (target_node && target_node->txn_security_ctx) {
+	if (target_yesde && target_yesde->txn_security_ctx) {
 		u32 secid;
 		size_t added_size;
 
@@ -3126,7 +3126,7 @@ static void binder_transaction(struct binder_proc *proc,
 		}
 	}
 
-	trace_binder_transaction(reply, t, target_node);
+	trace_binder_transaction(reply, t, target_yesde);
 
 	t->buffer = binder_alloc_new_buf(&target_proc->alloc, tr->data_size,
 		tr->offsets_size, extra_buffers_size,
@@ -3162,7 +3162,7 @@ static void binder_transaction(struct binder_proc *proc,
 	}
 	t->buffer->debug_id = t->debug_id;
 	t->buffer->transaction = t;
-	t->buffer->target_node = target_node;
+	t->buffer->target_yesde = target_yesde;
 	trace_binder_transaction_alloc_buf(t->buffer);
 
 	if (binder_alloc_copy_user_to_buffer(
@@ -3451,7 +3451,7 @@ static void binder_transaction(struct binder_proc *proc,
 			goto err_dead_proc_or_thread;
 		}
 	} else {
-		BUG_ON(target_node == NULL);
+		BUG_ON(target_yesde == NULL);
 		BUG_ON(t->buffer->async_transaction != 1);
 		binder_enqueue_thread_work(thread, tcomplete);
 		if (!binder_proc_transaction(t, target_proc, NULL))
@@ -3460,8 +3460,8 @@ static void binder_transaction(struct binder_proc *proc,
 	if (target_thread)
 		binder_thread_dec_tmpref(target_thread);
 	binder_proc_dec_tmpref(target_proc);
-	if (target_node)
-		binder_dec_node_tmpref(target_node);
+	if (target_yesde)
+		binder_dec_yesde_tmpref(target_yesde);
 	/*
 	 * write barrier to synchronize with initialization
 	 * of log entry
@@ -3483,9 +3483,9 @@ err_copy_data_failed:
 	trace_binder_transaction_failed_buffer_release(t->buffer);
 	binder_transaction_buffer_release(target_proc, t->buffer,
 					  buffer_offset, true);
-	if (target_node)
-		binder_dec_node_tmpref(target_node);
-	target_node = NULL;
+	if (target_yesde)
+		binder_dec_yesde_tmpref(target_yesde);
+	target_yesde = NULL;
 	t->buffer->transaction = NULL;
 	binder_alloc_free_buf(&target_proc->alloc, t->buffer);
 err_binder_alloc_buf_failed:
@@ -3508,9 +3508,9 @@ err_invalid_target_handle:
 		binder_thread_dec_tmpref(target_thread);
 	if (target_proc)
 		binder_proc_dec_tmpref(target_proc);
-	if (target_node) {
-		binder_dec_node(target_node, 1, 0);
-		binder_dec_node_tmpref(target_node);
+	if (target_yesde) {
+		binder_dec_yesde(target_yesde, 1, 0);
+		binder_dec_yesde_tmpref(target_yesde);
 	}
 
 	binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
@@ -3553,7 +3553,7 @@ err_invalid_target_handle:
  * @buffer:	buffer to be freed
  *
  * If buffer for an async transaction, enqueue the next async
- * transaction from the node.
+ * transaction from the yesde.
  *
  * Cleanup buffer and free it.
  */
@@ -3566,24 +3566,24 @@ binder_free_buf(struct binder_proc *proc, struct binder_buffer *buffer)
 		buffer->transaction = NULL;
 	}
 	binder_inner_proc_unlock(proc);
-	if (buffer->async_transaction && buffer->target_node) {
-		struct binder_node *buf_node;
+	if (buffer->async_transaction && buffer->target_yesde) {
+		struct binder_yesde *buf_yesde;
 		struct binder_work *w;
 
-		buf_node = buffer->target_node;
-		binder_node_inner_lock(buf_node);
-		BUG_ON(!buf_node->has_async_transaction);
-		BUG_ON(buf_node->proc != proc);
+		buf_yesde = buffer->target_yesde;
+		binder_yesde_inner_lock(buf_yesde);
+		BUG_ON(!buf_yesde->has_async_transaction);
+		BUG_ON(buf_yesde->proc != proc);
 		w = binder_dequeue_work_head_ilocked(
-				&buf_node->async_todo);
+				&buf_yesde->async_todo);
 		if (!w) {
-			buf_node->has_async_transaction = false;
+			buf_yesde->has_async_transaction = false;
 		} else {
 			binder_enqueue_work_ilocked(
 					w, &proc->todo);
 			binder_wakeup_proc_ilocked(proc);
 		}
-		binder_node_inner_unlock(buf_node);
+		binder_yesde_inner_unlock(buf_yesde);
 	}
 	trace_binder_transaction_buffer_release(buffer);
 	binder_transaction_buffer_release(proc, buffer, 0, false);
@@ -3630,14 +3630,14 @@ static int binder_thread_write(struct binder_proc *proc,
 			ptr += sizeof(uint32_t);
 			ret = -1;
 			if (increment && !target) {
-				struct binder_node *ctx_mgr_node;
-				mutex_lock(&context->context_mgr_node_lock);
-				ctx_mgr_node = context->binder_context_mgr_node;
-				if (ctx_mgr_node)
-					ret = binder_inc_ref_for_node(
-							proc, ctx_mgr_node,
+				struct binder_yesde *ctx_mgr_yesde;
+				mutex_lock(&context->context_mgr_yesde_lock);
+				ctx_mgr_yesde = context->binder_context_mgr_yesde;
+				if (ctx_mgr_yesde)
+					ret = binder_inc_ref_for_yesde(
+							proc, ctx_mgr_yesde,
 							strong, NULL, &rdata);
-				mutex_unlock(&context->context_mgr_node_lock);
+				mutex_unlock(&context->context_mgr_yesde_lock);
 			}
 			if (ret)
 				ret = binder_update_ref_for_handle(
@@ -3678,77 +3678,77 @@ static int binder_thread_write(struct binder_proc *proc,
 		}
 		case BC_INCREFS_DONE:
 		case BC_ACQUIRE_DONE: {
-			binder_uintptr_t node_ptr;
+			binder_uintptr_t yesde_ptr;
 			binder_uintptr_t cookie;
-			struct binder_node *node;
-			bool free_node;
+			struct binder_yesde *yesde;
+			bool free_yesde;
 
-			if (get_user(node_ptr, (binder_uintptr_t __user *)ptr))
+			if (get_user(yesde_ptr, (binder_uintptr_t __user *)ptr))
 				return -EFAULT;
 			ptr += sizeof(binder_uintptr_t);
 			if (get_user(cookie, (binder_uintptr_t __user *)ptr))
 				return -EFAULT;
 			ptr += sizeof(binder_uintptr_t);
-			node = binder_get_node(proc, node_ptr);
-			if (node == NULL) {
-				binder_user_error("%d:%d %s u%016llx no match\n",
+			yesde = binder_get_yesde(proc, yesde_ptr);
+			if (yesde == NULL) {
+				binder_user_error("%d:%d %s u%016llx yes match\n",
 					proc->pid, thread->pid,
 					cmd == BC_INCREFS_DONE ?
 					"BC_INCREFS_DONE" :
 					"BC_ACQUIRE_DONE",
-					(u64)node_ptr);
+					(u64)yesde_ptr);
 				break;
 			}
-			if (cookie != node->cookie) {
-				binder_user_error("%d:%d %s u%016llx node %d cookie mismatch %016llx != %016llx\n",
+			if (cookie != yesde->cookie) {
+				binder_user_error("%d:%d %s u%016llx yesde %d cookie mismatch %016llx != %016llx\n",
 					proc->pid, thread->pid,
 					cmd == BC_INCREFS_DONE ?
 					"BC_INCREFS_DONE" : "BC_ACQUIRE_DONE",
-					(u64)node_ptr, node->debug_id,
-					(u64)cookie, (u64)node->cookie);
-				binder_put_node(node);
+					(u64)yesde_ptr, yesde->debug_id,
+					(u64)cookie, (u64)yesde->cookie);
+				binder_put_yesde(yesde);
 				break;
 			}
-			binder_node_inner_lock(node);
+			binder_yesde_inner_lock(yesde);
 			if (cmd == BC_ACQUIRE_DONE) {
-				if (node->pending_strong_ref == 0) {
-					binder_user_error("%d:%d BC_ACQUIRE_DONE node %d has no pending acquire request\n",
+				if (yesde->pending_strong_ref == 0) {
+					binder_user_error("%d:%d BC_ACQUIRE_DONE yesde %d has yes pending acquire request\n",
 						proc->pid, thread->pid,
-						node->debug_id);
-					binder_node_inner_unlock(node);
-					binder_put_node(node);
+						yesde->debug_id);
+					binder_yesde_inner_unlock(yesde);
+					binder_put_yesde(yesde);
 					break;
 				}
-				node->pending_strong_ref = 0;
+				yesde->pending_strong_ref = 0;
 			} else {
-				if (node->pending_weak_ref == 0) {
-					binder_user_error("%d:%d BC_INCREFS_DONE node %d has no pending increfs request\n",
+				if (yesde->pending_weak_ref == 0) {
+					binder_user_error("%d:%d BC_INCREFS_DONE yesde %d has yes pending increfs request\n",
 						proc->pid, thread->pid,
-						node->debug_id);
-					binder_node_inner_unlock(node);
-					binder_put_node(node);
+						yesde->debug_id);
+					binder_yesde_inner_unlock(yesde);
+					binder_put_yesde(yesde);
 					break;
 				}
-				node->pending_weak_ref = 0;
+				yesde->pending_weak_ref = 0;
 			}
-			free_node = binder_dec_node_nilocked(node,
+			free_yesde = binder_dec_yesde_nilocked(yesde,
 					cmd == BC_ACQUIRE_DONE, 0);
-			WARN_ON(free_node);
+			WARN_ON(free_yesde);
 			binder_debug(BINDER_DEBUG_USER_REFS,
-				     "%d:%d %s node %d ls %d lw %d tr %d\n",
+				     "%d:%d %s yesde %d ls %d lw %d tr %d\n",
 				     proc->pid, thread->pid,
 				     cmd == BC_INCREFS_DONE ? "BC_INCREFS_DONE" : "BC_ACQUIRE_DONE",
-				     node->debug_id, node->local_strong_refs,
-				     node->local_weak_refs, node->tmp_refs);
-			binder_node_inner_unlock(node);
-			binder_put_node(node);
+				     yesde->debug_id, yesde->local_strong_refs,
+				     yesde->local_weak_refs, yesde->tmp_refs);
+			binder_yesde_inner_unlock(yesde);
+			binder_put_yesde(yesde);
 			break;
 		}
 		case BC_ATTEMPT_ACQUIRE:
-			pr_err("BC_ATTEMPT_ACQUIRE not supported\n");
+			pr_err("BC_ATTEMPT_ACQUIRE yest supported\n");
 			return -EINVAL;
 		case BC_ACQUIRE_RESULT:
-			pr_err("BC_ACQUIRE_RESULT not supported\n");
+			pr_err("BC_ACQUIRE_RESULT yest supported\n");
 			return -EINVAL;
 
 		case BC_FREE_BUFFER: {
@@ -3769,7 +3769,7 @@ static int binder_thread_write(struct binder_proc *proc,
 						(u64)data_ptr);
 				} else {
 					binder_user_error(
-						"%d:%d BC_FREE_BUFFER u%016llx no match\n",
+						"%d:%d BC_FREE_BUFFER u%016llx yes match\n",
 						proc->pid, thread->pid,
 						(u64)data_ptr);
 				}
@@ -3860,7 +3860,7 @@ static int binder_thread_write(struct binder_proc *proc,
 			ptr += sizeof(binder_uintptr_t);
 			if (cmd == BC_REQUEST_DEATH_NOTIFICATION) {
 				/*
-				 * Allocate memory for death notification
+				 * Allocate memory for death yestification
 				 * before taking lock
 				 */
 				death = kzalloc(sizeof(*death), GFP_KERNEL);
@@ -3893,21 +3893,21 @@ static int binder_thread_write(struct binder_proc *proc,
 			}
 
 			binder_debug(BINDER_DEBUG_DEATH_NOTIFICATION,
-				     "%d:%d %s %016llx ref %d desc %d s %d w %d for node %d\n",
+				     "%d:%d %s %016llx ref %d desc %d s %d w %d for yesde %d\n",
 				     proc->pid, thread->pid,
 				     cmd == BC_REQUEST_DEATH_NOTIFICATION ?
 				     "BC_REQUEST_DEATH_NOTIFICATION" :
 				     "BC_CLEAR_DEATH_NOTIFICATION",
 				     (u64)cookie, ref->data.debug_id,
 				     ref->data.desc, ref->data.strong,
-				     ref->data.weak, ref->node->debug_id);
+				     ref->data.weak, ref->yesde->debug_id);
 
-			binder_node_lock(ref->node);
+			binder_yesde_lock(ref->yesde);
 			if (cmd == BC_REQUEST_DEATH_NOTIFICATION) {
 				if (ref->death) {
-					binder_user_error("%d:%d BC_REQUEST_DEATH_NOTIFICATION death notification already set\n",
+					binder_user_error("%d:%d BC_REQUEST_DEATH_NOTIFICATION death yestification already set\n",
 						proc->pid, thread->pid);
-					binder_node_unlock(ref->node);
+					binder_yesde_unlock(ref->yesde);
 					binder_proc_unlock(proc);
 					kfree(death);
 					break;
@@ -3916,7 +3916,7 @@ static int binder_thread_write(struct binder_proc *proc,
 				INIT_LIST_HEAD(&death->work.entry);
 				death->cookie = cookie;
 				ref->death = death;
-				if (ref->node->proc == NULL) {
+				if (ref->yesde->proc == NULL) {
 					ref->death->work.type = BINDER_WORK_DEAD_BINDER;
 
 					binder_inner_proc_lock(proc);
@@ -3927,19 +3927,19 @@ static int binder_thread_write(struct binder_proc *proc,
 				}
 			} else {
 				if (ref->death == NULL) {
-					binder_user_error("%d:%d BC_CLEAR_DEATH_NOTIFICATION death notification not active\n",
+					binder_user_error("%d:%d BC_CLEAR_DEATH_NOTIFICATION death yestification yest active\n",
 						proc->pid, thread->pid);
-					binder_node_unlock(ref->node);
+					binder_yesde_unlock(ref->yesde);
 					binder_proc_unlock(proc);
 					break;
 				}
 				death = ref->death;
 				if (death->cookie != cookie) {
-					binder_user_error("%d:%d BC_CLEAR_DEATH_NOTIFICATION death notification cookie mismatch %016llx != %016llx\n",
+					binder_user_error("%d:%d BC_CLEAR_DEATH_NOTIFICATION death yestification cookie mismatch %016llx != %016llx\n",
 						proc->pid, thread->pid,
 						(u64)death->cookie,
 						(u64)cookie);
-					binder_node_unlock(ref->node);
+					binder_yesde_unlock(ref->yesde);
 					binder_proc_unlock(proc);
 					break;
 				}
@@ -3966,7 +3966,7 @@ static int binder_thread_write(struct binder_proc *proc,
 				}
 				binder_inner_proc_unlock(proc);
 			}
-			binder_node_unlock(ref->node);
+			binder_yesde_unlock(ref->yesde);
 			binder_proc_unlock(proc);
 		} break;
 		case BC_DEAD_BINDER_DONE: {
@@ -3996,7 +3996,7 @@ static int binder_thread_write(struct binder_proc *proc,
 				     proc->pid, thread->pid, (u64)cookie,
 				     death);
 			if (death == NULL) {
-				binder_user_error("%d:%d BC_DEAD_BINDER_DONE %016llx not found\n",
+				binder_user_error("%d:%d BC_DEAD_BINDER_DONE %016llx yest found\n",
 					proc->pid, thread->pid, (u64)cookie);
 				binder_inner_proc_unlock(proc);
 				break;
@@ -4020,7 +4020,7 @@ static int binder_thread_write(struct binder_proc *proc,
 		} break;
 
 		default:
-			pr_err("%d:%d unknown command %d\n",
+			pr_err("%d:%d unkyeswn command %d\n",
 			       proc->pid, thread->pid, cmd);
 			return -EINVAL;
 		}
@@ -4040,12 +4040,12 @@ static void binder_stat_br(struct binder_proc *proc,
 	}
 }
 
-static int binder_put_node_cmd(struct binder_proc *proc,
+static int binder_put_yesde_cmd(struct binder_proc *proc,
 			       struct binder_thread *thread,
 			       void __user **ptrp,
-			       binder_uintptr_t node_ptr,
-			       binder_uintptr_t node_cookie,
-			       int node_debug_id,
+			       binder_uintptr_t yesde_ptr,
+			       binder_uintptr_t yesde_cookie,
+			       int yesde_debug_id,
 			       uint32_t cmd, const char *cmd_name)
 {
 	void __user *ptr = *ptrp;
@@ -4054,18 +4054,18 @@ static int binder_put_node_cmd(struct binder_proc *proc,
 		return -EFAULT;
 	ptr += sizeof(uint32_t);
 
-	if (put_user(node_ptr, (binder_uintptr_t __user *)ptr))
+	if (put_user(yesde_ptr, (binder_uintptr_t __user *)ptr))
 		return -EFAULT;
 	ptr += sizeof(binder_uintptr_t);
 
-	if (put_user(node_cookie, (binder_uintptr_t __user *)ptr))
+	if (put_user(yesde_cookie, (binder_uintptr_t __user *)ptr))
 		return -EFAULT;
 	ptr += sizeof(binder_uintptr_t);
 
 	binder_stat_br(proc, thread, cmd);
 	binder_debug(BINDER_DEBUG_USER_REFS, "%d:%d %s %d u%016llx c%016llx\n",
-		     proc->pid, thread->pid, cmd_name, node_debug_id,
-		     (u64)node_ptr, (u64)node_cookie);
+		     proc->pid, thread->pid, cmd_name, yesde_debug_id,
+		     (u64)yesde_ptr, (u64)yesde_cookie);
 
 	*ptrp = ptr;
 	return 0;
@@ -4078,19 +4078,19 @@ static int binder_wait_for_work(struct binder_thread *thread,
 	struct binder_proc *proc = thread->proc;
 	int ret = 0;
 
-	freezer_do_not_count();
+	freezer_do_yest_count();
 	binder_inner_proc_lock(proc);
 	for (;;) {
 		prepare_to_wait(&thread->wait, &wait, TASK_INTERRUPTIBLE);
 		if (binder_has_work_ilocked(thread, do_proc_work))
 			break;
 		if (do_proc_work)
-			list_add(&thread->waiting_thread_node,
+			list_add(&thread->waiting_thread_yesde,
 				 &proc->waiting_threads);
 		binder_inner_proc_unlock(proc);
 		schedule();
 		binder_inner_proc_lock(proc);
-		list_del_init(&thread->waiting_thread_node);
+		list_del_init(&thread->waiting_thread_yesde);
 		if (signal_pending(current)) {
 			ret = -ERESTARTSYS;
 			break;
@@ -4114,7 +4114,7 @@ static int binder_wait_for_work(struct binder_thread *thread,
  * new fds.
  *
  * If we fail to allocate an fd, then free the resources by
- * fput'ing files that have not been processed and ksys_close'ing
+ * fput'ing files that have yest been processed and ksys_close'ing
  * any fds that have already been allocated.
  */
 static int binder_apply_fd_fixups(struct binder_proc *proc,
@@ -4171,7 +4171,7 @@ static int binder_apply_fd_fixups(struct binder_proc *proc,
 static int binder_thread_read(struct binder_proc *proc,
 			      struct binder_thread *thread,
 			      binder_uintptr_t binder_buffer, size_t size,
-			      binder_size_t *consumed, int non_block)
+			      binder_size_t *consumed, int yesn_block)
 {
 	void __user *buffer = (void __user *)(uintptr_t)binder_buffer;
 	void __user *ptr = buffer + *consumed;
@@ -4207,7 +4207,7 @@ retry:
 		binder_set_nice(proc->default_priority);
 	}
 
-	if (non_block) {
+	if (yesn_block) {
 		if (!binder_has_work(thread, wait_for_proc_work))
 			ret = -EAGAIN;
 	} else {
@@ -4238,7 +4238,7 @@ retry:
 		else {
 			binder_inner_proc_unlock(proc);
 
-			/* no data added */
+			/* yes data added */
 			if (ptr - buffer == 4 && !thread->looper_need_return)
 				goto retry;
 			break;
@@ -4286,89 +4286,89 @@ retry:
 				     proc->pid, thread->pid);
 		} break;
 		case BINDER_WORK_NODE: {
-			struct binder_node *node = container_of(w, struct binder_node, work);
+			struct binder_yesde *yesde = container_of(w, struct binder_yesde, work);
 			int strong, weak;
-			binder_uintptr_t node_ptr = node->ptr;
-			binder_uintptr_t node_cookie = node->cookie;
-			int node_debug_id = node->debug_id;
+			binder_uintptr_t yesde_ptr = yesde->ptr;
+			binder_uintptr_t yesde_cookie = yesde->cookie;
+			int yesde_debug_id = yesde->debug_id;
 			int has_weak_ref;
 			int has_strong_ref;
 			void __user *orig_ptr = ptr;
 
-			BUG_ON(proc != node->proc);
-			strong = node->internal_strong_refs ||
-					node->local_strong_refs;
-			weak = !hlist_empty(&node->refs) ||
-					node->local_weak_refs ||
-					node->tmp_refs || strong;
-			has_strong_ref = node->has_strong_ref;
-			has_weak_ref = node->has_weak_ref;
+			BUG_ON(proc != yesde->proc);
+			strong = yesde->internal_strong_refs ||
+					yesde->local_strong_refs;
+			weak = !hlist_empty(&yesde->refs) ||
+					yesde->local_weak_refs ||
+					yesde->tmp_refs || strong;
+			has_strong_ref = yesde->has_strong_ref;
+			has_weak_ref = yesde->has_weak_ref;
 
 			if (weak && !has_weak_ref) {
-				node->has_weak_ref = 1;
-				node->pending_weak_ref = 1;
-				node->local_weak_refs++;
+				yesde->has_weak_ref = 1;
+				yesde->pending_weak_ref = 1;
+				yesde->local_weak_refs++;
 			}
 			if (strong && !has_strong_ref) {
-				node->has_strong_ref = 1;
-				node->pending_strong_ref = 1;
-				node->local_strong_refs++;
+				yesde->has_strong_ref = 1;
+				yesde->pending_strong_ref = 1;
+				yesde->local_strong_refs++;
 			}
 			if (!strong && has_strong_ref)
-				node->has_strong_ref = 0;
+				yesde->has_strong_ref = 0;
 			if (!weak && has_weak_ref)
-				node->has_weak_ref = 0;
+				yesde->has_weak_ref = 0;
 			if (!weak && !strong) {
 				binder_debug(BINDER_DEBUG_INTERNAL_REFS,
-					     "%d:%d node %d u%016llx c%016llx deleted\n",
+					     "%d:%d yesde %d u%016llx c%016llx deleted\n",
 					     proc->pid, thread->pid,
-					     node_debug_id,
-					     (u64)node_ptr,
-					     (u64)node_cookie);
-				rb_erase(&node->rb_node, &proc->nodes);
+					     yesde_debug_id,
+					     (u64)yesde_ptr,
+					     (u64)yesde_cookie);
+				rb_erase(&yesde->rb_yesde, &proc->yesdes);
 				binder_inner_proc_unlock(proc);
-				binder_node_lock(node);
+				binder_yesde_lock(yesde);
 				/*
-				 * Acquire the node lock before freeing the
-				 * node to serialize with other threads that
-				 * may have been holding the node lock while
-				 * decrementing this node (avoids race where
+				 * Acquire the yesde lock before freeing the
+				 * yesde to serialize with other threads that
+				 * may have been holding the yesde lock while
+				 * decrementing this yesde (avoids race where
 				 * this thread frees while the other thread
-				 * is unlocking the node after the final
+				 * is unlocking the yesde after the final
 				 * decrement)
 				 */
-				binder_node_unlock(node);
-				binder_free_node(node);
+				binder_yesde_unlock(yesde);
+				binder_free_yesde(yesde);
 			} else
 				binder_inner_proc_unlock(proc);
 
 			if (weak && !has_weak_ref)
-				ret = binder_put_node_cmd(
-						proc, thread, &ptr, node_ptr,
-						node_cookie, node_debug_id,
+				ret = binder_put_yesde_cmd(
+						proc, thread, &ptr, yesde_ptr,
+						yesde_cookie, yesde_debug_id,
 						BR_INCREFS, "BR_INCREFS");
 			if (!ret && strong && !has_strong_ref)
-				ret = binder_put_node_cmd(
-						proc, thread, &ptr, node_ptr,
-						node_cookie, node_debug_id,
+				ret = binder_put_yesde_cmd(
+						proc, thread, &ptr, yesde_ptr,
+						yesde_cookie, yesde_debug_id,
 						BR_ACQUIRE, "BR_ACQUIRE");
 			if (!ret && !strong && has_strong_ref)
-				ret = binder_put_node_cmd(
-						proc, thread, &ptr, node_ptr,
-						node_cookie, node_debug_id,
+				ret = binder_put_yesde_cmd(
+						proc, thread, &ptr, yesde_ptr,
+						yesde_cookie, yesde_debug_id,
 						BR_RELEASE, "BR_RELEASE");
 			if (!ret && !weak && has_weak_ref)
-				ret = binder_put_node_cmd(
-						proc, thread, &ptr, node_ptr,
-						node_cookie, node_debug_id,
+				ret = binder_put_yesde_cmd(
+						proc, thread, &ptr, yesde_ptr,
+						yesde_cookie, yesde_debug_id,
 						BR_DECREFS, "BR_DECREFS");
 			if (orig_ptr == ptr)
 				binder_debug(BINDER_DEBUG_INTERNAL_REFS,
-					     "%d:%d node %d u%016llx c%016llx state unchanged\n",
+					     "%d:%d yesde %d u%016llx c%016llx state unchanged\n",
 					     proc->pid, thread->pid,
-					     node_debug_id,
-					     (u64)node_ptr,
-					     (u64)node_cookie);
+					     yesde_debug_id,
+					     (u64)yesde_ptr,
+					     (u64)yesde_cookie);
 			if (ret)
 				return ret;
 		} break;
@@ -4411,7 +4411,7 @@ retry:
 			ptr += sizeof(binder_uintptr_t);
 			binder_stat_br(proc, thread, cmd);
 			if (cmd == BR_DEAD_BINDER)
-				goto done; /* DEAD_BINDER notifications can cause transactions */
+				goto done; /* DEAD_BINDER yestifications can cause transactions */
 		} break;
 		default:
 			binder_inner_proc_unlock(proc);
@@ -4424,18 +4424,18 @@ retry:
 			continue;
 
 		BUG_ON(t->buffer == NULL);
-		if (t->buffer->target_node) {
-			struct binder_node *target_node = t->buffer->target_node;
+		if (t->buffer->target_yesde) {
+			struct binder_yesde *target_yesde = t->buffer->target_yesde;
 
-			trd->target.ptr = target_node->ptr;
-			trd->cookie =  target_node->cookie;
+			trd->target.ptr = target_yesde->ptr;
+			trd->cookie =  target_yesde->cookie;
 			t->saved_priority = task_nice(current);
-			if (t->priority < target_node->min_priority &&
+			if (t->priority < target_yesde->min_priority &&
 			    !(t->flags & TF_ONE_WAY))
 				binder_set_nice(t->priority);
 			else if (!(t->flags & TF_ONE_WAY) ||
-				 t->saved_priority > target_node->min_priority)
-				binder_set_nice(target_node->min_priority);
+				 t->saved_priority > target_yesde->min_priority)
+				binder_set_nice(target_yesde->min_priority);
 			cmd = BR_TRANSACTION;
 		} else {
 			trd->target.ptr = 0;
@@ -4609,13 +4609,13 @@ static void binder_release_work(struct binder_proc *proc,
 
 			death = container_of(w, struct binder_ref_death, work);
 			binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
-				"undelivered death notification, %016llx\n",
+				"undelivered death yestification, %016llx\n",
 				(u64)death->cookie);
 			kfree(death);
 			binder_stats_deleted(BINDER_STAT_DEATH);
 		} break;
 		default:
-			pr_err("unexpected work type, %d, not freed\n",
+			pr_err("unexpected work type, %d, yest freed\n",
 			       w->type);
 			break;
 		}
@@ -4627,12 +4627,12 @@ static struct binder_thread *binder_get_thread_ilocked(
 		struct binder_proc *proc, struct binder_thread *new_thread)
 {
 	struct binder_thread *thread = NULL;
-	struct rb_node *parent = NULL;
-	struct rb_node **p = &proc->threads.rb_node;
+	struct rb_yesde *parent = NULL;
+	struct rb_yesde **p = &proc->threads.rb_yesde;
 
 	while (*p) {
 		parent = *p;
-		thread = rb_entry(parent, struct binder_thread, rb_node);
+		thread = rb_entry(parent, struct binder_thread, rb_yesde);
 
 		if (current->pid < thread->pid)
 			p = &(*p)->rb_left;
@@ -4650,14 +4650,14 @@ static struct binder_thread *binder_get_thread_ilocked(
 	atomic_set(&thread->tmp_ref, 0);
 	init_waitqueue_head(&thread->wait);
 	INIT_LIST_HEAD(&thread->todo);
-	rb_link_node(&thread->rb_node, parent, p);
-	rb_insert_color(&thread->rb_node, &proc->threads);
+	rb_link_yesde(&thread->rb_yesde, parent, p);
+	rb_insert_color(&thread->rb_yesde, &proc->threads);
 	thread->looper_need_return = true;
 	thread->return_error.work.type = BINDER_WORK_RETURN_ERROR;
 	thread->return_error.cmd = BR_OK;
 	thread->reply_error.work.type = BINDER_WORK_RETURN_ERROR;
 	thread->reply_error.cmd = BR_OK;
-	INIT_LIST_HEAD(&new_thread->waiting_thread_node);
+	INIT_LIST_HEAD(&new_thread->waiting_thread_yesde);
 	return thread;
 }
 
@@ -4721,7 +4721,7 @@ static int binder_thread_release(struct binder_proc *proc,
 	 * survives while we are releasing it
 	 */
 	atomic_inc(&thread->tmp_ref);
-	rb_erase(&thread->rb_node, &proc->threads);
+	rb_erase(&thread->rb_yesde, &proc->threads);
 	t = thread->transaction_stack;
 	if (t) {
 		spin_lock(&t->lock);
@@ -4760,7 +4760,7 @@ static int binder_thread_release(struct binder_proc *proc,
 		else
 			__acquire(&t->lock);
 	}
-	/* annotation for sparse, lock not acquired in last iteration above */
+	/* anyestation for sparse, lock yest acquired in last iteration above */
 	__release(&t->lock);
 
 	/*
@@ -4889,11 +4889,11 @@ static int binder_ioctl_set_ctx_mgr(struct file *filp,
 	int ret = 0;
 	struct binder_proc *proc = filp->private_data;
 	struct binder_context *context = proc->context;
-	struct binder_node *new_node;
+	struct binder_yesde *new_yesde;
 	kuid_t curr_euid = current_euid();
 
-	mutex_lock(&context->context_mgr_node_lock);
-	if (context->binder_context_mgr_node) {
+	mutex_lock(&context->context_mgr_yesde_lock);
+	if (context->binder_context_mgr_yesde) {
 		pr_err("BINDER_SET_CONTEXT_MGR already set\n");
 		ret = -EBUSY;
 		goto out;
@@ -4913,77 +4913,77 @@ static int binder_ioctl_set_ctx_mgr(struct file *filp,
 	} else {
 		context->binder_context_mgr_uid = curr_euid;
 	}
-	new_node = binder_new_node(proc, fbo);
-	if (!new_node) {
+	new_yesde = binder_new_yesde(proc, fbo);
+	if (!new_yesde) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	binder_node_lock(new_node);
-	new_node->local_weak_refs++;
-	new_node->local_strong_refs++;
-	new_node->has_strong_ref = 1;
-	new_node->has_weak_ref = 1;
-	context->binder_context_mgr_node = new_node;
-	binder_node_unlock(new_node);
-	binder_put_node(new_node);
+	binder_yesde_lock(new_yesde);
+	new_yesde->local_weak_refs++;
+	new_yesde->local_strong_refs++;
+	new_yesde->has_strong_ref = 1;
+	new_yesde->has_weak_ref = 1;
+	context->binder_context_mgr_yesde = new_yesde;
+	binder_yesde_unlock(new_yesde);
+	binder_put_yesde(new_yesde);
 out:
-	mutex_unlock(&context->context_mgr_node_lock);
+	mutex_unlock(&context->context_mgr_yesde_lock);
 	return ret;
 }
 
-static int binder_ioctl_get_node_info_for_ref(struct binder_proc *proc,
-		struct binder_node_info_for_ref *info)
+static int binder_ioctl_get_yesde_info_for_ref(struct binder_proc *proc,
+		struct binder_yesde_info_for_ref *info)
 {
-	struct binder_node *node;
+	struct binder_yesde *yesde;
 	struct binder_context *context = proc->context;
 	__u32 handle = info->handle;
 
 	if (info->strong_count || info->weak_count || info->reserved1 ||
 	    info->reserved2 || info->reserved3) {
-		binder_user_error("%d BINDER_GET_NODE_INFO_FOR_REF: only handle may be non-zero.",
+		binder_user_error("%d BINDER_GET_NODE_INFO_FOR_REF: only handle may be yesn-zero.",
 				  proc->pid);
 		return -EINVAL;
 	}
 
 	/* This ioctl may only be used by the context manager */
-	mutex_lock(&context->context_mgr_node_lock);
-	if (!context->binder_context_mgr_node ||
-		context->binder_context_mgr_node->proc != proc) {
-		mutex_unlock(&context->context_mgr_node_lock);
+	mutex_lock(&context->context_mgr_yesde_lock);
+	if (!context->binder_context_mgr_yesde ||
+		context->binder_context_mgr_yesde->proc != proc) {
+		mutex_unlock(&context->context_mgr_yesde_lock);
 		return -EPERM;
 	}
-	mutex_unlock(&context->context_mgr_node_lock);
+	mutex_unlock(&context->context_mgr_yesde_lock);
 
-	node = binder_get_node_from_ref(proc, handle, true, NULL);
-	if (!node)
+	yesde = binder_get_yesde_from_ref(proc, handle, true, NULL);
+	if (!yesde)
 		return -EINVAL;
 
-	info->strong_count = node->local_strong_refs +
-		node->internal_strong_refs;
-	info->weak_count = node->local_weak_refs;
+	info->strong_count = yesde->local_strong_refs +
+		yesde->internal_strong_refs;
+	info->weak_count = yesde->local_weak_refs;
 
-	binder_put_node(node);
+	binder_put_yesde(yesde);
 
 	return 0;
 }
 
-static int binder_ioctl_get_node_debug_info(struct binder_proc *proc,
-				struct binder_node_debug_info *info)
+static int binder_ioctl_get_yesde_debug_info(struct binder_proc *proc,
+				struct binder_yesde_debug_info *info)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 	binder_uintptr_t ptr = info->ptr;
 
 	memset(info, 0, sizeof(*info));
 
 	binder_inner_proc_lock(proc);
-	for (n = rb_first(&proc->nodes); n != NULL; n = rb_next(n)) {
-		struct binder_node *node = rb_entry(n, struct binder_node,
-						    rb_node);
-		if (node->ptr > ptr) {
-			info->ptr = node->ptr;
-			info->cookie = node->cookie;
-			info->has_strong_ref = node->has_strong_ref;
-			info->has_weak_ref = node->has_weak_ref;
+	for (n = rb_first(&proc->yesdes); n != NULL; n = rb_next(n)) {
+		struct binder_yesde *yesde = rb_entry(n, struct binder_yesde,
+						    rb_yesde);
+		if (yesde->ptr > ptr) {
+			info->ptr = yesde->ptr;
+			info->cookie = yesde->cookie;
+			info->has_strong_ref = yesde->has_strong_ref;
+			info->has_weak_ref = yesde->has_weak_ref;
 			break;
 		}
 	}
@@ -5074,14 +5074,14 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case BINDER_GET_NODE_INFO_FOR_REF: {
-		struct binder_node_info_for_ref info;
+		struct binder_yesde_info_for_ref info;
 
 		if (copy_from_user(&info, ubuf, sizeof(info))) {
 			ret = -EFAULT;
 			goto err;
 		}
 
-		ret = binder_ioctl_get_node_info_for_ref(proc, &info);
+		ret = binder_ioctl_get_yesde_info_for_ref(proc, &info);
 		if (ret < 0)
 			goto err;
 
@@ -5093,14 +5093,14 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case BINDER_GET_NODE_DEBUG_INFO: {
-		struct binder_node_debug_info info;
+		struct binder_yesde_debug_info info;
 
 		if (copy_from_user(&info, ubuf, sizeof(info))) {
 			ret = -EFAULT;
 			goto err;
 		}
 
-		ret = binder_ioctl_get_node_debug_info(proc, &info);
+		ret = binder_ioctl_get_yesde_debug_info(proc, &info);
 		if (ret < 0)
 			goto err;
 
@@ -5197,7 +5197,7 @@ err_bad_arg:
 	return ret;
 }
 
-static int binder_open(struct inode *nodp, struct file *filp)
+static int binder_open(struct iyesde *yesdp, struct file *filp)
 {
 	struct binder_proc *proc;
 	struct binder_device *binder_dev;
@@ -5217,9 +5217,9 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	INIT_LIST_HEAD(&proc->todo);
 	proc->default_priority = task_nice(current);
 	/* binderfs stashes devices in i_private */
-	if (is_binderfs_device(nodp)) {
-		binder_dev = nodp->i_private;
-		info = nodp->i_sb->s_fs_info;
+	if (is_binderfs_device(yesdp)) {
+		binder_dev = yesdp->i_private;
+		info = yesdp->i_sb->s_fs_info;
 		binder_binderfs_dir_entry_proc = info->proc_log_dir;
 	} else {
 		binder_dev = container_of(filp->private_data,
@@ -5235,7 +5235,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	filp->private_data = proc;
 
 	mutex_lock(&binder_procs_lock);
-	hlist_add_head(&proc->proc_node, &binder_procs);
+	hlist_add_head(&proc->proc_yesde, &binder_procs);
 	mutex_unlock(&binder_procs_lock);
 
 	if (binder_debugfs_dir_entry_proc) {
@@ -5247,7 +5247,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 		 * this will fail if the process tries to open the driver
 		 * again with a different context. The priting code will
 		 * anyway print all contexts that a given PID has, so this
-		 * is not a problem.
+		 * is yest a problem.
 		 */
 		proc->debugfs_entry = debugfs_create_file(strbuf, 0444,
 			binder_debugfs_dir_entry_proc,
@@ -5264,7 +5264,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 		 * Similar to debugfs, the process specific log file is shared
 		 * between contexts. If the file has already been created for a
 		 * process, the following binderfs_create_file() call will
-		 * fail with error code EEXIST if another context of the same
+		 * fail with error code EEXIST if ayesther context of the same
 		 * process invoked binder_open(). This is ok since same as
 		 * debugfs, the log file will contain information on all
 		 * contexts of a given PID.
@@ -5298,12 +5298,12 @@ static int binder_flush(struct file *filp, fl_owner_t id)
 
 static void binder_deferred_flush(struct binder_proc *proc)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 	int wake_count = 0;
 
 	binder_inner_proc_lock(proc);
 	for (n = rb_first(&proc->threads); n != NULL; n = rb_next(n)) {
-		struct binder_thread *thread = rb_entry(n, struct binder_thread, rb_node);
+		struct binder_thread *thread = rb_entry(n, struct binder_thread, rb_yesde);
 
 		thread->looper_need_return = true;
 		if (thread->looper & BINDER_LOOPER_STATE_WAITING) {
@@ -5318,7 +5318,7 @@ static void binder_deferred_flush(struct binder_proc *proc)
 		     wake_count);
 }
 
-static int binder_release(struct inode *nodp, struct file *filp)
+static int binder_release(struct iyesde *yesdp, struct file *filp)
 {
 	struct binder_proc *proc = filp->private_data;
 
@@ -5334,45 +5334,45 @@ static int binder_release(struct inode *nodp, struct file *filp)
 	return 0;
 }
 
-static int binder_node_release(struct binder_node *node, int refs)
+static int binder_yesde_release(struct binder_yesde *yesde, int refs)
 {
 	struct binder_ref *ref;
 	int death = 0;
-	struct binder_proc *proc = node->proc;
+	struct binder_proc *proc = yesde->proc;
 
-	binder_release_work(proc, &node->async_todo);
+	binder_release_work(proc, &yesde->async_todo);
 
-	binder_node_lock(node);
+	binder_yesde_lock(yesde);
 	binder_inner_proc_lock(proc);
-	binder_dequeue_work_ilocked(&node->work);
+	binder_dequeue_work_ilocked(&yesde->work);
 	/*
-	 * The caller must have taken a temporary ref on the node,
+	 * The caller must have taken a temporary ref on the yesde,
 	 */
-	BUG_ON(!node->tmp_refs);
-	if (hlist_empty(&node->refs) && node->tmp_refs == 1) {
+	BUG_ON(!yesde->tmp_refs);
+	if (hlist_empty(&yesde->refs) && yesde->tmp_refs == 1) {
 		binder_inner_proc_unlock(proc);
-		binder_node_unlock(node);
-		binder_free_node(node);
+		binder_yesde_unlock(yesde);
+		binder_free_yesde(yesde);
 
 		return refs;
 	}
 
-	node->proc = NULL;
-	node->local_strong_refs = 0;
-	node->local_weak_refs = 0;
+	yesde->proc = NULL;
+	yesde->local_strong_refs = 0;
+	yesde->local_weak_refs = 0;
 	binder_inner_proc_unlock(proc);
 
-	spin_lock(&binder_dead_nodes_lock);
-	hlist_add_head(&node->dead_node, &binder_dead_nodes);
-	spin_unlock(&binder_dead_nodes_lock);
+	spin_lock(&binder_dead_yesdes_lock);
+	hlist_add_head(&yesde->dead_yesde, &binder_dead_yesdes);
+	spin_unlock(&binder_dead_yesdes_lock);
 
-	hlist_for_each_entry(ref, &node->refs, node_entry) {
+	hlist_for_each_entry(ref, &yesde->refs, yesde_entry) {
 		refs++;
 		/*
-		 * Need the node lock to synchronize
-		 * with new notification requests and the
+		 * Need the yesde lock to synchronize
+		 * with new yestification requests and the
 		 * inner lock to synchronize with queued
-		 * death notifications.
+		 * death yestifications.
 		 */
 		binder_inner_proc_lock(ref->proc);
 		if (!ref->death) {
@@ -5391,10 +5391,10 @@ static int binder_node_release(struct binder_node *node, int refs)
 	}
 
 	binder_debug(BINDER_DEBUG_DEAD_BINDER,
-		     "node %d now dead, refs %d, death %d\n",
-		     node->debug_id, refs, death);
-	binder_node_unlock(node);
-	binder_put_node(node);
+		     "yesde %d yesw dead, refs %d, death %d\n",
+		     yesde->debug_id, refs, death);
+	binder_yesde_unlock(yesde);
+	binder_put_yesde(yesde);
 
 	return refs;
 }
@@ -5402,22 +5402,22 @@ static int binder_node_release(struct binder_node *node, int refs)
 static void binder_deferred_release(struct binder_proc *proc)
 {
 	struct binder_context *context = proc->context;
-	struct rb_node *n;
-	int threads, nodes, incoming_refs, outgoing_refs, active_transactions;
+	struct rb_yesde *n;
+	int threads, yesdes, incoming_refs, outgoing_refs, active_transactions;
 
 	mutex_lock(&binder_procs_lock);
-	hlist_del(&proc->proc_node);
+	hlist_del(&proc->proc_yesde);
 	mutex_unlock(&binder_procs_lock);
 
-	mutex_lock(&context->context_mgr_node_lock);
-	if (context->binder_context_mgr_node &&
-	    context->binder_context_mgr_node->proc == proc) {
+	mutex_lock(&context->context_mgr_yesde_lock);
+	if (context->binder_context_mgr_yesde &&
+	    context->binder_context_mgr_yesde->proc == proc) {
 		binder_debug(BINDER_DEBUG_DEAD_BINDER,
-			     "%s: %d context_mgr_node gone\n",
+			     "%s: %d context_mgr_yesde gone\n",
 			     __func__, proc->pid);
-		context->binder_context_mgr_node = NULL;
+		context->binder_context_mgr_yesde = NULL;
 	}
-	mutex_unlock(&context->context_mgr_node_lock);
+	mutex_unlock(&context->context_mgr_yesde_lock);
 	binder_inner_proc_lock(proc);
 	/*
 	 * Make sure proc stays alive after we
@@ -5431,29 +5431,29 @@ static void binder_deferred_release(struct binder_proc *proc)
 	while ((n = rb_first(&proc->threads))) {
 		struct binder_thread *thread;
 
-		thread = rb_entry(n, struct binder_thread, rb_node);
+		thread = rb_entry(n, struct binder_thread, rb_yesde);
 		binder_inner_proc_unlock(proc);
 		threads++;
 		active_transactions += binder_thread_release(proc, thread);
 		binder_inner_proc_lock(proc);
 	}
 
-	nodes = 0;
+	yesdes = 0;
 	incoming_refs = 0;
-	while ((n = rb_first(&proc->nodes))) {
-		struct binder_node *node;
+	while ((n = rb_first(&proc->yesdes))) {
+		struct binder_yesde *yesde;
 
-		node = rb_entry(n, struct binder_node, rb_node);
-		nodes++;
+		yesde = rb_entry(n, struct binder_yesde, rb_yesde);
+		yesdes++;
 		/*
-		 * take a temporary ref on the node before
-		 * calling binder_node_release() which will either
-		 * kfree() the node or call binder_put_node()
+		 * take a temporary ref on the yesde before
+		 * calling binder_yesde_release() which will either
+		 * kfree() the yesde or call binder_put_yesde()
 		 */
-		binder_inc_node_tmpref_ilocked(node);
-		rb_erase(&node->rb_node, &proc->nodes);
+		binder_inc_yesde_tmpref_ilocked(yesde);
+		rb_erase(&yesde->rb_yesde, &proc->yesdes);
 		binder_inner_proc_unlock(proc);
-		incoming_refs = binder_node_release(node, incoming_refs);
+		incoming_refs = binder_yesde_release(yesde, incoming_refs);
 		binder_inner_proc_lock(proc);
 	}
 	binder_inner_proc_unlock(proc);
@@ -5463,7 +5463,7 @@ static void binder_deferred_release(struct binder_proc *proc)
 	while ((n = rb_first(&proc->refs_by_desc))) {
 		struct binder_ref *ref;
 
-		ref = rb_entry(n, struct binder_ref, rb_node_desc);
+		ref = rb_entry(n, struct binder_ref, rb_yesde_desc);
 		outgoing_refs++;
 		binder_cleanup_ref_olocked(ref);
 		binder_proc_unlock(proc);
@@ -5476,8 +5476,8 @@ static void binder_deferred_release(struct binder_proc *proc)
 	binder_release_work(proc, &proc->delivered_death);
 
 	binder_debug(BINDER_DEBUG_OPEN_CLOSE,
-		     "%s: %d threads %d, nodes %d (ref %d), refs %d, active transactions %d\n",
-		     __func__, proc->pid, threads, nodes, incoming_refs,
+		     "%s: %d threads %d, yesdes %d (ref %d), refs %d, active transactions %d\n",
+		     __func__, proc->pid, threads, yesdes, incoming_refs,
 		     outgoing_refs, active_transactions);
 
 	binder_proc_dec_tmpref(proc);
@@ -5493,8 +5493,8 @@ static void binder_deferred_func(struct work_struct *work)
 		mutex_lock(&binder_deferred_lock);
 		if (!hlist_empty(&binder_deferred_list)) {
 			proc = hlist_entry(binder_deferred_list.first,
-					struct binder_proc, deferred_work_node);
-			hlist_del_init(&proc->deferred_work_node);
+					struct binder_proc, deferred_work_yesde);
+			hlist_del_init(&proc->deferred_work_yesde);
 			defer = proc->deferred_work;
 			proc->deferred_work = 0;
 		} else {
@@ -5517,8 +5517,8 @@ binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer)
 {
 	mutex_lock(&binder_deferred_lock);
 	proc->deferred_work |= defer;
-	if (hlist_unhashed(&proc->deferred_work_node)) {
-		hlist_add_head(&proc->deferred_work_node,
+	if (hlist_unhashed(&proc->deferred_work_yesde)) {
+		hlist_add_head(&proc->deferred_work_yesde,
 				&binder_deferred_list);
 		schedule_work(&binder_deferred_work);
 	}
@@ -5548,7 +5548,7 @@ static void print_binder_transaction_ilocked(struct seq_file *m,
 	if (proc != to_proc) {
 		/*
 		 * Can only safely deref buffer if we are holding the
-		 * correct proc inner lock for this node
+		 * correct proc inner lock for this yesde
 		 */
 		seq_puts(m, "\n");
 		return;
@@ -5558,8 +5558,8 @@ static void print_binder_transaction_ilocked(struct seq_file *m,
 		seq_puts(m, " buffer free\n");
 		return;
 	}
-	if (buffer->target_node)
-		seq_printf(m, " node %d", buffer->target_node->debug_id);
+	if (buffer->target_yesde)
+		seq_printf(m, " yesde %d", buffer->target_yesde->debug_id);
 	seq_printf(m, " size %zd:%zd data %pK\n",
 		   buffer->data_size, buffer->offsets_size,
 		   buffer->user_data);
@@ -5571,7 +5571,7 @@ static void print_binder_work_ilocked(struct seq_file *m,
 				     const char *transaction_prefix,
 				     struct binder_work *w)
 {
-	struct binder_node *node;
+	struct binder_yesde *yesde;
 	struct binder_transaction *t;
 
 	switch (w->type) {
@@ -5591,10 +5591,10 @@ static void print_binder_work_ilocked(struct seq_file *m,
 		seq_printf(m, "%stransaction complete\n", prefix);
 		break;
 	case BINDER_WORK_NODE:
-		node = container_of(w, struct binder_node, work);
-		seq_printf(m, "%snode work %d: u%016llx c%016llx\n",
-			   prefix, node->debug_id,
-			   (u64)node->ptr, (u64)node->cookie);
+		yesde = container_of(w, struct binder_yesde, work);
+		seq_printf(m, "%syesde work %d: u%016llx c%016llx\n",
+			   prefix, yesde->debug_id,
+			   (u64)yesde->ptr, (u64)yesde->cookie);
 		break;
 	case BINDER_WORK_DEAD_BINDER:
 		seq_printf(m, "%shas dead binder\n", prefix);
@@ -5603,10 +5603,10 @@ static void print_binder_work_ilocked(struct seq_file *m,
 		seq_printf(m, "%shas cleared dead binder\n", prefix);
 		break;
 	case BINDER_WORK_CLEAR_DEATH_NOTIFICATION:
-		seq_printf(m, "%shas cleared death notification\n", prefix);
+		seq_printf(m, "%shas cleared death yestification\n", prefix);
 		break;
 	default:
-		seq_printf(m, "%sunknown work: type %d\n", prefix, w->type);
+		seq_printf(m, "%sunkyeswn work: type %d\n", prefix, w->type);
 		break;
 	}
 }
@@ -5649,31 +5649,31 @@ static void print_binder_thread_ilocked(struct seq_file *m,
 		m->count = start_pos;
 }
 
-static void print_binder_node_nilocked(struct seq_file *m,
-				       struct binder_node *node)
+static void print_binder_yesde_nilocked(struct seq_file *m,
+				       struct binder_yesde *yesde)
 {
 	struct binder_ref *ref;
 	struct binder_work *w;
 	int count;
 
 	count = 0;
-	hlist_for_each_entry(ref, &node->refs, node_entry)
+	hlist_for_each_entry(ref, &yesde->refs, yesde_entry)
 		count++;
 
-	seq_printf(m, "  node %d: u%016llx c%016llx hs %d hw %d ls %d lw %d is %d iw %d tr %d",
-		   node->debug_id, (u64)node->ptr, (u64)node->cookie,
-		   node->has_strong_ref, node->has_weak_ref,
-		   node->local_strong_refs, node->local_weak_refs,
-		   node->internal_strong_refs, count, node->tmp_refs);
+	seq_printf(m, "  yesde %d: u%016llx c%016llx hs %d hw %d ls %d lw %d is %d iw %d tr %d",
+		   yesde->debug_id, (u64)yesde->ptr, (u64)yesde->cookie,
+		   yesde->has_strong_ref, yesde->has_weak_ref,
+		   yesde->local_strong_refs, yesde->local_weak_refs,
+		   yesde->internal_strong_refs, count, yesde->tmp_refs);
 	if (count) {
 		seq_puts(m, " proc");
-		hlist_for_each_entry(ref, &node->refs, node_entry)
+		hlist_for_each_entry(ref, &yesde->refs, yesde_entry)
 			seq_printf(m, " %d", ref->proc->pid);
 	}
 	seq_puts(m, "\n");
-	if (node->proc) {
-		list_for_each_entry(w, &node->async_todo, entry)
-			print_binder_work_ilocked(m, node->proc, "    ",
+	if (yesde->proc) {
+		list_for_each_entry(w, &yesde->async_todo, entry)
+			print_binder_work_ilocked(m, yesde->proc, "    ",
 					  "    pending async transaction", w);
 	}
 }
@@ -5681,23 +5681,23 @@ static void print_binder_node_nilocked(struct seq_file *m,
 static void print_binder_ref_olocked(struct seq_file *m,
 				     struct binder_ref *ref)
 {
-	binder_node_lock(ref->node);
-	seq_printf(m, "  ref %d: desc %d %snode %d s %d w %d d %pK\n",
+	binder_yesde_lock(ref->yesde);
+	seq_printf(m, "  ref %d: desc %d %syesde %d s %d w %d d %pK\n",
 		   ref->data.debug_id, ref->data.desc,
-		   ref->node->proc ? "" : "dead ",
-		   ref->node->debug_id, ref->data.strong,
+		   ref->yesde->proc ? "" : "dead ",
+		   ref->yesde->debug_id, ref->data.strong,
 		   ref->data.weak, ref->death);
-	binder_node_unlock(ref->node);
+	binder_yesde_unlock(ref->yesde);
 }
 
 static void print_binder_proc(struct seq_file *m,
 			      struct binder_proc *proc, int print_all)
 {
 	struct binder_work *w;
-	struct rb_node *n;
+	struct rb_yesde *n;
 	size_t start_pos = m->count;
 	size_t header_pos;
-	struct binder_node *last_node = NULL;
+	struct binder_yesde *last_yesde = NULL;
 
 	seq_printf(m, "proc %d\n", proc->pid);
 	seq_printf(m, "context %s\n", proc->context->name);
@@ -5706,33 +5706,33 @@ static void print_binder_proc(struct seq_file *m,
 	binder_inner_proc_lock(proc);
 	for (n = rb_first(&proc->threads); n != NULL; n = rb_next(n))
 		print_binder_thread_ilocked(m, rb_entry(n, struct binder_thread,
-						rb_node), print_all);
+						rb_yesde), print_all);
 
-	for (n = rb_first(&proc->nodes); n != NULL; n = rb_next(n)) {
-		struct binder_node *node = rb_entry(n, struct binder_node,
-						    rb_node);
-		if (!print_all && !node->has_async_transaction)
+	for (n = rb_first(&proc->yesdes); n != NULL; n = rb_next(n)) {
+		struct binder_yesde *yesde = rb_entry(n, struct binder_yesde,
+						    rb_yesde);
+		if (!print_all && !yesde->has_async_transaction)
 			continue;
 
 		/*
-		 * take a temporary reference on the node so it
+		 * take a temporary reference on the yesde so it
 		 * survives and isn't removed from the tree
 		 * while we print it.
 		 */
-		binder_inc_node_tmpref_ilocked(node);
-		/* Need to drop inner lock to take node lock */
+		binder_inc_yesde_tmpref_ilocked(yesde);
+		/* Need to drop inner lock to take yesde lock */
 		binder_inner_proc_unlock(proc);
-		if (last_node)
-			binder_put_node(last_node);
-		binder_node_inner_lock(node);
-		print_binder_node_nilocked(m, node);
-		binder_node_inner_unlock(node);
-		last_node = node;
+		if (last_yesde)
+			binder_put_yesde(last_yesde);
+		binder_yesde_inner_lock(yesde);
+		print_binder_yesde_nilocked(m, yesde);
+		binder_yesde_inner_unlock(yesde);
+		last_yesde = yesde;
 		binder_inner_proc_lock(proc);
 	}
 	binder_inner_proc_unlock(proc);
-	if (last_node)
-		binder_put_node(last_node);
+	if (last_yesde)
+		binder_put_yesde(last_yesde);
 
 	if (print_all) {
 		binder_proc_lock(proc);
@@ -5741,7 +5741,7 @@ static void print_binder_proc(struct seq_file *m,
 		     n = rb_next(n))
 			print_binder_ref_olocked(m, rb_entry(n,
 							    struct binder_ref,
-							    rb_node_desc));
+							    rb_yesde_desc));
 		binder_proc_unlock(proc);
 	}
 	binder_alloc_print_allocated(m, &proc->alloc);
@@ -5804,7 +5804,7 @@ static const char * const binder_command_strings[] = {
 static const char * const binder_objstat_strings[] = {
 	"proc",
 	"thread",
-	"node",
+	"yesde",
 	"ref",
 	"death",
 	"transaction",
@@ -5858,7 +5858,7 @@ static void print_binder_proc_stats(struct seq_file *m,
 {
 	struct binder_work *w;
 	struct binder_thread *thread;
-	struct rb_node *n;
+	struct rb_yesde *n;
 	int count, strong, weak, ready_threads;
 	size_t free_async_space =
 		binder_alloc_get_free_async_space(&proc->alloc);
@@ -5871,7 +5871,7 @@ static void print_binder_proc_stats(struct seq_file *m,
 	for (n = rb_first(&proc->threads); n != NULL; n = rb_next(n))
 		count++;
 
-	list_for_each_entry(thread, &proc->waiting_threads, waiting_thread_node)
+	list_for_each_entry(thread, &proc->waiting_threads, waiting_thread_yesde)
 		ready_threads++;
 
 	seq_printf(m, "  threads: %d\n", count);
@@ -5882,17 +5882,17 @@ static void print_binder_proc_stats(struct seq_file *m,
 			ready_threads,
 			free_async_space);
 	count = 0;
-	for (n = rb_first(&proc->nodes); n != NULL; n = rb_next(n))
+	for (n = rb_first(&proc->yesdes); n != NULL; n = rb_next(n))
 		count++;
 	binder_inner_proc_unlock(proc);
-	seq_printf(m, "  nodes: %d\n", count);
+	seq_printf(m, "  yesdes: %d\n", count);
 	count = 0;
 	strong = 0;
 	weak = 0;
 	binder_proc_lock(proc);
 	for (n = rb_first(&proc->refs_by_desc); n != NULL; n = rb_next(n)) {
 		struct binder_ref *ref = rb_entry(n, struct binder_ref,
-						  rb_node_desc);
+						  rb_yesde_desc);
 		count++;
 		strong += ref->data.strong;
 		weak += ref->data.weak;
@@ -5921,36 +5921,36 @@ static void print_binder_proc_stats(struct seq_file *m,
 int binder_state_show(struct seq_file *m, void *unused)
 {
 	struct binder_proc *proc;
-	struct binder_node *node;
-	struct binder_node *last_node = NULL;
+	struct binder_yesde *yesde;
+	struct binder_yesde *last_yesde = NULL;
 
 	seq_puts(m, "binder state:\n");
 
-	spin_lock(&binder_dead_nodes_lock);
-	if (!hlist_empty(&binder_dead_nodes))
-		seq_puts(m, "dead nodes:\n");
-	hlist_for_each_entry(node, &binder_dead_nodes, dead_node) {
+	spin_lock(&binder_dead_yesdes_lock);
+	if (!hlist_empty(&binder_dead_yesdes))
+		seq_puts(m, "dead yesdes:\n");
+	hlist_for_each_entry(yesde, &binder_dead_yesdes, dead_yesde) {
 		/*
-		 * take a temporary reference on the node so it
+		 * take a temporary reference on the yesde so it
 		 * survives and isn't removed from the list
 		 * while we print it.
 		 */
-		node->tmp_refs++;
-		spin_unlock(&binder_dead_nodes_lock);
-		if (last_node)
-			binder_put_node(last_node);
-		binder_node_lock(node);
-		print_binder_node_nilocked(m, node);
-		binder_node_unlock(node);
-		last_node = node;
-		spin_lock(&binder_dead_nodes_lock);
+		yesde->tmp_refs++;
+		spin_unlock(&binder_dead_yesdes_lock);
+		if (last_yesde)
+			binder_put_yesde(last_yesde);
+		binder_yesde_lock(yesde);
+		print_binder_yesde_nilocked(m, yesde);
+		binder_yesde_unlock(yesde);
+		last_yesde = yesde;
+		spin_lock(&binder_dead_yesdes_lock);
 	}
-	spin_unlock(&binder_dead_nodes_lock);
-	if (last_node)
-		binder_put_node(last_node);
+	spin_unlock(&binder_dead_yesdes_lock);
+	if (last_yesde)
+		binder_put_yesde(last_yesde);
 
 	mutex_lock(&binder_procs_lock);
-	hlist_for_each_entry(proc, &binder_procs, proc_node)
+	hlist_for_each_entry(proc, &binder_procs, proc_yesde)
 		print_binder_proc(m, proc, 1);
 	mutex_unlock(&binder_procs_lock);
 
@@ -5966,7 +5966,7 @@ int binder_stats_show(struct seq_file *m, void *unused)
 	print_binder_stats(m, "", &binder_stats);
 
 	mutex_lock(&binder_procs_lock);
-	hlist_for_each_entry(proc, &binder_procs, proc_node)
+	hlist_for_each_entry(proc, &binder_procs, proc_yesde)
 		print_binder_proc_stats(m, proc);
 	mutex_unlock(&binder_procs_lock);
 
@@ -5979,7 +5979,7 @@ int binder_transactions_show(struct seq_file *m, void *unused)
 
 	seq_puts(m, "binder transactions:\n");
 	mutex_lock(&binder_procs_lock);
-	hlist_for_each_entry(proc, &binder_procs, proc_node)
+	hlist_for_each_entry(proc, &binder_procs, proc_yesde)
 		print_binder_proc(m, proc, 0);
 	mutex_unlock(&binder_procs_lock);
 
@@ -5992,7 +5992,7 @@ static int proc_show(struct seq_file *m, void *unused)
 	int pid = (unsigned long)m->private;
 
 	mutex_lock(&binder_procs_lock);
-	hlist_for_each_entry(itr, &binder_procs, proc_node) {
+	hlist_for_each_entry(itr, &binder_procs, proc_yesde) {
 		if (itr->pid == pid) {
 			seq_puts(m, "binder proc state:\n");
 			print_binder_proc(m, itr, 1);
@@ -6013,11 +6013,11 @@ static void print_binder_transaction_log_entry(struct seq_file *m,
 	 */
 	smp_rmb();
 	seq_printf(m,
-		   "%d: %s from %d:%d to %d:%d context %s node %d handle %d size %d:%d ret %d/%d l=%d",
+		   "%d: %s from %d:%d to %d:%d context %s yesde %d handle %d size %d:%d ret %d/%d l=%d",
 		   e->debug_id, (e->call_type == 2) ? "reply" :
 		   ((e->call_type == 1) ? "async" : "call "), e->from_proc,
 		   e->from_thread, e->to_proc, e->to_thread, e->context_name,
-		   e->to_node, e->target_handle, e->data_size, e->offsets_size,
+		   e->to_yesde, e->target_handle, e->data_size, e->offsets_size,
 		   e->return_error, e->return_error_param,
 		   e->return_error_line);
 	/*
@@ -6071,12 +6071,12 @@ static int __init init_binder_device(const char *name)
 		return -ENOMEM;
 
 	binder_device->miscdev.fops = &binder_fops;
-	binder_device->miscdev.minor = MISC_DYNAMIC_MINOR;
+	binder_device->miscdev.miyesr = MISC_DYNAMIC_MINOR;
 	binder_device->miscdev.name = name;
 
 	binder_device->context.binder_context_mgr_uid = INVALID_UID;
 	binder_device->context.name = name;
-	mutex_init(&binder_device->context.context_mgr_node_lock);
+	mutex_init(&binder_device->context.context_mgr_yesde_lock);
 
 	ret = misc_register(&binder_device->miscdev);
 	if (ret < 0) {
@@ -6094,7 +6094,7 @@ static int __init binder_init(void)
 	int ret;
 	char *device_name, *device_tmp;
 	struct binder_device *device;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	char *device_names = NULL;
 
 	ret = binder_alloc_shrinker_init();

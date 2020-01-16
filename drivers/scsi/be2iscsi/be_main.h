@@ -378,7 +378,7 @@ struct beiscsi_hba {
 		int retry;
 		unsigned int tag;
 		unsigned int s_handle;
-		struct be_dma_mem nonemb_cmd;
+		struct be_dma_mem yesnemb_cmd;
 		enum {
 			BEISCSI_BOOT_REOPEN_SESS = 1,
 			BEISCSI_BOOT_GET_SHANDLE,
@@ -432,7 +432,7 @@ struct amap_pdu_data_out {
 	u8 rsvd1[7];
 	u8 final_bit;		/* F bit */
 	u8 rsvd2[16];
-	u8 ahs_length[8];	/* no AHS */
+	u8 ahs_length[8];	/* yes AHS */
 	u8 data_len_hi[8];
 	u8 data_len_lo[16];	/* DataSegmentLength */
 	u8 lun[64];
@@ -470,7 +470,7 @@ struct beiscsi_io_task {
 	uint8_t wrb_type;
 };
 
-struct be_nonio_bhs {
+struct be_yesnio_bhs {
 	struct iscsi_hdr iscsi_hdr;
 	unsigned char pad1[16];
 	struct pdu_data_out iscsi_data_pdu;
@@ -532,8 +532,8 @@ struct amap_beiscsi_offload_params {
 	u8 hde[1];
 	u8 ir2t[1];
 	u8 imd[1];
-	u8 data_seq_inorder[1];
-	u8 pdu_seq_inorder[1];
+	u8 data_seq_iyesrder[1];
+	u8 pdu_seq_iyesrder[1];
 	u8 max_r2t[16];
 	u8 pad[8];
 	u8 exp_statsn[32];
@@ -667,7 +667,7 @@ struct be_eq_entry {
 struct amap_eq_entry {
 	u8 valid;		/* DWORD 0 */
 	u8 major_code[3];	/* DWORD 0 */
-	u8 minor_code[12];	/* DWORD 0 */
+	u8 miyesr_code[12];	/* DWORD 0 */
 	u8 resource_id[16];	/* DWORD 0 */
 
 } __packed;
@@ -802,7 +802,7 @@ void hwi_ring_cq_db(struct beiscsi_hba *phba,
 unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget);
 void beiscsi_process_mcc_cq(struct beiscsi_hba *phba);
 
-struct pdu_nop_out {
+struct pdu_yesp_out {
 	u32 dw[12];
 };
 
@@ -810,14 +810,14 @@ struct pdu_nop_out {
  * Pseudo amap definition in which each bit of the actual structure is defined
  * as a byte: used to calculate offset/shift/mask of each field
  */
-struct amap_pdu_nop_out {
+struct amap_pdu_yesp_out {
 	u8 opcode[6];		/* opcode 0x00 */
 	u8 i_bit;		/* I Bit */
 	u8 x_bit;		/* reserved; should be 0 */
 	u8 fp_bit_filler1[7];
 	u8 f_bit;		/* always 1 */
 	u8 reserved1[16];
-	u8 ahs_length[8];	/* no AHS */
+	u8 ahs_length[8];	/* yes AHS */
 	u8 data_len_hi[8];
 	u8 data_len_lo[16];	/* DataSegmentLength */
 	u8 lun[64];
@@ -891,7 +891,7 @@ struct amap_iscsi_target_context_update_wrb {
 	u8 mode;		/* DWORD 4 */
 	u8 imd;			/* DWORD 4 */
 	u8 ir2t;		/* DWORD 4 */
-	u8 notpredblq[2];	/* DWORD 4 */
+	u8 yestpredblq[2];	/* DWORD 4 */
 	u8 compltonack;		/* DWORD 4 */
 	u8 stat_sn[32];		/* DWORD 5 */
 	u8 pad_buffer_addr_hi[32];	/* DWORD 6 */
@@ -941,8 +941,8 @@ struct amap_iscsi_target_context_update_wrb_v2 {
 	u8 invld; /* DWORD 11 */
 	u8 rsvd13;/* DWORD 11*/
 	u8 dmsg; /* DWORD 11 */
-	u8 data_seq_inorder; /* DWORD 11 */
-	u8 pdu_seq_inorder; /* DWORD 11 */
+	u8 data_seq_iyesrder; /* DWORD 11 */
+	u8 pdu_seq_iyesrder; /* DWORD 11 */
 	u8 rsvd14[32]; /*DWORD 12 */
 	u8 rsvd15[32]; /* DWORD 13 */
 	u8 rsvd16[32]; /* DWORD 14 */
@@ -955,7 +955,7 @@ struct be_ring {
 	u32 id;			/* queue id assigned by beklib */
 	u32 num;		/* number of elements in queue */
 	u32 cidx;		/* consumer index */
-	u32 pidx;		/* producer index -- not used by most rings */
+	u32 pidx;		/* producer index -- yest used by most rings */
 	u32 item_size;		/* size in bytes of one object */
 	u8 ulp_num;	/* ULP to which CID binded */
 	u16 register_set;

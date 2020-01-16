@@ -17,7 +17,7 @@
 #include "agn.h"
 
 /* For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
- * sending probe req.  This should be set long enough to hear probe responses
+ * sending probe req.  This should be set long eyesugh to hear probe responses
  * from more than one AP.  */
 #define IWL_ACTIVE_DWELL_TIME_24    (30)       /* all times in msec */
 #define IWL_ACTIVE_DWELL_TIME_52    (20)
@@ -46,8 +46,8 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	};
 	__le32 *status;
 
-	/* Exit instantly with error when device is not ready
-	 * to receive scan abort command or it does not perform
+	/* Exit instantly with error when device is yest ready
+	 * to receive scan abort command or it does yest perform
 	 * hardware scan currently */
 	if (!test_bit(STATUS_READY, &priv->status) ||
 	    !test_bit(STATUS_SCAN_HW, &priv->status) ||
@@ -62,9 +62,9 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	if (*status != CAN_ABORT_STATUS) {
 		/* The scan abort will return 1 for success or
 		 * 2 for "failure".  A failure condition can be
-		 * due to simply not being in an active scan which
+		 * due to simply yest being in an active scan which
 		 * can occur if we send the scan abort before we
-		 * the microcode has notified us that a scan is
+		 * the microcode has yestified us that a scan is
 		 * completed. */
 		IWL_DEBUG_SCAN(priv, "SCAN_ABORT ret %d.\n",
 			       le32_to_cpu(*status));
@@ -150,7 +150,7 @@ void iwl_force_scan_end(struct iwl_priv *priv)
 	lockdep_assert_held(&priv->mutex);
 
 	if (!test_bit(STATUS_SCANNING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Forcing scan end while not scanning\n");
+		IWL_DEBUG_SCAN(priv, "Forcing scan end while yest scanning\n");
 		return;
 	}
 
@@ -239,64 +239,64 @@ static void iwl_rx_reply_scan(struct iwl_priv *priv,
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_scanreq_notification *notif = (void *)pkt->data;
+	struct iwl_scanreq_yestification *yestif = (void *)pkt->data;
 
-	IWL_DEBUG_SCAN(priv, "Scan request status = 0x%x\n", notif->status);
+	IWL_DEBUG_SCAN(priv, "Scan request status = 0x%x\n", yestif->status);
 #endif
 }
 
 /* Service SCAN_START_NOTIFICATION (0x82) */
-static void iwl_rx_scan_start_notif(struct iwl_priv *priv,
+static void iwl_rx_scan_start_yestif(struct iwl_priv *priv,
 				    struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_scanstart_notification *notif = (void *)pkt->data;
+	struct iwl_scanstart_yestification *yestif = (void *)pkt->data;
 
-	priv->scan_start_tsf = le32_to_cpu(notif->tsf_low);
+	priv->scan_start_tsf = le32_to_cpu(yestif->tsf_low);
 	IWL_DEBUG_SCAN(priv, "Scan start: "
 		       "%d [802.11%s] "
 		       "(TSF: 0x%08X:%08X) - %d (beacon timer %u)\n",
-		       notif->channel,
-		       notif->band ? "bg" : "a",
-		       le32_to_cpu(notif->tsf_high),
-		       le32_to_cpu(notif->tsf_low),
-		       notif->status, notif->beacon_timer);
+		       yestif->channel,
+		       yestif->band ? "bg" : "a",
+		       le32_to_cpu(yestif->tsf_high),
+		       le32_to_cpu(yestif->tsf_low),
+		       yestif->status, yestif->beacon_timer);
 }
 
 /* Service SCAN_RESULTS_NOTIFICATION (0x83) */
-static void iwl_rx_scan_results_notif(struct iwl_priv *priv,
+static void iwl_rx_scan_results_yestif(struct iwl_priv *priv,
 				      struct iwl_rx_cmd_buffer *rxb)
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_scanresults_notification *notif = (void *)pkt->data;
+	struct iwl_scanresults_yestification *yestif = (void *)pkt->data;
 
 	IWL_DEBUG_SCAN(priv, "Scan ch.res: "
 		       "%d [802.11%s] "
 		       "probe status: %u:%u "
 		       "(TSF: 0x%08X:%08X) - %d "
 		       "elapsed=%lu usec\n",
-		       notif->channel,
-		       notif->band ? "bg" : "a",
-		       notif->probe_status, notif->num_probe_not_sent,
-		       le32_to_cpu(notif->tsf_high),
-		       le32_to_cpu(notif->tsf_low),
-		       le32_to_cpu(notif->statistics[0]),
-		       le32_to_cpu(notif->tsf_low) - priv->scan_start_tsf);
+		       yestif->channel,
+		       yestif->band ? "bg" : "a",
+		       yestif->probe_status, yestif->num_probe_yest_sent,
+		       le32_to_cpu(yestif->tsf_high),
+		       le32_to_cpu(yestif->tsf_low),
+		       le32_to_cpu(yestif->statistics[0]),
+		       le32_to_cpu(yestif->tsf_low) - priv->scan_start_tsf);
 #endif
 }
 
 /* Service SCAN_COMPLETE_NOTIFICATION (0x84) */
-static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
+static void iwl_rx_scan_complete_yestif(struct iwl_priv *priv,
 				       struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_scancomplete_notification *scan_notif = (void *)pkt->data;
+	struct iwl_scancomplete_yestification *scan_yestif = (void *)pkt->data;
 
 	IWL_DEBUG_SCAN(priv, "Scan complete: %d channels (TSF 0x%08X:%08X) - %d\n",
-		       scan_notif->scanned_channels,
-		       scan_notif->tsf_low,
-		       scan_notif->tsf_high, scan_notif->status);
+		       scan_yestif->scanned_channels,
+		       scan_yestif->tsf_low,
+		       scan_yestif->tsf_high, scan_yestif->status);
 
 	IWL_DEBUG_SCAN(priv, "Scan on %sGHz took %dms\n",
 		       (priv->scan_band == NL80211_BAND_2GHZ) ? "2.4" : "5.2",
@@ -304,7 +304,7 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 
 	/*
 	 * When aborting, we run the scan completed background work inline
-	 * and the background work must then do nothing. The SCAN_COMPLETE
+	 * and the background work must then do yesthing. The SCAN_COMPLETE
 	 * bit helps implement that logic and thus needs to be set before
 	 * queueing the work. Also, since the scan abort waits for SCAN_HW
 	 * to clear, we need to set SCAN_COMPLETE before clearing SCAN_HW
@@ -316,22 +316,22 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC &&
 	    iwl_advanced_bt_coexist(priv) &&
-	    priv->bt_status != scan_notif->bt_status) {
-		if (scan_notif->bt_status) {
+	    priv->bt_status != scan_yestif->bt_status) {
+		if (scan_yestif->bt_status) {
 			/* BT on */
-			if (!priv->bt_ch_announce)
+			if (!priv->bt_ch_anyesunce)
 				priv->bt_traffic_load =
 					IWL_BT_COEX_TRAFFIC_LOAD_HIGH;
 			/*
-			 * otherwise, no traffic load information provided
-			 * no changes made
+			 * otherwise, yes traffic load information provided
+			 * yes changes made
 			 */
 		} else {
 			/* BT off */
 			priv->bt_traffic_load =
 				IWL_BT_COEX_TRAFFIC_LOAD_NONE;
 		}
-		priv->bt_status = scan_notif->bt_status;
+		priv->bt_status = scan_yestif->bt_status;
 		queue_work(priv->workqueue,
 			   &priv->bt_traffic_change_work);
 	}
@@ -341,11 +341,11 @@ void iwl_setup_rx_scan_handlers(struct iwl_priv *priv)
 {
 	/* scan handlers */
 	priv->rx_handlers[REPLY_SCAN_CMD] = iwl_rx_reply_scan;
-	priv->rx_handlers[SCAN_START_NOTIFICATION] = iwl_rx_scan_start_notif;
+	priv->rx_handlers[SCAN_START_NOTIFICATION] = iwl_rx_scan_start_yestif;
 	priv->rx_handlers[SCAN_RESULTS_NOTIFICATION] =
-					iwl_rx_scan_results_notif;
+					iwl_rx_scan_results_yestif;
 	priv->rx_handlers[SCAN_COMPLETE_NOTIFICATION] =
-					iwl_rx_scan_complete_notif;
+					iwl_rx_scan_complete_yestif;
 }
 
 static u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
@@ -379,7 +379,7 @@ static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
 	for_each_context(priv, ctx) {
 		switch (ctx->staging.dev_type) {
 		case RXON_DEV_TYPE_P2P:
-			/* no timing constraints */
+			/* yes timing constraints */
 			continue;
 		case RXON_DEV_TYPE_ESS:
 		default:
@@ -391,7 +391,7 @@ static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
 		case RXON_DEV_TYPE_2STA:
 			/*
 			 * These seem to always have timers for TBTT
-			 * active in uCode even when not associated yet.
+			 * active in uCode even when yest associated yet.
 			 */
 			break;
 		}
@@ -486,7 +486,7 @@ static int iwl_get_channel_for_reset_scan(struct iwl_priv *priv,
 		return 1;
 	}
 
-	IWL_ERR(priv, "no valid channel found\n");
+	IWL_ERR(priv, "yes valid channel found\n");
 	return 0;
 }
 
@@ -571,7 +571,7 @@ static u16 iwl_fill_probe_req(struct ieee80211_mgmt *frame, const u8 *ta,
 	int len = 0;
 	u8 *pos = NULL;
 
-	/* Make sure there is enough space for the probe request,
+	/* Make sure there is eyesugh space for the probe request,
 	 * two mandatory IEs and the data */
 	left -= 24;
 	if (left < 0)
@@ -697,7 +697,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		/*
 		 * Override quiet time as firmware checks that active
 		 * dwell is >= quiet; since we use passive scan it'll
-		 * not actually be used.
+		 * yest actually be used.
 		 */
 		scan->quiet_time = cpu_to_le16(IWL_RADIO_RESET_DWELL_TIME);
 		break;
@@ -743,7 +743,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			priv->contexts[IWL_RXON_CTX_BSS].active.flags &
 						RXON_FLG_CHANNEL_MODE_MSK)
 				       >> RXON_FLG_CHANNEL_MODE_POS;
-		if ((priv->scan_request && priv->scan_request->no_cck) ||
+		if ((priv->scan_request && priv->scan_request->yes_cck) ||
 		    chan_mod == CHANNEL_MODE_PURE_40) {
 			rate = IWL_RATE_6M_PLCP;
 		} else {
@@ -752,7 +752,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		}
 		/*
 		 * Internal scans are passive, so we can indiscriminately set
-		 * the BT ignore flag on 2.4 GHz since it applies to TX only.
+		 * the BT igyesre flag on 2.4 GHz since it applies to TX only.
 		 */
 		if (priv->lib->bt_params &&
 		    priv->lib->bt_params->advanced_bt_coexist)
@@ -817,12 +817,12 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	    !(priv->hw->conf.flags & IEEE80211_CONF_IDLE)) {
 		/* rx_ant has been set to all valid chains previously */
 		active_chains = rx_ant &
-				((u8)(priv->chain_noise_data.active_chains));
+				((u8)(priv->chain_yesise_data.active_chains));
 		if (!active_chains)
 			active_chains = rx_ant;
 
-		IWL_DEBUG_SCAN(priv, "chain_noise_data.active_chains: %u\n",
-				priv->chain_noise_data.active_chains);
+		IWL_DEBUG_SCAN(priv, "chain_yesise_data.active_chains: %u\n",
+				priv->chain_yesise_data.active_chains);
 
 		rx_ant = first_antenna(active_chains);
 	}
@@ -833,7 +833,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		rx_ant = first_antenna(rx_ant);
 	}
 
-	/* MIMO is not used here, but value is required */
+	/* MIMO is yest used here, but value is required */
 	rx_chain |=
 		priv->nvm_data->valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
@@ -851,7 +851,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 					scan_cmd_size - sizeof(*scan));
 		break;
 	case IWL_SCAN_RADIO_RESET:
-		/* use bcast addr, will not be transmitted but must be valid */
+		/* use bcast addr, will yest be transmitted but must be valid */
 		cmd_len = iwl_fill_probe_req(
 					(struct ieee80211_mgmt *)scan->data,
 					iwl_bcast_addr, NULL, 0,
@@ -930,7 +930,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 	cancel_delayed_work(&priv->scan_check);
 
 	if (!iwl_is_ready_rf(priv)) {
-		IWL_WARN(priv, "Request scan called when driver not ready.\n");
+		IWL_WARN(priv, "Request scan called when driver yest ready.\n");
 		return -EIO;
 	}
 
@@ -1009,7 +1009,7 @@ static void iwl_bg_scan_check(struct work_struct *data)
 
 	IWL_DEBUG_SCAN(priv, "Scan check work\n");
 
-	/* Since we are here firmware does not finish scan and
+	/* Since we are here firmware does yest finish scan and
 	 * most likely is in bad shape, so we don't bother to
 	 * send abort command, just force scan complete to mac80211 */
 	mutex_lock(&priv->mutex);
@@ -1023,8 +1023,8 @@ static void iwl_bg_abort_scan(struct work_struct *work)
 
 	IWL_DEBUG_SCAN(priv, "Abort scan work\n");
 
-	/* We keep scan_check work queued in case when firmware will not
-	 * report back scan completed notification */
+	/* We keep scan_check work queued in case when firmware will yest
+	 * report back scan completed yestification */
 	mutex_lock(&priv->mutex);
 	iwl_scan_cancel_timeout(priv, 200);
 	mutex_unlock(&priv->mutex);

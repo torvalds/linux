@@ -15,7 +15,7 @@
  * Updated: Mon, 14 Apr 2008 15:12:56 +0100
  * Status: works
  *
- * Configuration Options: not applicable, uses comedi PCI auto config
+ * Configuration Options: yest applicable, uses comedi PCI auto config
  *
  * Subdevice 0 is 8-channel AO, 16-bit, range +/- 10 V.
  *
@@ -159,7 +159,7 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/* synchronously reset all analog outputs to 0V, +/-10V range */
+	/* synchroyesusly reset all analog outputs to 0V, +/-10V range */
 	outw(PCI1723_SYNC_CTRL_SYNC, dev->iobase + PCI1723_SYNC_CTRL_REG);
 	for (i = 0; i < s->n_chan; i++) {
 		outw(PCI1723_CTRL_RANGE(0) | PCI1723_CTRL_CHAN(i),
@@ -171,7 +171,7 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	}
 	outw(0, dev->iobase + PCI1723_SYNC_STROBE_REG);
 
-	/* disable syncronous control */
+	/* disable syncroyesus control */
 	outw(PCI1723_SYNC_CTRL_ASYNC, dev->iobase + PCI1723_SYNC_CTRL_REG);
 
 	s = &dev->subdevices[1];

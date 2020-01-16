@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -328,12 +328,12 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 	int err = 0;
 
 	if (param->rx_jumbo_pending) {
-		netdev_info(priv->netdev, "%s: rx_jumbo_pending not supported\n",
+		netdev_info(priv->netdev, "%s: rx_jumbo_pending yest supported\n",
 			    __func__);
 		return -EINVAL;
 	}
 	if (param->rx_mini_pending) {
-		netdev_info(priv->netdev, "%s: rx_mini_pending not supported\n",
+		netdev_info(priv->netdev, "%s: rx_mini_pending yest supported\n",
 			    __func__);
 		return -EINVAL;
 	}
@@ -420,7 +420,7 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 	int err = 0;
 
 	if (!count) {
-		netdev_info(priv->netdev, "%s: combined_count=0 not supported\n",
+		netdev_info(priv->netdev, "%s: combined_count=0 yest supported\n",
 			    __func__);
 		return -EINVAL;
 	}
@@ -435,7 +435,7 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 	 */
 	if (priv->xsk.refcnt) {
 		err = -EINVAL;
-		netdev_err(priv->netdev, "%s: AF_XDP is active, cannot change the number of channels\n",
+		netdev_err(priv->netdev, "%s: AF_XDP is active, canyest change the number of channels\n",
 			   __func__);
 		goto out;
 	}
@@ -1247,7 +1247,7 @@ static int mlx5e_set_pfc_prevention_tout(struct net_device *netdev,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u16 critical_tout;
-	u16 minor;
+	u16 miyesr;
 
 	if (!MLX5_CAP_PCAM_FEATURE((priv)->mdev, pfcc_mask) ||
 	    !MLX5_CAP_DEBUG((priv)->mdev, stall_detect))
@@ -1260,15 +1260,15 @@ static int mlx5e_set_pfc_prevention_tout(struct net_device *netdev,
 	if (critical_tout != PFC_STORM_PREVENTION_DISABLE &&
 	    (critical_tout > MLX5E_PFC_PREVEN_TOUT_MAX_MSEC ||
 	     critical_tout < MLX5E_PFC_PREVEN_TOUT_MIN_MSEC)) {
-		netdev_info(netdev, "%s: pfc prevention tout not in range (%d-%d)\n",
+		netdev_info(netdev, "%s: pfc prevention tout yest in range (%d-%d)\n",
 			    __func__, MLX5E_PFC_PREVEN_TOUT_MIN_MSEC,
 			    MLX5E_PFC_PREVEN_TOUT_MAX_MSEC);
 		return -EINVAL;
 	}
 
-	minor = MLX5E_DEVICE_STALL_MINOR_WATERMARK(critical_tout);
+	miyesr = MLX5E_DEVICE_STALL_MINOR_WATERMARK(critical_tout);
 	return mlx5_set_port_stall_watermark(mdev, critical_tout,
-					     minor);
+					     miyesr);
 }
 
 static int mlx5e_get_tunable(struct net_device *dev,
@@ -1639,7 +1639,7 @@ static int mlx5e_get_module_info(struct net_device *netdev,
 		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 		break;
 	default:
-		netdev_err(priv->netdev, "%s: cable type not recognized:0x%x\n",
+		netdev_err(priv->netdev, "%s: cable type yest recognized:0x%x\n",
 			   __func__, data[0]);
 		return -EINVAL;
 	}
@@ -1845,7 +1845,7 @@ static int set_pflag_rx_striding_rq(struct net_device *netdev, bool enable)
 	return mlx5e_safe_switch_channels(priv, &new_channels, NULL);
 }
 
-static int set_pflag_rx_no_csum_complete(struct net_device *netdev, bool enable)
+static int set_pflag_rx_yes_csum_complete(struct net_device *netdev, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_channels *channels = &priv->channels;
@@ -1895,7 +1895,7 @@ static const struct pflag_desc mlx5e_priv_flags[MLX5E_NUM_PFLAGS] = {
 	{ "tx_cqe_moder",        set_pflag_tx_cqe_based_moder },
 	{ "rx_cqe_compress",     set_pflag_rx_cqe_compress },
 	{ "rx_striding_rq",      set_pflag_rx_striding_rq },
-	{ "rx_no_csum_complete", set_pflag_rx_no_csum_complete },
+	{ "rx_yes_csum_complete", set_pflag_rx_yes_csum_complete },
 	{ "xdp_tx_mpwqe",        set_pflag_xdp_tx_mpwqe },
 };
 
@@ -1955,7 +1955,7 @@ static int mlx5e_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info, u
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	/* ETHTOOL_GRXRINGS is needed by ethtool -x which is not part
+	/* ETHTOOL_GRXRINGS is needed by ethtool -x which is yest part
 	 * of rxnfc. We keep this logic out of mlx5e_ethtool_get_rxnfc,
 	 * to avoid breaking "ethtool -x" when mlx5e_ethtool_get_rxnfc
 	 * is compiled out via CONFIG_MLX5_EN_RXNFC=n.

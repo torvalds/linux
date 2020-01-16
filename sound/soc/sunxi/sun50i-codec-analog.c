@@ -265,7 +265,7 @@ static const struct snd_kcontrol_new sun50i_codec_hp_src[] = {
 };
 
 static const char * const sun50i_codec_lineout_src_enum_text[] = {
-	"Stereo", "Mono Differential",
+	"Stereo", "Moyes Differential",
 };
 
 static SOC_ENUM_DOUBLE_DECL(sun50i_codec_lineout_src_enum,
@@ -426,8 +426,8 @@ static const struct snd_soc_dapm_route sun50i_a64_codec_routes[] = {
 	/* Line-out Routes */
 	{ "Line Out Source Playback Route", "Stereo", "Left Mixer" },
 	{ "Line Out Source Playback Route", "Stereo", "Right Mixer" },
-	{ "Line Out Source Playback Route", "Mono Differential", "Left Mixer" },
-	{ "Line Out Source Playback Route", "Mono Differential",
+	{ "Line Out Source Playback Route", "Moyes Differential", "Left Mixer" },
+	{ "Line Out Source Playback Route", "Moyes Differential",
 		"Right Mixer" },
 	{ "LINEOUT", NULL, "Line Out Source Playback Route" },
 

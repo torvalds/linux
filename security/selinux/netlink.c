@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Netlink event notifications for SELinux.
+ * Netlink event yestifications for SELinux.
  *
  * Author: James Morris <jmorris@redhat.com>
  *
@@ -55,7 +55,7 @@ static void selnl_add_payload(struct nlmsghdr *nlh, int len, int msgtype, void *
 		struct selnl_msg_policyload *msg = nlmsg_data(nlh);
 
 		memset(msg, 0, len);
-		msg->seqno = *((u32 *)data);
+		msg->seqyes = *((u32 *)data);
 		break;
 	}
 
@@ -64,7 +64,7 @@ static void selnl_add_payload(struct nlmsghdr *nlh, int len, int msgtype, void *
 	}
 }
 
-static void selnl_notify(int msgtype, void *data)
+static void selnl_yestify(int msgtype, void *data)
 {
 	int len;
 	sk_buff_data_t tmp;
@@ -95,14 +95,14 @@ oom:
 	goto out;
 }
 
-void selnl_notify_setenforce(int val)
+void selnl_yestify_setenforce(int val)
 {
-	selnl_notify(SELNL_MSG_SETENFORCE, &val);
+	selnl_yestify(SELNL_MSG_SETENFORCE, &val);
 }
 
-void selnl_notify_policyload(u32 seqno)
+void selnl_yestify_policyload(u32 seqyes)
 {
-	selnl_notify(SELNL_MSG_POLICYLOAD, &seqno);
+	selnl_yestify(SELNL_MSG_POLICYLOAD, &seqyes);
 }
 
 static int __init selnl_init(void)
@@ -114,7 +114,7 @@ static int __init selnl_init(void)
 
 	selnl = netlink_kernel_create(&init_net, NETLINK_SELINUX, &cfg);
 	if (selnl == NULL)
-		panic("SELinux:  Cannot create netlink socket.");
+		panic("SELinux:  Canyest create netlink socket.");
 	return 0;
 }
 

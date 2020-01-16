@@ -39,25 +39,25 @@ static int doing_init_irq_hw = 0;
 static void
 wildfire_update_irq_hw(unsigned int irq)
 {
-	int qbbno = (irq >> 8) & (WILDFIRE_MAX_QBB - 1);
-	int pcano = (irq >> 6) & (WILDFIRE_PCA_PER_QBB - 1);
+	int qbbyes = (irq >> 8) & (WILDFIRE_MAX_QBB - 1);
+	int pcayes = (irq >> 6) & (WILDFIRE_PCA_PER_QBB - 1);
 	wildfire_pca *pca;
 	volatile unsigned long * enable0;
 
-	if (!WILDFIRE_PCA_EXISTS(qbbno, pcano)) {
+	if (!WILDFIRE_PCA_EXISTS(qbbyes, pcayes)) {
 		if (!doing_init_irq_hw) {
 			printk(KERN_ERR "wildfire_update_irq_hw:"
-			       " got irq %d for non-existent PCA %d"
+			       " got irq %d for yesn-existent PCA %d"
 			       " on QBB %d.\n",
-			       irq, pcano, qbbno);
+			       irq, pcayes, qbbyes);
 		}
 		return;
 	}
 
-	pca = WILDFIRE_pca(qbbno, pcano);
+	pca = WILDFIRE_pca(qbbyes, pcayes);
 	enable0 = (unsigned long *) &pca->pca_int[0].enable; /* ??? */
 
-	*enable0 = cached_irq_mask[qbbno * WILDFIRE_PCA_PER_QBB + pcano];
+	*enable0 = cached_irq_mask[qbbyes * WILDFIRE_PCA_PER_QBB + pcayes];
 	mb();
 	*enable0;
 }
@@ -153,22 +153,22 @@ static struct irq_chip wildfire_irq_type = {
 };
 
 static void __init
-wildfire_init_irq_per_pca(int qbbno, int pcano)
+wildfire_init_irq_per_pca(int qbbyes, int pcayes)
 {
 	int i, irq_bias;
 	static struct irqaction isa_enable = {
-		.handler	= no_action,
+		.handler	= yes_action,
 		.name		= "isa_enable",
 	};
 
-	irq_bias = qbbno * (WILDFIRE_PCA_PER_QBB * WILDFIRE_IRQ_PER_PCA)
-		 + pcano * WILDFIRE_IRQ_PER_PCA;
+	irq_bias = qbbyes * (WILDFIRE_PCA_PER_QBB * WILDFIRE_IRQ_PER_PCA)
+		 + pcayes * WILDFIRE_IRQ_PER_PCA;
 
 #if 0
 	unsigned long io_bias;
 
 	/* Only need the following for first PCI bus per PCA. */
-	io_bias = WILDFIRE_IO(qbbno, pcano<<1) - WILDFIRE_IO_BIAS;
+	io_bias = WILDFIRE_IO(qbbyes, pcayes<<1) - WILDFIRE_IO_BIAS;
 
 	outb(0, DMA1_RESET_REG + io_bias);
 	outb(0, DMA2_RESET_REG + io_bias);
@@ -204,18 +204,18 @@ wildfire_init_irq_per_pca(int qbbno, int pcano)
 static void __init
 wildfire_init_irq(void)
 {
-	int qbbno, pcano;
+	int qbbyes, pcayes;
 
 #if 1
 	wildfire_init_irq_hw();
 	init_i8259a_irqs();
 #endif
 
-	for (qbbno = 0; qbbno < WILDFIRE_MAX_QBB; qbbno++) {
-	  if (WILDFIRE_QBB_EXISTS(qbbno)) {
-	    for (pcano = 0; pcano < WILDFIRE_PCA_PER_QBB; pcano++) {
-	      if (WILDFIRE_PCA_EXISTS(qbbno, pcano)) {
-		wildfire_init_irq_per_pca(qbbno, pcano);
+	for (qbbyes = 0; qbbyes < WILDFIRE_MAX_QBB; qbbyes++) {
+	  if (WILDFIRE_QBB_EXISTS(qbbyes)) {
+	    for (pcayes = 0; pcayes < WILDFIRE_PCA_PER_QBB; pcayes++) {
+	      if (WILDFIRE_PCA_EXISTS(qbbyes, pcayes)) {
+		wildfire_init_irq_per_pca(qbbyes, pcayes);
 	      }
 	    }
 	  }
@@ -250,7 +250,7 @@ wildfire_device_interrupt(unsigned long vector)
  *32        ISA summary
  *33        SMI
  *34        NMI
- *36        builtin QLogic SCSI (or slot 0 if no IO module)
+ *36        builtin QLogic SCSI (or slot 0 if yes IO module)
  *40        Interrupt Line A from slot 2 PCI0
  *41        Interrupt Line B from slot 2 PCI0
  *42        Interrupt Line C from slot 2 PCI0
@@ -309,9 +309,9 @@ wildfire_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	int irq = COMMON_TABLE_LOOKUP;
 
 	if (irq > 0) {
-		int qbbno = hose->index >> 3;
-		int pcano = (hose->index >> 1) & 3;
-		irq += (qbbno << 8) + (pcano << 6);
+		int qbbyes = hose->index >> 3;
+		int pcayes = (hose->index >> 1) & 3;
+		irq += (qbbyes << 8) + (pcayes << 6);
 	}
 	return irq;
 }
@@ -344,7 +344,7 @@ struct alpha_machine_vector wildfire_mv __initmv = {
 
 	.pa_to_nid		= wildfire_pa_to_nid,
 	.cpuid_to_nid		= wildfire_cpuid_to_nid,
-	.node_mem_start		= wildfire_node_mem_start,
-	.node_mem_size		= wildfire_node_mem_size,
+	.yesde_mem_start		= wildfire_yesde_mem_start,
+	.yesde_mem_size		= wildfire_yesde_mem_size,
 };
 ALIAS_MV(wildfire)

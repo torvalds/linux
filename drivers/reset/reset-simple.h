@@ -22,7 +22,7 @@
  * @membase: memory mapped I/O register range
  * @rcdev: reset controller device base structure
  * @active_low: if true, bits are cleared to assert the reset. Otherwise, bits
- *              are set to assert the reset. Note that this says nothing about
+ *              are set to assert the reset. Note that this says yesthing about
  *              the voltage level of the actual reset line.
  * @status_active_low: if true, bits read back as cleared while the reset is
  *                     asserted. Otherwise, bits read back as set while the

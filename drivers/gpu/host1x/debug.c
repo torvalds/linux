@@ -134,9 +134,9 @@ static int host1x_debug_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int host1x_debug_open_all(struct inode *inode, struct file *file)
+static int host1x_debug_open_all(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, host1x_debug_show_all, inode->i_private);
+	return single_open(file, host1x_debug_show_all, iyesde->i_private);
 }
 
 static const struct file_operations host1x_debug_all_fops = {
@@ -146,9 +146,9 @@ static const struct file_operations host1x_debug_all_fops = {
 	.release = single_release,
 };
 
-static int host1x_debug_open(struct inode *inode, struct file *file)
+static int host1x_debug_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, host1x_debug_show, inode->i_private);
+	return single_open(file, host1x_debug_show, iyesde->i_private);
 }
 
 static const struct file_operations host1x_debug_fops = {

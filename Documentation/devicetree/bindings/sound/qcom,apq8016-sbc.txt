@@ -1,6 +1,6 @@
-* Qualcomm Technologies APQ8016 SBC ASoC machine driver
+* Qualcomm Techyeslogies APQ8016 SBC ASoC machine driver
 
-This node models the Qualcomm Technologies APQ8016 SBC ASoC machine driver
+This yesde models the Qualcomm Techyeslogies APQ8016 SBC ASoC machine driver
 
 Required properties:
 
@@ -34,14 +34,14 @@ Required properties:
 			  * DMIC
 			  * Ext Spk
 
-Dai-link subnode properties and subnodes:
+Dai-link subyesde properties and subyesdes:
 
-Required dai-link subnodes:
+Required dai-link subyesdes:
 
-- cpu					: CPU   sub-node
-- codec					: CODEC sub-node
+- cpu					: CPU   sub-yesde
+- codec					: CODEC sub-yesde
 
-Required CPU/CODEC subnodes properties:
+Required CPU/CODEC subyesdes properties:
 
 -link-name		: Name of the dai link.
 -sound-dai		: phandle/s and port of CPU/CODEC

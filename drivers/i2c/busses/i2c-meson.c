@@ -2,7 +2,7 @@
 /*
  * I2C bus driver for Amlogic Meson SoCs
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamiyes Galvani <b.galvani@gmail.com>
  */
 
 #include <linux/clk.h>
@@ -213,7 +213,7 @@ static void meson_i2c_prepare_xfer(struct meson_i2c *i2c)
 	writel(i2c->tokens[1], i2c->regs + REG_TOK_LIST1);
 }
 
-static irqreturn_t meson_i2c_irq(int irqno, void *dev_id)
+static irqreturn_t meson_i2c_irq(int irqyes, void *dev_id)
 {
 	struct meson_i2c *i2c = dev_id;
 	unsigned int ctrl;
@@ -362,7 +362,7 @@ static const struct i2c_algorithm meson_i2c_algorithm = {
 
 static int meson_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct meson_i2c *i2c;
 	struct resource *mem;
 	struct i2c_timings timings;
@@ -417,7 +417,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	i2c->adap.owner = THIS_MODULE;
 	i2c->adap.algo = &meson_i2c_algorithm;
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = np;
+	i2c->adap.dev.of_yesde = np;
 	i2c->adap.algo_data = i2c;
 
 	/*
@@ -480,5 +480,5 @@ static struct platform_driver meson_i2c_driver = {
 module_platform_driver(meson_i2c_driver);
 
 MODULE_DESCRIPTION("Amlogic Meson I2C Bus driver");
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamiyes Galvani <b.galvani@gmail.com>");
 MODULE_LICENSE("GPL v2");

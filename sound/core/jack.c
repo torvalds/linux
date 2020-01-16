@@ -276,7 +276,7 @@ EXPORT_SYMBOL(snd_jack_new);
  * @parent: The device to set as parent for the jack.
  *
  * Set the parent for the jack devices in the device tree.  This
- * function is only valid prior to registration of the jack.  If no
+ * function is only valid prior to registration of the jack.  If yes
  * parent is configured then the parent device will be the sound card.
  */
 void snd_jack_set_parent(struct snd_jack *jack, struct device *parent)
@@ -297,11 +297,11 @@ EXPORT_SYMBOL(snd_jack_set_parent);
  * @keytype: Input layer key type to be reported
  *
  * Map a SND_JACK_BTN_* button type to an input layer key, allowing
- * reporting of keys on accessories via the jack abstraction.  If no
+ * reporting of keys on accessories via the jack abstraction.  If yes
  * mapping is provided but keys are enabled in the jack type then
  * BTN_n numeric buttons will be reported.
  *
- * If jacks are not reporting via the input API this call will have no
+ * If jacks are yest reporting via the input API this call will have yes
  * effect.
  *
  * Note that this is intended to be use by simple devices with small

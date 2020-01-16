@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -122,10 +122,10 @@ DEBUGFS_SEQ_FILE_OPS(fault_stats);
 DEBUGFS_SEQ_FILE_OPEN(fault_stats);
 DEBUGFS_FILE_OPS(fault_stats);
 
-static int fault_opcodes_open(struct inode *inode, struct file *file)
+static int fault_opcodes_open(struct iyesde *iyesde, struct file *file)
 {
-	file->private_data = inode->i_private;
-	return nonseekable_open(inode, file);
+	file->private_data = iyesde->i_private;
+	return yesnseekable_open(iyesde, file);
 }
 
 static ssize_t fault_opcodes_write(struct file *file, const char __user *buf,
@@ -245,7 +245,7 @@ static const struct file_operations __fault_opcodes_fops = {
 	.open = fault_opcodes_open,
 	.read = fault_opcodes_read,
 	.write = fault_opcodes_write,
-	.llseek = no_llseek
+	.llseek = yes_llseek
 };
 
 void hfi1_fault_exit_debugfs(struct hfi1_ibdev *ibd)

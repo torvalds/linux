@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * uninorth.h: definitions for using the "UniNorth" host bridge chip
+ * uniyesrth.h: definitions for using the "UniNorth" host bridge chip
  *             from Apple. This chip is used on "Core99" machines
  *	       This also includes U2 used on more recent MacRISC2/3
  *             machines and U3 (G5) 
@@ -59,8 +59,8 @@
  * of the page in the high bits, and what appears to be an "enable" bit
  * in the LSB bit (0) that must be set to 1 when the entry is valid.
  *
- * Obviously, the GART is not cache coherent and so any change to it
- * must be flushed to memory (or maybe just make the GART space non
+ * Obviously, the GART is yest cache coherent and so any change to it
+ * must be flushed to memory (or maybe just make the GART space yesn
  * cachable). AGP memory itself doesn't seem to be cache coherent neither.
  *
  * In order to invalidate the GART (which is probably necessary to inval
@@ -73,7 +73,7 @@
  *   UNI_N_CFG_GART_ENABLE
  *
  * As far as AGP "features" are concerned, it looks like fast write may
- * not be supported but this has to be confirmed.
+ * yest be supported but this has to be confirmed.
  *
  * Turning on AGP seem to require a double invalidate operation, one before
  * setting the AGP command register, on after.
@@ -94,12 +94,12 @@
  * Those registers are Big-Endian !!
  *
  * Their meaning come from either Darwin and/or from experiments I made with
- * the bootrom, I'm not sure about their exact meaning yet
+ * the bootrom, I'm yest sure about their exact meaning yet
  *
  */
 
 /* Version of the UniNorth chip */
-#define UNI_N_VERSION			0x0000		/* Known versions: 3,7 and 8 */
+#define UNI_N_VERSION			0x0000		/* Kyeswn versions: 3,7 and 8 */
 
 #define UNI_N_VERSION_107		0x0003		/* 1.0.7 */
 #define UNI_N_VERSION_10A		0x0007		/* 1.0.10 */
@@ -133,17 +133,17 @@
 
 /* This one _might_ return the CPU number of the CPU reading it;
  * the bootROM decides whether to boot or to sleep/spinloop depending
- * on this register being 0 or not
+ * on this register being 0 or yest
  */
 #define UNI_N_CPU_NUMBER		0x0050
 
 /* This register appear to be read by the bootROM to decide what
- *  to do on a non-recoverable reset (powerup or wakeup)
+ *  to do on a yesn-recoverable reset (powerup or wakeup)
  */
 #define UNI_N_HWINIT_STATE		0x0070
 #define UNI_N_HWINIT_STATE_SLEEPING	0x01
 #define UNI_N_HWINIT_STATE_RUNNING	0x02
-/* This last bit appear to be used by the bootROM to know the second
+/* This last bit appear to be used by the bootROM to kyesw the second
  * CPU has started and will enter it's sleep loop with IP=0
  */
 #define UNI_N_HWINIT_STATE_CPU1_FLAG	0x10000000
@@ -203,7 +203,7 @@
 /* Intrepid registe to OF do-platform-clockspreading */
 #define UNI_N_CLOCK_SPREADING		0x190
 
-/* Uninorth 1.5 rev. has additional perf. monitor registers at 0xf00-0xf50 */
+/* Uniyesrth 1.5 rev. has additional perf. monitor registers at 0xf00-0xf50 */
 
 
 /*

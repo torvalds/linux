@@ -22,7 +22,7 @@ static vm_fault_t alpha_core_agp_vm_fault(struct vm_fault *vmf)
 	pa = agp->ops->translate(agp, dma_addr);
 
 	if (pa == (unsigned long)-EINVAL)
-		return VM_FAULT_SIGBUS;	/* no translation */
+		return VM_FAULT_SIGBUS;	/* yes translation */
 
 	/*
 	 * Get the page, inc the use count, and return it

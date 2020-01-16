@@ -113,7 +113,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 
 /*
  * Relaxed I/O memory access primitives. These follow the Device memory
- * ordering rules but do not guarantee any ordering relative to Normal memory
+ * ordering rules but do yest guarantee any ordering relative to Normal memory
  * accesses.
  */
 #define readb_relaxed(c)	({ u8  __r = __raw_readb(c); __r; })

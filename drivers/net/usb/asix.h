@@ -156,7 +156,7 @@
 #define AX_EEPROM_MAGIC		0xdeadbeef
 #define AX_EEPROM_LEN		0x200
 
-/* This structure cannot exceed sizeof(unsigned long [5]) AKA 20 bytes */
+/* This structure canyest exceed sizeof(unsigned long [5]) AKA 20 bytes */
 struct asix_data {
 	u8 multi_filter[AX_MCAST_FILTER_SIZE];
 	u8 mac_addr[ETH_ALEN];
@@ -223,8 +223,8 @@ void asix_set_multicast(struct net_device *net);
 int asix_mdio_read(struct net_device *netdev, int phy_id, int loc);
 void asix_mdio_write(struct net_device *netdev, int phy_id, int loc, int val);
 
-int asix_mdio_read_nopm(struct net_device *netdev, int phy_id, int loc);
-void asix_mdio_write_nopm(struct net_device *netdev, int phy_id, int loc,
+int asix_mdio_read_yespm(struct net_device *netdev, int phy_id, int loc);
+void asix_mdio_write_yespm(struct net_device *netdev, int phy_id, int loc,
 			  int val);
 
 void asix_get_wol(struct net_device *net, struct ethtool_wolinfo *wolinfo);

@@ -13,19 +13,19 @@
  * adaptor).
  *
  * DISCLAIMER: This works for _me_. If you break anything by using the
- * information given below, I will _not_ be liable!
+ * information given below, I will _yest_ be liable!
  *
- * RJ10 pinout:		To DE9:		Or DB25:
+ * RJ10 piyesut:		To DE9:		Or DB25:
  *	1 - RxD <---->	Pin 3 (TxD) <->	Pin 2 (TxD)
  *	2 - GND <---->	Pin 5 (GND) <->	Pin 7 (GND)
  *	4 - TxD <---->	Pin 2 (RxD) <->	Pin 3 (RxD)
  *	3 - +12V (from HDD drive connector), DON'T connect to DE9 or DB25!!!
  *
- * Pin numbers for DE9 and DB25 are noted on the plug (quite small:). For
+ * Pin numbers for DE9 and DB25 are yested on the plug (quite small:). For
  * RJ10, it's like this:
  *
  *      __=__	Hold the plug in front of you, cable downwards,
- *     /___/|	nose is hidden behind the plug. Now, pin 1 is at
+ *     /___/|	yesse is hidden behind the plug. Now, pin 1 is at
  *    |1234||	the left side, pin 4 at the right and 2 and 3 are
  *    |IIII||	in between, of course:)
  *    |    ||
@@ -64,12 +64,12 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 /*
- * Known parameters:
+ * Kyeswn parameters:
  *	bell_volume
  *	keyclick_volume
  *	ctrlclick_volume
  *
- * Please notice that there's not yet an API to set these at runtime.
+ * Please yestice that there's yest yet an API to set these at runtime.
  */
 static int bell_volume = 100; /* % */
 module_param(bell_volume, int, 0);
@@ -86,7 +86,7 @@ MODULE_PARM_DESC(ctrlclick_volume, "Ctrlclick volume (in %), default is 100%");
 static int lk201_compose_is_alt;
 module_param(lk201_compose_is_alt, int, 0);
 MODULE_PARM_DESC(lk201_compose_is_alt,
-		 "If set non-zero, LK201' Compose key will act as an Alt key");
+		 "If set yesn-zero, LK201' Compose key will act as an Alt key");
 
 
 
@@ -263,7 +263,7 @@ static unsigned short lkkbd_keycode[LK_NUM_KEYCODES] = {
  */
 struct lkkbd {
 	unsigned short keycode[LK_NUM_KEYCODES];
-	int ignore_bytes;
+	int igyesre_bytes;
 	unsigned char id[LK_NUM_IGNORE_BYTES];
 	struct input_dev *dev;
 	struct serio *serio;
@@ -307,7 +307,7 @@ static unsigned char *response_name(unsigned char value)
 		if (lk_response[i].value == value)
 			return lk_response[i].name;
 
-	return "<unknown>";
+	return "<unkyeswn>";
 }
 #endif /* LKKBD_DEBUG */
 
@@ -370,9 +370,9 @@ static void lkkbd_detection_done(struct lkkbd *lk)
 		break;
 
 	default:
-		strlcpy(lk->name, "Unknown DEC keyboard", sizeof(lk->name));
+		strlcpy(lk->name, "Unkyeswn DEC keyboard", sizeof(lk->name));
 		printk(KERN_ERR
-			"lkkbd: keyboard on %s is unknown, please report to "
+			"lkkbd: keyboard on %s is unkyeswn, please report to "
 			"Jan-Benedict Glaw <jbglaw@lug-owl.de>\n", lk->phys);
 		printk(KERN_ERR "lkkbd: keyboard ID'ed as:");
 		for (i = 0; i < LK_NUM_IGNORE_BYTES; i++)
@@ -400,12 +400,12 @@ static void lkkbd_detection_done(struct lkkbd *lk)
 	case LK_SELFTEST_FAILED:
 		printk(KERN_ERR
 			"lkkbd: Selftest failed on keyboard at %s, "
-			"keyboard may not work properly\n", lk->phys);
+			"keyboard may yest work properly\n", lk->phys);
 		break;
 
 	default:
 		printk(KERN_ERR
-			"lkkbd: Unknown error %02x on keyboard at %s\n",
+			"lkkbd: Unkyeswn error %02x on keyboard at %s\n",
 			lk->id[2], lk->phys);
 		break;
 	}
@@ -433,11 +433,11 @@ static irqreturn_t lkkbd_interrupt(struct serio *serio,
 
 	DBG(KERN_INFO "Got byte 0x%02x\n", data);
 
-	if (lk->ignore_bytes > 0) {
-		DBG(KERN_INFO "Ignoring a byte on %s\n", lk->name);
-		lk->id[LK_NUM_IGNORE_BYTES - lk->ignore_bytes--] = data;
+	if (lk->igyesre_bytes > 0) {
+		DBG(KERN_INFO "Igyesring a byte on %s\n", lk->name);
+		lk->id[LK_NUM_IGNORE_BYTES - lk->igyesre_bytes--] = data;
 
-		if (lk->ignore_bytes == 0)
+		if (lk->igyesre_bytes == 0)
 			lkkbd_detection_done(lk);
 
 		return IRQ_HANDLED;
@@ -452,8 +452,8 @@ static irqreturn_t lkkbd_interrupt(struct serio *serio,
 
 	case 0x01:
 		DBG(KERN_INFO "Got 0x01, scheduling re-initialization\n");
-		lk->ignore_bytes = LK_NUM_IGNORE_BYTES;
-		lk->id[LK_NUM_IGNORE_BYTES - lk->ignore_bytes--] = data;
+		lk->igyesre_bytes = LK_NUM_IGNORE_BYTES;
+		lk->id[LK_NUM_IGNORE_BYTES - lk->igyesre_bytes--] = data;
 		schedule_work(&lk->tq);
 		break;
 
@@ -465,7 +465,7 @@ static irqreturn_t lkkbd_interrupt(struct serio *serio,
 	case LK_PREFIX_KEY_DOWN:
 	case LK_MODE_CHANGE_ACK:
 	case LK_RESPONSE_RESERVED:
-		DBG(KERN_INFO "Got %s and don't know how to handle...\n",
+		DBG(KERN_INFO "Got %s and don't kyesw how to handle...\n",
 			response_name(data));
 		break;
 
@@ -477,7 +477,7 @@ static irqreturn_t lkkbd_interrupt(struct serio *serio,
 			input_sync(input_dev);
 		} else {
 			printk(KERN_WARNING
-				"%s: Unknown key with scancode 0x%02x on %s.\n",
+				"%s: Unkyeswn key with scancode 0x%02x on %s.\n",
 				__FILE__, data, lk->name);
 		}
 	}
@@ -552,7 +552,7 @@ static int lkkbd_event(struct input_dev *dev,
 		break;
 
 	default:
-		printk(KERN_ERR "%s(): Got unknown type %d, code %d, value %d\n",
+		printk(KERN_ERR "%s(): Got unkyeswn type %d, code %d, value %d\n",
 			__func__, type, code, value);
 	}
 

@@ -17,7 +17,7 @@
  *
  * Therefore on these DMA controllers the number of channels
  * and the number of incoming DMA signals are two totally different things.
- * It is usually not possible to theoretically handle all physical signals,
+ * It is usually yest possible to theoretically handle all physical signals,
  * so a multiplexing scheme with possible denial of use is necessary.
  *
  * Open items:
@@ -91,7 +91,7 @@
 #define S3C24XX_DMAREQSEL_HW		BIT(0)
 
 /*
- * S3C2410, S3C2440 and S3C2442 SoCs cannot select any physical channel
+ * S3C2410, S3C2440 and S3C2442 SoCs canyest select any physical channel
  * for a DMA source. Instead only specific channels are valid.
  * All of these SoCs have 4 physical channels and the number of request
  * source bits is 3. Additionally we also need 1 bit to mark the channel
@@ -143,13 +143,13 @@ enum s3c24xx_dma_chan_state {
  * @src_addr: src address of sg
  * @dst_addr: dst address of sg
  * @len: transfer len in bytes
- * @node: node for txd's dsg_list
+ * @yesde: yesde for txd's dsg_list
  */
 struct s3c24xx_sg {
 	dma_addr_t src_addr;
 	dma_addr_t dst_addr;
 	size_t len;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 /*
@@ -247,7 +247,7 @@ struct s3c24xx_dma_engine {
  */
 
 /*
- * Check whether a certain channel is busy or not.
+ * Check whether a certain channel is busy or yest.
  */
 static int s3c24xx_dma_phy_busy(struct s3c24xx_dma_phy *phy)
 {
@@ -313,7 +313,7 @@ struct s3c24xx_dma_phy *s3c24xx_dma_get_phy(struct s3c24xx_dma_chan *s3cchan)
 
 	/* No physical channel available, cope with it */
 	if (i == s3cdma->pdata->num_phy_channels) {
-		dev_warn(&s3cdma->pdev->dev, "no phy channel available\n");
+		dev_warn(&s3cdma->pdev->dev, "yes phy channel available\n");
 		return NULL;
 	}
 
@@ -321,7 +321,7 @@ struct s3c24xx_dma_phy *s3c24xx_dma_get_phy(struct s3c24xx_dma_chan *s3cchan)
 	if (s3cdma->sdata->has_clocks) {
 		ret = clk_enable(phy->clk);
 		if (ret) {
-			dev_err(&s3cdma->pdev->dev, "could not enable clock for channel %d, err %d\n",
+			dev_err(&s3cdma->pdev->dev, "could yest enable clock for channel %d, err %d\n",
 				phy->id, ret);
 			phy->serving = NULL;
 			return NULL;
@@ -348,8 +348,8 @@ static inline void s3c24xx_dma_put_phy(struct s3c24xx_dma_phy *phy)
 
 /*
  * Stops the channel by writing the stop bit.
- * This should not be used for an on-going transfer, but as a method of
- * shutting down a channel (eg, when it's no longer used) or terminating a
+ * This should yest be used for an on-going transfer, but as a method of
+ * shutting down a channel (eg, when it's yes longer used) or terminating a
  * transfer.
  */
 static void s3c24xx_dma_terminate_phy(struct s3c24xx_dma_phy *phy)
@@ -428,8 +428,8 @@ static void s3c24xx_dma_free_txd(struct s3c24xx_txd *txd)
 {
 	struct s3c24xx_sg *dsg, *_dsg;
 
-	list_for_each_entry_safe(dsg, _dsg, &txd->dsg_list, node) {
-		list_del(&dsg->node);
+	list_for_each_entry_safe(dsg, _dsg, &txd->dsg_list, yesde) {
+		list_del(&dsg->yesde);
 		kfree(dsg);
 	}
 
@@ -442,7 +442,7 @@ static void s3c24xx_dma_start_next_sg(struct s3c24xx_dma_chan *s3cchan,
 	struct s3c24xx_dma_engine *s3cdma = s3cchan->host;
 	struct s3c24xx_dma_phy *phy = s3cchan->phy;
 	const struct s3c24xx_dma_platdata *pdata = s3cdma->pdata;
-	struct s3c24xx_sg *dsg = list_entry(txd->at, struct s3c24xx_sg, node);
+	struct s3c24xx_sg *dsg = list_entry(txd->at, struct s3c24xx_sg, yesde);
 	u32 dcon = txd->dcon;
 	u32 val;
 
@@ -506,7 +506,7 @@ static void s3c24xx_dma_start_next_txd(struct s3c24xx_dma_chan *s3cchan)
 	struct virt_dma_desc *vd = vchan_next_desc(&s3cchan->vc);
 	struct s3c24xx_txd *txd = to_s3c24xx_txd(&vd->tx);
 
-	list_del(&txd->vd.node);
+	list_del(&txd->vd.yesde);
 
 	s3cchan->at = txd;
 
@@ -540,7 +540,7 @@ static void s3c24xx_dma_phy_alloc_and_start(struct s3c24xx_dma_chan *s3cchan)
 
 	phy = s3c24xx_dma_get_phy(s3cchan);
 	if (!phy) {
-		dev_dbg(&s3cdma->pdev->dev, "no physical channel available for xfer on %s\n",
+		dev_dbg(&s3cdma->pdev->dev, "yes physical channel available for xfer on %s\n",
 			s3cchan->name);
 		s3cchan->state = S3C24XX_DMA_CHAN_WAITING;
 		return;
@@ -565,8 +565,8 @@ static void s3c24xx_dma_phy_reassign_start(struct s3c24xx_dma_phy *phy,
 
 	/*
 	 * We do this without taking the lock; we're really only concerned
-	 * about whether this pointer is NULL or not, and we're guaranteed
-	 * that this will only be called when it _already_ is non-NULL.
+	 * about whether this pointer is NULL or yest, and we're guaranteed
+	 * that this will only be called when it _already_ is yesn-NULL.
 	 */
 	phy->serving = s3cchan;
 	s3cchan->phy = phy;
@@ -575,7 +575,7 @@ static void s3c24xx_dma_phy_reassign_start(struct s3c24xx_dma_phy *phy,
 }
 
 /*
- * Free a physical DMA channel, potentially reallocating it to another
+ * Free a physical DMA channel, potentially reallocating it to ayesther
  * virtual channel if we have any pending.
  */
 static void s3c24xx_dma_phy_free(struct s3c24xx_dma_chan *s3cchan)
@@ -587,7 +587,7 @@ retry:
 	next = NULL;
 
 	/* Find a waiting virtual channel for the next transfer. */
-	list_for_each_entry(p, &s3cdma->memcpy.channels, vc.chan.device_node)
+	list_for_each_entry(p, &s3cdma->memcpy.channels, vc.chan.device_yesde)
 		if (p->state == S3C24XX_DMA_CHAN_WAITING) {
 			next = p;
 			break;
@@ -595,7 +595,7 @@ retry:
 
 	if (!next) {
 		list_for_each_entry(p, &s3cdma->slave.channels,
-				    vc.chan.device_node)
+				    vc.chan.device_yesde)
 			if (p->state == S3C24XX_DMA_CHAN_WAITING &&
 				      s3c24xx_dma_phy_valid(p, s3cchan->phy)) {
 				next = p;
@@ -610,17 +610,17 @@ retry:
 		bool success;
 
 		/*
-		 * Eww.  We know this isn't going to deadlock
+		 * Eww.  We kyesw this isn't going to deadlock
 		 * but lockdep probably doesn't.
 		 */
 		spin_lock(&next->vc.lock);
-		/* Re-check the state now that we have the lock */
+		/* Re-check the state yesw that we have the lock */
 		success = next->state == S3C24XX_DMA_CHAN_WAITING;
 		if (success)
 			s3c24xx_dma_phy_reassign_start(s3cchan->phy, next);
 		spin_unlock(&next->vc.lock);
 
-		/* If the state changed, try to find another channel */
+		/* If the state changed, try to find ayesther channel */
 		if (!success)
 			goto retry;
 	} else {
@@ -652,9 +652,9 @@ static irqreturn_t s3c24xx_dma_irq(int irq, void *data)
 	dev_dbg(&phy->host->pdev->dev, "interrupt on channel %d\n", phy->id);
 
 	/*
-	 * Interrupts happen to notify the completion of a transfer and the
+	 * Interrupts happen to yestify the completion of a transfer and the
 	 * channel should have moved into its stop state already on its own.
-	 * Therefore interrupts on channels not bound to a virtual channel
+	 * Therefore interrupts on channels yest bound to a virtual channel
 	 * should never happen. Nevertheless send a terminate command to the
 	 * channel if the unlikely case happens.
 	 */
@@ -733,7 +733,7 @@ static int s3c24xx_dma_terminate_all(struct dma_chan *chan)
 		s3cchan->at = NULL;
 	}
 
-	/* Dequeue jobs not yet fired as well */
+	/* Dequeue jobs yest yet fired as well */
 	s3c24xx_dma_free_txd_list(s3cdma, s3cchan);
 unlock:
 	spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
@@ -769,8 +769,8 @@ static enum dma_status s3c24xx_dma_tx_status(struct dma_chan *chan,
 	ret = dma_cookie_status(chan, cookie, txstate);
 
 	/*
-	 * There's no point calculating the residue if there's
-	 * no txstate to store the value.
+	 * There's yes point calculating the residue if there's
+	 * yes txstate to store the value.
 	 */
 	if (ret == DMA_COMPLETE || !txstate) {
 		spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
@@ -782,7 +782,7 @@ static enum dma_status s3c24xx_dma_tx_status(struct dma_chan *chan,
 		/* On the issued list, so hasn't been processed yet */
 		txd = to_s3c24xx_txd(&vd->tx);
 
-		list_for_each_entry(dsg, &txd->dsg_list, node)
+		list_for_each_entry(dsg, &txd->dsg_list, yesde)
 			bytes += dsg->len;
 	} else {
 		/*
@@ -791,8 +791,8 @@ static enum dma_status s3c24xx_dma_tx_status(struct dma_chan *chan,
 		 */
 		txd = s3cchan->at;
 
-		dsg = list_entry(txd->at, struct s3c24xx_sg, node);
-		list_for_each_entry_from(dsg, &txd->dsg_list, node)
+		dsg = list_entry(txd->at, struct s3c24xx_sg, yesde);
+		list_for_each_entry_from(dsg, &txd->dsg_list, yesde)
 			bytes += dsg->len;
 
 		bytes += s3c24xx_dma_getbytes_chan(s3cchan);
@@ -800,7 +800,7 @@ static enum dma_status s3c24xx_dma_tx_status(struct dma_chan *chan,
 	spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
 
 	/*
-	 * This cookie not complete yet
+	 * This cookie yest complete yet
 	 * Get number of bytes left in the active transactions and queue
 	 */
 	dma_set_residue(txstate, bytes);
@@ -839,7 +839,7 @@ static struct dma_async_tx_descriptor *s3c24xx_dma_prep_memcpy(
 		s3c24xx_dma_free_txd(txd);
 		return NULL;
 	}
-	list_add_tail(&dsg->node, &txd->dsg_list);
+	list_add_tail(&dsg->yesde, &txd->dsg_list);
 
 	dsg->src_addr = src;
 	dsg->dst_addr = dest;
@@ -847,7 +847,7 @@ static struct dma_async_tx_descriptor *s3c24xx_dma_prep_memcpy(
 
 	/*
 	 * Determine a suitable transfer width.
-	 * The DMA controller cannot fetch/store information which is not
+	 * The DMA controller canyest fetch/store information which is yest
 	 * naturally aligned on the bus, i.e., a 4 byte fetch must start at
 	 * an address divisible by 4 - more generally addr % width must be 0.
 	 */
@@ -953,7 +953,7 @@ static struct dma_async_tx_descriptor *s3c24xx_dma_prep_dma_cyclic(
 			s3c24xx_dma_free_txd(txd);
 			return NULL;
 		}
-		list_add_tail(&dsg->node, &txd->dsg_list);
+		list_add_tail(&dsg->yesde, &txd->dsg_list);
 
 		dsg->len = period;
 		/* Check last period length */
@@ -1045,7 +1045,7 @@ static struct dma_async_tx_descriptor *s3c24xx_dma_prep_slave_sg(
 			s3c24xx_dma_free_txd(txd);
 			return NULL;
 		}
-		list_add_tail(&dsg->node, &txd->dsg_list);
+		list_add_tail(&dsg->yesde, &txd->dsg_list);
 
 		dsg->len = sg_dma_len(sg);
 		if (direction == DMA_MEM_TO_DEV) {
@@ -1135,8 +1135,8 @@ static void s3c24xx_dma_free_virtual_channels(struct dma_device *dmadev)
 	struct s3c24xx_dma_chan *next;
 
 	list_for_each_entry_safe(chan,
-				 next, &dmadev->channels, vc.chan.device_node) {
-		list_del(&chan->vc.chan.device_node);
+				 next, &dmadev->channels, vc.chan.device_yesde) {
+		list_del(&chan->vc.chan.device_yesde);
 		tasklet_kill(&chan->vc.task);
 	}
 }

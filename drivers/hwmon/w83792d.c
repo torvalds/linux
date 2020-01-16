@@ -19,7 +19,7 @@
  * Supports following chips:
  *
  * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
- * w83792d	9	7	7	3	0x7a	0x5ca3	yes	no
+ * w83792d	9	7	7	3	0x7a	0x5ca3	no	yes
  */
 
 #include <linux/module.h>
@@ -34,7 +34,7 @@
 #include <linux/jiffies.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
 /* Insmod parameters */
@@ -210,7 +210,7 @@ static const u8 W83792D_REG_LEVELS[3][4] = {
  * Conversions. Rounding and limit checking is only done on the TO_REG
  * variants. Note that you should be a bit careful with which arguments
  * these macros are called: arguments may be evaluated more than once.
- * Fixing this is just not worth it.
+ * Fixing this is just yest worth it.
  */
 #define IN_FROM_REG(nr, val) (((nr) <= 1) ? ((val) * 2) : \
 		((((nr) == 6) || ((nr) == 7)) ? ((val) * 6) : ((val) * 4)))
@@ -314,12 +314,12 @@ static struct i2c_driver w83792d_driver = {
 	.remove		= w83792d_remove,
 	.id_table	= w83792d_id,
 	.detect		= w83792d_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 static inline long in_count_from_reg(int nr, struct w83792d_data *data)
 {
-	/* in7 and in8 do not have low bits, but the formula still works */
+	/* in7 and in8 do yest have low bits, but the formula still works */
 	return (data->in[nr] << 2) | ((data->low_bits >> (2 * nr)) & 0x03);
 }
 
@@ -1341,7 +1341,7 @@ w83792d_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (w83792d_read_value(client, W83792D_REG_I2C_ADDR) != address)
 		return -ENODEV;
 
-	/*  Put it now into bank 0 and Vendor ID High Byte */
+	/*  Put it yesw into bank 0 and Vendor ID High Byte */
 	w83792d_write_value(client,
 			    W83792D_REG_BANK,
 			    (w83792d_read_value(client,

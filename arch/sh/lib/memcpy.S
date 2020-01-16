@@ -15,7 +15,7 @@
 #include <linux/linkage.h>
 ENTRY(memcpy)
 	tst	r6,r6
-	bt/s	9f		! if n=0, do nothing
+	bt/s	9f		! if n=0, do yesthing
 	 mov	r4,r0
 	sub	r4,r5		! From here, r5 has the distance to r0
 	add	r6,r0		! From here, r0 points the end of copying point
@@ -59,7 +59,7 @@ jmptable:
 	 mov.b	r1,@-r0
 9:
 	rts
-	 nop
+	 yesp
 
 case0:
 	!

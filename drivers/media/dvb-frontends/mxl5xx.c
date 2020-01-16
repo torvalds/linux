@@ -110,7 +110,7 @@ static void convert_endian(u8 flag, u32 size, u8 *d)
 	switch (size & 3) {
 	case 0:
 	case 1:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	case 2:
 		d[i + 0] ^= d[i + 1];

@@ -208,12 +208,12 @@ static int txc_bist_one(struct ef4_nic *efx, int mmd, int test)
 	int lane;
 	int rc = 0;
 
-	/* Set PMA to test into loopback using Mt Diablo reg as per app note */
+	/* Set PMA to test into loopback using Mt Diablo reg as per app yeste */
 	ctrl = ef4_mdio_read(efx, MDIO_MMD_PCS, TXC_MTDIABLO_CTRL);
 	ctrl |= (1 << TXC_MTDIABLO_CTRL_PMA_LOOP_LBN);
 	ef4_mdio_write(efx, MDIO_MMD_PCS, TXC_MTDIABLO_CTRL, ctrl);
 
-	/* The BIST app. note lists these  as 3 distinct steps. */
+	/* The BIST app. yeste lists these  as 3 distinct steps. */
 	/* Set the BIST type */
 	bctl = (test << TXC_BIST_CTRL_TYPE_LBN);
 	ef4_mdio_write(efx, mmd, TXC_BIST_CTL, bctl);
@@ -238,7 +238,7 @@ static int txc_bist_one(struct ef4_nic *efx, int mmd, int test)
 		bctl = ef4_mdio_read(efx, mmd, TXC_BIST_CTL);
 
 	/* Check all the error counts are 0 and all the frame counts are
-	   non-zero */
+	   yesn-zero */
 	for (lane = 0; lane < 4; lane++) {
 		int count = ef4_mdio_read(efx, mmd, TXC_BIST_RX0ERRCNT + lane);
 		if (count != 0) {
@@ -272,7 +272,7 @@ static int txc_bist(struct ef4_nic *efx)
 	return txc_bist_one(efx, MDIO_MMD_PCS, TXC_BIST_CTRL_TYPE_TSD);
 }
 
-/* Push the non-configurable defaults into the PHY. This must be
+/* Push the yesn-configurable defaults into the PHY. This must be
  * done after every full reset */
 static void txc_apply_defaults(struct ef4_nic *efx)
 {
@@ -280,7 +280,7 @@ static void txc_apply_defaults(struct ef4_nic *efx)
 
 	/* Turn amplitude down and preemphasis off on the host side
 	 * (PHY<->MAC) as this is believed less likely to upset Falcon
-	 * and no adverse effects have been noted. It probably also
+	 * and yes adverse effects have been yested. It probably also
 	 * saves a picowatt or two */
 
 	/* Turn off preemphasis */
@@ -460,7 +460,7 @@ static int txc43128_phy_reconfigure(struct ef4_nic *efx)
 		txc_set_power(efx);
 
 	/* The data sheet claims this is required after every reconfiguration
-	 * (note at end of 7.1), but we mustn't do it when nothing changes as
+	 * (yeste at end of 7.1), but we mustn't do it when yesthing changes as
 	 * it glitches the link, and reconfigure gets called on link change,
 	 * so we get an IRQ storm on link up. */
 	if (loop_change || mode_change)

@@ -16,7 +16,7 @@ using the MSI bus.
 System Controller Device Node:
 ============================================================
 
-The scu node with the following properties shall be under the /firmware/ node.
+The scu yesde with the following properties shall be under the /firmware/ yesde.
 
 Required properties:
 -------------------
@@ -27,9 +27,9 @@ Required properties:
 - mboxes:	List of phandle of 4 MU channels for tx, 4 MU channels for
 		rx, and 1 optional MU channel for general interrupt.
 		All MU channels must be in the same MU instance.
-		Cross instances are not allowed. The MU instance can only
+		Cross instances are yest allowed. The MU instance can only
 		be one of LSIO MU0~M4 for imx8qxp and imx8qm. Users need
-		to make sure use the one which is not conflict with other
+		to make sure use the one which is yest conflict with other
 		execution environments. e.g. ATF.
 		Note:
 		Channel 0 must be "tx0" or "rx0".
@@ -51,7 +51,7 @@ Required properties:
 		for detailed mailbox binding.
 
 Note: Each mu which supports general interrupt should have an alias correctly
-numbered in "aliases" node.
+numbered in "aliases" yesde.
 e.g.
 aliases {
 	mu1 = &lsio_mu1;
@@ -60,7 +60,7 @@ aliases {
 i.MX SCU Client Device Node:
 ============================================================
 
-Client nodes are maintained as children of the relevant IMX-SCU device node.
+Client yesdes are maintained as children of the relevant IMX-SCU device yesde.
 
 Power domain bindings based on SCU Message Protocol
 ------------------------------------------------------------
@@ -110,7 +110,7 @@ Required properties:
 			"fsl,imx8qm-iomuxc",
 			"fsl,imx8qxp-iomuxc".
 
-Required properties for Pinctrl sub nodes:
+Required properties for Pinctrl sub yesdes:
 - fsl,pins:		Each entry consists of 3 integers which represents
 			the mux and config setting for one pin. The first 2
 			integers <pin_id mux_mode> are specified using a
@@ -142,7 +142,7 @@ Required properties:
 - #address-cells:	Must be 1. Contains byte index
 - #size-cells:		Must be 1. Contains byte length
 
-Optional Child nodes:
+Optional Child yesdes:
 
 - Data cells of ocotp:
   Detailed bindings are described in bindings/nvmem/nvmem.txt

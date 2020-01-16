@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -216,7 +216,7 @@ enum {
 	ADDRESS_WATCH_REG_MAX
 };
 
-enum {				/*  not defined in the CI/KV reg file  */
+enum {				/*  yest defined in the CI/KV reg file  */
 	ADDRESS_WATCH_REG_CNTL_ATC_BIT = 0x10000000UL,
 	ADDRESS_WATCH_REG_CNTL_DEFAULT_MASK = 0x00FFFFFF,
 	ADDRESS_WATCH_REG_ADDLOW_MASK_EXTENSION = 0x03000000,

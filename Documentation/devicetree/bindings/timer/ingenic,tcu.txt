@@ -19,7 +19,7 @@ Required properties:
 - #clock-cells: Should be <1>;
   Clock consumers specify this argument to identify a clock. The valid values
   may be found in <dt-bindings/clock/ingenic,tcu.h>.
-- interrupt-controller : Identifies the node as an interrupt controller
+- interrupt-controller : Identifies the yesde as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode an
   interrupt source. The value should be 1.
 - interrupts : Specifies the interrupt the controller is connected to.
@@ -30,11 +30,11 @@ Optional properties:
   Default value is 0xfc.
 
 
-Children nodes
+Children yesdes
 ==========================================================
 
 
-PWM node:
+PWM yesde:
 ---------
 
 Required properties:
@@ -48,7 +48,7 @@ Required properties:
 - clock-names: List of name strings for the TCU clocks.
 
 
-Watchdog node:
+Watchdog yesde:
 --------------
 
 Required properties:
@@ -58,7 +58,7 @@ Required properties:
 - clock-names: should be "wdt"
 
 
-OS Timer node:
+OS Timer yesde:
 ---------
 
 Required properties:

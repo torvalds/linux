@@ -6,7 +6,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license yestice.  This file is yest
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -20,7 +20,7 @@
 
 	Support and updates available at
 	http://www.scyld.com/network/hamachi.html
-	[link no longer provides useful info -jgarzik]
+	[link yes longer provides useful info -jgarzik]
 	or
 	http://www.parl.clemson.edu/~keithu/hamachi.html
 
@@ -33,7 +33,7 @@
 
 /* A few user-configurable values. */
 
-static int debug = 1;		/* 1 normal messages, 0 quiet .. 7 verbose.  */
+static int debug = 1;		/* 1 yesrmal messages, 0 quiet .. 7 verbose.  */
 #define final_version
 #define hamachi_debug debug
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
@@ -74,7 +74,7 @@ static int force32;
 			0x00000040 : Force 64 bit PCI bus
 			Default is autodetect
 		- The next bit can be used to force half-duplex.  This is a bad
-		  idea since no known implementations implement half-duplex, and,
+		  idea since yes kyeswn implementations implement half-duplex, and,
 		  in general, half-duplex for gigabit ethernet is a bad idea.
 			0x00000080 : Force half-duplex
 			Default is full-duplex.
@@ -109,7 +109,7 @@ static int tx_params[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 	The compiler will convert <unsigned>'%'<2^N> into a bit mask.
    Making the Tx ring too large decreases the effectiveness of channel
    bonding and packet priority.
-   There are no ill effects from too-large receive rings, except for
+   There are yes ill effects from too-large receive rings, except for
 	excessive memory usage */
 /* Empirically it appears that the Tx ring needs to be a little bigger
    for these Gbit adapters or you get into an overrun condition really
@@ -136,7 +136,7 @@ static int tx_params[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
  */
 #define RX_CHECKSUM
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are yest changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (5*HZ)
 
@@ -146,7 +146,7 @@ static int tx_params[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/time.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -218,7 +218,7 @@ Gigabit Ethernet chip.  The only PCA currently supported is the GNIC-II 64-bit
 II. Board-specific settings
 
 No jumpers exist on the board.  The chip supports software correction of
-various motherboard wiring errors, however this driver does not support
+various motherboard wiring errors, however this driver does yest support
 that feature.
 
 III. Driver operation
@@ -249,11 +249,11 @@ copying packets.
 
 IIIb/c. Transmit/Receive Structure
 
-The Rx and Tx descriptor structure are straight-forward, with no historical
+The Rx and Tx descriptor structure are straight-forward, with yes historical
 baggage that must be explained.  Unlike the awkward DBDMA structure, there
-are no unused fields or option bits that had only one allowable setting.
+are yes unused fields or option bits that had only one allowable setting.
 
-Two details should be noted about the descriptors: The chip supports both 32
+Two details should be yested about the descriptors: The chip supports both 32
 bit and 64 bit address structures, and the length field is overwritten on
 the receive descriptors.  The descriptor length is set in the control word
 for each channel. The development driver uses 32 bit addresses only, however
@@ -288,7 +288,7 @@ Hamachi Engineering Design Specification, 5/15/97
 
 IVc. Errata
 
-None noted.
+None yested.
 
 V.  Recent Changes
 
@@ -301,17 +301,17 @@ V.  Recent Changes
     interrupt handler and thus reduce bandwidth by reducing the latency
     between hamachi_rx()'s).  Notably, some modification has been made so
     that the cleaning loop checks only to make sure that the DescOwn bit
-    isn't set in the status flag since the card is not required
+    isn't set in the status flag since the card is yest required
     to set the entire flag to zero after processing.
 
 01/15/1999 EPK In the hamachi_start_tx function, the Tx ring full flag is
     checked before attempting to add a buffer to the ring.  If the ring is full
     an attempt is made to free any dirty buffers and thus find space for
-    the new buffer or the function returns non-zero which should case the
+    the new buffer or the function returns yesn-zero which should case the
     scheduler to reschedule the buffer later.
 
 01/15/1999 EPK Some adjustments were made to the chip initialization.
-    End-to-end flow control should now be fully active and the interrupt
+    End-to-end flow control should yesw be fully active and the interrupt
     algorithm vars have been changed.  These could probably use further tuning.
 
 01/15/1999 EPK Added the max_{rx,tx}_latency options.  These are used to
@@ -368,7 +368,7 @@ mitigation parameters.  Tx should interrupt VERY infrequently due to
 Eric's scheme.  Rx should be more often...
 
 03/13/2000 KDU Added a patch to make the Rx Checksum code interact
-nicely with non-linux machines.
+nicely with yesn-linux machines.
 
 03/13/2000 KDU Experimented with some of the configuration values:
 
@@ -405,7 +405,7 @@ that case.
  */
 #define PKT_BUF_SZ		1536
 
-/* For now, this is going to be set to the maximum size of an ethernet
+/* For yesw, this is going to be set to the maximum size of an ethernet
  * packet.  Eventually, we may want to make it a variable that is
  * related to the MTU
  */
@@ -560,7 +560,7 @@ static int hamachi_close(struct net_device *dev);
 static struct net_device_stats *hamachi_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static const struct ethtool_ops ethtool_ops;
-static const struct ethtool_ops ethtool_ops_no_mii;
+static const struct ethtool_ops ethtool_ops_yes_mii;
 
 static const struct net_device_ops hamachi_netdev_ops = {
 	.ndo_open		= hamachi_open,
@@ -670,7 +670,7 @@ static int hamachi_init_one(struct pci_dev *pdev,
 	/* Hmmm, do we really need to reset the chip???. */
 	writeb(0x01, ioaddr + ChipReset);
 
-	/* After a reset, the clock speed measurement of the PCI bus will not
+	/* After a reset, the clock speed measurement of the PCI bus will yest
 	 * be valid for a moment.  Wait for a little while until it is.  If
 	 * it takes more than 10ms, forget it.
 	 */
@@ -724,7 +724,7 @@ static int hamachi_init_one(struct pci_dev *pdev,
 	/* The Hamachi-specific entries in the device structure. */
 	dev->netdev_ops = &hamachi_netdev_ops;
 	dev->ethtool_ops = (chip_tbl[hmp->chip_id].flags & CanHaveMII) ?
-		&ethtool_ops : &ethtool_ops_no_mii;
+		&ethtool_ops : &ethtool_ops_yes_mii;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	if (mtu)
 		dev->mtu = mtu;
@@ -805,7 +805,7 @@ static int read_eeprom(void __iomem *ioaddr, int location)
 }
 
 /* MII Managemen Data I/O accesses.
-   These routines assume the MDIO controller is idle, and do not exit until
+   These routines assume the MDIO controller is idle, and do yest exit until
    the command is finished. */
 
 static int mdio_read(struct net_device *dev, int phy_id, int location)
@@ -903,7 +903,7 @@ static int hamachi_open(struct net_device *dev)
 		default :
 			printk(KERN_WARNING "%s:  Unsupported external memory config!\n",
 				dev->name);
-			/* Default to no FIFO */
+			/* Default to yes FIFO */
 			writew(0x0000, ioaddr + FIFOcfg);
 			break;
 	}
@@ -917,7 +917,7 @@ static int hamachi_open(struct net_device *dev)
 	if (hmp->duplex_lock != 1)
 		hmp->mii_if.full_duplex = 1;
 
-	/* always 1, takes no more time to do it */
+	/* always 1, takes yes more time to do it */
 	writew(0x0001, ioaddr + RxChecksum);
 	writew(0x0000, ioaddr + TxChecksum);
 	writew(0x8000, ioaddr + MACCnfg); /* Soft reset the MAC */
@@ -961,7 +961,7 @@ static int hamachi_open(struct net_device *dev)
 
 	/* Enable interrupts by setting the interrupt mask. */
 	writel(0x80878787, ioaddr + InterruptEnable);
-	writew(0x0000, ioaddr + EventStatus);	/* Clear non-interrupting events */
+	writew(0x0000, ioaddr + EventStatus);	/* Clear yesn-interrupting events */
 
 	/* Configure and start the DMA channels. */
 	/* Burst sizes are in the low three bits: size = 4<<(val&7) */
@@ -1208,8 +1208,8 @@ static netdev_tx_t hamachi_start_xmit(struct sk_buff *skb,
 	unsigned entry;
 	u16 status;
 
-	/* Ok, now make sure that the queue has space before trying to
-		add another skbuff.  if we return non-zero the scheduler
+	/* Ok, yesw make sure that the queue has space before trying to
+		add ayesther skbuff.  if we return yesn-zero the scheduler
 		should interpret this as a queue full and requeue the buffer
 		for later.
 	 */
@@ -1264,7 +1264,7 @@ static netdev_tx_t hamachi_start_xmit(struct sk_buff *skb,
 	/* Immediately before returning, let's clear as many entries as we can. */
 	hamachi_tx(dev);
 
-	/* We should kick the bottom half here, since we are not accepting
+	/* We should kick the bottom half here, since we are yest accepting
 	 * interrupts with every packet.  i.e. realize that Gigabit ethernet
 	 * can transmit faster than ordinary machines can load packets;
 	 * hence, any packet that got put off because we were in the transmit
@@ -1296,7 +1296,7 @@ static irqreturn_t hamachi_interrupt(int irq, void *dev_instance)
 
 #ifndef final_version			/* Can never occur. */
 	if (dev == NULL) {
-		printk (KERN_ERR "hamachi_interrupt(): irq %d for unknown device.\n", irq);
+		printk (KERN_ERR "hamachi_interrupt(): irq %d for unkyeswn device.\n", irq);
 		return IRQ_NONE;
 	}
 #endif
@@ -1347,7 +1347,7 @@ static irqreturn_t hamachi_interrupt(int irq, void *dev_instance)
 					dev->stats.tx_packets++;
 				}
 				if (hmp->cur_tx - hmp->dirty_tx < TX_RING_SIZE - 4){
-					/* The ring is no longer full */
+					/* The ring is yes longer full */
 					hmp->tx_full = 0;
 					netif_wake_queue(dev);
 				}
@@ -1357,7 +1357,7 @@ static irqreturn_t hamachi_interrupt(int irq, void *dev_instance)
 		}
 
 
-		/* Abnormal error summary/uncommon events handlers. */
+		/* Abyesrmal error summary/uncommon events handlers. */
 		if (intr_status &
 			(IntrTxPCIFault | IntrTxPCIErr | IntrRxPCIFault | IntrRxPCIErr |
 			 LinkChange | NegotiationChange | StatsMax))
@@ -1462,7 +1462,7 @@ static int hamachi_rx(struct net_device *dev)
 
 #ifndef final_version
 			if (hamachi_debug > 4)
-				printk(KERN_DEBUG "  hamachi_rx() normal Rx pkt length %d"
+				printk(KERN_DEBUG "  hamachi_rx() yesrmal Rx pkt length %d"
 					   " of %d, bogus_cnt %d.\n",
 					   pkt_len, data_size, boguscnt);
 			if (hamachi_debug > 5)
@@ -1474,13 +1474,13 @@ static int hamachi_rx(struct net_device *dev)
 					   *(s32*)&(buf_addr[data_size - 8]),
 					   *(s32*)&(buf_addr[data_size - 4]));
 #endif
-			/* Check if the packet is long enough to accept without copying
+			/* Check if the packet is long eyesugh to accept without copying
 			   to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
 #ifdef RX_CHECKSUM
-				printk(KERN_ERR "%s: rx_copybreak non-zero "
-				  "not good with RX_CHECKSUM\n", dev->name);
+				printk(KERN_ERR "%s: rx_copybreak yesn-zero "
+				  "yest good with RX_CHECKSUM\n", dev->name);
 #endif
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				pci_dma_sync_single_for_cpu(hmp->pci_dev,
@@ -1635,7 +1635,7 @@ static void hamachi_error(struct net_device *dev, int intr_status)
 	    hamachi_debug)
 		printk(KERN_ERR "%s: Something Wicked happened! %4.4x.\n",
 		       dev->name, intr_status);
-	/* Hmmmmm, it's not clear how to recover from PCI faults. */
+	/* Hmmmmm, it's yest clear how to recover from PCI faults. */
 	if (intr_status & (IntrTxPCIErr | IntrTxPCIFault))
 		dev->stats.tx_fifo_errors++;
 	if (intr_status & (IntrRxPCIErr | IntrRxPCIFault))
@@ -1735,7 +1735,7 @@ static struct net_device_stats *hamachi_get_stats(struct net_device *dev)
 
 	/* We should lock this segment of code for SMP eventually, although
 	   the vulnerability window is very small and statistics are
-	   non-critical. */
+	   yesn-critical. */
         /* Ok, what goes here?  This appears to be stuck at 21 packets
            according to ifconfig.  It does get incremented in hamachi_tx(),
            so I think I'll comment it out here and see if better things
@@ -1851,7 +1851,7 @@ static const struct ethtool_ops ethtool_ops = {
 	.set_link_ksettings = hamachi_set_link_ksettings,
 };
 
-static const struct ethtool_ops ethtool_ops_no_mii = {
+static const struct ethtool_ops ethtool_ops_yes_mii = {
 	.begin = check_if_running,
 	.get_drvinfo = hamachi_get_drvinfo,
 };
@@ -1925,7 +1925,7 @@ static struct pci_driver hamachi_driver = {
 
 static int __init hamachi_init (void)
 {
-/* when a module, this is printed whether or not devices are found in probe */
+/* when a module, this is printed whether or yest devices are found in probe */
 #ifdef MODULE
 	printk(version);
 #endif

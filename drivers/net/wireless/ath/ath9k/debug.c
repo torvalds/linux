@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -75,7 +75,7 @@ static ssize_t ath9k_debugfs_read_buf(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
 
-static int ath9k_debugfs_release_buf(struct inode *inode, struct file *file)
+static int ath9k_debugfs_release_buf(struct iyesde *iyesde, struct file *file)
 {
 	vfree(file->private_data);
 	return 0;
@@ -740,7 +740,7 @@ static int read_file_misc(struct seq_file *file, void *data)
 			   iter_data.nstations,
 			   iter_data.nmeshes, iter_data.nwds);
 		seq_printf(file, " ADHOC: %i OCB: %i TOTAL: %hi BEACON-VIF: %hi\n",
-			   iter_data.nadhocs, iter_data.nocbs, sc->cur_chan->nvifs,
+			   iter_data.nadhocs, iter_data.yescbs, sc->cur_chan->nvifs,
 			   sc->nbcnvifs);
 	}
 
@@ -909,9 +909,9 @@ static const struct file_operations fops_regval = {
 
 #define REGDUMP_LINE_SIZE	20
 
-static int open_file_regdump(struct inode *inode, struct file *file)
+static int open_file_regdump(struct iyesde *iyesde, struct file *file)
 {
-	struct ath_softc *sc = inode->i_private;
+	struct ath_softc *sc = iyesde->i_private;
 	unsigned int len = 0;
 	u8 *buf;
 	int i, j = 0;
@@ -973,7 +973,7 @@ static int read_file_dump_nfcal(struct seq_file *file, void *data)
 	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
 	u8 nread;
 
-	seq_printf(file, "Channel Noise Floor : %d\n", ah->noise);
+	seq_printf(file, "Channel Noise Floor : %d\n", ah->yesise);
 	seq_puts(file, "Chain | privNF | # Readings | NF Readings\n");
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		if (!(chainmask & (1 << i)) ||
@@ -1408,9 +1408,9 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    sc, &fops_regidx);
 	debugfs_create_file("regval", 0600, sc->debug.debugfs_phy,
 			    sc, &fops_regval);
-	debugfs_create_bool("ignore_extcca", 0600,
+	debugfs_create_bool("igyesre_extcca", 0600,
 			    sc->debug.debugfs_phy,
-			    &ah->config.cwm_ignore_extcca);
+			    &ah->config.cwm_igyesre_extcca);
 	debugfs_create_file("regdump", 0400, sc->debug.debugfs_phy, sc,
 			    &fops_regdump);
 	debugfs_create_devm_seqfile(sc->dev, "dump_nfcal",

@@ -21,8 +21,8 @@ BUILD_BUG_ON(1)
  * (e.g. force a sync if VM_INSTRUCTION_ERROR is modified
  * by nested_vmx_failValid)
  *
- * When adding or removing fields here, note that shadowed
- * fields must always be synced by prepare_vmcs02, not just
+ * When adding or removing fields here, yeste that shadowed
+ * fields must always be synced by prepare_vmcs02, yest just
  * prepare_vmcs02_full.
  */
 

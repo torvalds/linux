@@ -14,7 +14,7 @@
  *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities
  *					  negotiation.
  *	jun/24/01	Arnaldo C. Melo	  use skb_queue_purge, cleanups
- *	apr/04/15	Shaun Pereira		Fast select with no
+ *	apr/04/15	Shaun Pereira		Fast select with yes
  *						restriction on response.
  */
 
@@ -45,7 +45,7 @@ void x25_clear_queues(struct sock *sk)
 
 /*
  * This routine purges the input queue of those frames that have been
- * acknowledged. This replaces the boxes labelled "V(a) <- N(r)" on the
+ * ackyeswledged. This replaces the boxes labelled "V(a) <- N(r)" on the
  * SDL diagram.
 */
 void x25_frames_acked(struct sock *sk, unsigned short nr)
@@ -126,7 +126,7 @@ void x25_write_internal(struct sock *sk, int frametype)
 	case X25_CALL_REQUEST:
 		len += 1 + X25_ADDR_LEN + X25_MAX_FAC_LEN + X25_MAX_CUD_LEN;
 		break;
-	case X25_CALL_ACCEPTED: /* fast sel with no restr on resp */
+	case X25_CALL_ACCEPTED: /* fast sel with yes restr on resp */
 		if (x25->facilities.reverse & 0x80) {
 			len += 1 + X25_MAX_FAC_LEN + X25_MAX_CUD_LEN;
 		} else {
@@ -204,9 +204,9 @@ void x25_write_internal(struct sock *sk, int frametype)
 							x25->vc_facil_mask);
 			skb_put_data(skb, facilities, len);
 
-			/* fast select with no restriction on response
+			/* fast select with yes restriction on response
 				allows call user data. Userland must
-				ensure it is ours and not theirs */
+				ensure it is ours and yest theirs */
 			if(x25->facilities.reverse & 0x80) {
 				skb_put_data(skb,
 					     x25->calluserdata.cuddata,
@@ -219,7 +219,7 @@ void x25_write_internal(struct sock *sk, int frametype)
 			dptr    = skb_put(skb, 3);
 			*dptr++ = frametype;
 			*dptr++ = x25->causediag.cause;
-			*dptr++ = x25->causediag.diagnostic;
+			*dptr++ = x25->causediag.diagyesstic;
 			break;
 
 		case X25_RESET_REQUEST:
@@ -336,7 +336,7 @@ int x25_decode(struct sock *sk, struct sk_buff *skb, int *ns, int *nr, int *q,
 }
 
 void x25_disconnect(struct sock *sk, int reason, unsigned char cause,
-		    unsigned char diagnostic)
+		    unsigned char diagyesstic)
 {
 	struct x25_sock *x25 = x25_sk(sk);
 
@@ -347,7 +347,7 @@ void x25_disconnect(struct sock *sk, int reason, unsigned char cause,
 	x25->state = X25_STATE_0;
 
 	x25->causediag.cause      = cause;
-	x25->causediag.diagnostic = diagnostic;
+	x25->causediag.diagyesstic = diagyesstic;
 
 	sk->sk_state     = TCP_CLOSE;
 	sk->sk_err       = reason;

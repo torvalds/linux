@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -88,7 +88,7 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 	qport_context = mailbox->buf;
 
 	/* This command is always accessed from Ethtool context
-	 * already synchronized, no need in locking */
+	 * already synchronized, yes need in locking */
 	state->link_state = !!(qport_context->link_up & MLX4_EN_LINK_UP_MASK);
 	switch (qport_context->link_speed & MLX4_EN_SPEED_MASK) {
 	case MLX4_EN_100M_SPEED:
@@ -240,7 +240,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	mlx4_en_fold_software_stats(dev);
 
 	priv->port_stats.rx_chksum_good = 0;
-	priv->port_stats.rx_chksum_none = 0;
+	priv->port_stats.rx_chksum_yesne = 0;
 	priv->port_stats.rx_chksum_complete = 0;
 	priv->port_stats.rx_alloc_pages = 0;
 	priv->xdp_stats.rx_xdp_drop    = 0;
@@ -251,7 +251,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 
 		sw_rx_dropped			+= READ_ONCE(ring->dropped);
 		priv->port_stats.rx_chksum_good += READ_ONCE(ring->csum_ok);
-		priv->port_stats.rx_chksum_none += READ_ONCE(ring->csum_none);
+		priv->port_stats.rx_chksum_yesne += READ_ONCE(ring->csum_yesne);
 		priv->port_stats.rx_chksum_complete += READ_ONCE(ring->csum_complete);
 		priv->port_stats.rx_alloc_pages += READ_ONCE(ring->rx_alloc_pages);
 		priv->xdp_stats.rx_xdp_drop	+= READ_ONCE(ring->xdp_drop);
@@ -365,8 +365,8 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	priv->pkstats.rx_prio[6][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_6);
 	priv->pkstats.rx_prio[7][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_7);
 	priv->pkstats.rx_prio[7][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_7);
-	priv->pkstats.rx_prio[8][0] = be64_to_cpu(mlx4_en_stats->RTOT_novlan);
-	priv->pkstats.rx_prio[8][1] = be64_to_cpu(mlx4_en_stats->ROCT_novlan);
+	priv->pkstats.rx_prio[8][0] = be64_to_cpu(mlx4_en_stats->RTOT_yesvlan);
+	priv->pkstats.rx_prio[8][1] = be64_to_cpu(mlx4_en_stats->ROCT_yesvlan);
 	priv->pkstats.tx_prio[0][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_0);
 	priv->pkstats.tx_prio[0][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_0);
 	priv->pkstats.tx_prio[1][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_1);
@@ -383,8 +383,8 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	priv->pkstats.tx_prio[6][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_6);
 	priv->pkstats.tx_prio[7][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_7);
 	priv->pkstats.tx_prio[7][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_7);
-	priv->pkstats.tx_prio[8][0] = be64_to_cpu(mlx4_en_stats->TTOT_novlan);
-	priv->pkstats.tx_prio[8][1] = be64_to_cpu(mlx4_en_stats->TOCT_novlan);
+	priv->pkstats.tx_prio[8][0] = be64_to_cpu(mlx4_en_stats->TTOT_yesvlan);
+	priv->pkstats.tx_prio[8][1] = be64_to_cpu(mlx4_en_stats->TOCT_yesvlan);
 
 	if (tmp_counter_stats.counter_mode == 0) {
 		priv->pf_stats.rx_bytes   = be64_to_cpu(tmp_counter_stats.rx_bytes);
@@ -408,7 +408,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 			be64_to_cpu(flowstats[i].tx_pause_transition);
 	}
 
-	/* if pfc is not in use, all priorities counters have the same value */
+	/* if pfc is yest in use, all priorities counters have the same value */
 	priv->rx_flowstats.rx_pause =
 		be64_to_cpu(flowstats[0].rx_pause);
 	priv->rx_flowstats.rx_pause_duration =

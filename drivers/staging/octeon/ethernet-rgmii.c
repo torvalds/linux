@@ -125,7 +125,7 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 	} else if (netif_carrier_ok(dev)) {
 		netif_carrier_off(dev);
 	}
-	cvm_oct_note_carrier(priv, link_info);
+	cvm_oct_yeste_carrier(priv, link_info);
 }
 
 int cvm_oct_rgmii_open(struct net_device *dev)

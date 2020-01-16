@@ -211,9 +211,9 @@ int wm8350_read_auxadc(struct wm8350 *wm8350, int channel, int scale, int vref)
 	 * the completion. */
 	try_wait_for_completion(&wm8350->auxadc_done);
 
-	/* We ignore the result of the completion and just check for a
+	/* We igyesre the result of the completion and just check for a
 	 * conversion result, allowing us to soldier on if the IRQ
-	 * infrastructure is not set up for the chip. */
+	 * infrastructure is yest set up for the chip. */
 	wait_for_completion_timeout(&wm8350->auxadc_done, msecs_to_jiffies(5));
 
 	reg = wm8350_reg_read(wm8350, WM8350_DIGITISER_CONTROL_1);
@@ -244,7 +244,7 @@ static irqreturn_t wm8350_auxadc_irq(int irq, void *irq_data)
 }
 
 /*
- * Register a client device.  This is non-fatal since there is no need to
+ * Register a client device.  This is yesn-fatal since there is yes need to
  * fail the entire device init due to a single platform device failing.
  */
 static void wm8350_client_dev_register(struct wm8350 *wm8350,
@@ -299,7 +299,7 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 
 	if (id1 != 0x6143) {
 		dev_err(wm8350->dev,
-			"Device with ID %x is not a WM8350\n", id1);
+			"Device with ID %x is yest a WM8350\n", id1);
 		ret = -ENODEV;
 		goto err;
 	}
@@ -338,8 +338,8 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 			wm8350->power.rev_g_coeff = 1;
 			break;
 		default:
-			/* For safety we refuse to run on unknown hardware */
-			dev_err(wm8350->dev, "Unknown WM8350 CHIP_REV\n");
+			/* For safety we refuse to run on unkyeswn hardware */
+			dev_err(wm8350->dev, "Unkyeswn WM8350 CHIP_REV\n");
 			ret = -ENODEV;
 			goto err;
 		}
@@ -361,7 +361,7 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 			break;
 
 		default:
-			dev_err(wm8350->dev, "Unknown WM8351 CHIP_REV\n");
+			dev_err(wm8350->dev, "Unkyeswn WM8351 CHIP_REV\n");
 			ret = -ENODEV;
 			goto err;
 		}
@@ -378,14 +378,14 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 			break;
 
 		default:
-			dev_err(wm8350->dev, "Unknown WM8352 CHIP_REV\n");
+			dev_err(wm8350->dev, "Unkyeswn WM8352 CHIP_REV\n");
 			ret = -ENODEV;
 			goto err;
 		}
 		break;
 
 	default:
-		dev_err(wm8350->dev, "Unknown MASK_REV\n");
+		dev_err(wm8350->dev, "Unkyeswn MASK_REV\n");
 		ret = -ENODEV;
 		goto err;
 	}

@@ -30,7 +30,7 @@ enum devcg_behavior {
  */
 
 struct dev_exception_item {
-	u32 major, minor;
+	u32 major, miyesr;
 	short type;
 	short access;
 	struct list_head list;
@@ -98,7 +98,7 @@ static int dev_exception_add(struct dev_cgroup *dev_cgroup,
 			continue;
 		if (walk->major != ex->major)
 			continue;
-		if (walk->minor != ex->minor)
+		if (walk->miyesr != ex->miyesr)
 			continue;
 
 		walk->access |= ex->access;
@@ -126,7 +126,7 @@ static void dev_exception_rm(struct dev_cgroup *dev_cgroup,
 			continue;
 		if (walk->major != ex->major)
 			continue;
-		if (walk->minor != ex->minor)
+		if (walk->miyesr != ex->miyesr)
 			continue;
 
 		walk->access &= ~ex->access;
@@ -287,7 +287,7 @@ static int devcgroup_seq_show(struct seq_file *m, void *v)
 		list_for_each_entry_rcu(ex, &devcgroup->exceptions, list) {
 			set_access(acc, ex->access);
 			set_majmin(maj, ex->major);
-			set_majmin(min, ex->minor);
+			set_majmin(min, ex->miyesr);
 			seq_printf(m, "%c %s:%s %s\n", type_to_char(ex->type),
 				   maj, min, acc);
 		}
@@ -302,7 +302,7 @@ static int devcgroup_seq_show(struct seq_file *m, void *v)
  * @exceptions: list of exceptions
  * @type: device type (DEVCG_DEV_BLOCK or DEVCG_DEV_CHAR)
  * @major: device file major number, ~0 to match all
- * @minor: device file minor number, ~0 to match all
+ * @miyesr: device file miyesr number, ~0 to match all
  * @access: permission mask (DEVCG_ACC_READ, DEVCG_ACC_WRITE, DEVCG_ACC_MKNOD)
  *
  * It is considered a complete match if an exception is found that will
@@ -311,7 +311,7 @@ static int devcgroup_seq_show(struct seq_file *m, void *v)
  * Return: true in case it matches an exception completely
  */
 static bool match_exception(struct list_head *exceptions, short type,
-			    u32 major, u32 minor, short access)
+			    u32 major, u32 miyesr, short access)
 {
 	struct dev_exception_item *ex;
 
@@ -322,9 +322,9 @@ static bool match_exception(struct list_head *exceptions, short type,
 			continue;
 		if (ex->major != ~0 && ex->major != major)
 			continue;
-		if (ex->minor != ~0 && ex->minor != minor)
+		if (ex->miyesr != ~0 && ex->miyesr != miyesr)
 			continue;
-		/* provided access cannot have more than the exception rule */
+		/* provided access canyest have more than the exception rule */
 		if (access & (~ex->access))
 			continue;
 		return true;
@@ -337,18 +337,18 @@ static bool match_exception(struct list_head *exceptions, short type,
  * @exceptions: list of exceptions
  * @type: device type (DEVCG_DEV_BLOCK or DEVCG_DEV_CHAR)
  * @major: device file major number, ~0 to match all
- * @minor: device file minor number, ~0 to match all
+ * @miyesr: device file miyesr number, ~0 to match all
  * @access: permission mask (DEVCG_ACC_READ, DEVCG_ACC_WRITE, DEVCG_ACC_MKNOD)
  *
  * It is considered a partial match if an exception's range is found to
  * contain *any* of the devices specified by provided parameters. This is
- * used to make sure no extra access is being granted that is forbidden by
+ * used to make sure yes extra access is being granted that is forbidden by
  * any of the exception list.
  *
  * Return: true in case the provided range mat matches an exception completely
  */
 static bool match_exception_partial(struct list_head *exceptions, short type,
-				    u32 major, u32 minor, short access)
+				    u32 major, u32 miyesr, short access)
 {
 	struct dev_exception_item *ex;
 
@@ -363,7 +363,7 @@ static bool match_exception_partial(struct list_head *exceptions, short type,
 		 */
 		if (ex->major != ~0 && major != ~0 && ex->major != major)
 			continue;
-		if (ex->minor != ~0 && minor != ~0 && ex->minor != minor)
+		if (ex->miyesr != ~0 && miyesr != ~0 && ex->miyesr != miyesr)
 			continue;
 		/*
 		 * In order to make sure the provided range isn't matching
@@ -412,7 +412,7 @@ static bool verify_new_ex(struct dev_cgroup *dev_cgroup,
 			match = match_exception_partial(&dev_cgroup->exceptions,
 							refex->type,
 							refex->major,
-							refex->minor,
+							refex->miyesr,
 							refex->access);
 
 			if (match)
@@ -427,7 +427,7 @@ static bool verify_new_ex(struct dev_cgroup *dev_cgroup,
 		 * allowed
 		 */
 		match = match_exception(&dev_cgroup->exceptions, refex->type,
-					refex->major, refex->minor,
+					refex->major, refex->miyesr,
 					refex->access);
 
 		if (match)
@@ -478,11 +478,11 @@ static bool parent_allows_removal(struct dev_cgroup *childcg,
 		return true;
 
 	/*
-	 * Make sure you're not removing part or a whole exception existing in
+	 * Make sure you're yest removing part or a whole exception existing in
 	 * the parent cgroup
 	 */
 	return !match_exception_partial(&parent->exceptions, ex->type,
-					ex->major, ex->minor, ex->access);
+					ex->major, ex->miyesr, ex->access);
 }
 
 /**
@@ -502,7 +502,7 @@ static inline int may_allow_all(struct dev_cgroup *parent)
  * revalidate_active_exceptions - walks through the active exception list and
  * 				  revalidates the exceptions based on parent's
  * 				  behavior and exceptions. The exceptions that
- * 				  are no longer valid will be removed.
+ * 				  are yes longer valid will be removed.
  * 				  Called with devcgroup_mutex held.
  * @devcg: cgroup which exceptions will be checked
  *
@@ -542,7 +542,7 @@ static int propagate_exception(struct dev_cgroup *devcg_root,
 		struct dev_cgroup *devcg = css_to_devcgroup(pos);
 
 		/*
-		 * Because devcgroup_mutex is held, no devcg will become
+		 * Because devcgroup_mutex is held, yes devcg will become
 		 * online or offline during the tree walk (see on/offline
 		 * methods), and online ones are safe to access outside RCU
 		 * read lock without bumping refcnt.
@@ -582,11 +582,11 @@ static int propagate_exception(struct dev_cgroup *devcg_root,
 /*
  * Modify the exception list using allow/deny rules.
  * CAP_SYS_ADMIN is needed for this.  It's at least separate from CAP_MKNOD
- * so we can give a container CAP_MKNOD to let it create devices but not
+ * so we can give a container CAP_MKNOD to let it create devices but yest
  * modify the exception list.
  * It seems likely we'll want to add a CAP_CONTAINER capability to allow
  * us to also grant CAP_SYS_ADMIN to containers without giving away the
- * device exception list controls, but for now we'll stick with CAP_SYS_ADMIN
+ * device exception list controls, but for yesw we'll stick with CAP_SYS_ADMIN
  *
  * Taking rules away is always allowed (given CAP_SYS_ADMIN).  Granting
  * new access is only allowed if you're in the top-level cgroup, or your
@@ -671,9 +671,9 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		return -EINVAL;
 	b++;
 
-	/* read minor */
+	/* read miyesr */
 	if (*b == '*') {
-		ex.minor = ~0;
+		ex.miyesr = ~0;
 		b++;
 	} else if (isdigit(*b)) {
 		memset(temp, 0, sizeof(temp));
@@ -683,7 +683,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 			if (!isdigit(*b))
 				break;
 		}
-		rc = kstrtou32(temp, 10, &ex.minor);
+		rc = kstrtou32(temp, 10, &ex.miyesr);
 		if (rc)
 			return -EINVAL;
 	} else {
@@ -792,16 +792,16 @@ struct cgroup_subsys devices_cgrp_subsys = {
 };
 
 /**
- * __devcgroup_check_permission - checks if an inode operation is permitted
+ * __devcgroup_check_permission - checks if an iyesde operation is permitted
  * @dev_cgroup: the dev cgroup to be tested against
  * @type: device type
  * @major: device major number
- * @minor: device minor number
+ * @miyesr: device miyesr number
  * @access: combination of DEVCG_ACC_WRITE, DEVCG_ACC_READ and DEVCG_ACC_MKNOD
  *
- * returns 0 on success, -EPERM case the operation is not permitted
+ * returns 0 on success, -EPERM case the operation is yest permitted
  */
-static int __devcgroup_check_permission(short type, u32 major, u32 minor,
+static int __devcgroup_check_permission(short type, u32 major, u32 miyesr,
 					short access)
 {
 	struct dev_cgroup *dev_cgroup;
@@ -812,11 +812,11 @@ static int __devcgroup_check_permission(short type, u32 major, u32 minor,
 	if (dev_cgroup->behavior == DEVCG_DEFAULT_ALLOW)
 		/* Can't match any of the exceptions, even partially */
 		rc = !match_exception_partial(&dev_cgroup->exceptions,
-					      type, major, minor, access);
+					      type, major, miyesr, access);
 	else
 		/* Need to match completely one exception to be allowed */
 		rc = match_exception(&dev_cgroup->exceptions, type, major,
-				     minor, access);
+				     miyesr, access);
 	rcu_read_unlock();
 
 	if (!rc)
@@ -825,13 +825,13 @@ static int __devcgroup_check_permission(short type, u32 major, u32 minor,
 	return 0;
 }
 
-int devcgroup_check_permission(short type, u32 major, u32 minor, short access)
+int devcgroup_check_permission(short type, u32 major, u32 miyesr, short access)
 {
-	int rc = BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type, major, minor, access);
+	int rc = BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type, major, miyesr, access);
 
 	if (rc)
 		return -EPERM;
 
-	return __devcgroup_check_permission(type, major, minor, access);
+	return __devcgroup_check_permission(type, major, miyesr, access);
 }
 EXPORT_SYMBOL(devcgroup_check_permission);

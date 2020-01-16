@@ -4,7 +4,7 @@ MediaTek T-PHY binding
 T-phy controller supports physical layer functionality for a number of
 controllers on MediaTek SoCs, such as, USB2.0, USB3.0, PCIe, and SATA.
 
-Required properties (controller (parent) node):
+Required properties (controller (parent) yesde):
  - compatible	: should be one of
 		  "mediatek,generic-tphy-v1"
 		  "mediatek,generic-tphy-v2"
@@ -18,21 +18,21 @@ Required properties (controller (parent) node):
  - clock-names	: (deprecated, use port's one instead) must contain
 		  "u3phya_ref": for reference clock of usb3.0 analog phy.
 
-Required nodes	: a sub-node is required for each port the controller
+Required yesdes	: a sub-yesde is required for each port the controller
 		  provides. Address range information including the usual
-		  'reg' property is used inside these nodes to describe
+		  'reg' property is used inside these yesdes to describe
 		  the controller's topology.
 
-Optional properties (controller (parent) node):
+Optional properties (controller (parent) yesde):
  - reg		: offset and length of register shared by multiple ports,
 		  exclude port's private register. It is needed on mt2701
-		  and mt8173, but not on mt2712.
+		  and mt8173, but yest on mt2712.
  - mediatek,src-ref-clk-mhz	: frequency of reference clock for slew rate
 		  calibrate
  - mediatek,src-coef	: coefficient for slew rate calibrate, depends on
 		  SoC process
 
-Required properties (port (child) node):
+Required properties (port (child) yesde):
 - reg		: address and length of the register set for the port.
 - clocks	: a list of phandle + clock-specifier pairs, one for each
 		  entry in clock-names
@@ -47,7 +47,7 @@ Required properties (port (child) node):
 			- PHY_TYPE_PCIE
 			- PHY_TYPE_SATA
 
-Optional properties (PHY_TYPE_USB2 port (child) node):
+Optional properties (PHY_TYPE_USB2 port (child) yesde):
 - mediatek,eye-src	: u32, the value of slew rate calibrate
 - mediatek,eye-vrt	: u32, the selection of VRT reference voltage
 - mediatek,eye-term	: u32, the selection of HS_TX TERM reference voltage
@@ -87,8 +87,8 @@ u3phy: usb-phy@11290000 {
 Specifying phy control of devices
 ---------------------------------
 
-Device nodes should specify the configuration required in their "phys"
-property, containing a phandle to the phy port node and a device type;
+Device yesdes should specify the configuration required in their "phys"
+property, containing a phandle to the phy port yesde and a device type;
 phy-names for each port are optional.
 
 Example:

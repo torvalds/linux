@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -23,7 +23,7 @@ u8 ath9k_parse_mpdudensity(u8 mpdudensity)
 {
 	/*
 	 * 802.11n D2.0 defined values for "Minimum MPDU Start Spacing":
-	 *   0 for no restriction
+	 *   0 for yes restriction
 	 *   1 for 1/4 us
 	 *   2 for 1/2 us
 	 *   3 for 1 us
@@ -125,8 +125,8 @@ void ath9k_ps_wakeup(struct ath_softc *sc)
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 
 	/*
-	 * While the hardware is asleep, the cycle counters contain no
-	 * useful data. Better clear them now so that they don't mess up
+	 * While the hardware is asleep, the cycle counters contain yes
+	 * useful data. Better clear them yesw so that they don't mess up
 	 * survey data results.
 	 */
 	if (power_mode != ATH9K_PM_AWAKE) {
@@ -344,28 +344,28 @@ out:
 	return r;
 }
 
-static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
+static void ath_yesde_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 			    struct ieee80211_vif *vif)
 {
-	struct ath_node *an;
-	an = (struct ath_node *)sta->drv_priv;
+	struct ath_yesde *an;
+	an = (struct ath_yesde *)sta->drv_priv;
 
 	an->sc = sc;
 	an->sta = sta;
 	an->vif = vif;
 	memset(&an->key_idx, 0, sizeof(an->key_idx));
 
-	ath_tx_node_init(sc, an);
+	ath_tx_yesde_init(sc, an);
 
-	ath_dynack_node_init(sc->sc_ah, an);
+	ath_dynack_yesde_init(sc->sc_ah, an);
 }
 
-static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
+static void ath_yesde_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 {
-	struct ath_node *an = (struct ath_node *)sta->drv_priv;
-	ath_tx_node_cleanup(sc, an);
+	struct ath_yesde *an = (struct ath_yesde *)sta->drv_priv;
+	ath_tx_yesde_cleanup(sc, an);
 
-	ath_dynack_node_deinit(sc->sc_ah, an);
+	ath_dynack_yesde_deinit(sc->sc_ah, an);
 }
 
 void ath9k_tasklet(unsigned long data)
@@ -425,7 +425,7 @@ void ath9k_tasklet(unsigned long data)
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
 	if ((status & ATH9K_INT_TSFOOR) && sc->ps_enabled) {
 		/*
-		 * TSF sync does not look correct; remain awake to sync with
+		 * TSF sync does yest look correct; remain awake to sync with
 		 * the next Beacon.
 		 */
 		ath_dbg(common, PS, "TSFOOR - Sync with next Beacon\n");
@@ -504,14 +504,14 @@ irqreturn_t ath_isr(int irq, void *dev)
 	bool sched = false;
 
 	/*
-	 * The hardware is not ready/present, don't
+	 * The hardware is yest ready/present, don't
 	 * touch anything. Note this can happen early
 	 * on if the IRQ is shared.
 	 */
 	if (!ah || test_bit(ATH_OP_INVALID, &common->op_flags))
 		return IRQ_NONE;
 
-	/* shared irq, not for us */
+	/* shared irq, yest for us */
 	if (!ath9k_hw_intrpend(ah))
 		return IRQ_NONE;
 
@@ -529,7 +529,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 		return IRQ_HANDLED;
 
 	/*
-	 * If there are no status bits set, then this interrupt was not
+	 * If there are yes status bits set, then this interrupt was yest
 	 * for me (should have been caught above).
 	 */
 	if (!status)
@@ -594,7 +594,7 @@ chip_reset:
 }
 
 /*
- * This function is called when a HW reset cannot be deferred
+ * This function is called when a HW reset canyest be deferred
  * and has to be immediate.
  */
 int ath_reset(struct ath_softc *sc, struct ath9k_channel *hchan)
@@ -666,7 +666,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	/*
 	 * The basic interface to setting the hardware in a good
-	 * state is ``reset''.  On return the hardware is known to
+	 * state is ``reset''.  On return the hardware is kyeswn to
 	 * be powered up and with interrupts disabled.  This must
 	 * be followed by initialization of the appropriate bits
 	 * and then setup of the interrupt mask.
@@ -699,7 +699,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	/*
 	 * Enable GTT interrupts only for AR9003/AR9004 chips
-	 * for now.
+	 * for yesw.
 	 */
 	if (AR_SREV_9300_20_OR_LATER(ah))
 		ah->imask |= ATH9K_INT_GTT;
@@ -753,7 +753,7 @@ static void ath9k_tx(struct ieee80211_hw *hw,
 
 	if (sc->ps_enabled) {
 		/*
-		 * mac80211 does not set PM field for normal data frames, so we
+		 * mac80211 does yest set PM field for yesrmal data frames, so we
 		 * need to update that based on the current PS mode.
 		 */
 		if (ieee80211_is_data(hdr->frame_control) &&
@@ -793,7 +793,7 @@ static void ath9k_tx(struct ieee80211_hw *hw,
 	}
 
 	/*
-	 * Cannot tx while the hardware is in full sleep, it first needs a full
+	 * Canyest tx while the hardware is in full sleep, it first needs a full
 	 * chip reset to recover from that
 	 */
 	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_FULL_SLEEP)) {
@@ -834,7 +834,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	ath_cancel_work(sc);
 
 	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
-		ath_dbg(common, ANY, "Device not present\n");
+		ath_dbg(common, ANY, "Device yest present\n");
 		mutex_unlock(&sc->mutex);
 		return;
 	}
@@ -847,14 +847,14 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	/* prevent tasklets to enable interrupts once we disable them */
 	ah->imask &= ~ATH9K_INT_GLOBAL;
 
-	/* make sure h/w will not generate any interrupt
+	/* make sure h/w will yest generate any interrupt
 	 * before setting the invalid flag. */
 	ath9k_hw_disable_interrupts(ah);
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
-	/* we can now sync irq and kill any running tasklets, since we already
-	 * disabled interrupts and not holding a spin lock */
+	/* we can yesw sync irq and kill any running tasklets, since we already
+	 * disabled interrupts and yest holding a spin lock */
 	synchronize_irq(sc->irq);
 	tasklet_kill(&sc->intr_tq);
 	tasklet_kill(&sc->bcon_tasklet);
@@ -958,7 +958,7 @@ static void ath9k_vif_iter(struct ath9k_vif_iter_data *iter_data,
 			iter_data->primary_sta = vif;
 		break;
 	case NL80211_IFTYPE_OCB:
-		iter_data->nocbs++;
+		iter_data->yescbs++;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		iter_data->nadhocs++;
@@ -1131,7 +1131,7 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 
 		if (iter_data.nmeshes)
 			ah->opmode = NL80211_IFTYPE_MESH_POINT;
-		else if (iter_data.nocbs)
+		else if (iter_data.yescbs)
 			ah->opmode = NL80211_IFTYPE_OCB;
 		else if (iter_data.nwds)
 			ah->opmode = NL80211_IFTYPE_AP;
@@ -1249,7 +1249,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
-	struct ath_node *an = &avp->mcast_node;
+	struct ath_yesde *an = &avp->mcast_yesde;
 
 	mutex_lock(&sc->mutex);
 	if (IS_ENABLED(CONFIG_ATH9K_TX99)) {
@@ -1284,8 +1284,8 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	an->sc = sc;
 	an->sta = NULL;
 	an->vif = vif;
-	an->no_ps_filter = true;
-	ath_tx_node_init(sc, an);
+	an->yes_ps_filter = true;
+	ath_tx_yesde_init(sc, an);
 
 	mutex_unlock(&sc->mutex);
 	return 0;
@@ -1348,7 +1348,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_remove_slot(sc, vif);
 
-	ath_tx_node_cleanup(sc, &avp->mcast_node);
+	ath_tx_yesde_cleanup(sc, &avp->mcast_yesde);
 
 	ath9k_calculate_summary_state(sc, avp->chanctx);
 
@@ -1428,7 +1428,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 	/*
 	 * We just prepare to enable PS. We have to wait until our AP has
-	 * ACK'd our null data frame to disable RX otherwise we'll ignore
+	 * ACK'd our null data frame to disable RX otherwise we'll igyesre
 	 * those ACKs and end up retransmitting the same null data frames.
 	 * IEEE80211_CONF_CHANGE_PS is only passed by mac80211 for STA mode.
 	 */
@@ -1508,11 +1508,11 @@ static int ath9k_sta_add(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_node *an = (struct ath_node *) sta->drv_priv;
+	struct ath_yesde *an = (struct ath_yesde *) sta->drv_priv;
 	struct ieee80211_key_conf ps_key = { };
 	int key;
 
-	ath_node_attach(sc, sta, vif);
+	ath_yesde_attach(sc, sta, vif);
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_AP_VLAN)
@@ -1532,7 +1532,7 @@ static void ath9k_del_ps_key(struct ath_softc *sc,
 			     struct ieee80211_sta *sta)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_node *an = (struct ath_node *) sta->drv_priv;
+	struct ath_yesde *an = (struct ath_yesde *) sta->drv_priv;
 	struct ieee80211_key_conf ps_key = { .hw_key_idx = an->ps_key };
 
 	if (!an->ps_key)
@@ -1550,7 +1550,7 @@ static int ath9k_sta_remove(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 
 	ath9k_del_ps_key(sc, vif, sta);
-	ath_node_detach(sc, sta);
+	ath_yesde_detach(sc, sta);
 
 	return 0;
 }
@@ -1590,7 +1590,7 @@ static int ath9k_sta_state(struct ieee80211_hw *hw,
 }
 
 static void ath9k_sta_set_tx_filter(struct ath_hw *ah,
-				    struct ath_node *an,
+				    struct ath_yesde *an,
 				    bool set)
 {
 	int i;
@@ -1602,13 +1602,13 @@ static void ath9k_sta_set_tx_filter(struct ath_hw *ah,
 	}
 }
 
-static void ath9k_sta_notify(struct ieee80211_hw *hw,
+static void ath9k_sta_yestify(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif,
-			 enum sta_notify_cmd cmd,
+			 enum sta_yestify_cmd cmd,
 			 struct ieee80211_sta *sta)
 {
 	struct ath_softc *sc = hw->priv;
-	struct ath_node *an = (struct ath_node *) sta->drv_priv;
+	struct ath_yesde *an = (struct ath_yesde *) sta->drv_priv;
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
@@ -1673,10 +1673,10 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_node *an = NULL;
+	struct ath_yesde *an = NULL;
 	int ret = 0, i;
 
-	if (ath9k_modparam_nohwcrypt)
+	if (ath9k_modparam_yeshwcrypt)
 		return -ENOSPC;
 
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
@@ -1685,7 +1685,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
 		/*
-		 * For now, disable hw crypto for the RSN IBSS group keys. This
+		 * For yesw, disable hw crypto for the RSN IBSS group keys. This
 		 * could be optimized in the future to use a modified key cache
 		 * design to support per-STA RX GTK, but until that gets
 		 * implemented, use of software crypto for group addressed
@@ -1698,7 +1698,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 	ath9k_ps_wakeup(sc);
 	ath_dbg(common, CONFIG, "Set HW Key %d\n", cmd);
 	if (sta)
-		an = (struct ath_node *)sta->drv_priv;
+		an = (struct ath_yesde *)sta->drv_priv;
 
 	switch (cmd) {
 	case SET_KEY:
@@ -1898,7 +1898,7 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 	bool flush = false;
 	int ret = 0;
 	struct ieee80211_sta *sta = params->sta;
-	struct ath_node *an = (struct ath_node *)sta->drv_priv;
+	struct ath_yesde *an = (struct ath_yesde *)sta->drv_priv;
 	enum ieee80211_ampdu_mlme_action action = params->action;
 	u16 tid = params->tid;
 	u16 *ssn = &params->ssn;
@@ -1936,12 +1936,12 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 		ath9k_ps_restore(sc);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		atid = ath_node_to_tid(an, tid);
+		atid = ath_yesde_to_tid(an, tid);
 		atid->baw_size = IEEE80211_MIN_AMPDU_BUF <<
 			        sta->ht_cap.ampdu_factor;
 		break;
 	default:
-		ath_err(ath9k_hw_common(sc->sc_ah), "Unknown AMPDU action\n");
+		ath_err(ath9k_hw_common(sc->sc_ah), "Unkyeswn AMPDU action\n");
 	}
 
 	mutex_unlock(&sc->mutex);
@@ -2097,7 +2097,7 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop,
 	}
 
 	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
-		ath_dbg(common, ANY, "Device not present\n");
+		ath_dbg(common, ANY, "Device yest present\n");
 		return;
 	}
 
@@ -2245,7 +2245,7 @@ static int ath9k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	if (ah->caps.rx_chainmask == 1)
 		return 0;
 
-	/* AR9100 runs into calibration issues if not all rx chains are enabled */
+	/* AR9100 runs into calibration issues if yest all rx chains are enabled */
 	if (AR_SREV_9100(ah))
 		ah->rxchainmask = 0x7;
 	else
@@ -2667,7 +2667,7 @@ struct ieee80211_ops ath9k_ops = {
 	.config 	    = ath9k_config,
 	.configure_filter   = ath9k_configure_filter,
 	.sta_state          = ath9k_sta_state,
-	.sta_notify         = ath9k_sta_notify,
+	.sta_yestify         = ath9k_sta_yestify,
 	.conf_tx 	    = ath9k_conf_tx,
 	.bss_info_changed   = ath9k_bss_info_changed,
 	.set_key            = ath9k_set_key,

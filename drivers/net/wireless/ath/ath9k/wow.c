@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -99,7 +99,7 @@ static int ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 	byte_cnt += 3;
 
 	/*
-	 * need not match the destination mac address, it can be a broadcast
+	 * need yest match the destination mac address, it can be a broadcast
 	 * mac address or an unicast to this station
 	 */
 	byte_cnt += 6;
@@ -178,7 +178,7 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
-		ath_err(common, "Device not present\n");
+		ath_err(common, "Device yest present\n");
 		ret = -ENODEV;
 		goto fail_wow;
 	}
@@ -190,7 +190,7 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	}
 
 	if (sc->cur_chan->nvifs > 1) {
-		ath_dbg(common, WOW, "WoW for multivif is not yet supported\n");
+		ath_dbg(common, WOW, "WoW for multivif is yest yet supported\n");
 		ret = 1;
 		goto fail_wow;
 	}
@@ -198,7 +198,7 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	if (ath9k_is_chanctx_enabled()) {
 		if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags)) {
 			ath_dbg(common, WOW,
-				"Multi-channel WOW is not supported\n");
+				"Multi-channel WOW is yest supported\n");
 			ret = 1;
 			goto fail_wow;
 		}
@@ -260,8 +260,8 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
 	/*
-	 * we can now sync irq and kill any running tasklets, since we already
-	 * disabled interrupts and not holding a spin lock
+	 * we can yesw sync irq and kill any running tasklets, since we already
+	 * disabled interrupts and yest holding a spin lock
 	 */
 	synchronize_irq(sc->irq);
 	tasklet_kill(&sc->intr_tq);

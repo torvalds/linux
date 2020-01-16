@@ -48,7 +48,7 @@ static void show_heartbeat(const struct i915_request *rq,
 	struct drm_printer p = drm_debug_printer("heartbeat");
 
 	intel_engine_dump(engine, &p,
-			  "%s heartbeat {prio:%d} not ticking\n",
+			  "%s heartbeat {prio:%d} yest ticking\n",
 			  engine->name,
 			  rq->sched.attr.priority);
 }
@@ -81,7 +81,7 @@ static void heartbeat(struct work_struct *wrk)
 			/*
 			 * Gradually raise the priority of the heartbeat to
 			 * give high priority work [which presumably desires
-			 * low latency and no jitter] the chance to naturally
+			 * low latency and yes jitter] the chance to naturally
 			 * complete before being preempted.
 			 */
 			attr.priority = I915_PRIORITY_MASK;

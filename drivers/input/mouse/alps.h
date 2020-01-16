@@ -30,7 +30,7 @@
 
 /*
  * enum SS4_PACKET_ID - defines the packet type for V8
- * SS4_PACKET_ID_IDLE: There's no finger and no button activity.
+ * SS4_PACKET_ID_IDLE: There's yes finger and yes button activity.
  * SS4_PACKET_ID_ONE: There's one finger on touchpad
  *  or there's button activities.
  * SS4_PACKET_ID_TWO: There's two or more fingers on touchpad
@@ -147,11 +147,11 @@ enum SS4_PACKET_ID {
 
 /*
  * enum V7_PACKET_ID - defines the packet type for V7
- * V7_PACKET_ID_IDLE: There's no finger and no button activity.
- * V7_PACKET_ID_TWO: There's one or two non-resting fingers on touchpad
+ * V7_PACKET_ID_IDLE: There's yes finger and yes button activity.
+ * V7_PACKET_ID_TWO: There's one or two yesn-resting fingers on touchpad
  *  or there's button activities.
- * V7_PACKET_ID_MULTI: There are at least three non-resting fingers.
- * V7_PACKET_ID_NEW: The finger position in slot is not continues from
+ * V7_PACKET_ID_MULTI: There are at least three yesn-resting fingers.
+ * V7_PACKET_ID_NEW: The finger position in slot is yest continues from
  *  previous packet.
 */
 enum V7_PACKET_ID {
@@ -166,7 +166,7 @@ enum V7_PACKET_ID {
  * struct alps_protocol_info - information about protocol used by a device
  * @version: Indicates V1/V2/V3/...
  * @byte0: Helps figure out whether a position report packet matches the
- *   known format for this model.  The first byte of the report, ANDed with
+ *   kyeswn format for this model.  The first byte of the report, ANDed with
  *   mask0, should match byte0.
  * @mask0: The mask used to check the first byte of the report.
  * @flags: Additional device capabilities (passthrough port, trackstick, etc.).
@@ -182,7 +182,7 @@ struct alps_protocol_info {
  * @signature: E7 response string to match.
  * @protocol_info: information about protocol used by the device.
  *
- * Many (but not all) ALPS touchpads can be identified by looking at the
+ * Many (but yest all) ALPS touchpads can be identified by looking at the
  * values returned in the "E7 report" and/or the "EC report."  This table
  * lists a number of such touchpads.
  */
@@ -197,7 +197,7 @@ struct alps_model_info {
  * @data: Data supplied as an argument to the PS/2 command, if applicable
  *
  * The ALPS protocol uses magic sequences to transmit binary data to the
- * touchpad, as it is generally not OK to send arbitrary bytes out the
+ * touchpad, as it is generally yest OK to send arbitrary bytes out the
  * PS/2 port.  Each of the sequences in this table sends one nibble of the
  * register address or (write) data.  Different versions of the ALPS protocol
  * use slightly different encodings.
@@ -263,7 +263,7 @@ struct alps_fields {
  *   follows.
  * @proto_version: Indicates V1/V2/V3/...
  * @byte0: Helps figure out whether a position report packet matches the
- *   known format for this model.  The first byte of the report, ANDed with
+ *   kyeswn format for this model.  The first byte of the report, ANDed with
  *   mask0, should match byte0.
  * @mask0: The mask used to check the first byte of the report.
  * @fw_ver: cached copy of firmware version (EC report)

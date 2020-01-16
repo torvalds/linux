@@ -80,9 +80,9 @@ u32 intel_sseu_make_rpcs(struct drm_i915_private *i915,
 	 * If i915/perf is active, we want a stable powergating configuration
 	 * on the system.
 	 *
-	 * We could choose full enablement, but on ICL we know there are use
+	 * We could choose full enablement, but on ICL we kyesw there are use
 	 * cases which disable slices for functional, apart for performance
-	 * reasons. So in this case we select a known stable subset.
+	 * reasons. So in this case we select a kyeswn stable subset.
 	 */
 	if (!i915->perf.exclusive_stream) {
 		ctx_sseu = *req_sseu;
@@ -120,10 +120,10 @@ u32 intel_sseu_make_rpcs(struct drm_i915_private *i915,
 	 * be enabled instead.
 	 *
 	 * 2.
-	 * When more than one slice is enabled, hardware ignores the subslice
+	 * When more than one slice is enabled, hardware igyesres the subslice
 	 * count altogether.
 	 *
-	 * From these restrictions it follows that it is not possible to enable
+	 * From these restrictions it follows that it is yest possible to enable
 	 * a count of subslices between the SScount maximum of four restriction,
 	 * and the maximum available number on a particular SKU. Either all
 	 * subslices are enabled, or a count between one and four on the first

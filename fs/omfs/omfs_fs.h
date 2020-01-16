@@ -28,7 +28,7 @@ struct omfs_super_block {
 	__be32 s_magic;			/* OMFS_MAGIC */
 	__be32 s_blocksize;		/* size of a block */
 	__be32 s_mirrors;		/* # of mirrors of system blocks */
-	__be32 s_sys_blocksize;		/* size of non-data blocks */
+	__be32 s_sys_blocksize;		/* size of yesn-data blocks */
 };
 
 struct omfs_header {
@@ -55,10 +55,10 @@ struct omfs_root_block {
 	char r_name[OMFS_NAMELEN];	/* partition label */
 };
 
-struct omfs_inode {
+struct omfs_iyesde {
 	struct omfs_header i_head;	/* header */
-	__be64 i_parent;		/* parent containing this inode */
-	__be64 i_sibling;		/* next inode in hash bucket */
+	__be64 i_parent;		/* parent containing this iyesde */
+	__be64 i_sibling;		/* next iyesde in hash bucket */
 	__be64 i_ctime;			/* ctime, in milliseconds */
 	char i_fill1[35];
 	char i_type;			/* OMFS_[DIR,FILE] */

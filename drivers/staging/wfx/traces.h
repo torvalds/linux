@@ -41,7 +41,7 @@
  *          #undef xxx_name
  *          #define xxx_name(msg) { msg, #msg },
  *
- *   5. list_name can now nearlu be used with __print_symbolic() but,
+ *   5. list_name can yesw nearlu be used with __print_symbolic() but,
  *      __print_symbolic() dislike last comma of list. So we define a new list
  *      with a dummy element:
  *
@@ -310,25 +310,25 @@ DEFINE_EVENT(io_data32, io_read32,
 #define _trace_io_read32(reg, val) trace_io_read32(reg, -1, val)
 
 DECLARE_EVENT_CLASS(piggyback,
-	TP_PROTO(u32 val, bool ignored),
-	TP_ARGS(val, ignored),
+	TP_PROTO(u32 val, bool igyesred),
+	TP_ARGS(val, igyesred),
 	TP_STRUCT__entry(
 		__field(int, val)
-		__field(bool, ignored)
+		__field(bool, igyesred)
 	),
 	TP_fast_assign(
 		__entry->val = val;
-		__entry->ignored = ignored;
+		__entry->igyesred = igyesred;
 	),
 	TP_printk("CONTROL: %08x%s",
 		__entry->val,
-		__entry->ignored ? " (ignored)" : ""
+		__entry->igyesred ? " (igyesred)" : ""
 	)
 );
 DEFINE_EVENT(piggyback, piggyback,
-	TP_PROTO(u32 val, bool ignored),
-	TP_ARGS(val, ignored));
-#define _trace_piggyback(val, ignored) trace_piggyback(val, ignored)
+	TP_PROTO(u32 val, bool igyesred),
+	TP_ARGS(val, igyesred));
+#define _trace_piggyback(val, igyesred) trace_piggyback(val, igyesred)
 
 TRACE_EVENT(bh_stats,
 	TP_PROTO(int ind, int req, int cnf, int busy, bool release),

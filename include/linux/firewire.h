@@ -78,7 +78,7 @@ int fw_csr_string(const u32 *directory, int key, char *buf, size_t size);
 extern struct bus_type fw_bus_type;
 
 struct fw_card_driver;
-struct fw_node;
+struct fw_yesde;
 
 struct fw_card {
 	const struct fw_card_driver *driver;
@@ -86,7 +86,7 @@ struct fw_card {
 	struct kref kref;
 	struct completion done;
 
-	int node_id;
+	int yesde_id;
 	int generation;
 	int current_tlabel;
 	u64 tlabel_mask;
@@ -105,10 +105,10 @@ struct fw_card {
 
 	spinlock_t lock; /* Take this lock when handling the lists in
 			  * this struct. */
-	struct fw_node *local_node;
-	struct fw_node *root_node;
-	struct fw_node *irm_node;
-	u8 color; /* must be u8 to match the definition in struct fw_node */
+	struct fw_yesde *local_yesde;
+	struct fw_yesde *root_yesde;
+	struct fw_yesde *irm_yesde;
+	u8 color; /* must be u8 to match the definition in struct fw_yesde */
 	int gap_count;
 	bool beta_repeaters_present;
 
@@ -123,7 +123,7 @@ struct fw_card {
 	struct delayed_work bm_work; /* bus manager job */
 	int bm_retries;
 	int bm_generation;
-	int bm_node_id;
+	int bm_yesde_id;
 	bool bm_abdicate;
 
 	bool priority_budget_implemented;	/* controller feature */
@@ -164,16 +164,16 @@ enum fw_device_state {
 };
 
 /*
- * Note, fw_device.generation always has to be read before fw_device.node_id.
+ * Note, fw_device.generation always has to be read before fw_device.yesde_id.
  * Use SMP memory barriers to ensure this.  Otherwise requests will be sent
- * to an outdated node_id if the generation was updated in the meantime due
+ * to an outdated yesde_id if the generation was updated in the meantime due
  * to a bus reset.
  *
- * Likewise, fw-core will take care to update .node_id before .generation so
+ * Likewise, fw-core will take care to update .yesde_id before .generation so
  * that whenever fw_device.generation is current WRT the actual bus generation,
- * fw_device.node_id is guaranteed to be current too.
+ * fw_device.yesde_id is guaranteed to be current too.
  *
- * The same applies to fw_device.card->node_id vs. fw_device.generation.
+ * The same applies to fw_device.card->yesde_id vs. fw_device.generation.
  *
  * fw_device.config_rom and fw_device.config_rom_length may be accessed during
  * the lifetime of any fw_unit belonging to the fw_device, before device_del()
@@ -182,8 +182,8 @@ enum fw_device_state {
  */
 struct fw_device {
 	atomic_t state;
-	struct fw_node *node;
-	int node_id;
+	struct fw_yesde *yesde;
+	int yesde_id;
 	int generation;
 	unsigned max_speed;
 	struct fw_card *card;
@@ -219,7 +219,7 @@ static inline int fw_device_is_shutdown(struct fw_device *device)
 int fw_device_enable_phys_dma(struct fw_device *device);
 
 /*
- * fw_unit.directory must not be accessed after device_del(&fw_unit.device).
+ * fw_unit.directory must yest be accessed after device_del(&fw_unit.device).
  */
 struct fw_unit {
 	struct device device;
@@ -270,11 +270,11 @@ typedef void (*fw_transaction_callback_t)(struct fw_card *card, int rcode,
 					  void *callback_data);
 /*
  * This callback handles an inbound request subaction.  It is called in
- * RCU read-side context, therefore must not sleep.
+ * RCU read-side context, therefore must yest sleep.
  *
- * The callback should not initiate outbound request subactions directly.
+ * The callback should yest initiate outbound request subactions directly.
  * Otherwise there is a danger of recursion of inbound and outbound
- * transactions from and to the local node.
+ * transactions from and to the local yesde.
  *
  * The callback is responsible that either fw_send_response() or kfree()
  * is called on the @request, except for FCP registers for which the core
@@ -314,7 +314,7 @@ struct fw_packet {
 };
 
 struct fw_transaction {
-	int node_id; /* The generation is implied; it is always the current. */
+	int yesde_id; /* The generation is implied; it is always the current. */
 	int tlabel;
 	struct list_head link;
 	struct fw_card *card;
@@ -393,7 +393,7 @@ void fw_core_remove_descriptor(struct fw_descriptor *desc);
 struct fw_iso_packet {
 	u16 payload_length;	/* Length of indirect payload		*/
 	u32 interrupt:1;	/* Generate interrupt on this packet	*/
-	u32 skip:1;		/* tx: Set to not send packet at all	*/
+	u32 skip:1;		/* tx: Set to yest send packet at all	*/
 				/* rx: Sync bit, wait for matching sy	*/
 	u32 tag:2;		/* tx: Tag in packet header		*/
 	u32 sy:4;		/* tx: Sy in packet header		*/
@@ -414,7 +414,7 @@ struct fw_iso_packet {
 /*
  * An iso buffer is just a set of pages mapped for DMA in the
  * specified direction.  Since the pages are to be used for DMA, they
- * are not mapped into the kernel virtual address space.  We store the
+ * are yest mapped into the kernel virtual address space.  We store the
  * DMA address in the page private. The helper function
  * fw_iso_buffer_map() will map the pages into a given vma.
  */

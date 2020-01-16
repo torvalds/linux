@@ -139,7 +139,7 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 			int idx = 0;
 
 			list_for_each_entry(tcset, &cset->threaded_csets,
-					    threaded_csets_node) {
+					    threaded_csets_yesde) {
 				seq_puts(seq, idx ? "," : "<=");
 				seq_printf(seq, "%pK", tcset);
 				idx++;

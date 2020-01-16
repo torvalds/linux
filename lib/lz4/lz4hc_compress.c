@@ -7,9 +7,9 @@
  * modification, are permitted provided that the following conditions are
  * met:
  *	* Redistributions of source code must retain the above copyright
- *	  notice, this list of conditions and the following disclaimer.
+ *	  yestice, this list of conditions and the following disclaimer.
  *	* Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
+ * copyright yestice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -461,7 +461,7 @@ _Search3:
 
 		if (ml3 == ml2) {
 			/* No better match : 2 sequences to encode */
-			/* ip & ref are known; Now for ml */
+			/* ip & ref are kyeswn; Now for ml */
 			if (start2 < ip + ml)
 				ml = (int)(start2 - ip);
 			/* Now, encode 2 sequences */
@@ -476,7 +476,7 @@ _Search3:
 		}
 
 		if (start3 < ip + ml + 3) {
-			/* Not enough space for match 2 : remove it */
+			/* Not eyesugh space for match 2 : remove it */
 			if (start3 >= (ip + ml)) {
 				/* can write Seq1 immediately
 				 * ==> Seq2 is removed,
@@ -515,9 +515,9 @@ _Search3:
 		}
 
 		/*
-		* OK, now we have 3 ascending matches;
+		* OK, yesw we have 3 ascending matches;
 		* let's write at least the first one
-		* ip & ref are known; Now for ml
+		* ip & ref are kyeswn; Now for ml
 		*/
 		if (start2 < ip + ml) {
 			if ((start2 - ip) < (int)ML_MASK) {
@@ -586,10 +586,10 @@ static int LZ4_compress_HC_extStateHC(
 	int maxDstSize,
 	int compressionLevel)
 {
-	LZ4HC_CCtx_internal *ctx = &((LZ4_streamHC_t *)state)->internal_donotuse;
+	LZ4HC_CCtx_internal *ctx = &((LZ4_streamHC_t *)state)->internal_doyestuse;
 
 	if (((size_t)(state)&(sizeof(void *) - 1)) != 0) {
-		/* Error : state is not aligned
+		/* Error : state is yest aligned
 		 * for pointers (32 or 64 bits)
 		 */
 		return 0;
@@ -602,7 +602,7 @@ static int LZ4_compress_HC_extStateHC(
 			srcSize, maxDstSize, compressionLevel, limitedOutput);
 	else
 		return LZ4HC_compress_generic(ctx, src, dst,
-			srcSize, maxDstSize, compressionLevel, noLimit);
+			srcSize, maxDstSize, compressionLevel, yesLimit);
 }
 
 int LZ4_compress_HC(const char *src, char *dst, int srcSize,
@@ -618,15 +618,15 @@ EXPORT_SYMBOL(LZ4_compress_HC);
  **************************************/
 void LZ4_resetStreamHC(LZ4_streamHC_t *LZ4_streamHCPtr, int compressionLevel)
 {
-	LZ4_streamHCPtr->internal_donotuse.base = NULL;
-	LZ4_streamHCPtr->internal_donotuse.compressionLevel = (unsigned int)compressionLevel;
+	LZ4_streamHCPtr->internal_doyestuse.base = NULL;
+	LZ4_streamHCPtr->internal_doyestuse.compressionLevel = (unsigned int)compressionLevel;
 }
 
 int LZ4_loadDictHC(LZ4_streamHC_t *LZ4_streamHCPtr,
 	const char *dictionary,
 	int dictSize)
 {
-	LZ4HC_CCtx_internal *ctxPtr = &LZ4_streamHCPtr->internal_donotuse;
+	LZ4HC_CCtx_internal *ctxPtr = &LZ4_streamHCPtr->internal_doyestuse;
 
 	if (dictSize > 64 * KB) {
 		dictionary += dictSize - 64 * KB;
@@ -672,7 +672,7 @@ static int LZ4_compressHC_continue_generic(
 	int maxOutputSize,
 	limitedOutput_directive limit)
 {
-	LZ4HC_CCtx_internal *ctxPtr = &LZ4_streamHCPtr->internal_donotuse;
+	LZ4HC_CCtx_internal *ctxPtr = &LZ4_streamHCPtr->internal_doyestuse;
 
 	/* auto - init if forgotten */
 	if (ctxPtr->base == NULL)
@@ -725,7 +725,7 @@ int LZ4_compress_HC_continue(
 			source, dest, inputSize, maxOutputSize, limitedOutput);
 	else
 		return LZ4_compressHC_continue_generic(LZ4_streamHCPtr,
-			source, dest, inputSize, maxOutputSize, noLimit);
+			source, dest, inputSize, maxOutputSize, yesLimit);
 }
 EXPORT_SYMBOL(LZ4_compress_HC_continue);
 
@@ -736,7 +736,7 @@ int LZ4_saveDictHC(
 	char *safeBuffer,
 	int dictSize)
 {
-	LZ4HC_CCtx_internal *const streamPtr = &LZ4_streamHCPtr->internal_donotuse;
+	LZ4HC_CCtx_internal *const streamPtr = &LZ4_streamHCPtr->internal_doyestuse;
 	int const prefixSize = (int)(streamPtr->end
 		- (streamPtr->base + streamPtr->dictLimit));
 

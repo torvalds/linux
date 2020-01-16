@@ -428,7 +428,7 @@ static int mma9551_gpio_probe(struct iio_dev *indio_dev)
 			return ret;
 		}
 
-		dev_dbg(dev, "gpio resource, no:%d irq:%d\n",
+		dev_dbg(dev, "gpio resource, yes:%d irq:%d\n",
 			desc_to_gpio(gpio), data->irqs[i]);
 	}
 
@@ -516,7 +516,7 @@ static int mma9551_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	mutex_lock(&data->mutex);
 	mma9551_set_device_state(data->client, false);

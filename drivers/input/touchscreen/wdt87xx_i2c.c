@@ -398,7 +398,7 @@ static int wdt87xx_sw_reset(struct i2c_client *client)
 {
 	int error;
 
-	dev_dbg(&client->dev, "resetting device now\n");
+	dev_dbg(&client->dev, "resetting device yesw\n");
 
 	error = wdt87xx_send_command(client, VND_CMD_RESET, 0);
 	if (error) {

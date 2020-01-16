@@ -15,7 +15,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -43,7 +43,7 @@ struct fdpic_func_descriptor {
  * stack frame and previous contents of the stack.  This allows
  * frame unwinding in a function epilogue but only if a frame
  * pointer is used in the function.  This is necessary because
- * current gcc compilers (<4.3) do not generate unwind info on
+ * current gcc compilers (<4.3) do yest generate unwind info on
  * SH for function epilogues.
  */
 #define UNWINDGUARD 64
@@ -54,9 +54,9 @@ struct fdpic_func_descriptor {
 
 #define MOVW(n)	 (0x9300|((n)-2))	/* Move mem word at PC+n to R3 */
 #if defined(CONFIG_CPU_SH2)
-#define TRAP_NOARG 0xc320		/* Syscall w/no args (NR in R3) */
+#define TRAP_NOARG 0xc320		/* Syscall w/yes args (NR in R3) */
 #else
-#define TRAP_NOARG 0xc310		/* Syscall w/no args (NR in R3) */
+#define TRAP_NOARG 0xc310		/* Syscall w/yes args (NR in R3) */
 #endif
 #define OR_R0_R0 0x200b			/* or r0,r0 (insert to avoid hardware bug) */
 
@@ -158,7 +158,7 @@ asmlinkage int sys_sigreturn(void)
 	int r0;
 
         /* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
@@ -188,7 +188,7 @@ asmlinkage int sys_rt_sigreturn(void)
 	int r0;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
@@ -239,7 +239,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	err |= save_sigcontext_fpu(sc, regs);
 #endif
 
-	/* non-iBCS2 extensions.. */
+	/* yesn-iBCS2 extensions.. */
 	err |= __put_user(mask, &sc->oldmask);
 
 	return err;
@@ -404,7 +404,7 @@ static inline void
 handle_syscall_restart(unsigned long save_r0, struct pt_regs *regs,
 		       struct sigaction *sa)
 {
-	/* If we're not from a syscall, bail out */
+	/* If we're yest from a syscall, bail out */
 	if (regs->tra < 0)
 		return;
 
@@ -412,13 +412,13 @@ handle_syscall_restart(unsigned long save_r0, struct pt_regs *regs,
 	switch (regs->regs[0]) {
 		case -ERESTART_RESTARTBLOCK:
 		case -ERESTARTNOHAND:
-		no_system_call_restart:
+		yes_system_call_restart:
 			regs->regs[0] = -EINTR;
 			break;
 
 		case -ERESTARTSYS:
 			if (!(sa->sa_flags & SA_RESTART))
-				goto no_system_call_restart;
+				goto yes_system_call_restart;
 		/* fallthrough */
 		case -ERESTARTNOINTR:
 			regs->regs[0] = save_r0;
@@ -447,7 +447,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs, unsigned int save_r0)
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  *
  * Note that we go through the signals twice: once to check the signals that
@@ -477,7 +477,7 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 
 	/* Did we come from a system call? */
 	if (regs->tra >= 0) {
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - yes handlers present */
 		if (regs->regs[0] == -ERESTARTNOHAND ||
 		    regs->regs[0] == -ERESTARTSYS ||
 		    regs->regs[0] == -ERESTARTNOINTR) {
@@ -490,13 +490,13 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 	}
 
 	/*
-	 * If there's no signal to deliver, we just put the saved sigmask
+	 * If there's yes signal to deliver, we just put the saved sigmask
 	 * back.
 	 */
 	restore_saved_sigmask();
 }
 
-asmlinkage void do_notify_resume(struct pt_regs *regs, unsigned int save_r0,
+asmlinkage void do_yestify_resume(struct pt_regs *regs, unsigned int save_r0,
 				 unsigned long thread_info_flags)
 {
 	/* deal with pending signal delivery */
@@ -505,6 +505,6 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, unsigned int save_r0,
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 	}
 }

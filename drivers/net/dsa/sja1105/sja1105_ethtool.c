@@ -17,7 +17,7 @@ struct sja1105_port_status_mac {
 	u64 sizeerr;
 	u64 tctimeout;
 	u64 priorerr;
-	u64 nomaster;
+	u64 yesmaster;
 	u64 memov;
 	u64 memerr;
 	u64 invtyp;
@@ -30,7 +30,7 @@ struct sja1105_port_status_mac {
 	u64 lendrop;
 	u64 bagdrop;
 	u64 policeerr;
-	u64 drpnona664err;
+	u64 drpyesna664err;
 	u64 spcerr;
 	u64 agedrp;
 };
@@ -41,7 +41,7 @@ struct sja1105_port_status_hl1 {
 	u64 n_unreleased;
 	u64 n_sizeerr;
 	u64 n_crcerr;
-	u64 n_vlnotfound;
+	u64 n_vlyestfound;
 	u64 n_ctpolerr;
 	u64 n_polerr;
 	u64 n_rxfrmsh;
@@ -58,7 +58,7 @@ struct sja1105_port_status_hl2 {
 	u64 n_qfull;
 	u64 n_part_drop;
 	u64 n_egr_disabled;
-	u64 n_not_reach;
+	u64 n_yest_reach;
 	u64 qlevel_hwm[8]; /* Only for P/Q/R/S */
 	u64 qlevel[8];     /* Only for P/Q/R/S */
 };
@@ -84,7 +84,7 @@ sja1105_port_status_mac_unpack(void *buf,
 	sja1105_unpack(p + 0x1, &status->sizeerr,      26, 26, 4);
 	sja1105_unpack(p + 0x1, &status->tctimeout,    25, 25, 4);
 	sja1105_unpack(p + 0x1, &status->priorerr,     24, 24, 4);
-	sja1105_unpack(p + 0x1, &status->nomaster,     23, 23, 4);
+	sja1105_unpack(p + 0x1, &status->yesmaster,     23, 23, 4);
 	sja1105_unpack(p + 0x1, &status->memov,        22, 22, 4);
 	sja1105_unpack(p + 0x1, &status->memerr,       21, 21, 4);
 	sja1105_unpack(p + 0x1, &status->invtyp,       19, 19, 4);
@@ -97,7 +97,7 @@ sja1105_port_status_mac_unpack(void *buf,
 	sja1105_unpack(p + 0x1, &status->lendrop,       5,  5, 4);
 	sja1105_unpack(p + 0x1, &status->bagdrop,       4,  4, 4);
 	sja1105_unpack(p + 0x1, &status->policeerr,     3,  3, 4);
-	sja1105_unpack(p + 0x1, &status->drpnona664err, 2,  2, 4);
+	sja1105_unpack(p + 0x1, &status->drpyesna664err, 2,  2, 4);
 	sja1105_unpack(p + 0x1, &status->spcerr,        1,  1, 4);
 	sja1105_unpack(p + 0x1, &status->agedrp,        0,  0, 4);
 }
@@ -114,7 +114,7 @@ sja1105_port_status_hl1_unpack(void *buf,
 	sja1105_unpack(p + 0xD, &status->n_unreleased, 31,  0, 4);
 	sja1105_unpack(p + 0xC, &status->n_sizeerr,    31,  0, 4);
 	sja1105_unpack(p + 0xB, &status->n_crcerr,     31,  0, 4);
-	sja1105_unpack(p + 0xA, &status->n_vlnotfound, 31,  0, 4);
+	sja1105_unpack(p + 0xA, &status->n_vlyestfound, 31,  0, 4);
 	sja1105_unpack(p + 0x9, &status->n_ctpolerr,   31,  0, 4);
 	sja1105_unpack(p + 0x8, &status->n_polerr,     31,  0, 4);
 	sja1105_unpack(p + 0x7, &status->n_rxfrmsh,    31,  0, 4);
@@ -141,7 +141,7 @@ sja1105_port_status_hl2_unpack(void *buf,
 	sja1105_unpack(p + 0x3, &status->n_qfull,        31,  0, 4);
 	sja1105_unpack(p + 0x2, &status->n_part_drop,    31,  0, 4);
 	sja1105_unpack(p + 0x1, &status->n_egr_disabled, 31,  0, 4);
-	sja1105_unpack(p + 0x0, &status->n_not_reach,    31,  0, 4);
+	sja1105_unpack(p + 0x0, &status->n_yest_reach,    31,  0, 4);
 }
 
 static void
@@ -245,17 +245,17 @@ static int sja1105_port_status_get(struct sja1105_private *priv,
 }
 
 static char sja1105_port_stats[][ETH_GSTRING_LEN] = {
-	/* MAC-Level Diagnostic Counters */
+	/* MAC-Level Diagyesstic Counters */
 	"n_runt",
 	"n_soferr",
 	"n_alignerr",
 	"n_miierr",
-	/* MAC-Level Diagnostic Flags */
+	/* MAC-Level Diagyesstic Flags */
 	"typeerr",
 	"sizeerr",
 	"tctimeout",
 	"priorerr",
-	"nomaster",
+	"yesmaster",
 	"memov",
 	"memerr",
 	"invtyp",
@@ -268,16 +268,16 @@ static char sja1105_port_stats[][ETH_GSTRING_LEN] = {
 	"lendrop",
 	"bagdrop",
 	"policeerr",
-	"drpnona664err",
+	"drpyesna664err",
 	"spcerr",
 	"agedrp",
-	/* High-Level Diagnostic Counters */
+	/* High-Level Diagyesstic Counters */
 	"n_n664err",
 	"n_vlanerr",
 	"n_unreleased",
 	"n_sizeerr",
 	"n_crcerr",
-	"n_vlnotfound",
+	"n_vlyestfound",
 	"n_ctpolerr",
 	"n_polerr",
 	"n_rxfrm",
@@ -287,7 +287,7 @@ static char sja1105_port_stats[][ETH_GSTRING_LEN] = {
 	"n_qfull",
 	"n_part_drop",
 	"n_egr_disabled",
-	"n_not_reach",
+	"n_yest_reach",
 };
 
 static char sja1105pqrs_extra_port_stats[][ETH_GSTRING_LEN] = {
@@ -333,7 +333,7 @@ void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data)
 	data[k++] = status.mac.sizeerr;
 	data[k++] = status.mac.tctimeout;
 	data[k++] = status.mac.priorerr;
-	data[k++] = status.mac.nomaster;
+	data[k++] = status.mac.yesmaster;
 	data[k++] = status.mac.memov;
 	data[k++] = status.mac.memerr;
 	data[k++] = status.mac.invtyp;
@@ -346,7 +346,7 @@ void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data)
 	data[k++] = status.mac.lendrop;
 	data[k++] = status.mac.bagdrop;
 	data[k++] = status.mac.policeerr;
-	data[k++] = status.mac.drpnona664err;
+	data[k++] = status.mac.drpyesna664err;
 	data[k++] = status.mac.spcerr;
 	data[k++] = status.mac.agedrp;
 	data[k++] = status.hl1.n_n664err;
@@ -354,7 +354,7 @@ void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data)
 	data[k++] = status.hl1.n_unreleased;
 	data[k++] = status.hl1.n_sizeerr;
 	data[k++] = status.hl1.n_crcerr;
-	data[k++] = status.hl1.n_vlnotfound;
+	data[k++] = status.hl1.n_vlyestfound;
 	data[k++] = status.hl1.n_ctpolerr;
 	data[k++] = status.hl1.n_polerr;
 	data[k++] = status.hl1.n_rxfrm;
@@ -364,7 +364,7 @@ void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data)
 	data[k++] = status.hl2.n_qfull;
 	data[k++] = status.hl2.n_part_drop;
 	data[k++] = status.hl2.n_egr_disabled;
-	data[k++] = status.hl2.n_not_reach;
+	data[k++] = status.hl2.n_yest_reach;
 
 	if (priv->info->device_id == SJA1105E_DEVICE_ID ||
 	    priv->info->device_id == SJA1105T_DEVICE_ID)

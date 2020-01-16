@@ -29,7 +29,7 @@
 /*
  * Pixels-per-line(PPL) = Time-per-line * pixel-rate
  * In OV5670, Time-per-line = HTS/SCLK.
- * HTS is fixed for all resolutions, not recommended to change.
+ * HTS is fixed for all resolutions, yest recommended to change.
  */
 #define OV5670_FIXED_PPL		2724	/* Pixels per line */
 
@@ -2317,7 +2317,7 @@ static int ov5670_stop_streaming(struct ov5670 *ov5670)
 	if (ret)
 		dev_err(&client->dev, "%s failed to set stream\n", __func__);
 
-	/* Return success even if it was an error, as there is nothing the
+	/* Return success even if it was an error, as there is yesthing the
 	 * caller can do about it.
 	 */
 	return 0;
@@ -2336,7 +2336,7 @@ static int ov5670_set_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+			pm_runtime_put_yesidle(&client->dev);
 			goto unlock_and_return;
 		}
 

@@ -90,7 +90,7 @@ static u8 csiphy_get_bpp(const struct csiphy_format *formats,
 		if (code == formats[i].code)
 			return formats[i].bpp;
 
-	WARN(1, "Unknown format\n");
+	WARN(1, "Unkyeswn format\n");
 
 	return formats[0].bpp;
 }
@@ -135,7 +135,7 @@ static int csiphy_set_clock_rates(struct csiphy_device *csiphy)
 				return -EINVAL;
 			}
 
-			/* if sensor pixel clock is not available */
+			/* if sensor pixel clock is yest available */
 			/* set highest possible CSIPHY clock rate */
 			if (min_rate == 0)
 				j = clock->nfreqs - 1;
@@ -248,12 +248,12 @@ static int csiphy_stream_on(struct csiphy_device *csiphy)
 	ret = camss_get_pixel_clock(&csiphy->subdev.entity, &pixel_clock);
 	if (ret) {
 		dev_err(csiphy->camss->dev,
-			"Cannot get CSI2 transmitter's pixel clock\n");
+			"Canyest get CSI2 transmitter's pixel clock\n");
 		return -EINVAL;
 	}
 	if (!pixel_clock) {
 		dev_err(csiphy->camss->dev,
-			"Got pixel clock == 0, cannot continue\n");
+			"Got pixel clock == 0, canyest continue\n");
 		return -EINVAL;
 	}
 
@@ -350,7 +350,7 @@ static void csiphy_try_format(struct csiphy_device *csiphy,
 			if (fmt->code == csiphy->formats[i].code)
 				break;
 
-		/* If not found, use UYVY as default */
+		/* If yest found, use UYVY as default */
 		if (i >= csiphy->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
@@ -565,14 +565,14 @@ int msm_csiphy_subdev_init(struct camss *camss,
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
 	csiphy->base = devm_ioremap_resource(dev, r);
 	if (IS_ERR(csiphy->base)) {
-		dev_err(dev, "could not map memory\n");
+		dev_err(dev, "could yest map memory\n");
 		return PTR_ERR(csiphy->base);
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[1]);
 	csiphy->base_clk_mux = devm_ioremap_resource(dev, r);
 	if (IS_ERR(csiphy->base_clk_mux)) {
-		dev_err(dev, "could not map memory\n");
+		dev_err(dev, "could yest map memory\n");
 		return PTR_ERR(csiphy->base_clk_mux);
 	}
 
@@ -707,7 +707,7 @@ static const struct media_entity_operations csiphy_media_ops = {
 };
 
 /*
- * msm_csiphy_register_entity - Register subdev node for CSIPHY module
+ * msm_csiphy_register_entity - Register subdev yesde for CSIPHY module
  * @csiphy: CSIPHY device
  * @v4l2_dev: V4L2 device
  *
@@ -755,7 +755,7 @@ int msm_csiphy_register_entity(struct csiphy_device *csiphy,
 }
 
 /*
- * msm_csiphy_unregister_entity - Unregister CSIPHY module subdev node
+ * msm_csiphy_unregister_entity - Unregister CSIPHY module subdev yesde
  * @csiphy: CSIPHY device
  */
 void msm_csiphy_unregister_entity(struct csiphy_device *csiphy)

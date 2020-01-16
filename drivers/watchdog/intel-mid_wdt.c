@@ -89,7 +89,7 @@ static irqreturn_t mid_wdt_irq(int irq, void *dev_id)
 {
 	panic("Kernel Watchdog");
 
-	/* This code should not be reached */
+	/* This code should yest be reached */
 	return IRQ_HANDLED;
 }
 
@@ -134,7 +134,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	wdt_dev->timeout = MID_WDT_DEFAULT_TIMEOUT;
 	wdt_dev->parent = dev;
 
-	watchdog_set_nowayout(wdt_dev, WATCHDOG_NOWAYOUT);
+	watchdog_set_yeswayout(wdt_dev, WATCHDOG_NOWAYOUT);
 	watchdog_set_drvdata(wdt_dev, dev);
 
 	ret = devm_request_irq(dev, pdata->irq, mid_wdt_irq,
@@ -150,7 +150,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	 * with the default threshold which may vary. When we get here
 	 * we should make a decision to prevent any side effects before
 	 * user space daemon will take care of it. The best option,
-	 * taking into consideration that there is no way to read values
+	 * taking into consideration that there is yes way to read values
 	 * back from hardware, is to enforce watchdog being run with
 	 * deterministic values.
 	 */

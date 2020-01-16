@@ -58,7 +58,7 @@ static void ide_generic_check_pci_legacy_iobases(int *primary, int *secondary)
 		     p->device == PCI_DEVICE_ID_CYRIX_5520))
 			*primary = *secondary = 1;
 
-		/* Intel MPIIX - PIO ATA on non PCI side of bridge */
+		/* Intel MPIIX - PIO ATA on yesn PCI side of bridge */
 		if (p->vendor == PCI_VENDOR_ID_INTEL &&
 		    p->device == PCI_DEVICE_ID_INTEL_82371MX) {
 			pci_read_config_word(p, 0x6C, &val);
@@ -101,7 +101,7 @@ static int __init ide_generic_init(void)
 		if ((probe_mask & (1 << i)) && io_addr) {
 			if (!request_region(io_addr, 8, DRV_NAME)) {
 				printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX "
-						"not free.\n",
+						"yest free.\n",
 						DRV_NAME, io_addr, io_addr + 7);
 				rc = -EBUSY;
 				continue;
@@ -109,7 +109,7 @@ static int __init ide_generic_init(void)
 
 			if (!request_region(io_addr + 0x206, 1, DRV_NAME)) {
 				printk(KERN_ERR "%s: I/O resource 0x%lX "
-						"not free.\n",
+						"yest free.\n",
 						DRV_NAME, io_addr + 0x206);
 				release_region(io_addr, 8);
 				rc = -EBUSY;

@@ -49,7 +49,7 @@ int test__mem(struct test *text __maybe_unused, int subtest __maybe_unused)
 
 	ret |= check(src, "N/ARemote PMEM miss");
 
-	src.mem_snoopx = PERF_MEM_SNOOPX_FWD;
+	src.mem_syesopx = PERF_MEM_SNOOPX_FWD;
 	src.mem_lvl_num = PERF_MEM_LVLNUM_RAM;
 
 	ret |= check(src , "FwdRemote RAM miss");

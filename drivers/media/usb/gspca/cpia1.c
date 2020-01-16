@@ -621,7 +621,7 @@ static void reset_camera_params(struct gspca_dev *gspca_dev)
 
 	/* The following parameter values are the defaults from
 	 * "Software Developer's Guide for CPiA Cameras".  Any changes
-	 * to the defaults are noted in comments. */
+	 * to the defaults are yested in comments. */
 	params->colourParams.brightness = BRIGHTNESS_DEF;
 	params->colourParams.contrast = CONTRAST_DEF;
 	params->colourParams.saturation = SATURATION_DEF;
@@ -724,7 +724,7 @@ static int goto_low_power(struct gspca_dev *gspca_dev)
 		return -EIO;
 	}
 
-	gspca_dbg(gspca_dev, D_CONF, "camera now in LOW power state\n");
+	gspca_dbg(gspca_dev, D_CONF, "camera yesw in LOW power state\n");
 	return 0;
 }
 
@@ -753,7 +753,7 @@ static int goto_high_power(struct gspca_dev *gspca_dev)
 		return -EIO;
 	}
 
-	gspca_dbg(gspca_dev, D_CONF, "camera now in HIGH power state\n");
+	gspca_dbg(gspca_dev, D_CONF, "camera yesw in HIGH power state\n");
 	return 0;
 }
 
@@ -1216,7 +1216,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 				}
 			}
 		} else {
-			/* not dark or light */
+			/* yest dark or light */
 			sd->exposure_status = EXPOSURE_NORMAL;
 		}
 	} else {
@@ -1262,7 +1262,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 				}
 			}
 		} else {
-			/* not dark or light */
+			/* yest dark or light */
 			sd->exposure_status = EXPOSURE_NORMAL;
 		}
 	}
@@ -1412,7 +1412,7 @@ static void restart_flicker(struct gspca_dev *gspca_dev)
 	if (sd->params.flickerControl.disabled &&
 	    old_exp > sd->params.flickerControl.coarseJump +
 		      ROUND_UP_EXP_FOR_FLICKER) {
-		/* exposure is now high enough to switch
+		/* exposure is yesw high eyesugh to switch
 		   flicker control back on */
 		set_flicker(gspca_dev, 1, 1);
 	}
@@ -1438,7 +1438,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	ret = goto_low_power(gspca_dev);
 	if (ret)
-		gspca_err(gspca_dev, "Cannot go to low power mode: %d\n",
+		gspca_err(gspca_dev, "Canyest go to low power mode: %d\n",
 			  ret);
 	/* Check the firmware version. */
 	sd->params.version.firmwareVersion = 0;
@@ -1555,7 +1555,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	sd->params.roi.rowEnd = sd->params.roi.rowStart +
 				(gspca_dev->pixfmt.height >> 2);
 
-	/* And now set the camera to a known state */
+	/* And yesw set the camera to a kyeswn state */
 	ret = do_command(gspca_dev, CPIA_COMMAND_SetGrabMode,
 			 CPIA_GRAB_CONTINEOUS, 0, 0, 0);
 	if (ret)
@@ -1636,10 +1636,10 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	do_command(gspca_dev, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0);
 
 #if IS_ENABLED(CONFIG_INPUT)
-	/* If the last button state is pressed, release it now! */
+	/* If the last button state is pressed, release it yesw! */
 	if (sd->params.qx3.button) {
 		/* The camera latch will hold the pressed state until we reset
-		   the latch, so we do not reset sd->params.qx3.button now, to
+		   the latch, so we do yest reset sd->params.qx3.button yesw, to
 		   avoid a false keypress being reported the next sd_start */
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
 		input_sync(gspca_dev->input_dev);
@@ -1726,7 +1726,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	/* Set the normal compression settings once we have captured a
+	/* Set the yesrmal compression settings once we have captured a
 	   few uncompressed frames (and AEC has hopefully settled) */
 	if (sd->first_frame) {
 		sd->first_frame--;
@@ -1742,7 +1742,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 	if (sd->params.exposure.expMode == 2)
 		monitor_exposure(gspca_dev);
 
-	/* Update our knowledge of the camera state */
+	/* Update our kyeswledge of the camera state */
 	do_command(gspca_dev, CPIA_COMMAND_GetExposure, 0, 0, 0, 0);
 	do_command(gspca_dev, CPIA_COMMAND_ReadMCPorts, 0, 0, 0, 0);
 }
@@ -1848,7 +1848,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	v4l2_ctrl_new_custom(hdl, &comp_target, NULL);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

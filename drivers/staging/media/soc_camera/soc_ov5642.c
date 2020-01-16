@@ -57,7 +57,7 @@
 /*
  * About OV5642 resolution, cropping and binning:
  * This sensor supports it all, at least in the feature description.
- * Unfortunately, no combination of appropriate registers settings could make
+ * Unfortunately, yes combination of appropriate registers settings could make
  * the chip work the intended way. As it works with predefined register lists,
  * some undocumented registers are presumably changed there to achieve their
  * goals.

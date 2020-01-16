@@ -14,7 +14,7 @@
  * ("BSD").
  */
 
-/* Note : this module is expected to remain private, do not expose it */
+/* Note : this module is expected to remain private, do yest expose it */
 
 #ifndef ERROR_H_MODULE
 #define ERROR_H_MODULE

@@ -22,7 +22,7 @@ struct thread_info {
 	mm_segment_t		addr_limit;	/* thread address space */
 	unsigned		cpu;		/* current CPU */
 	int			preempt_count; /* 0 => preemptable, <0 => BUG */
-	unsigned int		status;		/* thread-synchronous flags */
+	unsigned int		status;		/* thread-synchroyesus flags */
 
 	int bpt_nsaved;
 	unsigned long bpt_addr[2];		/* breakpoint handling  */
@@ -55,7 +55,7 @@ register struct thread_info *__current_thread_info __asm__("$8");
  * - pending work-to-be-done flags come first and must be assigned to be
  *   within bits 0 to 7 to fit in and immediate operand.
  *
- * TIF_SYSCALL_TRACE is known to be 0 via blbs.
+ * TIF_SYSCALL_TRACE is kyeswn to be 0 via blbs.
  */
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
 #define TIF_NOTIFY_RESUME	1	/* callback before returning to user */

@@ -295,7 +295,7 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
 	for (c = 0; c < AHCI_MAX_CLKS && hpriv->clks[c]; c++)
 		clk_put(hpriv->clks[c]);
 	/*
-	 * The regulators are tied to child node device and not to the
+	 * The regulators are tied to child yesde device and yest to the
 	 * SATA device itself. So we can't use devm for automatically
 	 * releasing them. We have to do it manually here.
 	 */
@@ -307,11 +307,11 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
 }
 
 static int ahci_platform_get_phy(struct ahci_host_priv *hpriv, u32 port,
-				struct device *dev, struct device_node *node)
+				struct device *dev, struct device_yesde *yesde)
 {
 	int rc;
 
-	hpriv->phys[port] = devm_of_phy_get(dev, node, NULL);
+	hpriv->phys[port] = devm_of_phy_get(dev, yesde, NULL);
 
 	if (!IS_ERR(hpriv->phys[port]))
 		return 0;
@@ -320,26 +320,26 @@ static int ahci_platform_get_phy(struct ahci_host_priv *hpriv, u32 port,
 	switch (rc) {
 	case -ENOSYS:
 		/* No PHY support. Check if PHY is required. */
-		if (of_find_property(node, "phys", NULL)) {
+		if (of_find_property(yesde, "phys", NULL)) {
 			dev_err(dev,
-				"couldn't get PHY in node %pOFn: ENOSYS\n",
-				node);
+				"couldn't get PHY in yesde %pOFn: ENOSYS\n",
+				yesde);
 			break;
 		}
 		/* fall through */
 	case -ENODEV:
-		/* continue normally */
+		/* continue yesrmally */
 		hpriv->phys[port] = NULL;
 		rc = 0;
 		break;
 	case -EPROBE_DEFER:
-		/* Do not complain yet */
+		/* Do yest complain yet */
 		break;
 
 	default:
 		dev_err(dev,
-			"couldn't get PHY in node %pOFn: %d\n",
-			node, rc);
+			"couldn't get PHY in yesde %pOFn: %d\n",
+			yesde, rc);
 
 		break;
 	}
@@ -374,8 +374,8 @@ static int ahci_platform_get_regulator(struct ahci_host_priv *hpriv, u32 port,
  * 1) mmio registers (IORESOURCE_MEM 0, mandatory)
  * 2) regulator for controlling the targets power (optional)
  *    regulator for controlling the AHCI controller (optional)
- * 3) 0 - AHCI_MAX_CLKS clocks, as specified in the devs devicetree node,
- *    or for non devicetree enabled platforms a single clock
+ * 3) 0 - AHCI_MAX_CLKS clocks, as specified in the devs devicetree yesde,
+ *    or for yesn devicetree enabled platforms a single clock
  * 4) resets, if flags has AHCI_PLATFORM_GET_RESETS (optional)
  * 5) phys (optional)
  *
@@ -388,8 +388,8 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct ahci_host_priv *hpriv;
 	struct clk *clk;
-	struct device_node *child;
-	int i, enabled_ports = 0, rc = -ENOMEM, child_nodes;
+	struct device_yesde *child;
+	int i, enabled_ports = 0, rc = -ENOMEM, child_yesdes;
 	u32 mask_port_map = 0;
 
 	if (!devres_open_group(dev, NULL, GFP_KERNEL))
@@ -411,15 +411,15 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 
 	for (i = 0; i < AHCI_MAX_CLKS; i++) {
 		/*
-		 * For now we must use clk_get(dev, NULL) for the first clock,
-		 * because some platforms (da850, spear13xx) are not yet
+		 * For yesw we must use clk_get(dev, NULL) for the first clock,
+		 * because some platforms (da850, spear13xx) are yest yet
 		 * converted to use devicetree for clocks.  For new platforms
-		 * this is equivalent to of_clk_get(dev->of_node, 0).
+		 * this is equivalent to of_clk_get(dev->of_yesde, 0).
 		 */
 		if (i == 0)
 			clk = clk_get(dev, NULL);
 		else
-			clk = of_clk_get(dev->of_node, i);
+			clk = of_clk_get(dev->of_yesde, i);
 
 		if (IS_ERR(clk)) {
 			rc = PTR_ERR(clk);
@@ -454,14 +454,14 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 		}
 	}
 
-	hpriv->nports = child_nodes = of_get_child_count(dev->of_node);
+	hpriv->nports = child_yesdes = of_get_child_count(dev->of_yesde);
 
 	/*
-	 * If no sub-node was found, we still need to set nports to
+	 * If yes sub-yesde was found, we still need to set nports to
 	 * one in order to be able to use the
 	 * ahci_platform_[en|dis]able_[phys|regulators] functions.
 	 */
-	if (!child_nodes)
+	if (!child_yesdes)
 		hpriv->nports = 1;
 
 	hpriv->phys = devm_kcalloc(dev, hpriv->nports, sizeof(*hpriv->phys), GFP_KERNEL);
@@ -470,7 +470,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 		goto err_out;
 	}
 	/*
-	 * We cannot use devm_ here, since ahci_platform_put_resources() uses
+	 * We canyest use devm_ here, since ahci_platform_put_resources() uses
 	 * target_pwrs after devm_ have freed memory
 	 */
 	hpriv->target_pwrs = kcalloc(hpriv->nports, sizeof(*hpriv->target_pwrs), GFP_KERNEL);
@@ -479,8 +479,8 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 		goto err_out;
 	}
 
-	if (child_nodes) {
-		for_each_child_of_node(dev->of_node, child) {
+	if (child_yesdes) {
+		for_each_child_of_yesde(dev->of_yesde, child) {
 			u32 port;
 			struct platform_device *port_dev __maybe_unused;
 
@@ -489,7 +489,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 
 			if (of_property_read_u32(child, "reg", &port)) {
 				rc = -EINVAL;
-				of_node_put(child);
+				of_yesde_put(child);
 				goto err_out;
 			}
 
@@ -502,13 +502,13 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 #ifdef CONFIG_OF_ADDRESS
 			of_platform_device_create(child, NULL, NULL);
 
-			port_dev = of_find_device_by_node(child);
+			port_dev = of_find_device_by_yesde(child);
 
 			if (port_dev) {
 				rc = ahci_platform_get_regulator(hpriv, port,
 								&port_dev->dev);
 				if (rc == -EPROBE_DEFER) {
-					of_node_put(child);
+					of_yesde_put(child);
 					goto err_out;
 				}
 			}
@@ -516,7 +516,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 
 			rc = ahci_platform_get_phy(hpriv, port, dev, child);
 			if (rc) {
-				of_node_put(child);
+				of_yesde_put(child);
 				goto err_out;
 			}
 
@@ -532,10 +532,10 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 			hpriv->mask_port_map = mask_port_map;
 	} else {
 		/*
-		 * If no sub-node was found, keep this for device tree
+		 * If yes sub-yesde was found, keep this for device tree
 		 * compatibility
 		 */
-		rc = ahci_platform_get_phy(hpriv, 0, dev, dev->of_node);
+		rc = ahci_platform_get_phy(hpriv, 0, dev, dev->of_yesde);
 		if (rc)
 			goto err_out;
 
@@ -564,7 +564,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
  * @sht: scsi_host_template to use when registering
  *
  * This function does all the usual steps needed to bring up an
- * ahci-platform host, note any necessary resources (ie clks, phys, etc.)
+ * ahci-platform host, yeste any necessary resources (ie clks, phys, etc.)
  * must be initialized / enabled before calling this.
  *
  * RETURNS:
@@ -584,7 +584,7 @@ int ahci_platform_init_host(struct platform_device *pdev,
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		if (irq != -EPROBE_DEFER)
-			dev_err(dev, "no irq\n");
+			dev_err(dev, "yes irq\n");
 		return irq;
 	}
 
@@ -616,7 +616,7 @@ int ahci_platform_init_host(struct platform_device *pdev,
 
 	host->private_data = hpriv;
 
-	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_ignore_sss)
+	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_igyesre_sss)
 		host->flags |= ATA_HOST_PARALLEL_SCAN;
 	else
 		dev_info(dev, "SSS flag set, parallel bus scan disabled\n");
@@ -629,13 +629,13 @@ int ahci_platform_init_host(struct platform_device *pdev,
 
 		ata_port_desc(ap, "mmio %pR",
 			      platform_get_resource(pdev, IORESOURCE_MEM, 0));
-		ata_port_desc(ap, "port 0x%x", 0x100 + ap->port_no * 0x80);
+		ata_port_desc(ap, "port 0x%x", 0x100 + ap->port_yes * 0x80);
 
 		/* set enclosure management message type */
 		if (ap->flags & ATA_FLAG_EM)
 			ap->em_message_type = hpriv->em_msg_type;
 
-		/* disabled/not-implemented port */
+		/* disabled/yest-implemented port */
 		if (!(hpriv->port_map & (1 << i)))
 			ap->ops = &ata_dummy_port_ops;
 	}
@@ -676,7 +676,7 @@ static void ahci_host_stop(struct ata_host *host)
  * @pdev: platform device pointer for the host
  *
  * This function is called during system shutdown and performs the minimal
- * deconfiguration required to ensure that an ahci_platform host cannot
+ * deconfiguration required to ensure that an ahci_platform host canyest
  * corrupt or otherwise interfere with a new kernel being started with kexec.
  */
 void ahci_platform_shutdown(struct platform_device *pdev)
@@ -711,7 +711,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_shutdown);
  * @dev: device pointer for the host
  *
  * This function does all the usual steps needed to suspend an
- * ahci-platform host, note any necessary resources (ie clks, phys, etc.)
+ * ahci-platform host, yeste any necessary resources (ie clks, phys, etc.)
  * must be disabled after calling this.
  *
  * RETURNS:
@@ -751,7 +751,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_suspend_host);
  * @dev: device pointer for the host
  *
  * This function does all the usual steps needed to resume an ahci-platform
- * host, note any necessary resources (ie clks, phys, etc.)  must be
+ * host, yeste any necessary resources (ie clks, phys, etc.)  must be
  * initialized / enabled before calling this.
  *
  * RETURNS:

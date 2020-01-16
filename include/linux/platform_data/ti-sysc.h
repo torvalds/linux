@@ -36,7 +36,7 @@ struct ti_sysc_cookie {
  * @emufree_shift; Offset of the emufree bit
  *
  * Note that 0 is a valid shift, and for ti-sysc.c -ENODEV can be used if a
- * feature is not available.
+ * feature is yest available.
  */
 struct sysc_regbits {
 	s8 midle_shift;
@@ -122,7 +122,7 @@ enum sysc_registers {
  * @cap: interconnect target module capabilities
  * @cfg: interconnect target module configuration
  *
- * This data is enough to allocate a new struct omap_hwmod_class_sysconfig
+ * This data is eyesugh to allocate a new struct omap_hwmod_class_sysconfig
  * based on device tree data parsed by ti-sysc driver.
  */
 struct ti_sysc_module_data {

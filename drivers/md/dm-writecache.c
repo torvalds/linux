@@ -75,7 +75,7 @@ struct wc_memory_superblock {
 };
 
 struct wc_entry {
-	struct rb_node rb_node;
+	struct rb_yesde rb_yesde;
 	struct list_head lru;
 	unsigned short wc_list_contiguous;
 	bool write_in_progress
@@ -425,15 +425,15 @@ static void writecache_flush_region(struct dm_writecache *wc, void *ptr, size_t 
 
 static void writecache_disk_flush(struct dm_writecache *wc, struct dm_dev *dev);
 
-struct io_notify {
+struct io_yestify {
 	struct dm_writecache *wc;
 	struct completion c;
 	atomic_t count;
 };
 
-static void writecache_notify_io(unsigned long error, void *context)
+static void writecache_yestify_io(unsigned long error, void *context)
 {
-	struct io_notify *endio = context;
+	struct io_yestify *endio = context;
 
 	if (unlikely(error != 0))
 		writecache_error(endio->wc, -EIO, "error writing metadata");
@@ -446,7 +446,7 @@ static void ssd_commit_flushed(struct dm_writecache *wc)
 {
 	struct dm_io_region region;
 	struct dm_io_request req;
-	struct io_notify endio = {
+	struct io_yestify endio = {
 		wc,
 		COMPLETION_INITIALIZER_ONSTACK(endio.c),
 		ATOMIC_INIT(1),
@@ -477,15 +477,15 @@ static void ssd_commit_flushed(struct dm_writecache *wc)
 		req.mem.type = DM_IO_VMA;
 		req.mem.ptr.vma = (char *)wc->memory_map + (size_t)i * BITMAP_GRANULARITY;
 		req.client = wc->dm_io;
-		req.notify.fn = writecache_notify_io;
-		req.notify.context = &endio;
+		req.yestify.fn = writecache_yestify_io;
+		req.yestify.context = &endio;
 
-		/* writing via async dm-io (implied by notify.fn above) won't return an error */
+		/* writing via async dm-io (implied by yestify.fn above) won't return an error */
 	        (void) dm_io(&req, 1, &region, NULL);
 		i = j;
 	}
 
-	writecache_notify_io(0, &endio);
+	writecache_yestify_io(0, &endio);
 	wait_for_completion_io(&endio.c);
 
 	writecache_disk_flush(wc, wc->ssd_dev);
@@ -515,7 +515,7 @@ static void writecache_disk_flush(struct dm_writecache *wc, struct dm_dev *dev)
 	req.mem.type = DM_IO_KMEM;
 	req.mem.ptr.addr = NULL;
 	req.client = wc->dm_io;
-	req.notify.fn = NULL;
+	req.yestify.fn = NULL;
 
 	r = dm_io(&req, 1, &region, NULL);
 	if (unlikely(r))
@@ -535,28 +535,28 @@ static struct wc_entry *writecache_find_entry(struct dm_writecache *wc,
 					      uint64_t block, int flags)
 {
 	struct wc_entry *e;
-	struct rb_node *node = wc->tree.rb_node;
+	struct rb_yesde *yesde = wc->tree.rb_yesde;
 
-	if (unlikely(!node))
+	if (unlikely(!yesde))
 		return NULL;
 
 	while (1) {
-		e = container_of(node, struct wc_entry, rb_node);
+		e = container_of(yesde, struct wc_entry, rb_yesde);
 		if (read_original_sector(wc, e) == block)
 			break;
 
-		node = (read_original_sector(wc, e) >= block ?
-			e->rb_node.rb_left : e->rb_node.rb_right);
-		if (unlikely(!node)) {
+		yesde = (read_original_sector(wc, e) >= block ?
+			e->rb_yesde.rb_left : e->rb_yesde.rb_right);
+		if (unlikely(!yesde)) {
 			if (!(flags & WFE_RETURN_FOLLOWING))
 				return NULL;
 			if (read_original_sector(wc, e) >= block) {
 				return e;
 			} else {
-				node = rb_next(&e->rb_node);
-				if (unlikely(!node))
+				yesde = rb_next(&e->rb_yesde);
+				if (unlikely(!yesde))
 					return NULL;
-				e = container_of(node, struct wc_entry, rb_node);
+				e = container_of(yesde, struct wc_entry, rb_yesde);
 				return e;
 			}
 		}
@@ -565,12 +565,12 @@ static struct wc_entry *writecache_find_entry(struct dm_writecache *wc,
 	while (1) {
 		struct wc_entry *e2;
 		if (flags & WFE_LOWEST_SEQ)
-			node = rb_prev(&e->rb_node);
+			yesde = rb_prev(&e->rb_yesde);
 		else
-			node = rb_next(&e->rb_node);
-		if (unlikely(!node))
+			yesde = rb_next(&e->rb_yesde);
+		if (unlikely(!yesde))
 			return e;
-		e2 = container_of(node, struct wc_entry, rb_node);
+		e2 = container_of(yesde, struct wc_entry, rb_yesde);
 		if (read_original_sector(wc, e2) != block)
 			return e;
 		e = e2;
@@ -580,42 +580,42 @@ static struct wc_entry *writecache_find_entry(struct dm_writecache *wc,
 static void writecache_insert_entry(struct dm_writecache *wc, struct wc_entry *ins)
 {
 	struct wc_entry *e;
-	struct rb_node **node = &wc->tree.rb_node, *parent = NULL;
+	struct rb_yesde **yesde = &wc->tree.rb_yesde, *parent = NULL;
 
-	while (*node) {
-		e = container_of(*node, struct wc_entry, rb_node);
-		parent = &e->rb_node;
+	while (*yesde) {
+		e = container_of(*yesde, struct wc_entry, rb_yesde);
+		parent = &e->rb_yesde;
 		if (read_original_sector(wc, e) > read_original_sector(wc, ins))
-			node = &parent->rb_left;
+			yesde = &parent->rb_left;
 		else
-			node = &parent->rb_right;
+			yesde = &parent->rb_right;
 	}
-	rb_link_node(&ins->rb_node, parent, node);
-	rb_insert_color(&ins->rb_node, &wc->tree);
+	rb_link_yesde(&ins->rb_yesde, parent, yesde);
+	rb_insert_color(&ins->rb_yesde, &wc->tree);
 	list_add(&ins->lru, &wc->lru);
 }
 
 static void writecache_unlink(struct dm_writecache *wc, struct wc_entry *e)
 {
 	list_del(&e->lru);
-	rb_erase(&e->rb_node, &wc->tree);
+	rb_erase(&e->rb_yesde, &wc->tree);
 }
 
 static void writecache_add_to_freelist(struct dm_writecache *wc, struct wc_entry *e)
 {
 	if (WC_MODE_SORT_FREELIST(wc)) {
-		struct rb_node **node = &wc->freetree.rb_node, *parent = NULL;
-		if (unlikely(!*node))
+		struct rb_yesde **yesde = &wc->freetree.rb_yesde, *parent = NULL;
+		if (unlikely(!*yesde))
 			wc->current_free = e;
-		while (*node) {
-			parent = *node;
-			if (&e->rb_node < *node)
-				node = &parent->rb_left;
+		while (*yesde) {
+			parent = *yesde;
+			if (&e->rb_yesde < *yesde)
+				yesde = &parent->rb_left;
 			else
-				node = &parent->rb_right;
+				yesde = &parent->rb_right;
 		}
-		rb_link_node(&e->rb_node, parent, node);
-		rb_insert_color(&e->rb_node, &wc->freetree);
+		rb_link_yesde(&e->rb_yesde, parent, yesde);
+		rb_insert_color(&e->rb_yesde, &wc->freetree);
 	} else {
 		list_add_tail(&e->lru, &wc->freelist);
 	}
@@ -627,15 +627,15 @@ static struct wc_entry *writecache_pop_from_freelist(struct dm_writecache *wc)
 	struct wc_entry *e;
 
 	if (WC_MODE_SORT_FREELIST(wc)) {
-		struct rb_node *next;
+		struct rb_yesde *next;
 		if (unlikely(!wc->current_free))
 			return NULL;
 		e = wc->current_free;
-		next = rb_next(&e->rb_node);
-		rb_erase(&e->rb_node, &wc->freetree);
+		next = rb_next(&e->rb_yesde);
+		rb_erase(&e->rb_yesde, &wc->freetree);
 		if (unlikely(!next))
 			next = rb_first(&wc->freetree);
-		wc->current_free = next ? container_of(next, struct wc_entry, rb_node) : NULL;
+		wc->current_free = next ? container_of(next, struct wc_entry, rb_yesde) : NULL;
 	} else {
 		if (unlikely(list_empty(&wc->freelist)))
 			return NULL;
@@ -738,11 +738,11 @@ static void writecache_flush(struct dm_writecache *wc)
 
 	need_flush_after_free = false;
 	while (1) {
-		/* Free another committed entry with lower seq-count */
-		struct rb_node *rb_node = rb_prev(&e->rb_node);
+		/* Free ayesther committed entry with lower seq-count */
+		struct rb_yesde *rb_yesde = rb_prev(&e->rb_yesde);
 
-		if (rb_node) {
-			e2 = container_of(rb_node, struct wc_entry, rb_node);
+		if (rb_yesde) {
+			e2 = container_of(rb_yesde, struct wc_entry, rb_yesde);
 			if (read_original_sector(wc, e2) == read_original_sector(wc, e) &&
 			    likely(!e2->write_in_progress)) {
 				writecache_free_entry(wc, e2);
@@ -791,7 +791,7 @@ static void writecache_discard(struct dm_writecache *wc, sector_t start, sector_
 		return;
 
 	while (read_original_sector(wc, e) < end) {
-		struct rb_node *node = rb_next(&e->rb_node);
+		struct rb_yesde *yesde = rb_next(&e->rb_yesde);
 
 		if (likely(!e->write_in_progress)) {
 			if (!discarded_something) {
@@ -802,10 +802,10 @@ static void writecache_discard(struct dm_writecache *wc, sector_t start, sector_
 			writecache_free_entry(wc, e);
 		}
 
-		if (unlikely(!node))
+		if (unlikely(!yesde))
 			break;
 
-		e = container_of(node, struct wc_entry, rb_node);
+		e = container_of(yesde, struct wc_entry, rb_yesde);
 	}
 
 	if (discarded_something)
@@ -1135,7 +1135,7 @@ static int writecache_map(struct dm_target *ti, struct bio *bio)
 
 	if (unlikely((((unsigned)bio->bi_iter.bi_sector | bio_sectors(bio)) &
 				(wc->block_size / 512 - 1)) != 0)) {
-		DMERR("I/O is not aligned, sector %llu, size %u, block size %u",
+		DMERR("I/O is yest aligned, sector %llu, size %u, block size %u",
 		      (unsigned long long)bio->bi_iter.bi_sector,
 		      bio->bi_iter.bi_size, wc->block_size);
 		goto unlock_error;
@@ -1328,7 +1328,7 @@ static void __writecache_endio_pmem(struct dm_writecache *wc, struct list_head *
 		list_del(&wb->endio_entry);
 
 		if (unlikely(wb->bio.bi_status != BLK_STS_OK))
-			writecache_error(wc, blk_status_to_errno(wb->bio.bi_status),
+			writecache_error(wc, blk_status_to_erryes(wb->bio.bi_status),
 					"write error %d", wb->bio.bi_status);
 		i = 0;
 		do {
@@ -1563,7 +1563,7 @@ static void writecache_writeback(struct work_struct *work)
 	struct dm_writecache *wc = container_of(work, struct dm_writecache, writeback_work);
 	struct blk_plug plug;
 	struct wc_entry *f, *uninitialized_var(g), *e = NULL;
-	struct rb_node *node, *next_node;
+	struct rb_yesde *yesde, *next_yesde;
 	struct list_head skipped;
 	struct writeback_list wbl;
 	unsigned long n_walked;
@@ -1602,7 +1602,7 @@ restart:
 		if (unlikely(wc->writeback_all)) {
 			if (unlikely(!e)) {
 				writecache_flush(wc);
-				e = container_of(rb_first(&wc->tree), struct wc_entry, rb_node);
+				e = container_of(rb_first(&wc->tree), struct wc_entry, rb_yesde);
 			} else
 				e = g;
 		} else
@@ -1611,9 +1611,9 @@ restart:
 		if (unlikely(!writecache_entry_is_committed(wc, e))) {
 			writecache_flush(wc);
 		}
-		node = rb_prev(&e->rb_node);
-		if (node) {
-			f = container_of(node, struct wc_entry, rb_node);
+		yesde = rb_prev(&e->rb_yesde);
+		if (yesde) {
+			f = container_of(yesde, struct wc_entry, rb_yesde);
 			if (unlikely(read_original_sector(wc, f) ==
 				     read_original_sector(wc, e))) {
 				BUG_ON(!f->write_in_progress);
@@ -1633,10 +1633,10 @@ restart:
 		f = e;
 
 		while (1) {
-			next_node = rb_next(&f->rb_node);
-			if (unlikely(!next_node))
+			next_yesde = rb_next(&f->rb_yesde);
+			if (unlikely(!next_yesde))
 				break;
-			g = container_of(next_node, struct wc_entry, rb_node);
+			g = container_of(next_yesde, struct wc_entry, rb_yesde);
 			if (unlikely(read_original_sector(wc, g) ==
 			    read_original_sector(wc, f))) {
 				f = g;
@@ -1669,9 +1669,9 @@ restart:
 			e->wc_list_contiguous++;
 			if (unlikely(e->wc_list_contiguous == BIO_MAX_PAGES)) {
 				if (unlikely(wc->writeback_all)) {
-					next_node = rb_next(&f->rb_node);
-					if (likely(next_node))
-						g = container_of(next_node, struct wc_entry, rb_node);
+					next_yesde = rb_next(&f->rb_yesde);
+					if (likely(next_yesde))
+						g = container_of(next_yesde, struct wc_entry, rb_yesde);
 				}
 				break;
 			}
@@ -1845,7 +1845,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	wc = kzalloc(sizeof(struct dm_writecache), GFP_KERNEL);
 	if (!wc) {
-		ti->error = "Cannot allocate writecache structure";
+		ti->error = "Canyest allocate writecache structure";
 		r = -ENOMEM;
 		goto bad;
 	}
@@ -1873,7 +1873,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	wc->writeback_wq = alloc_workqueue("writecache-writeback", WQ_MEM_RECLAIM, 1);
 	if (!wc->writeback_wq) {
 		r = -ENOMEM;
-		ti->error = "Could not allocate writeback workqueue";
+		ti->error = "Could yest allocate writeback workqueue";
 		goto bad;
 	}
 	INIT_WORK(&wc->writeback_work, writecache_writeback);
@@ -1910,7 +1910,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		 * only be used in SSD-only mode.
 		 */
 		r = -EOPNOTSUPP;
-		ti->error = "Persistent memory or DAX not supported on this system";
+		ti->error = "Persistent memory or DAX yest supported on this system";
 		goto bad;
 #endif
 	} else {
@@ -1922,13 +1922,13 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 				offsetof(struct writeback_struct, bio),
 				BIOSET_NEED_BVECS);
 		if (r) {
-			ti->error = "Could not allocate bio set";
+			ti->error = "Could yest allocate bio set";
 			goto bad;
 		}
 	} else {
 		r = mempool_init_kmalloc_pool(&wc->copy_pool, 1, sizeof(struct copy_struct));
 		if (r) {
-			ti->error = "Could not allocate mempool";
+			ti->error = "Could yest allocate mempool";
 			goto bad;
 		}
 	}
@@ -1957,7 +1957,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->error = "Cache data device lookup failed";
 		goto bad;
 	}
-	wc->memory_map_size = i_size_read(wc->ssd_dev->bdev->bd_inode);
+	wc->memory_map_size = i_size_read(wc->ssd_dev->bdev->bd_iyesde);
 
 	/*
 	 * Parse the cache block size
@@ -2034,7 +2034,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 				wc->writeback_fua = true;
 				wc->writeback_fua_set = true;
 			} else goto invalid_optional;
-		} else if (!strcasecmp(string, "nofua")) {
+		} else if (!strcasecmp(string, "yesfua")) {
 			if (WC_MODE_PMEM(wc)) {
 				wc->writeback_fua = false;
 				wc->writeback_fua_set = true;
@@ -2126,7 +2126,7 @@ invalid_optional:
 		req.mem.type = DM_IO_VMA;
 		req.mem.ptr.vma = (char *)wc->memory_map;
 		req.client = wc->dm_io;
-		req.notify.fn = NULL;
+		req.yestify.fn = NULL;
 
 		r = dm_io(&req, 1, &region, NULL);
 		if (r) {
@@ -2166,7 +2166,7 @@ invalid_optional:
 	}
 
 	if (le32_to_cpu(s.block_size) != wc->block_size) {
-		ti->error = "Block size does not match superblock";
+		ti->error = "Block size does yest match superblock";
 		r = -EINVAL;
 		goto bad;
 	}
@@ -2208,7 +2208,7 @@ overflow:
 
 	r = writecache_alloc_entries(wc);
 	if (r) {
-		ti->error = "Cannot allocate memory";
+		ti->error = "Canyest allocate memory";
 		goto bad;
 	}
 
@@ -2284,7 +2284,7 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 		if (wc->autocommit_time_set)
 			DMEMIT(" autocommit_time %u", jiffies_to_msecs(wc->autocommit_jiffies));
 		if (wc->writeback_fua_set)
-			DMEMIT(" %sfua", wc->writeback_fua ? "" : "no");
+			DMEMIT(" %sfua", wc->writeback_fua ? "" : "yes");
 		break;
 	}
 }

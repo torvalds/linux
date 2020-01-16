@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _audio_fopen:
 
@@ -20,7 +20,7 @@ Digital TV audio open()
 
 .. attention:: This ioctl is deprecated
 
-Synopsis
+Syyespsis
 --------
 
 .. c:function:: int open(const char *deviceName, int flags)
@@ -60,7 +60,7 @@ Arguments
     -  .. row 5
 
        -
-       -  O_NONBLOCK open in non-blocking mode
+       -  O_NONBLOCK open in yesn-blocking mode
 
     -  .. row 6
 
@@ -74,10 +74,10 @@ Description
 This system call opens a named audio device (e.g.
 /dev/dvb/adapter0/audio0) for subsequent use. When an open() call has
 succeeded, the device will be ready for use. The significance of
-blocking or non-blocking mode is described in the documentation for
-functions where there is a difference. It does not affect the semantics
+blocking or yesn-blocking mode is described in the documentation for
+functions where there is a difference. It does yest affect the semantics
 of the open() call itself. A device opened in blocking mode can later be
-put into non-blocking mode (and vice versa) using the F_SETFL command
+put into yesn-blocking mode (and vice versa) using the F_SETFL command
 of the fcntl system call. This is a standard system call, documented in
 the Linux manual page for fcntl. Only one user can open the Audio Device
 in O_RDWR mode. All other attempts to open the device in this mode will
@@ -100,7 +100,7 @@ Return Value
 
        -  ``ENODEV``
 
-       -  Device driver not loaded/available.
+       -  Device driver yest loaded/available.
 
     -  .. row 2
 

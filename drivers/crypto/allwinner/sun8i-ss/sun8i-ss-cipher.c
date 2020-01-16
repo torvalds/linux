@@ -127,7 +127,7 @@ static int sun8i_ss_cipher(struct skcipher_request *areq)
 
 	rctx->p_key = dma_map_single(ss->dev, op->key, op->keylen, DMA_TO_DEVICE);
 	if (dma_mapping_error(ss->dev, rctx->p_key)) {
-		dev_err(ss->dev, "Cannot DMA MAP KEY\n");
+		dev_err(ss->dev, "Canyest DMA MAP KEY\n");
 		err = -EFAULT;
 		goto theend;
 	}
@@ -154,7 +154,7 @@ static int sun8i_ss_cipher(struct skcipher_request *areq)
 		rctx->p_iv = dma_map_single(ss->dev, rctx->biv, rctx->ivlen,
 					    DMA_TO_DEVICE);
 		if (dma_mapping_error(ss->dev, rctx->p_iv)) {
-			dev_err(ss->dev, "Cannot DMA MAP IV\n");
+			dev_err(ss->dev, "Canyest DMA MAP IV\n");
 			err = -ENOMEM;
 			goto theend_iv;
 		}
@@ -338,7 +338,7 @@ int sun8i_ss_cipher_init(struct crypto_tfm *tfm)
 
 	op->fallback_tfm = crypto_alloc_sync_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(op->fallback_tfm)) {
-		dev_err(op->ss->dev, "ERROR: Cannot allocate fallback for %s %ld\n",
+		dev_err(op->ss->dev, "ERROR: Canyest allocate fallback for %s %ld\n",
 			name, PTR_ERR(op->fallback_tfm));
 		return PTR_ERR(op->fallback_tfm);
 	}

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef	_SPARC_OPENPROMIO_H
 #define	_SPARC_OPENPROMIO_H
 
@@ -31,9 +31,9 @@ struct openpromio
 #define	OPROMGETFBNAME		0x20004F0B
 #define	OPROMGETBOOTARGS	0x20004F0C
 /* Linux extensions */				/* Arguments in oprom_array: */
-#define OPROMSETCUR		0x20004FF0	/* int node - Sets current node */
-#define OPROMPCI2NODE		0x20004FF1	/* int pci_bus, pci_devfn - Sets current node to PCI device's node */
-#define OPROMPATH2NODE		0x20004FF2	/* char path[] - Set current node from fully qualified PROM path */
+#define OPROMSETCUR		0x20004FF0	/* int yesde - Sets current yesde */
+#define OPROMPCI2NODE		0x20004FF1	/* int pci_bus, pci_devfn - Sets current yesde to PCI device's yesde */
+#define OPROMPATH2NODE		0x20004FF2	/* char path[] - Set current yesde from fully qualified PROM path */
 
 /*
  * Return values from OPROMGETCONS:
@@ -51,7 +51,7 @@ struct openpromio
 
 struct opiocdesc
 {
-	int	op_nodeid;		/* PROM Node ID (value-result) */
+	int	op_yesdeid;		/* PROM Node ID (value-result) */
 	int	op_namelen;		/* Length of op_name. */
 	char	__user *op_name;	/* Pointer to the property name. */
 	int	op_buflen;		/* Length of op_buf (value-result) */

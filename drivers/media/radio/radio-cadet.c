@@ -19,7 +19,7 @@
  *
  * 2001-01-10	Russell Kroll <rkroll@exploits.org>
  *		Removed dead CONFIG_RADIO_CADET_PORT code
- *		PnP detection on load is now default (no args necessary)
+ *		PnP detection on load is yesw default (yes args necessary)
  *
  * 2002-01-17	Adam Belay <ambx1@neo.rr.com>
  *		Updated to latest pnp code
@@ -83,7 +83,7 @@ static struct cadet cadet_card;
 
 /*
  * Signal Strength Threshold Values
- * The V4L API spec does not define any particular unit for the signal
+ * The V4L API spec does yest define any particular unit for the signal
  * strength value.  These values are in microvolts of RF at the tuner's input.
  */
 static u16 sigtable[2][4] = {
@@ -619,7 +619,7 @@ static int __init cadet_init(void)
 	res = v4l2_device_register(NULL, v4l2_dev);
 	if (res < 0) {
 		release_region(dev->io, 2);
-		v4l2_err(v4l2_dev, "could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "could yest register v4l2_device\n");
 		goto fail;
 	}
 
@@ -630,7 +630,7 @@ static int __init cadet_init(void)
 	v4l2_dev->ctrl_handler = hdl;
 	if (hdl->error) {
 		res = hdl->error;
-		v4l2_err(v4l2_dev, "Could not register controls\n");
+		v4l2_err(v4l2_dev, "Could yest register controls\n");
 		goto err_hdl;
 	}
 

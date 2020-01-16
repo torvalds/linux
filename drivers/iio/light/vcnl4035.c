@@ -115,7 +115,7 @@ static irqreturn_t vcnl4035_trigger_consumer_handler(int irq, void *p)
 					iio_get_time_ns(indio_dev));
 
 fail_read:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -146,7 +146,7 @@ static int vcnl4035_set_pm_runtime_state(struct vcnl4035_data *data, bool on)
 	if (on) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret < 0)
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_yesidle(dev);
 	} else {
 		pm_runtime_mark_last_busy(dev);
 		ret = pm_runtime_put_autosuspend(dev);

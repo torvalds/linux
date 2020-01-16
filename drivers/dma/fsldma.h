@@ -99,7 +99,7 @@ struct fsl_dma_ld_hw {
 
 struct fsl_desc_sw {
 	struct fsl_dma_ld_hw hw;
-	struct list_head node;
+	struct list_head yesde;
 	struct list_head tx_list;
 	struct dma_async_tx_descriptor async_tx;
 } __attribute__((aligned(32)));
@@ -153,7 +153,7 @@ struct fsldma_chan {
 	struct fsldma_chan_regs __iomem *regs;
 	spinlock_t desc_lock;		/* Descriptor operation lock */
 	/*
-	 * Descriptors which are queued to run, but have not yet been
+	 * Descriptors which are queued to run, but have yest yet been
 	 * submitted to the hardware for execution
 	 */
 	struct list_head ld_pending;
@@ -188,7 +188,7 @@ struct fsldma_chan {
 };
 
 #define to_fsl_chan(chan) container_of(chan, struct fsldma_chan, common)
-#define to_fsl_desc(lh) container_of(lh, struct fsl_desc_sw, node)
+#define to_fsl_desc(lh) container_of(lh, struct fsl_desc_sw, yesde)
 #define tx_to_fsl_desc(tx) container_of(tx, struct fsl_desc_sw, async_tx)
 
 #ifdef	CONFIG_PPC

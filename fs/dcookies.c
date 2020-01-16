@@ -6,7 +6,7 @@
  *
  * Persistent cookie-path mappings. These are used by
  * profilers to convert a per-task EIP value into something
- * non-transitory that can be processed at a later date.
+ * yesn-transitory that can be processed at a later date.
  * This is done by locking the dentry/vfsmnt pair in the
  * kernel until released by the tasks needing the persistent
  * objects. The tag is simply an unsigned long that refers
@@ -22,7 +22,7 @@
 #include <linux/dcache.h>
 #include <linux/mm.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/dcookies.h>
 #include <linux/mutex.h>
 #include <linux/path.h>

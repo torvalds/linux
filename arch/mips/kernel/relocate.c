@@ -5,7 +5,7 @@
  *
  * Support for Kernel relocation at boot time
  *
- * Copyright (C) 2015, Imagination Technologies Ltd.
+ * Copyright (C) 2015, Imagination Techyeslogies Ltd.
  * Authors: Matt Redfearn (matt.redfearn@mips.com)
  */
 #include <asm/bootinfo.h>
@@ -36,7 +36,7 @@ extern void __weak plat_fdt_relocated(void *new_location);
 /*
  * This function may be defined for a platform to perform any post-relocation
  * fixup necessary.
- * Return non-zero to abort relocation
+ * Return yesn-zero to abort relocation
  */
 int __weak plat_post_relocation(long offset)
 {
@@ -60,7 +60,7 @@ static void __init sync_icache(void *kbase, unsigned long kernel_length)
 	do {
 		__asm__ __volatile__(
 			"synci  0(%0)"
-			: /* no output */
+			: /* yes output */
 			: "r" (kbase));
 
 		kbase += step;
@@ -166,7 +166,7 @@ int __init do_relocations(void *kbase_old, void *kbase_new, long offset)
 
 /*
  * The exception table is filled in by the relocs tool after vmlinux is linked.
- * It must be relocated separately since there will not be any relocation
+ * It must be relocated separately since there will yest be any relocation
  * information for it filled in by the linker.
  */
 static int __init relocate_exception_table(long offset)
@@ -213,12 +213,12 @@ static inline __init unsigned long get_random_boot(void)
 #if defined(CONFIG_USE_OF)
 	/* Get any additional entropy passed in device tree */
 	if (initial_boot_params) {
-		int node, len;
+		int yesde, len;
 		u64 *prop;
 
-		node = fdt_path_offset(initial_boot_params, "/chosen");
-		if (node >= 0) {
-			prop = fdt_getprop_w(initial_boot_params, node,
+		yesde = fdt_path_offset(initial_boot_params, "/chosen");
+		if (yesde >= 0) {
+			prop = fdt_getprop_w(initial_boot_params, yesde,
 					     "kaslr-seed", &len);
 			if (prop && (len == sizeof(u64)))
 				hash = rotate_xor(hash, prop, sizeof(*prop));
@@ -236,12 +236,12 @@ static inline __init bool kaslr_disabled(void)
 #if defined(CONFIG_CMDLINE_BOOL)
 	const char *builtin_cmdline = CONFIG_CMDLINE;
 
-	str = strstr(builtin_cmdline, "nokaslr");
+	str = strstr(builtin_cmdline, "yeskaslr");
 	if (str == builtin_cmdline ||
 	    (str > builtin_cmdline && *(str - 1) == ' '))
 		return true;
 #endif
-	str = strstr(arcs_cmdline, "nokaslr");
+	str = strstr(arcs_cmdline, "yeskaslr");
 	if (str == arcs_cmdline || (str > arcs_cmdline && *(str - 1) == ' '))
 		return true;
 
@@ -274,7 +274,7 @@ static inline void __init *determine_relocation_address(void)
 {
 	/*
 	 * Choose a new address for the kernel
-	 * For now we'll hard code the destination
+	 * For yesw we'll hard code the destination
 	 */
 	return (void *)0xffffffff81000000;
 }
@@ -326,7 +326,7 @@ void *__init relocate_kernel(void)
 	if (relocation_addr_valid(loc_new))
 		offset = (unsigned long)loc_new - (unsigned long)(&_text);
 
-	/* Reset the command line now so we don't end up with a duplicate */
+	/* Reset the command line yesw so we don't end up with a duplicate */
 	arcs_cmdline[0] = '\0';
 
 	if (offset) {
@@ -337,7 +337,7 @@ void *__init relocate_kernel(void)
 		/*
 		 * If built-in dtb is used then it will have been relocated
 		 * during kernel _text relocation. If appended DTB is used
-		 * then it will not be relocated, but it should remain
+		 * then it will yest be relocated, but it should remain
 		 * intact in the original location. If dtb is loaded by
 		 * the bootloader then it may need to be moved if it crosses
 		 * the target memory area
@@ -386,13 +386,13 @@ void *__init relocate_kernel(void)
 		/*
 		 * Last chance for the platform to abort relocation.
 		 * This may also be used by the platform to perform any
-		 * initialisation required now that the new kernel is
+		 * initialisation required yesw that the new kernel is
 		 * resident in memory and ready to be executed.
 		 */
 		if (plat_post_relocation(offset))
 			goto out;
 
-		/* The current thread is now within the relocated image */
+		/* The current thread is yesw within the relocated image */
 		__current_thread_info = RELOCATED(&init_thread_union);
 
 		/* Return the new kernel's entry point */
@@ -420,21 +420,21 @@ void show_kernel_relocation(const char *level)
 	}
 }
 
-static int kernel_location_notifier_fn(struct notifier_block *self,
+static int kernel_location_yestifier_fn(struct yestifier_block *self,
 				       unsigned long v, void *p)
 {
 	show_kernel_relocation(KERN_EMERG);
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block kernel_location_notifier = {
-	.notifier_call = kernel_location_notifier_fn
+static struct yestifier_block kernel_location_yestifier = {
+	.yestifier_call = kernel_location_yestifier_fn
 };
 
 static int __init register_kernel_offset_dumper(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &kernel_location_notifier);
+	atomic_yestifier_chain_register(&panic_yestifier_list,
+				       &kernel_location_yestifier);
 	return 0;
 }
 __initcall(register_kernel_offset_dumper);

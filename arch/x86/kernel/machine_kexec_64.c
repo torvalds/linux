@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * handle transition of Linux booting another kernel
+ * handle transition of Linux booting ayesther kernel
  * Copyright (C) 2002-2005 Eric Biederman  <ebiederm@xmission.com>
  */
 
@@ -244,7 +244,7 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 
 	/*
 	 * Prepare EFI systab and ACPI tables for kexec kernel since they are
-	 * not covered by pfn_mapped.
+	 * yest covered by pfn_mapped.
 	 */
 	result = map_efi_systab(&info, level4p);
 	if (result)
@@ -320,8 +320,8 @@ void machine_kexec_cleanup(struct kimage *image)
 }
 
 /*
- * Do not allocate memory (or fail in any way) in machine_kexec().
- * We are past the point of no return, committed to rebooting now.
+ * Do yest allocate memory (or fail in any way) in machine_kexec().
+ * We are past the point of yes return, committed to rebooting yesw.
  */
 void machine_kexec(struct kimage *image)
 {
@@ -369,7 +369,7 @@ void machine_kexec(struct kimage *image)
 	 * The segment registers are funny things, they have both a
 	 * visible and an invisible part.  Whenever the visible part is
 	 * set to a specific selector, the invisible part is loaded
-	 * with from a table in memory.  At no other time is the
+	 * with from a table in memory.  At yes other time is the
 	 * descriptor table in memory accessed.
 	 *
 	 * I take advantage of this here by force loading the
@@ -377,13 +377,13 @@ void machine_kexec(struct kimage *image)
 	 */
 	load_segments();
 	/*
-	 * The gdt & idt are now invalid.
+	 * The gdt & idt are yesw invalid.
 	 * If you want to load them you must set up your own idt & gdt.
 	 */
 	set_gdt(phys_to_virt(0), 0);
 	set_idt(phys_to_virt(0), 0);
 
-	/* now call it */
+	/* yesw call it */
 	image->start = relocate_kernel((unsigned long)image->head,
 				       (unsigned long)page_list,
 				       image->start,
@@ -408,8 +408,8 @@ void arch_crash_save_vmcoreinfo(void)
 			pgtable_l5_enabled());
 
 #ifdef CONFIG_NUMA
-	VMCOREINFO_SYMBOL(node_data);
-	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
+	VMCOREINFO_SYMBOL(yesde_data);
+	VMCOREINFO_LENGTH(yesde_data, MAX_NUMNODES);
 #endif
 	vmcoreinfo_append_str("KERNELOFFSET=%lx\n",
 			      kaslr_offset());
@@ -548,7 +548,7 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 			*(u32 *)location = value;
 			break;
 		default:
-			pr_err("Unknown rela relocation: %llu\n",
+			pr_err("Unkyeswn rela relocation: %llu\n",
 			       ELF64_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}
@@ -610,11 +610,11 @@ void arch_kexec_unprotect_crashkres(void)
 /*
  * During a traditional boot under SME, SME will encrypt the kernel,
  * so the SME kexec kernel also needs to be un-encrypted in order to
- * replicate a normal SME boot.
+ * replicate a yesrmal SME boot.
  *
  * During a traditional boot under SEV, the kernel has already been
  * loaded encrypted, so the SEV kexec kernel needs to be encrypted in
- * order to replicate a normal SEV boot.
+ * order to replicate a yesrmal SEV boot.
  */
 int arch_kexec_post_alloc_pages(void *vaddr, unsigned int pages, gfp_t gfp)
 {
@@ -623,7 +623,7 @@ int arch_kexec_post_alloc_pages(void *vaddr, unsigned int pages, gfp_t gfp)
 
 	/*
 	 * If SME is active we need to be sure that kexec pages are
-	 * not encrypted because when we boot to the new kernel the
+	 * yest encrypted because when we boot to the new kernel the
 	 * pages won't be accessed encrypted (initially).
 	 */
 	return set_memory_decrypted((unsigned long)vaddr, pages);

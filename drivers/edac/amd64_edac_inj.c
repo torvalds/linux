@@ -169,7 +169,7 @@ static ssize_t amd64_inject_write_store(struct device *dev,
 
 	word_bits = SET_NB_DRAM_INJECTION_WRITE(pvt->injection);
 
-	pr_notice_once("Don't forget to decrease MCE polling interval in\n"
+	pr_yestice_once("Don't forget to decrease MCE polling interval in\n"
 			"/sys/bus/machinecheck/devices/machinecheck<CPUNUM>/check_interval\n"
 			"so that you can get the error report faster.\n");
 

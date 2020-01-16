@@ -17,7 +17,7 @@
 #define DM_MSG_PREFIX "transient snapshot"
 
 /*-----------------------------------------------------------------
- * Implementation of the store for non-persistent snapshots.
+ * Implementation of the store for yesn-persistent snapshots.
  *---------------------------------------------------------------*/
 struct transient_c {
 	sector_t next_free;

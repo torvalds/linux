@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -286,7 +286,7 @@
 
 #define VISLANDS30_IV_SRCID_SMU_DISP_TIMER_TRIGGER             0x000000fd  /* 253 */
 
-/* These are not "real" source ids defined by HW */
+/* These are yest "real" source ids defined by HW */
 #define VISLANDS30_IV_SRCID_VM_CONTEXT_ALL                     0x00000100  /* 256 */
 #define VISLANDS30_IV_EXTID_VM_CONTEXT0_ALL                    0
 #define VISLANDS30_IV_EXTID_VM_CONTEXT1_ALL                    1

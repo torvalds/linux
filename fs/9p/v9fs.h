@@ -12,8 +12,8 @@
 
 /**
  * enum p9_session_flags - option flags for each 9P session
- * @V9FS_PROTO_2000U: whether or not to use 9P2000.u extensions
- * @V9FS_PROTO_2000L: whether or not to use 9P2000.l extensions
+ * @V9FS_PROTO_2000U: whether or yest to use 9P2000.u extensions
+ * @V9FS_PROTO_2000L: whether or yest to use 9P2000.l extensions
  * @V9FS_ACCESS_SINGLE: only the mounting user can access the hierarchy
  * @V9FS_ACCESS_USER: a new attach will be issued for every user (default)
  * @V9FS_ACCESS_CLIENT: Just like user, but access check is performed on client.
@@ -41,10 +41,10 @@ enum p9_session_flags {
 /* possible values of ->cache */
 /**
  * enum p9_cache_modes - user specified cache preferences
- * @CACHE_NONE: do not cache data, dentries, or directory contents (default)
- * @CACHE_LOOSE: cache data, dentries, and directory contents w/no consistency
+ * @CACHE_NONE: do yest cache data, dentries, or directory contents (default)
+ * @CACHE_LOOSE: cache data, dentries, and directory contents w/yes consistency
  *
- * eventually support loose, tight, time, session, default always none
+ * eventually support loose, tight, time, session, default always yesne
  */
 
 enum p9_cache_modes {
@@ -58,7 +58,7 @@ enum p9_cache_modes {
 /**
  * struct v9fs_session_info - per-instance session information
  * @flags: session options of type &p9_session_flags
- * @nodev: set to 1 to disable device mapping
+ * @yesdev: set to 1 to disable device mapping
  * @debug: debug level
  * @afid: authentication handle
  * @cache: cache mode of type &p9_cache_modes
@@ -83,7 +83,7 @@ enum p9_cache_modes {
 struct v9fs_session_info {
 	/* options */
 	unsigned char flags;
-	unsigned char nodev;
+	unsigned char yesdev;
 	unsigned short debug;
 	unsigned int afid;
 	unsigned int cache;
@@ -107,7 +107,7 @@ struct v9fs_session_info {
 /* cache_validity flags */
 #define V9FS_INO_INVALID_ATTR 0x01
 
-struct v9fs_inode {
+struct v9fs_iyesde {
 #ifdef CONFIG_9P_FSCACHE
 	struct mutex fscache_lock;
 	struct fscache_cookie *fscache;
@@ -116,12 +116,12 @@ struct v9fs_inode {
 	unsigned int cache_validity;
 	struct p9_fid *writeback_fid;
 	struct mutex v_mutex;
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 };
 
-static inline struct v9fs_inode *V9FS_I(const struct inode *inode)
+static inline struct v9fs_iyesde *V9FS_I(const struct iyesde *iyesde)
 {
-	return container_of(inode, struct v9fs_inode, vfs_inode);
+	return container_of(iyesde, struct v9fs_iyesde, vfs_iyesde);
 }
 
 extern int v9fs_show_options(struct seq_file *m, struct dentry *root);
@@ -131,33 +131,33 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *, const char *,
 extern void v9fs_session_close(struct v9fs_session_info *v9ses);
 extern void v9fs_session_cancel(struct v9fs_session_info *v9ses);
 extern void v9fs_session_begin_cancel(struct v9fs_session_info *v9ses);
-extern struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
+extern struct dentry *v9fs_vfs_lookup(struct iyesde *dir, struct dentry *dentry,
 			unsigned int flags);
-extern int v9fs_vfs_unlink(struct inode *i, struct dentry *d);
-extern int v9fs_vfs_rmdir(struct inode *i, struct dentry *d);
-extern int v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-			   struct inode *new_dir, struct dentry *new_dentry,
+extern int v9fs_vfs_unlink(struct iyesde *i, struct dentry *d);
+extern int v9fs_vfs_rmdir(struct iyesde *i, struct dentry *d);
+extern int v9fs_vfs_rename(struct iyesde *old_dir, struct dentry *old_dentry,
+			   struct iyesde *new_dir, struct dentry *new_dentry,
 			   unsigned int flags);
-extern struct inode *v9fs_inode_from_fid(struct v9fs_session_info *v9ses,
+extern struct iyesde *v9fs_iyesde_from_fid(struct v9fs_session_info *v9ses,
 					 struct p9_fid *fid,
 					 struct super_block *sb, int new);
-extern const struct inode_operations v9fs_dir_inode_operations_dotl;
-extern const struct inode_operations v9fs_file_inode_operations_dotl;
-extern const struct inode_operations v9fs_symlink_inode_operations_dotl;
-extern struct inode *v9fs_inode_from_fid_dotl(struct v9fs_session_info *v9ses,
+extern const struct iyesde_operations v9fs_dir_iyesde_operations_dotl;
+extern const struct iyesde_operations v9fs_file_iyesde_operations_dotl;
+extern const struct iyesde_operations v9fs_symlink_iyesde_operations_dotl;
+extern struct iyesde *v9fs_iyesde_from_fid_dotl(struct v9fs_session_info *v9ses,
 					      struct p9_fid *fid,
 					      struct super_block *sb, int new);
 
 /* other default globals */
 #define V9FS_PORT	564
-#define V9FS_DEFUSER	"nobody"
+#define V9FS_DEFUSER	"yesbody"
 #define V9FS_DEFANAME	""
 #define V9FS_DEFUID	KUIDT_INIT(-2)
 #define V9FS_DEFGID	KGIDT_INIT(-2)
 
-static inline struct v9fs_session_info *v9fs_inode2v9ses(struct inode *inode)
+static inline struct v9fs_session_info *v9fs_iyesde2v9ses(struct iyesde *iyesde)
 {
-	return (inode->i_sb->s_fs_info);
+	return (iyesde->i_sb->s_fs_info);
 }
 
 static inline struct v9fs_session_info *v9fs_dentry2v9ses(struct dentry *dentry)
@@ -176,39 +176,39 @@ static inline int v9fs_proto_dotl(struct v9fs_session_info *v9ses)
 }
 
 /**
- * v9fs_get_inode_from_fid - Helper routine to populate an inode by
+ * v9fs_get_iyesde_from_fid - Helper routine to populate an iyesde by
  * issuing a attribute request
  * @v9ses: session information
  * @fid: fid to issue attribute request for
- * @sb: superblock on which to create inode
+ * @sb: superblock on which to create iyesde
  *
  */
-static inline struct inode *
-v9fs_get_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
+static inline struct iyesde *
+v9fs_get_iyesde_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 			struct super_block *sb)
 {
 	if (v9fs_proto_dotl(v9ses))
-		return v9fs_inode_from_fid_dotl(v9ses, fid, sb, 0);
+		return v9fs_iyesde_from_fid_dotl(v9ses, fid, sb, 0);
 	else
-		return v9fs_inode_from_fid(v9ses, fid, sb, 0);
+		return v9fs_iyesde_from_fid(v9ses, fid, sb, 0);
 }
 
 /**
- * v9fs_get_new_inode_from_fid - Helper routine to populate an inode by
+ * v9fs_get_new_iyesde_from_fid - Helper routine to populate an iyesde by
  * issuing a attribute request
  * @v9ses: session information
  * @fid: fid to issue attribute request for
- * @sb: superblock on which to create inode
+ * @sb: superblock on which to create iyesde
  *
  */
-static inline struct inode *
-v9fs_get_new_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
+static inline struct iyesde *
+v9fs_get_new_iyesde_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 			    struct super_block *sb)
 {
 	if (v9fs_proto_dotl(v9ses))
-		return v9fs_inode_from_fid_dotl(v9ses, fid, sb, 1);
+		return v9fs_iyesde_from_fid_dotl(v9ses, fid, sb, 1);
 	else
-		return v9fs_inode_from_fid(v9ses, fid, sb, 1);
+		return v9fs_iyesde_from_fid(v9ses, fid, sb, 1);
 }
 
 #endif

@@ -8,7 +8,7 @@
 	.text
 #define _pa(x)          ((x) - __START_KERNEL_map)
 
-#include <linux/elfnote.h>
+#include <linux/elfyeste.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
@@ -16,7 +16,7 @@
 #include <asm/boot.h>
 #include <asm/processor-flags.h>
 #include <asm/msr.h>
-#include <xen/interface/elfnote.h>
+#include <xen/interface/elfyeste.h>
 
 	__HEAD
 

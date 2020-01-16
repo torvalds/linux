@@ -27,7 +27,7 @@ MODULE_PARM_DESC(xfer_debug, "Enable xfer debug");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-/* Known requests (Cypress FX2 firmware + az6007 "private" ones*/
+/* Kyeswn requests (Cypress FX2 firmware + az6007 "private" ones*/
 
 #define FX2_OED			0xb5
 #define AZ6007_READ_DATA	0xb7
@@ -53,7 +53,7 @@ static struct drxk_config terratec_h7_drxk = {
 	.dynamic_clk = true,
 	.single_master = true,
 	.enable_merr_cfg = true,
-	.no_i2c_bridge = false,
+	.yes_i2c_bridge = false,
 	.chunk_size = 64,
 	.mpeg_out_clk_strength = 0x02,
 	.qam_demod_parameter_count = 2,
@@ -66,7 +66,7 @@ static struct drxk_config cablestar_hdci_drxk = {
 	.dynamic_clk = true,
 	.single_master = true,
 	.enable_merr_cfg = true,
-	.no_i2c_bridge = false,
+	.yes_i2c_bridge = false,
 	.chunk_size = 64,
 	.mpeg_out_clk_strength = 0x02,
 	.qam_demod_parameter_count = 2,
@@ -185,17 +185,17 @@ static int az6007_write(struct dvb_usb_device *d, u8 req, u16 value,
 	return ret;
 }
 
-static int az6007_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int az6007_streaming_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 
-	pr_debug("%s: %s\n", __func__, onoff ? "enable" : "disable");
+	pr_debug("%s: %s\n", __func__, oyesff ? "enable" : "disable");
 
-	return az6007_write(d, 0xbc, onoff, 0, NULL, 0);
+	return az6007_write(d, 0xbc, oyesff, 0, NULL, 0);
 }
 
 #if IS_ENABLED(CONFIG_RC_CORE)
-/* remote control stuff (does not work with my box) */
+/* remote control stuff (does yest work with my box) */
 static int az6007_rc_query(struct dvb_usb_device *d)
 {
 	struct az6007_device_state *st = d_to_priv(d);
@@ -598,7 +598,7 @@ static int az6007_ci_init(struct dvb_usb_adapter *adap)
 				  0, /* flags */
 				  1);/* n_slots */
 	if (ret != 0) {
-		pr_err("Cannot initialize CI: Error %d.\n", ret);
+		pr_err("Canyest initialize CI: Error %d.\n", ret);
 		memset(&state->ca, 0, sizeof(state->ca));
 		return ret;
 	}
@@ -685,7 +685,7 @@ static int az6007_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int az6007_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int az6007_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
 	struct az6007_device_state *state = d_to_priv(d);
 	int ret;
@@ -729,7 +729,7 @@ static int az6007_power_ctrl(struct dvb_usb_device *d, int onoff)
 		return 0;
 	}
 
-	if (!onoff)
+	if (!oyesff)
 		return 0;
 
 	az6007_write(d, AZ6007_POWER, 0, 0, NULL, 0);
@@ -963,7 +963,7 @@ static struct usb_driver az6007_usb_driver = {
 	.id_table	= az6007_usb_table,
 	.probe		= dvb_usbv2_probe,
 	.disconnect	= az6007_usb_disconnect,
-	.no_dynamic_id	= 1,
+	.yes_dynamic_id	= 1,
 	.soft_unbind	= 1,
 	/*
 	 * FIXME: need to implement reset_resume, likely with

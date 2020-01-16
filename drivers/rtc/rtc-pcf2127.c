@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * An I2C and SPI driver for the NXP PCF2127/29 RTC
- * Copyright 2013 Til-Technologies
+ * Copyright 2013 Til-Techyeslogies
  *
- * Author: Renaud Cerrato <r.cerrato@til-technologies.fr>
+ * Author: Renaud Cerrato <r.cerrato@til-techyeslogies.fr>
  *
  * Watchdog and tamper functions
- * Author: Bruno Thomsen <bruno.thomsen@gmail.com>
+ * Author: Bruyes Thomsen <bruyes.thomsen@gmail.com>
  *
  * based on the other drivers in this same directory.
  *
@@ -111,14 +111,14 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		dev_info(dev,
 			"low voltage detected, check/replace RTC battery.\n");
 
-	/* Clock integrity is not guaranteed when OSF flag is set. */
+	/* Clock integrity is yest guaranteed when OSF flag is set. */
 	if (buf[PCF2127_REG_SC] & PCF2127_BIT_SC_OSF) {
 		/*
-		 * no need clear the flag here,
+		 * yes need clear the flag here,
 		 * it will be cleared once the new date is saved
 		 */
 		dev_warn(dev,
-			 "oscillator stop detected, date/time is not reliable\n");
+			 "oscillator stop detected, date/time is yest reliable\n");
 		return -EINVAL;
 	}
 
@@ -460,7 +460,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	/*
 	 * Watchdog timer enabled and reset pin /RST activated when timed out.
 	 * Select 1Hz clock source for watchdog timer.
-	 * Note: Countdown timer disabled and not available.
+	 * Note: Countdown timer disabled and yest available.
 	 */
 	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_WD_CTL,
 				 PCF2127_BIT_WD_CTL_CD1 |
@@ -785,6 +785,6 @@ static void __exit pcf2127_exit(void)
 }
 module_exit(pcf2127_exit)
 
-MODULE_AUTHOR("Renaud Cerrato <r.cerrato@til-technologies.fr>");
+MODULE_AUTHOR("Renaud Cerrato <r.cerrato@til-techyeslogies.fr>");
 MODULE_DESCRIPTION("NXP PCF2127/29 RTC driver");
 MODULE_LICENSE("GPL v2");

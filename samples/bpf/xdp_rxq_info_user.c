@@ -6,7 +6,7 @@ static const char *__doc__ = " XDP RX-queue info extract example\n\n"
 	"per NIC RX queue index and which CPU processed the packet\n"
 	;
 
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,15 +45,15 @@ static struct bpf_map *rx_queue_index_map;
 #define EXIT_FAIL_MEM		5
 
 static const struct option long_options[] = {
-	{"help",	no_argument,		NULL, 'h' },
+	{"help",	yes_argument,		NULL, 'h' },
 	{"dev",		required_argument,	NULL, 'd' },
-	{"skb-mode",	no_argument,		NULL, 'S' },
+	{"skb-mode",	yes_argument,		NULL, 'S' },
 	{"sec",		required_argument,	NULL, 's' },
-	{"no-separators", no_argument,		NULL, 'z' },
+	{"yes-separators", yes_argument,		NULL, 'z' },
 	{"action",	required_argument,	NULL, 'a' },
-	{"readmem",	no_argument,		NULL, 'r' },
-	{"swapmac",	no_argument,		NULL, 'm' },
-	{"force",	no_argument,		NULL, 'F' },
+	{"readmem",	yes_argument,		NULL, 'r' },
+	{"swapmac",	yes_argument,		NULL, 'm' },
+	{"force",	yes_argument,		NULL, 'F' },
 	{0, 0, NULL,  0 }
 };
 
@@ -74,7 +74,7 @@ static void int_exit(int sig)
 		} else if (!curr_prog_id) {
 			printf("couldn't find a prog id on a given iface\n");
 		} else {
-			printf("program on interface changed, not removing\n");
+			printf("program on interface changed, yest removing\n");
 		}
 	}
 	exit(EXIT_OK);
@@ -135,12 +135,12 @@ static void list_xdp_actions(void)
 static char* options2str(enum cfg_options_flags flag)
 {
 	if (flag == NO_TOUCH)
-		return "no_touch";
+		return "yes_touch";
 	if (flag & SWAP_MAC)
 		return "swapmac";
 	if (flag & READ_MEM)
 		return "read";
-	fprintf(stderr, "ERR: Unknown config option flags");
+	fprintf(stderr, "ERR: Unkyeswn config option flags");
 	exit(EXIT_FAIL);
 }
 
@@ -499,7 +499,7 @@ int main(int argc, char **argv)
 	map_fd = bpf_map__fd(map);
 
 	if (!prog_fd) {
-		fprintf(stderr, "ERR: bpf_prog_load_xattr: %s\n", strerror(errno));
+		fprintf(stderr, "ERR: bpf_prog_load_xattr: %s\n", strerror(erryes));
 		return EXIT_FAIL;
 	}
 
@@ -517,8 +517,8 @@ int main(int argc, char **argv)
 			ifindex = if_nametoindex(ifname);
 			if (ifindex == 0) {
 				fprintf(stderr,
-					"ERR: --dev name unknown err(%d):%s\n",
-					errno, strerror(errno));
+					"ERR: --dev name unkyeswn err(%d):%s\n",
+					erryes, strerror(erryes));
 				goto error;
 			}
 			break;
@@ -598,7 +598,7 @@ int main(int argc, char **argv)
 
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err) {
-		printf("can't get prog info - %s\n", strerror(errno));
+		printf("can't get prog info - %s\n", strerror(erryes));
 		return err;
 	}
 	prog_id = info.id;

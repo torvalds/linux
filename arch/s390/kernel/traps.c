@@ -42,11 +42,11 @@ int is_valid_bugaddr(unsigned long addr)
 	return 1;
 }
 
-void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
+void do_report_trap(struct pt_regs *regs, int si_sigyes, int si_code, char *str)
 {
 	if (user_mode(regs)) {
-		force_sig_fault(si_signo, si_code, get_trap_ip(regs));
-		report_user_fault(regs, si_signo, 0);
+		force_sig_fault(si_sigyes, si_code, get_trap_ip(regs));
+		report_user_fault(regs, si_sigyes, 0);
         } else {
                 const struct exception_table_entry *fixup;
 		fixup = s390_search_extables(regs->psw.addr);
@@ -63,18 +63,18 @@ void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
         }
 }
 
-static void do_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
+static void do_trap(struct pt_regs *regs, int si_sigyes, int si_code, char *str)
 {
-	if (notify_die(DIE_TRAP, str, regs, 0,
-		       regs->int_code, si_signo) == NOTIFY_STOP)
+	if (yestify_die(DIE_TRAP, str, regs, 0,
+		       regs->int_code, si_sigyes) == NOTIFY_STOP)
 		return;
-	do_report_trap(regs, si_signo, si_code, str);
+	do_report_trap(regs, si_sigyes, si_code, str);
 }
 NOKPROBE_SYMBOL(do_trap);
 
 void do_per_trap(struct pt_regs *regs)
 {
-	if (notify_die(DIE_SSTEP, "sstep", regs, 0, 0, SIGTRAP) == NOTIFY_STOP)
+	if (yestify_die(DIE_SSTEP, "sstep", regs, 0, 0, SIGTRAP) == NOTIFY_STOP)
 		return;
 	if (!current->ptrace)
 		return;
@@ -89,7 +89,7 @@ void default_trap_handler(struct pt_regs *regs)
 		report_user_fault(regs, SIGSEGV, 0);
 		do_exit(SIGSEGV);
 	} else
-		die(regs, "Unknown program exception");
+		die(regs, "Unkyeswn program exception");
 }
 
 #define DO_ERROR_INFO(name, signr, sicode, str) \
@@ -178,10 +178,10 @@ void illegal_op(struct pt_regs *regs)
 	/*
 	 * We got either an illegal op in kernel mode, or user space trapped
 	 * on a uprobes illegal instruction. See if kprobes or uprobes picks
-	 * it up. If not, SIGILL.
+	 * it up. If yest, SIGILL.
 	 */
 	if (is_uprobe_insn || !user_mode(regs)) {
-		if (notify_die(DIE_BPT, "bpt", regs, 0,
+		if (yestify_die(DIE_BPT, "bpt", regs, 0,
 			       3, SIGTRAP) != NOTIFY_STOP)
 			signal = SIGILL;
 	}
@@ -221,7 +221,7 @@ void vector_exception(struct pt_regs *regs)
 	case 5:	/* inexact */
 		si_code = FPE_FLTRES;
 		break;
-	default: /* unknown cause */
+	default: /* unkyeswn cause */
 		si_code = 0;
 	}
 	do_trap(regs, SIGFPE, si_code, "vector exception");

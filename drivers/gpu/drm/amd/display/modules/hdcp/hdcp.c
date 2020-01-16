@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -44,7 +44,7 @@ static uint8_t is_cp_desired_hdcp1(struct mod_hdcp *hdcp)
 {
 	int i, display_enabled = 0;
 
-	/* if all displays on the link are disabled, hdcp is not desired */
+	/* if all displays on the link are disabled, hdcp is yest desired */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
 		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
 				!hdcp->connection.displays[i].adjust.disable) {
@@ -70,12 +70,12 @@ static enum mod_hdcp_status execution(struct mod_hdcp *hdcp,
 		}
 		/* initialize transition input */
 		memset(input, 0, sizeof(union mod_hdcp_transition_input));
-	} else if (is_in_cp_not_desired_state(hdcp)) {
+	} else if (is_in_cp_yest_desired_state(hdcp)) {
 		if (event_ctx->event != MOD_HDCP_EVENT_CALLBACK) {
 			event_ctx->unexpected_event = 1;
 			goto out;
 		}
-		/* update topology event if hdcp is not desired */
+		/* update topology event if hdcp is yest desired */
 		status = mod_hdcp_add_display_topology(hdcp);
 	} else if (is_in_hdcp1_states(hdcp)) {
 		status = mod_hdcp_hdcp1_execution(hdcp, event_ctx, &input->hdcp1);
@@ -118,7 +118,7 @@ static enum mod_hdcp_status transition(struct mod_hdcp *hdcp,
 			callback_in_ms(0, output);
 			set_state_id(hdcp, output, HDCP_CP_NOT_DESIRED);
 		}
-	} else if (is_in_cp_not_desired_state(hdcp)) {
+	} else if (is_in_cp_yest_desired_state(hdcp)) {
 		increment_stay_counter(hdcp);
 	} else if (is_in_hdcp1_states(hdcp)) {
 		status = mod_hdcp_hdcp1_transition(hdcp,
@@ -154,7 +154,7 @@ static enum mod_hdcp_status reset_authentication(struct mod_hdcp *hdcp,
 		memset(&hdcp->auth, 0, sizeof(struct mod_hdcp_authentication));
 		memset(&hdcp->state, 0, sizeof(struct mod_hdcp_state));
 		set_state_id(hdcp, output, HDCP_INITIALIZED);
-	} else if (is_in_cp_not_desired_state(hdcp)) {
+	} else if (is_in_cp_yest_desired_state(hdcp)) {
 		status = mod_hdcp_remove_display_topology(hdcp);
 		if (status != MOD_HDCP_STATUS_SUCCESS) {
 			output->callback_needed = 0;

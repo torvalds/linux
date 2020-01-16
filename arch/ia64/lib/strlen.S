@@ -9,7 +9,7 @@
  *
  * Outputs:
  *	ret0	the number of characters in the string (0 if empty string)
- *	does not count the \0
+ *	does yest count the \0
  *
  * Copyright (C) 1999, 2001 Hewlett-Packard Co
  *	Stephane Eranian <eranian@hpl.hp.com>
@@ -29,7 +29,7 @@
 // General Ideas about the algorithm:
 //	  The goal is to look at the string in chunks of 8 bytes.
 //	  so we need to do a few extra checks at the beginning because the
-//	  string may not be 8-byte aligned. In this case we load the 8byte
+//	  string may yest be 8-byte aligned. In this case we load the 8byte
 //	  quantity which includes the start of the string and mask the unused
 //	  bytes with 0xff to avoid confusing czx.
 //	  We use speculative loads and software pipelining to hide memory
@@ -38,16 +38,16 @@
 //	  Because we don't want the kernel to be relying on particular
 //	  settings of the DCR register, we provide recovery code in case
 //	  speculation fails. The recovery code is going to "redo" the work using
-//	  only normal loads. If we still get a fault then we generate a
+//	  only yesrmal loads. If we still get a fault then we generate a
 //	  kernel panic. Otherwise we return the strlen as usual.
 //
 //	  The fact that speculation may fail can be caused, for instance, by
 //	  the DCR.dm bit being set. In this case TLB misses are deferred, i.e.,
-//	  a NaT bit will be set if the translation is not present. The normal
+//	  a NaT bit will be set if the translation is yest present. The yesrmal
 //	  load, on the other hand, will cause the translation to be inserted
 //	  if the mapping exists.
 //
-//	  It should be noted that we execute recovery code only when we need
+//	  It should be yested that we execute recovery code only when we need
 //	  to use the data that has been speculatively loaded: we don't execute
 //	  recovery code on pure read ahead data.
 //
@@ -60,8 +60,8 @@
 //	  it to zero beforehand.
 //
 //	- after the loop we must test for Nat values because neither the
-//	  czx nor cmp instruction raise a NaT consumption fault. We must be
-//	  careful not to look too far for a Nat for which we don't care.
+//	  czx yesr cmp instruction raise a NaT consumption fault. We must be
+//	  careful yest to look too far for a Nat for which we don't care.
 //	  For instance we don't need to look at a NaT in val2 if the zero byte
 //	  was in val1.
 //
@@ -96,7 +96,7 @@ GLOBAL_ENTRY(strlen)
 
 	.body
 
-	ld8 v[1]=[src],8	// must not speculate: can fail here
+	ld8 v[1]=[src],8	// must yest speculate: can fail here
 	shl tmp=tmp,3		// multiply by 8bits/byte
 	mov mask=-1		// our mask
 	;;
@@ -104,11 +104,11 @@ GLOBAL_ENTRY(strlen)
 	cmp.eq p6,p0=r0,r0	// sets p6 to true for cmp.and
 	sub tmp=64,tmp		// how many bits to shift our mask on the right
 	;;
-	shr.u	mask=mask,tmp	// zero enough bits to hold v[1] valuable part
+	shr.u	mask=mask,tmp	// zero eyesugh bits to hold v[1] valuable part
 	mov ar.ec=r0		// clear epilogue counter (saved in ar.pfs)
 	;;
 	add base=-16,src	// keep track of aligned base
-	or v[1]=v[1],mask	// now we have a safe initial byte pattern
+	or v[1]=v[1],mask	// yesw we have a safe initial byte pattern
 	;;
 1:
 	ld8.s v[0]=[src],8	// speculatively load next
@@ -147,19 +147,19 @@ GLOBAL_ENTRY(strlen)
 	mov pr=saved_pr,0xffffffffffff0000
 	;;
 	sub ret0=ret0,tmp	// adjust
-	mov ar.pfs=saved_pfs	// because of ar.ec, restore no matter what
-	br.ret.sptk.many rp	// end of normal execution
+	mov ar.pfs=saved_pfs	// because of ar.ec, restore yes matter what
+	br.ret.sptk.many rp	// end of yesrmal execution
 
 	//
 	// Outlined recovery code when speculation failed
 	//
-	// This time we don't use speculation and rely on the normal exception
-	// mechanism. that's why the loop is not as good as the previous one
-	// because read ahead is not possible
+	// This time we don't use speculation and rely on the yesrmal exception
+	// mechanism. that's why the loop is yest as good as the previous one
+	// because read ahead is yest possible
 	//
 	// IMPORTANT:
-	// Please note that in the case of strlen() as opposed to strlen_user()
-	// we don't use the exception mechanism, as this function is not
+	// Please yeste that in the case of strlen() as opposed to strlen_user()
+	// we don't use the exception mechanism, as this function is yest
 	// supposed to fail. If that happens it means we have a bug and the
 	// code will cause of kernel fault.
 	//
@@ -188,8 +188,8 @@ GLOBAL_ENTRY(strlen)
 	sub tmp=8,val1
 	mov pr=saved_pr,0xffffffffffff0000
 	;;
-	sub ret0=ret0,tmp	// length=now - back -1
-	mov ar.pfs=saved_pfs	// because of ar.ec, restore no matter what
+	sub ret0=ret0,tmp	// length=yesw - back -1
+	mov ar.pfs=saved_pfs	// because of ar.ec, restore yes matter what
 	br.ret.sptk.many rp	// end of successful recovery code
 END(strlen)
 EXPORT_SYMBOL(strlen)

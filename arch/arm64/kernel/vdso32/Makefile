@@ -18,37 +18,37 @@ endif
 cc32-option = $(call try-run,\
         $(CC_COMPAT) $(1) -c -x c /dev/null -o "$$TMP",$(1),$(2))
 cc32-disable-warning = $(call try-run,\
-	$(CC_COMPAT) -W$(strip $(1)) -c -x c /dev/null -o "$$TMP",-Wno-$(strip $(1)))
+	$(CC_COMPAT) -W$(strip $(1)) -c -x c /dev/null -o "$$TMP",-Wyes-$(strip $(1)))
 cc32-ldoption = $(call try-run,\
-        $(CC_COMPAT) $(1) -nostdlib -x c /dev/null -o "$$TMP",$(1),$(2))
+        $(CC_COMPAT) $(1) -yesstdlib -x c /dev/null -o "$$TMP",$(1),$(2))
 cc32-as-instr = $(call try-run,\
 	printf "%b\n" "$(1)" | $(CC_COMPAT) $(VDSO_AFLAGS) -c -x assembler -o "$$TMP" -,$(2),$(3))
 
-# We cannot use the global flags to compile the vDSO files, the main reason
+# We canyest use the global flags to compile the vDSO files, the main reason
 # being that the 32-bit compiler may be older than the main (64-bit) compiler
-# and therefore may not understand flags set using $(cc-option ...). Besides,
+# and therefore may yest understand flags set using $(cc-option ...). Besides,
 # arch-specific options should be taken from the arm Makefile instead of the
 # arm64 one.
 # As a result we set our own flags here.
 
 # KBUILD_CPPFLAGS and NOSTDINC_FLAGS from top-level Makefile
-VDSO_CPPFLAGS := -D__KERNEL__ -nostdinc -isystem $(shell $(CC_COMPAT) -print-file-name=include)
+VDSO_CPPFLAGS := -D__KERNEL__ -yesstdinc -isystem $(shell $(CC_COMPAT) -print-file-name=include)
 VDSO_CPPFLAGS += $(LINUXINCLUDE)
 
 # Common C and assembly flags
 # From top-level Makefile
 VDSO_CAFLAGS := $(VDSO_CPPFLAGS)
 ifneq ($(shell $(CC_COMPAT) --version 2>&1 | head -n 1 | grep clang),)
-VDSO_CAFLAGS += --target=$(notdir $(CROSS_COMPILE_COMPAT:%-=%))
+VDSO_CAFLAGS += --target=$(yestdir $(CROSS_COMPILE_COMPAT:%-=%))
 endif
 
-VDSO_CAFLAGS += $(call cc32-option,-fno-PIE)
+VDSO_CAFLAGS += $(call cc32-option,-fyes-PIE)
 ifdef CONFIG_DEBUG_INFO
 VDSO_CAFLAGS += -g
 endif
 
 # From arm Makefile
-VDSO_CAFLAGS += $(call cc32-option,-fno-dwarf2-cfi-asm)
+VDSO_CAFLAGS += $(call cc32-option,-fyes-dwarf2-cfi-asm)
 VDSO_CAFLAGS += -mabi=aapcs-linux -mfloat-abi=soft
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
 VDSO_CAFLAGS += -mbig-endian
@@ -57,12 +57,12 @@ VDSO_CAFLAGS += -mlittle-endian
 endif
 
 # From arm vDSO Makefile
-VDSO_CAFLAGS += -fPIC -fno-builtin -fno-stack-protector
+VDSO_CAFLAGS += -fPIC -fyes-builtin -fyes-stack-protector
 VDSO_CAFLAGS += -DDISABLE_BRANCH_PROFILING
 
 
 # Try to compile for ARMv8. If the compiler is too old and doesn't support it,
-# fall back to v7. There is no easy way to check for what architecture the code
+# fall back to v7. There is yes easy way to check for what architecture the code
 # is being compiled, so define a macro specifying that (see arch/arm/Makefile).
 VDSO_CAFLAGS += $(call cc32-option,-march=armv8-a -D__LINUX_ARM_ARCH__=8,\
                                    -march=armv7-a -D__LINUX_ARM_ARCH__=7)
@@ -70,29 +70,29 @@ VDSO_CAFLAGS += $(call cc32-option,-march=armv8-a -D__LINUX_ARM_ARCH__=8,\
 VDSO_CFLAGS := $(VDSO_CAFLAGS)
 VDSO_CFLAGS += -DENABLE_COMPAT_VDSO=1
 # KBUILD_CFLAGS from top-level Makefile
-VDSO_CFLAGS += -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
-               -fno-strict-aliasing -fno-common \
+VDSO_CFLAGS += -Wall -Wundef -Wstrict-prototypes -Wyes-trigraphs \
+               -fyes-strict-aliasing -fyes-common \
                -Werror-implicit-function-declaration \
-               -Wno-format-security \
+               -Wyes-format-security \
                -std=gnu89
 VDSO_CFLAGS  += -O2
 # Some useful compiler-dependent flags from top-level Makefile
 VDSO_CFLAGS += $(call cc32-option,-Wdeclaration-after-statement,)
-VDSO_CFLAGS += $(call cc32-option,-Wno-pointer-sign)
-VDSO_CFLAGS += $(call cc32-option,-fno-strict-overflow)
+VDSO_CFLAGS += $(call cc32-option,-Wyes-pointer-sign)
+VDSO_CFLAGS += $(call cc32-option,-fyes-strict-overflow)
 VDSO_CFLAGS += $(call cc32-option,-Werror=strict-prototypes)
 VDSO_CFLAGS += $(call cc32-option,-Werror=date-time)
 VDSO_CFLAGS += $(call cc32-option,-Werror=incompatible-pointer-types)
 
-# The 32-bit compiler does not provide 128-bit integers, which are used in
+# The 32-bit compiler does yest provide 128-bit integers, which are used in
 # some headers that are indirectly included from the vDSO code.
 # This hack makes the compiler happy and should trigger a warning/error if
 # variables of such type are referenced.
 VDSO_CFLAGS += -D__uint128_t='void*'
 # Silence some warnings coming from headers that operate on long's
-# (on GCC 4.8 or older, there is unfortunately no way to silence this warning)
+# (on GCC 4.8 or older, there is unfortunately yes way to silence this warning)
 VDSO_CFLAGS += $(call cc32-disable-warning,shift-count-overflow)
-VDSO_CFLAGS += -Wno-int-to-pointer-cast
+VDSO_CFLAGS += -Wyes-int-to-pointer-cast
 
 VDSO_AFLAGS := $(VDSO_CAFLAGS)
 VDSO_AFLAGS += -D__ASSEMBLY__
@@ -105,9 +105,9 @@ VDSO_AFLAGS += $(dmbinstr)
 
 VDSO_LDFLAGS := $(VDSO_CPPFLAGS)
 # From arm vDSO Makefile
-VDSO_LDFLAGS += -Wl,-Bsymbolic -Wl,--no-undefined -Wl,-soname=linux-vdso.so.1
+VDSO_LDFLAGS += -Wl,-Bsymbolic -Wl,--yes-undefined -Wl,-soname=linux-vdso.so.1
 VDSO_LDFLAGS += -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
-VDSO_LDFLAGS += -nostdlib -shared -mfloat-abi=soft
+VDSO_LDFLAGS += -yesstdlib -shared -mfloat-abi=soft
 VDSO_LDFLAGS += -Wl,--hash-style=sysv
 VDSO_LDFLAGS += -Wl,--build-id
 VDSO_LDFLAGS += $(call cc32-ldoption,-fuse-ld=bfd)
@@ -119,7 +119,7 @@ VDSO_LDFLAGS += $(call cc32-ldoption,-fuse-ld=bfd)
 munge := ../../../arm/vdso/vdsomunge
 hostprogs-y := $(munge)
 
-c-obj-vdso := note.o
+c-obj-vdso := yeste.o
 c-obj-vdso-gettimeofday := vgettimeofday.o
 asm-obj-vdso := sigreturn.o
 

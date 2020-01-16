@@ -9,9 +9,9 @@
  * met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following disclaimer
+ *     copyright yestice, this list of conditions and the following disclaimer
  *     in the documentation and/or other materials provided with the
  *     distribution.
  *
@@ -39,7 +39,7 @@
  */
 
 #include <asm/unaligned.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

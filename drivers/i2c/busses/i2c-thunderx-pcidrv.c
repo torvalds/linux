@@ -34,7 +34,7 @@
 
 /*
  * Enable the CORE interrupt.
- * The interrupt will be asserted when there is non-STAT_IDLE state in the
+ * The interrupt will be asserted when there is yesn-STAT_IDLE state in the
  * SW_TWSI_EOP_TWSI_STAT register.
  */
 static void thunder_i2c_int_enable(struct octeon_i2c *i2c)
@@ -116,12 +116,12 @@ static void thunder_i2c_clock_disable(struct device *dev, struct clk *clk)
 }
 
 static int thunder_i2c_smbus_setup_of(struct octeon_i2c *i2c,
-				      struct device_node *node)
+				      struct device_yesde *yesde)
 {
-	if (!node)
+	if (!yesde)
 		return -EINVAL;
 
-	i2c->alert_data.irq = irq_of_parse_and_map(node, 0);
+	i2c->alert_data.irq = irq_of_parse_and_map(yesde, 0);
 	if (!i2c->alert_data.irq)
 		return -EINVAL;
 
@@ -132,13 +132,13 @@ static int thunder_i2c_smbus_setup_of(struct octeon_i2c *i2c,
 }
 
 static int thunder_i2c_smbus_setup(struct octeon_i2c *i2c,
-				   struct device_node *node)
+				   struct device_yesde *yesde)
 {
 	/* TODO: ACPI support */
 	if (!acpi_disabled)
 		return -EOPNOTSUPP;
 
-	return thunder_i2c_smbus_setup_of(i2c, node);
+	return thunder_i2c_smbus_setup_of(i2c, yesde);
 }
 
 static void thunder_i2c_smbus_remove(struct octeon_i2c *i2c)
@@ -207,7 +207,7 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 	i2c->adap.class = I2C_CLASS_HWMON;
 	i2c->adap.bus_recovery_info = &octeon_i2c_recovery_info;
 	i2c->adap.dev.parent = dev;
-	i2c->adap.dev.of_node = pdev->dev.of_node;
+	i2c->adap.dev.of_yesde = pdev->dev.of_yesde;
 	snprintf(i2c->adap.name, sizeof(i2c->adap.name),
 		 "Cavium ThunderX i2c adapter at %s", dev_name(dev));
 	i2c_set_adapdata(&i2c->adap, i2c);
@@ -218,9 +218,9 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 
 	dev_info(i2c->dev, "Probed. Set system clock to %u\n", i2c->sys_freq);
 
-	ret = thunder_i2c_smbus_setup(i2c, pdev->dev.of_node);
+	ret = thunder_i2c_smbus_setup(i2c, pdev->dev.of_yesde);
 	if (ret)
-		dev_info(dev, "SMBUS alert not active on this bus\n");
+		dev_info(dev, "SMBUS alert yest active on this bus\n");
 
 	return 0;
 

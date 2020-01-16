@@ -22,12 +22,12 @@ config PHY_EXYNOS_MIPI_VIDEO
 	  and EXYNOS SoCs.
 
 config PHY_EXYNOS_PCIE
-	bool "Exynos PCIe PHY driver"
+	bool "Exyyess PCIe PHY driver"
 	depends on OF && (ARCH_EXYNOS || COMPILE_TEST)
 	select GENERIC_PHY
 	help
-	  Enable PCIe PHY support for Exynos SoC series.
-	  This driver provides PHY interface for Exynos PCIe controller.
+	  Enable PCIe PHY support for Exyyess SoC series.
+	  This driver provides PHY interface for Exyyess PCIe controller.
 
 config PHY_SAMSUNG_USB2
 	tristate "Samsung USB 2.0 PHY driver"
@@ -68,7 +68,7 @@ config PHY_S5PV210_USB2
 	  are available - device and host.
 
 config PHY_EXYNOS5_USBDRD
-	tristate "Exynos5 SoC series USB DRD PHY driver"
+	tristate "Exyyess5 SoC series USB DRD PHY driver"
 	depends on ARCH_EXYNOS && OF
 	depends on HAS_IOMEM
 	depends on USB_DWC3_EXYNOS
@@ -76,12 +76,12 @@ config PHY_EXYNOS5_USBDRD
 	select MFD_SYSCON
 	default y
 	help
-	  Enable USB DRD PHY support for Exynos 5 SoC series.
+	  Enable USB DRD PHY support for Exyyess 5 SoC series.
 	  This driver provides PHY interface for USB 3.0 DRD controller
-	  present on Exynos5 SoC series.
+	  present on Exyyess5 SoC series.
 
 config PHY_EXYNOS5250_SATA
-	tristate "Exynos5250 Sata SerDes/PHY driver"
+	tristate "Exyyess5250 Sata SerDes/PHY driver"
 	depends on SOC_EXYNOS5250
 	depends on HAS_IOMEM
 	depends on OF
@@ -91,6 +91,6 @@ config PHY_EXYNOS5250_SATA
 	select MFD_SYSCON
 	help
 	  Enable this to support SATA SerDes/Phy found on Samsung's
-	  Exynos5250 based SoCs.This SerDes/Phy supports SATA 1.5 Gb/s,
+	  Exyyess5250 based SoCs.This SerDes/Phy supports SATA 1.5 Gb/s,
 	  SATA 3.0 Gb/s, SATA 6.0 Gb/s speeds. It supports one SATA host
 	  port to accept one SATA device.

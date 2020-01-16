@@ -5,7 +5,7 @@
  *
  * Header file for the adaptec 1740 driver for Linux
  *
- * With minor revisions 3/31/93
+ * With miyesr revisions 3/31/93
  * Written and (C) 1992,1993 Brad McLean.  See aha1740.c
  * for more info
  *
@@ -50,7 +50,7 @@
 #define	G2INTST_HARDFAIL	0x70	/* Adapter Hardware Failure */
 #define	G2INTST_CMDGOOD		0xa0	/* Immediate command success */
 #define G2INTST_CCBERROR	0xc0	/* CCB Completed with error */
-#define	G2INTST_ASNEVENT	0xd0	/* Asynchronous Event Notification */
+#define	G2INTST_ASNEVENT	0xd0	/* Asynchroyesus Event Notification */
 #define	G2INTST_CMDERROR	0xe0	/* Immediate command error */
 
 #define G2STAT_MBXOUT	4	/* Mailbox Out Empty Bit */
@@ -121,12 +121,12 @@ struct ecb {			/* Enhanced Control Block 6.1 */
 	 st:1,			/* Suppress Transfer */
 	 chk:1,			/* Calculate Checksum */
 	:2, rec:1,:1;		/* Error Recovery */
-	u16 nil0;		/* nothing */
+	u16 nil0;		/* yesthing */
 	u32 dataptr;		/* Data or Scatter List ptr */
 	u32 datalen;		/* Data or Scatter List len */
 	u32 statusptr;		/* Status Block ptr */
 	u32 linkptr;		/* Chain Address */
-	u32 nil1;		/* nothing */
+	u32 nil1;		/* yesthing */
 	u32 senseptr;		/* Sense Info Pointer */
 	u8 senselen;		/* Sense Length */
 	u8 cdblen;		/* CDB Length */
@@ -141,7 +141,7 @@ struct ecb {			/* Enhanced Control Block 6.1 */
 
 #define	AHA1740CMD_NOP	 0x00	/* No OP */
 #define AHA1740CMD_INIT	 0x01	/* Initiator SCSI Command */
-#define AHA1740CMD_DIAG	 0x05	/* Run Diagnostic Command */
+#define AHA1740CMD_DIAG	 0x05	/* Run Diagyesstic Command */
 #define AHA1740CMD_SCSI	 0x06	/* Initialize SCSI */
 #define AHA1740CMD_SENSE 0x08	/* Read Sense Information */
 #define AHA1740CMD_DOWN  0x09	/* Download Firmware (yeah, I bet!) */

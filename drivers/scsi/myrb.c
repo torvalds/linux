@@ -55,7 +55,7 @@ static const char *myrb_devstate_name(enum myrb_devstate state)
 		if (entry[i].state == state)
 			return entry[i].name;
 	}
-	return "Unknown";
+	return "Unkyeswn";
 }
 
 static struct myrb_raidlevel_name_entry {
@@ -113,7 +113,7 @@ static bool myrb_create_mempools(struct pci_dev *pdev, struct myrb_hba *cb)
 	}
 
 	snprintf(cb->work_q_name, sizeof(cb->work_q_name),
-		 "myrb_wq_%d", cb->host->host_no);
+		 "myrb_wq_%d", cb->host->host_yes);
 	cb->work_q = create_singlethread_workqueue(cb->work_q_name);
 	if (!cb->work_q) {
 		dma_pool_destroy(cb->dcdb_pool);
@@ -272,7 +272,7 @@ static char *myrb_event_msg[] = {
 	"killed because of 'kill drive' command from system",
 	"killed because of selection timeout",
 	"killed due to SCSI phase sequence error",
-	"killed due to unknown status",
+	"killed due to unkyeswn status",
 };
 
 /**
@@ -313,7 +313,7 @@ static void myrb_get_event(struct myrb_hba *cb, unsigned int event)
 		struct scsi_sense_hdr sshdr;
 
 		memset(&sshdr, 0, sizeof(sshdr));
-		scsi_normalize_sense(ev_buf->sense, 32, &sshdr);
+		scsi_yesrmalize_sense(ev_buf->sense, 32, &sshdr);
 
 		if (sshdr.sense_key == VENDOR_SPECIFIC &&
 		    sshdr.asc == 0x80 &&
@@ -416,11 +416,11 @@ static unsigned short myrb_get_ldev_info(struct myrb_hba *cb)
 		old = sdev->hostdata;
 		if (new->state != old->state)
 			shost_printk(KERN_INFO, shost,
-				     "Logical Drive %d is now %s\n",
+				     "Logical Drive %d is yesw %s\n",
 				     ldev_num, myrb_devstate_name(new->state));
 		if (new->wb_enabled != old->wb_enabled)
 			sdev_printk(KERN_INFO, sdev,
-				    "Logical Drive is now WRITE %s\n",
+				    "Logical Drive is yesw WRITE %s\n",
 				    (new->wb_enabled ? "BACK" : "THRU"));
 		memcpy(old, new, sizeof(*new));
 		scsi_device_put(sdev);
@@ -698,7 +698,7 @@ static unsigned short myrb_hba_enquiry(struct myrb_hba *cb)
 	}
 	if (new->status.deferred != old.status.deferred)
 		shost_printk(KERN_CRIT, cb->host,
-			     "Deferred Write Error Flag is now %s\n",
+			     "Deferred Write Error Flag is yesw %s\n",
 			     (new->status.deferred ? "TRUE" : "FALSE"));
 	if (new->ev_seq != old.ev_seq) {
 		cb->new_ev_seq = new->ev_seq;
@@ -800,7 +800,7 @@ static unsigned short myrb_set_pdev_state(struct myrb_hba *cb,
 /**
  * myrb_enable_mmio - enables the Memory Mailbox Interface
  *
- * PD and P controller types have no memory mailbox, but still need the
+ * PD and P controller types have yes memory mailbox, but still need the
  * other dma mapped memory.
  *
  * Return: true on success, false otherwise.
@@ -908,7 +908,7 @@ static bool myrb_enable_mmio(struct myrb_hba *cb, mbox_mmio_init_t mmio_init_fn)
  * Reads the configuration information from the controller and
  * initializes the controller structure.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erryes otherwise
  */
 static int myrb_get_hba_config(struct myrb_hba *cb)
 {
@@ -1007,7 +1007,7 @@ static int myrb_get_hba_config(struct myrb_hba *cb)
 		break;
 	default:
 		shost_printk(KERN_WARNING, cb->host,
-			     "Unknown Model %X\n",
+			     "Unkyeswn Model %X\n",
 			     enquiry2->hw.sub_model);
 		goto out;
 	}
@@ -1045,22 +1045,22 @@ static int myrb_get_hba_config(struct myrb_hba *cb)
 
 	if (enquiry2->fw.major_version == 0) {
 		enquiry2->fw.major_version = cb->enquiry->fw_major_version;
-		enquiry2->fw.minor_version = cb->enquiry->fw_minor_version;
+		enquiry2->fw.miyesr_version = cb->enquiry->fw_miyesr_version;
 		enquiry2->fw.firmware_type = '0';
 		enquiry2->fw.turn_id = 0;
 	}
 	snprintf(cb->fw_version, sizeof(cb->fw_version),
 		"%d.%02d-%c-%02d",
 		enquiry2->fw.major_version,
-		enquiry2->fw.minor_version,
+		enquiry2->fw.miyesr_version,
 		enquiry2->fw.firmware_type,
 		enquiry2->fw.turn_id);
 	if (!((enquiry2->fw.major_version == 5 &&
-	       enquiry2->fw.minor_version >= 6) ||
+	       enquiry2->fw.miyesr_version >= 6) ||
 	      (enquiry2->fw.major_version == 4 &&
-	       enquiry2->fw.minor_version >= 6) ||
+	       enquiry2->fw.miyesr_version >= 6) ||
 	      (enquiry2->fw.major_version == 3 &&
-	       enquiry2->fw.minor_version >= 51) ||
+	       enquiry2->fw.miyesr_version >= 51) ||
 	      (enquiry2->fw.major_version == 2 &&
 	       strcmp(cb->fw_version, FIRMWARE_27X) >= 0))) {
 		shost_printk(KERN_WARNING, cb->host,
@@ -1315,7 +1315,7 @@ static int myrb_pthru_queuecommand(struct Scsi_Host *shost,
 		dcdb->timeout = MYRB_DCDB_TMO_10_MINS;
 	else
 		dcdb->timeout = MYRB_DCDB_TMO_24_HRS;
-	dcdb->no_autosense = false;
+	dcdb->yes_autosense = false;
 	dcdb->allow_disconnect = true;
 	sgl = scsi_sglist(scmd);
 	dcdb->dma_addr = sg_dma_address(sgl);
@@ -1717,7 +1717,7 @@ static int myrb_pdev_slave_alloc(struct scsi_device *sdev)
 	}
 	if (!pdev_info->present) {
 		dev_dbg(&sdev->sdev_gendev,
-			"device not present, skip\n");
+			"device yest present, skip\n");
 		kfree(pdev_info);
 		return -ENXIO;
 	}
@@ -1751,7 +1751,7 @@ static int myrb_slave_configure(struct scsi_device *sdev)
 		return -ENXIO;
 
 	if (sdev->channel < myrb_logical_channel(sdev->host)) {
-		sdev->no_uld_attach = 1;
+		sdev->yes_uld_attach = 1;
 		return 0;
 	}
 	if (sdev->lun != 0)
@@ -1794,7 +1794,7 @@ static ssize_t raid_state_show(struct device *dev,
 	int ret;
 
 	if (!sdev->hostdata)
-		return snprintf(buf, 16, "Unknown\n");
+		return snprintf(buf, 16, "Unkyeswn\n");
 
 	if (sdev->channel == myrb_logical_channel(sdev->host)) {
 		struct myrb_ldev_info *ldev_info = sdev->hostdata;
@@ -1853,12 +1853,12 @@ static ssize_t raid_state_store(struct device *dev,
 	pdev_info = sdev->hostdata;
 	if (!pdev_info) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Failed - no physical device information\n");
+			    "Failed - yes physical device information\n");
 		return -ENXIO;
 	}
 	if (!pdev_info->present) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Failed - device not present\n");
+			    "Failed - device yest present\n");
 		return -ENXIO;
 	}
 
@@ -1930,13 +1930,13 @@ static ssize_t rebuild_show(struct device *dev,
 	unsigned char status;
 
 	if (sdev->channel < myrb_logical_channel(sdev->host))
-		return snprintf(buf, 32, "physical device - not rebuilding\n");
+		return snprintf(buf, 32, "physical device - yest rebuilding\n");
 
 	status = myrb_get_rbld_progress(cb, &rbld_buf);
 
 	if (rbld_buf.ldev_num != sdev->id ||
 	    status != MYRB_STATUS_SUCCESS)
-		return snprintf(buf, 32, "not rebuilding\n");
+		return snprintf(buf, 32, "yest rebuilding\n");
 
 	return snprintf(buf, 32, "rebuilding block %u of %u\n",
 			rbld_buf.ldev_size - rbld_buf.blocks_left,
@@ -1985,7 +1985,7 @@ static ssize_t rebuild_store(struct device *dev,
 
 		if (status != MYRB_STATUS_SUCCESS) {
 			sdev_printk(KERN_INFO, sdev,
-				    "Rebuild Not Cancelled; not in progress\n");
+				    "Rebuild Not Cancelled; yest in progress\n");
 			return 0;
 		}
 
@@ -2093,7 +2093,7 @@ static ssize_t consistency_check_store(struct device *dev,
 
 		if (ldev_num != sdev->id) {
 			sdev_printk(KERN_INFO, sdev,
-				    "Check Consistency Not Cancelled; not in progress\n");
+				    "Check Consistency Not Cancelled; yest in progress\n");
 			return 0;
 		}
 		rate = dma_alloc_coherent(&pdev->dev, sizeof(char),
@@ -2387,7 +2387,7 @@ static void myrb_handle_scsi(struct myrb_hba *cb, struct myrb_cmdblk *cmd_blk,
 					NOT_READY, 0x21, 0);
 		break;
 	case MYRB_STATUS_DEVICE_NONRESPONSIVE:
-		dev_dbg(&scmd->device->sdev_gendev, "Device nonresponsive\n");
+		dev_dbg(&scmd->device->sdev_gendev, "Device yesnresponsive\n");
 		scmd->result = (DID_BAD_TARGET << 16);
 		break;
 	default:
@@ -2423,7 +2423,7 @@ static void myrb_monitor(struct work_struct *work)
 		int event = cb->old_ev_seq;
 
 		dev_dbg(&shost->shost_gendev,
-			"get event log no %d/%d\n",
+			"get event log yes %d/%d\n",
 			cb->new_ev_seq, event);
 		myrb_get_event(cb, event);
 		cb->old_ev_seq = event + 1;
@@ -2501,35 +2501,35 @@ bool myrb_err_status(struct myrb_hba *cb, unsigned char error,
 			 parm1, parm0);
 		break;
 	case 0x08:
-		dev_notice(&pdev->dev, "Spinning Up Drives\n");
+		dev_yestice(&pdev->dev, "Spinning Up Drives\n");
 		break;
 	case 0x30:
-		dev_notice(&pdev->dev, "Configuration Checksum Error\n");
+		dev_yestice(&pdev->dev, "Configuration Checksum Error\n");
 		break;
 	case 0x60:
-		dev_notice(&pdev->dev, "Mirror Race Recovery Failed\n");
+		dev_yestice(&pdev->dev, "Mirror Race Recovery Failed\n");
 		break;
 	case 0x70:
-		dev_notice(&pdev->dev, "Mirror Race Recovery In Progress\n");
+		dev_yestice(&pdev->dev, "Mirror Race Recovery In Progress\n");
 		break;
 	case 0x90:
-		dev_notice(&pdev->dev, "Physical Device %d:%d COD Mismatch\n",
+		dev_yestice(&pdev->dev, "Physical Device %d:%d COD Mismatch\n",
 			   parm1, parm0);
 		break;
 	case 0xA0:
-		dev_notice(&pdev->dev, "Logical Drive Installation Aborted\n");
+		dev_yestice(&pdev->dev, "Logical Drive Installation Aborted\n");
 		break;
 	case 0xB0:
-		dev_notice(&pdev->dev, "Mirror Race On A Critical Logical Drive\n");
+		dev_yestice(&pdev->dev, "Mirror Race On A Critical Logical Drive\n");
 		break;
 	case 0xD0:
-		dev_notice(&pdev->dev, "New Controller Configuration Found\n");
+		dev_yestice(&pdev->dev, "New Controller Configuration Found\n");
 		break;
 	case 0xF0:
 		dev_err(&pdev->dev, "Fatal Memory Parity Error\n");
 		return true;
 	default:
-		dev_err(&pdev->dev, "Unknown Initialization Error %02X\n",
+		dev_err(&pdev->dev, "Unkyeswn Initialization Error %02X\n",
 			error);
 		return true;
 	}
@@ -3531,7 +3531,7 @@ static struct myrb_hba *myrb_detect(struct pci_dev *pdev,
 	spin_lock_init(&cb->queue_lock);
 	if (mmio_size < PAGE_SIZE)
 		mmio_size = PAGE_SIZE;
-	cb->mmio_base = ioremap_nocache(cb->pci_addr & PAGE_MASK, mmio_size);
+	cb->mmio_base = ioremap_yescache(cb->pci_addr & PAGE_MASK, mmio_size);
 	if (cb->mmio_base == NULL) {
 		dev_err(&pdev->dev,
 			"Unable to map Controller Register Window\n");

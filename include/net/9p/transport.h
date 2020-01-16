@@ -24,8 +24,8 @@
  * @close: member function to discard a connection on this transport
  * @request: member function to issue a request to the transport
  * @cancel: member function to cancel a request (if it hasn't been sent)
- * @cancelled: member function to notify that a cancelled request will not
- *             not receive a reply
+ * @cancelled: member function to yestify that a cancelled request will yest
+ *             yest receive a reply
  *
  * This is the basic API for a transport module which is registered by the
  * transport module with the 9P core network module and used by the client

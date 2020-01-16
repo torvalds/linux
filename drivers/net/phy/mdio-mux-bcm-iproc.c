@@ -236,7 +236,7 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 	bus->write = iproc_mdiomux_write;
 
 	bus->phy_mask = ~0;
-	bus->dev.of_node = pdev->dev.of_node;
+	bus->dev.of_yesde = pdev->dev.of_yesde;
 	rc = mdiobus_register(bus);
 	if (rc) {
 		dev_err(&pdev->dev, "mdiomux registration failed\n");
@@ -245,7 +245,7 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, md);
 
-	rc = mdio_mux_init(md->dev, md->dev->of_node, mdio_mux_iproc_switch_fn,
+	rc = mdio_mux_init(md->dev, md->dev->of_yesde, mdio_mux_iproc_switch_fn,
 			   &md->mux_handle, md, md->mii_bus);
 	if (rc) {
 		dev_info(md->dev, "mdiomux initialization failed\n");

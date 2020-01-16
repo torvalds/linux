@@ -10,10 +10,10 @@
 /* 2000-02-28: support added for Dayna and Kinetics cards by
    A.G.deWijn@phys.uu.nl */
 /* 2000-04-04: support added for Dayna2 by bart@etpmod.phys.tue.nl */
-/* 2001-04-18: support for DaynaPort E/LC-M by rayk@knightsmanor.org */
+/* 2001-04-18: support for DaynaPort E/LC-M by rayk@knightsmayesr.org */
 /* 2001-05-15: support for Cabletron ported from old daynaport driver
  * and fixed access to Sonic Sys card which masquerades as a Farallon
- * by rayk@knightsmanor.org */
+ * by rayk@knightsmayesr.org */
 /* 2002-12-30: Try to support more cards, some clues from NetBSD driver */
 /* 2003-12-26: Make sure Asante cards always work. */
 
@@ -29,7 +29,7 @@
 #include <linux/nubus.h>
 #include <linux/in.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -60,8 +60,8 @@ static char version[] =
 
 /*
  * Unfortunately it seems we have to hardcode these for the moment
- * Shouldn't the card know about this?
- * Does anyone know where to read it off the card?
+ * Shouldn't the card kyesw about this?
+ * Does anyone kyesw where to read it off the card?
  * Do we trust the data provided by the card?
  */
 
@@ -128,7 +128,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 
 static int mac8390_open(struct net_device *dev);
 static int mac8390_close(struct net_device *dev);
-static void mac8390_no_reset(struct net_device *dev);
+static void mac8390_yes_reset(struct net_device *dev);
 static void interlan_reset(struct net_device *dev);
 
 /* Sane (32-bit chunk memory read/write) - Some Farallon and Apple do this*/
@@ -317,7 +317,7 @@ static bool mac8390_rsrc_init(struct net_device *dev,
 
 	/* Get the MAC address */
 	if (nubus_find_rsrc(&dir, NUBUS_RESID_MAC_ADDRESS, &ent) == -1) {
-		dev_info(&board->dev, "MAC address resource not found\n");
+		dev_info(&board->dev, "MAC address resource yest found\n");
 		return false;
 	}
 
@@ -328,18 +328,18 @@ static bool mac8390_rsrc_init(struct net_device *dev,
 		if (nubus_find_rsrc(&dir, NUBUS_RESID_MINOR_BASEOS,
 				    &ent) == -1) {
 			dev_err(&board->dev,
-				"Memory offset resource not found\n");
+				"Memory offset resource yest found\n");
 			return false;
 		}
 		nubus_get_rsrc_mem(&offset, &ent, 4);
 		dev->mem_start = dev->base_addr + offset;
-		/* yes, this is how the Apple driver does it */
+		/* no, this is how the Apple driver does it */
 		dev->base_addr = dev->mem_start + 0x10000;
 		nubus_rewinddir(&dir);
 		if (nubus_find_rsrc(&dir, NUBUS_RESID_MINOR_LENGTH,
 				    &ent) == -1) {
 			dev_info(&board->dev,
-				 "Memory length resource not found, probing\n");
+				 "Memory length resource yest found, probing\n");
 			offset = mac8390_memsize(dev->mem_start);
 		} else {
 			nubus_get_rsrc_mem(&offset, &ent, 4);
@@ -383,7 +383,7 @@ static bool mac8390_rsrc_init(struct net_device *dev,
 
 		default:
 			dev_err(&board->dev,
-				"No known base address for card type\n");
+				"No kyeswn base address for card type\n");
 			return false;
 		}
 	}
@@ -536,12 +536,12 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 		switch (mac8390_testio(dev->mem_start)) {
 		case ACCESS_UNKNOWN:
 			dev_err(&board->dev,
-				"Don't know how to access card memory\n");
+				"Don't kyesw how to access card memory\n");
 			return -ENODEV;
 
 		case ACCESS_16:
 			/* 16 bit card, register map is reversed */
-			ei_status.reset_8390 = mac8390_no_reset;
+			ei_status.reset_8390 = mac8390_yes_reset;
 			ei_status.block_input = slow_sane_block_input;
 			ei_status.block_output = slow_sane_block_output;
 			ei_status.get_8390_hdr = slow_sane_get_8390_hdr;
@@ -550,7 +550,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 
 		case ACCESS_32:
 			/* 32 bit card, register map is reversed */
-			ei_status.reset_8390 = mac8390_no_reset;
+			ei_status.reset_8390 = mac8390_yes_reset;
 			ei_status.block_input = sane_block_input;
 			ei_status.block_output = sane_block_output;
 			ei_status.get_8390_hdr = sane_get_8390_hdr;
@@ -565,7 +565,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 		 * but overwrite system memory when run at 32 bit.
 		 * so we run them all at 16 bit.
 		 */
-		ei_status.reset_8390 = mac8390_no_reset;
+		ei_status.reset_8390 = mac8390_yes_reset;
 		ei_status.block_input = slow_sane_block_input;
 		ei_status.block_output = slow_sane_block_output;
 		ei_status.get_8390_hdr = slow_sane_get_8390_hdr;
@@ -574,7 +574,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 
 	case MAC8390_CABLETRON:
 		/* 16 bit card, register map is short forward */
-		ei_status.reset_8390 = mac8390_no_reset;
+		ei_status.reset_8390 = mac8390_yes_reset;
 		ei_status.block_input = slow_sane_block_input;
 		ei_status.block_output = slow_sane_block_output;
 		ei_status.get_8390_hdr = slow_sane_get_8390_hdr;
@@ -585,7 +585,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 	case MAC8390_KINETICS:
 		/* 16 bit memory, register map is forward */
 		/* dayna and similar */
-		ei_status.reset_8390 = mac8390_no_reset;
+		ei_status.reset_8390 = mac8390_yes_reset;
 		ei_status.block_input = dayna_block_input;
 		ei_status.block_output = dayna_block_output;
 		ei_status.get_8390_hdr = dayna_get_8390_hdr;
@@ -608,7 +608,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 
 	__NS8390_init(dev, 0);
 
-	/* Good, done, now spit out some messages */
+	/* Good, done, yesw spit out some messages */
 	dev_info(&board->dev, "%s (type %s)\n", board->name, cardname[type]);
 	dev_info(&board->dev, "MAC %pM, IRQ %d, %d KB shared memory at %#lx, %d-bit access.\n",
 		 dev->dev_addr, dev->irq,
@@ -635,12 +635,12 @@ static int mac8390_close(struct net_device *dev)
 	return 0;
 }
 
-static void mac8390_no_reset(struct net_device *dev)
+static void mac8390_yes_reset(struct net_device *dev)
 {
 	struct ei_device *ei_local = netdev_priv(dev);
 
 	ei_status.txing = 0;
-	netif_info(ei_local, hw, dev, "reset not supported\n");
+	netif_info(ei_local, hw, dev, "reset yest supported\n");
 }
 
 static void interlan_reset(struct net_device *dev)

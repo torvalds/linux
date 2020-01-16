@@ -6,10 +6,10 @@
     SHmedia bits:
 
 	Copyright 2004 SuperH (UK) Ltd
-	Author: Richard Curnow
+	Author: Richard Curyesw
 
 	Based on the sh version, and on code from the sh64-specific parts of
-	modutils, originally written by Richard Curnow and Ben Gaster.
+	modutils, originally written by Richard Curyesw and Ben Gaster.
 */
 #include <linux/moduleloader.h>
 #include <linux/elf.h>
@@ -88,7 +88,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 				(((relocation >> 16) & 0xffff) << 10);
 			break;
 		default:
-			printk(KERN_ERR "module %s: Unknown relocation: %u\n",
+			printk(KERN_ERR "module %s: Unkyeswn relocation: %u\n",
 			       me->name, ELF32_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}

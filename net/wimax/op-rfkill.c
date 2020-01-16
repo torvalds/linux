@@ -11,7 +11,7 @@
  * method to set the software RF-Kill switch and to report changes in
  * the software and hardware switch status.
  *
- * A non-polled generic rfkill device is embedded into the WiMAX
+ * A yesn-polled generic rfkill device is embedded into the WiMAX
  * subsystem's representation of a device.
  *
  * FIXME: Need polled support? Let drivers provide a poll routine
@@ -66,7 +66,7 @@
  *
  * When the device detects a change in the state of thehardware RF
  * switch, it must call this function to let the WiMAX kernel stack
- * know that the state has changed so it can be properly propagated.
+ * kyesw that the state has changed so it can be properly propagated.
  *
  * The WiMAX stack caches the state (the driver doesn't need to). As
  * well, as the change is propagated it will come back as a request to
@@ -89,7 +89,7 @@ void wimax_report_rfkill_hw(struct wimax_dev *wimax_dev,
 	mutex_lock(&wimax_dev->mutex);
 	result = wimax_dev_is_ready(wimax_dev);
 	if (result < 0)
-		goto error_not_ready;
+		goto error_yest_ready;
 
 	if (state != wimax_dev->rf_hw) {
 		wimax_dev->rf_hw = state;
@@ -104,7 +104,7 @@ void wimax_report_rfkill_hw(struct wimax_dev *wimax_dev,
 
 		__wimax_state_change(wimax_dev, wimax_state);
 	}
-error_not_ready:
+error_yest_ready:
 	mutex_unlock(&wimax_dev->mutex);
 	d_fnend(3, dev, "(wimax_dev %p state %u) = void [%d]\n",
 		wimax_dev, state, result);
@@ -126,7 +126,7 @@ EXPORT_SYMBOL_GPL(wimax_report_rfkill_hw);
  * device for its current software radio kill switch state and feed it
  * to the system.
  *
- * On the side, the device does not change the software state by
+ * On the side, the device does yest change the software state by
  * itself. In practice, this can happen, as the device might decide to
  * switch (in software) the radio off for different reasons.
  */
@@ -144,7 +144,7 @@ void wimax_report_rfkill_sw(struct wimax_dev *wimax_dev,
 	mutex_lock(&wimax_dev->mutex);
 	result = wimax_dev_is_ready(wimax_dev);
 	if (result < 0)
-		goto error_not_ready;
+		goto error_yest_ready;
 
 	if (state != wimax_dev->rf_sw) {
 		wimax_dev->rf_sw = state;
@@ -156,7 +156,7 @@ void wimax_report_rfkill_sw(struct wimax_dev *wimax_dev,
 		__wimax_state_change(wimax_dev, wimax_state);
 		rfkill_set_sw_state(wimax_dev->rfkill, state == WIMAX_RF_OFF);
 	}
-error_not_ready:
+error_yest_ready:
 	mutex_unlock(&wimax_dev->mutex);
 	d_fnend(3, dev, "(wimax_dev %p state %u) = void [%d]\n",
 		wimax_dev, state, result);
@@ -170,7 +170,7 @@ EXPORT_SYMBOL_GPL(wimax_report_rfkill_sw);
  * This function is called by:
  *
  * - The rfkill subsystem when the RF-Kill key is pressed in the
- *   hardware and the driver notifies through
+ *   hardware and the driver yestifies through
  *   wimax_report_rfkill_hw(). The rfkill subsystem ends up calling back
  *   here so the software RF Kill switch state is changed to reflect
  *   the hardware switch state.
@@ -197,7 +197,7 @@ int __wimax_rf_toggle_radio(struct wimax_dev *wimax_dev,
 	might_sleep();
 	d_fnstart(3, dev, "(wimax_dev %p state %u)\n", wimax_dev, state);
 	if (wimax_dev->rf_sw == state)
-		goto out_no_change;
+		goto out_yes_change;
 	if (wimax_dev->op_rfkill_sw_toggle != NULL)
 		result = wimax_dev->op_rfkill_sw_toggle(wimax_dev, state);
 	else if (state == WIMAX_RF_OFF)	/* No op? can't turn off */
@@ -211,7 +211,7 @@ int __wimax_rf_toggle_radio(struct wimax_dev *wimax_dev,
 			WIMAX_ST_READY : WIMAX_ST_RADIO_OFF;
 		__wimax_state_change(wimax_dev, wimax_state);
 	}
-out_no_change:
+out_yes_change:
 	d_fnend(3, dev, "(wimax_dev %p state %u) = %d\n",
 		wimax_dev, state, result);
 	return result;
@@ -224,7 +224,7 @@ out_no_change:
  * NOTE: Special state handling rules here
  *
  *     Just pretend the call didn't happen if we are in a state where
- *     we know for sure it cannot be handled (WIMAX_ST_DOWN or
+ *     we kyesw for sure it canyest be handled (WIMAX_ST_DOWN or
  *     __WIMAX_ST_QUIESCING). rfkill() needs it to register and
  *     unregister, as it will run this path.
  *
@@ -265,7 +265,7 @@ static const struct rfkill_ops wimax_rfkill_ops = {
  *
  * Returns:
  *
- * >= 0 toggle state if ok, < 0 errno code on error. The toggle state
+ * >= 0 toggle state if ok, < 0 erryes code on error. The toggle state
  * is returned as a bitmap, bit 0 being the hardware RF state, bit 1
  * the software RF state.
  *
@@ -297,7 +297,7 @@ int wimax_rfkill(struct wimax_dev *wimax_dev, enum wimax_rf_state state)
 		 * considering the radios are all off. */
 		if (result == -ENOMEDIUM && state == WIMAX_RF_QUERY)
 			result = WIMAX_RF_OFF << 1 | WIMAX_RF_OFF;
-		goto error_not_ready;
+		goto error_yest_ready;
 	}
 	switch (state) {
 	case WIMAX_RF_ON:
@@ -315,7 +315,7 @@ int wimax_rfkill(struct wimax_dev *wimax_dev, enum wimax_rf_state state)
 	}
 	result = wimax_dev->rf_sw << 1 | wimax_dev->rf_hw;
 error:
-error_not_ready:
+error_yest_ready:
 	mutex_unlock(&wimax_dev->mutex);
 	d_fnend(3, dev, "(wimax_dev %p state %u) = %d\n",
 		wimax_dev, state, result);
@@ -352,7 +352,7 @@ int wimax_rfkill_add(struct wimax_dev *wimax_dev)
 	if (result < 0)
 		goto error_rfkill_register;
 
-	/* If there is no SW toggle op, SW RFKill is always on */
+	/* If there is yes SW toggle op, SW RFKill is always on */
 	if (wimax_dev->op_rfkill_sw_toggle == NULL)
 		wimax_dev->rf_sw = WIMAX_RF_ON;
 
@@ -391,7 +391,7 @@ void wimax_rfkill_rm(struct wimax_dev *wimax_dev)
  * Parse the rfkill command from user space, return a combination
  * value that describe the states of the different toggles.
  *
- * Only one attribute: the new state requested (on, off or no change,
+ * Only one attribute: the new state requested (on, off or yes change,
  * just query).
  */
 
@@ -406,26 +406,26 @@ int wimax_gnl_doit_rfkill(struct sk_buff *skb, struct genl_info *info)
 	result = -ENODEV;
 	if (info->attrs[WIMAX_GNL_RFKILL_IFIDX] == NULL) {
 		pr_err("WIMAX_GNL_OP_RFKILL: can't find IFIDX attribute\n");
-		goto error_no_wimax_dev;
+		goto error_yes_wimax_dev;
 	}
 	ifindex = nla_get_u32(info->attrs[WIMAX_GNL_RFKILL_IFIDX]);
 	wimax_dev = wimax_dev_get_by_genl_info(info, ifindex);
 	if (wimax_dev == NULL)
-		goto error_no_wimax_dev;
+		goto error_yes_wimax_dev;
 	dev = wimax_dev_to_dev(wimax_dev);
 	result = -EINVAL;
 	if (info->attrs[WIMAX_GNL_RFKILL_STATE] == NULL) {
 		dev_err(dev, "WIMAX_GNL_RFKILL: can't find RFKILL_STATE "
 			"attribute\n");
-		goto error_no_pid;
+		goto error_yes_pid;
 	}
 	new_state = nla_get_u32(info->attrs[WIMAX_GNL_RFKILL_STATE]);
 
 	/* Execute the operation and send the result back to user space */
 	result = wimax_rfkill(wimax_dev, new_state);
-error_no_pid:
+error_yes_pid:
 	dev_put(wimax_dev->net_dev);
-error_no_wimax_dev:
+error_yes_wimax_dev:
 	d_fnend(3, NULL, "(skb %p info %p) = %d\n", skb, info, result);
 	return result;
 }

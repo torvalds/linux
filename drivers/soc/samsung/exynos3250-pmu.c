@@ -5,12 +5,12 @@
 //
 // EXYNOS3250 - CPU PMU (Power Management Unit) support
 
-#include <linux/soc/samsung/exynos-regs-pmu.h>
-#include <linux/soc/samsung/exynos-pmu.h>
+#include <linux/soc/samsung/exyyess-regs-pmu.h>
+#include <linux/soc/samsung/exyyess-pmu.h>
 
-#include "exynos-pmu.h"
+#include "exyyess-pmu.h"
 
-static const struct exynos_pmu_conf exynos3250_pmu_config[] = {
+static const struct exyyess_pmu_conf exyyess3250_pmu_config[] = {
 	/* { .offset = offset, .val = { AFTR, W-AFTR, SLEEP } */
 	{ EXYNOS3_ARM_CORE0_SYS_PWR_REG,		{ 0x0, 0x0, 0x2} },
 	{ EXYNOS3_DIS_IRQ_ARM_CORE0_LOCAL_SYS_PWR_REG,	{ 0x0, 0x0, 0x0} },
@@ -96,7 +96,7 @@ static const struct exynos_pmu_conf exynos3250_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-static unsigned int const exynos3250_list_feed[] = {
+static unsigned int const exyyess3250_list_feed[] = {
 	EXYNOS3_ARM_CORE_OPTION(0),
 	EXYNOS3_ARM_CORE_OPTION(1),
 	EXYNOS3_ARM_CORE_OPTION(2),
@@ -111,17 +111,17 @@ static unsigned int const exynos3250_list_feed[] = {
 	S5P_ISP_OPTION,
 };
 
-static void exynos3250_powerdown_conf_extra(enum sys_powerdown mode)
+static void exyyess3250_powerdown_conf_extra(enum sys_powerdown mode)
 {
 	unsigned int i;
 	unsigned int tmp;
 
 	/* Enable only SC_FEEDBACK */
-	for (i = 0; i < ARRAY_SIZE(exynos3250_list_feed); i++) {
-		tmp = pmu_raw_readl(exynos3250_list_feed[i]);
+	for (i = 0; i < ARRAY_SIZE(exyyess3250_list_feed); i++) {
+		tmp = pmu_raw_readl(exyyess3250_list_feed[i]);
 		tmp &= ~(EXYNOS3_OPTION_USE_SC_COUNTER);
 		tmp |= EXYNOS3_OPTION_USE_SC_FEEDBACK;
-		pmu_raw_writel(tmp, exynos3250_list_feed[i]);
+		pmu_raw_writel(tmp, exyyess3250_list_feed[i]);
 	}
 
 	if (mode != SYS_SLEEP)
@@ -134,7 +134,7 @@ static void exynos3250_powerdown_conf_extra(enum sys_powerdown mode)
 		       EXYNOS3_EXT_REGULATOR_COREBLK_DURATION);
 }
 
-static void exynos3250_pmu_init(void)
+static void exyyess3250_pmu_init(void)
 {
 	unsigned int value;
 
@@ -164,8 +164,8 @@ static void exynos3250_pmu_init(void)
 	pmu_raw_writel(value, S5P_PS_HOLD_CONTROL);
 }
 
-const struct exynos_pmu_data exynos3250_pmu_data = {
-	.pmu_config	= exynos3250_pmu_config,
-	.pmu_init	= exynos3250_pmu_init,
-	.powerdown_conf_extra	= exynos3250_powerdown_conf_extra,
+const struct exyyess_pmu_data exyyess3250_pmu_data = {
+	.pmu_config	= exyyess3250_pmu_config,
+	.pmu_init	= exyyess3250_pmu_init,
+	.powerdown_conf_extra	= exyyess3250_powerdown_conf_extra,
 };

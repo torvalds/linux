@@ -23,21 +23,21 @@
 #include <asm/sections.h>
 #include "reboot.h"
 
-int pfn_is_nosave(unsigned long pfn)
+int pfn_is_yessave(unsigned long pfn)
 {
-	unsigned long nosave_begin_pfn = virt_to_pfn(&__nosave_begin);
-	unsigned long nosave_end_pfn = virt_to_pfn(&__nosave_end - 1);
+	unsigned long yessave_begin_pfn = virt_to_pfn(&__yessave_begin);
+	unsigned long yessave_end_pfn = virt_to_pfn(&__yessave_end - 1);
 
-	return (pfn >= nosave_begin_pfn) && (pfn <= nosave_end_pfn);
+	return (pfn >= yessave_begin_pfn) && (pfn <= yessave_end_pfn);
 }
 
-void notrace save_processor_state(void)
+void yestrace save_processor_state(void)
 {
 	WARN_ON(num_online_cpus() != 1);
 	local_fiq_disable();
 }
 
-void notrace restore_processor_state(void)
+void yestrace restore_processor_state(void)
 {
 	local_fiq_enable();
 }
@@ -50,12 +50,12 @@ void notrace restore_processor_state(void)
  * required by the resume kernel image to restart execution from
  * swsusp_arch_suspend().
  *
- * soft_restart is not technically needed, but is used to get success
+ * soft_restart is yest technically needed, but is used to get success
  * returned from cpu_suspend.
  *
  * When soft reboot completes, the hibernation snapshot is written out.
  */
-static int notrace arch_save_image(unsigned long unused)
+static int yestrace arch_save_image(unsigned long unused)
 {
 	int ret;
 
@@ -68,7 +68,7 @@ static int notrace arch_save_image(unsigned long unused)
 /*
  * Save the current CPU state before suspend / poweroff.
  */
-int notrace swsusp_arch_suspend(void)
+int yestrace swsusp_arch_suspend(void)
 {
 	return cpu_suspend(0, arch_save_image);
 }
@@ -78,7 +78,7 @@ int notrace swsusp_arch_suspend(void)
  * hibernation image.  Switch to idmap_pgd so the physical page tables
  * are overwritten with the same contents.
  */
-static void notrace arch_restore_image(void *unused)
+static void yestrace arch_restore_image(void *unused)
 {
 	struct pbe *pbe;
 
@@ -89,13 +89,13 @@ static void notrace arch_restore_image(void *unused)
 	_soft_restart(virt_to_idmap(cpu_resume), false);
 }
 
-static u64 resume_stack[PAGE_SIZE/2/sizeof(u64)] __nosavedata;
+static u64 resume_stack[PAGE_SIZE/2/sizeof(u64)] __yessavedata;
 
 /*
  * Resume from the hibernation image.
  * Due to the kernel heap / data restore, stack contents change underneath
  * and that would make function calls impossible; switch to a temporary
- * stack within the nosave region to avoid that problem.
+ * stack within the yessave region to avoid that problem.
  */
 int swsusp_arch_resume(void)
 {

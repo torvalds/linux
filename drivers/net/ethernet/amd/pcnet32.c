@@ -17,7 +17,7 @@
  *  Fixed a few bugs, related to running the controller in 32bit mode.
  *
  *  Carsten Langgaard, carstenl@mips.com
- *  Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ *  Copyright (C) 2000 MIPS Techyeslogies, Inc.  All rights reserved.
  *
  *************************************************************************/
 
@@ -35,7 +35,7 @@ static const char *const version =
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -117,12 +117,12 @@ static const unsigned char options_mapping[] = {
 	PCNET32_PORT_ASEL,			/*  0 Auto-select      */
 	PCNET32_PORT_AUI,			/*  1 BNC/AUI          */
 	PCNET32_PORT_AUI,			/*  2 AUI/BNC          */
-	PCNET32_PORT_ASEL,			/*  3 not supported    */
+	PCNET32_PORT_ASEL,			/*  3 yest supported    */
 	PCNET32_PORT_10BT | PCNET32_PORT_FD,	/*  4 10baseT-FD       */
-	PCNET32_PORT_ASEL,			/*  5 not supported    */
-	PCNET32_PORT_ASEL,			/*  6 not supported    */
-	PCNET32_PORT_ASEL,			/*  7 not supported    */
-	PCNET32_PORT_ASEL,			/*  8 not supported    */
+	PCNET32_PORT_ASEL,			/*  5 yest supported    */
+	PCNET32_PORT_ASEL,			/*  6 yest supported    */
+	PCNET32_PORT_ASEL,			/*  7 yest supported    */
+	PCNET32_PORT_ASEL,			/*  8 yest supported    */
 	PCNET32_PORT_MII,			/*  9 MII 10baseT      */
 	PCNET32_PORT_MII | PCNET32_PORT_FD,	/* 10 MII 10baseT-FD   */
 	PCNET32_PORT_MII,			/* 11 MII (autosel)    */
@@ -130,7 +130,7 @@ static const unsigned char options_mapping[] = {
 	PCNET32_PORT_MII | PCNET32_PORT_100,	/* 13 MII 100BaseTx    */
 						/* 14 MII 100BaseTx-FD */
 	PCNET32_PORT_MII | PCNET32_PORT_100 | PCNET32_PORT_FD,
-	PCNET32_PORT_ASEL			/* 15 not supported    */
+	PCNET32_PORT_ASEL			/* 15 yest supported    */
 };
 
 static const char pcnet32_gstrings_test[][ETH_GSTRING_LEN] = {
@@ -149,10 +149,10 @@ static int homepna[MAX_UNITS];
 /*
  *				Theory of Operation
  *
- * This driver uses the same software structure as the normal lance
+ * This driver uses the same software structure as the yesrmal lance
  * driver. So look for a verbose description in lance.c. The differences
- * to the normal lance driver is the use of the 32bit mode of PCnet32
- * and PCnetPCI chips. Because these chips are 32bit chips, there is no
+ * to the yesrmal lance driver is the use of the 32bit mode of PCnet32
+ * and PCnetPCI chips. Because these chips are 32bit chips, there is yes
  * 16MB limitation and we don't need bounce buffers.
  */
 
@@ -570,7 +570,7 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 		new_dma_addr_list[new] = lp->rx_dma_addr[new];
 		new_skb_list[new] = lp->rx_skbuff[new];
 	}
-	/* now allocate any new buffers needed */
+	/* yesw allocate any new buffers needed */
 	for (; new < entries; new++) {
 		struct sk_buff *rx_skbuff;
 		new_skb_list[new] = netdev_alloc_skb(dev, PKT_BUF_SKB);
@@ -837,7 +837,7 @@ static u32 pcnet32_get_link(struct net_device *dev)
 	} else if (lp->chip_version > PCNET32_79C970A) {
 		ulong ioaddr = dev->base_addr;	/* card base I/O address */
 		r = (lp->a->read_bcr(ioaddr, 4) != 0xc0);
-	} else {	/* can not detect link on really old chips */
+	} else {	/* can yest detect link on really old chips */
 		r = 1;
 	}
 	spin_unlock_irqrestore(&lp->lock, flags);
@@ -1016,7 +1016,7 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t * data1)
 		skb = netdev_alloc_skb(dev, size);
 		if (!skb) {
 			netif_printk(lp, hw, KERN_DEBUG, dev,
-				     "Cannot allocate skb at line: %d!\n",
+				     "Canyest allocate skb at line: %d!\n",
 				     __LINE__);
 			goto clean_up;
 		}
@@ -1187,10 +1187,10 @@ static void pcnet32_rx_entry(struct net_device *dev,
 
 	if (status != 0x03) {	/* There was an error. */
 		/*
-		 * There is a tricky error noted by John Murphy,
+		 * There is a tricky error yested by John Murphy,
 		 * <murf@perftech.com> to Russ Nelson: Even with full-sized
 		 * buffers it's possible for a jabber packet to use two
-		 * buffers, with only the last correctly noting the error.
+		 * buffers, with only the last correctly yesting the error.
 		 */
 		if (status & 0x01)	/* Only count a general error at the */
 			dev->stats.rx_errors++;	/* end of a packet. */
@@ -1385,7 +1385,7 @@ static int pcnet32_tx(struct net_device *dev)
 	if (lp->tx_full &&
 	    netif_queue_stopped(dev) &&
 	    delta < lp->tx_ring_size - 2) {
-		/* The ring is no longer full, clear tbusy. */
+		/* The ring is yes longer full, clear tbusy. */
 		lp->tx_full = 0;
 		netif_wake_queue(dev);
 	}
@@ -1451,7 +1451,7 @@ static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	spin_lock_irqsave(&lp->lock, flags);
 
 	csr0 = a->read_csr(ioaddr, CSR0);
-	if (!(csr0 & CSR0_STOP))	/* If not stopped */
+	if (!(csr0 & CSR0_STOP))	/* If yest stopped */
 		pcnet32_suspend(dev, &flags, 1);
 
 	/* read address PROM */
@@ -1469,7 +1469,7 @@ static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	for (i = 0; i < 30; i++)
 		*buff++ = a->read_bcr(ioaddr, i);
 
-	*buff++ = 0;		/* skip bcr30 so as not to hang 79C976 */
+	*buff++ = 0;		/* skip bcr30 so as yest to hang 79C976 */
 
 	for (i = 31; i < 36; i++)
 		*buff++ = a->read_bcr(ioaddr, i);
@@ -1488,7 +1488,7 @@ static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		}
 	}
 
-	if (!(csr0 & CSR0_STOP))	/* If not stopped */
+	if (!(csr0 & CSR0_STOP))	/* If yest stopped */
 		pcnet32_clr_suspend(lp, ioaddr);
 
 	spin_unlock_irqrestore(&lp->lock, flags);
@@ -1512,14 +1512,14 @@ static const struct ethtool_ops pcnet32_ethtool_ops = {
 	.set_link_ksettings	= pcnet32_set_link_ksettings,
 };
 
-/* only probes for non-PCI devices, the rest are handled by
+/* only probes for yesn-PCI devices, the rest are handled by
  * pci_register_driver via pcnet32_probe_pci */
 
 static void pcnet32_probe_vlbus(unsigned int *pcnet32_portlist)
 {
 	unsigned int *port, ioaddr;
 
-	/* search for PCnet32 VLB cards at known addresses */
+	/* search for PCnet32 VLB cards at kyeswn addresses */
 	for (port = pcnet32_portlist; (ioaddr = *port); port++) {
 		if (request_region
 		    (ioaddr, PCNET32_TOTAL_SIZE, "pcnet32_probe_vlbus")) {
@@ -1551,7 +1551,7 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ioaddr = pci_resource_start(pdev, 0);
 	if (!ioaddr) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
-			pr_err("card has no PCI IO resources, aborting\n");
+			pr_err("card has yes PCI IO resources, aborting\n");
 		err = -ENODEV;
 		goto err_disable_dev;
 	}
@@ -1559,7 +1559,7 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = pci_set_dma_mask(pdev, PCNET32_DMA_MASK);
 	if (err) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
-			pr_err("architecture does not support 32bit PCI busmaster DMA\n");
+			pr_err("architecture does yest support 32bit PCI busmaster DMA\n");
 		goto err_disable_dev;
 	}
 	if (!request_region(ioaddr, PCNET32_TOTAL_SIZE, "pcnet32_probe_pci")) {
@@ -1705,7 +1705,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		break;
 	default:
 		if (pcnet32_debug & NETIF_MSG_PROBE)
-			pr_info("PCnet version %#x, no PCnet32 chip\n",
+			pr_info("PCnet version %#x, yes PCnet32 chip\n",
 				chip_version);
 		goto err_release_region;
 	}
@@ -1792,7 +1792,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		}
 	}
 
-	/* if the ethernet address is not valid, force to 00:00:00:00:00:00 */
+	/* if the ethernet address is yest valid, force to 00:00:00:00:00:00 */
 	if (!is_valid_ether_addr(dev->dev_addr))
 		eth_zero_addr(dev->dev_addr);
 
@@ -1839,7 +1839,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	dev->base_addr = ioaddr;
 	lp = netdev_priv(dev);
-	/* pci_alloc_consistent returns page-aligned memory, so we do not have to check the alignment */
+	/* pci_alloc_consistent returns page-aligned memory, so we do yest have to check the alignment */
 	lp->init_block = pci_alloc_consistent(pdev, sizeof(*lp->init_block),
 					      &lp->init_dma_addr);
 	if (!lp->init_block) {
@@ -1881,7 +1881,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	lp->mii_if.mdio_read = mdio_read;
 	lp->mii_if.mdio_write = mdio_write;
 
-	/* napi.weight is used in both the napi and non-napi cases */
+	/* napi.weight is used in both the napi and yesn-napi cases */
 	lp->napi.weight = lp->rx_ring_size / 2;
 
 	netif_napi_add(dev, &lp->napi, pcnet32_poll, lp->rx_ring_size / 2);
@@ -1892,7 +1892,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	lp->a = a;
 
-	/* prior to register_netdev, dev->name is not yet correct */
+	/* prior to register_netdev, dev->name is yest yet correct */
 	if (pcnet32_alloc_ring(dev, pci_name(lp->pci_dev))) {
 		ret = -ENOMEM;
 		goto err_free_ring;
@@ -2157,7 +2157,7 @@ static int pcnet32_open(struct net_device *dev)
 		val |= 0x10;
 	lp->a->write_csr(ioaddr, 124, val);
 
-	/* Allied Telesyn AT 2700/2701 FX are 100Mbit only and do not negotiate */
+	/* Allied Telesyn AT 2700/2701 FX are 100Mbit only and do yest negotiate */
 	if (pdev && pdev->subsystem_vendor == PCI_VENDOR_ID_AT &&
 	    (pdev->subsystem_device == PCI_SUBDEVICE_ID_AT_2700FX ||
 	     pdev->subsystem_device == PCI_SUBDEVICE_ID_AT_2701FX)) {
@@ -2201,7 +2201,7 @@ static int pcnet32_open(struct net_device *dev)
 		struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET };
 
 		/*
-		 * There is really no good other way to handle multiple PHYs
+		 * There is really yes good other way to handle multiple PHYs
 		 * other than turning off all automatics
 		 */
 		val = lp->a->read_bcr(ioaddr, 2);
@@ -2326,7 +2326,7 @@ err_free_irq:
 }
 
 /*
- * The LANCE has been halted for one reason or another (busmaster memory
+ * The LANCE has been halted for one reason or ayesther (busmaster memory
  * arbitration error, Tx FIFO underflow, driver stopped it to reconfigure,
  * etc.).  Modern LANCE variants always reload their ring-buffer
  * configuration when restarted, so we must reinitialize our ring
@@ -2335,7 +2335,7 @@ err_free_irq:
  * sent (in effect, drop the packets on the floor) - the higher-level
  * protocols will time out and retransmit.  It'd be better to shuffle
  * these skbs to a temp list and then actually re-Tx them after
- * restarting the chip, but I'm too lazy to do so right now.  dplatt@3do.com
+ * restarting the chip, but I'm too lazy to do so right yesw.  dplatt@3do.com
  */
 
 static void pcnet32_purge_tx_ring(struct net_device *dev)
@@ -2376,7 +2376,7 @@ static int pcnet32_init_ring(struct net_device *dev)
 			lp->rx_skbuff[i] = netdev_alloc_skb(dev, PKT_BUF_SKB);
 			rx_skbuff = lp->rx_skbuff[i];
 			if (!rx_skbuff) {
-				/* there is not much we can do at this point */
+				/* there is yest much we can do at this point */
 				netif_err(lp, drv, dev, "%s netdev_alloc_skb failed\n",
 					  __func__);
 				return -1;
@@ -2391,7 +2391,7 @@ static int pcnet32_init_ring(struct net_device *dev)
 					   PKT_BUF_SIZE, PCI_DMA_FROMDEVICE);
 			if (pci_dma_mapping_error(lp->pci_dev,
 						  lp->rx_dma_addr[i])) {
-				/* there is not much we can do at this point */
+				/* there is yest much we can do at this point */
 				netif_err(lp, drv, dev,
 					  "%s pci dma mapping error\n",
 					  __func__);
@@ -2510,7 +2510,7 @@ static netdev_tx_t pcnet32_start_xmit(struct sk_buff *skb,
 		     "%s() called, csr0 %4.4x\n",
 		     __func__, lp->a->read_csr(ioaddr, CSR0));
 
-	/* Default status -- will not enable Successful-TxDone
+	/* Default status -- will yest enable Successful-TxDone
 	 * interrupt when that option is available to us.
 	 */
 	status = 0x8300;
@@ -2573,7 +2573,7 @@ pcnet32_interrupt(int irq, void *dev_id)
 	while ((csr0 & 0x8f00) && --boguscnt >= 0) {
 		if (csr0 == 0xffff)
 			break;	/* PCMCIA remove happened */
-		/* Acknowledge all of the current interrupt sources ASAP. */
+		/* Ackyeswledge all of the current interrupt sources ASAP. */
 		lp->a->write_csr(ioaddr, CSR0, csr0 & ~0x004f);
 
 		netif_printk(lp, intr, KERN_DEBUG, dev,
@@ -2586,7 +2586,7 @@ pcnet32_interrupt(int irq, void *dev_id)
 		if (csr0 & 0x1000) {
 			/*
 			 * This happens when our receive ring is full. This
-			 * shouldn't be a problem as we will see normal rx
+			 * shouldn't be a problem as we will see yesrmal rx
 			 * interrupts for the frames in the receive ring.  But
 			 * there are some PCI chipsets (I can reproduce this
 			 * on SP3G with Intel saturn chipset) which have
@@ -2600,7 +2600,7 @@ pcnet32_interrupt(int irq, void *dev_id)
 		if (csr0 & 0x0800) {
 			netif_err(lp, drv, dev, "Bus master arbitration failure, status %4.4x\n",
 				  csr0);
-			/* unlike for the lance, there is no restart needed */
+			/* unlike for the lance, there is yes restart needed */
 		}
 		if (napi_schedule_prep(&lp->napi)) {
 			u16 val;
@@ -2839,7 +2839,7 @@ static int pcnet32_check_otherphy(struct net_device *dev)
 /*
  * Show the status of the media.  Similar to mii_check_media however it
  * correctly shows the link speed for all (tested) pcnet32 variants.
- * Devices with no mii just report link state without speed.
+ * Devices with yes mii just report link state without speed.
  *
  * Caller is assumed to hold and release the lp->lock.
  */

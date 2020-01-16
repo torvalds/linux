@@ -123,9 +123,9 @@ EXPORT_SYMBOL_GPL(telemetry_update_events);
 /**
  * telemetry_set_sampling_period() - Sets the IOSS & PSS sampling period
  * @pss_period:  placeholder for PSS Period to be set.
- *		 Set to 0 if not required to be updated
+ *		 Set to 0 if yest required to be updated
  * @ioss_period: placeholder for IOSS Period to be set
- *		 Set to 0 if not required to be updated
+ *		 Set to 0 if yest required to be updated
  *
  * All values should be in the form of:
  * bits[6:3] -> value; bits [0:2]-> Exponent; Period = (Value *16^Exponent)

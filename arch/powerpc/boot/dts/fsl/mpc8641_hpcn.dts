@@ -367,9 +367,9 @@
 	};
 /*
  * Only one of Rapid IO or PCI can be present due to HW limitations and
- * due to the fact that the 2 now share address space in the new memory
+ * due to the fact that the 2 yesw share address space in the new memory
  * map.  The most likely case is that we have PCI, so comment out the
- * rapidio node.  Leave it here for reference.
+ * rapidio yesde.  Leave it here for reference.
 
 	rapidio@ffec0000 {
 		reg = <0xffec0000 0x11000>;

@@ -17,7 +17,7 @@
 #define EV56_CPU		7	/* EV5.6 (21164)	*/
 #define EV6_CPU			8	/* EV6 (21264)		*/
 #define PCA56_CPU		9	/* PCA56 (21164PC)	*/
-#define PCA57_CPU		10	/* PCA57 (notyet)	*/
+#define PCA57_CPU		10	/* PCA57 (yestyet)	*/
 #define EV67_CPU		11	/* EV67 (21264A)	*/
 #define EV68CB_CPU		12	/* EV68CB (21264C)	*/
 #define EV68AL_CPU		13	/* EV68AL (21264B)	*/
@@ -97,7 +97,7 @@ struct percpu_struct {
 	unsigned long type;
 	unsigned long variation;
 	unsigned long revision;
-	unsigned long serial_no[2];
+	unsigned long serial_yes[2];
 	unsigned long logout_area_pa;
 	unsigned long logout_area_len;
 	unsigned long halt_PCBB;

@@ -29,11 +29,11 @@
 #include "gcov.h"
 
 /**
- * struct gcov_node - represents a debugfs entry
- * @list: list head for child node list
- * @children: child nodes
- * @all: list head for list of all nodes
- * @parent: parent node
+ * struct gcov_yesde - represents a debugfs entry
+ * @list: list head for child yesde list
+ * @children: child yesdes
+ * @all: list head for list of all yesdes
+ * @parent: parent yesde
  * @loaded_info: array of pointers to profiling data sets for loaded object
  *   files.
  * @num_loaded: number of profiling data sets for loaded object files.
@@ -43,16 +43,16 @@
  * @links: associated symbolic links
  * @name: data file basename
  *
- * struct gcov_node represents an entity within the gcov/ subdirectory
- * of debugfs. There are directory and data file nodes. The latter represent
+ * struct gcov_yesde represents an entity within the gcov/ subdirectory
+ * of debugfs. There are directory and data file yesdes. The latter represent
  * the actual synthesized data file plus any associated symbolic links which
  * are needed by the gcov tool to work correctly.
  */
-struct gcov_node {
+struct gcov_yesde {
 	struct list_head list;
 	struct list_head children;
 	struct list_head all;
-	struct gcov_node *parent;
+	struct gcov_yesde *parent;
 	struct gcov_info **loaded_info;
 	struct gcov_info *unloaded_info;
 	struct dentry *dentry;
@@ -63,11 +63,11 @@ struct gcov_node {
 
 static const char objtree[] = OBJTREE;
 static const char srctree[] = SRCTREE;
-static struct gcov_node root_node;
+static struct gcov_yesde root_yesde;
 static LIST_HEAD(all_head);
-static DEFINE_MUTEX(node_lock);
+static DEFINE_MUTEX(yesde_lock);
 
-/* If non-zero, keep copies of profiling data for unloaded modules. */
+/* If yesn-zero, keep copies of profiling data for unloaded modules. */
 static int gcov_persist = 1;
 
 static int __init gcov_persist_setup(char *str)
@@ -88,7 +88,7 @@ __setup("gcov_persist=", gcov_persist_setup);
 /*
  * seq_file.start() implementation for gcov data files. Note that the
  * gcov_iterator interface is designed to be more restrictive than seq_file
- * (no start from arbitrary position, etc.), to simplify the iterator
+ * (yes start from arbitrary position, etc.), to simplify the iterator
  * implementation.
  */
 static void *gcov_seq_start(struct seq_file *seq, loff_t *pos)
@@ -138,35 +138,35 @@ static const struct seq_operations gcov_seq_ops = {
 };
 
 /*
- * Return a profiling data set associated with the given node. This is
+ * Return a profiling data set associated with the given yesde. This is
  * either a data set for a loaded object file or a data set copy in case
  * all associated object files have been unloaded.
  */
-static struct gcov_info *get_node_info(struct gcov_node *node)
+static struct gcov_info *get_yesde_info(struct gcov_yesde *yesde)
 {
-	if (node->num_loaded > 0)
-		return node->loaded_info[0];
+	if (yesde->num_loaded > 0)
+		return yesde->loaded_info[0];
 
-	return node->unloaded_info;
+	return yesde->unloaded_info;
 }
 
 /*
  * Return a newly allocated profiling data set which contains the sum of
- * all profiling data associated with the given node.
+ * all profiling data associated with the given yesde.
  */
-static struct gcov_info *get_accumulated_info(struct gcov_node *node)
+static struct gcov_info *get_accumulated_info(struct gcov_yesde *yesde)
 {
 	struct gcov_info *info;
 	int i = 0;
 
-	if (node->unloaded_info)
-		info = gcov_info_dup(node->unloaded_info);
+	if (yesde->unloaded_info)
+		info = gcov_info_dup(yesde->unloaded_info);
 	else
-		info = gcov_info_dup(node->loaded_info[i++]);
+		info = gcov_info_dup(yesde->loaded_info[i++]);
 	if (!info)
 		return NULL;
-	for (; i < node->num_loaded; i++)
-		gcov_info_add(info, node->loaded_info[i]);
+	for (; i < yesde->num_loaded; i++)
+		gcov_info_add(info, yesde->loaded_info[i]);
 
 	return info;
 }
@@ -175,21 +175,21 @@ static struct gcov_info *get_accumulated_info(struct gcov_node *node)
  * open() implementation for gcov data files. Create a copy of the profiling
  * data set and initialize the iterator and seq_file interface.
  */
-static int gcov_seq_open(struct inode *inode, struct file *file)
+static int gcov_seq_open(struct iyesde *iyesde, struct file *file)
 {
-	struct gcov_node *node = inode->i_private;
+	struct gcov_yesde *yesde = iyesde->i_private;
 	struct gcov_iterator *iter;
 	struct seq_file *seq;
 	struct gcov_info *info;
 	int rc = -ENOMEM;
 
-	mutex_lock(&node_lock);
+	mutex_lock(&yesde_lock);
 	/*
 	 * Read from a profiling data copy to minimize reference tracking
 	 * complexity and concurrent access and to keep accumulating multiple
-	 * profiling data sets associated with one node simple.
+	 * profiling data sets associated with one yesde simple.
 	 */
-	info = get_accumulated_info(node);
+	info = get_accumulated_info(yesde);
 	if (!info)
 		goto out_unlock;
 	iter = gcov_iter_new(info);
@@ -201,7 +201,7 @@ static int gcov_seq_open(struct inode *inode, struct file *file)
 	seq = file->private_data;
 	seq->private = iter;
 out_unlock:
-	mutex_unlock(&node_lock);
+	mutex_unlock(&yesde_lock);
 	return rc;
 
 err_free_iter_info:
@@ -215,7 +215,7 @@ err_free_info:
  * release() implementation for gcov data files. Release resources allocated
  * by open().
  */
-static int gcov_seq_release(struct inode *inode, struct file *file)
+static int gcov_seq_release(struct iyesde *iyesde, struct file *file)
 {
 	struct gcov_iterator *iter;
 	struct gcov_info *info;
@@ -226,70 +226,70 @@ static int gcov_seq_release(struct inode *inode, struct file *file)
 	info = gcov_iter_get_info(iter);
 	gcov_iter_free(iter);
 	gcov_info_free(info);
-	seq_release(inode, file);
+	seq_release(iyesde, file);
 
 	return 0;
 }
 
 /*
- * Find a node by the associated data file name. Needs to be called with
- * node_lock held.
+ * Find a yesde by the associated data file name. Needs to be called with
+ * yesde_lock held.
  */
-static struct gcov_node *get_node_by_name(const char *name)
+static struct gcov_yesde *get_yesde_by_name(const char *name)
 {
-	struct gcov_node *node;
+	struct gcov_yesde *yesde;
 	struct gcov_info *info;
 
-	list_for_each_entry(node, &all_head, all) {
-		info = get_node_info(node);
+	list_for_each_entry(yesde, &all_head, all) {
+		info = get_yesde_info(yesde);
 		if (info && (strcmp(gcov_info_filename(info), name) == 0))
-			return node;
+			return yesde;
 	}
 
 	return NULL;
 }
 
 /*
- * Reset all profiling data associated with the specified node.
+ * Reset all profiling data associated with the specified yesde.
  */
-static void reset_node(struct gcov_node *node)
+static void reset_yesde(struct gcov_yesde *yesde)
 {
 	int i;
 
-	if (node->unloaded_info)
-		gcov_info_reset(node->unloaded_info);
-	for (i = 0; i < node->num_loaded; i++)
-		gcov_info_reset(node->loaded_info[i]);
+	if (yesde->unloaded_info)
+		gcov_info_reset(yesde->unloaded_info);
+	for (i = 0; i < yesde->num_loaded; i++)
+		gcov_info_reset(yesde->loaded_info[i]);
 }
 
-static void remove_node(struct gcov_node *node);
+static void remove_yesde(struct gcov_yesde *yesde);
 
 /*
  * write() implementation for gcov data files. Reset profiling data for the
  * corresponding file. If all associated object files have been unloaded,
- * remove the debug fs node as well.
+ * remove the debug fs yesde as well.
  */
 static ssize_t gcov_seq_write(struct file *file, const char __user *addr,
 			      size_t len, loff_t *pos)
 {
 	struct seq_file *seq;
 	struct gcov_info *info;
-	struct gcov_node *node;
+	struct gcov_yesde *yesde;
 
 	seq = file->private_data;
 	info = gcov_iter_get_info(seq->private);
-	mutex_lock(&node_lock);
-	node = get_node_by_name(gcov_info_filename(info));
-	if (node) {
-		/* Reset counts or remove node for unloaded modules. */
-		if (node->num_loaded == 0)
-			remove_node(node);
+	mutex_lock(&yesde_lock);
+	yesde = get_yesde_by_name(gcov_info_filename(info));
+	if (yesde) {
+		/* Reset counts or remove yesde for unloaded modules. */
+		if (yesde->num_loaded == 0)
+			remove_yesde(yesde);
 		else
-			reset_node(node);
+			reset_yesde(yesde);
 	}
 	/* Reset counts for open file. */
 	gcov_info_reset(info);
-	mutex_unlock(&node_lock);
+	mutex_unlock(&yesde_lock);
 
 	return len;
 }
@@ -360,10 +360,10 @@ static const char *deskew(const char *basename)
 }
 
 /*
- * Create links to additional files (usually .c and .gcno files) which the
+ * Create links to additional files (usually .c and .gcyes files) which the
  * gcov tool expects to find in the same directory as the gcov data file.
  */
-static void add_links(struct gcov_node *node, struct dentry *parent)
+static void add_links(struct gcov_yesde *yesde, struct dentry *parent)
 {
 	const char *basename;
 	char *target;
@@ -372,19 +372,19 @@ static void add_links(struct gcov_node *node, struct dentry *parent)
 
 	for (num = 0; gcov_link[num].ext; num++)
 		/* Nothing. */;
-	node->links = kcalloc(num, sizeof(struct dentry *), GFP_KERNEL);
-	if (!node->links)
+	yesde->links = kcalloc(num, sizeof(struct dentry *), GFP_KERNEL);
+	if (!yesde->links)
 		return;
 	for (i = 0; i < num; i++) {
 		target = get_link_target(
-				gcov_info_filename(get_node_info(node)),
+				gcov_info_filename(get_yesde_info(yesde)),
 				&gcov_link[i]);
 		if (!target)
 			goto out_err;
 		basename = kbasename(target);
 		if (basename == target)
 			goto out_err;
-		node->links[i] = debugfs_create_symlink(deskew(basename),
+		yesde->links[i] = debugfs_create_symlink(deskew(basename),
 							parent,	target);
 		kfree(target);
 	}
@@ -393,9 +393,9 @@ static void add_links(struct gcov_node *node, struct dentry *parent)
 out_err:
 	kfree(target);
 	while (i-- > 0)
-		debugfs_remove(node->links[i]);
-	kfree(node->links);
-	node->links = NULL;
+		debugfs_remove(yesde->links[i]);
+	kfree(yesde->links);
+	yesde->links = NULL;
 }
 
 static const struct file_operations gcov_data_fops = {
@@ -406,113 +406,113 @@ static const struct file_operations gcov_data_fops = {
 	.write		= gcov_seq_write,
 };
 
-/* Basic initialization of a new node. */
-static void init_node(struct gcov_node *node, struct gcov_info *info,
-		      const char *name, struct gcov_node *parent)
+/* Basic initialization of a new yesde. */
+static void init_yesde(struct gcov_yesde *yesde, struct gcov_info *info,
+		      const char *name, struct gcov_yesde *parent)
 {
-	INIT_LIST_HEAD(&node->list);
-	INIT_LIST_HEAD(&node->children);
-	INIT_LIST_HEAD(&node->all);
-	if (node->loaded_info) {
-		node->loaded_info[0] = info;
-		node->num_loaded = 1;
+	INIT_LIST_HEAD(&yesde->list);
+	INIT_LIST_HEAD(&yesde->children);
+	INIT_LIST_HEAD(&yesde->all);
+	if (yesde->loaded_info) {
+		yesde->loaded_info[0] = info;
+		yesde->num_loaded = 1;
 	}
-	node->parent = parent;
+	yesde->parent = parent;
 	if (name)
-		strcpy(node->name, name);
+		strcpy(yesde->name, name);
 }
 
 /*
- * Create a new node and associated debugfs entry. Needs to be called with
- * node_lock held.
+ * Create a new yesde and associated debugfs entry. Needs to be called with
+ * yesde_lock held.
  */
-static struct gcov_node *new_node(struct gcov_node *parent,
+static struct gcov_yesde *new_yesde(struct gcov_yesde *parent,
 				  struct gcov_info *info, const char *name)
 {
-	struct gcov_node *node;
+	struct gcov_yesde *yesde;
 
-	node = kzalloc(sizeof(struct gcov_node) + strlen(name) + 1, GFP_KERNEL);
-	if (!node)
-		goto err_nomem;
+	yesde = kzalloc(sizeof(struct gcov_yesde) + strlen(name) + 1, GFP_KERNEL);
+	if (!yesde)
+		goto err_yesmem;
 	if (info) {
-		node->loaded_info = kcalloc(1, sizeof(struct gcov_info *),
+		yesde->loaded_info = kcalloc(1, sizeof(struct gcov_info *),
 					   GFP_KERNEL);
-		if (!node->loaded_info)
-			goto err_nomem;
+		if (!yesde->loaded_info)
+			goto err_yesmem;
 	}
-	init_node(node, info, name, parent);
-	/* Differentiate between gcov data file nodes and directory nodes. */
+	init_yesde(yesde, info, name, parent);
+	/* Differentiate between gcov data file yesdes and directory yesdes. */
 	if (info) {
-		node->dentry = debugfs_create_file(deskew(node->name), 0600,
-					parent->dentry, node, &gcov_data_fops);
+		yesde->dentry = debugfs_create_file(deskew(yesde->name), 0600,
+					parent->dentry, yesde, &gcov_data_fops);
 	} else
-		node->dentry = debugfs_create_dir(node->name, parent->dentry);
+		yesde->dentry = debugfs_create_dir(yesde->name, parent->dentry);
 	if (info)
-		add_links(node, parent->dentry);
-	list_add(&node->list, &parent->children);
-	list_add(&node->all, &all_head);
+		add_links(yesde, parent->dentry);
+	list_add(&yesde->list, &parent->children);
+	list_add(&yesde->all, &all_head);
 
-	return node;
+	return yesde;
 
-err_nomem:
-	kfree(node);
+err_yesmem:
+	kfree(yesde);
 	pr_warn("out of memory\n");
 	return NULL;
 }
 
-/* Remove symbolic links associated with node. */
-static void remove_links(struct gcov_node *node)
+/* Remove symbolic links associated with yesde. */
+static void remove_links(struct gcov_yesde *yesde)
 {
 	int i;
 
-	if (!node->links)
+	if (!yesde->links)
 		return;
 	for (i = 0; gcov_link[i].ext; i++)
-		debugfs_remove(node->links[i]);
-	kfree(node->links);
-	node->links = NULL;
+		debugfs_remove(yesde->links[i]);
+	kfree(yesde->links);
+	yesde->links = NULL;
 }
 
 /*
- * Remove node from all lists and debugfs and release associated resources.
- * Needs to be called with node_lock held.
+ * Remove yesde from all lists and debugfs and release associated resources.
+ * Needs to be called with yesde_lock held.
  */
-static void release_node(struct gcov_node *node)
+static void release_yesde(struct gcov_yesde *yesde)
 {
-	list_del(&node->list);
-	list_del(&node->all);
-	debugfs_remove(node->dentry);
-	remove_links(node);
-	kfree(node->loaded_info);
-	if (node->unloaded_info)
-		gcov_info_free(node->unloaded_info);
-	kfree(node);
+	list_del(&yesde->list);
+	list_del(&yesde->all);
+	debugfs_remove(yesde->dentry);
+	remove_links(yesde);
+	kfree(yesde->loaded_info);
+	if (yesde->unloaded_info)
+		gcov_info_free(yesde->unloaded_info);
+	kfree(yesde);
 }
 
-/* Release node and empty parents. Needs to be called with node_lock held. */
-static void remove_node(struct gcov_node *node)
+/* Release yesde and empty parents. Needs to be called with yesde_lock held. */
+static void remove_yesde(struct gcov_yesde *yesde)
 {
-	struct gcov_node *parent;
+	struct gcov_yesde *parent;
 
-	while ((node != &root_node) && list_empty(&node->children)) {
-		parent = node->parent;
-		release_node(node);
-		node = parent;
+	while ((yesde != &root_yesde) && list_empty(&yesde->children)) {
+		parent = yesde->parent;
+		release_yesde(yesde);
+		yesde = parent;
 	}
 }
 
 /*
- * Find child node with given basename. Needs to be called with node_lock
+ * Find child yesde with given basename. Needs to be called with yesde_lock
  * held.
  */
-static struct gcov_node *get_child_by_name(struct gcov_node *parent,
+static struct gcov_yesde *get_child_by_name(struct gcov_yesde *parent,
 					   const char *name)
 {
-	struct gcov_node *node;
+	struct gcov_yesde *yesde;
 
-	list_for_each_entry(node, &parent->children, list) {
-		if (strcmp(node->name, name) == 0)
-			return node;
+	list_for_each_entry(yesde, &parent->children, list) {
+		if (strcmp(yesde->name, name) == 0)
+			return yesde;
 	}
 
 	return NULL;
@@ -520,25 +520,25 @@ static struct gcov_node *get_child_by_name(struct gcov_node *parent,
 
 /*
  * write() implementation for reset file. Reset all profiling data to zero
- * and remove nodes for which all associated object files are unloaded.
+ * and remove yesdes for which all associated object files are unloaded.
  */
 static ssize_t reset_write(struct file *file, const char __user *addr,
 			   size_t len, loff_t *pos)
 {
-	struct gcov_node *node;
+	struct gcov_yesde *yesde;
 
-	mutex_lock(&node_lock);
+	mutex_lock(&yesde_lock);
 restart:
-	list_for_each_entry(node, &all_head, all) {
-		if (node->num_loaded > 0)
-			reset_node(node);
-		else if (list_empty(&node->children)) {
-			remove_node(node);
-			/* Several nodes may have gone - restart loop. */
+	list_for_each_entry(yesde, &all_head, all) {
+		if (yesde->num_loaded > 0)
+			reset_yesde(yesde);
+		else if (list_empty(&yesde->children)) {
+			remove_yesde(yesde);
+			/* Several yesdes may have gone - restart loop. */
 			goto restart;
 		}
 	}
-	mutex_unlock(&node_lock);
+	mutex_unlock(&yesde_lock);
 
 	return len;
 }
@@ -554,26 +554,26 @@ static ssize_t reset_read(struct file *file, char __user *addr, size_t len,
 static const struct file_operations gcov_reset_fops = {
 	.write	= reset_write,
 	.read	= reset_read,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 /*
- * Create a node for a given profiling data set and add it to all lists and
- * debugfs. Needs to be called with node_lock held.
+ * Create a yesde for a given profiling data set and add it to all lists and
+ * debugfs. Needs to be called with yesde_lock held.
  */
-static void add_node(struct gcov_info *info)
+static void add_yesde(struct gcov_info *info)
 {
 	char *filename;
 	char *curr;
 	char *next;
-	struct gcov_node *parent;
-	struct gcov_node *node;
+	struct gcov_yesde *parent;
+	struct gcov_yesde *yesde;
 
 	filename = kstrdup(gcov_info_filename(info), GFP_KERNEL);
 	if (!filename)
 		return;
-	parent = &root_node;
-	/* Create directory nodes along the path. */
+	parent = &root_yesde;
+	/* Create directory yesdes along the path. */
 	for (curr = filename; (next = strchr(curr, '/')); curr = next + 1) {
 		if (curr == next)
 			continue;
@@ -586,48 +586,48 @@ static void add_node(struct gcov_info *info)
 			parent = parent->parent;
 			continue;
 		}
-		node = get_child_by_name(parent, curr);
-		if (!node) {
-			node = new_node(parent, NULL, curr);
-			if (!node)
+		yesde = get_child_by_name(parent, curr);
+		if (!yesde) {
+			yesde = new_yesde(parent, NULL, curr);
+			if (!yesde)
 				goto err_remove;
 		}
-		parent = node;
+		parent = yesde;
 	}
-	/* Create file node. */
-	node = new_node(parent, info, curr);
-	if (!node)
+	/* Create file yesde. */
+	yesde = new_yesde(parent, info, curr);
+	if (!yesde)
 		goto err_remove;
 out:
 	kfree(filename);
 	return;
 
 err_remove:
-	remove_node(parent);
+	remove_yesde(parent);
 	goto out;
 }
 
 /*
- * Associate a profiling data set with an existing node. Needs to be called
- * with node_lock held.
+ * Associate a profiling data set with an existing yesde. Needs to be called
+ * with yesde_lock held.
  */
-static void add_info(struct gcov_node *node, struct gcov_info *info)
+static void add_info(struct gcov_yesde *yesde, struct gcov_info *info)
 {
 	struct gcov_info **loaded_info;
-	int num = node->num_loaded;
+	int num = yesde->num_loaded;
 
 	/*
 	 * Prepare new array. This is done first to simplify cleanup in
-	 * case the new data set is incompatible, the node only contains
-	 * unloaded data sets and there's not enough memory for the array.
+	 * case the new data set is incompatible, the yesde only contains
+	 * unloaded data sets and there's yest eyesugh memory for the array.
 	 */
 	loaded_info = kcalloc(num + 1, sizeof(struct gcov_info *), GFP_KERNEL);
 	if (!loaded_info) {
-		pr_warn("could not add '%s' (out of memory)\n",
+		pr_warn("could yest add '%s' (out of memory)\n",
 			gcov_info_filename(info));
 		return;
 	}
-	memcpy(loaded_info, node->loaded_info,
+	memcpy(loaded_info, yesde->loaded_info,
 	       num * sizeof(struct gcov_info *));
 	loaded_info[num] = info;
 	/* Check if the new data set is compatible. */
@@ -636,40 +636,40 @@ static void add_info(struct gcov_node *node, struct gcov_info *info)
 		 * A module was unloaded, modified and reloaded. The new
 		 * data set replaces the copy of the last one.
 		 */
-		if (!gcov_info_is_compatible(node->unloaded_info, info)) {
+		if (!gcov_info_is_compatible(yesde->unloaded_info, info)) {
 			pr_warn("discarding saved data for %s "
 				"(incompatible version)\n",
 				gcov_info_filename(info));
-			gcov_info_free(node->unloaded_info);
-			node->unloaded_info = NULL;
+			gcov_info_free(yesde->unloaded_info);
+			yesde->unloaded_info = NULL;
 		}
 	} else {
 		/*
 		 * Two different versions of the same object file are loaded.
 		 * The initial one takes precedence.
 		 */
-		if (!gcov_info_is_compatible(node->loaded_info[0], info)) {
-			pr_warn("could not add '%s' (incompatible "
+		if (!gcov_info_is_compatible(yesde->loaded_info[0], info)) {
+			pr_warn("could yest add '%s' (incompatible "
 				"version)\n", gcov_info_filename(info));
 			kfree(loaded_info);
 			return;
 		}
 	}
 	/* Overwrite previous array. */
-	kfree(node->loaded_info);
-	node->loaded_info = loaded_info;
-	node->num_loaded = num + 1;
+	kfree(yesde->loaded_info);
+	yesde->loaded_info = loaded_info;
+	yesde->num_loaded = num + 1;
 }
 
 /*
- * Return the index of a profiling data set associated with a node.
+ * Return the index of a profiling data set associated with a yesde.
  */
-static int get_info_index(struct gcov_node *node, struct gcov_info *info)
+static int get_info_index(struct gcov_yesde *yesde, struct gcov_info *info)
 {
 	int i;
 
-	for (i = 0; i < node->num_loaded; i++) {
-		if (node->loaded_info[i] == info)
+	for (i = 0; i < yesde->num_loaded; i++) {
+		if (yesde->loaded_info[i] == info)
 			return i;
 	}
 	return -ENOENT;
@@ -678,14 +678,14 @@ static int get_info_index(struct gcov_node *node, struct gcov_info *info)
 /*
  * Save the data of a profiling data set which is being unloaded.
  */
-static void save_info(struct gcov_node *node, struct gcov_info *info)
+static void save_info(struct gcov_yesde *yesde, struct gcov_info *info)
 {
-	if (node->unloaded_info)
-		gcov_info_add(node->unloaded_info, info);
+	if (yesde->unloaded_info)
+		gcov_info_add(yesde->unloaded_info, info);
 	else {
-		node->unloaded_info = gcov_info_dup(info);
-		if (!node->unloaded_info) {
-			pr_warn("could not save data for '%s' "
+		yesde->unloaded_info = gcov_info_dup(info);
+		if (!yesde->unloaded_info) {
+			pr_warn("could yest save data for '%s' "
 				"(out of memory)\n",
 				gcov_info_filename(info));
 		}
@@ -693,32 +693,32 @@ static void save_info(struct gcov_node *node, struct gcov_info *info)
 }
 
 /*
- * Disassociate a profiling data set from a node. Needs to be called with
- * node_lock held.
+ * Disassociate a profiling data set from a yesde. Needs to be called with
+ * yesde_lock held.
  */
-static void remove_info(struct gcov_node *node, struct gcov_info *info)
+static void remove_info(struct gcov_yesde *yesde, struct gcov_info *info)
 {
 	int i;
 
-	i = get_info_index(node, info);
+	i = get_info_index(yesde, info);
 	if (i < 0) {
-		pr_warn("could not remove '%s' (not found)\n",
+		pr_warn("could yest remove '%s' (yest found)\n",
 			gcov_info_filename(info));
 		return;
 	}
 	if (gcov_persist)
-		save_info(node, info);
+		save_info(yesde, info);
 	/* Shrink array. */
-	node->loaded_info[i] = node->loaded_info[node->num_loaded - 1];
-	node->num_loaded--;
-	if (node->num_loaded > 0)
+	yesde->loaded_info[i] = yesde->loaded_info[yesde->num_loaded - 1];
+	yesde->num_loaded--;
+	if (yesde->num_loaded > 0)
 		return;
 	/* Last loaded data set was removed. */
-	kfree(node->loaded_info);
-	node->loaded_info = NULL;
-	node->num_loaded = 0;
-	if (!node->unloaded_info)
-		remove_node(node);
+	kfree(yesde->loaded_info);
+	yesde->loaded_info = NULL;
+	yesde->num_loaded = 0;
+	if (!yesde->unloaded_info)
+		remove_yesde(yesde);
 }
 
 /*
@@ -727,43 +727,43 @@ static void remove_info(struct gcov_node *node, struct gcov_info *info)
  */
 void gcov_event(enum gcov_action action, struct gcov_info *info)
 {
-	struct gcov_node *node;
+	struct gcov_yesde *yesde;
 
-	mutex_lock(&node_lock);
-	node = get_node_by_name(gcov_info_filename(info));
+	mutex_lock(&yesde_lock);
+	yesde = get_yesde_by_name(gcov_info_filename(info));
 	switch (action) {
 	case GCOV_ADD:
-		if (node)
-			add_info(node, info);
+		if (yesde)
+			add_info(yesde, info);
 		else
-			add_node(info);
+			add_yesde(info);
 		break;
 	case GCOV_REMOVE:
-		if (node)
-			remove_info(node, info);
+		if (yesde)
+			remove_info(yesde, info);
 		else {
-			pr_warn("could not remove '%s' (not found)\n",
+			pr_warn("could yest remove '%s' (yest found)\n",
 				gcov_info_filename(info));
 		}
 		break;
 	}
-	mutex_unlock(&node_lock);
+	mutex_unlock(&yesde_lock);
 }
 
 /* Create debugfs entries. */
 static __init int gcov_fs_init(void)
 {
-	init_node(&root_node, NULL, NULL, NULL);
+	init_yesde(&root_yesde, NULL, NULL, NULL);
 	/*
 	 * /sys/kernel/debug/gcov will be parent for the reset control file
 	 * and all profiling files.
 	 */
-	root_node.dentry = debugfs_create_dir("gcov", NULL);
+	root_yesde.dentry = debugfs_create_dir("gcov", NULL);
 	/*
 	 * Create reset file which resets all profiling counts when written
 	 * to.
 	 */
-	debugfs_create_file("reset", 0600, root_node.dentry, NULL,
+	debugfs_create_file("reset", 0600, root_yesde.dentry, NULL,
 			    &gcov_reset_fops);
 	/* Replay previous events to get our fs hierarchy up-to-date. */
 	gcov_enable_events();

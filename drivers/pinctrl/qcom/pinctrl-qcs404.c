@@ -11,7 +11,7 @@
 #include "pinctrl-msm.h"
 
 static const char * const qcs404_tiles[] = {
-	"north",
+	"yesrth",
 	"south",
 	"east"
 };
@@ -1489,10 +1489,10 @@ static const struct msm_function qcs404_functions[] = {
 	FUNCTION(i2s_3_ws_a),
 };
 
-/* Every pin is maintained as a single group, and missing or non-existing pin
+/* Every pin is maintained as a single group, and missing or yesn-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
- * Clients would not be able to request these dummy pin groups.
+ * Clients would yest be able to request these dummy pin groups.
  */
 static const struct msm_pingroup qcs404_groups[] = {
 	[0] = PINGROUP(0, SOUTH, _, _, _, _, _, _, _, _, _),

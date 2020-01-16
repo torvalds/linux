@@ -29,7 +29,7 @@ Required Properties:
     - "renesas,rcar-gen3-gpio": for a generic R-Car Gen3 or RZ/G2 GPIO controller.
     - "renesas,gpio-rcar": deprecated.
 
-    When compatible with the generic version nodes must list the
+    When compatible with the generic version yesdes must list the
     SoC-specific version corresponding to the platform first followed by
     the generic version.
 
@@ -38,7 +38,7 @@ Required Properties:
 
   - interrupts: Interrupt specifier for the controllers interrupt.
 
-  - gpio-controller: Marks the device node as a gpio controller.
+  - gpio-controller: Marks the device yesde as a gpio controller.
   - #gpio-cells: Should be 2. The first cell is the GPIO number and the second
     cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>. Only the
     GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
@@ -59,7 +59,7 @@ The GPIO controller also acts as an interrupt controller. It uses the default
 two cells specifier as described in Documentation/devicetree/bindings/
 interrupt-controller/interrupts.txt.
 
-Example: R8A77470 (RZ/G1C) GPIO controller nodes
+Example: R8A77470 (RZ/G1C) GPIO controller yesdes
 
        gpio0: gpio@e6050000 {
                 compatible = "renesas,gpio-r8a77470",

@@ -123,7 +123,7 @@ int skb_flow_dissector_bpf_prog_attach(const union bpf_attr *attr,
 		/* BPF flow dissector in the root namespace overrides
 		 * any per-net-namespace one. When attaching to root,
 		 * make sure we don't have any BPF program attached
-		 * to the non-root namespaces.
+		 * to the yesn-root namespaces.
 		 */
 		struct net *ns;
 
@@ -136,8 +136,8 @@ int skb_flow_dissector_bpf_prog_attach(const union bpf_attr *attr,
 			}
 		}
 	} else {
-		/* Make sure root flow dissector is not attached
-		 * when attaching to the non-root namespace.
+		/* Make sure root flow dissector is yest attached
+		 * when attaching to the yesn-root namespace.
 		 */
 		if (rcu_access_pointer(init_net.flow_dissector_prog)) {
 			ret = -EEXIST;
@@ -148,7 +148,7 @@ int skb_flow_dissector_bpf_prog_attach(const union bpf_attr *attr,
 	attached = rcu_dereference_protected(net->flow_dissector_prog,
 					     lockdep_is_held(&flow_dissector_mutex));
 	if (attached == prog) {
-		/* The same program cannot be attached twice */
+		/* The same program canyest be attached twice */
 		ret = -EINVAL;
 		goto out;
 	}
@@ -249,7 +249,7 @@ void skb_flow_get_icmp_tci(const struct sk_buff *skb,
 	key_icmp->type = ih->type;
 	key_icmp->code = ih->code;
 
-	/* As we use 0 to signal that the Id field is not present,
+	/* As we use 0 to signal that the Id field is yest present,
 	 * avoid confusion with packets without such field
 	 */
 	if (icmp_has_id(ih->type))
@@ -1625,9 +1625,9 @@ EXPORT_SYMBOL_GPL(__skb_get_hash_symmetric);
  * @skb: sk_buff to calculate flow hash from
  *
  * This function calculates a flow hash based on src/dst addresses
- * and src/dst port numbers.  Sets hash in skb to non-zero hash value
- * on success, zero indicates no valid hash.  Also, sets l4_hash in skb
- * if hash is a canonical 4-tuple hash over transport ports.
+ * and src/dst port numbers.  Sets hash in skb to yesn-zero hash value
+ * on success, zero indicates yes valid hash.  Also, sets l4_hash in skb
+ * if hash is a cayesnical 4-tuple hash over transport ports.
  */
 void __skb_get_hash(struct sk_buff *skb)
 {
@@ -1679,8 +1679,8 @@ u32 __skb_get_poff(const struct sk_buff *skb, void *data,
 	case IPPROTO_UDPLITE:
 		poff += sizeof(struct udphdr);
 		break;
-	/* For the rest, we do not really care about header
-	 * extensions at this point for now.
+	/* For the rest, we do yest really care about header
+	 * extensions at this point for yesw.
 	 */
 	case IPPROTO_ICMP:
 		poff += sizeof(struct icmphdr);

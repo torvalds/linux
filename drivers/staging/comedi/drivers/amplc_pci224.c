@@ -28,7 +28,7 @@
  *     - scan_end_src      TRIG_COUNT
  *     - stop_src          TRIG_COUNT      TRIG_EXT        TRIG_NONE
  *
- *     The channel list must contain at least one channel with no repeated
+ *     The channel list must contain at least one channel with yes repeated
  *     channels.  The scan end count must equal the number of channels in
  *     the channel list.
  *
@@ -36,9 +36,9 @@
  *     scan_begin_src or stop_src may use TRIG_EXT.
  *
  * Configuration options:
- *   none
+ *   yesne
  *
- * Manual configuration of PCI cards is not supported; they are configured
+ * Manual configuration of PCI cards is yest supported; they are configured
  * automatically.
  *
  * Output range selection - PCI224:
@@ -65,7 +65,7 @@
  *   LK1 which affects all channels, and jumpers LK2, LK3, LK4 and LK5
  *   which affect channels 0, 1, 2 and 3 individually.  LK1 chooses between
  *   an internal 5V reference and an external voltage reference (Vext).
- *   LK2/3/4/5 choose (per channel) to double the reference or not according
+ *   LK2/3/4/5 choose (per channel) to double the reference or yest according
  *   to the following table:
  *
  *     LK1 position   LK2/3/4/5 pos  Comedi range
@@ -79,12 +79,12 @@
  *
  *   1) All channels on the PCI224 share the same range.  Any change to the
  *      range as a result of insn_write or a streaming command will affect
- *      the output voltages of all channels, including those not specified
+ *      the output voltages of all channels, including those yest specified
  *      by the instruction or command.
  *
  *   2) For the analog output command,  the first scan may be triggered
  *      falsely at the start of acquisition.  This occurs when the DAC scan
- *      trigger source is switched from 'none' to 'timer' (scan_begin_src =
+ *      trigger source is switched from 'yesne' to 'timer' (scan_begin_src =
  *      TRIG_TIMER) or 'external' (scan_begin_src == TRIG_EXT) at the start
  *      of acquisition and the trigger source is at logic level 1 at the
  *      time of the switch.  This is very likely for TRIG_TIMER.  For
@@ -125,7 +125,7 @@
 /* (r/w) Scan trigger. */
 #define PCI224_DACCON_TRIG(x)		(((x) & 0x7) << 0)
 #define PCI224_DACCON_TRIG_MASK		PCI224_DACCON_TRIG(7)
-#define PCI224_DACCON_TRIG_NONE		PCI224_DACCON_TRIG(0)	/* none */
+#define PCI224_DACCON_TRIG_NONE		PCI224_DACCON_TRIG(0)	/* yesne */
 #define PCI224_DACCON_TRIG_SW		PCI224_DACCON_TRIG(1)	/* soft trig */
 #define PCI224_DACCON_TRIG_EXTP		PCI224_DACCON_TRIG(2)	/* ext + edge */
 #define PCI224_DACCON_TRIG_EXTN		PCI224_DACCON_TRIG(3)	/* ext - edge */
@@ -148,7 +148,7 @@
 #define PCI224_DACCON_FIFOWRAP		BIT(7)
 /* (r/w) FIFO enable.  It MUST be set! */
 #define PCI224_DACCON_FIFOENAB		BIT(8)
-/* (r/w) FIFO interrupt trigger level (most values are not very useful). */
+/* (r/w) FIFO interrupt trigger level (most values are yest very useful). */
 #define PCI224_DACCON_FIFOINTR(x)	(((x) & 0x7) << 9)
 #define PCI224_DACCON_FIFOINTR_MASK	PCI224_DACCON_FIFOINTR(7)
 #define PCI224_DACCON_FIFOINTR_EMPTY	PCI224_DACCON_FIFOINTR(0) /* empty */
@@ -168,7 +168,7 @@
 #define PCI224_DACCON_BUSY		BIT(15)
 /* (w-o) FIFO reset. */
 #define PCI224_DACCON_FIFORESET		BIT(12)
-/* (w-o) Global reset (not sure what it does). */
+/* (w-o) Global reset (yest sure what it does). */
 #define PCI224_DACCON_GLOBALRESET	BIT(13)
 
 /*
@@ -320,7 +320,7 @@ static const struct comedi_lrange range_pci234 = {
 	}
 };
 
-/* N.B. PCI234 ignores the polarity bit, but software uses it. */
+/* N.B. PCI234 igyesres the polarity bit, but software uses it. */
 static const unsigned short hwrange_pci234[4] = {
 	PCI224_DACCON_POLAR_BI,
 	PCI224_DACCON_POLAR_BI,
@@ -451,11 +451,11 @@ static void pci224_ao_stop(struct comedi_device *dev,
 	devpriv->intsce = 0;
 	outb(0, devpriv->iobase1 + PCI224_INT_SCE);
 	/*
-	 * Interrupt routine may or may not be running.  We may or may not
+	 * Interrupt routine may or may yest be running.  We may or may yest
 	 * have been called from the interrupt routine (directly or
 	 * indirectly via a comedi_events() callback routine).  It's highly
 	 * unlikely that we've been called from some other interrupt routine
-	 * but who knows what strange things coders get up to!
+	 * but who kyesws what strange things coders get up to!
 	 *
 	 * If the interrupt routine is currently running, wait for it to
 	 * finish, unless we appear to have been called via the interrupt
@@ -577,7 +577,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		/*
 		 * This is the initial DAC FIFO interrupt at the
 		 * start of the acquisition.  The DAC's scan trigger
-		 * has been set to 'none' up until now.
+		 * has been set to 'yesne' up until yesw.
 		 *
 		 * Now that data has been written to the FIFO, the
 		 * DAC's scan trigger source can be set to the
@@ -633,7 +633,7 @@ static int pci224_ao_check_chanlist(struct comedi_device *dev,
 
 		if (chan_mask & (1 << chan)) {
 			dev_dbg(dev->class_dev,
-				"%s: entries in chanlist must contain no duplicate channels\n",
+				"%s: entries in chanlist must contain yes duplicate channels\n",
 				__func__);
 			return -EINVAL;
 		}
@@ -716,7 +716,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			    COMBINE(cmd->start_arg, 0, ~CR_FLAGS_MASK);
 			err |= -EINVAL;
 		}
-		/* The only flag allowed is CR_EDGE, which is ignored. */
+		/* The only flag allowed is CR_EDGE, which is igyesred. */
 		if (cmd->start_arg & CR_FLAGS_MASK & ~CR_EDGE) {
 			cmd->start_arg = COMBINE(cmd->start_arg, 0,
 						 CR_FLAGS_MASK & ~CR_EDGE);
@@ -742,7 +742,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			    COMBINE(cmd->scan_begin_arg, 0, ~CR_FLAGS_MASK);
 			err |= -EINVAL;
 		}
-		/* Only allow flags CR_EDGE and CR_INVERT.  Ignore CR_EDGE. */
+		/* Only allow flags CR_EDGE and CR_INVERT.  Igyesre CR_EDGE. */
 		if (cmd->scan_begin_arg & CR_FLAGS_MASK &
 		    ~(CR_EDGE | CR_INVERT)) {
 			cmd->scan_begin_arg =
@@ -768,7 +768,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			    COMBINE(cmd->stop_arg, 0, ~CR_FLAGS_MASK);
 			err |= -EINVAL;
 		}
-		/* The only flag allowed is CR_EDGE, which is ignored. */
+		/* The only flag allowed is CR_EDGE, which is igyesred. */
 		if (cmd->stop_arg & CR_FLAGS_MASK & ~CR_EDGE) {
 			cmd->stop_arg =
 			    COMBINE(cmd->stop_arg, 0, CR_FLAGS_MASK & ~CR_EDGE);
@@ -839,7 +839,7 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int rank;
 	unsigned long flags;
 
-	/* Cannot handle null/empty chanlist. */
+	/* Canyest handle null/empty chanlist. */
 	if (!cmd->chanlist || cmd->chanlist_len == 0)
 		return -EINVAL;
 
@@ -865,8 +865,8 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/*
 	 * Set DAC range and polarity.
-	 * Set DAC scan trigger source to 'none'.
-	 * Set DAC FIFO interrupt trigger level to 'not half full'.
+	 * Set DAC scan trigger source to 'yesne'.
+	 * Set DAC FIFO interrupt trigger level to 'yest half full'.
 	 * Reset DAC FIFO.
 	 *
 	 * N.B. DAC FIFO interrupts are currently disabled.
@@ -1002,7 +1002,7 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 		board = &pci224_boards[context_model];
 	if (!board || !board->name) {
 		dev_err(dev->class_dev,
-			"amplc_pci224: BUG! cannot determine board type!\n");
+			"amplc_pci224: BUG! canyest determine board type!\n");
 		return -EINVAL;
 	}
 	dev->board_ptr = board;

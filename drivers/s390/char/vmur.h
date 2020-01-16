@@ -90,12 +90,12 @@ struct urfile {
 };
 
 /*
- * Device major/minor definitions.
+ * Device major/miyesr definitions.
  */
 
 #define UR_MAJOR 0	/* get dynamic major */
 /*
- * We map minor numbers directly to device numbers (0-FFFF) for simplicity.
+ * We map miyesr numbers directly to device numbers (0-FFFF) for simplicity.
  * This avoids having to allocate (and manage) slot numbers.
  */
 #define NUM_MINORS 65536

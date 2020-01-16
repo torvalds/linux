@@ -41,7 +41,7 @@ static struct ixgb_stats ixgb_gstrings_stats[] = {
 	{"rx_over_errors", IXGB_NETDEV_STAT(stats.rx_over_errors)},
 	{"rx_crc_errors", IXGB_NETDEV_STAT(stats.rx_crc_errors)},
 	{"rx_frame_errors", IXGB_NETDEV_STAT(stats.rx_frame_errors)},
-	{"rx_no_buffer_count", IXGB_STAT(stats.rnbc)},
+	{"rx_yes_buffer_count", IXGB_STAT(stats.rnbc)},
 	{"rx_fifo_errors", IXGB_NETDEV_STAT(stats.rx_fifo_errors)},
 	{"rx_missed_errors", IXGB_NETDEV_STAT(stats.rx_missed_errors)},
 	{"tx_aborted_errors", IXGB_NETDEV_STAT(stats.tx_aborted_errors)},
@@ -164,7 +164,7 @@ ixgb_set_pauseparam(struct net_device *netdev,
 	else if (!pause->rx_pause && pause->tx_pause)
 		hw->fc.type = ixgb_fc_tx_pause;
 	else if (!pause->rx_pause && !pause->tx_pause)
-		hw->fc.type = ixgb_fc_none;
+		hw->fc.type = ixgb_fc_yesne;
 
 	if (netif_running(adapter->netdev)) {
 		ixgb_down(adapter, true);
@@ -381,7 +381,7 @@ ixgb_get_eeprom(struct net_device *netdev,
 	if (!eeprom_buff)
 		return -ENOMEM;
 
-	/* note the eeprom was good because the driver loaded */
+	/* yeste the eeprom was good because the driver loaded */
 	for (i = 0; i <= (last_word - first_word); i++)
 		eeprom_buff[i] = ixgb_get_eeprom_word(hw, (first_word + i));
 

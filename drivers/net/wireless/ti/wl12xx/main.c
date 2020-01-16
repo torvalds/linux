@@ -363,7 +363,7 @@ static struct wlcore_conf wl12xx_conf = {
 	},
 	.recovery = {
 		.bug_on_recovery	    = 0,
-		.no_recovery		    = 0,
+		.yes_recovery		    = 0,
 	},
 };
 
@@ -994,7 +994,7 @@ static int wl127x_boot_clk(struct wl1271 *wl)
 		if (ret < 0)
 			goto out;
 
-		/* Set clock pull mode (no pull) */
+		/* Set clock pull mode (yes pull) */
 		ret = wl12xx_top_reg_read(wl, OCP_REG_CLK_PULL, &val);
 		if (ret < 0)
 			goto out;
@@ -1476,27 +1476,27 @@ static void wl12xx_conf_init(struct wl1271 *wl)
 static bool wl12xx_mac_in_fuse(struct wl1271 *wl)
 {
 	bool supported = false;
-	u8 major, minor;
+	u8 major, miyesr;
 
 	if (wl->chip.id == CHIP_ID_128X_PG20) {
 		major = WL128X_PG_GET_MAJOR(wl->hw_pg_ver);
-		minor = WL128X_PG_GET_MINOR(wl->hw_pg_ver);
+		miyesr = WL128X_PG_GET_MINOR(wl->hw_pg_ver);
 
 		/* in wl128x we have the MAC address if the PG is >= (2, 1) */
-		if (major > 2 || (major == 2 && minor >= 1))
+		if (major > 2 || (major == 2 && miyesr >= 1))
 			supported = true;
 	} else {
 		major = WL127X_PG_GET_MAJOR(wl->hw_pg_ver);
-		minor = WL127X_PG_GET_MINOR(wl->hw_pg_ver);
+		miyesr = WL127X_PG_GET_MINOR(wl->hw_pg_ver);
 
 		/* in wl127x we have the MAC address if the PG is >= (3, 1) */
-		if (major == 3 && minor >= 1)
+		if (major == 3 && miyesr >= 1)
 			supported = true;
 	}
 
 	wl1271_debug(DEBUG_PROBE,
-		     "PG Ver major = %d minor = %d, MAC %s present",
-		     major, minor, supported ? "is" : "is not");
+		     "PG Ver major = %d miyesr = %d, MAC %s present",
+		     major, miyesr, supported ? "is" : "is yest");
 
 	return supported;
 }
@@ -1616,7 +1616,7 @@ out_irq_disable:
 	   inherently unsafe. In this case we deem it safe to do,
 	   because we need to let any possibly pending IRQ out of
 	   the system (and while we are WL1271_STATE_OFF the IRQ
-	   work function will not do anything.) Also, any other
+	   work function will yest do anything.) Also, any other
 	   possible concurrent operations will fail due to the
 	   current state, hence the wl1271 struct should be safe. */
 	wlcore_disable_interrupts(wl);
@@ -1715,7 +1715,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.convert_hwaddr		= wl12xx_convert_hwaddr,
 	.lnk_high_prio		= wl12xx_lnk_high_prio,
 	.lnk_low_prio		= wl12xx_lnk_low_prio,
-	.interrupt_notify	= NULL,
+	.interrupt_yestify	= NULL,
 	.rx_ba_filter		= NULL,
 	.ap_sleep		= NULL,
 };
@@ -1826,7 +1826,7 @@ static int wl12xx_setup(struct wl1271 *wl)
 			wl1271_error("Invalid ref_clock frequency (%d Hz, %s)",
 				     pdev_data->ref_clock_freq,
 				     pdev_data->ref_clock_xtal ?
-				     "XTAL" : "not XTAL");
+				     "XTAL" : "yest XTAL");
 
 			return priv->ref_clock;
 		}
@@ -1955,7 +1955,7 @@ MODULE_PARM_DESC(tcxo,
 		 "TCXO clock: 19.2, 26, 38.4, 52, 16.368, 32.736, 16.8, 33.6");
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
+MODULE_AUTHOR("Luciayes Coelho <coelho@ti.com>");
 MODULE_FIRMWARE(WL127X_FW_NAME_SINGLE);
 MODULE_FIRMWARE(WL127X_FW_NAME_MULTI);
 MODULE_FIRMWARE(WL127X_PLT_FW_NAME);

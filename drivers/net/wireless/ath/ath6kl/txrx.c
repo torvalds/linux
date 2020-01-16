@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -40,44 +40,44 @@ static inline u8 ath6kl_get_aid(u8 tid_mux)
 }
 
 static u8 ath6kl_ibss_map_epid(struct sk_buff *skb, struct net_device *dev,
-			       u32 *map_no)
+			       u32 *map_yes)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ethhdr *eth_hdr;
 	u32 i, ep_map = -1;
 	u8 *datap;
 
-	*map_no = 0;
+	*map_yes = 0;
 	datap = skb->data;
 	eth_hdr = (struct ethhdr *) (datap + sizeof(struct wmi_data_hdr));
 
 	if (is_multicast_ether_addr(eth_hdr->h_dest))
 		return ENDPOINT_2;
 
-	for (i = 0; i < ar->node_num; i++) {
-		if (memcmp(eth_hdr->h_dest, ar->node_map[i].mac_addr,
+	for (i = 0; i < ar->yesde_num; i++) {
+		if (memcmp(eth_hdr->h_dest, ar->yesde_map[i].mac_addr,
 			   ETH_ALEN) == 0) {
-			*map_no = i + 1;
-			ar->node_map[i].tx_pend++;
-			return ar->node_map[i].ep_id;
+			*map_yes = i + 1;
+			ar->yesde_map[i].tx_pend++;
+			return ar->yesde_map[i].ep_id;
 		}
 
-		if ((ep_map == -1) && !ar->node_map[i].tx_pend)
+		if ((ep_map == -1) && !ar->yesde_map[i].tx_pend)
 			ep_map = i;
 	}
 
 	if (ep_map == -1) {
-		ep_map = ar->node_num;
-		ar->node_num++;
-		if (ar->node_num > MAX_NODE_NUM)
+		ep_map = ar->yesde_num;
+		ar->yesde_num++;
+		if (ar->yesde_num > MAX_NODE_NUM)
 			return ENDPOINT_UNUSED;
 	}
 
-	memcpy(ar->node_map[ep_map].mac_addr, eth_hdr->h_dest, ETH_ALEN);
+	memcpy(ar->yesde_map[ep_map].mac_addr, eth_hdr->h_dest, ETH_ALEN);
 
 	for (i = ENDPOINT_2; i <= ENDPOINT_5; i++) {
 		if (!ar->tx_pending[i]) {
-			ar->node_map[ep_map].ep_id = i;
+			ar->yesde_map[ep_map].ep_id = i;
 			break;
 		}
 
@@ -86,17 +86,17 @@ static u8 ath6kl_ibss_map_epid(struct sk_buff *skb, struct net_device *dev,
 		 * the inuse endpoints.
 		 */
 		if (i == ENDPOINT_5) {
-			ar->node_map[ep_map].ep_id = ar->next_ep_id;
+			ar->yesde_map[ep_map].ep_id = ar->next_ep_id;
 			ar->next_ep_id++;
 			if (ar->next_ep_id > ENDPOINT_5)
 				ar->next_ep_id = ENDPOINT_2;
 		}
 	}
 
-	*map_no = ep_map + 1;
-	ar->node_map[ep_map].tx_pend++;
+	*map_yes = ep_map + 1;
+	ar->yesde_map[ep_map].tx_pend++;
 
-	return ar->node_map[ep_map].ep_id;
+	return ar->yesde_map[ep_map].ep_id;
 }
 
 static bool ath6kl_process_uapsdq(struct ath6kl_sta *conn,
@@ -227,7 +227,7 @@ static bool ath6kl_powersave_ap(struct ath6kl_vif *vif, struct sk_buff *skb,
 
 		if (q_mcast) {
 			/*
-			 * If this transmit is not because of a Dtim Expiry
+			 * If this transmit is yest because of a Dtim Expiry
 			 * q it.
 			 */
 			if (!test_bit(DTIM_EXPIRED, &vif->flags)) {
@@ -335,13 +335,13 @@ int ath6kl_control_tx(void *devt, struct sk_buff *skb,
 	spin_unlock_bh(&ar->lock);
 
 	cookie->skb = skb;
-	cookie->map_no = 0;
+	cookie->map_yes = 0;
 	set_htc_pkt_info(&cookie->htc_pkt, cookie, skb->data, skb->len,
 			 eid, ATH6KL_CONTROL_PKT_TAG);
 	cookie->htc_pkt.skb = skb;
 
 	/*
-	 * This interface is asynchronous, if there is an error, cleanup
+	 * This interface is asynchroyesus, if there is an error, cleanup
 	 * will happen in the TX completion callback.
 	 */
 	ath6kl_htc_tx(ar->htc_target, &cookie->htc_pkt);
@@ -359,7 +359,7 @@ netdev_tx_t ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	struct ath6kl_cookie *cookie = NULL;
 	enum htc_endpoint_id eid = ENDPOINT_UNUSED;
 	struct ath6kl_vif *vif = netdev_priv(dev);
-	u32 map_no = 0;
+	u32 map_yes = 0;
 	u16 htc_tag = ATH6KL_DATA_PKT_TAG;
 	u8 ac = 99; /* initialize to unmapped ac */
 	bool chk_adhoc_ps_mapping = false;
@@ -374,7 +374,7 @@ netdev_tx_t ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 		   "%s: skb=0x%p, data=0x%p, len=0x%x\n", __func__,
 		   skb, skb->data, skb->len);
 
-	/* If target is not associated */
+	/* If target is yest associated */
 	if (!test_bit(CONNECTED, &vif->flags))
 		goto fail_tx;
 
@@ -453,12 +453,12 @@ netdev_tx_t ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_bh(&ar->lock);
 
 	if (chk_adhoc_ps_mapping)
-		eid = ath6kl_ibss_map_epid(skb, dev, &map_no);
+		eid = ath6kl_ibss_map_epid(skb, dev, &map_yes);
 	else
 		eid = ar->ac2ep_map[ac];
 
 	if (eid == 0 || eid == ENDPOINT_UNUSED) {
-		ath6kl_err("eid %d is not mapped!\n", eid);
+		ath6kl_err("eid %d is yest mapped!\n", eid);
 		spin_unlock_bh(&ar->lock);
 		goto fail_tx;
 	}
@@ -481,7 +481,7 @@ netdev_tx_t ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	    skb_cloned(skb)) {
 		/*
 		 * We will touch (move the buffer data to align it. Since the
-		 * skb buffer is cloned and not only the header is changed, we
+		 * skb buffer is cloned and yest only the header is changed, we
 		 * have to copy it to allow the changes. Since we are copying
 		 * the data here, we may as well align it by reserving suitable
 		 * headroom to avoid the memmove in ath6kl_htc_tx_buf_align().
@@ -496,7 +496,7 @@ netdev_tx_t ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	cookie->skb = skb;
-	cookie->map_no = map_no;
+	cookie->map_yes = map_yes;
 	set_htc_pkt_info(&cookie->htc_pkt, cookie, skb->data, skb->len,
 			 eid, htc_tag);
 	cookie->htc_pkt.skb = skb;
@@ -505,7 +505,7 @@ netdev_tx_t ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 			skb->data, skb->len);
 
 	/*
-	 * HTC interface is asynchronous, if this fails, cleanup will
+	 * HTC interface is asynchroyesus, if this fails, cleanup will
 	 * happen in the ath6kl_tx_complete callback.
 	 */
 	ath6kl_htc_tx(ar->htc_target, &cookie->htc_pkt);
@@ -531,7 +531,7 @@ void ath6kl_indicate_tx_activity(void *devt, u8 traffic_class, bool active)
 	eid = ar->ac2ep_map[traffic_class];
 
 	if (!test_bit(WMI_ENABLED, &ar->flag))
-		goto notify_htc;
+		goto yestify_htc;
 
 	spin_lock_bh(&ar->lock);
 
@@ -578,8 +578,8 @@ void ath6kl_indicate_tx_activity(void *devt, u8 traffic_class, bool active)
 
 	spin_unlock_bh(&ar->lock);
 
-notify_htc:
-	/* notify HTC, this may cause credit distribution changes */
+yestify_htc:
+	/* yestify HTC, this may cause credit distribution changes */
 	ath6kl_htc_activity_changed(ar->htc_target, eid, active);
 }
 
@@ -593,14 +593,14 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 
 	if (endpoint == ar->ctrl_ep) {
 		/*
-		 * Under normal WMI if this is getting full, then something
-		 * is running rampant the host should not be exhausting the
+		 * Under yesrmal WMI if this is getting full, then something
+		 * is running rampant the host should yest be exhausting the
 		 * WMI queue with too many commands the only exception to
 		 * this is during testing using endpointping.
 		 */
 		set_bit(WMI_CTRL_EP_FULL, &ar->flag);
 		ath6kl_err("wmi ctrl ep is full\n");
-		ath6kl_recovery_err_notify(ar, ATH6KL_FW_EP_FULL);
+		ath6kl_recovery_err_yestify(ar, ATH6KL_FW_EP_FULL);
 		return action;
 	}
 
@@ -640,8 +640,8 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 }
 
 /* TODO this needs to be looked at */
-static void ath6kl_tx_clear_node_map(struct ath6kl_vif *vif,
-				     enum htc_endpoint_id eid, u32 map_no)
+static void ath6kl_tx_clear_yesde_map(struct ath6kl_vif *vif,
+				     enum htc_endpoint_id eid, u32 map_yes)
 {
 	struct ath6kl *ar = vif->ar;
 	u32 i;
@@ -655,25 +655,25 @@ static void ath6kl_tx_clear_node_map(struct ath6kl_vif *vif,
 	if (eid == ar->ctrl_ep)
 		return;
 
-	if (map_no == 0)
+	if (map_yes == 0)
 		return;
 
-	map_no--;
-	ar->node_map[map_no].tx_pend--;
+	map_yes--;
+	ar->yesde_map[map_yes].tx_pend--;
 
-	if (ar->node_map[map_no].tx_pend)
+	if (ar->yesde_map[map_yes].tx_pend)
 		return;
 
-	if (map_no != (ar->node_num - 1))
+	if (map_yes != (ar->yesde_num - 1))
 		return;
 
-	for (i = ar->node_num; i > 0; i--) {
-		if (ar->node_map[i - 1].tx_pend)
+	for (i = ar->yesde_num; i > 0; i--) {
+		if (ar->yesde_map[i - 1].tx_pend)
 			break;
 
-		memset(&ar->node_map[i - 1], 0,
-		       sizeof(struct ath6kl_node_mapping));
-		ar->node_num--;
+		memset(&ar->yesde_map[i - 1], 0,
+		       sizeof(struct ath6kl_yesde_mapping));
+		ar->yesde_num--;
 	}
 }
 
@@ -685,7 +685,7 @@ void ath6kl_tx_complete(struct htc_target *target,
 	struct htc_packet *packet;
 	struct sk_buff *skb;
 	struct ath6kl_cookie *ath6kl_cookie;
-	u32 map_no = 0;
+	u32 map_yes = 0;
 	int status;
 	enum htc_endpoint_id eid;
 	bool wake_event = false;
@@ -715,7 +715,7 @@ void ath6kl_tx_complete(struct htc_target *target,
 		status = packet->status;
 		skb = ath6kl_cookie->skb;
 		eid = packet->endpoint;
-		map_no = ath6kl_cookie->map_no;
+		map_yes = ath6kl_cookie->map_yes;
 
 		if (WARN_ON_ONCE(!skb || !skb->data)) {
 			dev_kfree_skb(skb);
@@ -782,7 +782,7 @@ void ath6kl_tx_complete(struct htc_target *target,
 			vif->ndev->stats.tx_bytes += skb->len;
 		}
 
-		ath6kl_tx_clear_node_map(vif, eid, map_no);
+		ath6kl_tx_clear_yesde_map(vif, eid, map_yes);
 
 		ath6kl_free_cookie(ar, ath6kl_cookie);
 
@@ -816,7 +816,7 @@ void ath6kl_tx_data_cleanup(struct ath6kl *ar)
 {
 	int i;
 
-	/* flush all the data (non-control) streams */
+	/* flush all the data (yesn-control) streams */
 	for (i = 0; i < WMM_NUM_AC; i++)
 		ath6kl_htc_flush_txep(ar->htc_target, ar->ac2ep_map[i],
 				      ATH6KL_DATA_PKT_TAG);
@@ -1013,7 +1013,7 @@ static void aggr_slice_amsdu(struct aggr_info *p_aggr,
 		frame_8023_len = payload_8023_len + mac_hdr_len;
 		new_skb = aggr_get_free_skb(p_aggr);
 		if (!new_skb) {
-			ath6kl_err("no buffer available\n");
+			ath6kl_err("yes buffer available\n");
 			break;
 		}
 
@@ -1044,11 +1044,11 @@ static void aggr_slice_amsdu(struct aggr_info *p_aggr,
 }
 
 static void aggr_deque_frms(struct aggr_info_conn *agg_conn, u8 tid,
-			    u16 seq_no, u8 order)
+			    u16 seq_yes, u8 order)
 {
 	struct sk_buff *skb;
 	struct rxtid *rxtid;
-	struct skb_hold_q *node;
+	struct skb_hold_q *yesde;
 	u16 idx, idx_end, seq_end;
 	struct rxtid_stats *stats;
 
@@ -1060,32 +1060,32 @@ static void aggr_deque_frms(struct aggr_info_conn *agg_conn, u8 tid,
 
 	/*
 	 * idx_end is typically the last possible frame in the window,
-	 * but changes to 'the' seq_no, when BAR comes. If seq_no
-	 * is non-zero, we will go up to that and stop.
-	 * Note: last seq no in current window will occupy the same
+	 * but changes to 'the' seq_yes, when BAR comes. If seq_yes
+	 * is yesn-zero, we will go up to that and stop.
+	 * Note: last seq yes in current window will occupy the same
 	 * index position as index that is just previous to start.
-	 * An imp point : if win_sz is 7, for seq_no space of 4095,
+	 * An imp point : if win_sz is 7, for seq_yes space of 4095,
 	 * then, there would be holes when sequence wrap around occurs.
 	 * Target should judiciously choose the win_sz, based on
 	 * this condition. For 4095, (TID_WINDOW_SZ = 2 x win_sz
 	 * 2, 4, 8, 16 win_sz works fine).
 	 * We must deque from "idx" to "idx_end", including both.
 	 */
-	seq_end = seq_no ? seq_no : rxtid->seq_next;
+	seq_end = seq_yes ? seq_yes : rxtid->seq_next;
 	idx_end = AGGR_WIN_IDX(seq_end, rxtid->hold_q_sz);
 
 	do {
-		node = &rxtid->hold_q[idx];
-		if ((order == 1) && (!node->skb))
+		yesde = &rxtid->hold_q[idx];
+		if ((order == 1) && (!yesde->skb))
 			break;
 
-		if (node->skb) {
-			if (node->is_amsdu)
+		if (yesde->skb) {
+			if (yesde->is_amsdu)
 				aggr_slice_amsdu(agg_conn->aggr_info, rxtid,
-						 node->skb);
+						 yesde->skb);
 			else
-				skb_queue_tail(&rxtid->q, node->skb);
-			node->skb = NULL;
+				skb_queue_tail(&rxtid->q, yesde->skb);
+			yesde->skb = NULL;
 		} else {
 			stats->num_hole++;
 		}
@@ -1103,13 +1103,13 @@ static void aggr_deque_frms(struct aggr_info_conn *agg_conn, u8 tid,
 }
 
 static bool aggr_process_recv_frm(struct aggr_info_conn *agg_conn, u8 tid,
-				  u16 seq_no,
+				  u16 seq_yes,
 				  bool is_amsdu, struct sk_buff *frame)
 {
 	struct rxtid *rxtid;
 	struct rxtid_stats *stats;
 	struct sk_buff *skb;
-	struct skb_hold_q *node;
+	struct skb_hold_q *yesde;
 	u16 idx, st, cur, end;
 	bool is_queued = false;
 	u16 extended_end;
@@ -1131,9 +1131,9 @@ static bool aggr_process_recv_frm(struct aggr_info_conn *agg_conn, u8 tid,
 		return is_queued;
 	}
 
-	/* Check the incoming sequence no, if it's in the window */
+	/* Check the incoming sequence yes, if it's in the window */
 	st = rxtid->seq_next;
-	cur = seq_no;
+	cur = seq_yes;
 	end = (st + rxtid->hold_q_sz-1) & ATH6KL_MAX_SEQ_NO;
 
 	if (((st < end) && (cur < st || cur > end)) ||
@@ -1170,9 +1170,9 @@ static bool aggr_process_recv_frm(struct aggr_info_conn *agg_conn, u8 tid,
 		stats->num_oow++;
 	}
 
-	idx = AGGR_WIN_IDX(seq_no, rxtid->hold_q_sz);
+	idx = AGGR_WIN_IDX(seq_yes, rxtid->hold_q_sz);
 
-	node = &rxtid->hold_q[idx];
+	yesde = &rxtid->hold_q[idx];
 
 	spin_lock_bh(&rxtid->lock);
 
@@ -1182,21 +1182,21 @@ static bool aggr_process_recv_frm(struct aggr_info_conn *agg_conn, u8 tid,
 	 *
 	 * 1. Duplicate is easy - drop incoming frame.
 	 * 2. Not falling in current sliding window.
-	 *  2a. is the frame_seq_no preceding current tid_seq_no?
-	 *      -> drop the frame. perhaps sender did not get our ACK.
+	 *  2a. is the frame_seq_yes preceding current tid_seq_yes?
+	 *      -> drop the frame. perhaps sender did yest get our ACK.
 	 *         this is taken care of above.
-	 *  2b. is the frame_seq_no beyond window(st, TID_WINDOW_SZ);
+	 *  2b. is the frame_seq_yes beyond window(st, TID_WINDOW_SZ);
 	 *      -> Taken care of it above, by moving window forward.
 	 */
-	dev_kfree_skb(node->skb);
+	dev_kfree_skb(yesde->skb);
 	stats->num_dups++;
 
-	node->skb = frame;
+	yesde->skb = frame;
 	is_queued = true;
-	node->is_amsdu = is_amsdu;
-	node->seq_no = seq_no;
+	yesde->is_amsdu = is_amsdu;
+	yesde->seq_yes = seq_yes;
 
-	if (node->is_amsdu)
+	if (yesde->is_amsdu)
 		stats->num_amsdu++;
 	else
 		stats->num_mpdu++;
@@ -1212,7 +1212,7 @@ static bool aggr_process_recv_frm(struct aggr_info_conn *agg_conn, u8 tid,
 	for (idx = 0; idx < rxtid->hold_q_sz; idx++) {
 		if (rxtid->hold_q[idx].skb) {
 			/*
-			 * There is a frame in the queue and no
+			 * There is a frame in the queue and yes
 			 * timer so start a timer to ensure that
 			 * the frame doesn't remain stuck
 			 * forever.
@@ -1238,11 +1238,11 @@ static void ath6kl_uapsd_trigger_frame_rx(struct ath6kl_vif *vif,
 	struct sk_buff *skb = NULL;
 
 	/*
-	 * If the APSD q for this STA is not empty, dequeue and
+	 * If the APSD q for this STA is yest empty, dequeue and
 	 * send a pkt from the head of the q. Also update the
 	 * More data bit in the WMI_DATA_HDR if there are
 	 * more pkts for this STA in the APSD q.
-	 * If there are no more pkts for this STA,
+	 * If there are yes more pkts for this STA,
 	 * update the APSD bitmap for this STA.
 	 */
 
@@ -1316,7 +1316,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	struct ethhdr *datap = NULL;
 	struct ath6kl_vif *vif;
 	struct aggr_info_conn *aggr_conn;
-	u16 seq_no, offset;
+	u16 seq_yes, offset;
 	u8 tid, if_idx;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_RX,
@@ -1383,7 +1383,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 
 	/*
 	 * In the case of AP mode we may receive NULL data frames
-	 * that do not have LLC hdr. They are 16 bytes in size.
+	 * that do yest have LLC hdr. They are 16 bytes in size.
 	 * Allow these frames in the AP mode.
 	 */
 	if (vif->nw_type != AP_NETWORK &&
@@ -1476,7 +1476,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 								 mgmt->wait,
 								 mgmt->buf,
 								 mgmt->len,
-								 mgmt->no_cck);
+								 mgmt->yes_cck);
 
 					kfree(mgmt);
 					spin_lock_bh(&conn->psq_lock);
@@ -1519,7 +1519,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 
 	is_amsdu = wmi_data_hdr_is_amsdu(dhdr) ? true : false;
 	tid = wmi_data_hdr_get_up(dhdr);
-	seq_no = wmi_data_hdr_get_seqno(dhdr);
+	seq_yes = wmi_data_hdr_get_seqyes(dhdr);
 	meta_type = wmi_data_hdr_get_meta(dhdr);
 	dot11_hdr = wmi_data_hdr_get_dot11(dhdr);
 
@@ -1550,7 +1550,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 
 	if (status) {
 		/*
-		 * Drop frames that could not be processed (lack of
+		 * Drop frames that could yest be processed (lack of
 		 * memory, etc.)
 		 */
 		dev_kfree_skb(skb);
@@ -1591,7 +1591,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			ath6kl_data_tx(skb1, vif->ndev);
 
 		if (skb == NULL) {
-			/* nothing to deliver up the stack */
+			/* yesthing to deliver up the stack */
 			return;
 		}
 	}
@@ -1608,7 +1608,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			aggr_conn = vif->aggr_cntxt->aggr_conn;
 		}
 
-		if (aggr_process_recv_frm(aggr_conn, tid, seq_no,
+		if (aggr_process_recv_frm(aggr_conn, tid, seq_yes,
 					  is_amsdu, skb)) {
 			/* aggregation code will handle the skb */
 			return;
@@ -1695,7 +1695,7 @@ static void aggr_delete_tid_state(struct aggr_info_conn *aggr_conn, u8 tid)
 	memset(stats, 0, sizeof(struct rxtid_stats));
 }
 
-void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid_mux, u16 seq_no,
+void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid_mux, u16 seq_yes,
 			     u8 win_sz)
 {
 	struct ath6kl_sta *sta;
@@ -1729,7 +1729,7 @@ void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid_mux, u16 seq_no,
 	if (rxtid->aggr)
 		aggr_delete_tid_state(aggr_conn, tid);
 
-	rxtid->seq_next = seq_no;
+	rxtid->seq_next = seq_yes;
 	hold_q_size = TID_WINDOW_SZ(win_sz) * sizeof(struct skb_hold_q);
 	rxtid->hold_q = kzalloc(hold_q_size, GFP_KERNEL);
 	if (!rxtid->hold_q)
@@ -1771,7 +1771,7 @@ struct aggr_info *aggr_init(struct ath6kl_vif *vif)
 
 	p_aggr = kzalloc(sizeof(struct aggr_info), GFP_KERNEL);
 	if (!p_aggr) {
-		ath6kl_err("failed to alloc memory for aggr_node\n");
+		ath6kl_err("failed to alloc memory for aggr_yesde\n");
 		return NULL;
 	}
 

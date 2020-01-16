@@ -16,7 +16,7 @@ http://pvrusb2.dax.nu/
 
 From there Aurelien Alleaume <slts@free.fr> began an effort to
 create a video4linux compatible driver.  I began with Aurelien's
-last known snapshot and evolved the driver to the state it is in
+last kyeswn snapshot and evolved the driver to the state it is in
 here.
 
 More information on this driver can be found at:
@@ -46,14 +46,14 @@ The most important shearing layer is between the top 2 layers.  A
 lot of work went into the driver to ensure that any kind of
 conceivable API can be laid on top of the core driver.  (Yes, the
 driver internally leverages V4L to do its work but that really has
-nothing to do with the API published by the driver to the outside
+yesthing to do with the API published by the driver to the outside
 world.)  The architecture allows for different APIs to
 simultaneously access the driver.  I have a strong sense of fairness
 about APIs and also feel that it is a good design principle to keep
 implementation and interface isolated from each other.  Thus while
-right now the V4L high level interface is the most complete, the
+right yesw the V4L high level interface is the most complete, the
 sysfs high level interface will work equally well for similar
-functions, and there's no reason I see right now why it shouldn't be
+functions, and there's yes reason I see right yesw why it shouldn't be
 possible to produce a DVB high level interface that can sit right
 alongside V4L.
 
@@ -70,7 +70,7 @@ Source file list / functional overview
 --------------------------------------
 
 (Note: The term "module" used below generally refers to loosely
-defined functional units within the pvrusb2 driver and bears no
+defined functional units within the pvrusb2 driver and bears yes
 relation to the Linux kernel's concept of a loadable module.)
 
 pvrusb2-audio.[ch] - This is glue logic that resides between this
@@ -106,7 +106,7 @@ pvrusb2-encoder.[ch] - This module implements all protocol needed to
     interact with the Conexant mpeg2 encoder chip within the pvrusb2
     device.  It is a crude echo of corresponding logic in ivtv,
     however the design goals (strict isolation) and physical layer
-    (proxy through USB instead of PCI) are enough different that this
+    (proxy through USB instead of PCI) are eyesugh different that this
     implementation had to be completely different.
 
 pvrusb2-hdw-internal.h - This header defines the core data structure
@@ -125,7 +125,7 @@ pvrusb2-hdw.h - This header defines the full internal API for
 pvrusb2-hdw.c - This module implements all the various bits of logic
     that handle overall control of a specific pvrusb2 device.
     (Policy, instantiation, and arbitration of pvrusb2 devices fall
-    within the jurisdiction of pvrusb-context not here).
+    within the jurisdiction of pvrusb-context yest here).
 
 pvrusb2-i2c-chips-\*.c - These modules implement the glue logic to
     tie together and configure various I2C modules as they attach to
@@ -160,12 +160,12 @@ pvrusb2-i2c-core.[ch] - This module provides an implementation of a
 pvrusb2-io.[ch] - This module implements a very low level ring of
     transfer buffers, required in order to stream data from the
     device.  This module is *very* low level.  It only operates the
-    buffers and makes no attempt to define any policy or mechanism for
+    buffers and makes yes attempt to define any policy or mechanism for
     how such buffers might be used.
 
 pvrusb2-ioread.[ch] - This module layers on top of pvrusb2-io.[ch]
     to provide a streaming API usable by a read() system call style of
-    I/O.  Right now this is the only layer on top of pvrusb2-io.[ch],
+    I/O.  Right yesw this is the only layer on top of pvrusb2-io.[ch],
     however the underlying architecture here was intended to allow for
     other styles of I/O to be implemented with additional modules, like
     mmap()'ed buffers or something even more exotic.
@@ -182,18 +182,18 @@ pvrusb2-tuner.[ch] - This is glue logic that resides between this
     elsewhere in V4L).
 
 pvrusb2-util.h - This header defines some common macros used
-    throughout the driver.  These macros are not really specific to
+    throughout the driver.  These macros are yest really specific to
     the driver, but they had to go somewhere.
 
 pvrusb2-v4l2.[ch] - This is the high level interface which ties the
     pvrusb2 driver into video4linux.  It is through here that V4L
     applications can open and operate the driver in the usual V4L
     ways.  Note that **ALL** V4L functionality is published only
-    through here and nowhere else.
+    through here and yeswhere else.
 
 pvrusb2-video-\*.[ch] - This is glue logic that resides between this
     driver and the saa711x.ko I2C client driver (which is found
-    elsewhere in V4L).  Note that saa711x.ko used to be known as
+    elsewhere in V4L).  Note that saa711x.ko used to be kyeswn as
     saa7115.ko in ivtv.  There are two versions of this; one is
     selected depending on the particular saa711[5x].ko that is found.
 

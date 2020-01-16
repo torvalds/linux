@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2004 Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]
  *
  *  Extended 3 / 2005 by Hartmut Hackmann to support various
  *  cards with the tda10046 DVB-T channel decoder
@@ -51,7 +51,7 @@
 #include "mt312.h"
 #include "s5h1411.h"
 
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
 static unsigned int antenna_pwr;
@@ -193,7 +193,7 @@ static struct mt352_config pinnacle_300i = {
 	.demod_address = 0x3c >> 1,
 	.adc_clock     = 20333,
 	.if2           = 36150,
-	.no_tuner      = 1,
+	.yes_tuner      = 1,
 	.demod_init    = mt352_pinnacle_init,
 };
 
@@ -204,7 +204,7 @@ static struct mt352_config avermedia_777 = {
 
 static struct mt352_config avermedia_xc3028_mt352_dev = {
 	.demod_address   = (0x1e >> 1),
-	.no_tuner        = 1,
+	.yes_tuner        = 1,
 	.demod_init      = mt352_avermedia_xc3028_init,
 };
 
@@ -234,7 +234,7 @@ static int kworld_sbtvd_gate_ctrl(struct dvb_frontend* fe, int enable)
 	struct i2c_msg msg = {.addr = 0x4b, .flags = 0, .buf = initmsg, .len = 2};
 
 	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
-		pr_warn("could not access the I2C gate\n");
+		pr_warn("could yest access the I2C gate\n");
 		return -EIO;
 	}
 	if (enable)
@@ -242,7 +242,7 @@ static int kworld_sbtvd_gate_ctrl(struct dvb_frontend* fe, int enable)
 	else
 		msg.buf = msg_disable;
 	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
-		pr_warn("could not access the I2C gate\n");
+		pr_warn("could yest access the I2C gate\n");
 		return -EIO;
 	}
 	msleep(20);
@@ -345,7 +345,7 @@ static int philips_tda6651_pll_set(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1) {
-		pr_warn("could not write to tuner at addr: 0x%02x\n",
+		pr_warn("could yest write to tuner at addr: 0x%02x\n",
 			addr << 1);
 		return -EIO;
 	}
@@ -503,7 +503,7 @@ static struct tda1004x_config medion_cardbus = {
 	.request_firmware = philips_tda1004x_request_firmware
 };
 
-static struct tda1004x_config technotrend_budget_t3000_config = {
+static struct tda1004x_config techyestrend_budget_t3000_config = {
 	.demod_address = 0x8,
 	.invert        = 1,
 	.invert_oclk   = 0,
@@ -532,7 +532,7 @@ static int tda8290_i2c_gate_ctrl( struct dvb_frontend* fe, int enable)
 		tda8290_msg.buf = tda8290_open;
 	}
 	if (i2c_transfer(state->i2c, &tda8290_msg, 1) != 1) {
-		pr_warn("could not access tda8290 I2C gate\n");
+		pr_warn("could yest access tda8290 I2C gate\n");
 		return -EIO;
 	}
 	msleep(20);
@@ -600,7 +600,7 @@ static int configure_tda827x_fe(struct saa7134_dev *dev,
 			       &dev->i2c_adap, tuner_conf))
 			return 0;
 
-		pr_warn("no tda827x tuner found at addr: %02x\n",
+		pr_warn("yes tda827x tuner found at addr: %02x\n",
 				cdec_conf->tuner_address);
 	}
 	return -EINVAL;
@@ -921,7 +921,7 @@ static struct tda1004x_config ads_tech_duo_config = {
 
 static struct zl10353_config behold_h6_config = {
 	.demod_address = 0x1e>>1,
-	.no_tuner      = 1,
+	.yes_tuner      = 1,
 	.parallel_ts   = 1,
 	.disable_i2c_gate_ctrl = 1,
 };
@@ -935,14 +935,14 @@ static struct xc5000_config behold_x7_tunerconfig = {
 static struct zl10353_config behold_x7_config = {
 	.demod_address = 0x1e>>1,
 	.if2           = 45600,
-	.no_tuner      = 1,
+	.yes_tuner      = 1,
 	.parallel_ts   = 1,
 	.disable_i2c_gate_ctrl = 1,
 };
 
 static struct zl10353_config videomate_t750_zl10353_config = {
 	.demod_address         = 0x0f,
-	.no_tuner              = 1,
+	.yes_tuner              = 1,
 	.parallel_ts           = 1,
 	.disable_i2c_gate_ctrl = 1,
 };
@@ -1097,7 +1097,7 @@ static struct tda18271_config hcw_tda18271_config = {
 	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
-static struct tda829x_config tda829x_no_probe = {
+static struct tda829x_config tda829x_yes_probe = {
 	.probe_tuner = TDA829X_DONT_PROBE,
 };
 
@@ -1314,7 +1314,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_TECHNOTREND_BUDGET_T3000:
 		fe0->dvb.frontend = dvb_attach(tda10046_attach,
-					       &technotrend_budget_t3000_config,
+					       &techyestrend_budget_t3000_config,
 					       &dev->i2c_adap);
 		if (fe0->dvb.frontend) {
 			dev->original_demod_sleep = fe0->dvb.frontend->ops.sleep;
@@ -1345,7 +1345,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend != NULL) {
 			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x4b,
-				   &tda829x_no_probe);
+				   &tda829x_yes_probe);
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &hcw_tda18271_config);
@@ -1373,7 +1373,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend) {
 			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x4b,
-				   &tda829x_no_probe);
+				   &tda829x_yes_probe);
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &hcw_tda18271_config);
@@ -1422,7 +1422,7 @@ static int dvb_init(struct saa7134_dev *dev)
 			if (dvb_attach(tda827x_attach,fe0->dvb.frontend,
 				   ads_tech_duo_config.tuner_address, &dev->i2c_adap,
 								&ads_duo_cfg) == NULL) {
-				pr_warn("no tda827x tuner found at addr: %02x\n",
+				pr_warn("yes tda827x tuner found at addr: %02x\n",
 					ads_tech_duo_config.tuner_address);
 				goto detach_frontend;
 			}
@@ -1450,16 +1450,16 @@ static int dvb_init(struct saa7134_dev *dev)
 
 				if (dvb_attach(tda826x_attach, fe0->dvb.frontend,
 						0x60, &dev->i2c_adap, 0) == NULL) {
-					pr_warn("%s: Medion Quadro, no tda826x found !\n",
+					pr_warn("%s: Medion Quadro, yes tda826x found !\n",
 						__func__);
 					goto detach_frontend;
 				}
 				if (dev_id != 0x08) {
-					/* we need to open the i2c gate (we know it exists) */
+					/* we need to open the i2c gate (we kyesw it exists) */
 					fe->ops.i2c_gate_ctrl(fe, 1);
 					if (dvb_attach(isl6405_attach, fe,
 							&dev->i2c_adap, 0x08, 0, 0) == NULL) {
-						pr_warn("%s: Medion Quadro, no ISL6405 found !\n",
+						pr_warn("%s: Medion Quadro, yes ISL6405 found !\n",
 							__func__);
 						goto detach_frontend;
 					}
@@ -1507,7 +1507,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend != NULL) {
 			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x4b,
-				   &tda829x_no_probe);
+				   &tda829x_yes_probe);
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &kworld_pc150u_tda18271_config);
@@ -1630,16 +1630,16 @@ static int dvb_init(struct saa7134_dev *dev)
 			struct dvb_frontend *fe;
 			if (dvb_attach(dvb_pll_attach, fe0->dvb.frontend, 0x60,
 				  &dev->i2c_adap, DVB_PLL_PHILIPS_SD1878_TDA8261) == NULL) {
-				pr_warn("%s: MD7134 DVB-S, no SD1878 found !\n",
+				pr_warn("%s: MD7134 DVB-S, yes SD1878 found !\n",
 					__func__);
 				goto detach_frontend;
 			}
-			/* we need to open the i2c gate (we know it exists) */
+			/* we need to open the i2c gate (we kyesw it exists) */
 			fe = fe0->dvb.frontend;
 			fe->ops.i2c_gate_ctrl(fe, 1);
 			if (dvb_attach(isl6405_attach, fe,
 					&dev->i2c_adap, 0x08, 0, 0) == NULL) {
-				pr_warn("%s: MD7134 DVB-S, no ISL6405 found !\n",
+				pr_warn("%s: MD7134 DVB-S, yes ISL6405 found !\n",
 					__func__);
 				goto detach_frontend;
 			}
@@ -1671,13 +1671,13 @@ static int dvb_init(struct saa7134_dev *dev)
 				if (dvb_attach(tda826x_attach,
 						fe0->dvb.frontend, 0x60,
 						&dev->i2c_adap, 0) == NULL) {
-					pr_warn("%s: Asus Tiger 3in1, no tda826x found!\n",
+					pr_warn("%s: Asus Tiger 3in1, yes tda826x found!\n",
 						__func__);
 					goto detach_frontend;
 				}
 				if (dvb_attach(lnbp21_attach, fe0->dvb.frontend,
 						&dev->i2c_adap, 0, 0) == NULL) {
-					pr_warn("%s: Asus Tiger 3in1, no lnbp21 found!\n",
+					pr_warn("%s: Asus Tiger 3in1, yes lnbp21 found!\n",
 						__func__);
 					goto detach_frontend;
 			       }
@@ -1696,13 +1696,13 @@ static int dvb_init(struct saa7134_dev *dev)
 				if (dvb_attach(tda826x_attach,
 					       fe0->dvb.frontend, 0x60,
 					       &dev->i2c_adap, 0) == NULL) {
-					pr_warn("%s: Asus My Cinema PS3-100, no tda826x found!\n",
+					pr_warn("%s: Asus My Cinema PS3-100, yes tda826x found!\n",
 						__func__);
 					goto detach_frontend;
 				}
 				if (dvb_attach(lnbp21_attach, fe0->dvb.frontend,
 					       &dev->i2c_adap, 0, 0) == NULL) {
-					pr_warn("%s: Asus My Cinema PS3-100, no lnbp21 found!\n",
+					pr_warn("%s: Asus My Cinema PS3-100, yes lnbp21 found!\n",
 						__func__);
 					goto detach_frontend;
 				}
@@ -1784,7 +1784,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend != NULL) {
 			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x4b,
-				   &tda829x_no_probe);
+				   &tda829x_yes_probe);
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &zolid_tda18271_config);
@@ -1797,7 +1797,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend != NULL) {
 			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x4b,
-				   &tda829x_no_probe);
+				   &tda829x_yes_probe);
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &dtv1000s_tda18271_config);
@@ -1813,7 +1813,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend != NULL) {
 			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x4b,
-				   &tda829x_no_probe);
+				   &tda829x_yes_probe);
 			fe0->dvb.frontend->ops.i2c_gate_ctrl = kworld_sbtvd_gate_ctrl;
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
@@ -1829,14 +1829,14 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend != NULL) {
 			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x4b,
-				   &tda829x_no_probe);
+				   &tda829x_yes_probe);
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &prohdtv_pro2_tda18271_config);
 		}
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A706:
-		/* Enable all DVB-S devices now */
+		/* Enable all DVB-S devices yesw */
 		/* CE5039 DVB-S tuner SLEEP pin low */
 		saa7134_set_gpio(dev, 23, 0);
 		/* CE6313 DVB-S demod SLEEP pin low */
@@ -1855,7 +1855,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 		break;
 	default:
-		pr_warn("Huh? unknown DVB card?\n");
+		pr_warn("Huh? unkyeswn DVB card?\n");
 		break;
 	}
 

@@ -20,7 +20,7 @@ Required properties:
 
 - #gpio-cells: Should be 2. The first cell is the GPIO number and the
 		second cell is used to specify optional parameters:
-		bit 0: polarity (0: normal, 1: inverted)
+		bit 0: polarity (0: yesrmal, 1: inverted)
 
 - gpio-controller: Marks the device as a GPIO controller.
 
@@ -35,10 +35,10 @@ Optional properties :
 The GPIO expander can optionally be used as an interrupt controller, in
 which case it uses the default two cell specifier.
 
-Required properties for pin configuration sub-nodes:
+Required properties for pin configuration sub-yesdes:
  - pins: List of pins to which the configuration applies.
 
-Optional properties for pin configuration sub-nodes:
+Optional properties for pin configuration sub-yesdes:
 ----------------------------------------------------
  - bias-disable: disable any pin bias, except the OSCIO pin
  - bias-pull-up: pull up the pin, except the OSCIO pin

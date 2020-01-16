@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -56,7 +56,7 @@ void btc_apply_voltage_delta_rules(struct radeon_device *rdev,
 				   u16 *vddc, u16 *vddci);
 bool btc_dpm_enabled(struct radeon_device *rdev);
 int btc_reset_to_default(struct radeon_device *rdev);
-void btc_notify_uvd_to_smc(struct radeon_device *rdev,
+void btc_yestify_uvd_to_smc(struct radeon_device *rdev,
 			   struct radeon_ps *radeon_new_state);
 
 #endif

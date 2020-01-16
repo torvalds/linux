@@ -57,11 +57,11 @@ struct intel_rps {
 	 * default, and is considered to be above the hard limit if it's
 	 * possible at all.
 	 */
-	u8 cur_freq;		/* Current frequency (cached, may not == HW) */
+	u8 cur_freq;		/* Current frequency (cached, may yest == HW) */
 	u8 last_freq;		/* Last SWREQ frequency */
 	u8 min_freq_softlimit;	/* Minimum frequency permitted by the driver */
 	u8 max_freq_softlimit;	/* Max frequency permitted by the driver */
-	u8 max_freq;		/* Maximum frequency, RP0 if not overclocking */
+	u8 max_freq;		/* Maximum frequency, RP0 if yest overclocking */
 	u8 min_freq;		/* AKA RPn. Minimum frequency */
 	u8 boost_freq;		/* Frequency to request when wait boosting */
 	u8 idle_freq;		/* Frequency to request when we are idle */

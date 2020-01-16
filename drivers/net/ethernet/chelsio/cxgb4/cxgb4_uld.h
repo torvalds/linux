@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -75,7 +75,7 @@ enum {
 	(w)->wr.wr_lo = cpu_to_be64(0); \
 } while (0)
 
-/* Special asynchronous notification message */
+/* Special asynchroyesus yestification message */
 #define CXGB4_MSG_AN ((void *)1)
 #define TX_ULD(uld)(((uld) != CXGB4_ULD_CRYPTO) ? CXGB4_TX_OFLD :\
 		      CXGB4_TX_CRYPTO)
@@ -240,7 +240,7 @@ int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
 			       unsigned int queue, bool ipv6);
 
 /* Filter operation context to allow callers of cxgb4_set_filter() and
- * cxgb4_del_filter() to wait for an asynchronous completion.
+ * cxgb4_del_filter() to wait for an asynchroyesus completion.
  */
 struct filter_ctx {
 	struct completion completion;	/* completion rendezvous */
@@ -398,7 +398,7 @@ struct cxgb4_lld_info {
 	unsigned int iscsi_llimit;	     /* chip's iscsi region llimit */
 	unsigned int ulp_crypto;             /* crypto lookaside support */
 	void **iscsi_ppm;		     /* iscsi page pod manager */
-	int nodeid;			     /* device numa node id */
+	int yesdeid;			     /* device numa yesde id */
 	bool fr_nsmr_tpte_wr_support;	     /* FW supports FR_NSMR_TPTE_WR */
 	bool write_w_imm_support;         /* FW supports WRITE_WITH_IMMEDIATE */
 	bool write_cmpl_support;             /* FW supports WRITE_CMPL WR */

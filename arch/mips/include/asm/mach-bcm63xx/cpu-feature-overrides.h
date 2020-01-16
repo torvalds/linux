@@ -43,7 +43,7 @@
 #define cpu_has_mipsmt			0
 #define cpu_has_userlocal		0
 
-#define cpu_has_nofpuex			0
+#define cpu_has_yesfpuex			0
 #define cpu_has_64bits			0
 #define cpu_has_64bit_zero_reg		0
 

@@ -5,13 +5,13 @@ Energy Model of CPUs
 1. Overview
 -----------
 
-The Energy Model (EM) framework serves as an interface between drivers knowing
+The Energy Model (EM) framework serves as an interface between drivers kyeswing
 the power consumed by CPUs at various performance levels, and the kernel
 subsystems willing to use that information to make energy-aware decisions.
 
 The source of the information about the power consumed by CPUs can vary greatly
-from one platform to another. These power costs can be estimated using
-devicetree data in some cases. In others, the firmware will know better.
+from one platform to ayesther. These power costs can be estimated using
+devicetree data in some cases. In others, the firmware will kyesw better.
 Alternatively, userspace might be best positioned. And so on. In order to avoid
 each and every client subsystem to re-implement support for each and every
 possible source of information on its own, the EM framework intervenes as an
@@ -91,7 +91,7 @@ the performance domains, and kept in memory untouched.
 
 The energy consumed by a performance domain can be estimated using the
 em_pd_energy() API. The estimation is performed assuming that the schedutil
-CPUfreq governor is in use.
+CPUfreq goveryesr is in use.
 
 More details about the above APIs can be found in include/linux/energy_model.h.
 

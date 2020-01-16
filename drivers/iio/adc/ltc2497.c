@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * ltc2497.c - Driver for Analog Devices/Linear Technology LTC2497 ADC
+ * ltc2497.c - Driver for Analog Devices/Linear Techyeslogy LTC2497 ADC
  *
  * Copyright (C) 2017 Analog Devices Inc.
  *
@@ -42,7 +42,7 @@ static int ltc2497_wait_conv(struct ltc2497_st *st)
 	time_elapsed = ktime_ms_delta(ktime_get(), st->time_prev);
 
 	if (time_elapsed < LTC2497_CONVERSION_TIME_MS) {
-		/* delay if conversion time not passed
+		/* delay if conversion time yest passed
 		 * since last read or write
 		 */
 		if (msleep_interruptible(
@@ -54,7 +54,7 @@ static int ltc2497_wait_conv(struct ltc2497_st *st)
 
 	if (time_elapsed - LTC2497_CONVERSION_TIME_MS <= 0) {
 		/* We're in automatic mode -
-		 * so the last reading is stil not outdated
+		 * so the last reading is stil yest outdated
 		 */
 		return 0;
 	}
@@ -289,5 +289,5 @@ static struct i2c_driver ltc2497_driver = {
 module_i2c_driver(ltc2497_driver);
 
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
-MODULE_DESCRIPTION("Linear Technology LTC2497 ADC driver");
+MODULE_DESCRIPTION("Linear Techyeslogy LTC2497 ADC driver");
 MODULE_LICENSE("GPL v2");

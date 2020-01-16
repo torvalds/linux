@@ -19,17 +19,17 @@ struct nd_pfn_sb {
 	u8 parent_uuid[16];
 	__le32 flags;
 	__le16 version_major;
-	__le16 version_minor;
+	__le16 version_miyesr;
 	__le64 dataoff; /* relative to namespace_base + start_pad */
 	__le64 npfns;
 	__le32 mode;
-	/* minor-version-1 additions for section alignment */
+	/* miyesr-version-1 additions for section alignment */
 	__le32 start_pad;
 	__le32 end_trunc;
-	/* minor-version-2 record the base alignment of the mapping */
+	/* miyesr-version-2 record the base alignment of the mapping */
 	__le32 align;
-	/* minor-version-3 guarantee the padding and flags are zero */
-	/* minor-version-4 record the page size and struct page size */
+	/* miyesr-version-3 guarantee the padding and flags are zero */
+	/* miyesr-version-4 record the page size and struct page size */
 	__le32 page_size;
 	__le16 page_struct_size;
 	u8 padding[3994];

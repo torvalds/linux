@@ -21,7 +21,7 @@ struct samsung_i2s_type {
 /* If the I2S block has a Stereo Overlay Channel */
 #define QUIRK_SEC_DAI		(1 << 1)
 /*
- * If the I2S block has no internal prescalar or MUX (I2SMOD[10] bit)
+ * If the I2S block has yes internal prescalar or MUX (I2SMOD[10] bit)
  * The Machine driver must provide suitably set clock to the I2S block.
  */
 #define QUIRK_NO_MUXPSR		(1 << 2)

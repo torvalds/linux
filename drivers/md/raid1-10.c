@@ -8,13 +8,13 @@
  */
 #define	NR_RAID_BIOS 256
 
-/* when we get a read error on a read-only array, we redirect to another
+/* when we get a read error on a read-only array, we redirect to ayesther
  * device without failing the first device, or trying to over-write to
  * correct the read error.  To keep track of bad blocks on a per-bio
  * level, we store IO_BLOCKED in the appropriate 'bios' pointer
  */
 #define IO_BLOCKED ((struct bio *)1)
-/* When we successfully write to a known bad-block, we need to remove the
+/* When we successfully write to a kyeswn bad-block, we need to remove the
  * bad-block marking which must be done from process context.  So we record
  * the success by setting devs[n].bio to IO_MADE_GOOD
  */
@@ -104,7 +104,7 @@ static void md_bio_reset_resync_pages(struct bio *bio, struct resync_pages *rp,
 
 		/*
 		 * won't fail because the vec table is big
-		 * enough to hold all these pages
+		 * eyesugh to hold all these pages
 		 */
 		bio_add_page(bio, page, len, 0);
 		size -= len;

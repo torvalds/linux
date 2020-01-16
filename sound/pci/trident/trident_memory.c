@@ -16,7 +16,7 @@
 #include <sound/core.h>
 #include "trident.h"
 
-/* page arguments of these two macros are Trident page (4096 bytes), not like
+/* page arguments of these two macros are Trident page (4096 bytes), yest like
  * aligned pages in others
  */
 #define __set_tlb_bus(trident,page,ptr,addr) \
@@ -161,7 +161,7 @@ static int is_valid_page(unsigned long ptr)
 		return 0;
 	}
 	if (ptr & (SNDRV_TRIDENT_PAGE_SIZE-1)) {
-		snd_printk(KERN_ERR "page is not aligned\n");
+		snd_printk(KERN_ERR "page is yest aligned\n");
 		return 0;
 	}
 	return 1;

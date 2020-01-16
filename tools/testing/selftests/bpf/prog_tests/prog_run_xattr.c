@@ -17,29 +17,29 @@ void test_prog_run_xattr(void)
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj,
 			    &tattr.prog_fd);
-	if (CHECK_ATTR(err, "load", "err %d errno %d\n", err, errno))
+	if (CHECK_ATTR(err, "load", "err %d erryes %d\n", err, erryes))
 		return;
 
 	memset(buf, 0, sizeof(buf));
 
 	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err != -1 || errno != ENOSPC || tattr.retval, "run",
-	      "err %d errno %d retval %d\n", err, errno, tattr.retval);
+	CHECK_ATTR(err != -1 || erryes != ENOSPC || tattr.retval, "run",
+	      "err %d erryes %d retval %d\n", err, erryes, tattr.retval);
 
 	CHECK_ATTR(tattr.data_size_out != sizeof(pkt_v4), "data_size_out",
 	      "incorrect output size, want %lu have %u\n",
 	      sizeof(pkt_v4), tattr.data_size_out);
 
 	CHECK_ATTR(buf[5] != 0, "overflow",
-	      "BPF_PROG_TEST_RUN ignored size hint\n");
+	      "BPF_PROG_TEST_RUN igyesred size hint\n");
 
 	tattr.data_out = NULL;
 	tattr.data_size_out = 0;
-	errno = 0;
+	erryes = 0;
 
 	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err || errno || tattr.retval, "run_no_output",
-	      "err %d errno %d retval %d\n", err, errno, tattr.retval);
+	CHECK_ATTR(err || erryes || tattr.retval, "run_yes_output",
+	      "err %d erryes %d retval %d\n", err, erryes, tattr.retval);
 
 	tattr.data_size_out = 1;
 	err = bpf_prog_test_run_xattr(&tattr);

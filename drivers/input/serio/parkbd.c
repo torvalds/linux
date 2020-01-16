@@ -50,8 +50,8 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Parallel port to Keyboard port adapter driver");
 MODULE_LICENSE("GPL");
 
-static unsigned int parkbd_pp_no;
-module_param_named(port, parkbd_pp_no, int, 0);
+static unsigned int parkbd_pp_yes;
+module_param_named(port, parkbd_pp_yes, int, 0);
 MODULE_PARM_DESC(port, "Parallel port the adapter is connected to (default is 0)");
 
 static unsigned int parkbd_mode = SERIO_8042;
@@ -178,7 +178,7 @@ static struct serio *parkbd_allocate_serio(void)
 
 static void parkbd_attach(struct parport *pp)
 {
-	if (pp->number != parkbd_pp_no) {
+	if (pp->number != parkbd_pp_yes) {
 		pr_debug("Not using parport%d.\n", pp->number);
 		return;
 	}
@@ -205,7 +205,7 @@ static void parkbd_attach(struct parport *pp)
 
 static void parkbd_detach(struct parport *port)
 {
-	if (!parkbd_port || port->number != parkbd_pp_no)
+	if (!parkbd_port || port->number != parkbd_pp_yes)
 		return;
 
 	parport_release(parkbd_dev);

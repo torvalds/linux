@@ -61,7 +61,7 @@ static unsigned int rotary_encoder_get_state(struct rotary_encoder *encoder)
 	for (i = 0; i < encoder->gpios->ndescs; ++i) {
 		int val = gpiod_get_value_cansleep(encoder->gpios->desc[i]);
 
-		/* convert from gray encoding to normal */
+		/* convert from gray encoding to yesrmal */
 		if (encoder->encoding == ROTENC_GRAY && ret & 1)
 			val = !val;
 
@@ -227,7 +227,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		dev_info(dev, "binary");
 		encoder->encoding = ROTENC_BINARY;
 	} else {
-		dev_err(dev, "unknown encoding setting\n");
+		dev_err(dev, "unkyeswn encoding setting\n");
 		return -EINVAL;
 	}
 
@@ -243,7 +243,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		return err;
 	}
 	if (encoder->gpios->ndescs < 2) {
-		dev_err(dev, "not enough gpios found\n");
+		dev_err(dev, "yest eyesugh gpios found\n");
 		return -EINVAL;
 	}
 
@@ -276,7 +276,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		handler = &rotary_encoder_irq;
 		break;
 	default:
-		dev_err(dev, "'%d' is not a valid steps-per-period value\n",
+		dev_err(dev, "'%d' is yest a valid steps-per-period value\n",
 			steps_per_period);
 		return -EINVAL;
 	}

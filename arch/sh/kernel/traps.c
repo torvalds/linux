@@ -41,7 +41,7 @@ void die(const char *str, struct pt_regs *regs, long err)
 		dump_mem("Stack: ", regs->regs[15], THREAD_SIZE +
 			 (unsigned long)task_stack_page(current));
 
-	notify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV);
+	yestify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV);
 
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
@@ -72,7 +72,7 @@ void die_if_kernel(const char *str, struct pt_regs *regs, long err)
  * - kernel/userspace interfaces cause a jump to an appropriate handler
  * - other kernel errors are bad
  */
-void die_if_no_fixup(const char *str, struct pt_regs *regs, long err)
+void die_if_yes_fixup(const char *str, struct pt_regs *regs, long err)
 {
 	if (!user_mode(regs)) {
 		const struct exception_table_entry *fixup;
@@ -137,7 +137,7 @@ BUILD_TRAP_HANDLER(debug)
 	/* Rewind */
 	regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 
-	if (notify_die(DIE_TRAP, "debug trap", regs, 0, vec & 0xff,
+	if (yestify_die(DIE_TRAP, "debug trap", regs, 0, vec & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
@@ -154,7 +154,7 @@ BUILD_TRAP_HANDLER(bug)
 	/* Rewind */
 	regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 
-	if (notify_die(DIE_TRAP, "bug trap", regs, 0, TRAPA_BUG_OPCODE & 0xff,
+	if (yestify_die(DIE_TRAP, "bug trap", regs, 0, TRAPA_BUG_OPCODE & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
@@ -178,14 +178,14 @@ BUILD_TRAP_HANDLER(nmi)
 	nmi_enter();
 	nmi_count(cpu)++;
 
-	switch (notify_die(DIE_NMI, "NMI", regs, 0, vec & 0xff, SIGINT)) {
+	switch (yestify_die(DIE_NMI, "NMI", regs, 0, vec & 0xff, SIGINT)) {
 	case NOTIFY_OK:
 	case NOTIFY_STOP:
 		break;
 	case NOTIFY_BAD:
 		die("Fatal Non-Maskable Interrupt", regs, SIGINT);
 	default:
-		printk(KERN_ALERT "Got NMI, but nobody cared. Ignoring...\n");
+		printk(KERN_ALERT "Got NMI, but yesbody cared. Igyesring...\n");
 		break;
 	}
 

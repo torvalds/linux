@@ -263,7 +263,7 @@
  *	--------------|----------------------
  *                 |
  *                TBTT
- *  Note: We cannot update beacon content to HW or send any AC packets during
+ *  Note: We canyest update beacon content to HW or send any AC packets during
  *	  the time between Setup and Hold.
  */
 #define REG_TBTT_PROHIBIT		0x0540
@@ -388,7 +388,7 @@
 #define REG_USB_AGG_TO			0xFE5C
 #define REG_USB_AGG_TH			0xFE5D
 
-/*  For normal chip */
+/*  For yesrmal chip */
 #define REG_NORMAL_SIE_VID		0xFE60		/*  0xFE60~0xFE61 */
 #define REG_NORMAL_SIE_PID		0xFE62		/*  0xFE62~0xFE63 */
 #define REG_NORMAL_SIE_OPTIONAL		0xFE64
@@ -587,7 +587,7 @@
 #define	IMR_BCNDERR0_88E		BIT(16)	/*  Beacon Queue DMA Error 0 */
 #define	IMR_HSISR_IND_ON_INT_88E	BIT(15)	/*  HSISR Indicator (HSIMR & HSISR is true, this bit is set to 1) */
 #define	IMR_BCNDMAINT_E_88E		BIT(14)	/*  Beacon DMA Interrupt Extension for Win7 */
-#define	IMR_ATIMEND_88E			BIT(12)	/*  CTWidnow End or ATIM Window End */
+#define	IMR_ATIMEND_88E			BIT(12)	/*  CTWidyesw End or ATIM Window End */
 #define	IMR_HISR1_IND_INT_88E		BIT(11)	/*  HISR1 Indicator (HISR1 & HIMR1 is true, this bit is set to 1) */
 #define	IMR_C2HCMD_88E			BIT(10)	/*  CPU to Host Command INT Status, Write 1 clear */
 #define	IMR_CPWM2_88E			BIT(9)	/*  CPU power Mode exchange INT Status, Write 1 clear */
@@ -632,7 +632,7 @@
 =====================================================================
 Here the register defines are for 92C. When the define is as same with 92C,
 we will use the 92C's define for the consistency
-So the following defines for 92C is not entire!!!!!!
+So the following defines for 92C is yest entire!!!!!!
 =====================================================================
 =====================================================================*/
 /*
@@ -655,7 +655,7 @@ So the following defines for 92C is not entire!!!!!!
  *	RTL8192S/RTL8192C are wrong,
  *	the correct arragement is VO - Bit0, VI - Bit1, BE - Bit2,
  *	and BK - Bit3.
- *	8723 and 88E may be not correct either in the earlier version.
+ *	8723 and 88E may be yest correct either in the earlier version.
  */
 #define		StopBecon			BIT(6)
 #define		StopHigh			BIT(5)
@@ -933,7 +933,7 @@ So the following defines for 92C is not entire!!!!!!
 #define HQSEL_MGTQ			BIT(4)
 #define HQSEL_HIQ			BIT(5)
 
-/*  For normal driver, 0x10C */
+/*  For yesrmal driver, 0x10C */
 #define _TXDMA_HIQ_MAP(x)		(((x) & 0x3) << 14)
 #define _TXDMA_MGQ_MAP(x)		(((x) & 0x3) << 12)
 #define _TXDMA_BKQ_MAP(x)		(((x) & 0x3) << 10)
@@ -1244,12 +1244,12 @@ So the following defines for 92C is not entire!!!!!!
 #define INT_BULK_SEL				BIT(4)
 
 /* 2REG_C2HEVT_CLEAR */
-/*  Set by driver and notify FW that the driver has read
+/*  Set by driver and yestify FW that the driver has read
  *  the C2H command message
  */
 #define	C2H_EVT_HOST_CLOSE	0x00
 /*  Set by FW indicating that FW had set the C2H command
- *  message and it's not yet read by driver.
+ *  message and it's yest yet read by driver.
  */
 #define C2H_EVT_FW_CLOSE	0xFF
 

@@ -72,7 +72,7 @@ struct whc {
  * @ntds_remaining: number of TDs (starting from this one) in this transfer.
  *
  * @bounce_buf: a bounce buffer if the std was from an urb with a sg
- * list that could not be mapped to qTDs directly.
+ * list that could yest be mapped to qTDs directly.
  * @bounce_sg: the first scatterlist element bounce_buf is for.
  * @bounce_offset: the offset into bounce_sg for the start of bounce_buf.
  *
@@ -85,7 +85,7 @@ struct whc_std {
 	int    ntds_remaining;
 	struct whc_qtd *qtd;
 
-	struct list_head list_node;
+	struct list_head list_yesde;
 	int num_pointers;
 	dma_addr_t dma_addr;
 	struct whc_page_list_entry *pl_virt;
@@ -100,7 +100,7 @@ struct whc_std {
  * @urb: the URB this struct is for.
  * @qset: the qset associated to the URB.
  * @dequeue_work: the work to remove the URB when dequeued.
- * @is_async: the URB belongs to async sheduler or not.
+ * @is_async: the URB belongs to async sheduler or yest.
  * @status: the status to be returned when calling wusbhc_giveback_urb.
  */
 struct whc_urb {

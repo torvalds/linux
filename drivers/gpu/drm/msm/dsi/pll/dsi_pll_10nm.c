@@ -62,7 +62,7 @@ struct dsi_pll_config {
 	u32 ref_freq;
 	bool div_override;
 	u32 output_div;
-	bool ignore_frac;
+	bool igyesre_frac;
 	bool disable_prescaler;
 	bool enable_ssc;
 	bool ssc_center;
@@ -145,7 +145,7 @@ static void dsi_pll_setup_config(struct dsi_pll_10nm *pll)
 	config->refclk_cycles = 256;
 
 	config->div_override = false;
-	config->ignore_frac = false;
+	config->igyesre_frac = false;
 	config->disable_prescaler = false;
 
 	config->enable_ssc = false;
@@ -207,7 +207,7 @@ static void dsi_pll_calc_ssc(struct dsi_pll_10nm *pll)
 	u64 frac;
 
 	if (!config->enable_ssc) {
-		DBG("SSC not enabled\n");
+		DBG("SSC yest enabled\n");
 		return;
 	}
 
@@ -625,7 +625,7 @@ static void dsi_pll_10nm_destroy(struct msm_dsi_pll *pll)
 	struct device *dev = &pll_10nm->pdev->dev;
 
 	DBG("DSI PLL%d", pll_10nm->id);
-	of_clk_del_provider(dev->of_node);
+	of_clk_del_provider(dev->of_yesde);
 
 	clk_hw_unregister_divider(pll_10nm->out_dsiclk_hw);
 	clk_hw_unregister_mux(pll_10nm->pclk_mux_hw);
@@ -783,7 +783,7 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm)
 	hw_data->num = NUM_PROVIDED_CLKS;
 	pll_10nm->hw_data = hw_data;
 
-	ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(dev->of_yesde, of_clk_hw_onecell_get,
 				     pll_10nm->hw_data);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to register clk provider: %d\n", ret);

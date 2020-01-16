@@ -129,7 +129,7 @@ static void *__dma_alloc_from_coherent(struct device *dev,
 {
 	int order = get_order(size);
 	unsigned long flags;
-	int pageno;
+	int pageyes;
 	void *ret;
 
 	spin_lock_irqsave(&mem->spinlock, flags);
@@ -137,15 +137,15 @@ static void *__dma_alloc_from_coherent(struct device *dev,
 	if (unlikely(size > (mem->size << PAGE_SHIFT)))
 		goto err;
 
-	pageno = bitmap_find_free_region(mem->bitmap, mem->size, order);
-	if (unlikely(pageno < 0))
+	pageyes = bitmap_find_free_region(mem->bitmap, mem->size, order);
+	if (unlikely(pageyes < 0))
 		goto err;
 
 	/*
 	 * Memory was found in the coherent area.
 	 */
-	*dma_handle = dma_get_device_base(dev, mem) + (pageno << PAGE_SHIFT);
-	ret = mem->virt_base + (pageno << PAGE_SHIFT);
+	*dma_handle = dma_get_device_base(dev, mem) + (pageyes << PAGE_SHIFT);
+	ret = mem->virt_base + (pageyes << PAGE_SHIFT);
 	spin_unlock_irqrestore(&mem->spinlock, flags);
 	memset(ret, 0, size);
 	return ret;
@@ -333,18 +333,18 @@ static const struct reserved_mem_ops rmem_dma_ops = {
 
 static int __init rmem_dma_setup(struct reserved_mem *rmem)
 {
-	unsigned long node = rmem->fdt_node;
+	unsigned long yesde = rmem->fdt_yesde;
 
-	if (of_get_flat_dt_prop(node, "reusable", NULL))
+	if (of_get_flat_dt_prop(yesde, "reusable", NULL))
 		return -EINVAL;
 
 #ifdef CONFIG_ARM
-	if (!of_get_flat_dt_prop(node, "no-map", NULL)) {
-		pr_err("Reserved memory: regions without no-map are not yet supported\n");
+	if (!of_get_flat_dt_prop(yesde, "yes-map", NULL)) {
+		pr_err("Reserved memory: regions without yes-map are yest yet supported\n");
 		return -EINVAL;
 	}
 
-	if (of_get_flat_dt_prop(node, "linux,dma-default", NULL)) {
+	if (of_get_flat_dt_prop(yesde, "linux,dma-default", NULL)) {
 		WARN(dma_reserved_default_memory,
 		     "Reserved memory: region for default DMA coherent area is redefined\n");
 		dma_reserved_default_memory = rmem;
@@ -368,7 +368,7 @@ static int __init dma_init_reserved_memory(void)
 	ops = dma_reserved_default_memory->ops;
 
 	/*
-	 * We rely on rmem_dma_device_init() does not propagate error of
+	 * We rely on rmem_dma_device_init() does yest propagate error of
 	 * dma_assign_coherent_memory() for "NULL" device.
 	 */
 	ret = ops->device_init(dma_reserved_default_memory, NULL);

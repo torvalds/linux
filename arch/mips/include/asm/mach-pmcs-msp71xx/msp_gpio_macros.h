@@ -22,7 +22,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -210,7 +210,7 @@ static inline enum msp_gpio_data msp_gpio_pin_get(unsigned int gpio)
 		/*
 		 * Two cases are possible with the EXTENDED register:
 		 *  - In output mode (ENABLED flag set), check the CLR bit
-		 *  - In input mode (ENABLED flag not set), check the SET bit
+		 *  - In input mode (ENABLED flag yest set), check the SET bit
 		 */
 		pinhi_mask = EXTENDED_ENABLE(gpio) | EXTENDED_CLR(gpio);
 		pinhi_mask2 = EXTENDED_SET(gpio);
@@ -243,7 +243,7 @@ static inline void msp_gpio_pin_set(enum msp_gpio_data data, unsigned int gpio)
 			/* Special ugly case:
 			 *   We have to read the CLR bit.
 			 *   If set, we write the CLR bit.
-			 *   If not, we write the SET bit.
+			 *   If yest, we write the SET bit.
 			 */
 			u32 tmpdata;
 
@@ -312,7 +312,7 @@ static inline enum msp_gpio_mode msp_gpio_pin_get_mode(unsigned int gpio)
 
 /*
  * Sets the specified mode on the requested pin
- * Returns 0 on success, or -1 if that mode is not allowed on this pin
+ * Returns 0 on success, or -1 if that mode is yest allowed on this pin
  */
 static inline int msp_gpio_pin_mode(enum msp_gpio_mode mode, unsigned int gpio)
 {

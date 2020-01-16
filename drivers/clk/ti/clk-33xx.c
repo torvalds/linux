@@ -259,7 +259,7 @@ static struct ti_dt_clk am33xx_clks[] = {
 	DT_CLK(NULL, "stm_pmd_clock_mux_ck", "l3-aon-clkctrl:0000:22"),
 	DT_CLK(NULL, "trace_clk_div_ck", "l3-aon-clkctrl:0000:24"),
 	DT_CLK(NULL, "trace_pmd_clk_mux_ck", "l3-aon-clkctrl:0000:20"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 static const char *enable_init_clks[] = {
@@ -289,7 +289,7 @@ int __init am33xx_dt_clk_init(void)
 	omap2_clk_enable_init_clocks(enable_init_clks,
 				     ARRAY_SIZE(enable_init_clks));
 
-	/* TRM ERRATA: Timer 3 & 6 default parent (TCLKIN) may not be always
+	/* TRM ERRATA: Timer 3 & 6 default parent (TCLKIN) may yest be always
 	 *    physically present, in such a case HWMOD enabling of
 	 *    clock would be failure with default parent. And timer
 	 *    probe thinks clock is already enabled, this leads to
@@ -305,10 +305,10 @@ int __init am33xx_dt_clk_init(void)
 	clk2 = clk_get_sys(NULL, "timer6_fck");
 	clk_set_parent(clk2, clk1);
 	/*
-	 * The On-Chip 32K RC Osc clock is not an accurate clock-source as per
+	 * The On-Chip 32K RC Osc clock is yest an accurate clock-source as per
 	 * the design/spec, so as a result, for example, timer which supposed
 	 * to get expired @60Sec, but will expire somewhere ~@40Sec, which is
-	 * not expected by any use-case, so change WDT1 clock source to PRCM
+	 * yest expected by any use-case, so change WDT1 clock source to PRCM
 	 * 32KHz clock.
 	 */
 	clk1 = clk_get_sys(NULL, "wdt1_fck");

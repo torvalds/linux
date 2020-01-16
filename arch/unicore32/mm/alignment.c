@@ -8,12 +8,12 @@
  */
 /*
  * TODO:
- *  FPU ldm/stm not handling
+ *  FPU ldm/stm yest handling
  */
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/sched/debug.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -234,7 +234,7 @@ do_alignment_ldrhstrh(unsigned long addr, unsigned long instr,
 
 swp:
 	/* only handle swap word
-	 * for swap byte should not active this alignment exception */
+	 * for swap byte should yest active this alignment exception */
 	get32_unaligned_check(regs->uregs[RD_BITS(instr)], addr);
 	put32_unaligned_check(regs->uregs[RM_BITS(instr)], addr);
 	return TYPE_SWAP;
@@ -346,7 +346,7 @@ fault:
 	return TYPE_FAULT;
 
 bad:
-	printk(KERN_ERR "Alignment trap: not handling ldm with s-bit set\n");
+	printk(KERN_ERR "Alignment trap: yest handling ldm with s-bit set\n");
 	return TYPE_ERROR;
 }
 
@@ -503,7 +503,7 @@ bad:
 fault:
 	return TYPE_FAULT;
 #endif
-	printk(KERN_ERR "Alignment trap: not handling instruction "
+	printk(KERN_ERR "Alignment trap: yest handling instruction "
 	       "%08lx at [<%08lx>]\n", instr, instrptr);
 	return 1;
 }

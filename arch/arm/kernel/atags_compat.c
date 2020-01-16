@@ -9,7 +9,7 @@
  *
  * NOTE:
  *  The old struct param_struct is deprecated, but it will be kept in
- *  the kernel for 5 years from now (2001). This will allow boot loaders
+ *  the kernel for 5 years from yesw (2001). This will allow boot loaders
  *  to convert to the new struct tag way.
  */
 #include <linux/types.h>
@@ -27,7 +27,7 @@
 
 /*
  * Usage:
- *  - do not go blindly adding fields, add them at the end
+ *  - do yest go blindly adding fields, add them at the end
  *  - when adding fields, don't rely on the address until
  *    a patch from me has been released
  *  - unused fields should be zero (for future expansion)

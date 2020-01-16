@@ -80,7 +80,7 @@ core parport module provides generic ``defaults`` for some routines.
 The port functions can be split into three groups: SPP, EPP, and ECP.
 
 SPP (Standard Parallel Port) functions modify so-called ``SPP``
-registers: data, status, and control.  The hardware may not actually
+registers: data, status, and control.  The hardware may yest actually
 have registers exactly like that, but the PC does and this interface is
 modelled after common PC implementations.  Other low-level drivers may
 be able to emulate most of the functionality.
@@ -90,9 +90,9 @@ writing in IEEE 1284 EPP mode, and ECP (Extended Capabilities Port)
 functions are used for IEEE 1284 ECP mode. (What about BECP? Does
 anyone care?)
 
-Hardware assistance for EPP and/or ECP transfers may or may not be
-available, and if it is available it may or may not be used.  If
-hardware is not used, the transfer will be software-driven.  In order
+Hardware assistance for EPP and/or ECP transfers may or may yest be
+available, and if it is available it may or may yest be used.  If
+hardware is yest used, the transfer will be software-driven.  In order
 to cope with peripherals that only tenuously support IEEE 1284, a
 low-level driver specific function is provided, for altering 'fudge
 factors'.
@@ -121,16 +121,16 @@ SYNOPSIS
 DESCRIPTION
 ^^^^^^^^^^^
 
-In order to be notified about parallel ports when they are detected,
+In order to be yestified about parallel ports when they are detected,
 parport_register_driver should be called.  Your driver will
-immediately be notified of all ports that have already been detected,
+immediately be yestified of all ports that have already been detected,
 and of each new port as low-level drivers are loaded.
 
 A ``struct parport_driver`` contains the textual name of your driver,
 a pointer to a function to handle new ports, and a pointer to a
 function to handle ports going away due to a low-level driver
-unloading.  Ports will only be detached if they are not being used
-(i.e. there are no devices registered on them).
+unloading.  Ports will only be detached if they are yest being used
+(i.e. there are yes devices registered on them).
 
 The visible parts of the ``struct parport *`` argument given to
 attach/detach are::
@@ -147,7 +147,7 @@ attach/detach are::
 		...
 	};
 
-There are other members of the structure, but they should not be
+There are other members of the structure, but they should yest be
 touched.
 
 The ``modes`` member summarises the capabilities of the underlying
@@ -225,7 +225,7 @@ EXAMPLE
 	{
 		...
 		if (parport_register_driver (&lp_driver)) {
-			/* Failed; nothing we can do. */
+			/* Failed; yesthing we can do. */
 			return -EIO;
 		}
 		...
@@ -260,7 +260,7 @@ SYNOPSIS
 DESCRIPTION
 ^^^^^^^^^^^
 
-This tells parport not to notify the device driver of new ports or of
+This tells parport yest to yestify the device driver of new ports or of
 ports going away.  Registered devices belonging to that driver are NOT
 unregistered: parport_unregister_device must be used for each one.
 
@@ -272,7 +272,7 @@ EXAMPLE
 	void cleanup_module (void)
 	{
 		...
-		/* Stop notifications. */
+		/* Stop yestifications. */
 		parport_unregister_driver (&lp_driver);
 
 		/* Unregister devices. */
@@ -306,19 +306,19 @@ DESCRIPTION
 Retrieve the first of a list of valid parallel ports for this machine.
 Successive parallel ports can be found using the ``struct parport
 *next`` element of the ``struct parport *`` that is returned.  If ``next``
-is NULL, there are no more parallel ports in the list.  The number of
-ports in the list will not exceed PARPORT_MAX.
+is NULL, there are yes more parallel ports in the list.  The number of
+ports in the list will yest exceed PARPORT_MAX.
 
 RETURN VALUE
 ^^^^^^^^^^^^
 
 A ``struct parport *`` describing a valid parallel port for the machine,
-or NULL if there are none.
+or NULL if there are yesne.
 
 ERRORS
 ^^^^^^
 
-This function can return NULL to indicate that there are no parallel
+This function can return NULL to indicate that there are yes parallel
 ports to use.
 
 EXAMPLE
@@ -389,19 +389,19 @@ device (until parport_unregister_device is called).
 
 This function will register three callbacks into your driver:
 ``preempt``, ``wakeup`` and ``irq``.  Each of these may be NULL in order to
-indicate that you do not want a callback.
+indicate that you do yest want a callback.
 
-When the ``preempt`` function is called, it is because another driver
+When the ``preempt`` function is called, it is because ayesther driver
 wishes to use the parallel port.  The ``preempt`` function should return
-non-zero if the parallel port cannot be released yet -- if zero is
-returned, the port is lost to another driver and the port must be
+yesn-zero if the parallel port canyest be released yet -- if zero is
+returned, the port is lost to ayesther driver and the port must be
 re-claimed before use.
 
-The ``wakeup`` function is called once another driver has released the
-port and no other driver has yet claimed it.  You can claim the
+The ``wakeup`` function is called once ayesther driver has released the
+port and yes other driver has yet claimed it.  You can claim the
 parallel port from within the ``wakeup`` function (in which case the
-claim is guaranteed to succeed), or choose not to if you don't need it
-now.
+claim is guaranteed to succeed), or choose yest to if you don't need it
+yesw.
 
 If an interrupt occurs on the parallel port your driver has claimed,
 the ``irq`` function will be called. (Write something about shared
@@ -415,11 +415,11 @@ the callback functions.
   ===================== =================================================
         Flag            Meaning
   ===================== =================================================
-  PARPORT_DEV_EXCL	The device cannot share the parallel port at all.
+  PARPORT_DEV_EXCL	The device canyest share the parallel port at all.
 			Use this only when absolutely necessary.
   ===================== =================================================
 
-The typedefs are not actually defined -- they are only shown in order
+The typedefs are yest actually defined -- they are only shown in order
 to make the function prototype more readable.
 
 The visible parts of the returned ``struct pardevice`` are::
@@ -449,7 +449,7 @@ EXAMPLE
 
 	static int preempt (void *handle)
 	{
-		if (busy_right_now)
+		if (busy_right_yesw)
 			return 1;
 
 		must_reclaim_port = 1;
@@ -476,13 +476,13 @@ EXAMPLE
 			return -EIO;
 
 		must_reclaim_port = 0;
-		busy_right_now = 1;
+		busy_right_yesw = 1;
 		parport_claim_or_block (private->dev);
 		...
 		/* Don't need the port while the toaster warms up. */
-		busy_right_now = 0;
+		busy_right_yesw = 0;
 		...
-		busy_right_now = 1;
+		busy_right_yesw = 1;
 		if (must_reclaim_port) {
 			parport_claim_or_block (private->dev);
 			must_reclaim_port = 0;
@@ -512,9 +512,9 @@ DESCRIPTION
 ^^^^^^^^^^^
 
 This function is the opposite of parport_register_device.  After using
-parport_unregister_device, ``dev`` is no longer a valid device handle.
+parport_unregister_device, ``dev`` is yes longer a valid device handle.
 
-You should not unregister a device that is currently claimed, although
+You should yest unregister a device that is currently claimed, although
 if you do it will be released automatically.
 
 EXAMPLE
@@ -550,17 +550,17 @@ DESCRIPTION
 ^^^^^^^^^^^
 
 These functions attempt to gain control of the parallel port on which
-``dev`` is registered.  ``parport_claim`` does not block, but
+``dev`` is registered.  ``parport_claim`` does yest block, but
 ``parport_claim_or_block`` may do. (Put something here about blocking
-interruptibly or non-interruptibly.)
+interruptibly or yesn-interruptibly.)
 
-You should not try to claim a port that you have already claimed.
+You should yest try to claim a port that you have already claimed.
 
 RETURN VALUE
 ^^^^^^^^^^^^
 
 A return value of zero indicates that the port was successfully
-claimed, and the caller now has possession of the parallel port.
+claimed, and the caller yesw has possession of the parallel port.
 
 If ``parport_claim_or_block`` blocks before returning successfully, the
 return value is positive.
@@ -569,7 +569,7 @@ ERRORS
 ^^^^^^
 
 ========== ==========================================================
-  -EAGAIN  The port is unavailable at the moment, but another attempt
+  -EAGAIN  The port is unavailable at the moment, but ayesther attempt
            to claim it may succeed.
 ========== ==========================================================
 
@@ -595,8 +595,8 @@ DESCRIPTION
 ^^^^^^^^^^^
 
 Once a parallel port device has been claimed, it can be released using
-``parport_release``.  It cannot fail, but you should not release a
-device that you do not have possession of.
+``parport_release``.  It canyest fail, but you should yest release a
+device that you do yest have possession of.
 
 EXAMPLE
 ^^^^^^^
@@ -637,20 +637,20 @@ SYNOPSIS
 DESCRIPTION
 ^^^^^^^^^^^
 
-When a driver has control of a parallel port, it may allow another
-driver to temporarily ``borrow`` it.  ``parport_yield`` does not block;
+When a driver has control of a parallel port, it may allow ayesther
+driver to temporarily ``borrow`` it.  ``parport_yield`` does yest block;
 ``parport_yield_blocking`` may do.
 
 RETURN VALUE
 ^^^^^^^^^^^^
 
 A return value of zero indicates that the caller still owns the port
-and the call did not block.
+and the call did yest block.
 
 A positive return value from ``parport_yield_blocking`` indicates that
 the caller still owns the port and the call blocked.
 
-A return value of -EAGAIN indicates that the caller no longer owns the
+A return value of -EAGAIN indicates that the caller yes longer owns the
 port, and it must be re-claimed before use.
 
 ERRORS
@@ -787,8 +787,8 @@ RETURN VALUE
 
 ======= ==========================================================
      0  handshake OK; IEEE 1284 peripheral and mode available
-    -1  handshake failed; peripheral not compliant (or none present)
-     1  handshake OK; IEEE 1284 peripheral present but mode not
+    -1  handshake failed; peripheral yest compliant (or yesne present)
+     1  handshake OK; IEEE 1284 peripheral present but mode yest
         available
 ======= ==========================================================
 
@@ -885,7 +885,7 @@ of a pointer to a struct parport.
 RETURN VALUE
 ^^^^^^^^^^^^
 
-See parport_register_device.  If no device is associated with devnum,
+See parport_register_device.  If yes device is associated with devnum,
 NULL is returned.
 
 SEE ALSO
@@ -1032,7 +1032,7 @@ Find a device by class.  The search starts from device number from+1.
 RETURN VALUE
 ^^^^^^^^^^^^
 
-The device number of the next device in that class, or -1 if no such
+The device number of the next device in that class, or -1 if yes such
 device exists.
 
 NOTES
@@ -1075,7 +1075,7 @@ RETURN VALUE
 ^^^^^^^^^^^^
 
 The device number of the next device matching the specifications, or
--1 if no such device exists.
+-1 if yes such device exists.
 
 NOTES
 ^^^^^
@@ -1122,12 +1122,12 @@ NOTES
 ^^^^^
 
 Some of the port->ops functions for a parport may take time, owing to
-delays at the peripheral.  After the peripheral has not responded for
+delays at the peripheral.  After the peripheral has yest responded for
 ``inactivity`` jiffies, a timeout will occur and the blocking function
 will return.
 
 A timeout of 0 jiffies is a special case: the function must do as much
-as it can without blocking or leaving the hardware in an unknown
+as it can without blocking or leaving the hardware in an unkyeswn
 state.  If port operations are performed from within an interrupt
 handler, for instance, a timeout of 0 jiffies should be used.
 
@@ -1171,7 +1171,7 @@ If port->modes contains the PARPORT_MODE_TRISTATE flag and the
 PARPORT_CONTROL_DIRECTION bit in the control register is set, this
 returns the value on the data pins.  If port->modes contains the
 PARPORT_MODE_TRISTATE flag and the PARPORT_CONTROL_DIRECTION bit is
-not set, the return value _may_ be the last value written to the data
+yest set, the return value _may_ be the last value written to the data
 register.  Otherwise the return value is undefined.
 
 SEE ALSO
@@ -1233,7 +1233,7 @@ Reads from the status register.  This is a bitmask:
 
 - PARPORT_STATUS_ERROR (printer fault, "nFault")
 - PARPORT_STATUS_SELECT (on-line, "Select")
-- PARPORT_STATUS_PAPEROUT (no paper, "PError")
+- PARPORT_STATUS_PAPEROUT (yes paper, "PError")
 - PARPORT_STATUS_ACK (handshake, "nAck")
 - PARPORT_STATUS_BUSY (busy, "Busy")
 
@@ -1398,8 +1398,8 @@ SYNOPSIS
 DESCRIPTION
 ^^^^^^^^^^^
 
-The parallel port hardware is instructed not to generate interrupts.
-The interrupt itself is not masked.
+The parallel port hardware is instructed yest to generate interrupts.
+The interrupt itself is yest masked.
 
 SEE ALSO
 ^^^^^^^^
@@ -1642,7 +1642,7 @@ SYNOPSIS
 DESCRIPTION
 ^^^^^^^^^^^
 
-Writes a block of ECP data.  The ``flags`` parameter is ignored.
+Writes a block of ECP data.  The ``flags`` parameter is igyesred.
 
 RETURN VALUE
 ^^^^^^^^^^^^
@@ -1676,7 +1676,7 @@ SYNOPSIS
 DESCRIPTION
 ^^^^^^^^^^^
 
-Reads a block of ECP data.  The ``flags`` parameter is ignored.
+Reads a block of ECP data.  The ``flags`` parameter is igyesred.
 
 RETURN VALUE
 ^^^^^^^^^^^^
@@ -1711,7 +1711,7 @@ SYNOPSIS
 DESCRIPTION
 ^^^^^^^^^^^
 
-Writes a block of ECP addresses.  The ``flags`` parameter is ignored.
+Writes a block of ECP addresses.  The ``flags`` parameter is igyesred.
 
 RETURN VALUE
 ^^^^^^^^^^^^
@@ -1721,7 +1721,7 @@ The number of bytes written.
 NOTES
 ^^^^^
 
-This may use a FIFO, and if so shall not return until the FIFO is empty.
+This may use a FIFO, and if so shall yest return until the FIFO is empty.
 
 SEE ALSO
 ^^^^^^^^
@@ -1750,7 +1750,7 @@ SYNOPSIS
 DESCRIPTION
 ^^^^^^^^^^^
 
-Reads a block of data in nibble mode.  The ``flags`` parameter is ignored.
+Reads a block of data in nibble mode.  The ``flags`` parameter is igyesred.
 
 RETURN VALUE
 ^^^^^^^^^^^^
@@ -1784,7 +1784,7 @@ SYNOPSIS
 DESCRIPTION
 ^^^^^^^^^^^
 
-Reads a block of data in byte mode.  The ``flags`` parameter is ignored.
+Reads a block of data in byte mode.  The ``flags`` parameter is igyesred.
 
 RETURN VALUE
 ^^^^^^^^^^^^
@@ -1819,7 +1819,7 @@ DESCRIPTION
 ^^^^^^^^^^^
 
 Writes a block of data in compatibility mode.  The ``flags`` parameter
-is ignored.
+is igyesred.
 
 RETURN VALUE
 ^^^^^^^^^^^^

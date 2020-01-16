@@ -114,7 +114,7 @@ static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (buf[ISL12022_REG_SR] & (ISL12022_SR_LBAT85 | ISL12022_SR_LBAT75)) {
 		dev_warn(&client->dev,
 			 "voltage dropped below %u%%, "
-			 "date and time is not reliable.\n",
+			 "date and time is yest reliable.\n",
 			 buf[ISL12022_REG_SR] & ISL12022_SR_LBAT85 ? 85 : 75);
 	}
 
@@ -171,7 +171,7 @@ static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 			return ret;
 
 		/* Check if WRTC (write rtc enable) is set factory default is
-		 * 0 (not set) */
+		 * 0 (yest set) */
 		if (!(buf[0] & ISL12022_INT_WRTC)) {
 			dev_info(&client->dev,
 				 "init write enable and 24 hour format\n");

@@ -226,7 +226,7 @@ out_unlock:
 
 /*
  *	ip_vs_app unregistration routine
- *	We are sure there are no app incarnations attached to services
+ *	We are sure there are yes app incarnations attached to services
  *	Caller should use synchronize_rcu() or rcu_barrier()
  */
 void unregister_ip_vs_app(struct netns_ipvs *ipvs, struct ip_vs_app *app)

@@ -15,14 +15,14 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/tracehook.h>
 #include <linux/unistd.h>
 #include <linux/stddef.h>
 #include <linux/personality.h>
 #include <linux/uaccess.h>
-#include <linux/user-return-notifier.h>
+#include <linux/user-return-yestifier.h>
 #include <linux/uprobes.h>
 #include <linux/context_tracking.h>
 #include <linux/syscalls.h>
@@ -68,7 +68,7 @@
 #ifdef CONFIG_X86_64
 /*
  * If regs->ss will cause an IRET fault, change it.  Otherwise leave it
- * alone.  Using this generally makes no sense unless
+ * alone.  Using this generally makes yes sense unless
  * user_64bit_mode(regs) would return true.
  */
 static void force_valid_ss(struct pt_regs *regs)
@@ -104,7 +104,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 	unsigned int err = 0;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	get_user_try {
 
@@ -189,7 +189,7 @@ int setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 		put_user_ex(regs->r15, &sc->r15);
 #endif /* CONFIG_X86_64 */
 
-		put_user_ex(current->thread.trap_nr, &sc->trapno);
+		put_user_ex(current->thread.trap_nr, &sc->trapyes);
 		put_user_ex(current->thread.error_code, &sc->err);
 		put_user_ex(regs->ip, &sc->ip);
 #ifdef CONFIG_X86_32
@@ -207,7 +207,7 @@ int setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 
 		put_user_ex(fpstate, (unsigned long __user *)&sc->fpstate);
 
-		/* non-iBCS2 extensions.. */
+		/* yesn-iBCS2 extensions.. */
 		put_user_ex(mask, &sc->oldmask);
 		put_user_ex(current->thread.cr2, &sc->cr2);
 	} put_user_catch(err);
@@ -240,7 +240,7 @@ static void __user *
 get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	     void __user **fpstate)
 {
-	/* Default to using normal stack */
+	/* Default to using yesrmal stack */
 	unsigned long math_size = 0;
 	unsigned long sp = regs->sp;
 	unsigned long buf_fx = 0;
@@ -349,7 +349,7 @@ __setup_frame(int sig, struct ksignal *ksig, sigset_t *set,
 	 * This is popl %eax ; movl $__NR_sigreturn, %eax ; int $0x80
 	 *
 	 * WE DO NOT USE IT ANY MORE! It's only left here for historical
-	 * reasons and because gdb uses it as a signature to notice
+	 * reasons and because gdb uses it as a signature to yestice
 	 * signal handler stack frames.
 	 */
 	err |= __put_user(*((u64 *)&retcode), (u64 *)frame->retcode);
@@ -409,7 +409,7 @@ static int __setup_rt_frame(int sig, struct ksignal *ksig,
 		 * This is movl $__NR_rt_sigreturn, %ax ; int $0x80
 		 *
 		 * WE DO NOT USE IT ANY MORE! It's only left here for historical
-		 * reasons and because gdb uses it as a signature to notice
+		 * reasons and because gdb uses it as a signature to yestice
 		 * signal handler stack frames.
 		 */
 		put_user_ex(*((u64 *)&rt_retcode), (u64 *)frame->retcode);
@@ -501,7 +501,7 @@ static int __setup_rt_frame(int sig, struct ksignal *ksig,
 	/* In case the signal handler was declared without prototypes */
 	regs->ax = 0;
 
-	/* This also works for non SA_SIGINFO handlers because they expect the
+	/* This also works for yesn SA_SIGINFO handlers because they expect the
 	   next argument after the signal number on the stack. */
 	regs->si = (unsigned long)&frame->info;
 	regs->dx = (unsigned long)&frame->uc;
@@ -623,7 +623,7 @@ SYSCALL_DEFINE0(sigreturn)
 	set_current_blocked(&set);
 
 	/*
-	 * x86_32 has no uc_flags bits relevant to restore_sigcontext.
+	 * x86_32 has yes uc_flags bits relevant to restore_sigcontext.
 	 * Save a few cycles by skipping the __get_user.
 	 */
 	if (restore_sigcontext(regs, &frame->sc, 0))
@@ -739,9 +739,9 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	}
 
 	/*
-	 * If TF is set due to a debugger (TIF_FORCED_TF), clear TF now
+	 * If TF is set due to a debugger (TIF_FORCED_TF), clear TF yesw
 	 * so that register information in the sigcontext is correct and
-	 * then notify the tracer before entering the signal handler.
+	 * then yestify the tracer before entering the signal handler.
 	 */
 	stepping = test_thread_flag(TIF_SINGLESTEP);
 	if (stepping)
@@ -782,10 +782,10 @@ static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
 	 * instruction we used to enter in the first place.
 	 *
 	 * The problem is that we can get here when ptrace pokes
-	 * syscall-like values into regs even if we're not in a syscall
+	 * syscall-like values into regs even if we're yest in a syscall
 	 * at all.
 	 *
-	 * For now, we maintain historical behavior and guess based on
+	 * For yesw, we maintain historical behavior and guess based on
 	 * stored state.  We could do better by saving the actual
 	 * syscall arch in restart_block or (with caveats on x32) by
 	 * checking if regs->ip points to 'int $0x80'.  The current
@@ -805,7 +805,7 @@ static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  */
 void do_signal(struct pt_regs *regs)
@@ -820,7 +820,7 @@ void do_signal(struct pt_regs *regs)
 
 	/* Did we come from a system call? */
 	if (syscall_get_nr(current, regs) >= 0) {
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - yes handlers present */
 		switch (syscall_get_error(current, regs)) {
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
@@ -837,7 +837,7 @@ void do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	 * If there's no signal to deliver, we just put the saved sigmask
+	 * If there's yes signal to deliver, we just put the saved sigmask
 	 * back.
 	 */
 	restore_saved_sigmask();

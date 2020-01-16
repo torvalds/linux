@@ -27,14 +27,14 @@ static void erofs_readendio(struct bio *bio)
 			SetPageUptodate(page);
 
 		unlock_page(page);
-		/* page could be reclaimed now */
+		/* page could be reclaimed yesw */
 	}
 	bio_put(bio);
 }
 
 struct page *erofs_get_meta_page(struct super_block *sb, erofs_blk_t blkaddr)
 {
-	struct address_space *const mapping = sb->s_bdev->bd_inode->i_mapping;
+	struct address_space *const mapping = sb->s_bdev->bd_iyesde->i_mapping;
 	struct page *page;
 
 	page = read_cache_page_gfp(mapping, blkaddr,
@@ -45,45 +45,45 @@ struct page *erofs_get_meta_page(struct super_block *sb, erofs_blk_t blkaddr)
 	return page;
 }
 
-static int erofs_map_blocks_flatmode(struct inode *inode,
+static int erofs_map_blocks_flatmode(struct iyesde *iyesde,
 				     struct erofs_map_blocks *map,
 				     int flags)
 {
 	int err = 0;
 	erofs_blk_t nblocks, lastblk;
 	u64 offset = map->m_la;
-	struct erofs_inode *vi = EROFS_I(inode);
+	struct erofs_iyesde *vi = EROFS_I(iyesde);
 	bool tailendpacking = (vi->datalayout == EROFS_INODE_FLAT_INLINE);
 
-	trace_erofs_map_blocks_flatmode_enter(inode, map, flags);
+	trace_erofs_map_blocks_flatmode_enter(iyesde, map, flags);
 
-	nblocks = DIV_ROUND_UP(inode->i_size, PAGE_SIZE);
+	nblocks = DIV_ROUND_UP(iyesde->i_size, PAGE_SIZE);
 	lastblk = nblocks - tailendpacking;
 
-	if (offset >= inode->i_size) {
+	if (offset >= iyesde->i_size) {
 		/* leave out-of-bound access unmapped */
 		map->m_flags = 0;
 		map->m_plen = 0;
 		goto out;
 	}
 
-	/* there is no hole in flatmode */
+	/* there is yes hole in flatmode */
 	map->m_flags = EROFS_MAP_MAPPED;
 
 	if (offset < blknr_to_addr(lastblk)) {
 		map->m_pa = blknr_to_addr(vi->raw_blkaddr) + map->m_la;
 		map->m_plen = blknr_to_addr(lastblk) - offset;
 	} else if (tailendpacking) {
-		/* 2 - inode inline B: inode, [xattrs], inline last blk... */
-		struct erofs_sb_info *sbi = EROFS_SB(inode->i_sb);
+		/* 2 - iyesde inline B: iyesde, [xattrs], inline last blk... */
+		struct erofs_sb_info *sbi = EROFS_SB(iyesde->i_sb);
 
-		map->m_pa = iloc(sbi, vi->nid) + vi->inode_isize +
+		map->m_pa = iloc(sbi, vi->nid) + vi->iyesde_isize +
 			vi->xattr_isize + erofs_blkoff(map->m_la);
-		map->m_plen = inode->i_size - offset;
+		map->m_plen = iyesde->i_size - offset;
 
 		/* inline data should be located in one meta block */
 		if (erofs_blkoff(map->m_pa) + map->m_plen > PAGE_SIZE) {
-			erofs_err(inode->i_sb,
+			erofs_err(iyesde->i_sb,
 				  "inline data cross block boundary @ nid %llu",
 				  vi->nid);
 			DBG_BUGON(1);
@@ -93,9 +93,9 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 
 		map->m_flags |= EROFS_MAP_META;
 	} else {
-		erofs_err(inode->i_sb,
+		erofs_err(iyesde->i_sb,
 			  "internal error @ nid: %llu (size %llu), m_la 0x%llx",
-			  vi->nid, inode->i_size, map->m_la);
+			  vi->nid, iyesde->i_size, map->m_la);
 		DBG_BUGON(1);
 		err = -EIO;
 		goto err_out;
@@ -105,15 +105,15 @@ out:
 	map->m_llen = map->m_plen;
 
 err_out:
-	trace_erofs_map_blocks_flatmode_exit(inode, map, flags, 0);
+	trace_erofs_map_blocks_flatmode_exit(iyesde, map, flags, 0);
 	return err;
 }
 
-int erofs_map_blocks(struct inode *inode,
+int erofs_map_blocks(struct iyesde *iyesde,
 		     struct erofs_map_blocks *map, int flags)
 {
-	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout)) {
-		int err = z_erofs_map_blocks_iter(inode, map, flags);
+	if (erofs_iyesde_is_data_compressed(EROFS_I(iyesde)->datalayout)) {
+		int err = z_erofs_map_blocks_iter(iyesde, map, flags);
 
 		if (map->mpage) {
 			put_page(map->mpage);
@@ -121,7 +121,7 @@ int erofs_map_blocks(struct inode *inode,
 		}
 		return err;
 	}
-	return erofs_map_blocks_flatmode(inode, map, flags);
+	return erofs_map_blocks_flatmode(iyesde, map, flags);
 }
 
 static inline struct bio *erofs_read_raw_page(struct bio *bio,
@@ -131,8 +131,8 @@ static inline struct bio *erofs_read_raw_page(struct bio *bio,
 					      unsigned int nblocks,
 					      bool ra)
 {
-	struct inode *const inode = mapping->host;
-	struct super_block *const sb = inode->i_sb;
+	struct iyesde *const iyesde = mapping->host;
+	struct super_block *const sb = iyesde->i_sb;
 	erofs_off_t current_block = (erofs_off_t)page->index;
 	int err;
 
@@ -143,9 +143,9 @@ static inline struct bio *erofs_read_raw_page(struct bio *bio,
 		goto has_updated;
 	}
 
-	/* note that for readpage case, bio also equals to NULL */
+	/* yeste that for readpage case, bio also equals to NULL */
 	if (bio &&
-	    /* not continuous */
+	    /* yest continuous */
 	    *last_block + 1 != current_block) {
 submit_bio_retry:
 		submit_bio(bio);
@@ -159,7 +159,7 @@ submit_bio_retry:
 		erofs_blk_t blknr;
 		unsigned int blkoff;
 
-		err = erofs_map_blocks(inode, &map, EROFS_GET_BLOCKS_RAW);
+		err = erofs_map_blocks(iyesde, &map, EROFS_GET_BLOCKS_RAW);
 		if (err)
 			goto err_out;
 
@@ -185,7 +185,7 @@ submit_bio_retry:
 
 			DBG_BUGON(map.m_plen > PAGE_SIZE);
 
-			ipage = erofs_get_meta_page(inode->i_sb, blknr);
+			ipage = erofs_get_meta_page(iyesde->i_sb, blknr);
 
 			if (IS_ERR(ipage)) {
 				err = PTR_ERR(ipage);
@@ -260,7 +260,7 @@ submit_bio_out:
 }
 
 /*
- * since we dont have write or truncate flows, so no inode
+ * since we dont have write or truncate flows, so yes iyesde
  * locking needs to be held at the moment.
  */
 static int erofs_raw_access_readpage(struct file *file, struct page *page)
@@ -302,7 +302,7 @@ static int erofs_raw_access_readpages(struct file *filp,
 			bio = erofs_read_raw_page(bio, mapping, page,
 						  &last_block, nr_pages, true);
 
-			/* all the page errors are ignored when readahead */
+			/* all the page errors are igyesred when readahead */
 			if (IS_ERR(bio)) {
 				pr_err("%s, readahead error at page %lu of nid %llu\n",
 				       __func__, page->index,
@@ -323,7 +323,7 @@ static int erofs_raw_access_readpages(struct file *filp,
 	return 0;
 }
 
-static int erofs_get_block(struct inode *inode, sector_t iblock,
+static int erofs_get_block(struct iyesde *iyesde, sector_t iblock,
 			   struct buffer_head *bh, int create)
 {
 	struct erofs_map_blocks map = {
@@ -331,7 +331,7 @@ static int erofs_get_block(struct inode *inode, sector_t iblock,
 	};
 	int err;
 
-	err = erofs_map_blocks(inode, &map, EROFS_GET_BLOCKS_RAW);
+	err = erofs_map_blocks(iyesde, &map, EROFS_GET_BLOCKS_RAW);
 	if (err)
 		return err;
 
@@ -343,10 +343,10 @@ static int erofs_get_block(struct inode *inode, sector_t iblock,
 
 static sector_t erofs_bmap(struct address_space *mapping, sector_t block)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 
-	if (EROFS_I(inode)->datalayout == EROFS_INODE_FLAT_INLINE) {
-		erofs_blk_t blks = i_size_read(inode) >> LOG_BLOCK_SIZE;
+	if (EROFS_I(iyesde)->datalayout == EROFS_INODE_FLAT_INLINE) {
+		erofs_blk_t blks = i_size_read(iyesde) >> LOG_BLOCK_SIZE;
 
 		if (block >> LOG_SECTORS_PER_BLOCK >= blks)
 			return 0;

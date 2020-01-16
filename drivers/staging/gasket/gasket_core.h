@@ -111,7 +111,7 @@ struct gasket_ownership {
 
 /* Page table modes of operation. */
 enum gasket_page_table_mode {
-	/* The page table is partitionable as normal, all simple by default. */
+	/* The page table is partitionable as yesrmal, all simple by default. */
 	GASKET_PAGE_TABLE_MODE_NORMAL,
 
 	/* All entries are always simple. */
@@ -146,7 +146,7 @@ struct gasket_page_table_config {
 	int extended_bit;
 };
 
-/* Maintains information about a device node. */
+/* Maintains information about a device yesde. */
 struct gasket_cdev_info {
 	/* The internal name of this device. */
 	char name[GASKET_NAME_MAX];
@@ -180,7 +180,7 @@ struct gasket_mappable_region {
 struct gasket_bar_desc {
 	/*
 	 * The size of each PCI BAR range, in bytes. If a value is 0, that BAR
-	 * will not be mapped into kernel space at all.
+	 * will yest be mapped into kernel space at all.
 	 * For devices with 64 bit BARs, only elements 0, 2, and 4 should be
 	 * populated, and 1, 3, and 5 should be set to 0.
 	 * For example, for a device mapping 1M in each of the first two 64-bit
@@ -190,7 +190,7 @@ struct gasket_bar_desc {
 	u64 size;
 	/* The permissions for this bar. (Should be VM_WRITE/VM_READ/VM_EXEC,
 	 * and can be or'd.) If set to GASKET_NOMAP, the bar will
-	 * not be used for mmapping.
+	 * yest be used for mmapping.
 	 */
 	ulong permissions;
 	/* The memory address corresponding to the base of this bar, if used. */
@@ -212,7 +212,7 @@ struct gasket_coherent_buffer_desc {
 
 	/* The permissions for this bar. (Should be VM_WRITE/VM_READ/VM_EXEC,
 	 * and can be or'd.) If set to GASKET_NOMAP, the bar will
-	 * not be used for mmaping.
+	 * yest be used for mmaping.
 	 */
 	ulong permissions;
 
@@ -288,7 +288,7 @@ struct gasket_dev {
 	/* Number of times this device has been reset. */
 	uint reset_count;
 
-	/* Dev information for the cdev node. */
+	/* Dev information for the cdev yesde. */
 	struct gasket_cdev_info dev_info;
 
 	/* Hardware revision value for this device. */
@@ -299,8 +299,8 @@ struct gasket_dev {
 
 	/* cdev hash tracking/membership structure, Accel and legacy. */
 	/* Unused until Accel is upstreamed. */
-	struct hlist_node hlist_node;
-	struct hlist_node legacy_hlist_node;
+	struct hlist_yesde hlist_yesde;
+	struct hlist_yesde legacy_hlist_yesde;
 };
 
 /* Type of the ioctl handler callback. */
@@ -334,13 +334,13 @@ struct gasket_driver_desc {
 
 	/*
 	 * Non-zero if we should create "legacy" (device and device-class-
-	 * specific) character devices and sysfs nodes.
+	 * specific) character devices and sysfs yesdes.
 	 */
 	/* Unused until Accel is upstreamed. */
 	int legacy_support;
 
-	/* Major and minor numbers identifying the device. */
-	int major, minor;
+	/* Major and miyesr numbers identifying the device. */
+	int major, miyesr;
 
 	/* Module structure for this driver. */
 	struct module *module;
@@ -367,7 +367,7 @@ struct gasket_driver_desc {
 	ulong legacy_mmap_address_offset;
 
 	/* Set of 6 bar descriptions that describe all PCIe bars.
-	 * Note that BUS/AXI devices (i.e. non PCI devices) use those.
+	 * Note that BUS/AXI devices (i.e. yesn PCI devices) use those.
 	 */
 	struct gasket_bar_desc bar_descriptions[PCI_STD_NUM_BARS];
 
@@ -393,13 +393,13 @@ struct gasket_driver_desc {
 	 * single register (i.e., "uses packed interrupts"), only a single bit
 	 * width is supported for each interrupt mapping (unpacked/"full-width"
 	 * interrupts are always supported). This value specifies that width. If
-	 * packed interrupts are not used, this value is ignored.
+	 * packed interrupts are yest used, this value is igyesred.
 	 */
 	int interrupt_pack_width;
 
 	/* Driver callback functions - all may be NULL */
 	/*
-	 * device_open_cb: Callback for when a device node is opened in write
+	 * device_open_cb: Callback for when a device yesde is opened in write
 	 * mode.
 	 * @dev: The gasket_dev struct for this driver instance.
 	 *
@@ -412,7 +412,7 @@ struct gasket_driver_desc {
 	 * device_release_cb: Callback when a device is closed.
 	 * @gasket_dev: The gasket_dev struct for this driver instance.
 	 *
-	 * This callback is called whenever a device node fd is closed, as
+	 * This callback is called whenever a device yesde fd is closed, as
 	 * opposed to device_close_cb, which is called when the _last_
 	 * descriptor for an open file is closed. This call is intended to
 	 * handle any per-user or per-fd cleanup.
@@ -421,12 +421,12 @@ struct gasket_driver_desc {
 				 struct file *file);
 
 	/*
-	 * device_close_cb: Callback for when a device node is closed for the
+	 * device_close_cb: Callback for when a device yesde is closed for the
 	 * last time.
 	 * @dev: The gasket_dev struct for this driver instance.
 	 *
 	 * This callback should perform device-specific cleanup that only
-	 * needs to occur when the last reference to a device node is closed.
+	 * needs to occur when the last reference to a device yesde is closed.
 	 *
 	 * This call is intended to handle and device-wide cleanup, as opposed
 	 * to per-fd cleanup (which should be handled by device_release_cb).
@@ -453,7 +453,7 @@ struct gasket_driver_desc {
 
 	/*
 	 * ioctl_permissions_cb: Check permissions for generic ioctls.
-	 * @filp: File structure pointer describing this node usage session.
+	 * @filp: File structure pointer describing this yesde usage session.
 	 * @cmd: ioctl number to handle.
 	 * @arg: ioctl-specific data pointer.
 	 *
@@ -466,12 +466,12 @@ struct gasket_driver_desc {
 
 	/*
 	 * ioctl_handler_cb: Callback to handle device-specific ioctls.
-	 * @filp: File structure pointer describing this node usage session.
+	 * @filp: File structure pointer describing this yesde usage session.
 	 * @cmd: ioctl number to handle.
 	 * @arg: ioctl-specific data pointer.
 	 *
 	 * Invoked whenever an ioctl is called that the generic Gasket
-	 * framework doesn't support. If no cb is registered, unknown ioctls
+	 * framework doesn't support. If yes cb is registered, unkyeswn ioctls
 	 * return -EINVAL. Should return an error status (either -EINVAL or
 	 * the error result of the ioctl being handled).
 	 */
@@ -481,7 +481,7 @@ struct gasket_driver_desc {
 	 * device_status_cb: Callback to determine device health.
 	 * @dev: Pointer to the gasket_dev struct for this device.
 	 *
-	 * Called to determine if the device is healthy or not. Should return
+	 * Called to determine if the device is healthy or yest. Should return
 	 * a member of the gasket_status_type enum.
 	 *
 	 */
@@ -500,7 +500,7 @@ struct gasket_driver_desc {
 	 * device_reset_cb: Reset the hardware in question.
 	 * @dev: Pointer to the gasket_dev structure for this device.
 	 *
-	 * Called by reset ioctls. This function should not
+	 * Called by reset ioctls. This function should yest
 	 * lock the gasket_dev mutex. It should return 0 on success
 	 * and an error on failure.
 	 */
@@ -511,7 +511,7 @@ struct gasket_driver_desc {
  * Register the specified device type with the framework.
  * @desc: Populated/initialized device type descriptor.
  *
- * This function does _not_ take ownership of desc; the underlying struct must
+ * This function does _yest_ take ownership of desc; the underlying struct must
  * exist until the matching call to gasket_unregister_device.
  * This function should be called from your driver's module_init function.
  */
@@ -543,11 +543,11 @@ void gasket_disable_device(struct gasket_dev *gasket_dev);
  * @gasket_dev: Gasket device struct.
  *
  * Calls device_reset_cb. Returns 0 on success and an error code othewrise.
- * gasket_reset_nolock will not lock the mutex, gasket_reset will.
+ * gasket_reset_yeslock will yest lock the mutex, gasket_reset will.
  *
  */
 int gasket_reset(struct gasket_dev *gasket_dev);
-int gasket_reset_nolock(struct gasket_dev *gasket_dev);
+int gasket_reset_yeslock(struct gasket_dev *gasket_dev);
 
 /*
  * Memory management functions. These will likely be spun off into their own
@@ -630,7 +630,7 @@ const struct gasket_driver_desc *gasket_get_driver_desc(struct gasket_dev *dev);
 /* Get the device structure for a given device. */
 struct device *gasket_get_device(struct gasket_dev *dev);
 
-/* Helper function, Asynchronous waits on a given set of bits. */
+/* Helper function, Asynchroyesus waits on a given set of bits. */
 int gasket_wait_with_reschedule(struct gasket_dev *gasket_dev, int bar,
 				u64 offset, u64 mask, u64 val,
 				uint max_retries, u64 delay_ms);

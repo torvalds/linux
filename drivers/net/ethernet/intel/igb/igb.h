@@ -85,7 +85,7 @@ struct vf_data_storage {
 	u16 num_vf_mc_hashes;
 	u32 flags;
 	unsigned long last_nack;
-	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
+	u16 pf_vlan; /* When set, guest VLAN config yest allowed. */
 	u16 pf_qos;
 	u16 tx_rate;
 	bool spoofchk_enabled;
@@ -288,7 +288,7 @@ struct igb_ring {
 			struct u64_stats_sync rx_syncp;
 		};
 	};
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 struct igb_q_vector {
 	struct igb_adapter *adapter;	/* backlink */
@@ -306,7 +306,7 @@ struct igb_q_vector {
 	char name[IFNAMSIZ + 9];
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct igb_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct igb_ring ring[0] ____cacheline_interyesdealigned_in_smp;
 };
 
 enum e1000_ring_flags_t {
@@ -443,7 +443,7 @@ struct igb_nfc_input {
 };
 
 struct igb_nfc_filter {
-	struct hlist_node nfc_node;
+	struct hlist_yesde nfc_yesde;
 	struct igb_nfc_input filter;
 	unsigned long cookie;
 	u16 etype_reg_index;
@@ -533,7 +533,7 @@ struct igb_adapter {
 	u32 eims_enable_mask;
 	u32 eims_other;
 
-	/* to not mess up cache alignment, always add to the bottom */
+	/* to yest mess up cache alignment, always add to the bottom */
 	u16 tx_ring_count;
 	u16 rx_ring_count;
 	unsigned int vfs_allocated_count;

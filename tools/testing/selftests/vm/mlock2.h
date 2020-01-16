@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <syscall.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -17,7 +17,7 @@ static int mlock2_(void *start, size_t len, int flags)
 #ifdef __NR_mlock2
 	return syscall(__NR_mlock2, start, len, flags);
 #else
-	errno = ENOSYS;
+	erryes = ENOSYS;
 	return -1;
 #endif
 }
@@ -31,7 +31,7 @@ static FILE *seek_to_smaps_entry(unsigned long addr)
 	char perms[5];
 	unsigned long offset;
 	char dev[32];
-	unsigned long inode;
+	unsigned long iyesde;
 	char path[BUFSIZ];
 
 	file = fopen("/proc/self/smaps", "r");
@@ -42,7 +42,7 @@ static FILE *seek_to_smaps_entry(unsigned long addr)
 
 	while (getline(&line, &size, file) > 0) {
 		if (sscanf(line, "%lx-%lx %s %lx %s %lu %s\n",
-			   &start, &end, perms, &offset, dev, &inode, path) < 6)
+			   &start, &end, perms, &offset, dev, &iyesde, path) < 6)
 			goto next;
 
 		if (start <= addr && addr < end)

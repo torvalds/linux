@@ -137,7 +137,7 @@ int cfg80211_mgd_wext_giwfreq(struct net_device *dev,
 		return 0;
 	}
 
-	/* no channel if not joining */
+	/* yes channel if yest joining */
 	return -EINVAL;
 }
 
@@ -173,7 +173,7 @@ int cfg80211_mgd_wext_siwessid(struct net_device *dev,
 		    memcmp(wdev->wext.connect.ssid, ssid, len) == 0)
 			goto out;
 
-		/* if SSID set now, we'll try to connect, avoid event */
+		/* if SSID set yesw, we'll try to connect, avoid event */
 		if (len)
 			event = false;
 		err = cfg80211_disconnect(rdev, dev,
@@ -264,7 +264,7 @@ int cfg80211_mgd_wext_siwap(struct net_device *dev,
 		if (!bssid && !wdev->wext.connect.bssid)
 			goto out;
 
-		/* fixed already - and no change */
+		/* fixed already - and yes change */
 		if (wdev->wext.connect.bssid && bssid &&
 		    ether_addr_equal(bssid, wdev->wext.connect.bssid))
 			goto out;
@@ -326,7 +326,7 @@ int cfg80211_wext_siwgenie(struct net_device *dev,
 
 	wdev_lock(wdev);
 
-	/* no change */
+	/* yes change */
 	err = 0;
 	if (wdev->wext.ie_len == ie_len &&
 	    memcmp(wdev->wext.ie, ie, ie_len) == 0)
@@ -352,7 +352,7 @@ int cfg80211_wext_siwgenie(struct net_device *dev,
 			goto out;
 	}
 
-	/* userspace better not think we'll reconnect */
+	/* userspace better yest think we'll reconnect */
 	err = 0;
  out:
 	wdev_unlock(wdev);

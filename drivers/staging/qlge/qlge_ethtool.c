@@ -12,7 +12,7 @@
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/ip.h>
@@ -627,7 +627,7 @@ static int ql_get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 
 	/* This chip coalesces as follows:
 	 * If a packet arrives, hold off interrupts until
-	 * cqicb->int_delay expires, but if no other packets arrive don't
+	 * cqicb->int_delay expires, but if yes other packets arrive don't
 	 * wait longer than cqicb->pkt_int_delay. But ethtool doesn't use a
 	 * timer to coalesce on a frame basis.  So, we have to take ethtool's
 	 * max_coalesced_frames value and convert it to a delay in microseconds.

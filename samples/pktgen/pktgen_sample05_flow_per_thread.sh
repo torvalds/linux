@@ -7,7 +7,7 @@
 #
 # Useful for scale testing on receiver, to see whether silo'ing flows
 # works and scales.  For optimal scalability (on receiver) each
-# separate-flow should not access shared variables/data. This script
+# separate-flow should yest access shared variables/data. This script
 # helps magnify any of these scaling issues by overloading the receiver.
 #
 basedir=`dirname $0`

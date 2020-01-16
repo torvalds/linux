@@ -73,7 +73,7 @@ enum {
 
 	BUZZER_ON = 1 << 5,
 
-	/* up to 256 normal keys, up to 15 special key combinations */
+	/* up to 256 yesrmal keys, up to 15 special key combinations */
 	KEYMAP_SIZE = 256 + 15,
 };
 
@@ -551,7 +551,7 @@ static int cm109_input_open(struct input_dev *idev)
 
 	error = usb_autopm_get_interface(dev->intf);
 	if (error < 0) {
-		dev_err(&idev->dev, "%s - cannot autoresume, result %d\n",
+		dev_err(&idev->dev, "%s - canyest autoresume, result %d\n",
 			__func__, error);
 		return error;
 	}
@@ -559,7 +559,7 @@ static int cm109_input_open(struct input_dev *idev)
 	mutex_lock(&dev->pm_mutex);
 
 	dev->buzzer_state = 0;
-	dev->key_code = -1;	/* no keys pressed */
+	dev->key_code = -1;	/* yes keys pressed */
 	dev->keybit = 0xf;
 
 	/* issue INIT */

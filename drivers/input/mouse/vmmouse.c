@@ -191,7 +191,7 @@ static psmouse_ret_t vmmouse_report_events(struct psmouse *psmouse)
 			input_report_abs(abs_dev, ABS_Y, y);
 		}
 
-		/* Xorg seems to ignore wheel events on absolute devices */
+		/* Xorg seems to igyesre wheel events on absolute devices */
 		input_report_rel(rel_dev, REL_WHEEL, -(s8)((u8) z));
 
 		vmmouse_report_button(psmouse, abs_dev, rel_dev,
@@ -285,7 +285,7 @@ static int vmmouse_enable(struct psmouse *psmouse)
 	 */
 	VMMOUSE_CMD(ABSPOINTER_STATUS, 0, status, dummy1, dummy2, dummy3);
 	if ((status & 0x0000ffff) == 0) {
-		psmouse_dbg(psmouse, "empty flags - assuming no device\n");
+		psmouse_dbg(psmouse, "empty flags - assuming yes device\n");
 		return -ENXIO;
 	}
 
@@ -338,7 +338,7 @@ static bool vmmouse_check_hypervisor(void)
  * @psmouse: Pointer to the psmouse struct
  * @set_properties: Whether to set psmouse name and vendor
  *
- * Returns 0 if vmmouse channel is available. Negative error code if not.
+ * Returns 0 if vmmouse channel is available. Negative error code if yest.
  */
 int vmmouse_detect(struct psmouse *psmouse, bool set_properties)
 {
@@ -346,7 +346,7 @@ int vmmouse_detect(struct psmouse *psmouse, bool set_properties)
 
 	if (!vmmouse_check_hypervisor()) {
 		psmouse_dbg(psmouse,
-			    "VMMouse not running on supported hypervisor.\n");
+			    "VMMouse yest running on supported hypervisor.\n");
 		return -ENXIO;
 	}
 
@@ -414,7 +414,7 @@ static int vmmouse_reconnect(struct psmouse *psmouse)
  *
  * Requests the device and tries to enable vmmouse mode.
  * If successful, sets up the input device for relative movement events.
- * It also allocates another input device and sets it up for absolute motion
+ * It also allocates ayesther input device and sets it up for absolute motion
  * events. Returns 0 on success and -1 on failure.
  */
 int vmmouse_init(struct psmouse *psmouse)

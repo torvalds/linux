@@ -6,7 +6,7 @@
  *
  * membarrier system call API
  *
- * Copyright (c) 2010, 2015 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * Copyright (c) 2010, 2015 Mathieu Desyesyers <mathieu.desyesyers@efficios.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -15,7 +15,7 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -37,7 +37,7 @@
  *                          through a state where all memory accesses to
  *                          user-space addresses match program order between
  *                          entry to and return from the system call
- *                          (non-running threads are de facto in such a
+ *                          (yesn-running threads are de facto in such a
  *                          state). This covers threads from all processes
  *                          running on the system. This command returns 0.
  * @MEMBARRIER_CMD_GLOBAL_EXPEDITED:
@@ -49,7 +49,7 @@
  *                          through a state where all memory accesses to
  *                          user-space addresses match program order between
  *                          entry to and return from the system call
- *                          (non-running threads are de facto in such a
+ *                          (yesn-running threads are de facto in such a
  *                          state). This only covers threads from processes
  *                          which registered with
  *                          MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED.
@@ -57,7 +57,7 @@
  *                          registration is about the intent to receive
  *                          the barriers, it is valid to invoke
  *                          MEMBARRIER_CMD_GLOBAL_EXPEDITED from a
- *                          non-registered process.
+ *                          yesn-registered process.
  * @MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED:
  *                          Register the process intent to receive
  *                          MEMBARRIER_CMD_GLOBAL_EXPEDITED memory
@@ -71,12 +71,12 @@
  *                          where all memory accesses to user-space
  *                          addresses match program order between entry
  *                          to and return from the system call
- *                          (non-running threads are de facto in such a
+ *                          (yesn-running threads are de facto in such a
  *                          state). This only covers threads from the
  *                          same process as the caller thread. This
  *                          command returns 0 on success. The
  *                          "expedited" commands complete faster than
- *                          the non-expedited ones, they never block,
+ *                          the yesn-expedited ones, they never block,
  *                          but have the downside of causing extra
  *                          overhead. A process needs to register its
  *                          intent to use the private expedited command
@@ -94,16 +94,16 @@
  *                          call, that all its running threads siblings
  *                          have executed a core serializing
  *                          instruction. (architectures are required to
- *                          guarantee that non-running threads issue
+ *                          guarantee that yesn-running threads issue
  *                          core serializing instructions before they
  *                          resume user-space execution). This only
  *                          covers threads from the same process as the
  *                          caller thread. This command returns 0 on
  *                          success. The "expedited" commands complete
- *                          faster than the non-expedited ones, they
+ *                          faster than the yesn-expedited ones, they
  *                          never block, but have the downside of
  *                          causing extra overhead. If this command is
- *                          not implemented by an architecture, -EINVAL
+ *                          yest implemented by an architecture, -EINVAL
  *                          is returned. A process needs to register its
  *                          intent to use the private expedited sync
  *                          core command prior to using it, otherwise
@@ -111,7 +111,7 @@
  * @MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE:
  *                          Register the process intent to use
  *                          MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE.
- *                          If this command is not implemented by an
+ *                          If this command is yest implemented by an
  *                          architecture, -EINVAL is returned.
  *                          Returns 0 on success.
  * @MEMBARRIER_CMD_SHARED:

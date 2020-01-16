@@ -8,7 +8,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -31,15 +31,15 @@
  *                     Feature and Parameter Negotiation
  *****************************************************************************
  *
- * The two halves of a para-virtual driver utilize nodes within
+ * The two halves of a para-virtual driver utilize yesdes within
  * XenStore to communicate capabilities and to negotiate operating parameters.
- * This section enumerates these nodes which reside in the respective front and
+ * This section enumerates these yesdes which reside in the respective front and
  * backend portions of XenStore, following XenBus convention.
  *
  * All data in XenStore is stored as strings.  Nodes specifying numeric
  * values are encoded in decimal. Integer value ranges listed below are
  * expressed as fixed sized integer types capable of storing the conversion
- * of a properly formated node string, without loss of information.
+ * of a properly formated yesde string, without loss of information.
  *
  *****************************************************************************
  *                            Backend XenBus Nodes
@@ -49,18 +49,18 @@
  *
  * Capable backend advertises supported features by publishing
  * corresponding entries in XenStore and puts 1 as the value of the entry.
- * If a feature is not supported then 0 must be set or feature entry omitted.
+ * If a feature is yest supported then 0 must be set or feature entry omitted.
  *
  * feature-disable-keyboard
  *      Values:         <uint>
  *
- *      If there is no need to expose a virtual keyboard device by the
+ *      If there is yes need to expose a virtual keyboard device by the
  *      frontend then this must be set to 1.
  *
  * feature-disable-pointer
  *      Values:         <uint>
  *
- *      If there is no need to expose a virtual pointer device by the
+ *      If there is yes need to expose a virtual pointer device by the
  *      frontend then this must be set to 1.
  *
  * feature-abs-pointer
@@ -131,8 +131,8 @@
  *------------------------------ Feature request -----------------------------
  *
  * Capable frontend requests features from backend via setting corresponding
- * entries to 1 in XenStore. Requests for features not advertised as supported
- * by the backend have no effect.
+ * entries to 1 in XenStore. Requests for features yest advertised as supported
+ * by the backend have yes effect.
  *
  * request-abs-pointer
  *      Values:         <uint>
@@ -169,7 +169,7 @@
  * page-ref
  *      Values:         <uint>
  *
- *      OBSOLETE, not recommended for use.
+ *      OBSOLETE, yest recommended for use.
  *      PFN of the shared page.
  */
 
@@ -215,7 +215,7 @@
 #define XENKBD_FIELD_MT_NUM_CONTACTS	"multi-touch-num-contacts"
 #define XENKBD_FIELD_UNIQUE_ID		"unique-id"
 
-/* OBSOLETE, not recommended for use */
+/* OBSOLETE, yest recommended for use */
 #define XENKBD_FIELD_RING_REF		"page-ref"
 
 /*
@@ -233,7 +233,7 @@
  *                           Backend to frontend events
  *****************************************************************************
  *
- * Frontends should ignore unknown in events.
+ * Frontends should igyesre unkyeswn in events.
  * All event packets have the same length (40 octets)
  * All event packets have common header:
  *
@@ -431,8 +431,8 @@ struct xenkbd_position {
  * +----------------+----------------+----------------+----------------+
  *
  * Multi-touch shape event - touch point's shape has changed its shape.
- * Shape is approximated by an ellipse through the major and minor axis
- * lengths: major is the longer diameter of the ellipse and minor is the
+ * Shape is approximated by an ellipse through the major and miyesr axis
+ * lengths: major is the longer diameter of the ellipse and miyesr is the
  * shorter one. Center of the ellipse is reported via
  * XENKBD_MT_EV_DOWN/XENKBD_MT_EV_MOTION events.
  *         0                1                 2               3        octet
@@ -443,7 +443,7 @@ struct xenkbd_position {
  * +----------------+----------------+----------------+----------------+
  * |                               major                               | 12
  * +----------------+----------------+----------------+----------------+
- * |                               minor                               | 16
+ * |                               miyesr                               | 16
  * +----------------+----------------+----------------+----------------+
  * |                             reserved                              | 20
  * +----------------+----------------+----------------+----------------+
@@ -453,7 +453,7 @@ struct xenkbd_position {
  * +----------------+----------------+----------------+----------------+
  *
  * major - unt32_t, length of the major axis, pixels
- * minor - unt32_t, length of the minor axis, pixels
+ * miyesr - unt32_t, length of the miyesr axis, pixels
  *
  * Multi-touch orientation event - touch point's shape has changed
  * its orientation: calculated as a clockwise angle between the major axis
@@ -488,7 +488,7 @@ struct xenkbd_mtouch {
 		} pos;
 		struct {
 			uint32_t major;	/* length of the major axis, pixels */
-			uint32_t minor;	/* length of the minor axis, pixels */
+			uint32_t miyesr;	/* length of the miyesr axis, pixels */
 		} shape;
 		int16_t orientation;	/* clockwise angle of the major axis */
 	} u;
@@ -511,7 +511,7 @@ union xenkbd_in_event {
  *****************************************************************************
  *
  * Out events may be sent only when requested by backend, and receipt
- * of an unknown out event is an error.
+ * of an unkyeswn out event is an error.
  * No out events currently defined.
 
  * All event packets have the same length (40 octets)

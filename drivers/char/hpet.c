@@ -152,8 +152,8 @@ static irqreturn_t hpet_interrupt(int irq, void *data)
 	devp->hd_irqdata++;
 
 	/*
-	 * For non-periodic timers, increment the accumulator.
-	 * This has the effect of treating non-periodic like periodic.
+	 * For yesn-periodic timers, increment the accumulator.
+	 * This has the effect of treating yesn-periodic like periodic.
 	 */
 	if ((devp->hd_flags & (HPET_IE | HPET_PERIODIC)) == HPET_IE) {
 		unsigned long m, t, mc, base, k;
@@ -254,7 +254,7 @@ static void hpet_timer_set_irq(struct hpet_dev *devp)
 	return;
 }
 
-static int hpet_open(struct inode *inode, struct file *file)
+static int hpet_open(struct iyesde *iyesde, struct file *file)
 {
 	struct hpet_dev *devp;
 	struct hpets *hpetp;
@@ -390,7 +390,7 @@ static int hpet_mmap(struct file *file, struct vm_area_struct *vma)
 	if (addr & (PAGE_SIZE - 1))
 		return -ENOSYS;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	return vm_iomap_memory(vma, addr, PAGE_SIZE);
 }
 #else
@@ -412,7 +412,7 @@ static int hpet_fasync(int fd, struct file *file, int on)
 		return -EIO;
 }
 
-static int hpet_release(struct inode *inode, struct file *file)
+static int hpet_release(struct iyesde *iyesde, struct file *file)
 {
 	struct hpet_dev *devp;
 	struct hpet_timer __iomem *timer;
@@ -488,7 +488,7 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 			/*
 			 * To prevent the interrupt handler from seeing an
 			 * unwanted interrupt status bit, program the timer
-			 * so that it will not fire in the near future ...
+			 * so that it will yest fire in the near future ...
 			 */
 			writel(readl(&timer->hpet_config) & ~Tn_TYPE_CNF_MASK,
 			       &timer->hpet_config);
@@ -503,7 +503,7 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 		irq_flags = devp->hd_flags & HPET_SHARED_IRQ ? IRQF_SHARED : 0;
 		if (request_irq(irq, hpet_interrupt, irq_flags,
 				devp->hd_name, (void *)devp)) {
-			printk(KERN_ERR "hpet: IRQ %d is not free\n", irq);
+			printk(KERN_ERR "hpet: IRQ %d is yest free\n", irq);
 			irq = 0;
 		}
 	}
@@ -519,7 +519,7 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	t = devp->hd_ireqfreq;
 	v = readq(&timer->hpet_config);
 
-	/* 64-bit comparators are not yet supported through the ioctls,
+	/* 64-bit comparators are yest yet supported through the ioctls,
 	 * so force this into 32-bit mode if it supports both modes
 	 */
 	g = v | Tn_32MODE_CNF_MASK | Tn_INT_ENB_CNF_MASK;
@@ -711,7 +711,7 @@ hpet_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static const struct file_operations hpet_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.read = hpet_read,
 	.poll = hpet_poll,
 	.unlocked_ioctl = hpet_ioctl,
@@ -724,7 +724,7 @@ static const struct file_operations hpet_fops = {
 	.mmap = hpet_mmap,
 };
 
-static int hpet_is_known(struct hpet_data *hdp)
+static int hpet_is_kyeswn(struct hpet_data *hdp)
 {
 	struct hpets *hpetp;
 
@@ -849,8 +849,8 @@ int hpet_alloc(struct hpet_data *hdp)
 	 * If platform dependent code has allocated the hpet that
 	 * ACPI has also reported, then we catch it here.
 	 */
-	if (hpet_is_known(hdp)) {
-		printk(KERN_DEBUG "%s: duplicate HPET ignored\n",
+	if (hpet_is_kyeswn(hdp)) {
+		printk(KERN_DEBUG "%s: duplicate HPET igyesred\n",
 			__func__);
 		return 0;
 	}
@@ -972,7 +972,7 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		if (!hdp->hd_address)
 			return AE_ERROR;
 
-		if (hpet_is_known(hdp)) {
+		if (hpet_is_kyeswn(hdp)) {
 			iounmap(hdp->hd_address);
 			return AE_ALREADY_EXISTS;
 		}
@@ -985,7 +985,7 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		hdp->hd_address = ioremap(fixmem32->address,
 						HPET_RANGE_SIZE);
 
-		if (hpet_is_known(hdp)) {
+		if (hpet_is_kyeswn(hdp)) {
 			iounmap(hdp->hd_address);
 			return AE_ALREADY_EXISTS;
 		}
@@ -1029,7 +1029,7 @@ static int hpet_acpi_add(struct acpi_device *device)
 	if (!data.hd_address || !data.hd_nirqs) {
 		if (data.hd_address)
 			iounmap(data.hd_address);
-		printk("%s: no address or irqs in _CRS\n", __func__);
+		printk("%s: yes address or irqs in _CRS\n", __func__);
 		return -ENODEV;
 	}
 

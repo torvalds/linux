@@ -4,7 +4,7 @@ menu "Mapping drivers for chip access"
 	depends on HAS_IOMEM
 
 config MTD_COMPLEX_MAPPINGS
-	bool "Support non-linear mappings of flash chips"
+	bool "Support yesn-linear mappings of flash chips"
 	help
 	  This causes the chip drivers to allow for complicated
 	  paged mappings of flash chips.
@@ -146,7 +146,7 @@ config MTD_SUN_UFLASH
 	  This provides a 'mapping' driver which supports the way in
 	  which user-programmable flash chips are connected on various
 	  Sun Microsystems boardsets.  This driver will require CFI support
-	  in the kernel, so if you did not enable CFI previously, do that now.
+	  in the kernel, so if you did yest enable CFI previously, do that yesw.
 
 config MTD_SC520CDP
 	tristate "CFI Flash device mapped on AMD SC520 CDP"
@@ -165,12 +165,12 @@ config MTD_NETSC520
 	  to use the flash chips on it, say 'Y'.
 
 config MTD_TS5500
-	tristate "JEDEC Flash device mapped on Technologic Systems TS-5500"
+	tristate "JEDEC Flash device mapped on Techyeslogic Systems TS-5500"
 	depends on TS5500 || COMPILE_TEST
 	select MTD_JEDECPROBE
 	select MTD_CFI_AMDSTD
 	help
-	  This provides a driver for the on-board flash of the Technologic
+	  This provides a driver for the on-board flash of the Techyeslogic
 	  System's TS-5500 board. The 2MB flash is split into 3 partitions
 	  which are accessed as separate MTD devices.
 
@@ -187,7 +187,7 @@ config MTD_SBC_GXX
 	depends on X86 && MTD_CFI_INTELEXT && MTD_COMPLEX_MAPPINGS
 	help
 	  This provides a driver for the on-board flash of Arcom Control
-	  Systems' SBC-GXn family of boards, formerly known as SBC-MediaGX.
+	  Systems' SBC-GXn family of boards, formerly kyeswn as SBC-MediaGX.
 	  By default the flash is split into 3 partitions which are accessed
 	  as separate MTD devices. This board utilizes Intel StrataFlash.
 	  More info at
@@ -206,7 +206,7 @@ config MTD_SCx200_DOCFLASH
 	  Enable support for a flash chip mapped using the DOCCS signal on a
 	  National Semiconductor SCx200 processor.
 
-	  If you don't know what to do here, say N.
+	  If you don't kyesw what to do here, say N.
 
 	  If compiled as a module, it will be called scx200_docflash.
 
@@ -286,7 +286,7 @@ config MTD_CFI_FLAGADM
 	tristate "CFI Flash device mapping on FlagaDM"
 	depends on PPC_8xx && MTD_CFI
 	help
-	  Mapping for the Flaga digital module. If you don't have one, ignore
+	  Mapping for the Flaga digital module. If you don't have one, igyesre
 	  this setting.
 
 config MTD_SOLUTIONENGINE
@@ -337,21 +337,21 @@ config MTD_PCI
 	  IQ80310 card, and the Intel EBSA285 card in blank ROM programming mode
 	  (please see the manual for the link settings).
 
-	  If you are not sure, say N.
+	  If you are yest sure, say N.
 
 config MTD_PCMCIA
 	tristate "PCMCIA MTD driver"
 	depends on PCMCIA && MTD_COMPLEX_MAPPINGS
 	help
 	  Map driver for accessing PCMCIA linear flash memory cards. These
-	  cards are usually around 4-16MiB in size. This does not include
+	  cards are usually around 4-16MiB in size. This does yest include
 	  Compact Flash cards which are treated as IDE devices.
 
 config MTD_PCMCIA_ANONYMOUS
-	bool "Use PCMCIA MTD drivers for anonymous PCMCIA cards"
+	bool "Use PCMCIA MTD drivers for ayesnymous PCMCIA cards"
 	depends on MTD_PCMCIA
 	help
-	  If this option is enabled, PCMCIA cards which do not report
+	  If this option is enabled, PCMCIA cards which do yest report
 	  anything about themselves are assumed to be MTD cards.
 
 	  If unsure, say N.
@@ -405,7 +405,7 @@ config MTD_PISMO
 	  up to five memory devices (eg, SRAM, flash, DOC) described by an
 	  I2C EEPROM.
 
-	  This driver does not create any MTD maps itself; instead it
+	  This driver does yest create any MTD maps itself; instead it
 	  creates MTD physmap and MTD SRAM platform devices.  If you
 	  enable this option, you should consider enabling MTD_PHYSMAP
 	  and/or MTD_PLATRAM according to the devices on your module.

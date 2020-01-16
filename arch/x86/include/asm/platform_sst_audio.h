@@ -5,7 +5,7 @@
  * Copyright (C) 2012-14 Intel Corporation
  * Author: Jeeja KP <jeeja.kp@intel.com>
  * 	Omair Mohammed Abdullah <omair.m.abdullah@intel.com>
- *	Vinod Koul ,vinod.koul@intel.com>
+ *	Viyesd Koul ,viyesd.koul@intel.com>
  */
 #ifndef _PLATFORM_SST_AUDIO_H_
 #define _PLATFORM_SST_AUDIO_H_

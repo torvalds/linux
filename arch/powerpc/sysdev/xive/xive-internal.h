@@ -39,7 +39,7 @@ struct xive_ops {
 	void	(*cleanup_queue)(unsigned int cpu, struct xive_cpu *xc, u8 prio);
 	void	(*setup_cpu)(unsigned int cpu, struct xive_cpu *xc);
 	void	(*teardown_cpu)(unsigned int cpu, struct xive_cpu *xc);
-	bool	(*match)(struct device_node *np);
+	bool	(*match)(struct device_yesde *np);
 	void	(*shutdown)(void);
 
 	void	(*update_pending)(struct xive_cpu *xc);

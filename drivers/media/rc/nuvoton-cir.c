@@ -1,5 +1,5 @@
 /*
- * Driver for Nuvoton Technology Corporation w83667hg/w83677hg-i CIR
+ * Driver for Nuvoton Techyeslogy Corporation w83667hg/w83677hg-i CIR
  *
  * Copyright (C) 2010 Jarod Wilson <jarod@redhat.com>
  * Copyright (C) 2009 Nuvoton PS Team
@@ -414,11 +414,11 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 		nvt_efm_enable(nvt);
 		nvt->chip_major = nvt_cr_read(nvt, CR_CHIP_ID_HI);
 	}
-	nvt->chip_minor = nvt_cr_read(nvt, CR_CHIP_ID_LO);
+	nvt->chip_miyesr = nvt_cr_read(nvt, CR_CHIP_ID_LO);
 
 	nvt_efm_disable(nvt);
 
-	chip_id = nvt->chip_major << 8 | nvt->chip_minor;
+	chip_id = nvt->chip_major << 8 | nvt->chip_miyesr;
 	if (chip_id == NVT_INVALID) {
 		dev_err(dev, "No device found on either EFM port\n");
 		return -ENODEV;
@@ -426,14 +426,14 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 
 	chip_name = nvt_find_chip(nvt, chip_id);
 
-	/* warn, but still let the driver load, if we don't know this chip */
+	/* warn, but still let the driver load, if we don't kyesw this chip */
 	if (!chip_name)
 		dev_warn(dev,
-			 "unknown chip, id: 0x%02x 0x%02x, it may not work...",
-			 nvt->chip_major, nvt->chip_minor);
+			 "unkyeswn chip, id: 0x%02x 0x%02x, it may yest work...",
+			 nvt->chip_major, nvt->chip_miyesr);
 	else
 		dev_info(dev, "found %s or compatible: chip id: 0x%02x 0x%02x",
-			 chip_name, nvt->chip_major, nvt->chip_minor);
+			 chip_name, nvt->chip_major, nvt->chip_miyesr);
 
 	return 0;
 }
@@ -614,7 +614,7 @@ static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 	duration *= SAMPLE_PERIOD;
 
 	if (!count || !duration) {
-		dev_notice(nvt_get_dev(nvt),
+		dev_yestice(nvt_get_dev(nvt),
 			   "Unable to determine carrier! (c:%u, d:%u)",
 			   count, duration);
 		return 0;
@@ -794,7 +794,7 @@ static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 		nvt->buf[i] = nvt_cir_reg_read(nvt, CIR_SRXFIFO);
 
 	nvt->pkts = fifocount;
-	nvt_dbg("%s: pkts now %d", __func__, nvt->pkts);
+	nvt_dbg("%s: pkts yesw %d", __func__, nvt->pkts);
 
 	nvt_process_rx_ir_data(nvt);
 }
@@ -964,25 +964,25 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	/* activate pnp device */
 	ret = pnp_activate_dev(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not activate PNP device!\n");
+		dev_err(&pdev->dev, "Could yest activate PNP device!\n");
 		return ret;
 	}
 
 	/* validate pnp resources */
 	if (!pnp_port_valid(pdev, 0) ||
 	    pnp_port_len(pdev, 0) < CIR_IOREG_LENGTH) {
-		dev_err(&pdev->dev, "IR PNP Port not valid!\n");
+		dev_err(&pdev->dev, "IR PNP Port yest valid!\n");
 		return -EINVAL;
 	}
 
 	if (!pnp_irq_valid(pdev, 0)) {
-		dev_err(&pdev->dev, "PNP IRQ not valid!\n");
+		dev_err(&pdev->dev, "PNP IRQ yest valid!\n");
 		return -EINVAL;
 	}
 
 	if (!pnp_port_valid(pdev, 1) ||
 	    pnp_port_len(pdev, 1) < CIR_IOREG_LENGTH) {
-		dev_err(&pdev->dev, "Wake PNP Port not valid!\n");
+		dev_err(&pdev->dev, "Wake PNP Port yest valid!\n");
 		return -EINVAL;
 	}
 
@@ -1029,7 +1029,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	rdev->input_id.bustype = BUS_HOST;
 	rdev->input_id.vendor = PCI_VENDOR_ID_WINBOND2;
 	rdev->input_id.product = nvt->chip_major;
-	rdev->input_id.version = nvt->chip_minor;
+	rdev->input_id.version = nvt->chip_miyesr;
 	rdev->driver_name = NVT_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
 	rdev->timeout = MS_TO_NS(100);
@@ -1043,7 +1043,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	if (ret)
 		return ret;
 
-	/* now claim resources */
+	/* yesw claim resources */
 	if (!devm_request_region(&pdev->dev, nvt->cir_addr,
 			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME))
 		return -EBUSY;
@@ -1063,7 +1063,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	device_init_wakeup(&pdev->dev, true);
 
-	dev_notice(&pdev->dev, "driver has been successfully loaded\n");
+	dev_yestice(&pdev->dev, "driver has been successfully loaded\n");
 	if (debug) {
 		cir_dump_regs(nvt);
 		cir_wake_dump_regs(nvt);

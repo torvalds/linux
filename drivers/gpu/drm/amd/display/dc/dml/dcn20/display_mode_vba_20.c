@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -111,8 +111,8 @@ static bool CalculatePrefetchSchedule(
 		double *VRatioPrefetchY,
 		double *VRatioPrefetchC,
 		double *RequiredPrefetchPixDataBW,
-		unsigned int *VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-		double *Tno_bw,
+		unsigned int *VStartupRequiredWhenNotEyesughTimeForDynamicMetadata,
+		double *Tyes_bw,
 		unsigned int *VUpdateOffsetPix,
 		double *VUpdateWidthPix,
 		double *VReadyOffsetPix);
@@ -204,7 +204,7 @@ static void CalculateFlipSchedule(
 		unsigned int ImmediateFlipBytes,
 		double LineTime,
 		double VRatio,
-		double Tno_bw,
+		double Tyes_bw,
 		double PDEAndMetaPTEBytesFrame,
 		unsigned int MetaRowByte,
 		unsigned int PixelPTEBytesPerRow,
@@ -494,8 +494,8 @@ static bool CalculatePrefetchSchedule(
 		double *VRatioPrefetchY,
 		double *VRatioPrefetchC,
 		double *RequiredPrefetchPixDataBW,
-		unsigned int *VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-		double *Tno_bw,
+		unsigned int *VStartupRequiredWhenNotEyesughTimeForDynamicMetadata,
+		double *Tyes_bw,
 		unsigned int *VUpdateOffsetPix,
 		double *VUpdateWidthPix,
 		double *VReadyOffsetPix)
@@ -571,24 +571,24 @@ static bool CalculatePrefetchSchedule(
 		if (VStartup * LineTime
 				< Tsetup + TWait + UrgentExtraLatency + Tdmbf + Tdmec + Tdmsks) {
 			MyError = true;
-			*VStartupRequiredWhenNotEnoughTimeForDynamicMetadata = (Tsetup + TWait
+			*VStartupRequiredWhenNotEyesughTimeForDynamicMetadata = (Tsetup + TWait
 					+ UrgentExtraLatency + Tdmbf + Tdmec + Tdmsks) / LineTime;
 		} else
-			*VStartupRequiredWhenNotEnoughTimeForDynamicMetadata = 0.0;
+			*VStartupRequiredWhenNotEyesughTimeForDynamicMetadata = 0.0;
 	} else
 		Tdm = 0;
 
 	if (GPUVMEnable) {
 		if (PageTableLevels == 4)
-			*Tno_bw = UrgentExtraLatency + UrgentLatencyPixelDataOnly;
+			*Tyes_bw = UrgentExtraLatency + UrgentLatencyPixelDataOnly;
 		else if (PageTableLevels == 3)
-			*Tno_bw = UrgentExtraLatency;
+			*Tyes_bw = UrgentExtraLatency;
 		else
-			*Tno_bw = 0;
+			*Tyes_bw = 0;
 	} else if (DCCEnable)
-		*Tno_bw = LineTime;
+		*Tyes_bw = LineTime;
 	else
-		*Tno_bw = LineTime / 4;
+		*Tyes_bw = LineTime / 4;
 
 	dst_y_prefetch_equ = VStartup - dml_max(TCalc + TWait, XFCRemoteSurfaceFlipDelay) / LineTime
 			- (Tsetup + Tdm) / LineTime
@@ -604,7 +604,7 @@ static bool CalculatePrefetchSchedule(
 	if (GPUVMEnable == true) {
 		Tvm_oto =
 				dml_max(
-						*Tno_bw + PDEAndMetaPTEBytesFrame / prefetch_bw_oto,
+						*Tyes_bw + PDEAndMetaPTEBytesFrame / prefetch_bw_oto,
 						dml_max(
 								UrgentExtraLatency
 										+ UrgentLatencyPixelDataOnly
@@ -656,11 +656,11 @@ static bool CalculatePrefetchSchedule(
 				+ PrefetchSourceLinesY * SwathWidthY * dml_ceil(BytePerPixelDETY, 1)
 				+ PrefetchSourceLinesC * SwathWidthY / 2
 						* dml_ceil(BytePerPixelDETC, 2))
-				/ (*DestinationLinesForPrefetch * LineTime - *Tno_bw);
+				/ (*DestinationLinesForPrefetch * LineTime - *Tyes_bw);
 		if (GPUVMEnable) {
 			TimeForFetchingMetaPTE =
 					dml_max(
-							*Tno_bw
+							*Tyes_bw
 									+ (double) PDEAndMetaPTEBytesFrame
 											/ *PrefetchBandwidth,
 							dml_max(
@@ -826,7 +826,7 @@ static double CalculatePrefetchSourceLines(
 	else
 		*VInitPreFill = dml_floor((VRatio + vtaps + 1 + Interlace * 0.5 * VRatio) / 2.0, 1);
 
-	if (!mode_lib->vba.IgnoreViewportPositioning) {
+	if (!mode_lib->vba.IgyesreViewportPositioning) {
 
 		*MaxNumSwath = dml_ceil((*VInitPreFill - 1.0) / SwathHeight, 1) + 1.0;
 
@@ -841,7 +841,7 @@ static double CalculatePrefetchSourceLines(
 
 		if (ViewportYStart != 0)
 			dml_print(
-					"WARNING DML: using viewport y position of 0 even though actual viewport y position is non-zero in prefetch source lines calculation\n");
+					"WARNING DML: using viewport y position of 0 even though actual viewport y position is yesn-zero in prefetch source lines calculation\n");
 
 		*MaxNumSwath = dml_ceil(*VInitPreFill / SwathHeight, 1);
 
@@ -2150,8 +2150,8 @@ static void dml20_DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPer
 							&mode_lib->vba.VRatioPrefetchY[k],
 							&mode_lib->vba.VRatioPrefetchC[k],
 							&mode_lib->vba.RequiredPrefetchPixDataBWLuma[k],
-							&mode_lib->vba.VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-							&mode_lib->vba.Tno_bw[k],
+							&mode_lib->vba.VStartupRequiredWhenNotEyesughTimeForDynamicMetadata,
+							&mode_lib->vba.Tyes_bw[k],
 							&mode_lib->vba.VUpdateOffsetPix[k],
 							&mode_lib->vba.VUpdateWidthPix[k],
 							&mode_lib->vba.VReadyOffsetPix[k]);
@@ -2159,10 +2159,10 @@ static void dml20_DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPer
 				mode_lib->vba.VStartup[k] = dml_min(
 						mode_lib->vba.VStartupLines,
 						mode_lib->vba.MaxVStartupLines[k]);
-				if (mode_lib->vba.VStartupRequiredWhenNotEnoughTimeForDynamicMetadata
+				if (mode_lib->vba.VStartupRequiredWhenNotEyesughTimeForDynamicMetadata
 						!= 0) {
 					mode_lib->vba.VStartup[k] =
-							mode_lib->vba.VStartupRequiredWhenNotEnoughTimeForDynamicMetadata;
+							mode_lib->vba.VStartupRequiredWhenNotEyesughTimeForDynamicMetadata;
 				}
 			} else {
 				mode_lib->vba.VStartup[k] =
@@ -2281,7 +2281,7 @@ static void dml20_DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPer
 						mode_lib->vba.HTotal[k]
 								/ mode_lib->vba.PixelClock[k],
 						mode_lib->vba.VRatio[k],
-						mode_lib->vba.Tno_bw[k],
+						mode_lib->vba.Tyes_bw[k],
 						mode_lib->vba.PDEAndMetaPTEBytesFrame[k],
 						mode_lib->vba.MetaRowByte[k],
 						mode_lib->vba.PixelPTEBytesPerRow[k],
@@ -2701,7 +2701,7 @@ static void dml20_DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPer
 
 		if (mode_lib->vba.UseMaximumVStartup) {
 			if (mode_lib->vba.VTotal_Max[k] == mode_lib->vba.VTotal[k]) {
-				//only use max vstart if it is not drr or lateflip.
+				//only use max vstart if it is yest drr or lateflip.
 				mode_lib->vba.VStartup[k] = mode_lib->vba.MaxVStartupLines[mode_lib->vba.BlendingAndTiming[k]];
 			}
 		}
@@ -3090,7 +3090,7 @@ static void CalculateFlipSchedule(
 		unsigned int ImmediateFlipBytes,
 		double LineTime,
 		double VRatio,
-		double Tno_bw,
+		double Tyes_bw,
 		double PDEAndMetaPTEBytesFrame,
 		unsigned int MetaRowByte,
 		unsigned int PixelPTEBytesPerRow,
@@ -3119,7 +3119,7 @@ static void CalculateFlipSchedule(
 					* ImmediateFlipBytes / TotImmediateFlipBytes;
 			TimeForFetchingMetaPTEImmediateFlip =
 					dml_max(
-							Tno_bw
+							Tyes_bw
 									+ PDEAndMetaPTEBytesFrame
 											/ mode_lib->vba.ImmediateFlipBW[0],
 							dml_max(
@@ -3298,8 +3298,8 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				&& ((mode_lib->vba.SourcePixelFormat[k] != dm_444_64
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_32
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_8)
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moyes_16
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moyes_8)
 						|| mode_lib->vba.HRatio[k] != 1.0
 						|| mode_lib->vba.htaps[k] != 1.0
 						|| mode_lib->vba.VRatio[k] != 1.0
@@ -3316,8 +3316,8 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				|| (mode_lib->vba.SourcePixelFormat[k] != dm_444_64
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_32
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_8
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moyes_16
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moyes_8
 						&& (mode_lib->vba.HRatio[k] / 2.0
 								> mode_lib->vba.HTAPsChroma[k]
 								|| mode_lib->vba.VRatio[k] / 2.0
@@ -3340,7 +3340,7 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						|| mode_lib->vba.SurfaceTiling[k] == dm_sw_var_d_x)
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_64)
 				|| (mode_lib->vba.SurfaceTiling[k] == dm_sw_64kb_r_x
-						&& (mode_lib->vba.SourcePixelFormat[k] == dm_mono_8
+						&& (mode_lib->vba.SourcePixelFormat[k] == dm_moyes_8
 								|| mode_lib->vba.SourcePixelFormat[k]
 										== dm_420_8
 								|| mode_lib->vba.SourcePixelFormat[k]
@@ -3378,10 +3378,10 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			locals->BytePerPixelInDETY[k] = 4.0;
 			locals->BytePerPixelInDETC[k] = 0.0;
 		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_444_16
-				|| mode_lib->vba.SourcePixelFormat[k] == dm_mono_16) {
+				|| mode_lib->vba.SourcePixelFormat[k] == dm_moyes_16) {
 			locals->BytePerPixelInDETY[k] = 2.0;
 			locals->BytePerPixelInDETC[k] = 0.0;
-		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_mono_8) {
+		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_moyes_8) {
 			locals->BytePerPixelInDETY[k] = 1.0;
 			locals->BytePerPixelInDETC[k] = 0.0;
 		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_420_8) {
@@ -3764,8 +3764,8 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		if ((mode_lib->vba.SourcePixelFormat[k] == dm_444_64
 				|| mode_lib->vba.SourcePixelFormat[k] == dm_444_32
 				|| mode_lib->vba.SourcePixelFormat[k] == dm_444_16
-				|| mode_lib->vba.SourcePixelFormat[k] == dm_mono_16
-				|| mode_lib->vba.SourcePixelFormat[k] == dm_mono_8)) {
+				|| mode_lib->vba.SourcePixelFormat[k] == dm_moyes_16
+				|| mode_lib->vba.SourcePixelFormat[k] == dm_moyes_8)) {
 			if (mode_lib->vba.SurfaceTiling[k] == dm_sw_linear
 					|| (mode_lib->vba.SourcePixelFormat[k] == dm_444_64
 							&& (mode_lib->vba.SurfaceTiling[k]
@@ -4202,7 +4202,7 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		}
 	}
 	for (i = 0; i <= mode_lib->vba.soc.num_states; i++) {
-		locals->NotEnoughDSCUnits[i] = false;
+		locals->NotEyesughDSCUnits[i] = false;
 		mode_lib->vba.TotalDSCUnitsRequired = 0.0;
 		for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
 			if (locals->RequiresDSC[i][k] == true) {
@@ -4216,7 +4216,7 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			}
 		}
 		if (mode_lib->vba.TotalDSCUnitsRequired > mode_lib->vba.NumberOfDSC) {
-			locals->NotEnoughDSCUnits[i] = true;
+			locals->NotEyesughDSCUnits[i] = true;
 		}
 	}
 	/*DSC Delay per state*/
@@ -4523,8 +4523,8 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				if ((mode_lib->vba.SourcePixelFormat[k] != dm_444_64
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_32
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_8)) {
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moyes_16
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moyes_8)) {
 					mode_lib->vba.PDEAndMetaPTEBytesPerFrameC = CalculateVMAndRowBytes(
 							mode_lib,
 							mode_lib->vba.DCCEnable[k],
@@ -4755,8 +4755,8 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 									&mode_lib->vba.VRatioPreY[i][j][k],
 									&mode_lib->vba.VRatioPreC[i][j][k],
 									&mode_lib->vba.RequiredPrefetchPixelDataBWLuma[i][j][k],
-									&mode_lib->vba.VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-									&mode_lib->vba.Tno_bw[k],
+									&mode_lib->vba.VStartupRequiredWhenNotEyesughTimeForDynamicMetadata,
+									&mode_lib->vba.Tyes_bw[k],
 									&mode_lib->vba.VUpdateOffsetPix[k],
 									&mode_lib->vba.VUpdateWidthPix[k],
 									&mode_lib->vba.VReadyOffsetPix[k]);
@@ -4871,7 +4871,7 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.HTotal[k]
 									/ mode_lib->vba.PixelClock[k],
 							mode_lib->vba.VRatio[k],
-							mode_lib->vba.Tno_bw[k],
+							mode_lib->vba.Tyes_bw[k],
 							mode_lib->vba.PDEAndMetaPTEBytesPerFrame[k],
 							mode_lib->vba.MetaRowBytes[k],
 							mode_lib->vba.DPTEBytesPerRow[k],
@@ -4988,8 +4988,8 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		if (mode_lib->vba.SourcePixelFormat[k] != dm_444_64
 				&& mode_lib->vba.SourcePixelFormat[k] != dm_444_32
 				&& mode_lib->vba.SourcePixelFormat[k] != dm_444_16
-				&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_16
-				&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_8) {
+				&& mode_lib->vba.SourcePixelFormat[k] != dm_moyes_16
+				&& mode_lib->vba.SourcePixelFormat[k] != dm_moyes_8) {
 			locals->AlignedCPitch[k] = dml_ceil(
 					dml_max(
 							mode_lib->vba.PitchC[k],
@@ -5016,7 +5016,7 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				status = DML_FAIL_VIEWPORT_SIZE;
 			} else if (locals->DIOSupport[i] != true) {
 				status = DML_FAIL_DIO_SUPPORT;
-			} else if (locals->NotEnoughDSCUnits[i] != false) {
+			} else if (locals->NotEyesughDSCUnits[i] != false) {
 				status = DML_FAIL_NOT_ENOUGH_DSC;
 			} else if (locals->DSCCLKRequiredMoreThanSupported[i] != false) {
 				status = DML_FAIL_DSC_CLK_REQUIRED;

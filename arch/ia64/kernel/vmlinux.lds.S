@@ -19,7 +19,7 @@ PHDRS {
 	text   PT_LOAD;
 	percpu PT_LOAD;
 	data   PT_LOAD;
-	note   PT_NOTE;
+	yeste   PT_NOTE;
 	unwind 0x70000001; /* PT_IA_64_UNWIND, but ld doesn't match the name */
 }
 
@@ -32,7 +32,7 @@ SECTIONS {
 		*(.IA_64.unwind.exit.text)
 		*(.IA_64.unwind_info.exit.text)
 		*(.comment)
-		*(.note)
+		*(.yeste)
 	}
 
 	v = PAGE_OFFSET; /* this symbol is here to make debugging easier... */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * inode.c
+ * iyesde.c
  *
  * Copyright (c) 1999 Al Smith
  *
@@ -45,133 +45,133 @@ static inline void extent_copy(efs_extent *src, efs_extent *dst) {
 	return;
 }
 
-struct inode *efs_iget(struct super_block *super, unsigned long ino)
+struct iyesde *efs_iget(struct super_block *super, unsigned long iyes)
 {
-	int i, inode_index;
+	int i, iyesde_index;
 	dev_t device;
 	u32 rdev;
 	struct buffer_head *bh;
 	struct efs_sb_info    *sb = SUPER_INFO(super);
-	struct efs_inode_info *in;
+	struct efs_iyesde_info *in;
 	efs_block_t block, offset;
-	struct efs_dinode *efs_inode;
-	struct inode *inode;
+	struct efs_diyesde *efs_iyesde;
+	struct iyesde *iyesde;
 
-	inode = iget_locked(super, ino);
-	if (!inode)
+	iyesde = iget_locked(super, iyes);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(iyesde->i_state & I_NEW))
+		return iyesde;
 
-	in = INODE_INFO(inode);
+	in = INODE_INFO(iyesde);
 
 	/*
 	** EFS layout:
 	**
 	** |   cylinder group    |   cylinder group    |   cylinder group ..etc
-	** |inodes|data          |inodes|data          |inodes|data       ..etc
+	** |iyesdes|data          |iyesdes|data          |iyesdes|data       ..etc
 	**
-	** work out the inode block index, (considering initially that the
-	** inodes are stored as consecutive blocks). then work out the block
-	** number of that inode given the above layout, and finally the
-	** offset of the inode within that block.
+	** work out the iyesde block index, (considering initially that the
+	** iyesdes are stored as consecutive blocks). then work out the block
+	** number of that iyesde given the above layout, and finally the
+	** offset of the iyesde within that block.
 	*/
 
-	inode_index = inode->i_ino /
-		(EFS_BLOCKSIZE / sizeof(struct efs_dinode));
+	iyesde_index = iyesde->i_iyes /
+		(EFS_BLOCKSIZE / sizeof(struct efs_diyesde));
 
 	block = sb->fs_start + sb->first_block + 
-		(sb->group_size * (inode_index / sb->inode_blocks)) +
-		(inode_index % sb->inode_blocks);
+		(sb->group_size * (iyesde_index / sb->iyesde_blocks)) +
+		(iyesde_index % sb->iyesde_blocks);
 
-	offset = (inode->i_ino %
-			(EFS_BLOCKSIZE / sizeof(struct efs_dinode))) *
-		sizeof(struct efs_dinode);
+	offset = (iyesde->i_iyes %
+			(EFS_BLOCKSIZE / sizeof(struct efs_diyesde))) *
+		sizeof(struct efs_diyesde);
 
-	bh = sb_bread(inode->i_sb, block);
+	bh = sb_bread(iyesde->i_sb, block);
 	if (!bh) {
 		pr_warn("%s() failed at block %d\n", __func__, block);
-		goto read_inode_error;
+		goto read_iyesde_error;
 	}
 
-	efs_inode = (struct efs_dinode *) (bh->b_data + offset);
+	efs_iyesde = (struct efs_diyesde *) (bh->b_data + offset);
     
-	inode->i_mode  = be16_to_cpu(efs_inode->di_mode);
-	set_nlink(inode, be16_to_cpu(efs_inode->di_nlink));
-	i_uid_write(inode, (uid_t)be16_to_cpu(efs_inode->di_uid));
-	i_gid_write(inode, (gid_t)be16_to_cpu(efs_inode->di_gid));
-	inode->i_size  = be32_to_cpu(efs_inode->di_size);
-	inode->i_atime.tv_sec = be32_to_cpu(efs_inode->di_atime);
-	inode->i_mtime.tv_sec = be32_to_cpu(efs_inode->di_mtime);
-	inode->i_ctime.tv_sec = be32_to_cpu(efs_inode->di_ctime);
-	inode->i_atime.tv_nsec = inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec = 0;
+	iyesde->i_mode  = be16_to_cpu(efs_iyesde->di_mode);
+	set_nlink(iyesde, be16_to_cpu(efs_iyesde->di_nlink));
+	i_uid_write(iyesde, (uid_t)be16_to_cpu(efs_iyesde->di_uid));
+	i_gid_write(iyesde, (gid_t)be16_to_cpu(efs_iyesde->di_gid));
+	iyesde->i_size  = be32_to_cpu(efs_iyesde->di_size);
+	iyesde->i_atime.tv_sec = be32_to_cpu(efs_iyesde->di_atime);
+	iyesde->i_mtime.tv_sec = be32_to_cpu(efs_iyesde->di_mtime);
+	iyesde->i_ctime.tv_sec = be32_to_cpu(efs_iyesde->di_ctime);
+	iyesde->i_atime.tv_nsec = iyesde->i_mtime.tv_nsec = iyesde->i_ctime.tv_nsec = 0;
 
 	/* this is the number of blocks in the file */
-	if (inode->i_size == 0) {
-		inode->i_blocks = 0;
+	if (iyesde->i_size == 0) {
+		iyesde->i_blocks = 0;
 	} else {
-		inode->i_blocks = ((inode->i_size - 1) >> EFS_BLOCKSIZE_BITS) + 1;
+		iyesde->i_blocks = ((iyesde->i_size - 1) >> EFS_BLOCKSIZE_BITS) + 1;
 	}
 
-	rdev = be16_to_cpu(efs_inode->di_u.di_dev.odev);
+	rdev = be16_to_cpu(efs_iyesde->di_u.di_dev.odev);
 	if (rdev == 0xffff) {
-		rdev = be32_to_cpu(efs_inode->di_u.di_dev.ndev);
+		rdev = be32_to_cpu(efs_iyesde->di_u.di_dev.ndev);
 		if (sysv_major(rdev) > 0xfff)
 			device = 0;
 		else
-			device = MKDEV(sysv_major(rdev), sysv_minor(rdev));
+			device = MKDEV(sysv_major(rdev), sysv_miyesr(rdev));
 	} else
 		device = old_decode_dev(rdev);
 
 	/* get the number of extents for this object */
-	in->numextents = be16_to_cpu(efs_inode->di_numextents);
+	in->numextents = be16_to_cpu(efs_iyesde->di_numextents);
 	in->lastextent = 0;
 
-	/* copy the extents contained within the inode to memory */
+	/* copy the extents contained within the iyesde to memory */
 	for(i = 0; i < EFS_DIRECTEXTENTS; i++) {
-		extent_copy(&(efs_inode->di_u.di_extents[i]), &(in->extents[i]));
+		extent_copy(&(efs_iyesde->di_u.di_extents[i]), &(in->extents[i]));
 		if (i < in->numextents && in->extents[i].cooked.ex_magic != 0) {
-			pr_warn("extent %d has bad magic number in inode %lu\n",
-				i, inode->i_ino);
+			pr_warn("extent %d has bad magic number in iyesde %lu\n",
+				i, iyesde->i_iyes);
 			brelse(bh);
-			goto read_inode_error;
+			goto read_iyesde_error;
 		}
 	}
 
 	brelse(bh);
-	pr_debug("efs_iget(): inode %lu, extents %d, mode %o\n",
-		 inode->i_ino, in->numextents, inode->i_mode);
-	switch (inode->i_mode & S_IFMT) {
+	pr_debug("efs_iget(): iyesde %lu, extents %d, mode %o\n",
+		 iyesde->i_iyes, in->numextents, iyesde->i_mode);
+	switch (iyesde->i_mode & S_IFMT) {
 		case S_IFDIR: 
-			inode->i_op = &efs_dir_inode_operations; 
-			inode->i_fop = &efs_dir_operations; 
+			iyesde->i_op = &efs_dir_iyesde_operations; 
+			iyesde->i_fop = &efs_dir_operations; 
 			break;
 		case S_IFREG:
-			inode->i_fop = &generic_ro_fops;
-			inode->i_data.a_ops = &efs_aops;
+			iyesde->i_fop = &generic_ro_fops;
+			iyesde->i_data.a_ops = &efs_aops;
 			break;
 		case S_IFLNK:
-			inode->i_op = &page_symlink_inode_operations;
-			inode_nohighmem(inode);
-			inode->i_data.a_ops = &efs_symlink_aops;
+			iyesde->i_op = &page_symlink_iyesde_operations;
+			iyesde_yeshighmem(iyesde);
+			iyesde->i_data.a_ops = &efs_symlink_aops;
 			break;
 		case S_IFCHR:
 		case S_IFBLK:
 		case S_IFIFO:
-			init_special_inode(inode, inode->i_mode, device);
+			init_special_iyesde(iyesde, iyesde->i_mode, device);
 			break;
 		default:
-			pr_warn("unsupported inode mode %o\n", inode->i_mode);
-			goto read_inode_error;
+			pr_warn("unsupported iyesde mode %o\n", iyesde->i_mode);
+			goto read_iyesde_error;
 			break;
 	}
 
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_iyesde(iyesde);
+	return iyesde;
         
-read_inode_error:
-	pr_warn("failed to read inode %lu\n", inode->i_ino);
-	iget_failed(inode);
+read_iyesde_error:
+	pr_warn("failed to read iyesde %lu\n", iyesde->i_iyes);
+	iget_failed(iyesde);
 	return ERR_PTR(-EIO);
 }
 
@@ -196,9 +196,9 @@ efs_extent_check(efs_extent *ptr, efs_block_t block, struct efs_sb_info *sb) {
 	}
 }
 
-efs_block_t efs_map_block(struct inode *inode, efs_block_t block) {
-	struct efs_sb_info    *sb = SUPER_INFO(inode->i_sb);
-	struct efs_inode_info *in = INODE_INFO(inode);
+efs_block_t efs_map_block(struct iyesde *iyesde, efs_block_t block) {
+	struct efs_sb_info    *sb = SUPER_INFO(iyesde->i_sb);
+	struct efs_iyesde_info *in = INODE_INFO(iyesde);
 	struct buffer_head    *bh = NULL;
 
 	int cur, last, first = 1;
@@ -213,7 +213,7 @@ efs_block_t efs_map_block(struct inode *inode, efs_block_t block) {
 		if ((result = efs_extent_check(&in->extents[last], block, sb)))
 			return result;
     
-		/* if we only have one extent then nothing can be found */
+		/* if we only have one extent then yesthing can be found */
 		if (in->numextents == 1) {
 			pr_err("%s() failed to map (1 extent)\n", __func__);
 			return 0;
@@ -222,7 +222,7 @@ efs_block_t efs_map_block(struct inode *inode, efs_block_t block) {
 		direxts = in->numextents;
 
 		/*
-		 * check the stored extents in the inode
+		 * check the stored extents in the iyesde
 		 * start with next extent and check forwards
 		 */
 		for(dirext = 1; dirext < direxts; dirext++) {
@@ -276,7 +276,7 @@ efs_block_t efs_map_block(struct inode *inode, efs_block_t block) {
 		if (first || lastblock != iblock) {
 			if (bh) brelse(bh);
 
-			bh = sb_bread(inode->i_sb, iblock);
+			bh = sb_bread(iyesde->i_sb, iblock);
 			if (!bh) {
 				pr_err("%s() failed at block %d\n",
 				       __func__, iblock);

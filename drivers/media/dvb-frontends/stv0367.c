@@ -38,7 +38,7 @@ module_param_named(i2c_debug, i2cdebug, int, 0644);
 	} while (0)
 	/* DVB-C */
 
-enum active_demod_state { demod_none, demod_ter, demod_cab };
+enum active_demod_state { demod_yesne, demod_ter, demod_cab };
 
 struct stv0367cab_state {
 	enum stv0367_cab_signal_type	state;
@@ -274,7 +274,7 @@ static void stv0367_write_table(struct stv0367_state *state,
 static void stv0367_pll_setup(struct stv0367_state *state,
 				u32 icspeed, u32 xtal)
 {
-	/* note on regs: R367TER_* and R367CAB_* defines each point to
+	/* yeste on regs: R367TER_* and R367CAB_* defines each point to
 	 * 0xf0d8, so just use R367TER_ for both cases
 	 */
 
@@ -1002,7 +1002,7 @@ static int stv0367ter_algo(struct dvb_frontend *fe)
 	u8 /*constell,*/ counter;
 	s8 step;
 	s32 timing_offset = 0;
-	u32 trl_nomrate = 0, InternalFreq = 0, temp = 0, ifkhz = 0;
+	u32 trl_yesmrate = 0, InternalFreq = 0, temp = 0, ifkhz = 0;
 
 	dprintk("%s:\n", __func__);
 
@@ -1129,7 +1129,7 @@ static int stv0367ter_algo(struct dvb_frontend *fe)
 	ter_state->mode = stv0367_readbits(state, F367TER_SYR_MODE);
 	ter_state->guard = stv0367_readbits(state, F367TER_SYR_GUARD);
 
-	ter_state->first_lock = 1; /* we know sense now :) */
+	ter_state->first_lock = 1; /* we kyesw sense yesw :) */
 
 	ter_state->agc_val =
 			(stv0367_readbits(state, F367TER_AGC1_VAL_LO) << 16) +
@@ -1178,12 +1178,12 @@ static int stv0367ter_algo(struct dvb_frontend *fe)
 							F367TER_TRL_TOFFSET_HI);
 		if (timing_offset >= 32768)
 			timing_offset -= 65536;
-		trl_nomrate = (512 * stv0367_readbits(state,
+		trl_yesmrate = (512 * stv0367_readbits(state,
 							F367TER_TRL_NOMRATE_HI)
 			+ stv0367_readbits(state, F367TER_TRL_NOMRATE_LO) * 2
 			+ stv0367_readbits(state, F367TER_TRL_NOMRATE_LSB));
 
-		timing_offset = ((signed)(1000000 / trl_nomrate) *
+		timing_offset = ((signed)(1000000 / trl_yesmrate) *
 							timing_offset) / 2048;
 		tempo--;
 	}
@@ -1197,11 +1197,11 @@ static int stv0367ter_algo(struct dvb_frontend *fe)
 	}
 
 	for (counter = 0; counter < abs(timing_offset); counter++) {
-		trl_nomrate += step;
+		trl_yesmrate += step;
 		stv0367_writebits(state, F367TER_TRL_NOMRATE_LSB,
-						trl_nomrate % 2);
+						trl_yesmrate % 2);
 		stv0367_writebits(state, F367TER_TRL_NOMRATE_LO,
-						trl_nomrate / 2);
+						trl_yesmrate / 2);
 		usleep_range(1000, 2000);
 	}
 
@@ -1525,7 +1525,7 @@ static int stv0367ter_read_ber(struct dvb_frontend *fe, u32 *ber)
 			* (1 << 8))
 			+ ((u32)stv0367_readbits(state,
 						F367TER_SFEC_ERR_CNT_LO));
-	/*measurement not completed, load previous value*/
+	/*measurement yest completed, load previous value*/
 	else {
 		tber = ter_state->pBER;
 		return 0;
@@ -1576,7 +1576,7 @@ static int stv0367ter_read_ber(struct dvb_frontend *fe, u32 *ber)
 			/*tber=Errors/(8*(1 <<22));*/
 			tber = temporary / 256;
 		else
-			/* should not pass here*/
+			/* should yest pass here*/
 			tber = 0;
 
 		if ((Errors < 4294967) && (Errors > 429496))
@@ -2078,7 +2078,7 @@ static u32 stv0367cab_set_srate(struct stv0367_state *state, u32 adc_hz,
 		stv0367cab_SetAllPasscoefficient(state, mclk_hz, SymbolRate);
 	} else
 		/* AllPass filter must be disabled
-		when the adjacents filter is not used */
+		when the adjacents filter is yest used */
 #endif
 	stv0367_writebits(state, F367CAB_ALLPASSFILT_EN, 0);
 
@@ -2400,7 +2400,7 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 
 	dprintk("%s: DemodTimeOut=%d\n", __func__, DemodTimeOut);
 
-	/* Reset the TRL to ensure nothing starts until the
+	/* Reset the TRL to ensure yesthing starts until the
 	   AGC is stable which ensures a better lock time
 	*/
 	stv0367_writereg(state, R367CAB_CTRL_1, 0x04);
@@ -2443,8 +2443,8 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 		else if ((LockTime >= (AGCTimeOut + TRLTimeOut)) &&
 							(QAM_Lock == 0x02))
 			/*
-			 * We don't wait longer, either there is no signal or
-			 * it is not the right symbol rate or it is an analog
+			 * We don't wait longer, either there is yes signal or
+			 * it is yest the right symbol rate or it is an analog
 			 * carrier
 			 */
 		{
@@ -2503,7 +2503,7 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 		cab_state->spect_inv = stv0367_readbits(state,
 							F367CAB_QUAD_INV);
 #if 0
-/* not clear for me */
+/* yest clear for me */
 		if (ifkhz != 0) {
 			if (ifkhz > cab_state->adc_clk / 1000) {
 				cab_state->freq_khz =
@@ -2782,7 +2782,7 @@ static int stv0367cab_snr_readreg(struct dvb_frontend *fe, int avgdiv)
 static int stv0367cab_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
-	u32 noisepercentage;
+	u32 yesisepercentage;
 	u32 regval = 0, temp = 0;
 	int power;
 
@@ -2795,41 +2795,41 @@ static int stv0367cab_read_snr(struct dvb_frontend *fe, u16 *snr)
 		temp /= regval;
 	}
 
-	/* table values, not needed to calculate logarithms */
+	/* table values, yest needed to calculate logarithms */
 	if (temp >= 5012)
-		noisepercentage = 100;
+		yesisepercentage = 100;
 	else if (temp >= 3981)
-		noisepercentage = 93;
+		yesisepercentage = 93;
 	else if (temp >= 3162)
-		noisepercentage = 86;
+		yesisepercentage = 86;
 	else if (temp >= 2512)
-		noisepercentage = 79;
+		yesisepercentage = 79;
 	else if (temp >= 1995)
-		noisepercentage = 72;
+		yesisepercentage = 72;
 	else if (temp >= 1585)
-		noisepercentage = 65;
+		yesisepercentage = 65;
 	else if (temp >= 1259)
-		noisepercentage = 58;
+		yesisepercentage = 58;
 	else if (temp >= 1000)
-		noisepercentage = 50;
+		yesisepercentage = 50;
 	else if (temp >= 794)
-		noisepercentage = 43;
+		yesisepercentage = 43;
 	else if (temp >= 501)
-		noisepercentage = 36;
+		yesisepercentage = 36;
 	else if (temp >= 316)
-		noisepercentage = 29;
+		yesisepercentage = 29;
 	else if (temp >= 200)
-		noisepercentage = 22;
+		yesisepercentage = 22;
 	else if (temp >= 158)
-		noisepercentage = 14;
+		yesisepercentage = 14;
 	else if (temp >= 126)
-		noisepercentage = 7;
+		yesisepercentage = 7;
 	else
-		noisepercentage = 0;
+		yesisepercentage = 0;
 
-	dprintk("%s: noisepercentage=%d\n", __func__, noisepercentage);
+	dprintk("%s: yesisepercentage=%d\n", __func__, yesisepercentage);
 
-	*snr = (noisepercentage * 65535) / 100;
+	*snr = (yesisepercentage * 65535) / 100;
 
 	return 0;
 }
@@ -3120,7 +3120,7 @@ static int stv0367ddb_read_status(struct dvb_frontend *fe,
 
 	stv0367ddb_read_signal_strength(fe);
 
-	/* read carrier/noise when a carrier is detected */
+	/* read carrier/yesise when a carrier is detected */
 	if (*status & FE_HAS_CARRIER)
 		stv0367ddb_read_snr(fe);
 	else
@@ -3158,10 +3158,10 @@ static int stv0367ddb_sleep(struct dvb_frontend *fe)
 
 	switch (state->activedemod) {
 	case demod_ter:
-		state->activedemod = demod_none;
+		state->activedemod = demod_yesne;
 		return stv0367ter_sleep(fe);
 	case demod_cab:
-		state->activedemod = demod_none;
+		state->activedemod = demod_yesne;
 		return stv0367cab_sleep(fe);
 	default:
 		break;
@@ -3214,7 +3214,7 @@ static int stv0367ddb_init(struct stv0367_state *state)
 
 	stv0367_writereg(state, R367TER_AGCCTRL1, 0x8A);
 
-	/* QAM TS setup, note exact format also depends on descrambler */
+	/* QAM TS setup, yeste exact format also depends on descrambler */
 	/* settings */
 	/* Inverted Clock, Swap, serial */
 	stv0367_writereg(state, R367CAB_OUTFORMAT_0, 0x85);
@@ -3234,7 +3234,7 @@ static int stv0367ddb_init(struct stv0367_state *state)
 	stv0367_writereg(state, R367CAB_FSM_SNR2_HTH, 0x23);
 	/* ZIF/IF Automatic mode */
 	stv0367_writereg(state, R367CAB_IQ_QAM, 0x01);
-	/* Improving burst noise performances */
+	/* Improving burst yesise performances */
 	stv0367_writereg(state, R367CAB_EQU_FFE_LEAKAGE, 0x83);
 	/* Improving ACI performances */
 	stv0367_writereg(state, R367CAB_IQDEM_ADJ_EN, 0x05);
@@ -3322,7 +3322,7 @@ struct dvb_frontend *stv0367ddb_attach(const struct stv0367_config *config,
 	state->deftabs = STV0367_DEFTAB_DDB;
 	state->reinit_on_setfrontend = 0;
 	state->auto_if_khz = 1;
-	state->activedemod = demod_none;
+	state->activedemod = demod_yesne;
 
 	dprintk("%s: chip_id = 0x%x\n", __func__, state->chip_id);
 

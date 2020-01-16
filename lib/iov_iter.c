@@ -9,7 +9,7 @@
 #include <net/checksum.h>
 #include <linux/scatterlist.h>
 
-#define PIPE_PARANOIA /* for now */
+#define PIPE_PARANOIA /* for yesw */
 
 #define iterate_iovec(i, n, __v, __p, skip, STEP) {	\
 	size_t left;					\
@@ -204,7 +204,7 @@ static size_t copy_page_to_iter_iovec(struct page *page, size_t offset, size_t b
 		kunmap_atomic(kaddr);
 		copy = min(bytes, iov->iov_len - skip);
 	}
-	/* Too bad - revert to non-atomic kmap */
+	/* Too bad - revert to yesn-atomic kmap */
 
 	kaddr = kmap(page);
 	from = kaddr + offset;
@@ -288,7 +288,7 @@ static size_t copy_page_from_iter_iovec(struct page *page, size_t offset, size_t
 		kunmap_atomic(kaddr);
 		copy = min(bytes, iov->iov_len - skip);
 	}
-	/* Too bad - revert to non-atomic kmap */
+	/* Too bad - revert to yesn-atomic kmap */
 
 	kaddr = kmap(page);
 	to = kaddr + offset;
@@ -324,7 +324,7 @@ done:
 #ifdef PIPE_PARANOIA
 static bool sanity(const struct iov_iter *i)
 {
-	struct pipe_inode_info *pipe = i->pipe;
+	struct pipe_iyesde_info *pipe = i->pipe;
 	unsigned int p_head = pipe->head;
 	unsigned int p_tail = pipe->tail;
 	unsigned int p_mask = pipe->ring_size - 1;
@@ -335,7 +335,7 @@ static bool sanity(const struct iov_iter *i)
 	if (i->iov_offset) {
 		struct pipe_buffer *p;
 		if (unlikely(p_occupancy == 0))
-			goto Bad;	// pipe must be non-empty
+			goto Bad;	// pipe must be yesn-empty
 		if (unlikely(i_head != p_head - 1))
 			goto Bad;	// must be at the last buffer...
 
@@ -367,7 +367,7 @@ Bad:
 static size_t copy_page_to_iter_pipe(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
-	struct pipe_inode_info *pipe = i->pipe;
+	struct pipe_iyesde_info *pipe = i->pipe;
 	struct pipe_buffer *buf;
 	unsigned int p_tail = pipe->tail;
 	unsigned int p_mask = pipe->ring_size - 1;
@@ -416,7 +416,7 @@ out:
  * Fault in one or more iovecs of the given iov_iter, to a maximum length of
  * bytes.  For each iovec, fault in each page that constitutes the iovec.
  *
- * Return 0 on success, or non-zero if the memory could not be accessed (i.e.
+ * Return 0 on success, or yesn-zero if the memory could yest be accessed (i.e.
  * because it is an invalid address).
  */
 int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes)
@@ -503,7 +503,7 @@ static inline void data_start(const struct iov_iter *i,
 static size_t push_pipe(struct iov_iter *i, size_t size,
 			int *iter_headp, size_t *offp)
 {
-	struct pipe_inode_info *pipe = i->pipe;
+	struct pipe_iyesde_info *pipe = i->pipe;
 	unsigned int p_tail = pipe->tail;
 	unsigned int p_mask = pipe->ring_size - 1;
 	unsigned int iter_head;
@@ -551,7 +551,7 @@ static size_t push_pipe(struct iov_iter *i, size_t size,
 static size_t copy_pipe_to_iter(const void *addr, size_t bytes,
 				struct iov_iter *i)
 {
-	struct pipe_inode_info *pipe = i->pipe;
+	struct pipe_iyesde_info *pipe = i->pipe;
 	unsigned int p_mask = pipe->ring_size - 1;
 	unsigned int i_head;
 	size_t n, off;
@@ -579,14 +579,14 @@ static size_t copy_pipe_to_iter(const void *addr, size_t bytes,
 static __wsum csum_and_memcpy(void *to, const void *from, size_t len,
 			      __wsum sum, size_t off)
 {
-	__wsum next = csum_partial_copy_nocheck(from, to, len, 0);
+	__wsum next = csum_partial_copy_yescheck(from, to, len, 0);
 	return csum_block_add(sum, next, off);
 }
 
 static size_t csum_and_copy_to_pipe_iter(const void *addr, size_t bytes,
 				__wsum *csum, struct iov_iter *i)
 {
-	struct pipe_inode_info *pipe = i->pipe;
+	struct pipe_iyesde_info *pipe = i->pipe;
 	unsigned int p_mask = pipe->ring_size - 1;
 	unsigned int i_head;
 	size_t n, r;
@@ -661,7 +661,7 @@ static unsigned long memcpy_mcsafe_to_page(struct page *page, size_t offset,
 static size_t copy_pipe_to_iter_mcsafe(const void *addr, size_t bytes,
 				struct iov_iter *i)
 {
-	struct pipe_inode_info *pipe = i->pipe;
+	struct pipe_iyesde_info *pipe = i->pipe;
 	unsigned int p_mask = pipe->ring_size - 1;
 	unsigned int i_head;
 	size_t n, off, xfer = 0;
@@ -801,7 +801,7 @@ bool _copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
 }
 EXPORT_SYMBOL(_copy_from_iter_full);
 
-size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
+size_t _copy_from_iter_yescache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	char *to = addr;
 	if (unlikely(iov_iter_is_pipe(i))) {
@@ -809,7 +809,7 @@ size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 		return 0;
 	}
 	iterate_and_advance(i, bytes, v,
-		__copy_from_user_inatomic_nocache((to += v.iov_len) - v.iov_len,
+		__copy_from_user_inatomic_yescache((to += v.iov_len) - v.iov_len,
 					 v.iov_base, v.iov_len),
 		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
 				 v.bv_offset, v.bv_len),
@@ -818,7 +818,7 @@ size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 
 	return bytes;
 }
-EXPORT_SYMBOL(_copy_from_iter_nocache);
+EXPORT_SYMBOL(_copy_from_iter_yescache);
 
 #ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
 /**
@@ -830,8 +830,8 @@ EXPORT_SYMBOL(_copy_from_iter_nocache);
  * The pmem driver arranges for filesystem-dax to use this facility via
  * dax_copy_from_iter() for ensuring that writes to persistent memory
  * are flushed through the CPU cache. It is differentiated from
- * _copy_from_iter_nocache() in that guarantees all data is flushed for
- * all iterator types. The _copy_from_iter_nocache() only attempts to
+ * _copy_from_iter_yescache() in that guarantees all data is flushed for
+ * all iterator types. The _copy_from_iter_yescache() only attempts to
  * bypass the cache for the ITER_IOVEC case, and on some archs may use
  * instructions that strand dirty-data in the cache.
  */
@@ -856,7 +856,7 @@ size_t _copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i)
 EXPORT_SYMBOL_GPL(_copy_from_iter_flushcache);
 #endif
 
-bool _copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
+bool _copy_from_iter_full_yescache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	char *to = addr;
 	if (unlikely(iov_iter_is_pipe(i))) {
@@ -866,7 +866,7 @@ bool _copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
 	if (unlikely(i->count < bytes))
 		return false;
 	iterate_all_kinds(i, bytes, v, ({
-		if (__copy_from_user_inatomic_nocache((to += v.iov_len) - v.iov_len,
+		if (__copy_from_user_inatomic_yescache((to += v.iov_len) - v.iov_len,
 					     v.iov_base, v.iov_len))
 			return false;
 		0;}),
@@ -878,7 +878,7 @@ bool _copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
 	iov_iter_advance(i, bytes);
 	return true;
 }
-EXPORT_SYMBOL(_copy_from_iter_full_nocache);
+EXPORT_SYMBOL(_copy_from_iter_full_yescache);
 
 static inline bool page_copy_sane(struct page *page, size_t offset, size_t n)
 {
@@ -944,7 +944,7 @@ EXPORT_SYMBOL(copy_page_from_iter);
 
 static size_t pipe_zero(size_t bytes, struct iov_iter *i)
 {
-	struct pipe_inode_info *pipe = i->pipe;
+	struct pipe_iyesde_info *pipe = i->pipe;
 	unsigned int p_mask = pipe->ring_size - 1;
 	unsigned int i_head;
 	size_t n, off;
@@ -1009,7 +1009,7 @@ EXPORT_SYMBOL(iov_iter_copy_from_user_atomic);
 
 static inline void pipe_truncate(struct iov_iter *i)
 {
-	struct pipe_inode_info *pipe = i->pipe;
+	struct pipe_iyesde_info *pipe = i->pipe;
 	unsigned int p_tail = pipe->tail;
 	unsigned int p_head = pipe->head;
 	unsigned int p_mask = pipe->ring_size - 1;
@@ -1035,7 +1035,7 @@ static inline void pipe_truncate(struct iov_iter *i)
 
 static void pipe_advance(struct iov_iter *i, size_t size)
 {
-	struct pipe_inode_info *pipe = i->pipe;
+	struct pipe_iyesde_info *pipe = i->pipe;
 	if (unlikely(i->count < size))
 		size = i->count;
 	if (size) {
@@ -1083,7 +1083,7 @@ void iov_iter_revert(struct iov_iter *i, size_t unroll)
 		return;
 	i->count += unroll;
 	if (unlikely(iov_iter_is_pipe(i))) {
-		struct pipe_inode_info *pipe = i->pipe;
+		struct pipe_iyesde_info *pipe = i->pipe;
 		unsigned int p_mask = pipe->ring_size - 1;
 		unsigned int i_head = i->head;
 		size_t off = i->iov_offset;
@@ -1188,7 +1188,7 @@ void iov_iter_bvec(struct iov_iter *i, unsigned int direction,
 EXPORT_SYMBOL(iov_iter_bvec);
 
 void iov_iter_pipe(struct iov_iter *i, unsigned int direction,
-			struct pipe_inode_info *pipe,
+			struct pipe_iyesde_info *pipe,
 			size_t count)
 {
 	BUG_ON(direction != READ);
@@ -1269,7 +1269,7 @@ static inline ssize_t __pipe_get_pages(struct iov_iter *i,
 				int iter_head,
 				size_t *start)
 {
-	struct pipe_inode_info *pipe = i->pipe;
+	struct pipe_iyesde_info *pipe = i->pipe;
 	unsigned int p_mask = pipe->ring_size - 1;
 	ssize_t n = push_pipe(i, maxsize, &iter_head, start);
 	if (!n)
@@ -1531,7 +1531,7 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *csump,
 
 	sum = *csum;
 	if (unlikely(iov_iter_is_discard(i))) {
-		WARN_ON(1);	/* for now */
+		WARN_ON(1);	/* for yesw */
 		return 0;
 	}
 	iterate_and_advance(i, bytes, v, ({
@@ -1593,7 +1593,7 @@ int iov_iter_npages(const struct iov_iter *i, int maxpages)
 		return 0;
 
 	if (unlikely(iov_iter_is_pipe(i))) {
-		struct pipe_inode_info *pipe = i->pipe;
+		struct pipe_iyesde_info *pipe = i->pipe;
 		unsigned int iter_head;
 		size_t off;
 
@@ -1661,12 +1661,12 @@ EXPORT_SYMBOL(dup_iter);
  *     on-stack) kernel array.
  * @i: Pointer to iterator that will be initialized on success.
  *
- * If the array pointed to by *@iov is large enough to hold all @nr_segs,
+ * If the array pointed to by *@iov is large eyesugh to hold all @nr_segs,
  * then this function places %NULL in *@iov on return. Otherwise, a new
  * array will be allocated and the result placed in *@iov. This means that
  * the caller may call kfree() on *@iov regardless of whether the small
- * on-stack array was used or not (and regardless of whether this function
- * returns an error or not).
+ * on-stack array was used or yest (and regardless of whether this function
+ * returns an error or yest).
  *
  * Return: Negative error code on error, bytes imported on success
  */

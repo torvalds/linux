@@ -29,7 +29,7 @@
  * Max transfer size done by av7110_fw_cmd()
  *
  * The maximum size passed to this function is 6 bytes. The buffer also
- * uses two additional ones for type and size. So, 8 bytes is enough.
+ * uses two additional ones for type and size. So, 8 bytes is eyesugh.
  */
 #define MAX_XFER_SIZE  8
 
@@ -189,7 +189,7 @@ static int load_dram(struct av7110 *av7110, u32 *data, int len)
 }
 
 
-/* we cannot write av7110 DRAM directly, so load a bootloader into
+/* we canyest write av7110 DRAM directly, so load a bootloader into
  * the DPRAM which implements a simple boot protocol */
 int av7110_bootarm(struct av7110 *av7110)
 {
@@ -293,7 +293,7 @@ int av7110_wait_msgstate(struct av7110 *av7110, u16 flags)
 	int err;
 
 	if (FW_VERSION(av7110->arm_app) <= 0x261c) {
-		/* not supported by old firmware */
+		/* yest supported by old firmware */
 		msleep(50);
 		return 0;
 	}
@@ -330,7 +330,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 //	dprintk(4, "%p\n", av7110);
 
 	if (!av7110->arm_ready) {
-		dprintk(1, "arm not ready.\n");
+		dprintk(1, "arm yest ready.\n");
 		return -ENXIO;
 	}
 
@@ -390,7 +390,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 	}
 
 	if (type != NULL) {
-		/* non-immediate COMMAND type */
+		/* yesn-immediate COMMAND type */
 		start = jiffies;
 		for (;;) {
 			err = time_after(jiffies, start + ARM_WAIT_FREE);
@@ -460,7 +460,7 @@ static int av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 //	dprintk(4, "%p\n", av7110);
 
 	if (!av7110->arm_ready) {
-		dprintk(1, "arm not ready.\n");
+		dprintk(1, "arm yest ready.\n");
 		return -1;
 	}
 	if (mutex_lock_interruptible(&av7110->dcomlock))
@@ -542,7 +542,7 @@ int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 	dprintk(4, "%p\n", av7110);
 
 	if (!av7110->arm_ready) {
-		dprintk(1, "arm not ready.\n");
+		dprintk(1, "arm yest ready.\n");
 		return -1;
 	}
 
@@ -649,7 +649,7 @@ int av7110_firmversion(struct av7110 *av7110)
 		printk("dvb-ttpci: firmware @ card %d supports CI link layer interface\n",
 		       av7110->dvb_adapter.num);
 	else
-		printk("dvb-ttpci: no firmware support for CI link layer interface @ card %d\n",
+		printk("dvb-ttpci: yes firmware support for CI link layer interface @ card %d\n",
 		       av7110->dvb_adapter.num);
 
 	return 0;
@@ -1006,7 +1006,7 @@ static int OSDSetBlock(struct av7110 *av7110, int x0, int y0,
 	brest = size - bnum * lpb * bpl;
 
 	if (av7110->bmp_state == BMP_LOADING) {
-		/* possible if syscall is repeated by -ERESTARTSYS and if firmware cannot abort */
+		/* possible if syscall is repeated by -ERESTARTSYS and if firmware canyest abort */
 		BUG_ON (FW_VERSION(av7110->arm_app) >= 0x261e);
 		rc = WaitUntilBmpLoaded(av7110);
 		if (rc)

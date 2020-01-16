@@ -9,8 +9,8 @@
  * Richard Woodruff <r-woodruff2@ti.com>
  * Tony Lindgren
  * Juha Yrjola
- * Amit Kucheria <amit.kucheria@nokia.com>
- * Igor Stoppa <igor.stoppa@nokia.com>
+ * Amit Kucheria <amit.kucheria@yeskia.com>
+ * Igor Stoppa <igor.stoppa@yeskia.com>
  *
  * Based on pm.c for omap1
  */
@@ -64,7 +64,7 @@ static int omap2_enter_full_retention(void)
 	u32 l;
 
 	/* There is 1 reference hold for all children of the oscillator
-	 * clock, the following will remove it. If no one else uses the
+	 * clock, the following will remove it. If yes one else uses the
 	 * oscillator itself it will be disabled if/when we enter retention
 	 * mode.
 	 */
@@ -88,14 +88,14 @@ static int omap2_enter_full_retention(void)
 	/* One last check for pending IRQs to avoid extra latency due
 	 * to sleeping unnecessarily. */
 	if (omap_irq_pending())
-		goto no_sleep;
+		goto yes_sleep;
 
 	/* Jump to SRAM suspend code */
 	omap2_sram_suspend(sdrc_read_reg(SDRC_DLLA_CTRL),
 			   OMAP_SDRC_REGADDR(SDRC_DLLA_CTRL),
 			   OMAP_SDRC_REGADDR(SDRC_POWER));
 
-no_sleep:
+yes_sleep:
 	cpu_cluster_pm_exit();
 
 	clk_enable(osc_ck);
@@ -134,7 +134,7 @@ static void omap2_enter_mpu_retention(void)
 {
 	const int zero = 0;
 
-	/* The peripherals seem not to be able to wake up the MPU when
+	/* The peripherals seem yest to be able to wake up the MPU when
 	 * it is in retention mode. */
 	if (omap2_allow_mpu_retention()) {
 		/* REVISIT: These write to reserved bits? */
@@ -257,41 +257,41 @@ int __init omap2_pm_init(void)
 
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 	if (!mpu_pwrdm)
-		pr_err("PM: mpu_pwrdm not found\n");
+		pr_err("PM: mpu_pwrdm yest found\n");
 
 	core_pwrdm = pwrdm_lookup("core_pwrdm");
 	if (!core_pwrdm)
-		pr_err("PM: core_pwrdm not found\n");
+		pr_err("PM: core_pwrdm yest found\n");
 
 	/* Look up important clockdomains */
 
 	mpu_clkdm = clkdm_lookup("mpu_clkdm");
 	if (!mpu_clkdm)
-		pr_err("PM: mpu_clkdm not found\n");
+		pr_err("PM: mpu_clkdm yest found\n");
 
 	wkup_clkdm = clkdm_lookup("wkup_clkdm");
 	if (!wkup_clkdm)
-		pr_err("PM: wkup_clkdm not found\n");
+		pr_err("PM: wkup_clkdm yest found\n");
 
 	dsp_clkdm = clkdm_lookup("dsp_clkdm");
 	if (!dsp_clkdm)
-		pr_err("PM: dsp_clkdm not found\n");
+		pr_err("PM: dsp_clkdm yest found\n");
 
 	gfx_clkdm = clkdm_lookup("gfx_clkdm");
 	if (!gfx_clkdm)
-		pr_err("PM: gfx_clkdm not found\n");
+		pr_err("PM: gfx_clkdm yest found\n");
 
 
 	osc_ck = clk_get(NULL, "osc_ck");
 	if (IS_ERR(osc_ck)) {
-		printk(KERN_ERR "could not get osc_ck\n");
+		printk(KERN_ERR "could yest get osc_ck\n");
 		return -ENODEV;
 	}
 
 	if (cpu_is_omap242x()) {
 		emul_ck = clk_get(NULL, "emul_ck");
 		if (IS_ERR(emul_ck)) {
-			printk(KERN_ERR "could not get emul_ck\n");
+			printk(KERN_ERR "could yest get emul_ck\n");
 			clk_put(osc_ck);
 			return -ENODEV;
 		}

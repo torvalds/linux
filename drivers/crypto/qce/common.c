@@ -234,7 +234,7 @@ static int qce_setup_regs_ahash(struct crypto_async_request *async_req,
 	u32 auth_cfg = 0, config;
 	unsigned int iv_words;
 
-	/* if not the last, the size has to be on the block boundary */
+	/* if yest the last, the size has to be on the block boundary */
 	if (!rctx->last_blk && req->nbytes % blocksize)
 		return -EINVAL;
 
@@ -408,7 +408,7 @@ int qce_check_status(struct qce_device *qce, u32 *status)
 	*status = qce_read(qce, REG_STATUS);
 
 	/*
-	 * Don't use result dump status. The operation may not be complete.
+	 * Don't use result dump status. The operation may yest be complete.
 	 * Instead, use the status we just read from device. In case, we need to
 	 * use result_status from result dump the result_status needs to be byte
 	 * swapped, since we set the device to little endian.
@@ -419,12 +419,12 @@ int qce_check_status(struct qce_device *qce, u32 *status)
 	return ret;
 }
 
-void qce_get_version(struct qce_device *qce, u32 *major, u32 *minor, u32 *step)
+void qce_get_version(struct qce_device *qce, u32 *major, u32 *miyesr, u32 *step)
 {
 	u32 val;
 
 	val = qce_read(qce, REG_VERSION);
 	*major = (val & CORE_MAJOR_REV_MASK) >> CORE_MAJOR_REV_SHIFT;
-	*minor = (val & CORE_MINOR_REV_MASK) >> CORE_MINOR_REV_SHIFT;
+	*miyesr = (val & CORE_MINOR_REV_MASK) >> CORE_MINOR_REV_SHIFT;
 	*step = (val & CORE_STEP_REV_MASK) >> CORE_STEP_REV_SHIFT;
 }

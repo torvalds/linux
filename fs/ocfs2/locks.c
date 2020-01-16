@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * locks.c
  *
@@ -18,10 +18,10 @@
 
 #include "dlmglue.h"
 #include "file.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "locks.h"
 
-static int ocfs2_do_flock(struct file *file, struct inode *inode,
+static int ocfs2_do_flock(struct file *file, struct iyesde *iyesde,
 			  int cmd, struct file_lock *fl)
 {
 	int ret = 0, level = 0, trylock = 0;
@@ -47,7 +47,7 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 			goto out;
 
 		/*
-		 * Converting an existing lock is not guaranteed to be
+		 * Converting an existing lock is yest guaranteed to be
 		 * atomic, so we can get away with simply unlocking
 		 * here and allowing the lock code to try at the new
 		 * level.
@@ -66,7 +66,7 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 		if (ret == -EAGAIN && trylock)
 			ret = -EWOULDBLOCK;
 		else
-			mlog_errno(ret);
+			mlog_erryes(ret);
 		goto out;
 	}
 
@@ -98,12 +98,12 @@ static int ocfs2_do_funlock(struct file *file, int cmd, struct file_lock *fl)
  */
 int ocfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct iyesde *iyesde = file->f_mapping->host;
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;
-	if (__mandatory_lock(inode))
+	if (__mandatory_lock(iyesde))
 		return -ENOLCK;
 
 	if ((osb->s_mount_opt & OCFS2_MOUNT_LOCALFLOCKS) ||
@@ -113,18 +113,18 @@ int ocfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 	if (fl->fl_type == F_UNLCK)
 		return ocfs2_do_funlock(file, cmd, fl);
 	else
-		return ocfs2_do_flock(file, inode, cmd, fl);
+		return ocfs2_do_flock(file, iyesde, cmd, fl);
 }
 
 int ocfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct iyesde *iyesde = file->f_mapping->host;
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
 	if (!(fl->fl_flags & FL_POSIX))
 		return -ENOLCK;
-	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
+	if (__mandatory_lock(iyesde) && fl->fl_type != F_UNLCK)
 		return -ENOLCK;
 
-	return ocfs2_plock(osb->cconn, OCFS2_I(inode)->ip_blkno, file, cmd, fl);
+	return ocfs2_plock(osb->cconn, OCFS2_I(iyesde)->ip_blkyes, file, cmd, fl);
 }

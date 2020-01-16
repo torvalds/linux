@@ -70,7 +70,7 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 	vstepmax = voltdm->pmic->vp_vstepmax;
 
 	/*
-	 * VP_CONFIG: error gain is not set here, it will be updated
+	 * VP_CONFIG: error gain is yest set here, it will be updated
 	 * on each scale, based on OPP.
 	 */
 	val = (voltdm->pmic->vp_erroroffset <<
@@ -200,7 +200,7 @@ void omap_vp_enable(struct voltagedomain *voltdm)
 	u32 vpconfig, volt;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warn("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does yest exist!\n", __func__);
 		return;
 	}
 
@@ -211,7 +211,7 @@ void omap_vp_enable(struct voltagedomain *voltdm)
 		return;
 	}
 
-	/* If VP is already enabled, do nothing. Return */
+	/* If VP is already enabled, do yesthing. Return */
 	if (vp->enabled)
 		return;
 
@@ -245,7 +245,7 @@ void omap_vp_disable(struct voltagedomain *voltdm)
 	int timeout;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warn("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does yest exist!\n", __func__);
 		return;
 	}
 
@@ -256,7 +256,7 @@ void omap_vp_disable(struct voltagedomain *voltdm)
 		return;
 	}
 
-	/* If VP is already disabled, do nothing. Return */
+	/* If VP is already disabled, do yesthing. Return */
 	if (!vp->enabled) {
 		pr_warn("%s: Trying to disable VP for vdd_%s when it is already disabled\n",
 			__func__, voltdm->name);

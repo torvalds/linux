@@ -1,7 +1,7 @@
 /*
- * Synopsys HSDK SDP Generic PLL clock driver
+ * Syyespsys HSDK SDP Generic PLL clock driver
  *
- * Copyright (C) 2017 Synopsys
+ * Copyright (C) 2017 Syyespsys
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -315,11 +315,11 @@ static int hsdk_pll_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(pll_clk->regs))
 		return PTR_ERR(pll_clk->regs);
 
-	init.name = dev->of_node->name;
+	init.name = dev->of_yesde->name;
 	init.ops = &hsdk_pll_ops;
-	parent_name = of_clk_get_parent_name(dev->of_node, 0);
+	parent_name = of_clk_get_parent_name(dev->of_yesde, 0);
 	init.parent_names = &parent_name;
-	num_parents = of_clk_get_parent_count(dev->of_node);
+	num_parents = of_clk_get_parent_count(dev->of_yesde);
 	if (num_parents == 0 || num_parents > CGU_PLL_SOURCE_MAX) {
 		dev_err(dev, "wrong clock parents number: %u\n", num_parents);
 		return -EINVAL;
@@ -341,17 +341,17 @@ static int hsdk_pll_clk_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_simple_get,
+	return of_clk_add_hw_provider(dev->of_yesde, of_clk_hw_simple_get,
 			&pll_clk->hw);
 }
 
 static int hsdk_pll_clk_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 	return 0;
 }
 
-static void __init of_hsdk_pll_clk_setup(struct device_node *node)
+static void __init of_hsdk_pll_clk_setup(struct device_yesde *yesde)
 {
 	int ret;
 	const char *parent_name;
@@ -363,23 +363,23 @@ static void __init of_hsdk_pll_clk_setup(struct device_node *node)
 	if (!pll_clk)
 		return;
 
-	pll_clk->regs = of_iomap(node, 0);
+	pll_clk->regs = of_iomap(yesde, 0);
 	if (!pll_clk->regs) {
 		pr_err("failed to map pll registers\n");
 		goto err_free_pll_clk;
 	}
 
-	pll_clk->spec_regs = of_iomap(node, 1);
+	pll_clk->spec_regs = of_iomap(yesde, 1);
 	if (!pll_clk->spec_regs) {
 		pr_err("failed to map pll registers\n");
 		goto err_unmap_comm_regs;
 	}
 
-	init.name = node->name;
+	init.name = yesde->name;
 	init.ops = &hsdk_pll_ops;
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(yesde, 0);
 	init.parent_names = &parent_name;
-	num_parents = of_clk_get_parent_count(node);
+	num_parents = of_clk_get_parent_count(yesde);
 	if (num_parents > CGU_PLL_SOURCE_MAX) {
 		pr_err("too much clock parents: %u\n", num_parents);
 		goto err_unmap_spec_regs;
@@ -391,13 +391,13 @@ static void __init of_hsdk_pll_clk_setup(struct device_node *node)
 
 	ret = clk_hw_register(NULL, &pll_clk->hw);
 	if (ret) {
-		pr_err("failed to register %pOFn clock\n", node);
+		pr_err("failed to register %pOFn clock\n", yesde);
 		goto err_unmap_spec_regs;
 	}
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &pll_clk->hw);
+	ret = of_clk_add_hw_provider(yesde, of_clk_hw_simple_get, &pll_clk->hw);
 	if (ret) {
-		pr_err("failed to add hw provider for %pOFn clock\n", node);
+		pr_err("failed to add hw provider for %pOFn clock\n", yesde);
 		goto err_unmap_spec_regs;
 	}
 

@@ -24,7 +24,7 @@
  * General concept of alias management:
  * - PAV and DASD alias management is specific to the eckd discipline.
  * - A device is connected to an lcu as long as the device exists.
- *   dasd_alias_make_device_known_to_lcu will be called wenn the
+ *   dasd_alias_make_device_kyeswn_to_lcu will be called wenn the
  *   device is checked by the eckd discipline and
  *   dasd_alias_disconnect_device_from_lcu will be called
  *   before the device is deleted.
@@ -180,11 +180,11 @@ static void _free_lcu(struct alias_lcu *lcu)
 /*
  * This is the function that will allocate all the server and lcu data,
  * so this function must be called first for a new device.
- * If the return value is 1, the lcu was already known before, if it
+ * If the return value is 1, the lcu was already kyeswn before, if it
  * is 0, this is a new lcu.
  * Negative return code indicates that something went wrong (e.g. -ENOMEM)
  */
-int dasd_alias_make_device_known_to_lcu(struct dasd_device *device)
+int dasd_alias_make_device_kyeswn_to_lcu(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private = device->private;
 	unsigned long flags;
@@ -238,7 +238,7 @@ int dasd_alias_make_device_known_to_lcu(struct dasd_device *device)
 
 /*
  * This function removes a device from the scope of alias management.
- * The complicated part is to make sure that it is not in use by
+ * The complicated part is to make sure that it is yest in use by
  * any of the workers. If necessary cancel the work.
  */
 void dasd_alias_disconnect_device_from_lcu(struct dasd_device *device)
@@ -251,7 +251,7 @@ void dasd_alias_disconnect_device_from_lcu(struct dasd_device *device)
 	struct dasd_uid uid;
 
 	lcu = private->lcu;
-	/* nothing to do if already disconnected */
+	/* yesthing to do if already disconnected */
 	if (!lcu)
 		return;
 	device->discipline->get_uid(device, &uid);
@@ -324,7 +324,7 @@ static int _add_device_to_lcu(struct alias_lcu *lcu,
 		lcu->uac->unit[private->uid.real_unit_addr].base_ua;
 	uid = private->uid;
 	spin_unlock(get_ccwdev_lock(device->cdev));
-	/* if we have no PAV anyway, we don't need to bother with PAV groups */
+	/* if we have yes PAV anyway, we don't need to bother with PAV groups */
 	if (lcu->pav == NO_PAV) {
 		list_move(&device->alias_list, &lcu->active_devices);
 		return 0;
@@ -376,16 +376,16 @@ static void _remove_device_from_lcu(struct alias_lcu *lcu,
 };
 
 static int
-suborder_not_supported(struct dasd_ccw_req *cqr)
+suborder_yest_supported(struct dasd_ccw_req *cqr)
 {
 	char *sense;
 	char reason;
 	char msg_format;
-	char msg_no;
+	char msg_yes;
 
 	/*
 	 * intrc values ENODEV, ENOLINK and EPERM
-	 * will be optained from sleep_on to indicate that no
+	 * will be optained from sleep_on to indicate that yes
 	 * IO operation can be started
 	 */
 	if (cqr->intrc == -ENODEV)
@@ -403,10 +403,10 @@ suborder_not_supported(struct dasd_ccw_req *cqr)
 
 	reason = sense[0];
 	msg_format = (sense[7] & 0xF0);
-	msg_no = (sense[7] & 0x0F);
+	msg_yes = (sense[7] & 0x0F);
 
 	/* command reject, Format 0 MSG 4 - invalid parameter */
-	if ((reason == 0x80) && (msg_format == 0x00) && (msg_no == 0x04))
+	if ((reason == 0x80) && (msg_format == 0x00) && (msg_yes == 0x04))
 		return 1;
 
 	return 0;
@@ -462,7 +462,7 @@ static int read_unit_address_configuration(struct dasd_device *device,
 	spin_unlock_irqrestore(&lcu->lock, flags);
 
 	rc = dasd_sleep_on(cqr);
-	if (rc && !suborder_not_supported(cqr)) {
+	if (rc && !suborder_yest_supported(cqr)) {
 		spin_lock_irqsave(&lcu->lock, flags);
 		lcu->flags |= NEED_UAC_UPDATE;
 		spin_unlock_irqrestore(&lcu->lock, flags);
@@ -538,13 +538,13 @@ static void lcu_update_work(struct work_struct *work)
 	device = ruac_data->device;
 	rc = _lcu_update(device, lcu);
 	/*
-	 * Need to check flags again, as there could have been another
+	 * Need to check flags again, as there could have been ayesther
 	 * prepare_update or a new device a new device while we were still
 	 * processing the data
 	 */
 	spin_lock_irqsave(&lcu->lock, flags);
 	if ((rc && (rc != -EOPNOTSUPP)) || (lcu->flags & NEED_UAC_UPDATE)) {
-		DBF_DEV_EVENT(DBF_WARNING, device, "could not update"
+		DBF_DEV_EVENT(DBF_WARNING, device, "could yest update"
 			    " alias data in lcu (rc = %d), retry later", rc);
 		if (!schedule_delayed_work(&lcu->ruac_data.dwork, 30*HZ))
 			dasd_put_device(device);
@@ -587,7 +587,7 @@ static int _schedule_lcu_update(struct alias_lcu *lcu,
 					  struct dasd_device, alias_list);
 	}
 	/*
-	 * if we haven't found a proper device yet, give up for now, the next
+	 * if we haven't found a proper device yet, give up for yesw, the next
 	 * device that will be set active will trigger an lcu update
 	 */
 	if (!usedev)
@@ -645,7 +645,7 @@ int dasd_alias_remove_device(struct dasd_device *device)
 	struct alias_lcu *lcu = private->lcu;
 	unsigned long flags;
 
-	/* nothing to do if already removed */
+	/* yesthing to do if already removed */
 	if (!lcu)
 		return 0;
 	spin_lock_irqsave(&lcu->lock, flags);
@@ -669,12 +669,12 @@ struct dasd_device *dasd_alias_get_start_dev(struct dasd_device *base_device)
 		return NULL;
 	if (unlikely(!(private->features.feature[8] & 0x01))) {
 		/*
-		 * PAV enabled but prefix not, very unlikely
+		 * PAV enabled but prefix yest, very unlikely
 		 * seems to be a lost pathgroup
 		 * use base device to do IO
 		 */
 		DBF_DEV_EVENT(DBF_ERR, base_device, "%s",
-			      "Prefix not enabled with PAV enabled\n");
+			      "Prefix yest enabled with PAV enabled\n");
 		return NULL;
 	}
 
@@ -921,8 +921,8 @@ void dasd_alias_handle_summary_unit_check(struct work_struct *work)
 	lcu = private->lcu;
 	if (!lcu) {
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-			    "device not ready to handle summary"
-			    " unit check (no lcu structure)");
+			    "device yest ready to handle summary"
+			    " unit check (yes lcu structure)");
 		goto out;
 	}
 	spin_lock_irqsave(&lcu->lock, flags);

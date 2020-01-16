@@ -1,9 +1,9 @@
 /*
  * Allwinner new F-series F1C100s SoC (suniv) pinctrl driver.
  *
- * Copyright (C) 2018 Icenowy Zheng
+ * Copyright (C) 2018 Iceyeswy Zheng
  *
- * Icenowy Zheng <icenowy@aosc.io>
+ * Iceyeswy Zheng <iceyeswy@aosc.io>
  *
  * Copyright (C) 2014 Jackie Hwang
  *

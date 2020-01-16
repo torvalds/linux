@@ -9,7 +9,7 @@
  * Copyright (C) 1996, 97, 2001, 04  Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2000 RidgeRun, Inc.
  * Author: RidgeRun, Inc.
- *   glonnon@ridgerun.com, skranz@ridgerun.com, stevej@ridgerun.com
+ *   glonyesn@ridgerun.com, skranz@ridgerun.com, stevej@ridgerun.com
  *
  * Copyright 2001 MontaVista Software Inc.
  * Author: jsun@mvista.com or jsun@junsun.net
@@ -39,7 +39,7 @@
  *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/init.h>

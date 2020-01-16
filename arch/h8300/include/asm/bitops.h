@@ -4,7 +4,7 @@
 
 /*
  * Copyright 1992, Linus Torvalds.
- * Copyright 2002, Yoshinori Sato
+ * Copyright 2002, Yoshiyesri Sato
  */
 
 #include <linux/compiler.h>
@@ -20,7 +20,7 @@
  */
 
 /*
- * ffz = Find First Zero in word. Undefined if no zero exists,
+ * ffz = Find First Zero in word. Undefined if yes zero exists,
  * so code should check against ~0UL first..
  */
 static inline unsigned long ffz(unsigned long word)
@@ -53,7 +53,7 @@ static inline void FNAME(int nr, volatile unsigned long *addr)	\
 
 H8300_GEN_BITOP(set_bit,    "bset")
 H8300_GEN_BITOP(clear_bit,  "bclr")
-H8300_GEN_BITOP(change_bit, "bnot")
+H8300_GEN_BITOP(change_bit, "byest")
 #define __set_bit(nr, addr)    set_bit((nr), (addr))
 #define __clear_bit(nr, addr)  clear_bit((nr), (addr))
 #define __change_bit(nr, addr) change_bit((nr), (addr))
@@ -145,7 +145,7 @@ static inline int __ ## FNNAME(int nr, void *addr)			\
 
 H8300_GEN_TEST_BITOP(test_and_set_bit,	  "bset")
 H8300_GEN_TEST_BITOP(test_and_clear_bit,  "bclr")
-H8300_GEN_TEST_BITOP(test_and_change_bit, "bnot")
+H8300_GEN_TEST_BITOP(test_and_change_bit, "byest")
 #undef H8300_GEN_TEST_BITOP
 
 #include <asm-generic/bitops/ffs.h>

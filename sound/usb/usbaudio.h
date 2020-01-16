@@ -17,7 +17,7 @@
  */
 
 struct media_device;
-struct media_intf_devnode;
+struct media_intf_devyesde;
 
 struct snd_usb_audio {
 	int index;
@@ -56,7 +56,7 @@ struct snd_usb_audio {
 
 	struct usb_host_interface *ctrl_intf;	/* the audio control interface */
 	struct media_device *media_dev;
-	struct media_intf_devnode *ctl_intf_media_devnode;
+	struct media_intf_devyesde *ctl_intf_media_devyesde;
 };
 
 #define usb_audio_err(chip, fmt, args...) \

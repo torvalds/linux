@@ -45,7 +45,7 @@ static void cosm_hw_reset(struct cosm_device *cdev, bool force)
 		/*
 		 * Resets typically take 10s of seconds to complete.
 		 * Since an MMIO read is required to check if the
-		 * firmware is ready or not, a 1 second delay works nicely.
+		 * firmware is ready or yest, a 1 second delay works nicely.
 		 */
 		msleep(1000);
 	}
@@ -67,14 +67,14 @@ int cosm_start(struct cosm_device *cdev)
 
 	mutex_lock(&cdev->cosm_mutex);
 	if (!cdev->bootmode) {
-		dev_err(&cdev->dev, "%s %d bootmode not set\n",
+		dev_err(&cdev->dev, "%s %d bootmode yest set\n",
 			__func__, __LINE__);
 		rc = -EINVAL;
 		goto unlock_ret;
 	}
 retry:
 	if (cdev->state != MIC_READY) {
-		dev_err(&cdev->dev, "%s %d MIC state not READY\n",
+		dev_err(&cdev->dev, "%s %d MIC state yest READY\n",
 			__func__, __LINE__);
 		rc = -EINVAL;
 		goto unlock_ret;
@@ -89,7 +89,7 @@ retry:
 	}
 
 	/*
-	 * Set credentials to root to allow non-root user to download initramsfs
+	 * Set credentials to root to allow yesn-root user to download initramsfs
 	 * with 600 permissions
 	 */
 	override_cred = prepare_creds();
@@ -219,7 +219,7 @@ int cosm_shutdown(struct cosm_device *cdev)
 
 	if (!cdev->epd) {
 		rc = -ENOTCONN;
-		dev_err(&cdev->dev, "%s %d scif endpoint not connected rc %d\n",
+		dev_err(&cdev->dev, "%s %d scif endpoint yest connected rc %d\n",
 			__func__, __LINE__, rc);
 		goto err;
 	}

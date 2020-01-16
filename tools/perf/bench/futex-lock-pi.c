@@ -13,7 +13,7 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
-#include <errno.h>
+#include <erryes.h>
 #include <internal/cpumap.h>
 #include <perf/cpumap.h>
 #include "bench.h"
@@ -47,7 +47,7 @@ static const struct option options[] = {
 	OPT_UINTEGER('t', "threads",  &nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('r', "runtime", &nsecs,     "Specify runtime (in seconds)"),
 	OPT_BOOLEAN( 'M', "multi",   &multi,     "Use multiple futexes"),
-	OPT_BOOLEAN( 's', "silent",  &silent,    "Silent mode: do not display data/details"),
+	OPT_BOOLEAN( 's', "silent",  &silent,    "Silent mode: do yest display data/details"),
 	OPT_BOOLEAN( 'S', "shared",  &fshared,   "Use shared futexes instead of private ones"),
 	OPT_END()
 };
@@ -96,7 +96,7 @@ static void *workerfn(void *arg)
 
 		if (ret) { /* handle lock acquisition */
 			if (!silent)
-				warn("thread %d: Could not lock pi-lock for %p (%d)",
+				warn("thread %d: Could yest lock pi-lock for %p (%d)",
 				     w->tid, w->futex, ret);
 			if (done)
 				break;
@@ -107,7 +107,7 @@ static void *workerfn(void *arg)
 		usleep(1);
 		ret = futex_unlock_pi(w->futex, futex_flag);
 		if (ret && !silent)
-			warn("thread %d: Could not unlock pi-lock for %p (%d)",
+			warn("thread %d: Could yest unlock pi-lock for %p (%d)",
 			     w->tid, w->futex, ret);
 		ops++; /* account for thread's share of work */
 	}  while (!done);

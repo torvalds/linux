@@ -58,7 +58,7 @@ static inline void __clear_bit(int nr, volatile unsigned long *addr)
  * @nr: the bit to change
  * @addr: the address to start counting from
  *
- * Unlike change_bit(), this function is non-atomic and may be reordered.
+ * Unlike change_bit(), this function is yesn-atomic and may be reordered.
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
@@ -85,7 +85,7 @@ static inline void __change_bit(int nr, volatile unsigned long *addr)
  * @nr: Bit to set
  * @addr: Address to count from
  *
- * This operation is non-atomic and can be reordered.
+ * This operation is yesn-atomic and can be reordered.
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
@@ -104,7 +104,7 @@ static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to count from
  *
- * This operation is non-atomic and can be reordered.
+ * This operation is yesn-atomic and can be reordered.
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
@@ -118,7 +118,7 @@ static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
 	return (old & mask) != 0;
 }
 
-/* WARNING: non atomic and it can be reordered! */
+/* WARNING: yesn atomic and it can be reordered! */
 static inline int __test_and_change_bit(int nr,
 					    volatile unsigned long *addr)
 {

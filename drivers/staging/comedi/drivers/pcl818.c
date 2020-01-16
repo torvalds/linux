@@ -24,7 +24,7 @@
  * 2) DMA uses one buffer and run in autoinit mode and the data are
  *    from DMA buffer moved on the fly with 2kHz interrupts from RTC.
  *    This mode is used if the interrupt 8 is available for allocation.
- *    If not, then first DMA mode is used. With this I can run at
+ *    If yest, then first DMA mode is used. With this I can run at
  *    full speed one card (100ksamples/secs) or two cards with
  *    60ksamples/secs each (more is problem on account of ISA limitations).
  *    To use this mode you must have compiled  kernel with disabled
@@ -44,7 +44,7 @@
  *        1, 10=A/D input -10V..+10V
  *  [5] - 0,  5=D/A output 0-5V  (internal reference -5V)
  *        1, 10=D/A output 0-10V (internal reference -10V)
- *        2    =D/A output unknown (external reference)
+ *        2    =D/A output unkyeswn (external reference)
  *
  *  Options for PCL-818, PCL-818H:
  *  [0] - IO Base
@@ -54,7 +54,7 @@
  *            1= 1MHz clock for 8254
  *  [4] - 0,  5=D/A output 0-5V  (internal reference -5V)
  *        1, 10=D/A output 0-10V (internal reference -10V)
- *        2    =D/A output unknown (external reference)
+ *        2    =D/A output unkyeswn (external reference)
  *
  *  Options for PCL-818HD, PCL-818HG:
  *  [0] - IO Base
@@ -65,7 +65,7 @@
  *            1= 1MHz clock for 8254
  *  [4] - 0,  5=D/A output 0-5V  (internal reference -5V)
  *        1, 10=D/A output 0-10V (internal reference -10V)
- *        2    =D/A output unknown (external reference)
+ *        2    =D/A output unkyeswn (external reference)
  *
  *  Options for PCL-718:
  *  [0] - IO Base
@@ -86,7 +86,7 @@
  *           10=             user defined unipolar
  *  [5] - 0,  5=D/A outputs 0-5V  (internal reference -5V)
  *        1, 10=D/A outputs 0-10V (internal reference -10V)
- *            2=D/A outputs unknown (external reference)
+ *            2=D/A outputs unkyeswn (external reference)
  *  [6] - 0, 60=max  60kHz A/D sampling
  *        1,100=max 100kHz A/D sampling (PCL-718 with Option 001 installed)
  *
@@ -546,7 +546,7 @@ static irqreturn_t pcl818_interrupt(int irq, void *d)
 	if (devpriv->ai_cmd_canceled) {
 		/*
 		 * The cleanup from ai_cancel() has been delayed
-		 * until now because the card doesn't seem to like
+		 * until yesw because the card doesn't seem to like
 		 * being reprogrammed while a DMA transfer is in
 		 * progress.
 		 */
@@ -573,7 +573,7 @@ static int check_channel_list(struct comedi_device *dev,
 			      unsigned int *chanlist, unsigned int n_chan)
 {
 	unsigned int chansegment[16];
-	unsigned int i, nowmustbechan, seglen;
+	unsigned int i, yeswmustbechan, seglen;
 
 	/* correct channel and range number check itself comedi/range.c */
 	if (n_chan < 1) {
@@ -590,13 +590,13 @@ static int check_channel_list(struct comedi_device *dev,
 
 			if (chanlist[0] == chanlist[i])
 				break;
-			nowmustbechan =
+			yeswmustbechan =
 			    (CR_CHAN(chansegment[i - 1]) + 1) % s->n_chan;
-			if (nowmustbechan != CR_CHAN(chanlist[i])) {
+			if (yeswmustbechan != CR_CHAN(chanlist[i])) {
 				/*  channel list isn't continuous :-( */
 				dev_dbg(dev->class_dev,
 					"channel list must be continuous! chanlist[%i]=%d but must be %d or %d!\n",
-					i, CR_CHAN(chanlist[i]), nowmustbechan,
+					i, CR_CHAN(chanlist[i]), yeswmustbechan,
 					CR_CHAN(chanlist[0]));
 				return 0;
 			}
@@ -608,7 +608,7 @@ static int check_channel_list(struct comedi_device *dev,
 		for (i = 0; i < n_chan; i++) {
 			if (chanlist[i] != chansegment[i % seglen]) {
 				dev_dbg(dev->class_dev,
-					"bad channel or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
+					"bad channel or range number! chanlist[%i]=%d,%d,%d and yest %d,%d,%d!\n",
 					i, CR_CHAN(chansegment[i]),
 					CR_RANGE(chansegment[i]),
 					CR_AREF(chansegment[i]),
@@ -915,7 +915,7 @@ static void pcl818_set_ai_range_table(struct comedi_device *dev,
 	/* default to the range table from the boardinfo */
 	s->range_table = board->ai_range_type;
 
-	/* now check the user config option based on the boardtype */
+	/* yesw check the user config option based on the boardtype */
 	if (board->is_818) {
 		if (it->options[4] == 1 || it->options[4] == 10) {
 			/* secondary range list jumper selectable */
@@ -951,7 +951,7 @@ static void pcl818_set_ai_range_table(struct comedi_device *dev,
 			s->range_table = &range718_unipolar1;
 			break;
 		default:
-			s->range_table = &range_unknown;
+			s->range_table = &range_unkyeswn;
 			break;
 		}
 	}
@@ -1070,12 +1070,12 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			if ((it->options[4] == 1) || (it->options[4] == 10))
 				s->range_table = &range_unipolar10;
 			if (it->options[4] == 2)
-				s->range_table = &range_unknown;
+				s->range_table = &range_unkyeswn;
 		} else {
 			if ((it->options[5] == 1) || (it->options[5] == 10))
 				s->range_table = &range_unipolar10;
 			if (it->options[5] == 2)
-				s->range_table = &range_unknown;
+				s->range_table = &range_unkyeswn;
 		}
 		s->insn_write	= pcl818_ao_insn_write;
 

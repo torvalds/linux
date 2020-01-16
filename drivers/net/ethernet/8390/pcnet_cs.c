@@ -4,7 +4,7 @@
 
     This driver supports the D-Link DE-650 and Linksys EthernetCard
     cards, the newer D-Link and Linksys combo cards, Accton EN2212
-    cards, the RPTI EP400, and the PreMax PE-200 in non-shared-memory
+    cards, the RPTI EP400, and the PreMax PE-200 in yesn-shared-memory
     mode, and the IBM Credit Card Adapter, the NE4100, the Thomas
     Conrad ethernet card, and the Kingston KNE-PCM/x in shared-memory
     mode.  It will also handle the Socket EA card in either mode.
@@ -190,7 +190,7 @@ static struct hw_info hw_info[] = {
     { /* SuperSocket RE450T */ 0x0110, 0x00, 0xe0, 0x98, 0 },
     { /* Volktek NPL-402CT */ 0x0060, 0x00, 0x40, 0x05, 0 },
     { /* NEC PC-9801N-J12 */ 0x0ff0, 0x00, 0x00, 0x4c, 0 },
-    { /* PCMCIA Technology OEM */ 0x01c8, 0x00, 0xa0, 0x0c, 0 }
+    { /* PCMCIA Techyeslogy OEM */ 0x01c8, 0x00, 0xa0, 0x0c, 0 }
 };
 
 #define NR_INFO		ARRAY_SIZE(hw_info)
@@ -315,7 +315,7 @@ static struct hw_info *get_hwinfo(struct pcmcia_device *link)
 /*======================================================================
 
     This probes for a card's hardware address by reading the PROM.
-    It checks the address against a list of known types, then falls
+    It checks the address against a list of kyeswn types, then falls
     back to a simple NE2000 clone signature check.
 
 ======================================================================*/
@@ -503,7 +503,7 @@ static struct hw_info *pcnet_try_config(struct pcmcia_device *link,
 
 	ret = pcmcia_loop_config(link, pcnet_confcheck, &priv);
 	if (ret) {
-		dev_warn(&link->dev, "no useable port range found\n");
+		dev_warn(&link->dev, "yes useable port range found\n");
 		return NULL;
 	}
 	*has_shmem = (priv & 0x10);
@@ -529,7 +529,7 @@ static struct hw_info *pcnet_try_config(struct pcmcia_device *link,
 		if ((if_port == 1) || (if_port == 2))
 			dev->if_port = if_port;
 		else
-			dev_notice(&link->dev, "invalid if_port requested\n");
+			dev_yestice(&link->dev, "invalid if_port requested\n");
 	} else
 		dev->if_port = 0;
 
@@ -569,7 +569,7 @@ static int pcnet_config(struct pcmcia_device *link)
 	    pcmcia_disable_device(link);
 	    local_hw_info = pcnet_try_config(link, &has_shmem, 1);
 	    if (local_hw_info == NULL) {
-		    dev_notice(&link->dev, "unable to read hardware net"
+		    dev_yestice(&link->dev, "unable to read hardware net"
 			    " address for io base %#3lx\n", dev->base_addr);
 		    goto failed;
 	    }
@@ -596,7 +596,7 @@ static int pcnet_config(struct pcmcia_device *link)
 	cm_offset = 0;
     }
 
-    /* has_shmem is ignored if use_shmem != -1 */
+    /* has_shmem is igyesred if use_shmem != -1 */
     if ((use_shmem == 0) || (!has_shmem && (use_shmem == -1)) ||
 	(setup_shmem_window(link, start_pg, stop_pg, cm_offset) != 0))
 	setup_dma_config(link, start_pg, stop_pg);
@@ -611,7 +611,7 @@ static int pcnet_config(struct pcmcia_device *link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
-	pr_notice("register_netdev() failed\n");
+	pr_yestice("register_netdev() failed\n");
 	goto failed;
     }
 
@@ -969,7 +969,7 @@ static void pcnet_reset_8390(struct net_device *dev)
     outb_p(ENISR_RESET, nic_base + EN0_ISR); /* Ack intr. */
 
     if (i == 100)
-	netdev_err(dev, "pcnet_reset_8390() did not complete.\n");
+	netdev_err(dev, "pcnet_reset_8390() did yest complete.\n");
 
     set_misc_reg(dev);
 
@@ -1066,7 +1066,7 @@ static void ei_watchdog(struct timer_list *t)
 				((p & 0x0180) ? "100" : "10"),
 				((p & 0x0140) ? 'F' : 'H'));
 		else
-		    netdev_info(dev, "link partner did not autonegotiate\n");
+		    netdev_info(dev, "link partner did yest autonegotiate\n");
 	    }
 	    NS8390_init(dev, 1);
 	}
@@ -1181,7 +1181,7 @@ static void dma_block_input(struct net_device *dev, int count,
     if (count & 0x01)
 	buf[count-1] = inb(nic_base + PCNET_DATAPORT), xfer_count++;
 
-    /* This was for the ALPHA version only, but enough people have been
+    /* This was for the ALPHA version only, but eyesugh people have been
        encountering problems that it is still here. */
 #ifdef PCMCIA_DEBUG
       /* DMA termination address check... */
@@ -1197,7 +1197,7 @@ static void dma_block_input(struct net_device *dev, int count,
 		break;
 	} while (--tries > 0);
 	if (tries <= 0)
-	    netdev_notice(dev, "RX transfer address mismatch,"
+	    netdev_yestice(dev, "RX transfer address mismatch,"
 			  "%#4.4x (expected) vs. %#4.4x (actual).\n",
 			  ring_offset + xfer_count, addr);
     }
@@ -1244,7 +1244,7 @@ static void dma_block_output(struct net_device *dev, int count,
 
     outb_p(ENISR_RDC, nic_base + EN0_ISR);
 
-    /* Now the normal output. */
+    /* Now the yesrmal output. */
     outb_p(count & 0xff, nic_base + EN0_RCNTLO);
     outb_p(count >> 8,   nic_base + EN0_RCNTHI);
     outb_p(0x00, nic_base + EN0_RSARLO);
@@ -1256,7 +1256,7 @@ static void dma_block_output(struct net_device *dev, int count,
     dma_start = jiffies;
 
 #ifdef PCMCIA_DEBUG
-    /* This was for the ALPHA version only, but enough people have been
+    /* This was for the ALPHA version only, but eyesugh people have been
        encountering problems that it is still here. */
     /* DMA termination address check... */
     if (netif_msg_tx_queued(ei_local)) {
@@ -1269,7 +1269,7 @@ static void dma_block_output(struct net_device *dev, int count,
 		break;
 	} while (--tries > 0);
 	if (tries <= 0) {
-	    netdev_notice(dev, "Tx packet transfer address mismatch,"
+	    netdev_yestice(dev, "Tx packet transfer address mismatch,"
 			  "%#4.4x (expected) vs. %#4.4x (actual).\n",
 			  (start_page << 8) + count, addr);
 	    if (retries++ == 0)
@@ -1513,11 +1513,11 @@ static const struct pcmcia_device_id pcnet_ids[] = {
 	PCMCIA_DEVICE_PROD_ID123("Cardwell", "PCMCIA", "ETHERNET", 0x9533672e, 0x281f1c5d, 0x3ff7175b),
 	PCMCIA_DEVICE_PROD_ID123("CNet  ", "CN30BC", "ETHERNET", 0x9fe55d3d, 0x85601198, 0x3ff7175b),
 	PCMCIA_DEVICE_PROD_ID123("Digital", "Ethernet", "Adapter", 0x9999ab35, 0x00b2e941, 0x4b0d829e),
-	PCMCIA_DEVICE_PROD_ID123("Edimax Technology Inc.", "PCMCIA", "Ethernet Card", 0x738a0019, 0x281f1c5d, 0x5e9d92c0),
+	PCMCIA_DEVICE_PROD_ID123("Edimax Techyeslogy Inc.", "PCMCIA", "Ethernet Card", 0x738a0019, 0x281f1c5d, 0x5e9d92c0),
 	PCMCIA_DEVICE_PROD_ID123("EFA   ", "EFA207", "ETHERNET", 0x3d294be4, 0xeb9aab6c, 0x3ff7175b),
 	PCMCIA_DEVICE_PROD_ID123("I-O DATA", "PCLA", "ETHERNET", 0x1d55d7ec, 0xe4c64d34, 0x3ff7175b),
 	PCMCIA_DEVICE_PROD_ID123("IO DATA", "PCLATE", "ETHERNET", 0x547e66dc, 0x6b260753, 0x3ff7175b),
-	PCMCIA_DEVICE_PROD_ID123("KingMax Technology Inc.", "EN10-T2", "PCMCIA Ethernet Card", 0x932b7189, 0x699e4436, 0x6f6652e0),
+	PCMCIA_DEVICE_PROD_ID123("KingMax Techyeslogy Inc.", "EN10-T2", "PCMCIA Ethernet Card", 0x932b7189, 0x699e4436, 0x6f6652e0),
 	PCMCIA_DEVICE_PROD_ID123("PCMCIA", "PCMCIA-ETHERNET-CARD", "UE2216", 0x281f1c5d, 0xd4cd2f20, 0xb87add82),
 	PCMCIA_DEVICE_PROD_ID123("PCMCIA", "PCMCIA-ETHERNET-CARD", "UE2620", 0x281f1c5d, 0xd4cd2f20, 0x7d3d83a8),
 	PCMCIA_DEVICE_PROD_ID1("2412LAN", 0x67f236ab),
@@ -1591,7 +1591,7 @@ static const struct pcmcia_device_id pcnet_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("KCI", "PE520 PCMCIA Ethernet Adapter", 0xa89b87d3, 0x1eb88e64),
 	PCMCIA_DEVICE_PROD_ID12("KINGMAX", "EN10T2T", 0x7bcb459a, 0xa5c81fa5),
 	PCMCIA_DEVICE_PROD_ID12("Kingston", "KNE-PC2", 0x1128e633, 0xce2a89b3),
-	PCMCIA_DEVICE_PROD_ID12("Kingston Technology Corp.", "EtheRx PC Card Ethernet Adapter", 0x313c7be3, 0x0afb54a2),
+	PCMCIA_DEVICE_PROD_ID12("Kingston Techyeslogy Corp.", "EtheRx PC Card Ethernet Adapter", 0x313c7be3, 0x0afb54a2),
 	PCMCIA_DEVICE_PROD_ID12("Laneed", "LD-10/100CD", 0x1b7827b2, 0xcda71d1c),
 	PCMCIA_DEVICE_PROD_ID12("Laneed", "LD-CDF", 0x1b7827b2, 0xfec71e40),
 	PCMCIA_DEVICE_PROD_ID12("Laneed", "LD-CDL/T", 0x1b7827b2, 0x79fba4f7),
@@ -1656,7 +1656,7 @@ static const struct pcmcia_device_id pcnet_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Telecom Device K.K.", "SuperSocket RE450T", 0x466b05f0, 0x8b74bc4f),
 	PCMCIA_DEVICE_PROD_ID12("Telecom Device K.K.", "SuperSocket RE550T", 0x466b05f0, 0x33c8db2a),
 	PCMCIA_DEVICE_PROD_ID13("Hypertec",  "EP401", 0x8787bec7, 0xf6e4a31e),
-	PCMCIA_DEVICE_PROD_ID13("KingMax Technology Inc.", "Ethernet Card", 0x932b7189, 0x5e9d92c0),
+	PCMCIA_DEVICE_PROD_ID13("KingMax Techyeslogy Inc.", "Ethernet Card", 0x932b7189, 0x5e9d92c0),
 	PCMCIA_DEVICE_PROD_ID13("LONGSHINE", "EP401", 0xf866b0b0, 0xf6e4a31e),
 	PCMCIA_DEVICE_PROD_ID13("Xircom", "CFE-10", 0x2e3ee845, 0x22a49f89),
 	PCMCIA_DEVICE_PROD_ID1("CyQ've 10 Base-T LAN CARD", 0x94faf360),

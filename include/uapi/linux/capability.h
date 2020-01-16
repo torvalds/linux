@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * This is <linux/capability.h>
  *
  * Andrew G. Morgan <morgan@kernel.org>
- * Alexander Kjeldaas <astor@guardian.no>
+ * Alexander Kjeldaas <astor@guardian.yes>
  * with help from Aleph1, Roland Buresund and Andrew Main.
  *
  * See here for the libcap library ("POSIX draft" compliance):
@@ -135,7 +135,7 @@ struct vfs_ns_cap_data {
    bits on that file; that the effective group ID (or one of the
    supplementary group IDs) shall match the file owner ID when setting
    the S_ISGID bit on that file; that the S_ISUID and S_ISGID bits are
-   cleared on successful return from chown(2) (not implemented). */
+   cleared on successful return from chown(2) (yest implemented). */
 
 #define CAP_FSETID           4
 
@@ -266,7 +266,7 @@ struct vfs_ns_cap_data {
 /* Allow access to the nvram device */
 /* Allow administration of apm_bios, serial and bttv (TV) device */
 /* Allow manufacturer commands in isdn CAPI support driver */
-/* Allow reading non-standardized portions of pci configuration space */
+/* Allow reading yesn-standardized portions of pci configuration space */
 /* Allow DDI debug ioctl on sbpcd driver */
 /* Allow setting up serial ports */
 /* Allow sending raw qic-117 commands */
@@ -284,7 +284,7 @@ struct vfs_ns_cap_data {
 /* Allow raising priority and setting priority on other (different
    UID) processes */
 /* Allow use of FIFO and round-robin (realtime) scheduling on own
-   processes and setting the scheduling algorithm used by another
+   processes and setting the scheduling algorithm used by ayesther
    process. */
 /* Allow setting cpu affinity on other processes */
 
@@ -295,7 +295,7 @@ struct vfs_ns_cap_data {
 /* Override reserved space on ext2 filesystem */
 /* Modify data journaling mode on ext3 filesystem (uses journaling
    resources) */
-/* NOTE: ext2 honors fsuid when checking for resource overrides, so
+/* NOTE: ext2 hoyesrs fsuid when checking for resource overrides, so
    you can override using fsuid too */
 /* Override size restrictions on IPC message queues */
 /* Allow more than 64hz interrupts from the real-time clock */
@@ -315,7 +315,7 @@ struct vfs_ns_cap_data {
 
 #define CAP_SYS_TTY_CONFIG   26
 
-/* Allow the privileged aspects of mknod() */
+/* Allow the privileged aspects of mkyesd() */
 
 #define CAP_MKNOD            27
 
@@ -334,7 +334,7 @@ struct vfs_ns_cap_data {
 #define CAP_SETFCAP	     31
 
 /* Override MAC access.
-   The base kernel enforces no MAC policy.
+   The base kernel enforces yes MAC policy.
    An LSM may enforce a MAC policy, and if it does and it chooses
    to implement capability based overrides of that policy, this is
    the capability it should use to do so. */
@@ -342,7 +342,7 @@ struct vfs_ns_cap_data {
 #define CAP_MAC_OVERRIDE     32
 
 /* Allow MAC configuration or state changes.
-   The base kernel requires no MAC configuration.
+   The base kernel requires yes MAC configuration.
    An LSM may enforce a MAC policy, and if it does and it chooses
    to implement capability based checks on modifications to that
    policy or the data required to maintain it, this is the

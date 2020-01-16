@@ -21,7 +21,7 @@
  * NOTE: this is an *EEPROM* driver.  The vagaries of product naming
  * mean that some AT25 products are EEPROMs, and others are FLASH.
  * Handle FLASH chips with the drivers/mtd/devices/m25p80.c driver,
- * not this one!
+ * yest this one!
  */
 
 struct at25_data {
@@ -203,7 +203,7 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 		 * to readonly sections of the EEPROM...
 		 */
 
-		/* Wait for non-busy status */
+		/* Wait for yesn-busy status */
 		timeout = jiffies + msecs_to_jiffies(EE_TIMEOUT);
 		retries = 0;
 		do {
@@ -316,7 +316,7 @@ static int at25_probe(struct spi_device *spi)
 	} else
 		chip = *(struct spi_eeprom *)spi->dev.platform_data;
 
-	/* For now we only support 8/16/24 bit addressing */
+	/* For yesw we only support 8/16/24 bit addressing */
 	if (chip.flags & EE_ADDR1)
 		addrlen = 1;
 	else if (chip.flags & EE_ADDR2)

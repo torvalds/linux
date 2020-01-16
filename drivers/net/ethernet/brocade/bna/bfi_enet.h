@@ -12,7 +12,7 @@
 /* BNA Hardware and Firmware Interface */
 
 /* Skipping statistics collection to avoid clutter.
- * Command is no longer needed:
+ * Command is yes longer needed:
  *	MTU
  *	TxQ Stop
  *	RxQ Stop
@@ -331,8 +331,8 @@ enum bfi_enet_err {
 	BFI_ENET_CMD_FAIL	= 1,
 	BFI_ENET_CMD_DUP_ENTRY	= 2,	/* !< Duplicate entry in CAM */
 	BFI_ENET_CMD_CAM_FULL	= 3,	/* !< CAM is full */
-	BFI_ENET_CMD_NOT_OWNER	= 4,	/* !< Not permitted, b'cos not owner */
-	BFI_ENET_CMD_NOT_EXEC	= 5,	/* !< Was not sent to f/w at all */
+	BFI_ENET_CMD_NOT_OWNER	= 4,	/* !< Not permitted, b'cos yest owner */
+	BFI_ENET_CMD_NOT_EXEC	= 5,	/* !< Was yest sent to f/w at all */
 	BFI_ENET_CMD_WAITING	= 6,	/* !< Waiting for completion */
 	BFI_ENET_CMD_PORT_DISABLED = 7,	/* !< port in disabled state */
 };
@@ -796,7 +796,7 @@ struct bfi_enet_stats_mac {
 	u64 rx_broadcast;
 	u64 rx_control_frames;
 	u64 rx_pause;
-	u64 rx_unknown_opcode;
+	u64 rx_unkyeswn_opcode;
 	u64 rx_alignment_error;
 	u64 rx_frame_length_error;
 	u64 rx_code_error;
@@ -820,7 +820,7 @@ struct bfi_enet_stats_mac {
 	u64 tx_late_collision;
 	u64 tx_excessive_collision;
 	u64 tx_total_collision;
-	u64 tx_pause_honored;
+	u64 tx_pause_hoyesred;
 	u64 tx_drop;
 	u64 tx_jabber;
 	u64 tx_fcs_error;

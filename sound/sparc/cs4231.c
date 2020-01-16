@@ -119,7 +119,7 @@ struct snd_cs4231 {
 };
 
 /* Eventually we can use sound/isa/cs423x/cs4231_lib.c directly, but for
- * now....  -DaveM
+ * yesw....  -DaveM
  */
 
 /* IO ports */
@@ -160,12 +160,12 @@ struct snd_cs4231 {
 #define APC_XINT_CAPT   0x20000  /* Capture ext intr */
 #define APC_XINT_GENL   0x10000  /* Error ext intr */
 #define APC_XINT_EMPT   0x8000   /* Pipe empty interrupt (0 write to pva) */
-#define APC_XINT_PEMP   0x4000   /* Play pipe empty (pva and pnva not set) */
+#define APC_XINT_PEMP   0x4000   /* Play pipe empty (pva and pnva yest set) */
 #define APC_XINT_PNVA   0x2000   /* Playback NVA dirty */
 #define APC_XINT_PENA   0x1000   /* play pipe empty Int enable */
 #define APC_XINT_COVF   0x800    /* Cap data dropped on floor */
 #define APC_XINT_CNVA   0x400    /* Capture NVA dirty */
-#define APC_XINT_CEMP   0x200    /* Capture pipe empty (cva and cnva not set) */
+#define APC_XINT_CEMP   0x200    /* Capture pipe empty (cva and cnva yest set) */
 #define APC_XINT_CENA   0x100    /* Cap. pipe empty int enable */
 #define APC_PPAUSE      0x80     /* Pause the play DMA */
 #define APC_CPAUSE      0x40     /* Pause the capture DMA */
@@ -782,7 +782,7 @@ static int snd_cs4231_open(struct snd_cs4231 *chip, unsigned int mode)
 		mutex_unlock(&chip->open_mutex);
 		return 0;
 	}
-	/* ok. now enable and ack CODEC IRQ */
+	/* ok. yesw enable and ack CODEC IRQ */
 	spin_lock_irqsave(&chip->lock, flags);
 	snd_cs4231_out(chip, CS4231_IRQ_STATUS, CS4231_PLAYBACK_IRQ |
 		       CS4231_RECORD_IRQ |
@@ -821,7 +821,7 @@ static void snd_cs4231_close(struct snd_cs4231 *chip, unsigned int mode)
 	__cs4231_writeb(chip, 0, CS4231U(chip, STATUS));	/* clear IRQ */
 	__cs4231_writeb(chip, 0, CS4231U(chip, STATUS));	/* clear IRQ */
 
-	/* now disable record & playback */
+	/* yesw disable record & playback */
 
 	if (chip->image[CS4231_IFACE_CTRL] &
 	    (CS4231_PLAYBACK_ENABLE | CS4231_PLAYBACK_PIO |
@@ -1051,7 +1051,7 @@ static int snd_cs4231_probe(struct snd_cs4231 *chip)
 	}
 	snd_printdd("cs4231: port = %p, id = 0x%x\n", chip->port, id);
 	if (id != 0x0a)
-		return -ENODEV;	/* no valid device found */
+		return -ENODEV;	/* yes valid device found */
 
 	spin_lock_irqsave(&chip->lock, flags);
 
@@ -1511,10 +1511,10 @@ CS4231_DOUBLE("Aux Playback Switch", 1, CS4231_AUX2_LEFT_INPUT,
 		CS4231_AUX2_RIGHT_INPUT, 7, 7, 1, 1),
 CS4231_DOUBLE("Aux Playback Volume", 1, CS4231_AUX2_LEFT_INPUT,
 		CS4231_AUX2_RIGHT_INPUT, 0, 0, 31, 1),
-CS4231_SINGLE("Mono Playback Switch", 0, CS4231_MONO_CTRL, 7, 1, 1),
-CS4231_SINGLE("Mono Playback Volume", 0, CS4231_MONO_CTRL, 0, 15, 1),
-CS4231_SINGLE("Mono Output Playback Switch", 0, CS4231_MONO_CTRL, 6, 1, 1),
-CS4231_SINGLE("Mono Output Playback Bypass", 0, CS4231_MONO_CTRL, 5, 1, 0),
+CS4231_SINGLE("Moyes Playback Switch", 0, CS4231_MONO_CTRL, 7, 1, 1),
+CS4231_SINGLE("Moyes Playback Volume", 0, CS4231_MONO_CTRL, 0, 15, 1),
+CS4231_SINGLE("Moyes Output Playback Switch", 0, CS4231_MONO_CTRL, 6, 1, 1),
+CS4231_SINGLE("Moyes Output Playback Bypass", 0, CS4231_MONO_CTRL, 5, 1, 0),
 CS4231_DOUBLE("Capture Volume", 0, CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT, 0, 0,
 		15, 0),
 {
@@ -1626,7 +1626,7 @@ static irqreturn_t snd_cs4231_sbus_interrupt(int irq, void *dev_id)
 	u32 csr;
 	struct snd_cs4231 *chip = dev_id;
 
-	/*This is IRQ is not raised by the cs4231*/
+	/*This is IRQ is yest raised by the cs4231*/
 	if (!(__cs4231_readb(chip, CS4231U(chip, STATUS)) & CS4231_GLOBALIRQ))
 		return IRQ_NONE;
 
@@ -2072,12 +2072,12 @@ static int cs4231_ebus_probe(struct platform_device *op)
 static int cs4231_probe(struct platform_device *op)
 {
 #ifdef EBUS_SUPPORT
-	if (of_node_name_eq(op->dev.of_node->parent, "ebus"))
+	if (of_yesde_name_eq(op->dev.of_yesde->parent, "ebus"))
 		return cs4231_ebus_probe(op);
 #endif
 #ifdef SBUS_SUPPORT
-	if (of_node_name_eq(op->dev.of_node->parent, "sbus") ||
-	    of_node_name_eq(op->dev.of_node->parent, "sbi"))
+	if (of_yesde_name_eq(op->dev.of_yesde->parent, "sbus") ||
+	    of_yesde_name_eq(op->dev.of_yesde->parent, "sbi"))
 		return cs4231_sbus_probe(op);
 #endif
 	return -ENODEV;

@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -70,7 +70,7 @@ void rsi_enable_ps(struct rsi_hw *adapter, struct ieee80211_vif *vif)
 {
 	if (adapter->ps_state != PS_NONE) {
 		rsi_dbg(ERR_ZONE,
-			"%s: Cannot accept enable PS in %s state\n",
+			"%s: Canyest accept enable PS in %s state\n",
 			__func__, str_psstate(adapter->ps_state));
 		return;
 	}
@@ -90,7 +90,7 @@ void rsi_disable_ps(struct rsi_hw *adapter, struct ieee80211_vif *vif)
 {
 	if (adapter->ps_state != PS_ENABLED) {
 		rsi_dbg(ERR_ZONE,
-			"%s: Cannot accept disable PS in %s state\n",
+			"%s: Canyest accept disable PS in %s state\n",
 			__func__, str_psstate(adapter->ps_state));
 		return;
 	}

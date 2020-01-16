@@ -81,7 +81,7 @@ static void tfp410_encoder_mode_set(struct drm_encoder *encoder,
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
 {
-	/* nothing needed */
+	/* yesthing needed */
 }
 
 static const struct drm_encoder_funcs tfp410_encoder_funcs = {
@@ -155,7 +155,7 @@ static enum drm_connector_status tfp410_connector_detect(
 	if (drm_probe_ddc(tfp410_connector->mod->i2c))
 		return connector_status_connected;
 
-	return connector_status_unknown;
+	return connector_status_unkyeswn;
 }
 
 static int tfp410_connector_get_modes(struct drm_connector *connector)
@@ -271,16 +271,16 @@ static const struct tilcdc_module_ops tfp410_module_ops = {
 
 static int tfp410_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *i2c_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *i2c_yesde;
 	struct tfp410_module *tfp410_mod;
 	struct tilcdc_module *mod;
 	struct pinctrl *pinctrl;
 	uint32_t i2c_phandle;
 	int ret = -EINVAL;
 
-	/* bail out early if no DT data: */
-	if (!node) {
+	/* bail out early if yes DT data: */
+	if (!yesde) {
 		dev_err(&pdev->dev, "device-tree data is missing\n");
 		return -ENXIO;
 	}
@@ -296,36 +296,36 @@ static int tfp410_probe(struct platform_device *pdev)
 
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev, "pins are not configured\n");
+		dev_warn(&pdev->dev, "pins are yest configured\n");
 
-	if (of_property_read_u32(node, "i2c", &i2c_phandle)) {
-		dev_err(&pdev->dev, "could not get i2c bus phandle\n");
+	if (of_property_read_u32(yesde, "i2c", &i2c_phandle)) {
+		dev_err(&pdev->dev, "could yest get i2c bus phandle\n");
 		goto fail;
 	}
 
-	i2c_node = of_find_node_by_phandle(i2c_phandle);
-	if (!i2c_node) {
-		dev_err(&pdev->dev, "could not get i2c bus node\n");
+	i2c_yesde = of_find_yesde_by_phandle(i2c_phandle);
+	if (!i2c_yesde) {
+		dev_err(&pdev->dev, "could yest get i2c bus yesde\n");
 		goto fail;
 	}
 
-	tfp410_mod->i2c = of_find_i2c_adapter_by_node(i2c_node);
+	tfp410_mod->i2c = of_find_i2c_adapter_by_yesde(i2c_yesde);
 	if (!tfp410_mod->i2c) {
-		dev_err(&pdev->dev, "could not get i2c\n");
-		of_node_put(i2c_node);
+		dev_err(&pdev->dev, "could yest get i2c\n");
+		of_yesde_put(i2c_yesde);
 		goto fail;
 	}
 
-	of_node_put(i2c_node);
+	of_yesde_put(i2c_yesde);
 
-	tfp410_mod->gpio = of_get_named_gpio_flags(node, "powerdn-gpio",
+	tfp410_mod->gpio = of_get_named_gpio_flags(yesde, "powerdn-gpio",
 			0, NULL);
 	if (tfp410_mod->gpio < 0) {
 		dev_warn(&pdev->dev, "No power down GPIO\n");
 	} else {
 		ret = gpio_request(tfp410_mod->gpio, "DVI_PDn");
 		if (ret) {
-			dev_err(&pdev->dev, "could not get DVI_PDn gpio\n");
+			dev_err(&pdev->dev, "could yest get DVI_PDn gpio\n");
 			goto fail_adapter;
 		}
 	}

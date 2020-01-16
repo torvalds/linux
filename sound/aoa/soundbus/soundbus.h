@@ -17,7 +17,7 @@
  * while the bus still is.
  * More importantly, while switch from slave to master, you need
  * to turn off the chip's master function first, but then there's
- * no clock for a while and other chips might reset, so we notify
+ * yes clock for a while and other chips might reset, so we yestify
  * their drivers after having switched.
  * The constants here are codec-point of view, so when we switch
  * the soundbus to master we tell the codec we're going to switch
@@ -50,7 +50,7 @@ struct codec_info_item {
 	struct list_head list;
 };
 
-/* for prepare, where the codecs need to know
+/* for prepare, where the codecs need to kyesw
  * what we're going to drive the bus with */
 struct bus_info {
 	/* see below */
@@ -69,12 +69,12 @@ struct codec_info {
 
 	/* Master clock speed factor
 	 * to be used (master clock speed = sysclock_factor * sampling freq)
-	 * Unused if the soundbus provider has no such notion.
+	 * Unused if the soundbus provider has yes such yestion.
 	 */
 	int sysclock_factor;
 
 	/* Bus factor, bus clock speed = bus_factor * sampling freq)
-	 * Unused if the soundbus provider has no such notion.
+	 * Unused if the soundbus provider has yes such yestion.
 	 */
 	int bus_factor;
 
@@ -87,8 +87,8 @@ struct codec_info {
 	 * opens the pcm device to determine what the
 	 * hardware can support at this point in time.
 	 * That can depend on other user-switchable controls.
-	 * Return 1 if usable, 0 if not.
-	 * out points to another instance of a transfer_info
+	 * Return 1 if usable, 0 if yest.
+	 * out points to ayesther instance of a transfer_info
 	 * which is initialised to the values in *ti, and
 	 * it's format and rate values can be modified by
 	 * the callback if it is necessary to further restrict
@@ -100,7 +100,7 @@ struct codec_info {
 		      struct transfer_info *ti,
 		      struct transfer_info *out);
 
-	/* called when pcm stream is opened, probably not implemented
+	/* called when pcm stream is opened, probably yest implemented
 	 * most of the time since it isn't too useful */
 	int (*open)(struct codec_info_item *cii,
 		    struct snd_pcm_substream *substream);
@@ -111,8 +111,8 @@ struct codec_info {
 		     struct snd_pcm_substream *substream);
 
 	/* if the codec must forbid some user choices because
-	 * they are not valid with the substream/transfer info,
-	 * it must do so here. Example: no digital output for
+	 * they are yest valid with the substream/transfer info,
+	 * it must do so here. Example: yes digital output for
 	 * incompatible framerate, say 8KHz, on Onyx.
 	 * If the selected stuff in the substream is NOT
 	 * compatible, you have to reject this call! */
@@ -125,7 +125,7 @@ struct codec_info {
 	int (*start)(struct codec_info_item *cii,
 		     struct snd_pcm_substream *substream);
 
-	/* stop() is called after data is no longer pushed to the codec.
+	/* stop() is called after data is yes longer pushed to the codec.
 	 * Note that stop() must be atomic! */
 	int (*stop)(struct codec_info_item *cii,
 		    struct snd_pcm_substream *substream);

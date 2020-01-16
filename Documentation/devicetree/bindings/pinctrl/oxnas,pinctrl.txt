@@ -4,18 +4,18 @@ Please refer to pinctrl-bindings.txt, ../gpio/gpio.txt, and
 ../interrupt-controller/interrupts.txt for generic information regarding
 pin controller, GPIO, and interrupt bindings.
 
-OXNAS 'pin configuration node' is a node of a group of pins which can be
-used for a specific device or function. This node represents configurations of
+OXNAS 'pin configuration yesde' is a yesde of a group of pins which can be
+used for a specific device or function. This yesde represents configurations of
 pins, optional function, and optional mux related configuration.
 
-Required properties for pin controller node:
+Required properties for pin controller yesde:
  - compatible: "oxsemi,ox810se-pinctrl" or "oxsemi,ox820-pinctrl"
- - oxsemi,sys-ctrl: a phandle to the system controller syscon node
+ - oxsemi,sys-ctrl: a phandle to the system controller syscon yesde
 
-Required properties for pin configuration sub-nodes:
+Required properties for pin configuration sub-yesdes:
  - pins: List of pins to which the configuration applies.
 
-Optional properties for pin configuration sub-nodes:
+Optional properties for pin configuration sub-yesdes:
 ----------------------------------------------------
  - function: Mux function for the specified pins.
  - bias-pull-up: Enable weak pull-up.
@@ -49,7 +49,7 @@ uart2: serial@900000 {
 	fifo-size = <16>;
 	reg-io-width = <1>;
 	current-speed = <115200>;
-	no-loopback-test;
+	yes-loopback-test;
 	resets = <&reset 22>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;

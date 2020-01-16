@@ -15,14 +15,14 @@
 #include <linux/moduleparam.h>
 
 /* XXX */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/sched/signal.h>
 #include <linux/init.h>
 
-#include <asm/thread_notify.h>
+#include <asm/thread_yestify.h>
 
 #include "softfloat.h"
 #include "fpopcode.h"
@@ -45,7 +45,7 @@ void fp_send_sig(unsigned long sig, struct task_struct *p, int priv);
 extern char fpe_type[];
 #endif
 
-static int nwfpe_notify(struct notifier_block *self, unsigned long cmd, void *v)
+static int nwfpe_yestify(struct yestifier_block *self, unsigned long cmd, void *v)
 {
 	struct thread_info *thread = v;
 
@@ -55,8 +55,8 @@ static int nwfpe_notify(struct notifier_block *self, unsigned long cmd, void *v)
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block nwfpe_notifier_block = {
-	.notifier_call = nwfpe_notify,
+static struct yestifier_block nwfpe_yestifier_block = {
+	.yestifier_call = nwfpe_yestify,
 };
 
 /* kernel function prototypes required */
@@ -89,7 +89,7 @@ static int __init fpe_init(void)
 	pr_info("NetWinder Floating Point Emulator V0.97 ("
 	        NWFPE_BITS " precision)\n");
 
-	thread_register_notifier(&nwfpe_notifier_block);
+	thread_register_yestifier(&nwfpe_yestifier_block);
 
 	/* Save pointer to the old FP handler and then patch ourselves in */
 	orig_fp_enter = kern_fp_enter;
@@ -100,7 +100,7 @@ static int __init fpe_init(void)
 
 static void __exit fpe_exit(void)
 {
-	thread_unregister_notifier(&nwfpe_notifier_block);
+	thread_unregister_yestifier(&nwfpe_yestifier_block);
 	/* Restore the values we saved earlier. */
 	kern_fp_enter = orig_fp_enter;
 }
@@ -119,12 +119,12 @@ moment (grep for get_user / put_user calls).  --philb]
 
 This function is called by the SoftFloat routines to raise a floating
 point exception.  We check the trap enable byte in the FPSR, and raise
-a SIGFPE exception if necessary.  If not the relevant bits in the 
+a SIGFPE exception if necessary.  If yest the relevant bits in the 
 cumulative exceptions flag byte are set and we return.
 */
 
 #ifdef CONFIG_DEBUG_USER
-/* By default, ignore inexact errors as there are far too many of them to log */
+/* By default, igyesre inexact errors as there are far too many of them to log */
 static int debug = ~BIT_IXC;
 #endif
 
@@ -145,7 +145,7 @@ void float_raise(signed char flags)
 	cumulativeTraps = 0;
 
 	/* For each type of exception, the cumulative trap exception bit is only
-	   set if the corresponding trap enable bit is not set.  */
+	   set if the corresponding trap enable bit is yest set.  */
 	if ((!(fpsr & BIT_IXE)) && (flags & BIT_IXC))
 		cumulativeTraps |= BIT_IXC;
 	if ((!(fpsr & BIT_UFE)) && (flags & BIT_UFC))

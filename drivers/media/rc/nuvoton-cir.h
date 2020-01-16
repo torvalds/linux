@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Driver for Nuvoton Technology Corporation w83667hg/w83677hg-i CIR
+ * Driver for Nuvoton Techyeslogy Corporation w83667hg/w83677hg-i CIR
  *
  * Copyright (C) 2010 Jarod Wilson <jarod@redhat.com>
  * Copyright (C) 2009 Nuvoton PS Team
@@ -76,7 +76,7 @@ struct nvt_dev {
 	enum nvt_chip_ver chip_ver;
 	/* hardware id */
 	u8 chip_major;
-	u8 chip_minor;
+	u8 chip_miyesr;
 
 	/* carrier period = 1 / frequency */
 	u32 carrier;

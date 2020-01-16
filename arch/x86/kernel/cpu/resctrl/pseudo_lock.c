@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Resource Director Technology (RDT)
+ * Resource Director Techyeslogy (RDT)
  *
- * Pseudo-locking support built on top of Cache Allocation Technology (CAT)
+ * Pseudo-locking support built on top of Cache Allocation Techyeslogy (CAT)
  *
  * Copyright (C) 2018 Intel Corporation
  *
@@ -44,7 +44,7 @@ static u64 prefetch_disable_bits;
  * pseudo-locked regions.
  */
 static unsigned int pseudo_lock_major;
-static unsigned long pseudo_lock_minor_avail = GENMASK(MINORBITS, 0);
+static unsigned long pseudo_lock_miyesr_avail = GENMASK(MINORBITS, 0);
 static struct class *pseudo_lock_class;
 
 /**
@@ -65,7 +65,7 @@ static struct class *pseudo_lock_class;
  *
  * Return:
  * If platform is supported, the bits to disable hardware prefetchers, 0
- * if platform is not supported.
+ * if platform is yest supported.
  */
 static u64 get_prefetch_disable_bits(void)
 {
@@ -102,58 +102,58 @@ static u64 get_prefetch_disable_bits(void)
 }
 
 /**
- * pseudo_lock_minor_get - Obtain available minor number
- * @minor: Pointer to where new minor number will be stored
+ * pseudo_lock_miyesr_get - Obtain available miyesr number
+ * @miyesr: Pointer to where new miyesr number will be stored
  *
- * A bitmask is used to track available minor numbers. Here the next free
- * minor number is marked as unavailable and returned.
+ * A bitmask is used to track available miyesr numbers. Here the next free
+ * miyesr number is marked as unavailable and returned.
  *
  * Return: 0 on success, <0 on failure.
  */
-static int pseudo_lock_minor_get(unsigned int *minor)
+static int pseudo_lock_miyesr_get(unsigned int *miyesr)
 {
 	unsigned long first_bit;
 
-	first_bit = find_first_bit(&pseudo_lock_minor_avail, MINORBITS);
+	first_bit = find_first_bit(&pseudo_lock_miyesr_avail, MINORBITS);
 
 	if (first_bit == MINORBITS)
 		return -ENOSPC;
 
-	__clear_bit(first_bit, &pseudo_lock_minor_avail);
-	*minor = first_bit;
+	__clear_bit(first_bit, &pseudo_lock_miyesr_avail);
+	*miyesr = first_bit;
 
 	return 0;
 }
 
 /**
- * pseudo_lock_minor_release - Return minor number to available
- * @minor: The minor number made available
+ * pseudo_lock_miyesr_release - Return miyesr number to available
+ * @miyesr: The miyesr number made available
  */
-static void pseudo_lock_minor_release(unsigned int minor)
+static void pseudo_lock_miyesr_release(unsigned int miyesr)
 {
-	__set_bit(minor, &pseudo_lock_minor_avail);
+	__set_bit(miyesr, &pseudo_lock_miyesr_avail);
 }
 
 /**
- * region_find_by_minor - Locate a pseudo-lock region by inode minor number
- * @minor: The minor number of the device representing pseudo-locked region
+ * region_find_by_miyesr - Locate a pseudo-lock region by iyesde miyesr number
+ * @miyesr: The miyesr number of the device representing pseudo-locked region
  *
  * When the character device is accessed we need to determine which
- * pseudo-locked region it belongs to. This is done by matching the minor
+ * pseudo-locked region it belongs to. This is done by matching the miyesr
  * number of the device to the pseudo-locked region it belongs.
  *
- * Minor numbers are assigned at the time a pseudo-locked region is associated
+ * Miyesr numbers are assigned at the time a pseudo-locked region is associated
  * with a cache instance.
  *
  * Return: On success return pointer to resource group owning the pseudo-locked
  *         region, NULL on failure.
  */
-static struct rdtgroup *region_find_by_minor(unsigned int minor)
+static struct rdtgroup *region_find_by_miyesr(unsigned int miyesr)
 {
 	struct rdtgroup *rdtgrp, *rdtgrp_match = NULL;
 
 	list_for_each_entry(rdtgrp, &rdt_all_groups, rdtgroup_list) {
-		if (rdtgrp->plr && rdtgrp->plr->minor == minor) {
+		if (rdtgrp->plr && rdtgrp->plr->miyesr == miyesr) {
 			rdtgrp_match = rdtgrp;
 			break;
 		}
@@ -264,7 +264,7 @@ static void pseudo_lock_region_clear(struct pseudo_lock_region *plr)
  * required for pseudo-locking is deduced from this data and &struct
  * pseudo_lock_region initialized further. This information includes:
  * - size in bytes of the region to be pseudo-locked
- * - cache line size to know the stride with which data needs to be accessed
+ * - cache line size to kyesw the stride with which data needs to be accessed
  *   to be pseudo-locked
  * - a cpu associated with the cache instance on which the pseudo-locking
  *   flow can be executed
@@ -282,7 +282,7 @@ static int pseudo_lock_region_init(struct pseudo_lock_region *plr)
 	plr->cpu = cpumask_first(&plr->d->cpu_mask);
 
 	if (!cpu_online(plr->cpu)) {
-		rdt_last_cmd_printf("CPU %u associated with cache not online\n",
+		rdt_last_cmd_printf("CPU %u associated with cache yest online\n",
 				    plr->cpu);
 		ret = -ENODEV;
 		goto out_region;
@@ -312,7 +312,7 @@ out_region:
  *
  * A pseudo-locked region is associated with a resource group. When this
  * association is created the pseudo-locked region is initialized. The
- * details of the pseudo-locked region are not known at this time so only
+ * details of the pseudo-locked region are yest kyeswn at this time so only
  * allocation is done and association established.
  *
  * Return: 0 on success, <0 on failure
@@ -350,7 +350,7 @@ static int pseudo_lock_region_alloc(struct pseudo_lock_region *plr)
 		return ret;
 
 	/*
-	 * We do not yet support contiguous regions larger than
+	 * We do yest yet support contiguous regions larger than
 	 * KMALLOC_MAX_SIZE.
 	 */
 	if (plr->size > KMALLOC_MAX_SIZE) {
@@ -378,7 +378,7 @@ out:
  * pseudo_lock_free - Free a pseudo-locked region
  * @rdtgrp: resource group to which pseudo-locked region belonged
  *
- * The pseudo-locked region's resources have already been released, or not
+ * The pseudo-locked region's resources have already been released, or yest
  * yet created at this point. Now it can be freed and disassociated from the
  * resource group.
  *
@@ -397,11 +397,11 @@ static void pseudo_lock_free(struct rdtgroup *rdtgrp)
  *
  * This is the core pseudo-locking flow.
  *
- * First we ensure that the kernel memory cannot be found in the cache.
+ * First we ensure that the kernel memory canyest be found in the cache.
  * Then, while taking care that there will be as little interference as
  * possible, the memory to be loaded is accessed while core is running
  * with class of service set to the bitmask of the pseudo-locked region.
- * After this is complete no future CAT allocations will be allowed to
+ * After this is complete yes future CAT allocations will be allowed to
  * overlap with this bitmask.
  *
  * Local register variables are utilized to ensure that the memory region
@@ -435,7 +435,7 @@ static int pseudo_lock_fn(void *_rdtgrp)
 #endif /* CONFIG_KASAN */
 
 	/*
-	 * Make sure none of the allocated memory is cached. If it is we
+	 * Make sure yesne of the allocated memory is cached. If it is we
 	 * will get a cache hit in below loop from outside of pseudo-locked
 	 * region.
 	 * wbinvd (as opposed to clflush/clflushopt) is required to
@@ -446,7 +446,7 @@ static int pseudo_lock_fn(void *_rdtgrp)
 
 	/*
 	 * Always called with interrupts enabled. By disabling interrupts
-	 * ensure that we will not be preempted during this critical section.
+	 * ensure that we will yest be preempted during this critical section.
 	 */
 	local_irq_disable();
 
@@ -455,7 +455,7 @@ static int pseudo_lock_fn(void *_rdtgrp)
 	 * clobbering local register variables or affecting cache accesses.
 	 *
 	 * Disable the hardware prefetcher so that when the end of the memory
-	 * being pseudo-locked is reached the hardware will not read beyond
+	 * being pseudo-locked is reached the hardware will yest read beyond
 	 * the buffer and evict pseudo-locked memory read earlier from the
 	 * cache.
 	 */
@@ -505,7 +505,7 @@ static int pseudo_lock_fn(void *_rdtgrp)
 	}
 	/*
 	 * Critical section end: restore closid with capacity bitmask that
-	 * does not overlap with pseudo-locked region.
+	 * does yest overlap with pseudo-locked region.
 	 */
 	__wrmsr(IA32_PQR_ASSOC, rmid_p, closid_p);
 
@@ -534,7 +534,7 @@ static int rdtgroup_monitor_in_progress(struct rdtgroup *rdtgrp)
  * rdtgroup_locksetup_user_restrict - Restrict user access to group
  * @rdtgrp: resource group needing access restricted
  *
- * A resource group used for cache pseudo-locking cannot have cpus or tasks
+ * A resource group used for cache pseudo-locking canyest have cpus or tasks
  * assigned to it. This is communicated to the user by restricting access
  * to all the files that can be used to make such changes.
  *
@@ -634,9 +634,9 @@ out:
  * A resource group enters locksetup mode to reflect that it would be used
  * to represent a pseudo-locked region and is in the process of being set
  * up to do so. A resource group used for a pseudo-locked region would
- * lose the closid associated with it so we cannot allow it to have any
- * tasks or cpus assigned nor permit tasks or cpus to be assigned in the
- * future. Monitoring of a pseudo-locked region is not allowed either.
+ * lose the closid associated with it so we canyest allow it to have any
+ * tasks or cpus assigned yesr permit tasks or cpus to be assigned in the
+ * future. Monitoring of a pseudo-locked region is yest allowed either.
  *
  * The above and more restrictions on a pseudo-locked region are checked
  * for and enforced before the resource group enters the locksetup mode.
@@ -650,16 +650,16 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	int ret;
 
 	/*
-	 * The default resource group can neither be removed nor lose the
+	 * The default resource group can neither be removed yesr lose the
 	 * default closid associated with it.
 	 */
 	if (rdtgrp == &rdtgroup_default) {
-		rdt_last_cmd_puts("Cannot pseudo-lock default group\n");
+		rdt_last_cmd_puts("Canyest pseudo-lock default group\n");
 		return -EINVAL;
 	}
 
 	/*
-	 * Cache Pseudo-locking not supported when CDP is enabled.
+	 * Cache Pseudo-locking yest supported when CDP is enabled.
 	 *
 	 * Some things to consider if you would like to enable this
 	 * support (using L3 CDP as example):
@@ -667,7 +667,7 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	 *   L3DATA and L3CODE, but they are actually on the same cache.
 	 *   The implication for pseudo-locking is that if a
 	 *   pseudo-locked region is created on a domain of one
-	 *   resource (eg. L3CODE), then a pseudo-locked region cannot
+	 *   resource (eg. L3CODE), then a pseudo-locked region canyest
 	 *   be created on that same domain of the other resource
 	 *   (eg. L3DATA). This is because the creation of a
 	 *   pseudo-locked region involves a call to wbinvd that will
@@ -691,12 +691,12 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	}
 
 	/*
-	 * Not knowing the bits to disable prefetching implies that this
-	 * platform does not support Cache Pseudo-Locking.
+	 * Not kyeswing the bits to disable prefetching implies that this
+	 * platform does yest support Cache Pseudo-Locking.
 	 */
 	prefetch_disable_bits = get_prefetch_disable_bits();
 	if (prefetch_disable_bits == 0) {
-		rdt_last_cmd_puts("Pseudo-locking not supported\n");
+		rdt_last_cmd_puts("Pseudo-locking yest supported\n");
 		return -EINVAL;
 	}
 
@@ -728,9 +728,9 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 
 	/*
 	 * If this system is capable of monitoring a rmid would have been
-	 * allocated when the control group was created. This is not needed
+	 * allocated when the control group was created. This is yest needed
 	 * anymore when this group would be used for pseudo-locking. This
-	 * is safe to call on platforms not capable of monitoring.
+	 * is safe to call on platforms yest capable of monitoring.
 	 */
 	free_rmid(rdtgrp->mon.rmid);
 
@@ -809,12 +809,12 @@ bool rdtgroup_cbm_overlaps_pseudo_locked(struct rdt_domain *d, unsigned long cbm
  * @d: RDT domain under test
  *
  * The setup of a pseudo-locked region affects all cache instances within
- * the hierarchy of the region. It is thus essential to know if any
+ * the hierarchy of the region. It is thus essential to kyesw if any
  * pseudo-locked regions exist within a cache hierarchy to prevent any
  * attempts to create new pseudo-locked regions in the same hierarchy.
  *
  * Return: true if a pseudo-locked region exists in the hierarchy of @d or
- *         if it is not possible to test due to memory allocation issue,
+ *         if it is yest possible to test due to memory allocation issue,
  *         false otherwise.
  */
 bool rdtgroup_pseudo_locked_in_hierarchy(struct rdt_domain *d)
@@ -854,7 +854,7 @@ bool rdtgroup_pseudo_locked_in_hierarchy(struct rdt_domain *d)
  * measure_cycles_lat_fn - Measure cycle latency to read pseudo-locked memory
  * @_plr: pseudo-lock region to measure
  *
- * There is no deterministic way to test if a memory region is cached. One
+ * There is yes deterministic way to test if a memory region is cached. One
  * way is to measure how long it takes to read the memory, the speed of
  * access is a good way to learn how close to the cpu the data was. Even
  * more, if the prefetcher is disabled and the memory is read at a stride
@@ -984,14 +984,14 @@ static int measure_residency_fn(struct perf_event_attr *miss_attr,
 
 	/*
 	 * Read counter variables twice - first to load the instructions
-	 * used in L1 cache, second to capture accurate value that does not
+	 * used in L1 cache, second to capture accurate value that does yest
 	 * include cache misses incurred because of instruction loads.
 	 */
 	rdpmcl(hit_pmcnum, hits_before);
 	rdpmcl(miss_pmcnum, miss_before);
 	/*
-	 * From SDM: Performing back-to-back fast reads are not guaranteed
-	 * to be monotonic.
+	 * From SDM: Performing back-to-back fast reads are yest guaranteed
+	 * to be moyestonic.
 	 * Use LFENCE to ensure all previous instructions are retired
 	 * before proceeding.
 	 */
@@ -1089,7 +1089,7 @@ static int measure_l3_residency(void *_plr)
 
 	/*
 	 * On Broadwell Microarchitecture the MEM_LOAD_UOPS_RETIRED event
-	 * has two "no fix" errata associated with it: BDM35 and BDM100. On
+	 * has two "yes fix" errata associated with it: BDM35 and BDM100. On
 	 * this platform the following events are used instead:
 	 * LONGEST_LAT_CACHE 2EH (Documented in SDM)
 	 *       REFERENCE 4FH
@@ -1098,7 +1098,7 @@ static int measure_l3_residency(void *_plr)
 
 	switch (boot_cpu_data.x86_model) {
 	case INTEL_FAM6_BROADWELL_X:
-		/* On BDW the hit event counts references, not hits */
+		/* On BDW the hit event counts references, yest hits */
 		perf_hit_attr.config = X86_CONFIG(.event = 0x2e,
 						  .umask = 0x4f);
 		perf_miss_attr.config = X86_CONFIG(.event = 0x2e,
@@ -1120,7 +1120,7 @@ static int measure_l3_residency(void *_plr)
 		 * On BDW references and misses are counted, need to adjust.
 		 * Sometimes the "hits" counter is a bit more than the
 		 * references, for example, x references but x + 1 hits.
-		 * To not report invalid hit values in this case we treat
+		 * To yest report invalid hit values in this case we treat
 		 * that as misses equal to references.
 		 */
 		/* First compute the number of cache references measured */
@@ -1178,18 +1178,18 @@ static int pseudo_lock_measure_cycles(struct rdtgroup *rdtgrp, int sel)
 	plr->cpu = cpu;
 
 	if (sel == 1)
-		thread = kthread_create_on_node(measure_cycles_lat_fn, plr,
-						cpu_to_node(cpu),
+		thread = kthread_create_on_yesde(measure_cycles_lat_fn, plr,
+						cpu_to_yesde(cpu),
 						"pseudo_lock_measure/%u",
 						cpu);
 	else if (sel == 2)
-		thread = kthread_create_on_node(measure_l2_residency, plr,
-						cpu_to_node(cpu),
+		thread = kthread_create_on_yesde(measure_l2_residency, plr,
+						cpu_to_yesde(cpu),
 						"pseudo_lock_measure/%u",
 						cpu);
 	else if (sel == 3)
-		thread = kthread_create_on_node(measure_l3_residency, plr,
-						cpu_to_node(cpu),
+		thread = kthread_create_on_yesde(measure_l3_residency, plr,
+						cpu_to_yesde(cpu),
 						"pseudo_lock_measure/%u",
 						cpu);
 	else
@@ -1272,7 +1272,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 {
 	struct pseudo_lock_region *plr = rdtgrp->plr;
 	struct task_struct *thread;
-	unsigned int new_minor;
+	unsigned int new_miyesr;
 	struct device *dev;
 	int ret;
 
@@ -1288,8 +1288,8 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 
 	plr->thread_done = 0;
 
-	thread = kthread_create_on_node(pseudo_lock_fn, rdtgrp,
-					cpu_to_node(plr->cpu),
+	thread = kthread_create_on_yesde(pseudo_lock_fn, rdtgrp,
+					cpu_to_yesde(plr->cpu),
 					"pseudo_lock/%u", plr->cpu);
 	if (IS_ERR(thread)) {
 		ret = PTR_ERR(thread);
@@ -1304,25 +1304,25 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 				       plr->thread_done == 1);
 	if (ret < 0) {
 		/*
-		 * If the thread does not get on the CPU for whatever
+		 * If the thread does yest get on the CPU for whatever
 		 * reason and the process which sets up the region is
 		 * interrupted then this will leave the thread in runnable
 		 * state and once it gets on the CPU it will derefence
-		 * the cleared, but not freed, plr struct resulting in an
+		 * the cleared, but yest freed, plr struct resulting in an
 		 * empty pseudo-locking loop.
 		 */
 		rdt_last_cmd_puts("Locking thread interrupted\n");
 		goto out_cstates;
 	}
 
-	ret = pseudo_lock_minor_get(&new_minor);
+	ret = pseudo_lock_miyesr_get(&new_miyesr);
 	if (ret < 0) {
-		rdt_last_cmd_puts("Unable to obtain a new minor number\n");
+		rdt_last_cmd_puts("Unable to obtain a new miyesr number\n");
 		goto out_cstates;
 	}
 
 	/*
-	 * Unlock access but do not release the reference. The
+	 * Unlock access but do yest release the reference. The
 	 * pseudo-locked region will still be here on return.
 	 *
 	 * The mutex has to be released temporarily to avoid a potential
@@ -1342,7 +1342,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 	}
 
 	dev = device_create(pseudo_lock_class, NULL,
-			    MKDEV(pseudo_lock_major, new_minor),
+			    MKDEV(pseudo_lock_major, new_miyesr),
 			    rdtgrp, "%s", rdtgrp->kn->name);
 
 	mutex_lock(&rdtgroup_mutex);
@@ -1360,7 +1360,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 		goto out_device;
 	}
 
-	plr->minor = new_minor;
+	plr->miyesr = new_miyesr;
 
 	rdtgrp->mode = RDT_MODE_PSEUDO_LOCKED;
 	closid_free(rdtgrp->closid);
@@ -1371,10 +1371,10 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 	goto out;
 
 out_device:
-	device_destroy(pseudo_lock_class, MKDEV(pseudo_lock_major, new_minor));
+	device_destroy(pseudo_lock_class, MKDEV(pseudo_lock_major, new_miyesr));
 out_debugfs:
 	debugfs_remove_recursive(plr->debugfs_dir);
-	pseudo_lock_minor_release(new_minor);
+	pseudo_lock_miyesr_release(new_miyesr);
 out_cstates:
 	pseudo_lock_cstates_relax(plr);
 out_region:
@@ -1390,9 +1390,9 @@ out:
  * The removal of a pseudo-locked region can be initiated when the resource
  * group is removed from user space via a "rmdir" from userspace or the
  * unmount of the resctrl filesystem. On removal the resource group does
- * not go back to pseudo-locksetup mode before it is removed, instead it is
+ * yest go back to pseudo-locksetup mode before it is removed, instead it is
  * removed directly. There is thus assymmetry with the creation where the
- * &struct pseudo_lock_region is removed here while it was not created in
+ * &struct pseudo_lock_region is removed here while it was yest created in
  * rdtgroup_pseudo_lock_create().
  *
  * Return: void
@@ -1403,7 +1403,7 @@ void rdtgroup_pseudo_lock_remove(struct rdtgroup *rdtgrp)
 
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
 		/*
-		 * Default group cannot be a pseudo-locked region so we can
+		 * Default group canyest be a pseudo-locked region so we can
 		 * free closid here.
 		 */
 		closid_free(rdtgrp->closid);
@@ -1412,20 +1412,20 @@ void rdtgroup_pseudo_lock_remove(struct rdtgroup *rdtgrp)
 
 	pseudo_lock_cstates_relax(plr);
 	debugfs_remove_recursive(rdtgrp->plr->debugfs_dir);
-	device_destroy(pseudo_lock_class, MKDEV(pseudo_lock_major, plr->minor));
-	pseudo_lock_minor_release(plr->minor);
+	device_destroy(pseudo_lock_class, MKDEV(pseudo_lock_major, plr->miyesr));
+	pseudo_lock_miyesr_release(plr->miyesr);
 
 free:
 	pseudo_lock_free(rdtgrp);
 }
 
-static int pseudo_lock_dev_open(struct inode *inode, struct file *filp)
+static int pseudo_lock_dev_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct rdtgroup *rdtgrp;
 
 	mutex_lock(&rdtgroup_mutex);
 
-	rdtgrp = region_find_by_minor(iminor(inode));
+	rdtgrp = region_find_by_miyesr(imiyesr(iyesde));
 	if (!rdtgrp) {
 		mutex_unlock(&rdtgroup_mutex);
 		return -ENODEV;
@@ -1433,7 +1433,7 @@ static int pseudo_lock_dev_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = rdtgrp;
 	atomic_inc(&rdtgrp->waitcount);
-	/* Perform a non-seekable open - llseek is not supported */
+	/* Perform a yesn-seekable open - llseek is yest supported */
 	filp->f_mode &= ~(FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE);
 
 	mutex_unlock(&rdtgroup_mutex);
@@ -1441,7 +1441,7 @@ static int pseudo_lock_dev_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int pseudo_lock_dev_release(struct inode *inode, struct file *filp)
+static int pseudo_lock_dev_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct rdtgroup *rdtgrp;
 
@@ -1495,7 +1495,7 @@ static int pseudo_lock_dev_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	/*
 	 * Task is required to run with affinity to the cpus associated
-	 * with the pseudo-locked region. If this is not the case the task
+	 * with the pseudo-locked region. If this is yest the case the task
 	 * may be scheduled elsewhere and invalidate entries in the
 	 * pseudo-locked region.
 	 */
@@ -1514,7 +1514,7 @@ static int pseudo_lock_dev_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	/*
 	 * Ensure changes are carried directly to the memory being mapped,
-	 * do not allow copy-on-write mapping.
+	 * do yest allow copy-on-write mapping.
 	 */
 	if (!(vma->vm_flags & VM_SHARED)) {
 		mutex_unlock(&rdtgroup_mutex);
@@ -1540,7 +1540,7 @@ static int pseudo_lock_dev_mmap(struct file *filp, struct vm_area_struct *vma)
 
 static const struct file_operations pseudo_lock_dev_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 	.read =		NULL,
 	.write =	NULL,
 	.open =		pseudo_lock_dev_open,
@@ -1548,7 +1548,7 @@ static const struct file_operations pseudo_lock_dev_fops = {
 	.mmap =		pseudo_lock_dev_mmap,
 };
 
-static char *pseudo_lock_devnode(struct device *dev, umode_t *mode)
+static char *pseudo_lock_devyesde(struct device *dev, umode_t *mode)
 {
 	struct rdtgroup *rdtgrp;
 
@@ -1575,7 +1575,7 @@ int rdt_pseudo_lock_init(void)
 		return ret;
 	}
 
-	pseudo_lock_class->devnode = pseudo_lock_devnode;
+	pseudo_lock_class->devyesde = pseudo_lock_devyesde;
 	return 0;
 }
 

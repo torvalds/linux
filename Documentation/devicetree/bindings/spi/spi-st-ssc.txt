@@ -15,7 +15,7 @@ Optional properties:
 - cs-gpios	: List of GPIO chip selects
 		    See ../spi/spi-bus.txt
 
-Child nodes represent devices on the SPI bus
+Child yesdes represent devices on the SPI bus
   See ../spi/spi-bus.txt
 
 Example:

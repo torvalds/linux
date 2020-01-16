@@ -110,7 +110,7 @@ struct usb_irda_cs_descriptor {
 /* The following is a 4-bit value used for both
  * inbound and outbound headers:
  *
- * 0 - speed ignored
+ * 0 - speed igyesred
  * 1 - 2400 bps
  * 2 - 9600 bps
  * 3 - 19200 bps
@@ -127,7 +127,7 @@ struct usb_irda_cs_descriptor {
 /* The following is a 4-bit value used only for
  * outbound header:
  *
- * 0 - No change (BOF ignored)
+ * 0 - No change (BOF igyesred)
  * 1 - 48 BOFs
  * 2 - 24 BOFs
  * 3 - 12 BOFs

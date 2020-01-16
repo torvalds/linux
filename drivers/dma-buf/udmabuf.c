@@ -158,7 +158,7 @@ static long udmabuf_create(const struct udmabuf_create_list *head,
 		memfd = fget(list[i].memfd);
 		if (!memfd)
 			goto err;
-		if (!shmem_mapping(file_inode(memfd)->i_mapping))
+		if (!shmem_mapping(file_iyesde(memfd)->i_mapping))
 			goto err;
 		seals = memfd_fcntl(memfd, F_GET_SEALS, 0);
 		if (seals == -EINVAL)
@@ -171,7 +171,7 @@ static long udmabuf_create(const struct udmabuf_create_list *head,
 		pgcnt = list[i].size   >> PAGE_SHIFT;
 		for (pgidx = 0; pgidx < pgcnt; pgidx++) {
 			page = shmem_read_mapping_page(
-				file_inode(memfd)->i_mapping, pgoff + pgidx);
+				file_iyesde(memfd)->i_mapping, pgoff + pgidx);
 			if (IS_ERR(page)) {
 				ret = PTR_ERR(page);
 				goto err;
@@ -273,7 +273,7 @@ static const struct file_operations udmabuf_fops = {
 };
 
 static struct miscdevice udmabuf_misc = {
-	.minor          = MISC_DYNAMIC_MINOR,
+	.miyesr          = MISC_DYNAMIC_MINOR,
 	.name           = "udmabuf",
 	.fops           = &udmabuf_fops,
 };

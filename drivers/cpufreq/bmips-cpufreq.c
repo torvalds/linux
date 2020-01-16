@@ -159,12 +159,12 @@ static struct cpufreq_driver bmips_cpufreq_driver = {
 static int __init bmips_cpufreq_probe(void)
 {
 	struct cpufreq_compat *cc;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	for (cc = bmips_cpufreq_compat; cc->compatible; cc++) {
-		np = of_find_compatible_node(NULL, "cpu", cc->compatible);
+		np = of_find_compatible_yesde(NULL, "cpu", cc->compatible);
 		if (np) {
-			of_node_put(np);
+			of_yesde_put(np);
 			priv = cc;
 			break;
 		}

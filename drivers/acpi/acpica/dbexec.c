@@ -102,7 +102,7 @@ acpi_db_execute_method(struct acpi_db_method_info *info,
 	ACPI_FUNCTION_TRACE(db_execute_method);
 
 	if (acpi_gbl_db_output_to_file && !acpi_dbg_level) {
-		acpi_os_printf("Warning: debug output is not enabled!\n");
+		acpi_os_printf("Warning: debug output is yest enabled!\n");
 	}
 
 	param_objects.count = 0;
@@ -254,7 +254,7 @@ u32 acpi_db_get_cache_info(struct acpi_memory_list *cache)
  * RETURN:      Current global allocation count minus cache entries
  *
  * DESCRIPTION: Determine the current number of "outstanding" allocations --
- *              those allocations that have not been freed and also are not
+ *              those allocations that have yest been freed and also are yest
  *              in one of the various object caches.
  *
  ******************************************************************************/
@@ -266,8 +266,8 @@ static u32 acpi_db_get_outstanding_allocations(void)
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
 	outstanding += acpi_db_get_cache_info(acpi_gbl_state_cache);
-	outstanding += acpi_db_get_cache_info(acpi_gbl_ps_node_cache);
-	outstanding += acpi_db_get_cache_info(acpi_gbl_ps_node_ext_cache);
+	outstanding += acpi_db_get_cache_info(acpi_gbl_ps_yesde_cache);
+	outstanding += acpi_db_get_cache_info(acpi_gbl_ps_yesde_ext_cache);
 	outstanding += acpi_db_get_cache_info(acpi_gbl_operand_cache);
 #endif
 
@@ -292,12 +292,12 @@ acpi_db_execution_walk(acpi_handle obj_handle,
 		       u32 nesting_level, void *context, void **return_value)
 {
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_yesde *yesde =
+	    (struct acpi_namespace_yesde *)obj_handle;
 	struct acpi_buffer return_obj;
 	acpi_status status;
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(yesde);
 	if (obj_desc->method.param_count) {
 		return (AE_OK);
 	}
@@ -305,17 +305,17 @@ acpi_db_execution_walk(acpi_handle obj_handle,
 	return_obj.pointer = NULL;
 	return_obj.length = ACPI_ALLOCATE_BUFFER;
 
-	acpi_ns_print_node_pathname(node, "Evaluating");
+	acpi_ns_print_yesde_pathname(yesde, "Evaluating");
 
 	/* Do the actual method execution */
 
 	acpi_os_printf("\n");
 	acpi_gbl_method_executing = TRUE;
 
-	status = acpi_evaluate_object(node, NULL, NULL, &return_obj);
+	status = acpi_evaluate_object(yesde, NULL, NULL, &return_obj);
 
 	acpi_os_printf("Evaluation of [%4.4s] returned %s\n",
-		       acpi_ut_get_node_name(node),
+		       acpi_ut_get_yesde_name(yesde),
 		       acpi_format_exception(status));
 
 	acpi_gbl_method_executing = FALSE;
@@ -329,7 +329,7 @@ acpi_db_execution_walk(acpi_handle obj_handle,
  * PARAMETERS:  name                - Name of method to execute
  *              args                - Parameters to the method
  *              Types               -
- *              flags               - single step/no single step
+ *              flags               - single step/yes single step
  *
  * RETURN:      None
  *
@@ -403,7 +403,7 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 		return;
 	}
 
-	/* Get the NS node, determines existence also */
+	/* Get the NS yesde, determines existence also */
 
 	status = acpi_get_handle(NULL, acpi_gbl_db_method_info.pathname,
 				 &acpi_gbl_db_method_info.method);
@@ -455,7 +455,7 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 
 			if (ACPI_COMPARE_NAMESEG
 			    ((ACPI_CAST_PTR
-			      (struct acpi_namespace_node,
+			      (struct acpi_namespace_yesde,
 			       acpi_gbl_db_method_info.method)->name.ascii),
 			     METHOD_NAME__PLD)) {
 				acpi_db_dump_pld_buffer(return_obj.pointer);
@@ -498,7 +498,7 @@ static void ACPI_SYSTEM_XFACE acpi_db_method_thread(void *context)
 	 * concurrently.
 	 *
 	 * Note: The arguments we are passing are used by the ASL test suite
-	 * (aslts). Do not change them without updating the tests.
+	 * (aslts). Do yest change them without updating the tests.
 	 */
 	(void)acpi_os_wait_semaphore(info->info_gate, 1, ACPI_WAIT_FOREVER);
 
@@ -569,7 +569,7 @@ static void ACPI_SYSTEM_XFACE acpi_db_method_thread(void *context)
 		status = acpi_os_signal_semaphore(info->main_thread_gate, 1);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    ("Could not signal debugger thread sync semaphore, %s\n",
+			    ("Could yest signal debugger thread sync semaphore, %s\n",
 			     acpi_format_exception(status));
 		}
 	}
@@ -660,12 +660,12 @@ acpi_db_create_execution_thread(char *method_name_arg,
 		return;
 	}
 
-	/* Get the NS node, determines existence also */
+	/* Get the NS yesde, determines existence also */
 
 	status = acpi_get_handle(NULL, acpi_gbl_db_method_info.pathname,
 				 &acpi_gbl_db_method_info.method);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("%s Could not get handle for %s\n",
+		acpi_os_printf("%s Could yest get handle for %s\n",
 			       acpi_format_exception(status),
 			       acpi_gbl_db_method_info.pathname);
 		return;
@@ -725,7 +725,7 @@ acpi_db_create_execution_threads(char *num_threads_arg,
 	 */
 	status = acpi_os_create_semaphore(1, 0, &main_thread_gate);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not create semaphore for "
+		acpi_os_printf("Could yest create semaphore for "
 			       "synchronization with the main thread, %s\n",
 			       acpi_format_exception(status));
 		return;
@@ -737,7 +737,7 @@ acpi_db_create_execution_threads(char *num_threads_arg,
 	 */
 	status = acpi_os_create_semaphore(1, 1, &thread_complete_gate);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not create semaphore for "
+		acpi_os_printf("Could yest create semaphore for "
 			       "synchronization between the created threads, %s\n",
 			       acpi_format_exception(status));
 
@@ -747,7 +747,7 @@ acpi_db_create_execution_threads(char *num_threads_arg,
 
 	status = acpi_os_create_semaphore(1, 1, &info_gate);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not create semaphore for "
+		acpi_os_printf("Could yest create semaphore for "
 			       "synchronization of AcpiGbl_DbMethodInfo, %s\n",
 			       acpi_format_exception(status));
 
@@ -807,12 +807,12 @@ acpi_db_create_execution_threads(char *num_threads_arg,
 		goto cleanup_and_exit;
 	}
 
-	/* Get the NS node, determines existence also */
+	/* Get the NS yesde, determines existence also */
 
 	status = acpi_get_handle(NULL, acpi_gbl_db_method_info.pathname,
 				 &acpi_gbl_db_method_info.method);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("%s Could not get handle for %s\n",
+		acpi_os_printf("%s Could yest get handle for %s\n",
 			       acpi_format_exception(status),
 			       acpi_gbl_db_method_info.pathname);
 		goto cleanup_and_exit;

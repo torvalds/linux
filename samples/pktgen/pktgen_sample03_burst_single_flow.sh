@@ -13,7 +13,7 @@
 #
 # Notice: On purpose generates a single (UDP) flow towards target,
 #   reason behind this is to only overload/activate a single CPU on
-#   target host.  And no randomness for pktgen also makes it faster.
+#   target host.  And yes randomness for pktgen also makes it faster.
 #
 # Tuning see:
 #  [1] http://netoptimizer.blogspot.dk/2014/06/pktgen-for-network-overload-testing.html

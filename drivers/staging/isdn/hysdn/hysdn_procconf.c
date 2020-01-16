@@ -62,7 +62,7 @@ process_line(struct conf_writedata *cnf)
 		cp++;		/* point to option char */
 
 		if (*cp++ != 'c')
-			return (0);	/* option unknown or used */
+			return (0);	/* option unkyeswn or used */
 		i = 0;		/* start value for channel */
 		while ((*cp <= '9') && (*cp >= '0'))
 			i = i * 10 + *cp++ - '0';	/* get decimal number */
@@ -98,7 +98,7 @@ hysdn_conf_write(struct file *file, const char __user *buf, size_t count, loff_t
 	unsigned char ch, *cp;
 
 	if (!count)
-		return (0);	/* nothing to handle */
+		return (0);	/* yesthing to handle */
 
 	if (!(cnf = file->private_data))
 		return (-EFAULT);	/* should never happen */
@@ -148,7 +148,7 @@ hysdn_conf_write(struct file *file, const char __user *buf, size_t count, loff_t
 
 		if (cnf->card->state != CARD_STATE_RUN) {
 			if (cnf->card->debug_flags & LOG_CNF_MISC)
-				hysdn_addlog(cnf->card, "cnf write denied -> not booted");
+				hysdn_addlog(cnf->card, "cnf write denied -> yest booted");
 			return (-ERR_NOT_BOOTED);
 		}
 		i = (CONF_LINE_LEN - 1) - cnf->buf_size;	/* bytes available in buffer */
@@ -191,7 +191,7 @@ hysdn_conf_write(struct file *file, const char __user *buf, size_t count, loff_t
 						hysdn_addlog(cnf->card, "cnf line too long %d chars pos %d", cnf->buf_size, count);
 					return (-ERR_CONF_LONG);
 				}
-			}	/* not delimited */
+			}	/* yest delimited */
 
 		}
 		/* copy remaining bytes into buffer */
@@ -214,7 +214,7 @@ hysdn_conf_read(struct file *file, char __user *buf, size_t count, loff_t *off)
 	char *cp;
 
 	if (!(file->f_mode & FMODE_READ))
-		return -EPERM;	/* no permission to read */
+		return -EPERM;	/* yes permission to read */
 
 	if (!(cp = file->private_data))
 		return -EFAULT;	/* should never happen */
@@ -226,15 +226,15 @@ hysdn_conf_read(struct file *file, char __user *buf, size_t count, loff_t *off)
 /* open conf file */
 /******************/
 static int
-hysdn_conf_open(struct inode *ino, struct file *filep)
+hysdn_conf_open(struct iyesde *iyes, struct file *filep)
 {
 	hysdn_card *card;
 	struct conf_writedata *cnf;
 	char *cp, *tmp;
 
-	/* now search the addressed card */
+	/* yesw search the addressed card */
 	mutex_lock(&hysdn_conf_mutex);
-	card = PDE_DATA(ino);
+	card = PDE_DATA(iyes);
 	if (card->debug_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
 		hysdn_addlog(card, "config open for uid=%d gid=%d mode=0x%x",
 			     filep->f_cred->fsuid, filep->f_cred->fsgid,
@@ -248,7 +248,7 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 			return (-EFAULT);
 		}
 		cnf->card = card;
-		cnf->buf_size = 0;	/* nothing buffered */
+		cnf->buf_size = 0;	/* yesthing buffered */
 		cnf->state = CONF_STATE_DETECT;		/* start auto detect */
 		filep->private_data = cnf;
 
@@ -270,7 +270,7 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 			*cp++ = ' ';
 		*cp++ = '\n';
 
-		/* and now the data */
+		/* and yesw the data */
 		sprintf(cp, "%d  %3d %4d %4d %3d 0x%04x 0x%08lx %7d %9d %3d   %s",
 			card->myid,
 			card->bus,
@@ -291,24 +291,24 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 		*cp = 0;	/* end of string */
 	} else {		/* simultaneous read/write access forbidden ! */
 		mutex_unlock(&hysdn_conf_mutex);
-		return (-EPERM);	/* no permission this time */
+		return (-EPERM);	/* yes permission this time */
 	}
 	mutex_unlock(&hysdn_conf_mutex);
-	return nonseekable_open(ino, filep);
+	return yesnseekable_open(iyes, filep);
 }				/* hysdn_conf_open */
 
 /***************************/
 /* close a config file.    */
 /***************************/
 static int
-hysdn_conf_close(struct inode *ino, struct file *filep)
+hysdn_conf_close(struct iyesde *iyes, struct file *filep)
 {
 	hysdn_card *card;
 	struct conf_writedata *cnf;
 	int retval = 0;
 
 	mutex_lock(&hysdn_conf_mutex);
-	card = PDE_DATA(ino);
+	card = PDE_DATA(iyes);
 	if (card->debug_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
 		hysdn_addlog(card, "config close for uid=%d gid=%d mode=0x%x",
 			     filep->f_cred->fsuid, filep->f_cred->fsgid,
@@ -339,7 +339,7 @@ hysdn_conf_close(struct inode *ino, struct file *filep)
 static const struct file_operations conf_fops =
 {
 	.owner		= THIS_MODULE,
-	.llseek         = no_llseek,
+	.llseek         = yes_llseek,
 	.read           = hysdn_conf_read,
 	.write          = hysdn_conf_write,
 	.open           = hysdn_conf_open,

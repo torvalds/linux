@@ -30,13 +30,13 @@
  * SmartMedia device though please be aware that I'm personally unable to
  * test SmartMedia support.
  *
- * This driver supports reading and writing.  If you're truly paranoid,
+ * This driver supports reading and writing.  If you're truly parayesid,
  * however, you can force the driver into a write-protected state by setting
  * the WP enable bits in datafab_handle_mode_sense().  See the comments
  * in that routine.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
@@ -146,7 +146,7 @@ static int datafab_read_data(struct us_data *us,
 	struct scatterlist *sg = NULL;
 
 	// we're working in LBA mode.  according to the ATA spec, 
-	// we can support up to 28-bit addressing.  I don't know if Datafab
+	// we can support up to 28-bit addressing.  I don't kyesw if Datafab
 	// supports beyond 24-bit addressing.  It's kind of hard to test 
 	// since it requires > 8GB CF card.
 	//
@@ -230,7 +230,7 @@ static int datafab_write_data(struct us_data *us,
 	struct scatterlist *sg = NULL;
 
 	// we're working in LBA mode.  according to the ATA spec, 
-	// we can support up to 28-bit addressing.  I don't know if Datafab
+	// we can support up to 28-bit addressing.  I don't kyesw if Datafab
 	// supports beyond 24-bit addressing.  It's kind of hard to test 
 	// since it requires > 8GB CF card.
 	//
@@ -583,7 +583,7 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 			     info->sectors, info->ssize);
 
 		// build the reply
-		// we need the last sector, not the number of sectors
+		// we need the last sector, yest the number of sectors
 		((__be32 *) ptr)[0] = cpu_to_be32(info->sectors - 1);
 		((__be32 *) ptr)[1] = cpu_to_be32(info->ssize);
 		usb_stor_set_xfer_buf(ptr, 8, srb);
@@ -656,7 +656,7 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (srb->cmnd[0] == REQUEST_SENSE) {
 		usb_stor_dbg(us, "REQUEST_SENSE - Returning faked response\n");
 
-		// this response is pretty bogus right now.  eventually if necessary
+		// this response is pretty bogus right yesw.  eventually if necessary
 		// we can set the correct sense data.  so far though it hasn't been
 		// necessary
 		//
@@ -683,8 +683,8 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	if (srb->cmnd[0] == ALLOW_MEDIUM_REMOVAL) {
 		/*
-		 * sure.  whatever.  not like we can stop the user from
-		 * popping the media out of the device (no locking doors, etc)
+		 * sure.  whatever.  yest like we can stop the user from
+		 * popping the media out of the device (yes locking doors, etc)
 		 */
 		return USB_STOR_TRANSPORT_GOOD;
 	}
@@ -710,7 +710,7 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 		return rc;
 	}
 
-	usb_stor_dbg(us, "Gah! Unknown command: %d (0x%x)\n",
+	usb_stor_dbg(us, "Gah! Unkyeswn command: %d (0x%x)\n",
 		     srb->cmnd[0], srb->cmnd[0]);
 	info->sense_key = 0x05;
 	info->sense_asc = 0x20;
@@ -752,7 +752,7 @@ static struct usb_driver datafab_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	datafab_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 };
 
 module_usb_stor_driver(datafab_driver, datafab_host_template, DRV_NAME);

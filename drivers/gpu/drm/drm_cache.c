@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -37,7 +37,7 @@
 #include <asm/smp.h>
 
 /*
- * clflushopt is an unordered instruction which needs fencing with mfence or
+ * clflushopt is an uyesrdered instruction which needs fencing with mfence or
  * sfence to avoid ordering issues.  For drm_clflush_page this fencing happens
  * in the caller.
  */
@@ -106,7 +106,7 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 		kunmap_atomic(page_virtual);
 	}
 #else
-	pr_err("Architecture has no drm_cache.c support\n");
+	pr_err("Architecture has yes drm_cache.c support\n");
 	WARN_ON_ONCE(1);
 #endif
 }
@@ -137,7 +137,7 @@ drm_clflush_sg(struct sg_table *st)
 	if (wbinvd_on_all_cpus())
 		pr_err("Timed out waiting for cache flush\n");
 #else
-	pr_err("Architecture has no drm_cache.c support\n");
+	pr_err("Architecture has yes drm_cache.c support\n");
 	WARN_ON_ONCE(1);
 #endif
 }
@@ -171,7 +171,7 @@ drm_clflush_virt_range(void *addr, unsigned long length)
 	if (wbinvd_on_all_cpus())
 		pr_err("Timed out waiting for cache flush\n");
 #else
-	pr_err("Architecture has no drm_cache.c support\n");
+	pr_err("Architecture has yes drm_cache.c support\n");
 	WARN_ON_ONCE(1);
 #endif
 }

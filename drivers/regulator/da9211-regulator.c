@@ -253,18 +253,18 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 		struct device *dev)
 {
 	struct da9211_pdata *pdata;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int i, num, n;
 
-	node = of_get_child_by_name(dev->of_node, "regulators");
-	if (!node) {
-		dev_err(dev, "regulators node not found\n");
+	yesde = of_get_child_by_name(dev->of_yesde, "regulators");
+	if (!yesde) {
+		dev_err(dev, "regulators yesde yest found\n");
 		return ERR_PTR(-ENODEV);
 	}
 
-	num = of_regulator_match(dev, node, da9211_matches,
+	num = of_regulator_match(dev, yesde, da9211_matches,
 				 ARRAY_SIZE(da9211_matches));
-	of_node_put(node);
+	of_yesde_put(yesde);
 	if (num < 0) {
 		dev_err(dev, "Failed to match regulators\n");
 		return ERR_PTR(-EINVAL);
@@ -282,9 +282,9 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 			continue;
 
 		pdata->init_data[n] = da9211_matches[i].init_data;
-		pdata->reg_node[n] = da9211_matches[i].of_node;
-		pdata->gpiod_ren[n] = devm_fwnode_gpiod_get(dev,
-					of_fwnode_handle(pdata->reg_node[n]),
+		pdata->reg_yesde[n] = da9211_matches[i].of_yesde;
+		pdata->gpiod_ren[n] = devm_fwyesde_gpiod_get(dev,
+					of_fwyesde_handle(pdata->reg_yesde[n]),
 					"enable",
 					GPIOD_OUT_HIGH |
 						GPIOD_FLAGS_BIT_NONEXCLUSIVE,
@@ -315,7 +315,7 @@ static irqreturn_t da9211_irq_handler(int irq, void *data)
 
 	if (reg_val & DA9211_E_OV_CURR_A) {
 	        regulator_lock(chip->rdev[0]);
-		regulator_notifier_call_chain(chip->rdev[0],
+		regulator_yestifier_call_chain(chip->rdev[0],
 			REGULATOR_EVENT_OVER_CURRENT, NULL);
 	        regulator_unlock(chip->rdev[0]);
 
@@ -329,7 +329,7 @@ static irqreturn_t da9211_irq_handler(int irq, void *data)
 
 	if (reg_val & DA9211_E_OV_CURR_B) {
 	        regulator_lock(chip->rdev[1]);
-		regulator_notifier_call_chain(chip->rdev[1],
+		regulator_yestifier_call_chain(chip->rdev[1],
 			REGULATOR_EVENT_OVER_CURRENT, NULL);
 	        regulator_unlock(chip->rdev[1]);
 
@@ -378,7 +378,7 @@ static int da9211_regulator_init(struct da9211 *chip)
 		config.dev = chip->dev;
 		config.driver_data = chip;
 		config.regmap = chip->regmap;
-		config.of_node = chip->pdata->reg_node[i];
+		config.of_yesde = chip->pdata->reg_yesde[i];
 
 		if (chip->pdata->gpiod_ren[i])
 			config.ena_gpiod = chip->pdata->gpiod_ren[i];

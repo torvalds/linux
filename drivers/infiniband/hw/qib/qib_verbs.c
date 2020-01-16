@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -134,7 +134,7 @@ __be64 ib_qib_sys_image_guid;
 /*
  * Count the number of DMA descriptors needed to send length bytes of data.
  * Don't modify the qib_sge_state to get the count.
- * Return zero if any of the segments is not aligned.
+ * Return zero if any of the segments is yest aligned.
  */
 static u32 qib_count_sge(struct rvt_sge_state *ss, u32 length)
 {
@@ -435,7 +435,7 @@ static void copy_io(u32 __iomem *piobuf, struct rvt_sge_state *ss,
 		u32 len = rvt_get_sge_length(&ss->sge, length);
 		u32 off;
 
-		/* If the source address is not aligned, try to align it. */
+		/* If the source address is yest aligned, try to align it. */
 		off = (unsigned long)ss->sge.vaddr & (sizeof(u32) - 1);
 		if (off) {
 			u32 *addr = (u32 *)((unsigned long)ss->sge.vaddr &
@@ -555,7 +555,7 @@ static void copy_io(u32 __iomem *piobuf, struct rvt_sge_state *ss,
 		__raw_writel(last, piobuf);
 }
 
-static noinline struct qib_verbs_txreq *__get_txreq(struct qib_ibdev *dev,
+static yesinline struct qib_verbs_txreq *__get_txreq(struct qib_ibdev *dev,
 					   struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
@@ -594,7 +594,7 @@ static inline struct qib_verbs_txreq *get_txreq(struct qib_ibdev *dev,
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->rdi.pending_lock, flags);
-	/* assume the list non empty */
+	/* assume the list yesn empty */
 	if (likely(!list_empty(&dev->txreq_free))) {
 		struct list_head *l = dev->txreq_free.next;
 
@@ -867,10 +867,10 @@ bail_tx:
 }
 
 /*
- * If we are now in the error state, return zero to flush the
+ * If we are yesw in the error state, return zero to flush the
  * send work request.
  */
-static int no_bufs_available(struct rvt_qp *qp)
+static int yes_bufs_available(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibdev *dev = to_idev(qp->ibqp.device);
@@ -922,7 +922,7 @@ static int qib_verbs_send_pio(struct rvt_qp *qp, struct ib_header *ibhdr,
 	pbc = ((u64) control << 32) | plen;
 	piobuf = dd->f_getsendbuf(ppd, pbc, &pbufn);
 	if (unlikely(piobuf == NULL))
-		return no_bufs_available(qp);
+		return yes_bufs_available(qp);
 
 	/*
 	 * Write the pbc.
@@ -1008,7 +1008,7 @@ done:
  * @len: the length of the packet in bytes
  *
  * Return zero if packet is sent or queued OK.
- * Return non-zero and clear qp->s_flags RVT_S_BUSY otherwise.
+ * Return yesn-zero and clear qp->s_flags RVT_S_BUSY otherwise.
  */
 int qib_verbs_send(struct rvt_qp *qp, struct ib_header *hdr,
 		   u32 hdrwords, struct rvt_sge_state *ss, u32 len)
@@ -1048,7 +1048,7 @@ int qib_snapshot_counters(struct qib_pportdata *ppd, u64 *swords,
 	struct qib_devdata *dd = ppd->dd;
 
 	if (!(dd->flags & QIB_PRESENT)) {
-		/* no hardware, freeze, etc. */
+		/* yes hardware, freeze, etc. */
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -1077,7 +1077,7 @@ int qib_get_counters(struct qib_pportdata *ppd,
 	int ret;
 
 	if (!(ppd->dd->flags & QIB_PRESENT)) {
-		/* no hardware, freeze, etc. */
+		/* yes hardware, freeze, etc. */
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -1136,8 +1136,8 @@ bail:
  * @dd: the device pointer
  *
  * This is called from qib_intr() at interrupt level when a PIO buffer is
- * available after qib_verbs_send() returned an error that no buffers were
- * available. Disable the interrupt if there are no more QPs waiting.
+ * available after qib_verbs_send() returned an error that yes buffers were
+ * available. Disable the interrupt if there are yes more QPs waiting.
  */
 void qib_ib_piobufavail(struct qib_devdata *dd)
 {
@@ -1247,12 +1247,12 @@ static int qib_modify_device(struct ib_device *device,
 	}
 
 	if (device_modify_mask & IB_DEVICE_MODIFY_NODE_DESC) {
-		memcpy(device->node_desc, device_modify->node_desc,
+		memcpy(device->yesde_desc, device_modify->yesde_desc,
 		       IB_DEVICE_NODE_DESC_MAX);
 		for (i = 0; i < dd->num_pports; i++) {
 			struct qib_ibport *ibp = &dd->pport[i].ibport_data;
 
-			qib_node_desc_chg(ibp);
+			qib_yesde_desc_chg(ibp);
 		}
 	}
 
@@ -1316,7 +1316,7 @@ int qib_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
 	return 0;
 }
 
-static void qib_notify_new_ah(struct ib_device *ibdev,
+static void qib_yestify_new_ah(struct ib_device *ibdev,
 			      struct rdma_ah_attr *ah_attr,
 			      struct rvt_ah *ah)
 {
@@ -1324,7 +1324,7 @@ static void qib_notify_new_ah(struct ib_device *ibdev,
 	struct qib_pportdata *ppd;
 
 	/*
-	 * Do not trust reading anything from rvt_ah at this point as it is not
+	 * Do yest trust reading anything from rvt_ah at this point as it is yest
 	 * done being setup. We can however modify things which we need to set.
 	 */
 
@@ -1505,7 +1505,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	for (i = 0; i < dd->num_pports; i++)
 		init_ibport(ppd + i);
 
-	/* Only need to initialize non-zero fields. */
+	/* Only need to initialize yesn-zero fields. */
 	timer_setup(&dev->mem_timer, mem_timer, 0);
 
 	INIT_LIST_HEAD(&dev->piowait);
@@ -1546,12 +1546,12 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	if (!ib_qib_sys_image_guid)
 		ib_qib_sys_image_guid = ppd->guid;
 
-	ibdev->node_guid = ppd->guid;
+	ibdev->yesde_guid = ppd->guid;
 	ibdev->phys_port_cnt = dd->num_pports;
 	ibdev->dev.parent = &dd->pcidev->dev;
 
-	snprintf(ibdev->node_desc, sizeof(ibdev->node_desc),
-		 "Intel Infiniband HCA %s", init_utsname()->nodename);
+	snprintf(ibdev->yesde_desc, sizeof(ibdev->yesde_desc),
+		 "Intel Infiniband HCA %s", init_utsname()->yesdename);
 
 	/*
 	 * Fill in rvt info object.
@@ -1559,30 +1559,30 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.get_pci_dev = qib_get_pci_dev;
 	dd->verbs_dev.rdi.driver_f.check_ah = qib_check_ah;
 	dd->verbs_dev.rdi.driver_f.setup_wqe = qib_check_send_wqe;
-	dd->verbs_dev.rdi.driver_f.notify_new_ah = qib_notify_new_ah;
+	dd->verbs_dev.rdi.driver_f.yestify_new_ah = qib_yestify_new_ah;
 	dd->verbs_dev.rdi.driver_f.alloc_qpn = qib_alloc_qpn;
 	dd->verbs_dev.rdi.driver_f.qp_priv_alloc = qib_qp_priv_alloc;
 	dd->verbs_dev.rdi.driver_f.qp_priv_free = qib_qp_priv_free;
 	dd->verbs_dev.rdi.driver_f.free_all_qps = qib_free_all_qps;
-	dd->verbs_dev.rdi.driver_f.notify_qp_reset = qib_notify_qp_reset;
+	dd->verbs_dev.rdi.driver_f.yestify_qp_reset = qib_yestify_qp_reset;
 	dd->verbs_dev.rdi.driver_f.do_send = qib_do_send;
 	dd->verbs_dev.rdi.driver_f.schedule_send = qib_schedule_send;
 	dd->verbs_dev.rdi.driver_f.quiesce_qp = qib_quiesce_qp;
 	dd->verbs_dev.rdi.driver_f.stop_send_queue = qib_stop_send_queue;
 	dd->verbs_dev.rdi.driver_f.flush_qp_waiters = qib_flush_qp_waiters;
-	dd->verbs_dev.rdi.driver_f.notify_error_qp = qib_notify_error_qp;
-	dd->verbs_dev.rdi.driver_f.notify_restart_rc = qib_restart_rc;
+	dd->verbs_dev.rdi.driver_f.yestify_error_qp = qib_yestify_error_qp;
+	dd->verbs_dev.rdi.driver_f.yestify_restart_rc = qib_restart_rc;
 	dd->verbs_dev.rdi.driver_f.mtu_to_path_mtu = qib_mtu_to_path_mtu;
 	dd->verbs_dev.rdi.driver_f.mtu_from_qp = qib_mtu_from_qp;
 	dd->verbs_dev.rdi.driver_f.get_pmtu_from_attr = qib_get_pmtu_from_attr;
-	dd->verbs_dev.rdi.driver_f.schedule_send_no_lock = _qib_schedule_send;
+	dd->verbs_dev.rdi.driver_f.schedule_send_yes_lock = _qib_schedule_send;
 	dd->verbs_dev.rdi.driver_f.query_port_state = qib_query_port;
 	dd->verbs_dev.rdi.driver_f.shut_down_port = qib_shut_down_port;
 	dd->verbs_dev.rdi.driver_f.cap_mask_chg = qib_cap_mask_chg;
-	dd->verbs_dev.rdi.driver_f.notify_create_mad_agent =
-						qib_notify_create_mad_agent;
-	dd->verbs_dev.rdi.driver_f.notify_free_mad_agent =
-						qib_notify_free_mad_agent;
+	dd->verbs_dev.rdi.driver_f.yestify_create_mad_agent =
+						qib_yestify_create_mad_agent;
+	dd->verbs_dev.rdi.driver_f.yestify_free_mad_agent =
+						qib_yestify_free_mad_agent;
 
 	dd->verbs_dev.rdi.dparms.max_rdma_atomic = QIB_MAX_RDMA_ATOMIC;
 	dd->verbs_dev.rdi.driver_f.get_guid_be = qib_get_guid_be;
@@ -1598,7 +1598,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.dparms.psn_modify_mask = QIB_PSN_MASK;
 	dd->verbs_dev.rdi.dparms.nports = dd->num_pports;
 	dd->verbs_dev.rdi.dparms.npkeys = qib_get_npkeys(dd);
-	dd->verbs_dev.rdi.dparms.node = dd->assigned_node_id;
+	dd->verbs_dev.rdi.dparms.yesde = dd->assigned_yesde_id;
 	dd->verbs_dev.rdi.dparms.core_cap_flags = RDMA_CORE_PORT_IBA_IB;
 	dd->verbs_dev.rdi.dparms.max_mad_size = IB_MGMT_MAD_SIZE;
 	dd->verbs_dev.rdi.dparms.sge_copy_mode = RVT_SGE_COPY_MEMCPY;
@@ -1637,7 +1637,7 @@ err_tx:
 					sizeof(struct qib_pio_header),
 				  dev->pio_hdrs, dev->pio_hdrs_phys);
 err_hdrs:
-	qib_dev_err(dd, "cannot register verbs: %d!\n", -ret);
+	qib_dev_err(dd, "canyest register verbs: %d!\n", -ret);
 	return ret;
 }
 
@@ -1650,13 +1650,13 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
 	rvt_unregister_device(&dd->verbs_dev.rdi);
 
 	if (!list_empty(&dev->piowait))
-		qib_dev_err(dd, "piowait list not empty!\n");
+		qib_dev_err(dd, "piowait list yest empty!\n");
 	if (!list_empty(&dev->dmawait))
-		qib_dev_err(dd, "dmawait list not empty!\n");
+		qib_dev_err(dd, "dmawait list yest empty!\n");
 	if (!list_empty(&dev->txwait))
-		qib_dev_err(dd, "txwait list not empty!\n");
+		qib_dev_err(dd, "txwait list yest empty!\n");
 	if (!list_empty(&dev->memwait))
-		qib_dev_err(dd, "memwait list not empty!\n");
+		qib_dev_err(dd, "memwait list yest empty!\n");
 
 	del_timer_sync(&dev->mem_timer);
 	while (!list_empty(&dev->txreq_free)) {

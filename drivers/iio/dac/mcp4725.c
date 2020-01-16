@@ -76,7 +76,7 @@ static ssize_t mcp4725_store_eeprom(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct mcp4725_data *data = iio_priv(indio_dev);
 	int tries = 20;
-	u8 inoutbuf[3];
+	u8 iyesutbuf[3];
 	bool state;
 	int ret;
 
@@ -87,13 +87,13 @@ static ssize_t mcp4725_store_eeprom(struct device *dev,
 	if (!state)
 		return 0;
 
-	inoutbuf[0] = 0x60; /* write EEPROM */
-	inoutbuf[0] |= data->ref_mode << 3;
-	inoutbuf[0] |= data->powerdown ? ((data->powerdown_mode + 1) << 1) : 0;
-	inoutbuf[1] = data->dac_value >> 4;
-	inoutbuf[2] = (data->dac_value & 0xf) << 4;
+	iyesutbuf[0] = 0x60; /* write EEPROM */
+	iyesutbuf[0] |= data->ref_mode << 3;
+	iyesutbuf[0] |= data->powerdown ? ((data->powerdown_mode + 1) << 1) : 0;
+	iyesutbuf[1] = data->dac_value >> 4;
+	iyesutbuf[2] = (data->dac_value & 0xf) << 4;
 
-	ret = i2c_master_send(data->client, inoutbuf, 3);
+	ret = i2c_master_send(data->client, iyesutbuf, 3);
 	if (ret < 0)
 		return ret;
 	else if (ret != 3)
@@ -102,13 +102,13 @@ static ssize_t mcp4725_store_eeprom(struct device *dev,
 	/* wait for write complete, takes up to 50ms */
 	while (tries--) {
 		msleep(20);
-		ret = i2c_master_recv(data->client, inoutbuf, 3);
+		ret = i2c_master_recv(data->client, iyesutbuf, 3);
 		if (ret < 0)
 			return ret;
 		else if (ret != 3)
 			return -EIO;
 
-		if (inoutbuf[0] & 0x80)
+		if (iyesutbuf[0] & 0x80)
 			break;
 	}
 
@@ -361,7 +361,7 @@ static const struct iio_info mcp4725_info = {
 static int mcp4725_probe_dt(struct device *dev,
 			    struct mcp4725_platform_data *pdata)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	if (!np)
 		return -ENODEV;
@@ -398,7 +398,7 @@ static int mcp4725_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		data->id = (enum chip_id)of_device_get_match_data(&client->dev);
 	else
 		data->id = id->driver_data;

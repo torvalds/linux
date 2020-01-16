@@ -10,7 +10,7 @@
  *
  * Client connections can be in one of a number of cache states:
  *
- *  (1) INACTIVE - The connection is not held in any list and may not have been
+ *  (1) INACTIVE - The connection is yest held in any list and may yest have been
  *      exposed to the world.  If it has been previously exposed, it was
  *      discarded from the idle list after expiring.
  *
@@ -36,10 +36,10 @@
  *
  *  (5) CULLED - The connection got summarily culled to try and free up
  *      capacity.  Calls currently in progress on the connection are allowed to
- *      continue, but new calls will have to wait.  There can be no waiters in
+ *      continue, but new calls will have to wait.  There can be yes waiters in
  *      this state - the conn would have to go to the WAITING state instead.
  *
- *  (6) IDLE - The connection has no calls in progress upon it and must have
+ *  (6) IDLE - The connection has yes calls in progress upon it and must have
  *      been exposed to the world (ie. the EXPOSED flag must be set).  When it
  *      expires, the EXPOSED flag is cleared and the connection transitions to
  *      the INACTIVE state.
@@ -51,7 +51,7 @@
  *
  *  (1) EXPOSED - The connection ID got exposed to the world.  If this flag is
  *      set, an extra ref is added to the connection preventing it from being
- *      reaped when it has no calls outstanding.  This flag is cleared and the
+ *      reaped when it has yes calls outstanding.  This flag is cleared and the
  *      ref dropped when a conn is discarded from the idle list.
  *
  *      This allows us to move terminal call state retransmission to the
@@ -59,13 +59,13 @@
  *      with.  It also give us a chance to reuse the connection.
  *
  *  (2) DONT_REUSE - The connection should be discarded as soon as possible and
- *      should not be reused.  This is set when an exclusive connection is used
+ *      should yest be reused.  This is set when an exclusive connection is used
  *      or a call ID counter overflows.
  *
  * The caching state may only be changed if the cache lock is held.
  *
  * There are two idle client connection expiry durations.  If the total number
- * of connections is below the reap threshold, we use the normal duration; if
+ * of connections is below the reap threshold, we use the yesrmal duration; if
  * it's above, we use the fast duration.
  */
 
@@ -280,7 +280,7 @@ static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
 {
 	struct rxrpc_connection *conn, *candidate = NULL;
 	struct rxrpc_local *local = cp->local;
-	struct rb_node *p, **pp, *parent;
+	struct rb_yesde *p, **pp, *parent;
 	long diff;
 	int ret = -ENOMEM;
 
@@ -296,15 +296,15 @@ static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
 	else
 		call->cong_mode = RXRPC_CALL_SLOW_START;
 
-	/* If the connection is not meant to be exclusive, search the available
+	/* If the connection is yest meant to be exclusive, search the available
 	 * connections to see if the connection we want to use already exists.
 	 */
 	if (!cp->exclusive) {
 		_debug("search 1");
 		spin_lock(&local->client_conns_lock);
-		p = local->client_conns.rb_node;
+		p = local->client_conns.rb_yesde;
 		while (p) {
-			conn = rb_entry(p, struct rxrpc_connection, client_node);
+			conn = rb_entry(p, struct rxrpc_connection, client_yesde);
 
 #define cmp(X) ((long)conn->params.X - (long)cp->X)
 			diff = (cmp(peer) ?:
@@ -333,7 +333,7 @@ static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
 
 	/* There wasn't a connection yet or we need an exclusive connection.
 	 * We need to create a candidate and then potentially redo the search
-	 * in case we're racing with another thread also trying to connect on a
+	 * in case we're racing with ayesther thread also trying to connect on a
 	 * shareable connection.
 	 */
 	_debug("new conn");
@@ -346,7 +346,7 @@ static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
 	/* Add the call to the new connection's waiting list in case we're
 	 * going to have to wait for the connection to come live.  It's our
 	 * connection, so we want first dibs on the channel slots.  We would
-	 * normally have to take channel_lock but we do this before anyone else
+	 * yesrmally have to take channel_lock but we do this before anyone else
 	 * can see the connection.
 	 */
 	list_add(&call->chan_wait_link, &candidate->waiting_calls);
@@ -367,11 +367,11 @@ static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
 	_debug("search 2");
 	spin_lock(&local->client_conns_lock);
 
-	pp = &local->client_conns.rb_node;
+	pp = &local->client_conns.rb_yesde;
 	parent = NULL;
 	while (*pp) {
 		parent = *pp;
-		conn = rb_entry(parent, struct rxrpc_connection, client_node);
+		conn = rb_entry(parent, struct rxrpc_connection, client_yesde);
 
 #define cmp(X) ((long)conn->params.X - (long)candidate->params.X)
 		diff = (cmp(peer) ?:
@@ -390,8 +390,8 @@ static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
 			/* The old connection is from an outdated epoch. */
 			_debug("replace conn");
 			clear_bit(RXRPC_CONN_IN_CLIENT_CONNS, &conn->flags);
-			rb_replace_node(&conn->client_node,
-					&candidate->client_node,
+			rb_replace_yesde(&conn->client_yesde,
+					&candidate->client_yesde,
 					&local->client_conns);
 			trace_rxrpc_client(conn, -1, rxrpc_client_replace);
 			goto candidate_published;
@@ -399,8 +399,8 @@ static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
 	}
 
 	_debug("new conn");
-	rb_link_node(&candidate->client_node, parent, pp);
-	rb_insert_color(&candidate->client_node, &local->client_conns);
+	rb_link_yesde(&candidate->client_yesde, parent, pp);
+	rb_insert_color(&candidate->client_yesde, &local->client_conns);
 
 candidate_published:
 	set_bit(RXRPC_CONN_IN_CLIENT_CONNS, &candidate->flags);
@@ -464,7 +464,7 @@ static void rxrpc_activate_conn(struct rxrpc_net *rxnet,
 /*
  * Attempt to animate a connection for a new call.
  *
- * If it's not exclusive, the connection is in the endpoint tree, and we're in
+ * If it's yest exclusive, the connection is in the endpoint tree, and we're in
  * the conn's list of those waiting to grab a channel.  There is, however, a
  * limit on the number of live connections allowed at any one time, so we may
  * have to wait for capacity to become available.
@@ -766,8 +766,8 @@ void rxrpc_expose_client_call(struct rxrpc_call *call)
  */
 static void rxrpc_set_client_reap_timer(struct rxrpc_net *rxnet)
 {
-	unsigned long now = jiffies;
-	unsigned long reap_at = now + rxrpc_conn_idle_client_expiry;
+	unsigned long yesw = jiffies;
+	unsigned long reap_at = yesw + rxrpc_conn_idle_client_expiry;
 
 	if (rxnet->live)
 		timer_reduce(&rxnet->client_conn_reap_timer, reap_at);
@@ -806,8 +806,8 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 
 		trace_rxrpc_client(conn, channel, rxrpc_client_chan_unstarted);
 
-		/* We must deactivate or idle the connection if it's now
-		 * waiting for nothing.
+		/* We must deactivate or idle the connection if it's yesw
+		 * waiting for yesthing.
 		 */
 		spin_lock(&rxnet->client_conn_cache_lock);
 		if (conn->cache_state == RXRPC_CONN_CLIENT_WAITING &&
@@ -836,7 +836,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 		__rxrpc_disconnect_call(conn, call);
 	}
 
-	/* See if we can pass the channel directly to another call. */
+	/* See if we can pass the channel directly to ayesther call. */
 	if (conn->cache_state == RXRPC_CONN_CLIENT_ACTIVE &&
 	    !list_empty(&conn->waiting_calls)) {
 		trace_rxrpc_client(conn, channel, rxrpc_client_chan_pass);
@@ -859,7 +859,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	}
 
 	/* Things are more complex and we need the cache lock.  We might be
-	 * able to simply idle the conn or it might now be lurking on the wait
+	 * able to simply idle the conn or it might yesw be lurking on the wait
 	 * list.  It might even get moved back to the active list whilst we're
 	 * waiting for the lock.
 	 */
@@ -913,7 +913,7 @@ out_2:
 	return;
 
 idle_connection:
-	/* As no channels remain active, the connection gets deactivated
+	/* As yes channels remain active, the connection gets deactivated
 	 * immediately or moved to the idle list for a short while.
 	 */
 	if (test_bit(RXRPC_CONN_EXPOSED, &conn->flags)) {
@@ -949,7 +949,7 @@ rxrpc_put_one_client_conn(struct rxrpc_connection *conn)
 		spin_lock(&local->client_conns_lock);
 		if (test_and_clear_bit(RXRPC_CONN_IN_CLIENT_CONNS,
 				       &conn->flags))
-			rb_erase(&conn->client_node, &local->client_conns);
+			rb_erase(&conn->client_yesde, &local->client_conns);
 		spin_unlock(&local->client_conns_lock);
 	}
 
@@ -1055,15 +1055,15 @@ static void rxrpc_cull_active_client_conns(struct rxrpc_net *rxnet)
  * Discard expired client connections from the idle list.  Each conn in the
  * idle list has been exposed and holds an extra ref because of that.
  *
- * This may be called from conn setup or from a work item so cannot be
- * considered non-reentrant.
+ * This may be called from conn setup or from a work item so canyest be
+ * considered yesn-reentrant.
  */
 void rxrpc_discard_expired_client_conns(struct work_struct *work)
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_net *rxnet =
 		container_of(work, struct rxrpc_net, client_conn_reaper);
-	unsigned long expiry, conn_expires_at, now;
+	unsigned long expiry, conn_expires_at, yesw;
 	unsigned int nr_conns;
 
 	_enter("");
@@ -1108,9 +1108,9 @@ next:
 
 		conn_expires_at = conn->idle_timestamp + expiry;
 
-		now = READ_ONCE(jiffies);
-		if (time_after(conn_expires_at, now))
-			goto not_yet_expired;
+		yesw = READ_ONCE(jiffies);
+		if (time_after(conn_expires_at, yesw))
+			goto yest_yet_expired;
 	}
 
 	trace_rxrpc_client(conn, -1, rxrpc_client_discard);
@@ -1129,7 +1129,7 @@ next:
 	nr_conns--;
 	goto next;
 
-not_yet_expired:
+yest_yet_expired:
 	/* The connection at the front of the queue hasn't yet expired, so
 	 * schedule the work item for that point if we discarded something.
 	 *
@@ -1137,7 +1137,7 @@ not_yet_expired:
 	 * after rescheduling itself at a later time.  We could cancel it, but
 	 * then things get messier.
 	 */
-	_debug("not yet");
+	_debug("yest yet");
 	if (!rxnet->kill_all_client_conns)
 		timer_reduce(&rxnet->client_conn_reap_timer,
 			     conn_expires_at);

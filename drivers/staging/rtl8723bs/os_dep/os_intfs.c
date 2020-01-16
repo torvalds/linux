@@ -75,10 +75,10 @@ static int rtw_ampdu_enable = 1;/* for enable tx_ampdu ,0: disable, 0x1:enable (
 static int rtw_rx_stbc = 1;/*  0: disable, 1:enable 2.4g */
 static int rtw_ampdu_amsdu;/*  0: disabled, 1:enabled, 2:auto . There is an IOT issu with DLINK DIR-629 when the flag turn on */
 /*  Short GI support Bit Map */
-/*  BIT0 - 20MHz, 0: non-support, 1: support */
-/*  BIT1 - 40MHz, 0: non-support, 1: support */
-/*  BIT2 - 80MHz, 0: non-support, 1: support */
-/*  BIT3 - 160MHz, 0: non-support, 1: support */
+/*  BIT0 - 20MHz, 0: yesn-support, 1: support */
+/*  BIT1 - 40MHz, 0: yesn-support, 1: support */
+/*  BIT2 - 80MHz, 0: yesn-support, 1: support */
+/*  BIT3 - 160MHz, 0: yesn-support, 1: support */
 static int rtw_short_gi = 0xf;
 /*  BIT0: Enable VHT LDPC Rx, BIT1: Enable VHT LDPC Tx, BIT4: Enable HT LDPC Rx, BIT5: Enable HT LDPC Tx */
 static int rtw_ldpc_cap = 0x33;
@@ -182,9 +182,9 @@ module_param(rtw_mc2u_disable, int, 0644);
 module_param(rtw_80211d, int, 0644);
 MODULE_PARM_DESC(rtw_80211d, "Enable 802.11d mechanism");
 
-static uint rtw_notch_filter;
-module_param(rtw_notch_filter, uint, 0644);
-MODULE_PARM_DESC(rtw_notch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
+static uint rtw_yestch_filter;
+module_param(rtw_yestch_filter, uint, 0644);
+MODULE_PARM_DESC(rtw_yestch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
 
 #define CONFIG_RTW_HIQ_FILTER 1
 
@@ -292,7 +292,7 @@ static void loadparam(struct adapter *padapter, _nic_hdl pnetdev)
 
 	snprintf(registry_par->ifname, 16, "%s", ifname);
 
-	registry_par->notch_filter = (u8)rtw_notch_filter;
+	registry_par->yestch_filter = (u8)rtw_yestch_filter;
 
 	registry_par->RegEnableTxPowerLimit = (u8)rtw_tx_pwr_lmt_enable;
 	registry_par->RegEnableTxPowerByRate = (u8)rtw_tx_pwr_by_rate;
@@ -416,9 +416,9 @@ u16 rtw_recv_select_queue(struct sk_buff *skb)
 	return rtw_1d_to_queue[priority];
 }
 
-static int rtw_ndev_notifier_call(struct notifier_block *nb, unsigned long state, void *ptr)
+static int rtw_ndev_yestifier_call(struct yestifier_block *nb, unsigned long state, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (dev->netdev_ops->ndo_do_ioctl != rtw_ioctl)
 		return NOTIFY_DONE;
@@ -428,18 +428,18 @@ static int rtw_ndev_notifier_call(struct notifier_block *nb, unsigned long state
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block rtw_ndev_notifier = {
-	.notifier_call = rtw_ndev_notifier_call,
+static struct yestifier_block rtw_ndev_yestifier = {
+	.yestifier_call = rtw_ndev_yestifier_call,
 };
 
-int rtw_ndev_notifier_register(void)
+int rtw_ndev_yestifier_register(void)
 {
-	return register_netdevice_notifier(&rtw_ndev_notifier);
+	return register_netdevice_yestifier(&rtw_ndev_yestifier);
 }
 
-void rtw_ndev_notifier_unregister(void)
+void rtw_ndev_yestifier_unregister(void)
 {
-	unregister_netdevice_notifier(&rtw_ndev_notifier);
+	unregister_netdevice_yestifier(&rtw_ndev_yestifier);
 }
 
 
@@ -750,7 +750,7 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 		ret8 = _FAIL;
 		goto exit;
 	}
-	/*  add for CONFIG_IEEE80211W, none 11w also can use */
+	/*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 	spin_lock_init(&padapter->security_key_mutex);
 
 	/*  We don't need to memset padapter->XXX to zero, because adapter is allocated by vzalloc(). */
@@ -899,7 +899,7 @@ int _netdev_open(struct net_device *pnetdev)
 
 	if (pwrctrlpriv->ps_flag == true) {
 		padapter->net_closed = false;
-		goto netdev_open_normal_process;
+		goto netdev_open_yesrmal_process;
 	}
 
 	if (padapter->bup == false) {
@@ -938,7 +938,7 @@ int _netdev_open(struct net_device *pnetdev)
 	else
 		rtw_netif_wake_queue(pnetdev);
 
-netdev_open_normal_process:
+netdev_open_yesrmal_process:
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-871x_drv - dev_open\n"));
 	DBG_871X("-871x_drv - drv_open, bup =%d\n", padapter->bup);
@@ -1046,13 +1046,13 @@ void rtw_ips_dev_unload(struct adapter *padapter)
 }
 
 
-static int pm_netdev_open(struct net_device *pnetdev, u8 bnormal)
+static int pm_netdev_open(struct net_device *pnetdev, u8 byesrmal)
 {
 	int status = -1;
 
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
 
-	if (true == bnormal) {
+	if (true == byesrmal) {
 		if (mutex_lock_interruptible(&(adapter_to_dvobj(padapter)->hw_init_mutex)) == 0) {
 			status = _netdev_open(pnetdev);
 			mutex_unlock(&(adapter_to_dvobj(padapter)->hw_init_mutex));
@@ -1132,7 +1132,7 @@ void rtw_dev_unload(struct adapter *padapter)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	u8 cnt = 0;
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("+%s\n", __func__));
+	RT_TRACE(_module_hci_intfs_c_, _drv_yestice_, ("+%s\n", __func__));
 
 	if (padapter->bup == true) {
 		DBG_871X("===> %s\n", __func__);
@@ -1144,7 +1144,7 @@ void rtw_dev_unload(struct adapter *padapter)
 		if (padapter->intf_stop)
 			padapter->intf_stop(padapter);
 
-		RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("@ rtw_dev_unload: stop intf complete!\n"));
+		RT_TRACE(_module_hci_intfs_c_, _drv_yestice_, ("@ rtw_dev_unload: stop intf complete!\n"));
 
 		if (!pwrctl->bInternalAutoSuspend)
 			rtw_stop_drv_threads(padapter);
@@ -1160,7 +1160,7 @@ void rtw_dev_unload(struct adapter *padapter)
 			}
 		}
 
-		RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("@ %s: stop thread complete!\n", __func__));
+		RT_TRACE(_module_hci_intfs_c_, _drv_yestice_, ("@ %s: stop thread complete!\n", __func__));
 
 		/* check the status of IPS */
 		if (rtw_hal_check_ips_status(padapter) == true || pwrctl->rf_pwrstate == rf_off) { /* check HW status and SW state */
@@ -1168,7 +1168,7 @@ void rtw_dev_unload(struct adapter *padapter)
 			pdbgpriv->dbg_dev_unload_inIPS_cnt++;
 			LeaveAllPowerSaveMode(padapter);
 		} else {
-			DBG_871X_LEVEL(_drv_always_, "%s: driver not in IPS\n", __func__);
+			DBG_871X_LEVEL(_drv_always_, "%s: driver yest in IPS\n", __func__);
 		}
 
 		if (padapter->bSurpriseRemoved == false) {
@@ -1176,7 +1176,7 @@ void rtw_dev_unload(struct adapter *padapter)
 #ifdef CONFIG_WOWLAN
 			if (pwrctl->bSupportRemoteWakeup == true &&
 				pwrctl->wowlan_mode == true) {
-				DBG_871X_LEVEL(_drv_always_, "%s bSupportRemoteWakeup ==true  do not run rtw_hal_deinit()\n", __func__);
+				DBG_871X_LEVEL(_drv_always_, "%s bSupportRemoteWakeup ==true  do yest run rtw_hal_deinit()\n", __func__);
 			}
 			else
 #endif
@@ -1186,7 +1186,7 @@ void rtw_dev_unload(struct adapter *padapter)
 			}
 			padapter->bSurpriseRemoved = true;
 		}
-		RT_TRACE(_module_hci_intfs_c_, _drv_notice_,
+		RT_TRACE(_module_hci_intfs_c_, _drv_yestice_,
 			 ("@ %s: deinit hal complete!\n", __func__));
 
 		padapter->bup = false;
@@ -1194,11 +1194,11 @@ void rtw_dev_unload(struct adapter *padapter)
 		DBG_871X("<=== %s\n", __func__);
 	}
 	else {
-		RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("%s: bup ==false\n", __func__));
+		RT_TRACE(_module_hci_intfs_c_, _drv_yestice_, ("%s: bup ==false\n", __func__));
 		DBG_871X("%s: bup ==false\n", __func__);
 	}
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("-%s\n", __func__));
+	RT_TRACE(_module_hci_intfs_c_, _drv_yestice_, ("-%s\n", __func__));
 }
 
 static int rtw_suspend_free_assoc_resource(struct adapter *padapter)
@@ -1259,7 +1259,7 @@ void rtw_suspend_wow(struct adapter *padapter)
 
 
 	DBG_871X("wowlan_mode: %d\n", pwrpriv->wowlan_mode);
-	DBG_871X("wowlan_pno_enable: %d\n", pwrpriv->wowlan_pno_enable);
+	DBG_871X("wowlan_pyes_enable: %d\n", pwrpriv->wowlan_pyes_enable);
 
 	if (pwrpriv->wowlan_mode == true) {
 		if (pnetdev)
@@ -1312,8 +1312,8 @@ void rtw_suspend_wow(struct adapter *padapter)
 			set_channel_bwmode(padapter, ch, offset, bw);
 		}
 
-		if (pwrpriv->wowlan_pno_enable)
-			DBG_871X_LEVEL(_drv_always_, "%s: pno: %d\n", __func__, pwrpriv->wowlan_pno_enable);
+		if (pwrpriv->wowlan_pyes_enable)
+			DBG_871X_LEVEL(_drv_always_, "%s: pyes: %d\n", __func__, pwrpriv->wowlan_pyes_enable);
 		else
 			rtw_set_ps_mode(padapter, PS_MODE_DTIM, 0, 0, "WOWLAN");
 	}
@@ -1376,7 +1376,7 @@ void rtw_suspend_ap_wow(struct adapter *padapter)
 #endif /* ifdef CONFIG_AP_WOWLAN */
 
 
-static void rtw_suspend_normal(struct adapter *padapter)
+static void rtw_suspend_yesrmal(struct adapter *padapter)
 {
 	struct net_device *pnetdev = padapter->pnetdev;
 
@@ -1450,26 +1450,26 @@ int rtw_suspend_common(struct adapter *padapter)
 	#ifdef CONFIG_WOWLAN
 		if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 			pwrpriv->wowlan_mode = true;
-		} else if (pwrpriv->wowlan_pno_enable == true) {
-			pwrpriv->wowlan_mode |= pwrpriv->wowlan_pno_enable;
+		} else if (pwrpriv->wowlan_pyes_enable == true) {
+			pwrpriv->wowlan_mode |= pwrpriv->wowlan_pyes_enable;
 		}
 
 		if (pwrpriv->wowlan_mode == true)
 		rtw_suspend_wow(padapter);
 		else
-			rtw_suspend_normal(padapter);
+			rtw_suspend_yesrmal(padapter);
 
 	#else /* CONFIG_WOWLAN */
-		rtw_suspend_normal(padapter);
+		rtw_suspend_yesrmal(padapter);
 	#endif /* CONFIG_WOWLAN */
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
 	#ifdef CONFIG_AP_WOWLAN
 		rtw_suspend_ap_wow(padapter);
 	#else
-		rtw_suspend_normal(padapter);
+		rtw_suspend_yesrmal(padapter);
 	#endif /* CONFIG_AP_WOWLAN */
 	} else {
-		rtw_suspend_normal(padapter);
+		rtw_suspend_yesrmal(padapter);
 	}
 
 	DBG_871X_LEVEL(_drv_always_, "rtw suspend success in %d ms\n",
@@ -1514,7 +1514,7 @@ int rtw_resume_process_wow(struct adapter *padapter)
 	}
 
 #ifdef CONFIG_PNO_SUPPORT
-	pwrpriv->pno_in_resume = true;
+	pwrpriv->pyes_in_resume = true;
 #endif
 
 	if (pwrpriv->wowlan_mode == true) {
@@ -1596,7 +1596,7 @@ int rtw_resume_process_wow(struct adapter *padapter)
 		pwrpriv->bips_processing = false;
 		_set_timer(&padapter->mlmepriv.dynamic_chk_timer, 2000);
 	} else {
-		DBG_871X_LEVEL(_drv_always_, "do not reset timer\n");
+		DBG_871X_LEVEL(_drv_always_, "do yest reset timer\n");
 	}
 
 	pwrpriv->wowlan_mode = false;
@@ -1684,7 +1684,7 @@ exit:
 }
 #endif /* ifdef CONFIG_APWOWLAN */
 
-static int rtw_resume_process_normal(struct adapter *padapter)
+static int rtw_resume_process_yesrmal(struct adapter *padapter)
 {
 	struct net_device *pnetdev;
 	struct pwrctrl_priv *pwrpriv;
@@ -1776,19 +1776,19 @@ int rtw_resume_common(struct adapter *padapter)
 		if (pwrpriv->wowlan_mode == true)
 			rtw_resume_process_wow(padapter);
 		else
-			rtw_resume_process_normal(padapter);
+			rtw_resume_process_yesrmal(padapter);
 	#else
-		rtw_resume_process_normal(padapter);
+		rtw_resume_process_yesrmal(padapter);
 	#endif
 
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
 	#ifdef CONFIG_AP_WOWLAN
 		rtw_resume_process_ap_wow(padapter);
 	#else
-		rtw_resume_process_normal(padapter);
+		rtw_resume_process_yesrmal(padapter);
 	#endif /* CONFIG_AP_WOWLAN */
 	} else {
-		rtw_resume_process_normal(padapter);
+		rtw_resume_process_yesrmal(padapter);
 	}
 
 	hal_btcoex_SuspendNotify(padapter, 0);
@@ -1796,7 +1796,7 @@ int rtw_resume_common(struct adapter *padapter)
 	if (pwrpriv) {
 		pwrpriv->bInSuspend = false;
 	#ifdef CONFIG_PNO_SUPPORT
-		pwrpriv->pno_in_resume = false;
+		pwrpriv->pyes_in_resume = false;
 	#endif
 	}
 	DBG_871X_LEVEL(_drv_always_, "%s:%d in %d ms\n", __func__ , ret,

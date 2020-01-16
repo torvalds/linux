@@ -39,7 +39,7 @@ struct ad7266_state {
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
-	 * The buffer needs to be large enough to hold two samples (4 bytes) and
+	 * The buffer needs to be large eyesugh to hold two samples (4 bytes) and
 	 * the naturally aligned timestamp (8 bytes).
 	 */
 	struct {
@@ -92,7 +92,7 @@ static irqreturn_t ad7266_trigger_handler(int irq, void *p)
 			    pf->timestamp);
 	}
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -438,7 +438,7 @@ static int ad7266_probe(struct spi_device *spi)
 	st->spi = spi;
 
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7266_info;

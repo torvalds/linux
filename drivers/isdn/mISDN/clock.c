@@ -77,7 +77,7 @@ select_iclock(void)
 		bestclock->ctl(bestclock->priv, 1);
 	}
 	if (bestclock != iclock_current) {
-		/* no clock received yet */
+		/* yes clock received yet */
 		iclock_timestamp_valid = 0;
 	}
 	iclock_current = bestclock;
@@ -134,7 +134,7 @@ void
 mISDN_clock_update(struct mISDNclock *iclock, int samples, ktime_t *timestamp)
 {
 	u_long		flags;
-	ktime_t		timestamp_now;
+	ktime_t		timestamp_yesw;
 	u16		delta;
 
 	write_lock_irqsave(&iclock_lock, flags);
@@ -142,7 +142,7 @@ mISDN_clock_update(struct mISDNclock *iclock, int samples, ktime_t *timestamp)
 		printk(KERN_ERR "%s: '%s' sends us clock updates, but we do "
 		       "listen to '%s'. This is a bug!\n", __func__,
 		       iclock->name,
-		       iclock_current ? iclock_current->name : "nothing");
+		       iclock_current ? iclock_current->name : "yesthing");
 		iclock->ctl(iclock->priv, 0);
 		write_unlock_irqrestore(&iclock_lock, flags);
 		return;
@@ -158,19 +158,19 @@ mISDN_clock_update(struct mISDNclock *iclock, int samples, ktime_t *timestamp)
 	} else {
 		/* calc elapsed time by system clock */
 		if (timestamp) { /* timestamp must be set, if function call is delayed */
-			timestamp_now = *timestamp;
+			timestamp_yesw = *timestamp;
 		} else {
-			timestamp_now = ktime_get();
+			timestamp_yesw = ktime_get();
 		}
-		delta = ktime_divns(ktime_sub(timestamp_now, iclock_timestamp),
+		delta = ktime_divns(ktime_sub(timestamp_yesw, iclock_timestamp),
 				(NSEC_PER_SEC / 8000));
 		/* add elapsed time to counter and set new timestamp */
 		iclock_count += delta;
-		iclock_timestamp = timestamp_now;
+		iclock_timestamp = timestamp_yesw;
 		iclock_timestamp_valid = 1;
 		if (*debug & DEBUG_CLOCK)
 			printk("Received first clock from source '%s'.\n",
-			       iclock_current ? iclock_current->name : "nothing");
+			       iclock_current ? iclock_current->name : "yesthing");
 	}
 	write_unlock_irqrestore(&iclock_lock, flags);
 }
@@ -180,14 +180,14 @@ unsigned short
 mISDN_clock_get(void)
 {
 	u_long		flags;
-	ktime_t		timestamp_now;
+	ktime_t		timestamp_yesw;
 	u16		delta;
 	u16		count;
 
 	read_lock_irqsave(&iclock_lock, flags);
 	/* calc elapsed time by system clock */
-	timestamp_now = ktime_get();
-	delta = ktime_divns(ktime_sub(timestamp_now, iclock_timestamp),
+	timestamp_yesw = ktime_get();
+	delta = ktime_divns(ktime_sub(timestamp_yesw, iclock_timestamp),
 			(NSEC_PER_SEC / 8000));
 	/* add elapsed time to counter */
 	count =	iclock_count + delta;

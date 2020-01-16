@@ -182,7 +182,7 @@ static struct msi_domain_info iproc_msi_domain_info = {
  * The number of MSI groups varies between different iProc SoCs.  The total
  * number of CPU cores also varies.  To support MSI IRQ affinity, we
  * distribute GIC interrupts across all available CPUs.  MSI vector is moved
- * from one GIC interrupt to another to steer to the target CPU.
+ * from one GIC interrupt to ayesther to steer to the target CPU.
  *
  * Assuming:
  * - the number of MSI groups is M
@@ -197,7 +197,7 @@ static inline int hwirq_to_cpu(struct iproc_msi *msi, unsigned long hwirq)
 	return (hwirq % msi->nr_cpus);
 }
 
-static inline unsigned long hwirq_to_canonical_hwirq(struct iproc_msi *msi,
+static inline unsigned long hwirq_to_cayesnical_hwirq(struct iproc_msi *msi,
 						     unsigned long hwirq)
 {
 	return (hwirq - hwirq_to_cpu(msi, hwirq));
@@ -215,7 +215,7 @@ static int iproc_msi_irq_set_affinity(struct irq_data *data,
 		return IRQ_SET_MASK_OK_DONE;
 
 	/* steer MSI to the target CPU */
-	data->hwirq = hwirq_to_canonical_hwirq(msi, data->hwirq) + target_cpu;
+	data->hwirq = hwirq_to_cayesnical_hwirq(msi, data->hwirq) + target_cpu;
 
 	return IRQ_SET_MASK_OK;
 }
@@ -278,7 +278,7 @@ static void iproc_msi_irq_domain_free(struct irq_domain *domain,
 
 	mutex_lock(&msi->bitmap_lock);
 
-	hwirq = hwirq_to_canonical_hwirq(msi, data->hwirq);
+	hwirq = hwirq_to_cayesnical_hwirq(msi, data->hwirq);
 	bitmap_clear(msi->bitmap, hwirq, msi->nr_cpus);
 
 	mutex_unlock(&msi->bitmap_lock);
@@ -304,10 +304,10 @@ static inline u32 decode_msi_hwirq(struct iproc_msi *msi, u32 eq, u32 head)
 
 	/*
 	 * Since we have multiple hwirq mapped to a single MSI vector,
-	 * now we need to derive the hwirq at CPU0.  It can then be used to
+	 * yesw we need to derive the hwirq at CPU0.  It can then be used to
 	 * mapped back to virq.
 	 */
-	return hwirq_to_canonical_hwirq(msi, hwirq);
+	return hwirq_to_cayesnical_hwirq(msi, hwirq);
 }
 
 static void iproc_msi_handler(struct irq_desc *desc)
@@ -436,7 +436,7 @@ static void iproc_msi_disable(struct iproc_msi *msi)
 	}
 }
 
-static int iproc_msi_alloc_domains(struct device_node *node,
+static int iproc_msi_alloc_domains(struct device_yesde *yesde,
 				   struct iproc_msi *msi)
 {
 	msi->inner_domain = irq_domain_add_linear(NULL, msi->nr_msi_vecs,
@@ -444,7 +444,7 @@ static int iproc_msi_alloc_domains(struct device_node *node,
 	if (!msi->inner_domain)
 		return -ENOMEM;
 
-	msi->msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(node),
+	msi->msi_domain = pci_msi_create_irq_domain(of_yesde_to_fwyesde(yesde),
 						    &iproc_msi_domain_info,
 						    msi->inner_domain);
 	if (!msi->msi_domain) {
@@ -509,16 +509,16 @@ static int iproc_msi_irq_setup(struct iproc_msi *msi, unsigned int cpu)
 	return 0;
 }
 
-int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
+int iproc_msi_init(struct iproc_pcie *pcie, struct device_yesde *yesde)
 {
 	struct iproc_msi *msi;
 	int i, ret;
 	unsigned int cpu;
 
-	if (!of_device_is_compatible(node, "brcm,iproc-msi"))
+	if (!of_device_is_compatible(yesde, "brcm,iproc-msi"))
 		return -ENODEV;
 
-	if (!of_find_property(node, "msi-controller", NULL))
+	if (!of_find_property(yesde, "msi-controller", NULL))
 		return -ENODEV;
 
 	if (pcie->msi)
@@ -534,9 +534,9 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 	mutex_init(&msi->bitmap_lock);
 	msi->nr_cpus = num_possible_cpus();
 
-	msi->nr_irqs = of_irq_count(node);
+	msi->nr_irqs = of_irq_count(yesde);
 	if (!msi->nr_irqs) {
-		dev_err(pcie->dev, "found no MSI GIC interrupt\n");
+		dev_err(pcie->dev, "found yes MSI GIC interrupt\n");
 		return -ENODEV;
 	}
 
@@ -548,7 +548,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 
 	if (msi->nr_irqs < msi->nr_cpus) {
 		dev_err(pcie->dev,
-			"not enough GIC interrupts for MSI affinity\n");
+			"yest eyesugh GIC interrupts for MSI affinity\n");
 		return -EINVAL;
 	}
 
@@ -575,7 +575,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 		return -EINVAL;
 	}
 
-	if (of_find_property(node, "brcm,pcie-msi-inten", NULL))
+	if (of_find_property(yesde, "brcm,pcie-msi-inten", NULL))
 		msi->has_inten_reg = true;
 
 	msi->nr_msi_vecs = msi->nr_irqs * EQ_LEN;
@@ -590,7 +590,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 		return -ENOMEM;
 
 	for (i = 0; i < msi->nr_irqs; i++) {
-		unsigned int irq = irq_of_parse_and_map(node, i);
+		unsigned int irq = irq_of_parse_and_map(yesde, i);
 
 		if (!irq) {
 			dev_err(pcie->dev, "unable to parse/map interrupt\n");
@@ -611,7 +611,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 		goto free_irqs;
 	}
 
-	ret = iproc_msi_alloc_domains(node, msi);
+	ret = iproc_msi_alloc_domains(yesde, msi);
 	if (ret) {
 		dev_err(pcie->dev, "failed to create MSI domains\n");
 		goto free_eq_dma;

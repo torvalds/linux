@@ -28,7 +28,7 @@
  * @irq_phys_addr: base address on the AXI bus where the MSI/legacy IRQ
  *		   dedicated outbound regions is mapped.
  * @irq_cpu_addr: base address in the CPU space where a write access triggers
- *		  the sending of a memory write (MSI) / normal message (legacy
+ *		  the sending of a memory write (MSI) / yesrmal message (legacy
  *		  IRQ) TLP through the PCIe bus.
  * @irq_pci_addr: used to save the current mapping of the MSI/legacy IRQ
  *		  dedicated outbound region.
@@ -73,21 +73,21 @@ static void rockchip_pcie_prog_ep_ob_atu(struct rockchip_pcie *rockchip, u8 fn,
 	u64 sz = 1ULL << fls64(size - 1);
 	int num_pass_bits = ilog2(sz);
 	u32 addr0, addr1, desc0, desc1;
-	bool is_nor_msg = (type == AXI_WRAPPER_NOR_MSG);
+	bool is_yesr_msg = (type == AXI_WRAPPER_NOR_MSG);
 
 	/* The minimal region size is 1MB */
 	if (num_pass_bits < 8)
 		num_pass_bits = 8;
 
 	cpu_addr -= rockchip->mem_res->start;
-	addr0 = ((is_nor_msg ? 0x10 : (num_pass_bits - 1)) &
+	addr0 = ((is_yesr_msg ? 0x10 : (num_pass_bits - 1)) &
 		PCIE_CORE_OB_REGION_ADDR0_NUM_BITS) |
 		(lower_32_bits(cpu_addr) & PCIE_CORE_OB_REGION_ADDR0_LO_ADDR);
-	addr1 = upper_32_bits(is_nor_msg ? cpu_addr : pci_addr);
+	addr1 = upper_32_bits(is_yesr_msg ? cpu_addr : pci_addr);
 	desc0 = ROCKCHIP_PCIE_AT_OB_REGION_DESC0_DEVFN(fn) | type;
 	desc1 = 0;
 
-	if (is_nor_msg) {
+	if (is_yesr_msg) {
 		rockchip_pcie_write(rockchip, 0,
 				    ROCKCHIP_PCIE_AT_OB_REGION_PCI_ADDR0(r));
 		rockchip_pcie_write(rockchip, 0,
@@ -164,7 +164,7 @@ static int rockchip_pcie_ep_set_bar(struct pci_epc *epc, u8 fn,
 	struct rockchip_pcie_ep *ep = epc_get_drvdata(epc);
 	struct rockchip_pcie *rockchip = &ep->rockchip;
 	dma_addr_t bar_phys = epf_bar->phys_addr;
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baryes bar = epf_bar->baryes;
 	int flags = epf_bar->flags;
 	u32 addr0, addr1, reg, cfg, b, aperture, ctrl;
 	u64 sz;
@@ -173,7 +173,7 @@ static int rockchip_pcie_ep_set_bar(struct pci_epc *epc, u8 fn,
 	sz = max_t(size_t, epf_bar->size, MIN_EP_APERTURE);
 
 	/*
-	 * roundup_pow_of_two() returns an unsigned long, which is not suited
+	 * roundup_pow_of_two() returns an unsigned long, which is yest suited
 	 * for 64bit values.
 	 */
 	sz = 1ULL << fls64(sz - 1);
@@ -232,7 +232,7 @@ static void rockchip_pcie_ep_clear_bar(struct pci_epc *epc, u8 fn,
 	struct rockchip_pcie_ep *ep = epc_get_drvdata(epc);
 	struct rockchip_pcie *rockchip = &ep->rockchip;
 	u32 reg, cfg, b, ctrl;
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baryes bar = epf_bar->baryes;
 
 	if (bar < BAR_4) {
 		reg = ROCKCHIP_PCIE_CORE_EP_FUNC_BAR_CFG0(fn);
@@ -270,7 +270,7 @@ static int rockchip_pcie_ep_map_addr(struct pci_epc *epc, u8 fn,
 	 * be used elsewhere per TRM, so leave it out.
 	 */
 	if (r >= ep->max_regions - 1) {
-		dev_err(&epc->dev, "no free outbound region\n");
+		dev_err(&epc->dev, "yes free outbound region\n");
 		return -EINVAL;
 	}
 
@@ -495,7 +495,7 @@ static int rockchip_pcie_ep_start(struct pci_epc *epc)
 
 	cfg = BIT(0);
 	list_for_each_entry(epf, &epc->pci_epf, list)
-		cfg |= BIT(epf->func_no);
+		cfg |= BIT(epf->func_yes);
 
 	rockchip_pcie_write(rockchip, cfg, PCIE_CORE_PHY_FUNC_CFG);
 
@@ -503,13 +503,13 @@ static int rockchip_pcie_ep_start(struct pci_epc *epc)
 }
 
 static const struct pci_epc_features rockchip_pcie_epc_features = {
-	.linkup_notifier = false,
+	.linkup_yestifier = false,
 	.msi_capable = true,
 	.msix_capable = false,
 };
 
 static const struct pci_epc_features*
-rockchip_pcie_ep_get_features(struct pci_epc *epc, u8 func_no)
+rockchip_pcie_ep_get_features(struct pci_epc *epc, u8 func_yes)
 {
 	return &rockchip_pcie_epc_features;
 }
@@ -541,13 +541,13 @@ static int rockchip_pcie_parse_ep_dt(struct rockchip_pcie *rockchip,
 	if (err)
 		return err;
 
-	err = of_property_read_u32(dev->of_node,
+	err = of_property_read_u32(dev->of_yesde,
 				   "rockchip,max-outbound-regions",
 				   &ep->max_regions);
 	if (err < 0 || ep->max_regions > MAX_REGION_LIMIT)
 		ep->max_regions = MAX_REGION_LIMIT;
 
-	err = of_property_read_u8(dev->of_node, "max-functions",
+	err = of_property_read_u8(dev->of_yesde, "max-functions",
 				  &ep->epc->max_functions);
 	if (err < 0)
 		ep->epc->max_functions = 1;

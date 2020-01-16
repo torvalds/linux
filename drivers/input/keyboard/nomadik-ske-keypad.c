@@ -19,7 +19,7 @@
 #include <linux/clk.h>
 #include <linux/module.h>
 
-#include <linux/platform_data/keypad-nomadik-ske.h>
+#include <linux/platform_data/keypad-yesmadik-ske.h>
 
 /* SKE_CR bits */
 #define SKE_KPMLT	(0x1 << 6)
@@ -52,7 +52,7 @@
 
 /**
  * struct ske_keypad  - data structure used by keypad driver
- * @irq:	irq no
+ * @irq:	irq yes
  * @reg_base:	ske registers base address
  * @input:	pointer to input device object
  * @board:	keypad platform device
@@ -119,7 +119,7 @@ static int __init ske_keypad_chip_init(struct ske_keypad *keypad)
 
 	/*
 	 * set up the number of columns
-	 * KPCN[5:3] defines no. of keypad columns to be auto scanned
+	 * KPCN[5:3] defines yes. of keypad columns to be auto scanned
 	 */
 	value = (keypad->board->kcol - 1) << 3;
 	ske_keypad_set_bits(keypad, SKE_CR, SKE_KPCN, value);
@@ -180,7 +180,7 @@ static void ske_keypad_read_data(struct ske_keypad *keypad)
 		if (!ske_asr)
 			continue;
 
-		/* now that ASRx is zero, find out the coloumn x and row y */
+		/* yesw that ASRx is zero, find out the coloumn x and row y */
 		status = ske_asr & 0xff;
 		if (status) {
 			col = i * 2;
@@ -297,7 +297,7 @@ static int __init ske_keypad_probe(struct platform_device *pdev)
 	}
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
-	if (!plat->no_autorepeat)
+	if (!plat->yes_autorepeat)
 		__set_bit(EV_REP, input->evbit);
 
 	error = clk_prepare_enable(keypad->pclk);
@@ -432,4 +432,4 @@ module_platform_driver_probe(ske_keypad_driver, ske_keypad_probe);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Naveen Kumar <naveen.gaddipati@stericsson.com> / Sundar Iyer <sundar.iyer@stericsson.com>");
 MODULE_DESCRIPTION("Nomadik Scroll-Key-Encoder Keypad Driver");
-MODULE_ALIAS("platform:nomadik-ske-keypad");
+MODULE_ALIAS("platform:yesmadik-ske-keypad");

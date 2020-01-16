@@ -18,7 +18,7 @@ static void saa7164_vbi_configure(struct saa7164_port *port)
 	port->vbi_params.width = port->enc_port->width;
 	port->vbi_params.height = port->enc_port->height;
 	port->vbi_params.is_50hz =
-		(port->enc_port->encodernorm.id & V4L2_STD_625_50) != 0;
+		(port->enc_port->encoderyesrm.id & V4L2_STD_625_50) != 0;
 
 	/* Set up the DIF (enable it) for analog mode by default */
 	saa7164_api_initialize_dif(port);
@@ -96,7 +96,7 @@ static int saa7164_vbi_buffers_alloc(struct saa7164_port *port)
 			params->pitch);
 
 		if (!buf) {
-			printk(KERN_ERR "%s() failed (errno = %d), unable to allocate buffer\n",
+			printk(KERN_ERR "%s() failed (erryes = %d), unable to allocate buffer\n",
 				__func__, result);
 			result = -ENOMEM;
 			goto failed;
@@ -666,8 +666,8 @@ static struct video_device saa7164_vbi_template = {
 	.name          = "saa7164",
 	.fops          = &vbi_fops,
 	.ioctl_ops     = &vbi_ioctl_ops,
-	.minor         = -1,
-	.tvnorms       = SAA7164_NORMS,
+	.miyesr         = -1,
+	.tvyesrms       = SAA7164_NORMS,
 	.device_caps   = V4L2_CAP_VBI_CAPTURE | V4L2_CAP_READWRITE |
 			 V4L2_CAP_TUNER,
 };
@@ -708,7 +708,7 @@ int saa7164_vbi_register(struct saa7164_port *port)
 
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
-		printk(KERN_ERR "%s() failed (errno = %d), NO PCI configuration\n",
+		printk(KERN_ERR "%s() failed (erryes = %d), NO PCI configuration\n",
 			__func__, result);
 		result = -ENOMEM;
 		goto failed;
@@ -716,7 +716,7 @@ int saa7164_vbi_register(struct saa7164_port *port)
 
 	/* Establish VBI defaults here */
 
-	/* Allocate and register the video device node */
+	/* Allocate and register the video device yesde */
 	port->v4l_device = saa7164_vbi_alloc(port,
 		dev->pci, &saa7164_vbi_template, "vbi");
 
@@ -760,7 +760,7 @@ void saa7164_vbi_unregister(struct saa7164_port *port)
 		BUG();
 
 	if (port->v4l_device) {
-		if (port->v4l_device->minor != -1)
+		if (port->v4l_device->miyesr != -1)
 			video_unregister_device(port->v4l_device);
 		else
 			video_device_release(port->v4l_device);

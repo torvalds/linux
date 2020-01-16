@@ -6,7 +6,7 @@
  * Pavel Smolenskiy <pavel.smolenskiy@gmail.com>
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 #include <linux/kernel.h>
@@ -115,7 +115,7 @@ static void
 ieee802154_print_addr(const char *name, const struct ieee802154_addr *addr)
 {
 	if (addr->mode == IEEE802154_ADDR_NONE)
-		pr_debug("%s not present\n", name);
+		pr_debug("%s yest present\n", name);
 
 	pr_debug("%s PAN ID: %04x\n", name, le16_to_cpu(addr->pan_id));
 	if (addr->mode == IEEE802154_ADDR_SHORT) {
@@ -269,7 +269,7 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	ieee802154_monitors_rx(local, skb);
 
 	/* Check if transceiver doesn't validate the checksum.
-	 * If not we validate the checksum here.
+	 * If yest we validate the checksum here.
 	 */
 	if (local->hw.flags & IEEE802154_HW_RX_DROP_BAD_CKSUM) {
 		crc = crc_ccitt(0, skb->data, skb->len);

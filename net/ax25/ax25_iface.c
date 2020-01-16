@@ -3,7 +3,7 @@
  *
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -39,7 +39,7 @@ static struct listen_struct {
 static DEFINE_SPINLOCK(listen_lock);
 
 /*
- * Do not register the internal protocols AX25_P_TEXT, AX25_P_SEGMENT,
+ * Do yest register the internal protocols AX25_P_TEXT, AX25_P_SEGMENT,
  * AX25_P_IP or AX25_P_ARP ...
  */
 void ax25_register_pid(struct ax25_protocol *ap)
@@ -83,7 +83,7 @@ EXPORT_SYMBOL(ax25_protocol_release);
 void ax25_linkfail_register(struct ax25_linkfail *lf)
 {
 	spin_lock_bh(&linkfail_lock);
-	hlist_add_head(&lf->lf_node, &ax25_linkfail_list);
+	hlist_add_head(&lf->lf_yesde, &ax25_linkfail_list);
 	spin_unlock_bh(&linkfail_lock);
 }
 
@@ -92,7 +92,7 @@ EXPORT_SYMBOL(ax25_linkfail_register);
 void ax25_linkfail_release(struct ax25_linkfail *lf)
 {
 	spin_lock_bh(&linkfail_lock);
-	hlist_del_init(&lf->lf_node);
+	hlist_del_init(&lf->lf_yesde);
 	spin_unlock_bh(&linkfail_lock);
 }
 
@@ -192,7 +192,7 @@ void ax25_link_failed(ax25_cb *ax25, int reason)
 	struct ax25_linkfail *lf;
 
 	spin_lock_bh(&linkfail_lock);
-	hlist_for_each_entry(lf, &ax25_linkfail_list, lf_node)
+	hlist_for_each_entry(lf, &ax25_linkfail_list, lf_yesde)
 		lf->func(ax25, reason);
 	spin_unlock_bh(&linkfail_lock);
 }

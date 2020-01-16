@@ -3,16 +3,16 @@
  * Copyright (C) 2007-2009 PetaLogix
  * Copyright (C) 2007 John Williams <john.williams@petalogix.com>
  *
- * Copyright (C) 2006 Atmark Techno, Inc.
- *	Yasushi SHOJI <yashi@atmark-techno.com>
- *	Tetsuya OHKAWA <tetsuya@atmark-techno.com>
+ * Copyright (C) 2006 Atmark Techyes, Inc.
+ *	Yasushi SHOJI <yashi@atmark-techyes.com>
+ *	Tetsuya OHKAWA <tetsuya@atmark-techyes.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
  * for more details.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/smp.h>

@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -276,7 +276,7 @@ struct adapter_params {
 struct mbox_cmd {
 	u64 cmd[MBOX_LEN / 8];		/* a Firmware Mailbox Command/Reply */
 	u64 timestamp;			/* OS-dependent timestamp */
-	u32 seqno;			/* sequence number */
+	u32 seqyes;			/* sequence number */
 	s16 access;			/* time (ms) to access mailbox */
 	s16 execute;			/* time (ms) to execute */
 };
@@ -284,7 +284,7 @@ struct mbox_cmd {
 struct mbox_cmd_log {
 	unsigned int size;		/* number of entries in the log */
 	unsigned int cursor;		/* next position in the log to write */
-	u32 seqno;			/* next sequence number */
+	u32 seqyes;			/* next sequence number */
 	/* variable length mailbox command log starts here */
 };
 

@@ -53,8 +53,8 @@ static const struct irq_domain_ops goldfish_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
-static int __init goldfish_pic_of_init(struct device_node *of_node,
-				       struct device_node *parent)
+static int __init goldfish_pic_of_init(struct device_yesde *of_yesde,
+				       struct device_yesde *parent)
 {
 	struct goldfish_pic_data *gfpic;
 	struct irq_chip_generic *gc;
@@ -68,14 +68,14 @@ static int __init goldfish_pic_of_init(struct device_node *of_node,
 		goto out_err;
 	}
 
-	parent_irq = irq_of_parse_and_map(of_node, 0);
+	parent_irq = irq_of_parse_and_map(of_yesde, 0);
 	if (!parent_irq) {
 		pr_err("Failed to map parent IRQ!\n");
 		ret = -EINVAL;
 		goto out_free;
 	}
 
-	gfpic->base = of_iomap(of_node, 0);
+	gfpic->base = of_iomap(of_yesde, 0);
 	if (!gfpic->base) {
 		pr_err("Failed to map base address!\n");
 		ret = -ENOMEM;
@@ -102,7 +102,7 @@ static int __init goldfish_pic_of_init(struct device_node *of_node,
 	irq_setup_generic_chip(gc, IRQ_MSK(GFPIC_NR_IRQS), 0,
 			       IRQ_NOPROBE | IRQ_LEVEL, 0);
 
-	gfpic->irq_domain = irq_domain_add_legacy(of_node, GFPIC_NR_IRQS,
+	gfpic->irq_domain = irq_domain_add_legacy(of_yesde, GFPIC_NR_IRQS,
 						  GFPIC_IRQ_BASE, 0,
 						  &goldfish_irq_domain_ops,
 						  NULL);
@@ -128,7 +128,7 @@ out_unmap_irq:
 out_free:
 	kfree(gfpic);
 out_err:
-	pr_err("Failed to initialize! (errno = %d)\n", ret);
+	pr_err("Failed to initialize! (erryes = %d)\n", ret);
 	return ret;
 }
 

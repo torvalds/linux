@@ -554,7 +554,7 @@ out:
 }
 
 static struct floppy_struct floppy_type[4] = {
-	{    0,  0, 0,  0, 0, 0x00, 0x00, 0x00, 0x00, NULL }, /* no testing   */
+	{    0,  0, 0,  0, 0, 0x00, 0x00, 0x00, 0x00, NULL }, /* yes testing   */
 	{  720,  9, 1, 80, 0, 0x2A, 0x02, 0xDF, 0x50, NULL }, /* 360KB SS 3.5"*/
 	{ 1440,  9, 2, 80, 0, 0x2A, 0x02, 0xDF, 0x50, NULL }, /* 720KB 3.5"   */
 	{ 2880, 18, 2, 80, 0, 0x1B, 0x00, 0xCF, 0x6C, NULL }, /* 1.44MB 3.5"  */
@@ -589,7 +589,7 @@ static void setup_medium(struct floppy_state *fs)
 
 		if (swim_track00(base))
 			printk(KERN_ERR
-				"SWIM: cannot move floppy head to track 0\n");
+				"SWIM: canyest move floppy head to track 0\n");
 
 		swim_track00(base);
 
@@ -855,7 +855,7 @@ static int swim_floppy_init(struct swim_priv *swd)
 	for (drive = 0; drive < swd->floppy_count; drive++) {
 		swd->unit[drive].disk->flags = GENHD_FL_REMOVABLE;
 		swd->unit[drive].disk->major = FLOPPY_MAJOR;
-		swd->unit[drive].disk->first_minor = drive;
+		swd->unit[drive].disk->first_miyesr = drive;
 		sprintf(swd->unit[drive].disk->disk_name, "fd%d", drive);
 		swd->unit[drive].disk->fops = &floppy_fops;
 		swd->unit[drive].disk->events = DISK_EVENT_MEDIA_CHANGE;
@@ -914,7 +914,7 @@ static int swim_probe(struct platform_device *dev)
 
 	set_swim_mode(swim_base, 1);
 	if (!get_swim_mode(swim_base)) {
-		printk(KERN_INFO "SWIM device not found !\n");
+		printk(KERN_INFO "SWIM device yest found !\n");
 		ret = -ENODEV;
 		goto out_release_io;
 	}

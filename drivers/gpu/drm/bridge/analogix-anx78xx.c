@@ -204,7 +204,7 @@ static ssize_t anx78xx_aux_transfer(struct drm_dp_aux *aux,
 	/* Zero-sized messages specify address-only transactions. */
 	if (msg->size < 1)
 		ctrl2 |= SP_ADDR_ONLY;
-	else	/* For non-zero-sized set the length field. */
+	else	/* For yesn-zero-sized set the length field. */
 		ctrl1 |= (msg->size - 1) << SP_AUX_LENGTH_SHIFT;
 
 	if ((msg->request & DP_AUX_I2C_READ) == 0) {
@@ -724,7 +724,7 @@ static int anx78xx_init_pdata(struct anx78xx *anx78xx)
 	pdata->dvdd10 = devm_regulator_get(dev, "dvdd10");
 	if (IS_ERR(pdata->dvdd10)) {
 		if (PTR_ERR(pdata->dvdd10) != -EPROBE_DEFER)
-			DRM_ERROR("DVDD10 regulator not found\n");
+			DRM_ERROR("DVDD10 regulator yest found\n");
 
 		return PTR_ERR(pdata->dvdd10);
 	}
@@ -772,7 +772,7 @@ static int anx78xx_dp_link_training(struct anx78xx *anx78xx)
 		break;
 
 	default:
-		DRM_DEBUG_KMS("DP bandwidth (%#02x) not supported\n", dp_bw);
+		DRM_DEBUG_KMS("DP bandwidth (%#02x) yest supported\n", dp_bw);
 		return -EINVAL;
 	}
 
@@ -1037,7 +1037,7 @@ static int anx78xx_bridge_attach(struct drm_bridge *bridge)
 	int err;
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
+		DRM_ERROR("Parent encoder object yest found");
 		return -ENODEV;
 	}
 
@@ -1359,7 +1359,7 @@ static int anx78xx_i2c_probe(struct i2c_client *client,
 	mutex_init(&anx78xx->lock);
 
 #if IS_ENABLED(CONFIG_OF)
-	anx78xx->bridge.of_node = client->dev.of_node;
+	anx78xx->bridge.of_yesde = client->dev.of_yesde;
 #endif
 
 	anx78xx->client = client;
@@ -1440,7 +1440,7 @@ static int anx78xx_i2c_probe(struct i2c_client *client,
 	}
 
 	if (!found) {
-		DRM_ERROR("ANX%x (ver. %d) not supported by this driver\n",
+		DRM_ERROR("ANX%x (ver. %d) yest supported by this driver\n",
 			  anx78xx->chipid, version);
 		err = -ENODEV;
 		goto err_poweroff;

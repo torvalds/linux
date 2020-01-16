@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _IPCONNTRACK_NETLINK_H
 #define _IPCONNTRACK_NETLINK_H
 #include <linux/netfilter/nfnetlink.h>
@@ -242,13 +242,13 @@ enum ctattr_secctx {
 
 enum ctattr_stats_cpu {
 	CTA_STATS_UNSPEC,
-	CTA_STATS_SEARCHED,	/* no longer used */
+	CTA_STATS_SEARCHED,	/* yes longer used */
 	CTA_STATS_FOUND,
-	CTA_STATS_NEW,		/* no longer used */
+	CTA_STATS_NEW,		/* yes longer used */
 	CTA_STATS_INVALID,
 	CTA_STATS_IGNORE,
-	CTA_STATS_DELETE,	/* no longer used */
-	CTA_STATS_DELETE_LIST,	/* no longer used */
+	CTA_STATS_DELETE,	/* yes longer used */
+	CTA_STATS_DELETE_LIST,	/* yes longer used */
 	CTA_STATS_INSERT,
 	CTA_STATS_INSERT_FAILED,
 	CTA_STATS_DROP,

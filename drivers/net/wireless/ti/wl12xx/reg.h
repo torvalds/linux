@@ -5,7 +5,7 @@
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
  * Copyright (C) 2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #ifndef __REG_H__
@@ -30,9 +30,9 @@
     This reset disables all MAC and baseband processor
     clocks except the CardBus/PCI interface clock.
     It also initializes all MAC state machines except
-    the host interface. It does not reload the
+    the host interface. It does yest reload the
     contents of the EEPROM. When this bit is cleared
-    (not self-clearing), the Wlan hardware
+    (yest self-clearing), the Wlan hardware
     exits the software reset state.
 ===============================================*/
 #define WL12XX_SLV_SOFT_RESET		(REGISTERS_BASE + 0x0000)
@@ -80,7 +80,7 @@
  Setting a bit in this register sets
  the corresponding bin in ACX_HINT_MASK register
  without effecting the mask
- state of other bits (0 = no effect).
+ state of other bits (0 = yes effect).
 ==============================================*/
 #define ACX_REG_HINT_MASK_SET          (REGISTERS_BASE + 0x04E0)
 
@@ -90,7 +90,7 @@
  Setting a bit in this register clears
  the corresponding bin in ACX_HINT_MASK register
  without effecting the mask
- state of other bits (0 = no effect).
+ state of other bits (0 = yes effect).
 =============================================*/
 #define ACX_REG_HINT_MASK_CLR          (REGISTERS_BASE + 0x04E4)
 
@@ -117,14 +117,14 @@
 #define ACX_REG_INTERRUPT_CLEAR        (REGISTERS_BASE + 0x04F8)
 
 /*=============================================
-  Host Interrupt Acknowledge Register
+  Host Interrupt Ackyeswledge Register
   16bit,(Write only)
   ------------------------------------------
  The host can set individual bits in this
- register to clear (acknowledge) the corresp.
+ register to clear (ackyeswledge) the corresp.
  interrupt status bits in the HINT_STS_CLR and
  HINT_STS_ND registers, thus making the
- assotiated interrupt inactive. (0-no effect)
+ assotiated interrupt inactive. (0-yes effect)
 ==============================================*/
 #define WL12XX_REG_INTERRUPT_ACK          (REGISTERS_BASE + 0x04F0)
 
@@ -248,7 +248,7 @@
  find the location of the command mailbox.
  The Wlan hardware initializes the command mailbox
  pointer with the default address of the command mailbox.
- The command mailbox pointer is not valid until after
+ The command mailbox pointer is yest valid until after
  the host receives the Init Complete interrupt from
  the Wlan hardware.
  ===============================================*/
@@ -263,7 +263,7 @@
  the location of the information mailbox.
  The Wlan hardware initializes the information mailbox pointer
  with the default address of the information mailbox.
- The information mailbox pointer is not valid
+ The information mailbox pointer is yest valid
  until after the host receives the Init Complete interrupt from
  the Wlan hardware.
  ===============================================*/
@@ -312,7 +312,7 @@
   [23:15] of the 24-bit Wlan hardware memory
   address for burst reads from EEPROM accesses.
   The EEPROM provides the lower 15 bits of this address.
-  The MSB of the address from the EEPROM is ignored.
+  The MSB of the address from the EEPROM is igyesred.
   ===============================================*/
 #define ACX_EE_CFG                          EE_CFG
 
@@ -389,11 +389,11 @@ TxdRateSet_t:
 b15   - Indicates Preamble type (1=SHORT, 0=LONG).
 	Notes:
 	Must be LONG (0) for 1Mbps rate.
-	Does not apply (set to 0) for RevG-OFDM rates.
-b14   - Indicates PBCC encoding (1=PBCC, 0=not).
+	Does yest apply (set to 0) for RevG-OFDM rates.
+b14   - Indicates PBCC encoding (1=PBCC, 0=yest).
 	Notes:
-	Does not apply (set to 0) for rates 1 and 2 Mbps.
-	Does not apply (set to 0) for RevG-OFDM rates.
+	Does yest apply (set to 0) for rates 1 and 2 Mbps.
+	Does yest apply (set to 0) for RevG-OFDM rates.
 b13    - Unused (set to 0).
 b12-b0 - Supported Rate indicator bits as defined below.
 
@@ -485,8 +485,8 @@ enum {
 #define WL12XX_INTR_TRIG_CMD		BIT(0)
 
 /*
- * Host Event Acknowlegde Interrupt. The host
- * sets this bit to acknowledge that it received
+ * Host Event Ackyeswlegde Interrupt. The host
+ * sets this bit to ackyeswledge that it received
  * the unsolicited information from the event
  * mailbox.
  */

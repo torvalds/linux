@@ -197,14 +197,14 @@ endif ## SND_SST_ATOM_HIFI2_PLATFORM || SND_SOC_SOF_BAYTRAIL
 if SND_SST_ATOM_HIFI2_PLATFORM
 
 config SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH
-	tristate "Baytrail & Cherrytrail platform with no codec (MinnowBoard MAX, Up)"
+	tristate "Baytrail & Cherrytrail platform with yes codec (MinyeswBoard MAX, Up)"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
 	help
-	  This adds support for ASoC machine driver for the MinnowBoard Max or
+	  This adds support for ASoC machine driver for the MinyeswBoard Max or
 	  Up boards and provides access to I2S signals on the Low-Speed
-	  connector. This is not a recommended option outside of these cases.
-	  It is not intended to be enabled by distros by default.
+	  connector. This is yest a recommended option outside of these cases.
+	  It is yest intended to be enabled by distros by default.
 	  Say Y or m if you have such a device.
 
 	  If unsure select "N".

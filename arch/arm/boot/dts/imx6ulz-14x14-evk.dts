@@ -7,16 +7,16 @@
 #include "imx6ulz.dtsi"
 #include "imx6ul-14x14-evk.dtsi"
 
-/delete-node/ &fec1;
-/delete-node/ &fec2;
-/delete-node/ &can1;
-/delete-node/ &can2;
-/delete-node/ &lcdif;
-/delete-node/ &tsc;
+/delete-yesde/ &fec1;
+/delete-yesde/ &fec2;
+/delete-yesde/ &can1;
+/delete-yesde/ &can2;
+/delete-yesde/ &lcdif;
+/delete-yesde/ &tsc;
 
 / {
 	model = "Freescale i.MX6 ULZ 14x14 EVK Board";
 	compatible = "fsl,imx6ulz-14x14-evk", "fsl,imx6ull", "fsl,imx6ulz";
 
-	/delete-node/ panel;
+	/delete-yesde/ panel;
 };

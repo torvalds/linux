@@ -31,7 +31,7 @@ MODULE_SUPPORTED_DEVICE("{{M2Tech,Young},"
 			 "{M2Tech,Empirical},"
 			 "{M2Tech,Rockna},"
 			 "{M2Tech,Pathos},"
-			 "{M2Tech,Metronome},"
+			 "{M2Tech,Metroyesme},"
 			 "{M2Tech,CAD},"
 			 "{M2Tech,Audio Esclusive},"
 			 "{M2Tech,Rotel},"
@@ -76,7 +76,7 @@ static int hiface_chip_create(struct usb_interface *intf,
 	ret = snd_card_new(&intf->dev, index[idx], id[idx], THIS_MODULE,
 			   sizeof(*chip), &card);
 	if (ret < 0) {
-		dev_err(&device->dev, "cannot create alsa card.\n");
+		dev_err(&device->dev, "canyest create alsa card.\n");
 		return ret;
 	}
 
@@ -125,7 +125,7 @@ static int hiface_chip_probe(struct usb_interface *intf,
 			break;
 
 	if (i >= SNDRV_CARDS) {
-		dev_err(&device->dev, "no available " CARD_NAME " audio device\n");
+		dev_err(&device->dev, "yes available " CARD_NAME " audio device\n");
 		ret = -ENODEV;
 		goto err;
 	}
@@ -140,7 +140,7 @@ static int hiface_chip_probe(struct usb_interface *intf,
 
 	ret = snd_card_register(chip->card);
 	if (ret < 0) {
-		dev_err(&device->dev, "cannot register " CARD_NAME " card\n");
+		dev_err(&device->dev, "canyest register " CARD_NAME " card\n");
 		goto err_chip_destroy;
 	}
 
@@ -167,7 +167,7 @@ static void hiface_chip_disconnect(struct usb_interface *intf)
 
 	card = chip->card;
 
-	/* Make sure that the userspace cannot create new request */
+	/* Make sure that the userspace canyest create new request */
 	snd_card_disconnect(card);
 
 	hiface_pcm_abort(chip);
@@ -239,7 +239,7 @@ static const struct usb_device_id device_table[] = {
 	{
 		USB_DEVICE(0x249c, 0x9002),
 		.driver_info = (unsigned long)&(const struct hiface_vendor_quirk) {
-			.device_name = "Metronome",
+			.device_name = "Metroyesme",
 		}
 	},
 	{

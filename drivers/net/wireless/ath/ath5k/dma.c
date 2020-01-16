@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -119,7 +119,7 @@ ath5k_hw_set_rxdp(struct ath5k_hw *ah, u32 phys_addr)
  *
  * Start DMA transmit for a specific queue and since 5210 doesn't have
  * QCU/DCU, set up queue parameters for 5210 here based on queue type (one
- * queue for normal data and one queue for beacons). For queue setup
+ * queue for yesrmal data and one queue for beacons). For queue setup
  * on newer chips check out qcu.c. Returns -EINVAL if queue number is out
  * of range or if queue is already disabled.
  *
@@ -342,9 +342,9 @@ ath5k_hw_stop_beacon_queue(struct ath5k_hw *ah, unsigned int queue)
  * @ah: The &struct ath5k_hw
  * @queue: The hw queue number
  *
- * Get TX descriptor's address for a specific queue. For 5210 we ignore
+ * Get TX descriptor's address for a specific queue. For 5210 we igyesre
  * the queue number and use tx queue type since we only have 2 queues.
- * We use TXDP0 for normal data queue and TXDP1 for beacon queue.
+ * We use TXDP0 for yesrmal data queue and TXDP1 for beacon queue.
  * For newer chips with QCU/DCU we just read the corresponding TXDP register.
  *
  * XXX: Is TXDP read and clear ?
@@ -385,9 +385,9 @@ ath5k_hw_get_txdp(struct ath5k_hw *ah, unsigned int queue)
  * @queue: The hw queue number
  * @phys_addr: The physical address
  *
- * Set TX descriptor's address for a specific queue. For 5210 we ignore
+ * Set TX descriptor's address for a specific queue. For 5210 we igyesre
  * the queue number and we use tx queue type since we only have 2 queues
- * so as above we use TXDP0 for normal data queue and TXDP1 for beacon queue.
+ * so as above we use TXDP0 for yesrmal data queue and TXDP1 for beacon queue.
  * For newer chips with QCU/DCU we just set the corresponding TXDP register.
  * Returns -EINVAL if queue type is invalid for 5210 and -EIO if queue is still
  * active.
@@ -442,7 +442,7 @@ ath5k_hw_set_txdp(struct ath5k_hw *ah, unsigned int queue, u32 phys_addr)
  * buffer (aka FIFO threshold) that is used to indicate when PCU flushes
  * the buffer and transmits its data. Lowering this results sending small
  * frames more quickly but can lead to tx underruns, raising it a lot can
- * result other problems. Right now we start with the lowest possible
+ * result other problems. Right yesw we start with the lowest possible
  * (64Bytes) and if we get tx underrun we increase it using the increase
  * flag. Returns -EIO if we have reached maximum/minimum.
  *
@@ -517,7 +517,7 @@ ath5k_hw_is_intr_pending(struct ath5k_hw *ah)
  * This function is used inside our interrupt handler to determine the reason
  * for the interrupt by reading Primary Interrupt Status Register. Returns an
  * abstract interrupt status mask which is mostly ISR with some uncommon bits
- * being mapped on some standard non hw-specific positions
+ * being mapped on some standard yesn hw-specific positions
  * (check out &ath5k_int).
  *
  * NOTE: We do write-to-clear, so the active PISR/SISR bits at the time this
@@ -543,7 +543,7 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		}
 
 		/*
-		 * Filter out the non-common bits from the interrupt
+		 * Filter out the yesn-common bits from the interrupt
 		 * status.
 		 */
 		*interrupt_mask = (isr & AR5K_INT_COMMON) & ah->ah_imr;
@@ -609,15 +609,15 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		 * If we clean these bits on PISR we 'll also clear all
 		 * related bits from SISRs, e.g. if we write the TXOK bit on
 		 * PISR we 'll clean all TXOK bits from SISR0 so if a new TXOK
-		 * interrupt got fired for another queue while we were reading
+		 * interrupt got fired for ayesther queue while we were reading
 		 * the interrupt registers and we write back the TXOK bit on
 		 * PISR we 'll lose it. So make sure that we don't write back
 		 * on PISR any bits that come from SISRs. Clearing them from
-		 * SISRs will also clear PISR so no need to worry here.
+		 * SISRs will also clear PISR so yes need to worry here.
 		 */
 
 		/* XXX: There seems to be  an issue on some cards
-		 *	with tx interrupt flags not being updated
+		 *	with tx interrupt flags yest being updated
 		 *	on PISR despite that all Tx interrupt bits
 		 * 	are cleared on SISRs. Since we handle all
 		 *	Tx queues all together it shouldn't be an
@@ -645,7 +645,7 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		ath5k_hw_reg_read(ah, AR5K_PISR);
 
 		/*
-		 * Filter out the non-common bits from the interrupt
+		 * Filter out the yesn-common bits from the interrupt
 		 * status.
 		 */
 		*interrupt_mask = (pisr & AR5K_INT_COMMON) & ah->ah_imr;
@@ -670,7 +670,7 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 			ah->ah_txq_isr_txok_all |= AR5K_REG_MS(sisr1,
 						AR5K_SISR1_QCU_TXEOL);
 
-		/* Currently this is not much useful since we treat
+		/* Currently this is yest much useful since we treat
 		 * all queues the same way if we get a TXURN (update
 		 * tx trigger level) but we might need it later on*/
 		if (pisr & AR5K_ISR_TXURN)
@@ -816,7 +816,7 @@ ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 			int_mask |= (AR5K_IMR_SSERR | AR5K_IMR_MCABT
 				| AR5K_IMR_HIUERR | AR5K_IMR_DPERR);
 
-		/* Only common interrupts left for 5210 (no SIMRs) */
+		/* Only common interrupts left for 5210 (yes SIMRs) */
 		ath5k_hw_reg_write(ah, int_mask, AR5K_IMR);
 	}
 

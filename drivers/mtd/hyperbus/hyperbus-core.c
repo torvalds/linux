@@ -60,7 +60,7 @@ int hyperbus_register_device(struct hyperbus_device *hbdev)
 {
 	const struct hyperbus_ops *ops;
 	struct hyperbus_ctlr *ctlr;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct map_info *map;
 	struct resource res;
 	struct device *dev;
@@ -91,7 +91,7 @@ int hyperbus_register_device(struct hyperbus_device *hbdev)
 
 	map->name = dev_name(dev);
 	map->bankwidth = 2;
-	map->device_node = np;
+	map->device_yesde = np;
 
 	simple_map_init(map);
 	ops = ctlr->ops;
@@ -122,7 +122,7 @@ int hyperbus_register_device(struct hyperbus_device *hbdev)
 	}
 
 	hbdev->mtd->dev.parent = dev;
-	mtd_set_of_node(hbdev->mtd, np);
+	mtd_set_of_yesde(hbdev->mtd, np);
 
 	ret = mtd_device_register(hbdev->mtd, NULL, 0);
 	if (ret) {

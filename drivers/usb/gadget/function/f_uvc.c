@@ -7,7 +7,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -602,7 +602,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	opts->streaming_maxpacket = clamp(opts->streaming_maxpacket, 1U, 3072U);
 	opts->streaming_maxburst = min(opts->streaming_maxburst, 15U);
 
-	/* For SS, wMaxPacketSize has to be 1024 if bMaxBurst is not 0 */
+	/* For SS, wMaxPacketSize has to be 1024 if bMaxBurst is yest 0 */
 	if (opts->streaming_maxburst &&
 	    (opts->streaming_maxpacket % 1024) != 0) {
 		opts->streaming_maxpacket = roundup(opts->streaming_maxpacket, 1024);
@@ -613,7 +613,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	/* Fill in the FS/HS/SS Video Streaming specific descriptors from the
 	 * module parameters.
 	 *
-	 * NOTE: We assume that the user knows what they are doing and won't
+	 * NOTE: We assume that the user kyesws what they are doing and won't
 	 * give parameters that their UDC doesn't support.
 	 */
 	if (opts->streaming_maxpacket <= 1024) {

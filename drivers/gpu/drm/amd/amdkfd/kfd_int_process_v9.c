@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -43,7 +43,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 	client_id = SOC15_CLIENT_ID_FROM_IH_ENTRY(ih_ring_entry);
 	pasid = SOC15_PASID_FROM_IH_ENTRY(ih_ring_entry);
 
-	/* This is a known issue for gfx9. Under non HWS, pasid is not set
+	/* This is a kyeswn issue for gfx9. Under yesn HWS, pasid is yest set
 	 * in the interrupt payload, so we need to find out the pasid on our
 	 * own.
 	 */
@@ -67,7 +67,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 		 data[0], data[1], data[2], data[3],
 		 data[4], data[5], data[6], data[7]);
 
-	/* If there is no valid PASID, it's likely a bug */
+	/* If there is yes valid PASID, it's likely a bug */
 	if (WARN_ONCE(pasid == 0, "Bug: No PASID in KFD interrupt"))
 		return 0;
 

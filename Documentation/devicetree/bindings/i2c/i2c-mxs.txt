@@ -6,7 +6,7 @@ Required properties:
 - interrupts: Should contain ERROR interrupt number
 - clock-frequency: Desired I2C bus clock frequency in Hz.
                    Only 100000Hz and 400000Hz modes are supported.
-- dmas: DMA specifier, consisting of a phandle to DMA controller node
+- dmas: DMA specifier, consisting of a phandle to DMA controller yesde
   and I2C DMA channel ID.
   Refer to dma.txt and fsl-mxs-dma.txt for details.
 - dma-names: Must be "rx-tx".

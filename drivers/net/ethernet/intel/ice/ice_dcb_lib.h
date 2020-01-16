@@ -11,8 +11,8 @@
 #ifdef CONFIG_DCB
 #define ICE_TC_MAX_BW		100 /* Default Max BW percentage */
 #define ICE_DCB_HW_CHG_RST	0 /* DCB configuration changed with reset */
-#define ICE_DCB_NO_HW_CHG	1 /* DCB configuration did not change */
-#define ICE_DCB_HW_CHG		2 /* DCB configuration changed, no reset */
+#define ICE_DCB_NO_HW_CHG	1 /* DCB configuration did yest change */
+#define ICE_DCB_HW_CHG		2 /* DCB configuration changed, yes reset */
 
 void ice_dcb_rebuild(struct ice_pf *pf);
 u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg);
@@ -59,7 +59,7 @@ ice_dcb_get_tc(struct ice_vsi __always_unused *vsi,
 static inline int
 ice_init_pf_dcb(struct ice_pf *pf, bool __always_unused locked)
 {
-	dev_dbg(ice_pf_to_dev(pf), "DCB not supported\n");
+	dev_dbg(ice_pf_to_dev(pf), "DCB yest supported\n");
 	return -EOPNOTSUPP;
 }
 

@@ -93,8 +93,8 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (inet_opt)
 		inet_csk(sk)->icsk_ext_hdr_len = inet_opt->opt.optlen;
 	/*
-	 * Socket identity is still unknown (sport may be zero).
-	 * However we set state to DCCP_REQUESTING and not releasing socket
+	 * Socket identity is still unkyeswn (sport may be zero).
+	 * However we set state to DCCP_REQUESTING and yest releasing socket
 	 * lock select source port, enter ourselves into the hash tables and
 	 * complete initialization after this.
 	 */
@@ -110,7 +110,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		rt = NULL;
 		goto failure;
 	}
-	/* OK, now commit destination to socket.  */
+	/* OK, yesw commit destination to socket.  */
 	sk_setup_caps(sk, &rt->dst);
 
 	dp->dccps_iss = secure_dccp_sequence_number(inet->inet_saddr,
@@ -148,7 +148,7 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 	const struct inet_sock *inet = inet_sk(sk);
 	const struct dccp_sock *dp = dccp_sk(sk);
 
-	/* We are not interested in DCCP_LISTEN and request_socks (RESPONSEs
+	/* We are yest interested in DCCP_LISTEN and request_socks (RESPONSEs
 	 * send out by Linux are always < 576bytes so they should go through
 	 * unfragmented).
 	 */
@@ -160,7 +160,7 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 		return;
 
 	/* Something is about to be wrong... Remember soft error
-	 * for the case, if this connection will not able to recover.
+	 * for the case, if this connection will yest able to recover.
 	 */
 	if (mtu < dst_mtu(dst) && ip_dont_fragment(sk, dst))
 		sk->sk_err_soft = EMSGSIZE;
@@ -176,7 +176,7 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 		 * From RFC 4340, sec. 14.1:
 		 *
 		 *	DCCP-Sync packets are the best choice for upward
-		 *	probing, since DCCP-Sync probes do not risk application
+		 *	probing, since DCCP-Sync probes do yest risk application
 		 *	data loss.
 		 */
 		dccp_send_sync(sk, dp->dccps_gsr, DCCP_PKT_SYNC);
@@ -197,7 +197,7 @@ void dccp_req_err(struct sock *sk, u64 seq)
 	struct net *net = sock_net(sk);
 
 	/*
-	 * ICMPs are not backlogged, hence we cannot get an established
+	 * ICMPs are yest backlogged, hence we canyest get an established
 	 * socket here.
 	 */
 	if (!between48(seq, dccp_rsk(req)->dreq_iss, dccp_rsk(req)->dreq_gss)) {
@@ -205,8 +205,8 @@ void dccp_req_err(struct sock *sk, u64 seq)
 	} else {
 		/*
 		 * Still in RESPOND, just remove it silently.
-		 * There is no good way to pass the error to the newly
-		 * created socket, and POSIX does not want network
+		 * There is yes good way to pass the error to the newly
+		 * created socket, and POSIX does yest want network
 		 * errors returned from accept().
 		 */
 		inet_csk_reqsk_queue_drop(req->rsk_listener, req);
@@ -223,7 +223,7 @@ EXPORT_SYMBOL(dccp_req_err);
  * need to find the appropriate port.
  *
  * The locking strategy used here is very "optimistic". When someone else
- * accesses the socket the ICMP is just dropped and for some paths there is no
+ * accesses the socket the ICMP is just dropped and for some paths there is yes
  * check at all. A more general error queue to queue errors for later handling
  * is probably better.
  */
@@ -291,7 +291,7 @@ static int dccp_v4_err(struct sk_buff *skb, u32 info)
 			dccp_do_redirect(skb, sk);
 		goto out;
 	case ICMP_SOURCE_QUENCH:
-		/* Just silently ignore these. */
+		/* Just silently igyesre these. */
 		goto out;
 	case ICMP_PARAMETERPROB:
 		err = EPROTO;
@@ -306,7 +306,7 @@ static int dccp_v4_err(struct sk_buff *skb, u32 info)
 			goto out;
 		}
 
-		err = icmp_err_convert[code].errno;
+		err = icmp_err_convert[code].erryes;
 		break;
 	case ICMP_TIME_EXCEEDED:
 		err = EHOSTUNREACH;
@@ -386,7 +386,7 @@ static inline u64 dccp_v4_init_sequence(const struct sk_buff *skb)
 
 /*
  * The three way handshake has completed - we got a valid ACK or DATAACK -
- * now create the new socket.
+ * yesw create the new socket.
  *
  * This is the equivalent of TCP's tcp_v4_syn_recv_sock
  */
@@ -406,7 +406,7 @@ struct sock *dccp_v4_request_recv_sock(const struct sock *sk,
 
 	newsk = dccp_create_openreq_child(sk, req, skb);
 	if (newsk == NULL)
-		goto exit_nonewsk;
+		goto exit_yesnewsk;
 
 	newinet		   = inet_sk(newsk);
 	ireq		   = inet_rsk(req);
@@ -427,7 +427,7 @@ struct sock *dccp_v4_request_recv_sock(const struct sock *sk,
 
 	if (__inet_inherit_port(sk, newsk) < 0)
 		goto put_and_exit;
-	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash));
+	*own_req = inet_ehash_yeslisten(newsk, req_to_sk(req_unhash));
 	if (*own_req)
 		ireq->ireq_opt = NULL;
 	else
@@ -436,7 +436,7 @@ struct sock *dccp_v4_request_recv_sock(const struct sock *sk,
 
 exit_overflow:
 	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
-exit_nonewsk:
+exit_yesnewsk:
 	dst_release(dst);
 exit:
 	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENDROPS);
@@ -668,7 +668,7 @@ int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 	 *	      (* Generate a new socket and switch to that socket *)
 	 *	      Set S := new socket for this port pair
 	 *	      S.state = RESPOND
-	 *	      Choose S.ISS (initial seqno) or set from Init Cookies
+	 *	      Choose S.ISS (initial seqyes) or set from Init Cookies
 	 *	      Initialize S.GAR := S.ISS
 	 *	      Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init Cookies
 	 *	      Continue with S.state == RESPOND
@@ -695,7 +695,7 @@ EXPORT_SYMBOL_GPL(dccp_v4_do_rcv);
 /**
  *	dccp_invalid_packet  -  check for malformed packets
  *	Implements RFC 4340, 8.5:  Step 1: Check header basics
- *	Packets that fail these checks are ignored and do not receive Resets.
+ *	Packets that fail these checks are igyesred and do yest receive Resets.
  */
 int dccp_invalid_packet(struct sk_buff *skb)
 {
@@ -714,7 +714,7 @@ int dccp_invalid_packet(struct sk_buff *skb)
 
 	dh = dccp_hdr(skb);
 
-	/* If P.type is not understood, drop packet and return */
+	/* If P.type is yest understood, drop packet and return */
 	if (dh->dccph_type >= DCCP_PKT_INVALID) {
 		DCCP_WARN("invalid packet type\n");
 		return 1;
@@ -737,19 +737,19 @@ int dccp_invalid_packet(struct sk_buff *skb)
 	}
 	dh = dccp_hdr(skb);
 	/*
-	 * If P.type is not Data, Ack, or DataAck and P.X == 0 (the packet
+	 * If P.type is yest Data, Ack, or DataAck and P.X == 0 (the packet
 	 * has short sequence numbers), drop packet and return
 	 */
 	if ((dh->dccph_type < DCCP_PKT_DATA    ||
 	    dh->dccph_type > DCCP_PKT_DATAACK) && dh->dccph_x == 0)  {
-		DCCP_WARN("P.type (%s) not Data || [Data]Ack, while P.X == 0\n",
+		DCCP_WARN("P.type (%s) yest Data || [Data]Ack, while P.X == 0\n",
 			  dccp_packet_name(dh->dccph_type));
 		return 1;
 	}
 
 	/*
 	 * If P.CsCov is too large for the packet size, drop packet and return.
-	 * This must come _before_ checksumming (not as RFC 4340 suggests).
+	 * This must come _before_ checksumming (yest as RFC 4340 suggests).
 	 */
 	cscov = dccp_csum_coverage(skb);
 	if (cscov > skb->len) {
@@ -813,7 +813,7 @@ lookup:
 	if (!sk) {
 		dccp_pr_debug("failed to look up flow ID in table and "
 			      "get corresponding socket\n");
-		goto no_dccp_socket;
+		goto yes_dccp_socket;
 	}
 
 	/*
@@ -825,7 +825,7 @@ lookup:
 	if (sk->sk_state == DCCP_TIME_WAIT) {
 		dccp_pr_debug("sk->sk_state == DCCP_TIME_WAIT: do_time_wait\n");
 		inet_twsk_put(inet_twsk(sk));
-		goto no_dccp_socket;
+		goto yes_dccp_socket;
 	}
 
 	if (sk->sk_state == DCCP_NEW_SYN_RECV) {
@@ -861,7 +861,7 @@ lookup:
 	 */
 	min_cov = dccp_sk(sk)->dccps_pcrlen;
 	if (dh->dccph_cscov && (min_cov == 0 || dh->dccph_cscov < min_cov))  {
-		dccp_pr_debug("Packet CsCov %d does not satisfy MinCsCov %d\n",
+		dccp_pr_debug("Packet CsCov %d does yest satisfy MinCsCov %d\n",
 			      dh->dccph_cscov, min_cov);
 		/* FIXME: "Such packets SHOULD be reported using Data Dropped
 		 *         options (Section 11.7) with Drop Code 0, Protocol
@@ -875,12 +875,12 @@ lookup:
 
 	return __sk_receive_skb(sk, skb, 1, dh->dccph_doff * 4, refcounted);
 
-no_dccp_socket:
+yes_dccp_socket:
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
 		goto discard_it;
 	/*
 	 * Step 2:
-	 *	If no socket ...
+	 *	If yes socket ...
 	 *		Generate Reset(No Connection) unless P.type == Reset
 	 *		Drop packet and return
 	 */
@@ -970,7 +970,7 @@ static struct proto dccp_v4_prot = {
 static const struct net_protocol dccp_v4_protocol = {
 	.handler	= dccp_v4_rcv,
 	.err_handler	= dccp_v4_err,
-	.no_policy	= 1,
+	.yes_policy	= 1,
 	.netns_ok	= 1,
 	.icmp_strict_tag_validation = 1,
 };
@@ -981,7 +981,7 @@ static const struct proto_ops inet_dccp_ops = {
 	.release	   = inet_release,
 	.bind		   = inet_bind,
 	.connect	   = inet_stream_connect,
-	.socketpair	   = sock_no_socketpair,
+	.socketpair	   = sock_yes_socketpair,
 	.accept		   = inet_accept,
 	.getname	   = inet_getname,
 	/* FIXME: work on tcp_poll to rename it to inet_csk_poll */
@@ -995,8 +995,8 @@ static const struct proto_ops inet_dccp_ops = {
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = sock_common_recvmsg,
-	.mmap		   = sock_no_mmap,
-	.sendpage	   = sock_no_sendpage,
+	.mmap		   = sock_yes_mmap,
+	.sendpage	   = sock_yes_sendpage,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
@@ -1076,7 +1076,7 @@ module_exit(dccp_v4_exit);
 
 /*
  * __stringify doesn't likes enums, so use SOCK_DCCP (6) and IPPROTO_DCCP (33)
- * values directly, Also cover the case where the protocol is not specified,
+ * values directly, Also cover the case where the protocol is yest specified,
  * i.e. net-pf-PF_INET-proto-0-type-SOCK_DCCP
  */
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_INET, 33, 6);

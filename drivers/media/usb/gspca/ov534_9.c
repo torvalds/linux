@@ -1463,7 +1463,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		 * set VSYNC to
 		 *	output (0x1f) if first webcam
 		 *	input (0x17) if 2nd or 3rd webcam */
-		p = video_device_node_name(&gspca_dev->vdev);
+		p = video_device_yesde_name(&gspca_dev->vdev);
 		l = strlen(p) - 1;
 		if (p[l] == '0')
 			reg_w(gspca_dev, 0x56, 0x1f);
@@ -1487,7 +1487,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0xf1, 0x60);
 		sccb_write(gspca_dev, 0x12, 0x80);
 	} else {
-		pr_err("Unknown sensor %04x", sensor_id);
+		pr_err("Unkyeswn sensor %04x", sensor_id);
 		return -EINVAL;
 	}
 
@@ -1656,7 +1656,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* Extract PTS and FID */
 		if (!(data[1] & UVC_STREAM_PTS)) {
-			gspca_dbg(gspca_dev, D_PACK, "PTS not present\n");
+			gspca_dbg(gspca_dev, D_PACK, "PTS yest present\n");
 			goto discard;
 		}
 		this_pts = (data[5] << 24) | (data[4] << 16)
@@ -1772,7 +1772,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	}
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

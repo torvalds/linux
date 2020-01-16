@@ -5,7 +5,7 @@
 
 dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
-	/* We extract 2bit node id (bit 44~47, only bit 44~45 used now) from
+	/* We extract 2bit yesde id (bit 44~47, only bit 44~45 used yesw) from
 	 * Loongson-3's 48bit address space and embed it into 40bit */
 	long nid = (paddr >> 44) & 0x3;
 	return ((nid << 44) ^ paddr) | (nid << 37);
@@ -13,7 +13,7 @@ dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
 
 phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t daddr)
 {
-	/* We extract 2bit node id (bit 44~47, only bit 44~45 used now) from
+	/* We extract 2bit yesde id (bit 44~47, only bit 44~45 used yesw) from
 	 * Loongson-3's 48bit address space and embed it into 40bit */
 	long nid = (daddr >> 37) & 0x3;
 	return ((nid << 37) ^ daddr) | (nid << 44);

@@ -24,7 +24,7 @@ SECTIONS
 	HEAD_TEXT_SECTION
 	INIT_TEXT_SECTION(PAGE_SIZE)
 	INIT_DATA_SECTION(16)
-	/* we have to discard exit text and such at runtime, not link time */
+	/* we have to discard exit text and such at runtime, yest link time */
 	.exit.text :
 	{
 		EXIT_TEXT

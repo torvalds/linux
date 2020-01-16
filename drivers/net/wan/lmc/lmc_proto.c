@@ -21,7 +21,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/in.h>

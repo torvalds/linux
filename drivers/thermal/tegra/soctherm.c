@@ -405,7 +405,7 @@ static void enable_tsensor(struct tegra_soctherm *tegra, unsigned int i)
  * The soctherm readback format in bits is as follows:
  *   TTTTTTTT H______N
  * where T's contain the temperature in Celsius,
- * H denotes an addition of 0.5 Celsius and N denotes negation
+ * H deyestes an addition of 0.5 Celsius and N deyestes negation
  * of the final value.
  */
 static int translate_temp(u16 val)
@@ -602,7 +602,7 @@ static int tegra_thermctl_set_trip_temp(void *data, int trip, int temp)
 		/*
 		 * If thermtrips property is set in DT,
 		 * doesn't need to program critical type trip to HW,
-		 * if not, program critical trip to HW.
+		 * if yest, program critical trip to HW.
 		 */
 		if (min_low_temp == tsensor_group_thermtrip_get(ts, sg->id))
 			return thermtrip_program(dev, sg, temp);
@@ -757,8 +757,8 @@ static int get_hot_temp(struct thermal_zone_device *tz, int *trip, int *temp)
  * certain temperature.
  *
  * Return: 0 upon success, or a negative error code on failure.
- * "Success" does not mean that trips was enabled; it could also
- * mean that no node was found in DT.
+ * "Success" does yest mean that trips was enabled; it could also
+ * mean that yes yesde was found in DT.
  * THERMTRIP has been enabled successfully when a message similar to
  * this one appears on the serial console:
  * "thermtrip: will shut down when sensor group XXX reaches YYYYYY mC"
@@ -833,8 +833,8 @@ static irqreturn_t soctherm_thermal_isr(int irq, void *dev_id)
 	struct tegra_soctherm *ts = dev_id;
 	u32 r;
 
-	/* Case for no lock:
-	 * Although interrupts are enabled in set_trips, there is still no need
+	/* Case for yes lock:
+	 * Although interrupts are enabled in set_trips, there is still yes need
 	 * to lock here because the interrupts are disabled before programming
 	 * new trip points. Hence there cant be a interrupt on the same sensor.
 	 * An interrupt can however occur on a sensor while trips are being
@@ -850,7 +850,7 @@ static irqreturn_t soctherm_thermal_isr(int irq, void *dev_id)
 
 /**
  * soctherm_thermal_isr_thread() - Handles a thermal interrupt request
- * @irq:       The interrupt number being requested; not used
+ * @irq:       The interrupt number being requested; yest used
  * @dev_id:    Opaque pointer to tegra_soctherm;
  *
  * Clears the interrupt status register if there are expected
@@ -862,7 +862,7 @@ static irqreturn_t soctherm_thermal_isr(int irq, void *dev_id)
  *
  * Disabled interrupts are re-enabled.
  *
- * Return: %IRQ_HANDLED. Interrupt was handled and no further processing
+ * Return: %IRQ_HANDLED. Interrupt was handled and yes further processing
  * is needed.
  */
 static irqreturn_t soctherm_thermal_isr_thread(int irq, void *dev_id)
@@ -916,13 +916,13 @@ static irqreturn_t soctherm_thermal_isr_thread(int irq, void *dev_id)
 		}
 	}
 
-	/* deliberately ignore expected interrupts NOT handled in SW */
+	/* deliberately igyesre expected interrupts NOT handled in SW */
 	ex |= TH_INTR_IGNORE_MASK;
 	st &= ~ex;
 
 	if (st) {
 		/* Whine about any other unexpected INTR bits still set */
-		pr_err("soctherm: Ignored unexpected INTRs 0x%08x\n", st);
+		pr_err("soctherm: Igyesred unexpected INTRs 0x%08x\n", st);
 		writel(st, ts->regs + THERMCTL_INTR_STATUS);
 	}
 
@@ -1015,13 +1015,13 @@ static int soctherm_handle_alarm(enum soctherm_throttle_id alarm)
 
 /**
  * soctherm_edp_isr_thread() - log an over-current interrupt request
- * @irq:	OC irq number. Currently not being used. See description
- * @arg:	a void pointer for callback, currently not being used
+ * @irq:	OC irq number. Currently yest being used. See description
+ * @arg:	a void pointer for callback, currently yest being used
  *
  * Over-current events are handled in hardware. This function is called to log
  * and handle any OC events that happened. Additionally, it checks every
  * over-current interrupt registers for registers are set but
- * was not expected (i.e. any discrepancy in interrupt status) by the function,
+ * was yest expected (i.e. any discrepancy in interrupt status) by the function,
  * the discrepancy will logged.
  *
  * Return: %IRQ_HANDLED
@@ -1075,7 +1075,7 @@ static irqreturn_t soctherm_edp_isr_thread(int irq, void *arg)
 	}
 
 	if (st) {
-		pr_err("soctherm: Ignored unexpected OC ALARM 0x%08x\n", st);
+		pr_err("soctherm: Igyesred unexpected OC ALARM 0x%08x\n", st);
 		writel(st, ts->regs + OC_INTR_STATUS);
 	}
 
@@ -1219,7 +1219,7 @@ static int soctherm_oc_irq_map(struct irq_domain *h, unsigned int virq,
  * Return: 0
  */
 static int soctherm_irq_domain_xlate_twocell(struct irq_domain *d,
-	struct device_node *ctrlr, const u32 *intspec, unsigned int intsize,
+	struct device_yesde *ctrlr, const u32 *intspec, unsigned int intsize,
 	irq_hw_number_t *out_hwirq, unsigned int *out_type)
 {
 	if (WARN_ON(intsize < 2))
@@ -1242,19 +1242,19 @@ static const struct irq_domain_ops soctherm_oc_domain_ops = {
 /**
  * soctherm_oc_int_init() - Initial enabling of the over
  * current interrupts
- * @np:	The devicetree node for soctherm
+ * @np:	The devicetree yesde for soctherm
  * @num_irqs:	The number of new interrupt requests
  *
  * Sets the over current interrupt request chip data
  *
- * Return: 0 on success or if overcurrent interrupts are not enabled,
+ * Return: 0 on success or if overcurrent interrupts are yest enabled,
  * -ENOMEM (out of memory), or irq_base if the function failed to
  * allocate the irqs
  */
-static int soctherm_oc_int_init(struct device_node *np, int num_irqs)
+static int soctherm_oc_int_init(struct device_yesde *np, int num_irqs)
 {
 	if (!num_irqs) {
-		pr_info("%s(): OC interrupts are not enabled\n", __func__);
+		pr_info("%s(): OC interrupts are yest enabled\n", __func__);
 		return 0;
 	}
 
@@ -1394,7 +1394,7 @@ static int regs_show(struct seq_file *s, void *data)
 			state = REG_GET_MASK(r, mask);
 			seq_puts(s, "CPU Throt");
 			if (!state)
-				seq_printf(s, "(%s) ", "none");
+				seq_printf(s, "(%s) ", "yesne");
 			else if (state == THERMCTL_LVL0_CPU0_CPU_THROT_LIGHT)
 				seq_printf(s, "(%s) ", "L");
 			else if (state == THERMCTL_LVL0_CPU0_CPU_THROT_HEAVY)
@@ -1406,7 +1406,7 @@ static int regs_show(struct seq_file *s, void *data)
 			state = REG_GET_MASK(r, mask);
 			seq_puts(s, "GPU Throt");
 			if (!state)
-				seq_printf(s, "(%s) ", "none");
+				seq_printf(s, "(%s) ", "yesne");
 			else if (state == THERMCTL_LVL0_CPU0_GPU_THROT_LIGHT)
 				seq_printf(s, "(%s) ", "L");
 			else if (state == THERMCTL_LVL0_CPU0_GPU_THROT_HEAVY)
@@ -1576,7 +1576,7 @@ static int soctherm_thermtrips_parse(struct platform_device *pdev)
 	if (!tt)
 		return -ENOMEM;
 
-	n = of_property_count_u32_elems(dev->of_node, "nvidia,thermtrips");
+	n = of_property_count_u32_elems(dev->of_yesde, "nvidia,thermtrips");
 	if (n <= 0) {
 		dev_info(dev,
 			 "missing thermtrips, will use critical trips as shut down temp\n");
@@ -1588,7 +1588,7 @@ static int soctherm_thermtrips_parse(struct platform_device *pdev)
 	tlb = devm_kcalloc(&pdev->dev, max_num_prop, sizeof(u32), GFP_KERNEL);
 	if (!tlb)
 		return -ENOMEM;
-	ret = of_property_read_u32_array(dev->of_node, "nvidia,thermtrips",
+	ret = of_property_read_u32_array(dev->of_yesde, "nvidia,thermtrips",
 					 tlb, n);
 	if (ret) {
 		dev_err(dev, "invalid num ele: thermtrips:%d\n", ret);
@@ -1609,7 +1609,7 @@ static int soctherm_thermtrips_parse(struct platform_device *pdev)
 }
 
 static void soctherm_oc_cfg_parse(struct device *dev,
-				struct device_node *np_oc,
+				struct device_yesde *np_oc,
 				struct soctherm_throt_cfg *stc)
 {
 	u32 val;
@@ -1630,12 +1630,12 @@ static void soctherm_oc_cfg_parse(struct device *dev,
 	if (!of_property_read_u32(np_oc, "nvidia,alarm-filter", &val))
 		stc->oc_cfg.alarm_filter = val;
 
-	/* BRIEF throttling by default, do not support STICKY */
+	/* BRIEF throttling by default, do yest support STICKY */
 	stc->oc_cfg.mode = OC_THROTTLE_MODE_BRIEF;
 }
 
 static int soctherm_throt_cfg_parse(struct device *dev,
-				    struct device_node *np,
+				    struct device_yesde *np,
 				    struct soctherm_throt_cfg *stc)
 {
 	struct tegra_soctherm *ts = dev_get_drvdata(dev);
@@ -1673,7 +1673,7 @@ static int soctherm_throt_cfg_parse(struct device *dev,
 	return 0;
 
 err:
-	dev_err(dev, "throttle-cfg: %s: no throt prop or invalid prop\n",
+	dev_err(dev, "throttle-cfg: %s: yes throt prop or invalid prop\n",
 		stc->name);
 	return -EINVAL;
 }
@@ -1686,7 +1686,7 @@ static void soctherm_init_hw_throt_cdev(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct tegra_soctherm *ts = dev_get_drvdata(dev);
-	struct device_node *np_stc, *np_stcc;
+	struct device_yesde *np_stc, *np_stcc;
 	const char *name;
 	int i;
 
@@ -1696,14 +1696,14 @@ static void soctherm_init_hw_throt_cdev(struct platform_device *pdev)
 		ts->throt_cfgs[i].init = false;
 	}
 
-	np_stc = of_get_child_by_name(dev->of_node, "throttle-cfgs");
+	np_stc = of_get_child_by_name(dev->of_yesde, "throttle-cfgs");
 	if (!np_stc) {
 		dev_info(dev,
-			 "throttle-cfg: no throttle-cfgs - not enabling\n");
+			 "throttle-cfg: yes throttle-cfgs - yest enabling\n");
 		return;
 	}
 
-	for_each_child_of_node(np_stc, np_stcc) {
+	for_each_child_of_yesde(np_stc, np_stcc) {
 		struct soctherm_throt_cfg *stc;
 		struct thermal_cooling_device *tcd;
 		int err;
@@ -1712,13 +1712,13 @@ static void soctherm_init_hw_throt_cdev(struct platform_device *pdev)
 		stc = find_throttle_cfg_by_name(ts, name);
 		if (!stc) {
 			dev_err(dev,
-				"throttle-cfg: could not find %s\n", name);
+				"throttle-cfg: could yest find %s\n", name);
 			continue;
 		}
 
 		if (stc->init) {
 			dev_err(dev, "throttle-cfg: %s: redefined!\n", name);
-			of_node_put(np_stcc);
+			of_yesde_put(np_stcc);
 			break;
 		}
 
@@ -1746,7 +1746,7 @@ static void soctherm_init_hw_throt_cdev(struct platform_device *pdev)
 
 	}
 
-	of_node_put(np_stc);
+	of_yesde_put(np_stc);
 }
 
 /**
@@ -1999,7 +1999,7 @@ static void tegra_soctherm_throttle(struct device *dev)
 static int soctherm_interrupts_init(struct platform_device *pdev,
 				    struct tegra_soctherm *tegra)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	ret = soctherm_oc_int_init(np, TEGRA_SOC_OC_IRQ_MAX);
@@ -2112,7 +2112,7 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 	unsigned int i;
 	int err;
 
-	match = of_match_node(tegra_soctherm_of_match, pdev->dev.of_node);
+	match = of_match_yesde(tegra_soctherm_of_match, pdev->dev.of_yesde);
 	if (!match)
 		return -ENODEV;
 

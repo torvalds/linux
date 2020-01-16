@@ -26,7 +26,7 @@ MODULE_DESCRIPTION(DRV_SUMMARY);
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=yesne,...,16=all)");
 
 char igc_driver_name[] = "igc";
 char igc_driver_version[] = DRV_VERSION;
@@ -87,8 +87,8 @@ void igc_reset(struct igc_adapter *adapter)
 	pba = IGC_PBA_34K;
 
 	/* flow control settings
-	 * The high water mark must be low enough to fit one full frame
-	 * after transmitting the pause frame.  As such we must have enough
+	 * The high water mark must be low eyesugh to fit one full frame
+	 * after transmitting the pause frame.  As such we must have eyesugh
 	 * space to allow for us to complete our current transmit and then
 	 * receive the frame that is in progress from the link partner.
 	 * Set it to:
@@ -143,7 +143,7 @@ static void igc_power_down_link(struct igc_adapter *adapter)
  *
  * igc_release_hw_control resets CTRL_EXT:DRV_LOAD bit.
  * For ASF and Pass Through versions of f/w this means that the
- * driver is no longer loaded.
+ * driver is yes longer loaded.
  */
 static void igc_release_hw_control(struct igc_adapter *adapter)
 {
@@ -169,7 +169,7 @@ static void igc_get_hw_control(struct igc_adapter *adapter)
 	struct igc_hw *hw = &adapter->hw;
 	u32 ctrl_ext;
 
-	/* Let firmware know the driver has taken over */
+	/* Let firmware kyesw the driver has taken over */
 	ctrl_ext = rd32(IGC_CTRL_EXT);
 	wr32(IGC_CTRL_EXT,
 	     ctrl_ext | IGC_CTRL_EXT_DRV_LOAD);
@@ -188,7 +188,7 @@ void igc_free_tx_resources(struct igc_ring *tx_ring)
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
 
-	/* if not set, then don't free */
+	/* if yest set, then don't free */
 	if (!tx_ring->desc)
 		return;
 
@@ -418,7 +418,7 @@ void igc_free_rx_resources(struct igc_ring *rx_ring)
 	vfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
 
-	/* if not set, then don't free */
+	/* if yest set, then don't free */
 	if (!rx_ring->desc)
 		return;
 
@@ -732,7 +732,7 @@ static void igc_setup_rctl(struct igc_adapter *adapter)
 
 	/* This is useful for sniffing bad packets. */
 	if (adapter->netdev->features & NETIF_F_RXALL) {
-		/* UPE and MPE will be handled by normal PROMISC logic
+		/* UPE and MPE will be handled by yesrmal PROMISC logic
 		 * in set_rx_mode
 		 */
 		rctl |= (IGC_RCTL_SBP | /* Receive bad packets */
@@ -801,7 +801,7 @@ static int igc_set_mac(struct net_device *netdev, void *p)
  *
  *  Writes multicast address list to the MTA hash table.
  *  Returns: -ENOMEM on failure
- *           0 on no addresses written
+ *           0 on yes addresses written
  *           X on writing X addresses to MTA
  **/
 static int igc_write_mc_addr_list(struct net_device *netdev)
@@ -813,7 +813,7 @@ static int igc_write_mc_addr_list(struct net_device *netdev)
 	int i;
 
 	if (netdev_mc_empty(netdev)) {
-		/* nothing to program, so clear mc list */
+		/* yesthing to program, so clear mc list */
 		igc_update_mc_addr_list(hw, NULL, 0);
 		return 0;
 	}
@@ -890,7 +890,7 @@ csum_failed:
 		if (!(first->tx_flags & IGC_TX_FLAGS_VLAN) &&
 		    !tx_ring->launchtime_enable)
 			return;
-		goto no_csum;
+		goto yes_csum;
 	}
 
 	switch (skb->csum_offset) {
@@ -918,7 +918,7 @@ csum_failed:
 	first->tx_flags |= IGC_TX_FLAGS_CSUM;
 	vlan_macip_lens = skb_checksum_start_offset(skb) -
 			  skb_network_offset(skb);
-no_csum:
+yes_csum:
 	vlan_macip_lens |= skb_network_offset(skb) << IGC_ADVTXD_MACLEN_SHIFT;
 	vlan_macip_lens |= first->tx_flags & IGC_TX_FLAGS_VLAN_MASK;
 
@@ -934,7 +934,7 @@ static int __igc_maybe_stop_tx(struct igc_ring *tx_ring, const u16 size)
 	/* memory barriier comment */
 	smp_mb();
 
-	/* We need to check again in a case another CPU has just
+	/* We need to check again in a case ayesther CPU has just
 	 * made room available.
 	 */
 	if (igc_desc_unused(tx_ring) < size)
@@ -1072,7 +1072,7 @@ static int igc_tx_map(struct igc_ring *tx_ring,
 
 	skb_tx_timestamp(skb);
 
-	/* Force memory writes to complete before letting h/w know there
+	/* Force memory writes to complete before letting h/w kyesw there
 	 * are new descriptors to fetch.  (Only applicable for weak-ordered
 	 * memory model archs, such as IA-64).
 	 *
@@ -1205,9 +1205,9 @@ static void igc_rx_checksum(struct igc_ring *ring,
 			    union igc_adv_rx_desc *rx_desc,
 			    struct sk_buff *skb)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
-	/* Ignore Checksum bit is set */
+	/* Igyesre Checksum bit is set */
 	if (igc_test_staterr(rx_desc, IGC_RXD_STAT_IXSM))
 		return;
 
@@ -1417,7 +1417,7 @@ static struct sk_buff *igc_construct_skb(struct igc_ring *rx_ring,
 /**
  * igc_reuse_rx_page - page flip buffer and store it back on the ring
  * @rx_ring: rx descriptor ring to store buffers on
- * @old_buff: donor buffer to have page reused
+ * @old_buff: doyesr buffer to have page reused
  *
  * Synchronizes page for reuse by the adapter
  */
@@ -1482,7 +1482,7 @@ static bool igc_can_reuse_rx_page(struct igc_rx_buffer *rx_buffer)
 }
 
 /**
- * igc_is_non_eop - process handling of non-EOP buffers
+ * igc_is_yesn_eop - process handling of yesn-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
  * @skb: current socket buffer containing buffer in progress
@@ -1490,9 +1490,9 @@ static bool igc_can_reuse_rx_page(struct igc_rx_buffer *rx_buffer)
  * This function updates next to clean.  If the buffer is an EOP buffer
  * this function exits returning false, otherwise it will place the
  * sk_buff in the next buffer to be chained and return true indicating
- * that this is in fact a non-EOP buffer.
+ * that this is in fact a yesn-EOP buffer.
  */
-static bool igc_is_non_eop(struct igc_ring *rx_ring,
+static bool igc_is_yesn_eop(struct igc_ring *rx_ring,
 			   union igc_adv_rx_desc *rx_desc)
 {
 	u32 ntc = rx_ring->next_to_clean + 1;
@@ -1516,10 +1516,10 @@ static bool igc_is_non_eop(struct igc_ring *rx_ring,
  * @skb: pointer to current skb being fixed
  *
  * Address the case where we are pulling data in on pages only
- * and as such no data is present in the skb header.
+ * and as such yes data is present in the skb header.
  *
- * In addition if skb is not at least 60 bytes we need to pad it so that
- * it is large enough to qualify as a valid Ethernet frame.
+ * In addition if skb is yest at least 60 bytes we need to pad it so that
+ * it is large eyesugh to qualify as a valid Ethernet frame.
  *
  * Returns true if an error was encountered and skb was freed.
  */
@@ -1551,7 +1551,7 @@ static void igc_put_rx_buffer(struct igc_ring *rx_ring,
 		/* hand second half of page back to the ring */
 		igc_reuse_rx_page(rx_ring, rx_buffer);
 	} else {
-		/* We are not reusing the buffer so unmap it and free
+		/* We are yest reusing the buffer so unmap it and free
 		 * any references we are holding to it
 		 */
 		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma,
@@ -1576,7 +1576,7 @@ static void igc_alloc_rx_buffers(struct igc_ring *rx_ring, u16 cleaned_count)
 	struct igc_rx_buffer *bi;
 	u16 bufsz;
 
-	/* nothing to do */
+	/* yesthing to do */
 	if (!cleaned_count)
 		return;
 
@@ -1625,7 +1625,7 @@ static void igc_alloc_rx_buffers(struct igc_ring *rx_ring, u16 cleaned_count)
 		rx_ring->next_to_alloc = i;
 
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.  (Only
+		 * kyesw there are new descriptors to fetch.  (Only
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
@@ -1658,7 +1658,7 @@ static int igc_clean_rx_irq(struct igc_q_vector *q_vector, const int budget)
 			break;
 
 		/* This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
+		 * any other fields out of the rx_desc until we kyesw the
 		 * descriptor has been written back
 		 */
 		dma_rmb();
@@ -1684,8 +1684,8 @@ static int igc_clean_rx_irq(struct igc_q_vector *q_vector, const int budget)
 		igc_put_rx_buffer(rx_ring, rx_buffer);
 		cleaned_count++;
 
-		/* fetch next buffer in frame if non-eop */
-		if (igc_is_non_eop(rx_ring, rx_desc))
+		/* fetch next buffer in frame if yesn-eop */
+		if (igc_is_yesn_eop(rx_ring, rx_desc))
 			continue;
 
 		/* verify the packet layout is correct */
@@ -1798,14 +1798,14 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 	do {
 		union igc_adv_tx_desc *eop_desc = tx_buffer->next_to_watch;
 
-		/* if next_to_watch is not set then there is no work pending */
+		/* if next_to_watch is yest set then there is yes work pending */
 		if (!eop_desc)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
 		smp_rmb();
 
-		/* if DD is not set pending work has not been completed */
+		/* if DD is yest set pending work has yest been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(IGC_TXD_STAT_DD)))
 			break;
 
@@ -1914,7 +1914,7 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 			netif_stop_subqueue(tx_ring->netdev,
 					    tx_ring->queue_index);
 
-			/* we are about to reset, no point in enabling stuff */
+			/* we are about to reset, yes point in enabling stuff */
 			return true;
 		}
 	}
@@ -2154,10 +2154,10 @@ static void igc_nfc_filter_exit(struct igc_adapter *adapter)
 
 	spin_lock(&adapter->nfc_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_yesde)
 		igc_erase_filter(adapter, rule);
 
-	hlist_for_each_entry(rule, &adapter->cls_flower_list, nfc_node)
+	hlist_for_each_entry(rule, &adapter->cls_flower_list, nfc_yesde)
 		igc_erase_filter(adapter, rule);
 
 	spin_unlock(&adapter->nfc_lock);
@@ -2169,7 +2169,7 @@ static void igc_nfc_filter_restore(struct igc_adapter *adapter)
 
 	spin_lock(&adapter->nfc_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_yesde)
 		igc_add_filter(adapter, rule);
 
 	spin_unlock(&adapter->nfc_lock);
@@ -2321,7 +2321,7 @@ static struct net_device_stats *igc_get_stats(struct net_device *netdev)
 static netdev_features_t igc_fix_features(struct net_device *netdev,
 					  netdev_features_t features)
 {
-	/* Since there is no support for separate Rx/Tx vlan accel
+	/* Since there is yes support for separate Rx/Tx vlan accel
 	 * enable/disable make sure Tx flag is always in same state as Rx.
 	 */
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -2343,14 +2343,14 @@ static int igc_set_features(struct net_device *netdev,
 		return 0;
 
 	if (!(features & NETIF_F_NTUPLE)) {
-		struct hlist_node *node2;
+		struct hlist_yesde *yesde2;
 		struct igc_nfc_filter *rule;
 
 		spin_lock(&adapter->nfc_lock);
-		hlist_for_each_entry_safe(rule, node2,
-					  &adapter->nfc_filter_list, nfc_node) {
+		hlist_for_each_entry_safe(rule, yesde2,
+					  &adapter->nfc_filter_list, nfc_yesde) {
 			igc_erase_filter(adapter, rule);
-			hlist_del(&rule->nfc_node);
+			hlist_del(&rule->nfc_yesde);
 			kfree(rule);
 		}
 		spin_unlock(&adapter->nfc_lock);
@@ -2390,7 +2390,7 @@ igc_features_check(struct sk_buff *skb, struct net_device *dev,
 				    NETIF_F_TSO6);
 
 	/* We can only support IPv4 TSO in tunnels if we can mangle the
-	 * inner IP ID field, so strip TSO if MANGLEID is not supported.
+	 * inner IP ID field, so strip TSO if MANGLEID is yest supported.
 	 */
 	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID))
 		features &= ~NETIF_F_TSO;
@@ -2514,7 +2514,7 @@ static int igc_add_mac_filter_flags(struct igc_adapter *adapter,
 		return -EINVAL;
 
 	/* Search for the first empty entry in the MAC table.
-	 * Do not touch entries at the end of the table reserved for the VF MAC
+	 * Do yest touch entries at the end of the table reserved for the VF MAC
 	 * addresses.
 	 */
 	for (i = 0; i < rar_entries; i++) {
@@ -2558,7 +2558,7 @@ static int igc_del_mac_filter_flags(struct igc_adapter *adapter,
 		return -EINVAL;
 
 	/* Search for matching entry in the MAC table based on given address
-	 * and queue. Do not touch entries at the end of the table reserved
+	 * and queue. Do yest touch entries at the end of the table reserved
 	 * for the VF MAC addresses.
 	 */
 	for (i = 0; i < rar_entries; i++) {
@@ -2613,7 +2613,7 @@ static int igc_add_mac_filter(struct igc_adapter *adapter,
 		return -EINVAL;
 
 	/* Search for the first empty entry in the MAC table.
-	 * Do not touch entries at the end of the table reserved for the VF MAC
+	 * Do yest touch entries at the end of the table reserved for the VF MAC
 	 * addresses.
 	 */
 	for (i = 0; i < rar_entries; i++) {
@@ -2649,7 +2649,7 @@ static int igc_del_mac_filter(struct igc_adapter *adapter,
 		return -EINVAL;
 
 	/* Search for matching entry in the MAC table based on given address
-	 * and queue. Do not touch entries at the end of the table reserved
+	 * and queue. Do yest touch entries at the end of the table reserved
 	 * for the VF MAC addresses.
 	 */
 	for (i = 0; i < rar_entries; i++) {
@@ -2734,7 +2734,7 @@ static void igc_set_rx_mode(struct net_device *netdev)
 		}
 	}
 
-	/* Write addresses to available RAR registers, if there is not
+	/* Write addresses to available RAR registers, if there is yest
 	 * sufficient space to store all the addresses then enable
 	 * unicast promiscuous mode
 	 */
@@ -2877,7 +2877,7 @@ static void igc_configure_msix(struct igc_adapter *adapter)
 		wr32(IGC_IVAR_MISC, tmp);
 		break;
 	default:
-		/* do nothing, since nothing else supports MSI-X */
+		/* do yesthing, since yesthing else supports MSI-X */
 		break;
 	} /* switch (hw->mac.type) */
 
@@ -2973,7 +2973,7 @@ static void igc_reset_q_vector(struct igc_adapter *adapter, int v_idx)
 	struct igc_q_vector *q_vector = adapter->q_vector[v_idx];
 
 	/* if we're coming from igc_set_interrupt_capability, the vectors are
-	 * not yet allocated
+	 * yest yet allocated
 	 */
 	if (!q_vector)
 		return;
@@ -3004,7 +3004,7 @@ static void igc_reset_interrupt_capability(struct igc_adapter *adapter)
 }
 
 /**
- * igc_clear_interrupt_scheme - reset the device to a state of no interrupts
+ * igc_clear_interrupt_scheme - reset the device to a state of yes interrupts
  * @adapter: Pointer to adapter structure
  *
  * This function resets the device so that it has 0 rx queues, tx queues, and
@@ -3058,7 +3058,7 @@ static void igc_free_q_vector(struct igc_adapter *adapter, int v_idx)
 		kfree_rcu(q_vector, rcu);
 }
 
-/* Need to wait a few seconds after link up to get diagnostic information from
+/* Need to wait a few seconds after link up to get diagyesstic information from
  * the phy
  */
 static void igc_update_phy_info(struct timer_list *t)
@@ -3090,7 +3090,7 @@ bool igc_has_link(struct igc_adapter *adapter)
 		link_active = !hw->mac.get_link_status;
 		break;
 	default:
-	case igc_media_type_unknown:
+	case igc_media_type_unkyeswn:
 		break;
 	}
 
@@ -3186,7 +3186,7 @@ static void igc_watchdog_task(struct work_struct *work)
 			}
 
 			if (adapter->link_speed != SPEED_1000)
-				goto no_wait;
+				goto yes_wait;
 
 			/* wait for Remote receiver status OK */
 retry_read_status:
@@ -3203,7 +3203,7 @@ retry_read_status:
 			} else {
 				dev_err(&adapter->pdev->dev, "read 1000Base-T Status Reg\n");
 			}
-no_wait:
+yes_wait:
 			netif_carrier_on(netdev);
 
 			/* link state has changed, schedule phy info update */
@@ -3314,7 +3314,7 @@ static void igc_update_ring_itr(struct igc_q_vector *q_vector)
 	int avg_wire_size = 0;
 	unsigned int packets;
 
-	/* For non-gigabit speeds, just fix the interrupt rate at 4000
+	/* For yesn-gigabit speeds, just fix the interrupt rate at 4000
 	 * ints/sec - ITR timer value of 120 ticks.
 	 */
 	switch (adapter->link_speed) {
@@ -3335,7 +3335,7 @@ static void igc_update_ring_itr(struct igc_q_vector *q_vector)
 		avg_wire_size = max_t(u32, avg_wire_size,
 				      q_vector->tx.total_bytes / packets);
 
-	/* if avg_wire_size isn't set no work was done */
+	/* if avg_wire_size isn't set yes work was done */
 	if (!avg_wire_size)
 		goto clear_counts;
 
@@ -3391,7 +3391,7 @@ static void igc_update_itr(struct igc_q_vector *q_vector,
 	unsigned int bytes = ring_container->total_bytes;
 	u8 itrval = ring_container->itr;
 
-	/* no packets, exit with status unchanged */
+	/* yes packets, exit with status unchanged */
 	if (packets == 0)
 		return;
 
@@ -3485,8 +3485,8 @@ static irqreturn_t igc_intr(int irq, void *data)
 	 */
 	u32 icr = rd32(IGC_ICR);
 
-	/* IMS will not auto-mask if INT_ASSERTED is not set, and if it is
-	 * not set, then the adapter didn't send an interrupt
+	/* IMS will yest auto-mask if INT_ASSERTED is yest set, and if it is
+	 * yest set, then the adapter didn't send an interrupt
 	 */
 	if (!(icr & IGC_ICR_INT_ASSERTED))
 		return IRQ_NONE;
@@ -3519,13 +3519,13 @@ static void igc_set_itr(struct igc_q_vector *q_vector)
 	u32 new_itr = q_vector->itr_val;
 	u8 current_itr = 0;
 
-	/* for non-gigabit speeds, just fix the interrupt rate at 4000 */
+	/* for yesn-gigabit speeds, just fix the interrupt rate at 4000 */
 	switch (adapter->link_speed) {
 	case SPEED_10:
 	case SPEED_100:
 		current_itr = 0;
 		new_itr = IGC_4K_ITR;
-		goto set_itr_now;
+		goto set_itr_yesw;
 	default:
 		break;
 	}
@@ -3556,7 +3556,7 @@ static void igc_set_itr(struct igc_q_vector *q_vector)
 		break;
 	}
 
-set_itr_now:
+set_itr_yesw:
 	if (new_itr != q_vector->itr_val) {
 		/* this attempts to bias the interrupt rate towards Bulk
 		 * by adding intermediate steps when interrupt rate is
@@ -3622,7 +3622,7 @@ static int igc_poll(struct napi_struct *napi, int budget)
 			clean_complete = false;
 	}
 
-	/* If all work not completed, return budget and keep polling */
+	/* If all work yest completed, return budget and keep polling */
 	if (!clean_complete)
 		return budget;
 
@@ -3884,7 +3884,7 @@ err_out:
  * igc_cache_ring_register - Descriptor ring to register mapping
  * @adapter: board private structure to initialize
  *
- * Once we know the feature-set enabled for the device, we'll cache
+ * Once we kyesw the feature-set enabled for the device, we'll cache
  * the register offset the descriptor ring is assigned to.
  */
 static void igc_cache_ring_register(struct igc_adapter *adapter)
@@ -4082,7 +4082,7 @@ static void igc_write_itr(struct igc_q_vector *q_vector)
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is yestified that the interface is ready.
  */
 static int __igc_open(struct net_device *netdev, bool resuming)
 {
@@ -4167,7 +4167,7 @@ static int igc_open(struct net_device *netdev)
  * igc_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is yest allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the driver's control, but
@@ -4262,13 +4262,13 @@ u32 igc_rd32(struct igc_hw *hw, u32 reg)
 
 	value = readl(&hw_addr[reg]);
 
-	/* reads should not return all F's */
+	/* reads should yest return all F's */
 	if (!(~value) && (!reg || !(~readl(hw_addr)))) {
 		struct net_device *netdev = igc->netdev;
 
 		hw->hw_addr = NULL;
 		netif_device_detach(netdev);
-		netdev_err(netdev, "PCIe link lost, device now detached\n");
+		netdev_err(netdev, "PCIe link lost, device yesw detached\n");
 		WARN(pci_device_is_present(igc->pdev),
 		     "igc: Failed to read reg 0x%x!\n", reg);
 	}
@@ -4283,7 +4283,7 @@ int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx)
 
 	mac->autoneg = 0;
 
-	/* Make sure dplx is at most 1 bit and lsb of speed is not set
+	/* Make sure dplx is at most 1 bit and lsb of speed is yest set
 	 * for the switch() below to work
 	 */
 	if ((spd & 1) || (dplx & ~1))
@@ -4306,13 +4306,13 @@ int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx)
 		mac->autoneg = 1;
 		adapter->hw.phy.autoneg_advertised = ADVERTISE_1000_FULL;
 		break;
-	case SPEED_1000 + DUPLEX_HALF: /* not supported */
+	case SPEED_1000 + DUPLEX_HALF: /* yest supported */
 		goto err_inval;
 	case SPEED_2500 + DUPLEX_FULL:
 		mac->autoneg = 1;
 		adapter->hw.phy.autoneg_advertised = ADVERTISE_2500_FULL;
 		break;
-	case SPEED_2500 + DUPLEX_HALF: /* not supported */
+	case SPEED_2500 + DUPLEX_HALF: /* yest supported */
 	default:
 		goto err_inval;
 	}
@@ -4451,7 +4451,7 @@ static int igc_probe(struct pci_dev *pdev,
 	netdev->max_mtu = MAX_STD_JUMBO_FRAME_SIZE;
 
 	/* before reading the NVM, reset the controller to put the device in a
-	 * known good starting state
+	 * kyeswn good starting state
 	 */
 	hw->mac.ops.reset_hw(hw);
 
@@ -4499,7 +4499,7 @@ static int igc_probe(struct pci_dev *pdev,
 	/* reset the hardware with the new settings */
 	igc_reset(adapter);
 
-	/* let the f/w know that the h/w is now under the control of the
+	/* let the f/w kyesw that the h/w is yesw under the control of the
 	 * driver.
 	 */
 	igc_get_hw_control(adapter);

@@ -10,7 +10,7 @@ With the introduction of cfq v3 (aka cfq-ts or time sliced cfq), basic io
 priorities are supported for reads on files.  This enables users to io nice
 processes or process groups, similar to what has been possible with cpu
 scheduling for ages.  This document mainly details the current possibilities
-with cfq; other io schedulers do not support io priorities thus far.
+with cfq; other io schedulers do yest support io priorities thus far.
 
 Scheduling classes
 ------------------
@@ -35,7 +35,7 @@ BE prio level, 7 is the lowest. The mapping between cpu nice level and io
 nice level is determined as: io_nice = (cpu_nice + 20) / 5.
 
 IOPRIO_CLASS_IDLE: This is the idle scheduling class, processes running at this
-level only get io time when no one else needs the disk. The idle class has no
+level only get io time when yes one else needs the disk. The idle class has yes
 class data, since it doesn't really apply here.
 
 Tools
@@ -62,7 +62,7 @@ ionice.c tool::
 
   #include <stdio.h>
   #include <stdlib.h>
-  #include <errno.h>
+  #include <erryes.h>
   #include <getopt.h>
   #include <unistd.h>
   #include <sys/ptrace.h>
@@ -112,7 +112,7 @@ ionice.c tool::
 
   #define IOPRIO_CLASS_SHIFT	13
 
-  const char *to_prio[] = { "none", "realtime", "best-effort", "idle", };
+  const char *to_prio[] = { "yesne", "realtime", "best-effort", "idle", };
 
   int main(int argc, char *argv[])
   {

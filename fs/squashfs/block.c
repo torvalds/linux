@@ -67,7 +67,7 @@ static struct buffer_head *get_block_length(struct super_block *sb,
 
 
 /*
- * Read and decompress a metadata block or datablock.  Length is non-zero
+ * Read and decompress a metadata block or datablock.  Length is yesn-zero
  * if a datablock is being read (the size is stored elsewhere in the
  * filesystem), otherwise the length is obtained from the first two bytes of
  * the metadata block.  A bit in the length field indicates if the block

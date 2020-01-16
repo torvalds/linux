@@ -7,7 +7,7 @@
  *	Copyright (C) 2010	Johan Hovold (jhovold@gmail.com)
  *
  * This driver allows a USB IrDA device to be used as a "dumb" serial device.
- * This can be useful if you do not have access to a full IrDA stack on the
+ * This can be useful if you do yest have access to a full IrDA stack on the
  * other side of the connection.  If you do have an IrDA stack on both devices,
  * please use the usb-irda driver, as it contains the proper error checking and
  * other goodness of a full IrDA stack.
@@ -21,7 +21,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
@@ -58,7 +58,7 @@ static u8 ir_xbof;
 static u8 ir_add_bof;
 
 static const struct usb_device_id ir_id_table[] = {
-	{ USB_DEVICE(0x050f, 0x0180) },		/* KC Technology, KC-180 */
+	{ USB_DEVICE(0x050f, 0x0180) },		/* KC Techyeslogy, KC-180 */
 	{ USB_DEVICE(0x08e9, 0x0100) },		/* XTNDAccess */
 	{ USB_DEVICE(0x09c4, 0x0011) },		/* ACTiSys ACT-IR2000U */
 	{ USB_INTERFACE_INFO(USB_CLASS_APP_SPEC, USB_SUBCLASS_IRDA, 0) },
@@ -107,7 +107,7 @@ static inline void irda_usb_dump_class_desc(struct usb_serial *serial,
 /*
  * Function irda_usb_find_class_desc(dev, ifnum)
  *
- *    Returns instance of IrDA class descriptor, or NULL if not found
+ *    Returns instance of IrDA class descriptor, or NULL if yest found
  *
  * The class descriptor is some extra info that IrDA USB devices will
  * offer to us, describing their IrDA characteristics. We will use that in
@@ -198,7 +198,7 @@ static int ir_startup(struct usb_serial *serial)
 	irda_desc = irda_usb_find_class_desc(serial, 0);
 	if (!irda_desc) {
 		dev_err(&serial->dev->dev,
-			"IRDA class descriptor not found, device not bound\n");
+			"IRDA class descriptor yest found, device yest bound\n");
 		return -ENODEV;
 	}
 
@@ -309,7 +309,7 @@ static void ir_set_termios_callback(struct urb *urb)
 	kfree(urb->transfer_buffer);
 
 	if (urb->status)
-		dev_dbg(&urb->dev->dev, "%s - non-zero urb status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - yesn-zero urb status: %d\n",
 			__func__, urb->status);
 }
 

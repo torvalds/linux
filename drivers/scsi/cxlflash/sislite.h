@@ -2,7 +2,7 @@
 /*
  * CXL Flash Device Driver
  *
- * Written by: Manoj N. Kumar <manoj@linux.vnet.ibm.com>, IBM Corporation
+ * Written by: Mayesj N. Kumar <mayesj@linux.vnet.ibm.com>, IBM Corporation
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
@@ -96,14 +96,14 @@ struct sisl_rc {
 						 * may retry if afu_retry is off
 						 * possible on master exit
 						 */
-#define SISL_AFU_RC_RHT_RW_PERM           0x05u	/* no RW perms, user error */
+#define SISL_AFU_RC_RHT_RW_PERM           0x05u	/* yes RW perms, user error */
 #define SISL_AFU_RC_LXT_UNALIGNED         0x12U	/* should never happen */
 #define SISL_AFU_RC_LXT_OUT_OF_BOUNDS     0x13u	/* user error */
 #define SISL_AFU_RC_LXT_DMA_ERR           0x14u	/* see afu_extra
 						 * may retry if afu_retry is off
 						 * possible on master exit
 						 */
-#define SISL_AFU_RC_LXT_RW_PERM           0x15u	/* no RW perms, user error */
+#define SISL_AFU_RC_LXT_RW_PERM           0x15u	/* yes RW perms, user error */
 
 #define SISL_AFU_RC_NOT_XLATE_HOST        0x1au	/* possible if master exited */
 
@@ -130,8 +130,8 @@ struct sisl_rc {
 	 * We should only see fc_rc=0x57 (LINKDOWN) or 0x54(NOLOGI) for
 	 * commands that are in flight when a link goes down or is logged out.
 	 * If the link is down or logged out before AFU selects the port, either
-	 * it will choose the other port or we will get afu_rc=0x20 (no_channel)
-	 * if there is no valid port to use.
+	 * it will choose the other port or we will get afu_rc=0x20 (yes_channel)
+	 * if there is yes valid port to use.
 	 *
 	 * ABORTPEND/ABORTOK/ABORTFAIL/TGTABORT can be retried, typically these
 	 * would happen if a frame is dropped and something times out.
@@ -144,14 +144,14 @@ struct sisl_rc {
 	 */
 #define SISL_FC_RC_ABORTPEND	0x52	/* exchange timeout or abort request */
 #define SISL_FC_RC_WRABORTPEND	0x53	/* due to write XFER_RDY invalid */
-#define SISL_FC_RC_NOLOGI	0x54	/* port not logged in, in-flight cmds */
+#define SISL_FC_RC_NOLOGI	0x54	/* port yest logged in, in-flight cmds */
 #define SISL_FC_RC_NOEXP	0x55	/* FC protocol error or HW bug */
 #define SISL_FC_RC_INUSE	0x56	/* tag already in use, HW bug */
 #define SISL_FC_RC_LINKDOWN	0x57	/* link down, in-flight cmds */
 #define SISL_FC_RC_ABORTOK	0x58	/* pending abort completed w/success */
 #define SISL_FC_RC_ABORTFAIL	0x59	/* pending abort completed w/fail */
 #define SISL_FC_RC_RESID	0x5A	/* ioasa underrun/overrun flags set */
-#define SISL_FC_RC_RESIDERR	0x5B	/* actual data len does not match SCSI
+#define SISL_FC_RC_RESIDERR	0x5B	/* actual data len does yest match SCSI
 					 * reported len, possibly due to dropped
 					 * frames
 					 */
@@ -191,7 +191,7 @@ struct sisl_ioasa {
 						 * 0x04, 0x14	master exit.
 						 * 0x31         user error.
 						 */
-	/* when afu rc=0x20 (no channels):
+	/* when afu rc=0x20 (yes channels):
 	 * afu_extra bits [4:5]: available portmask,  [6:7]: requested portmask.
 	 */
 #define SISL_AFU_NO_CLANNELS_AMASK(afu_extra) (((afu_extra) & 0x0C) >> 2)
@@ -251,7 +251,7 @@ struct sisl_host_map {
 
 	__be64 intr_status;	/* this sends LISN# programmed in ctx_ctrl.
 				 * Only recovery in a PERM_ERR is a context
-				 * exit since there is no way to tell which
+				 * exit since there is yes way to tell which
 				 * command caused the error.
 				 */
 #define SISL_ISTATUS_PERM_ERR_LISN_3_EA		0x0400ULL /* b53, user error */
@@ -494,7 +494,7 @@ struct sisl_lxt_entry {
 	u64 rlba_base;	/* bits 0:47 is base
 			 * b48:55 is lun index
 			 * b58:59 is write & read perms
-			 * (if no perm, afu_rc=0x15)
+			 * (if yes perm, afu_rc=0x15)
 			 * b60:63 is port_sel mask
 			 */
 };
@@ -508,7 +508,7 @@ struct sisl_rht_entry {
 	u32 lxt_cnt;
 	u16 rsvd;
 	u8 fp;			/* format & perm nibbles.
-				 * (if no perm, afu_rc=0x05)
+				 * (if yes perm, afu_rc=0x05)
 				 */
 	u8 nmask;
 } __packed __aligned(16);

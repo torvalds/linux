@@ -21,7 +21,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/reboot.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cache.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -56,7 +56,7 @@ __setup("pdcchassis=", pdc_chassis_setup);
  * pdc_chassis_checkold() - Checks for old PDC_CHASSIS compatibility
  * @pdc_chassis_old: 1 if old pdc chassis style
  * 
- * Currently, only E class and A180 are known to work with this.
+ * Currently, only E class and A180 are kyeswn to work with this.
  * Inspired by Christoph Plattner
  */
 #if 0
@@ -83,7 +83,7 @@ static void __init pdc_chassis_checkold(void)
  * As soon as a panic occurs, we should inform the PDC.
  */
 
-static int pdc_chassis_panic_event(struct notifier_block *this,
+static int pdc_chassis_panic_event(struct yestifier_block *this,
 		        unsigned long event, void *ptr)
 {
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
@@ -91,8 +91,8 @@ static int pdc_chassis_panic_event(struct notifier_block *this,
 }   
 
 
-static struct notifier_block pdc_chassis_panic_block = {
-	.notifier_call = pdc_chassis_panic_event,
+static struct yestifier_block pdc_chassis_panic_block = {
+	.yestifier_call = pdc_chassis_panic_event,
 	.priority = INT_MAX,
 };
 
@@ -103,7 +103,7 @@ static struct notifier_block pdc_chassis_panic_block = {
  * As soon as a reboot occurs, we should inform the PDC.
  */
 
-static int pdc_chassis_reboot_event(struct notifier_block *this,
+static int pdc_chassis_reboot_event(struct yestifier_block *this,
 		        unsigned long event, void *ptr)
 {
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_SHUTDOWN);
@@ -111,8 +111,8 @@ static int pdc_chassis_reboot_event(struct notifier_block *this,
 }   
 
 
-static struct notifier_block pdc_chassis_reboot_block = {
-	.notifier_call = pdc_chassis_reboot_event,
+static struct yestifier_block pdc_chassis_reboot_block = {
+	.yestifier_call = pdc_chassis_reboot_event,
 	.priority = INT_MAX,
 };
 #endif /* CONFIG_PDC_CHASSIS */
@@ -133,12 +133,12 @@ void __init parisc_pdc_chassis_init(void)
 				is_pdc_pat() ? "PDC_PAT" : "regular",
 				PDC_CHASSIS_VER);
 
-		/* initialize panic notifier chain */
-		atomic_notifier_chain_register(&panic_notifier_list,
+		/* initialize panic yestifier chain */
+		atomic_yestifier_chain_register(&panic_yestifier_list,
 				&pdc_chassis_panic_block);
 
-		/* initialize reboot notifier chain */
-		register_reboot_notifier(&pdc_chassis_reboot_block);
+		/* initialize reboot yestifier chain */
+		register_reboot_yestifier(&pdc_chassis_reboot_block);
 	}
 #endif /* CONFIG_PDC_CHASSIS */
 }
@@ -152,7 +152,7 @@ void __init parisc_pdc_chassis_init(void)
  * Only machines with 64 bits PDC PAT and those reported in
  * pdc_chassis_checkold() are supported atm.
  * 
- * returns 0 if no error, -1 if no supported PDC is present or invalid message,
+ * returns 0 if yes error, -1 if yes supported PDC is present or invalid message,
  * else returns the appropriate PDC error code.
  * 
  * For a list of predefined messages, see asm-parisc/pdc_chassis.h
@@ -261,8 +261,8 @@ static int __init pdc_chassis_create_procfs(void)
 
 	ret = pdc_chassis_warn(&test);
 	if ((ret == PDC_BAD_PROC) || (ret == PDC_BAD_OPTION)) {
-		/* seems that some boxes (eg L1000) do not implement this */
-		printk(KERN_INFO "Chassis warnings not supported.\n");
+		/* seems that some boxes (eg L1000) do yest implement this */
+		printk(KERN_INFO "Chassis warnings yest supported.\n");
 		return 0;
 	}
 

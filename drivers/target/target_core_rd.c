@@ -299,7 +299,7 @@ static int rd_configure_device(struct se_device *dev)
 	dev->dev_attrib.hw_block_size = RD_BLOCKSIZE;
 	dev->dev_attrib.hw_max_sectors = UINT_MAX;
 	dev->dev_attrib.hw_queue_depth = RD_MAX_DEVICE_QUEUE_DEPTH;
-	dev->dev_attrib.is_nonrot = 1;
+	dev->dev_attrib.is_yesnrot = 1;
 
 	rd_dev->rd_dev_id = rd_host->rd_host_dev_id_count++;
 

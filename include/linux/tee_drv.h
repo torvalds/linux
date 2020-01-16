@@ -38,14 +38,14 @@ struct tee_shm_pool;
  * @list_shm:	List of shared memory object owned by this context
  * @data:	driver specific context data, managed by the driver
  * @refcount:	reference counter for this structure
- * @releasing:  flag that indicates if context is being released right now.
+ * @releasing:  flag that indicates if context is being released right yesw.
  *		It is needed to break circular dependency on context during
  *              shared memory release.
- * @supp_nowait: flag that indicates that requests in this context should not
- *              wait for tee-supplicant daemon to be started if not present
+ * @supp_yeswait: flag that indicates that requests in this context should yest
+ *              wait for tee-supplicant daemon to be started if yest present
  *              and just return with an error code. It is needed for requests
  *              that arises from TEE based kernel drivers that should be
- *              non-blocking in nature.
+ *              yesn-blocking in nature.
  */
 struct tee_context {
 	struct tee_device *teedev;
@@ -53,7 +53,7 @@ struct tee_context {
 	void *data;
 	struct kref refcount;
 	bool releasing;
-	bool supp_nowait;
+	bool supp_yeswait;
 };
 
 struct tee_param_memref {
@@ -132,7 +132,7 @@ struct tee_desc {
  * tee_device_alloc() - Allocate a new struct tee_device instance
  * @teedesc:	Descriptor for this driver
  * @dev:	Parent device for this device
- * @pool:	Shared memory pool, NULL if not used
+ * @pool:	Shared memory pool, NULL if yest used
  * @driver_data: Private driver data for this device
  *
  * Allocates a new struct tee_device instance. The device is
@@ -161,7 +161,7 @@ int tee_device_register(struct tee_device *teedev);
  * @teedev:	Device to unregister
  *
  * This function should be called to remove the @teedev even if
- * tee_device_register() hasn't been called yet. Does nothing if
+ * tee_device_register() hasn't been called yet. Does yesthing if
  * @teedev is NULL.
  */
 void tee_device_unregister(struct tee_device *teedev);
@@ -291,7 +291,7 @@ tee_shm_pool_alloc_res_mem(struct tee_shm_pool_mem_info *priv_info,
  * tee_shm_pool_free() - Free a shared memory pool
  * @pool:	The shared memory pool to free
  *
- * The must be no remaining shared memory allocated from this pool when
+ * The must be yes remaining shared memory allocated from this pool when
  * this function is called.
  */
 void tee_shm_pool_free(struct tee_shm_pool *pool);
@@ -323,7 +323,7 @@ struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags);
  * @dev:	Device that allocates the shared memory
  * @size:	Requested size of shared memory
  *
- * Allocates shared memory buffer that is not associated with any client
+ * Allocates shared memory buffer that is yest associated with any client
  * context. Such buffers are owned by TEE driver and used for internal calls.
  *
  * @returns a pointer to 'struct tee_shm'
@@ -455,10 +455,10 @@ struct tee_shm *tee_shm_get_from_id(struct tee_context *ctx, int id);
 
 /**
  * tee_client_open_context() - Open a TEE context
- * @start:	if not NULL, continue search after this context
+ * @start:	if yest NULL, continue search after this context
  * @match:	function to check TEE device
  * @data:	data for match function
- * @vers:	if not NULL, version data of TEE device of the context returned
+ * @vers:	if yest NULL, version data of TEE device of the context returned
  *
  * This function does an operation similar to open("/dev/teeX") in user space.
  * A returned context must be released with tee_client_close_context().
@@ -508,7 +508,7 @@ int tee_client_open_session(struct tee_context *ctx,
  * @ctx:	TEE Context
  * @session:	Session id
  *
- * Return < 0 on error else 0, regardless the session will not be
+ * Return < 0 on error else 0, regardless the session will yest be
  * valid after this function has returned.
  */
 int tee_client_close_session(struct tee_context *ctx, u32 session);

@@ -106,7 +106,7 @@ struct regulator_state {
  *
  * @always_on: Set if the regulator should never be disabled.
  * @boot_on: Set if the regulator is enabled when the system is initially
- *           started.  If the regulator is not enabled by the hardware or
+ *           started.  If the regulator is yest enabled by the hardware or
  *           bootloader then it will be enabled when the constraints are
  *           applied.
  * @apply_uV: Apply the voltage constraint when initialising.
@@ -115,7 +115,7 @@ struct regulator_state {
  * @pull_down: Enable pull down when regulator is disabled.
  * @over_current_protection: Auto disable on over current event.
  *
- * @input_uV: Input voltage for regulator when supplied by another regulator.
+ * @input_uV: Input voltage for regulator when supplied by ayesther regulator.
  *
  * @state_disk: State for regulator when system is suspended in disk mode.
  * @state_mem: State for regulator when system is suspended in mem mode.
@@ -125,11 +125,11 @@ struct regulator_state {
  * @initial_mode: Mode to set at startup.
  * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
  * @settling_time: Time to settle down after voltage change when voltage
- *		   change is non-linear (unit: microseconds).
+ *		   change is yesn-linear (unit: microseconds).
  * @settling_time_up: Time to settle down after voltage increase when voltage
- *		      change is non-linear (unit: microseconds).
+ *		      change is yesn-linear (unit: microseconds).
  * @settling_time_down : Time to settle down after voltage decrease when
- *			 voltage change is non-linear (unit: microseconds).
+ *			 voltage change is yesn-linear (unit: microseconds).
  * @active_discharge: Enable/disable active discharge. The enum
  *		      regulator_active_discharge values are used for
  *		      initialisation.
@@ -164,7 +164,7 @@ struct regulation_constraints {
 	/* valid operations for regulator on this machine */
 	unsigned int valid_ops_mask;
 
-	/* regulator input voltage - only if supply is another regulator */
+	/* regulator input voltage - only if supply is ayesther regulator */
 	int input_uV;
 
 	/* regulator suspend states for global PMIC STANDBY/HIBERNATE */
@@ -242,7 +242,7 @@ struct regulator_init_data {
 
 	/* optional regulator machine specific init */
 	int (*regulator_init)(void *driver_data);
-	void *driver_data;	/* core does not touch this */
+	void *driver_data;	/* core does yest touch this */
 };
 
 #ifdef CONFIG_REGULATOR

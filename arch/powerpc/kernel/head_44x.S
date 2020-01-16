@@ -58,7 +58,7 @@ _ENTRY(_start);
 	 * Reserve a word at a fixed location to store the address
 	 * of abatron_pteptrs
 	 */
-	nop
+	yesp
 	mr	r31,r3		/* save device tree ptr */
 	li	r24,0		/* CPU number */
 
@@ -249,7 +249,7 @@ _ENTRY(_start);
 
 interrupt_base:
 	/* Critical Input Interrupt */
-	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unknown_exception)
+	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unkyeswn_exception)
 
 	/* Machine Check Interrupt */
 	CRITICAL_EXCEPTION(0x0200, MACHINE_CHECK, MachineCheck, \
@@ -277,7 +277,7 @@ interrupt_base:
 	FP_UNAVAILABLE_EXCEPTION
 #else
 	EXCEPTION(0x2010, BOOKE_INTERRUPT_FP_UNAVAIL, \
-		  FloatingPointUnavailable, unknown_exception, EXC_XFER_STD)
+		  FloatingPointUnavailable, unkyeswn_exception, EXC_XFER_STD)
 #endif
 	/* System Call Interrupt */
 	START_EXCEPTION(SystemCall)
@@ -285,7 +285,7 @@ interrupt_base:
 
 	/* Auxiliary Processor Unavailable Interrupt */
 	EXCEPTION(0x2020, BOOKE_INTERRUPT_AP_UNAVAIL, \
-		  AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_STD)
+		  AuxillaryProcessorUnavailable, unkyeswn_exception, EXC_XFER_STD)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
@@ -293,14 +293,14 @@ interrupt_base:
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
 	EXCEPTION(0x1010, BOOKE_INTERRUPT_FIT, FixedIntervalTimer, \
-		  unknown_exception, EXC_XFER_STD)
+		  unkyeswn_exception, EXC_XFER_STD)
 
 	/* Watchdog Timer Interrupt */
 	/* TODO: Add watchdog support */
 #ifdef CONFIG_BOOKE_WDT
 	CRITICAL_EXCEPTION(0x1020, WATCHDOG, WatchdogTimer, WatchdogException)
 #else
-	CRITICAL_EXCEPTION(0x1020, WATCHDOG, WatchdogTimer, unknown_exception)
+	CRITICAL_EXCEPTION(0x1020, WATCHDOG, WatchdogTimer, unkyeswn_exception)
 #endif
 
 	/* Data TLB Error Interrupt */
@@ -362,7 +362,7 @@ interrupt_base:
 	rlwinm  r12, r10, PPC44x_PGD_OFF_SHIFT, PPC44x_PGD_OFF_MASK_BIT, 29
 	lwzx	r11, r12, r11		/* Get pgd/pmd entry */
 	rlwinm.	r12, r11, 0, 0, 20	/* Extract pt base address */
-	beq	2f			/* Bail if no table */
+	beq	2f			/* Bail if yes table */
 
 	/* Compute pte address */
 	rlwimi  r12, r10, PPC44x_PTE_ADD_SHIFT, PPC44x_PTE_ADD_MASK_BIT, 28
@@ -457,7 +457,7 @@ interrupt_base:
 	rlwinm 	r12, r10, PPC44x_PGD_OFF_SHIFT, PPC44x_PGD_OFF_MASK_BIT, 29
 	lwzx	r11, r12, r11		/* Get pgd/pmd entry */
 	rlwinm.	r12, r11, 0, 0, 20	/* Extract pt base address */
-	beq	2f			/* Bail if no table */
+	beq	2f			/* Bail if yes table */
 
 	/* Compute pte address */
 	rlwimi	r12, r10, PPC44x_PTE_ADD_SHIFT, PPC44x_PTE_ADD_MASK_BIT, 28
@@ -532,8 +532,8 @@ finish_tlb_load_44x:
 	rlwimi	r10,r12,29,30,30		/* DIRTY -> SW position */
 	and	r11,r12,r10			/* Mask PTE bits to keep */
 	andi.	r10,r12,_PAGE_USER		/* User page ? */
-	beq	1f				/* nope, leave U bits empty */
-	rlwimi	r11,r11,3,26,28			/* yes, copy S bits to U */
+	beq	1f				/* yespe, leave U bits empty */
+	rlwimi	r11,r11,3,26,28			/* no, copy S bits to U */
 1:	tlbwe	r11,r13,PPC44x_TLB_ATTRIB	/* Write ATTRIB */
 
 	/* Done...restore registers and get out of here.
@@ -612,12 +612,12 @@ finish_tlb_load_44x:
 	rlwinm.	r12,r11,0,0,20		/* Extract pt base address */
 	/* Compute pte address */
 	rlwimi  r12,r10,PPC44x_PTE_ADD_SHIFT,PPC44x_PTE_ADD_MASK_BIT,28
-	beq	2f			/* Bail if no table */
+	beq	2f			/* Bail if yes table */
 	lwz	r11,0(r12)		/* Get high word of pte entry */
 
-	/* XXX can we do better ? maybe insert a known 0 bit from r11 into the
+	/* XXX can we do better ? maybe insert a kyeswn 0 bit from r11 into the
 	 * bottom of r12 to create a data dependency... We can also use r10
-	 * as destination nowadays
+	 * as destination yeswadays
 	 */
 #ifdef CONFIG_SMP
 	lwsync
@@ -695,12 +695,12 @@ finish_tlb_load_44x:
 	rlwinm.	r12,r11,0,0,20		/* Extract pt base address */
 	/* Compute pte address */
 	rlwimi  r12,r10,PPC44x_PTE_ADD_SHIFT,PPC44x_PTE_ADD_MASK_BIT,28
-	beq	2f			/* Bail if no table */
+	beq	2f			/* Bail if yes table */
 
 	lwz	r11,0(r12)		/* Get high word of pte entry */
-	/* XXX can we do better ? maybe insert a known 0 bit from r11 into the
+	/* XXX can we do better ? maybe insert a kyeswn 0 bit from r11 into the
 	 * bottom of r12 to create a data dependency... We can also use r10
-	 * as destination nowadays
+	 * as destination yeswadays
 	 */
 #ifdef CONFIG_SMP
 	lwsync
@@ -743,8 +743,8 @@ finish_tlb_load_47x:
 	rlwimi	r10,r12,29,30,30		/* DIRTY -> SW position */
 	and	r11,r12,r10			/* Mask PTE bits to keep */
 	andi.	r10,r12,_PAGE_USER		/* User page ? */
-	beq	1f				/* nope, leave U bits empty */
-	rlwimi	r11,r11,3,26,28			/* yes, copy S bits to U */
+	beq	1f				/* yespe, leave U bits empty */
+	rlwimi	r11,r11,3,26,28			/* no, copy S bits to U */
 1:	tlbwe	r11,r13,2
 
 	/* Done...restore registers and get out of here.
@@ -763,7 +763,7 @@ finish_tlb_load_47x:
 	/*
 	 * This statement needs to exist at the end of the IVPR
 	 * definition just in case you end up taking a debug
-	 * exception within another exception.
+	 * exception within ayesther exception.
 	 */
 	DEBUG_CRIT_EXCEPTION
 
@@ -839,12 +839,12 @@ _GLOBAL(init_cpu_state)
  * permanently pinned (necessary since Book E
  * implementations always have translation enabled).
  *
- * TODO: Use the known TLB entry we are running from to
+ * TODO: Use the kyeswn TLB entry we are running from to
  *	 determine which physical region we are located
  *	 in.  This can be used to determine where in RAM
  *	 (on a shared CPU system) or PCI memory space
  *	 (on a DRAMless system) we are located.
- *       For now, we assume a perfect world which means
+ *       For yesw, we assume a perfect world which means
  *	 we are located at the base of DRAM (physical 0).
  */
 
@@ -856,7 +856,7 @@ _GLOBAL(init_cpu_state)
 	mfspr	r3,SPRN_PID			/* Get PID */
 	mfmsr	r4				/* Get MSR */
 	andi.	r4,r4,MSR_IS@l			/* TS=1? */
-	beq	wmmucr				/* If not, leave STS=0 */
+	beq	wmmucr				/* If yest, leave STS=0 */
 	oris	r3,r3,PPC44x_MMUCR_STS@h	/* Set STS=1 */
 wmmucr:	mtspr	SPRN_MMUCR,r3			/* Put MMUCR */
 	sync
@@ -868,10 +868,10 @@ invstr:	mflr	r5				/* Make it accessible */
 	li	r3,0				/* Set PAGEID inval value */
 1:	cmpw	r23,r4				/* Is this our entry? */
 	beq	skpinv				/* If so, skip the inval */
-	tlbwe	r3,r4,PPC44x_TLB_PAGEID		/* If not, inval the entry */
+	tlbwe	r3,r4,PPC44x_TLB_PAGEID		/* If yest, inval the entry */
 skpinv:	addi	r4,r4,1				/* Increment */
 	cmpwi	r4,64				/* Are we done? */
-	bne	1b				/* If not, repeat */
+	bne	1b				/* If yest, repeat */
 	isync					/* If so, context change */
 
 /*
@@ -1047,7 +1047,7 @@ head_start_47x:
 	mfspr	r3,SPRN_PID			/* Get PID */
 	mfmsr	r4				/* Get MSR */
 	andi.	r4,r4,MSR_IS@l			/* TS=1? */
-	beq	1f				/* If not, leave STS=0 */
+	beq	1f				/* If yest, leave STS=0 */
 	oris	r3,r3,PPC47x_MMUCR_STS@h	/* Set STS=1 */
 1:	mtspr	SPRN_MMUCR,r3			/* Put MMUCR */
 	sync
@@ -1134,7 +1134,7 @@ clear_utlb_entry:
 	tlbwe	r5,r0,2
 
 /*
- * Configure SSPCR, ISPCR and USPCR for now to search everything, we can fix
+ * Configure SSPCR, ISPCR and USPCR for yesw to search everything, we can fix
  * them up later
  */
 	LOAD_REG_IMMEDIATE(r3, 0x9abcdef0)
@@ -1231,7 +1231,7 @@ head_start_common:
 	mtspr	SPRN_IVPR,r4
 
 	/*
-	 * If the kernel was loaded at a non-zero 256 MB page, we need to
+	 * If the kernel was loaded at a yesn-zero 256 MB page, we need to
 	 * mask off the most significant 4 bits to get the relative address
 	 * from the start of physical memory
 	 */

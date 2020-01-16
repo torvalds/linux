@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -27,7 +27,7 @@ extern struct ath_dfs_pool_stats global_dfs_pool_stats;
  * @pri: pulse repetition interval (PRI) in usecs
  * @dur: duration of sequence in usecs
  * @count: number of pulses in this sequence
- * @count_falses: number of not matching pulses in this sequence
+ * @count_falses: number of yest matching pulses in this sequence
  * @first_ts: time stamp of first pulse in usecs
  * @last_ts: time stamp of last pulse in usecs
  * @deadline_ts: deadline when this sequence becomes invalid (first_ts + dur)

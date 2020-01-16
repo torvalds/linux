@@ -6,10 +6,10 @@
  *
  * ch341.c implements a serial port driver for the Winchiphead CH341.
  *
- * The CH341 device can be used to implement an RS232 asynchronous
+ * The CH341 device can be used to implement an RS232 asynchroyesus
  * serial port, an IEEE-1284 parallel printer port or a memory-like
  * interface. In all cases the CH341 supports an I2C interface as well.
- * This driver only supports the asynchronous serial interface.
+ * This driver only supports the asynchroyesus serial interface.
  */
 
 #include <linux/kernel.h>
@@ -32,10 +32,10 @@
 /* interrupt pipe definitions */
 /******************************/
 /* always 4 interrupt bytes */
-/* first irq byte normally 0x08 */
+/* first irq byte yesrmally 0x08 */
 /* second irq byte base 0x7d + below */
 /* third irq byte base 0x94 + below */
-/* fourth irq byte normally 0xee */
+/* fourth irq byte yesrmally 0xee */
 
 /* second interrupt byte */
 #define CH341_MULT_STAT 0x04 /* multiple status since last interrupt event */
@@ -49,7 +49,7 @@
 #define CH341_BITS_MODEM_STAT 0x0f /* all bits */
 
 /* Break support - the information used to implement this was gleaned from
- * the Net/FreeBSD uchcom.c driver by Takanori Watanabe.  Domo arigato.
+ * the Net/FreeBSD uchcom.c driver by Takayesri Watanabe.  Domo arigato.
  */
 
 #define CH341_REQ_READ_VERSION 0x5F
@@ -598,7 +598,7 @@ static void ch341_read_int_callback(struct urb *urb)
 			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(&urb->dev->dev, "%s - nonzero urb status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - yesnzero urb status: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}

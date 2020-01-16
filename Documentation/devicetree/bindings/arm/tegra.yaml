@@ -82,7 +82,7 @@ properties:
           - const: nvidia,tegra124
       - items:
           - enum:
-              - nvidia,norrin
+              - nvidia,yesrrin
           - const: nvidia,tegra132
           - const: nvidia,tegra124
       - items:

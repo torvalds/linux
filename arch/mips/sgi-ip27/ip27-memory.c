@@ -16,7 +16,7 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/export.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/swap.h>
 #include <linux/pfn.h>
 #include <linux/highmem.h>
@@ -33,9 +33,9 @@
 #define SLOT_PFNSHIFT		(SLOT_SHIFT - PAGE_SHIFT)
 #define PFN_NASIDSHFT		(NASID_SHFT - PAGE_SHIFT)
 
-struct node_data *__node_data[MAX_NUMNODES];
+struct yesde_data *__yesde_data[MAX_NUMNODES];
 
-EXPORT_SYMBOL(__node_data);
+EXPORT_SYMBOL(__yesde_data);
 
 static int fine_mode;
 
@@ -59,7 +59,7 @@ static void gen_region_mask(u64 *region_mask)
 	nasid_t nasid;
 
 	(*region_mask) = 0;
-	for_each_online_node(nasid) {
+	for_each_online_yesde(nasid) {
 		(*region_mask) |= 1ULL << get_region(nasid);
 	}
 }
@@ -104,18 +104,18 @@ static void router_recurse(klrou_t *router_a, klrou_t *router_b, int depth)
 	router_a->rou_rflag = 0;
 }
 
-unsigned char __node_distances[MAX_NUMNODES][MAX_NUMNODES];
-EXPORT_SYMBOL(__node_distances);
+unsigned char __yesde_distances[MAX_NUMNODES][MAX_NUMNODES];
+EXPORT_SYMBOL(__yesde_distances);
 
-static int __init compute_node_distance(nasid_t nasid_a, nasid_t nasid_b)
+static int __init compute_yesde_distance(nasid_t nasid_a, nasid_t nasid_b)
 {
 	klrou_t *router, *router_a = NULL, *router_b = NULL;
 	lboard_t *brd, *dest_brd;
 	nasid_t nasid;
 	int port;
 
-	/* Figure out which routers nodes in question are connected to */
-	for_each_online_node(nasid) {
+	/* Figure out which routers yesdes in question are connected to */
+	for_each_online_yesde(nasid) {
 		brd = find_lboard_class((lboard_t *)KL_CONFIG_INFO(nasid),
 					KLTYPE_ROUTER);
 
@@ -149,11 +149,11 @@ static int __init compute_node_distance(nasid_t nasid_a, nasid_t nasid_b)
 	}
 
 	if (router_a == NULL) {
-		pr_info("node_distance: router_a NULL\n");
+		pr_info("yesde_distance: router_a NULL\n");
 		return -1;
 	}
 	if (router_b == NULL) {
-		pr_info("node_distance: router_b NULL\n");
+		pr_info("yesde_distance: router_b NULL\n");
 		return -1;
 	}
 
@@ -175,12 +175,12 @@ static void __init init_topology_matrix(void)
 
 	for (row = 0; row < MAX_NUMNODES; row++)
 		for (col = 0; col < MAX_NUMNODES; col++)
-			__node_distances[row][col] = -1;
+			__yesde_distances[row][col] = -1;
 
-	for_each_online_node(row) {
-		for_each_online_node(col) {
-			__node_distances[row][col] =
-				compute_node_distance(row, col);
+	for_each_online_yesde(row) {
+		for_each_online_yesde(col) {
+			__yesde_distances[row][col] =
+				compute_yesde_distance(row, col);
 		}
 	}
 }
@@ -197,17 +197,17 @@ static void __init dump_topology(void)
 	pr_info("************** Topology ********************\n");
 
 	pr_info("    ");
-	for_each_online_node(col)
+	for_each_online_yesde(col)
 		pr_cont("%02d ", col);
 	pr_cont("\n");
-	for_each_online_node(row) {
+	for_each_online_yesde(row) {
 		pr_info("%02d  ", row);
-		for_each_online_node(col)
-			pr_cont("%2d ", node_distance(row, col));
+		for_each_online_yesde(col)
+			pr_cont("%2d ", yesde_distance(row, col));
 		pr_cont("\n");
 	}
 
-	for_each_online_node(nasid) {
+	for_each_online_yesde(nasid) {
 		brd = find_lboard_class((lboard_t *)KL_CONFIG_INFO(nasid),
 					KLTYPE_ROUTER);
 
@@ -252,7 +252,7 @@ static unsigned long __init slot_psize_compute(nasid_t nasid, int slot)
 	klmembnk_t *banks;
 	unsigned long size;
 
-	/* Find the node board */
+	/* Find the yesde board */
 	brd = find_lboard((lboard_t *)KL_CONFIG_INFO(nasid), KLTYPE_IP27);
 	if (!brd)
 		return 0;
@@ -291,7 +291,7 @@ static void __init mlreset(void)
 	 * mapping tables.  We need to do this as early as possible.
 	 */
 #ifdef CONFIG_SMP
-	cpu_node_probe();
+	cpu_yesde_probe();
 #endif
 
 	init_topology_matrix();
@@ -302,13 +302,13 @@ static void __init mlreset(void)
 	setup_replication_mask();
 
 	/*
-	 * Set all nodes' calias sizes to 8k
+	 * Set all yesdes' calias sizes to 8k
 	 */
-	for_each_online_node(nasid) {
+	for_each_online_yesde(nasid) {
 		/*
-		 * Always have node 0 in the region mask, otherwise
+		 * Always have yesde 0 in the region mask, otherwise
 		 * CALIAS accesses get exceptions since the hub
-		 * thinks it is a node 0 address.
+		 * thinks it is a yesde 0 address.
 		 */
 		REMOTE_HUB_S(nasid, PI_REGION_PRESENT, (region_mask | 1));
 		REMOTE_HUB_S(nasid, PI_CALIAS_SIZE, PI_CALIAS_SIZE_0);
@@ -327,56 +327,56 @@ static void __init mlreset(void)
 
 static void __init szmem(void)
 {
-	unsigned long slot_psize, slot0sz = 0, nodebytes;	/* Hack to detect problem configs */
+	unsigned long slot_psize, slot0sz = 0, yesdebytes;	/* Hack to detect problem configs */
 	int slot;
-	nasid_t node;
+	nasid_t yesde;
 
-	for_each_online_node(node) {
-		nodebytes = 0;
+	for_each_online_yesde(yesde) {
+		yesdebytes = 0;
 		for (slot = 0; slot < MAX_MEM_SLOTS; slot++) {
-			slot_psize = slot_psize_compute(node, slot);
+			slot_psize = slot_psize_compute(yesde, slot);
 			if (slot == 0)
 				slot0sz = slot_psize;
 			/*
 			 * We need to refine the hack when we have replicated
 			 * kernel text.
 			 */
-			nodebytes += (1LL << SLOT_SHIFT);
+			yesdebytes += (1LL << SLOT_SHIFT);
 
 			if (!slot_psize)
 				continue;
 
-			if ((nodebytes >> PAGE_SHIFT) * (sizeof(struct page)) >
+			if ((yesdebytes >> PAGE_SHIFT) * (sizeof(struct page)) >
 						(slot0sz << PAGE_SHIFT)) {
-				pr_info("Ignoring slot %d onwards on node %d\n",
-								slot, node);
+				pr_info("Igyesring slot %d onwards on yesde %d\n",
+								slot, yesde);
 				slot = MAX_MEM_SLOTS;
 				continue;
 			}
-			memblock_add_node(PFN_PHYS(slot_getbasepfn(node, slot)),
-					  PFN_PHYS(slot_psize), node);
+			memblock_add_yesde(PFN_PHYS(slot_getbasepfn(yesde, slot)),
+					  PFN_PHYS(slot_psize), yesde);
 		}
 	}
 }
 
-static void __init node_mem_init(nasid_t node)
+static void __init yesde_mem_init(nasid_t yesde)
 {
-	unsigned long slot_firstpfn = slot_getbasepfn(node, 0);
-	unsigned long slot_freepfn = node_getfirstfree(node);
+	unsigned long slot_firstpfn = slot_getbasepfn(yesde, 0);
+	unsigned long slot_freepfn = yesde_getfirstfree(yesde);
 	unsigned long start_pfn, end_pfn;
 
-	get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
+	get_pfn_range_for_nid(yesde, &start_pfn, &end_pfn);
 
 	/*
-	 * Allocate the node data structures on the node first.
+	 * Allocate the yesde data structures on the yesde first.
 	 */
-	__node_data[node] = __va(slot_freepfn << PAGE_SHIFT);
-	memset(__node_data[node], 0, PAGE_SIZE);
+	__yesde_data[yesde] = __va(slot_freepfn << PAGE_SHIFT);
+	memset(__yesde_data[yesde], 0, PAGE_SIZE);
 
-	NODE_DATA(node)->node_start_pfn = start_pfn;
-	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
+	NODE_DATA(yesde)->yesde_start_pfn = start_pfn;
+	NODE_DATA(yesde)->yesde_spanned_pages = end_pfn - start_pfn;
 
-	cpumask_clear(&hub_data(node)->h_cpus);
+	cpumask_clear(&hub_data(yesde)->h_cpus);
 
 	slot_freepfn += PFN_UP(sizeof(struct pglist_data) +
 			       sizeof(struct hub_data));
@@ -386,34 +386,34 @@ static void __init node_mem_init(nasid_t node)
 }
 
 /*
- * A node with nothing.	 We use it to avoid any special casing in
- * cpumask_of_node
+ * A yesde with yesthing.	 We use it to avoid any special casing in
+ * cpumask_of_yesde
  */
-static struct node_data null_node = {
+static struct yesde_data null_yesde = {
 	.hub = {
 		.h_cpus = CPU_MASK_NONE
 	}
 };
 
 /*
- * Currently, the intranode memory hole support assumes that each slot
+ * Currently, the intrayesde memory hole support assumes that each slot
  * contains at least 32 MBytes of memory. We assume all bootmem data
  * fits on the first slot.
  */
 void __init prom_meminit(void)
 {
-	nasid_t node;
+	nasid_t yesde;
 
 	mlreset();
 	szmem();
 	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
 
-	for (node = 0; node < MAX_NUMNODES; node++) {
-		if (node_online(node)) {
-			node_mem_init(node);
+	for (yesde = 0; yesde < MAX_NUMNODES; yesde++) {
+		if (yesde_online(yesde)) {
+			yesde_mem_init(yesde);
 			continue;
 		}
-		__node_data[node] = &null_node;
+		__yesde_data[yesde] = &null_yesde;
 	}
 
 	memblocks_present();
@@ -421,7 +421,7 @@ void __init prom_meminit(void)
 
 void __init prom_free_prom_memory(void)
 {
-	/* We got nothing to free here ...  */
+	/* We got yesthing to free here ...  */
 }
 
 extern void setup_zero_pages(void);
@@ -432,13 +432,13 @@ void __init paging_init(void)
 
 	pagetable_init();
 	zones_size[ZONE_NORMAL] = max_low_pfn;
-	free_area_init_nodes(zones_size);
+	free_area_init_yesdes(zones_size);
 }
 
 void __init mem_init(void)
 {
 	high_memory = (void *) __va(get_num_physpages() << PAGE_SHIFT);
 	memblock_free_all();
-	setup_zero_pages();	/* This comes from node 0 */
+	setup_zero_pages();	/* This comes from yesde 0 */
 	mem_init_print_info(NULL);
 }

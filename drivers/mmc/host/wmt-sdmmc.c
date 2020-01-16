@@ -3,14 +3,14 @@
  *  WM8505/WM8650 SD/MMC Host Controller
  *
  *  Copyright (C) 2010 Tony Prisk
- *  Copyright (C) 2008 WonderMedia Technologies, Inc.
+ *  Copyright (C) 2008 WonderMedia Techyeslogies, Inc.
  */
 
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -400,7 +400,7 @@ static irqreturn_t wmt_mci_regular_isr(int irq_num, void *data)
 
 	if ((!priv->req->data) ||
 	    ((priv->req->data->stop) && (priv->cmd == priv->req->data->stop))) {
-		/* handle non-data & stop_transmission requests */
+		/* handle yesn-data & stop_transmission requests */
 		if (status1 & STS1_CMDRSP_DONE) {
 			priv->cmd->error = 0;
 			cmd_done = 1;
@@ -598,7 +598,7 @@ static void wmt_mci_request(struct mmc_host *mmc, struct mmc_request *req)
 	if (!req->data) {
 		wmt_mci_send_command(mmc, command, cmdtype, arg, rsptype);
 		wmt_mci_start_command(priv);
-		/* completion is now handled in the regular_isr() */
+		/* completion is yesw handled in the regular_isr() */
 	}
 	if (req->data) {
 		priv->comp_cmd = &priv->cmdcomp;
@@ -750,7 +750,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *of_id =
 		of_match_device(wmt_mci_dt_ids, &pdev->dev);
 	const struct wmt_mci_caps *wmt_caps;
@@ -856,7 +856,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail6;
 
-	/* configure the controller to a known 'ready' state */
+	/* configure the controller to a kyeswn 'ready' state */
 	wmt_reset_hardware(mmc);
 
 	mmc_add_host(mmc);

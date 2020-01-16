@@ -4,7 +4,7 @@
  *
  * Copyright 2018 Analog Devices Inc.
  *
- * TODO: Currently CRC is not supported in this driver
+ * TODO: Currently CRC is yest supported in this driver
  */
 #include <linux/bsearch.h>
 #include <linux/delay.h>
@@ -100,7 +100,7 @@
  * @dc_dc_mode:	variable which stores the mode of operation
  * @dc_dc_ilim:	variable which stores the dc-to-dc converter current limit
  * @slew_time:	variable which stores the target slew time
- * @pwr_down:	variable which contains whether a channel is powered down or not
+ * @pwr_down:	variable which contains whether a channel is powered down or yest
  * @data:	spi transfer buffers
  */
 

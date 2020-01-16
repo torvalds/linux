@@ -175,7 +175,7 @@ static int sun6i_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/*
 	 * CSI will lookup the next dma buffer for next frame before the
-	 * the current frame done IRQ triggered. This is not documented
+	 * the current frame done IRQ triggered. This is yest documented
 	 * but reported by Ondřej Jirman.
 	 * The BSP code has workaround for this too. It skip to mark the
 	 * first buffer as frame done for VB2 and pass the second buffer
@@ -269,7 +269,7 @@ void sun6i_video_frame_done(struct sun6i_video *video)
 	}
 
 	next_buf = list_next_entry(buf, list);
-	/* If a new buffer (#next_buf) had not been queued to CSI, the old
+	/* If a new buffer (#next_buf) had yest been queued to CSI, the old
 	 * buffer (#buf) is still holding by CSI for storing the next
 	 * frame. So, we queue a new buffer (#next_buf) to CSI then wait
 	 * for next ISR call.
@@ -319,7 +319,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(cap->driver, "sun6i-video", sizeof(cap->driver));
 	strscpy(cap->card, video->vdev.name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 video->csi->dev->of_node->name);
+		 video->csi->dev->of_yesde->name);
 
 	return 0;
 }
@@ -556,7 +556,7 @@ static int sun6i_video_link_validate(struct media_link *link)
 
 	if (!media_entity_remote_pad(link->sink->entity->pads)) {
 		dev_info(video->csi->dev,
-			 "video node %s pad not connected\n", vdev->name);
+			 "video yesde %s pad yest connected\n", vdev->name);
 		return -ENOLINK;
 	}
 
@@ -633,7 +633,7 @@ int sun6i_video_init(struct sun6i_video *video, struct sun6i_csi *csi,
 	vidq->mem_ops			= &vb2_dma_contig_memops;
 	vidq->timestamp_flags		= V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	vidq->lock			= &video->lock;
-	/* Make sure non-dropped frame */
+	/* Make sure yesn-dropped frame */
 	vidq->min_buffers_needed	= 3;
 	vidq->dev			= csi->dev;
 

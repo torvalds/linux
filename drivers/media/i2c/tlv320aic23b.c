@@ -56,7 +56,7 @@ static int tlv320aic23b_write(struct v4l2_subdev *sd, int reg, u16 val)
 		if (i2c_smbus_write_byte_data(client,
 				(reg << 1) | (val >> 8), val & 0xff) == 0)
 			return 0;
-	v4l2_err(sd, "I2C: cannot write %03x to register R%d\n", val, reg);
+	v4l2_err(sd, "I2C: canyest write %03x to register R%d\n", val, reg);
 	return -1;
 }
 

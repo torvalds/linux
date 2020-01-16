@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -94,28 +94,28 @@ static struct bus_type mipi_dsi_bus_type = {
 };
 
 /**
- * of_find_mipi_dsi_device_by_node() - find the MIPI DSI device matching a
- *    device tree node
- * @np: device tree node
+ * of_find_mipi_dsi_device_by_yesde() - find the MIPI DSI device matching a
+ *    device tree yesde
+ * @np: device tree yesde
  *
- * Return: A pointer to the MIPI DSI device corresponding to @np or NULL if no
- *    such device exists (or has not been registered yet).
+ * Return: A pointer to the MIPI DSI device corresponding to @np or NULL if yes
+ *    such device exists (or has yest been registered yet).
  */
-struct mipi_dsi_device *of_find_mipi_dsi_device_by_node(struct device_node *np)
+struct mipi_dsi_device *of_find_mipi_dsi_device_by_yesde(struct device_yesde *np)
 {
 	struct device *dev;
 
-	dev = bus_find_device_by_of_node(&mipi_dsi_bus_type, np);
+	dev = bus_find_device_by_of_yesde(&mipi_dsi_bus_type, np);
 
 	return dev ? to_mipi_dsi_device(dev) : NULL;
 }
-EXPORT_SYMBOL(of_find_mipi_dsi_device_by_node);
+EXPORT_SYMBOL(of_find_mipi_dsi_device_by_yesde);
 
 static void mipi_dsi_dev_release(struct device *dev)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
 
-	of_node_put(dev->of_node);
+	of_yesde_put(dev->of_yesde);
 	kfree(dsi);
 }
 
@@ -152,33 +152,33 @@ static int mipi_dsi_device_add(struct mipi_dsi_device *dsi)
 
 #if IS_ENABLED(CONFIG_OF)
 static struct mipi_dsi_device *
-of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
+of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_yesde *yesde)
 {
 	struct device *dev = host->dev;
 	struct mipi_dsi_device_info info = { };
 	int ret;
 	u32 reg;
 
-	if (of_modalias_node(node, info.type, sizeof(info.type)) < 0) {
-		dev_err(dev, "modalias failure on %pOF\n", node);
+	if (of_modalias_yesde(yesde, info.type, sizeof(info.type)) < 0) {
+		dev_err(dev, "modalias failure on %pOF\n", yesde);
 		return ERR_PTR(-EINVAL);
 	}
 
-	ret = of_property_read_u32(node, "reg", &reg);
+	ret = of_property_read_u32(yesde, "reg", &reg);
 	if (ret) {
-		dev_err(dev, "device node %pOF has no valid reg property: %d\n",
-			node, ret);
+		dev_err(dev, "device yesde %pOF has yes valid reg property: %d\n",
+			yesde, ret);
 		return ERR_PTR(-EINVAL);
 	}
 
 	info.channel = reg;
-	info.node = of_node_get(node);
+	info.yesde = of_yesde_get(yesde);
 
 	return mipi_dsi_device_register_full(host, &info);
 }
 #else
 static struct mipi_dsi_device *
-of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
+of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_yesde *yesde)
 {
 	return ERR_PTR(-ENODEV);
 }
@@ -221,7 +221,7 @@ mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 		return dsi;
 	}
 
-	dsi->dev.of_node = info->node;
+	dsi->dev.of_yesde = info->yesde;
 	dsi->channel = info->channel;
 	strlcpy(dsi->name, info->type, sizeof(dsi->name));
 
@@ -250,22 +250,22 @@ static DEFINE_MUTEX(host_lock);
 static LIST_HEAD(host_list);
 
 /**
- * of_find_mipi_dsi_host_by_node() - find the MIPI DSI host matching a
- *				     device tree node
- * @node: device tree node
+ * of_find_mipi_dsi_host_by_yesde() - find the MIPI DSI host matching a
+ *				     device tree yesde
+ * @yesde: device tree yesde
  *
  * Returns:
- * A pointer to the MIPI DSI host corresponding to @node or NULL if no
- * such device exists (or has not been registered yet).
+ * A pointer to the MIPI DSI host corresponding to @yesde or NULL if yes
+ * such device exists (or has yest been registered yet).
  */
-struct mipi_dsi_host *of_find_mipi_dsi_host_by_node(struct device_node *node)
+struct mipi_dsi_host *of_find_mipi_dsi_host_by_yesde(struct device_yesde *yesde)
 {
 	struct mipi_dsi_host *host;
 
 	mutex_lock(&host_lock);
 
 	list_for_each_entry(host, &host_list, list) {
-		if (host->dev->of_node == node) {
+		if (host->dev->of_yesde == yesde) {
 			mutex_unlock(&host_lock);
 			return host;
 		}
@@ -275,17 +275,17 @@ struct mipi_dsi_host *of_find_mipi_dsi_host_by_node(struct device_node *node)
 
 	return NULL;
 }
-EXPORT_SYMBOL(of_find_mipi_dsi_host_by_node);
+EXPORT_SYMBOL(of_find_mipi_dsi_host_by_yesde);
 
 int mipi_dsi_host_register(struct mipi_dsi_host *host)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	for_each_available_child_of_node(host->dev->of_node, node) {
-		/* skip nodes without reg property */
-		if (!of_find_property(node, "reg", NULL))
+	for_each_available_child_of_yesde(host->dev->of_yesde, yesde) {
+		/* skip yesdes without reg property */
+		if (!of_find_property(yesde, "reg", NULL))
 			continue;
-		of_mipi_dsi_device_add(host, node);
+		of_mipi_dsi_device_add(host, yesde);
 	}
 
 	mutex_lock(&host_lock);
@@ -453,7 +453,7 @@ int mipi_dsi_create_packet(struct mipi_dsi_packet *packet,
 	memset(packet, 0, sizeof(*packet));
 	packet->header[0] = ((msg->channel & 0x3) << 6) | (msg->type & 0x3f);
 
-	/* TODO: compute ECC if hardware support is not available */
+	/* TODO: compute ECC if hardware support is yest available */
 
 	/*
 	 * Long write packets contain the word count in header bytes 1 and 2.
@@ -747,12 +747,12 @@ ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 EXPORT_SYMBOL(mipi_dsi_dcs_read);
 
 /**
- * mipi_dsi_dcs_nop() - send DCS nop packet
+ * mipi_dsi_dcs_yesp() - send DCS yesp packet
  * @dsi: DSI peripheral device
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int mipi_dsi_dcs_nop(struct mipi_dsi_device *dsi)
+int mipi_dsi_dcs_yesp(struct mipi_dsi_device *dsi)
 {
 	ssize_t err;
 
@@ -762,7 +762,7 @@ int mipi_dsi_dcs_nop(struct mipi_dsi_device *dsi)
 
 	return 0;
 }
-EXPORT_SYMBOL(mipi_dsi_dcs_nop);
+EXPORT_SYMBOL(mipi_dsi_dcs_yesp);
 
 /**
  * mipi_dsi_dcs_soft_reset() - perform a software reset of the display module

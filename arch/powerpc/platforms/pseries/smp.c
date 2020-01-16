@@ -48,12 +48,12 @@
 
 
 /*
- * The Primary thread of each non-boot processor was started from the OF client
+ * The Primary thread of each yesn-boot processor was started from the OF client
  * interface by prom_hold_cpus and is spinning on secondary_hold_spinloop.
  */
 static cpumask_var_t of_spin_mask;
 
-/* Query where a cpu is now.  Return codes #defined in plpar_wrappers.h */
+/* Query where a cpu is yesw.  Return codes #defined in plpar_wrappers.h */
 int smp_query_cpu_stopped(unsigned int pcpu)
 {
 	int cpu_status, status;
@@ -78,7 +78,7 @@ int smp_query_cpu_stopped(unsigned int pcpu)
 /**
  * smp_startup_cpu() - start the given cpu
  *
- * At boot time, there is nothing to do for primary threads which were
+ * At boot time, there is yesthing to do for primary threads which were
  * started from Open Firmware.  For anything else, call RTAS with the
  * appropriate start location.
  *
@@ -113,7 +113,7 @@ static inline int smp_startup_cpu(unsigned int lcpu)
 		goto out;
 #endif
 	/* 
-	 * If the RTAS start-cpu token does not exist then presume the
+	 * If the RTAS start-cpu token does yest exist then presume the
 	 * cpu is already spinning.
 	 */
 	start_cpu = rtas_token("start-cpu");
@@ -159,7 +159,7 @@ static int smp_pSeries_kick_cpu(int nr)
 
 	/*
 	 * The processor is currently spinning, waiting for the
-	 * cpu_start field to become non-zero After we set cpu_start,
+	 * cpu_start field to become yesn-zero After we set cpu_start,
 	 * the processor will continue on to secondary_start
 	 */
 	paca_ptrs[nr]->cpu_start = 1;
@@ -171,7 +171,7 @@ static int smp_pSeries_kick_cpu(int nr)
 		unsigned long hcpuid;
 
 		hcpuid = get_hard_smp_processor_id(nr);
-		rc = plpar_hcall_norets(H_PROD, hcpuid);
+		rc = plpar_hcall_yesrets(H_PROD, hcpuid);
 		if (rc != H_SUCCESS)
 			printk(KERN_ERR "Error: Prod to wake up processor %d "
 						"Ret= %ld\n", nr, rc);
@@ -190,7 +190,7 @@ static int pseries_smp_prepare_cpu(int cpu)
 
 static void smp_pseries_cause_ipi(int cpu)
 {
-	/* POWER9 should not use this handler */
+	/* POWER9 should yest use this handler */
 	if (doorbell_try_core_ipi(cpu))
 		return;
 
@@ -264,7 +264,7 @@ void __init smp_init_pseries(void)
 	/*
 	 * Mark threads which are still spinning in hold loops
 	 *
-	 * We know prom_init will not have started them if RTAS supports
+	 * We kyesw prom_init will yest have started them if RTAS supports
 	 * query-cpu-stopped-state.
 	 */
 	if (rtas_token("query-cpu-stopped-state") == RTAS_UNKNOWN_SERVICE) {

@@ -296,18 +296,18 @@ static long pps_cdev_compat_ioctl(struct file *file,
 #define pps_cdev_compat_ioctl	NULL
 #endif
 
-static int pps_cdev_open(struct inode *inode, struct file *file)
+static int pps_cdev_open(struct iyesde *iyesde, struct file *file)
 {
-	struct pps_device *pps = container_of(inode->i_cdev,
+	struct pps_device *pps = container_of(iyesde->i_cdev,
 						struct pps_device, cdev);
 	file->private_data = pps;
 	kobject_get(&pps->dev->kobj);
 	return 0;
 }
 
-static int pps_cdev_release(struct inode *inode, struct file *file)
+static int pps_cdev_release(struct iyesde *iyesde, struct file *file)
 {
-	struct pps_device *pps = container_of(inode->i_cdev,
+	struct pps_device *pps = container_of(iyesde->i_cdev,
 						struct pps_device, cdev);
 	kobject_put(&pps->dev->kobj);
 	return 0;
@@ -319,7 +319,7 @@ static int pps_cdev_release(struct inode *inode, struct file *file)
 
 static const struct file_operations pps_cdev_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.poll		= pps_cdev_poll,
 	.fasync		= pps_cdev_fasync,
 	.compat_ioctl	= pps_cdev_compat_ioctl,
@@ -419,13 +419,13 @@ void pps_unregister_cdev(struct pps_device *pps)
  * serial line discipline.  It may need to be tweaked when a second user
  * is found.
  *
- * There is no function interface for setting the lookup_cookie field.
+ * There is yes function interface for setting the lookup_cookie field.
  * It's initialized to NULL when the pps device is created, and if a
  * client wants to use it, just fill it in afterward.
  *
  * The cookie is automatically set to NULL in pps_unregister_source()
- * so that it will not be used again, even if the pps device cannot
- * be removed from the idr due to pending references holding the minor
+ * so that it will yest be used again, even if the pps device canyest
+ * be removed from the idr due to pending references holding the miyesr
  * number in use.
  */
 struct pps_device *pps_lookup_dev(void const *cookie)

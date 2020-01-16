@@ -16,7 +16,7 @@
 
 enum {
 	/* Revisions 0-2 were Falcon A0, A1 and B0 respectively.
-	 * They are not supported by this driver but these revision numbers
+	 * They are yest supported by this driver but these revision numbers
 	 * form part of the ethtool API for register dumping.
 	 */
 	EFX_REV_SIENA_A0 = 3,
@@ -41,12 +41,12 @@ static inline efx_qword_t *efx_event(struct efx_channel *channel,
 /* See if an event is present
  *
  * We check both the high and low dword of the event for all ones.  We
- * wrote all ones when we cleared the event, and no valid event can
+ * wrote all ones when we cleared the event, and yes valid event can
  * have all ones in either its high or low dwords.  This approach is
  * robust against reordering.
  *
  * Note that using a single 64-bit comparison is incorrect; even
- * though the CPU read will be atomic, the DMA write may not be.
+ * though the CPU read will be atomic, the DMA write may yest be.
  */
 static inline int efx_event_present(efx_qword_t *event)
 {
@@ -154,8 +154,8 @@ enum {
 
 /* NIC-generic software stats */
 enum {
-	GENERIC_STAT_rx_noskb_drops,
-	GENERIC_STAT_rx_nodesc_trunc,
+	GENERIC_STAT_rx_yesskb_drops,
+	GENERIC_STAT_rx_yesdesc_trunc,
 	GENERIC_STAT_COUNT
 };
 
@@ -186,7 +186,7 @@ enum {
 	SIENA_STAT_tx_deferred,
 	SIENA_STAT_tx_late_collision,
 	SIENA_STAT_tx_excessive_deferred,
-	SIENA_STAT_tx_non_tcpudp,
+	SIENA_STAT_tx_yesn_tcpudp,
 	SIENA_STAT_tx_mac_src_error,
 	SIENA_STAT_tx_ip_src_error,
 	SIENA_STAT_rx_bytes,
@@ -216,7 +216,7 @@ enum {
 	SIENA_STAT_rx_align_error,
 	SIENA_STAT_rx_length_error,
 	SIENA_STAT_rx_internal_error,
-	SIENA_STAT_rx_nodesc_drop_cnt,
+	SIENA_STAT_rx_yesdesc_drop_cnt,
 	SIENA_STAT_COUNT
 };
 
@@ -291,7 +291,7 @@ enum {
 	EF10_STAT_port_rx_overflow,
 	EF10_STAT_port_rx_align_error,
 	EF10_STAT_port_rx_length_error,
-	EF10_STAT_port_rx_nodesc_drops,
+	EF10_STAT_port_rx_yesdesc_drops,
 	EF10_STAT_port_rx_pm_trunc_bb_overflow,
 	EF10_STAT_port_rx_pm_discard_bb_overflow,
 	EF10_STAT_port_rx_pm_trunc_vfifo_full,
@@ -335,7 +335,7 @@ enum {
 	EF10_STAT_ctpio_overflow_fail,
 	EF10_STAT_ctpio_underflow_fail,
 	EF10_STAT_ctpio_timeout_fail,
-	EF10_STAT_ctpio_noncontig_wr_fail,
+	EF10_STAT_ctpio_yesncontig_wr_fail,
 	EF10_STAT_ctpio_frm_clobber_fail,
 	EF10_STAT_ctpio_invalid_wr_fail,
 	EF10_STAT_ctpio_vi_clobber_fallback,
@@ -519,7 +519,7 @@ static inline void efx_nic_remove_rx(struct efx_rx_queue *rx_queue)
 {
 	rx_queue->efx->type->rx_remove(rx_queue);
 }
-static inline void efx_nic_notify_rx_desc(struct efx_rx_queue *rx_queue)
+static inline void efx_nic_yestify_rx_desc(struct efx_rx_queue *rx_queue)
 {
 	rx_queue->efx->type->rx_write(rx_queue);
 }
@@ -609,7 +609,7 @@ bool efx_nic_event_present(struct efx_channel *channel);
 
 /* Some statistics are computed as A - B where A and B each increase
  * linearly with some hardware counter(s) and the counters are read
- * asynchronously.  If the counters contributing to B are always read
+ * asynchroyesusly.  If the counters contributing to B are always read
  * after those contributing to A, the computed value may be lower than
  * the true value by some variable amount, and may decrease between
  * subsequent computations.
@@ -683,7 +683,7 @@ size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
 void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 			  const unsigned long *mask, u64 *stats,
 			  const void *dma_buf, bool accumulate);
-void efx_nic_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *stat);
+void efx_nic_fix_yesdesc_drop_stat(struct efx_nic *efx, u64 *stat);
 
 #define EFX_MAX_FLUSH_TIME 5000
 

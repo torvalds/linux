@@ -20,18 +20,18 @@
 static struct vfsmount *test_mnt = NULL;
 
 const char *test_error[] = {
-	[TEST_ALLOC_FS_INFO]	     = "cannot allocate fs_info",
-	[TEST_ALLOC_ROOT]	     = "cannot allocate root",
-	[TEST_ALLOC_EXTENT_BUFFER]   = "cannot extent buffer",
-	[TEST_ALLOC_PATH]	     = "cannot allocate path",
-	[TEST_ALLOC_INODE]	     = "cannot allocate inode",
-	[TEST_ALLOC_BLOCK_GROUP]     = "cannot allocate block group",
-	[TEST_ALLOC_EXTENT_MAP]      = "cannot allocate extent map",
+	[TEST_ALLOC_FS_INFO]	     = "canyest allocate fs_info",
+	[TEST_ALLOC_ROOT]	     = "canyest allocate root",
+	[TEST_ALLOC_EXTENT_BUFFER]   = "canyest extent buffer",
+	[TEST_ALLOC_PATH]	     = "canyest allocate path",
+	[TEST_ALLOC_INODE]	     = "canyest allocate iyesde",
+	[TEST_ALLOC_BLOCK_GROUP]     = "canyest allocate block group",
+	[TEST_ALLOC_EXTENT_MAP]      = "canyest allocate extent map",
 };
 
 static const struct super_operations btrfs_test_super_ops = {
-	.alloc_inode	= btrfs_alloc_inode,
-	.destroy_inode	= btrfs_test_destroy_inode,
+	.alloc_iyesde	= btrfs_alloc_iyesde,
+	.destroy_iyesde	= btrfs_test_destroy_iyesde,
 };
 
 
@@ -47,18 +47,18 @@ static int btrfs_test_init_fs_context(struct fs_context *fc)
 static struct file_system_type test_type = {
 	.name		= "btrfs_test_fs",
 	.init_fs_context = btrfs_test_init_fs_context,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= kill_ayesn_super,
 };
 
-struct inode *btrfs_new_test_inode(void)
+struct iyesde *btrfs_new_test_iyesde(void)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	inode = new_inode(test_mnt->mnt_sb);
-	if (inode)
-		inode_init_owner(inode, NULL, S_IFREG);
+	iyesde = new_iyesde(test_mnt->mnt_sb);
+	if (iyesde)
+		iyesde_init_owner(iyesde, NULL, S_IFREG);
 
-	return inode;
+	return iyesde;
 }
 
 static int btrfs_init_test_fs(void)
@@ -67,13 +67,13 @@ static int btrfs_init_test_fs(void)
 
 	ret = register_filesystem(&test_type);
 	if (ret) {
-		printk(KERN_ERR "btrfs: cannot register test file system\n");
+		printk(KERN_ERR "btrfs: canyest register test file system\n");
 		return ret;
 	}
 
 	test_mnt = kern_mount(&test_type);
 	if (IS_ERR(test_mnt)) {
-		printk(KERN_ERR "btrfs: cannot mount test file system\n");
+		printk(KERN_ERR "btrfs: canyest mount test file system\n");
 		unregister_filesystem(&test_type);
 		return PTR_ERR(test_mnt);
 	}
@@ -86,7 +86,7 @@ static void btrfs_destroy_test_fs(void)
 	unregister_filesystem(&test_type);
 }
 
-struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
+struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 yesdesize, u32 sectorsize)
 {
 	struct btrfs_fs_info *fs_info = kzalloc(sizeof(struct btrfs_fs_info),
 						GFP_KERNEL);
@@ -107,7 +107,7 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 		return NULL;
 	}
 
-	fs_info->nodesize = nodesize;
+	fs_info->yesdesize = yesdesize;
 	fs_info->sectorsize = sectorsize;
 
 	if (init_srcu_struct(&fs_info->subvol_srcu)) {
@@ -195,9 +195,9 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 	/* Will be freed by btrfs_free_fs_roots */
 	if (WARN_ON(test_bit(BTRFS_ROOT_IN_RADIX, &root->state)))
 		return;
-	if (root->node) {
+	if (root->yesde) {
 		/* One for allocate_extent_buffer */
-		free_extent_buffer(root->node);
+		free_extent_buffer(root->yesde);
 	}
 	kfree(root);
 }
@@ -253,7 +253,7 @@ void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
 int btrfs_run_sanity_tests(void)
 {
 	int ret, i;
-	u32 sectorsize, nodesize;
+	u32 sectorsize, yesdesize;
 	u32 test_sectorsize[] = {
 		PAGE_SIZE,
 	};
@@ -262,28 +262,28 @@ int btrfs_run_sanity_tests(void)
 		return ret;
 	for (i = 0; i < ARRAY_SIZE(test_sectorsize); i++) {
 		sectorsize = test_sectorsize[i];
-		for (nodesize = sectorsize;
-		     nodesize <= BTRFS_MAX_METADATA_BLOCKSIZE;
-		     nodesize <<= 1) {
-			pr_info("BTRFS: selftest: sectorsize: %u  nodesize: %u\n",
-				sectorsize, nodesize);
-			ret = btrfs_test_free_space_cache(sectorsize, nodesize);
+		for (yesdesize = sectorsize;
+		     yesdesize <= BTRFS_MAX_METADATA_BLOCKSIZE;
+		     yesdesize <<= 1) {
+			pr_info("BTRFS: selftest: sectorsize: %u  yesdesize: %u\n",
+				sectorsize, yesdesize);
+			ret = btrfs_test_free_space_cache(sectorsize, yesdesize);
 			if (ret)
 				goto out;
 			ret = btrfs_test_extent_buffer_operations(sectorsize,
-				nodesize);
+				yesdesize);
 			if (ret)
 				goto out;
-			ret = btrfs_test_extent_io(sectorsize, nodesize);
+			ret = btrfs_test_extent_io(sectorsize, yesdesize);
 			if (ret)
 				goto out;
-			ret = btrfs_test_inodes(sectorsize, nodesize);
+			ret = btrfs_test_iyesdes(sectorsize, yesdesize);
 			if (ret)
 				goto out;
-			ret = btrfs_test_qgroups(sectorsize, nodesize);
+			ret = btrfs_test_qgroups(sectorsize, yesdesize);
 			if (ret)
 				goto out;
-			ret = btrfs_test_free_space_tree(sectorsize, nodesize);
+			ret = btrfs_test_free_space_tree(sectorsize, yesdesize);
 			if (ret)
 				goto out;
 		}

@@ -18,7 +18,7 @@
 #define WF_PID_MAX_HISTORY	32
 
 /* This parameter array is passed to the PID algorithm. Currently,
- * we don't support changing parameters on the fly as it's not needed
+ * we don't support changing parameters on the fly as it's yest needed
  * but could be implemented (with necessary adjustment of the history
  * buffer
  */
@@ -52,7 +52,7 @@ extern s32 wf_pid_run(struct wf_pid_state *st, s32 sample);
 #define WF_CPU_PID_MAX_HISTORY	32
 
 /* This parameter array is passed to the CPU PID algorithm. Currently,
- * we don't support changing parameters on the fly as it's not needed
+ * we don't support changing parameters on the fly as it's yest needed
  * but could be implemented (with necessary adjustment of the history
  * buffer
  */

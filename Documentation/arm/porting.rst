@@ -7,7 +7,7 @@ Taken from list archive at http://lists.arm.linux.org.uk/pipermail/linux-arm-ker
 Initial definitions
 -------------------
 
-The following symbol definitions rely on you knowing the translation that
+The following symbol definitions rely on you kyeswing the translation that
 __virt_to_phys() does for your machine.  This macro converts the passed
 virtual address to a physical address.  Normally, it is simply:
 
@@ -18,9 +18,9 @@ Decompressor Symbols
 --------------------
 
 ZTEXTADDR
-	Start address of decompressor.  There's no point in talking about
+	Start address of decompressor.  There's yes point in talking about
 	virtual or physical addresses here, since the MMU will be off at
-	the time when you call the decompressor code.  You normally call
+	the time when you call the decompressor code.  You yesrmally call
 	the kernel at this address to start it booting.  This doesn't have
 	to be located in RAM, it can be in flash or other read-only or
 	read-write addressable medium.
@@ -84,24 +84,24 @@ TASK_SIZE
 	hence PAGE_OFFSET).
 
 TEXTADDR
-	Virtual start address of kernel, normally PAGE_OFFSET + 0x8000.
+	Virtual start address of kernel, yesrmally PAGE_OFFSET + 0x8000.
 	This is where the kernel image ends up.  With the latest kernels,
 	it must be located at 32768 bytes into a 128MB region.  Previous
 	kernels placed a restriction of 256MB here.
 
 DATAADDR
-	Virtual address for the kernel data segment.  Must not be defined
+	Virtual address for the kernel data segment.  Must yest be defined
 	when using the decompressor.
 
 VMALLOC_START / VMALLOC_END
-	Virtual addresses bounding the vmalloc() area.  There must not be
+	Virtual addresses bounding the vmalloc() area.  There must yest be
 	any static mappings in this area; vmalloc will overwrite them.
 	The addresses must also be in the kernel segment (see above).
 	Normally, the vmalloc() area starts VMALLOC_OFFSET bytes above the
 	last virtual RAM address (found using variable high_memory).
 
 VMALLOC_OFFSET
-	Offset normally incorporated into VMALLOC_START to provide a hole
+	Offset yesrmally incorporated into VMALLOC_START to provide a hole
 	between virtual RAM and the vmalloc area.  We do this to allow
 	out of bounds memory accesses (eg, something writing off the end
 	of the mapped memory map) to be caught.  Normally set to 8MB.

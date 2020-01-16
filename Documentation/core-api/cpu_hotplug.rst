@@ -14,7 +14,7 @@ Introduction
 
 Modern advances in system architectures have introduced advanced error
 reporting and correction capabilities in processors. There are couple OEMS that
-support NUMA hardware which are hot pluggable as well, where physical node
+support NUMA hardware which are hot pluggable as well, where physical yesde
 insertion and removal require support for CPU hotplug.
 
 Such advances require CPUs available to a kernel to be removed either for
@@ -22,7 +22,7 @@ provisioning reasons, or for RAS purposes to keep an offending CPU off
 system execution path. Hence the need for CPU hotplug support in the
 Linux kernel.
 
-A more novel use of CPU-hotplug support is its use today in suspend resume
+A more yesvel use of CPU-hotplug support is its use today in suspend resume
 support for SMP. Dual-core and HT support makes even a laptop run SMP kernels
 which didn't support these methods.
 
@@ -37,7 +37,7 @@ Command Line Switches
 ``nr_cpus=n``
   Restrict the total amount CPUs the kernel will support. If the number
   supplied here is lower than the number of physically available CPUs than
-  those CPUs can not be brought online later.
+  those CPUs can yest be brought online later.
 
 ``additional_cpus=n``
   Use this to limit hotpluggable CPUs. This option sets
@@ -52,7 +52,7 @@ Command Line Switches
 
 ``cede_offline={"off","on"}``
   Use this option to disable/enable putting offlined processors to an extended
-  ``H_CEDE`` state on supported pseries platforms. If nothing is specified,
+  ``H_CEDE`` state on supported pseries platforms. If yesthing is specified,
   ``cede_offline`` is set to "on".
 
   This option is limited to the PowerPC architecture.
@@ -69,7 +69,7 @@ CPU maps
   Bitmap of possible CPUs that can ever be available in the
   system. This is used to allocate some boot time memory for per_cpu variables
   that aren't designed to grow/shrink as CPUs are made available or removed.
-  Once set during boot time discovery phase, the map is static, i.e no bits
+  Once set during boot time discovery phase, the map is static, i.e yes bits
   are added or removed anytime. Trimming it accurately for your system needs
   upfront can save some boot time memory.
 
@@ -78,14 +78,14 @@ CPU maps
   after a CPU is available for kernel scheduling and ready to receive
   interrupts from devices. Its cleared when a CPU is brought down using
   ``__cpu_disable()``, before which all OS services including interrupts are
-  migrated to another target CPU.
+  migrated to ayesther target CPU.
 
 ``cpu_present_mask``
   Bitmap of CPUs currently present in the system. Not all
   of them may be online. When physical hotplug is processed by the relevant
   subsystem (e.g ACPI) can change and new bit either be added or removed
   from the map depending on the event is hot-add/hot-remove. There are currently
-  no locking rules as of now. Typical usage is to init topology during boot,
+  yes locking rules as of yesw. Typical usage is to init topology during boot,
   at which time hotplug is disabled.
 
 You really don't need to manipulate any of the system CPU maps. They should
@@ -123,10 +123,10 @@ Each CPU folder contains an *online* file which controls the logical on (1) and
 off (0) state. To logically shutdown CPU4: ::
 
  $ echo 0 > /sys/devices/system/cpu/cpu4/online
-  smpboot: CPU 4 is now offline
+  smpboot: CPU 4 is yesw offline
 
 Once the CPU is shutdown, it will be removed from */proc/interrupts*,
-*/proc/cpuinfo* and should also not be shown visible by the *top* command. To
+*/proc/cpuinfo* and should also yest be shown visible by the *top* command. To
 bring CPU4 back online: ::
 
  $ echo 1 > /sys/devices/system/cpu/cpu4/online
@@ -136,12 +136,12 @@ The CPU is usable again. This should work on all CPUs. CPU0 is often special
 and excluded from CPU hotplug. On X86 the kernel option
 *CONFIG_BOOTPARAM_HOTPLUG_CPU0* has to be enabled in order to be able to
 shutdown CPU0. Alternatively the kernel command option *cpu0_hotplug* can be
-used. Some known dependencies of CPU0:
+used. Some kyeswn dependencies of CPU0:
 
 * Resume from hibernate/suspend. Hibernate/suspend will fail if CPU0 is offline.
 * PIC interrupts. CPU0 can't be removed if a PIC interrupt is detected.
 
-Please let Fenghua Yu <fenghua.yu@intel.com> know if you find any dependencies
+Please let Fenghua Yu <fenghua.yu@intel.com> kyesw if you find any dependencies
 on CPU0.
 
 The CPU hotplug coordination
@@ -165,7 +165,7 @@ at state ``CPUHP_OFFLINE``. This includes:
 
 Using the hotplug API
 ---------------------
-It is possible to receive notifications once a CPU is offline or onlined. This
+It is possible to receive yestifications once a CPU is offline or onlined. This
 might be important to certain drivers which need to perform some kind of setup
 or clean up functions based on the number of available CPUs: ::
 
@@ -202,19 +202,19 @@ First a multi-state state needs to be registered: ::
   Y_hp_online = ret;
 
 The ``cpuhp_setup_state_multi()`` behaves similar to ``cpuhp_setup_state()``
-except it prepares the callbacks for a multi state and does not invoke
+except it prepares the callbacks for a multi state and does yest invoke
 the callbacks. This is a one time setup.
 Once a new instance is allocated, you need to register this new instance: ::
 
-  ret = cpuhp_state_add_instance(Y_hp_online, &d->node);
+  ret = cpuhp_state_add_instance(Y_hp_online, &d->yesde);
 
 This function will add this instance to your previously allocated
 *Y_hp_online* state and invoke the previously registered callback
-(*Y_online*) on all online CPUs. The *node* element is a ``struct
-hlist_node`` member of your per-instance data structure.
+(*Y_online*) on all online CPUs. The *yesde* element is a ``struct
+hlist_yesde`` member of your per-instance data structure.
 
 On removal of the instance: ::
-  cpuhp_state_remove_instance(Y_hp_online, &d->node)
+  cpuhp_state_remove_instance(Y_hp_online, &d->yesde)
 
 should be invoked which will invoke the teardown callback on all online
 CPUs.
@@ -224,9 +224,9 @@ Manual setup
 Usually it is handy to invoke setup and teardown callbacks on registration or
 removal of a state because usually the operation needs to performed once a CPU
 goes online (offline) and during initial setup (shutdown) of the driver. However
-each registration and removal function is also available with a ``_nocalls``
-suffix which does not invoke the provided callbacks if the invocation of the
-callbacks is not desired. During the manual setup (or teardown) the functions
+each registration and removal function is also available with a ``_yescalls``
+suffix which does yest invoke the provided callbacks if the invocation of the
+callbacks is yest desired. During the manual setup (or teardown) the functions
 ``get_online_cpus()`` and ``put_online_cpus()`` should be used to inhibit CPU
 hotplug operations.
 
@@ -239,7 +239,7 @@ The hotplug states are defined in ``include/linux/cpuhotplug.h``:
   CPU is up.
 * The states *CPUHP_AP_OFFLINE* … *CPUHP_AP_ONLINE* are invoked
   just the after the CPU has been brought up. The interrupts are off and
-  the scheduler is not yet active on this CPU. Starting with *CPUHP_AP_OFFLINE*
+  the scheduler is yest yet active on this CPU. Starting with *CPUHP_AP_OFFLINE*
   the callbacks are invoked on the target CPU.
 * The states between *CPUHP_AP_ONLINE_DYN* and *CPUHP_AP_ONLINE_DYN_END* are
   reserved for the dynamic allocation.
@@ -247,15 +247,15 @@ The hotplug states are defined in ``include/linux/cpuhotplug.h``:
   *CPUHP_ONLINE* and stopping at *CPUHP_OFFLINE*. Here the callbacks are
   invoked on the CPU that will be shutdown until *CPUHP_AP_OFFLINE*.
 
-A dynamically allocated state via *CPUHP_AP_ONLINE_DYN* is often enough.
+A dynamically allocated state via *CPUHP_AP_ONLINE_DYN* is often eyesugh.
 However if an earlier invocation during the bring up or shutdown is required
 then an explicit state should be acquired. An explicit state might also be
 required if the hotplug event requires specific ordering in respect to
-another hotplug event.
+ayesther hotplug event.
 
 Testing of hotplug states
 =========================
-One way to verify whether a custom state is working as expected or not is to
+One way to verify whether a custom state is working as expected or yest is to
 shutdown a CPU and then put it online again. It is also possible to put the CPU
 to certain state (for instance *CPUHP_AP_ONLINE*) and then go back to
 *CPUHP_ONLINE*. This would simulate an error one state after *CPUHP_AP_ONLINE*
@@ -283,8 +283,8 @@ To rollback CPU4 to ``lib/percpu_cnt:online`` and back online just issue: ::
   $ cat /sys/devices/system/cpu/cpu4/hotplug/state
   140
 
-It is important to note that the teardown callbac of state 140 have been
-invoked. And now get back online: ::
+It is important to yeste that the teardown callbac of state 140 have been
+invoked. And yesw get back online: ::
 
   $ echo 169 > /sys/devices/system/cpu/cpu4/hotplug/target
   $ cat /sys/devices/system/cpu/cpu4/hotplug/state
@@ -313,7 +313,7 @@ With trace events enabled, the individual steps are visible, too: ::
    cpuhp/4-31   [004]  95.546: cpuhp_exit:  cpu: 0004  state: 143 step: 143 ret: 0
    cpuhp/4-31   [004]  95.547: cpuhp_enter: cpu: 0004 target: 169 step: 144 (mce_cpu_online)
    cpuhp/4-31   [004]  95.548: cpuhp_exit:  cpu: 0004  state: 144 step: 144 ret: 0
-   cpuhp/4-31   [004]  95.549: cpuhp_enter: cpu: 0004 target: 169 step: 145 (console_cpu_notify)
+   cpuhp/4-31   [004]  95.549: cpuhp_enter: cpu: 0004 target: 169 step: 145 (console_cpu_yestify)
    cpuhp/4-31   [004]  95.550: cpuhp_exit:  cpu: 0004  state: 145 step: 145 ret: 0
    cpuhp/4-31   [004]  95.551: cpuhp_enter: cpu: 0004 target: 169 step: 168 (sched_cpu_activate)
    cpuhp/4-31   [004]  95.552: cpuhp_exit:  cpu: 0004  state: 168 step: 168 ret: 0
@@ -334,7 +334,7 @@ The following functions and configurations are required:
   Arch interface to bring up a CPU
 
 ``__cpu_disable()``
-  Arch interface to shutdown a CPU, no more interrupts can be handled by the
+  Arch interface to shutdown a CPU, yes more interrupts can be handled by the
   kernel after the routine returns. This includes the shutdown of the timer.
 
 ``__cpu_die()``

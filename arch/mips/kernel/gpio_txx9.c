@@ -8,7 +8,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/gpio/driver.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <asm/txx9pio.h>
 

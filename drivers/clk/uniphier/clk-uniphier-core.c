@@ -45,16 +45,16 @@ static int uniphier_clk_probe(struct platform_device *pdev)
 	struct clk_hw_onecell_data *hw_data;
 	const struct uniphier_clk_data *p, *data;
 	struct regmap *regmap;
-	struct device_node *parent;
+	struct device_yesde *parent;
 	int clk_num = 0;
 
 	data = of_device_get_match_data(dev);
 	if (WARN_ON(!data))
 		return -EINVAL;
 
-	parent = of_get_parent(dev->of_node); /* parent should be syscon node */
-	regmap = syscon_node_to_regmap(parent);
-	of_node_put(parent);
+	parent = of_get_parent(dev->of_yesde); /* parent should be syscon yesde */
+	regmap = syscon_yesde_to_regmap(parent);
+	of_yesde_put(parent);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "failed to get regmap (error %ld)\n",
 			PTR_ERR(regmap));
@@ -87,13 +87,13 @@ static int uniphier_clk_probe(struct platform_device *pdev)
 			hw_data->hws[p->idx] = hw;
 	}
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+	return of_clk_add_hw_provider(dev->of_yesde, of_clk_hw_onecell_get,
 				      hw_data);
 }
 
 static int uniphier_clk_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	return 0;
 }

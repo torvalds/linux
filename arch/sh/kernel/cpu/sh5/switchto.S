@@ -4,7 +4,7 @@
  *
  * sh64 context switch
  *
- * Copyright (C) 2004  Richard Curnow
+ * Copyright (C) 2004  Richard Curyesw
 */
 
 	.section .text..SHmedia32,"ax"
@@ -41,13 +41,13 @@ sh64_switch_to:
 
 	movi	FRAME_SIZE, r0
 	sub.l	r15, r0, r15
-	! Do normal-style register save to support backtrace
+	! Do yesrmal-style register save to support backtrace
 
 	st.l	r15,   0, r18	! save link reg
 	st.l	r15,   4, r14	! save fp
 	add.l	r15, r63, r14	! setup frame pointer
 
-	! hopefully this looks normal to the backtrace now.
+	! hopefully this looks yesrmal to the backtrace yesw.
 
 	addi.l	r15,   8, r1    ! base of pt_regs
 	addi.l	r1,   24, r0    ! base of pt_regs.regs
@@ -56,7 +56,7 @@ sh64_switch_to:
 	/* Note : to be fixed?
 	   struct pt_regs is really designed for holding the state on entry
 	   to an exception, i.e. pc,sr,regs etc.  However, for the context
-	   switch state, some of this is not required.  But the unwinder takes
+	   switch state, some of this is yest required.  But the unwinder takes
 	   struct pt_regs * as an arg so we have to build this structure
 	   to allow unwinding switched tasks in show_state() */
 
@@ -67,7 +67,7 @@ sh64_switch_to:
 	st.q	r0, (13*8), r13
 	st.q	r0, (14*8), r14 ! for unwind, want to look as though we took a trap at
 	! the point where the process is left in suspended animation, i.e. current
-	! fp here, not the saved one.
+	! fp here, yest the saved one.
 	st.q	r0, (16*8), r16
 
 	st.q	r0, (24*8), r24
@@ -100,7 +100,7 @@ sh64_switch_to:
 	st.q	r0, (58*8), r58
 	st.q	r0, (59*8), r59
 
-	! do this early as pta->gettr has no pipeline forwarding (=> 5 cycle latency)
+	! do this early as pta->gettr has yes pipeline forwarding (=> 5 cycle latency)
 	! Use a local label to avoid creating a symbol that will confuse the !
 	! backtrace
 	pta	.Lsave_pc, tr0

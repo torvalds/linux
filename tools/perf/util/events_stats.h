@@ -27,18 +27,18 @@
  */
 struct events_stats {
 	u64 total_period;
-	u64 total_non_filtered_period;
+	u64 total_yesn_filtered_period;
 	u64 total_lost;
 	u64 total_lost_samples;
 	u64 total_aux_lost;
 	u64 total_aux_partial;
 	u64 total_invalid_chains;
 	u32 nr_events[PERF_RECORD_HEADER_MAX];
-	u32 nr_non_filtered_samples;
+	u32 nr_yesn_filtered_samples;
 	u32 nr_lost_warned;
-	u32 nr_unknown_events;
+	u32 nr_unkyeswn_events;
 	u32 nr_invalid_chains;
-	u32 nr_unknown_id;
+	u32 nr_unkyeswn_id;
 	u32 nr_unprocessable_samples;
 	u32 nr_auxtrace_errors[PERF_AUXTRACE_ERROR_MAX];
 	u32 nr_proc_map_timeout;

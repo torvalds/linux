@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -95,7 +95,7 @@ gm200_gr_tile_map_2_8[] = {
 void
 gm200_gr_oneinit_sm_id(struct gf100_gr *gr)
 {
-	/*XXX: There's a different algorithm here I've not yet figured out. */
+	/*XXX: There's a different algorithm here I've yest yet figured out. */
 	gf100_gr_oneinit_sm_id(gr);
 }
 
@@ -106,7 +106,7 @@ gm200_gr_oneinit_tiles(struct gf100_gr *gr)
 	 *     seems to work for all boards I tried from earlier (and
 	 *     later) GPUs except in these specific configurations.
 	 *
-	 *     Let's just hardcode them for now.
+	 *     Let's just hardcode them for yesw.
 	 */
 	if (gr->gpc_nr == 2 && gr->tpc_total == 8) {
 		memcpy(gr->tile, gm200_gr_tile_map_2_8, gr->tpc_total);
@@ -139,7 +139,7 @@ gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 	if (ret)
 		return ret;
 
-	/* Load firmwares for non-secure falcons */
+	/* Load firmwares for yesn-secure falcons */
 	if (!nvkm_secboot_is_managed(device->secboot,
 				     NVKM_SECBOOT_FALCON_FECS)) {
 		if ((ret = gf100_gr_ctor_fw(gr, "gr/fecs_inst", &gr->fuc409c)) ||
@@ -153,7 +153,7 @@ gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 			return ret;
 	}
 
-	if ((ret = gk20a_gr_av_to_init(gr, "gr/sw_nonctx", &gr->fuc_sw_nonctx)) ||
+	if ((ret = gk20a_gr_av_to_init(gr, "gr/sw_yesnctx", &gr->fuc_sw_yesnctx)) ||
 	    (ret = gk20a_gr_aiv_to_init(gr, "gr/sw_ctx", &gr->fuc_sw_ctx)) ||
 	    (ret = gk20a_gr_av_to_init(gr, "gr/sw_bundle_init", &gr->fuc_bundle)) ||
 	    (ret = gk20a_gr_av_to_method(gr, "gr/sw_method_init", &gr->fuc_method)))

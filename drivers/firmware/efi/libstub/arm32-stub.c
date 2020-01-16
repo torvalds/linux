@@ -11,14 +11,14 @@ efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
 {
 	int block;
 
-	/* non-LPAE kernels can run anywhere */
+	/* yesn-LPAE kernels can run anywhere */
 	if (!IS_ENABLED(CONFIG_ARM_LPAE))
 		return EFI_SUCCESS;
 
 	/* LPAE kernels need compatible hardware */
 	block = cpuid_feature_extract(CPUID_EXT_MMFR0, 0);
 	if (block < 5) {
-		pr_efi_err(sys_table_arg, "This LPAE kernel is not supported by your CPU\n");
+		pr_efi_err(sys_table_arg, "This LPAE kernel is yest supported by your CPU\n");
 		return EFI_UNSUPPORTED;
 	}
 	return EFI_SUCCESS;
@@ -103,11 +103,11 @@ static efi_status_t reserve_kernel_base(efi_system_table_t *sys_table_arg,
 		/*
 		 * If we end up here, the allocation succeeded but starts below
 		 * dram_base. This can only occur if the real base of DRAM is
-		 * not a multiple of 128 MB, in which case dram_base will have
+		 * yest a multiple of 128 MB, in which case dram_base will have
 		 * been rounded up. Since this implies that a part of the region
 		 * was already occupied, we need to fall through to the code
 		 * below to ensure that the existing allocations don't conflict.
-		 * For this reason, we use EFI_BOOT_SERVICES_DATA above and not
+		 * For this reason, we use EFI_BOOT_SERVICES_DATA above and yest
 		 * EFI_LOADER_DATA, which we wouldn't able to distinguish from
 		 * allocations that we want to disallow.
 		 */
@@ -134,7 +134,7 @@ static efi_status_t reserve_kernel_base(efi_system_table_t *sys_table_arg,
 		start = desc->phys_addr;
 		end = start + desc->num_pages * EFI_PAGE_SIZE;
 
-		/* Skip if entry does not intersect with region */
+		/* Skip if entry does yest intersect with region */
 		if (start >= dram_base + MAX_UNCOMP_KERNEL_SIZE ||
 		    end <= dram_base)
 			continue;
@@ -142,7 +142,7 @@ static efi_status_t reserve_kernel_base(efi_system_table_t *sys_table_arg,
 		switch (desc->type) {
 		case EFI_BOOT_SERVICES_CODE:
 		case EFI_BOOT_SERVICES_DATA:
-			/* Ignore types that are released to the OS anyway */
+			/* Igyesre types that are released to the OS anyway */
 			continue;
 
 		case EFI_CONVENTIONAL_MEMORY:
@@ -174,9 +174,9 @@ static efi_status_t reserve_kernel_base(efi_system_table_t *sys_table_arg,
 		case EFI_LOADER_DATA:
 			/*
 			 * These regions may be released and reallocated for
-			 * another purpose (including EFI_RUNTIME_SERVICE_DATA)
+			 * ayesther purpose (including EFI_RUNTIME_SERVICE_DATA)
 			 * at any time during the execution of the OS loader,
-			 * so we cannot consider them as safe.
+			 * so we canyest consider them as safe.
 			 */
 		default:
 			/*
@@ -213,7 +213,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
 	kernel_base = round_up(dram_base, SZ_128M);
 
 	/*
-	 * Note that some platforms (notably, the Raspberry Pi 2) put
+	 * Note that some platforms (yestably, the Raspberry Pi 2) put
 	 * spin-tables and other pieces of firmware at the base of RAM,
 	 * abusing the fact that the window of TEXT_OFFSET bytes at the
 	 * base of the kernel image is only partially used at the moment.
@@ -244,12 +244,12 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
 	}
 
 	/*
-	 * Check to see if we were able to allocate memory low enough
+	 * Check to see if we were able to allocate memory low eyesugh
 	 * in memory. The kernel determines the base of DRAM from the
 	 * address at which the zImage is loaded.
 	 */
 	if (*image_addr + *image_size > dram_base + ZIMAGE_OFFSET_LIMIT) {
-		pr_efi_err(sys_table, "Failed to relocate kernel, no low memory available.\n");
+		pr_efi_err(sys_table, "Failed to relocate kernel, yes low memory available.\n");
 		efi_free(sys_table, *reserve_size, *reserve_addr);
 		*reserve_size = 0;
 		efi_free(sys_table, *image_size, *image_addr);

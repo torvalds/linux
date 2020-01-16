@@ -709,14 +709,14 @@ static int s6e3ha2_probe(struct mipi_dsi_device *dsi)
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset-gpios %ld\n",
+		dev_err(dev, "canyest get reset-gpios %ld\n",
 			PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
 	ctx->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->enable_gpio)) {
-		dev_err(dev, "cannot get enable-gpios %ld\n",
+		dev_err(dev, "canyest get enable-gpios %ld\n",
 			PTR_ERR(ctx->enable_gpio));
 		return PTR_ERR(ctx->enable_gpio);
 	}

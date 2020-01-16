@@ -324,7 +324,7 @@ static int alauda_get_media_status(struct us_data *us, unsigned char *data)
 }
 
 /*
- * Clears the "media was changed" bit so that we know when it changes again
+ * Clears the "media was changed" bit so that we kyesw when it changes again
  * in the future.
  */
 static int alauda_ack_media(struct us_data *us)
@@ -358,7 +358,7 @@ static int alauda_get_media_signature(struct us_data *us, unsigned char *data)
 }
 
 /*
- * Resets the media status (but not the whole device?)
+ * Resets the media status (but yest the whole device?)
  */
 static int alauda_reset_media(struct us_data *us)
 {
@@ -404,7 +404,7 @@ static int alauda_init_media(struct us_data *us)
 		return USB_STOR_TRANSPORT_ERROR;
 
 	if (data[0] != 0x14) {
-		usb_stor_dbg(us, "Media not ready after ack\n");
+		usb_stor_dbg(us, "Media yest ready after ack\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -457,7 +457,7 @@ static int alauda_check_media(struct us_data *us)
 
 	rc = alauda_get_media_status(us, status);
 
-	/* Check for no media or door open */
+	/* Check for yes media or door open */
 	if ((status[0] & 0x80) || ((status[0] & 0x1F) == 0x10)
 		|| ((status[1] & 0x01) == 0)) {
 		usb_stor_dbg(us, "No media, or door open\n");
@@ -485,7 +485,7 @@ static int alauda_check_media(struct us_data *us)
 
 /*
  * Checks the status from the 2nd status register
- * Returns 3 bytes of status data, only the first is known
+ * Returns 3 bytes of status data, only the first is kyeswn
  */
 static int alauda_check_status2(struct us_data *us)
 {
@@ -536,7 +536,7 @@ static int alauda_get_redu_data(struct us_data *us, u16 pba, unsigned char *data
 
 /*
  * Finds the first unused PBA in a zone
- * Returns the absolute PBA of an unused PBA, or 0 if none found.
+ * Returns the absolute PBA of an unused PBA, or 0 if yesne found.
  */
 static u16 alauda_find_unused_pba(struct alauda_media_info *info,
 	unsigned int zone)
@@ -590,22 +590,22 @@ static int alauda_read_map(struct us_data *us, unsigned int zone)
 		/* special PBAs have control field 0^16 */
 		for (j = 0; j < 16; j++)
 			if (data[j] != 0)
-				goto nonz;
+				goto yesnz;
 		pba_to_lba[i] = UNUSABLE;
-		usb_stor_dbg(us, "PBA %d has no logical mapping\n", blocknum);
+		usb_stor_dbg(us, "PBA %d has yes logical mapping\n", blocknum);
 		continue;
 
-	nonz:
+	yesnz:
 		/* unwritten PBAs have control field FF^16 */
 		for (j = 0; j < 16; j++)
 			if (data[j] != 0xff)
-				goto nonff;
+				goto yesnff;
 		continue;
 
-	nonff:
-		/* normal PBAs start with six FFs */
+	yesnff:
+		/* yesrmal PBAs start with six FFs */
 		if (j < 6) {
-			usb_stor_dbg(us, "PBA %d has no logical mapping: reserved area = %02X%02X%02X%02X data status %02X block status %02X\n",
+			usb_stor_dbg(us, "PBA %d has yes logical mapping: reserved area = %02X%02X%02X%02X data status %02X block status %02X\n",
 				     blocknum,
 				     data[0], data[1], data[2], data[3],
 				     data[4], data[5]);
@@ -740,8 +740,8 @@ static int alauda_read_block_raw(struct us_data *us, u16 pba,
 
 /*
  * Reads data from a certain offset page inside a PBA, excluding redundancy
- * data. Returns pagesize*pages bytes in data. Note that data must be big enough
- * to hold (pagesize+64)*pages bytes of data, but you can ignore those 'extra'
+ * data. Returns pagesize*pages bytes in data. Note that data must be big eyesugh
+ * to hold (pagesize+64)*pages bytes of data, but you can igyesre those 'extra'
  * trailing bytes outside this function.
  */
 static int alauda_read_block(struct us_data *us, u16 pba,
@@ -921,7 +921,7 @@ static int alauda_read_data(struct us_data *us, unsigned long address,
 	 * Since we only read in one block at a time, we have to create
 	 * a bounce buffer and move the data a piece at a time between the
 	 * bounce buffer and the actual transfer buffer.
-	 * We make this buffer big enough to hold temporary redundancy data,
+	 * We make this buffer big eyesugh to hold temporary redundancy data,
 	 * which we use when reading the data blocks.
 	 */
 
@@ -966,7 +966,7 @@ static int alauda_read_data(struct us_data *us, unsigned long address,
 				     pages, lba, page);
 
 			/*
-			 * This is not really an error. It just means
+			 * This is yest really an error. It just means
 			 * that the block has never been written.
 			 * Instead of returning USB_STOR_TRANSPORT_ERROR
 			 * it is better to return all zero data.
@@ -1210,13 +1210,13 @@ static int alauda_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	if (srb->cmnd[0] == ALLOW_MEDIUM_REMOVAL) {
 		/*
-		 * sure.  whatever.  not like we can stop the user from popping
-		 * the media out of the device (no locking doors, etc)
+		 * sure.  whatever.  yest like we can stop the user from popping
+		 * the media out of the device (yes locking doors, etc)
 		 */
 		return USB_STOR_TRANSPORT_GOOD;
 	}
 
-	usb_stor_dbg(us, "Gah! Unknown command: %d (0x%x)\n",
+	usb_stor_dbg(us, "Gah! Unkyeswn command: %d (0x%x)\n",
 		     srb->cmnd[0], srb->cmnd[0]);
 	info->sense_key = 0x05;
 	info->sense_asc = 0x20;
@@ -1258,7 +1258,7 @@ static struct usb_driver alauda_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	alauda_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 };
 
 module_usb_stor_driver(alauda_driver, alauda_host_template, DRV_NAME);

@@ -31,7 +31,7 @@
 
 #include <asm/io.h>
 #include <linux/uaccess.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 #include "acpica/accommon.h"
 #include "acpica/acnamesp.h"
@@ -62,7 +62,7 @@ static int (*__acpi_os_prepare_extended_sleep)(u8 sleep_state, u32 val_a,
 static acpi_osd_handler acpi_irq_handler;
 static void *acpi_irq_context;
 static struct workqueue_struct *kacpid_wq;
-static struct workqueue_struct *kacpi_notify_wq;
+static struct workqueue_struct *kacpi_yestify_wq;
 static struct workqueue_struct *kacpi_hotplug_wq;
 static bool acpi_os_initialized;
 unsigned int acpi_sci_irq = INVALID_ACPI_IRQ;
@@ -121,7 +121,7 @@ static int __init acpi_reserve_resources(void)
 	acpi_request_region(&acpi_gbl_FADT.xpm2_control_block, acpi_gbl_FADT.pm2_control_length,
 		"ACPI PM2_CNT_BLK");
 
-	/* Length of GPE blocks must be a non-negative multiple of 2 */
+	/* Length of GPE blocks must be a yesn-negative multiple of 2 */
 
 	if (!(acpi_gbl_FADT.gpe0_block_length & 0x1))
 		acpi_request_region(&acpi_gbl_FADT.xgpe0_block,
@@ -206,7 +206,7 @@ acpi_physical_address __init acpi_os_get_root_pointer(void)
 			return efi.acpi20;
 		if (efi.acpi != EFI_INVALID_TABLE_ADDR)
 			return efi.acpi;
-		pr_err(PREFIX "System description tables not found\n");
+		pr_err(PREFIX "System description tables yest found\n");
 	} else if (IS_ENABLED(CONFIG_ACPI_LEGACY_TABLES_LOOKUP)) {
 		acpi_find_root_pointer(&pa);
 	}
@@ -309,10 +309,10 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
  *
  * Look up the given physical address range in the list of existing ACPI memory
  * mappings.  If found, get a reference to it and return a pointer to it (its
- * virtual address).  If not found, map it, add it to that list and return a
+ * virtual address).  If yest found, map it, add it to that list and return a
  * pointer to it.
  *
- * During early init (when acpi_permanent_mmap has not been set yet) this
+ * During early init (when acpi_permanent_mmap has yest been set yet) this
  * routine simply calls __acpi_map_table() to get the job done.
  */
 void __iomem __ref
@@ -324,7 +324,7 @@ void __iomem __ref
 	acpi_size pg_sz;
 
 	if (phys > ULONG_MAX) {
-		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
+		printk(KERN_ERR PREFIX "Canyest map memory that high\n");
 		return NULL;
 	}
 
@@ -397,12 +397,12 @@ static void acpi_os_map_cleanup(struct acpi_ioremap *map)
  * @size: Size of the address range to drop a reference to.
  *
  * Look up the given virtual address range in the list of existing ACPI memory
- * mappings, drop a reference to it and unmap it if there are no more active
+ * mappings, drop a reference to it and unmap it if there are yes more active
  * references to it.
  *
- * During early init (when acpi_permanent_mmap has not been set yet) this
+ * During early init (when acpi_permanent_mmap has yest been set yet) this
  * routine simply calls __acpi_unmap_table() to get the job done.  Since
- * __acpi_unmap_table() is an __init function, the __ref annotation is needed
+ * __acpi_unmap_table() is an __init function, the __ref anyestation is needed
  * here.
  */
 void __ref acpi_os_unmap_iomem(void __iomem *virt, acpi_size size)
@@ -547,7 +547,7 @@ static irqreturn_t acpi_irq(int irq, void *dev_id)
 		acpi_irq_handled++;
 		return IRQ_HANDLED;
 	} else {
-		acpi_irq_not_handled++;
+		acpi_irq_yest_handled++;
 		return IRQ_NONE;
 	}
 }
@@ -562,7 +562,7 @@ acpi_os_install_interrupt_handler(u32 gsi, acpi_osd_handler handler,
 
 	/*
 	 * ACPI interrupts different from the SCI in our copy of the FADT are
-	 * not supported.
+	 * yest supported.
 	 */
 	if (gsi != acpi_gbl_FADT.sci_interrupt)
 		return AE_BAD_PARAMETER;
@@ -571,7 +571,7 @@ acpi_os_install_interrupt_handler(u32 gsi, acpi_osd_handler handler,
 		return AE_ALREADY_ACQUIRED;
 
 	if (acpi_gsi_to_irq(gsi, &irq) < 0) {
-		printk(KERN_ERR PREFIX "SCI (ACPI GSI %d) not registered\n",
+		printk(KERN_ERR PREFIX "SCI (ACPI GSI %d) yest registered\n",
 		       gsi);
 		return AE_OK;
 	}
@@ -624,11 +624,11 @@ void acpi_os_stall(u32 us)
 
 /*
  * Support ACPI 3.0 AML Timer operand. Returns a 64-bit free-running,
- * monotonically increasing timer with 100ns granularity. Do not use
+ * moyestonically increasing timer with 100ns granularity. Do yest use
  * ktime_get() to implement this function because this function may get
  * called after timekeeping has been suspended. Note: calling this function
  * after timekeeping has been suspended may lead to unexpected results
- * because when timekeeping is suspended the jiffies counter is not
+ * because when timekeeping is suspended the jiffies counter is yest
  * incremented. See also timekeeping_suspend().
  */
 u64 acpi_os_get_timer(void)
@@ -1000,7 +1000,7 @@ err_lock:
 	return ret;
 }
 
-int acpi_debugger_notify_command_complete(void)
+int acpi_debugger_yestify_command_complete(void)
 {
 	int ret;
 	int (*func)(void);
@@ -1017,7 +1017,7 @@ int acpi_debugger_notify_command_complete(void)
 		ret = -ENODEV;
 		goto err_lock;
 	}
-	func = acpi_debugger.ops->notify_command_complete;
+	func = acpi_debugger.ops->yestify_command_complete;
 	owner = acpi_debugger.owner;
 	mutex_unlock(&acpi_debugger.lock);
 
@@ -1095,7 +1095,7 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	 * INIT_WORK() for each of them separately.
 	 */
 	if (type == OSL_NOTIFY_HANDLER) {
-		queue = kacpi_notify_wq;
+		queue = kacpi_yestify_wq;
 		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
 	} else if (type == OSL_GPE_HANDLER) {
 		queue = kacpid_wq;
@@ -1112,7 +1112,7 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	 * On some machines, a software-initiated SMI causes corruption unless
 	 * the SMI runs on CPU 0.  An SMI can be initiated by any AML, but
 	 * typically it's done in GPE-related methods that are run via
-	 * workqueues, so we can avoid the known corruption cases by always
+	 * workqueues, so we can avoid the kyeswn corruption cases by always
 	 * queueing on CPU 0.
 	 */
 	ret = queue_work_on(0, queue, &dpc->work);
@@ -1132,13 +1132,13 @@ EXPORT_SYMBOL(acpi_os_execute);
 void acpi_os_wait_events_complete(void)
 {
 	/*
-	 * Make sure the GPE handler or the fixed event handler is not used
-	 * on another CPU after removal.
+	 * Make sure the GPE handler or the fixed event handler is yest used
+	 * on ayesther CPU after removal.
 	 */
 	if (acpi_sci_irq_valid())
 		synchronize_hardirq(acpi_sci_irq);
 	flush_workqueue(kacpid_wq);
-	flush_workqueue(kacpi_notify_wq);
+	flush_workqueue(kacpi_yestify_wq);
 }
 EXPORT_SYMBOL(acpi_os_wait_events_complete);
 
@@ -1173,7 +1173,7 @@ acpi_status acpi_hotplug_schedule(struct acpi_device *adev, u32 src)
 	hpw->adev = adev;
 	hpw->src = src;
 	/*
-	 * We can't run hotplug code in kacpid_wq/kacpid_notify_wq etc., because
+	 * We can't run hotplug code in kacpid_wq/kacpid_yestify_wq etc., because
 	 * the hotplug code may call driver .remove() functions, which may
 	 * invoke flush_scheduled_work()/acpi_os_wait_events_complete() to flush
 	 * these workqueues.
@@ -1212,7 +1212,7 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 /*
  * TODO: A better way to delete semaphores?  Linux doesn't have a
  * 'delete_semaphore()' function -- may result in an invalid
- * pointer dereference for non-synchronized consumers.	Should
+ * pointer dereference for yesn-synchronized consumers.	Should
  * we at least check for blocked threads and signal/cancel them?
  */
 
@@ -1337,11 +1337,11 @@ acpi_status acpi_os_wait_command_ready(void)
 	return AE_OK;
 }
 
-acpi_status acpi_os_notify_command_complete(void)
+acpi_status acpi_os_yestify_command_complete(void)
 {
 	int ret;
 
-	ret = acpi_debugger_notify_command_complete();
+	ret = acpi_debugger_yestify_command_complete();
 	if (ret < 0)
 		return AE_ERROR;
 	return AE_OK;
@@ -1360,7 +1360,7 @@ acpi_status acpi_os_signal(u32 function, void *info)
 		 * you are debugging.  So if/when we integrate
 		 * AML debugger into the kernel debugger its
 		 * hook will go here.  But until then it is
-		 * not useful to print anything on breakpoints.
+		 * yest useful to print anything on breakpoints.
 		 */
 		break;
 	default:
@@ -1400,7 +1400,7 @@ __setup("acpi_os_name=", acpi_os_name_setup);
  * This feature is enabled by default.  It marks the AML control methods
  * that contain the opcodes to create named objects as "Serialized".
  */
-static int __init acpi_no_auto_serialize_setup(char *str)
+static int __init acpi_yes_auto_serialize_setup(char *str)
 {
 	acpi_gbl_auto_serialize_methods = FALSE;
 	pr_info("ACPI: auto-serialization disabled\n");
@@ -1408,7 +1408,7 @@ static int __init acpi_no_auto_serialize_setup(char *str)
 	return 1;
 }
 
-__setup("acpi_no_auto_serialize", acpi_no_auto_serialize_setup);
+__setup("acpi_yes_auto_serialize", acpi_yes_auto_serialize_setup);
 
 /* Check of resource interference between native drivers and ACPI
  * OperationRegions (SystemIO and System Memory only).
@@ -1417,13 +1417,13 @@ __setup("acpi_no_auto_serialize", acpi_no_auto_serialize_setup);
  * acpi_enforce_resources= can be set to:
  *
  *   - strict (default) (2)
- *     -> further driver trying to access the resources will not load
+ *     -> further driver trying to access the resources will yest load
  *   - lax              (1)
  *     -> further driver trying to access the resources will load, but you
  *     get a system message that something might go wrong...
  *
- *   - no               (0)
- *     -> ACPI Operation Region resources will not be registered
+ *   - yes               (0)
+ *     -> ACPI Operation Region resources will yest be registered
  *
  */
 #define ENFORCE_RESOURCES_STRICT 2
@@ -1441,7 +1441,7 @@ static int __init acpi_enforce_resources_setup(char *str)
 		acpi_enforce_resources = ENFORCE_RESOURCES_STRICT;
 	else if (!strcmp("lax", str))
 		acpi_enforce_resources = ENFORCE_RESOURCES_LAX;
-	else if (!strcmp("no", str))
+	else if (!strcmp("yes", str))
 		acpi_enforce_resources = ENFORCE_RESOURCES_NO;
 
 	return 1;
@@ -1549,7 +1549,7 @@ static acpi_status acpi_deactivate_mem_region(acpi_handle handle, u32 level,
 
 /**
  * acpi_release_memory - Release any mappings done to a memory region
- * @handle: Handle to namespace node
+ * @handle: Handle to namespace yesde
  * @res: Memory resource
  * @level: A level that terminates the search
  *
@@ -1558,10 +1558,10 @@ static acpi_status acpi_deactivate_mem_region(acpi_handle handle, u32 level,
  *
  * This is a helper that allows drivers to place special requirements on memory
  * region that may overlap with operation regions, primarily allowing them to
- * safely map the region as non-cached memory.
+ * safely map the region as yesn-cached memory.
  *
  * The unmapped Operation Regions will be automatically remapped next time they
- * are called, so the drivers do not need to do anything else.
+ * are called, so the drivers do yest need to do anything else.
  */
 acpi_status acpi_release_memory(acpi_handle handle, struct resource *res,
 				u32 level)
@@ -1575,7 +1575,7 @@ acpi_status acpi_release_memory(acpi_handle handle, struct resource *res,
 EXPORT_SYMBOL_GPL(acpi_release_memory);
 
 /*
- * Let drivers know whether the resource checks are effective
+ * Let drivers kyesw whether the resource checks are effective
  */
 int acpi_resources_are_enforced(void)
 {
@@ -1621,7 +1621,7 @@ void acpi_os_release_lock(acpi_spinlock lockp, acpi_cpu_flags flags)
  *
  * PARAMETERS:  name      - Ascii name for the cache
  *              size      - Size of each cached object
- *              depth     - Maximum depth of the cache (in objects) <ignored>
+ *              depth     - Maximum depth of the cache (in objects) <igyesred>
  *              cache     - Where the new cache object is returned
  *
  * RETURN:      status
@@ -1698,7 +1698,7 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
 }
 #endif
 
-static int __init acpi_no_static_ssdt_setup(char *s)
+static int __init acpi_yes_static_ssdt_setup(char *s)
 {
 	acpi_gbl_disable_ssdt_table_install = TRUE;
 	pr_info("ACPI: static SSDT installation disabled\n");
@@ -1706,7 +1706,7 @@ static int __init acpi_no_static_ssdt_setup(char *s)
 	return 0;
 }
 
-early_param("acpi_no_static_ssdt", acpi_no_static_ssdt_setup);
+early_param("acpi_yes_static_ssdt", acpi_yes_static_ssdt_setup);
 
 static int __init acpi_disable_return_repair(char *s)
 {
@@ -1717,7 +1717,7 @@ static int __init acpi_disable_return_repair(char *s)
 	return 1;
 }
 
-__setup("acpica_no_return_repair", acpi_disable_return_repair);
+__setup("acpica_yes_return_repair", acpi_disable_return_repair);
 
 acpi_status __init acpi_os_initialize(void)
 {
@@ -1743,10 +1743,10 @@ acpi_status __init acpi_os_initialize(void)
 acpi_status __init acpi_os_initialize1(void)
 {
 	kacpid_wq = alloc_workqueue("kacpid", 0, 1);
-	kacpi_notify_wq = alloc_workqueue("kacpi_notify", 0, 1);
+	kacpi_yestify_wq = alloc_workqueue("kacpi_yestify", 0, 1);
 	kacpi_hotplug_wq = alloc_ordered_workqueue("kacpi_hotplug", 0);
 	BUG_ON(!kacpid_wq);
-	BUG_ON(!kacpi_notify_wq);
+	BUG_ON(!kacpi_yestify_wq);
 	BUG_ON(!kacpi_hotplug_wq);
 	acpi_osi_init();
 	return AE_OK;
@@ -1767,7 +1767,7 @@ acpi_status acpi_os_terminate(void)
 		acpi_os_unmap_generic_address(&acpi_gbl_FADT.reset_register);
 
 	destroy_workqueue(kacpid_wq);
-	destroy_workqueue(kacpi_notify_wq);
+	destroy_workqueue(kacpi_yestify_wq);
 	destroy_workqueue(kacpi_hotplug_wq);
 
 	return AE_OK;

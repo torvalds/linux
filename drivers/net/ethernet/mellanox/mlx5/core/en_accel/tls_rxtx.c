@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -205,7 +205,7 @@ mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 		 * after the relevant record is acked.
 		 * It should be safe to drop the packet in this case
 		 */
-		atomic64_inc(&tls->sw_stats.tx_tls_drop_no_sync_data);
+		atomic64_inc(&tls->sw_stats.tx_tls_drop_yes_sync_data);
 		goto err_out;
 	}
 

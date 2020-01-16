@@ -14,7 +14,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
 */
 
@@ -108,8 +108,8 @@ gamma:		.byte	120
 /* Bit 7	DPMS standby supported
    Bit 6	DPMS suspend supported
    Bit 5	DPMS active-off supported
-   Bits 4-3	Display type: 00=monochrome; 01=RGB colour;
-		  10=non-RGB multicolour; 11=undefined
+   Bits 4-3	Display type: 00=moyeschrome; 01=RGB colour;
+		  10=yesn-RGB multicolour; 11=undefined
    Bit 2	Standard sRGB colour space. Bytes 25-34 must contain
 		  sRGB standard values.
    Bit 1	Preferred timing mode specified in descriptor block 1.
@@ -238,7 +238,7 @@ y_border:	.byte	0
    Other types: VSync serrated (HSync during VSync)
    Bit 1 	If analog sync: Sync on all 3 RGB lines (else green only)
    Digital: HSync polarity (1=positive)
-   Bit 0 	2-way line-interleaved stereo, if bits 4-3 are not 00. */
+   Bit 0 	2-way line-interleaved stereo, if bits 4-3 are yest 00. */
 features:	.byte	0x18+(VSYNC_POL<<2)+(HSYNC_POL<<1)
 
 descriptor2:	.byte	0,0	/* Not a detailed timing descriptor */

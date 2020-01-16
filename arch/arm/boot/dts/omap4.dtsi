@@ -54,7 +54,7 @@
 	/*
 	 * Note that 4430 needs cross trigger interface (CTI) supported
 	 * before we can configure the interrupts. This means sampling
-	 * events are not supported for pmu. Note that 4460 does not use
+	 * events are yest supported for pmu. Note that 4460 does yest use
 	 * CTI, see also 4460.dtsi.
 	 */
 	pmu {
@@ -95,8 +95,8 @@
 	};
 
 	/*
-	 * The soc node represents the soc top level view. It is used for IPs
-	 * that are not memory mapped in the MPU view or for the MPU itself.
+	 * The soc yesde represents the soc top level view. It is used for IPs
+	 * that are yest memory mapped in the MPU view or for the MPU itself.
 	 */
 	soc {
 		compatible = "ti,omap-infra";
@@ -120,12 +120,12 @@
 	/*
 	 * XXX: Use a flat representation of the OMAP4 interconnect.
 	 * The real OMAP interconnect network is quite complex.
-	 * Since it will not bring real advantage to represent that in DT for
+	 * Since it will yest bring real advantage to represent that in DT for
 	 * the moment, just use a fake OCP bus entry to represent the whole bus
 	 * hierarchy.
 	 */
 	ocp {
-		compatible = "ti,omap4-l3-noc", "simple-bus";
+		compatible = "ti,omap4-l3-yesc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
@@ -164,7 +164,7 @@
 			gpmc,num-cs = <8>;
 			gpmc,num-waitpins = <4>;
 			ti,hwmods = "gpmc";
-			ti,no-idle-on-init;
+			ti,yes-idle-on-init;
 			clocks = <&l3_div_ck>;
 			clock-names = "fck";
 			interrupt-controller;
@@ -247,7 +247,7 @@
 			reg = <0x4c000000 0x100>;
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "emif1";
-			ti,no-idle-on-init;
+			ti,yes-idle-on-init;
 			phy-type = <1>;
 			hw-caps-read-idle-ctrl;
 			hw-caps-ll-interface;
@@ -259,7 +259,7 @@
 			reg = <0x4d000000 0x100>;
 			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "emif2";
-			ti,no-idle-on-init;
+			ti,yes-idle-on-init;
 			phy-type = <1>;
 			hw-caps-read-idle-ctrl;
 			hw-caps-ll-interface;
@@ -348,7 +348,7 @@
 			ranges = <0 0x56000000 0x2000000>;
 
 			/*
-			 * Closed source PowerVR driver, no child device
+			 * Closed source PowerVR driver, yes child device
 			 * binding or driver in mainline
 			 */
 		};

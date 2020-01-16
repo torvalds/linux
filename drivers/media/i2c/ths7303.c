@@ -136,11 +136,11 @@ out:
 	return err;
 }
 
-static int ths7303_s_std_output(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int ths7303_s_std_output(struct v4l2_subdev *sd, v4l2_std_id yesrm)
 {
 	struct ths7303_state *state = to_state(sd);
 
-	if (norm & (V4L2_STD_ALL & ~V4L2_STD_SECAM)) {
+	if (yesrm & (V4L2_STD_ALL & ~V4L2_STD_SECAM)) {
 		state->std_id = 1;
 		state->bt.pixelclock = 0;
 		return ths7303_setval(sd, THS7303_FILTER_MODE_480I_576I);
@@ -299,7 +299,7 @@ static int ths7303_log_status(struct v4l2_subdev *sd)
 			  frame_width, frame_height,
 			  (int)bt->pixelclock, bt->polarities);
 	} else {
-		v4l2_info(sd, "no timings set\n");
+		v4l2_info(sd, "yes timings set\n");
 	}
 
 	ths7303_log_channel_status(sd, THS7303_CHANNEL_1);

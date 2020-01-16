@@ -11,9 +11,9 @@
  *	  Matt Domsch <Matt_Domsch@dell.com>,
  *	  Rob Radez <rob@osinvestor.com>
  *
- *	Neither Wim Van Sebroeck nor Iguana vzw. admit liability nor
+ *	Neither Wim Van Sebroeck yesr Iguana vzw. admit liability yesr
  *	provide warranty for any of this software. This material is
- *	provided "AS-IS" and at no charge.
+ *	provided "AS-IS" and at yes charge.
  */
 
 /*
@@ -33,13 +33,13 @@
 #include <linux/module.h>	/* For module specific items */
 #include <linux/moduleparam.h>	/* For new moduleparam's */
 #include <linux/types.h>	/* For standard types (like size_t) */
-#include <linux/errno.h>	/* For the -ENODEV/... values */
+#include <linux/erryes.h>	/* For the -ENODEV/... values */
 #include <linux/kernel.h>	/* For printk/panic/... */
 #include <linux/delay.h>	/* For mdelay function */
 #include <linux/miscdevice.h>	/* For struct miscdevice */
 #include <linux/watchdog.h>	/* For the watchdog specific items */
-#include <linux/notifier.h>	/* For notifier support */
-#include <linux/reboot.h>	/* For reboot_notifier stuff */
+#include <linux/yestifier.h>	/* For yestifier support */
+#include <linux/reboot.h>	/* For reboot_yestifier stuff */
 #include <linux/init.h>		/* For __init/__exit/... */
 #include <linux/fs.h>		/* For file operations */
 #include <linux/pci.h>		/* For pci functions */
@@ -114,7 +114,7 @@ static unsigned long is_active;
 static char expect_release;
 /* this is private data for each PCI-PC watchdog card */
 static struct {
-	/* Wether or not the card has a temperature device */
+	/* Wether or yest the card has a temperature device */
 	int supports_temp;
 	/* The card's boot status */
 	int boot_status;
@@ -142,9 +142,9 @@ MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. "
 	"(0<heartbeat<65536 or 0=delay-time from dip-switches, default="
 				__MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 					__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
@@ -185,7 +185,7 @@ static int send_command(int cmd, int *msb, int *lsb)
 			pr_debug("time to process command was: %d ms\n",
 				 count);
 		} else {
-			pr_debug("card did not respond on command!\n");
+			pr_debug("card did yest respond on command!\n");
 		}
 	}
 
@@ -223,16 +223,16 @@ static int pcipcwd_get_option_switches(void)
 
 static void pcipcwd_show_card_info(void)
 {
-	int got_fw_rev, fw_rev_major, fw_rev_minor;
+	int got_fw_rev, fw_rev_major, fw_rev_miyesr;
 	char fw_ver_str[20];		/* The cards firmware version */
 	int option_switches;
 
 	got_fw_rev = send_command(CMD_GET_FIRMWARE_VERSION, &fw_rev_major,
-								&fw_rev_minor);
+								&fw_rev_miyesr);
 	if (got_fw_rev)
-		sprintf(fw_ver_str, "%u.%02u", fw_rev_major, fw_rev_minor);
+		sprintf(fw_ver_str, "%u.%02u", fw_rev_major, fw_rev_miyesr);
 	else
-		sprintf(fw_ver_str, "<card no answer>");
+		sprintf(fw_ver_str, "<card yes answer>");
 
 	/* Get switch settings */
 	option_switches = pcipcwd_get_option_switches();
@@ -268,7 +268,7 @@ static int pcipcwd_start(void)
 	spin_unlock(&pcipcwd_private.io_lock);
 
 	if (stat_reg & WD_PCI_WDIS) {
-		pr_err("Card timer not enabled\n");
+		pr_err("Card timer yest enabled\n");
 		return -1;
 	}
 
@@ -293,7 +293,7 @@ static int pcipcwd_stop(void)
 	spin_unlock(&pcipcwd_private.io_lock);
 
 	if (!(stat_reg & WD_PCI_WDIS)) {
-		pr_err("Card did not acknowledge disable attempt\n");
+		pr_err("Card did yest ackyeswledge disable attempt\n");
 		return -1;
 	}
 
@@ -416,7 +416,7 @@ static int pcipcwd_get_timeleft(int *time_left)
 	int lsb;
 
 	/* Read the time that's left before rebooting */
-	/* Note: if the board is not yet armed then we will read 0xFFFF */
+	/* Note: if the board is yest yet armed then we will read 0xFFFF */
 	send_command(CMD_READ_WATCHDOG_TIMEOUT, &msb, &lsb);
 
 	*time_left = (msb << 8) + lsb;
@@ -436,14 +436,14 @@ static ssize_t pcipcwd_write(struct file *file, const char __user *data,
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (len) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
-			/* note: just in case someone wrote the magic character
+			/* yeste: just in case someone wrote the magic character
 			 * five months ago... */
 			expect_release = 0;
 
-			/* scan to see whether or not we got the
+			/* scan to see whether or yest we got the
 			 * magic character */
 			for (i = 0; i != len; i++) {
 				char c;
@@ -562,7 +562,7 @@ static long pcipcwd_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
-static int pcipcwd_open(struct inode *inode, struct file *file)
+static int pcipcwd_open(struct iyesde *iyesde, struct file *file)
 {
 	/* /dev/watchdog can only be opened once */
 	if (test_and_set_bit(0, &is_active)) {
@@ -574,10 +574,10 @@ static int pcipcwd_open(struct inode *inode, struct file *file)
 	/* Activate */
 	pcipcwd_start();
 	pcipcwd_keepalive();
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int pcipcwd_release(struct inode *inode, struct file *file)
+static int pcipcwd_release(struct iyesde *iyesde, struct file *file)
 {
 	/*
 	 *      Shut off the timer.
@@ -585,7 +585,7 @@ static int pcipcwd_release(struct inode *inode, struct file *file)
 	if (expect_release == 42) {
 		pcipcwd_stop();
 	} else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, yest stopping watchdog!\n");
 		pcipcwd_keepalive();
 	}
 	expect_release = 0;
@@ -611,15 +611,15 @@ static ssize_t pcipcwd_temp_read(struct file *file, char __user *data,
 	return 1;
 }
 
-static int pcipcwd_temp_open(struct inode *inode, struct file *file)
+static int pcipcwd_temp_open(struct iyesde *iyesde, struct file *file)
 {
 	if (!pcipcwd_private.supports_temp)
 		return -ENODEV;
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int pcipcwd_temp_release(struct inode *inode, struct file *file)
+static int pcipcwd_temp_release(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
@@ -628,7 +628,7 @@ static int pcipcwd_temp_release(struct inode *inode, struct file *file)
  *	Notify system
  */
 
-static int pcipcwd_notify_sys(struct notifier_block *this, unsigned long code,
+static int pcipcwd_yestify_sys(struct yestifier_block *this, unsigned long code,
 								void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
@@ -643,7 +643,7 @@ static int pcipcwd_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations pcipcwd_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 	.write =	pcipcwd_write,
 	.unlocked_ioctl = pcipcwd_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
@@ -652,27 +652,27 @@ static const struct file_operations pcipcwd_fops = {
 };
 
 static struct miscdevice pcipcwd_miscdev = {
-	.minor =	WATCHDOG_MINOR,
+	.miyesr =	WATCHDOG_MINOR,
 	.name =		"watchdog",
 	.fops =		&pcipcwd_fops,
 };
 
 static const struct file_operations pcipcwd_temp_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 	.read =		pcipcwd_temp_read,
 	.open =		pcipcwd_temp_open,
 	.release =	pcipcwd_temp_release,
 };
 
 static struct miscdevice pcipcwd_temp_miscdev = {
-	.minor =	TEMP_MINOR,
+	.miyesr =	TEMP_MINOR,
 	.name =		"temperature",
 	.fops =		&pcipcwd_temp_fops,
 };
 
-static struct notifier_block pcipcwd_notifier = {
-	.notifier_call =	pcipcwd_notify_sys,
+static struct yestifier_block pcipcwd_yestifier = {
+	.yestifier_call =	pcipcwd_yestify_sys,
 };
 
 /*
@@ -724,7 +724,7 @@ static int pcipcwd_card_init(struct pci_dev *pdev,
 	/* disable card */
 	pcipcwd_stop();
 
-	/* Check whether or not the card supports the temperature device */
+	/* Check whether or yest the card supports the temperature device */
 	pcipcwd_check_temperature_support();
 
 	/* Show info about the card itself */
@@ -736,23 +736,23 @@ static int pcipcwd_card_init(struct pci_dev *pdev,
 			heartbeat_tbl[(pcipcwd_get_option_switches() & 0x07)];
 
 	/* Check that the heartbeat value is within it's range ;
-	 * if not reset to the default */
+	 * if yest reset to the default */
 	if (pcipcwd_set_heartbeat(heartbeat)) {
 		pcipcwd_set_heartbeat(WATCHDOG_HEARTBEAT);
 		pr_info("heartbeat value must be 0<heartbeat<65536, using %d\n",
 			WATCHDOG_HEARTBEAT);
 	}
 
-	ret = register_reboot_notifier(&pcipcwd_notifier);
+	ret = register_reboot_yestifier(&pcipcwd_yestifier);
 	if (ret != 0) {
-		pr_err("cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("canyest register reboot yestifier (err=%d)\n", ret);
 		goto err_out_release_region;
 	}
 
 	if (pcipcwd_private.supports_temp) {
 		ret = misc_register(&pcipcwd_temp_miscdev);
 		if (ret != 0) {
-			pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+			pr_err("canyest register miscdev on miyesr=%d (err=%d)\n",
 			       TEMP_MINOR, ret);
 			goto err_out_unregister_reboot;
 		}
@@ -760,13 +760,13 @@ static int pcipcwd_card_init(struct pci_dev *pdev,
 
 	ret = misc_register(&pcipcwd_miscdev);
 	if (ret != 0) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		pr_err("canyest register miscdev on miyesr=%d (err=%d)\n",
 		       WATCHDOG_MINOR, ret);
 		goto err_out_misc_deregister;
 	}
 
-	pr_info("initialized. heartbeat=%d sec (nowayout=%d)\n",
-		heartbeat, nowayout);
+	pr_info("initialized. heartbeat=%d sec (yeswayout=%d)\n",
+		heartbeat, yeswayout);
 
 	return 0;
 
@@ -774,7 +774,7 @@ err_out_misc_deregister:
 	if (pcipcwd_private.supports_temp)
 		misc_deregister(&pcipcwd_temp_miscdev);
 err_out_unregister_reboot:
-	unregister_reboot_notifier(&pcipcwd_notifier);
+	unregister_reboot_yestifier(&pcipcwd_yestifier);
 err_out_release_region:
 	pci_release_regions(pdev);
 err_out_disable_device:
@@ -785,14 +785,14 @@ err_out_disable_device:
 static void pcipcwd_card_exit(struct pci_dev *pdev)
 {
 	/* Stop the timer before we leave */
-	if (!nowayout)
+	if (!yeswayout)
 		pcipcwd_stop();
 
 	/* Deregister */
 	misc_deregister(&pcipcwd_miscdev);
 	if (pcipcwd_private.supports_temp)
 		misc_deregister(&pcipcwd_temp_miscdev);
-	unregister_reboot_notifier(&pcipcwd_notifier);
+	unregister_reboot_yestifier(&pcipcwd_yestifier);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	cards_found--;

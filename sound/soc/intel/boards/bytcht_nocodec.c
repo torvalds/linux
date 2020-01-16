@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  bytcht_nocodec.c - ASoc Machine driver for MinnowBoard Max and Up
+ *  bytcht_yescodec.c - ASoc Machine driver for MinyeswBoard Max and Up
  *  to make I2S signals observable on the Low-Speed connector. Audio codec
- *  is not managed by ASoC/DAPM
+ *  is yest managed by ASoC/DAPM
  *
  *  Copyright (C) 2015-2017 Intel Corp
  *
@@ -56,7 +56,7 @@ static int codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	/*
 	 * Default mode for SSP configuration is TDM 4 slot, override config
 	 * with explicit setting to I2S 2ch 24-bit. The word length is set with
-	 * dai_set_tdm_slot() since there is no other API exposed
+	 * dai_set_tdm_slot() since there is yes other API exposed
 	 */
 	ret = snd_soc_dai_set_fmt(rtd->cpu_dai,
 				  SND_SOC_DAIFMT_I2S     |
@@ -116,8 +116,8 @@ static struct snd_soc_dai_link dais[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.ignore_suspend = 1,
-		.nonatomic = true,
+		.igyesre_suspend = 1,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -127,8 +127,8 @@ static struct snd_soc_dai_link dais[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.ignore_suspend = 1,
-		.nonatomic = true,
+		.igyesre_suspend = 1,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &aif1_ops,
@@ -139,12 +139,12 @@ static struct snd_soc_dai_link dais[] = {
 	{
 		.name = "SSP2-LowSpeed Connector",
 		.id = 0,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 						| SND_SOC_DAIFMT_CBS_CFS,
 		.be_hw_params_fixup = codec_fixup,
-		.ignore_suspend = 1,
-		.nonatomic = true,
+		.igyesre_suspend = 1,
+		.yesnatomic = true,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(ssp2_port, dummy, platform),
@@ -152,8 +152,8 @@ static struct snd_soc_dai_link dais[] = {
 };
 
 /* SoC card */
-static struct snd_soc_card bytcht_nocodec_card = {
-	.name = "bytcht-nocodec",
+static struct snd_soc_card bytcht_yescodec_card = {
+	.name = "bytcht-yescodec",
 	.owner = THIS_MODULE,
 	.dai_link = dais,
 	.num_links = ARRAY_SIZE(dais),
@@ -166,33 +166,33 @@ static struct snd_soc_card bytcht_nocodec_card = {
 	.fully_routed = true,
 };
 
-static int snd_bytcht_nocodec_mc_probe(struct platform_device *pdev)
+static int snd_bytcht_yescodec_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
 
 	/* register the soc card */
-	bytcht_nocodec_card.dev = &pdev->dev;
+	bytcht_yescodec_card.dev = &pdev->dev;
 
-	ret_val = devm_snd_soc_register_card(&pdev->dev, &bytcht_nocodec_card);
+	ret_val = devm_snd_soc_register_card(&pdev->dev, &bytcht_yescodec_card);
 
 	if (ret_val) {
 		dev_err(&pdev->dev, "devm_snd_soc_register_card failed %d\n",
 			ret_val);
 		return ret_val;
 	}
-	platform_set_drvdata(pdev, &bytcht_nocodec_card);
+	platform_set_drvdata(pdev, &bytcht_yescodec_card);
 	return ret_val;
 }
 
-static struct platform_driver snd_bytcht_nocodec_mc_driver = {
+static struct platform_driver snd_bytcht_yescodec_mc_driver = {
 	.driver = {
-		.name = "bytcht_nocodec",
+		.name = "bytcht_yescodec",
 	},
-	.probe = snd_bytcht_nocodec_mc_probe,
+	.probe = snd_bytcht_yescodec_mc_probe,
 };
-module_platform_driver(snd_bytcht_nocodec_mc_driver);
+module_platform_driver(snd_bytcht_yescodec_mc_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) Baytrail/Cherrytrail Nocodec Machine driver");
 MODULE_AUTHOR("Pierre-Louis Bossart <pierre-louis.bossart at linux.intel.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:bytcht_nocodec");
+MODULE_ALIAS("platform:bytcht_yescodec");

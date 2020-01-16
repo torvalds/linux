@@ -16,7 +16,7 @@ struct msi_desc;
  * @hwirq:	Associated hw interrupt number in the domain
  * @scratchpad:	Storage for implementation specific scratch data
  *
- * Architectures can provide their own implementation by not including
+ * Architectures can provide their own implementation by yest including
  * asm-generic/msi.h into their arch specific header file.
  */
 typedef struct msi_alloc_info {

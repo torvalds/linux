@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Qualcomm Technologies HIDMA DMA engine Management interface
+ * Qualcomm Techyeslogies HIDMA DMA engine Management interface
  *
  * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  */
@@ -85,14 +85,14 @@ int hidma_mgmt_setup(struct hidma_mgmt_dev *mgmtdev)
 
 	if (mgmtdev->max_wr_xactions > HIDMA_MAX_WR_XACTIONS_MASK) {
 		dev_err(&mgmtdev->pdev->dev,
-			"max_wr_xactions cannot be bigger than %ld\n",
+			"max_wr_xactions canyest be bigger than %ld\n",
 			HIDMA_MAX_WR_XACTIONS_MASK);
 		return -EINVAL;
 	}
 
 	if (mgmtdev->max_rd_xactions > HIDMA_MAX_RD_XACTIONS_MASK) {
 		dev_err(&mgmtdev->pdev->dev,
-			"max_rd_xactions cannot be bigger than %ld\n",
+			"max_rd_xactions canyest be bigger than %ld\n",
 			HIDMA_MAX_RD_XACTIONS_MASK);
 		return -EINVAL;
 	}
@@ -134,7 +134,7 @@ int hidma_mgmt_setup(struct hidma_mgmt_dev *mgmtdev)
 	mgmtdev->hw_version =
 	    readl(mgmtdev->virtaddr + HIDMA_HW_VERSION_OFFSET);
 	mgmtdev->hw_version_major = (mgmtdev->hw_version >> 28) & 0xF;
-	mgmtdev->hw_version_minor = (mgmtdev->hw_version >> 16) & 0xF;
+	mgmtdev->hw_version_miyesr = (mgmtdev->hw_version >> 16) & 0xF;
 
 	for (i = 0; i < mgmtdev->dma_channels; i++) {
 		u32 weight = mgmtdev->weight[i];
@@ -305,7 +305,7 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev,
 		 "HW rev: %d.%d @ %pa with %d physical channels\n",
-		 mgmtdev->hw_version_major, mgmtdev->hw_version_minor,
+		 mgmtdev->hw_version_major, mgmtdev->hw_version_miyesr,
 		 &res->start, mgmtdev->dma_channels);
 
 	platform_set_drvdata(pdev, mgmtdev);
@@ -344,11 +344,11 @@ static struct platform_driver hidma_mgmt_driver = {
 #if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
 static int object_counter;
 
-static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
+static int __init hidma_mgmt_of_populate_channels(struct device_yesde *np)
 {
-	struct platform_device *pdev_parent = of_find_device_by_node(np);
+	struct platform_device *pdev_parent = of_find_device_by_yesde(np);
 	struct platform_device_info pdevinfo;
-	struct device_node *child;
+	struct device_yesde *child;
 	struct resource *res;
 	int ret = 0;
 
@@ -357,7 +357,7 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 	if (!res)
 		return -ENOMEM;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		struct platform_device *new_pdev;
 
 		ret = of_address_to_resource(child, 0, &res[0]);
@@ -373,7 +373,7 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 			goto out;
 
 		memset(&pdevinfo, 0, sizeof(pdevinfo));
-		pdevinfo.fwnode = &child->fwnode;
+		pdevinfo.fwyesde = &child->fwyesde;
 		pdevinfo.parent = pdev_parent ? &pdev_parent->dev : NULL;
 		pdevinfo.name = child->name;
 		pdevinfo.id = object_counter++;
@@ -387,7 +387,7 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 			ret = PTR_ERR(new_pdev);
 			goto out;
 		}
-		new_pdev->dev.of_node = child;
+		new_pdev->dev.of_yesde = child;
 		of_dma_configure(&new_pdev->dev, child, true);
 		/*
 		 * It is assumed that calling of_msi_configure is safe on
@@ -401,7 +401,7 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 	return ret;
 
 out:
-	of_node_put(child);
+	of_yesde_put(child);
 	kfree(res);
 
 	return ret;
@@ -411,9 +411,9 @@ out:
 static int __init hidma_mgmt_init(void)
 {
 #if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
-	struct device_node *child;
+	struct device_yesde *child;
 
-	for_each_matching_node(child, hidma_mgmt_match) {
+	for_each_matching_yesde(child, hidma_mgmt_match) {
 		/* device tree based firmware here */
 		hidma_mgmt_of_populate_channels(child);
 	}

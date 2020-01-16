@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -231,7 +231,7 @@ static enum i40iw_status_code i40iw_puda_poll_info(struct i40iw_sc_cq *cq,
 	u64 *cqe;
 	u64 comp_ctx;
 	bool valid_bit;
-	u32 major_err, minor_err;
+	u32 major_err, miyesr_err;
 	bool error;
 
 	cqe = (u64 *)I40IW_GET_CURRENT_CQ_ELEMENT(&cq->cq_uk);
@@ -246,8 +246,8 @@ static enum i40iw_status_code i40iw_puda_poll_info(struct i40iw_sc_cq *cq,
 	if (error) {
 		i40iw_debug(cq->dev, I40IW_DEBUG_PUDA, "%s receive error\n", __func__);
 		major_err = (u32)(RS_64(qword3, I40IW_CQ_MAJERR));
-		minor_err = (u32)(RS_64(qword3, I40IW_CQ_MINERR));
-		info->compl_error = major_err << 16 | minor_err;
+		miyesr_err = (u32)(RS_64(qword3, I40IW_CQ_MINERR));
+		info->compl_error = major_err << 16 | miyesr_err;
 		return I40IW_ERR_CQ_COMPL_ERROR;
 	}
 
@@ -426,7 +426,7 @@ void i40iw_puda_send_buf(struct i40iw_puda_rsrc *rsrc, struct i40iw_puda_buf *bu
 	unsigned long	flags;
 
 	spin_lock_irqsave(&rsrc->bufpool_lock, flags);
-	/* if no wqe available or not from a completion and we have
+	/* if yes wqe available or yest from a completion and we have
 	 * pending buffers, we must queue new buffer
 	 */
 	if (!rsrc->tx_wqe_avail_cnt || (buf && !list_empty(&rsrc->txpend))) {
@@ -828,7 +828,7 @@ void i40iw_puda_dele_resources(struct i40iw_sc_vsi *vsi,
 		i40iw_free_dma_mem(dev->hw, &rsrc->cqmem);
 		break;
 	default:
-		i40iw_debug(rsrc->dev, I40IW_DEBUG_PUDA, "%s error no resources\n", __func__);
+		i40iw_debug(rsrc->dev, I40IW_DEBUG_PUDA, "%s error yes resources\n", __func__);
 		break;
 	}
 	/* Free all allocated puda buffers for both tx and rx */
@@ -1193,7 +1193,7 @@ static enum i40iw_status_code i40iw_ieq_handle_partial(struct i40iw_puda_rsrc *i
 
 	txbuf = i40iw_puda_get_bufpool(ieq);
 	if (!txbuf) {
-		pfpdu->no_tx_bufs++;
+		pfpdu->yes_tx_bufs++;
 		status = I40IW_ERR_NO_TXBUFS;
 		goto error;
 	}
@@ -1288,7 +1288,7 @@ static enum i40iw_status_code i40iw_ieq_process_buf(struct i40iw_puda_rsrc *ieq,
 		/* copy full pdu's in the txbuf and send them out */
 		txbuf = i40iw_puda_get_bufpool(ieq);
 		if (!txbuf) {
-			pfpdu->no_tx_bufs++;
+			pfpdu->yes_tx_bufs++;
 			status = I40IW_ERR_NO_TXBUFS;
 			list_add(&buf->list, rxlist);
 			return status;
@@ -1338,7 +1338,7 @@ static void i40iw_ieq_process_fpdus(struct i40iw_sc_qp *qp,
 		buf = i40iw_puda_get_listbuf(rxlist);
 		if (!buf) {
 			i40iw_debug(ieq->dev, I40IW_DEBUG_IEQ,
-				    "%s: error no buf\n", __func__);
+				    "%s: error yes buf\n", __func__);
 			break;
 		}
 		if (buf->seqnum != pfpdu->rcv_nxt) {

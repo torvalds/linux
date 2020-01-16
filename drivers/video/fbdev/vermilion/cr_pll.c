@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include "vermilion.h"
 
@@ -144,14 +144,14 @@ static int __init cr_pll_init(void)
 					CRVML_DEVICE_MCH, NULL);
 	if (!mch_dev) {
 		printk(KERN_ERR
-		       "Could not find Carillo Ranch MCH device.\n");
+		       "Could yest find Carillo Ranch MCH device.\n");
 		return -ENODEV;
 	}
 
 	pci_read_config_dword(mch_dev, CRVML_REG_MCHEN, &dev_en);
 	if (!(dev_en & CRVML_MCHEN_BIT)) {
 		printk(KERN_ERR
-		       "Carillo Ranch MCH device was not enabled.\n");
+		       "Carillo Ranch MCH device was yest enabled.\n");
 		pci_dev_put(mch_dev);
 		return -ENODEV;
 	}
@@ -159,10 +159,10 @@ static int __init cr_pll_init(void)
 	pci_read_config_dword(mch_dev, CRVML_REG_MCHBAR,
 			      &mch_bar);
 	mch_regs_base =
-	    ioremap_nocache(mch_bar, CRVML_MCHMAP_SIZE);
+	    ioremap_yescache(mch_bar, CRVML_MCHMAP_SIZE);
 	if (!mch_regs_base) {
 		printk(KERN_ERR
-		       "Carillo Ranch MCH device was not enabled.\n");
+		       "Carillo Ranch MCH device was yest enabled.\n");
 		pci_dev_put(mch_dev);
 		return -ENODEV;
 	}

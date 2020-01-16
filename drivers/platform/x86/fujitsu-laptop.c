@@ -3,7 +3,7 @@
 
 /*
   Copyright (C) 2007,2008 Jonathan Woithe <jwoithe@just42.net>
-  Copyright (C) 2008 Peter Gruber <nokos@gmx.net>
+  Copyright (C) 2008 Peter Gruber <yeskos@gmx.net>
   Copyright (C) 2008 Tony Vroon <tony@linx.net>
   Based on earlier work:
     Copyright (C) 2003 Shane Spencer <shane@bogomip.com>
@@ -275,7 +275,7 @@ static ssize_t lid_show(struct device *dev, struct device_attribute *attr,
 	struct fujitsu_laptop *priv = dev_get_drvdata(dev);
 
 	if (!(priv->flags_supported & FLAG_LID))
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkyeswn\n");
 	if (priv->flags_state & FLAG_LID)
 		return sprintf(buf, "open\n");
 	else
@@ -288,7 +288,7 @@ static ssize_t dock_show(struct device *dev, struct device_attribute *attr,
 	struct fujitsu_laptop *priv = dev_get_drvdata(dev);
 
 	if (!(priv->flags_supported & FLAG_DOCK))
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkyeswn\n");
 	if (priv->flags_state & FLAG_DOCK)
 		return sprintf(buf, "docked\n");
 	else
@@ -301,7 +301,7 @@ static ssize_t radios_show(struct device *dev, struct device_attribute *attr,
 	struct fujitsu_laptop *priv = dev_get_drvdata(dev);
 
 	if (!(priv->flags_supported & FLAG_RFKILL))
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkyeswn\n");
 	if (priv->flags_state & FLAG_RFKILL)
 		return sprintf(buf, "on\n");
 	else
@@ -413,9 +413,9 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	return fujitsu_backlight_register(device);
 }
 
-/* Brightness notify */
+/* Brightness yestify */
 
-static void acpi_fujitsu_bl_notify(struct acpi_device *device, u32 event)
+static void acpi_fujitsu_bl_yestify(struct acpi_device *device, u32 event)
 {
 	struct fujitsu_bl *priv = acpi_driver_data(device);
 	int oldb, newb;
@@ -746,7 +746,7 @@ static int acpi_fujitsu_laptop_leds_register(struct acpi_device *device)
 			return ret;
 	}
 
-	/* Support for eco led is not always signaled in bit corresponding
+	/* Support for eco led is yest always signaled in bit corresponding
 	 * to the bit used to control the led. According to the DSDT table,
 	 * bit 14 seems to indicate presence of said led as well.
 	 * Confirm by testing the status.
@@ -778,7 +778,7 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	if (!priv)
 		return -ENOMEM;
 
-	WARN_ONCE(fext, "More than one FUJ02E3 ACPI device was found.  Driver may not work as intended.");
+	WARN_ONCE(fext, "More than one FUJ02E3 ACPI device was found.  Driver may yest work as intended.");
 	fext = device;
 
 	strcpy(acpi_device_name(device), ACPI_FUJITSU_LAPTOP_DEVICE_NAME);
@@ -805,7 +805,7 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 					       0x0);
 
 	/* Make sure our bitmask of supported functions is cleared if the
-	   RFKILL function block is not implemented, like on the S7020. */
+	   RFKILL function block is yest implemented, like on the S7020. */
 	if (priv->flags_supported == UNSUPPORTED_CMD)
 		priv->flags_supported = 0;
 
@@ -866,7 +866,7 @@ static void acpi_fujitsu_laptop_press(struct acpi_device *device, int scancode)
 	ret = kfifo_in_locked(&priv->fifo, (unsigned char *)&scancode,
 			      sizeof(scancode), &priv->fifo_lock);
 	if (ret != sizeof(scancode)) {
-		dev_info(&priv->input->dev, "Could not push scancode [0x%x]\n",
+		dev_info(&priv->input->dev, "Could yest push scancode [0x%x]\n",
 			 scancode);
 		return;
 	}
@@ -891,7 +891,7 @@ static void acpi_fujitsu_laptop_release(struct acpi_device *device)
 	}
 }
 
-static void acpi_fujitsu_laptop_notify(struct acpi_device *device, u32 event)
+static void acpi_fujitsu_laptop_yestify(struct acpi_device *device, u32 event)
 {
 	struct fujitsu_laptop *priv = acpi_driver_data(device);
 	unsigned long flags;
@@ -919,7 +919,7 @@ static void acpi_fujitsu_laptop_notify(struct acpi_device *device, u32 event)
 			acpi_fujitsu_laptop_release(device);
 		else
 			acpi_handle_info(device->handle,
-					 "Unknown GIRB result [%x]\n", irb);
+					 "Unkyeswn GIRB result [%x]\n", irb);
 	}
 
 	/*
@@ -949,7 +949,7 @@ static struct acpi_driver acpi_fujitsu_bl_driver = {
 	.ids = fujitsu_bl_device_ids,
 	.ops = {
 		.add = acpi_fujitsu_bl_add,
-		.notify = acpi_fujitsu_bl_notify,
+		.yestify = acpi_fujitsu_bl_yestify,
 		},
 };
 
@@ -965,7 +965,7 @@ static struct acpi_driver acpi_fujitsu_laptop_driver = {
 	.ops = {
 		.add = acpi_fujitsu_laptop_add,
 		.remove = acpi_fujitsu_laptop_remove,
-		.notify = acpi_fujitsu_laptop_notify,
+		.yestify = acpi_fujitsu_laptop_yestify,
 		},
 };
 

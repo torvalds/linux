@@ -5,7 +5,7 @@ Copyright (C) 2009 Freescale Semiconductor Inc.
 
 Local Access Window (LAW) Node
 
-The LAW node represents the region of CCSR space where local access
+The LAW yesde represents the region of CCSR space where local access
 windows are configured.  For ECM based devices this is the first 4k
 of CCSR space that includes CCSRBAR, ALTCBAR, ALTCAR, BPTR, and some
 number of local access windows as specified by fsl,num-laws.
@@ -34,7 +34,7 @@ PROPERTIES
 
 E500 Coherency Module Node
 
-The E500 LAW node represents the region of CCSR space where ECM config
+The E500 LAW yesde represents the region of CCSR space where ECM config
 and error reporting registers exist, this is the second 4k (0x1000)
 of CCSR space.
 

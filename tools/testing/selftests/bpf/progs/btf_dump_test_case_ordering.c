@@ -33,13 +33,13 @@ struct list_head {
 	struct list_head *prev;
 };
 
-struct hlist_node {
-	struct hlist_node *next;
-	struct hlist_node **pprev;
+struct hlist_yesde {
+	struct hlist_yesde *next;
+	struct hlist_yesde **pprev;
 };
 
 struct hlist_head {
-	struct hlist_node *first;
+	struct hlist_yesde *first;
 };
 
 struct callback_head {
@@ -50,7 +50,7 @@ struct callback_head {
 struct root_struct {
 	struct s4 s4;
 	struct list_head l;
-	struct hlist_node n;
+	struct hlist_yesde n;
 	struct hlist_head h;
 	struct callback_head cb;
 };

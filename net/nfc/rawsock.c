@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Nokia de Tecyeslogia
  *
  * Authors:
  *    Aloisio Almeida Jr <aloisio.almeida@openbossa.org>
@@ -22,14 +22,14 @@ static struct nfc_sock_list raw_sk_list = {
 static void nfc_sock_link(struct nfc_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
-	sk_add_node(sk, &l->head);
+	sk_add_yesde(sk, &l->head);
 	write_unlock(&l->lock);
 }
 
 static void nfc_sock_unlink(struct nfc_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	write_unlock(&l->lock);
 }
 
@@ -238,7 +238,7 @@ static int rawsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 static int rawsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			   int flags)
 {
-	int noblock = flags & MSG_DONTWAIT;
+	int yesblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	int copied;
@@ -246,7 +246,7 @@ static int rawsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 	pr_debug("sock=%p sk=%p len=%zu flags=%d\n", sock, sk, len, flags);
 
-	skb = skb_recv_datagram(sk, flags, noblock, &rc);
+	skb = skb_recv_datagram(sk, flags, yesblock, &rc);
 	if (!skb)
 		return rc;
 
@@ -267,40 +267,40 @@ static const struct proto_ops rawsock_ops = {
 	.family         = PF_NFC,
 	.owner          = THIS_MODULE,
 	.release        = rawsock_release,
-	.bind           = sock_no_bind,
+	.bind           = sock_yes_bind,
 	.connect        = rawsock_connect,
-	.socketpair     = sock_no_socketpair,
-	.accept         = sock_no_accept,
-	.getname        = sock_no_getname,
+	.socketpair     = sock_yes_socketpair,
+	.accept         = sock_yes_accept,
+	.getname        = sock_yes_getname,
 	.poll           = datagram_poll,
-	.ioctl          = sock_no_ioctl,
-	.listen         = sock_no_listen,
-	.shutdown       = sock_no_shutdown,
-	.setsockopt     = sock_no_setsockopt,
-	.getsockopt     = sock_no_getsockopt,
+	.ioctl          = sock_yes_ioctl,
+	.listen         = sock_yes_listen,
+	.shutdown       = sock_yes_shutdown,
+	.setsockopt     = sock_yes_setsockopt,
+	.getsockopt     = sock_yes_getsockopt,
 	.sendmsg        = rawsock_sendmsg,
 	.recvmsg        = rawsock_recvmsg,
-	.mmap           = sock_no_mmap,
+	.mmap           = sock_yes_mmap,
 };
 
 static const struct proto_ops rawsock_raw_ops = {
 	.family         = PF_NFC,
 	.owner          = THIS_MODULE,
 	.release        = rawsock_release,
-	.bind           = sock_no_bind,
-	.connect        = sock_no_connect,
-	.socketpair     = sock_no_socketpair,
-	.accept         = sock_no_accept,
-	.getname        = sock_no_getname,
+	.bind           = sock_yes_bind,
+	.connect        = sock_yes_connect,
+	.socketpair     = sock_yes_socketpair,
+	.accept         = sock_yes_accept,
+	.getname        = sock_yes_getname,
 	.poll           = datagram_poll,
-	.ioctl          = sock_no_ioctl,
-	.listen         = sock_no_listen,
-	.shutdown       = sock_no_shutdown,
-	.setsockopt     = sock_no_setsockopt,
-	.getsockopt     = sock_no_getsockopt,
-	.sendmsg        = sock_no_sendmsg,
+	.ioctl          = sock_yes_ioctl,
+	.listen         = sock_yes_listen,
+	.shutdown       = sock_yes_shutdown,
+	.setsockopt     = sock_yes_setsockopt,
+	.getsockopt     = sock_yes_getsockopt,
+	.sendmsg        = sock_yes_sendmsg,
 	.recvmsg        = rawsock_recvmsg,
-	.mmap           = sock_no_mmap,
+	.mmap           = sock_yes_mmap,
 };
 
 static void rawsock_destruct(struct sock *sk)

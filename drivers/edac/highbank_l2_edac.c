@@ -87,7 +87,7 @@ static int highbank_l2_err_probe(struct platform_device *pdev)
 
 	id = of_match_device(hb_l2_err_of_match, &pdev->dev);
 	dci->mod_name = pdev->dev.driver->name;
-	dci->ctl_name = id ? id->compatible : "unknown";
+	dci->ctl_name = id ? id->compatible : "unkyeswn";
 	dci->dev_name = dev_name(&pdev->dev);
 
 	if (edac_device_add_device(dci))

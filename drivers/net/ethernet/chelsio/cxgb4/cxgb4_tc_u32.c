@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -52,18 +52,18 @@ static int fill_match_fields(struct adapter *adap,
 	int off, err;
 	bool found;
 
-	for (i = 0; i < cls->knode.sel->nkeys; i++) {
-		off = cls->knode.sel->keys[i].off;
-		val = cls->knode.sel->keys[i].val;
-		mask = cls->knode.sel->keys[i].mask;
+	for (i = 0; i < cls->kyesde.sel->nkeys; i++) {
+		off = cls->kyesde.sel->keys[i].off;
+		val = cls->kyesde.sel->keys[i].val;
+		mask = cls->kyesde.sel->keys[i].mask;
 
 		if (next_header) {
 			/* For next headers, parse only keys with offmask */
-			if (!cls->knode.sel->keys[i].offmask)
+			if (!cls->kyesde.sel->keys[i].offmask)
 				continue;
 		} else {
 			/* For the remaining, parse only keys without offmask */
-			if (cls->knode.sel->keys[i].offmask)
+			if (cls->kyesde.sel->keys[i].offmask)
 				continue;
 		}
 
@@ -96,7 +96,7 @@ static int fill_action_fields(struct adapter *adap,
 	struct tcf_exts *exts;
 	int i;
 
-	exts = cls->knode.exts;
+	exts = cls->kyesde.exts;
 	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
 
@@ -146,7 +146,7 @@ static int fill_action_fields(struct adapter *adap,
 	return 0;
 }
 
-int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
+int cxgb4_config_kyesde(struct net_device *dev, struct tc_cls_u32_offload *cls)
 {
 	const struct cxgb4_match_field *start, *link_start = NULL;
 	struct netlink_ext_ack *extack = cls->common.extack;
@@ -171,7 +171,7 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	 * However, the hardware TCAM index starts from 0. Hence, the
 	 * -1 here.
 	 */
-	filter_id = TC_U32_NODE(cls->knode.handle) - 1;
+	filter_id = TC_U32_NODE(cls->kyesde.handle) - 1;
 
 	/* Only insert U32 rule if its priority doesn't conflict with
 	 * existing rules in the LETCAM.
@@ -184,8 +184,8 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	}
 
 	t = adapter->tc_u32;
-	uhtid = TC_U32_USERHTID(cls->knode.handle);
-	link_uhtid = TC_U32_USERHTID(cls->knode.link_handle);
+	uhtid = TC_U32_USERHTID(cls->kyesde.handle);
+	link_uhtid = TC_U32_USERHTID(cls->kyesde.link_handle);
 
 	/* Ensure that uhtid is either root u32 (i.e. 0x800)
 	 * or a a valid linked bucket.
@@ -200,7 +200,7 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	memset(&fs, 0, sizeof(fs));
 
 	fs.tc_prio = cls->common.prio;
-	fs.tc_cookie = cls->knode.handle;
+	fs.tc_cookie = cls->kyesde.handle;
 
 	if (protocol == htons(ETH_P_IPV6)) {
 		start = cxgb4_ipv6_fields;
@@ -211,7 +211,7 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	}
 
 	if (uhtid != 0x800) {
-		/* Link must exist from root node before insertion. */
+		/* Link must exist from root yesde before insertion. */
 		if (!t->table[uhtid - 1].link_handle)
 			return -EINVAL;
 
@@ -242,20 +242,20 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 
 		/* Try to find matches that allow jumps to next header. */
 		for (i = 0; next[i].jump; i++) {
-			if (next[i].offoff != cls->knode.sel->offoff ||
-			    next[i].shift != cls->knode.sel->offshift ||
-			    next[i].mask != cls->knode.sel->offmask ||
-			    next[i].offset != cls->knode.sel->off)
+			if (next[i].offoff != cls->kyesde.sel->offoff ||
+			    next[i].shift != cls->kyesde.sel->offshift ||
+			    next[i].mask != cls->kyesde.sel->offmask ||
+			    next[i].offset != cls->kyesde.sel->off)
 				continue;
 
 			/* Found a possible candidate.  Find a key that
 			 * matches the corresponding offset, value, and
 			 * mask to jump to next header.
 			 */
-			for (j = 0; j < cls->knode.sel->nkeys; j++) {
-				off = cls->knode.sel->keys[j].off;
-				val = cls->knode.sel->keys[j].val;
-				mask = cls->knode.sel->keys[j].mask;
+			for (j = 0; j < cls->kyesde.sel->nkeys; j++) {
+				off = cls->kyesde.sel->keys[j].off;
+				val = cls->kyesde.sel->keys[j].val;
+				mask = cls->kyesde.sel->keys[j].mask;
 
 				if (next[i].match_off == off &&
 				    next[i].match_val == val &&
@@ -280,7 +280,7 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 
 			link = &t->table[link_uhtid - 1];
 			link->match_field = next[i].jump;
-			link->link_handle = cls->knode.handle;
+			link->link_handle = cls->kyesde.handle;
 			memcpy(&link->fs, &fs, sizeof(fs));
 			break;
 		}
@@ -317,7 +317,7 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 		goto out;
 
 	/* The filter spec has been completely built from the info
-	 * provided from u32.  We now set some default fields in the
+	 * provided from u32.  We yesw set some default fields in the
 	 * spec for sanity.
 	 */
 
@@ -349,7 +349,7 @@ out:
 	return ret;
 }
 
-int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
+int cxgb4_delete_kyesde(struct net_device *dev, struct tc_cls_u32_offload *cls)
 {
 	struct adapter *adapter = netdev2adap(dev);
 	unsigned int filter_id, max_tids, i, j;
@@ -362,14 +362,14 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 		return -EOPNOTSUPP;
 
 	/* Fetch the location to delete the filter. */
-	filter_id = TC_U32_NODE(cls->knode.handle) - 1;
+	filter_id = TC_U32_NODE(cls->kyesde.handle) - 1;
 	if (filter_id >= adapter->tids.nftids ||
-	    cls->knode.handle != adapter->tids.ftid_tab[filter_id].fs.tc_cookie)
+	    cls->kyesde.handle != adapter->tids.ftid_tab[filter_id].fs.tc_cookie)
 		return -ERANGE;
 
 	t = adapter->tc_u32;
-	handle = cls->knode.handle;
-	uhtid = TC_U32_USERHTID(cls->knode.handle);
+	handle = cls->kyesde.handle;
+	uhtid = TC_U32_USERHTID(cls->kyesde.handle);
 
 	/* Ensure that uhtid is either root u32 (i.e. 0x800)
 	 * or a a valid linked bucket.
@@ -466,13 +466,13 @@ struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap)
 		link->tid_map = kvcalloc(bmap_size, sizeof(unsigned long),
 					 GFP_KERNEL);
 		if (!link->tid_map)
-			goto out_no_mem;
+			goto out_yes_mem;
 		bitmap_zero(link->tid_map, max_tids);
 	}
 
 	return t;
 
-out_no_mem:
+out_yes_mem:
 	for (i = 0; i < t->size; i++) {
 		struct cxgb4_link *link = &t->table[i];
 

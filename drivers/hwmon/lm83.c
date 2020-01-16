@@ -35,7 +35,7 @@
  * addresses.
  */
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
 enum chips { lm83, lm82 };
@@ -366,7 +366,7 @@ static struct i2c_driver lm83_driver = {
 	.probe		= lm83_probe,
 	.id_table	= lm83_id,
 	.detect		= lm83_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm83_driver);

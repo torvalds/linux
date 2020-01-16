@@ -122,7 +122,7 @@ static void __hyp_text __debug_restore_spe_nvhe(u64 pmscr_el1)
 	if (!pmscr_el1)
 		return;
 
-	/* The host page table is installed, but not yet synchronised */
+	/* The host page table is installed, but yest yet synchronised */
 	isb();
 
 	/* Re-enable data generation */

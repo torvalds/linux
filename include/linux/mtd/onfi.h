@@ -27,7 +27,7 @@
 #define ONFI_FEATURE_16_BIT_BUS		(1 << 0)
 #define ONFI_FEATURE_EXT_PARAM_PAGE	(1 << 7)
 
-/* ONFI timing mode, used in both asynchronous and synchronous mode */
+/* ONFI timing mode, used in both asynchroyesus and synchroyesus mode */
 #define ONFI_TIMING_MODE_0		(1 << 0)
 #define ONFI_TIMING_MODE_1		(1 << 1)
 #define ONFI_TIMING_MODE_2		(1 << 2)
@@ -149,18 +149,18 @@ struct onfi_ext_param_page {
 	 * The actual size of the Extended Parameter Page is in
 	 * @ext_param_page_length of nand_onfi_params{}.
 	 * The following are the variable length sections.
-	 * So we do not add any fields below. Please see the ONFI spec.
+	 * So we do yest add any fields below. Please see the ONFI spec.
 	 */
 } __packed;
 
 /**
  * struct onfi_params - ONFI specific parameters that will be reused
- * @version: ONFI version (BCD encoded), 0 if ONFI is not supported
+ * @version: ONFI version (BCD encoded), 0 if ONFI is yest supported
  * @tPROG: Page program time
  * @tBERS: Block erase time
  * @tR: Page read time
  * @tCCS: Change column setup time
- * @async_timing_mode: Supported asynchronous timing mode
+ * @async_timing_mode: Supported asynchroyesus timing mode
  * @vendor_revision: Vendor specific revision number
  * @vendor: Vendor specific data
  */

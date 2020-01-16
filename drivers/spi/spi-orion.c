@@ -152,7 +152,7 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 		 *
 		 * 	core_clk / (SPR * 2 ** SPPR)
 		 *
-		 * is as big as possible but not bigger than speed.
+		 * is as big as possible but yest bigger than speed.
 		 */
 
 		/* best integer divider: */
@@ -183,9 +183,9 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 
 			/*
 			 * recalculate sppr as rounding up divider might have
-			 * increased it enough to change the position of the
-			 * highest set bit. In this case the bit that now
-			 * doesn't make it into SPR is 0, so there is no need to
+			 * increased it eyesugh to change the position of the
+			 * highest set bit. In this case the bit that yesw
+			 * doesn't make it into SPR is 0, so there is yes need to
 			 * round again.
 			 */
 			sppr = fls(divider) - 4;
@@ -285,7 +285,7 @@ orion_spi_50mhz_ac_timing_erratum(struct spi_device *spi, unsigned int speed)
 }
 
 /*
- * called only when no transfer is active on the bus
+ * called only when yes transfer is active on the bus
  */
 static int
 orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
@@ -596,7 +596,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	struct resource *r;
 	unsigned long tclk_hz;
 	int status = 0;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*spi));
 	if (master == NULL) {
@@ -606,10 +606,10 @@ static int orion_spi_probe(struct platform_device *pdev)
 
 	if (pdev->id != -1)
 		master->bus_num = pdev->id;
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		u32 cell_index;
 
-		if (!of_property_read_u32(pdev->dev.of_node, "cell-index",
+		if (!of_property_read_u32(pdev->dev.of_yesde, "cell-index",
 					  &cell_index))
 			master->bus_num = cell_index;
 	}
@@ -659,11 +659,11 @@ static int orion_spi_probe(struct platform_device *pdev)
 	/*
 	 * With old device tree, armada-370-spi could be used with
 	 * Armada XP, however for this SoC the maximum frequency is
-	 * 50MHz instead of tclk/4. On Armada 370, tclk cannot be
+	 * 50MHz instead of tclk/4. On Armada 370, tclk canyest be
 	 * higher than 200MHz. So, in order to be able to handle both
 	 * SoCs, we can take the minimum of 50MHz and tclk/4.
 	 */
-	if (of_device_is_compatible(pdev->dev.of_node,
+	if (of_device_is_compatible(pdev->dev.of_yesde,
 					"marvell,armada-370-spi"))
 		master->max_speed_hz = min(devdata->max_hz,
 				DIV_ROUND_UP(tclk_hz, devdata->min_divisor));
@@ -681,7 +681,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 		goto out_rel_axi_clk;
 	}
 
-	for_each_available_child_of_node(pdev->dev.of_node, np) {
+	for_each_available_child_of_yesde(pdev->dev.of_yesde, np) {
 		struct orion_direct_acc *dir_acc;
 		u32 cs;
 		int cs_gpio;
@@ -690,7 +690,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 		status = of_property_read_u32(np, "reg", &cs);
 		if (status) {
 			dev_err(&pdev->dev,
-				"%pOF has no valid 'reg' property (%d)\n",
+				"%pOF has yes valid 'reg' property (%d)\n",
 				np, status);
 			continue;
 		}
@@ -703,7 +703,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 		 * - find an unused physical CS which will be driven for any
 		 *   slave which uses a CS GPIO
 		 */
-		cs_gpio = of_get_named_gpio(pdev->dev.of_node, "cs-gpios", cs);
+		cs_gpio = of_get_named_gpio(pdev->dev.of_yesde, "cs-gpios", cs);
 		if (cs_gpio > 0) {
 			char *gpio_name;
 			int cs_flags;
@@ -735,17 +735,17 @@ static int orion_spi_probe(struct platform_device *pdev)
 
 		/*
 		 * Check if an address is configured for this SPI device. If
-		 * not, the MBus mapping via the 'ranges' property in the 'soc'
-		 * node is not configured and this device should not use the
+		 * yest, the MBus mapping via the 'ranges' property in the 'soc'
+		 * yesde is yest configured and this device should yest use the
 		 * direct mode. In this case, just continue with the next
 		 * device.
 		 */
-		status = of_address_to_resource(pdev->dev.of_node, cs + 1, r);
+		status = of_address_to_resource(pdev->dev.of_yesde, cs + 1, r);
 		if (status)
 			continue;
 
 		/*
-		 * Only map one page for direct access. This is enough for the
+		 * Only map one page for direct access. This is eyesugh for the
 		 * simple TX transfer which only writes to the first word.
 		 * This needs to get extended for the direct SPI-NOR / SPI-NAND
 		 * support, once this gets implemented.
@@ -770,7 +770,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	if (status < 0)
 		goto out_rel_pm;
 
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	status = spi_register_master(master);
 	if (status < 0)
 		goto out_rel_pm;

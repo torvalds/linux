@@ -212,7 +212,7 @@ EXPORT_SYMBOL(scsi_partsize);
  *
  *                                                        Revision 6
  *                                                         10-MAR-94
- * Information technology -
+ * Information techyeslogy -
  * SCSI-2 Common access method
  * transport and SCSI interface module
  * 
@@ -222,10 +222,10 @@ EXPORT_SYMBOL(scsi_partsize);
  * head-cylinder-sector requirements. It minimizes the value for
  * number of heads and maximizes the number of cylinders. This
  * will support rather large disks before the number of heads
- * will not fit in 4 bits (or 6 bits). This algorithm also
+ * will yest fit in 4 bits (or 6 bits). This algorithm also
  * minimizes the number of sectors that will be unused at the end
  * of the disk while allowing for very large disks to be
- * accommodated. This algorithm does not use physical geometry. 
+ * accommodated. This algorithm does yest use physical geometry. 
  */
 
 static int setsize(unsigned long capacity, unsigned int *cyls, unsigned int *hds,
@@ -239,12 +239,12 @@ static int setsize(unsigned long capacity, unsigned int *cyls, unsigned int *hds
 
 	temp = cylinders * sectors;	/* Compute divisor for heads */
 	heads = capacity / temp;	/* Compute value for number of heads */
-	if (capacity % temp) {	/* If no remainder, done! */
+	if (capacity % temp) {	/* If yes remainder, done! */
 		heads++;	/* Else, increment number of heads */
 		temp = cylinders * heads;	/* Compute divisor for sectors */
 		sectors = capacity / temp;	/* Compute value for sectors per
 						   track */
-		if (capacity % temp) {	/* If no remainder, done! */
+		if (capacity % temp) {	/* If yes remainder, done! */
 			sectors++;	/* Else, increment number of sectors */
 			temp = heads * sectors;		/* Compute divisor for cylinders */
 			cylinders = capacity / temp;	/* Compute number of cylinders */

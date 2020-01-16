@@ -14,15 +14,15 @@
  * - Revision 0.1.6 (17 Aug 2000): new style structs
  *                                 documentation
  * - Revision 0.1.5 (13 Mar 2000): spinlocks instead of saveflags();cli();etc
- *                                 minor fixes
+ *                                 miyesr fixes
  * - Revision 0.1.4 (24 Jan 2000): fixed a bug in hga_card_detect() for 
  *                                  HGA-only systems
  * - Revision 0.1.3 (22 Jan 2000): modified for the new fb_info structure
  *                                 screen is cleared after rmmod
  *                                 virtual resolutions
- *                                 module parameter 'nologo={0|1}'
+ *                                 module parameter 'yeslogo={0|1}'
  *                                 the most important: boot logo :)
- * - Revision 0.1.0  (6 Dec 1999): faster scrolling and minor fixes
+ * - Revision 0.1.0  (6 Dec 1999): faster scrolling and miyesr fixes
  * - First release  (25 Nov 1999)
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -32,7 +32,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -122,7 +122,7 @@ static const struct fb_var_screeninfo hga_default_var = {
 
 static struct fb_fix_screeninfo hga_fix = {
 	.id 		= "HGA",
-	.type 		= FB_TYPE_PACKED_PIXELS,	/* (not sure) */
+	.type 		= FB_TYPE_PACKED_PIXELS,	/* (yest sure) */
 	.visual 	= FB_VISUAL_MONO10,
 	.xpanstep 	= 8,
 	.ypanstep 	= 8,
@@ -133,7 +133,7 @@ static struct fb_fix_screeninfo hga_fix = {
 /* Don't assume that tty1 will be the initial current console. */
 static int release_io_port = 0;
 static int release_io_ports = 0;
-static bool nologo = 0;
+static bool yeslogo = 0;
 
 /* -------------------------------------------------------------------------
  *
@@ -308,7 +308,7 @@ static int hga_card_detect(void)
 		goto error;
 
 	/* Ok, there is definitely a card registering at the correct
-	 * memory location, so now we do an I/O port test.
+	 * memory location, so yesw we do an I/O port test.
 	 */
 	
 	if (!test_hga_b(0x66, 0x0f))	    /* cursor low register */
@@ -365,7 +365,7 @@ static int hgafb_open(struct fb_info *info, int init)
 {
 	hga_gfx_mode();
 	hga_clear_screen();
-	if (!nologo) hga_show_logo(info);
+	if (!yeslogo) hga_show_logo(info);
 	return 0;
 }
 
@@ -384,7 +384,7 @@ static int hgafb_release(struct fb_info *info, int init)
 
 /**
  *	hgafb_setcolreg - set color registers
- *	@regno:register index to set
+ *	@regyes:register index to set
  *	@red:red value, unused
  *	@green:green value, unused
  *	@blue:blue value, unused
@@ -392,14 +392,14 @@ static int hgafb_release(struct fb_info *info, int init)
  *	@info:unused
  *
  *	This callback function is used to set the color registers of a HGA
- *	board. Since we have only two fixed colors only @regno is checked.
+ *	board. Since we have only two fixed colors only @regyes is checked.
  *	A zero is returned on success and 1 for failure.
  */
 
-static int hgafb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int hgafb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			   u_int transp, struct fb_info *info)
 {
-	if (regno > 1)
+	if (regyes > 1)
 		return 1;
 	return 0;
 }
@@ -552,7 +552,7 @@ static int hgafb_probe(struct platform_device *pdev)
 	struct fb_info *info;
 
 	if (! hga_card_detect()) {
-		printk(KERN_INFO "hgafb: HGA card not detected.\n");
+		printk(KERN_INFO "hgafb: HGA card yest detected.\n");
 		if (hga_vram)
 			iounmap(hga_vram);
 		return -EINVAL;
@@ -662,7 +662,7 @@ MODULE_AUTHOR("Ferenc Bakonyi (fero@drama.obuda.kando.hu)");
 MODULE_DESCRIPTION("FBDev driver for Hercules Graphics Adaptor");
 MODULE_LICENSE("GPL");
 
-module_param(nologo, bool, 0);
-MODULE_PARM_DESC(nologo, "Disables startup logo if != 0 (default=0)");
+module_param(yeslogo, bool, 0);
+MODULE_PARM_DESC(yeslogo, "Disables startup logo if != 0 (default=0)");
 module_init(hgafb_init);
 module_exit(hgafb_exit);

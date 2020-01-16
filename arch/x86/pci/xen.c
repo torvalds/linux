@@ -2,13 +2,13 @@
 /*
  * Xen PCI - handle PCI (INTx) and MSI infrastructure calls for PV, HVM and
  * initial domain support. We also handle the DSDT _PRT callbacks for GSI's
- * used in HVM and initial domain mode (PV does not parse ACPI, so it has no
+ * used in HVM and initial domain mode (PV does yest parse ACPI, so it has yes
  * concept of GSIs). Under PV we hook under the pnbbios API for IRQs and
  * 0xcf8 PCI configuration read/write.
  *
  *   Author: Ryan Wilson <hap9@epoch.ncsc.mil>
  *           Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
- *           Stefano Stabellini <stefano.stabellini@eu.citrix.com>
+ *           Stefayes Stabellini <stefayes.stabellini@eu.citrix.com>
  */
 #include <linux/export.h>
 #include <linux/init.h>
@@ -112,8 +112,8 @@ static int acpi_register_gsi_xen_hvm(struct device *dev, u32 gsi,
 	if (!xen_hvm_domain())
 		return -1;
 
-	return xen_register_pirq(gsi, -1 /* no GSI override */, trigger,
-				 false /* no mapping of GSI to PIRQ */);
+	return xen_register_pirq(gsi, -1 /* yes GSI override */, trigger,
+				 false /* yes mapping of GSI to PIRQ */);
 }
 
 #ifdef CONFIG_XEN_DOM0
@@ -148,7 +148,7 @@ static int xen_register_gsi(u32 gsi, int gsi_override, int triggering, int polar
 static int acpi_register_gsi_xen(struct device *dev, u32 gsi,
 				 int trigger, int polarity)
 {
-	return xen_register_gsi(gsi, -1 /* no GSI override */, trigger, polarity);
+	return xen_register_gsi(gsi, -1 /* yes GSI override */, trigger, polarity);
 }
 #endif
 #endif
@@ -198,7 +198,7 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 error:
 	if (ret == -ENOSYS)
-		dev_err(&dev->dev, "Xen PCI frontend has not registered MSI/MSI-X support!\n");
+		dev_err(&dev->dev, "Xen PCI frontend has yest registered MSI/MSI-X support!\n");
 	else if (ret)
 		dev_err(&dev->dev, "Xen PCI frontend error: %d!\n", ret);
 free:
@@ -314,8 +314,8 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 						    &map_irq);
 		if (type == PCI_CAP_ID_MSI && nvec > 1 && ret) {
 			/*
-			 * If MAP_PIRQ_TYPE_MULTI_MSI is not available
-			 * there's nothing else we can do in this case.
+			 * If MAP_PIRQ_TYPE_MULTI_MSI is yest available
+			 * there's yesthing else we can do in this case.
 			 * Just set ret > 0 so driver can retry with
 			 * single MSI.
 			 */
@@ -411,13 +411,13 @@ int __init pci_xen_init(void)
 	pcibios_disable_irq = NULL;
 
 	/* Keep ACPI out of the picture */
-	acpi_noirq_set();
+	acpi_yesirq_set();
 
 #ifdef CONFIG_PCI_MSI
 	x86_msi.setup_msi_irqs = xen_setup_msi_irqs;
 	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
 	x86_msi.teardown_msi_irqs = xen_teardown_msi_irqs;
-	pci_msi_ignore_mask = 1;
+	pci_msi_igyesre_mask = 1;
 #endif
 	return 0;
 }
@@ -477,7 +477,7 @@ int __init pci_xen_initial_domain(void)
 	x86_msi.setup_msi_irqs = xen_initdom_setup_msi_irqs;
 	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
 	x86_msi.restore_msi_irqs = xen_initdom_restore_msi_irqs;
-	pci_msi_ignore_mask = 1;
+	pci_msi_igyesre_mask = 1;
 #endif
 	__acpi_register_gsi = acpi_register_gsi_xen;
 	__acpi_unregister_gsi = NULL;
@@ -491,7 +491,7 @@ int __init pci_xen_initial_domain(void)
 		if (acpi_get_override_irq(irq, &trigger, &polarity) == -1)
 			continue;
 
-		xen_register_pirq(irq, -1 /* no GSI override */,
+		xen_register_pirq(irq, -1 /* yes GSI override */,
 			trigger ? ACPI_LEVEL_SENSITIVE : ACPI_EDGE_SENSITIVE,
 			true /* Map GSI to PIRQ */);
 	}

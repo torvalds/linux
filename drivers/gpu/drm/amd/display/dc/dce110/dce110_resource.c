@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -859,7 +859,7 @@ static void get_pixel_clock_parameters(
 	const struct dc_stream_state *stream = pipe_ctx->stream;
 
 	/*TODO: is this halved for YCbCr 420? in that case we might want to move
-	 * the pixel clock normalization for hdmi up to here instead of doing it
+	 * the pixel clock yesrmalization for hdmi up to here instead of doing it
 	 * in pll_adjust_pix_clk
 	 */
 	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
@@ -1123,7 +1123,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 				dcb, PIPE_GATING_CONTROL_DISABLE);
 
 		/*
-		 * This is for powering on underlay, so crtc does not
+		 * This is for powering on underlay, so crtc does yest
 		 * need to be enabled
 		 */
 

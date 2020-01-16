@@ -17,7 +17,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -66,7 +66,7 @@ uint8_t ast_get_index_reg_mask(struct ast_private *ast,
 
 static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 {
-	struct device_node *np = dev->pdev->dev.of_node;
+	struct device_yesde *np = dev->pdev->dev.of_yesde;
 	struct ast_private *ast = dev->dev_private;
 	uint32_t data, jregd0, jregd1;
 
@@ -121,14 +121,14 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	uint32_t jreg, scu_rev;
 
 	/*
-	 * If VGA isn't enabled, we need to enable now or subsequent
+	 * If VGA isn't enabled, we need to enable yesw or subsequent
 	 * access to the scratch registers will fail. We also inform
 	 * our caller that it needs to POST the chip
-	 * (Assumption: VGA not enabled -> need to POST)
+	 * (Assumption: VGA yest enabled -> need to POST)
 	 */
 	if (!ast_is_vga_enabled(dev)) {
 		ast_enable_vga(dev);
-		DRM_INFO("VGA not enabled on entry, requesting chip POST\n");
+		DRM_INFO("VGA yest enabled on entry, requesting chip POST\n");
 		*need_post = true;
 	} else
 		*need_post = false;
@@ -219,7 +219,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	 *
 	 * Don't make that assumption if we the chip wasn't enabled and
 	 * is at power-on reset, otherwise we'll incorrectly "detect" a
-	 * SIL164 when there is none.
+	 * SIL164 when there is yesne.
 	 */
 	if (!*need_post) {
 		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
@@ -253,7 +253,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		}
 	}
 
-	/* Print stuff for diagnostic purposes */
+	/* Print stuff for diagyesstic purposes */
 	switch(ast->tx_chip_type) {
 	case AST_TX_SIL164:
 		DRM_INFO("Using Sil164 TMDS transmitter\n");
@@ -269,7 +269,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 
 static int ast_get_dram_info(struct drm_device *dev)
 {
-	struct device_node *np = dev->pdev->dev.of_node;
+	struct device_yesde *np = dev->pdev->dev.of_yesde;
 	struct ast_private *ast = dev->dev_private;
 	uint32_t mcr_cfg, mcr_scu_mpll, mcr_scu_strap;
 	uint32_t denum, num, div, ref_pll, dsel;
@@ -443,12 +443,12 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	/*
-	 * If we don't have IO space at all, use MMIO now and
+	 * If we don't have IO space at all, use MMIO yesw and
 	 * assume the chip has MMIO enabled by default (rev 0x20
 	 * and higher).
 	 */
 	if (!(pci_resource_flags(dev->pdev, 2) & IORESOURCE_IO)) {
-		DRM_INFO("platform has no IO space, trying MMIO\n");
+		DRM_INFO("platform has yes IO space, trying MMIO\n");
 		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
 	}
 

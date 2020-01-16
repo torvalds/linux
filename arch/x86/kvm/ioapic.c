@@ -19,7 +19,7 @@
  *  Lesser General Public License for more details.
  *
  *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
+ *  License along with this library; if yest, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  *  Yunhong Jiang <yunhong.jiang@intel.com>
@@ -187,11 +187,11 @@ static int ioapic_set_irq(struct kvm_ioapic *ioapic, unsigned int irq,
 
 	/*
 	 * Return 0 for coalesced interrupts; for edge-triggered interrupts,
-	 * this only happens if a previous edge has not been delivered due
+	 * this only happens if a previous edge has yest been delivered due
 	 * do masking.  For level interrupts, the remote_irr field tells
 	 * us if the interrupt is waiting for an EOI.
 	 *
-	 * RTC is special: it is edge-triggered, but userspace likes to know
+	 * RTC is special: it is edge-triggered, but userspace likes to kyesw
 	 * if it has been already ack-ed via EOI because coalesced RTC
 	 * interrupts lead to time drift in Windows guests.  So we track
 	 * EOI manually for the RTC interrupt.
@@ -248,7 +248,7 @@ void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, ulong *ioapic_handled_vectors)
 	for (index = 0; index < IOAPIC_NUM_PINS; index++) {
 		e = &ioapic->redirtbl[index];
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG ||
-		    kvm_irq_has_notifier(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index) ||
+		    kvm_irq_has_yestifier(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index) ||
 		    index == RTC_GSI) {
 			if (kvm_apic_match_dest(vcpu, NULL, 0,
 			             e->fields.dest_id, e->fields.dest_mode) ||
@@ -260,7 +260,7 @@ void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, ulong *ioapic_handled_vectors)
 	spin_unlock(&ioapic->lock);
 }
 
-void kvm_arch_post_irq_ack_notifier_list_update(struct kvm *kvm)
+void kvm_arch_post_irq_ack_yestifier_list_update(struct kvm *kvm)
 {
 	if (!ioapic_in_kernel(kvm))
 		return;
@@ -277,7 +277,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 
 	switch (ioapic->ioregsel) {
 	case IOAPIC_REG_VERSION:
-		/* Writes are ignored. */
+		/* Writes are igyesred. */
 		break;
 
 	case IOAPIC_REG_APIC_ID:
@@ -320,7 +320,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 
 		mask_after = e->fields.mask;
 		if (mask_before != mask_after)
-			kvm_fire_mask_notifiers(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index, mask_after);
+			kvm_fire_mask_yestifiers(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index, mask_after);
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG
 		    && ioapic->irr & (1 << index))
 			ioapic_service(ioapic, index, false);
@@ -381,7 +381,7 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 
 	if (irq == RTC_GSI && line_status) {
 		/*
-		 * pending_eoi cannot ever become negative (see
+		 * pending_eoi canyest ever become negative (see
 		 * rtc_status_pending_eoi_check_valid) and the caller
 		 * ensures that it is only called if it is >= zero, namely
 		 * if rtc_irq_check_coalesced returns false).
@@ -465,15 +465,15 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 			continue;
 
 		/*
-		 * We are dropping lock while calling ack notifiers because ack
-		 * notifier callbacks for assigned devices call into IOAPIC
+		 * We are dropping lock while calling ack yestifiers because ack
+		 * yestifier callbacks for assigned devices call into IOAPIC
 		 * recursively. Since remote_irr is cleared only after call
-		 * to notifiers if the same vector will be delivered while lock
+		 * to yestifiers if the same vector will be delivered while lock
 		 * is dropped it will be put into irr and will be delivered
-		 * after ack notifier returns.
+		 * after ack yestifier returns.
 		 */
 		spin_unlock(&ioapic->lock);
-		kvm_notify_acked_irq(ioapic->kvm, KVM_IRQCHIP_IOAPIC, i);
+		kvm_yestify_acked_irq(ioapic->kvm, KVM_IRQCHIP_IOAPIC, i);
 		spin_lock(&ioapic->lock);
 
 		if (trigger_mode != IOAPIC_LEVEL_TRIG ||
@@ -486,10 +486,10 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 			++ioapic->irq_eoi[i];
 			if (ioapic->irq_eoi[i] == IOAPIC_SUCCESSIVE_IRQ_MAX_COUNT) {
 				/*
-				 * Real hardware does not deliver the interrupt
+				 * Real hardware does yest deliver the interrupt
 				 * immediately during eoi broadcast, and this
 				 * lets a buggy guest make slow progress
-				 * even if it does not correctly handle a
+				 * even if it does yest correctly handle a
 				 * level-triggered interrupt.  Emulate this
 				 * behavior if we detect an interrupt storm.
 				 */

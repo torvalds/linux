@@ -17,7 +17,7 @@
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 
 #define CSI2TX_DEVICE_CONFIG_REG	0x00
@@ -357,7 +357,7 @@ static int csi2tx_start(struct csi2tx_priv *csi2tx)
 		 * We use the stream ID there, but it's wrong.
 		 *
 		 * A stream could very well send a data type that is
-		 * not equal to its stream ID. We need to find a
+		 * yest equal to its stream ID. We need to find a
 		 * proper way to address it.
 		 */
 		writel(CSI2TX_DT_CFG_DT(fmt->dt),
@@ -396,7 +396,7 @@ static int csi2tx_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	if (enable) {
 		/*
-		 * If we're not the first users, there's no need to
+		 * If we're yest the first users, there's yes need to
 		 * enable the whole controller.
 		 */
 		if (!csi2tx->count) {
@@ -491,17 +491,17 @@ static int csi2tx_get_resources(struct csi2tx_priv *csi2tx,
 
 static int csi2tx_check_lanes(struct csi2tx_priv *csi2tx)
 {
-	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
-	struct device_node *ep;
+	struct v4l2_fwyesde_endpoint v4l2_ep = { .bus_type = 0 };
+	struct device_yesde *ep;
 	int ret, i;
 
-	ep = of_graph_get_endpoint_by_regs(csi2tx->dev->of_node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(csi2tx->dev->of_yesde, 0, 0);
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &v4l2_ep);
+	ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(ep), &v4l2_ep);
 	if (ret) {
-		dev_err(csi2tx->dev, "Could not parse v4l2 endpoint\n");
+		dev_err(csi2tx->dev, "Could yest parse v4l2 endpoint\n");
 		goto out;
 	}
 
@@ -533,7 +533,7 @@ static int csi2tx_check_lanes(struct csi2tx_priv *csi2tx)
 	       sizeof(csi2tx->lanes));
 
 out:
-	of_node_put(ep);
+	of_yesde_put(ep);
 	return ret;
 }
 
@@ -580,7 +580,7 @@ static int csi2tx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free_priv;
 
-	of_id = of_match_node(csi2tx_of_table, pdev->dev.of_node);
+	of_id = of_match_yesde(csi2tx_of_table, pdev->dev.of_yesde);
 	csi2tx->vops = (struct csi2tx_vops *)of_id->data;
 
 	v4l2_subdev_init(&csi2tx->subdev, &csi2tx_subdev_ops);
@@ -604,7 +604,7 @@ static int csi2tx_probe(struct platform_device *pdev)
 	 * Only the input pads are considered to have a format at the
 	 * moment. The CSI link can multiplex various streams with
 	 * different formats, and we can't expose this in v4l2 right
-	 * now.
+	 * yesw.
 	 */
 	for (i = CSI2TX_PAD_SINK_STREAM0; i < CSI2TX_PAD_MAX; i++)
 		csi2tx->pad_fmts[i] = fmt_default;
@@ -621,7 +621,7 @@ static int csi2tx_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev,
 		 "Probed CSI2TX with %u/%u lanes, %u streams, %s D-PHY\n",
 		 csi2tx->num_lanes, csi2tx->max_lanes, csi2tx->max_streams,
-		 csi2tx->has_internal_dphy ? "internal" : "no");
+		 csi2tx->has_internal_dphy ? "internal" : "yes");
 
 	return 0;
 

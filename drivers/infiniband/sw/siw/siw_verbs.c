@@ -3,7 +3,7 @@
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
@@ -53,7 +53,7 @@ int siw_mmap(struct ib_ucontext *ctx, struct vm_area_struct *vma)
 	 * Must be page aligned
 	 */
 	if (vma->vm_start & (PAGE_SIZE - 1)) {
-		pr_warn("siw: mmap not page aligned\n");
+		pr_warn("siw: mmap yest page aligned\n");
 		return -EINVAL;
 	}
 	rdma_entry = rdma_user_mmap_entry_get(&uctx->base_ucontext, vma);
@@ -99,14 +99,14 @@ int siw_alloc_ucontext(struct ib_ucontext *base_ctx, struct ib_udata *udata)
 	if (rv)
 		goto err_out;
 
-	siw_dbg(base_ctx->device, "success. now %d context(s)\n",
+	siw_dbg(base_ctx->device, "success. yesw %d context(s)\n",
 		atomic_read(&sdev->num_ctx));
 
 	return 0;
 
 err_out:
 	atomic_dec(&sdev->num_ctx);
-	siw_dbg(base_ctx->device, "failure %d. now %d context(s)\n", rv,
+	siw_dbg(base_ctx->device, "failure %d. yesw %d context(s)\n", rv,
 		atomic_read(&sdev->num_ctx));
 
 	return rv;
@@ -238,7 +238,7 @@ int siw_alloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 		atomic_dec(&sdev->num_pd);
 		return -ENOMEM;
 	}
-	siw_dbg_pd(pd, "now %d PD's(s)\n", atomic_read(&sdev->num_pd));
+	siw_dbg_pd(pd, "yesw %d PD's(s)\n", atomic_read(&sdev->num_pd));
 
 	return 0;
 }
@@ -342,7 +342,7 @@ struct ib_qp *siw_create_qp(struct ib_pd *pd,
 	}
 	/*
 	 * NOTE: we allow for zero element SQ and RQ WQE's SGL's
-	 * but not for a QP unable to hold any WQE (SQ + RQ)
+	 * but yest for a QP unable to hold any WQE (SQ + RQ)
 	 */
 	if (attrs->cap.max_send_wr + attrs->cap.max_recv_wr == 0) {
 		siw_dbg(base_dev, "QP must have send or receive queue\n");
@@ -414,8 +414,8 @@ struct ib_qp *siw_create_qp(struct ib_pd *pd,
 	if (attrs->srq) {
 		/*
 		 * SRQ support.
-		 * Verbs 6.3.7: ignore RQ size, if SRQ present
-		 * Verbs 6.3.5: do not check PD of SRQ against PD of QP
+		 * Verbs 6.3.7: igyesre RQ size, if SRQ present
+		 * Verbs 6.3.5: do yest check PD of SRQ against PD of QP
 		 */
 		qp->srq = to_siw_srq(attrs->srq);
 		qp->attrs.rq_size = 0;
@@ -438,7 +438,7 @@ struct ib_qp *siw_create_qp(struct ib_pd *pd,
 	qp->attrs.sq_max_sges = attrs->cap.max_send_sge;
 	qp->attrs.rq_max_sges = attrs->cap.max_recv_sge;
 
-	/* Make those two tunables fixed for now. */
+	/* Make those two tunables fixed for yesw. */
 	qp->tx_ctx.gso_seg_limit = 1;
 	qp->tx_ctx.zcopy_tx = zcopy_tx;
 
@@ -516,7 +516,7 @@ err_out:
 /*
  * Minimum siw_query_qp() verb interface.
  *
- * @qp_attr_mask is not used but all available information is provided
+ * @qp_attr_mask is yest used but all available information is provided
  */
 int siw_query_qp(struct ib_qp *base_qp, struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr)
@@ -731,7 +731,7 @@ static int siw_rq_flush_wr(struct siw_qp *qp, const struct ib_recv_wr *wr,
  *
  * @base_qp:	Base QP contained in siw QP
  * @wr:		Null terminated list of user WR's
- * @bad_wr:	Points to failing WR in case of synchronous failure.
+ * @bad_wr:	Points to failing WR in case of synchroyesus failure.
  */
 int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 		  const struct ib_send_wr **bad_wr)
@@ -749,14 +749,14 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 	}
 
 	/*
-	 * Try to acquire QP state lock. Must be non-blocking
+	 * Try to acquire QP state lock. Must be yesn-blocking
 	 * to accommodate kernel clients needs.
 	 */
 	if (!down_read_trylock(&qp->state_lock)) {
 		if (qp->attrs.state == SIW_QP_STATE_ERROR) {
 			/*
 			 * ERROR state is final, so we can be sure
-			 * this state will not change as long as the QP
+			 * this state will yest change as long as the QP
 			 * exists.
 			 *
 			 * This handles an ib_drain_sq() call with
@@ -923,9 +923,9 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 	}
 
 	/*
-	 * Send directly if SQ processing is not in progress.
-	 * Eventual immediate errors (rv < 0) do not affect the involved
-	 * RI resources (Verbs, 8.3.1) and thus do not prevent from SQ
+	 * Send directly if SQ processing is yest in progress.
+	 * Eventual immediate errors (rv < 0) do yest affect the involved
+	 * RI resources (Verbs, 8.3.1) and thus do yest prevent from SQ
 	 * processing, if new work is already pending. But rv must be passed
 	 * to caller.
 	 */
@@ -971,7 +971,7 @@ skip_direct_sending:
  *
  * @base_qp:	Base QP contained in siw QP
  * @wr:		Null terminated list of user WR's
- * @bad_wr:	Points to failing WR in case of synchronous failure.
+ * @bad_wr:	Points to failing WR in case of synchroyesus failure.
  */
 int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 		     const struct ib_recv_wr **bad_wr)
@@ -982,23 +982,23 @@ int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 
 	if (qp->srq) {
 		*bad_wr = wr;
-		return -EOPNOTSUPP; /* what else from errno.h? */
+		return -EOPNOTSUPP; /* what else from erryes.h? */
 	}
 	if (!qp->kernel_verbs) {
-		siw_dbg_qp(qp, "no kernel post_recv for user mapped sq\n");
+		siw_dbg_qp(qp, "yes kernel post_recv for user mapped sq\n");
 		*bad_wr = wr;
 		return -EINVAL;
 	}
 
 	/*
-	 * Try to acquire QP state lock. Must be non-blocking
+	 * Try to acquire QP state lock. Must be yesn-blocking
 	 * to accommodate kernel clients needs.
 	 */
 	if (!down_read_trylock(&qp->state_lock)) {
 		if (qp->attrs.state == SIW_QP_STATE_ERROR) {
 			/*
 			 * ERROR state is final, so we can be sure
-			 * this state will not change as long as the QP
+			 * this state will yest change as long as the QP
 			 * exists.
 			 *
 			 * This handles an ib_drain_rq() call with
@@ -1144,7 +1144,7 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 
 	spin_lock_init(&cq->lock);
 
-	cq->notify = (struct siw_cq_ctrl *)&cq->queue[size];
+	cq->yestify = (struct siw_cq_ctrl *)&cq->queue[size];
 
 	if (udata) {
 		struct siw_uresp_create_cq uresp = {};
@@ -1215,22 +1215,22 @@ int siw_poll_cq(struct ib_cq *base_cq, int num_cqe, struct ib_wc *wc)
 }
 
 /*
- * siw_req_notify_cq()
+ * siw_req_yestify_cq()
  *
- * Request notification for new CQE's added to that CQ.
+ * Request yestification for new CQE's added to that CQ.
  * Defined flags:
- * o SIW_CQ_NOTIFY_SOLICITED lets siw trigger a notification
- *   event if a WQE with notification flag set enters the CQ
- * o SIW_CQ_NOTIFY_NEXT_COMP lets siw trigger a notification
+ * o SIW_CQ_NOTIFY_SOLICITED lets siw trigger a yestification
+ *   event if a WQE with yestification flag set enters the CQ
+ * o SIW_CQ_NOTIFY_NEXT_COMP lets siw trigger a yestification
  *   event if a WQE enters the CQ.
  * o IB_CQ_REPORT_MISSED_EVENTS: return value will provide the
- *   number of not reaped CQE's regardless of its notification
- *   type and current or new CQ notification settings.
+ *   number of yest reaped CQE's regardless of its yestification
+ *   type and current or new CQ yestification settings.
  *
  * @base_cq:	Base CQ contained in siw CQ.
- * @flags:	Requested notification flags.
+ * @flags:	Requested yestification flags.
  */
-int siw_req_notify_cq(struct ib_cq *base_cq, enum ib_cq_notify_flags flags)
+int siw_req_yestify_cq(struct ib_cq *base_cq, enum ib_cq_yestify_flags flags)
 {
 	struct siw_cq *cq = to_siw_cq(base_cq);
 
@@ -1241,13 +1241,13 @@ int siw_req_notify_cq(struct ib_cq *base_cq, enum ib_cq_notify_flags flags)
 		 * Enable CQ event for next solicited completion.
 		 * and make it visible to all associated producers.
 		 */
-		smp_store_mb(cq->notify->flags, SIW_NOTIFY_SOLICITED);
+		smp_store_mb(cq->yestify->flags, SIW_NOTIFY_SOLICITED);
 	else
 		/*
 		 * Enable CQ event for any signalled completion.
 		 * and make it visible to all associated producers.
 		 */
-		smp_store_mb(cq->notify->flags, SIW_NOTIFY_ALL);
+		smp_store_mb(cq->yestify->flags, SIW_NOTIFY_ALL);
 
 	if (flags & IB_CQ_REPORT_MISSED_EVENTS)
 		return cq->cq_put - cq->cq_get;
@@ -1286,7 +1286,7 @@ int siw_dereg_mr(struct ib_mr *base_mr, struct ib_udata *udata)
  * @pd:		Protection Domain
  * @start:	starting address of MR (virtual address)
  * @len:	len of MR
- * @rnic_va:	not used by siw
+ * @rnic_va:	yest used by siw
  * @rights:	MR access rights
  * @udata:	user buffer to communicate STag and Key.
  */
@@ -1463,7 +1463,7 @@ int siw_map_mr_sg(struct ib_mr *base_mr, struct scatterlist *sl, int num_sle,
 	int i, rv;
 
 	if (!pbl) {
-		siw_dbg_mem(mem, "no PBL allocated\n");
+		siw_dbg_mem(mem, "yes PBL allocated\n");
 		return -EINVAL;
 	}
 	pble = pbl->pbe;
@@ -1517,7 +1517,7 @@ int siw_map_mr_sg(struct ib_mr *base_mr, struct scatterlist *sl, int num_sle,
 /*
  * siw_get_dma_mr()
  *
- * Create a (empty) DMA memory region, where no umem is attached.
+ * Create a (empty) DMA memory region, where yes umem is attached.
  */
 struct ib_mr *siw_get_dma_mr(struct ib_pd *pd, int rights)
 {
@@ -1645,11 +1645,11 @@ err_out:
 /*
  * siw_modify_srq()
  *
- * Modify SRQ. The caller may resize SRQ and/or set/reset notification
- * limit and (re)arm IB_EVENT_SRQ_LIMIT_REACHED notification.
+ * Modify SRQ. The caller may resize SRQ and/or set/reset yestification
+ * limit and (re)arm IB_EVENT_SRQ_LIMIT_REACHED yestification.
  *
  * NOTE: it is unclear if RDMA core allows for changing the MAX_SGE
- * parameter. siw_modify_srq() does not check the attrs->max_sge param.
+ * parameter. siw_modify_srq() does yest check the attrs->max_sge param.
  */
 int siw_modify_srq(struct ib_srq *base_srq, struct ib_srq_attr *attrs,
 		   enum ib_srq_attr_mask attr_mask, struct ib_udata *udata)
@@ -1661,7 +1661,7 @@ int siw_modify_srq(struct ib_srq *base_srq, struct ib_srq_attr *attrs,
 	spin_lock_irqsave(&srq->lock, flags);
 
 	if (attr_mask & IB_SRQ_MAX_WR) {
-		/* resize request not yet supported */
+		/* resize request yest yet supported */
 		rv = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1708,7 +1708,7 @@ int siw_query_srq(struct ib_srq *base_srq, struct ib_srq_attr *attrs)
  * siw_destroy_srq()
  *
  * Destroy SRQ.
- * It is assumed that the SRQ is not referenced by any
+ * It is assumed that the SRQ is yest referenced by any
  * QP anymore - the code trusts the RDMA core environment to keep track
  * of QP references.
  */
@@ -1730,7 +1730,7 @@ void siw_destroy_srq(struct ib_srq *base_srq, struct ib_udata *udata)
  * siw_post_srq_recv()
  *
  * Post a list of receive queue elements to SRQ.
- * NOTE: The function does not check or lock a certain SRQ state
+ * NOTE: The function does yest check or lock a certain SRQ state
  *       during the post operation. The code simply trusts the
  *       RDMA core environment.
  *
@@ -1747,7 +1747,7 @@ int siw_post_srq_recv(struct ib_srq *base_srq, const struct ib_recv_wr *wr,
 
 	if (unlikely(!srq->kernel_verbs)) {
 		siw_dbg_pd(base_srq->pd,
-			   "[SRQ]: no kernel post_recv for mapped srq\n");
+			   "[SRQ]: yes kernel post_recv for mapped srq\n");
 		rv = -EINVAL;
 		goto out;
 	}
@@ -1800,7 +1800,7 @@ void siw_qp_event(struct siw_qp *qp, enum ib_event_type etype)
 	struct ib_qp *base_qp = qp->ib_qp;
 
 	/*
-	 * Do not report asynchronous errors on QP which gets
+	 * Do yest report asynchroyesus errors on QP which gets
 	 * destroyed via verbs interface (siw_destroy_qp())
 	 */
 	if (qp->attrs.flags & SIW_QP_IN_DESTROY)

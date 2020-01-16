@@ -12,7 +12,7 @@
  *		Pavel Kankovsky (for Linux 2.4.32)
  *
  * Pavel gave all rights to bugs to Vasiliy,
- * none of the bugs are Pavel's now.
+ * yesne of the bugs are Pavel's yesw.
  */
 
 #include <linux/uaccess.h>
@@ -21,7 +21,7 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/in.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
 #include <linux/inet.h>
@@ -76,7 +76,7 @@ static inline struct hlist_nulls_head *ping_hashslot(struct ping_table *table,
 
 int ping_get_port(struct sock *sk, unsigned short ident)
 {
-	struct hlist_nulls_node *node;
+	struct hlist_nulls_yesde *yesde;
 	struct hlist_nulls_head *hlist;
 	struct inet_sock *isk, *isk2;
 	struct sock *sk2 = NULL;
@@ -92,7 +92,7 @@ int ping_get_port(struct sock *sk, unsigned short ident)
 				result++; /* avoid zero */
 			hlist = ping_hashslot(&ping_table, sock_net(sk),
 					    result);
-			ping_portaddr_for_each_entry(sk2, node, hlist) {
+			ping_portaddr_for_each_entry(sk2, yesde, hlist) {
 				isk2 = inet_sk(sk2);
 
 				if (isk2->inet_num == result)
@@ -109,10 +109,10 @@ next_port:
 			goto fail;
 	} else {
 		hlist = ping_hashslot(&ping_table, sock_net(sk), ident);
-		ping_portaddr_for_each_entry(sk2, node, hlist) {
+		ping_portaddr_for_each_entry(sk2, yesde, hlist) {
 			isk2 = inet_sk(sk2);
 
-			/* BUG? Why is this reuse and not reuseaddr? ping.c
+			/* BUG? Why is this reuse and yest reuseaddr? ping.c
 			 * doesn't turn off SO_REUSEADDR, and it doesn't expect
 			 * that other ping processes can steal its packets.
 			 */
@@ -126,9 +126,9 @@ next_port:
 	pr_debug("found port/ident = %d\n", ident);
 	isk->inet_num = ident;
 	if (sk_unhashed(sk)) {
-		pr_debug("was not hashed\n");
+		pr_debug("was yest hashed\n");
 		sock_hold(sk);
-		hlist_nulls_add_head(&sk->sk_nulls_node, hlist);
+		hlist_nulls_add_head(&sk->sk_nulls_yesde, hlist);
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	}
 	write_unlock_bh(&ping_table.lock);
@@ -143,7 +143,7 @@ EXPORT_SYMBOL_GPL(ping_get_port);
 int ping_hash(struct sock *sk)
 {
 	pr_debug("ping_hash(sk->port=%u)\n", inet_sk(sk)->inet_num);
-	BUG(); /* "Please do not press this button again." */
+	BUG(); /* "Please do yest press this button again." */
 
 	return 0;
 }
@@ -155,8 +155,8 @@ void ping_unhash(struct sock *sk)
 	pr_debug("ping_unhash(isk=%p,isk->num=%u)\n", isk, isk->inet_num);
 	write_lock_bh(&ping_table.lock);
 	if (sk_hashed(sk)) {
-		hlist_nulls_del(&sk->sk_nulls_node);
-		sk_nulls_node_init(&sk->sk_nulls_node);
+		hlist_nulls_del(&sk->sk_nulls_yesde);
+		sk_nulls_yesde_init(&sk->sk_nulls_yesde);
 		sock_put(sk);
 		isk->inet_num = 0;
 		isk->inet_sport = 0;
@@ -171,7 +171,7 @@ static struct sock *ping_lookup(struct net *net, struct sk_buff *skb, u16 ident)
 	struct hlist_nulls_head *hslot = ping_hashslot(&ping_table, net, ident);
 	struct sock *sk = NULL;
 	struct inet_sock *isk;
-	struct hlist_nulls_node *hnode;
+	struct hlist_nulls_yesde *hyesde;
 	int dif = skb->dev->ifindex;
 
 	if (skb->protocol == htons(ETH_P_IP)) {
@@ -186,7 +186,7 @@ static struct sock *ping_lookup(struct net *net, struct sk_buff *skb, u16 ident)
 
 	read_lock_bh(&ping_table.lock);
 
-	ping_portaddr_for_each_entry(sk, hnode, hslot) {
+	ping_portaddr_for_each_entry(sk, hyesde, hslot) {
 		isk = inet_sk(sk);
 
 		pr_debug("iterate\n");
@@ -315,7 +315,7 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 		if (addr->sin_addr.s_addr == htonl(INADDR_ANY))
 			chk_addr_ret = RTN_LOCAL;
 
-		if ((!inet_can_nonlocal_bind(net, isk) &&
+		if ((!inet_can_yesnlocal_bind(net, isk) &&
 		     chk_addr_ret != RTN_LOCAL) ||
 		    chk_addr_ret == RTN_MULTICAST ||
 		    chk_addr_ret == RTN_BROADCAST)
@@ -355,7 +355,7 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 						    scoped);
 		rcu_read_unlock();
 
-		if (!(ipv6_can_nonlocal_bind(net, isk) || has_addr ||
+		if (!(ipv6_can_yesnlocal_bind(net, isk) || has_addr ||
 		      addr_type == IPV6_ADDR_ANY))
 			return -EADDRNOTAVAIL;
 
@@ -398,7 +398,7 @@ static void ping_clear_saddr(struct sock *sk, int dif)
 	}
 }
 /*
- * We need our own bind because there are no privileged id's == local ports.
+ * We need our own bind because there are yes privileged id's == local ports.
  * Moreover, we don't allow binding to multi- and broadcast addresses.
  */
 
@@ -510,7 +510,7 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 
 	sk = ping_lookup(net, skb, ntohs(icmph->un.echo.id));
 	if (!sk) {
-		pr_debug("no socket, dropping\n");
+		pr_debug("yes socket, dropping\n");
 		return;	/* No socket for error */
 	}
 	pr_debug("err on socket %p\n", sk);
@@ -526,8 +526,8 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 			err = EHOSTUNREACH;
 			break;
 		case ICMP_SOURCE_QUENCH:
-			/* This is not a real error but ping wants to see it.
-			 * Report it with some fake errno.
+			/* This is yest a real error but ping wants to see it.
+			 * Report it with some fake erryes.
 			 */
 			err = EREMOTEIO;
 			break;
@@ -548,7 +548,7 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 			err = EHOSTUNREACH;
 			if (code <= NR_ICMP_UNREACH) {
 				harderr = icmp_err_convert[code].fatal;
-				err = icmp_err_convert[code].errno;
+				err = icmp_err_convert[code].erryes;
 			}
 			break;
 		case ICMP_REDIRECT:
@@ -573,7 +573,7 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 			goto out;
 	} else {
 		if (family == AF_INET) {
-			ip_icmp_error(sk, skb, err, 0 /* no remote port */,
+			ip_icmp_error(sk, skb, err, 0 /* yes remote port */,
 				      info, (u8 *)icmph);
 #if IS_ENABLED(CONFIG_IPV6)
 		} else if (family == AF_INET6) {
@@ -724,12 +724,12 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if (usin->sin_family != AF_INET)
 			return -EAFNOSUPPORT;
 		daddr = usin->sin_addr.s_addr;
-		/* no remote port */
+		/* yes remote port */
 	} else {
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -EDESTADDRREQ;
 		daddr = inet->inet_daddr;
-		/* no remote port */
+		/* yes remote port */
 	}
 
 	ipcm_init_sk(&ipc, inet);
@@ -847,7 +847,7 @@ do_confirm:
 	goto out;
 }
 
-int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int noblock,
+int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int yesblock,
 		 int flags, int *addr_len)
 {
 	struct inet_sock *isk = inet_sk(sk);
@@ -864,7 +864,7 @@ int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int noblock,
 	if (flags & MSG_ERRQUEUE)
 		return inet_recv_error(sk, msg, len, addr_len);
 
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = skb_recv_datagram(sk, flags, yesblock, &err);
 	if (!skb)
 		goto out;
 
@@ -979,7 +979,7 @@ bool ping_rcv(struct sk_buff *skb)
 		sock_put(sk);
 		return true;
 	}
-	pr_debug("no socket, dropping\n");
+	pr_debug("yes socket, dropping\n");
 
 	return false;
 }
@@ -1016,7 +1016,7 @@ static struct sock *ping_get_first(struct seq_file *seq, int start)
 
 	for (state->bucket = start; state->bucket < PING_HTABLE_SIZE;
 	     ++state->bucket) {
-		struct hlist_nulls_node *node;
+		struct hlist_nulls_yesde *yesde;
 		struct hlist_nulls_head *hslot;
 
 		hslot = &ping_table.hash[state->bucket];
@@ -1024,7 +1024,7 @@ static struct sock *ping_get_first(struct seq_file *seq, int start)
 		if (hlist_nulls_empty(hslot))
 			continue;
 
-		sk_nulls_for_each(sk, node, hslot) {
+		sk_nulls_for_each(sk, yesde, hslot) {
 			if (net_eq(sock_net(sk), net) &&
 			    sk->sk_family == state->family)
 				goto found;
@@ -1114,7 +1114,7 @@ static void ping_v4_format_sock(struct sock *sp, struct seq_file *f,
 		sk_rmem_alloc_get(sp),
 		0, 0L, 0,
 		from_kuid_munged(seq_user_ns(f), sock_i_uid(sp)),
-		0, sock_i_ino(sp),
+		0, sock_i_iyes(sp),
 		refcount_read(&sp->sk_refcnt), sp,
 		atomic_read(&sp->sk_drops));
 }
@@ -1125,7 +1125,7 @@ static int ping_v4_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "  sl  local_address rem_address   st tx_queue "
 			   "rx_queue tr tm->when retrnsmt   uid  timeout "
-			   "inode ref pointer drops");
+			   "iyesde ref pointer drops");
 	else {
 		struct ping_iter_state *state = seq->private;
 

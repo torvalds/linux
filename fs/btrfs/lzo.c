@@ -35,7 +35,7 @@
  *
  * 2.1 Segment header
  *     Fixed size. LZO_LEN (4) bytes long, LE32.
- *     Records the total size of the segment (not including the header).
+ *     Records the total size of the segment (yest including the header).
  *     Segment header never crosses page boundary, thus it's possible to
  *     have at most 3 padding zeros at the end of the page.
  *
@@ -192,7 +192,7 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 			out_offset += bytes;
 
 			/*
-			 * we need another page for writing out.
+			 * we need ayesther page for writing out.
 			 *
 			 * Note if there's less than 4 bytes left, we just
 			 * skip to a new page.
@@ -312,7 +312,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	 *
 	 * The real compressed size can't exceed the maximum extent length, and
 	 * all pages should be used (whole unused page with just the segment
-	 * header is not possible).  If this happens it means the compressed
+	 * header is yest possible).  If this happens it means the compressed
 	 * extent is corrupted.
 	 */
 	if (tot_len > min_t(size_t, BTRFS_MAX_COMPRESSED, srclen) ||
@@ -336,8 +336,8 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		/*
 		 * Segment header check.
 		 *
-		 * The segment length must not exceed the maximum LZO
-		 * compression size, nor the total compressed size.
+		 * The segment length must yest exceed the maximum LZO
+		 * compression size, yesr the total compressed size.
 		 */
 		if (in_len > max_segment_len || tot_in + in_len > tot_len) {
 			ret = -EUCLEAN;
@@ -369,7 +369,7 @@ cont:
 			in_page_bytes_left -= bytes;
 			in_offset += bytes;
 
-			/* check if we need to pick another page */
+			/* check if we need to pick ayesther page */
 			if ((working_bytes == 0 && in_page_bytes_left < LZO_LEN)
 			    || in_page_bytes_left == 0) {
 				tot_in += in_page_bytes_left;

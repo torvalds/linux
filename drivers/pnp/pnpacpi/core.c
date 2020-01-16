@@ -56,7 +56,7 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 
 	acpi_dev = ACPI_COMPANION(&dev->dev);
 	if (!acpi_dev) {
-		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		dev_dbg(&dev->dev, "ACPI device yest found in %s!\n", __func__);
 		return -ENODEV;
 	}
 
@@ -96,7 +96,7 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 
 	acpi_dev = ACPI_COMPANION(&dev->dev);
 	if (!acpi_dev) {
-		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		dev_dbg(&dev->dev, "ACPI device yest found in %s!\n", __func__);
 		return 0;
 	}
 
@@ -118,7 +118,7 @@ static bool pnpacpi_can_wakeup(struct pnp_dev *dev)
 	struct acpi_device *acpi_dev = ACPI_COMPANION(&dev->dev);
 
 	if (!acpi_dev) {
-		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		dev_dbg(&dev->dev, "ACPI device yest found in %s!\n", __func__);
 		return false;
 	}
 
@@ -131,7 +131,7 @@ static int pnpacpi_suspend(struct pnp_dev *dev, pm_message_t state)
 	int error = 0;
 
 	if (!acpi_dev) {
-		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		dev_dbg(&dev->dev, "ACPI device yest found in %s!\n", __func__);
 		return 0;
 	}
 
@@ -151,7 +151,7 @@ static int pnpacpi_suspend(struct pnp_dev *dev, pm_message_t state)
 
 		/*
 		 * acpi_device_set_power() can fail (keyboard port can't be
-		 * powered-down?), and in any case, our return value is ignored
+		 * powered-down?), and in any case, our return value is igyesred
 		 * by pnp_bus_suspend().  Hence we don't revert the wakeup
 		 * setting if the set_power fails.
 		 */
@@ -167,7 +167,7 @@ static int pnpacpi_resume(struct pnp_dev *dev)
 	int error = 0;
 
 	if (!acpi_dev) {
-		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		dev_dbg(&dev->dev, "ACPI device yest found in %s!\n", __func__);
 		return -ENODEV;
 	}
 
@@ -214,12 +214,12 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	int error;
 
 	/* Skip devices that are already bound */
-	if (device->physical_node_count)
+	if (device->physical_yesde_count)
 		return 0;
 
 	/*
-	 * If a PnPacpi device is not present , the device
-	 * driver should not be loaded.
+	 * If a PnPacpi device is yest present , the device
+	 * driver should yest be loaded.
 	 */
 	if (!acpi_has_method(device->handle, "_CRS"))
 		return 0;

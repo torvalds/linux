@@ -20,12 +20,12 @@
  * 			in the platform specific files.
  *
  * 2002-05-27:	Nicolas Pitre	Killed sleep.h and the kmalloced save array.
- * 				Storage is local on the stack now.
+ * 				Storage is local on the stack yesw.
  */
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/suspend.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/time.h>
 
 #include <mach/hardware.h>
@@ -79,7 +79,7 @@ static int sa11x0_pm_enter(suspend_state_t state)
 	cpu_suspend(0, sa1100_finish_suspend);
 
 	/*
-	 * Ensure not to come back here if it wasn't intended
+	 * Ensure yest to come back here if it wasn't intended
 	 */
 	RCSR = RCSR_SMR;
 	PSPR = 0;

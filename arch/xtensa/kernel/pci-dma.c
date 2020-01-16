@@ -12,7 +12,7 @@
  */
 
 #include <linux/dma-contiguous.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/dma-direct.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
@@ -87,9 +87,9 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 }
 
 /*
- * Memory caching is platform-dependent in noMMU xtensa configurations.
+ * Memory caching is platform-dependent in yesMMU xtensa configurations.
  * The following two functions should be implemented in platform code
- * in order to enable coherent DMA memory operations when CONFIG_MMU is not
+ * in order to enable coherent DMA memory operations when CONFIG_MMU is yest
  * enabled.
  */
 #ifdef CONFIG_MMU

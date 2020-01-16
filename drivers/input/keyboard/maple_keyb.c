@@ -102,7 +102,7 @@ static void dc_scan_kbd(struct dc_kbd *kbd)
 				input_report_key(dev, keycode, 0);
 			} else
 				dev_dbg(&dev->dev,
-					"Unknown key (scancode %#x) released.",
+					"Unkyeswn key (scancode %#x) released.",
 					code);
 		}
 		ptr = memchr(kbd->old + 2, kbd->new[i], 6);
@@ -114,7 +114,7 @@ static void dc_scan_kbd(struct dc_kbd *kbd)
 				input_report_key(dev, keycode, 1);
 			} else
 				dev_dbg(&dev->dev,
-					"Unknown key (scancode %#x) pressed.",
+					"Unkyeswn key (scancode %#x) pressed.",
 					code);
 		}
 	}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Simple synchronous userspace interface to SPI devices
+ * Simple synchroyesus userspace interface to SPI devices
  *
  * Copyright (C) 2006 SWAPP
  *	Andrea Paterniani <a.paterniani@swapp-eng.it>
@@ -14,7 +14,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
@@ -29,22 +29,22 @@
 
 
 /*
- * This supports access to SPI devices using normal userspace I/O calls.
+ * This supports access to SPI devices using yesrmal userspace I/O calls.
  * Note that while traditional UNIX/POSIX I/O semantics are half duplex,
  * and often mask message boundaries, full SPI support requires full duplex
  * transfers.  There are several kinds of internal message boundaries to
  * handle chipselect management and other protocol options.
  *
- * SPI has a character major number assigned.  We allocate minor numbers
+ * SPI has a character major number assigned.  We allocate miyesr numbers
  * dynamically using a bitmask.  You must use hotplug tools, such as udev
  * (or mdev with busybox) to create and destroy the /dev/spidevB.C device
- * nodes, since there is no fixed association of minor numbers with any
+ * yesdes, since there is yes fixed association of miyesr numbers with any
  * particular SPI bus or device.
  */
 #define SPIDEV_MAJOR			153	/* assigned */
 #define N_SPI_MINORS			32	/* ... up to 256 */
 
-static DECLARE_BITMAP(minors, N_SPI_MINORS);
+static DECLARE_BITMAP(miyesrs, N_SPI_MINORS);
 
 
 /* Bit masks for spi_device.mode management.  Note that incorrect
@@ -53,7 +53,7 @@ static DECLARE_BITMAP(minors, N_SPI_MINORS);
  *
  *  - CS_HIGH ... this device will be active when it shouldn't be
  *  - 3WIRE ... when active, it won't behave as it should
- *  - NO_CS ... there will be no explicit message boundaries; this
+ *  - NO_CS ... there will be yes explicit message boundaries; this
  *	is completely incompatible with the shared bus model
  *  - READY ... transfers may proceed when they shouldn't.
  *
@@ -363,7 +363,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	 *  - prevent I/O (from us) so calling spi_setup() is safe;
 	 *  - prevent concurrent SPI_IOC_WR_* from morphing
 	 *    data fields while SPI_IOC_RD_* reads them;
-	 *  - SPI_IOC_MESSAGE needs the buffer locked "normally".
+	 *  - SPI_IOC_MESSAGE needs the buffer locked "yesrmally".
 	 */
 	mutex_lock(&spidev->buf_lock);
 
@@ -505,7 +505,7 @@ spidev_compat_ioc_message(struct file *filp, unsigned int cmd,
 	if (spi == NULL)
 		return -ESHUTDOWN;
 
-	/* SPI_IOC_MESSAGE needs the buffer locked "normally" */
+	/* SPI_IOC_MESSAGE needs the buffer locked "yesrmally" */
 	mutex_lock(&spidev->buf_lock);
 
 	/* Check message and copy into scratch area */
@@ -547,7 +547,7 @@ spidev_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #define spidev_compat_ioctl NULL
 #endif /* CONFIG_COMPAT */
 
-static int spidev_open(struct inode *inode, struct file *filp)
+static int spidev_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct spidev_data	*spidev;
 	int			status = -ENXIO;
@@ -555,14 +555,14 @@ static int spidev_open(struct inode *inode, struct file *filp)
 	mutex_lock(&device_list_lock);
 
 	list_for_each_entry(spidev, &device_list, device_entry) {
-		if (spidev->devt == inode->i_rdev) {
+		if (spidev->devt == iyesde->i_rdev) {
 			status = 0;
 			break;
 		}
 	}
 
 	if (status) {
-		pr_debug("spidev: nothing for minor %d\n", iminor(inode));
+		pr_debug("spidev: yesthing for miyesr %d\n", imiyesr(iyesde));
 		goto err_find_dev;
 	}
 
@@ -586,7 +586,7 @@ static int spidev_open(struct inode *inode, struct file *filp)
 
 	spidev->users++;
 	filp->private_data = spidev;
-	stream_open(inode, filp);
+	stream_open(iyesde, filp);
 
 	mutex_unlock(&device_list_lock);
 	return 0;
@@ -599,7 +599,7 @@ err_find_dev:
 	return status;
 }
 
-static int spidev_release(struct inode *inode, struct file *filp)
+static int spidev_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct spidev_data	*spidev;
 
@@ -649,13 +649,13 @@ static const struct file_operations spidev_fops = {
 	.compat_ioctl = spidev_compat_ioctl,
 	.open =		spidev_open,
 	.release =	spidev_release,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 };
 
 /*-------------------------------------------------------------------------*/
 
 /* The main reason to have this class is to make mdev/udev create the
- * /dev/spidevB.C character device nodes exposing our userspace API.
+ * /dev/spidevB.C character device yesdes exposing our userspace API.
  * It also simplifies memory management.
  */
 
@@ -664,7 +664,7 @@ static struct class *spidev_class;
 #ifdef CONFIG_OF
 static const struct of_device_id spidev_dt_ids[] = {
 	{ .compatible = "rohm,dh2228fv" },
-	{ .compatible = "lineartechnology,ltc2488" },
+	{ .compatible = "lineartechyeslogy,ltc2488" },
 	{ .compatible = "ge,achc" },
 	{ .compatible = "semtech,sx1301" },
 	{ .compatible = "lwn,bk4" },
@@ -677,7 +677,7 @@ MODULE_DEVICE_TABLE(of, spidev_dt_ids);
 
 #ifdef CONFIG_ACPI
 
-/* Dummy SPI devices not to be used in production systems */
+/* Dummy SPI devices yest to be used in production systems */
 #define SPIDEV_ACPI_DUMMY	1
 
 static const struct acpi_device_id spidev_acpi_ids[] = {
@@ -706,7 +706,7 @@ static void spidev_probe_acpi(struct spi_device *spi)
 		return;
 
 	if (id->driver_data == SPIDEV_ACPI_DUMMY)
-		dev_warn(&spi->dev, "do not use this driver in production systems!\n");
+		dev_warn(&spi->dev, "do yest use this driver in production systems!\n");
 }
 #else
 static inline void spidev_probe_acpi(struct spi_device *spi) {}
@@ -718,16 +718,16 @@ static int spidev_probe(struct spi_device *spi)
 {
 	struct spidev_data	*spidev;
 	int			status;
-	unsigned long		minor;
+	unsigned long		miyesr;
 
 	/*
 	 * spidev should never be referenced in DT without a specific
 	 * compatible string, it is a Linux implementation thing
 	 * rather than a description of the hardware.
 	 */
-	WARN(spi->dev.of_node &&
-	     of_device_is_compatible(spi->dev.of_node, "spidev"),
-	     "%pOF: buggy DT: spidev listed directly in DT\n", spi->dev.of_node);
+	WARN(spi->dev.of_yesde &&
+	     of_device_is_compatible(spi->dev.of_yesde, "spidev"),
+	     "%pOF: buggy DT: spidev listed directly in DT\n", spi->dev.of_yesde);
 
 	spidev_probe_acpi(spi);
 
@@ -743,25 +743,25 @@ static int spidev_probe(struct spi_device *spi)
 
 	INIT_LIST_HEAD(&spidev->device_entry);
 
-	/* If we can allocate a minor number, hook up this device.
-	 * Reusing minors is fine so long as udev or mdev is working.
+	/* If we can allocate a miyesr number, hook up this device.
+	 * Reusing miyesrs is fine so long as udev or mdev is working.
 	 */
 	mutex_lock(&device_list_lock);
-	minor = find_first_zero_bit(minors, N_SPI_MINORS);
-	if (minor < N_SPI_MINORS) {
+	miyesr = find_first_zero_bit(miyesrs, N_SPI_MINORS);
+	if (miyesr < N_SPI_MINORS) {
 		struct device *dev;
 
-		spidev->devt = MKDEV(SPIDEV_MAJOR, minor);
+		spidev->devt = MKDEV(SPIDEV_MAJOR, miyesr);
 		dev = device_create(spidev_class, &spi->dev, spidev->devt,
 				    spidev, "spidev%d.%d",
 				    spi->master->bus_num, spi->chip_select);
 		status = PTR_ERR_OR_ZERO(dev);
 	} else {
-		dev_dbg(&spi->dev, "no minor number available!\n");
+		dev_dbg(&spi->dev, "yes miyesr number available!\n");
 		status = -ENODEV;
 	}
 	if (status == 0) {
-		set_bit(minor, minors);
+		set_bit(miyesr, miyesrs);
 		list_add(&spidev->device_entry, &device_list);
 	}
 	mutex_unlock(&device_list_lock);
@@ -789,7 +789,7 @@ static int spidev_remove(struct spi_device *spi)
 	mutex_lock(&device_list_lock);
 	list_del(&spidev->device_entry);
 	device_destroy(spidev_class, spidev->devt);
-	clear_bit(MINOR(spidev->devt), minors);
+	clear_bit(MINOR(spidev->devt), miyesrs);
 	if (spidev->users == 0)
 		kfree(spidev);
 	mutex_unlock(&device_list_lock);
@@ -806,7 +806,7 @@ static struct spi_driver spidev_spi_driver = {
 	.probe =	spidev_probe,
 	.remove =	spidev_remove,
 
-	/* NOTE:  suspend/resume methods are not necessary here.
+	/* NOTE:  suspend/resume methods are yest necessary here.
 	 * We don't do anything except pass the requests to/from
 	 * the underlying controller.  The refrigerator handles
 	 * most issues; the controller driver handles the rest.
@@ -820,7 +820,7 @@ static int __init spidev_init(void)
 	int status;
 
 	/* Claim our 256 reserved device numbers.  Then register a class
-	 * that will key udev/mdev to add/remove /dev nodes.  Last, register
+	 * that will key udev/mdev to add/remove /dev yesdes.  Last, register
 	 * the driver which manages those device numbers.
 	 */
 	BUILD_BUG_ON(N_SPI_MINORS > 256);

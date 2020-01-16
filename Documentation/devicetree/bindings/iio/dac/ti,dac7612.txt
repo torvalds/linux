@@ -1,7 +1,7 @@
 * Texas Instruments Dual, 12-Bit Serial Input Digital-to-Analog Converter
 
 The DAC7612 is a dual, 12-bit digital-to-analog converter (DAC) with guaranteed
-12-bit monotonicity performance over the industrial temperature range.
+12-bit moyestonicity performance over the industrial temperature range.
 Is is programmable through an SPI interface.
 
 The internal DACs are loaded when the LOADDACS pin is pulled down.

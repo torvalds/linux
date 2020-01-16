@@ -349,14 +349,14 @@ scsi_log_print_sense(const struct scsi_device *sdev, const char *name, int tag,
 {
 	struct scsi_sense_hdr sshdr;
 
-	if (scsi_normalize_sense(sense_buffer, sense_len, &sshdr))
+	if (scsi_yesrmalize_sense(sense_buffer, sense_len, &sshdr))
 		scsi_log_print_sense_hdr(sdev, name, tag, &sshdr);
 	else
 		scsi_log_dump_sense(sdev, name, tag, sense_buffer, sense_len);
 }
 
 /*
- * Print normalized SCSI sense header with a prefix.
+ * Print yesrmalized SCSI sense header with a prefix.
  */
 void
 scsi_print_sense_hdr(const struct scsi_device *sdev, const char *name,

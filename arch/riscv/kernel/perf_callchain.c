@@ -54,15 +54,15 @@ static unsigned long user_backtrace(struct perf_callchain_entry_ctx *entry,
  * $ perf report --call-graph
  *
  * On RISC-V platform, the program being sampled and the C library
- * need to be compiled with -fno-omit-frame-pointer, otherwise
- * the user stack will not contain function frame.
+ * need to be compiled with -fyes-omit-frame-pointer, otherwise
+ * the user stack will yest contain function frame.
  */
 void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)
 {
 	unsigned long fp = 0;
 
-	/* RISC-V does not support perf in guest mode. */
+	/* RISC-V does yest support perf in guest mode. */
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest())
 		return;
 
@@ -79,14 +79,14 @@ bool fill_callchain(unsigned long pc, void *entry)
 	return perf_callchain_store(entry, pc);
 }
 
-void notrace walk_stackframe(struct task_struct *task,
+void yestrace walk_stackframe(struct task_struct *task,
 	struct pt_regs *regs, bool (*fn)(unsigned long, void *), void *arg);
 void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 			   struct pt_regs *regs)
 {
-	/* RISC-V does not support perf in guest mode. */
+	/* RISC-V does yest support perf in guest mode. */
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		pr_warn("RISC-V does not support perf in guest mode!");
+		pr_warn("RISC-V does yest support perf in guest mode!");
 		return;
 	}
 

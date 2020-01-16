@@ -4,7 +4,7 @@
 //
 // Copyright (C) 2019 Linus Walleij <linus.walleij@linaro.org>
 //
-// Based on code and know-how from the OpenWrt driver:
+// Based on code and kyesw-how from the OpenWrt driver:
 // Copyright (C) 2009 Gateworks Corporation
 // Authors: Chris Lang, Imre Kaloz
 
@@ -71,7 +71,7 @@ static int gw_pld_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct gw_pld *gw;
 	int ret;
 
@@ -82,7 +82,7 @@ static int gw_pld_probe(struct i2c_client *client,
 	gw->chip.base = -1;
 	gw->chip.can_sleep = true;
 	gw->chip.parent = dev;
-	gw->chip.of_node = np;
+	gw->chip.of_yesde = np;
 	gw->chip.owner = THIS_MODULE;
 	gw->chip.label = dev_name(dev);
 	gw->chip.ngpio = 8;
@@ -93,9 +93,9 @@ static int gw_pld_probe(struct i2c_client *client,
 	gw->client = client;
 
 	/*
-	 * The Gateworks I2C PLD chip does not properly send the acknowledge
+	 * The Gateworks I2C PLD chip does yest properly send the ackyeswledge
 	 * bit at all times, but we can still use the standard i2c_smbus
-	 * functions by simply ignoring this bit.
+	 * functions by simply igyesring this bit.
 	 */
 	client->flags |= I2C_M_IGNORE_NAK;
 	gw->out = 0xFF;

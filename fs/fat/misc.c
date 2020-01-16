@@ -4,7 +4,7 @@
  *
  *  Written 1992,1993 by Werner Almesberger
  *  22/11/2000 - Fixed fat_date_unix2dos for dates earlier than 01/01/1980
- *		 and date_dos2unix for date==0 by Igor Zhbanov(bsg@uniyar.ac.ru)
+ *		 and date_dos2unix for date==0 by Igor Zhbayesv(bsg@uniyar.ac.ru)
  */
 
 #include "fat.h"
@@ -13,7 +13,7 @@
 /*
  * fat_fs_error reports a file system problem that might indicate fa data
  * corruption/inconsistency. Depending on 'errors' mount option the
- * panic() is called, or error message is printed FAT and nothing is done,
+ * panic() is called, or error message is printed FAT and yesthing is done,
  * or filesystem is remounted read-only (default behavior).
  * In case the file system is remounted read-only, it can be made writable
  * again by remounting it.
@@ -43,7 +43,7 @@ EXPORT_SYMBOL_GPL(__fat_fs_error);
 
 /**
  * fat_msg() - print preformated FAT specific messages. Every thing what is
- * not fat_fs_error() should be fat_msg().
+ * yest fat_fs_error() should be fat_msg().
  */
 void fat_msg(struct super_block *sb, const char *level, const char *fmt, ...)
 {
@@ -96,11 +96,11 @@ int fat_clusters_flush(struct super_block *sb)
 
 /*
  * fat_chain_add() adds a new cluster to the chain of clusters represented
- * by inode.
+ * by iyesde.
  */
-int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
+int fat_chain_add(struct iyesde *iyesde, int new_dclus, int nr_cluster)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	int ret, new_fclus, last;
 
@@ -109,10 +109,10 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 	 * one (new_dclus) to the end of the link list (the FAT).
 	 */
 	last = new_fclus = 0;
-	if (MSDOS_I(inode)->i_start) {
+	if (MSDOS_I(iyesde)->i_start) {
 		int fclus, dclus;
 
-		ret = fat_get_cluster(inode, FAT_ENT_EOF, &fclus, &dclus);
+		ret = fat_get_cluster(iyesde, FAT_ENT_EOF, &fclus, &dclus);
 		if (ret < 0)
 			return ret;
 		new_fclus = fclus + 1;
@@ -124,10 +124,10 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 		struct fat_entry fatent;
 
 		fatent_init(&fatent);
-		ret = fat_ent_read(inode, &fatent, last);
+		ret = fat_ent_read(iyesde, &fatent, last);
 		if (ret >= 0) {
-			int wait = inode_needs_sync(inode);
-			ret = fat_ent_write(inode, &fatent, new_dclus, wait);
+			int wait = iyesde_needs_sync(iyesde);
+			ret = fat_ent_write(iyesde, &fatent, new_dclus, wait);
 			fatent_brelse(&fatent);
 		}
 		if (ret < 0)
@@ -136,28 +136,28 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 		 * FIXME:Although we can add this cache, fat_cache_add() is
 		 * assuming to be called after linear search with fat_cache_id.
 		 */
-//		fat_cache_add(inode, new_fclus, new_dclus);
+//		fat_cache_add(iyesde, new_fclus, new_dclus);
 	} else {
-		MSDOS_I(inode)->i_start = new_dclus;
-		MSDOS_I(inode)->i_logstart = new_dclus;
+		MSDOS_I(iyesde)->i_start = new_dclus;
+		MSDOS_I(iyesde)->i_logstart = new_dclus;
 		/*
 		 * Since generic_write_sync() synchronizes regular files later,
 		 * we sync here only directories.
 		 */
-		if (S_ISDIR(inode->i_mode) && IS_DIRSYNC(inode)) {
-			ret = fat_sync_inode(inode);
+		if (S_ISDIR(iyesde->i_mode) && IS_DIRSYNC(iyesde)) {
+			ret = fat_sync_iyesde(iyesde);
 			if (ret)
 				return ret;
 		} else
-			mark_inode_dirty(inode);
+			mark_iyesde_dirty(iyesde);
 	}
-	if (new_fclus != (inode->i_blocks >> (sbi->cluster_bits - 9))) {
+	if (new_fclus != (iyesde->i_blocks >> (sbi->cluster_bits - 9))) {
 		fat_fs_error(sb, "clusters badly computed (%d != %llu)",
 			     new_fclus,
-			     (llu)(inode->i_blocks >> (sbi->cluster_bits - 9)));
-		fat_cache_inval_inode(inode);
+			     (llu)(iyesde->i_blocks >> (sbi->cluster_bits - 9)));
+		fat_cache_inval_iyesde(iyesde);
 	}
-	inode->i_blocks += nr_cluster << (sbi->cluster_bits - 9);
+	iyesde->i_blocks += nr_cluster << (sbi->cluster_bits - 9);
 
 	return 0;
 }
@@ -181,7 +181,7 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 #define YEAR_2100	120
 #define IS_LEAP_YEAR(y)	(!((y) & 3) && (y) != YEAR_2100)
 
-/* Linear day numbers of the respective 1sts in non-leap years. */
+/* Linear day numbers of the respective 1sts in yesn-leap years. */
 static long days_in_year[] = {
 	/* Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sep  Oct  Nov  Dec */
 	0,   0,  31,  59,  90, 120, 151, 181, 212, 243, 273, 304, 334, 0, 0, 0,
@@ -273,70 +273,70 @@ static inline struct timespec64 fat_timespec64_trunc_2secs(struct timespec64 ts)
 }
 /*
  * truncate the various times with appropriate granularity:
- *   root inode:
+ *   root iyesde:
  *     all times always 0
- *   all other inodes:
+ *   all other iyesdes:
  *     mtime - 2 seconds
  *     ctime
  *       msdos - 2 seconds
  *       vfat  - 10 milliseconds
  *     atime - 24 hours (00:00:00 in local timezone)
  */
-int fat_truncate_time(struct inode *inode, struct timespec64 *now, int flags)
+int fat_truncate_time(struct iyesde *iyesde, struct timespec64 *yesw, int flags)
 {
-	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct msdos_sb_info *sbi = MSDOS_SB(iyesde->i_sb);
 	struct timespec64 ts;
 
-	if (inode->i_ino == MSDOS_ROOT_INO)
+	if (iyesde->i_iyes == MSDOS_ROOT_INO)
 		return 0;
 
-	if (now == NULL) {
-		now = &ts;
-		ts = current_time(inode);
+	if (yesw == NULL) {
+		yesw = &ts;
+		ts = current_time(iyesde);
 	}
 
 	if (flags & S_ATIME) {
 		/* to localtime */
-		time64_t seconds = now->tv_sec - fat_tz_offset(sbi);
+		time64_t seconds = yesw->tv_sec - fat_tz_offset(sbi);
 		s32 remainder;
 
 		div_s64_rem(seconds, SECS_PER_DAY, &remainder);
 		/* to day boundary, and back to unix time */
 		seconds = seconds + fat_tz_offset(sbi) - remainder;
 
-		inode->i_atime = (struct timespec64){ seconds, 0 };
+		iyesde->i_atime = (struct timespec64){ seconds, 0 };
 	}
 	if (flags & S_CTIME) {
 		if (sbi->options.isvfat)
-			inode->i_ctime = timespec64_trunc(*now, 10000000);
+			iyesde->i_ctime = timespec64_trunc(*yesw, 10000000);
 		else
-			inode->i_ctime = fat_timespec64_trunc_2secs(*now);
+			iyesde->i_ctime = fat_timespec64_trunc_2secs(*yesw);
 	}
 	if (flags & S_MTIME)
-		inode->i_mtime = fat_timespec64_trunc_2secs(*now);
+		iyesde->i_mtime = fat_timespec64_trunc_2secs(*yesw);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fat_truncate_time);
 
-int fat_update_time(struct inode *inode, struct timespec64 *now, int flags)
+int fat_update_time(struct iyesde *iyesde, struct timespec64 *yesw, int flags)
 {
 	int iflags = I_DIRTY_TIME;
 	bool dirty = false;
 
-	if (inode->i_ino == MSDOS_ROOT_INO)
+	if (iyesde->i_iyes == MSDOS_ROOT_INO)
 		return 0;
 
-	fat_truncate_time(inode, now, flags);
+	fat_truncate_time(iyesde, yesw, flags);
 	if (flags & S_VERSION)
-		dirty = inode_maybe_inc_iversion(inode, false);
+		dirty = iyesde_maybe_inc_iversion(iyesde, false);
 	if ((flags & (S_ATIME | S_CTIME | S_MTIME)) &&
-	    !(inode->i_sb->s_flags & SB_LAZYTIME))
+	    !(iyesde->i_sb->s_flags & SB_LAZYTIME))
 		dirty = true;
 
 	if (dirty)
 		iflags |= I_DIRTY_SYNC;
-	__mark_inode_dirty(inode, iflags);
+	__mark_iyesde_dirty(iyesde, iflags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fat_update_time);

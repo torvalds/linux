@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_ENUMINPUT:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_ENUMINPUT - Enumerate video inputs
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_ENUMINPUT, struct v4l2_input *argp )
@@ -73,12 +73,12 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 	shows which audio inputs were selectable as audio source if this
 	was the currently selected video input. It is a bit mask. The LSB
 	corresponds to audio input 0, the MSB to input 31. Any number of
-	bits can be set, or none.
+	bits can be set, or yesne.
 
-	When the driver does not enumerate audio inputs no bits must be
-	set. Applications shall not interpret this as lack of audio
+	When the driver does yest enumerate audio inputs yes bits must be
+	set. Applications shall yest interpret this as lack of audio
 	support. Some drivers automatically select audio sources and do
-	not enumerate them since there is no choice anyway.
+	yest enumerate them since there is yes choice anyway.
 
 	For details on audio inputs and how to select the current input
 	see :ref:`audio`.
@@ -125,7 +125,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
       - This input uses a tuner (RF demodulator).
     * - ``V4L2_INPUT_TYPE_CAMERA``
       - 2
-      - Any non-tuner video input, for example Composite Video,
+      - Any yesn-tuner video input, for example Composite Video,
 	S-Video, HDMI, camera sensor. The naming as ``_TYPE_CAMERA`` is historical,
 	today we would have called it ``_TYPE_VIDEO``.
     * - ``V4L2_INPUT_TYPE_TOUCH``
@@ -151,20 +151,20 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
       -
     * - ``V4L2_IN_ST_NO_COLOR``
       - 0x00000004
-      - The hardware supports color decoding, but does not detect color
+      - The hardware supports color decoding, but does yest detect color
 	modulation in the signal.
     * - :cspan:`2` Sensor Orientation
     * - ``V4L2_IN_ST_HFLIP``
       - 0x00000010
       - The input is connected to a device that produces a signal that is
-	flipped horizontally and does not correct this before passing the
+	flipped horizontally and does yest correct this before passing the
 	signal to userspace.
     * - ``V4L2_IN_ST_VFLIP``
       - 0x00000020
       - The input is connected to a device that produces a signal that is
-	flipped vertically and does not correct this before passing the
+	flipped vertically and does yest correct this before passing the
 	signal to userspace.
-	.. note:: A 180 degree rotation is the same as HFLIP | VFLIP
+	.. yeste:: A 180 degree rotation is the same as HFLIP | VFLIP
     * - :cspan:`2` Analog Video
     * - ``V4L2_IN_ST_NO_H_LOCK``
       - 0x00000100
@@ -172,7 +172,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
     * - ``V4L2_IN_ST_COLOR_KILL``
       - 0x00000200
       - A color killer circuit automatically disables color decoding when
-	it detects no color modulation. When this flag is set the color
+	it detects yes color modulation. When this flag is set the color
 	killer is enabled *and* has shut off color decoding.
     * - ``V4L2_IN_ST_NO_V_LOCK``
       - 0x00000400
@@ -233,7 +233,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

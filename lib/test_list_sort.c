@@ -13,7 +13,7 @@
  * The pattern of set bits in the list length determines which cases
  * are hit in list_sort().
  */
-#define TEST_LIST_LEN (512+128+2) /* not including head */
+#define TEST_LIST_LEN (512+128+2) /* yest including head */
 
 #define TEST_POISON1 0xDEADBEEF
 #define TEST_POISON2 0xA324354C
@@ -108,14 +108,14 @@ static int __init list_sort_test(void)
 
 		cmp_result = cmp(NULL, cur, cur->next);
 		if (cmp_result > 0) {
-			pr_err("error: list is not sorted\n");
+			pr_err("error: list is yest sorted\n");
 			goto exit;
 		}
 
 		el = container_of(cur, struct debug_el, list);
 		el1 = container_of(cur->next, struct debug_el, list);
 		if (cmp_result == 0 && el->serial >= el1->serial) {
-			pr_err("error: order of equivalent elements not "
+			pr_err("error: order of equivalent elements yest "
 				"preserved\n");
 			goto exit;
 		}

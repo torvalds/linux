@@ -28,12 +28,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -60,7 +60,7 @@
 
 /**
  * enum iwl_context_info_flags - Context information control flags
- * @IWL_CTXT_INFO_AUTO_FUNC_INIT: If set, FW will not wait before interrupting
+ * @IWL_CTXT_INFO_AUTO_FUNC_INIT: If set, FW will yest wait before interrupting
  *	the init done for driver command that configures several system modes
  * @IWL_CTXT_INFO_EARLY_DEBUG: enable early debug
  * @IWL_CTXT_INFO_ENABLE_CDMP: enable core dump
@@ -68,7 +68,7 @@
  *	exponent, the actual size is 2**value, valid sizes are 8-2048.
  *	The value is four bits long. Maximum valid exponent is 12
  * @IWL_CTXT_INFO_TFD_FORMAT_LONG: use long TFD Format (the
- *	default is short format - not supported by the driver)
+ *	default is short format - yest supported by the driver)
  * @IWL_CTXT_INFO_RB_SIZE_POS: RB size position
  *	(values are IWL_CTXT_INFO_RB_SIZE_*K)
  * @IWL_CTXT_INFO_RB_SIZE_1K: Value for 1K RB size

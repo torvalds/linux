@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * HighPoint RR3xxx/4xxx controller driver for Linux
- * Copyright (C) 2006-2015 HighPoint Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2006-2015 HighPoint Techyeslogies, Inc. All Rights Reserved.
  *
  * Please report bugs/comments/suggestions to linux@highpoint-tech.com
  *
@@ -198,7 +198,7 @@ struct hpt_iop_request_set_config {
 
 struct hpt_iopsg {
 	__le32 size;
-	__le32 eot; /* non-zero: end of table */
+	__le32 eot; /* yesn-zero: end of table */
 	__le64 pci_address;
 };
 

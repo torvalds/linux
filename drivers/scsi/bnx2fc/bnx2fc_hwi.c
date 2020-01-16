@@ -17,7 +17,7 @@
 
 DECLARE_PER_CPU(struct bnx2fc_percpu_s, bnx2fc_percpu);
 
-static void bnx2fc_fastpath_notification(struct bnx2fc_hba *hba,
+static void bnx2fc_fastpath_yestification(struct bnx2fc_hba *hba,
 					struct fcoe_kcqe *new_cqe_kcqe);
 static void bnx2fc_process_ofld_cmpl(struct bnx2fc_hba *hba,
 					struct fcoe_kcqe *ofld_kcqe);
@@ -103,7 +103,7 @@ int bnx2fc_send_fw_fcoe_init_msg(struct bnx2fc_hba *hba)
 					FCOE_KWQE_HEADER_LAYER_CODE_SHIFT);
 
 	fcoe_init2.hsi_major_version = FCOE_HSI_MAJOR_VERSION;
-	fcoe_init2.hsi_minor_version = FCOE_HSI_MINOR_VERSION;
+	fcoe_init2.hsi_miyesr_version = FCOE_HSI_MINOR_VERSION;
 
 
 	fcoe_init2.hash_tbl_pbl_addr_lo = (u32) hba->hash_tbl_pbl_dma;
@@ -130,7 +130,7 @@ int bnx2fc_send_fw_fcoe_init_msg(struct bnx2fc_hba *hba)
 
 	/*
 	 * enable both cached connection and cached tasks
-	 * 0 = none, 1 = cached connection, 2 = cached tasks, 3 = both
+	 * 0 = yesne, 1 = cached connection, 2 = cached tasks, 3 = both
 	 */
 	fcoe_init3.perf_config = 3;
 
@@ -302,7 +302,7 @@ int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
 	ofld_req3.flags |= (interface->vlan_enabled <<
 			    FCOE_KWQE_CONN_OFFLOAD3_B_VLAN_FLAG_SHIFT);
 
-	/* C2_VALID and ACK flags are not set as they are not supported */
+	/* C2_VALID and ACK flags are yest set as they are yest supported */
 
 
 	/* Initialize offload request 4 structure */
@@ -723,7 +723,7 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 		if (test_and_clear_bit(BNX2FC_FLAG_IO_CLEANUP,
 				       &io_req->req_flags)) {
 			BNX2FC_IO_DBG(io_req, "unsol_err: cleanup in "
-					    "progress.. ignore unsol err\n");
+					    "progress.. igyesre unsol err\n");
 			goto ret_err_rqe;
 		}
 
@@ -739,7 +739,7 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 
 		/*
 		 * If ABTS is already in progress, and FW error is
-		 * received after that, do not cancel the timeout_work
+		 * received after that, do yest cancel the timeout_work
 		 * and let the error recovery continue by explicitly
 		 * logging out the target, when the ABTS eventually
 		 * times out.
@@ -848,7 +848,7 @@ ret_err_rqe:
 		       sizeof(struct fcoe_err_report_entry));
 
 		if (err_warn == FCOE_ERROR_CODE_REC_TOV_TIMER_EXPIRATION)
-			/* REC_TOV is not a warning code */
+			/* REC_TOV is yest a warning code */
 			BUG_ON(1);
 		else
 			BNX2FC_TGT_DBG(tgt, "Unsolicited warning\n");
@@ -1053,7 +1053,7 @@ int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
 
 		/* new entry on the cq */
 		if (wqe & FCOE_CQE_CQE_TYPE) {
-			/* Unsolicited event notification */
+			/* Unsolicited event yestification */
 			bnx2fc_process_unsol_compl(tgt, wqe);
 		} else {
 			bnx2fc_pending_work(tgt, wqe);
@@ -1081,21 +1081,21 @@ int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
 }
 
 /**
- * bnx2fc_fastpath_notification - process global event queue (KCQ)
+ * bnx2fc_fastpath_yestification - process global event queue (KCQ)
  *
  * @hba:		adapter structure pointer
  * @new_cqe_kcqe:	pointer to newly DMA'd KCQ entry
  *
- * Fast path event notification handler
+ * Fast path event yestification handler
  */
-static void bnx2fc_fastpath_notification(struct bnx2fc_hba *hba,
+static void bnx2fc_fastpath_yestification(struct bnx2fc_hba *hba,
 					struct fcoe_kcqe *new_cqe_kcqe)
 {
 	u32 conn_id = new_cqe_kcqe->fcoe_conn_id;
 	struct bnx2fc_rport *tgt = hba->tgt_ofld_list[conn_id];
 
 	if (!tgt) {
-		printk(KERN_ERR PFX "conn_id 0x%x not valid\n", conn_id);
+		printk(KERN_ERR PFX "conn_id 0x%x yest valid\n", conn_id);
 		return;
 	}
 
@@ -1287,7 +1287,7 @@ static void bnx2fc_init_failure(struct bnx2fc_hba *hba, u32 err_code)
 		printk(KERN_ERR PFX "init failure due to HSI mismatch\n");
 		break;
 	default:
-		printk(KERN_ERR PFX "Unknown Error code %d\n", err_code);
+		printk(KERN_ERR PFX "Unkyeswn Error code %d\n", err_code);
 	}
 }
 
@@ -1312,7 +1312,7 @@ void bnx2fc_indicate_kcqe(void *context, struct kcqe *kcq[],
 
 		switch (kcqe->op_code) {
 		case FCOE_KCQE_OPCODE_CQ_EVENT_NOTIFICATION:
-			bnx2fc_fastpath_notification(hba, kcqe);
+			bnx2fc_fastpath_yestification(hba, kcqe);
 			break;
 
 		case FCOE_KCQE_OPCODE_OFFLOAD_CONN:
@@ -1366,7 +1366,7 @@ void bnx2fc_indicate_kcqe(void *context, struct kcqe *kcq[],
 		case FCOE_KCQE_OPCODE_FCOE_ERROR:
 			/* fall thru */
 		default:
-			printk(KERN_ERR PFX "unknown opcode 0x%x\n",
+			printk(KERN_ERR PFX "unkyeswn opcode 0x%x\n",
 								kcqe->op_code);
 		}
 	}
@@ -1414,7 +1414,7 @@ int bnx2fc_map_doorbell(struct bnx2fc_rport *tgt)
 	reg_base = pci_resource_start(hba->pcidev,
 					BNX2X_DOORBELL_PCI_BAR);
 	reg_off = (1 << BNX2X_DB_SHIFT) * (context_id & 0x1FFFF);
-	tgt->ctx_base = ioremap_nocache(reg_base + reg_off, 4);
+	tgt->ctx_base = ioremap_yescache(reg_base + reg_off, 4);
 	if (!tgt->ctx_base)
 		return -ENOMEM;
 	return 0;

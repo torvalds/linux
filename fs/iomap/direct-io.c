@@ -14,7 +14,7 @@
 #include "../internal.h"
 
 /*
- * Private flags for iomap_dio, must not overlap with the public ones in
+ * Private flags for iomap_dio, must yest overlap with the public ones in
  * iomap.h:
  */
 #define IOMAP_DIO_WRITE_FUA	(1 << 28)
@@ -33,7 +33,7 @@ struct iomap_dio {
 	bool			wait_for_completion;
 
 	union {
-		/* used during submission and for synchronous completion: */
+		/* used during submission and for synchroyesus completion: */
 		struct {
 			struct iov_iter		*iter;
 			struct task_struct	*waiter;
@@ -74,7 +74,7 @@ static ssize_t iomap_dio_complete(struct iomap_dio *dio)
 {
 	const struct iomap_dio_ops *dops = dio->dops;
 	struct kiocb *iocb = dio->iocb;
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct iyesde *iyesde = file_iyesde(iocb->ki_filp);
 	loff_t offset = iocb->ki_pos;
 	ssize_t ret = dio->error;
 
@@ -92,7 +92,7 @@ static ssize_t iomap_dio_complete(struct iomap_dio *dio)
 
 	/*
 	 * Try again to invalidate clean pages which might have been cached by
-	 * non-direct readahead, or faulted in by get_user_pages() if the source
+	 * yesn-direct readahead, or faulted in by get_user_pages() if the source
 	 * of the write was an mmap'ed region of the file we're writing.  Either
 	 * one is a pretty crazy thing to do, so we don't support it 100%.  If
 	 * this invalidation fails, tough, the write still worked...
@@ -103,9 +103,9 @@ static ssize_t iomap_dio_complete(struct iomap_dio *dio)
 	 * zeros from unwritten extents.
 	 */
 	if (!dio->error &&
-	    (dio->flags & IOMAP_DIO_WRITE) && inode->i_mapping->nrpages) {
+	    (dio->flags & IOMAP_DIO_WRITE) && iyesde->i_mapping->nrpages) {
 		int err;
-		err = invalidate_inode_pages2_range(inode->i_mapping,
+		err = invalidate_iyesde_pages2_range(iyesde->i_mapping,
 				offset >> PAGE_SHIFT,
 				(offset + dio->size - 1) >> PAGE_SHIFT);
 		if (err)
@@ -113,13 +113,13 @@ static ssize_t iomap_dio_complete(struct iomap_dio *dio)
 	}
 
 	/*
-	 * If this is a DSYNC write, make sure we push it to stable storage now
+	 * If this is a DSYNC write, make sure we push it to stable storage yesw
 	 * that we've written data.
 	 */
 	if (ret > 0 && (dio->flags & IOMAP_DIO_NEED_SYNC))
 		ret = generic_write_sync(iocb, ret);
 
-	inode_dio_end(file_inode(iocb->ki_filp));
+	iyesde_dio_end(file_iyesde(iocb->ki_filp));
 	kfree(dio);
 
 	return ret;
@@ -134,7 +134,7 @@ static void iomap_dio_complete_work(struct work_struct *work)
 }
 
 /*
- * Set an error in the dio if none is set yet.  We have to use cmpxchg
+ * Set an error in the dio if yesne is set yet.  We have to use cmpxchg
  * as the submission context and the completion context(s) can race to
  * update the error.
  */
@@ -149,7 +149,7 @@ static void iomap_dio_bio_end_io(struct bio *bio)
 	bool should_dirty = (dio->flags & IOMAP_DIO_DIRTY);
 
 	if (bio->bi_status)
-		iomap_dio_set_error(dio, blk_status_to_errno(bio->bi_status));
+		iomap_dio_set_error(dio, blk_status_to_erryes(bio->bi_status));
 
 	if (atomic_dec_and_test(&dio->ref)) {
 		if (dio->wait_for_completion) {
@@ -157,10 +157,10 @@ static void iomap_dio_bio_end_io(struct bio *bio)
 			WRITE_ONCE(dio->submit.waiter, NULL);
 			blk_wake_io_task(waiter);
 		} else if (dio->flags & IOMAP_DIO_WRITE) {
-			struct inode *inode = file_inode(dio->iocb->ki_filp);
+			struct iyesde *iyesde = file_iyesde(dio->iocb->ki_filp);
 
 			INIT_WORK(&dio->aio.work, iomap_dio_complete_work);
-			queue_work(inode->i_sb->s_dio_done_wq, &dio->aio.work);
+			queue_work(iyesde->i_sb->s_dio_done_wq, &dio->aio.work);
 		} else {
 			iomap_dio_complete_work(&dio->aio.work);
 		}
@@ -195,11 +195,11 @@ iomap_dio_zero(struct iomap_dio *dio, struct iomap *iomap, loff_t pos,
 }
 
 static loff_t
-iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
+iomap_dio_bio_actor(struct iyesde *iyesde, loff_t pos, loff_t length,
 		struct iomap_dio *dio, struct iomap *iomap)
 {
 	unsigned int blkbits = blksize_bits(bdev_logical_block_size(iomap->bdev));
-	unsigned int fs_block_size = i_blocksize(inode), pad;
+	unsigned int fs_block_size = i_blocksize(iyesde), pad;
 	unsigned int align = iov_iter_alignment(dio->submit.iter);
 	struct bio *bio;
 	bool need_zeroout = false;
@@ -237,7 +237,7 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
 
 	/*
 	 * Save the original count and trim the iter to just the extent we
-	 * are operating on right now.  The iter will be re-expanded once
+	 * are operating on right yesw.  The iter will be re-expanded once
 	 * we are done.
 	 */
 	orig_count = iov_iter_count(dio->submit.iter);
@@ -314,7 +314,7 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
 	 */
 zero_tail:
 	if (need_zeroout ||
-	    ((dio->flags & IOMAP_DIO_WRITE) && pos >= i_size_read(inode))) {
+	    ((dio->flags & IOMAP_DIO_WRITE) && pos >= i_size_read(iyesde))) {
 		/* zero out from the end of the write to the end of the block */
 		pad = pos & (fs_block_size - 1);
 		if (pad)
@@ -337,7 +337,7 @@ iomap_dio_hole_actor(loff_t length, struct iomap_dio *dio)
 }
 
 static loff_t
-iomap_dio_inline_actor(struct inode *inode, loff_t pos, loff_t length,
+iomap_dio_inline_actor(struct iyesde *iyesde, loff_t pos, loff_t length,
 		struct iomap_dio *dio, struct iomap *iomap)
 {
 	struct iov_iter *iter = dio->submit.iter;
@@ -346,15 +346,15 @@ iomap_dio_inline_actor(struct inode *inode, loff_t pos, loff_t length,
 	BUG_ON(pos + length > PAGE_SIZE - offset_in_page(iomap->inline_data));
 
 	if (dio->flags & IOMAP_DIO_WRITE) {
-		loff_t size = inode->i_size;
+		loff_t size = iyesde->i_size;
 
 		if (pos > size)
 			memset(iomap->inline_data + size, 0, pos - size);
 		copied = copy_from_iter(iomap->inline_data + pos, length, iter);
 		if (copied) {
 			if (pos + copied > size)
-				i_size_write(inode, pos + copied);
-			mark_inode_dirty(inode);
+				i_size_write(iyesde, pos + copied);
+			mark_iyesde_dirty(iyesde);
 		}
 	} else {
 		copied = copy_to_iter(iomap->inline_data + pos, length, iter);
@@ -364,7 +364,7 @@ iomap_dio_inline_actor(struct inode *inode, loff_t pos, loff_t length,
 }
 
 static loff_t
-iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
+iomap_dio_actor(struct iyesde *iyesde, loff_t pos, loff_t length,
 		void *data, struct iomap *iomap, struct iomap *srcmap)
 {
 	struct iomap_dio *dio = data;
@@ -377,11 +377,11 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 	case IOMAP_UNWRITTEN:
 		if (!(dio->flags & IOMAP_DIO_WRITE))
 			return iomap_dio_hole_actor(length, dio);
-		return iomap_dio_bio_actor(inode, pos, length, dio, iomap);
+		return iomap_dio_bio_actor(iyesde, pos, length, dio, iomap);
 	case IOMAP_MAPPED:
-		return iomap_dio_bio_actor(inode, pos, length, dio, iomap);
+		return iomap_dio_bio_actor(iyesde, pos, length, dio, iomap);
 	case IOMAP_INLINE:
-		return iomap_dio_inline_actor(inode, pos, length, dio, iomap);
+		return iomap_dio_inline_actor(iyesde, pos, length, dio, iomap);
 	default:
 		WARN_ON_ONCE(1);
 		return -EIO;
@@ -390,7 +390,7 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 
 /*
  * iomap_dio_rw() always completes O_[D]SYNC writes regardless of whether the IO
- * is being issued as AIO or not.  This allows us to optimise pure data writes
+ * is being issued as AIO or yest.  This allows us to optimise pure data writes
  * to use REQ_FUA rather than requiring generic_write_sync() to issue a
  * REQ_FLUSH post write. This is slightly tricky because a single request here
  * can be mapped into multiple disjoint IOs and only a subset of the IOs issued
@@ -403,7 +403,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		bool wait_for_completion)
 {
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct iyesde *iyesde = file_iyesde(iocb->ki_filp);
 	size_t count = iov_iter_count(iter);
 	loff_t pos = iocb->ki_pos;
 	loff_t end = iocb->ki_pos + count - 1, ret = 0;
@@ -411,7 +411,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	struct blk_plug plug;
 	struct iomap_dio *dio;
 
-	lockdep_assert_held(&inode->i_rwsem);
+	lockdep_assert_held(&iyesde->i_rwsem);
 
 	if (!count)
 		return 0;
@@ -426,7 +426,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	dio->iocb = iocb;
 	atomic_set(&dio->ref, 1);
 	dio->size = 0;
-	dio->i_size = i_size_read(inode);
+	dio->i_size = i_size_read(iyesde);
 	dio->dops = dops;
 	dio->error = 0;
 	dio->flags = 0;
@@ -452,8 +452,8 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 
 		/*
 		 * For datasync only writes, we optimistically try using FUA for
-		 * this IO.  Any non-FUA write that occurs will clear this flag,
-		 * hence we know before completion whether a cache flush is
+		 * this IO.  Any yesn-FUA write that occurs will clear this flag,
+		 * hence we kyesw before completion whether a cache flush is
 		 * necessary.
 		 */
 		if ((iocb->ki_flags & (IOCB_DSYNC | IOCB_SYNC)) == IOCB_DSYNC)
@@ -478,24 +478,24 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	 * still work, but racing two incompatible write paths is a
 	 * pretty crazy thing to do, so we don't support it 100%.
 	 */
-	ret = invalidate_inode_pages2_range(mapping,
+	ret = invalidate_iyesde_pages2_range(mapping,
 			pos >> PAGE_SHIFT, end >> PAGE_SHIFT);
 	if (ret)
 		dio_warn_stale_pagecache(iocb->ki_filp);
 	ret = 0;
 
 	if (iov_iter_rw(iter) == WRITE && !wait_for_completion &&
-	    !inode->i_sb->s_dio_done_wq) {
-		ret = sb_init_dio_done_wq(inode->i_sb);
+	    !iyesde->i_sb->s_dio_done_wq) {
+		ret = sb_init_dio_done_wq(iyesde->i_sb);
 		if (ret < 0)
 			goto out_free_dio;
 	}
 
-	inode_dio_begin(inode);
+	iyesde_dio_begin(iyesde);
 
 	blk_start_plug(&plug);
 	do {
-		ret = iomap_apply(inode, pos, count, flags, ops, dio,
+		ret = iomap_apply(iyesde, pos, count, flags, ops, dio,
 				iomap_dio_actor);
 		if (ret <= 0) {
 			/* magic error code to fall back to buffered I/O */
@@ -539,10 +539,10 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	 *
 	 *  (a) If this is the last reference we will always complete and free
 	 *	the dio ourselves.
-	 *  (b) If this is not the last reference, and we serve an asynchronous
+	 *  (b) If this is yest the last reference, and we serve an asynchroyesus
 	 *	iocb, we must never touch the dio after the decrement, the
 	 *	I/O completion handler will complete and free it.
-	 *  (c) If this is not the last reference, but we serve a synchronous
+	 *  (c) If this is yest the last reference, but we serve a synchroyesus
 	 *	iocb, the I/O completion handler will wake us up on the drop
 	 *	of the final reference, and we will complete and free it here
 	 *	after we got woken by the I/O completion handler.

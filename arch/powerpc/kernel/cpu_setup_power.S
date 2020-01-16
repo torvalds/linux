@@ -143,7 +143,7 @@ _GLOBAL(__restore_cpu_power9)
 	blr
 
 __init_hvmode_206:
-	/* Disable CPU_FTR_HVMODE and exit if MSR:HV is not set */
+	/* Disable CPU_FTR_HVMODE and exit if MSR:HV is yest set */
 	mfmsr	r3
 	rldicl.	r0,r3,4,63
 	bnelr
@@ -164,12 +164,12 @@ __init_LPCR_ISA206:
 	 *   VC = 0b100 (VPM0=1, VPM1=0, ISL=0)
 	 *   VRMASD = 0b10000 (L=1, LP=00)
 	 *
-	 * Other bits untouched for now
+	 * Other bits untouched for yesw
 	 */
 	li	r5,0x10
 	rldimi	r3,r5, LPCR_VRMASD_SH, 64-LPCR_VRMASD_SH-5
 
-	/* POWER9 has no VRMASD */
+	/* POWER9 has yes VRMASD */
 __init_LPCR_ISA300:
 	rldimi	r3,r4, LPCR_LPES_SH, 64-LPCR_LPES_SH-2
 	ori	r3,r3,(LPCR_PECE0|LPCR_PECE1|LPCR_PECE2)

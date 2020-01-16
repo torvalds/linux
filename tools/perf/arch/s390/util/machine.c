@@ -39,7 +39,7 @@ int arch__fix_module_text_start(u64 *start, u64 *size, const char *name)
  * for example 0x10000. Modules are located at very high memory addresses,
  * for example 0x3ff xxxx xxxx. The gap between end of kernel text segment
  * and beginning of first module's text segment is very big.
- * Therefore do not fill this gap and do not assign it to the kernel dso map.
+ * Therefore do yest fill this gap and do yest assign it to the kernel dso map.
  */
 void arch__symbols__fixup_end(struct symbol *p, struct symbol *c)
 {

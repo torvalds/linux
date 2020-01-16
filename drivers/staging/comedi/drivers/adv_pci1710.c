@@ -17,14 +17,14 @@
  * Updated: Fri, 29 Oct 2015 17:19:35 -0700
  * Status: works
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: yest applicable, uses PCI auto config
  *
  * This driver supports AI, AO, DI and DO subdevices.
  * AI subdevice supports cmd and insn interface,
  * other subdevices support only insn interface.
  *
  * The PCI-1710 and PCI-1710HG have the same PCI device ID, so the
- * driver cannot distinguish between them, as would be normal for a
+ * driver canyest distinguish between them, as would be yesrmal for a
  * PCI driver.
  */
 
@@ -173,7 +173,7 @@ struct pci1710_private {
 	unsigned int mux_scan;	/* used to set the channel interval to scan */
 	unsigned char ai_et;
 	unsigned int act_chanlist[32];	/*  list of scanned channel */
-	unsigned char saved_seglen;	/* len of the non-repeating chanlist */
+	unsigned char saved_seglen;	/* len of the yesn-repeating chanlist */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
 	unsigned char unipolar_gain;	/* adjust for unipolar gain codes */
 };
@@ -207,7 +207,7 @@ static int pci1710_ai_check_chanlist(struct comedi_device *dev,
 
 		if (aref == AREF_DIFF && (chan & 1)) {
 			dev_err(dev->class_dev,
-				"Odd channel cannot be differential input!\n");
+				"Odd channel canyest be differential input!\n");
 			return -EINVAL;
 		}
 
@@ -229,7 +229,7 @@ static int pci1710_ai_check_chanlist(struct comedi_device *dev,
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		if (cmd->chanlist[i] != chansegment[i % seglen]) {
 			dev_err(dev->class_dev,
-				"bad channel, reference or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
+				"bad channel, reference or range number! chanlist[%i]=%d,%d,%d and yest %d,%d,%d!\n",
 				i, CR_CHAN(chansegment[i]),
 				CR_RANGE(chansegment[i]),
 				CR_AREF(chansegment[i]),
@@ -443,7 +443,7 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 
 	status = inw(dev->iobase + PCI171X_STATUS_REG);
 	if (!(status & PCI171X_STATUS_FH)) {
-		dev_dbg(dev->class_dev, "A/D FIFO not half full!\n");
+		dev_dbg(dev->class_dev, "A/D FIFO yest half full!\n");
 		async->events |= COMEDI_CB_ERROR;
 		return;
 	}
@@ -485,14 +485,14 @@ static irqreturn_t pci1710_irq_handler(int irq, void *d)
 	struct comedi_cmd *cmd;
 
 	if (!dev->attached)	/*  is device attached? */
-		return IRQ_NONE;	/*  no, exit */
+		return IRQ_NONE;	/*  yes, exit */
 
 	s = dev->read_subdev;
 	cmd = &s->async->cmd;
 
 	/*  is this interrupt from our board? */
 	if (!(inw(dev->iobase + PCI171X_STATUS_REG) & PCI171X_STATUS_IRQ))
-		return IRQ_NONE;	/*  no, exit */
+		return IRQ_NONE;	/*  yes, exit */
 
 	if (devpriv->ai_et) {	/*  Switch from initial TRIG_EXT to TRIG_xxx. */
 		devpriv->ai_et = 0;
@@ -502,7 +502,7 @@ static irqreturn_t pci1710_irq_handler(int irq, void *d)
 		devpriv->ctrl = devpriv->ctrl_ext;
 		outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
 		outb(0, dev->iobase + PCI171X_CLRINT_REG);
-		/* no sample on this interrupt; reset the channel interval */
+		/* yes sample on this interrupt; reset the channel interval */
 		outw(devpriv->mux_scan, dev->iobase + PCI171X_MUX_REG);
 		outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);

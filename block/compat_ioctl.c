@@ -235,7 +235,7 @@ static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 	case BLKSECTSET:
 	/*
 	 * 0x03 -- HD/IDE ioctl's used by hdparm and friends.
-	 *         Some need translations, these do not.
+	 *         Some need translations, these do yest.
 	 */
 	case HDIO_GET_IDENTITY:
 	case HDIO_DRIVE_TASK:
@@ -264,8 +264,8 @@ static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 	case CDROM_DISC_STATUS:
 	case CDROM_CHANGER_NSLOTS:
 	case CDROM_GET_CAPABILITY:
-	/* Ignore cdrom.h about these next 5 ioctls, they absolutely do
-	 * not take a struct cdrom_read, instead they take a struct cdrom_msf
+	/* Igyesre cdrom.h about these next 5 ioctls, they absolutely do
+	 * yest take a struct cdrom_read, instead they take a struct cdrom_msf
 	 * which is compatible.
 	 */
 	case CDROMREADMODE2:
@@ -278,8 +278,8 @@ static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 	case DVD_WRITE_STRUCT:
 	case DVD_AUTH:
 		arg = (unsigned long)compat_ptr(arg);
-	/* These intepret arg as an unsigned long, not as a pointer,
-	 * so we must not do compat_ptr() conversion. */
+	/* These intepret arg as an unsigned long, yest as a pointer,
+	 * so we must yest do compat_ptr() conversion. */
 	case HDIO_SET_MULTCOUNT:
 	case HDIO_SET_UNMASKINTR:
 	case HDIO_SET_KEEPSETTINGS:
@@ -303,21 +303,21 @@ static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 	case CDROM_DEBUG:
 		break;
 	default:
-		/* unknown ioctl number */
+		/* unkyeswn ioctl number */
 		return -ENOIOCTLCMD;
 	}
 
 	return __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 }
 
-/* Most of the generic ioctls are handled in the normal fallback path.
+/* Most of the generic ioctls are handled in the yesrmal fallback path.
    This assumes the blkdev's low level compat_ioctl always returns
-   ENOIOCTLCMD for unknown ioctls. */
+   ENOIOCTLCMD for unkyeswn ioctls. */
 long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	int ret = -ENOIOCTLCMD;
-	struct inode *inode = file->f_mapping->host;
-	struct block_device *bdev = inode->i_bdev;
+	struct iyesde *iyesde = file->f_mapping->host;
+	struct block_device *bdev = iyesde->i_bdev;
 	struct gendisk *disk = bdev->bd_disk;
 	fmode_t mode = file->f_mode;
 	loff_t size;
@@ -387,21 +387,21 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		return compat_put_ushort(arg, max_sectors);
 	case BLKROTATIONAL:
 		return compat_put_ushort(arg,
-					 !blk_queue_nonrot(bdev_get_queue(bdev)));
-	case BLKRASET: /* compatible, but no compat_ptr (!) */
+					 !blk_queue_yesnrot(bdev_get_queue(bdev)));
+	case BLKRASET: /* compatible, but yes compat_ptr (!) */
 	case BLKFRASET:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
 		bdev->bd_bdi->ra_pages = (arg * 512) / PAGE_SIZE;
 		return 0;
 	case BLKGETSIZE:
-		size = i_size_read(bdev->bd_inode);
+		size = i_size_read(bdev->bd_iyesde);
 		if ((size >> 9) > ~0UL)
 			return -EFBIG;
 		return compat_put_ulong(arg, size >> 9);
 
 	case BLKGETSIZE64_32:
-		return compat_put_u64(arg, i_size_read(bdev->bd_inode));
+		return compat_put_u64(arg, i_size_read(bdev->bd_iyesde));
 
 	case BLKTRACESETUP32:
 	case BLKTRACESTART: /* compatible */

@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/sched/user.h>
 #include <linux/mm.h>
@@ -140,7 +140,7 @@ int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 		/* The first check was omitted in <= 2.2.5. The reasoning was
 		   that parser checks cmsg_len in any case, so that
 		   additional check would be work duplication.
-		   But if cmsg_level is not SOL_SOCKET, we do not check
+		   But if cmsg_level is yest SOL_SOCKET, we do yest check
 		   for too short ancillary data object at all! Oops.
 		   OK, let's add it...
 		 */

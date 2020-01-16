@@ -16,7 +16,7 @@
 #define ARCH_HAS_SORT_EXTABLE
 #define ARCH_HAS_SEARCH_EXTABLE
 
-/* Sparc is not segmented, however we need to be able to fool access_ok()
+/* Sparc is yest segmented, however we need to be able to fool access_ok()
  * when doing system calls from kernel mode legitimately.
  *
  * "For historical reasons, these macros are grossly misnamed." -Linus
@@ -30,7 +30,7 @@
 
 #define segment_eq(a, b) ((a).seg == (b).seg)
 
-/* We have there a nice not-mapped page at PAGE_OFFSET - PAGE_SIZE, so that this test
+/* We have there a nice yest-mapped page at PAGE_OFFSET - PAGE_SIZE, so that this test
  * can be fairly lightweight.
  * No one can read/write anything from userland in the kernel space by setting
  * large size and address near to PAGE_OFFSET - a fault will break his intentions.
@@ -49,11 +49,11 @@
  *
  * All the routines below use bits of fixup code that are out of line
  * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
+ * we don't even have to jump over them.  Further, they do yest intrude
  * on our cache or tlb entries.
  *
  * There is a special way how to put a range of potentially faulting
- * insns (like twenty ldd/std's with now intervening other instructions)
+ * insns (like twenty ldd/std's with yesw intervening other instructions)
  * You specify address of first in insn and 0 in fixup and in the next
  * exception_table_entry you specify last potentially faulting insn + 1
  * and in fixup the routine which should handle the fault.
@@ -67,7 +67,7 @@ struct exception_table_entry
         unsigned long insn, fixup;
 };
 
-/* Returns 0 if exception not found and fixup otherwise.  */
+/* Returns 0 if exception yest found and fixup otherwise.  */
 unsigned long search_extables_range(unsigned long addr, unsigned long *g2);
 
 /* Uh, these should become the main single-value transfer routines..
@@ -92,14 +92,14 @@ unsigned long search_extables_range(unsigned long addr, unsigned long *g2);
 })
 
 /*
- * The "__xxx" versions do not do address space checking, useful when
+ * The "__xxx" versions do yest do address space checking, useful when
  * doing multiple accesses to the same area (the user has to do the
  * checks by hand with "access_ok()")
  */
 #define __put_user(x, ptr) \
-	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+	__put_user_yescheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 #define __get_user(x, ptr) \
-    __get_user_nocheck((x), (ptr), sizeof(*(ptr)), __typeof__(*(ptr)))
+    __get_user_yescheck((x), (ptr), sizeof(*(ptr)), __typeof__(*(ptr)))
 
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) ((struct __large_struct __user *)(x))
@@ -130,7 +130,7 @@ struct __large_struct { unsigned long buf[100]; };
 	__pu_ret; \
 })
 
-#define __put_user_nocheck(x, addr, size) ({			\
+#define __put_user_yescheck(x, addr, size) ({			\
 	register int __pu_ret;					\
 	switch (size) {						\
 	case 1: __put_user_asm(x, b, addr, __pu_ret); break;	\
@@ -193,7 +193,7 @@ int __put_user_bad(void);
 	__gu_ret; \
 })
 
-#define __get_user_nocheck(x, addr, size, type) ({			\
+#define __get_user_yescheck(x, addr, size, type) ({			\
 	register int __gu_ret;						\
 	register unsigned long __gu_val;				\
 	switch (size) {							\

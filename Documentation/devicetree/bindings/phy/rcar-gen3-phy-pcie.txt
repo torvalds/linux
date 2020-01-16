@@ -1,6 +1,6 @@
 * Renesas R-Car generation 3 PCIe PHY
 
-This file provides information on what the device node for the R-Car
+This file provides information on what the device yesde for the R-Car
 generation 3 PCIe PHY contains.
 
 Required properties:

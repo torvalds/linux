@@ -148,11 +148,11 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 	if (output_file) {
 		out_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 		if (out_fd < 0)
-			pabort("could not open output file");
+			pabort("could yest open output file");
 
 		ret = write(out_fd, rx, len);
 		if (ret != len)
-			pabort("not all bytes written to output file");
+			pabort("yest all bytes written to output file");
 
 		close(out_fd);
 	}
@@ -178,7 +178,7 @@ static void print_usage(const char *prog)
 	     "  -3 --3wire    SI/SO signals shared\n"
 	     "  -v --verbose  Verbose (show tx buffer)\n"
 	     "  -p            Send data (e.g. \"1234\\xde\\xad\")\n"
-	     "  -N --no-cs    no chip select\n"
+	     "  -N --yes-cs    yes chip select\n"
 	     "  -R --ready    slave pulls low to pause\n"
 	     "  -2 --dual     dual transfer\n"
 	     "  -4 --quad     quad transfer\n"
@@ -203,7 +203,7 @@ static void parse_opts(int argc, char *argv[])
 			{ "lsb",     0, 0, 'L' },
 			{ "cs-high", 0, 0, 'C' },
 			{ "3wire",   0, 0, '3' },
-			{ "no-cs",   0, 0, 'N' },
+			{ "yes-cs",   0, 0, 'N' },
 			{ "ready",   0, 0, 'R' },
 			{ "dual",    0, 0, '2' },
 			{ "verbose", 0, 0, 'v' },

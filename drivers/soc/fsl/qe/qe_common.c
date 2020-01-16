@@ -44,7 +44,7 @@ static LIST_HEAD(muram_block_list);
 
 int cpm_muram_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource r;
 	u32 zero[OF_MAX_ADDR_CELLS] = {};
 	resource_size_t max = 0;
@@ -55,12 +55,12 @@ int cpm_muram_init(void)
 		return 0;
 
 	spin_lock_init(&cpm_muram_lock);
-	np = of_find_compatible_node(NULL, NULL, "fsl,cpm-muram-data");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,cpm-muram-data");
 	if (!np) {
 		/* try legacy bindings */
-		np = of_find_node_by_name(NULL, "data-only");
+		np = of_find_yesde_by_name(NULL, "data-only");
 		if (!np) {
-			pr_err("Cannot find CPM muram data node");
+			pr_err("Canyest find CPM muram data yesde");
 			ret = -ENODEV;
 			goto out_muram;
 		}
@@ -68,13 +68,13 @@ int cpm_muram_init(void)
 
 	muram_pool = gen_pool_create(0, -1);
 	if (!muram_pool) {
-		pr_err("Cannot allocate memory pool for CPM/QE muram");
+		pr_err("Canyest allocate memory pool for CPM/QE muram");
 		ret = -ENOMEM;
 		goto out_muram;
 	}
 	muram_pbase = of_translate_address(np, zero);
 	if (muram_pbase == (phys_addr_t)OF_BAD_ADDR) {
-		pr_err("Cannot translate zero through CPM muram node");
+		pr_err("Canyest translate zero through CPM muram yesde");
 		ret = -ENODEV;
 		goto out_pool;
 	}
@@ -92,7 +92,7 @@ int cpm_muram_init(void)
 
 	muram_vbase = ioremap(muram_pbase, max - muram_pbase + 1);
 	if (!muram_vbase) {
-		pr_err("Cannot map QE muram");
+		pr_err("Canyest map QE muram");
 		ret = -ENOMEM;
 		goto out_pool;
 	}
@@ -100,7 +100,7 @@ int cpm_muram_init(void)
 out_pool:
 	gen_pool_destroy(muram_pool);
 out_muram:
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }
 

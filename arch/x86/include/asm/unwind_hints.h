@@ -6,18 +6,18 @@
 #ifdef __ASSEMBLY__
 
 /*
- * In asm, there are two kinds of code: normal C-type callable functions and
- * the rest.  The normal callable functions can be called by other code, and
- * don't do anything unusual with the stack.  Such normal callable functions
- * are annotated with the ENTRY/ENDPROC macros.  Most asm code falls in this
- * category.  In this case, no special debugging annotations are needed because
+ * In asm, there are two kinds of code: yesrmal C-type callable functions and
+ * the rest.  The yesrmal callable functions can be called by other code, and
+ * don't do anything unusual with the stack.  Such yesrmal callable functions
+ * are anyestated with the ENTRY/ENDPROC macros.  Most asm code falls in this
+ * category.  In this case, yes special debugging anyestations are needed because
  * objtool can automatically generate the ORC data for the ORC unwinder to read
  * at runtime.
  *
  * Anything which doesn't fall into the above category, such as syscall and
- * interrupt handlers, tends to not be called directly by other functions, and
- * often does unusual non-C-function-type things with the stack pointer.  Such
- * code needs to be annotated such that objtool can understand it.  The
+ * interrupt handlers, tends to yest be called directly by other functions, and
+ * often does unusual yesn-C-function-type things with the stack pointer.  Such
+ * code needs to be anyestated such that objtool can understand it.  The
  * following CFI hint macros are for this type of code.
  *
  * These macros provide hints to objtool about the state of the stack at each

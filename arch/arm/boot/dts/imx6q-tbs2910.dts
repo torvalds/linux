@@ -208,7 +208,7 @@
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;
 	voltage-ranges = <3300 3300>;
-	no-1-8-v;
+	yes-1-8-v;
 	status = "okay";
 };
 
@@ -221,7 +221,7 @@
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;
 	voltage-ranges = <3300 3300>;
-	no-1-8-v;
+	yes-1-8-v;
 	status = "okay";
 };
 
@@ -232,8 +232,8 @@
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;
 	voltage-ranges = <3300 3300>;
-	non-removable;
-	no-1-8-v;
+	yesn-removable;
+	yes-1-8-v;
 	status = "okay";
 };
 

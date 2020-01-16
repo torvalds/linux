@@ -41,7 +41,7 @@ static const struct of_device_id ls_pcie_ep_of_match[] = {
 };
 
 static const struct pci_epc_features ls_pcie_epc_features = {
-	.linkup_notifier = false,
+	.linkup_yestifier = false,
 	.msi_capable = true,
 	.msix_capable = false,
 	.bar_fixed_64bit = (1 << BAR_2) | (1 << BAR_4),
@@ -56,24 +56,24 @@ ls_pcie_ep_get_features(struct dw_pcie_ep *ep)
 static void ls_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
-	enum pci_barno bar;
+	enum pci_baryes bar;
 
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		dw_pcie_ep_reset_bar(pci, bar);
 }
 
-static int ls_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int ls_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_yes,
 				  enum pci_epc_irq_type type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
 	case PCI_EPC_IRQ_LEGACY:
-		return dw_pcie_ep_raise_legacy_irq(ep, func_no);
+		return dw_pcie_ep_raise_legacy_irq(ep, func_yes);
 	case PCI_EPC_IRQ_MSI:
-		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msi_irq(ep, func_yes, interrupt_num);
 	case PCI_EPC_IRQ_MSIX:
-		return dw_pcie_ep_raise_msix_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msix_irq(ep, func_yes, interrupt_num);
 	default:
 		dev_err(pci->dev, "UNKNOWN IRQ type\n");
 		return -EINVAL;

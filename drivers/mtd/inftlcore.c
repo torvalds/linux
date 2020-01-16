@@ -22,7 +22,7 @@
 #include <linux/mtd/inftl.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/io.h>
 
 /*
@@ -45,7 +45,7 @@ static void inftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	if (!mtd->_block_isbad) {
 		printk(KERN_ERR
-"INFTL no longer supports the old DiskOnChip drivers loaded via docprobe.\n"
+"INFTL yes longer supports the old DiskOnChip drivers loaded via docprobe.\n"
 "Please use the new diskonchip driver under the NAND subsystem.\n");
 		return;
 	}
@@ -63,7 +63,7 @@ static void inftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	inftl->mbd.tr = tr;
 
 	if (INFTL_mount(inftl) < 0) {
-		printk(KERN_WARNING "INFTL: could not mount device\n");
+		printk(KERN_WARNING "INFTL: could yest mount device\n");
 		kfree(inftl);
 		return;
 	}
@@ -90,10 +90,10 @@ static void inftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	if (inftl->mbd.size != inftl->heads * inftl->cylinders * inftl->sectors) {
 		/*
-		  Oh no we don't have
+		  Oh yes we don't have
 		   mbd.size == heads * cylinders * sectors
 		*/
-		printk(KERN_WARNING "INFTL: cannot calculate a geometry to "
+		printk(KERN_WARNING "INFTL: canyest calculate a geometry to "
 		       "match size of 0x%lx.\n", inftl->mbd.size);
 		printk(KERN_WARNING "INFTL: using C:%d H:%d S:%d "
 			"(== 0x%lx sects)\n",
@@ -224,7 +224,7 @@ static u16 INFTL_findfreeblock(struct INFTLrecord *inftl, int desperate)
 			pot = 0;
 
 		if (!silly--) {
-			printk(KERN_WARNING "INFTL: no free blocks found!  "
+			printk(KERN_WARNING "INFTL: yes free blocks found!  "
 				"EUN range = %d - %d\n", 0, inftl->LastFreeEUN);
 			return BLOCK_NIL;
 		}
@@ -253,7 +253,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 	thisEUN = targetEUN = inftl->VUtable[thisVUC];
 
 	if (thisEUN == BLOCK_NIL) {
-		printk(KERN_WARNING "INFTL: trying to fold non-existent "
+		printk(KERN_WARNING "INFTL: trying to fold yesn-existent "
 		       "Virtual Unit Chain %d!\n", thisVUC);
 		return BLOCK_NIL;
 	}
@@ -287,7 +287,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 				BlockDeleted[block] = 1;
 				continue;
 			default:
-				printk(KERN_WARNING "INFTL: unknown status "
+				printk(KERN_WARNING "INFTL: unkyeswn status "
 					"for block %d in EUN %d: %x\n",
 					block, thisEUN, status);
 				break;
@@ -304,7 +304,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 	}
 
 	/*
-	 * OK. We now know the location of every block in the Virtual Unit
+	 * OK. We yesw kyesw the location of every block in the Virtual Unit
 	 * Chain, and the Erase Unit into which we are supposed to be copying.
 	 * Go for it.
 	 */
@@ -316,7 +316,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 
 		/*
 		 * If it's in the target EUN already, or if it's pending write,
-		 * do nothing.
+		 * do yesthing.
 		 */
 		if (BlockMap[block] == targetEUN || (pendingblock ==
 		    (thisVUC * (inftl->EraseSize / SECTORSIZE) + block))) {
@@ -324,7 +324,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 		}
 
 		/*
-		 * Copy only in non free block (free blocks can only
+		 * Copy only in yesn free block (free blocks can only
                  * happen in case of media errors or deleted blocks).
 		 */
 		if (BlockMap[block] == BLOCK_NIL)
@@ -353,7 +353,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 	}
 
 	/*
-	 * Newest unit in chain now contains data from _all_ older units.
+	 * Newest unit in chain yesw contains data from _all_ older units.
 	 * So go through and erase each unit in chain, oldest first. (This
 	 * is important, by doing oldest first if we crash/reboot then it
 	 * it is relatively simple to clean up the mess).
@@ -379,7 +379,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 		/* Now try to erase it. */
 		if (INFTL_formatblock(inftl, thisEUN) < 0) {
 			/*
-			 * Could not erase : mark block as reserved.
+			 * Could yest erase : mark block as reserved.
 			 */
 			inftl->PUtable[thisEUN] = BLOCK_RESERVED;
 		} else {
@@ -396,7 +396,7 @@ static u16 INFTL_makefreeblock(struct INFTLrecord *inftl, unsigned pendingblock)
 {
 	/*
 	 * This is the part that needs some cleverness applied.
-	 * For now, I'm doing the minimum applicable to actually
+	 * For yesw, I'm doing the minimum applicable to actually
 	 * get the thing to work.
 	 * Wear-levelling and other clever stuff needs to be implemented
 	 * and we also need to do some assessment of the results when
@@ -422,7 +422,7 @@ static u16 INFTL_makefreeblock(struct INFTLrecord *inftl, unsigned pendingblock)
 					chain, EUN);
 				/*
 				 * Actually, don't return failure.
-				 * Just ignore this chain and get on with it.
+				 * Just igyesre this chain and get on with it.
 				 */
 				thislen = 0;
 				break;
@@ -436,7 +436,7 @@ static u16 INFTL_makefreeblock(struct INFTLrecord *inftl, unsigned pendingblock)
 	}
 
 	if (ChainLength < 2) {
-		printk(KERN_WARNING "INFTL: no Virtual Unit Chains available "
+		printk(KERN_WARNING "INFTL: yes Virtual Unit Chains available "
 			"for folding. Failing request\n");
 		return BLOCK_NIL;
 	}
@@ -524,13 +524,13 @@ hitused:
 
 		/*
 		 * OK. We didn't find one in the existing chain, or there
-		 * is no existing chain. Allocate a new one.
+		 * is yes existing chain. Allocate a new one.
 		 */
 		writeEUN = INFTL_findfreeblock(inftl, 0);
 
 		if (writeEUN == BLOCK_NIL) {
 			/*
-			 * That didn't work - there were no free blocks just
+			 * That didn't work - there were yes free blocks just
 			 * waiting to be picked up. We're going to have to fold
 			 * a chain to make room.
 			 */
@@ -552,7 +552,7 @@ hitused:
 				 * space than actual media, or our makefreeblock
 				 * routine is missing something.
 				 */
-				printk(KERN_WARNING "INFTL: cannot make free "
+				printk(KERN_WARNING "INFTL: canyest make free "
 					"space.\n");
 #ifdef DEBUG
 				INFTL_dumptables(inftl);
@@ -640,7 +640,7 @@ static void INFTL_trydeletechain(struct INFTLrecord *inftl, unsigned thisVUC)
 
 	thisEUN = inftl->VUtable[thisVUC];
 	if (thisEUN == BLOCK_NIL) {
-		printk(KERN_WARNING "INFTL: trying to delete non-existent "
+		printk(KERN_WARNING "INFTL: trying to delete yesn-existent "
 		       "Virtual Unit Chain %d!\n", thisVUC);
 		return;
 	}
@@ -673,7 +673,7 @@ static void INFTL_trydeletechain(struct INFTLrecord *inftl, unsigned thisVUC)
 				BlockDeleted[block] = 1;
 				continue;
 			default:
-				printk(KERN_WARNING "INFTL: unknown status "
+				printk(KERN_WARNING "INFTL: unkyeswn status "
 					"for block %d in EUN %d: 0x%x\n",
 					block, thisEUN, status);
 			}
@@ -721,7 +721,7 @@ static void INFTL_trydeletechain(struct INFTLrecord *inftl, unsigned thisVUC)
 
 		if (INFTL_formatblock(inftl, thisEUN) < 0) {
 			/*
-			 * Could not erase : mark block as reserved.
+			 * Could yest erase : mark block as reserved.
 			 */
 			inftl->PUtable[thisEUN] = BLOCK_RESERVED;
 		} else {
@@ -772,7 +772,7 @@ static int INFTL_deleteblock(struct INFTLrecord *inftl, unsigned block)
 		case SECTOR_USED:
 			goto foundit;
 		default:
-			printk(KERN_WARNING "INFTL: unknown status for "
+			printk(KERN_WARNING "INFTL: unkyeswn status for "
 				"block %d in EUN %d: 0x%x\n",
 				block, thisEUN, status);
 			break;
@@ -823,7 +823,7 @@ static int inftl_writeblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 		writeEUN = INFTL_findwriteunit(inftl, block);
 
 		if (writeEUN == BLOCK_NIL) {
-			printk(KERN_WARNING "inftl_writeblock(): cannot find "
+			printk(KERN_WARNING "inftl_writeblock(): canyest find "
 				"block to write to\n");
 			/*
 			 * If we _still_ haven't got a block to use,
@@ -839,7 +839,7 @@ static int inftl_writeblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 			    blockofs, SECTORSIZE, &retlen, (char *)buffer,
 			    (char *)&oob);
 		/*
-		 * need to write SECTOR_USED flags since they are not written
+		 * need to write SECTOR_USED flags since they are yest written
 		 * in mtd_writeecc
 		 */
 	} else {
@@ -881,7 +881,7 @@ static int inftl_readblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 		case SECTOR_IGNORE:
 			break;
 		default:
-			printk(KERN_WARNING "INFTL: unknown status for "
+			printk(KERN_WARNING "INFTL: unkyeswn status for "
 				"block %ld in EUN %d: 0x%04x\n",
 				block, thisEUN, status);
 			break;
@@ -899,7 +899,7 @@ static int inftl_readblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 
 foundit:
 	if (thisEUN == BLOCK_NIL) {
-		/* The requested block is not on the media, return all 0x00 */
+		/* The requested block is yest on the media, return all 0x00 */
 		memset(buffer, 0, SECTORSIZE);
 	} else {
 		size_t retlen;

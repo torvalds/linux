@@ -15,7 +15,7 @@ Linux kernel WiMAX stack
    The WiMAX stack is designed to provide for common WiMAX control
    services to current and future WiMAX devices from any vendor.
 
-   Because currently there is only one and we don't know what would be the
+   Because currently there is only one and we don't kyesw what would be the
    common services, the APIs it currently provides are very minimal.
    However, it is done in such a way that it is easily extensible to
    accommodate future requirements.
@@ -24,7 +24,7 @@ Linux kernel WiMAX stack
    control structures. This provides a set of callbacks that the WiMAX
    stack will call in order to implement control operations requested by
    the user. As well, the stack provides API functions that the driver
-   calls to notify about changes of state in the device.
+   calls to yestify about changes of state in the device.
 
    The stack exports the API calls needed to control the device to user
    space using generic netlink as a marshalling mechanism. You can access
@@ -48,7 +48,7 @@ Linux kernel WiMAX stack
 -------------------------------------------------
 
    The WiMAX stack is compiled, by default, with debug messages that can
-   be used to diagnose issues. By default, said messages are disabled.
+   be used to diagyesse issues. By default, said messages are disabled.
 
    The drivers will register debugfs entries that allow the user to tweak
    debug settings.
@@ -60,7 +60,7 @@ Linux kernel WiMAX stack
 2.1.1. Increasing debug output
 ------------------------------
 
-   The files named *dl_* indicate knobs for controlling the debug output
+   The files named *dl_* indicate kyesbs for controlling the debug output
    of different submodules of the WiMAX stack::
 
 	# find /sys/kernel/debug/wimax\:wmx0 -name \*dl_\*

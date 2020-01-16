@@ -116,7 +116,7 @@ struct altera_procinfo {
 	struct altera_procinfo	*next;
 };
 
-/* This function checks if enough parameters are available on the stack. */
+/* This function checks if eyesugh parameters are available on the stack. */
 static int altera_check_stack(int stack_ptr, int count, int *status)
 {
 	if (stack_ptr < count) {
@@ -340,8 +340,8 @@ static int altera_execute(struct altera_state *astate,
 		/*
 		 * Attribute bits:
 		 * bit 0: 0 = read-only, 1 = read-write
-		 * bit 1: 0 = not compressed, 1 = compressed
-		 * bit 2: 0 = not initialized, 1 = initialized
+		 * bit 1: 0 = yest compressed, 1 = compressed
+		 * bit 2: 0 = yest initialized, 1 = initialized
 		 * bit 3: 0 = scalar, 1 = array
 		 * bit 4: 0 = Boolean, 1 = integer
 		 * bit 5: 0 = declared variable,
@@ -498,7 +498,7 @@ exit_done:
 				if ((pc < code_sect) || (pc >= debug_sect))
 					status = -ERANGE;
 			} else
-				/* there are no procedures to execute! */
+				/* there are yes procedures to execute! */
 				done = 1;
 
 		}
@@ -631,7 +631,7 @@ exit_done:
 				 * of an ACTION.
 				 * Find the next procedure
 				 * to be executed and jump to it.
-				 * If there are no more procedures, then EXIT.
+				 * If there are yes more procedures, then EXIT.
 				 */
 				i = get_unaligned_be32(&p[proc_table +
 						(13 * current_proc) + 4]);
@@ -642,7 +642,7 @@ exit_done:
 								(13 * i) + 4]);
 
 				if (i == 0) {
-					/* no procedures to execute! */
+					/* yes procedures to execute! */
 					done = 1;
 					*exit_code = 0;	/* success */
 				} else {
@@ -1259,7 +1259,7 @@ exit_done:
 								long_count;
 					long_idx = long_tmp;
 
-					/* reverse POPA is not supported */
+					/* reverse POPA is yest supported */
 					status = -ERANGE;
 					break;
 				} else
@@ -1623,7 +1623,7 @@ exit_done:
 			if (!altera_check_stack(stack_ptr, 3, &status))
 				break;
 			if (version == 0) {
-				/* EXPV is not supported in JBC 1.0 */
+				/* EXPV is yest supported in JBC 1.0 */
 				bad_opcode = 1;
 				break;
 			}
@@ -1633,7 +1633,7 @@ exit_done:
 			long_idx2 = stack[--stack_ptr];/* left indx */
 
 			if (long_idx > long_idx2) {
-				/* reverse indices not supported */
+				/* reverse indices yest supported */
 				status = -ERANGE;
 				break;
 			}
@@ -2112,22 +2112,22 @@ exit_done:
 	return status;
 }
 
-static int altera_get_note(u8 *p, s32 program_size,
+static int altera_get_yeste(u8 *p, s32 program_size,
 			s32 *offset, char *key, char *value, int length)
 /*
  * Gets key and value of NOTE fields in the JBC file.
  * Can be called in two modes:  if offset pointer is NULL,
- * then the function searches for note fields which match
- * the key string provided.  If offset is not NULL, then
- * the function finds the next note field of any key,
+ * then the function searches for yeste fields which match
+ * the key string provided.  If offset is yest NULL, then
+ * the function finds the next yeste field of any key,
  * starting at the offset specified by the offset pointer.
  * Returns 0 for success, else appropriate error code
  */
 {
 	int status = -ENODATA;
-	u32 note_strings = 0L;
-	u32 note_table = 0L;
-	u32 note_count = 0L;
+	u32 yeste_strings = 0L;
+	u32 yeste_table = 0L;
+	u32 yeste_count = 0L;
 	u32 first_word = 0L;
 	int version = 0;
 	int delta = 0;
@@ -2141,33 +2141,33 @@ static int altera_get_note(u8 *p, s32 program_size,
 		version = (first_word & 1L);
 		delta = version * 8;
 
-		note_strings  = get_unaligned_be32(&p[8 + delta]);
-		note_table    = get_unaligned_be32(&p[12 + delta]);
-		note_count    = get_unaligned_be32(&p[44 + (2 * delta)]);
+		yeste_strings  = get_unaligned_be32(&p[8 + delta]);
+		yeste_table    = get_unaligned_be32(&p[12 + delta]);
+		yeste_count    = get_unaligned_be32(&p[44 + (2 * delta)]);
 	}
 
 	if ((first_word != 0x4A414D00L) && (first_word != 0x4A414D01L))
 		return -EIO;
 
-	if (note_count <= 0L)
+	if (yeste_count <= 0L)
 		return status;
 
 	if (offset == NULL) {
 		/*
-		 * We will search for the first note with a specific key,
+		 * We will search for the first yeste with a specific key,
 		 * and return only the value
 		 */
-		for (i = 0; (i < note_count) &&
+		for (i = 0; (i < yeste_count) &&
 						(status != 0); ++i) {
-			key_ptr = &p[note_strings +
+			key_ptr = &p[yeste_strings +
 					get_unaligned_be32(
-					&p[note_table + (8 * i)])];
+					&p[yeste_table + (8 * i)])];
 			if (key && !strncasecmp(key, key_ptr, strlen(key_ptr))) {
 				status = 0;
 
-				value_ptr = &p[note_strings +
+				value_ptr = &p[yeste_strings +
 						get_unaligned_be32(
-						&p[note_table + (8 * i) + 4])];
+						&p[yeste_table + (8 * i) + 4])];
 
 				if (value != NULL)
 					strlcpy(value, value_ptr, length);
@@ -2176,25 +2176,25 @@ static int altera_get_note(u8 *p, s32 program_size,
 		}
 	} else {
 		/*
-		 * We will search for the next note, regardless of the key,
+		 * We will search for the next yeste, regardless of the key,
 		 * and return both the value and the key
 		 */
 
 		i = *offset;
 
-		if ((i >= 0) && (i < note_count)) {
+		if ((i >= 0) && (i < yeste_count)) {
 			status = 0;
 
 			if (key != NULL)
-				strlcpy(key, &p[note_strings +
+				strlcpy(key, &p[yeste_strings +
 						get_unaligned_be32(
-						&p[note_table + (8 * i)])],
+						&p[yeste_table + (8 * i)])],
 					length);
 
 			if (value != NULL)
-				strlcpy(value, &p[note_strings +
+				strlcpy(value, &p[yeste_strings +
 						get_unaligned_be32(
-						&p[note_table + (8 * i) + 4])],
+						&p[yeste_table + (8 * i) + 4])],
 					length);
 
 			*offset = i + 1;
@@ -2266,7 +2266,7 @@ static int altera_check_crc(u8 *p, s32 program_size)
 				local_actual);
 			break;
 		case -ENODATA:
-			printk(KERN_ERR "%s: expected CRC not found, "
+			printk(KERN_ERR "%s: expected CRC yest found, "
 				"actual CRC = %04x\n", __func__,
 				local_actual);
 			break;
@@ -2328,7 +2328,7 @@ static int altera_get_act_info(u8 *p,
 	u32 action_table = 0L;
 	u32 proc_table = 0L;
 	u32 str_table = 0L;
-	u32 note_strings = 0L;
+	u32 yeste_strings = 0L;
 	u32 action_count = 0L;
 	u32 proc_count = 0L;
 	u32 act_name_id = 0L;
@@ -2348,7 +2348,7 @@ static int altera_get_act_info(u8 *p,
 	action_table = get_unaligned_be32(&p[4]);
 	proc_table   = get_unaligned_be32(&p[8]);
 	str_table = get_unaligned_be32(&p[12]);
-	note_strings = get_unaligned_be32(&p[16]);
+	yeste_strings = get_unaligned_be32(&p[16]);
 	action_count = get_unaligned_be32(&p[48]);
 	proc_count   = get_unaligned_be32(&p[52]);
 
@@ -2361,7 +2361,7 @@ static int altera_get_act_info(u8 *p,
 
 	*name = &p[str_table + act_name_id];
 
-	if (act_desc_id < (note_strings - str_table))
+	if (act_desc_id < (yeste_strings - str_table))
 		*description = &p[str_table + act_desc_id];
 
 	do {
@@ -2448,7 +2448,7 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 		printk(KERN_INFO "%s: File format is %s ByteCode format\n",
 			__func__, (format_version == 2) ? "Jam STAPL" :
 						"pre-standardized Jam 1.1");
-		while (altera_get_note((u8 *)fw->data, fw->size,
+		while (altera_get_yeste((u8 *)fw->data, fw->size,
 					&offset, key, value, 256) == 0)
 			printk(KERN_INFO "%s: NOTE \"%s\" = \"%s\"\n",
 					__func__, key, value);
@@ -2498,12 +2498,12 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 
 	if ((format_version == 2) && (exec_result == -EINVAL)) {
 		if (astate->config->action == NULL)
-			printk(KERN_ERR "%s: error: no action specified for "
+			printk(KERN_ERR "%s: error: yes action specified for "
 				"Jam STAPL file.\nprogram terminated.\n",
 				__func__);
 		else
 			printk(KERN_ERR "%s: error: action \"%s\""
-				" is not supported "
+				" is yest supported "
 				"for this Jam STAPL file.\n"
 				"Program terminated.\n", __func__,
 				astate->config->action);

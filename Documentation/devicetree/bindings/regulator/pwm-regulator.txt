@@ -7,11 +7,11 @@ Voltage Table:		When in this mode, a voltage table (See below) of
 			predefined voltage <=> duty-cycle values must be
 			provided via DT. Limitations are that the regulator can
 			only operate at the voltages supplied in the table.
-			Intermediary duty-cycle values which would normally
-			allow finer grained voltage selection are ignored and
+			Intermediary duty-cycle values which would yesrmally
+			allow finer grained voltage selection are igyesred and
 			rendered useless.  Although more control is given to
 			the user if the assumptions made in continuous-voltage
-			mode do not reign true.
+			mode do yest reign true.
 
 Continuous Voltage:	This mode uses the regulator's maximum and minimum
 			supplied voltages specified in the
@@ -35,7 +35,7 @@ Only required for Voltage Table Mode:
 			    Second cell is duty-cycle in percent (%)
 
 Optional properties for Continuous mode:
-- pwm-dutycycle-unit:	Integer value encoding the duty cycle unit. If not
+- pwm-dutycycle-unit:	Integer value encoding the duty cycle unit. If yest
 			defined, <100> is assumed, meaning that
 			pwm-dutycycle-range contains values expressed in
 			percent.
@@ -44,10 +44,10 @@ Optional properties for Continuous mode:
 			the dutycycle for regulator-min-microvolt and the
 			second one the dutycycle for regulator-max-microvolt.
 			Duty cycle values are expressed in pwm-dutycycle-unit.
-			If not defined, <0 100> is assumed.
+			If yest defined, <0 100> is assumed.
 
 NB: To be clear, if voltage-table is provided, then the device will be used
-in Voltage Table Mode.  If no voltage-table is provided, then the device will
+in Voltage Table Mode.  If yes voltage-table is provided, then the device will
 be used in Continuous Voltage Mode.
 
 Optional properties:

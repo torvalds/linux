@@ -39,7 +39,7 @@
 
 #define reader_to_dev(x)	(&x->p_dev->dev)
 
-/* n (debug level) is ignored */
+/* n (debug level) is igyesred */
 /* additional debug output may be enabled by re-compiling with
  * CM4040_DEBUG set */
 /* #define CM4040_DEBUG */
@@ -102,7 +102,7 @@ static inline unsigned char xinb(unsigned short port)
 }
 #endif
 
-/* poll the device fifo status register.  not to be confused with
+/* poll the device fifo status register.  yest to be confused with
  * the poll syscall. */
 static void cm4040_do_poll(struct timer_list *t)
 {
@@ -205,7 +205,7 @@ static int wait_for_bulk_in_ready(struct reader_dev *dev)
 	if (rc > 0)
 		DEBUGP(4, dev, "woke up: BulkIn full\n");
 	else if (rc == 0)
-		DEBUGP(4, dev, "woke up: BulkIn not full, returning 0 :(\n");
+		DEBUGP(4, dev, "woke up: BulkIn yest full, returning 0 :(\n");
 	else if (rc < 0)
 		DEBUGP(4, dev, "woke up: signal arrived\n");
 
@@ -432,18 +432,18 @@ static __poll_t cm4040_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
-static int cm4040_open(struct inode *inode, struct file *filp)
+static int cm4040_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct reader_dev *dev;
 	struct pcmcia_device *link;
-	int minor = iminor(inode);
+	int miyesr = imiyesr(iyesde);
 	int ret;
 
-	if (minor >= CM_MAX_DEV)
+	if (miyesr >= CM_MAX_DEV)
 		return -ENODEV;
 
 	mutex_lock(&cm4040_mutex);
-	link = dev_table[minor];
+	link = dev_table[miyesr];
 	if (link == NULL || !pcmcia_dev_present(link)) {
 		ret = -ENODEV;
 		goto out;
@@ -468,25 +468,25 @@ static int cm4040_open(struct inode *inode, struct file *filp)
 	mod_timer(&dev->poll_timer, jiffies + POLL_PERIOD);
 
 	DEBUGP(2, dev, "<- cm4040_open (successfully)\n");
-	ret = nonseekable_open(inode, filp);
+	ret = yesnseekable_open(iyesde, filp);
 out:
 	mutex_unlock(&cm4040_mutex);
 	return ret;
 }
 
-static int cm4040_close(struct inode *inode, struct file *filp)
+static int cm4040_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct reader_dev *dev = filp->private_data;
 	struct pcmcia_device *link;
-	int minor = iminor(inode);
+	int miyesr = imiyesr(iyesde);
 
-	DEBUGP(2, dev, "-> cm4040_close(maj/min=%d.%d)\n", imajor(inode),
-	      iminor(inode));
+	DEBUGP(2, dev, "-> cm4040_close(maj/min=%d.%d)\n", imajor(iyesde),
+	      imiyesr(iyesde));
 
-	if (minor >= CM_MAX_DEV)
+	if (miyesr >= CM_MAX_DEV)
 		return -ENODEV;
 
-	link = dev_table[minor];
+	link = dev_table[miyesr];
 	if (link == NULL)
 		return -ENODEV;
 
@@ -519,7 +519,7 @@ static int cm4040_config_check(struct pcmcia_device *p_dev, void *priv_data)
 }
 
 
-static int reader_config(struct pcmcia_device *link, int devno)
+static int reader_config(struct pcmcia_device *link, int devyes)
 {
 	struct reader_dev *dev;
 	int fail_rc;
@@ -538,7 +538,7 @@ static int reader_config(struct pcmcia_device *link, int devno)
 
 	dev = link->priv;
 
-	DEBUGP(2, dev, "device " DEVICE_NAME "%d at %pR\n", devno,
+	DEBUGP(2, dev, "device " DEVICE_NAME "%d at %pR\n", devyes,
 	      link->resource[0]);
 	DEBUGP(2, dev, "<- reader_config (succ)\n");
 
@@ -601,22 +601,22 @@ static int reader_probe(struct pcmcia_device *link)
 static void reader_detach(struct pcmcia_device *link)
 {
 	struct reader_dev *dev = link->priv;
-	int devno;
+	int devyes;
 
 	/* find device */
-	for (devno = 0; devno < CM_MAX_DEV; devno++) {
-		if (dev_table[devno] == link)
+	for (devyes = 0; devyes < CM_MAX_DEV; devyes++) {
+		if (dev_table[devyes] == link)
 			break;
 	}
-	if (devno == CM_MAX_DEV)
+	if (devyes == CM_MAX_DEV)
 		return;
 
 	reader_release(link);
 
-	dev_table[devno] = NULL;
+	dev_table[devyes] = NULL;
 	kfree(dev);
 
-	device_destroy(cmx_class, MKDEV(major, devno));
+	device_destroy(cmx_class, MKDEV(major, devyes));
 
 	return;
 }
@@ -628,7 +628,7 @@ static const struct file_operations reader_fops = {
 	.open		= cm4040_open,
 	.release	= cm4040_close,
 	.poll		= cm4040_poll,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static const struct pcmcia_device_id cm4040_ids[] = {
@@ -658,7 +658,7 @@ static int __init cm4040_init(void)
 	major = register_chrdev(0, DEVICE_NAME, &reader_fops);
 	if (major < 0) {
 		printk(KERN_WARNING MODULE_NAME
-			": could not get major number\n");
+			": could yest get major number\n");
 		class_destroy(cmx_class);
 		return major;
 	}

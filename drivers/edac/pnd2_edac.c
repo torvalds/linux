@@ -65,10 +65,10 @@ struct pnd2_pvt {
 /*
  * System address space is divided into multiple regions with
  * different interleave rules in each. The as0/as1 regions
- * have no interleaving at all. The as2 region is interleaved
+ * have yes interleaving at all. The as2 region is interleaved
  * between two channels. The mot region is magic and may overlap
  * other regions, with its interleave rules taking precedence.
- * Addresses not in any of these regions are interleaved across
+ * Addresses yest in any of these regions are interleaved across
  * all four channels.
  */
 static struct region {
@@ -347,11 +347,11 @@ static void mk_region(char *name, struct region *rp, u64 base, u64 limit)
 static void mk_region_mask(char *name, struct region *rp, u64 base, u64 mask)
 {
 	if (mask == 0) {
-		pr_info(FW_BUG "MOT mask cannot be zero\n");
+		pr_info(FW_BUG "MOT mask canyest be zero\n");
 		return;
 	}
 	if (mask != GENMASK_ULL(PND_MAX_PHYS_BIT, __ffs(mask))) {
-		pr_info(FW_BUG "MOT mask not power of two\n");
+		pr_info(FW_BUG "MOT mask yest power of two\n");
 		return;
 	}
 	if (base & ~mask) {
@@ -472,7 +472,7 @@ static int apl_get_registers(void)
 		return -ENODEV;
 
 	/*
-	 * RD_REGP() will fail for unpopulated or non-existent
+	 * RD_REGP() will fail for unpopulated or yesn-existent
 	 * DIMM slots. Return success if we find at least one DIMM.
 	 */
 	for (i = 0; i < APL_NUM_CHANNELS; i++)
@@ -658,7 +658,7 @@ static int sys2pmi(const u64 addr, u32 *pmiidx, u64 *pmiaddr, char *msg)
 	/*
 	 * The amount we need to shift the asym base can be determined by the
 	 * number of enabled symmetric channels.
-	 * NOTE: This can only work because symmetric memory is not supposed
+	 * NOTE: This can only work because symmetric memory is yest supposed
 	 * to do a 3-way interleave.
 	 */
 	int sym_chan_shift = sym_channels >> 1;
@@ -666,7 +666,7 @@ static int sys2pmi(const u64 addr, u32 *pmiidx, u64 *pmiaddr, char *msg)
 	/* Give up if address is out of range, or in MMIO gap */
 	if (addr >= (1ul << PND_MAX_PHYS_BIT) ||
 	   (addr >= top_lm && addr < _4GB) || addr >= top_hm) {
-		snprintf(msg, PND2_MSG_SIZE, "Error address 0x%llx is not DRAM", addr);
+		snprintf(msg, PND2_MSG_SIZE, "Error address 0x%llx is yest DRAM", addr);
 		return -EINVAL;
 	}
 
@@ -704,7 +704,7 @@ static int sys2pmi(const u64 addr, u32 *pmiidx, u64 *pmiaddr, char *msg)
 		remove_addr_bit(&contig_offset, chan_intlv_bit_rm);
 		contig_addr = (contig_base >> sym_chan_shift) + contig_offset;
 	} else {
-		/* Otherwise we're in normal, boring symmetric mode. */
+		/* Otherwise we're in yesrmal, boring symmetric mode. */
 		*pmiidx = 0u;
 
 		if (two_slices) {
@@ -945,7 +945,7 @@ static int apl_pmi2mem(struct mem_ctl_info *mci, u64 pmiaddr, u32 pmiidx,
 		idx = d->bits[i + skiprs] & 0xf;
 
 		/*
-		 * On single rank DIMMs ignore the rank select bit
+		 * On single rank DIMMs igyesre the rank select bit
 		 * and shift remainder of "bits[]" down one place.
 		 */
 		if (type == RS && (cr_drp0->rken0 + cr_drp0->rken1) == 1) {
@@ -1170,7 +1170,7 @@ static void pnd2_mce_output_error(struct mem_ctl_info *mci, const struct mce *m,
 	 * If the mask doesn't match, report an error to the parsing logic
 	 */
 	if (!((errcode & 0xef80) == 0x80)) {
-		optype = "Can't parse: it is not a mem";
+		optype = "Can't parse: it is yest a mem";
 	} else {
 		switch (optypenum) {
 		case 0:
@@ -1379,7 +1379,7 @@ static void pnd2_unregister_mci(struct mem_ctl_info *mci)
 		return;
 	}
 
-	/* Remove MC sysfs nodes */
+	/* Remove MC sysfs yesdes */
 	edac_mc_del_mc(NULL);
 	edac_dbg(1, "%s: free mci struct\n", mci->ctl_name);
 	edac_mc_free(mci);
@@ -1389,7 +1389,7 @@ static void pnd2_unregister_mci(struct mem_ctl_info *mci)
  * Callback function registered with core kernel mce code.
  * Called once for each logged error.
  */
-static int pnd2_mce_check_error(struct notifier_block *nb, unsigned long val, void *data)
+static int pnd2_mce_check_error(struct yestifier_block *nb, unsigned long val, void *data)
 {
 	struct mce *mce = (struct mce *)data;
 	struct mem_ctl_info *mci;
@@ -1432,8 +1432,8 @@ static int pnd2_mce_check_error(struct notifier_block *nb, unsigned long val, vo
 	return NOTIFY_STOP;
 }
 
-static struct notifier_block pnd2_mce_dec = {
-	.notifier_call	= pnd2_mce_check_error,
+static struct yestifier_block pnd2_mce_dec = {
+	.yestifier_call	= pnd2_mce_check_error,
 };
 
 #ifdef CONFIG_EDAC_DEBUG
@@ -1457,7 +1457,7 @@ static int debugfs_u64_set(void *data, u64 val)
 
 	*(u64 *)data = val;
 	m.mcgstatus = 0;
-	/* ADDRV + MemRd + Unknown channel */
+	/* ADDRV + MemRd + Unkyeswn channel */
 	m.status = MCI_STATUS_ADDRV + 0x9f;
 	m.addr = val;
 	pnd2_mce_output_error(pnd2_mci, &m, &daddr);

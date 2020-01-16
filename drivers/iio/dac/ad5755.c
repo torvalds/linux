@@ -79,7 +79,7 @@ struct ad5755_chip_info {
  * struct ad5755_state - driver instance specific data
  * @spi:	spi device the driver is attached to
  * @chip_info:	chip model specific constants, available modes etc
- * @pwr_down:	bitmask which contains  hether a channel is powered down or not
+ * @pwr_down:	bitmask which contains  hether a channel is powered down or yest
  * @ctrl:	software shadow of the channel ctrl registers
  * @channels:	iio channel spec for the device
  * @data:	spi transfer buffers
@@ -603,8 +603,8 @@ static const struct ad5755_platform_data ad5755_default_pdata = {
 #ifdef CONFIG_OF
 static struct ad5755_platform_data *ad5755_parse_dt(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *pp;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *pp;
 	struct ad5755_platform_data *pdata;
 	unsigned int tmp;
 	unsigned int tmparray[3];
@@ -652,7 +652,7 @@ static struct ad5755_platform_data *ad5755_parse_dt(struct device *dev)
 	}
 
 	devnr = 0;
-	for_each_child_of_node(np, pp) {
+	for_each_child_of_yesde(np, pp) {
 		if (devnr >= AD5755_NUM_CHANNELS) {
 			dev_err(dev,
 				"There is to many channels defined in DT\n");
@@ -750,13 +750,13 @@ static int ad5755_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->num_channels = AD5755_NUM_CHANNELS;
 
-	if (spi->dev.of_node)
+	if (spi->dev.of_yesde)
 		pdata = ad5755_parse_dt(&spi->dev);
 	else
 		pdata = spi->dev.platform_data;
 
 	if (!pdata) {
-		dev_warn(&spi->dev, "no platform data? using default\n");
+		dev_warn(&spi->dev, "yes platform data? using default\n");
 		pdata = &ad5755_default_pdata;
 	}
 

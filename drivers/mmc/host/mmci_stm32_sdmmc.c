@@ -33,7 +33,7 @@ static int sdmmc_idma_validate_data(struct mmci_host *host,
 
 	/*
 	 * idma has constraints on idmabase & idmasize for each element
-	 * excepted the last element which has no constraint on idmasize
+	 * excepted the last element which has yes constraint on idmasize
 	 */
 	for_each_sg(data->sg, sg, data->sg_len - 1, i) {
 		if (!IS_ALIGNED(sg_dma_address(data->sg), sizeof(u32)) ||
@@ -145,7 +145,7 @@ static int sdmmc_idma_start(struct mmci_host *host, unsigned int *datactrl)
 		desc[i].idmasize = sg_dma_len(sg);
 	}
 
-	/* notice the end of link list */
+	/* yestice the end of link list */
 	desc[data->sg_len - 1].idmalar &= ~MMCI_STM32_ULA;
 
 	dma_wmb();
@@ -175,7 +175,7 @@ static void mmci_sdmmc_set_clkreg(struct mmci_host *host, unsigned int desired)
 	/*
 	 * cclk = mclk / (2 * clkdiv)
 	 * clkdiv 0 => bypass
-	 * in ddr mode bypass is not possible
+	 * in ddr mode bypass is yest possible
 	 */
 	if (desired) {
 		if (desired >= host->mclk && !ddr) {
@@ -299,7 +299,7 @@ static bool sdmmc_busy_complete(struct mmci_host *host, u32 status, u32 err_msk)
 	/*
 	 * On response the busy signaling is reflected in the BUSYD0 flag.
 	 * if busy_d0 is in-progress we must activate busyd0end interrupt
-	 * to wait this completion. Else this request has no busy step.
+	 * to wait this completion. Else this request has yes busy step.
 	 */
 	if (busy_d0) {
 		if (!host->busy_status) {

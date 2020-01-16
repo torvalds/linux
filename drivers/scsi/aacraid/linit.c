@@ -152,7 +152,7 @@ static const struct pci_device_id aac_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, aac_pci_tbl);
 
 /*
- * dmb - For now we add the number of channels to this structure.
+ * dmb - For yesw we add the number of channels to this structure.
  * In the future we should add a fib that reports the number of channels
  * for the card.  At that time we can remove the channels from here
  */
@@ -280,14 +280,14 @@ struct aac_driver_ident* aac_get_driver_ident(int devtype)
  *
  *	Return the Heads/Sectors/Cylinders BIOS Disk Parameters for Disk.
  *	The default disk geometry is 64 heads, 32 sectors, and the appropriate
- *	number of cylinders so as not to exceed drive capacity.  In order for
+ *	number of cylinders so as yest to exceed drive capacity.  In order for
  *	disks equal to or larger than 1 GB to be addressable by the BIOS
  *	without exceeding the BIOS limitation of 1024 cylinders, Extended
  *	Translation should be enabled.   With Extended Translation enabled,
  *	drives between 1 GB inclusive and 2 GB exclusive are given a disk
  *	geometry of 128 heads and 32 sectors, and drives above 2 GB inclusive
  *	are given a disk geometry of 255 heads and 63 sectors.  However, if
- *	the BIOS detects that the Extended Translation setting does not match
+ *	the BIOS detects that the Extended Translation setting does yest match
  *	the geometry in the partition table, then the translation inferred
  *	from the partition table will be used by the BIOS, and a warning may
  *	be displayed.
@@ -424,13 +424,13 @@ static int aac_slave_configure(struct scsi_device *sdev)
 			return -ENXIO;
 
 		if (expose_physicals < 0)
-			sdev->no_uld_attach = 1;
+			sdev->yes_uld_attach = 1;
 	}
 
 	if (sdev->tagged_supported
 	 &&  sdev->type == TYPE_DISK
 	 &&  (!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))
-	 && !sdev->no_uld_attach) {
+	 && !sdev->yes_uld_attach) {
 
 		struct scsi_device * dev;
 		struct Scsi_Host *host = sdev->host;
@@ -448,7 +448,7 @@ static int aac_slave_configure(struct scsi_device *sdev)
 			if (dev->tagged_supported
 			 && dev->type == TYPE_DISK
 			 && (!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))
-			 && !dev->no_uld_attach) {
+			 && !dev->yes_uld_attach) {
 				if ((sdev_channel(dev) != CONTAINER_CHANNEL)
 				 || !aac->fsa_dev[sdev_id(dev)].valid) {
 					++num_lsu;
@@ -558,7 +558,7 @@ static ssize_t aac_show_raid_level(struct device *dev, struct device_attribute *
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct aac_dev *aac = (struct aac_dev *)(sdev->host->hostdata);
 	if (sdev_channel(sdev) != CONTAINER_CHANNEL)
-		return snprintf(buf, PAGE_SIZE, sdev->no_uld_attach
+		return snprintf(buf, PAGE_SIZE, sdev->yes_uld_attach
 		  ? "Hidden\n" :
 		  ((aac->jbod && (sdev->type == TYPE_DISK)) ? "JBOD\n" : ""));
 	return snprintf(buf, PAGE_SIZE, "%s\n",
@@ -694,7 +694,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 
 		pr_err("%s: Host adapter abort request (%d,%d,%d,%d)\n",
 		 AAC_DRIVERNAME,
-		 host->host_no, sdev_channel(dev), sdev_id(dev), (int)dev->lun);
+		 host->host_yes, sdev_channel(dev), sdev_id(dev), (int)dev->lun);
 
 		found = 0;
 		for (count = 0; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
@@ -749,7 +749,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 			"%s: Host adapter abort request.\n"
 			"%s: Outstanding commands on (%d,%d,%d,%d):\n",
 			AAC_DRIVERNAME, AAC_DRIVERNAME,
-			host->host_no, sdev_channel(dev), sdev_id(dev),
+			host->host_yes, sdev_channel(dev), sdev_id(dev),
 			(int)dev->lun);
 		switch (cmd->cmnd[0]) {
 		case SERVICE_ACTION_IN_16:
@@ -761,7 +761,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 		case INQUIRY:
 		case READ_CAPACITY:
 			/*
-			 * Mark associated FIB to not complete,
+			 * Mark associated FIB to yest complete,
 			 * eh handler does this
 			 */
 			for (count = 0;
@@ -782,7 +782,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 			break;
 		case TEST_UNIT_READY:
 			/*
-			 * Mark associated FIB to not complete,
+			 * Mark associated FIB to yest complete,
 			 * eh handler does this
 			 */
 			for (count = 0;
@@ -843,7 +843,7 @@ static u8 aac_eh_tmf_hard_reset_fib(struct aac_hba_map_info *info,
 	struct aac_hba_reset_req *rst;
 	u64 address;
 
-	/* already tried, start a hard reset now */
+	/* already tried, start a hard reset yesw */
 	rst = (struct aac_hba_reset_req *)fib->hw_fib_va;
 	memset(rst, 0, sizeof(*rst));
 	rst->it_nexus = info->rmw_nexus;
@@ -980,7 +980,7 @@ static int aac_eh_target_reset(struct scsi_cmnd *cmd)
 		return ret;
 
 
-	/* already tried, start a hard reset now */
+	/* already tried, start a hard reset yesw */
 	command = aac_eh_tmf_hard_reset_fib(info, fib);
 
 	info->reset_state = 2;
@@ -1017,7 +1017,7 @@ static int aac_eh_bus_reset(struct scsi_cmnd* cmd)
 
 
 	cmd_bus = aac_logical_to_phys(scmd_channel(cmd));
-	/* Mark the assoc. FIB to not complete, eh handler does this */
+	/* Mark the assoc. FIB to yest complete, eh handler does this */
 	for (count = 0; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
 		struct fib *fib = &aac->fibs[count];
 
@@ -1067,7 +1067,7 @@ int aac_eh_host_reset(struct scsi_cmnd *cmd)
 	int ret = FAILED;
 	__le32 supported_options2 = 0;
 	bool is_mu_reset;
-	bool is_ignore_reset;
+	bool is_igyesre_reset;
 	bool is_doorbell_reset;
 
 	/*
@@ -1076,7 +1076,7 @@ int aac_eh_host_reset(struct scsi_cmnd *cmd)
 	supported_options2 = aac->supplement_adapter_info.supported_options2;
 	is_mu_reset = supported_options2 & AAC_OPTION_MU_RESET;
 	is_doorbell_reset = supported_options2 & AAC_OPTION_DOORBELL_RESET;
-	is_ignore_reset = supported_options2 & AAC_OPTION_IGNORE_RESET;
+	is_igyesre_reset = supported_options2 & AAC_OPTION_IGNORE_RESET;
 	/*
 	 * This adapter needs a blind reset, only do so for
 	 * Adapters that support a register, instead of a commanded,
@@ -1084,7 +1084,7 @@ int aac_eh_host_reset(struct scsi_cmnd *cmd)
 	 */
 	if ((is_mu_reset || is_doorbell_reset)
 	 && aac_check_reset
-	 && (aac_check_reset != -1 || !is_ignore_reset)) {
+	 && (aac_check_reset != -1 || !is_igyesre_reset)) {
 		/* Bypass wait for command quiesce */
 		if (aac_reset_adapter(aac, 2, IOP_HWSOFT_RESET) == 0)
 			ret = SUCCESS;
@@ -1109,7 +1109,7 @@ int aac_eh_host_reset(struct scsi_cmnd *cmd)
 
 /**
  *	aac_cfg_open		-	open a configuration file
- *	@inode: inode being opened
+ *	@iyesde: iyesde being opened
  *	@file: file handle attached
  *
  *	Called when the configuration device is opened. Does the needed
@@ -1119,15 +1119,15 @@ int aac_eh_host_reset(struct scsi_cmnd *cmd)
  *	so we can support hot plugging, and to ref count adapters.
  */
 
-static int aac_cfg_open(struct inode *inode, struct file *file)
+static int aac_cfg_open(struct iyesde *iyesde, struct file *file)
 {
 	struct aac_dev *aac;
-	unsigned minor_number = iminor(inode);
+	unsigned miyesr_number = imiyesr(iyesde);
 	int err = -ENODEV;
 
-	mutex_lock(&aac_mutex);  /* BKL pushdown: nothing else protects this list */
+	mutex_lock(&aac_mutex);  /* BKL pushdown: yesthing else protects this list */
 	list_for_each_entry(aac, &aac_devices, entry) {
-		if (aac->id == minor_number) {
+		if (aac->id == miyesr_number) {
 			file->private_data = aac;
 			err = 0;
 			break;
@@ -1140,7 +1140,7 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
 
 /**
  *	aac_cfg_ioctl		-	AAC configuration request
- *	@inode: inode of device
+ *	@iyesde: iyesde of device
  *	@file: file handle
  *	@cmd: ioctl command code
  *	@arg: argument
@@ -1345,12 +1345,12 @@ static ssize_t aac_show_serial_number(struct device *device,
 		len = snprintf(buf, 16, "%06X\n",
 		  le32_to_cpu(dev->adapter_info.serial[0]));
 	if (len &&
-	  !memcmp(&dev->supplement_adapter_info.mfg_pcba_serial_no[
-	    sizeof(dev->supplement_adapter_info.mfg_pcba_serial_no)-len],
+	  !memcmp(&dev->supplement_adapter_info.mfg_pcba_serial_yes[
+	    sizeof(dev->supplement_adapter_info.mfg_pcba_serial_yes)-len],
 	  buf, len-1))
 		len = snprintf(buf, 16, "%.*s\n",
-		  (int)sizeof(dev->supplement_adapter_info.mfg_pcba_serial_no),
-		  dev->supplement_adapter_info.mfg_pcba_serial_no);
+		  (int)sizeof(dev->supplement_adapter_info.mfg_pcba_serial_yes),
+		  dev->supplement_adapter_info.mfg_pcba_serial_yes);
 
 	return min(len, 16);
 }
@@ -1506,7 +1506,7 @@ static const struct file_operations aac_cfg_fops = {
 	.compat_ioctl   = aac_compat_cfg_ioctl,
 #endif
 	.open		= aac_cfg_open,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct scsi_host_template aac_driver_template = {
@@ -1539,7 +1539,7 @@ static struct scsi_host_template aac_driver_template = {
 	.cmd_per_lun			= AAC_NUM_IO_FIB,
 #endif
 	.emulated			= 1,
-	.no_write_same			= 1,
+	.yes_write_same			= 1,
 };
 
 static void __aac_shutdown(struct aac_dev * aac)
@@ -1597,12 +1597,12 @@ void aac_reinit_aif(struct aac_dev *aac, unsigned int index)
 {
 	/*
 	 * Firmware may send a AIF messages very early and the Driver may have
-	 * ignored as it is not fully ready to process the messages. Send
+	 * igyesred as it is yest fully ready to process the messages. Send
 	 * AIF to firmware so that if there are any unprocessed events they
-	 * can be processed now.
+	 * can be processed yesw.
 	 */
 	if (aac_drivers[index].quirks & AAC_QUIRK_SRC)
-		aac_intr_normal(aac, 0, 2, 0, NULL);
+		aac_intr_yesrmal(aac, 0, 2, 0, NULL);
 
 }
 
@@ -1722,7 +1722,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 				aac->name,
 				aac->id);
 		else
-			printk(KERN_INFO "%s%d: Async. mode not supported "
+			printk(KERN_INFO "%s%d: Async. mode yest supported "
 				"by current driver, sync. mode enforced."
 				"\nPlease update driver to get full performance.\n",
 				aac->name,
@@ -1778,7 +1778,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * all containers are on the virtual channel 0 (CONTAINER_CHANNEL)
 	 * physical channels are address by their actual physical number+1
 	 */
-	if (aac->nondasd_support || expose_physicals || aac->jbod)
+	if (aac->yesndasd_support || expose_physicals || aac->jbod)
 		shost->max_channel = aac->maximum_num_channels;
 	else
 		shost->max_channel = 0;
@@ -1796,7 +1796,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		shost->this_id = shost->max_id;
 
 	if (!aac->sa_firmware && aac_drivers[index].quirks & AAC_QUIRK_SRC)
-		aac_intr_normal(aac, 0, 2, 0, NULL);
+		aac_intr_yesrmal(aac, 0, 2, 0, NULL);
 
 	/*
 	 * dmb - we may need to move the setting of these parms somewhere else once
@@ -1877,7 +1877,7 @@ static int aac_acquire_resources(struct aac_dev *dev)
 		/* After EEH recovery or suspend resume, max_msix count
 		 * may change, therefore updating in init as well.
 		 */
-		dev->init->r7.no_of_msix_vectors = cpu_to_le32(dev->max_msix);
+		dev->init->r7.yes_of_msix_vectors = cpu_to_le32(dev->max_msix);
 		aac_adapter_start(dev);
 	}
 	return 0;
@@ -2006,7 +2006,7 @@ static pci_ers_result_t aac_pci_error_detected(struct pci_dev *pdev,
 	dev_err(&pdev->dev, "aacraid: PCI error detected %x\n", error);
 
 	switch (error) {
-	case pci_channel_io_normal:
+	case pci_channel_io_yesrmal:
 		return PCI_ERS_RESULT_CAN_RECOVER;
 	case pci_channel_io_frozen:
 		aac->handle_pci_error = 1;

@@ -49,7 +49,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	}
 
 	/*
-	 * Must delete or free any pointers within the object that are not
+	 * Must delete or free any pointers within the object that are yest
 	 * actual ACPI objects (for example, a raw buffer pointer).
 	 */
 	switch (object->common.type) {
@@ -92,7 +92,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 				  object->package.count));
 
 		/*
-		 * Elements of the package are not handled here, they are deleted
+		 * Elements of the package are yest handled here, they are deleted
 		 * separately
 		 */
 
@@ -102,7 +102,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		break;
 
 		/*
-		 * These objects have a possible list of notify handlers.
+		 * These objects have a possible list of yestify handlers.
 		 * Device object also may have a GPE block.
 		 */
 	case ACPI_TYPE_DEVICE:
@@ -119,7 +119,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 		/* Walk the address handler list for this object */
 
-		handler_desc = object->common_notify.handler;
+		handler_desc = object->common_yestify.handler;
 		while (handler_desc) {
 			next_desc = handler_desc->address_space.next;
 			acpi_ut_remove_reference(handler_desc);
@@ -174,8 +174,8 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			object->method.mutex = NULL;
 		}
 
-		if (object->method.node) {
-			object->method.node = NULL;
+		if (object->method.yesde) {
+			object->method.yesde = NULL;
 		}
 		break;
 
@@ -188,9 +188,9 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		 * Update address_range list. However, only permanent regions
 		 * are installed in this list. (Not created within a method)
 		 */
-		if (!(object->region.node->flags & ANOBJ_TEMPORARY)) {
+		if (!(object->region.yesde->flags & ANOBJ_TEMPORARY)) {
 			acpi_ut_remove_address_range(object->region.space_id,
-						     object->region.node);
+						     object->region.yesde);
 		}
 
 		second_desc = acpi_ns_get_secondary_object(object);
@@ -198,7 +198,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			/*
 			 * Free the region_context if and only if the handler is one of the
 			 * default handlers -- and therefore, we created the context object
-			 * locally, it was not created by an external caller.
+			 * locally, it was yest created by an external caller.
 			 */
 			handler_desc = object->region.handler;
 			if (handler_desc) {
@@ -369,7 +369,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 
 	/*
 	 * Always get the reference count lock. Note: Interpreter and/or
-	 * Namespace is not always locked when this function is called.
+	 * Namespace is yest always locked when this function is called.
 	 */
 	lock_flags = acpi_os_acquire_lock(acpi_gbl_reference_count_lock);
 	original_count = object->common.reference_count;
@@ -401,7 +401,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 
 	case REF_DECREMENT:
 
-		/* The current reference count must be non-zero */
+		/* The current reference count must be yesn-zero */
 
 		if (original_count) {
 			new_count = original_count - 1;
@@ -412,7 +412,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 
 		if (!original_count) {
 			ACPI_WARNING((AE_INFO,
-				      "Obj %p, Reference Count is already zero, cannot decrement\n",
+				      "Obj %p, Reference Count is already zero, canyest decrement\n",
 				      object));
 		}
 
@@ -432,7 +432,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	default:
 
 		acpi_os_release_lock(acpi_gbl_reference_count_lock, lock_flags);
-		ACPI_ERROR((AE_INFO, "Unknown Reference Count action (0x%X)",
+		ACPI_ERROR((AE_INFO, "Unkyeswn Reference Count action (0x%X)",
 			    action));
 		return;
 	}
@@ -501,15 +501,15 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		case ACPI_TYPE_POWER:
 		case ACPI_TYPE_THERMAL:
 			/*
-			 * Update the notify objects for these types (if present)
-			 * Two lists, system and device notify handlers.
+			 * Update the yestify objects for these types (if present)
+			 * Two lists, system and device yestify handlers.
 			 */
 			for (i = 0; i < ACPI_NUM_NOTIFY_TYPES; i++) {
 				prev_object =
-				    object->common_notify.notify_list[i];
+				    object->common_yestify.yestify_list[i];
 				while (prev_object) {
 					next_object =
-					    prev_object->notify.next[i];
+					    prev_object->yestify.next[i];
 					acpi_ut_update_ref_count(prev_object,
 								 action);
 					prev_object = next_object;
@@ -525,7 +525,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 			for (i = 0; i < object->package.count; i++) {
 				/*
 				 * Null package elements are legal and can be simply
-				 * ignored.
+				 * igyesred.
 				 */
 				next_object = object->package.elements[i];
 				if (!next_object) {
@@ -643,7 +643,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 error_exit:
 
 	ACPI_EXCEPTION((AE_INFO, status,
-			"Could not update object reference count"));
+			"Could yest update object reference count"));
 
 	/* Free any stacked Update State objects */
 
@@ -707,8 +707,8 @@ void acpi_ut_remove_reference(union acpi_operand_object *object)
 	ACPI_FUNCTION_NAME(ut_remove_reference);
 
 	/*
-	 * Allow a NULL pointer to be passed in, just ignore it. This saves
-	 * each caller from having to check. Also, ignore NS nodes.
+	 * Allow a NULL pointer to be passed in, just igyesre it. This saves
+	 * each caller from having to check. Also, igyesre NS yesdes.
 	 */
 	if (!object ||
 	    (ACPI_GET_DESCRIPTOR_TYPE(object) == ACPI_DESC_TYPE_NAMED)) {

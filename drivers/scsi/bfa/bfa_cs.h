@@ -39,11 +39,11 @@
 
 struct bfa_trc_s {
 #ifdef __BIG_ENDIAN
-	u16	fileno;
+	u16	fileyes;
 	u16	line;
 #else
 	u16	line;
-	u16	fileno;
+	u16	fileyes;
 #endif
 	u32	timestamp;
 	union {
@@ -78,14 +78,14 @@ enum {
  * Define a new tracing file (module). Module should match one defined above.
  */
 #define BFA_TRC_FILE(__mod, __submod)					\
-	static int __trc_fileno = ((BFA_TRC_ ## __mod ## _ ## __submod) | \
+	static int __trc_fileyes = ((BFA_TRC_ ## __mod ## _ ## __submod) | \
 						 BFA_TRC_MOD(__mod))
 
 
 #define bfa_trc32(_trcp, _data)	\
-	__bfa_trc((_trcp)->trcmod, __trc_fileno, __LINE__, (u32)_data)
+	__bfa_trc((_trcp)->trcmod, __trc_fileyes, __LINE__, (u32)_data)
 #define bfa_trc(_trcp, _data)	\
-	__bfa_trc((_trcp)->trcmod, __trc_fileno, __LINE__, (u64)_data)
+	__bfa_trc((_trcp)->trcmod, __trc_fileyes, __LINE__, (u64)_data)
 
 static inline void
 bfa_trc_init(struct bfa_trc_mod_s *trcm)
@@ -101,10 +101,10 @@ bfa_trc_stop(struct bfa_trc_mod_s *trcm)
 }
 
 void
-__bfa_trc(struct bfa_trc_mod_s *trcm, int fileno, int line, u64 data);
+__bfa_trc(struct bfa_trc_mod_s *trcm, int fileyes, int line, u64 data);
 
 void
-__bfa_trc32(struct bfa_trc_mod_s *trcm, int fileno, int line, u32 data);
+__bfa_trc32(struct bfa_trc_mod_s *trcm, int fileyes, int line, u32 data);
 
 #define bfa_sm_fault(__mod, __event)	do {				\
 	bfa_trc(__mod, (((u32)0xDEAD << 16) | __event));		\

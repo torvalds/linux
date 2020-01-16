@@ -42,7 +42,7 @@
 #include "ohci.h"
 
 #define ohci_info(ohci, f, args...)	dev_info(ohci->card.device, f, ##args)
-#define ohci_notice(ohci, f, args...)	dev_notice(ohci->card.device, f, ##args)
+#define ohci_yestice(ohci, f, args...)	dev_yestice(ohci->card.device, f, ##args)
 #define ohci_err(ohci, f, args...)	dev_err(ohci->card.device, f, ##args)
 
 #define DESCRIPTOR_OUTPUT_MORE		0
@@ -137,7 +137,7 @@ struct context {
 
 	/*
 	 * The descriptor containing the branch address of the first
-	 * descriptor that has not yet been filled by the device.
+	 * descriptor that has yest yet been filled by the device.
 	 */
 	struct descriptor *last;
 
@@ -179,7 +179,7 @@ struct fw_ohci {
 	struct fw_card card;
 
 	__iomem char *registers;
-	int node_id;
+	int yesde_id;
 	int generation;
 	int request_generation;	/* for timestamping incoming requests */
 	unsigned quirks;
@@ -207,11 +207,11 @@ struct fw_ohci {
 	struct context at_response_ctx;
 
 	u32 it_context_support;
-	u32 it_context_mask;     /* unoccupied IT contexts */
+	u32 it_context_mask;     /* uyesccupied IT contexts */
 	struct iso_context *it_context_list;
-	u64 ir_context_channels; /* unoccupied channels */
+	u64 ir_context_channels; /* uyesccupied channels */
 	u32 ir_context_support;
-	u32 ir_context_mask;     /* unoccupied IR contexts */
+	u32 ir_context_mask;     /* uyesccupied IR contexts */
 	struct iso_context *ir_context_list;
 	u64 mc_channels; /* channels in use by the multichannel IR context */
 	bool mc_allocated;
@@ -336,10 +336,10 @@ static const struct {
 static int param_quirks;
 module_param_named(quirks, param_quirks, int, 0644);
 MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
-	", nonatomic cycle timer = "	__stringify(QUIRK_CYCLE_TIMER)
+	", yesnatomic cycle timer = "	__stringify(QUIRK_CYCLE_TIMER)
 	", reset packet generation = "	__stringify(QUIRK_RESET_PACKET)
 	", AR/selfID endianness = "	__stringify(QUIRK_BE_HEADERS)
-	", no 1394a enhancements = "	__stringify(QUIRK_NO_1394A)
+	", yes 1394a enhancements = "	__stringify(QUIRK_NO_1394A)
 	", disable MSI = "		__stringify(QUIRK_NO_MSI)
 	", TI SLLZ059 erratum = "	__stringify(QUIRK_TI_SLLZ059)
 	", IR wake unreliable = "	__stringify(QUIRK_IR_WAKE)
@@ -373,7 +373,7 @@ static void log_irqs(struct fw_ohci *ohci, u32 evt)
 	    !(evt & OHCI1394_busReset))
 		return;
 
-	ohci_notice(ohci, "IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
+	ohci_yestice(ohci, "IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
 	    evt & OHCI1394_selfIDComplete	? " selfID"		: "",
 	    evt & OHCI1394_RQPkt		? " AR_req"		: "",
 	    evt & OHCI1394_RSPkt		? " AR_resp"		: "",
@@ -419,19 +419,19 @@ static void log_selfids(struct fw_ohci *ohci, int generation, int self_id_count)
 	if (likely(!(param_debug & OHCI_PARAM_DEBUG_SELFIDS)))
 		return;
 
-	ohci_notice(ohci, "%d selfIDs, generation %d, local node ID %04x\n",
-		    self_id_count, generation, ohci->node_id);
+	ohci_yestice(ohci, "%d selfIDs, generation %d, local yesde ID %04x\n",
+		    self_id_count, generation, ohci->yesde_id);
 
 	for (s = ohci->self_id_buffer; self_id_count--; ++s)
 		if ((*s & 1 << 23) == 0)
-			ohci_notice(ohci,
+			ohci_yestice(ohci,
 			    "selfID 0: %08x, phy %d [%c%c%c] %s gc=%d %s %s%s%s\n",
 			    *s, *s >> 24 & 63, _p(s, 6), _p(s, 4), _p(s, 2),
 			    speed[*s >> 14 & 3], *s >> 16 & 63,
 			    power[*s >> 8 & 7], *s >> 22 & 1 ? "L" : "",
 			    *s >> 11 & 1 ? "c" : "", *s & 2 ? "i" : "");
 		else
-			ohci_notice(ohci,
+			ohci_yestice(ohci,
 			    "selfID n: %08x, phy %d [%c%c%c%c%c%c%c%c]\n",
 			    *s, *s >> 24 & 63,
 			    _p(s, 16), _p(s, 14), _p(s, 12), _p(s, 10),
@@ -439,14 +439,14 @@ static void log_selfids(struct fw_ohci *ohci, int generation, int self_id_count)
 }
 
 static const char *evts[] = {
-	[0x00] = "evt_no_status",	[0x01] = "-reserved-",
+	[0x00] = "evt_yes_status",	[0x01] = "-reserved-",
 	[0x02] = "evt_long_packet",	[0x03] = "evt_missing_ack",
 	[0x04] = "evt_underrun",	[0x05] = "evt_overrun",
 	[0x06] = "evt_descriptor_read",	[0x07] = "evt_data_read",
 	[0x08] = "evt_data_write",	[0x09] = "evt_bus_reset",
 	[0x0a] = "evt_timeout",		[0x0b] = "evt_tcode_err",
 	[0x0c] = "-reserved-",		[0x0d] = "-reserved-",
-	[0x0e] = "evt_unknown",		[0x0f] = "evt_flushed",
+	[0x0e] = "evt_unkyeswn",		[0x0f] = "evt_flushed",
 	[0x10] = "-reserved-",		[0x11] = "ack_complete",
 	[0x12] = "ack_pending ",	[0x13] = "-reserved-",
 	[0x14] = "ack_busy_X",		[0x15] = "ack_busy_A",
@@ -481,7 +481,7 @@ static void log_ar_at_event(struct fw_ohci *ohci,
 			evt = 0x1f;
 
 	if (evt == OHCI1394_evt_bus_reset) {
-		ohci_notice(ohci, "A%c evt_bus_reset, generation %d\n",
+		ohci_yestice(ohci, "A%c evt_bus_reset, generation %d\n",
 			    dir, (header[2] >> 16) & 0xff);
 		return;
 	}
@@ -501,22 +501,22 @@ static void log_ar_at_event(struct fw_ohci *ohci,
 
 	switch (tcode) {
 	case 0xa:
-		ohci_notice(ohci, "A%c %s, %s\n",
+		ohci_yestice(ohci, "A%c %s, %s\n",
 			    dir, evts[evt], tcodes[tcode]);
 		break;
 	case 0xe:
-		ohci_notice(ohci, "A%c %s, PHY %08x %08x\n",
+		ohci_yestice(ohci, "A%c %s, PHY %08x %08x\n",
 			    dir, evts[evt], header[1], header[2]);
 		break;
 	case 0x0: case 0x1: case 0x4: case 0x5: case 0x9:
-		ohci_notice(ohci,
+		ohci_yestice(ohci,
 			    "A%c spd %x tl %02x, %04x -> %04x, %s, %s, %04x%08x%s\n",
 			    dir, speed, header[0] >> 10 & 0x3f,
 			    header[1] >> 16, header[0] >> 16, evts[evt],
 			    tcodes[tcode], header[1] & 0xffff, header[2], specific);
 		break;
 	default:
-		ohci_notice(ohci,
+		ohci_yestice(ohci,
 			    "A%c spd %x tl %02x, %04x -> %04x, %s, %s%s\n",
 			    dir, speed, header[0] >> 10 & 0x3f,
 			    header[1] >> 16, header[0] >> 16, evts[evt],
@@ -723,7 +723,7 @@ static unsigned int ar_search_last_active_buffer(struct ar_context *ctx,
 	i = ar_first_buffer_index(ctx);
 	res_count = READ_ONCE(ctx->descriptors[i].res_count);
 
-	/* A buffer that is not yet completely filled must be the last one. */
+	/* A buffer that is yest yet completely filled must be the last one. */
 	while (i != last && res_count == 0) {
 
 		/* Peek at the next descriptor. */
@@ -861,10 +861,10 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	log_ar_at_event(ohci, 'R', p.speed, p.header, evt);
 
 	/*
-	 * Several controllers, notably from NEC and VIA, forget to
+	 * Several controllers, yestably from NEC and VIA, forget to
 	 * write ack_complete status at PHY packet reception.
 	 */
-	if (evt == OHCI1394_evt_no_status &&
+	if (evt == OHCI1394_evt_yes_status &&
 	    (p.header[0] & 0xff) == (OHCI1394_phy_tcode << 4))
 		p.ack = ACK_COMPLETE;
 
@@ -1103,7 +1103,7 @@ static int context_add_buffer(struct context *ctx)
 	int offset;
 
 	/*
-	 * 16MB of descriptors should be far more than enough for any DMA
+	 * 16MB of descriptors should be far more than eyesugh for any DMA
 	 * program.  This will catch run-away userspace or DoS attacks.
 	 */
 	if (ctx->total_allocation >= 16*1024*1024)
@@ -1190,7 +1190,7 @@ static struct descriptor *context_get_descriptors(struct context *ctx,
 		 * next one. */
 
 		if (desc->list.next == &ctx->buffer_list) {
-			/* If there is no free buffer next in the list,
+			/* If there is yes free buffer next in the list,
 			 * allocate one. */
 			if (context_add_buffer(ctx) < 0)
 				return NULL;
@@ -1241,7 +1241,7 @@ static void context_append(struct context *ctx,
 	 * multi-descriptor block starting with an INPUT_MORE, put a copy of
 	 * the branch address in the first descriptor.
 	 *
-	 * Not doing this for transmit contexts since not sure how it interacts
+	 * Not doing this for transmit contexts since yest sure how it interacts
 	 * with skip addresses.
 	 */
 	if (unlikely(ctx->ohci->quirks & QUIRK_IR_WAKE) &&
@@ -1305,7 +1305,7 @@ static int at_context_queue_packet(struct context *ctx,
 	d[0].res_count = cpu_to_le16(packet->timestamp);
 
 	/*
-	 * The DMA format for asynchronous link packets is different
+	 * The DMA format for asynchroyesus link packets is different
 	 * from the IEEE1394 layout, so shift the fields around
 	 * accordingly.
 	 */
@@ -1474,7 +1474,7 @@ static int handle_at_packet(struct context *context,
 		else {
 			/*
 			 * Using a valid (current) generation count, but the
-			 * node is not on the bus or not sending acks.
+			 * yesde is yest on the bus or yest sending acks.
 			 */
 			packet->ack = RCODE_NO_ACK;
 		}
@@ -1490,7 +1490,7 @@ static int handle_at_packet(struct context *context,
 		packet->ack = evt - 0x10;
 		break;
 
-	case OHCI1394_evt_no_status:
+	case OHCI1394_evt_yes_status:
 		if (context->flushing) {
 			packet->ack = RCODE_GENERATION;
 			break;
@@ -1581,7 +1581,7 @@ static void handle_local_lock(struct fw_ohci *ohci,
 			goto out;
 		}
 
-	ohci_err(ohci, "swap not done (CSR lock timeout)\n");
+	ohci_err(ohci, "swap yest done (CSR lock timeout)\n");
 	fw_fill_response(&response, packet->header, RCODE_BUSY, NULL, 0);
 
  out:
@@ -1634,7 +1634,7 @@ static void at_context_transmit(struct context *ctx, struct fw_packet *packet)
 
 	spin_lock_irqsave(&ctx->ohci->lock, flags);
 
-	if (HEADER_GET_DESTINATION(packet->header[0]) == ctx->ohci->node_id &&
+	if (HEADER_GET_DESTINATION(packet->header[0]) == ctx->ohci->yesde_id &&
 	    ctx->ohci->generation == packet->generation) {
 		spin_unlock_irqrestore(&ctx->ohci->lock, flags);
 		handle_local_request(ctx, packet);
@@ -1701,14 +1701,14 @@ static u32 cycle_timer_ticks(u32 cycle_timer)
  *  - When the lowest six bits are wrapping around to zero, a read that happens
  *    at the same time will return garbage in the lowest ten bits.
  *  - When the cycleOffset field wraps around to zero, the cycleCount field is
- *    not incremented for about 60 ns.
+ *    yest incremented for about 60 ns.
  *  - Occasionally, the entire register reads zero.
  *
  * To catch these, we read the register three times and ensure that the
  * difference between each two consecutive reads is approximately the same, i.e.
  * less than twice the other.  Furthermore, any negative difference indicates an
  * error.  (A PCI read should take at least 20 ticks of the 24.576 MHz timer to
- * execute, so we have enough precision to compute the ratio of the differences.)
+ * execute, so we have eyesugh precision to compute the ratio of the differences.)
  */
 static u32 get_cycle_time(struct fw_ohci *ohci)
 {
@@ -1717,16 +1717,16 @@ static u32 get_cycle_time(struct fw_ohci *ohci)
 	s32 diff01, diff12;
 	int i;
 
-	c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
+	c2 = reg_read(ohci, OHCI1394_IsochroyesusCycleTimer);
 
 	if (ohci->quirks & QUIRK_CYCLE_TIMER) {
 		i = 0;
 		c1 = c2;
-		c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
+		c2 = reg_read(ohci, OHCI1394_IsochroyesusCycleTimer);
 		do {
 			c0 = c1;
 			c1 = c2;
-			c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
+			c2 = reg_read(ohci, OHCI1394_IsochroyesusCycleTimer);
 			t0 = cycle_timer_ticks(c0);
 			t1 = cycle_timer_ticks(c1);
 			t2 = cycle_timer_ticks(c2);
@@ -1742,7 +1742,7 @@ static u32 get_cycle_time(struct fw_ohci *ohci)
 
 /*
  * This function has to be called at least every 64 seconds.  The bus_time
- * field stores not only the upper 25 bits of the BUS_TIME register but also
+ * field stores yest only the upper 25 bits of the BUS_TIME register but also
  * the most significant bit of the cycle timer in bit 6 so that we can detect
  * changes in this bit.
  */
@@ -1777,11 +1777,11 @@ static int get_status_for_port(struct fw_ohci *ohci, int port_index)
 
 	switch (reg & 0x0f) {
 	case 0x06:
-		return 2;	/* is child node (connected to parent node) */
+		return 2;	/* is child yesde (connected to parent yesde) */
 	case 0x0e:
-		return 3;	/* is parent node (connected to child node) */
+		return 3;	/* is parent yesde (connected to child yesde) */
 	}
-	return 1;		/* not connected */
+	return 1;		/* yest connected */
 }
 
 static int get_self_id_pos(struct fw_ohci *ohci, u32 self_id,
@@ -1826,7 +1826,7 @@ static int initiated_reset(struct fw_ohci *ohci)
 }
 
 /*
- * TI TSB82AA2B and TSB12LV26 do not receive the selfID of a locally
+ * TI TSB82AA2B and TSB12LV26 do yest receive the selfID of a locally
  * attached TSB41BA3D phy; see http://www.ti.com/litv/pdf/sllz059.
  * Construct the selfID from phy register contents.
  */
@@ -1838,8 +1838,8 @@ static int find_and_insert_self_id(struct fw_ohci *ohci, int self_id_count)
 
 	reg = reg_read(ohci, OHCI1394_NodeID);
 	if (!(reg & OHCI1394_NodeID_idValid)) {
-		ohci_notice(ohci,
-			    "node ID not valid, new bus reset in progress\n");
+		ohci_yestice(ohci,
+			    "yesde ID yest valid, new bus reset in progress\n");
 		return -EBUSY;
 	}
 	self_id |= ((reg & 0x3f) << 24); /* phy ID */
@@ -1886,16 +1886,16 @@ static void bus_reset_work(struct work_struct *work)
 
 	reg = reg_read(ohci, OHCI1394_NodeID);
 	if (!(reg & OHCI1394_NodeID_idValid)) {
-		ohci_notice(ohci,
-			    "node ID not valid, new bus reset in progress\n");
+		ohci_yestice(ohci,
+			    "yesde ID yest valid, new bus reset in progress\n");
 		return;
 	}
-	if ((reg & OHCI1394_NodeID_nodeNumber) == 63) {
-		ohci_notice(ohci, "malconfigured bus\n");
+	if ((reg & OHCI1394_NodeID_yesdeNumber) == 63) {
+		ohci_yestice(ohci, "malconfigured bus\n");
 		return;
 	}
-	ohci->node_id = reg & (OHCI1394_NodeID_busNumber |
-			       OHCI1394_NodeID_nodeNumber);
+	ohci->yesde_id = reg & (OHCI1394_NodeID_busNumber |
+			       OHCI1394_NodeID_yesdeNumber);
 
 	is_new_root = (reg & OHCI1394_NodeID_root) != 0;
 	if (!(ohci->is_root && is_new_root))
@@ -1905,7 +1905,7 @@ static void bus_reset_work(struct work_struct *work)
 
 	reg = reg_read(ohci, OHCI1394_SelfIDCount);
 	if (reg & OHCI1394_SelfIDCount_selfIDError) {
-		ohci_notice(ohci, "self ID receive error\n");
+		ohci_yestice(ohci, "self ID receive error\n");
 		return;
 	}
 	/*
@@ -1917,7 +1917,7 @@ static void bus_reset_work(struct work_struct *work)
 	self_id_count = (reg >> 3) & 0xff;
 
 	if (self_id_count > 252) {
-		ohci_notice(ohci, "bad selfIDSize (%08x)\n", reg);
+		ohci_yestice(ohci, "bad selfIDSize (%08x)\n", reg);
 		return;
 	}
 
@@ -1937,12 +1937,12 @@ static void bus_reset_work(struct work_struct *work)
 			 * bus manager can then correct the gap count.
 			 */
 			if (id == 0xffff008f) {
-				ohci_notice(ohci, "ignoring spurious self IDs\n");
+				ohci_yestice(ohci, "igyesring spurious self IDs\n");
 				self_id_count = j;
 				break;
 			}
 
-			ohci_notice(ohci, "bad self ID %d/%d (%08x != ~%08x)\n",
+			ohci_yestice(ohci, "bad self ID %d/%d (%08x != ~%08x)\n",
 				    j, self_id_count, id, id2);
 			return;
 		}
@@ -1952,14 +1952,14 @@ static void bus_reset_work(struct work_struct *work)
 	if (ohci->quirks & QUIRK_TI_SLLZ059) {
 		self_id_count = find_and_insert_self_id(ohci, self_id_count);
 		if (self_id_count < 0) {
-			ohci_notice(ohci,
-				    "could not construct local self ID\n");
+			ohci_yestice(ohci,
+				    "could yest construct local self ID\n");
 			return;
 		}
 	}
 
 	if (self_id_count == 0) {
-		ohci_notice(ohci, "no self IDs\n");
+		ohci_yestice(ohci, "yes self IDs\n");
 		return;
 	}
 	rmb();
@@ -1974,13 +1974,13 @@ static void bus_reset_work(struct work_struct *work)
 	 * linux/seqlock.h, where we remember the generation of the
 	 * self IDs in the buffer before reading them out and compare
 	 * it to the current generation after reading them out.  If
-	 * the two generations match we know we have a consistent set
+	 * the two generations match we kyesw we have a consistent set
 	 * of self IDs.
 	 */
 
 	new_generation = (reg_read(ohci, OHCI1394_SelfIDCount) >> 16) & 0xff;
 	if (new_generation != generation) {
-		ohci_notice(ohci, "new bus reset, discarding self ids\n");
+		ohci_yestice(ohci, "new bus reset, discarding self ids\n");
 		return;
 	}
 
@@ -2012,7 +2012,7 @@ static void bus_reset_work(struct work_struct *work)
 	/*
 	 * This next bit is unrelated to the AT context stuff but we
 	 * have to do it under the spinlock also.  If a new config rom
-	 * was set up before this reset, the old one is now no longer
+	 * was set up before this reset, the old one is yesw yes longer
 	 * in use and we can free it. Update the config rom pointers
 	 * to point to the current config rom and clear the
 	 * next_config_rom pointer so a new update can take place.
@@ -2053,7 +2053,7 @@ static void bus_reset_work(struct work_struct *work)
 
 	log_selfids(ohci, generation, self_id_count);
 
-	fw_core_handle_bus_reset(&ohci->card, ohci->node_id, generation,
+	fw_core_handle_bus_reset(&ohci->card, ohci->yesde_id, generation,
 				 self_id_count, ohci->self_id_buffer,
 				 ohci->csr_state_setclear_abdicate);
 	ohci->csr_state_setclear_abdicate = false;
@@ -2071,7 +2071,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 		return IRQ_NONE;
 
 	/*
-	 * busReset and postedWriteErr must not be cleared yet
+	 * busReset and postedWriteErr must yest be cleared yet
 	 * (OHCI 1.1 clauses 7.2.3.2 and 13.2.8.1)
 	 */
 	reg_write(ohci, OHCI1394_IntEventClear,
@@ -2131,7 +2131,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 	if (unlikely(event & OHCI1394_cycleTooLong)) {
 		if (printk_ratelimit())
-			ohci_notice(ohci, "isochronous cycle too long\n");
+			ohci_yestice(ohci, "isochroyesus cycle too long\n");
 		reg_write(ohci, OHCI1394_LinkControlSet,
 			  OHCI1394_LinkControl_cycleMaster);
 	}
@@ -2139,12 +2139,12 @@ static irqreturn_t irq_handler(int irq, void *data)
 	if (unlikely(event & OHCI1394_cycleInconsistent)) {
 		/*
 		 * We need to clear this event bit in order to make
-		 * cycleMatch isochronous I/O work.  In theory we should
-		 * stop active cycleMatch iso contexts now and restart
+		 * cycleMatch isochroyesus I/O work.  In theory we should
+		 * stop active cycleMatch iso contexts yesw and restart
 		 * them at least two cycles later.  (FIXME?)
 		 */
 		if (printk_ratelimit())
-			ohci_notice(ohci, "isochronous cycle inconsistent\n");
+			ohci_yestice(ohci, "isochroyesus cycle inconsistent\n");
 	}
 
 	if (unlikely(event & OHCI1394_unrecoverableError))
@@ -2199,7 +2199,7 @@ static int configure_1394a_enhancements(struct fw_ohci *ohci)
 	      OHCI1394_HCControl_programPhyEnable))
 		return 0;
 
-	/* Paranoia: check whether the PHY supports 1394a, too. */
+	/* Parayesia: check whether the PHY supports 1394a, too. */
 	enable_1394a = false;
 	ret = read_phy_reg(ohci, 2);
 	if (ret < 0)
@@ -2284,7 +2284,7 @@ static int ohci_enable(struct fw_card *card,
 	 * a JMicron PCIe card), we have to try again sometimes.
 	 *
 	 * TI TSB82AA2 + TSB81BA3(A) cards signal LPS enabled early but
-	 * cannot actually use the phy at that time.  These need tens of
+	 * canyest actually use the phy at that time.  These need tens of
 	 * millisecods pause between LPS write and first phy access too.
 	 */
 
@@ -2309,13 +2309,13 @@ static int ohci_enable(struct fw_card *card,
 		if (ret < 0)
 			return ret;
 		if (ret)
-			ohci_notice(ohci, "local TSB41BA3D phy\n");
+			ohci_yestice(ohci, "local TSB41BA3D phy\n");
 		else
 			ohci->quirks &= ~QUIRK_TI_SLLZ059;
 	}
 
 	reg_write(ohci, OHCI1394_HCControlClear,
-		  OHCI1394_HCControl_noByteSwapData);
+		  OHCI1394_HCControl_yesByteSwapData);
 
 	reg_write(ohci, OHCI1394_SelfIDBuffer, ohci->self_id_bus);
 	reg_write(ohci, OHCI1394_LinkControlSet,
@@ -2362,9 +2362,9 @@ static int ohci_enable(struct fw_card *card,
 		return ret;
 
 	/*
-	 * When the link is not yet enabled, the atomic config rom
+	 * When the link is yest yet enabled, the atomic config rom
 	 * update mechanism described below in ohci_set_config_rom()
-	 * is not active.  We have to update ConfigRomHeader and
+	 * is yest active.  We have to update ConfigRomHeader and
 	 * BusOptions manually, and the write to ConfigROMmap takes
 	 * effect immediately.  We tie this to the enabling of the
 	 * link, so we have a valid config rom before enabling - the
@@ -2451,7 +2451,7 @@ static int ohci_set_config_rom(struct fw_card *card,
 
 	/*
 	 * When the OHCI controller is enabled, the config rom update
-	 * mechanism is a bit tricky, but easy enough to use.  See
+	 * mechanism is a bit tricky, but easy eyesugh to use.  See
 	 * section 5.5.6 in the OHCI specification.
 	 *
 	 * The OHCI controller caches the new config rom address in a
@@ -2463,12 +2463,12 @@ static int ohci_set_config_rom(struct fw_card *card,
 	 * shadow register. All automatically and atomically.
 	 *
 	 * Now, there's a twist to this story.  The automatic load of
-	 * ConfigRomHeader and BusOptions doesn't honor the
-	 * noByteSwapData bit, so with a be32 config rom, the
+	 * ConfigRomHeader and BusOptions doesn't hoyesr the
+	 * yesByteSwapData bit, so with a be32 config rom, the
 	 * controller will load be32 values in to these registers
 	 * during the atomic update, even on litte endian
 	 * architectures.  The workaround we use is to put a 0 in the
-	 * header quadlet; 0 is endian agnostic and means that the
+	 * header quadlet; 0 is endian agyesstic and means that the
 	 * config rom isn't ready yet.  In the bus reset tasklet we
 	 * then set up the real values for the two registers.
 	 *
@@ -2485,7 +2485,7 @@ static int ohci_set_config_rom(struct fw_card *card,
 	spin_lock_irq(&ohci->lock);
 
 	/*
-	 * If there is not an already pending config_rom update,
+	 * If there is yest an already pending config_rom update,
 	 * push our new allocation into the ohci->next_config_rom
 	 * and then mark the local variable as null so that we
 	 * won't deallocate the new buffer.
@@ -2570,7 +2570,7 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 }
 
 static int ohci_enable_phys_dma(struct fw_card *card,
-				int node_id, int generation)
+				int yesde_id, int generation)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	unsigned long flags;
@@ -2592,11 +2592,11 @@ static int ohci_enable_phys_dma(struct fw_card *card,
 	}
 
 	/*
-	 * Note, if the node ID contains a non-local bus ID, physical DMA is
-	 * enabled for _all_ nodes on remote buses.
+	 * Note, if the yesde ID contains a yesn-local bus ID, physical DMA is
+	 * enabled for _all_ yesdes on remote buses.
 	 */
 
-	n = (node_id & 0xffc0) == LOCAL_BUS ? node_id & 0x3f : 63;
+	n = (yesde_id & 0xffc0) == LOCAL_BUS ? yesde_id & 0x3f : 63;
 	if (n < 32)
 		reg_write(ohci, OHCI1394_PhyReqFilterLoSet, 1 << n);
 	else
@@ -2692,7 +2692,7 @@ static void ohci_write_csr(struct fw_card *card, int csr_offset, u32 value)
 		break;
 
 	case CSR_CYCLE_TIME:
-		reg_write(ohci, OHCI1394_IsochronousCycleTimer, value);
+		reg_write(ohci, OHCI1394_IsochroyesusCycleTimer, value);
 		reg_write(ohci, OHCI1394_IntEventSet,
 			  OHCI1394_cycleInconsistent);
 		flush_writes(ohci);
@@ -2771,7 +2771,7 @@ static int handle_ir_packet_per_buffer(struct context *context,
 		if (pd->transfer_status)
 			break;
 	if (pd > last)
-		/* Descriptor(s) not done yet, stop iteration */
+		/* Descriptor(s) yest done yet, stop iteration */
 		return 0;
 
 	while (!(d->control & cpu_to_le16(DESCRIPTOR_BRANCH_ALWAYS))) {
@@ -2813,7 +2813,7 @@ static int handle_ir_buffer_fill(struct context *context,
 	}
 
 	if (res_count != 0)
-		/* Descriptor(s) not done yet, stop iteration */
+		/* Descriptor(s) yest done yet, stop iteration */
 		return 0;
 
 	dma_sync_single_range_for_cpu(context->ohci->card.device,
@@ -2859,7 +2859,7 @@ static inline void sync_it_packet_for_cpu(struct context *context,
 
 	/*
 	 * If the packet has a header, the first OUTPUT_MORE/LAST descriptor's
-	 * data buffer is in the context program's coherent page and must not
+	 * data buffer is in the context program's coherent page and must yest
 	 * be synced.
 	 */
 	if ((le32_to_cpu(pd->data_address) & PAGE_MASK) ==
@@ -2894,7 +2894,7 @@ static int handle_it_packet(struct context *context,
 		if (pd->transfer_status)
 			break;
 	if (pd > last)
-		/* Descriptor(s) not done yet, stop iteration */
+		/* Descriptor(s) yest done yet, stop iteration */
 		return 0;
 
 	sync_it_packet_for_cpu(context, d);
@@ -3035,7 +3035,7 @@ static int ohci_start_iso(struct fw_iso_context *base,
 	u32 control = IR_CONTEXT_ISOCH_HEADER, match;
 	int index;
 
-	/* the controller cannot start without any queued packets */
+	/* the controller canyest start without any queued packets */
 	if (ctx->context.last->branch_address == 0)
 		return -ENODATA;
 
@@ -3235,7 +3235,7 @@ static int queue_iso_transmit(struct iso_context *ctx,
 		 * Link the skip address to this descriptor itself.  This causes
 		 * a context to skip a cycle whenever lost cycles or FIFO
 		 * overruns occur, without dropping the data.  The application
-		 * should then decide whether this is an error condition or not.
+		 * should then decide whether this is an error condition or yest.
 		 * FIXME:  Make the context's cycle-lost behaviour configurable?
 		 */
 		d[0].branch_address = cpu_to_le32(d_bus | z);
@@ -3306,7 +3306,7 @@ static int queue_iso_packet_per_buffer(struct iso_context *ctx,
 	int page, offset, packet_count, header_size, payload_per_buffer;
 
 	/*
-	 * The OHCI controller puts the isochronous header and trailer in the
+	 * The OHCI controller puts the isochroyesus header and trailer in the
 	 * buffer, so we need at least 8 bytes.
 	 */
 	packet_count = packet->header_length / ctx->base.header_size;
@@ -3523,7 +3523,7 @@ static const struct fw_card_driver ohci_driver = {
 static void pmac_ohci_on(struct pci_dev *dev)
 {
 	if (machine_is(powermac)) {
-		struct device_node *ofn = pci_device_to_OF_node(dev);
+		struct device_yesde *ofn = pci_device_to_OF_yesde(dev);
 
 		if (ofn) {
 			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 1);
@@ -3535,7 +3535,7 @@ static void pmac_ohci_on(struct pci_dev *dev)
 static void pmac_ohci_off(struct pci_dev *dev)
 {
 	if (machine_is(powermac)) {
-		struct device_node *ofn = pci_device_to_OF_node(dev);
+		struct device_yesde *ofn = pci_device_to_OF_yesde(dev);
 
 		if (ofn) {
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
@@ -3558,7 +3558,7 @@ static int pci_probe(struct pci_dev *dev,
 	size_t size;
 
 	if (dev->vendor == PCI_VENDOR_ID_PINNACLE_SYSTEMS) {
-		dev_err(&dev->dev, "Pinnacle MovieBoard is not yet supported\n");
+		dev_err(&dev->dev, "Pinnacle MovieBoard is yest yet supported\n");
 		return -ENOSYS;
 	}
 
@@ -3666,9 +3666,9 @@ static int pci_probe(struct pci_dev *dev,
 
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
 	ohci->it_context_support = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
-	/* JMicron JMB38x often shows 0 at first read, just ignore it */
+	/* JMicron JMB38x often shows 0 at first read, just igyesre it */
 	if (!ohci->it_context_support) {
-		ohci_notice(ohci, "overriding IsoXmitIntMask\n");
+		ohci_yestice(ohci, "overriding IsoXmitIntMask\n");
 		ohci->it_context_support = 0xf;
 	}
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, ~0);
@@ -3706,7 +3706,7 @@ static int pci_probe(struct pci_dev *dev,
 		goto fail_irq;
 
 	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
-	ohci_notice(ohci,
+	ohci_yestice(ohci,
 		    "added OHCI v%x.%x device as card %d, "
 		    "%d IR + %d IT contexts, quirks 0x%x%s\n",
 		    version >> 16, version & 0xff, ohci->card.index,
@@ -3762,7 +3762,7 @@ static void pci_remove(struct pci_dev *dev)
 	fw_core_remove_card(&ohci->card);
 
 	/*
-	 * FIXME: Fail all pending packets here, now that the upper
+	 * FIXME: Fail all pending packets here, yesw that the upper
 	 * layers can't queue any more.
 	 */
 
@@ -3790,7 +3790,7 @@ static void pci_remove(struct pci_dev *dev)
 	kfree(ohci);
 	pmac_ohci_off(dev);
 
-	dev_notice(&dev->dev, "removed fw-ohci device\n");
+	dev_yestice(&dev->dev, "removed fw-ohci device\n");
 }
 
 #ifdef CONFIG_PM

@@ -4,16 +4,16 @@
  * If an integer doesn't fit into specified type, -E is returned.
  *
  * Integer starts with optional sign.
- * kstrtou*() functions do not accept sign "-".
+ * kstrtou*() functions do yest accept sign "-".
  *
  * Radix 0 means autodetection: leading "0x" implies radix 16,
  * leading "0" implies radix 8, otherwise radix is 10.
- * Autodetection hints work after optional sign, but not before.
+ * Autodetection hints work after optional sign, but yest before.
  *
- * If -E is returned, result is not touched.
+ * If -E is returned, result is yest touched.
  */
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/export.h>
@@ -38,7 +38,7 @@ const char *_parse_integer_fixup_radix(const char *s, unsigned int *base)
 }
 
 /*
- * Convert non-negative integer string representation in explicitly given radix
+ * Convert yesn-negative integer string representation in explicitly given radix
  * to an integer.
  * Return number of characters consumed maybe or-ed with overflow bit.
  * If overflow occurs, result integer (incorrect) is still returned.
@@ -106,7 +106,7 @@ static int _kstrtoull(const char *s, unsigned int base, unsigned long long *res)
  * kstrtoull - convert a string to an unsigned long long
  * @s: The start of the string. The string must be null-terminated, and may also
  *  include a single newline before its terminating null. The first character
- *  may also be a plus sign, but not a minus sign.
+ *  may also be a plus sign, but yest a minus sign.
  * @base: The number base to use. The maximum supported base is 16. If base is
  *  given as 0, then the base of the string is automatically detected with the
  *  conventional semantics - If it begins with 0x the number will be parsed as a
@@ -166,7 +166,7 @@ int kstrtoll(const char *s, unsigned int base, long long *res)
 }
 EXPORT_SYMBOL(kstrtoll);
 
-/* Internal, do not use. */
+/* Internal, do yest use. */
 int _kstrtoul(const char *s, unsigned int base, unsigned long *res)
 {
 	unsigned long long tmp;
@@ -182,7 +182,7 @@ int _kstrtoul(const char *s, unsigned int base, unsigned long *res)
 }
 EXPORT_SYMBOL(_kstrtoul);
 
-/* Internal, do not use. */
+/* Internal, do yest use. */
 int _kstrtol(const char *s, unsigned int base, long *res)
 {
 	long long tmp;
@@ -202,7 +202,7 @@ EXPORT_SYMBOL(_kstrtol);
  * kstrtouint - convert a string to an unsigned int
  * @s: The start of the string. The string must be null-terminated, and may also
  *  include a single newline before its terminating null. The first character
- *  may also be a plus sign, but not a minus sign.
+ *  may also be a plus sign, but yest a minus sign.
  * @base: The number base to use. The maximum supported base is 16. If base is
  *  given as 0, then the base of the string is automatically detected with the
  *  conventional semantics - If it begins with 0x the number will be parsed as a
@@ -368,7 +368,7 @@ int kstrtobool(const char *s, bool *res)
 EXPORT_SYMBOL(kstrtobool);
 
 /*
- * Since "base" would be a nonsense argument, this open-codes the
+ * Since "base" would be a yesnsense argument, this open-codes the
  * _from_user helper instead of using the helper macro below.
  */
 int kstrtobool_from_user(const char __user *s, size_t count, bool *res)

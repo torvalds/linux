@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /**
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techyeslogy Ltd. All Rights Reserved.
  *
  * @File	ctmixer.c
  *
@@ -280,7 +280,7 @@ set_switch_state(struct ct_mixer *mixer,
 		mixer->switch_state &= ~(0x1 << (type - SWH_MIXER_START));
 }
 
-#if 0 /* not used */
+#if 0 /* yest used */
 /* Map integer value ranging from 0 to 65535 to 14-bit float value ranging
  * from 2^-6 to (1+1023/1024) */
 static unsigned int uint16_to_float14(unsigned int x)
@@ -320,7 +320,7 @@ static unsigned int float14_to_uint16(unsigned int x)
 
 	return x;
 }
-#endif /* not used */
+#endif /* yest used */
 
 #define VOL_SCALE	0x1c
 #define VOL_MAX		0x100
@@ -485,12 +485,12 @@ do_line_mic_switch(struct ct_atc *atc, enum CTALSA_MIXER_CTL type)
 	if (MIXER_LINEIN_C_S == type) {
 		atc->select_line_in(atc);
 		set_switch_state(atc->mixer, MIXER_MIC_C_S, 0);
-		snd_ctl_notify(atc->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(atc->card, SNDRV_CTL_EVENT_MASK_VALUE,
 							&kctls[1]->id);
 	} else if (MIXER_MIC_C_S == type) {
 		atc->select_mic_in(atc);
 		set_switch_state(atc->mixer, MIXER_LINEIN_C_S, 0);
-		snd_ctl_notify(atc->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(atc->card, SNDRV_CTL_EVENT_MASK_VALUE,
 							&kctls[0]->id);
 	}
 }

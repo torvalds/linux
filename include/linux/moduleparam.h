@@ -13,7 +13,7 @@
 #define __MODULE_INFO_PREFIX /* empty */
 #else
 #define MODULE_PARAM_PREFIX KBUILD_MODNAME "."
-/* We cannot use MODULE_PARAM_PREFIX because some modules override it. */
+/* We canyest use MODULE_PARAM_PREFIX because some modules override it. */
 #define __MODULE_INFO_PREFIX KBUILD_MODNAME "."
 #endif
 
@@ -38,7 +38,7 @@ struct kernel_param;
 /*
  * Flags available for kernel_param_ops
  *
- * NOARG - the parameter allows for no argument (foo instead of foo=1)
+ * NOARG - the parameter allows for yes argument (foo instead of foo=1)
  */
 enum {
 	KERNEL_PARAM_OPS_FL_NOARG = (1 << 0)
@@ -47,9 +47,9 @@ enum {
 struct kernel_param_ops {
 	/* How the ops should behave */
 	unsigned int flags;
-	/* Returns 0, or -errno.  arg is in kp->arg. */
+	/* Returns 0, or -erryes.  arg is in kp->arg. */
 	int (*set)(const char *val, const struct kernel_param *kp);
-	/* Returns length written or -errno.  Buffer is 4k (ie. be short!) */
+	/* Returns length written or -erryes.  Buffer is 4k (ie. be short!) */
 	int (*get)(char *buffer, const struct kernel_param *kp);
 	/* Optional function to free kp->arg when module unloaded. */
 	void (*free)(void *arg);
@@ -59,7 +59,7 @@ struct kernel_param_ops {
  * Flags available for kernel_param
  *
  * UNSAFE - the parameter is dangerous and setting it will taint the kernel
- * HWPARAM - Hardware param not permitted in lockdown mode
+ * HWPARAM - Hardware param yest permitted in lockdown mode
  */
 enum {
 	KERNEL_PARAM_FL_UNSAFE	= (1 << 0),
@@ -108,7 +108,7 @@ struct kparam_array
  * ".") the kernel commandline parameter.  Note that - is changed to _, so
  * the user can use "foo-bar=1" even for variable "foo_bar".
  *
- * @perm is 0 if the the variable is not to appear in sysfs, or 0444
+ * @perm is 0 if the the variable is yest to appear in sysfs, or 0444
  * for world-readable, 0644 for root-writable, etc.  Note that if it
  * is writable, you may need to use kernel_param_lock() around
  * accesses (esp. charp, which can be kfreed when it changes).
@@ -140,7 +140,7 @@ struct kparam_array
  * @perm: visibility in sysfs.
  *
  * Usually it's a good idea to have variable names and user-exposed names the
- * same, but that's harder if the variable must be non-static or is inside a
+ * same, but that's harder if the variable must be yesn-static or is inside a
  * structure.  This allows exposure under a different name.
  */
 #define module_param_named(name, value, type, perm)			   \
@@ -204,9 +204,9 @@ struct kparam_array
 #define late_param_cb(name, ops, arg, perm)		\
 	__level_param_cb(name, ops, arg, perm, 7)
 
-/* On alpha, ia64 and ppc64 relocations to global data cannot go into
+/* On alpha, ia64 and ppc64 relocations to global data canyest go into
    read-only sections (which is part of respective UNIX ABI on these
-   platforms). So 'const' makes no sense and even causes compile failures
+   platforms). So 'const' makes yes sense and even causes compile failures
    with some compilers. */
 #if defined(CONFIG_ALPHA) || defined(CONFIG_IA64) || defined(CONFIG_PPC64)
 #define __moduleparam_const
@@ -252,7 +252,7 @@ static inline void kernel_param_unlock(struct module *mod)
  * @type: the type of the parameter
  * @perm: visibility in sysfs
  *
- * core_param is just like module_param(), but cannot be modular and
+ * core_param is just like module_param(), but canyest be modular and
  * doesn't add a prefix (such as "printk.").  This is for compatibility
  * with __setup(), and it makes sense as truly core parameters aren't
  * tied to the particular file they're in.
@@ -317,7 +317,7 @@ extern char *parse_args(const char *name,
 		      s16 level_min,
 		      s16 level_max,
 		      void *arg,
-		      int (*unknown)(char *param, char *val,
+		      int (*unkyeswn)(char *param, char *val,
 				     const char *doing, void *arg));
 
 /* Called by module remove. */
@@ -463,7 +463,7 @@ enum hwparam_type {
  * @perm: visibility in sysfs.
  *
  * Usually it's a good idea to have variable names and user-exposed names the
- * same, but that's harder if the variable must be non-static or is inside a
+ * same, but that's harder if the variable must be yesn-static or is inside a
  * structure.  This allows exposure under a different name.
  */
 #define module_param_hw_named(name, value, type, hwtype, perm)		\

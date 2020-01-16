@@ -59,7 +59,7 @@ static int prism2_result2err(int prism2_result)
 	case P80211ENUM_resultcode_implementation_failure:
 		err = -EIO;
 		break;
-	case P80211ENUM_resultcode_not_supported:
+	case P80211ENUM_resultcode_yest_supported:
 		err = -EOPNOTSUPP;
 		break;
 	default:
@@ -124,7 +124,7 @@ static int prism2_change_virtual_intf(struct wiphy *wiphy,
 		data = 1;
 		break;
 	default:
-		netdev_warn(dev, "Operation mode: %d not support\n", type);
+		netdev_warn(dev, "Operation mode: %d yest support\n", type);
 		return -EOPNOTSUPP;
 	}
 
@@ -209,7 +209,7 @@ static int prism2_del_key(struct wiphy *wiphy, struct net_device *dev,
 	int err = 0;
 	int result = 0;
 
-	/* There is no direct way in the hardware (AFAIK) of removing
+	/* There is yes direct way in the hardware (AFAIK) of removing
 	 * a key, so we will cheat by setting the key to a bogus value
 	 */
 
@@ -521,7 +521,7 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 			goto exit;
 	}
 
-	/* Now do the actual join. Note there is no way that I can
+	/* Now do the actual join. Note there is yes way that I can
 	 * see to request a specific bssid
 	 */
 	msg_join.msgcode = DIDMSG_LNXREQ_AUTOJOIN;

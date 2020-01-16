@@ -15,8 +15,8 @@ enum imx_gpt_type {
 
 /*
  * This is a stop-gap solution for clock drivers like imx1/imx21 which call
- * mxc_timer_init() to initialize timer for non-DT boot.  It can be removed
- * when these legacy non-DT support is converted or dropped.
+ * mxc_timer_init() to initialize timer for yesn-DT boot.  It can be removed
+ * when these legacy yesn-DT support is converted or dropped.
  */
 void mxc_timer_init(unsigned long pbase, int irq, enum imx_gpt_type type);
 

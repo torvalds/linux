@@ -78,22 +78,22 @@ static struct mcfg_fixup mcfg_quirks[] = {
 	HISI_QUAD_DOM("HIP07   ",  8, &hisi_pcie_ops),
 	HISI_QUAD_DOM("HIP07   ", 12, &hisi_pcie_ops),
 
-#define THUNDER_PEM_RES(addr, node) \
-	DEFINE_RES_MEM((addr) + ((u64) (node) << 44), 0x39 * SZ_16M)
+#define THUNDER_PEM_RES(addr, yesde) \
+	DEFINE_RES_MEM((addr) + ((u64) (yesde) << 44), 0x39 * SZ_16M)
 
-#define THUNDER_PEM_QUIRK(rev, node) \
-	{ "CAVIUM", "THUNDERX", rev, 4 + (10 * (node)), MCFG_BUS_ANY,	    \
-	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x88001f000000UL, node) },  \
-	{ "CAVIUM", "THUNDERX", rev, 5 + (10 * (node)), MCFG_BUS_ANY,	    \
-	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x884057000000UL, node) },  \
-	{ "CAVIUM", "THUNDERX", rev, 6 + (10 * (node)), MCFG_BUS_ANY,	    \
-	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x88808f000000UL, node) },  \
-	{ "CAVIUM", "THUNDERX", rev, 7 + (10 * (node)), MCFG_BUS_ANY,	    \
-	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x89001f000000UL, node) },  \
-	{ "CAVIUM", "THUNDERX", rev, 8 + (10 * (node)), MCFG_BUS_ANY,	    \
-	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x894057000000UL, node) },  \
-	{ "CAVIUM", "THUNDERX", rev, 9 + (10 * (node)), MCFG_BUS_ANY,	    \
-	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x89808f000000UL, node) }
+#define THUNDER_PEM_QUIRK(rev, yesde) \
+	{ "CAVIUM", "THUNDERX", rev, 4 + (10 * (yesde)), MCFG_BUS_ANY,	    \
+	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x88001f000000UL, yesde) },  \
+	{ "CAVIUM", "THUNDERX", rev, 5 + (10 * (yesde)), MCFG_BUS_ANY,	    \
+	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x884057000000UL, yesde) },  \
+	{ "CAVIUM", "THUNDERX", rev, 6 + (10 * (yesde)), MCFG_BUS_ANY,	    \
+	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x88808f000000UL, yesde) },  \
+	{ "CAVIUM", "THUNDERX", rev, 7 + (10 * (yesde)), MCFG_BUS_ANY,	    \
+	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x89001f000000UL, yesde) },  \
+	{ "CAVIUM", "THUNDERX", rev, 8 + (10 * (yesde)), MCFG_BUS_ANY,	    \
+	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x894057000000UL, yesde) },  \
+	{ "CAVIUM", "THUNDERX", rev, 9 + (10 * (yesde)), MCFG_BUS_ANY,	    \
+	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x89808f000000UL, yesde) }
 
 #define THUNDER_ECAM_QUIRK(rev, seg)					\
 	{ "CAVIUM", "THUNDERX", rev, seg, MCFG_BUS_ANY,			\
@@ -225,8 +225,8 @@ skip_lookup:
 	/*
 	 * Allow quirks to override default ECAM ops and CFG resource
 	 * range.  This may even fabricate a CFG resource range in case
-	 * MCFG does not have it.  Invalid CFG start address means MCFG
-	 * firmware bug or we need another quirk in array.
+	 * MCFG does yest have it.  Invalid CFG start address means MCFG
+	 * firmware bug or we need ayesther quirk in array.
 	 */
 	pci_mcfg_apply_quirks(root, &res, &ops);
 	if (!res.start)

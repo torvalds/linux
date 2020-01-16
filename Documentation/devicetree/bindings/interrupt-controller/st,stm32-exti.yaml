@@ -33,7 +33,7 @@ properties:
   hwlocks:
     maxItems: 1
     description:
-      Reference to a phandle of a hardware spinlock provider node.
+      Reference to a phandle of a hardware spinlock provider yesde.
 
   interrupts:
     description:

@@ -16,24 +16,24 @@
 
 /* DRP Conflict Actions ([ECMA-368 2nd Edition] 17.4.6) */
 enum uwb_drp_conflict_action {
-	/* Reservation is maintained, no action needed */
+	/* Reservation is maintained, yes action needed */
 	UWB_DRP_CONFLICT_MANTAIN = 0,
 
-	/* the device shall not transmit frames in conflicting MASs in
+	/* the device shall yest transmit frames in conflicting MASs in
 	 * the following superframe. If the device is the reservation
 	 * target, it shall also set the Reason Code in its DRP IE to
 	 * Conflict in its beacon in the following superframe.
 	 */
 	UWB_DRP_CONFLICT_ACT1,
 
-	/* the device shall not set the Reservation Status bit to ONE
-	 * and shall not transmit frames in conflicting MASs. If the
+	/* the device shall yest set the Reservation Status bit to ONE
+	 * and shall yest transmit frames in conflicting MASs. If the
 	 * device is the reservation target, it shall also set the
 	 * Reason Code in its DRP IE to Conflict.
 	 */
 	UWB_DRP_CONFLICT_ACT2,
 
-	/* the device shall not transmit frames in conflicting MASs in
+	/* the device shall yest transmit frames in conflicting MASs in
 	 * the following superframe. It shall remove the conflicting
 	 * MASs from the reservation or set the Reservation Status to
 	 * ZERO in its beacon in the following superframe. If the
@@ -72,7 +72,7 @@ static void uwb_rc_set_drp_cmd_done(struct uwb_rc *rc, void *arg,
  *
  * @rc:         UWB Host controller
  * @returns:    >= 0 number of bytes still available in the beacon
- *              < 0 errno code on error.
+ *              < 0 erryes code on error.
  *
  * See WUSB[8.6.2.7]: The host must set all the DRP IEs that it wants the
  * device to include in its beacon at the same time. We thus have to
@@ -83,7 +83,7 @@ static void uwb_rc_set_drp_cmd_done(struct uwb_rc *rc, void *arg,
  *
  * rc->rsvs_mutex is held
  *
- * FIXME We currently ignore the returned value indicating the remaining space
+ * FIXME We currently igyesre the returned value indicating the remaining space
  * in beacon. This could be used to deny reservation requests earlier if
  * determined that they would cause the beacon space to be exceeded.
  */
@@ -98,7 +98,7 @@ int uwb_rc_send_all_drp_ie(struct uwb_rc *rc)
 
 	result = -ENOMEM;
 	/* First traverse all reservations to determine memory needed. */
-	list_for_each_entry(rsv, &rc->reservations, rc_node) {
+	list_for_each_entry(rsv, &rc->reservations, rc_yesde) {
 		if (rsv->drp_ie != NULL) {
 			num_bytes += rsv->drp_ie->hdr.length + 2;
 			if (uwb_rsv_has_two_drp_ies(rsv) &&
@@ -118,13 +118,13 @@ int uwb_rc_send_all_drp_ie(struct uwb_rc *rc)
 	cmd->wIELength = num_bytes;
 	IEDataptr = (u8 *)&cmd->IEData[0];
 
-	/* FIXME: DRV avail IE is not always needed */
+	/* FIXME: DRV avail IE is yest always needed */
 	/* put DRP avail IE first */
 	memcpy(IEDataptr, &rc->drp_avail.ie, sizeof(rc->drp_avail.ie));
 	IEDataptr += sizeof(struct uwb_ie_drp_avail);
 
 	/* Next traverse all reservations to place IEs in allocated memory. */
-	list_for_each_entry(rsv, &rc->reservations, rc_node) {
+	list_for_each_entry(rsv, &rc->reservations, rc_yesde) {
 		if (rsv->drp_ie != NULL) {
 			memcpy(IEDataptr, rsv->drp_ie,
 			       rsv->drp_ie->hdr.length + 2);
@@ -182,7 +182,7 @@ static int evaluate_conflict_action(struct uwb_ie_drp *ext_drp_ie, int ext_beaco
 
 	/* [ECMA-368 2nd Edition] 17.4.6-2 */
 	if (ext_type == UWB_DRP_TYPE_ALIEN_BP) {
-		/* here we know our_type != UWB_DRP_TYPE_ALIEN_BP */
+		/* here we kyesw our_type != UWB_DRP_TYPE_ALIEN_BP */
 		return UWB_DRP_CONFLICT_ACT1;
 	}
 
@@ -236,7 +236,7 @@ static int evaluate_conflict_action(struct uwb_ie_drp *ext_drp_ie, int ext_beaco
 	return UWB_DRP_CONFLICT_MANTAIN;
 }
 
-static void handle_conflict_normal(struct uwb_ie_drp *drp_ie,
+static void handle_conflict_yesrmal(struct uwb_ie_drp *drp_ie,
 				   int ext_beacon_slot,
 				   struct uwb_rsv *rsv,
 				   struct uwb_mas_bm *conflicting_mas)
@@ -321,7 +321,7 @@ static void handle_conflict_expanding(struct uwb_ie_drp *drp_ie, int ext_beacon_
 			/* drop some mases with reason modified */
 
 			/* put in the companion the mases to be dropped */
-			bitmap_andnot(mv->companion_mas.bm, rsv->mas.bm,
+			bitmap_andyest(mv->companion_mas.bm, rsv->mas.bm,
 					conflicting_mas->bm, UWB_NUM_MAS);
 			uwb_rsv_set_state(rsv, UWB_RSV_STATE_O_MODIFIED);
 		} else { /* it is a target rsv */
@@ -356,7 +356,7 @@ static void uwb_drp_handle_conflict_rsv(struct uwb_rc *rc, struct uwb_rsv *rsv,
 		}
 	} else if (bitmap_intersects(rsv->mas.bm, conflicting_mas->bm,
 							UWB_NUM_MAS)) {
-		handle_conflict_normal(drp_ie, drp_evt->beacon_slot_number,
+		handle_conflict_yesrmal(drp_ie, drp_evt->beacon_slot_number,
 					rsv, conflicting_mas);
 	}
 }
@@ -368,7 +368,7 @@ static void uwb_drp_handle_all_conflict_rsv(struct uwb_rc *rc,
 {
 	struct uwb_rsv *rsv;
 
-	list_for_each_entry(rsv, &rc->reservations, rc_node) {
+	list_for_each_entry(rsv, &rc->reservations, rc_yesde) {
 		uwb_drp_handle_conflict_rsv(rc, rsv, drp_evt, drp_ie,
 							conflicting_mas);
 	}
@@ -454,7 +454,7 @@ static void uwb_drp_process_target(struct uwb_rc *rc, struct uwb_rsv *rsv,
 		/* find if the owner wants to expand or reduce */
 		if (bitmap_subset(mas.bm, rsv->mas.bm, UWB_NUM_MAS)) {
 			/* owner is reducing */
-			bitmap_andnot(mv->companion_mas.bm, rsv->mas.bm, mas.bm,
+			bitmap_andyest(mv->companion_mas.bm, rsv->mas.bm, mas.bm,
 				UWB_NUM_MAS);
 			uwb_drp_avail_release(rsv->rc, &mv->companion_mas);
 		}
@@ -463,7 +463,7 @@ static void uwb_drp_process_target(struct uwb_rc *rc, struct uwb_rsv *rsv,
 		uwb_rsv_set_state(rsv, UWB_RSV_STATE_T_RESIZED);
 		break;
 	default:
-		dev_warn(dev, "ignoring invalid DRP IE state (%d/%d)\n",
+		dev_warn(dev, "igyesring invalid DRP IE state (%d/%d)\n",
 			 reason_code, status);
 	}
 }
@@ -533,7 +533,7 @@ static void uwb_drp_process_owner(struct uwb_rc *rc, struct uwb_rsv *rsv,
 			uwb_drp_process_owner_accepted(rsv, &mas);
 			break;
 		default:
-			dev_warn(dev, "ignoring invalid DRP IE state (%d/%d)\n",
+			dev_warn(dev, "igyesring invalid DRP IE state (%d/%d)\n",
 				 reason_code, status);
 		}
 	} else {
@@ -551,7 +551,7 @@ static void uwb_drp_process_owner(struct uwb_rc *rc, struct uwb_rsv *rsv,
 			uwb_drp_handle_conflict_rsv(rc, rsv, drp_evt, drp_ie, &mas);
 			break;
 		default:
-			dev_warn(dev, "ignoring invalid DRP IE state (%d/%d)\n",
+			dev_warn(dev, "igyesring invalid DRP IE state (%d/%d)\n",
 				 reason_code, status);
 		}
 	}
@@ -575,12 +575,12 @@ static void uwb_cnflt_update_work(struct work_struct *work)
 
 	mutex_lock(&rc->rsvs_mutex);
 
-	list_del(&cnflt->rc_node);
+	list_del(&cnflt->rc_yesde);
 
 	/* update rc global conflicting alien bitmap */
 	bitmap_zero(rc->cnflt_alien_bitmap.bm, UWB_NUM_MAS);
 
-	list_for_each_entry(c, &rc->cnflt_alien_list, rc_node) {
+	list_for_each_entry(c, &rc->cnflt_alien_list, rc_yesde) {
 		bitmap_or(rc->cnflt_alien_bitmap.bm, rc->cnflt_alien_bitmap.bm,
 						c->mas.bm, UWB_NUM_MAS);
 	}
@@ -601,7 +601,7 @@ static void uwb_cnflt_timer(struct timer_list *t)
 
 /*
  * We have received an DRP_IE of type Alien BP and we need to make
- * sure we do not transmit in conflicting MASs.
+ * sure we do yest transmit in conflicting MASs.
  */
 static void uwb_drp_handle_alien_drp(struct uwb_rc *rc, struct uwb_ie_drp *drp_ie)
 {
@@ -612,7 +612,7 @@ static void uwb_drp_handle_alien_drp(struct uwb_rc *rc, struct uwb_ie_drp *drp_i
 
 	uwb_drp_ie_to_bm(&mas, drp_ie);
 
-	list_for_each_entry(cnflt, &rc->cnflt_alien_list, rc_node) {
+	list_for_each_entry(cnflt, &rc->cnflt_alien_list, rc_yesde) {
 		if (bitmap_equal(cnflt->mas.bm, mas.bm, UWB_NUM_MAS)) {
 			/* Existing alien BP reservation conflicting
 			 * bitmap, just reset the timer */
@@ -630,7 +630,7 @@ static void uwb_drp_handle_alien_drp(struct uwb_rc *rc, struct uwb_ie_drp *drp_i
 		return;
 	}
 
-	INIT_LIST_HEAD(&cnflt->rc_node);
+	INIT_LIST_HEAD(&cnflt->rc_yesde);
 	timer_setup(&cnflt->timer, uwb_cnflt_timer, 0);
 
 	cnflt->rc = rc;
@@ -638,7 +638,7 @@ static void uwb_drp_handle_alien_drp(struct uwb_rc *rc, struct uwb_ie_drp *drp_i
 
 	bitmap_copy(cnflt->mas.bm, mas.bm, UWB_NUM_MAS);
 
-	list_add_tail(&cnflt->rc_node, &rc->cnflt_alien_list);
+	list_add_tail(&cnflt->rc_yesde, &rc->cnflt_alien_list);
 
 	/* update rc global conflicting alien bitmap */
 	bitmap_or(rc->cnflt_alien_bitmap.bm, rc->cnflt_alien_bitmap.bm, mas.bm, UWB_NUM_MAS);
@@ -649,7 +649,7 @@ static void uwb_drp_handle_alien_drp(struct uwb_rc *rc, struct uwb_ie_drp *drp_i
 	uwb_cnflt_alien_stroke_timer(cnflt);
 }
 
-static void uwb_drp_process_not_involved(struct uwb_rc *rc,
+static void uwb_drp_process_yest_involved(struct uwb_rc *rc,
 					 struct uwb_rc_evt_drp *drp_evt,
 					 struct uwb_ie_drp *drp_ie)
 {
@@ -676,7 +676,7 @@ static void uwb_drp_process_involved(struct uwb_rc *rc, struct uwb_dev *src,
 	}
 
 	/*
-	 * Do nothing with DRP IEs for reservations that have been
+	 * Do yesthing with DRP IEs for reservations that have been
 	 * terminated.
 	 */
 	if (rsv->state == UWB_RSV_STATE_NONE) {
@@ -708,7 +708,7 @@ static void uwb_drp_process(struct uwb_rc *rc, struct uwb_rc_evt_drp *drp_evt,
 	else if (uwb_drp_involves_us(rc, drp_ie))
 		uwb_drp_process_involved(rc, src, drp_evt, drp_ie);
 	else
-		uwb_drp_process_not_involved(rc, drp_evt, drp_ie);
+		uwb_drp_process_yest_involved(rc, drp_evt, drp_ie);
 }
 
 /*
@@ -747,13 +747,13 @@ void uwb_drp_process_all(struct uwb_rc *rc, struct uwb_rc_evt_drp *drp_evt,
 			uwb_drp_process(rc, drp_evt, src_dev, (struct uwb_ie_drp *)ie_hdr);
 			break;
 		default:
-			dev_warn(dev, "unexpected IE in DRP notification\n");
+			dev_warn(dev, "unexpected IE in DRP yestification\n");
 			break;
 		}
 	}
 
 	if (ielen > 0)
-		dev_warn(dev, "%d octets remaining in DRP notification\n",
+		dev_warn(dev, "%d octets remaining in DRP yestification\n",
 			 (int)ielen);
 }
 
@@ -761,11 +761,11 @@ void uwb_drp_process_all(struct uwb_rc *rc, struct uwb_rc_evt_drp *drp_evt,
  * uwbd_evt_handle_rc_drp - handle a DRP_IE event
  * @evt: the DRP_IE event from the radio controller
  *
- * This processes DRP notifications from the radio controller, either
+ * This processes DRP yestifications from the radio controller, either
  * initiating a new reservation or transitioning an existing
  * reservation into a different state.
  *
- * DRP notifications can occur for three different reasons:
+ * DRP yestifications can occur for three different reasons:
  *
  * - UWB_DRP_NOTIF_DRP_IE_RECVD: one or more DRP IEs with the RC as
  *   the target or source have been received.
@@ -775,13 +775,13 @@ void uwb_drp_process_all(struct uwb_rc *rc, struct uwb_rc_evt_drp *drp_evt,
  *   If the DRP IE for an existing reservation ceases to be to
  *   received for at least mMaxLostBeacons, the reservation should be
  *   considered to be terminated.  Note that the TERMINATE reason (see
- *   below) may not always be signalled (e.g., the remote device has
+ *   below) may yest always be signalled (e.g., the remote device has
  *   two or more reservations established with the RC).
  *
  * - UWB_DRP_NOTIF_CONFLICT: DRP IEs from any device in the beacon
  *   group conflict with the RC's reservations.
  *
- * - UWB_DRP_NOTIF_TERMINATE: DRP IEs are no longer being received
+ * - UWB_DRP_NOTIF_TERMINATE: DRP IEs are yes longer being received
  *   from a device (i.e., it's terminated all reservations).
  *
  * Only the software state of the reservations is changed; the setting
@@ -798,19 +798,19 @@ int uwbd_evt_handle_rc_drp(struct uwb_event *evt)
 	struct uwb_dev_addr src_addr;
 	struct uwb_dev *src_dev;
 
-	/* Is there enough data to decode the event (and any IEs in
+	/* Is there eyesugh data to decode the event (and any IEs in
 	   its payload)? */
-	if (evt->notif.size < sizeof(*drp_evt)) {
-		dev_err(dev, "DRP event: Not enough data to decode event "
+	if (evt->yestif.size < sizeof(*drp_evt)) {
+		dev_err(dev, "DRP event: Not eyesugh data to decode event "
 			"[%zu bytes left, %zu needed]\n",
-			evt->notif.size, sizeof(*drp_evt));
+			evt->yestif.size, sizeof(*drp_evt));
 		return 0;
 	}
-	bytes_left = evt->notif.size - sizeof(*drp_evt);
-	drp_evt = container_of(evt->notif.rceb, struct uwb_rc_evt_drp, rceb);
+	bytes_left = evt->yestif.size - sizeof(*drp_evt);
+	drp_evt = container_of(evt->yestif.rceb, struct uwb_rc_evt_drp, rceb);
 	ielength = le16_to_cpu(drp_evt->ie_length);
 	if (bytes_left != ielength) {
-		dev_err(dev, "DRP event: Not enough data in payload [%zu"
+		dev_err(dev, "DRP event: Not eyesugh data in payload [%zu"
 			"bytes left, %zu declared in the event]\n",
 			bytes_left, ielength);
 		return 0;
@@ -820,11 +820,11 @@ int uwbd_evt_handle_rc_drp(struct uwb_event *evt)
 	src_dev = uwb_dev_get_by_devaddr(rc, &src_addr);
 	if (!src_dev) {
 		/*
-		 * A DRP notification from an unrecognized device.
+		 * A DRP yestification from an unrecognized device.
 		 *
 		 * This is probably from a WUSB device that doesn't
 		 * have an EUI-48 and therefore doesn't show up in the
-		 * UWB device database.  It's safe to simply ignore
+		 * UWB device database.  It's safe to simply igyesre
 		 * these.
 		 */
 		return 0;
@@ -832,7 +832,7 @@ int uwbd_evt_handle_rc_drp(struct uwb_event *evt)
 
 	mutex_lock(&rc->rsvs_mutex);
 
-	/* We do not distinguish from the reason */
+	/* We do yest distinguish from the reason */
 	uwb_drp_process_all(rc, drp_evt, ielength, src_dev);
 
 	mutex_unlock(&rc->rsvs_mutex);

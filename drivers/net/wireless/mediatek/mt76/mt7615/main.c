@@ -89,7 +89,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 	}
 	mvif->omac_idx = idx;
 
-	/* TODO: DBDC support. Use band 0 for now */
+	/* TODO: DBDC support. Use band 0 for yesw */
 	mvif->band_idx = 0;
 	mvif->wmm_idx = mvif->idx % MT7615_MAX_WMM_SETS;
 
@@ -188,7 +188,7 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct mt76_wcid *wcid = &msta->wcid;
 	int idx = key->keyidx;
 
-	/* The hardware does not support per-STA RX GTK, fallback
+	/* The hardware does yest support per-STA RX GTK, fallback
 	 * to software mode for these.
 	 */
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||

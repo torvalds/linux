@@ -312,7 +312,7 @@ static struct ns2_pin ns2_pins[] = {
 
 static const unsigned int nand_pins[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 	11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
-static const unsigned int nor_data_pins[] =  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+static const unsigned int yesr_data_pins[] =  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 	10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
 
 static const unsigned int gpio_0_1_pins[] = {24, 25};
@@ -320,33 +320,33 @@ static const unsigned int pwm_0_pins[] = {24};
 static const unsigned int pwm_1_pins[] = {25};
 
 static const unsigned int uart1_ext_clk_pins[] = {26};
-static const unsigned int nor_adv_pins[] = {26};
+static const unsigned int yesr_adv_pins[] = {26};
 
 static const unsigned int gpio_2_5_pins[] = {27, 28, 29, 30};
 static const unsigned int pcie_ab1_clk_wak_pins[] = {27, 28, 29, 30};
-static const unsigned int nor_addr_0_3_pins[] = {27, 28, 29, 30};
+static const unsigned int yesr_addr_0_3_pins[] = {27, 28, 29, 30};
 static const unsigned int pwm_2_pins[] = {27};
 static const unsigned int pwm_3_pins[] = {28};
 
 static const unsigned int gpio_6_7_pins[] = {31, 32};
 static const unsigned int pcie_a3_clk_wak_pins[] = {31, 32};
-static const unsigned int nor_addr_4_5_pins[] = {31, 32};
+static const unsigned int yesr_addr_4_5_pins[] = {31, 32};
 
 static const unsigned int gpio_8_9_pins[] = {33, 34};
 static const unsigned int pcie_b3_clk_wak_pins[] = {33, 34};
-static const unsigned int nor_addr_6_7_pins[] = {33, 34};
+static const unsigned int yesr_addr_6_7_pins[] = {33, 34};
 
 static const unsigned int gpio_10_11_pins[] = {35, 36};
 static const unsigned int pcie_b2_clk_wak_pins[] = {35, 36};
-static const unsigned int nor_addr_8_9_pins[] = {35, 36};
+static const unsigned int yesr_addr_8_9_pins[] = {35, 36};
 
 static const unsigned int gpio_12_13_pins[] = {37, 38};
 static const unsigned int pcie_a2_clk_wak_pins[] = {37, 38};
-static const unsigned int nor_addr_10_11_pins[] = {37, 38};
+static const unsigned int yesr_addr_10_11_pins[] = {37, 38};
 
 static const unsigned int gpio_14_17_pins[] = {39, 40, 41, 42};
 static const unsigned int uart0_modem_pins[] = {39, 40, 41, 42};
-static const unsigned int nor_addr_12_15_pins[] = {39, 40, 41, 42};
+static const unsigned int yesr_addr_12_15_pins[] = {39, 40, 41, 42};
 
 static const unsigned int gpio_18_19_pins[] = {43, 44};
 static const unsigned int uart0_rts_cts_pins[] = {43, 44};
@@ -388,35 +388,35 @@ static const unsigned int uart2_rts_cts_pins[] = {55, 56};
  */
 static const struct ns2_pin_group ns2_pin_groups[] = {
 	NS2_PIN_GROUP(nand, 0, 0, 31, 1, 0),
-	NS2_PIN_GROUP(nor_data, 0, 0, 31, 1, 1),
+	NS2_PIN_GROUP(yesr_data, 0, 0, 31, 1, 1),
 	NS2_PIN_GROUP(gpio_0_1, 0, 0, 31, 1, 0),
 
 	NS2_PIN_GROUP(uart1_ext_clk, 0, 4, 30, 3, 1),
-	NS2_PIN_GROUP(nor_adv, 0, 4, 30, 3, 2),
+	NS2_PIN_GROUP(yesr_adv, 0, 4, 30, 3, 2),
 
 	NS2_PIN_GROUP(gpio_2_5,	0, 4, 28, 3, 0),
 	NS2_PIN_GROUP(pcie_ab1_clk_wak, 0, 4, 28, 3, 1),
-	NS2_PIN_GROUP(nor_addr_0_3, 0, 4, 28, 3, 2),
+	NS2_PIN_GROUP(yesr_addr_0_3, 0, 4, 28, 3, 2),
 
 	NS2_PIN_GROUP(gpio_6_7, 0, 4, 26, 3, 0),
 	NS2_PIN_GROUP(pcie_a3_clk_wak, 0, 4, 26, 3, 1),
-	NS2_PIN_GROUP(nor_addr_4_5, 0, 4, 26, 3, 2),
+	NS2_PIN_GROUP(yesr_addr_4_5, 0, 4, 26, 3, 2),
 
 	NS2_PIN_GROUP(gpio_8_9, 0, 4, 24, 3, 0),
 	NS2_PIN_GROUP(pcie_b3_clk_wak, 0, 4, 24, 3, 1),
-	NS2_PIN_GROUP(nor_addr_6_7, 0, 4, 24, 3, 2),
+	NS2_PIN_GROUP(yesr_addr_6_7, 0, 4, 24, 3, 2),
 
 	NS2_PIN_GROUP(gpio_10_11, 0, 4, 22, 3, 0),
 	NS2_PIN_GROUP(pcie_b2_clk_wak, 0, 4, 22, 3, 1),
-	NS2_PIN_GROUP(nor_addr_8_9, 0, 4, 22, 3, 2),
+	NS2_PIN_GROUP(yesr_addr_8_9, 0, 4, 22, 3, 2),
 
 	NS2_PIN_GROUP(gpio_12_13, 0, 4, 20, 3, 0),
 	NS2_PIN_GROUP(pcie_a2_clk_wak, 0, 4, 20, 3, 1),
-	NS2_PIN_GROUP(nor_addr_10_11, 0, 4, 20, 3, 2),
+	NS2_PIN_GROUP(yesr_addr_10_11, 0, 4, 20, 3, 2),
 
 	NS2_PIN_GROUP(gpio_14_17, 0, 4, 18, 3, 0),
 	NS2_PIN_GROUP(uart0_modem, 0, 4, 18, 3, 1),
-	NS2_PIN_GROUP(nor_addr_12_15, 0, 4, 18, 3, 2),
+	NS2_PIN_GROUP(yesr_addr_12_15, 0, 4, 18, 3, 2),
 
 	NS2_PIN_GROUP(gpio_18_19, 0, 4, 16, 3, 0),
 	NS2_PIN_GROUP(uart0_rts_cts, 0, 4, 16, 3, 1),
@@ -451,9 +451,9 @@ static const struct ns2_pin_group ns2_pin_groups[] = {
 
 static const char * const nand_grps[] = {"nand_grp"};
 
-static const char * const nor_grps[] = {"nor_data_grp", "nor_adv_grp",
-	"nor_addr_0_3_grp", "nor_addr_4_5_grp",	"nor_addr_6_7_grp",
-	"nor_addr_8_9_grp", "nor_addr_10_11_grp", "nor_addr_12_15_grp"};
+static const char * const yesr_grps[] = {"yesr_data_grp", "yesr_adv_grp",
+	"yesr_addr_0_3_grp", "yesr_addr_4_5_grp",	"yesr_addr_6_7_grp",
+	"yesr_addr_8_9_grp", "yesr_addr_10_11_grp", "yesr_addr_12_15_grp"};
 
 static const char * const gpio_grps[] = {"gpio_0_1_grp", "gpio_2_5_grp",
 	"gpio_6_7_grp",	"gpio_8_9_grp",	"gpio_10_11_grp", "gpio_12_13_grp",
@@ -489,7 +489,7 @@ static const char * const pwm_grps[] = {"pwm_0_grp", "pwm_1_grp",
  */
 static const struct ns2_pin_function ns2_pin_functions[] = {
 	NS2_PIN_FUNCTION(nand),
-	NS2_PIN_FUNCTION(nor),
+	NS2_PIN_FUNCTION(yesr),
 	NS2_PIN_FUNCTION(gpio),
 	NS2_PIN_FUNCTION(pcie),
 	NS2_PIN_FUNCTION(uart0),
@@ -536,7 +536,7 @@ static const struct pinctrl_ops ns2_pinctrl_ops = {
 	.get_group_name = ns2_get_group_name,
 	.get_group_pins = ns2_get_group_pins,
 	.pin_dbg_show = ns2_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -1049,7 +1049,7 @@ static int ns2_pinmux_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res)
 		return -EINVAL;
-	pinctrl->base1 = devm_ioremap_nocache(&pdev->dev, res->start,
+	pinctrl->base1 = devm_ioremap_yescache(&pdev->dev, res->start,
 					resource_size(res));
 	if (!pinctrl->base1) {
 		dev_err(&pdev->dev, "unable to map I/O space\n");

@@ -30,7 +30,7 @@ config PNP_DEBUG_MESSAGES
 	  messages if needed.  The messages can be enabled at boot-time with
 	  the pnp.debug kernel parameter.
 
-	  This option allows you to save a bit of space if you do not want
+	  This option allows you to save a bit of space if you do yest want
 	  the messages to even be built into the kernel.
 
 	  If you have any doubts about this, say Y here.

@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/power_supply.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/vermagic.h>
 
@@ -30,7 +30,7 @@ static int usb_online			= 1;
 static int battery_status		= POWER_SUPPLY_STATUS_DISCHARGING;
 static int battery_health		= POWER_SUPPLY_HEALTH_GOOD;
 static int battery_present		= 1; /* true */
-static int battery_technology		= POWER_SUPPLY_TECHNOLOGY_LION;
+static int battery_techyeslogy		= POWER_SUPPLY_TECHNOLOGY_LION;
 static int battery_capacity		= 50;
 static int battery_voltage		= 3300;
 static int battery_charge_counter	= -1000;
@@ -93,7 +93,7 @@ static int test_power_get_battery_property(struct power_supply *psy,
 		val->intval = battery_present;
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = battery_technology;
+		val->intval = battery_techyeslogy;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
 		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
@@ -269,7 +269,7 @@ static struct battery_property_map map_ac_online[] = {
 static struct battery_property_map map_status[] = {
 	{ POWER_SUPPLY_STATUS_CHARGING,     "charging"     },
 	{ POWER_SUPPLY_STATUS_DISCHARGING,  "discharging"  },
-	{ POWER_SUPPLY_STATUS_NOT_CHARGING, "not-charging" },
+	{ POWER_SUPPLY_STATUS_NOT_CHARGING, "yest-charging" },
 	{ POWER_SUPPLY_STATUS_FULL,         "full"         },
 	{ -1,                               NULL           },
 };
@@ -289,7 +289,7 @@ static struct battery_property_map map_present[] = {
 	{ -1, NULL    },
 };
 
-static struct battery_property_map map_technology[] = {
+static struct battery_property_map map_techyeslogy[] = {
 	{ POWER_SUPPLY_TECHNOLOGY_NiMH, "NiMH" },
 	{ POWER_SUPPLY_TECHNOLOGY_LION, "LION" },
 	{ POWER_SUPPLY_TECHNOLOGY_LIPO, "LIPO" },
@@ -352,7 +352,7 @@ static int param_set_ac_online(const char *key, const struct kernel_param *kp)
 
 static int param_get_ac_online(char *buffer, const struct kernel_param *kp)
 {
-	strcpy(buffer, map_get_key(map_ac_online, ac_online, "unknown"));
+	strcpy(buffer, map_get_key(map_ac_online, ac_online, "unkyeswn"));
 	return strlen(buffer);
 }
 
@@ -365,7 +365,7 @@ static int param_set_usb_online(const char *key, const struct kernel_param *kp)
 
 static int param_get_usb_online(char *buffer, const struct kernel_param *kp)
 {
-	strcpy(buffer, map_get_key(map_ac_online, usb_online, "unknown"));
+	strcpy(buffer, map_get_key(map_ac_online, usb_online, "unkyeswn"));
 	return strlen(buffer);
 }
 
@@ -379,7 +379,7 @@ static int param_set_battery_status(const char *key,
 
 static int param_get_battery_status(char *buffer, const struct kernel_param *kp)
 {
-	strcpy(buffer, map_get_key(map_status, battery_status, "unknown"));
+	strcpy(buffer, map_get_key(map_status, battery_status, "unkyeswn"));
 	return strlen(buffer);
 }
 
@@ -393,7 +393,7 @@ static int param_set_battery_health(const char *key,
 
 static int param_get_battery_health(char *buffer, const struct kernel_param *kp)
 {
-	strcpy(buffer, map_get_key(map_health, battery_health, "unknown"));
+	strcpy(buffer, map_get_key(map_health, battery_health, "unkyeswn"));
 	return strlen(buffer);
 }
 
@@ -408,24 +408,24 @@ static int param_set_battery_present(const char *key,
 static int param_get_battery_present(char *buffer,
 					const struct kernel_param *kp)
 {
-	strcpy(buffer, map_get_key(map_present, battery_present, "unknown"));
+	strcpy(buffer, map_get_key(map_present, battery_present, "unkyeswn"));
 	return strlen(buffer);
 }
 
-static int param_set_battery_technology(const char *key,
+static int param_set_battery_techyeslogy(const char *key,
 					const struct kernel_param *kp)
 {
-	battery_technology = map_get_value(map_technology, key,
-						battery_technology);
+	battery_techyeslogy = map_get_value(map_techyeslogy, key,
+						battery_techyeslogy);
 	signal_power_supply_changed(test_power_supplies[TEST_BATTERY]);
 	return 0;
 }
 
-static int param_get_battery_technology(char *buffer,
+static int param_get_battery_techyeslogy(char *buffer,
 					const struct kernel_param *kp)
 {
 	strcpy(buffer,
-		map_get_key(map_technology, battery_technology, "unknown"));
+		map_get_key(map_techyeslogy, battery_techyeslogy, "unkyeswn"));
 	return strlen(buffer);
 }
 
@@ -509,9 +509,9 @@ static const struct kernel_param_ops param_ops_battery_present = {
 	.get = param_get_battery_present,
 };
 
-static const struct kernel_param_ops param_ops_battery_technology = {
-	.set = param_set_battery_technology,
-	.get = param_get_battery_technology,
+static const struct kernel_param_ops param_ops_battery_techyeslogy = {
+	.set = param_set_battery_techyeslogy,
+	.get = param_get_battery_techyeslogy,
 };
 
 static const struct kernel_param_ops param_ops_battery_health = {
@@ -543,7 +543,7 @@ static const struct kernel_param_ops param_ops_battery_current = {
 #define param_check_usb_online(name, p) __param_check(name, p, void);
 #define param_check_battery_status(name, p) __param_check(name, p, void);
 #define param_check_battery_present(name, p) __param_check(name, p, void);
-#define param_check_battery_technology(name, p) __param_check(name, p, void);
+#define param_check_battery_techyeslogy(name, p) __param_check(name, p, void);
 #define param_check_battery_health(name, p) __param_check(name, p, void);
 #define param_check_battery_capacity(name, p) __param_check(name, p, void);
 #define param_check_battery_voltage(name, p) __param_check(name, p, void);
@@ -559,15 +559,15 @@ MODULE_PARM_DESC(usb_online, "USB charging state <on|off>");
 
 module_param(battery_status, battery_status, 0644);
 MODULE_PARM_DESC(battery_status,
-	"battery status <charging|discharging|not-charging|full>");
+	"battery status <charging|discharging|yest-charging|full>");
 
 module_param(battery_present, battery_present, 0644);
 MODULE_PARM_DESC(battery_present,
 	"battery presence state <good|overheat|dead|overvoltage|failure>");
 
-module_param(battery_technology, battery_technology, 0644);
-MODULE_PARM_DESC(battery_technology,
-	"battery technology <NiMH|LION|LIPO|LiFe|NiCd|LiMn>");
+module_param(battery_techyeslogy, battery_techyeslogy, 0644);
+MODULE_PARM_DESC(battery_techyeslogy,
+	"battery techyeslogy <NiMH|LION|LIPO|LiFe|NiCd|LiMn>");
 
 module_param(battery_health, battery_health, 0644);
 MODULE_PARM_DESC(battery_health,

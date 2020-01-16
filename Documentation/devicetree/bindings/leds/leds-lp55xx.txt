@@ -12,7 +12,7 @@ Required properties:
 - clock-mode: Input clock mode, (0: automode, 1: internal, 2: external)
 
 Each child has own specific current settings
-- led-cur: Current setting at each led channel (mA x10, 0 if led is not connected)
+- led-cur: Current setting at each led channel (mA x10, 0 if led is yest connected)
 - max-cur: Maximun current at each led channel.
 
 Optional properties:

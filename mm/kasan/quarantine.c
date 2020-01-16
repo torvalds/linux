@@ -40,8 +40,8 @@
  * objects inside of it.
  */
 struct qlist_head {
-	struct qlist_node *head;
-	struct qlist_node *tail;
+	struct qlist_yesde *head;
+	struct qlist_yesde *tail;
 	size_t bytes;
 };
 
@@ -58,7 +58,7 @@ static void qlist_init(struct qlist_head *q)
 	q->bytes = 0;
 }
 
-static void qlist_put(struct qlist_head *q, struct qlist_node *qlink,
+static void qlist_put(struct qlist_head *q, struct qlist_yesde *qlink,
 		size_t size)
 {
 	if (unlikely(qlist_empty(q)))
@@ -123,12 +123,12 @@ static unsigned long quarantine_batch_size;
  */
 #define QUARANTINE_FRACTION 32
 
-static struct kmem_cache *qlink_to_cache(struct qlist_node *qlink)
+static struct kmem_cache *qlink_to_cache(struct qlist_yesde *qlink)
 {
 	return virt_to_head_page(qlink)->slab_cache;
 }
 
-static void *qlink_to_object(struct qlist_node *qlink, struct kmem_cache *cache)
+static void *qlink_to_object(struct qlist_yesde *qlink, struct kmem_cache *cache)
 {
 	struct kasan_free_meta *free_info =
 		container_of(qlink, struct kasan_free_meta,
@@ -137,7 +137,7 @@ static void *qlink_to_object(struct qlist_node *qlink, struct kmem_cache *cache)
 	return ((void *)free_info) - cache->kasan_info.free_meta_offset;
 }
 
-static void qlink_free(struct qlist_node *qlink, struct kmem_cache *cache)
+static void qlink_free(struct qlist_yesde *qlink, struct kmem_cache *cache)
 {
 	void *object = qlink_to_object(qlink, cache);
 	unsigned long flags;
@@ -153,7 +153,7 @@ static void qlink_free(struct qlist_node *qlink, struct kmem_cache *cache)
 
 static void qlist_free_all(struct qlist_head *q, struct kmem_cache *cache)
 {
-	struct qlist_node *qlink;
+	struct qlist_yesde *qlink;
 
 	if (unlikely(qlist_empty(q)))
 		return;
@@ -162,7 +162,7 @@ static void qlist_free_all(struct qlist_head *q, struct kmem_cache *cache)
 	while (qlink) {
 		struct kmem_cache *obj_cache =
 			cache ? cache :	qlink_to_cache(qlink);
-		struct qlist_node *next = qlink->next;
+		struct qlist_yesde *next = qlink->next;
 
 		qlink_free(qlink, obj_cache);
 		qlink = next;
@@ -223,11 +223,11 @@ void quarantine_reduce(void)
 
 	/*
 	 * srcu critical section ensures that quarantine_remove_cache()
-	 * will not miss objects belonging to the cache while they are in our
+	 * will yest miss objects belonging to the cache while they are in our
 	 * local to_free list. srcu is chosen because (1) it gives us private
-	 * grace period domain that does not interfere with anything else,
+	 * grace period domain that does yest interfere with anything else,
 	 * and (2) it allows synchronize_srcu() to return without waiting
-	 * if there are no pending read critical sections (which is the
+	 * if there are yes pending read critical sections (which is the
 	 * expected case).
 	 */
 	srcu_idx = srcu_read_lock(&remove_cache_srcu);
@@ -265,7 +265,7 @@ static void qlist_move_cache(struct qlist_head *from,
 				   struct qlist_head *to,
 				   struct kmem_cache *cache)
 {
-	struct qlist_node *curr;
+	struct qlist_yesde *curr;
 
 	if (unlikely(qlist_empty(from)))
 		return;
@@ -273,7 +273,7 @@ static void qlist_move_cache(struct qlist_head *from,
 	curr = from->head;
 	qlist_init(from);
 	while (curr) {
-		struct qlist_node *next = curr->next;
+		struct qlist_yesde *next = curr->next;
 		struct kmem_cache *obj_cache = qlink_to_cache(curr);
 
 		if (obj_cache == cache)
@@ -303,9 +303,9 @@ void quarantine_remove_cache(struct kmem_cache *cache)
 	struct qlist_head to_free = QLIST_INIT;
 
 	/*
-	 * Must be careful to not miss any objects that are being moved from
+	 * Must be careful to yest miss any objects that are being moved from
 	 * per-cpu list to the global quarantine in quarantine_put(),
-	 * nor objects being freed in quarantine_reduce(). on_each_cpu()
+	 * yesr objects being freed in quarantine_reduce(). on_each_cpu()
 	 * achieves the first goal, while synchronize_srcu() achieves the
 	 * second.
 	 */

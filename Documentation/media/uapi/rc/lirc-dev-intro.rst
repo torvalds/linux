@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _lirc_dev_intro:
 
@@ -25,14 +25,14 @@ raw IR into scancodes.
 
 Example dmesg output upon a driver registering w/LIRC:
 
-.. code-block:: none
+.. code-block:: yesne
 
     $ dmesg |grep lirc_dev
-    rc rc0: lirc_dev: driver mceusb registered at minor = 0, raw IR receiver, raw IR transmitter
+    rc rc0: lirc_dev: driver mceusb registered at miyesr = 0, raw IR receiver, raw IR transmitter
 
 What you should see for a chardev:
 
-.. code-block:: none
+.. code-block:: yesne
 
     $ ls -l /dev/lirc*
     crw-rw---- 1 root root 248, 0 Jul 2 22:20 /dev/lirc0
@@ -82,16 +82,16 @@ on the following table.
 
     In the Sanyo and NEC protocol, if you hold a button on remote, rather than
     repeating the entire scancode, the remote sends a shorter message with
-    no scancode, which just means button is held, a "repeat". When this is
+    yes scancode, which just means button is held, a "repeat". When this is
     received, the ``LIRC_SCANCODE_FLAG_REPEAT`` is set and the scancode and
     keycode is repeated.
 
-    With nec, there is no way to distinguish "button hold" from "repeatedly
+    With nec, there is yes way to distinguish "button hold" from "repeatedly
     pressing the same button". The rc-5 and rc-6 protocols have a toggle bit.
     When a button is released and pressed again, the toggle bit is inverted.
     If the toggle bit is set, the ``LIRC_SCANCODE_FLAG_TOGGLE`` is set.
 
-    The ``timestamp`` field is filled with the time nanoseconds
+    The ``timestamp`` field is filled with the time nayesseconds
     (in ``CLOCK_MONOTONIC``) when the scancode was decoded.
 
 .. _lirc-mode-mode2:
@@ -126,9 +126,9 @@ on the following table.
 
         If timeout reports are enabled with
         :ref:`lirc_set_rec_timeout_reports`, when the timeout set with
-        :ref:`lirc_set_rec_timeout` expires due to no IR being detected,
+        :ref:`lirc_set_rec_timeout` expires due to yes IR being detected,
         this packet will be sent, with the number of microseconds with
-        no IR.
+        yes IR.
 
 .. _lirc-mode-pulse:
 
@@ -149,7 +149,7 @@ BPF based IR decoder
 
 The kernel has support for decoding the most common
 :ref:`IR protocols <Remote_controllers_Protocols>`, but there
-are many protocols which are not supported. To support these, it is possible
+are many protocols which are yest supported. To support these, it is possible
 to load an BPF program which does the decoding. This can only be done on
 LIRC devices which support reading raw IR.
 

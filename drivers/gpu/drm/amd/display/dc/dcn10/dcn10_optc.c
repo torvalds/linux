@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -43,7 +43,7 @@
 /**
 * apply_front_porch_workaround  TODO FPGA still need?
 *
-* This is a workaround for a bug that has existed since R5xx and has not been
+* This is a workaround for a bug that has existed since R5xx and has yest been
 * fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
 */
 static void apply_front_porch_workaround(struct dc_crtc_timing *timing)
@@ -360,7 +360,7 @@ static void optc1_unblank_crtc(struct timing_generator *optc)
 	 * Automated testing will fail underflow test as there
 	 * sporadic underflows which occur during the optc blank
 	 * sequence.  As a w/a, clear underflow on unblank.
-	 * This prevents the failure, but will not mask actual
+	 * This prevents the failure, but will yest mask actual
 	 * underflow that affect real use cases.
 	 */
 	optc1_clear_optc_underflow(optc);
@@ -589,7 +589,7 @@ void optc1_lock(struct timing_generator *optc)
 
 	regval = REG_READ(OTG_CONTROL);
 
-	/* otg is not running, do not need to be locked */
+	/* otg is yest running, do yest need to be locked */
 	if ((regval & 0x1) == 0x0)
 		return;
 
@@ -598,7 +598,7 @@ void optc1_lock(struct timing_generator *optc)
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 			OTG_MASTER_UPDATE_LOCK, 1);
 
-	/* Should be fast, status does not update on maximus */
+	/* Should be fast, status does yest update on maximus */
 	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS) {
 
 		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
@@ -625,7 +625,7 @@ void optc1_get_position(struct timing_generator *optc,
 			OTG_VERT_COUNT, &position->vertical_count);
 
 	REG_GET(OTG_NOM_VERT_POSITION,
-			OTG_VERT_COUNT_NOM, &position->nominal_vcount);
+			OTG_VERT_COUNT_NOM, &position->yesminal_vcount);
 }
 
 bool optc1_is_counter_moving(struct timing_generator *optc)
@@ -776,7 +776,7 @@ void optc1_set_early_control(
 	struct timing_generator *optc,
 	uint32_t early_cntl)
 {
-	/* asic design change, do not need this control
+	/* asic design change, do yest need this control
 	 * empty for share caller logic
 	 */
 }
@@ -788,7 +788,7 @@ void optc1_set_static_screen_control(
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
-	/* Bit 8 is no longer applicable in RV for PSR case,
+	/* Bit 8 is yes longer applicable in RV for PSR case,
 	 * set bit 8 to 0 if given
 	 */
 	if ((value & STATIC_SCREEN_EVENT_MASK_RANGETIMING_DOUBLE_BUFFER_UPDATE_EN)
@@ -896,7 +896,7 @@ void optc1_set_drr(
 static void optc1_set_test_pattern(
 	struct timing_generator *optc,
 	/* TODO: replace 'controller_dp_test_pattern' by 'test_pattern_mode'
-	 * because this is not DP-specific (which is probably somewhere in DP
+	 * because this is yest DP-specific (which is probably somewhere in DP
 	 * encoder) */
 	enum controller_dp_test_pattern test_pattern,
 	enum dc_color_depth color_depth)
@@ -1024,7 +1024,7 @@ static void optc1_set_test_pattern(
 		 * but each next iteration color prepared in
 		 * previous iteration will be written within new mask,
 		 * the last component will written separately,
-		 * mask is not changing between 6th and 7th write
+		 * mask is yest changing between 6th and 7th write
 		 * and color will be prepared by last iteration
 		 */
 
@@ -1152,7 +1152,7 @@ static void optc1_set_test_pattern(
 	}
 }
 
-void optc1_get_crtc_scanoutpos(
+void optc1_get_crtc_scayesutpos(
 	struct timing_generator *optc,
 	uint32_t *v_blank_start,
 	uint32_t *v_blank_end,
@@ -1376,7 +1376,7 @@ bool optc1_configure_crc(struct timing_generator *optc,
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
-	/* Cannot configure crc on a CRTC that is disabled */
+	/* Canyest configure crc on a CRTC that is disabled */
 	if (!optc1_is_tg_enabled(optc))
 		return false;
 
@@ -1423,7 +1423,7 @@ bool optc1_get_crc(struct timing_generator *optc,
 
 	REG_GET(OTG_CRC_CNTL, OTG_CRC_EN, &field);
 
-	/* Early return if CRC is not enabled for this CRTC */
+	/* Early return if CRC is yest enabled for this CRTC */
 	if (!field)
 		return false;
 
@@ -1450,7 +1450,7 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.is_counter_moving = optc1_is_counter_moving,
 		.get_position = optc1_get_position,
 		.get_frame_count = optc1_get_vblank_counter,
-		.get_scanoutpos = optc1_get_crtc_scanoutpos,
+		.get_scayesutpos = optc1_get_crtc_scayesutpos,
 		.get_otg_active_size = optc1_get_otg_active_size,
 		.set_early_control = optc1_set_early_control,
 		/* used by enable_timing_synchronization. Not need for FPGA */

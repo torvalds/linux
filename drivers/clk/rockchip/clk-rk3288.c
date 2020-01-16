@@ -880,7 +880,7 @@ static int rk3288_clk_suspend(void)
 	 * Switch PLLs other than DPLL (for SDRAM) to slow mode to
 	 * avoid crashes on resume. The Mask ROM on the system will
 	 * put APLL, CPLL, and GPLL into slow mode at resume time
-	 * anyway (which is why we restore them), but we might not
+	 * anyway (which is why we restore them), but we might yest
 	 * even make it to the Mask ROM if this isn't done at suspend
 	 * time.
 	 *
@@ -914,13 +914,13 @@ static struct syscore_ops rk3288_clk_syscore_ops = {
 	.resume = rk3288_clk_resume,
 };
 
-static void __init rk3288_clk_init(struct device_node *np)
+static void __init rk3288_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 
 	rk3288_cru_base = of_iomap(np, 0);
 	if (!rk3288_cru_base) {
-		pr_err("%s: could not map cru region\n", __func__);
+		pr_err("%s: could yest map cru region\n", __func__);
 		return;
 	}
 
@@ -948,7 +948,7 @@ static void __init rk3288_clk_init(struct device_node *np)
 				  rk3288_cru_base + RK3288_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(ctx, RK3288_GLB_SRST_FST,
+	rockchip_register_restart_yestifier(ctx, RK3288_GLB_SRST_FST,
 					   rk3288_clk_shutdown);
 	register_syscore_ops(&rk3288_clk_syscore_ops);
 

@@ -20,7 +20,7 @@
  *
  * namespaces support
  * OpenVZ, SWsoft Inc.
- * Pavel Emelianov <xemul@openvz.org>
+ * Pavel Emeliayesv <xemul@openvz.org>
  */
 
 #include <linux/capability.h>
@@ -213,7 +213,7 @@ static void ss_wakeup(struct msg_queue *msq,
 		else if (stop_tsk == mss->tsk)
 			break;
 		/*
-		 * We are not in an EIDRM scenario here, therefore
+		 * We are yest in an EIDRM scenario here, therefore
 		 * verify that we really need to wakeup the task.
 		 * To maintain current semantics and wakeup order,
 		 * move the sender to the tail on behalf of the
@@ -374,7 +374,7 @@ copy_msqid_from_user(struct msqid64_ds *out, void __user *buf, int version)
 /*
  * This function handles some msgctl commands which require the rwsem
  * to be held in write mode.
- * NOTE: no locks must be held, the rwsem is taken inside this function.
+ * NOTE: yes locks must be held, the rwsem is taken inside this function.
  */
 static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 			struct msqid64_ds *msqid64)
@@ -459,8 +459,8 @@ static int msgctl_info(struct ipc_namespace *ns, int msqid,
 	int max_idx;
 
 	/*
-	 * We must not return kernel stack data.
-	 * due to padding, it's not enough
+	 * We must yest return kernel stack data.
+	 * due to padding, it's yest eyesugh
 	 * to set all member fields.
 	 */
 	err = security_msg_queue_msgctl(NULL, cmd);
@@ -905,7 +905,7 @@ static long do_msgsnd(int msqid, long mtype, void __user *mtext,
 	msq->q_stime = ktime_get_real_seconds();
 
 	if (!pipelined_send(msq, msg, &wake_q)) {
-		/* no one is waiting for this message, enqueue it */
+		/* yes one is waiting for this message, enqueue it */
 		list_add_tail(&msg->m_list, &msq->q_messages);
 		msq->q_cbytes += msgsz;
 		msq->q_qnum++;
@@ -1007,7 +1007,7 @@ static long do_msg_fill(void __user *dest, struct msg_msg *msg, size_t bufsz)
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
 /*
- * This function creates new kernel message structure, large enough to store
+ * This function creates new kernel message structure, large eyesugh to store
  * bufsz message bytes.
  */
 static inline struct msg_msg *prepare_copy(void __user *buf, size_t bufsz)
@@ -1120,8 +1120,8 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 				goto out_unlock0;
 			}
 			/*
-			 * If we are copying, then do not unlink message and do
-			 * not update queue parameters.
+			 * If we are copying, then do yest unlink message and do
+			 * yest update queue parameters.
 			 */
 			if (msgflg & MSG_COPY) {
 				msg = copy_msg(msg, copy);
@@ -1168,7 +1168,7 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 		 * thus the code relies on rcu to guarantee the existence of
 		 * msq:
 		 * Prior to destruction, expunge_all(-EIRDM) changes r_msg.
-		 * Thus if r_msg is -EAGAIN, then the queue not yet destroyed.
+		 * Thus if r_msg is -EAGAIN, then the queue yest yet destroyed.
 		 */
 		rcu_read_lock();
 

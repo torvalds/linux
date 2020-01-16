@@ -192,7 +192,7 @@ struct __packed ems_cpc_msg {
 	u8 length;	/* length of data within union 'msg' */
 	u8 msgid;	/* confirmation handle */
 	__le32 ts_sec;	/* timestamp in seconds */
-	__le32 ts_nsec;	/* timestamp in nano seconds */
+	__le32 ts_nsec;	/* timestamp in nayes seconds */
 
 	union {
 		u8 generic[64];
@@ -526,7 +526,7 @@ static void ems_usb_write_bulk_callback(struct urb *urb)
 }
 
 /*
- * Send the given CPC command synchronously
+ * Send the given CPC command synchroyesusly
  */
 static int ems_usb_command_msg(struct ems_usb *dev, struct ems_cpc_msg *msg)
 {
@@ -557,7 +557,7 @@ static int ems_usb_write_mode(struct ems_usb *dev, u8 mode)
 
 /*
  * Send a CPC_Control command to change behaviour when interface receives a CAN
- * message, bus error or CAN state changed notifications.
+ * message, bus error or CAN state changed yestifications.
  */
 static int ems_usb_control_cmd(struct ems_usb *dev, u8 val)
 {
@@ -743,13 +743,13 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 	/* create a URB, and a buffer for it, and copy the data to the URB */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		goto nomem;
+		goto yesmem;
 
 	buf = usb_alloc_coherent(dev->udev, size, GFP_ATOMIC, &urb->transfer_dma);
 	if (!buf) {
 		netdev_err(netdev, "No memory left for USB buffer\n");
 		usb_free_urb(urb);
-		goto nomem;
+		goto yesmem;
 	}
 
 	msg = (struct ems_cpc_msg *)&buf[CPC_HEADER_SIZE];
@@ -840,7 +840,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 
 	return NETDEV_TX_OK;
 
-nomem:
+yesmem:
 	dev_kfree_skb(skb);
 	stats->tx_dropped++;
 

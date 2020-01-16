@@ -439,7 +439,7 @@ struct pm2xxx_charger_info {
 };
 
 struct pm2xxx_charger_event_flags {
-	bool mainextchnotok;
+	bool mainextchyestok;
 	bool main_thermal_prot;
 	bool ovv;
 	bool chgwdexp;

@@ -142,7 +142,7 @@ struct dj_receiver_dev {
 	struct list_head list;
 	struct kref kref;
 	struct work_struct work;
-	struct kfifo notif_fifo;
+	struct kfifo yestif_fifo;
 	unsigned long last_query; /* in jiffies */
 	bool ready;
 	enum recvr_type type;
@@ -190,7 +190,7 @@ static const char kbd_descriptor[] = {
 	0x15, 0x00,		/*   LOGICAL_MINIMUM (0)        */
 	0x26, 0xFF, 0x00,	/*   LOGICAL_MAXIMUM (255)      */
 	0x05, 0x07,		/*   USAGE_PAGE (Keyboard)      */
-	0x19, 0x00,		/*   USAGE_MINIMUM (no event)       */
+	0x19, 0x00,		/*   USAGE_MINIMUM (yes event)       */
 	0x2A, 0xFF, 0x00,	/*   USAGE_MAXIMUM (reserved)       */
 	0x81, 0x00,		/*   INPUT (Data,Ary,Abs)       */
 	0x85, 0x0e,		/* REPORT_ID (14)               */
@@ -487,7 +487,7 @@ static const char hidpp_descriptor[] = {
 
 /* Number of possible hid report types that can be created by this driver.
  *
- * Right now, RF report types have the same report types (or report id's)
+ * Right yesw, RF report types have the same report types (or report id's)
  * than the hid report created from those RF reports. In the future
  * this doesnt have to be true.
  *
@@ -563,7 +563,7 @@ static void dj_release_receiver_dev(struct kref *kref)
 	struct dj_receiver_dev *djrcv_dev = container_of(kref, struct dj_receiver_dev, kref);
 
 	list_del(&djrcv_dev->list);
-	kfifo_free(&djrcv_dev->notif_fifo);
+	kfifo_free(&djrcv_dev->yestif_fifo);
 	kfree(djrcv_dev);
 }
 
@@ -602,7 +602,7 @@ static struct dj_receiver_dev *dj_get_receiver_dev(struct hid_device *hdev,
 
 		INIT_WORK(&djrcv_dev->work, delayedwork_callback);
 		spin_lock_init(&djrcv_dev->lock);
-		if (kfifo_alloc(&djrcv_dev->notif_fifo,
+		if (kfifo_alloc(&djrcv_dev->yestif_fifo,
 			    DJ_MAX_NUMBER_NOTIFS * sizeof(struct dj_workitem),
 			    GFP_KERNEL)) {
 			kfree(djrcv_dev);
@@ -664,10 +664,10 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 	 */
 	unsigned char tmpstr[3];
 
-	/* We are the only one ever adding a device, no need to lock */
+	/* We are the only one ever adding a device, yes need to lock */
 	if (djrcv_dev->paired_dj_devices[device_index]) {
-		/* The device is already known. No need to reallocate it. */
-		dbg_hid("%s: device is already known\n", __func__);
+		/* The device is already kyeswn. No need to reallocate it. */
+		dbg_hid("%s: device is already kyeswn\n", __func__);
 		return;
 	}
 
@@ -772,14 +772,14 @@ static void delayedwork_callback(struct work_struct *work)
 		return;
 	}
 
-	count = kfifo_out(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
+	count = kfifo_out(&djrcv_dev->yestif_fifo, &workitem, sizeof(workitem));
 
 	if (count != sizeof(workitem)) {
 		spin_unlock_irqrestore(&djrcv_dev->lock, flags);
 		return;
 	}
 
-	if (!kfifo_is_empty(&djrcv_dev->notif_fifo))
+	if (!kfifo_is_empty(&djrcv_dev->yestif_fifo))
 		schedule_work(&djrcv_dev->work);
 
 	spin_unlock_irqrestore(&djrcv_dev->lock, flags);
@@ -805,9 +805,9 @@ static void delayedwork_callback(struct work_struct *work)
 }
 
 /*
- * Sometimes we receive reports for which we do not have a paired dj_device
+ * Sometimes we receive reports for which we do yest have a paired dj_device
  * associated with the device_index or report-type to forward the report to.
- * This means that the original "device paired" notification corresponding
+ * This means that the original "device paired" yestification corresponding
  * to the dj_device never arrived to this driver. Possible reasons for this are:
  * 1) hid-core discards all packets coming from a device during probe().
  * 2) if the receiver is plugged into a KVM switch then the pairing reports
@@ -816,7 +816,7 @@ static void delayedwork_callback(struct work_struct *work)
  * connected devices in the delayed work callback.
  * This function MUST be called with djrcv->lock held.
  */
-static void logi_dj_recv_queue_unknown_work(struct dj_receiver_dev *djrcv_dev)
+static void logi_dj_recv_queue_unkyeswn_work(struct dj_receiver_dev *djrcv_dev)
 {
 	struct dj_workitem workitem = { .type = WORKITEM_TYPE_UNKNOWN };
 
@@ -824,11 +824,11 @@ static void logi_dj_recv_queue_unknown_work(struct dj_receiver_dev *djrcv_dev)
 	if (time_before(jiffies, djrcv_dev->last_query + HZ / 2))
 		return;
 
-	kfifo_in(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
+	kfifo_in(&djrcv_dev->yestif_fifo, &workitem, sizeof(workitem));
 	schedule_work(&djrcv_dev->work);
 }
 
-static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
+static void logi_dj_recv_queue_yestification(struct dj_receiver_dev *djrcv_dev,
 					   struct dj_report *dj_report)
 {
 	/* We are called from atomic context (tasklet && djrcv->lock held) */
@@ -858,15 +858,15 @@ static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
 			workitem.type = WORKITEM_TYPE_UNPAIRED;
 		break;
 	default:
-		logi_dj_recv_queue_unknown_work(djrcv_dev);
+		logi_dj_recv_queue_unkyeswn_work(djrcv_dev);
 		return;
 	}
 
-	kfifo_in(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
+	kfifo_in(&djrcv_dev->yestif_fifo, &workitem, sizeof(workitem));
 	schedule_work(&djrcv_dev->work);
 }
 
-static void logi_hidpp_dev_conn_notif_equad(struct hid_device *hdev,
+static void logi_hidpp_dev_conn_yestif_equad(struct hid_device *hdev,
 					    struct hidpp_event *hidpp_report,
 					    struct dj_workitem *workitem)
 {
@@ -891,7 +891,7 @@ static void logi_hidpp_dev_conn_notif_equad(struct hid_device *hdev,
 	}
 }
 
-static void logi_hidpp_dev_conn_notif_27mhz(struct hid_device *hdev,
+static void logi_hidpp_dev_conn_yestif_27mhz(struct hid_device *hdev,
 					    struct hidpp_event *hidpp_report,
 					    struct dj_workitem *workitem)
 {
@@ -915,7 +915,7 @@ static void logi_hidpp_dev_conn_notif_27mhz(struct hid_device *hdev,
 	}
 }
 
-static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
+static void logi_hidpp_recv_queue_yestif(struct hid_device *hdev,
 					struct hidpp_event *hidpp_report)
 {
 	/* We are called from atomic context (tasklet && djrcv->lock held) */
@@ -930,7 +930,7 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 	case 0x01:
 		device_type = "Bluetooth";
 		/* Bluetooth connect packet contents is the same as (e)QUAD */
-		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
+		logi_hidpp_dev_conn_yestif_equad(hdev, hidpp_report, &workitem);
 		if (!(hidpp_report->params[HIDPP_PARAM_DEVICE_INFO] &
 						HIDPP_MANUFACTURER_MASK)) {
 			hid_info(hdev, "Non Logitech device connected on slot %d\n",
@@ -940,42 +940,42 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 		break;
 	case 0x02:
 		device_type = "27 Mhz";
-		logi_hidpp_dev_conn_notif_27mhz(hdev, hidpp_report, &workitem);
+		logi_hidpp_dev_conn_yestif_27mhz(hdev, hidpp_report, &workitem);
 		break;
 	case 0x03:
 		device_type = "QUAD or eQUAD";
-		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
+		logi_hidpp_dev_conn_yestif_equad(hdev, hidpp_report, &workitem);
 		break;
 	case 0x04:
 		device_type = "eQUAD step 4 DJ";
-		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
+		logi_hidpp_dev_conn_yestif_equad(hdev, hidpp_report, &workitem);
 		break;
 	case 0x05:
 		device_type = "DFU Lite";
 		break;
 	case 0x06:
 		device_type = "eQUAD step 4 Lite";
-		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
+		logi_hidpp_dev_conn_yestif_equad(hdev, hidpp_report, &workitem);
 		break;
 	case 0x07:
 		device_type = "eQUAD step 4 Gaming";
-		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
+		logi_hidpp_dev_conn_yestif_equad(hdev, hidpp_report, &workitem);
 		break;
 	case 0x08:
 		device_type = "eQUAD step 4 for gamepads";
 		break;
 	case 0x0a:
-		device_type = "eQUAD nano Lite";
-		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
+		device_type = "eQUAD nayes Lite";
+		logi_hidpp_dev_conn_yestif_equad(hdev, hidpp_report, &workitem);
 		break;
 	case 0x0c:
 		device_type = "eQUAD Lightspeed 1";
-		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
+		logi_hidpp_dev_conn_yestif_equad(hdev, hidpp_report, &workitem);
 		workitem.reports_supported |= STD_KEYBOARD;
 		break;
 	case 0x0d:
 		device_type = "eQUAD Lightspeed 1_1";
-		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
+		logi_hidpp_dev_conn_yestif_equad(hdev, hidpp_report, &workitem);
 		workitem.reports_supported |= STD_KEYBOARD;
 		break;
 	}
@@ -993,7 +993,7 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 		 device_type, hidpp_report->params[HIDPP_PARAM_PROTO_TYPE],
 		 hidpp_report->device_index);
 
-	kfifo_in(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
+	kfifo_in(&djrcv_dev->yestif_fifo, &workitem, sizeof(workitem));
 	schedule_work(&djrcv_dev->work);
 }
 
@@ -1076,7 +1076,7 @@ static void logi_dj_recv_forward_input_report(struct hid_device *hdev,
 		}
 	}
 
-	logi_dj_recv_queue_unknown_work(djrcv_dev);
+	logi_dj_recv_queue_unkyeswn_work(djrcv_dev);
 	spin_unlock_irqrestore(&djrcv_dev->lock, flags);
 
 	dbg_hid("No dj-devs handling input report number %d\n", report);
@@ -1182,13 +1182,13 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 		 * Ugly sleep to work around a USB 3.0 bug when the receiver is
 		 * still processing the "switch-to-dj" command while we send an
 		 * other command.
-		 * 50 msec should gives enough time to the receiver to be ready.
+		 * 50 msec should gives eyesugh time to the receiver to be ready.
 		 */
 		msleep(50);
 	}
 
 	/*
-	 * Magical bits to set up hidpp notifications when the dj devices
+	 * Magical bits to set up hidpp yestifications when the dj devices
 	 * are connected/disconnected.
 	 *
 	 * We can reuse dj_report because HIDPP_REPORT_SHORT_LENGTH is smaller
@@ -1229,7 +1229,7 @@ static void logi_dj_ll_close(struct hid_device *hid)
 
 /*
  * Register 0xB5 is "pairing information". It is solely intended for the
- * receiver, so do not overwrite the device index.
+ * receiver, so do yest overwrite the device index.
  */
 static u8 unifying_pairing_query[]  = { REPORT_ID_HIDPP_SHORT,
 					HIDPP_RECEIVER_INDEX,
@@ -1256,7 +1256,7 @@ static int logi_dj_ll_raw_request(struct hid_device *hid,
 		if (count < 2)
 			return -EINVAL;
 
-		/* special case where we should not overwrite
+		/* special case where we should yest overwrite
 		 * the device_index */
 		if (count == 7 && !memcmp(buf, unifying_pairing_query,
 					  sizeof(unifying_pairing_query)))
@@ -1275,7 +1275,7 @@ static int logi_dj_ll_raw_request(struct hid_device *hid,
 			hid_warn(hid, "Received REPORT_TYPE_LEDS request before the keyboard interface was enumerated\n");
 			return 0;
 		}
-		/* usbhid overrides the report ID and ignores the first byte */
+		/* usbhid overrides the report ID and igyesres the first byte */
 		return hid_hw_raw_request(djrcv_dev->keyboard, 0, buf, count,
 					  report_type, reqtype);
 	}
@@ -1411,26 +1411,26 @@ static int logi_dj_dj_event(struct hid_device *hdev,
 	 * Here we receive all data coming from iface 2, there are 3 cases:
 	 *
 	 * 1) Data is intended for this driver i. e. data contains arrival,
-	 * departure, etc notifications, in which case we queue them for delayed
-	 * processing by the work queue. We return 1 to hid-core as no further
+	 * departure, etc yestifications, in which case we queue them for delayed
+	 * processing by the work queue. We return 1 to hid-core as yes further
 	 * processing is required from it.
 	 *
 	 * 2) Data informs a connection change, if the change means rf link
 	 * loss, then we must send a null report to the upper layer to discard
 	 * potentially pressed keys that may be repeated forever by the input
-	 * layer. Return 1 to hid-core as no further processing is required.
+	 * layer. Return 1 to hid-core as yes further processing is required.
 	 *
 	 * 3) Data is an actual input event from a paired DJ device in which
 	 * case we forward it to the correct hid device (via hid_input_report()
-	 * ) and return 1 so hid-core does not anything else with it.
+	 * ) and return 1 so hid-core does yest anything else with it.
 	 */
 
 	if ((dj_report->device_index < DJ_DEVICE_INDEX_MIN) ||
 	    (dj_report->device_index > DJ_DEVICE_INDEX_MAX)) {
 		/*
 		 * Device index is wrong, bail out.
-		 * This driver can ignore safely the receiver notifications,
-		 * so ignore those reports too.
+		 * This driver can igyesre safely the receiver yestifications,
+		 * so igyesre those reports too.
 		 */
 		if (dj_report->device_index != DJ_RECEIVER_INDEX)
 			hid_err(hdev, "%s: invalid device index:%d\n",
@@ -1441,17 +1441,17 @@ static int logi_dj_dj_event(struct hid_device *hdev,
 	spin_lock_irqsave(&djrcv_dev->lock, flags);
 
 	if (!djrcv_dev->paired_dj_devices[dj_report->device_index]) {
-		/* received an event for an unknown device, bail out */
-		logi_dj_recv_queue_notification(djrcv_dev, dj_report);
+		/* received an event for an unkyeswn device, bail out */
+		logi_dj_recv_queue_yestification(djrcv_dev, dj_report);
 		goto out;
 	}
 
 	switch (dj_report->report_type) {
 	case REPORT_TYPE_NOTIF_DEVICE_PAIRED:
-		/* pairing notifications are handled above the switch */
+		/* pairing yestifications are handled above the switch */
 		break;
 	case REPORT_TYPE_NOTIF_DEVICE_UNPAIRED:
-		logi_dj_recv_queue_notification(djrcv_dev, dj_report);
+		logi_dj_recv_queue_yestification(djrcv_dev, dj_report);
 		break;
 	case REPORT_TYPE_NOTIF_CONNECTION_STATUS:
 		if (dj_report->report_params[CONNECTION_STATUS_PARAM_STATUS] ==
@@ -1480,7 +1480,7 @@ static int logi_dj_hidpp_event(struct hid_device *hdev,
 	u8 device_index = hidpp_report->device_index;
 
 	if (device_index == HIDPP_RECEIVER_INDEX) {
-		/* special case were the device wants to know its unifying
+		/* special case were the device wants to kyesw its unifying
 		 * name */
 		if (size == HIDPP_REPORT_LONG_LENGTH &&
 		    !memcmp(data, unifying_pairing_answer,
@@ -1502,8 +1502,8 @@ static int logi_dj_hidpp_event(struct hid_device *hdev,
 	    (device_index > DJ_DEVICE_INDEX_MAX)) {
 		/*
 		 * Device index is wrong, bail out.
-		 * This driver can ignore safely the receiver notifications,
-		 * so ignore those reports too.
+		 * This driver can igyesre safely the receiver yestifications,
+		 * so igyesre those reports too.
 		 */
 		hid_err(hdev, "%s: invalid device index:%d\n", __func__,
 			hidpp_report->device_index);
@@ -1515,7 +1515,7 @@ static int logi_dj_hidpp_event(struct hid_device *hdev,
 	dj_dev = djrcv_dev->paired_dj_devices[device_index];
 
 	/*
-	 * With 27 MHz receivers, we do not get an explicit unpair event,
+	 * With 27 MHz receivers, we do yest get an explicit unpair event,
 	 * remove the old device if the user has paired a *different* device.
 	 */
 	if (djrcv_dev->type == recvr_type_27mhz && dj_dev &&
@@ -1527,8 +1527,8 @@ static int logi_dj_hidpp_event(struct hid_device *hdev,
 			.device_index = hidpp_report->device_index,
 			.type = WORKITEM_TYPE_UNPAIRED,
 		};
-		kfifo_in(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
-		/* logi_hidpp_recv_queue_notif will queue the work */
+		kfifo_in(&djrcv_dev->yestif_fifo, &workitem, sizeof(workitem));
+		/* logi_hidpp_recv_queue_yestif will queue the work */
 		dj_dev = NULL;
 	}
 
@@ -1536,9 +1536,9 @@ static int logi_dj_hidpp_event(struct hid_device *hdev,
 		logi_dj_recv_forward_report(dj_dev, data, size);
 	} else {
 		if (hidpp_report->sub_id == REPORT_TYPE_NOTIF_DEVICE_CONNECTED)
-			logi_hidpp_recv_queue_notif(hdev, hidpp_report);
+			logi_hidpp_recv_queue_yestif(hdev, hidpp_report);
 		else
-			logi_dj_recv_queue_unknown_work(djrcv_dev);
+			logi_dj_recv_queue_unkyeswn_work(djrcv_dev);
 	}
 
 	spin_unlock_irqrestore(&djrcv_dev->lock, flags);
@@ -1575,7 +1575,7 @@ static int logi_dj_raw_event(struct hid_device *hdev,
 		}
 		/*
 		 * Mouse-only receivers send unnumbered mouse data. The 27 MHz
-		 * receiver uses 6 byte packets, the nano receiver 8 bytes.
+		 * receiver uses 6 byte packets, the nayes receiver 8 bytes.
 		 */
 		if (djrcv_dev->unnumbered_application == HID_GD_MOUSE &&
 		    size <= 8) {
@@ -1630,7 +1630,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 	struct hid_report *rep;
 	struct dj_receiver_dev *djrcv_dev;
 	struct usb_interface *intf;
-	unsigned int no_dj_interfaces = 0;
+	unsigned int yes_dj_interfaces = 0;
 	bool has_hidpp = false;
 	unsigned long flags;
 	int retval;
@@ -1649,21 +1649,21 @@ static int logi_dj_probe(struct hid_device *hdev,
 	/*
 	 * Some KVMs add an extra interface for e.g. mouse emulation. If we
 	 * treat these as logitech-dj interfaces then this causes input events
-	 * reported through this extra interface to not be reported correctly.
+	 * reported through this extra interface to yest be reported correctly.
 	 * To avoid this, we treat these as generic-hid devices.
 	 */
 	switch (id->driver_data) {
-	case recvr_type_dj:		no_dj_interfaces = 3; break;
-	case recvr_type_hidpp:		no_dj_interfaces = 2; break;
-	case recvr_type_gaming_hidpp:	no_dj_interfaces = 3; break;
-	case recvr_type_mouse_only:	no_dj_interfaces = 2; break;
-	case recvr_type_27mhz:		no_dj_interfaces = 2; break;
-	case recvr_type_bluetooth:	no_dj_interfaces = 2; break;
+	case recvr_type_dj:		yes_dj_interfaces = 3; break;
+	case recvr_type_hidpp:		yes_dj_interfaces = 2; break;
+	case recvr_type_gaming_hidpp:	yes_dj_interfaces = 3; break;
+	case recvr_type_mouse_only:	yes_dj_interfaces = 2; break;
+	case recvr_type_27mhz:		yes_dj_interfaces = 2; break;
+	case recvr_type_bluetooth:	yes_dj_interfaces = 2; break;
 	}
 	if (hid_is_using_ll_driver(hdev, &usb_hid_driver)) {
 		intf = to_usb_interface(hdev->dev.parent);
 		if (intf && intf->altsetting->desc.bInterfaceNumber >=
-							no_dj_interfaces) {
+							yes_dj_interfaces) {
 			hdev->quirks |= HID_QUIRK_INPUT_PER_APP;
 			return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 		}
@@ -1671,7 +1671,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 
 	rep_enum = &hdev->report_enum[HID_INPUT_REPORT];
 
-	/* no input reports, bail out */
+	/* yes input reports, bail out */
 	if (list_empty(&rep_enum->report_list))
 		return -ENODEV;
 
@@ -1686,13 +1686,13 @@ static int logi_dj_probe(struct hid_device *hdev,
 	}
 
 	/*
-	 * Ignore interfaces without DJ/HID++ collection, they will not carry
+	 * Igyesre interfaces without DJ/HID++ collection, they will yest carry
 	 * any data, dont create any hid_device for them.
 	 */
 	if (!has_hidpp && id->driver_data == recvr_type_dj)
 		return -ENODEV;
 
-	/* get the current application attached to the node */
+	/* get the current application attached to the yesde */
 	rep = list_first_entry(&rep_enum->report_list, struct hid_report, list);
 	djrcv_dev = dj_get_receiver_dev(hdev, id->driver_data,
 					rep->application, has_hidpp);
@@ -1742,7 +1742,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 				__func__, retval);
 			/*
 			 * This can happen with a KVM, let the probe succeed,
-			 * logi_dj_recv_queue_unknown_work will retry later.
+			 * logi_dj_recv_queue_unkyeswn_work will retry later.
 			 */
 		}
 	}
@@ -1790,8 +1790,8 @@ static void logi_dj_remove(struct hid_device *hdev)
 		return hid_hw_stop(hdev);
 
 	/*
-	 * This ensures that if the work gets requeued from another
-	 * interface of the same receiver it will be a no-op.
+	 * This ensures that if the work gets requeued from ayesther
+	 * interface of the same receiver it will be a yes-op.
 	 */
 	spin_lock_irqsave(&djrcv_dev->lock, flags);
 	djrcv_dev->ready = false;
@@ -1830,11 +1830,11 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	{HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_UNIFYING_RECEIVER_2),
 	 .driver_data = recvr_type_dj},
-	{ /* Logitech Nano mouse only receiver */
+	{ /* Logitech Nayes mouse only receiver */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_NANO_RECEIVER),
 	 .driver_data = recvr_type_mouse_only},
-	{ /* Logitech Nano (non DJ) receiver */
+	{ /* Logitech Nayes (yesn DJ) receiver */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_2),
 	 .driver_data = recvr_type_hidpp},

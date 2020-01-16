@@ -3,7 +3,7 @@
  * /dev/mcelog driver
  *
  * K8 parts Copyright 2002,2003 Andi Kleen, SuSE Labs.
- * Rest from unknown author(s).
+ * Rest from unkyeswn author(s).
  * 2004 Andi Kleen. Rewrote most of it.
  * Copyright 2008 Intel Corporation
  * Author: Andi Kleen
@@ -37,7 +37,7 @@ static struct mce_log_buffer mcelog = {
 
 static DECLARE_WAIT_QUEUE_HEAD(mce_chrdev_wait);
 
-static int dev_mce_log(struct notifier_block *nb, unsigned long val,
+static int dev_mce_log(struct yestifier_block *nb, unsigned long val,
 				void *data)
 {
 	struct mce *mce = (struct mce *)data;
@@ -70,8 +70,8 @@ unlock:
 	return NOTIFY_OK;
 }
 
-static struct notifier_block dev_mcelog_nb = {
-	.notifier_call	= dev_mce_log,
+static struct yestifier_block dev_mcelog_nb = {
+	.yestifier_call	= dev_mce_log,
 	.priority	= MCE_PRIO_MCELOG,
 };
 
@@ -122,7 +122,7 @@ static DEFINE_SPINLOCK(mce_chrdev_state_lock);
 static int mce_chrdev_open_count;	/* #times opened */
 static int mce_chrdev_open_exclu;	/* already open exclusive? */
 
-static int mce_chrdev_open(struct inode *inode, struct file *file)
+static int mce_chrdev_open(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock(&mce_chrdev_state_lock);
 
@@ -139,10 +139,10 @@ static int mce_chrdev_open(struct inode *inode, struct file *file)
 
 	spin_unlock(&mce_chrdev_state_lock);
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
-static int mce_chrdev_release(struct inode *inode, struct file *file)
+static int mce_chrdev_release(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock(&mce_chrdev_state_lock);
 
@@ -167,12 +167,12 @@ static int __mce_read_apei(char __user **ubuf, size_t usize)
 		return -EINVAL;
 
 	rc = apei_read_mce(&m, &record_id);
-	/* Error or no more MCE record */
+	/* Error or yes more MCE record */
 	if (rc <= 0) {
 		mce_apei_read_done = 1;
 		/*
 		 * When ERST is disabled, mce_chrdev_read() should return
-		 * "no record" instead of "no device."
+		 * "yes record" instead of "yes device."
 		 */
 		if (rc == -ENODEV)
 			return 0;
@@ -184,7 +184,7 @@ static int __mce_read_apei(char __user **ubuf, size_t usize)
 	/*
 	 * In fact, we should have cleared the record after that has
 	 * been flushed to the disk or sent to network in
-	 * /sbin/mcelog, but we have no interface to support that now,
+	 * /sbin/mcelog, but we have yes interface to support that yesw,
 	 * so just clear it to avoid duplication.
 	 */
 	rc = apei_clear_mce(record_id);
@@ -212,7 +212,7 @@ static ssize_t mce_chrdev_read(struct file *filp, char __user *ubuf,
 			goto out;
 	}
 
-	/* Only supports full reads right now */
+	/* Only supports full reads right yesw */
 	err = -EINVAL;
 	if (*off != 0 || usize < MCE_LOG_LEN*sizeof(struct mce))
 		goto out;
@@ -276,15 +276,15 @@ static long mce_chrdev_ioctl(struct file *f, unsigned int cmd,
 	}
 }
 
-void mce_register_injector_chain(struct notifier_block *nb)
+void mce_register_injector_chain(struct yestifier_block *nb)
 {
-	blocking_notifier_chain_register(&mce_injector_chain, nb);
+	blocking_yestifier_chain_register(&mce_injector_chain, nb);
 }
 EXPORT_SYMBOL_GPL(mce_register_injector_chain);
 
-void mce_unregister_injector_chain(struct notifier_block *nb)
+void mce_unregister_injector_chain(struct yestifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&mce_injector_chain, nb);
+	blocking_yestifier_chain_unregister(&mce_injector_chain, nb);
 }
 EXPORT_SYMBOL_GPL(mce_unregister_injector_chain);
 
@@ -316,7 +316,7 @@ static ssize_t mce_chrdev_write(struct file *filp, const char __user *ubuf,
 	 */
 	schedule_timeout(2);
 
-	blocking_notifier_call_chain(&mce_injector_chain, 0, &m);
+	blocking_yestifier_call_chain(&mce_injector_chain, 0, &m);
 
 	return usize;
 }
@@ -328,7 +328,7 @@ static const struct file_operations mce_chrdev_ops = {
 	.write			= mce_chrdev_write,
 	.poll			= mce_chrdev_poll,
 	.unlocked_ioctl		= mce_chrdev_ioctl,
-	.llseek			= no_llseek,
+	.llseek			= yes_llseek,
 };
 
 static struct miscdevice mce_chrdev_device = {

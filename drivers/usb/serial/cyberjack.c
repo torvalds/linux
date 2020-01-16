@@ -17,7 +17,7 @@
  *  In case of problems, please write to the contact e-mail address
  *  mentioned above.
  *
- *  Please note that later models of the cyberjack reader family are
+ *  Please yeste that later models of the cyberjack reader family are
  *  supported by a libusb-based userspace device driver.
  *
  *  Homepage: http://www.reiner-sct.de/support/treiber_cyberjack.php#linux
@@ -25,7 +25,7 @@
 
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -199,7 +199,7 @@ static int cyberjack_write(struct tty_struct *tty,
 		wrexpected = sizeof(priv->wrbuf);
 
 	if (priv->wrfilled >= wrexpected) {
-		/* We have enough data to begin transmission */
+		/* We have eyesugh data to begin transmission */
 		int length;
 
 		dev_dbg(dev, "%s - transmitting data (frame 1)\n", __func__);
@@ -268,7 +268,7 @@ static void cyberjack_read_int_callback(struct urb *urb)
 	if (urb->actual_length == 4 && data[0] == 0x01) {
 		short old_rdtodo;
 
-		/* This is a announcement of coming bulk_ins. */
+		/* This is a anyesuncement of coming bulk_ins. */
 		unsigned short size = ((unsigned short)data[3]<<8)+data[2]+3;
 
 		spin_lock_irqsave(&priv->lock, flags);
@@ -317,7 +317,7 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 
 	usb_serial_debug_data(dev, __func__, urb->actual_length, data);
 	if (status) {
-		dev_dbg(dev, "%s - nonzero read bulk status received: %d\n",
+		dev_dbg(dev, "%s - yesnzero read bulk status received: %d\n",
 			__func__, status);
 		return;
 	}
@@ -360,7 +360,7 @@ static void cyberjack_write_bulk_callback(struct urb *urb)
 
 	set_bit(0, &port->write_urbs_free);
 	if (status) {
-		dev_dbg(dev, "%s - nonzero write bulk status received: %d\n",
+		dev_dbg(dev, "%s - yesnzero write bulk status received: %d\n",
 			__func__, status);
 		return;
 	}

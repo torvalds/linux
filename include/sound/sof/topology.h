@@ -98,7 +98,7 @@ struct sof_ipc_comp_host {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
 	uint32_t direction;	/**< SOF_IPC_STREAM_ */
-	uint32_t no_irq;	/**< don't send periodic IRQ to host/DSP */
+	uint32_t yes_irq;	/**< don't send periodic IRQ to host/DSP */
 	uint32_t dmac_config; /**< DMA engine specific */
 }  __packed;
 
@@ -141,7 +141,7 @@ struct sof_ipc_comp_volume {
 struct sof_ipc_comp_src {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
-	/* either source or sink rate must be non zero */
+	/* either source or sink rate must be yesn zero */
 	uint32_t source_rate;	/**< source rate or 0 for variable */
 	uint32_t sink_rate;	/**< sink rate or 0 for variable */
 	uint32_t rate_mask;	/**< SOF_RATE_ supported rates */

@@ -7,7 +7,7 @@
  *          Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/vmalloc.h>
@@ -255,7 +255,7 @@ int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
 {
 	int r = false;
 
-	/* We have to know what CPU to virtualize */
+	/* We have to kyesw what CPU to virtualize */
 	if (!vcpu->arch.pvr)
 		goto out;
 
@@ -263,7 +263,7 @@ int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
 	if ((vcpu->arch.cpu_type != KVM_CPU_3S_64) && vcpu->arch.papr_enabled)
 		goto out;
 
-	/* HV KVM can only do PAPR mode for now */
+	/* HV KVM can only do PAPR mode for yesw */
 	if (!vcpu->arch.papr_enabled && is_kvmppc_hv_enabled(vcpu->kvm))
 		goto out;
 
@@ -288,7 +288,7 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	er = kvmppc_emulate_loadstore(vcpu);
 	switch (er) {
 	case EMULATE_DONE:
-		/* Future optimization: only reload non-volatiles if they were
+		/* Future optimization: only reload yesn-volatiles if they were
 		 * actually modified. */
 		r = RESUME_GUEST_NV;
 		break;
@@ -297,9 +297,9 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		break;
 	case EMULATE_DO_MMIO:
 		run->exit_reason = KVM_EXIT_MMIO;
-		/* We must reload nonvolatiles because "update" load/store
+		/* We must reload yesnvolatiles because "update" load/store
 		 * instructions modify register state. */
-		/* Future optimization: only reload non-volatiles if they were
+		/* Future optimization: only reload yesn-volatiles if they were
 		 * actually modified. */
 		r = RESUME_HOST_NV;
 		break;
@@ -499,7 +499,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 
 	if (kvm) {
 		/*
-		 * Hooray - we know which VM type we're running on. Depend on
+		 * Hooray - we kyesw which VM type we're running on. Depend on
 		 * that rather than the guess above.
 		 */
 		hv_enabled = is_kvmppc_hv_enabled(kvm);
@@ -563,7 +563,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		/*
 		 * We need XIVE to be enabled on the platform (implies
 		 * a POWER9 processor) and the PowerNV platform, as
-		 * nested is not yet supported.
+		 * nested is yest yet supported.
 		 */
 		r = xive_enabled() && !!cpu_has_feature(CPU_FTR_HVMODE) &&
 			kvmppc_xive_native_supported();
@@ -737,7 +737,7 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
-	/* Make sure we're not using the vcpu anymore */
+	/* Make sure we're yest using the vcpu anymore */
 	hrtimer_cancel(&vcpu->arch.dec_timer);
 
 	kvmppc_remove_vcpu_debugfs(vcpu);
@@ -808,7 +808,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	 * vrsave (formerly usprg0) isn't used by Linux, but may
 	 * be used by the guest.
 	 *
-	 * On non-booke this is associated with Altivec and
+	 * On yesn-booke this is associated with Altivec and
 	 * is handled by code in book3s.c.
 	 */
 	mtspr(SPRN_VRSAVE, vcpu->arch.vrsave);
@@ -827,8 +827,8 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 /*
  * irq_bypass_add_producer and irq_bypass_del_producer are only
  * useful if the architecture supports PCI passthrough.
- * irq_bypass_stop and irq_bypass_start are not needed and so
- * kvm_ops are not defined for them.
+ * irq_bypass_stop and irq_bypass_start are yest needed and so
+ * kvm_ops are yest defined for them.
  */
 bool kvm_arch_has_irq_bypass(void)
 {
@@ -2088,13 +2088,13 @@ vm_fault_t kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 
 static int kvm_vm_ioctl_get_pvinfo(struct kvm_ppc_pvinfo *pvinfo)
 {
-	u32 inst_nop = 0x60000000;
+	u32 inst_yesp = 0x60000000;
 #ifdef CONFIG_KVM_BOOKE_HV
 	u32 inst_sc1 = 0x44000022;
 	pvinfo->hcall[0] = cpu_to_be32(inst_sc1);
-	pvinfo->hcall[1] = cpu_to_be32(inst_nop);
-	pvinfo->hcall[2] = cpu_to_be32(inst_nop);
-	pvinfo->hcall[3] = cpu_to_be32(inst_nop);
+	pvinfo->hcall[1] = cpu_to_be32(inst_yesp);
+	pvinfo->hcall[2] = cpu_to_be32(inst_yesp);
+	pvinfo->hcall[3] = cpu_to_be32(inst_yesp);
 #else
 	u32 inst_lis = 0x3c000000;
 	u32 inst_ori = 0x60000000;
@@ -2108,12 +2108,12 @@ static int kvm_vm_ioctl_get_pvinfo(struct kvm_ppc_pvinfo *pvinfo)
 	 *    lis r0, r0, KVM_SC_MAGIC_R0@h
 	 *    ori r0, KVM_SC_MAGIC_R0@l
 	 *    sc
-	 *    nop
+	 *    yesp
 	 */
 	pvinfo->hcall[0] = cpu_to_be32(inst_lis | ((KVM_SC_MAGIC_R0 >> 16) & inst_imm_mask));
 	pvinfo->hcall[1] = cpu_to_be32(inst_ori | (KVM_SC_MAGIC_R0 & inst_imm_mask));
 	pvinfo->hcall[2] = cpu_to_be32(inst_sc);
-	pvinfo->hcall[3] = cpu_to_be32(inst_nop);
+	pvinfo->hcall[3] = cpu_to_be32(inst_yesp);
 #endif
 
 	pvinfo->flags = KVM_PPC_PVINFO_FLAGS_EV_IDLE;
@@ -2231,23 +2231,23 @@ static int pseries_get_cpu_char(struct kvm_ppc_cpu_char *cp)
 }
 #endif
 
-static inline bool have_fw_feat(struct device_node *fw_features,
+static inline bool have_fw_feat(struct device_yesde *fw_features,
 				const char *state, const char *name)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	bool r = false;
 
 	np = of_get_child_by_name(fw_features, name);
 	if (np) {
 		r = of_property_read_bool(np, state);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 	return r;
 }
 
 static int kvmppc_get_cpu_char(struct kvm_ppc_cpu_char *cp)
 {
-	struct device_node *np, *fw_features;
+	struct device_yesde *np, *fw_features;
 	int r;
 
 	memset(cp, 0, sizeof(*cp));
@@ -2255,10 +2255,10 @@ static int kvmppc_get_cpu_char(struct kvm_ppc_cpu_char *cp)
 	if (r != -ENOTTY)
 		return r;
 
-	np = of_find_node_by_name(NULL, "ibm,opal");
+	np = of_find_yesde_by_name(NULL, "ibm,opal");
 	if (np) {
 		fw_features = of_get_child_by_name(np, "fw-features");
-		of_node_put(np);
+		of_yesde_put(np);
 		if (!fw_features)
 			return 0;
 		if (have_fw_feat(fw_features, "enabled",
@@ -2307,7 +2307,7 @@ static int kvmppc_get_cpu_char(struct kvm_ppc_cpu_char *cp)
 			KVM_PPC_CPU_BEHAV_BNDS_CHK_SPEC_BAR |
 			KVM_PPC_CPU_BEHAV_FLUSH_COUNT_CACHE;
 
-		of_node_put(fw_features);
+		of_yesde_put(fw_features);
 	}
 
 	return 0;

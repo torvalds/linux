@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_nffw.c
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Francois H. Theron <francois.theron@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *          Jason McMullan <jason.mcmullan@netroyesme.com>
+ *          Francois H. Theron <francois.theron@netroyesme.com>
  */
 
 #include <linux/kernel.h>
@@ -37,7 +37,7 @@
  */
 #define NFFW_INFO_VERSION_CURRENT 2
 
-/* Enough for all current chip families */
+/* Eyesugh for all current chip families */
 #define NFFW_MEINFO_CNT_V1 120
 #define NFFW_FWINFO_CNT_V1 120
 #define NFFW_MEINFO_CNT_V2 200
@@ -52,7 +52,7 @@ struct nffw_meinfo {
 
 struct nffw_fwinfo {
 	__le32 loaded__mu_da__mip_off_hi;
-	__le32 mip_cppid; /* 0 means no MIP */
+	__le32 mip_cppid; /* 0 means yes MIP */
 	__le32 mip_offset_lo;
 };
 
@@ -131,7 +131,7 @@ nffw_res_fwinfos(struct nfp_nffw_info_data *fwinf, struct nffw_fwinfo **arr)
 {
 	/* For the this code, version 0 is most likely to be
 	 * version 1 in this case. Since the kernel driver
-	 * does not take responsibility for initialising the
+	 * does yest take responsibility for initialising the
 	 * nfp.nffw resource, any previous code (CA firmware or
 	 * userspace) that left the version 0 and did set
 	 * the init flag is going to be version 1.

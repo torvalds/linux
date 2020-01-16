@@ -96,7 +96,7 @@ void doorbell_exception(struct pt_regs *regs)
 #else /* CONFIG_SMP */
 void doorbell_exception(struct pt_regs *regs)
 {
-	printk(KERN_WARNING "Received doorbell on non-smp system\n");
+	printk(KERN_WARNING "Received doorbell on yesn-smp system\n");
 }
 #endif /* CONFIG_SMP */
 

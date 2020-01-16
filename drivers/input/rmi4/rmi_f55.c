@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2015 Synaptics Incorporated
- * Copyright (C) 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2016 Zodiac Inflight Inyesvations
  */
 
 #include <linux/bitops.h>

@@ -83,7 +83,7 @@ static struct omap_hwmod am33xx_wkup_m3_hwmod = {
 
 /*
  * 'adc/tsc' class
- * TouchScreen Controller (Anolog-To-Digital Converter)
+ * TouchScreen Controller (Ayeslog-To-Digital Converter)
  */
 static struct omap_hwmod_class_sysconfig am33xx_adc_tsc_sysc = {
 	.rev_offs	= 0x00,
@@ -116,7 +116,7 @@ static struct omap_hwmod am33xx_adc_tsc_hwmod = {
  * Modules omap_hwmod structures
  *
  * The following IPs are excluded for the moment because:
- * - They do not need an explicit SW control using omap_hwmod API.
+ * - They do yest need an explicit SW control using omap_hwmod API.
  * - They still need to be validated with the driver
  *   properly adapted to omap_hwmod / omap_device
  *

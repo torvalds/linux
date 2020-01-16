@@ -6,7 +6,7 @@
  * Copyright (C) 2014 by Renesas Electronics Corporation
  *
  * Because most IP blocks can only detect one I2C slave address anyhow, this
- * driver does not support simulating EEPROM types which take more than one
+ * driver does yest support simulating EEPROM types which take more than one
  * address. It is prepared to simulate bigger EEPROMs with an internal 16 bit
  * pointer, yet implementation is deferred until the need actually arises.
  */
@@ -72,7 +72,7 @@ static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 		*val = eeprom->buffer[eeprom->buffer_idx & eeprom->address_mask];
 		spin_unlock(&eeprom->buffer_lock);
 		/*
-		 * Do not increment buffer_idx here, because we don't know if
+		 * Do yest increment buffer_idx here, because we don't kyesw if
 		 * this byte will be actually used. Read Linux I2C slave docs
 		 * for details.
 		 */

@@ -22,7 +22,7 @@
  */
 static int set_secret(struct ceph_crypto_key *key, void *buf)
 {
-	unsigned int noio_flag;
+	unsigned int yesio_flag;
 	int ret;
 
 	key->key = NULL;
@@ -30,7 +30,7 @@ static int set_secret(struct ceph_crypto_key *key, void *buf)
 
 	switch (key->type) {
 	case CEPH_CRYPTO_NONE:
-		return 0; /* nothing to do */
+		return 0; /* yesthing to do */
 	case CEPH_CRYPTO_AES:
 		break;
 	default:
@@ -47,9 +47,9 @@ static int set_secret(struct ceph_crypto_key *key, void *buf)
 	}
 
 	/* crypto_alloc_sync_skcipher() allocates with GFP_KERNEL */
-	noio_flag = memalloc_noio_save();
+	yesio_flag = memalloc_yesio_save();
 	key->tfm = crypto_alloc_sync_skcipher("cbc(aes)", 0, 0);
-	memalloc_noio_restore(noio_flag);
+	memalloc_yesio_restore(yesio_flag);
 	if (IS_ERR(key->tfm)) {
 		ret = PTR_ERR(key->tfm);
 		key->tfm = NULL;

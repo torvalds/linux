@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/pm_qos.h>
@@ -71,7 +71,7 @@ static int __init wf_cpufreq_clamp_init(void)
 
 	policy = cpufreq_cpu_get(0);
 	if (!policy) {
-		pr_warn("%s: cpufreq policy not found cpu0\n", __func__);
+		pr_warn("%s: cpufreq policy yest found cpu0\n", __func__);
 		return -EPROBE_DEFER;
 	}
 

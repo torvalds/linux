@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -36,7 +36,7 @@
 #define	ALTIFNAMSIZ	128
 #include <linux/hdlc/ioctl.h>
 
-/* For glibc compatibility. An empty enum does not compile. */
+/* For glibc compatibility. An empty enum does yest compile. */
 #if __UAPI_DEF_IF_NET_DEVICE_FLAGS_LOWER_UP_DORMANT_ECHO != 0 || \
     __UAPI_DEF_IF_NET_DEVICE_FLAGS != 0
 /**
@@ -48,11 +48,11 @@
  * entry available for all dev flags which can be queried and set. These flags
  * are shared for all types of net_devices. The sysfs entries are available
  * via /sys/class/net/<dev>/flags. Flags which can be toggled through sysfs
- * are annotated below, note that only a few flags can be toggled and some
+ * are anyestated below, yeste that only a few flags can be toggled and some
  * other flags are always preserved from the original net_device flags
  * even if you try to set them via sysfs. Flags which are always preserved
  * are kept under the flag grouping @IFF_VOLATILE. Flags which are volatile
- * are annotated below as such.
+ * are anyestated below as such.
  *
  * You should have a pretty good reason to be extending these flags.
  *
@@ -64,7 +64,7 @@
  * @IFF_NOTRAILERS: avoid use of trailers. Can be toggled through sysfs.
  *	Volatile.
  * @IFF_RUNNING: interface RFC2863 OPER_UP. Volatile.
- * @IFF_NOARP: no ARP protocol. Can be toggled through sysfs. Volatile.
+ * @IFF_NOARP: yes ARP protocol. Can be toggled through sysfs. Volatile.
  * @IFF_PROMISC: receive all packets. Can be toggled through sysfs.
  * @IFF_ALLMULTI: receive all multicast packets. Can be toggled through
  *	sysfs.
@@ -186,7 +186,7 @@ enum {
  *	for driver options and along come the PCMCIA people 8)
  *
  *	Ah well. The get() side of this is good for WDSETUP, and it'll
- *	be handy for debugging things. The set side is fine for now and
+ *	be handy for debugging things. The set side is fine for yesw and
  *	being very small might be worth keeping for clean configuration.
  */
 
@@ -276,7 +276,7 @@ struct ifreq {
  * Structure used in SIOCGIFCONF request.
  * Used to retrieve interface configuration
  * for machine (useful for programs which
- * must know all networks accessible).
+ * must kyesw all networks accessible).
  */
 
 /* for compatibility with glibc net/if.h */

@@ -19,7 +19,7 @@ Required properties:
 - reg: Physical base address and length of the controller's registers.
 - #gpio-cells: Should be two. The first cell is the pin number and the second
   cell is used to specify optional parameters (currently unused).
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device yesde as a GPIO controller.
 - nr-gpios: Number of GPIO pins supported by the controller.
 - interrupt-cells: Should be two. The first cell is the GPIO Number. The
   second cell is used to specify flags. The following subset of flags is
@@ -30,7 +30,7 @@ Required properties:
 	4 = active high level-sensitive.
 	8 = active low level-sensitive.
 - interrupts: Interrupt number for this device.
-- interrupt-controller: Identifies the node as an interrupt controller.
+- interrupt-controller: Identifies the yesde as an interrupt controller.
 
 Example:
 

@@ -26,8 +26,8 @@
  *	marvell_pata_active	-	check if PATA is active
  *	@pdev: PCI device
  *
- *	Returns 1 if the PATA port may be active. We know how to check this
- *	for the 6145 but not the other devices
+ *	Returns 1 if the PATA port may be active. We kyesw how to check this
+ *	for the 6145 but yest the other devices
  */
 
 static int marvell_pata_active(struct pci_dev *pdev)
@@ -36,7 +36,7 @@ static int marvell_pata_active(struct pci_dev *pdev)
 	u32 devices;
 	void __iomem *barp;
 
-	/* We don't yet know how to do this for other devices */
+	/* We don't yet kyesw how to do this for other devices */
 	if (pdev->device != 0x6145)
 		return 1;
 
@@ -70,7 +70,7 @@ static int marvell_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (pdev->device == 0x6145 && ap->port_no == 0 &&
+	if (pdev->device == 0x6145 && ap->port_yes == 0 &&
 		!marvell_pata_active(pdev))	/* PATA enable ? */
 			return -ENOENT;
 
@@ -80,7 +80,7 @@ static int marvell_pre_reset(struct ata_link *link, unsigned long deadline)
 static int marvell_cable_detect(struct ata_port *ap)
 {
 	/* Cable type */
-	switch(ap->port_no)
+	switch(ap->port_yes)
 	{
 	case 0:
 		if (ioread8(ap->ioaddr.bmdma_addr + 1) & 1)
@@ -133,7 +133,7 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 		.port_ops	= &marvell_ops,
 	};
 	static const struct ata_port_info info_sata = {
-		/* Slave possible as its magically mapped not real */
+		/* Slave possible as its magically mapped yest real */
 		.flags		= ATA_FLAG_SLAVE_POSS,
 
 		.pio_mask	= ATA_PIO4,
@@ -149,7 +149,7 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 
 #if IS_ENABLED(CONFIG_SATA_AHCI)
 	if (!marvell_pata_active(pdev)) {
-		printk(KERN_INFO DRV_NAME ": PATA port not active, deferring to AHCI driver.\n");
+		printk(KERN_INFO DRV_NAME ": PATA port yest active, deferring to AHCI driver.\n");
 		return -ENODEV;
 	}
 #endif

@@ -129,7 +129,7 @@ static irqreturn_t cma3000_thread_irq(int irq, void *dev_id)
 
 	data->bit_to_mg = mode_to_mg[mode][range];
 
-	/* Interrupt not for this device */
+	/* Interrupt yest for this device */
 	if (data->bit_to_mg == 0)
 		return IRQ_NONE;
 
@@ -280,13 +280,13 @@ struct cma3000_accl_data *cma3000_init(struct device *dev, int irq,
 	int error;
 
 	if (!pdata) {
-		dev_err(dev, "platform data not found\n");
+		dev_err(dev, "platform data yest found\n");
 		error = -EINVAL;
 		goto err_out;
 	}
 
 
-	/* if no IRQ return error */
+	/* if yes IRQ return error */
 	if (irq == 0) {
 		error = -EINVAL;
 		goto err_out;

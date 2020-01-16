@@ -32,17 +32,17 @@ static int __initdata testcase_total;
 static int __initdata testcase_successes;
 static int __initdata expected_testcase_failures;
 static int __initdata unexpected_testcase_failures;
-static int __initdata unexpected_testcase_unknowns;
+static int __initdata unexpected_testcase_unkyeswns;
 
 static int __init nmi_unk_cb(unsigned int val, struct pt_regs *regs)
 {
-	unexpected_testcase_unknowns++;
+	unexpected_testcase_unkyeswns++;
 	return NMI_HANDLED;
 }
 
 static void __init init_nmi_testsuite(void)
 {
-	/* trap all the unknown NMIs we may generate */
+	/* trap all the unkyeswn NMIs we may generate */
 	register_nmi_handler(NMI_UNKNOWN, nmi_unk_cb, 0, "nmi_selftest_unk",
 			__initdata);
 }

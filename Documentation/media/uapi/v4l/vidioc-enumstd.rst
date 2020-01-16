@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_ENUMSTD:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_ENUMSTD - VIDIOC_SUBDEV_ENUMSTD - Enumerate supported video standards
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_ENUMSTD, struct v4l2_standard *argp )
@@ -70,8 +70,8 @@ or output. [#f1]_
       - The bits in this field identify the standard as one of the common
 	standards listed in :ref:`v4l2-std-id`, or if bits 32 to 63 are
 	set as custom standards. Multiple bits can be set if the hardware
-	does not distinguish between these standards, however separate
-	indices do not indicate the opposite. The ``id`` must be unique.
+	does yest distinguish between these standards, however separate
+	indices do yest indicate the opposite. The ``id`` must be unique.
 	No other enumerated struct :c:type:`v4l2_standard` structure,
 	for this input or output anyway, can contain the same set of bits.
     * - __u8
@@ -81,7 +81,7 @@ or output. [#f1]_
 	user.
     * - struct :c:type:`v4l2_fract`
       - ``frameperiod``
-      - The frame period (not field period) is numerator / denominator.
+      - The frame period (yest field period) is numerator / deyesminator.
 	For example M/NTSC has a frame period of 1001 / 30000 seconds.
     * - __u32
       - ``framelines``
@@ -106,7 +106,7 @@ or output. [#f1]_
       - ``numerator``
       -
     * - __u32
-      - ``denominator``
+      - ``deyesminator``
       -
 
 
@@ -121,7 +121,7 @@ or output. [#f1]_
 
     * - __u64
       - ``v4l2_std_id``
-      - This type is a set, each bit representing another video standard
+      - This type is a set, each bit representing ayesther video standard
 	as listed below and in :ref:`video-standards`. The 32 most
 	significant bits are reserved for custom (driver defined) video
 	standards.
@@ -147,7 +147,7 @@ or output. [#f1]_
 ``V4L2_STD_PAL_60`` is a hybrid standard with 525 lines, 60 Hz refresh
 rate, and PAL color modulation with a 4.43 MHz color subcarrier. Some
 PAL video recorders can play back NTSC tapes in this mode for display on
-a 50/60 Hz agnostic PAL TV.
+a 50/60 Hz agyesstic PAL TV.
 
 
 .. code-block:: c
@@ -178,7 +178,7 @@ rate, and NTSC color modulation with a 4.43 MHz color subcarrier.
     #define V4L2_STD_ATSC_16_VSB    ((v4l2_std_id)0x02000000)
 
 ``V4L2_STD_ATSC_8_VSB`` and ``V4L2_STD_ATSC_16_VSB`` are U.S.
-terrestrial digital TV standards. Presently the V4L2 API does not
+terrestrial digital TV standards. Presently the V4L2 API does yest
 support digital TV. See also the Linux DVB API at
 `https://linuxtv.org <https://linuxtv.org>`__.
 
@@ -314,7 +314,7 @@ support digital TV. See also the Linux DVB API at
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -323,7 +323,7 @@ EINVAL
     of bounds.
 
 ENODATA
-    Standard video timings are not supported for this input or output.
+    Standard video timings are yest supported for this input or output.
 
 .. [#f1]
    The supported standards may overlap and we need an unambiguous set to

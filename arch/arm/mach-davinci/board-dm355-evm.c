@@ -140,7 +140,7 @@ static void dm355evm_mmcsd_gpios(unsigned gpio)
 	gpio_request(gpio + 2, "mmc1_ro");
 	gpio_request(gpio + 3, "mmc1_cd");
 
-	/* we "know" these are input-only so we don't
+	/* we "kyesw" these are input-only so we don't
 	 * need to call gpio_direction_input()
 	 */
 
@@ -295,7 +295,7 @@ static struct vpbe_enc_mode_info dm355evm_enc_preset_timing[] = {
 #define VENC_STD_ALL	(V4L2_STD_NTSC | V4L2_STD_PAL)
 
 /*
- * The outputs available from VPBE + ecnoders. Keep the
+ * The outputs available from VPBE + ecyesders. Keep the
  * the order same as that of encoders. First those from venc followed by that
  * from encoders. Index in the output refers to index on a particular encoder.
  * Driver uses this index to pass it to encoder when it supports more than

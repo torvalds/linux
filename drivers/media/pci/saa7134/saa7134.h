@@ -3,7 +3,7 @@
  *
  * v4l2 device driver for philips saa7134 based TV cards
  *
- * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
+ * (c) 2001,02 Gerd Kyesrr <kraxel@bytesex.org>
  */
 
 #define SAA7134_VERSION "0, 2, 17"
@@ -15,7 +15,7 @@
 #include <linux/videodev2.h>
 #include <linux/kdev_t.h>
 #include <linux/input.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/pm_qos.h>
@@ -66,7 +66,7 @@ enum saa7134_video_out {
 /* ----------------------------------------------------------- */
 /* static data                                                 */
 
-struct saa7134_tvnorm {
+struct saa7134_tvyesrm {
 	char          *name;
 	v4l2_std_id   id;
 
@@ -486,8 +486,8 @@ struct saa7134_dmaqueue {
 /* dmasound dsp status */
 struct saa7134_dmasound {
 	struct mutex               lock;
-	int                        minor_mixer;
-	int                        minor_dsp;
+	int                        miyesr_mixer;
+	int                        miyesr_dsp;
 	unsigned int               users_dsp;
 
 	/* mixer */
@@ -626,7 +626,7 @@ struct saa7134_dev {
 	struct v4l2_ctrl_handler   empress_ctrl_handler;
 
 	/* various v4l controls */
-	struct saa7134_tvnorm      *tvnorm;              /* video */
+	struct saa7134_tvyesrm      *tvyesrm;              /* video */
 	struct saa7134_tvaudio     *tvaudio;
 	struct v4l2_ctrl_handler   ctrl_handler;
 	unsigned int               ctl_input;
@@ -654,7 +654,7 @@ struct saa7134_dev {
 	struct saa7134_input       *hw_input;
 	unsigned int               hw_mute;
 	int                        last_carrier;
-	int                        nosignal;
+	int                        yessignal;
 	unsigned int               insuspend;
 	struct v4l2_ctrl_handler   radio_ctrl_handler;
 
@@ -744,11 +744,11 @@ static inline bool is_empress(struct file *file)
 
 extern struct list_head  saa7134_devlist;
 extern struct mutex saa7134_devlist_lock;
-extern int saa7134_no_overlay;
+extern int saa7134_yes_overlay;
 extern bool saa7134_userptr;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, const char *msg);
-void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value);
+void saa7134_set_gpio(struct saa7134_dev *dev, int bit_yes, int value);
 
 #define SAA7134_PGTABLE_SIZE 4096
 
@@ -825,7 +825,7 @@ int saa7134_s_frequency(struct file *file, void *priv,
 					const struct v4l2_frequency *f);
 
 int saa7134_videoport_init(struct saa7134_dev *dev);
-void saa7134_set_tvnorm_hw(struct saa7134_dev *dev);
+void saa7134_set_tvyesrm_hw(struct saa7134_dev *dev);
 
 int saa7134_video_init1(struct saa7134_dev *dev);
 int saa7134_video_init2(struct saa7134_dev *dev);

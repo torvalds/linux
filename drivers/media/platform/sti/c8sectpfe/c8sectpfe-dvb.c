@@ -36,7 +36,7 @@ static inline const char *dvb_card_str(unsigned int c)
 	case STV0367_TDA18212_NIMB_2:	return "STV0367_TDA18212_NIMB_2";
 	case STV0903_6110_LNB24_NIMA:	return "STV0903_6110_LNB24_NIMA";
 	case STV0903_6110_LNB24_NIMB:	return "STV0903_6110_LNB24_NIMB";
-	default:			return "unknown dvb frontend card";
+	default:			return "unkyeswn dvb frontend card";
 	}
 }
 
@@ -221,7 +221,7 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 
 	default:
 		dev_err(c8sectpfe->device,
-			"%s: DVB frontend card %s not yet supported\n",
+			"%s: DVB frontend card %s yest yet supported\n",
 			__func__, dvb_card_str(tsin->dvb_card));
 		return -ENODEV;
 	}

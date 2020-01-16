@@ -106,7 +106,7 @@ static int usX2Y_urb_capt_retire(struct snd_usX2Y_substream *subs)
  * we copy the data directly from the pcm buffer.
  * the current position to be copied is held in hwptr field.
  * since a urb can handle only a single linear buffer, if the total
- * transferred area overflows the buffer boundary, we cannot send
+ * transferred area overflows the buffer boundary, we canyest send
  * it directly from the buffer.  thus the data is once copied to
  * a temporary buffer and urb points to that.
  */
@@ -124,7 +124,7 @@ static int usX2Y_urb_play_prepare(struct snd_usX2Y_substream *subs,
 		counts = cap_urb->iso_frame_desc[pack].actual_length / usX2Y->stride;
 		count += counts;
 		if (counts < 43 || counts > 50) {
-			snd_printk(KERN_ERR "should not be here with counts=%i\n", counts);
+			snd_printk(KERN_ERR "should yest be here with counts=%i\n", counts);
 			return -EPIPE;
 		}
 		/* set up descriptor */
@@ -478,7 +478,7 @@ static int usX2Y_urbs_start(struct snd_usX2Y_substream *subs)
 			}
 			urb->transfer_buffer_length = subs->maxpacksize * nr_of_packs(); 
 			if ((err = usb_submit_urb(urb, GFP_ATOMIC)) < 0) {
-				snd_printk (KERN_ERR "cannot submit datapipe for urb %d, err = %d\n", i, err);
+				snd_printk (KERN_ERR "canyest submit datapipe for urb %d, err = %d\n", i, err);
 				err = -EPIPE;
 				goto cleanup;
 			} else
@@ -556,7 +556,7 @@ static struct s_c2
 	SetRate44100[] =
 {
 	{ 0x14, 0x08},	// this line sets 44100, well actually a little less
-	{ 0x18, 0x40},	// only tascam / frontier design knows the further lines .......
+	{ 0x18, 0x40},	// only tascam / frontier design kyesws the further lines .......
 	{ 0x18, 0x42},
 	{ 0x18, 0x45},
 	{ 0x18, 0x46},
@@ -592,7 +592,7 @@ static struct s_c2
 static struct s_c2 SetRate48000[] =
 {
 	{ 0x14, 0x09},	// this line sets 48000, well actually a little less
-	{ 0x18, 0x40},	// only tascam / frontier design knows the further lines .......
+	{ 0x18, 0x40},	// only tascam / frontier design kyesws the further lines .......
 	{ 0x18, 0x42},
 	{ 0x18, 0x45},
 	{ 0x18, 0x46},

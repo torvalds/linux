@@ -42,7 +42,7 @@ cxgbit_set_one_ppod(struct cxgbi_pagepod *ppod,
 
 	/*
 	 * the fifth address needs to be repeated in the next ppod, so do
-	 * not move sg
+	 * yest move sg
 	 */
 	if (sg_pp) {
 		*sg_pp = sg;
@@ -247,7 +247,7 @@ cxgbit_get_r2t_ttt(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 
 	ret = cxgbit_ddp_reserve(csk, ttinfo, cmd->se_cmd.data_length);
 	if (ret < 0) {
-		pr_debug("csk 0x%p, cmd 0x%p, xfer len %u, sgcnt %u no ddp.\n",
+		pr_debug("csk 0x%p, cmd 0x%p, xfer len %u, sgcnt %u yes ddp.\n",
 			 csk, cmd, cmd->se_cmd.data_length, ttinfo->nents);
 
 		ttinfo->sgl = NULL;
@@ -272,7 +272,7 @@ void cxgbit_unmap_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 			struct cxgbit_device *cdev = csk->com.cdev;
 			struct cxgbi_ppm *ppm = cdev2ppm(cdev);
 
-			/* Abort the TCP conn if DDP is not complete to
+			/* Abort the TCP conn if DDP is yest complete to
 			 * avoid any possibility of DDP after freeing
 			 * the cmd.
 			 */

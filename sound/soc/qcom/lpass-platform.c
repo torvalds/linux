@@ -501,7 +501,7 @@ static int lpass_platform_pcm_new(struct snd_soc_component *component,
 					component->dev,
 					size, &psubstream->dma_buffer);
 		if (ret) {
-			dev_err(soc_runtime->dev, "Cannot allocate buffer(s)\n");
+			dev_err(soc_runtime->dev, "Canyest allocate buffer(s)\n");
 			return ret;
 		}
 	}
@@ -512,7 +512,7 @@ static int lpass_platform_pcm_new(struct snd_soc_component *component,
 					component->dev,
 					size, &csubstream->dma_buffer);
 		if (ret) {
-			dev_err(soc_runtime->dev, "Cannot allocate buffer(s)\n");
+			dev_err(soc_runtime->dev, "Canyest allocate buffer(s)\n");
 			if (psubstream)
 				snd_dma_free_pages(&psubstream->dma_buffer);
 			return ret;

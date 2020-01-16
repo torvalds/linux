@@ -5,7 +5,7 @@
 
 
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -103,7 +103,7 @@ static unsigned long sysfs_cpufreq_get_one_value(unsigned int cpu,
 
 	value = strtoul(linebuf, &endp, 0);
 
-	if (endp == linebuf || errno == ERANGE)
+	if (endp == linebuf || erryes == ERANGE)
 		return 0;
 
 	return value;
@@ -119,7 +119,7 @@ enum cpufreq_string {
 
 static const char *cpufreq_string_files[MAX_CPUFREQ_STRING_FILES] = {
 	[SCALING_DRIVER] = "scaling_driver",
-	[SCALING_GOVERNOR] = "scaling_governor",
+	[SCALING_GOVERNOR] = "scaling_goveryesr",
 };
 
 
@@ -161,7 +161,7 @@ enum cpufreq_write {
 static const char *cpufreq_write_files[MAX_CPUFREQ_WRITE_FILES] = {
 	[WRITE_SCALING_MIN_FREQ] = "scaling_min_freq",
 	[WRITE_SCALING_MAX_FREQ] = "scaling_max_freq",
-	[WRITE_SCALING_GOVERNOR] = "scaling_governor",
+	[WRITE_SCALING_GOVERNOR] = "scaling_goveryesr",
 	[WRITE_SCALING_SET_SPEED] = "scaling_setspeed",
 };
 
@@ -232,15 +232,15 @@ struct cpufreq_policy *cpufreq_get_policy(unsigned int cpu)
 	if (!policy)
 		return NULL;
 
-	policy->governor = sysfs_cpufreq_get_one_string(cpu, SCALING_GOVERNOR);
-	if (!policy->governor) {
+	policy->goveryesr = sysfs_cpufreq_get_one_string(cpu, SCALING_GOVERNOR);
+	if (!policy->goveryesr) {
 		free(policy);
 		return NULL;
 	}
 	policy->min = sysfs_cpufreq_get_one_value(cpu, SCALING_MIN_FREQ);
 	policy->max = sysfs_cpufreq_get_one_value(cpu, SCALING_MAX_FREQ);
 	if ((!policy->min) || (!policy->max)) {
-		free(policy->governor);
+		free(policy->goveryesr);
 		free(policy);
 		return NULL;
 	}
@@ -250,24 +250,24 @@ struct cpufreq_policy *cpufreq_get_policy(unsigned int cpu)
 
 void cpufreq_put_policy(struct cpufreq_policy *policy)
 {
-	if ((!policy) || (!policy->governor))
+	if ((!policy) || (!policy->goveryesr))
 		return;
 
-	free(policy->governor);
-	policy->governor = NULL;
+	free(policy->goveryesr);
+	policy->goveryesr = NULL;
 	free(policy);
 }
 
-struct cpufreq_available_governors *cpufreq_get_available_governors(unsigned
+struct cpufreq_available_goveryesrs *cpufreq_get_available_goveryesrs(unsigned
 								int cpu)
 {
-	struct cpufreq_available_governors *first = NULL;
-	struct cpufreq_available_governors *current = NULL;
+	struct cpufreq_available_goveryesrs *first = NULL;
+	struct cpufreq_available_goveryesrs *current = NULL;
 	char linebuf[MAX_LINE_LEN];
 	unsigned int pos, i;
 	unsigned int len;
 
-	len = sysfs_cpufreq_read_file(cpu, "scaling_available_governors",
+	len = sysfs_cpufreq_read_file(cpu, "scaling_available_goveryesrs",
 				linebuf, sizeof(linebuf));
 	if (len == 0)
 		return NULL;
@@ -291,12 +291,12 @@ struct cpufreq_available_governors *cpufreq_get_available_governors(unsigned
 			current->first = first;
 			current->next = NULL;
 
-			current->governor = malloc(i - pos + 1);
-			if (!current->governor)
+			current->goveryesr = malloc(i - pos + 1);
+			if (!current->goveryesr)
 				goto error_out;
 
-			memcpy(current->governor, linebuf + pos, i - pos);
-			current->governor[i - pos] = '\0';
+			memcpy(current->goveryesr, linebuf + pos, i - pos);
+			current->goveryesr[i - pos] = '\0';
 			pos = i + 1;
 		}
 	}
@@ -306,17 +306,17 @@ struct cpufreq_available_governors *cpufreq_get_available_governors(unsigned
  error_out:
 	while (first) {
 		current = first->next;
-		if (first->governor)
-			free(first->governor);
+		if (first->goveryesr)
+			free(first->goveryesr);
 		free(first);
 		first = current;
 	}
 	return NULL;
 }
 
-void cpufreq_put_available_governors(struct cpufreq_available_governors *any)
+void cpufreq_put_available_goveryesrs(struct cpufreq_available_goveryesrs *any)
 {
-	struct cpufreq_available_governors *tmp, *next;
+	struct cpufreq_available_goveryesrs *tmp, *next;
 
 	if (!any)
 		return;
@@ -324,8 +324,8 @@ void cpufreq_put_available_governors(struct cpufreq_available_governors *any)
 	tmp = any->first;
 	while (tmp) {
 		next = tmp->next;
-		if (tmp->governor)
-			free(tmp->governor);
+		if (tmp->goveryesr)
+			free(tmp->goveryesr);
 		free(tmp);
 		tmp = next;
 	}
@@ -537,13 +537,13 @@ int cpufreq_set_policy(unsigned int cpu, struct cpufreq_policy *policy)
 	unsigned long old_min;
 	int write_max_first;
 
-	if (!policy || !(policy->governor))
+	if (!policy || !(policy->goveryesr))
 		return -EINVAL;
 
 	if (policy->max < policy->min)
 		return -EINVAL;
 
-	if (verify_gov(gov, policy->governor))
+	if (verify_gov(gov, policy->goveryesr))
 		return -EINVAL;
 
 	snprintf(min, SYSFS_PATH_MAX, "%lu", policy->min);
@@ -597,14 +597,14 @@ int cpufreq_modify_policy_max(unsigned int cpu, unsigned long max_freq)
 					     value, strlen(value));
 }
 
-int cpufreq_modify_policy_governor(unsigned int cpu, char *governor)
+int cpufreq_modify_policy_goveryesr(unsigned int cpu, char *goveryesr)
 {
 	char new_gov[SYSFS_PATH_MAX];
 
-	if ((!governor) || (strlen(governor) > 19))
+	if ((!goveryesr) || (strlen(goveryesr) > 19))
 		return -EINVAL;
 
-	if (verify_gov(new_gov, governor))
+	if (verify_gov(new_gov, goveryesr))
 		return -EINVAL;
 
 	return sysfs_cpufreq_write_one_value(cpu, WRITE_SCALING_GOVERNOR,
@@ -621,8 +621,8 @@ int cpufreq_set_frequency(unsigned int cpu, unsigned long target_frequency)
 	if (!pol)
 		return -ENODEV;
 
-	if (strncmp(pol->governor, userspace_gov, 9) != 0) {
-		ret = cpufreq_modify_policy_governor(cpu, userspace_gov);
+	if (strncmp(pol->goveryesr, userspace_gov, 9) != 0) {
+		ret = cpufreq_modify_policy_goveryesr(cpu, userspace_gov);
 		if (ret) {
 			cpufreq_put_policy(pol);
 			return ret;

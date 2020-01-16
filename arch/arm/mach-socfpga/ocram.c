@@ -16,18 +16,18 @@
 
 void socfpga_init_ocram_ecc(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *mapped_ocr_edac_addr;
 
-	/* Find the OCRAM EDAC device tree node */
-	np = of_find_compatible_node(NULL, NULL, "altr,socfpga-ocram-ecc");
+	/* Find the OCRAM EDAC device tree yesde */
+	np = of_find_compatible_yesde(NULL, NULL, "altr,socfpga-ocram-ecc");
 	if (!np) {
 		pr_err("Unable to find socfpga-ocram-ecc\n");
 		return;
 	}
 
 	mapped_ocr_edac_addr = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!mapped_ocr_edac_addr) {
 		pr_err("Unable to map OCRAM ecc regs.\n");
 		return;
@@ -114,17 +114,17 @@ static int altr_init_memory_port(void __iomem *ioaddr)
 
 void socfpga_init_arria10_ocram_ecc(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret = 0;
 	void __iomem *ecc_block_base;
 
 	if (!sys_manager_base_addr) {
-		pr_err("SOCFPGA: sys-mgr is not initialized\n");
+		pr_err("SOCFPGA: sys-mgr is yest initialized\n");
 		return;
 	}
 
-	/* Find the OCRAM EDAC device tree node */
-	np = of_find_compatible_node(NULL, NULL, "altr,socfpga-a10-ocram-ecc");
+	/* Find the OCRAM EDAC device tree yesde */
+	np = of_find_compatible_yesde(NULL, NULL, "altr,socfpga-a10-ocram-ecc");
 	if (!np) {
 		pr_err("Unable to find socfpga-a10-ocram-ecc\n");
 		return;
@@ -132,7 +132,7 @@ void socfpga_init_arria10_ocram_ecc(void)
 
 	/* Map the ECC Block */
 	ecc_block_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!ecc_block_base) {
 		pr_err("Unable to map OCRAM ECC block\n");
 		return;
@@ -152,7 +152,7 @@ void socfpga_init_arria10_ocram_ecc(void)
 	/* Use HW initialization block to initialize memory for ECC */
 	ret = altr_init_memory_port(ecc_block_base);
 	if (ret) {
-		pr_err("ECC: cannot init OCRAM PORTA memory\n");
+		pr_err("ECC: canyest init OCRAM PORTA memory\n");
 		goto exit;
 	}
 

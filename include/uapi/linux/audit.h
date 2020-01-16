@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /* audit.h -- Auditing support
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Written by Rickard E. (Rik) Faith <faith@redhat.com>
@@ -36,13 +36,13 @@
  * 1400 - 1499 SE Linux use
  * 1500 - 1599 kernel LSPP events
  * 1600 - 1699 kernel crypto events
- * 1700 - 1799 kernel anomaly records
+ * 1700 - 1799 kernel ayesmaly records
  * 1800 - 1899 kernel integrity events
  * 1900 - 1999 future kernel use
  * 2000 is for otherwise unclassified kernel audit messages (legacy)
  * 2001 - 2099 unused (kernel)
- * 2100 - 2199 user space anomaly records
- * 2200 - 2299 user space actions taken in response to anomalies
+ * 2100 - 2199 user space ayesmaly records
+ * 2200 - 2299 user space actions taken in response to ayesmalies
  * 2300 - 2399 user space generated LSPP events
  * 2400 - 2499 user space crypto events
  * 2500 - 2999 future user space (maybe integrity labels and related events)
@@ -80,7 +80,7 @@
 #define AUDIT_LAST_USER_MSG2	2999
  
 #define AUDIT_DAEMON_START      1200    /* Daemon startup record */
-#define AUDIT_DAEMON_END        1201    /* Daemon normal stop record */
+#define AUDIT_DAEMON_END        1201    /* Daemon yesrmal stop record */
 #define AUDIT_DAEMON_ABORT      1202    /* Daemon error stop record */
 #define AUDIT_DAEMON_CONFIG     1203    /* Daemon config change */
 
@@ -96,7 +96,7 @@
 #define AUDIT_IPC_SET_PERM	1311	/* IPC new permissions record type */
 #define AUDIT_MQ_OPEN		1312	/* POSIX MQ open record type */
 #define AUDIT_MQ_SENDRECV	1313	/* POSIX MQ send/receive record type */
-#define AUDIT_MQ_NOTIFY		1314	/* POSIX MQ notify record type */
+#define AUDIT_MQ_NOTIFY		1314	/* POSIX MQ yestify record type */
 #define AUDIT_MQ_GETSETATTR	1315	/* POSIX MQ get/set attribute record type */
 #define AUDIT_KERNEL_OTHER	1316	/* For use by 3rd party modules */
 #define AUDIT_FD_PAIR		1317    /* audit record for pipe/socketpair */
@@ -113,7 +113,7 @@
 #define AUDIT_FEATURE_CHANGE	1328	/* audit log listing feature changes */
 #define AUDIT_REPLACE		1329	/* Replace auditd if this packet unanswerd */
 #define AUDIT_KERN_MODULE	1330	/* Kernel Module events */
-#define AUDIT_FANOTIFY		1331	/* Fanotify access decision */
+#define AUDIT_FANOTIFY		1331	/* Fayestify access decision */
 #define AUDIT_TIME_INJOFFSET	1332	/* Timekeeping offset injected */
 #define AUDIT_TIME_ADJNTPVAL	1333	/* NTP value adjustment */
 
@@ -141,7 +141,7 @@
 #define AUDIT_FIRST_KERN_ANOM_MSG   1700
 #define AUDIT_LAST_KERN_ANOM_MSG    1799
 #define AUDIT_ANOM_PROMISCUOUS      1700 /* Device changed promiscuous mode */
-#define AUDIT_ANOM_ABEND            1701 /* Process ended abnormally */
+#define AUDIT_ANOM_ABEND            1701 /* Process ended abyesrmally */
 #define AUDIT_ANOM_LINK		    1702 /* Suspicious use of file links */
 #define AUDIT_ANOM_CREAT	    1703 /* Suspicious file creation */
 #define AUDIT_INTEGRITY_DATA	    1800 /* Data integrity verification */
@@ -153,24 +153,24 @@
 #define AUDIT_INTEGRITY_EVM_XATTR   1806 /* New EVM-covered xattr */
 #define AUDIT_INTEGRITY_POLICY_RULE 1807 /* IMA policy rules */
 
-#define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
+#define AUDIT_KERNEL		2000	/* Asynchroyesus audit record. NOT A REQUEST. */
 
 /* Rule flags */
 #define AUDIT_FILTER_USER	0x00	/* Apply rule to user-generated messages */
-#define AUDIT_FILTER_TASK	0x01	/* Apply rule at task creation (not syscall) */
+#define AUDIT_FILTER_TASK	0x01	/* Apply rule at task creation (yest syscall) */
 #define AUDIT_FILTER_ENTRY	0x02	/* Apply rule at syscall entry */
 #define AUDIT_FILTER_WATCH	0x03	/* Apply rule to file system watches */
 #define AUDIT_FILTER_EXIT	0x04	/* Apply rule at syscall exit */
 #define AUDIT_FILTER_EXCLUDE	0x05	/* Apply rule before record creation */
 #define AUDIT_FILTER_TYPE	AUDIT_FILTER_EXCLUDE /* obsolete misleading naming */
-#define AUDIT_FILTER_FS		0x06	/* Apply rule at __audit_inode_child */
+#define AUDIT_FILTER_FS		0x06	/* Apply rule at __audit_iyesde_child */
 
 #define AUDIT_NR_FILTERS	7
 
 #define AUDIT_FILTER_PREPEND	0x10	/* Prepend to front of list */
 
 /* Rule actions */
-#define AUDIT_NEVER    0	/* Do not build context if rule matches */
+#define AUDIT_NEVER    0	/* Do yest build context if rule matches */
 #define AUDIT_POSSIBLE 1	/* Build context if rule matches  */
 #define AUDIT_ALWAYS   2	/* Generate audit record if rule matches */
 
@@ -273,7 +273,7 @@
 #define AUDIT_DEVMINOR	101
 #define AUDIT_INODE	102
 #define AUDIT_EXIT	103
-#define AUDIT_SUCCESS   104	/* exit >= 0; value ignored */
+#define AUDIT_SUCCESS   104	/* exit >= 0; value igyesred */
 #define AUDIT_WATCH	105
 #define AUDIT_PERM	106
 #define AUDIT_DIR	107
@@ -297,7 +297,7 @@
  *	4  2  1  8
  *	=  >  <  ?
  *	----------
- *	0  0  0	 0	00	nonsense
+ *	0  0  0	 0	00	yesnsense
  *	0  0  0	 1	08	&  bit mask
  *	0  0  1	 0	10	<
  *	0  1  0	 0	20	>
@@ -320,7 +320,7 @@
 
 enum {
 	Audit_equal,
-	Audit_not_equal,
+	Audit_yest_equal,
 	Audit_bitmask,
 	Audit_bittest,
 	Audit_lt,
@@ -412,7 +412,7 @@ enum {
 #define AUDIT_ARCH_PARISC	(EM_PARISC)
 #define AUDIT_ARCH_PARISC64	(EM_PARISC|__AUDIT_ARCH_64BIT)
 #define AUDIT_ARCH_PPC		(EM_PPC)
-/* do not define AUDIT_ARCH_PPCLE since it is not supported by audit */
+/* do yest define AUDIT_ARCH_PPCLE since it is yest supported by audit */
 #define AUDIT_ARCH_PPC64	(EM_PPC64|__AUDIT_ARCH_64BIT)
 #define AUDIT_ARCH_PPC64LE	(EM_PPC64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_RISCV32	(EM_RISCV|__AUDIT_ARCH_LE)
@@ -445,7 +445,7 @@ enum {
 
 /* Multicast Netlink socket groups (default up to 32) */
 enum audit_nlgrps {
-	AUDIT_NLGRP_NONE,	/* Group 0 not used */
+	AUDIT_NLGRP_NONE,	/* Group 0 yest used */
 	AUDIT_NLGRP_READLOG,	/* "best effort" read only socket */
 	__AUDIT_NLGRP_MAX
 };

@@ -3,7 +3,7 @@
  * Pid namespaces
  *
  * Authors:
- *    (C) 2007 Pavel Emelyanov <xemul@openvz.org>, OpenVZ, SWsoft Inc.
+ *    (C) 2007 Pavel Emelyayesv <xemul@openvz.org>, OpenVZ, SWsoft Inc.
  *    (C) 2007 Sukadev Bhattiprolu <sukadev@us.ibm.com>, IBM
  *     Many thanks to Oleg Nesterov for comments and help
  *
@@ -188,7 +188,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	disable_pid_allocation(pid_ns);
 
 	/*
-	 * Ignore SIGCHLD causing any terminated children to autoreap.
+	 * Igyesre SIGCHLD causing any terminated children to autoreap.
 	 * This speeds up the namespace shutdown, plus see the comment
 	 * below.
 	 */
@@ -221,7 +221,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	rcu_read_unlock();
 
 	/*
-	 * Reap the EXIT_ZOMBIE children we had before we ignored SIGCHLD.
+	 * Reap the EXIT_ZOMBIE children we had before we igyesred SIGCHLD.
 	 * kernel_wait4() will also block until our children traced from the
 	 * parent namespace are detached and become EXIT_DEAD.
 	 */
@@ -231,19 +231,19 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	} while (rc != -ECHILD);
 
 	/*
-	 * kernel_wait4() above can't reap the EXIT_DEAD children but we do not
+	 * kernel_wait4() above can't reap the EXIT_DEAD children but we do yest
 	 * really care, we could reparent them to the global init. We could
-	 * exit and reap ->child_reaper even if it is not the last thread in
+	 * exit and reap ->child_reaper even if it is yest the last thread in
 	 * this pid_ns, free_pid(pid_allocated == 0) calls proc_cleanup_work(),
-	 * pid_ns can not go away until proc_kill_sb() drops the reference.
+	 * pid_ns can yest go away until proc_kill_sb() drops the reference.
 	 *
 	 * But this ns can also have other tasks injected by setns()+fork().
-	 * Again, ignoring the user visible semantics we do not really need
+	 * Again, igyesring the user visible semantics we do yest really need
 	 * to wait until they are all reaped, but they can be reparented to
 	 * us and thus we need to ensure that pid->child_reaper stays valid
 	 * until they all go away. See free_pid()->wake_up_process().
 	 *
-	 * We rely on ignored SIGCHLD, an injected zombie must be autoreaped
+	 * We rely on igyesred SIGCHLD, an injected zombie must be autoreaped
 	 * if reparented.
 	 */
 	for (;;) {
@@ -393,7 +393,7 @@ static int pidns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 	 *
 	 * This is required for fork to return a usable pid value and
 	 * this maintains the property that processes and their
-	 * children can not escape their current pid namespace.
+	 * children can yest escape their current pid namespace.
 	 */
 	if (new->level < active->level)
 		return -EINVAL;

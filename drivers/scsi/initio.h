@@ -17,7 +17,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
+ * along with this program; see the file COPYING.  If yest, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -637,7 +637,7 @@ typedef struct _NVRAM {
 #define NTC_DEFAULT             (NTC_NO_WDTR | NTC_1GIGA | NTC_DISCONNECT)
 
 /* SCSI related definition                                              */
-#define DISC_NOT_ALLOW          0x80	/* Disconnect is not allowed    */
+#define DISC_NOT_ALLOW          0x80	/* Disconnect is yest allowed    */
 #define DISC_ALLOW              0xC0	/* Disconnect is allowed        */
 #define SCSICMD_RequestSense    0x03
 

@@ -47,7 +47,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -173,8 +173,8 @@ static const struct fb_var_screeninfo pvr2_var = {
 static int cable_type = CT_VGA;
 static int video_output = VO_VGA;
 
-static int nopan = 0;
-static int nowrap = 1;
+static int yespan = 0;
+static int yeswrap = 1;
 
 /*
  * We do all updating, blanking, etc. during the vertical retrace period
@@ -234,10 +234,10 @@ static inline void pvr2fb_set_pal_type(unsigned int type)
 }
 
 static inline void pvr2fb_set_pal_entry(struct pvr2fb_par *par,
-					unsigned int regno,
+					unsigned int regyes,
 					unsigned int val)
 {
-	fb_writel(val, par->mmio_base + 0x1000 + (4 * regno));
+	fb_writel(val, par->mmio_base + 0x1000 + (4 * regyes));
 }
 
 static int pvr2fb_blank(int blank, struct fb_info *info)
@@ -277,14 +277,14 @@ static void set_color_bitfields(struct fb_var_screeninfo *var)
 	}
 }
 
-static int pvr2fb_setcolreg(unsigned int regno, unsigned int red,
+static int pvr2fb_setcolreg(unsigned int regyes, unsigned int red,
 			    unsigned int green, unsigned int blue,
                             unsigned int transp, struct fb_info *info)
 {
 	struct pvr2fb_par *par = (struct pvr2fb_par *)info->par;
 	unsigned int tmp;
 
-	if (regno > info->cmap.len)
+	if (regyes > info->cmap.len)
 		return 1;
 
 	/*
@@ -298,7 +298,7 @@ static int pvr2fb_setcolreg(unsigned int regno, unsigned int red,
 		      ((green & 0xfc00) >> 5) |
 		      ((blue  & 0xf800) >> 11);
 
-		pvr2fb_set_pal_entry(par, regno, tmp);
+		pvr2fb_set_pal_entry(par, regyes, tmp);
 		break;
 	    case 24: /* RGB 888 */
 		red >>= 8; green >>= 8; blue >>= 8;
@@ -308,15 +308,15 @@ static int pvr2fb_setcolreg(unsigned int regno, unsigned int red,
 		red >>= 8; green >>= 8; blue >>= 8;
 		tmp = (transp << 24) | (red << 16) | (green << 8) | blue;
 
-		pvr2fb_set_pal_entry(par, regno, tmp);
+		pvr2fb_set_pal_entry(par, regyes, tmp);
 		break;
 	    default:
 		pr_debug("Invalid bit depth %d?!?\n", info->var.bits_per_pixel);
 		return 1;
 	}
 
-	if (regno < 16)
-		((u32*)(info->pseudo_palette))[regno] = tmp;
+	if (regyes < 16)
+		((u32*)(info->pseudo_palette))[regyes] = tmp;
 
 	return 0;
 }
@@ -361,7 +361,7 @@ static int pvr2fb_set_par(struct fb_info *info)
 	/*
 	 * XXX: It's possible that a user could use a VGA box, change the cable
 	 * type in hardware (i.e. switch from VGA<->composite), then change
-	 * modes (i.e. switching to another VT).  If that happens we should
+	 * modes (i.e. switching to ayesther VT).  If that happens we should
 	 * automagically change the output format to cope, but currently I
 	 * don't have a VGA box to make sure this works properly.
 	 */
@@ -668,7 +668,7 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 
 	/* Half-assed contig check */
 	if (start + len == end) {
-		/* As we do this in one shot, it's either all or nothing.. */
+		/* As we do this in one shot, it's either all or yesthing.. */
 		if ((*ppos + len) > fb_info->fix.smem_len) {
 			ret = -ENOSPC;
 			goto out_unmap;
@@ -760,9 +760,9 @@ static char *pvr2_get_param_name(const struct pvr2_params *p, int val,
  * default from the modedb. For board-specific modelines, simply define
  * a per-board modedb.
  *
- * Also worth noting is that the cable and video output types are likely
+ * Also worth yesting is that the cable and video output types are likely
  * always going to be VGA for the PCI-based PVR2 boards, but we leave this
- * in for flexibility anyways. Who knows, maybe someone has tv-out on a
+ * in for flexibility anyways. Who kyesws, maybe someone has tv-out on a
  * PCI-based version of these things ;-)
  */
 static int __maybe_unused pvr2fb_common_init(void)
@@ -770,7 +770,7 @@ static int __maybe_unused pvr2fb_common_init(void)
 	struct pvr2fb_par *par = currentpar;
 	unsigned long modememused, rev;
 
-	fb_info->screen_base = ioremap_nocache(pvr2_fix.smem_start,
+	fb_info->screen_base = ioremap_yescache(pvr2_fix.smem_start,
 					       pvr2_fix.smem_len);
 
 	if (!fb_info->screen_base) {
@@ -778,7 +778,7 @@ static int __maybe_unused pvr2fb_common_init(void)
 		goto out_err;
 	}
 
-	par->mmio_base = ioremap_nocache(pvr2_fix.mmio_start,
+	par->mmio_base = ioremap_yescache(pvr2_fix.mmio_start,
 					 pvr2_fix.mmio_len);
 	if (!par->mmio_base) {
 		printk(KERN_ERR "pvr2fb: Failed to remap mmio space\n");
@@ -787,8 +787,8 @@ static int __maybe_unused pvr2fb_common_init(void)
 
 	fb_memset(fb_info->screen_base, 0, pvr2_fix.smem_len);
 
-	pvr2_fix.ypanstep	= nopan  ? 0 : 1;
-	pvr2_fix.ywrapstep	= nowrap ? 0 : 1;
+	pvr2_fix.ypanstep	= yespan  ? 0 : 1;
+	pvr2_fix.ywrapstep	= yeswrap ? 0 : 1;
 
 	fb_info->fbops		= &pvr2fb_ops;
 	fb_info->fix		= pvr2_fix;
@@ -831,12 +831,12 @@ static int __maybe_unused pvr2fb_common_init(void)
 		pvr2_get_param_name(outputs, video_output, 3));
 
 #ifdef CONFIG_SH_STORE_QUEUES
-	fb_notice(fb_info, "registering with SQ API\n");
+	fb_yestice(fb_info, "registering with SQ API\n");
 
 	pvr2fb_map = sq_remap(fb_info->fix.smem_start, fb_info->fix.smem_len,
 			      fb_info->fix.id, PAGE_SHARED);
 
-	fb_notice(fb_info, "Mapped video memory to SQ addr 0x%lx\n",
+	fb_yestice(fb_info, "Mapped video memory to SQ addr 0x%lx\n",
 		  pvr2fb_map);
 #endif
 
@@ -1025,10 +1025,10 @@ static int __init pvr2fb_setup(char *options)
 			strcpy(cable_arg, this_opt + 6);
 		} else if (!strncmp(this_opt, "output:", 7)) {
 			strcpy(output_arg, this_opt + 7);
-		} else if (!strncmp(this_opt, "nopan", 5)) {
-			nopan = 1;
-		} else if (!strncmp(this_opt, "nowrap", 6)) {
-			nowrap = 1;
+		} else if (!strncmp(this_opt, "yespan", 5)) {
+			yespan = 1;
+		} else if (!strncmp(this_opt, "yeswrap", 6)) {
+			yeswrap = 1;
 		} else {
 			mode_option = this_opt;
 		}

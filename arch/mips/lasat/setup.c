@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999 MIPS Techyeslogies, Inc.  All rights reserved.
  *
  * Thomas Horsten <thh@lasat.com>
  * Copyright (C) 2000 LASAT Networks A/S.
@@ -24,7 +24,7 @@
 #include <asm/lasat/serial.h>
 
 #ifdef CONFIG_PICVUE
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #endif
 
 #include "ds1603.h"
@@ -75,7 +75,7 @@ static struct pvc_defs pvc_defs[N_MACHTYPES] = {
 };
 #endif
 
-static int lasat_panic_display(struct notifier_block *this,
+static int lasat_panic_display(struct yestifier_block *this,
 			     unsigned long event, void *ptr)
 {
 #ifdef CONFIG_PICVUE
@@ -87,20 +87,20 @@ static int lasat_panic_display(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static int lasat_panic_prom_monitor(struct notifier_block *this,
+static int lasat_panic_prom_monitor(struct yestifier_block *this,
 			     unsigned long event, void *ptr)
 {
 	prom_monitor();
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block lasat_panic_block[] =
+static struct yestifier_block lasat_panic_block[] =
 {
 	{
-		.notifier_call	= lasat_panic_display,
+		.yestifier_call	= lasat_panic_display,
 		.priority	= INT_MAX
 	}, {
-		.notifier_call	= lasat_panic_prom_monitor,
+		.yestifier_call	= lasat_panic_prom_monitor,
 		.priority	= INT_MIN
 	}
 };
@@ -122,9 +122,9 @@ void __init plat_mem_setup(void)
 	picvue = &pvc_defs[lasat_type];
 #endif
 
-	/* Set up panic notifier */
+	/* Set up panic yestifier */
 	for (i = 0; i < ARRAY_SIZE(lasat_panic_block); i++)
-		atomic_notifier_chain_register(&panic_notifier_list,
+		atomic_yestifier_chain_register(&panic_yestifier_list,
 				&lasat_panic_block[i]);
 
 	lasat_reboot_setup();

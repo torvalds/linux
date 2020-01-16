@@ -5,7 +5,7 @@
  * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
- * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Copyright 2004-2006 Jean-Baptiste Note <jbyeste@gmail.com>, et al.
  */
 #ifndef WFX_H
 #define WFX_H
@@ -13,7 +13,7 @@
 #include <linux/completion.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <net/mac80211.h>
 
 #include "bh.h"
@@ -136,12 +136,12 @@ struct wfx_vif {
 static inline struct wfx_vif *wdev_to_wvif(struct wfx_dev *wdev, int vif_id)
 {
 	if (vif_id >= ARRAY_SIZE(wdev->vif)) {
-		dev_dbg(wdev->dev, "requesting non-existent vif: %d\n", vif_id);
+		dev_dbg(wdev->dev, "requesting yesn-existent vif: %d\n", vif_id);
 		return NULL;
 	}
-	vif_id = array_index_nospec(vif_id, ARRAY_SIZE(wdev->vif));
+	vif_id = array_index_yesspec(vif_id, ARRAY_SIZE(wdev->vif));
 	if (!wdev->vif[vif_id]) {
-		dev_dbg(wdev->dev, "requesting non-allocated vif: %d\n",
+		dev_dbg(wdev->dev, "requesting yesn-allocated vif: %d\n",
 			vif_id);
 		return NULL;
 	}

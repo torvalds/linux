@@ -293,7 +293,7 @@ lpfc_nvmet_defer_release(struct lpfc_hba *phba, struct lpfc_nvmet_rcv_ctx *ctxp)
  * @cmdwqe: Pointer to driver command WQE object.
  * @wcqe: Pointer to driver response CQE object.
  *
- * The function is called from SLI ring event handler with no
+ * The function is called from SLI ring event handler with yes
  * lock held. This function is the completion handler for NVME LS commands
  * The function frees memory resources used for the NVME commands.
  **/
@@ -387,7 +387,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 	if (ctxp->rqb_buffer) {
 		spin_lock_irqsave(&ctxp->ctxlock, iflag);
 		nvmebuf = ctxp->rqb_buffer;
-		/* check if freed in another path whilst acquiring lock */
+		/* check if freed in ayesther path whilst acquiring lock */
 		if (nvmebuf) {
 			ctxp->rqb_buffer = NULL;
 			if (ctxp->flag & LPFC_NVMET_CTX_REUSE_WQ) {
@@ -694,7 +694,7 @@ out:
  * @cmdwqe: Pointer to driver command WQE object.
  * @wcqe: Pointer to driver response CQE object.
  *
- * The function is called from SLI ring event handler with no
+ * The function is called from SLI ring event handler with yes
  * lock held. This function is the completion handler for NVME FCP commands
  * The function frees memory resources used for the NVME commands.
  **/
@@ -950,7 +950,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 			ctxp->ts_nvme_data = ktime_get_ns();
 	}
 
-	/* Setup the hdw queue if not already set */
+	/* Setup the hdw queue if yest already set */
 	if (!ctxp->hdwq)
 		ctxp->hdwq = &phba->sli4_hba.hdwq[rsp->hwqid];
 
@@ -1103,7 +1103,7 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 
 	/* An state of LPFC_NVMET_STE_RCV means we have just received
-	 * the NVME command and have not started processing it.
+	 * the NVME command and have yest started processing it.
 	 * (by issuing any IO WQEs on this exchange yet)
 	 */
 	if (ctxp->state == LPFC_NVMET_STE_RCV)
@@ -1174,7 +1174,7 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 
 	if (!nvmebuf) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
-				"6425 Defer rcv: no buffer oxid x%x: "
+				"6425 Defer rcv: yes buffer oxid x%x: "
 				"flg %x ste %x\n",
 				ctxp->oxid, ctxp->flag, ctxp->state);
 		return;
@@ -1453,7 +1453,7 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 		return error;
 
 	memset(&pinfo, 0, sizeof(struct nvmet_fc_port_info));
-	pinfo.node_name = wwn_to_u64(vport->fc_nodename.u.wwn);
+	pinfo.yesde_name = wwn_to_u64(vport->fc_yesdename.u.wwn);
 	pinfo.port_name = wwn_to_u64(vport->fc_portname.u.wwn);
 	pinfo.port_id = vport->fc_myDID;
 
@@ -1474,10 +1474,10 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 #endif
 	if (error) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC,
-				"6025 Cannot register NVME targetport x%x: "
-				"portnm %llx nodenm %llx segs %d qs %d\n",
+				"6025 Canyest register NVME targetport x%x: "
+				"portnm %llx yesdenm %llx segs %d qs %d\n",
 				error,
-				pinfo.port_name, pinfo.node_name,
+				pinfo.port_name, pinfo.yesde_name,
 				lpfc_tgttemplate.max_sgl_segments,
 				lpfc_tgttemplate.max_hw_queues);
 		phba->targetport = NULL;
@@ -1493,9 +1493,9 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
 				"6026 Registered NVME "
 				"targetport: x%px, private x%px "
-				"portnm %llx nodenm %llx segs %d qs %d\n",
+				"portnm %llx yesdenm %llx segs %d qs %d\n",
 				phba->targetport, tgtp,
-				pinfo.port_name, pinfo.node_name,
+				pinfo.port_name, pinfo.yesde_name,
 				lpfc_tgttemplate.max_sgl_segments,
 				lpfc_tgttemplate.max_hw_queues);
 
@@ -1572,7 +1572,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvmefc_tgt_fcp_req *req = NULL;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	unsigned long iflag = 0;
 	int rrq_empty = 0;
 	bool released = false;
@@ -1611,7 +1611,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 
 		rrq_empty = list_empty(&phba->active_rrq_list);
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
-		ndlp = lpfc_findnode_did(phba->pport, ctxp->sid);
+		ndlp = lpfc_findyesde_did(phba->pport, ctxp->sid);
 		if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
 		    (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE ||
 		     ndlp->nlp_state == NLP_STE_MAPPED_NODE)) {
@@ -1934,7 +1934,7 @@ lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
  *
  * This routine is used for processing the WQE associated with a unsolicited
  * event. It first determines whether there is an existing ndlp that matches
- * the DID from the unsolicited WQE. If not, it will create a new one with
+ * the DID from the unsolicited WQE. If yest, it will create a new one with
  * the DID from the unsolicited WQE. The ELS command from the unsolicited
  * WQE is then used to invoke the proper routine and to set up proper state
  * of the discovery state machine.
@@ -2038,7 +2038,7 @@ lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf)
 	struct lpfc_hba *phba = ctxp->phba;
 	struct rqb_dmabuf *nvmebuf = ctxp->rqb_buffer;
 	struct lpfc_nvmet_tgtport *tgtp;
-	uint32_t *payload, qno;
+	uint32_t *payload, qyes;
 	uint32_t rc;
 	unsigned long iflags;
 
@@ -2112,10 +2112,10 @@ lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf)
 		 * Post a replacement DMA buffer to RQ and defer
 		 * freeing rcv buffer till .defer_rcv callback
 		 */
-		qno = nvmebuf->idx;
+		qyes = nvmebuf->idx;
 		lpfc_post_rq_buffer(
-			phba, phba->sli4_hba.nvmet_mrq_hdr[qno],
-			phba->sli4_hba.nvmet_mrq_data[qno], 1, qno);
+			phba, phba->sli4_hba.nvmet_mrq_hdr[qyes],
+			phba->sli4_hba.nvmet_mrq_data[qyes], 1, qyes);
 		return;
 	}
 	ctxp->flag &= ~LPFC_NVMET_TNOTIFY;
@@ -2158,7 +2158,7 @@ lpfc_nvmet_replenish_context(struct lpfc_hba *phba,
 	/*
 	 * The current_infop for the MRQ a NVME command IU was received
 	 * on is empty. Our goal is to replenish this MRQs context
-	 * list from a another CPUs.
+	 * list from a ayesther CPUs.
 	 *
 	 * First we need to pick a context list to start looking on.
 	 * nvmet_ctx_start_cpu has available context the last time
@@ -2213,7 +2213,7 @@ lpfc_nvmet_replenish_context(struct lpfc_hba *phba,
  *
  * This routine is used for processing the WQE associated with a unsolicited
  * event. It first determines whether there is an existing ndlp that matches
- * the DID from the unsolicited WQE. If not, it will create a new one with
+ * the DID from the unsolicited WQE. If yest, it will create a new one with
  * the DID from the unsolicited WQE. The ELS command from the unsolicited
  * WQE is then used to invoke the proper routine and to set up proper state
  * of the discovery state machine.
@@ -2230,7 +2230,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	struct fc_frame_header *fc_hdr;
 	struct lpfc_nvmet_ctxbuf *ctx_buf;
 	struct lpfc_nvmet_ctx_info *current_infop;
-	uint32_t size, oxid, sid, qno;
+	uint32_t size, oxid, sid, qyes;
 	unsigned long iflag;
 	int current_cpu;
 
@@ -2251,7 +2251,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	 * the CPU this MRQ IRQ is associated with. If the CPU association
 	 * changes from our initial assumption, the context list could
 	 * be empty, thus it would need to be replenished with the
-	 * context list from another CPU for this MRQ.
+	 * context list from ayesther CPU for this MRQ.
 	 */
 	current_cpu = raw_smp_processor_id();
 	current_infop = lpfc_get_ctx_list(phba, current_cpu, idx);
@@ -2298,10 +2298,10 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 				       iflag);
 
 		/* Post a brand new DMA buffer to RQ */
-		qno = nvmebuf->idx;
+		qyes = nvmebuf->idx;
 		lpfc_post_rq_buffer(
-			phba, phba->sli4_hba.nvmet_mrq_hdr[qno],
-			phba->sli4_hba.nvmet_mrq_data[qno], 1, qno);
+			phba, phba->sli4_hba.nvmet_mrq_hdr[qyes],
+			phba->sli4_hba.nvmet_mrq_data[qyes], 1, qyes);
 
 		atomic_inc(&tgtp->defer_ctx);
 		return;
@@ -2468,7 +2468,7 @@ lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *phba,
 		       struct lpfc_nvmet_rcv_ctx *ctxp,
 		       dma_addr_t rspbuf, uint16_t rspsize)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	struct lpfc_iocbq *nvmewqe;
 	union lpfc_wqe128 *wqe;
 
@@ -2490,7 +2490,7 @@ lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *phba,
 		return NULL;
 	}
 
-	ndlp = lpfc_findnode_did(phba->pport, ctxp->sid);
+	ndlp = lpfc_findyesde_did(phba->pport, ctxp->sid);
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
 	    ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
 	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE))) {
@@ -2592,7 +2592,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 	struct nvmefc_tgt_fcp_req *rsp = &ctxp->ctx.fcp_req;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct sli4_sge *sgl;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	struct lpfc_iocbq *nvmewqe;
 	struct scatterlist *sgel;
 	union lpfc_wqe128 *wqe;
@@ -2610,12 +2610,12 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		return NULL;
 	}
 
-	ndlp = lpfc_findnode_did(phba->pport, ctxp->sid);
+	ndlp = lpfc_findyesde_did(phba->pport, ctxp->sid);
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
 	    ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
 	     (ndlp->nlp_state != NLP_STE_MAPPED_NODE))) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"6108 NVMET prep FCP wqe: no ndlp: "
+				"6108 NVMET prep FCP wqe: yes ndlp: "
 				"NPORT x%x oxid x%x ste %d\n",
 				ctxp->sid, ctxp->oxid, ctxp->state);
 		return NULL;
@@ -2875,7 +2875,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 
 	default:
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
-				"6064 Unknown Rsp Op %d\n",
+				"6064 Unkyeswn Rsp Op %d\n",
 				rsp->op);
 		return NULL;
 	}
@@ -2925,7 +2925,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
  * @cmdwqe: Pointer to driver command WQE object.
  * @wcqe: Pointer to driver response CQE object.
  *
- * The function is called from SLI ring event handler with no
+ * The function is called from SLI ring event handler with yes
  * lock held. This function is the completion handler for NVME ABTS for FCP cmds
  * The function frees memory resources used for the NVME commands.
  **/
@@ -2979,10 +2979,10 @@ lpfc_nvmet_sol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	if (released)
 		lpfc_nvmet_ctxbuf_post(phba, ctxp->ctxbuf);
 
-	/* This is the iocbq for the abort, not the command */
+	/* This is the iocbq for the abort, yest the command */
 	lpfc_sli_release_iocbq(phba, cmdwqe);
 
-	/* Since iaab/iaar are NOT set, there is no work left.
+	/* Since iaab/iaar are NOT set, there is yes work left.
 	 * For LPFC_NVMET_XBUSY, lpfc_sli4_nvmet_xri_aborted
 	 * should have been called already.
 	 */
@@ -2994,7 +2994,7 @@ lpfc_nvmet_sol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
  * @cmdwqe: Pointer to driver command WQE object.
  * @wcqe: Pointer to driver response CQE object.
  *
- * The function is called from SLI ring event handler with no
+ * The function is called from SLI ring event handler with yes
  * lock held. This function is the completion handler for NVME ABTS for FCP cmds
  * The function frees memory resources used for the NVME commands.
  **/
@@ -3063,7 +3063,7 @@ lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	if (released)
 		lpfc_nvmet_ctxbuf_post(phba, ctxp->ctxbuf);
 
-	/* Since iaab/iaar are NOT set, there is no work left.
+	/* Since iaab/iaar are NOT set, there is yes work left.
 	 * For LPFC_NVMET_XBUSY, lpfc_sli4_nvmet_xri_aborted
 	 * should have been called already.
 	 */
@@ -3075,7 +3075,7 @@ lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
  * @cmdwqe: Pointer to driver command WQE object.
  * @wcqe: Pointer to driver response CQE object.
  *
- * The function is called from SLI ring event handler with no
+ * The function is called from SLI ring event handler with yes
  * lock held. This function is the completion handler for NVME ABTS for LS cmds
  * The function frees memory resources used for the NVME commands.
  **/
@@ -3130,7 +3130,7 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_iocbq *abts_wqeq;
 	union lpfc_wqe128 *wqe_abts;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 			"6067 ABTS: sid %x xri x%x/x%x\n",
@@ -3138,7 +3138,7 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 
-	ndlp = lpfc_findnode_did(phba->pport, sid);
+	ndlp = lpfc_findyesde_did(phba->pport, sid);
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
 	    ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
 	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE))) {
@@ -3224,7 +3224,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 {
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_iocbq *abts_wqeq;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	unsigned long flags;
 	u8 opt;
 	int rc;
@@ -3235,7 +3235,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 		ctxp->wqeq->hba_wqidx = 0;
 	}
 
-	ndlp = lpfc_findnode_did(phba->pport, sid);
+	ndlp = lpfc_findyesde_did(phba->pport, sid);
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
 	    ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
 	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE))) {
@@ -3269,7 +3269,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	opt = (ctxp->flag & LPFC_NVMET_ABTS_RCV) ? INHIBIT_ABORT : 0;
 	spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 
-	/* Announce entry to new IO submit field. */
+	/* Anyesunce entry to new IO submit field. */
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 			"6162 ABORT Request to rport DID x%06x "
 			"for xri x%x x%x\n",
@@ -3285,7 +3285,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
 				"6163 Driver in reset cleanup - flushing "
-				"NVME Req now. hba_flag x%x oxid x%x\n",
+				"NVME Req yesw. hba_flag x%x oxid x%x\n",
 				phba->hba_flag, ctxp->oxid);
 		lpfc_sli_release_iocbq(phba, abts_wqeq);
 		spin_lock_irqsave(&ctxp->ctxlock, flags);

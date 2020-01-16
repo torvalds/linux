@@ -3,8 +3,8 @@
  *  linux/net/sunrpc/clnt.c
  *
  *  This file contains the high-level RPC interface.
- *  It is modeled as a finite state machine to support both synchronous
- *  and asynchronous requests.
+ *  It is modeled as a finite state machine to support both synchroyesus
+ *  and asynchroyesus requests.
  *
  *  -	RPC header generation and argument serialization.
  *  -	Credential refresh.
@@ -198,7 +198,7 @@ static int __rpc_clnt_handle_event(struct rpc_clnt *clnt, unsigned long event,
 		__rpc_clnt_remove_pipedir(clnt);
 		break;
 	default:
-		printk(KERN_ERR "%s: unknown event: %ld\n", __func__, event);
+		printk(KERN_ERR "%s: unkyeswn event: %ld\n", __func__, event);
 		return -ENOTSUPP;
 	}
 	return 0;
@@ -234,7 +234,7 @@ static struct rpc_clnt *rpc_get_client_for_event(struct net *net, int event)
 	return NULL;
 }
 
-static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
+static int rpc_pipefs_event(struct yestifier_block *nb, unsigned long event,
 			    void *ptr)
 {
 	struct super_block *sb = ptr;
@@ -249,19 +249,19 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 	return error;
 }
 
-static struct notifier_block rpc_clients_block = {
-	.notifier_call	= rpc_pipefs_event,
+static struct yestifier_block rpc_clients_block = {
+	.yestifier_call	= rpc_pipefs_event,
 	.priority	= SUNRPC_PIPEFS_RPC_PRIO,
 };
 
-int rpc_clients_notifier_register(void)
+int rpc_clients_yestifier_register(void)
 {
-	return rpc_pipefs_notifier_register(&rpc_clients_block);
+	return rpc_pipefs_yestifier_register(&rpc_clients_block);
 }
 
-void rpc_clients_notifier_unregister(void)
+void rpc_clients_yestifier_unregister(void)
 {
-	return rpc_pipefs_notifier_unregister(&rpc_clients_block);
+	return rpc_pipefs_yestifier_unregister(&rpc_clients_block);
 }
 
 static struct rpc_xprt *rpc_clnt_set_transport(struct rpc_clnt *clnt,
@@ -284,10 +284,10 @@ static struct rpc_xprt *rpc_clnt_set_transport(struct rpc_clnt *clnt,
 	return old;
 }
 
-static void rpc_clnt_set_nodename(struct rpc_clnt *clnt, const char *nodename)
+static void rpc_clnt_set_yesdename(struct rpc_clnt *clnt, const char *yesdename)
 {
-	clnt->cl_nodelen = strlcpy(clnt->cl_nodename,
-			nodename, sizeof(clnt->cl_nodename));
+	clnt->cl_yesdelen = strlcpy(clnt->cl_yesdename,
+			yesdename, sizeof(clnt->cl_yesdename));
 }
 
 static int rpc_client_register(struct rpc_clnt *clnt,
@@ -367,7 +367,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 	const struct rpc_version *version;
 	struct rpc_clnt *clnt = NULL;
 	const struct rpc_timeout *timeout;
-	const char *nodename = args->nodename;
+	const char *yesdename = args->yesdename;
 	int err;
 
 	/* sanity check the name before trying to print it */
@@ -376,7 +376,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 
 	err = rpciod_up();
 	if (err)
-		goto out_no_rpciod;
+		goto out_yes_rpciod;
 
 	err = -EINVAL;
 	if (args->version >= program->nrvers)
@@ -393,7 +393,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 
 	err = rpc_alloc_clid(clnt);
 	if (err)
-		goto out_no_clid;
+		goto out_yes_clid;
 
 	clnt->cl_cred	  = get_cred(args->cred);
 	clnt->cl_procinfo = version->procs;
@@ -405,7 +405,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 	rpc_init_pipe_dir_head(&clnt->cl_pipedir_objects);
 	err = -ENOMEM;
 	if (clnt->cl_metrics == NULL)
-		goto out_no_stats;
+		goto out_yes_stats;
 	clnt->cl_program  = program;
 	INIT_LIST_HEAD(&clnt->cl_tasks);
 	spin_lock_init(&clnt->cl_lock);
@@ -426,28 +426,28 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 
 	atomic_set(&clnt->cl_count, 1);
 
-	if (nodename == NULL)
-		nodename = utsname()->nodename;
-	/* save the nodename */
-	rpc_clnt_set_nodename(clnt, nodename);
+	if (yesdename == NULL)
+		yesdename = utsname()->yesdename;
+	/* save the yesdename */
+	rpc_clnt_set_yesdename(clnt, yesdename);
 
 	err = rpc_client_register(clnt, args->authflavor, args->client_name);
 	if (err)
-		goto out_no_path;
+		goto out_yes_path;
 	if (parent)
 		atomic_inc(&parent->cl_count);
 	return clnt;
 
-out_no_path:
+out_yes_path:
 	rpc_free_iostats(clnt->cl_metrics);
-out_no_stats:
+out_yes_stats:
 	put_cred(clnt->cl_cred);
 	rpc_free_clid(clnt);
-out_no_clid:
+out_yes_clid:
 	kfree(clnt);
 out_err:
 	rpciod_down();
-out_no_rpciod:
+out_yes_rpciod:
 	xprt_switch_put(xps);
 	xprt_put(xprt);
 	return ERR_PTR(err);
@@ -496,7 +496,7 @@ static struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 	if (args->flags & RPC_CLNT_CREATE_AUTOBIND)
 		clnt->cl_autobind = 1;
 	if (args->flags & RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT)
-		clnt->cl_noretranstimeo = 1;
+		clnt->cl_yesretranstimeo = 1;
 	if (args->flags & RPC_CLNT_CREATE_DISCRTRY)
 		clnt->cl_discrtry = 1;
 	if (!(args->flags & RPC_CLNT_CREATE_QUIET))
@@ -513,7 +513,7 @@ static struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
  *
  * It can ping the server in order to determine if it is up, and to see if
  * it supports this program and version.  RPC_CLNT_CREATE_NOPING disables
- * this behavior so asynchronous tasks can also use rpc_create.
+ * this behavior so asynchroyesus tasks can also use rpc_create.
  */
 struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 {
@@ -545,7 +545,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	if (args->flags & RPC_CLNT_CREATE_NO_IDLE_TIMEOUT)
 		xprtargs.flags |= XPRT_CREATE_NO_IDLE_TIMEOUT;
 	/*
-	 * If the caller chooses not to specify a hostname, whip
+	 * If the caller chooses yest to specify a hostname, whip
 	 * up a string representation of the passed-in address.
 	 */
 	if (xprtargs.servername == NULL) {
@@ -584,7 +584,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 
 	/*
 	 * By default, kernel RPC client connects from a reserved port.
-	 * CAP_NET_BIND_SERVICE will not be set for unprivileged requesters,
+	 * CAP_NET_BIND_SERVICE will yest be set for unprivileged requesters,
 	 * but it is always enabled for rpciod, which handles the connect
 	 * operation.
 	 */
@@ -631,7 +631,7 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 		goto out_err;
 	}
 	args->servername = xprt->servername;
-	args->nodename = clnt->cl_nodename;
+	args->yesdename = clnt->cl_yesdename;
 
 	new = rpc_new_client(args, xps, xprt, clnt);
 	if (IS_ERR(new)) {
@@ -643,7 +643,7 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	new->cl_autobind = 0;
 	new->cl_softrtry = clnt->cl_softrtry;
 	new->cl_softerr = clnt->cl_softerr;
-	new->cl_noretranstimeo = clnt->cl_noretranstimeo;
+	new->cl_yesretranstimeo = clnt->cl_yesretranstimeo;
 	new->cl_discrtry = clnt->cl_discrtry;
 	new->cl_chatty = clnt->cl_chatty;
 	new->cl_principal = clnt->cl_principal;
@@ -705,10 +705,10 @@ EXPORT_SYMBOL_GPL(rpc_clone_client_set_auth);
  * This function allows the caller to switch the RPC transport for the
  * rpc_clnt structure 'clnt' to allow it to connect to a mirrored NFS
  * server, for instance.  It assumes that the caller has ensured that
- * there are no active RPC tasks by using some form of locking.
+ * there are yes active RPC tasks by using some form of locking.
  *
- * Returns zero if "clnt" is now using the new xprt.  Otherwise a
- * negative errno is returned, and "clnt" continues to use the old
+ * Returns zero if "clnt" is yesw using the new xprt.  Otherwise a
+ * negative erryes is returned, and "clnt" continues to use the old
  * xprt.
  */
 int rpc_switch_client_transport(struct rpc_clnt *clnt,
@@ -754,7 +754,7 @@ int rpc_switch_client_transport(struct rpc_clnt *clnt,
 	clnt->cl_parent = clnt;
 
 	/*
-	 * The old rpc_auth cache cannot be re-used.  GSS
+	 * The old rpc_auth cache canyest be re-used.  GSS
 	 * contexts in particular are between a single
 	 * client and server.
 	 */
@@ -1081,7 +1081,7 @@ void rpc_task_set_client(struct rpc_task *task, struct rpc_clnt *clnt)
 			task->tk_flags |= RPC_TASK_SOFT;
 		if (clnt->cl_softerr)
 			task->tk_flags |= RPC_TASK_TIMEOUT;
-		if (clnt->cl_noretranstimeo)
+		if (clnt->cl_yesretranstimeo)
 			task->tk_flags |= RPC_TASK_NO_RETRANS_TIMEOUT;
 		if (atomic_read(&clnt->cl_swapper))
 			task->tk_flags |= RPC_TASK_SWAPPER;
@@ -1139,7 +1139,7 @@ struct rpc_task *rpc_run_task(const struct rpc_task_setup *task_setup_data)
 EXPORT_SYMBOL_GPL(rpc_run_task);
 
 /**
- * rpc_call_sync - Perform a synchronous RPC call
+ * rpc_call_sync - Perform a synchroyesus RPC call
  * @clnt: pointer to RPC client
  * @msg: RPC call parameters
  * @flags: RPC call flags
@@ -1172,7 +1172,7 @@ int rpc_call_sync(struct rpc_clnt *clnt, const struct rpc_message *msg, int flag
 EXPORT_SYMBOL_GPL(rpc_call_sync);
 
 /**
- * rpc_call_async - Perform an asynchronous RPC call
+ * rpc_call_async - Perform an asynchroyesus RPC call
  * @clnt: pointer to RPC client
  * @msg: RPC call parameters
  * @flags: RPC call flags
@@ -1329,7 +1329,7 @@ static const struct sockaddr_in6 rpc_in6addr_loopback = {
  * This conserves the ephemeral port number space.
  *
  * Returns zero and fills in "buf" if successful; otherwise, a
- * negative errno is returned.
+ * negative erryes is returned.
  */
 static int rpc_sockname(struct net *net, struct sockaddr *sap, size_t salen,
 			struct sockaddr *buf)
@@ -1395,7 +1395,7 @@ out:
  * the server from calling us back.
  *
  * Returns zero and fills in "buf" if successful; otherwise, a
- * negative errno is returned.
+ * negative erryes is returned.
  */
 static int rpc_anyaddr(int family, struct sockaddr *buf, size_t buflen)
 {
@@ -1413,7 +1413,7 @@ static int rpc_anyaddr(int family, struct sockaddr *buf, size_t buflen)
 				sizeof(rpc_in6addr_loopback));
 		break;
 	default:
-		dprintk("RPC:       %s: address family not supported\n",
+		dprintk("RPC:       %s: address family yest supported\n",
 			__func__);
 		return -EAFNOSUPPORT;
 	}
@@ -1428,9 +1428,9 @@ static int rpc_anyaddr(int family, struct sockaddr *buf, size_t buflen)
  * @buflen: size of target buffer, in bytes
  *
  * Returns zero and fills in "buf" and "buflen" if successful;
- * otherwise, a negative errno is returned.
+ * otherwise, a negative erryes is returned.
  *
- * This works even if the underlying transport is not currently connected,
+ * This works even if the underlying transport is yest currently connected,
  * or if the upper layer never previously provided a source address.
  *
  * The result of this function call is transient: multiple calls in
@@ -1601,7 +1601,7 @@ const char
 		else
 			return "NULL";
 	} else
-		return "no proc";
+		return "yes proc";
 }
 
 static void
@@ -1635,7 +1635,7 @@ call_start(struct rpc_task *task)
 			rpc_proc_name(task),
 			(RPC_IS_ASYNC(task) ? "async" : "sync"));
 
-	/* Increment call count (version might not be valid for ping) */
+	/* Increment call count (version might yest be valid for ping) */
 	if (clnt->cl_program->version[clnt->cl_vers])
 		clnt->cl_program->version[clnt->cl_vers]->counts[idx]++;
 	clnt->cl_stats->rpccnt++;
@@ -1685,7 +1685,7 @@ call_reserveresult(struct rpc_task *task)
 
 	/*
 	 * Even though there was an error, we may have acquired
-	 * a request slot somehow.  Make sure not to leak it.
+	 * a request slot somehow.  Make sure yest to leak it.
 	 */
 	if (task->tk_rqstp)
 		xprt_release(task);
@@ -1806,7 +1806,7 @@ call_allocate(struct rpc_task *task)
 			   proc->p_arglen;
 	req->rq_callsize <<= 2;
 	/*
-	 * Note: the reply buffer must at minimum allocate enough space
+	 * Note: the reply buffer must at minimum allocate eyesugh space
 	 * for the 'struct accepted_reply' from RFC5531.
 	 */
 	req->rq_rcvsize = RPC_REPHDRSIZE + auth->au_rslack + \
@@ -1881,7 +1881,7 @@ call_encode(struct rpc_task *task)
 	rpc_xdr_encode(task);
 	/* Did the encode result in an error condition? */
 	if (task->tk_status != 0) {
-		/* Was the error nonfatal? */
+		/* Was the error yesnfatal? */
 		switch (task->tk_status) {
 		case -EAGAIN:
 		case -ENOMEM:
@@ -1934,7 +1934,7 @@ rpc_task_handle_transmitted(struct rpc_task *task)
 }
 
 /*
- * 4.	Get the server port number if not yet set
+ * 4.	Get the server port number if yest yet set
  */
 static void
 call_bind(struct rpc_task *task)
@@ -2011,7 +2011,7 @@ call_bind_status(struct rpc_task *task)
 				task->tk_pid);
 		goto retry_timeout;
 	case -EPFNOSUPPORT:
-		/* server doesn't support any rpcbind version we know of */
+		/* server doesn't support any rpcbind version we kyesw of */
 		dprintk("RPC: %5u unrecognized remote rpcbind service\n",
 				task->tk_pid);
 		break;
@@ -2072,7 +2072,7 @@ call_connect(struct rpc_task *task)
 
 	dprintk("RPC: %5u call_connect xprt %p %s connected\n",
 			task->tk_pid, xprt,
-			(xprt_connected(xprt) ? "is" : "is not"));
+			(xprt_connected(xprt) ? "is" : "is yest"));
 
 	task->tk_action = call_connect_status;
 	if (task->tk_status < 0)
@@ -2314,10 +2314,10 @@ call_bc_transmit_status(struct rpc_task *task)
 		 * Problem reaching the server.  Disconnect and let the
 		 * forechannel reestablish the connection.  The server will
 		 * have to retransmit the backchannel request and we'll
-		 * reprocess it.  Since these ops are idempotent, there's no
+		 * reprocess it.  Since these ops are idempotent, there's yes
 		 * need to cache our reply at this time.
 		 */
-		printk(KERN_NOTICE "RPC: Could not send backchannel reply "
+		printk(KERN_NOTICE "RPC: Could yest send backchannel reply "
 			"error: %d\n", task->tk_status);
 		xprt_conditional_disconnect(req->rq_xprt,
 			req->rq_connect_cookie);
@@ -2327,7 +2327,7 @@ call_bc_transmit_status(struct rpc_task *task)
 		 * We were unable to reply and will have to drop the
 		 * request.  The server should reconnect and retransmit.
 		 */
-		printk(KERN_NOTICE "RPC: Could not send backchannel reply "
+		printk(KERN_NOTICE "RPC: Could yest send backchannel reply "
 			"error: %d\n", task->tk_status);
 		break;
 	}
@@ -2428,7 +2428,7 @@ rpc_check_timeout(struct rpc_task *task)
 
 	if (RPC_IS_SOFT(task)) {
 		/*
-		 * Once a "no retrans timeout" soft tasks (a.k.a NFSv4) has
+		 * Once a "yes retrans timeout" soft tasks (a.k.a NFSv4) has
 		 * been sent, it should time out only if the transport
 		 * connection gets terminally broken.
 		 */
@@ -2437,8 +2437,8 @@ rpc_check_timeout(struct rpc_task *task)
 			return;
 
 		if (clnt->cl_chatty) {
-			pr_notice_ratelimited(
-				"%s: server %s not responding, timed out\n",
+			pr_yestice_ratelimited(
+				"%s: server %s yest responding, timed out\n",
 				clnt->cl_program->name,
 				task->tk_xprt->servername);
 		}
@@ -2452,8 +2452,8 @@ rpc_check_timeout(struct rpc_task *task)
 	if (!(task->tk_flags & RPC_CALL_MAJORSEEN)) {
 		task->tk_flags |= RPC_CALL_MAJORSEEN;
 		if (clnt->cl_chatty) {
-			pr_notice_ratelimited(
-				"%s: server %s not responding, still trying\n",
+			pr_yestice_ratelimited(
+				"%s: server %s yest responding, still trying\n",
 				clnt->cl_program->name,
 				task->tk_xprt->servername);
 		}
@@ -2486,7 +2486,7 @@ call_decode(struct rpc_task *task)
 
 	if (task->tk_flags & RPC_CALL_MAJORSEEN) {
 		if (clnt->cl_chatty) {
-			pr_notice_ratelimited("%s: server %s OK\n",
+			pr_yestice_ratelimited("%s: server %s OK\n",
 				clnt->cl_program->name,
 				task->tk_xprt->servername);
 		}
@@ -2500,7 +2500,7 @@ call_decode(struct rpc_task *task)
 	smp_rmb();
 
 	/*
-	 * Did we ever call xprt_complete_rqst()? If not, we should assume
+	 * Did we ever call xprt_complete_rqst()? If yest, we should assume
 	 * the message is incomplete.
 	 */
 	err = -EAGAIN;
@@ -2570,7 +2570,7 @@ out_fail:
 	return error;
 }
 
-static noinline int
+static yesinline int
 rpc_decode_header(struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_clnt *clnt = task->tk_client;
@@ -2863,12 +2863,12 @@ int rpc_clnt_setup_test_and_add_xprt(struct rpc_clnt *clnt,
 	xprt_put(xprt);
 	xprt_switch_put(xps);
 
-	/* so that rpc_clnt_add_xprt does not call rpc_xprt_switch_add_xprt */
+	/* so that rpc_clnt_add_xprt does yest call rpc_xprt_switch_add_xprt */
 	return 1;
 out_err:
 	xprt_put(xprt);
 	xprt_switch_put(xps);
-	pr_info("RPC:   rpc_clnt_test_xprt failed: %d addr %s not added\n",
+	pr_info("RPC:   rpc_clnt_test_xprt failed: %d addr %s yest added\n",
 		status, xprt->address_strings[RPC_DISPLAY_ADDR]);
 	return status;
 }
@@ -3018,7 +3018,7 @@ static void rpc_show_header(void)
 static void rpc_show_task(const struct rpc_clnt *clnt,
 			  const struct rpc_task *task)
 {
-	const char *rpc_waitq = "none";
+	const char *rpc_waitq = "yesne";
 
 	if (RPC_IS_QUEUED(task))
 		rpc_waitq = rpc_qname(task->tk_waitqueue);

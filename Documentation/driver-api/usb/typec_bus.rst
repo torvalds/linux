@@ -40,7 +40,7 @@ General
 
 By default, the alternate mode drivers are responsible for entering the mode.
 It is also possible to leave the decision about entering the mode to the user
-space (See Documentation/ABI/testing/sysfs-class-typec). Port drivers should not
+space (See Documentation/ABI/testing/sysfs-class-typec). Port drivers should yest
 enter any modes on their own.
 
 ``->vdm`` is the most important callback in the operation callbacks vector. It
@@ -50,12 +50,12 @@ the SVID specific commands to each other using :c:func:`typec_altmode_vdm()`.
 
 If the communication with the partner using the SVID specific commands results
 in need to reconfigure the pins on the connector, the alternate mode driver
-needs to notify the bus using :c:func:`typec_altmode_notify()`. The driver
+needs to yestify the bus using :c:func:`typec_altmode_yestify()`. The driver
 passes the negotiated SVID specific pin configuration value to the function as
 parameter. The bus driver will then configure the mux behind the connector using
-that value as the state value for the mux, and also call blocking notification
-chain to notify the external drivers about the state of the connector that need
-to know it.
+that value as the state value for the mux, and also call blocking yestification
+chain to yestify the external drivers about the state of the connector that need
+to kyesw it.
 
 NOTE: The SVID specific pin configuration values must always start from
 ``TYPEC_STATE_MODAL``. USB Type-C specification defines two default states for
@@ -86,17 +86,17 @@ Notification chain
 The drivers for the components that the alternate modes are designed for need to
 get details regarding the results of the negotiation with the partner, and the
 pin configuration of the connector. In case of DisplayPort alternate mode for
-example, the GPU drivers will need to know those details. In case of
-Thunderbolt alternate mode, the thunderbolt drivers will need to know them, and
+example, the GPU drivers will need to kyesw those details. In case of
+Thunderbolt alternate mode, the thunderbolt drivers will need to kyesw them, and
 so on.
 
-The notification chain is designed for this purpose. The drivers can register
-notifiers with :c:func:`typec_altmode_register_notifier()`.
+The yestification chain is designed for this purpose. The drivers can register
+yestifiers with :c:func:`typec_altmode_register_yestifier()`.
 
 Cable plug alternate modes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The alternate mode drivers are not bound to cable plug alternate mode devices,
+The alternate mode drivers are yest bound to cable plug alternate mode devices,
 only to the partner alternate mode devices. If the alternate mode supports, or
 requires, a cable that responds to SOP Prime, and optionally SOP Double Prime
 messages, the driver for that alternate mode must request handle to the cable
@@ -116,7 +116,7 @@ Alternate mode driver operations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/usb/typec/bus.c
-   :functions: typec_altmode_enter typec_altmode_exit typec_altmode_attention typec_altmode_vdm typec_altmode_notify
+   :functions: typec_altmode_enter typec_altmode_exit typec_altmode_attention typec_altmode_vdm typec_altmode_yestify
 
 API for the port drivers
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -133,4 +133,4 @@ Cable Plug operations
 Notifications
 ~~~~~~~~~~~~~
 .. kernel-doc:: drivers/usb/typec/class.c
-   :functions: typec_altmode_register_notifier typec_altmode_unregister_notifier
+   :functions: typec_altmode_register_yestifier typec_altmode_unregister_yestifier

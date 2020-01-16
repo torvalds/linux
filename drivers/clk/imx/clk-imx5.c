@@ -301,7 +301,7 @@ static void __init mx5_clocks_common_init(void __iomem *ccm_base)
 	clk_set_parent(clk[IMX5_CLK_USB_PHY_SEL], clk[IMX5_CLK_OSC]);
 }
 
-static void __init mx50_clocks_init(struct device_node *np)
+static void __init mx50_clocks_init(struct device_yesde *np)
 {
 	void __iomem *ccm_base;
 	void __iomem *pll_base;
@@ -386,7 +386,7 @@ static void __init mx50_clocks_init(struct device_node *np)
 }
 CLK_OF_DECLARE(imx50_ccm, "fsl,imx50-ccm", mx50_clocks_init);
 
-static void __init mx51_clocks_init(struct device_node *np)
+static void __init mx51_clocks_init(struct device_yesde *np)
 {
 	void __iomem *ccm_base;
 	void __iomem *pll_base;
@@ -474,10 +474,10 @@ static void __init mx51_clocks_init(struct device_node *np)
 	clk_disable_unprepare(clk[IMX5_CLK_IIM_GATE]);
 
 	/*
-	 * Reference Manual says: Functionality of CCDR[18] and CLPCR[23] is no
+	 * Reference Manual says: Functionality of CCDR[18] and CLPCR[23] is yes
 	 * longer supported. Set to one for better power saving.
 	 *
-	 * The effect of not setting these bits is that MIPI clocks can't be
+	 * The effect of yest setting these bits is that MIPI clocks can't be
 	 * enabled without the IPU clock being enabled aswell.
 	 */
 	val = readl(MXC_CCM_CCDR);
@@ -492,7 +492,7 @@ static void __init mx51_clocks_init(struct device_node *np)
 }
 CLK_OF_DECLARE(imx51_ccm, "fsl,imx51-ccm", mx51_clocks_init);
 
-static void __init mx53_clocks_init(struct device_node *np)
+static void __init mx53_clocks_init(struct device_yesde *np)
 {
 	void __iomem *ccm_base;
 	void __iomem *pll_base;

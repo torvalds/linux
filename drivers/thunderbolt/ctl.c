@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - control channel and configuration commands
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -184,8 +184,8 @@ static int check_header(const struct ctl_pkg *pkg, u32 len,
 		return -EIO;
 
 	/* check header */
-	if (WARN(header->unknown != 1 << 9,
-			"header->unknown is %#x\n", header->unknown))
+	if (WARN(header->unkyeswn != 1 << 9,
+			"header->unkyeswn is %#x\n", header->unkyeswn))
 		return -EIO;
 	if (WARN(route != tb_cfg_get_route(header),
 			"wrong route (expected %llx, got %llx)",
@@ -210,7 +210,7 @@ static int check_config_address(struct tb_cfg_address addr,
 			length, addr.length))
 		return -EIO;
 	/*
-	 * We cannot check addr->port as it is set to the upstream port of the
+	 * We canyest check addr->port as it is set to the upstream port of the
 	 * sender.
 	 */
 	return 0;
@@ -258,8 +258,8 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 	WARN_ON(res->err != 1);
 	switch (res->tb_error) {
 	case TB_CFG_ERROR_PORT_NOT_CONNECTED:
-		/* Port is not connected. This can happen during surprise
-		 * removal. Do not warn. */
+		/* Port is yest connected. This can happen during surprise
+		 * removal. Do yest warn. */
 		return;
 	case TB_CFG_ERROR_INVALID_CONFIG_SPACE:
 		/*
@@ -272,9 +272,9 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 		return;
 	case TB_CFG_ERROR_NO_SUCH_PORT:
 		/*
-		 * - The route contains a non-existent port.
-		 * - The route contains a non-PHY port (e.g. PCIe).
-		 * - The port in cfg_read/cfg_write does not exist.
+		 * - The route contains a yesn-existent port.
+		 * - The route contains a yesn-PHY port (e.g. PCIe).
+		 * - The port in cfg_read/cfg_write does yest exist.
 		 */
 		tb_ctl_WARN(ctl, "CFG_ERROR(%llx:%x): Invalid port\n",
 			res->response_route, res->response_port);
@@ -285,7 +285,7 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 		return;
 	default:
 		/* 5,6,7,9 and 11 are also valid error codes */
-		tb_ctl_WARN(ctl, "CFG_ERROR(%llx:%x): Unknown error\n",
+		tb_ctl_WARN(ctl, "CFG_ERROR(%llx:%x): Unkyeswn error\n",
 			res->response_route, res->response_port);
 		return;
 	}
@@ -368,7 +368,7 @@ static int tb_ctl_tx(struct tb_ctl *ctl, const void *data, size_t len,
 }
 
 /**
- * tb_ctl_handle_event() - acknowledge a plug event, invoke ctl->callback
+ * tb_ctl_handle_event() - ackyeswledge a plug event, invoke ctl->callback
  */
 static bool tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
 				struct ctl_pkg *pkg, size_t size)
@@ -379,10 +379,10 @@ static bool tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
 static void tb_ctl_rx_submit(struct ctl_pkg *pkg)
 {
 	tb_ring_rx(pkg->ctl->rx, &pkg->frame); /*
-					     * We ignore failures during stop.
+					     * We igyesre failures during stop.
 					     * All rx packets are referenced
 					     * from ctl->rx_packets, so we do
-					     * not loose them.
+					     * yest loose them.
 					     */
 }
 
@@ -492,7 +492,7 @@ static void tb_cfg_request_work(struct work_struct *work)
 }
 
 /**
- * tb_cfg_request() - Start control request not waiting for it to complete
+ * tb_cfg_request() - Start control request yest waiting for it to complete
  * @ctl: Control channel to use
  * @req: Request to start
  * @callback: Callback called when the request is completed
@@ -541,7 +541,7 @@ err_put:
  * @err: Error to assign to the request
  *
  * This function can be used to cancel ongoing request. It will wait
- * until the request is not active anymore.
+ * until the request is yest active anymore.
  */
 void tb_cfg_request_cancel(struct tb_cfg_request *req, int err)
 {
@@ -770,7 +770,7 @@ static bool tb_cfg_copy(struct tb_cfg_request *req, const struct ctl_pkg *pkg)
 /**
  * tb_cfg_reset() - send a reset packet and wait for a response
  *
- * If the switch at route is incorrectly configured then we will not receive a
+ * If the switch at route is incorrectly configured then we will yest receive a
  * reply (even though the switch will reset). The caller should check for
  * -ETIMEDOUT and attempt to reconfigure the switch.
  */

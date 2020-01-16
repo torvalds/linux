@@ -157,7 +157,7 @@ static int wm8350_led_set(struct led_classdev *led_cdev,
 
 	/* This scales linearly into the index of valid current
 	 * settings which results in a linear scaling of perceived
-	 * brightness due to the non-linear current settings provided
+	 * brightness due to the yesn-linear current settings provided
 	 * by the hardware.
 	 */
 	uA = (led->max_uA_index * led->value) / LED_FULL;
@@ -191,7 +191,7 @@ static int wm8350_led_probe(struct platform_device *pdev)
 	int i;
 
 	if (pdata == NULL) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "yes platform data\n");
 		return -ENODEV;
 	}
 
@@ -231,7 +231,7 @@ static int wm8350_led_probe(struct platform_device *pdev)
 	led->max_uA_index = i;
 	if (pdata->max_uA != isink_cur[i])
 		dev_warn(&pdev->dev,
-			 "Maximum current %duA is not directly supported,"
+			 "Maximum current %duA is yest directly supported,"
 			 " check platform data\n",
 			 pdata->max_uA);
 

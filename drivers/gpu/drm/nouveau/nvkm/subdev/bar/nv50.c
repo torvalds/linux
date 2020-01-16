@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -66,7 +66,7 @@ nv50_bar_bar1_init(struct nvkm_bar *base)
 {
 	struct nvkm_device *device = base->subdev.device;
 	struct nv50_bar *bar = nv50_bar(base);
-	nvkm_wr32(device, 0x001708, 0x80000000 | bar->bar1->node->offset >> 4);
+	nvkm_wr32(device, 0x001708, 0x80000000 | bar->bar1->yesde->offset >> 4);
 }
 
 struct nvkm_vmm *
@@ -88,7 +88,7 @@ nv50_bar_bar2_init(struct nvkm_bar *base)
 	struct nv50_bar *bar = nv50_bar(base);
 	nvkm_wr32(device, 0x001704, 0x00000000 | bar->mem->addr >> 12);
 	nvkm_wr32(device, 0x001704, 0x40000000 | bar->mem->addr >> 12);
-	nvkm_wr32(device, 0x00170c, 0x80000000 | bar->bar2->node->offset >> 4);
+	nvkm_wr32(device, 0x00170c, 0x80000000 | bar->bar2->yesde->offset >> 4);
 }
 
 void

@@ -1,6 +1,6 @@
 .. This file is dual-licensed: you can use it either under the terms
 .. of the GPL 2.0 or the GFDL 1.1+ license, at your option. Note that this
-.. dual licensing only applies to this file, and not this project as a
+.. dual licensing only applies to this file, and yest this project as a
 .. whole.
 ..
 .. a) This file is free software; you can redistribute it and/or
@@ -17,11 +17,11 @@
 .. b) Permission is granted to copy, distribute and/or modify this
 ..    document under the terms of the GNU Free Documentation License,
 ..    Version 1.1 or any later version published by the Free Software
-..    Foundation, with no Invariant Sections, no Front-Cover Texts
-..    and no Back-Cover Texts. A copy of the license is included at
+..    Foundation, with yes Invariant Sections, yes Front-Cover Texts
+..    and yes Back-Cover Texts. A copy of the license is included at
 ..    Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GPL-2.0 OR GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GPL-2.0 OR GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _v4l2-meta-fmt-params:
 .. _v4l2-meta-fmt-stat-3a:
@@ -37,7 +37,7 @@ V4L2_META_FMT_IPU3_PARAMS ('ip3p'), V4L2_META_FMT_IPU3_3A ('ip3s')
 
 The IPU3 ImgU 3A statistics accelerators collect different statistics over
 an input Bayer frame. Those statistics are obtained from the "ipu3-imgu [01] 3a
-stat" metadata capture video nodes, using the :c:type:`v4l2_meta_format`
+stat" metadata capture video yesdes, using the :c:type:`v4l2_meta_format`
 interface. They are formatted as described by the :c:type:`ipu3_uapi_stats_3a`
 structure.
 
@@ -67,7 +67,7 @@ Pipeline parameters
 ===================
 
 The pipeline parameters are passed to the "ipu3-imgu [01] parameters" metadata
-output video nodes, using the :c:type:`v4l2_meta_format` interface. They are
+output video yesdes, using the :c:type:`v4l2_meta_format` interface. They are
 formatted as described by the :c:type:`ipu3_uapi_params` structure.
 
 Both 3A statistics and pipeline parameters described here are closely tied to

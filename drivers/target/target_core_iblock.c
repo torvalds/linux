@@ -123,8 +123,8 @@ static int iblock_configure_device(struct se_device *dev)
 	else
 		dev->dev_attrib.max_write_same_len = 0xFFFF;
 
-	if (blk_queue_nonrot(q))
-		dev->dev_attrib.is_nonrot = 1;
+	if (blk_queue_yesnrot(q))
+		dev->dev_attrib.is_yesnrot = 1;
 
 	bi = bdev_get_integrity(bd);
 	if (bi) {
@@ -132,7 +132,7 @@ static int iblock_configure_device(struct se_device *dev)
 
 		if (!strcmp(bi->profile->name, "T10-DIF-TYPE3-IP") ||
 		    !strcmp(bi->profile->name, "T10-DIF-TYPE1-IP")) {
-			pr_err("IBLOCK export of blk_integrity: %s not"
+			pr_err("IBLOCK export of blk_integrity: %s yest"
 			       " supported\n", bi->profile->name);
 			ret = -ENOSYS;
 			goto out_blkdev_put;
@@ -193,7 +193,7 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
 	struct block_device *bd,
 	struct request_queue *q)
 {
-	unsigned long long blocks_long = (div_u64(i_size_read(bd->bd_inode),
+	unsigned long long blocks_long = (div_u64(i_size_read(bd->bd_iyesde),
 					bdev_logical_block_size(bd)) - 1);
 	u32 block_size = bdev_logical_block_size(bd);
 
@@ -389,7 +389,7 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
 }
 
 static sense_reason_t
-iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
+iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t yeslb)
 {
 	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
 	struct se_device *dev = cmd->se_dev;
@@ -397,7 +397,7 @@ iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 
 	ret = blkdev_issue_discard(bdev,
 				   target_to_linux_sector(dev, lba),
-				   target_to_linux_sector(dev,  nolb),
+				   target_to_linux_sector(dev,  yeslb),
 				   GFP_KERNEL, 0);
 	if (ret < 0) {
 		pr_err("blkdev_issue_discard() failed: %d\n", ret);
@@ -412,7 +412,7 @@ iblock_execute_zero_out(struct block_device *bdev, struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct scatterlist *sg = &cmd->t_data_sg[0];
-	unsigned char *buf, *not_zero;
+	unsigned char *buf, *yest_zero;
 	int ret;
 
 	buf = kmap(sg_page(sg)) + sg->offset;
@@ -420,12 +420,12 @@ iblock_execute_zero_out(struct block_device *bdev, struct se_cmd *cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	/*
 	 * Fall back to block_execute_write_same() slow-path if
-	 * incoming WRITE_SAME payload does not contain zeros.
+	 * incoming WRITE_SAME payload does yest contain zeros.
 	 */
-	not_zero = memchr_inv(buf, 0x00, cmd->data_length);
+	yest_zero = memchr_inv(buf, 0x00, cmd->data_length);
 	kunmap(sg_page(sg));
 
-	if (not_zero)
+	if (yest_zero)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	ret = blkdev_issue_zeroout(bdev,
@@ -455,7 +455,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
 
 	if (cmd->prot_op) {
 		pr_err("WRITE_SAME: Protection information with IBLOCK"
-		       " backends not supported\n");
+		       " backends yest supported\n");
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 	sg = &cmd->t_data_sg[0];
@@ -610,12 +610,12 @@ static ssize_t iblock_show_configfs_dev_params(struct se_device *dev, char *b)
 
 	bl += sprintf(b + bl, "        ");
 	if (bd) {
-		bl += sprintf(b + bl, "Major: %d Minor: %d  %s\n",
+		bl += sprintf(b + bl, "Major: %d Miyesr: %d  %s\n",
 			MAJOR(bd->bd_dev), MINOR(bd->bd_dev), (!bd->bd_contains) ?
 			"" : (bd->bd_holder == ib_dev) ?
 			"CLAIMED: IBLOCK" : "CLAIMED: OS");
 	} else {
-		bl += sprintf(b + bl, "Major: 0 Minor: 0\n");
+		bl += sprintf(b + bl, "Major: 0 Miyesr: 0\n");
 	}
 
 	return bl;
@@ -697,7 +697,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		struct request_queue *q = bdev_get_queue(ib_dev->ibd_bd);
 		/*
 		 * Force writethrough using REQ_FUA if a volatile write cache
-		 * is not enabled, or if initiator set the Force Unit Access bit.
+		 * is yest enabled, or if initiator set the Force Unit Access bit.
 		 */
 		op = REQ_OP_WRITE;
 		if (test_bit(QUEUE_FLAG_FUA, &q->queue_flags)) {
@@ -740,7 +740,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		/*
 		 * XXX: if the length the device accepts is shorter than the
 		 *	length of the S/G list entry this will cause and
-		 *	endless loop.  Better hope no driver uses huge pages.
+		 *	endless loop.  Better hope yes driver uses huge pages.
 		 */
 		while (bio_add_page(bio, sg_page(sg), sg->length, sg->offset)
 				!= sg->length) {

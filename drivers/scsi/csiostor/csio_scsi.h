@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -62,7 +62,7 @@ extern int csio_lun_qdepth;
  **************************** NOTE *******************************
  * How do we calculate MAX FCoE SCSI SGEs? Here is the math:
  * Max Egress WR size = 512 bytes
- * One SCSI egress WR has the following fixed no of bytes:
+ * One SCSI egress WR has the following fixed yes of bytes:
  *      48 (sizeof(struct fw_scsi_write[read]_wr)) - FW WR
  *    + 32 (sizeof(struct fc_fcp_cmnd)) - Immediate FCP_CMD
  *    ------
@@ -93,31 +93,31 @@ extern int csio_lun_qdepth;
 
 struct csio_scsi_stats {
 	uint64_t		n_tot_success;	/* Total number of good I/Os */
-	uint32_t		n_rn_nr_error;	/* No. of remote-node-not-
+	uint32_t		n_rn_nr_error;	/* No. of remote-yesde-yest-
 						 * ready errors
 						 */
-	uint32_t		n_hw_nr_error;	/* No. of hw-module-not-
+	uint32_t		n_hw_nr_error;	/* No. of hw-module-yest-
 						 * ready errors
 						 */
 	uint32_t		n_dmamap_error;	/* No. of DMA map erros */
 	uint32_t		n_unsupp_sge_error; /* No. of too-many-SGes
 						     * errors.
 						     */
-	uint32_t		n_no_req_error;	/* No. of Out-of-ioreqs error */
+	uint32_t		n_yes_req_error;	/* No. of Out-of-ioreqs error */
 	uint32_t		n_busy_error;	/* No. of -EBUSY errors */
 	uint32_t		n_hosterror;	/* No. of FW_HOSTERROR I/O */
 	uint32_t		n_rsperror;	/* No. of response errors */
 	uint32_t		n_autosense;	/* No. of auto sense replies */
 	uint32_t		n_ovflerror;	/* No. of overflow errors */
 	uint32_t		n_unflerror;	/* No. of underflow errors */
-	uint32_t		n_rdev_nr_error;/* No. of rdev not
+	uint32_t		n_rdev_nr_error;/* No. of rdev yest
 						 * ready errors
 						 */
 	uint32_t		n_rdev_lost_error;/* No. of rdev lost errors */
 	uint32_t		n_rdev_logo_error;/* No. of rdev logo errors */
 	uint32_t		n_link_down_error;/* No. of link down errors */
-	uint32_t		n_no_xchg_error; /* No. no exchange error */
-	uint32_t		n_unknown_error;/* No. of unhandled errors */
+	uint32_t		n_yes_xchg_error; /* No. yes exchange error */
+	uint32_t		n_unkyeswn_error;/* No. of unhandled errors */
 	uint32_t		n_aborted;	/* No. of aborted I/Os */
 	uint32_t		n_abrt_timedout; /* No. of abort timedouts */
 	uint32_t		n_abrt_fail;	/* No. of abort failures */
@@ -183,8 +183,8 @@ enum csio_scsi_lev {
 
 struct csio_scsi_level_data {
 	enum csio_scsi_lev	level;
-	struct csio_rnode	*rnode;
-	struct csio_lnode	*lnode;
+	struct csio_ryesde	*ryesde;
+	struct csio_lyesde	*lyesde;
 	uint64_t		oslun;
 };
 
@@ -330,8 +330,8 @@ csio_scsi_close(struct csio_ioreq *ioreq)
 
 void csio_scsi_cleanup_io_q(struct csio_scsim *, struct list_head *);
 int csio_scsim_cleanup_io(struct csio_scsim *, bool abort);
-int csio_scsim_cleanup_io_lnode(struct csio_scsim *,
-					  struct csio_lnode *);
+int csio_scsim_cleanup_io_lyesde(struct csio_scsim *,
+					  struct csio_lyesde *);
 struct csio_ioreq *csio_scsi_cmpl_handler(struct csio_hw *, void *, uint32_t,
 					  struct csio_fl_dma_buf *,
 					  void *, uint8_t **);

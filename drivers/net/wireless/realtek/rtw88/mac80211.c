@@ -271,7 +271,7 @@ static void rtw_ops_configure_filter(struct ieee80211_hw *hw,
 	mutex_unlock(&rtwdev->mutex);
 }
 
-/* Only have one group of EDCA parameters now */
+/* Only have one group of EDCA parameters yesw */
 static const u32 ac_to_edca_param[IEEE80211_NUM_ACS] = {
 	[IEEE80211_AC_VO] = REG_EDCA_VO_PARAM,
 	[IEEE80211_AC_VI] = REG_EDCA_VI_PARAM,
@@ -337,7 +337,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 		enum rtw_net_type net_type;
 
 		if (conf->assoc) {
-			rtw_coex_connect_notify(rtwdev, COEX_ASSOCIATE_FINISH);
+			rtw_coex_connect_yestify(rtwdev, COEX_ASSOCIATE_FINISH);
 			net_type = RTW_NET_MGD_LINKED;
 			chip->ops->phy_calibration(rtwdev);
 
@@ -349,7 +349,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 			rtw_add_rsvd_page(rtwdev, RSVD_LPS_PG_INFO, true);
 			rtw_fw_download_rsvd_page(rtwdev, vif);
 			rtw_send_rsvd_page_h2c(rtwdev);
-			rtw_coex_media_status_notify(rtwdev, conf->assoc);
+			rtw_coex_media_status_yestify(rtwdev, conf->assoc);
 			if (rtw_bf_support)
 				rtw_bf_assoc(rtwdev, vif, conf);
 		} else {
@@ -609,7 +609,7 @@ static void rtw_ops_sw_scan_start(struct ieee80211_hw *hw,
 	config |= PORT_SET_MAC_ADDR;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
-	rtw_coex_scan_notify(rtwdev, COEX_SCAN_START);
+	rtw_coex_scan_yestify(rtwdev, COEX_SCAN_START);
 
 	set_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
 	set_bit(RTW_FLAG_SCANNING, rtwdev->flags);
@@ -633,7 +633,7 @@ static void rtw_ops_sw_scan_complete(struct ieee80211_hw *hw,
 	config |= PORT_SET_MAC_ADDR;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
-	rtw_coex_scan_notify(rtwdev, COEX_SCAN_FINISH);
+	rtw_coex_scan_yestify(rtwdev, COEX_SCAN_FINISH);
 
 	mutex_unlock(&rtwdev->mutex);
 }
@@ -646,7 +646,7 @@ static void rtw_ops_mgd_prepare_tx(struct ieee80211_hw *hw,
 
 	mutex_lock(&rtwdev->mutex);
 	rtw_leave_lps_deep(rtwdev);
-	rtw_coex_connect_notify(rtwdev, COEX_ASSOCIATE_START);
+	rtw_coex_connect_yestify(rtwdev, COEX_ASSOCIATE_START);
 	mutex_unlock(&rtwdev->mutex);
 }
 

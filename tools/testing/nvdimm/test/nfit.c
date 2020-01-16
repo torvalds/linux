@@ -75,10 +75,10 @@
  *    dimm in the interleave set), "blk2.1", "blk3.1", "blk4.0", and
  *    "blk5.0".
  *
- * *) The portion of dimm2 and dimm3 that do not participate in the
+ * *) The portion of dimm2 and dimm3 that do yest participate in the
  *    REGION1 interleaved SPA range (i.e. the DPA address below offset
  *    (b) are also included in the "blk4.0" and "blk5.0" namespaces.
- *    Note, that BLK namespaces need not be contiguous in DPA-space, and
+ *    Note, that BLK namespaces need yest be contiguous in DPA-space, and
  *    can consume aliased capacity from multiple interleave sets.
  *
  * BUS1: Legacy NVDIMM (single contiguous range)
@@ -91,7 +91,7 @@
  * +---------------------+
  *
  * *) A NFIT-table may describe a simple system-physical-address range
- *    with no BLK aliasing.  This type of region may optionally
+ *    with yes BLK aliasing.  This type of region may optionally
  *    reference an NVDIMM.
  */
 enum {
@@ -119,8 +119,8 @@ struct nfit_test_dcr {
 	__u8 aperature[BDW_SIZE];
 };
 
-#define NFIT_DIMM_HANDLE(node, socket, imc, chan, dimm) \
-	(((node & 0xfff) << 16) | ((socket & 0xf) << 12) \
+#define NFIT_DIMM_HANDLE(yesde, socket, imc, chan, dimm) \
+	(((yesde & 0xfff) << 16) | ((socket & 0xf) << 12) \
 	 | ((imc & 0xf) << 8) | ((chan & 0xf) << 4) | (dimm & 0xf))
 
 static u32 handle[] = {
@@ -304,7 +304,7 @@ static int nd_intel_test_send_data(struct nfit_test *t,
 			nd_cmd->data[nd_cmd->length-1]);
 
 	if (fw->state != FW_STATE_IN_PROGRESS) {
-		dev_dbg(dev, "%s: not in IN_PROGRESS state\n", __func__);
+		dev_dbg(dev, "%s: yest in IN_PROGRESS state\n", __func__);
 		*status = 0x5;
 		return 0;
 	}
@@ -377,7 +377,7 @@ static int nd_intel_test_finish_fw(struct nfit_test *t,
 		break;
 
 	default: /* bad control flag */
-		dev_warn(dev, "%s: unknown control flag: %#x\n",
+		dev_warn(dev, "%s: unkyeswn control flag: %#x\n",
 				__func__, nd_cmd->ctrl_flags);
 		return -EINVAL;
 	}
@@ -725,7 +725,7 @@ static int nfit_test_cmd_smart_threshold(
 	return 0;
 }
 
-static void smart_notify(struct device *bus_dev,
+static void smart_yestify(struct device *bus_dev,
 		struct device *dimm_dev, struct nd_intel_smart *smart,
 		struct nd_intel_smart_threshold *thresh)
 {
@@ -746,7 +746,7 @@ static void smart_notify(struct device *bus_dev,
 			|| (smart->health != ND_INTEL_SMART_NON_CRITICAL_HEALTH)
 			|| (smart->shutdown_state != 0)) {
 		device_lock(bus_dev);
-		__acpi_nvdimm_notify(dimm_dev, 0x81);
+		__acpi_nvdimm_yestify(dimm_dev, 0x81);
 		device_unlock(bus_dev);
 	}
 }
@@ -765,7 +765,7 @@ static int nfit_test_cmd_smart_set_threshold(
 		return -EINVAL;
 	memcpy(thresh->data, in, size);
 	in->status = 0;
-	smart_notify(bus_dev, dimm_dev, smart, thresh);
+	smart_yestify(bus_dev, dimm_dev, smart, thresh);
 
 	return 0;
 }
@@ -806,16 +806,16 @@ static int nfit_test_cmd_smart_inject(
 			smart->shutdown_state = 0;
 	}
 	inj->status = 0;
-	smart_notify(bus_dev, dimm_dev, smart, thresh);
+	smart_yestify(bus_dev, dimm_dev, smart, thresh);
 
 	return 0;
 }
 
-static void uc_error_notify(struct work_struct *work)
+static void uc_error_yestify(struct work_struct *work)
 {
 	struct nfit_test *t = container_of(work, typeof(*t), work);
 
-	__acpi_nfit_notify(&t->pdev.dev, t, NFIT_NOTIFY_UC_MEMORY_ERROR);
+	__acpi_nfit_yestify(&t->pdev.dev, t, NFIT_NOTIFY_UC_MEMORY_ERROR);
 }
 
 static int nfit_test_cmd_ars_error_inject(struct nfit_test *t,
@@ -918,7 +918,7 @@ static int nd_intel_test_cmd_set_lss_status(struct nfit_test *t,
 				__func__);
 		break;
 	default:
-		dev_warn(dev, "Unknown enable value: %#x\n", nd_cmd->enable);
+		dev_warn(dev, "Unkyeswn enable value: %#x\n", nd_cmd->enable);
 		nd_cmd->status = 0x3;
 		break;
 	}
@@ -1168,7 +1168,7 @@ static int nd_intel_test_cmd_master_secure_erase(struct nfit_test *t,
 		nd_cmd->status = ND_INTEL_STATUS_INVALID_PASS;
 		dev_dbg(dev, "master secure erase: wrong passphrase\n");
 	} else {
-		/* we do not erase master state passphrase ever */
+		/* we do yest erase master state passphrase ever */
 		sec->ext_state = ND_INTEL_SEC_ESTATE_ENABLED;
 		memset(sec->passphrase, 0, ND_INTEL_PASSPHRASE_SIZE);
 		sec->state = 0;
@@ -1807,8 +1807,8 @@ static void nfit_test0_setup(struct nfit_test *t)
 	unsigned int offset = 0, i;
 
 	/*
-	 * spa0 (interleave first half of dimm0 and dimm1, note storage
-	 * does not actually alias the related block-data-window
+	 * spa0 (interleave first half of dimm0 and dimm1, yeste storage
+	 * does yest actually alias the related block-data-window
 	 * regions)
 	 */
 	spa = nfit_buf;
@@ -1821,8 +1821,8 @@ static void nfit_test0_setup(struct nfit_test *t)
 	offset += spa->header.length;
 
 	/*
-	 * spa1 (interleave last half of the 4 DIMMS, note storage
-	 * does not actually alias the related block-data-window
+	 * spa1 (interleave last half of the 4 DIMMS, yeste storage
+	 * does yest actually alias the related block-data-window
 	 * regions)
 	 */
 	spa = nfit_buf + offset;
@@ -2402,8 +2402,8 @@ static void nfit_test0_setup(struct nfit_test *t)
 		offset += spa->header.length;
 
 		/*
-		 * spa11 (single-dimm interleave for hotplug, note storage
-		 * does not actually alias the related block-data-window
+		 * spa11 (single-dimm interleave for hotplug, yeste storage
+		 * does yest actually alias the related block-data-window
 		 * regions)
 		 */
 		spa = nfit_buf + offset;
@@ -2543,7 +2543,7 @@ static void nfit_test1_setup(struct nfit_test *t)
 	struct acpi_nfit_desc *acpi_desc;
 
 	offset = 0;
-	/* spa0 (flat range with no bdw aliasing) */
+	/* spa0 (flat range with yes bdw aliasing) */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
 	spa->header.length = sizeof(*spa);
@@ -3008,9 +3008,9 @@ static int nfit_test_probe(struct platform_device *pdev)
 	obj->buffer.length = nfit_test->nfit_size;
 	obj->buffer.pointer = nfit_test->nfit_buf;
 	*(nfit_test->_fit) = obj;
-	__acpi_nfit_notify(&pdev->dev, nfit_test, 0x80);
+	__acpi_nfit_yestify(&pdev->dev, nfit_test, 0x80);
 
-	/* associate dimm devices with nfit_mem data for notification testing */
+	/* associate dimm devices with nfit_mem data for yestification testing */
 	mutex_lock(&acpi_desc->init_mutex);
 	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
 		u32 nfit_handle = __to_nfit_memdev(nfit_mem)->device_handle;
@@ -3092,7 +3092,7 @@ static bool mcsafe_test_validate(unsigned char *dst, unsigned char *src,
 
 void mcsafe_test(void)
 {
-	char *inject_desc[] = { "none", "source", "destination" };
+	char *inject_desc[] = { "yesne", "source", "destination" };
 	enum INJECT inj;
 
 	if (IS_ENABLED(CONFIG_MCSAFE_TEST)) {
@@ -3235,7 +3235,7 @@ static __init int nfit_test_init(void)
 			goto err_register;
 
 		instances[i] = nfit_test;
-		INIT_WORK(&nfit_test->work, uc_error_notify);
+		INIT_WORK(&nfit_test->work, uc_error_yestify);
 	}
 
 	rc = platform_driver_register(&nfit_test_driver);

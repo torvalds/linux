@@ -94,8 +94,8 @@
 		"Unit": "CPU-M-CF",
 		"EventCode": "141",
 		"EventName": "TX_NC_TEND",
-		"BriefDescription": "Completed TEND instructions in non-constrained TX mode",
-		"PublicDescription": "A TEND instruction has completed in a non-constrained transactional-execution mode"
+		"BriefDescription": "Completed TEND instructions in yesn-constrained TX mode",
+		"PublicDescription": "A TEND instruction has completed in a yesn-constrained transactional-execution mode"
 	},
 	{
 		"Unit": "CPU-M-CF",
@@ -360,15 +360,15 @@
 		"Unit": "CPU-M-CF",
 		"EventCode": "218",
 		"EventName": "TX_NC_TABORT",
-		"BriefDescription": "Aborted transactions in non-constrained TX mode",
-		"PublicDescription": "A transaction abort has occurred in a non-constrained transactional-execution mode"
+		"BriefDescription": "Aborted transactions in yesn-constrained TX mode",
+		"PublicDescription": "A transaction abort has occurred in a yesn-constrained transactional-execution mode"
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "219",
 		"EventName": "TX_C_TABORT_NO_SPECIAL",
-		"BriefDescription": "Aborted transactions in constrained TX mode not using special completion logic",
-		"PublicDescription": "A transaction abort has occurred in a constrained transactional-execution mode and the CPU is not using any special logic to allow the transaction to complete"
+		"BriefDescription": "Aborted transactions in constrained TX mode yest using special completion logic",
+		"PublicDescription": "A transaction abort has occurred in a constrained transactional-execution mode and the CPU is yest using any special logic to allow the transaction to complete"
 	},
 	{
 		"Unit": "CPU-M-CF",

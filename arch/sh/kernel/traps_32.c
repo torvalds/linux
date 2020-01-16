@@ -78,7 +78,7 @@ static struct mem_access user_mem_access = {
 /*
  * handle an instruction that does an unaligned memory access by emulating the
  * desired behaviour
- * - note that PC _may not_ point to the faulting instruction
+ * - yeste that PC _may yest_ point to the faulting instruction
  *   (if that instruction is in a branch delay slot)
  * - return 0 if emulation okay, -EFAULT on existential error
  */
@@ -251,10 +251,10 @@ static int handle_unaligned_ins(insn_size_t instruction, struct pt_regs *regs,
 	return ret;
 
  fetch_fault:
-	/* Argh. Address not only misaligned but also non-existent.
+	/* Argh. Address yest only misaligned but also yesn-existent.
 	 * Raise an EFAULT and see if it's trapped
 	 */
-	die_if_no_fixup("Fault in unaligned fixup", regs, 0);
+	die_if_yes_fixup("Fault in unaligned fixup", regs, 0);
 	return -EFAULT;
 }
 
@@ -288,10 +288,10 @@ static inline int handle_delayslot(struct pt_regs *regs,
  * - have to be careful of branch delay-slot instructions that fault
  *  SH3:
  *   - if the branch would be taken PC points to the branch
- *   - if the branch would not be taken, PC points to delay-slot
+ *   - if the branch would yest be taken, PC points to delay-slot
  *  SH4:
  *   - PC always points to delayed branch
- * - return 0 if handled, -EFAULT if failed (may not return if in kernel)
+ * - return 0 if handled, -EFAULT if failed (may yest return if in kernel)
  */
 
 /* Macros to determine offset from current PC for branch instructions */
@@ -323,7 +323,7 @@ int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 	 * to be useful.
 	 */
 	if (!expected) {
-		unaligned_fixups_notify(current, instruction, regs);
+		unaligned_fixups_yestify(current, instruction, regs);
 		perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1,
 			      regs, address);
 	}
@@ -396,7 +396,7 @@ int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 			goto simple;
 		case 0x0500: /* mov.w @(disp,Rm),R0 */
 			goto simple;
-		case 0x0B00: /* bf   lab - no delayslot*/
+		case 0x0B00: /* bf   lab - yes delayslot*/
 			ret = 0;
 			break;
 		case 0x0F00: /* bf/s lab */
@@ -410,7 +410,7 @@ int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 					regs->pc += SH_PC_8BIT_OFFSET(instruction);
 			}
 			break;
-		case 0x0900: /* bt   lab - no delayslot */
+		case 0x0900: /* bt   lab - yes delayslot */
 			ret = 0;
 			break;
 		case 0x0D00: /* bt/s lab */
@@ -449,7 +449,7 @@ int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 	}
 	return ret;
 
-	/* handle non-delay-slot instruction */
+	/* handle yesn-delay-slot instruction */
  simple:
 	ret = handle_unaligned_ins(instruction, regs, ma);
 	if (ret==0)
@@ -500,7 +500,7 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 		set_fs(oldfs);
 
 		/* shout about userspace fixups */
-		unaligned_fixups_notify(current, instruction, regs);
+		unaligned_fixups_yestify(current, instruction, regs);
 
 		user_action = unaligned_user_action();
 		if (user_action & UM_FIXUP)
@@ -508,13 +508,13 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 		if (user_action & UM_SIGNAL)
 			goto uspace_segv;
 		else {
-			/* ignore */
+			/* igyesre */
 			regs->pc += instruction_size(instruction);
 			return;
 		}
 
 fixup:
-		/* bad PC is not something we can fix */
+		/* bad PC is yest something we can fix */
 		if (regs->pc & 1) {
 			si_code = BUS_ADRALN;
 			goto uspace_segv;
@@ -544,13 +544,13 @@ uspace_segv:
 		if (copy_from_user(&instruction, (void __user *)(regs->pc),
 				   sizeof(instruction))) {
 			/* Argh. Fault on the instruction itself.
-			   This should never happen non-SMP
+			   This should never happen yesn-SMP
 			*/
 			set_fs(oldfs);
 			die("insn faulting in do_address_error", regs, 0);
 		}
 
-		unaligned_fixups_notify(current, instruction, regs);
+		unaligned_fixups_yestify(current, instruction, regs);
 
 		handle_unaligned_access(instruction, regs, &user_mem_access,
 					0, address);
@@ -600,7 +600,7 @@ asmlinkage void do_divide_error(unsigned long r4)
 		code = FPE_INTOVF;
 		break;
 	default:
-		/* Let gcc know unhandled cases don't make it past here */
+		/* Let gcc kyesw unhandled cases don't make it past here */
 		return;
 	}
 	force_sig_fault(SIGFPE, code, NULL);
@@ -623,7 +623,7 @@ asmlinkage void do_reserved_inst(void)
 		regs->pc += instruction_size(inst);
 		return;
 	}
-	/* not a FPU inst. */
+	/* yest a FPU inst. */
 #endif
 
 #ifdef CONFIG_SH_DSP
@@ -641,7 +641,7 @@ asmlinkage void do_reserved_inst(void)
 
 	local_irq_enable();
 	force_sig(SIGILL);
-	die_if_no_fixup("reserved instruction", regs, error_code);
+	die_if_yes_fixup("reserved instruction", regs, error_code);
 }
 
 #ifdef CONFIG_SH_FPU_EMU
@@ -708,14 +708,14 @@ asmlinkage void do_illegal_slot_inst(void)
 			return;
 		/* fault in branch.*/
 	}
-	/* not a FPU inst. */
+	/* yest a FPU inst. */
 #endif
 
 	inst = lookup_exception_vector();
 
 	local_irq_enable();
 	force_sig(SIGILL);
-	die_if_no_fixup("illegal slot instruction", regs, inst);
+	die_if_yes_fixup("illegal slot instruction", regs, inst);
 }
 
 asmlinkage void do_exception_error(void)
@@ -732,14 +732,14 @@ void per_cpu_trap_init(void)
 
 	/* NOTE: The VBR value should be at P1
 	   (or P2, virtural "fixed" address space).
-	   It's definitely should not in physical address.  */
+	   It's definitely should yest in physical address.  */
 
 	asm volatile("ldc	%0, vbr"
-		     : /* no output */
+		     : /* yes output */
 		     : "r" (&vbr_base)
 		     : "memory");
 
-	/* disable exception blocking now when the vbr has been setup */
+	/* disable exception blocking yesw when the vbr has been setup */
 	clear_bl_bit();
 }
 

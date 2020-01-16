@@ -793,7 +793,7 @@ static int pxp_start(struct pxp_ctx *ctx, struct vb2_v4l2_buffer *in_vb,
 	out_ps_ulc = BF_PXP_OUT_PS_ULC_X(0) | BF_PXP_OUT_PS_ULC_Y(0);
 	out_ps_lrc = BF_PXP_OUT_PS_LRC_X(dst_width - 1) |
 		     BF_PXP_OUT_PS_LRC_Y(dst_height - 1);
-	/* no AS */
+	/* yes AS */
 	as_ulc = BF_PXP_OUT_AS_ULC_X(1) | BF_PXP_OUT_AS_ULC_Y(1);
 	as_lrc = BF_PXP_OUT_AS_LRC_X(0) | BF_PXP_OUT_AS_LRC_Y(0);
 
@@ -974,7 +974,7 @@ static int pxp_job_ready(void *priv)
 
 	if (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) < 1 ||
 	    v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx) < 1) {
-		dprintk(ctx->dev, "Not enough buffers available\n");
+		dprintk(ctx->dev, "Not eyesugh buffers available\n");
 		return 0;
 	}
 
@@ -1059,7 +1059,7 @@ static int pxp_enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 		return 0;
 	}
 
-	/* Format not found */
+	/* Format yest found */
 	return -EINVAL;
 }
 
@@ -1155,7 +1155,7 @@ pxp_fixup_colorimetry_cap(struct pxp_ctx *ctx, u32 dst_fourcc,
 	if (pxp_v4l2_pix_fmt_is_yuv(ctx->q_data[V4L2_M2M_SRC].fmt->fourcc) ==
 	    dst_is_yuv) {
 		/*
-		 * There is no support for conversion between different YCbCr
+		 * There is yes support for conversion between different YCbCr
 		 * encodings or between RGB limited and full range.
 		 */
 		*ycbcr_enc = ctx->q_data[V4L2_M2M_SRC].ycbcr_enc;
@@ -1409,7 +1409,7 @@ static int pxp_buf_prepare(struct vb2_buffer *vb)
 	}
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
-		dprintk(dev, "%s data will not fit into plane (%lu < %lu)\n",
+		dprintk(dev, "%s data will yest fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0),
 			(long)q_data->sizeimage);
 		return -EINVAL;
@@ -1602,7 +1602,7 @@ static const struct video_device pxp_videodev = {
 	.fops		= &pxp_fops,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
 	.ioctl_ops	= &pxp_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= video_device_release_empty,
 };
 

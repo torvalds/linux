@@ -13,22 +13,22 @@ if [ "$KBUILD_VERBOSE" = "1" ]; then
 fi
 
 # RCS_FIND_IGNORE has escaped ()s -- remove them.
-ignore="$(echo "$RCS_FIND_IGNORE" | sed 's|\\||g' )"
-# tags and cscope files should also ignore MODVERSION *.mod.c files
-ignore="$ignore ( -name *.mod.c ) -prune -o"
+igyesre="$(echo "$RCS_FIND_IGNORE" | sed 's|\\||g' )"
+# tags and cscope files should also igyesre MODVERSION *.mod.c files
+igyesre="$igyesre ( -name *.mod.c ) -prune -o"
 
 # Use make KBUILD_ABS_SRCTREE=1 {tags|cscope}
-# to force full paths for a non-O= build
+# to force full paths for a yesn-O= build
 if [ "${srctree}" = "." -o -z "${srctree}" ]; then
 	tree=
 else
 	tree=${srctree}/
 fi
 
-# ignore userspace tools
-ignore="$ignore ( -path ${tree}tools ) -prune -o"
+# igyesre userspace tools
+igyesre="$igyesre ( -path ${tree}tools ) -prune -o"
 
-# Detect if ALLSOURCE_ARCHS is set. If not, we assume SRCARCH
+# Detect if ALLSOURCE_ARCHS is set. If yest, we assume SRCARCH
 if [ "${ALLSOURCE_ARCHS}" = "" ]; then
 	ALLSOURCE_ARCHS=${SRCARCH}
 elif [ "${ALLSOURCE_ARCHS}" = "all" ]; then
@@ -41,7 +41,7 @@ find_arch_sources()
 	for i in $archincludedir; do
 		prune="$prune -wholename $i -prune -o"
 	done
-	find ${tree}arch/$1 $ignore $prune -name "$2" -not -type l -print;
+	find ${tree}arch/$1 $igyesre $prune -name "$2" -yest -type l -print;
 }
 
 # find sources in arch/$1/include
@@ -50,24 +50,24 @@ find_arch_include_sources()
 	include=$(find ${tree}arch/$1/ -name include -type d -print);
 	if [ -n "$include" ]; then
 		archincludedir="$archincludedir $include"
-		find $include $ignore -name "$2" -not -type l -print;
+		find $include $igyesre -name "$2" -yest -type l -print;
 	fi
 }
 
 # find sources in include/
 find_include_sources()
 {
-	find ${tree}include $ignore -name config -prune -o -name "$1" \
-		-not -type l -print;
+	find ${tree}include $igyesre -name config -prune -o -name "$1" \
+		-yest -type l -print;
 }
 
 # find sources in rest of tree
 # we could benefit from a list of dirs to search in here
 find_other_sources()
 {
-	find ${tree}* $ignore \
+	find ${tree}* $igyesre \
 	     \( -path ${tree}include -o -path ${tree}arch -o -name '.tmp_*' \) -prune -o \
-	       -name "$1" -not -type l -print;
+	       -name "$1" -yest -type l -print;
 }
 
 find_sources()
@@ -118,8 +118,8 @@ all_target_sources()
 
 all_kconfigs()
 {
-	find ${tree}arch/ -maxdepth 1 $ignore \
-	       -name "Kconfig*" -not -type l -print;
+	find ${tree}arch/ -maxdepth 1 $igyesre \
+	       -name "Kconfig*" -yest -type l -print;
 	for arch in $ALLSOURCE_ARCHS; do
 		find_sources $arch 'Kconfig*'
 	done
@@ -141,8 +141,8 @@ dogtags()
 # the following limitations:
 # - No regex modifiers
 # - Use \{0,1\} instead of \?, because etags expects an unescaped ?
-# - \s is not working with etags, use a space or [ \t]
-# - \w works, but does not match underscores in etags
+# - \s is yest working with etags, use a space or [ \t]
+# - \w works, but does yest match underscores in etags
 # - etags regular expressions have to match at the start of a line;
 #   a ^[^#] is prepended by setup_regex unless an anchor is already present
 regex_asm=(
@@ -260,7 +260,7 @@ exuberant()
 	-I __read_mostly,__aligned,____cacheline_aligned        \
 	-I ____cacheline_aligned_in_smp                         \
 	-I __cacheline_aligned,__cacheline_aligned_in_smp	\
-	-I ____cacheline_internodealigned_in_smp                \
+	-I ____cacheline_interyesdealigned_in_smp                \
 	-I __used,__packed,__packed2__,__must_check,__must_hold	\
 	-I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL,ACPI_EXPORT_SYMBOL   \
 	-I DEFINE_TRACE,EXPORT_TRACEPOINT_SYMBOL,EXPORT_TRACEPOINT_SYMBOL_GPL \

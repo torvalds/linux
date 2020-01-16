@@ -82,9 +82,9 @@ struct omap_vp_common {
  * @vstatus: PRM_VP*_VSTATUS reg offset from PRM start
  * @voltage: PRM_VP*_VOLTAGE reg offset from PRM start
  * @id: Unique identifier for VP instance.
- * @enabled: flag to keep track of whether vp is enabled or not
+ * @enabled: flag to keep track of whether vp is enabled or yest
  *
- * XXX vp_common is probably not needed since it is per-SoC
+ * XXX vp_common is probably yest needed since it is per-SoC
  */
 struct omap_vp_instance {
 	const struct omap_vp_common *common;

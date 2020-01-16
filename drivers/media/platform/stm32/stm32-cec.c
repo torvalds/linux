@@ -59,7 +59,7 @@
 /*
  * 400 ms is the time it takes for one 16 byte message to be
  * transferred and 5 is the maximum number of retries. Add
- * another 100 ms as a margin.
+ * ayesther 100 ms as a margin.
  */
 #define CEC_XFER_TIMEOUT_MS (5 * 400 + 100)
 
@@ -291,7 +291,7 @@ static int stm32_cec_probe(struct platform_device *pdev)
 
 	cec->clk_cec = devm_clk_get(&pdev->dev, "cec");
 	if (IS_ERR(cec->clk_cec)) {
-		dev_err(&pdev->dev, "Cannot get cec clock\n");
+		dev_err(&pdev->dev, "Canyest get cec clock\n");
 		return PTR_ERR(cec->clk_cec);
 	}
 
@@ -311,7 +311,7 @@ static int stm32_cec_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * CEC_CAP_PHYS_ADDR caps should be removed when a cec notifier is
+	 * CEC_CAP_PHYS_ADDR caps should be removed when a cec yestifier is
 	 * available for example when a drm driver can provide edid
 	 */
 	cec->adap = cec_allocate_adapter(&stm32_cec_adap_ops, cec,
@@ -347,7 +347,7 @@ static int stm32_cec_remove(struct platform_device *pdev)
 
 static const struct of_device_id stm32_cec_of_match[] = {
 	{ .compatible = "st,stm32-cec" },
-	{ /* end node */ }
+	{ /* end yesde */ }
 };
 MODULE_DEVICE_TABLE(of, stm32_cec_of_match);
 

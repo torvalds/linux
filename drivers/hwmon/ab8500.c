@@ -4,8 +4,8 @@
  * Author: Martin Persson <martin.persson@stericsson.com>
  *         Hongbo Zhang <hongbo.zhang@linaro.org>
  *
- * When the AB8500 thermal warning temperature is reached (threshold cannot
- * be changed by SW), an interrupt is set, and if no further action is taken
+ * When the AB8500 thermal warning temperature is reached (threshold canyest
+ * be changed by SW), an interrupt is set, and if yes further action is taken
  * within a certain time frame, kernel_power_off will be called.
  *
  * When AB8500 thermal shutdown temperature is reached a hardware shutdown of

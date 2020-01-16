@@ -63,7 +63,7 @@ int _getsockopt(struct bpf_sockopt *ctx)
 		return 0; /* EPERM, couldn't get sk storage */
 
 	if (!ctx->retval)
-		return 0; /* EPERM, kernel should not have handled
+		return 0; /* EPERM, kernel should yest have handled
 			   * SOL_CUSTOM, something is wrong!
 			   */
 	ctx->retval = 0; /* Reset system call return value to zero */

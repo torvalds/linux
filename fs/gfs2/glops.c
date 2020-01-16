@@ -17,7 +17,7 @@
 #include "bmap.h"
 #include "glock.h"
 #include "glops.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "log.h"
 #include "meta_io.h"
 #include "recovery.h"
@@ -45,7 +45,7 @@ static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
 /**
  * __gfs2_ail_flush - remove all buffers for a given lock from the AIL
  * @gl: the glock
- * @fsync: set when called from fsync (not all buffers will be clean)
+ * @fsync: set when called from fsync (yest all buffers will be clean)
  *
  * None of the buffers should be dirty, locked, or pinned.
  */
@@ -93,7 +93,7 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 		return;
 
 	/* A shortened, inline version of gfs2_trans_begin()
-         * tr->alloced is not set since the transaction structure is
+         * tr->alloced is yest set since the transaction structure is
          * on the stack */
 	tr.tr_reserved = 1 + gfs2_struct2blk(sdp, tr.tr_revokes, sizeof(u64));
 	tr.tr_ip = _RET_IP_;
@@ -136,7 +136,7 @@ void gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
  * @gl: the glock
  *
  * Called when demoting or unlocking an EX glock.  We must flush
- * to disk all dirty buffers/pages relating to this glock, and must not
+ * to disk all dirty buffers/pages relating to this glock, and must yest
  * return to caller to demote/unlock the glock until I/O is complete.
  */
 
@@ -192,15 +192,15 @@ static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 
 	WARN_ON_ONCE(!(flags & DIO_METADATA));
 	gfs2_assert_withdraw(sdp, !atomic_read(&gl->gl_ail_count));
-	truncate_inode_pages_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+	truncate_iyesde_pages_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
 
 	if (rgd)
 		rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
 }
 
-static struct gfs2_inode *gfs2_glock2inode(struct gfs2_glock *gl)
+static struct gfs2_iyesde *gfs2_glock2iyesde(struct gfs2_glock *gl)
 {
-	struct gfs2_inode *ip;
+	struct gfs2_iyesde *ip;
 
 	spin_lock(&gl->gl_lockref.lock);
 	ip = gl->gl_object;
@@ -221,7 +221,7 @@ struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl)
 	return rgd;
 }
 
-static void gfs2_clear_glop_pending(struct gfs2_inode *ip)
+static void gfs2_clear_glop_pending(struct gfs2_iyesde *ip)
 {
 	if (!ip)
 		return;
@@ -231,22 +231,22 @@ static void gfs2_clear_glop_pending(struct gfs2_inode *ip)
 }
 
 /**
- * inode_go_sync - Sync the dirty data and/or metadata for an inode glock
- * @gl: the glock protecting the inode
+ * iyesde_go_sync - Sync the dirty data and/or metadata for an iyesde glock
+ * @gl: the glock protecting the iyesde
  *
  */
 
-static void inode_go_sync(struct gfs2_glock *gl)
+static void iyesde_go_sync(struct gfs2_glock *gl)
 {
-	struct gfs2_inode *ip = gfs2_glock2inode(gl);
-	int isreg = ip && S_ISREG(ip->i_inode.i_mode);
+	struct gfs2_iyesde *ip = gfs2_glock2iyesde(gl);
+	int isreg = ip && S_ISREG(ip->i_iyesde.i_mode);
 	struct address_space *metamapping = gfs2_glock2aspace(gl);
 	int error;
 
 	if (isreg) {
 		if (test_and_clear_bit(GIF_SW_PAGED, &ip->i_flags))
-			unmap_shared_mapping_range(ip->i_inode.i_mapping, 0, 0);
-		inode_dio_wait(&ip->i_inode);
+			unmap_shared_mapping_range(ip->i_iyesde.i_mapping, 0, 0);
+		iyesde_dio_wait(&ip->i_iyesde);
 	}
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
 		goto out;
@@ -257,7 +257,7 @@ static void inode_go_sync(struct gfs2_glock *gl)
 		       GFS2_LFC_INODE_GO_SYNC);
 	filemap_fdatawrite(metamapping);
 	if (isreg) {
-		struct address_space *mapping = ip->i_inode.i_mapping;
+		struct address_space *mapping = ip->i_iyesde.i_mapping;
 		filemap_fdatawrite(mapping);
 		error = filemap_fdatawait(mapping);
 		mapping_set_error(mapping, error);
@@ -277,7 +277,7 @@ out:
 }
 
 /**
- * inode_go_inval - prepare a inode glock to be released
+ * iyesde_go_inval - prepare a iyesde glock to be released
  * @gl: the glock
  * @flags:
  *
@@ -287,19 +287,19 @@ out:
  *
  */
 
-static void inode_go_inval(struct gfs2_glock *gl, int flags)
+static void iyesde_go_inval(struct gfs2_glock *gl, int flags)
 {
-	struct gfs2_inode *ip = gfs2_glock2inode(gl);
+	struct gfs2_iyesde *ip = gfs2_glock2iyesde(gl);
 
 	gfs2_assert_withdraw(gl->gl_name.ln_sbd, !atomic_read(&gl->gl_ail_count));
 
 	if (flags & DIO_METADATA) {
 		struct address_space *mapping = gfs2_glock2aspace(gl);
-		truncate_inode_pages(mapping, 0);
+		truncate_iyesde_pages(mapping, 0);
 		if (ip) {
 			set_bit(GIF_INVALID, &ip->i_flags);
-			forget_all_cached_acls(&ip->i_inode);
-			security_inode_invalidate_secctx(&ip->i_inode);
+			forget_all_cached_acls(&ip->i_iyesde);
+			security_iyesde_invalidate_secctx(&ip->i_iyesde);
 			gfs2_dir_hash_inval(ip);
 		}
 	}
@@ -310,20 +310,20 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 			       GFS2_LFC_INODE_GO_INVAL);
 		gl->gl_name.ln_sbd->sd_rindex_uptodate = 0;
 	}
-	if (ip && S_ISREG(ip->i_inode.i_mode))
-		truncate_inode_pages(ip->i_inode.i_mapping, 0);
+	if (ip && S_ISREG(ip->i_iyesde.i_mode))
+		truncate_iyesde_pages(ip->i_iyesde.i_mapping, 0);
 
 	gfs2_clear_glop_pending(ip);
 }
 
 /**
- * inode_go_demote_ok - Check to see if it's ok to unlock an inode glock
+ * iyesde_go_demote_ok - Check to see if it's ok to unlock an iyesde glock
  * @gl: the glock
  *
  * Returns: 1 if it's ok
  */
 
-static int inode_go_demote_ok(const struct gfs2_glock *gl)
+static int iyesde_go_demote_ok(const struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
@@ -333,46 +333,46 @@ static int inode_go_demote_ok(const struct gfs2_glock *gl)
 	return 1;
 }
 
-static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
+static int gfs2_diyesde_in(struct gfs2_iyesde *ip, const void *buf)
 {
-	const struct gfs2_dinode *str = buf;
+	const struct gfs2_diyesde *str = buf;
 	struct timespec64 atime;
 	u16 height, depth;
 
-	if (unlikely(ip->i_no_addr != be64_to_cpu(str->di_num.no_addr)))
+	if (unlikely(ip->i_yes_addr != be64_to_cpu(str->di_num.yes_addr)))
 		goto corrupt;
-	ip->i_no_formal_ino = be64_to_cpu(str->di_num.no_formal_ino);
-	ip->i_inode.i_mode = be32_to_cpu(str->di_mode);
-	ip->i_inode.i_rdev = 0;
-	switch (ip->i_inode.i_mode & S_IFMT) {
+	ip->i_yes_formal_iyes = be64_to_cpu(str->di_num.yes_formal_iyes);
+	ip->i_iyesde.i_mode = be32_to_cpu(str->di_mode);
+	ip->i_iyesde.i_rdev = 0;
+	switch (ip->i_iyesde.i_mode & S_IFMT) {
 	case S_IFBLK:
 	case S_IFCHR:
-		ip->i_inode.i_rdev = MKDEV(be32_to_cpu(str->di_major),
-					   be32_to_cpu(str->di_minor));
+		ip->i_iyesde.i_rdev = MKDEV(be32_to_cpu(str->di_major),
+					   be32_to_cpu(str->di_miyesr));
 		break;
 	}
 
-	i_uid_write(&ip->i_inode, be32_to_cpu(str->di_uid));
-	i_gid_write(&ip->i_inode, be32_to_cpu(str->di_gid));
-	set_nlink(&ip->i_inode, be32_to_cpu(str->di_nlink));
-	i_size_write(&ip->i_inode, be64_to_cpu(str->di_size));
-	gfs2_set_inode_blocks(&ip->i_inode, be64_to_cpu(str->di_blocks));
+	i_uid_write(&ip->i_iyesde, be32_to_cpu(str->di_uid));
+	i_gid_write(&ip->i_iyesde, be32_to_cpu(str->di_gid));
+	set_nlink(&ip->i_iyesde, be32_to_cpu(str->di_nlink));
+	i_size_write(&ip->i_iyesde, be64_to_cpu(str->di_size));
+	gfs2_set_iyesde_blocks(&ip->i_iyesde, be64_to_cpu(str->di_blocks));
 	atime.tv_sec = be64_to_cpu(str->di_atime);
 	atime.tv_nsec = be32_to_cpu(str->di_atime_nsec);
-	if (timespec64_compare(&ip->i_inode.i_atime, &atime) < 0)
-		ip->i_inode.i_atime = atime;
-	ip->i_inode.i_mtime.tv_sec = be64_to_cpu(str->di_mtime);
-	ip->i_inode.i_mtime.tv_nsec = be32_to_cpu(str->di_mtime_nsec);
-	ip->i_inode.i_ctime.tv_sec = be64_to_cpu(str->di_ctime);
-	ip->i_inode.i_ctime.tv_nsec = be32_to_cpu(str->di_ctime_nsec);
+	if (timespec64_compare(&ip->i_iyesde.i_atime, &atime) < 0)
+		ip->i_iyesde.i_atime = atime;
+	ip->i_iyesde.i_mtime.tv_sec = be64_to_cpu(str->di_mtime);
+	ip->i_iyesde.i_mtime.tv_nsec = be32_to_cpu(str->di_mtime_nsec);
+	ip->i_iyesde.i_ctime.tv_sec = be64_to_cpu(str->di_ctime);
+	ip->i_iyesde.i_ctime.tv_nsec = be32_to_cpu(str->di_ctime_nsec);
 
 	ip->i_goal = be64_to_cpu(str->di_goal_meta);
 	ip->i_generation = be64_to_cpu(str->di_generation);
 
 	ip->i_diskflags = be32_to_cpu(str->di_flags);
 	ip->i_eattr = be64_to_cpu(str->di_eattr);
-	/* i_diskflags and i_eattr must be set before gfs2_set_inode_flags() */
-	gfs2_set_inode_flags(&ip->i_inode);
+	/* i_diskflags and i_eattr must be set before gfs2_set_iyesde_flags() */
+	gfs2_set_iyesde_flags(&ip->i_iyesde);
 	height = be16_to_cpu(str->di_height);
 	if (unlikely(height > GFS2_MAX_META_HEIGHT))
 		goto corrupt;
@@ -384,32 +384,32 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	ip->i_depth = (u8)depth;
 	ip->i_entries = be32_to_cpu(str->di_entries);
 
-	if (S_ISREG(ip->i_inode.i_mode))
-		gfs2_set_aops(&ip->i_inode);
+	if (S_ISREG(ip->i_iyesde.i_mode))
+		gfs2_set_aops(&ip->i_iyesde);
 
 	return 0;
 corrupt:
-	gfs2_consist_inode(ip);
+	gfs2_consist_iyesde(ip);
 	return -EIO;
 }
 
 /**
- * gfs2_inode_refresh - Refresh the incore copy of the dinode
- * @ip: The GFS2 inode
+ * gfs2_iyesde_refresh - Refresh the incore copy of the diyesde
+ * @ip: The GFS2 iyesde
  *
- * Returns: errno
+ * Returns: erryes
  */
 
-int gfs2_inode_refresh(struct gfs2_inode *ip)
+int gfs2_iyesde_refresh(struct gfs2_iyesde *ip)
 {
 	struct buffer_head *dibh;
 	int error;
 
-	error = gfs2_meta_inode_buffer(ip, &dibh);
+	error = gfs2_meta_iyesde_buffer(ip, &dibh);
 	if (error)
 		return error;
 
-	error = gfs2_dinode_in(ip, dibh->b_data);
+	error = gfs2_diyesde_in(ip, dibh->b_data);
 	brelse(dibh);
 	clear_bit(GIF_INVALID, &ip->i_flags);
 
@@ -417,31 +417,31 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 }
 
 /**
- * inode_go_lock - operation done after an inode lock is locked by a process
+ * iyesde_go_lock - operation done after an iyesde lock is locked by a process
  * @gl: the glock
  * @flags:
  *
- * Returns: errno
+ * Returns: erryes
  */
 
-static int inode_go_lock(struct gfs2_holder *gh)
+static int iyesde_go_lock(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct gfs2_inode *ip = gl->gl_object;
+	struct gfs2_iyesde *ip = gl->gl_object;
 	int error = 0;
 
 	if (!ip || (gh->gh_flags & GL_SKIP))
 		return 0;
 
 	if (test_bit(GIF_INVALID, &ip->i_flags)) {
-		error = gfs2_inode_refresh(ip);
+		error = gfs2_iyesde_refresh(ip);
 		if (error)
 			return error;
 	}
 
 	if (gh->gh_state != LM_ST_DEFERRED)
-		inode_dio_wait(&ip->i_inode);
+		iyesde_dio_wait(&ip->i_iyesde);
 
 	if ((ip->i_diskflags & GFS2_DIF_TRUNC_IN_PROG) &&
 	    (gl->gl_state == LM_ST_EXCLUSIVE) &&
@@ -458,34 +458,34 @@ static int inode_go_lock(struct gfs2_holder *gh)
 }
 
 /**
- * inode_go_dump - print information about an inode
+ * iyesde_go_dump - print information about an iyesde
  * @seq: The iterator
- * @ip: the inode
+ * @ip: the iyesde
  * @fs_id_buf: file system id (may be empty)
  *
  */
 
-static void inode_go_dump(struct seq_file *seq, struct gfs2_glock *gl,
+static void iyesde_go_dump(struct seq_file *seq, struct gfs2_glock *gl,
 			  const char *fs_id_buf)
 {
-	struct gfs2_inode *ip = gl->gl_object;
-	struct inode *inode = &ip->i_inode;
+	struct gfs2_iyesde *ip = gl->gl_object;
+	struct iyesde *iyesde = &ip->i_iyesde;
 	unsigned long nrpages;
 
 	if (ip == NULL)
 		return;
 
-	xa_lock_irq(&inode->i_data.i_pages);
-	nrpages = inode->i_data.nrpages;
-	xa_unlock_irq(&inode->i_data.i_pages);
+	xa_lock_irq(&iyesde->i_data.i_pages);
+	nrpages = iyesde->i_data.nrpages;
+	xa_unlock_irq(&iyesde->i_data.i_pages);
 
 	gfs2_print_dbg(seq, "%s I: n:%llu/%llu t:%u f:0x%02lx d:0x%08x s:%llu "
 		       "p:%lu\n", fs_id_buf,
-		  (unsigned long long)ip->i_no_formal_ino,
-		  (unsigned long long)ip->i_no_addr,
-		  IF2DT(ip->i_inode.i_mode), ip->i_flags,
+		  (unsigned long long)ip->i_yes_formal_iyes,
+		  (unsigned long long)ip->i_yes_addr,
+		  IF2DT(ip->i_iyesde.i_mode), ip->i_flags,
 		  (unsigned int)ip->i_diskflags,
-		  (unsigned long long)i_size_read(inode), nrpages);
+		  (unsigned long long)i_size_read(iyesde), nrpages);
 }
 
 /**
@@ -525,7 +525,7 @@ static void freeze_go_sync(struct gfs2_glock *gl)
 static int freeze_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct gfs2_inode *ip = GFS2_I(sdp->sd_jdesc->jd_inode);
+	struct gfs2_iyesde *ip = GFS2_I(sdp->sd_jdesc->jd_iyesde);
 	struct gfs2_glock *j_gl = ip->i_gl;
 	struct gfs2_log_header_host head;
 	int error;
@@ -542,7 +542,7 @@ static int freeze_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
 		/*  Initialize some head of the log stuff  */
 		if (!gfs2_withdrawn(sdp)) {
 			sdp->sd_log_sequence = head.lh_sequence + 1;
-			gfs2_log_pointers_init(sdp, head.lh_blkno);
+			gfs2_log_pointers_init(sdp, head.lh_blkyes);
 		}
 	}
 	return 0;
@@ -561,14 +561,14 @@ static int freeze_go_demote_ok(const struct gfs2_glock *gl)
 }
 
 /**
- * iopen_go_callback - schedule the dcache entry for the inode to be deleted
+ * iopen_go_callback - schedule the dcache entry for the iyesde to be deleted
  * @gl: the glock
  *
  * gl_lockref.lock lock is held while calling this
  */
 static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 {
-	struct gfs2_inode *ip = gl->gl_object;
+	struct gfs2_iyesde *ip = gl->gl_object;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
 	if (!remote || sb_rdonly(sdp->sd_vfs))
@@ -586,12 +586,12 @@ const struct gfs2_glock_operations gfs2_meta_glops = {
 	.go_type = LM_TYPE_META,
 };
 
-const struct gfs2_glock_operations gfs2_inode_glops = {
-	.go_sync = inode_go_sync,
-	.go_inval = inode_go_inval,
-	.go_demote_ok = inode_go_demote_ok,
-	.go_lock = inode_go_lock,
-	.go_dump = inode_go_dump,
+const struct gfs2_glock_operations gfs2_iyesde_glops = {
+	.go_sync = iyesde_go_sync,
+	.go_inval = iyesde_go_inval,
+	.go_demote_ok = iyesde_go_demote_ok,
+	.go_lock = iyesde_go_lock,
+	.go_dump = iyesde_go_dump,
 	.go_type = LM_TYPE_INODE,
 	.go_flags = GLOF_ASPACE | GLOF_LRU,
 };
@@ -624,7 +624,7 @@ const struct gfs2_glock_operations gfs2_flock_glops = {
 	.go_flags = GLOF_LRU,
 };
 
-const struct gfs2_glock_operations gfs2_nondisk_glops = {
+const struct gfs2_glock_operations gfs2_yesndisk_glops = {
 	.go_type = LM_TYPE_NONDISK,
 };
 
@@ -639,11 +639,11 @@ const struct gfs2_glock_operations gfs2_journal_glops = {
 
 const struct gfs2_glock_operations *gfs2_glops_list[] = {
 	[LM_TYPE_META] = &gfs2_meta_glops,
-	[LM_TYPE_INODE] = &gfs2_inode_glops,
+	[LM_TYPE_INODE] = &gfs2_iyesde_glops,
 	[LM_TYPE_RGRP] = &gfs2_rgrp_glops,
 	[LM_TYPE_IOPEN] = &gfs2_iopen_glops,
 	[LM_TYPE_FLOCK] = &gfs2_flock_glops,
-	[LM_TYPE_NONDISK] = &gfs2_nondisk_glops,
+	[LM_TYPE_NONDISK] = &gfs2_yesndisk_glops,
 	[LM_TYPE_QUOTA] = &gfs2_quota_glops,
 	[LM_TYPE_JOURNAL] = &gfs2_journal_glops,
 };

@@ -23,7 +23,7 @@
  |    Takes two valid reg f.p. numbers (TAG_Valid), which are
  |    treated as unsigned numbers,
  |    and returns their sum as a TAG_Valid or TAG_Special f.p. number.
- |    The returned number is normalized.
+ |    The returned number is yesrmalized.
  |    Basic checks are performed if PARANOID is defined.
  */
 
@@ -95,11 +95,11 @@ L_more_than_31:
 	shrd	%cl,%eax,%edx
 	shr	%cl,%eax
 	orl	%ebx,%ebx
-	jz	L_more_31_no_low	/* none of the lowest bits is set */
+	jz	L_more_31_yes_low	/* yesne of the lowest bits is set */
 
 	orl	$1,%edx			/* record the fact in the extension */
 
-L_more_31_no_low:
+L_more_31_yes_low:
 	movl	%eax,%ebx
 	xorl	%eax,%eax
 	jmp	L_shift_done
@@ -116,15 +116,15 @@ L_more_than_63:
 
 	movl	%eax,%edx
 	orl	%ebx,%ebx
-	jz	L_more_63_no_low
+	jz	L_more_63_yes_low
 
 	orl	$1,%edx
-	jmp	L_more_63_no_low
+	jmp	L_more_63_yes_low
 
 L_more_than_64:
 	movl	$1,%edx		/* The shifted nr always at least one '1' */
 
-L_more_63_no_low:
+L_more_63_yes_low:
 	xorl	%ebx,%ebx
 	xorl	%eax,%eax
 
@@ -138,11 +138,11 @@ L_shift_done:
 	rcrl	$1,%eax
 	rcrl	$1,%ebx
 	rcrl	$1,%edx
-	jnc	L_no_bit_lost
+	jnc	L_yes_bit_lost
 
 	orl	$1,%edx
 
-L_no_bit_lost:
+L_yes_bit_lost:
 	incw	EXP(%edi)
 
 L_round_the_result:

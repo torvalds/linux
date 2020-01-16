@@ -121,7 +121,7 @@
 		};
 
 		/*
-		 * On am3517 the OCP registers do not seem to be accessible
+		 * On am3517 the OCP registers do yest seem to be accessible
 		 * similar to the omap34xx. Maybe SGX is permanently set to
 		 * "OCP bypass mode", or maybe there is OCP_SYSCONFIG that is
 		 * write-only at 0x50000e10. We detect SGX based on the SGX
@@ -139,7 +139,7 @@
 			ranges = <0 0x50000000 0x4000>;
 
 			/*
-			 * Closed source PowerVR driver, no child device
+			 * Closed source PowerVR driver, yes child device
 			 * binding or driver in mainline
 			 */
 		};

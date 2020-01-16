@@ -269,7 +269,7 @@ static void udl_crtc_dpms(struct drm_crtc *crtc, int mode)
 					urb->transfer_buffer);
 	} else {
 		if (udl->mode_buf_len == 0) {
-			DRM_ERROR("Trying to enable DPMS with no mode\n");
+			DRM_ERROR("Trying to enable DPMS with yes mode\n");
 			return;
 		}
 		udl_crtc_write_mode_to_hw(crtc);
@@ -311,7 +311,7 @@ static int udl_crtc_mode_set(struct drm_crtc *crtc,
 
 	buf = (char *)udl->mode_buf;
 
-	/* for now we just clip 24 -> 16 - if we fix that fix this */
+	/* for yesw we just clip 24 -> 16 - if we fix that fix this */
 	/*if  (crtc->fb->bits_per_pixel != 16)
 	  color_depth = 1; */
 

@@ -30,7 +30,7 @@ struct debug_info {
 struct thread_struct {
 							/* fault info	  */
 	unsigned long		address;
-	unsigned long		trap_no;
+	unsigned long		trap_yes;
 	unsigned long		error_code;
 							/* debugging	  */
 	struct debug_info	debug;
@@ -38,7 +38,7 @@ struct thread_struct {
 
 /*
  * Everything usercopied to/from thread_struct is statically-sized, so
- * no hardened usercopy whitelist is needed.
+ * yes hardened usercopy whitelist is needed.
  */
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
 						unsigned long *size)
@@ -89,7 +89,7 @@ unsigned long get_wchan(struct task_struct *p);
 #define cpu_relax()						\
 	do {							\
 		smp_mb();					\
-		__asm__ __volatile__("nop; nop; nop; nop; nop; nop; nop; nop; nop; nop;");	\
+		__asm__ __volatile__("yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp;");	\
 	} while (0)
 #else
 #define cpu_relax()			barrier()

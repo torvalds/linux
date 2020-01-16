@@ -20,7 +20,7 @@ right set of options to display a memory access profile. By default, loads
 and stores are sampled. Use the -t option to limit to loads or stores.
 
 Note that on Intel systems the memory latency reported is the use-latency,
-not the pure load (or store latency). Use latency includes any pipeline
+yest the pure load (or store latency). Use latency includes any pipeline
 queueing delays in addition to the memory subsystem latency.
 
 OPTIONS
@@ -53,7 +53,7 @@ OPTIONS
 -C::
 --cpu=<cpu>::
 	Monitor only on the list of CPUs provided. Multiple CPUs can be provided as a
-        comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2. Default
+        comma-separated list with yes space: 0,1. Ranges of CPUs are specified with -: 0-2. Default
         is to monitor all CPUS.
 -U::
 --hide-unresolved::

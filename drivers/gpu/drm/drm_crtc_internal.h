@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -28,7 +28,7 @@
 /*
  * This header file contains mode setting related functions and definitions
  * which are only used within the drm module as internal implementation details
- * and are not exported to drivers.
+ * and are yest exported to drivers.
  */
 
 #include <linux/types.h>
@@ -221,8 +221,8 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 
 /* drm_atomic.c */
 #ifdef CONFIG_DEBUG_FS
-struct drm_minor;
-int drm_atomic_debugfs_init(struct drm_minor *minor);
+struct drm_miyesr;
+int drm_atomic_debugfs_init(struct drm_miyesr *miyesr);
 #endif
 
 int __drm_atomic_helper_disable_plane(struct drm_plane *plane,

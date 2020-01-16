@@ -232,20 +232,20 @@ static int sun4i_hdmi_get_modes(struct drm_connector *connector)
 
 static struct i2c_adapter *sun4i_hdmi_get_ddc(struct device *dev)
 {
-	struct device_node *phandle, *remote;
+	struct device_yesde *phandle, *remote;
 	struct i2c_adapter *ddc;
 
-	remote = of_graph_get_remote_node(dev->of_node, 1, -1);
+	remote = of_graph_get_remote_yesde(dev->of_yesde, 1, -1);
 	if (!remote)
 		return ERR_PTR(-EINVAL);
 
 	phandle = of_parse_phandle(remote, "ddc-i2c-bus", 0);
-	of_node_put(remote);
+	of_yesde_put(remote);
 	if (!phandle)
 		return ERR_PTR(-ENODEV);
 
-	ddc = of_get_i2c_adapter_by_node(phandle);
-	of_node_put(phandle);
+	ddc = of_get_i2c_adapter_by_yesde(phandle);
+	of_yesde_put(phandle);
 	if (!ddc)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -303,7 +303,7 @@ static void sun4i_hdmi_cec_pin_high(struct cec_adapter *adap)
 
 	/*
 	 * Stop driving the CEC pin, the pull up will take over
-	 * unless another CEC device is driving the pin low.
+	 * unless ayesther CEC device is driving the pin low.
 	 */
 	writel(0, hdmi->base + SUN4I_HDMI_CEC);
 }
@@ -622,7 +622,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	}
 
 	hdmi->encoder.possible_crtcs = drm_of_find_possible_crtcs(drm,
-								  dev->of_node);
+								  dev->of_yesde);
 	if (!hdmi->encoder.possible_crtcs) {
 		ret = -EPROBE_DEFER;
 		goto err_put_ddc_i2c;
@@ -652,7 +652,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	cec_fill_conn_info_from_drm(&conn_info, &hdmi->connector);
 	cec_s_conn_info(hdmi->cec_adap, &conn_info);
 
-	/* There is no HPD interrupt, so we need to poll the controller */
+	/* There is yes HPD interrupt, so we need to poll the controller */
 	hdmi->connector.polled = DRM_CONNECTOR_POLL_CONNECT |
 		DRM_CONNECTOR_POLL_DISCONNECT;
 

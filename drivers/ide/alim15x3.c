@@ -6,7 +6,7 @@
  *  Copyright (C) 1998-2000 Andre Hedrick (andre@linux-ide.org)
  *  May be copied or modified under the terms of the GNU General Public License
  *  Copyright (C) 2002 Alan Cox
- *  ALi (now ULi M5228) support by Clear Zhang <Clear.Zhang@ali.com.tw>
+ *  ALi (yesw ULi M5228) support by Clear Zhang <Clear.Zhang@ali.com.tw>
  *  Copyright (C) 2007 MontaVista Software, Inc. <source@mvista.com>
  *  Copyright (C) 2007-2010 Bartlomiej Zolnierkiewicz
  *
@@ -18,7 +18,7 @@
  *
  *  Recent changes
  *	Don't use LBA48 mode on ALi <= 0xC4
- *	Don't poke 0x79 with a non ALi northbridge
+ *	Don't poke 0x79 with a yesn ALi yesrthbridge
  *	Don't flip undefined bits on newer chipsets (fix Fujitsu laptop hang)
  *	Allow UDMA6 on revisions > 0xC4
  *
@@ -40,7 +40,7 @@
 #define DRV_NAME "alim15x3"
 
 /*
- *	ALi devices are not plug in. Otherwise these static values would
+ *	ALi devices are yest plug in. Otherwise these static values would
  *	need to go. They ought to go away anyway
  */
  
@@ -204,7 +204,7 @@ static void ali_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
  *	@drive:	target device
  *	@cmd: command
  *
- *	Returns 1 if the DMA cannot be performed, zero on success.
+ *	Returns 1 if the DMA canyest be performed, zero on success.
  */
 
 static int ali_dma_check(ide_drive_t *drive, struct ide_cmd *cmd)
@@ -228,7 +228,7 @@ static int init_chipset_ali15x3(struct pci_dev *dev)
 {
 	unsigned long flags;
 	u8 tmpbyte;
-	struct pci_dev *north = pci_get_slot(dev->bus, PCI_DEVFN(0,0));
+	struct pci_dev *yesrth = pci_get_slot(dev->bus, PCI_DEVFN(0,0));
 
 	m5229_revision = dev->revision;
 
@@ -259,10 +259,10 @@ static int init_chipset_ali15x3(struct pci_dev *dev)
 
 	/*
 	 * 1543C-B?, 1535, 1535D, 1553
-	 * Note 1: not all "motherboard" support this detection
-	 * Note 2: if no udma 66 device, the detection may "error".
-	 *         but in this case, we will not set the device to
-	 *         ultra 66, the detection result is not important
+	 * Note 1: yest all "motherboard" support this detection
+	 * Note 2: if yes udma 66 device, the detection may "error".
+	 *         but in this case, we will yest set the device to
+	 *         ultra 66, the detection result is yest important
 	 */
 
 	/*
@@ -273,11 +273,11 @@ static int init_chipset_ali15x3(struct pci_dev *dev)
 
 	/*
 	 * We should only tune the 1533 enable if we are using an ALi
-	 * North bridge. We might have no north found on some zany
+	 * North bridge. We might have yes yesrth found on some zany
 	 * box without a device at 0:0.0. The ALi bridge will be at
-	 * 0:0.0 so if we didn't find one we know what is cooking.
+	 * 0:0.0 so if we didn't find one we kyesw what is cooking.
 	 */
-	if (north && north->vendor != PCI_VENDOR_ID_AL)
+	if (yesrth && yesrth->vendor != PCI_VENDOR_ID_AL)
 		goto out;
 
 	if (m5229_revision < 0xC5 && isa_dev)
@@ -308,7 +308,7 @@ out:
 	 *      The hardware will use 0x54h and 0x55h to control PIO FIFO.
 	 *	(Not on later devices it seems)
 	 *
-	 *	0x53 changes meaning on later revs - we must no touch
+	 *	0x53 changes meaning on later revs - we must yes touch
 	 *	bit 1 on them.  Need to check if 0x20 is the right break.
 	 */
 	if (m5229_revision >= 0x20) {
@@ -324,7 +324,7 @@ out:
 		pci_write_config_byte(dev, 0x53, tmpbyte);
 	}
 	local_irq_restore(flags);
-	pci_dev_put(north);
+	pci_dev_put(yesrth);
 	pci_dev_put(isa_dev);
 	return 0;
 }

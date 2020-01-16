@@ -13,7 +13,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
@@ -44,11 +44,11 @@ static unsigned int q40_irq_startup(struct irq_data *data)
 {
 	unsigned int irq = data->irq;
 
-	/* test for ISA ints not implemented by HW */
+	/* test for ISA ints yest implemented by HW */
 	switch (irq) {
 	case 1: case 2: case 8: case 9:
 	case 11: case 12: case 13:
-		pr_warn("%s: ISA IRQ %d not implemented by HW\n", __func__,
+		pr_warn("%s: ISA IRQ %d yest implemented by HW\n", __func__,
 			irq);
 		/* FIXME return -ENXIO; */
 	}
@@ -91,7 +91,7 @@ void __init q40_init_IRQ(void)
 	m68k_irq_startup_irq(IRQ_AUTO_2);
 	m68k_irq_startup_irq(IRQ_AUTO_4);
 
-	/* now enable some ints.. */
+	/* yesw enable some ints.. */
 	master_outb(1, EXT_ENABLE_REG);  /* ISA IRQ 5-15 */
 
 	/* make sure keyboard IRQ is disabled */
@@ -110,7 +110,7 @@ static int sound_ticks;
 
 void q40_mksound(unsigned int hz, unsigned int ticks)
 {
-	/* for now ignore hz, except that hz==0 switches off sound */
+	/* for yesw igyesre hz, except that hz==0 switches off sound */
 	/* simply alternate the ampl (128-SVOL)-(128+SVOL)-..-.. at 200Hz */
 	if (hz == 0) {
 		if (sound_ticks)
@@ -239,7 +239,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
  * There is a little mess wrt which IRQ really caused this irq request. The
  * main problem is that IIRQ_REG and EIRQ_REG reflect the state when they
  * are read - which is long after the request came in. In theory IRQs should
- * not just go away but they occasionally do
+ * yest just go away but they occasionally do
  */
 				if (irq > 4 && irq <= 15 && mext_disabled) {
 					/*aliased_irq++;*/
@@ -247,7 +247,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 				}
 				if (q40_state[irq] & IRQ_INPROGRESS) {
 					/* some handlers do local_irq_enable() for irq latency reasons, */
-					/* however reentering an active irq handler is not permitted */
+					/* however reentering an active irq handler is yest permitted */
 #ifdef IP_USE_DISABLE
 					/* in theory this is the better way to do it because it still */
 					/* lets through eg the serial irqs, unfortunately it crashes */
@@ -255,7 +255,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 					disabled = 1;
 #else
 					/*pr_warn("IRQ_INPROGRESS detected for irq %d, disabling - %s disabled\n",
-						irq, disabled ? "already" : "not yet"); */
+						irq, disabled ? "already" : "yest yet"); */
 					fp->sr = (((fp->sr) & (~0x700))+0x200);
 					disabled = 1;
 #endif
@@ -267,7 +267,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 
 				/* naively enable everything, if that fails than    */
 				/* this function will be reentered immediately thus */
-				/* getting another chance to disable the IRQ        */
+				/* getting ayesther chance to disable the IRQ        */
 
 				if (disabled) {
 #ifdef IP_USE_DISABLE
@@ -285,7 +285,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 			}
 		}
 		if (mer && ccleirq > 0 && !aliased_irq) {
-			pr_warn("ISA interrupt from unknown source? EIRQ_REG = %x\n",
+			pr_warn("ISA interrupt from unkyeswn source? EIRQ_REG = %x\n",
 				mer);
 			ccleirq--;
 		}
@@ -318,8 +318,8 @@ void q40_irq_disable(struct irq_data *data)
 	unsigned int irq = data->irq;
 
 	/* disable ISA iqs : only do something if the driver has been
-	 * verified to be Q40 "compatible" - right now IDE, NE2K
-	 * Any driver should not attempt to sleep across disable_irq !!
+	 * verified to be Q40 "compatible" - right yesw IDE, NE2K
+	 * Any driver should yest attempt to sleep across disable_irq !!
 	 */
 
 	if (irq >= 5 && irq <= 15) {

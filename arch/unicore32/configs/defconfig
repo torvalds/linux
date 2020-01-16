@@ -29,7 +29,7 @@ CONFIG_PCI_LEGACY=n
 #	for debug, adding: earlyprintk=ocd,keep initcall_debug
 #	others support: test_suspend=mem root=/dev/sda
 #	hibernate support: resume=/dev/sda3
-CONFIG_CMDLINE="earlyprintk=ocd,keep ignore_loglevel"
+CONFIG_CMDLINE="earlyprintk=ocd,keep igyesre_loglevel"
 # TODO: mem=512M video=unifb:1024x600-16@75
 # for nfs: root=/dev/nfs rw nfsroot=192.168.10.88:/home/udb/nfs/,rsize=1024,wsize=1024
 #	ip=192.168.10.83:192.168.10.88:192.168.10.1:255.255.255.0::eth0:off
@@ -72,7 +72,7 @@ CONFIG_PUV3_MMC=n
 CONFIG_PUV3_UART=n
 
 ### Device Drivers
-#	Memory Technology Device (MTD) support
+#	Memory Techyeslogy Device (MTD) support
 CONFIG_MTD=m
 CONFIG_MTD_UBI=m
 CONFIG_MTD_PARTITIONS=y

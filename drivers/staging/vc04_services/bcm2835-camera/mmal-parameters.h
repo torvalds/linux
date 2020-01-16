@@ -6,7 +6,7 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(yesw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  */
@@ -225,7 +225,7 @@ enum mmal_parameter_camera_type {
 
 struct mmal_parameter_rational {
 	s32 num;    /**< Numerator */
-	s32 den;    /**< Denominator */
+	s32 den;    /**< Deyesminator */
 };
 
 enum mmal_parameter_camera_config_timestamp_mode {
@@ -273,7 +273,7 @@ struct mmal_parameter_camera_config {
 	u32 fast_preview_resume;
 
 	/** Selects algorithm for timestamping frames if
-	 * there is no clock component connected.
+	 * there is yes clock component connected.
 	 * enum mmal_parameter_camera_config_timestamp_mode
 	 */
 	s32 use_stc_timestamp;
@@ -667,11 +667,11 @@ struct mmal_parameter_displayregion {
 	 */
 	struct vchiq_mmal_rect src_rect;
 
-	/** If set to non-zero, indicates that any display scaling
+	/** If set to yesn-zero, indicates that any display scaling
 	 * should disregard the aspect ratio of the frame region being
 	 * displayed.
 	 */
-	s32 noaspect;
+	s32 yesaspect;
 
 	/** Indicates how the image should be scaled to fit the
 	 * display. \code MMAL_DISPLAY_MODE_FILL \endcode indicates
@@ -683,13 +683,13 @@ struct mmal_parameter_displayregion {
 	 */
 	u32 mode; /* enum mmal_parameter_displaymode */
 
-	/** If non-zero, defines the width of a source pixel relative
+	/** If yesn-zero, defines the width of a source pixel relative
 	 * to \code pixel_y \endcode.  If zero, then pixels default to
 	 * being square.
 	 */
 	u32 pixel_x;
 
-	/** If non-zero, defines the height of a source pixel relative
+	/** If yesn-zero, defines the height of a source pixel relative
 	 * to \code pixel_x \endcode.  If zero, then pixels default to
 	 * being square.
 	 */
@@ -700,7 +700,7 @@ struct mmal_parameter_displayregion {
 	 */
 	u32 layer;
 
-	/** Set to non-zero to ensure copy protection is used on
+	/** Set to yesn-zero to ensure copy protection is used on
 	 * output.
 	 */
 	s32 copyprotect_required;

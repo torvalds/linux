@@ -54,7 +54,7 @@ properties:
 
   memory-region:
     description:
-       phandle to a node describing reserved memory (System RAM memory)
+       phandle to a yesde describing reserved memory (System RAM memory)
        used by DSP (see bindings/reserved-memory/reserved-memory.txt)
     maxItems: 1
 

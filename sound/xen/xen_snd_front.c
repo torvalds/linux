@@ -288,7 +288,7 @@ static void sndback_changed(struct xenbus_device *xb_dev,
 		 */
 		break;
 
-	case XenbusStateUnknown:
+	case XenbusStateUnkyeswn:
 		/* fall through */
 	case XenbusStateClosed:
 		if (xb_dev->state == XenbusStateClosed)
@@ -324,7 +324,7 @@ static int xen_drv_remove(struct xenbus_device *dev)
 
 	/*
 	 * On driver removal it is disconnected from XenBus,
-	 * so no backend state change events come via .otherend_changed
+	 * so yes backend state change events come via .otherend_changed
 	 * callback. This prevents us from exiting gracefully, e.g.
 	 * signaling the backend to free event channels, waiting for its
 	 * state to change to XenbusStateClosed and cleaning at our end.
@@ -334,7 +334,7 @@ static int xen_drv_remove(struct xenbus_device *dev)
 	 * Workaround: read backend's state manually and wait with time-out.
 	 */
 	while ((xenbus_read_unsigned(front_info->xb_dev->otherend, "state",
-				     XenbusStateUnknown) != XenbusStateInitWait) &&
+				     XenbusStateUnkyeswn) != XenbusStateInitWait) &&
 	       --to)
 		msleep(10);
 
@@ -342,7 +342,7 @@ static int xen_drv_remove(struct xenbus_device *dev)
 		unsigned int state;
 
 		state = xenbus_read_unsigned(front_info->xb_dev->otherend,
-					     "state", XenbusStateUnknown);
+					     "state", XenbusStateUnkyeswn);
 		pr_err("Backend state is %s while removing driver\n",
 		       xenbus_strstate(state));
 	}
@@ -374,7 +374,7 @@ static int __init xen_drv_init(void)
 
 	/* At the moment we only support case with XEN_PAGE_SIZE == PAGE_SIZE */
 	if (XEN_PAGE_SIZE != PAGE_SIZE) {
-		pr_err(XENSND_DRIVER_NAME ": different kernel and Xen page sizes are not supported: XEN_PAGE_SIZE (%lu) != PAGE_SIZE (%lu)\n",
+		pr_err(XENSND_DRIVER_NAME ": different kernel and Xen page sizes are yest supported: XEN_PAGE_SIZE (%lu) != PAGE_SIZE (%lu)\n",
 		       XEN_PAGE_SIZE, PAGE_SIZE);
 		return -ENODEV;
 	}

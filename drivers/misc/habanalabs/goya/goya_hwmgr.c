@@ -28,7 +28,7 @@ void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq)
 		hl_set_frequency(hdev, IC_PLL, goya->ic_clk);
 		break;
 	default:
-		dev_err(hdev->dev, "unknown frequency setting\n");
+		dev_err(hdev->dev, "unkyeswn frequency setting\n");
 	}
 }
 
@@ -272,7 +272,7 @@ static ssize_t pm_mng_profile_show(struct device *dev,
 	return sprintf(buf, "%s\n",
 			(hdev->pm_mng_profile == PM_AUTO) ? "auto" :
 			(hdev->pm_mng_profile == PM_MANUAL) ? "manual" :
-			"unknown");
+			"unkyeswn");
 }
 
 static ssize_t pm_mng_profile_store(struct device *dev,
@@ -305,7 +305,7 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 		if (hdev->pm_mng_profile == PM_AUTO) {
 			/* Must release the lock because the work thread also
 			 * takes this lock. But before we release it, set
-			 * the mode to manual so nothing will change if a user
+			 * the mode to manual so yesthing will change if a user
 			 * suddenly opens the device
 			 */
 			hdev->pm_mng_profile = PM_MANUAL;
@@ -313,7 +313,7 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 			mutex_unlock(&hdev->fpriv_list_lock);
 
 			/* Flush the current work so we can return to the user
-			 * knowing that he is the only one changing frequencies
+			 * kyeswing that he is the only one changing frequencies
 			 */
 			flush_delayed_work(&hdev->work_freq);
 

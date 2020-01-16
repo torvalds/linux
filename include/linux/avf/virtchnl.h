@@ -19,7 +19,7 @@
  *
  * Admin queue buffer usage:
  * desc->opcode is always aqc_opc_send_msg_to_pf
- * flags, retval, datalen, and data addr are all used normally.
+ * flags, retval, datalen, and data addr are all used yesrmally.
  * The Firmware copies the cookie fields when sending messages between the
  * PF and VF, but uses all other fields internally. Due to this limitation,
  * we must send all messages as "indirect", i.e. using an external buffer.
@@ -29,7 +29,7 @@
  * have a maximum of sixteen queues for all of its VSIs.
  *
  * The PF is required to return a status code in v_retval for all messages
- * except RESET_VF, which does not require any response. The return value
+ * except RESET_VF, which does yest require any response. The return value
  * is of status_code type, defined in the shared type.h.
  *
  * In general, VF driver initialization should roughly follow the order of
@@ -102,7 +102,7 @@ enum virtchnl_ops {
  * the VIRTCHNL_OP_EVENT opcode.
  * VFs send requests to the PF using the other ops.
  * Use of "advanced opcode" features must be negotiated as part of capabilities
- * exchange and are not considered part of base mode feature set.
+ * exchange and are yest considered part of base mode feature set.
  */
 	VIRTCHNL_OP_UNKNOWN = 0,
 	VIRTCHNL_OP_VERSION = 1, /* must ALWAYS be 1 */
@@ -139,8 +139,8 @@ enum virtchnl_ops {
 };
 
 /* These macros are used to generate compilation errors if a structure/union
- * is not exactly the correct length. It gives a divide by zero error if the
- * structure/union is not of the correct size, otherwise it creates an enum
+ * is yest exactly the correct length. It gives a divide by zero error if the
+ * structure/union is yest of the correct size, otherwise it creates an enum
  * that is never used.
  */
 #define VIRTCHNL_CHECK_STRUCT_LEN(n, X) enum virtchnl_static_assert_enum_##X \
@@ -166,9 +166,9 @@ VIRTCHNL_CHECK_STRUCT_LEN(20, virtchnl_msg);
 /* VIRTCHNL_OP_VERSION
  * VF posts its version number to the PF. PF responds with its version number
  * in the same format, along with a return code.
- * Reply from PF has its major/minor versions also in param0 and param1.
- * If there is a major version mismatch, then the VF cannot operate.
- * If there is a minor version mismatch, then the VF can operate but should
+ * Reply from PF has its major/miyesr versions also in param0 and param1.
+ * If there is a major version mismatch, then the VF canyest operate.
+ * If there is a miyesr version mismatch, then the VF can operate but should
  * add a warning to the system log.
  *
  * This enum element MUST always be specified as == 1, regardless of other
@@ -181,16 +181,16 @@ VIRTCHNL_CHECK_STRUCT_LEN(20, virtchnl_msg);
 
 struct virtchnl_version_info {
 	u32 major;
-	u32 minor;
+	u32 miyesr;
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_version_info);
 
-#define VF_IS_V10(_v) (((_v)->major == 1) && ((_v)->minor == 0))
-#define VF_IS_V11(_ver) (((_ver)->major == 1) && ((_ver)->minor == 1))
+#define VF_IS_V10(_v) (((_v)->major == 1) && ((_v)->miyesr == 0))
+#define VF_IS_V11(_ver) (((_ver)->major == 1) && ((_ver)->miyesr == 1))
 
 /* VIRTCHNL_OP_RESET_VF
- * VF sends this request to PF with no parameters
+ * VF sends this request to PF with yes parameters
  * PF does NOT respond! VF driver must delay then poll VFGEN_RSTAT register
  * until reset completion is indicated. The admin queue must be reinitialized
  * after this operation.
@@ -211,7 +211,7 @@ enum virtchnl_vsi_type {
 };
 
 /* VIRTCHNL_OP_GET_VF_RESOURCES
- * Version 1.0 VF sends this request to PF with no parameters
+ * Version 1.0 VF sends this request to PF with yes parameters
  * Version 1.1 VF sends this request to PF with u32 bitmap of its capabilities
  * PF responds with an indirect message containing
  * virtchnl_vf_resource and one or more
@@ -230,7 +230,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vsi_resource);
 
 /* VF capability flags
  * VIRTCHNL_VF_OFFLOAD_L2 flag is inclusive of base mode L2 offloads including
- * TX/RX Checksum offloading and TSO for non-tunnelled packets.
+ * TX/RX Checksum offloading and TSO for yesn-tunnelled packets.
  */
 #define VIRTCHNL_VF_OFFLOAD_L2			0x00000001
 #define VIRTCHNL_VF_OFFLOAD_IWARP		0x00000002
@@ -248,7 +248,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vsi_resource);
 #define VIRTCHNL_VF_OFFLOAD_RX_ENCAP_CSUM	0X00400000
 #define VIRTCHNL_VF_OFFLOAD_ADQ			0X00800000
 
-/* Define below the capability flags that are not offloads */
+/* Define below the capability flags that are yest offloads */
 #define VIRTCHNL_VF_CAP_ADV_LINK_SPEED		0x00000080
 #define VF_BASE_MODE_OFFLOADS (VIRTCHNL_VF_OFFLOAD_L2 | \
 			       VIRTCHNL_VF_OFFLOAD_VLAN | \
@@ -315,7 +315,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(40, virtchnl_rxq_info);
  * associated with the specified VSI.
  * PF configures queues and returns status.
  * If the number of queues specified is greater than the number of queues
- * associated with the VSI, an error is returned and no queues are configured.
+ * associated with the VSI, an error is returned and yes queues are configured.
  */
 struct virtchnl_queue_pair_info {
 	/* NOTE: vsi_id and queue_id should be identical for both queues. */
@@ -338,8 +338,8 @@ VIRTCHNL_CHECK_STRUCT_LEN(72, virtchnl_vsi_queue_config_info);
  * VF sends this message to request the PF to allocate additional queues to
  * this VF.  Each VF gets a guaranteed number of queues on init but asking for
  * additional queues must be negotiated.  This is a best effort request as it
- * is possible the PF does not have enough queues left to support the request.
- * If the PF cannot support the number requested it will respond with the
+ * is possible the PF does yest have eyesugh queues left to support the request.
+ * If the PF canyest support the number requested it will respond with the
  * maximum number it is able to support.  If the request is successful, PF will
  * then reset the VF to institute required changes.
  */
@@ -458,7 +458,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_promisc_info);
 /* VIRTCHNL_OP_GET_STATS
  * VF sends this message to request stats for the selected VSI. VF uses
  * the virtchnl_queue_select struct to specify the VSI. The queue_id
- * field is ignored by the PF.
+ * field is igyesred by the PF.
  *
  * PF replies with struct eth_stats in an external buffer.
  */
@@ -594,7 +594,7 @@ enum virtchnl_event_codes {
 struct virtchnl_pf_event {
 	enum virtchnl_event_codes event;
 	union {
-		/* If the PF driver does not support the new speed reporting
+		/* If the PF driver does yest support the new speed reporting
 		 * capabilities then use link_event else use link_event_adv to
 		 * get the speed and link information. The ability to understand
 		 * new speeds is indicated by setting the capability flag
@@ -652,7 +652,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_iwarp_qvlist_info);
  * When the reset is complete, it writes 1
  * When the PF detects that the VF has recovered, it writes 2
  * VF checks this register periodically to determine if a reset has occurred,
- * then polls it to know when the reset is complete.
+ * then polls it to kyesw when the reset is complete.
  * If either the PF or VF reads the register while the hardware
  * is in a reset state, it will return DEADBEEF, which, when masked
  * will result in 3.
@@ -754,7 +754,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		break;
 	case VIRTCHNL_OP_IWARP:
 		/* These messages are opaque to us and will be validated in
-		 * the RDMA client code. We just need to check for nonzero
+		 * the RDMA client code. We just need to check for yesnzero
 		 * length. The firmware will enforce max length restrictions.
 		 */
 		if (msglen)

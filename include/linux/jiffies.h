@@ -45,7 +45,7 @@
 /* Suppose we want to divide two numbers NOM and DEN: NOM/DEN, then we can
  * improve accuracy by shifting LSH bits, hence calculating:
  *     (NOM << LSH) / DEN
- * This however means trouble for large NOM, because (NOM << LSH) may no
+ * This however means trouble for large NOM, because (NOM << LSH) may yes
  * longer fit in 32 bits. The following way of calculating this gives us
  * some slack, under the following conditions:
  *   - (NOM / DEN) fits in (32 - LSH) bits.
@@ -73,7 +73,7 @@ extern int register_refined_jiffies(long clock_tick_rate);
 #endif
 
 /*
- * The 64-bit value is not atomic - you MUST NOT read it
+ * The 64-bit value is yest atomic - you MUST NOT read it
  * without sampling the sequence number in jiffies_lock.
  * get_jiffies_64() will do this for you as appropriate.
  */
@@ -177,7 +177,7 @@ static inline u64 get_jiffies_64(void)
  * Change timeval to jiffies, trying to avoid the
  * most obvious overflows..
  *
- * And some not so obvious.
+ * And some yest so obvious.
  *
  * Note that we don't want to return LONG_MAX, because
  * for various timeout reasons we often end up having
@@ -193,9 +193,9 @@ extern unsigned long preset_lpj;
  * We want to do realistic conversions of time so we need to use the same
  * values the update wall clock code uses as the jiffies size.  This value
  * is: TICK_NSEC (which is defined in timex.h).  This
- * is a constant and is in nanoseconds.  We will use scaled math
+ * is a constant and is in nayesseconds.  We will use scaled math
  * with a set of scales defined here as SEC_JIFFIE_SC,  USEC_JIFFIE_SC and
- * NSEC_JIFFIE_SC.  Note that these defines contain nothing but
+ * NSEC_JIFFIE_SC.  Note that these defines contain yesthing but
  * constants and so are computed at compile time.  SHIFT_HZ (computed in
  * timex.h) adjusts the scaling for different HZ values.
 
@@ -210,7 +210,7 @@ extern unsigned long preset_lpj;
  * costly mpy and the dastardly div instructions.
 
  * Suppose, for example, we want to convert from seconds to jiffies
- * where jiffies is defined in nanoseconds as NSEC_PER_JIFFIE.  The
+ * where jiffies is defined in nayesseconds as NSEC_PER_JIFFIE.  The
  * simple math is: jiff = (sec * NSEC_PER_SEC) / NSEC_PER_JIFFIE; We
  * observe that (NSEC_PER_SEC / NSEC_PER_JIFFIE) is a constant which we
  * might calculate at compile time, however, the result will only have
@@ -233,30 +233,30 @@ extern unsigned long preset_lpj;
  * that means using a different scale for each range of HZ values (as
  * defined in timex.h).
  *
- * For those who want to know, gcc will give a 64-bit result from a "*"
+ * For those who want to kyesw, gcc will give a 64-bit result from a "*"
  * operator if the result is a long long AND at least one of the
  * operands is cast to long long (usually just prior to the "*" so as
- * not to confuse it into thinking it really has a 64-bit operand,
+ * yest to confuse it into thinking it really has a 64-bit operand,
  * which, buy the way, it can do, but it takes more code and at least 2
  * mpys).
 
- * We also need to be aware that one second in nanoseconds is only a
+ * We also need to be aware that one second in nayesseconds is only a
  * couple of bits away from overflowing a 32-bit word, so we MUST use
- * 64-bits to get the full range time in nanoseconds.
+ * 64-bits to get the full range time in nayesseconds.
 
  */
 
 /*
- * Here are the scales we will use.  One for seconds, nanoseconds and
+ * Here are the scales we will use.  One for seconds, nayesseconds and
  * microseconds.
  *
  * Within the limits of cpp we do a rough cut at the SEC_JIFFIE_SC and
- * check if the sign bit is set.  If not, we bump the shift count by 1.
+ * check if the sign bit is set.  If yest, we bump the shift count by 1.
  * (Gets an extra bit of precision where we can use it.)
- * We know it is set for HZ = 1024 and HZ = 100 not for 1000.
+ * We kyesw it is set for HZ = 1024 and HZ = 100 yest for 1000.
  * Haven't tested others.
 
- * Limits of cpp (for #if expressions) only long (no long long), but
+ * Limits of cpp (for #if expressions) only long (yes long long), but
  * then we only need the most signicant bit.
  */
 
@@ -273,7 +273,7 @@ extern unsigned long preset_lpj;
                                         TICK_NSEC -1) / (u64)TICK_NSEC))
 /*
  * The maximum jiffie value is (MAX_INT >> 1).  Here we translate that
- * into seconds.  The 64-bit case will overflow if we are not careful,
+ * into seconds.  The 64-bit case will overflow if we are yest careful,
  * so use the messy SH_DIV macro to do it.  Still all constants.
  */
 #if BITS_PER_LONG < 64
@@ -315,7 +315,7 @@ static inline unsigned long _msecs_to_jiffies(const unsigned int m)
  * HZ is larger than 1000, and HZ is a nice round multiple of 1000 -
  * simply multiply with the factor between them.
  *
- * But first make sure the multiplication result cannot overflow:
+ * But first make sure the multiplication result canyest overflow:
  */
 static inline unsigned long _msecs_to_jiffies(const unsigned int m)
 {
@@ -354,12 +354,12 @@ static inline unsigned long _msecs_to_jiffies(const unsigned int m)
  *
  * msecs_to_jiffies() checks for the passed in value being a constant
  * via __builtin_constant_p() allowing gcc to eliminate most of the
- * code, __msecs_to_jiffies() is called if the value passed does not
+ * code, __msecs_to_jiffies() is called if the value passed does yest
  * allow constant folding and the actual conversion must be done at
  * runtime.
  * the HZ range specific helpers _msecs_to_jiffies() are called both
  * directly here and from __msecs_to_jiffies() in the case where
- * constant folding is not possible.
+ * constant folding is yest possible.
  */
 static __always_inline unsigned long msecs_to_jiffies(const unsigned int m)
 {
@@ -401,12 +401,12 @@ static inline unsigned long _usecs_to_jiffies(const unsigned int u)
  *
  * usecs_to_jiffies() checks for the passed in value being a constant
  * via __builtin_constant_p() allowing gcc to eliminate most of the
- * code, __usecs_to_jiffies() is called if the value passed does not
+ * code, __usecs_to_jiffies() is called if the value passed does yest
  * allow constant folding and the actual conversion must be done at
  * runtime.
  * the HZ range specific helpers _usecs_to_jiffies() are called both
  * directly here and from __msecs_to_jiffies() in the case where
- * constant folding is not possible.
+ * constant folding is yest possible.
  */
 static __always_inline unsigned long usecs_to_jiffies(const unsigned int u)
 {

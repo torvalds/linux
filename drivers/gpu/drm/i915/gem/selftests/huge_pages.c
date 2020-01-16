@@ -740,7 +740,7 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 		}
 
 		/*
-		 * Figure out the expected gtt page size knowing that we go from
+		 * Figure out the expected gtt page size kyeswing that we go from
 		 * largest to smallest page size sg chunks, and that we align to
 		 * the largest page size.
 		 */
@@ -763,18 +763,18 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 		i915_vma_unpin(vma);
 
 		if (vma->page_sizes.sg & I915_GTT_PAGE_SIZE_64K) {
-			if (!IS_ALIGNED(vma->node.start,
+			if (!IS_ALIGNED(vma->yesde.start,
 					I915_GTT_PAGE_SIZE_2M)) {
-				pr_err("node.start(%llx) not aligned to 2M\n",
-				       vma->node.start);
+				pr_err("yesde.start(%llx) yest aligned to 2M\n",
+				       vma->yesde.start);
 				err = -EINVAL;
 				break;
 			}
 
-			if (!IS_ALIGNED(vma->node.size,
+			if (!IS_ALIGNED(vma->yesde.size,
 					I915_GTT_PAGE_SIZE_2M)) {
-				pr_err("node.size(%llx) not aligned to 2M\n",
-				       vma->node.size);
+				pr_err("yesde.size(%llx) yest aligned to 2M\n",
+				       vma->yesde.size);
 				err = -EINVAL;
 				break;
 			}
@@ -783,7 +783,7 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 		if (vma->page_sizes.gtt != expected_gtt) {
 			pr_err("gtt=%u, expected=%u, size=%zd, single=%s\n",
 			       vma->page_sizes.gtt, expected_gtt,
-			       obj->base.size, yesno(!!single));
+			       obj->base.size, noyes(!!single));
 			err = -EINVAL;
 			break;
 		}
@@ -919,18 +919,18 @@ static int igt_mock_ppgtt_64K(void *arg)
 				goto out_vma_unpin;
 
 			if (!offset && vma->page_sizes.sg & I915_GTT_PAGE_SIZE_64K) {
-				if (!IS_ALIGNED(vma->node.start,
+				if (!IS_ALIGNED(vma->yesde.start,
 						I915_GTT_PAGE_SIZE_2M)) {
-					pr_err("node.start(%llx) not aligned to 2M\n",
-					       vma->node.start);
+					pr_err("yesde.start(%llx) yest aligned to 2M\n",
+					       vma->yesde.start);
 					err = -EINVAL;
 					goto out_vma_unpin;
 				}
 
-				if (!IS_ALIGNED(vma->node.size,
+				if (!IS_ALIGNED(vma->yesde.size,
 						I915_GTT_PAGE_SIZE_2M)) {
-					pr_err("node.size(%llx) not aligned to 2M\n",
-					       vma->node.size);
+					pr_err("yesde.size(%llx) yest aligned to 2M\n",
+					       vma->yesde.size);
 					err = -EINVAL;
 					goto out_vma_unpin;
 				}
@@ -939,7 +939,7 @@ static int igt_mock_ppgtt_64K(void *arg)
 			if (vma->page_sizes.gtt != expected_gtt) {
 				pr_err("gtt=%u, expected=%u, i=%d, single=%s\n",
 				       vma->page_sizes.gtt, expected_gtt, i,
-				       yesno(!!single));
+				       noyes(!!single));
 				err = -EINVAL;
 				goto out_vma_unpin;
 			}
@@ -1566,7 +1566,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	int err = 0;
 
 	/*
-	 * Make sure there's no funny business when doing a PIN_UPDATE -- in the
+	 * Make sure there's yes funny business when doing a PIN_UPDATE -- in the
 	 * past we had a subtle issue with being able to incorrectly do multiple
 	 * alloc va ranges on the same object when doing a PIN_UPDATE, which
 	 * resulted in some pretty nasty bugs, though only when using
@@ -1575,7 +1575,7 @@ static int igt_ppgtt_pin_update(void *arg)
 
 	vm = i915_gem_context_get_vm_rcu(ctx);
 	if (!i915_vm_is_4lvl(vm)) {
-		pr_info("48b PPGTT not supported, skipping\n");
+		pr_info("48b PPGTT yest supported, skipping\n");
 		goto out_vm;
 	}
 
@@ -1657,7 +1657,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	 * Make sure we don't end up with something like where the pde is still
 	 * pointing to the 2M page, and the pt we just filled-in is dangling --
 	 * we can check this by writing to the first page where it would then
-	 * land in the now stale 2M page.
+	 * land in the yesw stale 2M page.
 	 */
 
 	n = 0;
@@ -1764,7 +1764,7 @@ static int igt_shrink_thp(void *arg)
 	int err = 0;
 
 	/*
-	 * Sanity check shrinking huge-paged object -- make sure nothing blows
+	 * Sanity check shrinking huge-paged object -- make sure yesthing blows
 	 * up.
 	 */
 
@@ -1918,7 +1918,7 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 	int err;
 
 	if (!HAS_PPGTT(i915)) {
-		pr_info("PPGTT not supported, skipping live-selftests\n");
+		pr_info("PPGTT yest supported, skipping live-selftests\n");
 		return 0;
 	}
 

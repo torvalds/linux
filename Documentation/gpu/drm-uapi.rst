@@ -21,7 +21,7 @@ libdrm Device Lookup
    :doc: getunique and setversion story
 
 
-.. _drm_primary_node:
+.. _drm_primary_yesde:
 
 Primary Nodes, DRM Master and Authentication
 ============================================
@@ -44,7 +44,7 @@ explains what exactly those requirements are, and why they exist.
 
 The short summary is that any addition of DRM uAPI requires corresponding
 open-sourced userspace patches, and those patches must be reviewed and ready for
-merging into a suitable and canonical upstream project.
+merging into a suitable and cayesnical upstream project.
 
 GFX devices (both display and render/GPU side) are really complex bits of
 hardware, with userspace and kernel by necessity having to work together really
@@ -52,7 +52,7 @@ closely.  The interfaces, for rendering and modesetting, must be extremely wide
 and flexible, and therefore it is almost always impossible to precisely define
 them for every possible corner case. This in turn makes it really practically
 infeasible to differentiate between behaviour that's required by userspace, and
-which must not be changed to avoid regressions, and behaviour which is only an
+which must yest be changed to avoid regressions, and behaviour which is only an
 accidental artifact of the current implementation.
 
 Without access to the full source code of all userspace users that means it
@@ -61,7 +61,7 @@ depend upon the accidental behaviour of the current implementation in minute
 details. And debugging such regressions without access to source code is pretty
 much impossible. As a consequence this means:
 
-- The Linux kernel's "no regression" policy holds in practice only for
+- The Linux kernel's "yes regression" policy holds in practice only for
   open-source userspace of the DRM subsystem. DRM developers are perfectly fine
   if closed-source blob drivers in userspace use the same uAPI as the open
   drivers, but they must do so in the exact same way as the open drivers.
@@ -77,7 +77,7 @@ review can only assess whether a new interface achieves its goals by looking at
 both sides. Making sure that the interface indeed covers the use-case fully
 leads to a few additional requirements:
 
-- The open-source userspace must not be a toy/test application, but the real
+- The open-source userspace must yest be a toy/test application, but the real
   thing. Specifically it needs to handle all the usual error and corner cases.
   These are often the places where new uAPI falls apart and hence essential to
   assess the fitness of a proposed interface.
@@ -89,8 +89,8 @@ leads to a few additional requirements:
   kernel uAPI patch indicating that they believe the proposed uAPI is sound and
   sufficiently documented and validated for userspace's consumption.
 
-- The userspace patches must be against the canonical upstream, not some vendor
-  fork. This is to make sure that no one cheats on the review and testing
+- The userspace patches must be against the cayesnical upstream, yest some vendor
+  fork. This is to make sure that yes one cheats on the review and testing
   requirements by doing a quick fork.
 
 - The kernel patch can only be merged after all the above requirements are met,
@@ -107,60 +107,60 @@ is already rather painful for the DRM subsystem, with multiple different uAPIs
 for the same thing co-existing. If we add a few more complete mistakes into the
 mix every year it would be entirely unmanageable.
 
-.. _drm_render_node:
+.. _drm_render_yesde:
 
-Render nodes
+Render yesdes
 ============
 
 DRM core provides multiple character-devices for user-space to use.
 Depending on which device is opened, user-space can perform a different
-set of operations (mainly ioctls). The primary node is always created
-and called card<num>. Additionally, a currently unused control node,
-called controlD<num> is also created. The primary node provides all
+set of operations (mainly ioctls). The primary yesde is always created
+and called card<num>. Additionally, a currently unused control yesde,
+called controlD<num> is also created. The primary yesde provides all
 legacy operations and historically was the only interface used by
-userspace. With KMS, the control node was introduced. However, the
+userspace. With KMS, the control yesde was introduced. However, the
 planned KMS control interface has never been written and so the control
-node stays unused to date.
+yesde stays unused to date.
 
 With the increased use of offscreen renderers and GPGPU applications,
-clients no longer require running compositors or graphics servers to
+clients yes longer require running compositors or graphics servers to
 make use of a GPU. But the DRM API required unprivileged clients to
 authenticate to a DRM-Master prior to getting GPU access. To avoid this
 step and to grant clients GPU access without authenticating, render
-nodes were introduced. Render nodes solely serve render clients, that
-is, no modesetting or privileged ioctls can be issued on render nodes.
-Only non-global rendering commands are allowed. If a driver supports
-render nodes, it must advertise it via the DRIVER_RENDER DRM driver
-capability. If not supported, the primary node must be used for render
+yesdes were introduced. Render yesdes solely serve render clients, that
+is, yes modesetting or privileged ioctls can be issued on render yesdes.
+Only yesn-global rendering commands are allowed. If a driver supports
+render yesdes, it must advertise it via the DRIVER_RENDER DRM driver
+capability. If yest supported, the primary yesde must be used for render
 clients together with the legacy drmAuth authentication procedure.
 
-If a driver advertises render node support, DRM core will create a
-separate render node called renderD<num>. There will be one render node
+If a driver advertises render yesde support, DRM core will create a
+separate render yesde called renderD<num>. There will be one render yesde
 per device. No ioctls except PRIME-related ioctls will be allowed on
-this node. Especially GEM_OPEN will be explicitly prohibited. Render
-nodes are designed to avoid the buffer-leaks, which occur if clients
+this yesde. Especially GEM_OPEN will be explicitly prohibited. Render
+yesdes are designed to avoid the buffer-leaks, which occur if clients
 guess the flink names or mmap offsets on the legacy interface.
 Additionally to this basic interface, drivers must mark their
 driver-dependent render-only ioctls as DRM_RENDER_ALLOW so render
-clients can use them. Driver authors must be careful not to allow any
-privileged ioctls on render nodes.
+clients can use them. Driver authors must be careful yest to allow any
+privileged ioctls on render yesdes.
 
-With render nodes, user-space can now control access to the render node
+With render yesdes, user-space can yesw control access to the render yesde
 via basic file-system access-modes. A running graphics server which
-authenticates clients on the privileged primary/legacy node is no longer
-required. Instead, a client can open the render node and is immediately
+authenticates clients on the privileged primary/legacy yesde is yes longer
+required. Instead, a client can open the render yesde and is immediately
 granted GPU access. Communication between clients (or servers) is done
-via PRIME. FLINK from render node to legacy node is not supported. New
-clients must not use the insecure FLINK interface.
+via PRIME. FLINK from render yesde to legacy yesde is yest supported. New
+clients must yest use the insecure FLINK interface.
 
-Besides dropping all modeset/global ioctls, render nodes also drop the
-DRM-Master concept. There is no reason to associate render clients with
+Besides dropping all modeset/global ioctls, render yesdes also drop the
+DRM-Master concept. There is yes reason to associate render clients with
 a DRM-Master as they are independent of any graphics server. Besides,
 they must work without any running master, anyway. Drivers must be able
-to run without a master object if they support render nodes. If, on the
+to run without a master object if they support render yesdes. If, on the
 other hand, a driver requires shared state between clients which is
 visible to user-space and accessible beyond open-file boundaries, they
-cannot support render nodes.
+canyest support render yesdes.
 
 .. _drm_driver_ioctl:
 
@@ -180,7 +180,7 @@ practice within the DRM subsystem:
 ENOENT:
         Strictly this should only be used when a file doesn't exist e.g. when
         calling the open() syscall. We reuse that to signal any kind of object
-        lookup failure, e.g. for unknown GEM buffer object handles, unknown KMS
+        lookup failure, e.g. for unkyeswn GEM buffer object handles, unkyeswn KMS
         object handles and similar cases.
 
 ENOSPC:
@@ -195,14 +195,14 @@ ENOSPC:
 EPERM/EACCES:
         Returned for an operation that is valid, but needs more privileges.
         E.g. root-only or much more common, DRM master-only operations return
-        this when when called by unpriviledged clients. There's no clear
+        this when when called by unpriviledged clients. There's yes clear
         difference between EACCES and EPERM.
 
 ENODEV:
-        The device is not (yet) present or fully initialized.
+        The device is yest (yet) present or fully initialized.
 
 EOPNOTSUPP:
-        Feature (like PRIME, modesetting, GEM) is not supported by the driver.
+        Feature (like PRIME, modesetting, GEM) is yest supported by the driver.
 
 ENXIO:
         Remote failure, either a hardware transaction (like i2c), but also used
@@ -221,12 +221,12 @@ EIO:
 
 EINVAL:
         Catch-all for anything that is an invalid argument combination which
-        cannot work.
+        canyest work.
 
 IOCTL also use other error codes like ETIME, EFAULT, EBUSY, ENOTTY but their
 usage is in line with the common meanings. The above list tries to just document
 DRM specific patterns. Note that ENOTTY has the slightly unintuitive meaning of
-"this IOCTL does not exist", and is used exactly as such in DRM.
+"this IOCTL does yest exist", and is used exactly as such in DRM.
 
 .. kernel-doc:: include/drm/drm_ioctl.h
    :internal:
@@ -245,7 +245,7 @@ Testing Requirements for userspace API
 
 New cross-driver userspace interface extensions, like new IOCTL, new KMS
 properties, new files in sysfs or anything else that constitutes an API change
-should have driver-agnostic testcases in IGT for that feature, if such a test
+should have driver-agyesstic testcases in IGT for that feature, if such a test
 can be reasonably made using IGT for the target hardware.
 
 Validating changes with IGT
@@ -267,7 +267,7 @@ And in Fedora-based systems::
 
 Then clone the repository::
 
-	$ git clone git://anongit.freedesktop.org/drm/igt-gpu-tools
+	$ git clone git://ayesngit.freedesktop.org/drm/igt-gpu-tools
 
 Configure the build system and start the build::
 
@@ -327,8 +327,8 @@ DRM_IOCTL_MODESET_CTL
     This was only used for user-mode-settind drivers around modesetting
     changes to allow the kernel to update the vblank interrupt after
     mode setting, since on many devices the vertical blank counter is
-    reset to 0 at some point during modeset. Modern drivers should not
-    call this any more since with kernel mode setting it is a no-op.
+    reset to 0 at some point during modeset. Modern drivers should yest
+    call this any more since with kernel mode setting it is a yes-op.
 
 Userspace API Structures
 ========================

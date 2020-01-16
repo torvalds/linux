@@ -18,7 +18,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "igyesre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial1:115200n8";
 	};
 
@@ -76,7 +76,7 @@
 
 	phy-handle = <&phy3>;
 	phy-mode = "gmii";
-	renesas,no-ether-link;
+	renesas,yes-ether-link;
 	status = "okay";
 
 	phy3: ethernet-phy@3 {
@@ -248,7 +248,7 @@
 	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "issi,is25lp016d", "jedec,spi-nor";
+		compatible = "issi,is25lp016d", "jedec,spi-yesr";
 		reg = <0>;
 		spi-max-frequency = <133000000>;
 		spi-tx-bus-width = <1>;
@@ -279,7 +279,7 @@
 	vqmmc-supply = <&reg_1p8v>;
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	non-removable;
+	yesn-removable;
 	fixed-emmc-driver-type = <1>;
 	status = "okay";
 };

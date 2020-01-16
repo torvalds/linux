@@ -33,7 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/init.h>
@@ -44,7 +44,7 @@
 #include "arcdevice.h"
 #include "com20020.h"
 
-/* We cannot (yet) probe for an IO mapped card, although we can check that
+/* We canyest (yet) probe for an IO mapped card, although we can check that
  * it's where we were told it was, and even do autoirq.
  */
 static int __init com20020isa_probe(struct net_device *dev)
@@ -119,7 +119,7 @@ out:
 	return err;
 }
 
-static int node = 0;
+static int yesde = 0;
 static int io = 0x0;		/* <--- EDIT THESE LINES FOR YOUR CONFIGURATION */
 static int irq = 0;		/* or use the insmod io= irq= shmem= options */
 static char device[9];		/* use eg. device="arc1" to change name */
@@ -128,7 +128,7 @@ static int backplane = 0;
 static int clockp = 0;
 static int clockm = 0;
 
-module_param(node, int, 0);
+module_param(yesde, int, 0);
 module_param_hw(io, int, ioport, 0);
 module_param_hw(irq, int, irq, 0);
 module_param_string(device, device, sizeof(device), 0);
@@ -150,8 +150,8 @@ static int __init com20020_init(void)
 	if (!dev)
 		return -ENOMEM;
 
-	if (node && node != 0xff)
-		dev->dev_addr[0] = node;
+	if (yesde && yesde != 0xff)
+		dev->dev_addr[0] = yesde;
 
 	dev->netdev_ops = &com20020_netdev_ops;
 
@@ -208,7 +208,7 @@ static int __init com20020isa_setup(char *s)
 		backplane = ints[4];
 		/* Fall through */
 	case 3:		/* Node ID */
-		node = ints[3];
+		yesde = ints[3];
 		/* Fall through */
 	case 2:		/* IRQ */
 		irq = ints[2];

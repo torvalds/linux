@@ -34,7 +34,7 @@ typedef unsigned int DWordIO_t;
  * byte-swapping the I/O instructions.  However, all accesses using
  * sOutDW aren't really 32-bit accesses, but should be handled in byte
  * order.  Hence the use of the cpu_to_le32() macro to byte-swap
- * things to no-op the byte swapping done by the big-endian outl()
+ * things to yes-op the byte swapping done by the big-endian outl()
  * instruction.
  */
 
@@ -90,11 +90,11 @@ static inline unsigned short sInW(unsigned short port)
 #define	isMC	2
 
 /* Controller ID numbers */
-#define CTLID_NULL  -1		/* no controller exists */
+#define CTLID_NULL  -1		/* yes controller exists */
 #define CTLID_0001  0x0001	/* controller release 1 */
 
 /* AIOP ID numbers, identifies AIOP type implementing channel */
-#define AIOPID_NULL -1		/* no AIOP or channel exists */
+#define AIOPID_NULL -1		/* yes AIOP or channel exists */
 #define AIOPID_0001 0x0001	/* AIOP release 1 */
 
 /************************************************************************
@@ -190,7 +190,7 @@ Channel Register Offsets - Indexed - Internal - Fixed
 #define RTSTOG_EN 0x40		/* RTS toggle enable bit */
 #define TXINT_EN  0x10		/* transmit interrupt enable */
 #define STOP2     0x08		/* enable 2 stop bits (0 = 1 stop) */
-#define PARITY_EN 0x04		/* enable parity (0 = no parity) */
+#define PARITY_EN 0x04		/* enable parity (0 = yes parity) */
 #define EVEN_PAR  0x02		/* even parity (0 = odd parity) */
 #define DATA8BIT  0x01		/* 8 bit data (0 = 7 bit data) */
 
@@ -202,7 +202,7 @@ Channel Register Offsets - Indexed - Internal - Fixed
 
 #define RTSFC_EN  0x40		/* RTS flow control enable */
 #define RXPROC_EN 0x20		/* receive processor enable */
-#define TRIG_NO   0x00		/* Rx FIFO trigger level 0 (no trigger) */
+#define TRIG_NO   0x00		/* Rx FIFO trigger level 0 (yes trigger) */
 #define TRIG_1    0x08		/* trigger level 1 char */
 #define TRIG_1_2  0x10		/* trigger level 1/2 */
 #define TRIG_7_8  0x18		/* trigger level 7/8 */
@@ -219,8 +219,8 @@ Channel Register Offsets - Indexed - Internal - Fixed
 #define DELTA_DSR 0x01		/* DSR change interrupt */
 
 #define REP1W2_EN 0x10		/* replace byte 1 with 2 bytes enable */
-#define IGN2_EN   0x08		/* ignore byte 2 enable */
-#define IGN1_EN   0x04		/* ignore byte 1 enable */
+#define IGN2_EN   0x08		/* igyesre byte 2 enable */
+#define IGN1_EN   0x04		/* igyesre byte 1 enable */
 #define COMP2_EN  0x02		/* compare byte 2 enable */
 #define COMP1_EN  0x01		/* compare byte 1 enable */
 
@@ -664,13 +664,13 @@ Purpose:  Enable the receive processor
 Call:     sEnRxProcessor(ChP)
           CHANNEL_T *ChP; Ptr to channel structure
 Comments: This function is used to start the receive processor.  When
-          the channel is in the reset state the receive processor is not
+          the channel is in the reset state the receive processor is yest
           running.  This is done to prevent the receive processor from
           executing invalid microcode instructions prior to the
           downloading of the microcode.
 
 Warnings: This function must be called after valid microcode has been
-          downloaded to the AIOP, and it must not be called before the
+          downloaded to the AIOP, and it must yest be called before the
           microcode has been downloaded.
 */
 #define sEnRxProcessor(ChP) \
@@ -759,7 +759,7 @@ Purpose:  Get the number of a channel within an AIOP
 Call:     sGetChanNum(ChP)
           CHANNEL_T *ChP; Ptr to channel structure
 Return:   int: Channel number within AIOP, or NULLCHAN if channel does
-               not exist.
+               yest exist.
 */
 #define sGetChanNum(ChP) (ChP)->ChanNum
 
@@ -980,7 +980,7 @@ Call:     sSetEvenParity(ChP)
 Comments: Function sSetParity() can be used in place of functions sEnParity(),
           sDisParity(), sSetOddParity(), and sSetEvenParity().
 
-Warnings: This function has no effect unless parity is enabled with function
+Warnings: This function has yes effect unless parity is enabled with function
           sEnParity().
 */
 #define sSetEvenParity(ChP) \
@@ -997,7 +997,7 @@ Call:     sSetOddParity(ChP)
 Comments: Function sSetParity() can be used in place of functions sEnParity(),
           sDisParity(), sSetOddParity(), and sSetEvenParity().
 
-Warnings: This function has no effect unless parity is enabled with function
+Warnings: This function has yes effect unless parity is enabled with function
           sEnParity().
 */
 #define sSetOddParity(ChP) \
@@ -1027,7 +1027,7 @@ Call:     sSetRxProcessor(ChP,Level)
           Byte_t Level; Number of characters in Rx FIFO at which the
              interrupt will be generated.  Can be any of the following flags:
 
-             TRIG_NO:   no trigger
+             TRIG_NO:   yes trigger
              TRIG_1:    1 character in FIFO
              TRIG_1_2:  FIFO 1/2 full
              TRIG_7_8:  FIFO 7/8 full
@@ -1141,7 +1141,7 @@ struct r_port {
 	int xmit_tail;
 	int xmit_cnt;
 	int cd_status;
-	int ignore_status_mask;
+	int igyesre_status_mask;
 	int read_status_mask;
 	int cps;
 

@@ -342,15 +342,15 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 	expr = *funcs;
 
 	/*
-	 * Disabling all higher-priority expressions is enough to enable the
-	 * lowest-priority signal type. As such it has no associated
+	 * Disabling all higher-priority expressions is eyesugh to enable the
+	 * lowest-priority signal type. As such it has yes associated
 	 * expression.
 	 */
 	if (!expr)
 		return 0;
 
 	/*
-	 * If GPIO is not the lowest priority signal type, assume there is only
+	 * If GPIO is yest the lowest priority signal type, assume there is only
 	 * one expression defined to enable the GPIO function
 	 */
 	return aspeed_sig_expr_enable(&pdata->pinmux, expr);
@@ -369,7 +369,7 @@ int aspeed_pinctrl_probe(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
-	pdata->scu = syscon_node_to_regmap(parent->of_node);
+	pdata->scu = syscon_yesde_to_regmap(parent->of_yesde);
 	if (IS_ERR(pdata->scu)) {
 		dev_err(&pdev->dev, "No regmap for syscon pincontroller parent\n");
 		return PTR_ERR(pdata->scu);

@@ -36,7 +36,7 @@
 
 /* remember: uninitialized global data is zeroed because its in .bss */
 static u16 llc_ui_sap_last_autoport = LLC_SAP_DYN_START;
-static u16 llc_ui_sap_link_no_max[256];
+static u16 llc_ui_sap_link_yes_max[256];
 static struct sockaddr_llc llc_ui_addrnull;
 static const struct proto_ops llc_ui_ops;
 
@@ -55,14 +55,14 @@ static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout);
 
 
 /**
- *	llc_ui_next_link_no - return the next unused link number for a sap
+ *	llc_ui_next_link_yes - return the next unused link number for a sap
  *	@sap: Address of sap to get link number from.
  *
  *	Return the next unused link number for a given sap.
  */
-static inline u16 llc_ui_next_link_no(int sap)
+static inline u16 llc_ui_next_link_yes(int sap)
 {
-	return llc_ui_sap_link_no_max[sap]++;
+	return llc_ui_sap_link_yes_max[sap]++;
 }
 
 /**
@@ -109,21 +109,21 @@ static inline u8 llc_ui_header_len(struct sock *sk, struct sockaddr_llc *addr)
  *	llc_ui_send_data - send data via reliable llc2 connection
  *	@sk: Connection the socket is using.
  *	@skb: Data the user wishes to send.
- *	@noblock: can we block waiting for data?
+ *	@yesblock: can we block waiting for data?
  *
  *	Send data via reliable llc2 connection.
- *	Returns 0 upon success, non-zero if action did not succeed.
+ *	Returns 0 upon success, yesn-zero if action did yest succeed.
  *
  *	This function always consumes a reference to the skb.
  */
-static int llc_ui_send_data(struct sock* sk, struct sk_buff *skb, int noblock)
+static int llc_ui_send_data(struct sock* sk, struct sk_buff *skb, int yesblock)
 {
 	struct llc_sock* llc = llc_sk(sk);
 
 	if (unlikely(llc_data_accept_state(llc->state) ||
 		     llc->remote_busy_flag ||
 		     llc->p_flag)) {
-		long timeout = sock_sndtimeo(sk, noblock);
+		long timeout = sock_sndtimeo(sk, yesblock);
 		int rc;
 
 		rc = llc_ui_wait_for_busy_core(sk, timeout);
@@ -408,8 +408,8 @@ out:
  *
  *	Shutdown a connected llc2 socket. Currently this function only supports
  *	shutting down both sends and receives (2), we could probably make this
- *	function such that a user can shutdown only half the connection but not
- *	right now.
+ *	function such that a user can shutdown only half the connection but yest
+ *	right yesw.
  *	Returns: 0 upon success, negative otherwise.
  */
 static int llc_ui_shutdown(struct socket *sock, int how)
@@ -444,7 +444,7 @@ out:
  *	destination mac and address to connect to. If the user hasn't previously
  *	called bind(2) with a smac the address of the first interface of the
  *	specified arp type will be used.
- *	This function will autobind if user did not previously call bind.
+ *	This function will autobind if user did yest previously call bind.
  *	Returns: 0 upon success, negative otherwise.
  */
 static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
@@ -477,7 +477,7 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 	memcpy(llc->daddr.mac, addr->sllc_mac, IFHWADDRLEN);
 	sock->state = SS_CONNECTING;
 	sk->sk_state   = TCP_SYN_SENT;
-	llc->link   = llc_ui_next_link_no(llc->sap->laddr.lsap);
+	llc->link   = llc_ui_next_link_yes(llc->sap->laddr.lsap);
 	rc = llc_establish_connection(sk, llc->dev->dev_addr,
 				      addr->sllc_mac, addr->sllc_sap);
 	if (rc) {
@@ -493,7 +493,7 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 		if (!timeo || !llc_ui_wait_for_conn(sk, timeo))
 			goto out;
 
-		rc = sock_intr_errno(timeo);
+		rc = sock_intr_erryes(timeo);
 		if (signal_pending(current))
 			goto out;
 	}
@@ -513,11 +513,11 @@ sock_error:
 }
 
 /**
- *	llc_ui_listen - allow a normal socket to accept incoming connections
+ *	llc_ui_listen - allow a yesrmal socket to accept incoming connections
  *	@sock: Socket to allow incoming connections on.
  *	@backlog: Number of connections to queue.
  *
- *	Allow a normal socket to accept incoming connections.
+ *	Allow a yesrmal socket to accept incoming connections.
  *	Returns 0 upon success, negative otherwise.
  */
 static int llc_ui_listen(struct socket *sock, int backlog)
@@ -627,7 +627,7 @@ static int llc_wait_data(struct sock *sk, long timeo)
 		rc = -EAGAIN;
 		if (!timeo)
 			break;
-		rc = sock_intr_errno(timeo);
+		rc = sock_intr_erryes(timeo);
 		if (signal_pending(current))
 			break;
 		rc = 0;
@@ -701,7 +701,7 @@ static int llc_ui_accept(struct socket *sock, struct socket *newsock, int flags,
 	llc			= llc_sk(sk);
 	newllc			= llc_sk(newsk);
 	memcpy(&newllc->addr, &llc->addr, sizeof(newllc->addr));
-	newllc->link = llc_ui_next_link_no(newllc->laddr.lsap);
+	newllc->link = llc_ui_next_link_yes(newllc->laddr.lsap);
 
 	/* put original socket back into a clean listen state. */
 	sk->sk_state = TCP_LISTEN;
@@ -723,13 +723,13 @@ out:
  *	@flags: User specified flags.
  *
  *	Copy received data to the socket user.
- *	Returns non-negative upon success, negative otherwise.
+ *	Returns yesn-negative upon success, negative otherwise.
  */
 static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			  int flags)
 {
 	DECLARE_SOCKADDR(struct sockaddr_llc *, uaddr, msg->msg_name);
-	const int nonblock = flags & MSG_DONTWAIT;
+	const int yesnblock = flags & MSG_DONTWAIT;
 	struct sk_buff *skb = NULL;
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc = llc_sk(sk);
@@ -745,7 +745,7 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (unlikely(sk->sk_type == SOCK_STREAM && sk->sk_state == TCP_LISTEN))
 		goto out;
 
-	timeo = sock_rcvtimeo(sk, nonblock);
+	timeo = sock_rcvtimeo(sk, yesnblock);
 
 	seq = &llc->copied_seq;
 	if (flags & MSG_PEEK) {
@@ -767,7 +767,7 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		if (signal_pending(current)) {
 			if (copied)
 				break;
-			copied = timeo ? sock_intr_errno(timeo) : -EAGAIN;
+			copied = timeo ? sock_intr_erryes(timeo) : -EAGAIN;
 			break;
 		}
 
@@ -778,7 +778,7 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			offset = *seq;
 			goto found_ok_skb;
 		}
-		/* Well, if we have backlog, try to process it now yet. */
+		/* Well, if we have backlog, try to process it yesw yet. */
 
 		if (copied >= target && !READ_ONCE(sk->sk_backlog.tail))
 			break;
@@ -818,7 +818,7 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			}
 		}
 
-		if (copied >= target) { /* Do not sleep, just process backlog. */
+		if (copied >= target) { /* Do yest sleep, just process backlog. */
 			release_sock(sk);
 			lock_sock(sk);
 		} else
@@ -852,7 +852,7 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		copied += used;
 		len -= used;
 
-		/* For non stream protcols we get one packet per recvmsg call */
+		/* For yesn stream protcols we get one packet per recvmsg call */
 		if (sk->sk_type != SOCK_STREAM)
 			goto copy_uaddr;
 
@@ -894,7 +894,7 @@ copy_uaddr:
  *	@len: Length of data to transmit.
  *
  *	Transmit data provided by the socket user.
- *	Returns non-negative upon success, negative otherwise.
+ *	Returns yesn-negative upon success, negative otherwise.
  */
 static int llc_ui_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
@@ -902,7 +902,7 @@ static int llc_ui_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	struct llc_sock *llc = llc_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_llc *, addr, msg->msg_name);
 	int flags = msg->msg_flags;
-	int noblock = flags & MSG_DONTWAIT;
+	int yesblock = flags & MSG_DONTWAIT;
 	struct sk_buff *skb = NULL;
 	size_t size = 0;
 	int rc = -EINVAL, copied = 0, hdrlen;
@@ -934,7 +934,7 @@ static int llc_ui_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	if (copied < 0)
 		goto out;
 	release_sock(sk);
-	skb = sock_alloc_send_skb(sk, size, noblock, &rc);
+	skb = sock_alloc_send_skb(sk, size, yesblock, &rc);
 	lock_sock(sk);
 	if (!skb)
 		goto out;
@@ -965,7 +965,7 @@ static int llc_ui_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	rc = -ENOPROTOOPT;
 	if (!(sk->sk_type == SOCK_STREAM && !addr->sllc_ua))
 		goto out;
-	rc = llc_ui_send_data(sk, skb, noblock);
+	rc = llc_ui_send_data(sk, skb, yesblock);
 	skb = NULL;
 out:
 	kfree_skb(skb);
@@ -1191,7 +1191,7 @@ static const struct proto_ops llc_ui_ops = {
 	.release     = llc_ui_release,
 	.bind	     = llc_ui_bind,
 	.connect     = llc_ui_connect,
-	.socketpair  = sock_no_socketpair,
+	.socketpair  = sock_yes_socketpair,
 	.accept      = llc_ui_accept,
 	.getname     = llc_ui_getname,
 	.poll	     = datagram_poll,
@@ -1202,8 +1202,8 @@ static const struct proto_ops llc_ui_ops = {
 	.getsockopt  = llc_ui_getsockopt,
 	.sendmsg     = llc_ui_sendmsg,
 	.recvmsg     = llc_ui_recvmsg,
-	.mmap	     = sock_no_mmap,
-	.sendpage    = sock_no_sendpage,
+	.mmap	     = sock_yes_mmap,
+	.sendpage    = sock_yes_sendpage,
 };
 
 static const char llc_proc_err_msg[] __initconst =

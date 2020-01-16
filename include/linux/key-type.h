@@ -9,7 +9,7 @@
 #define _LINUX_KEY_TYPE_H
 
 #include <linux/key.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #ifdef CONFIG_KEYS
 
@@ -45,7 +45,7 @@ typedef int (*request_key_actor_t)(struct key *auth_key, void *aux);
 struct key_match_data {
 	/* Comparison function, defaults to exact description match, but can be
 	 * overridden by type->match_preparse().  Should return true if a match
-	 * is found and false if not.
+	 * is found and false if yest.
 	 */
 	bool (*cmp)(const struct key *key,
 		    const struct key_match_data *match_data);
@@ -123,7 +123,7 @@ struct key_type {
 	/* read a key's data (optional)
 	 * - permission checks will be done by the caller
 	 * - the key's semaphore will be readlocked by the caller
-	 * - should return the amount of data that could be read, no matter how
+	 * - should return the amount of data that could be read, yes matter how
 	 *   much is copied into the buffer
 	 * - shouldn't do the copy if the buffer is NULL
 	 */
@@ -134,7 +134,7 @@ struct key_type {
 	 * - key is the key to instantiate
 	 * - authkey is the authority to assume when instantiating this key
 	 * - op is the operation to be done, usually "create"
-	 * - the call must not return until the instantiation process has run
+	 * - the call must yest return until the instantiation process has run
 	 *   its course
 	 */
 	request_key_actor_t request_key;
@@ -142,8 +142,8 @@ struct key_type {
 	/* Look up a keyring access restriction (optional)
 	 *
 	 * - NULL is a valid return value (meaning the requested restriction
-	 *   is known but will never block addition of a key)
-	 * - should return -EINVAL if the restriction is unknown
+	 *   is kyeswn but will never block addition of a key)
+	 * - should return -EINVAL if the restriction is unkyeswn
 	 */
 	struct key_restriction *(*lookup_restriction)(const char *params);
 

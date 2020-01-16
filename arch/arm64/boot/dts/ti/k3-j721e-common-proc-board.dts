@@ -87,32 +87,32 @@
 };
 
 &main_uart3 {
-	/* UART not brought out */
+	/* UART yest brought out */
 	status = "disabled";
 };
 
 &main_uart5 {
-	/* UART not brought out */
+	/* UART yest brought out */
 	status = "disabled";
 };
 
 &main_uart6 {
-	/* UART not brought out */
+	/* UART yest brought out */
 	status = "disabled";
 };
 
 &main_uart7 {
-	/* UART not brought out */
+	/* UART yest brought out */
 	status = "disabled";
 };
 
 &main_uart8 {
-	/* UART not brought out */
+	/* UART yest brought out */
 	status = "disabled";
 };
 
 &main_uart9 {
-	/* UART not brought out */
+	/* UART yest brought out */
 	status = "disabled";
 };
 
@@ -239,7 +239,7 @@
 
 &main_sdhci0 {
 	/* eMMC */
-	non-removable;
+	yesn-removable;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };

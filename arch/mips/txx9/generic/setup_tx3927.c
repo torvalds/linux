@@ -59,7 +59,7 @@ void __init tx3927_setup(void)
 	/* clear BusErrorOnWrite flag */
 	tx3927_ccfgptr->ccfg &= ~TX3927_CCFG_BEOW;
 	if (read_c0_conf() & TX39_CONF_WBON)
-		/* Disable PCI snoop */
+		/* Disable PCI syesop */
 		tx3927_ccfgptr->ccfg &= ~TX3927_CCFG_PSNP;
 	else
 		/* Enable PCI SNOOP - with write through only */

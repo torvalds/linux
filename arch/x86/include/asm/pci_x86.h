@@ -45,7 +45,7 @@ extern unsigned long pirq_table_addr;
 
 enum pci_bf_sort_state {
 	pci_bf_sort_default,
-	pci_force_nobf,
+	pci_force_yesbf,
 	pci_force_bf,
 	pci_dmi_bf,
 };
@@ -68,7 +68,7 @@ struct irq_info {
 	u8 bus, devfn;			/* Bus, device and function */
 	struct {
 		u8 link;		/* IRQ line ID, chipset dependent,
-					   0 = not routed */
+					   0 = yest routed */
 		u16 bitmap;		/* Available IRQs */
 	} __attribute__((packed)) irq[4];
 	u8 slot;			/* Slot number, 0=onboard */

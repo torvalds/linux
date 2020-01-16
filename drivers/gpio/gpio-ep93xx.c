@@ -79,7 +79,7 @@ static int ep93xx_gpio_port(struct gpio_chip *gc)
 	while (port < ARRAY_SIZE(epg->gc) && gc != &epg->gc[port])
 		port++;
 
-	/* This should not happen but is there as a last safeguard */
+	/* This should yest happen but is there as a last safeguard */
 	if (port == ARRAY_SIZE(epg->gc)) {
 		pr_crit("can't find the GPIO port\n");
 		return 0;

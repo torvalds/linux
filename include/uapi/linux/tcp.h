@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -60,7 +60,7 @@ struct tcphdr {
 /*
  *	The union cast uses a gcc extension to avoid aliasing problems
  *  (union is compatible to any of its members)
- *  This means this part of the code is -fstrict-aliasing safe now.
+ *  This means this part of the code is -fstrict-aliasing safe yesw.
  */
 union tcp_word_hdr { 
 	struct tcphdr hdr;
@@ -106,7 +106,7 @@ enum {
 #define TCP_THIN_LINEAR_TIMEOUTS 16      /* Use linear timeouts for thin streams*/
 #define TCP_THIN_DUPACK         17      /* Fast retrans. after 1 dupack */
 #define TCP_USER_TIMEOUT	18	/* How long for loss retry before timeout */
-#define TCP_REPAIR		19	/* TCP sock is under repair right now */
+#define TCP_REPAIR		19	/* TCP sock is under repair right yesw */
 #define TCP_REPAIR_QUEUE	20
 #define TCP_QUEUE_SEQ		21
 #define TCP_REPAIR_OPTIONS	22
@@ -158,9 +158,9 @@ enum {
 /* why fastopen failed from client perspective */
 enum tcp_fastopen_client_fail {
 	TFO_STATUS_UNSPEC, /* catch-all */
-	TFO_COOKIE_UNAVAILABLE, /* if not in TFO_CLIENT_NO_COOKIE mode */
-	TFO_DATA_NOT_ACKED, /* SYN-ACK did not ack SYN data */
-	TFO_SYN_RETRANSMITTED, /* SYN-ACK did not ack SYN data after timeout */
+	TFO_COOKIE_UNAVAILABLE, /* if yest in TFO_CLIENT_NO_COOKIE mode */
+	TFO_DATA_NOT_ACKED, /* SYN-ACK did yest ack SYN data */
+	TFO_SYN_RETRANSMITTED, /* SYN-ACK did yest ack SYN data after timeout */
 };
 
 /* for TCP_INFO socket option */
@@ -172,7 +172,7 @@ enum tcp_fastopen_client_fail {
 #define TCPI_OPT_SYN_DATA	32 /* SYN-ACK acked data in SYN sent or rcvd */
 
 /*
- * Sender's congestion state indicating normal or abnormal situations
+ * Sender's congestion state indicating yesrmal or abyesrmal situations
  * in the last round of packets sent. The state is driven by the ACK
  * information and timer events.
  */
@@ -260,7 +260,7 @@ struct tcp_info {
 	__u32	tcpi_segs_out;	     /* RFC4898 tcpEStatsPerfSegsOut */
 	__u32	tcpi_segs_in;	     /* RFC4898 tcpEStatsPerfSegsIn */
 
-	__u32	tcpi_notsent_bytes;
+	__u32	tcpi_yestsent_bytes;
 	__u32	tcpi_min_rtt;
 	__u32	tcpi_data_segs_in;	/* RFC4898 tcpEStatsDataSegsIn */
 	__u32	tcpi_data_segs_out;	/* RFC4898 tcpEStatsDataSegsOut */

@@ -30,7 +30,7 @@ S3C24XX Systems
 Configuration
 -------------
 
-  A number of configurations are supplied, as there is no current way of
+  A number of configurations are supplied, as there is yes current way of
   unifying all the SoCs into one kernel.
 
   s5pc110_defconfig
@@ -77,7 +77,7 @@ Port Contributors
   Roc Wu
   Klaus Fetscher
   Dimitry Andric
-  Shannon Holland
+  Shanyesn Holland
   Guillaume Gourat (NexVision)
   Christer Weinigel (wingel) (Acer N30)
   Lucas Correia Villa Real (S3C2400 port)

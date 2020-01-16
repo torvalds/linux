@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -86,11 +86,11 @@
 
 #define nlm_read_sata_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_sata_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define nlm_get_sata_pcibase(node)	\
-		nlm_pcicfg_base(XLP_IO_SATA_OFFSET(node))
+#define nlm_get_sata_pcibase(yesde)	\
+		nlm_pcicfg_base(XLP_IO_SATA_OFFSET(yesde))
 /* SATA device specific configuration registers are starts at 0x900 offset */
-#define nlm_get_sata_regbase(node)	\
-		(nlm_get_sata_pcibase(node) + 0x900)
+#define nlm_get_sata_regbase(yesde)	\
+		(nlm_get_sata_pcibase(yesde) + 0x900)
 
 static void sata_clear_glue_reg(uint64_t regbase, uint32_t off, uint32_t bit)
 {
@@ -108,14 +108,14 @@ static void sata_set_glue_reg(uint64_t regbase, uint32_t off, uint32_t bit)
 	nlm_write_sata_reg(regbase, off, (reg_val | bit));
 }
 
-static void nlm_sata_firmware_init(int node)
+static void nlm_sata_firmware_init(int yesde)
 {
 	uint32_t reg_val;
 	uint64_t regbase;
 	int i;
 
 	pr_info("XLP AHCI Initialization started.\n");
-	regbase = nlm_get_sata_regbase(node);
+	regbase = nlm_get_sata_regbase(yesde);
 
 	/* Reset SATA */
 	sata_clear_glue_reg(regbase, SATA_CTL, SATA_RST_N);
@@ -150,11 +150,11 @@ static void nlm_sata_firmware_init(int node)
 
 static int __init nlm_ahci_init(void)
 {
-	int node = 0;
+	int yesde = 0;
 	int chip = read_c0_prid() & PRID_IMP_MASK;
 
 	if (chip == PRID_IMP_NETLOGIC_XLP3XX)
-		nlm_sata_firmware_init(node);
+		nlm_sata_firmware_init(yesde);
 	return 0;
 }
 
@@ -163,7 +163,7 @@ static void nlm_sata_intr_ack(struct irq_data *data)
 	uint32_t val = 0;
 	uint64_t regbase;
 
-	regbase = nlm_get_sata_regbase(nlm_nodeid());
+	regbase = nlm_get_sata_regbase(nlm_yesdeid());
 	val = nlm_read_sata_reg(regbase, SATA_INT);
 	sata_set_glue_reg(regbase, SATA_INT, val);
 }
@@ -182,9 +182,9 @@ static void nlm_sata_fixup_final(struct pci_dev *dev)
 {
 	uint32_t val;
 	uint64_t regbase;
-	int node = 0; /* XLP3XX does not support multi-node */
+	int yesde = 0; /* XLP3XX does yest support multi-yesde */
 
-	regbase = nlm_get_sata_regbase(node);
+	regbase = nlm_get_sata_regbase(yesde);
 
 	/* clear pending interrupts and then enable them */
 	val = nlm_read_sata_reg(regbase, SATA_INT);
@@ -198,7 +198,7 @@ static void nlm_sata_fixup_final(struct pci_dev *dev)
 	sata_set_glue_reg(regbase, SATA_INT_MASK, 0x1);
 
 	dev->irq = PIC_SATA_IRQ;
-	nlm_set_pic_extra_ack(node, PIC_SATA_IRQ, nlm_sata_intr_ack);
+	nlm_set_pic_extra_ack(yesde, PIC_SATA_IRQ, nlm_sata_intr_ack);
 }
 
 arch_initcall(nlm_ahci_init);

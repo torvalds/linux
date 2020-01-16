@@ -32,15 +32,15 @@ int get_c0_fdc_int(void)
 
 void __init plat_time_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct clk *clk;
 
 	of_clk_init(NULL);
 	timer_probe();
 
-	np = of_get_cpu_node(0, NULL);
+	np = of_get_cpu_yesde(0, NULL);
 	if (!np) {
-		pr_err("Failed to get CPU node\n");
+		pr_err("Failed to get CPU yesde\n");
 		return;
 	}
 

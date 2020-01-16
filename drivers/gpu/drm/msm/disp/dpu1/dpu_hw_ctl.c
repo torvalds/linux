@@ -268,7 +268,7 @@ static int dpu_hw_ctl_wait_reset_status(struct dpu_hw_ctl *ctx)
 
 	pr_debug("hw ctl reset is set for ctl:%d\n", ctx->idx);
 	if (dpu_hw_ctl_poll_reset_status(ctx, DPU_REG_RESET_TIMEOUT_US)) {
-		pr_err("hw recovery is not complete for ctl:%d\n", ctx->idx);
+		pr_err("hw recovery is yest complete for ctl:%d\n", ctx->idx);
 		return -EINVAL;
 	}
 
@@ -445,7 +445,7 @@ static void dpu_hw_ctl_intf_cfg(struct dpu_hw_ctl *ctx,
 		intf_cfg |= ((cfg->stream_sel & 0x3) << 15);
 		break;
 	default:
-		pr_err("unknown interface type %d\n", cfg->intf_mode_sel);
+		pr_err("unkyeswn interface type %d\n", cfg->intf_mode_sel);
 		return;
 	}
 

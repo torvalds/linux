@@ -25,17 +25,17 @@
 					 &(plist)->requests[idx], \
 					 sched.link)
 
-void i915_sched_node_init(struct i915_sched_node *node);
+void i915_sched_yesde_init(struct i915_sched_yesde *yesde);
 
-bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
-				      struct i915_sched_node *signal,
+bool __i915_sched_yesde_add_dependency(struct i915_sched_yesde *yesde,
+				      struct i915_sched_yesde *signal,
 				      struct i915_dependency *dep,
 				      unsigned long flags);
 
-int i915_sched_node_add_dependency(struct i915_sched_node *node,
-				   struct i915_sched_node *signal);
+int i915_sched_yesde_add_dependency(struct i915_sched_yesde *yesde,
+				   struct i915_sched_yesde *signal);
 
-void i915_sched_node_fini(struct i915_sched_node *node);
+void i915_sched_yesde_fini(struct i915_sched_yesde *yesde);
 
 void i915_schedule(struct i915_request *request,
 		   const struct i915_sched_attr *attr);

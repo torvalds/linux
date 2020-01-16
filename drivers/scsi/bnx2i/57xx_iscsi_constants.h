@@ -118,9 +118,9 @@
 #define ISCI_KCQE_COMPLETION_STATUS_TCP_ERROR_MAX_RTRANS                (0x43)
 
 /* iSCSI licensing errors */
-/* general iSCSI license not installed */
+/* general iSCSI license yest installed */
 #define ISCSI_KCQE_COMPLETION_STATUS_ISCSI_NOT_SUPPORTED                (0x50)
-/* additional LOM specific iSCSI license not installed */
+/* additional LOM specific iSCSI license yest installed */
 #define ISCSI_KCQE_COMPLETION_STATUS_LOM_ISCSI_NOT_ENABLED              (0x51)
 
 #define ISCSI_KCQE_COMPLETION_STATUS_CID_BUSY				(0x80)

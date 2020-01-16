@@ -180,10 +180,10 @@ static void ish_set_host_rdy(struct ishtp_device *dev)
 }
 
 /**
- * ish_clr_host_rdy() - Indicate host not ready
+ * ish_clr_host_rdy() - Indicate host yest ready
  * @dev: ISHTP device pointer
  *
- * Send host not ready indication to FW
+ * Send host yest ready indication to FW
  */
 static void ish_clr_host_rdy(struct ishtp_device *dev)
 {
@@ -479,7 +479,7 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 	list_splice_init(&dev->wr_processing_list, &dev->wr_free_list);
 	spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 
-	/* ISHTP notification in IPC_RESET */
+	/* ISHTP yestification in IPC_RESET */
 	ishtp_reset_handler(dev);
 
 	if (!ish_is_input_ready(dev))
@@ -518,7 +518,7 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 
 /**
  * ish_fw_reset_work_fn() - FW reset worker function
- * @unused: not used
+ * @unused: yest used
  *
  * Call ish_fw_reset_handler to complete FW reset
  */
@@ -533,7 +533,7 @@ static void fw_reset_work_fn(struct work_struct *unused)
 		ishtp_dev->recvd_hw_ready = 1;
 		wake_up_interruptible(&ishtp_dev->wait_hw_ready);
 
-		/* ISHTP notification in IPC_RESET sequence completion */
+		/* ISHTP yestification in IPC_RESET sequence completion */
 		ishtp_reset_compl_handler(ishtp_dev);
 	} else
 		dev_err(ishtp_dev->devc, "[ishtp-ish]: FW reset failed (%d)\n",
@@ -565,7 +565,7 @@ static void _ish_sync_fw_clock(struct ishtp_device *dev)
  * @doorbell_val: doorbell value
  *
  * This function runs in ISR context.
- * NOTE: Any other mng command than reset_notify and reset_notify_ack
+ * NOTE: Any other mng command than reset_yestify and reset_yestify_ack
  * won't wake BH handler
  */
 static void	recv_ipc(struct ishtp_device *dev, uint32_t doorbell_val)
@@ -738,7 +738,7 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 		dev->dev_state = ISHTP_DEV_RESETTING;
 
 	if (!pdev->pm_cap) {
-		dev_err(&pdev->dev, "Can't reset - no PM caps\n");
+		dev_err(&pdev->dev, "Can't reset - yes PM caps\n");
 		return	-EINVAL;
 	}
 
@@ -909,7 +909,7 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 				      GFP_KERNEL);
 		if (!tx_buf) {
 			/*
-			 * IPC buffers may be limited or not available
+			 * IPC buffers may be limited or yest available
 			 * at all - although this shouldn't happen
 			 */
 			dev_err(dev->devc,

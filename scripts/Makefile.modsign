@@ -14,8 +14,8 @@ PHONY += $(modules)
 __modsign: $(modules)
 	@:
 
-quiet_cmd_sign_ko = SIGN [M] $(2)/$(notdir $@)
-        cmd_sign_ko = $(mod_sign_cmd) $(2)/$(notdir $@)
+quiet_cmd_sign_ko = SIGN [M] $(2)/$(yestdir $@)
+        cmd_sign_ko = $(mod_sign_cmd) $(2)/$(yestdir $@)
 
 # Modules built outside the kernel source tree go into extra by default
 INSTALL_MOD_DIR ?= extra

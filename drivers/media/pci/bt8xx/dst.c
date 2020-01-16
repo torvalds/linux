@@ -70,7 +70,7 @@ static int dst_gpio_outb(struct dst_state *state, u32 mask, u32 enbb,
 		return -EREMOTEIO;
 	}
 	udelay(1000);
-	/* because complete disabling means no output, no need to do output packet */
+	/* because complete disabling means yes output, yes need to do output packet */
 	if (enbb == 0)
 		return 0;
 	if (delay)
@@ -702,7 +702,7 @@ static struct tuner_types tuner_list[] = {
 };
 
 /*
-	Known cards list
+	Kyeswn cards list
 	Satellite
 	-------------------
 		  200103A
@@ -718,7 +718,7 @@ static struct tuner_types tuner_list[] = {
 	Cable
 	-------------------
 	VP-2030   DCT-CI,	Samsung, TS=204
-	VP-2021   DCT-CI,	Unknown, TS=204
+	VP-2021   DCT-CI,	Unkyeswn, TS=204
 	VP-2031   DCT-CI,	Philips, TS=188
 	VP-2040   DCT-CI,	Philips, TS=188, with CA daughter board
 	VP-2040   DCT-CI,	Philips, TS=204, without CA daughter board
@@ -809,7 +809,7 @@ static struct dst_types dst_tlist[] = {
 		.type_flags = DST_TYPE_HAS_TS188 | DST_TYPE_HAS_FW_1,
 		.dst_feature = 0,
 		.tuner_type = 0
-	},	/* unknown to vendor	*/
+	},	/* unkyeswn to vendor	*/
 
 	{
 		.device_id = "DCT-CI",
@@ -1065,11 +1065,11 @@ static int dst_get_device_id(struct dst_state *state)
 	if (read_dst(state, &reply, GET_ACK))
 		return -1;		/*	Read failure		*/
 	if (reply != ACK) {
-		dprintk(2, "Write not Acknowledged! [Reply=0x%02x]\n", reply);
+		dprintk(2, "Write yest Ackyeswledged! [Reply=0x%02x]\n", reply);
 		return -1;		/*	Unack'd write		*/
 	}
 	if (!dst_wait_dst_ready(state, DEVICE_INIT))
-		return -1;		/*	DST not ready yet	*/
+		return -1;		/*	DST yest ready yet	*/
 	if (read_dst(state, state->rxbuffer, FIXED_COMM))
 		return -1;
 
@@ -1152,7 +1152,7 @@ static int dst_probe(struct dst_state *state)
 	}
 	msleep(100);
 	if (dst_get_device_id(state) < 0) {
-		pr_err("unknown device.\n");
+		pr_err("unkyeswn device.\n");
 		return -1;
 	}
 	if (dst_get_mac(state) < 0) {
@@ -1215,7 +1215,7 @@ static int dst_command(struct dst_state *state, u8 *data, u8 len)
 		goto error;
 	}
 	if (reply != ACK) {
-		dprintk(2, "write not acknowledged 0x%02x\n", reply);
+		dprintk(2, "write yest ackyeswledged 0x%02x\n", reply);
 		goto error;
 	}
 	if (len >= 2 && data[0] == 0 && (data[1] == 1 || data[1] == 3))
@@ -1311,7 +1311,7 @@ static int dst_get_tuna(struct dst_state *state)
 	else
 		retval = read_dst(state, &state->rx_tuna[2], FIXED_COMM);
 	if (retval < 0) {
-		dprintk(3, "read not successful\n");
+		dprintk(3, "read yest successful\n");
 		return retval;
 	}
 	if ((state->type_flags & DST_TYPE_HAS_VLF) &&
@@ -1375,7 +1375,7 @@ static int dst_write_tuna(struct dvb_frontend *fe)
 	}
 	if (retval < 0) {
 		dst_pio_disable(state);
-		dprintk(3, "write not successful\n");
+		dprintk(3, "write yest successful\n");
 		goto werr;
 	}
 	if ((dst_pio_disable(state)) < 0) {
@@ -1383,11 +1383,11 @@ static int dst_write_tuna(struct dvb_frontend *fe)
 		goto error;
 	}
 	if ((read_dst(state, &reply, GET_ACK) < 0)) {
-		dprintk(3, "read verify not successful.\n");
+		dprintk(3, "read verify yest successful.\n");
 		goto error;
 	}
 	if (reply != ACK) {
-		dprintk(3, "write not acknowledged 0x%02x\n", reply);
+		dprintk(3, "write yest ackyeswledged 0x%02x\n", reply);
 		goto error;
 	}
 	state->diseq_flags |= ATTEMPT_TUNE;
@@ -1713,13 +1713,13 @@ struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_ad
 		memcpy(&state->frontend.ops, &dst_atsc_ops, sizeof(struct dvb_frontend_ops));
 		break;
 	default:
-		pr_err("unknown DST type. please report to the LinuxTV.org DVB mailinglist.\n");
+		pr_err("unkyeswn DST type. please report to the LinuxTV.org DVB mailinglist.\n");
 		kfree(state);
 		return NULL;
 	}
 	state->frontend.demodulator_priv = state;
 
-	return state;				/*	Manu (DST is a card not a frontend)	*/
+	return state;				/*	Manu (DST is a card yest a frontend)	*/
 }
 
 EXPORT_SYMBOL(dst_attach);

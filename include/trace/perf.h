@@ -29,7 +29,7 @@
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
-static notrace void							\
+static yestrace void							\
 perf_trace_##call(void *__data, proto)					\
 {									\
 	struct trace_event_call *event_call = __data;			\

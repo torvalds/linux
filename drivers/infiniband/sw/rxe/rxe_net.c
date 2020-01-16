@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -96,7 +96,7 @@ static struct dst_entry *rxe_find_route4(struct net_device *ndev,
 
 	rt = ip_route_output_key(&init_net, &fl);
 	if (IS_ERR(rt)) {
-		pr_err_ratelimited("no route to %pI4\n", &daddr->s_addr);
+		pr_err_ratelimited("yes route to %pI4\n", &daddr->s_addr);
 		return NULL;
 	}
 
@@ -121,12 +121,12 @@ static struct dst_entry *rxe_find_route6(struct net_device *ndev,
 					       recv_sockets.sk6->sk, &fl6,
 					       NULL);
 	if (unlikely(IS_ERR(ndst))) {
-		pr_err_ratelimited("no route to %pI6\n", daddr);
+		pr_err_ratelimited("yes route to %pI6\n", daddr);
 		return NULL;
 	}
 
 	if (unlikely(ndst->error)) {
-		pr_err("no route to %pI6\n", daddr);
+		pr_err("yes route to %pI6\n", daddr);
 		goto put;
 	}
 
@@ -352,7 +352,7 @@ static int prepare4(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 
 	dst = rxe_find_route(skb->dev, qp, av);
 	if (!dst) {
-		pr_err("Host not reachable\n");
+		pr_err("Host yest reachable\n");
 		return -EHOSTUNREACH;
 	}
 
@@ -376,7 +376,7 @@ static int prepare6(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 
 	dst = rxe_find_route(skb->dev, qp, av);
 	if (!dst) {
-		pr_err("Host not reachable\n");
+		pr_err("Host yest reachable\n");
 		return -EHOSTUNREACH;
 	}
 
@@ -436,7 +436,7 @@ int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		err = ip6_local_out(dev_net(skb_dst(skb)->dev), skb->sk, skb);
 	} else {
-		pr_err("Unknown layer 3 protocol: %d\n", skb->protocol);
+		pr_err("Unkyeswn layer 3 protocol: %d\n", skb->protocol);
 		atomic_dec(&pkt->qp->skb_out);
 		rxe_drop_ref(pkt->qp);
 		kfree_skb(skb);
@@ -590,11 +590,11 @@ void rxe_set_port_state(struct rxe_dev *rxe)
 		rxe_port_down(rxe);
 }
 
-static int rxe_notify(struct notifier_block *not_blk,
+static int rxe_yestify(struct yestifier_block *yest_blk,
 		      unsigned long event,
 		      void *arg)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(arg);
+	struct net_device *ndev = netdev_yestifier_info_to_dev(arg);
 	struct rxe_dev *rxe = rxe_get_dev_from_net(ndev);
 
 	if (!rxe)
@@ -623,7 +623,7 @@ static int rxe_notify(struct notifier_block *not_blk,
 	case NETDEV_CHANGENAME:
 	case NETDEV_FEAT_CHANGE:
 	default:
-		pr_info("ignoring netdev event = %ld for %s\n",
+		pr_info("igyesring netdev event = %ld for %s\n",
 			event, ndev->name);
 		break;
 	}
@@ -632,8 +632,8 @@ static int rxe_notify(struct notifier_block *not_blk,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block rxe_net_notifier = {
-	.notifier_call = rxe_notify,
+static struct yestifier_block rxe_net_yestifier = {
+	.yestifier_call = rxe_yestify,
 };
 
 static int rxe_net_ipv4_init(void)
@@ -668,7 +668,7 @@ void rxe_net_exit(void)
 {
 	rxe_release_udp_tunnel(recv_sockets.sk6);
 	rxe_release_udp_tunnel(recv_sockets.sk4);
-	unregister_netdevice_notifier(&rxe_net_notifier);
+	unregister_netdevice_yestifier(&rxe_net_yestifier);
 }
 
 int rxe_net_init(void)
@@ -683,9 +683,9 @@ int rxe_net_init(void)
 	err = rxe_net_ipv6_init();
 	if (err)
 		goto err_out;
-	err = register_netdevice_notifier(&rxe_net_notifier);
+	err = register_netdevice_yestifier(&rxe_net_yestifier);
 	if (err) {
-		pr_err("Failed to register netdev notifier\n");
+		pr_err("Failed to register netdev yestifier\n");
 		goto err_out;
 	}
 	return 0;

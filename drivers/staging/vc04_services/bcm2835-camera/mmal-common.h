@@ -6,7 +6,7 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(yesw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  *
@@ -19,7 +19,7 @@
 #define MMAL_FOURCC(a, b, c, d) ((a) | (b << 8) | (c << 16) | (d << 24))
 #define MMAL_MAGIC MMAL_FOURCC('m', 'm', 'a', 'l')
 
-/** Special value signalling that time is not known */
+/** Special value signalling that time is yest kyeswn */
 #define MMAL_TIME_UNKNOWN BIT_ULL(63)
 
 struct mmal_msg_context;

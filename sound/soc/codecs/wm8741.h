@@ -192,10 +192,10 @@
 #define WM8741_DITHER_WIDTH                          2  /* DITHER - [1:0] */
 
 /* DIFF field values */
-#define WM8741_DIFF_MODE_STEREO                      0  /* stereo normal */
+#define WM8741_DIFF_MODE_STEREO                      0  /* stereo yesrmal */
 #define WM8741_DIFF_MODE_STEREO_REVERSED             2  /* stereo reversed */
-#define WM8741_DIFF_MODE_MONO_LEFT                   1  /* mono left */
-#define WM8741_DIFF_MODE_MONO_RIGHT                  3  /* mono right */
+#define WM8741_DIFF_MODE_MONO_LEFT                   1  /* moyes left */
+#define WM8741_DIFF_MODE_MONO_RIGHT                  3  /* moyes right */
 
 /*
  * R32 (0x20) - ADDITONAL_CONTROL_1

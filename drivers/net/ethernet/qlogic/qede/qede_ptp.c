@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -151,7 +151,7 @@ static int qede_ptp_ancillary_feature_enable(struct ptp_clock_info *info,
 	ptp = container_of(info, struct qede_ptp, clock_info);
 	edev = ptp->edev;
 
-	DP_ERR(edev, "PHC ancillary features are not supported\n");
+	DP_ERR(edev, "PHC ancillary features are yest supported\n");
 
 	return -ENOTSUPP;
 }
@@ -176,7 +176,7 @@ static void qede_ptp_task(struct work_struct *work)
 	spin_unlock_bh(&ptp->lock);
 	if (rc) {
 		if (unlikely(timedout)) {
-			DP_INFO(edev, "Tx timestamp is not recorded\n");
+			DP_INFO(edev, "Tx timestamp is yest recorded\n");
 			dev_kfree_skb_any(ptp->tx_skb);
 			ptp->tx_skb = NULL;
 			clear_bit_unlock(QEDE_FLAGS_PTP_TX_IN_PRORGESS,
@@ -231,7 +231,7 @@ static int qede_ptp_cfg_filters(struct qede_dev *edev)
 		return -EIO;
 
 	if (!ptp->hw_ts_ioctl_called) {
-		DP_INFO(edev, "TS IOCTL not called\n");
+		DP_INFO(edev, "TS IOCTL yest called\n");
 		return 0;
 	}
 
@@ -247,7 +247,7 @@ static int qede_ptp_cfg_filters(struct qede_dev *edev)
 		break;
 
 	case HWTSTAMP_TX_ONESTEP_SYNC:
-		DP_ERR(edev, "One-step timestamping is not supported\n");
+		DP_ERR(edev, "One-step timestamping is yest supported\n");
 		return -ERANGE;
 	}
 
@@ -537,12 +537,12 @@ void qede_ptp_tx_ts(struct qede_dev *edev, struct sk_buff *skb)
 
 	if (unlikely(!test_bit(QEDE_FLAGS_TX_TIMESTAMPING_EN, &edev->flags))) {
 		DP_ERR(edev,
-		       "Tx timestamping was not enabled, this packet will not be timestamped\n");
+		       "Tx timestamping was yest enabled, this packet will yest be timestamped\n");
 		clear_bit_unlock(QEDE_FLAGS_PTP_TX_IN_PRORGESS, &edev->flags);
 		edev->ptp_skip_txts++;
 	} else if (unlikely(ptp->tx_skb)) {
 		DP_ERR(edev,
-		       "The device supports only a single outstanding packet to timestamp, this packet will not be timestamped\n");
+		       "The device supports only a single outstanding packet to timestamp, this packet will yest be timestamped\n");
 		clear_bit_unlock(QEDE_FLAGS_PTP_TX_IN_PRORGESS, &edev->flags);
 		edev->ptp_skip_txts++;
 	} else {

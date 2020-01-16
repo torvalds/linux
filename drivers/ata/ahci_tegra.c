@@ -9,7 +9,7 @@
  */
 
 #include <linux/ahci_platform.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -168,7 +168,7 @@ struct tegra_ahci_priv {
 	struct reset_control	   *sata_rst;
 	struct reset_control	   *sata_oob_rst;
 	struct reset_control	   *sata_cold_rst;
-	/* Needs special handling, cannot use ahci_platform */
+	/* Needs special handling, canyest use ahci_platform */
 	struct clk		   *sata_clk;
 	struct regulator_bulk_data *supplies;
 	const struct tegra_ahci_soc *soc;
@@ -578,7 +578,7 @@ static struct platform_driver tegra_ahci_driver = {
 		.name = DRV_NAME,
 		.of_match_table = tegra_ahci_of_match,
 	},
-	/* LP0 suspend support not implemented */
+	/* LP0 suspend support yest implemented */
 };
 module_platform_driver(tegra_ahci_driver);
 

@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -216,11 +216,11 @@
 
 #define nlm_read_pic_reg(b, r)	nlm_read_reg64(b, r)
 #define nlm_write_pic_reg(b, r, v) nlm_write_reg64(b, r, v)
-#define nlm_get_pic_pcibase(node)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
-		XLP9XX_IO_PIC_OFFSET(node) : XLP_IO_PIC_OFFSET(node))
-#define nlm_get_pic_regbase(node) (nlm_get_pic_pcibase(node) + XLP_IO_PCI_HDRSZ)
+#define nlm_get_pic_pcibase(yesde)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
+		XLP9XX_IO_PIC_OFFSET(yesde) : XLP_IO_PIC_OFFSET(yesde))
+#define nlm_get_pic_regbase(yesde) (nlm_get_pic_pcibase(yesde) + XLP_IO_PCI_HDRSZ)
 
-/* We use PIC on node 0 as a timer */
+/* We use PIC on yesde 0 as a timer */
 #define pic_timer_freq()		nlm_get_pic_frequency(0)
 
 /* IRT and h/w interrupt routines */

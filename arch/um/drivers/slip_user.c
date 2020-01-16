@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/termios.h>
@@ -30,7 +30,7 @@ static int set_up_tty(int fd)
 	struct termios tios;
 
 	if (tcgetattr(fd, &tios) < 0) {
-		printk(UM_KERN_ERR "could not get initial terminal "
+		printk(UM_KERN_ERR "could yest get initial terminal "
 		       "attributes\n");
 		return -1;
 	}
@@ -203,7 +203,7 @@ static void slip_close(int fd, void *data)
 	err = slip_tramp(argv, pri->slave);
 
 	if (err != 0)
-		printk(UM_KERN_ERR "slip_tramp failed - errno = %d\n", -err);
+		printk(UM_KERN_ERR "slip_tramp failed - erryes = %d\n", -err);
 	close(fd);
 	close(pri->slave);
 	pri->slave = -1;

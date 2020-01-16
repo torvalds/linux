@@ -1,4 +1,4 @@
-* Linear Technology / Analog Devices LTC2497 ADC
+* Linear Techyeslogy / Analog Devices LTC2497 ADC
 
 Required properties:
  - compatible: Must be "lltc,ltc2497"

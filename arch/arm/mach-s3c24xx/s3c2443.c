@@ -74,9 +74,9 @@ int __init s3c2443_init(void)
 	return device_register(&s3c2443_dev);
 }
 
-void __init s3c2443_init_uarts(struct s3c2410_uartcfg *cfg, int no)
+void __init s3c2443_init_uarts(struct s3c2410_uartcfg *cfg, int yes)
 {
-	s3c24xx_init_uartdevs("s3c2440-uart", s3c2410_uart_resources, cfg, no);
+	s3c24xx_init_uartdevs("s3c2440-uart", s3c2410_uart_resources, cfg, yes);
 }
 
 /* s3c2443_map_io
@@ -98,7 +98,7 @@ void __init s3c2443_map_io(void)
 
 /* need to register the subsystem before we actually register the device, and
  * we also need to ensure that it has been initialised before any of the
- * drivers even try to use it (even if not on an s3c2443 based system)
+ * drivers even try to use it (even if yest on an s3c2443 based system)
  * as a driver which may support both 2443 and 2440 may try and use it.
 */
 

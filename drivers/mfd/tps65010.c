@@ -203,10 +203,10 @@ static int dbg_show(struct seq_file *s, void *_)
 	 * likely involves a charge gauging chip (like BQ26501).
 	 */
 
-	seq_printf(s, "%scharging\n\n", tps->charging ? "" : "(not) ");
+	seq_printf(s, "%scharging\n\n", tps->charging ? "" : "(yest) ");
 
 
-	/* registers for monitoring battery charging and status; note
+	/* registers for monitoring battery charging and status; yeste
 	 * that reading chgstat and regstat may ack IRQs...
 	 */
 	value = i2c_smbus_read_byte_data(tps->client, TPS_CHGCONFIG);
@@ -219,7 +219,7 @@ static int dbg_show(struct seq_file *s, void *_)
 	value = i2c_smbus_read_byte_data(tps->client, TPS_MASK1);
 	dbg_chgstat(buf, sizeof buf, value);
 	seq_printf(s, "mask1     %s", buf);
-	/* ignore ackint1 */
+	/* igyesre ackint1 */
 
 	value = i2c_smbus_read_byte_data(tps->client, TPS_REGSTATUS);
 	dbg_regstat(buf, sizeof buf, value);
@@ -227,7 +227,7 @@ static int dbg_show(struct seq_file *s, void *_)
 	value = i2c_smbus_read_byte_data(tps->client, TPS_MASK2);
 	dbg_regstat(buf, sizeof buf, value);
 	seq_printf(s, "mask2     %s\n", buf);
-	/* ignore ackint2 */
+	/* igyesre ackint2 */
 
 	queue_delayed_work(system_power_efficient_wq, &tps->work,
 			   POWER_POLL_DELAY);
@@ -275,7 +275,7 @@ static int dbg_show(struct seq_file *s, void *_)
 		else
 			seq_printf(s, "  gpio%d-in  %s %s %s\n", i + 1,
 				(value & (1 << i)) ? "hi " : "low",
-				(v2 & (1 << i)) ? "no-irq" : "irq",
+				(v2 & (1 << i)) ? "yes-irq" : "irq",
 				(v2 & (1 << (4 + i))) ? "rising" : "falling");
 	}
 
@@ -283,9 +283,9 @@ static int dbg_show(struct seq_file *s, void *_)
 	return 0;
 }
 
-static int dbg_tps_open(struct inode *inode, struct file *file)
+static int dbg_tps_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, dbg_show, inode->i_private);
+	return single_open(file, dbg_show, iyesde->i_private);
 }
 
 static const struct file_operations debug_fops = {
@@ -309,7 +309,7 @@ static void tps65010_interrupt(struct tps65010 *tps)
 	u8 tmp = 0, mask, poll;
 
 	/* IRQs won't trigger for certain events, but we can get
-	 * others by polling (normally, with external power applied).
+	 * others by polling (yesrmally, with external power applied).
 	 */
 	poll = 0;
 
@@ -393,7 +393,7 @@ static void tps65010_interrupt(struct tps65010 *tps)
 	/* also potentially gpio-in rise or fall */
 }
 
-/* handle IRQs and polling using keventd for now */
+/* handle IRQs and polling using keventd for yesw */
 static void tps65010_work(struct work_struct *work)
 {
 	struct tps65010		*tps;
@@ -434,7 +434,7 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 {
 	struct tps65010		*tps = _tps;
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	set_bit(FLAG_IRQ_ENABLE, &tps->flags);
 	queue_delayed_work(system_power_efficient_wq, &tps->work, 0);
 	return IRQ_HANDLED;
@@ -443,7 +443,7 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 /*-------------------------------------------------------------------------*/
 
 /* offsets 0..3 == GPIO1..GPIO4
- * offsets 4..5 == LED1/nPG, LED2 (we set one of the non-BLINK modes)
+ * offsets 4..5 == LED1/nPG, LED2 (we set one of the yesn-BLINK modes)
  * offset 6 == vibrator motor driver
  */
 static void
@@ -556,14 +556,14 @@ static int tps65010_probe(struct i2c_client *client,
 					client->irq, status);
 			return status;
 		}
-		/* annoying race here, ideally we'd have an option
-		 * to claim the irq now and enable it later.
-		 * FIXME genirq IRQF_NOAUTOEN now solves that ...
+		/* anyesying race here, ideally we'd have an option
+		 * to claim the irq yesw and enable it later.
+		 * FIXME genirq IRQF_NOAUTOEN yesw solves that ...
 		 */
 		disable_irq(client->irq);
 		set_bit(FLAG_IRQ_ENABLE, &tps->flags);
 	} else
-		dev_warn(&client->dev, "IRQ not configured!\n");
+		dev_warn(&client->dev, "IRQ yest configured!\n");
 
 
 	switch (tps->model) {
@@ -689,7 +689,7 @@ int tps65010_set_vbus_draw(unsigned mA)
 	if (!the_tps)
 		return -ENODEV;
 
-	/* assumes non-SMP */
+	/* assumes yesn-SMP */
 	local_irq_save(flags);
 	if (mA >= 500)
 		mA = 500;
@@ -979,7 +979,7 @@ EXPORT_SYMBOL(tps65010_config_vdcdc2);
  * mode: ON or OFF
  */
 
-/* FIXME: Assumes AC or USB power is present. Setting AUA bit is not
+/* FIXME: Assumes AC or USB power is present. Setting AUA bit is yest
 	required if power supply is through a battery */
 
 int tps65013_set_low_pwr(unsigned mode)

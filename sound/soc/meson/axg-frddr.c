@@ -64,7 +64,7 @@ static int axg_frddr_dai_startup(struct snd_pcm_substream *substream,
 	/*
 	 * TODO: We could adapt the fifo depth and the fifo threshold
 	 * depending on the expected memory throughput and lantencies
-	 * For now, we'll just use the same values as the vendor kernel
+	 * For yesw, we'll just use the same values as the vendor kernel
 	 * Depth and threshold are zero based.
 	 */
 	fifo_depth = AXG_FIFO_MIN_CNT - 1;

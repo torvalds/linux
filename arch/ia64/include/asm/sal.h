@@ -130,14 +130,14 @@ enum {
 struct ia64_sal_systab {
 	u8 signature[4];	/* should be "SST_" */
 	u32 size;		/* size of this table in bytes */
-	u8 sal_rev_minor;
+	u8 sal_rev_miyesr;
 	u8 sal_rev_major;
 	u16 entry_count;	/* # of entries in variable portion */
 	u8 checksum;
 	u8 reserved1[7];
-	u8 sal_a_rev_minor;
+	u8 sal_a_rev_miyesr;
 	u8 sal_a_rev_major;
-	u8 sal_b_rev_minor;
+	u8 sal_b_rev_miyesr;
 	u8 sal_b_rev_major;
 	/* oem_id & product_id: terminating NUL is missing if string is exactly 32 bytes long. */
 	u8 oem_id[32];
@@ -237,7 +237,7 @@ extern struct ia64_sal_desc_ptc *ia64_ptc_domain_info;
 
 extern unsigned short sal_revision;	/* supported SAL spec revision */
 extern unsigned short sal_version;	/* SAL version; OEM dependent */
-#define SAL_VERSION_CODE(major, minor) ((bin2bcd(major) << 8) | bin2bcd(minor))
+#define SAL_VERSION_CODE(major, miyesr) ((bin2bcd(major) << 8) | bin2bcd(miyesr))
 
 extern const char *ia64_sal_strerror (long status);
 extern void ia64_sal_init (struct ia64_sal_systab *sal_systab);
@@ -307,7 +307,7 @@ enum {
 
 /* Definition of version  according to SAL spec for logging purposes */
 typedef struct sal_log_revision {
-	u8 minor;		/* BCD (0..99) */
+	u8 miyesr;		/* BCD (0..99) */
 	u8 major;		/* BCD (0..99) */
 } sal_log_revision_t;
 
@@ -325,8 +325,8 @@ typedef struct sal_log_timestamp {
 
 /* Definition of log record  header structures */
 typedef struct sal_log_record_header {
-	u64 id;				/* Unique monotonically increasing ID */
-	sal_log_revision_t revision;	/* Major and Minor revision of header */
+	u64 id;				/* Unique moyestonically increasing ID */
+	sal_log_revision_t revision;	/* Major and Miyesr revision of header */
 	u8 severity;			/* Error Severity */
 	u8 validation_bits;		/* 0: platform_guid, 1: !timestamp */
 	u32 len;			/* Length of this error log in bytes */
@@ -342,8 +342,8 @@ typedef struct sal_log_record_header {
  * Error Recovery Info (ERI) bit decode.  From SAL Spec section B.2.2 Table B-3
  * Error Section Error_Recovery_Info Field Definition.
  */
-#define ERI_NOT_VALID		0x0	/* Error Recovery Field is not valid */
-#define ERI_NOT_ACCESSIBLE	0x30	/* Resource not accessible */
+#define ERI_NOT_VALID		0x0	/* Error Recovery Field is yest valid */
+#define ERI_NOT_ACCESSIBLE	0x30	/* Resource yest accessible */
 #define ERI_CONTAINMENT_WARN	0x22	/* Corrupt data propagated */
 #define ERI_UNCORRECTED_ERROR	0x20	/* Uncorrected error */
 #define ERI_COMPONENT_RESET	0x24	/* Component must be reset */
@@ -353,7 +353,7 @@ typedef struct sal_log_record_header {
 /* Definition of log section header structures */
 typedef struct sal_log_sec_header {
     efi_guid_t guid;			/* Unique Section ID */
-    sal_log_revision_t revision;	/* Major and Minor revision of Section */
+    sal_log_revision_t revision;	/* Major and Miyesr revision of Section */
     u8 error_recovery_info;		/* Platform error recovery status */
     u8 reserved;
     u32 len;				/* Section length */
@@ -452,7 +452,7 @@ typedef struct sal_log_mem_dev_err_info {
 		u64 error_status    : 1,
 		    physical_addr   : 1,
 		    addr_mask       : 1,
-		    node            : 1,
+		    yesde            : 1,
 		    card            : 1,
 		    module          : 1,
 		    bank            : 1,
@@ -471,7 +471,7 @@ typedef struct sal_log_mem_dev_err_info {
 	u64 error_status;
 	u64 physical_addr;
 	u64 addr_mask;
-	u16 node;
+	u16 yesde;
 	u16 card;
 	u16 module;
 	u16 bank;
@@ -725,7 +725,7 @@ ia64_sal_get_state_info_size (u64 sal_info_type)
 
 /*
  * Causes the processor to go into a spin loop within SAL where SAL awaits a wakeup from
- * the monarch processor.  Must not lock, because it will not return on any cpu until the
+ * the monarch processor.  Must yest lock, because it will yest return on any cpu until the
  * monarch processor sends a wake up.
  */
 static inline s64
@@ -739,7 +739,7 @@ ia64_sal_mc_rendez (void)
 /*
  * Allow the OS to specify the interrupt number to be used by SAL to interrupt OS during
  * the machine check rendezvous sequence as well as the mechanism to wake up the
- * non-monarch processor at the end of machine check processing.
+ * yesn-monarch processor at the end of machine check processing.
  * Returns the complete ia64_sal_retval because some calls return more than just a status
  * value.
  */
@@ -804,7 +804,7 @@ ia64_sal_set_vectors (u64 vector_type,
 	return isrv.status;
 }
 
-/* Update the contents of PAL block in the non-volatile storage device */
+/* Update the contents of PAL block in the yesn-volatile storage device */
 static inline s64
 ia64_sal_update_pal (u64 param_buf, u64 scratch_buf, u64 scratch_buf_size,
 		     u64 *error_code, u64 *scratch_buf_size_needed)
@@ -847,7 +847,7 @@ struct sal_ret_values {
 
 extern int ia64_sal_oemcall(struct ia64_sal_retval *, u64, u64, u64, u64, u64,
 			    u64, u64, u64);
-extern int ia64_sal_oemcall_nolock(struct ia64_sal_retval *, u64, u64, u64,
+extern int ia64_sal_oemcall_yeslock(struct ia64_sal_retval *, u64, u64, u64,
 				   u64, u64, u64, u64, u64);
 extern int ia64_sal_oemcall_reentrant(struct ia64_sal_retval *, u64, u64, u64,
 				      u64, u64, u64, u64, u64);
@@ -902,7 +902,7 @@ extern void ia64_sal_handler_init(void *entry_point, void *gpval);
 struct palo_table {
 	u8  signature[4];	/* Should be "PALO" */
 	u32 length;
-	u8  minor_revision;
+	u8  miyesr_revision;
 	u8  major_revision;
 	u8  checksum;
 	u8  reserved1[5];

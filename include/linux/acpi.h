@@ -8,7 +8,7 @@
 #ifndef _LINUX_ACPI_H
 #define _LINUX_ACPI_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>	/* for struct resource */
 #include <linux/irqdomain.h>
 #include <linux/resource_ext.h>
@@ -40,32 +40,32 @@ static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 	return adev ? adev->handle : NULL;
 }
 
-#define ACPI_COMPANION(dev)		to_acpi_device_node((dev)->fwnode)
-#define ACPI_COMPANION_SET(dev, adev)	set_primary_fwnode(dev, (adev) ? \
-	acpi_fwnode_handle(adev) : NULL)
+#define ACPI_COMPANION(dev)		to_acpi_device_yesde((dev)->fwyesde)
+#define ACPI_COMPANION_SET(dev, adev)	set_primary_fwyesde(dev, (adev) ? \
+	acpi_fwyesde_handle(adev) : NULL)
 #define ACPI_HANDLE(dev)		acpi_device_handle(ACPI_COMPANION(dev))
-#define ACPI_HANDLE_FWNODE(fwnode)	\
-				acpi_device_handle(to_acpi_device_node(fwnode))
+#define ACPI_HANDLE_FWNODE(fwyesde)	\
+				acpi_device_handle(to_acpi_device_yesde(fwyesde))
 
-static inline struct fwnode_handle *acpi_alloc_fwnode_static(void)
+static inline struct fwyesde_handle *acpi_alloc_fwyesde_static(void)
 {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 
-	fwnode = kzalloc(sizeof(struct fwnode_handle), GFP_KERNEL);
-	if (!fwnode)
+	fwyesde = kzalloc(sizeof(struct fwyesde_handle), GFP_KERNEL);
+	if (!fwyesde)
 		return NULL;
 
-	fwnode->ops = &acpi_static_fwnode_ops;
+	fwyesde->ops = &acpi_static_fwyesde_ops;
 
-	return fwnode;
+	return fwyesde;
 }
 
-static inline void acpi_free_fwnode_static(struct fwnode_handle *fwnode)
+static inline void acpi_free_fwyesde_static(struct fwyesde_handle *fwyesde)
 {
-	if (WARN_ON(!is_acpi_static_node(fwnode)))
+	if (WARN_ON(!is_acpi_static_yesde(fwyesde)))
 		return;
 
-	kfree(fwnode);
+	kfree(fwyesde);
 }
 
 /**
@@ -83,7 +83,7 @@ static inline void acpi_free_fwnode_static(struct fwnode_handle *fwnode)
 
 static inline bool has_acpi_companion(struct device *dev)
 {
-	return is_acpi_device_node(dev->fwnode);
+	return is_acpi_device_yesde(dev->fwyesde);
 }
 
 static inline void acpi_preset_companion(struct device *dev,
@@ -97,7 +97,7 @@ static inline const char *acpi_dev_name(struct acpi_device *adev)
 	return dev_name(&adev->dev);
 }
 
-struct device *acpi_get_first_physical_node(struct acpi_device *adev);
+struct device *acpi_get_first_physical_yesde(struct acpi_device *adev);
 
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,
@@ -146,7 +146,7 @@ struct acpi_debugger_ops {
 	ssize_t (*write_log)(const char *msg);
 	ssize_t (*read_cmd)(char *buffer, size_t length);
 	int (*wait_command_ready)(bool single_step, char *buffer, size_t length);
-	int (*notify_command_complete)(void);
+	int (*yestify_command_complete)(void);
 };
 
 struct acpi_debugger {
@@ -164,7 +164,7 @@ int acpi_debugger_create_thread(acpi_osd_exec_callback function, void *context);
 ssize_t acpi_debugger_write_log(const char *msg);
 ssize_t acpi_debugger_read_cmd(char *buffer, size_t buffer_length);
 int acpi_debugger_wait_command_ready(void);
-int acpi_debugger_notify_command_complete(void);
+int acpi_debugger_yestify_command_complete(void);
 #else
 static inline int acpi_debugger_init(void)
 {
@@ -202,7 +202,7 @@ static inline int acpi_debugger_wait_command_ready(void)
 	return -ENODEV;
 }
 
-static inline int acpi_debugger_notify_command_complete(void)
+static inline int acpi_debugger_yestify_command_complete(void)
 {
 	return -ENODEV;
 }
@@ -296,9 +296,9 @@ int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base);
 int acpi_ioapic_registered(acpi_handle handle, u32 gsi_base);
 void acpi_irq_stats_init(void);
 extern u32 acpi_irq_handled;
-extern u32 acpi_irq_not_handled;
+extern u32 acpi_irq_yest_handled;
 extern unsigned int acpi_sci_irq;
-extern bool acpi_no_s5;
+extern bool acpi_yes_s5;
 #define INVALID_ACPI_IRQ	((unsigned)-1)
 static inline bool acpi_sci_irq_valid(void)
 {
@@ -313,11 +313,11 @@ int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
 int acpi_isa_irq_to_gsi (unsigned isa_irq, u32 *gsi);
 
 void acpi_set_irq_model(enum acpi_irq_model_id model,
-			struct fwnode_handle *fwnode);
+			struct fwyesde_handle *fwyesde);
 
 struct irq_domain *acpi_irq_create_hierarchy(unsigned int flags,
 					     unsigned int size,
-					     struct fwnode_handle *fwnode,
+					     struct fwyesde_handle *fwyesde,
 					     const struct irq_domain_ops *ops,
 					     void *host_data);
 
@@ -362,7 +362,7 @@ extern bool acpi_is_pnp_device(struct acpi_device *);
 
 #if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
 
-typedef void (*wmi_notify_handler) (u32 value, void *context);
+typedef void (*wmi_yestify_handler) (u32 value, void *context);
 
 extern acpi_status wmi_evaluate_method(const char *guid, u8 instance,
 					u32 method_id,
@@ -372,9 +372,9 @@ extern acpi_status wmi_query_block(const char *guid, u8 instance,
 					struct acpi_buffer *out);
 extern acpi_status wmi_set_block(const char *guid, u8 instance,
 					const struct acpi_buffer *in);
-extern acpi_status wmi_install_notify_handler(const char *guid,
-					wmi_notify_handler handler, void *data);
-extern acpi_status wmi_remove_notify_handler(const char *guid);
+extern acpi_status wmi_install_yestify_handler(const char *guid,
+					wmi_yestify_handler handler, void *data);
+extern acpi_status wmi_remove_yestify_handler(const char *guid);
 extern acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out);
 extern bool wmi_has_guid(const char *guid);
 extern char *wmi_get_acpi_device_uid(const char *guid);
@@ -401,24 +401,24 @@ extern void acpi_osi_setup(char *str);
 extern bool acpi_osi_is_win8(void);
 
 #ifdef CONFIG_ACPI_NUMA
-int acpi_map_pxm_to_online_node(int pxm);
-int acpi_map_pxm_to_node(int pxm);
-int acpi_get_node(acpi_handle handle);
+int acpi_map_pxm_to_online_yesde(int pxm);
+int acpi_map_pxm_to_yesde(int pxm);
+int acpi_get_yesde(acpi_handle handle);
 #else
-static inline int acpi_map_pxm_to_online_node(int pxm)
+static inline int acpi_map_pxm_to_online_yesde(int pxm)
 {
 	return 0;
 }
-static inline int acpi_map_pxm_to_node(int pxm)
+static inline int acpi_map_pxm_to_yesde(int pxm)
 {
 	return 0;
 }
-static inline int acpi_get_node(acpi_handle handle)
+static inline int acpi_get_yesde(acpi_handle handle)
 {
 	return 0;
 }
 #endif
-extern int acpi_paddr_to_node(u64 start_addr, u64 size);
+extern int acpi_paddr_to_yesde(u64 start_addr, u64 size);
 
 extern int pnpacpi_disabled;
 
@@ -463,14 +463,14 @@ acpi_status acpi_release_memory(acpi_handle handle, struct resource *res,
 int acpi_resources_are_enforced(void);
 
 #ifdef CONFIG_HIBERNATION
-void __init acpi_no_s4_hw_signature(void);
+void __init acpi_yes_s4_hw_signature(void);
 #endif
 
 #ifdef CONFIG_PM_SLEEP
 void __init acpi_old_suspend_ordering(void);
-void __init acpi_nvs_nosave(void);
-void __init acpi_nvs_nosave_s3(void);
-void __init acpi_sleep_no_blacklist(void);
+void __init acpi_nvs_yessave(void);
+void __init acpi_nvs_yessave_s3(void);
+void __init acpi_sleep_yes_blacklist(void);
 #endif /* CONFIG_PM_SLEEP */
 
 struct acpi_osc_context {
@@ -633,8 +633,8 @@ enum acpi_reconfig_event  {
 	ACPI_RECONFIG_DEVICE_REMOVE,
 };
 
-int acpi_reconfig_notifier_register(struct notifier_block *nb);
-int acpi_reconfig_notifier_unregister(struct notifier_block *nb);
+int acpi_reconfig_yestifier_register(struct yestifier_block *nb);
+int acpi_reconfig_yestifier_unregister(struct yestifier_block *nb);
 
 #ifdef CONFIG_ACPI_GTDT
 int acpi_gtdt_init(struct acpi_table_header *table, int *platform_timer_count);
@@ -663,10 +663,10 @@ static inline u64 acpi_arch_get_root_pointer(void)
 #define ACPI_COMPANION(dev)		(NULL)
 #define ACPI_COMPANION_SET(dev, adev)	do { } while (0)
 #define ACPI_HANDLE(dev)		(NULL)
-#define ACPI_HANDLE_FWNODE(fwnode)	(NULL)
+#define ACPI_HANDLE_FWNODE(fwyesde)	(NULL)
 #define ACPI_DEVICE_CLASS(_cls, _msk)	.cls = (0), .cls_msk = (0),
 
-struct fwnode_handle;
+struct fwyesde_handle;
 
 static inline bool acpi_dev_found(const char *hid)
 {
@@ -694,38 +694,38 @@ acpi_dev_get_first_match_dev(const char *hid, const char *uid, s64 hrv)
 
 static inline void acpi_dev_put(struct acpi_device *adev) {}
 
-static inline bool is_acpi_node(struct fwnode_handle *fwnode)
+static inline bool is_acpi_yesde(struct fwyesde_handle *fwyesde)
 {
 	return false;
 }
 
-static inline bool is_acpi_device_node(struct fwnode_handle *fwnode)
+static inline bool is_acpi_device_yesde(struct fwyesde_handle *fwyesde)
 {
 	return false;
 }
 
-static inline struct acpi_device *to_acpi_device_node(struct fwnode_handle *fwnode)
+static inline struct acpi_device *to_acpi_device_yesde(struct fwyesde_handle *fwyesde)
 {
 	return NULL;
 }
 
-static inline bool is_acpi_data_node(struct fwnode_handle *fwnode)
+static inline bool is_acpi_data_yesde(struct fwyesde_handle *fwyesde)
 {
 	return false;
 }
 
-static inline struct acpi_data_node *to_acpi_data_node(struct fwnode_handle *fwnode)
+static inline struct acpi_data_yesde *to_acpi_data_yesde(struct fwyesde_handle *fwyesde)
 {
 	return NULL;
 }
 
-static inline bool acpi_data_node_match(struct fwnode_handle *fwnode,
+static inline bool acpi_data_yesde_match(struct fwyesde_handle *fwyesde,
 					const char *name)
 {
 	return false;
 }
 
-static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)
+static inline struct fwyesde_handle *acpi_fwyesde_handle(struct acpi_device *adev)
 {
 	return NULL;
 }
@@ -745,7 +745,7 @@ static inline const char *acpi_dev_name(struct acpi_device *adev)
 	return NULL;
 }
 
-static inline struct device *acpi_get_first_physical_node(struct acpi_device *adev)
+static inline struct device *acpi_get_first_physical_yesde(struct acpi_device *adev)
 {
 	return NULL;
 }
@@ -872,12 +872,12 @@ static inline void acpi_device_clear_enumerated(struct acpi_device *adev)
 {
 }
 
-static inline int acpi_reconfig_notifier_register(struct notifier_block *nb)
+static inline int acpi_reconfig_yestifier_register(struct yestifier_block *nb)
 {
 	return -EINVAL;
 }
 
-static inline int acpi_reconfig_notifier_unregister(struct notifier_block *nb)
+static inline int acpi_reconfig_yestifier_unregister(struct yestifier_block *nb)
 {
 	return -EINVAL;
 }
@@ -941,7 +941,7 @@ static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
 int acpi_subsys_prepare(struct device *dev);
 void acpi_subsys_complete(struct device *dev);
 int acpi_subsys_suspend_late(struct device *dev);
-int acpi_subsys_suspend_noirq(struct device *dev);
+int acpi_subsys_suspend_yesirq(struct device *dev);
 int acpi_subsys_suspend(struct device *dev);
 int acpi_subsys_freeze(struct device *dev);
 int acpi_subsys_poweroff(struct device *dev);
@@ -951,7 +951,7 @@ void acpi_ec_set_gpe_wake_mask(u8 action);
 static inline int acpi_subsys_prepare(struct device *dev) { return 0; }
 static inline void acpi_subsys_complete(struct device *dev) {}
 static inline int acpi_subsys_suspend_late(struct device *dev) { return 0; }
-static inline int acpi_subsys_suspend_noirq(struct device *dev) { return 0; }
+static inline int acpi_subsys_suspend_yesirq(struct device *dev) { return 0; }
 static inline int acpi_subsys_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_freeze(struct device *dev) { return 0; }
 static inline int acpi_subsys_poweroff(struct device *dev) { return 0; }
@@ -989,7 +989,7 @@ void __acpi_handle_debug(struct _ddebug *descriptor, acpi_handle handle, const c
 	acpi_handle_printk(KERN_ERR, handle, fmt, ##__VA_ARGS__)
 #define acpi_handle_warn(handle, fmt, ...)				\
 	acpi_handle_printk(KERN_WARNING, handle, fmt, ##__VA_ARGS__)
-#define acpi_handle_notice(handle, fmt, ...)				\
+#define acpi_handle_yestice(handle, fmt, ...)				\
 	acpi_handle_printk(KERN_NOTICE, handle, fmt, ##__VA_ARGS__)
 #define acpi_handle_info(handle, fmt, ...)				\
 	acpi_handle_printk(KERN_INFO, handle, fmt, ##__VA_ARGS__)
@@ -1033,16 +1033,16 @@ static inline int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 #ifdef CONFIG_ACPI
 int acpi_dev_get_property(const struct acpi_device *adev, const char *name,
 			  acpi_object_type type, const union acpi_object **obj);
-int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
+int __acpi_yesde_get_property_reference(const struct fwyesde_handle *fwyesde,
 				const char *name, size_t index, size_t num_args,
-				struct fwnode_reference_args *args);
+				struct fwyesde_reference_args *args);
 
-static inline int acpi_node_get_property_reference(
-				const struct fwnode_handle *fwnode,
+static inline int acpi_yesde_get_property_reference(
+				const struct fwyesde_handle *fwyesde,
 				const char *name, size_t index,
-				struct fwnode_reference_args *args)
+				struct fwyesde_reference_args *args)
 {
-	return __acpi_node_get_property_reference(fwnode, name, index,
+	return __acpi_yesde_get_property_reference(fwyesde, name, index,
 		NR_FWNODE_REFERENCE_ARGS, args);
 }
 
@@ -1055,20 +1055,20 @@ struct acpi_device_properties *
 acpi_data_add_props(struct acpi_device_data *data, const guid_t *guid,
 		    const union acpi_object *properties);
 
-int acpi_node_prop_get(const struct fwnode_handle *fwnode, const char *propname,
+int acpi_yesde_prop_get(const struct fwyesde_handle *fwyesde, const char *propname,
 		       void **valptr);
 int acpi_dev_prop_read_single(struct acpi_device *adev,
 			      const char *propname, enum dev_prop_type proptype,
 			      void *val);
-int acpi_node_prop_read(const struct fwnode_handle *fwnode,
+int acpi_yesde_prop_read(const struct fwyesde_handle *fwyesde,
 			const char *propname, enum dev_prop_type proptype,
 			void *val, size_t nval);
 int acpi_dev_prop_read(const struct acpi_device *adev, const char *propname,
 		       enum dev_prop_type proptype, void *val, size_t nval);
 
-struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
-					    struct fwnode_handle *child);
-struct fwnode_handle *acpi_node_get_parent(const struct fwnode_handle *fwnode);
+struct fwyesde_handle *acpi_get_next_subyesde(const struct fwyesde_handle *fwyesde,
+					    struct fwyesde_handle *child);
+struct fwyesde_handle *acpi_yesde_get_parent(const struct fwyesde_handle *fwyesde);
 
 struct acpi_probe_entry;
 typedef bool (*acpi_probe_entry_validate_subtbl)(struct acpi_subtable_header *,
@@ -1133,22 +1133,22 @@ static inline int acpi_dev_get_property(struct acpi_device *adev,
 }
 
 static inline int
-__acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
+__acpi_yesde_get_property_reference(const struct fwyesde_handle *fwyesde,
 				const char *name, size_t index, size_t num_args,
-				struct fwnode_reference_args *args)
+				struct fwyesde_reference_args *args)
 {
 	return -ENXIO;
 }
 
 static inline int
-acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
+acpi_yesde_get_property_reference(const struct fwyesde_handle *fwyesde,
 				 const char *name, size_t index,
-				 struct fwnode_reference_args *args)
+				 struct fwyesde_reference_args *args)
 {
 	return -ENXIO;
 }
 
-static inline int acpi_node_prop_get(const struct fwnode_handle *fwnode,
+static inline int acpi_yesde_prop_get(const struct fwyesde_handle *fwyesde,
 				     const char *propname,
 				     void **valptr)
 {
@@ -1170,7 +1170,7 @@ static inline int acpi_dev_prop_read_single(const struct acpi_device *adev,
 	return -ENXIO;
 }
 
-static inline int acpi_node_prop_read(const struct fwnode_handle *fwnode,
+static inline int acpi_yesde_prop_read(const struct fwyesde_handle *fwyesde,
 				      const char *propname,
 				      enum dev_prop_type proptype,
 				      void *val, size_t nval)
@@ -1186,31 +1186,31 @@ static inline int acpi_dev_prop_read(const struct acpi_device *adev,
 	return -ENXIO;
 }
 
-static inline struct fwnode_handle *
-acpi_get_next_subnode(const struct fwnode_handle *fwnode,
-		      struct fwnode_handle *child)
+static inline struct fwyesde_handle *
+acpi_get_next_subyesde(const struct fwyesde_handle *fwyesde,
+		      struct fwyesde_handle *child)
 {
 	return NULL;
 }
 
-static inline struct fwnode_handle *
-acpi_node_get_parent(const struct fwnode_handle *fwnode)
+static inline struct fwyesde_handle *
+acpi_yesde_get_parent(const struct fwyesde_handle *fwyesde)
 {
 	return NULL;
 }
 
-static inline struct fwnode_handle *
-acpi_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
-			     struct fwnode_handle *prev)
+static inline struct fwyesde_handle *
+acpi_graph_get_next_endpoint(const struct fwyesde_handle *fwyesde,
+			     struct fwyesde_handle *prev)
 {
 	return ERR_PTR(-ENXIO);
 }
 
 static inline int
-acpi_graph_get_remote_endpoint(const struct fwnode_handle *fwnode,
-			       struct fwnode_handle **remote,
-			       struct fwnode_handle **port,
-			       struct fwnode_handle **endpoint)
+acpi_graph_get_remote_endpoint(const struct fwyesde_handle *fwyesde,
+			       struct fwyesde_handle **remote,
+			       struct fwyesde_handle **port,
+			       struct fwyesde_handle **endpoint)
 {
 	return -ENXIO;
 }
@@ -1298,10 +1298,10 @@ static inline int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
 #endif
 
 #ifdef CONFIG_ACPI
-extern int acpi_platform_notify(struct device *dev, enum kobject_action action);
+extern int acpi_platform_yestify(struct device *dev, enum kobject_action action);
 #else
 static inline int
-acpi_platform_notify(struct device *dev, enum kobject_action action)
+acpi_platform_yestify(struct device *dev, enum kobject_action action)
 {
 	return 0;
 }

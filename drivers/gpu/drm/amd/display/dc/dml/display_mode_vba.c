@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -94,10 +94,10 @@ dml_get_attr_func(wm_dram_clock_change, mode_lib->vba.DRAMClockChangeWatermark);
 dml_get_attr_func(wm_writeback_dram_clock_change, mode_lib->vba.WritebackDRAMClockChangeWatermark);
 dml_get_attr_func(wm_xfc_underflow, mode_lib->vba.UrgentWatermark); // xfc_underflow maps to urgent
 dml_get_attr_func(stutter_efficiency, mode_lib->vba.StutterEfficiency);
-dml_get_attr_func(stutter_efficiency_no_vblank, mode_lib->vba.StutterEfficiencyNotIncludingVBlank);
+dml_get_attr_func(stutter_efficiency_yes_vblank, mode_lib->vba.StutterEfficiencyNotIncludingVBlank);
 dml_get_attr_func(urgent_latency, mode_lib->vba.UrgentLatency);
 dml_get_attr_func(urgent_extra_latency, mode_lib->vba.UrgentExtraLatency);
-dml_get_attr_func(nonurgent_latency, mode_lib->vba.NonUrgentLatencyTolerance);
+dml_get_attr_func(yesnurgent_latency, mode_lib->vba.NonUrgentLatencyTolerance);
 dml_get_attr_func(
 		dram_clock_change_latency,
 		mode_lib->vba.MinActiveDRAMClockChangeLatencySupported);
@@ -205,9 +205,9 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyVMDataOnly =
 			soc->pct_ideal_dram_sdp_bw_after_urgent_vm_only;
 	mode_lib->vba.MaxAveragePercentOfIdealSDPPortBWDisplayCanUseInNormalSystemOperation =
-			soc->max_avg_sdp_bw_use_normal_percent;
+			soc->max_avg_sdp_bw_use_yesrmal_percent;
 	mode_lib->vba.MaxAveragePercentOfIdealDRAMBWDisplayCanUseInNormalSystemOperation =
-			soc->max_avg_dram_bw_use_normal_percent;
+			soc->max_avg_dram_bw_use_yesrmal_percent;
 	mode_lib->vba.UrgentLatencyPixelDataOnly = soc->urgent_latency_pixel_data_only_us;
 	mode_lib->vba.UrgentLatencyPixelMixedWithVMData = soc->urgent_latency_pixel_mixed_with_vm_data_us;
 	mode_lib->vba.UrgentLatencyVMDataOnly = soc->urgent_latency_vm_data_only_us;
@@ -319,7 +319,7 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.WritebackMinVSCLRatio = ip->writeback_min_vscl_ratio;
 	mode_lib->vba.WritebackMaxHSCLTaps = ip->writeback_max_hscl_taps;
 	mode_lib->vba.WritebackMaxVSCLTaps = ip->writeback_max_vscl_taps;
-	mode_lib->vba.WritebackConfiguration = dm_normal;
+	mode_lib->vba.WritebackConfiguration = dm_yesrmal;
 	mode_lib->vba.GPUVMMaxPageTableLevels = ip->gpuvm_max_page_table_levels;
 	mode_lib->vba.HostVMMaxNonCachedPageTableLevels = ip->hostvm_max_page_table_levels;
 	mode_lib->vba.HostVMMaxPageTableLevels = ip->hostvm_max_page_table_levels;
@@ -580,7 +580,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 
 		if (dst->odm_combine && !src->is_hsplit)
 			dml_print(
-					"ERROR: ODM Combine is specified but is_hsplit has not be specified for pipe %i\n",
+					"ERROR: ODM Combine is specified but is_hsplit has yest be specified for pipe %i\n",
 					j);
 
 		if (src->is_hsplit) {
@@ -638,8 +638,8 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		}
 	}
 
-	// TODO: ODMCombineEnabled => 2 * DPPPerPlane...actually maybe not since all pipes are specified
-	// Do we want the dscclk to automatically be halved? Guess not since the value is specified
+	// TODO: ODMCombineEnabled => 2 * DPPPerPlane...actually maybe yest since all pipes are specified
+	// Do we want the dscclk to automatically be halved? Guess yest since the value is specified
 
 	mode_lib->vba.SynchronizedVBlank = pipes[0].pipe.dest.synchronized_vblank_all_planes;
 	for (k = 1; k < mode_lib->vba.cache_num_pipes; ++k)
@@ -687,7 +687,7 @@ static void recalculate_params(
 		const display_e2e_pipe_params_st *pipes,
 		unsigned int num_pipes)
 {
-	// This is only safe to use memcmp because there are non-POD types in struct display_mode_lib
+	// This is only safe to use memcmp because there are yesn-POD types in struct display_mode_lib
 	if (memcmp(&mode_lib->soc, &mode_lib->vba.soc, sizeof(mode_lib->vba.soc)) != 0
 			|| memcmp(&mode_lib->ip, &mode_lib->vba.ip, sizeof(mode_lib->vba.ip)) != 0
 			|| num_pipes != mode_lib->vba.cache_num_pipes
@@ -750,7 +750,7 @@ bool CalculateMinAndMaxPrefetchMode(
 		unsigned int *MaxPrefetchMode)
 {
 	if (AllowDRAMSelfRefreshOrDRAMClockChangeInVblank
-			== dm_neither_self_refresh_nor_mclk_switch) {
+			== dm_neither_self_refresh_yesr_mclk_switch) {
 		*MinPrefetchMode = 2;
 		*MaxPrefetchMode = 2;
 		return false;

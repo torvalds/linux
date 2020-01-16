@@ -121,19 +121,19 @@ static int lg216x_write_regs(struct lg216x_state *state,
 }
 
 static int lg216x_set_reg_bit(struct lg216x_state *state,
-			      u16 reg, int bit, int onoff)
+			      u16 reg, int bit, int oyesff)
 {
 	u8 val;
 	int ret;
 
-	lg_reg("reg: 0x%04x, bit: %d, level: %d\n", reg, bit, onoff);
+	lg_reg("reg: 0x%04x, bit: %d, level: %d\n", reg, bit, oyesff);
 
 	ret = lg216x_read_reg(state, reg, &val);
 	if (lg_fail(ret))
 		goto fail;
 
 	val &= ~(1 << bit);
-	val |= (onoff & 1) << bit;
+	val |= (oyesff & 1) << bit;
 
 	ret = lg216x_write_reg(state, reg, val);
 	lg_fail(ret);
@@ -357,7 +357,7 @@ fail:
 	return lg216x_soft_reset(state);
 }
 
-static int lg2160_tuner_pwr_save(struct lg216x_state *state, int onoff)
+static int lg2160_tuner_pwr_save(struct lg216x_state *state, int oyesff)
 {
 	u8 val;
 	int ret;
@@ -367,7 +367,7 @@ static int lg2160_tuner_pwr_save(struct lg216x_state *state, int onoff)
 		goto fail;
 
 	val &= 0xbf;
-	val |= (onoff) ? 0x40 : 0x00;
+	val |= (oyesff) ? 0x40 : 0x00;
 
 	ret = lg216x_write_reg(state, 0x0007, val);
 	lg_fail(ret);
@@ -453,7 +453,7 @@ fail:
 	return ret;
 }
 
-static int lg216x_enable_fic(struct lg216x_state *state, int onoff)
+static int lg216x_enable_fic(struct lg216x_state *state, int oyesff)
 {
 	int ret;
 
@@ -468,10 +468,10 @@ static int lg216x_enable_fic(struct lg216x_state *state, int onoff)
 	switch (state->cfg->lg_chip) {
 	case LG2160:
 		ret = lg216x_write_reg(state, 0x0016,
-				       0xfc | ((onoff) ? 0x02 : 0x00));
+				       0xfc | ((oyesff) ? 0x02 : 0x00));
 		break;
 	case LG2161:
-		ret = lg216x_write_reg(state, 0x0016, (onoff) ? 0x10 : 0x00);
+		ret = lg216x_write_reg(state, 0x0016, (oyesff) ? 0x10 : 0x00);
 		break;
 	}
 	if (lg_fail(ret))
@@ -481,7 +481,7 @@ static int lg216x_enable_fic(struct lg216x_state *state, int onoff)
 	if (lg_fail(ret))
 		goto fail;
 
-	if (onoff) {
+	if (oyesff) {
 		ret = lg216x_write_reg(state, 0x0017, 0x03);
 		lg_fail(ret);
 	}
@@ -525,34 +525,34 @@ fail:
 }
 #endif
 
-static int lg216x_get_nog(struct lg216x_state *state, u8 *nog)
+static int lg216x_get_yesg(struct lg216x_state *state, u8 *yesg)
 {
 	u8 val;
 	int ret;
 
-	*nog = 0xff; /* invalid value */
+	*yesg = 0xff; /* invalid value */
 
 	ret = lg216x_read_reg(state, 0x0124, &val);
 	if (lg_fail(ret))
 		goto fail;
 
-	*nog = ((val >> 4) & 0x07) + 1;
+	*yesg = ((val >> 4) & 0x07) + 1;
 fail:
 	return ret;
 }
 
-static int lg216x_get_tnog(struct lg216x_state *state, u8 *tnog)
+static int lg216x_get_tyesg(struct lg216x_state *state, u8 *tyesg)
 {
 	u8 val;
 	int ret;
 
-	*tnog = 0xff; /* invalid value */
+	*tyesg = 0xff; /* invalid value */
 
 	ret = lg216x_read_reg(state, 0x0125, &val);
 	if (lg_fail(ret))
 		goto fail;
 
-	*tnog = val & 0x1f;
+	*tyesg = val & 0x1f;
 fail:
 	return ret;
 }
@@ -955,12 +955,12 @@ static int lg216x_get_frontend(struct dvb_frontend *fe,
 /* #else */
 		c->atscmh_parade_id = state->parade_id;
 #endif
-		ret = lg216x_get_nog(state,
-				     &c->atscmh_nog);
+		ret = lg216x_get_yesg(state,
+				     &c->atscmh_yesg);
 		if (lg_fail(ret))
 			goto fail;
-		ret = lg216x_get_tnog(state,
-				      &c->atscmh_tnog);
+		ret = lg216x_get_tyesg(state,
+				      &c->atscmh_tyesg);
 		if (lg_fail(ret))
 			goto fail;
 		ret = lg216x_get_sgn(state,
@@ -1028,7 +1028,7 @@ static int lg216x_get_frontend(struct dvb_frontend *fe,
 			ret = lg216x_soft_reset(state);
 		break;
 	case LG2161:
-		/* no fix needed here (as far as we know) */
+		/* yes fix needed here (as far as we kyesw) */
 		ret = 0;
 		break;
 	}

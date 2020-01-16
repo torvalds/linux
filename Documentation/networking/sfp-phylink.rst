@@ -35,24 +35,24 @@ settings.
 3. In-band mode
 
    In-band mode is used with 802.3z, SGMII and similar interface modes,
-   and we are expecting to use and honor the in-band negotiation or
+   and we are expecting to use and hoyesr the in-band negotiation or
    control word sent across the serdes channel.
 
 By example, what this means is that:
 
-.. code-block:: none
+.. code-block:: yesne
 
   &eth {
     phy = <&phy>;
     phy-mode = "sgmii";
   };
 
-does not use in-band SGMII signalling.  The PHY is expected to follow
+does yest use in-band SGMII signalling.  The PHY is expected to follow
 exactly the settings given to it in its :c:func:`mac_config` function.
 The link should be forced up or down appropriately in the
 :c:func:`mac_link_up` and :c:func:`mac_link_down` functions.
 
-.. code-block:: none
+.. code-block:: yesne
 
   &eth {
     managed = "in-band-status";
@@ -62,8 +62,8 @@ The link should be forced up or down appropriately in the
 
 uses in-band mode, where results from the PHY's negotiation are passed
 to the MAC through the SGMII control word, and the MAC is expected to
-acknowledge the control word.  The :c:func:`mac_link_up` and
-:c:func:`mac_link_down` functions must not force the MAC side link
+ackyeswledge the control word.  The :c:func:`mac_link_up` and
+:c:func:`mac_link_down` functions must yest force the MAC side link
 up and down.
 
 Rough guide to converting a network driver to sfp/phylink
@@ -127,8 +127,8 @@ this documentation.
     * - phy_disconnect(phydev)
       - phylink_disconnect_phy(priv->phylink)
 
-   Please note that some of these functions must be called under the
-   rtnl lock, and will warn if not. This will normally be the case,
+   Please yeste that some of these functions must be called under the
+   rtnl lock, and will warn if yest. This will yesrmally be the case,
    except if these are called from the driver suspend/resume paths.
 
 6. Add/replace ksettings get/set methods with:
@@ -153,17 +153,17 @@ this documentation.
 
 7. Replace the call to:
 
-	phy_dev = of_phy_connect(dev, node, link_func, flags, phy_interface);
+	phy_dev = of_phy_connect(dev, yesde, link_func, flags, phy_interface);
 
    and associated code with a call to:
 
-	err = phylink_of_phy_connect(priv->phylink, node, flags);
+	err = phylink_of_phy_connect(priv->phylink, yesde, flags);
 
    For the most part, ``flags`` can be zero; these flags are passed to
    the of_phy_attach() inside this function call if a PHY is specified
-   in the DT node ``node``.
+   in the DT yesde ``yesde``.
 
-   ``node`` should be the DT node which contains the network phy property,
+   ``yesde`` should be the DT yesde which contains the network phy property,
    fixed link properties, and will also contain the sfp property.
 
    The setup of fixed links should also be removed; these are handled
@@ -176,11 +176,11 @@ this documentation.
    Manipulation of the PHY's supported/advertised happens within phylink
    based on the validate callback, see below in (8).
 
-   Note that the driver no longer needs to store the ``phy_interface``,
-   and also note that ``phy_interface`` becomes a dynamic property,
+   Note that the driver yes longer needs to store the ``phy_interface``,
+   and also yeste that ``phy_interface`` becomes a dynamic property,
    just like the speed, duplex etc. settings.
 
-   Finally, note that the MAC driver has no direct access to the PHY
+   Finally, yeste that the MAC driver has yes direct access to the PHY
    anymore; that is because in the phylink model, the PHY can be
    dynamic.
 
@@ -192,7 +192,7 @@ this documentation.
    performed, then the functionality will have been split there.
 
    It is important that if in-band negotiation is used,
-   :c:func:`mac_link_up` and :c:func:`mac_link_down` do not prevent the
+   :c:func:`mac_link_up` and :c:func:`mac_link_down` do yest prevent the
    in-band negotiation from completing, since these functions are called
    when the in-band link state changes - otherwise the link will never
    come up.
@@ -228,7 +228,7 @@ this documentation.
 	priv->phylink_config.dev = &dev.dev;
 	priv->phylink_config.type = PHYLINK_NETDEV;
 
-	phylink = phylink_create(&priv->phylink_config, node, phy_mode, &phylink_ops);
+	phylink = phylink_create(&priv->phylink_config, yesde, phy_mode, &phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
 		fail probe;
@@ -253,7 +253,7 @@ this documentation.
     where ``link_is_up`` is true if the link is currently up or false
     otherwise.
 
-11. Verify that the driver does not call::
+11. Verify that the driver does yest call::
 
 	netif_carrier_on()
 	netif_carrier_off()

@@ -90,7 +90,7 @@ struct usbatm_driver {
 	void (*atm_stop) (struct usbatm_data *, struct atm_dev *);
 
 	int bulk_in;	/* bulk rx endpoint */
-	int isoc_in;	/* isochronous rx endpoint */
+	int isoc_in;	/* isochroyesus rx endpoint */
 	int bulk_out;	/* bulk tx endpoint */
 
 	unsigned rx_padding;
@@ -136,7 +136,7 @@ struct usbatm_data {
 	struct atm_dev *atm_dev;
 
 	/********************************
-	*  private fields - do not use  *
+	*  private fields - do yest use  *
 	********************************/
 
 	struct kref refcount;

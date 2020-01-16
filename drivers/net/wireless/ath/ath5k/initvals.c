@@ -7,7 +7,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -344,7 +344,7 @@ static const struct ath5k_ini ar5211_ini[] = {
 	 * common on all cards/modes.
 	 * Note: Table is rewritten during
 	 * txpower setup later using calibration
-	 * data etc. so next write is non-common */
+	 * data etc. so next write is yesn-common */
 	{ AR5K_PHY_PCDAC_TXPOWER(1), 0x06ff05ff },
 	{ AR5K_PHY_PCDAC_TXPOWER(2), 0x07ff07ff },
 	{ AR5K_PHY_PCDAC_TXPOWER(3), 0x08ff08ff },
@@ -609,7 +609,7 @@ static const struct ath5k_ini ar5212_ini_common_start[] = {
 	{ AR5K_XRLAT_TX,	0x00000168 },
 	{ AR5K_ACKSIFS,		0x00000000 },
 	/* Rate -> db table
-	 * notice ...03<-02<-01<-00 ! */
+	 * yestice ...03<-02<-01<-00 ! */
 	{ AR5K_RATE2DB(0),	0x03020100 },
 	{ AR5K_RATE2DB(1),	0x07060504 },
 	{ AR5K_RATE2DB(2),	0x0b0a0908 },

@@ -57,7 +57,7 @@ static u32 ahci_da850_calculate_mpy(unsigned long refclk_rate)
 	needed = pll_output / (refclk_rate / 10);
 
 	/*
-	 * What we have now is (multiplier * 10).
+	 * What we have yesw is (multiplier * 10).
 	 *
 	 * Let's determine the actual register value we need to write.
 	 */
@@ -83,7 +83,7 @@ static u32 ahci_da850_calculate_mpy(unsigned long refclk_rate)
 		return 0xa;
 	default:
 		/*
-		 * We should have divided evenly - if not, return an invalid
+		 * We should have divided evenly - if yest, return an invalid
 		 * value.
 		 */
 		return 0;
@@ -123,7 +123,7 @@ static int ahci_da850_hardreset(struct ata_link *link,
 	 * we increased the PLL0 frequency to 456MHz from the default 300MHz.
 	 *
 	 * This made the SATA controller unstable and the hardreset operation
-	 * does not always succeed the first time. Before really giving up to
+	 * does yest always succeed the first time. Before really giving up to
 	 * bring up the link, retry the reset a couple times.
 	 */
 	do {

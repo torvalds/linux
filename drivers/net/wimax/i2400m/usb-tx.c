@@ -10,12 +10,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -40,17 +40,17 @@
  *
  *
  * Takes the TX messages in the i2400m's driver TX FIFO and sends them
- * to the device until there are no more.
+ * to the device until there are yes more.
  *
  * If we fail sending the message, we just drop it. There isn't much
  * we can do at this point. We could also retry, but the USB stack has
- * already retried and still failed, so there is not much of a
+ * already retried and still failed, so there is yest much of a
  * point. As well, most of the traffic is network, which has recovery
  * methods for dropped packets.
  *
  * For sending we just obtain a FIFO buffer to send, send it to the
  * USB bulk out, tell the TX FIFO code we have sent it; query for
- * another one, etc... until done.
+ * ayesther one, etc... until done.
  *
  * We use a thread so we can call usb_autopm_enable() and
  * usb_autopm_disable() for each transaction; this way when the device
@@ -78,10 +78,10 @@
 /*
  * Get the next TX message in the TX FIFO and send it to the device
  *
- * Note that any iteration consumes a message to be sent, no matter if
- * it succeeds or fails (we have no real way to retry or complain).
+ * Note that any iteration consumes a message to be sent, yes matter if
+ * it succeeds or fails (we have yes real way to retry or complain).
  *
- * Return: 0 if ok, < 0 errno code on hard error.
+ * Return: 0 if ok, < 0 erryes code on hard error.
  */
 static
 int i2400mu_tx(struct i2400mu *i2400mu, struct i2400m_msg_hdr *tx_msg,
@@ -119,7 +119,7 @@ retry:
 		/*
 		 * Stall -- maybe the device is choking with our
 		 * requests. Clear it and give it some time. If they
-		 * happen to often, it might be another symptom, so we
+		 * happen to often, it might be ayesther symptom, so we
 		 * reset.
 		 *
 		 * No error handling for usb_clear_halt(0; if it
@@ -139,7 +139,7 @@ retry:
 		/* fall through */
 	case -EINVAL:			/* while removing driver */
 	case -ENODEV:			/* dev disconnect ... */
-	case -ENOENT:			/* just ignore it */
+	case -ENOENT:			/* just igyesre it */
 	case -ESHUTDOWN:		/* and exit */
 	case -ECONNRESET:
 		result = -ESHUTDOWN;
@@ -151,7 +151,7 @@ retry:
 				"exceeded; resetting device\n");
 			usb_queue_reset_device(i2400mu->usb_iface);
 		} else {
-			dev_err(dev, "TX: cannot send URB; retrying. "
+			dev_err(dev, "TX: canyest send URB; retrying. "
 				"tx_msg @%zu %zu B [%d sent]: %d\n",
 				(void *) tx_msg - i2400m->tx_buf,
 				tx_msg_size, sent_size, result);
@@ -169,7 +169,7 @@ retry:
  * Get the next TX message in the TX FIFO and send it to the device
  *
  * Note we exit the loop if i2400mu_tx() fails; that function only
- * fails on hard error (failing to tx a buffer not being one of them,
+ * fails on hard error (failing to tx a buffer yest being one of them,
  * see its doc).
  *
  * Return: 0
@@ -201,10 +201,10 @@ int i2400mu_txd(void *_i2400mu)
 			);
 		if (kthread_should_stop())
 			break;
-		WARN_ON(tx_msg == NULL);	/* should not happen...*/
+		WARN_ON(tx_msg == NULL);	/* should yest happen...*/
 		d_printf(2, dev, "TX: submitting %zu bytes\n", tx_msg_size);
 		d_dump(5, dev, tx_msg, tx_msg_size);
-		/* Yeah, we ignore errors ... not much we can do */
+		/* Yeah, we igyesre errors ... yest much we can do */
 		i2400mu_tx(i2400mu, tx_msg, tx_msg_size);
 		i2400m_tx_msg_sent(i2400m);	/* ack it, advance the FIFO */
 	}
@@ -219,7 +219,7 @@ int i2400mu_txd(void *_i2400mu)
 
 
 /*
- * i2400m TX engine notifies us that there is data in the FIFO ready
+ * i2400m TX engine yestifies us that there is data in the FIFO ready
  * for TX
  *
  * If there is a URB in flight, don't do anything; when it finishes,
@@ -250,7 +250,7 @@ int i2400mu_tx_setup(struct i2400mu *i2400mu)
 	/* the kthread function sets i2400mu->tx_thread */
 	if (IS_ERR(kthread)) {
 		result = PTR_ERR(kthread);
-		dev_err(dev, "TX: cannot start thread: %d\n", result);
+		dev_err(dev, "TX: canyest start thread: %d\n", result);
 	}
 	return result;
 }

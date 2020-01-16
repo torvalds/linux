@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
+ * Copyright (C) 2015 Anton Ivayesv (aivayesv@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
@@ -13,7 +13,7 @@
 #include <longjmp.h>
 #include <mm_id.h>
 
-#define CATCH_EINTR(expr) while ((errno = 0, ((expr) < 0)) && (errno == EINTR))
+#define CATCH_EINTR(expr) while ((erryes = 0, ((expr) < 0)) && (erryes == EINTR))
 
 #define OS_TYPE_FILE 1
 #define OS_TYPE_DIR 2
@@ -44,7 +44,7 @@
  */
 struct uml_stat {
 	int                ust_dev;        /* device */
-	unsigned long long ust_ino;        /* inode */
+	unsigned long long ust_iyes;        /* iyesde */
 	int                ust_mode;       /* protection */
 	int                ust_nlink;      /* number of hard links */
 	int                ust_uid;        /* user ID of owner */
@@ -175,8 +175,8 @@ extern int os_stat_filesystem(char *path, long *bsize_out,
 extern int os_change_dir(char *dir);
 extern int os_fchange_dir(int fd);
 extern unsigned os_major(unsigned long long dev);
-extern unsigned os_minor(unsigned long long dev);
-extern unsigned long long os_makedev(unsigned major, unsigned minor);
+extern unsigned os_miyesr(unsigned long long dev);
+extern unsigned long long os_makedev(unsigned major, unsigned miyesr);
 extern int os_falloc_punch(int fd, unsigned long long offset, int count);
 extern int os_eventfd(unsigned int initval, int flags);
 extern int os_sendmsg_fds(int fd, const void *buf, unsigned int len,
@@ -214,7 +214,7 @@ extern void os_flush_stdout(void);
 extern int os_mincore(void *addr, unsigned long len);
 
 /* execvp.c */
-extern int execvp_noalloc(char *buf, const char *file, char *const argv[]);
+extern int execvp_yesalloc(char *buf, const char *file, char *const argv[]);
 /* helper.c */
 extern int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv);
 extern int run_helper_thread(int (*proc)(void *), void *arg,
@@ -246,7 +246,7 @@ extern void stack_protections(unsigned long address);
 extern int raw(int fd);
 extern void setup_machinename(char *machine_out);
 extern void setup_hostinfo(char *buf, int len);
-extern void os_dump_core(void) __attribute__ ((noreturn));
+extern void os_dump_core(void) __attribute__ ((yesreturn));
 extern void um_early_printk(const char *s, unsigned int n);
 extern void os_fix_helper_signals(void);
 extern void os_info(const char *fmt, ...)
@@ -303,12 +303,12 @@ extern int os_setup_epoll(void);
 extern int os_add_epoll_fd(int events, int fd, void *data);
 extern int os_mod_epoll_fd(int events, int fd, void *data);
 extern int os_del_epoll_fd(int fd);
-extern void os_set_ioignore(void);
+extern void os_set_ioigyesre(void);
 extern void os_close_epoll_fd(void);
 
 /* sigio.c */
 extern int add_sigio_fd(int fd);
-extern int ignore_sigio_fd(int fd);
+extern int igyesre_sigio_fd(int fd);
 extern void maybe_sigio_broken(int fd, int read);
 extern void sigio_broken(int fd, int read);
 

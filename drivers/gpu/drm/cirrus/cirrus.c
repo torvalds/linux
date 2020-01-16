@@ -360,7 +360,7 @@ static int cirrus_conn_get_modes(struct drm_connector *conn)
 {
 	int count;
 
-	count = drm_add_modes_noedid(conn,
+	count = drm_add_modes_yesedid(conn,
 				     conn->dev->mode_config.max_width,
 				     conn->dev->mode_config.max_height);
 	drm_set_preferred_mode(conn, 1024, 768);
@@ -519,7 +519,7 @@ static struct drm_driver cirrus_driver = {
 	.desc		 = DRIVER_DESC,
 	.date		 = DRIVER_DATE,
 	.major		 = DRIVER_MAJOR,
-	.minor		 = DRIVER_MINOR,
+	.miyesr		 = DRIVER_MINOR,
 
 	.fops		 = &cirrus_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,

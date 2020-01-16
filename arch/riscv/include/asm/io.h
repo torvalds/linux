@@ -31,7 +31,7 @@
 
 /*
  * Emulation routines for the port-mapped IO space used by some PCI drivers.
- * These are defined as being "fully synchronous", but also "not guaranteed to
+ * These are defined as being "fully synchroyesus", but also "yest guaranteed to
  * be fully ordered with respect to other memory and I/O operations".  We're
  * going to be on the safe side here and just make them:
  *  - Fully ordered WRT each other, by bracketing them with two fences.  The
@@ -41,7 +41,7 @@
  *    fences.
  *  - Ordered WRT timer reads, so udelay and friends don't get elided by the
  *    implementation.
- * Note that there is no way to actually enforce that outX is a non-posted
+ * Note that there is yes way to actually enforce that outX is a yesn-posted
  * operation on RISC-V, but hopefully the timer ordering constraint is
  * sufficient to ensure this works sanely on controllers that support I/O
  * writes.

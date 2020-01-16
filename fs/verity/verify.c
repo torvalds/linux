@@ -58,7 +58,7 @@ static inline int cmp_hashes(const struct fsverity_info *vi,
 	if (memcmp(want_hash, real_hash, hsize) == 0)
 		return 0;
 
-	fsverity_err(vi->inode,
+	fsverity_err(vi->iyesde,
 		     "FILE CORRUPTED! index=%lu, level=%d, want_hash=%s:%*phN, real_hash=%s:%*phN",
 		     index, level,
 		     vi->tree_params.hash_alg->name, hsize, want_hash,
@@ -69,7 +69,7 @@ static inline int cmp_hashes(const struct fsverity_info *vi,
 /*
  * Verify a single data page against the file's Merkle tree.
  *
- * In principle, we need to verify the entire path to the root node.  However,
+ * In principle, we need to verify the entire path to the root yesde.  However,
  * for efficiency the filesystem may cache the hash pages.  Therefore we need
  * only ascend the tree until an already-verified page is seen, as indicated by
  * the PageChecked bit being set; then verify the path to that page.
@@ -83,7 +83,7 @@ static inline int cmp_hashes(const struct fsverity_info *vi,
  *
  * Return: true if the page is valid, else false.
  */
-static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
+static bool verify_page(struct iyesde *iyesde, const struct fsverity_info *vi,
 			struct ahash_request *req, struct page *data_page)
 {
 	const struct merkle_tree_params *params = &vi->tree_params;
@@ -117,11 +117,11 @@ static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
 		pr_debug_ratelimited("Level %d: hindex=%lu, hoffset=%u\n",
 				     level, hindex, hoffset);
 
-		hpage = inode->i_sb->s_vop->read_merkle_tree_page(inode,
+		hpage = iyesde->i_sb->s_vop->read_merkle_tree_page(iyesde,
 								  hindex);
 		if (IS_ERR(hpage)) {
 			err = PTR_ERR(hpage);
-			fsverity_err(inode,
+			fsverity_err(iyesde,
 				     "Error %d reading Merkle tree page %lu",
 				     err, hindex);
 			goto out;
@@ -136,7 +136,7 @@ static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
 					     hsize, want_hash);
 			goto descend;
 		}
-		pr_debug_ratelimited("Hash page not yet checked\n");
+		pr_debug_ratelimited("Hash page yest yet checked\n");
 		hpages[level] = hpage;
 		hoffsets[level] = hoffset;
 	}
@@ -150,7 +150,7 @@ descend:
 		struct page *hpage = hpages[level - 1];
 		unsigned int hoffset = hoffsets[level - 1];
 
-		err = fsverity_hash_page(params, inode, req, hpage, real_hash);
+		err = fsverity_hash_page(params, iyesde, req, hpage, real_hash);
 		if (err)
 			goto out;
 		err = cmp_hashes(vi, want_hash, real_hash, index, level - 1);
@@ -160,12 +160,12 @@ descend:
 		extract_hash(hpage, hoffset, hsize, _want_hash);
 		want_hash = _want_hash;
 		put_page(hpage);
-		pr_debug("Verified hash page at level %d, now want %s:%*phN\n",
+		pr_debug("Verified hash page at level %d, yesw want %s:%*phN\n",
 			 level - 1, params->hash_alg->name, hsize, want_hash);
 	}
 
 	/* Finally, verify the data page */
-	err = fsverity_hash_page(params, inode, req, data_page, real_hash);
+	err = fsverity_hash_page(params, iyesde, req, data_page, real_hash);
 	if (err)
 		goto out;
 	err = cmp_hashes(vi, want_hash, real_hash, index, -1);
@@ -180,14 +180,14 @@ out:
  * fsverity_verify_page() - verify a data page
  *
  * Verify a page that has just been read from a verity file.  The page must be a
- * pagecache page that is still locked and not yet uptodate.
+ * pagecache page that is still locked and yest yet uptodate.
  *
  * Return: true if the page is valid, else false.
  */
 bool fsverity_verify_page(struct page *page)
 {
-	struct inode *inode = page->mapping->host;
-	const struct fsverity_info *vi = inode->i_verity_info;
+	struct iyesde *iyesde = page->mapping->host;
+	const struct fsverity_info *vi = iyesde->i_verity_info;
 	struct ahash_request *req;
 	bool valid;
 
@@ -195,7 +195,7 @@ bool fsverity_verify_page(struct page *page)
 	if (unlikely(!req))
 		return false;
 
-	valid = verify_page(inode, vi, req, page);
+	valid = verify_page(iyesde, vi, req, page);
 
 	ahash_request_free(req);
 
@@ -208,20 +208,20 @@ EXPORT_SYMBOL_GPL(fsverity_verify_page);
  * fsverity_verify_bio() - verify a 'read' bio that has just completed
  *
  * Verify a set of pages that have just been read from a verity file.  The pages
- * must be pagecache pages that are still locked and not yet uptodate.  Pages
+ * must be pagecache pages that are still locked and yest yet uptodate.  Pages
  * that fail verification are set to the Error state.  Verification is skipped
  * for pages already in the Error state, e.g. due to fscrypt decryption failure.
  *
  * This is a helper function for use by the ->readpages() method of filesystems
  * that issue bios to read data directly into the page cache.  Filesystems that
- * populate the page cache without issuing bios (e.g. non block-based
+ * populate the page cache without issuing bios (e.g. yesn block-based
  * filesystems) must instead call fsverity_verify_page() directly on each page.
  * All filesystems must also call fsverity_verify_page() on holes.
  */
 void fsverity_verify_bio(struct bio *bio)
 {
-	struct inode *inode = bio_first_page_all(bio)->mapping->host;
-	const struct fsverity_info *vi = inode->i_verity_info;
+	struct iyesde *iyesde = bio_first_page_all(bio)->mapping->host;
+	const struct fsverity_info *vi = iyesde->i_verity_info;
 	struct ahash_request *req;
 	struct bio_vec *bv;
 	struct bvec_iter_all iter_all;
@@ -236,7 +236,7 @@ void fsverity_verify_bio(struct bio *bio)
 	bio_for_each_segment_all(bv, bio, iter_all) {
 		struct page *page = bv->bv_page;
 
-		if (!PageError(page) && !verify_page(inode, vi, req, page))
+		if (!PageError(page) && !verify_page(iyesde, vi, req, page))
 			SetPageError(page);
 	}
 
@@ -248,7 +248,7 @@ EXPORT_SYMBOL_GPL(fsverity_verify_bio);
 /**
  * fsverity_enqueue_verify_work() - enqueue work on the fs-verity workqueue
  *
- * Enqueue verification work for asynchronous processing.
+ * Enqueue verification work for asynchroyesus processing.
  */
 void fsverity_enqueue_verify_work(struct work_struct *work)
 {

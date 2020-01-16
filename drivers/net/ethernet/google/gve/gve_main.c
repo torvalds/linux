@@ -88,7 +88,7 @@ static irqreturn_t gve_mgmnt_intr(int irq, void *arg)
 
 static irqreturn_t gve_intr(int irq, void *arg)
 {
-	struct gve_notify_block *block = arg;
+	struct gve_yestify_block *block = arg;
 	struct gve_priv *priv = block->priv;
 
 	iowrite32be(GVE_IRQ_MASK, gve_irq_doorbell(priv, block));
@@ -98,12 +98,12 @@ static irqreturn_t gve_intr(int irq, void *arg)
 
 static int gve_napi_poll(struct napi_struct *napi, int budget)
 {
-	struct gve_notify_block *block;
+	struct gve_yestify_block *block;
 	__be32 __iomem *irq_doorbell;
 	bool reschedule = false;
 	struct gve_priv *priv;
 
-	block = container_of(napi, struct gve_notify_block, napi);
+	block = container_of(napi, struct gve_yestify_block, napi);
 	priv = block->priv;
 
 	if (block->tx)
@@ -118,7 +118,7 @@ static int gve_napi_poll(struct napi_struct *napi, int budget)
 	irq_doorbell = gve_irq_doorbell(priv, block);
 	iowrite32be(GVE_IRQ_ACK | GVE_IRQ_EVENT, irq_doorbell);
 
-	/* Double check we have no extra work.
+	/* Double check we have yes extra work.
 	 * Ensure unmask synchronizes with checking for work.
 	 */
 	dma_rmb();
@@ -132,7 +132,7 @@ static int gve_napi_poll(struct napi_struct *napi, int budget)
 	return 0;
 }
 
-static int gve_alloc_notify_blocks(struct gve_priv *priv)
+static int gve_alloc_yestify_blocks(struct gve_priv *priv)
 {
 	int num_vecs_requested = priv->num_ntfy_blks + 1;
 	char *name = priv->dev->name;
@@ -150,7 +150,7 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	vecs_enabled = pci_enable_msix_range(priv->pdev, priv->msix_vectors,
 					     GVE_MIN_MSIX, num_vecs_requested);
 	if (vecs_enabled < 0) {
-		dev_err(&priv->pdev->dev, "Could not enable min msix %d/%d\n",
+		dev_err(&priv->pdev->dev, "Could yest enable min msix %d/%d\n",
 			GVE_MIN_MSIX, vecs_enabled);
 		err = vecs_enabled;
 		goto abort_with_msix_vectors;
@@ -166,7 +166,7 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 		priv->rx_cfg.max_queues = min_t(int, priv->rx_cfg.max_queues,
 						vecs_per_type + vecs_left);
 		dev_err(&priv->pdev->dev,
-			"Could not enable desired msix, only enabled %d, adjusting tx max queues to %d, and rx max queues to %d\n",
+			"Could yest enable desired msix, only enabled %d, adjusting tx max queues to %d, and rx max queues to %d\n",
 			vecs_enabled, priv->tx_cfg.max_queues,
 			priv->rx_cfg.max_queues);
 		if (priv->tx_cfg.num_queues > priv->tx_cfg.max_queues)
@@ -174,7 +174,7 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 		if (priv->rx_cfg.num_queues > priv->rx_cfg.max_queues)
 			priv->rx_cfg.num_queues = priv->rx_cfg.max_queues;
 	}
-	/* Half the notification blocks go to TX and half to RX */
+	/* Half the yestification blocks go to TX and half to RX */
 	active_cpus = min_t(int, priv->num_ntfy_blks / 2, num_online_cpus());
 
 	/* Setup Management Vector  - the last vector */
@@ -183,7 +183,7 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	err = request_irq(priv->msix_vectors[priv->mgmt_msix_idx].vector,
 			  gve_mgmnt_intr, 0, priv->mgmt_msix_name, priv);
 	if (err) {
-		dev_err(&priv->pdev->dev, "Did not receive management vector.\n");
+		dev_err(&priv->pdev->dev, "Did yest receive management vector.\n");
 		goto abort_with_msix_enabled;
 	}
 	priv->ntfy_blocks =
@@ -197,7 +197,7 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	}
 	/* Setup the other blocks - the first n-1 vectors */
 	for (i = 0; i < priv->num_ntfy_blks; i++) {
-		struct gve_notify_block *block = &priv->ntfy_blocks[i];
+		struct gve_yestify_block *block = &priv->ntfy_blocks[i];
 		int msix_idx = i;
 
 		snprintf(block->name, sizeof(block->name), "%s-ntfy-block.%d",
@@ -216,7 +216,7 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	return 0;
 abort_with_some_ntfy_blocks:
 	for (j = 0; j < i; j++) {
-		struct gve_notify_block *block = &priv->ntfy_blocks[j];
+		struct gve_yestify_block *block = &priv->ntfy_blocks[j];
 		int msix_idx = j;
 
 		irq_set_affinity_hint(priv->msix_vectors[msix_idx].vector,
@@ -237,13 +237,13 @@ abort_with_msix_vectors:
 	return err;
 }
 
-static void gve_free_notify_blocks(struct gve_priv *priv)
+static void gve_free_yestify_blocks(struct gve_priv *priv)
 {
 	int i;
 
 	/* Free the irqs */
 	for (i = 0; i < priv->num_ntfy_blks; i++) {
-		struct gve_notify_block *block = &priv->ntfy_blocks[i];
+		struct gve_yestify_block *block = &priv->ntfy_blocks[i];
 		int msix_idx = i;
 
 		irq_set_affinity_hint(priv->msix_vectors[msix_idx].vector,
@@ -267,7 +267,7 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 	err = gve_alloc_counter_array(priv);
 	if (err)
 		return err;
-	err = gve_alloc_notify_blocks(priv);
+	err = gve_alloc_yestify_blocks(priv);
 	if (err)
 		goto abort_with_counter;
 	err = gve_adminq_configure_device_resources(priv,
@@ -277,14 +277,14 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 						    priv->num_ntfy_blks);
 	if (unlikely(err)) {
 		dev_err(&priv->pdev->dev,
-			"could not setup device_resources: err=%d\n", err);
+			"could yest setup device_resources: err=%d\n", err);
 		err = -ENXIO;
 		goto abort_with_ntfy_blocks;
 	}
 	gve_set_device_resources_ok(priv);
 	return 0;
 abort_with_ntfy_blocks:
-	gve_free_notify_blocks(priv);
+	gve_free_yestify_blocks(priv);
 abort_with_counter:
 	gve_free_counter_array(priv);
 	return err;
@@ -301,19 +301,19 @@ static void gve_teardown_device_resources(struct gve_priv *priv)
 		err = gve_adminq_deconfigure_device_resources(priv);
 		if (err) {
 			dev_err(&priv->pdev->dev,
-				"Could not deconfigure device resources: err=%d\n",
+				"Could yest deconfigure device resources: err=%d\n",
 				err);
 			gve_trigger_reset(priv);
 		}
 	}
 	gve_free_counter_array(priv);
-	gve_free_notify_blocks(priv);
+	gve_free_yestify_blocks(priv);
 	gve_clear_device_resources_ok(priv);
 }
 
 static void gve_add_napi(struct gve_priv *priv, int ntfy_idx)
 {
-	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+	struct gve_yestify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 	netif_napi_add(priv->dev, &block->napi, gve_napi_poll,
 		       NAPI_POLL_WEIGHT);
@@ -321,7 +321,7 @@ static void gve_add_napi(struct gve_priv *priv, int ntfy_idx)
 
 static void gve_remove_napi(struct gve_priv *priv, int ntfy_idx)
 {
-	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+	struct gve_yestify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 	netif_napi_del(&block->napi);
 }
@@ -338,7 +338,7 @@ static int gve_register_qpls(struct gve_priv *priv)
 			netif_err(priv, drv, priv->dev,
 				  "failed to register queue page list %d\n",
 				  priv->qpls[i].id);
-			/* This failure will trigger a reset - no need to clean
+			/* This failure will trigger a reset - yes need to clean
 			 * up
 			 */
 			return err;
@@ -355,7 +355,7 @@ static int gve_unregister_qpls(struct gve_priv *priv)
 
 	for (i = 0; i < num_qpls; i++) {
 		err = gve_adminq_unregister_page_list(priv, priv->qpls[i].id);
-		/* This failure will trigger a reset - no need to clean up */
+		/* This failure will trigger a reset - yes need to clean up */
 		if (err) {
 			netif_err(priv, drv, priv->dev,
 				  "Failed to unregister queue page list %d\n",
@@ -376,7 +376,7 @@ static int gve_create_rings(struct gve_priv *priv)
 		if (err) {
 			netif_err(priv, drv, priv->dev, "failed to create tx queue %d\n",
 				  i);
-			/* This failure will trigger a reset - no need to clean
+			/* This failure will trigger a reset - yes need to clean
 			 * up
 			 */
 			return err;
@@ -388,7 +388,7 @@ static int gve_create_rings(struct gve_priv *priv)
 		if (err) {
 			netif_err(priv, drv, priv->dev, "failed to create rx queue %d\n",
 				  i);
-			/* This failure will trigger a reset - no need to clean
+			/* This failure will trigger a reset - yes need to clean
 			 * up
 			 */
 			return err;
@@ -466,7 +466,7 @@ static int gve_destroy_rings(struct gve_priv *priv)
 			netif_err(priv, drv, priv->dev,
 				  "failed to destroy tx queue %d\n",
 				  i);
-			/* This failure will trigger a reset - no need to clean
+			/* This failure will trigger a reset - yes need to clean
 			 * up
 			 */
 			return err;
@@ -479,7 +479,7 @@ static int gve_destroy_rings(struct gve_priv *priv)
 			netif_err(priv, drv, priv->dev,
 				  "failed to destroy rx queue %d\n",
 				  i);
-			/* This failure will trigger a reset - no need to clean
+			/* This failure will trigger a reset - yes need to clean
 			 * up
 			 */
 			return err;
@@ -654,7 +654,7 @@ static void gve_free_qpls(struct gve_priv *priv)
 }
 
 /* Use this to schedule a reset when the device is capable of continuing
- * to handle other requests in its current state. If it is not, do a reset
+ * to handle other requests in its current state. If it is yest, do a reset
  * in thread instead.
  */
 void gve_schedule_reset(struct gve_priv *priv)
@@ -713,7 +713,7 @@ reset:
 		return err;
 	/* Otherwise reset before returning */
 	gve_reset_and_teardown(priv, true);
-	/* if this fails there is nothing we can do so just ignore the return */
+	/* if this fails there is yesthing we can do so just igyesre the return */
 	gve_reset_recovery(priv, false);
 	/* return the original error */
 	return err;
@@ -802,13 +802,13 @@ static void gve_turndown(struct gve_priv *priv)
 	/* Disable napi to prevent more work from coming in */
 	for (idx = 0; idx < priv->tx_cfg.num_queues; idx++) {
 		int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
-		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+		struct gve_yestify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 		napi_disable(&block->napi);
 	}
 	for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
 		int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
-		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+		struct gve_yestify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 		napi_disable(&block->napi);
 	}
@@ -829,14 +829,14 @@ static void gve_turnup(struct gve_priv *priv)
 	/* Enable napi and unmask interrupts for all queues */
 	for (idx = 0; idx < priv->tx_cfg.num_queues; idx++) {
 		int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
-		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+		struct gve_yestify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 		napi_enable(&block->napi);
 		iowrite32be(0, gve_irq_doorbell(priv, block));
 	}
 	for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
 		int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
-		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+		struct gve_yestify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 		napi_enable(&block->napi);
 		iowrite32be(0, gve_irq_doorbell(priv, block));
@@ -917,14 +917,14 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 	err = gve_adminq_describe_device(priv);
 	if (err) {
 		dev_err(&priv->pdev->dev,
-			"Could not get device information: err=%d\n", err);
+			"Could yest get device information: err=%d\n", err);
 		goto err;
 	}
 	if (priv->dev->max_mtu > PAGE_SIZE) {
 		priv->dev->max_mtu = PAGE_SIZE;
 		err = gve_adminq_set_mtu(priv, priv->dev->mtu);
 		if (err) {
-			netif_err(priv, drv, priv->dev, "Could not set mtu");
+			netif_err(priv, drv, priv->dev, "Could yest set mtu");
 			goto err;
 		}
 	}
@@ -932,7 +932,7 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 	num_ntfy = pci_msix_vec_count(priv->pdev);
 	if (num_ntfy <= 0) {
 		dev_err(&priv->pdev->dev,
-			"could not count MSI-x vectors: err=%d\n", num_ntfy);
+			"could yest count MSI-x vectors: err=%d\n", num_ntfy);
 		err = num_ntfy;
 		goto err;
 	} else if (num_ntfy < GVE_MIN_MSIX) {
@@ -993,7 +993,7 @@ static void gve_trigger_reset(struct gve_priv *priv)
 static void gve_reset_and_teardown(struct gve_priv *priv, bool was_up)
 {
 	gve_trigger_reset(priv);
-	/* With the reset having already happened, close cannot fail */
+	/* With the reset having already happened, close canyest fail */
 	if (was_up)
 		gve_close(priv->dev);
 	gve_teardown_priv_resources(priv);
@@ -1026,14 +1026,14 @@ int gve_reset(struct gve_priv *priv, bool attempt_teardown)
 	dev_info(&priv->pdev->dev, "Performing reset\n");
 	gve_clear_do_reset(priv);
 	gve_set_reset_in_progress(priv);
-	/* If we aren't attempting to teardown normally, just go turndown and
+	/* If we aren't attempting to teardown yesrmally, just go turndown and
 	 * reset right away.
 	 */
 	if (!attempt_teardown) {
 		gve_turndown(priv);
 		gve_reset_and_teardown(priv, was_up);
 	} else {
-		/* Otherwise attempt to close normally */
+		/* Otherwise attempt to close yesrmally */
 		if (was_up) {
 			err = gve_close(priv->dev);
 			/* If that fails reset as we did above */
@@ -1120,7 +1120,7 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Alloc and setup the netdev and priv */
 	dev = alloc_etherdev_mqs(sizeof(*priv), max_tx_queues, max_rx_queues);
 	if (!dev) {
-		dev_err(&pdev->dev, "could not allocate netdev\n");
+		dev_err(&pdev->dev, "could yest allocate netdev\n");
 		goto abort_with_db_bar;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -1153,7 +1153,7 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	gve_set_probe_in_progress(priv);
 	priv->gve_wq = alloc_ordered_workqueue("gve", 0);
 	if (!priv->gve_wq) {
-		dev_err(&pdev->dev, "Could not allocate workqueue");
+		dev_err(&pdev->dev, "Could yest allocate workqueue");
 		err = -ENOMEM;
 		goto abort_with_netdev;
 	}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (c) 2017 Iceyeswy Zheng <iceyeswy@aosc.io>
  */
 
 #include <linux/clk.h>
@@ -181,7 +181,7 @@ static struct ccu_reset_map sun8i_a83t_de2_resets[] = {
 	/*
 	 * For A83T, H3 and R40, mixer1 reset line is shared with wb, so
 	 * only RST_WB is exported here.
-	 * For V3s there's just no mixer1, so it also shares this struct.
+	 * For V3s there's just yes mixer1, so it also shares this struct.
 	 */
 	[RST_WB]	= { 0x08, BIT(2) },
 };
@@ -313,7 +313,7 @@ static int sunxi_de2_clk_probe(struct platform_device *pdev)
 		goto err_disable_mod_clk;
 	}
 
-	ret = sunxi_ccu_probe(pdev->dev.of_node, reg, ccu_desc);
+	ret = sunxi_ccu_probe(pdev->dev.of_yesde, reg, ccu_desc);
 	if (ret)
 		goto err_assert_reset;
 

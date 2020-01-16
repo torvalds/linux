@@ -396,7 +396,7 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 		return retval;
 	}
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;

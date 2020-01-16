@@ -80,7 +80,7 @@ static bool wm8770_volatile_reg(struct device *dev, unsigned int reg)
 struct wm8770_priv {
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8770_NUM_SUPPLIES];
-	struct notifier_block disable_nb[WM8770_NUM_SUPPLIES];
+	struct yestifier_block disable_nb[WM8770_NUM_SUPPLIES];
 	struct snd_soc_component *component;
 	int sysclk;
 };
@@ -91,12 +91,12 @@ static int vout34supply_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event);
 
 /*
- * We can't use the same notifier block for more than one supply and
- * there's no way I can see to get from a callback to the caller
+ * We can't use the same yestifier block for more than one supply and
+ * there's yes way I can see to get from a callback to the caller
  * except container_of().
  */
 #define WM8770_REGULATOR_EVENT(n) \
-static int wm8770_regulator_event_##n(struct notifier_block *nb, \
+static int wm8770_regulator_event_##n(struct yestifier_block *nb, \
 				      unsigned long event, void *data)    \
 { \
 	struct wm8770_priv *wm8770 = container_of(nb, struct wm8770_priv, \
@@ -616,7 +616,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8770 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm8770_intercon),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8770_of_match[] = {
@@ -657,18 +657,18 @@ static int wm8770_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	wm8770->disable_nb[0].notifier_call = wm8770_regulator_event_0;
-	wm8770->disable_nb[1].notifier_call = wm8770_regulator_event_1;
-	wm8770->disable_nb[2].notifier_call = wm8770_regulator_event_2;
+	wm8770->disable_nb[0].yestifier_call = wm8770_regulator_event_0;
+	wm8770->disable_nb[1].yestifier_call = wm8770_regulator_event_1;
+	wm8770->disable_nb[2].yestifier_call = wm8770_regulator_event_2;
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8770->supplies); i++) {
-		ret = devm_regulator_register_notifier(
+		ret = devm_regulator_register_yestifier(
 						wm8770->supplies[i].consumer,
 						&wm8770->disable_nb[i]);
 		if (ret) {
 			dev_err(&spi->dev,
-				"Failed to register regulator notifier: %d\n",
+				"Failed to register regulator yestifier: %d\n",
 				ret);
 		}
 	}

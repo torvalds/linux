@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_FDREG_H
 #define _LINUX_FDREG_H
 /*
@@ -87,7 +87,7 @@
 #define FD_RSEEK_OUT		0x8f	/* seek out (i.e. to lower tracks) */
 #define FD_RSEEK_IN		0xcf	/* seek in (i.e. to higher tracks) */
 
-/* the following commands are new in the 82078. They are not used in the
+/* the following commands are new in the 82078. They are yest used in the
  * floppy driver, except the first three. These commands may be useful for apps
  * which use the FDRAWCMD interface. For doc, get the 82078 spec sheets at
  * http://www.intel.com/design/archives/periphrl/docs/29046803.htm */
@@ -118,7 +118,7 @@
 #define FDC_82072A	0x45	/* 82072A (on Sparcs) */
 #define FDC_82077_ORIG	0x51	/* Original version of 82077AA, sans LOCK */
 #define FDC_82077	0x52	/* 82077AA-1 */
-#define FDC_82078_UNKN	0x5f	/* Unknown 82078 variant */
+#define FDC_82078_UNKN	0x5f	/* Unkyeswn 82078 variant */
 #define FDC_82078	0x60	/* 44pin 82078 or 64pin 82078SL */
 #define FDC_82078_1	0x61	/* 82078-1 (2Mbps fdc) */
 #define FDC_S82078B	0x62	/* S82078B (first seen on Adaptec AVA-2825 VLB

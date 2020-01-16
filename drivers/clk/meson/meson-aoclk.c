@@ -47,7 +47,7 @@ int meson_aoclkc_probe(struct platform_device *pdev)
 	if (!rstc)
 		return -ENOMEM;
 
-	regmap = syscon_node_to_regmap(of_get_parent(dev->of_node));
+	regmap = syscon_yesde_to_regmap(of_get_parent(dev->of_yesde));
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "failed to get regmap\n");
 		return PTR_ERR(regmap);
@@ -58,7 +58,7 @@ int meson_aoclkc_probe(struct platform_device *pdev)
 	rstc->regmap = regmap;
 	rstc->reset.ops = &meson_aoclk_reset_ops;
 	rstc->reset.nr_resets = data->num_reset,
-	rstc->reset.of_node = dev->of_node;
+	rstc->reset.of_yesde = dev->of_yesde;
 	ret = devm_reset_controller_register(dev, &rstc->reset);
 	if (ret) {
 		dev_err(dev, "failed to register reset controller\n");

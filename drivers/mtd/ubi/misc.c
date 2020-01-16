@@ -16,7 +16,7 @@
  * @length: the buffer length
  *
  * This function calculates how much "real data" is stored in @buf and returnes
- * the length. Continuous 0xFF bytes at the end of the buffer are not
+ * the length. Continuous 0xFF bytes at the end of the buffer are yest
  * considered as "real data".
  */
 int ubi_calc_data_len(const struct ubi_device *ubi, const void *buf,
@@ -41,9 +41,9 @@ int ubi_calc_data_len(const struct ubi_device *ubi, const void *buf,
  * @vol_id: ID of the volume to check
  *
  * This function checks if static volume @vol_id is corrupted by fully reading
- * it and checking data CRC. This function returns %0 if the volume is not
+ * it and checking data CRC. This function returns %0 if the volume is yest
  * corrupted, %1 if it is corrupted and a negative error code in case of
- * failure. Dynamic volumes are not checked and zero is returned immediately.
+ * failure. Dynamic volumes are yest checked and zero is returned immediately.
  */
 int ubi_check_volume(struct ubi_device *ubi, int vol_id)
 {
@@ -117,7 +117,7 @@ void ubi_calculate_reserved(struct ubi_device *ubi)
 	ubi->beb_rsvd_level = ubi->bad_peb_limit - ubi->bad_peb_count;
 	if (ubi->beb_rsvd_level < 0) {
 		ubi->beb_rsvd_level = 0;
-		ubi_warn(ubi, "number of bad PEBs (%d) is above the expected limit (%d), not reserving any PEBs for bad PEB handling, will use available PEBs (if any)",
+		ubi_warn(ubi, "number of bad PEBs (%d) is above the expected limit (%d), yest reserving any PEBs for bad PEB handling, will use available PEBs (if any)",
 			 ubi->bad_peb_count, ubi->bad_peb_limit);
 	}
 }
@@ -152,7 +152,7 @@ void ubi_msg(const struct ubi_device *ubi, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	pr_notice(UBI_NAME_STR "%d: %pV\n", ubi->ubi_num, &vaf);
+	pr_yestice(UBI_NAME_STR "%d: %pV\n", ubi->ubi_num, &vaf);
 
 	va_end(args);
 }

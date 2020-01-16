@@ -13,13 +13,13 @@ Atomic Type And Operations
 
 The atomic_t type should be defined as a signed integer and
 the atomic_long_t type as a signed long integer.  Also, they should
-be made opaque such that any kind of cast to a normal C integer type
+be made opaque such that any kind of cast to a yesrmal C integer type
 will fail.  Something like the following should suffice::
 
 	typedef struct { int counter; } atomic_t;
 	typedef struct { long counter; } atomic_long_t;
 
-Historically, counter has been declared volatile.  This is now discouraged.
+Historically, counter has been declared volatile.  This is yesw discouraged.
 See :ref:`Documentation/process/volatile-considered-harmful.rst
 <volatile_considered_harmful>` for the complete rationale.
 
@@ -42,7 +42,7 @@ The initializer is atomic in that the return values of the atomic operations
 are guaranteed to be correct reflecting the initialized value if the
 initializer is used before runtime.  If the initializer is used at runtime, a
 proper implicit or explicit read memory barrier is needed before reading the
-value with atomic_read from another thread.
+value with atomic_read from ayesther thread.
 
 As with all of the ``atomic_`` interfaces, replace the leading ``atomic_``
 with ``atomic_long_`` to operate on atomic_long_t.
@@ -61,9 +61,9 @@ The second interface can be used at runtime, as in::
 
 The setting is atomic in that the return values of the atomic operations by
 all threads are guaranteed to be correct reflecting either the value that has
-been set with this operation or set with another operation.  A proper implicit
+been set with this operation or set with ayesther operation.  A proper implicit
 or explicit memory barrier is needed before the value set with the operation
-is guaranteed to be readable with atomic_read from another thread.
+is guaranteed to be readable with atomic_read from ayesther thread.
 
 Next, we have::
 
@@ -74,7 +74,7 @@ The read is atomic in that the return value is guaranteed to be one of the
 values initialized or modified with the interface operations if a proper
 implicit or explicit memory barrier is used after possible runtime
 initialization by any other thread and the value is modified only with the
-interface operations.  atomic_read does not guarantee that the runtime
+interface operations.  atomic_read does yest guarantee that the runtime
 initialization by any other thread is visible yet, so the user of the
 interface must take care of that with a proper implicit or explicit memory
 barrier.
@@ -85,7 +85,7 @@ barrier.
 
 	Some architectures may choose to use the volatile keyword, barriers, or
 	inline assembly to guarantee some degree of immediacy for atomic_read()
-	and atomic_set().  This is not uniformly guaranteed, and may change in
+	and atomic_set().  This is yest uniformly guaranteed, and may change in
 	the future, so all users of atomic_t should treat atomic_read() and
 	atomic_set() as simple C statements that may be reordered or optimized
 	away entirely by the compiler or processor, and explicitly invoke the
@@ -107,7 +107,7 @@ For example consider the following code::
 	while (a > 0)
 		do_something();
 
-If the compiler can prove that do_something() does not store to the
+If the compiler can prove that do_something() does yest store to the
 variable a, then the compiler is within its rights transforming this to
 the following::
 
@@ -123,13 +123,13 @@ you should use something like the following::
 
 Alternatively, you could place a barrier() call in the loop.
 
-For another example, consider the following code::
+For ayesther example, consider the following code::
 
 	tmp_a = a;
 	do_something_with(tmp_a);
 	do_something_else_with(tmp_a);
 
-If the compiler can prove that do_something_with() does not store to the
+If the compiler can prove that do_something_with() does yest store to the
 variable a, then the compiler is within its rights to manufacture an
 additional load as follows::
 
@@ -153,7 +153,7 @@ code in this manner, write the following::
 
 For a final example, consider the following code, assuming that the
 variable a is set at boot time before the second CPU is brought online
-and never changed later, so that memory barriers are not needed::
+and never changed later, so that memory barriers are yest needed::
 
 	if (a)
 		b = 9;
@@ -239,7 +239,7 @@ Next::
 
 These two routines increment and decrement by 1, respectively, the
 given atomic counter.  They return a boolean indicating whether the
-resulting counter value was zero or not.
+resulting counter value was zero or yest.
 
 Again, these primitives provide explicit memory barrier semantics around
 the atomic operation::
@@ -275,7 +275,7 @@ atomic_cmpxchg will only satisfy its atomicity semantics as long as all
 other accesses of \*v are performed through atomic_xxx operations.
 
 atomic_cmpxchg must provide explicit memory barriers around the operation,
-although if the comparison fails then no memory ordering guarantees are
+although if the comparison fails then yes memory ordering guarantees are
 required.
 
 The semantics for atomic_cmpxchg are the same as those defined for 'cas'
@@ -285,24 +285,24 @@ Finally::
 
 	int atomic_add_unless(atomic_t *v, int a, int u);
 
-If the atomic value v is not equal to u, this function adds a to v, and
-returns non zero. If v is equal to u then it returns zero. This is done as
+If the atomic value v is yest equal to u, this function adds a to v, and
+returns yesn zero. If v is equal to u then it returns zero. This is done as
 an atomic operation.
 
 atomic_add_unless must provide explicit memory barriers around the
 operation unless it fails (returns 0).
 
-atomic_inc_not_zero, equivalent to atomic_add_unless(v, 1, 0)
+atomic_inc_yest_zero, equivalent to atomic_add_unless(v, 1, 0)
 
 
 If a caller requires memory barrier semantics around an atomic_t
-operation which does not return a value, a set of interfaces are
+operation which does yest return a value, a set of interfaces are
 defined which accomplish this::
 
 	void smp_mb__before_atomic(void);
 	void smp_mb__after_atomic(void);
 
-Preceding a non-value-returning read-modify-write atomic operation with
+Preceding a yesn-value-returning read-modify-write atomic operation with
 smp_mb__before_atomic() and following it with smp_mb__after_atomic()
 provides the same full ordering that is provided by value-returning
 read-modify-write atomic operations.
@@ -328,7 +328,7 @@ atomic_t implementation above can have disastrous results.  Here is
 an example, which follows a pattern occurring frequently in the Linux
 kernel.  It is the use of atomic counters to implement reference
 counting, and it works such that once the counter falls to zero it can
-be guaranteed that no other entity can be accessing the object::
+be guaranteed that yes other entity can be accessing the object::
 
 	static void obj_list_add(struct obj *obj, struct list_head *head)
 	{
@@ -385,7 +385,7 @@ be guaranteed that no other entity can be accessing the object::
 			obj_destroy(obj);
 	}
 
-.. note::
+.. yeste::
 
 	This is a simplification of the ARP queue management in the generic
 	neighbour discover code of the networking.  Olaf Kirch found a bug wrt.
@@ -419,10 +419,10 @@ sequence looks like this::
 With the memory barrier semantics required of the atomic_t operations
 which return values, the above sequence of memory visibility can never
 happen.  Specifically, in the above case the atomic_dec_and_test()
-counter decrement would not become globally visible until the
+counter decrement would yest become globally visible until the
 obj->active update does.
 
-As a historical note, 32-bit Sparc used to only allow usage of
+As a historical yeste, 32-bit Sparc used to only allow usage of
 24-bits of its atomic_t type.  This was because it used 8 bits
 as a spinlock for SMP safety.  Sparc32 lacked a "compare and swap"
 type instruction.  However, 32-bit Sparc has since been moved over
@@ -432,14 +432,14 @@ indexed into based upon the address of the atomic_t being operated
 on, and that lock protects the atomic operation.  Parisc uses the
 same scheme.
 
-Another note is that the atomic_t operations returning values are
+Ayesther yeste is that the atomic_t operations returning values are
 extremely slow on an old 386.
 
 
 Atomic Bitmask
 ==============
 
-We will now cover the atomic bitmask operations.  You will find that
+We will yesw cover the atomic bitmask operations.  You will find that
 their SMP and memory barrier semantics are similar in shape and scope
 to the atomic_t ops above.
 
@@ -455,7 +455,7 @@ native endianness of the cpu. ::
 These routines set, clear, and change, respectively, the bit number
 indicated by "nr" on the bit mask pointed to by "ADDR".
 
-They must execute atomically, yet there are no implicit memory barrier
+They must execute atomically, yet there are yes implicit memory barrier
 semantics required of these interfaces. ::
 
 	int test_and_set_bit(unsigned long nr, volatile unsigned long *addr);
@@ -469,9 +469,9 @@ operation.
 
 .. warning::
         It is incredibly important that the value be a boolean, ie. "0" or "1".
-        Do not try to be fancy and save a few instructions by declaring the
+        Do yest try to be fancy and save a few instructions by declaring the
         above to return "long" and just returning something like "old_val &
-        mask" because that will not work.
+        mask" because that will yest work.
 
 For one thing, this return value gets truncated to int in many code
 paths using these interfaces, so on 64-bit if the bit is set in the
@@ -508,7 +508,7 @@ Which returns a boolean indicating if bit "nr" is set in the bitmask
 pointed to by "addr".
 
 If explicit memory barriers are required around {set,clear}_bit() (which do
-not return a value, and thus does not need to provide memory barrier
+yest return a value, and thus does yest need to provide memory barrier
 semantics), two interfaces are provided::
 
 	void smp_mb__before_atomic(void);
@@ -529,7 +529,7 @@ brothers::
 	 smp_mb__after_atomic();
 
 There are two special bitops with lock barrier semantics (acquire/release,
-same as spinlocks). These operate in the same way as their non-_lock/unlock
+same as spinlocks). These operate in the same way as their yesn-_lock/unlock
 postfixed variants, except that they are to provide acquire/release semantics,
 respectively. This means they can be used for bit_spin_trylock and
 bit_spin_unlock type operations without specifying any more barriers. ::
@@ -538,14 +538,14 @@ bit_spin_unlock type operations without specifying any more barriers. ::
 	void clear_bit_unlock(unsigned long nr, unsigned long *addr);
 	void __clear_bit_unlock(unsigned long nr, unsigned long *addr);
 
-The __clear_bit_unlock version is non-atomic, however it still implements
+The __clear_bit_unlock version is yesn-atomic, however it still implements
 unlock barrier semantics. This can be useful if the lock itself is protecting
 the other bits in the word.
 
-Finally, there are non-atomic versions of the bitmask operations
+Finally, there are yesn-atomic versions of the bitmask operations
 provided.  They are used in contexts where some other higher-level SMP
 locking scheme is being used to protect the bitmask, and thus less
-expensive non-atomic operations may be used in the implementation.
+expensive yesn-atomic operations may be used in the implementation.
 They have names similar to the above bitmask operation interfaces,
 except that two underscores are prefixed to the interface name. ::
 
@@ -556,14 +556,14 @@ except that two underscores are prefixed to the interface name. ::
 	int __test_and_clear_bit(unsigned long nr, volatile unsigned long *addr);
 	int __test_and_change_bit(unsigned long nr, volatile unsigned long *addr);
 
-These non-atomic variants also do not require any special memory
+These yesn-atomic variants also do yest require any special memory
 barrier semantics.
 
 The routines xchg() and cmpxchg() must provide the same exact
 memory-barrier semantics as the atomic and bit operations returning
 values.
 
-.. note::
+.. yeste::
 
 	If someone wants to use xchg(), cmpxchg() and their variants,
 	linux/atomic.h should be included rather than asm/cmpxchg.h, unless the
@@ -587,7 +587,7 @@ but most platforms will wish to optimize this in assembler. ::
 
 Atomically decrement the given counter, and if will drop to zero
 atomically acquire the given spinlock and perform the decrement
-of the counter to zero.  If it does not drop to zero, do nothing
+of the counter to zero.  If it does yest drop to zero, do yesthing
 with the spinlock.
 
 It is actually pretty simple to get the memory barrier correct.
@@ -654,11 +654,11 @@ Now, as far as memory barriers go, as long as spin_lock()
 strictly orders all subsequent memory operations (including
 the cas()) with respect to itself, things will be fine.
 
-Said another way, _atomic_dec_and_lock() must guarantee that
+Said ayesther way, _atomic_dec_and_lock() must guarantee that
 a counter dropping to zero is never made visible before the
 spinlock being acquired.
 
-.. note::
+.. yeste::
 
-	Note that this also means that for the case where the counter is not
-	dropping to zero, there are no memory ordering requirements.
+	Note that this also means that for the case where the counter is yest
+	dropping to zero, there are yes memory ordering requirements.

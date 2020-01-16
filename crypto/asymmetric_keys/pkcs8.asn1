@@ -8,17 +8,17 @@ PrivateKeyInfo ::= SEQUENCE {
 	attributes		[0] IMPLICIT Attributes OPTIONAL
 }
 
-Version ::= INTEGER  ({ pkcs8_note_version })
+Version ::= INTEGER  ({ pkcs8_yeste_version })
 
-PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier ({ pkcs8_note_algo })
+PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier ({ pkcs8_yeste_algo })
 
-PrivateKey ::= OCTET STRING ({ pkcs8_note_key })
+PrivateKey ::= OCTET STRING ({ pkcs8_yeste_key })
 
 Attributes ::= SET OF Attribute
 
 Attribute ::= ANY
 
 AlgorithmIdentifier ::= SEQUENCE {
-	algorithm   OBJECT IDENTIFIER ({ pkcs8_note_OID }),
+	algorithm   OBJECT IDENTIFIER ({ pkcs8_yeste_OID }),
 	parameters  ANY OPTIONAL
 }

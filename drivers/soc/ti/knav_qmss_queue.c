@@ -35,7 +35,7 @@ static DEFINE_MUTEX(knav_dev_lock);
 #define KNAV_QUEUE_POP_REG_INDEX	5
 
 /* Queue manager register indices in DTS for QMSS in K2G NAVSS.
- * There are no status and vbusm push registers on this version
+ * There are yes status and vbusm push registers on this version
  * of QMSS. Push registers are same as pop, So all indices above 1
  * are to be re-defined
  */
@@ -74,11 +74,11 @@ bool knav_qmss_device_ready(void)
 EXPORT_SYMBOL_GPL(knav_qmss_device_ready);
 
 /**
- * knav_queue_notify: qmss queue notfier call
+ * knav_queue_yestify: qmss queue yestfier call
  *
  * @inst:		qmss queue instance like accumulator
  */
-void knav_queue_notify(struct knav_queue_inst *inst)
+void knav_queue_yestify(struct knav_queue_inst *inst)
 {
 	struct knav_queue *qh;
 
@@ -87,22 +87,22 @@ void knav_queue_notify(struct knav_queue_inst *inst)
 
 	rcu_read_lock();
 	for_each_handle_rcu(qh, inst) {
-		if (atomic_read(&qh->notifier_enabled) <= 0)
+		if (atomic_read(&qh->yestifier_enabled) <= 0)
 			continue;
-		if (WARN_ON(!qh->notifier_fn))
+		if (WARN_ON(!qh->yestifier_fn))
 			continue;
-		this_cpu_inc(qh->stats->notifies);
-		qh->notifier_fn(qh->notifier_fn_arg);
+		this_cpu_inc(qh->stats->yestifies);
+		qh->yestifier_fn(qh->yestifier_fn_arg);
 	}
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL_GPL(knav_queue_notify);
+EXPORT_SYMBOL_GPL(knav_queue_yestify);
 
 static irqreturn_t knav_queue_int_handler(int irq, void *_instdata)
 {
 	struct knav_queue_inst *inst = _instdata;
 
-	knav_queue_notify(inst);
+	knav_queue_yestify(inst);
 	return IRQ_HANDLED;
 }
 
@@ -309,55 +309,55 @@ unlock_ret:
 	return qh;
 }
 
-static void knav_queue_set_notify(struct knav_queue_inst *inst, bool enabled)
+static void knav_queue_set_yestify(struct knav_queue_inst *inst, bool enabled)
 {
 	struct knav_range_info *range = inst->range;
 
-	if (range->ops && range->ops->set_notify)
-		range->ops->set_notify(range, inst, enabled);
+	if (range->ops && range->ops->set_yestify)
+		range->ops->set_yestify(range, inst, enabled);
 }
 
-static int knav_queue_enable_notifier(struct knav_queue *qh)
+static int knav_queue_enable_yestifier(struct knav_queue *qh)
 {
 	struct knav_queue_inst *inst = qh->inst;
 	bool first;
 
-	if (WARN_ON(!qh->notifier_fn))
+	if (WARN_ON(!qh->yestifier_fn))
 		return -EINVAL;
 
-	/* Adjust the per handle notifier count */
-	first = (atomic_inc_return(&qh->notifier_enabled) == 1);
+	/* Adjust the per handle yestifier count */
+	first = (atomic_inc_return(&qh->yestifier_enabled) == 1);
 	if (!first)
-		return 0; /* nothing to do */
+		return 0; /* yesthing to do */
 
-	/* Now adjust the per instance notifier count */
-	first = (atomic_inc_return(&inst->num_notifiers) == 1);
+	/* Now adjust the per instance yestifier count */
+	first = (atomic_inc_return(&inst->num_yestifiers) == 1);
 	if (first)
-		knav_queue_set_notify(inst, true);
+		knav_queue_set_yestify(inst, true);
 
 	return 0;
 }
 
-static int knav_queue_disable_notifier(struct knav_queue *qh)
+static int knav_queue_disable_yestifier(struct knav_queue *qh)
 {
 	struct knav_queue_inst *inst = qh->inst;
 	bool last;
 
-	last = (atomic_dec_return(&qh->notifier_enabled) == 0);
+	last = (atomic_dec_return(&qh->yestifier_enabled) == 0);
 	if (!last)
-		return 0; /* nothing to do */
+		return 0; /* yesthing to do */
 
-	last = (atomic_dec_return(&inst->num_notifiers) == 0);
+	last = (atomic_dec_return(&inst->num_yestifiers) == 0);
 	if (last)
-		knav_queue_set_notify(inst, false);
+		knav_queue_set_yestify(inst, false);
 
 	return 0;
 }
 
-static int knav_queue_set_notifier(struct knav_queue *qh,
-				struct knav_queue_notify_config *cfg)
+static int knav_queue_set_yestifier(struct knav_queue *qh,
+				struct knav_queue_yestify_config *cfg)
 {
-	knav_queue_notify_fn old_fn = qh->notifier_fn;
+	knav_queue_yestify_fn old_fn = qh->yestifier_fn;
 
 	if (!cfg)
 		return -EINVAL;
@@ -366,18 +366,18 @@ static int knav_queue_set_notifier(struct knav_queue *qh,
 		return -ENOTSUPP;
 
 	if (!cfg->fn && old_fn)
-		knav_queue_disable_notifier(qh);
+		knav_queue_disable_yestifier(qh);
 
-	qh->notifier_fn = cfg->fn;
-	qh->notifier_fn_arg = cfg->fn_arg;
+	qh->yestifier_fn = cfg->fn;
+	qh->yestifier_fn_arg = cfg->fn_arg;
 
 	if (cfg->fn && !old_fn)
-		knav_queue_enable_notifier(qh);
+		knav_queue_enable_yestifier(qh);
 
 	return 0;
 }
 
-static int knav_gp_set_notify(struct knav_range_info *range,
+static int knav_gp_set_yestify(struct knav_range_info *range,
 			       struct knav_queue_inst *inst,
 			       bool enabled)
 {
@@ -388,7 +388,7 @@ static int knav_gp_set_notify(struct knav_range_info *range,
 		if (enabled)
 			enable_irq(range->irqs[queue].irq);
 		else
-			disable_irq_nosync(range->irqs[queue].irq);
+			disable_irq_yessync(range->irqs[queue].irq);
 	}
 	return 0;
 }
@@ -407,7 +407,7 @@ static int knav_gp_close_queue(struct knav_range_info *range,
 }
 
 struct knav_range_ops knav_gp_range_ops = {
-	.set_notify	= knav_gp_set_notify,
+	.set_yestify	= knav_gp_set_yestify,
 	.open_queue	= knav_gp_open_queue,
 	.close_queue	= knav_gp_close_queue,
 };
@@ -432,7 +432,7 @@ static void knav_queue_debug_show_instance(struct seq_file *s,
 	int pops = 0;
 	int push_errors = 0;
 	int pop_errors = 0;
-	int notifies = 0;
+	int yestifies = 0;
 
 	if (!knav_queue_is_busy(inst))
 		return;
@@ -445,15 +445,15 @@ static void knav_queue_debug_show_instance(struct seq_file *s,
 			pops += per_cpu_ptr(qh->stats, cpu)->pops;
 			push_errors += per_cpu_ptr(qh->stats, cpu)->push_errors;
 			pop_errors += per_cpu_ptr(qh->stats, cpu)->pop_errors;
-			notifies += per_cpu_ptr(qh->stats, cpu)->notifies;
+			yestifies += per_cpu_ptr(qh->stats, cpu)->yestifies;
 		}
 
-		seq_printf(s, "\t\thandle %p: pushes %8d, pops %8d, count %8d, notifies %8d, push errors %8d, pop errors %8d\n",
+		seq_printf(s, "\t\thandle %p: pushes %8d, pops %8d, count %8d, yestifies %8d, push errors %8d, pop errors %8d\n",
 				qh,
 				pushes,
 				pops,
 				knav_queue_get_count(qh),
-				notifies,
+				yestifies,
 				push_errors,
 				pop_errors);
 	}
@@ -475,7 +475,7 @@ static int knav_queue_debug_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static int knav_queue_debug_open(struct inode *inode, struct file *file)
+static int knav_queue_debug_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, knav_queue_debug_show, NULL);
 }
@@ -559,8 +559,8 @@ void knav_queue_close(void *qhandle)
 	struct knav_queue *qh = qhandle;
 	struct knav_queue_inst *inst = qh->inst;
 
-	while (atomic_read(&qh->notifier_enabled) > 0)
-		knav_queue_disable_notifier(qh);
+	while (atomic_read(&qh->yestifier_enabled) > 0)
+		knav_queue_disable_yestifier(qh);
 
 	mutex_lock(&knav_dev_lock);
 	list_del_rcu(&qh->list);
@@ -583,13 +583,13 @@ EXPORT_SYMBOL_GPL(knav_queue_close);
  * @cmd				- control commands
  * @arg				- command argument
  *
- * Returns 0 on success, errno otherwise.
+ * Returns 0 on success, erryes otherwise.
  */
 int knav_queue_device_control(void *qhandle, enum knav_queue_ctrl_cmd cmd,
 				unsigned long arg)
 {
 	struct knav_queue *qh = qhandle;
-	struct knav_queue_notify_config *cfg;
+	struct knav_queue_yestify_config *cfg;
 	int ret;
 
 	switch ((int)cmd) {
@@ -603,15 +603,15 @@ int knav_queue_device_control(void *qhandle, enum knav_queue_ctrl_cmd cmd,
 
 	case KNAV_QUEUE_SET_NOTIFIER:
 		cfg = (void *)arg;
-		ret = knav_queue_set_notifier(qh, cfg);
+		ret = knav_queue_set_yestifier(qh, cfg);
 		break;
 
 	case KNAV_QUEUE_ENABLE_NOTIFY:
-		ret = knav_queue_enable_notifier(qh);
+		ret = knav_queue_enable_yestifier(qh);
 		break;
 
 	case KNAV_QUEUE_DISABLE_NOTIFY:
-		ret = knav_queue_disable_notifier(qh);
+		ret = knav_queue_disable_yestifier(qh);
 		break;
 
 	case KNAV_QUEUE_GET_COUNT:
@@ -635,7 +635,7 @@ EXPORT_SYMBOL_GPL(knav_queue_device_control);
  * @size		- size of data to push
  * @flags		- can be used to pass additional information
  *
- * Returns 0 on success, errno otherwise.
+ * Returns 0 on success, erryes otherwise.
  */
 int knav_queue_push(void *qhandle, dma_addr_t dma,
 					unsigned size, unsigned flags)
@@ -766,7 +766,7 @@ void *knav_pool_create(const char *name,
 {
 	struct knav_region *reg_itr, *region = NULL;
 	struct knav_pool *pool, *pi;
-	struct list_head *node;
+	struct list_head *yesde;
 	unsigned last_offset;
 	bool slot_found;
 	int ret;
@@ -791,7 +791,7 @@ void *knav_pool_create(const char *name,
 	}
 
 	if (!region) {
-		dev_err(kdev->dev, "region-id(%d) not found\n", region_id);
+		dev_err(kdev->dev, "region-id(%d) yest found\n", region_id);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -819,12 +819,12 @@ void *knav_pool_create(const char *name,
 	}
 
 	/* Region maintains a sorted (by region offset) list of pools
-	 * use the first free slot which is large enough to accomodate
+	 * use the first free slot which is large eyesugh to accomodate
 	 * the request
 	 */
 	last_offset = 0;
 	slot_found = false;
-	node = &region->pools;
+	yesde = &region->pools;
 	list_for_each_entry(pi, &region->pools, region_inst) {
 		if ((pi->region_offset - last_offset) >= num_desc) {
 			slot_found = true;
@@ -832,7 +832,7 @@ void *knav_pool_create(const char *name,
 		}
 		last_offset = pi->region_offset + pi->num_desc;
 	}
-	node = &pi->region_inst;
+	yesde = &pi->region_inst;
 
 	if (slot_found) {
 		pool->region = region;
@@ -840,7 +840,7 @@ void *knav_pool_create(const char *name,
 		pool->region_offset = last_offset;
 		region->used_desc += num_desc;
 		list_add_tail(&pool->list, &kdev->pools);
-		list_add_tail(&pool->region_inst, node);
+		list_add_tail(&pool->region_inst, yesde);
 	} else {
 		dev_err(kdev->dev, "pool(%s) create failed: fragmented desc pool in region(%d)\n",
 			name, region_id);
@@ -931,7 +931,7 @@ EXPORT_SYMBOL_GPL(knav_pool_desc_put);
  * @dma				- DMA address return pointer
  * @dma_sz			- adjusted return pointer
  *
- * Returns 0 on success, errno otherwise.
+ * Returns 0 on success, erryes otherwise.
  */
 int knav_pool_desc_map(void *ph, void *desc, unsigned size,
 					dma_addr_t *dma, unsigned *dma_sz)
@@ -1004,7 +1004,7 @@ static void knav_queue_setup_region(struct knav_device *kdev,
 	/* get hardware descriptor value */
 	hw_num_desc = ilog2(region->num_desc - 1) + 1;
 
-	/* did we force fit ourselves into nothingness? */
+	/* did we force fit ourselves into yesthingness? */
 	if (region->num_desc < 32) {
 		region->num_desc = 0;
 		dev_warn(kdev->dev, "too few descriptors in region %s\n",
@@ -1070,27 +1070,27 @@ fail:
 	return;
 }
 
-static const char *knav_queue_find_name(struct device_node *node)
+static const char *knav_queue_find_name(struct device_yesde *yesde)
 {
 	const char *name;
 
-	if (of_property_read_string(node, "label", &name) < 0)
-		name = node->name;
+	if (of_property_read_string(yesde, "label", &name) < 0)
+		name = yesde->name;
 	if (!name)
-		name = "unknown";
+		name = "unkyeswn";
 	return name;
 }
 
 static int knav_queue_setup_regions(struct knav_device *kdev,
-					struct device_node *regions)
+					struct device_yesde *regions)
 {
 	struct device *dev = kdev->dev;
 	struct knav_region *region;
-	struct device_node *child;
+	struct device_yesde *child;
 	u32 temp[2];
 	int ret;
 
-	for_each_child_of_node(regions, child) {
+	for_each_child_of_yesde(regions, child) {
 		region = devm_kzalloc(dev, sizeof(*region), GFP_KERNEL);
 		if (!region) {
 			dev_err(dev, "out of memory allocating region\n");
@@ -1117,7 +1117,7 @@ static int knav_queue_setup_regions(struct knav_device *kdev,
 		ret = of_property_read_u32(child, "link-index",
 					   &region->link_index);
 		if (ret) {
-			dev_err(dev, "link index not found for %s\n",
+			dev_err(dev, "link index yest found for %s\n",
 				region->name);
 			devm_kfree(dev, region);
 			continue;
@@ -1127,7 +1127,7 @@ static int knav_queue_setup_regions(struct knav_device *kdev,
 		list_add_tail(&region->list, &kdev->regions);
 	}
 	if (list_empty(&kdev->regions)) {
-		dev_err(dev, "no valid region information found\n");
+		dev_err(dev, "yes valid region information found\n");
 		return -ENODEV;
 	}
 
@@ -1143,7 +1143,7 @@ static int knav_get_link_ram(struct knav_device *kdev,
 				       struct knav_link_ram_block *block)
 {
 	struct platform_device *pdev = to_platform_device(kdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	u32 temp[2];
 
 	/*
@@ -1159,18 +1159,18 @@ static int knav_get_link_ram(struct knav_device *kdev,
 	 * in MSMC SRAM), the actual memory used is 0x0c000000-0x0c020000,
 	 * which accounts for 64-bits per entry, for 16K entries.
 	 */
-	if (!of_property_read_u32_array(node, name , temp, 2)) {
+	if (!of_property_read_u32_array(yesde, name , temp, 2)) {
 		if (temp[0]) {
 			/*
 			 * queue_base specified => using internal or onchip
-			 * link ram WARNING - we do not "reserve" this block
+			 * link ram WARNING - we do yest "reserve" this block
 			 */
 			block->dma = (dma_addr_t)temp[0];
 			block->virt = NULL;
 			block->size = temp[1];
 		} else {
 			block->size = temp[1];
-			/* queue_base not specific => allocate requested size */
+			/* queue_base yest specific => allocate requested size */
 			block->virt = dmam_alloc_coherent(kdev->dev,
 						  8 * block->size, &block->dma,
 						  GFP_KERNEL);
@@ -1214,7 +1214,7 @@ static int knav_queue_setup_link_ram(struct knav_device *kdev)
 }
 
 static int knav_setup_queue_range(struct knav_device *kdev,
-					struct device_node *node)
+					struct device_yesde *yesde)
 {
 	struct device *dev = kdev->dev;
 	struct knav_range_info *range;
@@ -1229,8 +1229,8 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 	}
 
 	range->kdev = kdev;
-	range->name = knav_queue_find_name(node);
-	ret = of_property_read_u32_array(node, "qrange", temp, 2);
+	range->name = knav_queue_find_name(yesde);
+	ret = of_property_read_u32_array(yesde, "qrange", temp, 2);
 	if (!ret) {
 		range->queue_base = temp[0] - kdev->base_id;
 		range->num_queues = temp[1];
@@ -1243,7 +1243,7 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 	for (i = 0; i < RANGE_MAX_IRQS; i++) {
 		struct of_phandle_args oirq;
 
-		if (of_irq_parse_one(node, i, &oirq))
+		if (of_irq_parse_one(yesde, i, &oirq))
 			break;
 
 		range->irqs[i].irq = irq_create_of_mapping(&oirq);
@@ -1271,11 +1271,11 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 	if (range->num_irqs)
 		range->flags |= RANGE_HAS_IRQ;
 
-	if (of_get_property(node, "qalloc-by-id", NULL))
+	if (of_get_property(yesde, "qalloc-by-id", NULL))
 		range->flags |= RANGE_RESERVED;
 
-	if (of_get_property(node, "accumulator", NULL)) {
-		ret = knav_init_acc_range(kdev, node, range);
+	if (of_get_property(yesde, "accumulator", NULL)) {
+		ret = knav_init_acc_range(kdev, yesde, range);
 		if (ret < 0) {
 			devm_kfree(dev, range);
 			return ret;
@@ -1311,21 +1311,21 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 }
 
 static int knav_setup_queue_pools(struct knav_device *kdev,
-				   struct device_node *queue_pools)
+				   struct device_yesde *queue_pools)
 {
-	struct device_node *type, *range;
+	struct device_yesde *type, *range;
 	int ret;
 
-	for_each_child_of_node(queue_pools, type) {
-		for_each_child_of_node(type, range) {
+	for_each_child_of_yesde(queue_pools, type) {
+		for_each_child_of_yesde(type, range) {
 			ret = knav_setup_queue_range(kdev, range);
-			/* return value ignored, we init the rest... */
+			/* return value igyesred, we init the rest... */
 		}
 	}
 
 	/* ... and barf if they all failed! */
 	if (list_empty(&kdev->queue_ranges)) {
-		dev_err(kdev->dev, "no valid queue range found\n");
+		dev_err(kdev->dev, "yes valid queue range found\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -1374,36 +1374,36 @@ static void knav_queue_free_regions(struct knav_device *kdev)
 }
 
 static void __iomem *knav_queue_map_reg(struct knav_device *kdev,
-					struct device_node *node, int index)
+					struct device_yesde *yesde, int index)
 {
 	struct resource res;
 	void __iomem *regs;
 	int ret;
 
-	ret = of_address_to_resource(node, index, &res);
+	ret = of_address_to_resource(yesde, index, &res);
 	if (ret) {
-		dev_err(kdev->dev, "Can't translate of node(%pOFn) address for index(%d)\n",
-			node, index);
+		dev_err(kdev->dev, "Can't translate of yesde(%pOFn) address for index(%d)\n",
+			yesde, index);
 		return ERR_PTR(ret);
 	}
 
 	regs = devm_ioremap_resource(kdev->dev, &res);
 	if (IS_ERR(regs))
-		dev_err(kdev->dev, "Failed to map register base for index(%d) node(%pOFn)\n",
-			index, node);
+		dev_err(kdev->dev, "Failed to map register base for index(%d) yesde(%pOFn)\n",
+			index, yesde);
 	return regs;
 }
 
 static int knav_queue_init_qmgrs(struct knav_device *kdev,
-					struct device_node *qmgrs)
+					struct device_yesde *qmgrs)
 {
 	struct device *dev = kdev->dev;
 	struct knav_qmgr_info *qmgr;
-	struct device_node *child;
+	struct device_yesde *child;
 	u32 temp[2];
 	int ret;
 
-	for_each_child_of_node(qmgrs, child) {
+	for_each_child_of_yesde(qmgrs, child) {
 		qmgr = devm_kzalloc(dev, sizeof(*qmgr), GFP_KERNEL);
 		if (!qmgr) {
 			dev_err(dev, "out of memory allocating qmgr\n");
@@ -1496,13 +1496,13 @@ static int knav_queue_init_qmgrs(struct knav_device *kdev,
 }
 
 static int knav_queue_init_pdsps(struct knav_device *kdev,
-					struct device_node *pdsps)
+					struct device_yesde *pdsps)
 {
 	struct device *dev = kdev->dev;
 	struct knav_pdsp_info *pdsp;
-	struct device_node *child;
+	struct device_yesde *child;
 
-	for_each_child_of_node(pdsps, child) {
+	for_each_child_of_yesde(pdsps, child) {
 		pdsp = devm_kzalloc(dev, sizeof(*pdsp), GFP_KERNEL);
 		if (!pdsp) {
 			dev_err(dev, "out of memory allocating pdsp\n");
@@ -1650,8 +1650,8 @@ static int knav_queue_start_pdsps(struct knav_device *kdev)
 	int ret;
 
 	knav_queue_stop_pdsps(kdev);
-	/* now load them all. We return success even if pdsp
-	 * is not loaded as acc channels are optional on having
+	/* yesw load them all. We return success even if pdsp
+	 * is yest loaded as acc channels are optional on having
 	 * firmware availability in the system. We set the loaded
 	 * and stated flag and when initialize the acc range, check
 	 * it and init the range only if pdsp is started.
@@ -1758,14 +1758,14 @@ MODULE_DEVICE_TABLE(of, keystone_qmss_of_match);
 
 static int knav_queue_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *qmgrs, *queue_pools, *regions, *pdsps;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *qmgrs, *queue_pools, *regions, *pdsps;
 	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	u32 temp[2];
 	int ret;
 
-	if (!node) {
+	if (!yesde) {
 		dev_err(dev, "device tree info unavailable\n");
 		return -ENODEV;
 	}
@@ -1795,8 +1795,8 @@ static int knav_queue_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (of_property_read_u32_array(node, "queue-range", temp, 2)) {
-		dev_err(dev, "queue-range not specified\n");
+	if (of_property_read_u32_array(yesde, "queue-range", temp, 2)) {
+		dev_err(dev, "queue-range yest specified\n");
 		ret = -ENODEV;
 		goto err;
 	}
@@ -1804,19 +1804,19 @@ static int knav_queue_probe(struct platform_device *pdev)
 	kdev->num_queues = temp[1];
 
 	/* Initialize queue managers using device tree configuration */
-	qmgrs =  of_get_child_by_name(node, "qmgrs");
+	qmgrs =  of_get_child_by_name(yesde, "qmgrs");
 	if (!qmgrs) {
-		dev_err(dev, "queue manager info not specified\n");
+		dev_err(dev, "queue manager info yest specified\n");
 		ret = -ENODEV;
 		goto err;
 	}
 	ret = knav_queue_init_qmgrs(kdev, qmgrs);
-	of_node_put(qmgrs);
+	of_yesde_put(qmgrs);
 	if (ret)
 		goto err;
 
 	/* get pdsp configuration values from device tree */
-	pdsps =  of_get_child_by_name(node, "pdsps");
+	pdsps =  of_get_child_by_name(yesde, "pdsps");
 	if (pdsps) {
 		ret = knav_queue_init_pdsps(kdev, pdsps);
 		if (ret)
@@ -1826,30 +1826,30 @@ static int knav_queue_probe(struct platform_device *pdev)
 		if (ret)
 			goto err;
 	}
-	of_node_put(pdsps);
+	of_yesde_put(pdsps);
 
 	/* get usable queue range values from device tree */
-	queue_pools = of_get_child_by_name(node, "queue-pools");
+	queue_pools = of_get_child_by_name(yesde, "queue-pools");
 	if (!queue_pools) {
-		dev_err(dev, "queue-pools not specified\n");
+		dev_err(dev, "queue-pools yest specified\n");
 		ret = -ENODEV;
 		goto err;
 	}
 	ret = knav_setup_queue_pools(kdev, queue_pools);
-	of_node_put(queue_pools);
+	of_yesde_put(queue_pools);
 	if (ret)
 		goto err;
 
 	ret = knav_get_link_ram(kdev, "linkram0", &kdev->link_rams[0]);
 	if (ret) {
-		dev_err(kdev->dev, "could not setup linking ram\n");
+		dev_err(kdev->dev, "could yest setup linking ram\n");
 		goto err;
 	}
 
 	ret = knav_get_link_ram(kdev, "linkram1", &kdev->link_rams[1]);
 	if (ret) {
 		/*
-		 * nothing really, we have one linking ram already, so we just
+		 * yesthing really, we have one linking ram already, so we just
 		 * live within our means
 		 */
 	}
@@ -1858,13 +1858,13 @@ static int knav_queue_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	regions =  of_get_child_by_name(node, "descriptor-regions");
+	regions =  of_get_child_by_name(yesde, "descriptor-regions");
 	if (!regions) {
-		dev_err(dev, "descriptor-regions not specified\n");
+		dev_err(dev, "descriptor-regions yest specified\n");
 		goto err;
 	}
 	ret = knav_queue_setup_regions(kdev, regions);
-	of_node_put(regions);
+	of_yesde_put(regions);
 	if (ret)
 		goto err;
 

@@ -128,13 +128,13 @@ static void gumstix_udc_init(void)
 #ifdef CONFIG_BT
 /* Normally, the bootloader would have enabled this 32kHz clock but many
 ** boards still have u-boot 1.1.4 so we check if it has been turned on and
-** if not, we turn it on with a warning message. */
+** if yest, we turn it on with a warning message. */
 static void gumstix_setup_bt_clock(void)
 {
 	int timeout = 500;
 
 	if (!(readl(OSCC) & OSCC_OOK))
-		pr_warn("32kHz clock was not on. Bootloader may need to be updated\n");
+		pr_warn("32kHz clock was yest on. Bootloader may need to be updated\n");
 	else
 		return;
 
@@ -203,7 +203,7 @@ static void __init carrier_board_init(void)
 {
 	/*
 	 * put carrier/expansion board init here if
-	 * they cannot be detected programatically
+	 * they canyest be detected programatically
 	 */
 	am200_init();
 	am300_init();

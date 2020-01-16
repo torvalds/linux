@@ -22,7 +22,7 @@
  *
  * - Platform conveys its decision back to OS
  *
- * The communication between OS and platform occurs through another medium
+ * The communication between OS and platform occurs through ayesther medium
  * called (PCC) Platform Communication Channel. This is a generic mailbox like
  * mechanism which includes doorbell semantics to indicate register updates.
  * See drivers/mailbox/pcc.c for details on PCC.
@@ -47,7 +47,7 @@ struct cppc_pcc_data {
 	void __iomem *pcc_comm_addr;
 	bool pcc_channel_acquired;
 	unsigned int deadline_us;
-	unsigned int pcc_mpar, pcc_mrtt, pcc_nominal;
+	unsigned int pcc_mpar, pcc_mrtt, pcc_yesminal;
 
 	bool pending_pcc_write_cmd;	/* Any pending/batched PCC write cmds? */
 	bool platform_owns_pcc;		/* Ownership of PCC subspace */
@@ -64,7 +64,7 @@ struct cppc_pcc_data {
 	 *	This allows us to batch a number of CPPC requests if they happen
 	 * to originate in about the same time
 	 *
-	 * For non-performance critical usecases(init)
+	 * For yesn-performance critical usecases(init)
 	 *	Take write_lock for all purposes which gives exclusive access
 	 */
 	struct rw_semaphore pcc_lock;
@@ -113,7 +113,7 @@ static DEFINE_PER_CPU(struct cpc_desc *, cpc_desc_ptr);
 				!IS_NULL_REG(&(cpc)->cpc_entry.reg))
 /*
  * Arbitrary Retries in case the remote processor is slow to respond
- * to PCC commands. Keeping it high enough to cover emulators where
+ * to PCC commands. Keeping it high eyesugh to cover emulators where
  * the processors run painfully slow.
  */
 #define NUM_RETRIES 500ULL
@@ -151,10 +151,10 @@ __ATTR(_name, 0444, show_##_name, NULL)
 
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, highest_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_perf);
-show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, nominal_perf);
-show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_nonlinear_perf);
+show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, yesminal_perf);
+show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_yesnlinear_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_freq);
-show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, nominal_freq);
+show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, yesminal_freq);
 
 show_cppc_data(cppc_get_perf_ctrs, cppc_perf_fb_ctrs, reference_perf);
 show_cppc_data(cppc_get_perf_ctrs, cppc_perf_fb_ctrs, wraparound_time);
@@ -181,9 +181,9 @@ static struct attribute *cppc_attrs[] = {
 	&wraparound_time.attr,
 	&highest_perf.attr,
 	&lowest_perf.attr,
-	&lowest_nonlinear_perf.attr,
-	&nominal_perf.attr,
-	&nominal_freq.attr,
+	&lowest_yesnlinear_perf.attr,
+	&yesminal_perf.attr,
+	&yesminal_freq.attr,
 	&lowest_freq.attr,
 	NULL
 };
@@ -237,7 +237,7 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 	unsigned int time_delta;
 
 	/*
-	 * For CMD_WRITE we know for a fact the caller should have checked
+	 * For CMD_WRITE we kyesw for a fact the caller should have checked
 	 * the channel before writing to PCC space
 	 */
 	if (cmd == CMD_READ) {
@@ -268,14 +268,14 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 	}
 
 	/*
-	 * Handle the non-zero Maximum Periodic Access Rate(MPAR)
+	 * Handle the yesn-zero Maximum Periodic Access Rate(MPAR)
 	 * "The maximum number of periodic requests that the subspace channel can
-	 * support, reported in commands per minute. 0 indicates no limitation."
+	 * support, reported in commands per minute. 0 indicates yes limitation."
 	 *
-	 * This parameter should be ideally zero or large enough so that it can
+	 * This parameter should be ideally zero or large eyesugh so that it can
 	 * handle maximum number of requests that all the cores in the system can
-	 * collectively generate. If it is not, we will follow the spec and just
-	 * not send the request to the platform after hitting the MPAR limit in
+	 * collectively generate. If it is yest, we will follow the spec and just
+	 * yest send the request to the platform after hitting the MPAR limit in
 	 * any 60s window
 	 */
 	if (pcc_ss_data->pcc_mpar) {
@@ -283,7 +283,7 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 			time_delta = ktime_ms_delta(ktime_get(),
 						    pcc_ss_data->last_mpar_reset);
 			if ((time_delta < 60 * MSEC_PER_SEC) && pcc_ss_data->last_mpar_reset) {
-				pr_debug("PCC cmd for subspace %d not sent due to MPAR limit",
+				pr_debug("PCC cmd for subspace %d yest sent due to MPAR limit",
 					 pcc_ss_id);
 				ret = -EIO;
 				goto end;
@@ -343,7 +343,7 @@ end:
 static void cppc_chan_tx_done(struct mbox_client *cl, void *msg, int ret)
 {
 	if (ret < 0)
-		pr_debug("TX did not complete: CMD sent:%x, ret:%d\n",
+		pr_debug("TX did yest complete: CMD sent:%x, ret:%d\n",
 				*(u16 *)msg, ret);
 	else
 		pr_debug("TX completed. CMD sent:%x, ret:%d\n",
@@ -352,7 +352,7 @@ static void cppc_chan_tx_done(struct mbox_client *cl, void *msg, int ret)
 
 struct mbox_client cppc_mbox_cl = {
 	.tx_done = cppc_chan_tx_done,
-	.knows_txdone = true,
+	.kyesws_txdone = true,
 };
 
 static int acpi_get_psd(struct cpc_desc *cpc_ptr, acpi_handle handle)
@@ -391,12 +391,12 @@ static int acpi_get_psd(struct cpc_desc *cpc_ptr, acpi_handle handle)
 	}
 
 	if (pdomain->num_entries != ACPI_PSD_REV0_ENTRIES) {
-		pr_debug("Unknown _PSD:num_entries for CPU:%d\n", cpc_ptr->cpu_id);
+		pr_debug("Unkyeswn _PSD:num_entries for CPU:%d\n", cpc_ptr->cpu_id);
 		goto end;
 	}
 
 	if (pdomain->revision != ACPI_PSD_REV0_REVISION) {
-		pr_debug("Unknown _PSD:revision for CPU: %d\n", cpc_ptr->cpu_id);
+		pr_debug("Unkyeswn _PSD:revision for CPU: %d\n", cpc_ptr->cpu_id);
 		goto end;
 	}
 
@@ -525,7 +525,7 @@ err_ret:
 		if (!pr)
 			continue;
 
-		/* Assume no coordination on any error parsing domain info */
+		/* Assume yes coordination on any error parsing domain info */
 		if (retval) {
 			cpumask_clear(pr->shared_cpu_map);
 			cpumask_set_cpu(i, pr->shared_cpu_map);
@@ -576,7 +576,7 @@ static int register_pcc_channel(int pcc_ss_idx)
 		pcc_data[pcc_ss_idx]->deadline_us = usecs_lat;
 		pcc_data[pcc_ss_idx]->pcc_mrtt = cppc_ss->min_turnaround_time;
 		pcc_data[pcc_ss_idx]->pcc_mpar = cppc_ss->max_access_rate;
-		pcc_data[pcc_ss_idx]->pcc_nominal = cppc_ss->latency;
+		pcc_data[pcc_ss_idx]->pcc_yesminal = cppc_ss->latency;
 
 		pcc_data[pcc_ss_idx]->pcc_comm_addr =
 			acpi_os_ioremap(cppc_ss->base_address, cppc_ss->length);
@@ -599,7 +599,7 @@ static int register_pcc_channel(int pcc_ss_idx)
  * Check if the architecture has support for functional fixed hardware
  * read/write capability.
  *
- * Return: true for supported, false for not supported
+ * Return: true for supported, false for yest supported
  */
 bool __weak cpc_ffh_supported(void)
 {
@@ -614,7 +614,7 @@ bool __weak cpc_ffh_supported(void)
  * is shared between multiple CPUs. This is seen especially in CPUs
  * with hardware multi-threading support.
  *
- * Return: 0 for success, errno for failure
+ * Return: 0 for success, erryes for failure
  */
 int pcc_data_alloc(int pcc_ss_id)
 {
@@ -851,7 +851,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	/* Everything looks okay */
 	pr_debug("Parsed CPC struct for CPU: %d\n", pr->id);
 
-	/* Add per logical CPU nodes for reading its feedback counters. */
+	/* Add per logical CPU yesdes for reading its feedback counters. */
 	cpu_dev = get_cpu_device(pr->id);
 	if (!cpu_dev) {
 		ret = -EINVAL;
@@ -1000,7 +1000,7 @@ static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 			*val = readq_relaxed(vaddr);
 			break;
 		default:
-			pr_debug("Error: Cannot read %u bit width from PCC for ss: %d\n",
+			pr_debug("Error: Canyest read %u bit width from PCC for ss: %d\n",
 				 reg->bit_width, pcc_ss_id);
 			ret_val = -EFAULT;
 	}
@@ -1039,7 +1039,7 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 			writeq_relaxed(val, vaddr);
 			break;
 		default:
-			pr_debug("Error: Cannot write %u bit width to PCC for ss: %d\n",
+			pr_debug("Error: Canyest write %u bit width to PCC for ss: %d\n",
 				 reg->bit_width, pcc_ss_id);
 			ret_val = -EFAULT;
 			break;
@@ -1101,9 +1101,9 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 {
 	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpunum);
 	struct cpc_register_resource *highest_reg, *lowest_reg,
-		*lowest_non_linear_reg, *nominal_reg, *guaranteed_reg,
-		*low_freq_reg = NULL, *nom_freq_reg = NULL;
-	u64 high, low, guaranteed, nom, min_nonlinear, low_f = 0, nom_f = 0;
+		*lowest_yesn_linear_reg, *yesminal_reg, *guaranteed_reg,
+		*low_freq_reg = NULL, *yesm_freq_reg = NULL;
+	u64 high, low, guaranteed, yesm, min_yesnlinear, low_f = 0, yesm_f = 0;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpunum);
 	struct cppc_pcc_data *pcc_ss_data = NULL;
 	int ret = 0, regs_in_pcc = 0;
@@ -1115,16 +1115,16 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 
 	highest_reg = &cpc_desc->cpc_regs[HIGHEST_PERF];
 	lowest_reg = &cpc_desc->cpc_regs[LOWEST_PERF];
-	lowest_non_linear_reg = &cpc_desc->cpc_regs[LOW_NON_LINEAR_PERF];
-	nominal_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
+	lowest_yesn_linear_reg = &cpc_desc->cpc_regs[LOW_NON_LINEAR_PERF];
+	yesminal_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
 	low_freq_reg = &cpc_desc->cpc_regs[LOWEST_FREQ];
-	nom_freq_reg = &cpc_desc->cpc_regs[NOMINAL_FREQ];
+	yesm_freq_reg = &cpc_desc->cpc_regs[NOMINAL_FREQ];
 	guaranteed_reg = &cpc_desc->cpc_regs[GUARANTEED_PERF];
 
 	/* Are any of the regs PCC ?*/
 	if (CPC_IN_PCC(highest_reg) || CPC_IN_PCC(lowest_reg) ||
-		CPC_IN_PCC(lowest_non_linear_reg) || CPC_IN_PCC(nominal_reg) ||
-		CPC_IN_PCC(low_freq_reg) || CPC_IN_PCC(nom_freq_reg)) {
+		CPC_IN_PCC(lowest_yesn_linear_reg) || CPC_IN_PCC(yesminal_reg) ||
+		CPC_IN_PCC(low_freq_reg) || CPC_IN_PCC(yesm_freq_reg)) {
 		if (pcc_ss_id < 0) {
 			pr_debug("Invalid pcc_ss_id\n");
 			return -ENODEV;
@@ -1145,8 +1145,8 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	cpc_read(cpunum, lowest_reg, &low);
 	perf_caps->lowest_perf = low;
 
-	cpc_read(cpunum, nominal_reg, &nom);
-	perf_caps->nominal_perf = nom;
+	cpc_read(cpunum, yesminal_reg, &yesm);
+	perf_caps->yesminal_perf = yesm;
 
 	if (guaranteed_reg->type != ACPI_TYPE_BUFFER  ||
 	    IS_NULL_REG(&guaranteed_reg->cpc_entry.reg)) {
@@ -1156,21 +1156,21 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 		perf_caps->guaranteed_perf = guaranteed;
 	}
 
-	cpc_read(cpunum, lowest_non_linear_reg, &min_nonlinear);
-	perf_caps->lowest_nonlinear_perf = min_nonlinear;
+	cpc_read(cpunum, lowest_yesn_linear_reg, &min_yesnlinear);
+	perf_caps->lowest_yesnlinear_perf = min_yesnlinear;
 
-	if (!high || !low || !nom || !min_nonlinear)
+	if (!high || !low || !yesm || !min_yesnlinear)
 		ret = -EFAULT;
 
-	/* Read optional lowest and nominal frequencies if present */
+	/* Read optional lowest and yesminal frequencies if present */
 	if (CPC_SUPPORTED(low_freq_reg))
 		cpc_read(cpunum, low_freq_reg, &low_f);
 
-	if (CPC_SUPPORTED(nom_freq_reg))
-		cpc_read(cpunum, nom_freq_reg, &nom_f);
+	if (CPC_SUPPORTED(yesm_freq_reg))
+		cpc_read(cpunum, yesm_freq_reg, &yesm_f);
 
 	perf_caps->lowest_freq = low_f;
-	perf_caps->nominal_freq = nom_f;
+	perf_caps->yesminal_freq = yesm_f;
 
 
 out_err:
@@ -1208,8 +1208,8 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 	ctr_wrap_reg = &cpc_desc->cpc_regs[CTR_WRAP_TIME];
 
 	/*
-	 * If reference perf register is not supported then we should
-	 * use the nominal perf value
+	 * If reference perf register is yest supported then we should
+	 * use the yesminal perf value
 	 */
 	if (!CPC_SUPPORTED(ref_perf_reg))
 		ref_perf_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
@@ -1304,7 +1304,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 			}
 		}
 		/*
-		 * Update the pending_write to make sure a PCC CMD_READ will not
+		 * Update the pending_write to make sure a PCC CMD_READ will yest
 		 * arrive and steal the channel during the switch to write lock
 		 */
 		pcc_ss_data->pending_pcc_write_cmd = true;
@@ -1313,7 +1313,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	}
 
 	/*
-	 * Skip writing MIN/MAX until Linux knows how to come up with
+	 * Skip writing MIN/MAX until Linux kyesws how to come up with
 	 * useful values.
 	 */
 	cpc_write(cpu, desired_reg, perf_ctrls->desired_perf);
@@ -1328,7 +1328,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	 * come out of Phase-I will enter Phase-II and ring the doorbell.
 	 *
 	 * We have the following requirements for Phase-II:
-	 *     1. We want to execute Phase-II only when there are no CPUs
+	 *     1. We want to execute Phase-II only when there are yes CPUs
 	 * currently executing in Phase-I
 	 *     2. Once we start Phase-II we want to avoid all other CPUs from
 	 * entering Phase-I.
@@ -1341,20 +1341,20 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	 * write_trylock, so the CPUs in Phase-I will be responsible for
 	 * executing the Phase-II.
 	 *     2. Some other CPU has beaten this CPU to successfully execute the
-	 * write_trylock and has already acquired the write_lock. We know for a
+	 * write_trylock and has already acquired the write_lock. We kyesw for a
 	 * fact it (other CPU acquiring the write_lock) couldn't have happened
 	 * before this CPU's Phase-I as we held the read_lock.
 	 *     3. Some other CPU executing pcc CMD_READ has stolen the
 	 * down_write, in which case, send_pcc_cmd will check for pending
 	 * CMD_WRITE commands by checking the pending_pcc_write_cmd.
 	 * So this CPU can be certain that its request will be delivered
-	 *    So in all cases, this CPU knows that its request will be delivered
-	 * by another CPU and can return
+	 *    So in all cases, this CPU kyesws that its request will be delivered
+	 * by ayesther CPU and can return
 	 *
 	 * After getting the down_write we still need to check for
 	 * pending_pcc_write_cmd to take care of the following scenario
 	 *    The thread running this code could be scheduled out between
-	 * Phase-I and Phase-II. Before it is scheduled back on, another CPU
+	 * Phase-I and Phase-II. Before it is scheduled back on, ayesther CPU
 	 * could have delivered the request to Platform by triggering the
 	 * doorbell and transferred the ownership of PCC to platform. So this
 	 * avoids triggering an unnecessary doorbell and more importantly before
@@ -1387,7 +1387,7 @@ EXPORT_SYMBOL_GPL(cppc_set_perf);
 /**
  * cppc_get_transition_latency - returns frequency transition latency in ns
  *
- * ACPI CPPC does not explicitly specifiy how a platform can specify the
+ * ACPI CPPC does yest explicitly specifiy how a platform can specify the
  * transition latency for perfromance change requests. The closest we have
  * is the timing information from the PCCT tables which provides the info
  * on the number and frequency of PCC commands the platform can handle.
@@ -1397,10 +1397,10 @@ unsigned int cppc_get_transition_latency(int cpu_num)
 	/*
 	 * Expected transition latency is based on the PCCT timing values
 	 * Below are definition from ACPI spec:
-	 * pcc_nominal- Expected latency to process a command, in microseconds
+	 * pcc_yesminal- Expected latency to process a command, in microseconds
 	 * pcc_mpar   - The maximum number of periodic requests that the subspace
 	 *              channel can support, reported in commands per minute. 0
-	 *              indicates no limitation.
+	 *              indicates yes limitation.
 	 * pcc_mrtt   - The minimum amount of time that OSPM must wait after the
 	 *              completion of a command before issuing the next command,
 	 *              in microseconds.
@@ -1426,7 +1426,7 @@ unsigned int cppc_get_transition_latency(int cpu_num)
 	if (pcc_ss_data->pcc_mpar)
 		latency_ns = 60 * (1000 * 1000 * 1000 / pcc_ss_data->pcc_mpar);
 
-	latency_ns = max(latency_ns, pcc_ss_data->pcc_nominal * 1000);
+	latency_ns = max(latency_ns, pcc_ss_data->pcc_yesminal * 1000);
 	latency_ns = max(latency_ns, pcc_ss_data->pcc_mrtt * 1000);
 
 	return latency_ns;

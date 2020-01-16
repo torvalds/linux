@@ -61,7 +61,7 @@ static int it913x_init(struct dvb_frontend *fe)
 		iqik_m_cal = 6;
 		break;
 	default:
-		dev_err(&pdev->dev, "unknown clock identifier %d\n", utmp);
+		dev_err(&pdev->dev, "unkyeswn clock identifier %d\n", utmp);
 		goto err;
 	}
 
@@ -99,7 +99,7 @@ static int it913x_init(struct dvb_frontend *fe)
 	 * Chip version BX never sets that flag so we just wait 50ms in that
 	 * case. It is possible poll BX similarly than AX and then timeout in
 	 * order to get 50ms delay, but that causes about 120 extra I2C
-	 * messages. As for now, we just wait and reduce IO.
+	 * messages. As for yesw, we just wait and reduce IO.
 	 */
 	if (dev->chip_ver == 1) {
 		#define TIMEOUT 50
@@ -160,7 +160,7 @@ static int it913x_sleep(struct dvb_frontend *fe)
 
 	/*
 	 * Writing '0x00' to master tuner register '0x80ec08' causes slave tuner
-	 * communication lost. Due to that, we cannot put master full sleep.
+	 * communication lost. Due to that, we canyest put master full sleep.
 	 */
 	if (dev->role == IT913X_ROLE_DUAL_MASTER)
 		len = 4;
@@ -318,7 +318,7 @@ static int it913x_set_params(struct dvb_frontend *fe)
 		goto err;
 	}
 
-	/* XXX: latest windows driver does not set that at all */
+	/* XXX: latest windows driver does yest set that at all */
 	ret = regmap_write(dev->regmap, 0x80ee06, lna_band);
 	if (ret)
 		goto err;

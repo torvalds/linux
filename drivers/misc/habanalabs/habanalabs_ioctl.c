@@ -357,7 +357,7 @@ static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
 	case HL_DEBUG_OP_TIMESTAMP:
 		if (!hdev->in_debug) {
 			dev_err_ratelimited(hdev->dev,
-				"Rejecting debug configuration request because device not in debug mode\n");
+				"Rejecting debug configuration request because device yest in debug mode\n");
 			return -EFAULT;
 		}
 		args->input_size =
@@ -411,11 +411,11 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 		return -ENODEV;
 	}
 
-	/* Do not trust userspace, use our own definition */
+	/* Do yest trust userspace, use our own definition */
 	func = ioctl->func;
 
 	if (unlikely(!func)) {
-		dev_dbg(dev, "no function\n");
+		dev_dbg(dev, "yes function\n");
 		retcode = -ENOTTY;
 		goto out_err;
 	}

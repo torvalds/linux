@@ -102,9 +102,9 @@ static ssize_t ci_port_test_write(struct file *file, const char __user *ubuf,
 	return ret ? ret : count;
 }
 
-static int ci_port_test_open(struct inode *inode, struct file *file)
+static int ci_port_test_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, ci_port_test_show, inode->i_private);
+	return single_open(file, ci_port_test_show, iyesde->i_private);
 }
 
 static const struct file_operations ci_port_test_fops = {
@@ -125,7 +125,7 @@ static int ci_qheads_show(struct seq_file *s, void *data)
 	unsigned i, j;
 
 	if (ci->role != CI_ROLE_GADGET) {
-		seq_printf(s, "not in gadget mode\n");
+		seq_printf(s, "yest in gadget mode\n");
 		return 0;
 	}
 
@@ -155,27 +155,27 @@ static int ci_requests_show(struct seq_file *s, void *data)
 	struct ci_hdrc *ci = s->private;
 	unsigned long flags;
 	struct ci_hw_req *req = NULL;
-	struct td_node *node, *tmpnode;
+	struct td_yesde *yesde, *tmpyesde;
 	unsigned i, j, qsize = sizeof(struct ci_hw_td)/sizeof(u32);
 
 	if (ci->role != CI_ROLE_GADGET) {
-		seq_printf(s, "not in gadget mode\n");
+		seq_printf(s, "yest in gadget mode\n");
 		return 0;
 	}
 
 	spin_lock_irqsave(&ci->lock, flags);
 	for (i = 0; i < ci->hw_ep_max; i++)
 		list_for_each_entry(req, &ci->ci_hw_ep[i].qh.queue, queue) {
-			list_for_each_entry_safe(node, tmpnode, &req->tds, td) {
+			list_for_each_entry_safe(yesde, tmpyesde, &req->tds, td) {
 				seq_printf(s, "EP=%02i: TD=%08X %s\n",
 					   i % (ci->hw_ep_max / 2),
-					   (u32)node->dma,
+					   (u32)yesde->dma,
 					   ((i < ci->hw_ep_max/2) ?
 					   "RX" : "TX"));
 
 				for (j = 0; j < qsize; j++)
 					seq_printf(s, " %04X:    %08X\n", j,
-						   *((u32 *)node->ptr + j));
+						   *((u32 *)yesde->ptr + j));
 			}
 		}
 	spin_unlock_irqrestore(&ci->lock, flags);
@@ -288,9 +288,9 @@ static ssize_t ci_role_write(struct file *file, const char __user *ubuf,
 	return ret ? ret : count;
 }
 
-static int ci_role_open(struct inode *inode, struct file *file)
+static int ci_role_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, ci_role_show, inode->i_private);
+	return single_open(file, ci_role_show, iyesde->i_private);
 }
 
 static const struct file_operations ci_role_fops = {

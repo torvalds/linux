@@ -137,7 +137,7 @@ static struct attribute *device_str_attr_create(const char *name, const char *st
 	return &attr->attr.attr;
 }
 
-static int imc_parse_event(struct device_node *np, const char *scale,
+static int imc_parse_event(struct device_yesde *np, const char *scale,
 				  const char *unit, const char *prefix,
 				  u32 base, struct imc_events *event)
 {
@@ -206,41 +206,41 @@ static void imc_free_events(struct imc_events *events, int nr_entries)
  * update_events_in_group: Update the "events" information in an attr_group
  *                         and assign the attr_group to the pmu "pmu".
  */
-static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
+static int update_events_in_group(struct device_yesde *yesde, struct imc_pmu *pmu)
 {
 	struct attribute_group *attr_group;
 	struct attribute **attrs, *dev_str;
-	struct device_node *np, *pmu_events;
+	struct device_yesde *np, *pmu_events;
 	u32 handle, base_reg;
 	int i = 0, j = 0, ct, ret;
 	const char *prefix, *g_scale, *g_unit;
 	const char *ev_val_str, *ev_scale_str, *ev_unit_str;
 
-	if (!of_property_read_u32(node, "events", &handle))
-		pmu_events = of_find_node_by_phandle(handle);
+	if (!of_property_read_u32(yesde, "events", &handle))
+		pmu_events = of_find_yesde_by_phandle(handle);
 	else
 		return 0;
 
-	/* Did not find any node with a given phandle */
+	/* Did yest find any yesde with a given phandle */
 	if (!pmu_events)
 		return 0;
 
-	/* Get a count of number of child nodes */
+	/* Get a count of number of child yesdes */
 	ct = of_get_child_count(pmu_events);
 
 	/* Get the event prefix */
-	if (of_property_read_string(node, "events-prefix", &prefix))
+	if (of_property_read_string(yesde, "events-prefix", &prefix))
 		return 0;
 
 	/* Get a global unit and scale data if available */
-	if (of_property_read_string(node, "scale", &g_scale))
+	if (of_property_read_string(yesde, "scale", &g_scale))
 		g_scale = NULL;
 
-	if (of_property_read_string(node, "unit", &g_unit))
+	if (of_property_read_string(yesde, "unit", &g_unit))
 		g_unit = NULL;
 
 	/* "reg" property gives out the base offset of the counters data */
-	of_property_read_u32(node, "reg", &base_reg);
+	of_property_read_u32(yesde, "reg", &base_reg);
 
 	/* Allocate memory for the events */
 	pmu->events = kcalloc(ct, sizeof(struct imc_events), GFP_KERNEL);
@@ -249,7 +249,7 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 
 	ct = 0;
 	/* Parse the events and update the struct */
-	for_each_child_of_node(pmu_events, np) {
+	for_each_child_of_yesde(pmu_events, np) {
 		ret = imc_parse_event(np, g_scale, g_unit, prefix, base_reg, &pmu->events[ct]);
 		if (!ret)
 			ct++;
@@ -265,8 +265,8 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	/*
 	 * Allocate memory for attributes.
 	 * Since we have count of events for this pmu, we also allocate
-	 * memory for the scale and unit attribute for now.
-	 * "ct" has the total event structs added from the events-parent node.
+	 * memory for the scale and unit attribute for yesw.
+	 * "ct" has the total event structs added from the events-parent yesde.
 	 * So allocate three times the "ct" (this includes event, event_scale and
 	 * event_unit).
 	 */
@@ -311,7 +311,7 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	return 0;
 }
 
-/* get_nest_pmu_ref: Return the imc_pmu_ref struct for the given node */
+/* get_nest_pmu_ref: Return the imc_pmu_ref struct for the given yesde */
 static struct imc_pmu_ref *get_nest_pmu_ref(int cpu)
 {
 	return per_cpu(local_nest_imc_refc, cpu);
@@ -338,7 +338,7 @@ static int ppc_nest_imc_cpu_offline(unsigned int cpu)
 
 	/*
 	 * Check in the designated list for this cpu. Dont bother
-	 * if not one of them.
+	 * if yest one of them.
 	 */
 	if (!cpumask_test_and_clear_cpu(cpu, &nest_imc_cpumask))
 		return 0;
@@ -346,10 +346,10 @@ static int ppc_nest_imc_cpu_offline(unsigned int cpu)
 	/*
 	 * Check whether nest_imc is registered. We could end up here if the
 	 * cpuhotplug callback registration fails. i.e, callback invokes the
-	 * offline path for all successfully registered nodes. At this stage,
-	 * nest_imc pmu will not be registered and we should return here.
+	 * offline path for all successfully registered yesdes. At this stage,
+	 * nest_imc pmu will yest be registered and we should return here.
 	 *
-	 * We return with a zero since this is not an offline failure. And
+	 * We return with a zero since this is yest an offline failure. And
 	 * cpuhp_setup_state() returns the actual failure reason to the caller,
 	 * which in turn will call the cleanup routine.
 	 */
@@ -360,8 +360,8 @@ static int ppc_nest_imc_cpu_offline(unsigned int cpu)
 	 * Now that this cpu is one of the designated,
 	 * find a next cpu a) which is online and b) in same chip.
 	 */
-	nid = cpu_to_node(cpu);
-	l_cpumask = cpumask_of_node(nid);
+	nid = cpu_to_yesde(cpu);
+	l_cpumask = cpumask_of_yesde(nid);
 	target = cpumask_last(l_cpumask);
 
 	/*
@@ -400,18 +400,18 @@ static int ppc_nest_imc_cpu_online(unsigned int cpu)
 	static struct cpumask tmp_mask;
 	int res;
 
-	/* Get the cpumask of this node */
-	l_cpumask = cpumask_of_node(cpu_to_node(cpu));
+	/* Get the cpumask of this yesde */
+	l_cpumask = cpumask_of_yesde(cpu_to_yesde(cpu));
 
 	/*
-	 * If this is not the first online CPU on this node, then
+	 * If this is yest the first online CPU on this yesde, then
 	 * just return.
 	 */
 	if (cpumask_and(&tmp_mask, l_cpumask, &nest_imc_cpumask))
 		return 0;
 
 	/*
-	 * If this is the first online cpu on this node
+	 * If this is the first online cpu on this yesde
 	 * disable the nest counters by making an OPAL call.
 	 */
 	res = opal_imc_counters_stop(OPAL_IMC_COUNTERS_NEST,
@@ -434,35 +434,35 @@ static int nest_pmu_cpumask_init(void)
 
 static void nest_imc_counters_release(struct perf_event *event)
 {
-	int rc, node_id;
+	int rc, yesde_id;
 	struct imc_pmu_ref *ref;
 
 	if (event->cpu < 0)
 		return;
 
-	node_id = cpu_to_node(event->cpu);
+	yesde_id = cpu_to_yesde(event->cpu);
 
 	/*
 	 * See if we need to disable the nest PMU.
-	 * If no events are currently in use, then we have to take a
-	 * mutex to ensure that we don't race with another task doing
+	 * If yes events are currently in use, then we have to take a
+	 * mutex to ensure that we don't race with ayesther task doing
 	 * enable or disable the nest counters.
 	 */
 	ref = get_nest_pmu_ref(event->cpu);
 	if (!ref)
 		return;
 
-	/* Take the mutex lock for this node and then decrement the reference count */
+	/* Take the mutex lock for this yesde and then decrement the reference count */
 	mutex_lock(&ref->lock);
 	if (ref->refc == 0) {
 		/*
 		 * The scenario where this is true is, when perf session is
-		 * started, followed by offlining of all cpus in a given node.
+		 * started, followed by offlining of all cpus in a given yesde.
 		 *
 		 * In the cpuhotplug offline path, ppc_nest_imc_cpu_offline()
 		 * function set the ref->count to zero, if the cpu which is
-		 * about to offline is the last cpu in a given node and make
-		 * an OPAL call to disable the engine in that node.
+		 * about to offline is the last cpu in a given yesde and make
+		 * an OPAL call to disable the engine in that yesde.
 		 *
 		 */
 		mutex_unlock(&ref->lock);
@@ -474,7 +474,7 @@ static void nest_imc_counters_release(struct perf_event *event)
 					    get_hard_smp_processor_id(event->cpu));
 		if (rc) {
 			mutex_unlock(&ref->lock);
-			pr_err("nest-imc: Unable to stop the counters for core %d\n", node_id);
+			pr_err("nest-imc: Unable to stop the counters for core %d\n", yesde_id);
 			return;
 		}
 	} else if (ref->refc < 0) {
@@ -486,7 +486,7 @@ static void nest_imc_counters_release(struct perf_event *event)
 
 static int nest_imc_event_init(struct perf_event *event)
 {
-	int chip_id, rc, node_id;
+	int chip_id, rc, yesde_id;
 	u32 l_config, config = event->attr.config;
 	struct imc_mem_info *pcni;
 	struct imc_pmu *pmu;
@@ -496,7 +496,7 @@ static int nest_imc_event_init(struct perf_event *event)
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
 
-	/* Sampling not supported */
+	/* Sampling yest supported */
 	if (event->hw.sample_period)
 		return -EINVAL;
 
@@ -515,7 +515,7 @@ static int nest_imc_event_init(struct perf_event *event)
 	 */
 	chip_id = cpu_to_chip_id(event->cpu);
 
-	/* Return, if chip_id is not valid */
+	/* Return, if chip_id is yest valid */
 	if (chip_id < 0)
 		return -ENODEV;
 
@@ -536,10 +536,10 @@ static int nest_imc_event_init(struct perf_event *event)
 	 */
 	l_config = config & IMC_EVENT_OFFSET_MASK;
 	event->hw.event_base = (u64)pcni->vbase + l_config;
-	node_id = cpu_to_node(event->cpu);
+	yesde_id = cpu_to_yesde(event->cpu);
 
 	/*
-	 * Get the imc_pmu_ref struct for this node.
+	 * Get the imc_pmu_ref struct for this yesde.
 	 * Take the mutex lock and then increment the count of nest pmu events
 	 * inited.
 	 */
@@ -553,8 +553,8 @@ static int nest_imc_event_init(struct perf_event *event)
 					     get_hard_smp_processor_id(event->cpu));
 		if (rc) {
 			mutex_unlock(&ref->lock);
-			pr_err("nest-imc: Unable to start the counters for node %d\n",
-									node_id);
+			pr_err("nest-imc: Unable to start the counters for yesde %d\n",
+									yesde_id);
 			return rc;
 		}
 	}
@@ -568,7 +568,7 @@ static int nest_imc_event_init(struct perf_event *event)
 /*
  * core_imc_mem_init : Initializes memory for the current core.
  *
- * Uses alloc_pages_node() and uses the returned address as an argument to
+ * Uses alloc_pages_yesde() and uses the returned address as an argument to
  * an opal call to configure the pdbar. The address sent as an argument is
  * converted to physical address before the opal call is made. This is the
  * base address at which the core imc counters are populated.
@@ -580,15 +580,15 @@ static int core_imc_mem_init(int cpu, int size)
 	struct page *page;
 
 	/*
-	 * alloc_pages_node() will allocate memory for core in the
-	 * local node only.
+	 * alloc_pages_yesde() will allocate memory for core in the
+	 * local yesde only.
 	 */
-	nid = cpu_to_node(cpu);
+	nid = cpu_to_yesde(cpu);
 	mem_info = &core_imc_pmu->mem_info[core_id];
 	mem_info->id = core_id;
 
 	/* We need only vbase for core counters */
-	page = alloc_pages_node(nid,
+	page = alloc_pages_yesde(nid,
 				GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
 				__GFP_NOWARN, get_order(size));
 	if (!page)
@@ -655,7 +655,7 @@ static int ppc_core_imc_cpu_offline(unsigned int cpu)
 	struct imc_pmu_ref *ref;
 
 	/*
-	 * clear this cpu out of the mask, if not present in the mask,
+	 * clear this cpu out of the mask, if yest present in the mask,
 	 * don't bother doing anything.
 	 */
 	if (!cpumask_test_and_clear_cpu(cpu, &core_imc_cpumask))
@@ -665,10 +665,10 @@ static int ppc_core_imc_cpu_offline(unsigned int cpu)
 	 * Check whether core_imc is registered. We could end up here
 	 * if the cpuhotplug callback registration fails. i.e, callback
 	 * invokes the offline path for all sucessfully registered cpus.
-	 * At this stage, core_imc pmu will not be registered and we
+	 * At this stage, core_imc pmu will yest be registered and we
 	 * should return here.
 	 *
-	 * We return with a zero since this is not an offline failure.
+	 * We return with a zero since this is yest an offline failure.
 	 * And cpuhp_setup_state() returns the actual failure reason
 	 * to the caller, which inturn will call the cleanup routine.
 	 */
@@ -719,8 +719,8 @@ static void core_imc_counters_release(struct perf_event *event)
 		return;
 	/*
 	 * See if we need to disable the IMC PMU.
-	 * If no events are currently in use, then we have to take a
-	 * mutex to ensure that we don't race with another task doing
+	 * If yes events are currently in use, then we have to take a
+	 * mutex to ensure that we don't race with ayesther task doing
 	 * enable or disable the core counters.
 	 */
 	core_id = event->cpu / threads_per_core;
@@ -772,7 +772,7 @@ static int core_imc_event_init(struct perf_event *event)
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
 
-	/* Sampling not supported */
+	/* Sampling yest supported */
 	if (event->hw.sample_period)
 		return -EINVAL;
 
@@ -802,8 +802,8 @@ static int core_imc_event_init(struct perf_event *event)
 	/*
 	 * Core pmu units are enabled only when it is used.
 	 * See if this is triggered for the first time.
-	 * If yes, take the mutex lock and enable the core counters.
-	 * If not, just increment the count in core_imc_refc struct.
+	 * If no, take the mutex lock and enable the core counters.
+	 * If yest, just increment the count in core_imc_refc struct.
 	 */
 	mutex_lock(&ref->lock);
 	if (ref->refc == 0) {
@@ -848,7 +848,7 @@ static int core_imc_event_init(struct perf_event *event)
 static int thread_imc_mem_alloc(int cpu_id, int size)
 {
 	u64 *local_mem = per_cpu(thread_imc_mem, cpu_id);
-	int nid = cpu_to_node(cpu_id);
+	int nid = cpu_to_yesde(cpu_id);
 
 	if (!local_mem) {
 		struct page *page;
@@ -856,7 +856,7 @@ static int thread_imc_mem_alloc(int cpu_id, int size)
 		 * This case could happen only once at start, since we dont
 		 * free the memory in cpu offline path.
 		 */
-		page = alloc_pages_node(nid,
+		page = alloc_pages_yesde(nid,
 				  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
 				  __GFP_NOWARN, get_order(size));
 		if (!page)
@@ -901,7 +901,7 @@ static int thread_imc_event_init(struct perf_event *event)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	/* Sampling not supported */
+	/* Sampling yest supported */
 	if (event->hw.sample_period)
 		return -EINVAL;
 
@@ -1035,8 +1035,8 @@ static int thread_imc_event_add(struct perf_event *event, int flags)
 	/*
 	 * imc pmus are enabled only when it is used.
 	 * See if this is triggered for the first time.
-	 * If yes, take the mutex lock and enable the counters.
-	 * If not, just increment the count in ref count struct.
+	 * If no, take the mutex lock and enable the counters.
+	 * If yest, just increment the count in ref count struct.
 	 */
 	ref = &core_imc_refc[core_id];
 	if (!ref)
@@ -1095,13 +1095,13 @@ static void thread_imc_event_del(struct perf_event *event, int flags)
 static int trace_imc_mem_alloc(int cpu_id, int size)
 {
 	u64 *local_mem = per_cpu(trace_imc_mem, cpu_id);
-	int phys_id = cpu_to_node(cpu_id), rc = 0;
+	int phys_id = cpu_to_yesde(cpu_id), rc = 0;
 	int core_id = (cpu_id / threads_per_core);
 
 	if (!local_mem) {
 		struct page *page;
 
-		page = alloc_pages_node(phys_id,
+		page = alloc_pages_yesde(phys_id,
 				GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
 				__GFP_NOWARN, get_order(size));
 		if (!page)
@@ -1118,7 +1118,7 @@ static int trace_imc_mem_alloc(int cpu_id, int size)
 		}
 	}
 
-	/* Init the mutex, if not already */
+	/* Init the mutex, if yest already */
 	trace_imc_refc[core_id].id = core_id;
 	mutex_init(&trace_imc_refc[core_id].lock);
 
@@ -1201,7 +1201,7 @@ static void dump_trace_imc_data(struct perf_event *event)
 		struct perf_event_header header;
 
 		ret = trace_imc_prepare_sample(mem, &data, &prev_tb, &header, event);
-		if (ret) /* Exit, if not a valid record */
+		if (ret) /* Exit, if yest a valid record */
 			break;
 		else {
 			/* If this is a valid record, create the sample */
@@ -1229,7 +1229,7 @@ static int trace_imc_event_add(struct perf_event *event, int flags)
 	if (core_imc_refc)
 		ref = &core_imc_refc[core_id];
 	if (!ref) {
-		/* If core-imc is not enabled, use trace-imc reference count */
+		/* If core-imc is yest enabled, use trace-imc reference count */
 		if (trace_imc_refc)
 			ref = &trace_imc_refc[core_id];
 		if (!ref)
@@ -1277,7 +1277,7 @@ static void trace_imc_event_del(struct perf_event *event, int flags)
 	if (core_imc_refc)
 		ref = &core_imc_refc[core_id];
 	if (!ref) {
-		/* If core-imc is not enabled, use trace-imc reference count */
+		/* If core-imc is yest enabled, use trace-imc reference count */
 		if (trace_imc_refc)
 			ref = &trace_imc_refc[core_id];
 		if (!ref)
@@ -1366,19 +1366,19 @@ static int update_pmu_ops(struct imc_pmu *pmu)
 	return 0;
 }
 
-/* init_nest_pmu_ref: Initialize the imc_pmu_ref struct for all the nodes */
+/* init_nest_pmu_ref: Initialize the imc_pmu_ref struct for all the yesdes */
 static int init_nest_pmu_ref(void)
 {
 	int nid, i, cpu;
 
-	nest_imc_refc = kcalloc(num_possible_nodes(), sizeof(*nest_imc_refc),
+	nest_imc_refc = kcalloc(num_possible_yesdes(), sizeof(*nest_imc_refc),
 								GFP_KERNEL);
 
 	if (!nest_imc_refc)
 		return -ENOMEM;
 
 	i = 0;
-	for_each_node(nid) {
+	for_each_yesde(nid) {
 		/*
 		 * Mutex lock to avoid races while tracking the number of
 		 * sessions using the chip's nest pmu units.
@@ -1386,10 +1386,10 @@ static int init_nest_pmu_ref(void)
 		mutex_init(&nest_imc_refc[i].lock);
 
 		/*
-		 * Loop to init the "id" with the node_id. Variable "i" initialized to
-		 * 0 and will be used as index to the array. "i" will not go off the
-		 * end of the array since the "for_each_node" loops for "N_POSSIBLE"
-		 * nodes only.
+		 * Loop to init the "id" with the yesde_id. Variable "i" initialized to
+		 * 0 and will be used as index to the array. "i" will yest go off the
+		 * end of the array since the "for_each_yesde" loops for "N_POSSIBLE"
+		 * yesdes only.
 		 */
 		nest_imc_refc[i++].id = nid;
 	}
@@ -1399,8 +1399,8 @@ static int init_nest_pmu_ref(void)
 	 * "nest_imc_refc" index. This makes get_nest_pmu_ref() alot simple.
 	 */
 	for_each_possible_cpu(cpu) {
-		nid = cpu_to_node(cpu);
-		for (i = 0; i < num_possible_nodes(); i++) {
+		nid = cpu_to_yesde(cpu);
+		for (i = 0; i < num_possible_yesdes(); i++) {
 			if (nest_imc_refc[i].id == nid) {
 				per_cpu(local_nest_imc_refc, cpu) = &nest_imc_refc[i];
 				break;
@@ -1513,7 +1513,7 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 
 /*
  * Function to unregister thread-imc if core-imc
- * is not registered.
+ * is yest registered.
  */
 void unregister_thread_imc(void)
 {
@@ -1525,7 +1525,7 @@ void unregister_thread_imc(void)
 /*
  * imc_mem_init : Function to support memory allocation for core imc.
  */
-static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
+static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_yesde *parent,
 								int pmu_index)
 {
 	const char *s;
@@ -1624,14 +1624,14 @@ err:
 /*
  * init_imc_pmu : Setup and register the IMC pmu device.
  *
- * @parent:	Device tree unit node
+ * @parent:	Device tree unit yesde
  * @pmu_ptr:	memory allocated for this pmu
  * @pmu_idx:	Count of nest pmc registered
  *
  * init_imc_pmu() setup pmu cpumask and registers for a cpu hotplug callback.
  * Handles failure cases and accordingly frees memory.
  */
-int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_idx)
+int init_imc_pmu(struct device_yesde *parent, struct imc_pmu *pmu_ptr, int pmu_idx)
 {
 	int ret;
 
@@ -1656,7 +1656,7 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 				per_nest_pmu_arr = NULL;
 				goto err_free_mem;
 			}
-			/* Register for cpu hotplug notification. */
+			/* Register for cpu hotplug yestification. */
 			ret = nest_pmu_cpumask_init();
 			if (ret) {
 				mutex_unlock(&nest_init_lock);
@@ -1694,7 +1694,7 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 
 		break;
 	default:
-		return  -EINVAL;	/* Unknown domain */
+		return  -EINVAL;	/* Unkyeswn domain */
 	}
 
 	ret = update_events_in_group(parent, pmu_ptr);

@@ -58,7 +58,7 @@ enum phy_mdm6600_cmd {
 	PHY_MDM6600_CMD_BP_PANIC_ACK,
 	PHY_MDM6600_CMD_DATA_ONLY_BYPASS,	/* Reroute USB to CPCAP PHY */
 	PHY_MDM6600_CMD_FULL_BYPASS,		/* Reroute USB to CPCAP PHY */
-	PHY_MDM6600_CMD_NO_BYPASS,		/* Request normal USB mode */
+	PHY_MDM6600_CMD_NO_BYPASS,		/* Request yesrmal USB mode */
 	PHY_MDM6600_CMD_BP_SHUTDOWN_REQ,	/* Request device power off */
 	PHY_MDM6600_CMD_BP_UNKNOWN_5,
 	PHY_MDM6600_CMD_BP_UNKNOWN_6,
@@ -74,7 +74,7 @@ enum phy_mdm6600_status {
 	PHY_MDM6600_STATUS_PANIC_BUSY_WAIT,
 	PHY_MDM6600_STATUS_QC_DLOAD,
 	PHY_MDM6600_STATUS_RAM_DOWNLOADER,	/* MDM6600 USB flashing mode */
-	PHY_MDM6600_STATUS_PHONE_CODE_AWAKE,	/* MDM6600 normal USB mode */
+	PHY_MDM6600_STATUS_PHONE_CODE_AWAKE,	/* MDM6600 yesrmal USB mode */
 	PHY_MDM6600_STATUS_PHONE_CODE_ASLEEP,
 	PHY_MDM6600_STATUS_SHUTDOWN_ACK,
 	PHY_MDM6600_STATUS_UNDEFINED,
@@ -237,7 +237,7 @@ static irqreturn_t phy_mdm6600_irq_thread(int irq, void *data)
  * GPIO mode1 is used initially as output to configure the USB boot
  * mode for mdm6600. After booting it is used as input for OOB wake
  * signal from mdm6600 to the SoC. Just use it for debug info only
- * for now.
+ * for yesw.
  */
 static irqreturn_t phy_mdm6600_wakeirq_thread(int irq, void *data)
 {
@@ -276,7 +276,7 @@ static void phy_mdm6600_init_irq(struct phy_mdm6600 *ddata)
 					"mdm6600",
 					ddata);
 		if (error)
-			dev_warn(dev, "no modem status irq%i: %i\n",
+			dev_warn(dev, "yes modem status irq%i: %i\n",
 				 irq, error);
 	}
 }
@@ -367,7 +367,7 @@ static int phy_mdm6600_device_power_on(struct phy_mdm6600 *ddata)
 	power_gpio = ddata->ctrl_gpios[PHY_MDM6600_POWER];
 
 	/*
-	 * Shared GPIOs must be low for normal USB mode. After booting
+	 * Shared GPIOs must be low for yesrmal USB mode. After booting
 	 * they are used for OOB wake signaling. These can be also used
 	 * to configure USB flashing mode later on based on a module
 	 * parameter.
@@ -424,7 +424,7 @@ static int phy_mdm6600_device_power_on(struct phy_mdm6600 *ddata)
 					  "mdm6600-wake",
 					  ddata);
 	if (error)
-		dev_warn(ddata->dev, "no modem wakeirq irq%i: %i\n",
+		dev_warn(ddata->dev, "yes modem wakeirq irq%i: %i\n",
 			 wakeirq, error);
 
 	ddata->running = true;
@@ -466,13 +466,13 @@ static void phy_mdm6600_deferred_power_on(struct work_struct *work)
 
 	error = phy_mdm6600_device_power_on(ddata);
 	if (error)
-		dev_err(ddata->dev, "Device not functional\n");
+		dev_err(ddata->dev, "Device yest functional\n");
 }
 
 /*
  * USB suspend puts mdm6600 into low power mode. For any n_gsm using apps,
  * we need to keep the modem awake by kicking it's mode0 GPIO. This will
- * keep the modem awake for about 1.2 seconds. When no n_gsm apps are using
+ * keep the modem awake for about 1.2 seconds. When yes n_gsm apps are using
  * the modem, runtime PM auto mode can be enabled so modem can enter low
  * power mode.
  */
@@ -582,7 +582,7 @@ static int phy_mdm6600_probe(struct platform_device *pdev)
 	error = pm_runtime_get_sync(ddata->dev);
 	if (error < 0) {
 		dev_warn(ddata->dev, "failed to wake modem: %i\n", error);
-		pm_runtime_put_noidle(ddata->dev);
+		pm_runtime_put_yesidle(ddata->dev);
 		goto cleanup;
 	}
 

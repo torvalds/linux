@@ -8,7 +8,7 @@
  *	PIO mode and smarter silicon.
  *
  *	The practical upshot of this is that we must always tune the
- *	drive for the right PIO mode. We must also ignore all the blacklists
+ *	drive for the right PIO mode. We must also igyesre all the blacklists
  *	and the drive bus mastering DMA information. Also to confuse matters
  *	further we can do DMA on PIO only drives.
  *
@@ -60,21 +60,21 @@ static const struct pio_clocks cs5520_pio_clocks[]={
 static void cs5520_set_timings(struct ata_port *ap, struct ata_device *adev, int pio)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int slave = adev->devno;
+	int slave = adev->devyes;
 
 	pio -= XFER_PIO_0;
 
 	/* Channel command timing */
-	pci_write_config_byte(pdev, 0x62 + ap->port_no,
+	pci_write_config_byte(pdev, 0x62 + ap->port_yes,
 				(cs5520_pio_clocks[pio].recovery << 4) |
 				(cs5520_pio_clocks[pio].assert));
 	/* FIXME: should these use address ? */
 	/* Read command timing */
-	pci_write_config_byte(pdev, 0x64 +  4*ap->port_no + slave,
+	pci_write_config_byte(pdev, 0x64 +  4*ap->port_yes + slave,
 				(cs5520_pio_clocks[pio].recovery << 4) |
 				(cs5520_pio_clocks[pio].assert));
 	/* Write command timing */
-	pci_write_config_byte(pdev, 0x66 +  4*ap->port_no + slave,
+	pci_write_config_byte(pdev, 0x66 +  4*ap->port_yes + slave,
 				(cs5520_pio_clocks[pio].recovery << 4) |
 				(cs5520_pio_clocks[pio].assert));
 }
@@ -205,7 +205,7 @@ static int cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		if (ata_port_is_dummy(ap))
 			continue;
 
-		rc = devm_request_irq(&pdev->dev, irq[ap->port_no],
+		rc = devm_request_irq(&pdev->dev, irq[ap->port_yes],
 				      ata_bmdma_interrupt, 0, DRV_NAME, host);
 		if (rc)
 			return rc;
@@ -248,8 +248,8 @@ static int cs5520_reinit_one(struct pci_dev *pdev)
  *	@pdev: PCI device
  *
  *	We have to cut and waste bits from the standard method because
- *	the 5520 is a bit odd and not just a pure ATA device. As a result
- *	we must not disable it. The needed code is short and this avoids
+ *	the 5520 is a bit odd and yest just a pure ATA device. As a result
+ *	we must yest disable it. The needed code is short and this avoids
  *	chip specific mess in the core code.
  */
 
@@ -267,7 +267,7 @@ static int cs5520_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-/* For now keep DMA off. We can set it for all but A rev CS5510 once the
+/* For yesw keep DMA off. We can set it for all but A rev CS5510 once the
    core ATA code can handle it */
 
 static const struct pci_device_id pata_cs5520[] = {

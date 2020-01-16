@@ -45,7 +45,7 @@ static unsigned short keycode_kore[] = {
 	BTN_7,
 	BTN_6,
 	BTN_5,
-	KEY_BRL_DOT4,   /* touch sensitive knobs */
+	KEY_BRL_DOT4,   /* touch sensitive kyesbs */
 	KEY_BRL_DOT3,
 	KEY_BRL_DOT2,
 	KEY_BRL_DOT1,
@@ -106,7 +106,7 @@ static unsigned short keycode_maschine[] = {
 	MASCHINE_BUTTON(9),
 	MASCHINE_BUTTON(8),
 
-	MASCHINE_BUTTON(16), /* note repeat */
+	MASCHINE_BUTTON(16), /* yeste repeat */
 	MASCHINE_BUTTON(29)  /* play        */
 };
 
@@ -167,7 +167,7 @@ static unsigned int decode_erp(unsigned char a, unsigned char b)
 	/* 0..99 x DEG360 */
 	ret = pos_a * weight_a + pos_b * weight_b;
 
-	/* normalize to 0..999 */
+	/* yesrmalize to 0..999 */
 	ret *= 10;
 	ret /= DEG360;
 
@@ -803,7 +803,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 		break;
 
 	default:
-		/* no input methods supported on this device */
+		/* yes input methods supported on this device */
 		goto exit_free_idev;
 	}
 

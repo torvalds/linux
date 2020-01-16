@@ -57,7 +57,7 @@ int mpc52xx_set_wakeup_gpio(u8 pin, u8 level)
 
 int mpc52xx_pm_prepare(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id immr_ids[] = {
 		{ .compatible = "fsl,mpc5200-immr", },
 		{ .compatible = "fsl,mpc5200b-immr", },
@@ -68,19 +68,19 @@ int mpc52xx_pm_prepare(void)
 	struct resource res;
 
 	/* map the whole register space */
-	np = of_find_matching_node(NULL, immr_ids);
+	np = of_find_matching_yesde(NULL, immr_ids);
 
 	if (of_address_to_resource(np, 0, &res)) {
-		pr_err("mpc52xx_pm_prepare(): could not get IMMR address\n");
-		of_node_put(np);
+		pr_err("mpc52xx_pm_prepare(): could yest get IMMR address\n");
+		of_yesde_put(np);
 		return -ENOSYS;
 	}
 
 	mbar = ioremap(res.start, 0xc000); /* we should map whole region including SRAM */
 
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!mbar) {
-		pr_err("mpc52xx_pm_prepare(): could not map registers\n");
+		pr_err("mpc52xx_pm_prepare(): could yest map registers\n");
 		return -ENOSYS;
 	}
 	/* these offsets are from mpc5200 users manual */
@@ -95,7 +95,7 @@ int mpc52xx_pm_prepare(void)
 	if (mpc52xx_suspend.board_suspend_prepare)
 		mpc52xx_suspend.board_suspend_prepare(mbar);
 	else {
-		printk(KERN_ALERT "%s: %i don't know how to wake up the board\n",
+		printk(KERN_ALERT "%s: %i don't kyesw how to wake up the board\n",
 				__func__, __LINE__);
 		goto out_unmap;
 	}

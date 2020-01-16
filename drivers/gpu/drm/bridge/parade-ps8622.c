@@ -216,7 +216,7 @@ static int ps8622_send_config(struct ps8622_bridge *ps8622)
 	if (err)
 		goto error;
 
-	/* 04h Adjust VTotal toleranceto fix the 30Hz no display issue */
+	/* 04h Adjust VTotal toleranceto fix the 30Hz yes display issue */
 	err = ps8622_set(cl, 0x00, 0x4c, 0x04);
 	if (err)
 		goto error;
@@ -271,7 +271,7 @@ static int ps8622_send_config(struct ps8622_bridge *ps8622)
 	if (err)
 		goto error;
 
-	/* DPCD40B, Initial Code minor revision '05' */
+	/* DPCD40B, Initial Code miyesr revision '05' */
 	err = ps8622_set(cl, 0x01, 0xcb, 0x05);
 	if (err)
 		goto error;
@@ -482,7 +482,7 @@ static int ps8622_attach(struct drm_bridge *bridge)
 	int ret;
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
+		DRM_ERROR("Parent encoder object yest found");
 		return -ENODEV;
 	}
 
@@ -533,7 +533,7 @@ static int ps8622_probe(struct i2c_client *client,
 	if (!ps8622)
 		return -ENOMEM;
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &ps8622->panel, NULL);
+	ret = drm_of_find_panel_or_bridge(dev->of_yesde, 0, 0, &ps8622->panel, NULL);
 	if (ret)
 		return ret;
 
@@ -541,14 +541,14 @@ static int ps8622_probe(struct i2c_client *client,
 
 	ps8622->v12 = devm_regulator_get(dev, "vdd12");
 	if (IS_ERR(ps8622->v12)) {
-		dev_info(dev, "no 1.2v regulator found for PS8622\n");
+		dev_info(dev, "yes 1.2v regulator found for PS8622\n");
 		ps8622->v12 = NULL;
 	}
 
 	ps8622->gpio_slp = devm_gpiod_get(dev, "sleep", GPIOD_OUT_HIGH);
 	if (IS_ERR(ps8622->gpio_slp)) {
 		ret = PTR_ERR(ps8622->gpio_slp);
-		dev_err(dev, "cannot get gpio_slp %d\n", ret);
+		dev_err(dev, "canyest get gpio_slp %d\n", ret);
 		return ret;
 	}
 
@@ -559,13 +559,13 @@ static int ps8622_probe(struct i2c_client *client,
 	ps8622->gpio_rst = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ps8622->gpio_rst)) {
 		ret = PTR_ERR(ps8622->gpio_rst);
-		dev_err(dev, "cannot get gpio_rst %d\n", ret);
+		dev_err(dev, "canyest get gpio_rst %d\n", ret);
 		return ret;
 	}
 
 	ps8622->max_lane_count = id->driver_data;
 
-	if (of_property_read_u32(dev->of_node, "lane-count",
+	if (of_property_read_u32(dev->of_yesde, "lane-count",
 						&ps8622->lane_count)) {
 		ps8622->lane_count = ps8622->max_lane_count;
 	} else if (ps8622->lane_count > ps8622->max_lane_count) {
@@ -574,7 +574,7 @@ static int ps8622_probe(struct i2c_client *client,
 		ps8622->lane_count = ps8622->max_lane_count;
 	}
 
-	if (!of_find_property(dev->of_node, "use-external-pwm", NULL)) {
+	if (!of_find_property(dev->of_yesde, "use-external-pwm", NULL)) {
 		ps8622->bl = backlight_device_register("ps8622-backlight",
 				dev, ps8622, &ps8622_backlight_ops,
 				NULL);
@@ -589,7 +589,7 @@ static int ps8622_probe(struct i2c_client *client,
 	}
 
 	ps8622->bridge.funcs = &ps8622_bridge_funcs;
-	ps8622->bridge.of_node = dev->of_node;
+	ps8622->bridge.of_yesde = dev->of_yesde;
 	drm_bridge_add(&ps8622->bridge);
 
 	i2c_set_clientdata(client, ps8622);

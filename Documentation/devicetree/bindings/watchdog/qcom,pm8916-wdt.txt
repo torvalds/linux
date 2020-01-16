@@ -1,6 +1,6 @@
 QCOM PM8916 watchdog timer controller
 
-This pm8916 watchdog timer controller must be under pm8916-pon node.
+This pm8916 watchdog timer controller must be under pm8916-pon yesde.
 
 Required properties:
 - compatible: should be "qcom,pm8916-wdt"

@@ -12,7 +12,7 @@
  *
  * The hash is always changed with the tasklist_lock write-acquired,
  * and the hash is only accessed with the tasklist_lock at least
- * read-acquired, so there's no additional SMP locking needed here.
+ * read-acquired, so there's yes additional SMP locking needed here.
  *
  * We have a list of bitmap pages, which bitmaps represent the PID space.
  * Allocating and freeing PIDs is completely lockless. The worst-case
@@ -21,7 +21,7 @@
  * bytes. The typical fastpath is a single successful setbit. Freeing is O(1).
  *
  * Pid namespaces:
- *    (C) 2007 Pavel Emelyanov <xemul@openvz.org>, OpenVZ, SWsoft Inc.
+ *    (C) 2007 Pavel Emelyayesv <xemul@openvz.org>, OpenVZ, SWsoft Inc.
  *    (C) 2007 Sukadev Bhattiprolu <sukadev@us.ibm.com>, IBM
  *     Many thanks to Oleg Nesterov for comments and help
  *
@@ -38,7 +38,7 @@
 #include <linux/syscalls.h>
 #include <linux/proc_ns.h>
 #include <linux/refcount.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
 #include <linux/idr.h>
@@ -67,7 +67,7 @@ int pid_max_max = PID_MAX_LIMIT;
 /*
  * PID-map pages start out as NULL, they get allocated upon
  * first use and are never deallocated. This way a low pid_max
- * value does not cause lots of bitmaps to be allocated, but
+ * value does yest cause lots of bitmaps to be allocated, but
  * the scheme scales to up to 4 million PIDs, runtime.
  */
 struct pid_namespace init_pid_ns = {
@@ -89,13 +89,13 @@ EXPORT_SYMBOL_GPL(init_pid_ns);
  * interrupt might come in and do read_lock(&tasklist_lock).
  *
  * If we don't disable interrupts there is a nasty deadlock between
- * detach_pid()->free_pid() and another cpu that does
+ * detach_pid()->free_pid() and ayesther cpu that does
  * spin_lock(&pidmap_lock) followed by an interrupt routine that does
  * read_lock(&tasklist_lock);
  *
- * After we clean up the tasklist_lock and know there are no
+ * After we clean up the tasklist_lock and kyesw there are yes
  * irq handlers that take it we can leave the interrupts enabled.
- * For now it is easier to be safe than to prove it can't happen.
+ * For yesw it is easier to be safe than to prove it can't happen.
  */
 
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
@@ -171,7 +171,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 	 * set_tid_size contains the size of the set_tid array. Starting at
 	 * the most nested currently active PID namespace it tells alloc_pid()
 	 * which PID to set for a process in that most nested PID namespace
-	 * up to set_tid_size PID namespaces. It does not have to set the PID
+	 * up to set_tid_size PID namespaces. It does yest have to set the PID
 	 * for a process in all nested PID namespaces but set_tid_size must
 	 * never be greater than the current ns->level + 1.
 	 */
@@ -196,7 +196,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 				goto out_free;
 			/*
 			 * Also fail if a PID != 1 is requested and
-			 * no PID 1 exists.
+			 * yes PID 1 exists.
 			 */
 			if (tid != 1 && !tmp->child_reaper)
 				goto out_free;
@@ -228,7 +228,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 				pid_min = RESERVED_PIDS;
 
 			/*
-			 * Store a null pointer so find_pid_ns does not find
+			 * Store a null pointer so find_pid_ns does yest find
 			 * a partially initialized PID (see below).
 			 */
 			nr = idr_alloc_cyclic(&tmp->idr, NULL, pid_min,
@@ -372,7 +372,7 @@ struct task_struct *pid_task(struct pid *pid, enum pid_type type)
 {
 	struct task_struct *result = NULL;
 	if (pid) {
-		struct hlist_node *first;
+		struct hlist_yesde *first;
 		first = rcu_dereference_check(hlist_first_rcu(&pid->tasks[type]),
 					      lockdep_tasklist_lock_is_held());
 		if (first)
@@ -507,13 +507,13 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
  * been unshared to avoid leaking the pidfd to the new process.
  *
  * Return: On success, a cloexec pidfd is returned.
- *         On error, a negative errno number will be returned.
+ *         On error, a negative erryes number will be returned.
  */
 static int pidfd_create(struct pid *pid)
 {
 	int fd;
 
-	fd = anon_inode_getfd("[pidfd]", &pidfd_fops, get_pid(pid),
+	fd = ayesn_iyesde_getfd("[pidfd]", &pidfd_fops, get_pid(pid),
 			      O_RDWR | O_CLOEXEC);
 	if (fd < 0)
 		put_pid(pid);
@@ -530,12 +530,12 @@ static int pidfd_create(struct pid *pid)
  * This creates a new pid file descriptor with the O_CLOEXEC flag set for
  * the process identified by @pid. Currently, the process identified by
  * @pid must be a thread-group leader. This restriction currently exists
- * for all aspects of pidfds including pidfd creation (CLONE_PIDFD cannot
+ * for all aspects of pidfds including pidfd creation (CLONE_PIDFD canyest
  * be used with CLONE_THREAD) and pidfd polling (only supports thread group
  * leaders).
  *
  * Return: On success, a cloexec pidfd is returned.
- *         On error, a negative errno number will be returned.
+ *         On error, a negative erryes number will be returned.
  */
 SYSCALL_DEFINE2(pidfd_open, pid_t, pid, unsigned int, flags)
 {
@@ -563,7 +563,7 @@ SYSCALL_DEFINE2(pidfd_open, pid_t, pid, unsigned int, flags)
 
 void __init pid_idr_init(void)
 {
-	/* Verify no one has done anything silly: */
+	/* Verify yes one has done anything silly: */
 	BUILD_BUG_ON(PID_MAX_LIMIT >= PIDNS_ADDING);
 
 	/* bump default and minimum pid_max based on number of cpus */

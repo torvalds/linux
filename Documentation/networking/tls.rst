@@ -87,7 +87,7 @@ length (2^14).
 
 TLS records are created and sent after each send() call, unless
 MSG_MORE is passed.  MSG_MORE will delay creation of a record until
-MSG_MORE is not passed, or the maximum record size is reached.
+MSG_MORE is yest passed, or the maximum record size is reached.
 
 The kernel will need to allocate a buffer for the encrypted data.
 This buffer is allocated at the time send() is called, such that
@@ -109,11 +109,11 @@ be received before decryption can happen.
   recv(sock, buffer, 16384);
 
 Received data is decrypted directly in to the user buffer if it is
-large enough, and no additional allocations occur.  If the userspace
+large eyesugh, and yes additional allocations occur.  If the userspace
 buffer is too small, data is decrypted in the kernel and copied to
 userspace.
 
-``EINVAL`` is returned if the TLS version in the received message does not
+``EINVAL`` is returned if the TLS version in the received message does yest
 match the version passed in setsockopt.
 
 ``EMSGSIZE`` is returned if the received message is too big.
@@ -165,7 +165,7 @@ Receiving TLS control messages
 ------------------------------
 
 TLS control messages are passed in the userspace buffer, with message
-type passed via cmsg.  If no cmsg buffer is provided, an error is
+type passed via cmsg.  If yes cmsg buffer is provided, an error is
 returned if a control message is received.  Data messages may be
 received without a cmsg buffer set.
 
@@ -207,12 +207,12 @@ At a high level, the kernel TLS ULP is a replacement for the record
 layer of a userspace TLS library.
 
 A patchset to OpenSSL to use ktls as the record layer is
-`here <https://github.com/Mellanox/openssl/commits/tls_rx2>`_.
+`here <https://github.com/Mellayesx/openssl/commits/tls_rx2>`_.
 
 `An example <https://github.com/ktls/af_ktls-tool/commits/RX>`_
 of calling send directly after a handshake using gnutls.
 Since it doesn't implement a full record layer, control
-messages are not supported.
+messages are yest supported.
 
 Statistics
 ==========

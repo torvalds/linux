@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -96,14 +96,14 @@ static const struct seq_operations qat_dev_cfg_sops = {
 	.show = qat_dev_cfg_show
 };
 
-static int qat_dev_cfg_open(struct inode *inode, struct file *file)
+static int qat_dev_cfg_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret = seq_open(file, &qat_dev_cfg_sops);
 
 	if (!ret) {
 		struct seq_file *seq_f = file->private_data;
 
-		seq_f->private = inode->i_private;
+		seq_f->private = iyesde->i_private;
 	}
 	return ret;
 }
@@ -136,7 +136,7 @@ int adf_cfg_dev_add(struct adf_accel_dev *accel_dev)
 	init_rwsem(&dev_cfg_data->lock);
 	accel_dev->cfg = dev_cfg_data;
 
-	/* accel_dev->debugfs_dir should always be non-NULL here */
+	/* accel_dev->debugfs_dir should always be yesn-NULL here */
 	dev_cfg_data->debug = debugfs_create_file("dev_cfg", S_IRUSR,
 						  accel_dev->debugfs_dir,
 						  dev_cfg_data,
@@ -302,7 +302,7 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 		snprintf(key_val->val, ADF_CFG_MAX_VAL_LEN_IN_BYTES,
 			 "0x%lx", (unsigned long)val);
 	} else {
-		dev_err(&GET_DEV(accel_dev), "Unknown type given.\n");
+		dev_err(&GET_DEV(accel_dev), "Unkyeswn type given.\n");
 		kfree(key_val);
 		return -1;
 	}

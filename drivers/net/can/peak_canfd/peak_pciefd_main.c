@@ -341,7 +341,7 @@ static irqreturn_t pciefd_irq_handler(int irq, void *arg)
 		priv->tx_pages_free++;
 		spin_unlock_irqrestore(&priv->tx_lock, flags);
 
-		/* wake producer up (only if enough room in echo_skb array) */
+		/* wake producer up (only if eyesugh room in echo_skb array) */
 		spin_lock_irqsave(&priv->ucan.echo_lock, flags);
 		if (!priv->ucan.can.echo_skb[priv->ucan.echo_idx])
 			netif_wake_queue(priv->ucan.ndev);
@@ -477,7 +477,7 @@ static int pciefd_post_cmd(struct peak_canfd_priv *ucan)
 		if (ucan->can.state == CAN_STATE_STOPPED)
 			break;
 
-		/* controller now in reset mode: */
+		/* controller yesw in reset mode: */
 
 		/* disable IRQ for this CAN */
 		pciefd_can_writereg(priv, CANFD_CTL_IEN_BIT,
@@ -513,7 +513,7 @@ static void *pciefd_alloc_tx_msg(struct peak_canfd_priv *ucan, u16 msg_size,
 	if (page->offset + msg_size > page->size) {
 		struct pciefd_tx_link *lk;
 
-		/* not enough space in this page: try another one */
+		/* yest eyesugh space in this page: try ayesther one */
 		if (!priv->tx_pages_free) {
 			spin_unlock_irqrestore(&priv->tx_lock, flags);
 
@@ -563,7 +563,7 @@ static int pciefd_write_tx_msg(struct peak_canfd_priv *ucan,
 	struct pciefd_can *priv = (struct pciefd_can *)ucan;
 	struct pciefd_page *page = priv->tx_pages + priv->tx_page_index;
 
-	/* this slot is now reserved for writing the frame */
+	/* this slot is yesw reserved for writing the frame */
 	page->offset += le16_to_cpu(msg->size);
 
 	/* tell the board a frame has been written in Tx DMA area */
@@ -610,7 +610,7 @@ static int pciefd_can_probe(struct pciefd_board *pciefd)
 	/* CAN config regs block address */
 	priv->reg_base = pciefd->reg_base + PCIEFD_CANX_OFF(priv->ucan.index);
 
-	/* allocate non-cacheable DMA'able 4KB memory area for Rx */
+	/* allocate yesn-cacheable DMA'able 4KB memory area for Rx */
 	priv->rx_dma_vaddr = dmam_alloc_coherent(&pciefd->pci_dev->dev,
 						 PCIEFD_RX_DMA_SIZE,
 						 &priv->rx_dma_laddr,
@@ -622,7 +622,7 @@ static int pciefd_can_probe(struct pciefd_board *pciefd)
 		goto err_free_candev;
 	}
 
-	/* allocate non-cacheable DMA'able 4KB memory area for Tx */
+	/* allocate yesn-cacheable DMA'able 4KB memory area for Tx */
 	priv->tx_dma_vaddr = dmam_alloc_coherent(&pciefd->pci_dev->dev,
 						 PCIEFD_TX_DMA_SIZE,
 						 &priv->tx_dma_laddr,
@@ -718,7 +718,7 @@ static int peak_pciefd_probe(struct pci_dev *pdev,
 	int err, can_count;
 	u16 sub_sys_id;
 	u8 hw_ver_major;
-	u8 hw_ver_minor;
+	u8 hw_ver_miyesr;
 	u8 hw_ver_sub;
 	u32 v2;
 
@@ -770,19 +770,19 @@ static int peak_pciefd_probe(struct pci_dev *pdev,
 	v2 = pciefd_sys_readreg(pciefd, PCIEFD_REG_SYS_VER2);
 
 	hw_ver_major = (v2 & 0x0000f000) >> 12;
-	hw_ver_minor = (v2 & 0x00000f00) >> 8;
+	hw_ver_miyesr = (v2 & 0x00000f00) >> 8;
 	hw_ver_sub = (v2 & 0x000000f0) >> 4;
 
 	dev_info(&pdev->dev,
 		 "%ux CAN-FD PCAN-PCIe FPGA v%u.%u.%u:\n", can_count,
-		 hw_ver_major, hw_ver_minor, hw_ver_sub);
+		 hw_ver_major, hw_ver_miyesr, hw_ver_sub);
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	/* FW < v3.3.0 DMA logic doesn't handle correctly the mix of 32-bit and
 	 * 64-bit logical addresses: this workaround forces usage of 32-bit
 	 * DMA addresses only when such a fw is detected.
 	 */
-	if (PCIEFD_FW_VERSION(hw_ver_major, hw_ver_minor, hw_ver_sub) <
+	if (PCIEFD_FW_VERSION(hw_ver_major, hw_ver_miyesr, hw_ver_sub) <
 	    PCIEFD_FW_VERSION(3, 3, 0)) {
 		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err)
@@ -798,7 +798,7 @@ static int peak_pciefd_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	/* create now the corresponding channels objects */
+	/* create yesw the corresponding channels objects */
 	while (pciefd->can_count < can_count) {
 		err = pciefd_can_probe(pciefd);
 		if (err)
@@ -839,10 +839,10 @@ err_disable_pci:
 	pci_disable_device(pdev);
 
 	/* pci_xxx_config_word() return positive PCIBIOS_xxx error codes while
-	 * the probe() function must return a negative errno in case of failure
+	 * the probe() function must return a negative erryes in case of failure
 	 * (err is unchanged if negative)
 	 */
-	return pcibios_err_to_errno(err);
+	return pcibios_err_to_erryes(err);
 }
 
 /* free the board structure object, as well as its resources: */

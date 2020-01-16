@@ -2,14 +2,14 @@
 /*
  * drivers/ata/sata_dwc_460ex.c
  *
- * Synopsys DesignWare Cores (DWC) SATA host driver
+ * Syyespsys DesignWare Cores (DWC) SATA host driver
  *
  * Author: Mark Miesfeld <mmiesfeld@amcc.com>
  *
  * Ported from 2.6.19.2 to 2.6.25/26 by Stefan Roese <sr@denx.de>
  * Copyright 2008 DENX Software Engineering
  *
- * Based on versions provided by AMCC and Synopsys which are:
+ * Based on versions provided by AMCC and Syyespsys which are:
  *          Copyright 2006 Applied Micro Circuits Corporation
  *          COPYRIGHT (C) 2005  SYNOPSYS, INC.  ALL RIGHTS RESERVED
  */
@@ -236,7 +236,7 @@ static int sata_dwc_dma_get_channel_old(struct sata_dwc_device_port *hsdevp)
 static int sata_dwc_dma_init_old(struct platform_device *pdev,
 				 struct sata_dwc_device *hsdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *res;
 
 	hsdev->dma = devm_kzalloc(&pdev->dev, sizeof(*hsdev->dma), GFP_KERNEL);
@@ -249,7 +249,7 @@ static int sata_dwc_dma_init_old(struct platform_device *pdev,
 	/* Get SATA DMA interrupt number */
 	hsdev->dma->irq = irq_of_parse_and_map(np, 1);
 	if (hsdev->dma->irq == NO_IRQ) {
-		dev_err(&pdev->dev, "no SATA DMA irq\n");
+		dev_err(&pdev->dev, "yes SATA DMA irq\n");
 		return -ENODEV;
 	}
 
@@ -277,7 +277,7 @@ static const char *get_prot_descript(u8 protocol)
 {
 	switch (protocol) {
 	case ATA_PROT_NODATA:
-		return "ATA no data";
+		return "ATA yes data";
 	case ATA_PROT_PIO:
 		return "ATA PIO";
 	case ATA_PROT_DMA:
@@ -285,15 +285,15 @@ static const char *get_prot_descript(u8 protocol)
 	case ATA_PROT_NCQ:
 		return "ATA NCQ";
 	case ATA_PROT_NCQ_NODATA:
-		return "ATA NCQ no data";
+		return "ATA NCQ yes data";
 	case ATAPI_PROT_NODATA:
-		return "ATAPI no data";
+		return "ATAPI yes data";
 	case ATAPI_PROT_PIO:
 		return "ATAPI PIO";
 	case ATAPI_PROT_DMA:
 		return "ATAPI DMA";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -307,7 +307,7 @@ static const char *get_dma_dir_descript(int dma_dir)
 	case DMA_FROM_DEVICE:
 		return "from device";
 	default:
-		return "none";
+		return "yesne";
 	}
 }
 
@@ -350,7 +350,7 @@ static void dma_dwc_xfer_done(void *hsdev_instance)
 	sata_dwc_clear_dmacr(hsdevp, tag);
 
 	if (hsdevp->dma_pending[tag] == SATA_DWC_DMA_PENDING_NONE) {
-		dev_err(ap->dev, "DMA not pending tag=0x%02x pending=%d\n",
+		dev_err(ap->dev, "DMA yest pending tag=0x%02x pending=%d\n",
 			tag, hsdevp->dma_pending[tag]);
 	}
 
@@ -475,7 +475,7 @@ static void sata_dwc_error_intr(struct ata_port *ap,
 	clear_serror(ap);
 	clear_interrupt_bit(hsdev, SATA_DWC_INTPR_ERR);
 
-	/* This is the only error happening now.  TODO check for exact error */
+	/* This is the only error happening yesw.  TODO check for exact error */
 
 	err_mask |= AC_ERR_HOST_BUS;
 	action |= ATA_EH_RESET;
@@ -538,7 +538,7 @@ static irqreturn_t sata_dwc_isr(int irq, void *dev_instance)
 		tag = (u8)(sata_dwc_readl(&hsdev->sata_dwc_regs->fptagr));
 		dev_dbg(ap->dev, "%s: NEWFP tag=%d\n", __func__, tag);
 		if (hsdevp->cmd_issued[tag] != SATA_DWC_CMD_ISSUED_PEND)
-			dev_warn(ap->dev, "CMD tag=%d not pending?\n", tag);
+			dev_warn(ap->dev, "CMD tag=%d yest pending?\n", tag);
 
 		hsdev->sactive_issued |= qcmd_tag_to_mask(tag);
 
@@ -557,7 +557,7 @@ static irqreturn_t sata_dwc_isr(int irq, void *dev_instance)
 	sata_dwc_scr_read(&ap->link, SCR_ACTIVE, &sactive);
 	tag_mask = (hsdev->sactive_issued | sactive) ^ sactive;
 
-	/* If no sactive issued and tag_mask is zero then this is not NCQ */
+	/* If yes sactive issued and tag_mask is zero then this is yest NCQ */
 	if (hsdev->sactive_issued == 0 && tag_mask == 0) {
 		if (ap->link.active_tag == ATA_TAG_POISON)
 			tag = 0;
@@ -565,10 +565,10 @@ static irqreturn_t sata_dwc_isr(int irq, void *dev_instance)
 			tag = ap->link.active_tag;
 		qc = ata_qc_from_tag(ap, tag);
 
-		/* DEV interrupt w/ no active qc? */
+		/* DEV interrupt w/ yes active qc? */
 		if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
 			dev_err(ap->dev,
-				"%s interrupt with no active qc qc=%p\n",
+				"%s interrupt with yes active qc qc=%p\n",
 				__func__, qc);
 			ap->ops->sff_check_status(ap);
 			handled = 1;
@@ -586,7 +586,7 @@ static irqreturn_t sata_dwc_isr(int irq, void *dev_instance)
 			goto DONE;
 		}
 
-		dev_dbg(ap->dev, "%s non-NCQ cmd interrupt, protocol: %s\n",
+		dev_dbg(ap->dev, "%s yesn-NCQ cmd interrupt, protocol: %s\n",
 			__func__, get_prot_descript(qc->tf.protocol));
 DRVSTILLBUSY:
 		if (ata_is_dma(qc->tf.protocol)) {
@@ -600,7 +600,7 @@ DRVSTILLBUSY:
 			if (hsdevp->dma_pending[tag] == \
 					SATA_DWC_DMA_PENDING_NONE) {
 				dev_err(ap->dev,
-					"%s: DMA not pending intpr=0x%08x status=0x%08x pending=%d\n",
+					"%s: DMA yest pending intpr=0x%08x status=0x%08x pending=%d\n",
 					__func__, intpr, status,
 					hsdevp->dma_pending[tag]);
 			}
@@ -643,7 +643,7 @@ DRVSTILLBUSY:
 			 sactive, hsdev->sactive_issued, tag_mask);
 	}
 
-	/* read just to clear ... not bad if currently still busy */
+	/* read just to clear ... yest bad if currently still busy */
 	status = ap->ops->sff_check_status(ap);
 	dev_dbg(ap->dev, "%s ATA status register=0x%x\n", __func__, status);
 
@@ -679,7 +679,7 @@ DRVSTILLBUSY:
 			hsdevp->dma_interrupt_count++;
 			if (hsdevp->dma_pending[tag] == \
 					SATA_DWC_DMA_PENDING_NONE)
-				dev_warn(ap->dev, "%s: DMA not pending?\n",
+				dev_warn(ap->dev, "%s: DMA yest pending?\n",
 					__func__);
 			if ((hsdevp->dma_interrupt_count % 2) == 0)
 				sata_dwc_dma_xfer_complete(ap, 1);
@@ -728,11 +728,11 @@ static void sata_dwc_clear_dmacr(struct sata_dwc_device_port *hsdevp, u8 tag)
 		sata_dwc_writel(&hsdev->sata_dwc_regs->dmacr, dmacr);
 	} else {
 		/*
-		 * This should not happen, it indicates the driver is out of
+		 * This should yest happen, it indicates the driver is out of
 		 * sync.  If it does happen, clear dmacr anyway.
 		 */
 		dev_err(hsdev->dev,
-			"%s DMA protocol RX and TX DMA not pending tag=0x%02x pending=%d dmacr: 0x%08x\n",
+			"%s DMA protocol RX and TX DMA yest pending tag=0x%02x pending=%d dmacr: 0x%08x\n",
 			__func__, tag, hsdevp->dma_pending[tag], dmacr);
 		sata_dwc_writel(&hsdev->sata_dwc_regs->dmacr,
 				SATA_DWC_DMACR_TXRXCH_CLEAR);
@@ -767,7 +767,7 @@ static void sata_dwc_dma_xfer_complete(struct ata_port *ap, u32 check_status)
 	if (ata_is_dma(qc->tf.protocol)) {
 		if (hsdevp->dma_pending[tag] == SATA_DWC_DMA_PENDING_NONE) {
 			dev_err(ap->dev,
-				"%s DMA protocol RX and TX DMA not pending dmacr: 0x%08x\n",
+				"%s DMA protocol RX and TX DMA yest pending dmacr: 0x%08x\n",
 				__func__,
 				sata_dwc_readl(&hsdev->sata_dwc_regs->dmacr));
 		}
@@ -854,7 +854,7 @@ static int sata_dwc_dma_get_channel(struct sata_dwc_device_port *hsdevp)
 	struct device *dev = hsdev->dev;
 
 #ifdef CONFIG_SATA_DWC_OLD_DMA
-	if (!of_find_property(dev->of_node, "dmas", NULL))
+	if (!of_find_property(dev->of_yesde, "dmas", NULL))
 		return sata_dwc_dma_get_channel_old(hsdevp);
 #endif
 
@@ -884,12 +884,12 @@ static int sata_dwc_port_start(struct ata_port *ap)
 
 	hsdev = HSDEV_FROM_AP(ap);
 
-	dev_dbg(ap->dev, "%s: port_no=%d\n", __func__, ap->port_no);
+	dev_dbg(ap->dev, "%s: port_yes=%d\n", __func__, ap->port_yes);
 
 	hsdev->host = ap->host;
 	pdev = ap->host->dev;
 	if (!pdev) {
-		dev_err(ap->dev, "%s: no ap->host->dev\n", __func__);
+		dev_err(ap->dev, "%s: yes ap->host->dev\n", __func__);
 		err = -ENODEV;
 		goto CLEANUP;
 	}
@@ -916,7 +916,7 @@ static int sata_dwc_port_start(struct ata_port *ap)
 	ap->bmdma_prd = NULL;	/* set these so libata doesn't use them */
 	ap->bmdma_prd_dma = 0;
 
-	if (ap->port_no == 0)  {
+	if (ap->port_yes == 0)  {
 		dev_dbg(ap->dev, "%s: clearing TXCHEN, RXCHEN in DMAC\n",
 			__func__);
 		sata_dwc_writel(&hsdev->sata_dwc_regs->dmacr,
@@ -977,7 +977,7 @@ static void sata_dwc_exec_command_by_tag(struct ata_port *ap,
 
 	/*
 	 * Clear SError before executing a new command.
-	 * sata_dwc_scr_write and read can not be used here. Clearing the PM
+	 * sata_dwc_scr_write and read can yest be used here. Clearing the PM
 	 * managed SError register for the disk needs to be done before the
 	 * task file is loaded.
 	 */
@@ -1022,7 +1022,7 @@ static void sata_dwc_bmdma_start_by_tag(struct ata_queued_cmd *qc, u8 tag)
 			hsdevp->dma_pending[tag] = SATA_DWC_DMA_PENDING_RX;
 	} else {
 		dev_err(ap->dev,
-			"%s: Command not pending cmd_issued=%d (tag=%d) DMA NOT started\n",
+			"%s: Command yest pending cmd_issued=%d (tag=%d) DMA NOT started\n",
 			__func__, hsdevp->cmd_issued[tag], tag);
 		start_dma = 0;
 	}
@@ -1158,7 +1158,7 @@ static struct scsi_host_template sata_dwc_sht = {
 	.sg_tablesize		= LIBATA_MAX_PRD,
 	/* .can_queue		= ATA_MAX_QUEUE, */
 	/*
-	 * Make sure a LLI block is not created that will span 8K max FIS
+	 * Make sure a LLI block is yest created that will span 8K max FIS
 	 * boundary. If the block spans such a FIS boundary, there is a chance
 	 * that a DMA burst will cross that boundary -- this results in an
 	 * error in the host controller.
@@ -1206,7 +1206,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	struct ata_host *host;
 	struct ata_port_info pi = sata_dwc_port_info[0];
 	const struct ata_port_info *ppi[] = { &pi, NULL };
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct resource *res;
 
 	/* Allocate DWC SATA device */
@@ -1224,7 +1224,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 		return PTR_ERR(base);
 	dev_dbg(&ofdev->dev, "ioremap done for SATA register address\n");
 
-	/* Synopsys DWC SATA specific Registers */
+	/* Syyespsys DWC SATA specific Registers */
 	hsdev->sata_dwc_regs = base + SATA_DWC_REG_OFFSET;
 	hsdev->dmadr = res->start + SATA_DWC_REG_OFFSET + offsetof(struct sata_dwc_regs, dmadr);
 
@@ -1236,7 +1236,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	/* Read the ID and Version Registers */
 	idr = sata_dwc_readl(&hsdev->sata_dwc_regs->idr);
 	versionr = sata_dwc_readl(&hsdev->sata_dwc_regs->versionr);
-	dev_notice(&ofdev->dev, "id %d, controller version %c.%c%c\n",
+	dev_yestice(&ofdev->dev, "id %d, controller version %c.%c%c\n",
 		   idr, ver[0], ver[1], ver[2]);
 
 	/* Save dev for later use in dev_xxx() routines */
@@ -1248,7 +1248,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	/* Get SATA interrupt number */
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq == NO_IRQ) {
-		dev_err(&ofdev->dev, "no SATA DMA irq\n");
+		dev_err(&ofdev->dev, "yes SATA DMA irq\n");
 		err = -ENODEV;
 		goto error_out;
 	}

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
+/* vim: set ts=8 sw=8 yeset tw=80 yeswrap: */
 /*
  *  comedi/drivers/ni_routing/ni_route_values/ni_660x.c
  *  Route information for NI_660X boards.
@@ -20,16 +20,16 @@
 
 /*
  * This file includes a list of all the values of various signals routes
- * available on NI 660x hardware.  In many cases, one does not explicitly make
+ * available on NI 660x hardware.  In many cases, one does yest explicitly make
  * these routes, rather one might indicate that something is used as the source
- * of one particular trigger or another (using *_src=TRIG_EXT).
+ * of one particular trigger or ayesther (using *_src=TRIG_EXT).
  *
  * The contents of this file can be generated using the tools in
- * comedi/drivers/ni_routing/tools.  This file also contains specific notes to
+ * comedi/drivers/ni_routing/tools.  This file also contains specific yestes to
  * this family of devices.
  *
  * Please use those tools to help maintain the contents of this file, but be
- * mindful to not lose the notes already made in this file, since these notes
+ * mindful to yest lose the yestes already made in this file, since these yestes
  * are critical to a complete undertsanding of the register values of this
  * family.
  */
@@ -119,7 +119,7 @@ const struct family_route_values ni_660x_route_values = {
 			[B(NI_CtrSource(0))]	= I(1),
 		},
 		[B(NI_CtrSource(0))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(11))]	= U(9),
 			[B(NI_PFI(15))]	= U(8),
 			[B(NI_PFI(19))]	= U(7),
@@ -142,7 +142,7 @@ const struct family_route_values ni_660x_route_values = {
 			[B(NI_LogicLow)]	= U(31),
 		},
 		[B(NI_CtrSource(1))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(11))]	= U(9),
 			[B(NI_PFI(15))]	= U(8),
 			[B(NI_PFI(19))]	= U(7),
@@ -165,7 +165,7 @@ const struct family_route_values ni_660x_route_values = {
 			[B(NI_LogicLow)]	= U(31),
 		},
 		[B(NI_CtrSource(2))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(11))]	= U(9),
 			[B(NI_PFI(15))]	= U(8),
 			[B(NI_PFI(19))]	= U(7),
@@ -188,7 +188,7 @@ const struct family_route_values ni_660x_route_values = {
 			[B(NI_LogicLow)]	= U(31),
 		},
 		[B(NI_CtrSource(3))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(11))]	= U(9),
 			[B(NI_PFI(15))]	= U(8),
 			[B(NI_PFI(19))]	= U(7),
@@ -211,7 +211,7 @@ const struct family_route_values ni_660x_route_values = {
 			[B(NI_LogicLow)]	= U(31),
 		},
 		[B(NI_CtrSource(4))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(11))]	= U(9),
 			[B(NI_PFI(15))]	= U(8),
 			[B(NI_PFI(19))]	= U(7),
@@ -234,7 +234,7 @@ const struct family_route_values ni_660x_route_values = {
 			[B(NI_LogicLow)]	= U(31),
 		},
 		[B(NI_CtrSource(5))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(11))]	= U(9),
 			[B(NI_PFI(15))]	= U(8),
 			[B(NI_PFI(19))]	= U(7 /* or 1 */),
@@ -257,7 +257,7 @@ const struct family_route_values ni_660x_route_values = {
 			[B(NI_LogicLow)]	= U(31),
 		},
 		[B(NI_CtrSource(6))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(11))]	= U(9),
 			[B(NI_PFI(15))]	= U(8 /* or 1 */),
 			[B(NI_PFI(19))]	= U(7),
@@ -280,7 +280,7 @@ const struct family_route_values ni_660x_route_values = {
 			[B(NI_LogicLow)]	= U(31),
 		},
 		[B(NI_CtrSource(7))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(11))]	= U(9 /* or 1 */),
 			[B(NI_PFI(15))]	= U(8),
 			[B(NI_PFI(19))]	= U(7),

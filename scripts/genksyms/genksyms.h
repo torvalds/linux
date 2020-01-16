@@ -55,9 +55,9 @@ struct symbol *add_symbol(const char *name, enum symbol_type type,
 			  struct string_list *defn, int is_extern);
 void export_symbol(const char *);
 
-void free_node(struct string_list *list);
+void free_yesde(struct string_list *list);
 void free_list(struct string_list *s, struct string_list *e);
-struct string_list *copy_node(struct string_list *);
+struct string_list *copy_yesde(struct string_list *);
 struct string_list *copy_list_range(struct string_list *start,
 				    struct string_list *end);
 

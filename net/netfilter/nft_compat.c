@@ -240,7 +240,7 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	if (ret < 0)
 		return ret;
 
-	/* The standard target cannot be used */
+	/* The standard target canyest be used */
 	if (!target->target)
 		return -EINVAL;
 
@@ -874,7 +874,7 @@ static int __init nft_compat_module_init(void)
 
 	ret = nfnetlink_subsys_register(&nfnl_compat_subsys);
 	if (ret < 0) {
-		pr_err("nft_compat: cannot register with nfnetlink.\n");
+		pr_err("nft_compat: canyest register with nfnetlink.\n");
 		goto err_target;
 	}
 

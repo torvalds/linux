@@ -59,7 +59,7 @@
 #define DMA_BRST64       0x000c0000        /* SCSI: 64byte bursts (HME on UltraSparc only) */
 #define DMA_BRST32       0x00040000        /* SCSI: 32byte bursts */
 #define DMA_BRST16       0x00000000        /* SCSI: 16byte bursts */
-#define DMA_BRST0        0x00080000        /* SCSI: no bursts (non-HME gate arrays) */
+#define DMA_BRST0        0x00080000        /* SCSI: yes bursts (yesn-HME gate arrays) */
 #define DMA_ADDR_DISAB   0x00100000        /* No FIFO drains during addr */
 #define DMA_2CLKS        0x00200000        /* Each transfer = 2 clock ticks */
 #define DMA_3CLKS        0x00400000        /* Each transfer = 3 clock ticks */

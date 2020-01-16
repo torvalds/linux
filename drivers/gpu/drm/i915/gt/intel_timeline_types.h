@@ -21,7 +21,7 @@ struct i915_syncmap;
 
 struct intel_timeline {
 	u64 fence_context;
-	u32 seqno;
+	u32 seqyes;
 
 	struct mutex mutex; /* protects the flow of requests */
 
@@ -44,7 +44,7 @@ struct intel_timeline {
 	atomic_t pin_count;
 	atomic_t active_count;
 
-	const u32 *hwsp_seqno;
+	const u32 *hwsp_seqyes;
 	struct i915_vma *hwsp_ggtt;
 	u32 hwsp_offset;
 
@@ -70,12 +70,12 @@ struct intel_timeline {
 	struct intel_timeline *retire;
 
 	/**
-	 * We track the most recent seqno that we wait on in every context so
+	 * We track the most recent seqyes that we wait on in every context so
 	 * that we only have to emit a new await and dependency on a more
 	 * recent sync point. As the contexts may be executed out-of-order, we
-	 * have to track each individually and can not rely on an absolute
-	 * global_seqno. When we know that all tracked fences are completed
-	 * (i.e. when the driver is idle), we know that the syncmap is
+	 * have to track each individually and can yest rely on an absolute
+	 * global_seqyes. When we kyesw that all tracked fences are completed
+	 * (i.e. when the driver is idle), we kyesw that the syncmap is
 	 * redundant and we can discard it without loss of generality.
 	 */
 	struct i915_syncmap *sync;

@@ -5,7 +5,7 @@
  * Copyright (C) 2009 Nokia Corporation
  * Paul Walmsley
  *
- * Developed in collaboration with (alphabetical order): Benoit
+ * Developed in collaboration with (alphabetical order): Beyesit
  * Cousson, Kevin Hilman, Tony Lindgren, Rajendra Nayak, Vikram
  * Pandita, Sakari Poussa, Anand Sawant, Santosh Shilimkar, Richard
  * Woodruff

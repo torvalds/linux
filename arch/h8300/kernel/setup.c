@@ -2,7 +2,7 @@
 /*
  *  linux/arch/h8300/kernel/setup.c
  *
- *  Copyright (C) 2001-2014 Yoshinori Sato <ysato@users.sourceforge.jp>
+ *  Copyright (C) 2001-2014 Yoshiyesri Sato <ysato@users.sourceforge.jp>
  */
 
 /*
@@ -17,7 +17,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/console.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
@@ -40,7 +40,7 @@
 #elif defined(CONFIG_CPU_H8S)
 #define CPU "H8S"
 #else
-#define CPU "Unknown"
+#define CPU "Unkyeswn"
 #endif
 
 unsigned long memory_start;
@@ -83,7 +83,7 @@ static void __init bootmem_init(void)
 	if (!memory_end)
 		panic("No memory!");
 
-	/* setup bootmem globals (we use no_bootmem, but mm still depends on this) */
+	/* setup bootmem globals (we use yes_bootmem, but mm still depends on this) */
 	min_low_pfn = PFN_UP(memory_start);
 	max_low_pfn = PFN_DOWN(memblock_end_of_DRAM());
 	max_pfn = max_low_pfn;
@@ -105,8 +105,8 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = (unsigned long) 0;
 
-	pr_notice("\r\n\nuClinux " CPU "\n");
-	pr_notice("Flat model support (C) 1998,1999 Kenneth Albanowski, D. Jeff Dionne\n");
+	pr_yestice("\r\n\nuClinux " CPU "\n");
+	pr_yestice("Flat model support (C) 1998,1999 Kenneth Albayeswski, D. Jeff Dionne\n");
 
 	if (*command_line)
 		strcpy(boot_command_line, command_line);
@@ -184,13 +184,13 @@ const struct seq_operations cpuinfo_op = {
 
 static __init int access_timing(void)
 {
-	struct device_node *bsc;
+	struct device_yesde *bsc;
 	void __iomem *base;
 	unsigned long addr = (unsigned long)&__delay;
 	int bit = 1 << (addr / 0x200000);
 	int w;
 
-	bsc = of_find_compatible_node(NULL, NULL, "renesas,h8300-bsc");
+	bsc = of_find_compatible_yesde(NULL, NULL, "renesas,h8300-bsc");
 	base = of_iomap(bsc, 0);
 	w = (readb(base + 0) & bit)?2:1;
 	if (readb(base + 1) & bit)
@@ -202,10 +202,10 @@ static __init int access_timing(void)
 
 void __init calibrate_delay(void)
 {
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 	int freq;
 
-	cpu = of_find_compatible_node(NULL, NULL, "renesas,h8300");
+	cpu = of_find_compatible_yesde(NULL, NULL, "renesas,h8300");
 	of_property_read_s32(cpu, "clock-frequency", &freq);
 	loops_per_jiffy = freq / HZ / (access_timing() * 2);
 	pr_cont("%lu.%02lu BogoMIPS (lpj=%lu)\n",

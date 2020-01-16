@@ -56,7 +56,7 @@
 #include <linux/in.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>	/* used in new tty drivers */
 #include <linux/signal.h>	/* used in new tty drivers */
 #include <linux/ioctl.h>
@@ -376,7 +376,7 @@ static void remove_from_rx_queue(struct r3964_info *pInfo,
 static void put_char(struct r3964_info *pInfo, unsigned char ch)
 {
 	struct tty_struct *tty = pInfo->tty;
-	/* FIXME: put_char should not be called from an IRQ */
+	/* FIXME: put_char should yest be called from an IRQ */
 	tty_put_char(tty, ch);
 	pInfo->bcc ^= ch;
 }
@@ -540,7 +540,7 @@ static void on_receive_block(struct r3964_info *pInfo)
 	/* queue block into rx_queue: */
 	add_rx_queue(pInfo, pBlock);
 
-	/* notify attached client processes: */
+	/* yestify attached client processes: */
 	for (pClient = pInfo->firstClient; pClient; pClient = pClient->next) {
 		if (pClient->sig_flags & R3964_SIG_DATA) {
 			add_msg(pClient, R3964_MSG_DATA, length, R3964_OK,
@@ -611,7 +611,7 @@ static void receive_char(struct r3964_info *pInfo, const unsigned char c)
 			/* Prevent rx_queue from overflow: */
 			if (pInfo->blocks_in_rx_queue >=
 			    R3964_MAX_BLOCKS_IN_RX_QUEUE) {
-				TRACE_PE("IDLE - got STX but no space in "
+				TRACE_PE("IDLE - got STX but yes space in "
 						"rx_queue!");
 				pInfo->state = R3964_WAIT_FOR_RX_BUF;
 				mod_timer(&pInfo->tmr,
@@ -658,7 +658,7 @@ char_to_buf:
 				mod_timer(&pInfo->tmr, jiffies + R3964_TO_ZVZ);
 			}
 		}
-		/* else: overflow-msg? BUF_SIZE>MTU; should not happen? */
+		/* else: overflow-msg? BUF_SIZE>MTU; should yest happen? */
 		break;
 	case R3964_WAIT_FOR_BCC:
 		pInfo->last_rx = c;
@@ -689,7 +689,7 @@ static void receive_error(struct r3964_info *pInfo, const char flag)
 		pInfo->flags |= R3964_OVERRUN;
 		break;
 	default:
-		TRACE_PE("receive_error - unknown flag %d", flag);
+		TRACE_PE("receive_error - unkyeswn flag %d", flag);
 		pInfo->flags |= R3964_UNKNOWN;
 		break;
 	}
@@ -1084,8 +1084,8 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 	if (pClient) {
 		pMsg = remove_msg(pInfo, pClient);
 		if (pMsg == NULL) {
-			/* no messages available. */
-			if (tty_io_nonblock(tty, file)) {
+			/* yes messages available. */
+			if (tty_io_yesnblock(tty, file)) {
 				ret = -EAGAIN;
 				goto unlock;
 			}
@@ -1141,7 +1141,7 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
 		return -EIO;
 
 /*
- * Ensure that the caller does not wish to send too much.
+ * Ensure that the caller does yest wish to send too much.
  */
 	if (count > R3964_MTU) {
 		if (pInfo->flags & R3964_DEBUG) {
@@ -1158,7 +1158,7 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
 	TRACE_M("r3964_write - kmalloc %p", new_data);
 	if (new_data == NULL) {
 		if (pInfo->flags & R3964_DEBUG) {
-			printk(KERN_ERR "r3964_write: no memory\n");
+			printk(KERN_ERR "r3964_write: yes memory\n");
 		}
 		return -ENOSPC;
 	}

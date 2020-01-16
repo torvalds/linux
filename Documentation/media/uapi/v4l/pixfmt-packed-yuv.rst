@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _packed-yuv:
 
@@ -366,15 +366,15 @@ component of each pixel in one 16 or 32 bit word.
 
     \endgroup
 
-.. note::
+.. yeste::
 
     #) Bit 7 is the most significant bit;
 
     #) The value of a = alpha bits is undefined when reading from the driver,
-       ignored when writing to the driver, except when alpha blending has
+       igyesred when writing to the driver, except when alpha blending has
        been negotiated for a :ref:`Video Overlay <overlay>` or
        :ref:`Video Output Overlay <osd>` for the formats Y444, YUV555 and
        YUV4. However, for formats AYUV32 and VUYA32, the alpha component is
        expected to contain a meaningful value that can be used by drivers
        and applications. And, the formats XYUV32 and VUYX32 contain undefined
-       alpha values that must be ignored by all applications and drivers.
+       alpha values that must be igyesred by all applications and drivers.

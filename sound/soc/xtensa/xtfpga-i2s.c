@@ -60,7 +60,7 @@ struct xtfpga_i2s {
 	struct regmap *regmap;
 	void __iomem *regs;
 
-	/* current playback substream. NULL if not playing.
+	/* current playback substream. NULL if yest playing.
 	 *
 	 * Access to that field is synchronized between the interrupt handler
 	 * and userspace through RCU.
@@ -79,7 +79,7 @@ struct xtfpga_i2s {
 	unsigned tx_ptr; /* next frame index in the sample buffer */
 
 	/* current fifo level estimate.
-	 * Doesn't have to be perfectly accurate, but must be not less than
+	 * Doesn't have to be perfectly accurate, but must be yest less than
 	 * the actual FIFO level in order to avoid stall on push attempt.
 	 */
 	unsigned tx_fifo_level;
@@ -260,7 +260,7 @@ static irqreturn_t xtfpga_i2s_threaded_irq_handler(int irq, void *dev_id)
 	rcu_read_unlock();
 
 	/* Refill FIFO, update allowed IRQ reasons, enable IRQ if FIFO is
-	 * not empty.
+	 * yest empty.
 	 */
 	xtfpga_pcm_refill_fifo(i2s);
 

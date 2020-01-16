@@ -3,10 +3,10 @@
  * drivers/mfd/si476x-cmd.c -- Subroutines implementing command
  * protocol of si476x series of chips
  *
- * Copyright (C) 2012 Innovative Converged Devices(ICD)
- * Copyright (C) 2013 Andrey Smirnov
+ * Copyright (C) 2012 Inyesvative Converged Devices(ICD)
+ * Copyright (C) 2013 Andrey Smiryesv
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiryesv <andrew.smiryesv@gmail.com>
  */
 
 #include <linux/module.h>
@@ -220,7 +220,7 @@ static int si476x_core_parse_and_nag_about_error(struct si476x_core *core)
 				err = -EINVAL;
 				break;
 			default:
-				cause = "Unknown";
+				cause = "Unkyeswn";
 				err = -EIO;
 			}
 
@@ -413,8 +413,8 @@ int si476x_core_cmd_func_info(struct si476x_core *core,
 				       SI476X_DEFAULT_TIMEOUT);
 
 	info->firmware.major    = resp[1];
-	info->firmware.minor[0] = resp[2];
-	info->firmware.minor[1] = resp[3];
+	info->firmware.miyesr[0] = resp[2];
+	info->firmware.miyesr[1] = resp[3];
 
 	info->patch_id = ((u16) resp[4] << 8) | resp[5];
 	info->func     = resp[6];
@@ -485,19 +485,19 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_get_property);
  * the device
  * @core: device to send the command to
  * @dclk:  DCLK pin function configuration:
- *	   #SI476X_DCLK_NOOP     - do not modify the behaviour
+ *	   #SI476X_DCLK_NOOP     - do yest modify the behaviour
  *         #SI476X_DCLK_TRISTATE - put the pin in tristate condition,
  *                                 enable 1MOhm pulldown
  *         #SI476X_DCLK_DAUDIO   - set the pin to be a part of digital
  *                                 audio interface
  * @dfs:   DFS pin function configuration:
- *         #SI476X_DFS_NOOP      - do not modify the behaviour
+ *         #SI476X_DFS_NOOP      - do yest modify the behaviour
  *         #SI476X_DFS_TRISTATE  - put the pin in tristate condition,
  *                             enable 1MOhm pulldown
  *      SI476X_DFS_DAUDIO    - set the pin to be a part of digital
  *                             audio interface
  * @dout - DOUT pin function configuration:
- *      SI476X_DOUT_NOOP       - do not modify the behaviour
+ *      SI476X_DOUT_NOOP       - do yest modify the behaviour
  *      SI476X_DOUT_TRISTATE   - put the pin in tristate condition,
  *                               enable 1MOhm pulldown
  *      SI476X_DOUT_I2S_OUTPUT - set this pin to be digital out on I2S
@@ -505,7 +505,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_get_property);
  *      SI476X_DOUT_I2S_INPUT  - set this pin to be digital in on I2S
  *                               port 1
  * @xout - XOUT pin function configuration:
- *	SI476X_XOUT_NOOP        - do not modify the behaviour
+ *	SI476X_XOUT_NOOP        - do yest modify the behaviour
  *      SI476X_XOUT_TRISTATE    - put the pin in tristate condition,
  *                                enable 1MOhm pulldown
  *      SI476X_XOUT_I2S_INPUT   - set this pin to be digital in on I2S
@@ -542,24 +542,24 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_dig_audio_pin_cfg);
  * si476x_cmd_zif_pin_cfg - send 'ZIF_PIN_CFG_COMMAND'
  * @core - device to send the command to
  * @iqclk - IQCL pin function configuration:
- *       SI476X_IQCLK_NOOP     - do not modify the behaviour
+ *       SI476X_IQCLK_NOOP     - do yest modify the behaviour
  *       SI476X_IQCLK_TRISTATE - put the pin in tristate condition,
  *                               enable 1MOhm pulldown
  *       SI476X_IQCLK_IQ       - set pin to be a part of I/Q interace
  *                               in master mode
  * @iqfs - IQFS pin function configuration:
- *       SI476X_IQFS_NOOP     - do not modify the behaviour
+ *       SI476X_IQFS_NOOP     - do yest modify the behaviour
  *       SI476X_IQFS_TRISTATE - put the pin in tristate condition,
  *                              enable 1MOhm pulldown
  *       SI476X_IQFS_IQ       - set pin to be a part of I/Q interace
  *                              in master mode
  * @iout - IOUT pin function configuration:
- *       SI476X_IOUT_NOOP     - do not modify the behaviour
+ *       SI476X_IOUT_NOOP     - do yest modify the behaviour
  *       SI476X_IOUT_TRISTATE - put the pin in tristate condition,
  *                              enable 1MOhm pulldown
  *       SI476X_IOUT_OUTPUT   - set pin to be I out
  * @qout - QOUT pin function configuration:
- *       SI476X_QOUT_NOOP     - do not modify the behaviour
+ *       SI476X_QOUT_NOOP     - do yest modify the behaviour
  *       SI476X_QOUT_TRISTATE - put the pin in tristate condition,
  *                              enable 1MOhm pulldown
  *       SI476X_QOUT_OUTPUT   - set pin to be Q out
@@ -592,28 +592,28 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_zif_pin_cfg);
  * 'IC_LINK_GPIO_CTL_PIN_CFG' comand to the device
  * @core - device to send the command to
  * @icin - ICIN pin function configuration:
- *      SI476X_ICIN_NOOP      - do not modify the behaviour
+ *      SI476X_ICIN_NOOP      - do yest modify the behaviour
  *      SI476X_ICIN_TRISTATE  - put the pin in tristate condition,
  *                              enable 1MOhm pulldown
  *      SI476X_ICIN_GPO1_HIGH - set pin to be an output, drive it high
  *      SI476X_ICIN_GPO1_LOW  - set pin to be an output, drive it low
  *      SI476X_ICIN_IC_LINK   - set the pin to be a part of Inter-Chip link
  * @icip - ICIP pin function configuration:
- *      SI476X_ICIP_NOOP      - do not modify the behaviour
+ *      SI476X_ICIP_NOOP      - do yest modify the behaviour
  *      SI476X_ICIP_TRISTATE  - put the pin in tristate condition,
  *                              enable 1MOhm pulldown
  *      SI476X_ICIP_GPO1_HIGH - set pin to be an output, drive it high
  *      SI476X_ICIP_GPO1_LOW  - set pin to be an output, drive it low
  *      SI476X_ICIP_IC_LINK   - set the pin to be a part of Inter-Chip link
  * @icon - ICON pin function configuration:
- *      SI476X_ICON_NOOP     - do not modify the behaviour
+ *      SI476X_ICON_NOOP     - do yest modify the behaviour
  *      SI476X_ICON_TRISTATE - put the pin in tristate condition,
  *                             enable 1MOhm pulldown
  *      SI476X_ICON_I2S      - set the pin to be a part of audio
  *                             interface in slave mode (DCLK)
  *      SI476X_ICON_IC_LINK  - set the pin to be a part of Inter-Chip link
  * @icop - ICOP pin function configuration:
- *      SI476X_ICOP_NOOP     - do not modify the behaviour
+ *      SI476X_ICOP_NOOP     - do yest modify the behaviour
  *      SI476X_ICOP_TRISTATE - put the pin in tristate condition,
  *                             enable 1MOhm pulldown
  *      SI476X_ICOP_I2S      - set the pin to be a part of audio
@@ -649,7 +649,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_ic_link_gpo_ctl_pin_cfg);
  * device
  * @core - device to send the command to
  * @lrout - LROUT pin function configuration:
- *       SI476X_LROUT_NOOP     - do not modify the behaviour
+ *       SI476X_LROUT_NOOP     - do yest modify the behaviour
  *       SI476X_LROUT_TRISTATE - put the pin in tristate condition,
  *                               enable 1MOhm pulldown
  *       SI476X_LROUT_AUDIO    - set pin to be audio output
@@ -677,14 +677,14 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_ana_audio_pin_cfg);
  * si476x_cmd_intb_pin_cfg - send 'INTB_PIN_CFG' command to the device
  * @core - device to send the command to
  * @intb - INTB pin function configuration:
- *      SI476X_INTB_NOOP     - do not modify the behaviour
+ *      SI476X_INTB_NOOP     - do yest modify the behaviour
  *      SI476X_INTB_TRISTATE - put the pin in tristate condition,
  *                             enable 1MOhm pulldown
  *      SI476X_INTB_DAUDIO   - set pin to be a part of digital
  *                             audio interface in slave mode
  *      SI476X_INTB_IRQ      - set pin to be an interrupt request line
  * @a1 - A1 pin function configuration:
- *      SI476X_A1_NOOP     - do not modify the behaviour
+ *      SI476X_A1_NOOP     - do yest modify the behaviour
  *      SI476X_A1_TRISTATE - put the pin in tristate condition,
  *                           enable 1MOhm pulldown
  *      SI476X_A1_IRQ      - set pin to be an interrupt request line
@@ -736,7 +736,7 @@ static int si476x_core_cmd_intb_pin_cfg_a20(struct si476x_core *core,
  * @cancel - abort ongoing seek/tune opertation
  * @stcack - clear the STCINT bin in status register
  * @report - all signal quality information retured by the command
- *           (if NULL then the output of the command is ignored)
+ *           (if NULL then the output of the command is igyesred)
  *
  * Function returns 0 on success and negative error code on failure
  */
@@ -757,7 +757,7 @@ int si476x_core_cmd_am_rsq_status(struct si476x_core *core,
 				       SI476X_DEFAULT_TIMEOUT);
 	/*
 	 * Besides getting received signal quality information this
-	 * command can be used to just acknowledge different interrupt
+	 * command can be used to just ackyeswledge different interrupt
 	 * flags in those cases it is useless to copy and parse
 	 * received data so user can pass NULL, and thus avoid
 	 * unnecessary copying.
@@ -891,8 +891,8 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_fm_seek_start);
  * si476x_cmd_fm_rds_status - send 'FM_RDS_STATUS' command to the
  * device
  * @core - device to send the command to
- * @status_only - if set the data is not removed from RDSFIFO,
- *                RDSFIFOUSED is not decremented and data in all the
+ * @status_only - if set the data is yest removed from RDSFIFO,
+ *                RDSFIFOUSED is yest decremented and data in all the
  *                rest RDS data contains the last valid info received
  * @mtfifo if set the command clears RDS receive FIFO
  * @intack if set the command clards the RDSINT bit.
@@ -917,7 +917,7 @@ int si476x_core_cmd_fm_rds_status(struct si476x_core *core,
 				       SI476X_DEFAULT_TIMEOUT);
 	/*
 	 * Besides getting RDS status information this command can be
-	 * used to just acknowledge different interrupt flags in those
+	 * used to just ackyeswledge different interrupt flags in those
 	 * cases it is useless to copy and parse received data so user
 	 * can pass NULL, and thus avoid unnecessary copying.
 	 */
@@ -1182,7 +1182,7 @@ static int si476x_core_cmd_fm_rsq_status_a10(struct si476x_core *core,
 				       SI476X_DEFAULT_TIMEOUT);
 	/*
 	 * Besides getting received signal quality information this
-	 * command can be used to just acknowledge different interrupt
+	 * command can be used to just ackyeswledge different interrupt
 	 * flags in those cases it is useless to copy and parse
 	 * received data so user can pass NULL, and thus avoid
 	 * unnecessary copying.
@@ -1236,7 +1236,7 @@ static int si476x_core_cmd_fm_rsq_status_a20(struct si476x_core *core,
 				       SI476X_DEFAULT_TIMEOUT);
 	/*
 	 * Besides getting received signal quality information this
-	 * command can be used to just acknowledge different interrupt
+	 * command can be used to just ackyeswledge different interrupt
 	 * flags in those cases it is useless to copy and parse
 	 * received data so user can pass NULL, and thus avoid
 	 * unnecessary copying.
@@ -1291,7 +1291,7 @@ static int si476x_core_cmd_fm_rsq_status_a30(struct si476x_core *core,
 				       SI476X_DEFAULT_TIMEOUT);
 	/*
 	 * Besides getting received signal quality information this
-	 * command can be used to just acknowledge different interrupt
+	 * command can be used to just ackyeswledge different interrupt
 	 * flags in those cases it is useless to copy and parse
 	 * received data so user can pass NULL, and thus avoid
 	 * unnecessary copying.
@@ -1542,5 +1542,5 @@ int si476x_core_cmd_intb_pin_cfg(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_intb_pin_cfg);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiryesv <andrew.smiryesv@gmail.com>");
 MODULE_DESCRIPTION("API for command exchange for si476x");

@@ -8,7 +8,7 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -591,7 +591,7 @@ void optc1_get_position(struct timing_generator *optc,
 
 uint32_t optc1_get_vblank_counter(struct timing_generator *optc);
 
-void optc1_get_crtc_scanoutpos(
+void optc1_get_crtc_scayesutpos(
 	struct timing_generator *optc,
 	uint32_t *v_blank_start,
 	uint32_t *v_blank_end,

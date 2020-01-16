@@ -268,7 +268,7 @@ static const struct pinctrl_ops pm8xxx_pinctrl_ops = {
 	.get_groups_count	= pm8xxx_get_groups_count,
 	.get_group_name		= pm8xxx_get_group_name,
 	.get_group_pins         = pm8xxx_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -819,7 +819,7 @@ static int pm8xxx_mpp_probe(struct platform_device *pdev)
 	pctrl->chip = pm8xxx_mpp_template;
 	pctrl->chip.base = -1;
 	pctrl->chip.parent = &pdev->dev;
-	pctrl->chip.of_node = pdev->dev.of_node;
+	pctrl->chip.of_yesde = pdev->dev.of_yesde;
 	pctrl->chip.of_gpio_n_cells = 2;
 	pctrl->chip.label = dev_name(pctrl->dev);
 	pctrl->chip.ngpio = pctrl->npins;

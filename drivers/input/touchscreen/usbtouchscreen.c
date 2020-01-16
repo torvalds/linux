@@ -60,7 +60,7 @@ struct usbtouch_device_info {
 	int rept_size;
 
 	/*
-	 * Always service the USB devices irq not just when the input device is
+	 * Always service the USB devices irq yest just when the input device is
 	 * open. This is useful when devices have a watchdog which prevents us
 	 * from periodically polling the device. Leave this unset unless your
 	 * touchscreen device requires it, as it does consume more of the USB
@@ -139,11 +139,11 @@ enum {
 
 static const struct usb_device_id usbtouch_devices[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
-	/* ignore the HID capable devices, handled by usbhid */
+	/* igyesre the HID capable devices, handled by usbhid */
 	{USB_DEVICE_HID_CLASS(0x0eef, 0x0001), .driver_info = DEVTYPE_IGNORE},
 	{USB_DEVICE_HID_CLASS(0x0eef, 0x0002), .driver_info = DEVTYPE_IGNORE},
 
-	/* normal device IDs */
+	/* yesrmal device IDs */
 	{USB_DEVICE(0x3823, 0x0001), .driver_info = DEVTYPE_EGALAX},
 	{USB_DEVICE(0x3823, 0x0002), .driver_info = DEVTYPE_EGALAX},
 	{USB_DEVICE(0x0123, 0x0001), .driver_info = DEVTYPE_EGALAX},
@@ -296,9 +296,9 @@ static int egalax_init(struct usbtouch_usb *usbtouch)
 	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
 
 	/*
-	 * An eGalax diagnostic packet kicks the device into using the right
+	 * An eGalax diagyesstic packet kicks the device into using the right
 	 * protocol.  We send a "check active" packet.  The response will be
-	 * read later and ignored.
+	 * read later and igyesred.
 	 */
 
 	buf = kmalloc(3, GFP_KERNEL);
@@ -445,7 +445,7 @@ static int mtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 
 struct mtouch_priv {
 	u8 fw_rev_major;
-	u8 fw_rev_minor;
+	u8 fw_rev_miyesr;
 };
 
 static ssize_t mtouch_firmware_rev_show(struct device *dev,
@@ -456,7 +456,7 @@ static ssize_t mtouch_firmware_rev_show(struct device *dev,
 	struct mtouch_priv *priv = usbtouch->priv;
 
 	return scnprintf(output, PAGE_SIZE, "%1x.%1x\n",
-			 priv->fw_rev_major, priv->fw_rev_minor);
+			 priv->fw_rev_major, priv->fw_rev_miyesr);
 }
 static DEVICE_ATTR(firmware_rev, 0444, mtouch_firmware_rev_show, NULL);
 
@@ -493,7 +493,7 @@ static int mtouch_get_fw_revision(struct usbtouch_usb *usbtouch)
 	}
 
 	priv->fw_rev_major = buf[3];
-	priv->fw_rev_minor = buf[4];
+	priv->fw_rev_miyesr = buf[4];
 
 	ret = 0;
 
@@ -582,8 +582,8 @@ static int itm_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	int touch;
 	/*
-	 * ITM devices report invalid x/y data if not touched.
-	 * if the screen was touched before but is not touched any more
+	 * ITM devices report invalid x/y data if yest touched.
+	 * if the screen was touched before but is yest touched any more
 	 * report touch as 0 with the last valid x/y data once. then stop
 	 * reporting data until touched again.
 	 */
@@ -690,7 +690,7 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 
 	buf = kmalloc(2, GFP_NOIO);
 	if (!buf)
-		goto err_nobuf;
+		goto err_yesbuf;
 	/* reset */
 	buf[0] = buf[1] = 0xFF;
 	ret = usb_control_msg(dev, usb_rcvctrlpipe (dev, 0),
@@ -727,7 +727,7 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	                      0, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
 err_out:
 	kfree(buf);
-err_nobuf:
+err_yesbuf:
 	return ret;
 }
 
@@ -881,7 +881,7 @@ static int zytronic_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 		return 1;
 
 	default:
-		dev_dbg(&intf->dev, "%s: Unknown return %d\n", __func__, pkt[0]);
+		dev_dbg(&intf->dev, "%s: Unkyeswn return %d\n", __func__, pkt[0]);
 		break;
 	}
 
@@ -1075,7 +1075,7 @@ static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 	 * Each byte represents "darkness" percentage (0-100) of one element.
 	 * 17" touchscreen reports only 64 x 52 bytes so the resolution is low.
 	 * This also means that there's a limited multi-touch capability but
-	 * it's disabled (and untested) here as there's no X driver for that.
+	 * it's disabled (and untested) here as there's yes X driver for that.
 	 */
 	begin_x = end_x = begin_y = end_y = -1;
 	for (x = 0; x < x_len; x++) {
@@ -1458,7 +1458,7 @@ static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
 		pkt_len = usbtouch->type->get_pkt_len(buffer + pos,
 							buf_len - pos);
 
-		/* unknown packet: skip one byte */
+		/* unkyeswn packet: skip one byte */
 		if (unlikely(!pkt_len)) {
 			pos++;
 			continue;
@@ -1508,7 +1508,7 @@ static void usbtouch_irq(struct urb *urb)
 			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(dev, "%s - yesnzero urb status received: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}
@@ -1646,7 +1646,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 	struct usbtouch_device_info *type;
 	int err = -ENOMEM;
 
-	/* some devices are ignored */
+	/* some devices are igyesred */
 	if (id->driver_info == DEVTYPE_IGNORE)
 		return -ENODEV;
 
@@ -1670,10 +1670,10 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (type->get_pkt_len) {
 		/*
 		 * When dealing with variable-length packets we should
-		 * not request more than wMaxPacketSize bytes at once
-		 * as we do not know if there is more data coming or
+		 * yest request more than wMaxPacketSize bytes at once
+		 * as we do yest kyesw if there is more data coming or
 		 * we filled exactly wMaxPacketSize bytes and there is
-		 * nothing else.
+		 * yesthing else.
 		 */
 		usbtouch->data_size = min(usbtouch->data_size,
 					  usb_endpoint_maxp(endpoint));

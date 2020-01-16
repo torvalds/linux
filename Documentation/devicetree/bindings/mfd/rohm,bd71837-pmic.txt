@@ -20,7 +20,7 @@ Required properties:
  - clocks		: The parent clock connected to PMIC. If this is missing
 			  32768 KHz clock is assumed.
  - #clock-cells		: Should be 0.
- - regulators:		: List of child nodes that specify the regulators.
+ - regulators:		: List of child yesdes that specify the regulators.
 			  Please see ../regulator/rohm,bd71837-regulator.txt
 
 Optional properties:
@@ -32,25 +32,25 @@ are called as SNVS and READY. At READY state all the PMIC power outputs go
 down and OTP is reload. At the SNVS state all other logic and external
 devices apart from the SNVS power domain are shut off. Please refer to NXP
 i.MX8 documentation for further information regarding SNVS state. When a
-reset is done via SNVS state the PMIC OTP data is not reload. This causes
+reset is done via SNVS state the PMIC OTP data is yest reload. This causes
 power outputs that have been under SW control to stay down when reset has
 switched power state to SNVS. If reset is done via READY state the power
 outputs will be returned to HW control by OTP loading. Thus the reset
 target state is set to READY by default. If SNVS state is used the boot
 crucial regulators must have the regulator-always-on and regulator-boot-on
-properties set in regulator node.
+properties set in regulator yesde.
 
 - rohm,short-press-ms	: Short press duration in milliseconds
 - rohm,long-press-ms	: Long press duration in milliseconds
 
 Configure the "short press" and "long press" timers for the power button.
 Values are rounded to what hardware supports (500ms multiple for short and
-1000ms multiple for long). If these properties are not present the existing
-configuration (from bootloader or OTP) is not touched.
+1000ms multiple for long). If these properties are yest present the existing
+configuration (from bootloader or OTP) is yest touched.
 
 Example:
 
-	/* external oscillator node */
+	/* external oscillator yesde */
 	osc: oscillator {
 		compatible = "fixed-clock";
 		#clock-cells = <1>;
@@ -82,7 +82,7 @@ Example:
 		};
 	};
 
-	/* Clock consumer node */
+	/* Clock consumer yesde */
 	rtc@0 {
 		compatible = "company,my-rtc";
 		clock-names = "my-clock";

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  include/linux/eventpoll.h ( Efficient event polling implementation )
  *  Copyright (C) 2001,...,2006	 Davide Libenzi
@@ -48,7 +48,7 @@
  * Request the handling of system wakeup events so as to prevent system suspends
  * from happening while those events are being processed.
  *
- * Assuming neither EPOLLET nor EPOLLONESHOT is set, system suspends will not be
+ * Assuming neither EPOLLET yesr EPOLLONESHOT is set, system suspends will yest be
  * re-allowed until epoll_wait is called again after consuming the wakeup
  * event(s).
  *

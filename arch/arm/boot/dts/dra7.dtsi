@@ -100,7 +100,7 @@
 		compatible = "operating-points-v2-ti-cpu";
 		syscon = <&scm_wkup>;
 
-		opp_nom-1000000000 {
+		opp_yesm-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <1060000 850000 1150000>,
 					<1060000 850000 1150000>;
@@ -125,8 +125,8 @@
 	};
 
 	/*
-	 * The soc node represents the soc top level view. It is used for IPs
-	 * that are not memory mapped in the MPU view or for the MPU itself.
+	 * The soc yesde represents the soc top level view. It is used for IPs
+	 * that are yest memory mapped in the MPU view or for the MPU itself.
 	 */
 	soc {
 		compatible = "ti,omap-infra";
@@ -139,12 +139,12 @@
 	/*
 	 * XXX: Use a flat representation of the SOC interconnect.
 	 * The real OMAP interconnect network is quite complex.
-	 * Since it will not bring real advantage to represent that in DT for
+	 * Since it will yest bring real advantage to represent that in DT for
 	 * the moment, just use a fake OCP bus entry to represent the whole bus
 	 * hierarchy.
 	 */
 	ocp {
-		compatible = "ti,dra7-l3-noc", "simple-bus";
+		compatible = "ti,dra7-l3-yesc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x0 0xc0000000>;
@@ -173,7 +173,7 @@
 				  0x0	     0x20000000 0x10000000>;
 			/**
 			 * To enable PCI endpoint mode, disable the pcie1_rc
-			 * node and enable pcie1_ep mode.
+			 * yesde and enable pcie1_ep mode.
 			 */
 			pcie1_rc: pcie@51000000 {
 				reg = <0x51000000 0x2000>, <0x51002000 0x14c>, <0x1000 0x2000>;
@@ -268,12 +268,12 @@
 			/*
 			 * This is a placeholder for an optional reserved
 			 * region for use by secure software. The size
-			 * of this region is not known until runtime so it
+			 * of this region is yest kyeswn until runtime so it
 			 * is set as zero to either be updated to reserve
 			 * space or left unchanged to leave all SRAM for use.
 			 * On HS parts that that require the reserved region
 			 * either the bootloader can update the size to
-			 * the required amount or the node can be overridden
+			 * the required amount or the yesde can be overridden
 			 * from the board dts file for the secure platform.
 			 */
 			sram-hs@0 {
@@ -283,10 +283,10 @@
 		};
 
 		/*
-		 * NOTE: ocmcram2 and ocmcram3 are not available on all
+		 * NOTE: ocmcram2 and ocmcram3 are yest available on all
 		 * DRA7xx and AM57xx variants. Confirm availability in
 		 * the data manual for the exact part number in use
-		 * before enabling these nodes in the board dts file.
+		 * before enabling these yesdes in the board dts file.
 		 */
 		ocmcram2: ocmcram@40400000 {
 			status = "disabled";

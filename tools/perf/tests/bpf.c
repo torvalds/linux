@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <sys/epoll.h>
 #include <sys/types.h>
@@ -147,13 +147,13 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	/* Instead of perf_evlist__new_default, don't add default events */
 	evlist = evlist__new();
 	if (!evlist) {
-		pr_debug("Not enough memory to create evlist\n");
+		pr_debug("Not eyesugh memory to create evlist\n");
 		return TEST_FAIL;
 	}
 
 	err = perf_evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		pr_debug("Not eyesugh memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
@@ -165,14 +165,14 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
 	err = evlist__mmap(evlist, opts.mmap_pages);
 	if (err < 0) {
 		pr_debug("evlist__mmap: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -264,14 +264,14 @@ static int __test__bpf(int idx)
 			int err;
 
 			if (!bpf_fs__mount()) {
-				pr_debug("BPF filesystem not mounted\n");
+				pr_debug("BPF filesystem yest mounted\n");
 				ret = TEST_FAIL;
 				goto out;
 			}
 			err = mkdir(PERF_TEST_BPF_PATH, 0777);
-			if (err && errno != EEXIST) {
+			if (err && erryes != EEXIST) {
 				pr_debug("Failed to make perf_test dir: %s\n",
-					 strerror(errno));
+					 strerror(erryes));
 				ret = TEST_FAIL;
 				goto out;
 			}
@@ -321,7 +321,7 @@ static int check_env(void)
 			       license, kver_int, NULL, 0);
 	if (err < 0) {
 		pr_err("Missing basic BPF support, skip this test: %s\n",
-		       strerror(errno));
+		       strerror(erryes));
 		return err;
 	}
 	close(err);
@@ -361,7 +361,7 @@ const char *test__bpf_subtest_get_desc(int i __maybe_unused)
 
 int test__bpf(struct test *test __maybe_unused, int i __maybe_unused)
 {
-	pr_debug("Skip BPF test because BPF support is not compiled\n");
+	pr_debug("Skip BPF test because BPF support is yest compiled\n");
 	return TEST_SKIP;
 }
 #endif

@@ -24,10 +24,10 @@
  * @status:	optional, log status information.
  * @read_hpd:	read the HPD pin. Return true if high, false if low or
  *		an error if negative. If NULL or -ENOTTY is returned,
- *		then this is not supported.
+ *		then this is yest supported.
  * @read_5v:	read the 5V pin. Return true if high, false if low or
  *		an error if negative. If NULL or -ENOTTY is returned,
- *		then this is not supported.
+ *		then this is yest supported.
  *
  * @received:	optional. High-level CEC message callback. Allows the driver
  *		to process CEC messages.

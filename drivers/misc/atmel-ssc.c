@@ -30,8 +30,8 @@ struct ssc_device *ssc_request(unsigned int ssc_num)
 
 	spin_lock(&user_lock);
 	list_for_each_entry(ssc, &ssc_list, list) {
-		if (ssc->pdev->dev.of_node) {
-			if (of_alias_get_id(ssc->pdev->dev.of_node, "ssc")
+		if (ssc->pdev->dev.of_yesde) {
+			if (of_alias_get_id(ssc->pdev->dev.of_yesde, "ssc")
 				== ssc_num) {
 				ssc->pdev->id = ssc_num;
 				ssc_valid = 1;
@@ -132,9 +132,9 @@ MODULE_DEVICE_TABLE(of, atmel_ssc_dt_ids);
 static inline const struct atmel_ssc_platform_data *
 	atmel_ssc_get_driver_data(struct platform_device *pdev)
 {
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		const struct of_device_id *match;
-		match = of_match_node(atmel_ssc_dt_ids, pdev->dev.of_node);
+		match = of_match_yesde(atmel_ssc_dt_ids, pdev->dev.of_yesde);
 		if (match == NULL)
 			return NULL;
 		return match->data;
@@ -147,7 +147,7 @@ static inline const struct atmel_ssc_platform_data *
 #ifdef CONFIG_SND_ATMEL_SOC_SSC
 static int ssc_sound_dai_probe(struct ssc_device *ssc)
 {
-	struct device_node *np = ssc->pdev->dev.of_node;
+	struct device_yesde *np = ssc->pdev->dev.of_yesde;
 	int ret;
 	int id;
 
@@ -171,12 +171,12 @@ static void ssc_sound_dai_remove(struct ssc_device *ssc)
 	if (!ssc->sound_dai)
 		return;
 
-	atmel_ssc_put_audio(of_alias_get_id(ssc->pdev->dev.of_node, "ssc"));
+	atmel_ssc_put_audio(of_alias_get_id(ssc->pdev->dev.of_yesde, "ssc"));
 }
 #else
 static inline int ssc_sound_dai_probe(struct ssc_device *ssc)
 {
-	if (of_property_read_bool(ssc->pdev->dev.of_node, "#sound-dai-cells"))
+	if (of_property_read_bool(ssc->pdev->dev.of_yesde, "#sound-dai-cells"))
 		return -ENOTSUPP;
 
 	return 0;
@@ -206,8 +206,8 @@ static int ssc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	ssc->pdata = (struct atmel_ssc_platform_data *)plat_dat;
 
-	if (pdev->dev.of_node) {
-		struct device_node *np = pdev->dev.of_node;
+	if (pdev->dev.of_yesde) {
+		struct device_yesde *np = pdev->dev.of_yesde;
 		ssc->clk_from_rk_pin =
 			of_property_read_bool(np, "atmel,clk-from-rk-pin");
 	}
@@ -221,7 +221,7 @@ static int ssc_probe(struct platform_device *pdev)
 
 	ssc->clk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(ssc->clk)) {
-		dev_dbg(&pdev->dev, "no pclk clock defined\n");
+		dev_dbg(&pdev->dev, "yes pclk clock defined\n");
 		return -ENXIO;
 	}
 
@@ -233,7 +233,7 @@ static int ssc_probe(struct platform_device *pdev)
 
 	ssc->irq = platform_get_irq(pdev, 0);
 	if (!ssc->irq) {
-		dev_dbg(&pdev->dev, "could not get irq\n");
+		dev_dbg(&pdev->dev, "could yest get irq\n");
 		return -ENXIO;
 	}
 

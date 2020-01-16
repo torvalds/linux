@@ -12,9 +12,9 @@ Power8    Power ISA v2.07
 Power7    Power ISA v2.06
 Power6    Power ISA v2.05
 PA6T      Power ISA v2.04
-Cell PPU  - Power ISA v2.02 with some minor exceptions
+Cell PPU  - Power ISA v2.02 with some miyesr exceptions
           - Plus Altivec/VMX ~= 2.03
-Power5++  Power ISA v2.04 (no VMX)
+Power5++  Power ISA v2.04 (yes VMX)
 Power5+   Power ISA v2.03
 Power5    - PowerPC User Instruction Set Architecture Book I v2.02
           - PowerPC Virtual Environment Architecture Book II v2.02

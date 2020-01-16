@@ -31,10 +31,10 @@ typedef struct xlog_recover_item {
 } xlog_recover_item_t;
 
 struct xlog_recover {
-	struct hlist_node	r_list;
+	struct hlist_yesde	r_list;
 	xlog_tid_t		r_log_tid;	/* log's transaction id */
 	xfs_trans_header_t	r_theader;	/* trans header for partial */
-	int			r_state;	/* not needed */
+	int			r_state;	/* yest needed */
 	xfs_lsn_t		r_lsn;		/* xact lsn */
 	struct list_head	r_itemq;	/* q for items */
 };

@@ -11,7 +11,7 @@ Supported chips:
 
     Prefix: 'smsc47b397'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: In this file
 
@@ -23,7 +23,7 @@ Authors:
 November 23, 2004
 
 The following specification describes the SMSC LPC47B397-NC [1]_ sensor chip
-(for which there is no public datasheet available). This document was
+(for which there is yes public datasheet available). This document was
 provided by Craig Kelly (In-Store Broadcast Network) and edited/corrected
 by Mark M. Hoffman <mhoffman@lightlink.com>.
 
@@ -132,7 +132,7 @@ b.	Write the address of the desired configuration register within the
 	uration register through the DATA PORT.
 
 Note:
-	If accessing the Global Configuration Registers, step (a) is not required.
+	If accessing the Global Configuration Registers, step (a) is yest required.
 
 Exit Configuration Mode
 ^^^^^^^^^^^^^^^^^^^^^^^

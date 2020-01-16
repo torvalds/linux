@@ -51,7 +51,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(data->io_base))
 		return PTR_ERR(data->io_base);
 
-	nand_set_flash_node(&data->chip, pdev->dev.of_node);
+	nand_set_flash_yesde(&data->chip, pdev->dev.of_yesde);
 	mtd = nand_to_mtd(&data->chip);
 	mtd->dev.parent = &pdev->dev;
 

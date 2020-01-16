@@ -10,9 +10,9 @@
  * met:
  *
  *   * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
+ * yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
+ * copyright yestice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
  *
@@ -62,10 +62,10 @@ size_t HUF_compress4X_wksp(void *dst, size_t dstSize, const void *src, size_t sr
 
 /* *** Constants *** */
 #define HUF_TABLELOG_MAX 12     /* max configured tableLog (for static allocation); can be modified up to HUF_ABSOLUTEMAX_TABLELOG */
-#define HUF_TABLELOG_DEFAULT 11 /* tableLog by default, when not specified */
+#define HUF_TABLELOG_DEFAULT 11 /* tableLog by default, when yest specified */
 #define HUF_SYMBOLVALUE_MAX 255
 
-#define HUF_TABLELOG_ABSOLUTEMAX 15 /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does not work */
+#define HUF_TABLELOG_ABSOLUTEMAX 15 /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does yest work */
 #if (HUF_TABLELOG_MAX > HUF_TABLELOG_ABSOLUTEMAX)
 #error "HUF_TABLELOG_MAX is too large !"
 #endif
@@ -82,7 +82,7 @@ size_t HUF_compress4X_wksp(void *dst, size_t dstSize, const void *src, size_t sr
 #define HUF_CREATE_STATIC_CTABLE(name, maxSymbolValue) \
 	U32 name##hb[maxSymbolValue + 1];              \
 	void *name##hv = &(name##hb);                  \
-	HUF_CElt *name = (HUF_CElt *)(name##hv) /* no final ; */
+	HUF_CElt *name = (HUF_CElt *)(name##hv) /* yes final ; */
 
 /* static allocation of HUF's DTable */
 typedef U32 HUF_DTable;
@@ -131,15 +131,15 @@ size_t HUF_writeCTable_wksp(void *dst, size_t maxDstSize, const HUF_CElt *CTable
 size_t HUF_compress4X_usingCTable(void *dst, size_t dstSize, const void *src, size_t srcSize, const HUF_CElt *CTable);
 
 typedef enum {
-	HUF_repeat_none,  /**< Cannot use the previous table */
+	HUF_repeat_yesne,  /**< Canyest use the previous table */
 	HUF_repeat_check, /**< Can use the previous table but it must be checked. Note : The previous table must have been constructed by HUF_compress{1,
 			     4}X_repeat */
 	HUF_repeat_valid  /**< Can use the previous table and it is asumed to be valid */
 } HUF_repeat;
 /** HUF_compress4X_repeat() :
-*   Same as HUF_compress4X_wksp(), but considers using hufTable if *repeat != HUF_repeat_none.
-*   If it uses hufTable it does not modify hufTable or repeat.
-*   If it doesn't, it sets *repeat = HUF_repeat_none, and it sets hufTable to the table used.
+*   Same as HUF_compress4X_wksp(), but considers using hufTable if *repeat != HUF_repeat_yesne.
+*   If it uses hufTable it does yest modify hufTable or repeat.
+*   If it doesn't, it sets *repeat = HUF_repeat_yesne, and it sets hufTable to the table used.
 *   If preferRepeat then the old table will always be used if valid. */
 size_t HUF_compress4X_repeat(void *dst, size_t dstSize, const void *src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void *workSpace,
 			     size_t wkspSize, HUF_CElt *hufTable, HUF_repeat *repeat,
@@ -190,9 +190,9 @@ size_t HUF_compress1X_wksp(void *dst, size_t dstSize, const void *src, size_t sr
 			   size_t wkspSize); /**< `workSpace` must be a table of at least HUF_COMPRESS_WORKSPACE_SIZE_U32 unsigned */
 size_t HUF_compress1X_usingCTable(void *dst, size_t dstSize, const void *src, size_t srcSize, const HUF_CElt *CTable);
 /** HUF_compress1X_repeat() :
-*   Same as HUF_compress1X_wksp(), but considers using hufTable if *repeat != HUF_repeat_none.
-*   If it uses hufTable it does not modify hufTable or repeat.
-*   If it doesn't, it sets *repeat = HUF_repeat_none, and it sets hufTable to the table used.
+*   Same as HUF_compress1X_wksp(), but considers using hufTable if *repeat != HUF_repeat_yesne.
+*   If it uses hufTable it does yest modify hufTable or repeat.
+*   If it doesn't, it sets *repeat = HUF_repeat_yesne, and it sets hufTable to the table used.
 *   If preferRepeat then the old table will always be used if valid. */
 size_t HUF_compress1X_repeat(void *dst, size_t dstSize, const void *src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void *workSpace,
 			     size_t wkspSize, HUF_CElt *hufTable, HUF_repeat *repeat,

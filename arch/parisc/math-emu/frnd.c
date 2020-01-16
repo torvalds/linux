@@ -95,7 +95,7 @@ sgl_frnd(sgl_floating_point *srcptr,
 			} 
 		}
 		Sgl_leftshift(result,(SGL_P-1) - (src_exponent));
-		if (Sgl_isone_hiddenoverflow(result)) 
+		if (Sgl_isone_hiddeyesverflow(result)) 
 			Sgl_set_exponent(result,src_exponent + (SGL_BIAS+1));
 		else Sgl_set_exponent(result,src_exponent + SGL_BIAS);
 	}
@@ -103,7 +103,7 @@ sgl_frnd(sgl_floating_point *srcptr,
 		result = src;  		/* set sign */
 		Sgl_setzero_exponentmantissa(result);
 		/* check for inexact */
-		if (Sgl_isnotzero_exponentmantissa(src)) {
+		if (Sgl_isyestzero_exponentmantissa(src)) {
 			inexact = TRUE;
 			/*  round result  */
 			switch (Rounding_mode()) {
@@ -117,7 +117,7 @@ sgl_frnd(sgl_floating_point *srcptr,
 			     break;
 			case ROUNDNEAREST:
 			     if (src_exponent == -1)
-			        if (Sgl_isnotzero_mantissa(src))
+			        if (Sgl_isyestzero_mantissa(src))
 				   Sgl_set_exponent(result,SGL_BIAS);
 			} 
 		}
@@ -203,7 +203,7 @@ dbl_frnd(
 			} 
 		}
 		Dbl_leftshift(resultp1,resultp2,(DBL_P-1) - (src_exponent));
-		if (Dbl_isone_hiddenoverflow(resultp1))
+		if (Dbl_isone_hiddeyesverflow(resultp1))
 			Dbl_set_exponent(resultp1,src_exponent + (DBL_BIAS+1));
 		else Dbl_set_exponent(resultp1,src_exponent + DBL_BIAS);
 	}
@@ -211,7 +211,7 @@ dbl_frnd(
 		resultp1 = srcp1;  /* set sign */
 		Dbl_setzero_exponentmantissa(resultp1,resultp2);
 		/* check for inexact */
-		if (Dbl_isnotzero_exponentmantissa(srcp1,srcp2)) {
+		if (Dbl_isyestzero_exponentmantissa(srcp1,srcp2)) {
 			inexact = TRUE;
 			/*  round result  */
 			switch (Rounding_mode()) {
@@ -225,7 +225,7 @@ dbl_frnd(
 			     break;
 			case ROUNDNEAREST:
 			     if (src_exponent == -1)
-			        if (Dbl_isnotzero_mantissa(srcp1,srcp2))
+			        if (Dbl_isyestzero_mantissa(srcp1,srcp2))
 				   Dbl_set_exponent(resultp1,DBL_BIAS);
 			} 
 		}

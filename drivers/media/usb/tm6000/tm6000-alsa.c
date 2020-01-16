@@ -426,7 +426,7 @@ static int tm6000_audio_init(struct tm6000_core *dev)
 	rc = snd_card_new(&dev->udev->dev, index[devnr], "tm6000",
 			  THIS_MODULE, 0, &card);
 	if (rc < 0) {
-		snd_printk(KERN_ERR "cannot create card instance %d\n", devnr);
+		snd_printk(KERN_ERR "canyest create card instance %d\n", devnr);
 		return rc;
 	}
 	strscpy(card->driver, "tm6000-alsa", sizeof(card->driver));

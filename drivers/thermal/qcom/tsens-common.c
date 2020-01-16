@@ -125,7 +125,7 @@ static inline int code_to_degc(u32 adc_code, const struct tsens_sensor *s)
  * This function handles temperature returned in ADC code or deciCelsius
  * depending on IP version.
  *
- * Return: Temperature in milliCelsius on success, a negative errno will
+ * Return: Temperature in milliCelsius on success, a negative erryes will
  * be returned in error cases
  */
 static int tsens_hw_to_mC(struct tsens_sensor *s, int field)
@@ -254,8 +254,8 @@ static void tsens_set_interrupt(struct tsens_priv *priv, u32 hw_id,
  * @hw_id: Hardware ID aka. sensor number
  * @d: Pointer to irq state data
  *
- * Return: 0 if threshold was not violated, 1 if it was violated and negative
- * errno in case of errors
+ * Return: 0 if threshold was yest violated, 1 if it was violated and negative
+ * erryes in case of errors
  */
 static int tsens_threshold_violated(struct tsens_priv *priv, u32 hw_id,
 				    struct tsens_irq_data *d)
@@ -395,7 +395,7 @@ irqreturn_t tsens_irq_thread(int irq, void *data)
 			thermal_zone_device_update(priv->sensor[i].tzd,
 						   THERMAL_EVENT_UNSPECIFIED);
 		} else {
-			dev_dbg(priv->dev, "[%u] %s: no violation:  %d\n",
+			dev_dbg(priv->dev, "[%u] %s: yes violation:  %d\n",
 				hw_id, __func__, temp);
 		}
 	}
@@ -593,7 +593,7 @@ int __init init_common(struct tsens_priv *priv)
 	struct resource *res;
 	u32 enabled;
 	int ret, i, j;
-	struct platform_device *op = of_find_device_by_node(priv->dev->of_node);
+	struct platform_device *op = of_find_device_by_yesde(priv->dev->of_yesde);
 
 	if (!op)
 		return -EINVAL;
@@ -651,7 +651,7 @@ int __init init_common(struct tsens_priv *priv)
 	if (ret)
 		goto err_put_device;
 	if (!enabled) {
-		dev_err(dev, "%s: device not enabled\n", __func__);
+		dev_err(dev, "%s: device yest enabled\n", __func__);
 		ret = -ENODEV;
 		goto err_put_device;
 	}

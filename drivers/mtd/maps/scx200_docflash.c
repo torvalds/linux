@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* linux/drivers/mtd/maps/scx200_docflash.c
 
-   Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
+   Copyright (c) 2001,2002 Christer Weinigel <wingel@nayes-system.com>
 
    National Semiconductor SCx200 flash mapped with DOCCS
 */

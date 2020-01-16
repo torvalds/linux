@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <cpu/registers.h>
 
-void notrace arch_local_irq_restore(unsigned long flags)
+void yestrace arch_local_irq_restore(unsigned long flags)
 {
 	unsigned long long __dummy;
 
@@ -32,7 +32,7 @@ void notrace arch_local_irq_restore(unsigned long flags)
 }
 EXPORT_SYMBOL(arch_local_irq_restore);
 
-unsigned long notrace arch_local_save_flags(void)
+unsigned long yestrace arch_local_save_flags(void)
 {
 	unsigned long flags;
 

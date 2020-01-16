@@ -17,9 +17,9 @@
  *
  * The generic routines don't assume any hardware mappings, and just
  * encode the PIO/MMIO as part of the cookie. They coldly assume that
- * the MMIO IO mappings are not in the low address range.
+ * the MMIO IO mappings are yest in the low address range.
  *
- * Architectures for which this is not true can't use this generic
+ * Architectures for which this is yest true can't use this generic
  * implementation and should do their own copy.
  */
 
@@ -379,7 +379,7 @@ EXPORT_SYMBOL(ioport_unmap);
  * you expect in the correct way. */
 void pci_iounmap(struct pci_dev *dev, void __iomem * addr)
 {
-	IO_COND(addr, /* nothing */, iounmap(addr));
+	IO_COND(addr, /* yesthing */, iounmap(addr));
 }
 EXPORT_SYMBOL(pci_iounmap);
 #endif /* CONFIG_PCI */

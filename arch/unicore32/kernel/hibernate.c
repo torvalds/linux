@@ -28,7 +28,7 @@ struct swsusp_arch_regs swsusp_arch_regs_cpu0;
 /*
  * Create a middle page table on a resume-safe page and put a pointer to it in
  * the given global directory entry.  This only returns the gd entry
- * in non-PAE compilation mode, since the middle layer is folded.
+ * in yesn-PAE compilation mode, since the middle layer is folded.
  */
 static pmd_t *resume_one_md_table_init(pgd_t *pgd)
 {
@@ -47,7 +47,7 @@ static pmd_t *resume_one_md_table_init(pgd_t *pgd)
  */
 static pte_t *resume_one_page_table_init(pmd_t *pmd)
 {
-	if (pmd_none(*pmd)) {
+	if (pmd_yesne(*pmd)) {
 		pte_t *page_table = (pte_t *)get_safe_page(GFP_ATOMIC);
 		if (!page_table)
 			return NULL;
@@ -93,7 +93,7 @@ static int resume_physical_mapping_init(pgd_t *pgd_base)
 			if (pfn >= max_low_pfn)
 				break;
 
-			/* Map with normal page tables.
+			/* Map with yesrmal page tables.
 			 * NOTE: We can mark everything as executable here
 			 */
 			pte = resume_one_page_table_init(pmd);
@@ -130,19 +130,19 @@ int swsusp_arch_resume(void)
 	if (error)
 		return error;
 
-	/* We have got enough memory and from now on we cannot recover */
+	/* We have got eyesugh memory and from yesw on we canyest recover */
 	restore_image(resume_pg_dir, restore_pblist);
 	return 0;
 }
 
 /*
- *	pfn_is_nosave - check if given pfn is in the 'nosave' section
+ *	pfn_is_yessave - check if given pfn is in the 'yessave' section
  */
 
-int pfn_is_nosave(unsigned long pfn)
+int pfn_is_yessave(unsigned long pfn)
 {
-	unsigned long begin_pfn = __pa(&__nosave_begin) >> PAGE_SHIFT;
-	unsigned long end_pfn = PAGE_ALIGN(__pa(&__nosave_end)) >> PAGE_SHIFT;
+	unsigned long begin_pfn = __pa(&__yessave_begin) >> PAGE_SHIFT;
+	unsigned long end_pfn = PAGE_ALIGN(__pa(&__yessave_end)) >> PAGE_SHIFT;
 
 	return (pfn >= begin_pfn) && (pfn < end_pfn);
 }

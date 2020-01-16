@@ -149,7 +149,7 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 
 	mxc_rng->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mxc_rng->clk)) {
-		dev_err(&pdev->dev, "Could not get rng_clk!\n");
+		dev_err(&pdev->dev, "Could yest get rng_clk!\n");
 		return PTR_ERR(mxc_rng->clk);
 	}
 

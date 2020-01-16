@@ -237,8 +237,8 @@ static int tw5864_enable_input(struct tw5864_input *input)
 
 	dev_dbg(&dev->pci->dev, "Enabling channel %d\n", nr);
 
-	input->frame_seqno = 0;
-	input->frame_gop_seqno = 0;
+	input->frame_seqyes = 0;
+	input->frame_gop_seqyes = 0;
 	input->h264_idr_pic_id = 0;
 
 	input->reg_dsp_qp = input->qp;
@@ -384,7 +384,7 @@ void tw5864_request_encoded_frame(struct tw5864_input *input)
 			     TW5864_DSP_INTRA_MODE_SHIFT,
 			     TW5864_DSP_INTRA_MODE_16x16);
 
-	if (input->frame_gop_seqno == 0) {
+	if (input->frame_gop_seqyes == 0) {
 		/* Produce I-frame */
 		tw_writel(TW5864_MOTION_SEARCH_ETC, TW5864_INTRA_EN);
 		input->h264_idr_pic_id++;
@@ -713,15 +713,15 @@ static int tw5864_frameinterval_get(struct tw5864_input *input,
 	switch (input->std) {
 	case STD_NTSC:
 		frameinterval->numerator = 1001;
-		frameinterval->denominator = 30000;
+		frameinterval->deyesminator = 30000;
 		break;
 	case STD_PAL:
 	case STD_SECAM:
 		frameinterval->numerator = 1;
-		frameinterval->denominator = 25;
+		frameinterval->deyesminator = 25;
 		break;
 	default:
-		dev_warn(&dev->pci->dev, "tw5864_frameinterval_get requested for unknown std %d\n",
+		dev_warn(&dev->pci->dev, "tw5864_frameinterval_get requested for unkyeswn std %d\n",
 			 input->std);
 		return -EINVAL;
 	}
@@ -804,13 +804,13 @@ static int tw5864_s_parm(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	if (!t->numerator || !t->denominator) {
+	if (!t->numerator || !t->deyesminator) {
 		t->numerator = time_base.numerator * input->frame_interval;
-		t->denominator = time_base.denominator;
-	} else if (t->denominator != time_base.denominator) {
-		t->numerator = t->numerator * time_base.denominator /
-			t->denominator;
-		t->denominator = time_base.denominator;
+		t->deyesminator = time_base.deyesminator;
+	} else if (t->deyesminator != time_base.deyesminator) {
+		t->numerator = t->numerator * time_base.deyesminator /
+			t->deyesminator;
+		t->deyesminator = time_base.deyesminator;
 	}
 
 	input->frame_interval = t->numerator / time_base.numerator;
@@ -919,7 +919,7 @@ static const struct video_device tw5864_video_template = {
 	.fops = &video_fops,
 	.ioctl_ops = &video_ioctl_ops,
 	.release = video_device_release_empty,
-	.tvnorms = TW5864_NORMS,
+	.tvyesrms = TW5864_NORMS,
 	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING,
 };
@@ -1033,15 +1033,15 @@ int tw5864_video_init(struct tw5864_dev *dev, int *video_nr)
 	 * (with 4 frames in buffer). If you encode one frame and then move
 	 * 0x0010 to '1' for example, HW will take one more frame and set it to
 	 * buffer #0, and then you should see 0x0038 is set to '0'.  There is
-	 * only one HW encoder engine, so 4 channels cannot get encoded
+	 * only one HW encoder engine, so 4 channels canyest get encoded
 	 * simultaneously. But each channel does have its own buffer (for
-	 * original frames and reconstructed frames). So there is no problem to
-	 * manage encoding for 4 channels at same time and no need to force
+	 * original frames and reconstructed frames). So there is yes problem to
+	 * manage encoding for 4 channels at same time and yes need to force
 	 * I-frames in switching channels.
 	 * End of quote.
 	 *
 	 * If we set 0x0010 (TW5864_ENC_BUF_PTR_REC1) to 0 (for any channel), we
-	 * have no "rolling" (until we change this value).
+	 * have yes "rolling" (until we change this value).
 	 * If we set 0x0010 (TW5864_ENC_BUF_PTR_REC1) to 0x3, it starts to roll
 	 * continuously together with 0x0038.
 	 */
@@ -1161,7 +1161,7 @@ static int tw5864_video_input_init(struct tw5864_input *input, int video_nr)
 		goto free_v4l2_hdl;
 
 	dev_info(&input->root->pci->dev, "Registered video device %s\n",
-		 video_device_node_name(&input->vdev));
+		 video_device_yesde_name(&input->vdev));
 
 	/*
 	 * Set default video standard. Doesn't matter which, the detected value
@@ -1248,13 +1248,13 @@ void tw5864_prepare_frame_headers(struct tw5864_input *input)
 	 * Generate H264 headers:
 	 * If this is first frame, put SPS and PPS
 	 */
-	if (input->frame_gop_seqno == 0)
+	if (input->frame_gop_seqyes == 0)
 		tw5864_h264_put_stream_header(&dst, &dst_space, input->qp,
 					      input->width, input->height);
 
 	/* Put slice header */
 	tw5864_h264_put_slice_header(&dst, &dst_space, input->h264_idr_pic_id,
-				     input->frame_gop_seqno,
+				     input->frame_gop_seqyes,
 				     &input->tail_nb_bits, &input->tail);
 	input->vb = vb;
 	input->buf_cur_ptr = dst;
@@ -1262,7 +1262,7 @@ void tw5864_prepare_frame_headers(struct tw5864_input *input)
 }
 
 /*
- * Returns heuristic motion detection metric value from known components of
+ * Returns heuristic motion detection metric value from kyeswn components of
  * hardware-provided Motion Vector Data.
  */
 static unsigned int tw5864_md_metric_from_mvd(u32 mvd)
@@ -1272,16 +1272,16 @@ static unsigned int tw5864_md_metric_from_mvd(u32 mvd)
 	 * manufacturer:
 	 * mv_x 10 bits
 	 * mv_y 10 bits
-	 * non_zero_members 8 bits
+	 * yesn_zero_members 8 bits
 	 * mb_type 3 bits
 	 * reserved 1 bit
 	 *
-	 * non_zero_members: number of non-zero residuals in each macro block
+	 * yesn_zero_members: number of yesn-zero residuals in each macro block
 	 * after quantization
 	 *
 	 * unsigned int reserved = mvd >> 31;
 	 * unsigned int mb_type = (mvd >> 28) & 0x7;
-	 * unsigned int non_zero_members = (mvd >> 20) & 0xff;
+	 * unsigned int yesn_zero_members = (mvd >> 20) & 0xff;
 	 */
 	unsigned int mv_y = (mvd >> 10) & 0x3ff;
 	unsigned int mv_x = mvd & 0x3ff;
@@ -1399,7 +1399,7 @@ static void tw5864_handle_frame(struct tw5864_h264_frame *frame)
 	 */
 	if (input->buf_cur_space_left < frame_len * 5 / 4) {
 		dev_err_once(&dev->pci->dev,
-			     "Left space in vb2 buffer, %d bytes, is less than considered safely enough to put frame of length %d. Dropping this frame.\n",
+			     "Left space in vb2 buffer, %d bytes, is less than considered safely eyesugh to put frame of length %d. Dropping this frame.\n",
 			     input->buf_cur_space_left, frame_len);
 		return;
 	}
@@ -1435,10 +1435,10 @@ static void tw5864_handle_frame(struct tw5864_h264_frame *frame)
 
 	vb->vb.vb2_buf.timestamp = frame->timestamp;
 	v4l2_buf->field = V4L2_FIELD_INTERLACED;
-	v4l2_buf->sequence = frame->seqno;
+	v4l2_buf->sequence = frame->seqyes;
 
 	/* Check for motion flags */
-	if (frame->gop_seqno /* P-frame */ &&
+	if (frame->gop_seqyes /* P-frame */ &&
 	    tw5864_is_motion_triggered(frame)) {
 		struct v4l2_event ev = {
 			.type = V4L2_EVENT_MOTION_DET,

@@ -2,7 +2,7 @@
 /*
  * ADC0831/ADC0832/ADC0834/ADC0838 8-bit ADC driver
  *
- * Copyright (c) 2016 Akinobu Mita <akinobu.mita@gmail.com>
+ * Copyright (c) 2016 Akiyesbu Mita <akiyesbu.mita@gmail.com>
  *
  * Datasheet: http://www.ti.com/lit/ds/symlink/adc0832-n.pdf
  */
@@ -225,7 +225,7 @@ static irqreturn_t adc0832_trigger_handler(int irq, void *p)
 out:
 	mutex_unlock(&adc->lock);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -246,7 +246,7 @@ static int adc0832_probe(struct spi_device *spi)
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->info = &adc0832_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -348,6 +348,6 @@ static struct spi_driver adc0832_driver = {
 };
 module_spi_driver(adc0832_driver);
 
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akiyesbu Mita <akiyesbu.mita@gmail.com>");
 MODULE_DESCRIPTION("ADC0831/ADC0832/ADC0834/ADC0838 driver");
 MODULE_LICENSE("GPL v2");

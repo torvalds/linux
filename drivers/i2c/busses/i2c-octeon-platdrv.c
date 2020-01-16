@@ -32,7 +32,7 @@
  * octeon_i2c_int_enable - enable the CORE interrupt
  * @i2c: The struct octeon_i2c
  *
- * The interrupt will be asserted when there is non-STAT_IDLE state in
+ * The interrupt will be asserted when there is yesn-STAT_IDLE state in
  * the SW_TWSI_EOP_TWSI_STAT register.
  */
 static void octeon_i2c_int_enable(struct octeon_i2c *i2c)
@@ -51,7 +51,7 @@ static void octeon_i2c_int_disable(struct octeon_i2c *i2c)
  * octeon_i2c_int_enable78 - enable the CORE interrupt
  * @i2c: The struct octeon_i2c
  *
- * The interrupt will be asserted when there is non-STAT_IDLE state in the
+ * The interrupt will be asserted when there is yesn-STAT_IDLE state in the
  * SW_TWSI_EOP_TWSI_STAT register.
  */
 static void octeon_i2c_int_enable78(struct octeon_i2c *i2c)
@@ -66,12 +66,12 @@ static void __octeon_i2c_irq_disable(atomic_t *cnt, int irq)
 
 	/*
 	 * The interrupt can be disabled in two places, but we only
-	 * want to make the disable_irq_nosync() call once, so keep
+	 * want to make the disable_irq_yessync() call once, so keep
 	 * track with the atomic variable.
 	 */
 	count = atomic_dec_if_positive(cnt);
 	if (count >= 0)
-		disable_irq_nosync(irq);
+		disable_irq_yessync(irq);
 }
 
 /* disable the CORE interrupt */
@@ -84,7 +84,7 @@ static void octeon_i2c_int_disable78(struct octeon_i2c *i2c)
  * octeon_i2c_hlc_int_enable78 - enable the ST interrupt
  * @i2c: The struct octeon_i2c
  *
- * The interrupt will be asserted when there is non-STAT_IDLE state in
+ * The interrupt will be asserted when there is yesn-STAT_IDLE state in
  * the SW_TWSI_EOP_TWSI_STAT register.
  */
 static void octeon_i2c_hlc_int_enable78(struct octeon_i2c *i2c)
@@ -134,13 +134,13 @@ static const struct i2c_adapter octeon_i2c_ops = {
 
 static int octeon_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	int irq, result = 0, hlc_irq = 0;
 	struct resource *res_mem;
 	struct octeon_i2c *i2c;
 	bool cn78xx_style;
 
-	cn78xx_style = of_device_is_compatible(node, "cavium,octeon-7890-twsi");
+	cn78xx_style = of_device_is_compatible(yesde, "cavium,octeon-7890-twsi");
 	if (cn78xx_style) {
 		hlc_irq = platform_get_irq(pdev, 0);
 		if (hlc_irq < 0)
@@ -179,10 +179,10 @@ static int octeon_i2c_probe(struct platform_device *pdev)
 	 * "clock-frequency".  Try the official one first and then
 	 * fall back if it doesn't exist.
 	 */
-	if (of_property_read_u32(node, "clock-frequency", &i2c->twsi_freq) &&
-	    of_property_read_u32(node, "clock-rate", &i2c->twsi_freq)) {
+	if (of_property_read_u32(yesde, "clock-frequency", &i2c->twsi_freq) &&
+	    of_property_read_u32(yesde, "clock-rate", &i2c->twsi_freq)) {
 		dev_err(i2c->dev,
-			"no I2C 'clock-rate' or 'clock-frequency' property\n");
+			"yes I2C 'clock-rate' or 'clock-frequency' property\n");
 		result = -ENXIO;
 		goto out;
 	}
@@ -241,7 +241,7 @@ static int octeon_i2c_probe(struct platform_device *pdev)
 	i2c->adap.retries = 5;
 	i2c->adap.bus_recovery_info = &octeon_i2c_recovery_info;
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = node;
+	i2c->adap.dev.of_yesde = yesde;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	platform_set_drvdata(pdev, i2c);
 

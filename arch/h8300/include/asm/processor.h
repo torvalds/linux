@@ -2,9 +2,9 @@
 /*
  * include/asm-h8300/processor.h
  *
- * Copyright (C) 2002 Yoshinori Sato
+ * Copyright (C) 2002 Yoshiyesri Sato
  *
- * Based on: linux/asm-m68nommu/processor.h
+ * Based on: linux/asm-m68yesmmu/processor.h
  *
  * Copyright (C) 1995 Hamish Macdonald
  */
@@ -33,7 +33,7 @@ static inline void wrusp(unsigned long usp)
 
 /*
  * User space process size: 3.75GB. This is hardcoded into a few places,
- * so don't change it unless you know what you are doing.
+ * so don't change it unless you kyesw what you are doing.
  */
 #define TASK_SIZE	(0xFFFFFFFFUL)
 

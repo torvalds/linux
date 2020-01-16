@@ -3,7 +3,7 @@
  * Generic entry points for the idle threads and
  * implementation of the idle task scheduling class.
  *
- * (NOTE: these are not related to SCHED_IDLE batch scheduled
+ * (NOTE: these are yest related to SCHED_IDLE batch scheduled
  *        tasks which are handled in sched/fair.c )
  */
 #include "sched.h"
@@ -41,18 +41,18 @@ static int __init cpu_idle_poll_setup(char *__unused)
 
 	return 1;
 }
-__setup("nohlt", cpu_idle_poll_setup);
+__setup("yeshlt", cpu_idle_poll_setup);
 
-static int __init cpu_idle_nopoll_setup(char *__unused)
+static int __init cpu_idle_yespoll_setup(char *__unused)
 {
 	cpu_idle_force_poll = 0;
 
 	return 1;
 }
-__setup("hlt", cpu_idle_nopoll_setup);
+__setup("hlt", cpu_idle_yespoll_setup);
 #endif
 
-static noinline int __cpuidle cpu_idle_poll(void)
+static yesinline int __cpuidle cpu_idle_poll(void)
 {
 	rcu_idle_enter();
 	trace_cpu_idle_rcuidle(0, smp_processor_id());
@@ -83,7 +83,7 @@ void __weak arch_cpu_idle(void)
 /**
  * default_idle_call - Default CPU idle routine.
  *
- * To use when the cpuidle framework cannot be used.
+ * To use when the cpuidle framework canyest be used.
  */
 void __cpuidle default_idle_call(void)
 {
@@ -101,7 +101,7 @@ static int call_cpuidle(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 {
 	/*
 	 * The idle task must be scheduled, it is pointless to go to idle, just
-	 * update no idle residency and return.
+	 * update yes idle residency and return.
 	 */
 	if (current_clr_polling_and_test()) {
 		dev->last_residency_ns = 0;
@@ -110,7 +110,7 @@ static int call_cpuidle(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	}
 
 	/*
-	 * Enter the idle state previously returned by the governor decision.
+	 * Enter the idle state previously returned by the goveryesr decision.
 	 * This function will block until an interrupt occurs and will take
 	 * care of re-enabling the local interrupts
 	 */
@@ -120,7 +120,7 @@ static int call_cpuidle(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 /**
  * cpuidle_idle_call - the main idle function
  *
- * NOTE: no locks or semaphores should be used here
+ * NOTE: yes locks or semaphores should be used here
  *
  * On archs that support TIF_POLLING_NRFLAG, is called with polling
  * set, and it returns with polling set.  If it ever stops polling, it
@@ -143,12 +143,12 @@ static void cpuidle_idle_call(void)
 
 	/*
 	 * The RCU framework needs to be told that we are entering an idle
-	 * section, so no more rcu read side critical sections and one more
+	 * section, so yes more rcu read side critical sections and one more
 	 * step to the grace period
 	 */
 
-	if (cpuidle_not_available(drv, dev)) {
-		tick_nohz_idle_stop_tick();
+	if (cpuidle_yest_available(drv, dev)) {
+		tick_yeshz_idle_stop_tick();
 		rcu_idle_enter();
 
 		default_idle_call();
@@ -159,7 +159,7 @@ static void cpuidle_idle_call(void)
 	 * Suspend-to-idle ("s2idle") is a system state in which all user space
 	 * has been frozen, all I/O devices have been suspended and the only
 	 * activity happens here and in iterrupts (if any).  In that case bypass
-	 * the cpuidle governor and go stratight for the deepest idle state
+	 * the cpuidle goveryesr and go stratight for the deepest idle state
 	 * available.  Possibly also suspend the local tick and the entire
 	 * timekeeping to prevent timer interrupts from kicking us out of idle
 	 * until a proper wakeup interrupt happens.
@@ -184,7 +184,7 @@ static void cpuidle_idle_call(void)
 			max_latency_ns = dev->forced_idle_latency_limit_ns;
 		}
 
-		tick_nohz_idle_stop_tick();
+		tick_yeshz_idle_stop_tick();
 		rcu_idle_enter();
 
 		next_state = cpuidle_find_deepest_state(drv, dev, max_latency_ns);
@@ -197,16 +197,16 @@ static void cpuidle_idle_call(void)
 		 */
 		next_state = cpuidle_select(drv, dev, &stop_tick);
 
-		if (stop_tick || tick_nohz_tick_stopped())
-			tick_nohz_idle_stop_tick();
+		if (stop_tick || tick_yeshz_tick_stopped())
+			tick_yeshz_idle_stop_tick();
 		else
-			tick_nohz_idle_retain_tick();
+			tick_yeshz_idle_retain_tick();
 
 		rcu_idle_enter();
 
 		entered_state = call_cpuidle(drv, dev, next_state);
 		/*
-		 * Give the governor an opportunity to reflect on the outcome
+		 * Give the goveryesr an opportunity to reflect on the outcome
 		 */
 		cpuidle_reflect(dev, entered_state);
 	}
@@ -234,14 +234,14 @@ static void do_idle(void)
 	/*
 	 * If the arch has a polling bit, we maintain an invariant:
 	 *
-	 * Our polling bit is clear if we're not scheduled (i.e. if rq->curr !=
+	 * Our polling bit is clear if we're yest scheduled (i.e. if rq->curr !=
 	 * rq->idle). This means that, if rq->idle has the polling bit set,
 	 * then setting need_resched is guaranteed to cause the CPU to
 	 * reschedule.
 	 */
 
 	__current_set_polling();
-	tick_nohz_idle_enter();
+	tick_yeshz_idle_enter();
 
 	while (!need_resched()) {
 		rmb();
@@ -249,7 +249,7 @@ static void do_idle(void)
 		local_irq_disable();
 
 		if (cpu_is_offline(cpu)) {
-			tick_nohz_idle_stop_tick();
+			tick_yeshz_idle_stop_tick();
 			cpuhp_report_idle_dead();
 			arch_cpu_idle_dead();
 		}
@@ -260,10 +260,10 @@ static void do_idle(void)
 		 * In poll mode we reenable interrupts and spin. Also if we
 		 * detected in the wakeup from idle path that the tick
 		 * broadcast device expired for us, we don't want to go deep
-		 * idle as we know that the IPI is going to arrive right away.
+		 * idle as we kyesw that the IPI is going to arrive right away.
 		 */
 		if (cpu_idle_force_poll || tick_check_broadcast_expired()) {
-			tick_nohz_idle_restart_tick();
+			tick_yeshz_idle_restart_tick();
 			cpu_idle_poll();
 		} else {
 			cpuidle_idle_call();
@@ -272,14 +272,14 @@ static void do_idle(void)
 	}
 
 	/*
-	 * Since we fell out of the loop above, we know TIF_NEED_RESCHED must
+	 * Since we fell out of the loop above, we kyesw TIF_NEED_RESCHED must
 	 * be set, propagate it into PREEMPT_NEED_RESCHED.
 	 *
-	 * This is required because for polling idle loops we will not have had
+	 * This is required because for polling idle loops we will yest have had
 	 * an IPI to fold the state for us.
 	 */
 	preempt_set_need_resched();
-	tick_nohz_idle_exit();
+	tick_yeshz_idle_exit();
 	__current_clr_polling();
 
 	/*
@@ -407,7 +407,7 @@ struct task_struct *pick_next_task_idle(struct rq *rq)
 }
 
 /*
- * It is not legal to sleep in the idle task - print a warning
+ * It is yest legal to sleep in the idle task - print a warning
  * message if some code attempts to do it:
  */
 static void
@@ -423,7 +423,7 @@ dequeue_task_idle(struct rq *rq, struct task_struct *p, int flags)
  * scheduler tick hitting a task of our scheduling class.
  *
  * NOTE: This function can be called remotely by the tick offload that
- * goes along full dynticks. Therefore no local assumption can be made
+ * goes along full dynticks. Therefore yes local assumption can be made
  * and everything must be accessed through the @rq and @curr passed in
  * parameters.
  */
@@ -456,9 +456,9 @@ static void update_curr_idle(struct rq *rq)
  */
 const struct sched_class idle_sched_class = {
 	/* .next is NULL */
-	/* no enqueue/yield_task for idle tasks */
+	/* yes enqueue/yield_task for idle tasks */
 
-	/* dequeue is not valid, we print a debug message there: */
+	/* dequeue is yest valid, we print a debug message there: */
 	.dequeue_task		= dequeue_task_idle,
 
 	.check_preempt_curr	= check_preempt_curr_idle,

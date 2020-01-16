@@ -56,7 +56,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	 */
 	if (Dbl_isinfinity_exponent(opnd1p1)) {
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
-			if (Dbl_isnotnan(opnd2p1,opnd2p2)) {
+			if (Dbl_isyestnan(opnd2p1,opnd2p2)) {
 				if (Dbl_isinfinity(opnd2p1,opnd2p2)) {
 					/* 
 					 * invalid since both operands 
@@ -164,7 +164,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	/*
 	 * Generate mantissa
 	 */
-	if (Dbl_isnotzero_exponent(opnd1p1)) {
+	if (Dbl_isyestzero_exponent(opnd1p1)) {
 		/* set hidden bit */
 		Dbl_clear_signexponent_set_hidden(opnd1p1);
 	}
@@ -175,17 +175,17 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
 			return(NOEXCEPTION);
 		}
-                /* is denormalized, want to normalize */
+                /* is deyesrmalized, want to yesrmalize */
                 Dbl_clear_signexponent(opnd1p1);
                 Dbl_leftshiftby1(opnd1p1,opnd1p2);
-		Dbl_normalize(opnd1p1,opnd1p2,dest_exponent);
+		Dbl_yesrmalize(opnd1p1,opnd1p2,dest_exponent);
 	}
 	/* opnd2 needs to have hidden bit set with msb in hidden bit */
-	if (Dbl_isnotzero_exponent(opnd2p1)) {
+	if (Dbl_isyestzero_exponent(opnd2p1)) {
 		Dbl_clear_signexponent_set_hidden(opnd2p1);
 	}
 	else {
-                /* is denormalized; want to normalize */
+                /* is deyesrmalized; want to yesrmalize */
                 Dbl_clear_signexponent(opnd2p1);
                 Dbl_leftshiftby1(opnd2p1,opnd2p2);
                 while (Dbl_iszero_hiddenhigh7mantissa(opnd2p1)) {
@@ -205,7 +205,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	/* Divide the source mantissas */
 
 	/* 
-	 * A non-restoring divide algorithm is used.
+	 * A yesn-restoring divide algorithm is used.
 	 */
 	Twoword_subtract(opnd1p1,opnd1p2,opnd2p1,opnd2p2);
 	Dbl_setzero(opnd3p1,opnd3p2);
@@ -319,7 +319,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 			case ROUNDPLUS: 
 				if (Dbl_iszero_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeyesverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -327,7 +327,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 			case ROUNDMINUS: 
 				if (Dbl_isone_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeyesverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -336,7 +336,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 				if (guardbit && (stickybit || 
 				    Dbl_isone_lowmantissap2(opnd3p2))) {
 				      	Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeyesverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -345,10 +345,10 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		}
 
                 /*
-                 * denormalize result or set to signed zero
+                 * deyesrmalize result or set to signed zero
                  */
 		stickybit = inexact;
-		Dbl_denormalize(opnd3p1,opnd3p2,dest_exponent,guardbit,
+		Dbl_deyesrmalize(opnd3p1,opnd3p2,dest_exponent,guardbit,
 		 stickybit,inexact);
 
 		/* return rounded number */ 

@@ -77,10 +77,10 @@ struct plx_pci_card {
 /*
  * The board configuration is probably following:
  * RX1 is connected to ground.
- * TX1 is not connected.
- * CLKO is not connected.
+ * TX1 is yest connected.
+ * CLKO is yest connected.
  * Setting the OCR register to 0xDA is a good idea.
- * This means normal output mode, push-pull and the correct polarity.
+ * This means yesrmal output mode, push-pull and the correct polarity.
  */
 #define PLX_PCI_OCR	(OCR_TX0_PUSHPULL | OCR_TX1_PUSHPULL)
 
@@ -453,7 +453,7 @@ static inline int plx_pci_check_sja1000(const struct sja1000_priv *priv)
 /*
  * PLX9030/50/52 software reset
  * Also LRESET# asserts and brings to reset device on the Local Bus (if wired).
- * For most cards it's enough for reset the SJA1000 chips.
+ * For most cards it's eyesugh for reset the SJA1000 chips.
  */
 static void plx_pci_reset_common(struct pci_dev *pdev)
 {
@@ -490,7 +490,7 @@ static void plx9056_pci_reset_common(struct pci_dev *pdev)
 	iowrite32(cntrl, card->conf_addr + PLX9056_CNTRL);
 
 	/*
-	 * There is no safe way to poll for the end
+	 * There is yes safe way to poll for the end
 	 * of reconfiguration process. Waiting for 10ms
 	 * is safe.
 	 */
@@ -720,7 +720,7 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 				 "registered as %s\n", i + 1, priv->reg_base,
 				 dev->irq, dev->name);
 		} else {
-			dev_err(&pdev->dev, "Channel #%d not detected\n",
+			dev_err(&pdev->dev, "Channel #%d yest detected\n",
 				i + 1);
 			free_sja1000dev(dev);
 			card->net_dev[i] = NULL;

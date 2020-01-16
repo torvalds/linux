@@ -22,7 +22,7 @@
 
 /*  API provided by hid-core.c for USB HID drivers */
 void usbhid_init_reports(struct hid_device *hid);
-struct usb_interface *usbhid_find_interface(int minor);
+struct usb_interface *usbhid_find_interface(int miyesr);
 
 /* iofl flags */
 #define HID_CTRL_RUNNING	1

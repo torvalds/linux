@@ -28,7 +28,7 @@ static int __init davinci_init_id(struct davinci_soc_info *soc_info)
 	int			i;
 	struct davinci_id	*dip;
 	u8			variant;
-	u16			part_no;
+	u16			part_yes;
 	void __iomem		*base;
 
 	base = ioremap(soc_info->jtag_id_reg, SZ_4K);
@@ -41,19 +41,19 @@ static int __init davinci_init_id(struct davinci_soc_info *soc_info)
 	iounmap(base);
 
 	variant = (soc_info->jtag_id & 0xf0000000) >> 28;
-	part_no = (soc_info->jtag_id & 0x0ffff000) >> 12;
+	part_yes = (soc_info->jtag_id & 0x0ffff000) >> 12;
 
 	for (i = 0, dip = soc_info->ids; i < soc_info->ids_num;
 			i++, dip++)
-		/* Don't care about the manufacturer right now */
-		if ((dip->part_no == part_no) && (dip->variant == variant)) {
+		/* Don't care about the manufacturer right yesw */
+		if ((dip->part_yes == part_yes) && (dip->variant == variant)) {
 			soc_info->cpu_id = dip->cpu_id;
 			pr_info("DaVinci %s variant 0x%x\n", dip->name,
 					dip->variant);
 			return 0;
 		}
 
-	pr_err("Unknown DaVinci JTAG ID 0x%x\n", soc_info->jtag_id);
+	pr_err("Unkyeswn DaVinci JTAG ID 0x%x\n", soc_info->jtag_id);
 	return -EINVAL;
 }
 

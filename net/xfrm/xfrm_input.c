@@ -21,7 +21,7 @@
 #include <net/ip_tunnels.h>
 #include <net/ip6_tunnel.h>
 
-#include "xfrm_inout.h"
+#include "xfrm_iyesut.h"
 
 struct xfrm_trans_tasklet {
 	struct tasklet_struct tasklet;
@@ -142,12 +142,12 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 	case IPPROTO_AH:
 		hlen = sizeof(struct ip_auth_hdr);
 		offset = offsetof(struct ip_auth_hdr, spi);
-		offset_seq = offsetof(struct ip_auth_hdr, seq_no);
+		offset_seq = offsetof(struct ip_auth_hdr, seq_yes);
 		break;
 	case IPPROTO_ESP:
 		hlen = sizeof(struct ip_esp_hdr);
 		offset = offsetof(struct ip_esp_hdr, spi);
-		offset_seq = offsetof(struct ip_esp_hdr, seq_no);
+		offset_seq = offsetof(struct ip_esp_hdr, seq_yes);
 		break;
 	case IPPROTO_COMP:
 		if (!pskb_may_pull(skb, sizeof(struct ip_comp_hdr)))
@@ -577,7 +577,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		if (x == NULL) {
 			secpath_reset(skb);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMINNOSTATES);
-			xfrm_audit_state_notfound(skb, family, spi, seq);
+			xfrm_audit_state_yestfound(skb, family, spi, seq);
 			goto drop;
 		}
 

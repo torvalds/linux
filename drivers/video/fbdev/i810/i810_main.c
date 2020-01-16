@@ -1,7 +1,7 @@
  /*-*- linux-c -*-
  *  linux/drivers/video/i810_main.c -- Intel 810 frame buffer device
  *
- *      Copyright (C) 2001 Antonino Daplas<adaplas@pol.net>
+ *      Copyright (C) 2001 Antoniyes Daplas<adaplas@pol.net>
  *      All Rights Reserved      
  *
  *      Contributors:
@@ -30,7 +30,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -87,9 +87,9 @@ static int i810fb_suspend(struct pci_dev *dev, pm_message_t state);
 
 /* Chipset Specific Functions */
 static int i810fb_set_par    (struct fb_info *info);
-static int i810fb_getcolreg  (u8 regno, u8 *red, u8 *green, u8 *blue,
+static int i810fb_getcolreg  (u8 regyes, u8 *red, u8 *green, u8 *blue,
 			      u8 *transp, struct fb_info *info);
-static int i810fb_setcolreg  (unsigned regno, unsigned red, unsigned green, unsigned blue,
+static int i810fb_setcolreg  (unsigned regyes, unsigned red, unsigned green, unsigned blue,
 			      unsigned transp, struct fb_info *info);
 static int i810fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info);
 static int i810fb_blank      (int blank_mode, struct fb_info *info);
@@ -437,19 +437,19 @@ static void i810_load_regs(struct i810fb_par *par)
 	i810_load_pitch(par);
 }
 
-static void i810_write_dac(u8 regno, u8 red, u8 green, u8 blue,
+static void i810_write_dac(u8 regyes, u8 red, u8 green, u8 blue,
 			  u8 __iomem *mmio)
 {
-	i810_writeb(CLUT_INDEX_WRITE, mmio, regno);
+	i810_writeb(CLUT_INDEX_WRITE, mmio, regyes);
 	i810_writeb(CLUT_DATA, mmio, red);
 	i810_writeb(CLUT_DATA, mmio, green);
 	i810_writeb(CLUT_DATA, mmio, blue); 	
 }
 
-static void i810_read_dac(u8 regno, u8 *red, u8 *green, u8 *blue,
+static void i810_read_dac(u8 regyes, u8 *red, u8 *green, u8 *blue,
 			  u8 __iomem *mmio)
 {
-	i810_writeb(CLUT_INDEX_READ, mmio, regno);
+	i810_writeb(CLUT_INDEX_READ, mmio, regyes);
 	*red = i810_readb(CLUT_DATA, mmio);
 	*green = i810_readb(CLUT_DATA, mmio);
 	*blue = i810_readb(CLUT_DATA, mmio);
@@ -1107,7 +1107,7 @@ static int encode_fix(struct fb_fix_screeninfo *fix, struct fb_info *info)
 	case 16:
 	case 24:
 	case 32:
-		if (info->var.nonstd)
+		if (info->var.yesnstd)
 			fix->visual = FB_VISUAL_DIRECTCOLOR;
 		else
 			fix->visual = FB_VISUAL_TRUECOLOR;
@@ -1172,7 +1172,7 @@ static void decode_var(const struct fb_var_screeninfo *var,
 		par->blit_bpp = 3 << 24;
 		break;
 	}
-	if (var->nonstd && var->bits_per_pixel != 8)
+	if (var->yesnstd && var->bits_per_pixel != 8)
 		par->pixconf |= 1 << 27;
 
 	i810_calc_dclk(var->pixclock, &par->regs.M, 
@@ -1185,7 +1185,7 @@ static void decode_var(const struct fb_var_screeninfo *var,
 
 /**
  * i810fb_getcolreg - gets red, green and blue values of the hardware DAC
- * @regno: DAC index
+ * @regyes: DAC index
  * @red: red
  * @green: green
  * @blue: blue
@@ -1193,10 +1193,10 @@ static void decode_var(const struct fb_var_screeninfo *var,
  * @info: pointer to fb_info
  *
  * DESCRIPTION:
- * Gets the red, green and blue values of the hardware DAC as pointed by @regno
+ * Gets the red, green and blue values of the hardware DAC as pointed by @regyes
  * and writes them to @red, @green and @blue respectively
  */
-static int i810fb_getcolreg(u8 regno, u8 *red, u8 *green, u8 *blue, 
+static int i810fb_getcolreg(u8 regyes, u8 *red, u8 *green, u8 *blue, 
 			    u8 *transp, struct fb_info *info)
 {
 	struct i810fb_par *par = info->par;
@@ -1204,8 +1204,8 @@ static int i810fb_getcolreg(u8 regno, u8 *red, u8 *green, u8 *blue,
 	u8 temp;
 
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
-		if ((info->var.green.length == 5 && regno > 31) ||
-		    (info->var.green.length == 6 && regno > 63))
+		if ((info->var.green.length == 5 && regyes > 31) ||
+		    (info->var.green.length == 6 && regyes > 63))
 			return 1;
 	}
 
@@ -1214,17 +1214,17 @@ static int i810fb_getcolreg(u8 regno, u8 *red, u8 *green, u8 *blue,
 
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR && 
 	    info->var.green.length == 5) 
-		i810_read_dac(regno * 8, red, green, blue, mmio);
+		i810_read_dac(regyes * 8, red, green, blue, mmio);
 
 	else if (info->fix.visual == FB_VISUAL_DIRECTCOLOR && 
 		 info->var.green.length == 6) {
 		u8 tmp;
 
-		i810_read_dac(regno * 8, red, &tmp, blue, mmio);
-		i810_read_dac(regno * 4, &tmp, green, &tmp, mmio);
+		i810_read_dac(regyes * 8, red, &tmp, blue, mmio);
+		i810_read_dac(regyes * 4, &tmp, green, &tmp, mmio);
 	}
 	else 
-		i810_read_dac(regno, red, green, blue, mmio);
+		i810_read_dac(regyes, red, green, blue, mmio);
 
     	*transp = 0;
 	i810_writeb(PIXCONF1, mmio, temp);
@@ -1278,7 +1278,7 @@ static int i810fb_release(struct fb_info *info, int user)
 }
 
 
-static int i810fb_setcolreg(unsigned regno, unsigned red, unsigned green, 
+static int i810fb_setcolreg(unsigned regyes, unsigned red, unsigned green, 
 			    unsigned blue, unsigned transp, 
 			    struct fb_info *info)
 {
@@ -1287,11 +1287,11 @@ static int i810fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	u8 temp;
 	int i;
 
- 	if (regno > 255) return 1;
+ 	if (regyes > 255) return 1;
 
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
-		if ((info->var.green.length == 5 && regno > 31) ||
-		    (info->var.green.length == 6 && regno > 63))
+		if ((info->var.green.length == 5 && regyes > 31) ||
+		    (info->var.green.length == 6 && regyes > 63))
 			return 1;
 	}
 
@@ -1305,51 +1305,51 @@ static int i810fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR && 
 	    info->var.green.length == 5) {
 		for (i = 0; i < 8; i++) 
-			i810_write_dac((u8) (regno * 8) + i, (u8) red, 
+			i810_write_dac((u8) (regyes * 8) + i, (u8) red, 
 				       (u8) green, (u8) blue, mmio);
 	} else if (info->fix.visual == FB_VISUAL_DIRECTCOLOR && 
 		 info->var.green.length == 6) {
 		u8 r, g, b;
 
-		if (regno < 32) {
+		if (regyes < 32) {
 			for (i = 0; i < 8; i++) 
-				i810_write_dac((u8) (regno * 8) + i,
+				i810_write_dac((u8) (regyes * 8) + i,
 					       (u8) red, (u8) green, 
 					       (u8) blue, mmio);
 		}
-		i810_read_dac((u8) (regno*4), &r, &g, &b, mmio);
+		i810_read_dac((u8) (regyes*4), &r, &g, &b, mmio);
 		for (i = 0; i < 4; i++) 
-			i810_write_dac((u8) (regno*4) + i, r, (u8) green, 
+			i810_write_dac((u8) (regyes*4) + i, r, (u8) green, 
 				       b, mmio);
 	} else if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR) {
-		i810_write_dac((u8) regno, (u8) red, (u8) green,
+		i810_write_dac((u8) regyes, (u8) red, (u8) green,
 			       (u8) blue, mmio);
 	}
 
 	i810_writeb(PIXCONF1, mmio, temp);
 
-	if (regno < 16) {
+	if (regyes < 16) {
 		switch (info->var.bits_per_pixel) {
 		case 16:	
 			if (info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
 				if (info->var.green.length == 5) 
-					((u32 *)info->pseudo_palette)[regno] = 
-						(regno << 10) | (regno << 5) |
-						regno;
+					((u32 *)info->pseudo_palette)[regyes] = 
+						(regyes << 10) | (regyes << 5) |
+						regyes;
 				else
-					((u32 *)info->pseudo_palette)[regno] = 
-						(regno << 11) | (regno << 5) |
-						regno;
+					((u32 *)info->pseudo_palette)[regyes] = 
+						(regyes << 11) | (regyes << 5) |
+						regyes;
 			} else {
 				if (info->var.green.length == 5) {
 					/* RGB 555 */
-					((u32 *)info->pseudo_palette)[regno] = 
+					((u32 *)info->pseudo_palette)[regyes] = 
 						((red & 0xf800) >> 1) |
 						((green & 0xf800) >> 6) |
 						((blue & 0xf800) >> 11);
 				} else {
 					/* RGB 565 */
-					((u32 *)info->pseudo_palette)[regno] =
+					((u32 *)info->pseudo_palette)[regyes] =
 						(red & 0xf800) |
 						((green & 0xf800) >> 5) |
 						((blue & 0xf800) >> 11);
@@ -1359,11 +1359,11 @@ static int i810fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		case 24:	/* RGB 888 */
 		case 32:	/* RGBA 8888 */
 			if (info->fix.visual == FB_VISUAL_DIRECTCOLOR) 
-				((u32 *)info->pseudo_palette)[regno] = 
-					(regno << 16) | (regno << 8) |
-					regno;
+				((u32 *)info->pseudo_palette)[regyes] = 
+					(regyes << 16) | (regyes << 8) |
+					regyes;
 			else 
-				((u32 *)info->pseudo_palette)[regno] = 
+				((u32 *)info->pseudo_palette)[regyes] = 
 					((red & 0xff00) << 8) |
 					(green & 0xff00) |
 					((blue & 0xff00) >> 8);
@@ -1671,7 +1671,7 @@ static int i810_alloc_agp_mem(struct fb_info *info)
 	size = par->fb.size + par->iring.size;
 
 	if (!(bridge = agp_backend_acquire(par->dev))) {
-		printk("i810fb_alloc_fbmem: cannot acquire agpgart\n");
+		printk("i810fb_alloc_fbmem: canyest acquire agpgart\n");
 		return -ENODEV;
 	}
 	if (!(par->i810_gtt.i810_fb_memory = 
@@ -1698,7 +1698,7 @@ static int i810_alloc_agp_mem(struct fb_info *info)
 	}
 	if (agp_bind_memory(par->i810_gtt.i810_cursor_memory,
 			    par->cursor_heap.offset)) {
-		printk("i810fb_alloc_cursormem: cannot bind cursor memory\n");
+		printk("i810fb_alloc_cursormem: canyest bind cursor memory\n");
 		agp_backend_release(bridge);
 		return -EBUSY;
 	}	
@@ -1800,7 +1800,7 @@ static void i810_init_defaults(struct i810fb_par *par, struct fb_info *info)
 	info->var.bits_per_pixel = bpp;
 
 	if (dcolor)
-		info->var.nonstd = 1;
+		info->var.yesnstd = 1;
 
 	if (par->dev_flags & HAS_ACCELERATION) 
 		info->var.accel_flags = 1;
@@ -1841,7 +1841,7 @@ static int i810_allocate_pci_resource(struct i810fb_par *par,
 	int err;
 
 	if ((err = pci_enable_device(par->dev))) { 
-		printk("i810fb_init: cannot enable device\n");
+		printk("i810fb_init: canyest enable device\n");
 		return err;		
 	}
 	par->res_flags |= PCI_DEVICE_ENABLED;
@@ -1863,7 +1863,7 @@ static int i810_allocate_pci_resource(struct i810fb_par *par,
 	if (!request_mem_region(par->aperture.physical, 
 				par->aperture.size, 
 				i810_pci_list[entry->driver_data])) {
-		printk("i810fb_init: cannot request framebuffer region\n");
+		printk("i810fb_init: canyest request framebuffer region\n");
 		return -ENODEV;
 	}
 	par->res_flags |= FRAMEBUFFER_REQ;
@@ -1871,22 +1871,22 @@ static int i810_allocate_pci_resource(struct i810fb_par *par,
 	par->aperture.virtual = ioremap_wc(par->aperture.physical,
 					   par->aperture.size);
 	if (!par->aperture.virtual) {
-		printk("i810fb_init: cannot remap framebuffer region\n");
+		printk("i810fb_init: canyest remap framebuffer region\n");
 		return -ENODEV;
 	}
   
 	if (!request_mem_region(par->mmio_start_phys, 
 				MMIO_SIZE, 
 				i810_pci_list[entry->driver_data])) {
-		printk("i810fb_init: cannot request mmio region\n");
+		printk("i810fb_init: canyest request mmio region\n");
 		return -ENODEV;
 	}
 	par->res_flags |= MMIO_REQ;
 
-	par->mmio_start_virtual = ioremap_nocache(par->mmio_start_phys, 
+	par->mmio_start_virtual = ioremap_yescache(par->mmio_start_phys, 
 						  MMIO_SIZE);
 	if (!par->mmio_start_virtual) {
-		printk("i810fb_init: cannot remap mmio region\n");
+		printk("i810fb_init: canyest remap mmio region\n");
 		return -ENODEV;
 	}
 
@@ -2065,7 +2065,7 @@ static int i810fb_init_pci(struct pci_dev *dev,
 
 	if (err < 0) {
     		i810fb_release_resource(info, par); 
-		printk("i810fb_init: cannot register framebuffer device\n");
+		printk("i810fb_init: canyest register framebuffer device\n");
     		return err;  
     	}   
 
@@ -2081,7 +2081,7 @@ static int i810fb_init_pci(struct pci_dev *dev,
       	       "I810FB: Video RAM   : %dK\n" 
 	       "I810FB: Monitor     : H: %d-%d KHz V: %d-%d Hz\n"
 	       "I810FB: Mode        : %dx%d-%dbpp@%dHz\n",
-	       info->node,
+	       info->yesde,
 	       i810_pci_list[entry->driver_data],
 	       VERSION_MAJOR, VERSION_MINOR, VERSION_TEENIE, BRANCH_VERSION,
 	       (int) par->fb.size>>10, info->monspecs.hfmin/1000,
@@ -2201,7 +2201,7 @@ module_param(dcolor, bool, 0);
 MODULE_PARM_DESC(dcolor, "use DirectColor visuals"
 		 " (default = 0 = TrueColor)");
 module_param(ddc3, bool, 0);
-MODULE_PARM_DESC(ddc3, "Probe DDC bus 3 (default = 0 = no)");
+MODULE_PARM_DESC(ddc3, "Probe DDC bus 3 (default = 0 = yes)");
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Specify initial video mode");
 

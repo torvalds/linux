@@ -18,7 +18,7 @@
 
 /*
  * These two functions allow hooking accesses to userspace to increase
- * system integrity by ensuring that the kernel can not inadvertantly
+ * system integrity by ensuring that the kernel can yest inadvertantly
  * perform such accesses (eg, via list poison values) which could then
  * be exploited for priviledge escalation.
  */
@@ -46,7 +46,7 @@ static __always_inline void uaccess_restore(unsigned int flags)
 }
 
 /*
- * These two are intentionally not defined anywhere - if the kernel
+ * These two are intentionally yest defined anywhere - if the kernel
  * code generates any references to them, that's a bug.
  */
 extern int __get_user_bad(void);
@@ -126,12 +126,12 @@ static inline void __user *__uaccess_mask_range_ptr(const void __user *ptr,
 /*
  * Single-value transfer routines.  They automatically use the right
  * size if we just have the right pointer type.  Note that the functions
- * which read from user space (*get_*) need to take care not to leak
+ * which read from user space (*get_*) need to take care yest to leak
  * kernel data even if the calling code is buggy and fails to check
  * the return value.  This means zeroing out the destination variable
  * or buffer on error.  Normally this is done out of line by the
  * fixup code, but there are a few places where it intrudes on the
- * main code path.  When we only write to user space, there is no
+ * main code path.  When we only write to user space, there is yes
  * problem.
  */
 extern int __get_user_1(void *);
@@ -273,7 +273,7 @@ static inline void set_fs(mm_segment_t fs)
 }
 
 #define get_user(x, p)	__get_user(x, p)
-#define __put_user_check __put_user_nocheck
+#define __put_user_check __put_user_yescheck
 
 #endif /* CONFIG_MMU */
 
@@ -284,7 +284,7 @@ static inline void set_fs(mm_segment_t fs)
 
 #ifdef CONFIG_CPU_SPECTRE
 /*
- * When mitigating Spectre variant 1, it is not worth fixing the non-
+ * When mitigating Spectre variant 1, it is yest worth fixing the yesn-
  * verifying accessors, because we need to add verification of the
  * address space there.  Force these to use the standard get_user()
  * version instead.
@@ -293,7 +293,7 @@ static inline void set_fs(mm_segment_t fs)
 #else
 
 /*
- * The "__xxx" versions of the user access functions do not verify the
+ * The "__xxx" versions of the user access functions do yest verify the
  * address space - it must have been done previously with a separate
  * "access_ok()" call.
  *
@@ -414,20 +414,20 @@ do {									\
 #define __put_user(x, ptr)						\
 ({									\
 	long __pu_err = 0;						\
-	__put_user_switch((x), (ptr), __pu_err, __put_user_nocheck);	\
+	__put_user_switch((x), (ptr), __pu_err, __put_user_yescheck);	\
 	__pu_err;							\
 })
 
-#define __put_user_nocheck(x, __pu_ptr, __err, __size)			\
+#define __put_user_yescheck(x, __pu_ptr, __err, __size)			\
 	do {								\
 		unsigned long __pu_addr = (unsigned long)__pu_ptr;	\
-		__put_user_nocheck_##__size(x, __pu_addr, __err);	\
+		__put_user_yescheck_##__size(x, __pu_addr, __err);	\
 	} while (0)
 
-#define __put_user_nocheck_1 __put_user_asm_byte
-#define __put_user_nocheck_2 __put_user_asm_half
-#define __put_user_nocheck_4 __put_user_asm_word
-#define __put_user_nocheck_8 __put_user_asm_dword
+#define __put_user_yescheck_1 __put_user_asm_byte
+#define __put_user_yescheck_2 __put_user_asm_half
+#define __put_user_yescheck_4 __put_user_asm_word
+#define __put_user_yescheck_8 __put_user_asm_dword
 
 #define __put_user_asm(x, __pu_addr, err, instr)		\
 	__asm__ __volatile__(					\

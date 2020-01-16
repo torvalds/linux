@@ -40,7 +40,7 @@ case "${1}" in
 		tarball=${tarball}.xz
 		;;
 	*)
-		echo "Unknown tarball target \"${1}\" requested, please add it to ${0}." >&2
+		echo "Unkyeswn tarball target \"${1}\" requested, please add it to ${0}." >&2
 		exit 1
 		;;
 esac
@@ -118,7 +118,7 @@ case "${ARCH}" in
 		echo "" >&2
 		echo '** ** **  WARNING  ** ** **' >&2
 		echo "" >&2
-		echo "Your architecture did not define any architecture-dependent files" >&2
+		echo "Your architecture did yest define any architecture-dependent files" >&2
 		echo "to be placed into the tarball. Please add those to ${0} ..." >&2
 		echo "" >&2
 		sleep 5

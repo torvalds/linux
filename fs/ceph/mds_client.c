@@ -25,26 +25,26 @@
 /*
  * A cluster of MDS (metadata server) daemons is responsible for
  * managing the file system namespace (the directory hierarchy and
- * inodes) and for coordinating shared access to storage.  Metadata is
+ * iyesdes) and for coordinating shared access to storage.  Metadata is
  * partitioning hierarchically across a number of servers, and that
  * partition varies over time as the cluster adjusts the distribution
  * in order to balance load.
  *
- * The MDS client is primarily responsible to managing synchronous
+ * The MDS client is primarily responsible to managing synchroyesus
  * metadata requests for operations like open, unlink, and so forth.
  * If there is a MDS failure, we find out about it when we (possibly
  * request and) receive a new MDS map, and can resubmit affected
  * requests.
  *
  * For the most part, though, we take advantage of a lossless
- * communications channel to the MDS, and do not need to worry about
+ * communications channel to the MDS, and do yest need to worry about
  * timing out or resubmitting requests.
  *
  * We maintain a stateful "session" with each MDS we interact with.
  * Within each session, we sent periodic heartbeat messages to ensure
  * any capabilities or leases we have been issues remain valid.  If
  * the session times out and goes stale, our leases and capabilities
- * are no longer valid.
+ * are yes longer valid.
  */
 
 struct ceph_reconnect_state {
@@ -91,7 +91,7 @@ bad:
 }
 
 /*
- * parse individual inode info
+ * parse individual iyesde info
  */
 static int parse_reply_info_in(void **p, void *end,
 			       struct ceph_mds_reply_info_in *info,
@@ -114,9 +114,9 @@ static int parse_reply_info_in(void **p, void *end,
 		end = *p + struct_len;
 	}
 
-	ceph_decode_need(p, end, sizeof(struct ceph_mds_reply_inode), bad);
+	ceph_decode_need(p, end, sizeof(struct ceph_mds_reply_iyesde), bad);
 	info->in = *p;
-	*p += sizeof(struct ceph_mds_reply_inode) +
+	*p += sizeof(struct ceph_mds_reply_iyesde) +
 		sizeof(*info->in->fragtree.splits) *
 		le32_to_cpu(info->in->fragtree.nsplits);
 
@@ -280,8 +280,8 @@ bad:
 }
 
 /*
- * parse a normal reply, which may contain a (dir+)dentry and/or a
- * target inode.
+ * parse a yesrmal reply, which may contain a (dir+)dentry and/or a
+ * target iyesde.
  */
 static int parse_reply_info_trace(void **p, void *end,
 				  struct ceph_mds_reply_info_parsed *info,
@@ -373,8 +373,8 @@ static int parse_reply_info_readdir(void **p, void *end,
 		err = parse_reply_info_lease(p, end, &rde->lease, features);
 		if (err)
 			goto out_bad;
-		/* inode */
-		err = parse_reply_info_in(p, end, &rde->inode, features);
+		/* iyesde */
+		err = parse_reply_info_in(p, end, &rde->iyesde, features);
 		if (err < 0)
 			goto out_bad;
 		/* ceph_readdir_prepopulate() will update it */
@@ -425,10 +425,10 @@ static int parse_reply_info_create(void **p, void *end,
 	    (features & CEPH_FEATURE_REPLY_CREATE_INODE)) {
 		/* Malformed reply? */
 		if (*p == end) {
-			info->has_create_ino = false;
+			info->has_create_iyes = false;
 		} else {
-			info->has_create_ino = true;
-			ceph_decode_64_safe(p, end, info->ino, bad);
+			info->has_create_iyes = true;
+			ceph_decode_64_safe(p, end, info->iyes, bad);
 		}
 	} else {
 		if (*p != end)
@@ -539,7 +539,7 @@ const char *ceph_session_state_name(int s)
 
 static struct ceph_mds_session *get_session(struct ceph_mds_session *s)
 {
-	if (refcount_inc_not_zero(&s->s_ref)) {
+	if (refcount_inc_yest_zero(&s->s_ref)) {
 		dout("mdsc get_session %p %d -> %d\n", s,
 		     refcount_read(&s->s_ref)-1, refcount_read(&s->s_ref));
 		return s;
@@ -703,14 +703,14 @@ void ceph_mdsc_release_request(struct kref *kref)
 		ceph_msg_put(req->r_request);
 	if (req->r_reply)
 		ceph_msg_put(req->r_reply);
-	if (req->r_inode) {
-		ceph_put_cap_refs(ceph_inode(req->r_inode), CEPH_CAP_PIN);
+	if (req->r_iyesde) {
+		ceph_put_cap_refs(ceph_iyesde(req->r_iyesde), CEPH_CAP_PIN);
 		/* avoid calling iput_final() in mds dispatch threads */
-		ceph_async_iput(req->r_inode);
+		ceph_async_iput(req->r_iyesde);
 	}
 	if (req->r_parent)
-		ceph_put_cap_refs(ceph_inode(req->r_parent), CEPH_CAP_PIN);
-	ceph_async_iput(req->r_target_inode);
+		ceph_put_cap_refs(ceph_iyesde(req->r_parent), CEPH_CAP_PIN);
+	ceph_async_iput(req->r_target_iyesde);
 	if (req->r_dentry)
 		dput(req->r_dentry);
 	if (req->r_old_dentry)
@@ -722,7 +722,7 @@ void ceph_mdsc_release_request(struct kref *kref)
 		 * changed between the dir mutex being dropped and
 		 * this request being freed.
 		 */
-		ceph_put_cap_refs(ceph_inode(req->r_old_dentry_dir),
+		ceph_put_cap_refs(ceph_iyesde(req->r_old_dentry_dir),
 				  CEPH_CAP_PIN);
 		ceph_async_iput(req->r_old_dentry_dir);
 	}
@@ -736,7 +736,7 @@ void ceph_mdsc_release_request(struct kref *kref)
 	kfree(req);
 }
 
-DEFINE_RB_FUNCS(request, struct ceph_mds_request, r_tid, r_node)
+DEFINE_RB_FUNCS(request, struct ceph_mds_request, r_tid, r_yesde)
 
 /*
  * lookup session, bump ref if found.
@@ -763,7 +763,7 @@ lookup_get_request(struct ceph_mds_client *mdsc, u64 tid)
  */
 static void __register_request(struct ceph_mds_client *mdsc,
 			       struct ceph_mds_request *req,
-			       struct inode *dir)
+			       struct iyesde *dir)
 {
 	int ret = 0;
 
@@ -804,11 +804,11 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 	list_del_init(&req->r_unsafe_item);
 
 	if (req->r_tid == mdsc->oldest_tid) {
-		struct rb_node *p = rb_next(&req->r_node);
+		struct rb_yesde *p = rb_next(&req->r_yesde);
 		mdsc->oldest_tid = 0;
 		while (p) {
 			struct ceph_mds_request *next_req =
-				rb_entry(p, struct ceph_mds_request, r_node);
+				rb_entry(p, struct ceph_mds_request, r_yesde);
 			if (next_req->r_op != CEPH_MDS_OP_SETFILELOCK) {
 				mdsc->oldest_tid = next_req->r_tid;
 				break;
@@ -821,14 +821,14 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 
 	if (req->r_unsafe_dir  &&
 	    test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
-		struct ceph_inode_info *ci = ceph_inode(req->r_unsafe_dir);
+		struct ceph_iyesde_info *ci = ceph_iyesde(req->r_unsafe_dir);
 		spin_lock(&ci->i_unsafe_lock);
 		list_del_init(&req->r_unsafe_dir_item);
 		spin_unlock(&ci->i_unsafe_lock);
 	}
-	if (req->r_target_inode &&
+	if (req->r_target_iyesde &&
 	    test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
-		struct ceph_inode_info *ci = ceph_inode(req->r_target_inode);
+		struct ceph_iyesde_info *ci = ceph_iyesde(req->r_target_iyesde);
 		spin_lock(&ci->i_unsafe_lock);
 		list_del_init(&req->r_unsafe_target_item);
 		spin_unlock(&ci->i_unsafe_lock);
@@ -847,24 +847,24 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 
 /*
  * Walk back up the dentry tree until we hit a dentry representing a
- * non-snapshot inode. We do this using the rcu_read_lock (which must be held
+ * yesn-snapshot iyesde. We do this using the rcu_read_lock (which must be held
  * when calling this) to ensure that the objects won't disappear while we're
  * working with them. Once we hit a candidate dentry, we attempt to take a
  * reference to it, and return that as the result.
  */
-static struct inode *get_nonsnap_parent(struct dentry *dentry)
+static struct iyesde *get_yesnsnap_parent(struct dentry *dentry)
 {
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 
 	while (dentry && !IS_ROOT(dentry)) {
-		inode = d_inode_rcu(dentry);
-		if (!inode || ceph_snap(inode) == CEPH_NOSNAP)
+		iyesde = d_iyesde_rcu(dentry);
+		if (!iyesde || ceph_snap(iyesde) == CEPH_NOSNAP)
 			break;
 		dentry = dentry->d_parent;
 	}
-	if (inode)
-		inode = igrab(inode);
-	return inode;
+	if (iyesde)
+		iyesde = igrab(iyesde);
+	return iyesde;
 }
 
 /*
@@ -878,8 +878,8 @@ static struct inode *get_nonsnap_parent(struct dentry *dentry)
 static int __choose_mds(struct ceph_mds_client *mdsc,
 			struct ceph_mds_request *req)
 {
-	struct inode *inode;
-	struct ceph_inode_info *ci;
+	struct iyesde *iyesde;
+	struct ceph_iyesde_info *ci;
 	struct ceph_cap *cap;
 	int mode = req->r_direct_mode;
 	int mds = -1;
@@ -887,8 +887,8 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 	bool is_hash = test_bit(CEPH_MDS_R_DIRECT_IS_HASH, &req->r_req_flags);
 
 	/*
-	 * is there a specific mds we should try?  ignore hint if we have
-	 * no session and the mds is not up (active or recovering).
+	 * is there a specific mds we should try?  igyesre hint if we have
+	 * yes session and the mds is yest up (active or recovering).
 	 */
 	if (req->r_resend_mds >= 0 &&
 	    (__have_session(mdsc, req->r_resend_mds) ||
@@ -901,60 +901,60 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 	if (mode == USE_RANDOM_MDS)
 		goto random;
 
-	inode = NULL;
-	if (req->r_inode) {
-		if (ceph_snap(req->r_inode) != CEPH_SNAPDIR) {
-			inode = req->r_inode;
-			ihold(inode);
+	iyesde = NULL;
+	if (req->r_iyesde) {
+		if (ceph_snap(req->r_iyesde) != CEPH_SNAPDIR) {
+			iyesde = req->r_iyesde;
+			ihold(iyesde);
 		} else {
-			/* req->r_dentry is non-null for LSSNAP request */
+			/* req->r_dentry is yesn-null for LSSNAP request */
 			rcu_read_lock();
-			inode = get_nonsnap_parent(req->r_dentry);
+			iyesde = get_yesnsnap_parent(req->r_dentry);
 			rcu_read_unlock();
-			dout("__choose_mds using snapdir's parent %p\n", inode);
+			dout("__choose_mds using snapdir's parent %p\n", iyesde);
 		}
 	} else if (req->r_dentry) {
-		/* ignore race with rename; old or new d_parent is okay */
+		/* igyesre race with rename; old or new d_parent is okay */
 		struct dentry *parent;
-		struct inode *dir;
+		struct iyesde *dir;
 
 		rcu_read_lock();
 		parent = READ_ONCE(req->r_dentry->d_parent);
-		dir = req->r_parent ? : d_inode_rcu(parent);
+		dir = req->r_parent ? : d_iyesde_rcu(parent);
 
 		if (!dir || dir->i_sb != mdsc->fsc->sb) {
-			/*  not this fs or parent went negative */
-			inode = d_inode(req->r_dentry);
-			if (inode)
-				ihold(inode);
+			/*  yest this fs or parent went negative */
+			iyesde = d_iyesde(req->r_dentry);
+			if (iyesde)
+				ihold(iyesde);
 		} else if (ceph_snap(dir) != CEPH_NOSNAP) {
 			/* direct snapped/virtual snapdir requests
-			 * based on parent dir inode */
-			inode = get_nonsnap_parent(parent);
-			dout("__choose_mds using nonsnap parent %p\n", inode);
+			 * based on parent dir iyesde */
+			iyesde = get_yesnsnap_parent(parent);
+			dout("__choose_mds using yesnsnap parent %p\n", iyesde);
 		} else {
 			/* dentry target */
-			inode = d_inode(req->r_dentry);
-			if (!inode || mode == USE_AUTH_MDS) {
+			iyesde = d_iyesde(req->r_dentry);
+			if (!iyesde || mode == USE_AUTH_MDS) {
 				/* dir + name */
-				inode = igrab(dir);
+				iyesde = igrab(dir);
 				hash = ceph_dentry_hash(dir, req->r_dentry);
 				is_hash = true;
 			} else {
-				ihold(inode);
+				ihold(iyesde);
 			}
 		}
 		rcu_read_unlock();
 	}
 
-	dout("__choose_mds %p is_hash=%d (%d) mode %d\n", inode, (int)is_hash,
+	dout("__choose_mds %p is_hash=%d (%d) mode %d\n", iyesde, (int)is_hash,
 	     (int)hash, mode);
-	if (!inode)
+	if (!iyesde)
 		goto random;
-	ci = ceph_inode(inode);
+	ci = ceph_iyesde(iyesde);
 
-	if (is_hash && S_ISDIR(inode->i_mode)) {
-		struct ceph_inode_frag frag;
+	if (is_hash && S_ISDIR(iyesde->i_mode)) {
+		struct ceph_iyesde_frag frag;
 		int found;
 
 		ceph_choose_frag(ci, hash, &frag, &found);
@@ -968,7 +968,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 				mds = frag.dist[r];
 				dout("choose_mds %p %llx.%llx "
 				     "frag %u mds%d (%d/%d)\n",
-				     inode, ceph_vinop(inode),
+				     iyesde, ceph_viyesp(iyesde),
 				     frag.frag, mds,
 				     (int)r, frag.ndist);
 				if (ceph_mdsmap_get_state(mdsc->mdsmap, mds) >=
@@ -976,7 +976,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 					goto out;
 			}
 
-			/* since this file/dir wasn't known to be
+			/* since this file/dir wasn't kyeswn to be
 			 * replicated, then we want to look for the
 			 * authoritative mds. */
 			mode = USE_AUTH_MDS;
@@ -985,7 +985,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 				mds = frag.mds;
 				dout("choose_mds %p %llx.%llx "
 				     "frag %u mds%d (auth)\n",
-				     inode, ceph_vinop(inode), frag.frag, mds);
+				     iyesde, ceph_viyesp(iyesde), frag.frag, mds);
 				if (ceph_mdsmap_get_state(mdsc->mdsmap, mds) >=
 				    CEPH_MDS_STATE_ACTIVE)
 					goto out;
@@ -998,21 +998,21 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 	if (mode == USE_AUTH_MDS)
 		cap = ci->i_auth_cap;
 	if (!cap && !RB_EMPTY_ROOT(&ci->i_caps))
-		cap = rb_entry(rb_first(&ci->i_caps), struct ceph_cap, ci_node);
+		cap = rb_entry(rb_first(&ci->i_caps), struct ceph_cap, ci_yesde);
 	if (!cap) {
 		spin_unlock(&ci->i_ceph_lock);
-		ceph_async_iput(inode);
+		ceph_async_iput(iyesde);
 		goto random;
 	}
 	mds = cap->session->s_mds;
 	dout("choose_mds %p %llx.%llx mds%d (%scap %p)\n",
-	     inode, ceph_vinop(inode), mds,
+	     iyesde, ceph_viyesp(iyesde), mds,
 	     cap == ci->i_auth_cap ? "auth " : "", cap);
 	spin_unlock(&ci->i_ceph_lock);
 out:
 	/* avoid calling iput_final() while holding mdsc->mutex or
 	 * in mds dispatch threads */
-	ceph_async_iput(inode);
+	ceph_async_iput(iyesde);
 	return mds;
 
 random:
@@ -1080,7 +1080,7 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 	void *p, *end;
 
 	const char* metadata[][2] = {
-		{"hostname", mdsc->nodename},
+		{"hostname", mdsc->yesdename},
 		{"kernel_version", init_utsname()->release},
 		{"entity_id", opt->name ? : ""},
 		{"root", fsopt->server_path ? : "/"},
@@ -1269,8 +1269,8 @@ static void cleanup_session_requests(struct ceph_mds_client *mdsc,
 				     struct ceph_mds_session *session)
 {
 	struct ceph_mds_request *req;
-	struct rb_node *p;
-	struct ceph_inode_info *ci;
+	struct rb_yesde *p;
+	struct ceph_iyesde_info *ci;
 
 	dout("cleanup_session_requests mds%d\n", session->s_mds);
 	mutex_lock(&mdsc->mutex);
@@ -1279,14 +1279,14 @@ static void cleanup_session_requests(struct ceph_mds_client *mdsc,
 				       struct ceph_mds_request, r_unsafe_item);
 		pr_warn_ratelimited(" dropping unsafe request %llu\n",
 				    req->r_tid);
-		if (req->r_target_inode) {
-			/* dropping unsafe change of inode's attributes */
-			ci = ceph_inode(req->r_target_inode);
+		if (req->r_target_iyesde) {
+			/* dropping unsafe change of iyesde's attributes */
+			ci = ceph_iyesde(req->r_target_iyesde);
 			errseq_set(&ci->i_meta_err, -EIO);
 		}
 		if (req->r_unsafe_dir) {
 			/* dropping unsafe directory operation */
-			ci = ceph_inode(req->r_unsafe_dir);
+			ci = ceph_iyesde(req->r_unsafe_dir);
 			errseq_set(&ci->i_meta_err, -EIO);
 		}
 		__unregister_request(mdsc, req);
@@ -1294,7 +1294,7 @@ static void cleanup_session_requests(struct ceph_mds_client *mdsc,
 	/* zero r_attempts, so kick_requests() will re-send requests */
 	p = rb_first(&mdsc->request_tree);
 	while (p) {
-		req = rb_entry(p, struct ceph_mds_request, r_node);
+		req = rb_entry(p, struct ceph_mds_request, r_yesde);
 		p = rb_next(p);
 		if (req->r_session &&
 		    req->r_session->s_mds == session->s_mds)
@@ -1310,12 +1310,12 @@ static void cleanup_session_requests(struct ceph_mds_client *mdsc,
  * Caller must hold session s_mutex.
  */
 int ceph_iterate_session_caps(struct ceph_mds_session *session,
-			      int (*cb)(struct inode *, struct ceph_cap *,
+			      int (*cb)(struct iyesde *, struct ceph_cap *,
 					void *), void *arg)
 {
 	struct list_head *p;
 	struct ceph_cap *cap;
-	struct inode *inode, *last_inode = NULL;
+	struct iyesde *iyesde, *last_iyesde = NULL;
 	struct ceph_cap *old_cap = NULL;
 	int ret;
 
@@ -1324,27 +1324,27 @@ int ceph_iterate_session_caps(struct ceph_mds_session *session,
 	p = session->s_caps.next;
 	while (p != &session->s_caps) {
 		cap = list_entry(p, struct ceph_cap, session_caps);
-		inode = igrab(&cap->ci->vfs_inode);
-		if (!inode) {
+		iyesde = igrab(&cap->ci->vfs_iyesde);
+		if (!iyesde) {
 			p = p->next;
 			continue;
 		}
 		session->s_cap_iterator = cap;
 		spin_unlock(&session->s_cap_lock);
 
-		if (last_inode) {
+		if (last_iyesde) {
 			/* avoid calling iput_final() while holding
 			 * s_mutex or in mds dispatch threads */
-			ceph_async_iput(last_inode);
-			last_inode = NULL;
+			ceph_async_iput(last_iyesde);
+			last_iyesde = NULL;
 		}
 		if (old_cap) {
 			ceph_put_cap(session->s_mdsc, old_cap);
 			old_cap = NULL;
 		}
 
-		ret = cb(inode, cap, arg);
-		last_inode = inode;
+		ret = cb(iyesde, cap, arg);
+		last_iyesde = iyesde;
 
 		spin_lock(&session->s_cap_lock);
 		p = p->next;
@@ -1368,24 +1368,24 @@ out:
 	session->s_cap_iterator = NULL;
 	spin_unlock(&session->s_cap_lock);
 
-	ceph_async_iput(last_inode);
+	ceph_async_iput(last_iyesde);
 	if (old_cap)
 		ceph_put_cap(session->s_mdsc, old_cap);
 
 	return ret;
 }
 
-static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
+static int remove_session_caps_cb(struct iyesde *iyesde, struct ceph_cap *cap,
 				  void *arg)
 {
 	struct ceph_fs_client *fsc = (struct ceph_fs_client *)arg;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	LIST_HEAD(to_remove);
 	bool dirty_dropped = false;
 	bool invalidate = false;
 
-	dout("removing cap %p, ci is %p, inode is %p\n",
-	     cap, ci, &ci->vfs_inode);
+	dout("removing cap %p, ci is %p, iyesde is %p\n",
+	     cap, ci, &ci->vfs_iyesde);
 	spin_lock(&ci->i_ceph_lock);
 	if (cap->mds_wanted | cap->issued)
 		ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
@@ -1395,10 +1395,10 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		struct ceph_mds_client *mdsc = fsc->mdsc;
 
 		if (READ_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
-			if (inode->i_data.nrpages > 0)
+			if (iyesde->i_data.nrpages > 0)
 				invalidate = true;
 			if (ci->i_wrbuffer_ref > 0)
-				mapping_set_error(&inode->i_data, -EIO);
+				mapping_set_error(&iyesde->i_data, -EIO);
 		}
 
 		while (!list_empty(&ci->i_cap_flush_list)) {
@@ -1416,7 +1416,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 			pr_warn_ratelimited(
 				" dropping dirty %s state for %p %lld\n",
 				ceph_cap_string(ci->i_dirty_caps),
-				inode, ceph_ino(inode));
+				iyesde, ceph_iyes(iyesde));
 			ci->i_dirty_caps = 0;
 			list_del_init(&ci->i_dirty_item);
 			dirty_dropped = true;
@@ -1425,7 +1425,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 			pr_warn_ratelimited(
 				" dropping dirty+flushing %s state for %p %lld\n",
 				ceph_cap_string(ci->i_flushing_caps),
-				inode, ceph_ino(inode));
+				iyesde, ceph_iyes(iyesde));
 			ci->i_flushing_caps = 0;
 			list_del_init(&ci->i_flushing_item);
 			mdsc->num_cap_flushing--;
@@ -1449,7 +1449,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 			/* make further file lock syscall return -EIO */
 			ci->i_ceph_flags |= CEPH_I_ERROR_FILELOCK;
 			pr_warn_ratelimited(" dropping file locks for %p %lld\n",
-					    inode, ceph_ino(inode));
+					    iyesde, ceph_iyes(iyesde));
 		}
 
 		if (!ci->i_dirty_caps && ci->i_prealloc_cap_flush) {
@@ -1468,9 +1468,9 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 
 	wake_up_all(&ci->i_cap_wq);
 	if (invalidate)
-		ceph_queue_invalidate(inode);
+		ceph_queue_invalidate(iyesde);
 	if (dirty_dropped)
-		iput(inode);
+		iput(iyesde);
 	return 0;
 }
 
@@ -1490,14 +1490,14 @@ static void remove_session_caps(struct ceph_mds_session *session)
 
 	spin_lock(&session->s_cap_lock);
 	if (session->s_nr_caps > 0) {
-		struct inode *inode;
+		struct iyesde *iyesde;
 		struct ceph_cap *cap, *prev = NULL;
-		struct ceph_vino vino;
+		struct ceph_viyes viyes;
 		/*
-		 * iterate_session_caps() skips inodes that are being
+		 * iterate_session_caps() skips iyesdes that are being
 		 * deleted, we need to wait until deletions are complete.
-		 * __wait_on_freeing_inode() is designed for the job,
-		 * but it is not exported, so use lookup inode function
+		 * __wait_on_freeing_iyesde() is designed for the job,
+		 * but it is yest exported, so use lookup iyesde function
 		 * to access it.
 		 */
 		while (!list_empty(&session->s_caps)) {
@@ -1506,12 +1506,12 @@ static void remove_session_caps(struct ceph_mds_session *session)
 			if (cap == prev)
 				break;
 			prev = cap;
-			vino = cap->ci->i_vino;
+			viyes = cap->ci->i_viyes;
 			spin_unlock(&session->s_cap_lock);
 
-			inode = ceph_find_inode(sb, vino);
+			iyesde = ceph_find_iyesde(sb, viyes);
 			 /* avoid calling iput_final() while holding s_mutex */
-			ceph_async_iput(inode);
+			ceph_async_iput(iyesde);
 
 			spin_lock(&session->s_cap_lock);
 		}
@@ -1534,14 +1534,14 @@ enum {
 
 /*
  * wake up any threads waiting on this session's caps.  if the cap is
- * old (didn't get renewed on the client reconnect), remove it now.
+ * old (didn't get renewed on the client reconnect), remove it yesw.
  *
  * caller must hold s_mutex.
  */
-static int wake_up_session_cb(struct inode *inode, struct ceph_cap *cap,
+static int wake_up_session_cb(struct iyesde *iyesde, struct ceph_cap *cap,
 			      void *arg)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	unsigned long ev = (unsigned long)arg;
 
 	if (ev == RECONNECT) {
@@ -1551,10 +1551,10 @@ static int wake_up_session_cb(struct inode *inode, struct ceph_cap *cap,
 		spin_unlock(&ci->i_ceph_lock);
 	} else if (ev == RENEWCAPS) {
 		if (cap->cap_gen < cap->session->s_cap_gen) {
-			/* mds did not re-issue stale cap */
+			/* mds did yest re-issue stale cap */
 			spin_lock(&ci->i_ceph_lock);
 			cap->issued = cap->implemented = CEPH_CAP_PIN;
-			/* make sure mds knows what we want */
+			/* make sure mds kyesws what we want */
 			if (__ceph_caps_file_wanted(ci) & ~cap->mds_wanted)
 				ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
 			spin_unlock(&ci->i_ceph_lock);
@@ -1589,11 +1589,11 @@ static int send_renew_caps(struct ceph_mds_client *mdsc,
 		pr_info("mds%d caps stale\n", session->s_mds);
 	session->s_renew_requested = jiffies;
 
-	/* do not try to renew caps until a recovering mds has reconnected
+	/* do yest try to renew caps until a recovering mds has reconnected
 	 * with its clients. */
 	state = ceph_mdsmap_get_state(mdsc->mdsmap, session->s_mds);
 	if (state < CEPH_MDS_STATE_RECONNECT) {
-		dout("send_renew_caps ignoring mds%d (%s)\n",
+		dout("send_renew_caps igyesring mds%d (%s)\n",
 		     session->s_mds, ceph_mds_state_name(state));
 		return 0;
 	}
@@ -1624,7 +1624,7 @@ static int send_flushmsg_ack(struct ceph_mds_client *mdsc,
 
 
 /*
- * Note new cap ttl, and any transition from stale -> not stale (fresh?).
+ * Note new cap ttl, and any transition from stale -> yest stale (fresh?).
  *
  * Called under session->s_mutex
  */
@@ -1648,7 +1648,7 @@ static void renewed_caps(struct ceph_mds_client *mdsc,
 			pr_info("mds%d caps still stale\n", session->s_mds);
 		}
 	}
-	dout("renewed_caps mds%d ttl now %lu, was %s, now %s\n",
+	dout("renewed_caps mds%d ttl yesw %lu, was %s, yesw %s\n",
 	     session->s_mds, session->s_cap_ttl, was_stale ? "stale" : "fresh",
 	     time_before(jiffies, session->s_cap_ttl) ? "stale" : "fresh");
 	spin_unlock(&session->s_cap_lock);
@@ -1713,17 +1713,17 @@ out:
 /*
  * Trim old(er) caps.
  *
- * Because we can't cache an inode without one or more caps, we do
+ * Because we can't cache an iyesde without one or more caps, we do
  * this indirectly: if a cap is unused, we prune its aliases, at which
- * point the inode will hopefully get dropped to.
+ * point the iyesde will hopefully get dropped to.
  *
  * Yes, this is a bit sloppy.  Our only real goal here is to respond to
  * memory pressure from the MDS, though, so it needn't be perfect.
  */
-static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
+static int trim_caps_cb(struct iyesde *iyesde, struct ceph_cap *cap, void *arg)
 {
 	int *remaining = arg;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	int used, wanted, oissued, mine;
 
 	if (*remaining <= 0)
@@ -1736,7 +1736,7 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 	oissued = __ceph_caps_issued_other(ci, cap);
 
 	dout("trim_caps_cb %p cap %p mine %s oissued %s used %s wanted %s\n",
-	     inode, cap, ceph_cap_string(mine), ceph_cap_string(oissued),
+	     iyesde, cap, ceph_cap_string(mine), ceph_cap_string(oissued),
 	     ceph_cap_string(used), ceph_cap_string(wanted));
 	if (cap == ci->i_auth_cap) {
 		if (ci->i_dirty_caps || ci->i_flushing_caps ||
@@ -1744,13 +1744,13 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 			goto out;
 		if ((used | wanted) & CEPH_CAP_ANY_WR)
 			goto out;
-		/* Note: it's possible that i_filelock_ref becomes non-zero
+		/* Note: it's possible that i_filelock_ref becomes yesn-zero
 		 * after dropping auth caps. It doesn't hurt because reply
 		 * of lock mds request will re-add auth caps. */
 		if (atomic_read(&ci->i_filelock_ref) > 0)
 			goto out;
 	}
-	/* The inode has cached pages, but it's no longer used.
+	/* The iyesde has cached pages, but it's yes longer used.
 	 * we can safely drop it */
 	if (wanted == 0 && used == CEPH_CAP_FILE_CACHE &&
 	    !(oissued & CEPH_CAP_FILE_CACHE)) {
@@ -1768,16 +1768,16 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 		struct dentry *dentry;
 		/* try dropping referring dentries */
 		spin_unlock(&ci->i_ceph_lock);
-		dentry = d_find_any_alias(inode);
+		dentry = d_find_any_alias(iyesde);
 		if (dentry && drop_negative_children(dentry)) {
 			int count;
 			dput(dentry);
-			d_prune_aliases(inode);
-			count = atomic_read(&inode->i_count);
+			d_prune_aliases(iyesde);
+			count = atomic_read(&iyesde->i_count);
 			if (count == 1)
 				(*remaining)--;
-			dout("trim_caps_cb %p cap %p pruned, count now %d\n",
-			     inode, cap, count);
+			dout("trim_caps_cb %p cap %p pruned, count yesw %d\n",
+			     iyesde, cap, count);
 		} else {
 			dput(dentry);
 		}
@@ -1834,7 +1834,7 @@ static int check_caps_flush(struct ceph_mds_client *mdsc,
 }
 
 /*
- * flush all dirty inode data to disk.
+ * flush all dirty iyesde data to disk.
  *
  * returns true if we've flushed through want_flush_tid
  */
@@ -1898,7 +1898,7 @@ again:
 		put_unaligned_le32(get_unaligned_le32(&head->num) + 1,
 				   &head->num);
 		item = msg->front.iov_base + msg->front.iov_len;
-		item->ino = cpu_to_le64(cap->cap_ino);
+		item->iyes = cpu_to_le64(cap->cap_iyes);
 		item->cap_id = cpu_to_le64(cap->cap_id);
 		item->migrate_seq = cpu_to_le32(cap->mseq);
 		item->seq = cpu_to_le32(cap->issue_seq);
@@ -2026,9 +2026,9 @@ void ceph_reclaim_caps_nr(struct ceph_mds_client *mdsc, int nr)
  */
 
 int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
-				    struct inode *dir)
+				    struct iyesde *dir)
 {
-	struct ceph_inode_info *ci = ceph_inode(dir);
+	struct ceph_iyesde_info *ci = ceph_iyesde(dir);
 	struct ceph_mds_reply_info_parsed *rinfo = &req->r_reply_info;
 	struct ceph_mount_options *opt = req->r_mdsc->fsc->mount_options;
 	size_t size = sizeof(struct ceph_mds_reply_dir_entry);
@@ -2083,7 +2083,7 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 	INIT_LIST_HEAD(&req->r_unsafe_target_item);
 	req->r_fmode = -1;
 	kref_init(&req->r_kref);
-	RB_CLEAR_NODE(&req->r_node);
+	RB_CLEAR_NODE(&req->r_yesde);
 	INIT_LIST_HEAD(&req->r_wait);
 	init_completion(&req->r_completion);
 	init_completion(&req->r_safe_completion);
@@ -2098,7 +2098,7 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 }
 
 /*
- * return oldest (lowest) request, tid in request tree, 0 if none.
+ * return oldest (lowest) request, tid in request tree, 0 if yesne.
  *
  * called under mdsc->mutex.
  */
@@ -2107,7 +2107,7 @@ static struct ceph_mds_request *__get_oldest_req(struct ceph_mds_client *mdsc)
 	if (RB_EMPTY_ROOT(&mdsc->request_tree))
 		return NULL;
 	return rb_entry(rb_first(&mdsc->request_tree),
-			struct ceph_mds_request, r_node);
+			struct ceph_mds_request, r_yesde);
 }
 
 static inline  u64 __get_oldest_tid(struct ceph_mds_client *mdsc)
@@ -2119,14 +2119,14 @@ static inline  u64 __get_oldest_tid(struct ceph_mds_client *mdsc)
  * Build a dentry's path.  Allocate on heap; caller must kfree.  Based
  * on build_path_from_dentry in fs/cifs/dir.c.
  *
- * If @stop_on_nosnap, generate path relative to the first non-snapped
- * inode.
+ * If @stop_on_yessnap, generate path relative to the first yesn-snapped
+ * iyesde.
  *
  * Encode hidden .snap dirs as a double /, i.e.
  *   foo/.snap/bar -> foo//bar
  */
 char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *pbase,
-			   int stop_on_nosnap)
+			   int stop_on_yessnap)
 {
 	struct dentry *temp;
 	char *path;
@@ -2148,15 +2148,15 @@ retry:
 	rcu_read_lock();
 	temp = dentry;
 	for (;;) {
-		struct inode *inode;
+		struct iyesde *iyesde;
 
 		spin_lock(&temp->d_lock);
-		inode = d_inode(temp);
-		if (inode && ceph_snap(inode) == CEPH_SNAPDIR) {
+		iyesde = d_iyesde(temp);
+		if (iyesde && ceph_snap(iyesde) == CEPH_SNAPDIR) {
 			dout("build_path path+%d: %p SNAPDIR\n",
 			     pos, temp);
-		} else if (stop_on_nosnap && inode && dentry != temp &&
-			   ceph_snap(inode) == CEPH_NOSNAP) {
+		} else if (stop_on_yessnap && iyesde && dentry != temp &&
+			   ceph_snap(iyesde) == CEPH_NOSNAP) {
 			spin_unlock(&temp->d_lock);
 			pos++; /* get rid of any prepended '/' */
 			break;
@@ -2181,7 +2181,7 @@ retry:
 
 		path[pos] = '/';
 	}
-	base = ceph_ino(d_inode(temp));
+	base = ceph_iyes(d_iyesde(temp));
 	rcu_read_unlock();
 
 	if (read_seqretry(&rename_lock, seq))
@@ -2192,7 +2192,7 @@ retry:
 		 * A rename didn't occur, but somehow we didn't end up where
 		 * we thought we would. Throw a warning and try again.
 		 */
-		pr_warn("build_path did not end path lookup where "
+		pr_warn("build_path did yest end path lookup where "
 			"expected, pos is %d\n", pos);
 		goto retry;
 	}
@@ -2204,24 +2204,24 @@ retry:
 	return path + pos;
 }
 
-static int build_dentry_path(struct dentry *dentry, struct inode *dir,
-			     const char **ppath, int *ppathlen, u64 *pino,
+static int build_dentry_path(struct dentry *dentry, struct iyesde *dir,
+			     const char **ppath, int *ppathlen, u64 *piyes,
 			     bool *pfreepath, bool parent_locked)
 {
 	char *path;
 
 	rcu_read_lock();
 	if (!dir)
-		dir = d_inode_rcu(dentry->d_parent);
+		dir = d_iyesde_rcu(dentry->d_parent);
 	if (dir && parent_locked && ceph_snap(dir) == CEPH_NOSNAP) {
-		*pino = ceph_ino(dir);
+		*piyes = ceph_iyes(dir);
 		rcu_read_unlock();
 		*ppath = dentry->d_name.name;
 		*ppathlen = dentry->d_name.len;
 		return 0;
 	}
 	rcu_read_unlock();
-	path = ceph_mdsc_build_path(dentry, ppathlen, pino, 1);
+	path = ceph_mdsc_build_path(dentry, ppathlen, piyes, 1);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 	*ppath = path;
@@ -2229,20 +2229,20 @@ static int build_dentry_path(struct dentry *dentry, struct inode *dir,
 	return 0;
 }
 
-static int build_inode_path(struct inode *inode,
-			    const char **ppath, int *ppathlen, u64 *pino,
+static int build_iyesde_path(struct iyesde *iyesde,
+			    const char **ppath, int *ppathlen, u64 *piyes,
 			    bool *pfreepath)
 {
 	struct dentry *dentry;
 	char *path;
 
-	if (ceph_snap(inode) == CEPH_NOSNAP) {
-		*pino = ceph_ino(inode);
+	if (ceph_snap(iyesde) == CEPH_NOSNAP) {
+		*piyes = ceph_iyes(iyesde);
 		*ppathlen = 0;
 		return 0;
 	}
-	dentry = d_find_alias(inode);
-	path = ceph_mdsc_build_path(dentry, ppathlen, pino, 1);
+	dentry = d_find_alias(iyesde);
+	path = ceph_mdsc_build_path(dentry, ppathlen, piyes, 1);
 	dput(dentry);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
@@ -2252,27 +2252,27 @@ static int build_inode_path(struct inode *inode,
 }
 
 /*
- * request arguments may be specified via an inode *, a dentry *, or
- * an explicit ino+path.
+ * request arguments may be specified via an iyesde *, a dentry *, or
+ * an explicit iyes+path.
  */
-static int set_request_path_attr(struct inode *rinode, struct dentry *rdentry,
-				  struct inode *rdiri, const char *rpath,
-				  u64 rino, const char **ppath, int *pathlen,
-				  u64 *ino, bool *freepath, bool parent_locked)
+static int set_request_path_attr(struct iyesde *riyesde, struct dentry *rdentry,
+				  struct iyesde *rdiri, const char *rpath,
+				  u64 riyes, const char **ppath, int *pathlen,
+				  u64 *iyes, bool *freepath, bool parent_locked)
 {
 	int r = 0;
 
-	if (rinode) {
-		r = build_inode_path(rinode, ppath, pathlen, ino, freepath);
-		dout(" inode %p %llx.%llx\n", rinode, ceph_ino(rinode),
-		     ceph_snap(rinode));
+	if (riyesde) {
+		r = build_iyesde_path(riyesde, ppath, pathlen, iyes, freepath);
+		dout(" iyesde %p %llx.%llx\n", riyesde, ceph_iyes(riyesde),
+		     ceph_snap(riyesde));
 	} else if (rdentry) {
-		r = build_dentry_path(rdentry, rdiri, ppath, pathlen, ino,
+		r = build_dentry_path(rdentry, rdiri, ppath, pathlen, iyes,
 					freepath, parent_locked);
-		dout(" dentry %p %llx/%.*s\n", rdentry, *ino, *pathlen,
+		dout(" dentry %p %llx/%.*s\n", rdentry, *iyes, *pathlen,
 		     *ppath);
-	} else if (rpath || rino) {
-		*ino = rino;
+	} else if (rpath || riyes) {
+		*iyes = riyes;
 		*ppath = rpath;
 		*pathlen = rpath ? strlen(rpath) : 0;
 		dout(" path %.*s\n", *pathlen, rpath);
@@ -2292,7 +2292,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	struct ceph_mds_request_head *head;
 	const char *path1 = NULL;
 	const char *path2 = NULL;
-	u64 ino1 = 0, ino2 = 0;
+	u64 iyes1 = 0, iyes2 = 0;
 	int pathlen1 = 0, pathlen2 = 0;
 	bool freepath1 = false, freepath2 = false;
 	int len;
@@ -2300,9 +2300,9 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	void *p, *end;
 	int ret;
 
-	ret = set_request_path_attr(req->r_inode, req->r_dentry,
-			      req->r_parent, req->r_path1, req->r_ino1.ino,
-			      &path1, &pathlen1, &ino1, &freepath1,
+	ret = set_request_path_attr(req->r_iyesde, req->r_dentry,
+			      req->r_parent, req->r_path1, req->r_iyes1.iyes,
+			      &path1, &pathlen1, &iyes1, &freepath1,
 			      test_bit(CEPH_MDS_R_PARENT_LOCKED,
 					&req->r_req_flags));
 	if (ret < 0) {
@@ -2313,8 +2313,8 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	/* If r_old_dentry is set, then assume that its parent is locked */
 	ret = set_request_path_attr(NULL, req->r_old_dentry,
 			      req->r_old_dentry_dir,
-			      req->r_path2, req->r_ino2.ino,
-			      &path2, &pathlen2, &ino2, &freepath2, true);
+			      req->r_path2, req->r_iyes2.iyes,
+			      &path2, &pathlen2, &iyes2, &freepath2, true);
 	if (ret < 0) {
 		msg = ERR_PTR(ret);
 		goto out_free1;
@@ -2326,8 +2326,8 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 
 	/* calculate (max) length for cap releases */
 	len += sizeof(struct ceph_mds_request_release) *
-		(!!req->r_inode_drop + !!req->r_dentry_drop +
-		 !!req->r_old_inode_drop + !!req->r_old_dentry_drop);
+		(!!req->r_iyesde_drop + !!req->r_dentry_drop +
+		 !!req->r_old_iyesde_drop + !!req->r_old_dentry_drop);
 	if (req->r_dentry_drop)
 		len += pathlen1;
 	if (req->r_old_dentry_drop)
@@ -2350,21 +2350,21 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	head->op = cpu_to_le32(req->r_op);
 	head->caller_uid = cpu_to_le32(from_kuid(&init_user_ns, req->r_uid));
 	head->caller_gid = cpu_to_le32(from_kgid(&init_user_ns, req->r_gid));
-	head->ino = 0;
+	head->iyes = 0;
 	head->args = req->r_args;
 
-	ceph_encode_filepath(&p, end, ino1, path1);
-	ceph_encode_filepath(&p, end, ino2, path2);
+	ceph_encode_filepath(&p, end, iyes1, path1);
+	ceph_encode_filepath(&p, end, iyes2, path2);
 
-	/* make note of release offset, in case we need to replay */
+	/* make yeste of release offset, in case we need to replay */
 	req->r_request_release_offset = p - msg->front.iov_base;
 
 	/* cap releases */
 	releases = 0;
-	if (req->r_inode_drop)
-		releases += ceph_encode_inode_release(&p,
-		      req->r_inode ? req->r_inode : d_inode(req->r_dentry),
-		      mds, req->r_inode_drop, req->r_inode_unless, 0);
+	if (req->r_iyesde_drop)
+		releases += ceph_encode_iyesde_release(&p,
+		      req->r_iyesde ? req->r_iyesde : d_iyesde(req->r_dentry),
+		      mds, req->r_iyesde_drop, req->r_iyesde_unless, 0);
 	if (req->r_dentry_drop)
 		releases += ceph_encode_dentry_release(&p, req->r_dentry,
 				req->r_parent, mds, req->r_dentry_drop,
@@ -2374,10 +2374,10 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 				req->r_old_dentry_dir, mds,
 				req->r_old_dentry_drop,
 				req->r_old_dentry_unless);
-	if (req->r_old_inode_drop)
-		releases += ceph_encode_inode_release(&p,
-		      d_inode(req->r_old_dentry),
-		      mds, req->r_old_inode_drop, req->r_old_inode_unless, 0);
+	if (req->r_old_iyesde_drop)
+		releases += ceph_encode_iyesde_release(&p,
+		      d_iyesde(req->r_old_dentry),
+		      mds, req->r_old_iyesde_drop, req->r_old_iyesde_unless, 0);
 
 	if (drop_cap_releases) {
 		releases = 0;
@@ -2418,7 +2418,7 @@ out:
 }
 
 /*
- * called under mdsc->mutex if error, under no mutex if
+ * called under mdsc->mutex if error, under yes mutex if
  * success.
  */
 static void complete_request(struct ceph_mds_client *mdsc,
@@ -2441,9 +2441,9 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	int flags = 0;
 
 	req->r_attempts++;
-	if (req->r_inode) {
+	if (req->r_iyesde) {
 		struct ceph_cap *cap =
-			ceph_get_cap_for_mds(ceph_inode(req->r_inode), mds);
+			ceph_get_cap_for_mds(ceph_iyesde(req->r_iyesde), mds);
 
 		if (cap)
 			req->r_sent_on_mseq = cap->mseq;
@@ -2456,7 +2456,7 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
 		void *p;
 		/*
-		 * Replay.  Do not regenerate message (and rebuild
+		 * Replay.  Do yest regenerate message (and rebuild
 		 * paths, etc.); just use the original message.
 		 * Rebuilding paths will break for renames because
 		 * d_move mangles the src name.
@@ -2468,8 +2468,8 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 		flags |= CEPH_MDS_FLAG_REPLAY;
 		rhead->flags = cpu_to_le32(flags);
 
-		if (req->r_target_inode)
-			rhead->ino = cpu_to_le64(ceph_ino(req->r_target_inode));
+		if (req->r_target_iyesde)
+			rhead->iyes = cpu_to_le64(ceph_iyes(req->r_target_iyesde));
 
 		rhead->num_retry = req->r_attempts - 1;
 
@@ -2509,7 +2509,7 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	rhead->flags = cpu_to_le32(flags);
 	rhead->num_fwd = req->r_num_fwd;
 	rhead->num_retry = req->r_attempts - 1;
-	rhead->ino = 0;
+	rhead->iyes = 0;
 
 	dout(" r_parent = %p\n", req->r_parent);
 	return 0;
@@ -2549,7 +2549,7 @@ static void __do_request(struct ceph_mds_client *mdsc,
 			goto finish;
 		}
 		if (mdsc->mdsmap->m_epoch == 0) {
-			dout("do_request no mdsmap, waiting for map\n");
+			dout("do_request yes mdsmap, waiting for map\n");
 			list_add(&req->r_wait, &mdsc->waiting_for_map);
 			return;
 		}
@@ -2557,7 +2557,7 @@ static void __do_request(struct ceph_mds_client *mdsc,
 		      CEPH_MOUNT_OPT_MOUNTWAIT) &&
 		    !ceph_mdsmap_is_cluster_available(mdsc->mdsmap)) {
 			err = -ENOENT;
-			pr_info("probably no mds server is up\n");
+			pr_info("probably yes mds server is up\n");
 			goto finish;
 		}
 	}
@@ -2567,7 +2567,7 @@ static void __do_request(struct ceph_mds_client *mdsc,
 	mds = __choose_mds(mdsc, req);
 	if (mds < 0 ||
 	    ceph_mdsmap_get_state(mdsc->mdsmap, mds) < CEPH_MDS_STATE_ACTIVE) {
-		dout("do_request no mds or not active, waiting for map\n");
+		dout("do_request yes mds or yest active, waiting for map\n");
 		list_add(&req->r_wait, &mdsc->waiting_for_map);
 		return;
 	}
@@ -2601,7 +2601,7 @@ static void __do_request(struct ceph_mds_client *mdsc,
 	/* send request */
 	req->r_resend_mds = -1;   /* forget any previous mds hint */
 
-	if (req->r_request_started == 0)   /* note request start time */
+	if (req->r_request_started == 0)   /* yeste request start time */
 		req->r_request_started = jiffies;
 
 	err = __prepare_send_request(mdsc, req, mds, false);
@@ -2649,11 +2649,11 @@ static void __wake_requests(struct ceph_mds_client *mdsc,
 static void kick_requests(struct ceph_mds_client *mdsc, int mds)
 {
 	struct ceph_mds_request *req;
-	struct rb_node *p = rb_first(&mdsc->request_tree);
+	struct rb_yesde *p = rb_first(&mdsc->request_tree);
 
 	dout("kick_requests mds%d\n", mds);
 	while (p) {
-		req = rb_entry(p, struct ceph_mds_request, r_node);
+		req = rb_entry(p, struct ceph_mds_request, r_yesde);
 		p = rb_next(p);
 		if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags))
 			continue;
@@ -2668,21 +2668,21 @@ static void kick_requests(struct ceph_mds_client *mdsc, int mds)
 	}
 }
 
-int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc, struct inode *dir,
+int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc, struct iyesde *dir,
 			      struct ceph_mds_request *req)
 {
 	int err;
 
-	/* take CAP_PIN refs for r_inode, r_parent, r_old_dentry */
-	if (req->r_inode)
-		ceph_get_cap_refs(ceph_inode(req->r_inode), CEPH_CAP_PIN);
+	/* take CAP_PIN refs for r_iyesde, r_parent, r_old_dentry */
+	if (req->r_iyesde)
+		ceph_get_cap_refs(ceph_iyesde(req->r_iyesde), CEPH_CAP_PIN);
 	if (req->r_parent)
-		ceph_get_cap_refs(ceph_inode(req->r_parent), CEPH_CAP_PIN);
+		ceph_get_cap_refs(ceph_iyesde(req->r_parent), CEPH_CAP_PIN);
 	if (req->r_old_dentry_dir)
-		ceph_get_cap_refs(ceph_inode(req->r_old_dentry_dir),
+		ceph_get_cap_refs(ceph_iyesde(req->r_old_dentry_dir),
 				  CEPH_CAP_PIN);
 
-	dout("submit_request on %p for inode %p\n", req, dir);
+	dout("submit_request on %p for iyesde %p\n", req, dir);
 	mutex_lock(&mdsc->mutex);
 	__register_request(mdsc, req, dir);
 	__do_request(mdsc, req);
@@ -2746,7 +2746,7 @@ static int ceph_mdsc_wait_request(struct ceph_mds_client *mdsc,
  * session setup, forwarding, retry details.
  */
 int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
-			 struct inode *dir,
+			 struct iyesde *dir,
 			 struct ceph_mds_request *req)
 {
 	int err;
@@ -2767,8 +2767,8 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
  */
 void ceph_invalidate_dir_request(struct ceph_mds_request *req)
 {
-	struct inode *dir = req->r_parent;
-	struct inode *old_dir = req->r_old_dentry_dir;
+	struct iyesde *dir = req->r_parent;
+	struct iyesde *old_dir = req->r_old_dentry_dir;
 
 	dout("invalidate_dir_request %p %p (complete, lease(s))\n", dir, old_dir);
 
@@ -2810,7 +2810,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	mutex_lock(&mdsc->mutex);
 	req = lookup_get_request(mdsc, tid);
 	if (!req) {
-		dout("handle_reply on unknown tid %llu\n", tid);
+		dout("handle_reply on unkyeswn tid %llu\n", tid);
 		mutex_unlock(&mdsc->mutex);
 		return;
 	}
@@ -2819,7 +2819,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	/* correct session? */
 	if (req->r_session != session) {
 		pr_err("mdsc_handle_reply got %llu on session mds%d"
-		       " not mds%d\n", tid, session->s_mds,
+		       " yest mds%d\n", tid, session->s_mds,
 		       req->r_session ? req->r_session->s_mds : -1);
 		mutex_unlock(&mdsc->mutex);
 		goto out;
@@ -2844,7 +2844,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 
 	/*
 	 * Handle an ESTALE
-	 * if we're not talking to the authority, send to them
+	 * if we're yest talking to the authority, send to them
 	 * if the authority has changed while we weren't looking,
 	 * send to new authority
 	 * Otherwise we just have to return an ESTALE
@@ -2853,7 +2853,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 		dout("got ESTALE on request %llu\n", req->r_tid);
 		req->r_resend_mds = -1;
 		if (req->r_direct_mode != USE_AUTH_MDS) {
-			dout("not using auth, setting for that now\n");
+			dout("yest using auth, setting for that yesw\n");
 			req->r_direct_mode = USE_AUTH_MDS;
 			__do_request(mdsc, req);
 			mutex_unlock(&mdsc->mutex);
@@ -2877,10 +2877,10 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 
 		if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
 			/*
-			 * We already handled the unsafe response, now do the
+			 * We already handled the unsafe response, yesw do the
 			 * cleanup.  No need to examine the response; the MDS
 			 * doesn't include any result info in the safe
-			 * response.  And even if it did, there is nothing
+			 * response.  And even if it did, there is yesthing
 			 * useful we could do with a revised return value.
 			 */
 			dout("got safe reply %llu, mds%d\n", tid, mds);
@@ -2895,8 +2895,8 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 		set_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags);
 		list_add_tail(&req->r_unsafe_item, &req->r_session->s_unsafe);
 		if (req->r_unsafe_dir) {
-			struct ceph_inode_info *ci =
-					ceph_inode(req->r_unsafe_dir);
+			struct ceph_iyesde_info *ci =
+					ceph_iyesde(req->r_unsafe_dir);
 			spin_lock(&ci->i_unsafe_lock);
 			list_add_tail(&req->r_unsafe_dir_item,
 				      &ci->i_unsafe_dirops);
@@ -2949,10 +2949,10 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 		ceph_put_snap_realm(mdsc, realm);
 
 	if (err == 0) {
-		if (req->r_target_inode &&
+		if (req->r_target_iyesde &&
 		    test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
-			struct ceph_inode_info *ci =
-				ceph_inode(req->r_target_inode);
+			struct ceph_iyesde_info *ci =
+				ceph_iyesde(req->r_target_iyesde);
 			spin_lock(&ci->i_unsafe_lock);
 			list_add_tail(&req->r_unsafe_target_item,
 				      &ci->i_unsafe_iops);
@@ -2987,7 +2987,7 @@ out:
 
 
 /*
- * handle mds notification that our request has been forwarded.
+ * handle mds yestification that our request has been forwarded.
  */
 static void handle_forward(struct ceph_mds_client *mdsc,
 			   struct ceph_mds_session *session,
@@ -3019,7 +3019,7 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 		dout("forward tid %llu to mds%d - old seq %d <= %d\n",
 		     tid, next_mds, req->r_num_fwd, fwd_seq);
 	} else {
-		/* resend. forward race not possible; mds would drop */
+		/* resend. forward race yest possible; mds would drop */
 		dout("forward tid %llu to mds%d (we resend)\n", tid, next_mds);
 		BUG_ON(req->r_err);
 		BUG_ON(test_bit(CEPH_MDS_R_GOT_RESULT, &req->r_req_flags));
@@ -3215,7 +3215,7 @@ static void replay_unsafe_requests(struct ceph_mds_client *mdsc,
 				   struct ceph_mds_session *session)
 {
 	struct ceph_mds_request *req, *nreq;
-	struct rb_node *p;
+	struct rb_yesde *p;
 	int err;
 
 	dout("replay_unsafe_requests mds%d\n", session->s_mds);
@@ -3235,7 +3235,7 @@ static void replay_unsafe_requests(struct ceph_mds_client *mdsc,
 	 */
 	p = rb_first(&mdsc->request_tree);
 	while (p) {
-		req = rb_entry(p, struct ceph_mds_request, r_node);
+		req = rb_entry(p, struct ceph_mds_request, r_yesde);
 		p = rb_next(p);
 		if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags))
 			continue;
@@ -3333,21 +3333,21 @@ fail_msg:
 /*
  * Encode information about a cap for a reconnect with the MDS.
  */
-static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
+static int encode_caps_cb(struct iyesde *iyesde, struct ceph_cap *cap,
 			  void *arg)
 {
 	union {
 		struct ceph_mds_cap_reconnect v2;
 		struct ceph_mds_cap_reconnect_v1 v1;
 	} rec;
-	struct ceph_inode_info *ci = cap->ci;
+	struct ceph_iyesde_info *ci = cap->ci;
 	struct ceph_reconnect_state *recon_state = arg;
 	struct ceph_pagelist *pagelist = recon_state->pagelist;
 	int err;
 	u64 snap_follows;
 
-	dout(" adding %p ino %llx.%llx cap %p %lld %s\n",
-	     inode, ceph_vinop(inode), cap, cap->cap_id,
+	dout(" adding %p iyes %llx.%llx cap %p %lld %s\n",
+	     iyesde, ceph_viyesp(iyesde), cap, cap->cap_id,
 	     ceph_cap_string(cap->issued));
 
 	spin_lock(&ci->i_ceph_lock);
@@ -3360,7 +3360,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		rec.v2.cap_id = cpu_to_le64(cap->cap_id);
 		rec.v2.wanted = cpu_to_le32(__ceph_caps_wanted(ci));
 		rec.v2.issued = cpu_to_le32(cap->issued);
-		rec.v2.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
+		rec.v2.snaprealm = cpu_to_le64(ci->i_snap_realm->iyes);
 		rec.v2.pathbase = 0;
 		rec.v2.flock_len = (__force __le32)
 			((ci->i_ceph_flags & CEPH_I_ERROR_FILELOCK) ? 0 : 1);
@@ -3368,10 +3368,10 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		rec.v1.cap_id = cpu_to_le64(cap->cap_id);
 		rec.v1.wanted = cpu_to_le32(__ceph_caps_wanted(ci));
 		rec.v1.issued = cpu_to_le32(cap->issued);
-		rec.v1.size = cpu_to_le64(inode->i_size);
-		ceph_encode_timespec64(&rec.v1.mtime, &inode->i_mtime);
-		ceph_encode_timespec64(&rec.v1.atime, &inode->i_atime);
-		rec.v1.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
+		rec.v1.size = cpu_to_le64(iyesde->i_size);
+		ceph_encode_timespec64(&rec.v1.mtime, &iyesde->i_mtime);
+		ceph_encode_timespec64(&rec.v1.atime, &iyesde->i_atime);
+		rec.v1.snaprealm = cpu_to_le64(ci->i_snap_realm->iyes);
 		rec.v1.pathbase = 0;
 	}
 
@@ -3393,7 +3393,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 
 encode_again:
 		if (rec.v2.flock_len) {
-			ceph_count_locks(inode, &num_fcntl_locks, &num_flock_locks);
+			ceph_count_locks(iyesde, &num_fcntl_locks, &num_flock_locks);
 		} else {
 			num_fcntl_locks = 0;
 			num_flock_locks = 0;
@@ -3406,7 +3406,7 @@ encode_again:
 				err = -ENOMEM;
 				goto out_err;
 			}
-			err = ceph_encode_locks_to_buffer(inode, flocks,
+			err = ceph_encode_locks_to_buffer(iyesde, flocks,
 							  num_fcntl_locks,
 							  num_flock_locks);
 			if (err) {
@@ -3452,7 +3452,7 @@ encode_again:
 		if (err)
 			goto out_freeflocks;
 
-		ceph_pagelist_encode_64(pagelist, ceph_ino(inode));
+		ceph_pagelist_encode_64(pagelist, ceph_iyes(iyesde));
 		if (recon_state->msg_version >= 3) {
 			ceph_pagelist_encode_8(pagelist, struct_v);
 			ceph_pagelist_encode_8(pagelist, 1);
@@ -3472,7 +3472,7 @@ out_freeflocks:
 		char *path = NULL;
 		struct dentry *dentry;
 
-		dentry = d_find_alias(inode);
+		dentry = d_find_alias(iyesde);
 		if (dentry) {
 			path = ceph_mdsc_build_path(dentry,
 						&pathlen, &pathbase, 0);
@@ -3491,7 +3491,7 @@ out_freeflocks:
 			goto out_freepath;
 		}
 
-		ceph_pagelist_encode_64(pagelist, ceph_ino(inode));
+		ceph_pagelist_encode_64(pagelist, ceph_iyes(iyesde));
 		ceph_pagelist_encode_string(pagelist, path, pathlen);
 		ceph_pagelist_append(pagelist, &rec, sizeof(rec.v1));
 out_freepath:
@@ -3507,7 +3507,7 @@ out_err:
 static int encode_snap_realms(struct ceph_mds_client *mdsc,
 			      struct ceph_reconnect_state *recon_state)
 {
-	struct rb_node *p;
+	struct rb_yesde *p;
 	struct ceph_pagelist *pagelist = recon_state->pagelist;
 	int err = 0;
 
@@ -3518,13 +3518,13 @@ static int encode_snap_realms(struct ceph_mds_client *mdsc,
 	}
 
 	/*
-	 * snaprealms.  we provide mds with the ino, seq (version), and
+	 * snaprealms.  we provide mds with the iyes, seq (version), and
 	 * parent for all of our realms.  If the mds has any newer info,
 	 * it will tell us.
 	 */
 	for (p = rb_first(&mdsc->snap_realms); p; p = rb_next(p)) {
 		struct ceph_snap_realm *realm =
-		       rb_entry(p, struct ceph_snap_realm, node);
+		       rb_entry(p, struct ceph_snap_realm, yesde);
 		struct ceph_mds_snaprealm_reconnect sr_rec;
 
 		if (recon_state->msg_version >= 4) {
@@ -3548,10 +3548,10 @@ static int encode_snap_realms(struct ceph_mds_client *mdsc,
 		}
 
 		dout(" adding snap realm %llx seq %lld parent %llx\n",
-		     realm->ino, realm->seq, realm->parent_ino);
-		sr_rec.ino = cpu_to_le64(realm->ino);
+		     realm->iyes, realm->seq, realm->parent_iyes);
+		sr_rec.iyes = cpu_to_le64(realm->iyes);
 		sr_rec.seq = cpu_to_le64(realm->seq);
-		sr_rec.parent = cpu_to_le64(realm->parent_ino);
+		sr_rec.parent = cpu_to_le64(realm->parent_iyes);
 
 		err = ceph_pagelist_append(pagelist, &sr_rec, sizeof(sr_rec));
 		if (err)
@@ -3567,9 +3567,9 @@ fail:
 /*
  * If an MDS fails and recovers, clients need to reconnect in order to
  * reestablish shared state.  This includes all caps issued through
- * this session _and_ the snap_realm hierarchy.  Because it's not
+ * this session _and_ the snap_realm hierarchy.  Because it's yest
  * clear which snap realms the mds cares about, we send everything we
- * know about.. that ensures we'll then get any new info the
+ * kyesw about.. that ensures we'll then get any new info the
  * recovering MDS might have.
  *
  * This is a relatively heavyweight operation, but it's rare.
@@ -3591,11 +3591,11 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 
 	recon_state.pagelist = ceph_pagelist_alloc(GFP_NOFS);
 	if (!recon_state.pagelist)
-		goto fail_nopagelist;
+		goto fail_yespagelist;
 
 	reply = ceph_msg_new2(CEPH_MSG_CLIENT_RECONNECT, 0, 1, GFP_NOFS, false);
 	if (!reply)
-		goto fail_nomsg;
+		goto fail_yesmsg;
 
 	mutex_lock(&session->s_mutex);
 	session->s_state = CEPH_MDS_SESSION_RECONNECTING;
@@ -3609,10 +3609,10 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	spin_unlock(&session->s_gen_ttl_lock);
 
 	spin_lock(&session->s_cap_lock);
-	/* don't know if session is readonly */
+	/* don't kyesw if session is readonly */
 	session->s_readonly = 0;
 	/*
-	 * notify __ceph_remove_cap() that we are composing cap reconnect.
+	 * yestify __ceph_remove_cap() that we are composing cap reconnect.
 	 * If a cap get released before being added to the cap reconnect,
 	 * __ceph_remove_cap() should skip queuing cap release.
 	 */
@@ -3735,9 +3735,9 @@ fail:
 	ceph_msg_put(reply);
 	up_read(&mdsc->snap_rwsem);
 	mutex_unlock(&session->s_mutex);
-fail_nomsg:
+fail_yesmsg:
 	ceph_pagelist_release(recon_state.pagelist);
-fail_nopagelist:
+fail_yespagelist:
 	pr_err("error %d preparing reconnect for mds%d\n", err, mds);
 	return;
 }
@@ -3804,7 +3804,7 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 			mutex_unlock(&s->s_mutex);
 			s->s_state = CEPH_MDS_SESSION_RESTARTING;
 		} else if (oldstate == newstate) {
-			continue;  /* nothing new with this mds */
+			continue;  /* yesthing new with this mds */
 		}
 
 		/*
@@ -3869,13 +3869,13 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 			 struct ceph_msg *msg)
 {
 	struct super_block *sb = mdsc->fsc->sb;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct dentry *parent, *dentry;
 	struct ceph_dentry_info *di;
 	int mds = session->s_mds;
 	struct ceph_mds_lease *h = msg->front.iov_base;
 	u32 seq;
-	struct ceph_vino vino;
+	struct ceph_viyes viyes;
 	struct qstr dname;
 	int release = 0;
 
@@ -3884,32 +3884,32 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 	/* decode */
 	if (msg->front.iov_len < sizeof(*h) + sizeof(u32))
 		goto bad;
-	vino.ino = le64_to_cpu(h->ino);
-	vino.snap = CEPH_NOSNAP;
+	viyes.iyes = le64_to_cpu(h->iyes);
+	viyes.snap = CEPH_NOSNAP;
 	seq = le32_to_cpu(h->seq);
 	dname.len = get_unaligned_le32(h + 1);
 	if (msg->front.iov_len < sizeof(*h) + sizeof(u32) + dname.len)
 		goto bad;
 	dname.name = (void *)(h + 1) + sizeof(u32);
 
-	/* lookup inode */
-	inode = ceph_find_inode(sb, vino);
-	dout("handle_lease %s, ino %llx %p %.*s\n",
-	     ceph_lease_op_name(h->action), vino.ino, inode,
+	/* lookup iyesde */
+	iyesde = ceph_find_iyesde(sb, viyes);
+	dout("handle_lease %s, iyes %llx %p %.*s\n",
+	     ceph_lease_op_name(h->action), viyes.iyes, iyesde,
 	     dname.len, dname.name);
 
 	mutex_lock(&session->s_mutex);
 	session->s_seq++;
 
-	if (!inode) {
-		dout("handle_lease no inode %llx\n", vino.ino);
+	if (!iyesde) {
+		dout("handle_lease yes iyesde %llx\n", viyes.iyes);
 		goto release;
 	}
 
 	/* dentry */
-	parent = d_find_alias(inode);
+	parent = d_find_alias(iyesde);
 	if (!parent) {
-		dout("no parent dentry on inode %p\n", inode);
+		dout("yes parent dentry on iyesde %p\n", iyesde);
 		WARN_ON(1);
 		goto release;  /* hrm... */
 	}
@@ -3962,7 +3962,7 @@ release:
 out:
 	mutex_unlock(&session->s_mutex);
 	/* avoid calling iput_final() in mds dispatch threads */
-	ceph_async_iput(inode);
+	ceph_async_iput(iyesde);
 	return;
 
 bad:
@@ -3976,7 +3976,7 @@ void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
 {
 	struct ceph_msg *msg;
 	struct ceph_mds_lease *lease;
-	struct inode *dir;
+	struct iyesde *dir;
 	int len = sizeof(*lease) + sizeof(u32) + NAME_MAX;
 
 	dout("lease_send_msg identry %p %s to mds%d\n",
@@ -3990,8 +3990,8 @@ void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
 	lease->seq = cpu_to_le32(seq);
 
 	spin_lock(&dentry->d_lock);
-	dir = d_inode(dentry->d_parent);
-	lease->ino = cpu_to_le64(ceph_ino(dir));
+	dir = d_iyesde(dentry->d_parent);
+	lease->iyes = cpu_to_le64(ceph_iyes(dir));
 	lease->first = lease->last = cpu_to_le64(ceph_snap(dir));
 
 	put_unaligned_le32(dentry->d_name.len, lease + 1);
@@ -3999,7 +3999,7 @@ void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
 	       dentry->d_name.name, dentry->d_name.len);
 	spin_unlock(&dentry->d_lock);
 	/*
-	 * if this is a preemptive lease RELEASE, no need to
+	 * if this is a preemptive lease RELEASE, yes need to
 	 * flush request stream, since the actual request will
 	 * soon follow.
 	 */
@@ -4155,8 +4155,8 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	mdsc->max_sessions = 0;
 	mdsc->stopping = 0;
 	atomic64_set(&mdsc->quotarealms_count, 0);
-	mdsc->quotarealms_inodes = RB_ROOT;
-	mutex_init(&mdsc->quotarealms_inodes_mutex);
+	mdsc->quotarealms_iyesdes = RB_ROOT;
+	mutex_init(&mdsc->quotarealms_iyesdes_mutex);
 	mdsc->last_snap_seq = 0;
 	init_rwsem(&mdsc->snap_rwsem);
 	mdsc->snap_realms = RB_ROOT;
@@ -4197,8 +4197,8 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	init_rwsem(&mdsc->pool_perm_rwsem);
 	mdsc->pool_perm_tree = RB_ROOT;
 
-	strscpy(mdsc->nodename, utsname()->nodename,
-		sizeof(mdsc->nodename));
+	strscpy(mdsc->yesdename, utsname()->yesdename,
+		sizeof(mdsc->yesdename));
 	return 0;
 }
 
@@ -4247,11 +4247,11 @@ void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc)
 
 	/*
 	 * wait for reply handlers to drop their request refs and
-	 * their inode/dcache refs
+	 * their iyesde/dcache refs
 	 */
 	ceph_msgr_flush();
 
-	ceph_cleanup_quotarealms_inodes(mdsc);
+	ceph_cleanup_quotarealms_iyesdes(mdsc);
 }
 
 /*
@@ -4260,7 +4260,7 @@ void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc)
 static void wait_unsafe_requests(struct ceph_mds_client *mdsc, u64 want_tid)
 {
 	struct ceph_mds_request *req = NULL, *nextreq;
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 	mutex_lock(&mdsc->mutex);
 	dout("wait_unsafe_requests want %lld\n", want_tid);
@@ -4268,9 +4268,9 @@ restart:
 	req = __get_oldest_req(mdsc);
 	while (req && req->r_tid <= want_tid) {
 		/* find next request */
-		n = rb_next(&req->r_node);
+		n = rb_next(&req->r_yesde);
 		if (n)
-			nextreq = rb_entry(n, struct ceph_mds_request, r_node);
+			nextreq = rb_entry(n, struct ceph_mds_request, r_yesde);
 		else
 			nextreq = NULL;
 		if (req->r_op != CEPH_MDS_OP_SETFILELOCK &&
@@ -4287,7 +4287,7 @@ restart:
 			ceph_mdsc_put_request(req);
 			if (!nextreq)
 				break;  /* next dne before, so we're done! */
-			if (RB_EMPTY_NODE(&nextreq->r_node)) {
+			if (RB_EMPTY_NODE(&nextreq->r_yesde)) {
 				/* next request was removed from tree */
 				ceph_mdsc_put_request(nextreq);
 				goto restart;
@@ -4622,7 +4622,7 @@ static void con_put(struct ceph_connection *con)
 }
 
 /*
- * if the client is unresponsive for long enough, the mds will kill
+ * if the client is unresponsive for long eyesugh, the mds will kill
  * the session entirely.
  */
 static void peer_reset(struct ceph_connection *con)
@@ -4677,7 +4677,7 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 		break;
 
 	default:
-		pr_err("received unknown message type %d %s\n", type,
+		pr_err("received unkyeswn message type %d %s\n", type,
 		       ceph_msg_type_name(type));
 	}
 out:
@@ -4690,7 +4690,7 @@ out:
 
 /*
  * Note: returned pointer is the address of a structure that's
- * managed separately.  Caller must *not* attempt to free it.
+ * managed separately.  Caller must *yest* attempt to free it.
  */
 static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 					int *proto, int force_new)

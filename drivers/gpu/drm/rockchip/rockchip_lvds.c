@@ -182,7 +182,7 @@ static void rockchip_lvds_poweroff(struct rockchip_lvds *lvds)
 	val |= val << 16;
 	ret = regmap_write(lvds->grf, lvds->soc_data->grf_soc_con7, val);
 	if (ret != 0)
-		DRM_DEV_ERROR(lvds->dev, "Could not write to GRF: %d\n", ret);
+		DRM_DEV_ERROR(lvds->dev, "Could yest write to GRF: %d\n", ret);
 
 	pm_runtime_put(lvds->dev);
 	clk_disable(lvds->pclk);
@@ -236,7 +236,7 @@ static void rockchip_lvds_grf_config(struct drm_encoder *encoder,
 	val |= (0xffff << 16);
 	ret = regmap_write(lvds->grf, lvds->soc_data->grf_soc_con7, val);
 	if (ret != 0) {
-		DRM_DEV_ERROR(lvds->dev, "Could not write to GRF: %d\n", ret);
+		DRM_DEV_ERROR(lvds->dev, "Could yest write to GRF: %d\n", ret);
 		return;
 	}
 }
@@ -250,7 +250,7 @@ static int rockchip_lvds_set_vop_source(struct rockchip_lvds *lvds,
 	if (!lvds->soc_data->has_vop_sel)
 		return 0;
 
-	ret = drm_of_encoder_active_endpoint_id(lvds->dev->of_node, encoder);
+	ret = drm_of_encoder_active_endpoint_id(lvds->dev->of_yesde, encoder);
 	if (ret < 0)
 		return ret;
 
@@ -338,43 +338,43 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct device_node *remote = NULL;
-	struct device_node  *port, *endpoint;
+	struct device_yesde *remote = NULL;
+	struct device_yesde  *port, *endpoint;
 	int ret = 0, child_count = 0;
 	const char *name;
 	u32 endpoint_id;
 
 	lvds->drm_dev = drm_dev;
-	port = of_graph_get_port_by_id(dev->of_node, 1);
+	port = of_graph_get_port_by_id(dev->of_yesde, 1);
 	if (!port) {
 		DRM_DEV_ERROR(dev,
 			      "can't found port point, please init lvds panel port!\n");
 		return -EINVAL;
 	}
-	for_each_child_of_node(port, endpoint) {
+	for_each_child_of_yesde(port, endpoint) {
 		child_count++;
 		of_property_read_u32(endpoint, "reg", &endpoint_id);
-		ret = drm_of_find_panel_or_bridge(dev->of_node, 1, endpoint_id,
+		ret = drm_of_find_panel_or_bridge(dev->of_yesde, 1, endpoint_id,
 						  &lvds->panel, &lvds->bridge);
 		if (!ret) {
-			of_node_put(endpoint);
+			of_yesde_put(endpoint);
 			break;
 		}
 	}
 	if (!child_count) {
-		DRM_DEV_ERROR(dev, "lvds port does not have any children\n");
+		DRM_DEV_ERROR(dev, "lvds port does yest have any children\n");
 		ret = -EINVAL;
 		goto err_put_port;
 	} else if (ret) {
-		DRM_DEV_ERROR(dev, "failed to find panel and bridge node\n");
+		DRM_DEV_ERROR(dev, "failed to find panel and bridge yesde\n");
 		ret = -EPROBE_DEFER;
 		goto err_put_port;
 	}
 	if (lvds->panel)
-		remote = lvds->panel->dev->of_node;
+		remote = lvds->panel->dev->of_yesde;
 	else
-		remote = lvds->bridge->of_node;
-	if (of_property_read_string(dev->of_node, "rockchip,output", &name))
+		remote = lvds->bridge->of_yesde;
+	if (of_property_read_string(dev->of_yesde, "rockchip,output", &name))
 		/* default set it as output rgb */
 		lvds->output = DISPLAY_OUTPUT_RGB;
 	else
@@ -400,7 +400,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 
 	encoder = &lvds->encoder;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
-							     dev->of_node);
+							     dev->of_yesde);
 
 	ret = drm_encoder_init(drm_dev, encoder, &rockchip_lvds_encoder_funcs,
 			       DRM_MODE_ENCODER_LVDS, NULL);
@@ -450,8 +450,8 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	}
 
 	pm_runtime_enable(dev);
-	of_node_put(remote);
-	of_node_put(port);
+	of_yesde_put(remote);
+	of_yesde_put(port);
 
 	return 0;
 
@@ -460,9 +460,9 @@ err_free_connector:
 err_free_encoder:
 	drm_encoder_cleanup(encoder);
 err_put_remote:
-	of_node_put(remote);
+	of_yesde_put(remote);
 err_put_port:
-	of_node_put(port);
+	of_yesde_put(port);
 
 	return ret;
 }
@@ -493,7 +493,7 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -ENODEV;
 
 	lvds = devm_kzalloc(&pdev->dev, sizeof(*lvds), GFP_KERNEL);
@@ -501,7 +501,7 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	lvds->dev = dev;
-	match = of_match_node(rockchip_lvds_dt_ids, dev->of_node);
+	match = of_match_yesde(rockchip_lvds_dt_ids, dev->of_yesde);
 	if (!match)
 		return -ENODEV;
 	lvds->soc_data = match->data;
@@ -513,7 +513,7 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 
 	lvds->pclk = devm_clk_get(&pdev->dev, "pclk_lvds");
 	if (IS_ERR(lvds->pclk)) {
-		DRM_DEV_ERROR(dev, "could not get pclk_lvds\n");
+		DRM_DEV_ERROR(dev, "could yest get pclk_lvds\n");
 		return PTR_ERR(lvds->pclk);
 	}
 
@@ -524,20 +524,20 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 
 	lvds->pins->p = devm_pinctrl_get(lvds->dev);
 	if (IS_ERR(lvds->pins->p)) {
-		DRM_DEV_ERROR(dev, "no pinctrl handle\n");
+		DRM_DEV_ERROR(dev, "yes pinctrl handle\n");
 		devm_kfree(lvds->dev, lvds->pins);
 		lvds->pins = NULL;
 	} else {
 		lvds->pins->default_state =
 			pinctrl_lookup_state(lvds->pins->p, "lcdc");
 		if (IS_ERR(lvds->pins->default_state)) {
-			DRM_DEV_ERROR(dev, "no default pinctrl state\n");
+			DRM_DEV_ERROR(dev, "yes default pinctrl state\n");
 			devm_kfree(lvds->dev, lvds->pins);
 			lvds->pins = NULL;
 		}
 	}
 
-	lvds->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+	lvds->grf = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 						    "rockchip,grf");
 	if (IS_ERR(lvds->grf)) {
 		DRM_DEV_ERROR(dev, "missing rockchip,grf property\n");

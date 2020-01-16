@@ -2,7 +2,7 @@
 /*
  * Driver for Amlogic Meson IR remote receiver
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamiyes Galvani <b.galvani@gmail.com>
  */
 
 #include <linux/device.h>
@@ -76,7 +76,7 @@ static void meson_ir_set_mask(struct meson_ir *ir, unsigned int reg,
 	writel(data, ir->reg + reg);
 }
 
-static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
+static irqreturn_t meson_ir_irq(int irqyes, void *dev_id)
 {
 	struct meson_ir *ir = dev_id;
 	u32 duration, status;
@@ -101,7 +101,7 @@ static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
 static int meson_ir_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct resource *res;
 	const char *map_name;
 	struct meson_ir *ir;
@@ -130,7 +130,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	ir->rc->device_name = DRIVER_NAME;
 	ir->rc->input_phys = DRIVER_NAME "/input0";
 	ir->rc->input_id.bustype = BUS_HOST;
-	map_name = of_get_property(node, "linux,rc-map-name", NULL);
+	map_name = of_get_property(yesde, "linux,rc-map-name", NULL);
 	ir->rc->map_name = map_name ? map_name : RC_MAP_EMPTY;
 	ir->rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	ir->rc->rx_resolution = US_TO_NS(MESON_TRATE);
@@ -159,7 +159,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_RESET, 0);
 
 	/* Set general operation mode (= raw/software decoding) */
-	if (of_device_is_compatible(node, "amlogic,meson6-ir"))
+	if (of_device_is_compatible(yesde, "amlogic,meson6-ir"))
 		meson_ir_set_mask(ir, IR_DEC_REG1, REG1_MODE_MASK,
 				  FIELD_PREP(REG1_MODE_MASK, DECODE_MODE_RAW));
 	else
@@ -195,7 +195,7 @@ static int meson_ir_remove(struct platform_device *pdev)
 static void meson_ir_shutdown(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct meson_ir *ir = platform_get_drvdata(pdev);
 	unsigned long flags;
 
@@ -205,7 +205,7 @@ static void meson_ir_shutdown(struct platform_device *pdev)
 	 * Set operation mode to NEC/hardware decoding to give
 	 * bootloader a chance to power the system back on
 	 */
-	if (of_device_is_compatible(node, "amlogic,meson6-ir"))
+	if (of_device_is_compatible(yesde, "amlogic,meson6-ir"))
 		meson_ir_set_mask(ir, IR_DEC_REG1, REG1_MODE_MASK,
 				  DECODE_MODE_NEC << REG1_MODE_SHIFT);
 	else
@@ -239,5 +239,5 @@ static struct platform_driver meson_ir_driver = {
 module_platform_driver(meson_ir_driver);
 
 MODULE_DESCRIPTION("Amlogic Meson IR remote receiver driver");
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamiyes Galvani <b.galvani@gmail.com>");
 MODULE_LICENSE("GPL v2");

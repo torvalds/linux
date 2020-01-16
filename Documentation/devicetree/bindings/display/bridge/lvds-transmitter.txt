@@ -25,10 +25,10 @@ Required properties:
 - compatible: Must be "lvds-encoder"
 
   Any encoder compatible with this generic binding, but with additional
-  properties not listed here, must list a device specific compatible first
+  properties yest listed here, must list a device specific compatible first
   followed by this generic compatible.
 
-Required nodes:
+Required yesdes:
 
 This device has two video ports. Their connections are modeled using the OF
 graph bindings specified in Documentation/devicetree/bindings/graph.txt.

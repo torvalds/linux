@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SAMSUNG Exynos7 Espresso board device tree source
+ * SAMSUNG Exyyess7 Espresso board device tree source
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  */
 
 /dts-v1/;
-#include "exynos7.dtsi"
+#include "exyyess7.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/samsung,s2mps11.h>
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Samsung Exynos7 Espresso board based on EXYNOS7";
-	compatible = "samsung,exynos7-espresso", "samsung,exynos7";
+	model = "Samsung Exyyess7 Espresso board based on EXYNOS7";
+	compatible = "samsung,exyyess7-espresso", "samsung,exyyess7";
 
 	aliases {
 		serial0 = &serial_2;
@@ -363,7 +363,7 @@
 	status = "okay";
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
-	non-removable;
+	yesn-removable;
 	card-detect-delay = <200>;
 	clock-frequency = <800000000>;
 	samsung,dw-mshc-ciu-div = <3>;

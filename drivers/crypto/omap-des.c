@@ -19,7 +19,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
@@ -44,7 +44,7 @@
 
 #define DES_BLOCK_WORDS		(DES_BLOCK_SIZE >> 2)
 
-#define _calc_walked(inout) (dd->inout##_walk.offset - dd->inout##_sg->offset)
+#define _calc_walked(iyesut) (dd->iyesut##_walk.offset - dd->iyesut##_sg->offset)
 
 #define DES_REG_KEY(dd, x)		((dd)->pdata->key_ofs - \
 						((x ^ 0x01) * 0x04))
@@ -125,8 +125,8 @@ struct omap_des_pdata {
 
 	u32		major_mask;
 	u32		major_shift;
-	u32		minor_mask;
-	u32		minor_shift;
+	u32		miyesr_mask;
+	u32		miyesr_shift;
 };
 
 struct omap_des_dev {
@@ -231,7 +231,7 @@ static int omap_des_hw_init(struct omap_des_dev *dd)
 	 */
 	err = pm_runtime_get_sync(dd->dev);
 	if (err < 0) {
-		pm_runtime_put_noidle(dd->dev);
+		pm_runtime_put_yesidle(dd->dev);
 		dev_err(dd->dev, "%s: failed to get_sync(%d)\n", __func__, err);
 		return err;
 	}
@@ -256,7 +256,7 @@ static int omap_des_write_ctrl(struct omap_des_dev *dd)
 
 	key32 = dd->ctx->keylen / sizeof(u32);
 
-	/* it seems a key should always be set even if it has not changed */
+	/* it seems a key should always be set even if it has yest changed */
 	for (i = 0; i < key32; i++) {
 		omap_des_write(dd, DES_REG_KEY(dd, i),
 			       __le32_to_cpu(dd->ctx->key[i]));
@@ -632,7 +632,7 @@ static int omap_des_crypt(struct skcipher_request *req, unsigned long mode)
 		 !!(mode & FLAGS_CBC));
 
 	if (!IS_ALIGNED(req->cryptlen, DES_BLOCK_SIZE)) {
-		pr_err("request size is not exact amount of DES blocks\n");
+		pr_err("request size is yest exact amount of DES blocks\n");
 		return -EINVAL;
 	}
 
@@ -822,8 +822,8 @@ static const struct omap_des_pdata omap_des_pdata_omap4 = {
 	.dma_enable_out	= BIT(6),
 	.major_mask	= 0x0700,
 	.major_shift	= 8,
-	.minor_mask	= 0x003f,
-	.minor_shift	= 0,
+	.miyesr_mask	= 0x003f,
+	.miyesr_shift	= 0,
 };
 
 static irqreturn_t omap_des_irq(int irq, void *dev_id)
@@ -925,7 +925,7 @@ static int omap_des_get_of(struct omap_des_dev *dd,
 
 	dd->pdata = of_device_get_match_data(&pdev->dev);
 	if (!dd->pdata) {
-		dev_err(&pdev->dev, "no compatible OF match\n");
+		dev_err(&pdev->dev, "yes compatible OF match\n");
 		return -EINVAL;
 	}
 
@@ -942,7 +942,7 @@ static int omap_des_get_of(struct omap_des_dev *dd,
 static int omap_des_get_pdev(struct omap_des_dev *dd,
 		struct platform_device *pdev)
 {
-	/* non-DT devices get pdata from pdev */
+	/* yesn-DT devices get pdata from pdev */
 	dd->pdata = pdev->dev.platform_data;
 
 	return 0;
@@ -967,11 +967,11 @@ static int omap_des_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(dev, "no MEM resource info\n");
+		dev_err(dev, "yes MEM resource info\n");
 		goto err_res;
 	}
 
-	err = (dev->of_node) ? omap_des_get_of(dd, pdev) :
+	err = (dev->of_yesde) ? omap_des_get_of(dd, pdev) :
 			       omap_des_get_pdev(dd, pdev);
 	if (err)
 		goto err_res;
@@ -989,7 +989,7 @@ static int omap_des_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	err = pm_runtime_get_sync(dev);
 	if (err < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		dev_err(dd->dev, "%s: failed to get_sync(%d)\n", __func__, err);
 		goto err_get;
 	}
@@ -1002,7 +1002,7 @@ static int omap_des_probe(struct platform_device *pdev)
 
 	dev_info(dev, "OMAP DES hw accel rev: %u.%u\n",
 		 (reg & dd->pdata->major_mask) >> dd->pdata->major_shift,
-		 (reg & dd->pdata->minor_mask) >> dd->pdata->minor_shift);
+		 (reg & dd->pdata->miyesr_mask) >> dd->pdata->miyesr_shift);
 
 	tasklet_init(&dd->done_task, omap_des_done_task, (unsigned long)dd);
 
@@ -1119,7 +1119,7 @@ static int omap_des_resume(struct device *dev)
 
 	err = pm_runtime_get_sync(dev);
 	if (err < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		dev_err(dev, "%s: failed to get_sync(%d)\n", __func__, err);
 		return err;
 	}

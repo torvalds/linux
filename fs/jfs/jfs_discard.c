@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   Copyright (C) Tino Reichardt, 2012
+ *   Copyright (C) Tiyes Reichardt, 2012
  */
 
 #include <linux/fs.h>
@@ -20,29 +20,29 @@
  * FUNCTION:	TRIM the specified block range on device, if supported
  *
  * PARAMETERS:
- *	ip	- pointer to in-core inode
- *	blkno	- starting block number to be trimmed (0..N)
+ *	ip	- pointer to in-core iyesde
+ *	blkyes	- starting block number to be trimmed (0..N)
  *	nblocks	- number of blocks to be trimmed
  *
  * RETURN VALUES:
- *	none
+ *	yesne
  *
  * serialization: IREAD_LOCK(ipbmap) held on entry/exit;
  */
-void jfs_issue_discard(struct inode *ip, u64 blkno, u64 nblocks)
+void jfs_issue_discard(struct iyesde *ip, u64 blkyes, u64 nblocks)
 {
 	struct super_block *sb = ip->i_sb;
 	int r = 0;
 
-	r = sb_issue_discard(sb, blkno, nblocks, GFP_NOFS, 0);
+	r = sb_issue_discard(sb, blkyes, nblocks, GFP_NOFS, 0);
 	if (unlikely(r != 0)) {
 		jfs_err("JFS: sb_issue_discard(%p, %llu, %llu, GFP_NOFS, 0) = %d => failed!",
-			sb, (unsigned long long)blkno,
+			sb, (unsigned long long)blkyes,
 			(unsigned long long)nblocks, r);
 	}
 
 	jfs_info("JFS: sb_issue_discard(%p, %llu, %llu, GFP_NOFS, 0) = %d",
-		sb, (unsigned long long)blkno,
+		sb, (unsigned long long)blkyes,
 		(unsigned long long)nblocks, r);
 
 	return;
@@ -55,19 +55,19 @@ void jfs_issue_discard(struct inode *ip, u64 blkno, u64 nblocks)
  *              filesystem.
  *
  * PARAMETERS:
- *	ip	- pointer to in-core inode;
+ *	ip	- pointer to in-core iyesde;
  *	range	- the range, given by user space
  *
  * RETURN VALUES:
  *	0	- success
  *	-EIO	- i/o error
  */
-int jfs_ioc_trim(struct inode *ip, struct fstrim_range *range)
+int jfs_ioc_trim(struct iyesde *ip, struct fstrim_range *range)
 {
-	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
+	struct iyesde *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct bmap *bmp = JFS_SBI(ip->i_sb)->bmap;
 	struct super_block *sb = ipbmap->i_sb;
-	int agno, agno_end;
+	int agyes, agyes_end;
 	u64 start, end, minlen;
 	u64 trimmed = 0;
 
@@ -94,11 +94,11 @@ int jfs_ioc_trim(struct inode *ip, struct fstrim_range *range)
 	/**
 	 * we trim all ag's within the range
 	 */
-	agno = BLKTOAG(start, JFS_SBI(ip->i_sb));
-	agno_end = BLKTOAG(end, JFS_SBI(ip->i_sb));
-	while (agno <= agno_end) {
-		trimmed += dbDiscardAG(ip, agno, minlen);
-		agno++;
+	agyes = BLKTOAG(start, JFS_SBI(ip->i_sb));
+	agyes_end = BLKTOAG(end, JFS_SBI(ip->i_sb));
+	while (agyes <= agyes_end) {
+		trimmed += dbDiscardAG(ip, agyes, minlen);
+		agyes++;
 	}
 	range->len = trimmed << sb->s_blocksize_bits;
 

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -62,7 +62,7 @@ nvbios_ramcfg_index(struct nvkm_subdev *subdev)
 			xlat = nvbios_rd16(bios, bit_M.offset + 3);
 		if (bit_M.version == 2 && bit_M.length >= 3) {
 			/*XXX: is M ever shorter than this?
-			 *     if not - what is xlat used for now?
+			 *     if yest - what is xlat used for yesw?
 			 *     also - sigh..
 			 */
 			if (bit_M.length >= 7 &&

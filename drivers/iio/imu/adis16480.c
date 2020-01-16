@@ -792,10 +792,10 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.channels = adis16485_channels,
 		.num_channels = ARRAY_SIZE(adis16485_channels),
 		/*
-		 * Typically we do IIO_RAD_TO_DEGREE in the denominator, which
+		 * Typically we do IIO_RAD_TO_DEGREE in the deyesminator, which
 		 * is exactly the same as IIO_DEGREE_TO_RAD in numerator, since
 		 * it gives better approximation. However, in this case we
-		 * cannot do it since it would not fit in a 32bit variable.
+		 * canyest do it since it would yest fit in a 32bit variable.
 		 */
 		.gyro_max_val = 22887 << 16,
 		.gyro_max_scale = IIO_DEGREE_TO_RAD(300),
@@ -937,7 +937,7 @@ static int adis16480_stop_device(struct iio_dev *indio_dev)
 	ret = adis_write_reg_16(&st->adis, ADIS16480_REG_SLP_CNT, BIT(9));
 	if (ret)
 		dev_err(&indio_dev->dev,
-			"Could not power down device: %d\n", ret);
+			"Could yest power down device: %d\n", ret);
 
 	return ret;
 }
@@ -985,7 +985,7 @@ static int adis16480_initial_setup(struct iio_dev *indio_dev)
 		return -EINVAL;
 
 	if (prod_id != device_id)
-		dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do not match.",
+		dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do yest match.",
 				device_id, prod_id);
 
 	return 0;
@@ -1038,7 +1038,7 @@ static const struct adis_data adis16480_data = {
 	.enable_irq = adis16480_enable_irq,
 };
 
-static int adis16480_config_irq_pin(struct device_node *of_node,
+static int adis16480_config_irq_pin(struct device_yesde *of_yesde,
 				    struct adis16480 *st)
 {
 	struct irq_data *desc;
@@ -1049,7 +1049,7 @@ static int adis16480_config_irq_pin(struct device_node *of_node,
 
 	desc = irq_get_irq_data(st->adis.spi->irq);
 	if (!desc) {
-		dev_err(&st->adis.spi->dev, "Could not find IRQ %d\n", irq);
+		dev_err(&st->adis.spi->dev, "Could yest find IRQ %d\n", irq);
 		return -EINVAL;
 	}
 
@@ -1058,7 +1058,7 @@ static int adis16480_config_irq_pin(struct device_node *of_node,
 
 	/*
 	 * Get the interrupt from the devicetre by reading the interrupt-names
-	 * property. If it is not specified, use DIO1 pin as default.
+	 * property. If it is yest specified, use DIO1 pin as default.
 	 * According to the datasheet, the factory default assigns DIO2 as data
 	 * ready signal. However, in the previous versions of the driver, DIO1
 	 * pin was used. So, we should leave it as is since some devices might
@@ -1066,7 +1066,7 @@ static int adis16480_config_irq_pin(struct device_node *of_node,
 	 */
 	pin = ADIS16480_PIN_DIO1;
 	for (i = 0; i < ARRAY_SIZE(adis16480_int_pin_names); i++) {
-		irq = of_irq_get_byname(of_node, adis16480_int_pin_names[i]);
+		irq = of_irq_get_byname(of_yesde, adis16480_int_pin_names[i]);
 		if (irq > 0) {
 			pin = i;
 			break;
@@ -1095,29 +1095,29 @@ static int adis16480_config_irq_pin(struct device_node *of_node,
 }
 
 static int adis16480_of_get_ext_clk_pin(struct adis16480 *st,
-					struct device_node *of_node)
+					struct device_yesde *of_yesde)
 {
 	const char *ext_clk_pin;
 	enum adis16480_int_pin pin;
 	int i;
 
 	pin = ADIS16480_PIN_DIO2;
-	if (of_property_read_string(of_node, "adi,ext-clk-pin", &ext_clk_pin))
-		goto clk_input_not_found;
+	if (of_property_read_string(of_yesde, "adi,ext-clk-pin", &ext_clk_pin))
+		goto clk_input_yest_found;
 
 	for (i = 0; i < ARRAY_SIZE(adis16480_int_pin_names); i++) {
 		if (strcasecmp(ext_clk_pin, adis16480_int_pin_names[i]) == 0)
 			return i;
 	}
 
-clk_input_not_found:
+clk_input_yest_found:
 	dev_info(&st->adis.spi->dev,
-		"clk input line not specified, using DIO2\n");
+		"clk input line yest specified, using DIO2\n");
 	return pin;
 }
 
 static int adis16480_ext_clk_config(struct adis16480 *st,
-				    struct device_node *of_node,
+				    struct device_yesde *of_yesde,
 				    bool enable)
 {
 	unsigned int mode, mask;
@@ -1129,7 +1129,7 @@ static int adis16480_ext_clk_config(struct adis16480 *st,
 	if (ret)
 		return ret;
 
-	pin = adis16480_of_get_ext_clk_pin(st, of_node);
+	pin = adis16480_of_get_ext_clk_pin(st, of_yesde);
 	/*
 	 * Each DIOx pin supports only one function at a time. When a single pin
 	 * has two assignments, the enable bit for a lower priority function
@@ -1215,7 +1215,7 @@ static int adis16480_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = adis16480_config_irq_pin(spi->dev.of_node, st);
+	ret = adis16480_config_irq_pin(spi->dev.of_yesde, st);
 	if (ret)
 		return ret;
 
@@ -1224,7 +1224,7 @@ static int adis16480_probe(struct spi_device *spi)
 		return ret;
 
 	if (!IS_ERR_OR_NULL(st->ext_clk)) {
-		ret = adis16480_ext_clk_config(st, spi->dev.of_node, true);
+		ret = adis16480_ext_clk_config(st, spi->dev.of_yesde, true);
 		if (ret)
 			return ret;
 

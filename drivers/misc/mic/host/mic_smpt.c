@@ -102,8 +102,8 @@ static dma_addr_t mic_smpt_op(struct mic_device *mdev, u64 dma_addr,
 		if (smpt_info->entry[i].dma_addr == addr) {
 			ae++;
 			addr += smpt_info->info.page_size;
-		} else if (ae) /* cannot find contiguous entries */
-			goto not_found;
+		} else if (ae) /* canyest find contiguous entries */
+			goto yest_found;
 
 		if (ae == entries)
 			goto found;
@@ -116,7 +116,7 @@ static dma_addr_t mic_smpt_op(struct mic_device *mdev, u64 dma_addr,
 			goto found;
 	}
 
-not_found:
+yest_found:
 	spin_unlock_irqrestore(&smpt_info->smpt_lock, flags);
 	return mic_addr;
 
@@ -337,7 +337,7 @@ mic_unmap_single(struct mic_device *mdev, dma_addr_t mic_addr, size_t size)
  *
  * @mdev: pointer to mic_device instance.
  *
- * returns 0 for success and -errno for error.
+ * returns 0 for success and -erryes for error.
  */
 int mic_smpt_init(struct mic_device *mdev)
 {
@@ -386,7 +386,7 @@ void mic_smpt_uninit(struct mic_device *mdev)
 	int i;
 
 	dev_dbg(&mdev->pdev->dev,
-		"nodeid %d SMPT ref count %lld map %lld unmap %lld\n",
+		"yesdeid %d SMPT ref count %lld map %lld unmap %lld\n",
 		mdev->id, smpt_info->ref_count,
 		smpt_info->map_count, smpt_info->unmap_count);
 
@@ -397,7 +397,7 @@ void mic_smpt_uninit(struct mic_device *mdev)
 			smpt_info->entry[i].ref_count);
 		if (smpt_info->entry[i].ref_count)
 			dev_warn(&mdev->pdev->dev,
-				 "ref count for entry %d is not zero\n", i);
+				 "ref count for entry %d is yest zero\n", i);
 	}
 	kfree(smpt_info->entry);
 	kfree(smpt_info);

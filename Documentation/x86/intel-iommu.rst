@@ -37,7 +37,7 @@ How is IOVA generated?
 ----------------------
 
 Well behaved drivers call pci_map_*() calls before sending command to device
-that needs to perform DMA. Once DMA is completed and mapping is no longer
+that needs to perform DMA. Once DMA is completed and mapping is yes longer
 required, device performs a pci_unmap_*() calls to unmap the region.
 
 The Intel IOMMU driver allocates a virtual address per domain. Each PCIE
@@ -46,7 +46,7 @@ share the virtual address with all devices under the p2p bridge due to
 transaction id aliasing for p2p bridges.
 
 IOVA generation is pretty generic. We used the same technique as vmalloc()
-but these are not global address spaces, but separate for each domain.
+but these are yest global address spaces, but separate for each domain.
 Different DMA engines may support different number of domains.
 
 We also allocate guard pages with each mapping, so we can attempt to catch
@@ -61,9 +61,9 @@ If this fixes anything, please ensure you file a bug reporting the problem.
 
 Some exceptions to IOVA
 -----------------------
-Interrupt ranges are not address translated, (0xfee00000 - 0xfeefffff).
+Interrupt ranges are yest address translated, (0xfee00000 - 0xfeefffff).
 The same is true for peer to peer transactions. Hence we reserve the
-address from PCI MMIO ranges so they are not allocated for IOVA addresses.
+address from PCI MMIO ranges so they are yest allocated for IOVA addresses.
 
 
 Fault reporting
@@ -92,7 +92,7 @@ and any RMRR's processed::
 	ACPI DMAR:RMRR base: 0x00000000000ed000 end: 0x00000000000effff
 	ACPI DMAR:RMRR base: 0x000000007f600000 end: 0x000000007fffffff
 
-When DMAR is enabled for use, you will notice..
+When DMAR is enabled for use, you will yestice..
 
 PCI-DMA: Using DMAR IOMMU
 
@@ -102,9 +102,9 @@ Fault reporting
 ::
 
 	DMAR:[DMA Write] Request device [00:02.0] fault addr 6df084000
-	DMAR:[fault reason 05] PTE Write access is not set
+	DMAR:[fault reason 05] PTE Write access is yest set
 	DMAR:[DMA Write] Request device [00:02.0] fault addr 6df084000
-	DMAR:[fault reason 05] PTE Write access is not set
+	DMAR:[fault reason 05] PTE Write access is yest set
 
 TBD
 ----

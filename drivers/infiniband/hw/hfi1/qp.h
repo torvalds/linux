@@ -24,12 +24,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -85,7 +85,7 @@ extern const struct rvt_operation_params hfi1_post_parms[];
 #define HFI1_S_ANY_TID_WAIT_SEND (RVT_S_WAIT_SSN_CREDIT | RVT_S_WAIT_DMA)
 
 /*
- * Send if not busy or waiting for I/O and either
+ * Send if yest busy or waiting for I/O and either
  * a RC response is pending or we can process send work requests.
  */
 static inline int hfi1_send_ok(struct rvt_qp *qp)
@@ -118,7 +118,7 @@ static inline void clear_ahg(struct rvt_qp *qp)
  * @init_attr: the attributes of the queue pair
  * @udata: user data for libibverbs.so
  *
- * Returns the queue pair on success, otherwise returns an errno.
+ * Returns the queue pair on success, otherwise returns an erryes.
  *
  * Called by the ib_create_qp() core verbs function.
  */
@@ -149,11 +149,11 @@ void hfi1_migrate_qp(struct rvt_qp *qp);
 void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 unsigned free_all_qps(struct rvt_dev_info *rdi);
-void notify_qp_reset(struct rvt_qp *qp);
+void yestify_qp_reset(struct rvt_qp *qp);
 int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		       struct ib_qp_attr *attr);
 void flush_qp_waiters(struct rvt_qp *qp);
-void notify_error_qp(struct rvt_qp *qp);
+void yestify_error_qp(struct rvt_qp *qp);
 void stop_send_queue(struct rvt_qp *qp);
 void quiesce_qp(struct rvt_qp *qp);
 u32 mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu);

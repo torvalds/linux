@@ -26,12 +26,12 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/mutex.h>
 #include <linux/kthread.h>
 #include <asm/irq.h>
@@ -85,7 +85,7 @@ enum si_stat_indexes {
 	SI_STAT_short_timeouts = 0,
 
 	/*
-	 * Number of times the driver requested a timer while nothing was in
+	 * Number of times the driver requested a timer while yesthing was in
 	 * progress.
 	 */
 	SI_STAT_long_timeouts,
@@ -114,7 +114,7 @@ enum si_stat_indexes {
 	/* Number of watchdog pretimeouts. */
 	SI_STAT_watchdog_pretimeouts,
 
-	/* Number of asynchronous messages received. */
+	/* Number of asynchroyesus messages received. */
 	SI_STAT_incoming_messages,
 
 
@@ -183,7 +183,7 @@ struct smi_info {
 	/* This flag is set, if the timer can be set */
 	bool		    timer_can_start;
 
-	/* This flag is set, if the timer is running (timer_pending() isn't enough) */
+	/* This flag is set, if the timer is running (timer_pending() isn't eyesugh) */
 	bool		    timer_running;
 
 	/* The time (in jiffies) the last timeout occurred at. */
@@ -194,7 +194,7 @@ struct smi_info {
 
 	/*
 	 * The driver will disable interrupts when it gets into a
-	 * situation where it cannot handle messages due to lack of
+	 * situation where it canyest handle messages due to lack of
 	 * memory.  Once that situation clears up, it will re-enable
 	 * interrupts.
 	 */
@@ -208,16 +208,16 @@ struct smi_info {
 	/*
 	 * Can we disable interrupts the global enables receive irq
 	 * bit?  There are currently two forms of brokenness, some
-	 * systems cannot disable the bit (which is technically within
+	 * systems canyest disable the bit (which is technically within
 	 * the spec but a bad idea) and some systems have the bit
 	 * forced to zero even though interrupts work (which is
 	 * clearly outside the spec).  The next bool tells which form
 	 * of brokenness is present.
 	 */
-	bool cannot_disable_irq;
+	bool canyest_disable_irq;
 
 	/*
-	 * Some systems are broken and cannot set the irq enable
+	 * Some systems are broken and canyest set the irq enable
 	 * bit, even if they support interrupts.
 	 */
 	bool irq_enable_broken;
@@ -226,7 +226,7 @@ struct smi_info {
 	bool in_maintenance_mode;
 
 	/*
-	 * Did we get an attention that we did not handle?
+	 * Did we get an attention that we did yest handle?
 	 */
 	bool got_attn;
 
@@ -274,10 +274,10 @@ void debug_timestamp(char *msg)
 #define debug_timestamp(x)
 #endif
 
-static ATOMIC_NOTIFIER_HEAD(xaction_notifier_list);
-static int register_xaction_notifier(struct notifier_block *nb)
+static ATOMIC_NOTIFIER_HEAD(xaction_yestifier_list);
+static int register_xaction_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&xaction_notifier_list, nb);
+	return atomic_yestifier_chain_register(&xaction_yestifier_list, nb);
 }
 
 static void deliver_recv_msg(struct smi_info *smi_info,
@@ -318,7 +318,7 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 		smi_info->curr_msg = smi_info->waiting_msg;
 		smi_info->waiting_msg = NULL;
 		debug_timestamp("Start2");
-		err = atomic_notifier_call_chain(&xaction_notifier_list,
+		err = atomic_yestifier_call_chain(&xaction_yestifier_list,
 				0, smi_info);
 		if (err & NOTIFY_STOP_MASK) {
 			rv = SI_SM_CALL_WITHOUT_DELAY;
@@ -375,7 +375,7 @@ static void start_clear_flags(struct smi_info *smi_info)
 {
 	unsigned char msg[3];
 
-	/* Make sure the watchdog pre-timeout flag is not set at startup. */
+	/* Make sure the watchdog pre-timeout flag is yest set at startup. */
 	msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
 	msg[1] = IPMI_CLEAR_MSG_FLAGS_CMD;
 	msg[2] = WDT_PRE_TIMEOUT_INT;
@@ -407,12 +407,12 @@ static void start_getting_events(struct smi_info *smi_info)
 }
 
 /*
- * When we have a situtaion where we run out of memory and cannot
+ * When we have a situtaion where we run out of memory and canyest
  * allocate messages, we just leave them in the BMC and run the system
  * polled until we can allocate some memory.  Once we have some
  * memory, we will re-enable the interrupt.
  *
- * Note that we cannot just use disable_irq(), since the interrupt may
+ * Note that we canyest just use disable_irq(), since the interrupt may
  * be shared.
  */
 static inline bool disable_si_irq(struct smi_info *smi_info)
@@ -503,7 +503,7 @@ static u8 current_global_enables(struct smi_info *smi_info, u8 base,
 		enables |= IPMI_BMC_EVT_MSG_BUFF;
 
 	if (((smi_info->io.irq && !smi_info->interrupt_disabled) ||
-	     smi_info->cannot_disable_irq) &&
+	     smi_info->canyest_disable_irq) &&
 	    !smi_info->irq_enable_broken)
 		enables |= IPMI_BMC_RCV_MSG_INTR;
 
@@ -564,14 +564,14 @@ static void handle_transaction_done(struct smi_info *smi_info)
 		unsigned char msg[4];
 		unsigned int  len;
 
-		/* We got the flags from the SMI, now handle them. */
+		/* We got the flags from the SMI, yesw handle them. */
 		len = smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
 		if (msg[2] != 0) {
-			/* Error fetching flags, just give up for now. */
+			/* Error fetching flags, just give up for yesw. */
 			smi_info->si_state = SI_NORMAL;
 		} else if (len < 4) {
 			/*
-			 * Hmm, no flags.  That's technically illegal, but
+			 * Hmm, yes flags.  That's technically illegal, but
 			 * don't use uninitialized data.
 			 */
 			smi_info->si_state = SI_NORMAL;
@@ -679,7 +679,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 		u8 enables;
 		bool irq_on;
 
-		/* We got the flags from the SMI, now handle them. */
+		/* We got the flags from the SMI, yesw handle them. */
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
 		if (msg[2] != 0) {
 			dev_warn(smi_info->io.dev,
@@ -694,7 +694,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 			/* BT has its own interrupt enable bit. */
 			check_bt_irq(smi_info, irq_on);
 		if (enables != (msg[3] & GLOBAL_ENABLES_MASK)) {
-			/* Enables are not correct, fix them. */
+			/* Enables are yest correct, fix them. */
 			msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
 			msg[1] = IPMI_SET_BMC_GLOBAL_ENABLES_CMD;
 			msg[2] = enables | (msg[3] & ~GLOBAL_ENABLES_MASK);
@@ -721,7 +721,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
 		if (msg[2] != 0)
 			dev_warn(smi_info->io.dev,
-				 "Could not set the global enables: 0x%x.\n",
+				 "Could yest set the global enables: 0x%x.\n",
 				 msg[2]);
 
 		if (smi_info->supports_event_msg_buff) {
@@ -789,7 +789,7 @@ restart:
 
 	/*
 	 * We prefer handling attn over new messages.  But don't do
-	 * this if there is not yet an upper layer to handle anything.
+	 * this if there is yest yet an upper layer to handle anything.
 	 */
 	if (si_sm_result == SI_SM_ATTN || smi_info->got_attn) {
 		unsigned char msg[2];
@@ -808,7 +808,7 @@ restart:
 			 * Got a attn, send down a get message flags to see
 			 * what's causing it.  It would be better to handle
 			 * this in the upper layer, but due to the way
-			 * interrupts work with the SMI, that's not really
+			 * interrupts work with the SMI, that's yest really
 			 * possible.
 			 */
 			msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
@@ -840,7 +840,7 @@ restart:
 		/*
 		 * Take this opportunity to check the interrupt and
 		 * message enable state for the BMC.  The BMC can be
-		 * asynchronously reset, and may thus get interrupts
+		 * asynchroyesusly reset, and may thus get interrupts
 		 * disable and messages disabled.
 		 */
 		if (smi_info->supports_event_msg_buff || smi_info->io.irq) {
@@ -885,7 +885,7 @@ static void flush_messages(void *send_info)
 
 	/*
 	 * Currently, this function is called only in run-to-completion
-	 * mode.  This means we are single-threaded, no need for locks.
+	 * mode.  This means we are single-threaded, yes need for locks.
 	 */
 	result = smi_event_handler(smi_info, 0);
 	while (result != SI_SM_IDLE) {
@@ -936,7 +936,7 @@ static void set_run_to_completion(void *send_info, bool i_run_to_completion)
 
 /*
  * Use -1 as a special constant to tell that we are spinning in kipmid
- * looking for something and not delaying between checks
+ * looking for something and yest delaying between checks
  */
 #define IPMI_TIME_NOT_BUSY ns_to_ktime(-1ull)
 static inline bool ipmi_thread_busy_wait(enum si_sm_result smi_result,
@@ -965,7 +965,7 @@ static inline bool ipmi_thread_busy_wait(enum si_sm_result smi_result,
  * A busy-waiting loop for speeding up IPMI operation.
  *
  * Lousy hardware makes this hard.  This is only enabled for systems
- * that are not BT and do not have interrupts.  It starts spinning
+ * that are yest BT and do yest have interrupts.  It starts spinning
  * when an operation is complete or until max_busy tells it to stop
  * (if that is enabled).  See the paragraph on kimid_max_busy_us in
  * Documentation/IPMI.txt for details.
@@ -998,12 +998,12 @@ static int ipmi_thread(void *data)
 		busy_wait = ipmi_thread_busy_wait(smi_result, smi_info,
 						  &busy_until);
 		if (smi_result == SI_SM_CALL_WITHOUT_DELAY) {
-			; /* do nothing */
+			; /* do yesthing */
 		} else if (smi_result == SI_SM_CALL_WITH_DELAY && busy_wait) {
 			/*
 			 * In maintenance mode we run as fast as
 			 * possible to allow firmware updates to
-			 * complete as fast as possible, but normally
+			 * complete as fast as possible, but yesrmally
 			 * don't bang on the scheduler.
 			 */
 			if (smi_info->in_maintenance_mode)
@@ -1073,15 +1073,15 @@ static void smi_timeout(struct timer_list *t)
 	struct smi_info   *smi_info = from_timer(smi_info, t, si_timer);
 	enum si_sm_result smi_result;
 	unsigned long     flags;
-	unsigned long     jiffies_now;
+	unsigned long     jiffies_yesw;
 	long              time_diff;
 	long		  timeout;
 
 	spin_lock_irqsave(&(smi_info->si_lock), flags);
 	debug_timestamp("Timer");
 
-	jiffies_now = jiffies;
-	time_diff = (((long)jiffies_now - (long)smi_info->last_timeout_jiffies)
+	jiffies_yesw = jiffies;
+	time_diff = (((long)jiffies_yesw - (long)smi_info->last_timeout_jiffies)
 		     * SI_USEC_PER_JIFFY);
 	smi_result = smi_event_handler(smi_info, time_diff);
 
@@ -1159,8 +1159,8 @@ static int smi_start_processing(void            *send_info,
 	if (new_smi->si_num < num_force_kipmid)
 		enable = force_kipmid[new_smi->si_num];
 	/*
-	 * The BT interface is efficient enough to not need a thread,
-	 * and there is no need for a thread if we have interrupts.
+	 * The BT interface is efficient eyesugh to yest need a thread,
+	 * and there is yes need for a thread if we have interrupts.
 	 */
 	else if ((new_smi->io.si_type != SI_BT) && (!new_smi->io.irq))
 		enable = 1;
@@ -1169,7 +1169,7 @@ static int smi_start_processing(void            *send_info,
 		new_smi->thread = kthread_run(ipmi_thread, new_smi,
 					      "kipmi%d", new_smi->si_num);
 		if (IS_ERR(new_smi->thread)) {
-			dev_notice(new_smi->io.dev, "Could not start"
+			dev_yestice(new_smi->io.dev, "Could yest start"
 				   " kernel thread due to error %ld, only using"
 				   " timers to drive the interface\n",
 				   PTR_ERR(new_smi->thread));
@@ -1227,7 +1227,7 @@ MODULE_PARM_DESC(force_kipmid, "Force the kipmi daemon to be enabled (1) or"
 		 " disabled(0).  Normally the IPMI driver auto-detects"
 		 " this, but the value may be overridden by this parm.");
 module_param(unload_when_empty, bool, 0);
-MODULE_PARM_DESC(unload_when_empty, "Unload the module if no interfaces are"
+MODULE_PARM_DESC(unload_when_empty, "Unload the module if yes interfaces are"
 		 " specified or found, default is 1.  Setting to 0"
 		 " is useful for hot add of devices using hotmod.");
 module_param_array(kipmid_max_busy_us, uint, &num_max_busy_us, 0644);
@@ -1303,7 +1303,7 @@ static int wait_for_msg_done(struct smi_info *smi_info)
 	if (smi_result == SI_SM_HOSED)
 		/*
 		 * We couldn't get the state machine to run, so whatever's at
-		 * the port is probably not an IPMI SMI interface.
+		 * the port is probably yest an IPMI SMI interface.
 		 */
 		return -ENODEV;
 
@@ -1438,7 +1438,7 @@ out:
 }
 
 /*
- * Some BMCs do not support clearing the receive irq bit in the global
+ * Some BMCs do yest support clearing the receive irq bit in the global
  * enables (even if they don't support interrupts on the BMC).  Check
  * for this and handle it properly.
  */
@@ -1459,23 +1459,23 @@ static void check_clr_rcv_irq(struct smi_info *smi_info)
 
 	if (rv < 0) {
 		dev_err(smi_info->io.dev,
-			"Cannot check clearing the rcv irq: %d\n", rv);
+			"Canyest check clearing the rcv irq: %d\n", rv);
 		return;
 	}
 
 	if (rv) {
 		/*
 		 * An error when setting the event buffer bit means
-		 * clearing the bit is not supported.
+		 * clearing the bit is yest supported.
 		 */
 		dev_warn(smi_info->io.dev,
-			 "The BMC does not support clearing the recv irq bit, compensating, but the BMC needs to be fixed.\n");
-		smi_info->cannot_disable_irq = true;
+			 "The BMC does yest support clearing the recv irq bit, compensating, but the BMC needs to be fixed.\n");
+		smi_info->canyest_disable_irq = true;
 	}
 }
 
 /*
- * Some BMCs do not support setting the interrupt bits in the global
+ * Some BMCs do yest support setting the interrupt bits in the global
  * enables even if they support interrupts.  Clearly bad, but we can
  * compensate.
  */
@@ -1495,18 +1495,18 @@ static void check_set_rcv_irq(struct smi_info *smi_info)
 
 	if (rv < 0) {
 		dev_err(smi_info->io.dev,
-			"Cannot check setting the rcv irq: %d\n", rv);
+			"Canyest check setting the rcv irq: %d\n", rv);
 		return;
 	}
 
 	if (rv) {
 		/*
 		 * An error when setting the event buffer bit means
-		 * setting the bit is not supported.
+		 * setting the bit is yest supported.
 		 */
 		dev_warn(smi_info->io.dev,
-			 "The BMC does not support setting the recv irq bit, compensating, but the BMC needs to be fixed.\n");
-		smi_info->cannot_disable_irq = true;
+			 "The BMC does yest support setting the recv irq bit, compensating, but the BMC needs to be fixed.\n");
+		smi_info->canyest_disable_irq = true;
 		smi_info->irq_enable_broken = true;
 	}
 }
@@ -1528,7 +1528,7 @@ static int try_enable_event_buffer(struct smi_info *smi_info)
 
 	rv = wait_for_msg_done(smi_info);
 	if (rv) {
-		pr_warn("Error getting response from get global enables command, the event buffer is not enabled\n");
+		pr_warn("Error getting response from get global enables command, the event buffer is yest enabled\n");
 		goto out;
 	}
 
@@ -1539,13 +1539,13 @@ static int try_enable_event_buffer(struct smi_info *smi_info)
 			resp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2 ||
 			resp[1] != IPMI_GET_BMC_GLOBAL_ENABLES_CMD   ||
 			resp[2] != 0) {
-		pr_warn("Invalid return from get global enables command, cannot enable the event buffer\n");
+		pr_warn("Invalid return from get global enables command, canyest enable the event buffer\n");
 		rv = -EINVAL;
 		goto out;
 	}
 
 	if (resp[3] & IPMI_BMC_EVT_MSG_BUFF) {
-		/* buffer is already enabled, nothing to do. */
+		/* buffer is already enabled, yesthing to do. */
 		smi_info->supports_event_msg_buff = true;
 		goto out;
 	}
@@ -1557,7 +1557,7 @@ static int try_enable_event_buffer(struct smi_info *smi_info)
 
 	rv = wait_for_msg_done(smi_info);
 	if (rv) {
-		pr_warn("Error getting response from set global, enables command, the event buffer is not enabled\n");
+		pr_warn("Error getting response from set global, enables command, the event buffer is yest enabled\n");
 		goto out;
 	}
 
@@ -1567,7 +1567,7 @@ static int try_enable_event_buffer(struct smi_info *smi_info)
 	if (resp_len < 3 ||
 			resp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2 ||
 			resp[1] != IPMI_SET_BMC_GLOBAL_ENABLES_CMD) {
-		pr_warn("Invalid return from get global, enables command, not enable the event buffer\n");
+		pr_warn("Invalid return from get global, enables command, yest enable the event buffer\n");
 		rv = -EINVAL;
 		goto out;
 	}
@@ -1575,7 +1575,7 @@ static int try_enable_event_buffer(struct smi_info *smi_info)
 	if (resp[2] != 0)
 		/*
 		 * An error when setting the event buffer bit means
-		 * that the event buffer is not supported.
+		 * that the event buffer is yest supported.
 		 */
 		rv = -ENOENT;
 	else
@@ -1696,7 +1696,7 @@ static int oem_data_avail_to_receive_msg_avail(struct smi_info *smi_info)
  * upon receipt of IPMI_GET_MSG_CMD, so we should treat these flags
  * as RECEIVE_MSG_AVAIL instead.
  *
- * As Dell has no plans to release IPMI 1.5 firmware that *ever*
+ * As Dell has yes plans to release IPMI 1.5 firmware that *ever*
  * assert the OEM[012] bits, and if it did, the driver would have to
  * change to handle that properly, we don't actually check for the
  * firmware version.
@@ -1726,7 +1726,7 @@ static void setup_dell_poweredge_oem_data_handler(struct smi_info *smi_info)
 				oem_data_avail_to_receive_msg_avail;
 		} else if (ipmi_version_major(id) < 1 ||
 			   (ipmi_version_major(id) == 1 &&
-			    ipmi_version_minor(id) < 5)) {
+			    ipmi_version_miyesr(id) < 5)) {
 			smi_info->oem_data_avail_handler =
 				oem_data_avail_to_receive_msg_avail;
 		}
@@ -1752,15 +1752,15 @@ static void return_hosed_msg_badsize(struct smi_info *smi_info)
  * @info - smi_info.device_id must be populated
  *
  * Dell PowerEdge servers with the BT interface (x6xx and 1750) will
- * not respond to a Get SDR command if the length of the data
- * requested is exactly 0x3A, which leads to command timeouts and no
+ * yest respond to a Get SDR command if the length of the data
+ * requested is exactly 0x3A, which leads to command timeouts and yes
  * data returned.  This intercepts such commands, and causes userspace
  * callers to try again with a different-sized buffer, which succeeds.
  */
 
 #define STORAGE_NETFN 0x0A
 #define STORAGE_CMD_GET_SDR 0x23
-static int dell_poweredge_bt_xaction_handler(struct notifier_block *self,
+static int dell_poweredge_bt_xaction_handler(struct yestifier_block *self,
 					     unsigned long unused,
 					     void *in)
 {
@@ -1777,8 +1777,8 @@ static int dell_poweredge_bt_xaction_handler(struct notifier_block *self,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block dell_poweredge_bt_xaction_notifier = {
-	.notifier_call	= dell_poweredge_bt_xaction_handler,
+static struct yestifier_block dell_poweredge_bt_xaction_yestifier = {
+	.yestifier_call	= dell_poweredge_bt_xaction_handler,
 };
 
 /*
@@ -1786,7 +1786,7 @@ static struct notifier_block dell_poweredge_bt_xaction_notifier = {
  * @info - smi_info.device_id must be filled in already
  *
  * Fills in smi_info.device_id.start_transaction_pre_hook
- * when we know what function to use there.
+ * when we kyesw what function to use there.
  */
 static void
 setup_dell_poweredge_bt_xaction_handler(struct smi_info *smi_info)
@@ -1794,7 +1794,7 @@ setup_dell_poweredge_bt_xaction_handler(struct smi_info *smi_info)
 	struct ipmi_device_id *id = &smi_info->device_id;
 	if (id->manufacturer_id == DELL_IANA_MFR_ID &&
 	    smi_info->io.si_type == SI_BT)
-		register_xaction_notifier(&dell_poweredge_bt_xaction_notifier);
+		register_xaction_yestifier(&dell_poweredge_bt_xaction_yestifier);
 }
 
 /*
@@ -1802,7 +1802,7 @@ setup_dell_poweredge_bt_xaction_handler(struct smi_info *smi_info)
  * @info - smi_info.device_id must be filled in already
  *
  * Fills in smi_info.device_id.oem_data_available_handler
- * when we know what function to use there.
+ * when we kyesw what function to use there.
  */
 
 static void setup_oem_data_handler(struct smi_info *smi_info)
@@ -1861,7 +1861,7 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 
 	/*
 	 * If the user gave us a hard-coded device at the same
-	 * address, they presumably want us to use it and not what is
+	 * address, they presumably want us to use it and yest what is
 	 * in the firmware.
 	 */
 	if (io->addr_source != SI_HARDCODED && io->addr_source != SI_HOTMOD &&
@@ -1962,7 +1962,7 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	/* Do this early so it's available for logs. */
 	if (!new_smi->io.dev) {
-		pr_err("IPMI interface added with no device\n");
+		pr_err("IPMI interface added with yes device\n");
 		rv = EIO;
 		goto out_err;
 	}
@@ -1976,10 +1976,10 @@ static int try_smi_init(struct smi_info *new_smi)
 	new_smi->io.io_size = new_smi->handlers->init_data(new_smi->si_sm,
 							   &new_smi->io);
 
-	/* Now that we know the I/O size, we can set up the I/O. */
+	/* Now that we kyesw the I/O size, we can set up the I/O. */
 	rv = new_smi->io.io_setup(&new_smi->io);
 	if (rv) {
-		dev_err(new_smi->io.dev, "Could not set up I/O space\n");
+		dev_err(new_smi->io.dev, "Could yest set up I/O space\n");
 		goto out_err;
 	}
 
@@ -2000,7 +2000,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	if (rv) {
 		if (new_smi->io.addr_source)
 			dev_err(new_smi->io.dev,
-			       "There appears to be no BMC at this location\n");
+			       "There appears to be yes BMC at this location\n");
 		goto out_err;
 	}
 
@@ -2029,7 +2029,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	start_clear_flags(new_smi);
 
 	/*
-	 * IRQ is defined to be set when non-zero.  req_events will
+	 * IRQ is defined to be set when yesn-zero.  req_events will
 	 * cause a global flags check that will enable interrupts.
 	 */
 	if (new_smi->io.irq) {
@@ -2058,7 +2058,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		goto out_err;
 	}
 
-	/* Don't increment till we know we have succeeded. */
+	/* Don't increment till we kyesw we have succeeded. */
 	smi_num++;
 
 	dev_info(new_smi->io.dev, "IPMI %s interface initialized\n",
@@ -2111,7 +2111,7 @@ static int __init init_ipmi_si(void)
 
 	/* type will only have been set if we successfully registered an si */
 	if (type)
-		goto skip_fallback_noirq;
+		goto skip_fallback_yesirq;
 
 	/* Fall back to the preferred device */
 
@@ -2123,7 +2123,7 @@ static int __init init_ipmi_si(void)
 		}
 	}
 
-skip_fallback_noirq:
+skip_fallback_yesirq:
 	initialized = true;
 	mutex_unlock(&smi_infos_lock);
 
@@ -2156,7 +2156,7 @@ static void shutdown_smi(void *send_info)
 
 	/*
 	 * Make sure that interrupts, the timer and the thread are
-	 * stopped and will not run again.
+	 * stopped and will yest run again.
 	 */
 	smi_info->interrupt_disabled = true;
 	if (smi_info->io.irq_cleanup) {
@@ -2166,16 +2166,16 @@ static void shutdown_smi(void *send_info)
 	stop_timer_and_thread(smi_info);
 
 	/*
-	 * Wait until we know that we are out of any interrupt
+	 * Wait until we kyesw that we are out of any interrupt
 	 * handlers might have been running before we freed the
 	 * interrupt.
 	 */
 	synchronize_rcu();
 
 	/*
-	 * Timeouts are stopped, now make sure the interrupts are off
+	 * Timeouts are stopped, yesw make sure the interrupts are off
 	 * in the BMC.  Note that timers and CPU interrupts are off,
-	 * so no need for locks.
+	 * so yes need for locks.
 	 */
 	while (smi_info->curr_msg || (smi_info->si_state != SI_NORMAL)) {
 		poll(smi_info);

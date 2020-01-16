@@ -459,7 +459,7 @@ static int calc_resize_coeffs(uint32_t in_size, uint32_t out_size,
 	*resize_coeff	= 1 << 13;
 	*downsize_coeff	= 1 << 13;
 
-	/* Cannot downsize more than 8:1 */
+	/* Canyest downsize more than 8:1 */
 	if (out_size << 3 < in_size)
 		return -EINVAL;
 
@@ -830,7 +830,7 @@ static dma_cookie_t idmac_tx_submit(struct dma_async_tx_descriptor *tx)
 	/* Sanity check */
 	if (!list_empty(&desc->list)) {
 		/* The descriptor doesn't belong to client */
-		dev_err(dev, "Descriptor %p not prepared!\n", tx);
+		dev_err(dev, "Descriptor %p yest prepared!\n", tx);
 		return -EBUSY;
 	}
 
@@ -865,7 +865,7 @@ static dma_cookie_t idmac_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	cookie = dma_cookie_assign(tx);
 
-	/* ipu->lock can be taken under ichan->lock, but not v.v. */
+	/* ipu->lock can be taken under ichan->lock, but yest v.v. */
 	spin_lock_irqsave(&ichan->lock, flags);
 
 	list_add_tail(&desc->list, &ichan->queue);
@@ -1142,12 +1142,12 @@ static struct scatterlist *idmac_sg_next(struct idmac_channel *ichan,
  * We have several possibilities here:
  * current BUF		next BUF
  *
- * not last sg		next not last sg
- * not last sg		next last sg
+ * yest last sg		next yest last sg
+ * yest last sg		next last sg
  * last sg		first sg from next descriptor
  * last sg		NULL
  *
- * Besides, the descriptor queue might be empty or not. We process all these
+ * Besides, the descriptor queue might be empty or yest. We process all these
  * cases carefully.
  */
 static irqreturn_t idmac_interrupt(int irq, void *dev_id)
@@ -1190,7 +1190,7 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 	}
 	spin_unlock_irqrestore(&ipu_data.lock, flags);
 
-	/* Other interrupts do not interfere with this channel */
+	/* Other interrupts do yest interfere with this channel */
 	spin_lock(&ichan->lock);
 	if (unlikely((ichan->active_buffer && (ready1 >> chan_id) & 1) ||
 		     (!ichan->active_buffer && (ready0 >> chan_id) & 1)
@@ -1381,14 +1381,14 @@ static void idmac_issue_pending(struct dma_chan *chan)
 	struct ipu *ipu = to_ipu(idmac);
 	unsigned long flags;
 
-	/* This is not always needed, but doesn't hurt either */
+	/* This is yest always needed, but doesn't hurt either */
 	spin_lock_irqsave(&ipu->lock, flags);
 	ipu_select_buffer(chan->chan_id, ichan->active_buffer);
 	spin_unlock_irqrestore(&ipu->lock, flags);
 
 	/*
 	 * Might need to perform some parts of initialisation from
-	 * ipu_enable_channel(), but not all, we do not want to reset to buffer
+	 * ipu_enable_channel(), but yest all, we do yest want to reset to buffer
 	 * 0, don't need to set priority again either, but re-enabling the task
 	 * and the channel might be a good idea.
 	 */
@@ -1444,7 +1444,7 @@ static int __idmac_terminate_all(struct dma_chan *chan)
 		for (i = 0; i < ichan->n_tx_desc; i++) {
 			struct idmac_tx_desc *desc = ichan->desc + i;
 			if (list_empty(&desc->list))
-				/* Descriptor was prepared, but not submitted */
+				/* Descriptor was prepared, but yest submitted */
 				list_add(&desc->list, &ichan->free_list);
 
 			async_tx_clear_ack(&desc->txd);
@@ -1481,7 +1481,7 @@ static irqreturn_t ic_sof_irq(int irq, void *dev_id)
 	struct idmac_channel *ichan = dev_id;
 	printk(KERN_DEBUG "Got SOF IRQ %d on Channel %d\n",
 	       irq, ichan->dma_chan.chan_id);
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	return IRQ_HANDLED;
 }
 
@@ -1490,7 +1490,7 @@ static irqreturn_t ic_eof_irq(int irq, void *dev_id)
 	struct idmac_channel *ichan = dev_id;
 	printk(KERN_DEBUG "Got EOF IRQ %d on Channel %d\n",
 	       irq, ichan->dma_chan.chan_id);
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	return IRQ_HANDLED;
 }
 
@@ -1503,7 +1503,7 @@ static int idmac_alloc_chan_resources(struct dma_chan *chan)
 	struct idmac *idmac = to_idmac(chan->device);
 	int ret;
 
-	/* dmaengine.c now guarantees to only offer free channels */
+	/* dmaengine.c yesw guarantees to only offer free channels */
 	BUG_ON(chan->client_count > 1);
 	WARN_ON(ichan->status != IPU_CHANNEL_FREE);
 
@@ -1641,7 +1641,7 @@ static int __init ipu_idmac_init(struct ipu *ipu)
 		dma_chan->device	= &idmac->dma;
 		dma_cookie_init(dma_chan);
 		dma_chan->chan_id	= i;
-		list_add_tail(&dma_chan->device_node, &dma->channels);
+		list_add_tail(&dma_chan->device_yesde, &dma->channels);
 	}
 
 	idmac_write_icreg(ipu, 0x00000070, IDMAC_CONF);
@@ -1685,12 +1685,12 @@ static int __init ipu_probe(struct platform_device *pdev)
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
-		goto err_noirq;
+		goto err_yesirq;
 
 	ipu_data.irq_fn = ret;
 	ret = platform_get_irq(pdev, 1);
 	if (ret < 0)
-		goto err_noirq;
+		goto err_yesirq;
 
 	ipu_data.irq_err = ret;
 
@@ -1758,7 +1758,7 @@ err_clk_get:
 err_ioremap_ic:
 	iounmap(ipu_data.reg_ipu);
 err_ioremap_ipu:
-err_noirq:
+err_yesirq:
 	dev_err(&pdev->dev, "Failed to probe IPU: %d\n", ret);
 	return ret;
 }

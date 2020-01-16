@@ -43,7 +43,7 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 
 /*
  * Copy 'count' fd bits from the old table to the new table and clear the extra
- * space if any.  This does not copy the file pointers.  Called with the files
+ * space if any.  This does yest copy the file pointers.  Called with the files
  * spinlock held for write.
  */
 static void copy_fd_bitmaps(struct fdtable *nfdt, struct fdtable *ofdt,
@@ -186,7 +186,7 @@ static int expand_fdtable(struct files_struct *files, unsigned int nr)
  * Expand files.
  * This function will expand the file structures, if the requested size exceeds
  * the current capacity and there is room for expansion.
- * Return <0 error code on error; 0 when nothing done; 1 when files were
+ * Return <0 error code on error; 0 when yesthing done; 1 when files were
  * expanded and execution may have blocked.
  * The files->file_lock should be held on entry, and will be held on exit.
  */
@@ -313,7 +313,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 			goto out_release;
 		}
 
-		/* beyond sysctl_nr_open; nothing to do */
+		/* beyond sysctl_nr_open; yesthing to do */
 		if (unlikely(new_fdt->max_fds < open_files)) {
 			__free_fdtable(new_fdt);
 			*errorp = -EMFILE;
@@ -322,7 +322,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 
 		/*
 		 * Reacquire the oldf lock and a pointer to its fd table
-		 * who knows it may have a new bigger fd table. We need
+		 * who kyesws it may have a new bigger fd table. We need
 		 * the latest pointer.
 		 */
 		spin_lock(&oldf->file_lock);
@@ -341,7 +341,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 			get_file(f);
 		} else {
 			/*
-			 * The fd may be claimed in the fd bitmap but not yet
+			 * The fd may be claimed in the fd bitmap but yest yet
 			 * instantiated in the files array if a sibling thread
 			 * is partway through open().  So make sure that this
 			 * fd is available to the new process.
@@ -415,7 +415,7 @@ void put_files_struct(struct files_struct *files)
 	if (atomic_dec_and_test(&files->count)) {
 		struct fdtable *fdt = close_files(files);
 
-		/* free the arrays if they are not embedded */
+		/* free the arrays if they are yest embedded */
 		if (fdt != &files->fdtab)
 			__free_fdtable(fdt);
 		kmem_cache_free(files_cachep, files);
@@ -525,7 +525,7 @@ repeat:
 #if 1
 	/* Sanity check */
 	if (rcu_access_pointer(fdt->fd[fd]) != NULL) {
-		printk(KERN_WARNING "alloc_fd: slot %d not NULL!\n", fd);
+		printk(KERN_WARNING "alloc_fd: slot %d yest NULL!\n", fd);
 		rcu_assign_pointer(fdt->fd[fd], NULL);
 	}
 #endif
@@ -747,16 +747,16 @@ struct file *fget_raw(unsigned int fd)
 EXPORT_SYMBOL(fget_raw);
 
 /*
- * Lightweight file lookup - no refcnt increment if fd table isn't shared.
+ * Lightweight file lookup - yes refcnt increment if fd table isn't shared.
  *
  * You can use this instead of fget if you satisfy all of the following
  * conditions:
  * 1) You must call fput_light before exiting the syscall and returning control
- *    to userspace (i.e. you cannot remember the returned struct file * after
+ *    to userspace (i.e. you canyest remember the returned struct file * after
  *    returning to userspace).
- * 2) You must not call filp_close on the returned struct file * in between
+ * 2) You must yest call filp_close on the returned struct file * in between
  *    calls to fget_light and fput_light.
- * 3) You must not clone the current task in between the calls to fget_light
+ * 3) You must yest clone the current task in between the calls to fget_light
  *    and fput_light.
  *
  * The fput_needed flag returned by fget_light should be passed to the
@@ -811,7 +811,7 @@ void __f_unlock_pos(struct file *f)
 
 /*
  * We only lock f_pos if we have threads or if the file might be
- * shared with another process. In both cases we'll have an elevated
+ * shared with ayesther process. In both cases we'll have an elevated
  * file count (done either by fdget() or by fork()).
  */
 
@@ -849,17 +849,17 @@ __releases(&files->file_lock)
 
 	/*
 	 * We need to detect attempts to do dup2() over allocated but still
-	 * not finished descriptor.  NB: OpenBSD avoids that at the price of
+	 * yest finished descriptor.  NB: OpenBSD avoids that at the price of
 	 * extra work in their equivalent of fget() - they insert struct
 	 * file immediately after grabbing descriptor, mark it larval if
 	 * more work (e.g. actual opening) is needed and make sure that
 	 * fget() treats larval files as absent.  Potentially interesting,
 	 * but while extra work in fget() is trivial, locking implications
-	 * and amount of surgery on open()-related paths in VFS are not.
+	 * and amount of surgery on open()-related paths in VFS are yest.
 	 * FreeBSD fails with -EBADF in the same situation, NetBSD "solution"
 	 * deadlocks in rather amusing ways, AFAICS.  All of that is out of
 	 * scope of POSIX or SUS, since neither considers shared descriptor
-	 * tables and this condition does not arise without those.
+	 * tables and this condition does yest arise without those.
 	 */
 	fdt = files_fdtable(files);
 	tofree = fdt->fd[fd];

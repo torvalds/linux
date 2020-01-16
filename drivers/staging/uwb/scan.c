@@ -14,7 +14,7 @@
  *        10/05/2005.
  *        10/28/2005 No clear answer heard--maybe we'll hack the API
  *                   so that when we start beaconing, if the HC is
- *                   scanning in a mode not compatible with beaconing
+ *                   scanning in a mode yest compatible with beaconing
  *                   we just fail.
  */
 
@@ -33,9 +33,9 @@
  * @type:    Type of scanning to do.
  * @bpst_offset: value at which to start scanning (if type ==
  *                UWB_SCAN_ONLY_STARTTIME)
- * @returns: 0 if ok, < 0 errno code on error
+ * @returns: 0 if ok, < 0 erryes code on error
  *
- * We put the command on kmalloc'ed memory as some arches cannot do
+ * We put the command on kmalloc'ed memory as some arches canyest do
  * USB from the stack. The reply event is copied from an stage buffer,
  * so it can be in the stack. See WUSB1.0[8.6.2.4] for more details.
  */

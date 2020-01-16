@@ -334,7 +334,7 @@ EXPORT_SYMBOL_GPL(orion_gpio_led_blink_set);
  *                     Interrupt are masked by EDGE_MASK registers.
  * Both-edge handlers: Similar to regular Edge handlers, but also swaps
  *                     the polarity to catch the next line transaction.
- *                     This is a race condition that might not perfectly
+ *                     This is a race condition that might yest perfectly
  *                     work on some use cases.
  *
  * Every eight GPIO lines are grouped (OR'ed) before going up to main
@@ -520,7 +520,7 @@ static void orion_gpio_mask_irq(struct irq_data *d)
 	irq_gc_unlock(gc);
 }
 
-void __init orion_gpio_init(struct device_node *np,
+void __init orion_gpio_init(struct device_yesde *np,
 			    int gpio_base, int ngpio,
 			    void __iomem *base, int mask_offset,
 			    int secondary_irq_base,
@@ -550,7 +550,7 @@ void __init orion_gpio_init(struct device_node *np,
 	ochip->chip.ngpio = ngpio;
 	ochip->chip.can_sleep = 0;
 #ifdef CONFIG_OF
-	ochip->chip.of_node = np;
+	ochip->chip.of_yesde = np;
 #endif
 	ochip->chip.dbg_show = orion_gpio_dbg_show;
 

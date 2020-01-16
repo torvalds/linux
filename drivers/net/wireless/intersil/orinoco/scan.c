@@ -1,6 +1,6 @@
 /* Helpers for managing scan queues
  *
- * See copyright notice in main.c
+ * See copyright yestice in main.c
  */
 
 #include <linux/gfp.h>
@@ -10,7 +10,7 @@
 #include <net/cfg80211.h>
 
 #include "hermes.h"
-#include "orinoco.h"
+#include "oriyesco.h"
 #include "main.h"
 
 #include "scan.h"
@@ -55,7 +55,7 @@ static int prism_build_supp_rates(u8 *buf, const u8 *rates)
 	}
 	buf[1] = i;
 
-	/* We might still have another 2 rates, which need to go in
+	/* We might still have ayesther 2 rates, which need to go in
 	 * extended supported rates */
 	if (i == 8 && rates[i] > 0) {
 		buf[10] = WLAN_EID_EXT_SUPP_RATES;
@@ -71,7 +71,7 @@ static int prism_build_supp_rates(u8 *buf, const u8 *rates)
 	return (i < 8) ? i + 2 : i + 4;
 }
 
-static void orinoco_add_hostscan_result(struct orinoco_private *priv,
+static void oriyesco_add_hostscan_result(struct oriyesco_private *priv,
 					const union hermes_scan_info *bss)
 {
 	struct wiphy *wiphy = priv_to_wiphy(priv);
@@ -116,7 +116,7 @@ static void orinoco_add_hostscan_result(struct orinoco_private *priv,
 	if (!channel) {
 		printk(KERN_DEBUG "Invalid channel designation %04X(%04X)",
 			bss->a.channel, freq);
-		return;	/* Then ignore it for now */
+		return;	/* Then igyesre it for yesw */
 	}
 	timestamp = 0;
 	capability = le16_to_cpu(bss->a.capabilities);
@@ -130,7 +130,7 @@ static void orinoco_add_hostscan_result(struct orinoco_private *priv,
 	cfg80211_put_bss(wiphy, cbss);
 }
 
-void orinoco_add_extscan_result(struct orinoco_private *priv,
+void oriyesco_add_extscan_result(struct oriyesco_private *priv,
 				struct agere_ext_scan_info *bss,
 				size_t len)
 {
@@ -164,7 +164,7 @@ void orinoco_add_extscan_result(struct orinoco_private *priv,
 	cfg80211_put_bss(wiphy, cbss);
 }
 
-void orinoco_add_hostscan_results(struct orinoco_private *priv,
+void oriyesco_add_hostscan_results(struct oriyesco_private *priv,
 				  unsigned char *buf,
 				  size_t len)
 {
@@ -184,7 +184,7 @@ void orinoco_add_hostscan_results(struct orinoco_private *priv,
 		 * We try modulo first.  If the length divides by both,
 		 * we check what would be the channel in the second
 		 * frame for a 68-byte atom.  76-byte atoms have 0 there.
-		 * Valid channel cannot be 0.  */
+		 * Valid channel canyest be 0.  */
 		if (len % 76)
 			atom_len = 68;
 		else if (len % 68)
@@ -232,7 +232,7 @@ void orinoco_add_hostscan_results(struct orinoco_private *priv,
 
 		atom = (union hermes_scan_info *) (buf + offset);
 
-		orinoco_add_hostscan_result(priv, atom);
+		oriyesco_add_hostscan_result(priv, atom);
 	}
 
  scan_abort:
@@ -246,7 +246,7 @@ void orinoco_add_hostscan_results(struct orinoco_private *priv,
 	}
 }
 
-void orinoco_scan_done(struct orinoco_private *priv, bool abort)
+void oriyesco_scan_done(struct oriyesco_private *priv, bool abort)
 {
 	if (priv->scan_request) {
 		struct cfg80211_scan_info info = {

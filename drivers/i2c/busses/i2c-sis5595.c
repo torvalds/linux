@@ -183,7 +183,7 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 			goto error;
 		if ((a & ~(SIS5595_EXTENT - 1)) != sis5595_base) {
 			/* doesn't work for some chips! */
-			dev_err(&SIS5595_dev->dev, "force address failed - not supported?\n");
+			dev_err(&SIS5595_dev->dev, "force address failed - yest supported?\n");
 			goto error;
 		}
 	}
@@ -201,7 +201,7 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 			goto error;
 		if ((val & 0x80) == 0) {
 			/* doesn't work for some chips? */
-			dev_err(&SIS5595_dev->dev, "ACPI enable failed - not supported?\n");
+			dev_err(&SIS5595_dev->dev, "ACPI enable failed - yest supported?\n");
 			goto error;
 		}
 	}
@@ -256,7 +256,7 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 
 	if (temp & 0x20) {
 		dev_err(&adap->dev, "Bus collision! SMBus may be locked until "
-			"next hard reset (or not...)\n");
+			"next hard reset (or yest...)\n");
 		/* Clock stops and slave is stuck in mid-transmission */
 		result = -EIO;
 	}
@@ -274,7 +274,7 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 	return result;
 }
 
-/* Return negative errno on error. */
+/* Return negative erryes on error. */
 static s32 sis5595_access(struct i2c_adapter *adap, u16 addr,
 			  unsigned short flags, char read_write,
 			  u8 command, int size, union i2c_smbus_data *data)
@@ -369,7 +369,7 @@ static int sis5595_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int err;
 
 	if (sis5595_setup(dev)) {
-		dev_err(&dev->dev, "SIS5595 not detected, module not inserted.\n");
+		dev_err(&dev->dev, "SIS5595 yest detected, module yest inserted.\n");
 		return -ENODEV;
 	}
 

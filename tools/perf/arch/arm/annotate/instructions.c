@@ -5,14 +5,14 @@
 #include <regex.h>
 #include <stdlib.h>
 
-struct arm_annotate {
+struct arm_anyestate {
 	regex_t call_insn,
 		jump_insn;
 };
 
 static struct ins_ops *arm__associate_instruction_ops(struct arch *arch, const char *name)
 {
-	struct arm_annotate *arm = arch->priv;
+	struct arm_anyestate *arm = arch->priv;
 	struct ins_ops *ops;
 	regmatch_t match[2];
 
@@ -27,9 +27,9 @@ static struct ins_ops *arm__associate_instruction_ops(struct arch *arch, const c
 	return ops;
 }
 
-static int arm__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+static int arm__anyestate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
-	struct arm_annotate *arm;
+	struct arm_anyestate *arm;
 	int err;
 
 	if (arch->initialized)

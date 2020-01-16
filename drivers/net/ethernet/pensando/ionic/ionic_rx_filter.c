@@ -48,7 +48,7 @@ void ionic_rx_filters_deinit(struct ionic_lif *lif)
 {
 	struct ionic_rx_filter *f;
 	struct hlist_head *head;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned int i;
 
 	for (i = 0; i < IONIC_RX_FILTER_HLISTS; i++) {

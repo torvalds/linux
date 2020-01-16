@@ -2,7 +2,7 @@
 /*
  * "RTT as Real Time Clock" driver for AT91SAM9 SoC family
  *
- * (C) 2007 Michel Benoit
+ * (C) 2007 Michel Beyesit
  *
  * Based on rtc-at91rm9200.c by Rick Bronson
  */
@@ -31,7 +31,7 @@
  *    We can't assign the counter value (CRTV) ... but we can reset it.
  *
  *  - One of the "General Purpose Backup Registers" (GPBRs) holds the
- *    base time, normally an offset from the beginning of the POSIX
+ *    base time, yesrmally an offset from the beginning of the POSIX
  *    epoch (1970-Jan-1 00:00:00 UTC).  Some systems also include the
  *    local timezone's offset.
  *
@@ -60,7 +60,7 @@
 #define AT91_RTT_RTTINC		BIT(1)		/* Timer Increment */
 
 /*
- * We store ALARM_DISABLED in ALMV to record that no alarm is set.
+ * We store ALARM_DISABLED in ALMV to record that yes alarm is set.
  * It's also the reset value for that field.
  */
 #define ALARM_DISABLED	((u32)~0)
@@ -208,7 +208,7 @@ static int at91_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	offset = gpbr_readl(rtc);
 	if (offset == 0) {
-		/* time is not set */
+		/* time is yest set */
 		return -EILSEQ;
 	}
 	mr = rtt_readl(rtc, MR);
@@ -252,7 +252,7 @@ static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
 	u32 mr = rtt_readl(rtc, MR);
 
 	seq_printf(seq, "update_IRQ\t: %s\n",
-		   (mr & AT91_RTT_RTTINCIEN) ? "yes" : "no");
+		   (mr & AT91_RTT_RTTINCIEN) ? "no" : "yes");
 	return 0;
 }
 
@@ -260,7 +260,7 @@ static irqreturn_t at91_rtc_cache_events(struct sam9_rtc *rtc)
 {
 	u32 sr, mr;
 
-	/* Shared interrupt may be for another device.  Note: reading
+	/* Shared interrupt may be for ayesther device.  Note: reading
 	 * SR clears it, so we must only read it in this irq handler!
 	 */
 	mr = rtt_readl(rtc, MR) & (AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN);
@@ -361,13 +361,13 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->rtt))
 		return PTR_ERR(rtc->rtt);
 
-	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
+	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_yesde,
 					       "atmel,rtt-rtc-time-reg", 1, 0,
 					       &args);
 	if (ret)
 		return ret;
 
-	rtc->gpbr = syscon_node_to_regmap(args.np);
+	rtc->gpbr = syscon_yesde_to_regmap(args.np);
 	rtc->gpbr_offset = args.args[0];
 	if (IS_ERR(rtc->gpbr)) {
 		dev_err(&pdev->dev, "failed to retrieve gpbr regmap, aborting.\n");
@@ -380,7 +380,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(rtc->sclk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		dev_err(&pdev->dev, "Could yest enable slow clock\n");
 		return ret;
 	}
 
@@ -412,7 +412,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	rtc->rtcdev->ops = &at91_rtc_ops;
 	rtc->rtcdev->range_max = U32_MAX;
 
-	/* register irq handler after we know what name we'll use */
+	/* register irq handler after we kyesw what name we'll use */
 	ret = devm_request_irq(&pdev->dev, rtc->irq, at91_rtc_interrupt,
 			       IRQF_SHARED | IRQF_COND_SUSPEND,
 			       dev_name(&rtc->rtcdev->dev), rtc);
@@ -542,6 +542,6 @@ static struct platform_driver at91_rtc_driver = {
 
 module_platform_driver(at91_rtc_driver);
 
-MODULE_AUTHOR("Michel Benoit");
+MODULE_AUTHOR("Michel Beyesit");
 MODULE_DESCRIPTION("RTC driver for Atmel AT91SAM9x");
 MODULE_LICENSE("GPL");

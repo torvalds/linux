@@ -6,7 +6,7 @@
 #include <signal.h>
 #include <limits.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <fcntl.h>
 #include <linux/unistd.h>
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
 		ret = sys_kcmp(pid1, pid2, KCMP_FILE, fd1, fd1);
 		if (ret) {
 			printf("FAIL: 0 expected but %d returned (%s)\n",
-				ret, strerror(errno));
+				ret, strerror(erryes));
 			ksft_inc_fail_cnt();
 			ret = -1;
 		} else {
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 		ret = sys_kcmp(pid1, pid1, KCMP_VM, 0, 0);
 		if (ret) {
 			printf("FAIL: 0 expected but %d returned (%s)\n",
-				ret, strerror(errno));
+				ret, strerror(erryes));
 			ksft_inc_fail_cnt();
 			ret = -1;
 		} else {
@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 			       (unsigned long)(void *)&epoll_slot);
 		if (ret) {
 			printf("FAIL: 0 expected but %d returned (%s)\n",
-				ret, strerror(errno));
+				ret, strerror(erryes));
 			ksft_inc_fail_cnt();
 			ret = -1;
 		} else {

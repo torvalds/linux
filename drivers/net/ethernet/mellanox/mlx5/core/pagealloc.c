@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -54,7 +54,7 @@ struct mlx5_pages_req {
 };
 
 struct fw_page {
-	struct rb_node		rb_node;
+	struct rb_yesde		rb_yesde;
 	u64			addr;
 	struct page	       *page;
 	u16			func_id;
@@ -76,15 +76,15 @@ enum {
 static int insert_page(struct mlx5_core_dev *dev, u64 addr, struct page *page, u16 func_id)
 {
 	struct rb_root *root = &dev->priv.page_root;
-	struct rb_node **new = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **new = &root->rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct fw_page *nfp;
 	struct fw_page *tfp;
 	int i;
 
 	while (*new) {
 		parent = *new;
-		tfp = rb_entry(parent, struct fw_page, rb_node);
+		tfp = rb_entry(parent, struct fw_page, rb_yesde);
 		if (tfp->addr < addr)
 			new = &parent->rb_left;
 		else if (tfp->addr > addr)
@@ -104,8 +104,8 @@ static int insert_page(struct mlx5_core_dev *dev, u64 addr, struct page *page, u
 	for (i = 0; i < MLX5_NUM_4K_IN_PAGE; i++)
 		set_bit(i, &nfp->bitmask);
 
-	rb_link_node(&nfp->rb_node, parent, new);
-	rb_insert_color(&nfp->rb_node, root);
+	rb_link_yesde(&nfp->rb_yesde, parent, new);
+	rb_insert_color(&nfp->rb_yesde, root);
 	list_add(&nfp->list, &dev->priv.free_list);
 
 	return 0;
@@ -114,12 +114,12 @@ static int insert_page(struct mlx5_core_dev *dev, u64 addr, struct page *page, u
 static struct fw_page *find_fw_page(struct mlx5_core_dev *dev, u64 addr)
 {
 	struct rb_root *root = &dev->priv.page_root;
-	struct rb_node *tmp = root->rb_node;
+	struct rb_yesde *tmp = root->rb_yesde;
 	struct fw_page *result = NULL;
 	struct fw_page *tfp;
 
 	while (tmp) {
-		tfp = rb_entry(tmp, struct fw_page, rb_node);
+		tfp = rb_entry(tmp, struct fw_page, rb_yesde);
 		if (tfp->addr < addr) {
 			tmp = tmp->rb_left;
 		} else if (tfp->addr > addr) {
@@ -189,7 +189,7 @@ static void free_4k(struct mlx5_core_dev *dev, u64 addr)
 
 	fwp = find_fw_page(dev, addr & MLX5_U64_4K_PAGE_MASK);
 	if (!fwp) {
-		mlx5_core_warn(dev, "page not found\n");
+		mlx5_core_warn(dev, "page yest found\n");
 		return;
 	}
 
@@ -197,7 +197,7 @@ static void free_4k(struct mlx5_core_dev *dev, u64 addr)
 	fwp->free_count++;
 	set_bit(n, &fwp->bitmask);
 	if (fwp->free_count == MLX5_NUM_4K_IN_PAGE) {
-		rb_erase(&fwp->rb_node, &dev->priv.page_root);
+		rb_erase(&fwp->rb_yesde, &dev->priv.page_root);
 		if (fwp->free_count != 1)
 			list_del(&fwp->list);
 		dma_unmap_page(dev->device, addr & MLX5_U64_4K_PAGE_MASK,
@@ -212,13 +212,13 @@ static void free_4k(struct mlx5_core_dev *dev, u64 addr)
 static int alloc_system_page(struct mlx5_core_dev *dev, u16 func_id)
 {
 	struct device *device = dev->device;
-	int nid = dev_to_node(device);
+	int nid = dev_to_yesde(device);
 	struct page *page;
 	u64 zero_addr = 1;
 	u64 addr;
 	int err;
 
-	page = alloc_pages_node(nid, GFP_HIGHUSER, 0);
+	page = alloc_pages_yesde(nid, GFP_HIGHUSER, 0);
 	if (!page) {
 		mlx5_core_warn(dev, "failed to allocate page\n");
 		return -ENOMEM;
@@ -254,7 +254,7 @@ err_mapping:
 	return err;
 }
 
-static void page_notify_fail(struct mlx5_core_dev *dev, u16 func_id,
+static void page_yestify_fail(struct mlx5_core_dev *dev, u16 func_id,
 			     bool ec_function)
 {
 	u32 out[MLX5_ST_SZ_DW(manage_pages_out)] = {0};
@@ -268,12 +268,12 @@ static void page_notify_fail(struct mlx5_core_dev *dev, u16 func_id,
 
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (err)
-		mlx5_core_warn(dev, "page notify failed func_id(%d) err(%d)\n",
+		mlx5_core_warn(dev, "page yestify failed func_id(%d) err(%d)\n",
 			       func_id, err);
 }
 
 static int give_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
-		      int notify_fail, bool ec_function)
+		      int yestify_fail, bool ec_function)
 {
 	u32 out[MLX5_ST_SZ_DW(manage_pages_out)] = {0};
 	int inlen = MLX5_ST_SZ_BYTES(manage_pages_in);
@@ -334,8 +334,8 @@ out_4k:
 		free_4k(dev, MLX5_GET64(manage_pages_in, in, pas[i]));
 out_free:
 	kvfree(in);
-	if (notify_fail)
-		page_notify_fail(dev, func_id, ec_function);
+	if (yestify_fail)
+		page_yestify_fail(dev, func_id, ec_function);
 	return err;
 }
 
@@ -343,7 +343,7 @@ static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 			     u32 *in, int in_size, u32 *out, int out_size)
 {
 	struct fw_page *fwp;
-	struct rb_node *p;
+	struct rb_yesde *p;
 	u32 func_id;
 	u32 npages;
 	u32 i = 0;
@@ -357,7 +357,7 @@ static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 
 	p = rb_first(&dev->priv.page_root);
 	while (p && i < npages) {
-		fwp = rb_entry(p, struct fw_page, rb_node);
+		fwp = rb_entry(p, struct fw_page, rb_yesde);
 		p = rb_next(p);
 		if (fwp->func_id != func_id)
 			continue;
@@ -449,7 +449,7 @@ enum {
 	EC_FUNCTION_MASK = 0x8000,
 };
 
-static int req_pages_handler(struct notifier_block *nb,
+static int req_pages_handler(struct yestifier_block *nb,
 			     unsigned long type, void *data)
 {
 	struct mlx5_pages_req *req;
@@ -521,14 +521,14 @@ int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev)
 {
 	unsigned long end = jiffies + msecs_to_jiffies(MAX_RECLAIM_TIME_MSECS);
 	struct fw_page *fwp;
-	struct rb_node *p;
+	struct rb_yesde *p;
 	int nclaimed = 0;
 	int err = 0;
 
 	do {
 		p = rb_first(&dev->priv.page_root);
 		if (p) {
-			fwp = rb_entry(p, struct fw_page, rb_node);
+			fwp = rb_entry(p, struct fw_page, rb_yesde);
 			err = reclaim_pages(dev, fwp->func_id,
 					    optimal_reclaimed_pages(),
 					    &nclaimed, mlx5_core_is_ecpf(dev));
@@ -542,7 +542,7 @@ int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev)
 				end = jiffies + msecs_to_jiffies(MAX_RECLAIM_TIME_MSECS);
 		}
 		if (time_after(jiffies, end)) {
-			mlx5_core_warn(dev, "FW did not return all pages. giving up...\n");
+			mlx5_core_warn(dev, "FW did yest return all pages. giving up...\n");
 			break;
 		}
 	} while (p);
@@ -579,12 +579,12 @@ void mlx5_pagealloc_cleanup(struct mlx5_core_dev *dev)
 void mlx5_pagealloc_start(struct mlx5_core_dev *dev)
 {
 	MLX5_NB_INIT(&dev->priv.pg_nb, req_pages_handler, PAGE_REQUEST);
-	mlx5_eq_notifier_register(dev, &dev->priv.pg_nb);
+	mlx5_eq_yestifier_register(dev, &dev->priv.pg_nb);
 }
 
 void mlx5_pagealloc_stop(struct mlx5_core_dev *dev)
 {
-	mlx5_eq_notifier_unregister(dev, &dev->priv.pg_nb);
+	mlx5_eq_yestifier_unregister(dev, &dev->priv.pg_nb);
 	flush_workqueue(dev->priv.pg_wq);
 }
 

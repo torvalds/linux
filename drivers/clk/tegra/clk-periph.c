@@ -129,7 +129,7 @@ const struct clk_ops tegra_clk_periph_ops = {
 	.restore_context = clk_periph_restore_context,
 };
 
-static const struct clk_ops tegra_clk_periph_nodiv_ops = {
+static const struct clk_ops tegra_clk_periph_yesdiv_ops = {
 	.get_parent = clk_periph_get_parent,
 	.set_parent = clk_periph_set_parent,
 	.is_enabled = clk_periph_is_enabled,
@@ -138,7 +138,7 @@ static const struct clk_ops tegra_clk_periph_nodiv_ops = {
 	.restore_context = clk_periph_restore_context,
 };
 
-static const struct clk_ops tegra_clk_periph_no_gate_ops = {
+static const struct clk_ops tegra_clk_periph_yes_gate_ops = {
 	.get_parent = clk_periph_get_parent,
 	.set_parent = clk_periph_set_parent,
 	.recalc_rate = clk_periph_recalc_rate,
@@ -160,9 +160,9 @@ static struct clk *_tegra_clk_register_periph(const char *name,
 
 	if (periph->gate.flags & TEGRA_PERIPH_NO_DIV) {
 		flags |= CLK_SET_RATE_PARENT;
-		init.ops = &tegra_clk_periph_nodiv_ops;
+		init.ops = &tegra_clk_periph_yesdiv_ops;
 	} else if (periph->gate.flags & TEGRA_PERIPH_NO_GATE)
-		init.ops = &tegra_clk_periph_no_gate_ops;
+		init.ops = &tegra_clk_periph_yes_gate_ops;
 	else
 		init.ops = &tegra_clk_periph_ops;
 
@@ -204,7 +204,7 @@ struct clk *tegra_clk_register_periph(const char *name,
 			periph, clk_base, offset, flags);
 }
 
-struct clk *tegra_clk_register_periph_nodiv(const char *name,
+struct clk *tegra_clk_register_periph_yesdiv(const char *name,
 		const char * const *parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
 		u32 offset)

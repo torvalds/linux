@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2017 Sanechips Technology Co., Ltd.
+ * Copyright (C) 2017 Sanechips Techyeslogy Co., Ltd.
  * Copyright 2017 Linaro Ltd.
  */
 
@@ -92,8 +92,8 @@ static int zx_vga_connector_get_modes(struct drm_connector *connector)
 	if (!edid) {
 		/*
 		 * If EDID reading fails, we set the device state into
-		 * disconnected.  Locking is not required here, since the
-		 * VGA_AUTO_DETECT_SEL register write in irq handler cannot
+		 * disconnected.  Locking is yest required here, since the
+		 * VGA_AUTO_DETECT_SEL register write in irq handler canyest
 		 * be triggered when both detection bits are cleared as above.
 		 */
 		zx_writel(vga->mmio + VGA_AUTO_DETECT_SEL,
@@ -197,12 +197,12 @@ static int zx_vga_pwrctrl_init(struct zx_vga *vga)
 	struct regmap *regmap;
 	int ret;
 
-	ret = of_parse_phandle_with_fixed_args(dev->of_node,
+	ret = of_parse_phandle_with_fixed_args(dev->of_yesde,
 				"zte,vga-power-control", 2, 0, &out_args);
 	if (ret)
 		return ret;
 
-	regmap = syscon_node_to_regmap(out_args.np);
+	regmap = syscon_yesde_to_regmap(out_args.np);
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
 		goto out;
@@ -213,7 +213,7 @@ static int zx_vga_pwrctrl_init(struct zx_vga *vga)
 	pwrctrl->mask = out_args.args[1];
 
 out:
-	of_node_put(out_args.np);
+	of_yesde_put(out_args.np);
 	return ret;
 }
 

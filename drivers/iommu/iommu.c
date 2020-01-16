@@ -13,10 +13,10 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/iommu.h>
 #include <linux/idr.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/err.h>
 #include <linux/pci.h>
 #include <linux/bitops.h>
@@ -36,7 +36,7 @@ struct iommu_group {
 	struct kobject *devices_kobj;
 	struct list_head devices;
 	struct mutex mutex;
-	struct blocking_notifier_head notifier;
+	struct blocking_yestifier_head yestifier;
 	void *iommu_data;
 	void (*iommu_data_release)(void *iommu_data);
 	char *name;
@@ -106,7 +106,7 @@ static const char *iommu_domain_type_str(unsigned int t)
 	case IOMMU_DOMAIN_DMA:
 		return "Translated";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -312,7 +312,7 @@ int iommu_insert_resv_region(struct iommu_resv_region *new,
 	list_for_each_entry_safe(iter, tmp, regions, list) {
 		phys_addr_t top_end, iter_end = iter->start + iter->length - 1;
 
-		/* no merge needed on elements of different types than @new */
+		/* yes merge needed on elements of different types than @new */
 		if (iter->type != new->type) {
 			list_move_tail(&iter->list, &stack);
 			continue;
@@ -403,7 +403,7 @@ static ssize_t iommu_group_show_resv_regions(struct iommu_group *group,
 static ssize_t iommu_group_show_type(struct iommu_group *group,
 				     char *buf)
 {
-	char *type = "unknown\n";
+	char *type = "unkyeswn\n";
 
 	if (group->default_domain) {
 		switch (group->default_domain->type) {
@@ -464,7 +464,7 @@ static struct kobj_type iommu_group_ktype = {
  * Upon successful return, the caller holds a reference to the supplied
  * group in order to hold the group until devices are added.  Use
  * iommu_group_put() to release this extra reference count, allowing the
- * group to be automatically reclaimed once it has no devices or external
+ * group to be automatically reclaimed once it has yes devices or external
  * references.
  */
 struct iommu_group *iommu_group_alloc(void)
@@ -479,7 +479,7 @@ struct iommu_group *iommu_group_alloc(void)
 	group->kobj.kset = iommu_group_kset;
 	mutex_init(&group->mutex);
 	INIT_LIST_HEAD(&group->devices);
-	BLOCKING_INIT_NOTIFIER_HEAD(&group->notifier);
+	BLOCKING_INIT_NOTIFIER_HEAD(&group->yestifier);
 
 	ret = ida_simple_get(&iommu_group_ida, 0, 0, GFP_KERNEL);
 	if (ret < 0) {
@@ -705,7 +705,7 @@ rename:
 		goto err_remove_link;
 	}
 
-	ret = sysfs_create_link_nowarn(group->devices_kobj,
+	ret = sysfs_create_link_yeswarn(group->devices_kobj,
 				       &dev->kobj, device->name);
 	if (ret) {
 		if (ret == -EEXIST && i >= 0) {
@@ -736,7 +736,7 @@ rename:
 		goto err_put_group;
 
 	/* Notify any listeners about change to group. */
-	blocking_notifier_call_chain(&group->notifier,
+	blocking_yestifier_call_chain(&group->yestifier,
 				     IOMMU_GROUP_NOTIFY_ADD_DEVICE, dev);
 
 	trace_add_device_to_group(group->id, dev);
@@ -777,8 +777,8 @@ void iommu_group_remove_device(struct device *dev)
 
 	dev_info(dev, "Removing from iommu group %d\n", group->id);
 
-	/* Pre-notify listeners that a device is being removed. */
-	blocking_notifier_call_chain(&group->notifier,
+	/* Pre-yestify listeners that a device is being removed. */
+	blocking_yestifier_call_chain(&group->yestifier,
 				     IOMMU_GROUP_NOTIFY_DEL_DEVICE, dev);
 
 	mutex_lock(&group->mutex);
@@ -877,7 +877,7 @@ EXPORT_SYMBOL_GPL(iommu_group_get);
 
 /**
  * iommu_group_ref_get - Increment reference on a group
- * @group: the group to use, must not be NULL
+ * @group: the group to use, must yest be NULL
  *
  * This function is called by iommu drivers to take additional references on an
  * existing group.  Returns the given group for convenience.
@@ -903,34 +903,34 @@ void iommu_group_put(struct iommu_group *group)
 EXPORT_SYMBOL_GPL(iommu_group_put);
 
 /**
- * iommu_group_register_notifier - Register a notifier for group changes
+ * iommu_group_register_yestifier - Register a yestifier for group changes
  * @group: the group to watch
- * @nb: notifier block to signal
+ * @nb: yestifier block to signal
  *
  * This function allows iommu group users to track changes in a group.
- * See include/linux/iommu.h for actions sent via this notifier.  Caller
- * should hold a reference to the group throughout notifier registration.
+ * See include/linux/iommu.h for actions sent via this yestifier.  Caller
+ * should hold a reference to the group throughout yestifier registration.
  */
-int iommu_group_register_notifier(struct iommu_group *group,
-				  struct notifier_block *nb)
+int iommu_group_register_yestifier(struct iommu_group *group,
+				  struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&group->notifier, nb);
+	return blocking_yestifier_chain_register(&group->yestifier, nb);
 }
-EXPORT_SYMBOL_GPL(iommu_group_register_notifier);
+EXPORT_SYMBOL_GPL(iommu_group_register_yestifier);
 
 /**
- * iommu_group_unregister_notifier - Unregister a notifier
+ * iommu_group_unregister_yestifier - Unregister a yestifier
  * @group: the group to watch
- * @nb: notifier block to signal
+ * @nb: yestifier block to signal
  *
- * Unregister a previously registered group notifier block.
+ * Unregister a previously registered group yestifier block.
  */
-int iommu_group_unregister_notifier(struct iommu_group *group,
-				    struct notifier_block *nb)
+int iommu_group_unregister_yestifier(struct iommu_group *group,
+				    struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&group->notifier, nb);
+	return blocking_yestifier_chain_unregister(&group->yestifier, nb);
 }
-EXPORT_SYMBOL_GPL(iommu_group_unregister_notifier);
+EXPORT_SYMBOL_GPL(iommu_group_unregister_yestifier);
 
 /**
  * iommu_register_device_fault_handler() - Register a device fault handler
@@ -1008,7 +1008,7 @@ int iommu_unregister_device_fault_handler(struct device *dev)
 	if (!param->fault_param)
 		goto unlock;
 
-	/* we cannot unregister handler if there are pending faults */
+	/* we canyest unregister handler if there are pending faults */
 	if (!list_empty(&param->fault_param->faults)) {
 		ret = -EBUSY;
 		goto unlock;
@@ -1102,7 +1102,7 @@ int iommu_page_response(struct device *dev,
 	/* Only send response if there is a fault report pending */
 	mutex_lock(&param->fault_param->lock);
 	if (list_empty(&param->fault_param->faults)) {
-		dev_warn_ratelimited(dev, "no pending PRQ, drop response\n");
+		dev_warn_ratelimited(dev, "yes pending PRQ, drop response\n");
 		goto done_unlock;
 	}
 	/*
@@ -1150,16 +1150,16 @@ static struct iommu_group *get_pci_alias_group(struct pci_dev *pdev,
 /*
  * To consider a PCI device isolated, we require ACS to support Source
  * Validation, Request Redirection, Completer Redirection, and Upstream
- * Forwarding.  This effectively means that devices cannot spoof their
- * requester ID, requests and completions cannot be redirected, and all
+ * Forwarding.  This effectively means that devices canyest spoof their
+ * requester ID, requests and completions canyest be redirected, and all
  * transactions are forwarded upstream, even as it passes through a
  * bridge where the target device is downstream.
  */
 #define REQ_ACS_FLAGS   (PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF)
 
 /*
- * For multifunction devices which are not isolated from each other, find
- * all the other non-isolated functions and look for existing groups.  For
+ * For multifunction devices which are yest isolated from each other, find
+ * all the other yesn-isolated functions and look for existing groups.  For
  * each function, we also need to look for aliases to or from other devices
  * that may already have a group.
  */
@@ -1277,7 +1277,7 @@ struct iommu_group *pci_device_group(struct device *dev)
 		return ERR_PTR(-EINVAL);
 
 	/*
-	 * Find the upstream DMA alias for the device.  A device must not
+	 * Find the upstream DMA alias for the device.  A device must yest
 	 * be aliased due to topology in order to have its own IOMMU group.
 	 * If we find an alias along the way that already belongs to a
 	 * group, use it.
@@ -1308,15 +1308,15 @@ struct iommu_group *pci_device_group(struct device *dev)
 	}
 
 	/*
-	 * Look for existing groups on device aliases.  If we alias another
-	 * device or another device aliases us, use the same group.
+	 * Look for existing groups on device aliases.  If we alias ayesther
+	 * device or ayesther device aliases us, use the same group.
 	 */
 	group = get_pci_alias_group(pdev, (unsigned long *)devfns);
 	if (group)
 		return group;
 
 	/*
-	 * Look for existing groups on non-isolated functions on the same
+	 * Look for existing groups on yesn-isolated functions on the same
 	 * slot and aliases of those funcions, if any.  No need to clear
 	 * the search bitmap, the tested devfns are still valid.
 	 */
@@ -1418,8 +1418,8 @@ static int add_iommu_group(struct device *dev, void *data)
 	int ret = iommu_probe_device(dev);
 
 	/*
-	 * We ignore -ENODEV errors for now, as they just mean that the
-	 * device is not translated by an IOMMU. We still care about
+	 * We igyesre -ENODEV errors for yesw, as they just mean that the
+	 * device is yest translated by an IOMMU. We still care about
 	 * other errors and fail to initialize when they happen.
 	 */
 	if (ret == -ENODEV)
@@ -1435,7 +1435,7 @@ static int remove_iommu_group(struct device *dev, void *data)
 	return 0;
 }
 
-static int iommu_bus_notifier(struct notifier_block *nb,
+static int iommu_bus_yestifier(struct yestifier_block *nb,
 			      unsigned long action, void *data)
 {
 	unsigned long group_action = 0;
@@ -1444,7 +1444,7 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 
 	/*
 	 * ADD/DEL call into iommu driver ops if provided, which may
-	 * result in ADD/DEL notifiers to group->notifier
+	 * result in ADD/DEL yestifiers to group->yestifier
 	 */
 	if (action == BUS_NOTIFY_ADD_DEVICE) {
 		int ret;
@@ -1480,7 +1480,7 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 	}
 
 	if (group_action)
-		blocking_notifier_call_chain(&group->notifier,
+		blocking_yestifier_call_chain(&group->yestifier,
 					     group_action, dev);
 
 	iommu_group_put(group);
@@ -1490,15 +1490,15 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 static int iommu_bus_init(struct bus_type *bus, const struct iommu_ops *ops)
 {
 	int err;
-	struct notifier_block *nb;
+	struct yestifier_block *nb;
 
-	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
+	nb = kzalloc(sizeof(struct yestifier_block), GFP_KERNEL);
 	if (!nb)
 		return -ENOMEM;
 
-	nb->notifier_call = iommu_bus_notifier;
+	nb->yestifier_call = iommu_bus_yestifier;
 
-	err = bus_register_notifier(bus, nb);
+	err = bus_register_yestifier(bus, nb);
 	if (err)
 		goto out_free;
 
@@ -1512,7 +1512,7 @@ static int iommu_bus_init(struct bus_type *bus, const struct iommu_ops *ops)
 out_err:
 	/* Clean up */
 	bus_for_each_dev(bus, NULL, NULL, remove_iommu_group);
-	bus_unregister_notifier(bus, nb);
+	bus_unregister_yestifier(bus, nb);
 
 out_free:
 	kfree(nb);
@@ -1529,7 +1529,7 @@ out_free:
  * used for a particular bus. Drivers for devices on that bus can use
  * the iommu-api after these ops are registered.
  * This special function is needed because IOMMUs are usually devices on
- * the bus itself, so the iommu drivers are not initialized when the bus
+ * the bus itself, so the iommu drivers are yest initialized when the bus
  * is set up. With this function the iommu-driver can set the iommu-ops
  * afterwards.
  */
@@ -1572,7 +1572,7 @@ EXPORT_SYMBOL_GPL(iommu_capable);
  * @handler: fault handler
  * @token: user data, will be passed back to the fault handler
  *
- * This function should be used by IOMMU users which want to be notified
+ * This function should be used by IOMMU users which want to be yestified
  * whenever an IOMMU fault happens.
  *
  * The fault handler itself should return 0 on success, and an appropriate
@@ -1872,7 +1872,7 @@ static size_t iommu_pgsize(struct iommu_domain *domain,
 	/* build a mask of acceptable page sizes */
 	pgsize = (1UL << (pgsize_idx + 1)) - 1;
 
-	/* throw away page sizes not supported by the hardware */
+	/* throw away page sizes yest supported by the hardware */
 	pgsize &= domain->pgsize_bitmap;
 
 	/* make sure we're still sane */
@@ -2124,7 +2124,7 @@ EXPORT_SYMBOL_GPL(iommu_domain_window_disable);
  *
  * This function should be called by the low-level IOMMU implementations
  * whenever IOMMU faults happen, to allow high-level users, that are
- * interested in such events, to know about them.
+ * interested in such events, to kyesw about them.
  *
  * This event may be useful for several possible use cases:
  * - mere logging of the event
@@ -2133,7 +2133,7 @@ EXPORT_SYMBOL_GPL(iommu_domain_window_disable);
  *
  * Returns 0 on success and an appropriate error code otherwise (if dynamic
  * PTE/TLB loading will one day be supported, implementations will be able
- * to tell whether it succeeded or not according to this return value).
+ * to tell whether it succeeded or yest according to this return value).
  *
  * Specifically, -ENOSYS is returned if a fault handler isn't installed
  * (though fault handlers can also return -ENOSYS, in case they want to
@@ -2335,14 +2335,14 @@ bool iommu_default_passthrough(void)
 }
 EXPORT_SYMBOL_GPL(iommu_default_passthrough);
 
-const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
+const struct iommu_ops *iommu_ops_from_fwyesde(struct fwyesde_handle *fwyesde)
 {
 	const struct iommu_ops *ops = NULL;
 	struct iommu_device *iommu;
 
 	spin_lock(&iommu_device_lock);
 	list_for_each_entry(iommu, &iommu_device_list, list)
-		if (iommu->fwnode == fwnode) {
+		if (iommu->fwyesde == fwyesde) {
 			ops = iommu->ops;
 			break;
 		}
@@ -2350,7 +2350,7 @@ const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
 	return ops;
 }
 
-int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
+int iommu_fwspec_init(struct device *dev, struct fwyesde_handle *iommu_fwyesde,
 		      const struct iommu_ops *ops)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
@@ -2362,8 +2362,8 @@ int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
 	if (!fwspec)
 		return -ENOMEM;
 
-	of_node_get(to_of_node(iommu_fwnode));
-	fwspec->iommu_fwnode = iommu_fwnode;
+	of_yesde_get(to_of_yesde(iommu_fwyesde));
+	fwspec->iommu_fwyesde = iommu_fwyesde;
 	fwspec->ops = ops;
 	dev_iommu_fwspec_set(dev, fwspec);
 	return 0;
@@ -2375,7 +2375,7 @@ void iommu_fwspec_free(struct device *dev)
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 
 	if (fwspec) {
-		fwnode_handle_put(fwspec->iommu_fwnode);
+		fwyesde_handle_put(fwspec->iommu_fwyesde);
 		kfree(fwspec);
 		dev_iommu_fwspec_set(dev, NULL);
 	}
@@ -2538,7 +2538,7 @@ iommu_sva_bind_device(struct device *dev, struct mm_struct *mm, void *drvdata)
 
 	/*
 	 * To keep things simple, SVA currently doesn't support IOMMU groups
-	 * with more than one device. Existing SVA-capable systems are not
+	 * with more than one device. Existing SVA-capable systems are yest
 	 * affected by the problems that required IOMMU groups (lack of ACS
 	 * isolation, device ID aliasing and other hardware issues).
 	 */
@@ -2560,7 +2560,7 @@ EXPORT_SYMBOL_GPL(iommu_sva_bind_device);
  * @handle: the handle returned by iommu_sva_bind_device()
  *
  * Put reference to a bond between device and address space. The device should
- * not be issuing any more transaction for this PASID. All outstanding page
+ * yest be issuing any more transaction for this PASID. All outstanding page
  * requests for this PASID must have been flushed to the IOMMU.
  *
  * Returns 0 on success, or an error value

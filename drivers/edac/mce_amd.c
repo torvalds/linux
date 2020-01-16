@@ -11,7 +11,7 @@ static struct amd_decoder_ops *fam_ops;
 static u8 xec_mask	 = 0xf;
 
 static bool report_gart_errors;
-static void (*decode_dram_ecc)(int node_id, struct mce *m);
+static void (*decode_dram_ecc)(int yesde_id, struct mce *m);
 
 void amd_report_gart_errors(bool v)
 {
@@ -56,7 +56,7 @@ const char * const pp_msgs[] = { "SRC", "RES", "OBS", "GEN" };
 EXPORT_SYMBOL_GPL(pp_msgs);
 
 /* request timeout */
-static const char * const to_msgs[] = { "no timeout", "timed out" };
+static const char * const to_msgs[] = { "yes timeout", "timed out" };
 
 /* memory or i/o */
 static const char * const ii_msgs[] = { "MEM", "RESV", "IO", "GEN" };
@@ -75,7 +75,7 @@ static const char * const f15h_mc1_mce_desc[] = {
 	"PFB promotion address error",
 	"Tag error during probe/victimization",
 	"Parity error for IC probe tag valid bit",
-	"PFB non-cacheable bit parity error",
+	"PFB yesn-cacheable bit parity error",
 	"PFB valid bit parity error",			/* xec = 0xd */
 	"Microcode Patch Buffer",			/* xec = 010 */
 	"uop queue",
@@ -184,8 +184,8 @@ static const char * const smca_if_mce_desc[] = {
 	"L0 ITLB Parity Error",
 	"L1 ITLB Parity Error",
 	"L2 ITLB Parity Error",
-	"BPQ Thread 0 Snoop Parity Error",
-	"BPQ Thread 1 Snoop Parity Error",
+	"BPQ Thread 0 Syesop Parity Error",
+	"BPQ Thread 1 Syesop Parity Error",
 	"L1 BTB Multi-Match Error",
 	"L2 BTB Multi-Match Error",
 	"L2 Cache Response Poison Error",
@@ -268,7 +268,7 @@ static const char * const smca_cs2_mce_desc[] = {
 	"Request or Probe Parity Error",
 	"Read Response Parity Error",
 	"Atomic Request Parity Error",
-	"SDP read response had no match in the CS queue",
+	"SDP read response had yes match in the CS queue",
 	"Probe Filter Protocol Error",
 	"Probe Filter ECC Error",
 	"SDP read response had an unexpected RETRY error",
@@ -455,7 +455,7 @@ static bool cat_mc0_mce(u16 ec, u8 xec)
 			pr_cont("Copyback parity error on a tag miss.\n");
 			break;
 		case R4_SNOOP:
-			pr_cont("Tag parity error during snoop.\n");
+			pr_cont("Tag parity error during syesop.\n");
 			break;
 		default:
 			ret = false;
@@ -582,7 +582,7 @@ static bool k8_mc1_mce(u16 ec, u8 xec)
 			break;
 
 		case R4_SNOOP:
-			pr_cont("Tag Snoop error.\n");
+			pr_cont("Tag Syesop error.\n");
 			break;
 
 		default:
@@ -609,7 +609,7 @@ static bool cat_mc1_mce(u16 ec, u8 xec)
 	if (r4 == R4_IRD)
 		pr_cont("Data/tag array parity error for a tag hit.\n");
 	else if (r4 == R4_SNOOP)
-		pr_cont("Tag error during snoop/victimization.\n");
+		pr_cont("Tag error during syesop/victimization.\n");
 	else if (xec == 0x0)
 		pr_cont("Tag parity error from victim castout.\n");
 	else if (xec == 0x2)
@@ -839,26 +839,26 @@ static void decode_mc3_mce(struct mce *m)
 static void decode_mc4_mce(struct mce *m)
 {
 	unsigned int fam = x86_family(m->cpuid);
-	int node_id = amd_get_nb_id(m->extcpu);
+	int yesde_id = amd_get_nb_id(m->extcpu);
 	u16 ec = EC(m->status);
 	u8 xec = XEC(m->status, 0x1f);
 	u8 offset = 0;
 
-	pr_emerg(HW_ERR "MC4 Error (node %d): ", node_id);
+	pr_emerg(HW_ERR "MC4 Error (yesde %d): ", yesde_id);
 
 	switch (xec) {
 	case 0x0 ... 0xe:
 
 		/* special handling for DRAM ECCs */
 		if (xec == 0x0 || xec == 0x8) {
-			/* no ECCs on F11h */
+			/* yes ECCs on F11h */
 			if (fam == 0x11)
 				goto wrong_mc4_mce;
 
 			pr_cont("%s.\n", mc4_mce_desc[xec]);
 
 			if (decode_dram_ecc)
-				decode_dram_ecc(node_id, m);
+				decode_dram_ecc(yesde_id, m);
 			return;
 		}
 		break;
@@ -975,7 +975,7 @@ static void decode_smca_error(struct mce *m)
 	}
 
 	if (bank_type == SMCA_UMC && xec == 0 && decode_dram_ecc)
-		decode_dram_ecc(cpu_to_node(m->extcpu), m);
+		decode_dram_ecc(cpu_to_yesde(m->extcpu), m);
 }
 
 static inline void amd_decode_err_code(u16 ec)
@@ -1005,7 +1005,7 @@ static inline void amd_decode_err_code(u16 ec)
 /*
  * Filter out unwanted MCE signatures here.
  */
-static bool ignore_mce(struct mce *m)
+static bool igyesre_mce(struct mce *m)
 {
 	/*
 	 * NB GART TLB error reporting is disabled by default.
@@ -1027,19 +1027,19 @@ static const char *decode_error_status(struct mce *m)
 	}
 
 	if (m->status & MCI_STATUS_DEFERRED)
-		return "Deferred error, no action required.";
+		return "Deferred error, yes action required.";
 
-	return "Corrected error, no action required.";
+	return "Corrected error, yes action required.";
 }
 
 static int
-amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
+amd_decode_mce(struct yestifier_block *nb, unsigned long val, void *data)
 {
 	struct mce *m = (struct mce *)data;
 	unsigned int fam = x86_family(m->cpuid);
 	int ecc;
 
-	if (ignore_mce(m))
+	if (igyesre_mce(m))
 		return NOTIFY_STOP;
 
 	pr_emerg(HW_ERR "%s\n", decode_error_status(m));
@@ -1144,8 +1144,8 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	return NOTIFY_STOP;
 }
 
-static struct notifier_block amd_mce_dec_nb = {
-	.notifier_call	= amd_decode_mce,
+static struct yestifier_block amd_mce_dec_nb = {
+	.yestifier_call	= amd_decode_mce,
 	.priority	= MCE_PRIO_EDAC,
 };
 

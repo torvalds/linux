@@ -14,7 +14,7 @@
 #include <asm/ptrace.h>
 
 /* The purgatory is the code running between two kernels. It's main purpose
- * is to verify that the next kernel was not corrupted after load and to
+ * is to verify that the next kernel was yest corrupted after load and to
  * start it.
  *
  * If the next kernel is a crash kernel there are some peculiarities to
@@ -95,7 +95,7 @@ ENTRY(purgatory_start)
 	 * directly with a flag passed in %r2 whether the purgatory shall do
 	 * checksum verification only (%r2 = 0 -> verification only).
 	 *
-	 * Check now and preserve over C function call by storing in
+	 * Check yesw and preserve over C function call by storing in
 	 * %r10 whith
 	 *	1 -> checksum verification only
 	 *	0 -> load new kernel
@@ -122,7 +122,7 @@ ENTRY(purgatory_start)
 	cghi	%r11,1 /* KEXEC_TYPE_CRASH */
 	je	.start_crash_kernel
 
-	/* start normal kernel */
+	/* start yesrmal kernel */
 	START_NEXT_KERNEL .base_crash
 
 .return_old_kernel:
@@ -146,7 +146,7 @@ ENTRY(purgatory_start)
 	agr	%r10,%r9
 
 	/* Buffer location (in crash memory) and size. As the purgatory is
-	 * behind the point of no return it can re-use the stack as buffer.
+	 * behind the point of yes return it can re-use the stack as buffer.
 	 */
 	lghi	%r11,bufsz
 	larl	%r12,stack
@@ -172,7 +172,7 @@ ENTRY(purgatory_start)
 	MEMCPY	%r10,%r7,%r11	/* (new) buf -> (crash) buf */
 
 	/* Now the code is set up to run from its designated location. Start
-	 * swapping the rest of crash memory now.
+	 * swapping the rest of crash memory yesw.
 	 *
 	 * The registers will be used as follow:
 	 *

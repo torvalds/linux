@@ -69,8 +69,8 @@ static const struct regmap_range pmic_status_range = {
 };
 
 static const struct regmap_access_table volatile_regs = {
-	.yes_ranges = &pmic_status_range,
-	.n_yes_ranges = 1,
+	.no_ranges = &pmic_status_range,
+	.n_no_ranges = 1,
 };
 
 static const struct regmap_config bd718xx_regmap_config = {
@@ -88,7 +88,7 @@ static int bd718xx_init_press_duration(struct bd718xx *bd718xx)
 	u32 short_press_value, long_press_value;
 	int ret;
 
-	ret = of_property_read_u32(dev->of_node, "rohm,short-press-ms",
+	ret = of_property_read_u32(dev->of_yesde, "rohm,short-press-ms",
 				   &short_press_ms);
 	if (!ret) {
 		short_press_value = min(15u, (short_press_ms + 250) / 500);
@@ -102,7 +102,7 @@ static int bd718xx_init_press_duration(struct bd718xx *bd718xx)
 		}
 	}
 
-	ret = of_property_read_u32(dev->of_node, "rohm,long-press-ms",
+	ret = of_property_read_u32(dev->of_yesde, "rohm,long-press-ms",
 				   &long_press_ms);
 	if (!ret) {
 		long_press_value = min(15u, (long_press_ms + 500) / 1000);

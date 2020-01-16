@@ -15,7 +15,7 @@ provides a combination of various errors and calls the driver's interface
 (sysfs interface) to inject errors or query error injection capabilities.
 
 The tool can be used to test Intel IPF machine MC handling capabilities.
-It's especially useful for people who can not access hardware MC injection
+It's especially useful for people who can yest access hardware MC injection
 tool to inject error. It's also very useful to integrate with other
 software test suits to do stressful testing on IPF.
 
@@ -78,7 +78,7 @@ err_injection_tool.c::
    * details.
    *
    * You should have received a copy of the GNU General Public License
-   * along with this program; if not, write to the Free Software
+   * along with this program; if yest, write to the Free Software
    * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
    *
    * Copyright (C) 2006 Intel Co
@@ -94,7 +94,7 @@ err_injection_tool.c::
   #include <stdlib.h>
   #include <stdarg.h>
   #include <string.h>
-  #include <errno.h>
+  #include <erryes.h>
   #include <time.h>
   #include <sys/ipc.h>
   #include <sys/sem.h>
@@ -318,7 +318,7 @@ err_injection_tool.c::
 
 	shmid = shmget(key, SHM_SIZE, 0644 | IPC_CREAT);
 	if (shmid == -1) {
-		if (errno==EEXIST) {
+		if (erryes==EEXIST) {
 			shmid = shmget(key, SHM_SIZE, 0);
 			if (shmid == -1) {
 				perror("shmget");
@@ -812,7 +812,7 @@ err_injection_tool.c::
 	   Otherwise, one semaphore for each processor. */
 	if (one_lock) {
 		if (create_sem(0)) {
-			printf("Can not create semaphore...exit\n");
+			printf("Can yest create semaphore...exit\n");
 			free_sem(0);
 			return -1;
 		}
@@ -820,7 +820,7 @@ err_injection_tool.c::
 	else {
 		for (i=0;i<num;i++) {
 		   if (create_sem(parameters[i].cpu)) {
-			printf("Can not create semaphore for cpu%d...exit\n",i);
+			printf("Can yest create semaphore for cpu%d...exit\n",i);
 			free_sem(parameters[num].cpu);
 			return -1;
 		   }
@@ -870,7 +870,7 @@ err_injection_tool.c::
 			memset(va2, 0x2, PAGE_SIZE);
 
 			if (empty_data_buffer(err_data_buffer.err_data_buffer))
-				/* If not specified yet, construct data buffer
+				/* If yest specified yet, construct data buffer
 				 * with va1
 				 */
 				construct_data_buf(path, err_type_info,
@@ -966,11 +966,11 @@ err_injection_tool.c::
 	printf("\t\t   loop: times the error will be injected.\n");
 	printf("\t\t   interval: In second. every so often one error is injected.\n");
 	printf("\t\t   err_type_info, err_struct_info: PAL parameters.\n");
-	printf("\t\t   err_data_buffer: PAL parameter. Optional. If not present,\n");
+	printf("\t\t   err_data_buffer: PAL parameter. Optional. If yest present,\n");
 	printf("\t\t                    it's constructed by tool automatically. Be\n");
 	printf("\t\t                    careful to provide err_data_buffer and make\n");
 	printf("\t\t                    sure it's working with the environment.\n");
-	printf("\t    Note:no space between error parameters.\n");
+	printf("\t    Note:yes space between error parameters.\n");
 	printf("\t    default: Take error parameters from err.conf instead of command line.\n");
 	printf("\t-v: verbose. default: off\n");
 	printf("\t-h: help\n\n");
@@ -1015,7 +1015,7 @@ err_injection_tool.c::
 			case 'e':	/* error arguments */
 				/* Take parameters:
 				 * #cpu, loop, interval, err_type_info, err_struct_info[, err_data_buffer]
-				 * err_data_buffer is optional. Recommend not to specify
+				 * err_data_buffer is optional. Recommend yest to specify
 				 * err_data_buffer. Better to use tool to generate it.
 				 */
 				count=sscanf(optarg,

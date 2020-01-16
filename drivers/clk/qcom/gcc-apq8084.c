@@ -125,36 +125,36 @@ static struct clk_regmap gpll0_vote = {
 	},
 };
 
-static struct clk_rcg2 config_noc_clk_src = {
+static struct clk_rcg2 config_yesc_clk_src = {
 	.cmd_rcgr = 0x0150,
 	.hid_width = 5,
 	.parent_map = gcc_xo_gpll0_map,
 	.clkr.hw.init = &(struct clk_init_data){
-		.name = "config_noc_clk_src",
+		.name = "config_yesc_clk_src",
 		.parent_names = gcc_xo_gpll0,
 		.num_parents = 2,
 		.ops = &clk_rcg2_ops,
 	},
 };
 
-static struct clk_rcg2 periph_noc_clk_src = {
+static struct clk_rcg2 periph_yesc_clk_src = {
 	.cmd_rcgr = 0x0190,
 	.hid_width = 5,
 	.parent_map = gcc_xo_gpll0_map,
 	.clkr.hw.init = &(struct clk_init_data){
-		.name = "periph_noc_clk_src",
+		.name = "periph_yesc_clk_src",
 		.parent_names = gcc_xo_gpll0,
 		.num_parents = 2,
 		.ops = &clk_rcg2_ops,
 	},
 };
 
-static struct clk_rcg2 system_noc_clk_src = {
+static struct clk_rcg2 system_yesc_clk_src = {
 	.cmd_rcgr = 0x0120,
 	.hid_width = 5,
 	.parent_map = gcc_xo_gpll0_map,
 	.clkr.hw.init = &(struct clk_init_data){
-		.name = "system_noc_clk_src",
+		.name = "system_yesc_clk_src",
 		.parent_names = gcc_xo_gpll0,
 		.num_parents = 2,
 		.ops = &clk_rcg2_ops,
@@ -1379,7 +1379,7 @@ static struct clk_branch gcc_bam_dma_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_bam_dma_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1396,7 +1396,7 @@ static struct clk_branch gcc_blsp1_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_blsp1_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1719,7 +1719,7 @@ static struct clk_branch gcc_blsp2_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_blsp2_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2042,7 +2042,7 @@ static struct clk_branch gcc_boot_rom_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_boot_rom_ahb_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2059,7 +2059,7 @@ static struct clk_branch gcc_ce1_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ce1_ahb_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2076,7 +2076,7 @@ static struct clk_branch gcc_ce1_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ce1_axi_clk",
 			.parent_names = (const char *[]){
-				"system_noc_clk_src",
+				"system_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2111,7 +2111,7 @@ static struct clk_branch gcc_ce2_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ce2_ahb_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2128,7 +2128,7 @@ static struct clk_branch gcc_ce2_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ce2_axi_clk",
 			.parent_names = (const char *[]){
-				"system_noc_clk_src",
+				"system_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2163,7 +2163,7 @@ static struct clk_branch gcc_ce3_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ce3_ahb_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2180,7 +2180,7 @@ static struct clk_branch gcc_ce3_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ce3_axi_clk",
 			.parent_names = (const char *[]){
-				"system_noc_clk_src",
+				"system_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2257,15 +2257,15 @@ static struct clk_branch gcc_gp3_clk = {
 	},
 };
 
-static struct clk_branch gcc_ocmem_noc_cfg_ahb_clk = {
+static struct clk_branch gcc_ocmem_yesc_cfg_ahb_clk = {
 	.halt_reg = 0x0248,
 	.clkr = {
 		.enable_reg = 0x0248,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_ocmem_noc_cfg_ahb_clk",
+			.name = "gcc_ocmem_yesc_cfg_ahb_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2298,7 +2298,7 @@ static struct clk_branch gcc_pcie_0_cfg_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie_0_cfg_ahb_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2315,7 +2315,7 @@ static struct clk_branch gcc_pcie_0_mstr_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie_0_mstr_axi_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2349,7 +2349,7 @@ static struct clk_branch gcc_pcie_0_slv_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie_0_slv_axi_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2383,7 +2383,7 @@ static struct clk_branch gcc_pcie_1_cfg_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie_1_cfg_ahb_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2400,7 +2400,7 @@ static struct clk_branch gcc_pcie_1_mstr_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie_1_mstr_axi_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2434,7 +2434,7 @@ static struct clk_branch gcc_pcie_1_slv_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie_1_slv_axi_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2468,7 +2468,7 @@ static struct clk_branch gcc_pdm_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pdm_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2476,13 +2476,13 @@ static struct clk_branch gcc_pdm_ahb_clk = {
 	},
 };
 
-static struct clk_branch gcc_periph_noc_usb_hsic_ahb_clk = {
+static struct clk_branch gcc_periph_yesc_usb_hsic_ahb_clk = {
 	.halt_reg = 0x01a4,
 	.clkr = {
 		.enable_reg = 0x01a4,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_periph_noc_usb_hsic_ahb_clk",
+			.name = "gcc_periph_yesc_usb_hsic_ahb_clk",
 			.parent_names = (const char *[]){
 				"usb_hsic_ahb_clk_src",
 			},
@@ -2502,7 +2502,7 @@ static struct clk_branch gcc_prng_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_prng_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2535,7 +2535,7 @@ static struct clk_branch gcc_sata_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_sata_axi_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2552,7 +2552,7 @@ static struct clk_branch gcc_sata_cfg_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_sata_cfg_ahb_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2620,7 +2620,7 @@ static struct clk_branch gcc_sdcc1_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_sdcc1_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2685,7 +2685,7 @@ static struct clk_branch gcc_sdcc2_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_sdcc2_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2718,7 +2718,7 @@ static struct clk_branch gcc_sdcc3_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_sdcc3_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2751,7 +2751,7 @@ static struct clk_branch gcc_sdcc4_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_sdcc4_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2776,13 +2776,13 @@ static struct clk_branch gcc_sdcc4_apps_clk = {
 	},
 };
 
-static struct clk_branch gcc_sys_noc_ufs_axi_clk = {
+static struct clk_branch gcc_sys_yesc_ufs_axi_clk = {
 	.halt_reg = 0x013c,
 	.clkr = {
 		.enable_reg = 0x013c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_sys_noc_ufs_axi_clk",
+			.name = "gcc_sys_yesc_ufs_axi_clk",
 			.parent_names = (const char *[]){
 				"ufs_axi_clk_src",
 			},
@@ -2793,13 +2793,13 @@ static struct clk_branch gcc_sys_noc_ufs_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_sys_noc_usb3_axi_clk = {
+static struct clk_branch gcc_sys_yesc_usb3_axi_clk = {
 	.halt_reg = 0x0108,
 	.clkr = {
 		.enable_reg = 0x0108,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_sys_noc_usb3_axi_clk",
+			.name = "gcc_sys_yesc_usb3_axi_clk",
 			.parent_names = (const char *[]){
 				"usb30_master_clk_src",
 			},
@@ -2810,13 +2810,13 @@ static struct clk_branch gcc_sys_noc_usb3_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_sys_noc_usb3_sec_axi_clk = {
+static struct clk_branch gcc_sys_yesc_usb3_sec_axi_clk = {
 	.halt_reg = 0x0138,
 	.clkr = {
 		.enable_reg = 0x0138,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_sys_noc_usb3_sec_axi_clk",
+			.name = "gcc_sys_yesc_usb3_sec_axi_clk",
 			.parent_names = (const char *[]){
 				"usb30_sec_master_clk_src",
 			},
@@ -2835,7 +2835,7 @@ static struct clk_branch gcc_tsif_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_tsif_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2885,7 +2885,7 @@ static struct clk_branch gcc_ufs_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ufs_ahb_clk",
 			.parent_names = (const char *[]){
-				"config_noc_clk_src",
+				"config_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3120,7 +3120,7 @@ static struct clk_branch gcc_usb_hs_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_usb_hs_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -3170,7 +3170,7 @@ static struct clk_branch gcc_usb_hsic_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_usb_hsic_ahb_clk",
 			.parent_names = (const char *[]){
-				"periph_noc_clk_src",
+				"periph_yesc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -3284,9 +3284,9 @@ static struct clk_regmap *gcc_apq8084_clocks[] = {
 	[GPLL1_VOTE] = &gpll1_vote,
 	[GPLL4] = &gpll4.clkr,
 	[GPLL4_VOTE] = &gpll4_vote,
-	[CONFIG_NOC_CLK_SRC] = &config_noc_clk_src.clkr,
-	[PERIPH_NOC_CLK_SRC] = &periph_noc_clk_src.clkr,
-	[SYSTEM_NOC_CLK_SRC] = &system_noc_clk_src.clkr,
+	[CONFIG_NOC_CLK_SRC] = &config_yesc_clk_src.clkr,
+	[PERIPH_NOC_CLK_SRC] = &periph_yesc_clk_src.clkr,
+	[SYSTEM_NOC_CLK_SRC] = &system_yesc_clk_src.clkr,
 	[UFS_AXI_CLK_SRC] = &ufs_axi_clk_src.clkr,
 	[USB30_MASTER_CLK_SRC] = &usb30_master_clk_src.clkr,
 	[USB30_SEC_MASTER_CLK_SRC] = &usb30_sec_master_clk_src.clkr,
@@ -3406,7 +3406,7 @@ static struct clk_regmap *gcc_apq8084_clocks[] = {
 	[GCC_GP1_CLK] = &gcc_gp1_clk.clkr,
 	[GCC_GP2_CLK] = &gcc_gp2_clk.clkr,
 	[GCC_GP3_CLK] = &gcc_gp3_clk.clkr,
-	[GCC_OCMEM_NOC_CFG_AHB_CLK] = &gcc_ocmem_noc_cfg_ahb_clk.clkr,
+	[GCC_OCMEM_NOC_CFG_AHB_CLK] = &gcc_ocmem_yesc_cfg_ahb_clk.clkr,
 	[GCC_PCIE_0_AUX_CLK] = &gcc_pcie_0_aux_clk.clkr,
 	[GCC_PCIE_0_CFG_AHB_CLK] = &gcc_pcie_0_cfg_ahb_clk.clkr,
 	[GCC_PCIE_0_MSTR_AXI_CLK] = &gcc_pcie_0_mstr_axi_clk.clkr,
@@ -3419,7 +3419,7 @@ static struct clk_regmap *gcc_apq8084_clocks[] = {
 	[GCC_PCIE_1_SLV_AXI_CLK] = &gcc_pcie_1_slv_axi_clk.clkr,
 	[GCC_PDM2_CLK] = &gcc_pdm2_clk.clkr,
 	[GCC_PDM_AHB_CLK] = &gcc_pdm_ahb_clk.clkr,
-	[GCC_PERIPH_NOC_USB_HSIC_AHB_CLK] = &gcc_periph_noc_usb_hsic_ahb_clk.clkr,
+	[GCC_PERIPH_NOC_USB_HSIC_AHB_CLK] = &gcc_periph_yesc_usb_hsic_ahb_clk.clkr,
 	[GCC_PRNG_AHB_CLK] = &gcc_prng_ahb_clk.clkr,
 	[GCC_SATA_ASIC0_CLK] = &gcc_sata_asic0_clk.clkr,
 	[GCC_SATA_AXI_CLK] = &gcc_sata_axi_clk.clkr,
@@ -3437,9 +3437,9 @@ static struct clk_regmap *gcc_apq8084_clocks[] = {
 	[GCC_SDCC3_APPS_CLK] = &gcc_sdcc3_apps_clk.clkr,
 	[GCC_SDCC4_AHB_CLK] = &gcc_sdcc4_ahb_clk.clkr,
 	[GCC_SDCC4_APPS_CLK] = &gcc_sdcc4_apps_clk.clkr,
-	[GCC_SYS_NOC_UFS_AXI_CLK] = &gcc_sys_noc_ufs_axi_clk.clkr,
-	[GCC_SYS_NOC_USB3_AXI_CLK] = &gcc_sys_noc_usb3_axi_clk.clkr,
-	[GCC_SYS_NOC_USB3_SEC_AXI_CLK] = &gcc_sys_noc_usb3_sec_axi_clk.clkr,
+	[GCC_SYS_NOC_UFS_AXI_CLK] = &gcc_sys_yesc_ufs_axi_clk.clkr,
+	[GCC_SYS_NOC_USB3_AXI_CLK] = &gcc_sys_yesc_usb3_axi_clk.clkr,
+	[GCC_SYS_NOC_USB3_SEC_AXI_CLK] = &gcc_sys_yesc_usb3_sec_axi_clk.clkr,
 	[GCC_TSIF_AHB_CLK] = &gcc_tsif_ahb_clk.clkr,
 	[GCC_TSIF_INACTIVITY_TIMERS_CLK] = &gcc_tsif_inactivity_timers_clk.clkr,
 	[GCC_TSIF_REF_CLK] = &gcc_tsif_ref_clk.clkr,

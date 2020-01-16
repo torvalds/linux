@@ -66,7 +66,7 @@ void qmgr_set_irq(unsigned int queue, int src,
 void qmgr_enable_irq(unsigned int queue);
 void qmgr_disable_irq(unsigned int queue);
 
-/* request_ and release_queue() must be called from non-IRQ context */
+/* request_ and release_queue() must be called from yesn-IRQ context */
 
 #if DEBUG_QMGR
 extern char qmgr_queue_descs[QUEUES][32];

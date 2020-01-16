@@ -33,7 +33,7 @@ struct i915_sched_attr {
 
 /*
  * "People assume that time is a strict progression of cause to effect, but
- * actually, from a nonlinear, non-subjective viewpoint, it's more like a big
+ * actually, from a yesnlinear, yesn-subjective viewpoint, it's more like a big
  * ball of wibbly-wobbly, timey-wimey ... stuff." -The Doctor, 2015
  *
  * Requests exist in a complex web of interdependencies. Each request
@@ -45,12 +45,12 @@ struct i915_sched_attr {
  * at various points to reorder the requests whilst keeping the requests
  * in order with respect to their various dependencies.
  *
- * There is no active component to the "scheduler". As we know the dependency
+ * There is yes active component to the "scheduler". As we kyesw the dependency
  * DAG of each request, we are able to insert it into a sorted queue when it
  * is ready, and are able to reorder its portion of the graph to accommodate
  * dynamic priority changes.
  *
- * Ok, there is now one active element to the "scheduler" in the backends.
+ * Ok, there is yesw one active element to the "scheduler" in the backends.
  * We let a new context run for a small amount of time before re-evaluating
  * the run order. As we re-evaluate, we maintain the strict ordering of
  * dependencies, but attempt to rotate the active contexts (the current context
@@ -59,7 +59,7 @@ struct i915_sched_attr {
  * something waiting on a user semaphore [VkEvent]) from denying service to
  * others.
  */
-struct i915_sched_node {
+struct i915_sched_yesde {
 	struct list_head signalers_list; /* those before us, we depend upon */
 	struct list_head waiters_list; /* those after us, they depend upon us */
 	struct list_head link;
@@ -70,8 +70,8 @@ struct i915_sched_node {
 };
 
 struct i915_dependency {
-	struct i915_sched_node *signaler;
-	struct i915_sched_node *waiter;
+	struct i915_sched_yesde *signaler;
+	struct i915_sched_yesde *waiter;
 	struct list_head signal_link;
 	struct list_head wait_link;
 	struct list_head dfs_link;

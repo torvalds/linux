@@ -334,22 +334,22 @@ static const struct irq_domain_ops irq_domain_ops = {
 	.map = icu_map,
 };
 
-int __init icu_of_init(struct device_node *node, struct device_node *parent)
+int __init icu_of_init(struct device_yesde *yesde, struct device_yesde *parent)
 {
-	struct device_node *eiu_node;
+	struct device_yesde *eiu_yesde;
 	struct resource res;
 	int i, ret, vpe;
 
 	/* load register regions of available ICUs */
 	for_each_possible_cpu(vpe) {
-		if (of_address_to_resource(node, vpe, &res))
+		if (of_address_to_resource(yesde, vpe, &res))
 			panic("Failed to get icu%i memory range", vpe);
 
 		if (!request_mem_region(res.start, resource_size(&res),
 					res.name))
 			pr_err("Failed to request icu%i memory\n", vpe);
 
-		ltq_icu_membase[vpe] = ioremap_nocache(res.start,
+		ltq_icu_membase[vpe] = ioremap_yescache(res.start,
 					resource_size(&res));
 
 		if (!ltq_icu_membase[vpe])
@@ -376,7 +376,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	for (i = 0; i < MAX_IM; i++)
 		irq_set_chained_handler(i + 2, ltq_hw_irq_handler);
 
-	ltq_domain = irq_domain_add_linear(node,
+	ltq_domain = irq_domain_add_linear(yesde,
 		(MAX_IM * INT_NUM_IM_OFFSET) + MIPS_CPU_IRQ_CASCADE,
 		&irq_domain_ops, 0);
 
@@ -384,16 +384,16 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	ltq_perfcount_irq = irq_create_mapping(ltq_domain, LTQ_PERF_IRQ);
 
 	/* the external interrupts are optional and xway only */
-	eiu_node = of_find_compatible_node(NULL, NULL, "lantiq,eiu-xway");
-	if (eiu_node && !of_address_to_resource(eiu_node, 0, &res)) {
+	eiu_yesde = of_find_compatible_yesde(NULL, NULL, "lantiq,eiu-xway");
+	if (eiu_yesde && !of_address_to_resource(eiu_yesde, 0, &res)) {
 		/* find out how many external irq sources we have */
-		exin_avail = of_property_count_u32_elems(eiu_node,
+		exin_avail = of_property_count_u32_elems(eiu_yesde,
 							 "lantiq,eiu-irqs");
 
 		if (exin_avail > MAX_EIU)
 			exin_avail = MAX_EIU;
 
-		ret = of_property_read_u32_array(eiu_node, "lantiq,eiu-irqs",
+		ret = of_property_read_u32_array(eiu_yesde, "lantiq,eiu-irqs",
 						ltq_eiu_irq, exin_avail);
 		if (ret)
 			panic("failed to load external irq resources");
@@ -402,7 +402,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 							res.name))
 			pr_err("Failed to request eiu memory");
 
-		ltq_eiu_membase = ioremap_nocache(res.start,
+		ltq_eiu_membase = ioremap_yescache(res.start,
 							resource_size(&res));
 		if (!ltq_eiu_membase)
 			panic("Failed to remap eiu memory");

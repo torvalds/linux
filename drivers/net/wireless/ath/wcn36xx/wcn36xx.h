@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -171,7 +171,7 @@ struct wcn36xx_sta {
 
 	spinlock_t ampdu_lock;		/* protects next two fields */
 	enum wcn36xx_ampdu_state ampdu_state[16];
-	int non_agg_frame_ct;
+	int yesn_agg_frame_ct;
 };
 struct wcn36xx_dxe_ch;
 struct wcn36xx {
@@ -183,7 +183,7 @@ struct wcn36xx {
 
 	u8			fw_revision;
 	u8			fw_version;
-	u8			fw_minor;
+	u8			fw_miyesr;
 	u8			fw_major;
 	u32			fw_feat_caps[WCN36XX_HAL_CAPS_SIZE];
 	bool			is_pronto;
@@ -212,7 +212,7 @@ struct wcn36xx {
 
 	/*
 	 * smd_buf must be protected with smd_mutex to garantee
-	 * that all messages are sent one after another
+	 * that all messages are sent one after ayesther
 	 */
 	u8			*hal_buf;
 	size_t			hal_rsp_len;
@@ -258,12 +258,12 @@ struct wcn36xx {
 
 static inline bool wcn36xx_is_fw_version(struct wcn36xx *wcn,
 					 u8 major,
-					 u8 minor,
+					 u8 miyesr,
 					 u8 version,
 					 u8 revision)
 {
 	return (wcn->fw_major == major &&
-		wcn->fw_minor == minor &&
+		wcn->fw_miyesr == miyesr &&
 		wcn->fw_version == version &&
 		wcn->fw_revision == revision);
 }

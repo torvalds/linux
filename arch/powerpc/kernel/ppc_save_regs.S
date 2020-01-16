@@ -11,12 +11,12 @@
 #include <asm/asm-compat.h>
 
 /*
- * Grab the register values as they are now.
+ * Grab the register values as they are yesw.
  * This won't do a particularly good job because we really
  * want our caller's caller's registers, and our caller has
  * already executed its prologue.
  * ToDo: We could reach back into the caller's save area to do
- * a better job of representing the caller's state (note that
+ * a better job of representing the caller's state (yeste that
  * that will be different for 32-bit and 64-bit, because of the
  * different ABIs, though).
  */

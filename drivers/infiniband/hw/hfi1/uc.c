@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -73,7 +73,7 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 
 	ps->s_txreq = get_txreq(ps->dev, qp);
 	if (!ps->s_txreq)
-		goto bail_no_tx;
+		goto bail_yes_tx;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
@@ -283,7 +283,7 @@ done_free_tx:
 bail:
 	hfi1_put_txreq(ps->s_txreq);
 
-bail_no_tx:
+bail_yes_tx:
 	ps->s_txreq = NULL;
 	qp->s_flags &= ~RVT_S_BUSY;
 	return 0;
@@ -411,14 +411,14 @@ send_first:
 		}
 		qp->r_rcv_len = 0;
 		if (opcode == OP(SEND_ONLY))
-			goto no_immediate_data;
+			goto yes_immediate_data;
 		else if (opcode == OP(SEND_ONLY_WITH_IMMEDIATE))
 			goto send_last_imm;
 		/* FALLTHROUGH */
 	case OP(SEND_MIDDLE):
 		/* Check for invalid length PMTU or posted rwqe len. */
 		/*
-		 * There will be no padding for 9B packet but 16B packets
+		 * There will be yes padding for 9B packet but 16B packets
 		 * will come in with some padding since we always add
 		 * CRC and LT bytes which will need to be flit aligned
 		 */
@@ -436,7 +436,7 @@ send_last_imm:
 		wc.wc_flags = IB_WC_WITH_IMM;
 		goto send_last;
 	case OP(SEND_LAST):
-no_immediate_data:
+yes_immediate_data:
 		wc.ex.imm_data = 0;
 		wc.wc_flags = 0;
 send_last:
@@ -569,7 +569,7 @@ rdma_last:
 		break;
 
 	default:
-		/* Drop packet for unknown opcodes. */
+		/* Drop packet for unkyeswn opcodes. */
 		goto drop;
 	}
 	qp->r_psn++;

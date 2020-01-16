@@ -187,7 +187,7 @@ static void resizer_configure(struct iss_resizer_device *resizer)
 	outformat = &resizer->formats[RESIZER_PAD_SOURCE_MEM];
 
 	/* Disable pass-through more. Despite its name, the BYPASS bit controls
-	 * pass-through mode, not bypass mode.
+	 * pass-through mode, yest bypass mode.
 	 */
 	iss_reg_clr(iss, OMAP4_ISS_MEM_ISP_RESIZER, RSZ_SRC_FMT0,
 		    RSZ_SRC_FMT0_BYPASS);
@@ -198,7 +198,7 @@ static void resizer_configure(struct iss_resizer_device *resizer)
 		       resizer->input == RESIZER_INPUT_IPIPEIF ?
 		       RSZ_SRC_FMT0_SEL : 0);
 
-	/* RSZ ignores WEN signal from IPIPE/IPIPEIF */
+	/* RSZ igyesres WEN signal from IPIPE/IPIPEIF */
 	iss_reg_clr(iss, OMAP4_ISS_MEM_ISP_RESIZER, RSZ_SRC_MODE,
 		    RSZ_SRC_MODE_WRT);
 
@@ -210,7 +210,7 @@ static void resizer_configure(struct iss_resizer_device *resizer)
 	iss_reg_clr(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_MODE,
 		    RZA_MODE_ONE_SHOT);
 
-	/* Set size related things now */
+	/* Set size related things yesw */
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RSZ_SRC_VPS, 0);
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RSZ_SRC_HPS, 0);
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RSZ_SRC_VSZ,
@@ -322,9 +322,9 @@ static int resizer_video_queue(struct iss_video *video,
 
 	/*
 	 * If streaming was enabled before there was a buffer queued
-	 * or underrun happened in the ISR, the hardware was not enabled
+	 * or underrun happened in the ISR, the hardware was yest enabled
 	 * and DMA queue flag ISS_VIDEO_DMAQUEUE_UNDERRUN is still set.
-	 * Enable it now.
+	 * Enable it yesw.
 	 */
 	if (video->dmaqueue_flags & ISS_VIDEO_DMAQUEUE_UNDERRUN) {
 		resizer_enable(resizer, 1);
@@ -377,7 +377,7 @@ static int resizer_set_stream(struct v4l2_subdev *sd, int enable)
 		resizer_print_status(resizer);
 
 		/*
-		 * When outputting to memory with no buffer available, let the
+		 * When outputting to memory with yes buffer available, let the
 		 * buffer queue handler start the hardware. A DMA queue flag
 		 * ISS_VIDEO_DMAQUEUE_QUEUED will be set as soon as there is
 		 * a buffer available.
@@ -450,7 +450,7 @@ resizer_try_format(struct iss_resizer_device *resizer,
 				break;
 		}
 
-		/* If not found, use UYVY as default */
+		/* If yest found, use UYVY as default */
 		if (i >= ARRAY_SIZE(resizer_fmts))
 			fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
@@ -647,7 +647,7 @@ static int resizer_link_validate(struct v4l2_subdev *sd,
  * @sd: ISP RESIZER V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If fh is yest NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
@@ -814,7 +814,7 @@ int omap4iss_resizer_register_entities(struct iss_resizer_device *resizer,
 {
 	int ret;
 
-	/* Register the subdev and video node. */
+	/* Register the subdev and video yesde. */
 	ret = v4l2_device_register_subdev(vdev, &resizer->subdev);
 	if (ret < 0)
 		goto error;
@@ -862,7 +862,7 @@ int omap4iss_resizer_create_links(struct iss_device *iss)
 {
 	struct iss_resizer_device *resizer = &iss->resizer;
 
-	/* Connect the RESIZER subdev to the video node. */
+	/* Connect the RESIZER subdev to the video yesde. */
 	return media_create_pad_link(&resizer->subdev.entity,
 				     RESIZER_PAD_SOURCE_MEM,
 				     &resizer->video_out.video.entity, 0, 0);

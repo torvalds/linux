@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -191,7 +191,7 @@ found_match:
 
 	if (best_delta != 0)
 		nvkm_debug(subdev,
-			   "no best match for target @ %dMHz on gpc_pll",
+			   "yes best match for target @ %dMHz on gpc_pll",
 			   target_clk_f / KHZ);
 
 	pll->m = best_m;
@@ -217,7 +217,7 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 
 	/* get old coefficients */
 	gk20a_pllg_read_mnp(clk, &pll);
-	/* do nothing if NDIV is the same */
+	/* do yesthing if NDIV is the same */
 	if (n == pll.n)
 		return 0;
 
@@ -340,7 +340,7 @@ gk20a_pllg_program_mnp_slide(struct gk20a_clk *clk, const struct gk20a_pll *pll)
 	if (gk20a_pllg_is_enabled(clk)) {
 		gk20a_pllg_read_mnp(clk, &cur_pll);
 
-		/* just do NDIV slide if there is no change to M and PL */
+		/* just do NDIV slide if there is yes change to M and PL */
 		if (pll->m == cur_pll.m && pll->pl == cur_pll.pl)
 			return gk20a_pllg_slide(clk, pll->n);
 
@@ -585,7 +585,7 @@ gk20a_clk_init(struct nvkm_clk *base)
 	base->func->calc(base, &base->func->pstates[0].base);
 	ret = base->func->prog(&clk->base);
 	if (ret) {
-		nvkm_error(subdev, "cannot initialize clock\n");
+		nvkm_error(subdev, "canyest initialize clock\n");
 		return ret;
 	}
 

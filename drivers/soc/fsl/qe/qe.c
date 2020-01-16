@@ -11,7 +11,7 @@
  * QUICC Engine (QE).
  */
 #include <linux/bitmap.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
@@ -52,37 +52,37 @@ static unsigned int qe_num_of_snum;
 
 static phys_addr_t qebase = -1;
 
-static struct device_node *qe_get_device_node(void)
+static struct device_yesde *qe_get_device_yesde(void)
 {
-	struct device_node *qe;
+	struct device_yesde *qe;
 
 	/*
 	 * Newer device trees have an "fsl,qe" compatible property for the QE
-	 * node, but we still need to support older device trees.
+	 * yesde, but we still need to support older device trees.
 	 */
-	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	qe = of_find_compatible_yesde(NULL, NULL, "fsl,qe");
 	if (qe)
 		return qe;
-	return of_find_node_by_type(NULL, "qe");
+	return of_find_yesde_by_type(NULL, "qe");
 }
 
 static phys_addr_t get_qe_base(void)
 {
-	struct device_node *qe;
+	struct device_yesde *qe;
 	int ret;
 	struct resource res;
 
 	if (qebase != -1)
 		return qebase;
 
-	qe = qe_get_device_node();
+	qe = qe_get_device_yesde();
 	if (!qe)
 		return qebase;
 
 	ret = of_address_to_resource(qe, 0, &res);
 	if (!ret)
 		qebase = res.start;
-	of_node_put(qe);
+	of_yesde_put(qe);
 
 	return qebase;
 }
@@ -115,7 +115,7 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input)
 		out_be32(&qe_immr->cp.cecr, (u32) (cmd | QE_CR_FLG));
 	} else {
 		if (cmd == QE_ASSIGN_PAGE) {
-			/* Here device is the SNUM, not sub-block */
+			/* Here device is the SNUM, yest sub-block */
 			dev_shift = QE_CR_SNUM_SHIFT;
 		} else if (cmd == QE_ASSIGN_RISC) {
 			/* Here device is the SNUM, and mcnProtocol is
@@ -163,7 +163,7 @@ static unsigned int brg_clk = 0;
 
 unsigned int qe_get_brg_clk(void)
 {
-	struct device_node *qe;
+	struct device_yesde *qe;
 	int size;
 	const u32 *prop;
 	unsigned int mod;
@@ -171,7 +171,7 @@ unsigned int qe_get_brg_clk(void)
 	if (brg_clk)
 		return brg_clk;
 
-	qe = qe_get_device_node();
+	qe = qe_get_device_yesde();
 	if (!qe)
 		return brg_clk;
 
@@ -179,7 +179,7 @@ unsigned int qe_get_brg_clk(void)
 	if (prop && size == sizeof(*prop))
 		brg_clk = *prop;
 
-	of_node_put(qe);
+	of_yesde_put(qe);
 
 	/* round this if near to a multiple of CLK_GRAN */
 	mod = brg_clk % CLK_GRAN;
@@ -221,7 +221,7 @@ int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier)
 	}
 
 	/* Errata QE_General4, which affects some MPC832x and MPC836x SOCs, says
-	   that the BRG divisor must be even if you're not using divide-by-16
+	   that the BRG divisor must be even if you're yest using divide-by-16
 	   mode. */
 	if (pvr_version_is(PVR_VER_836x) || pvr_version_is(PVR_VER_832x))
 		if (!div16 && (divisor & 1) && (divisor > 3))
@@ -245,7 +245,7 @@ enum qe_clock qe_clock_source(const char *source)
 {
 	unsigned int i;
 
-	if (strcasecmp(source, "none") == 0)
+	if (strcasecmp(source, "yesne") == 0)
 		return QE_CLK_NONE;
 
 	if (strcmp(source, "tsync_pin") == 0)
@@ -299,18 +299,18 @@ static void qe_snums_init(void)
 		0x28, 0x29, 0x38, 0x39, 0x48, 0x49, 0x58, 0x59,
 		0x68, 0x69, 0x78, 0x79, 0x80, 0x81,
 	};
-	struct device_node *qe;
+	struct device_yesde *qe;
 	const u8 *snum_init;
 	int i;
 
 	bitmap_zero(snum_state, QE_NUM_OF_SNUM);
 	qe_num_of_snum = 28; /* The default number of snum for threads is 28 */
-	qe = qe_get_device_node();
+	qe = qe_get_device_yesde();
 	if (qe) {
 		i = of_property_read_variable_u8_array(qe, "fsl,qe-snums",
 						       snums, 1, QE_NUM_OF_SNUM);
 		if (i > 0) {
-			of_node_put(qe);
+			of_yesde_put(qe);
 			qe_num_of_snum = i;
 			return;
 		}
@@ -320,7 +320,7 @@ static void qe_snums_init(void)
 		 * above.
 		 */
 		of_property_read_u32(qe, "fsl,qe-num-snums", &qe_num_of_snum);
-		of_node_put(qe);
+		of_yesde_put(qe);
 	}
 
 	if (qe_num_of_snum == 76) {
@@ -408,10 +408,10 @@ static void qe_upload_microcode(const void *base,
 	const __be32 *code = base + be32_to_cpu(ucode->code_offset);
 	unsigned int i;
 
-	if (ucode->major || ucode->minor || ucode->revision)
+	if (ucode->major || ucode->miyesr || ucode->revision)
 		printk(KERN_INFO "qe-firmware: "
 			"uploading microcode '%s' version %u.%u.%u\n",
-			ucode->id, ucode->major, ucode->minor, ucode->revision);
+			ucode->id, ucode->major, ucode->miyesr, ucode->revision);
 	else
 		printk(KERN_INFO "qe-firmware: "
 			"uploading microcode '%s'\n", ucode->id);
@@ -436,7 +436,7 @@ static void qe_upload_microcode(const void *base,
  * Currently, only version 1 is supported, so the 'version' field must be
  * set to 1.
  *
- * The SOC model and revision are not validated, they are only displayed for
+ * The SOC model and revision are yest validated, they are only displayed for
  * informational purposes.
  *
  * 'calc_size' is the calculated size, in bytes, of the firmware structure and
@@ -464,7 +464,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 	/* Check the magic */
 	if ((hdr->magic[0] != 'Q') || (hdr->magic[1] != 'E') ||
 	    (hdr->magic[2] != 'F')) {
-		printk(KERN_ERR "qe-firmware: not a microcode\n");
+		printk(KERN_ERR "qe-firmware: yest a microcode\n");
 		return -EPERM;
 	}
 
@@ -515,7 +515,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 		printk(KERN_INFO
 			"qe-firmware: firmware '%s' for %u V%u.%u\n",
 			firmware->id, be16_to_cpu(firmware->soc.model),
-			firmware->soc.major, firmware->soc.minor);
+			firmware->soc.major, firmware->soc.miyesr);
 	else
 		printk(KERN_INFO "qe-firmware: firmware '%s'\n",
 			firmware->id);
@@ -566,8 +566,8 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 {
 	static int initialized;
 	struct property *prop;
-	struct device_node *qe;
-	struct device_node *fw = NULL;
+	struct device_yesde *qe;
+	struct device_yesde *fw = NULL;
 	const char *sprop;
 	unsigned int i;
 
@@ -583,15 +583,15 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 
 	initialized = 1;
 
-	qe = qe_get_device_node();
+	qe = qe_get_device_yesde();
 	if (!qe)
 		return NULL;
 
-	/* Find the 'firmware' child node */
+	/* Find the 'firmware' child yesde */
 	fw = of_get_child_by_name(qe, "firmware");
-	of_node_put(qe);
+	of_yesde_put(qe);
 
-	/* Did we find the 'firmware' node? */
+	/* Did we find the 'firmware' yesde? */
 	if (!fw)
 		return NULL;
 
@@ -618,7 +618,7 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 			qe_firmware_info.vtraps[i] = iprop[i];
 	}
 
-	of_node_put(fw);
+	of_yesde_put(fw);
 
 	return &qe_firmware_info;
 }
@@ -626,12 +626,12 @@ EXPORT_SYMBOL(qe_get_firmware_info);
 
 unsigned int qe_get_num_of_risc(void)
 {
-	struct device_node *qe;
+	struct device_yesde *qe;
 	int size;
 	unsigned int num_of_risc = 0;
 	const u32 *prop;
 
-	qe = qe_get_device_node();
+	qe = qe_get_device_yesde();
 	if (!qe)
 		return num_of_risc;
 
@@ -639,7 +639,7 @@ unsigned int qe_get_num_of_risc(void)
 	if (prop && size == sizeof(*prop))
 		num_of_risc = *prop;
 
-	of_node_put(qe);
+	of_yesde_put(qe);
 
 	return num_of_risc;
 }
@@ -653,13 +653,13 @@ EXPORT_SYMBOL(qe_get_num_of_snums);
 
 static int __init qe_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,qe");
 	if (!np)
 		return -ENODEV;
 	qe_reset();
-	of_node_put(np);
+	of_yesde_put(np);
 	return 0;
 }
 subsys_initcall(qe_init);

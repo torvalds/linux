@@ -26,7 +26,7 @@ config 9P_FS_POSIX_ACL
 	  POSIX Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  If you don't know what Access Control Lists are, say N
+	  If you don't kyesw what Access Control Lists are, say N
 
 endif
 
@@ -40,5 +40,5 @@ config 9P_FS_SECURITY
           enables an extended attribute handler for file security
           labels in the 9P filesystem.
 
-          If you are not using a security module that requires using
+          If you are yest using a security module that requires using
           extended attributes for file security labels, say N.

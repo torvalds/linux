@@ -255,8 +255,8 @@ struct mpic_irq_save {
 /* The instance data of a given MPIC */
 struct mpic
 {
-	/* The OpenFirmware dt node for this MPIC */
-	struct device_node *node;
+	/* The OpenFirmware dt yesde for this MPIC */
+	struct device_yesde *yesde;
 
 	/* The remapper for this MPIC */
 	struct irq_domain	*irqhost;
@@ -374,7 +374,7 @@ extern struct bus_type mpic_subsys;
 #define MPIC_SINGLE_DEST_CPU		0x00001000
 /* Enable CoreInt delivery of interrupts */
 #define MPIC_ENABLE_COREINT		0x00002000
-/* Do not reset the MPIC during initialization */
+/* Do yest reset the MPIC during initialization */
 #define MPIC_NO_RESET			0x00004000
 /* Freescale MPIC (compatible includes "fsl,mpic") */
 #define MPIC_FSL			0x00008000
@@ -418,13 +418,13 @@ static inline u32 fsl_mpic_primary_get_version(void)
  * @senses:	array of sense values
  * @senses_num: number of entries in the array
  *
- * Note about the sense array. If none is passed, all interrupts are
+ * Note about the sense array. If yesne is passed, all interrupts are
  * setup to be level negative unless MPIC_U3_HT_IRQS is set in which
- * case they are edge positive (and the array is ignored anyway).
+ * case they are edge positive (and the array is igyesred anyway).
  * The values in the array start at the first source of the MPIC,
  * that is senses[0] correspond to linux irq "irq_offset".
  */
-extern struct mpic *mpic_alloc(struct device_node *node,
+extern struct mpic *mpic_alloc(struct device_yesde *yesde,
 			       phys_addr_t phys_addr,
 			       unsigned int flags,
 			       unsigned int isu_size,
@@ -441,7 +441,7 @@ extern void mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 			    phys_addr_t phys_addr);
 
 
-/* Initialize the controller. After this has been called, none of the above
+/* Initialize the controller. After this has been called, yesne of the above
  * should be called again for this mpic
  */
 extern void mpic_init(struct mpic *mpic);
@@ -459,7 +459,7 @@ extern void mpic_init(struct mpic *mpic);
  */
 extern void mpic_irq_set_priority(unsigned int irq, unsigned int pri);
 
-/* Setup a non-boot CPU */
+/* Setup a yesn-boot CPU */
 extern void mpic_setup_this_cpu(void);
 
 /* Clean up for kexec (or cpu offline or ...) */

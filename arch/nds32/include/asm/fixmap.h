@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef __ASM_NDS32_FIXMAP_H
 #define __ASM_NDS32_FIXMAP_H

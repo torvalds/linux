@@ -38,9 +38,9 @@ qla2x00_dfs_tgt_sess_show(struct seq_file *s, void *unused)
 }
 
 static int
-qla2x00_dfs_tgt_sess_open(struct inode *inode, struct file *file)
+qla2x00_dfs_tgt_sess_open(struct iyesde *iyesde, struct file *file)
 {
-	scsi_qla_host_t *vha = inode->i_private;
+	scsi_qla_host_t *vha = iyesde->i_private;
 
 	return single_open(file, qla2x00_dfs_tgt_sess_show, vha);
 }
@@ -107,9 +107,9 @@ out_free_id_list:
 }
 
 static int
-qla2x00_dfs_tgt_port_database_open(struct inode *inode, struct file *file)
+qla2x00_dfs_tgt_port_database_open(struct iyesde *iyesde, struct file *file)
 {
-	scsi_qla_host_t *vha = inode->i_private;
+	scsi_qla_host_t *vha = iyesde->i_private;
 
 	return single_open(file, qla2x00_dfs_tgt_port_database_show, vha);
 }
@@ -156,9 +156,9 @@ qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 }
 
 static int
-qla_dfs_fw_resource_cnt_open(struct inode *inode, struct file *file)
+qla_dfs_fw_resource_cnt_open(struct iyesde *iyesde, struct file *file)
 {
-	struct scsi_qla_host *vha = inode->i_private;
+	struct scsi_qla_host *vha = iyesde->i_private;
 
 	return single_open(file, qla_dfs_fw_resource_cnt_show, vha);
 }
@@ -246,9 +246,9 @@ qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
 }
 
 static int
-qla_dfs_tgt_counters_open(struct inode *inode, struct file *file)
+qla_dfs_tgt_counters_open(struct iyesde *iyesde, struct file *file)
 {
-	struct scsi_qla_host *vha = inode->i_private;
+	struct scsi_qla_host *vha = iyesde->i_private;
 
 	return single_open(file, qla_dfs_tgt_counters_show, vha);
 }
@@ -298,9 +298,9 @@ qla2x00_dfs_fce_show(struct seq_file *s, void *unused)
 }
 
 static int
-qla2x00_dfs_fce_open(struct inode *inode, struct file *file)
+qla2x00_dfs_fce_open(struct iyesde *iyesde, struct file *file)
 {
-	scsi_qla_host_t *vha = inode->i_private;
+	scsi_qla_host_t *vha = iyesde->i_private;
 	struct qla_hw_data *ha = vha->hw;
 	int rval;
 
@@ -323,9 +323,9 @@ out:
 }
 
 static int
-qla2x00_dfs_fce_release(struct inode *inode, struct file *file)
+qla2x00_dfs_fce_release(struct iyesde *iyesde, struct file *file)
 {
-	scsi_qla_host_t *vha = inode->i_private;
+	scsi_qla_host_t *vha = iyesde->i_private;
 	struct qla_hw_data *ha = vha->hw;
 	int rval;
 
@@ -347,7 +347,7 @@ qla2x00_dfs_fce_release(struct inode *inode, struct file *file)
 
 	mutex_unlock(&ha->fce_mutex);
 out:
-	return single_release(inode, file);
+	return single_release(iyesde, file);
 }
 
 static const struct file_operations dfs_fce_ops = {
@@ -368,9 +368,9 @@ qla_dfs_naqp_show(struct seq_file *s, void *unused)
 }
 
 static int
-qla_dfs_naqp_open(struct inode *inode, struct file *file)
+qla_dfs_naqp_open(struct iyesde *iyesde, struct file *file)
 {
-	struct scsi_qla_host *vha = inode->i_private;
+	struct scsi_qla_host *vha = iyesde->i_private;
 
 	return single_open(file, qla_dfs_naqp_show, vha);
 }
@@ -387,20 +387,20 @@ qla_dfs_naqp_write(struct file *file, const char __user *buffer,
 	unsigned long num_act_qp;
 
 	if (!(IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha))) {
-		pr_err("host%ld: this adapter does not support Multi Q.",
-		    vha->host_no);
+		pr_err("host%ld: this adapter does yest support Multi Q.",
+		    vha->host_yes);
 		return -EINVAL;
 	}
 
 	if (!vha->flags.qpairs_available) {
-		pr_err("host%ld: Driver is not setup with Multi Q.",
-		    vha->host_no);
+		pr_err("host%ld: Driver is yest setup with Multi Q.",
+		    vha->host_yes);
 		return -EINVAL;
 	}
 	buf = memdup_user_nul(buffer, count);
 	if (IS_ERR(buf)) {
 		pr_err("host%ld: fail to copy user buffer.",
-		    vha->host_no);
+		    vha->host_yes);
 		return PTR_ERR(buf);
 	}
 
@@ -451,14 +451,14 @@ qla2x00_dfs_setup(scsi_qla_host_t *vha)
 
 create_dir:
 	if (ha->dfs_dir)
-		goto create_nodes;
+		goto create_yesdes;
 
 	mutex_init(&ha->fce_mutex);
 	ha->dfs_dir = debugfs_create_dir(vha->host_str, qla2x00_dfs_root);
 
 	atomic_inc(&qla2x00_dfs_root_count);
 
-create_nodes:
+create_yesdes:
 	ha->dfs_fw_resource_cnt = debugfs_create_file("fw_resource_count",
 	    S_IRUSR, ha->dfs_dir, vha, &dfs_fw_resource_cnt_ops);
 

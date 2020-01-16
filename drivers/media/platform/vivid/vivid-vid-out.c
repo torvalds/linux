@@ -5,7 +5,7 @@
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/videodev2.h>
@@ -37,8 +37,8 @@ static int vid_out_queue_setup(struct vb2_queue *vq,
 
 	if (dev->field_out == V4L2_FIELD_ALTERNATE) {
 		/*
-		 * You cannot use write() with FIELD_ALTERNATE since the field
-		 * information (TOP/BOTTOM) cannot be passed to the kernel.
+		 * You canyest use write() with FIELD_ALTERNATE since the field
+		 * information (TOP/BOTTOM) canyest be passed to the kernel.
 		 */
 		if (vb2_fileio_is_active(vq))
 			return -EINVAL;
@@ -361,7 +361,7 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 
 	fmt = vivid_get_format(dev, mp->pixelformat);
 	if (!fmt) {
-		dprintk(dev, 1, "Fourcc format (0x%08x) unknown.\n",
+		dprintk(dev, 1, "Fourcc format (0x%08x) unkyeswn.\n",
 			mp->pixelformat);
 		mp->pixelformat = V4L2_PIX_FMT_YUYV;
 		fmt = vivid_get_format(dev, mp->pixelformat);
@@ -818,11 +818,11 @@ int vivid_vid_out_g_pixelaspect(struct file *file, void *priv,
 	switch (vivid_get_pixel_aspect(dev)) {
 	case TPG_PIXEL_ASPECT_NTSC:
 		f->numerator = 11;
-		f->denominator = 10;
+		f->deyesminator = 10;
 		break;
 	case TPG_PIXEL_ASPECT_PAL:
 		f->numerator = 54;
-		f->denominator = 59;
+		f->deyesminator = 59;
 		break;
 	default:
 		break;
@@ -882,7 +882,7 @@ int vidioc_try_fmt_vid_out_overlay(struct file *file, void *priv,
 	win->w.width = compose->width;
 	win->w.height = compose->height;
 	/*
-	 * It makes no sense for an OSD to overlay only top or bottom fields,
+	 * It makes yes sense for an OSD to overlay only top or bottom fields,
 	 * so always set this to ANY.
 	 */
 	win->field = V4L2_FIELD_ANY;
@@ -1087,12 +1087,12 @@ int vidioc_s_output(struct file *file, void *priv, unsigned o)
 	dev->output = o;
 	dev->tv_audio_output = 0;
 	if (dev->output_type[o] == SVID)
-		dev->vid_out_dev.tvnorms = V4L2_STD_ALL;
+		dev->vid_out_dev.tvyesrms = V4L2_STD_ALL;
 	else
-		dev->vid_out_dev.tvnorms = 0;
+		dev->vid_out_dev.tvyesrms = 0;
 
-	dev->vbi_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
-	dev->meta_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
+	dev->vbi_out_dev.tvyesrms = dev->vid_out_dev.tvyesrms;
+	dev->meta_out_dev.tvyesrms = dev->vid_out_dev.tvyesrms;
 	vivid_update_format_out(dev);
 
 	v4l2_ctrl_activate(dev->ctrl_display_present, vivid_is_hdmi_out(dev));

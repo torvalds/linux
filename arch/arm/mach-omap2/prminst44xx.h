@@ -14,7 +14,7 @@ extern s32 omap4_prmst_get_prm_dev_inst(void);
 void omap4_prminst_set_prm_dev_inst(s32 dev_inst);
 
 /*
- * In an ideal world, we would not export these low-level functions,
+ * In an ideal world, we would yest export these low-level functions,
  * but this will probably take some time to fix properly
  */
 extern u32 omap4_prminst_read_inst_reg(u8 part, s16 inst, u16 idx);

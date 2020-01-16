@@ -125,8 +125,8 @@ static struct clk_hw *s3c24xx_register_clkout(struct device *dev,
 struct s3c24xx_dclk {
 	struct device *dev;
 	void __iomem *base;
-	struct notifier_block dclk0_div_change_nb;
-	struct notifier_block dclk1_div_change_nb;
+	struct yestifier_block dclk0_div_change_nb;
+	struct yestifier_block dclk1_div_change_nb;
 	spinlock_t dclk_lock;
 	unsigned long reg_save;
 	/* clk_data must be the last entry in the structure */
@@ -188,7 +188,7 @@ static void s3c24xx_dclk_update_cmp(struct s3c24xx_dclk *s3c24xx_dclk,
 	spin_unlock_irqrestore(&s3c24xx_dclk->dclk_lock, flags);
 }
 
-static int s3c24xx_dclk0_div_notify(struct notifier_block *nb,
+static int s3c24xx_dclk0_div_yestify(struct yestifier_block *nb,
 			       unsigned long event, void *data)
 {
 	struct s3c24xx_dclk *s3c24xx_dclk = to_s3c24xx_dclk0(nb);
@@ -201,7 +201,7 @@ static int s3c24xx_dclk0_div_notify(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int s3c24xx_dclk1_div_notify(struct notifier_block *nb,
+static int s3c24xx_dclk1_div_yestify(struct yestifier_block *nb,
 			       unsigned long event, void *data)
 {
 	struct s3c24xx_dclk *s3c24xx_dclk = to_s3c24xx_dclk1(nb);
@@ -320,26 +320,26 @@ static int s3c24xx_dclk_probe(struct platform_device *pdev)
 		goto err_clk_register;
 	}
 
-	s3c24xx_dclk->dclk0_div_change_nb.notifier_call =
-						s3c24xx_dclk0_div_notify;
+	s3c24xx_dclk->dclk0_div_change_nb.yestifier_call =
+						s3c24xx_dclk0_div_yestify;
 
-	s3c24xx_dclk->dclk1_div_change_nb.notifier_call =
-						s3c24xx_dclk1_div_notify;
+	s3c24xx_dclk->dclk1_div_change_nb.yestifier_call =
+						s3c24xx_dclk1_div_yestify;
 
-	ret = clk_notifier_register(clk_table[DIV_DCLK0]->clk,
+	ret = clk_yestifier_register(clk_table[DIV_DCLK0]->clk,
 				    &s3c24xx_dclk->dclk0_div_change_nb);
 	if (ret)
 		goto err_clk_register;
 
-	ret = clk_notifier_register(clk_table[DIV_DCLK1]->clk,
+	ret = clk_yestifier_register(clk_table[DIV_DCLK1]->clk,
 				    &s3c24xx_dclk->dclk1_div_change_nb);
 	if (ret)
-		goto err_dclk_notify;
+		goto err_dclk_yestify;
 
 	return 0;
 
-err_dclk_notify:
-	clk_notifier_unregister(clk_table[DIV_DCLK0]->clk,
+err_dclk_yestify:
+	clk_yestifier_unregister(clk_table[DIV_DCLK0]->clk,
 				&s3c24xx_dclk->dclk0_div_change_nb);
 err_clk_register:
 	for (i = 0; i < DCLK_MAX_CLKS; i++)
@@ -355,9 +355,9 @@ static int s3c24xx_dclk_remove(struct platform_device *pdev)
 	struct clk_hw **clk_table = s3c24xx_dclk->clk_data.hws;
 	int i;
 
-	clk_notifier_unregister(clk_table[DIV_DCLK1]->clk,
+	clk_yestifier_unregister(clk_table[DIV_DCLK1]->clk,
 				&s3c24xx_dclk->dclk1_div_change_nb);
-	clk_notifier_unregister(clk_table[DIV_DCLK0]->clk,
+	clk_yestifier_unregister(clk_table[DIV_DCLK0]->clk,
 				&s3c24xx_dclk->dclk0_div_change_nb);
 
 	for (i = 0; i < DCLK_MAX_CLKS; i++)

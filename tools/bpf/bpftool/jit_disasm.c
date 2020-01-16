@@ -164,7 +164,7 @@ void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 		count = disassemble(pc, &info);
 		if (json_output) {
 			/* Operand array, was started in fprintf_json. Before
-			 * that, make sure we have a _null_ value if no operand
+			 * that, make sure we have a _null_ value if yes operand
 			 * other than operation code was present.
 			 */
 			if (oper_count == 1)

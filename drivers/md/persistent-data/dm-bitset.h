@@ -17,16 +17,16 @@
  *
  * Like the dm-array that it's based on, the caller needs to keep track of
  * the size of the bitset separately.  The underlying dm-array implicitly
- * knows how many words it's storing and will return -ENODATA if you try
+ * kyesws how many words it's storing and will return -ENODATA if you try
  * and access an out of bounds word.  However, an out of bounds bit in the
- * final word will _not_ be detected, you have been warned.
+ * final word will _yest_ be detected, you have been warned.
  *
  * Bits are indexed from zero.
 
  * Typical use:
  *
  * a) Initialise a dm_disk_bitset structure with dm_disk_bitset_init().
- *    This describes the bitset and includes the cache.  It's not called it
+ *    This describes the bitset and includes the cache.  It's yest called it
  *    dm_bitset_info in line with other data structures because it does
  *    include instance data.
  *
@@ -55,7 +55,7 @@
  * g) Flush all updates from the cache with dm_bitset_flush().
  *
  * h) Destroy the bitset with dm_bitset_del().  This tells the transaction
- *    manager that you're no longer using this data structure so it can
+ *    manager that you're yes longer using this data structure so it can
  *    recycle it's blocks.  (dm_bitset_dec() would be a better name for it,
  *    but del is in keeping with dm_btree_del()).
  */

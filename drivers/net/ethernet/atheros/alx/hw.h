@@ -12,16 +12,16 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *
  * Copyright (c) 2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -256,7 +256,7 @@ struct alx_rrd {
 #define RRD_VLTAG_SHIFT		0
 #define RRD_PID_MASK		0x00FF
 #define RRD_PID_SHIFT		16
-/* non-ip packet */
+/* yesn-ip packet */
 #define RRD_PID_NONIP		0
 /* ipv4(only) */
 #define RRD_PID_IPV4		1
@@ -440,7 +440,7 @@ struct alx_hw_stats {
 				 * or TRD FIFO underrun
 				 */
 	u64 tx_trd_eop;		/* reads beyond the EOP into the next frame
-				 * when TRD was not written timely
+				 * when TRD was yest written timely
 				 */
 	u64 tx_len_err;		/* TX packets where length != actual size */
 	u64 tx_trunc;		/* TX packets truncated due to size > MTU */

@@ -3,7 +3,7 @@
  *
  * h3600 atmel micro companion support, touchscreen subdevice
  * Author : Alessandro Gardich <gremlin@gremlin.it>
- * Author : Dmitry Artamonow <mad_soft@inbox.ru>
+ * Author : Dmitry Artamoyesw <mad_soft@inbox.ru>
  * Author : Linus Walleij <linus.walleij@linaro.org>
  */
 

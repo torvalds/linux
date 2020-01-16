@@ -2,13 +2,13 @@
 /*
  * RapidIO mport driver for Tsi721 PCIExpress-to-SRIO bridge
  *
- * Copyright 2011 Integrated Device Technology, Inc.
+ * Copyright 2011 Integrated Device Techyeslogy, Inc.
  * Alexandre Bounine <alexandre.bounine@idt.com>
  * Chul Kim <chul.kim@idt.com>
  */
 
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -26,7 +26,7 @@
 #ifdef DEBUG
 u32 tsi_dbg_level;
 module_param_named(dbg_level, tsi_dbg_level, uint, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(dbg_level, "Debugging output level (default 0 = none)");
+MODULE_PARM_DESC(dbg_level, "Debugging output level (default 0 = yesne)");
 #endif
 
 static int pcie_mrrs = -1;
@@ -410,7 +410,7 @@ static void tsi721_db_dpc(struct work_struct *work)
 		*idb_entry = 0;
 
 		/* Process one doorbell */
-		list_for_each_entry(dbell, &mport->dbells, node) {
+		list_for_each_entry(dbell, &mport->dbells, yesde) {
 			if ((dbell->res->start <= DBELL_INF(idb.bytes)) &&
 			    (dbell->res->end >= DBELL_INF(idb.bytes))) {
 				found = 1;
@@ -1168,9 +1168,9 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 			if (rstart >= ib_win->rstart &&
 			    (rstart + size) <= (ib_win->rstart +
 							ib_win->size)) {
-				/* We are in - no further mapping required */
+				/* We are in - yes further mapping required */
 				map->lstart = lstart;
-				list_add_tail(&map->node, &ib_win->mappings);
+				list_add_tail(&map->yesde, &ib_win->mappings);
 				return 0;
 			}
 
@@ -1205,7 +1205,7 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 	 */
 	if (direct) {
 		map->lstart = lstart;
-		list_add_tail(&map->node, &ib_win->mappings);
+		list_add_tail(&map->yesde, &ib_win->mappings);
 	}
 
 	iowrite32(TSI721_IBWIN_SIZE(ibw_size) << 8,
@@ -1263,9 +1263,9 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 				int found = 0;
 
 				list_for_each_entry(map,
-						    &ib_win->mappings, node) {
+						    &ib_win->mappings, yesde) {
 					if (map->lstart == lstart) {
-						list_del(&map->node);
+						list_del(&map->yesde);
 						kfree(map);
 						found = 1;
 						break;
@@ -1289,7 +1289,7 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 
 	if (i == TSI721_IBWIN_NUM)
 		tsi_debug(IBW, &priv->pdev->dev,
-			"IB window mapped to %pad not found", &lstart);
+			"IB window mapped to %pad yest found", &lstart);
 }
 
 /**
@@ -1359,7 +1359,7 @@ static void tsi721_port_write_free(struct tsi721_device *priv)
 
 static int tsi721_doorbell_init(struct tsi721_device *priv)
 {
-	/* Outbound Doorbells do not require any setup.
+	/* Outbound Doorbells do yest require any setup.
 	 * Tsi721 uses dedicated PCI BAR1 to generate doorbells.
 	 * That BAR1 was mapped during the probe routine.
 	 */
@@ -1773,13 +1773,13 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 		}
 
 		if (last_ptr == 0)
-			goto no_sts_update;
+			goto yes_sts_update;
 
 		priv->omsg_ring[ch].sts_rdptr = srd_ptr;
 		iowrite32(srd_ptr, priv->regs + TSI721_OBDMAC_DSRP(ch));
 
 		if (!mport->outb_msg[ch].mcback)
-			goto no_sts_update;
+			goto yes_sts_update;
 
 		/* Inform upper layer about transfer completion */
 
@@ -1788,7 +1788,7 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 
 		/*
 		 * Check if this is a Link Descriptor (LD).
-		 * If yes, ignore LD and use descriptor processed
+		 * If no, igyesre LD and use descriptor processed
 		 * before LD.
 		 */
 		if (tx_slot == priv->omsg_ring[ch].size) {
@@ -1797,7 +1797,7 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 					(u64)priv->omsg_ring[ch].omd_phys)/
 						sizeof(struct tsi721_omsg_desc);
 			else
-				goto no_sts_update;
+				goto yes_sts_update;
 		}
 
 		if (tx_slot >= priv->omsg_ring[ch].size)
@@ -1815,7 +1815,7 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 		do_callback = 1;
 	}
 
-no_sts_update:
+yes_sts_update:
 
 	if (omsg_int & TSI721_OBDMAC_INT_ERROR) {
 		/*
@@ -2132,7 +2132,7 @@ static void tsi721_imsg_handler(struct tsi721_device *priv, int ch)
 	/* Clear IB channel interrupts */
 	iowrite32(imsg_int, priv->regs + TSI721_IBDMAC_INT(ch));
 
-	/* If an IB Msg is received notify the upper layer */
+	/* If an IB Msg is received yestify the upper layer */
 	if (imsg_int & TSI721_IBDMAC_INT_DQ_RCV &&
 		mport->inb_msg[mbox].mcback)
 		mport->inb_msg[mbox].mcback(mport,
@@ -2690,7 +2690,7 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 		priv->flags |= TSI721_USING_MSI;
 	else
 		tsi_debug(MPORT, &pdev->dev,
-			 "MSI/MSI-X is not available. Using legacy INTx.");
+			 "MSI/MSI-X is yest available. Using legacy INTx.");
 #endif /* CONFIG_PCI_MSI */
 
 	err = tsi721_request_irq(priv);
@@ -2786,7 +2786,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	/*
 	 * BAR_2 and BAR_4 (outbound translation) must be in 64-bit PCIe address
 	 * space.
-	 * NOTE: BAR_2 and BAR_4 are not used by this version of driver.
+	 * NOTE: BAR_2 and BAR_4 are yest used by this version of driver.
 	 * It may be a good idea to keep them disabled using HW configuration
 	 * to save PCI memory space.
 	 */
@@ -2796,7 +2796,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	if (pci_resource_flags(pdev, BAR_2) & IORESOURCE_MEM_64) {
 		if (pci_resource_flags(pdev, BAR_2) & IORESOURCE_PREFETCH)
 			tsi_debug(INIT, &pdev->dev,
-				 "Prefetchable OBW BAR2 will not be used");
+				 "Prefetchable OBW BAR2 will yest be used");
 		else {
 			priv->p2r_bar[0].base = pci_resource_start(pdev, BAR_2);
 			priv->p2r_bar[0].size = pci_resource_len(pdev, BAR_2);
@@ -2806,7 +2806,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	if (pci_resource_flags(pdev, BAR_4) & IORESOURCE_MEM_64) {
 		if (pci_resource_flags(pdev, BAR_4) & IORESOURCE_PREFETCH)
 			tsi_debug(INIT, &pdev->dev,
-				 "Prefetchable OBW BAR4 will not be used");
+				 "Prefetchable OBW BAR4 will yest be used");
 		else {
 			priv->p2r_bar[1].base = pci_resource_start(pdev, BAR_4);
 			priv->p2r_bar[1].size = pci_resource_len(pdev, BAR_4);
@@ -2853,7 +2853,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	BUG_ON(!pci_is_pcie(pdev));
 
-	/* Clear "no snoop" and "relaxed ordering" bits. */
+	/* Clear "yes syesop" and "relaxed ordering" bits. */
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
 		PCI_EXP_DEVCTL_RELAX_EN | PCI_EXP_DEVCTL_NOSNOOP_EN, 0);
 
@@ -2998,5 +2998,5 @@ static struct pci_driver tsi721_driver = {
 module_pci_driver(tsi721_driver);
 
 MODULE_DESCRIPTION("IDT Tsi721 PCIExpress-to-SRIO bridge driver");
-MODULE_AUTHOR("Integrated Device Technology, Inc.");
+MODULE_AUTHOR("Integrated Device Techyeslogy, Inc.");
 MODULE_LICENSE("GPL");

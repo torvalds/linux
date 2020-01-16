@@ -37,7 +37,7 @@ typedef int (*dmar_res_handler_t)(struct acpi_dmar_header *, void *);
 struct dmar_res_callback {
 	dmar_res_handler_t	cb[ACPI_DMAR_TYPE_RESERVED];
 	void			*arg[ACPI_DMAR_TYPE_RESERVED];
-	bool			ignore_unhandled;
+	bool			igyesre_unhandled;
 	bool			print_entry;
 };
 
@@ -115,16 +115,16 @@ void dmar_free_dev_scope(struct dmar_dev_scope **devices, int *cnt)
 	*cnt = 0;
 }
 
-/* Optimize out kzalloc()/kfree() for normal cases */
-static char dmar_pci_notify_info_buf[64];
+/* Optimize out kzalloc()/kfree() for yesrmal cases */
+static char dmar_pci_yestify_info_buf[64];
 
-static struct dmar_pci_notify_info *
-dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
+static struct dmar_pci_yestify_info *
+dmar_alloc_pci_yestify_info(struct pci_dev *dev, unsigned long event)
 {
 	int level = 0;
 	size_t size;
 	struct pci_dev *tmp;
-	struct dmar_pci_notify_info *info;
+	struct dmar_pci_yestify_info *info;
 
 	BUG_ON(dev->is_virtfn);
 
@@ -134,12 +134,12 @@ dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
 			level++;
 
 	size = struct_size(info, path, level);
-	if (size <= sizeof(dmar_pci_notify_info_buf)) {
-		info = (struct dmar_pci_notify_info *)dmar_pci_notify_info_buf;
+	if (size <= sizeof(dmar_pci_yestify_info_buf)) {
+		info = (struct dmar_pci_yestify_info *)dmar_pci_yestify_info_buf;
 	} else {
 		info = kzalloc(size, GFP_KERNEL);
 		if (!info) {
-			pr_warn("Out of memory when allocating notify_info "
+			pr_warn("Out of memory when allocating yestify_info "
 				"for %s.\n", pci_name(dev));
 			if (dmar_dev_scope_status == 0)
 				dmar_dev_scope_status = -ENOMEM;
@@ -165,13 +165,13 @@ dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
 	return info;
 }
 
-static inline void dmar_free_pci_notify_info(struct dmar_pci_notify_info *info)
+static inline void dmar_free_pci_yestify_info(struct dmar_pci_yestify_info *info)
 {
-	if ((void *)info != dmar_pci_notify_info_buf)
+	if ((void *)info != dmar_pci_yestify_info_buf)
 		kfree(info);
 }
 
-static bool dmar_match_pci_path(struct dmar_pci_notify_info *info, int bus,
+static bool dmar_match_pci_path(struct dmar_pci_yestify_info *info, int bus,
 				struct acpi_dmar_pci_path *path, int count)
 {
 	int i;
@@ -206,8 +206,8 @@ fallback:
 	return false;
 }
 
-/* Return: > 0 if match found, 0 if no match found, < 0 if error happens */
-int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
+/* Return: > 0 if match found, 0 if yes match found, < 0 if error happens */
+int dmar_insert_dev_scope(struct dmar_pci_yestify_info *info,
 			  void *start, void*end, u16 segment,
 			  struct dmar_dev_scope *devices,
 			  int devices_cnt)
@@ -232,11 +232,11 @@ int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
 			continue;
 
 		/*
-		 * We expect devices with endpoint scope to have normal PCI
+		 * We expect devices with endpoint scope to have yesrmal PCI
 		 * headers, and devices with bridge scope to have bridge PCI
 		 * headers.  However PCI NTB devices may be listed in the
 		 * DMAR table with bridge scope, even though they have a
-		 * normal PCI header.  NTB devices are identified by class
+		 * yesrmal PCI header.  NTB devices are identified by class
 		 * "BRIDGE_OTHER" (0680h) - we don't declare a socpe mismatch
 		 * for this special case.
 		 */
@@ -245,7 +245,7 @@ int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
 		    (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_BRIDGE &&
 		     (info->dev->hdr_type == PCI_HEADER_TYPE_NORMAL &&
 		      info->dev->class >> 8 != PCI_CLASS_BRIDGE_OTHER))) {
-			pr_warn("Device scope type does not match for %s\n",
+			pr_warn("Device scope type does yest match for %s\n",
 				pci_name(info->dev));
 			return -EINVAL;
 		}
@@ -264,7 +264,7 @@ int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
 	return 0;
 }
 
-int dmar_remove_dev_scope(struct dmar_pci_notify_info *info, u16 segment,
+int dmar_remove_dev_scope(struct dmar_pci_yestify_info *info, u16 segment,
 			  struct dmar_dev_scope *devices, int count)
 {
 	int index;
@@ -284,7 +284,7 @@ int dmar_remove_dev_scope(struct dmar_pci_notify_info *info, u16 segment,
 	return 0;
 }
 
-static int dmar_pci_bus_add_dev(struct dmar_pci_notify_info *info)
+static int dmar_pci_bus_add_dev(struct dmar_pci_yestify_info *info)
 {
 	int ret = 0;
 	struct dmar_drhd_unit *dmaru;
@@ -304,14 +304,14 @@ static int dmar_pci_bus_add_dev(struct dmar_pci_notify_info *info)
 			break;
 	}
 	if (ret >= 0)
-		ret = dmar_iommu_notify_scope_dev(info);
+		ret = dmar_iommu_yestify_scope_dev(info);
 	if (ret < 0 && dmar_dev_scope_status == 0)
 		dmar_dev_scope_status = ret;
 
 	return ret;
 }
 
-static void  dmar_pci_bus_del_dev(struct dmar_pci_notify_info *info)
+static void  dmar_pci_bus_del_dev(struct dmar_pci_yestify_info *info)
 {
 	struct dmar_drhd_unit *dmaru;
 
@@ -319,14 +319,14 @@ static void  dmar_pci_bus_del_dev(struct dmar_pci_notify_info *info)
 		if (dmar_remove_dev_scope(info, dmaru->segment,
 			dmaru->devices, dmaru->devices_cnt))
 			break;
-	dmar_iommu_notify_scope_dev(info);
+	dmar_iommu_yestify_scope_dev(info);
 }
 
-static int dmar_pci_bus_notifier(struct notifier_block *nb,
+static int dmar_pci_bus_yestifier(struct yestifier_block *nb,
 				 unsigned long action, void *data)
 {
 	struct pci_dev *pdev = to_pci_dev(data);
-	struct dmar_pci_notify_info *info;
+	struct dmar_pci_yestify_info *info;
 
 	/* Only care about add/remove events for physical functions.
 	 * For VFs we actually do the lookup based on the corresponding
@@ -337,7 +337,7 @@ static int dmar_pci_bus_notifier(struct notifier_block *nb,
 	    action != BUS_NOTIFY_REMOVED_DEVICE)
 		return NOTIFY_DONE;
 
-	info = dmar_alloc_pci_notify_info(pdev, action);
+	info = dmar_alloc_pci_yestify_info(pdev, action);
 	if (!info)
 		return NOTIFY_DONE;
 
@@ -348,13 +348,13 @@ static int dmar_pci_bus_notifier(struct notifier_block *nb,
 		dmar_pci_bus_del_dev(info);
 	up_write(&dmar_global_lock);
 
-	dmar_free_pci_notify_info(info);
+	dmar_free_pci_yestify_info(info);
 
 	return NOTIFY_OK;
 }
 
-static struct notifier_block dmar_pci_bus_nb = {
-	.notifier_call = dmar_pci_bus_notifier,
+static struct yestifier_block dmar_pci_bus_nb = {
+	.yestifier_call = dmar_pci_bus_yestifier,
 	.priority = INT_MIN,
 };
 
@@ -441,7 +441,7 @@ static int __init dmar_parse_one_andd(struct acpi_dmar_header *header,
 	/* Check for NUL termination within the designated length */
 	if (strnlen(andd->device_name, header->length - 8) == header->length - 8) {
 		WARN_TAINT(1, TAINT_FIRMWARE_WORKAROUND,
-			   "Your BIOS is broken; ANDD object name is not NUL-terminated\n"
+			   "Your BIOS is broken; ANDD object name is yest NUL-terminated\n"
 			   "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
 			   dmi_get_system_info(DMI_BIOS_VENDOR),
 			   dmi_get_system_info(DMI_BIOS_VERSION),
@@ -463,17 +463,17 @@ static int dmar_parse_one_rhsa(struct acpi_dmar_header *header, void *arg)
 	rhsa = (struct acpi_dmar_rhsa *)header;
 	for_each_drhd_unit(drhd) {
 		if (drhd->reg_base_addr == rhsa->base_address) {
-			int node = acpi_map_pxm_to_node(rhsa->proximity_domain);
+			int yesde = acpi_map_pxm_to_yesde(rhsa->proximity_domain);
 
-			if (!node_online(node))
-				node = NUMA_NO_NODE;
-			drhd->iommu->node = node;
+			if (!yesde_online(yesde))
+				yesde = NUMA_NO_NODE;
+			drhd->iommu->yesde = yesde;
 			return 0;
 		}
 	}
 	WARN_TAINT(
 		1, TAINT_FIRMWARE_WORKAROUND,
-		"Your BIOS is broken; RHSA refers to non-existent DMAR unit at %llx\n"
+		"Your BIOS is broken; RHSA refers to yesn-existent DMAR unit at %llx\n"
 		"BIOS vendor: %s; Ver: %s; Product Version: %s\n",
 		drhd->reg_base_addr,
 		dmi_get_system_info(DMI_BIOS_VENDOR),
@@ -483,7 +483,7 @@ static int dmar_parse_one_rhsa(struct acpi_dmar_header *header, void *arg)
 	return 0;
 }
 #else
-#define	dmar_parse_one_rhsa		dmar_res_noop
+#define	dmar_parse_one_rhsa		dmar_res_yesop
 #endif
 
 static void
@@ -566,7 +566,7 @@ static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 
 		if (iter->type >= ACPI_DMAR_TYPE_RESERVED) {
 			/* continue for forward compatibility */
-			pr_debug("Unknown DMAR structure type %d\n",
+			pr_debug("Unkyeswn DMAR structure type %d\n",
 				 iter->type);
 		} else if (cb->cb[iter->type]) {
 			int ret;
@@ -574,7 +574,7 @@ static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 			ret = cb->cb[iter->type](iter, cb->arg[iter->type]);
 			if (ret)
 				return ret;
-		} else if (!cb->ignore_unhandled) {
+		} else if (!cb->igyesre_unhandled) {
 			pr_warn("No handler for DMAR structure type %d\n",
 				iter->type);
 			return -EINVAL;
@@ -602,7 +602,7 @@ parse_dmar_table(void)
 	int ret;
 	struct dmar_res_callback cb = {
 		.print_entry = true,
-		.ignore_unhandled = true,
+		.igyesre_unhandled = true,
 		.arg[ACPI_DMAR_TYPE_HARDWARE_UNIT] = &drhd_count,
 		.cb[ACPI_DMAR_TYPE_HARDWARE_UNIT] = &dmar_parse_one_drhd,
 		.cb[ACPI_DMAR_TYPE_RESERVED_MEMORY] = &dmar_parse_one_rmrr,
@@ -618,7 +618,7 @@ parse_dmar_table(void)
 	dmar_table_detect();
 
 	/*
-	 * ACPI tables may not be DMA protected by tboot, so use DMAR copy
+	 * ACPI tables may yest be DMA protected by tboot, so use DMAR copy
 	 * SINIT saved in SinitMleData in TXT heap (which is DMA protected)
 	 */
 	dmar_tbl = tboot_get_dmar_table(dmar_tbl);
@@ -765,7 +765,7 @@ static int __init dmar_acpi_dev_scope_init(void)
 int __init dmar_dev_scope_init(void)
 {
 	struct pci_dev *dev = NULL;
-	struct dmar_pci_notify_info *info;
+	struct dmar_pci_yestify_info *info;
 
 	if (dmar_dev_scope_status != 1)
 		return dmar_dev_scope_status;
@@ -781,13 +781,13 @@ int __init dmar_dev_scope_init(void)
 			if (dev->is_virtfn)
 				continue;
 
-			info = dmar_alloc_pci_notify_info(dev,
+			info = dmar_alloc_pci_yestify_info(dev,
 					BUS_NOTIFY_ADD_DEVICE);
 			if (!info) {
 				return dmar_dev_scope_status;
 			} else {
 				dmar_pci_bus_add_dev(info);
-				dmar_free_pci_notify_info(info);
+				dmar_free_pci_yestify_info(info);
 			}
 		}
 	}
@@ -795,9 +795,9 @@ int __init dmar_dev_scope_init(void)
 	return dmar_dev_scope_status;
 }
 
-void __init dmar_register_bus_notifier(void)
+void __init dmar_register_bus_yestifier(void)
 {
-	bus_register_notifier(&pci_bus_type, &dmar_pci_bus_nb);
+	bus_register_yestifier(&pci_bus_type, &dmar_pci_bus_nb);
 }
 
 
@@ -880,7 +880,7 @@ int __init detect_intel_iommu(void)
 	int ret;
 	struct dmar_res_callback validate_drhd_cb = {
 		.cb[ACPI_DMAR_TYPE_HARDWARE_UNIT] = &dmar_validate_one_drhd,
-		.ignore_unhandled = true,
+		.igyesre_unhandled = true,
 	};
 
 	down_write(&dmar_global_lock);
@@ -888,7 +888,7 @@ int __init detect_intel_iommu(void)
 	if (!ret)
 		ret = dmar_walk_dmar_table((struct acpi_table_dmar *)dmar_tbl,
 					   &validate_drhd_cb);
-	if (!ret && !no_iommu && !iommu_detected && !dmar_disabled) {
+	if (!ret && !yes_iommu && !iommu_detected && !dmar_disabled) {
 		iommu_detected = 1;
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
@@ -1040,13 +1040,13 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	err = -EINVAL;
 	agaw = iommu_calculate_agaw(iommu);
 	if (agaw < 0) {
-		pr_err("Cannot get a valid agaw for iommu (seq_id = %d)\n",
+		pr_err("Canyest get a valid agaw for iommu (seq_id = %d)\n",
 			iommu->seq_id);
 		goto err_unmap;
 	}
 	msagaw = iommu_calculate_max_sagaw(iommu);
 	if (msagaw < 0) {
-		pr_err("Cannot get a valid max agaw for iommu (seq_id = %d)\n",
+		pr_err("Canyest get a valid max agaw for iommu (seq_id = %d)\n",
 			iommu->seq_id);
 		goto err_unmap;
 	}
@@ -1054,7 +1054,7 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	iommu->msagaw = msagaw;
 	iommu->segment = drhd->segment;
 
-	iommu->node = NUMA_NO_NODE;
+	iommu->yesde = NUMA_NO_NODE;
 
 	ver = readl(iommu->reg + DMAR_VER_REG);
 	pr_info("%s: reg_base_addr %llx ver %d:%d cap %llx ecap %llx\n",
@@ -1269,7 +1269,7 @@ restart:
 	while (qi->desc_status[wait_index] != QI_DONE) {
 		/*
 		 * We will leave the interrupts disabled, to prevent interrupt
-		 * context to queue another cmd while a cmd is already submitted
+		 * context to queue ayesther cmd while a cmd is already submitted
 		 * and waiting for completion on this cpu. This is to avoid
 		 * a deadlock where the interrupt context can wait indefinitely
 		 * for free slots in the queue.
@@ -1471,7 +1471,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	 * Need two pages to accommodate 256 descriptors of 256 bits each
 	 * if the remapping hardware supports scalable mode translation.
 	 */
-	desc_page = alloc_pages_node(iommu->node, GFP_ATOMIC | __GFP_ZERO,
+	desc_page = alloc_pages_yesde(iommu->yesde, GFP_ATOMIC | __GFP_ZERO,
 				     !!ecap_smts(iommu->ecap));
 	if (!desc_page) {
 		kfree(qi);
@@ -1511,14 +1511,14 @@ static const char *dma_remap_fault_reasons[] =
 	"Present bit in context entry is clear",
 	"Invalid context entry",
 	"Access beyond MGAW",
-	"PTE Write access is not set",
-	"PTE Read access is not set",
+	"PTE Write access is yest set",
+	"PTE Read access is yest set",
 	"Next page table ptr is invalid",
 	"Root table address invalid",
 	"Context table ptr is invalid",
-	"non-zero reserved fields in RTP",
-	"non-zero reserved fields in CTP",
-	"non-zero reserved fields in PTE",
+	"yesn-zero reserved fields in RTP",
+	"yesn-zero reserved fields in CTP",
+	"yesn-zero reserved fields in PTE",
 	"PCE for translation request specifies blocking",
 };
 
@@ -1526,11 +1526,11 @@ static const char * const dma_remap_sm_fault_reasons[] = {
 	"SM: Invalid Root Table Address",
 	"SM: TTM 0 for request with PASID",
 	"SM: TTM 0 for page group request",
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x33-0x37 */
+	"Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", /* 0x33-0x37 */
 	"SM: Error attempting to access Root Entry",
 	"SM: Present bit in Root Entry is clear",
 	"SM: Non-zero reserved field set in Root Entry",
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x3B-0x3F */
+	"Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", /* 0x3B-0x3F */
 	"SM: Error attempting to access Context Entry",
 	"SM: Present bit in Context Entry is clear",
 	"SM: Non-zero reserved field set in the Context Entry",
@@ -1540,20 +1540,20 @@ static const char * const dma_remap_sm_fault_reasons[] = {
 	"SM: PASID is larger than the max in Context Entry",
 	"SM: PRE field in Context-Entry is clear",
 	"SM: RID_PASID field error in Context-Entry",
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x49-0x4F */
+	"Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", /* 0x49-0x4F */
 	"SM: Error attempting to access the PASID Directory Entry",
 	"SM: Present bit in Directory Entry is clear",
 	"SM: Non-zero reserved field set in PASID Directory Entry",
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x53-0x57 */
+	"Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", /* 0x53-0x57 */
 	"SM: Error attempting to access PASID Table Entry",
 	"SM: Present bit in PASID Table Entry is clear",
 	"SM: Non-zero reserved field set in PASID Table Entry",
 	"SM: Invalid Scalable-Mode PASID Table Entry",
 	"SM: ERE field is clear in PASID Table Entry",
 	"SM: SRE field is clear in PASID Table Entry",
-	"Unknown", "Unknown",/* 0x5E-0x5F */
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x60-0x67 */
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x68-0x6F */
+	"Unkyeswn", "Unkyeswn",/* 0x5E-0x5F */
+	"Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", /* 0x60-0x67 */
+	"Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", /* 0x68-0x6F */
 	"SM: Error attempting to access first-level paging entry",
 	"SM: Present bit in first-level paging entry is clear",
 	"SM: Non-zero reserved field set in first-level paging entry",
@@ -1566,9 +1566,9 @@ static const char * const dma_remap_sm_fault_reasons[] = {
 	"SM: Read/Write permission error in second-level paging entry",
 	"SM: Non-zero reserved field set in second-level paging entry",
 	"SM: Invalid second-level page table pointer",
-	"SM: A/D bit update needed in second-level entry when set up in no snoop",
-	"Unknown", "Unknown", "Unknown", /* 0x7D-0x7F */
-	"SM: Address in first-level translation is not canonical",
+	"SM: A/D bit update needed in second-level entry when set up in yes syesop",
+	"Unkyeswn", "Unkyeswn", "Unkyeswn", /* 0x7D-0x7F */
+	"SM: Address in first-level translation is yest cayesnical",
 	"SM: U/S set 0 for first-level translation with user privilege",
 	"SM: No execute permission for request with PASID and ER=1",
 	"SM: Address beyond the DMA hardware max",
@@ -1576,8 +1576,8 @@ static const char * const dma_remap_sm_fault_reasons[] = {
 	"SM: No write permission for Write/AtomicOp request",
 	"SM: No read permission for Read/AtomicOp request",
 	"SM: Invalid address-interrupt address",
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x88-0x8F */
-	"SM: A/D bit update needed in first-level entry when set up in no snoop",
+	"Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", "Unkyeswn", /* 0x88-0x8F */
+	"SM: A/D bit update needed in first-level entry when set up in yes syesop",
 };
 
 static const char *irq_remap_fault_reasons[] =
@@ -1606,7 +1606,7 @@ static const char *dmar_get_fault_reason(u8 fault_reason, int *fault_type)
 		return dma_remap_fault_reasons[fault_reason];
 	} else {
 		*fault_type = UNKNOWN;
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -1714,7 +1714,7 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 	if (fault_status && __ratelimit(&rs))
 		pr_err("DRHD: handling fault status reg %x\n", fault_status);
 
-	/* TBD: ignore advanced fault log currently */
+	/* TBD: igyesre advanced fault log currently */
 	if (!(fault_status & DMA_FSTS_PPF))
 		goto unlock_exit;
 
@@ -1758,7 +1758,7 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 		raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 
 		if (!ratelimited)
-			/* Using pasid -1 if pasid is not present */
+			/* Using pasid -1 if pasid is yest present */
 			dmar_fault_do_one(iommu, type, fault_reason,
 					  pasid_present ? pasid : -1,
 					  source_id, guest_addr);
@@ -1787,7 +1787,7 @@ int dmar_set_interrupt(struct intel_iommu *iommu)
 	if (iommu->irq)
 		return 0;
 
-	irq = dmar_alloc_hwirq(iommu->seq_id, iommu->node, iommu);
+	irq = dmar_alloc_hwirq(iommu->seq_id, iommu->yesde, iommu);
 	if (irq > 0) {
 		iommu->irq = irq;
 	} else {
@@ -1846,8 +1846,8 @@ int dmar_reenable_qi(struct intel_iommu *iommu)
 	 */
 	dmar_disable_qi(iommu);
 	/*
-	 * Then enable queued invalidation again. Since there is no pending
-	 * invalidation requests now, it's safe to re-enable queued
+	 * Then enable queued invalidation again. Since there is yes pending
+	 * invalidation requests yesw, it's safe to re-enable queued
 	 * invalidation.
 	 */
 	__dmar_enable_qi(iommu);
@@ -1881,7 +1881,7 @@ static int __init dmar_free_unused_resources(void)
 		return 0;
 
 	if (dmar_dev_scope_status != 1 && !list_empty(&dmar_drhd_units))
-		bus_unregister_notifier(&pci_bus_type, &dmar_pci_bus_nb);
+		bus_unregister_yestifier(&pci_bus_type, &dmar_pci_bus_nb);
 
 	down_write(&dmar_global_lock);
 	list_for_each_entry_safe(dmaru, dmaru_n, &dmar_drhd_units, list) {
@@ -1898,7 +1898,7 @@ IOMMU_INIT_POST(detect_intel_iommu);
 
 /*
  * DMAR Hotplug Support
- * For more details, please refer to Intel(R) Virtualization Technology
+ * For more details, please refer to Intel(R) Virtualization Techyeslogy
  * for Directed-IO Architecture Specifiction, Rev 2.2, Section 8.8
  * "Remapping Hardware Unit Hot Plug".
  */
@@ -1907,7 +1907,7 @@ static guid_t dmar_hp_guid =
 		  0x91, 0xBF, 0xC3, 0xCB, 0x81, 0xFC, 0x5D, 0xAF);
 
 /*
- * Currently there's only one revision and BIOS will not check the revision id,
+ * Currently there's only one revision and BIOS will yest check the revision id,
  * so use 0 for safety.
  */
 #define	DMAR_DSM_REV_ID			0
@@ -2140,7 +2140,7 @@ int dmar_device_remove(acpi_handle handle)
  *
  * Returns true if the platform has %DMA_CTRL_PLATFORM_OPT_IN_FLAG set in
  * the ACPI DMAR table. This means that the platform boot firmware has made
- * sure no device can issue DMA outside of RMRR regions.
+ * sure yes device can issue DMA outside of RMRR regions.
  */
 bool dmar_platform_optin(void)
 {

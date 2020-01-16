@@ -19,7 +19,7 @@
  * when ftrace is active.
  *
  * We arrive here after a function A calls function B, and we are the trace
- * function for B. When we enter r1 points to A's stack frame, B has not yet
+ * function for B. When we enter r1 points to A's stack frame, B has yest yet
  * had a chance to allocate one yet.
  *
  * Additionally r2 may point either to the TOC for A, or B, depending on
@@ -46,7 +46,7 @@ _GLOBAL(ftrace_regs_caller)
 	/* Ok to continue? */
 	lbz	r3, PACA_FTRACE_ENABLED(r13)
 	cmpdi	r3, 0
-	beq	ftrace_no_trace
+	beq	ftrace_yes_trace
 
 	SAVE_10GPRS(12, r1)
 	SAVE_10GPRS(22, r1)
@@ -98,7 +98,7 @@ _GLOBAL(ftrace_regs_caller)
 .globl ftrace_regs_call
 ftrace_regs_call:
 	bl	ftrace_stub
-	nop
+	yesp
 
 	/* Load ctr with the possibly modified NIP */
 	ld	r3, _NIP(r1)
@@ -141,7 +141,7 @@ _GLOBAL(ftrace_graph_stub)
 _GLOBAL(ftrace_stub)
 	blr
 
-ftrace_no_trace:
+ftrace_yes_trace:
 	mflr	r3
 	mtctr	r3
 	REST_GPR(3, r1)
@@ -161,7 +161,7 @@ _GLOBAL(ftrace_caller)
 
 	lbz	r3, PACA_FTRACE_ENABLED(r13)
 	cmpdi	r3, 0
-	beq	ftrace_no_trace
+	beq	ftrace_yes_trace
 
 	/* Get the _mcount() call site out of LR */
 	mflr	r7
@@ -188,7 +188,7 @@ _GLOBAL(ftrace_caller)
 .globl ftrace_call
 ftrace_call:
 	bl	ftrace_stub
-	nop
+	yesp
 
 	ld	r3, _NIP(r1)
 	mtctr	r3
@@ -215,11 +215,11 @@ ftrace_call:
 	 * such it can only clobber registers which are volatile and used in
 	 * function linkage.
 	 *
-	 * We get here when a function A, calls another function B, but B has
+	 * We get here when a function A, calls ayesther function B, but B has
 	 * been live patched with a new function C.
 	 *
 	 * On entry:
-	 *  - we have no stack frame and can not allocate one
+	 *  - we have yes stack frame and can yest allocate one
 	 *  - LR points back to the original caller (in A)
 	 *  - CTR holds the new NIP in C
 	 *  - r0, r11 & r12 are free
@@ -301,7 +301,7 @@ _GLOBAL(ftrace_graph_caller)
 	subi	r4, r4, MCOUNT_INSN_SIZE
 
 	bl	prepare_ftrace_return
-	nop
+	yesp
 
 	/*
 	 * prepare_ftrace_return gives us the address we divert to.

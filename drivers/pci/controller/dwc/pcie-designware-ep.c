@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
- * Synopsys DesignWare PCIe Endpoint controller driver
+ * Syyespsys DesignWare PCIe Endpoint controller driver
  *
  * Copyright (C) 2017 Texas Instruments
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
@@ -19,7 +19,7 @@ void dw_pcie_ep_linkup(struct dw_pcie_ep *ep)
 	pci_epc_linkup(epc);
 }
 
-static void __dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_barno bar,
+static void __dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_baryes bar,
 				   int flags)
 {
 	u32 reg;
@@ -35,12 +35,12 @@ static void __dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_barno bar,
 	dw_pcie_dbi_ro_wr_dis(pci);
 }
 
-void dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_barno bar)
+void dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_baryes bar)
 {
 	__dw_pcie_ep_reset_bar(pci, bar, 0);
 }
 
-static int dw_pcie_ep_write_header(struct pci_epc *epc, u8 func_no,
+static int dw_pcie_ep_write_header(struct pci_epc *epc, u8 func_yes,
 				   struct pci_epf_header *hdr)
 {
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
@@ -65,7 +65,7 @@ static int dw_pcie_ep_write_header(struct pci_epc *epc, u8 func_no,
 	return 0;
 }
 
-static int dw_pcie_ep_inbound_atu(struct dw_pcie_ep *ep, enum pci_barno bar,
+static int dw_pcie_ep_inbound_atu(struct dw_pcie_ep *ep, enum pci_baryes bar,
 				  dma_addr_t cpu_addr,
 				  enum dw_pcie_as_type as_type)
 {
@@ -113,12 +113,12 @@ static int dw_pcie_ep_outbound_atu(struct dw_pcie_ep *ep, phys_addr_t phys_addr,
 	return 0;
 }
 
-static void dw_pcie_ep_clear_bar(struct pci_epc *epc, u8 func_no,
+static void dw_pcie_ep_clear_bar(struct pci_epc *epc, u8 func_yes,
 				 struct pci_epf_bar *epf_bar)
 {
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baryes bar = epf_bar->baryes;
 	u32 atu_index = ep->bar_to_atu[bar];
 
 	__dw_pcie_ep_reset_bar(pci, bar, epf_bar->flags);
@@ -127,13 +127,13 @@ static void dw_pcie_ep_clear_bar(struct pci_epc *epc, u8 func_no,
 	clear_bit(atu_index, ep->ib_window_map);
 }
 
-static int dw_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no,
+static int dw_pcie_ep_set_bar(struct pci_epc *epc, u8 func_yes,
 			      struct pci_epf_bar *epf_bar)
 {
 	int ret;
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baryes bar = epf_bar->baryes;
 	size_t size = epf_bar->size;
 	int flags = epf_bar->flags;
 	enum dw_pcie_as_type as_type;
@@ -178,7 +178,7 @@ static int dw_pcie_find_index(struct dw_pcie_ep *ep, phys_addr_t addr,
 	return -EINVAL;
 }
 
-static void dw_pcie_ep_unmap_addr(struct pci_epc *epc, u8 func_no,
+static void dw_pcie_ep_unmap_addr(struct pci_epc *epc, u8 func_yes,
 				  phys_addr_t addr)
 {
 	int ret;
@@ -194,7 +194,7 @@ static void dw_pcie_ep_unmap_addr(struct pci_epc *epc, u8 func_no,
 	clear_bit(atu_index, ep->ob_window_map);
 }
 
-static int dw_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no,
+static int dw_pcie_ep_map_addr(struct pci_epc *epc, u8 func_yes,
 			       phys_addr_t addr,
 			       u64 pci_addr, size_t size)
 {
@@ -211,7 +211,7 @@ static int dw_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no,
 	return 0;
 }
 
-static int dw_pcie_ep_get_msi(struct pci_epc *epc, u8 func_no)
+static int dw_pcie_ep_get_msi(struct pci_epc *epc, u8 func_yes)
 {
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
@@ -230,7 +230,7 @@ static int dw_pcie_ep_get_msi(struct pci_epc *epc, u8 func_no)
 	return val;
 }
 
-static int dw_pcie_ep_set_msi(struct pci_epc *epc, u8 func_no, u8 interrupts)
+static int dw_pcie_ep_set_msi(struct pci_epc *epc, u8 func_yes, u8 interrupts)
 {
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
@@ -250,7 +250,7 @@ static int dw_pcie_ep_set_msi(struct pci_epc *epc, u8 func_no, u8 interrupts)
 	return 0;
 }
 
-static int dw_pcie_ep_get_msix(struct pci_epc *epc, u8 func_no)
+static int dw_pcie_ep_get_msix(struct pci_epc *epc, u8 func_yes)
 {
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
@@ -269,7 +269,7 @@ static int dw_pcie_ep_get_msix(struct pci_epc *epc, u8 func_no)
 	return val;
 }
 
-static int dw_pcie_ep_set_msix(struct pci_epc *epc, u8 func_no, u16 interrupts)
+static int dw_pcie_ep_set_msix(struct pci_epc *epc, u8 func_yes, u16 interrupts)
 {
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
@@ -289,7 +289,7 @@ static int dw_pcie_ep_set_msix(struct pci_epc *epc, u8 func_no, u16 interrupts)
 	return 0;
 }
 
-static int dw_pcie_ep_raise_irq(struct pci_epc *epc, u8 func_no,
+static int dw_pcie_ep_raise_irq(struct pci_epc *epc, u8 func_yes,
 				enum pci_epc_irq_type type, u16 interrupt_num)
 {
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
@@ -297,7 +297,7 @@ static int dw_pcie_ep_raise_irq(struct pci_epc *epc, u8 func_no,
 	if (!ep->ops->raise_irq)
 		return -EINVAL;
 
-	return ep->ops->raise_irq(ep, func_no, type, interrupt_num);
+	return ep->ops->raise_irq(ep, func_yes, type, interrupt_num);
 }
 
 static void dw_pcie_ep_stop(struct pci_epc *epc)
@@ -323,7 +323,7 @@ static int dw_pcie_ep_start(struct pci_epc *epc)
 }
 
 static const struct pci_epc_features*
-dw_pcie_ep_get_features(struct pci_epc *epc, u8 func_no)
+dw_pcie_ep_get_features(struct pci_epc *epc, u8 func_yes)
 {
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
 
@@ -349,17 +349,17 @@ static const struct pci_epc_ops epc_ops = {
 	.get_features		= dw_pcie_ep_get_features,
 };
 
-int dw_pcie_ep_raise_legacy_irq(struct dw_pcie_ep *ep, u8 func_no)
+int dw_pcie_ep_raise_legacy_irq(struct dw_pcie_ep *ep, u8 func_yes)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct device *dev = pci->dev;
 
-	dev_err(dev, "EP cannot trigger legacy IRQs\n");
+	dev_err(dev, "EP canyest trigger legacy IRQs\n");
 
 	return -EINVAL;
 }
 
-int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
+int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_yes,
 			     u8 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
@@ -393,19 +393,19 @@ int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
 	aligned_offset = msg_addr_lower & (epc->mem->page_size - 1);
 	msg_addr = ((u64)msg_addr_upper) << 32 |
 			(msg_addr_lower & ~aligned_offset);
-	ret = dw_pcie_ep_map_addr(epc, func_no, ep->msi_mem_phys, msg_addr,
+	ret = dw_pcie_ep_map_addr(epc, func_yes, ep->msi_mem_phys, msg_addr,
 				  epc->mem->page_size);
 	if (ret)
 		return ret;
 
 	writel(msg_data | (interrupt_num - 1), ep->msi_mem + aligned_offset);
 
-	dw_pcie_ep_unmap_addr(epc, func_no, ep->msi_mem_phys);
+	dw_pcie_ep_unmap_addr(epc, func_yes, ep->msi_mem_phys);
 
 	return 0;
 }
 
-int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
+int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_yes,
 			     u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
@@ -434,7 +434,7 @@ int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
 	tbl_addr += (tbl_offset + ((interrupt_num - 1) * PCI_MSIX_ENTRY_SIZE));
 	tbl_addr &= PCI_BASE_ADDRESS_MEM_MASK;
 
-	msix_tbl = ioremap_nocache(ep->phys_base + tbl_addr,
+	msix_tbl = ioremap_yescache(ep->phys_base + tbl_addr,
 				   PCI_MSIX_ENTRY_SIZE);
 	if (!msix_tbl)
 		return -EINVAL;
@@ -452,14 +452,14 @@ int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
 		return -EPERM;
 	}
 
-	ret = dw_pcie_ep_map_addr(epc, func_no, ep->msi_mem_phys, msg_addr,
+	ret = dw_pcie_ep_map_addr(epc, func_yes, ep->msi_mem_phys, msg_addr,
 				  epc->mem->page_size);
 	if (ret)
 		return ret;
 
 	writel(msg_data, ep->msi_mem);
 
-	dw_pcie_ep_unmap_addr(epc, func_no, ep->msi_mem_phys);
+	dw_pcie_ep_unmap_addr(epc, func_yes, ep->msi_mem_phys);
 
 	return 0;
 }
@@ -504,10 +504,10 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	struct pci_epc *epc;
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct device *dev = pci->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	if (!pci->dbi_base || !pci->dbi_base2) {
-		dev_err(dev, "dbi_base/dbi_base2 is not populated\n");
+		dev_err(dev, "dbi_base/dbi_base2 is yest populated\n");
 		return -EINVAL;
 	}
 
@@ -565,7 +565,7 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 
 	hdr_type = dw_pcie_readb_dbi(pci, PCI_HEADER_TYPE);
 	if (hdr_type != PCI_HEADER_TYPE_NORMAL) {
-		dev_err(pci->dev, "PCIe controller is not set to EP mode (hdr_type:0x%x)!\n",
+		dev_err(pci->dev, "PCIe controller is yest set to EP mode (hdr_type:0x%x)!\n",
 			hdr_type);
 		return -EIO;
 	}

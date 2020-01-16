@@ -150,7 +150,7 @@ struct qedf_ioreq {
 	int idx;
 	int lun;
 /*
- * Need to allocate enough room for both sense data and FCP response data
+ * Need to allocate eyesugh room for both sense data and FCP response data
  * which has a max length of 8 bytes according to spec.
  */
 #define QEDF_SCSI_SENSE_BUFFERSIZE	(SCSI_SENSE_BUFFERSIZE + 8)
@@ -572,7 +572,7 @@ struct fip_vlan {
 /*
  * PCI function probe defines
  */
-/* Probe/remove called during normal PCI probe */
+/* Probe/remove called during yesrmal PCI probe */
 #define	QEDF_MODE_NORMAL		0
 /* Probe/remove called from qed error recovery */
 #define QEDF_MODE_RECOVERY		1

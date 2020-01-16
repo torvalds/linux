@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-ep93xx/ts72xx.c
- * Technologic Systems TS72xx SBC support.
+ * Techyeslogic Systems TS72xx SBC support.
  *
  * Copyright (C) 2006 Lennert Buytenhek <buytenh@wantstofly.org>
  */
@@ -262,7 +262,7 @@ static struct spi_board_info bk3_spi_board_info[] __initdata = {
 };
 
 /*
- * This is a stub -> the FGPIO[3] pin is not connected on the schematic
+ * This is a stub -> the FGPIO[3] pin is yest connected on the schematic
  * The all work is performed automatically by !SPI_FRAME (SFRM1) and
  * goes through CPLD
  */
@@ -347,7 +347,7 @@ static void __init ts72xx_init_machine(void)
 			    ARRAY_SIZE(ts72xx_spi_devices));
 }
 
-MACHINE_START(TS72XX, "Technologic Systems TS-72xx SBC")
+MACHINE_START(TS72XX, "Techyeslogic Systems TS-72xx SBC")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
 	.atag_offset	= 0x100,
 	.map_io		= ts72xx_map_io,

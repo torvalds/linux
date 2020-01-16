@@ -28,7 +28,7 @@
 #include "pq2.h"
 
 static u8 __iomem *ep8248e_bcsr;
-static struct device_node *ep8248e_bcsr_node;
+static struct device_yesde *ep8248e_bcsr_yesde;
 
 #define BCSR7_SCC2_ENABLE 0x10
 
@@ -47,14 +47,14 @@ static struct device_node *ep8248e_bcsr_node;
 
 static void __init ep8248e_pic_init(void)
 {
-	struct device_node *np = of_find_compatible_node(NULL, NULL, "fsl,pq2-pic");
+	struct device_yesde *np = of_find_compatible_yesde(NULL, NULL, "fsl,pq2-pic");
 	if (!np) {
-		printk(KERN_ERR "PIC init: can not find cpm-pic node\n");
+		printk(KERN_ERR "PIC init: can yest find cpm-pic yesde\n");
 		return;
 	}
 
 	cpm2_pic_init(np);
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 static void ep8248e_set_mdc(struct mdiobb_ctrl *ctrl, int level)
@@ -111,15 +111,15 @@ static int ep8248e_mdio_probe(struct platform_device *ofdev)
 {
 	struct mii_bus *bus;
 	struct resource res;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int ret;
 
-	node = of_get_parent(ofdev->dev.of_node);
-	of_node_put(node);
-	if (node != ep8248e_bcsr_node)
+	yesde = of_get_parent(ofdev->dev.of_yesde);
+	of_yesde_put(yesde);
+	if (yesde != ep8248e_bcsr_yesde)
 		return -ENODEV;
 
-	ret = of_address_to_resource(ofdev->dev.of_node, 0, &res);
+	ret = of_address_to_resource(ofdev->dev.of_yesde, 0, &res);
 	if (ret)
 		return ret;
 
@@ -131,7 +131,7 @@ static int ep8248e_mdio_probe(struct platform_device *ofdev)
 	bus->parent = &ofdev->dev;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
-	ret = of_mdiobus_register(bus, ofdev->dev.of_node);
+	ret = of_mdiobus_register(bus, ofdev->dev.of_yesde);
 	if (ret)
 		goto err_free_bus;
 
@@ -255,23 +255,23 @@ static void __init ep8248e_setup_arch(void)
 
 	cpm2_reset();
 
-	/* When this is set, snooping CPM DMA from RAM causes
+	/* When this is set, syesoping CPM DMA from RAM causes
 	 * machine checks.  See erratum SIU18.
 	 */
 	clrbits32(&cpm2_immr->im_siu_conf.siu_82xx.sc_bcr, MPC82XX_BCR_PLDP);
 
-	ep8248e_bcsr_node =
-		of_find_compatible_node(NULL, NULL, "fsl,ep8248e-bcsr");
-	if (!ep8248e_bcsr_node) {
+	ep8248e_bcsr_yesde =
+		of_find_compatible_yesde(NULL, NULL, "fsl,ep8248e-bcsr");
+	if (!ep8248e_bcsr_yesde) {
 		printk(KERN_ERR "No bcsr in device tree\n");
 		return;
 	}
 
-	ep8248e_bcsr = of_iomap(ep8248e_bcsr_node, 0);
+	ep8248e_bcsr = of_iomap(ep8248e_bcsr_yesde, 0);
 	if (!ep8248e_bcsr) {
-		printk(KERN_ERR "Cannot map BCSR registers\n");
-		of_node_put(ep8248e_bcsr_node);
-		ep8248e_bcsr_node = NULL;
+		printk(KERN_ERR "Canyest map BCSR registers\n");
+		of_yesde_put(ep8248e_bcsr_yesde);
+		ep8248e_bcsr_yesde = NULL;
 		return;
 	}
 

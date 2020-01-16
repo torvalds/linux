@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: key.h

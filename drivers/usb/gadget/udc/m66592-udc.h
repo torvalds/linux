@@ -132,7 +132,7 @@
 #define M66592_DVSE	0x1000	/* b12: Device state transition interrupt */
 #define M66592_CTRE	0x0800	/* b11: Control transfer stage transition irq */
 #define M66592_BEMPE	0x0400	/* b10: Buffer empty interrupt */
-#define M66592_NRDYE	0x0200	/* b9: Buffer not ready interrupt */
+#define M66592_NRDYE	0x0200	/* b9: Buffer yest ready interrupt */
 #define M66592_BRDYE	0x0100	/* b8: Buffer ready interrupt */
 #define M66592_URST	0x0080	/* b7: USB reset detected interrupt */
 #define M66592_SADR	0x0040	/* b6: Set address executed interrupt */
@@ -198,7 +198,7 @@
 #define M66592_DVST		0x1000	/* b12: Device state transition */
 #define M66592_CTRT		0x0800	/* b11: Control stage transition */
 #define M66592_BEMP		0x0400	/* b10: Buffer empty interrupt */
-#define M66592_NRDY		0x0200	/* b9: Buffer not ready interrupt */
+#define M66592_NRDY		0x0200	/* b9: Buffer yest ready interrupt */
 #define M66592_BRDY		0x0100	/* b8: Buffer ready interrupt */
 #define M66592_VBSTS		0x0080	/* b7: VBUS input port */
 #define M66592_DVSQ		0x0070	/* b6-4: Device state */
@@ -215,7 +215,7 @@
 #define M66592_VALID		0x0008	/* b3: Setup packet detected flag */
 #define M66592_CTSQ		0x0007	/* b2-0: Control transfer stage */
 #define   M66592_CS_SQER	 0x0006	  /* Sequence error */
-#define   M66592_CS_WRND	 0x0005	  /* Control write nodata status */
+#define   M66592_CS_WRND	 0x0005	  /* Control write yesdata status */
 #define   M66592_CS_WRSS	 0x0004	  /* Control write status stage */
 #define   M66592_CS_WRDS	 0x0003	  /* Control write data stage */
 #define   M66592_CS_RDSS	 0x0002	  /* Control read status stage */
@@ -349,7 +349,7 @@
 
 #define M66592_PIPECFG		0x66
 #define M66592_TYP		0xC000	/* b15-14: Transfer type */
-#define   M66592_ISO		 0xC000		  /* Isochronous */
+#define   M66592_ISO		 0xC000		  /* Isochroyesus */
 #define   M66592_INT		 0x8000		  /* Interrupt */
 #define   M66592_BULK		 0x4000		  /* Bulk */
 #define M66592_BFRE		0x0400	/* b10: Buffer ready interrupt mode */
@@ -486,7 +486,7 @@ struct m66592 {
 	/* pipe config */
 	int bulk;
 	int interrupt;
-	int isochronous;
+	int isochroyesus;
 	int num_dma;
 };
 #define to_m66592(g)	(container_of((g), struct m66592, gadget))

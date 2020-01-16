@@ -216,7 +216,7 @@ void	rtw_hal_antdiv_rssi_compared(struct adapter *padapter,
 
 void rtw_hal_sreset_init(struct adapter *padapter);
 
-void rtw_hal_notch_filter(struct adapter *adapter, bool enable);
+void rtw_hal_yestch_filter(struct adapter *adapter, bool enable);
 
 void indicate_wx_scan_complete_event(struct adapter *padapter);
 u8 rtw_do_join(struct adapter *padapter);

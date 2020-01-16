@@ -32,7 +32,7 @@ static void pirq_disable_irq(struct pci_dev *dev);
 /*
  * Never use: 0, 1, 2 (timer, keyboard, and cascade)
  * Avoid using: 13, 14 and 15 (FP error and IDE).
- * Penalize: 3, 4, 6, 7, 12 (known ISA uses: serial, floppy, parallel and mouse)
+ * Penalize: 3, 4, 6, 7, 12 (kyeswn ISA uses: serial, floppy, parallel and mouse)
  */
 unsigned int pcibios_irq_mask = 0xfff8;
 
@@ -112,7 +112,7 @@ static struct irq_routing_table * __init pirq_find_routing_table(void)
 
 /*
  *  If we have a IRQ routing table, use it to search for peer host
- *  bridges.  It's a gross hack, but since there are no other known
+ *  bridges.  It's a gross hack, but since there are yes other kyeswn
  *  ways how to get a list of buses, we have to go this way.
  */
 
@@ -195,7 +195,7 @@ static void write_config_nybble(struct pci_dev *router, unsigned offset,
 
 /*
  * ALI pirq entries are damn ugly, and completely undocumented.
- * This has been figured out from pirq tables, and it's not a pretty
+ * This has been figured out from pirq tables, and it's yest a pretty
  * picture.
  */
 static int pirq_ali_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
@@ -333,7 +333,7 @@ static int pirq_cyrix_set(struct pci_dev *router, struct pci_dev *dev, int pirq,
  *	We have to deal with the following issues here:
  *	- vendors have different ideas about the meaning of link values
  *	- some onboard devices (integrated in the chipset) have special
- *	  links and are thus routed differently (i.e. not via PCI INTA-INTD)
+ *	  links and are thus routed differently (i.e. yest via PCI INTA-INTD)
  *	- different revision of the router have a different layout for
  *	  the routing registers, particularly for the onchip devices
  *
@@ -346,7 +346,7 @@ static int pirq_cyrix_set(struct pci_dev *router, struct pci_dev *dev, int pirq,
  *		     reserved: 0, 1, 2, 8, 13
  *
  *	The config-space registers located at 0x41/0x42/0x43/0x44 are
- *	always used to route the normal PCI INT A/B/C/D respectively.
+ *	always used to route the yesrmal PCI INT A/B/C/D respectively.
  *	Apparently there are systems implementing PCI routing table using
  *	link values 0x01-0x04 and others using 0x41-0x44 for PCI INTA..D.
  *	We try our best to handle both link mappings.
@@ -386,7 +386,7 @@ static int pirq_cyrix_set(struct pci_dev *router, struct pci_dev *dev, int pirq,
  *	Onchip routing for router rev-id 0x04 (try-and-error observation)
  *
  *	0x60/0x61/0x62/0x63:	1xEHCI and 3xOHCI (companion) USB-HCs
- *				bit 6-4 are probably unused, not like 5595
+ *				bit 6-4 are probably unused, yest like 5595
  */
 
 #define PIRQ_SIS_IRQ_MASK	0x0f
@@ -425,7 +425,7 @@ static int pirq_sis_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
  * VLSI: nibble offset 0x74 - educated guess due to routing table and
  *       config space of VLSI 82C534 PCI-bridge/router (1004:0102)
  *       Tested on HP OmniBook 800 covering PIRQ 1, 2, 4, 8 for onboard
- *       devices, PIRQ 3 for non-pci(!) soundchip and (untested) PIRQ 6
+ *       devices, PIRQ 3 for yesn-pci(!) soundchip and (untested) PIRQ 6
  *       for the busbridge to the docking station.
  */
 
@@ -842,7 +842,7 @@ static void __init pirq_find_router(struct irq_router *r)
 	pirq_router_dev = pci_get_domain_bus_and_slot(0, rt->rtr_bus,
 						      rt->rtr_devfn);
 	if (!pirq_router_dev) {
-		DBG(KERN_DEBUG "PCI: Interrupt router not found at "
+		DBG(KERN_DEBUG "PCI: Interrupt router yest found at "
 			"%02x:%02x\n", rt->rtr_bus, rt->rtr_devfn);
 		return;
 	}
@@ -892,7 +892,7 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	/* Find IRQ pin */
 	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
 	if (!pin) {
-		dev_dbg(&dev->dev, "no interrupt pin\n");
+		dev_dbg(&dev->dev, "yes interrupt pin\n");
 		return 0;
 	}
 
@@ -906,14 +906,14 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 
 	info = pirq_get_info(dev);
 	if (!info) {
-		dev_dbg(&dev->dev, "PCI INT %c not found in routing table\n",
+		dev_dbg(&dev->dev, "PCI INT %c yest found in routing table\n",
 			'A' + pin - 1);
 		return 0;
 	}
 	pirq = info->irq[pin - 1].link;
 	mask = info->irq[pin - 1].bitmap;
 	if (!pirq) {
-		dev_dbg(&dev->dev, "PCI INT %c not routed\n", 'A' + pin - 1);
+		dev_dbg(&dev->dev, "PCI INT %c yest routed\n", 'A' + pin - 1);
 		return 0;
 	}
 	dev_dbg(&dev->dev, "PCI INT %c -> PIRQ %02x, mask %04x, excl %04x",
@@ -1032,16 +1032,16 @@ void __init pcibios_fixup_irqs(void)
 	for_each_pci_dev(dev) {
 		/*
 		 * If the BIOS has set an out of range IRQ number, just
-		 * ignore it.  Also keep track of which IRQ's are
+		 * igyesre it.  Also keep track of which IRQ's are
 		 * already in use.
 		 */
 		if (dev->irq >= 16) {
-			dev_dbg(&dev->dev, "ignoring bogus IRQ %d\n", dev->irq);
+			dev_dbg(&dev->dev, "igyesring bogus IRQ %d\n", dev->irq);
 			dev->irq = 0;
 		}
 		/*
 		 * If the IRQ is already assigned to a PCI device,
-		 * ignore its ISA use penalty
+		 * igyesre its ISA use penalty
 		 */
 		if (pirq_penalty[dev->irq] >= 100 &&
 				pirq_penalty[dev->irq] < 100000)
@@ -1059,7 +1059,7 @@ void __init pcibios_fixup_irqs(void)
 			continue;
 
 		/*
-		 * Still no IRQ? Try to lookup one...
+		 * Still yes IRQ? Try to lookup one...
 		 */
 		if (!dev->irq)
 			pcibios_lookup_irq(dev, 0);
@@ -1187,7 +1187,7 @@ static void pirq_penalize_isa_irq(int irq, int active)
 void pcibios_penalize_isa_irq(int irq, int active)
 {
 #ifdef CONFIG_ACPI
-	if (!acpi_noirq)
+	if (!acpi_yesirq)
 		acpi_penalize_isa_irq(irq, active);
 	else
 #endif
@@ -1216,7 +1216,7 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			irq = IO_APIC_get_PCI_irq_vector(dev->bus->number,
 						PCI_SLOT(dev->devfn), pin - 1);
 			/*
-			 * Busses behind bridges are typically not listed in the MP-table.
+			 * Busses behind bridges are typically yest listed in the MP-table.
 			 * In this case we have to look up the IRQ based on the parent bus,
 			 * parent slot, and pin number. The SMP code detects such bridged
 			 * busses itself so we should get into this branch reliably.
@@ -1252,7 +1252,7 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			msg = "; please try using pci=biosirq";
 
 		/*
-		 * With IDE legacy devices the IRQ lookup failure is not
+		 * With IDE legacy devices the IRQ lookup failure is yest
 		 * a problem..
 		 */
 		if (dev->class >> 8 == PCI_CLASS_STORAGE_IDE &&

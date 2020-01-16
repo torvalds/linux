@@ -34,7 +34,7 @@
 /*
  * This flag controls if WP stays on between erase/write commands to mitigate
  * flash corruption due to power glitches. Values:
- * 0: NAND_WP is not used or not available
+ * 0: NAND_WP is yest used or yest available
  * 1: NAND_WP is set by default, cleared for erase/write operations
  * 2: NAND_WP is always cleared
  */
@@ -239,7 +239,7 @@ struct brcmnand_cfg {
 };
 
 struct brcmnand_host {
-	struct list_head	node;
+	struct list_head	yesde;
 
 	struct nand_chip	chip;
 	struct platform_device	*pdev;
@@ -261,7 +261,7 @@ enum brcmnand_reg {
 	BRCMNAND_CS_XOR,
 	BRCMNAND_LL_OP,
 	BRCMNAND_CS0_BASE,
-	BRCMNAND_CS1_BASE,		/* CS1 regs, if non-contiguous */
+	BRCMNAND_CS1_BASE,		/* CS1 regs, if yesn-contiguous */
 	BRCMNAND_CORR_THRESHOLD,
 	BRCMNAND_CORR_THRESHOLD_EXT,
 	BRCMNAND_UNCORR_COUNT,
@@ -275,9 +275,9 @@ enum brcmnand_reg {
 	BRCMNAND_ID_EXT,
 	BRCMNAND_LL_RDATA,
 	BRCMNAND_OOB_READ_BASE,
-	BRCMNAND_OOB_READ_10_BASE,	/* offset 0x10, if non-contiguous */
+	BRCMNAND_OOB_READ_10_BASE,	/* offset 0x10, if yesn-contiguous */
 	BRCMNAND_OOB_WRITE_BASE,
-	BRCMNAND_OOB_WRITE_10_BASE,	/* offset 0x10, if non-contiguous */
+	BRCMNAND_OOB_WRITE_10_BASE,	/* offset 0x10, if yesn-contiguous */
 	BRCMNAND_FC_BASE,
 };
 
@@ -479,7 +479,7 @@ enum {
 	CFG_BUS_WIDTH			= BIT(CFG_BUS_WIDTH_SHIFT),
 	CFG_DEVICE_SIZE_SHIFT		= 24,
 
-	/* Only for pre-v7.1 (with no CFG_EXT register) */
+	/* Only for pre-v7.1 (with yes CFG_EXT register) */
 	CFG_PAGE_SIZE_SHIFT		= 20,
 	CFG_BLK_SIZE_SHIFT		= 28,
 
@@ -520,7 +520,7 @@ static int brcmnand_revision_init(struct brcmnand_controller *ctrl)
 
 	/* Only support v4.0+? */
 	if (ctrl->nand_version < 0x0400) {
-		dev_err(ctrl->dev, "version %#x not supported\n",
+		dev_err(ctrl->dev, "version %#x yest supported\n",
 			ctrl->nand_version);
 		return -ENODEV;
 	}
@@ -587,8 +587,8 @@ static int brcmnand_revision_init(struct brcmnand_controller *ctrl)
 		ctrl->features |= BRCMNAND_HAS_PREFETCH;
 
 	/*
-	 * v6.x has cache mode, but it's implemented differently. Ignore it for
-	 * now.
+	 * v6.x has cache mode, but it's implemented differently. Igyesre it for
+	 * yesw.
 	 */
 	if (ctrl->nand_version >= 0x0700)
 		ctrl->features |= BRCMNAND_HAS_CACHE_MODE;
@@ -598,7 +598,7 @@ static int brcmnand_revision_init(struct brcmnand_controller *ctrl)
 
 	if (ctrl->nand_version >= 0x0700)
 		ctrl->features |= BRCMNAND_HAS_WP;
-	else if (of_property_read_bool(ctrl->dev->of_node, "brcm,nand-has-wp"))
+	else if (of_property_read_bool(ctrl->dev->of_yesde, "brcm,nand-has-wp"))
 		ctrl->features |= BRCMNAND_HAS_WP;
 
 	return 0;
@@ -1194,7 +1194,7 @@ static void brcmnand_wp(struct mtd_info *mtd, int wp)
 
 		brcmnand_set_wp(ctrl, wp);
 		nand_status_op(chip, NULL);
-		/* NAND_STATUS_WP 0x00 = protected, 0x80 = not protected */
+		/* NAND_STATUS_WP 0x00 = protected, 0x80 = yest protected */
 		ret = bcmnand_ctrl_poll_status(ctrl,
 					       NAND_CTRL_RDY |
 					       NAND_STATUS_READY |
@@ -1513,7 +1513,7 @@ static void brcmnand_cmdfunc(struct nand_chip *chip, unsigned command,
 		addr &= ~((u64)(FC_BYTES - 1));
 		/*
 		 * HW quirk: PARAMETER_CHANGE_COL requires SECTOR_SIZE_1K=0
-		 * NB: hwcfg.sector_size_1k may not be initialized yet
+		 * NB: hwcfg.sector_size_1k may yest be initialized yet
 		 */
 		if (brcmnand_get_sector_size_1k(host)) {
 			host->hwcfg.sector_size_1k =
@@ -1539,7 +1539,7 @@ static void brcmnand_cmdfunc(struct nand_chip *chip, unsigned command,
 		brcmnand_soc_data_bus_prepare(ctrl->soc, true);
 
 		/*
-		 * Must cache the FLASH_CACHE now, since changes in
+		 * Must cache the FLASH_CACHE yesw, since changes in
 		 * SECTOR_SIZE_1K may invalidate it
 		 */
 		for (i = 0; i < FC_WORDS; i++)
@@ -1645,7 +1645,7 @@ static void brcmnand_write_buf(struct nand_chip *chip, const uint8_t *buf,
 }
 
 /**
- * Construct a FLASH_DMA descriptor as part of a linked list. You must know the
+ * Construct a FLASH_DMA descriptor as part of a linked list. You must kyesw the
  * following ahead of time:
  *  - Is this descriptor the beginning or end of a linked list?
  *  - What is the (DMA) address of the next descriptor in the linked list?
@@ -1751,7 +1751,7 @@ static int brcmnand_read_by_pio(struct mtd_info *mtd, struct nand_chip *chip,
 
 	for (i = 0; i < trans; i++, addr += FC_BYTES) {
 		brcmnand_set_cmd_addr(mtd, addr);
-		/* SPARE_AREA_READ does not use ECC, so just use PAGE_READ */
+		/* SPARE_AREA_READ does yest use ECC, so just use PAGE_READ */
 		brcmnand_send_cmd(host, CMD_PAGE_READ);
 		brcmnand_waitfunc(chip);
 
@@ -1793,7 +1793,7 @@ static int brcmnand_read_by_pio(struct mtd_info *mtd, struct nand_chip *chip,
  *
  * Because the HW ECC signals an ECC error if an erase paged has even a single
  * bitflip, we must check each ECC error to see if it is actually an erased
- * page with bitflips, not a truly corrupted page.
+ * page with bitflips, yest a truly corrupted page.
  *
  * On a real error, return a negative error code (-EBADMSG for ECC error), and
  * buf will contain raw data.
@@ -2017,7 +2017,7 @@ static int brcmnand_write(struct mtd_info *mtd, struct nand_chip *chip,
 					host->hwcfg.sector_size_1k);
 		}
 
-		/* we cannot use SPARE_AREA_PROGRAM when PARTIAL_PAGE_EN=0 */
+		/* we canyest use SPARE_AREA_PROGRAM when PARTIAL_PAGE_EN=0 */
 		brcmnand_send_cmd(host, CMD_PROGRAM_PAGE);
 		status = brcmnand_waitfunc(chip);
 
@@ -2208,7 +2208,7 @@ static void brcmnand_print_cfg(struct brcmnand_host *host,
  * Minimum number of bytes to address a page. Calculated as:
  *     roundup(log2(size / page-size) / 8)
  *
- * NB: the following does not "round up" for non-power-of-2 'size'; but this is
+ * NB: the following does yest "round up" for yesn-power-of-2 'size'; but this is
  *     OK because many other things will break if 'size' is irregular...
  */
 static inline int get_blk_adr_bytes(u64 size, u32 writesize)
@@ -2228,7 +2228,7 @@ static int brcmnand_setup_dev(struct brcmnand_host *host)
 
 	memset(cfg, 0, sizeof(*cfg));
 
-	ret = of_property_read_u32(nand_get_flash_node(chip),
+	ret = of_property_read_u32(nand_get_flash_yesde(chip),
 				   "brcm,nand-oob-sector-size",
 				   &oob_sector);
 	if (ret) {
@@ -2296,12 +2296,12 @@ static int brcmnand_setup_dev(struct brcmnand_host *host)
 		break;
 	case 1024:
 		if (!(ctrl->features & BRCMNAND_HAS_1K_SECTORS)) {
-			dev_err(ctrl->dev, "1KB sectors not supported\n");
+			dev_err(ctrl->dev, "1KB sectors yest supported\n");
 			return -EINVAL;
 		}
 		if (chip->ecc.strength & 0x1) {
 			dev_err(ctrl->dev,
-				"odd ECC not supported with 1KB sectors\n");
+				"odd ECC yest supported with 1KB sectors\n");
 			return -EINVAL;
 		}
 
@@ -2381,7 +2381,7 @@ static const struct nand_controller_ops brcmnand_controller_ops = {
 	.attach_chip = brcmnand_attach_chip,
 };
 
-static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
+static int brcmnand_init_cs(struct brcmnand_host *host, struct device_yesde *dn)
 {
 	struct brcmnand_controller *ctrl = host->ctrl;
 	struct platform_device *pdev = host->pdev;
@@ -2399,7 +2399,7 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	mtd = nand_to_mtd(&host->chip);
 	chip = &host->chip;
 
-	nand_set_flash_node(chip, dn);
+	nand_set_flash_yesde(chip, dn);
 	nand_set_controller_data(chip, host);
 	mtd->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "brcmnand.%d",
 				   host->cs);
@@ -2484,7 +2484,7 @@ static int brcmnand_suspend(struct device *dev)
 	struct brcmnand_controller *ctrl = dev_get_drvdata(dev);
 	struct brcmnand_host *host;
 
-	list_for_each_entry(host, &ctrl->host_list, node)
+	list_for_each_entry(host, &ctrl->host_list, yesde)
 		brcmnand_save_restore_cs_config(host, 0);
 
 	ctrl->nand_cs_nand_select = brcmnand_read_reg(ctrl, BRCMNAND_CS_SELECT);
@@ -2518,7 +2518,7 @@ static int brcmnand_resume(struct device *dev)
 		ctrl->soc->ctlrdy_set_enabled(ctrl->soc, true);
 	}
 
-	list_for_each_entry(host, &ctrl->host_list, node) {
+	list_for_each_entry(host, &ctrl->host_list, yesde) {
 		struct nand_chip *chip = &host->chip;
 
 		brcmnand_save_restore_cs_config(host, 1);
@@ -2557,7 +2557,7 @@ MODULE_DEVICE_TABLE(of, brcmnand_of_match);
 int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node, *child;
+	struct device_yesde *dn = dev->of_yesde, *child;
 	struct brcmnand_controller *ctrl;
 	struct resource *res;
 	int ret;
@@ -2566,7 +2566,7 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 	if (!dn)
 		return -ENODEV;
 
-	if (!of_match_node(brcmnand_of_match, dn))
+	if (!of_match_yesde(brcmnand_of_match, dn))
 		return -ENODEV;
 
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
@@ -2684,7 +2684,7 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 	/* IRQ */
 	ctrl->irq = platform_get_irq(pdev, 0);
 	if ((int)ctrl->irq < 0) {
-		dev_err(dev, "no IRQ defined\n");
+		dev_err(dev, "yes IRQ defined\n");
 		ret = -ENODEV;
 		goto err;
 	}
@@ -2713,13 +2713,13 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 		goto err;
 	}
 
-	for_each_available_child_of_node(dn, child) {
+	for_each_available_child_of_yesde(dn, child) {
 		if (of_device_is_compatible(child, "brcm,nandcs")) {
 			struct brcmnand_host *host;
 
 			host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 			if (!host) {
-				of_node_put(child);
+				of_yesde_put(child);
 				ret = -ENOMEM;
 				goto err;
 			}
@@ -2732,7 +2732,7 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 				continue; /* Try all chip-selects */
 			}
 
-			list_add_tail(&host->node, &ctrl->host_list);
+			list_add_tail(&host->yesde, &ctrl->host_list);
 		}
 	}
 
@@ -2756,7 +2756,7 @@ int brcmnand_remove(struct platform_device *pdev)
 	struct brcmnand_controller *ctrl = dev_get_drvdata(&pdev->dev);
 	struct brcmnand_host *host;
 
-	list_for_each_entry(host, &ctrl->host_list, node)
+	list_for_each_entry(host, &ctrl->host_list, yesde)
 		nand_release(&host->chip);
 
 	clk_disable_unprepare(ctrl->clk);

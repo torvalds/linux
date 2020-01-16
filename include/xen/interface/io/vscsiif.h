@@ -10,7 +10,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,15 +33,15 @@
 /*
  * Feature and Parameter Negotiation
  * =================================
- * The two halves of a Xen pvSCSI driver utilize nodes within the XenStore to
+ * The two halves of a Xen pvSCSI driver utilize yesdes within the XenStore to
  * communicate capabilities and to negotiate operating parameters.  This
- * section enumerates these nodes which reside in the respective front and
+ * section enumerates these yesdes which reside in the respective front and
  * backend portions of the XenStore, following the XenBus convention.
  *
- * Any specified default value is in effect if the corresponding XenBus node
- * is not present in the XenStore.
+ * Any specified default value is in effect if the corresponding XenBus yesde
+ * is yest present in the XenStore.
  *
- * XenStore nodes in sections marked "PRIVATE" are solely for use by the
+ * XenStore yesdes in sections marked "PRIVATE" are solely for use by the
  * driver side whose XenBus tree contains them.
  *
  *****************************************************************************
@@ -75,7 +75,7 @@
  *      Default Value:  0
  *
  *      Specifies the maximum number of scatter/gather elements in grant pages
- *      supported. If not set, the backend supports up to VSCSIIF_SG_TABLESIZE
+ *      supported. If yest set, the backend supports up to VSCSIIF_SG_TABLESIZE
  *      SG elements specified directly in the request.
  *
  *****************************************************************************
@@ -112,14 +112,14 @@
  *
  * The operation to be performed is specified via a CDB in cmnd[], the length
  * of the CDB is in cmd_len. sc_data_direction specifies the direction of data
- * (to the device, from the device, or none at all).
+ * (to the device, from the device, or yesne at all).
  *
  * If data is to be transferred to or from the device the buffer(s) in the
  * guest memory is/are specified via one or multiple scsiif_request_segment
  * descriptors each specifying a memory page via a grant_ref_t, a offset into
  * the page and the length of the area in that page. All scsiif_request_segment
  * areas concatenated form the resulting data buffer used by the operation.
- * If the number of scsiif_request_segment areas is not too large (less than
+ * If the number of scsiif_request_segment areas is yest too large (less than
  * or equal VSCSIIF_SG_TABLESIZE) the areas can be specified directly in the
  * seg[] array and the number of valid scsiif_request_segment elements is to be
  * set in nr_segments.

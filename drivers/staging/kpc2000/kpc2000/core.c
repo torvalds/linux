@@ -8,7 +8,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/cdev.h>
 #include <linux/rwsem.h>
 #include <linux/uaccess.h>
@@ -16,7 +16,7 @@
 #include <linux/mfd/core.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
@@ -221,7 +221,7 @@ static void wait_and_read_ssid(struct kp2000_device *pcard)
 		//schedule();
 	} while (time_before(jiffies, timeout));
 
-	dev_notice(&pcard->pdev->dev, "SSID didn't show up!\n");
+	dev_yestice(&pcard->pdev->dev, "SSID didn't show up!\n");
 
 	// Timed out waiting for the SSID to show up, stick all zeros in the
 	// value
@@ -275,7 +275,7 @@ static int  read_system_regs(struct kp2000_device *pcard)
 
 	if (pcard->core_table_rev > 1) {
 		dev_err(&pcard->pdev->dev,
-			"core table entry revision is higher than we can deal with, cannot continue with this card!\n");
+			"core table entry revision is higher than we can deal with, canyest continue with this card!\n");
 		return 1;
 	}
 
@@ -338,10 +338,10 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	reg_bar_phys_addr = pci_resource_start(pcard->pdev, REG_BAR);
 	reg_bar_phys_len = pci_resource_len(pcard->pdev, REG_BAR);
 
-	pcard->regs_bar_base = ioremap_nocache(reg_bar_phys_addr, PAGE_SIZE);
+	pcard->regs_bar_base = ioremap_yescache(reg_bar_phys_addr, PAGE_SIZE);
 	if (!pcard->regs_bar_base) {
 		dev_err(&pcard->pdev->dev,
-			"probe: REG_BAR could not remap memory to virtual space\n");
+			"probe: REG_BAR could yest remap memory to virtual space\n");
 		err = -ENODEV;
 		goto err_disable_device;
 	}
@@ -367,11 +367,11 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	dma_bar_phys_addr = pci_resource_start(pcard->pdev, DMA_BAR);
 	dma_bar_phys_len = pci_resource_len(pcard->pdev, DMA_BAR);
 
-	pcard->dma_bar_base = ioremap_nocache(dma_bar_phys_addr,
+	pcard->dma_bar_base = ioremap_yescache(dma_bar_phys_addr,
 					      dma_bar_phys_len);
 	if (!pcard->dma_bar_base) {
 		dev_err(&pcard->pdev->dev,
-			"probe: DMA_BAR could not remap memory to virtual space\n");
+			"probe: DMA_BAR could yest remap memory to virtual space\n");
 		err = -ENODEV;
 		goto err_release_regs;
 	}
@@ -400,14 +400,14 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_release_dma;
 
-	// Disable all "user" interrupts because they're not used yet.
+	// Disable all "user" interrupts because they're yest used yet.
 	writeq(0xFFFFFFFFFFFFFFFFUL,
 	       pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
 
 	// let the card master PCIe
 	pci_set_master(pcard->pdev);
 
-	// enable IO and mem if not already done
+	// enable IO and mem if yest already done
 	pci_read_config_word(pcard->pdev, PCI_COMMAND, &regval);
 	regval |= (PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
 	pci_write_config_word(pcard->pdev, PCI_COMMAND, regval);

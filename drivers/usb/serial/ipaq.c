@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -469,13 +469,13 @@ static const struct usb_device_id ipaq_id_table[] = {
 	{ USB_DEVICE(0x3340, 0x1326) }, /* Itautec USB Sync */
 	{ USB_DEVICE(0x3340, 0x191C) }, /* YAKUMO USB Sync */
 	{ USB_DEVICE(0x3340, 0x2326) }, /* Vobis USB Sync */
-	{ USB_DEVICE(0x3340, 0x3326) }, /* MEDION Winodws Moble USB Sync */
+	{ USB_DEVICE(0x3340, 0x3326) }, /* MEDION Wiyesdws Moble USB Sync */
 	{ USB_DEVICE(0x3708, 0x20CE) }, /* Legend USB Sync */
-	{ USB_DEVICE(0x3708, 0x21CE) }, /* Lenovo USB Sync */
-	{ USB_DEVICE(0x4113, 0x0210) }, /* Mobile Media Technology USB Sync */
-	{ USB_DEVICE(0x4113, 0x0211) }, /* Mobile Media Technology USB Sync */
-	{ USB_DEVICE(0x4113, 0x0400) }, /* Mobile Media Technology USB Sync */
-	{ USB_DEVICE(0x4113, 0x0410) }, /* Mobile Media Technology USB Sync */
+	{ USB_DEVICE(0x3708, 0x21CE) }, /* Leyesvo USB Sync */
+	{ USB_DEVICE(0x4113, 0x0210) }, /* Mobile Media Techyeslogy USB Sync */
+	{ USB_DEVICE(0x4113, 0x0211) }, /* Mobile Media Techyeslogy USB Sync */
+	{ USB_DEVICE(0x4113, 0x0400) }, /* Mobile Media Techyeslogy USB Sync */
+	{ USB_DEVICE(0x4113, 0x0410) }, /* Mobile Media Techyeslogy USB Sync */
 	{ USB_DEVICE(0x413C, 0x4001) }, /* Dell Axim USB Sync */
 	{ USB_DEVICE(0x413C, 0x4002) }, /* Dell Axim USB Sync */
 	{ USB_DEVICE(0x413C, 0x4003) }, /* Dell Axim USB Sync */

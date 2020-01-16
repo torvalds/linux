@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -64,7 +64,7 @@ render_state_get_rodata(const struct intel_engine_cs *engine)
  * This macro only checks for page overflow before inserting the commands,
  * this is sufficient as the null state generator makes the final batch
  * with two passes to build command and state separately. At this point
- * the size of both are known and it compacts them by relocating the state
+ * the size of both are kyeswn and it compacts them by relocating the state
  * right after the commands taking care of alignment so we should sufficient
  * space below them for adding new commands.
  */
@@ -94,7 +94,7 @@ static int render_state_setup(struct intel_renderstate *so,
 		u32 s = rodata->batch[i];
 
 		if (i * 4  == rodata->reloc[reloc_index]) {
-			u64 r = s + so->vma->node.start;
+			u64 r = s + so->vma->yesde.start;
 			s = lower_32_bits(r);
 			if (HAS_64BIT_RELOC(i915)) {
 				if (i + 1 >= rodata->batch_items ||
@@ -131,8 +131,8 @@ static int render_state_setup(struct intel_renderstate *so,
 		 * shown below.
 		 *
 		 * In the below table 2x6 config always refers to
-		 * fused-down version, native 2x6 is not available and can
-		 * be ignored
+		 * fused-down version, native 2x6 is yest available and can
+		 * be igyesred
 		 *
 		 * SNo  subslices config                eu pool configuration
 		 * -----------------------------------------------------------

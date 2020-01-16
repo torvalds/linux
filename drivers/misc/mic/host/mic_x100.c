@@ -26,7 +26,7 @@
  * This function allows writing of a 32bit value to the indexed scratchpad
  * register.
  *
- * RETURNS: none.
+ * RETURNS: yesne.
  */
 static void
 mic_x100_write_spad(struct mic_device *mdev, unsigned int idx, u32 val)
@@ -76,7 +76,7 @@ static void mic_x100_enable_interrupts(struct mic_device *mdev)
 
 	/*
 	 * Enable auto-clear when enabling interrupts. Applicable only for
-	 * MSI-x. Legacy and MSI mode cannot have auto-clear enabled.
+	 * MSI-x. Legacy and MSI mode canyest have auto-clear enabled.
 	 */
 	if (mdev->irq_info.num_vectors > 1) {
 		reg = mic_mmio_read(mw, siac0);
@@ -180,7 +180,7 @@ static u32 mic_x100_ack_interrupt(struct mic_device *mdev)
  * to be invoked everytime an interrupt is handled.
  * @mdev: Pointer to mic_device instance.
  *
- * Returns: none
+ * Returns: yesne
  */
 static void mic_x100_intr_workarounds(struct mic_device *mdev)
 {
@@ -495,7 +495,7 @@ static u32 mic_x100_get_postcode(struct mic_device *mdev)
  * mic_x100_smpt_set - Update an SMPT entry with a DMA address.
  * @mdev: pointer to mic_device instance
  *
- * RETURNS: none.
+ * RETURNS: yesne.
  */
 static void
 mic_x100_smpt_set(struct mic_device *mdev, dma_addr_t dma_addr, u8 index)
@@ -506,7 +506,7 @@ mic_x100_smpt_set(struct mic_device *mdev, dma_addr_t dma_addr, u8 index)
  * Sbox Smpt Reg Bits:
  * Bits	31:2	Host address
  * Bits	1	RSVD
- * Bits	0	No snoop
+ * Bits	0	No syesop
  */
 #define BUILD_SMPT(NO_SNOOP, HOST_ADDR)  \
 	(u32)(((HOST_ADDR) << 2) | ((NO_SNOOP) & 0x01))
@@ -522,7 +522,7 @@ mic_x100_smpt_set(struct mic_device *mdev, dma_addr_t dma_addr, u8 index)
  * mic_x100_smpt_hw_init - Initialize SMPT X100 specific fields.
  * @mdev: pointer to mic_device instance
  *
- * RETURNS: none.
+ * RETURNS: yesne.
  */
 static void mic_x100_smpt_hw_init(struct mic_device *mdev)
 {

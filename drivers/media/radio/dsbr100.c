@@ -141,7 +141,7 @@ static int dsbr100_stop(struct dsbr100_device *radio)
 }
 
 /* return the device status.  This is, in effect, just whether it
-sees a stereo signal or not.  Pity. */
+sees a stereo signal or yest.  Pity. */
 static void dsbr100_getstat(struct dsbr100_device *radio)
 {
 	int retval = usb_control_msg(radio->usbdev,

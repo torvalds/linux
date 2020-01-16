@@ -35,7 +35,7 @@
 /*
  * Generated code register usage:
  *
- * As normal PPC C ABI (e.g. r1=sp, r2=TOC), with:
+ * As yesrmal PPC C ABI (e.g. r1=sp, r2=TOC), with:
  *
  * skb		r3	(Entry parameter)
  * A register	r4

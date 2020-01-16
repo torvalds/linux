@@ -162,7 +162,7 @@ struct ibmvfc_npiv_login {
 	__be32 max_cmds;
 	__be64 capabilities;
 #define IBMVFC_CAN_MIGRATE		0x01
-	__be64 node_name;
+	__be64 yesde_name;
 	struct srp_direct_buf async;
 	u8 partition_name[IBMVFC_MAX_NAME];
 	u8 device_name[IBMVFC_MAX_NAME];
@@ -182,7 +182,7 @@ struct ibmvfc_common_svc_parms {
 struct ibmvfc_service_parms {
 	struct ibmvfc_common_svc_parms common;
 	u8 port_name[8];
-	u8 node_name[8];
+	u8 yesde_name[8];
 	__be32 class1_parms[4];
 	__be32 class2_parms[4];
 	__be32 class3_parms[4];
@@ -209,7 +209,7 @@ struct ibmvfc_npiv_login_resp {
 	__be64 max_dma_len;
 	__be64 scsi_id;
 	__be64 port_name;
-	__be64 node_name;
+	__be64 yesde_name;
 	__be64 link_speed;
 	u8 partition_name[IBMVFC_MAX_NAME];
 	u8 device_name[IBMVFC_MAX_NAME];
@@ -568,7 +568,7 @@ struct ibmvfc_async_crq {
 	volatile __be64 event;
 	volatile __be64 scsi_id;
 	volatile __be64 wwpn;
-	volatile __be64 node_name;
+	volatile __be64 yesde_name;
 	__be64 reserved;
 }__attribute__((packed, aligned (8)));
 

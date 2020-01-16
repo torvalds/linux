@@ -3,14 +3,14 @@
  * Support for dynamic reconfiguration for PCI, Memory, and CPU
  * Hotplug and Dynamic Logical Partitioning on RPA platforms.
  *
- * Copyright (C) 2009 Nathan Fontenot
+ * Copyright (C) 2009 Nathan Fonteyest
  * Copyright (C) 2009 IBM Corporation
  */
 
 #define pr_fmt(fmt)	"dlpar: " fmt
 
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
@@ -74,9 +74,9 @@ static struct property *dlpar_parse_cc_property(struct cc_workarea *ccwa)
 	return prop;
 }
 
-static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa)
+static struct device_yesde *dlpar_parse_cc_yesde(struct cc_workarea *ccwa)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	const char *name;
 
 	dn = kzalloc(sizeof(*dn), GFP_KERNEL);
@@ -90,13 +90,13 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa)
 		return NULL;
 	}
 
-	of_node_set_flag(dn, OF_DYNAMIC);
-	of_node_init(dn);
+	of_yesde_set_flag(dn, OF_DYNAMIC);
+	of_yesde_init(dn);
 
 	return dn;
 }
 
-static void dlpar_free_one_cc_node(struct device_node *dn)
+static void dlpar_free_one_cc_yesde(struct device_yesde *dn)
 {
 	struct property *prop;
 
@@ -110,15 +110,15 @@ static void dlpar_free_one_cc_node(struct device_node *dn)
 	kfree(dn);
 }
 
-void dlpar_free_cc_nodes(struct device_node *dn)
+void dlpar_free_cc_yesdes(struct device_yesde *dn)
 {
 	if (dn->child)
-		dlpar_free_cc_nodes(dn->child);
+		dlpar_free_cc_yesdes(dn->child);
 
 	if (dn->sibling)
-		dlpar_free_cc_nodes(dn->sibling);
+		dlpar_free_cc_yesdes(dn->sibling);
 
-	dlpar_free_one_cc_node(dn);
+	dlpar_free_one_cc_yesde(dn);
 }
 
 #define COMPLETE	0
@@ -130,12 +130,12 @@ void dlpar_free_cc_nodes(struct device_node *dn)
 #define CALL_AGAIN	-2
 #define ERR_CFG_USE     -9003
 
-struct device_node *dlpar_configure_connector(__be32 drc_index,
-					      struct device_node *parent)
+struct device_yesde *dlpar_configure_connector(__be32 drc_index,
+					      struct device_yesde *parent)
 {
-	struct device_node *dn;
-	struct device_node *first_dn = NULL;
-	struct device_node *last_dn = NULL;
+	struct device_yesde *dn;
+	struct device_yesde *first_dn = NULL;
+	struct device_yesde *last_dn = NULL;
 	struct property *property;
 	struct property *last_property = NULL;
 	struct cc_workarea *ccwa;
@@ -173,7 +173,7 @@ struct device_node *dlpar_configure_connector(__be32 drc_index,
 			break;
 
 		case NEXT_SIBLING:
-			dn = dlpar_parse_cc_node(ccwa);
+			dn = dlpar_parse_cc_yesde(ccwa);
 			if (!dn)
 				goto cc_error;
 
@@ -183,7 +183,7 @@ struct device_node *dlpar_configure_connector(__be32 drc_index,
 			break;
 
 		case NEXT_CHILD:
-			dn = dlpar_parse_cc_node(ccwa);
+			dn = dlpar_parse_cc_yesde(ccwa);
 			if (!dn)
 				goto cc_error;
 
@@ -233,7 +233,7 @@ cc_error:
 
 	if (rc) {
 		if (first_dn)
-			dlpar_free_cc_nodes(first_dn);
+			dlpar_free_cc_yesdes(first_dn);
 
 		return NULL;
 	}
@@ -241,37 +241,37 @@ cc_error:
 	return first_dn;
 }
 
-int dlpar_attach_node(struct device_node *dn, struct device_node *parent)
+int dlpar_attach_yesde(struct device_yesde *dn, struct device_yesde *parent)
 {
 	int rc;
 
 	dn->parent = parent;
 
-	rc = of_attach_node(dn);
+	rc = of_attach_yesde(dn);
 	if (rc) {
-		printk(KERN_ERR "Failed to add device node %pOF\n", dn);
+		printk(KERN_ERR "Failed to add device yesde %pOF\n", dn);
 		return rc;
 	}
 
 	return 0;
 }
 
-int dlpar_detach_node(struct device_node *dn)
+int dlpar_detach_yesde(struct device_yesde *dn)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	int rc;
 
 	child = of_get_next_child(dn, NULL);
 	while (child) {
-		dlpar_detach_node(child);
+		dlpar_detach_yesde(child);
 		child = of_get_next_child(dn, child);
 	}
 
-	rc = of_detach_node(dn);
+	rc = of_detach_yesde(dn);
 	if (rc)
 		return rc;
 
-	of_node_put(dn);
+	of_yesde_put(dn);
 
 	return 0;
 }
@@ -522,7 +522,7 @@ static ssize_t dlpar_store(struct class *class, struct class_attribute *attr,
 
 	args = argbuf = kstrdup(buf, GFP_KERNEL);
 	if (!argbuf) {
-		pr_info("Could not allocate resources for DLPAR operation\n");
+		pr_info("Could yest allocate resources for DLPAR operation\n");
 		kfree(argbuf);
 		return -ENOMEM;
 	}
@@ -549,7 +549,7 @@ dlpar_store_out:
 	kfree(argbuf);
 
 	if (rc)
-		pr_err("Could not handle DLPAR request \"%s\"\n", buf);
+		pr_err("Could yest handle DLPAR request \"%s\"\n", buf);
 
 	return rc ? rc : count;
 }

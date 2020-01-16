@@ -14,7 +14,7 @@
  * @orig: pointer to the original pthread lock, used for lookups
  * @dep_map: lockdep's dep_map structure
  * @key: lockdep's key structure
- * @node: rb-tree node used to store the lock in a global tree
+ * @yesde: rb-tree yesde used to store the lock in a global tree
  * @name: a unique name for the lock
  */
 struct lock_lookup {
@@ -22,7 +22,7 @@ struct lock_lookup {
 	struct lockdep_map dep_map; /* Since all locks are dynamic, we need
 				     * a dep_map and a key for each lock */
 	/*
-	 * Wait, there's no support for key classes? Yup :(
+	 * Wait, there's yes support for key classes? Yup :(
 	 * Most big projects wrap the pthread api with their own calls to
 	 * be compatible with different locking methods. This means that
 	 * "classes" will be brokes since the function that creates all
@@ -30,7 +30,7 @@ struct lock_lookup {
 	 * actual code that wants to do the locking.
 	 */
 	struct lock_class_key key;
-	struct rb_node node;
+	struct rb_yesde yesde;
 #define LIBLOCKDEP_MAX_LOCK_NAME 22
 	char name[LIBLOCKDEP_MAX_LOCK_NAME];
 };
@@ -90,7 +90,7 @@ static int (*ll_pthread_rwlock_trywrlock)(pthread_rwlock_t *rwlock)	= __pthread_
 static int (*ll_pthread_rwlock_wrlock)(pthread_rwlock_t *rwlock)	= __pthread_rwlock_wrlock;
 static int (*ll_pthread_rwlock_unlock)(pthread_rwlock_t *rwlock)	= __pthread_rwlock_unlock;
 
-enum { none, prepare, done, } __init_state;
+enum { yesne, prepare, done, } __init_state;
 static void init_preload(void);
 static void try_init_preload(void)
 {
@@ -98,26 +98,26 @@ static void try_init_preload(void)
 		init_preload();
 }
 
-static struct rb_node **__get_lock_node(void *lock, struct rb_node **parent)
+static struct rb_yesde **__get_lock_yesde(void *lock, struct rb_yesde **parent)
 {
-	struct rb_node **node = &locks.rb_node;
+	struct rb_yesde **yesde = &locks.rb_yesde;
 	struct lock_lookup *l;
 
 	*parent = NULL;
 
-	while (*node) {
-		l = rb_entry(*node, struct lock_lookup, node);
+	while (*yesde) {
+		l = rb_entry(*yesde, struct lock_lookup, yesde);
 
-		*parent = *node;
+		*parent = *yesde;
 		if (lock < l->orig)
-			node = &l->node.rb_left;
+			yesde = &l->yesde.rb_left;
 		else if (lock > l->orig)
-			node = &l->node.rb_right;
+			yesde = &l->yesde.rb_right;
 		else
-			return node;
+			return yesde;
 	}
 
-	return node;
+	return yesde;
 }
 
 #ifndef LIBLOCKDEP_STATIC_ENTRIES
@@ -174,14 +174,14 @@ static inline void free_lock(struct lock_lookup *lock)
  */
 static struct lock_lookup *__get_lock(void *lock)
 {
-	struct rb_node **node, *parent;
+	struct rb_yesde **yesde, *parent;
 	struct lock_lookup *l;
 
 	ll_pthread_rwlock_rdlock(&locks_rwlock);
-	node = __get_lock_node(lock, &parent);
+	yesde = __get_lock_yesde(lock, &parent);
 	ll_pthread_rwlock_unlock(&locks_rwlock);
-	if (*node) {
-		return rb_entry(*node, struct lock_lookup, node);
+	if (*yesde) {
+		return rb_entry(*yesde, struct lock_lookup, yesde);
 	}
 
 	/* We didn't find the lock, let's create it */
@@ -192,7 +192,7 @@ static struct lock_lookup *__get_lock(void *lock)
 	l->orig = lock;
 	/*
 	 * Currently the name of the lock is the ptr value of the pthread lock,
-	 * while not optimal, it makes debugging a bit easier.
+	 * while yest optimal, it makes debugging a bit easier.
 	 *
 	 * TODO: Get the real name of the lock using libdwarf
 	 */
@@ -201,9 +201,9 @@ static struct lock_lookup *__get_lock(void *lock)
 
 	ll_pthread_rwlock_wrlock(&locks_rwlock);
 	/* This might have changed since the last time we fetched it */
-	node = __get_lock_node(lock, &parent);
-	rb_link_node(&l->node, parent, node);
-	rb_insert_color(&l->node, &locks);
+	yesde = __get_lock_yesde(lock, &parent);
+	rb_link_yesde(&l->yesde, parent, yesde);
+	rb_insert_color(&l->yesde, &locks);
 	ll_pthread_rwlock_unlock(&locks_rwlock);
 
 	return l;
@@ -212,7 +212,7 @@ static struct lock_lookup *__get_lock(void *lock)
 static void __del_lock(struct lock_lookup *lock)
 {
 	ll_pthread_rwlock_wrlock(&locks_rwlock);
-	rb_erase(&lock->node, &locks);
+	rb_erase(&lock->yesde, &locks);
 	ll_pthread_rwlock_unlock(&locks_rwlock);
 	free_lock(lock);
 }
@@ -228,7 +228,7 @@ int pthread_mutex_init(pthread_mutex_t *mutex,
 	 * initialized, in that case we'll need to manually call preload
 	 * to get us going.
 	 *
-	 * Funny enough, kernel's lockdep had the same issue, and used
+	 * Funny eyesugh, kernel's lockdep had the same issue, and used
 	 * (almost) the same solution. See look_up_lock_class() in
 	 * kernel/locking/lockdep.c for details.
 	 */
@@ -317,7 +317,7 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex)
 	 *
 	 * TODO: Hook into free() and add that check there as well.
 	 */
-	debug_check_no_locks_freed(mutex, sizeof(*mutex));
+	debug_check_yes_locks_freed(mutex, sizeof(*mutex));
 	__del_lock(__get_lock(mutex));
 	return ll_pthread_mutex_destroy(mutex);
 }
@@ -341,7 +341,7 @@ int pthread_rwlock_destroy(pthread_rwlock_t *rwlock)
 {
 	try_init_preload();
 
-	debug_check_no_locks_freed(rwlock, sizeof(*rwlock));
+	debug_check_yes_locks_freed(rwlock, sizeof(*rwlock));
 	__del_lock(__get_lock(rwlock));
 	return ll_pthread_rwlock_destroy(rwlock);
 }

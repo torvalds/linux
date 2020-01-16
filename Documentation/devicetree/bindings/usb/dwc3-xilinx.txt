@@ -9,11 +9,11 @@ Required properties:
 
   "ref_clk"	 Clock source to core during PHY power down
 
-Required child node:
-A child node must exist to represent the core DWC3 IP block. The name of
-the node is not important. The content of the node is defined in dwc3.txt.
+Required child yesde:
+A child yesde must exist to represent the core DWC3 IP block. The name of
+the yesde is yest important. The content of the yesde is defined in dwc3.txt.
 
-Example device node:
+Example device yesde:
 
 		usb@0 {
 			#address-cells = <0x2>;

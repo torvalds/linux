@@ -1,4 +1,4 @@
-* Freescale low power universal asynchronous receiver/transmitter (lpuart)
+* Freescale low power universal asynchroyesus receiver/transmitter (lpuart)
 
 Required properties:
 - compatible :
@@ -23,7 +23,7 @@ Optional properties:
 - dma-names: should contain "tx" and "rx".
 - rs485-rts-active-low, linux,rs485-enabled-at-boot-time: see rs485.txt
 
-Note: Optional properties for DMA support. Write them both or both not.
+Note: Optional properties for DMA support. Write them both or both yest.
 
 Example:
 

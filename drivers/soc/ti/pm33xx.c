@@ -62,7 +62,7 @@ static int retrigger_irq;
 static unsigned long suspend_wfi_flags;
 
 static struct wkup_m3_wakeup_src wakeup_src = {.irq_nr = 0,
-	.src = "Unknown",
+	.src = "Unkyeswn",
 };
 
 static struct wkup_m3_wakeup_src rtc_alarm_wakeup = {
@@ -203,12 +203,12 @@ static int am33xx_pm_suspend(suspend_state_t suspend_state)
 			break;
 		case 1:
 			dev_err(pm33xx_dev,
-				"PM: Could not transition all powerdomains to target state\n");
+				"PM: Could yest transition all powerdomains to target state\n");
 			ret = -1;
 			break;
 		default:
 			dev_err(pm33xx_dev,
-				"PM: CM3 returned unknown result = %d\n", i);
+				"PM: CM3 returned unkyeswn result = %d\n", i);
 			ret = -1;
 		}
 
@@ -329,7 +329,7 @@ static void am33xx_pm_set_ipc_ops(void)
 
 	temp = ti_emif_get_mem_type();
 	if (temp < 0) {
-		dev_err(pm33xx_dev, "PM: Cannot determine memory type, no PM available\n");
+		dev_err(pm33xx_dev, "PM: Canyest determine memory type, yes PM available\n");
 		return;
 	}
 	m3_ipc->ops->set_mem_type(m3_ipc, temp);
@@ -353,14 +353,14 @@ static void am33xx_pm_free_sram(void)
  */
 static int am33xx_pm_alloc_sram(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret = 0;
 
-	np = of_find_compatible_node(NULL, NULL, "ti,omap3-mpu");
+	np = of_find_compatible_yesde(NULL, NULL, "ti,omap3-mpu");
 	if (!np) {
-		np = of_find_compatible_node(NULL, NULL, "ti,omap4-mpu");
+		np = of_find_compatible_yesde(NULL, NULL, "ti,omap4-mpu");
 		if (!np) {
-			dev_err(pm33xx_dev, "PM: %s: Unable to find device node for mpu\n",
+			dev_err(pm33xx_dev, "PM: %s: Unable to find device yesde for mpu\n",
 				__func__);
 			return -ENODEV;
 		}
@@ -371,7 +371,7 @@ static int am33xx_pm_alloc_sram(void)
 		dev_err(pm33xx_dev, "PM: %s: Unable to get sram pool for ocmcram\n",
 			__func__);
 		ret = -ENODEV;
-		goto mpu_put_node;
+		goto mpu_put_yesde;
 	}
 
 	sram_pool_data = of_gen_pool_get(np, "pm-sram", 1);
@@ -379,7 +379,7 @@ static int am33xx_pm_alloc_sram(void)
 		dev_err(pm33xx_dev, "PM: %s: Unable to get sram data pool for ocmcram\n",
 			__func__);
 		ret = -ENODEV;
-		goto mpu_put_node;
+		goto mpu_put_yesde;
 	}
 
 	ocmcram_location = gen_pool_alloc(sram_pool, *pm_sram->do_wfi_sz);
@@ -387,7 +387,7 @@ static int am33xx_pm_alloc_sram(void)
 		dev_err(pm33xx_dev, "PM: %s: Unable to allocate memory from ocmcram\n",
 			__func__);
 		ret = -ENOMEM;
-		goto mpu_put_node;
+		goto mpu_put_yesde;
 	}
 
 	ocmcram_location_data = gen_pool_alloc(sram_pool_data,
@@ -398,23 +398,23 @@ static int am33xx_pm_alloc_sram(void)
 		ret = -ENOMEM;
 	}
 
-mpu_put_node:
-	of_node_put(np);
+mpu_put_yesde:
+	of_yesde_put(np);
 	return ret;
 }
 
 static int am33xx_pm_rtc_setup(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned long val = 0;
 	struct nvmem_device *nvmem;
 
-	np = of_find_node_by_name(NULL, "rtc");
+	np = of_find_yesde_by_name(NULL, "rtc");
 
 	if (of_device_is_available(np)) {
 		omap_rtc = rtc_class_open("rtc0");
 		if (!omap_rtc) {
-			pr_warn("PM: rtc0 not available");
+			pr_warn("PM: rtc0 yest available");
 			return -EPROBE_DEFER;
 		}
 
@@ -424,7 +424,7 @@ static int am33xx_pm_rtc_setup(void)
 			nvmem_device_read(nvmem, RTC_SCRATCH_MAGIC_REG * 4,
 					  4, (void *)&rtc_magic_val);
 			if ((rtc_magic_val & 0xffff) != RTC_REG_BOOT_MAGIC)
-				pr_warn("PM: bootloader does not support rtc-only!\n");
+				pr_warn("PM: bootloader does yest support rtc-only!\n");
 
 			nvmem_device_write(nvmem, RTC_SCRATCH_MAGIC_REG * 4,
 					   4, (void *)&val);
@@ -433,7 +433,7 @@ static int am33xx_pm_rtc_setup(void)
 					   4, (void *)&val);
 		}
 	} else {
-		pr_warn("PM: no-rtc available, rtc-only mode disabled.\n");
+		pr_warn("PM: yes-rtc available, rtc-only mode disabled.\n");
 	}
 
 	return 0;
@@ -450,25 +450,25 @@ static int am33xx_pm_probe(struct platform_device *pdev)
 
 	pm_ops = dev->platform_data;
 	if (!pm_ops) {
-		dev_err(dev, "PM: Cannot get core PM ops!\n");
+		dev_err(dev, "PM: Canyest get core PM ops!\n");
 		return -ENODEV;
 	}
 
 	ret = am43xx_map_gic();
 	if (ret) {
-		pr_err("PM: Could not ioremap GIC base\n");
+		pr_err("PM: Could yest ioremap GIC base\n");
 		return ret;
 	}
 
 	pm_sram = pm_ops->get_sram_addrs();
 	if (!pm_sram) {
-		dev_err(dev, "PM: Cannot get PM asm function addresses!!\n");
+		dev_err(dev, "PM: Canyest get PM asm function addresses!!\n");
 		return -ENODEV;
 	}
 
 	m3_ipc = wkup_m3_ipc_get();
 	if (!m3_ipc) {
-		pr_err("PM: Cannot get wkup_m3_ipc handle\n");
+		pr_err("PM: Canyest get wkup_m3_ipc handle\n");
 		return -EPROBE_DEFER;
 	}
 

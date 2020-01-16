@@ -16,10 +16,10 @@
 
 /*
  * We use two different types of addressing - PC style addresses, and ARM
- * addresses.  PC style accesses the PC hardware with the normal PC IO
+ * addresses.  PC style accesses the PC hardware with the yesrmal PC IO
  * addresses, eg 0x3f8 for serial#1.  ARM addresses are above A28
  * and are translated to the start of IO.  Note that all addresses are
- * not shifted left!
+ * yest shifted left!
  */
 
 #define __PORT_PCIO(x)	((x) < (1<<28))

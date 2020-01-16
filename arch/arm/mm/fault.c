@@ -47,7 +47,7 @@ void show_pte(const char *lvl, struct mm_struct *mm, unsigned long addr)
 		pmd_t *pmd;
 		pte_t *pte;
 
-		if (pgd_none(*pgd))
+		if (pgd_yesne(*pgd))
 			break;
 
 		if (pgd_bad(*pgd)) {
@@ -59,7 +59,7 @@ void show_pte(const char *lvl, struct mm_struct *mm, unsigned long addr)
 		if (PTRS_PER_PUD != 1)
 			pr_cont(", *pud=%08llx", (long long)pud_val(*pud));
 
-		if (pud_none(*pud))
+		if (pud_yesne(*pud))
 			break;
 
 		if (pud_bad(*pud)) {
@@ -71,7 +71,7 @@ void show_pte(const char *lvl, struct mm_struct *mm, unsigned long addr)
 		if (PTRS_PER_PMD != 1)
 			pr_cont(", *pmd=%08llx", (long long)pmd_val(*pmd));
 
-		if (pmd_none(*pmd))
+		if (pmd_yesne(*pmd))
 			break;
 
 		if (pmd_bad(*pmd)) {
@@ -79,7 +79,7 @@ void show_pte(const char *lvl, struct mm_struct *mm, unsigned long addr)
 			break;
 		}
 
-		/* We must not map this if we have highmem enabled */
+		/* We must yest map this if we have highmem enabled */
 		if (PageHighMem(pfn_to_page(pmd_val(*pmd) >> PAGE_SHIFT)))
 			break;
 
@@ -159,7 +159,7 @@ __do_user_fault(unsigned long addr, unsigned int fsr, unsigned int sig,
 
 	tsk->thread.address = addr;
 	tsk->thread.error_code = fsr;
-	tsk->thread.trap_no = 14;
+	tsk->thread.trap_yes = 14;
 	force_sig_fault(sig, code, (void __user *)addr);
 }
 
@@ -170,7 +170,7 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	/*
 	 * If we are in kernel mode at this point, we
-	 * have no context to handle this fault with.
+	 * have yes context to handle this fault with.
 	 */
 	if (user_mode(regs))
 		__do_user_fault(addr, fsr, SIGSEGV, SEGV_MAPERR, regs);
@@ -254,11 +254,11 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		local_irq_enable();
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have yes user
+	 * context, we must yest take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto no_context;
+		goto yes_context;
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
@@ -272,7 +272,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if (!user_mode(regs) && !search_exception_tables(regs->ARM_pc))
-			goto no_context;
+			goto yes_context;
 retry:
 		down_read(&mm->mmap_sem);
 	} else {
@@ -285,24 +285,24 @@ retry:
 #ifdef CONFIG_DEBUG_VM
 		if (!user_mode(regs) &&
 		    !search_exception_tables(regs->ARM_pc))
-			goto no_context;
+			goto yes_context;
 #endif
 	}
 
 	fault = __do_page_fault(mm, addr, fsr, flags, tsk);
 
 	/* If we need to retry but a fatal signal is pending, handle the
-	 * signal first. We do not need to release the mmap_sem because
+	 * signal first. We do yest need to release the mmap_sem because
 	 * it would already be released in __lock_page_or_retry in
 	 * mm/filemap.c. */
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
 		if (!user_mode(regs))
-			goto no_context;
+			goto yes_context;
 		return 0;
 	}
 
 	/*
-	 * Major/minor page fault accounting is only done on the
+	 * Major/miyesr page fault accounting is only done on the
 	 * initial attempt. If we go through a retry, it is extremely
 	 * likely that the page will be found in page cache at that point.
 	 */
@@ -330,17 +330,17 @@ retry:
 	up_read(&mm->mmap_sem);
 
 	/*
-	 * Handle the "normal" case first - VM_FAULT_MAJOR
+	 * Handle the "yesrmal" case first - VM_FAULT_MAJOR
 	 */
 	if (likely(!(fault & (VM_FAULT_ERROR | VM_FAULT_BADMAP | VM_FAULT_BADACCESS))))
 		return 0;
 
 	/*
 	 * If we are in kernel mode at this point, we
-	 * have no context to handle this fault with.
+	 * have yes context to handle this fault with.
 	 */
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 
 	if (fault & VM_FAULT_OOM) {
 		/*
@@ -372,7 +372,7 @@ retry:
 	__do_user_fault(addr, fsr, sig, code, regs);
 	return 0;
 
-no_context:
+yes_context:
 	__do_kernel_fault(mm, addr, fsr, regs);
 	return 0;
 }
@@ -394,12 +394,12 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
  * probably faulting in the vmalloc() area.
  *
  * If the init_task's first level page tables contains the relevant
- * entry, we copy the it to this task.  If not, we send the process
+ * entry, we copy the it to this task.  If yest, we send the process
  * a signal, fixup the exception, or oops the kernel.
  *
  * NOTE! We MUST NOT take any locks for this case. We may be in an
  * interrupt or a critical region, and should only copy the information
- * from the master page table, nothing more.
+ * from the master page table, yesthing more.
  */
 #ifdef CONFIG_MMU
 static int __kprobes
@@ -422,7 +422,7 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 	pgd = cpu_get_pgd() + index;
 	pgd_k = init_mm.pgd + index;
 
-	if (pgd_none(*pgd_k))
+	if (pgd_yesne(*pgd_k))
 		goto bad_area;
 	if (!pgd_present(*pgd))
 		set_pgd(pgd, *pgd_k);
@@ -430,7 +430,7 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 	pud = pud_offset(pgd, addr);
 	pud_k = pud_offset(pgd_k, addr);
 
-	if (pud_none(*pud_k))
+	if (pud_yesne(*pud_k))
 		goto bad_area;
 	if (!pud_present(*pud))
 		set_pud(pud, *pud_k);
@@ -446,15 +446,15 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 #else
 	/*
 	 * On ARM one Linux PGD entry contains two hardware entries (see page
-	 * tables layout in pgtable.h). We normally guarantee that we always
+	 * tables layout in pgtable.h). We yesrmally guarantee that we always
 	 * fill both L1 entries. But create_mapping() doesn't follow the rule.
 	 * It can create inidividual L1 entries, so here we have to call
-	 * pmd_none() check for the entry really corresponded to address, not
+	 * pmd_yesne() check for the entry really corresponded to address, yest
 	 * for the first of pair.
 	 */
 	index = (addr >> SECTION_SHIFT) & 1;
 #endif
-	if (pmd_none(pmd_k[index]))
+	if (pmd_yesne(pmd_k[index]))
 		goto bad_area;
 
 	copy_pmd(pmd, pmd_k);
@@ -538,7 +538,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		inf->name, fsr, addr);
 	show_pte(KERN_ALERT, current->mm, addr);
 
-	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+	arm_yestify_die("", regs, inf->sig, inf->code, (void __user *)addr,
 		       fsr, 0);
 }
 
@@ -566,19 +566,19 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
 		inf->name, ifsr, addr);
 
-	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+	arm_yestify_die("", regs, inf->sig, inf->code, (void __user *)addr,
 		       ifsr, 0);
 }
 
 /*
- * Abort handler to be used only during first unmasking of asynchronous aborts
- * on the boot CPU. This makes sure that the machine will not die if the
+ * Abort handler to be used only during first unmasking of asynchroyesus aborts
+ * on the boot CPU. This makes sure that the machine will yest die if the
  * firmware/bootloader left an imprecise abort pending for us to trip over.
  */
 static int __init early_abort_handler(unsigned long addr, unsigned int fsr,
 				      struct pt_regs *regs)
 {
-	pr_warn("Hit pending asynchronous external abort (FSR=0x%08x) during "
+	pr_warn("Hit pending asynchroyesus external abort (FSR=0x%08x) during "
 		"first unmask, this is most likely caused by a "
 		"firmware/bootloader bug.\n", fsr);
 

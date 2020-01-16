@@ -95,7 +95,7 @@ static int vp702x_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 	return ret;
 }
 
-int vp702x_usb_inout_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int ilen, int msec)
+int vp702x_usb_iyesut_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int ilen, int msec)
 {
 	int ret;
 
@@ -110,7 +110,7 @@ int vp702x_usb_inout_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int il
 	return ret;
 }
 
-static int vp702x_usb_inout_cmd(struct dvb_usb_device *d, u8 cmd, u8 *o,
+static int vp702x_usb_iyesut_cmd(struct dvb_usb_device *d, u8 cmd, u8 *o,
 				int olen, u8 *i, int ilen, int msec)
 {
 	struct vp702x_device_state *st = d->priv;
@@ -140,7 +140,7 @@ static int vp702x_usb_inout_cmd(struct dvb_usb_device *d, u8 cmd, u8 *o,
 	buf[1] = cmd;
 	memcpy(&buf[2], o, olen);
 
-	ret = vp702x_usb_inout_op(d, buf, olen+2, buf, ilen+1, msec);
+	ret = vp702x_usb_iyesut_op(d, buf, olen+2, buf, ilen+1, msec);
 
 	if (ret == 0)
 		memcpy(i, &buf[1], ilen);
@@ -184,13 +184,13 @@ static int vp702x_set_pld_state(struct dvb_usb_adapter *adap, u8 state)
 	return ret;
 }
 
-static int vp702x_set_pid(struct dvb_usb_adapter *adap, u16 pid, u8 id, int onoff)
+static int vp702x_set_pid(struct dvb_usb_adapter *adap, u16 pid, u8 id, int oyesff)
 {
 	struct vp702x_adapter_state *st = adap->priv;
 	struct vp702x_device_state *dst = adap->dev->priv;
 	u8 *buf;
 
-	if (onoff)
+	if (oyesff)
 		st->pid_filter_state |=  (1 << id);
 	else {
 		st->pid_filter_state &= ~(1 << id);
@@ -242,7 +242,7 @@ static int vp702x_init_pid_filter(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int vp702x_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int vp702x_streaming_ctrl(struct dvb_usb_adapter *adap, int oyesff)
 {
 	return 0;
 }
@@ -253,7 +253,7 @@ static struct rc_map_table rc_map_vp702x_table[] = {
 	{ 0x0002, KEY_2 },
 };
 
-/* remote control stuff (does not work with my box) */
+/* remote control stuff (does yest work with my box) */
 static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 /* remove the following return to enabled remote querying */
@@ -309,7 +309,7 @@ static int vp702x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	vp702x_usb_out_op(adap->dev, SET_TUNER_POWER_REQ, 0, 7, NULL, 0);
 
-	if (vp702x_usb_inout_cmd(adap->dev, GET_SYSTEM_STRING, NULL, 0,
+	if (vp702x_usb_iyesut_cmd(adap->dev, GET_SYSTEM_STRING, NULL, 0,
 				   buf, 10, 10))
 		return -EIO;
 
@@ -374,7 +374,7 @@ MODULE_DEVICE_TABLE(usb, vp702x_usb_table);
 static struct dvb_usb_device_properties vp702x_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware            = "dvb-usb-vp702x-02.fw",
-	.no_reconnect        = 1,
+	.yes_reconnect        = 1,
 
 	.size_of_priv     = sizeof(struct vp702x_device_state),
 

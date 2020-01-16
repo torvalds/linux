@@ -4,12 +4,12 @@
 Memory hotplug
 ==============
 
-Memory hotplug event notifier
+Memory hotplug event yestifier
 =============================
 
-Hotplugging events are sent to a notification queue.
+Hotplugging events are sent to a yestification queue.
 
-There are six types of notification defined in ``include/linux/memory.h``:
+There are six types of yestification defined in ``include/linux/memory.h``:
 
 MEM_GOING_ONLINE
   Generated before new memory becomes available in order to be able to
@@ -24,9 +24,9 @@ MEM_ONLINE
   allocate pages from the new memory.
 
 MEM_GOING_OFFLINE
-  Generated to begin the process of offlining memory. Allocations are no
+  Generated to begin the process of offlining memory. Allocations are yes
   longer possible from the memory but some of the memory to be offlined
-  is still in use. The callback can be used to free memory known to a
+  is still in use. The callback can be used to free memory kyeswn to a
   subsystem from the indicated memory block.
 
 MEM_CANCEL_OFFLINE
@@ -38,7 +38,7 @@ MEM_OFFLINE
 
 A callback routine can be registered by calling::
 
-  hotplug_memory_notifier(callback_func, priority)
+  hotplug_memory_yestifier(callback_func, priority)
 
 Callback functions with higher values of priority are called before callback
 functions with lower values.
@@ -46,45 +46,45 @@ functions with lower values.
 A callback function must have the following prototype::
 
   int callback_func(
-    struct notifier_block *self, unsigned long action, void *arg);
+    struct yestifier_block *self, unsigned long action, void *arg);
 
 The first argument of the callback function (self) is a pointer to the block
-of the notifier chain that points to the callback function itself.
+of the yestifier chain that points to the callback function itself.
 The second argument (action) is one of the event types described above.
-The third argument (arg) passes a pointer of struct memory_notify::
+The third argument (arg) passes a pointer of struct memory_yestify::
 
-	struct memory_notify {
+	struct memory_yestify {
 		unsigned long start_pfn;
 		unsigned long nr_pages;
-		int status_change_nid_normal;
+		int status_change_nid_yesrmal;
 		int status_change_nid_high;
 		int status_change_nid;
 	}
 
 - start_pfn is start_pfn of online/offline memory.
 - nr_pages is # of pages of online/offline memory.
-- status_change_nid_normal is set node id when N_NORMAL_MEMORY of nodemask
-  is (will be) set/clear, if this is -1, then nodemask status is not changed.
-- status_change_nid_high is set node id when N_HIGH_MEMORY of nodemask
-  is (will be) set/clear, if this is -1, then nodemask status is not changed.
-- status_change_nid is set node id when N_MEMORY of nodemask is (will be)
-  set/clear. It means a new(memoryless) node gets new memory by online and a
-  node loses all memory. If this is -1, then nodemask status is not changed.
+- status_change_nid_yesrmal is set yesde id when N_NORMAL_MEMORY of yesdemask
+  is (will be) set/clear, if this is -1, then yesdemask status is yest changed.
+- status_change_nid_high is set yesde id when N_HIGH_MEMORY of yesdemask
+  is (will be) set/clear, if this is -1, then yesdemask status is yest changed.
+- status_change_nid is set yesde id when N_MEMORY of yesdemask is (will be)
+  set/clear. It means a new(memoryless) yesde gets new memory by online and a
+  yesde loses all memory. If this is -1, then yesdemask status is yest changed.
 
   If status_changed_nid* >= 0, callback should create/discard structures for the
-  node if necessary.
+  yesde if necessary.
 
 The callback routine shall return one of the values
 NOTIFY_DONE, NOTIFY_OK, NOTIFY_BAD, NOTIFY_STOP
-defined in ``include/linux/notifier.h``
+defined in ``include/linux/yestifier.h``
 
-NOTIFY_DONE and NOTIFY_OK have no effect on the further processing.
+NOTIFY_DONE and NOTIFY_OK have yes effect on the further processing.
 
 NOTIFY_BAD is used as response to the MEM_GOING_ONLINE, MEM_GOING_OFFLINE,
 MEM_ONLINE, or MEM_OFFLINE action to cancel hotplugging. It stops
-further processing of the notification queue.
+further processing of the yestification queue.
 
-NOTIFY_STOP stops further processing of the notification queue.
+NOTIFY_STOP stops further processing of the yestification queue.
 
 Locking Internals
 =================
@@ -95,7 +95,7 @@ the device_hotplug_lock should be held to:
 - synchronize against online/offline requests (e.g. via sysfs). This way, memory
   block devices can only be accessed (.online/.state attributes) by user
   space once memory has been fully added. And when removing memory, we
-  know nobody is in critical sections.
+  kyesw yesbody is in critical sections.
 - synchronize against CPU hotplug and similar (e.g. relevant for ACPI and PPC)
 
 Especially, there is a possible lock inversion that is avoided using

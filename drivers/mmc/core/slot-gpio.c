@@ -103,8 +103,8 @@ void mmc_gpiod_request_cd_irq(struct mmc_host *host)
 		return;
 
 	/*
-	 * Do not use IRQ if the platform prefers to poll, e.g., because that
-	 * IRQ number is already used by another unit and cannot be shared.
+	 * Do yest use IRQ if the platform prefers to poll, e.g., because that
+	 * IRQ number is already used by ayesther unit and canyest be shared.
 	 */
 	if (!(host->caps & MMC_CAP_NEEDS_POLL))
 		irq = gpiod_to_irq(ctx->cd_gpio);
@@ -166,10 +166,10 @@ EXPORT_SYMBOL(mmc_gpio_set_cd_isr);
  * @host: mmc host
  * @con_id: function within the GPIO consumer
  * @idx: index of the GPIO to obtain in the consumer
- * @override_active_level: ignore %GPIO_ACTIVE_LOW flag
+ * @override_active_level: igyesre %GPIO_ACTIVE_LOW flag
  * @debounce: debounce time in microseconds
- * @gpio_invert: will return whether the GPIO line is inverted or not, set
- * to NULL to ignore
+ * @gpio_invert: will return whether the GPIO line is inverted or yest, set
+ * to NULL to igyesre
  *
  * Note that this must be called prior to mmc_add_host()
  * otherwise the caller must also call mmc_gpiod_request_cd_irq().
@@ -218,8 +218,8 @@ EXPORT_SYMBOL(mmc_can_gpio_cd);
  * @con_id: function within the GPIO consumer
  * @idx: index of the GPIO to obtain in the consumer
  * @debounce: debounce time in microseconds
- * @gpio_invert: will return whether the GPIO line is inverted or not,
- * set to NULL to ignore
+ * @gpio_invert: will return whether the GPIO line is inverted or yest,
+ * set to NULL to igyesre
  *
  * Returns zero on success, else an error.
  */

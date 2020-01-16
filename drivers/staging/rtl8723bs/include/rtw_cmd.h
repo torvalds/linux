@@ -42,9 +42,9 @@
 		struct completion terminate_cmdthread_comp;
 		struct __queue	cmd_queue;
 		u8 cmd_seq;
-		u8 *cmd_buf;	/* shall be non-paged, and 4 bytes aligned */
+		u8 *cmd_buf;	/* shall be yesn-paged, and 4 bytes aligned */
 		u8 *cmd_allocated_buf;
-		u8 *rsp_buf;	/* shall be non-paged, and 4 bytes aligned */
+		u8 *rsp_buf;	/* shall be yesn-paged, and 4 bytes aligned */
 		u8 *rsp_allocated_buf;
 		u32 cmd_issued_cnt;
 		u32 cmd_done_cnt;
@@ -63,14 +63,14 @@
 		#define C2H_QUEUE_MAX_LEN 10
 
 		atomic_t event_seq;
-		u8 *evt_buf;	/* shall be non-paged, and 4 bytes aligned */
+		u8 *evt_buf;	/* shall be yesn-paged, and 4 bytes aligned */
 		u8 *evt_allocated_buf;
 		u32 evt_done_cnt;
 		u8 *c2h_mem;
 		u8 *allocated_c2h_mem;
 	};
 
-#define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
+#define init_h2fwcmd_w_parm_yes_rsp(pcmd, pparm, code) \
 do {\
 	INIT_LIST_HEAD(&pcmd->list);\
 	pcmd->cmdcode = code;\
@@ -80,7 +80,7 @@ do {\
 	pcmd->rspsz = 0;\
 } while (0)
 
-#define init_h2fwcmd_w_parm_no_parm_rsp(pcmd, code) \
+#define init_h2fwcmd_w_parm_yes_parm_rsp(pcmd, code) \
 do {\
 	INIT_LIST_HEAD(&pcmd->list);\
 	pcmd->cmdcode = code;\
@@ -132,7 +132,7 @@ int rtw_cmd_thread(void *context);
 extern void rtw_free_cmd_priv (struct cmd_priv *pcmdpriv);
 
 extern void rtw_free_evt_priv (struct evt_priv *pevtpriv);
-extern void rtw_evt_notify_isr(struct evt_priv *pevtpriv);
+extern void rtw_evt_yestify_isr(struct evt_priv *pevtpriv);
 
 enum rtw_drvextra_cmd_id
 {
@@ -149,8 +149,8 @@ enum rtw_drvextra_cmd_id
 	INTEl_WIDI_WK_CID,
 	C2H_WK_CID,
 	RTP_TIMER_CFG_WK_CID,
-	RESET_SECURITYPRIV, /*  add for CONFIG_IEEE80211W, none 11w also can use */
-	FREE_ASSOC_RESOURCES, /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	RESET_SECURITYPRIV, /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
+	FREE_ASSOC_RESOURCES, /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 	DM_IN_LPS_WK_CID,
 	DM_RA_MSK_WK_CID, /* add for STA update RAMask when bandwith change. */
 	BEAMFORMING_WK_CID,
@@ -191,7 +191,7 @@ struct usb_suspend_parm {
 /*
 Caller Mode: Infra, Ad-HoC
 
-Notes: To join a known BSS.
+Notes: To join a kyeswn BSS.
 
 Command-Event Mode
 
@@ -301,7 +301,7 @@ when 802.1x ==> keyid > 2 ==> unicast key
 
 */
 struct setkey_parm {
-	u8 algorithm;	/*  encryption algorithm, could be none, wep40, TKIP, CCMP, wep104 */
+	u8 algorithm;	/*  encryption algorithm, could be yesne, wep40, TKIP, CCMP, wep104 */
 	u8 keyid;
 	u8 grpkey;		/*  1: this is the grpkey for 802.1x. 0: this is the unicast key for 802.1x */
 	u8 set_tx;		/*  1: main tx key for wep. 0: other key. */
@@ -366,7 +366,7 @@ struct del_assocsta_parm {
 /*
 Caller Mode: AP/Ad-HoC(M)
 
-Notes: To notify fw that given staid has changed its power state
+Notes: To yestify fw that given staid has changed its power state
 
 Command Mode
 
@@ -707,11 +707,11 @@ struct getrxretrycnt_rsp{
 };
 
 /* to get BCNOK, BCNERR count */
-struct getbcnokcnt_parm{
+struct getbcyeskcnt_parm{
 	unsigned int rsvd;
 };
-struct getbcnokcnt_rsp{
-	unsigned long  bcnokcnt;
+struct getbcyeskcnt_rsp{
+	unsigned long  bcyeskcnt;
 };
 
 struct getbcnerrcnt_parm{
@@ -782,7 +782,7 @@ struct LedBlink_param
 /*H2C Handler index: 61 */
 struct SetChannelSwitch_param
 {
-	u8 new_ch_no;
+	u8 new_ch_yes;
 };
 
 /*H2C Handler index: 62 */
@@ -808,7 +808,7 @@ struct RunInThread_param
 Result:
 0x00: success
 0x01: sucess, and check Response.
-0x02: cmd ignored due to duplicated sequcne number
+0x02: cmd igyesred due to duplicated sequcne number
 0x03: cmd dropped due to invalid cmd code
 0x04: reserved.
 
@@ -844,7 +844,7 @@ extern u8 rtw_setfwdig_cmd(struct adapter *padapter, u8 type);
 extern u8 rtw_setfwra_cmd(struct adapter *padapter, u8 type);
 
 extern u8 rtw_addbareq_cmd(struct adapter *padapter, u8 tid, u8 *addr);
-/*  add for CONFIG_IEEE80211W, none 11w also can use */
+/*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 extern u8 rtw_reset_securitypriv_cmd(struct adapter *padapter);
 extern u8 rtw_free_assoc_resources_cmd(struct adapter *padapter);
 extern u8 rtw_dynamic_chk_wk_cmd(struct adapter *adapter);

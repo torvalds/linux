@@ -24,7 +24,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/seq_file.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 #include <linux/dma/idma64.h>
 
@@ -337,7 +337,7 @@ static int intel_lpss_register_clock(struct intel_lpss *lpss)
 
 	/*
 	 * Support for clock divider only if it has some preset value.
-	 * Otherwise we assume that the divider is not used.
+	 * Otherwise we assume that the divider is yest used.
 	 */
 	if (lpss->type != LPSS_DEV_I2C) {
 		ret = intel_lpss_register_clock_divider(lpss, devname, &clk);
@@ -487,9 +487,9 @@ int intel_lpss_suspend(struct device *dev)
 		lpss->priv_ctx[i] = readl(lpss->priv + i * 4);
 
 	/*
-	 * If the device type is not UART, then put the controller into
-	 * reset. UART cannot be put into reset since S3/S0ix fail when
-	 * no_console_suspend flag is enabled.
+	 * If the device type is yest UART, then put the controller into
+	 * reset. UART canyest be put into reset since S3/S0ix fail when
+	 * yes_console_suspend flag is enabled.
 	 */
 	if (lpss->type != LPSS_DEV_UART)
 		writel(0, lpss->priv + LPSS_PRIV_RESETS);
@@ -538,6 +538,6 @@ MODULE_LICENSE("GPL v2");
  * so that the host controller driver can request its DMA channels as early
  * as possible.
  *
- * If the DMA module is not there that's OK as well.
+ * If the DMA module is yest there that's OK as well.
  */
 MODULE_SOFTDEP("pre: platform:" LPSS_IDMA64_DRIVER_NAME);

@@ -177,7 +177,7 @@ static const u16 mgmt_untrusted_events[] = {
 /* HCI to MGMT error code conversion table */
 static u8 mgmt_status_table[] = {
 	MGMT_STATUS_SUCCESS,
-	MGMT_STATUS_UNKNOWN_COMMAND,	/* Unknown Command */
+	MGMT_STATUS_UNKNOWN_COMMAND,	/* Unkyeswn Command */
 	MGMT_STATUS_NOT_CONNECTED,	/* No Connection */
 	MGMT_STATUS_FAILED,		/* Hardware Failure */
 	MGMT_STATUS_CONNECT_FAILED,	/* Page Timeout */
@@ -201,7 +201,7 @@ static u8 mgmt_status_table[] = {
 	MGMT_STATUS_DISCONNECTED,	/* Connection Terminated */
 	MGMT_STATUS_BUSY,		/* Repeated Attempts */
 	MGMT_STATUS_REJECTED,		/* Pairing Not Allowed */
-	MGMT_STATUS_FAILED,		/* Unknown LMP PDU */
+	MGMT_STATUS_FAILED,		/* Unkyeswn LMP PDU */
 	MGMT_STATUS_NOT_SUPPORTED,	/* Unsupported Remote Feature */
 	MGMT_STATUS_REJECTED,		/* SCO Offset Rejected */
 	MGMT_STATUS_REJECTED,		/* SCO Interval Rejected */
@@ -384,7 +384,7 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 			continue;
 
 		/* Devices marked as raw-only are neither configured
-		 * nor unconfigured controllers.
+		 * yesr unconfigured controllers.
 		 */
 		if (test_bit(HCI_QUIRK_RAW_DEVICE, &d->quirks))
 			continue;
@@ -444,7 +444,7 @@ static int read_unconf_index_list(struct sock *sk, struct hci_dev *hdev,
 			continue;
 
 		/* Devices marked as raw-only are neither configured
-		 * nor unconfigured controllers.
+		 * yesr unconfigured controllers.
 		 */
 		if (test_bit(HCI_QUIRK_RAW_DEVICE, &d->quirks))
 			continue;
@@ -501,7 +501,7 @@ static int read_ext_index_list(struct sock *sk, struct hci_dev *hdev,
 			continue;
 
 		/* Devices marked as raw-only are neither configured
-		 * nor unconfigured controllers.
+		 * yesr unconfigured controllers.
 		 */
 		if (test_bit(HCI_QUIRK_RAW_DEVICE, &d->quirks))
 			continue;
@@ -528,7 +528,7 @@ static int read_ext_index_list(struct sock *sk, struct hci_dev *hdev,
 
 	/* If this command is called at least once, then all the
 	 * default index and unconfigured index events are disabled
-	 * and from now on only extended index events are used.
+	 * and from yesw on only extended index events are used.
 	 */
 	hci_sock_set_flag(sk, HCI_MGMT_EXT_INDEX_EVENTS);
 	hci_sock_clear_flag(sk, HCI_MGMT_INDEX_EVENTS);
@@ -830,9 +830,9 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	 * first is to indicate if the static address will be used and
 	 * the second is to indicate if it is actually set.
 	 *
-	 * This means if the static address is not configured, this flag
+	 * This means if the static address is yest configured, this flag
 	 * will never be set. If the address is configured, then if the
-	 * address is actually used decides if the flag is set or not.
+	 * address is actually used decides if the flag is set or yest.
 	 *
 	 * For single mode LE only controllers and dual-mode controllers
 	 * with BR/EDR disabled, the existence of the static address will
@@ -864,7 +864,7 @@ u8 mgmt_get_adv_discov_flags(struct hci_dev *hdev)
 {
 	struct mgmt_pending_cmd *cmd;
 
-	/* If there's a pending mgmt command the flags will not yet have
+	/* If there's a pending mgmt command the flags will yest yet have
 	 * their final values, so check for this first.
 	 */
 	cmd = pending_find(MGMT_OP_SET_DISCOVERABLE, hdev);
@@ -888,7 +888,7 @@ bool mgmt_get_connectable(struct hci_dev *hdev)
 {
 	struct mgmt_pending_cmd *cmd;
 
-	/* If there's a pending mgmt command the flag will not yet have
+	/* If there's a pending mgmt command the flag will yest yet have
 	 * it's final value, so check for this first.
 	 */
 	cmd = pending_find(MGMT_OP_SET_CONNECTABLE, hdev);
@@ -1194,7 +1194,7 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 			queue_delayed_work(hdev->req_workqueue, &hdev->power_off,
 					   HCI_POWER_OFF_TIMEOUT);
 
-		/* ENODATA means there were no HCI commands queued */
+		/* ENODATA means there were yes HCI commands queued */
 		if (err == -ENODATA) {
 			cancel_delayed_work(&hdev->power_off);
 			queue_work(hdev->req_workqueue, &hdev->power_off.work);
@@ -1352,7 +1352,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	timeout = __le16_to_cpu(cp->timeout);
 
-	/* Disabling discoverable requires that no timeout is set,
+	/* Disabling discoverable requires that yes timeout is set,
 	 * and enabling limited discoverable requires a timeout.
 	 */
 	if ((cp->val == 0x00 && timeout > 0) ||
@@ -1385,8 +1385,8 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 		bool changed = false;
 
 		/* Setting limited discoverable when powered off is
-		 * not a valid operation since it requires a timeout
-		 * and so no need to check HCI_LIMITED_DISCOVERABLE.
+		 * yest a valid operation since it requires a timeout
+		 * and so yes need to check HCI_LIMITED_DISCOVERABLE.
 		 */
 		if (!!cp->val != hci_dev_test_flag(hdev, HCI_DISCOVERABLE)) {
 			hci_dev_change_flag(hdev, HCI_DISCOVERABLE);
@@ -1405,7 +1405,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	/* If the current mode is the same, then just update the timeout
 	 * value with the new value. And if only the timeout gets updated,
-	 * then no need for any HCI transactions.
+	 * then yes need for any HCI transactions.
 	 */
 	if (!!cp->val == hci_dev_test_flag(hdev, HCI_DISCOVERABLE) &&
 	    (cp->val == 0x02) == hci_dev_test_flag(hdev,
@@ -1886,7 +1886,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 				       MGMT_STATUS_INVALID_PARAMS);
 
 	/* Bluetooth single mode LE only controllers or dual-mode
-	 * controllers configured as LE only devices, do not allow
+	 * controllers configured as LE only devices, do yest allow
 	 * switching LE off. These have either LE enabled explicitly
 	 * or BR/EDR has been previously switched off.
 	 *
@@ -1975,9 +1975,9 @@ unlock:
 
 /* This is a helper function to test for pending mgmt commands that can
  * cause CoD or EIR HCI commands. We can only allow one such pending
- * mgmt command at a time since otherwise we cannot easily track what
+ * mgmt command at a time since otherwise we canyest easily track what
  * the current values are, will be, and based on that calculate if a new
- * HCI command needs to be sent and if yes with what value.
+ * HCI command needs to be sent and if no with what value.
  */
 static bool pending_eir_or_class(struct hci_dev *hdev)
 {
@@ -2228,14 +2228,14 @@ static int set_dev_class(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	if ((cp->minor & 0x03) != 0 || (cp->major & 0xe0) != 0) {
+	if ((cp->miyesr & 0x03) != 0 || (cp->major & 0xe0) != 0) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_DEV_CLASS,
 				      MGMT_STATUS_INVALID_PARAMS);
 		goto unlock;
 	}
 
 	hdev->major_class = cp->major;
-	hdev->minor_class = cp->minor;
+	hdev->miyesr_class = cp->miyesr;
 
 	if (!hdev_is_powered(hdev)) {
 		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_SET_DEV_CLASS, 0,
@@ -2341,7 +2341,7 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_link_key_info *key = &cp->keys[i];
 
-		/* Always ignore debug keys and require a new pairing if
+		/* Always igyesre debug keys and require a new pairing if
 		 * the user wants to use them.
 		 */
 		if (key->type == HCI_LK_DEBUG_COMBINATION)
@@ -2409,7 +2409,7 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		 * connection. If the remote device is connected, it
 		 * will be later used to terminate the link.
 		 *
-		 * Setting it to NULL explicitly will cause no
+		 * Setting it to NULL explicitly will cause yes
 		 * termination of the link.
 		 */
 		if (cp->disconnect)
@@ -2463,8 +2463,8 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 			params->auto_connect = HCI_AUTO_CONN_DISABLED;
 	}
 
-	/* If disconnection is not requested, then clear the connection
-	 * variable so that the link is not terminated.
+	/* If disconnection is yest requested, then clear the connection
+	 * variable so that the link is yest terminated.
 	 */
 	if (!cp->disconnect)
 		conn = NULL;
@@ -2689,7 +2689,7 @@ static int pin_code_reply(struct sock *sk, struct hci_dev *hdev, void *data,
 
 		memcpy(&ncp.addr, &cp->addr, sizeof(ncp.addr));
 
-		bt_dev_err(hdev, "PIN code is not 16 bytes long");
+		bt_dev_err(hdev, "PIN code is yest 16 bytes long");
 
 		err = send_pin_code_neg_reply(sk, hdev, &ncp);
 		if (err >= 0)
@@ -2781,7 +2781,7 @@ static int pairing_complete(struct mgmt_pending_cmd *cmd, u8 status)
 
 	hci_conn_drop(conn);
 
-	/* The device is paired so there is no need to remove
+	/* The device is paired so there is yes need to remove
 	 * its connection parameters anymore.
 	 */
 	clear_bit(HCI_CONN_PARAM_REMOVAL_PEND, &conn->flags);
@@ -2897,7 +2897,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		 * further connection establishment.
 		 *
 		 * If connection parameters already exist, then they
-		 * will be kept and this function does nothing.
+		 * will be kept and this function does yesthing.
 		 */
 		p = hci_conn_params_add(hdev, &cp->addr.bdaddr, addr_type);
 
@@ -3264,7 +3264,7 @@ static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	/* The name is stored in the scan response data and so
-	 * no need to udpate the advertising data here.
+	 * yes need to udpate the advertising data here.
 	 */
 	if (lmp_le_capable(hdev) && hci_dev_test_flag(hdev, HCI_ADVERTISING))
 		__hci_req_update_scan_rsp_data(&req, hdev->cur_adv_instance);
@@ -4097,7 +4097,7 @@ static int confirm_name(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	e = hci_inquiry_cache_lookup_unknown(hdev, &cp->addr.bdaddr);
+	e = hci_inquiry_cache_lookup_unkyeswn(hdev, &cp->addr.bdaddr);
 	if (!e) {
 		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_CONFIRM_NAME,
 					MGMT_STATUS_INVALID_PARAMS, &cp->addr,
@@ -4105,7 +4105,7 @@ static int confirm_name(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	if (cp->name_known) {
+	if (cp->name_kyeswn) {
 		e->name_state = NAME_KNOWN;
 		list_del(&e->list);
 	} else {
@@ -4322,7 +4322,7 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 	val = !!cp->val;
 
 	/* The following conditions are ones which mean that we should
-	 * not do any HCI communication but directly send a mgmt
+	 * yest do any HCI communication but directly send a mgmt
 	 * response to user space (after toggling the flag if
 	 * necessary).
 	 */
@@ -4380,8 +4380,8 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	if (val) {
 		/* Switch to instance "0" for the Set Advertising setting.
-		 * We cannot use update_[adv|scan_rsp]_data() here as the
-		 * HCI_ADVERTISING flag is not yet set.
+		 * We canyest use update_[adv|scan_rsp]_data() here as the
+		 * HCI_ADVERTISING flag is yest yet set.
 		 */
 		hdev->cur_adv_instance = 0x00;
 
@@ -4692,7 +4692,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	} else {
 		/* When configuring a dual-mode controller to operate
 		 * with LE only and using a static address, then switching
-		 * BR/EDR back on is not allowed.
+		 * BR/EDR back on is yest allowed.
 		 *
 		 * Dual-mode controllers shall operate with the public
 		 * address as its identity address for BR/EDR and LE. So
@@ -4702,7 +4702,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		 * has been enabled. For BR/EDR this is a controller feature
 		 * while for LE it is a host stack feature. This means that
 		 * switching BR/EDR back on when secure connections has been
-		 * enabled is not a supported transaction.
+		 * enabled is yest a supported transaction.
 		 */
 		if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) &&
 		    (bacmp(&hdev->static_addr, BDADDR_ANY) ||
@@ -4736,7 +4736,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	__hci_req_update_scan(&req);
 
 	/* Since only the advertising data flags will change, there
-	 * is no need to update the scan response data.
+	 * is yes need to update the scan response data.
 	 */
 	__hci_req_update_adv_data(&req, hdev->cur_adv_instance);
 
@@ -5237,7 +5237,7 @@ static void conn_info_refresh_complete(struct hci_dev *hdev, u8 hci_status,
 	handle = __le16_to_cpu(cp->handle);
 	conn = hci_conn_hash_lookup_handle(hdev, handle);
 	if (!conn) {
-		bt_dev_err(hdev, "unknown handle (%d) in conn_info response",
+		bt_dev_err(hdev, "unkyeswn handle (%d) in conn_info response",
 			   handle);
 		goto unlock;
 	}
@@ -5324,8 +5324,8 @@ static int get_conn_info(struct sock *sk, struct hci_dev *hdev, void *data,
 		hci_req_add(&req, HCI_OP_READ_RSSI, sizeof(req_rssi_cp),
 			    &req_rssi_cp);
 
-		/* For LE links TX power does not change thus we don't need to
-		 * query for it once value is known.
+		/* For LE links TX power does yest change thus we don't need to
+		 * query for it once value is kyeswn.
 		 */
 		if (!bdaddr_type_is_le(cp->addr.type) ||
 		    conn->tx_power == HCI_TX_POWER_INVALID) {
@@ -5615,7 +5615,7 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 	hci_dev_lock(hdev);
 
 	if (cp->addr.type == BDADDR_BREDR) {
-		/* Only incoming connections action is supported for now */
+		/* Only incoming connections action is supported for yesw */
 		if (cp->action != 0x01) {
 			err = mgmt_cmd_complete(sk, hdev->id,
 						MGMT_OP_ADD_DEVICE,
@@ -5869,7 +5869,7 @@ static int load_conn_param(struct sock *sk, struct hci_dev *hdev, void *data,
 		} else if (param->addr.type == BDADDR_LE_RANDOM) {
 			addr_type = ADDR_LE_DEV_RANDOM;
 		} else {
-			bt_dev_err(hdev, "ignoring invalid connection parameters");
+			bt_dev_err(hdev, "igyesring invalid connection parameters");
 			continue;
 		}
 
@@ -5882,7 +5882,7 @@ static int load_conn_param(struct sock *sk, struct hci_dev *hdev, void *data,
 		       min, max, latency, timeout);
 
 		if (hci_check_conn_params(min, max, latency, timeout) < 0) {
-			bt_dev_err(hdev, "ignoring invalid connection parameters");
+			bt_dev_err(hdev, "igyesring invalid connection parameters");
 			continue;
 		}
 
@@ -6227,13 +6227,13 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 
 		/* This should return the active RPA, but since the RPA
 		 * is only programmed on demand, it is really hard to fill
-		 * this in at the moment. For now disallow retrieving
+		 * this in at the moment. For yesw disallow retrieving
 		 * local out-of-band data when privacy is in use.
 		 *
-		 * Returning the identity address will not help here since
+		 * Returning the identity address will yest help here since
 		 * pairing happens before the identity resolving key is
-		 * known and thus the connection establishment happens
-		 * based on the RPA and not the identity address.
+		 * kyeswn and thus the connection establishment happens
+		 * based on the RPA and yest the identity address.
 		 */
 		if (hci_dev_test_flag(hdev, HCI_PRIVACY)) {
 			hci_dev_unlock(hdev);
@@ -6633,14 +6633,14 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 		if (next_instance)
 			schedule_instance = next_instance->instance;
 	} else if (!hdev->adv_instance_timeout) {
-		/* Immediately advertise the new instance if no other
+		/* Immediately advertise the new instance if yes other
 		 * instance is currently being advertised.
 		 */
 		schedule_instance = cp->instance;
 	}
 
 	/* If the HCI_ADVERTISING flag is set or the device isn't powered or
-	 * there is no instance to be advertised then we have no HCI
+	 * there is yes instance to be advertised then we have yes HCI
 	 * communication to make. Simply return.
 	 */
 	if (!hdev_is_powered(hdev) ||
@@ -6749,8 +6749,8 @@ static int remove_advertising(struct sock *sk, struct hci_dev *hdev,
 	if (list_empty(&hdev->adv_instances))
 		__hci_req_disable_advertising(&req);
 
-	/* If no HCI commands have been collected so far or the HCI_ADVERTISING
-	 * flag is set or the device isn't powered then we have no HCI
+	/* If yes HCI commands have been collected so far or the HCI_ADVERTISING
+	 * flag is set or the device isn't powered then we have yes HCI
 	 * communication to make. Simply return.
 	 */
 	if (skb_queue_empty(&req.cmd_q) ||
@@ -6821,7 +6821,7 @@ static int get_adv_size_info(struct sock *sk, struct hci_dev *hdev,
 }
 
 static const struct hci_mgmt_handler mgmt_handlers[] = {
-	{ NULL }, /* 0x0000 (no command) */
+	{ NULL }, /* 0x0000 (yes command) */
 	{ read_version,            MGMT_READ_VERSION_SIZE,
 						HCI_MGMT_NO_HDEV |
 						HCI_MGMT_UNTRUSTED },
@@ -6989,7 +6989,7 @@ static void restart_le_actions(struct hci_dev *hdev)
 	struct hci_conn_params *p;
 
 	list_for_each_entry(p, &hdev->le_conn_params, list) {
-		/* Needed for AUTO_OFF case where might not "really"
+		/* Needed for AUTO_OFF case where might yest "really"
 		 * have been powered off.
 		 */
 		list_del_init(&p->action);
@@ -7126,14 +7126,14 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, bool persistent)
 
 	memset(&ev, 0, sizeof(ev));
 
-	/* Devices using resolvable or non-resolvable random addresses
+	/* Devices using resolvable or yesn-resolvable random addresses
 	 * without providing an identity resolving key don't require
 	 * to store long term keys. Their addresses will change the
 	 * next time around.
 	 *
 	 * Only when a remote device provides an identity address
 	 * make sure the long term key is stored. If the remote
-	 * identity is known, the long term keys are internally
+	 * identity is kyeswn, the long term keys are internally
 	 * mapped to the identity address. So allow static random
 	 * and public addresses here.
 	 */
@@ -7186,7 +7186,7 @@ void mgmt_new_csrk(struct hci_dev *hdev, struct smp_csrk *csrk,
 
 	memset(&ev, 0, sizeof(ev));
 
-	/* Devices using resolvable or non-resolvable random addresses
+	/* Devices using resolvable or yesn-resolvable random addresses
 	 * without providing an identity resolving key don't require
 	 * to store signature resolving keys. Their addresses will change
 	 * the next time around.
@@ -7243,7 +7243,7 @@ void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
 	ev->flags = __cpu_to_le32(flags);
 
 	/* We must ensure that the EIR Data fields are ordered and
-	 * unique. Keep it simple for now and avoid the problem by not
+	 * unique. Keep it simple for yesw and avoid the problem by yest
 	 * adding any BR/EDR data to the LE adv.
 	 */
 	if (conn->le_adv_data_len > 0) {
@@ -7314,7 +7314,7 @@ void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	struct sock *sk = NULL;
 
 	/* The connection is still in hci_conn_hash so test for 1
-	 * instead of 0 to know if this is the last one.
+	 * instead of 0 to kyesw if this is the last one.
 	 */
 	if (mgmt_powering_down(hdev) && hci_conn_count(hdev) == 1) {
 		cancel_delayed_work(&hdev->power_off);
@@ -7374,7 +7374,7 @@ void mgmt_connect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	struct mgmt_ev_connect_failed ev;
 
 	/* The connection is still in hci_conn_hash so test for 1
-	 * instead of 0 to know if this is the last one.
+	 * instead of 0 to kyesw if this is the last one.
 	 */
 	if (mgmt_powering_down(hdev) && hci_conn_count(hdev) == 1) {
 		cancel_delayed_work(&hdev->power_off);
@@ -7502,11 +7502,11 @@ int mgmt_user_passkey_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 					  MGMT_OP_USER_PASSKEY_NEG_REPLY);
 }
 
-int mgmt_user_passkey_notify(struct hci_dev *hdev, bdaddr_t *bdaddr,
+int mgmt_user_passkey_yestify(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			     u8 link_type, u8 addr_type, u32 passkey,
 			     u8 entered)
 {
-	struct mgmt_ev_passkey_notify ev;
+	struct mgmt_ev_passkey_yestify ev;
 
 	BT_DBG("%s", hdev->name);
 
@@ -7760,7 +7760,7 @@ static bool eir_has_uuids(u8 *eir, u16 eir_len, u16 uuid_count, u8 (*uuids)[16])
 
 static void restart_le_scan(struct hci_dev *hdev)
 {
-	/* If controller is not scanning we are done. */
+	/* If controller is yest scanning we are done. */
 	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
 		return;
 
@@ -7777,12 +7777,12 @@ static bool is_filter_match(struct hci_dev *hdev, s8 rssi, u8 *eir,
 			    u16 eir_len, u8 *scan_rsp, u8 scan_rsp_len)
 {
 	/* If a RSSI threshold has been specified, and
-	 * HCI_QUIRK_STRICT_DUPLICATE_FILTER is not set, then all results with
+	 * HCI_QUIRK_STRICT_DUPLICATE_FILTER is yest set, then all results with
 	 * a RSSI smaller than the RSSI threshold will be dropped. If the quirk
 	 * is set, let it through for further processing, as we might need to
 	 * restart the scan.
 	 *
-	 * For BR/EDR devices (pre 1.2) providing no RSSI during inquiry,
+	 * For BR/EDR devices (pre 1.2) providing yes RSSI during inquiry,
 	 * the results are also dropped.
 	 */
 	if (hdev->discovery.rssi != HCI_RSSI_INVALID &&
@@ -7792,7 +7792,7 @@ static bool is_filter_match(struct hci_dev *hdev, s8 rssi, u8 *eir,
 		return  false;
 
 	if (hdev->discovery.uuid_count != 0) {
-		/* If a list of UUIDs is provided in filter, results with no
+		/* If a list of UUIDs is provided in filter, results with yes
 		 * matching UUID should be dropped.
 		 */
 		if (!eir_has_uuids(eir, eir_len, hdev->discovery.uuid_count,
@@ -7803,7 +7803,7 @@ static bool is_filter_match(struct hci_dev *hdev, s8 rssi, u8 *eir,
 			return false;
 	}
 
-	/* If duplicate filtering does not report RSSI changes, then restart
+	/* If duplicate filtering does yest report RSSI changes, then restart
 	 * scanning to ensure updated result with updated RSSI values.
 	 */
 	if (test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks)) {
@@ -7826,7 +7826,7 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	struct mgmt_ev_device_found *ev = (void *)buf;
 	size_t ev_size;
 
-	/* Don't send events for a non-kernel initiated discovery. With
+	/* Don't send events for a yesn-kernel initiated discovery. With
 	 * LE one exception is if we have pend_le_reports > 0 in which
 	 * case we're doing passive scanning and want these events.
 	 */
@@ -7856,7 +7856,7 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		}
 	}
 
-	/* Make sure that the buffer is big enough. The 5 extra bytes
+	/* Make sure that the buffer is big eyesugh. The 5 extra bytes
 	 * are for the potential CoD field.
 	 */
 	if (sizeof(*ev) + eir_len + scan_rsp_len + 5 > sizeof(buf))
@@ -7865,12 +7865,12 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	memset(buf, 0, sizeof(buf));
 
 	/* In case of device discovery with BR/EDR devices (pre 1.2), the
-	 * RSSI value was reported as 0 when not available. This behavior
+	 * RSSI value was reported as 0 when yest available. This behavior
 	 * is kept when using device discovery. This is required for full
 	 * backwards compatibility with the API.
 	 *
 	 * However when using service discovery, the value 127 will be
-	 * returned when the RSSI is not available.
+	 * returned when the RSSI is yest available.
 	 */
 	if (rssi == HCI_RSSI_INVALID && !hdev->discovery.report_invalid_rssi &&
 	    link_type == ACL_LINK)

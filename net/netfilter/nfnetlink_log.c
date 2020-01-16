@@ -54,7 +54,7 @@
 				     printk(x, ## args); } while (0);
 
 struct nfulnl_instance {
-	struct hlist_node hlist;	/* global list of instances */
+	struct hlist_yesde hlist;	/* global list of instances */
 	spinlock_t lock;
 	refcount_t use;			/* use count */
 
@@ -124,7 +124,7 @@ instance_lookup_get(struct nfnl_log_net *log, u_int16_t group_num)
 
 	rcu_read_lock_bh();
 	inst = __instance_lookup(log, group_num);
-	if (inst && !refcount_inc_not_zero(&inst->use))
+	if (inst && !refcount_inc_yest_zero(&inst->use))
 		inst = NULL;
 	rcu_read_unlock_bh();
 
@@ -325,7 +325,7 @@ nfulnl_alloc_skb(struct net *net, u32 peer_portid, unsigned int inst_size,
 	struct sk_buff *skb;
 	unsigned int n;
 
-	/* alloc skb which should be big enough for a whole multipart
+	/* alloc skb which should be big eyesugh for a whole multipart
 	 * message.  WARNING: has to be <= 128k due to slab restrictions */
 
 	n = max(inst_size, pkt_size);
@@ -777,7 +777,7 @@ nfulnl_log_packet(struct net *net,
 
 	if (inst->skb && size > skb_tailroom(inst->skb)) {
 		/* either the queue len is too high or we don't have
-		 * enough room in the skb left. flush to userspace. */
+		 * eyesugh room in the skb left. flush to userspace. */
 		__nfulnl_flush(inst);
 	}
 
@@ -797,7 +797,7 @@ nfulnl_log_packet(struct net *net,
 	if (inst->qlen >= qthreshold)
 		__nfulnl_flush(inst);
 	/* timer_pending always called within inst->lock, so there
-	 * is no chance of a race here */
+	 * is yes chance of a race here */
 	else if (!timer_pending(&inst->timer)) {
 		instance_get(inst);
 		inst->timer.expires = jiffies + (inst->flushtimeout*HZ/100);
@@ -815,10 +815,10 @@ alloc_failure:
 }
 
 static int
-nfulnl_rcv_nl_event(struct notifier_block *this,
+nfulnl_rcv_nl_event(struct yestifier_block *this,
 		   unsigned long event, void *ptr)
 {
-	struct netlink_notify *n = ptr;
+	struct netlink_yestify *n = ptr;
 	struct nfnl_log_net *log = nfnl_log_pernet(n->net);
 
 	if (event == NETLINK_URELEASE && n->protocol == NETLINK_NETFILTER) {
@@ -827,7 +827,7 @@ nfulnl_rcv_nl_event(struct notifier_block *this,
 		/* destroy all instances for this portid */
 		spin_lock_bh(&log->instances_lock);
 		for  (i = 0; i < INSTANCE_BUCKETS; i++) {
-			struct hlist_node *t2;
+			struct hlist_yesde *t2;
 			struct nfulnl_instance *inst;
 			struct hlist_head *head = &log->instance_table[i];
 
@@ -841,8 +841,8 @@ nfulnl_rcv_nl_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block nfulnl_rtnl_notifier = {
-	.notifier_call	= nfulnl_rcv_nl_event,
+static struct yestifier_block nfulnl_rtnl_yestifier = {
+	.yestifier_call	= nfulnl_rcv_nl_event,
 };
 
 static int nfulnl_recv_unsupp(struct net *net, struct sock *ctnl,
@@ -903,7 +903,7 @@ static int nfulnl_recv_config(struct net *net, struct sock *ctnl,
 	}
 
 	/* Check if we support these flags in first place, dependencies should
-	 * be there too not to break atomicity.
+	 * be there too yest to break atomicity.
 	 */
 	if (nfula[NFULA_CFG_FLAGS]) {
 		flags = ntohs(nla_get_be16(nfula[NFULA_CFG_FLAGS]));
@@ -1013,7 +1013,7 @@ struct iter_state {
 	unsigned int bucket;
 };
 
-static struct hlist_node *get_first(struct net *net, struct iter_state *st)
+static struct hlist_yesde *get_first(struct net *net, struct iter_state *st)
 {
 	struct nfnl_log_net *log;
 	if (!st)
@@ -1030,8 +1030,8 @@ static struct hlist_node *get_first(struct net *net, struct iter_state *st)
 	return NULL;
 }
 
-static struct hlist_node *get_next(struct net *net, struct iter_state *st,
-				   struct hlist_node *h)
+static struct hlist_yesde *get_next(struct net *net, struct iter_state *st,
+				   struct hlist_yesde *h)
 {
 	h = rcu_dereference_bh(hlist_next_rcu(h));
 	while (!h) {
@@ -1048,10 +1048,10 @@ static struct hlist_node *get_next(struct net *net, struct iter_state *st,
 	return h;
 }
 
-static struct hlist_node *get_idx(struct net *net, struct iter_state *st,
+static struct hlist_yesde *get_idx(struct net *net, struct iter_state *st,
 				  loff_t pos)
 {
-	struct hlist_node *head;
+	struct hlist_yesde *head;
 	head = get_first(net, st);
 
 	if (head)
@@ -1158,11 +1158,11 @@ static int __init nfnetlink_log_init(void)
 		goto out;
 	}
 
-	netlink_register_notifier(&nfulnl_rtnl_notifier);
+	netlink_register_yestifier(&nfulnl_rtnl_yestifier);
 	status = nfnetlink_subsys_register(&nfulnl_subsys);
 	if (status < 0) {
 		pr_err("failed to create netlink socket\n");
-		goto cleanup_netlink_notifier;
+		goto cleanup_netlink_yestifier;
 	}
 
 	status = nf_log_register(NFPROTO_UNSPEC, &nfulnl_logger);
@@ -1175,8 +1175,8 @@ static int __init nfnetlink_log_init(void)
 
 cleanup_subsys:
 	nfnetlink_subsys_unregister(&nfulnl_subsys);
-cleanup_netlink_notifier:
-	netlink_unregister_notifier(&nfulnl_rtnl_notifier);
+cleanup_netlink_yestifier:
+	netlink_unregister_yestifier(&nfulnl_rtnl_yestifier);
 	unregister_pernet_subsys(&nfnl_log_net_ops);
 out:
 	return status;
@@ -1185,7 +1185,7 @@ out:
 static void __exit nfnetlink_log_fini(void)
 {
 	nfnetlink_subsys_unregister(&nfulnl_subsys);
-	netlink_unregister_notifier(&nfulnl_rtnl_notifier);
+	netlink_unregister_yestifier(&nfulnl_rtnl_yestifier);
 	unregister_pernet_subsys(&nfnl_log_net_ops);
 	nf_log_unregister(&nfulnl_logger);
 }

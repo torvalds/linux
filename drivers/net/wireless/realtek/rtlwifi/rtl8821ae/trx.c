@@ -85,7 +85,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 
 		cck_agc_rpt = p_phystrpt->cfosho[0];
 
-		/* (1)Hardware does not provide RSSI for CCK
+		/* (1)Hardware does yest provide RSSI for CCK
 		 * (2)PWDB, Average PWDB cacluated by
 		 * hardware (for rate adaptive)
 		 */
@@ -195,7 +195,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 	} else {
 		/* (1)Get RSSI for HT rate */
 		for (i = RF90_PATH_A; i < RF6052_MAX_PATH; i++) {
-			/* we will judge RF RX path now. */
+			/* we will judge RF RX path yesw. */
 			if (rtlpriv->dm.rfpath_rxenable[i])
 				rf_rx_num++;
 
@@ -322,7 +322,7 @@ static void translate_rx_signal_stuff(struct ieee80211_hw *hw,
 		u16 tid = le16_to_cpu(hdr_qos->qos_ctrl) & 0xf;
 
 		if (tid != 0 && tid != 3)
-			rtl_priv(hw)->dm.dbginfo.num_non_be_pkt++;
+			rtl_priv(hw)->dm.dbginfo.num_yesn_be_pkt++;
 	}
 
 	query_rxphystatus(hw, pstatus, pdesc, p_drvinfo,
@@ -512,7 +512,7 @@ bool rtl8821ae_rx_query_desc(struct ieee80211_hw *hw,
 
 	/* hw will set status->decrypted true, if it finds the
 	 * frame is open data frame or mgmt frame.
-	 * So hw will not decryption robust managment frame
+	 * So hw will yest decryption robust managment frame
 	 * for IEEE80211w but still set status->decrypted
 	 * true, so here we should set it back to undecrypted
 	 * for IEEE80211w frame, and mac80211 sw will help
@@ -890,7 +890,7 @@ void rtl8821ae_set_desc(struct ieee80211_hw *hw, u8 *pdesc8,
 			break;
 		default:
 			WARN_ONCE(true,
-				  "rtl8821ae: ERR txdesc :%d not processed\n",
+				  "rtl8821ae: ERR txdesc :%d yest processed\n",
 				  desc_name);
 			break;
 		}
@@ -910,7 +910,7 @@ void rtl8821ae_set_desc(struct ieee80211_hw *hw, u8 *pdesc8,
 			break;
 		default:
 			WARN_ONCE(true,
-				  "rtl8821ae: ERR rxdesc :%d not processed\n",
+				  "rtl8821ae: ERR rxdesc :%d yest processed\n",
 				  desc_name);
 			break;
 		}
@@ -933,7 +933,7 @@ u64 rtl8821ae_get_desc(struct ieee80211_hw *hw,
 			break;
 		default:
 			WARN_ONCE(true,
-				  "rtl8821ae: ERR txdesc :%d not processed\n",
+				  "rtl8821ae: ERR txdesc :%d yest processed\n",
 				  desc_name);
 			break;
 		}
@@ -950,7 +950,7 @@ u64 rtl8821ae_get_desc(struct ieee80211_hw *hw,
 			break;
 		default:
 			WARN_ONCE(true,
-				  "rtl8821ae: ERR rxdesc :%d not processed\n",
+				  "rtl8821ae: ERR rxdesc :%d yest processed\n",
 				  desc_name);
 			break;
 		}
@@ -968,7 +968,7 @@ bool rtl8821ae_is_tx_desc_closed(struct ieee80211_hw *hw,
 
 	/**
 	 *beacon packet will only use the first
-	 *descriptor defautly,and the own may not
+	 *descriptor defautly,and the own may yest
 	 *be cleared by the hardware
 	 */
 	if (own)

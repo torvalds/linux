@@ -256,7 +256,7 @@ static void rt2400pci_config_filter(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Start configuration steps.
 	 * Note that the version error will always be dropped
-	 * since there is no filter for it at this time.
+	 * since there is yes filter for it at this time.
 	 */
 	reg = rt2x00mmio_register_read(rt2x00dev, RXCSR0);
 	rt2x00_set_field32(&reg, RXCSR0_DROP_CRC,
@@ -606,7 +606,7 @@ static void rt2400pci_link_tuner(struct rt2x00_dev *rt2x00dev,
 				 struct link_qual *qual, const u32 count)
 {
 	/*
-	 * The link tuner should not run longer then 60 seconds,
+	 * The link tuner should yest run longer then 60 seconds,
 	 * and should run once every 2 seconds.
 	 */
 	if (count > 60 || !(count & 1))
@@ -1037,7 +1037,7 @@ static int rt2400pci_set_state(struct rt2x00_dev *rt2x00dev,
 	rt2x00mmio_register_write(rt2x00dev, PWRCSR1, reg);
 
 	/*
-	 * Device is not guaranteed to be in the requested state yet.
+	 * Device is yest guaranteed to be in the requested state yet.
 	 * We must wait until the register indicates that the
 	 * device has entered the correct state.
 	 */
@@ -1406,7 +1406,7 @@ static irqreturn_t rt2400pci_interrupt(int irq, void *dev_instance)
 	}
 
 	/*
-	 * Disable all interrupts for which a tasklet was scheduled right now,
+	 * Disable all interrupts for which a tasklet was scheduled right yesw,
 	 * the tasklet will reenable the appropriate interrupts.
 	 */
 	spin_lock(&rt2x00dev->irqmask_lock);
@@ -1496,7 +1496,7 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * When the eeprom indicates SW_DIVERSITY use HW_DIVERSITY instead.
-	 * I am not 100% sure about this, but the legacy drivers do not
+	 * I am yest 100% sure about this, but the legacy drivers do yest
 	 * indicate antenna swapping in software is required when
 	 * diversity is enabled.
 	 */
@@ -1660,7 +1660,7 @@ static int rt2400pci_conf_tx(struct ieee80211_hw *hw,
 	/*
 	 * We don't support variating cw_min and cw_max variables
 	 * per queue. So by default we only configure the TX queue,
-	 * and ignore all other configurations.
+	 * and igyesre all other configurations.
 	 */
 	if (queue != 0)
 		return -EINVAL;

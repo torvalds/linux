@@ -35,7 +35,7 @@
 
 #define IPL_PARM_BLOCK_VERSION 0
 
-#define IPL_UNKNOWN_STR		"unknown"
+#define IPL_UNKNOWN_STR		"unkyeswn"
 #define IPL_CCW_STR		"ccw"
 #define IPL_FCP_STR		"fcp"
 #define IPL_FCP_DUMP_STR	"fcp_dump"
@@ -43,7 +43,7 @@
 
 #define DUMP_CCW_STR		"ccw"
 #define DUMP_FCP_STR		"fcp"
-#define DUMP_NONE_STR		"none"
+#define DUMP_NONE_STR		"yesne"
 
 /*
  * Four shutdown trigger types are supported:
@@ -151,7 +151,7 @@ static inline int __diag308(unsigned long subcode, void *addr)
 
 	asm volatile(
 		"	diag	%0,%2,0x308\n"
-		"0:	nopr	%%r7\n"
+		"0:	yespr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: "+d" (_addr), "+d" (_rc)
 		: "d" (subcode) : "cc", "memory");
@@ -182,22 +182,22 @@ static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 		struct kobj_attribute *attr,				\
 		const char *buf, size_t len)				\
 {									\
-	unsigned long long ssid, devno;					\
+	unsigned long long ssid, devyes;					\
 									\
-	if (sscanf(buf, "0.%llx.%llx\n", &ssid, &devno) != 2)		\
+	if (sscanf(buf, "0.%llx.%llx\n", &ssid, &devyes) != 2)		\
 		return -EINVAL;						\
 									\
-	if (ssid > __MAX_SSID || devno > __MAX_SUBCHANNEL)		\
+	if (ssid > __MAX_SSID || devyes > __MAX_SUBCHANNEL)		\
 		return -EINVAL;						\
 									\
 	_ipl_blk.ssid = ssid;						\
-	_ipl_blk.devno = devno;						\
+	_ipl_blk.devyes = devyes;						\
 	return len;							\
 }
 
 #define DEFINE_IPL_CCW_ATTR_RW(_prefix, _name, _ipl_blk)		\
 IPL_ATTR_SHOW_FN(_prefix, _name, "0.%x.%04x\n",				\
-		 _ipl_blk.ssid, _ipl_blk.devno);			\
+		 _ipl_blk.ssid, _ipl_blk.devyes);			\
 IPL_ATTR_CCW_STORE_FN(_prefix, _name, _ipl_blk);			\
 static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
 	__ATTR(_name, (S_IRUGO | S_IWUSR),				\
@@ -310,10 +310,10 @@ static ssize_t sys_ipl_device_show(struct kobject *kobj,
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
 		return sprintf(page, "0.%x.%04x\n", ipl_block.ccw.ssid,
-			       ipl_block.ccw.devno);
+			       ipl_block.ccw.devyes);
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
-		return sprintf(page, "0.0.%04x\n", ipl_block.fcp.devno);
+		return sprintf(page, "0.0.%04x\n", ipl_block.fcp.devyes);
 	default:
 		return 0;
 	}
@@ -368,7 +368,7 @@ static ssize_t ipl_ccw_loadparm_show(struct kobject *kobj,
 	char loadparm[LOADPARM_LEN + 1] = {};
 
 	if (!sclp_ipl_info.is_valid)
-		return sprintf(page, "#unknown#\n");
+		return sprintf(page, "#unkyeswn#\n");
 	memcpy(loadparm, &sclp_ipl_info.loadparm, LOADPARM_LEN);
 	EBCASC(loadparm, LOADPARM_LEN);
 	strim(loadparm);
@@ -427,13 +427,13 @@ static struct attribute_group ipl_ccw_attr_group_lpar = {
 
 /* UNKNOWN ipl device attributes */
 
-static struct attribute *ipl_unknown_attrs[] = {
+static struct attribute *ipl_unkyeswn_attrs[] = {
 	&sys_ipl_type_attr.attr,
 	NULL,
 };
 
-static struct attribute_group ipl_unknown_attr_group = {
-	.attrs = ipl_unknown_attrs,
+static struct attribute_group ipl_unkyeswn_attr_group = {
+	.attrs = ipl_unkyeswn_attrs,
 };
 
 static struct kset *ipl_kset;
@@ -473,7 +473,7 @@ static int __init ipl_init(void)
 		break;
 	default:
 		rc = sysfs_create_group(&ipl_kset->kobj,
-					&ipl_unknown_attr_group);
+					&ipl_unkyeswn_attr_group);
 		break;
 	}
 out:
@@ -509,7 +509,7 @@ static ssize_t reipl_generic_vmparm_store(struct ipl_parameter_block *ipb,
 {
 	int i, ip_len;
 
-	/* ignore trailing newline */
+	/* igyesre trailing newline */
 	ip_len = len;
 	if ((len > 0) && (buf[len - 1] == '\n'))
 		ip_len--;
@@ -625,7 +625,7 @@ DEFINE_IPL_ATTR_RW(reipl_fcp, bootprog, "%lld\n", "%lld\n",
 DEFINE_IPL_ATTR_RW(reipl_fcp, br_lba, "%lld\n", "%lld\n",
 		   reipl_block_fcp->fcp.br_lba);
 DEFINE_IPL_ATTR_RW(reipl_fcp, device, "0.0.%04llx\n", "0.0.%llx\n",
-		   reipl_block_fcp->fcp.devno);
+		   reipl_block_fcp->fcp.devyes);
 
 static void reipl_get_ascii_loadparm(char *loadparm,
 				     struct ipl_parameter_block *ibp)
@@ -650,11 +650,11 @@ static ssize_t reipl_generic_loadparm_store(struct ipl_parameter_block *ipb,
 {
 	int i, lp_len;
 
-	/* ignore trailing newline */
+	/* igyesre trailing newline */
 	lp_len = len;
 	if ((len > 0) && (buf[len - 1] == '\n'))
 		lp_len--;
-	/* loadparm can have max 8 characters and must not start with a blank */
+	/* loadparm can have max 8 characters and must yest start with a blank */
 	if ((lp_len > LOADPARM_LEN) || ((lp_len > 0) && (buf[0] == ' ')))
 		return -EINVAL;
 	/* loadparm can only contain "a-z,A-Z,0-9,SP,." */
@@ -789,7 +789,7 @@ static ssize_t reipl_nss_name_store(struct kobject *kobj,
 {
 	int nss_len;
 
-	/* ignore trailing newline */
+	/* igyesre trailing newline */
 	nss_len = len;
 	if ((len > 0) && (buf[len - 1] == '\n'))
 		nss_len--;
@@ -983,7 +983,7 @@ static int __init reipl_ccw_init(void)
 	reipl_block_ccw_init(reipl_block_ccw);
 	if (ipl_info.type == IPL_TYPE_CCW) {
 		reipl_block_ccw->ccw.ssid = ipl_block.ccw.ssid;
-		reipl_block_ccw->ccw.devno = ipl_block.ccw.devno;
+		reipl_block_ccw->ccw.devyes = ipl_block.ccw.devyes;
 		reipl_block_ccw_fill_parms(reipl_block_ccw);
 	}
 
@@ -1102,7 +1102,7 @@ DEFINE_IPL_ATTR_RW(dump_fcp, bootprog, "%lld\n", "%lld\n",
 DEFINE_IPL_ATTR_RW(dump_fcp, br_lba, "%lld\n", "%lld\n",
 		   dump_block_fcp->fcp.br_lba);
 DEFINE_IPL_ATTR_RW(dump_fcp, device, "0.0.%04llx\n", "0.0.%llx\n",
-		   dump_block_fcp->fcp.devno);
+		   dump_block_fcp->fcp.devyes);
 
 static struct attribute *dump_fcp_attrs[] = {
 	&sys_dump_fcp_device_attr.attr,
@@ -1224,7 +1224,7 @@ static int __init dump_fcp_init(void)
 	int rc;
 
 	if (!sclp_ipl_info.has_dump)
-		return 0; /* LDIPL DUMP is not installed */
+		return 0; /* LDIPL DUMP is yest installed */
 	dump_block_fcp = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!dump_block_fcp)
 		return -ENOMEM;
@@ -1470,7 +1470,7 @@ static ssize_t on_restart_store(struct kobject *kobj,
 }
 static struct kobj_attribute on_restart_attr = __ATTR_RW(on_restart);
 
-static void __do_restart(void *ignore)
+static void __do_restart(void *igyesre)
 {
 	__arch_local_irq_stosm(0x04); /* enable DAT */
 	smp_send_stop();
@@ -1591,7 +1591,7 @@ static int __init s390_ipl_init(void)
 	 * when the system has been booted via diag308. In that case we use
 	 * the value from diag308, if available.
 	 *
-	 * There are also systems where diag308 store does not work in
+	 * There are also systems where diag308 store does yest work in
 	 * case the system is booted from HMC. Fortunately in this case
 	 * READ SCP info provides the correct value.
 	 */
@@ -1662,15 +1662,15 @@ static int __init vmcmd_on_poff_setup(char *str)
 }
 __setup("vmpoff=", vmcmd_on_poff_setup);
 
-static int on_panic_notify(struct notifier_block *self,
+static int on_panic_yestify(struct yestifier_block *self,
 			   unsigned long event, void *data)
 {
 	do_panic();
 	return NOTIFY_OK;
 }
 
-static struct notifier_block on_panic_nb = {
-	.notifier_call = on_panic_notify,
+static struct yestifier_block on_panic_nb = {
+	.yestifier_call = on_panic_yestify,
 	.priority = INT_MIN,
 };
 
@@ -1682,21 +1682,21 @@ void __init setup_ipl(void)
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
 		ipl_info.data.ccw.dev_id.ssid = ipl_block.ccw.ssid;
-		ipl_info.data.ccw.dev_id.devno = ipl_block.ccw.devno;
+		ipl_info.data.ccw.dev_id.devyes = ipl_block.ccw.devyes;
 		break;
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
 		ipl_info.data.fcp.dev_id.ssid = 0;
-		ipl_info.data.fcp.dev_id.devno = ipl_block.fcp.devno;
+		ipl_info.data.fcp.dev_id.devyes = ipl_block.fcp.devyes;
 		ipl_info.data.fcp.wwpn = ipl_block.fcp.wwpn;
 		ipl_info.data.fcp.lun = ipl_block.fcp.lun;
 		break;
 	case IPL_TYPE_NSS:
 	case IPL_TYPE_UNKNOWN:
-		/* We have no info to copy */
+		/* We have yes info to copy */
 		break;
 	}
-	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
+	atomic_yestifier_chain_register(&panic_yestifier_list, &on_panic_nb);
 }
 
 void s390_reset_system(void)

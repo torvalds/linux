@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techyeslogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -465,7 +465,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 	if (cmd == CMD_INTERNAL_READ || cmd == CMD_SINGLE_READ ||
 	    cmd == CMD_DMA_READ || cmd == CMD_DMA_EXT_READ) {
 		/*
-		 * Data Respnose header
+		 * Data Respyesse header
 		 */
 		retry = 100;
 		do {
@@ -559,7 +559,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 
 		/*
 		 * if any data in left unread,
-		 * then read the rest using normal DMA code.
+		 * then read the rest using yesrmal DMA code.
 		 */
 		while (sz > 0) {
 			int nbytes;
@@ -570,12 +570,12 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				nbytes = DATA_PKT_SZ;
 
 			/*
-			 * read data response only on the next DMA cycles not
+			 * read data response only on the next DMA cycles yest
 			 * the first DMA since data response header is already
 			 * handled above for the first DMA.
 			 */
 			/*
-			 * Data Respnose header
+			 * Data Respyesse header
 			 */
 			retry = 10;
 			do {
@@ -941,7 +941,7 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 	u32 byte_cnt;
 	bool unexpected_irq;
 	int j;
-	u32 unknown_mask;
+	u32 unkyeswn_mask;
 	u32 irq_flags;
 	int k = IRG_FLAGS_OFFSET + 5;
 
@@ -966,13 +966,13 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 			tmp |= (((irq_flags >> 0) & 0x7) << k);
 		}
 
-		unknown_mask = ~((1ul << spi_priv->nint) - 1);
+		unkyeswn_mask = ~((1ul << spi_priv->nint) - 1);
 
-		unexpected_irq = (tmp >> IRG_FLAGS_OFFSET) & unknown_mask;
+		unexpected_irq = (tmp >> IRG_FLAGS_OFFSET) & unkyeswn_mask;
 		if (unexpected_irq) {
 			dev_err(&spi->dev,
 				"Unexpected interrupt(2):j=%d,tmp=%x,mask=%x\n",
-				j, tmp, unknown_mask);
+				j, tmp, unkyeswn_mask);
 		}
 
 		j++;

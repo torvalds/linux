@@ -15,7 +15,7 @@ Optional properties:
 - ready-gpios: GPIO used to signal a SPI master that the FIFO is filled
   and we're ready to service a transfer. Only useful in slave mode.
 
-Child nodes represent devices on the SPI bus
+Child yesdes represent devices on the SPI bus
   See ../spi/spi-bus.txt
 
 Example:

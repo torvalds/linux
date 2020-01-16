@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-omap1/board-ams-delta.h
  *
- * Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
+ * Copyright (C) 2006 Jonathan McDowell <yesodles@earth.li>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,7 +20,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if yest, write to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #ifndef __ASM_ARCH_OMAP_AMS_DELTA_H

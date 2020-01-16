@@ -86,9 +86,9 @@ static inline bool seg_writable(struct desc_struct *d)
 
 #define FPU_lookahead           (I387->soft.lookahead)
 
-/* nz if ip_offset and cs_selector are not to be set for the current
+/* nz if ip_offset and cs_selector are yest to be set for the current
    instruction. */
-#define no_ip_update		(*(u_char *)&(I387->soft.no_update))
+#define yes_ip_update		(*(u_char *)&(I387->soft.yes_update))
 #define FPU_rm			(*(u_char *)&(I387->soft.rm))
 
 /* Number of bytes of data which can be legally accessed by the current

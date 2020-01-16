@@ -5,7 +5,7 @@
  *
  * Derived from: ROMFS file system, Linux implementation
  *
- * Copyright © 1997-1999  Janos Farkas <chexum@shadow.banki.hu>
+ * Copyright © 1997-1999  Jayess Farkas <chexum@shadow.banki.hu>
  *
  * Using parts of the minix filesystem
  * Copyright © 1991, 1992  Linus Torvalds
@@ -33,8 +33,8 @@
  *					  exposed a problem in readdir
  *			2.1.107		code-freeze spellchecker run
  *	Aug 1998			2.1.118+ VFS changes
- *	Sep 1998	2.1.122		another VFS change (follow_link)
- *	Apr 1999	2.2.7		no more EBADF checking in
+ *	Sep 1998	2.1.122		ayesther VFS change (follow_link)
+ *	Apr 1999	2.2.7		yes more EBADF checking in
  *					  lookup/readdir, use ERR_PTR
  *	Jun 1999	2.3.6		d_alloc_root use changed
  *			2.3.9		clean up usage of ENOENT/negative
@@ -42,9 +42,9 @@
  *					clean up page flags setting
  *					  (error, uptodate, locking) in
  *					  in readpage
- *					use init_special_inode for
+ *					use init_special_iyesde for
  *					  fifos/sockets (and streamline) in
- *					  read_inode, fix _ops table order
+ *					  read_iyesde, fix _ops table order
  *	Aug 1999	2.3.16		__initfunc() => __init change
  *	Oct 1999	2.3.24		page->owner hack obsoleted
  *	Nov 1999	2.3.27		2.3.25+ page->offset => index change
@@ -77,7 +77,7 @@
 #include <linux/major.h>
 #include "internal.h"
 
-static struct kmem_cache *romfs_inode_cachep;
+static struct kmem_cache *romfs_iyesde_cachep;
 
 static const umode_t romfs_modemap[8] = {
 	0,			/* hard link */
@@ -94,14 +94,14 @@ static const unsigned char romfs_dtype_table[] = {
 	DT_UNKNOWN, DT_DIR, DT_REG, DT_LNK, DT_BLK, DT_CHR, DT_SOCK, DT_FIFO
 };
 
-static struct inode *romfs_iget(struct super_block *sb, unsigned long pos);
+static struct iyesde *romfs_iget(struct super_block *sb, unsigned long pos);
 
 /*
  * read a page worth of data from the image
  */
 static int romfs_readpage(struct file *file, struct page *page)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	loff_t offset, size;
 	unsigned long fillsize, pos;
 	void *buf;
@@ -111,18 +111,18 @@ static int romfs_readpage(struct file *file, struct page *page)
 	if (!buf)
 		return -ENOMEM;
 
-	/* 32 bit warning -- but not for us :) */
+	/* 32 bit warning -- but yest for us :) */
 	offset = page_offset(page);
-	size = i_size_read(inode);
+	size = i_size_read(iyesde);
 	fillsize = 0;
 	ret = 0;
 	if (offset < size) {
 		size -= offset;
 		fillsize = size > PAGE_SIZE ? PAGE_SIZE : size;
 
-		pos = ROMFS_I(inode)->i_dataoffset + offset;
+		pos = ROMFS_I(iyesde)->i_dataoffset + offset;
 
-		ret = romfs_dev_read(inode->i_sb, pos, buf, fillsize);
+		ret = romfs_dev_read(iyesde->i_sb, pos, buf, fillsize);
 		if (ret < 0) {
 			SetPageError(page);
 			fillsize = 0;
@@ -150,10 +150,10 @@ static const struct address_space_operations romfs_aops = {
  */
 static int romfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *i = file_inode(file);
-	struct romfs_inode ri;
+	struct iyesde *i = file_iyesde(file);
+	struct romfs_iyesde ri;
 	unsigned long offset, maxoff;
-	int j, ino, nextfh;
+	int j, iyes, nextfh;
 	char fsname[ROMFS_MAXFN];	/* XXX dynamic? */
 	int ret;
 
@@ -161,7 +161,7 @@ static int romfs_readdir(struct file *file, struct dir_context *ctx)
 
 	offset = ctx->pos;
 	if (!offset) {
-		offset = i->i_ino & ROMFH_MASK;
+		offset = i->i_iyes & ROMFH_MASK;
 		ret = romfs_dev_read(i->i_sb, offset, &ri, ROMFH_SIZE);
 		if (ret < 0)
 			goto out;
@@ -177,7 +177,7 @@ static int romfs_readdir(struct file *file, struct dir_context *ctx)
 		}
 		ctx->pos = offset;
 
-		/* Fetch inode info */
+		/* Fetch iyesde info */
 		ret = romfs_dev_read(i->i_sb, offset, &ri, ROMFH_SIZE);
 		if (ret < 0)
 			goto out;
@@ -192,11 +192,11 @@ static int romfs_readdir(struct file *file, struct dir_context *ctx)
 			goto out;
 		fsname[j] = '\0';
 
-		ino = offset;
+		iyes = offset;
 		nextfh = be32_to_cpu(ri.next);
 		if ((nextfh & ROMFH_TYPE) == ROMFH_HRD)
-			ino = be32_to_cpu(ri.spec);
-		if (!dir_emit(ctx, fsname, j, ino,
+			iyes = be32_to_cpu(ri.spec);
+		if (!dir_emit(ctx, fsname, j, iyes,
 			    romfs_dtype_table[nextfh & ROMFH_TYPE]))
 			goto out;
 
@@ -209,16 +209,16 @@ out:
 /*
  * look up an entry in a directory
  */
-static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *romfs_lookup(struct iyesde *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
 	unsigned long offset, maxoff;
-	struct inode *inode = NULL;
-	struct romfs_inode ri;
+	struct iyesde *iyesde = NULL;
+	struct romfs_iyesde ri;
 	const char *name;		/* got from dentry */
 	int len, ret;
 
-	offset = dir->i_ino & ROMFH_MASK;
+	offset = dir->i_iyes & ROMFH_MASK;
 	ret = romfs_dev_read(dir->i_sb, offset, &ri, ROMFH_SIZE);
 	if (ret < 0)
 		goto error;
@@ -248,7 +248,7 @@ static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
 			/* Hard link handling */
 			if ((be32_to_cpu(ri.next) & ROMFH_TYPE) == ROMFH_HRD)
 				offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
-			inode = romfs_iget(dir->i_sb, offset);
+			iyesde = romfs_iget(dir->i_sb, offset);
 			break;
 		}
 
@@ -256,7 +256,7 @@ static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
 		offset = be32_to_cpu(ri.next) & ROMFH_MASK;
 	}
 
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(iyesde, dentry);
 error:
 	return ERR_PTR(ret);
 }
@@ -267,19 +267,19 @@ static const struct file_operations romfs_dir_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-static const struct inode_operations romfs_dir_inode_operations = {
+static const struct iyesde_operations romfs_dir_iyesde_operations = {
 	.lookup		= romfs_lookup,
 };
 
 /*
- * get a romfs inode based on its position in the image (which doubles as the
- * inode number)
+ * get a romfs iyesde based on its position in the image (which doubles as the
+ * iyesde number)
  */
-static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
+static struct iyesde *romfs_iget(struct super_block *sb, unsigned long pos)
 {
-	struct romfs_inode_info *inode;
-	struct romfs_inode ri;
-	struct inode *i;
+	struct romfs_iyesde_info *iyesde;
+	struct romfs_iyesde ri;
+	struct iyesde *i;
 	unsigned long nlen;
 	unsigned nextfh;
 	int ret;
@@ -306,7 +306,7 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	if (IS_ERR_VALUE(nlen))
 		goto eio;
 
-	/* get an inode for this image position */
+	/* get an iyesde for this image position */
 	i = iget_locked(sb, pos);
 	if (!i)
 		return ERR_PTR(-ENOMEM);
@@ -315,9 +315,9 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 		return i;
 
 	/* precalculate the data offset */
-	inode = ROMFS_I(i);
-	inode->i_metasize = (ROMFH_SIZE + nlen + 1 + ROMFH_PAD) & ROMFH_MASK;
-	inode->i_dataoffset = pos + inode->i_metasize;
+	iyesde = ROMFS_I(i);
+	iyesde->i_metasize = (ROMFH_SIZE + nlen + 1 + ROMFH_PAD) & ROMFH_MASK;
+	iyesde->i_dataoffset = pos + iyesde->i_metasize;
 
 	set_nlink(i, 1);		/* Hard to decide.. */
 	i->i_size = be32_to_cpu(ri.size);
@@ -330,7 +330,7 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	switch (nextfh & ROMFH_TYPE) {
 	case ROMFH_DIR:
 		i->i_size = ROMFS_I(i)->i_metasize;
-		i->i_op = &romfs_dir_inode_operations;
+		i->i_op = &romfs_dir_iyesde_operations;
 		i->i_fop = &romfs_dir_operations;
 		if (nextfh & ROMFH_EXEC)
 			mode |= S_IXUGO;
@@ -342,48 +342,48 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 			mode |= S_IXUGO;
 		break;
 	case ROMFH_SYM:
-		i->i_op = &page_symlink_inode_operations;
-		inode_nohighmem(i);
+		i->i_op = &page_symlink_iyesde_operations;
+		iyesde_yeshighmem(i);
 		i->i_data.a_ops = &romfs_aops;
 		mode |= S_IRWXUGO;
 		break;
 	default:
 		/* depending on MBZ for sock/fifos */
 		nextfh = be32_to_cpu(ri.spec);
-		init_special_inode(i, mode, MKDEV(nextfh >> 16,
+		init_special_iyesde(i, mode, MKDEV(nextfh >> 16,
 						  nextfh & 0xffff));
 		break;
 	}
 
 	i->i_mode = mode;
 
-	unlock_new_inode(i);
+	unlock_new_iyesde(i);
 	return i;
 
 eio:
 	ret = -EIO;
 error:
-	pr_err("read error for inode 0x%lx\n", pos);
+	pr_err("read error for iyesde 0x%lx\n", pos);
 	return ERR_PTR(ret);
 }
 
 /*
- * allocate a new inode
+ * allocate a new iyesde
  */
-static struct inode *romfs_alloc_inode(struct super_block *sb)
+static struct iyesde *romfs_alloc_iyesde(struct super_block *sb)
 {
-	struct romfs_inode_info *inode;
+	struct romfs_iyesde_info *iyesde;
 
-	inode = kmem_cache_alloc(romfs_inode_cachep, GFP_KERNEL);
-	return inode ? &inode->vfs_inode : NULL;
+	iyesde = kmem_cache_alloc(romfs_iyesde_cachep, GFP_KERNEL);
+	return iyesde ? &iyesde->vfs_iyesde : NULL;
 }
 
 /*
- * return a spent inode to the slab cache
+ * return a spent iyesde to the slab cache
  */
-static void romfs_free_inode(struct inode *inode)
+static void romfs_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(romfs_inode_cachep, ROMFS_I(inode));
+	kmem_cache_free(romfs_iyesde_cachep, ROMFS_I(iyesde));
 }
 
 /*
@@ -431,8 +431,8 @@ static int romfs_reconfigure(struct fs_context *fc)
 }
 
 static const struct super_operations romfs_super_ops = {
-	.alloc_inode	= romfs_alloc_inode,
-	.free_inode	= romfs_free_inode,
+	.alloc_iyesde	= romfs_alloc_iyesde,
+	.free_iyesde	= romfs_free_iyesde,
 	.statfs		= romfs_statfs,
 };
 
@@ -459,7 +459,7 @@ static __u32 romfs_checksum(const void *data, int size)
 static int romfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct romfs_super_block *rsb;
-	struct inode *root;
+	struct iyesde *root;
 	unsigned long pos, img_size;
 	const char *storage;
 	size_t len;
@@ -520,7 +520,7 @@ static int romfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	len = strnlen(rsb->name, ROMFS_MAXFN);
 	if (!(fc->sb_flags & SB_SILENT))
-		pr_notice("Mounting image '%*.*s' through %s\n",
+		pr_yestice("Mounting image '%*.*s' through %s\n",
 			  (unsigned) len, (unsigned) len, rsb->name, storage);
 
 	kfree(rsb);
@@ -606,13 +606,13 @@ static struct file_system_type romfs_fs_type = {
 MODULE_ALIAS_FS("romfs");
 
 /*
- * inode storage initialiser
+ * iyesde storage initialiser
  */
-static void romfs_i_init_once(void *_inode)
+static void romfs_i_init_once(void *_iyesde)
 {
-	struct romfs_inode_info *inode = _inode;
+	struct romfs_iyesde_info *iyesde = _iyesde;
 
-	inode_init_once(&inode->vfs_inode);
+	iyesde_init_once(&iyesde->vfs_iyesde);
 }
 
 /*
@@ -624,14 +624,14 @@ static int __init init_romfs_fs(void)
 
 	pr_info("ROMFS MTD (C) 2007 Red Hat, Inc.\n");
 
-	romfs_inode_cachep =
+	romfs_iyesde_cachep =
 		kmem_cache_create("romfs_i",
-				  sizeof(struct romfs_inode_info), 0,
+				  sizeof(struct romfs_iyesde_info), 0,
 				  SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD |
 				  SLAB_ACCOUNT, romfs_i_init_once);
 
-	if (!romfs_inode_cachep) {
-		pr_err("Failed to initialise inode cache\n");
+	if (!romfs_iyesde_cachep) {
+		pr_err("Failed to initialise iyesde cache\n");
 		return -ENOMEM;
 	}
 	ret = register_filesystem(&romfs_fs_type);
@@ -642,7 +642,7 @@ static int __init init_romfs_fs(void)
 	return 0;
 
 error_register:
-	kmem_cache_destroy(romfs_inode_cachep);
+	kmem_cache_destroy(romfs_iyesde_cachep);
 	return ret;
 }
 
@@ -653,11 +653,11 @@ static void __exit exit_romfs_fs(void)
 {
 	unregister_filesystem(&romfs_fs_type);
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(romfs_inode_cachep);
+	kmem_cache_destroy(romfs_iyesde_cachep);
 }
 
 module_init(init_romfs_fs);

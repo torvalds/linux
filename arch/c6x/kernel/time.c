@@ -8,7 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/clocksource.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/param.h>
 #include <linux/string.h>
@@ -37,7 +37,7 @@ static struct clocksource clocksource_tsc = {
 };
 
 /*
- * scheduler clock - returns current time in nanoseconds.
+ * scheduler clock - returns current time in nayesseconds.
  */
 u64 sched_clock(void)
 {

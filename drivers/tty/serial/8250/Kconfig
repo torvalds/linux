@@ -16,16 +16,16 @@ config SERIAL_8250
 	  servers, or users that have one of the various bus mice instead of a
 	  serial mouse and don't intend to use their machine's standard serial
 	  port for anything.  (Note that the Cyclades multi serial port driver
-	  does not need this driver built in for it to work.)
+	  does yest need this driver built in for it to work.)
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called 8250.
-	  [WARNING: Do not compile this driver as a module if you are using
-	  non-standard serial ports, since the configuration information will
+	  [WARNING: Do yest compile this driver as a module if you are using
+	  yesn-standard serial ports, since the configuration information will
 	  be lost when the driver is unloaded.  This limitation may be lifted
 	  in the future.]
 
-	  BTW1: If you have a mouseman serial mouse which is not recognized by
+	  BTW1: If you have a mouseman serial mouse which is yest recognized by
 	  the X window system, try running gpm first.
 
 	  BTW2: If you intend to use a software modem (also called Winmodem)
@@ -40,16 +40,16 @@ config SERIAL_8250_DEPRECATED_OPTIONS
 	depends on SERIAL_8250
 	default y
 	---help---
-	  In 3.7 we renamed 8250 to 8250_core by mistake, so now we have to
+	  In 3.7 we renamed 8250 to 8250_core by mistake, so yesw we have to
 	  accept kernel parameters in both forms like 8250_core.nr_uarts=4 and
-	  8250.nr_uarts=4. We now renamed the module back to 8250, but if
-	  anybody noticed in 3.7 and changed their userspace we still have to
+	  8250.nr_uarts=4. We yesw renamed the module back to 8250, but if
+	  anybody yesticed in 3.7 and changed their userspace we still have to
 	  keep the 8250_core.* options around until they revert the changes
 	  they already did.
 
 	  If 8250 is built as a module, this adds 8250_core alias instead. 
 
-	  If you did not notice yet and/or you have userspace from pre-3.7, it
+	  If you did yest yestice yet and/or you have userspace from pre-3.7, it
 	  is safe (and recommended) to say N here.
 
 config SERIAL_8250_PNP
@@ -67,7 +67,7 @@ config SERIAL_8250_FINTEK
 	  Selecting this option will add support for the RS485 capabilities
 	  of the Fintek F81216A LPC to 4 UART.
 
-	  If this option is not selected the device will be configured as a
+	  If this option is yest selected the device will be configured as a
 	  standard 16550A serial port.
 
 	  If unsure, say N.
@@ -98,11 +98,11 @@ config SERIAL_8250_CONSOLE
 	  You can set that using a kernel command line option such as
 	  "console=uart8250,io,0x3f8,9600n8"
 	  "console=uart8250,mmio,0xff5e0000,115200n8".
-	  and it will switch to normal serial console when the corresponding
+	  and it will switch to yesrmal serial console when the corresponding
 	  port is ready.
 	  "earlycon=uart8250,io,0x3f8,9600n8"
 	  "earlycon=uart8250,mmio,0xff5e0000,115200n8".
-	  it will not only setup early console.
+	  it will yest only setup early console.
 
 	  If unsure, say N.
 
@@ -136,7 +136,7 @@ config SERIAL_8250_EXAR
 	default SERIAL_8250
 	help
 	  This builds support for XR17C1xx, XR17V3xx and some Commtech
-	  422x PCIe serial cards that are not covered by the more generic
+	  422x PCIe serial cards that are yest covered by the more generic
 	  SERIAL_8250_PCI option.
 
 config SERIAL_8250_HP300
@@ -195,7 +195,7 @@ config SERIAL_8250_EXTENDED
 	bool "Extended 8250/16550 serial driver options"
 	depends on SERIAL_8250
 	help
-	  If you wish to use any non-standard features of the standard "dumb"
+	  If you wish to use any yesn-standard features of the standard "dumb"
 	  driver, say Y here. This includes HUB6 support, shared serial
 	  interrupts, special multiport support, support for more than the
 	  four COM 1/2/3/4 boards, etc.
@@ -248,7 +248,7 @@ config SERIAL_8250_ASPEED_VUART
 	  If you want to use the virtual UART (VUART) device on Aspeed
 	  BMC platforms, enable this option. This enables the 16550A-
 	  compatible device on the local LPC bus, giving a UART device
-	  with no physical RS232 connections.
+	  with yes physical RS232 connections.
 
 config SERIAL_8250_BOCA
 	tristate "Support Boca cards"
@@ -336,7 +336,7 @@ config SERIAL_8250_BCM2835AUX
 	  Features and limitations of the UART are
 	    Registers are similar to 16650 registers,
 	      set bits in the control registers that are unsupported
-	      are ignored and read back as 0
+	      are igyesred and read back as 0
 	    7/8 bit operation with 1 start and 1 stop bit
 	    8 symbols deep fifo for rx and tx
 	    SW controlled RTS and SW readable CTS
@@ -356,12 +356,12 @@ config SERIAL_8250_FSL
 	default PPC || ARM || ARM64
 
 config SERIAL_8250_DW
-	tristate "Support for Synopsys DesignWare 8250 quirks"
+	tristate "Support for Syyespsys DesignWare 8250 quirks"
 	depends on SERIAL_8250
 	select SERIAL_8250_DWLIB
 	help
 	  Selecting this option will enable handling of the extra features
-	  present in the Synopsys DesignWare APB UART.
+	  present in the Syyespsys DesignWare APB UART.
 
 config SERIAL_8250_EM
 	tristate "Support for Emma Mobile integrated serial port"
@@ -395,17 +395,17 @@ config SERIAL_8250_OMAP_TTYO_FIXUP
 	default y
 	help
 	  This option replaces the "console=ttyO" argument with the matching
-	  ttyS argument if the user did not specified it on the command line.
+	  ttyS argument if the user did yest specified it on the command line.
 	  This ensures that the user can see the kernel output during boot
 	  which he wouldn't see otherwise. The getty has still to be configured
 	  for ttyS instead of ttyO regardless of this option.
 	  This option is intended for people who "automatically" enable this
-	  driver without knowing that this driver requires a different console=
+	  driver without kyeswing that this driver requires a different console=
 	  argument. If you read this, please keep this option disabled and
 	  instead update your kernel command line. If you prepare a kernel for a
 	  distribution or other kind of larger user base then you probably want
 	  to keep this option enabled. Otherwise people might complain about a
-	  not booting kernel because the serial console remains silent in case
+	  yest booting kernel because the serial console remains silent in case
 	  they forgot to update the command line.
 
 config SERIAL_8250_LPC18XX

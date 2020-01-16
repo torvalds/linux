@@ -2035,7 +2035,7 @@ void PHY_SetTxPowerLimit(
 		/* DBG_871X("5G Band value : [regulation %d][bw %d][rate_section %d][chnl %d][val %d]\n", */
 		/*	  regulation, bandwidth, rateSection, channel, pHalData->TxPwrLimit_5G[regulation][bandwidth][rateSection][channelIndex][ODM_RF_PATH_A]); */
 	} else {
-		DBG_871X("Cannot recognize the band info in %s\n", Band);
+		DBG_871X("Canyest recognize the band info in %s\n", Band);
 		return;
 	}
 }

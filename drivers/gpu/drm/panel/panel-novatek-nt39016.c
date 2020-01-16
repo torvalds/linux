@@ -97,14 +97,14 @@ static const struct reg_sequence nt39016_panel_regs[] = {
 
 #undef RV
 
-static const struct regmap_range nt39016_regmap_no_ranges[] = {
+static const struct regmap_range nt39016_regmap_yes_ranges[] = {
 	regmap_reg_range(0x13, 0x1D),
 	regmap_reg_range(0x1F, 0x1F),
 };
 
 static const struct regmap_access_table nt39016_regmap_access_table = {
-	.no_ranges = nt39016_regmap_no_ranges,
-	.n_no_ranges = ARRAY_SIZE(nt39016_regmap_no_ranges),
+	.yes_ranges = nt39016_regmap_yes_ranges,
+	.n_yes_ranges = ARRAY_SIZE(nt39016_regmap_yes_ranges),
 };
 
 static const struct regmap_config nt39016_regmap_config = {

@@ -6,7 +6,7 @@
 #include <linux/sched/idle.h>
 
 #include <asm/cpufeature.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 #define MWAIT_SUBSTATE_MASK		0xf
 #define MWAIT_CSTATE_MASK		0xf
@@ -72,7 +72,7 @@ static inline void __mwait(unsigned long eax, unsigned long ecx)
  *                 MONITOR                         MONITORX
  * opcode          0f 01 c8           |            0f 01 fa
  * EAX                     (logical) address to monitor
- * ECX                     #GP if not zero
+ * ECX                     #GP if yest zero
  */
 static inline void __mwaitx(unsigned long eax, unsigned long ebx,
 			    unsigned long ecx)

@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -164,14 +164,14 @@ enum cvmx_l2c_tad_event {
  * @clear_on_read:  When asserted, any read of the performance counter
  *			 clears the counter.
  *
- * @note The routine does not clear the counter.
+ * @yeste The routine does yest clear the counter.
  */
 void cvmx_l2c_config_perf(uint32_t counter, enum cvmx_l2c_event event,
 			  uint32_t clear_on_read);
 
 /**
  * Read the given L2 Cache performance counter. The counter must be configured
- * before reading, but this routine does not enforce this requirement.
+ * before reading, but this routine does yest enforce this requirement.
  *
  * @counter:  The counter to configure. Range 0..3.
  *
@@ -201,7 +201,7 @@ int cvmx_l2c_get_core_way_partition(uint32_t core);
  *	       way (0 bit) in the mask.
  *
 
- * @note If any ways are blocked for all cores and the HW blocks, then
+ * @yeste If any ways are blocked for all cores and the HW blocks, then
  *	 those ways will never have any cache lines evicted from them.
  *	 All cores and the hardware blocks are free to read from all
  *	 ways regardless of the partitioning.
@@ -227,7 +227,7 @@ int cvmx_l2c_get_hw_way_partition(void);
  *	       way (0 bit) in the mask.
  *
 
- * @note If any ways are blocked for all cores and the HW blocks, then
+ * @yeste If any ways are blocked for all cores and the HW blocks, then
  *	 those ways will never have any cache lines evicted from them.
  *	 All cores and the hardware blocks are free to read from all
  *	 ways regardless of the partitioning.
@@ -241,24 +241,24 @@ int cvmx_l2c_set_hw_way_partition(uint32_t mask);
  * @addr:   physical address of line to lock
  *
  * Returns 0 on success,
- *	   1 if line not locked.
+ *	   1 if line yest locked.
  */
 int cvmx_l2c_lock_line(uint64_t addr);
 
 /**
  * Locks a specified memory region in the L2 cache.
  *
- * Note that if not all lines can be locked, that means that all
+ * Note that if yest all lines can be locked, that means that all
  * but one of the ways (associations) available to the locking
  * core are locked.  Having only 1 association available for
- * normal caching may have a significant adverse affect on performance.
- * Care should be taken to ensure that enough of the L2 cache is left
- * unlocked to allow for normal caching of DRAM.
+ * yesrmal caching may have a significant adverse affect on performance.
+ * Care should be taken to ensure that eyesugh of the L2 cache is left
+ * unlocked to allow for yesrmal caching of DRAM.
  *
  * @start:  Physical address of the start of the region to lock
  * @len:    Length (in bytes) of region to lock
  *
- * Returns Number of requested lines that where not locked.
+ * Returns Number of requested lines that where yest locked.
  *	   0 on success (all locked)
  */
 int cvmx_l2c_lock_mem_region(uint64_t start, uint64_t len);
@@ -268,11 +268,11 @@ int cvmx_l2c_lock_mem_region(uint64_t start, uint64_t len);
  * IMPORTANT: Must only be run by one core at a time due to use
  * of L2C debug features.
  * Note that this function will flush a matching but unlocked cache line.
- * (If address is not in L2, no lines are flushed.)
+ * (If address is yest in L2, yes lines are flushed.)
  *
  * @address: Physical address to unlock
  *
- * Returns 0: line not unlocked
+ * Returns 0: line yest unlocked
  *	   1: line unlocked
  */
 int cvmx_l2c_unlock_line(uint64_t address);

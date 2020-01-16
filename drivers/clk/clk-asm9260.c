@@ -253,7 +253,7 @@ static struct asm9260_mux_clock asm9260_mux_clks[] __initdata = {
 		ARRAY_SIZE(clkout_mux_p), HW_CLKOUTCLKSEL, },
 };
 
-static void __init asm9260_acc_init(struct device_node *np)
+static void __init asm9260_acc_init(struct device_yesde *np)
 {
 	struct clk_hw *hw;
 	struct clk_hw **hws;

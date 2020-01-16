@@ -3,7 +3,7 @@
 #include <linux/membarrier.h>
 #include <syscall.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <pthread.h>
 
@@ -24,16 +24,16 @@ static int test_membarrier_cmd_fail(void)
 			"%s test: command = %d, flags = %d. Should fail, but passed\n",
 			test_name, cmd, flags);
 	}
-	if (errno != EINVAL) {
+	if (erryes != EINVAL) {
 		ksft_exit_fail_msg(
 			"%s test: flags = %d. Should return (%d: \"%s\"), but returned (%d: \"%s\").\n",
 			test_name, flags, EINVAL, strerror(EINVAL),
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 	}
 
 	ksft_test_result_pass(
-		"%s test: command = %d, flags = %d, errno = %d. Failed as expected\n",
-		test_name, cmd, flags, errno);
+		"%s test: command = %d, flags = %d, erryes = %d. Failed as expected\n",
+		test_name, cmd, flags, erryes);
 	return 0;
 }
 
@@ -47,16 +47,16 @@ static int test_membarrier_flags_fail(void)
 			"%s test: flags = %d. Should fail, but passed\n",
 			test_name, flags);
 	}
-	if (errno != EINVAL) {
+	if (erryes != EINVAL) {
 		ksft_exit_fail_msg(
 			"%s test: flags = %d. Should return (%d: \"%s\"), but returned (%d: \"%s\").\n",
 			test_name, flags, EINVAL, strerror(EINVAL),
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 	}
 
 	ksft_test_result_pass(
-		"%s test: flags = %d, errno = %d. Failed as expected\n",
-		test_name, flags, errno);
+		"%s test: flags = %d, erryes = %d. Failed as expected\n",
+		test_name, flags, erryes);
 	return 0;
 }
 
@@ -67,8 +67,8 @@ static int test_membarrier_global_success(void)
 
 	if (sys_membarrier(cmd, flags) != 0) {
 		ksft_exit_fail_msg(
-			"%s test: flags = %d, errno = %d\n",
-			test_name, flags, errno);
+			"%s test: flags = %d, erryes = %d\n",
+			test_name, flags, erryes);
 	}
 
 	ksft_test_result_pass(
@@ -79,23 +79,23 @@ static int test_membarrier_global_success(void)
 static int test_membarrier_private_expedited_fail(void)
 {
 	int cmd = MEMBARRIER_CMD_PRIVATE_EXPEDITED, flags = 0;
-	const char *test_name = "sys membarrier MEMBARRIER_CMD_PRIVATE_EXPEDITED not registered failure";
+	const char *test_name = "sys membarrier MEMBARRIER_CMD_PRIVATE_EXPEDITED yest registered failure";
 
 	if (sys_membarrier(cmd, flags) != -1) {
 		ksft_exit_fail_msg(
 			"%s test: flags = %d. Should fail, but passed\n",
 			test_name, flags);
 	}
-	if (errno != EPERM) {
+	if (erryes != EPERM) {
 		ksft_exit_fail_msg(
 			"%s test: flags = %d. Should return (%d: \"%s\"), but returned (%d: \"%s\").\n",
 			test_name, flags, EPERM, strerror(EPERM),
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 	}
 
 	ksft_test_result_pass(
-		"%s test: flags = %d, errno = %d\n",
-		test_name, flags, errno);
+		"%s test: flags = %d, erryes = %d\n",
+		test_name, flags, erryes);
 	return 0;
 }
 
@@ -106,8 +106,8 @@ static int test_membarrier_register_private_expedited_success(void)
 
 	if (sys_membarrier(cmd, flags) != 0) {
 		ksft_exit_fail_msg(
-			"%s test: flags = %d, errno = %d\n",
-			test_name, flags, errno);
+			"%s test: flags = %d, erryes = %d\n",
+			test_name, flags, erryes);
 	}
 
 	ksft_test_result_pass(
@@ -123,8 +123,8 @@ static int test_membarrier_private_expedited_success(void)
 
 	if (sys_membarrier(cmd, flags) != 0) {
 		ksft_exit_fail_msg(
-			"%s test: flags = %d, errno = %d\n",
-			test_name, flags, errno);
+			"%s test: flags = %d, erryes = %d\n",
+			test_name, flags, erryes);
 	}
 
 	ksft_test_result_pass(
@@ -136,23 +136,23 @@ static int test_membarrier_private_expedited_success(void)
 static int test_membarrier_private_expedited_sync_core_fail(void)
 {
 	int cmd = MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE, flags = 0;
-	const char *test_name = "sys membarrier MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE not registered failure";
+	const char *test_name = "sys membarrier MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE yest registered failure";
 
 	if (sys_membarrier(cmd, flags) != -1) {
 		ksft_exit_fail_msg(
 			"%s test: flags = %d. Should fail, but passed\n",
 			test_name, flags);
 	}
-	if (errno != EPERM) {
+	if (erryes != EPERM) {
 		ksft_exit_fail_msg(
 			"%s test: flags = %d. Should return (%d: \"%s\"), but returned (%d: \"%s\").\n",
 			test_name, flags, EPERM, strerror(EPERM),
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 	}
 
 	ksft_test_result_pass(
-		"%s test: flags = %d, errno = %d\n",
-		test_name, flags, errno);
+		"%s test: flags = %d, erryes = %d\n",
+		test_name, flags, erryes);
 	return 0;
 }
 
@@ -163,8 +163,8 @@ static int test_membarrier_register_private_expedited_sync_core_success(void)
 
 	if (sys_membarrier(cmd, flags) != 0) {
 		ksft_exit_fail_msg(
-			"%s test: flags = %d, errno = %d\n",
-			test_name, flags, errno);
+			"%s test: flags = %d, erryes = %d\n",
+			test_name, flags, erryes);
 	}
 
 	ksft_test_result_pass(
@@ -180,8 +180,8 @@ static int test_membarrier_private_expedited_sync_core_success(void)
 
 	if (sys_membarrier(cmd, flags) != 0) {
 		ksft_exit_fail_msg(
-			"%s test: flags = %d, errno = %d\n",
-			test_name, flags, errno);
+			"%s test: flags = %d, erryes = %d\n",
+			test_name, flags, erryes);
 	}
 
 	ksft_test_result_pass(
@@ -197,8 +197,8 @@ static int test_membarrier_register_global_expedited_success(void)
 
 	if (sys_membarrier(cmd, flags) != 0) {
 		ksft_exit_fail_msg(
-			"%s test: flags = %d, errno = %d\n",
-			test_name, flags, errno);
+			"%s test: flags = %d, erryes = %d\n",
+			test_name, flags, erryes);
 	}
 
 	ksft_test_result_pass(
@@ -214,8 +214,8 @@ static int test_membarrier_global_expedited_success(void)
 
 	if (sys_membarrier(cmd, flags) != 0) {
 		ksft_exit_fail_msg(
-			"%s test: flags = %d, errno = %d\n",
-			test_name, flags, errno);
+			"%s test: flags = %d, erryes = %d\n",
+			test_name, flags, erryes);
 	}
 
 	ksft_test_result_pass(
@@ -277,7 +277,7 @@ static int test_membarrier_success(void)
 			return status;
 	}
 	/*
-	 * It is valid to send a global membarrier from a non-registered
+	 * It is valid to send a global membarrier from a yesn-registered
 	 * process.
 	 */
 	status = test_membarrier_global_expedited_success();
@@ -298,7 +298,7 @@ static int test_membarrier_query(void)
 
 	ret = sys_membarrier(MEMBARRIER_CMD_QUERY, flags);
 	if (ret < 0) {
-		if (errno == ENOSYS) {
+		if (erryes == ENOSYS) {
 			/*
 			 * It is valid to build a kernel with
 			 * CONFIG_MEMBARRIER=n. However, this skips the tests.
@@ -310,7 +310,7 @@ static int test_membarrier_query(void)
 	}
 	if (!(ret & MEMBARRIER_CMD_GLOBAL))
 		ksft_exit_skip(
-			"sys_membarrier unsupported: CMD_GLOBAL not found.\n");
+			"sys_membarrier unsupported: CMD_GLOBAL yest found.\n");
 
 	ksft_test_result_pass("sys_membarrier available\n");
 	return 0;

@@ -164,7 +164,7 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 	mutex_lock(&kms->commit_lock);
 
 	/*
-	 * Now that there is no in-progress flush, prepare the
+	 * Now that there is yes in-progress flush, prepare the
 	 * current update:
 	 */
 	kms->funcs->prepare_commit(kms, state);

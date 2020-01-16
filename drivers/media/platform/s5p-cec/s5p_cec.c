@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *
- * This driver is based on the "cec interface driver for exynos soc" by
+ * This driver is based on the "cec interface driver for exyyess soc" by
  * SangPil Moon.
  */
 
@@ -21,9 +21,9 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 
-#include "exynos_hdmi_cec.h"
+#include "exyyess_hdmi_cec.h"
 #include "regs-cec.h"
 #include "s5p_cec.h"
 
@@ -109,7 +109,7 @@ static irqreturn_t s5p_cec_irq_handler(int irq, void *priv)
 		} else {
 			dev_dbg(cec->dev, "CEC_STATUS_RX_DONE set\n");
 			if (cec->rx != STATE_IDLE)
-				dev_dbg(cec->dev, "Buffer overrun (worker did not process previous message)\n");
+				dev_dbg(cec->dev, "Buffer overrun (worker did yest process previous message)\n");
 			cec->rx = STATE_BUSY;
 			cec->msg.len = status >> 24;
 			cec->msg.rx_status = CEC_RX_STATUS_OK;
@@ -147,7 +147,7 @@ static irqreturn_t s5p_cec_irq_handler_thread(int irq, void *priv)
 		cec->tx = STATE_IDLE;
 		break;
 	case STATE_BUSY:
-		dev_err(cec->dev, "state set to busy, this should not occur here\n");
+		dev_err(cec->dev, "state set to busy, this should yest occur here\n");
 		break;
 	default:
 		break;
@@ -177,10 +177,10 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	struct device *hdmi_dev;
 	struct resource *res;
 	struct s5p_cec_dev *cec;
-	bool needs_hpd = of_property_read_bool(pdev->dev.of_node, "needs-hpd");
+	bool needs_hpd = of_property_read_bool(pdev->dev.of_yesde, "needs-hpd");
 	int ret;
 
-	hdmi_dev = cec_notifier_parse_hdmi_phandle(dev);
+	hdmi_dev = cec_yestifier_parse_hdmi_phandle(dev);
 
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
@@ -204,7 +204,7 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	if (IS_ERR(cec->clk))
 		return PTR_ERR(cec->clk);
 
-	cec->pmu = syscon_regmap_lookup_by_phandle(dev->of_node,
+	cec->pmu = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 						 "samsung,syscon-phandle");
 	if (IS_ERR(cec->pmu))
 		return -EPROBE_DEFER;
@@ -221,16 +221,16 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	cec->notifier = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+	cec->yestifier = cec_yestifier_cec_adap_register(hdmi_dev, NULL,
 						       cec->adap);
-	if (!cec->notifier) {
+	if (!cec->yestifier) {
 		ret = -ENOMEM;
 		goto err_delete_adapter;
 	}
 
 	ret = cec_register_adapter(cec->adap, &pdev->dev);
 	if (ret)
-		goto err_notifier;
+		goto err_yestifier;
 
 	platform_set_drvdata(pdev, cec);
 	pm_runtime_enable(dev);
@@ -238,8 +238,8 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	dev_dbg(dev, "successfully probed\n");
 	return 0;
 
-err_notifier:
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+err_yestifier:
+	cec_yestifier_cec_adap_unregister(cec->yestifier, cec->adap);
 
 err_delete_adapter:
 	cec_delete_adapter(cec->adap);
@@ -250,7 +250,7 @@ static int s5p_cec_remove(struct platform_device *pdev)
 {
 	struct s5p_cec_dev *cec = platform_get_drvdata(pdev);
 
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+	cec_yestifier_cec_adap_unregister(cec->yestifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
 	pm_runtime_disable(&pdev->dev);
 	return 0;

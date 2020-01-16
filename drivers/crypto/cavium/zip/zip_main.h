@@ -14,14 +14,14 @@
  * conditions are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
+ *    copyright yestice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
  *
- *  * Neither the name of Cavium Inc. nor the names of its contributors may be
+ *  * Neither the name of Cavium Inc. yesr the names of its contributors may be
  *    used to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -53,7 +53,7 @@
 #define PCI_DEVICE_ID_THUNDERX_ZIP   0xA01A
 
 /* ZIP device BARs */
-#define PCI_CFG_ZIP_PF_BAR0   0  /* Base addr for normal regs */
+#define PCI_CFG_ZIP_PF_BAR0   0  /* Base addr for yesrmal regs */
 
 /* Maximum available zip queues */
 #define ZIP_MAX_NUM_QUEUES    8
@@ -110,8 +110,8 @@ struct zip_device {
 };
 
 /* Prototypes */
-struct zip_device *zip_get_device(int node_id);
-int zip_get_node_id(void);
+struct zip_device *zip_get_device(int yesde_id);
+int zip_get_yesde_id(void);
 void zip_reg_write(u64 val, u64 __iomem *addr);
 u64 zip_reg_read(u64 __iomem *addr);
 void zip_update_cmd_bufs(struct zip_device *zip_dev, u32 queue);

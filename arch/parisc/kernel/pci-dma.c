@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
 ** PARISC 1.1 Dynamic DMA mapping support.
-** This implementation is for PA-RISC platforms that do not support
+** This implementation is for PA-RISC platforms that do yest support
 ** I/O TLBs (aka DMA address translation hardware).
 ** See Documentation/DMA-API-HOWTO.txt for interface definitions.
 **
@@ -11,7 +11,7 @@
 **      (c) Copyright 2000 John Marvin
 **
 ** "leveraged" from 2.3.47: arch/ia64/kernel/pci-dma.c.
-** (I assume it's from David Mosberger-Tang but there was no Copyright)
+** (I assume it's from David Mosberger-Tang but there was yes Copyright)
 **
 ** AFAIK, all PA7100LC and PA7300LC platforms can use this code.
 **
@@ -26,7 +26,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/dma-direct.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 
 #include <asm/cacheflush.h>
 #include <asm/dma.h>    /* for DMA_CHUNK_SIZE */
@@ -88,7 +88,7 @@ static inline int map_pte_uncached(pte_t * pte,
 	do {
 		unsigned long flags;
 
-		if (!pte_none(*pte))
+		if (!pte_yesne(*pte))
 			printk(KERN_ERR "map_pte_uncached: page already exists\n");
 		purge_tlb_start(flags);
 		set_pte(pte, __mk_pte(*paddr_ptr, PAGE_KERNEL_UNC));
@@ -158,7 +158,7 @@ static inline void unmap_uncached_pte(pmd_t * pmd, unsigned long vaddr,
 	unsigned long end;
 	unsigned long orig_vaddr = vaddr;
 
-	if (pmd_none(*pmd))
+	if (pmd_yesne(*pmd))
 		return;
 	if (pmd_bad(*pmd)) {
 		pmd_ERROR(*pmd);
@@ -181,7 +181,7 @@ static inline void unmap_uncached_pte(pmd_t * pmd, unsigned long vaddr,
 		vaddr += PAGE_SIZE;
 		orig_vaddr += PAGE_SIZE;
 		pte++;
-		if (pte_none(page) || pte_present(page))
+		if (pte_yesne(page) || pte_present(page))
 			continue;
 		printk(KERN_CRIT "Whee.. Swapped out page in kernel page table\n");
 	} while (vaddr < end);
@@ -194,7 +194,7 @@ static inline void unmap_uncached_pmd(pgd_t * dir, unsigned long vaddr,
 	unsigned long end;
 	unsigned long orig_vaddr = vaddr;
 
-	if (pgd_none(*dir))
+	if (pgd_yesne(*dir))
 		return;
 	if (pgd_bad(*dir)) {
 		pgd_ERROR(*dir);

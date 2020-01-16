@@ -104,7 +104,7 @@ struct sysc {
 	void (*module_disable_quirk)(struct sysc *sysc);
 };
 
-static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,
+static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_yesde *np,
 				  bool is_child);
 
 static void sysc_write(struct sysc *ddata, int offset, u32 value)
@@ -186,8 +186,8 @@ static int sysc_add_named_clock_from_child(struct sysc *ddata,
 					   const char *name,
 					   const char *optfck_name)
 {
-	struct device_node *np = ddata->dev->of_node;
-	struct device_node *child;
+	struct device_yesde *np = ddata->dev->of_yesde;
+	struct device_yesde *child;
 	struct clk_lookup *cl;
 	struct clk *clock;
 	const char *n;
@@ -276,7 +276,7 @@ static int sysc_get_one_clock(struct sysc *ddata, const char *name)
 	}
 
 	if (index < 0) {
-		dev_err(ddata->dev, "clock %s not added\n", name);
+		dev_err(ddata->dev, "clock %s yest added\n", name);
 		return index;
 	}
 
@@ -301,7 +301,7 @@ static int sysc_get_one_clock(struct sysc *ddata, const char *name)
 
 static int sysc_get_clocks(struct sysc *ddata)
 {
-	struct device_node *np = ddata->dev->of_node;
+	struct device_yesde *np = ddata->dev->of_yesde;
 	struct property *prop;
 	const char *name;
 	int nr_fck = 0, nr_ick = 0, i, error = 0;
@@ -374,7 +374,7 @@ static int sysc_enable_main_clocks(struct sysc *ddata)
 	for (i = 0; i < SYSC_OPTFCK0; i++) {
 		clock = ddata->clocks[i];
 
-		/* Main clocks may not have ick */
+		/* Main clocks may yest have ick */
 		if (IS_ERR_OR_NULL(clock))
 			continue;
 
@@ -389,7 +389,7 @@ err_disable:
 	for (i--; i >= 0; i--) {
 		clock = ddata->clocks[i];
 
-		/* Main clocks may not have ick */
+		/* Main clocks may yest have ick */
 		if (IS_ERR_OR_NULL(clock))
 			continue;
 
@@ -427,7 +427,7 @@ static int sysc_enable_opt_clocks(struct sysc *ddata)
 	for (i = SYSC_OPTFCK0; i < SYSC_MAX_CLOCKS; i++) {
 		clock = ddata->clocks[i];
 
-		/* Assume no holes for opt clocks */
+		/* Assume yes holes for opt clocks */
 		if (IS_ERR_OR_NULL(clock))
 			return 0;
 
@@ -461,7 +461,7 @@ static void sysc_disable_opt_clocks(struct sysc *ddata)
 	for (i = SYSC_OPTFCK0; i < SYSC_MAX_CLOCKS; i++) {
 		clock = ddata->clocks[i];
 
-		/* Assume no holes for opt clocks */
+		/* Assume yes holes for opt clocks */
 		if (IS_ERR_OR_NULL(clock))
 			return;
 
@@ -513,14 +513,14 @@ static int sysc_init_resets(struct sysc *ddata)
  * sysc_parse_and_check_child_range - parses module IO region from ranges
  * @ddata: device driver data
  *
- * In general we only need rev, syss, and sysc registers and not the whole
+ * In general we only need rev, syss, and sysc registers and yest the whole
  * module range. But we do want the offsets for these registers from the
  * module base. This allows us to check them against the legacy hwmod
  * platform data. Let's also check the ranges are configured properly.
  */
 static int sysc_parse_and_check_child_range(struct sysc *ddata)
 {
-	struct device_node *np = ddata->dev->of_node;
+	struct device_yesde *np = ddata->dev->of_yesde;
 	const __be32 *ranges;
 	u32 nr_addr, nr_size;
 	int len, error;
@@ -561,11 +561,11 @@ static int sysc_parse_and_check_child_range(struct sysc *ddata)
 	return 0;
 }
 
-static struct device_node *stdout_path;
+static struct device_yesde *stdout_path;
 
 static void sysc_init_stdout_path(struct sysc *ddata)
 {
-	struct device_node *np = NULL;
+	struct device_yesde *np = NULL;
 	const char *uart;
 
 	if (IS_ERR(stdout_path))
@@ -574,7 +574,7 @@ static void sysc_init_stdout_path(struct sysc *ddata)
 	if (stdout_path)
 		return;
 
-	np = of_find_node_by_path("/chosen");
+	np = of_find_yesde_by_path("/chosen");
 	if (!np)
 		goto err;
 
@@ -582,7 +582,7 @@ static void sysc_init_stdout_path(struct sysc *ddata)
 	if (!uart)
 		goto err;
 
-	np = of_find_node_by_path(uart);
+	np = of_find_yesde_by_path(uart);
 	if (!np)
 		goto err;
 
@@ -595,7 +595,7 @@ err:
 }
 
 static void sysc_check_quirk_stdout(struct sysc *ddata,
-				    struct device_node *np)
+				    struct device_yesde *np)
 {
 	sysc_init_stdout_path(ddata);
 	if (np != stdout_path)
@@ -608,14 +608,14 @@ static void sysc_check_quirk_stdout(struct sysc *ddata,
 /**
  * sysc_check_one_child - check child configuration
  * @ddata: device driver data
- * @np: child device node
+ * @np: child device yesde
  *
  * Let's avoid messy situations where we have new interconnect target
- * node but children have "ti,hwmods". These belong to the interconnect
- * target node and are managed by this driver.
+ * yesde but children have "ti,hwmods". These belong to the interconnect
+ * target yesde and are managed by this driver.
  */
 static void sysc_check_one_child(struct sysc *ddata,
-				 struct device_node *np)
+				 struct device_yesde *np)
 {
 	const char *name;
 
@@ -629,16 +629,16 @@ static void sysc_check_one_child(struct sysc *ddata,
 
 static void sysc_check_children(struct sysc *ddata)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 
-	for_each_child_of_node(ddata->dev->of_node, child)
+	for_each_child_of_yesde(ddata->dev->of_yesde, child)
 		sysc_check_one_child(ddata, child);
 }
 
 /*
  * So far only I2C uses 16-bit read access with clockactivity with revision
  * in two registers with stride of 4. We can detect this based on the rev
- * register size to configure things far enough to be able to properly read
+ * register size to configure things far eyesugh to be able to properly read
  * the revision register.
  */
 static void sysc_check_quirk_16bit(struct sysc *ddata, struct resource *res)
@@ -1030,7 +1030,7 @@ static int __maybe_unused sysc_runtime_suspend_legacy(struct device *dev,
 
 	error = pdata->idle_module(dev, &ddata->cookie);
 	if (error)
-		dev_err(dev, "%s: could not idle: %i\n",
+		dev_err(dev, "%s: could yest idle: %i\n",
 			__func__, error);
 
 	reset_control_assert(ddata->rsts);
@@ -1053,7 +1053,7 @@ static int __maybe_unused sysc_runtime_resume_legacy(struct device *dev,
 
 	error = pdata->enable_module(dev, &ddata->cookie);
 	if (error)
-		dev_err(dev, "%s: could not enable: %i\n",
+		dev_err(dev, "%s: could yest enable: %i\n",
 			__func__, error);
 
 	reset_control_deassert(ddata->rsts);
@@ -1150,7 +1150,7 @@ err_allow_idle:
 	return error;
 }
 
-static int __maybe_unused sysc_noirq_suspend(struct device *dev)
+static int __maybe_unused sysc_yesirq_suspend(struct device *dev)
 {
 	struct sysc *ddata;
 
@@ -1162,7 +1162,7 @@ static int __maybe_unused sysc_noirq_suspend(struct device *dev)
 	return pm_runtime_force_suspend(dev);
 }
 
-static int __maybe_unused sysc_noirq_resume(struct device *dev)
+static int __maybe_unused sysc_yesirq_resume(struct device *dev)
 {
 	struct sysc *ddata;
 
@@ -1175,7 +1175,7 @@ static int __maybe_unused sysc_noirq_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops sysc_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sysc_noirq_suspend, sysc_noirq_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sysc_yesirq_suspend, sysc_yesirq_resume)
 	SET_RUNTIME_PM_OPS(sysc_runtime_suspend,
 			   sysc_runtime_resume,
 			   NULL)
@@ -1207,7 +1207,7 @@ struct sysc_revision_quirk {
 	}
 
 static const struct sysc_revision_quirk sysc_revision_quirks[] = {
-	/* These drivers need to be fixed to not use pm_runtime_irq_safe() */
+	/* These drivers need to be fixed to yest use pm_runtime_irq_safe() */
 	SYSC_QUIRK("gpio", 0, 0, 0x10, 0x114, 0x50600801, 0xffff00ff,
 		   SYSC_QUIRK_LEGACY_IDLE | SYSC_QUIRK_OPT_CLKS_IN_RESET),
 	SYSC_QUIRK("mmu", 0, 0, 0x10, 0x14, 0x00000020, 0xffffffff,
@@ -1555,7 +1555,7 @@ static int sysc_legacy_init(struct sysc *ddata)
 
 /*
  * Note that the caller must ensure the interconnect target module is enabled
- * before calling reset. Otherwise reset will not complete.
+ * before calling reset. Otherwise reset will yest complete.
  */
 static int sysc_reset(struct sysc *ddata)
 {
@@ -1611,8 +1611,8 @@ static int sysc_reset(struct sysc *ddata)
 }
 
 /*
- * At this point the module is configured enough to read the revision but
- * module may not be completely configured yet to use PM runtime. Enable
+ * At this point the module is configured eyesugh to read the revision but
+ * module may yest be completely configured yet to use PM runtime. Enable
  * all clocks directly during init to configure the quirks needed for PM
  * runtime based on the revision register.
  */
@@ -1627,7 +1627,7 @@ static int sysc_init_module(struct sysc *ddata)
 	sysc_clkdm_deny_idle(ddata);
 
 	/*
-	 * Always enable clocks. The bootloader may or may not have enabled
+	 * Always enable clocks. The bootloader may or may yest have enabled
 	 * the related clocks.
 	 */
 	error = sysc_enable_opt_clocks(ddata);
@@ -1686,7 +1686,7 @@ err_opt_clocks:
 
 static int sysc_init_sysc_mask(struct sysc *ddata)
 {
-	struct device_node *np = ddata->dev->of_node;
+	struct device_yesde *np = ddata->dev->of_yesde;
 	int error;
 	u32 val;
 
@@ -1702,7 +1702,7 @@ static int sysc_init_sysc_mask(struct sysc *ddata)
 static int sysc_init_idlemode(struct sysc *ddata, u8 *idlemodes,
 			      const char *name)
 {
-	struct device_node *np = ddata->dev->of_node;
+	struct device_yesde *np = ddata->dev->of_yesde;
 	struct property *prop;
 	const __be32 *p;
 	u32 val;
@@ -1737,14 +1737,14 @@ static int sysc_init_idlemodes(struct sysc *ddata)
 
 /*
  * Only some devices on omap4 and later have SYSCONFIG reset done
- * bit. We can detect this if there is no SYSSTATUS at all, or the
- * SYSTATUS bit 0 is not used. Note that some SYSSTATUS registers
+ * bit. We can detect this if there is yes SYSSTATUS at all, or the
+ * SYSTATUS bit 0 is yest used. Note that some SYSSTATUS registers
  * have multiple bits for the child devices like OHCI and EHCI.
  * Depends on SYSC being parsed first.
  */
 static int sysc_init_syss_mask(struct sysc *ddata)
 {
-	struct device_node *np = ddata->dev->of_node;
+	struct device_yesde *np = ddata->dev->of_yesde;
 	int error;
 	u32 val;
 
@@ -1810,7 +1810,7 @@ static int sysc_child_add_clocks(struct sysc *ddata,
 						   child,
 						   ddata->clock_roles[i]);
 		if (error && error != -EEXIST) {
-			dev_err(ddata->dev, "could not add child clock %s: %i\n",
+			dev_err(ddata->dev, "could yest add child clock %s: %i\n",
 				ddata->clock_roles[i], error);
 
 			return error;
@@ -1868,7 +1868,7 @@ static int __maybe_unused sysc_child_runtime_resume(struct device *dev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int sysc_child_suspend_noirq(struct device *dev)
+static int sysc_child_suspend_yesirq(struct device *dev)
 {
 	struct sysc *ddata;
 	int error;
@@ -1878,7 +1878,7 @@ static int sysc_child_suspend_noirq(struct device *dev)
 	dev_dbg(ddata->dev, "%s %s\n", __func__,
 		ddata->name ? ddata->name : "");
 
-	error = pm_generic_suspend_noirq(dev);
+	error = pm_generic_suspend_yesirq(dev);
 	if (error) {
 		dev_err(dev, "%s error at %i: %i\n",
 			__func__, __LINE__, error);
@@ -1909,7 +1909,7 @@ static int sysc_child_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int sysc_child_resume_noirq(struct device *dev)
+static int sysc_child_resume_yesirq(struct device *dev)
 {
 	struct sysc *ddata;
 	int error;
@@ -1935,7 +1935,7 @@ static int sysc_child_resume_noirq(struct device *dev)
 				__func__, error);
 	}
 
-	return pm_generic_resume_noirq(dev);
+	return pm_generic_resume_yesirq(dev);
 }
 #endif
 
@@ -1945,8 +1945,8 @@ static struct dev_pm_domain sysc_child_pm_domain = {
 				   sysc_child_runtime_resume,
 				   NULL)
 		USE_PLATFORM_PM_SLEEP_OPS
-		SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sysc_child_suspend_noirq,
-					      sysc_child_resume_noirq)
+		SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sysc_child_suspend_yesirq,
+					      sysc_child_resume_yesirq)
 	}
 };
 
@@ -1956,11 +1956,11 @@ static struct dev_pm_domain sysc_child_pm_domain = {
  * @child: child device driver
  *
  * Allow idle for child devices as done with _od_runtime_suspend().
- * Otherwise many child devices will not idle because of the permanent
+ * Otherwise many child devices will yest idle because of the permanent
  * parent usecount set in pm_runtime_irq_safe().
  *
  * Note that the long term solution is to just modify the child device
- * drivers to not set pm_runtime_irq_safe() and then this can be just
+ * drivers to yest set pm_runtime_irq_safe() and then this can be just
  * dropped.
  */
 static void sysc_legacy_idle_quirk(struct sysc *ddata, struct device *child)
@@ -1969,7 +1969,7 @@ static void sysc_legacy_idle_quirk(struct sysc *ddata, struct device *child)
 		dev_pm_domain_set(child, &sysc_child_pm_domain);
 }
 
-static int sysc_notifier_call(struct notifier_block *nb,
+static int sysc_yestifier_call(struct yestifier_block *nb,
 			      unsigned long event, void *device)
 {
 	struct device *dev = device;
@@ -1994,8 +1994,8 @@ static int sysc_notifier_call(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block sysc_nb = {
-	.notifier_call = sysc_notifier_call,
+static struct yestifier_block sysc_nb = {
+	.yestifier_call = sysc_yestifier_call,
 };
 
 /* Device tree configured quirks */
@@ -2005,15 +2005,15 @@ struct sysc_dts_quirk {
 };
 
 static const struct sysc_dts_quirk sysc_dts_quirks[] = {
-	{ .name = "ti,no-idle-on-init",
+	{ .name = "ti,yes-idle-on-init",
 	  .mask = SYSC_QUIRK_NO_IDLE_ON_INIT, },
-	{ .name = "ti,no-reset-on-init",
+	{ .name = "ti,yes-reset-on-init",
 	  .mask = SYSC_QUIRK_NO_RESET_ON_INIT, },
-	{ .name = "ti,no-idle",
+	{ .name = "ti,yes-idle",
 	  .mask = SYSC_QUIRK_NO_IDLE, },
 };
 
-static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,
+static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_yesde *np,
 				  bool is_child)
 {
 	const struct property *prop;
@@ -2037,7 +2037,7 @@ static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,
 
 static int sysc_init_dts_quirks(struct sysc *ddata)
 {
-	struct device_node *np = ddata->dev->of_node;
+	struct device_yesde *np = ddata->dev->of_yesde;
 	int error;
 	u32 val;
 
@@ -2071,7 +2071,7 @@ static void sysc_unprepare(struct sysc *ddata)
 }
 
 /*
- * Common sysc register bits found on omap2, also known as type1
+ * Common sysc register bits found on omap2, also kyeswn as type1
  */
 static const struct sysc_regbits sysc_regbits_omap2 = {
 	.dmadisable_shift = -ENODEV,
@@ -2145,7 +2145,7 @@ static const struct sysc_capabilities sysc_omap3_aes = {
 };
 
 /*
- * Common sysc register bits found on omap4, also known as type2
+ * Common sysc register bits found on omap4, also kyeswn as type2
  */
 static const struct sysc_regbits sysc_regbits_omap4 = {
 	.dmadisable_shift = 16,
@@ -2173,7 +2173,7 @@ static const struct sysc_capabilities sysc_omap4_timer = {
 };
 
 /*
- * Common sysc register bits found on omap4, also known as type3
+ * Common sysc register bits found on omap4, also kyeswn as type3
  */
 static const struct sysc_regbits sysc_regbits_omap4_simple = {
 	.dmadisable_shift = -ENODEV,
@@ -2443,7 +2443,7 @@ static int sysc_probe(struct platform_device *pdev)
 	pm_runtime_enable(ddata->dev);
 	error = pm_runtime_get_sync(ddata->dev);
 	if (error < 0) {
-		pm_runtime_put_noidle(ddata->dev);
+		pm_runtime_put_yesidle(ddata->dev);
 		pm_runtime_disable(ddata->dev);
 		goto unprepare;
 	}
@@ -2462,7 +2462,7 @@ static int sysc_probe(struct platform_device *pdev)
 	sysc_show_registers(ddata);
 
 	ddata->dev->type = &sysc_device_type;
-	error = of_platform_populate(ddata->dev->of_node, sysc_match_table,
+	error = of_platform_populate(ddata->dev->of_yesde, sysc_match_table,
 				     pdata ? pdata->auxdata : NULL,
 				     ddata->dev);
 	if (error)
@@ -2499,7 +2499,7 @@ static int sysc_remove(struct platform_device *pdev)
 
 	error = pm_runtime_get_sync(ddata->dev);
 	if (error < 0) {
-		pm_runtime_put_noidle(ddata->dev);
+		pm_runtime_put_yesidle(ddata->dev);
 		pm_runtime_disable(ddata->dev);
 		goto unprepare;
 	}
@@ -2548,7 +2548,7 @@ static struct platform_driver sysc_driver = {
 
 static int __init sysc_init(void)
 {
-	bus_register_notifier(&platform_bus_type, &sysc_nb);
+	bus_register_yestifier(&platform_bus_type, &sysc_nb);
 
 	return platform_driver_register(&sysc_driver);
 }
@@ -2556,7 +2556,7 @@ module_init(sysc_init);
 
 static void __exit sysc_exit(void)
 {
-	bus_unregister_notifier(&platform_bus_type, &sysc_nb);
+	bus_unregister_yestifier(&platform_bus_type, &sysc_nb);
 	platform_driver_unregister(&sysc_driver);
 }
 module_exit(sysc_exit);

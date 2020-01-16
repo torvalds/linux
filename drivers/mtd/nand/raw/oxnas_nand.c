@@ -73,8 +73,8 @@ static void oxnas_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
  */
 static int oxnas_nand_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *nand_np;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *nand_np;
 	struct oxnas_nand_ctrl *oxnas;
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
@@ -100,7 +100,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(oxnas->clk))
 		oxnas->clk = NULL;
 
-	/* Only a single chip node is supported */
+	/* Only a single chip yesde is supported */
 	count = of_get_child_count(np);
 	if (count > 1)
 		return -EINVAL;
@@ -111,7 +111,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 
 	device_reset_optional(&pdev->dev);
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_yesde(np, nand_np) {
 		chip = devm_kzalloc(&pdev->dev, sizeof(struct nand_chip),
 				    GFP_KERNEL);
 		if (!chip) {
@@ -121,7 +121,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 
 		chip->controller = &oxnas->base;
 
-		nand_set_flash_node(chip, nand_np);
+		nand_set_flash_yesde(chip, nand_np);
 		nand_set_controller_data(chip, oxnas);
 
 		mtd = nand_to_mtd(chip);
@@ -149,7 +149,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 		++nchips;
 	}
 
-	/* Exit if no chips found */
+	/* Exit if yes chips found */
 	if (!nchips) {
 		err = -ENODEV;
 		goto err_clk_unprepare;
@@ -160,7 +160,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 	return 0;
 
 err_release_child:
-	of_node_put(nand_np);
+	of_yesde_put(nand_np);
 err_clk_unprepare:
 	clk_disable_unprepare(oxnas->clk);
 	return err;

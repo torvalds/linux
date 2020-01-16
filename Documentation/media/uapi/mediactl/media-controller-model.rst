@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _media-controller-model:
 
@@ -25,13 +25,13 @@ are:
    processing pipeline), DMA channels or physical connectors.
 
 -  An **interface** is a graph representation of a Linux Kernel
-   userspace API interface, like a device node or a sysfs file that
+   userspace API interface, like a device yesde or a sysfs file that
    controls one or more entities in the graph.
 
 -  A **pad** is a data connection endpoint through which an entity can
-   interact with other entities. Data (not restricted to video) produced
+   interact with other entities. Data (yest restricted to video) produced
    by an entity flows from the entity's output to one or more entity
-   inputs. Pads should not be confused with physical pins at chip
+   inputs. Pads should yest be confused with physical pins at chip
    boundaries.
 
 -  A **data link** is a point-to-point oriented connection between two

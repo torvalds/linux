@@ -36,7 +36,7 @@ MODULE_DEVICE_TABLE(of, mux_mmio_dt_ids);
 static int mux_mmio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct regmap_field **fields;
 	struct mux_chip *mux_chip;
 	struct regmap *regmap;
@@ -45,7 +45,7 @@ static int mux_mmio_probe(struct platform_device *pdev)
 	int i;
 
 	if (of_device_is_compatible(np, "mmio-mux"))
-		regmap = syscon_node_to_regmap(np->parent);
+		regmap = syscon_yesde_to_regmap(np->parent);
 	else
 		regmap = dev_get_regmap(dev->parent, NULL) ?: ERR_PTR(-ENODEV);
 	if (IS_ERR(regmap)) {

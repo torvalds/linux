@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/regmap.h>
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 #include <linux/clk-provider.h>
 
 /* CEC Registers */
@@ -43,7 +43,7 @@
 #define CECB_CLK_CNTL_BYPASS_EN		BIT(24)
 
 /*
- * [14:12] Filter_del. For glitch-filtering CEC line, ignore signal
+ * [14:12] Filter_del. For glitch-filtering CEC line, igyesre signal
  *       change pulse width < filter_del * T(filter_tick) * 3.
  * [9:8] Filter_tick_sel: Select which periodical pulse for
  *       glitch-filtering CEC line signal.
@@ -92,7 +92,7 @@
 /*
  * [0] DONE Interrupt
  * [1] End Of Message Interrupt
- * [2] Not Acknowlegde Interrupt
+ * [2] Not Ackyeswlegde Interrupt
  * [3] Arbitration Loss Interrupt
  * [4] Initiator Error Interrupt
  * [5] Follower Error Interrupt
@@ -178,7 +178,7 @@ struct meson_ao_cec_g12a_device {
 	struct regmap			*regmap;
 	struct regmap			*regmap_cec;
 	spinlock_t			cec_reg_lock;
-	struct cec_notifier		*notify;
+	struct cec_yestifier		*yestify;
 	struct cec_adapter		*adap;
 	struct cec_msg			rx_msg;
 	struct clk			*oscin;
@@ -637,7 +637,7 @@ static int meson_ao_cec_g12a_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret, irq;
 
-	hdmi_dev = cec_notifier_parse_hdmi_phandle(&pdev->dev);
+	hdmi_dev = cec_yestifier_parse_hdmi_phandle(&pdev->dev);
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
 
@@ -716,24 +716,24 @@ static int meson_ao_cec_g12a_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ao_cec);
 
-	ao_cec->notify = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+	ao_cec->yestify = cec_yestifier_cec_adap_register(hdmi_dev, NULL,
 							ao_cec->adap);
-	if (!ao_cec->notify) {
+	if (!ao_cec->yestify) {
 		ret = -ENOMEM;
 		goto out_probe_core_clk;
 	}
 
 	ret = cec_register_adapter(ao_cec->adap, &pdev->dev);
 	if (ret < 0)
-		goto out_probe_notify;
+		goto out_probe_yestify;
 
 	/* Setup Hardware */
 	regmap_write(ao_cec->regmap, CECB_GEN_CNTL_REG, CECB_GEN_CNTL_RESET);
 
 	return 0;
 
-out_probe_notify:
-	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
+out_probe_yestify:
+	cec_yestifier_cec_adap_unregister(ao_cec->yestify, ao_cec->adap);
 
 out_probe_core_clk:
 	clk_disable_unprepare(ao_cec->core);
@@ -752,7 +752,7 @@ static int meson_ao_cec_g12a_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ao_cec->core);
 
-	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
+	cec_yestifier_cec_adap_unregister(ao_cec->yestify, ao_cec->adap);
 
 	cec_unregister_adapter(ao_cec->adap);
 

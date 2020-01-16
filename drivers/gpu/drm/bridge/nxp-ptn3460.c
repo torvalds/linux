@@ -242,7 +242,7 @@ static int ptn3460_bridge_attach(struct drm_bridge *bridge)
 	int ret;
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
+		DRM_ERROR("Parent encoder object yest found");
 		return -ENODEV;
 	}
 
@@ -287,7 +287,7 @@ static int ptn3460_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &ptn_bridge->panel, NULL);
+	ret = drm_of_find_panel_or_bridge(dev->of_yesde, 0, 0, &ptn_bridge->panel, NULL);
 	if (ret)
 		return ret;
 
@@ -297,7 +297,7 @@ static int ptn3460_probe(struct i2c_client *client,
 					       GPIOD_OUT_HIGH);
 	if (IS_ERR(ptn_bridge->gpio_pd_n)) {
 		ret = PTR_ERR(ptn_bridge->gpio_pd_n);
-		dev_err(dev, "cannot get gpio_pd_n %d\n", ret);
+		dev_err(dev, "canyest get gpio_pd_n %d\n", ret);
 		return ret;
 	}
 
@@ -309,11 +309,11 @@ static int ptn3460_probe(struct i2c_client *client,
 						GPIOD_OUT_LOW);
 	if (IS_ERR(ptn_bridge->gpio_rst_n)) {
 		ret = PTR_ERR(ptn_bridge->gpio_rst_n);
-		DRM_ERROR("cannot get gpio_rst_n %d\n", ret);
+		DRM_ERROR("canyest get gpio_rst_n %d\n", ret);
 		return ret;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "edid-emulation",
+	ret = of_property_read_u32(dev->of_yesde, "edid-emulation",
 			&ptn_bridge->edid_emulation);
 	if (ret) {
 		dev_err(dev, "Can't read EDID emulation value\n");
@@ -321,7 +321,7 @@ static int ptn3460_probe(struct i2c_client *client,
 	}
 
 	ptn_bridge->bridge.funcs = &ptn3460_bridge_funcs;
-	ptn_bridge->bridge.of_node = dev->of_node;
+	ptn_bridge->bridge.of_yesde = dev->of_yesde;
 	drm_bridge_add(&ptn_bridge->bridge);
 
 	i2c_set_clientdata(client, ptn_bridge);

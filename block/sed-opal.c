@@ -4,7 +4,7 @@
  *
  * Authors:
  *    Scott  Bauer      <scott.bauer@intel.com>
- *    Rafael Antognolli <rafael.antognolli@intel.com>
+ *    Rafael Antogyeslli <rafael.antogyeslli@intel.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":OPAL: " fmt
@@ -61,7 +61,7 @@ struct opal_resp_tok {
 };
 
 /*
- * From the response header it's not possible to know how many tokens there are
+ * From the response header it's yest possible to kyesw how many tokens there are
  * on the payload. So we hardcode that the maximum will be MAX_TOKS, and later
  * if we start dealing with messages that have more than that, we can increase
  * this number. This is done to avoid having to make two passes through the
@@ -217,7 +217,7 @@ static int opal_discovery0_step(struct opal_dev *dev);
 struct opal_suspend_data {
 	struct opal_lock_unlock unlk;
 	u8 lr;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 /*
@@ -228,7 +228,7 @@ struct opal_suspend_data {
 static const char * const opal_errors[] = {
 	"Success",
 	"Not Authorized",
-	"Unknown Error",
+	"Unkyeswn Error",
 	"SP Busy",
 	"SP Failed",
 	"SP Disabled",
@@ -240,7 +240,7 @@ static const char * const opal_errors[] = {
 	"Invalid Function",
 	"Invalid Parameter",
 	"Invalid Reference",
-	"Unknown Error",
+	"Unkyeswn Error",
 	"TPER Malfunction",
 	"Transaction Failure",
 	"Response Overflow",
@@ -253,7 +253,7 @@ static const char *opal_error_to_human(int error)
 		return "Failed";
 
 	if (error >= ARRAY_SIZE(opal_errors) || error < 0)
-		return "Unknown Error";
+		return "Unkyeswn Error";
 
 	return opal_errors[error];
 }
@@ -272,7 +272,7 @@ static bool check_tper(const void *data)
 	u8 flags = tper->supported_features;
 
 	if (!(flags & TPER_SYNC_SUPPORTED)) {
-		pr_debug("TPer sync not supported. flags = %d\n",
+		pr_debug("TPer sync yest supported. flags = %d\n",
 			 tper->supported_features);
 		return false;
 	}
@@ -418,7 +418,7 @@ out_error:
 	 * error occurred in the first step (and thus stopping the loop with
 	 * state == 0) then there was an error before or during the attempt to
 	 * start a session. Therefore we shouldn't attempt to terminate a
-	 * session, as one has not yet been created.
+	 * session, as one has yest yet been created.
 	 */
 	if (state > 0)
 		end_opal_session_error(dev);
@@ -465,7 +465,7 @@ static int opal_discovery0_end(struct opal_dev *dev)
 			break;
 		case FC_ENTERPRISE:
 		case FC_DATASTORE:
-			/* some ignored properties */
+			/* some igyesred properties */
 			pr_debug("Found OPAL feature description: %d\n",
 				 be16_to_cpu(body->code));
 			break;
@@ -478,10 +478,10 @@ static int opal_discovery0_end(struct opal_dev *dev)
 			found_com_id = true;
 			break;
 		case 0xbfff ... 0xffff:
-			/* vendor specific, just ignore */
+			/* vendor specific, just igyesre */
 			break;
 		default:
-			pr_debug("OPAL Unknown feature: %d\n",
+			pr_debug("OPAL Unkyeswn feature: %d\n",
 				 be16_to_cpu(body->code));
 
 		}
@@ -489,7 +489,7 @@ static int opal_discovery0_end(struct opal_dev *dev)
 	}
 
 	if (!supported) {
-		pr_debug("This device is not Opal enabled. Not Supported!\n");
+		pr_debug("This device is yest Opal enabled. Not Supported!\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -498,7 +498,7 @@ static int opal_discovery0_end(struct opal_dev *dev)
 
 
 	if (!found_com_id) {
-		pr_debug("Could not find OPAL comid for device. Returning early\n");
+		pr_debug("Could yest find OPAL comid for device. Returning early\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -746,7 +746,7 @@ static const struct opal_resp_tok *response_get_token(
 
 	tok = &resp->toks[n];
 	if (tok->len == 0) {
-		pr_debug("Token length must be non-zero\n");
+		pr_debug("Token length must be yesn-zero\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -924,7 +924,7 @@ static size_t response_get_string(const struct parsed_resp *resp, int n,
 		return 0;
 
 	if (tok->type != OPAL_DTA_TOKENID_BYTESTRING) {
-		pr_debug("Token is not a byte string!\n");
+		pr_debug("Token is yest a byte string!\n");
 		return 0;
 	}
 
@@ -958,12 +958,12 @@ static u64 response_get_u64(const struct parsed_resp *resp, int n)
 		return 0;
 
 	if (tok->type != OPAL_DTA_TOKENID_UINT) {
-		pr_debug("Token is not unsigned int: %d\n", tok->type);
+		pr_debug("Token is yest unsigned int: %d\n", tok->type);
 		return 0;
 	}
 
 	if (tok->width != OPAL_WIDTH_TINY && tok->width != OPAL_WIDTH_SHORT) {
-		pr_debug("Atom is not short or tiny: %d\n", tok->width);
+		pr_debug("Atom is yest short or tiny: %d\n", tok->width);
 		return 0;
 	}
 
@@ -1072,14 +1072,14 @@ static void add_suspend_info(struct opal_dev *dev,
 {
 	struct opal_suspend_data *iter;
 
-	list_for_each_entry(iter, &dev->unlk_lst, node) {
+	list_for_each_entry(iter, &dev->unlk_lst, yesde) {
 		if (iter->lr == sus->lr) {
-			list_del(&iter->node);
+			list_del(&iter->yesde);
 			kfree(iter);
 			break;
 		}
 	}
-	list_add_tail(&sus->node, &dev->unlk_lst);
+	list_add_tail(&sus->yesde, &dev->unlk_lst);
 }
 
 static int end_session_cont(struct opal_dev *dev)
@@ -1241,7 +1241,7 @@ static int generic_table_write_data(struct opal_dev *dev, const u64 data,
 
 	len = response_get_u64(&dev->parsed, 4);
 	if (size > len || offset > len - size) {
-		pr_debug("Does not fit in the table (%llu vs. %llu)\n",
+		pr_debug("Does yest fit in the table (%llu vs. %llu)\n",
 			  offset + size, len);
 		return -ENOSPC;
 	}
@@ -1259,7 +1259,7 @@ static int generic_table_write_data(struct opal_dev *dev, const u64 data,
 
 		/*
 		 * The bytestring header is either 1 or 2 bytes, so assume 2.
-		 * There also needs to be enough space to accommodate the
+		 * There also needs to be eyesugh space to accommodate the
 		 * trailing OPAL_ENDNAME (1 byte) and tokens added by
 		 * cmd_finalize.
 		 */
@@ -1432,7 +1432,7 @@ static int start_generic_opal_session(struct opal_dev *dev,
 		add_token_u8(&err, dev, OPAL_ENDNAME);
 		break;
 	default:
-		pr_debug("Cannot start Admin SP session with auth %d\n", auth);
+		pr_debug("Canyest start Admin SP session with auth %d\n", auth);
 		return OPAL_INVAL_PARAM;
 	}
 
@@ -2121,8 +2121,8 @@ static void clean_opal_dev(struct opal_dev *dev)
 	struct opal_suspend_data *suspend, *next;
 
 	mutex_lock(&dev->dev_lock);
-	list_for_each_entry_safe(suspend, next, &dev->unlk_lst, node) {
-		list_del(&suspend->node);
+	list_for_each_entry_safe(suspend, next, &dev->unlk_lst, yesde) {
+		list_del(&suspend->yesde);
 		kfree(suspend);
 	}
 	mutex_unlock(&dev->dev_lock);
@@ -2151,7 +2151,7 @@ struct opal_dev *init_opal_dev(void *data, sec_send_recv *send_recv)
 	dev->data = data;
 	dev->send_recv = send_recv;
 	if (check_opal_support(dev) != 0) {
-		pr_debug("Opal is not supported on this device\n");
+		pr_debug("Opal is yest supported on this device\n");
 		kfree(dev);
 		return NULL;
 	}
@@ -2302,19 +2302,19 @@ static int opal_add_user_to_lr(struct opal_dev *dev,
 
 	if (lk_unlk->l_state != OPAL_RO &&
 	    lk_unlk->l_state != OPAL_RW) {
-		pr_debug("Locking state was not RO or RW\n");
+		pr_debug("Locking state was yest RO or RW\n");
 		return -EINVAL;
 	}
 
 	if (lk_unlk->session.who < OPAL_USER1 ||
 	    lk_unlk->session.who > OPAL_USER9) {
-		pr_debug("Authority was not within the range of users: %d\n",
+		pr_debug("Authority was yest within the range of users: %d\n",
 			 lk_unlk->session.who);
 		return -EINVAL;
 	}
 
 	if (lk_unlk->session.sum) {
-		pr_debug("%s not supported in sum. Use setup locking range\n",
+		pr_debug("%s yest supported in sum. Use setup locking range\n",
 			 __func__);
 		return -EINVAL;
 	}
@@ -2507,7 +2507,7 @@ static int opal_activate_user(struct opal_dev *dev,
 	/* We can't activate Admin1 it's active as manufactured */
 	if (opal_session->who < OPAL_USER1 ||
 	    opal_session->who > OPAL_USER9) {
-		pr_debug("Who was not a valid user: %d\n", opal_session->who);
+		pr_debug("Who was yest a valid user: %d\n", opal_session->who);
 		return -EINVAL;
 	}
 
@@ -2534,7 +2534,7 @@ bool opal_unlock_from_suspend(struct opal_dev *dev)
 	mutex_lock(&dev->dev_lock);
 	setup_opal_dev(dev);
 
-	list_for_each_entry(suspend, &dev->unlk_lst, node) {
+	list_for_each_entry(suspend, &dev->unlk_lst, yesde) {
 		dev->tsn = 0;
 		dev->hsn = 0;
 

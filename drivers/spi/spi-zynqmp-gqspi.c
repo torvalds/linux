@@ -439,7 +439,7 @@ static void zynqmp_qspi_chipselect(struct spi_device *qspi, bool is_high)
  * Return:	Always 0
  *
  * Note:
- *	If the requested frequency is not an exact match with what can be
+ *	If the requested frequency is yest an exact match with what can be
  *	obtained using the pre-scalar value, the driver sets the clock
  *	frequency which is lower than the requested frequency (maximum lower)
  *	for the transfer.
@@ -712,7 +712,7 @@ static void zynq_qspi_setuprxdma(struct zynqmp_qspi *xqspi)
 	addr = dma_map_single(xqspi->dev, (void *)xqspi->rxbuf,
 						rx_bytes, DMA_FROM_DEVICE);
 	if (dma_mapping_error(xqspi->dev, addr))
-		dev_err(xqspi->dev, "ERR:rxdma:memory not mapped\n");
+		dev_err(xqspi->dev, "ERR:rxdma:memory yest mapped\n");
 
 	xqspi->dma_rx_bytes = rx_bytes;
 	xqspi->dma_addr = addr;
@@ -930,13 +930,13 @@ static int __maybe_unused zynqmp_qspi_resume(struct device *dev)
 
 	ret = clk_enable(xqspi->pclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable APB clock.\n");
+		dev_err(dev, "Canyest enable APB clock.\n");
 		return ret;
 	}
 
 	ret = clk_enable(xqspi->refclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable device clock.\n");
+		dev_err(dev, "Canyest enable device clock.\n");
 		clk_disable(xqspi->pclk);
 		return ret;
 	}
@@ -983,13 +983,13 @@ static int __maybe_unused zynqmp_runtime_resume(struct device *dev)
 
 	ret = clk_enable(xqspi->pclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable APB clock.\n");
+		dev_err(dev, "Canyest enable APB clock.\n");
 		return ret;
 	}
 
 	ret = clk_enable(xqspi->refclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable device clock.\n");
+		dev_err(dev, "Canyest enable device clock.\n");
 		clk_disable(xqspi->pclk);
 		return ret;
 	}
@@ -1027,7 +1027,7 @@ static int zynqmp_qspi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	xqspi = spi_master_get_devdata(master);
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	platform_set_drvdata(pdev, master);
 
 	xqspi->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -1039,7 +1039,7 @@ static int zynqmp_qspi_probe(struct platform_device *pdev)
 	xqspi->dev = dev;
 	xqspi->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(xqspi->pclk)) {
-		dev_err(dev, "pclk clock not found.\n");
+		dev_err(dev, "pclk clock yest found.\n");
 		ret = PTR_ERR(xqspi->pclk);
 		goto remove_master;
 	}
@@ -1052,7 +1052,7 @@ static int zynqmp_qspi_probe(struct platform_device *pdev)
 
 	xqspi->refclk = devm_clk_get(&pdev->dev, "ref_clk");
 	if (IS_ERR(xqspi->refclk)) {
-		dev_err(dev, "ref_clk clock not found.\n");
+		dev_err(dev, "ref_clk clock yest found.\n");
 		ret = PTR_ERR(xqspi->refclk);
 		goto clk_dis_pclk;
 	}

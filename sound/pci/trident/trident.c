@@ -100,7 +100,7 @@ static int snd_trident_probe(struct pci_dev *pci,
 		str = "SI7018";
 		break;
 	default:
-		str = "Unknown";
+		str = "Unkyeswn";
 	}
 	strcpy(card->driver, str);
 	if (trident->device == TRIDENT_DEVICE_ID_SI7018) {

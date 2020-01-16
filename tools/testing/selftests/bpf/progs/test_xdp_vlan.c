@@ -25,7 +25,7 @@
 #include "bpf_helpers.h"
 #include "bpf_endian.h"
 
-/* linux/if_vlan.h have not exposed this as UAPI, thus mirror some here
+/* linux/if_vlan.h have yest exposed this as UAPI, thus mirror some here
  *
  *	struct vlan_hdr - vlan header
  *	@h_vlan_TCI: priority and VLAN ID
@@ -37,7 +37,7 @@ struct _vlan_hdr {
 };
 #define VLAN_PRIO_MASK		0xe000 /* Priority Code Point */
 #define VLAN_PRIO_SHIFT		13
-#define VLAN_CFI_MASK		0x1000 /* Canonical Format Indicator */
+#define VLAN_CFI_MASK		0x1000 /* Cayesnical Format Indicator */
 #define VLAN_TAG_PRESENT	VLAN_CFI_MASK
 #define VLAN_VID_MASK		0x0fff /* VLAN Identifier */
 #define VLAN_N_VID		4096
@@ -60,7 +60,7 @@ bool parse_eth_frame(struct ethhdr *eth, void *data_end, struct parse_pkt *pkt)
 	__u8 offset;
 
 	offset = sizeof(*eth);
-	/* Make sure packet is large enough for parsing eth + 2 VLAN headers */
+	/* Make sure packet is large eyesugh for parsing eth + 2 VLAN headers */
 	if ((void *)eth + offset + (2*sizeof(struct _vlan_hdr)) > data_end)
 		return false;
 
@@ -189,7 +189,7 @@ int  xdp_prognum2(struct xdp_md *ctx)
 	if (!parse_eth_frame(data, data_end, &pkt))
 		return XDP_ABORTED;
 
-	/* Skip packet if no outer VLAN was detected */
+	/* Skip packet if yes outer VLAN was detected */
 	if (pkt.vlan_outer_offset == 0)
 		return XDP_PASS;
 
@@ -198,7 +198,7 @@ int  xdp_prognum2(struct xdp_md *ctx)
 	dest+= VLAN_HDR_SZ;
 	/*
 	 * Notice: Taking over vlan_hdr->h_vlan_encapsulated_proto, by
-	 * only moving two MAC addrs (12 bytes), not overwriting last 2 bytes
+	 * only moving two MAC addrs (12 bytes), yest overwriting last 2 bytes
 	 */
 	__builtin_memmove(dest, data, ETH_ALEN * 2);
 	/* Note: LLVM built-in memmove inlining require size to be constant */
@@ -248,7 +248,7 @@ int  xdp_prognum3(struct xdp_md *ctx)
 	if (!parse_eth_frame(orig_eth, data_end, &pkt))
 		return XDP_ABORTED;
 
-	/* Skip packet if no outer VLAN was detected */
+	/* Skip packet if yes outer VLAN was detected */
 	if (pkt.vlan_outer_offset == 0)
 		return XDP_PASS;
 

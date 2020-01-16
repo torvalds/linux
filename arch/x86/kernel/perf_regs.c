@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
@@ -37,7 +37,7 @@ static unsigned int pt_regs_offset[PERF_REG_X86_MAX] = {
 	PT_REGS_OFFSET(PERF_REG_X86_GS, gs),
 #else
 	/*
-	 * The pt_regs struct does not store
+	 * The pt_regs struct does yest store
 	 * ds, es, fs, gs in 64 bit mode.
 	 */
 	(unsigned int) -1,
@@ -184,7 +184,7 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 	 * For this to be at all useful, we need a reasonable guess for
 	 * the ABI.  Be careful: we're in NMI context, and we're
 	 * considering current to be the current task, so we should
-	 * be careful not to look at any other percpu variables that might
+	 * be careful yest to look at any other percpu variables that might
 	 * change during context switches.
 	 */
 	regs_user->abi = user_64bit_mode(user_regs) ?

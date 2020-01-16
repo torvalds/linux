@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * This file describes the layout of the file handles as passed
  * over the wire.
@@ -18,16 +18,16 @@
 /*
  * This is the old "dentry style" Linux NFSv2 file handle.
  *
- * The xino and xdev fields are currently used to transport the
- * ino/dev of the exported inode.
+ * The xiyes and xdev fields are currently used to transport the
+ * iyes/dev of the exported iyesde.
  */
 struct nfs_fhbase_old {
 	__u32		fb_dcookie;	/* dentry cookie - always 0xfeebbaca */
-	__u32		fb_ino;		/* our inode number */
-	__u32		fb_dirino;	/* dir inode number, 0 for directories */
+	__u32		fb_iyes;		/* our iyesde number */
+	__u32		fb_diriyes;	/* dir iyesde number, 0 for directories */
 	__u32		fb_dev;		/* our device */
 	__u32		fb_xdev;
-	__u32		fb_xino;
+	__u32		fb_xiyes;
 	__u32		fb_generation;
 };
 
@@ -47,20 +47,20 @@ struct nfs_fhbase_old {
  * The fsid_type identifies how the filesystem (or export point) is
  *    encoded.
  *  Current values:
- *     0  - 4 byte device id (ms-2-bytes major, ls-2-bytes minor), 4byte inode number
- *        NOTE: we cannot use the kdev_t device id value, because kdev_t.h
+ *     0  - 4 byte device id (ms-2-bytes major, ls-2-bytes miyesr), 4byte iyesde number
+ *        NOTE: we canyest use the kdev_t device id value, because kdev_t.h
  *              says we mustn't.  We must break it up and reassemble.
  *     1  - 4 byte user specified identifier
- *     2  - 4 byte major, 4 byte minor, 4 byte inode number - DEPRECATED
- *     3  - 4 byte device id, encoded for user-space, 4 byte inode number
- *     4  - 4 byte inode number and 4 byte uuid
+ *     2  - 4 byte major, 4 byte miyesr, 4 byte iyesde number - DEPRECATED
+ *     3  - 4 byte device id, encoded for user-space, 4 byte iyesde number
+ *     4  - 4 byte iyesde number and 4 byte uuid
  *     5  - 8 byte uuid
  *     6  - 16 byte uuid
- *     7  - 8 byte inode number and 16 byte uuid
+ *     7  - 8 byte iyesde number and 16 byte uuid
  *
  * The fileid_type identified how the file within the filesystem is encoded.
  *   The values for this field are filesystem specific, exccept that
- *   filesystems must not use the values '0' or '0xff'. 'See enum fid_type'
+ *   filesystems must yest use the values '0' or '0xff'. 'See enum fid_type'
  *   in include/linux/exportfs.h for currently registered values.
  */
 struct nfs_fhbase_new {
@@ -86,11 +86,11 @@ struct knfsd_fh {
 };
 
 #define ofh_dcookie		fh_base.fh_old.fb_dcookie
-#define ofh_ino			fh_base.fh_old.fb_ino
-#define ofh_dirino		fh_base.fh_old.fb_dirino
+#define ofh_iyes			fh_base.fh_old.fb_iyes
+#define ofh_diriyes		fh_base.fh_old.fb_diriyes
 #define ofh_dev			fh_base.fh_old.fb_dev
 #define ofh_xdev		fh_base.fh_old.fb_xdev
-#define ofh_xino		fh_base.fh_old.fb_xino
+#define ofh_xiyes		fh_base.fh_old.fb_xiyes
 #define ofh_generation		fh_base.fh_old.fb_generation
 
 #define	fh_version		fh_base.fh_new.fb_version
@@ -99,7 +99,7 @@ struct knfsd_fh {
 #define	fh_fileid_type		fh_base.fh_new.fb_fileid_type
 #define	fh_fsid			fh_base.fh_new.fb_auth
 
-/* Do not use, provided for userspace compatiblity. */
+/* Do yest use, provided for userspace compatiblity. */
 #define	fh_auth			fh_base.fh_new.fb_auth
 
 #endif /* _UAPI_LINUX_NFSD_FH_H */

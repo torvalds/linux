@@ -3,11 +3,11 @@
  * Test that the flow_dissector program can be updated with a single
  * syscall by attaching a new program that replaces the existing one.
  *
- * Corner case - the same program cannot be attached twice.
+ * Corner case - the same program canyest be attached twice.
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdbool.h>
@@ -76,7 +76,7 @@ static void do_flow_dissector_reattach(void)
 
 	/* Expect failure when attaching the same program twice */
 	err = bpf_prog_attach(prog_fd[1], 0, BPF_FLOW_DISSECTOR, 0);
-	if (CHECK_FAIL(!err || errno != EINVAL))
+	if (CHECK_FAIL(!err || erryes != EINVAL))
 		perror("bpf_prog_attach-2");
 
 out_detach:
@@ -120,7 +120,7 @@ void test_flow_dissector_reattach(void)
 	/* First run tests in root network namespace */
 	do_flow_dissector_reattach();
 
-	/* Then repeat tests in a non-root namespace */
+	/* Then repeat tests in a yesn-root namespace */
 	err = unshare(CLONE_NEWNET);
 	if (CHECK_FAIL(err)) {
 		perror("unshare(CLONE_NEWNET)");

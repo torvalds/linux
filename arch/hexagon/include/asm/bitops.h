@@ -120,10 +120,10 @@ static inline void change_bit(int nr, volatile void *addr)
 
 
 /*
- * These are allowed to be non-atomic.  In fact the generic flavors are
- * in non-atomic.h.  Would it be better to use intrinsics for this?
+ * These are allowed to be yesn-atomic.  In fact the generic flavors are
+ * in yesn-atomic.h.  Would it be better to use intrinsics for this?
  *
- * OK, writes in our architecture do not invalidate LL/SC, so this has to
+ * OK, writes in our architecture do yest invalidate LL/SC, so this has to
  * be atomic, particularly for things like slab_lock and slab_unlock.
  *
  */
@@ -142,7 +142,7 @@ static inline void __change_bit(int nr, volatile unsigned long *addr)
 	test_and_change_bit(nr, addr);
 }
 
-/*  Apparently, at least some of these are allowed to be non-atomic  */
+/*  Apparently, at least some of these are allowed to be yesn-atomic  */
 static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
 {
 	return test_and_clear_bit(nr, addr);
@@ -178,7 +178,7 @@ static inline int __test_bit(int nr, const volatile unsigned long *addr)
  * ffz - find first zero in word.
  * @word: The word to search
  *
- * Undefined if no zero exists, so code should check against ~0UL first.
+ * Undefined if yes zero exists, so code should check against ~0UL first.
  */
 static inline long ffz(int x)
 {
@@ -235,7 +235,7 @@ static inline int ffs(int x)
  * __ffs - find first bit in word.
  * @word: The word to search
  *
- * Undefined if no bit exists, so code should check against 0 first.
+ * Undefined if yes bit exists, so code should check against 0 first.
  *
  * bits_per_long assumed to be 32
  * numbering starts at 0 I think (instead of 1 like ffs)
@@ -255,7 +255,7 @@ static inline unsigned long __ffs(unsigned long word)
  * __fls - find last (most-significant) set bit in a long word
  * @word: the word to search
  *
- * Undefined if no set bit exists, so code should check against 0 first.
+ * Undefined if yes set bit exists, so code should check against 0 first.
  * bits_per_long assumed to be 32
  */
 static inline unsigned long __fls(unsigned long word)

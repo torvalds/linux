@@ -3,7 +3,7 @@
  * pulsedlight-lidar-lite-v2.c - Support for PulsedLight LIDAR sensor
  *
  * Copyright (C) 2015, 2017-2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Rayesstay <matt.rayesstay@konsulko.com>
  *
  * TODO: interrupt mode, and signal strength reporting
  */
@@ -89,19 +89,19 @@ static int lidar_smbus_xfer(struct lidar_data *data, u8 reg, u8 *val, int len)
 
 	/*
 	 * Device needs a STOP condition between address write, and data read
-	 * so in turn i2c_smbus_read_byte_data cannot be used
+	 * so in turn i2c_smbus_read_byte_data canyest be used
 	 */
 
 	while (len--) {
 		ret = i2c_smbus_write_byte(client, reg++);
 		if (ret < 0) {
-			dev_err(&client->dev, "cannot write addr value");
+			dev_err(&client->dev, "canyest write addr value");
 			return ret;
 		}
 
 		ret = i2c_smbus_read_byte(client);
 		if (ret < 0) {
-			dev_err(&client->dev, "cannot read data value");
+			dev_err(&client->dev, "canyest read data value");
 			return ret;
 		}
 
@@ -158,7 +158,7 @@ static int lidar_get_measurement(struct lidar_data *data, u16 *reg)
 	/* start sample */
 	ret = lidar_write_control(data, LIDAR_REG_CONTROL_ACQUIRE);
 	if (ret < 0) {
-		dev_err(&client->dev, "cannot send start measurement command");
+		dev_err(&client->dev, "canyest send start measurement command");
 		return ret;
 	}
 
@@ -233,10 +233,10 @@ static irqreturn_t lidar_trigger_handler(int irq, void *private)
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 						   iio_get_time_ns(indio_dev));
 	} else if (ret != -EINVAL) {
-		dev_err(&data->client->dev, "cannot read LIDAR measurement");
+		dev_err(&data->client->dev, "canyest read LIDAR measurement");
 	}
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -370,6 +370,6 @@ static struct i2c_driver lidar_driver = {
 };
 module_i2c_driver(lidar_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Rayesstay <matt.rayesstay@konsulko.com>");
 MODULE_DESCRIPTION("PulsedLight LIDAR sensor");
 MODULE_LICENSE("GPL");

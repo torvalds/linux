@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Qualcomm Technologies HIDMA Management SYS interface
+ * Qualcomm Techyeslogies HIDMA Management SYS interface
  *
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
  */
@@ -45,7 +45,7 @@ static int set_##name(struct hidma_mgmt_dev *mdev, u64 val)	\
 	{#name, mode, get_##name, set_##name}
 
 IMPLEMENT_GETSET(hw_version_major)
-IMPLEMENT_GETSET(hw_version_minor)
+IMPLEMENT_GETSET(hw_version_miyesr)
 IMPLEMENT_GETSET(max_wr_xactions)
 IMPLEMENT_GETSET(max_rd_xactions)
 IMPLEMENT_GETSET(max_write_request)
@@ -87,7 +87,7 @@ static int set_weight(struct hidma_mgmt_dev *mdev, unsigned int i, u64 val)
 
 static struct hidma_mgmt_fileinfo hidma_mgmt_files[] = {
 	DECLARE_ATTRIBUTE(hw_version_major, S_IRUGO),
-	DECLARE_ATTRIBUTE(hw_version_minor, S_IRUGO),
+	DECLARE_ATTRIBUTE(hw_version_miyesr, S_IRUGO),
 	DECLARE_ATTRIBUTE(dma_channels, S_IRUGO),
 	DECLARE_ATTRIBUTE(chreset_timeout_cycles, S_IRUGO),
 	DECLARE_ATTRIBUTE(max_wr_xactions, S_IRUGO),
@@ -236,15 +236,15 @@ int hidma_mgmt_init_sys(struct hidma_mgmt_dev *mdev)
 	unsigned int i;
 	int rc;
 	int required;
-	struct kobject *chanops;
+	struct kobject *chayesps;
 
 	required = sizeof(*mdev->chroots) * mdev->dma_channels;
 	mdev->chroots = devm_kmalloc(&mdev->pdev->dev, required, GFP_KERNEL);
 	if (!mdev->chroots)
 		return -ENOMEM;
 
-	chanops = kobject_create_and_add("chanops", &mdev->pdev->dev.kobj);
-	if (!chanops)
+	chayesps = kobject_create_and_add("chayesps", &mdev->pdev->dev.kobj);
+	if (!chayesps)
 		return -ENOMEM;
 
 	/* create each channel directory here */
@@ -252,7 +252,7 @@ int hidma_mgmt_init_sys(struct hidma_mgmt_dev *mdev)
 		char name[20];
 
 		snprintf(name, sizeof(name), "chan%d", i);
-		mdev->chroots[i] = kobject_create_and_add(name, chanops);
+		mdev->chroots[i] = kobject_create_and_add(name, chayesps);
 		if (!mdev->chroots[i])
 			return -ENOMEM;
 	}

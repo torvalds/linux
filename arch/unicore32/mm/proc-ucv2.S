@@ -35,18 +35,18 @@ ENTRY(cpu_proc_fin)
 ENTRY(cpu_reset)
 	mov	ip, #0
 	movc	p0.c5, ip, #28			@ Cache invalidate all
-	nop8
+	yesp8
 
 	movc	p0.c6, ip, #6			@ TLB invalidate all
-	nop8
+	yesp8
 
 	movc	ip, p0.c1, #0			@ ctrl register
 	or	ip, ip, #0x2000			@ vector base address
 	andn	ip, ip, #0x000f			@ ............idam
 	movc	p0.c1, ip, #0			@ disable caches and mmu
-	nop
+	yesp
 	mov	pc, r0				@ jump to loc
-	nop8
+	yesp8
 
 /*
  *	cpu_do_idle()
@@ -73,7 +73,7 @@ ENTRY(cpu_dcache_clean_area)
 2:	cand.a	r0, r9
 	beq	1b
 3:	movc	p0.c5, r10, #11			@ clean D entry
-	nop8
+	yesp8
 	add	r0, r0, #CACHE_LINESIZE
 	add	r10, r10, #CACHE_LINESIZE
 	sub.a	r1, r1, #CACHE_LINESIZE
@@ -82,7 +82,7 @@ ENTRY(cpu_dcache_clean_area)
 #endif
 101:	mov	ip, #0
 	movc	p0.c5, ip, #10			@ Dcache clean all
-	nop8
+	yesp8
 
 	mov	pc, lr
 
@@ -94,15 +94,15 @@ ENTRY(cpu_dcache_clean_area)
  *	- pgd_phys - physical address of new pgd
  *
  *	It is assumed that:
- *	- we are not using split page tables
+ *	- we are yest using split page tables
  */
 	.align	5
 ENTRY(cpu_do_switch_mm)
 	movc	p0.c2, r0, #0			@ update page table ptr
-	nop8
+	yesp8
 
 	movc	p0.c6, ip, #6			@ TLB invalidate all
-	nop8
+	yesp8
 
 	mov	pc, lr
 
@@ -120,11 +120,11 @@ ENTRY(cpu_set_pte)
 #ifndef CONFIG_CPU_DCACHE_LINE_DISABLE
 	sub	r2, r0, #PAGE_OFFSET
 	movc	p0.c5, r2, #11				@ Dcache clean line
-	nop8
+	yesp8
 #else
 	mov	ip, #0
 	movc	p0.c5, ip, #10				@ Dcache clean all
-	nop8
+	yesp8
 	@dcacheline_flush	r0, r2, ip
 #endif
 	mov	pc, lr

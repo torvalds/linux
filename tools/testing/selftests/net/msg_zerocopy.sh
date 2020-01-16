@@ -101,8 +101,8 @@ ip -netns "${NS2}" link set dev "${DEV}" address 06:06:06:06:06:06
 # Add fixed IP addresses to the devices
 ip -netns "${NS1}" addr add 192.168.1.1/24 dev "${DEV}"
 ip -netns "${NS2}" addr add 192.168.1.2/24 dev "${DEV}"
-ip -netns "${NS1}" addr add       fd::1/64 dev "${DEV}" nodad
-ip -netns "${NS2}" addr add       fd::2/64 dev "${DEV}" nodad
+ip -netns "${NS1}" addr add       fd::1/64 dev "${DEV}" yesdad
+ip -netns "${NS2}" addr add       fd::2/64 dev "${DEV}" yesdad
 
 # Optionally disable sg or csum offload to test edge cases
 # ip netns exec "${NS1}" ethtool -K "${DEV}" sg off

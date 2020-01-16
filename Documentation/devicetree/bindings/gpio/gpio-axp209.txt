@@ -14,9 +14,9 @@ Required properties:
 	- "x-powers,axp813-gpio"
 - #gpio-cells: Should be two. The first cell is the pin number and the
   second is the GPIO flags.
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device yesde as a GPIO controller.
 
-This node must be a subnode of the axp20x PMIC, documented in
+This yesde must be a subyesde of the axp20x PMIC, documented in
 Documentation/devicetree/bindings/mfd/axp20x.txt
 
 Example:
@@ -36,7 +36,7 @@ axp209: pmic@34 {
 	};
 };
 
-The GPIOs can be muxed to other functions and therefore, must be a subnode of
+The GPIOs can be muxed to other functions and therefore, must be a subyesde of
 axp_gpio.
 
 Example:
@@ -48,7 +48,7 @@ Example:
 	};
 };
 
-&example_node {
+&example_yesde {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gpio0_adc>;
 };
@@ -57,7 +57,7 @@ GPIOs and their functions
 -------------------------
 
 Each GPIO is independent from the other (i.e. GPIO0 in gpio_in function does
-not force GPIO1 and GPIO2 to be in gpio_in function as well).
+yest force GPIO1 and GPIO2 to be in gpio_in function as well).
 
 axp209
 ------

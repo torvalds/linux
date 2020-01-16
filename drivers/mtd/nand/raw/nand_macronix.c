@@ -53,7 +53,7 @@ static void macronix_nand_onfi_init(struct nand_chip *chip)
 }
 
 /*
- * Macronix AC series does not support using SET/GET_FEATURES to change
+ * Macronix AC series does yest support using SET/GET_FEATURES to change
  * the timings unlike what is declared in the parameter page. Unflag
  * this feature to avoid unnecessary downturns.
  */

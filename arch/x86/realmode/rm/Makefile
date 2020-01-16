@@ -9,7 +9,7 @@
 KASAN_SANITIZE			:= n
 OBJECT_FILES_NON_STANDARD	:= y
 
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
+# Prevents link failures: __sanitizer_cov_trace_pc() is yest linked in.
 KCOV_INSTRUMENT		:= n
 
 always := realmode.bin realmode.relocs

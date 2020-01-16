@@ -439,7 +439,7 @@ AES_ENTRY(aes_xts_encrypt)
 
 	ld1		{v4.16b}, [x6]
 	xts_load_mask	v8
-	cbz		w7, .Lxtsencnotfirst
+	cbz		w7, .Lxtsencyestfirst
 
 	enc_prepare	w3, x5, x8
 	xts_cts_skip_tw	w7, .LxtsencNx
@@ -447,7 +447,7 @@ AES_ENTRY(aes_xts_encrypt)
 	enc_switch_key	w3, x2, x8
 	b		.LxtsencNx
 
-.Lxtsencnotfirst:
+.Lxtsencyestfirst:
 	enc_prepare	w3, x2, x8
 .LxtsencloopNx:
 	next_tweak	v4, v4, v8
@@ -532,7 +532,7 @@ AES_ENTRY(aes_xts_decrypt)
 	ld1		{v4.16b}, [x6]
 	xts_load_mask	v8
 	xts_cts_skip_tw	w7, .Lxtsdecskiptw
-	cbz		w7, .Lxtsdecnotfirst
+	cbz		w7, .Lxtsdecyestfirst
 
 	enc_prepare	w3, x5, x8
 	encrypt_block	v4, w3, x5, x8, w7		/* first tweak */
@@ -540,7 +540,7 @@ AES_ENTRY(aes_xts_decrypt)
 	dec_prepare	w3, x2, x8
 	b		.LxtsdecNx
 
-.Lxtsdecnotfirst:
+.Lxtsdecyestfirst:
 	dec_prepare	w3, x2, x8
 .LxtsdecloopNx:
 	next_tweak	v4, v4, v8

@@ -143,7 +143,7 @@ static void pseries_mach_cpu_die(void)
 
 			hard_irq_disable();
 			/*
-			 * Call to start_secondary_resume() will not return.
+			 * Call to start_secondary_resume() will yest return.
 			 * Kernel stack will be reset and start_secondary()
 			 * will be called to continue the online operation.
 			 */
@@ -174,7 +174,7 @@ static int pseries_cpu_disable(void)
 	if (cpu == boot_cpuid)
 		boot_cpuid = cpumask_any(cpu_online_mask);
 
-	/* FIXME: abstract this to not be platform specific later on */
+	/* FIXME: abstract this to yest be platform specific later on */
 	if (xive_enabled())
 		xive_smp_disable_cpu();
 	else
@@ -187,9 +187,9 @@ static int pseries_cpu_disable(void)
  * @cpu: logical processor id of the CPU whose death we're awaiting.
  *
  * This function is called from the context of the thread which is performing
- * the cpu-offline. Here we wait for long enough to allow the cpu in question
+ * the cpu-offline. Here we wait for long eyesugh to allow the cpu in question
  * to self-destroy so that the cpu-offline thread can send the CPU_DEAD
- * notifications.
+ * yestifications.
  *
  * OTOH, pseries_mach_cpu_die() is called by the @cpu when it wants to
  * self-destruct.
@@ -226,7 +226,7 @@ static void pseries_cpu_die(unsigned int cpu)
 	}
 
 	/* Isolation and deallocation are definitely done by
-	 * drslot_chrp_cpu.  If they were not they would be
+	 * drslot_chrp_cpu.  If they were yest they would be
 	 * done here.  Change isolate state to Isolate and
 	 * change allocation-state to Unusable.
 	 */
@@ -234,13 +234,13 @@ static void pseries_cpu_die(unsigned int cpu)
 }
 
 /*
- * Update cpu_present_mask and paca(s) for a new cpu node.  The wrinkle
- * here is that a cpu device node may represent up to two logical cpus
- * in the SMT case.  We must honor the assumption in other code that
+ * Update cpu_present_mask and paca(s) for a new cpu yesde.  The wrinkle
+ * here is that a cpu device yesde may represent up to two logical cpus
+ * in the SMT case.  We must hoyesr the assumption in other code that
  * the logical ids for sibling SMT threads x and y are adjacent, such
  * that x^1 == y and y^1 == x.
  */
-static int pseries_add_processor(struct device_node *np)
+static int pseries_add_processor(struct device_yesde *np)
 {
 	unsigned int cpu;
 	cpumask_var_t candidate_mask, tmp;
@@ -262,13 +262,13 @@ static int pseries_add_processor(struct device_node *np)
 
 	BUG_ON(!cpumask_subset(cpu_present_mask, cpu_possible_mask));
 
-	/* Get a bitmap of unoccupied slots. */
+	/* Get a bitmap of uyesccupied slots. */
 	cpumask_xor(candidate_mask, cpu_possible_mask, cpu_present_mask);
 	if (cpumask_empty(candidate_mask)) {
 		/* If we get here, it most likely means that NR_CPUS is
 		 * less than the partition's max processors setting.
 		 */
-		printk(KERN_ERR "Cannot add cpu %pOF; this system configuration"
+		printk(KERN_ERR "Canyest add cpu %pOF; this system configuration"
 		       " supports %d logical cpus.\n", np,
 		       num_possible_cpus());
 		goto out_unlock;
@@ -302,11 +302,11 @@ out_unlock:
 }
 
 /*
- * Update the present map for a cpu node which is going away, and set
+ * Update the present map for a cpu yesde which is going away, and set
  * the hard id in the paca(s) to -1 to be consistent with boot time
- * convention for non-present cpus.
+ * convention for yesn-present cpus.
  */
-static void pseries_remove_processor(struct device_node *np)
+static void pseries_remove_processor(struct device_yesde *np)
 {
 	unsigned int cpu;
 	int len, nthreads, i;
@@ -332,13 +332,13 @@ static void pseries_remove_processor(struct device_node *np)
 			break;
 		}
 		if (cpu >= nr_cpu_ids)
-			printk(KERN_WARNING "Could not find cpu to remove "
+			printk(KERN_WARNING "Could yest find cpu to remove "
 			       "with physical id 0x%x\n", thread);
 	}
 	cpu_maps_update_done();
 }
 
-static int dlpar_offline_cpu(struct device_node *dn)
+static int dlpar_offline_cpu(struct device_yesde *dn)
 {
 	int rc = 0;
 	unsigned int cpu;
@@ -379,12 +379,12 @@ static int dlpar_offline_cpu(struct device_node *dn)
 			 * Upgrade it's state to CPU_STATE_OFFLINE.
 			 */
 			set_preferred_offline_state(cpu, CPU_STATE_OFFLINE);
-			WARN_ON(plpar_hcall_norets(H_PROD, thread) != H_SUCCESS);
+			WARN_ON(plpar_hcall_yesrets(H_PROD, thread) != H_SUCCESS);
 			__cpu_die(cpu);
 			break;
 		}
 		if (cpu == num_possible_cpus()) {
-			pr_warn("Could not find cpu to offline with physical id 0x%x\n",
+			pr_warn("Could yest find cpu to offline with physical id 0x%x\n",
 				thread);
 		}
 	}
@@ -394,7 +394,7 @@ out:
 	return rc;
 }
 
-static int dlpar_online_cpu(struct device_node *dn)
+static int dlpar_online_cpu(struct device_yesde *dn)
 {
 	int rc = 0;
 	unsigned int cpu;
@@ -429,7 +429,7 @@ static int dlpar_online_cpu(struct device_node *dn)
 			break;
 		}
 		if (cpu == num_possible_cpus())
-			printk(KERN_WARNING "Could not find cpu to online "
+			printk(KERN_WARNING "Could yest find cpu to online "
 			       "with physical id 0x%x\n", thread);
 	}
 	cpu_maps_update_done();
@@ -439,9 +439,9 @@ out:
 
 }
 
-static bool dlpar_cpu_exists(struct device_node *parent, u32 drc_index)
+static bool dlpar_cpu_exists(struct device_yesde *parent, u32 drc_index)
 {
-	struct device_node *child = NULL;
+	struct device_yesde *child = NULL;
 	u32 my_drc_index;
 	bool found;
 	int rc;
@@ -449,14 +449,14 @@ static bool dlpar_cpu_exists(struct device_node *parent, u32 drc_index)
 	/* Assume cpu doesn't exist */
 	found = false;
 
-	for_each_child_of_node(parent, child) {
+	for_each_child_of_yesde(parent, child) {
 		rc = of_property_read_u32(child, "ibm,my-drc-index",
 					  &my_drc_index);
 		if (rc)
 			continue;
 
 		if (my_drc_index == drc_index) {
-			of_node_put(child);
+			of_yesde_put(child);
 			found = true;
 			break;
 		}
@@ -465,7 +465,7 @@ static bool dlpar_cpu_exists(struct device_node *parent, u32 drc_index)
 	return found;
 }
 
-static bool drc_info_valid_index(struct device_node *parent, u32 drc_index)
+static bool drc_info_valid_index(struct device_yesde *parent, u32 drc_index)
 {
 	struct property *info;
 	struct of_drc_info drc;
@@ -507,7 +507,7 @@ static bool drc_info_valid_index(struct device_node *parent, u32 drc_index)
 	return false;
 }
 
-static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
+static bool valid_cpu_drc_index(struct device_yesde *parent, u32 drc_index)
 {
 	bool found = false;
 	int rc, index;
@@ -538,26 +538,26 @@ static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
 
 static ssize_t dlpar_cpu_add(u32 drc_index)
 {
-	struct device_node *dn, *parent;
+	struct device_yesde *dn, *parent;
 	int rc, saved_rc;
 
 	pr_debug("Attempting to add CPU, drc index: %x\n", drc_index);
 
-	parent = of_find_node_by_path("/cpus");
+	parent = of_find_yesde_by_path("/cpus");
 	if (!parent) {
-		pr_warn("Failed to find CPU root node \"/cpus\"\n");
+		pr_warn("Failed to find CPU root yesde \"/cpus\"\n");
 		return -ENODEV;
 	}
 
 	if (dlpar_cpu_exists(parent, drc_index)) {
-		of_node_put(parent);
+		of_yesde_put(parent);
 		pr_warn("CPU with drc index %x already exists\n", drc_index);
 		return -EINVAL;
 	}
 
 	if (!valid_cpu_drc_index(parent, drc_index)) {
-		of_node_put(parent);
-		pr_warn("Cannot find CPU (drc index %x) to add.\n", drc_index);
+		of_yesde_put(parent);
+		pr_warn("Canyest find CPU (drc index %x) to add.\n", drc_index);
 		return -EINVAL;
 	}
 
@@ -565,7 +565,7 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 	if (rc) {
 		pr_warn("Failed to acquire DRC, rc: %d, drc index: %x\n",
 			rc, drc_index);
-		of_node_put(parent);
+		of_yesde_put(parent);
 		return -EINVAL;
 	}
 
@@ -574,23 +574,23 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 		pr_warn("Failed call to configure-connector, drc index: %x\n",
 			drc_index);
 		dlpar_release_drc(drc_index);
-		of_node_put(parent);
+		of_yesde_put(parent);
 		return -EINVAL;
 	}
 
-	rc = dlpar_attach_node(dn, parent);
+	rc = dlpar_attach_yesde(dn, parent);
 
-	/* Regardless we are done with parent now */
-	of_node_put(parent);
+	/* Regardless we are done with parent yesw */
+	of_yesde_put(parent);
 
 	if (rc) {
 		saved_rc = rc;
-		pr_warn("Failed to attach node %pOFn, rc: %d, drc index: %x\n",
+		pr_warn("Failed to attach yesde %pOFn, rc: %d, drc index: %x\n",
 			dn, rc, drc_index);
 
 		rc = dlpar_release_drc(drc_index);
 		if (!rc)
-			dlpar_free_cc_nodes(dn);
+			dlpar_free_cc_yesdes(dn);
 
 		return saved_rc;
 	}
@@ -601,7 +601,7 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 		pr_warn("Failed to online cpu %pOFn, rc: %d, drc index: %x\n",
 			dn, rc, drc_index);
 
-		rc = dlpar_detach_node(dn);
+		rc = dlpar_detach_yesde(dn);
 		if (!rc)
 			dlpar_release_drc(drc_index);
 
@@ -613,7 +613,7 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 	return rc;
 }
 
-static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
+static ssize_t dlpar_cpu_remove(struct device_yesde *dn, u32 drc_index)
 {
 	int rc;
 
@@ -634,7 +634,7 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 		return rc;
 	}
 
-	rc = dlpar_detach_node(dn);
+	rc = dlpar_detach_yesde(dn);
 	if (rc) {
 		int saved_rc = rc;
 
@@ -651,13 +651,13 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 	return 0;
 }
 
-static struct device_node *cpu_drc_index_to_dn(u32 drc_index)
+static struct device_yesde *cpu_drc_index_to_dn(u32 drc_index)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	u32 my_index;
 	int rc;
 
-	for_each_node_by_type(dn, "cpu") {
+	for_each_yesde_by_type(dn, "cpu") {
 		rc = of_property_read_u32(dn, "ibm,my-drc-index", &my_index);
 		if (rc)
 			continue;
@@ -671,35 +671,35 @@ static struct device_node *cpu_drc_index_to_dn(u32 drc_index)
 
 static int dlpar_cpu_remove_by_index(u32 drc_index)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int rc;
 
 	dn = cpu_drc_index_to_dn(drc_index);
 	if (!dn) {
-		pr_warn("Cannot find CPU (drc index %x) to remove\n",
+		pr_warn("Canyest find CPU (drc index %x) to remove\n",
 			drc_index);
 		return -ENODEV;
 	}
 
 	rc = dlpar_cpu_remove(dn, drc_index);
-	of_node_put(dn);
+	of_yesde_put(dn);
 	return rc;
 }
 
 static int find_dlpar_cpus_to_remove(u32 *cpu_drcs, int cpus_to_remove)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int cpus_found = 0;
 	int rc;
 
-	/* We want to find cpus_to_remove + 1 CPUs to ensure we do not
+	/* We want to find cpus_to_remove + 1 CPUs to ensure we do yest
 	 * remove the last CPU.
 	 */
-	for_each_node_by_type(dn, "cpu") {
+	for_each_yesde_by_type(dn, "cpu") {
 		cpus_found++;
 
 		if (cpus_found > cpus_to_remove) {
-			of_node_put(dn);
+			of_yesde_put(dn);
 			break;
 		}
 
@@ -711,16 +711,16 @@ static int find_dlpar_cpus_to_remove(u32 *cpu_drcs, int cpus_to_remove)
 		if (rc) {
 			pr_warn("Error occurred getting drc-index for %pOFn\n",
 				dn);
-			of_node_put(dn);
+			of_yesde_put(dn);
 			return -1;
 		}
 	}
 
 	if (cpus_found < cpus_to_remove) {
-		pr_warn("Failed to find enough CPUs (%d of %d) to remove\n",
+		pr_warn("Failed to find eyesugh CPUs (%d of %d) to remove\n",
 			cpus_found, cpus_to_remove);
 	} else if (cpus_found == cpus_to_remove) {
-		pr_warn("Cannot remove all CPUs\n");
+		pr_warn("Canyest remove all CPUs\n");
 	}
 
 	return cpus_found;
@@ -768,7 +768,7 @@ static int dlpar_cpu_remove_by_count(u32 cpus_to_remove)
 	return rc;
 }
 
-static int find_drc_info_cpus_to_add(struct device_node *cpus,
+static int find_drc_info_cpus_to_add(struct device_yesde *cpus,
 				     struct property *info,
 				     u32 *cpu_drcs, u32 cpus_to_add)
 {
@@ -807,7 +807,7 @@ static int find_drc_info_cpus_to_add(struct device_node *cpus,
 	return cpus_found;
 }
 
-static int find_drc_index_cpus_to_add(struct device_node *cpus,
+static int find_drc_index_cpus_to_add(struct device_yesde *cpus,
 				      u32 *cpu_drcs, u32 cpus_to_add)
 {
 	int cpus_found = 0;
@@ -838,7 +838,7 @@ static int find_drc_index_cpus_to_add(struct device_node *cpus,
 
 static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 {
-	struct device_node *parent;
+	struct device_yesde *parent;
 	struct property *info;
 	u32 *cpu_drcs;
 	int cpus_added = 0;
@@ -851,9 +851,9 @@ static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 	if (!cpu_drcs)
 		return -EINVAL;
 
-	parent = of_find_node_by_path("/cpus");
+	parent = of_find_yesde_by_path("/cpus");
 	if (!parent) {
-		pr_warn("Could not find CPU root node in device tree\n");
+		pr_warn("Could yest find CPU root yesde in device tree\n");
 		kfree(cpu_drcs);
 		return -1;
 	}
@@ -864,10 +864,10 @@ static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 	else
 		cpus_found = find_drc_index_cpus_to_add(parent, cpu_drcs, cpus_to_add);
 
-	of_node_put(parent);
+	of_yesde_put(parent);
 
 	if (cpus_found < cpus_to_add) {
-		pr_warn("Failed to find enough CPUs (%d of %d) to add\n",
+		pr_warn("Failed to find eyesugh CPUs (%d of %d) to add\n",
 			cpus_found, cpus_to_add);
 		kfree(cpu_drcs);
 		return -EINVAL;
@@ -898,13 +898,13 @@ static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 
 int dlpar_cpu_readd(int cpu)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct device *dev;
 	u32 drc_index;
 	int rc;
 
 	dev = get_cpu_device(cpu);
-	dn = dev->of_node;
+	dn = dev->of_yesde;
 
 	rc = of_property_read_u32(dn, "ibm,my-drc-index", &drc_index);
 
@@ -970,29 +970,29 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 
 static ssize_t dlpar_cpu_release(const char *buf, size_t count)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	u32 drc_index;
 	int rc;
 
-	dn = of_find_node_by_path(buf);
+	dn = of_find_yesde_by_path(buf);
 	if (!dn)
 		return -EINVAL;
 
 	rc = of_property_read_u32(dn, "ibm,my-drc-index", &drc_index);
 	if (rc) {
-		of_node_put(dn);
+		of_yesde_put(dn);
 		return -EINVAL;
 	}
 
 	rc = dlpar_cpu_remove(dn, drc_index);
-	of_node_put(dn);
+	of_yesde_put(dn);
 
 	return rc ? rc : count;
 }
 
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
 
-static int pseries_smp_notifier(struct notifier_block *nb,
+static int pseries_smp_yestifier(struct yestifier_block *nb,
 				unsigned long action, void *data)
 {
 	struct of_reconfig_data *rd = data;
@@ -1006,11 +1006,11 @@ static int pseries_smp_notifier(struct notifier_block *nb,
 		pseries_remove_processor(rd->dn);
 		break;
 	}
-	return notifier_from_errno(err);
+	return yestifier_from_erryes(err);
 }
 
-static struct notifier_block pseries_smp_nb = {
-	.notifier_call = pseries_smp_notifier,
+static struct yestifier_block pseries_smp_nb = {
+	.yestifier_call = pseries_smp_yestifier,
 };
 
 #define MAX_CEDE_LATENCY_LEVELS		4
@@ -1046,7 +1046,7 @@ static int __init pseries_cpu_hotplug_init(void)
 
 	if (rtas_stop_self_token == RTAS_UNKNOWN_SERVICE ||
 			qcss_tok == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_INFO "CPU Hotplug not supported by firmware "
+		printk(KERN_INFO "CPU Hotplug yest supported by firmware "
 				"- disabling.\n");
 		return 0;
 	}
@@ -1057,7 +1057,7 @@ static int __init pseries_cpu_hotplug_init(void)
 
 	/* Processors can be added/removed only on LPAR */
 	if (firmware_has_feature(FW_FEATURE_LPAR)) {
-		of_reconfig_notifier_register(&pseries_smp_nb);
+		of_reconfig_yestifier_register(&pseries_smp_nb);
 		cpu_maps_update_begin();
 		if (cede_offline_enabled && parse_cede_parameters() == 0) {
 			default_offline_state = CPU_STATE_INACTIVE;

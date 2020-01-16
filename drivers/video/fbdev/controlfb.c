@@ -9,7 +9,7 @@
  *
  *  Frame buffer structure from:
  *    drivers/video/chipsfb.c -- frame buffer device for
- *    Chips & Technologies 65550 chip.
+ *    Chips & Techyeslogies 65550 chip.
  *
  *    Copyright (C) 1998 Paul Mackerras
  *
@@ -33,7 +33,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -123,7 +123,7 @@ struct fb_info_control {
  */
 static int controlfb_pan_display(struct fb_var_screeninfo *var,
 	struct fb_info *info);
-static int controlfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int controlfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 	u_int transp, struct fb_info *info);
 static int controlfb_blank(int blank_mode, struct fb_info *info);
 static int controlfb_mmap(struct fb_info *info,
@@ -137,7 +137,7 @@ static void set_control_clock(unsigned char *params);
 static int init_control(struct fb_info_control *p);
 static void control_set_hardware(struct fb_info_control *p,
 	struct fb_par_control *par);
-static int control_of_init(struct device_node *dp);
+static int control_of_init(struct device_yesde *dp);
 static void find_vram_size(struct fb_info_control *p);
 static int read_control_sense(struct fb_info_control *p);
 static int calc_clock_params(unsigned long clk, unsigned char *param);
@@ -178,13 +178,13 @@ MODULE_LICENSE("GPL");
 
 int init_module(void)
 {
-	struct device_node *dp;
+	struct device_yesde *dp;
 	int ret = -ENXIO;
 
-	dp = of_find_node_by_name(NULL, "control");
+	dp = of_find_yesde_by_name(NULL, "control");
 	if (dp && !control_of_init(dp))
 		ret = 0;
-	of_node_put(dp);
+	of_yesde_put(dp);
 
 	return ret;
 }
@@ -280,7 +280,7 @@ static int controlfb_pan_display(struct fb_var_screeninfo *var,
 /*
  * Private mmap since we want to have a different caching on the framebuffer
  * for controlfb.
- * Note there's no locking in here; it's done in fb_mmap() in fbmem.c.
+ * Note there's yes locking in here; it's done in fb_mmap() in fbmem.c.
  */
 static int controlfb_mmap(struct fb_info *info,
                        struct vm_area_struct *vma)
@@ -298,7 +298,7 @@ static int controlfb_mmap(struct fb_info *info,
 		vma->vm_pgoff -= mmio_pgoff;
 		start = info->fix.mmio_start;
 		len = info->fix.mmio_len;
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	} else {
 		/* framebuffer */
 		vma->vm_page_prot = pgprot_cached_wthru(vma->vm_page_prot);
@@ -340,35 +340,35 @@ static int controlfb_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static int controlfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int controlfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			     u_int transp, struct fb_info *info)
 {
 	struct fb_info_control *p =
 		container_of(info, struct fb_info_control, info);
 	__u8 r, g, b;
 
-	if (regno > 255)
+	if (regyes > 255)
 		return 1;
 
 	r = red >> 8;
 	g = green >> 8;
 	b = blue >> 8;
 
-	out_8(&p->cmap_regs->addr, regno);	/* tell clut what addr to fill	*/
+	out_8(&p->cmap_regs->addr, regyes);	/* tell clut what addr to fill	*/
 	out_8(&p->cmap_regs->lut, r);		/* send one color channel at	*/
 	out_8(&p->cmap_regs->lut, g);		/* a time...			*/
 	out_8(&p->cmap_regs->lut, b);
 
-	if (regno < 16) {
+	if (regyes < 16) {
 		int i;
 		switch (p->par.cmode) {
 		case CMODE_16:
-			p->pseudo_palette[regno] =
-			    (regno << 10) | (regno << 5) | regno;
+			p->pseudo_palette[regyes] =
+			    (regyes << 10) | (regyes << 5) | regyes;
 			break;
 		case CMODE_32:
-			i = (regno << 8) | regno;
-			p->pseudo_palette[regno] = (i << 16) | i;
+			i = (regyes << 8) | regyes;
+			p->pseudo_palette[regyes] = (i << 16) | i;
 			break;
 		}
 	}
@@ -571,7 +571,7 @@ static void __init control_setup(char *options)
 
 static int __init control_init(void)
 {
-	struct device_node *dp;
+	struct device_yesde *dp;
 	char *option = NULL;
 	int ret = -ENXIO;
 
@@ -579,10 +579,10 @@ static int __init control_init(void)
 		return -ENODEV;
 	control_setup(option);
 
-	dp = of_find_node_by_name(NULL, "control");
+	dp = of_find_yesde_by_name(NULL, "control");
 	if (dp && !control_of_init(dp))
 		ret = 0;
-	of_node_put(dp);
+	of_yesde_put(dp);
 
 	return ret;
 }
@@ -590,7 +590,7 @@ static int __init control_init(void)
 module_init(control_init);
 
 /* Work out which banks of VRAM we have installed. */
-/* danj: I guess the card just ignores writes to nonexistant VRAM... */
+/* danj: I guess the card just igyesres writes to yesnexistant VRAM... */
 
 static void __init find_vram_size(struct fb_info_control *p)
 {
@@ -599,7 +599,7 @@ static void __init find_vram_size(struct fb_info_control *p)
 	/*
 	 * Set VRAM in 2MB (bank 1) mode
 	 * VRAM Bank 2 will be accessible through offset 0x600000 if present
-	 * and VRAM Bank 1 will not respond at that offset even if present
+	 * and VRAM Bank 1 will yest respond at that offset even if present
 	 */
 	out_le32(CNTRL_REG(p,vram_attr), 0x31);
 
@@ -618,7 +618,7 @@ static void __init find_vram_size(struct fb_info_control *p)
 	/*
 	 * Set VRAM in 2MB (bank 2) mode
 	 * VRAM Bank 1 will be accessible through offset 0x000000 if present
-	 * and VRAM Bank 2 will not respond at that offset even if present
+	 * and VRAM Bank 2 will yest respond at that offset even if present
 	 */
 	out_le32(CNTRL_REG(p,vram_attr), 0x39);
 
@@ -667,7 +667,7 @@ static void __init find_vram_size(struct fb_info_control *p)
 /*
  * find "control" and initialize
  */
-static int __init control_of_init(struct device_node *dp)
+static int __init control_of_init(struct device_yesde *dp)
 {
 	struct fb_info_control	*p;
 	struct resource		fb_res, reg_res;
@@ -711,7 +711,7 @@ static int __init control_of_init(struct device_node *dp)
 	}
 	p->control_regs = ioremap(p->control_regs_phys, p->control_regs_size);
 
-	p->cmap_regs_phys = 0xf301b000;	 /* XXX not in prom? */
+	p->cmap_regs_phys = 0xf301b000;	 /* XXX yest in prom? */
 	if (!request_mem_region(p->cmap_regs_phys, 0x1000, "controlfb cmap")) {
 		p->cmap_regs_phys = 0;
 		goto error_out;

@@ -28,7 +28,7 @@ Required properties:
    - "mclk" : clock for SPDIF bus
 
 Required properties on RK3288:
-  - rockchip,grf: the phandle of the syscon node for the general register
+  - rockchip,grf: the phandle of the syscon yesde for the general register
                    file (GRF)
 
 Example for the rk3188 SPDIF controller:

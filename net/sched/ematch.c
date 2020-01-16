@@ -6,7 +6,7 @@
  *
  * ==========================================================================
  *
- * An extended match (ematch) is a small classification tool not worth
+ * An extended match (ematch) is a small classification tool yest worth
  * writing a full classifier for. Ematches can be interconnected to form
  * a logic expression and get attached to classifiers to extend their
  * functionatlity.
@@ -73,7 +73,7 @@
  *      module_init(init_my_ematch);
  *      module_exit(exit_my_ematch);
  *
- *   4) By now you should have two more seconds left, barely enough to
+ *   4) By yesw you should have two more seconds left, barely eyesugh to
  *      open up a beer to watch the compilation going.
  */
 
@@ -81,7 +81,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include <net/pkt_cls.h>
@@ -112,7 +112,7 @@ static struct tcf_ematch_ops *tcf_em_lookup(u16 kind)
  *
  * @ops: ematch operations lookup table
  *
- * This function must be called by ematches to announce their presence.
+ * This function must be called by ematches to anyesunce their presence.
  * The given @ops must have kind set to a unique identifier and the
  * callback match() must be implemented. All other callbacks are optional
  * and a fallback implementation is used instead.
@@ -145,11 +145,11 @@ EXPORT_SYMBOL(tcf_em_register);
  *
  * @ops: ematch operations lookup table
  *
- * This function must be called by ematches to announce their disappearance
+ * This function must be called by ematches to anyesunce their disappearance
  * for examples when the module gets unloaded. The @ops parameter must be
  * the same as the one used for registration.
  *
- * Returns -ENOENT if no matching ematch was found.
+ * Returns -ENOENT if yes matching ematch was found.
  */
 void tcf_em_unregister(struct tcf_ematch_ops *ops)
 {
@@ -192,7 +192,7 @@ static int tcf_em_validate(struct tcf_proto *tp,
 		if (ref >= tree_hdr->nmatches)
 			goto errout;
 
-		/* We do not allow backward jumps to avoid loops and jumps
+		/* We do yest allow backward jumps to avoid loops and jumps
 		 * to our own position are of course illegal.
 		 */
 		if (ref <= idx)
@@ -205,9 +205,9 @@ static int tcf_em_validate(struct tcf_proto *tp,
 		 * of the ematch module referenced. In case of a failure,
 		 * a destroy function is called by the underlying layer
 		 * which automatically releases the reference again, therefore
-		 * the module MUST not be given back under any circumstances
+		 * the module MUST yest be given back under any circumstances
 		 * here. Be aware, the destroy function assumes that the
-		 * module is held if the ops field is non zero.
+		 * module is held if the ops field is yesn zero.
 		 */
 		em->ops = tcf_em_lookup(em_hdr->kind);
 
@@ -248,7 +248,7 @@ static int tcf_em_validate(struct tcf_proto *tp,
 			 *
 			 * TCF_EM_SIMPLE may be specified stating that the
 			 * data only consists of a u32 integer and the module
-			 * does not expected a memory reference but rather
+			 * does yest expected a memory reference but rather
 			 * the value carried.
 			 */
 			if (em_hdr->flags & TCF_EM_SIMPLE) {
@@ -293,7 +293,7 @@ static const struct nla_policy em_policy[TCA_EMATCH_TREE_MAX + 1] = {
  * ematch tree in @tree. The resulting tree must later be copied into
  * the private classifier data using tcf_em_tree_change(). You MUST NOT
  * provide the ematch tree variable of the private classifier data directly,
- * the changes would not be locked properly.
+ * the changes would yest be locked properly.
  *
  * Returns a negative error code if the configuration TLV contains errors.
  */
@@ -333,13 +333,13 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 	if (tree->matches == NULL)
 		goto errout;
 
-	/* We do not use nla_parse_nested here because the maximum
-	 * number of attributes is unknown. This saves us the allocation
-	 * for a tb buffer which would serve no purpose at all.
+	/* We do yest use nla_parse_nested here because the maximum
+	 * number of attributes is unkyeswn. This saves us the allocation
+	 * for a tb buffer which would serve yes purpose at all.
 	 *
 	 * The array of rt attributes is parsed in the order as they are
 	 * provided, their type must be incremental from 1 to n. Even
-	 * if it does not serve any real purpose, a failure of sticking
+	 * if it does yest serve any real purpose, a failure of sticking
 	 * to this policy will result in parsing failure.
 	 */
 	for (idx = 0; nla_ok(rt_match, list_len); idx++) {
@@ -391,7 +391,7 @@ EXPORT_SYMBOL(tcf_em_tree_validate);
  *
  * This functions destroys an ematch tree previously created by
  * tcf_em_tree_validate()/tcf_em_tree_change(). You must ensure that
- * the ematch tree is not in use before calling this function.
+ * the ematch tree is yest in use before calling this function.
  */
 void tcf_em_tree_destroy(struct tcf_ematch_tree *tree)
 {
@@ -437,14 +437,14 @@ int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 	struct nlattr *top_start;
 	struct nlattr *list_start;
 
-	top_start = nla_nest_start_noflag(skb, tlv);
+	top_start = nla_nest_start_yesflag(skb, tlv);
 	if (top_start == NULL)
 		goto nla_put_failure;
 
 	if (nla_put(skb, TCA_EMATCH_TREE_HDR, sizeof(tree->hdr), &tree->hdr))
 		goto nla_put_failure;
 
-	list_start = nla_nest_start_noflag(skb, TCA_EMATCH_TREE_LIST);
+	list_start = nla_nest_start_yesflag(skb, TCA_EMATCH_TREE_LIST);
 	if (list_start == NULL)
 		goto nla_put_failure;
 
@@ -466,9 +466,9 @@ int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 				goto nla_put_failure;
 		} else if (tcf_em_is_container(em) || tcf_em_is_simple(em)) {
 			u32 u = em->data;
-			nla_put_nohdr(skb, sizeof(u), &u);
+			nla_put_yeshdr(skb, sizeof(u), &u);
 		} else if (em->datalen > 0)
-			nla_put_nohdr(skb, em->datalen, (void *) em->data);
+			nla_put_yeshdr(skb, em->datalen, (void *) em->data);
 
 		tail = skb_tail_pointer(skb);
 		match_start->nla_len = tail - (u8 *)match_start;
@@ -492,7 +492,7 @@ static inline int tcf_em_match(struct sk_buff *skb, struct tcf_ematch *em,
 	return tcf_em_is_inverted(em) ? !r : r;
 }
 
-/* Do not use this function directly, use tcf_em_tree_match instead */
+/* Do yest use this function directly, use tcf_em_tree_match instead */
 int __tcf_em_tree_match(struct sk_buff *skb, struct tcf_ematch_tree *tree,
 			struct tcf_pkt_info *info)
 {

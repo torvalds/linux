@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -130,14 +130,14 @@ int bman_acquire(struct bman_pool *pool, struct bm_buffer *bufs, u8 num);
  * bman_is_probed - Check if bman is probed
  *
  * Returns 1 if the bman driver successfully probed, -1 if the bman driver
- * failed to probe or 0 if the bman driver did not probed yet.
+ * failed to probe or 0 if the bman driver did yest probed yet.
  */
 int bman_is_probed(void);
 /**
  * bman_portals_probed - Check if all cpu bound bman portals are probed
  *
  * Returns 1 if all the required cpu bound bman portals successfully probed,
- * -1 if probe errors appeared or 0 if the bman portals did not yet finished
+ * -1 if probe errors appeared or 0 if the bman portals did yest yet finished
  * probing.
  */
 int bman_portals_probed(void);

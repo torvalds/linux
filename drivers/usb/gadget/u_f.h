@@ -21,7 +21,7 @@
 
 #define vla_item(groupname, type, name, n) \
 	size_t groupname##_##name##__offset = ({			       \
-		size_t align_mask = __alignof__(type) - 1;		       \
+		size_t align_mask = __aligyesf__(type) - 1;		       \
 		size_t offset = (groupname##__next + align_mask) & ~align_mask;\
 		size_t size = (n) * sizeof(type);			       \
 		groupname##__next = offset + size;			       \
@@ -31,7 +31,7 @@
 #define vla_item_with_sz(groupname, type, name, n) \
 	size_t groupname##_##name##__sz = (n) * sizeof(type);		       \
 	size_t groupname##_##name##__offset = ({			       \
-		size_t align_mask = __alignof__(type) - 1;		       \
+		size_t align_mask = __aligyesf__(type) - 1;		       \
 		size_t offset = (groupname##__next + align_mask) & ~align_mask;\
 		size_t size = groupname##_##name##__sz;			       \
 		groupname##__next = offset + size;			       \

@@ -40,7 +40,7 @@
 #define		AT91_PMC_BIASEN		(1   << 24)		/* UTMI BIAS Enable */
 #define		AT91_PMC_BIASCOUNT	(0xf << 28)		/* UTMI BIAS Start-up Time */
 
-#define	AT91_CKGR_MOR		0x20			/* Main Oscillator Register [not on SAM9RL] */
+#define	AT91_CKGR_MOR		0x20			/* Main Oscillator Register [yest on SAM9RL] */
 #define		AT91_PMC_MOSCEN		(1    <<  0)		/* Main Oscillator Enable */
 #define		AT91_PMC_OSCBYPASS	(1    <<  1)		/* Oscillator Bypass */
 #define		AT91_PMC_WAITMODE	(1    <<  2)		/* Wait Mode Command */

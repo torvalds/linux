@@ -29,10 +29,10 @@ struct erofs_super_block {
 	__u8 reserved;
 
 	__le16 root_nid;	/* nid of root directory */
-	__le64 inos;            /* total valid ino # (== f_files - f_favail) */
+	__le64 iyess;            /* total valid iyes # (== f_files - f_favail) */
 
-	__le64 build_time;      /* inode v1 time derivation */
-	__le32 build_time_nsec;	/* inode v1 time derivation in nano scale */
+	__le64 build_time;      /* iyesde v1 time derivation */
+	__le32 build_time_nsec;	/* iyesde v1 time derivation in nayes scale */
 	__le32 blocks;          /* used for statfs */
 	__le32 meta_blkaddr;	/* start block address of metadata area */
 	__le32 xattr_blkaddr;	/* start block address of shared xattr area */
@@ -43,15 +43,15 @@ struct erofs_super_block {
 };
 
 /*
- * erofs inode datalayout (i_format in on-disk inode):
- * 0 - inode plain without inline data A:
- * inode, [xattrs], ... | ... | no-holed data
- * 1 - inode VLE compression B (legacy):
- * inode, [xattrs], extents ... | ...
- * 2 - inode plain with inline data C:
- * inode, [xattrs], last_inline_data, ... | ... | no-holed data
- * 3 - inode compression D:
- * inode, [xattrs], map_header, extents ... | ...
+ * erofs iyesde datalayout (i_format in on-disk iyesde):
+ * 0 - iyesde plain without inline data A:
+ * iyesde, [xattrs], ... | ... | yes-holed data
+ * 1 - iyesde VLE compression B (legacy):
+ * iyesde, [xattrs], extents ... | ...
+ * 2 - iyesde plain with inline data C:
+ * iyesde, [xattrs], last_inline_data, ... | ... | yes-holed data
+ * 3 - iyesde compression D:
+ * iyesde, [xattrs], map_header, extents ... | ...
  * 4~7 - reserved
  */
 enum {
@@ -62,22 +62,22 @@ enum {
 	EROFS_INODE_DATALAYOUT_MAX
 };
 
-static inline bool erofs_inode_is_data_compressed(unsigned int datamode)
+static inline bool erofs_iyesde_is_data_compressed(unsigned int datamode)
 {
 	return datamode == EROFS_INODE_FLAT_COMPRESSION ||
 		datamode == EROFS_INODE_FLAT_COMPRESSION_LEGACY;
 }
 
-/* bit definitions of inode i_advise */
+/* bit definitions of iyesde i_advise */
 #define EROFS_I_VERSION_BITS            1
 #define EROFS_I_DATALAYOUT_BITS         3
 
 #define EROFS_I_VERSION_BIT             0
 #define EROFS_I_DATALAYOUT_BIT          1
 
-/* 32-byte reduced form of an ondisk inode */
-struct erofs_inode_compact {
-	__le16 i_format;	/* inode format hints */
+/* 32-byte reduced form of an ondisk iyesde */
+struct erofs_iyesde_compact {
+	__le16 i_format;	/* iyesde format hints */
 
 /* 1 header + n-1 * 4 bytes inline xattr to keep continuity */
 	__le16 i_xattr_icount;
@@ -93,20 +93,20 @@ struct erofs_inode_compact {
 		/* for device files, used to indicate old/new device # */
 		__le32 rdev;
 	} i_u;
-	__le32 i_ino;           /* only used for 32-bit stat compatibility */
+	__le32 i_iyes;           /* only used for 32-bit stat compatibility */
 	__le16 i_uid;
 	__le16 i_gid;
 	__le32 i_reserved2;
 };
 
-/* 32 bytes on-disk inode */
+/* 32 bytes on-disk iyesde */
 #define EROFS_INODE_LAYOUT_COMPACT	0
-/* 64 bytes on-disk inode */
+/* 64 bytes on-disk iyesde */
 #define EROFS_INODE_LAYOUT_EXTENDED	1
 
-/* 64-byte complete form of an ondisk inode */
-struct erofs_inode_extended {
-	__le16 i_format;	/* inode format hints */
+/* 64-byte complete form of an ondisk iyesde */
+struct erofs_iyesde_extended {
+	__le16 i_format;	/* iyesde format hints */
 
 /* 1 header + n-1 * 4 bytes inline xattr to keep continuity */
 	__le16 i_xattr_icount;
@@ -123,7 +123,7 @@ struct erofs_inode_extended {
 	} i_u;
 
 	/* only used for 32-bit stat compatibility */
-	__le32 i_ino;
+	__le32 i_iyes;
 
 	__le32 i_uid;
 	__le32 i_gid;
@@ -146,7 +146,7 @@ struct erofs_inode_extended {
  *                           |  erofs_xattr_entries+ |
  *                           +-----------------------+
  * inline xattrs must starts in erofs_xattr_ibody_header,
- * for read-only fs, no need to introduce h_refcount
+ * for read-only fs, yes need to introduce h_refcount
  */
 struct erofs_xattr_ibody_header {
 	__le32 h_reserved;
@@ -283,7 +283,7 @@ struct z_erofs_vle_decompressed_index {
 
 /* dirent sorts in alphabet order, thus we can do binary search */
 struct erofs_dirent {
-	__le64 nid;     /* node number */
+	__le64 nid;     /* yesde number */
 	__le16 nameoff; /* start offset of file name */
 	__u8 file_type; /* file type */
 	__u8 reserved;  /* reserved */
@@ -291,7 +291,7 @@ struct erofs_dirent {
 
 /*
  * EROFS file types should match generic FT_* types and
- * it seems no need to add BUILD_BUG_ONs since potential
+ * it seems yes need to add BUILD_BUG_ONs since potential
  * unmatchness will break other fses as well...
  */
 
@@ -301,8 +301,8 @@ struct erofs_dirent {
 static inline void erofs_check_ondisk_layout_definitions(void)
 {
 	BUILD_BUG_ON(sizeof(struct erofs_super_block) != 128);
-	BUILD_BUG_ON(sizeof(struct erofs_inode_compact) != 32);
-	BUILD_BUG_ON(sizeof(struct erofs_inode_extended) != 64);
+	BUILD_BUG_ON(sizeof(struct erofs_iyesde_compact) != 32);
+	BUILD_BUG_ON(sizeof(struct erofs_iyesde_extended) != 64);
 	BUILD_BUG_ON(sizeof(struct erofs_xattr_ibody_header) != 12);
 	BUILD_BUG_ON(sizeof(struct erofs_xattr_entry) != 4);
 	BUILD_BUG_ON(sizeof(struct z_erofs_map_header) != 8);

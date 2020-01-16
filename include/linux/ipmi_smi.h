@@ -44,11 +44,11 @@ struct ipmi_smi;
  * been received, it will report this same data structure back up to
  * the upper layer.  If an error occurs, it should fill in the
  * response with an error code in the completion code location. When
- * asynchronous data is received, one of these is allocated, the
+ * asynchroyesus data is received, one of these is allocated, the
  * data_size is set to zero and the response holds the data from the
  * get message or get event command that the interface initiated.
  * Note that it is the interfaces responsibility to detect
- * asynchronous data and messages and request them from the
+ * asynchroyesus data and messages and request them from the
  * interface.
  */
 struct ipmi_smi_msg {
@@ -74,9 +74,9 @@ struct ipmi_smi_handlers {
 	struct module *owner;
 
 	/*
-	 * The low-level interface cannot start sending messages to
+	 * The low-level interface canyest start sending messages to
 	 * the upper layer until this function is called.  This may
-	 * not be NULL, the lower layer must take the interface from
+	 * yest be NULL, the lower layer must take the interface from
 	 * this call.
 	 */
 	int (*start_processing)(void            *send_info,
@@ -97,11 +97,11 @@ struct ipmi_smi_handlers {
 
 	/*
 	 * Called to enqueue an SMI message to be sent.  This
-	 * operation is not allowed to fail.  If an error occurs, it
+	 * operation is yest allowed to fail.  If an error occurs, it
 	 * should report back the error in a received message.  It may
-	 * do this in the current call context, since no write locks
+	 * do this in the current call context, since yes write locks
 	 * are held when this is run.  Message are delivered one at
-	 * a time by the message handler, a new message will not be
+	 * a time by the message handler, a new message will yest be
 	 * delivered until the previous message is returned.
 	 */
 	void (*sender)(void                *send_info,
@@ -116,9 +116,9 @@ struct ipmi_smi_handlers {
 	/*
 	 * Called by the upper layer when some user requires that the
 	 * interface watch for received messages and watchdog
-	 * pretimeouts (basically do a "Get Flags", or not.  Used by
-	 * the SMI to know if it should watch for these.  This may be
-	 * NULL if the SMI does not implement it.  watch_mask is from
+	 * pretimeouts (basically do a "Get Flags", or yest.  Used by
+	 * the SMI to kyesw if it should watch for these.  This may be
+	 * NULL if the SMI does yest implement it.  watch_mask is from
 	 * IPMI_WATCH_MASK_xxx above.  The interface should run slower
 	 * timeouts for just watchdog checking or faster timeouts when
 	 * waiting for the message queue.
@@ -134,7 +134,7 @@ struct ipmi_smi_handlers {
 	 * Called when the interface should go into "run to
 	 * completion" mode.  If this call sets the value to true, the
 	 * interface should make sure that all messages are flushed
-	 * out and that none are pending, and any new requests are run
+	 * out and that yesne are pending, and any new requests are run
 	 * to completion immediately.
 	 */
 	void (*set_run_to_completion)(void *send_info, bool run_to_completion);
@@ -147,9 +147,9 @@ struct ipmi_smi_handlers {
 
 	/*
 	 * Enable/disable firmware maintenance mode.  Note that this
-	 * is *not* the modes defined, this is simply an on/off
+	 * is *yest* the modes defined, this is simply an on/off
 	 * setting.  The message handler does the mode handling.  Note
-	 * that this is called from interrupt context, so it cannot
+	 * that this is called from interrupt context, so it canyest
 	 * block.
 	 */
 	void (*set_maintenance_mode)(void *send_info, bool enable);
@@ -169,7 +169,7 @@ struct ipmi_device_id {
 };
 
 #define ipmi_version_major(v) ((v)->ipmi_version & 0xf)
-#define ipmi_version_minor(v) ((v)->ipmi_version >> 4)
+#define ipmi_version_miyesr(v) ((v)->ipmi_version >> 4)
 
 /*
  * Take a pointer to an IPMI response and extract device id information from
@@ -218,8 +218,8 @@ static inline int ipmi_demangle_device_id(uint8_t netfn, uint8_t cmd,
 
 /*
  * Add a low-level interface to the IPMI driver.  Note that if the
- * interface doesn't know its slave address, it should pass in zero.
- * The low-level interface should not deliver any messages to the
+ * interface doesn't kyesw its slave address, it should pass in zero.
+ * The low-level interface should yest deliver any messages to the
  * upper layer until the start_processing() function in the handlers
  * is called, and the lower layer must get the interface from that
  * call.
@@ -241,7 +241,7 @@ void ipmi_unregister_smi(struct ipmi_smi *intf);
 
 /*
  * The lower layer reports received messages through this interface.
- * The data_size should be zero if this is an asynchronous message.  If
+ * The data_size should be zero if this is an asynchroyesus message.  If
  * the lower layer gets an error sending a message, it should format
  * an error response in the message response.
  */

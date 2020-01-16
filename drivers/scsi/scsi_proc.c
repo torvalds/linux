@@ -22,7 +22,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/blkdev.h>
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
@@ -49,7 +49,7 @@ static DEFINE_MUTEX(global_host_template_mutex);
 static ssize_t proc_scsi_host_write(struct file *file, const char __user *buf,
                            size_t count, loff_t *ppos)
 {
-	struct Scsi_Host *shost = PDE_DATA(file_inode(file));
+	struct Scsi_Host *shost = PDE_DATA(file_iyesde(file));
 	ssize_t ret = -ENOMEM;
 	char *page;
     
@@ -77,9 +77,9 @@ static int proc_scsi_show(struct seq_file *m, void *v)
 	return shost->hostt->show_info(m, shost);
 }
 
-static int proc_scsi_host_open(struct inode *inode, struct file *file)
+static int proc_scsi_host_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open_size(file, proc_scsi_show, PDE_DATA(inode),
+	return single_open_size(file, proc_scsi_show, PDE_DATA(iyesde),
 				4 * PAGE_SIZE);
 }
 
@@ -144,12 +144,12 @@ void scsi_proc_host_add(struct Scsi_Host *shost)
 	if (!sht->proc_dir)
 		return;
 
-	sprintf(name,"%d", shost->host_no);
+	sprintf(name,"%d", shost->host_yes);
 	p = proc_create_data(name, S_IRUGO | S_IWUSR,
 		sht->proc_dir, &proc_scsi_fops, shost);
 	if (!p)
 		printk(KERN_ERR "%s: Failed to register host %d in"
-		       "%s\n", __func__, shost->host_no,
+		       "%s\n", __func__, shost->host_yes,
 		       sht->proc_name);
 }
 
@@ -164,7 +164,7 @@ void scsi_proc_host_rm(struct Scsi_Host *shost)
 	if (!shost->hostt->proc_dir)
 		return;
 
-	sprintf(name,"%d", shost->host_no);
+	sprintf(name,"%d", shost->host_yes);
 	remove_proc_entry(name, shost->hostt->proc_dir);
 }
 /**
@@ -187,7 +187,7 @@ static int proc_print_scsidevice(struct device *dev, void *data)
 	sdev = to_scsi_device(dev);
 	seq_printf(s,
 		"Host: scsi%d Channel: %02d Id: %02d Lun: %02llu\n  Vendor: ",
-		sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
+		sdev->host->host_yes, sdev->channel, sdev->id, sdev->lun);
 	for (i = 0; i < 8; i++) {
 		if (sdev->vendor[i] >= 0x20)
 			seq_putc(s, sdev->vendor[i]);
@@ -290,10 +290,10 @@ static int scsi_remove_single_device(uint host, uint channel, uint id, uint lun)
 
 /**
  * proc_scsi_write - handle writes to /proc/scsi/scsi
- * @file: not used
+ * @file: yest used
  * @buf: buffer to write
  * @length: length of buf, at most PAGE_SIZE
- * @ppos: not used
+ * @ppos: yest used
  *
  * Description: this provides a legacy mechanism to add or remove devices by
  * Host, Channel, ID, and Lun.  To use,
@@ -303,7 +303,7 @@ static int scsi_remove_single_device(uint host, uint channel, uint id, uint lun)
  *
  * Note: this seems to be aimed at parallel SCSI. Most modern busses (USB,
  * SATA, Firewire, Fibre Channel, etc) dynamically assign these values to
- * provide a unique identifier and nothing more.
+ * provide a unique identifier and yesthing more.
  */
 
 
@@ -422,12 +422,12 @@ static const struct seq_operations scsi_seq_ops = {
 
 /**
  * proc_scsi_open - glue function
- * @inode: not used
+ * @iyesde: yest used
  * @file: passed to single_open()
  *
  * Associates proc_scsi_show with this file
  */
-static int proc_scsi_open(struct inode *inode, struct file *file)
+static int proc_scsi_open(struct iyesde *iyesde, struct file *file)
 {
 	/*
 	 * We don't really need this for the write case but it doesn't

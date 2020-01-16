@@ -39,7 +39,7 @@ static void i915_globals_shrink(void)
 
 static void __i915_globals_park(struct work_struct *work)
 {
-	/* Confirm nothing woke up in the last grace period */
+	/* Confirm yesthing woke up in the last grace period */
 	if (park.epoch == atomic_read(&epoch))
 		i915_globals_shrink();
 }
@@ -93,10 +93,10 @@ void i915_globals_park(void)
 {
 	/*
 	 * Defer shrinking the global slab caches (and other work) until
-	 * after a RCU grace period has completed with no activity. This
+	 * after a RCU grace period has completed with yes activity. This
 	 * is to try and reduce the latency impact on the consumers caused
 	 * by us shrinking the caches the same time as they are trying to
-	 * allocate, with the assumption being that if we idle long enough
+	 * allocate, with the assumption being that if we idle long eyesugh
 	 * for an RCU grace period to elapse since the last use, it is likely
 	 * to be longer until we need the caches again.
 	 */

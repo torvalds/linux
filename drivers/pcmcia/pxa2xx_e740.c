@@ -8,7 +8,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>

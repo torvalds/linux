@@ -73,7 +73,7 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 	 * Wait for all pending activities to finish before removing vport from
 	 * the list.
 	 * Lock needs to be held for safe removal from the list (it
-	 * ensures no active vp_list traversal while the vport is removed
+	 * ensures yes active vp_list traversal while the vport is removed
 	 * from the queue)
 	 */
 	for (i = 0; i < 10; i++) {
@@ -495,7 +495,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	host = vha->host;
 	fc_vport->dd_data = vha;
 	/* New host info */
-	u64_to_wwn(fc_vport->node_name, vha->node_name);
+	u64_to_wwn(fc_vport->yesde_name, vha->yesde_name);
 	u64_to_wwn(fc_vport->port_name, vha->port_name);
 
 	vha->fc_vport = fc_vport;
@@ -530,13 +530,13 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 		host->max_cmd_len = MAX_CMDSZ;
 	host->max_channel = MAX_BUSES - 1;
 	host->max_lun = ql2xmaxlun;
-	host->unique_id = host->host_no;
+	host->unique_id = host->host_yes;
 	host->max_id = ha->max_fibre_devices;
 	host->transportt = qla2xxx_transport_vport_template;
 
 	ql_dbg(ql_dbg_vport, vha, 0xa007,
 	    "Detect vport hba %ld at address = %p.\n",
-	    vha->host_no, vha);
+	    vha->host_yes, vha);
 
 	vha->flags.init_done = 1;
 

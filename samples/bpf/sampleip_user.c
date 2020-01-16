@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <string.h>
 #include <assert.h>
@@ -107,7 +107,7 @@ static void print_ip_map(int fd)
 		if (counts[i].ip > PAGE_OFFSET) {
 			sym = ksym_search(counts[i].ip);
 			if (!sym) {
-				printf("ksym not found. Is kallsyms loaded?\n");
+				printf("ksym yest found. Is kallsyms loaded?\n");
 				continue;
 			}
 
@@ -173,8 +173,8 @@ int main(int argc, char **argv)
 	/* load BPF program */
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 	if (load_bpf_file(filename)) {
-		fprintf(stderr, "ERROR: loading BPF program (errno %d):\n",
-			errno);
+		fprintf(stderr, "ERROR: loading BPF program (erryes %d):\n",
+			erryes);
 		if (strcmp(bpf_log_buf, "") == 0)
 			fprintf(stderr, "Try: ulimit -l unlimited\n");
 		else

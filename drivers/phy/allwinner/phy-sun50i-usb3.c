@@ -2,7 +2,7 @@
 /*
  * Allwinner sun50i(H6) USB 3.0 phy driver
  *
- * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2017 Iceyeswy Zheng <iceyeswy@aosc.io>
  *
  * Based on phy-sun9i-usb.c, which is:
  *
@@ -10,7 +10,7 @@
  *
  * Based on code from Allwinner BSP, which is:
  *
- * Copyright (c) 2010-2015 Allwinner Technology Co., Ltd.
+ * Copyright (c) 2010-2015 Allwinner Techyeslogy Co., Ltd.
  */
 
 #include <linux/clk.h>
@@ -186,5 +186,5 @@ static struct platform_driver sun50i_usb3_phy_driver = {
 module_platform_driver(sun50i_usb3_phy_driver);
 
 MODULE_DESCRIPTION("Allwinner H6 USB 3.0 phy driver");
-MODULE_AUTHOR("Icenowy Zheng <icenowy@aosc.io>");
+MODULE_AUTHOR("Iceyeswy Zheng <iceyeswy@aosc.io>");
 MODULE_LICENSE("GPL");

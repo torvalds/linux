@@ -95,7 +95,7 @@ reference_lists_fini(struct intel_gt *gt, struct wa_lists *lists)
 }
 
 static struct drm_i915_gem_object *
-read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
+read_yesnprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 {
 	const u32 base = engine->mmio_base;
 	struct drm_i915_gem_object *result;
@@ -209,7 +209,7 @@ static int check_whitelist(struct i915_gem_context *ctx,
 	int err;
 	int i;
 
-	results = read_nonprivs(ctx, engine);
+	results = read_yesnprivs(ctx, engine);
 	if (IS_ERR(results))
 		return PTR_ERR(results);
 
@@ -340,7 +340,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 
 	err = check_whitelist(ctx, engine);
 	if (err) {
-		pr_err("Whitelist not preserved in context across %s reset!\n",
+		pr_err("Whitelist yest preserved in context across %s reset!\n",
 		       name);
 		goto out_spin;
 	}
@@ -501,7 +501,7 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 
 	for (i = 0; i < engine->whitelist.count; i++) {
 		u32 reg = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
-		u64 addr = scratch->node.start;
+		u64 addr = scratch->yesde.start;
 		struct i915_request *rq;
 		u32 srm, lrm, rsvd;
 		u32 expect;
@@ -513,7 +513,7 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 
 		ro_reg = ro_register(reg);
 
-		/* Clear non priv flags */
+		/* Clear yesn priv flags */
 		reg &= RING_FORCE_TO_NONPRIV_ADDRESS_MASK;
 
 		srm = MI_STORE_REGISTER_MEM;
@@ -598,7 +598,7 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 			goto err_request;
 
 		err = engine->emit_bb_start(rq,
-					    batch->node.start, PAGE_SIZE,
+					    batch->yesde.start, PAGE_SIZE,
 					    0);
 		if (err)
 			goto err_request;
@@ -750,7 +750,7 @@ static int live_reset_whitelist(void *arg)
 	enum intel_engine_id id;
 	int err = 0;
 
-	/* If we reset the gpu, we should not lose the RING_NONPRIV */
+	/* If we reset the gpu, we should yest lose the RING_NONPRIV */
 	igt_global_reset_lock(gt);
 
 	for_each_engine(engine, gt, id) {
@@ -810,10 +810,10 @@ static int read_whitelisted_registers(struct i915_gem_context *ctx,
 	}
 
 	for (i = 0; i < engine->whitelist.count; i++) {
-		u64 offset = results->node.start + sizeof(u32) * i;
+		u64 offset = results->yesde.start + sizeof(u32) * i;
 		u32 reg = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
 
-		/* Clear non priv flags */
+		/* Clear yesn priv flags */
 		reg &= RING_FORCE_TO_NONPRIV_ADDRESS_MASK;
 
 		*cs++ = srm;
@@ -852,7 +852,7 @@ static int scrub_whitelisted_registers(struct i915_gem_context *ctx,
 		if (ro_register(reg))
 			continue;
 
-		/* Clear non priv flags */
+		/* Clear yesn priv flags */
 		reg &= RING_FORCE_TO_NONPRIV_ADDRESS_MASK;
 
 		*cs++ = reg;
@@ -884,7 +884,7 @@ static int scrub_whitelisted_registers(struct i915_gem_context *ctx,
 		goto err_request;
 
 	/* Perform the writes from an unprivileged "user" batch */
-	err = engine->emit_bb_start(rq, batch->node.start, 0, 0);
+	err = engine->emit_bb_start(rq, batch->yesde.start, 0, 0);
 
 err_request:
 	err = request_add_sync(rq, err);
@@ -933,7 +933,7 @@ static bool result_eq(struct intel_engine_cs *engine,
 		      u32 a, u32 b, i915_reg_t reg)
 {
 	if (a != b && !pardon_reg(engine->i915, reg)) {
-		pr_err("Whitelisted register 0x%4x not context saved: A=%08x, B=%08x\n",
+		pr_err("Whitelisted register 0x%4x yest context saved: A=%08x, B=%08x\n",
 		       i915_mmio_reg_offset(reg), a, b);
 		return false;
 	}
@@ -943,7 +943,7 @@ static bool result_eq(struct intel_engine_cs *engine,
 
 static bool writeonly_reg(struct drm_i915_private *i915, i915_reg_t reg)
 {
-	/* Some registers do not seem to behave and our writes unreadable */
+	/* Some registers do yest seem to behave and our writes unreadable */
 	static const struct regmask wo[] = {
 		{ GEN9_SLICE_COMMON_ECO_CHICKEN1, INTEL_GEN_MASK(9, 9) },
 	};

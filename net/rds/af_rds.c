@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -31,7 +31,7 @@
  *
  */
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/in.h>
@@ -49,7 +49,7 @@ DECLARE_WAIT_QUEUE_HEAD(rds_poll_waitq);
 
 /*
  * This is called as the final descriptor referencing this socket is closed.
- * We have to unbind the socket so that another socket can be bound to the
+ * We have to unbind the socket so that ayesther socket can be bound to the
  * address it was using.
  *
  * We have to be careful about racing with the incoming path.  sock_orphan()
@@ -77,8 +77,8 @@ static int rds_release(struct socket *sock)
 
 	rds_send_drop_to(rs, NULL);
 	rds_rdma_drop_keys(rs);
-	rds_notify_queue_get(rs, NULL);
-	rds_notify_msg_zcopy_purge(&rs->rs_zcookie_queue);
+	rds_yestify_queue_get(rs, NULL);
+	rds_yestify_msg_zcopy_purge(&rs->rs_zcookie_queue);
 
 	spin_lock_bh(&rds_sock_lock);
 	list_del_init(&rs->rs_item);
@@ -94,11 +94,11 @@ out:
 }
 
 /*
- * Careful not to race with rds_release -> sock_orphan which clears sk_sleep.
+ * Careful yest to race with rds_release -> sock_orphan which clears sk_sleep.
  * _bh() isn't OK here, we're called from interrupt handlers.  It's probably OK
  * to wake the waitqueue after sk_sleep is clear as we hold a sock ref, but
  * this seems more conservative.
- * NB - normally, one would use sk_callback_lock for this, but we can
+ * NB - yesrmally, one would use sk_callback_lock for this, but we can
  * get here from interrupts, whereas the network code grabs sk_callback_lock
  * with _lock_bh only - so relying on sk_callback_lock introduces livelocks.
  */
@@ -142,9 +142,9 @@ static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
 			uaddr_len = sizeof(*sin6);
 		}
 	} else {
-		/* If socket is not yet bound and the socket is connected,
+		/* If socket is yest yet bound and the socket is connected,
 		 * set the return address family to be the same as the
-		 * connected address, but with 0 address value.  If it is not
+		 * connected address, but with 0 address value.  If it is yest
 		 * connected, set the family to be AF_UNSPEC (value 0) and
 		 * the address size to be that of an IPv4 address.
 		 */
@@ -194,17 +194,17 @@ static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
 
 /*
  * RDS' poll is without a doubt the least intuitive part of the interface,
- * as EPOLLIN and EPOLLOUT do not behave entirely as you would expect from
+ * as EPOLLIN and EPOLLOUT do yest behave entirely as you would expect from
  * a network protocol.
  *
  * EPOLLIN is asserted if
  *  -	there is data on the receive queue.
  *  -	to signal that a previously congested destination may have become
  *	uncongested
- *  -	A notification has been queued to the socket (this can be a congestion
+ *  -	A yestification has been queued to the socket (this can be a congestion
  *	update, or a RDMA completion, or a MSG_ZEROCOPY completion).
  *
- * EPOLLOUT is asserted if there is room on the send queue. This does not mean
+ * EPOLLOUT is asserted if there is room on the send queue. This does yest mean
  * however, that the next sendmsg() call will succeed. If the application tries
  * to send to a congested destination, the system call may still fail (and
  * return ENOBUFS).
@@ -231,12 +231,12 @@ static __poll_t rds_poll(struct file *file, struct socket *sock,
 			mask |= (EPOLLIN | EPOLLRDNORM | EPOLLWRBAND);
 	} else {
 		spin_lock(&rs->rs_lock);
-		if (rs->rs_cong_notify)
+		if (rs->rs_cong_yestify)
 			mask |= (EPOLLIN | EPOLLRDNORM);
 		spin_unlock(&rs->rs_lock);
 	}
 	if (!list_empty(&rs->rs_recv_queue) ||
-	    !list_empty(&rs->rs_notify_queue) ||
+	    !list_empty(&rs->rs_yestify_queue) ||
 	    !list_empty(&rs->rs_zcookie_queue.zcookie_head))
 		mask |= (EPOLLIN | EPOLLRDNORM);
 	if (rs->rs_snd_bytes < rds_sk_sndbuf(rs))
@@ -297,9 +297,9 @@ static int rds_cancel_sent_to(struct rds_sock *rs, char __user *optval,
 	struct sockaddr_in sin;
 	int ret = 0;
 
-	/* racing with another thread binding seems ok here */
+	/* racing with ayesther thread binding seems ok here */
 	if (ipv6_addr_any(&rs->rs_bound_addr)) {
-		ret = -ENOTCONN; /* XXX not a great errno */
+		ret = -ENOTCONN; /* XXX yest a great erryes */
 		goto out;
 	}
 
@@ -352,7 +352,7 @@ static int rds_cong_monitor(struct rds_sock *rs, char __user *optval,
 		} else {
 			rds_cong_remove_socket(rs);
 			rs->rs_cong_mask = 0;
-			rs->rs_cong_notify = 0;
+			rs->rs_cong_yestify = 0;
 		}
 	}
 	return ret;
@@ -643,19 +643,19 @@ static const struct proto_ops rds_proto_ops = {
 	.release =	rds_release,
 	.bind =		rds_bind,
 	.connect =	rds_connect,
-	.socketpair =	sock_no_socketpair,
-	.accept =	sock_no_accept,
+	.socketpair =	sock_yes_socketpair,
+	.accept =	sock_yes_accept,
 	.getname =	rds_getname,
 	.poll =		rds_poll,
 	.ioctl =	rds_ioctl,
-	.listen =	sock_no_listen,
-	.shutdown =	sock_no_shutdown,
+	.listen =	sock_yes_listen,
+	.shutdown =	sock_yes_shutdown,
 	.setsockopt =	rds_setsockopt,
 	.getsockopt =	rds_getsockopt,
 	.sendmsg =	rds_sendmsg,
 	.recvmsg =	rds_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
+	.mmap =		sock_yes_mmap,
+	.sendpage =	sock_yes_sendpage,
 };
 
 static void rds_sock_destruct(struct sock *sk)
@@ -680,7 +680,7 @@ static int __rds_create(struct socket *sock, struct sock *sk, int protocol)
 	rwlock_init(&rs->rs_recv_lock);
 	INIT_LIST_HEAD(&rs->rs_send_queue);
 	INIT_LIST_HEAD(&rs->rs_recv_queue);
-	INIT_LIST_HEAD(&rs->rs_notify_queue);
+	INIT_LIST_HEAD(&rs->rs_yestify_queue);
 	INIT_LIST_HEAD(&rs->rs_cong_list);
 	rds_message_zcopy_queue_init(&rs->rs_zcookie_queue);
 	spin_lock_init(&rs->rs_rdma_lock);
@@ -826,7 +826,7 @@ static void rds_sock_info(struct socket *sock, unsigned int len,
 		sinfo.connected_addr = rs->rs_conn_addr_v4;
 		sinfo.bound_port = rs->rs_bound_port;
 		sinfo.connected_port = rs->rs_conn_port;
-		sinfo.inum = sock_i_ino(rds_rs_to_sk(rs));
+		sinfo.inum = sock_i_iyes(rds_rs_to_sk(rs));
 
 		rds_info_copy(iter, &sinfo, sizeof(sinfo));
 		cnt++;
@@ -861,7 +861,7 @@ static void rds6_sock_info(struct socket *sock, unsigned int len,
 		sinfo6.connected_addr = rs->rs_conn_addr;
 		sinfo6.bound_port = rs->rs_bound_port;
 		sinfo6.connected_port = rs->rs_conn_port;
-		sinfo6.inum = sock_i_ino(rds_rs_to_sk(rs));
+		sinfo6.inum = sock_i_iyes(rds_rs_to_sk(rs));
 
 		rds_info_copy(iter, &sinfo6, sizeof(sinfo6));
 	}

@@ -34,7 +34,7 @@
 /* virtual memory regions */
 #define TRIZEPS4_DISK_VIRT	0xF0000000	/* Disk On Chip region */
 
-#define TRIZEPS4_PIC_VIRT	0xF0100000	/* not used */
+#define TRIZEPS4_PIC_VIRT	0xF0100000	/* yest used */
 #define TRIZEPS4_CFSR_VIRT	0xF0100000
 #define TRIZEPS4_BOCR_VIRT	0xF0200000
 #define TRIZEPS4_DICR_VIRT	0xF0300000

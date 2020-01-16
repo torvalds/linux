@@ -17,16 +17,16 @@
  *	  Satyam Sharma <satyam@infradead.org>
  *	  Randy Dunlap <randy.dunlap@oracle.com>
  *
- *	Neither Alan Cox, CymruNet Ltd., Wim Van Sebroeck nor Iguana vzw.
- *	admit liability nor provide warranty for any of this software.
- *	This material is provided "AS-IS" and at no charge.
+ *	Neither Alan Cox, CymruNet Ltd., Wim Van Sebroeck yesr Iguana vzw.
+ *	admit liability yesr provide warranty for any of this software.
+ *	This material is provided "AS-IS" and at yes charge.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>	/* For EXPORT_SYMBOL/module stuff/... */
 #include <linux/types.h>	/* For standard types */
-#include <linux/errno.h>	/* For the -ENODEV/... values */
+#include <linux/erryes.h>	/* For the -ENODEV/... values */
 #include <linux/kernel.h>	/* For printk/panic/... */
 #include <linux/reboot.h>	/* For restart handler */
 #include <linux/watchdog.h>	/* For watchdog specific items */
@@ -45,7 +45,7 @@ static DEFINE_IDA(watchdog_ida);
  * Sometimes watchdog drivers needs to be loaded as soon as possible,
  * for example when it's impossible to disable it. To do so,
  * raising the initcall level of the watchdog driver is a solution.
- * But in such case, the miscdev is maybe not ready (subsys_initcall), and
+ * But in such case, the miscdev is maybe yest ready (subsys_initcall), and
  * watchdog_core need miscdev to register the watchdog as a char device.
  *
  * The deferred registration infrastructure offer a way for the watchdog
@@ -81,7 +81,7 @@ static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
 {
 	/*
 	 * Check that we have valid min and max timeout values, if
-	 * not reset them both to 0 (=not used or unknown)
+	 * yest reset them both to 0 (=yest used or unkyeswn)
 	 */
 	if (!wdd->max_hw_heartbeat_ms && wdd->min_timeout > wdd->max_timeout) {
 		pr_info("Invalid min and max timeout values, resetting to 0!\n");
@@ -99,7 +99,7 @@ static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
  * Initialize the timeout field of the watchdog_device struct with either the
  * timeout module parameter (if it is valid value) or the timeout-sec property
  * (only if it is a valid value and the timeout_parm is out of bounds).
- * If none of them are valid then we keep the old value (which should normally
+ * If yesne of them are valid then we keep the old value (which should yesrmally
  * be the default timeout value). Note that for the module parameter, '0' means
  * 'use default' while it is an invalid value for the timeout-sec property.
  * It should simply be dropped if you want to use the default value then.
@@ -129,8 +129,8 @@ int watchdog_init_timeout(struct watchdog_device *wdd,
 	}
 
 	/* try to get the timeout_sec property */
-	if (dev && dev->of_node &&
-	    of_property_read_u32(dev->of_node, "timeout-sec", &t) == 0) {
+	if (dev && dev->of_yesde &&
+	    of_property_read_u32(dev->of_yesde, "timeout-sec", &t) == 0) {
 		if (t && !watchdog_timeout_invalid(wdd, t)) {
 			wdd->timeout = t;
 			return 0;
@@ -147,7 +147,7 @@ int watchdog_init_timeout(struct watchdog_device *wdd,
 }
 EXPORT_SYMBOL_GPL(watchdog_init_timeout);
 
-static int watchdog_restart_notifier(struct notifier_block *nb,
+static int watchdog_restart_yestifier(struct yestifier_block *nb,
 				     unsigned long action, void *data)
 {
 	struct watchdog_device *wdd = container_of(nb, struct watchdog_device,
@@ -168,7 +168,7 @@ static int watchdog_restart_notifier(struct notifier_block *nb,
  * @priority: priority of the restart handler, should follow these guidelines:
  *   0:   use watchdog's restart function as last resort, has limited restart
  *        capabilies
- *   128: default restart handler, use if no other handler is expected to be
+ *   128: default restart handler, use if yes other handler is expected to be
  *        available and/or if restart is sufficient to restart the entire system
  *   255: preempt all other handlers
  *
@@ -196,14 +196,14 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 	watchdog_check_min_max_timeout(wdd);
 
 	/*
-	 * Note: now that all watchdog_device data has been verified, we
-	 * will not check this anymore in other functions. If data gets
+	 * Note: yesw that all watchdog_device data has been verified, we
+	 * will yest check this anymore in other functions. If data gets
 	 * corrupted in a later stage then we expect a kernel panic!
 	 */
 
 	/* Use alias for watchdog id if possible */
 	if (wdd->parent) {
-		ret = of_alias_get_id(wdd->parent->of_node, "watchdog");
+		ret = of_alias_get_id(wdd->parent->of_yesde, "watchdog");
 		if (ret >= 0)
 			id = ida_simple_get(&watchdog_ida, ret,
 					    ret + 1, GFP_KERNEL);
@@ -236,11 +236,11 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 	}
 
 	if (wdd->ops->restart) {
-		wdd->restart_nb.notifier_call = watchdog_restart_notifier;
+		wdd->restart_nb.yestifier_call = watchdog_restart_yestifier;
 
 		ret = register_restart_handler(&wdd->restart_nb);
 		if (ret)
-			pr_warn("watchdog%d: Cannot register restart handler (%d)\n",
+			pr_warn("watchdog%d: Canyest register restart handler (%d)\n",
 				wdd->id, ret);
 	}
 
@@ -254,7 +254,7 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
  * Register a watchdog device with the kernel so that the
  * watchdog timer can be accessed from userspace.
  *
- * A zero is returned on success and a negative errno code for
+ * A zero is returned on success and a negative erryes code for
  * failure.
  */
 

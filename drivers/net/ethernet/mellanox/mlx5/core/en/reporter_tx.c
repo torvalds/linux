@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include "health.h"
 
@@ -62,7 +62,7 @@ static int mlx5e_tx_reporter_err_cqe_recover(void *ctx)
 	if (err)
 		goto out;
 
-	/* At this point, no new packets will arrive from the stack as TXQ is
+	/* At this point, yes new packets will arrive from the stack as TXQ is
 	 * marked with QUEUE_STATE_DRV_XOFF. In addition, NAPI cleared all
 	 * pending WQEs. SQ can safely reset the SQ.
 	 */
@@ -126,7 +126,7 @@ int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq)
 	return mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
 }
 
-/* state lock cannot be grabbed within this function.
+/* state lock canyest be grabbed within this function.
  * It can cause a dead lock or a read-after-free.
  */
 static int mlx5e_tx_reporter_recover_from_ctx(struct mlx5e_err_ctx *err_ctx)
@@ -146,7 +146,7 @@ static int mlx5e_tx_reporter_recover(struct devlink_health_reporter *reporter,
 }
 
 static int
-mlx5e_tx_reporter_build_diagnose_output(struct devlink_fmsg *fmsg,
+mlx5e_tx_reporter_build_diagyesse_output(struct devlink_fmsg *fmsg,
 					struct mlx5e_txqsq *sq, int tc)
 {
 	struct mlx5e_priv *priv = sq->channel->priv;
@@ -194,7 +194,7 @@ mlx5e_tx_reporter_build_diagnose_output(struct devlink_fmsg *fmsg,
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_cq_diagnose(&sq->cq, fmsg);
+	err = mlx5e_reporter_cq_diagyesse(&sq->cq, fmsg);
 	if (err)
 		return err;
 
@@ -205,7 +205,7 @@ mlx5e_tx_reporter_build_diagnose_output(struct devlink_fmsg *fmsg,
 	return 0;
 }
 
-static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
+static int mlx5e_tx_reporter_diagyesse(struct devlink_health_reporter *reporter,
 				      struct devlink_fmsg *fmsg,
 				      struct netlink_ext_ack *extack)
 {
@@ -239,7 +239,7 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_cq_common_diagnose(&generic_sq->cq, fmsg);
+	err = mlx5e_reporter_cq_common_diagyesse(&generic_sq->cq, fmsg);
 	if (err)
 		goto unlock;
 
@@ -261,7 +261,7 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 		for (tc = 0; tc < priv->channels.params.num_tc; tc++) {
 			struct mlx5e_txqsq *sq = &c->sq[tc];
 
-			err = mlx5e_tx_reporter_build_diagnose_output(fmsg, sq, tc);
+			err = mlx5e_tx_reporter_build_diagyesse_output(fmsg, sq, tc);
 			if (err)
 				goto unlock;
 		}
@@ -278,7 +278,7 @@ unlock:
 static const struct devlink_health_reporter_ops mlx5_tx_reporter_ops = {
 		.name = "tx",
 		.recover = mlx5e_tx_reporter_recover,
-		.diagnose = mlx5e_tx_reporter_diagnose,
+		.diagyesse = mlx5e_tx_reporter_diagyesse,
 };
 
 #define MLX5_REPORTER_TX_GRACEFUL_PERIOD 500

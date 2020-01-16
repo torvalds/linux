@@ -1,6 +1,6 @@
 National Instruments MIPS platforms
 
-required root node properties:
+required root yesde properties:
 	- compatible: must be "ni,169445"
 
 CPU Nodes

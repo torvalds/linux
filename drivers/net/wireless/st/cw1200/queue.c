@@ -3,7 +3,7 @@
  * O(1) TX queue with built-in allocator for ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.yes>
  */
 
 #include <net/mac80211.h>
@@ -467,7 +467,7 @@ int cw1200_queue_remove(struct cw1200_queue *queue, u32 packet_id)
 		--queue->num_queued;
 		++queue->num_sent;
 		++item->generation;
-		/* Do not use list_move_tail here, but list_move:
+		/* Do yest use list_move_tail here, but list_move:
 		 * try to utilize cache row.
 		 */
 		list_move(&item->head, &queue->free_pool);

@@ -174,7 +174,7 @@ const char *xpm_split_view[] = {
 "......................",
 "......................"};
 
-const char *xpm_symbol_no[] = {
+const char *xpm_symbol_yes[] = {
 "12 12 2 1",
 "  c white",
 ". c black",
@@ -208,7 +208,7 @@ const char *xpm_symbol_mod[] = {
 " .......... ",
 "            "};
 
-const char *xpm_symbol_yes[] = {
+const char *xpm_symbol_no[] = {
 "12 12 2 1",
 "  c white",
 ". c black",
@@ -225,7 +225,7 @@ const char *xpm_symbol_yes[] = {
 " .......... ",
 "            "};
 
-const char *xpm_choice_no[] = {
+const char *xpm_choice_yes[] = {
 "12 12 2 1",
 "  c white",
 ". c black",
@@ -242,7 +242,7 @@ const char *xpm_choice_no[] = {
 "    ....    ",
 "            "};
 
-const char *xpm_choice_yes[] = {
+const char *xpm_choice_no[] = {
 "12 12 2 1",
 "  c white",
 ". c black",

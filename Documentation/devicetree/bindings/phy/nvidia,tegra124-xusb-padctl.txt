@@ -18,13 +18,13 @@ In addition to per-lane configuration, USB 3.0 ports may require additional
 settings on a per-board basis.
 
 Pads will be represented as children of the top-level XUSB pad controller
-device tree node. Each lane exposed by the pad will be represented by its
-own subnode and can be referenced by users of the lane using the standard
+device tree yesde. Each lane exposed by the pad will be represented by its
+own subyesde and can be referenced by users of the lane using the standard
 PHY bindings, as described by the phy-bindings.txt file in this directory.
 
 The Tegra hardware documentation refers to the connection between the XUSB
 pad controller and the XUSB controller as "ports". This is confusing since
-"port" is typically used to denote the physical USB receptacle. The device
+"port" is typically used to deyeste the physical USB receptacle. The device
 tree binding in this document uses the term "port" to refer to the logical
 abstraction of the signals that are routed to a USB receptacle (i.e. a PHY
 for the USB signal, the VBUS power supply, the USB 2.0 companion port for
@@ -63,15 +63,15 @@ For Tegra186:
 - vddio-hsic-supply: HSIC PHY power supply. Must supply 1.2 V.
 
 
-Pad nodes:
+Pad yesdes:
 ==========
 
-A required child node named "pads" contains a list of subnodes, one for each
+A required child yesde named "pads" contains a list of subyesdes, one for each
 of the pads exposed by the XUSB pad controller. Each pad may need additional
-resources that can be referenced in its pad node.
+resources that can be referenced in its pad yesde.
 
 The "status" property is used to enable or disable the use of a pad. If set
-to "disabled", the pad will not be used on the given board. In order to use
+to "disabled", the pad will yest be used on the given board. In order to use
 the pad and any of its lanes, this property must be set to "okay".
 
 For Tegra124 and Tegra132, the following pads exist: usb2, ulpi, hsic, pcie
@@ -116,10 +116,10 @@ Required properties:
   - "phy": reset for the SATA UPHY block
 
 
-PHY nodes:
+PHY yesdes:
 ==========
 
-Each pad node has a child named "lanes" that contains one or more children of
+Each pad yesde has a child named "lanes" that contains one or more children of
 its own, each representing one of the lanes controlled by the pad.
 
 Required properties:
@@ -128,11 +128,11 @@ Required properties:
   - "disabled": the PHY is disabled
   - "okay": the PHY is enabled
 - #phy-cells: Should be 0. Since each lane represents a single PHY, there is
-  no need for an additional specifier.
+  yes need for an additional specifier.
 - nvidia,function: The output function of the PHY. See below for a list of
   valid functions per SoC generation.
 
-For Tegra124 and Tegra132, the list of valid PHY nodes is given below:
+For Tegra124 and Tegra132, the list of valid PHY yesdes is given below:
 - usb2: usb2-0, usb2-1, usb2-2
   - functions: "snps", "xusb", "uart"
 - ulpi: ulpi-0
@@ -144,7 +144,7 @@ For Tegra124 and Tegra132, the list of valid PHY nodes is given below:
 - sata: sata-0
   - functions: "usb3-ss", "sata"
 
-For Tegra210, the list of valid PHY nodes is given below:
+For Tegra210, the list of valid PHY yesdes is given below:
 - usb2: usb2-0, usb2-1, usb2-2, usb2-3
   - functions: "snps", "xusb", "uart"
 - hsic: hsic-0, hsic-1
@@ -155,10 +155,10 @@ For Tegra210, the list of valid PHY nodes is given below:
   - functions: "usb3-ss", "sata"
 
 
-Port nodes:
+Port yesdes:
 ===========
 
-A required child node named "ports" contains a list of all the ports exposed
+A required child yesde named "ports" contains a list of all the ports exposed
 by the XUSB pad controller. Per-port configuration is only required for USB.
 
 USB2 ports:

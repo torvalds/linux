@@ -54,7 +54,7 @@
 /* some countries don't support any channel */
 #define WL_RADIO_COUNTRY_DISABLE	(1<<3)
 
-/* Override bit for SET_TXPWR.  if set, ignore other level limits */
+/* Override bit for SET_TXPWR.  if set, igyesre other level limits */
 #define WL_TXPWR_OVERRIDE	(1U<<31)
 
 /* band types */

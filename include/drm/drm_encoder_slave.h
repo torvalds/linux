@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -35,7 +35,7 @@
  * @set_config:	Initialize any encoder-specific modesetting parameters.
  *		The meaning of the @params parameter is implementation
  *		dependent. It will usually be a structure with DVO port
- *		data format settings or timings. It's not required for
+ *		data format settings or timings. It's yest required for
  *		the new parameters to take effect until the next mode
  *		is set.
  *
@@ -86,7 +86,7 @@ struct drm_encoder_slave_funcs {
  * ones in @base. The former are never actually called by the common
  * CRTC code, it's just a convenience for splitting the encoder
  * functions in an upper, GPU-specific layer and a (hopefully)
- * GPU-agnostic lower layer: It's the GPU driver responsibility to
+ * GPU-agyesstic lower layer: It's the GPU driver responsibility to
  * call the slave methods when appropriate.
  *
  * drm_i2c_encoder_init() provides a way to get an implementation of

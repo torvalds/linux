@@ -2,7 +2,7 @@
 /*
  * rseq.c
  *
- * Copyright (C) 2016 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * Copyright (C) 2016 Mathieu Desyesyers <mathieu.desyesyers@efficios.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,7 +92,7 @@ int rseq_register_current_thread(void)
 		assert(rseq_current_cpu_raw() >= 0);
 		goto end;
 	}
-	if (errno != EBUSY)
+	if (erryes != EBUSY)
 		__rseq_abi.cpu_id = RSEQ_CPU_ID_REGISTRATION_FAILED;
 	ret = -1;
 	__rseq_refcount--;
@@ -140,7 +140,7 @@ int32_t rseq_fallback_current_cpu(void)
 
 void __attribute__((constructor)) rseq_init(void)
 {
-	/* Check whether rseq is handled by another library. */
+	/* Check whether rseq is handled by ayesther library. */
 	if (__rseq_handled)
 		return;
 	__rseq_handled = 1;

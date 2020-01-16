@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -74,7 +74,7 @@ struct drm_v3d_submit_cl {
 	 * to the tile allocation BO.
 	 *
 	 * This BCL will block on any previous BCL submitted on the
-	 * same FD, but not on any RCL or BCLs submitted by other
+	 * same FD, but yest on any RCL or BCLs submitted by other
 	 * clients -- that is left up to the submitter to control
 	 * using in_sync_bcl if necessary.
 	 */
@@ -90,7 +90,7 @@ struct drm_v3d_submit_cl {
 	 * of tiles (in the case of RCL-only blits).
 	 *
 	 * This RCL will block on this submit's BCL, and any previous
-	 * RCL submitted on the same FD, but not on any RCL or BCLs
+	 * RCL submitted on the same FD, but yest on any RCL or BCLs
 	 * submitted by other clients -- that is left up to the
 	 * submitter to control using in_sync_rcl if necessary.
 	 */
@@ -146,7 +146,7 @@ struct drm_v3d_wait_bo {
 /**
  * struct drm_v3d_create_bo - ioctl argument for creating V3D BOs.
  *
- * There are currently no values for the flags argument, but it may be
+ * There are currently yes values for the flags argument, but it may be
  * used in a future extension.
  */
 struct drm_v3d_create_bo {
@@ -159,7 +159,7 @@ struct drm_v3d_create_bo {
 	 * is private to the DRM fd and is valid for the lifetime of the GEM
 	 * handle.
 	 *
-	 * This offset value will always be nonzero, since various HW
+	 * This offset value will always be yesnzero, since various HW
 	 * units treat 0 specially.
 	 */
 	__u32 offset;
@@ -169,18 +169,18 @@ struct drm_v3d_create_bo {
  * struct drm_v3d_mmap_bo - ioctl argument for mapping V3D BOs.
  *
  * This doesn't actually perform an mmap.  Instead, it returns the
- * offset you need to use in an mmap on the DRM device node.  This
- * means that tools like valgrind end up knowing about the mapped
+ * offset you need to use in an mmap on the DRM device yesde.  This
+ * means that tools like valgrind end up kyeswing about the mapped
  * memory.
  *
- * There are currently no values for the flags argument, but it may be
+ * There are currently yes values for the flags argument, but it may be
  * used in a future extension.
  */
 struct drm_v3d_mmap_bo {
 	/** Handle for the object being mapped. */
 	__u32 handle;
 	__u32 flags;
-	/** offset into the drm node to use for subsequent mmap call. */
+	/** offset into the drm yesde to use for subsequent mmap call. */
 	__u64 offset;
 };
 

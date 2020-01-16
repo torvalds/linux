@@ -14,7 +14,7 @@
 /* IIO TODO LIST */
 /*
  * Provide means of adjusting timer accuracy.
- * Currently assumes nano seconds.
+ * Currently assumes nayes seconds.
  */
 
 enum iio_shared_by {
@@ -178,7 +178,7 @@ struct iio_event_spec {
  *			channel then this is it. If modified is set then the
  *			value here specifies the modifier.
  * @address:		Driver specific identifier.
- * @scan_index:		Monotonic index to give ordering in scans when read
+ * @scan_index:		Moyestonic index to give ordering in scans when read
  *			from a buffer.
  * @scan_type:		struct describing the scan type
  * @scan_type.sign:		's' or 'u' to specify signed or unsigned
@@ -217,7 +217,7 @@ struct iio_event_spec {
  *			The array is NULL terminated, the last element should
  *			have its name field set to NULL.
  * @extend_name:	Allows labeling of channel attributes with an
- *			informative name. Note this has no effect codes etc,
+ *			informative name. Note this has yes effect codes etc,
  *			unlike modifiers.
  * @datasheet_name:	A name used in in-kernel mapping of channels. It should
  *			correspond to the first name that the channel is referred
@@ -227,9 +227,9 @@ struct iio_event_spec {
  *			depends on the channel type.  Modifier is set in
  *			channel2. Examples are IIO_MOD_X for axial sensors about
  *			the 'x' axis.
- * @indexed:		Specify the channel has a numerical index. If not,
+ * @indexed:		Specify the channel has a numerical index. If yest,
  *			the channel index number will be suppressed for sysfs
- *			attributes but not for event codes.
+ *			attributes but yest for event codes.
  * @output:		Channel is output.
  * @differential:	Channel is differential.
  */
@@ -363,7 +363,7 @@ struct iio_trigger; /* forward declaration */
  * @write_raw:		function to write a value to the device.
  *			Parameters are the same as for read_raw.
  * @write_raw_get_fmt:	callback function to query the expected
- *			format/precision. If not set by the driver, write_raw
+ *			format/precision. If yest set by the driver, write_raw
  *			returns IIO_VAL_INT_PLUS_MICRO.
  * @read_event_config:	find out if the event is enabled.
  * @write_event_config:	set if the event is enabled.
@@ -385,9 +385,9 @@ struct iio_trigger; /* forward declaration */
  *			how the hardware fifo operates
  * @hwfifo_flush_to_buffer: function pointer to flush the samples stored
  *			in the hardware fifo to the device buffer. The driver
- *			should not flush more than count samples. The function
- *			must return the number of samples flushed, 0 if no
- *			samples were flushed or a negative integer if no samples
+ *			should yest flush more than count samples. The function
+ *			must return the number of samples flushed, 0 if yes
+ *			samples were flushed or a negative integer if yes samples
  *			were flushed and there was an error.
  **/
 struct iio_info {

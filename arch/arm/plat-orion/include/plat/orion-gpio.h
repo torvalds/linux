@@ -30,7 +30,7 @@ int orion_gpio_led_blink_set(struct gpio_desc *desc, int state,
 void orion_gpio_set_valid(unsigned pin, int mode);
 
 /* Initialize gpiolib. */
-void __init orion_gpio_init(struct device_node *np,
+void __init orion_gpio_init(struct device_yesde *np,
 			    int gpio_base, int ngpio,
 			    void __iomem *base, int mask_offset,
 			    int secondary_irq_base,

@@ -14,7 +14,7 @@
 /*
  * Define PECULIAR_486 to get a closer approximation to 80486 behaviour,
  * rather than behaviour which appears to be cleaner.
- * This is a matter of opinion: for all I know, the 80486 may simply
+ * This is a matter of opinion: for all I kyesw, the 80486 may simply
  * be complying with the IEEE spec. Maybe one day I'll get to see the
  * spec...
  */
@@ -30,7 +30,7 @@
 #define EXP_BIAS	Const(0)
 #define EXP_OVER	Const(0x4000)	/* smallest invalid large exponent */
 #define	EXP_UNDER	Const(-0x3fff)	/* largest invalid small exponent */
-#define EXP_WAY_UNDER   Const(-0x6000)	/* Below the smallest denormal, but
+#define EXP_WAY_UNDER   Const(-0x6000)	/* Below the smallest deyesrmal, but
 					   still a 16 bit nr. */
 #define EXP_Infinity    EXP_OVER
 #define EXP_NaN         EXP_OVER
@@ -44,22 +44,22 @@
 #define SIGN_Positive	Const(0)
 #define SIGN_Negative	Const(0x8000)
 
-/* Keep the order TAG_Valid, TAG_Zero, TW_Denormal */
+/* Keep the order TAG_Valid, TAG_Zero, TW_Deyesrmal */
 /* The following fold to 2 (Special) in the Tag Word */
-#define TW_Denormal     Const(4)	/* De-normal */
+#define TW_Deyesrmal     Const(4)	/* De-yesrmal */
 #define TW_Infinity	Const(5)	/* + or - infinity */
 #define	TW_NaN		Const(6)	/* Not a Number */
 #define	TW_Unsupported	Const(7)	/* Not supported by an 80486 */
 
 #define TAG_Valid	Const(0)	/* valid */
 #define TAG_Zero	Const(1)	/* zero */
-#define TAG_Special	Const(2)	/* De-normal, + or - infinity,
+#define TAG_Special	Const(2)	/* De-yesrmal, + or - infinity,
 					   or Not a Number */
 #define TAG_Empty	Const(3)	/* empty */
 #define TAG_Error	Const(0x80)	/* probably need to abort */
 
 #define LOADED_DATA	Const(10101)	/* Special st() number to identify
-					   loaded data (not on stack). */
+					   loaded data (yest on stack). */
 
 /* A few flags (must be >= 0x10). */
 #define REV             0x10
@@ -153,7 +153,7 @@ extern u_char const data_sizes_16[32];
 
 #define poppop() { FPU_pop(); FPU_pop(); }
 
-/* push() does not affect the tags */
+/* push() does yest affect the tags */
 #define push()	{ top--; }
 
 #define signbyte(a) (((u_char *)(a))[9])
@@ -181,15 +181,15 @@ static inline void reg_copy(FPU_REG const *x, FPU_REG *y)
 #define addexponent(x,y)    { (*(short *)&((x)->exp)) += (y); }
 #define stdexp(x)           { (*(short *)&((x)->exp)) += EXTENDED_Ebias; }
 
-#define isdenormal(ptr)   (exponent(ptr) == EXP_BIAS+EXP_UNDER)
+#define isdeyesrmal(ptr)   (exponent(ptr) == EXP_BIAS+EXP_UNDER)
 
 #define significand(x) ( ((unsigned long long *)&((x)->sigl))[0] )
 
 /*----- Prototypes for functions written in assembler -----*/
 /* extern void reg_move(FPU_REG *a, FPU_REG *b); */
 
-asmlinkage int FPU_normalize(FPU_REG *x);
-asmlinkage int FPU_normalize_nuo(FPU_REG *x);
+asmlinkage int FPU_yesrmalize(FPU_REG *x);
+asmlinkage int FPU_yesrmalize_nuo(FPU_REG *x);
 asmlinkage int FPU_u_sub(FPU_REG const *arg1, FPU_REG const *arg2,
 			 FPU_REG * answ, unsigned int control_w, u_char sign,
 			 int expa, int expb);

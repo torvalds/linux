@@ -10,7 +10,7 @@
  * to communicate with the coprocessor.
  *
  * The RFC02130: Coprocessor Architecture document is the reference for
- * everything in this file unless otherwise noted.
+ * everything in this file unless otherwise yested.
  */
 #ifndef _ARCH_POWERPC_INCLUDE_ASM_ICSWX_H_
 #define _ARCH_POWERPC_INCLUDE_ASM_ICSWX_H_

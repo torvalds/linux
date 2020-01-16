@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -31,7 +31,7 @@
  *
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_ether.h>
 
 #include <linux/mlx4/cmd.h>
@@ -81,7 +81,7 @@ void mlx4_do_sense_ports(struct mlx4_dev *dev,
 	}
 
 	/*
-	 * If sensed nothing, remain in current configuration.
+	 * If sensed yesthing, remain in current configuration.
 	 */
 	for (i = 0; i < dev->caps.num_ports; i++)
 		stype[i] = stype[i] ? stype[i] : defaults[i];

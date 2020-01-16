@@ -21,7 +21,7 @@ Drivers need to express PM parameters which:
   or to particular OMAP variants;
 
 - allow drivers which are shared with other architectures (e.g.,
-  DaVinci) to add these constraints in a way which won't affect non-OMAP
+  DaVinci) to add these constraints in a way which won't affect yesn-OMAP
   systems,
 
 - can be implemented immediately with minimal disruption of other
@@ -75,7 +75,7 @@ files to point to the corresponding OMAP PM functions:
 
 - set_max_dev_wakeup_lat will point to
   omap_pm_set_max_dev_wakeup_lat(), etc.  Other architectures which do
-  not support these functions should leave these function pointers set
+  yest support these functions should leave these function pointers set
   to NULL.  Drivers should use the following idiom::
 
         if (pdata->set_max_dev_wakeup_lat)

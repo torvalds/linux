@@ -85,7 +85,7 @@ static irqreturn_t mx25_gcq_irq(int irq, void *data)
 	/* Disable conversion queue run */
 	regmap_update_bits(priv->regs, MX25_ADCQ_CR, MX25_ADCQ_CR_FQS, 0);
 
-	/* Acknowledge all possible irqs */
+	/* Ackyeswledge all possible irqs */
 	regmap_write(priv->regs, MX25_ADCQ_SR, MX25_ADCQ_SR_FRR |
 		     MX25_ADCQ_SR_FUR | MX25_ADCQ_SR_FOR |
 		     MX25_ADCQ_SR_EOQ | MX25_ADCQ_SR_PD);
@@ -166,8 +166,8 @@ static const struct regmap_config mx25_gcq_regconfig = {
 static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			       struct mx25_gcq_priv *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *child;
 	struct device *dev = &pdev->dev;
 	unsigned int refp_used[4] = {};
 	int ret, i;
@@ -198,7 +198,7 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 	priv->vref[MX25_ADC_REFP_YP] =
 		devm_regulator_get_optional(&pdev->dev, "vref-yp");
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		u32 reg;
 		u32 refp = MX25_ADCQ_CFG_REFP_INT;
 		u32 refn = MX25_ADCQ_CFG_REFN_NGND2;
@@ -206,14 +206,14 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret) {
 			dev_err(dev, "Failed to get reg property\n");
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 
 		if (reg >= MX25_NUM_CFGS) {
 			dev_err(dev,
 				"reg value is greater than the number of available configuration registers\n");
-			of_node_put(child);
+			of_yesde_put(child);
 			return -EINVAL;
 		}
 
@@ -227,7 +227,7 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			if (IS_ERR(priv->vref[refp])) {
 				dev_err(dev, "Error, trying to use external voltage reference without a vref-%s regulator.",
 					mx25_gcq_refp_names[refp]);
-				of_node_put(child);
+				of_yesde_put(child);
 				return PTR_ERR(priv->vref[refp]);
 			}
 			priv->channel_vref_mv[reg] =
@@ -240,7 +240,7 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			break;
 		default:
 			dev_err(dev, "Invalid positive reference %d\n", refp);
-			of_node_put(child);
+			of_yesde_put(child);
 			return -EINVAL;
 		}
 
@@ -255,12 +255,12 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 
 		if ((refp & MX25_ADCQ_CFG_REFP_MASK) != refp) {
 			dev_err(dev, "Invalid fsl,adc-refp property value\n");
-			of_node_put(child);
+			of_yesde_put(child);
 			return -EINVAL;
 		}
 		if ((refn & MX25_ADCQ_CFG_REFN_MASK) != refn) {
 			dev_err(dev, "Invalid fsl,adc-refn property value\n");
-			of_node_put(child);
+			of_yesde_put(child);
 			return -EINVAL;
 		}
 

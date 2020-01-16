@@ -10,13 +10,13 @@
 /*
  * TODO:
  * I2C write and read works only for one single register. Multiple registers
- * could not be accessed using normal register address auto-increment.
+ * could yest be accessed using yesrmal register address auto-increment.
  * There could be (very likely) register to change that behavior....
  */
 
 /* write single register conditionally only when value differs from 0xff
  * XXX: This is special routine meant only for writing fc2580_freq_regs_lut[]
- * values. Do not use for the other purposes. */
+ * values. Do yest use for the other purposes. */
 static int fc2580_wr_reg_ff(struct fc2580_dev *dev, u8 reg, u8 val)
 {
 	if (val == 0xff)
@@ -264,7 +264,7 @@ static int fc2580_set_params(struct fc2580_dev *dev)
 			goto err;
 	}
 	if (uitmp != 0xc0)
-		dev_dbg(&client->dev, "filter did not lock %02x\n", uitmp);
+		dev_dbg(&client->dev, "filter did yest lock %02x\n", uitmp);
 
 	return 0;
 err:
@@ -477,15 +477,15 @@ static int fc2580_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_RF_TUNER_BANDWIDTH_AUTO:
 	case V4L2_CID_RF_TUNER_BANDWIDTH:
 		/*
-		 * TODO: Auto logic does not work 100% correctly as tuner driver
-		 * do not have information to calculate maximum suitable
+		 * TODO: Auto logic does yest work 100% correctly as tuner driver
+		 * do yest have information to calculate maximum suitable
 		 * bandwidth. Calculating it is responsible of master driver.
 		 */
 		dev->f_bandwidth = dev->bandwidth->val;
 		ret = fc2580_set_params(dev);
 		break;
 	default:
-		dev_dbg(&client->dev, "unknown ctrl");
+		dev_dbg(&client->dev, "unkyeswn ctrl");
 		ret = -EINVAL;
 	}
 	return ret;
@@ -564,7 +564,7 @@ static int fc2580_probe(struct i2c_client *client,
 	v4l2_ctrl_auto_cluster(2, &dev->bandwidth_auto, 0, false);
 	if (dev->hdl.error) {
 		ret = dev->hdl.error;
-		dev_err(&client->dev, "Could not initialize controls\n");
+		dev_err(&client->dev, "Could yest initialize controls\n");
 		v4l2_ctrl_handler_free(&dev->hdl);
 		goto err_kfree;
 	}

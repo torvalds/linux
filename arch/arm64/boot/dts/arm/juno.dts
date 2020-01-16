@@ -1,5 +1,5 @@
 /*
- * ARM Ltd. Juno Platform
+ * ARM Ltd. Juyes Platform
  *
  * Copyright (c) 2013-2014 ARM Ltd.
  *
@@ -9,11 +9,11 @@
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include "juno-base.dtsi"
+#include "juyes-base.dtsi"
 
 / {
-	model = "ARM Juno development board (r0)";
-	compatible = "arm,juno", "arm,vexpress";
+	model = "ARM Juyes development board (r0)";
+	compatible = "arm,juyes", "arm,vexpress";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

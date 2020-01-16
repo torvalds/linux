@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * Vineetg: Aug 2009
  *  -"C" version of lowest level context switch asm macro called by schedular
  *   gcc doesn't generate the dward CFI info for hand written asm, hence can't
  *   backtrace out of it (e.g. tasks sleeping in kernel).
  *   So we cheat a bit by writing almost similar code in inline-asm.
- *  -This is a hacky way of doing things, but there is no other simple way.
+ *  -This is a hacky way of doing things, but there is yes other simple way.
  *   I don't want/intend to extend unwinding code to understand raw asm
  */
 

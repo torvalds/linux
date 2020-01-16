@@ -50,7 +50,7 @@ static void fsl_mc_msi_update_dom_ops(struct msi_domain_info *info)
 		return;
 
 	/*
-	 * set_desc should not be set by the caller
+	 * set_desc should yest be set by the caller
 	 */
 	if (!ops->set_desc)
 		ops->set_desc = fsl_mc_msi_set_desc;
@@ -139,7 +139,7 @@ static void fsl_mc_msi_update_chip_ops(struct msi_domain_info *info)
 		return;
 
 	/*
-	 * irq_write_msi_msg should not be set by the caller
+	 * irq_write_msi_msg should yest be set by the caller
 	 */
 	if (!chip->irq_write_msi_msg)
 		chip->irq_write_msi_msg = fsl_mc_msi_write_msg;
@@ -147,7 +147,7 @@ static void fsl_mc_msi_update_chip_ops(struct msi_domain_info *info)
 
 /**
  * fsl_mc_msi_create_irq_domain - Create a fsl-mc MSI interrupt domain
- * @np:		Optional device-tree node of the interrupt controller
+ * @np:		Optional device-tree yesde of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  *
@@ -157,7 +157,7 @@ static void fsl_mc_msi_update_chip_ops(struct msi_domain_info *info)
  * Returns:
  * A domain pointer or NULL in case of failure.
  */
-struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwyesde_handle *fwyesde,
 						struct msi_domain_info *info,
 						struct irq_domain *parent)
 {
@@ -170,7 +170,7 @@ struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
 	if (info->flags & MSI_FLAG_USE_DEF_CHIP_OPS)
 		fsl_mc_msi_update_chip_ops(info);
 
-	domain = msi_create_irq_domain(fwnode, info, parent);
+	domain = msi_create_irq_domain(fwyesde, info, parent);
 	if (domain)
 		irq_domain_update_bus_token(domain, DOMAIN_BUS_FSL_MC_MSI);
 
@@ -181,13 +181,13 @@ int fsl_mc_find_msi_domain(struct device *mc_platform_dev,
 			   struct irq_domain **mc_msi_domain)
 {
 	struct irq_domain *msi_domain;
-	struct device_node *mc_of_node = mc_platform_dev->of_node;
+	struct device_yesde *mc_of_yesde = mc_platform_dev->of_yesde;
 
-	msi_domain = of_msi_get_domain(mc_platform_dev, mc_of_node,
+	msi_domain = of_msi_get_domain(mc_platform_dev, mc_of_yesde,
 				       DOMAIN_BUS_FSL_MC_MSI);
 	if (!msi_domain) {
 		pr_err("Unable to find fsl-mc MSI domain for %pOF\n",
-		       mc_of_node);
+		       mc_of_yesde);
 
 		return -ENOENT;
 	}

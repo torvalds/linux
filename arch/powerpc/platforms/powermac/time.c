@@ -10,7 +10,7 @@
  * Copyright (C) 2003-2005 Benjamin Herrenschmidt.
  *
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
@@ -167,22 +167,22 @@ int pmac_set_rtc_time(struct rtc_time *tm)
  */
 static int __init via_calibrate_decr(void)
 {
-	struct device_node *vias;
+	struct device_yesde *vias;
 	volatile unsigned char __iomem *via;
 	int count = VIA_TIMER_FREQ_6 / 100;
 	unsigned int dstart, dend;
 	struct resource rsrc;
 
-	vias = of_find_node_by_name(NULL, "via-cuda");
+	vias = of_find_yesde_by_name(NULL, "via-cuda");
 	if (vias == NULL)
-		vias = of_find_node_by_name(NULL, "via-pmu");
+		vias = of_find_yesde_by_name(NULL, "via-pmu");
 	if (vias == NULL)
-		vias = of_find_node_by_name(NULL, "via");
+		vias = of_find_yesde_by_name(NULL, "via");
 	if (vias == NULL || of_address_to_resource(vias, 0, &rsrc)) {
-	        of_node_put(vias);
+	        of_yesde_put(vias);
 		return 0;
 	}
-	of_node_put(vias);
+	of_yesde_put(vias);
 	via = ioremap(rsrc.start, resource_size(&rsrc));
 	if (via == NULL) {
 		printk(KERN_ERR "Failed to map VIA for timer calibration !\n");

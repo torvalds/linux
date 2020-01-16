@@ -17,9 +17,9 @@
  *   contains special instructions for AMOs, sending messages to message
  *   queues, etc.
  *
- *   The GRU is an integral part of the node controller. It connects
+ *   The GRU is an integral part of the yesde controller. It connects
  *   directly to the cpu socket. In its current implementation, there are 2
- *   GRU chiplets in the node controller on each blade (~node).
+ *   GRU chiplets in the yesde controller on each blade (~yesde).
  *
  *   The entire GRU memory space is fully coherent and cacheable by the cpus.
  *
@@ -60,7 +60,7 @@
  *  	- an instruction space that can be directly accessed by the user
  *  	  to issue GRU instructions and to check instruction status.
  *
- *  	- a data area that acts as normal RAM.
+ *  	- a data area that acts as yesrmal RAM.
  *
  *   User instructions contain virtual addresses of data to be accessed by the
  *   GRU. The GRU contains a TLB that is used to convert these user virtual
@@ -71,8 +71,8 @@
  *   purging.
  *
  *   One context may be reserved for the kernel and used for cross-partition
- *   communication. The GRU will also be used to asynchronously zero out
- *   large blocks of memory (not currently implemented).
+ *   communication. The GRU will also be used to asynchroyesusly zero out
+ *   large blocks of memory (yest currently implemented).
  *
  *
  * Tables:
@@ -83,7 +83,7 @@
  * 				  GTS is allocated for each thread accessing a
  * 				  GSEG.
  *     	GTD - GRU Thread Data   - contains shadow copy of GRU data when GSEG is
- *     				  not loaded into a GRU
+ *     				  yest loaded into a GRU
  *	GMS - GRU Memory Struct - Used to manage TLB shootdowns. Tracks GRUs
  *				  where a GSEG has been loaded. Similar to
  *				  an mm_struct but for GRU.
@@ -100,7 +100,7 @@
  *  		- GSEG2 is used only by thread 2
  *
  *       task -->|
- *       task ---+---> mm ->------ (notifier) -------+-> gms
+ *       task ---+---> mm ->------ (yestifier) -------+-> gms
  *                     |                             |
  *                     |--> vma -> vdata ---> gts--->|		GSEG1 (thread1)
  *                     |                  |          |
@@ -125,7 +125,7 @@
  *   parent
  * 	vma -> vdata -> gts
  *   child
- * 	(vma is not copied)
+ * 	(vma is yest copied)
  *
  */
 
@@ -133,7 +133,7 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/mm_types.h>
 #include "gru.h"
 #include "grulib.h"
@@ -172,7 +172,7 @@ struct gru_stats_s {
 	atomic_long_t steal_user_context;
 	atomic_long_t steal_kernel_context;
 	atomic_long_t steal_context_failed;
-	atomic_long_t nopfn;
+	atomic_long_t yespfn;
 	atomic_long_t asid_new;
 	atomic_long_t asid_next;
 	atomic_long_t asid_wrap;
@@ -192,13 +192,13 @@ struct gru_stats_s {
 	atomic_long_t check_context_unload;
 	atomic_long_t tlb_dropin;
 	atomic_long_t tlb_preload_page;
-	atomic_long_t tlb_dropin_fail_no_asid;
+	atomic_long_t tlb_dropin_fail_yes_asid;
 	atomic_long_t tlb_dropin_fail_upm;
 	atomic_long_t tlb_dropin_fail_invalid;
 	atomic_long_t tlb_dropin_fail_range_active;
 	atomic_long_t tlb_dropin_fail_idle;
 	atomic_long_t tlb_dropin_fail_fmm;
-	atomic_long_t tlb_dropin_fail_no_exception;
+	atomic_long_t tlb_dropin_fail_yes_exception;
 	atomic_long_t tfh_stale_on_fault;
 	atomic_long_t mmu_invalidate_range;
 	atomic_long_t mmu_invalidate_page;
@@ -211,10 +211,10 @@ struct gru_stats_s {
 	atomic_long_t read_gpa;
 
 	atomic_long_t mesq_receive;
-	atomic_long_t mesq_receive_none;
+	atomic_long_t mesq_receive_yesne;
 	atomic_long_t mesq_send;
 	atomic_long_t mesq_send_failed;
-	atomic_long_t mesq_noop;
+	atomic_long_t mesq_yesop;
 	atomic_long_t mesq_send_unexpected_error;
 	atomic_long_t mesq_send_lb_overflow;
 	atomic_long_t mesq_send_qlimit_reached;
@@ -222,15 +222,15 @@ struct gru_stats_s {
 	atomic_long_t mesq_send_put_nacked;
 	atomic_long_t mesq_page_overflow;
 	atomic_long_t mesq_qf_locked;
-	atomic_long_t mesq_qf_noop_not_full;
+	atomic_long_t mesq_qf_yesop_yest_full;
 	atomic_long_t mesq_qf_switch_head_failed;
 	atomic_long_t mesq_qf_unexpected_error;
-	atomic_long_t mesq_noop_unexpected_error;
-	atomic_long_t mesq_noop_lb_overflow;
-	atomic_long_t mesq_noop_qlimit_reached;
-	atomic_long_t mesq_noop_amo_nacked;
-	atomic_long_t mesq_noop_put_nacked;
-	atomic_long_t mesq_noop_page_overflow;
+	atomic_long_t mesq_yesop_unexpected_error;
+	atomic_long_t mesq_yesop_lb_overflow;
+	atomic_long_t mesq_yesop_qlimit_reached;
+	atomic_long_t mesq_yesop_amo_nacked;
+	atomic_long_t mesq_yesop_put_nacked;
+	atomic_long_t mesq_yesop_page_overflow;
 
 };
 
@@ -257,7 +257,7 @@ extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 
 /*
  * If a process has it's context stolen, min delay in jiffies before trying to
- * steal a context from another process.
+ * steal a context from ayesther process.
  */
 #define GRU_STEAL_DELAY		((HZ * 200) / 1000)
 
@@ -295,7 +295,7 @@ extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 struct gru_state;
 
 /*
- * This structure is pointed to from the mmstruct via the notifier pointer.
+ * This structure is pointed to from the mmstruct via the yestifier pointer.
  * There is one of these per address space.
  */
 struct gru_mm_tracker {				/* pack to reduce size */
@@ -306,7 +306,7 @@ struct gru_mm_tracker {				/* pack to reduce size */
 } __attribute__ ((packed));
 
 struct gru_mm_struct {
-	struct mmu_notifier	ms_notifier;
+	struct mmu_yestifier	ms_yestifier;
 	spinlock_t		ms_asid_lock;	/* protects ASID assignment */
 	atomic_t		ms_range_active;/* num range_invals active */
 	wait_queue_head_t	ms_wait_queue;
@@ -385,7 +385,7 @@ struct gru_thread_state {
 #define UGRUADDR(gts)		((gts)->ts_vma->vm_start +		\
 					(gts)->ts_tsid * GRU_GSEG_PAGESIZE)
 
-#define NULLCTX			(-1)	/* if context not loaded into GRU */
+#define NULLCTX			(-1)	/* if context yest loaded into GRU */
 
 /*-----------------------------------------------------------------------------
  *  GRU State Tables
@@ -652,8 +652,8 @@ extern unsigned long gru_reserve_cb_resources(struct gru_state *gru,
 extern unsigned long gru_reserve_ds_resources(struct gru_state *gru,
 		int dsr_au_count, char *dsmap);
 extern vm_fault_t gru_fault(struct vm_fault *vmf);
-extern struct gru_mm_struct *gru_register_mmu_notifier(void);
-extern void gru_drop_mmu_notifier(struct gru_mm_struct *gms);
+extern struct gru_mm_struct *gru_register_mmu_yestifier(void);
+extern void gru_drop_mmu_yestifier(struct gru_mm_struct *gms);
 
 extern int gru_ktest(unsigned long arg);
 extern void gru_flush_tlb_range(struct gru_mm_struct *gms, unsigned long start,

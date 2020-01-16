@@ -6,7 +6,7 @@
  * Jonas Jensen <jonas.jensen@gmail.com>
  *
  * Based on code from
- * Moxa Technology Co., Ltd. <www.moxa.com>
+ * Moxa Techyeslogy Co., Ltd. <www.moxa.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
@@ -250,7 +250,7 @@ static int moxart_rtc_probe(struct platform_device *pdev)
 	if (!moxart_rtc)
 		return -ENOMEM;
 
-	moxart_rtc->gpio_data = of_get_named_gpio(pdev->dev.of_node,
+	moxart_rtc->gpio_data = of_get_named_gpio(pdev->dev.of_yesde,
 						  "gpio-rtc-data", 0);
 	if (!gpio_is_valid(moxart_rtc->gpio_data)) {
 		dev_err(&pdev->dev, "invalid gpio (data): %d\n",
@@ -258,7 +258,7 @@ static int moxart_rtc_probe(struct platform_device *pdev)
 		return moxart_rtc->gpio_data;
 	}
 
-	moxart_rtc->gpio_sclk = of_get_named_gpio(pdev->dev.of_node,
+	moxart_rtc->gpio_sclk = of_get_named_gpio(pdev->dev.of_yesde,
 						  "gpio-rtc-sclk", 0);
 	if (!gpio_is_valid(moxart_rtc->gpio_sclk)) {
 		dev_err(&pdev->dev, "invalid gpio (sclk): %d\n",
@@ -266,7 +266,7 @@ static int moxart_rtc_probe(struct platform_device *pdev)
 		return moxart_rtc->gpio_sclk;
 	}
 
-	moxart_rtc->gpio_reset = of_get_named_gpio(pdev->dev.of_node,
+	moxart_rtc->gpio_reset = of_get_named_gpio(pdev->dev.of_yesde,
 						   "gpio-rtc-reset", 0);
 	if (!gpio_is_valid(moxart_rtc->gpio_reset)) {
 		dev_err(&pdev->dev, "invalid gpio (reset): %d\n",

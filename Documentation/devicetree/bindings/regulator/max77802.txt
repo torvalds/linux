@@ -6,7 +6,7 @@ More information can be found in bindings/mfd/max77802.txt file.
 The MAX77802 PMIC has 10 high-efficiency Buck and 32 Low-dropout (LDO)
 regulators that can be controlled over I2C.
 
-Following properties should be present in main device node of the MFD chip.
+Following properties should be present in main device yesde of the MFD chip.
 
 Optional properties:
 - inb1-supply:  The input supply for BUCK1
@@ -29,16 +29,16 @@ Optional properties:
 - inl9-supply:  The input supply for LDO12, LDO23, LDO25, LDO26, LDO32 and LDO34
 - inl10-supply: The input supply for LDO1 and LDO2
 
-Optional nodes:
+Optional yesdes:
 - regulators : The regulators of max77802 have to be instantiated
-  under subnode named "regulators" using the following format.
+  under subyesde named "regulators" using the following format.
 
 	regulator-name {
 		standard regulator constraints....
 	};
 	refer Documentation/devicetree/bindings/regulator/regulator.txt
 
-The regulator node name should be initialized with a string to get matched
+The regulator yesde name should be initialized with a string to get matched
 with their hardware counterparts as follow. The valid names are:
 
 	-LDOn 	:	for LDOs, where n can lie in ranges 1-15, 17-21, 23-30
@@ -49,12 +49,12 @@ with their hardware counterparts as follow. The valid names are:
 
 The max77802 regulator supports two different operating modes: Normal and Low
 Power Mode. Some regulators support the modes to be changed at startup or by
-the consumers during normal operation while others only support to change the
+the consumers during yesrmal operation while others only support to change the
 mode during system suspend. The standard regulator suspend states binding can
 be used to configure the regulator operating mode.
 
 The regulators that support the standard "regulator-initial-mode" property,
-changing their mode during normal operation are: LDOs 1, 3, 20 and 21.
+changing their mode during yesrmal operation are: LDOs 1, 3, 20 and 21.
 
 The possible values for "regulator-initial-mode" and "regulator-mode" are:
 	1: Normal regulator voltage output mode.
@@ -67,7 +67,7 @@ The standard "regulator-mode" property can only be used for regulators that
 support changing their mode to Low Power Mode during suspend. These regulators
 are: BUCKs 2-4 and LDOs 1-35. Also, it only takes effect if the regulator has
 been enabled for the given suspend state using "regulator-on-in-suspend" and
-has not been disabled for that state using "regulator-off-in-suspend".
+has yest been disabled for that state using "regulator-off-in-suspend".
 
 Example:
 

@@ -2,7 +2,7 @@
 /*
  * pps-gpio.h -- PPS client for GPIOs
  *
- * Copyright (C) 2011 James Nuss <jamesnuss@nanometrics.ca>
+ * Copyright (C) 2011 James Nuss <jamesnuss@nayesmetrics.ca>
  */
 
 #ifndef _PPS_GPIO_H

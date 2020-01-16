@@ -33,7 +33,7 @@ do {								\
 static LIST_HEAD(bus_type_list);
 static DECLARE_RWSEM(bus_type_sem);
 
-#define PHYSICAL_NODE_STRING "physical_node"
+#define PHYSICAL_NODE_STRING "physical_yesde"
 #define PHYSICAL_NODE_NAME_SIZE (sizeof(PHYSICAL_NODE_STRING) + 10)
 
 int register_acpi_bus_type(struct acpi_bus_type *type)
@@ -103,7 +103,7 @@ static int find_child_checks(struct acpi_device *adev, bool check_children)
 	/*
 	 * If the device has a _HID returning a valid ACPI/PNP device ID, it is
 	 * better to make it look less attractive here, so that the other device
-	 * with the same _ADR value (that may not have a valid device ID) can be
+	 * with the same _ADR value (that may yest have a valid device ID) can be
 	 * matched going forward.  [This means a second spec violation in a row,
 	 * so whatever we do here is best effort anyway.]
 	 */
@@ -120,7 +120,7 @@ struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 	if (!parent)
 		return NULL;
 
-	list_for_each_entry(adev, &parent->children, node) {
+	list_for_each_entry(adev, &parent->children, yesde) {
 		unsigned long long addr;
 		acpi_status status;
 		int score;
@@ -141,7 +141,7 @@ struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 		 * beyond the scope of the spec here.  We have to choose which
 		 * one to return, though.
 		 *
-		 * First, check if the previously found object is good enough
+		 * First, check if the previously found object is good eyesugh
 		 * and return it if so.  Second, do the same for the object that
 		 * we've just found.
 		 */
@@ -162,21 +162,21 @@ struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 }
 EXPORT_SYMBOL_GPL(acpi_find_child_device);
 
-static void acpi_physnode_link_name(char *buf, unsigned int node_id)
+static void acpi_physyesde_link_name(char *buf, unsigned int yesde_id)
 {
-	if (node_id > 0)
+	if (yesde_id > 0)
 		snprintf(buf, PHYSICAL_NODE_NAME_SIZE,
-			 PHYSICAL_NODE_STRING "%u", node_id);
+			 PHYSICAL_NODE_STRING "%u", yesde_id);
 	else
 		strcpy(buf, PHYSICAL_NODE_STRING);
 }
 
 int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 {
-	struct acpi_device_physical_node *physical_node, *pn;
-	char physical_node_name[PHYSICAL_NODE_NAME_SIZE];
-	struct list_head *physnode_list;
-	unsigned int node_id;
+	struct acpi_device_physical_yesde *physical_yesde, *pn;
+	char physical_yesde_name[PHYSICAL_NODE_NAME_SIZE];
+	struct list_head *physyesde_list;
+	unsigned int yesde_id;
 	int retval = -EINVAL;
 
 	if (has_acpi_companion(dev)) {
@@ -192,27 +192,27 @@ int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 
 	get_device(&acpi_dev->dev);
 	get_device(dev);
-	physical_node = kzalloc(sizeof(*physical_node), GFP_KERNEL);
-	if (!physical_node) {
+	physical_yesde = kzalloc(sizeof(*physical_yesde), GFP_KERNEL);
+	if (!physical_yesde) {
 		retval = -ENOMEM;
 		goto err;
 	}
 
-	mutex_lock(&acpi_dev->physical_node_lock);
+	mutex_lock(&acpi_dev->physical_yesde_lock);
 
 	/*
-	 * Keep the list sorted by node_id so that the IDs of removed nodes can
+	 * Keep the list sorted by yesde_id so that the IDs of removed yesdes can
 	 * be recycled easily.
 	 */
-	physnode_list = &acpi_dev->physical_node_list;
-	node_id = 0;
-	list_for_each_entry(pn, &acpi_dev->physical_node_list, node) {
+	physyesde_list = &acpi_dev->physical_yesde_list;
+	yesde_id = 0;
+	list_for_each_entry(pn, &acpi_dev->physical_yesde_list, yesde) {
 		/* Sanity check. */
 		if (pn->dev == dev) {
-			mutex_unlock(&acpi_dev->physical_node_lock);
+			mutex_unlock(&acpi_dev->physical_yesde_lock);
 
-			dev_warn(dev, "Already associated with ACPI node\n");
-			kfree(physical_node);
+			dev_warn(dev, "Already associated with ACPI yesde\n");
+			kfree(physical_yesde);
 			if (ACPI_COMPANION(dev) != acpi_dev)
 				goto err;
 
@@ -220,34 +220,34 @@ int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 			put_device(&acpi_dev->dev);
 			return 0;
 		}
-		if (pn->node_id == node_id) {
-			physnode_list = &pn->node;
-			node_id++;
+		if (pn->yesde_id == yesde_id) {
+			physyesde_list = &pn->yesde;
+			yesde_id++;
 		}
 	}
 
-	physical_node->node_id = node_id;
-	physical_node->dev = dev;
-	list_add(&physical_node->node, physnode_list);
-	acpi_dev->physical_node_count++;
+	physical_yesde->yesde_id = yesde_id;
+	physical_yesde->dev = dev;
+	list_add(&physical_yesde->yesde, physyesde_list);
+	acpi_dev->physical_yesde_count++;
 
 	if (!has_acpi_companion(dev))
 		ACPI_COMPANION_SET(dev, acpi_dev);
 
-	acpi_physnode_link_name(physical_node_name, node_id);
+	acpi_physyesde_link_name(physical_yesde_name, yesde_id);
 	retval = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
-				   physical_node_name);
+				   physical_yesde_name);
 	if (retval)
 		dev_err(&acpi_dev->dev, "Failed to create link %s (%d)\n",
-			physical_node_name, retval);
+			physical_yesde_name, retval);
 
 	retval = sysfs_create_link(&dev->kobj, &acpi_dev->dev.kobj,
-				   "firmware_node");
+				   "firmware_yesde");
 	if (retval)
-		dev_err(dev, "Failed to create link firmware_node (%d)\n",
+		dev_err(dev, "Failed to create link firmware_yesde (%d)\n",
 			retval);
 
-	mutex_unlock(&acpi_dev->physical_node_lock);
+	mutex_unlock(&acpi_dev->physical_yesde_lock);
 
 	if (acpi_dev->wakeup.flags.valid)
 		device_set_wakeup_capable(dev, true);
@@ -265,23 +265,23 @@ EXPORT_SYMBOL_GPL(acpi_bind_one);
 int acpi_unbind_one(struct device *dev)
 {
 	struct acpi_device *acpi_dev = ACPI_COMPANION(dev);
-	struct acpi_device_physical_node *entry;
+	struct acpi_device_physical_yesde *entry;
 
 	if (!acpi_dev)
 		return 0;
 
-	mutex_lock(&acpi_dev->physical_node_lock);
+	mutex_lock(&acpi_dev->physical_yesde_lock);
 
-	list_for_each_entry(entry, &acpi_dev->physical_node_list, node)
+	list_for_each_entry(entry, &acpi_dev->physical_yesde_list, yesde)
 		if (entry->dev == dev) {
-			char physnode_name[PHYSICAL_NODE_NAME_SIZE];
+			char physyesde_name[PHYSICAL_NODE_NAME_SIZE];
 
-			list_del(&entry->node);
-			acpi_dev->physical_node_count--;
+			list_del(&entry->yesde);
+			acpi_dev->physical_yesde_count--;
 
-			acpi_physnode_link_name(physnode_name, entry->node_id);
-			sysfs_remove_link(&acpi_dev->dev.kobj, physnode_name);
-			sysfs_remove_link(&dev->kobj, "firmware_node");
+			acpi_physyesde_link_name(physyesde_name, entry->yesde_id);
+			sysfs_remove_link(&acpi_dev->dev.kobj, physyesde_name);
+			sysfs_remove_link(&dev->kobj, "firmware_yesde");
 			ACPI_COMPANION_SET(dev, NULL);
 			/* Drop references taken by acpi_bind_one(). */
 			put_device(dev);
@@ -290,12 +290,12 @@ int acpi_unbind_one(struct device *dev)
 			break;
 		}
 
-	mutex_unlock(&acpi_dev->physical_node_lock);
+	mutex_unlock(&acpi_dev->physical_yesde_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_unbind_one);
 
-static int acpi_device_notify(struct device *dev)
+static int acpi_device_yestify(struct device *dev)
 {
 	struct acpi_bus_type *type = acpi_get_bus_type(dev);
 	struct acpi_device *adev;
@@ -342,7 +342,7 @@ static int acpi_device_notify(struct device *dev)
 	return ret;
 }
 
-static int acpi_device_notify_remove(struct device *dev)
+static int acpi_device_yestify_remove(struct device *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct acpi_bus_type *type;
@@ -360,14 +360,14 @@ static int acpi_device_notify_remove(struct device *dev)
 	return 0;
 }
 
-int acpi_platform_notify(struct device *dev, enum kobject_action action)
+int acpi_platform_yestify(struct device *dev, enum kobject_action action)
 {
 	switch (action) {
 	case KOBJ_ADD:
-		acpi_device_notify(dev);
+		acpi_device_yestify(dev);
 		break;
 	case KOBJ_REMOVE:
-		acpi_device_notify_remove(dev);
+		acpi_device_yestify_remove(dev);
 		break;
 	default:
 		break;

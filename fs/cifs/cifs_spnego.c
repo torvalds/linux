@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -142,13 +142,13 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo)
 
 	dp = description + strlen(description);
 
-	/* for now, only sec=krb5 and sec=mskrb5 are valid */
+	/* for yesw, only sec=krb5 and sec=mskrb5 are valid */
 	if (server->sec_kerberos)
 		sprintf(dp, ";sec=krb5");
 	else if (server->sec_mskerberos)
 		sprintf(dp, ";sec=mskrb5");
 	else {
-		cifs_dbg(VFS, "unknown or missing server auth type, use krb5\n");
+		cifs_dbg(VFS, "unkyeswn or missing server auth type, use krb5\n");
 		sprintf(dp, ";sec=krb5");
 	}
 

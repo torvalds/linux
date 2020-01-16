@@ -105,10 +105,10 @@ static enum hdac_ext_stream_type skl_get_host_stream_type(struct hdac_bus *bus)
 }
 
 /*
- * check if the stream opened is marked as ignore_suspend by machine, if so
+ * check if the stream opened is marked as igyesre_suspend by machine, if so
  * then enable suspend_active refcount
  *
- * The count supend_active does not need lock as it is used in open/close
+ * The count supend_active does yest need lock as it is used in open/close
  * and suspend context
  */
 static void skl_set_suspend_active(struct snd_pcm_substream *substream,
@@ -123,9 +123,9 @@ static void skl_set_suspend_active(struct snd_pcm_substream *substream,
 	else
 		w = dai->capture_widget;
 
-	if (w->ignore_suspend && enable)
+	if (w->igyesre_suspend && enable)
 		skl->supend_active++;
-	else if (w->ignore_suspend && !enable)
+	else if (w->igyesre_suspend && !enable)
 		skl->supend_active--;
 }
 
@@ -281,7 +281,7 @@ static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 
 	/*
 	 * In case of XRUN recovery or in the case when the application
-	 * calls prepare another time, reset the FW pipe to clean state
+	 * calls prepare ayesther time, reset the FW pipe to clean state
 	 */
 	if (mconfig &&
 		(substream->runtime->status->state == SNDRV_PCM_STATE_XRUN ||
@@ -359,7 +359,7 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 
 	dma_params = snd_soc_dai_get_dma_data(dai, substream);
 	/*
-	 * now we should set this to NULL as we are freeing by the
+	 * yesw we should set this to NULL as we are freeing by the
 	 * dma_params
 	 */
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
@@ -489,7 +489,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
-		if (!w->ignore_suspend) {
+		if (!w->igyesre_suspend) {
 			/*
 			 * enable DMA Resume enable bit for the stream, set the
 			 * dpib & lpib position to resume before starting the
@@ -507,7 +507,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		/*
 		 * Start HOST DMA and Start FE Pipe.This is to make sure that
-		 * there are no underrun/overrun in the case when the FE
+		 * there are yes underrun/overrun in the case when the FE
 		 * pipeline is started but there is a delay in starting the
 		 * DMA channel on the host.
 		 */
@@ -522,7 +522,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_STOP:
 		/*
 		 * Stop FE Pipe first and stop DMA. This is to make sure that
-		 * there are no underrun/overrun in the case if there is a delay
+		 * there are yes underrun/overrun in the case if there is a delay
 		 * between the two operations.
 		 */
 		ret = skl_stop_pipe(skl, mconfig->pipe);
@@ -530,7 +530,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 			return ret;
 
 		ret = skl_decoupled_trigger(substream, cmd);
-		if ((cmd == SNDRV_PCM_TRIGGER_SUSPEND) && !w->ignore_suspend) {
+		if ((cmd == SNDRV_PCM_TRIGGER_SUSPEND) && !w->igyesre_suspend) {
 			/* save the dpib and lpib positions */
 			stream->dpib = readl(bus->remap_addr +
 					AZX_REG_VS_SDXDPIB_XBASE +
@@ -1191,7 +1191,7 @@ static snd_pcm_uframes_t skl_platform_soc_pointer(
 	/*
 	 * Use DPIB for Playback stream as the periodic DMA Position-in-
 	 * Buffer Writes may be scheduled at the same time or later than
-	 * the MSI and does not guarantee to reflect the Position of the
+	 * the MSI and does yest guarantee to reflect the Position of the
 	 * last buffer that was transferred. Whereas DPIB register in
 	 * HAD space reflects the actual data that is transferred.
 	 * Use the position buffer for capture, as DPIB write gets
@@ -1205,7 +1205,7 @@ static snd_pcm_uframes_t skl_platform_soc_pointer(
 	 * on the HDA frame boundary i.e. 20.833uSec.
 	 * 2. Read DPIB register to flush the DMA position value. This dummy
 	 * read is required to flush DMA position value.
-	 * 3. Read the DMA Position-in-Buffer. This value now will be equal to
+	 * 3. Read the DMA Position-in-Buffer. This value yesw will be equal to
 	 * or greater than period boundary.
 	 */
 
@@ -1389,8 +1389,8 @@ static int skl_populate_modules(struct skl_dev *skl)
 	struct skl_module_cfg *mconfig;
 	int ret = 0;
 
-	list_for_each_entry(p, &skl->ppl_list, node) {
-		list_for_each_entry(m, &p->pipe->w_list, node) {
+	list_for_each_entry(p, &skl->ppl_list, yesde) {
+		list_for_each_entry(m, &p->pipe->w_list, yesde) {
 			w = m->w;
 			mconfig = w->priv;
 
@@ -1531,8 +1531,8 @@ int skl_platform_unregister(struct device *dev)
 	struct skl_module_deferred_bind *modules, *tmp;
 
 	if (!list_empty(&skl->bind_list)) {
-		list_for_each_entry_safe(modules, tmp, &skl->bind_list, node) {
-			list_del(&modules->node);
+		list_for_each_entry_safe(modules, tmp, &skl->bind_list, yesde) {
+			list_del(&modules->yesde);
 			kfree(modules);
 		}
 	}

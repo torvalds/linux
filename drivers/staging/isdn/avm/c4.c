@@ -484,7 +484,7 @@ static void queue_pollack(avmcard *card)
 
 	skb = alloc_skb(3, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_CRIT "%s: no memory, lost poll ack\n",
+		printk(KERN_CRIT "%s: yes memory, lost poll ack\n",
 		       card->name);
 		return;
 	}
@@ -527,7 +527,7 @@ static void c4_handle_rx(avmcard *card)
 		if (cidx >= card->nlogcontr) cidx = 0;
 		ctrl = &card->ctrlinfo[cidx].capi_ctrl;
 
-		if (MsgLen < 30) { /* not CAPI 64Bit */
+		if (MsgLen < 30) { /* yest CAPI 64Bit */
 			memset(card->msgbuf + MsgLen, 0, 30 - MsgLen);
 			MsgLen = 30;
 			CAPIMSG_SETLEN(card->msgbuf, 30);
@@ -621,7 +621,7 @@ static void c4_handle_rx(avmcard *card)
 		ctrl = &cinfo->capi_ctrl;
 		cinfo->versionlen = _get_slice(&p, cinfo->versionbuf);
 		b1_parse_version(cinfo);
-		printk(KERN_INFO "%s: %s-card (%s) now active\n",
+		printk(KERN_INFO "%s: %s-card (%s) yesw active\n",
 		       card->name,
 		       cinfo->version[VER_CARDTYPE],
 		       cinfo->version[VER_DRIVER]);
@@ -736,7 +736,7 @@ static void c4_send_init(avmcard *card)
 
 	skb = alloc_skb(15, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_CRIT "%s: no memory, lost register appl.\n",
+		printk(KERN_CRIT "%s: yes memory, lost register appl.\n",
 		       card->name);
 		return;
 	}
@@ -763,7 +763,7 @@ static int queue_sendconfigword(avmcard *card, u32 val)
 
 	skb = alloc_skb(3 + 4, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_CRIT "%s: no memory, send config\n",
+		printk(KERN_CRIT "%s: yes memory, send config\n",
 		       card->name);
 		return -ENOMEM;
 	}
@@ -789,7 +789,7 @@ static int queue_sendconfig(avmcard *card, char cval[4])
 
 	skb = alloc_skb(3 + 4, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_CRIT "%s: no memory, send config\n",
+		printk(KERN_CRIT "%s: yes memory, send config\n",
 		       card->name);
 		return -ENOMEM;
 	}
@@ -964,7 +964,7 @@ static void c4_register_appl(struct capi_ctr *ctrl,
 
 		skb = alloc_skb(23, GFP_ATOMIC);
 		if (!skb) {
-			printk(KERN_CRIT "%s: no memory, lost register appl.\n",
+			printk(KERN_CRIT "%s: yes memory, lost register appl.\n",
 			       card->name);
 			return;
 		}
@@ -1004,7 +1004,7 @@ static void c4_release_appl(struct capi_ctr *ctrl, u16 appl)
 	if (ctrl->cnr == card->cardnr) {
 		skb = alloc_skb(7, GFP_ATOMIC);
 		if (!skb) {
-			printk(KERN_CRIT "%s: no memory, lost release appl.\n",
+			printk(KERN_CRIT "%s: yes memory, lost release appl.\n",
 			       card->name);
 			return;
 		}
@@ -1139,13 +1139,13 @@ static int c4_add_card(struct capicardparams *p, struct pci_dev *dev,
 
 	card = b1_alloc_card(nr_controllers);
 	if (!card) {
-		printk(KERN_WARNING "c4: no memory.\n");
+		printk(KERN_WARNING "c4: yes memory.\n");
 		retval = -ENOMEM;
 		goto err;
 	}
 	card->dma = avmcard_dma_alloc("c4", dev, 2048 + 128, 2048 + 128);
 	if (!card->dma) {
-		printk(KERN_WARNING "c4: no memory.\n");
+		printk(KERN_WARNING "c4: yes memory.\n");
 		retval = -ENOMEM;
 		goto err_free;
 	}
@@ -1257,7 +1257,7 @@ static int c4_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	retval = c4_add_card(&param, dev, nr);
 	if (retval != 0) {
-		printk(KERN_ERR "c4: no AVM-C%d at i/o %#x, irq %d detected, mem %#x\n",
+		printk(KERN_ERR "c4: yes AVM-C%d at i/o %#x, irq %d detected, mem %#x\n",
 		       nr, param.port, param.irq, param.membase);
 		pci_disable_device(dev);
 		return -ENODEV;

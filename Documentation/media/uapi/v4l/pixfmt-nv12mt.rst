@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _V4L2-PIX-FMT-NV12MT:
 
@@ -17,7 +17,7 @@ Formats with ½ horizontal and vertical chroma resolution. This format
 has two planes - one for luminance and one for chrominance. Chroma
 samples are interleaved. The difference to ``V4L2_PIX_FMT_NV12`` is the
 memory layout. Pixels are grouped in macroblocks of 64x32 size. The
-order of macroblocks in memory is also not standard.
+order of macroblocks in memory is also yest standard.
 
 
 Description
@@ -47,7 +47,7 @@ Layout of macroblocks in memory is presented in the following figure.
     V4L2_PIX_FMT_NV12MT macroblock Z shape memory layout
 
 The requirement that width is multiple of 128 is implemented because,
-the Z shape cannot be cut in half horizontally. In case the vertical
+the Z shape canyest be cut in half horizontally. In case the vertical
 resolution of macroblocks is odd then the last row of macroblocks is
 arranged in a linear order.
 

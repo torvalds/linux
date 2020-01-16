@@ -13,9 +13,9 @@
 #
 # When the system is idle it is likely that most files under /proc/PID will be
 # identical for various processes.  Scanning _all_ the PIDs under /proc is
-# unnecessary and implies that we are thoroughly scanning /proc.  This is _not_
+# unnecessary and implies that we are thoroughly scanning /proc.  This is _yest_
 # the case because there may be ways userspace can trigger creation of /proc
-# files that leak addresses but were not present during a scan.  For these two
+# files that leak addresses but were yest present during a scan.  For these two
 # reasons we exclude all PID directories under /proc except '1/'
 
 use warnings;
@@ -25,7 +25,7 @@ use File::Basename;
 use File::Spec;
 use Cwd 'abs_path';
 use Term::ANSIColor qw(:constants);
-use Getopt::Long qw(:config no_auto_abbrev);
+use Getopt::Long qw(:config yes_auto_abbrev);
 use Config;
 use bigint qw/hex/;
 use feature 'state';
@@ -90,7 +90,7 @@ Options:
 	-o, --output-raw=<file>		Save results for future processing.
 	-i, --input-raw=<file>		Read results from file instead of scanning.
 	      --raw			Show raw results (default).
-	      --suppress-dmesg		Do not show dmesg results.
+	      --suppress-dmesg		Do yest show dmesg results.
 	      --squash-by-path		Show one result per unique path.
 	      --squash-by-filename	Show one result per unique filename.
 	--kernel-config-file=<file>     Kernel configuration file (e.g /boot/config)
@@ -133,7 +133,7 @@ if (!$input_raw and ($squash_by_path or $squash_by_filename)) {
 }
 
 if (!(is_supported_architecture() or $opt_32bit or $page_offset_32bit)) {
-	printf "\nScript does not support your architecture, sorry.\n";
+	printf "\nScript does yest support your architecture, sorry.\n";
 	printf "\nCurrently we support: \n\n";
 	foreach(@SUPPORTED_ARCHITECTURES) {
 		printf "\t%s\n", $_;
@@ -215,7 +215,7 @@ sub is_ppc64
 }
 
 # Gets config option value from kernel config file.
-# Returns "" on error or if config option not found.
+# Returns "" on error or if config option yest found.
 sub get_kernel_config_option
 {
 	my ($option) = @_;
@@ -386,7 +386,7 @@ sub get_x86_64_re
 {
 	# We handle page table levels but only if explicitly configured using
 	# CONFIG_PGTABLE_LEVELS.  If config file parsing fails or config option
-	# is not found we default to using address regular expression suitable
+	# is yest found we default to using address regular expression suitable
 	# for 4 page table levels.
 	state $ptl = get_kernel_config_option('CONFIG_PGTABLE_LEVELS');
 
@@ -582,7 +582,7 @@ sub print_dmesg
 	print "\ndmesg output:\n";
 
 	if (@$dmesg == 0) {
-		print "<no results>\n";
+		print "<yes results>\n";
 		return;
 	}
 
@@ -601,7 +601,7 @@ sub squash_by
 	print "Displaying [<number of results> <$desc>], <example result>\n";
 
 	if (keys %$ref == 0) {
-		print "<no results>\n";
+		print "<yes results>\n";
 		return;
 	}
 

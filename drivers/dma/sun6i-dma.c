@@ -118,9 +118,9 @@ struct sun6i_dma_config {
 	 * In the datasheets/user manuals of newer Allwinner SoCs, a special
 	 * bit (bit 2 at register 0x20) is present.
 	 * It's named "DMA MCLK interface circuit auto gating bit" in the
-	 * documents, and the footnote of this register says that this bit
+	 * documents, and the footyeste of this register says that this bit
 	 * should be set up when initializing the DMA controller.
-	 * Allwinner A23/A33 user manuals do not have this bit documented,
+	 * Allwinner A23/A33 user manuals do yest have this bit documented,
 	 * however these SoCs really have and need this bit, as seen in the
 	 * BSP kernel source code.
 	 */
@@ -150,7 +150,7 @@ struct sun6i_dma_lli {
 	u32			p_lli_next;
 
 	/*
-	 * This field is not used by the DMA controller, but will be
+	 * This field is yest used by the DMA controller, but will be
 	 * used by the CPU to go through the list (mostly for dumping
 	 * or freeing it).
 	 */
@@ -174,7 +174,7 @@ struct sun6i_pchan {
 
 struct sun6i_vchan {
 	struct virt_dma_chan	vc;
-	struct list_head	node;
+	struct list_head	yesde;
 	struct dma_slave_config	cfg;
 	struct sun6i_pchan	*phy;
 	u8			port;
@@ -440,7 +440,7 @@ static int sun6i_dma_start_desc(struct sun6i_vchan *vchan)
 		return -EAGAIN;
 	}
 
-	list_del(&desc->node);
+	list_del(&desc->yesde);
 
 	pchan->desc = to_sun6i_desc(&desc->tx);
 	pchan->done = NULL;
@@ -475,7 +475,7 @@ static void sun6i_dma_tasklet(unsigned long data)
 	unsigned int pchan_alloc = 0;
 	unsigned int pchan_idx;
 
-	list_for_each_entry(vchan, &sdev->slave.channels, vc.chan.device_node) {
+	list_for_each_entry(vchan, &sdev->slave.channels, vc.chan.device_yesde) {
 		spin_lock_irq(&vchan->vc.lock);
 
 		pchan = vchan->phy;
@@ -504,10 +504,10 @@ static void sun6i_dma_tasklet(unsigned long data)
 			continue;
 
 		vchan = list_first_entry(&sdev->pending,
-					 struct sun6i_vchan, node);
+					 struct sun6i_vchan, yesde);
 
 		/* Remove from pending channels */
-		list_del_init(&vchan->node);
+		list_del_init(&vchan->yesde);
 		pchan_alloc |= BIT(pchan_idx);
 
 		/* Mark this channel allocated */
@@ -849,7 +849,7 @@ static int sun6i_dma_pause(struct dma_chan *chan)
 		       pchan->base + DMA_CHAN_PAUSE);
 	} else {
 		spin_lock(&sdev->lock);
-		list_del_init(&vchan->node);
+		list_del_init(&vchan->yesde);
 		spin_unlock(&sdev->lock);
 	}
 
@@ -872,7 +872,7 @@ static int sun6i_dma_resume(struct dma_chan *chan)
 		       pchan->base + DMA_CHAN_PAUSE);
 	} else if (!list_empty(&vchan->vc.desc_issued)) {
 		spin_lock(&sdev->lock);
-		list_add_tail(&vchan->node, &sdev->pending);
+		list_add_tail(&vchan->yesde, &sdev->pending);
 		spin_unlock(&sdev->lock);
 	}
 
@@ -890,7 +890,7 @@ static int sun6i_dma_terminate_all(struct dma_chan *chan)
 	LIST_HEAD(head);
 
 	spin_lock(&sdev->lock);
-	list_del_init(&vchan->node);
+	list_del_init(&vchan->yesde);
 	spin_unlock(&sdev->lock);
 
 	spin_lock_irqsave(&vchan->vc.lock, flags);
@@ -901,7 +901,7 @@ static int sun6i_dma_terminate_all(struct dma_chan *chan)
 			struct virt_dma_desc *vd = &pchan->desc->vd;
 			struct virt_dma_chan *vc = &vchan->vc;
 
-			list_add_tail(&vd->node, &vc->desc_completed);
+			list_add_tail(&vd->yesde, &vc->desc_completed);
 		}
 	}
 
@@ -973,8 +973,8 @@ static void sun6i_dma_issue_pending(struct dma_chan *chan)
 	if (vchan_issue_pending(&vchan->vc)) {
 		spin_lock(&sdev->lock);
 
-		if (!vchan->phy && list_empty(&vchan->node)) {
-			list_add_tail(&vchan->node, &sdev->pending);
+		if (!vchan->phy && list_empty(&vchan->yesde)) {
+			list_add_tail(&vchan->yesde, &sdev->pending);
 			tasklet_schedule(&sdev->task);
 			dev_dbg(chan2dev(chan), "vchan %p: issued\n",
 				&vchan->vc);
@@ -982,7 +982,7 @@ static void sun6i_dma_issue_pending(struct dma_chan *chan)
 
 		spin_unlock(&sdev->lock);
 	} else {
-		dev_dbg(chan2dev(chan), "vchan %p: nothing to issue\n",
+		dev_dbg(chan2dev(chan), "vchan %p: yesthing to issue\n",
 			&vchan->vc);
 	}
 
@@ -996,7 +996,7 @@ static void sun6i_dma_free_chan_resources(struct dma_chan *chan)
 	unsigned long flags;
 
 	spin_lock_irqsave(&sdev->lock, flags);
-	list_del_init(&vchan->node);
+	list_del_init(&vchan->yesde);
 	spin_unlock_irqrestore(&sdev->lock, flags);
 
 	vchan_free_chan_resources(&vchan->vc);
@@ -1046,7 +1046,7 @@ static inline void sun6i_dma_free(struct sun6i_dma_dev *sdev)
 	for (i = 0; i < sdev->num_vchans; i++) {
 		struct sun6i_vchan *vchan = &sdev->vchans[i];
 
-		list_del(&vchan->vc.chan.device_node);
+		list_del(&vchan->vc.chan.device_yesde);
 		tasklet_kill(&vchan->vc.task);
 	}
 }
@@ -1154,7 +1154,7 @@ static struct sun6i_dma_config sun8i_h3_dma_cfg = {
 
 /*
  * The A64 binding uses the number of dma channels from the
- * device tree node.
+ * device tree yesde.
  */
 static struct sun6i_dma_config sun50i_a64_dma_cfg = {
 	.clock_autogate_enable = sun6i_enable_clock_autogate_h3,
@@ -1175,7 +1175,7 @@ static struct sun6i_dma_config sun50i_a64_dma_cfg = {
 
 /*
  * The H6 binding uses the number of dma channels from the
- * device tree node.
+ * device tree yesde.
  */
 static struct sun6i_dma_config sun50i_h6_dma_cfg = {
 	.clock_autogate_enable = sun6i_enable_clock_autogate_h3,
@@ -1232,7 +1232,7 @@ MODULE_DEVICE_TABLE(of, sun6i_dma_match);
 
 static int sun6i_dma_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct sun6i_dma_dev *sdc;
 	struct resource *res;
 	int ret, i;
@@ -1327,7 +1327,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If the number of vchans is not specified, derive it from the
+	 * If the number of vchans is yest specified, derive it from the
 	 * highest port number, at most one channel per port and direction.
 	 */
 	if (!sdc->num_vchans)
@@ -1355,7 +1355,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	for (i = 0; i < sdc->num_vchans; i++) {
 		struct sun6i_vchan *vchan = &sdc->vchans[i];
 
-		INIT_LIST_HEAD(&vchan->node);
+		INIT_LIST_HEAD(&vchan->yesde);
 		vchan->vc.desc_free = sun6i_dma_free_desc;
 		vchan_init(&vchan->vc, &sdc->slave);
 	}
@@ -1383,7 +1383,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, sdc->irq, sun6i_dma_interrupt, 0,
 			       dev_name(&pdev->dev), sdc);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request IRQ\n");
+		dev_err(&pdev->dev, "Canyest request IRQ\n");
 		goto err_mbus_clk_disable;
 	}
 
@@ -1393,7 +1393,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 		goto err_irq_disable;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node, sun6i_dma_of_xlate,
+	ret = of_dma_controller_register(pdev->dev.of_yesde, sun6i_dma_of_xlate,
 					 sdc);
 	if (ret) {
 		dev_err(&pdev->dev, "of_dma_controller_register failed\n");
@@ -1424,7 +1424,7 @@ static int sun6i_dma_remove(struct platform_device *pdev)
 {
 	struct sun6i_dma_dev *sdc = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	dma_async_device_unregister(&sdc->slave);
 
 	sun6i_kill_tasklet(sdc);

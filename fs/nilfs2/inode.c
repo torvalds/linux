@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * inode.c - NILFS inode operations.
+ * iyesde.c - NILFS iyesde operations.
  *
  * Copyright (C) 2005-2008 Nippon Telegraph and Telephone Corporation.
  *
@@ -15,7 +15,7 @@
 #include <linux/writeback.h>
 #include <linux/uio.h>
 #include "nilfs.h"
-#include "btnode.h"
+#include "btyesde.h"
 #include "segment.h"
 #include "page.h"
 #include "mdt.h"
@@ -23,74 +23,74 @@
 #include "ifile.h"
 
 /**
- * struct nilfs_iget_args - arguments used during comparison between inodes
- * @ino: inode number
- * @cno: checkpoint number
+ * struct nilfs_iget_args - arguments used during comparison between iyesdes
+ * @iyes: iyesde number
+ * @cyes: checkpoint number
  * @root: pointer on NILFS root object (mounted checkpoint)
- * @for_gc: inode for GC flag
+ * @for_gc: iyesde for GC flag
  */
 struct nilfs_iget_args {
-	u64 ino;
-	__u64 cno;
+	u64 iyes;
+	__u64 cyes;
 	struct nilfs_root *root;
 	int for_gc;
 };
 
-static int nilfs_iget_test(struct inode *inode, void *opaque);
+static int nilfs_iget_test(struct iyesde *iyesde, void *opaque);
 
-void nilfs_inode_add_blocks(struct inode *inode, int n)
+void nilfs_iyesde_add_blocks(struct iyesde *iyesde, int n)
 {
-	struct nilfs_root *root = NILFS_I(inode)->i_root;
+	struct nilfs_root *root = NILFS_I(iyesde)->i_root;
 
-	inode_add_bytes(inode, i_blocksize(inode) * n);
+	iyesde_add_bytes(iyesde, i_blocksize(iyesde) * n);
 	if (root)
 		atomic64_add(n, &root->blocks_count);
 }
 
-void nilfs_inode_sub_blocks(struct inode *inode, int n)
+void nilfs_iyesde_sub_blocks(struct iyesde *iyesde, int n)
 {
-	struct nilfs_root *root = NILFS_I(inode)->i_root;
+	struct nilfs_root *root = NILFS_I(iyesde)->i_root;
 
-	inode_sub_bytes(inode, i_blocksize(inode) * n);
+	iyesde_sub_bytes(iyesde, i_blocksize(iyesde) * n);
 	if (root)
 		atomic64_sub(n, &root->blocks_count);
 }
 
 /**
  * nilfs_get_block() - get a file block on the filesystem (callback function)
- * @inode - inode struct of the target file
+ * @iyesde - iyesde struct of the target file
  * @blkoff - file block number
  * @bh_result - buffer head to be mapped on
- * @create - indicate whether allocating the block or not when it has not
+ * @create - indicate whether allocating the block or yest when it has yest
  *      been allocated yet.
  *
- * This function does not issue actual read request of the specified data
+ * This function does yest issue actual read request of the specified data
  * block. It is done by VFS.
  */
-int nilfs_get_block(struct inode *inode, sector_t blkoff,
+int nilfs_get_block(struct iyesde *iyesde, sector_t blkoff,
 		    struct buffer_head *bh_result, int create)
 {
-	struct nilfs_inode_info *ii = NILFS_I(inode);
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct nilfs_iyesde_info *ii = NILFS_I(iyesde);
+	struct the_nilfs *nilfs = iyesde->i_sb->s_fs_info;
 	__u64 blknum = 0;
 	int err = 0, ret;
-	unsigned int maxblocks = bh_result->b_size >> inode->i_blkbits;
+	unsigned int maxblocks = bh_result->b_size >> iyesde->i_blkbits;
 
 	down_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	ret = nilfs_bmap_lookup_contig(ii->i_bmap, blkoff, &blknum, maxblocks);
 	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	if (ret >= 0) {	/* found */
-		map_bh(bh_result, inode->i_sb, blknum);
+		map_bh(bh_result, iyesde->i_sb, blknum);
 		if (ret > 0)
-			bh_result->b_size = (ret << inode->i_blkbits);
+			bh_result->b_size = (ret << iyesde->i_blkbits);
 		goto out;
 	}
-	/* data block was not found */
+	/* data block was yest found */
 	if (ret == -ENOENT && create) {
 		struct nilfs_transaction_info ti;
 
 		bh_result->b_blocknr = 0;
-		err = nilfs_transaction_begin(inode->i_sb, &ti, 1);
+		err = nilfs_transaction_begin(iyesde->i_sb, &ti, 1);
 		if (unlikely(err))
 			goto out;
 		err = nilfs_bmap_insert(ii->i_bmap, blkoff,
@@ -99,30 +99,30 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 			if (err == -EEXIST) {
 				/*
 				 * The get_block() function could be called
-				 * from multiple callers for an inode.
+				 * from multiple callers for an iyesde.
 				 * However, the page having this block must
 				 * be locked in this case.
 				 */
-				nilfs_msg(inode->i_sb, KERN_WARNING,
-					  "%s (ino=%lu): a race condition while inserting a data block at offset=%llu",
-					  __func__, inode->i_ino,
+				nilfs_msg(iyesde->i_sb, KERN_WARNING,
+					  "%s (iyes=%lu): a race condition while inserting a data block at offset=%llu",
+					  __func__, iyesde->i_iyes,
 					  (unsigned long long)blkoff);
 				err = 0;
 			}
-			nilfs_transaction_abort(inode->i_sb);
+			nilfs_transaction_abort(iyesde->i_sb);
 			goto out;
 		}
-		nilfs_mark_inode_dirty_sync(inode);
-		nilfs_transaction_commit(inode->i_sb); /* never fails */
+		nilfs_mark_iyesde_dirty_sync(iyesde);
+		nilfs_transaction_commit(iyesde->i_sb); /* never fails */
 		/* Error handling should be detailed */
 		set_buffer_new(bh_result);
 		set_buffer_delay(bh_result);
-		map_bh(bh_result, inode->i_sb, 0);
+		map_bh(bh_result, iyesde->i_sb, 0);
 		/* Disk block number must be changed to proper value */
 
 	} else if (ret == -ENOENT) {
 		/*
-		 * not found is not error (e.g. hole); must return without
+		 * yest found is yest error (e.g. hole); must return without
 		 * the mapped state flag.
 		 */
 		;
@@ -162,16 +162,16 @@ static int nilfs_readpages(struct file *file, struct address_space *mapping,
 static int nilfs_writepages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	int err = 0;
 
-	if (sb_rdonly(inode->i_sb)) {
+	if (sb_rdonly(iyesde->i_sb)) {
 		nilfs_clear_dirty_pages(mapping, false);
 		return -EROFS;
 	}
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
-		err = nilfs_construct_dsync_segment(inode->i_sb, inode,
+		err = nilfs_construct_dsync_segment(iyesde->i_sb, iyesde,
 						    wbc->range_start,
 						    wbc->range_end);
 	return err;
@@ -179,10 +179,10 @@ static int nilfs_writepages(struct address_space *mapping,
 
 static int nilfs_writepage(struct page *page, struct writeback_control *wbc)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	int err;
 
-	if (sb_rdonly(inode->i_sb)) {
+	if (sb_rdonly(iyesde->i_sb)) {
 		/*
 		 * It means that filesystem was remounted in read-only
 		 * mode because of error or metadata corruption. But we
@@ -198,26 +198,26 @@ static int nilfs_writepage(struct page *page, struct writeback_control *wbc)
 	unlock_page(page);
 
 	if (wbc->sync_mode == WB_SYNC_ALL) {
-		err = nilfs_construct_segment(inode->i_sb);
+		err = nilfs_construct_segment(iyesde->i_sb);
 		if (unlikely(err))
 			return err;
 	} else if (wbc->for_reclaim)
-		nilfs_flush_segment(inode->i_sb, inode->i_ino);
+		nilfs_flush_segment(iyesde->i_sb, iyesde->i_iyes);
 
 	return 0;
 }
 
 static int nilfs_set_page_dirty(struct page *page)
 {
-	struct inode *inode = page->mapping->host;
-	int ret = __set_page_dirty_nobuffers(page);
+	struct iyesde *iyesde = page->mapping->host;
+	int ret = __set_page_dirty_yesbuffers(page);
 
 	if (page_has_buffers(page)) {
 		unsigned int nr_dirty = 0;
 		struct buffer_head *bh, *head;
 
 		/*
-		 * This page is locked by callers, and no other thread
+		 * This page is locked by callers, and yes other thread
 		 * concurrently marks its buffers dirty since they are
 		 * only dirtied through routines in fs/buffer.c in
 		 * which call sites of mark_buffer_dirty are protected
@@ -225,7 +225,7 @@ static int nilfs_set_page_dirty(struct page *page)
 		 */
 		bh = head = page_buffers(page);
 		do {
-			/* Do not mark hole blocks dirty */
+			/* Do yest mark hole blocks dirty */
 			if (buffer_dirty(bh) || !buffer_mapped(bh))
 				continue;
 
@@ -234,22 +234,22 @@ static int nilfs_set_page_dirty(struct page *page)
 		} while (bh = bh->b_this_page, bh != head);
 
 		if (nr_dirty)
-			nilfs_set_file_dirty(inode, nr_dirty);
+			nilfs_set_file_dirty(iyesde, nr_dirty);
 	} else if (ret) {
-		unsigned int nr_dirty = 1 << (PAGE_SHIFT - inode->i_blkbits);
+		unsigned int nr_dirty = 1 << (PAGE_SHIFT - iyesde->i_blkbits);
 
-		nilfs_set_file_dirty(inode, nr_dirty);
+		nilfs_set_file_dirty(iyesde, nr_dirty);
 	}
 	return ret;
 }
 
 void nilfs_write_failed(struct address_space *mapping, loff_t to)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 
-	if (to > inode->i_size) {
-		truncate_pagecache(inode, inode->i_size);
-		nilfs_truncate(inode);
+	if (to > iyesde->i_size) {
+		truncate_pagecache(iyesde, iyesde->i_size);
+		nilfs_truncate(iyesde);
 	}
 }
 
@@ -258,8 +258,8 @@ static int nilfs_write_begin(struct file *file, struct address_space *mapping,
 			     struct page **pagep, void **fsdata)
 
 {
-	struct inode *inode = mapping->host;
-	int err = nilfs_transaction_begin(inode->i_sb, NULL, 1);
+	struct iyesde *iyesde = mapping->host;
+	int err = nilfs_transaction_begin(iyesde->i_sb, NULL, 1);
 
 	if (unlikely(err))
 		return err;
@@ -268,7 +268,7 @@ static int nilfs_write_begin(struct file *file, struct address_space *mapping,
 				nilfs_get_block);
 	if (unlikely(err)) {
 		nilfs_write_failed(mapping, pos + len);
-		nilfs_transaction_abort(inode->i_sb);
+		nilfs_transaction_abort(iyesde->i_sb);
 	}
 	return err;
 }
@@ -277,7 +277,7 @@ static int nilfs_write_end(struct file *file, struct address_space *mapping,
 			   loff_t pos, unsigned len, unsigned copied,
 			   struct page *page, void *fsdata)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	unsigned int start = pos & (PAGE_SIZE - 1);
 	unsigned int nr_dirty;
 	int err;
@@ -286,21 +286,21 @@ static int nilfs_write_end(struct file *file, struct address_space *mapping,
 						  start + copied);
 	copied = generic_write_end(file, mapping, pos, len, copied, page,
 				   fsdata);
-	nilfs_set_file_dirty(inode, nr_dirty);
-	err = nilfs_transaction_commit(inode->i_sb);
+	nilfs_set_file_dirty(iyesde, nr_dirty);
+	err = nilfs_transaction_commit(iyesde->i_sb);
 	return err ? : copied;
 }
 
 static ssize_t
 nilfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct iyesde *iyesde = file_iyesde(iocb->ki_filp);
 
 	if (iov_iter_rw(iter) == WRITE)
 		return 0;
 
 	/* Needs synchronization with the cleaner */
-	return blockdev_direct_IO(iocb, inode, iter, nilfs_get_block);
+	return blockdev_direct_IO(iocb, iyesde, iter, nilfs_get_block);
 }
 
 const struct address_space_operations nilfs_aops = {
@@ -317,48 +317,48 @@ const struct address_space_operations nilfs_aops = {
 	.is_partially_uptodate  = block_is_partially_uptodate,
 };
 
-static int nilfs_insert_inode_locked(struct inode *inode,
+static int nilfs_insert_iyesde_locked(struct iyesde *iyesde,
 				     struct nilfs_root *root,
-				     unsigned long ino)
+				     unsigned long iyes)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = root, .cno = 0, .for_gc = 0
+		.iyes = iyes, .root = root, .cyes = 0, .for_gc = 0
 	};
 
-	return insert_inode_locked4(inode, ino, nilfs_iget_test, &args);
+	return insert_iyesde_locked4(iyesde, iyes, nilfs_iget_test, &args);
 }
 
-struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
+struct iyesde *nilfs_new_iyesde(struct iyesde *dir, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
 	struct the_nilfs *nilfs = sb->s_fs_info;
-	struct inode *inode;
-	struct nilfs_inode_info *ii;
+	struct iyesde *iyesde;
+	struct nilfs_iyesde_info *ii;
 	struct nilfs_root *root;
 	int err = -ENOMEM;
-	ino_t ino;
+	iyes_t iyes;
 
-	inode = new_inode(sb);
-	if (unlikely(!inode))
+	iyesde = new_iyesde(sb);
+	if (unlikely(!iyesde))
 		goto failed;
 
-	mapping_set_gfp_mask(inode->i_mapping,
-			   mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS));
+	mapping_set_gfp_mask(iyesde->i_mapping,
+			   mapping_gfp_constraint(iyesde->i_mapping, ~__GFP_FS));
 
 	root = NILFS_I(dir)->i_root;
-	ii = NILFS_I(inode);
+	ii = NILFS_I(iyesde);
 	ii->i_state = BIT(NILFS_I_NEW);
 	ii->i_root = root;
 
-	err = nilfs_ifile_create_inode(root->ifile, &ino, &ii->i_bh);
+	err = nilfs_ifile_create_iyesde(root->ifile, &iyes, &ii->i_bh);
 	if (unlikely(err))
-		goto failed_ifile_create_inode;
+		goto failed_ifile_create_iyesde;
 	/* reference count of i_bh inherits from nilfs_mdt_read_block() */
 
-	atomic64_inc(&root->inodes_count);
-	inode_init_owner(inode, dir, mode);
-	inode->i_ino = ino;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	atomic64_inc(&root->iyesdes_count);
+	iyesde_init_owner(iyesde, dir, mode);
+	iyesde->i_iyes = iyes;
+	iyesde->i_mtime = iyesde->i_atime = iyesde->i_ctime = current_time(iyesde);
 
 	if (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)) {
 		err = nilfs_bmap_read(ii->i_bmap, NULL);
@@ -375,16 +375,16 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 	/* ii->i_file_acl = 0; */
 	/* ii->i_dir_acl = 0; */
 	ii->i_dir_start_lookup = 0;
-	nilfs_set_inode_flags(inode);
+	nilfs_set_iyesde_flags(iyesde);
 	spin_lock(&nilfs->ns_next_gen_lock);
-	inode->i_generation = nilfs->ns_next_generation++;
+	iyesde->i_generation = nilfs->ns_next_generation++;
 	spin_unlock(&nilfs->ns_next_gen_lock);
-	if (nilfs_insert_inode_locked(inode, root, ino) < 0) {
+	if (nilfs_insert_iyesde_locked(iyesde, root, iyes) < 0) {
 		err = -EIO;
 		goto failed_after_creation;
 	}
 
-	err = nilfs_init_acl(inode, dir);
+	err = nilfs_init_acl(iyesde, dir);
 	if (unlikely(err))
 		/*
 		 * Never occur.  When supporting nilfs_init_acl(),
@@ -392,27 +392,27 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 		 */
 		goto failed_after_creation;
 
-	return inode;
+	return iyesde;
 
  failed_after_creation:
-	clear_nlink(inode);
-	unlock_new_inode(inode);
-	iput(inode);  /*
-		       * raw_inode will be deleted through
-		       * nilfs_evict_inode().
+	clear_nlink(iyesde);
+	unlock_new_iyesde(iyesde);
+	iput(iyesde);  /*
+		       * raw_iyesde will be deleted through
+		       * nilfs_evict_iyesde().
 		       */
 	goto failed;
 
- failed_ifile_create_inode:
-	make_bad_inode(inode);
-	iput(inode);
+ failed_ifile_create_iyesde:
+	make_bad_iyesde(iyesde);
+	iput(iyesde);
  failed:
 	return ERR_PTR(err);
 }
 
-void nilfs_set_inode_flags(struct inode *inode)
+void nilfs_set_iyesde_flags(struct iyesde *iyesde)
 {
-	unsigned int flags = NILFS_I(inode)->i_flags;
+	unsigned int flags = NILFS_I(iyesde)->i_flags;
 	unsigned int new_fl = 0;
 
 	if (flags & FS_SYNC_FL)
@@ -425,43 +425,43 @@ void nilfs_set_inode_flags(struct inode *inode)
 		new_fl |= S_NOATIME;
 	if (flags & FS_DIRSYNC_FL)
 		new_fl |= S_DIRSYNC;
-	inode_set_flags(inode, new_fl, S_SYNC | S_APPEND | S_IMMUTABLE |
+	iyesde_set_flags(iyesde, new_fl, S_SYNC | S_APPEND | S_IMMUTABLE |
 			S_NOATIME | S_DIRSYNC);
 }
 
-int nilfs_read_inode_common(struct inode *inode,
-			    struct nilfs_inode *raw_inode)
+int nilfs_read_iyesde_common(struct iyesde *iyesde,
+			    struct nilfs_iyesde *raw_iyesde)
 {
-	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct nilfs_iyesde_info *ii = NILFS_I(iyesde);
 	int err;
 
-	inode->i_mode = le16_to_cpu(raw_inode->i_mode);
-	i_uid_write(inode, le32_to_cpu(raw_inode->i_uid));
-	i_gid_write(inode, le32_to_cpu(raw_inode->i_gid));
-	set_nlink(inode, le16_to_cpu(raw_inode->i_links_count));
-	inode->i_size = le64_to_cpu(raw_inode->i_size);
-	inode->i_atime.tv_sec = le64_to_cpu(raw_inode->i_mtime);
-	inode->i_ctime.tv_sec = le64_to_cpu(raw_inode->i_ctime);
-	inode->i_mtime.tv_sec = le64_to_cpu(raw_inode->i_mtime);
-	inode->i_atime.tv_nsec = le32_to_cpu(raw_inode->i_mtime_nsec);
-	inode->i_ctime.tv_nsec = le32_to_cpu(raw_inode->i_ctime_nsec);
-	inode->i_mtime.tv_nsec = le32_to_cpu(raw_inode->i_mtime_nsec);
-	if (inode->i_nlink == 0)
-		return -ESTALE; /* this inode is deleted */
+	iyesde->i_mode = le16_to_cpu(raw_iyesde->i_mode);
+	i_uid_write(iyesde, le32_to_cpu(raw_iyesde->i_uid));
+	i_gid_write(iyesde, le32_to_cpu(raw_iyesde->i_gid));
+	set_nlink(iyesde, le16_to_cpu(raw_iyesde->i_links_count));
+	iyesde->i_size = le64_to_cpu(raw_iyesde->i_size);
+	iyesde->i_atime.tv_sec = le64_to_cpu(raw_iyesde->i_mtime);
+	iyesde->i_ctime.tv_sec = le64_to_cpu(raw_iyesde->i_ctime);
+	iyesde->i_mtime.tv_sec = le64_to_cpu(raw_iyesde->i_mtime);
+	iyesde->i_atime.tv_nsec = le32_to_cpu(raw_iyesde->i_mtime_nsec);
+	iyesde->i_ctime.tv_nsec = le32_to_cpu(raw_iyesde->i_ctime_nsec);
+	iyesde->i_mtime.tv_nsec = le32_to_cpu(raw_iyesde->i_mtime_nsec);
+	if (iyesde->i_nlink == 0)
+		return -ESTALE; /* this iyesde is deleted */
 
-	inode->i_blocks = le64_to_cpu(raw_inode->i_blocks);
-	ii->i_flags = le32_to_cpu(raw_inode->i_flags);
+	iyesde->i_blocks = le64_to_cpu(raw_iyesde->i_blocks);
+	ii->i_flags = le32_to_cpu(raw_iyesde->i_flags);
 #if 0
-	ii->i_file_acl = le32_to_cpu(raw_inode->i_file_acl);
-	ii->i_dir_acl = S_ISREG(inode->i_mode) ?
-		0 : le32_to_cpu(raw_inode->i_dir_acl);
+	ii->i_file_acl = le32_to_cpu(raw_iyesde->i_file_acl);
+	ii->i_dir_acl = S_ISREG(iyesde->i_mode) ?
+		0 : le32_to_cpu(raw_iyesde->i_dir_acl);
 #endif
 	ii->i_dir_start_lookup = 0;
-	inode->i_generation = le32_to_cpu(raw_inode->i_generation);
+	iyesde->i_generation = le32_to_cpu(raw_iyesde->i_generation);
 
-	if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
-	    S_ISLNK(inode->i_mode)) {
-		err = nilfs_bmap_read(ii->i_bmap, raw_inode);
+	if (S_ISREG(iyesde->i_mode) || S_ISDIR(iyesde->i_mode) ||
+	    S_ISLNK(iyesde->i_mode)) {
+		err = nilfs_bmap_read(ii->i_bmap, raw_iyesde);
 		if (err < 0)
 			return err;
 		set_bit(NILFS_I_BMAP, &ii->i_state);
@@ -470,225 +470,225 @@ int nilfs_read_inode_common(struct inode *inode,
 	return 0;
 }
 
-static int __nilfs_read_inode(struct super_block *sb,
-			      struct nilfs_root *root, unsigned long ino,
-			      struct inode *inode)
+static int __nilfs_read_iyesde(struct super_block *sb,
+			      struct nilfs_root *root, unsigned long iyes,
+			      struct iyesde *iyesde)
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct buffer_head *bh;
-	struct nilfs_inode *raw_inode;
+	struct nilfs_iyesde *raw_iyesde;
 	int err;
 
 	down_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
-	err = nilfs_ifile_get_inode_block(root->ifile, ino, &bh);
+	err = nilfs_ifile_get_iyesde_block(root->ifile, iyes, &bh);
 	if (unlikely(err))
-		goto bad_inode;
+		goto bad_iyesde;
 
-	raw_inode = nilfs_ifile_map_inode(root->ifile, ino, bh);
+	raw_iyesde = nilfs_ifile_map_iyesde(root->ifile, iyes, bh);
 
-	err = nilfs_read_inode_common(inode, raw_inode);
+	err = nilfs_read_iyesde_common(iyesde, raw_iyesde);
 	if (err)
 		goto failed_unmap;
 
-	if (S_ISREG(inode->i_mode)) {
-		inode->i_op = &nilfs_file_inode_operations;
-		inode->i_fop = &nilfs_file_operations;
-		inode->i_mapping->a_ops = &nilfs_aops;
-	} else if (S_ISDIR(inode->i_mode)) {
-		inode->i_op = &nilfs_dir_inode_operations;
-		inode->i_fop = &nilfs_dir_operations;
-		inode->i_mapping->a_ops = &nilfs_aops;
-	} else if (S_ISLNK(inode->i_mode)) {
-		inode->i_op = &nilfs_symlink_inode_operations;
-		inode_nohighmem(inode);
-		inode->i_mapping->a_ops = &nilfs_aops;
+	if (S_ISREG(iyesde->i_mode)) {
+		iyesde->i_op = &nilfs_file_iyesde_operations;
+		iyesde->i_fop = &nilfs_file_operations;
+		iyesde->i_mapping->a_ops = &nilfs_aops;
+	} else if (S_ISDIR(iyesde->i_mode)) {
+		iyesde->i_op = &nilfs_dir_iyesde_operations;
+		iyesde->i_fop = &nilfs_dir_operations;
+		iyesde->i_mapping->a_ops = &nilfs_aops;
+	} else if (S_ISLNK(iyesde->i_mode)) {
+		iyesde->i_op = &nilfs_symlink_iyesde_operations;
+		iyesde_yeshighmem(iyesde);
+		iyesde->i_mapping->a_ops = &nilfs_aops;
 	} else {
-		inode->i_op = &nilfs_special_inode_operations;
-		init_special_inode(
-			inode, inode->i_mode,
-			huge_decode_dev(le64_to_cpu(raw_inode->i_device_code)));
+		iyesde->i_op = &nilfs_special_iyesde_operations;
+		init_special_iyesde(
+			iyesde, iyesde->i_mode,
+			huge_decode_dev(le64_to_cpu(raw_iyesde->i_device_code)));
 	}
-	nilfs_ifile_unmap_inode(root->ifile, ino, bh);
+	nilfs_ifile_unmap_iyesde(root->ifile, iyes, bh);
 	brelse(bh);
 	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
-	nilfs_set_inode_flags(inode);
-	mapping_set_gfp_mask(inode->i_mapping,
-			   mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS));
+	nilfs_set_iyesde_flags(iyesde);
+	mapping_set_gfp_mask(iyesde->i_mapping,
+			   mapping_gfp_constraint(iyesde->i_mapping, ~__GFP_FS));
 	return 0;
 
  failed_unmap:
-	nilfs_ifile_unmap_inode(root->ifile, ino, bh);
+	nilfs_ifile_unmap_iyesde(root->ifile, iyes, bh);
 	brelse(bh);
 
- bad_inode:
+ bad_iyesde:
 	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	return err;
 }
 
-static int nilfs_iget_test(struct inode *inode, void *opaque)
+static int nilfs_iget_test(struct iyesde *iyesde, void *opaque)
 {
 	struct nilfs_iget_args *args = opaque;
-	struct nilfs_inode_info *ii;
+	struct nilfs_iyesde_info *ii;
 
-	if (args->ino != inode->i_ino || args->root != NILFS_I(inode)->i_root)
+	if (args->iyes != iyesde->i_iyes || args->root != NILFS_I(iyesde)->i_root)
 		return 0;
 
-	ii = NILFS_I(inode);
+	ii = NILFS_I(iyesde);
 	if (!test_bit(NILFS_I_GCINODE, &ii->i_state))
 		return !args->for_gc;
 
-	return args->for_gc && args->cno == ii->i_cno;
+	return args->for_gc && args->cyes == ii->i_cyes;
 }
 
-static int nilfs_iget_set(struct inode *inode, void *opaque)
+static int nilfs_iget_set(struct iyesde *iyesde, void *opaque)
 {
 	struct nilfs_iget_args *args = opaque;
 
-	inode->i_ino = args->ino;
+	iyesde->i_iyes = args->iyes;
 	if (args->for_gc) {
-		NILFS_I(inode)->i_state = BIT(NILFS_I_GCINODE);
-		NILFS_I(inode)->i_cno = args->cno;
-		NILFS_I(inode)->i_root = NULL;
+		NILFS_I(iyesde)->i_state = BIT(NILFS_I_GCINODE);
+		NILFS_I(iyesde)->i_cyes = args->cyes;
+		NILFS_I(iyesde)->i_root = NULL;
 	} else {
-		if (args->root && args->ino == NILFS_ROOT_INO)
+		if (args->root && args->iyes == NILFS_ROOT_INO)
 			nilfs_get_root(args->root);
-		NILFS_I(inode)->i_root = args->root;
+		NILFS_I(iyesde)->i_root = args->root;
 	}
 	return 0;
 }
 
-struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
-			    unsigned long ino)
+struct iyesde *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
+			    unsigned long iyes)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = root, .cno = 0, .for_gc = 0
+		.iyes = iyes, .root = root, .cyes = 0, .for_gc = 0
 	};
 
-	return ilookup5(sb, ino, nilfs_iget_test, &args);
+	return ilookup5(sb, iyes, nilfs_iget_test, &args);
 }
 
-struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
-				unsigned long ino)
+struct iyesde *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
+				unsigned long iyes)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = root, .cno = 0, .for_gc = 0
+		.iyes = iyes, .root = root, .cyes = 0, .for_gc = 0
 	};
 
-	return iget5_locked(sb, ino, nilfs_iget_test, nilfs_iget_set, &args);
+	return iget5_locked(sb, iyes, nilfs_iget_test, nilfs_iget_set, &args);
 }
 
-struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
-			 unsigned long ino)
+struct iyesde *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
+			 unsigned long iyes)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int err;
 
-	inode = nilfs_iget_locked(sb, root, ino);
-	if (unlikely(!inode))
+	iyesde = nilfs_iget_locked(sb, root, iyes);
+	if (unlikely(!iyesde))
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(iyesde->i_state & I_NEW))
+		return iyesde;
 
-	err = __nilfs_read_inode(sb, root, ino, inode);
+	err = __nilfs_read_iyesde(sb, root, iyes, iyesde);
 	if (unlikely(err)) {
-		iget_failed(inode);
+		iget_failed(iyesde);
 		return ERR_PTR(err);
 	}
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_iyesde(iyesde);
+	return iyesde;
 }
 
-struct inode *nilfs_iget_for_gc(struct super_block *sb, unsigned long ino,
-				__u64 cno)
+struct iyesde *nilfs_iget_for_gc(struct super_block *sb, unsigned long iyes,
+				__u64 cyes)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = NULL, .cno = cno, .for_gc = 1
+		.iyes = iyes, .root = NULL, .cyes = cyes, .for_gc = 1
 	};
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int err;
 
-	inode = iget5_locked(sb, ino, nilfs_iget_test, nilfs_iget_set, &args);
-	if (unlikely(!inode))
+	iyesde = iget5_locked(sb, iyes, nilfs_iget_test, nilfs_iget_set, &args);
+	if (unlikely(!iyesde))
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(iyesde->i_state & I_NEW))
+		return iyesde;
 
-	err = nilfs_init_gcinode(inode);
+	err = nilfs_init_gciyesde(iyesde);
 	if (unlikely(err)) {
-		iget_failed(inode);
+		iget_failed(iyesde);
 		return ERR_PTR(err);
 	}
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_iyesde(iyesde);
+	return iyesde;
 }
 
-void nilfs_write_inode_common(struct inode *inode,
-			      struct nilfs_inode *raw_inode, int has_bmap)
+void nilfs_write_iyesde_common(struct iyesde *iyesde,
+			      struct nilfs_iyesde *raw_iyesde, int has_bmap)
 {
-	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct nilfs_iyesde_info *ii = NILFS_I(iyesde);
 
-	raw_inode->i_mode = cpu_to_le16(inode->i_mode);
-	raw_inode->i_uid = cpu_to_le32(i_uid_read(inode));
-	raw_inode->i_gid = cpu_to_le32(i_gid_read(inode));
-	raw_inode->i_links_count = cpu_to_le16(inode->i_nlink);
-	raw_inode->i_size = cpu_to_le64(inode->i_size);
-	raw_inode->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
-	raw_inode->i_mtime = cpu_to_le64(inode->i_mtime.tv_sec);
-	raw_inode->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
-	raw_inode->i_mtime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
-	raw_inode->i_blocks = cpu_to_le64(inode->i_blocks);
+	raw_iyesde->i_mode = cpu_to_le16(iyesde->i_mode);
+	raw_iyesde->i_uid = cpu_to_le32(i_uid_read(iyesde));
+	raw_iyesde->i_gid = cpu_to_le32(i_gid_read(iyesde));
+	raw_iyesde->i_links_count = cpu_to_le16(iyesde->i_nlink);
+	raw_iyesde->i_size = cpu_to_le64(iyesde->i_size);
+	raw_iyesde->i_ctime = cpu_to_le64(iyesde->i_ctime.tv_sec);
+	raw_iyesde->i_mtime = cpu_to_le64(iyesde->i_mtime.tv_sec);
+	raw_iyesde->i_ctime_nsec = cpu_to_le32(iyesde->i_ctime.tv_nsec);
+	raw_iyesde->i_mtime_nsec = cpu_to_le32(iyesde->i_mtime.tv_nsec);
+	raw_iyesde->i_blocks = cpu_to_le64(iyesde->i_blocks);
 
-	raw_inode->i_flags = cpu_to_le32(ii->i_flags);
-	raw_inode->i_generation = cpu_to_le32(inode->i_generation);
+	raw_iyesde->i_flags = cpu_to_le32(ii->i_flags);
+	raw_iyesde->i_generation = cpu_to_le32(iyesde->i_generation);
 
-	if (NILFS_ROOT_METADATA_FILE(inode->i_ino)) {
-		struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	if (NILFS_ROOT_METADATA_FILE(iyesde->i_iyes)) {
+		struct the_nilfs *nilfs = iyesde->i_sb->s_fs_info;
 
 		/* zero-fill unused portion in the case of super root block */
-		raw_inode->i_xattr = 0;
-		raw_inode->i_pad = 0;
-		memset((void *)raw_inode + sizeof(*raw_inode), 0,
-		       nilfs->ns_inode_size - sizeof(*raw_inode));
+		raw_iyesde->i_xattr = 0;
+		raw_iyesde->i_pad = 0;
+		memset((void *)raw_iyesde + sizeof(*raw_iyesde), 0,
+		       nilfs->ns_iyesde_size - sizeof(*raw_iyesde));
 	}
 
 	if (has_bmap)
-		nilfs_bmap_write(ii->i_bmap, raw_inode);
-	else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
-		raw_inode->i_device_code =
-			cpu_to_le64(huge_encode_dev(inode->i_rdev));
+		nilfs_bmap_write(ii->i_bmap, raw_iyesde);
+	else if (S_ISCHR(iyesde->i_mode) || S_ISBLK(iyesde->i_mode))
+		raw_iyesde->i_device_code =
+			cpu_to_le64(huge_encode_dev(iyesde->i_rdev));
 	/*
-	 * When extending inode, nilfs->ns_inode_size should be checked
+	 * When extending iyesde, nilfs->ns_iyesde_size should be checked
 	 * for substitutions of appended fields.
 	 */
 }
 
-void nilfs_update_inode(struct inode *inode, struct buffer_head *ibh, int flags)
+void nilfs_update_iyesde(struct iyesde *iyesde, struct buffer_head *ibh, int flags)
 {
-	ino_t ino = inode->i_ino;
-	struct nilfs_inode_info *ii = NILFS_I(inode);
-	struct inode *ifile = ii->i_root->ifile;
-	struct nilfs_inode *raw_inode;
+	iyes_t iyes = iyesde->i_iyes;
+	struct nilfs_iyesde_info *ii = NILFS_I(iyesde);
+	struct iyesde *ifile = ii->i_root->ifile;
+	struct nilfs_iyesde *raw_iyesde;
 
-	raw_inode = nilfs_ifile_map_inode(ifile, ino, ibh);
+	raw_iyesde = nilfs_ifile_map_iyesde(ifile, iyes, ibh);
 
 	if (test_and_clear_bit(NILFS_I_NEW, &ii->i_state))
-		memset(raw_inode, 0, NILFS_MDT(ifile)->mi_entry_size);
+		memset(raw_iyesde, 0, NILFS_MDT(ifile)->mi_entry_size);
 	if (flags & I_DIRTY_DATASYNC)
 		set_bit(NILFS_I_INODE_SYNC, &ii->i_state);
 
-	nilfs_write_inode_common(inode, raw_inode, 0);
+	nilfs_write_iyesde_common(iyesde, raw_iyesde, 0);
 		/*
 		 * XXX: call with has_bmap = 0 is a workaround to avoid
 		 * deadlock of bmap.  This delays update of i_bmap to just
 		 * before writing.
 		 */
 
-	nilfs_ifile_unmap_inode(ifile, ino, ibh);
+	nilfs_ifile_unmap_iyesde(ifile, iyes, ibh);
 }
 
 #define NILFS_MAX_TRUNCATE_BLOCKS	16384  /* 64MB for 4KB block */
 
-static void nilfs_truncate_bmap(struct nilfs_inode_info *ii,
+static void nilfs_truncate_bmap(struct nilfs_iyesde_info *ii,
 				unsigned long from)
 {
 	__u64 b;
@@ -708,116 +708,116 @@ repeat:
 
 	b -= min_t(__u64, NILFS_MAX_TRUNCATE_BLOCKS, b - from);
 	ret = nilfs_bmap_truncate(ii->i_bmap, b);
-	nilfs_relax_pressure_in_lock(ii->vfs_inode.i_sb);
+	nilfs_relax_pressure_in_lock(ii->vfs_iyesde.i_sb);
 	if (!ret || (ret == -ENOMEM &&
 		     nilfs_bmap_truncate(ii->i_bmap, b) == 0))
 		goto repeat;
 
 failed:
-	nilfs_msg(ii->vfs_inode.i_sb, KERN_WARNING,
-		  "error %d truncating bmap (ino=%lu)", ret,
-		  ii->vfs_inode.i_ino);
+	nilfs_msg(ii->vfs_iyesde.i_sb, KERN_WARNING,
+		  "error %d truncating bmap (iyes=%lu)", ret,
+		  ii->vfs_iyesde.i_iyes);
 }
 
-void nilfs_truncate(struct inode *inode)
+void nilfs_truncate(struct iyesde *iyesde)
 {
 	unsigned long blkoff;
 	unsigned int blocksize;
 	struct nilfs_transaction_info ti;
-	struct super_block *sb = inode->i_sb;
-	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct super_block *sb = iyesde->i_sb;
+	struct nilfs_iyesde_info *ii = NILFS_I(iyesde);
 
 	if (!test_bit(NILFS_I_BMAP, &ii->i_state))
 		return;
-	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
+	if (IS_APPEND(iyesde) || IS_IMMUTABLE(iyesde))
 		return;
 
 	blocksize = sb->s_blocksize;
-	blkoff = (inode->i_size + blocksize - 1) >> sb->s_blocksize_bits;
+	blkoff = (iyesde->i_size + blocksize - 1) >> sb->s_blocksize_bits;
 	nilfs_transaction_begin(sb, &ti, 0); /* never fails */
 
-	block_truncate_page(inode->i_mapping, inode->i_size, nilfs_get_block);
+	block_truncate_page(iyesde->i_mapping, iyesde->i_size, nilfs_get_block);
 
 	nilfs_truncate_bmap(ii, blkoff);
 
-	inode->i_mtime = inode->i_ctime = current_time(inode);
-	if (IS_SYNC(inode))
+	iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
+	if (IS_SYNC(iyesde))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 
-	nilfs_mark_inode_dirty(inode);
-	nilfs_set_file_dirty(inode, 0);
+	nilfs_mark_iyesde_dirty(iyesde);
+	nilfs_set_file_dirty(iyesde, 0);
 	nilfs_transaction_commit(sb);
 	/*
 	 * May construct a logical segment and may fail in sync mode.
-	 * But truncate has no return value.
+	 * But truncate has yes return value.
 	 */
 }
 
-static void nilfs_clear_inode(struct inode *inode)
+static void nilfs_clear_iyesde(struct iyesde *iyesde)
 {
-	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct nilfs_iyesde_info *ii = NILFS_I(iyesde);
 
 	/*
-	 * Free resources allocated in nilfs_read_inode(), here.
+	 * Free resources allocated in nilfs_read_iyesde(), here.
 	 */
 	BUG_ON(!list_empty(&ii->i_dirty));
 	brelse(ii->i_bh);
 	ii->i_bh = NULL;
 
-	if (nilfs_is_metadata_file_inode(inode))
-		nilfs_mdt_clear(inode);
+	if (nilfs_is_metadata_file_iyesde(iyesde))
+		nilfs_mdt_clear(iyesde);
 
 	if (test_bit(NILFS_I_BMAP, &ii->i_state))
 		nilfs_bmap_clear(ii->i_bmap);
 
-	nilfs_btnode_cache_clear(&ii->i_btnode_cache);
+	nilfs_btyesde_cache_clear(&ii->i_btyesde_cache);
 
-	if (ii->i_root && inode->i_ino == NILFS_ROOT_INO)
+	if (ii->i_root && iyesde->i_iyes == NILFS_ROOT_INO)
 		nilfs_put_root(ii->i_root);
 }
 
-void nilfs_evict_inode(struct inode *inode)
+void nilfs_evict_iyesde(struct iyesde *iyesde)
 {
 	struct nilfs_transaction_info ti;
-	struct super_block *sb = inode->i_sb;
-	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct super_block *sb = iyesde->i_sb;
+	struct nilfs_iyesde_info *ii = NILFS_I(iyesde);
 	int ret;
 
-	if (inode->i_nlink || !ii->i_root || unlikely(is_bad_inode(inode))) {
-		truncate_inode_pages_final(&inode->i_data);
-		clear_inode(inode);
-		nilfs_clear_inode(inode);
+	if (iyesde->i_nlink || !ii->i_root || unlikely(is_bad_iyesde(iyesde))) {
+		truncate_iyesde_pages_final(&iyesde->i_data);
+		clear_iyesde(iyesde);
+		nilfs_clear_iyesde(iyesde);
 		return;
 	}
 	nilfs_transaction_begin(sb, &ti, 0); /* never fails */
 
-	truncate_inode_pages_final(&inode->i_data);
+	truncate_iyesde_pages_final(&iyesde->i_data);
 
 	/* TODO: some of the following operations may fail.  */
 	nilfs_truncate_bmap(ii, 0);
-	nilfs_mark_inode_dirty(inode);
-	clear_inode(inode);
+	nilfs_mark_iyesde_dirty(iyesde);
+	clear_iyesde(iyesde);
 
-	ret = nilfs_ifile_delete_inode(ii->i_root->ifile, inode->i_ino);
+	ret = nilfs_ifile_delete_iyesde(ii->i_root->ifile, iyesde->i_iyes);
 	if (!ret)
-		atomic64_dec(&ii->i_root->inodes_count);
+		atomic64_dec(&ii->i_root->iyesdes_count);
 
-	nilfs_clear_inode(inode);
+	nilfs_clear_iyesde(iyesde);
 
-	if (IS_SYNC(inode))
+	if (IS_SYNC(iyesde))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 	nilfs_transaction_commit(sb);
 	/*
 	 * May construct a logical segment and may fail in sync mode.
-	 * But delete_inode has no return value.
+	 * But delete_iyesde has yes return value.
 	 */
 }
 
 int nilfs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct nilfs_transaction_info ti;
-	struct inode *inode = d_inode(dentry);
-	struct super_block *sb = inode->i_sb;
+	struct iyesde *iyesde = d_iyesde(dentry);
+	struct super_block *sb = iyesde->i_sb;
 	int err;
 
 	err = setattr_prepare(dentry, iattr);
@@ -829,17 +829,17 @@ int nilfs_setattr(struct dentry *dentry, struct iattr *iattr)
 		return err;
 
 	if ((iattr->ia_valid & ATTR_SIZE) &&
-	    iattr->ia_size != i_size_read(inode)) {
-		inode_dio_wait(inode);
-		truncate_setsize(inode, iattr->ia_size);
-		nilfs_truncate(inode);
+	    iattr->ia_size != i_size_read(iyesde)) {
+		iyesde_dio_wait(iyesde);
+		truncate_setsize(iyesde, iattr->ia_size);
+		nilfs_truncate(iyesde);
 	}
 
-	setattr_copy(inode, iattr);
-	mark_inode_dirty(inode);
+	setattr_copy(iyesde, iattr);
+	mark_iyesde_dirty(iyesde);
 
 	if (iattr->ia_valid & ATTR_MODE) {
-		err = nilfs_acl_chmod(inode);
+		err = nilfs_acl_chmod(iyesde);
 		if (unlikely(err))
 			goto out_err;
 	}
@@ -851,31 +851,31 @@ out_err:
 	return err;
 }
 
-int nilfs_permission(struct inode *inode, int mask)
+int nilfs_permission(struct iyesde *iyesde, int mask)
 {
-	struct nilfs_root *root = NILFS_I(inode)->i_root;
+	struct nilfs_root *root = NILFS_I(iyesde)->i_root;
 
 	if ((mask & MAY_WRITE) && root &&
-	    root->cno != NILFS_CPTREE_CURRENT_CNO)
-		return -EROFS; /* snapshot is not writable */
+	    root->cyes != NILFS_CPTREE_CURRENT_CNO)
+		return -EROFS; /* snapshot is yest writable */
 
-	return generic_permission(inode, mask);
+	return generic_permission(iyesde, mask);
 }
 
-int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh)
+int nilfs_load_iyesde_block(struct iyesde *iyesde, struct buffer_head **pbh)
 {
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
-	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct the_nilfs *nilfs = iyesde->i_sb->s_fs_info;
+	struct nilfs_iyesde_info *ii = NILFS_I(iyesde);
 	int err;
 
-	spin_lock(&nilfs->ns_inode_lock);
+	spin_lock(&nilfs->ns_iyesde_lock);
 	if (ii->i_bh == NULL) {
-		spin_unlock(&nilfs->ns_inode_lock);
-		err = nilfs_ifile_get_inode_block(ii->i_root->ifile,
-						  inode->i_ino, pbh);
+		spin_unlock(&nilfs->ns_iyesde_lock);
+		err = nilfs_ifile_get_iyesde_block(ii->i_root->ifile,
+						  iyesde->i_iyes, pbh);
 		if (unlikely(err))
 			return err;
-		spin_lock(&nilfs->ns_inode_lock);
+		spin_lock(&nilfs->ns_iyesde_lock);
 		if (ii->i_bh == NULL)
 			ii->i_bh = *pbh;
 		else {
@@ -886,137 +886,137 @@ int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh)
 		*pbh = ii->i_bh;
 
 	get_bh(*pbh);
-	spin_unlock(&nilfs->ns_inode_lock);
+	spin_unlock(&nilfs->ns_iyesde_lock);
 	return 0;
 }
 
-int nilfs_inode_dirty(struct inode *inode)
+int nilfs_iyesde_dirty(struct iyesde *iyesde)
 {
-	struct nilfs_inode_info *ii = NILFS_I(inode);
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct nilfs_iyesde_info *ii = NILFS_I(iyesde);
+	struct the_nilfs *nilfs = iyesde->i_sb->s_fs_info;
 	int ret = 0;
 
 	if (!list_empty(&ii->i_dirty)) {
-		spin_lock(&nilfs->ns_inode_lock);
+		spin_lock(&nilfs->ns_iyesde_lock);
 		ret = test_bit(NILFS_I_DIRTY, &ii->i_state) ||
 			test_bit(NILFS_I_BUSY, &ii->i_state);
-		spin_unlock(&nilfs->ns_inode_lock);
+		spin_unlock(&nilfs->ns_iyesde_lock);
 	}
 	return ret;
 }
 
-int nilfs_set_file_dirty(struct inode *inode, unsigned int nr_dirty)
+int nilfs_set_file_dirty(struct iyesde *iyesde, unsigned int nr_dirty)
 {
-	struct nilfs_inode_info *ii = NILFS_I(inode);
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct nilfs_iyesde_info *ii = NILFS_I(iyesde);
+	struct the_nilfs *nilfs = iyesde->i_sb->s_fs_info;
 
 	atomic_add(nr_dirty, &nilfs->ns_ndirtyblks);
 
 	if (test_and_set_bit(NILFS_I_DIRTY, &ii->i_state))
 		return 0;
 
-	spin_lock(&nilfs->ns_inode_lock);
+	spin_lock(&nilfs->ns_iyesde_lock);
 	if (!test_bit(NILFS_I_QUEUED, &ii->i_state) &&
 	    !test_bit(NILFS_I_BUSY, &ii->i_state)) {
 		/*
 		 * Because this routine may race with nilfs_dispose_list(),
 		 * we have to check NILFS_I_QUEUED here, too.
 		 */
-		if (list_empty(&ii->i_dirty) && igrab(inode) == NULL) {
+		if (list_empty(&ii->i_dirty) && igrab(iyesde) == NULL) {
 			/*
 			 * This will happen when somebody is freeing
-			 * this inode.
+			 * this iyesde.
 			 */
-			nilfs_msg(inode->i_sb, KERN_WARNING,
-				  "cannot set file dirty (ino=%lu): the file is being freed",
-				  inode->i_ino);
-			spin_unlock(&nilfs->ns_inode_lock);
+			nilfs_msg(iyesde->i_sb, KERN_WARNING,
+				  "canyest set file dirty (iyes=%lu): the file is being freed",
+				  iyesde->i_iyes);
+			spin_unlock(&nilfs->ns_iyesde_lock);
 			return -EINVAL; /*
 					 * NILFS_I_DIRTY may remain for
-					 * freeing inode.
+					 * freeing iyesde.
 					 */
 		}
 		list_move_tail(&ii->i_dirty, &nilfs->ns_dirty_files);
 		set_bit(NILFS_I_QUEUED, &ii->i_state);
 	}
-	spin_unlock(&nilfs->ns_inode_lock);
+	spin_unlock(&nilfs->ns_iyesde_lock);
 	return 0;
 }
 
-int __nilfs_mark_inode_dirty(struct inode *inode, int flags)
+int __nilfs_mark_iyesde_dirty(struct iyesde *iyesde, int flags)
 {
 	struct buffer_head *ibh;
 	int err;
 
-	err = nilfs_load_inode_block(inode, &ibh);
+	err = nilfs_load_iyesde_block(iyesde, &ibh);
 	if (unlikely(err)) {
-		nilfs_msg(inode->i_sb, KERN_WARNING,
-			  "cannot mark inode dirty (ino=%lu): error %d loading inode block",
-			  inode->i_ino, err);
+		nilfs_msg(iyesde->i_sb, KERN_WARNING,
+			  "canyest mark iyesde dirty (iyes=%lu): error %d loading iyesde block",
+			  iyesde->i_iyes, err);
 		return err;
 	}
-	nilfs_update_inode(inode, ibh, flags);
+	nilfs_update_iyesde(iyesde, ibh, flags);
 	mark_buffer_dirty(ibh);
-	nilfs_mdt_mark_dirty(NILFS_I(inode)->i_root->ifile);
+	nilfs_mdt_mark_dirty(NILFS_I(iyesde)->i_root->ifile);
 	brelse(ibh);
 	return 0;
 }
 
 /**
- * nilfs_dirty_inode - reflect changes on given inode to an inode block.
- * @inode: inode of the file to be registered.
+ * nilfs_dirty_iyesde - reflect changes on given iyesde to an iyesde block.
+ * @iyesde: iyesde of the file to be registered.
  *
- * nilfs_dirty_inode() loads a inode block containing the specified
- * @inode and copies data from a nilfs_inode to a corresponding inode
- * entry in the inode block. This operation is excluded from the segment
+ * nilfs_dirty_iyesde() loads a iyesde block containing the specified
+ * @iyesde and copies data from a nilfs_iyesde to a corresponding iyesde
+ * entry in the iyesde block. This operation is excluded from the segment
  * construction. This function can be called both as a single operation
  * and as a part of indivisible file operations.
  */
-void nilfs_dirty_inode(struct inode *inode, int flags)
+void nilfs_dirty_iyesde(struct iyesde *iyesde, int flags)
 {
 	struct nilfs_transaction_info ti;
-	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
+	struct nilfs_mdt_info *mdi = NILFS_MDT(iyesde);
 
-	if (is_bad_inode(inode)) {
-		nilfs_msg(inode->i_sb, KERN_WARNING,
-			  "tried to mark bad_inode dirty. ignored.");
+	if (is_bad_iyesde(iyesde)) {
+		nilfs_msg(iyesde->i_sb, KERN_WARNING,
+			  "tried to mark bad_iyesde dirty. igyesred.");
 		dump_stack();
 		return;
 	}
 	if (mdi) {
-		nilfs_mdt_mark_dirty(inode);
+		nilfs_mdt_mark_dirty(iyesde);
 		return;
 	}
-	nilfs_transaction_begin(inode->i_sb, &ti, 0);
-	__nilfs_mark_inode_dirty(inode, flags);
-	nilfs_transaction_commit(inode->i_sb); /* never fails */
+	nilfs_transaction_begin(iyesde->i_sb, &ti, 0);
+	__nilfs_mark_iyesde_dirty(iyesde, flags);
+	nilfs_transaction_commit(iyesde->i_sb); /* never fails */
 }
 
-int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+int nilfs_fiemap(struct iyesde *iyesde, struct fiemap_extent_info *fieinfo,
 		 __u64 start, __u64 len)
 {
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct the_nilfs *nilfs = iyesde->i_sb->s_fs_info;
 	__u64 logical = 0, phys = 0, size = 0;
 	__u32 flags = 0;
 	loff_t isize;
 	sector_t blkoff, end_blkoff;
 	sector_t delalloc_blkoff;
 	unsigned long delalloc_blklen;
-	unsigned int blkbits = inode->i_blkbits;
+	unsigned int blkbits = iyesde->i_blkbits;
 	int ret, n;
 
 	ret = fiemap_check_flags(fieinfo, FIEMAP_FLAG_SYNC);
 	if (ret)
 		return ret;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
-	isize = i_size_read(inode);
+	isize = i_size_read(iyesde);
 
 	blkoff = start >> blkbits;
 	end_blkoff = (start + len - 1) >> blkbits;
 
-	delalloc_blklen = nilfs_find_uncommitted_extent(inode, blkoff,
+	delalloc_blklen = nilfs_find_uncommitted_extent(iyesde, blkoff,
 							&delalloc_blkoff);
 
 	do {
@@ -1041,13 +1041,13 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 
 			blkoff = delalloc_blkoff + delalloc_blklen;
 			delalloc_blklen = nilfs_find_uncommitted_extent(
-				inode, blkoff, &delalloc_blkoff);
+				iyesde, blkoff, &delalloc_blkoff);
 			continue;
 		}
 
 		/*
 		 * Limit the number of blocks that we look up so as
-		 * not to get into the next delayed allocation extent.
+		 * yest to get into the next delayed allocation extent.
 		 */
 		maxblocks = INT_MAX;
 		if (delalloc_blklen)
@@ -1057,7 +1057,7 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 
 		down_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 		n = nilfs_bmap_lookup_contig(
-			NILFS_I(inode)->i_bmap, blkoff, &blkphy, maxblocks);
+			NILFS_I(iyesde)->i_bmap, blkoff, &blkphy, maxblocks);
 		up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 
 		if (n < 0) {
@@ -1097,7 +1097,7 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 					if (ret || blkoff > end_blkoff)
 						break;
 
-					/* Start another extent */
+					/* Start ayesther extent */
 					flags = FIEMAP_EXTENT_MERGED;
 					logical = blkoff << blkbits;
 					phys = blkphy << blkbits;
@@ -1119,6 +1119,6 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (ret == 1)
 		ret = 0;
 
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	return ret;
 }

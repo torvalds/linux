@@ -102,7 +102,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
 
 		/*
 		 * Get the pages we're interested in.  We must
-		 * access remotely because task/mm might not
+		 * access remotely because task/mm might yest
 		 * current/current->mm
 		 */
 		down_read(&mm->mmap_sem);

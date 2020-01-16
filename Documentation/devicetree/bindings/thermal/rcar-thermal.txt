@@ -27,7 +27,7 @@ Option properties:
 - interrupts		: If present should contain 3 interrupts for
                           R-Car V3M/E3/D3 and RZ/G2E or 1 interrupt otherwise.
 
-Example (non interrupt support):
+Example (yesn interrupt support):
 
 thermal@ffc48000 {
 	compatible = "renesas,thermal-r8a7779", "renesas,rcar-thermal";

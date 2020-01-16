@@ -23,7 +23,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if yest, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -32,11 +32,11 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    yestice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    yestice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may yest be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -52,7 +52,7 @@
  *
  * Author: 	Thomas Winischhofer <thomas@winischhofer.net>
  *
- * Formerly based on non-functional code-fragements for 300 series by SiS, Inc.
+ * Formerly based on yesn-functional code-fragements for 300 series by SiS, Inc.
  * Used by permission.
  */
 
@@ -190,10 +190,10 @@ InitTo300Pointer(struct SiS_Private *SiS_Pr)
 
    SiS_Pr->SiS_CHTVUPALData  = SiS300_CHTVUPALData;
    SiS_Pr->SiS_CHTVOPALData  = SiS300_CHTVOPALData;
-   SiS_Pr->SiS_CHTVUPALMData = SiS_CHTVUNTSCData;    /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVOPALMData = SiS_CHTVONTSCData;    /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVUPALNData = SiS300_CHTVUPALData;  /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVOPALNData = SiS300_CHTVOPALData;  /* not supported on 300 series */
+   SiS_Pr->SiS_CHTVUPALMData = SiS_CHTVUNTSCData;    /* yest supported on 300 series */
+   SiS_Pr->SiS_CHTVOPALMData = SiS_CHTVONTSCData;    /* yest supported on 300 series */
+   SiS_Pr->SiS_CHTVUPALNData = SiS300_CHTVUPALData;  /* yest supported on 300 series */
+   SiS_Pr->SiS_CHTVOPALNData = SiS300_CHTVOPALData;  /* yest supported on 300 series */
    SiS_Pr->SiS_CHTVSOPALData = SiS300_CHTVSOPALData;
 
    SiS_Pr->SiS_LVDS848x480Data_1   = SiS300_LVDS848x480Data_1;
@@ -216,19 +216,19 @@ InitTo300Pointer(struct SiS_Private *SiS_Pr)
    SiS_Pr->SiS_CHTVReg_ONTSC = SiS300_CHTVReg_ONTSC;
    SiS_Pr->SiS_CHTVReg_UPAL  = SiS300_CHTVReg_UPAL;
    SiS_Pr->SiS_CHTVReg_OPAL  = SiS300_CHTVReg_OPAL;
-   SiS_Pr->SiS_CHTVReg_UPALM = SiS300_CHTVReg_UNTSC;  /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVReg_OPALM = SiS300_CHTVReg_ONTSC;  /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVReg_UPALN = SiS300_CHTVReg_UPAL;   /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVReg_OPALN = SiS300_CHTVReg_OPAL;   /* not supported on 300 series */
+   SiS_Pr->SiS_CHTVReg_UPALM = SiS300_CHTVReg_UNTSC;  /* yest supported on 300 series */
+   SiS_Pr->SiS_CHTVReg_OPALM = SiS300_CHTVReg_ONTSC;  /* yest supported on 300 series */
+   SiS_Pr->SiS_CHTVReg_UPALN = SiS300_CHTVReg_UPAL;   /* yest supported on 300 series */
+   SiS_Pr->SiS_CHTVReg_OPALN = SiS300_CHTVReg_OPAL;   /* yest supported on 300 series */
    SiS_Pr->SiS_CHTVReg_SOPAL = SiS300_CHTVReg_SOPAL;
    SiS_Pr->SiS_CHTVVCLKUNTSC = SiS300_CHTVVCLKUNTSC;
    SiS_Pr->SiS_CHTVVCLKONTSC = SiS300_CHTVVCLKONTSC;
    SiS_Pr->SiS_CHTVVCLKUPAL  = SiS300_CHTVVCLKUPAL;
    SiS_Pr->SiS_CHTVVCLKOPAL  = SiS300_CHTVVCLKOPAL;
-   SiS_Pr->SiS_CHTVVCLKUPALM = SiS300_CHTVVCLKUNTSC;  /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVVCLKOPALM = SiS300_CHTVVCLKONTSC;  /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVVCLKUPALN = SiS300_CHTVVCLKUPAL;   /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVVCLKOPALN = SiS300_CHTVVCLKOPAL;   /* not supported on 300 series */
+   SiS_Pr->SiS_CHTVVCLKUPALM = SiS300_CHTVVCLKUNTSC;  /* yest supported on 300 series */
+   SiS_Pr->SiS_CHTVVCLKOPALM = SiS300_CHTVVCLKONTSC;  /* yest supported on 300 series */
+   SiS_Pr->SiS_CHTVVCLKUPALN = SiS300_CHTVVCLKUPAL;   /* yest supported on 300 series */
+   SiS_Pr->SiS_CHTVVCLKOPALN = SiS300_CHTVVCLKOPAL;   /* yest supported on 300 series */
    SiS_Pr->SiS_CHTVVCLKSOPAL = SiS300_CHTVVCLKSOPAL;
 }
 #endif
@@ -1013,7 +1013,7 @@ SiS_GetSysFlags(struct SiS_Private *SiS_Pr)
 {
    unsigned char cr5f, temp1, temp2;
 
-   /* 661 and newer: NEVER write non-zero to SR11[7:4] */
+   /* 661 and newer: NEVER write yesn-zero to SR11[7:4] */
    /* (SR11 is used for DDC and in enable/disablebridge) */
    SiS_Pr->SiS_SensibleSR11 = false;
    SiS_Pr->SiS_MyCR63 = 0x63;
@@ -1024,7 +1024,7 @@ SiS_GetSysFlags(struct SiS_Private *SiS_Pr)
       }
    }
 
-   /* You should use the macros, not these flags directly */
+   /* You should use the macros, yest these flags directly */
 
    SiS_Pr->SiS_SysFlags = 0;
    if(SiS_Pr->ChipType == SIS_650) {
@@ -1417,7 +1417,7 @@ static
 void
 SiS_GetVBType(struct SiS_Private *SiS_Pr)
 {
-   unsigned short flag = 0, rev = 0, nolcd = 0;
+   unsigned short flag = 0, rev = 0, yeslcd = 0;
    unsigned short p4_0f, p4_25, p4_27;
 
    SiS_Pr->SiS_VBType = 0;
@@ -1442,9 +1442,9 @@ SiS_GetVBType(struct SiS_Private *SiS_Pr)
 	 SiS_Pr->SiS_VBType = VB_SIS301C;
       } else if(rev >= 0xB0) {
 	 SiS_Pr->SiS_VBType = VB_SIS301B;
-	 /* Check if 30xB DH version (no LCD support, use Panel Link instead) */
-	 nolcd = SiS_GetReg(SiS_Pr->SiS_Part4Port,0x23);
-	 if(!(nolcd & 0x02)) SiS_Pr->SiS_VBType |= VB_NoLCD;
+	 /* Check if 30xB DH version (yes LCD support, use Panel Link instead) */
+	 yeslcd = SiS_GetReg(SiS_Pr->SiS_Part4Port,0x23);
+	 if(!(yeslcd & 0x02)) SiS_Pr->SiS_VBType |= VB_NoLCD;
       } else {
 	 SiS_Pr->SiS_VBType = VB_SIS301;
       }
@@ -2629,7 +2629,7 @@ SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       else if(VCLK >= 135) data = 0x02;
 
       if(SiS_Pr->ChipType == SIS_540) {
-         /* Was == 203 or < 234 which made no sense */
+         /* Was == 203 or < 234 which made yes sense */
          if (VCLK < 234) data = 0x02;
       }
 
@@ -3117,7 +3117,7 @@ SiS_StrangeStuff(struct SiS_Private *SiS_Pr)
       SiS_SetRegAND(SiS_Pr->SiS_VidPlay, 0x30, 0xfe); /* Fiddle with video regs */
       SiS_SetRegAND(SiS_Pr->SiS_VidPlay, 0x3f, 0xef);
    }
-   /* !!! This does not support modes < 0x13 !!! */
+   /* !!! This does yest support modes < 0x13 !!! */
 #endif
 }
 
@@ -3416,7 +3416,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 #ifdef CONFIG_FB_SIS_315
       /* OK for LCDA, LVDS */
       tempbx = SiS_Pr->PanelHT - SiS_Pr->PanelXRes;
-      tempax = SiS_Pr->SiS_VGAHDE;  /* not /2 ! */
+      tempax = SiS_Pr->SiS_VGAHDE;  /* yest /2 ! */
       if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
          tempax = SiS_Pr->PanelXRes;
       }
@@ -3639,7 +3639,7 @@ SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 	/* Terrible hack, but correct CRTC data for
 	 * these modes only produces a black screen...
 	 * (HRE is 0, leading into a too large C and
-	 * a negative D. The CRT controller does not
+	 * a negative D. The CRT controller does yest
 	 * seem to like correcting HRE to 50)
 	 */
       var->left_margin = (400 - 376);

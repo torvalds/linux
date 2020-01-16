@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -77,7 +77,7 @@ MODULE_PARM_DESC(num_vls, "Set number of Virtual Lanes to use (1-8)");
 
 /*
  * Default time to aggregate two 10K packets from the idle state
- * (timer not running). The timer starts at the end of the first packet,
+ * (timer yest running). The timer starts at the end of the first packet,
  * so only the time for one 10K packet and header plus a bit extra is needed.
  * 10 * 1024 + 64 header byte = 10304 byte
  * 10304 byte / 12.5 GB/s = 824.32ns
@@ -891,7 +891,7 @@ static struct flag_table dcc_err_flags[] = {
 	FLAG_ENTRY0("bad_ctrl_dist_err", DCCE(BAD_CTRL_DIST_ERR)),
 	FLAG_ENTRY0("bad_tail_dist_err", DCCE(BAD_TAIL_DIST_ERR)),
 	FLAG_ENTRY0("bad_head_dist_err", DCCE(BAD_HEAD_DIST_ERR)),
-	FLAG_ENTRY0("nonvl15_state_err", DCCE(NONVL15_STATE_ERR)),
+	FLAG_ENTRY0("yesnvl15_state_err", DCCE(NONVL15_STATE_ERR)),
 	FLAG_ENTRY0("vl15_multi_err", DCCE(VL15_MULTI_ERR)),
 	FLAG_ENTRY0("bad_pkt_length_err", DCCE(BAD_PKT_LENGTH_ERR)),
 	FLAG_ENTRY0("unsup_vl_err", DCCE(UNSUP_VL_ERR)),
@@ -987,8 +987,8 @@ static struct flag_table dc8051_err_flags[] = {
  */
 static struct flag_table dc8051_info_err_flags[] = {
 	FLAG_ENTRY0("Spico ROM check failed",  SPICO_ROM_FAILED),
-	FLAG_ENTRY0("Unknown frame received",  UNKNOWN_FRAME),
-	FLAG_ENTRY0("Target BER not met",      TARGET_BER_NOT_MET),
+	FLAG_ENTRY0("Unkyeswn frame received",  UNKNOWN_FRAME),
+	FLAG_ENTRY0("Target BER yest met",      TARGET_BER_NOT_MET),
 	FLAG_ENTRY0("Serdes internal loopback failure",
 		    FAILED_SERDES_INTERNAL_LOOPBACK),
 	FLAG_ENTRY0("Failed SerDes init",      FAILED_SERDES_INIT),
@@ -1013,8 +1013,8 @@ static struct flag_table dc8051_info_host_msg_flags[] = {
 	FLAG_ENTRY0("Host request done", 0x0001),
 	FLAG_ENTRY0("BC PWR_MGM message", 0x0002),
 	FLAG_ENTRY0("BC SMA message", 0x0004),
-	FLAG_ENTRY0("BC Unknown message (BCC)", 0x0008),
-	FLAG_ENTRY0("BC Unknown message (LCB)", 0x0010),
+	FLAG_ENTRY0("BC Unkyeswn message (BCC)", 0x0008),
+	FLAG_ENTRY0("BC Unkyeswn message (LCB)", 0x0010),
 	FLAG_ENTRY0("External device config request", 0x0020),
 	FLAG_ENTRY0("VerifyCap all frames received", 0x0040),
 	FLAG_ENTRY0("LinkUp achieved", 0x0080),
@@ -1118,7 +1118,7 @@ struct err_reg_info {
 
 /*
  * Table of the "misc" grouping of error interrupts.  Each entry refers to
- * another register containing more information.
+ * ayesther register containing more information.
  */
 static const struct err_reg_info misc_errs[NUM_MISC_ERRS] = {
 /* 0*/	EE(CCE_ERR,		handle_cce_err,    "CceErr"),
@@ -1139,7 +1139,7 @@ static const struct err_reg_info misc_errs[NUM_MISC_ERRS] = {
 #define TCRIT_INT_SOURCE 4
 
 /*
- * SDMA error interrupt entry - refers to another register containing more
+ * SDMA error interrupt entry - refers to ayesther register containing more
  * information.
  */
 static const struct err_reg_info sdma_eng_err =
@@ -1156,7 +1156,7 @@ static const struct err_reg_info various_err[NUM_VARIOUS] = {
 
 /*
  * The DC encoding of mtu_cap for 10K MTU in the DCC_CFG_PORT_CONFIG
- * register can not be derived from the MTU value because 10K is not
+ * register can yest be derived from the MTU value because 10K is yest
  * a power of 2. Therefore, we need a constant. Everything else can
  * be calculated.
  */
@@ -1164,7 +1164,7 @@ static const struct err_reg_info various_err[NUM_VARIOUS] = {
 
 /*
  * Table of the DC grouping of error interrupts.  Each entry refers to
- * another register containing more information.
+ * ayesther register containing more information.
  */
 static const struct err_reg_info dc_errs[NUM_DC_ERRS] = {
 /* 0*/	DC_EE1(DCC_ERR,		handle_dcc_err,	       "DCC Err"),
@@ -1326,7 +1326,7 @@ static inline void __iomem *hfi1_addr_from_offset(
  * @offset - the offset of the CSR within bar0
  *
  * Return: the value read or all FF's if there
- * is no mapping
+ * is yes mapping
  */
 u64 read_csr(const struct hfi1_devdata *dd, u32 offset)
 {
@@ -1484,7 +1484,7 @@ static u64 dc_access_lcb_cntr(const struct cntr_entry *entry, void *context,
 		ret = write_lcb_csr(dd, csr, data);
 
 	if (ret) {
-		dd_dev_err(dd, "Could not acquire LCB for counter 0x%x", csr);
+		dd_dev_err(dd, "Could yest acquire LCB for counter 0x%x", csr);
 		return 0;
 	}
 
@@ -1563,7 +1563,7 @@ static u64 access_sw_link_up_cnt(const struct cntr_entry *entry, void *context,
 	return read_write_sw(ppd->dd, &ppd->link_up, mode, data);
 }
 
-static u64 access_sw_unknown_frame_cnt(const struct cntr_entry *entry,
+static u64 access_sw_unkyeswn_frame_cnt(const struct cntr_entry *entry,
 				       void *context, int vl, int mode,
 				       u64 data)
 {
@@ -1571,7 +1571,7 @@ static u64 access_sw_unknown_frame_cnt(const struct cntr_entry *entry,
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
-	return read_write_sw(ppd->dd, &ppd->unknown_frame_count, mode, data);
+	return read_write_sw(ppd->dd, &ppd->unkyeswn_frame_count, mode, data);
 }
 
 static u64 access_sw_xmit_discards(const struct cntr_entry *entry,
@@ -5097,8 +5097,8 @@ static struct cntr_entry port_cntrs[PORT_CNTR_LAST] = {
 			     access_sw_link_dn_cnt),
 [C_SW_LINK_UP] = CNTR_ELEM("SwLinkUp", 0, 0, CNTR_SYNTH | CNTR_32BIT,
 			   access_sw_link_up_cnt),
-[C_SW_UNKNOWN_FRAME] = CNTR_ELEM("UnknownFrame", 0, 0, CNTR_NORMAL,
-				 access_sw_unknown_frame_cnt),
+[C_SW_UNKNOWN_FRAME] = CNTR_ELEM("UnkyeswnFrame", 0, 0, CNTR_NORMAL,
+				 access_sw_unkyeswn_frame_cnt),
 [C_SW_XMIT_DSCD] = CNTR_ELEM("XmitDscd", 0, 0, CNTR_SYNTH | CNTR_32BIT,
 			     access_sw_xmit_discards),
 [C_SW_XMIT_DSCD_VL] = CNTR_ELEM("XmitDscdVl", 0, 0,
@@ -5214,19 +5214,19 @@ static struct cntr_entry port_cntrs[PORT_CNTR_LAST] = {
 /* return true if this is chip revision revision a */
 int is_ax(struct hfi1_devdata *dd)
 {
-	u8 chip_rev_minor =
+	u8 chip_rev_miyesr =
 		dd->revision >> CCE_REVISION_CHIP_REV_MINOR_SHIFT
 			& CCE_REVISION_CHIP_REV_MINOR_MASK;
-	return (chip_rev_minor & 0xf0) == 0;
+	return (chip_rev_miyesr & 0xf0) == 0;
 }
 
 /* return true if this is chip revision revision b */
 int is_bx(struct hfi1_devdata *dd)
 {
-	u8 chip_rev_minor =
+	u8 chip_rev_miyesr =
 		dd->revision >> CCE_REVISION_CHIP_REV_MINOR_SHIFT
 			& CCE_REVISION_CHIP_REV_MINOR_MASK;
-	return (chip_rev_minor & 0xF0) == 0x10;
+	return (chip_rev_miyesr & 0xF0) == 0x10;
 }
 
 /* return true is kernel urg disabled for rcd */
@@ -5291,7 +5291,7 @@ static char *flag_string(char *buf, int buf_len, u64 flags,
 	char extra[32];
 	char *p = buf;
 	int len = buf_len;
-	int no_room = 0;
+	int yes_room = 0;
 	int i;
 
 	/* make sure there is at least 2 so we can form "*" */
@@ -5301,21 +5301,21 @@ static char *flag_string(char *buf, int buf_len, u64 flags,
 	len--;	/* leave room for a nul */
 	for (i = 0; i < table_size; i++) {
 		if (flags & table[i].flag) {
-			no_room = append_str(buf, &p, &len, table[i].str);
-			if (no_room)
+			yes_room = append_str(buf, &p, &len, table[i].str);
+			if (yes_room)
 				break;
 			flags &= ~table[i].flag;
 		}
 	}
 
 	/* any undocumented bits left? */
-	if (!no_room && flags) {
+	if (!yes_room && flags) {
 		snprintf(extra, sizeof(extra), "bits 0x%llx", flags);
-		no_room = append_str(buf, &p, &len, extra);
+		yes_room = append_str(buf, &p, &len, extra);
 	}
 
 	/* add * if ran out of room */
-	if (no_room) {
+	if (yes_room) {
 		/* may need to back up to add space for a '*' */
 		if (len == 0)
 			--p;
@@ -5530,7 +5530,7 @@ static void handle_cce_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	int i = 0;
 
 	/*
-	 * For most these errors, there is nothing that can be done except
+	 * For most these errors, there is yesthing that can be done except
 	 * report or record it.
 	 */
 	dd_dev_info(dd, "CCE Error: %s\n",
@@ -5553,7 +5553,7 @@ static void handle_cce_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 }
 
 /*
- * Check counters for receive errors that do not have an interrupt
+ * Check counters for receive errors that do yest have an interrupt
  * associated with them.
  */
 #define RCVERR_CHECK_TIME 10
@@ -5705,7 +5705,7 @@ static void handle_send_egress_err_info(struct hfi1_devdata *dd,
 		/*
 		 * Count all applicable bits as individual errors and
 		 * attribute them to the packet that triggered this handler.
-		 * This may not be completely accurate due to limitations
+		 * This may yest be completely accurate due to limitations
 		 * on the available hardware error information.  There is
 		 * a single information register and any number of error
 		 * packets may have occurred and contributed to it before
@@ -5713,13 +5713,13 @@ static void handle_send_egress_err_info(struct hfi1_devdata *dd,
 		 * a) If multiple packets with the same error occur before
 		 *    this routine is called, earlier packets are missed.
 		 *    There is only a single bit for each error type.
-		 * b) Errors may not be attributed to the correct VL.
+		 * b) Errors may yest be attributed to the correct VL.
 		 *    The driver is attributing all bits in the info register
 		 *    to the packet that triggered this call, but bits
 		 *    could be an accumulation of different packets with
 		 *    different VLs.
 		 * c) A single error packet may have multiple counts attached
-		 *    to it.  There is no way for the driver to know if
+		 *    to it.  There is yes way for the driver to kyesw if
 		 *    multiple bits set in the info register are due to a
 		 *    single packet or multiple packets.  The driver assumes
 		 *    multiple packets.
@@ -5767,7 +5767,7 @@ static inline int disallowed_pkt_engine(int posn)
 }
 
 /*
- * Translate an SDMA engine to a VL.  Return -1 if the tranlation cannot
+ * Translate an SDMA engine to a VL.  Return -1 if the tranlation canyest
  * be done.
  */
 static int engine_to_vl(struct hfi1_devdata *dd, int engine)
@@ -5789,7 +5789,7 @@ static int engine_to_vl(struct hfi1_devdata *dd, int engine)
 
 /*
  * Translate the send context (sofware index) into a VL.  Return -1 if the
- * translation cannot be done.
+ * translation canyest be done.
  */
 static int sc_to_vl(struct hfi1_devdata *dd, int sw_index)
 {
@@ -5799,7 +5799,7 @@ static int sc_to_vl(struct hfi1_devdata *dd, int sw_index)
 
 	sci = &dd->send_contexts[sw_index];
 
-	/* there is no information for user (PSM) and ack contexts */
+	/* there is yes information for user (PSM) and ack contexts */
 	if ((sci->type != SC_KERNEL) && (sci->type != SC_VL15))
 		return -1;
 
@@ -5883,7 +5883,7 @@ static void handle_txe_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
  * through here to have a central location to correctly handle single-
  * or multi-shot errors.
  *
- * For non per-context registers, call this routine with a context value
+ * For yesn per-context registers, call this routine with a context value
  * of 0 so the per-context offset is zero.
  *
  * If the handler loops too many times, assume that something is wrong
@@ -5896,7 +5896,7 @@ static void interrupt_clear_down(struct hfi1_devdata *dd,
 	u64 reg;
 	u32 count;
 
-	/* read in a loop until no more errors are seen */
+	/* read in a loop until yes more errors are seen */
 	count = 0;
 	while (1) {
 		reg = read_kctxt_csr(dd, context, eri->status);
@@ -5948,10 +5948,10 @@ static char *send_context_err_status_string(char *buf, int buf_len, u64 flags)
 /*
  * Send context error interrupt.  Source (hw_context) is < 160.
  *
- * All send context errors cause the send context to halt.  The normal
- * clear-down mechanism cannot be used because we cannot clear the
+ * All send context errors cause the send context to halt.  The yesrmal
+ * clear-down mechanism canyest be used because we canyest clear the
  * error bits until several other long-running items are done first.
- * This is OK because with the context halted, nothing else is going
+ * This is OK because with the context halted, yesthing else is going
  * to happen on it anyway.
  */
 static void is_sendctxt_err_int(struct hfi1_devdata *dd,
@@ -5976,7 +5976,7 @@ static void is_sendctxt_err_int(struct hfi1_devdata *dd,
 	spin_lock_irqsave(&dd->sc_lock, irq_flags);
 	sc = sci->sc;
 	if (!sc) {
-		dd_dev_err(dd, "%s: context %u(%u): no sc?\n", __func__,
+		dd_dev_err(dd, "%s: context %u(%u): yes sc?\n", __func__,
 			   sw_index, hw_context);
 		spin_unlock_irqrestore(&dd->sc_lock, irq_flags);
 		return;
@@ -6065,8 +6065,8 @@ static void is_various_int(struct hfi1_devdata *dd, unsigned int source)
 	const struct err_reg_info *eri = &various_err[source];
 
 	/*
-	 * TCritInt cannot go through interrupt_clear_down()
-	 * because it is not a second tier interrupt. The handler
+	 * TCritInt canyest go through interrupt_clear_down()
+	 * because it is yest a second tier interrupt. The handler
 	 * should be called directly.
 	 */
 	if (source == TCRIT_INT_SOURCE)
@@ -6107,7 +6107,7 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 			ppd->qsfp_info.limiting_active = 0;
 			spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock,
 					       flags);
-			/* Invert the ModPresent pin now to detect plug-in */
+			/* Invert the ModPresent pin yesw to detect plug-in */
 			write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_INVERT :
 				  ASIC_QSFP1_INVERT, qsfp_int_mgmt);
 
@@ -6123,8 +6123,8 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 			if (ppd->host_link_state == HLS_DN_POLL) {
 				/*
 				 * The link is still in POLL. This means
-				 * that the normal link down processing
-				 * will not happen. We have to do it here
+				 * that the yesrmal link down processing
+				 * will yest happen. We have to do it here
 				 * before turning the DC off.
 				 */
 				queue_work(ppd->link_wq, &ppd->link_down_work);
@@ -6221,8 +6221,8 @@ static inline void set_8051_lcb_access(struct hfi1_devdata *dd)
  *
  * Returns:
  *	0 on success
- *	-EBUSY if the 8051 has control and cannot be disturbed
- *	-errno if unable to acquire access from the 8051
+ *	-EBUSY if the 8051 has control and canyest be disturbed
+ *	-erryes if unable to acquire access from the 8051
  */
 int acquire_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 {
@@ -6244,7 +6244,7 @@ int acquire_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 
 	/* this access is valid only when the link is up */
 	if (ppd->host_link_state & HLS_DOWN) {
-		dd_dev_info(dd, "%s: link state %s not up\n",
+		dd_dev_info(dd, "%s: link state %s yest up\n",
 			    __func__, link_state_name(ppd->host_link_state));
 		ret = -EBUSY;
 		goto done;
@@ -6272,7 +6272,7 @@ done:
  *
  * Returns:
  *	0 on success
- *	-errno if unable to release access to the 8051
+ *	-erryes if unable to release access to the 8051
  */
 int release_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 {
@@ -6319,7 +6319,7 @@ done:
  * after most of the initialization is finished.
  *
  * The DC default is LCB access on for the host.  The driver defaults to
- * leaving access to the 8051.  Assign access now - this constrains the call
+ * leaving access to the 8051.  Assign access yesw - this constrains the call
  * to this routine to be after all LCB set-up is done.  In particular, after
  * hf1_init_dd() -> set_up_interrupts() -> clear_all_interrupts()
  */
@@ -6352,7 +6352,7 @@ static void handle_8051_request(struct hfi1_pportdata *ppd)
 
 	reg = read_csr(dd, DC_DC8051_CFG_EXT_DEV_1);
 	if ((reg & DC_DC8051_CFG_EXT_DEV_1_REQ_NEW_SMASK) == 0)
-		return;	/* no request */
+		return;	/* yes request */
 
 	/* zero out COMPLETED so the response is seen */
 	write_csr(dd, DC_DC8051_CFG_EXT_DEV_0, 0);
@@ -6370,7 +6370,7 @@ static void handle_8051_request(struct hfi1_pportdata *ppd)
 	case HREQ_SET_TX_EQ_ABS:
 	case HREQ_SET_TX_EQ_REL:
 	case HREQ_ENABLE:
-		dd_dev_info(dd, "8051 request: request 0x%x not supported\n",
+		dd_dev_info(dd, "8051 request: request 0x%x yest supported\n",
 			    type);
 		hreq_response(dd, HREQ_NOT_SUPPORTED, 0);
 		break;
@@ -6379,7 +6379,7 @@ static void handle_8051_request(struct hfi1_pportdata *ppd)
 		write_csr(dd, DCC_CFG_RESET, LCB_RX_FPE_TX_FPE_INTO_RESET);
 		/* Make sure the write completed */
 		(void)read_csr(dd, DCC_CFG_RESET);
-		/* Hold the reset long enough to take effect */
+		/* Hold the reset long eyesugh to take effect */
 		udelay(1);
 		/* Take the LCB, RX FPE and TX FPE out of reset */
 		write_csr(dd, DCC_CFG_RESET, LCB_RX_FPE_TX_FPE_OUT_OF_RESET);
@@ -6394,7 +6394,7 @@ static void handle_8051_request(struct hfi1_pportdata *ppd)
 		hreq_response(dd, HREQ_SUCCESS, data);
 		break;
 	default:
-		dd_dev_err(dd, "8051 request: unknown request 0x%x\n", type);
+		dd_dev_err(dd, "8051 request: unkyeswn request 0x%x\n", type);
 		hreq_response(dd, HREQ_NOT_SUPPORTED, 0);
 		break;
 	}
@@ -6407,7 +6407,7 @@ void set_up_vau(struct hfi1_devdata *dd, u8 vau)
 {
 	u64 reg = read_csr(dd, SEND_CM_GLOBAL_CREDIT);
 
-	/* do not modify other values in the register */
+	/* do yest modify other values in the register */
 	reg &= ~SEND_CM_GLOBAL_CREDIT_AU_SMASK;
 	reg |= (u64)vau << SEND_CM_GLOBAL_CREDIT_AU_SHIFT;
 	write_csr(dd, SEND_CM_GLOBAL_CREDIT, reg);
@@ -6541,7 +6541,7 @@ static void dc_shutdown(struct hfi1_devdata *dd)
 }
 
 /*
- * Calling this after the DC has been brought out of reset should not
+ * Calling this after the DC has been brought out of reset should yest
  * do any damage.
  * NOTE: the caller needs to acquire the dd->dc8051_lock lock
  *       before calling this function.
@@ -6562,7 +6562,7 @@ static void _dc_start(struct hfi1_devdata *dd)
 
 	/* Take away reset for LCB and RX FPE (set in lcb_shutdown). */
 	write_csr(dd, DCC_CFG_RESET, LCB_RX_FPE_TX_FPE_OUT_OF_RESET);
-	/* lcb_shutdown() with abort=1 does not restore these */
+	/* lcb_shutdown() with abort=1 does yest restore these */
 	write_csr(dd, DC_LCB_ERR_EN, dd->lcb_err_en);
 	dd->dc_shutdown = 0;
 }
@@ -6586,7 +6586,7 @@ static void adjust_lcb_for_fpga_serdes(struct hfi1_devdata *dd)
 		return;
 
 	/*
-	 * These LCB defaults on emulator _s are good, nothing to do here:
+	 * These LCB defaults on emulator _s are good, yesthing to do here:
 	 *	LCB_CFG_TX_FIFOS_RADR
 	 *	LCB_CFG_RX_FIFOS_RADR
 	 *	LCB_CFG_LN_DCLK
@@ -6692,18 +6692,18 @@ void handle_sma_message(struct work_struct *work)
 		 * Only expected in INIT or ARMED, discard otherwise.
 		 */
 		if (ppd->host_link_state & (HLS_UP_INIT | HLS_UP_ARMED))
-			ppd->neighbor_normal = 1;
+			ppd->neighbor_yesrmal = 1;
 		break;
 	case SMA_IDLE_ACTIVE:
 		/*
 		 * See OPAv1 table 9-14 - HFI and External Switch Ports Key
 		 * State Transitions
 		 *
-		 * Can activate the node.  Discard otherwise.
+		 * Can activate the yesde.  Discard otherwise.
 		 */
 		if (ppd->host_link_state == HLS_UP_ARMED &&
 		    ppd->is_active_optimize_enabled) {
-			ppd->neighbor_normal = 1;
+			ppd->neighbor_yesrmal = 1;
 			ret = set_link_state(ppd, HLS_UP_ACTIVE);
 			if (ret)
 				dd_dev_err(
@@ -6759,8 +6759,8 @@ void start_freeze_handling(struct hfi1_pportdata *ppd, int flags)
 	/* enter frozen mode */
 	dd->flags |= HFI1_FROZEN;
 
-	/* notify all SDMA engines that they are going into a freeze */
-	sdma_freeze_notify(dd, !!(flags & FREEZE_LINK_DOWN));
+	/* yestify all SDMA engines that they are going into a freeze */
+	sdma_freeze_yestify(dd, !!(flags & FREEZE_LINK_DOWN));
 
 	sc_flags = SCF_FROZEN | SCF_HALTED | (flags & FREEZE_LINK_DOWN ?
 					      SCF_LINK_DOWN : 0);
@@ -6779,7 +6779,7 @@ void start_freeze_handling(struct hfi1_pportdata *ppd, int flags)
 			   "Aborted freeze recovery. Please REBOOT system\n");
 		return;
 	}
-	/* queue non-interrupt handler */
+	/* queue yesn-interrupt handler */
 	queue_work(ppd->hfi1_wq, &ppd->freeze_work);
 }
 
@@ -6854,7 +6854,7 @@ static void rxe_kernel_unfreeze(struct hfi1_devdata *dd)
 	for (i = 0; i < dd->num_rcv_contexts; i++) {
 		rcd = hfi1_rcd_get_by_index(dd, i);
 
-		/* Ensure all non-user contexts(including vnic) are enabled */
+		/* Ensure all yesn-user contexts(including vnic) are enabled */
 		if (!rcd ||
 		    (i >= dd->first_dyn_alloc_ctxt && !rcd->is_vnic)) {
 			hfi1_rcd_put(rcd);
@@ -6886,7 +6886,7 @@ void handle_freeze(struct work_struct *work)
 	/* wait for freeze indicators on all affected blocks */
 	wait_for_freeze_status(dd, 1);
 
-	/* SPC is now frozen */
+	/* SPC is yesw frozen */
 
 	/* do send PIO freeze steps */
 	pio_freeze(dd);
@@ -6894,7 +6894,7 @@ void handle_freeze(struct work_struct *work)
 	/* do send DMA freeze steps */
 	sdma_freeze(dd);
 
-	/* do send egress freeze steps - nothing to do */
+	/* do send egress freeze steps - yesthing to do */
 
 	/* do receive freeze steps */
 	rxe_freeze(dd);
@@ -6919,7 +6919,7 @@ void handle_freeze(struct work_struct *work)
 	/* do send DMA unfreeze steps */
 	sdma_unfreeze(dd);
 
-	/* do send egress unfreeze steps - nothing to do */
+	/* do send egress unfreeze steps - yesthing to do */
 
 	/* do receive unfreeze steps for kernel contexts */
 	rxe_kernel_unfreeze(dd);
@@ -6940,7 +6940,7 @@ void handle_freeze(struct work_struct *work)
 	dd->flags &= ~HFI1_FROZEN;
 	wake_up(&dd->event_queue);
 
-	/* no longer frozen */
+	/* yes longer frozen */
 }
 
 /**
@@ -6997,7 +6997,7 @@ void handle_link_up(struct work_struct *work)
 	/*
 	 * Set VL15 credits. Use cached value from verify cap interrupt.
 	 * In case of quick linkup or simulator, vl15 value will be set by
-	 * handle_linkup_change. VerifyCap interrupt handler will not be
+	 * handle_linkup_change. VerifyCap interrupt handler will yest be
 	 * called in those scenarios.
 	 */
 	if (!(quick_linkup || dd->icode == ICODE_FUNCTIONAL_SIMULATOR))
@@ -7005,7 +7005,7 @@ void handle_link_up(struct work_struct *work)
 
 	/* enforce link speed enabled */
 	if ((ppd->link_speed_active & ppd->link_speed_enabled) == 0) {
-		/* oops - current speed is not enabled, bounce */
+		/* oops - current speed is yest enabled, bounce */
 		dd_dev_err(dd,
 			   "Link speed active 0x%x is outside enabled 0x%x, downing link\n",
 			   ppd->link_speed_active, ppd->link_speed_enabled);
@@ -7063,19 +7063,19 @@ static const char * const link_down_reason_strs[] = {
 	[OPA_LINKDOWN_REASON_RCV_ERROR_30] = "Receive error 30",
 	[OPA_LINKDOWN_REASON_EXCESSIVE_BUFFER_OVERRUN] =
 					"Excessive buffer overrun",
-	[OPA_LINKDOWN_REASON_UNKNOWN] = "Unknown",
+	[OPA_LINKDOWN_REASON_UNKNOWN] = "Unkyeswn",
 	[OPA_LINKDOWN_REASON_REBOOT] = "Reboot",
-	[OPA_LINKDOWN_REASON_NEIGHBOR_UNKNOWN] = "Neighbor unknown",
+	[OPA_LINKDOWN_REASON_NEIGHBOR_UNKNOWN] = "Neighbor unkyeswn",
 	[OPA_LINKDOWN_REASON_FM_BOUNCE] = "FM bounce",
 	[OPA_LINKDOWN_REASON_SPEED_POLICY] = "Speed policy",
 	[OPA_LINKDOWN_REASON_WIDTH_POLICY] = "Width policy",
 	[OPA_LINKDOWN_REASON_DISCONNECTED] = "Disconnected",
 	[OPA_LINKDOWN_REASON_LOCAL_MEDIA_NOT_INSTALLED] =
-					"Local media not installed",
+					"Local media yest installed",
 	[OPA_LINKDOWN_REASON_NOT_INSTALLED] = "Not installed",
 	[OPA_LINKDOWN_REASON_CHASSIS_CONFIG] = "Chassis config",
 	[OPA_LINKDOWN_REASON_END_TO_END_NOT_INSTALLED] =
-					"End to end not installed",
+					"End to end yest installed",
 	[OPA_LINKDOWN_REASON_POWER_POLICY] = "Power policy",
 	[OPA_LINKDOWN_REASON_LINKSPEED_POLICY] = "Link speed policy",
 	[OPA_LINKDOWN_REASON_LINKWIDTH_POLICY] = "Link width policy",
@@ -7128,7 +7128,7 @@ void handle_link_down(struct work_struct *work)
 		read_link_down_reason(ppd->dd, &link_down_reason);
 		switch (link_down_reason) {
 		case LDR_LINK_TRANSFER_ACTIVE_LOW:
-			/* the link went down, no idle message reason */
+			/* the link went down, yes idle message reason */
 			dd_dev_info(ppd->dd, "%sUnexpected link down\n",
 				    ldr_str);
 			break;
@@ -7149,13 +7149,13 @@ void handle_link_down(struct work_struct *work)
 				    ldr_str);
 			break;
 		default:
-			dd_dev_info(ppd->dd, "%sUnknown reason 0x%x\n",
+			dd_dev_info(ppd->dd, "%sUnkyeswn reason 0x%x\n",
 				    ldr_str, link_down_reason);
 			break;
 		}
 
 		/*
-		 * If no reason, assume peer-initiated but missed
+		 * If yes reason, assume peer-initiated but missed
 		 * LinkGoingDown idle flits.
 		 */
 		if (neigh_reason == 0)
@@ -7182,7 +7182,7 @@ void handle_link_down(struct work_struct *work)
 	clear_rcvctrl(ppd->dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
 
 	/*
-	 * If there is no cable attached, turn the DC off. Otherwise,
+	 * If there is yes cable attached, turn the DC off. Otherwise,
 	 * start the link bring up.
 	 */
 	if (ppd->port_type == PORT_TYPE_QSFP && !qsfp_mod_present(ppd))
@@ -7203,7 +7203,7 @@ void handle_link_bounce(struct work_struct *work)
 		set_link_state(ppd, HLS_DN_OFFLINE);
 		start_link(ppd);
 	} else {
-		dd_dev_info(ppd->dd, "%s: link not up (%s), nothing to do\n",
+		dd_dev_info(ppd->dd, "%s: link yest up (%s), yesthing to do\n",
 			    __func__, link_state_name(ppd->host_link_state));
 	}
 }
@@ -7279,12 +7279,12 @@ static u16 link_width_to_bits(struct hfi1_devdata *dd, u16 width)
 	switch (width) {
 	case 0:
 		/*
-		 * Simulator and quick linkup do not set the width.
+		 * Simulator and quick linkup do yest set the width.
 		 * Just set it to 4x without complaint.
 		 */
 		if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR || quick_linkup)
 			return OPA_LINK_WIDTH_4X;
-		return 0; /* no lanes up */
+		return 0; /* yes lanes up */
 	case 1: return OPA_LINK_WIDTH_1X;
 	case 2: return OPA_LINK_WIDTH_2X;
 	case 3: return OPA_LINK_WIDTH_3X;
@@ -7337,7 +7337,7 @@ static void get_link_widths(struct hfi1_devdata *dd, u16 *tx_width,
 
 	/*
 	 * Set link_speed_active here, overriding what was set in
-	 * handle_verify_cap().  The ASIC 8051 firmware does not correctly
+	 * handle_verify_cap().  The ASIC 8051 firmware does yest correctly
 	 * set the max_rate field in handle_verify_cap until v0.19.
 	 */
 	if ((dd->icode == ICODE_RTL_SILICON) &&
@@ -7367,7 +7367,7 @@ static void get_link_widths(struct hfi1_devdata *dd, u16 *tx_width,
 
 /*
  * Read verify_cap_local_fm_link_width[1] to obtain the link widths.
- * Valid after the end of VerifyCap and during LinkUp.  Does not change
+ * Valid after the end of VerifyCap and during LinkUp.  Does yest change
  * after link up.  I.e. look elsewhere for downgrade information.
  *
  * Bits are:
@@ -7400,7 +7400,7 @@ static void get_linkup_widths(struct hfi1_devdata *dd, u16 *tx_width,
  * Set ppd->link_width_active and ppd->link_width_downgrade_active using
  * hardware information when the link first comes up.
  *
- * The link width is not available until after VerifyCap.AllFramesReceived
+ * The link width is yest available until after VerifyCap.AllFramesReceived
  * (the trigger for handle_verify_cap), so this is outside that routine
  * and should be called when the 8051 signals linkup.
  */
@@ -7474,11 +7474,11 @@ void handle_verify_cap(struct work_struct *work)
 		    (u32)device_id, (u32)device_rev);
 	/*
 	 * The peer vAU value just read is the peer receiver value.  HFI does
-	 * not support a transmit vAU of 0 (AU == 8).  We advertised that
+	 * yest support a transmit vAU of 0 (AU == 8).  We advertised that
 	 * with Z=1 in the fabric capabilities sent to the peer.  The peer
 	 * will see our Z=1, and, if it advertised a vAU of 0, will move its
-	 * receive to vAU of 1 (AU == 16).  Do the same here.  We do not care
-	 * about the peer Z value - our sent vAU is 3 (hardwired) and is not
+	 * receive to vAU of 1 (AU == 16).  Do the same here.  We do yest care
+	 * about the peer Z value - our sent vAU is 3 (hardwired) and is yest
 	 * subject to the Z value exception.
 	 */
 	if (vau == 0)
@@ -7645,12 +7645,12 @@ retry:
 	if (ppd->link_width_downgrade_tx_active == 0 ||
 	    ppd->link_width_downgrade_rx_active == 0) {
 		/* the 8051 reported a dead link as a downgrade */
-		dd_dev_err(ppd->dd, "Link downgrade is really a link down, ignoring\n");
+		dd_dev_err(ppd->dd, "Link downgrade is really a link down, igyesring\n");
 		link_downgraded = false;
 	} else if (lwde == 0) {
 		/* downgrade is disabled */
 
-		/* bounce if not at starting active width */
+		/* bounce if yest at starting active width */
 		if ((ppd->link_width_active !=
 		     ppd->link_width_downgrade_tx_active) ||
 		    (ppd->link_width_active !=
@@ -7775,13 +7775,13 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			}
 			err &= ~(u64)FAILED_LNI;
 		}
-		/* unknown frames can happen durning LNI, just count */
+		/* unkyeswn frames can happen durning LNI, just count */
 		if (err & UNKNOWN_FRAME) {
-			ppd->unknown_frame_count++;
+			ppd->unkyeswn_frame_count++;
 			err &= ~(u64)UNKNOWN_FRAME;
 		}
 		if (err) {
-			/* report remaining errors, but do not do anything */
+			/* report remaining errors, but do yest do anything */
 			dd_dev_err(dd, "8051 info error: %s\n",
 				   dc8051_info_err_string(buf, sizeof(buf),
 							  err));
@@ -7821,10 +7821,10 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		}
 		if (host_msg & LINK_GOING_DOWN) {
 			const char *extra = "";
-			/* no downgrade action needed if going down */
+			/* yes downgrade action needed if going down */
 			if (host_msg & LINK_WIDTH_DOWNGRADED) {
 				host_msg &= ~(u64)LINK_WIDTH_DOWNGRADED;
-				extra = " (ignoring downgrade)";
+				extra = " (igyesring downgrade)";
 			}
 			dd_dev_info(dd, "8051: Link down%s\n", extra);
 			queue_link_down = 1;
@@ -7835,7 +7835,7 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			host_msg &= ~(u64)LINK_WIDTH_DOWNGRADED;
 		}
 		if (host_msg) {
-			/* report remaining messages, but do not do anything */
+			/* report remaining messages, but do yest do anything */
 			dd_dev_info(dd, "8051 info host message: %s\n",
 				    dc8051_info_host_msg_string(buf,
 								sizeof(buf),
@@ -7858,21 +7858,21 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		reg &= ~DC_DC8051_ERR_FLG_LOST_8051_HEART_BEAT_SMASK;
 	}
 	if (reg) {
-		/* report the error, but do not do anything */
+		/* report the error, but do yest do anything */
 		dd_dev_err(dd, "8051 error: %s\n",
 			   dc8051_err_string(buf, sizeof(buf), reg));
 	}
 
 	if (queue_link_down) {
 		/*
-		 * if the link is already going down or disabled, do not
-		 * queue another. If there's a link down entry already
-		 * queued, don't queue another one.
+		 * if the link is already going down or disabled, do yest
+		 * queue ayesther. If there's a link down entry already
+		 * queued, don't queue ayesther one.
 		 */
 		if ((ppd->host_link_state &
 		    (HLS_GOING_OFFLINE | HLS_LINK_COOLDOWN)) ||
 		    ppd->link_enabled == 0) {
-			dd_dev_info(dd, "%s: not queuing link down. host_link_state %x, link_enabled %x\n",
+			dd_dev_info(dd, "%s: yest queuing link down. host_link_state %x, link_enabled %x\n",
 				    __func__, ppd->host_link_state,
 				    ppd->link_enabled);
 		} else {
@@ -7901,7 +7901,7 @@ static const char * const fm_config_txt[] = {
 	"BadPreempt: Exceeded the preemption nesting level",
 [6] =
 	"BadControlFlit: Received unsupported control flit",
-/* no 7 */
+/* yes 7 */
 [8] =
 	"UnsupportedVLMarker: Received VL Marker for unconfigured or disabled VL",
 };
@@ -7914,7 +7914,7 @@ static const char * const port_rcv_txt[] = {
 [3] =
 	"PktLenTooShort: Packet shorter than PktLen",
 [4] =
-	"BadSLID: Illegal SLID (0, using multicast as SLID, does not include security validation of SLID)",
+	"BadSLID: Illegal SLID (0, using multicast as SLID, does yest include security validation of SLID)",
 [5] =
 	"BadDLID: Illegal DLID (0, doesn't match HFI)",
 [6] =
@@ -7983,7 +7983,7 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			    OPA_PI_MASK_FM_CFG_UNSUPPORTED_VL_MARKER) {
 				do_bounce = 1;
 				/*
-				 * lcl_reason cannot be derived from info
+				 * lcl_reason canyest be derived from info
 				 * for this error
 				 */
 				lcl_reason =
@@ -8114,10 +8114,10 @@ static void is_dc_int(struct hfi1_devdata *dd, unsigned int source)
 		/*
 		 * This indicates that a parity error has occurred on the
 		 * address/control lines presented to the LBM.  The error
-		 * is a single pulse, there is no associated error flag,
-		 * and it is non-maskable.  This is because if a parity
+		 * is a single pulse, there is yes associated error flag,
+		 * and it is yesn-maskable.  This is because if a parity
 		 * error occurs on the request the request is dropped.
-		 * This should never occur, but it is nice to know if it
+		 * This should never occur, but it is nice to kyesw if it
 		 * ever does.
 		 */
 		dd_dev_err(dd, "Parity error in DC LBM block\n");
@@ -8159,7 +8159,7 @@ static void is_sdma_eng_int(struct hfi1_devdata *dd, unsigned int source)
 	if (likely(what < 3 && which < dd->num_sdma)) {
 		sdma_engine_interrupt(&dd->per_sdma[which], 1ull << source);
 	} else {
-		/* should not happen */
+		/* should yest happen */
 		dd_dev_err(dd, "Invalid SDMA interrupt 0x%x\n", source);
 	}
 }
@@ -8172,7 +8172,7 @@ static void is_sdma_eng_int(struct hfi1_devdata *dd, unsigned int source)
  * RX block receive available interrupt.  Source is < 160.
  *
  * This is the general interrupt handler for user (PSM) receive contexts,
- * and can only be used for non-threaded IRQs.
+ * and can only be used for yesn-threaded IRQs.
  */
 static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 {
@@ -8186,10 +8186,10 @@ static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 			hfi1_rcd_put(rcd);
 			return;	/* OK */
 		}
-		/* received an interrupt, but no rcd */
+		/* received an interrupt, but yes rcd */
 		err_detail = "dataless";
 	} else {
-		/* received an interrupt, but are not using that context */
+		/* received an interrupt, but are yest using that context */
 		err_detail = "out of range";
 	}
 	dd_dev_err(dd, "unexpected %s receive available context interrupt %u\n",
@@ -8217,10 +8217,10 @@ static void is_rcv_urgent_int(struct hfi1_devdata *dd, unsigned int source)
 			hfi1_rcd_put(rcd);
 			return;	/* OK */
 		}
-		/* received an interrupt, but no rcd */
+		/* received an interrupt, but yes rcd */
 		err_detail = "dataless";
 	} else {
-		/* received an interrupt, but are not using that context */
+		/* received an interrupt, but are yest using that context */
 		err_detail = "out of range";
 	}
 	dd_dev_err(dd, "unexpected %s receive urgent context interrupt %u\n",
@@ -8228,7 +8228,7 @@ static void is_rcv_urgent_int(struct hfi1_devdata *dd, unsigned int source)
 }
 
 /*
- * Reserved range interrupt.  Should not be called in normal operation.
+ * Reserved range interrupt.  Should yest be called in yesrmal operation.
  */
 static void is_reserved_int(struct hfi1_devdata *dd, unsigned int source)
 {
@@ -8290,8 +8290,8 @@ static void is_interrupt(struct hfi1_devdata *dd, unsigned int source)
  * @irq: MSIx IRQ vector
  * @data: hfi1 devdata
  *
- * This is able to correctly handle all non-threaded interrupts.  Receive
- * context DATA IRQs are threaded and are not supported by this handler.
+ * This is able to correctly handle all yesn-threaded interrupts.  Receive
+ * context DATA IRQs are threaded and are yest supported by this handler.
  *
  */
 irqreturn_t general_interrupt(int irq, void *data)
@@ -8354,7 +8354,7 @@ irqreturn_t sdma_interrupt(int irq, void *data)
 		/* handle the interrupt(s) */
 		sdma_engine_interrupt(sde, status);
 	} else {
-		dd_dev_info_ratelimited(dd, "SDMA engine %u interrupt, but no status bits set\n",
+		dd_dev_info_ratelimited(dd, "SDMA engine %u interrupt, but yes status bits set\n",
 					sde->this_idx);
 	}
 	return IRQ_HANDLED;
@@ -8382,13 +8382,13 @@ void force_recv_intr(struct hfi1_ctxtdata *rcd)
 }
 
 /*
- * Return non-zero if a packet is present.
+ * Return yesn-zero if a packet is present.
  *
  * This routine is called when rechecking for packets after the RcvAvail
  * interrupt has been cleared down.  First, do a quick check of memory for
- * a packet present.  If not found, use an expensive CSR read of the context
+ * a packet present.  If yest found, use an expensive CSR read of the context
  * tail to determine the actual tail.  The CSR read is necessary because there
- * is no method to push pending DMAs to memory other than an interrupt and we
+ * is yes method to push pending DMAs to memory other than an interrupt and we
  * are trying to determine if we need to force an interrupt.
  */
 static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
@@ -8414,7 +8414,7 @@ static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
  * Receive packet IRQ handler.  This routine expects to be on its own IRQ.
  * This routine will try to handle packets immediately (latency), but if
  * it finds too many, it will invoke the thread handler (bandwitdh).  The
- * chip receive interrupt is *not* cleared down until this or the thread (if
+ * chip receive interrupt is *yest* cleared down until this or the thread (if
  * invoked) is finished.  The intent is to avoid extra interrupts while we
  * are processing packets anyway.
  */
@@ -8441,10 +8441,10 @@ irqreturn_t receive_context_interrupt(int irq, void *data)
 		return IRQ_WAKE_THREAD;
 
 	/*
-	 * The packet processor detected no more packets.  Clear the receive
+	 * The packet processor detected yes more packets.  Clear the receive
 	 * interrupt and recheck for a packet packet that may have arrived
 	 * after the previous check and interrupt clear.  If a packet arrived,
-	 * force another interrupt.
+	 * force ayesther interrupt.
 	 */
 	clear_recv_intr(rcd);
 	present = check_packet_present(rcd);
@@ -8467,10 +8467,10 @@ irqreturn_t receive_context_thread(int irq, void *data)
 	(void)rcd->do_interrupt(rcd, 1);
 
 	/*
-	 * The packet processor will only return if it detected no more
+	 * The packet processor will only return if it detected yes more
 	 * packets.  Hold IRQs here so we can safely clear the interrupt and
 	 * recheck for a packet that may have arrived after the previous
-	 * check and the interrupt clear.  If a packet arrived, force another
+	 * check and the interrupt clear.  If a packet arrived, force ayesther
 	 * interrupt.
 	 */
 	local_irq_disable();
@@ -8519,7 +8519,7 @@ static void set_logical_state(struct hfi1_devdata *dd, u32 chip_lstate)
  */
 static int read_lcb_via_8051(struct hfi1_devdata *dd, u32 addr, u64 *data)
 {
-	u32 regno;
+	u32 regyes;
 	int ret;
 
 	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
@@ -8532,8 +8532,8 @@ static int read_lcb_via_8051(struct hfi1_devdata *dd, u32 addr, u64 *data)
 	}
 
 	/* register is an index of LCB registers: (offset - base) / 8 */
-	regno = (addr - DC_LCB_CFG_RUN) >> 3;
-	ret = do_8051_command(dd, HCMD_READ_LCB_CSR, regno, data);
+	regyes = (addr - DC_LCB_CFG_RUN) >> 3;
+	ret = do_8051_command(dd, HCMD_READ_LCB_CSR, regyes, data);
 	if (ret != HCMD_SUCCESS)
 		return -EBUSY;
 	return 0;
@@ -8586,7 +8586,7 @@ static int read_lcb_cache(u32 off, u64 *val)
 }
 
 /*
- * Read an LCB CSR.  Access may not be in host control, so check.
+ * Read an LCB CSR.  Access may yest be in host control, so check.
  * Return 0 on success, -EBUSY on failure.
  */
 int read_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 *data)
@@ -8596,7 +8596,7 @@ int read_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 *data)
 	/* if up, go through the 8051 for the value */
 	if (ppd->host_link_state & HLS_UP)
 		return read_lcb_via_8051(dd, addr, data);
-	/* if going up or down, check the cache, otherwise, no access */
+	/* if going up or down, check the cache, otherwise, yes access */
 	if (ppd->host_link_state & (HLS_GOING_UP | HLS_GOING_OFFLINE)) {
 		if (read_lcb_cache(addr, data))
 			return -EBUSY;
@@ -8613,7 +8613,7 @@ int read_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 *data)
  */
 static int write_lcb_via_8051(struct hfi1_devdata *dd, u32 addr, u64 data)
 {
-	u32 regno;
+	u32 regyes;
 	int ret;
 
 	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR ||
@@ -8627,15 +8627,15 @@ static int write_lcb_via_8051(struct hfi1_devdata *dd, u32 addr, u64 data)
 	}
 
 	/* register is an index of LCB registers: (offset - base) / 8 */
-	regno = (addr - DC_LCB_CFG_RUN) >> 3;
-	ret = do_8051_command(dd, HCMD_WRITE_LCB_CSR, regno, &data);
+	regyes = (addr - DC_LCB_CFG_RUN) >> 3;
+	ret = do_8051_command(dd, HCMD_WRITE_LCB_CSR, regyes, &data);
 	if (ret != HCMD_SUCCESS)
 		return -EBUSY;
 	return 0;
 }
 
 /*
- * Write an LCB CSR.  Access may not be in host control, so check.
+ * Write an LCB CSR.  Access may yest be in host control, so check.
  * Return 0 on success, -EBUSY on failure.
  */
 int write_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 data)
@@ -8645,7 +8645,7 @@ int write_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 data)
 	/* if up, go through the 8051 for the value */
 	if (ppd->host_link_state & HLS_UP)
 		return write_lcb_via_8051(dd, addr, data);
-	/* if going up or down, no access */
+	/* if going up or down, yes access */
 	if (ppd->host_link_state & (HLS_GOING_UP | HLS_GOING_OFFLINE))
 		return -EBUSY;
 	/* otherwise, host has access */
@@ -8655,7 +8655,7 @@ int write_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 data)
 
 /*
  * Returns:
- *	< 0 = Linux error, not able to get access
+ *	< 0 = Linux error, yest able to get access
  *	> 0 = 8051 command RETURN_CODE
  */
 static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
@@ -8682,7 +8682,7 @@ static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
 	 * On first timeout, attempt to reset and restart the entire DC
 	 * block (including 8051). (Is this too big of a hammer?)
 	 *
-	 * If the 8051 times out a second time, the reset did not bring it
+	 * If the 8051 times out a second time, the reset did yest bring it
 	 * back to healthy life. In that case, fail any subsequent commands.
 	 */
 	if (dd->dc8051_timed_out) {
@@ -8698,7 +8698,7 @@ static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
 	}
 
 	/*
-	 * If there is no timeout, then the 8051 command interface is
+	 * If there is yes timeout, then the 8051 command interface is
 	 * waiting for a command.
 	 */
 
@@ -8805,7 +8805,7 @@ int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
 /*
  * Read the 8051 firmware "registers".  Use the RAM directly.  Always
  * set the result, even on error.
- * Return 0 on success, -errno on failure
+ * Return 0 on success, -erryes on failure
  */
 int read_8051_config(struct hfi1_devdata *dd, u8 field_id, u8 lane_id,
 		     u32 *result)
@@ -8926,7 +8926,7 @@ int write_host_interface_version(struct hfi1_devdata *dd, u8 version)
 				frame);
 }
 
-void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
+void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_miyesr,
 		      u8 *ver_patch)
 {
 	u32 frame;
@@ -8934,7 +8934,7 @@ void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
 	read_8051_config(dd, MISC_STATUS, GENERAL_CONFIG, &frame);
 	*ver_major = (frame >> STS_FM_VERSION_MAJOR_SHIFT) &
 		STS_FM_VERSION_MAJOR_MASK;
-	*ver_minor = (frame >> STS_FM_VERSION_MINOR_SHIFT) &
+	*ver_miyesr = (frame >> STS_FM_VERSION_MINOR_SHIFT) &
 		STS_FM_VERSION_MINOR_MASK;
 
 	read_8051_config(dd, VERSION_PATCH, GENERAL_CONFIG, &frame);
@@ -9057,7 +9057,7 @@ static int write_tx_settings(struct hfi1_devdata *dd,
 {
 	u32 frame;
 
-	/* no need to mask, all variable sizes match field widths */
+	/* yes need to mask, all variable sizes match field widths */
 	frame = enable_lane_tx << ENABLE_LANE_TX_SHIFT
 		| tx_polarity_inversion << TX_POLARITY_INVERSION_SHIFT
 		| rx_polarity_inversion << RX_POLARITY_INVERSION_SHIFT
@@ -9081,13 +9081,13 @@ static int read_idle_message(struct hfi1_devdata *dd, u64 type, u64 *data_out)
 		return -EINVAL;
 	}
 	dd_dev_info(dd, "%s: read idle message 0x%llx\n", __func__, *data_out);
-	/* return only the payload as we already know the type */
+	/* return only the payload as we already kyesw the type */
 	*data_out >>= IDLE_PAYLOAD_SHIFT;
 	return 0;
 }
 
 /*
- * Read an idle SMA message.  To be done in response to a notification from
+ * Read an idle SMA message.  To be done in response to a yestification from
  * the 8051.
  *
  * Returns 0 on success, -EINVAL on error
@@ -9132,10 +9132,10 @@ int send_idle_sma(struct hfi1_devdata *dd, u64 message)
 }
 
 /*
- * Initialize the LCB then do a quick link up.  This may or may not be
+ * Initialize the LCB then do a quick link up.  This may or may yest be
  * in loopback.
  *
- * return 0 on success, -errno on error
+ * return 0 on success, -erryes on error
  */
 static int do_quick_linkup(struct hfi1_devdata *dd)
 {
@@ -9171,7 +9171,7 @@ static int do_quick_linkup(struct hfi1_devdata *dd)
 
 	if (!loopback) {
 		/*
-		 * When doing quick linkup and not in loopback, both
+		 * When doing quick linkup and yest in loopback, both
 		 * sides must be done with LCB set-up before either
 		 * starts the quick linkup.  Put a delay here so that
 		 * both sides can be started and have a chance to be
@@ -9243,16 +9243,16 @@ static int init_loopback(struct hfi1_devdata *dd)
 	if (loopback == LOOPBACK_LCB) {
 		quick_linkup = 1; /* LCB is always quick linkup */
 
-		/* not supported in emulation due to emulation RTL changes */
+		/* yest supported in emulation due to emulation RTL changes */
 		if (dd->icode == ICODE_FPGA_EMULATION) {
 			dd_dev_err(dd,
-				   "LCB loopback not supported in emulation\n");
+				   "LCB loopback yest supported in emulation\n");
 			return -EINVAL;
 		}
 		return 0;
 	}
 
-	/* external cable loopback requires no extra steps */
+	/* external cable loopback requires yes extra steps */
 	if (loopback == LOOPBACK_CABLE)
 		return 0;
 
@@ -9339,12 +9339,12 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 	 * DC supports continuous updates.
 	 */
 	ret = write_vc_local_phy(dd,
-				 0 /* no power management */,
+				 0 /* yes power management */,
 				 1 /* continuous updates */);
 	if (ret != HCMD_SUCCESS)
 		goto set_local_link_attributes_fail;
 
-	/* z=1 in the next call: AU of 0 is not supported by the hardware */
+	/* z=1 in the next call: AU of 0 is yest supported by the hardware */
 	ret = write_vc_local_fabric(dd, dd->vau, 1, dd->vcu, dd->vl15_init,
 				    ppd->port_crc_mode_enabled);
 	if (ret != HCMD_SUCCESS)
@@ -9371,7 +9371,7 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 	if (ret != HCMD_SUCCESS)
 		goto set_local_link_attributes_fail;
 
-	/* let peer know who we are */
+	/* let peer kyesw who we are */
 	ret = write_local_device_id(dd, dd->pcidev->device, dd->minrev);
 	if (ret == HCMD_SUCCESS)
 		return 0;
@@ -9385,8 +9385,8 @@ set_local_link_attributes_fail:
 
 /*
  * Call this to start the link.
- * Do not do anything if the link is disabled.
- * Returns 0 if link is disabled, moved to polling, or the driver is not ready.
+ * Do yest do anything if the link is disabled.
+ * Returns 0 if link is disabled, moved to polling, or the driver is yest ready.
  */
 int start_link(struct hfi1_pportdata *ppd)
 {
@@ -9398,7 +9398,7 @@ int start_link(struct hfi1_pportdata *ppd)
 
 	if (!ppd->driver_link_ready) {
 		dd_dev_info(ppd->dd,
-			    "%s: stopping link start because driver is not ready\n",
+			    "%s: stopping link start because driver is yest ready\n",
 			    __func__);
 		return 0;
 	}
@@ -9421,7 +9421,7 @@ static void wait_for_qsfp_init(struct hfi1_pportdata *ppd)
 
 	/*
 	 * Some QSFP cables have a quirk that asserts the IntN line as a side
-	 * effect of power up on plug-in. We ignore this false positive
+	 * effect of power up on plug-in. We igyesre this false positive
 	 * interrupt until the module has finished powering up by waiting for
 	 * a minimum timeout of the module inrush initialization time of
 	 * 500 ms (SFF 8679 Table 5-6) to ensure the voltage rails in the
@@ -9629,7 +9629,7 @@ void qsfp_event(struct work_struct *work)
 
 	/*
 	 * Turn DC back on after cable has been re-inserted. Up until
-	 * now, the DC has been in reset to save power.
+	 * yesw, the DC has been in reset to save power.
 	 */
 	dc_start(dd);
 
@@ -9701,7 +9701,7 @@ void init_qsfp_int(struct hfi1_devdata *dd)
  */
 static void init_lcb(struct hfi1_devdata *dd)
 {
-	/* simulator does not correctly handle LCB cclk loopback, skip */
+	/* simulator does yest correctly handle LCB cclk loopback, skip */
 	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR)
 		return;
 
@@ -9727,8 +9727,8 @@ static int test_qsfp_read(struct hfi1_pportdata *ppd)
 	u8 status;
 
 	/*
-	 * Report success if not a QSFP or, if it is a QSFP, but the cable is
-	 * not present
+	 * Report success if yest a QSFP or, if it is a QSFP, but the cable is
+	 * yest present
 	 */
 	if (ppd->port_type != PORT_TYPE_QSFP || !qsfp_mod_present(ppd))
 		return 0;
@@ -9761,11 +9761,11 @@ static void try_start_link(struct hfi1_pportdata *ppd)
 	if (test_qsfp_read(ppd)) {
 		/* read failed */
 		if (ppd->qsfp_retry_count >= MAX_QSFP_RETRIES) {
-			dd_dev_err(ppd->dd, "QSFP not responding, giving up\n");
+			dd_dev_err(ppd->dd, "QSFP yest responding, giving up\n");
 			return;
 		}
 		dd_dev_info(ppd->dd,
-			    "QSFP not responding, waiting and retrying %d\n",
+			    "QSFP yest responding, waiting and retrying %d\n",
 			    (int)ppd->qsfp_retry_count);
 		ppd->qsfp_retry_count++;
 		queue_delayed_work(ppd->link_wq, &ppd->start_link_work,
@@ -9833,7 +9833,7 @@ void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
 	/*
 	 * Shut down the link and keep it down.   First turn off that the
 	 * driver wants to allow the link to be up (driver_link_ready).
-	 * Then make sure the link is not automatically restarted
+	 * Then make sure the link is yest automatically restarted
 	 * (link_enabled).  Cancel any pending restart.  And finally
 	 * go offline.
 	 */
@@ -9892,7 +9892,7 @@ void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		order = 0;
 	} else if (type > PT_INVALID) {
 		dd_dev_err(dd,
-			   "unexpected receive array type %u for index %u, not handled\n",
+			   "unexpected receive array type %u for index %u, yest handled\n",
 			   type, index);
 		goto done;
 	}
@@ -10014,7 +10014,7 @@ unimplemented:
 		if (HFI1_CAP_IS_KSET(PRINT_UNIMPL))
 			dd_dev_info(
 				dd,
-				"%s: which %s: not implemented\n",
+				"%s: which %s: yest implemented\n",
 				__func__,
 				ib_cfg_name(which));
 		break;
@@ -10031,7 +10031,7 @@ unimplemented:
 /*
  * Return the maximum header bytes that can go on the _wire_
  * for this device. This count includes the ICRC which is
- * not part of the packet held in memory but it is appended
+ * yest part of the packet held in memory but it is appended
  * by the HW.
  * This is dependent on the device's receive header entry size.
  * HFI allows this to be set per-receive context, but the
@@ -10040,13 +10040,13 @@ unimplemented:
 u32 lrh_max_header_bytes(struct hfi1_devdata *dd)
 {
 	/*
-	 * The maximum non-payload (MTU) bytes in LRH.PktLen are
+	 * The maximum yesn-payload (MTU) bytes in LRH.PktLen are
 	 * the Receive Header Entry Size minus the PBC (or RHF) size
 	 * plus one DW for the ICRC appended by HW.
 	 *
 	 * dd->rcd[0].rcvhdrqentsize is in DW.
 	 * We use rcd[0] as all context will have the same value. Also,
-	 * the first kernel context would have been allocated by now so
+	 * the first kernel context would have been allocated by yesw so
 	 * we are guaranteed a valid value.
 	 */
 	return (dd->rcd[0]->rcvhdrqentsize - 2/*PBC/RHF*/ + 1/*ICRC*/) << 2;
@@ -10167,17 +10167,17 @@ static const char *state_completed_string(u32 completed)
 	if (completed < ARRAY_SIZE(state_completed))
 		return state_completed[completed];
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 static const char all_lanes_dead_timeout_expired[] =
 	"All lanes were inactive – was the interconnect media removed?";
 static const char tx_out_of_policy[] =
-	"Passing lanes on local port do not meet the local link width policy";
-static const char no_state_complete[] =
+	"Passing lanes on local port do yest meet the local link width policy";
+static const char yes_state_complete[] =
 	"State timeout occurred before link partner completed the state";
 static const char * const state_complete_reasons[] = {
-	[0x00] = "Reason unknown",
+	[0x00] = "Reason unkyeswn",
 	[0x01] = "Link was halted by driver, refer to LinkDownReason",
 	[0x02] = "Link partner reported failure",
 	[0x10] = "Unable to achieve frame sync on any lane",
@@ -10187,25 +10187,25 @@ static const char * const state_complete_reasons[] = {
 	  "Unable to achieve frame sync on sufficient lanes to meet the local link width policy",
 	[0x13] =
 	  "Unable to identify preset equalization on sufficient lanes to meet the local link width policy",
-	[0x14] = no_state_complete,
+	[0x14] = yes_state_complete,
 	[0x15] =
 	  "State timeout occurred before link partner identified equalization presets",
 	[0x16] =
-	  "Link partner completed the EstablishComm state, but the passing lanes do not meet the local link width policy",
+	  "Link partner completed the EstablishComm state, but the passing lanes do yest meet the local link width policy",
 	[0x17] = tx_out_of_policy,
 	[0x20] = all_lanes_dead_timeout_expired,
 	[0x21] =
 	  "Unable to achieve acceptable BER on sufficient lanes to meet the local link width policy",
-	[0x22] = no_state_complete,
+	[0x22] = yes_state_complete,
 	[0x23] =
-	  "Link partner completed the OptimizeEq state, but the passing lanes do not meet the local link width policy",
+	  "Link partner completed the OptimizeEq state, but the passing lanes do yest meet the local link width policy",
 	[0x24] = tx_out_of_policy,
 	[0x30] = all_lanes_dead_timeout_expired,
 	[0x31] =
 	  "State timeout occurred waiting for host to process received frames",
-	[0x32] = no_state_complete,
+	[0x32] = yes_state_complete,
 	[0x33] =
-	  "Link partner completed the VerifyCap state, but the passing lanes do not meet the local link width policy",
+	  "Link partner completed the VerifyCap state, but the passing lanes do yest meet the local link width policy",
 	[0x34] = tx_out_of_policy,
 	[0x35] = "Negotiated link width is mutually exclusive",
 	[0x36] =
@@ -10254,7 +10254,7 @@ static void decode_state_complete(struct hfi1_pportdata *ppd, u32 frame,
 	dd_dev_err(dd, "    last reported state state: %s (0x%x)\n",
 		   state_completed_string(state), state);
 	dd_dev_err(dd, "    state successfully completed: %s\n",
-		   success ? "yes" : "no");
+		   success ? "no" : "yes");
 	dd_dev_err(dd, "    fail reason 0x%x: %s\n",
 		   reason, state_complete_reason_code_string(ppd, reason));
 	dd_dev_err(dd, "    passing lane mask: 0x%x", lanes);
@@ -10274,8 +10274,8 @@ static void check_lni_states(struct hfi1_pportdata *ppd)
 	read_last_remote_state(ppd->dd, &last_remote_state);
 
 	/*
-	 * Don't report anything if there is nothing to report.  A value of
-	 * 0 means the link was taken down while polling and there was no
+	 * Don't report anything if there is yesthing to report.  A value of
+	 * 0 means the link was taken down while polling and there was yes
 	 * training in-process.
 	 */
 	if (last_local_state == 0 && last_remote_state == 0)
@@ -10307,7 +10307,7 @@ static int wait_link_transfer_active(struct hfi1_devdata *dd, int wait_ms)
 	return 0;
 }
 
-/* called when the logical link state is not down as it should be */
+/* called when the logical link state is yest down as it should be */
 static void force_logical_link_state_down(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
@@ -10343,7 +10343,7 @@ static void force_logical_link_state_down(struct hfi1_pportdata *ppd)
 }
 
 /*
- * Helper for set_link_state().  Do not call except from that routine.
+ * Helper for set_link_state().  Do yest call except from that routine.
  * Expects ppd->hls_mutex to be held.
  *
  * @rem_reason value to be sent to the neighbor
@@ -10391,7 +10391,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 			set_qsfp_tx(ppd, 0);
 			release_chip_resource(dd, qsfp_resource(dd));
 		} else {
-			/* not fatal, but should warn */
+			/* yest fatal, but should warn */
 			dd_dev_err(dd,
 				   "Unable to acquire lock to turn off QSFP TX\n");
 		}
@@ -10429,7 +10429,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 	 * will observe the needed wait time and only move to ready
 	 * when that is completed.  The largest of the quiet timeouts
 	 * is 6s, so wait that long and then at least 0.5s more for
-	 * other transitions, and another 0.5s for a buffer.
+	 * other transitions, and ayesther 0.5s for a buffer.
 	 */
 	ret = wait_fm_ready(dd, 7000);
 	if (ret) {
@@ -10441,10 +10441,10 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 	}
 
 	/*
-	 * The state is now offline and the 8051 is ready to accept host
+	 * The state is yesw offline and the 8051 is ready to accept host
 	 * requests.
 	 *	- change our state
-	 *	- notify others if we were previously in a linkup state
+	 *	- yestify others if we were previously in a linkup state
 	 */
 	ppd->host_link_state = HLS_DN_OFFLINE;
 	if (previous_state & HLS_UP) {
@@ -10487,7 +10487,7 @@ static const char *link_state_name(u32 state)
 	};
 
 	name = n < ARRAY_SIZE(names) ? names[n] : NULL;
-	return name ? name : "unknown";
+	return name ? name : "unkyeswn";
 }
 
 /* return the link state reason name */
@@ -10513,7 +10513,7 @@ static const char *link_state_reason_name(struct hfi1_pportdata *ppd, u32 state)
 }
 
 /*
- * driver_pstate - convert the driver's notion of a port's
+ * driver_pstate - convert the driver's yestion of a port's
  * state (an HLS_*) into a physical state (a {IB,OPA}_PORTPHYSSTATE_*).
  * Return -1 (converted to a u32) to indicate error.
  */
@@ -10547,7 +10547,7 @@ u32 driver_pstate(struct hfi1_pportdata *ppd)
 }
 
 /*
- * driver_lstate - convert the driver's notion of a port's
+ * driver_lstate - convert the driver's yestion of a port's
  * state (an HLS_*) into a logical state (a IB_PORT_*). Return -1
  * (converted to a u32) to indicate error.
  */
@@ -10609,10 +10609,10 @@ static inline bool data_vls_operational(struct hfi1_pportdata *ppd)
 /*
  * Change the physical and/or logical link state.
  *
- * Do not call this routine while inside an interrupt.  It contains
+ * Do yest call this routine while inside an interrupt.  It contains
  * calls to routines that can take multiple seconds to finish.
  *
- * Returns 0 on success, -errno on failure.
+ * Returns 0 on success, -erryes on failure.
  */
 int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 {
@@ -10646,7 +10646,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		ppd->is_sm_config_started = 0;
 
 	/*
-	 * Do nothing if the states match.  Let a poll to poll link bounce
+	 * Do yesthing if the states match.  Let a poll to poll link bounce
 	 * go through.
 	 */
 	if (ppd->host_link_state == state && !poll_bounce)
@@ -10659,7 +10659,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			/*
 			 * Quick link up jumps from polling to here.
 			 *
-			 * Whether in normal or loopback mode, the
+			 * Whether in yesrmal or loopback mode, the
 			 * simulator jumps from polling to link up.
 			 * Accept that here.
 			 */
@@ -10676,7 +10676,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		ret = wait_physical_linkstate(ppd, PLS_LINKUP, 1000);
 		if (ret) {
 			dd_dev_err(dd,
-				   "%s: physical state did not change to LINK-UP\n",
+				   "%s: physical state did yest change to LINK-UP\n",
 				   __func__);
 			break;
 		}
@@ -10684,7 +10684,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		ret = wait_logical_linkstate(ppd, IB_PORT_INIT, 1000);
 		if (ret) {
 			dd_dev_err(dd,
-				   "%s: logical state did not change to INIT\n",
+				   "%s: logical state did yest change to INIT\n",
 				   __func__);
 			break;
 		}
@@ -10726,19 +10726,19 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		ret = wait_logical_linkstate(ppd, IB_PORT_ARMED, 1000);
 		if (ret) {
 			dd_dev_err(dd,
-				   "%s: logical state did not change to ARMED\n",
+				   "%s: logical state did yest change to ARMED\n",
 				   __func__);
 			break;
 		}
 		ppd->host_link_state = HLS_UP_ARMED;
 		update_statusp(ppd, IB_PORT_ARMED);
 		/*
-		 * The simulator does not currently implement SMA messages,
-		 * so neighbor_normal is not set.  Set it here when we first
+		 * The simulator does yest currently implement SMA messages,
+		 * so neighbor_yesrmal is yest set.  Set it here when we first
 		 * move to Armed.
 		 */
 		if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR)
-			ppd->neighbor_normal = 1;
+			ppd->neighbor_yesrmal = 1;
 		break;
 	case HLS_UP_ACTIVE:
 		if (ppd->host_link_state != HLS_UP_ARMED)
@@ -10748,7 +10748,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		ret = wait_logical_linkstate(ppd, IB_PORT_ACTIVE, 1000);
 		if (ret) {
 			dd_dev_err(dd,
-				   "%s: logical state did not change to ACTIVE\n",
+				   "%s: logical state did yest change to ACTIVE\n",
 				   __func__);
 		} else {
 			/* tell all engines to go running */
@@ -10792,7 +10792,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		ppd->port_error_action = 0;
 
 		if (quick_linkup) {
-			/* quick linkup does not go into polling */
+			/* quick linkup does yest go into polling */
 			ret = do_quick_linkup(dd);
 		} else {
 			ret1 = set_physical_link_state(dd, PLS_POLLING);
@@ -10809,8 +10809,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 
 		/*
 		 * Change the host link state after requesting DC8051 to
-		 * change its physical state so that we can ignore any
-		 * interrupt with stale LNI(XX) error, which will not be
+		 * change its physical state so that we can igyesre any
+		 * interrupt with stale LNI(XX) error, which will yest be
 		 * cleared until DC8051 transitions to Polling state.
 		 */
 		ppd->host_link_state = HLS_DN_POLL;
@@ -10818,7 +10818,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE);
 		/*
 		 * If an error occurred above, go back to offline.  The
-		 * caller may reschedule another attempt.
+		 * caller may reschedule ayesther attempt.
 		 */
 		if (ret)
 			goto_offline(ppd, 0);
@@ -10851,7 +10851,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			ret = wait_physical_linkstate(ppd, PLS_DISABLED, 10000);
 			if (ret) {
 				dd_dev_err(dd,
-					   "%s: physical state did not change to DISABLED\n",
+					   "%s: physical state did yest change to DISABLED\n",
 					   __func__);
 				break;
 			}
@@ -10892,7 +10892,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 	case HLS_GOING_OFFLINE:		/* transient within goto_offline() */
 	case HLS_LINK_COOLDOWN:		/* transient within goto_offline() */
 	default:
-		dd_dev_info(dd, "%s: state 0x%x: not supported\n",
+		dd_dev_info(dd, "%s: state 0x%x: yest supported\n",
 			    __func__, state);
 		ret = -EINVAL;
 		break;
@@ -10949,7 +10949,7 @@ int hfi1_set_ib_cfg(struct hfi1_pportdata *ppd, int which, u32 val)
 	/*
 	 * For link width, link width downgrade, and speed enable, always AND
 	 * the setting with what is actually supported.  This has two benefits.
-	 * First, enabled can't have unsupported values, no matter what the
+	 * First, enabled can't have unsupported values, yes matter what the
 	 * SM or FM might want.  Second, the ALL_SUPPORTED wildcards that mean
 	 * "fill in with your supported value" have all the bits in the
 	 * field set, so simply ANDing with supported has the desired result.
@@ -10966,14 +10966,14 @@ int hfi1_set_ib_cfg(struct hfi1_pportdata *ppd, int which, u32 val)
 		break;
 	case HFI1_IB_CFG_OVERRUN_THRESH: /* IB overrun threshold */
 		/*
-		 * HFI does not follow IB specs, save this value
+		 * HFI does yest follow IB specs, save this value
 		 * so we can report it, if asked.
 		 */
 		ppd->overrun_threshold = val;
 		break;
 	case HFI1_IB_CFG_PHYERR_THRESH: /* IB PHY error threshold */
 		/*
-		 * HFI does not follow IB specs, save this value
+		 * HFI does yest follow IB specs, save this value
 		 * so we can report it, if asked.
 		 */
 		ppd->phy_error_threshold = val;
@@ -10991,7 +10991,7 @@ int hfi1_set_ib_cfg(struct hfi1_pportdata *ppd, int which, u32 val)
 	default:
 		if (HFI1_CAP_IS_KSET(PRINT_UNIMPL))
 			dd_dev_info(ppd->dd,
-				    "%s: which %s, val 0x%x: not implemented\n",
+				    "%s: which %s, val 0x%x: yest implemented\n",
 				    __func__, ib_cfg_name(which), val);
 		break;
 	}
@@ -11010,7 +11010,7 @@ static void init_vl_arb_caches(struct hfi1_pportdata *ppd)
 
 	/*
 	 * Note that we always return values directly from the
-	 * 'vl_arb_cache' (and do no CSR reads) in response to a
+	 * 'vl_arb_cache' (and do yes CSR reads) in response to a
 	 * 'Get(VLArbTable)'. This is obviously correct after a
 	 * 'Set(VLArbTable)', since the cache will then be up to
 	 * date. But it's also correct prior to any 'Set(VLArbTable)'
@@ -11081,7 +11081,7 @@ static int set_vl_weights(struct hfi1_pportdata *ppd, u32 target,
 		/*
 		 * Before adjusting VL arbitration weights, empty per-VL
 		 * FIFOs, otherwise a packet whose VL weight is being
-		 * set to 0 could get stuck in a FIFO with no chance to
+		 * set to 0 could get stuck in a FIFO with yes chance to
 		 * egress.
 		 */
 		ret = stop_drain_data_vls(dd);
@@ -11089,7 +11089,7 @@ static int set_vl_weights(struct hfi1_pportdata *ppd, u32 target,
 	if (ret) {
 		dd_dev_err(
 			dd,
-			"%s: cannot stop/drain VLs - refusing to change VL arbitration weights\n",
+			"%s: canyest stop/drain VLs - refusing to change VL arbitration weights\n",
 			__func__);
 		goto err;
 	}
@@ -11142,7 +11142,7 @@ static int get_buffer_control(struct hfi1_devdata *dd,
 	u64 reg;
 	int i;
 
-	/* not all entries are filled in */
+	/* yest all entries are filled in */
 	memset(bc, 0, sizeof(*bc));
 
 	/* OPA and HFI have a 1-1 mapping */
@@ -11238,11 +11238,11 @@ static void set_sc2vlnt(struct hfi1_devdata *dd, struct sc2vlnt *dp)
 			       31, dp->vlnt[31] & 0xf));
 }
 
-static void nonzero_msg(struct hfi1_devdata *dd, int idx, const char *what,
+static void yesnzero_msg(struct hfi1_devdata *dd, int idx, const char *what,
 			u16 limit)
 {
 	if (limit != 0)
-		dd_dev_info(dd, "Invalid %s limit %d on VL %d, ignoring\n",
+		dd_dev_info(dd, "Invalid %s limit %d on VL %d, igyesring\n",
 			    what, (int)limit, idx);
 }
 
@@ -11321,7 +11321,7 @@ static void wait_for_vl_status_clear(struct hfi1_devdata *dd, u64 mask,
 	}
 
 	dd_dev_err(dd,
-		   "%s credit change status not clearing after %dms, mask 0x%llx, not clear 0x%llx\n",
+		   "%s credit change status yest clearing after %dms, mask 0x%llx, yest clear 0x%llx\n",
 		   which, VL_STATUS_CLEAR_TIMEOUT, mask, reg);
 	/*
 	 * If this occurs, it is likely there was a credit loss on the link.
@@ -11394,9 +11394,9 @@ int set_buffer_control(struct hfi1_pportdata *ppd,
 			new_total += be16_to_cpu(new_bc->vl[i].dedicated);
 			continue;
 		}
-		nonzero_msg(dd, i, "dedicated",
+		yesnzero_msg(dd, i, "dedicated",
 			    be16_to_cpu(new_bc->vl[i].dedicated));
-		nonzero_msg(dd, i, "shared",
+		yesnzero_msg(dd, i, "shared",
 			    be16_to_cpu(new_bc->vl[i].shared));
 		new_bc->vl[i].dedicated = 0;
 		new_bc->vl[i].shared = 0;
@@ -11486,7 +11486,7 @@ int set_buffer_control(struct hfi1_pportdata *ppd,
 
 		wait_for_vl_status_clear(dd, ld_mask, "dedicated");
 
-		/* now raise all dedicated that are going up */
+		/* yesw raise all dedicated that are going up */
 		for (i = 0; i < NUM_USABLE_VLS; i++) {
 			if (!valid_vl(i))
 				continue;
@@ -11645,7 +11645,7 @@ int fm_set_table(struct hfi1_pportdata *ppd, int which, void *t)
 /*
  * Disable all data VLs.
  *
- * Return 0 if disabled, non-zero if the VLs cannot be disabled.
+ * Return 0 if disabled, yesn-zero if the VLs canyest be disabled.
  */
 static int disable_data_vls(struct hfi1_devdata *dd)
 {
@@ -11663,7 +11663,7 @@ static int disable_data_vls(struct hfi1_devdata *dd)
  * automatically - the name was chosen for symmetry with
  * stop_drain_data_vls()).
  *
- * Return 0 if successful, non-zero if the VLs cannot be enabled.
+ * Return 0 if successful, yesn-zero if the VLs canyest be enabled.
  */
 int open_fill_data_vls(struct hfi1_devdata *dd)
 {
@@ -11709,8 +11709,8 @@ int stop_drain_data_vls(struct hfi1_devdata *dd)
 }
 
 /*
- * Convert a nanosecond time to a cclock count.  No matter how slow
- * the cclock, a non-zero ns will always have a non-zero result.
+ * Convert a nayessecond time to a cclock count.  No matter how slow
+ * the cclock, a yesn-zero ns will always have a yesn-zero result.
  */
 u32 ns_to_cclock(struct hfi1_devdata *dd, u32 ns)
 {
@@ -11720,14 +11720,14 @@ u32 ns_to_cclock(struct hfi1_devdata *dd, u32 ns)
 		cclocks = (ns * 1000) / FPGA_CCLOCK_PS;
 	else  /* simulation pretends to be ASIC */
 		cclocks = (ns * 1000) / ASIC_CCLOCK_PS;
-	if (ns && !cclocks)	/* if ns nonzero, must be at least 1 */
+	if (ns && !cclocks)	/* if ns yesnzero, must be at least 1 */
 		cclocks = 1;
 	return cclocks;
 }
 
 /*
- * Convert a cclock count to nanoseconds. Not matter how slow
- * the cclock, a non-zero cclocks will always have a non-zero result.
+ * Convert a cclock count to nayesseconds. Not matter how slow
+ * the cclock, a yesn-zero cclocks will always have a yesn-zero result.
  */
 u32 cclock_to_ns(struct hfi1_devdata *dd, u32 cclocks)
 {
@@ -11746,7 +11746,7 @@ u32 cclock_to_ns(struct hfi1_devdata *dd, u32 cclocks)
  * Dynamically adjust the receive interrupt timeout for a context based on
  * incoming packet rate.
  *
- * NOTE: Dynamic adjustment does not allow rcv_intr_count to be zero.
+ * NOTE: Dynamic adjustment does yest allow rcv_intr_count to be zero.
  */
 static void adjust_rcv_timeout(struct hfi1_ctxtdata *rcd, u32 npkts)
 {
@@ -11758,13 +11758,13 @@ static void adjust_rcv_timeout(struct hfi1_ctxtdata *rcd, u32 npkts)
 	 * the number of packets received in this interrupt were less than or
 	 * greater equal the interrupt count.
 	 *
-	 * The calculations below do not allow a steady state to be achieved.
+	 * The calculations below do yest allow a steady state to be achieved.
 	 * Only at the endpoints it is possible to have an unchanging
 	 * timeout.
 	 */
 	if (npkts < rcv_intr_count) {
 		/*
-		 * Not enough packets arrived before the timeout, adjust
+		 * Not eyesugh packets arrived before the timeout, adjust
 		 * timeout downward.
 		 */
 		if (timeout < 2) /* already at minimum? */
@@ -11772,7 +11772,7 @@ static void adjust_rcv_timeout(struct hfi1_ctxtdata *rcd, u32 npkts)
 		timeout >>= 1;
 	} else {
 		/*
-		 * More than enough packets arrived before the timeout, adjust
+		 * More than eyesugh packets arrived before the timeout, adjust
 		 * timeout upward.
 		 */
 		if (timeout >= dd->rcv_intr_timeout_csr) /* already at max? */
@@ -11782,7 +11782,7 @@ static void adjust_rcv_timeout(struct hfi1_ctxtdata *rcd, u32 npkts)
 
 	rcd->rcvavail_timeout = timeout;
 	/*
-	 * timeout cannot be larger than rcv_intr_timeout_csr which has already
+	 * timeout canyest be larger than rcv_intr_timeout_csr which has already
 	 * been verified to be in range
 	 */
 	write_kctxt_csr(dd, rcd->ctxt, RCV_AVAIL_TIME_OUT,
@@ -11933,7 +11933,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 		/*
 		 * Set TID (expected) count and base index.
 		 * rcd->expected_count is set to individual RcvArray entries,
-		 * not pairs, and the CSR takes a pair-count in groups of
+		 * yest pairs, and the CSR takes a pair-count in groups of
 		 * four, so divide by 8.
 		 */
 		reg = (((rcd->expected_count >> RCV_SHIFT)
@@ -12024,7 +12024,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 			read_uctxt_csr(dd, ctxt, RCV_HDR_HEAD);
 			reg = read_kctxt_csr(dd, ctxt, RCV_CTXT_STATUS);
 			dd_dev_info(dd, "ctxt %d status %lld (%s blocked)\n",
-				    ctxt, reg, reg == 0 ? "not" : "still");
+				    ctxt, reg, reg == 0 ? "yest" : "still");
 		}
 	}
 
@@ -12214,7 +12214,7 @@ static u64 read_dev_port_cntr(struct hfi1_devdata *dd, struct cntr_entry *entry,
 	u64 sval = *psval;
 
 	if (entry->flags & CNTR_DISABLED) {
-		dd_dev_err(dd, "Counter %s not enabled", entry->name);
+		dd_dev_err(dd, "Counter %s yest enabled", entry->name);
 		return 0;
 	}
 
@@ -12265,7 +12265,7 @@ static u64 write_dev_port_cntr(struct hfi1_devdata *dd,
 	u64 val;
 
 	if (entry->flags & CNTR_DISABLED) {
-		dd_dev_err(dd, "Counter %s not enabled", entry->name);
+		dd_dev_err(dd, "Counter %s yest enabled", entry->name);
 		return 0;
 	}
 
@@ -12333,7 +12333,7 @@ u64 read_port_cntr(struct hfi1_pportdata *ppd, int index, int vl)
 
 	if ((index >= C_RCV_HDR_OVF_FIRST + ppd->dd->num_rcv_contexts) &&
 	    (index <= C_RCV_HDR_OVF_LAST)) {
-		/* We do not want to bother for disabled contexts */
+		/* We do yest want to bother for disabled contexts */
 		return 0;
 	}
 
@@ -12353,7 +12353,7 @@ u64 write_port_cntr(struct hfi1_pportdata *ppd, int index, int vl, u64 data)
 
 	if ((index >= C_RCV_HDR_OVF_FIRST + ppd->dd->num_rcv_contexts) &&
 	    (index <= C_RCV_HDR_OVF_LAST)) {
-		/* We do not want to bother for disabled contexts */
+		/* We do yest want to bother for disabled contexts */
 		return 0;
 	}
 
@@ -12391,7 +12391,7 @@ static void do_update_synth_timer(struct work_struct *work)
 
 	if ((cur_tx < dd->last_tx) || (cur_rx < dd->last_rx)) {
 		/*
-		 * May not be strictly necessary to update but it won't hurt and
+		 * May yest be strictly necessary to update but it won't hurt and
 		 * simplifies the logic here.
 		 */
 		update = 1;
@@ -12435,8 +12435,8 @@ static void do_update_synth_timer(struct work_struct *work)
 
 		/*
 		 * We want the value in the register. The goal is to keep track
-		 * of the number of "ticks" not the counter value. In other
-		 * words if the register rolls we want to notice it and go ahead
+		 * of the number of "ticks" yest the counter value. In other
+		 * words if the register rolls we want to yestice it and go ahead
 		 * and force an update.
 		 */
 		entry = &dev_cntrs[C_DC_XMIT_FLITS];
@@ -12715,7 +12715,7 @@ static u32 chip_to_opa_lstate(struct hfi1_devdata *dd, u32 chip_lstate)
 	switch (chip_lstate) {
 	default:
 		dd_dev_err(dd,
-			   "Unknown logical state 0x%x, reporting IB_PORT_DOWN\n",
+			   "Unkyeswn logical state 0x%x, reporting IB_PORT_DOWN\n",
 			   chip_lstate);
 		/* fall through */
 	case LSTATE_DOWN:
@@ -12765,7 +12765,7 @@ const char *opa_lstate_name(u32 lstate)
 	};
 	if (lstate < ARRAY_SIZE(port_logical_names))
 		return port_logical_names[lstate];
-	return "unknown";
+	return "unkyeswn";
 }
 
 /* return the OPA port physical state name */
@@ -12787,7 +12787,7 @@ const char *opa_pstate_name(u32 pstate)
 	};
 	if (pstate < ARRAY_SIZE(port_physical_names))
 		return port_physical_names[pstate];
-	return "unknown";
+	return "unkyeswn";
 }
 
 /**
@@ -12837,7 +12837,7 @@ static void update_statusp(struct hfi1_pportdata *ppd, u32 state)
  * @msecs: the number of milliseconds to wait
  *
  * Wait up to msecs milliseconds for IB link state change to occur.
- * For now, take the easy polling route.
+ * For yesw, take the easy polling route.
  * Returns 0 if state reached, otherwise -ETIMEDOUT.
  */
 static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
@@ -13021,7 +13021,7 @@ int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp)
 
 	if (dd->icode != ICODE_RTL_SILICON) {
 		if (HFI1_CAP_IS_KSET(PRINT_UNIMPL))
-			dd_dev_info(dd, "%s: tempsense not supported by HW\n",
+			dd_dev_info(dd, "%s: tempsense yest supported by HW\n",
 				    __func__);
 		return -EINVAL;
 	}
@@ -13251,7 +13251,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	if (n_krcvqs)
 		/*
 		 * n_krcvqs is the sum of module parameter kernel receive
-		 * contexts, krcvqs[].  It does not include the control
+		 * contexts, krcvqs[].  It does yest include the control
 		 * context, so add that.
 		 */
 		num_kernel_contexts = n_krcvqs + 1;
@@ -13278,11 +13278,11 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 
 	/*
 	 * User contexts:
-	 *	- default to 1 user context per real (non-HT) CPU core if
+	 *	- default to 1 user context per real (yesn-HT) CPU core if
 	 *	  num_user_contexts is negative
 	 */
 	if (num_user_contexts < 0)
-		n_usr_ctxts = cpumask_weight(&node_affinity.real_cpu_mask);
+		n_usr_ctxts = cpumask_weight(&yesde_affinity.real_cpu_mask);
 	else
 		n_usr_ctxts = num_user_contexts;
 	/*
@@ -13303,7 +13303,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	 * 2. FECN (num_kernel_context - 1 + num_user_contexts +
 	 *    num_vnic_contexts);
 	 * 3. VNIC (num_vnic_contexts).
-	 * It should be noted that FECN oversubscribe num_vnic_contexts
+	 * It should be yested that FECN oversubscribe num_vnic_contexts
 	 * entries of RMT because both VNIC and PSM could allocate any receive
 	 * context between dd->first_dyn_alloc_text and dd->num_rcv_contexts,
 	 * and PSM FECN must reserve an RMT entry for each possible PSM receive
@@ -13421,7 +13421,7 @@ static void set_partition_keys(struct hfi1_pportdata *ppd)
  * These CSRs and memories are uninitialized on reset and must be
  * written before reading to set the ECC/parity bits.
  *
- * NOTE: All user context CSRs that are not mmaped write-only
+ * NOTE: All user context CSRs that are yest mmaped write-only
  * (e.g. the TID flows) must be initialized even if the driver never
  * reads them.
  */
@@ -13440,8 +13440,8 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 	/* PIO Send buffers */
 	/* SDMA Send buffers */
 	/*
-	 * These are not normally read, and (presently) have no method
-	 * to be read, so are not pre-initialized
+	 * These are yest yesrmally read, and (presently) have yes method
+	 * to be read, so are yest pre-initialized
 	 */
 
 	/* RcvHdrAddr */
@@ -13714,11 +13714,11 @@ static void init_rbufs(struct hfi1_devdata *dd)
 		 */
 		if (count++ > 500) {
 			dd_dev_err(dd,
-				   "%s: in-progress DMA not clearing: RcvStatus 0x%llx, continuing\n",
+				   "%s: in-progress DMA yest clearing: RcvStatus 0x%llx, continuing\n",
 				   __func__, reg);
 			break;
 		}
-		udelay(2); /* do not busy-wait the CSR */
+		udelay(2); /* do yest busy-wait the CSR */
 	}
 
 	/* start the init - expect RcvCtrl to be 0 */
@@ -13736,7 +13736,7 @@ static void init_rbufs(struct hfi1_devdata *dd)
 	count = 0;
 	while (1) {
 		/* delay is required first time through - see above */
-		udelay(2); /* do not busy-wait the CSR */
+		udelay(2); /* do yest busy-wait the CSR */
 		reg = read_csr(dd, RCV_STATUS);
 		if (reg & (RCV_STATUS_RX_RBUF_INIT_DONE_SMASK))
 			break;
@@ -13744,7 +13744,7 @@ static void init_rbufs(struct hfi1_devdata *dd)
 		/* give up after 100us - slowest possible at 33MHz is 73us */
 		if (count++ > 50) {
 			dd_dev_err(dd,
-				   "%s: RcvStatus.RxRbufInit not set, continuing\n",
+				   "%s: RcvStatus.RxRbufInit yest set, continuing\n",
 				   __func__);
 			break;
 		}
@@ -13882,11 +13882,11 @@ static void init_sc2vl_tables(struct hfi1_devdata *dd)
 }
 
 /*
- * Read chip sizes and then reset parts to sane, disabled, values.  We cannot
+ * Read chip sizes and then reset parts to sane, disabled, values.  We canyest
  * depend on the chip going through a power-on reset - a driver may be loaded
  * and unloaded many times.
  *
- * Do not write any CSR values to the chip in this routine - there may be
+ * Do yest write any CSR values to the chip in this routine - there may be
  * a reset following the (possible) FLR in this routine.
  *
  */
@@ -13896,14 +13896,14 @@ static int init_chip(struct hfi1_devdata *dd)
 	int ret = 0;
 
 	/*
-	 * Put the HFI CSRs in a known state.
+	 * Put the HFI CSRs in a kyeswn state.
 	 * Combine this with a DC reset.
 	 *
 	 * Stop the device from doing anything while we do a
-	 * reset.  We know there are no other active users of
-	 * the device since we are now in charge.  Turn off
+	 * reset.  We kyesw there are yes other active users of
+	 * the device since we are yesw in charge.  Turn off
 	 * off all outbound and inbound traffic and make sure
-	 * the device does not generate any interrupts.
+	 * the device does yest generate any interrupts.
 	 */
 
 	/* disable send contexts and SDMA engines */
@@ -13943,7 +13943,7 @@ static int init_chip(struct hfi1_devdata *dd)
 		/* restore command and BARs */
 		ret = restore_pci_variables(dd);
 		if (ret) {
-			dd_dev_err(dd, "%s: Could not restore PCI variables\n",
+			dd_dev_err(dd, "%s: Could yest restore PCI variables\n",
 				   __func__);
 			return ret;
 		}
@@ -13953,7 +13953,7 @@ static int init_chip(struct hfi1_devdata *dd)
 			pcie_flr(dd->pcidev);
 			ret = restore_pci_variables(dd);
 			if (ret) {
-				dd_dev_err(dd, "%s: Could not restore PCI variables\n",
+				dd_dev_err(dd, "%s: Could yest restore PCI variables\n",
 					   __func__);
 				return ret;
 			}
@@ -13973,13 +13973,13 @@ static int init_chip(struct hfi1_devdata *dd)
 
 	/*
 	 * Clear the QSFP reset.
-	 * An FLR enforces a 0 on all out pins. The driver does not touch
+	 * An FLR enforces a 0 on all out pins. The driver does yest touch
 	 * ASIC_QSFPn_OUT otherwise.  This leaves RESET_N low and
 	 * anything plugged constantly in reset, if it pays attention
 	 * to RESET_N.
 	 * Prime examples of this are optical cables. Set all pins high.
 	 * I2CCLK and I2CDAT will change per direction, and INT_N and
-	 * MODPRS_N are input only and their value is ignored.
+	 * MODPRS_N are input only and their value is igyesred.
 	 */
 	write_csr(dd, ASIC_QSFP1_OUT, 0x1f);
 	write_csr(dd, ASIC_QSFP2_OUT, 0x1f);
@@ -13997,7 +13997,7 @@ static void init_early_variables(struct hfi1_devdata *dd)
 	if (is_ax(dd))
 		dd->link_credits--;
 	dd->vcu = cu_to_vcu(hfi1_cu);
-	/* enough room for 8 MAD packets plus header - 17K */
+	/* eyesugh room for 8 MAD packets plus header - 17K */
 	dd->vl15_init = (8 * (2048 + 128)) / vau_to_au(dd->vau);
 	if (dd->vl15_init > dd->link_credits)
 		dd->vl15_init = dd->link_credits;
@@ -14018,10 +14018,10 @@ static void init_kdeth_qp(struct hfi1_devdata *dd)
 	/* user changed the KDETH_QP */
 	if (kdeth_qp != 0 && kdeth_qp >= 0xff) {
 		/* out of range or illegal value */
-		dd_dev_err(dd, "Invalid KDETH queue pair prefix, ignoring");
+		dd_dev_err(dd, "Invalid KDETH queue pair prefix, igyesring");
 		kdeth_qp = 0;
 	}
-	if (kdeth_qp == 0)	/* not set, or failed range check */
+	if (kdeth_qp == 0)	/* yest set, or failed range check */
 		kdeth_qp = DEFAULT_KDETH_QP;
 
 	write_csr(dd, SEND_BTH_QP,
@@ -14068,7 +14068,7 @@ static void init_qpmap_table(struct hfi1_devdata *dd,
 			     u32 last_ctxt)
 {
 	u64 reg = 0;
-	u64 regno = RCV_QP_MAP_TABLE;
+	u64 regyes = RCV_QP_MAP_TABLE;
 	int i;
 	u64 ctxt = first_ctxt;
 
@@ -14078,9 +14078,9 @@ static void init_qpmap_table(struct hfi1_devdata *dd,
 		if (ctxt > last_ctxt)
 			ctxt = first_ctxt;
 		if (i % 8 == 7) {
-			write_csr(dd, regno, reg);
+			write_csr(dd, regyes, reg);
 			reg = 0;
-			regno += 8;
+			regyes += 8;
 		}
 	}
 
@@ -14110,7 +14110,7 @@ struct rsm_rule_data {
 
 /*
  * Return an initialized RMT map table for users to fill in.  OK if it
- * returns NULL, indicating no table.
+ * returns NULL, indicating yes table.
  */
 static struct rsm_map_table *alloc_rsm_map_table(struct hfi1_devdata *dd)
 {
@@ -14191,14 +14191,14 @@ static int qos_rmt_entries(struct hfi1_devdata *dd, unsigned int *mp,
 	if (dd->n_krcv_queues <= MIN_KERNEL_KCTXTS ||
 	    num_vls == 1 ||
 	    krcvqsset <= 1)
-		goto no_qos;
+		goto yes_qos;
 
 	/* determine bits for qpn */
 	for (i = 0; i < min_t(unsigned int, num_vls, krcvqsset); i++)
 		if (krcvqs[i] > max_by_vl)
 			max_by_vl = krcvqs[i];
 	if (max_by_vl > 32)
-		goto no_qos;
+		goto yes_qos;
 	m = ilog2(__roundup_pow_of_two(max_by_vl));
 
 	/* determine bits for vl */
@@ -14206,7 +14206,7 @@ static int qos_rmt_entries(struct hfi1_devdata *dd, unsigned int *mp,
 
 	/* reject if too much is used */
 	if ((m + n) > 7)
-		goto no_qos;
+		goto yes_qos;
 
 	if (mp)
 		*mp = m;
@@ -14215,7 +14215,7 @@ static int qos_rmt_entries(struct hfi1_devdata *dd, unsigned int *mp,
 
 	return 1 << (m + n);
 
-no_qos:
+yes_qos:
 	if (mp)
 		*mp = 0;
 	if (np)
@@ -14251,7 +14251,7 @@ static void init_qos(struct hfi1_devdata *dd, struct rsm_map_table *rmt)
 		goto bail;
 	qpns_per_vl = 1 << m;
 
-	/* enough room in the map table? */
+	/* eyesugh room in the map table? */
 	rmt_entries = 1 << (m + n);
 	if (rmt->used + rmt_entries >= NUM_MAP_ENTRIES)
 		goto bail;
@@ -14324,7 +14324,7 @@ static void init_fecn_handling(struct hfi1_devdata *dd,
 
 	total_cnt = dd->num_rcv_contexts - start;
 
-	/* there needs to be enough room in the map table */
+	/* there needs to be eyesugh room in the map table */
 	if (rmt->used + total_cnt >= NUM_MAP_ENTRIES) {
 		dd_dev_err(dd, "FECN handling disabled - too many contexts allocated\n");
 		return;
@@ -14336,8 +14336,8 @@ static void init_fecn_handling(struct hfi1_devdata *dd,
 	 * in the range start...num_rcv_contexts-1 (inclusive).
 	 * Map entries are accessed as offset + extracted value.  Adjust
 	 * the added offset so this sequence can be placed anywhere in
-	 * the table - as long as the entries themselves do not wrap.
-	 * There are only enough bits in offset for the table size, so
+	 * the table - as long as the entries themselves do yest wrap.
+	 * There are only eyesugh bits in offset for the table size, so
 	 * start with that to allow for a "negative" offset.
 	 */
 	offset = (u8)(NUM_MAP_ENTRIES + rmt->used - start);
@@ -14441,7 +14441,7 @@ void hfi1_init_vnic_rsm(struct hfi1_devdata *dd)
 	rrd.index2_width = ilog2(NUM_VNIC_MAP_ENTRIES);
 	add_rsm_rule(dd, RSM_INS_VNIC, &rrd);
 
-	/* Enable RSM if not already enabled */
+	/* Enable RSM if yest already enabled */
 	add_rcvctrl(dd, RCV_CTRL_RCV_RSM_ENABLE_SMASK);
 }
 
@@ -14481,7 +14481,7 @@ static int init_rxe(struct hfi1_devdata *dd)
 	 * invalid configuration: RcvCtrl.RcvWcb set to its max of 256 and
 	 * Max_PayLoad_Size set to its minimum of 128.
 	 *
-	 * Presently, RcvCtrl.RcvWcb is not modified from its default of 0
+	 * Presently, RcvCtrl.RcvWcb is yest modified from its default of 0
 	 * (64 bytes).  Max_Payload_Size is possibly modified upward in
 	 * tune_pcie_caps() which is called after this routine.
 	 */
@@ -14587,7 +14587,7 @@ int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd,
 	reg = SEND_CTXT_CHECK_JOB_KEY_MASK_SMASK | /* mask is always 1's */
 		((jkey & SEND_CTXT_CHECK_JOB_KEY_VALUE_MASK) <<
 		 SEND_CTXT_CHECK_JOB_KEY_VALUE_SHIFT);
-	/* JOB_KEY_ALLOW_PERMISSIVE is not allowed by default */
+	/* JOB_KEY_ALLOW_PERMISSIVE is yest allowed by default */
 	if (HFI1_CAP_KGET_MASK(rcd->flags, ALLOW_PERM_JKEY))
 		reg |= SEND_CTXT_CHECK_JOB_KEY_ALLOW_PERMISSIVE_SMASK;
 	write_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_JOB_KEY, reg);
@@ -14621,7 +14621,7 @@ int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 	write_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_JOB_KEY, 0);
 	/*
 	 * Disable send-side J_KEY integrity check, unless this is A0 h/w.
-	 * This check would not have been enabled for A0 h/w, see
+	 * This check would yest have been enabled for A0 h/w, see
 	 * set_ctxt_jkey().
 	 */
 	if (!is_ax(dd)) {
@@ -14732,10 +14732,10 @@ static int init_asic_data(struct hfi1_devdata *dd)
 }
 
 /*
- * Set dd->boardname.  Use a generic name if a name is not returned from
+ * Set dd->boardname.  Use a generic name if a name is yest returned from
  * EFI variable space.
  *
- * Return 0 on success, -ENOMEM if space could not be allocated.
+ * Return 0 on success, -ENOMEM if space could yest be allocated.
  */
 static int obtain_boardname(struct hfi1_devdata *dd)
 {
@@ -14748,7 +14748,7 @@ static int obtain_boardname(struct hfi1_devdata *dd)
 	ret = read_hfi1_efi_var(dd, "description", &size,
 				(void **)&dd->boardname);
 	if (ret) {
-		dd_dev_info(dd, "Board description not found\n");
+		dd_dev_info(dd, "Board description yest found\n");
 		/* use generic description */
 		dd->boardname = kstrdup(generic, GFP_KERNEL);
 		if (!dd->boardname)
@@ -14797,7 +14797,7 @@ static int check_int_registers(struct hfi1_devdata *dd)
 	return 0;
 err_exit:
 	write_csr(dd, CCE_INT_MASK, mask);
-	dd_dev_err(dd, "Interrupt registers not properly mapped by VMM\n");
+	dd_dev_err(dd, "Interrupt registers yest properly mapped by VMM\n");
 	return -EINVAL;
 }
 
@@ -14890,7 +14890,7 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 			& CCE_REVISION_CHIP_REV_MINOR_MASK;
 
 	/*
-	 * Check interrupt registers mapping if the driver has no access to
+	 * Check interrupt registers mapping if the driver has yes access to
 	 * the upstream component. In this case, it is likely that the driver
 	 * is running in a VM.
 	 */
@@ -14912,7 +14912,7 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 	dd->irev = reg >> CCE_REVISION2_IMPL_REVISION_SHIFT;
 	dd_dev_info(dd, "Implementation: %s, revision 0x%x\n",
 		    dd->icode < ARRAY_SIZE(inames) ?
-		    inames[dd->icode] : "unknown", (int)dd->irev);
+		    inames[dd->icode] : "unkyeswn", (int)dd->irev);
 
 	/* speeds the hardware can support */
 	dd->pport->link_speed_supported = OPA_LINK_SPEED_25G;
@@ -14942,10 +14942,10 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 	/*
 	 * Convert the ns parameter to the 64 * cclocks used in the CSR.
 	 * Limit the max if larger than the field holds.  If timeout is
-	 * non-zero, then the calculated field will be at least 1.
+	 * yesn-zero, then the calculated field will be at least 1.
 	 *
 	 * Must be after icode is set up - the cclock rate depends
-	 * on knowing the hardware being used.
+	 * on kyeswing the hardware being used.
 	 */
 	dd->rcv_intr_timeout_csr = ns_to_cclock(dd, rcv_intr_timeout) / 64;
 	if (dd->rcv_intr_timeout_csr >
@@ -14993,7 +14993,7 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 	 * (the transition will reset the registers).
 	 *
 	 * In particular, place this call after:
-	 * - init_chip()     - the chip will not initiate any PCIe transactions
+	 * - init_chip()     - the chip will yest initiate any PCIe transactions
 	 * - pcie_speeds()   - reads the current link speed
 	 * - hfi1_firmware_init() - the needed firmware is ready to be
 	 *			    downloaded
@@ -15036,7 +15036,7 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 
 	/* set initial TXE CSRs */
 	init_txe(dd);
-	/* set initial non-RXE, non-TXE CSRs */
+	/* set initial yesn-RXE, yesn-TXE CSRs */
 	init_other(dd);
 	/* set up KDETH QP prefix in both RX and TX CSRs */
 	init_kdeth_qp(dd);
@@ -15160,9 +15160,9 @@ static u16 delay_cycles(struct hfi1_pportdata *ppd, u32 desired_egress_rate,
  *
  * Create a PBC with the given flags, rate, VL, and length.
  *
- * NOTE: The PBC created will not insert any HCRC - all callers but one are
- * for verbs, which does not use this PSM feature.  The lone other caller
- * is for the diagnostic interface which calls this if the user does not
+ * NOTE: The PBC created will yest insert any HCRC - all callers but one are
+ * for verbs, which does yest use this PSM feature.  The lone other caller
+ * is for the diagyesstic interface which calls this if the user does yest
  * supply their own PBC.
  */
 u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,
@@ -15197,8 +15197,8 @@ u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,
  * After initialization, enable polling of thermal sensor through
  * SBus interface. In order for this to work, the SBus Master
  * firmware has to be loaded due to the fact that the HW polling
- * logic uses SBus interrupts, which are not supported with
- * default firmware. Otherwise, no data will be returned through
+ * logic uses SBus interrupts, which are yest supported with
+ * default firmware. Otherwise, yes data will be returned through
  * the ASIC_STS_THERM CSR.
  */
 static int thermal_init(struct hfi1_devdata *dd)
@@ -15290,7 +15290,7 @@ static void handle_temp_err(struct hfi1_devdata *dd)
 	 * Step 1: Take the link down to OFFLINE. This will cause the
 	 *         8051 to put the Serdes in reset. However, we don't want to
 	 *         go through the entire link state machine since we want to
-	 *         shutdown ASAP. Furthermore, this is not a graceful shutdown
+	 *         shutdown ASAP. Furthermore, this is yest a graceful shutdown
 	 *         but rather an attempt to save the chip.
 	 *         Code below is almost the same as quiet_serdes() but avoids
 	 *         all the extra work and the sleeps.
@@ -15301,7 +15301,7 @@ static void handle_temp_err(struct hfi1_devdata *dd)
 				PLS_OFFLINE);
 	/*
 	 * Step 2: Shutdown LCB and 8051
-	 *         After shutdown, do not restore DC_CFG_RESET value.
+	 *         After shutdown, do yest restore DC_CFG_RESET value.
 	 */
 	dc_shutdown(dd);
 }

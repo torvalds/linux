@@ -118,7 +118,7 @@ EXPORT_SYMBOL(drm_client_init);
  *
  * Add the client to the &drm_device client list to activate its callbacks.
  * @client must be initialized by a call to drm_client_init(). After
- * drm_client_register() it is no longer permissible to call drm_client_release()
+ * drm_client_register() it is yes longer permissible to call drm_client_release()
  * directly (outside the unregister callback), instead cleanup will happen
  * automatically on driver unload.
  */
@@ -137,13 +137,13 @@ EXPORT_SYMBOL(drm_client_register);
  * @client: DRM client
  *
  * Releases resources by closing the &drm_file that was opened by drm_client_init().
- * It is called automatically if the &drm_client_funcs.unregister callback is _not_ set.
+ * It is called automatically if the &drm_client_funcs.unregister callback is _yest_ set.
  *
  * This function should only be called from the unregister callback. An exception
- * is fbdev which cannot free the buffer if userspace has open file descriptors.
+ * is fbdev which canyest free the buffer if userspace has open file descriptors.
  *
  * Note:
- * Clients cannot initiate a release by themselves. This is done to keep the code simple.
+ * Clients canyest initiate a release by themselves. This is done to keep the code simple.
  * The driver has to be unloaded before the client can be unloaded.
  */
 void drm_client_release(struct drm_client_dev *client)
@@ -294,7 +294,7 @@ err_delete:
  * This function maps a client buffer into kernel address space. If the
  * buffer is already mapped, it returns the mapping's address.
  *
- * Client buffer mappings are not ref'counted. Each call to
+ * Client buffer mappings are yest ref'counted. Each call to
  * drm_client_buffer_vmap() should be followed by a call to
  * drm_client_buffer_vunmap(); or the client buffer should be mapped
  * throughout its lifetime.
@@ -312,7 +312,7 @@ void *drm_client_buffer_vmap(struct drm_client_buffer *buffer)
 	/*
 	 * FIXME: The dependency on GEM here isn't required, we could
 	 * convert the driver handle to a dma-buf instead and use the
-	 * backend-agnostic dma-buf vmap support instead. This would
+	 * backend-agyesstic dma-buf vmap support instead. This would
 	 * require that the handle2fd prime ioctl is reworked to pull the
 	 * fd_install step out of the driver backend hooks, to make that
 	 * final step optional for internal users.
@@ -440,8 +440,8 @@ EXPORT_SYMBOL(drm_client_framebuffer_delete);
 #ifdef CONFIG_DEBUG_FS
 static int drm_client_debugfs_internal_clients(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 	struct drm_client_dev *client;
 
@@ -457,10 +457,10 @@ static const struct drm_info_list drm_client_debugfs_list[] = {
 	{ "internal_clients", drm_client_debugfs_internal_clients, 0 },
 };
 
-int drm_client_debugfs_init(struct drm_minor *minor)
+int drm_client_debugfs_init(struct drm_miyesr *miyesr)
 {
 	return drm_debugfs_create_files(drm_client_debugfs_list,
 					ARRAY_SIZE(drm_client_debugfs_list),
-					minor->debugfs_root, minor);
+					miyesr->debugfs_root, miyesr);
 }
 #endif

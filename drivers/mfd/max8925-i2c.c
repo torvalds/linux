@@ -131,7 +131,7 @@ static const struct i2c_device_id max8925_id_table[] = {
 	{ },
 };
 
-static int max8925_dt_init(struct device_node *np, struct device *dev,
+static int max8925_dt_init(struct device_yesde *np, struct device *dev,
 			   struct max8925_platform_data *pdata)
 {
 	int ret;
@@ -149,9 +149,9 @@ static int max8925_probe(struct i2c_client *client,
 {
 	struct max8925_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct max8925_chip *chip;
-	struct device_node *node = client->dev.of_node;
+	struct device_yesde *yesde = client->dev.of_yesde;
 
-	if (node && !pdata) {
+	if (yesde && !pdata) {
 		/* parse DT to get platform data */
 		pdata = devm_kzalloc(&client->dev,
 				     sizeof(struct max8925_platform_data),
@@ -159,7 +159,7 @@ static int max8925_probe(struct i2c_client *client,
 		if (!pdata)
 			return -ENOMEM;
 
-		if (max8925_dt_init(node, &client->dev, pdata))
+		if (max8925_dt_init(yesde, &client->dev, pdata))
 			return -EINVAL;
 	} else if (!pdata) {
 		pr_info("%s: platform data is missing\n", __func__);

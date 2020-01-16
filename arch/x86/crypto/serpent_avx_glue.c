@@ -288,7 +288,7 @@ static int __init serpent_init(void)
 
 	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM,
 				&feature_name)) {
-		pr_info("CPU feature '%s' is not supported.\n", feature_name);
+		pr_info("CPU feature '%s' is yest supported.\n", feature_name);
 		return -ENODEV;
 	}
 

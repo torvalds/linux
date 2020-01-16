@@ -54,7 +54,7 @@ void rtl92se_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HAL_DEF_WOWLAN:
 		break;
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -270,7 +270,7 @@ void rtl92se_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 					acm_ctrl &= (~ACMHW_VOQEN);
 					break;
 				default:
-					pr_err("switch case %#x not processed\n",
+					pr_err("switch case %#x yest processed\n",
 					       e_aci);
 					break;
 				}
@@ -406,7 +406,7 @@ void rtl92se_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 		break; }
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x yest processed\n", variable);
 		break;
 	}
 
@@ -424,7 +424,7 @@ void rtl92se_enable_hw_security_config(struct ieee80211_hw *hw)
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-			 "not open hw encryption\n");
+			 "yest open hw encryption\n");
 		return;
 	}
 
@@ -500,7 +500,7 @@ void rtl8192se_gpiobit3_cfg_inputmode(struct ieee80211_hw *hw)
 
 }
 
-static u8 _rtl92se_rf_onoff_detect(struct ieee80211_hw *hw)
+static u8 _rtl92se_rf_oyesff_detect(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 u1tmp;
@@ -514,7 +514,7 @@ static u8 _rtl92se_rf_onoff_detect(struct ieee80211_hw *hw)
 	u1tmp &= HAL_8192S_HW_GPIO_OFF_MASK;
 	rtl_write_byte(rtlpriv, GPIO_IO_SEL, u1tmp);
 
-	/* On some of the platform, driver cannot read correct
+	/* On some of the platform, driver canyest read correct
 	 * value without delay between Write_GPIO_SEL and Read_GPIO_IN */
 	mdelay(10);
 
@@ -573,7 +573,7 @@ static void _rtl92se_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, CMDR, 0);
 	rtl_write_byte(rtlpriv, TCR, 0);
 
-	/* Data sheet not define 0x562!!! Copy from WMAC!!!!! */
+	/* Data sheet yest define 0x562!!! Copy from WMAC!!!!! */
 	tmpu1b = rtl_read_byte(rtlpriv, 0x562);
 	tmpu1b |= 0x08;
 	rtl_write_byte(rtlpriv, 0x562, tmpu1b);
@@ -709,7 +709,7 @@ static void _rtl92se_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	rtl_write_word(rtlpriv, CMDR, 0x37FC);
 
 	/* To make sure that TxDMA can ready to download FW. */
-	/* We should reset TxDMA if IMEM RPT was not ready. */
+	/* We should reset TxDMA if IMEM RPT was yest ready. */
 	do {
 		tmpu1b = rtl_read_byte(rtlpriv, TCR);
 		if ((tmpu1b & TXDMA_INIT_VALUE) == TXDMA_INIT_VALUE)
@@ -733,7 +733,7 @@ static void _rtl92se_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	   (ppsc->rfoff_reason == 0)) {
 		struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
 		enum rf_pwrstate rfpwr_state_toset;
-		rfpwr_state_toset = _rtl92se_rf_onoff_detect(hw);
+		rfpwr_state_toset = _rtl92se_rf_oyesff_detect(hw);
 
 		if (rfpwr_state_toset == ERFON)
 			rtl92se_sw_led_on(hw, pled0);
@@ -781,10 +781,10 @@ static void _rtl92se_macconfig_after_fwdownload(struct ieee80211_hw *hw)
 
 	/* 5. FIFO Control Register (Offset: 0x00A0 - 0x015F) */
 	/* 5.1 Initialize Number of Reserved Pages in Firmware Queue */
-	/* Firmware allocate now, associate with FW internal setting.!!! */
+	/* Firmware allocate yesw, associate with FW internal setting.!!! */
 
 	/* 5.2 Setting TX/RX page size 0/1/2/3/4=64/128/256/512/1024 */
-	/* 5.3 Set driver info, we only accept PHY status now. */
+	/* 5.3 Set driver info, we only accept PHY status yesw. */
 	/* 5.4 Set RXDMA arbitration to control RXDMA/MAC/FW R/W for RXFIFO  */
 	rtl_write_byte(rtlpriv, RXDMA, rtl_read_byte(rtlpriv, RXDMA) | BIT(6));
 
@@ -792,7 +792,7 @@ static void _rtl92se_macconfig_after_fwdownload(struct ieee80211_hw *hw)
 	/* Set RRSR to all legacy rate and HT rate
 	 * CCK rate is supported by default.
 	 * CCK rate will be filtered out only when associated
-	 * AP does not support it.
+	 * AP does yest support it.
 	 * Only enable ACK rate to OFDM 24M
 	 * Disable RRSR for CCK rate in A-Cut	*/
 
@@ -803,7 +803,7 @@ static void _rtl92se_macconfig_after_fwdownload(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, RRSR + 1, 0x01);
 	rtl_write_byte(rtlpriv, RRSR + 2, 0x00);
 
-	/* A-Cut IC do not support CCK rate. We forbid ARFR to */
+	/* A-Cut IC do yest support CCK rate. We forbid ARFR to */
 	/* fallback to CCK rate */
 	for (i = 0; i < 8; i++) {
 		/*Disable RRSR for CCK rate in A-Cut */
@@ -849,7 +849,7 @@ static void _rtl92se_macconfig_after_fwdownload(struct ieee80211_hw *hw)
 	/* 12. Host Interrupt Status Register (Offset: 0x0300 - 0x030F) */
 	/* 13. Test mode and Debug Control Register (Offset: 0x0310 - 0x034F) */
 
-	/* 14. Set driver info, we only accept PHY status now. */
+	/* 14. Set driver info, we only accept PHY status yesw. */
 	rtl_write_byte(rtlpriv, RXDRVINFO_SZ, 4);
 
 	/* 15. For EEPROM R/W Workaround */
@@ -961,7 +961,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 	rtstatus = rtl92s_download_fw(hw);
 	if (!rtstatus) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "Failed to download FW. Init HW without FW now... "
+			 "Failed to download FW. Init HW without FW yesw... "
 			 "Please copy FW into /lib/firmware/rtlwifi\n");
 		err = 1;
 		goto exit;
@@ -1002,7 +1002,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 	}
 
 	/* 5. Initiailze RF RAIO_A.txt RF RAIO_B.txt */
-	/* Before initalizing RF. We can not use FW to do RF-R/W. */
+	/* Before initalizing RF. We can yest use FW to do RF-R/W. */
 
 	rtlphy->rf_mode = RF_OP_BY_SW_3WIRE;
 
@@ -1035,7 +1035,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 	rtl_set_bbreg(hw, RFPGA0_RFMOD, BCCKEN, 0x1);
 	rtl_set_bbreg(hw, RFPGA0_RFMOD, BOFDMEN, 0x1);
 
-	/*3 Set Hardware(Do nothing now) */
+	/*3 Set Hardware(Do yesthing yesw) */
 	_rtl92se_hw_configure(hw);
 
 	/* Read EEPROM TX power index and PHY_REG_PG.txt to capture correct */
@@ -1166,7 +1166,7 @@ static int _rtl92se_set_media_status(struct ieee80211_hw *hw,
 			 "Set Network type to AP!\n");
 		break;
 	default:
-		pr_err("Network type %d not supported!\n", type);
+		pr_err("Network type %d yest supported!\n", type);
 		return 1;
 
 	}
@@ -1233,7 +1233,7 @@ void rtl92se_enable_interrupt(struct ieee80211_hw *hw)
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
 	rtl_write_dword(rtlpriv, INTA_MASK, rtlpci->irq_mask[0]);
-	/* Support Bit 32-37(Assign as Bit 0-5) interrupt setting now */
+	/* Support Bit 32-37(Assign as Bit 0-5) interrupt setting yesw */
 	rtl_write_dword(rtlpriv, INTA_MASK + 4, rtlpci->irq_mask[1] & 0x3F);
 	rtlpci->irq_enabled = true;
 }
@@ -1244,7 +1244,7 @@ void rtl92se_disable_interrupt(struct ieee80211_hw *hw)
 	struct rtl_pci *rtlpci;
 
 	rtlpriv = rtl_priv(hw);
-	/* if firmware not available, no interrupts */
+	/* if firmware yest available, yes interrupts */
 	if (!rtlpriv || !rtlpriv->max_fw_size)
 		return;
 	rtlpci = rtl_pcidev(rtl_pcipriv(hw));
@@ -1333,7 +1333,7 @@ static void _rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 	u1btmp = rtl_read_byte(rtlpriv, (SYS_CLKR + 1));
 
 	/* Add description. After switch control path. register
-	 * after page1 will be invisible. We can not do any IO
+	 * after page1 will be invisible. We can yest do any IO
 	 * for register>0x40. After resume&MACIO reset, we need
 	 * to remember previous reg content. */
 	if (u1btmp & BIT(7)) {
@@ -1351,7 +1351,7 @@ static void _rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, 0x03, 0xF9);
 	/* SW/HW radio off or halt adapter!! For example S3/S4 */
 	} else {
-		/* LED function disable. Power range is about 8mA now. */
+		/* LED function disable. Power range is about 8mA yesw. */
 		/* if write 0xF1 disconnect_pci power
 		 *	 ifconfig wlan0 down power are both high 35:70 */
 		/* if write oxF9 disconnect_pci power
@@ -1407,8 +1407,8 @@ static void _rtl92se_power_domain_init(struct ieee80211_hw *hw)
 	/* Reset MAC-IO and CPU and Core Digital BIT10/11/15 */
 	tmpu1b = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
 
-	/* If IPS we need to turn LED on. So we not
-	 * not disable BIT 3/7 of reg3. */
+	/* If IPS we need to turn LED on. So we yest
+	 * yest disable BIT 3/7 of reg3. */
 	if (rtlpriv->psc.rfoff_reason & (RF_CHANGE_BY_IPS | RF_CHANGE_BY_HW))
 		tmpu1b &= 0xFB;
 	else
@@ -1421,7 +1421,7 @@ static void _rtl92se_power_domain_init(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, CMDR, 0);
 	rtl_write_byte(rtlpriv, TCR, 0);
 
-	/* Data sheet not define 0x562!!! Copy from WMAC!!!!! */
+	/* Data sheet yest define 0x562!!! Copy from WMAC!!!!! */
 	tmpu1b = rtl_read_byte(rtlpriv, 0x562);
 	tmpu1b |= 0x08;
 	rtl_write_byte(rtlpriv, 0x562, tmpu1b);
@@ -1564,7 +1564,7 @@ void rtl92se_set_beacon_related_registers(struct ieee80211_hw *hw)
 	rtl_write_word(rtlpriv, BCN_INTERVAL, mac->beacon_interval);
 
 	/* DrvErlyInt (in unit of TU). (Time to send
-	 * interrupt to notify driver to change
+	 * interrupt to yestify driver to change
 	 * beacon content) */
 	rtl_write_word(rtlpriv, BCN_DRV_EARLY_INT, 10 << 4);
 
@@ -1659,7 +1659,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 		return;
 
 	default:
-		dev_warn(dev, "no efuse data\n");
+		dev_warn(dev, "yes efuse data\n");
 		return;
 	}
 
@@ -2291,7 +2291,7 @@ void rtl92se_update_channel_access_setting(struct ieee80211_hw *hw)
 
 /* this ifunction is for RFKILL, it's different with windows,
  * because UI will disable wireless when GPIO Radio Off.
- * And here we not check or Disable/Enable ASPM like windows*/
+ * And here we yest check or Disable/Enable ASPM like windows*/
 bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -2300,7 +2300,7 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 	enum rf_pwrstate rfpwr_toset /*, cur_rfstate */;
 	unsigned long flag = 0;
 	bool actuallyset = false;
-	bool turnonbypowerdomain = false;
+	bool turyesnbypowerdomain = false;
 
 	/* just 8191se can check gpio before firstup, 92c/92d have fixed it */
 	if ((rtlpci->up_first_time == 1) || (rtlpci->being_init_adapter))
@@ -2326,10 +2326,10 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 	 * And we should close power after GPIO check */
 	if (RT_IN_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC)) {
 		_rtl92se_power_domain_init(hw);
-		turnonbypowerdomain = true;
+		turyesnbypowerdomain = true;
 	}
 
-	rfpwr_toset = _rtl92se_rf_onoff_detect(hw);
+	rfpwr_toset = _rtl92se_rf_oyesff_detect(hw);
 
 	if ((ppsc->hwradiooff) && (rfpwr_toset == ERFON)) {
 		RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
@@ -2352,7 +2352,7 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 		ppsc->rfchange_inprogress = false;
 		spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock, flag);
 
-	/* this not include ifconfig wlan0 down case */
+	/* this yest include ifconfig wlan0 down case */
 	/* } else if (rfpwr_toset == ERFOFF || cur_rfstate == ERFOFF) { */
 	} else {
 		/* because power_domain_init may be happen when
@@ -2361,7 +2361,7 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 		 * rfoff and ifconfig down, so we set
 		 * _rtl92s_phy_set_rfhalt again here */
 		if (ppsc->reg_rfps_level & RT_RF_OFF_LEVL_HALT_NIC &&
-			turnonbypowerdomain) {
+			turyesnbypowerdomain) {
 			_rtl92s_phy_set_rfhalt(hw);
 			RT_SET_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC);
 		}
@@ -2432,7 +2432,7 @@ void rtl92se_set_key(struct ieee80211_hw *hw, u32 key_index, u8 *p_macaddr,
 			enc_algo = CAM_AES;
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x yest processed\n",
 			       enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
@@ -2450,7 +2450,7 @@ void rtl92se_set_key(struct ieee80211_hw *hw, u32 key_index, u8 *p_macaddr,
 					entry_id = rtl_cam_get_free_entry(hw,
 								 p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("Can not find free hw security cam entry\n");
+						pr_err("Can yest find free hw security cam entry\n");
 						return;
 					}
 				} else {

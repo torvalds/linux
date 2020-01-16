@@ -35,10 +35,10 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt,
 int bdi_register_owner(struct backing_dev_info *bdi, struct device *owner);
 void bdi_unregister(struct backing_dev_info *bdi);
 
-struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id);
+struct backing_dev_info *bdi_alloc_yesde(gfp_t gfp_mask, int yesde_id);
 static inline struct backing_dev_info *bdi_alloc(gfp_t gfp_mask)
 {
-	return bdi_alloc_node(gfp_mask, NUMA_NO_NODE);
+	return bdi_alloc_yesde(gfp_mask, NUMA_NO_NODE);
 }
 
 void wb_start_background_writeback(struct bdi_writeback *wb);
@@ -115,9 +115,9 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
  *
  * The first three flags control whether dirty pages will contribute to the
  * VM's accounting and whether writepages() should be called for dirty pages
- * (something that would not, for example, be appropriate for ramfs)
+ * (something that would yest, for example, be appropriate for ramfs)
  *
- * WARNING: these flags are closely related and should not normally be
+ * WARNING: these flags are closely related and should yest yesrmally be
  * used separately.  The BDI_CAP_NO_ACCT_AND_WRITEBACK combines these
  * three flags into a single convenience macro.
  *
@@ -127,7 +127,7 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
  * BDI_CAP_STRICTLIMIT:    Keep number of dirty pages below bdi threshold.
  *
  * BDI_CAP_CGROUP_WRITEBACK: Supports cgroup-aware writeback.
- * BDI_CAP_SYNCHRONOUS_IO: Device is so fast that asynchronous IO would be
+ * BDI_CAP_SYNCHRONOUS_IO: Device is so fast that asynchroyesus IO would be
  *			   inefficient.
  */
 #define BDI_CAP_NO_ACCT_DIRTY	0x00000001
@@ -141,7 +141,7 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
 #define BDI_CAP_NO_ACCT_AND_WRITEBACK \
 	(BDI_CAP_NO_WRITEBACK | BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_ACCT_WB)
 
-extern struct backing_dev_info noop_backing_dev_info;
+extern struct backing_dev_info yesop_backing_dev_info;
 
 /**
  * writeback_in_progress - determine whether there is writeback in progress
@@ -155,17 +155,17 @@ static inline bool writeback_in_progress(struct bdi_writeback *wb)
 	return test_bit(WB_writeback_running, &wb->state);
 }
 
-static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
+static inline struct backing_dev_info *iyesde_to_bdi(struct iyesde *iyesde)
 {
 	struct super_block *sb;
 
-	if (!inode)
-		return &noop_backing_dev_info;
+	if (!iyesde)
+		return &yesop_backing_dev_info;
 
-	sb = inode->i_sb;
+	sb = iyesde->i_sb;
 #ifdef CONFIG_BLOCK
 	if (sb_is_blkdev_sb(sb))
-		return I_BDEV(inode)->bd_bdi;
+		return I_BDEV(iyesde)->bd_bdi;
 #endif
 	return sb->s_bdi;
 }
@@ -182,7 +182,7 @@ static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
 long congestion_wait(int sync, long timeout);
 long wait_iff_congested(int sync, long timeout);
 
-static inline bool bdi_cap_synchronous_io(struct backing_dev_info *bdi)
+static inline bool bdi_cap_synchroyesus_io(struct backing_dev_info *bdi)
 {
 	return bdi->capabilities & BDI_CAP_SYNCHRONOUS_IO;
 }
@@ -204,19 +204,19 @@ static inline bool bdi_cap_account_dirty(struct backing_dev_info *bdi)
 
 static inline bool bdi_cap_account_writeback(struct backing_dev_info *bdi)
 {
-	/* Paranoia: BDI_CAP_NO_WRITEBACK implies BDI_CAP_NO_ACCT_WB */
+	/* Parayesia: BDI_CAP_NO_WRITEBACK implies BDI_CAP_NO_ACCT_WB */
 	return !(bdi->capabilities & (BDI_CAP_NO_ACCT_WB |
 				      BDI_CAP_NO_WRITEBACK));
 }
 
 static inline bool mapping_cap_writeback_dirty(struct address_space *mapping)
 {
-	return bdi_cap_writeback_dirty(inode_to_bdi(mapping->host));
+	return bdi_cap_writeback_dirty(iyesde_to_bdi(mapping->host));
 }
 
 static inline bool mapping_cap_account_dirty(struct address_space *mapping)
 {
-	return bdi_cap_account_dirty(inode_to_bdi(mapping->host));
+	return bdi_cap_account_dirty(iyesde_to_bdi(mapping->host));
 }
 
 static inline int bdi_sched_wait(void *word)
@@ -237,28 +237,28 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 				    gfp_t gfp);
 void wb_memcg_offline(struct mem_cgroup *memcg);
 void wb_blkcg_offline(struct blkcg *blkcg);
-int inode_congested(struct inode *inode, int cong_bits);
+int iyesde_congested(struct iyesde *iyesde, int cong_bits);
 
 /**
- * inode_cgwb_enabled - test whether cgroup writeback is enabled on an inode
- * @inode: inode of interest
+ * iyesde_cgwb_enabled - test whether cgroup writeback is enabled on an iyesde
+ * @iyesde: iyesde of interest
  *
  * cgroup writeback requires support from both the bdi and filesystem.
  * Also, both memcg and iocg have to be on the default hierarchy.  Test
  * whether all conditions are met.
  *
- * Note that the test result may change dynamically on the same inode
+ * Note that the test result may change dynamically on the same iyesde
  * depending on how memcg and iocg are configured.
  */
-static inline bool inode_cgwb_enabled(struct inode *inode)
+static inline bool iyesde_cgwb_enabled(struct iyesde *iyesde)
 {
-	struct backing_dev_info *bdi = inode_to_bdi(inode);
+	struct backing_dev_info *bdi = iyesde_to_bdi(iyesde);
 
 	return cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
 		cgroup_subsys_on_dfl(io_cgrp_subsys) &&
 		bdi_cap_account_dirty(bdi) &&
 		(bdi->capabilities & BDI_CAP_CGROUP_WRITEBACK) &&
-		(inode->i_sb->s_iflags & SB_I_CGROUPWB);
+		(iyesde->i_sb->s_iflags & SB_I_CGROUPWB);
 }
 
 /**
@@ -267,7 +267,7 @@ static inline bool inode_cgwb_enabled(struct inode *inode)
  *
  * Find the wb of @bdi which matches both the memcg and blkcg of %current.
  * Must be called under rcu_read_lock() which protects the returend wb.
- * NULL if not found.
+ * NULL if yest found.
  */
 static inline struct bdi_writeback *wb_find_current(struct backing_dev_info *bdi)
 {
@@ -320,89 +320,89 @@ wb_get_create_current(struct backing_dev_info *bdi, gfp_t gfp)
 }
 
 /**
- * inode_to_wb_is_valid - test whether an inode has a wb associated
- * @inode: inode of interest
+ * iyesde_to_wb_is_valid - test whether an iyesde has a wb associated
+ * @iyesde: iyesde of interest
  *
- * Returns %true if @inode has a wb associated.  May be called without any
+ * Returns %true if @iyesde has a wb associated.  May be called without any
  * locking.
  */
-static inline bool inode_to_wb_is_valid(struct inode *inode)
+static inline bool iyesde_to_wb_is_valid(struct iyesde *iyesde)
 {
-	return inode->i_wb;
+	return iyesde->i_wb;
 }
 
 /**
- * inode_to_wb - determine the wb of an inode
- * @inode: inode of interest
+ * iyesde_to_wb - determine the wb of an iyesde
+ * @iyesde: iyesde of interest
  *
- * Returns the wb @inode is currently associated with.  The caller must be
- * holding either @inode->i_lock, the i_pages lock, or the
+ * Returns the wb @iyesde is currently associated with.  The caller must be
+ * holding either @iyesde->i_lock, the i_pages lock, or the
  * associated wb's list_lock.
  */
-static inline struct bdi_writeback *inode_to_wb(const struct inode *inode)
+static inline struct bdi_writeback *iyesde_to_wb(const struct iyesde *iyesde)
 {
 #ifdef CONFIG_LOCKDEP
 	WARN_ON_ONCE(debug_locks &&
-		     (!lockdep_is_held(&inode->i_lock) &&
-		      !lockdep_is_held(&inode->i_mapping->i_pages.xa_lock) &&
-		      !lockdep_is_held(&inode->i_wb->list_lock)));
+		     (!lockdep_is_held(&iyesde->i_lock) &&
+		      !lockdep_is_held(&iyesde->i_mapping->i_pages.xa_lock) &&
+		      !lockdep_is_held(&iyesde->i_wb->list_lock)));
 #endif
-	return inode->i_wb;
+	return iyesde->i_wb;
 }
 
 /**
- * unlocked_inode_to_wb_begin - begin unlocked inode wb access transaction
- * @inode: target inode
+ * unlocked_iyesde_to_wb_begin - begin unlocked iyesde wb access transaction
+ * @iyesde: target iyesde
  * @cookie: output param, to be passed to the end function
  *
- * The caller wants to access the wb associated with @inode but isn't
- * holding inode->i_lock, the i_pages lock or wb->list_lock.  This
- * function determines the wb associated with @inode and ensures that the
+ * The caller wants to access the wb associated with @iyesde but isn't
+ * holding iyesde->i_lock, the i_pages lock or wb->list_lock.  This
+ * function determines the wb associated with @iyesde and ensures that the
  * association doesn't change until the transaction is finished with
- * unlocked_inode_to_wb_end().
+ * unlocked_iyesde_to_wb_end().
  *
- * The caller must call unlocked_inode_to_wb_end() with *@cookie afterwards and
- * can't sleep during the transaction.  IRQs may or may not be disabled on
+ * The caller must call unlocked_iyesde_to_wb_end() with *@cookie afterwards and
+ * can't sleep during the transaction.  IRQs may or may yest be disabled on
  * return.
  */
 static inline struct bdi_writeback *
-unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie *cookie)
+unlocked_iyesde_to_wb_begin(struct iyesde *iyesde, struct wb_lock_cookie *cookie)
 {
 	rcu_read_lock();
 
 	/*
-	 * Paired with store_release in inode_switch_wbs_work_fn() and
+	 * Paired with store_release in iyesde_switch_wbs_work_fn() and
 	 * ensures that we see the new wb if we see cleared I_WB_SWITCH.
 	 */
-	cookie->locked = smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
+	cookie->locked = smp_load_acquire(&iyesde->i_state) & I_WB_SWITCH;
 
 	if (unlikely(cookie->locked))
-		xa_lock_irqsave(&inode->i_mapping->i_pages, cookie->flags);
+		xa_lock_irqsave(&iyesde->i_mapping->i_pages, cookie->flags);
 
 	/*
 	 * Protected by either !I_WB_SWITCH + rcu_read_lock() or the i_pages
-	 * lock.  inode_to_wb() will bark.  Deref directly.
+	 * lock.  iyesde_to_wb() will bark.  Deref directly.
 	 */
-	return inode->i_wb;
+	return iyesde->i_wb;
 }
 
 /**
- * unlocked_inode_to_wb_end - end inode wb access transaction
- * @inode: target inode
- * @cookie: @cookie from unlocked_inode_to_wb_begin()
+ * unlocked_iyesde_to_wb_end - end iyesde wb access transaction
+ * @iyesde: target iyesde
+ * @cookie: @cookie from unlocked_iyesde_to_wb_begin()
  */
-static inline void unlocked_inode_to_wb_end(struct inode *inode,
+static inline void unlocked_iyesde_to_wb_end(struct iyesde *iyesde,
 					    struct wb_lock_cookie *cookie)
 {
 	if (unlikely(cookie->locked))
-		xa_unlock_irqrestore(&inode->i_mapping->i_pages, cookie->flags);
+		xa_unlock_irqrestore(&iyesde->i_mapping->i_pages, cookie->flags);
 
 	rcu_read_unlock();
 }
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
-static inline bool inode_cgwb_enabled(struct inode *inode)
+static inline bool iyesde_cgwb_enabled(struct iyesde *iyesde)
 {
 	return false;
 }
@@ -431,23 +431,23 @@ wb_get_create_current(struct backing_dev_info *bdi, gfp_t gfp)
 	return &bdi->wb;
 }
 
-static inline bool inode_to_wb_is_valid(struct inode *inode)
+static inline bool iyesde_to_wb_is_valid(struct iyesde *iyesde)
 {
 	return true;
 }
 
-static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
+static inline struct bdi_writeback *iyesde_to_wb(struct iyesde *iyesde)
 {
-	return &inode_to_bdi(inode)->wb;
+	return &iyesde_to_bdi(iyesde)->wb;
 }
 
 static inline struct bdi_writeback *
-unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie *cookie)
+unlocked_iyesde_to_wb_begin(struct iyesde *iyesde, struct wb_lock_cookie *cookie)
 {
-	return inode_to_wb(inode);
+	return iyesde_to_wb(iyesde);
 }
 
-static inline void unlocked_inode_to_wb_end(struct inode *inode,
+static inline void unlocked_iyesde_to_wb_end(struct iyesde *iyesde,
 					    struct wb_lock_cookie *cookie)
 {
 }
@@ -460,26 +460,26 @@ static inline void wb_blkcg_offline(struct blkcg *blkcg)
 {
 }
 
-static inline int inode_congested(struct inode *inode, int cong_bits)
+static inline int iyesde_congested(struct iyesde *iyesde, int cong_bits)
 {
-	return wb_congested(&inode_to_bdi(inode)->wb, cong_bits);
+	return wb_congested(&iyesde_to_bdi(iyesde)->wb, cong_bits);
 }
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
 
-static inline int inode_read_congested(struct inode *inode)
+static inline int iyesde_read_congested(struct iyesde *iyesde)
 {
-	return inode_congested(inode, 1 << WB_sync_congested);
+	return iyesde_congested(iyesde, 1 << WB_sync_congested);
 }
 
-static inline int inode_write_congested(struct inode *inode)
+static inline int iyesde_write_congested(struct iyesde *iyesde)
 {
-	return inode_congested(inode, 1 << WB_async_congested);
+	return iyesde_congested(iyesde, 1 << WB_async_congested);
 }
 
-static inline int inode_rw_congested(struct inode *inode)
+static inline int iyesde_rw_congested(struct iyesde *iyesde)
 {
-	return inode_congested(inode, (1 << WB_sync_congested) |
+	return iyesde_congested(iyesde, (1 << WB_sync_congested) |
 				      (1 << WB_async_congested));
 }
 

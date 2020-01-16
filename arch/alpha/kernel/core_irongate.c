@@ -45,7 +45,7 @@ igcsr32 *IronECC;
 
 /*
  * Given a bus, device, and function number, compute resulting
- * configuration space address accordingly.  It is therefore not safe
+ * configuration space address accordingly.  It is therefore yest safe
  * to have concurrent invocations to configuration space access
  * routines, but there really shouldn't be any need for this.
  *
@@ -63,7 +63,7 @@ igcsr32 *IronECC;
  *	      addr_on_pci[10: 2] = addr[10: 2] ???
  *	      addr_on_pci[ 1: 0] = 00
  *    else
- *	  type 1 config cycle (pass on with no decoding):
+ *	  type 1 config cycle (pass on with yes decoding):
  *	      addr_on_pci[31:24] = 0
  *	      addr_on_pci[23: 2] = addr[23: 2]
  *	      addr_on_pci[ 1: 0] = 01
@@ -351,7 +351,7 @@ irongate_ioremap(unsigned long addr, unsigned long size)
 	 * Adjust the limits (mappings must be page aligned)
 	 */
 	if (addr & ~PAGE_MASK) {
-		printk("AGP ioremap failed... addr not page aligned (0x%lx)\n",
+		printk("AGP ioremap failed... addr yest page aligned (0x%lx)\n",
 		       addr);
 		return (void __iomem *)(addr + IRONGATE_MEM);
 	}
@@ -411,7 +411,7 @@ irongate_iounmap(volatile void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr;
 	if (((long)addr >> 41) == -2)
-		return;	/* kseg map, nothing to do */
+		return;	/* kseg map, yesthing to do */
 	if (addr)
 		return vfree((void *)(PAGE_MASK & addr)); 
 }

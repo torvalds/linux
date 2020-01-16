@@ -120,7 +120,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 	/*
 	 * Enable 11w if advertised by firmware and software crypto
-	 * is not enabled (as the firmware will interpret some mgmt
+	 * is yest enabled (as the firmware will interpret some mgmt
 	 * packets, so enabling it with software crypto isn't safe)
 	 */
 	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_MFP &&
@@ -229,7 +229,7 @@ static int __iwl_up(struct iwl_priv *priv)
 	lockdep_assert_held(&priv->mutex);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
+		IWL_WARN(priv, "Exit pending; will yest bring the NIC up\n");
 		return -EIO;
 	}
 
@@ -369,7 +369,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->mutex);
 
-	/* Don't attempt WoWLAN when not associated, tear down instead. */
+	/* Don't attempt WoWLAN when yest associated, tear down instead. */
 	if (!ctx->vif || ctx->vif->type != NL80211_IFTYPE_STATION ||
 	    !iwl_is_associated_ctx(ctx)) {
 		ret = 1;
@@ -405,7 +405,7 @@ struct iwl_resume_data {
 	bool valid;
 };
 
-static bool iwl_resume_status_fn(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_resume_status_fn(struct iwl_yestif_wait_data *yestif_wait,
 				 struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_resume_data *resume_data = data;
@@ -434,7 +434,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 		u32 valid;
 		u32 error_id;
 	} err_info;
-	struct iwl_notification_wait status_wait;
+	struct iwl_yestification_wait status_wait;
 	static const u16 status_cmd[] = {
 		REPLY_WOWLAN_GET_STATUS,
 	};
@@ -466,7 +466,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 		goto out_unlock;
 	}
 
-	/* uCode is no longer operating by itself */
+	/* uCode is yes longer operating by itself */
 	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
 		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
@@ -506,20 +506,20 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	/*
 	 * This is very strange. The GET_STATUS command is sent but the device
 	 * doesn't reply properly, it seems it doesn't close the RBD so one is
-	 * always left open ... As a result, we need to send another command
+	 * always left open ... As a result, we need to send ayesther command
 	 * and have to reset the driver afterwards. As we need to switch to
 	 * runtime firmware again that'll happen.
 	 */
 
-	iwl_init_notification_wait(&priv->notif_wait, &status_wait, status_cmd,
+	iwl_init_yestification_wait(&priv->yestif_wait, &status_wait, status_cmd,
 				   ARRAY_SIZE(status_cmd), iwl_resume_status_fn,
 				   &resume_data);
 
 	iwl_dvm_send_cmd_pdu(priv, REPLY_WOWLAN_GET_STATUS, CMD_ASYNC, 0, NULL);
 	iwl_dvm_send_cmd_pdu(priv, REPLY_ECHO, CMD_ASYNC, 0, NULL);
-	/* an RBD is left open in the firmware now! */
+	/* an RBD is left open in the firmware yesw! */
 
-	ret = iwl_wait_notification(&priv->notif_wait, &status_wait, HZ/5);
+	ret = iwl_wait_yestification(&priv->yestif_wait, &status_wait, HZ/5);
 	if (ret)
 		goto out_unlock;
 
@@ -652,7 +652,7 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * If we are getting WEP group key and we didn't receive any key mapping
 	 * so far, we are in legacy wep mode (group key only), otherwise we are
 	 * in 1X mode.
-	 * In legacy wep mode, we use another host command to the uCode.
+	 * In legacy wep mode, we use ayesther host command to the uCode.
 	 */
 	if ((key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	     key->cipher == WLAN_CIPHER_SUITE_WEP104) && !sta) {
@@ -1074,7 +1074,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 	/*
 	 * Receiving all multicast frames is always enabled by the
 	 * default flags setup in iwl_connection_init_rx_config()
-	 * since we currently do not support programming multicast
+	 * since we currently do yest support programming multicast
 	 * filters into the device.
 	 */
 	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI |
@@ -1140,7 +1140,7 @@ static void iwlagn_mac_event_callback(struct ieee80211_hw *hw,
 		queue_work(priv->workqueue, &priv->bt_runtime_config);
 	} else {
 		IWL_DEBUG_MAC80211(priv, "Advanced BT coex disabled,"
-				"ignoring RSSI callback\n");
+				"igyesring RSSI callback\n");
 	}
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
@@ -1171,7 +1171,7 @@ static int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
 	if (!iwl_is_ready_rf(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
+		IWL_DEBUG_MAC80211(priv, "leave - RF yest ready\n");
 		return -EIO;
 	}
 
@@ -1278,7 +1278,7 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 	mutex_lock(&priv->mutex);
 
 	if (!iwl_is_ready_rf(priv)) {
-		IWL_WARN(priv, "Try to add interface when device not ready\n");
+		IWL_WARN(priv, "Try to add interface when device yest ready\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1369,8 +1369,8 @@ static void iwl_teardown_interface(struct iwl_priv *priv,
 	/*
 	 * When removing the IBSS interface, overwrite the
 	 * BT traffic load with the stored one from the last
-	 * notification, if any. If this is a device that
-	 * doesn't implement this, this has no effect since
+	 * yestification, if any. If this is a device that
+	 * doesn't implement this, this has yes effect since
 	 * both values are the same and zero.
 	 */
 	if (vif->type == NL80211_IFTYPE_ADHOC)
@@ -1452,7 +1452,7 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 
 			/*
 			 * The current mode switch would be exclusive, but
-			 * another context is active ... refuse the switch.
+			 * ayesther context is active ... refuse the switch.
 			 */
 			err = -EBUSY;
 			goto out;
@@ -1468,7 +1468,7 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 	/*
 	 * We've switched internally, but submitting to the
 	 * device may have failed for some reason. Mask this
-	 * error, because otherwise mac80211 will not switch
+	 * error, because otherwise mac80211 will yest switch
 	 * (and set the interface type back) and we'll be
 	 * out of sync with it.
 	 */
@@ -1539,9 +1539,9 @@ static void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id)
 	iwl_send_add_sta(priv, &cmd, CMD_ASYNC);
 }
 
-static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
+static void iwlagn_mac_sta_yestify(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
-				  enum sta_notify_cmd cmd,
+				  enum sta_yestify_cmd cmd,
 				  struct ieee80211_sta *sta)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
@@ -1593,7 +1593,7 @@ const struct ieee80211_ops iwlagn_hw_ops = {
 	.bss_info_changed = iwlagn_bss_info_changed,
 	.ampdu_action = iwlagn_mac_ampdu_action,
 	.hw_scan = iwlagn_mac_hw_scan,
-	.sta_notify = iwlagn_mac_sta_notify,
+	.sta_yestify = iwlagn_mac_sta_yestify,
 	.sta_state = iwlagn_mac_sta_state,
 	.channel_switch = iwlagn_mac_channel_switch,
 	.flush = iwlagn_mac_flush,

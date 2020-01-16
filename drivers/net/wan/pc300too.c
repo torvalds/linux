@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Cyclades PC300 synchronous serial card driver for Linux
+ * Cyclades PC300 synchroyesus serial card driver for Linux
  *
  * Copyright (C) 2000-2008 Krzysztof Halasa <khc@pm.waw.pl>
  *
@@ -24,7 +24,7 @@
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/moduleparam.h>
@@ -353,7 +353,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 
 	if (pdev->device == PCI_DEVICE_ID_PC300_TE_1 ||
 	    pdev->device == PCI_DEVICE_ID_PC300_TE_2)
-		card->type = PC300_TE; /* not fully supported */
+		card->type = PC300_TE; /* yest fully supported */
 	else if (card->init_ctrl_value & PC300_CTYPE_MASK)
 		card->type = PC300_X21;
 	else
@@ -375,20 +375,20 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 	/* Reset PLX */
 	p = &card->plxbase->init_ctrl;
 	writel(card->init_ctrl_value | 0x40000000, p);
-	readl(p);		/* Flush the write - do not use sca_flush */
+	readl(p);		/* Flush the write - do yest use sca_flush */
 	udelay(1);
 
 	writel(card->init_ctrl_value, p);
-	readl(p);		/* Flush the write - do not use sca_flush */
+	readl(p);		/* Flush the write - do yest use sca_flush */
 	udelay(1);
 
 	/* Reload Config. Registers from EEPROM */
 	writel(card->init_ctrl_value | 0x20000000, p);
-	readl(p);		/* Flush the write - do not use sca_flush */
+	readl(p);		/* Flush the write - do yest use sca_flush */
 	udelay(1);
 
 	writel(card->init_ctrl_value, p);
-	readl(p);		/* Flush the write - do not use sca_flush */
+	readl(p);		/* Flush the write - do yest use sca_flush */
 	udelay(1);
 
 	ramsize = sca_detect_ram(card, card->rambase,
@@ -425,7 +425,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 
 	/* Allocate IRQ */
 	if (request_irq(pdev->irq, sca_intr, IRQF_SHARED, "pc300", card)) {
-		pr_warn("could not allocate IRQ%d\n", pdev->irq);
+		pr_warn("could yest allocate IRQ%d\n", pdev->irq);
 		pc300_pci_remove_one(pdev);
 		return -EBUSY;
 	}
@@ -433,7 +433,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 
 	sca_init(card, 0);
 
-	// COTE not set - allows better TX DMA settings
+	// COTE yest set - allows better TX DMA settings
 	// sca_out(sca_in(PCR, card) | PCR_COTE, PCR, card);
 
 	sca_out(0x10, BTCR, card);

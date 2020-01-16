@@ -20,7 +20,7 @@
 MODULE_LICENSE("GPL");
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /* Insmod parameters */
 enum chips { thmc50, adm1022 };
@@ -39,8 +39,8 @@ MODULE_PARM_DESC(adm1022_temp3,
 #define THMC50_REG_DIE_CODE			0x3F
 #define THMC50_REG_ANALOG_OUT			0x19
 /*
- * The mirror status register cannot be used as
- * reading it does not clear alarms.
+ * The mirror status register canyest be used as
+ * reading it does yest clear alarms.
  */
 #define THMC50_REG_INTR				0x41
 
@@ -314,7 +314,7 @@ static int thmc50_detect(struct i2c_client *client,
 	const char *type_name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("thmc50: detect failed, smbus byte data not supported!\n");
+		pr_debug("thmc50: detect failed, smbus byte data yest supported!\n");
 		return -ENODEV;
 	}
 
@@ -422,7 +422,7 @@ static struct i2c_driver thmc50_driver = {
 	.probe = thmc50_probe,
 	.id_table = thmc50_id,
 	.detect = thmc50_detect,
-	.address_list = normal_i2c,
+	.address_list = yesrmal_i2c,
 };
 
 module_i2c_driver(thmc50_driver);

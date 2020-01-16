@@ -8,7 +8,7 @@ sort of tasks, but most commonly they handle audio and/or video muxing,
 encoding or decoding. For webcams common sub-devices are sensors and camera
 controllers.
 
-Usually these are I2C devices, but not necessarily. In order to provide the
+Usually these are I2C devices, but yest necessarily. In order to provide the
 driver with a consistent interface to these sub-devices the
 :c:type:`v4l2_subdev` struct (v4l2-subdev.h) was created.
 
@@ -38,13 +38,13 @@ Helper functions exists for sub-devices on an I2C bus that do most of this
 tricky work for you.
 
 Each :c:type:`v4l2_subdev` contains function pointers that sub-device drivers
-can implement (or leave ``NULL`` if it is not applicable). Since sub-devices can
-do so many different things and you do not want to end up with a huge ops struct
+can implement (or leave ``NULL`` if it is yest applicable). Since sub-devices can
+do so many different things and you do yest want to end up with a huge ops struct
 of which only a handful of ops are commonly implemented, the function pointers
 are sorted according to category and each category has its own ops struct.
 
 The top-level ops struct contains pointers to the category ops structs, which
-may be NULL if the subdev driver does not support anything from that category.
+may be NULL if the subdev driver does yest support anything from that category.
 
 It looks like this:
 
@@ -109,12 +109,12 @@ pads:
 
 	err = media_entity_pads_init(&sd->entity, npads, pads);
 
-The pads array must have been previously initialized. There is no need to
+The pads array must have been previously initialized. There is yes need to
 manually set the struct :c:type:`media_entity` function and name fields, but the
 revision field must be initialized if needed.
 
 A reference to the entity will be automatically acquired/released when the
-subdev device node (if any) is opened/closed.
+subdev device yesde (if any) is opened/closed.
 
 Don't forget to cleanup the media entity before the sub-device is destroyed:
 
@@ -130,9 +130,9 @@ In that case, the subdev driver may set the link_validate field to provide
 its own link validation function. The link validation function is called for
 every link in the pipeline where both of the ends of the links are V4L2
 sub-devices. The driver is still responsible for validating the correctness
-of the format configuration between sub-devices and video nodes.
+of the format configuration between sub-devices and video yesdes.
 
-If link_validate op is not set, the default function
+If link_validate op is yest set, the default function
 :c:func:`v4l2_subdev_link_validate_default` is used instead. This function
 ensures that width, height and the media bus pixel code are equal on both source
 and sink of the link. Subdev drivers are also free to use this function to
@@ -141,23 +141,23 @@ perform the checks mentioned above in addition to their own checks.
 There are currently two ways to register subdevices with the V4L2 core. The
 first (traditional) possibility is to have subdevices registered by bridge
 drivers. This can be done when the bridge driver has the complete information
-about subdevices connected to it and knows exactly when to register them. This
+about subdevices connected to it and kyesws exactly when to register them. This
 is typically the case for internal subdevices, like video data processing units
 within SoCs or complex PCI(e) boards, camera sensors in USB cameras or connected
 to SoCs, which pass information about them to bridge drivers, usually in their
 platform data.
 
 There are however also situations where subdevices have to be registered
-asynchronously to bridge devices. An example of such a configuration is a Device
+asynchroyesusly to bridge devices. An example of such a configuration is a Device
 Tree based system where information about subdevices is made available to the
 system independently from the bridge devices, e.g. when subdevices are defined
-in DT as I2C device nodes. The API used in this second case is described further
+in DT as I2C device yesdes. The API used in this second case is described further
 below.
 
 Using one or the other registration method only affects the probing process, the
 run-time bridge-subdevice interaction is in both cases the same.
 
-In the synchronous case a device (bridge) driver needs to register the
+In the synchroyesus case a device (bridge) driver needs to register the
 :c:type:`v4l2_subdev` with the v4l2_device:
 
 	:c:func:`v4l2_device_register_subdev <v4l2_device_register_subdev>`
@@ -167,7 +167,7 @@ This can fail if the subdev module disappeared before it could be registered.
 After this function was called successfully the subdev->dev field points to
 the :c:type:`v4l2_device`.
 
-If the v4l2_device parent device has a non-NULL mdev field, the sub-device
+If the v4l2_device parent device has a yesn-NULL mdev field, the sub-device
 entity will be automatically registered with the media device.
 
 You can unregister a sub-device using:
@@ -183,13 +183,13 @@ You can call an ops function either directly:
 
 .. code-block:: c
 
-	err = sd->ops->core->g_std(sd, &norm);
+	err = sd->ops->core->g_std(sd, &yesrm);
 
 but it is better and easier to use this macro:
 
 .. code-block:: c
 
-	err = v4l2_subdev_call(sd, core, g_std, &norm);
+	err = v4l2_subdev_call(sd, core, g_std, &yesrm);
 
 The macro will to the right ``NULL`` pointer checks and returns ``-ENODEV``
 if :c:type:`sd <v4l2_subdev>` is ``NULL``, ``-ENOIOCTLCMD`` if either
@@ -200,20 +200,20 @@ It is also possible to call all or a subset of the sub-devices:
 
 .. code-block:: c
 
-	v4l2_device_call_all(v4l2_dev, 0, core, g_std, &norm);
+	v4l2_device_call_all(v4l2_dev, 0, core, g_std, &yesrm);
 
-Any subdev that does not support this ops is skipped and error results are
-ignored. If you want to check for errors use this:
+Any subdev that does yest support this ops is skipped and error results are
+igyesred. If you want to check for errors use this:
 
 .. code-block:: c
 
-	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_std, &norm);
+	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_std, &yesrm);
 
-Any error except ``-ENOIOCTLCMD`` will exit the loop with that error. If no
+Any error except ``-ENOIOCTLCMD`` will exit the loop with that error. If yes
 errors (except ``-ENOIOCTLCMD``) occurred, then 0 is returned.
 
 The second argument to both calls is a group ID. If 0, then all subdevs are
-called. If non-zero, then only those whose group ID match that value will
+called. If yesn-zero, then only those whose group ID match that value will
 be called. Before a bridge driver registers a subdev it can set
 :c:type:`sd <v4l2_subdev>`->grp_id to whatever value it wants (it's 0 by
 default). This value is owned by the bridge driver and the sub-device driver
@@ -227,18 +227,18 @@ e.g. AUDIO_CONTROLLER and specify that as the group ID value when calling
 ``v4l2_device_call_all()``. That ensures that it will only go to the subdev
 that needs it.
 
-If the sub-device needs to notify its v4l2_device parent of an event, then
-it can call ``v4l2_subdev_notify(sd, notification, arg)``. This macro checks
-whether there is a ``notify()`` callback defined and returns ``-ENODEV`` if not.
-Otherwise the result of the ``notify()`` call is returned.
+If the sub-device needs to yestify its v4l2_device parent of an event, then
+it can call ``v4l2_subdev_yestify(sd, yestification, arg)``. This macro checks
+whether there is a ``yestify()`` callback defined and returns ``-ENODEV`` if yest.
+Otherwise the result of the ``yestify()`` call is returned.
 
 The advantage of using :c:type:`v4l2_subdev` is that it is a generic struct and
-does not contain any knowledge about the underlying hardware. So a driver might
+does yest contain any kyeswledge about the underlying hardware. So a driver might
 contain several subdevs that use an I2C bus, but also a subdev that is
 controlled through GPIO pins. This distinction is only relevant when setting
 up the device, but once the subdev is registered it is completely transparent.
 
-In the asynchronous case subdevice probing can be invoked independently of the
+In the asynchroyesus case subdevice probing can be invoked independently of the
 bridge driver availability. The subdevice driver then has to verify whether all
 the requirements for a successful probing are satisfied. This can include a
 check for a master clock availability. If any of the conditions aren't satisfied
@@ -249,26 +249,26 @@ performed using the :c:func:`v4l2_async_unregister_subdev` call. Subdevices
 registered this way are stored in a global list of subdevices, ready to be
 picked up by bridge drivers.
 
-Bridge drivers in turn have to register a notifier object. This is
-performed using the :c:func:`v4l2_async_notifier_register` call. To
-unregister the notifier the driver has to call
-:c:func:`v4l2_async_notifier_unregister`. The former of the two functions
+Bridge drivers in turn have to register a yestifier object. This is
+performed using the :c:func:`v4l2_async_yestifier_register` call. To
+unregister the yestifier the driver has to call
+:c:func:`v4l2_async_yestifier_unregister`. The former of the two functions
 takes two arguments: a pointer to struct :c:type:`v4l2_device` and a
-pointer to struct :c:type:`v4l2_async_notifier`.
+pointer to struct :c:type:`v4l2_async_yestifier`.
 
-Before registering the notifier, bridge drivers must do two things:
-first, the notifier must be initialized using the
-:c:func:`v4l2_async_notifier_init`. Second, bridge drivers can then
+Before registering the yestifier, bridge drivers must do two things:
+first, the yestifier must be initialized using the
+:c:func:`v4l2_async_yestifier_init`. Second, bridge drivers can then
 begin to form a list of subdevice descriptors that the bridge device
-needs for its operation. Subdevice descriptors are added to the notifier
-using the :c:func:`v4l2_async_notifier_add_subdev` call. This function
-takes two arguments: a pointer to struct :c:type:`v4l2_async_notifier`,
+needs for its operation. Subdevice descriptors are added to the yestifier
+using the :c:func:`v4l2_async_yestifier_add_subdev` call. This function
+takes two arguments: a pointer to struct :c:type:`v4l2_async_yestifier`,
 and a pointer to the subdevice descripter, which is of type struct
 :c:type:`v4l2_async_subdev`.
 
-The V4L2 core will then use these descriptors to match asynchronously
+The V4L2 core will then use these descriptors to match asynchroyesusly
 registered subdevices to them. If a match is detected the ``.bound()``
-notifier callback is called. After all subdevices have been located the
+yestifier callback is called. After all subdevices have been located the
 .complete() callback is called. When a subdevice is removed from the
 system the .unbind() method is called. All three callbacks are optional.
 
@@ -278,17 +278,17 @@ V4L2 sub-device userspace API
 Beside exposing a kernel API through the :c:type:`v4l2_subdev_ops` structure,
 V4L2 sub-devices can also be controlled directly by userspace applications.
 
-Device nodes named ``v4l-subdev``\ *X* can be created in ``/dev`` to access
+Device yesdes named ``v4l-subdev``\ *X* can be created in ``/dev`` to access
 sub-devices directly. If a sub-device supports direct userspace configuration
 it must set the ``V4L2_SUBDEV_FL_HAS_DEVNODE`` flag before being registered.
 
 After registering sub-devices, the :c:type:`v4l2_device` driver can create
-device nodes for all registered sub-devices marked with
+device yesdes for all registered sub-devices marked with
 ``V4L2_SUBDEV_FL_HAS_DEVNODE`` by calling
-:c:func:`v4l2_device_register_subdev_nodes`. Those device nodes will be
+:c:func:`v4l2_device_register_subdev_yesdes`. Those device yesdes will be
 automatically removed when sub-devices are unregistered.
 
-The device node handles a subset of the V4L2 API.
+The device yesde handles a subset of the V4L2 API.
 
 ``VIDIOC_QUERYCTRL``,
 ``VIDIOC_QUERYMENU``,
@@ -302,7 +302,7 @@ The device node handles a subset of the V4L2 API.
 	behave identically, with the only exception that they deal only with
 	controls implemented in the sub-device. Depending on the driver, those
 	controls can be also be accessed through one (or several) V4L2 device
-	nodes.
+	yesdes.
 
 ``VIDIOC_DQEVENT``,
 ``VIDIOC_SUBSCRIBE_EVENT`` and
@@ -311,20 +311,20 @@ The device node handles a subset of the V4L2 API.
 	The events ioctls are identical to the ones defined in V4L2. They
 	behave identically, with the only exception that they deal only with
 	events generated by the sub-device. Depending on the driver, those
-	events can also be reported by one (or several) V4L2 device nodes.
+	events can also be reported by one (or several) V4L2 device yesdes.
 
 	Sub-device drivers that want to use events need to set the
 	``V4L2_SUBDEV_USES_EVENTS`` :c:type:`v4l2_subdev`.flags and initialize
 	:c:type:`v4l2_subdev`.nevents to events queue depth before registering
 	the sub-device. After registration events can be queued as usual on the
-	:c:type:`v4l2_subdev`.devnode device node.
+	:c:type:`v4l2_subdev`.devyesde device yesde.
 
 	To properly support events, the ``poll()`` file operation is also
 	implemented.
 
 Private ioctls
 
-	All ioctls not in the above list are passed directly to the sub-device
+	All ioctls yest in the above list are passed directly to the sub-device
 	driver through the core::ioctl operation.
 
 
@@ -336,7 +336,7 @@ ease the use of these drivers (``v4l2-common.h``).
 
 The recommended method of adding :c:type:`v4l2_subdev` support to an I2C driver
 is to embed the :c:type:`v4l2_subdev` struct into the state struct that is
-created for each I2C device instance. Very simple devices have no state
+created for each I2C device instance. Very simple devices have yes state
 struct and in that case you can just create a :c:type:`v4l2_subdev` directly.
 
 A typical state struct would look like this (where 'chipname' is replaced by
@@ -356,7 +356,7 @@ Initialize the :c:type:`v4l2_subdev` struct as follows:
 	v4l2_i2c_subdev_init(&state->sd, client, subdev_ops);
 
 This function will fill in all the fields of :c:type:`v4l2_subdev` ensure that
-the :c:type:`v4l2_subdev` and i2c_client both point to one another.
+the :c:type:`v4l2_subdev` and i2c_client both point to one ayesther.
 
 You should also add a helper inline function to go from a :c:type:`v4l2_subdev`
 pointer to a chipname_state struct:
@@ -402,15 +402,15 @@ The bridge driver also has some helper functions it can use:
 	struct v4l2_subdev *sd = v4l2_i2c_new_subdev(v4l2_dev, adapter,
 					"module_foo", "chipid", 0x36, NULL);
 
-This loads the given module (can be ``NULL`` if no module needs to be loaded)
+This loads the given module (can be ``NULL`` if yes module needs to be loaded)
 and calls :c:func:`i2c_new_device` with the given ``i2c_adapter`` and
 chip/address arguments. If all goes well, then it registers the subdev with
 the v4l2_device.
 
 You can also use the last argument of :c:func:`v4l2_i2c_new_subdev` to pass
 an array of possible I2C addresses that it should probe. These probe addresses
-are only used if the previous argument is 0. A non-zero argument means that you
-know the exact i2c address so in that case no probing will take place.
+are only used if the previous argument is 0. A yesn-zero argument means that you
+kyesw the exact i2c address so in that case yes probing will take place.
 
 Both functions return ``NULL`` if something went wrong.
 

@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* TI sysc interconnect target module defines */
 
-/* Generic sysc found on omap2 and later, also known as type1 */
+/* Generic sysc found on omap2 and later, also kyeswn as type1 */
 #define SYSC_OMAP2_CLOCKACTIVITY	(3 << 8)
 #define SYSC_OMAP2_EMUFREE		(1 << 5)
 #define SYSC_OMAP2_ENAWAKEUP		(1 << 2)
 #define SYSC_OMAP2_SOFTRESET		(1 << 1)
 #define SYSC_OMAP2_AUTOIDLE		(1 << 0)
 
-/* Generic sysc found on omap4 and later, also known as type2 */
+/* Generic sysc found on omap4 and later, also kyeswn as type2 */
 #define SYSC_OMAP4_DMADISABLE		(1 << 16)
-#define SYSC_OMAP4_FREEEMU		(1 << 1)	/* Also known as EMUFREE */
+#define SYSC_OMAP4_FREEEMU		(1 << 1)	/* Also kyeswn as EMUFREE */
 #define SYSC_OMAP4_SOFTRESET		(1 << 0)
 
 /* SmartReflex sysc found on 36xx and later */

@@ -109,7 +109,7 @@ static struct i2c_driver pca9532_driver = {
 /* We have two pwm/blinkers, but 16 possible leds to drive. Additionally,
  * the clever Thecus people are using one pwm to drive the beeper. So,
  * as a compromise we average one pwm to the values requested by all
- * leds that are not ON/OFF.
+ * leds that are yest ON/OFF.
  * */
 static int pca9532_calcpwm(struct i2c_client *client, int pwm, int blink,
 	enum led_brightness value)
@@ -302,7 +302,7 @@ static int pca9532_gpio_get_value(struct gpio_chip *gc, unsigned offset)
 
 static int pca9532_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
-	/* To use as input ensure pin is not driven */
+	/* To use as input ensure pin is yest driven */
 	pca9532_gpio_set_value(gc, offset, 0);
 
 	return 0;
@@ -446,7 +446,7 @@ static int pca9532_configure(struct i2c_client *client,
 		if (err) {
 			/* Use data->gpio.dev as a flag for freeing gpiochip */
 			data->gpio.parent = NULL;
-			dev_warn(&client->dev, "could not add gpiochip\n");
+			dev_warn(&client->dev, "could yest add gpiochip\n");
 		} else {
 			dev_info(&client->dev, "gpios %i...%i\n",
 				data->gpio.base, data->gpio.base +
@@ -463,10 +463,10 @@ exit:
 }
 
 static struct pca9532_platform_data *
-pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
+pca9532_of_populate_pdata(struct device *dev, struct device_yesde *np)
 {
 	struct pca9532_platform_data *pdata;
-	struct device_node *child;
+	struct device_yesde *child;
 	int devid, maxleds;
 	int i = 0;
 	const char *state;
@@ -478,7 +478,7 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (of_property_read_string(child, "label",
 					    &pdata->leds[i].name))
 			pdata->leds[i].name = child->name;
@@ -492,7 +492,7 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 				pdata->leds[i].state = PCA9532_KEEP;
 		}
 		if (++i >= maxleds) {
-			of_node_put(child);
+			of_yesde_put(child);
 			break;
 		}
 	}
@@ -507,7 +507,7 @@ static int pca9532_probe(struct i2c_client *client,
 	struct pca9532_data *data = i2c_get_clientdata(client);
 	struct pca9532_platform_data *pca9532_pdata =
 			dev_get_platdata(&client->dev);
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 
 	if (!pca9532_pdata) {
 		if (np) {
@@ -516,7 +516,7 @@ static int pca9532_probe(struct i2c_client *client,
 			if (IS_ERR(pca9532_pdata))
 				return PTR_ERR(pca9532_pdata);
 		} else {
-			dev_err(&client->dev, "no platform data\n");
+			dev_err(&client->dev, "yes platform data\n");
 			return -EINVAL;
 		}
 		devid = (int)(uintptr_t)of_device_get_match_data(&client->dev);

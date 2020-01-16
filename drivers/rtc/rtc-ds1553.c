@@ -99,7 +99,7 @@ static int ds1553_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned int year, month, day, hour, minute, second, week;
 	unsigned int century;
 
-	/* give enough time to update RTC in case of continuous read */
+	/* give eyesugh time to update RTC in case of continuous read */
 	if (pdata->last_jiffies == jiffies)
 		msleep(1);
 	pdata->last_jiffies = jiffies;
@@ -273,7 +273,7 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 	pdata->ioaddr = ioaddr;
 	pdata->irq = platform_get_irq(pdev, 0);
 
-	/* turn RTC on if it was not on */
+	/* turn RTC on if it was yest on */
 	sec = readb(ioaddr + RTC_SECONDS);
 	if (sec & RTC_STOP) {
 		sec &= RTC_SECONDS_MASK;
@@ -305,7 +305,7 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 		if (devm_request_irq(&pdev->dev, pdata->irq,
 				ds1553_rtc_interrupt,
 				0, pdev->name, pdev) < 0) {
-			dev_warn(&pdev->dev, "interrupt not available.\n");
+			dev_warn(&pdev->dev, "interrupt yest available.\n");
 			pdata->irq = 0;
 		}
 	}

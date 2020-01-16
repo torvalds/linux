@@ -37,7 +37,7 @@ check_device()
 	DEVICE=/dev/ion
 	if [ ! -e $DEVICE ]; then
 		echo $TCID: No $DEVICE device found >&2
-		echo $TCID: May be CONFIG_ION is not set >&2
+		echo $TCID: May be CONFIG_ION is yest set >&2
 		exit $ksft_skip
 	fi
 }

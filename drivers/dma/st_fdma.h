@@ -20,45 +20,45 @@
 #define DRIVER_NAME "st-fdma"
 
 /**
- * struct st_fdma_generic_node - Free running/paced generic node
+ * struct st_fdma_generic_yesde - Free running/paced generic yesde
  *
  * @length: Length in bytes of a line in a 2D mem to mem
  * @sstride: Stride, in bytes, between source lines in a 2D data move
  * @dstride: Stride, in bytes, between destination lines in a 2D data move
  */
-struct st_fdma_generic_node {
+struct st_fdma_generic_yesde {
 	u32 length;
 	u32 sstride;
 	u32 dstride;
 };
 
 /**
- * struct st_fdma_hw_node - Node structure used by fdma hw
+ * struct st_fdma_hw_yesde - Node structure used by fdma hw
  *
- * @next: Pointer to next node
+ * @next: Pointer to next yesde
  * @control: Transfer Control Parameters
  * @nbytes: Number of Bytes to read
  * @saddr: Source address
  * @daddr: Destination address
  *
- * @generic: generic node for free running/paced transfert type
- * 2 others transfert type are possible, but not yet implemented
+ * @generic: generic yesde for free running/paced transfert type
+ * 2 others transfert type are possible, but yest yet implemented
  *
  * The NODE structures must be aligned to a 32 byte boundary
  */
-struct st_fdma_hw_node {
+struct st_fdma_hw_yesde {
 	u32 next;
 	u32 control;
 	u32 nbytes;
 	u32 saddr;
 	u32 daddr;
 	union {
-		struct st_fdma_generic_node generic;
+		struct st_fdma_generic_yesde generic;
 	};
 } __aligned(32);
 
 /*
- * node control parameters
+ * yesde control parameters
  */
 #define FDMA_NODE_CTRL_REQ_MAP_MASK	GENMASK(4, 0)
 #define FDMA_NODE_CTRL_REQ_MAP_FREE_RUN	0x0
@@ -75,14 +75,14 @@ struct st_fdma_hw_node {
 #define FDMA_NODE_CTRL_INT_EON		BIT(31)
 
 /**
- * struct st_fdma_sw_node - descriptor structure for link list
+ * struct st_fdma_sw_yesde - descriptor structure for link list
  *
  * @pdesc: Physical address of desc
- * @node: link used for putting this into a channel queue
+ * @yesde: link used for putting this into a channel queue
  */
-struct st_fdma_sw_node {
+struct st_fdma_sw_yesde {
 	dma_addr_t pdesc;
-	struct st_fdma_hw_node *desc;
+	struct st_fdma_hw_yesde *desc;
 };
 
 #define NAME_SZ 10
@@ -96,8 +96,8 @@ struct st_fdma_desc {
 	struct virt_dma_desc vdesc;
 	struct st_fdma_chan *fchan;
 	bool iscyclic;
-	unsigned int n_nodes;
-	struct st_fdma_sw_node node[];
+	unsigned int n_yesdes;
+	struct st_fdma_sw_yesde yesde[];
 };
 
 enum st_fdma_type {
@@ -106,7 +106,7 @@ enum st_fdma_type {
 };
 
 struct st_fdma_cfg {
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	enum st_fdma_type type;
 	dma_addr_t dev_addr;
 	enum dma_transfer_direction dir;
@@ -116,7 +116,7 @@ struct st_fdma_cfg {
 
 struct st_fdma_chan {
 	struct st_fdma_dev *fdev;
-	struct dma_pool *node_pool;
+	struct dma_pool *yesde_pool;
 	struct dma_slave_config scfg;
 	struct st_fdma_cfg cfg;
 
@@ -197,18 +197,18 @@ struct st_fdma_dev {
 	writel((val), (fchan)->fdev->slim_rproc->mem[ST_SLIM_DMEM].cpu_addr \
 			+ fchan->dreq_line * 0x04 \
 			+ name)
-/* node interface */
+/* yesde interface */
 #define FDMA_NODE_SZ 128
 #define FDMA_PTRN_OFST		0x800
 #define FDMA_CNTN_OFST		0x808
 #define FDMA_SADDRN_OFST	0x80c
 #define FDMA_DADDRN_OFST	0x810
-#define fnode_read(fchan, name) \
+#define fyesde_read(fchan, name) \
 	readl((fchan)->fdev->slim_rproc->mem[ST_SLIM_DMEM].cpu_addr \
 			+ (fchan)->vchan.chan.chan_id * FDMA_NODE_SZ \
 			+ name)
 
-#define fnode_write(fchan, val, name) \
+#define fyesde_write(fchan, val, name) \
 	writel((val), (fchan)->fdev->slim_rproc->mem[ST_SLIM_DMEM].cpu_addr \
 			+ (fchan)->vchan.chan.chan_id * FDMA_NODE_SZ \
 			+ name)

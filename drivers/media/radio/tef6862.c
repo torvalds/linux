@@ -6,7 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -70,7 +70,7 @@ static int tef6862_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *v)
 	if (v->index > 0)
 		return -EINVAL;
 
-	/* only support FM for now */
+	/* only support FM for yesw */
 	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = TEF6862_LO_FREQ;

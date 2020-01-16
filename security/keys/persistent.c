@@ -10,7 +10,7 @@
 
 #include "internal.h"
 
-unsigned persistent_keyring_expiry = 3 * 24 * 3600; /* Expire after 3 days of non-use */
+unsigned persistent_keyring_expiry = 3 * 24 * 3600; /* Expire after 3 days of yesn-use */
 
 /*
  * Create the persistent keyring register for the current user namespace.
@@ -67,7 +67,7 @@ static key_ref_t key_create_persistent(struct user_namespace *ns, kuid_t uid,
 }
 
 /*
- * Get the persistent keyring for a specific UID and link it to the nominated
+ * Get the persistent keyring for a specific UID and link it to the yesminated
  * keyring.
  */
 static long key_get_persistent(struct user_namespace *ns, kuid_t uid,
@@ -123,7 +123,7 @@ found:
 }
 
 /*
- * Get the persistent keyring for a specific UID and link it to the nominated
+ * Get the persistent keyring for a specific UID and link it to the yesminated
  * keyring.
  */
 long keyctl_get_persistent(uid_t _uid, key_serial_t destid)
@@ -141,7 +141,7 @@ long keyctl_get_persistent(uid_t _uid, key_serial_t destid)
 		if (!uid_valid(uid))
 			return -EINVAL;
 
-		/* You can only see your own persistent cache if you're not
+		/* You can only see your own persistent cache if you're yest
 		 * sufficiently privileged.
 		 */
 		if (!uid_eq(uid, current_uid()) &&

@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -141,7 +141,7 @@ static void vmw_cursor_update_position(struct vmw_private *dev_priv,
 }
 
 
-void vmw_kms_cursor_snoop(struct vmw_surface *srf,
+void vmw_kms_cursor_syesop(struct vmw_surface *srf,
 			  struct ttm_object_file *tfile,
 			  struct ttm_buffer_object *bo,
 			  SVGA3dCmdHeader *header)
@@ -161,8 +161,8 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 
 	cmd = container_of(header, struct vmw_dma_cmd, header);
 
-	/* No snooper installed */
-	if (!srf->snooper.image)
+	/* No syesoper installed */
+	if (!srf->syesoper.image)
 		return;
 
 	if (cmd->dma.host.face != 0 || cmd->dma.host.mipmap != 0) {
@@ -183,10 +183,10 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	    box->x != 0    || box->y != 0    || box->z != 0    ||
 	    box->srcx != 0 || box->srcy != 0 || box->srcz != 0 ||
 	    box->d != 1    || box_count != 1) {
-		/* TODO handle none page aligned offsets */
+		/* TODO handle yesne page aligned offsets */
 		/* TODO handle more dst & src != 0 */
 		/* TODO handle more then one copy */
-		DRM_ERROR("Cant snoop dma request for cursor!\n");
+		DRM_ERROR("Cant syesop dma request for cursor!\n");
 		DRM_ERROR("(%u, %u, %u) (%u, %u, %u) (%ux%ux%u) %u %u\n",
 			  box->srcx, box->srcy, box->srcz,
 			  box->x, box->y, box->z,
@@ -211,16 +211,16 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	virtual = ttm_kmap_obj_virtual(&map, &dummy);
 
 	if (box->w == 64 && cmd->dma.guest.pitch == 64*4) {
-		memcpy(srf->snooper.image, virtual, 64*64*4);
+		memcpy(srf->syesoper.image, virtual, 64*64*4);
 	} else {
 		/* Image is unsigned pointer. */
 		for (i = 0; i < box->h; i++)
-			memcpy(srf->snooper.image + i * 64,
+			memcpy(srf->syesoper.image + i * 64,
 			       virtual + i * cmd->dma.guest.pitch,
 			       box->w * 4);
 	}
 
-	srf->snooper.age++;
+	srf->syesoper.age++;
 
 	ttm_bo_kunmap(&map);
 err_unreserve:
@@ -261,12 +261,12 @@ void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		du = vmw_crtc_to_du(crtc);
 		if (!du->cursor_surface ||
-		    du->cursor_age == du->cursor_surface->snooper.age)
+		    du->cursor_age == du->cursor_surface->syesoper.age)
 			continue;
 
-		du->cursor_age = du->cursor_surface->snooper.age;
+		du->cursor_age = du->cursor_surface->syesoper.age;
 		vmw_cursor_update_image(dev_priv,
-					du->cursor_surface->snooper.image,
+					du->cursor_surface->syesoper.image,
 					64, 64,
 					du->hotspot_x + du->core_hotspot_x,
 					du->hotspot_y + du->core_hotspot_y);
@@ -396,10 +396,10 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 	du->cursor_bo = vps->bo;
 
 	if (vps->surf) {
-		du->cursor_age = du->cursor_surface->snooper.age;
+		du->cursor_age = du->cursor_surface->syesoper.age;
 
 		ret = vmw_cursor_update_image(dev_priv,
-					      vps->surf->snooper.image,
+					      vps->surf->syesoper.image,
 					      64, 64, hotspot_x,
 					      hotspot_y);
 	} else if (vps->bo) {
@@ -474,7 +474,7 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
  * @plane: cursor plane
  * @state: info on the new plane state
  *
- * This is a chance to fail if the new cursor state does not fit
+ * This is a chance to fail if the new cursor state does yest fit
  * our requirements.
  *
  * Returns 0 on success
@@ -512,8 +512,8 @@ int vmw_du_cursor_plane_atomic_check(struct drm_plane *plane,
 	if (!vmw_framebuffer_to_vfb(fb)->bo)
 		surface = vmw_framebuffer_to_vfbs(fb)->surface;
 
-	if (surface && !surface->snooper.image) {
-		DRM_ERROR("surface not suitable for cursor\n");
+	if (surface && !surface->syesoper.image) {
+		DRM_ERROR("surface yest suitable for cursor\n");
 		ret = -EINVAL;
 	}
 
@@ -541,7 +541,7 @@ int vmw_du_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	/*
-	 * Our virtual device does not have a dot clock, so use the logical
+	 * Our virtual device does yest have a dot clock, so use the logical
 	 * clock value as the dot clock.
 	 */
 	if (new_state->mode.crtc_clock == 0)
@@ -625,7 +625,7 @@ void vmw_du_crtc_reset(struct drm_crtc *crtc)
 	vcs = kzalloc(sizeof(*vcs), GFP_KERNEL);
 
 	if (!vcs) {
-		DRM_ERROR("Cannot allocate vmw_crtc_state\n");
+		DRM_ERROR("Canyest allocate vmw_crtc_state\n");
 		return;
 	}
 
@@ -706,7 +706,7 @@ void vmw_du_plane_reset(struct drm_plane *plane)
 	vps = kzalloc(sizeof(*vps), GFP_KERNEL);
 
 	if (!vps) {
-		DRM_ERROR("Cannot allocate vmw_plane_state\n");
+		DRM_ERROR("Canyest allocate vmw_plane_state\n");
 		return;
 	}
 
@@ -793,7 +793,7 @@ void vmw_du_connector_reset(struct drm_connector *connector)
 	vcs = kzalloc(sizeof(*vcs), GFP_KERNEL);
 
 	if (!vcs) {
-		DRM_ERROR("Cannot allocate vmw_connector_state\n");
+		DRM_ERROR("Canyest allocate vmw_connector_state\n");
 		return;
 	}
 
@@ -845,7 +845,7 @@ static void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
  * Must be set to NULL if @user_fence_rep is NULL.
  * @vfb: Pointer to the buffer-object backed framebuffer.
  * @user_fence_rep: User-space provided structure for fence information.
- * Must be set to non-NULL if @file_priv is non-NULL.
+ * Must be set to yesn-NULL if @file_priv is yesn-NULL.
  * @vclips: Array of clip rects.
  * @num_clips: Number of clip rects in @vclips.
  *
@@ -904,8 +904,8 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	 * Sanity checks.
 	 */
 
-	/* Surface must be marked as a scanout. */
-	if (unlikely(!surface->scanout))
+	/* Surface must be marked as a scayesut. */
+	if (unlikely(!surface->scayesut))
 		return -EINVAL;
 
 	if (unlikely(surface->mip_levels[0] != 1 ||
@@ -938,7 +938,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	}
 
 	/*
-	 * For DX, surface format validation is done when surface->scanout
+	 * For DX, surface format validation is done when surface->scayesut
 	 * is set.
 	 */
 	if (!dev_priv->has_dx && format != surface->format) {
@@ -999,7 +999,7 @@ static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
 	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
 	struct vmw_framebuffer_bo *vfbd =
 		vmw_framebuffer_to_vfbd(framebuffer);
-	struct drm_clip_rect norect;
+	struct drm_clip_rect yesrect;
 	int ret, increment = 1;
 
 	drm_modeset_lock_all(dev_priv->dev);
@@ -1012,10 +1012,10 @@ static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
 
 	if (!num_clips) {
 		num_clips = 1;
-		clips = &norect;
-		norect.x1 = norect.y1 = 0;
-		norect.x2 = framebuffer->width;
-		norect.y2 = framebuffer->height;
+		clips = &yesrect;
+		yesrect.x1 = yesrect.y1 = 0;
+		yesrect.x2 = framebuffer->width;
+		yesrect.y2 = framebuffer->height;
 	} else if (flags & DRM_MODE_FB_DIRTY_ANNOTATE_COPY) {
 		num_clips /= 2;
 		increment = 2;
@@ -1183,7 +1183,7 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 					 0, /* kernel visible only */
 					 0, /* flags */
 					 format,
-					 true, /* can be a scanout buffer */
+					 true, /* can be a scayesut buffer */
 					 1, /* num of mip levels */
 					 0,
 					 0,
@@ -1317,7 +1317,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 	int ret;
 
 	/*
-	 * We cannot use the SurfaceDMA command in an non-accelerated VM,
+	 * We canyest use the SurfaceDMA command in an yesn-accelerated VM,
 	 * therefore, wrap the buffer object in a surface so we can use the
 	 * SurfaceCopy command.
 	 */
@@ -1340,7 +1340,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 						      is_bo_proxy);
 
 		/*
-		 * vmw_create_bo_proxy() adds a reference that is no longer
+		 * vmw_create_bo_proxy() adds a reference that is yes longer
 		 * needed
 		 */
 		if (is_bo_proxy)
@@ -1388,7 +1388,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 
 	user_obj = ttm_base_object_lookup(tfile, mode_cmd->handles[0]);
 	if (unlikely(user_obj == NULL)) {
-		DRM_ERROR("Could not locate requested kms frame buffer.\n");
+		DRM_ERROR("Could yest locate requested kms frame buffer.\n");
 		return ERR_PTR(-ENOENT);
 	}
 
@@ -1406,7 +1406,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 
 	if (!bo &&
 	    !vmw_kms_srf_ok(dev_priv, mode_cmd->width, mode_cmd->height)) {
-		DRM_ERROR("Surface size cannot exceed %dx%d",
+		DRM_ERROR("Surface size canyest exceed %dx%d",
 			dev_priv->texture_max_width,
 			dev_priv->texture_max_height);
 		goto err_out;
@@ -1466,7 +1466,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 		if (dev_priv->active_display_unit == vmw_du_screen_target &&
 		    (drm_rect_width(&rects[i]) > dev_priv->stdu_max_width ||
 		     drm_rect_height(&rects[i]) > dev_priv->stdu_max_height)) {
-			VMW_DEBUG_KMS("Screen size not supported.\n");
+			VMW_DEBUG_KMS("Screen size yest supported.\n");
 			return -EINVAL;
 		}
 
@@ -1486,7 +1486,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 
 	/*
 	 * For HV10 and below prim_bb_mem is vram size. When
-	 * SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM is not present vram size is
+	 * SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM is yest present vram size is
 	 * limit on primary bounding box
 	 */
 	if (pixel_mem > dev_priv->prim_bb_mem) {
@@ -1656,7 +1656,7 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 
 		/*
 		 * For vmwgfx each crtc has only one connector attached and it
-		 * is not changed so don't really need to check the
+		 * is yest changed so don't really need to check the
 		 * crtc->connector_mask and iterate over it.
 		 */
 		connector = &du->connector;
@@ -1690,7 +1690,7 @@ clean:
  * drm_calc_timestamping_constants() won't throw an error message
  *
  * Returns:
- * Zero for success or -errno
+ * Zero for success or -erryes
  */
 static int
 vmw_kms_atomic_check_modeset(struct drm_device *dev,
@@ -2324,12 +2324,12 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
  * [0 0 640 480] [640 0 800 600] [0 480 640 480]
  *
  * NOTE:
- * The x and y offset (upper left) in drm_vmw_rect cannot be less than 0. Beside
- * device limit on topology, x + w and y + h (lower right) cannot be greater
+ * The x and y offset (upper left) in drm_vmw_rect canyest be less than 0. Beside
+ * device limit on topology, x + w and y + h (lower right) canyest be greater
  * than INT_MAX. So topology beyond these limits will return with error.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv)
@@ -2451,7 +2451,7 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 
 	dirty->dev_priv = dev_priv;
 
-	/* If crtc is passed, no need to iterate over other display units */
+	/* If crtc is passed, yes need to iterate over other display units */
 	if (dirty->crtc) {
 		units[num_units++] = vmw_crtc_to_du(dirty->crtc);
 	} else {
@@ -2547,8 +2547,8 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
  * @dev_priv: Pointer to the device-private struct
  * @file_priv: Pointer identifying the client when user-space fencing is used
  * @ctx: Pointer to the validation context
- * @out_fence: If non-NULL, returned refcounted fence-pointer
- * @user_fence_rep: If non-NULL, pointer to user-space address area
+ * @out_fence: If yesn-NULL, returned refcounted fence-pointer
+ * @user_fence_rep: If yesn-NULL, pointer to user-space address area
  * in which to copy user-space fence info
  */
 void vmw_kms_helper_validation_finish(struct vmw_private *dev_priv,
@@ -2667,7 +2667,7 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 	}
 
 	if (i != unit) {
-		DRM_ERROR("Could not find initial display unit.\n");
+		DRM_ERROR("Could yest find initial display unit.\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -2676,7 +2676,7 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 		(void) vmw_du_connector_fill_modes(con, max_width, max_height);
 
 	if (list_empty(&con->modes)) {
-		DRM_ERROR("Could not find initial display mode.\n");
+		DRM_ERROR("Could yest find initial display mode.\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -2693,7 +2693,7 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 	if (mode->type & DRM_MODE_TYPE_PREFERRED)
 		*p_mode = mode;
 	else {
-		WARN_ONCE(true, "Could not find initial preferred mode.\n");
+		WARN_ONCE(true, "Could yest find initial preferred mode.\n");
 		*p_mode = list_first_entry(&con->modes,
 					   struct drm_display_mode,
 					   head);

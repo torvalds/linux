@@ -7,7 +7,7 @@
  *  states that lose GPRs, and it will return transparently with
  *  SRR1 wakeup reason return value.
  *
- *  The platform / CPU caller must ensure SPRs and any other non-GPR
+ *  The platform / CPU caller must ensure SPRs and any other yesn-GPR
  *  state is saved and restored correctly, handle KVM, interrupts, etc.
  */
 
@@ -26,7 +26,7 @@
  * and must blr, to return to caller with r3 set according to caller's expected
  * return code (for Book3S/64 that is SRR1).
  */
-_GLOBAL(isa300_idle_stop_noloss)
+_GLOBAL(isa300_idle_stop_yesloss)
 	mtspr 	SPRN_PSSCR,r3
 	PPC_STOP
 	li	r3,0
@@ -40,7 +40,7 @@ _GLOBAL(isa300_idle_stop_noloss)
  * idle_return_gpr_loss with r3 set to desired return value.
  *
  * A wakeup without GPR loss may alteratively be handled as in
- * isa300_idle_stop_noloss and blr directly, as an optimisation.
+ * isa300_idle_stop_yesloss and blr directly, as an optimisation.
  *
  * The caller is responsible for saving/restoring SPRs, MSR, timebase,
  * etc.
@@ -82,7 +82,7 @@ _GLOBAL(isa300_idle_stop_mayloss)
  * The idle wakeup SRESET interrupt can call this after calling
  * to return to the idle sleep function caller with r3 as the return code.
  *
- * This must not be used if idle was entered via a _noloss function (use
+ * This must yest be used if idle was entered via a _yesloss function (use
  * a simple blr instead).
  */
 _GLOBAL(idle_return_gpr_loss)
@@ -141,7 +141,7 @@ _GLOBAL(idle_return_gpr_loss)
  * idle_return_gpr_loss with r3 set to desired return value.
  *
  * A wakeup without GPR loss may alteratively be handled as in
- * isa300_idle_stop_noloss and blr directly, as an optimisation.
+ * isa300_idle_stop_yesloss and blr directly, as an optimisation.
  *
  * The caller is responsible for saving/restoring SPRs, MSR, timebase,
  * etc.

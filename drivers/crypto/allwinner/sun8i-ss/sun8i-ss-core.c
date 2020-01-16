@@ -286,9 +286,9 @@ static int sun8i_ss_dbgfs_read(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int sun8i_ss_dbgfs_open(struct inode *inode, struct file *file)
+static int sun8i_ss_dbgfs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, sun8i_ss_dbgfs_read, inode->i_private);
+	return single_open(file, sun8i_ss_dbgfs_read, iyesde->i_private);
 }
 
 static const struct file_operations sun8i_ss_debugfs_fops = {
@@ -325,14 +325,14 @@ static int allocate_flows(struct sun8i_ss_dev *ss)
 
 		ss->flows[i].engine = crypto_engine_alloc_init(ss->dev, true);
 		if (!ss->flows[i].engine) {
-			dev_err(ss->dev, "Cannot allocate engine\n");
+			dev_err(ss->dev, "Canyest allocate engine\n");
 			i--;
 			err = -ENOMEM;
 			goto error_engine;
 		}
 		err = crypto_engine_start(ss->flows[i].engine);
 		if (err) {
-			dev_err(ss->dev, "Cannot start engine\n");
+			dev_err(ss->dev, "Canyest start engine\n");
 			goto error_engine;
 		}
 	}
@@ -367,14 +367,14 @@ static int sun8i_ss_pm_resume(struct device *dev)
 			continue;
 		err = clk_prepare_enable(ss->ssclks[i]);
 		if (err) {
-			dev_err(ss->dev, "Cannot prepare_enable %s\n",
+			dev_err(ss->dev, "Canyest prepare_enable %s\n",
 				ss->variant->ss_clks[i].name);
 			goto error;
 		}
 	}
 	err = reset_control_deassert(ss->reset);
 	if (err) {
-		dev_err(ss->dev, "Cannot deassert reset control\n");
+		dev_err(ss->dev, "Canyest deassert reset control\n");
 		goto error;
 	}
 	/* enable interrupts for all flows */
@@ -421,7 +421,7 @@ static int sun8i_ss_register_algs(struct sun8i_ss_dev *ss)
 			ss_method = ss->variant->alg_cipher[id];
 			if (ss_method == SS_ID_NOTSUPP) {
 				dev_info(ss->dev,
-					 "DEBUG: Algo of %s not supported\n",
+					 "DEBUG: Algo of %s yest supported\n",
 					 ss_algs[i].alg.skcipher.base.cra_name);
 				ss_algs[i].ss = NULL;
 				break;
@@ -429,7 +429,7 @@ static int sun8i_ss_register_algs(struct sun8i_ss_dev *ss)
 			id = ss_algs[i].ss_blockmode;
 			ss_method = ss->variant->op_mode[id];
 			if (ss_method == SS_ID_NOTSUPP) {
-				dev_info(ss->dev, "DEBUG: Blockmode of %s not supported\n",
+				dev_info(ss->dev, "DEBUG: Blockmode of %s yest supported\n",
 					 ss_algs[i].alg.skcipher.base.cra_name);
 				ss_algs[i].ss = NULL;
 				break;
@@ -446,7 +446,7 @@ static int sun8i_ss_register_algs(struct sun8i_ss_dev *ss)
 			break;
 		default:
 			ss_algs[i].ss = NULL;
-			dev_err(ss->dev, "ERROR: tried to register an unknown algo\n");
+			dev_err(ss->dev, "ERROR: tried to register an unkyeswn algo\n");
 		}
 	}
 	return 0;
@@ -480,7 +480,7 @@ static int sun8i_ss_get_clks(struct sun8i_ss_dev *ss)
 		ss->ssclks[i] = devm_clk_get(ss->dev, ss->variant->ss_clks[i].name);
 		if (IS_ERR(ss->ssclks[i])) {
 			err = PTR_ERR(ss->ssclks[i]);
-			dev_err(ss->dev, "Cannot get %s SS clock err=%d\n",
+			dev_err(ss->dev, "Canyest get %s SS clock err=%d\n",
 				ss->variant->ss_clks[i].name, err);
 			return err;
 		}
@@ -538,7 +538,7 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(ss->dev, "Cannot get SecuritySystem IRQ\n");
+		dev_err(ss->dev, "Canyest get SecuritySystem IRQ\n");
 		return irq;
 	}
 
@@ -562,7 +562,7 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, irq, ss_irq_handler, 0, "sun8i-ss", ss);
 	if (err) {
-		dev_err(ss->dev, "Cannot request SecuritySystem IRQ (err=%d)\n", err);
+		dev_err(ss->dev, "Canyest request SecuritySystem IRQ (err=%d)\n", err);
 		goto error_irq;
 	}
 
@@ -582,7 +582,7 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 	pm_runtime_put_sync(ss->dev);
 
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG
-	/* Ignore error of debugfs */
+	/* Igyesre error of debugfs */
 	ss->dbgfs_dir = debugfs_create_dir("sun8i-ss", NULL);
 	ss->dbgfs_stats = debugfs_create_file("stats", 0444,
 					      ss->dbgfs_dir, ss,

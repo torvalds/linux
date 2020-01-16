@@ -91,9 +91,9 @@ MODULE_PARM_DESC(polling_limit_us,
  * @tx_len: remaining bytes to transmit
  * @rx_len: remaining bytes to receive
  * @tx_prologue: bytes transmitted without DMA if first TX sglist entry's
- *	length is not a multiple of 4 (to overcome hardware limitation)
+ *	length is yest a multiple of 4 (to overcome hardware limitation)
  * @rx_prologue: bytes received without DMA if first RX sglist entry's
- *	length is not a multiple of 4 (to overcome hardware limitation)
+ *	length is yest a multiple of 4 (to overcome hardware limitation)
  * @tx_spillover: whether @tx_prologue spills over to second TX sglist entry
  * @prepare_cs: precalculated CS register value for ->prepare_message()
  *	(uses slave-specific clock polarity and phase settings)
@@ -234,7 +234,7 @@ static inline void bcm2835_wr_fifo(struct bcm2835_spi *bs)
  * The caller must ensure that @bs->rx_len is greater than or equal to @count,
  * that the RX FIFO contains at least @count bytes and that the DMA Enable flag
  * in the CS register is set (such that a read from the FIFO register receives
- * 32-bit instead of just 8-bit).  Moreover @bs->rx_buf must not be %NULL.
+ * 32-bit instead of just 8-bit).  Moreover @bs->rx_buf must yest be %NULL.
  */
 static inline void bcm2835_rd_fifo_count(struct bcm2835_spi *bs, int count)
 {
@@ -435,12 +435,12 @@ static int bcm2835_spi_transfer_one_irq(struct spi_controller *ctlr,
  * SPI controller deduces its intended size from the DLEN register.
  *
  * If a TX or RX sglist contains multiple entries, one per page, and the first
- * entry starts in the middle of a page, that first entry's length may not be
+ * entry starts in the middle of a page, that first entry's length may yest be
  * a multiple of 4.  Subsequent entries are fine because they span an entire
  * page, hence do have a length that's a multiple of 4.
  *
- * This cannot happen with kmalloc'ed buffers (which is what most clients use)
- * because they are contiguous in physical memory and therefore not split on
+ * This canyest happen with kmalloc'ed buffers (which is what most clients use)
+ * because they are contiguous in physical memory and therefore yest split on
  * page boundaries by spi_map_buf().  But it *can* happen with vmalloc'ed
  * buffers.
  *
@@ -460,10 +460,10 @@ static int bcm2835_spi_transfer_one_irq(struct spi_controller *ctlr,
  * Caution, the additional 4 bytes spill over to the second TX sglist entry
  * if the length of the first is *exactly* 1.
  *
- * At most 6 bytes are written and at most 3 bytes read.  Do we know the
+ * At most 6 bytes are written and at most 3 bytes read.  Do we kyesw the
  * transfer has this many bytes?  Yes, see BCM2835_SPI_DMA_MIN_LENGTH.
  *
- * The FIFO is normally accessed with 8-bit width by the CPU and 32-bit width
+ * The FIFO is yesrmally accessed with 8-bit width by the CPU and 32-bit width
  * by the DMA engine.  Toggling the DMA Enable flag in the CS register switches
  * the width but also garbles the FIFO's contents.  The prologue must therefore
  * be transmitted in 32-bit width to ensure that the following DMA transfer can
@@ -596,7 +596,7 @@ static void bcm2835_spi_dma_rx_done(void *data)
 	struct spi_controller *ctlr = data;
 	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
 
-	/* terminate tx-dma as we do not have an irq for it
+	/* terminate tx-dma as we do yest have an irq for it
 	 * because when the rx dma will terminate and this callback
 	 * is called the tx-dma must have finished - can't get to this
 	 * situation otherwise...
@@ -633,7 +633,7 @@ static void bcm2835_spi_dma_tx_done(void *data)
 	smp_wmb();
 
 	/*
-	 * In case of a very short transfer, RX DMA may not have been
+	 * In case of a very short transfer, RX DMA may yest have been
 	 * issued yet.  The onus is then on bcm2835_spi_transfer_one_dma()
 	 * to terminate it immediately after issuing.
 	 */
@@ -715,11 +715,11 @@ static int bcm2835_spi_prepare_sg(struct spi_controller *ctlr,
  * @tfr: SPI transfer
  * @cs: CS register
  *
- * For *bidirectional* transfers (both tx_buf and rx_buf are non-%NULL), set up
+ * For *bidirectional* transfers (both tx_buf and rx_buf are yesn-%NULL), set up
  * the TX and RX DMA channel to copy between memory and FIFO register.
  *
  * For *TX-only* transfers (rx_buf is %NULL), copying the RX FIFO's contents to
- * memory is pointless.  However not reading the RX FIFO isn't an option either
+ * memory is pointless.  However yest reading the RX FIFO isn't an option either
  * because transmission is halted once it's full.  As a workaround, cyclically
  * clear the RX FIFO by setting the CLEAR_RX bit in the CS register.
  *
@@ -727,13 +727,13 @@ static int bcm2835_spi_prepare_sg(struct spi_controller *ctlr,
  * this is called only once, on slave registration.  A DMA descriptor to write
  * this value is preallocated in bcm2835_dma_init().  All that's left to do
  * when performing a TX-only transfer is to submit this descriptor to the RX
- * DMA channel.  Latency is thereby minimized.  The descriptor does not
+ * DMA channel.  Latency is thereby minimized.  The descriptor does yest
  * generate any interrupts while running.  It must be terminated once the
  * TX DMA channel is done.
  *
  * Clearing the RX FIFO is paced by the DREQ signal.  The signal is asserted
  * when the RX FIFO becomes half full, i.e. 32 bytes.  (Tuneable with the DC
- * register.)  Reading 32 bytes from the RX FIFO would normally require 8 bus
+ * register.)  Reading 32 bytes from the RX FIFO would yesrmally require 8 bus
  * accesses, whereas clearing it requires only 1 bus access.  So an 8-fold
  * reduction in bus traffic and thus energy consumption is achieved.
  *
@@ -745,7 +745,7 @@ static int bcm2835_spi_prepare_sg(struct spi_controller *ctlr,
  * The BCM2835 DMA driver autodetects when a transaction copies from the zero
  * page and utilizes the DMA controller's ability to synthesize zeroes instead
  * of copying them from memory.  This reduces traffic on the memory bus.  The
- * feature is not available on so-called "lite" channels, but normally TX DMA
+ * feature is yest available on so-called "lite" channels, but yesrmally TX DMA
  * is backed by a full-featured channel.
  *
  * Zero-filling the TX FIFO is paced by the DREQ signal.  Unfortunately the
@@ -769,7 +769,7 @@ static int bcm2835_spi_transfer_one_dma(struct spi_controller *ctlr,
 
 	/*
 	 * Transfer first few bytes without DMA if length of first TX or RX
-	 * sglist entry is not a multiple of 4 bytes (hardware limitation).
+	 * sglist entry is yest a multiple of 4 bytes (hardware limitation).
 	 */
 	bcm2835_spi_transfer_prologue(ctlr, tfr, bs, cs);
 
@@ -897,9 +897,9 @@ static void bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 	int ret, i;
 
 	/* base address in dma-space */
-	addr = of_get_address(ctlr->dev.of_node, 0, NULL, NULL);
+	addr = of_get_address(ctlr->dev.of_yesde, 0, NULL, NULL);
 	if (!addr) {
-		dev_err(dev, "could not get DMA-register address - not using dma mode\n");
+		dev_err(dev, "could yest get DMA-register address - yest using dma mode\n");
 		goto err;
 	}
 	dma_reg_base = be32_to_cpup(addr);
@@ -907,12 +907,12 @@ static void bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 	/* get tx/rx dma */
 	ctlr->dma_tx = dma_request_slave_channel(dev, "tx");
 	if (!ctlr->dma_tx) {
-		dev_err(dev, "no tx-dma configuration found - not using dma mode\n");
+		dev_err(dev, "yes tx-dma configuration found - yest using dma mode\n");
 		goto err;
 	}
 	ctlr->dma_rx = dma_request_slave_channel(dev, "rx");
 	if (!ctlr->dma_rx) {
-		dev_err(dev, "no rx-dma configuration found - not using dma mode\n");
+		dev_err(dev, "yes rx-dma configuration found - yest using dma mode\n");
 		goto err_release;
 	}
 
@@ -933,7 +933,7 @@ static void bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 					      DMA_TO_DEVICE,
 					      DMA_ATTR_SKIP_CPU_SYNC);
 	if (dma_mapping_error(ctlr->dma_tx->device->dev, bs->fill_tx_addr)) {
-		dev_err(dev, "cannot map zero page - not using DMA mode\n");
+		dev_err(dev, "canyest map zero page - yest using DMA mode\n");
 		bs->fill_tx_addr = 0;
 		goto err_release;
 	}
@@ -943,13 +943,13 @@ static void bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 						     sizeof(u32), 0,
 						     DMA_MEM_TO_DEV, 0);
 	if (!bs->fill_tx_desc) {
-		dev_err(dev, "cannot prepare fill_tx_desc - not using DMA mode\n");
+		dev_err(dev, "canyest prepare fill_tx_desc - yest using DMA mode\n");
 		goto err_release;
 	}
 
 	ret = dmaengine_desc_set_reuse(bs->fill_tx_desc);
 	if (ret) {
-		dev_err(dev, "cannot reuse fill_tx_desc - not using DMA mode\n");
+		dev_err(dev, "canyest reuse fill_tx_desc - yest using DMA mode\n");
 		goto err_release;
 	}
 
@@ -972,7 +972,7 @@ static void bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 					   sizeof(bs->clear_rx_cs),
 					   DMA_TO_DEVICE);
 	if (dma_mapping_error(ctlr->dma_rx->device->dev, bs->clear_rx_addr)) {
-		dev_err(dev, "cannot map clear_rx_cs - not using DMA mode\n");
+		dev_err(dev, "canyest map clear_rx_cs - yest using DMA mode\n");
 		bs->clear_rx_addr = 0;
 		goto err_release;
 	}
@@ -983,13 +983,13 @@ static void bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 					   sizeof(u32), 0,
 					   DMA_MEM_TO_DEV, 0);
 		if (!bs->clear_rx_desc[i]) {
-			dev_err(dev, "cannot prepare clear_rx_desc - not using DMA mode\n");
+			dev_err(dev, "canyest prepare clear_rx_desc - yest using DMA mode\n");
 			goto err_release;
 		}
 
 		ret = dmaengine_desc_set_reuse(bs->clear_rx_desc[i]);
 		if (ret) {
-			dev_err(dev, "cannot reuse clear_rx_desc - not using DMA mode\n");
+			dev_err(dev, "canyest reuse clear_rx_desc - yest using DMA mode\n");
 			goto err_release;
 		}
 	}
@@ -1000,7 +1000,7 @@ static void bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 	return;
 
 err_config:
-	dev_err(dev, "issue configuring dma: %d - not using DMA mode\n",
+	dev_err(dev, "issue configuring dma: %d - yest using DMA mode\n",
 		ret);
 err_release:
 	bcm2835_dma_release(ctlr, bs);
@@ -1115,7 +1115,7 @@ static int bcm2835_spi_transfer_one(struct spi_controller *ctlr,
 		return bcm2835_spi_transfer_one_poll(ctlr, spi, tfr, cs);
 
 	/* run in dma mode if conditions are right
-	 * Note that unlike poll or interrupt mode DMA mode does not have
+	 * Note that unlike poll or interrupt mode DMA mode does yest have
 	 * this 1 idle clock cycle pattern but runs the spi clock without gaps
 	 */
 	if (ctlr->can_dma && bcm2835_spi_can_dma(ctlr, spi, tfr))
@@ -1223,7 +1223,7 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 		return 0;
 	if (spi->chip_select > 1) {
 		/* error in the case of native CS requested with CS > 1
-		 * officially there is a CS2, but it is not documented
+		 * officially there is a CS2, but it is yest documented
 		 * which GPIO is connected with that...
 		 */
 		dev_err(&spi->dev,
@@ -1235,9 +1235,9 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	 * Translate native CS to GPIO
 	 *
 	 * FIXME: poking around in the gpiolib internals like this is
-	 * not very good practice. Find a way to locate the real problem
+	 * yest very good practice. Find a way to locate the real problem
 	 * and fix it. Why is the GPIO descriptor in spi->cs_gpiod
-	 * sometimes not assigned correctly? Erroneous device trees?
+	 * sometimes yest assigned correctly? Erroneous device trees?
 	 */
 
 	/* get the gpio chip for the base */
@@ -1250,10 +1250,10 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	 * The inversion semantics will be handled by the GPIO core
 	 * code, so we pass GPIOD_OUT_LOW for "unasserted" and
 	 * the correct flag for inversion semantics. The SPI_CS_HIGH
-	 * on spi->mode cannot be checked for polarity in this case
+	 * on spi->mode canyest be checked for polarity in this case
 	 * as the flag use_gpio_descriptors enforces SPI_CS_HIGH.
 	 */
-	if (of_property_read_bool(spi->dev.of_node, "spi-cs-high"))
+	if (of_property_read_bool(spi->dev.of_yesde, "spi-cs-high"))
 		lflags = GPIO_ACTIVE_HIGH;
 	else
 		lflags = GPIO_ACTIVE_LOW;
@@ -1292,7 +1292,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	ctlr->transfer_one = bcm2835_spi_transfer_one;
 	ctlr->handle_err = bcm2835_spi_handle_err;
 	ctlr->prepare_message = bcm2835_spi_prepare_message;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_yesde = pdev->dev.of_yesde;
 
 	bs = spi_controller_get_devdata(ctlr);
 
@@ -1305,7 +1305,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	bs->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(bs->clk)) {
 		err = PTR_ERR(bs->clk);
-		dev_err(&pdev->dev, "could not get clk: %d\n", err);
+		dev_err(&pdev->dev, "could yest get clk: %d\n", err);
 		goto out_controller_put;
 	}
 
@@ -1326,13 +1326,13 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	err = devm_request_irq(&pdev->dev, bs->irq, bcm2835_spi_interrupt, 0,
 			       dev_name(&pdev->dev), ctlr);
 	if (err) {
-		dev_err(&pdev->dev, "could not request IRQ: %d\n", err);
+		dev_err(&pdev->dev, "could yest request IRQ: %d\n", err);
 		goto out_clk_disable;
 	}
 
 	err = devm_spi_register_controller(&pdev->dev, ctlr);
 	if (err) {
-		dev_err(&pdev->dev, "could not register SPI controller: %d\n",
+		dev_err(&pdev->dev, "could yest register SPI controller: %d\n",
 			err);
 		goto out_clk_disable;
 	}

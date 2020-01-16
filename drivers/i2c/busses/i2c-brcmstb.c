@@ -60,7 +60,7 @@
 
 #define I2C_TIMEOUT					100 /* msecs */
 
-/* Condition mask used for non combined transfer */
+/* Condition mask used for yesn combined transfer */
 #define COND_RESTART		BSC_IIC_EN_RESTART_MASK
 #define COND_NOSTART		BSC_IIC_EN_NOSTART_MASK
 #define COND_NOSTOP		BSC_IIC_EN_NOSTOP_MASK
@@ -339,11 +339,11 @@ static int brcmstb_i2c_xfer_bsc_data(struct brcmstb_i2c_dev *dev,
 	enum bsc_xfer_cmd cmd;
 	u32 ctl_reg;
 	struct bsc_regs *pi2creg = dev->bsc_regmap;
-	int no_ack = pmsg->flags & I2C_M_IGNORE_NAK;
+	int yes_ack = pmsg->flags & I2C_M_IGNORE_NAK;
 	int data_regsz = brcmstb_i2c_get_data_regsz(dev);
 
 	/* see if the transaction needs to check NACK conditions */
-	if (no_ack) {
+	if (yes_ack) {
 		cmd = (pmsg->flags & I2C_M_RD) ? CMD_RD_NOACK
 			: CMD_WR_NOACK;
 		pi2creg->ctlhi_reg |= BSC_CTLHI_REG_IGNORE_ACK_MASK;
@@ -558,7 +558,7 @@ static void brcmstb_i2c_set_bus_speed(struct brcmstb_i2c_dev *dev)
 		}
 	}
 
-	/* in case we did not get find a valid speed */
+	/* in case we did yest get find a valid speed */
 	if (i == num_speeds) {
 		i = (bsc_readl(dev, ctl_reg) & BSC_CTL_REG_SCL_SEL_MASK) >>
 			BSC_CTL_REG_SCL_SEL_SHIFT;
@@ -609,7 +609,7 @@ static int brcmstb_i2c_probe(struct platform_device *pdev)
 		goto probe_errorout;
 	}
 
-	rc = of_property_read_string(dev->device->of_node, "interrupt-names",
+	rc = of_property_read_string(dev->device->of_yesde, "interrupt-names",
 				     &int_name);
 	if (rc < 0)
 		int_name = NULL;
@@ -631,7 +631,7 @@ static int brcmstb_i2c_probe(struct platform_device *pdev)
 		dev->irq = -1;
 	}
 
-	if (of_property_read_u32(dev->device->of_node,
+	if (of_property_read_u32(dev->device->of_yesde,
 				 "clock-frequency", &dev->clk_freq_hz)) {
 		dev_warn(dev->device, "setting clock-frequency@%dHz\n",
 			 bsc_clk[0].hz);
@@ -639,7 +639,7 @@ static int brcmstb_i2c_probe(struct platform_device *pdev)
 	}
 
 	/* set the data in/out register size for compatible SoCs */
-	if (of_device_is_compatible(dev->device->of_node,
+	if (of_device_is_compatible(dev->device->of_yesde,
 				    "brcmstb,brcmper-i2c"))
 		dev->data_regsz = sizeof(u8);
 	else
@@ -656,7 +656,7 @@ static int brcmstb_i2c_probe(struct platform_device *pdev)
 		strlcat(adap->name, int_name, sizeof(adap->name));
 	adap->algo = &brcmstb_i2c_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 	rc = i2c_add_adapter(adap);
 	if (rc)
 		goto probe_errorout;

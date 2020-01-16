@@ -26,9 +26,9 @@ struct bcom_fec_bd {
 
 #define BCOM_FEC_RX_BD_L	0x08000000ul	/* buffer is last in frame */
 #define BCOM_FEC_RX_BD_BC	0x00800000ul	/* DA is broadcast */
-#define BCOM_FEC_RX_BD_MC	0x00400000ul	/* DA is multicast and not broadcast */
+#define BCOM_FEC_RX_BD_MC	0x00400000ul	/* DA is multicast and yest broadcast */
 #define BCOM_FEC_RX_BD_LG	0x00200000ul	/* Rx frame length violation */
-#define BCOM_FEC_RX_BD_NO	0x00100000ul	/* Rx non-octet aligned frame */
+#define BCOM_FEC_RX_BD_NO	0x00100000ul	/* Rx yesn-octet aligned frame */
 #define BCOM_FEC_RX_BD_CR	0x00040000ul	/* Rx CRC error */
 #define BCOM_FEC_RX_BD_OV	0x00020000ul	/* overrun */
 #define BCOM_FEC_RX_BD_TR	0x00010000ul	/* Rx frame truncated */

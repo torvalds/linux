@@ -106,7 +106,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		reg = <0>;
 
 		partitions {
@@ -197,7 +197,7 @@
 	qspi_pins: qspi-pins {
 		mux {
 			function = "flash";
-			groups = "spi_nor";
+			groups = "spi_yesr";
 		};
 	};
 

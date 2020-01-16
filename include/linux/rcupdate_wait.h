@@ -10,7 +10,7 @@
 #include <linux/completion.h>
 
 /*
- * Structure allowing asynchronous waiting on RCU.
+ * Structure allowing asynchroyesus waiting on RCU.
  */
 struct rcu_synchronize {
 	struct rcu_head head;

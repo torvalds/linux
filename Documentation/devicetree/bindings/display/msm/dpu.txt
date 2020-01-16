@@ -1,4 +1,4 @@
-Qualcomm Technologies, Inc. DPU KMS
+Qualcomm Techyeslogies, Inc. DPU KMS
 
 Description:
 
@@ -21,10 +21,10 @@ Required properties:
   * "bus"
   * "core"
 - interrupts: interrupt signal from MDSS.
-- interrupt-controller: identifies the node as an interrupt controller.
+- interrupt-controller: identifies the yesde as an interrupt controller.
 - #interrupt-cells: specifies the number of cells needed to encode an interrupt
   source, should be 1.
-- iommus: phandle of iommu device node.
+- iommus: phandle of iommu device yesde.
 - #address-cells: number of address cells for the MDSS children. Should be 1.
 - #size-cells: Should be 1.
 - ranges: parent bus address space is the same as the child bus address space.

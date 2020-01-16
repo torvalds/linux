@@ -15,11 +15,11 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    yestice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    yestice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may yest be used to endorse or promote products
  * *    derived from this software without specific psisusbr written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESSED OR
@@ -41,9 +41,9 @@
  *      based on code Copyright (C) 1991, 1992  Linus Torvalds
  *			    1995  Jay Estabrook
  *
- * A note on using in_atomic() in here: We can't handle console
- * calls from non-schedulable context due to our USB-dependend
- * nature. For now, this driver just ignores any calls if it
+ * A yeste on using in_atomic() in here: We can't handle console
+ * calls from yesn-schedulable context due to our USB-dependend
+ * nature. For yesw, this driver just igyesres any calls if it
  * detects this state.
  *
  */
@@ -112,7 +112,7 @@ sisusb_set_cursor(struct sisusb_usb_data *sisusb, unsigned int location)
 
 	sisusb->sisusb_cursor_loc = location;
 
-	/* Hardware bug: Text cursor appears twice or not at all
+	/* Hardware bug: Text cursor appears twice or yest at all
 	 * at some positions. Work around it with the cursor skew
 	 * bits.
 	 */
@@ -153,9 +153,9 @@ sisusb_get_sisusb_lock_and_check(unsigned short console)
 {
 	struct sisusb_usb_data *sisusb;
 
-	/* We can't handle console calls in non-schedulable
+	/* We can't handle console calls in yesn-schedulable
 	 * context due to our locks and the USB transport.
-	 * So we simply ignore them. This should only affect
+	 * So we simply igyesre them. This should only affect
 	 * some calls to printk.
 	 */
 	if (in_atomic())
@@ -268,7 +268,7 @@ sisusbcon_deinit(struct vc_data *c)
 	int i;
 
 	/* This is called by do_take_over_console()
-	 * and others, ie not under our control.
+	 * and others, ie yest under our control.
 	 */
 
 	sisusb = sisusb_get_sisusb(c->vc_num);
@@ -492,7 +492,7 @@ sisusbcon_switch(struct vc_data *c)
 		return 0;
 	}
 
-	/* That really should not happen. It would mean we are
+	/* That really should yest happen. It would mean we are
 	 * being called while the vc is using its private buffer
 	 * as origin.
 	 */
@@ -556,7 +556,7 @@ sisusbcon_set_palette(struct vc_data *c, const unsigned char *table)
 	struct sisusb_usb_data *sisusb;
 	int i, j;
 
-	/* Return value not used by vt */
+	/* Return value yest used by vt */
 
 	if (!con_is_visible(c))
 		return;
@@ -772,9 +772,9 @@ sisusbcon_scroll_area(struct vc_data *c, struct sisusb_usb_data *sisusb,
 
 	/* sisusb->lock is down */
 
-	/* Scroll an area which does not match the
+	/* Scroll an area which does yest match the
 	 * visible screen's dimensions. This needs
-	 * to be done separately, as it does not
+	 * to be done separately, as it does yest
 	 * use hardware panning.
 	 */
 
@@ -820,7 +820,7 @@ sisusbcon_scroll(struct vc_data *c, unsigned int t, unsigned int b,
 	 * Returning 0 makes vt do the scrolling on its own.
 	 * Note that con_scroll is only called if the console is
 	 * visible. In that case, the origin should be our buffer,
-	 * not the vt's private one.
+	 * yest the vt's private one.
 	 */
 
 	if (!lines)
@@ -1054,7 +1054,7 @@ sisusbcon_do_font_op(struct sisusb_usb_data *sisusb, int set, int slot,
 			}
 
 		/*
-		 * In 512-character mode, the character map is not contiguous if
+		 * In 512-character mode, the character map is yest contiguous if
 		 * we want to remain EGA compatible -- which we do
 		 */
 
@@ -1386,7 +1386,7 @@ sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last)
 
 	mutex_lock(&sisusb->lock);
 
-	/* Erm.. that should not happen */
+	/* Erm.. that should yest happen */
 	if (sisusb->haveconsole || !sisusb->SiS_Pr) {
 		mutex_unlock(&sisusb->lock);
 		return 1;
@@ -1402,7 +1402,7 @@ sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last)
 		return 1;
 	}
 
-	/* If gfxcore not initialized or no consoles given, quit graciously */
+	/* If gfxcore yest initialized or yes consoles given, quit graciously */
 	if (!sisusb->gfxinit || first < 1 || last < 1) {
 		mutex_unlock(&sisusb->lock);
 		return 0;
@@ -1467,13 +1467,13 @@ sisusb_console_exit(struct sisusb_usb_data *sisusb)
 	 * can't lose our sisusb any other way but by
 	 * disconnection (and hence, the disconnect
 	 * sema is for protecting all other access
-	 * functions from disconnection, not the
+	 * functions from disconnection, yest the
 	 * other way round).
 	 */
 
 	/* Now what do we do in case of disconnection:
 	 * One alternative would be to simply call
-	 * give_up_console(). Nah, not a good idea.
+	 * give_up_console(). Nah, yest a good idea.
 	 * give_up_console() is obviously buggy as it
 	 * only discards the consw pointer from the
 	 * driver_map, but doesn't adapt vc->vc_sw

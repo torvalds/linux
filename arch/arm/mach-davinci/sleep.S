@@ -3,7 +3,7 @@
  * (C) Copyright 2009, Texas Instruments, Inc. http://www.ti.com/
  */
 
-/* replicated define because linux/bitops.h cannot be included in assembly */
+/* replicated define because linux/bitops.h canyest be included in assembly */
 #define BIT(nr)			(1 << (nr))
 
 #include <linux/linkage.h>
@@ -13,7 +13,7 @@
 
 #include "clock.h"
 
-/* Arbitrary, hardware currently does not update PHYRDY correctly */
+/* Arbitrary, hardware currently does yest update PHYRDY correctly */
 #define PHYRDY_CYCLES		0x1000
 
 /* Assume 25 MHz speed for the cycle conversions since PLLs are bypassed */

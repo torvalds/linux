@@ -2,7 +2,7 @@
 /*
  * IMG Multi-threaded DMA Controller (MDC)
  *
- * Copyright (C) 2009,2012,2013 Imagination Technologies Ltd.
+ * Copyright (C) 2009,2012,2013 Imagination Techyeslogies Ltd.
  * Copyright (C) 2014 Google, Inc.
  */
 
@@ -91,7 +91,7 @@ struct mdc_hw_list_desc {
 	u32 read_addr;
 	u32 write_addr;
 	u32 xfer_size;
-	u32 node_addr;
+	u32 yesde_addr;
 	u32 cmds_done;
 	u32 ctrl_status;
 	/*
@@ -220,7 +220,7 @@ static void mdc_list_desc_config(struct mdc_chan *mchan,
 	ldesc->read_addr = src;
 	ldesc->write_addr = dst;
 	ldesc->xfer_size = len - 1;
-	ldesc->node_addr = 0;
+	ldesc->yesde_addr = 0;
 	ldesc->cmds_done = 0;
 	ldesc->ctrl_status = MDC_CONTROL_AND_STATUS_LIST_EN |
 		MDC_CONTROL_AND_STATUS_EN;
@@ -267,7 +267,7 @@ static void mdc_list_desc_free(struct mdc_tx_desc *mdesc)
 	curr_phys = mdesc->list_phys;
 	while (curr) {
 		next = curr->next_desc;
-		next_phys = curr->node_addr;
+		next_phys = curr->yesde_addr;
 		dma_pool_free(mdma->desc_pool, curr, curr_phys);
 		curr = next;
 		curr_phys = next_phys;
@@ -309,7 +309,7 @@ static struct dma_async_tx_descriptor *mdc_prep_dma_memcpy(
 			goto free_desc;
 
 		if (prev) {
-			prev->node_addr = curr_phys;
+			prev->yesde_addr = curr_phys;
 			prev->next_desc = curr;
 		} else {
 			mdesc->list_phys = curr_phys;
@@ -407,7 +407,7 @@ static struct dma_async_tx_descriptor *mdc_prep_dma_cyclic(
 				mdesc->list_phys = curr_phys;
 				mdesc->list = curr;
 			} else {
-				prev->node_addr = curr_phys;
+				prev->yesde_addr = curr_phys;
 				prev->next_desc = curr;
 			}
 
@@ -434,7 +434,7 @@ static struct dma_async_tx_descriptor *mdc_prep_dma_cyclic(
 			remainder -= xfer_size;
 		}
 	}
-	prev->node_addr = mdesc->list_phys;
+	prev->yesde_addr = mdesc->list_phys;
 
 	return vchan_tx_prep(&mchan->vc, &mdesc->vd, flags);
 
@@ -487,7 +487,7 @@ static struct dma_async_tx_descriptor *mdc_prep_slave_sg(
 				mdesc->list_phys = curr_phys;
 				mdesc->list = curr;
 			} else {
-				prev->node_addr = curr_phys;
+				prev->yesde_addr = curr_phys;
 				prev->next_desc = curr;
 			}
 
@@ -532,7 +532,7 @@ static void mdc_issue_desc(struct mdc_chan *mchan)
 	if (!vd)
 		return;
 
-	list_del(&vd->node);
+	list_del(&vd->yesde);
 
 	mdesc = to_mdc_desc(&vd->tx);
 	mchan->desc = mdesc;
@@ -771,7 +771,7 @@ static irqreturn_t mdc_chan_irq(int irq, void *dev_id)
 	mdesc = mchan->desc;
 	if (!mdesc) {
 		dev_warn(mdma2dev(mchan->mdma),
-			 "IRQ with no active descriptor on channel %d\n",
+			 "IRQ with yes active descriptor on channel %d\n",
 			 mchan->chan_nr);
 		goto out;
 	}
@@ -779,7 +779,7 @@ static irqreturn_t mdc_chan_irq(int irq, void *dev_id)
 	for (i = 0; i < new_events; i++) {
 		/*
 		 * The first interrupt in a transfer indicates that the
-		 * command list has been loaded, not that a command has
+		 * command list has been loaded, yest that a command has
 		 * been completed.
 		 */
 		if (!mdesc->cmd_loaded) {
@@ -814,7 +814,7 @@ static struct dma_chan *mdc_of_xlate(struct of_phandle_args *dma_spec,
 	if (dma_spec->args_count != 3)
 		return NULL;
 
-	list_for_each_entry(chan, &mdma->dma_dev.channels, device_node) {
+	list_for_each_entry(chan, &mdma->dma_dev.channels, device_yesde) {
 		struct mdc_chan *mchan = to_mdc_chan(chan);
 
 		if (!(dma_spec->args[1] & BIT(mchan->chan_nr)))
@@ -903,7 +903,7 @@ static int mdc_dma_probe(struct platform_device *pdev)
 	if (IS_ERR(mdma->regs))
 		return PTR_ERR(mdma->regs);
 
-	mdma->periph_regs = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	mdma->periph_regs = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							    "img,cr-periph");
 	if (IS_ERR(mdma->periph_regs))
 		return PTR_ERR(mdma->periph_regs);
@@ -938,9 +938,9 @@ static int mdc_dma_probe(struct platform_device *pdev)
 	 */
 	mdma->max_xfer_size = MDC_TRANSFER_SIZE_MASK + 1 - mdma->bus_width;
 
-	of_property_read_u32(pdev->dev.of_node, "dma-channels",
+	of_property_read_u32(pdev->dev.of_yesde, "dma-channels",
 			     &mdma->nr_channels);
-	ret = of_property_read_u32(pdev->dev.of_node,
+	ret = of_property_read_u32(pdev->dev.of_yesde,
 				   "img,max-burst-multiplier",
 				   &mdma->max_burst_mult);
 	if (ret)
@@ -1002,7 +1002,7 @@ static int mdc_dma_probe(struct platform_device *pdev)
 	if (ret)
 		goto suspend;
 
-	ret = of_dma_controller_register(pdev->dev.of_node, mdc_of_xlate, mdma);
+	ret = of_dma_controller_register(pdev->dev.of_yesde, mdc_of_xlate, mdma);
 	if (ret)
 		goto unregister;
 
@@ -1025,12 +1025,12 @@ static int mdc_dma_remove(struct platform_device *pdev)
 	struct mdc_dma *mdma = platform_get_drvdata(pdev);
 	struct mdc_chan *mchan, *next;
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	dma_async_device_unregister(&mdma->dma_dev);
 
 	list_for_each_entry_safe(mchan, next, &mdma->dma_dev.channels,
-				 vc.chan.device_node) {
-		list_del(&mchan->vc.chan.device_node);
+				 vc.chan.device_yesde) {
+		list_del(&mchan->vc.chan.device_yesde);
 
 		devm_free_irq(&pdev->dev, mchan->irq, mchan);
 

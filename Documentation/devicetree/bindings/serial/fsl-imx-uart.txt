@@ -1,4 +1,4 @@
-* Freescale i.MX Universal Asynchronous Receiver/Transmitter (UART)
+* Freescale i.MX Universal Asynchroyesus Receiver/Transmitter (UART)
 
 Required properties:
 - compatible : Should be "fsl,<soc>-uart"
@@ -12,14 +12,14 @@ Optional properties:
   linux,rs485-enabled-at-boot-time: see rs485.txt. Note that for RS485
   you must enable either the "uart-has-rtscts" or the "rts-gpios"
   properties. In case you use "uart-has-rtscts" the signal that controls
-  the transceiver is actually CTS_B, not RTS_B. CTS_B is always output,
+  the transceiver is actually CTS_B, yest RTS_B. CTS_B is always output,
   and RTS_B is input, regardless of dte-mode.
 
 Please check Documentation/devicetree/bindings/serial/serial.txt
 for the complete list of generic properties.
 
 Note: Each uart controller should have an alias correctly numbered
-in "aliases" node.
+in "aliases" yesde.
 
 Example:
 

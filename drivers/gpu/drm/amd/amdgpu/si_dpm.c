@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -1952,7 +1952,7 @@ static void si_update_dte_from_pl2(struct amdgpu_device *adev,
 			dte_data->tdep_r[i] = dte_data->r[4];
 		}
 	} else {
-		DRM_ERROR("Invalid PL2! DTE will not be updated.\n");
+		DRM_ERROR("Invalid PL2! DTE will yest be updated.\n");
 	}
 }
 
@@ -2014,7 +2014,7 @@ static void si_initialize_powertune_defaults(struct amdgpu_device *adev)
 			break;
 		default:
 			if (si_pi->dte_data.enable_dte_by_default == true)
-				DRM_ERROR("DTE is not enabled!\n");
+				DRM_ERROR("DTE is yest enabled!\n");
 			break;
 		}
 	} else if (adev->asic_type == CHIP_PITCAIRN) {
@@ -2142,7 +2142,7 @@ static void si_initialize_powertune_defaults(struct amdgpu_device *adev)
 		si_pi->dte_data = dte_data_sun_xt;
 		update_dte_from_pl2 = true;
 	} else {
-		DRM_ERROR("Unknown SI asic revision, failed to initialize PowerTune!\n");
+		DRM_ERROR("Unkyeswn SI asic revision, failed to initialize PowerTune!\n");
 		return;
 	}
 
@@ -3055,7 +3055,7 @@ static int si_get_vce_clock_voltage(struct amdgpu_device *adev,
 		}
 	}
 
-	/* if no match return the highest voltage */
+	/* if yes match return the highest voltage */
 	if (ret)
 		*voltage = table->entries[table->count - 1].v;
 
@@ -3068,7 +3068,7 @@ static bool si_dpm_vblank_too_short(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 vblank_time = amdgpu_dpm_get_vblank_time(adev);
-	/* we never hit the non-gddr5 limit so disable it */
+	/* we never hit the yesn-gddr5 limit so disable it */
 	u32 switch_limit = adev->gmc.vram_type == AMDGPU_VRAM_TYPE_GDDR5 ? 450 : 0;
 
 	if (vblank_time < switch_limit)
@@ -3809,7 +3809,7 @@ static void si_enable_sclk_control(struct amdgpu_device *adev, bool enable)
 }
 
 #if 0
-static int si_notify_hardware_of_thermal_state(struct amdgpu_device *adev,
+static int si_yestify_hardware_of_thermal_state(struct amdgpu_device *adev,
 					       u32 thermal_level)
 {
 	PPSMC_Result ret;
@@ -3824,14 +3824,14 @@ static int si_notify_hardware_of_thermal_state(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void si_notify_hardware_vpu_recovery_event(struct amdgpu_device *adev)
+static void si_yestify_hardware_vpu_recovery_event(struct amdgpu_device *adev)
 {
 	si_write_smc_soft_register(adev, SI_SMC_SOFT_REGISTER_tdr_is_about_to_happen, true);
 }
 #endif
 
 #if 0
-static int si_notify_hw_of_powersource(struct amdgpu_device *adev, bool ac_power)
+static int si_yestify_hw_of_powersource(struct amdgpu_device *adev, bool ac_power)
 {
 	if (ac_power)
 		return (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_RunningOnAC) == PPSMC_Result_OK) ?
@@ -4088,7 +4088,7 @@ static int si_exit_ulp_state(struct amdgpu_device *adev)
 }
 #endif
 
-static int si_notify_smc_display_change(struct amdgpu_device *adev,
+static int si_yestify_smc_display_change(struct amdgpu_device *adev,
 				     bool has_display)
 {
 	PPSMC_Msg msg = has_display ?
@@ -4184,9 +4184,9 @@ static void si_program_display_gap(struct amdgpu_device *adev)
 
 	/* Setting this to false forces the performance state to low if the crtcs are disabled.
 	 * This can be a problem on PowerXpress systems or if you want to use the card
-	 * for offscreen rendering or compute if there are no crtcs enabled.
+	 * for offscreen rendering or compute if there are yes crtcs enabled.
 	 */
-	si_notify_smc_display_change(adev, adev->pm.dpm.new_active_crtc_count > 0);
+	si_yestify_smc_display_change(adev, adev->pm.dpm.new_active_crtc_count > 0);
 }
 
 static void si_enable_spread_spectrum(struct amdgpu_device *adev, bool enable)
@@ -5231,7 +5231,7 @@ static int si_init_smc_table(struct amdgpu_device *adev)
 		WREG32(CG_ULV_PARAMETER, ulv->cg_ulv_parameter);
 
 		lane_width = amdgpu_get_pcie_lanes(adev);
-		si_write_smc_soft_register(adev, SI_SMC_SOFT_REGISTER_non_ulv_pcie_link_width, lane_width);
+		si_write_smc_soft_register(adev, SI_SMC_SOFT_REGISTER_yesn_ulv_pcie_link_width, lane_width);
 	} else {
 		table->ULVState = table->initialState;
 	}
@@ -5375,21 +5375,21 @@ static int si_populate_mclk_value(struct amdgpu_device *adev,
 
 	if (pi->mclk_ss) {
 		struct amdgpu_atom_ss ss;
-		u32 freq_nom;
+		u32 freq_yesm;
 		u32 tmp;
 		u32 reference_clock = adev->clock.mpll.reference_freq;
 
 		if (adev->gmc.vram_type == AMDGPU_VRAM_TYPE_GDDR5)
-			freq_nom = memory_clock * 4;
+			freq_yesm = memory_clock * 4;
 		else
-			freq_nom = memory_clock * 2;
+			freq_yesm = memory_clock * 2;
 
-		tmp = freq_nom / reference_clock;
+		tmp = freq_yesm / reference_clock;
 		tmp = tmp * tmp;
 		if (amdgpu_atombios_get_asic_ss_info(adev, &ss,
-		                                     ASIC_INTERNAL_MEMORY_SS, freq_nom)) {
+		                                     ASIC_INTERNAL_MEMORY_SS, freq_yesm)) {
 			u32 clks = reference_clock * 5 / ss.rate;
-			u32 clkv = (u32)((((131 * ss.percentage * ss.rate) / 100) * tmp) / freq_nom);
+			u32 clkv = (u32)((((131 * ss.percentage * ss.rate) / 100) * tmp) / freq_yesm);
 
 		        mpll_ss1 &= ~CLKV_MASK;
 		        mpll_ss1 |= CLKV(clkv);
@@ -6207,7 +6207,7 @@ static void si_request_link_speed_change_before_state_change(struct amdgpu_devic
 		current_link_speed = si_pi->force_pcie_gen;
 
 	si_pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
-	si_pi->pspp_notify_required = false;
+	si_pi->pspp_yestify_required = false;
 	if (target_link_speed > current_link_speed) {
 		switch (target_link_speed) {
 #if defined(CONFIG_ACPI)
@@ -6229,11 +6229,11 @@ static void si_request_link_speed_change_before_state_change(struct amdgpu_devic
 		}
 	} else {
 		if (target_link_speed < current_link_speed)
-			si_pi->pspp_notify_required = true;
+			si_pi->pspp_yestify_required = true;
 	}
 }
 
-static void si_notify_link_speed_change_after_state_change(struct amdgpu_device *adev,
+static void si_yestify_link_speed_change_after_state_change(struct amdgpu_device *adev,
 							   struct amdgpu_ps *amdgpu_new_state,
 							   struct amdgpu_ps *amdgpu_current_state)
 {
@@ -6241,7 +6241,7 @@ static void si_notify_link_speed_change_after_state_change(struct amdgpu_device 
 	enum amdgpu_pcie_gen target_link_speed = si_get_maximum_link_speed(adev, amdgpu_new_state);
 	u8 request;
 
-	if (si_pi->pspp_notify_required) {
+	if (si_pi->pspp_yestify_required) {
 		if (target_link_speed == AMDGPU_PCIE_GEN3)
 			request = PCIE_PERF_REQ_PECI_GEN3;
 		else if (target_link_speed == AMDGPU_PCIE_GEN2)
@@ -6357,15 +6357,15 @@ static int si_patch_dependency_tables_based_on_leakage(struct amdgpu_device *ade
 	ret = si_patch_single_dependency_table_based_on_leakage(adev,
 								&adev->pm.dpm.dyn_state.vddc_dependency_on_sclk);
 	if (ret)
-		DRM_ERROR("Could not patch vddc_on_sclk leakage table\n");
+		DRM_ERROR("Could yest patch vddc_on_sclk leakage table\n");
 	ret = si_patch_single_dependency_table_based_on_leakage(adev,
 								&adev->pm.dpm.dyn_state.vddc_dependency_on_mclk);
 	if (ret)
-		DRM_ERROR("Could not patch vddc_on_mclk leakage table\n");
+		DRM_ERROR("Could yest patch vddc_on_mclk leakage table\n");
 	ret = si_patch_single_dependency_table_based_on_leakage(adev,
 								&adev->pm.dpm.dyn_state.vddci_dependency_on_mclk);
 	if (ret)
-		DRM_ERROR("Could not patch vddci_on_mclk leakage table\n");
+		DRM_ERROR("Could yest patch vddci_on_mclk leakage table\n");
 	return ret;
 }
 
@@ -6382,7 +6382,7 @@ static void si_set_pcie_lane_width_in_smc(struct amdgpu_device *adev,
 	if (new_lane_width != current_lane_width) {
 		amdgpu_set_pcie_lanes(adev, new_lane_width);
 		lane_width = amdgpu_get_pcie_lanes(adev);
-		si_write_smc_soft_register(adev, SI_SMC_SOFT_REGISTER_non_ulv_pcie_link_width, lane_width);
+		si_write_smc_soft_register(adev, SI_SMC_SOFT_REGISTER_yesn_ulv_pcie_link_width, lane_width);
 	}
 }
 
@@ -6404,7 +6404,7 @@ static int si_thermal_enable_alert(struct amdgpu_device *adev,
 		WREG32(CG_THERMAL_INT, thermal_int);
 		result = amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_EnableThermalInterrupt);
 		if (result != PPSMC_Result_OK) {
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
+			DRM_DEBUG_KMS("Could yest enable thermal interrupts.\n");
 			return -EINVAL;
 		}
 	} else {
@@ -6567,7 +6567,7 @@ static int si_dpm_get_fan_speed_percent(void *handle,
 	u64 tmp64;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->pm.no_fan)
+	if (adev->pm.yes_fan)
 		return -ENOENT;
 
 	duty100 = (RREG32(CG_FDO_CTRL1) & FMAX_DUTY100_MASK) >> FMAX_DUTY100_SHIFT;
@@ -6595,7 +6595,7 @@ static int si_dpm_set_fan_speed_percent(void *handle,
 	u32 duty, duty100;
 	u64 tmp64;
 
-	if (adev->pm.no_fan)
+	if (adev->pm.yes_fan)
 		return -ENOENT;
 
 	if (si_pi->fan_is_controlled_by_smc)
@@ -6658,7 +6658,7 @@ static int si_fan_ctrl_get_fan_speed_rpm(struct amdgpu_device *adev,
 	u32 tach_period;
 	u32 xclk = amdgpu_asic_get_xclk(adev);
 
-	if (adev->pm.no_fan)
+	if (adev->pm.yes_fan)
 		return -ENOENT;
 
 	if (adev->pm.fan_pulses_per_revolution == 0)
@@ -6679,7 +6679,7 @@ static int si_fan_ctrl_set_fan_speed_rpm(struct amdgpu_device *adev,
 	u32 tach_period, tmp;
 	u32 xclk = amdgpu_asic_get_xclk(adev);
 
-	if (adev->pm.no_fan)
+	if (adev->pm.yes_fan)
 		return -ENOENT;
 
 	if (adev->pm.fan_pulses_per_revolution == 0)
@@ -6772,7 +6772,7 @@ static int si_thermal_start_thermal_controller(struct amdgpu_device *adev)
 
 static void si_thermal_stop_thermal_controller(struct amdgpu_device *adev)
 {
-	if (!adev->pm.no_fan) {
+	if (!adev->pm.yes_fan) {
 		si_fan_ctrl_set_default_mode(adev);
 		si_fan_ctrl_stop_smc_fan_control(adev);
 	}
@@ -6880,9 +6880,9 @@ static int si_dpm_enable(struct amdgpu_device *adev)
 	si_program_response_times(adev);
 	si_program_ds_registers(adev);
 	si_dpm_start_smc(adev);
-	ret = si_notify_smc_display_change(adev, false);
+	ret = si_yestify_smc_display_change(adev, false);
 	if (ret) {
-		DRM_ERROR("si_notify_smc_display_change failed\n");
+		DRM_ERROR("si_yestify_smc_display_change failed\n");
 		return ret;
 	}
 	si_enable_sclk_control(adev, true);
@@ -7051,7 +7051,7 @@ static int si_dpm_set_power_state(void *handle)
 	}
 	ni_set_uvd_clock_after_set_eng_clock(adev, new_ps, old_ps);
 	if (eg_pi->pcie_performance_request)
-		si_notify_link_speed_change_after_state_change(adev, new_ps, old_ps);
+		si_yestify_link_speed_change_after_state_change(adev, new_ps, old_ps);
 	ret = si_set_power_state_conditionally_enable_ulv(adev, new_ps);
 	if (ret) {
 		DRM_ERROR("si_set_power_state_conditionally_enable_ulv failed\n");
@@ -7103,18 +7103,18 @@ static void si_dpm_display_configuration_changed(void *handle)
 }
 
 
-static void si_parse_pplib_non_clock_info(struct amdgpu_device *adev,
+static void si_parse_pplib_yesn_clock_info(struct amdgpu_device *adev,
 					  struct amdgpu_ps *rps,
-					  struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info,
+					  struct _ATOM_PPLIB_NONCLOCK_INFO *yesn_clock_info,
 					  u8 table_rev)
 {
-	rps->caps = le32_to_cpu(non_clock_info->ulCapsAndSettings);
-	rps->class = le16_to_cpu(non_clock_info->usClassification);
-	rps->class2 = le16_to_cpu(non_clock_info->usClassification2);
+	rps->caps = le32_to_cpu(yesn_clock_info->ulCapsAndSettings);
+	rps->class = le16_to_cpu(yesn_clock_info->usClassification);
+	rps->class2 = le16_to_cpu(yesn_clock_info->usClassification2);
 
 	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < table_rev) {
-		rps->vclk = le32_to_cpu(non_clock_info->ulVCLK);
-		rps->dclk = le32_to_cpu(non_clock_info->ulDCLK);
+		rps->vclk = le32_to_cpu(yesn_clock_info->ulVCLK);
+		rps->dclk = le32_to_cpu(yesn_clock_info->ulDCLK);
 	} else if (r600_is_uvd_state(rps->class, rps->class2)) {
 		rps->vclk = RV770_DEFAULT_VCLK_FREQ;
 		rps->dclk = RV770_DEFAULT_DCLK_FREQ;
@@ -7213,13 +7213,13 @@ union pplib_power_state {
 static int si_parse_power_table(struct amdgpu_device *adev)
 {
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
-	struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info;
+	struct _ATOM_PPLIB_NONCLOCK_INFO *yesn_clock_info;
 	union pplib_power_state *power_state;
-	int i, j, k, non_clock_array_index, clock_array_index;
+	int i, j, k, yesn_clock_array_index, clock_array_index;
 	union pplib_clock_info *clock_info;
 	struct _StateArray *state_array;
 	struct _ClockInfoArray *clock_info_array;
-	struct _NonClockInfoArray *non_clock_info_array;
+	struct _NonClockInfoArray *yesn_clock_info_array;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
 	u16 data_offset;
@@ -7240,7 +7240,7 @@ static int si_parse_power_table(struct amdgpu_device *adev)
 	clock_info_array = (struct _ClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset));
-	non_clock_info_array = (struct _NonClockInfoArray *)
+	yesn_clock_info_array = (struct _NonClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 
@@ -7253,18 +7253,18 @@ static int si_parse_power_table(struct amdgpu_device *adev)
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
-		non_clock_array_index = power_state->v2.nonClockInfoIndex;
-		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
-			&non_clock_info_array->nonClockInfo[non_clock_array_index];
+		yesn_clock_array_index = power_state->v2.yesnClockInfoIndex;
+		yesn_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
+			&yesn_clock_info_array->yesnClockInfo[yesn_clock_array_index];
 		ps = kzalloc(sizeof(struct  si_ps), GFP_KERNEL);
 		if (ps == NULL) {
 			kfree(adev->pm.dpm.ps);
 			return -ENOMEM;
 		}
 		adev->pm.dpm.ps[i].ps_priv = ps;
-		si_parse_pplib_non_clock_info(adev, &adev->pm.dpm.ps[i],
-					      non_clock_info,
-					      non_clock_info_array->ucEntrySize);
+		si_parse_pplib_yesn_clock_info(adev, &adev->pm.dpm.ps[i],
+					      yesn_clock_info,
+					      yesn_clock_info_array->ucEntrySize);
 		k = 0;
 		idx = (u8 *)&power_state->v2.clockInfoIndex[0];
 		for (j = 0; j < power_state->v2.ucNumDPMLevels; j++) {
@@ -7602,7 +7602,7 @@ static int si_dpm_late_init(void *handle)
  * @adev: amdgpu_device pointer
  *
  * Use the firmware interface to load the ucode images into
- * the driver (not loaded into hw).
+ * the driver (yest loaded into hw).
  * Returns 0 on success, error on failure.
  */
 static int si_dpm_init_microcode(struct amdgpu_device *adev)
@@ -8043,7 +8043,7 @@ const struct amdgpu_ip_block_version si_smu_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 6,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &si_dpm_ip_funcs,
 };

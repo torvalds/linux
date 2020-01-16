@@ -19,11 +19,11 @@ Required properties:
   one hwmod.
 
 Optional properties:
-- ti,no_idle_on_suspend: When present, it prevents the PM to idle the module
+- ti,yes_idle_on_suspend: When present, it prevents the PM to idle the module
   during suspend.
-- ti,no-reset-on-init: When present, the module should not be reset at init
-- ti,no-idle-on-init: When present, the module should not be idled at init
-- ti,no-idle: When present, the module is never allowed to idle.
+- ti,yes-reset-on-init: When present, the module should yest be reset at init
+- ti,yes-idle-on-init: When present, the module should yest be idled at init
+- ti,yes-idle: When present, the module is never allowed to idle.
 
 Example:
 
@@ -65,12 +65,12 @@ SoCs:
 
 - OMAP3430
   compatible = "ti,omap3430", "ti,omap3"
-  legacy: "ti,omap34xx" - please do not use any more
+  legacy: "ti,omap34xx" - please do yest use any more
 - AM3517
   compatible = "ti,am3517", "ti,omap3"
 - OMAP3630
   compatible = "ti,omap3630", "ti,omap3"
-  legacy: "ti,omap36xx" - please do not use any more
+  legacy: "ti,omap36xx" - please do yest use any more
 - AM335x
   compatible = "ti,am33xx"
 
@@ -150,7 +150,7 @@ Boards (incomplete list of examples):
   compatible = "ti,am3359-icev2", "ti,am33xx"
 
 - AM335X OrionLXm : Substation Automation Platform
-  compatible = "novatech,am335x-lxm", "ti,am33xx"
+  compatible = "yesvatech,am335x-lxm", "ti,am33xx"
 
 - AM335X phyBOARD-WEGA: Single Board Computer dev kit
   compatible = "phytec,am335x-wega", "phytec,am335x-phycore-som", "ti,am33xx"

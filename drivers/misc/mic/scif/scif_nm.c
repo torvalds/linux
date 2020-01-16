@@ -15,7 +15,7 @@
  * scif_invalidate_ep() - Set state for all connected endpoints
  * to disconnected and wake up all send/recv waitqueues
  */
-static void scif_invalidate_ep(int node)
+static void scif_invalidate_ep(int yesde)
 {
 	struct scif_endpt *ep;
 	struct list_head *pos, *tmpq;
@@ -24,7 +24,7 @@ static void scif_invalidate_ep(int node)
 	mutex_lock(&scif_info.connlock);
 	list_for_each_safe(pos, tmpq, &scif_info.disconnected) {
 		ep = list_entry(pos, struct scif_endpt, list);
-		if (ep->remote_dev->node == node) {
+		if (ep->remote_dev->yesde == yesde) {
 			scif_unmap_all_windows(ep);
 			spin_lock(&ep->lock);
 			scif_cleanup_ep_qp(ep);
@@ -33,7 +33,7 @@ static void scif_invalidate_ep(int node)
 	}
 	list_for_each_safe(pos, tmpq, &scif_info.connected) {
 		ep = list_entry(pos, struct scif_endpt, list);
-		if (ep->remote_dev->node == node) {
+		if (ep->remote_dev->yesde == yesde) {
 			list_del(pos);
 			spin_lock(&ep->lock);
 			ep->state = SCIFEP_DISCONNECTED;
@@ -82,19 +82,19 @@ void scif_send_acks(struct scif_dev *dev)
 {
 	struct scifmsg msg;
 
-	if (dev->node_remove_ack_pending) {
+	if (dev->yesde_remove_ack_pending) {
 		msg.uop = SCIF_NODE_REMOVE_ACK;
-		msg.src.node = scif_info.nodeid;
-		msg.dst.node = SCIF_MGMT_NODE;
-		msg.payload[0] = dev->node;
-		scif_nodeqp_send(&scif_dev[SCIF_MGMT_NODE], &msg);
-		dev->node_remove_ack_pending = false;
+		msg.src.yesde = scif_info.yesdeid;
+		msg.dst.yesde = SCIF_MGMT_NODE;
+		msg.payload[0] = dev->yesde;
+		scif_yesdeqp_send(&scif_dev[SCIF_MGMT_NODE], &msg);
+		dev->yesde_remove_ack_pending = false;
 	}
 	if (dev->exit_ack_pending) {
 		msg.uop = SCIF_EXIT_ACK;
-		msg.src.node = scif_info.nodeid;
-		msg.dst.node = dev->node;
-		scif_nodeqp_send(dev, &msg);
+		msg.src.yesde = scif_info.yesdeid;
+		msg.dst.yesde = dev->yesde;
+		scif_yesdeqp_send(dev, &msg);
 		dev->exit_ack_pending = false;
 	}
 }
@@ -120,12 +120,12 @@ void scif_cleanup_scifdev(struct scif_dev *dev)
 	}
 	flush_work(&scif_info.misc_work);
 	scif_destroy_p2p(dev);
-	scif_invalidate_ep(dev->node);
-	scif_zap_mmaps(dev->node);
-	scif_cleanup_rma_for_zombies(dev->node);
+	scif_invalidate_ep(dev->yesde);
+	scif_zap_mmaps(dev->yesde);
+	scif_cleanup_rma_for_zombies(dev->yesde);
 	flush_work(&scif_info.misc_work);
 	scif_send_acks(dev);
-	if (!dev->node && scif_info.card_initiated_exit) {
+	if (!dev->yesde && scif_info.card_initiated_exit) {
 		/*
 		 * Send an SCIF_EXIT message which is the last message from MIC
 		 * to the Host and wait for a SCIF_EXIT_ACK
@@ -137,59 +137,59 @@ void scif_cleanup_scifdev(struct scif_dev *dev)
 }
 
 /*
- * scif_remove_node:
+ * scif_remove_yesde:
  *
- * @node: Node to remove
+ * @yesde: Node to remove
  */
-void scif_handle_remove_node(int node)
+void scif_handle_remove_yesde(int yesde)
 {
-	struct scif_dev *scifdev = &scif_dev[node];
+	struct scif_dev *scifdev = &scif_dev[yesde];
 
 	if (scif_peer_unregister_device(scifdev))
 		scif_send_acks(scifdev);
 }
 
-static int scif_send_rmnode_msg(int node, int remove_node)
+static int scif_send_rmyesde_msg(int yesde, int remove_yesde)
 {
-	struct scifmsg notif_msg;
-	struct scif_dev *dev = &scif_dev[node];
+	struct scifmsg yestif_msg;
+	struct scif_dev *dev = &scif_dev[yesde];
 
-	notif_msg.uop = SCIF_NODE_REMOVE;
-	notif_msg.src.node = scif_info.nodeid;
-	notif_msg.dst.node = node;
-	notif_msg.payload[0] = remove_node;
-	return scif_nodeqp_send(dev, &notif_msg);
+	yestif_msg.uop = SCIF_NODE_REMOVE;
+	yestif_msg.src.yesde = scif_info.yesdeid;
+	yestif_msg.dst.yesde = yesde;
+	yestif_msg.payload[0] = remove_yesde;
+	return scif_yesdeqp_send(dev, &yestif_msg);
 }
 
 /**
- * scif_node_disconnect:
+ * scif_yesde_disconnect:
  *
- * @node_id[in]: source node id.
- * @mgmt_initiated: Disconnection initiated from the mgmt node
+ * @yesde_id[in]: source yesde id.
+ * @mgmt_initiated: Disconnection initiated from the mgmt yesde
  *
- * Disconnect a node from the scif network.
+ * Disconnect a yesde from the scif network.
  */
-void scif_disconnect_node(u32 node_id, bool mgmt_initiated)
+void scif_disconnect_yesde(u32 yesde_id, bool mgmt_initiated)
 {
 	int ret;
 	int msg_cnt = 0;
 	u32 i = 0;
-	struct scif_dev *scifdev = &scif_dev[node_id];
+	struct scif_dev *scifdev = &scif_dev[yesde_id];
 
-	if (!node_id)
+	if (!yesde_id)
 		return;
 
 	atomic_set(&scifdev->disconn_rescnt, 0);
 
 	/* Destroy p2p network */
 	for (i = 1; i <= scif_info.maxid; i++) {
-		if (i == node_id)
+		if (i == yesde_id)
 			continue;
-		ret = scif_send_rmnode_msg(i, node_id);
+		ret = scif_send_rmyesde_msg(i, yesde_id);
 		if (!ret)
 			msg_cnt++;
 	}
-	/* Wait for the remote nodes to respond with SCIF_NODE_REMOVE_ACK */
+	/* Wait for the remote yesdes to respond with SCIF_NODE_REMOVE_ACK */
 	ret = wait_event_timeout(scifdev->disconn_wq,
 				 (atomic_read(&scifdev->disconn_rescnt)
 				 == msg_cnt), SCIF_NODE_ALIVE_TIMEOUT);
@@ -201,28 +201,28 @@ void scif_disconnect_node(u32 node_id, bool mgmt_initiated)
 		 */
 		scif_send_exit(scifdev);
 	atomic_set(&scifdev->disconn_rescnt, 0);
-	/* Tell the mgmt node to clean up */
-	ret = scif_send_rmnode_msg(SCIF_MGMT_NODE, node_id);
+	/* Tell the mgmt yesde to clean up */
+	ret = scif_send_rmyesde_msg(SCIF_MGMT_NODE, yesde_id);
 	if (!ret)
-		/* Wait for mgmt node to respond with SCIF_NODE_REMOVE_ACK */
+		/* Wait for mgmt yesde to respond with SCIF_NODE_REMOVE_ACK */
 		wait_event_timeout(scifdev->disconn_wq,
 				   (atomic_read(&scifdev->disconn_rescnt) == 1),
 				   SCIF_NODE_ALIVE_TIMEOUT);
 }
 
-void scif_get_node_info(void)
+void scif_get_yesde_info(void)
 {
 	struct scifmsg msg;
-	DECLARE_COMPLETION_ONSTACK(node_info);
+	DECLARE_COMPLETION_ONSTACK(yesde_info);
 
 	msg.uop = SCIF_GET_NODE_INFO;
-	msg.src.node = scif_info.nodeid;
-	msg.dst.node = SCIF_MGMT_NODE;
-	msg.payload[3] = (u64)&node_info;
+	msg.src.yesde = scif_info.yesdeid;
+	msg.dst.yesde = SCIF_MGMT_NODE;
+	msg.payload[3] = (u64)&yesde_info;
 
-	if ((scif_nodeqp_send(&scif_dev[SCIF_MGMT_NODE], &msg)))
+	if ((scif_yesdeqp_send(&scif_dev[SCIF_MGMT_NODE], &msg)))
 		return;
 
 	/* Wait for a response with SCIF_GET_NODE_INFO */
-	wait_for_completion(&node_info);
+	wait_for_completion(&yesde_info);
 }

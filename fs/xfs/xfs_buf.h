@@ -23,16 +23,16 @@
 
 #define XBF_READ	 (1 << 0) /* buffer intended for reading from device */
 #define XBF_WRITE	 (1 << 1) /* buffer intended for writing to device */
-#define XBF_READ_AHEAD	 (1 << 2) /* asynchronous read-ahead */
-#define XBF_NO_IOACCT	 (1 << 3) /* bypass I/O accounting (non-LRU bufs) */
-#define XBF_ASYNC	 (1 << 4) /* initiator will not wait for completion */
+#define XBF_READ_AHEAD	 (1 << 2) /* asynchroyesus read-ahead */
+#define XBF_NO_IOACCT	 (1 << 3) /* bypass I/O accounting (yesn-LRU bufs) */
+#define XBF_ASYNC	 (1 << 4) /* initiator will yest wait for completion */
 #define XBF_DONE	 (1 << 5) /* all pages in the buffer uptodate */
-#define XBF_STALE	 (1 << 6) /* buffer has been staled, do not find it */
+#define XBF_STALE	 (1 << 6) /* buffer has been staled, do yest find it */
 #define XBF_WRITE_FAIL	 (1 << 7) /* async writes have failed on this buffer */
 
 /* flags used only as arguments to access routines */
-#define XBF_TRYLOCK	 (1 << 16)/* lock requested, but do not wait */
-#define XBF_UNMAPPED	 (1 << 17)/* do not map the buffer */
+#define XBF_TRYLOCK	 (1 << 16)/* lock requested, but do yest wait */
+#define XBF_UNMAPPED	 (1 << 17)/* do yest map the buffer */
 
 /* flags used only internally */
 #define _XBF_PAGES	 (1 << 20)/* backed by refcounted pages */
@@ -64,7 +64,7 @@ typedef unsigned int xfs_buf_flags_t;
 #define XFS_BSTATE_IN_FLIGHT	 (1 << 1)	/* I/O in flight */
 
 /*
- * The xfs_buftarg contains 2 notions of "sector size" -
+ * The xfs_buftarg contains 2 yestions of "sector size" -
  *
  * 1) The metadata sector size, which is the minimum unit and
  *    alignment of IO which will be performed by metadata operations.
@@ -104,8 +104,8 @@ struct xfs_buf_map {
 	int			bm_len;	/* size of I/O */
 };
 
-#define DEFINE_SINGLE_BUF_MAP(map, blkno, numblk) \
-	struct xfs_buf_map (map) = { .bm_bn = (blkno), .bm_len = (numblk) };
+#define DEFINE_SINGLE_BUF_MAP(map, blkyes, numblk) \
+	struct xfs_buf_map (map) = { .bm_bn = (blkyes), .bm_len = (numblk) };
 
 struct xfs_buf_ops {
 	char *name;
@@ -126,7 +126,7 @@ typedef struct xfs_buf {
 	 * which is the only bit that is touched if we hit the semaphore
 	 * fast-path on locking.
 	 */
-	struct rhash_head	b_rhash_head;	/* pag buffer hash node */
+	struct rhash_head	b_rhash_head;	/* pag buffer hash yesde */
 	xfs_daddr_t		b_bn;		/* block number of buffer */
 	int			b_length;	/* size of buffer in BBs */
 	atomic_t		b_hold;		/* reference count */
@@ -136,7 +136,7 @@ typedef struct xfs_buf {
 
 	/*
 	 * concurrent access to b_lru and b_lru_flags are protected by
-	 * bt_lru_lock and not by b_sema
+	 * bt_lru_lock and yest by b_sema
 	 */
 	struct list_head	b_lru;		/* lru list */
 	spinlock_t		b_lock;		/* internal state lock */
@@ -175,7 +175,7 @@ typedef struct xfs_buf {
 	 * means that we can change the retry timeout for buffers already under
 	 * I/O and thus avoid getting stuck in a retry loop with a long timeout.
 	 *
-	 * last_error is used to ensure that we are getting repeated errors, not
+	 * last_error is used to ensure that we are getting repeated errors, yest
 	 * different errors. e.g. a block device might change ENOSPC to EIO when
 	 * a failure timeout occurs, so we want to re-initialise the error
 	 * retry behaviour appropriately when that happens.
@@ -189,7 +189,7 @@ typedef struct xfs_buf {
 
 /* Finding and Reading Buffers */
 struct xfs_buf *xfs_buf_incore(struct xfs_buftarg *target,
-			   xfs_daddr_t blkno, size_t numblks,
+			   xfs_daddr_t blkyes, size_t numblks,
 			   xfs_buf_flags_t flags);
 
 struct xfs_buf *xfs_buf_get_map(struct xfs_buftarg *target,
@@ -206,33 +206,33 @@ void xfs_buf_readahead_map(struct xfs_buftarg *target,
 static inline struct xfs_buf *
 xfs_buf_get(
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkyes,
 	size_t			numblks)
 {
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkyes, numblks);
 	return xfs_buf_get_map(target, &map, 1, 0);
 }
 
 static inline struct xfs_buf *
 xfs_buf_read(
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkyes,
 	size_t			numblks,
 	xfs_buf_flags_t		flags,
 	const struct xfs_buf_ops *ops)
 {
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkyes, numblks);
 	return xfs_buf_read_map(target, &map, 1, flags, ops);
 }
 
 static inline void
 xfs_buf_readahead(
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkyes,
 	size_t			numblks,
 	const struct xfs_buf_ops *ops)
 {
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkyes, numblks);
 	return xfs_buf_readahead_map(target, &map, 1, ops);
 }
 
@@ -278,7 +278,7 @@ extern void xfs_buf_stale(struct xfs_buf *bp);
 extern void xfs_buf_delwri_cancel(struct list_head *);
 extern bool xfs_buf_delwri_queue(struct xfs_buf *, struct list_head *);
 extern int xfs_buf_delwri_submit(struct list_head *);
-extern int xfs_buf_delwri_submit_nowait(struct list_head *);
+extern int xfs_buf_delwri_submit_yeswait(struct list_head *);
 extern int xfs_buf_delwri_pushbuf(struct xfs_buf *, struct list_head *);
 
 /* Buffer Daemon Setup Routines */
@@ -286,22 +286,22 @@ extern int xfs_buf_init(void);
 extern void xfs_buf_terminate(void);
 
 /*
- * These macros use the IO block map rather than b_bn. b_bn is now really
- * just for the buffer cache index for cached buffers. As IO does not use b_bn
- * anymore, uncached buffers do not use b_bn at all and hence must modify the IO
- * map directly. Uncached buffers are not allowed to be discontiguous, so this
+ * These macros use the IO block map rather than b_bn. b_bn is yesw really
+ * just for the buffer cache index for cached buffers. As IO does yest use b_bn
+ * anymore, uncached buffers do yest use b_bn at all and hence must modify the IO
+ * map directly. Uncached buffers are yest allowed to be discontiguous, so this
  * is safe to do.
  *
  * In future, uncached buffers will pass the block number directly to the io
  * request function and hence these macros will go away at that point.
  */
 #define XFS_BUF_ADDR(bp)		((bp)->b_maps[0].bm_bn)
-#define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_maps[0].bm_bn = (xfs_daddr_t)(bno))
+#define XFS_BUF_SET_ADDR(bp, byes)	((bp)->b_maps[0].bm_bn = (xfs_daddr_t)(byes))
 
 void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref);
 
 /*
- * If the buffer is already on the LRU, do nothing. Otherwise set the buffer
+ * If the buffer is already on the LRU, do yesthing. Otherwise set the buffer
  * up with a reference count of 0 so it will be tossed from the cache when
  * released.
  */

@@ -98,8 +98,8 @@ struct i40e_cee_tlv_hdr {
 
 struct i40e_cee_ctrl_tlv {
 	struct i40e_cee_tlv_hdr hdr;
-	__be32 seqno;
-	__be32 ackno;
+	__be32 seqyes;
+	__be32 ackyes;
 };
 
 struct i40e_cee_feat_tlv {

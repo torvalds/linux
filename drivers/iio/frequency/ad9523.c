@@ -915,7 +915,7 @@ static int ad9523_setup(struct iio_dev *indio_dev)
 				AD9523_CLK_DIST_DRIVER_MODE(chan->driver_mode) |
 				AD9523_CLK_DIST_DIV(chan->channel_divider) |
 				AD9523_CLK_DIST_DIV_PHASE(chan->divider_phase) |
-				(chan->sync_ignore_en ?
+				(chan->sync_igyesre_en ?
 					AD9523_CLK_DIST_IGNORE_SYNC_EN : 0) |
 				(chan->divider_output_invert_en ?
 					AD9523_CLK_DIST_INV_DIV_OUTPUT_EN : 0) |
@@ -977,7 +977,7 @@ static int ad9523_probe(struct spi_device *spi)
 	int ret;
 
 	if (!pdata) {
-		dev_err(&spi->dev, "no platform data?\n");
+		dev_err(&spi->dev, "yes platform data?\n");
 		return -EINVAL;
 	}
 

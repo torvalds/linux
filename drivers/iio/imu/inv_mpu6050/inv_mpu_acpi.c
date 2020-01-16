@@ -170,7 +170,7 @@ int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 				strlcat(info.type, "-client",
 					sizeof(info.type));
 			} else
-				return 0; /* no secondary addr, which is OK */
+				return 0; /* yes secondary addr, which is OK */
 		}
 		st->mux_client = i2c_new_device(st->muxc->adapter[0], &info);
 		if (!st->mux_client)

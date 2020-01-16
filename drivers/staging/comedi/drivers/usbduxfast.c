@@ -5,7 +5,7 @@
 
 /*
  * Driver: usbduxfast
- * Description: University of Stirling USB DAQ & INCITE Technology Limited
+ * Description: University of Stirling USB DAQ & INCITE Techyeslogy Limited
  * Devices: [ITL] USB-DUX-FAST (usbduxfast)
  * Author: Bernd Porr <mail@berndporr.me.uk>
  * Updated: 16 Nov 2019
@@ -25,7 +25,7 @@
  * 1.0: Fixed a rounding error in usbduxfast_ai_cmdtest
  * 0.9: Dropping the first data packet which seems to be from the last transfer.
  *      Buffer overflows in the FX2 are handed over to comedi.
- * 0.92: Dropping now 4 packets. The quad buffer has to be emptied.
+ * 0.92: Dropping yesw 4 packets. The quad buffer has to be emptied.
  *       Added insn command basically for testing. Sample rate is
  *       1MHz/16ch=62.5kHz
  * 0.99: Ian Abbott pointed out a bug which has been corrected. Thanks!
@@ -125,8 +125,8 @@
 #define MAX_SAMPLING_PERIOD	500
 
 /*
- * number of received packets to ignore before we start handing data
- * over to comedi, it's quad buffering and we have to ignore 4 packets
+ * number of received packets to igyesre before we start handing data
+ * over to comedi, it's quad buffering and we have to igyesre 4 packets
  */
 #define PACKETS_TO_IGNORE	4
 
@@ -144,14 +144,14 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
  * private structure of one subdevice
  *
  * this is the structure which holds all the data of this driver
- * one sub device just now: A/D
+ * one sub device just yesw: A/D
  */
 struct usbduxfast_private {
 	struct urb *urb;	/* BULK-transfer handling: urb */
 	u8 *duxbuf;
 	s8 *inbuf;
-	short int ai_cmd_running;	/* asynchronous command is running */
-	int ignore;		/* counter which ignores the first buffers */
+	short int ai_cmd_running;	/* asynchroyesus command is running */
+	int igyesre;		/* counter which igyesres the first buffers */
 	struct mutex mut;
 };
 
@@ -175,7 +175,7 @@ static int usbduxfast_send_cmd(struct comedi_device *dev, int cmd_type)
 			   &nsent, 10000);
 	if (ret < 0)
 		dev_err(dev->class_dev,
-			"could not transmit command to the usb-device, err=%d\n",
+			"could yest transmit command to the usb-device, err=%d\n",
 			ret);
 	return ret;
 }
@@ -229,8 +229,8 @@ static void usbduxfast_ai_handle_urb(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &async->cmd;
 	int ret;
 
-	if (devpriv->ignore) {
-		devpriv->ignore--;
+	if (devpriv->igyesre) {
+		devpriv->igyesre--;
 	} else {
 		unsigned int nsamples;
 
@@ -262,7 +262,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	struct comedi_async *async = s->async;
 	struct usbduxfast_private *devpriv = dev->private;
 
-	/* exit if not running a command, do not resubmit urb */
+	/* exit if yest running a command, do yest resubmit urb */
 	if (!devpriv->ai_cmd_running)
 		return;
 
@@ -282,14 +282,14 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	default:
 		/* a real error */
 		dev_err(dev->class_dev,
-			"non-zero urb status received in ai intr context: %d\n",
+			"yesn-zero urb status received in ai intr context: %d\n",
 			urb->status);
 		async->events |= COMEDI_CB_ERROR;
 		break;
 	}
 
 	/*
-	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * comedi_handle_events() canyest be used in this driver. The (*cancel)
 	 * operation would unlink the urb.
 	 */
 	if (async->events & COMEDI_CB_CANCEL_MASK)
@@ -334,7 +334,7 @@ static int usbduxfast_ai_check_chanlist(struct comedi_device *dev,
 
 		if (chan != i) {
 			dev_err(dev->class_dev,
-				"channels are not consecutive\n");
+				"channels are yest consecutive\n");
 			return -EINVAL;
 		}
 		if (gain != gain0 && cmd->chanlist_len > 3) {
@@ -477,10 +477,10 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	}
 
 	/*
-	 * ignore the first buffers from the device if there
+	 * igyesre the first buffers from the device if there
 	 * is an error condition
 	 */
-	devpriv->ignore = PACKETS_TO_IGNORE;
+	devpriv->igyesre = PACKETS_TO_IGNORE;
 
 	steps = (cmd->convert_arg * 30) / 1000;
 
@@ -640,7 +640,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			 * of the delay
 			 */
 			/* data */
-			/* no change */
+			/* yes change */
 			usbduxfast_cmd_data(dev, index, steps / 2,
 					    0x02, rngmask, 0x00);
 
@@ -650,7 +650,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 				rngmask = 0xff;
 
 			/* do the second part of the delay */
-			/* no data */
+			/* yes data */
 			/* count */
 			usbduxfast_cmd_data(dev, index + 1, steps - steps / 2,
 					    0x00, 0xfe & rngmask, 0x00);
@@ -670,7 +670,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			rngmask = 0xff;
 
 		/* do the second part of the delay */
-		/* no data */
+		/* yes data */
 		/* reset */
 		usbduxfast_cmd_data(dev, 5, steps_tmp - steps_tmp / 2,
 				    0x00, (0xff - 0x02) & rngmask, 0x00);
@@ -774,7 +774,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 
 	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
-			"ai_insn_read not possible, async cmd is running\n");
+			"ai_insn_read yest possible, async cmd is running\n");
 		mutex_unlock(&devpriv->mut);
 		return -EBUSY;
 	}
@@ -806,7 +806,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 				   devpriv->inbuf, SIZEINBUF,
 				   &actual_length, 10000);
 		if (ret < 0) {
-			dev_err(dev->class_dev, "insn timeout, no data\n");
+			dev_err(dev->class_dev, "insn timeout, yes data\n");
 			mutex_unlock(&devpriv->mut);
 			return ret;
 		}
@@ -876,7 +876,7 @@ static int usbduxfast_upload_firmware(struct comedi_device *dev,
 			      tmp, 1,
 			      EZTIMEOUT);
 	if (ret < 0) {
-		dev_err(dev->class_dev, "can not stop firmware\n");
+		dev_err(dev->class_dev, "can yest stop firmware\n");
 		goto done;
 	}
 
@@ -901,7 +901,7 @@ static int usbduxfast_upload_firmware(struct comedi_device *dev,
 			      tmp, 1,
 			      EZTIMEOUT);
 	if (ret < 0)
-		dev_err(dev->class_dev, "can not start firmware\n");
+		dev_err(dev->class_dev, "can yest start firmware\n");
 
 done:
 	kfree(tmp);
@@ -939,7 +939,7 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 				intf->altsetting->desc.bInterfaceNumber, 1);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
-			"could not switch to alternate setting 1\n");
+			"could yest switch to alternate setting 1\n");
 		return -ENODEV;
 	}
 

@@ -16,12 +16,12 @@
  *
  * Change log:
  * 1.00	RMK			Released
- * 1.01	RMK	19/03/1996	Transfers the last odd byte onto/off of the card now.
- * 1.02	RMK	25/05/1997	Added code to restart RU if it goes not ready
+ * 1.01	RMK	19/03/1996	Transfers the last odd byte onto/off of the card yesw.
+ * 1.02	RMK	25/05/1997	Added code to restart RU if it goes yest ready
  * 1.03	RMK	14/09/1997	Cleaned up the handling of a reset during the TX interrupt.
  *				Should prevent lockup.
  * 1.04 RMK	17/09/1997	Added more info when initialsation of chip goes wrong.
- *				TDR now only reports failure when chip reports non-zero
+ *				TDR yesw only reports failure when chip reports yesn-zero
  *				TDR time-distance.
  * 1.05	RMK	31/12/1997	Removed calls to dev_tint for 2.1
  * 1.06	RMK	10/02/2000	Updated for 2.3.43
@@ -37,7 +37,7 @@
 #include <linux/in.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
@@ -117,7 +117,7 @@ ether1_outw_p (struct net_device *dev, unsigned short val, int addr, int svflgs)
  * Some inline assembler to allow fast transfers on to/off of the card.
  * Since this driver depends on some features presented by the ARM
  * specific architecture, and that you can't configure this driver
- * without specifiing ARM mode, this is not a problem.
+ * without specifiing ARM mode, this is yest a problem.
  *
  * This routine is essentially an optimised memcpy from the card's
  * onboard RAM to kernel memory.
@@ -328,7 +328,7 @@ ether1_init_2(struct net_device *dev)
 /* at 0x0100 */
 #define NOP_ADDR	(TX_AREA_START)
 #define NOP_SIZE	(0x06)
-static nop_t  init_nop  = {
+static yesp_t  init_yesp  = {
 	0,
 	CMD_NOP,
 	NOP_ADDR
@@ -460,7 +460,7 @@ ether1_init_for_open (struct net_device *dev)
 	ether1_writebuffer (dev, &init_sa,   SA_ADDR,   SA_SIZE);
 	ether1_writebuffer (dev, &init_mc,   MC_ADDR,   MC_SIZE);
 	ether1_writebuffer (dev, &init_tdr,  TDR_ADDR,  TDR_SIZE);
-	ether1_writebuffer (dev, &init_nop,  NOP_ADDR,  NOP_SIZE);
+	ether1_writebuffer (dev, &init_yesp,  NOP_ADDR,  NOP_SIZE);
 
 	if (ether1_readw(dev, CFG_ADDR, cfg_t, cfg_command, NORMALIRQS) != CMD_CONFIG) {
 		printk (KERN_ERR "%s: detected either RAM fault or compiler bug\n",
@@ -510,7 +510,7 @@ ether1_init_for_open (struct net_device *dev)
 	writeb(0, REG_CONTROL);
 	writeb(CTRL_CA, REG_CONTROL);
 
-	/* 586 should now unset iscp.busy */
+	/* 586 should yesw unset iscp.busy */
 	timeout = jiffies + HZ/2;
 	while (ether1_readw(dev, ISCP_ADDR, iscp_t, iscp_busy, DISABLEIRQS) == 1) {
 		if (time_after(jiffies, timeout)) {
@@ -579,7 +579,7 @@ ether1_init_for_open (struct net_device *dev)
 	}
 
 	if ((status & (STAT_COMPLETE | STAT_OK)) != (STAT_COMPLETE | STAT_OK)) {
-		printk (KERN_WARNING "%s: can't tdr (ignored)\n", dev->name);
+		printk (KERN_WARNING "%s: can't tdr (igyesred)\n", dev->name);
 		printk (KERN_DEBUG "%s: SCB=[STS=%04X CMD=%04X CBL=%04X RFA=%04X]\n", dev->name,
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_status, NORMALIRQS),
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_command, NORMALIRQS),
@@ -668,11 +668,11 @@ ether1_timeout(struct net_device *dev)
 static netdev_tx_t
 ether1_sendpacket (struct sk_buff *skb, struct net_device *dev)
 {
-	int tmp, tst, nopaddr, txaddr, tbdaddr, dataddr;
+	int tmp, tst, yespaddr, txaddr, tbdaddr, dataddr;
 	unsigned long flags;
 	tx_t tx;
 	tbd_t tbd;
-	nop_t nop;
+	yesp_t yesp;
 
 	if (priv(dev)->restart) {
 		printk(KERN_WARNING "%s: resetting device\n", dev->name);
@@ -691,35 +691,35 @@ ether1_sendpacket (struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
-	 * insert packet followed by a nop
+	 * insert packet followed by a yesp
 	 */
 	txaddr = ether1_txalloc (dev, TX_SIZE);
 	tbdaddr = ether1_txalloc (dev, TBD_SIZE);
 	dataddr = ether1_txalloc (dev, skb->len);
-	nopaddr = ether1_txalloc (dev, NOP_SIZE);
+	yespaddr = ether1_txalloc (dev, NOP_SIZE);
 
 	tx.tx_status = 0;
 	tx.tx_command = CMD_TX | CMD_INTR;
-	tx.tx_link = nopaddr;
+	tx.tx_link = yespaddr;
 	tx.tx_tbdoffset = tbdaddr;
 	tbd.tbd_opts = TBD_EOL | skb->len;
 	tbd.tbd_link = I82586_NULL;
 	tbd.tbd_bufl = dataddr;
 	tbd.tbd_bufh = 0;
-	nop.nop_status = 0;
-	nop.nop_command = CMD_NOP;
-	nop.nop_link = nopaddr;
+	yesp.yesp_status = 0;
+	yesp.yesp_command = CMD_NOP;
+	yesp.yesp_link = yespaddr;
 
 	local_irq_save(flags);
 	ether1_writebuffer (dev, &tx, txaddr, TX_SIZE);
 	ether1_writebuffer (dev, &tbd, tbdaddr, TBD_SIZE);
 	ether1_writebuffer (dev, skb->data, dataddr, skb->len);
-	ether1_writebuffer (dev, &nop, nopaddr, NOP_SIZE);
+	ether1_writebuffer (dev, &yesp, yespaddr, NOP_SIZE);
 	tmp = priv(dev)->tx_link;
-	priv(dev)->tx_link = nopaddr;
+	priv(dev)->tx_link = yespaddr;
 
-	/* now reset the previous nop pointer */
-	ether1_writew(dev, txaddr, tmp, nop_t, nop_link, NORMALIRQS);
+	/* yesw reset the previous yesp pointer */
+	ether1_writew(dev, txaddr, tmp, yesp_t, yesp_link, NORMALIRQS);
 
 	local_irq_restore(flags);
 
@@ -741,15 +741,15 @@ ether1_sendpacket (struct sk_buff *skb, struct net_device *dev)
 static void
 ether1_xmit_done (struct net_device *dev)
 {
-	nop_t nop;
+	yesp_t yesp;
 	int caddr, tst;
 
 	caddr = priv(dev)->tx_tail;
 
 again:
-	ether1_readbuffer (dev, &nop, caddr, NOP_SIZE);
+	ether1_readbuffer (dev, &yesp, caddr, NOP_SIZE);
 
-	switch (nop.nop_command & CMD_MASK) {
+	switch (yesp.yesp_command & CMD_MASK) {
 	case CMD_TDR:
 		/* special case */
 		if (ether1_readw(dev, SCB_ADDR, scb_t, scb_cbl_offset, NORMALIRQS)
@@ -762,20 +762,20 @@ again:
 		return;
 
 	case CMD_NOP:
-		if (nop.nop_link == caddr) {
+		if (yesp.yesp_link == caddr) {
 			if (priv(dev)->initialising == 0)
-				printk (KERN_WARNING "%s: strange command complete with no tx command!\n", dev->name);
+				printk (KERN_WARNING "%s: strange command complete with yes tx command!\n", dev->name);
 			else
 			        priv(dev)->initialising = 0;
 			return;
 		}
-		if (caddr == nop.nop_link)
+		if (caddr == yesp.yesp_link)
 			return;
-		caddr = nop.nop_link;
+		caddr = yesp.yesp_link;
 		goto again;
 
 	case CMD_TX:
-		if (nop.nop_status & STAT_COMPLETE)
+		if (yesp.yesp_status & STAT_COMPLETE)
 			break;
 		printk (KERN_ERR "%s: strange command complete without completed command\n", dev->name);
 		priv(dev)->restart = 1;
@@ -783,49 +783,49 @@ again:
 
 	default:
 		printk (KERN_WARNING "%s: strange command %d complete! (offset %04X)", dev->name,
-			nop.nop_command & CMD_MASK, caddr);
+			yesp.yesp_command & CMD_MASK, caddr);
 		priv(dev)->restart = 1;
 		return;
 	}
 
-	while (nop.nop_status & STAT_COMPLETE) {
-		if (nop.nop_status & STAT_OK) {
+	while (yesp.yesp_status & STAT_COMPLETE) {
+		if (yesp.yesp_status & STAT_OK) {
 			dev->stats.tx_packets++;
-			dev->stats.collisions += (nop.nop_status & STAT_COLLISIONS);
+			dev->stats.collisions += (yesp.yesp_status & STAT_COLLISIONS);
 		} else {
 			dev->stats.tx_errors++;
 
-			if (nop.nop_status & STAT_COLLAFTERTX)
+			if (yesp.yesp_status & STAT_COLLAFTERTX)
 				dev->stats.collisions++;
-			if (nop.nop_status & STAT_NOCARRIER)
+			if (yesp.yesp_status & STAT_NOCARRIER)
 				dev->stats.tx_carrier_errors++;
-			if (nop.nop_status & STAT_TXLOSTCTS)
+			if (yesp.yesp_status & STAT_TXLOSTCTS)
 				printk (KERN_WARNING "%s: cts lost\n", dev->name);
-			if (nop.nop_status & STAT_TXSLOWDMA)
+			if (yesp.yesp_status & STAT_TXSLOWDMA)
 				dev->stats.tx_fifo_errors++;
-			if (nop.nop_status & STAT_COLLEXCESSIVE)
+			if (yesp.yesp_status & STAT_COLLEXCESSIVE)
 				dev->stats.collisions += 16;
 		}
 
-		if (nop.nop_link == caddr) {
+		if (yesp.yesp_link == caddr) {
 			printk (KERN_ERR "%s: tx buffer chaining error: tx command points to itself\n", dev->name);
 			break;
 		}
 
-		caddr = nop.nop_link;
-		ether1_readbuffer (dev, &nop, caddr, NOP_SIZE);
-		if ((nop.nop_command & CMD_MASK) != CMD_NOP) {
-			printk (KERN_ERR "%s: tx buffer chaining error: no nop after tx command\n", dev->name);
+		caddr = yesp.yesp_link;
+		ether1_readbuffer (dev, &yesp, caddr, NOP_SIZE);
+		if ((yesp.yesp_command & CMD_MASK) != CMD_NOP) {
+			printk (KERN_ERR "%s: tx buffer chaining error: yes yesp after tx command\n", dev->name);
 			break;
 		}
 
-		if (caddr == nop.nop_link)
+		if (caddr == yesp.yesp_link)
 			break;
 
-		caddr = nop.nop_link;
-		ether1_readbuffer (dev, &nop, caddr, NOP_SIZE);
-		if ((nop.nop_command & CMD_MASK) != CMD_TX) {
-			printk (KERN_ERR "%s: tx buffer chaining error: no tx command after nop\n", dev->name);
+		caddr = yesp.yesp_link;
+		ether1_readbuffer (dev, &yesp, caddr, NOP_SIZE);
+		if ((yesp.yesp_command & CMD_MASK) != CMD_TX) {
+			printk (KERN_ERR "%s: tx buffer chaining error: yes tx command after yesp\n", dev->name);
 			break;
 		}
 	}
@@ -872,7 +872,7 @@ ether1_recv_done (struct net_device *dev)
 				dev->stats.rx_dropped++;
 		} else {
 			printk(KERN_WARNING "%s: %s\n", dev->name,
-				(rbd.rbd_status & RBD_EOF) ? "oversized packet" : "acnt not valid");
+				(rbd.rbd_status & RBD_EOF) ? "oversized packet" : "acnt yest valid");
 			dev->stats.rx_dropped++;
 		}
 
@@ -908,7 +908,7 @@ ether1_interrupt (int irq, void *dev_id)
 		}
 		if (status & SCB_STCNA) {
 			if (priv(dev)->resetting == 0)
-				printk (KERN_WARNING "%s: CU went not ready ???\n", dev->name);
+				printk (KERN_WARNING "%s: CU went yest ready ???\n", dev->name);
 			else
 				priv(dev)->resetting += 1;
 			if (ether1_readw(dev, SCB_ADDR, scb_t, scb_cbl_offset, NORMALIRQS)
@@ -924,12 +924,12 @@ ether1_interrupt (int irq, void *dev_id)
 		}
 		if (status & SCB_STRNR) {
 			if (ether1_readw(dev, SCB_ADDR, scb_t, scb_status, NORMALIRQS) & SCB_STRXSUSP) {
-				printk (KERN_WARNING "%s: RU went not ready: RU suspended\n", dev->name);
+				printk (KERN_WARNING "%s: RU went yest ready: RU suspended\n", dev->name);
 				ether1_writew(dev, SCB_CMDRXRESUME, SCB_ADDR, scb_t, scb_command, NORMALIRQS);
 				writeb(CTRL_CA, REG_CONTROL);
 				dev->stats.rx_dropped++;	/* we suspended due to lack of buffer space */
 			} else
-				printk(KERN_WARNING "%s: RU went not ready: %04X\n", dev->name,
+				printk(KERN_WARNING "%s: RU went yest ready: %04X\n", dev->name,
 					ether1_readw(dev, SCB_ADDR, scb_t, scb_status, NORMALIRQS));
 			printk (KERN_WARNING "RU ptr = %04X\n", ether1_readw(dev, SCB_ADDR, scb_t, scb_rfa_offset,
 						NORMALIRQS));
@@ -954,7 +954,7 @@ ether1_close (struct net_device *dev)
  * Set or clear the multicast filter for this adaptor.
  * num_addrs == -1	Promiscuous mode, receive all packets.
  * num_addrs == 0	Normal mode, clear multicast list.
- * num_addrs > 0	Multicast mode, receive normal and MC packets, and do
+ * num_addrs > 0	Multicast mode, receive yesrmal and MC packets, and do
  *			best-effort filtering.
  */
 static void
@@ -1030,7 +1030,7 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto free;
 
 	printk(KERN_INFO "%s: ether1 in slot %d, %pM\n",
-		dev->name, ec->slot_no, dev->dev_addr);
+		dev->name, ec->slot_yes, dev->dev_addr);
     
 	ecard_set_drvdata(ec, dev);
 	return 0;

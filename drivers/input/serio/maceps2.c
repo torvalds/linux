@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/serio.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -87,7 +87,7 @@ static int maceps2_open(struct serio *dev)
 	struct maceps2_data *data = (struct maceps2_data *)dev->port_data;
 
 	if (request_irq(data->irq, maceps2_interrupt, 0, "PS2 port", dev)) {
-		printk(KERN_ERR "Could not allocate PS/2 IRQ\n");
+		printk(KERN_ERR "Could yest allocate PS/2 IRQ\n");
 		return -EBUSY;
 	}
 

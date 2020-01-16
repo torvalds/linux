@@ -28,12 +28,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -60,7 +60,7 @@
 /*
  * Start up NIC's basic functionality after it has been reset
  * (e.g. after platform boot, or shutdown via iwl_pcie_apm_stop())
- * NOTE:  This does not load uCode nor start the embedded processor
+ * NOTE:  This does yest load uCode yesr start the embedded processor
  */
 int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 {
@@ -162,7 +162,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	 */
 	if (test_and_clear_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
 		IWL_DEBUG_INFO(trans,
-			       "DEVICE_ENABLED bit was set and is now cleared\n");
+			       "DEVICE_ENABLED bit was set and is yesw cleared\n");
 		iwl_pcie_gen2_tx_stop(trans);
 		iwl_pcie_rx_stop(trans);
 	}
@@ -234,7 +234,7 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 	int queue_size = max_t(u32, IWL_CMD_QUEUE_SIZE,
 			       trans->cfg->min_txq_size);
 
-	/* TODO: most of the logic can be removed in A0 - but not in Z0 */
+	/* TODO: most of the logic can be removed in A0 - but yest in Z0 */
 	spin_lock(&trans_pcie->irq_lock);
 	iwl_pcie_gen2_apm_init(trans);
 	spin_unlock(&trans_pcie->irq_lock);
@@ -262,17 +262,17 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 
 	iwl_pcie_reset_ict(trans);
 
-	/* make sure all queue are not stopped/used */
+	/* make sure all queue are yest stopped/used */
 	memset(trans_pcie->queue_stopped, 0, sizeof(trans_pcie->queue_stopped));
 	memset(trans_pcie->queue_used, 0, sizeof(trans_pcie->queue_used));
 
-	/* now that we got alive we can free the fw image & the context info.
-	 * paging memory cannot be freed included since FW will still use it
+	/* yesw that we got alive we can free the fw image & the context info.
+	 * paging memory canyest be freed included since FW will still use it
 	 */
 	iwl_pcie_ctxt_info_free(trans);
 
 	/*
-	 * Re-enable all the interrupts, including the RF-Kill one, now that
+	 * Re-enable all the interrupts, including the RF-Kill one, yesw that
 	 * the firmware is alive.
 	 */
 	iwl_enable_interrupts(trans);
@@ -290,7 +290,7 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 
 	/* This may fail if AMT took ownership of the device */
 	if (iwl_pcie_prepare_card_hw(trans)) {
-		IWL_WARN(trans, "Exit HW not ready\n");
+		IWL_WARN(trans, "Exit HW yest ready\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -301,7 +301,7 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 
 	/*
 	 * We enabled the RF-Kill interrupt and the handler may very
-	 * well be running. Disable the interrupts to make sure no other
+	 * well be running. Disable the interrupts to make sure yes other
 	 * interrupt can be fired.
 	 */
 	iwl_disable_interrupts(trans);

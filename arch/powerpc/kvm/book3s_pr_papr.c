@@ -12,7 +12,7 @@
  * processors.
  */
 
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 
 #include <linux/uaccess.h>
 #include <asm/kvm_ppc.h>
@@ -438,7 +438,7 @@ int kvmppc_hcall_impl_pr(unsigned long cmd)
  * List of hcall numbers to enable by default.
  * For compatibility with old userspace, we enable by default
  * all hcalls that were implemented before the hcall-enabling
- * facility was added.  Note this list should not include H_RTAS.
+ * facility was added.  Note this list should yest include H_RTAS.
  */
 static unsigned int default_hcall_list[] = {
 	H_ENTER,

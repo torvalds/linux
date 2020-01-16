@@ -3,11 +3,11 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004, 2005 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2004, 2005 MIPS Techyeslogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techyeslogies Ltd.
  *
  * VPE spport module for loading a MIPS SP program into VPE1. The SP
- * environment is rather simple since there are no TLBs. It needs
+ * environment is rather simple since there are yes TLBs. It needs
  * to be relocatable (or partiall linked). Initialize your stack in
  * the startup-code. The loader looks for the symbol __start and sets
  * up the execution to resume from there. To load and run, simply do
@@ -49,8 +49,8 @@ struct vpe_control vpecontrol = {
 	.tc_list	= LIST_HEAD_INIT(vpecontrol.tc_list)
 };
 
-/* get the vpe associated with this minor */
-struct vpe *get_vpe(int minor)
+/* get the vpe associated with this miyesr */
+struct vpe *get_vpe(int miyesr)
 {
 	struct vpe *res, *v;
 
@@ -60,7 +60,7 @@ struct vpe *get_vpe(int minor)
 	res = NULL;
 	spin_lock(&vpecontrol.vpe_list_lock);
 	list_for_each_entry(v, &vpecontrol.vpe_list, list) {
-		if (v->minor == VPE_MODULE_MINOR) {
+		if (v->miyesr == VPE_MODULE_MINOR) {
 			res = v;
 			break;
 		}
@@ -70,7 +70,7 @@ struct vpe *get_vpe(int minor)
 	return res;
 }
 
-/* get the vpe associated with this minor */
+/* get the vpe associated with this miyesr */
 struct tc *get_tc(int index)
 {
 	struct tc *res, *t;
@@ -88,8 +88,8 @@ struct tc *get_tc(int index)
 	return res;
 }
 
-/* allocate a vpe and associate it with this minor (or index) */
-struct vpe *alloc_vpe(int minor)
+/* allocate a vpe and associate it with this miyesr (or index) */
+struct vpe *alloc_vpe(int miyesr)
 {
 	struct vpe *v;
 
@@ -102,8 +102,8 @@ struct vpe *alloc_vpe(int minor)
 	list_add_tail(&v->list, &vpecontrol.vpe_list);
 	spin_unlock(&vpecontrol.vpe_list_lock);
 
-	INIT_LIST_HEAD(&v->notify);
-	v->minor = VPE_MODULE_MINOR;
+	INIT_LIST_HEAD(&v->yestify);
+	v->miyesr = VPE_MODULE_MINOR;
 
 out:
 	return v;
@@ -151,7 +151,7 @@ void *alloc_progmem(unsigned long len)
 	addr = pfn_to_kaddr(max_low_pfn);
 	memset(addr, 0, len);
 #else
-	/* simple grab some mem for now */
+	/* simple grab some mem for yesw */
 	addr = kzalloc(len, GFP_KERNEL);
 #endif
 
@@ -175,7 +175,7 @@ static long get_offset(unsigned long *size, Elf_Shdr *sechdr)
 	return ret;
 }
 
-/* Lay out the SHF_ALLOC sections in a way not dissimilar to how ld
+/* Lay out the SHF_ALLOC sections in a way yest dissimilar to how ld
    might -- code, read-only data, read-write data, small data.	Tally
    sizes, and place the offsets into sh_entsize fields: high bit means it
    belongs in init. */
@@ -225,7 +225,7 @@ struct mips_hi16 {
 static struct mips_hi16 *mips_hi16_list;
 static unsigned int gp_offs, gp_addr;
 
-static int apply_r_mips_none(struct module *me, uint32_t *location,
+static int apply_r_mips_yesne(struct module *me, uint32_t *location,
 			     Elf32_Addr v)
 {
 	return 0;
@@ -261,7 +261,7 @@ static int apply_r_mips_pc16(struct module *me, uint32_t *location,
 {
 	int rel;
 	rel = (((unsigned int)v - (unsigned int)location));
-	rel >>= 2; /* because the offset is in _instructions_ not bytes. */
+	rel >>= 2; /* because the offset is in _instructions_ yest bytes. */
 	rel -= 1;  /* and one instruction less due to the branch delay slot. */
 
 	if ((rel > 32768) || (rel < -32768)) {
@@ -314,7 +314,7 @@ static int apply_r_mips_hi16(struct module *me, uint32_t *location,
 	struct mips_hi16 *n;
 
 	/*
-	 * We cannot relocate this one now because we don't know the value of
+	 * We canyest relocate this one yesw because we don't kyesw the value of
 	 * the carry we need to add.  Save the information, and let LO16 do the
 	 * actual relocation.
 	 */
@@ -356,7 +356,7 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 
 			/*
 			 * Do the HI16 relocation.  Note that we actually don't
-			 * need to know anything about the LO16 itself, except
+			 * need to kyesw anything about the LO16 itself, except
 			 * where to find the low 16 bits of the addend needed
 			 * by the LO16.
 			 */
@@ -403,7 +403,7 @@ out_free:
 
 static int (*reloc_handlers[]) (struct module *me, uint32_t *location,
 				Elf32_Addr v) = {
-	[R_MIPS_NONE]	= apply_r_mips_none,
+	[R_MIPS_NONE]	= apply_r_mips_yesne,
 	[R_MIPS_32]	= apply_r_mips_32,
 	[R_MIPS_26]	= apply_r_mips_26,
 	[R_MIPS_HI16]	= apply_r_mips_hi16,
@@ -515,7 +515,7 @@ static void simplify_symbols(Elf_Shdr *sechdrs,
 			break;
 
 		case SHN_MIPS_SCOMMON:
-			pr_debug("simplify_symbols: ignoring SHN_MIPS_SCOMMON symbol <%s> st_shndx %d\n",
+			pr_debug("simplify_symbols: igyesring SHN_MIPS_SCOMMON symbol <%s> st_shndx %d\n",
 				 strtab + sym[i].st_name, sym[i].st_shndx);
 			/* .sbss section */
 			break;
@@ -680,7 +680,7 @@ static int vpe_elfload(struct vpe *v)
 			if (info >= hdr->e_shnum)
 				continue;
 
-			/* Don't bother with non-allocated sections */
+			/* Don't bother with yesn-allocated sections */
 			if (!(sechdrs[info].sh_flags & SHF_ALLOC))
 				continue;
 
@@ -733,12 +733,12 @@ static int vpe_elfload(struct vpe *v)
 
 	if ((find_vpe_symbols(v, sechdrs, symindex, strtab, &mod)) < 0) {
 		if (v->__start == 0) {
-			pr_warn("VPE loader: program does not contain a __start symbol\n");
+			pr_warn("VPE loader: program does yest contain a __start symbol\n");
 			return -ENOEXEC;
 		}
 
 		if (v->shared_ptr == NULL)
-			pr_warn("VPE loader: program does not contain vpe_shared symbol.\n"
+			pr_warn("VPE loader: program does yest contain vpe_shared symbol.\n"
 				" Unable to use AMVP (AP/SP) facilities.\n");
 	}
 
@@ -762,14 +762,14 @@ static int getcwd(char *buff, int size)
 }
 
 /* checks VPE is unused and gets ready to load program	*/
-static int vpe_open(struct inode *inode, struct file *filp)
+static int vpe_open(struct iyesde *iyesde, struct file *filp)
 {
 	enum vpe_state state;
-	struct vpe_notifications *notifier;
+	struct vpe_yestifications *yestifier;
 	struct vpe *v;
 	int ret;
 
-	if (VPE_MODULE_MINOR != iminor(inode)) {
+	if (VPE_MODULE_MINOR != imiyesr(iyesde)) {
 		/* assume only 1 device at the moment. */
 		pr_warn("VPE loader: only vpe1 is supported\n");
 
@@ -787,8 +787,8 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	if (state != VPE_STATE_UNUSED) {
 		pr_debug("VPE loader: tc in use dumping regs\n");
 
-		list_for_each_entry(notifier, &v->notify, list)
-			notifier->stop(aprp_cpu_index());
+		list_for_each_entry(yestifier, &v->yestify, list)
+			yestifier->stop(aprp_cpu_index());
 
 		release_progmem(v->load_addr);
 		cleanup_tc(get_tc(aprp_cpu_index()));
@@ -815,7 +815,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int vpe_release(struct inode *inode, struct file *filp)
+static int vpe_release(struct iyesde *iyesde, struct file *filp)
 {
 #if defined(CONFIG_MIPS_VPE_LOADER_MT) || defined(CONFIG_MIPS_VPE_LOADER_CMP)
 	struct vpe *v;
@@ -863,7 +863,7 @@ static ssize_t vpe_write(struct file *file, const char __user *buffer,
 	size_t ret = count;
 	struct vpe *v;
 
-	if (iminor(file_inode(file)) != VPE_MODULE_MINOR)
+	if (imiyesr(file_iyesde(file)) != VPE_MODULE_MINOR)
 		return -ENODEV;
 
 	v = get_vpe(aprp_cpu_index());
@@ -889,7 +889,7 @@ const struct file_operations vpe_fops = {
 	.open = vpe_open,
 	.release = vpe_release,
 	.write = vpe_write,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 void *vpe_get_shared(int index)
@@ -903,17 +903,17 @@ void *vpe_get_shared(int index)
 }
 EXPORT_SYMBOL(vpe_get_shared);
 
-int vpe_notify(int index, struct vpe_notifications *notify)
+int vpe_yestify(int index, struct vpe_yestifications *yestify)
 {
 	struct vpe *v = get_vpe(index);
 
 	if (v == NULL)
 		return -1;
 
-	list_add(&notify->list, &v->notify);
+	list_add(&yestify->list, &v->yestify);
 	return 0;
 }
-EXPORT_SYMBOL(vpe_notify);
+EXPORT_SYMBOL(vpe_yestify);
 
 char *vpe_getcwd(int index)
 {
@@ -929,5 +929,5 @@ EXPORT_SYMBOL(vpe_getcwd);
 module_init(vpe_module_init);
 module_exit(vpe_module_exit);
 MODULE_DESCRIPTION("MIPS VPE Loader");
-MODULE_AUTHOR("Elizabeth Oldham, MIPS Technologies, Inc.");
+MODULE_AUTHOR("Elizabeth Oldham, MIPS Techyeslogies, Inc.");
 MODULE_LICENSE("GPL");

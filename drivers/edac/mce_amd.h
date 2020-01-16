@@ -2,7 +2,7 @@
 #ifndef _EDAC_MCE_AMD_H
 #define _EDAC_MCE_AMD_H
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include <asm/mce.h>
 

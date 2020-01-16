@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -58,7 +58,7 @@ struct mac_priv_s {
 	void __iomem			*vaddr;
 	u8				cell_index;
 	struct fman			*fman;
-	struct device_node		*internal_phy_node;
+	struct device_yesde		*internal_phy_yesde;
 	/* List of multicast addresses */
 	struct list_head		mc_addr_list;
 	struct platform_device		*eth_dev;
@@ -111,7 +111,7 @@ static void set_fman_mac_params(struct mac_device *mac_dev,
 	params->exception_cb	= mac_exception;
 	params->event_cb	= mac_exception;
 	params->dev_id		= mac_dev;
-	params->internal_phy_node = priv->internal_phy_node;
+	params->internal_phy_yesde = priv->internal_phy_yesde;
 }
 
 static int tgec_initialization(struct mac_device *mac_dev)
@@ -562,7 +562,7 @@ static struct platform_device *dpaa_eth_add_device(int fman_id,
 	pdev = platform_device_alloc("dpaa-ethernet", dpaa_eth_dev_cnt);
 	if (!pdev) {
 		ret = -ENOMEM;
-		goto no_mem;
+		goto yes_mem;
 	}
 
 	pdev->dev.parent = priv->dev;
@@ -582,7 +582,7 @@ static struct platform_device *dpaa_eth_add_device(int fman_id,
 
 err:
 	platform_device_put(pdev);
-no_mem:
+yes_mem:
 	mutex_unlock(&eth_lock);
 
 	return ERR_PTR(ret);
@@ -600,7 +600,7 @@ static int mac_probe(struct platform_device *_of_dev)
 {
 	int			 err, i, nph;
 	struct device		*dev;
-	struct device_node	*mac_node, *dev_node;
+	struct device_yesde	*mac_yesde, *dev_yesde;
 	struct mac_device	*mac_dev;
 	struct platform_device	*of_dev;
 	struct resource		 res;
@@ -611,7 +611,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	phy_interface_t          phy_if;
 
 	dev = &_of_dev->dev;
-	mac_node = dev->of_node;
+	mac_yesde = dev->of_yesde;
 
 	mac_dev = devm_kzalloc(dev, sizeof(*mac_dev), GFP_KERNEL);
 	if (!mac_dev) {
@@ -628,65 +628,65 @@ static int mac_probe(struct platform_device *_of_dev)
 	mac_dev->priv = priv;
 	priv->dev = dev;
 
-	if (of_device_is_compatible(mac_node, "fsl,fman-dtsec")) {
+	if (of_device_is_compatible(mac_yesde, "fsl,fman-dtsec")) {
 		setup_dtsec(mac_dev);
-		priv->internal_phy_node = of_parse_phandle(mac_node,
+		priv->internal_phy_yesde = of_parse_phandle(mac_yesde,
 							  "tbi-handle", 0);
-	} else if (of_device_is_compatible(mac_node, "fsl,fman-xgec")) {
+	} else if (of_device_is_compatible(mac_yesde, "fsl,fman-xgec")) {
 		setup_tgec(mac_dev);
-	} else if (of_device_is_compatible(mac_node, "fsl,fman-memac")) {
+	} else if (of_device_is_compatible(mac_yesde, "fsl,fman-memac")) {
 		setup_memac(mac_dev);
-		priv->internal_phy_node = of_parse_phandle(mac_node,
+		priv->internal_phy_yesde = of_parse_phandle(mac_yesde,
 							  "pcsphy-handle", 0);
 	} else {
-		dev_err(dev, "MAC node (%pOF) contains unsupported MAC\n",
-			mac_node);
+		dev_err(dev, "MAC yesde (%pOF) contains unsupported MAC\n",
+			mac_yesde);
 		err = -EINVAL;
 		goto _return;
 	}
 
 	INIT_LIST_HEAD(&priv->mc_addr_list);
 
-	/* Get the FM node */
-	dev_node = of_get_parent(mac_node);
-	if (!dev_node) {
+	/* Get the FM yesde */
+	dev_yesde = of_get_parent(mac_yesde);
+	if (!dev_yesde) {
 		dev_err(dev, "of_get_parent(%pOF) failed\n",
-			mac_node);
+			mac_yesde);
 		err = -EINVAL;
 		goto _return_of_get_parent;
 	}
 
-	of_dev = of_find_device_by_node(dev_node);
+	of_dev = of_find_device_by_yesde(dev_yesde);
 	if (!of_dev) {
-		dev_err(dev, "of_find_device_by_node(%pOF) failed\n", dev_node);
+		dev_err(dev, "of_find_device_by_yesde(%pOF) failed\n", dev_yesde);
 		err = -EINVAL;
-		goto _return_of_node_put;
+		goto _return_of_yesde_put;
 	}
 
 	/* Get the FMan cell-index */
-	err = of_property_read_u32(dev_node, "cell-index", &val);
+	err = of_property_read_u32(dev_yesde, "cell-index", &val);
 	if (err) {
-		dev_err(dev, "failed to read cell-index for %pOF\n", dev_node);
+		dev_err(dev, "failed to read cell-index for %pOF\n", dev_yesde);
 		err = -EINVAL;
-		goto _return_of_node_put;
+		goto _return_of_yesde_put;
 	}
 	/* cell-index 0 => FMan id 1 */
 	fman_id = (u8)(val + 1);
 
 	priv->fman = fman_bind(&of_dev->dev);
 	if (!priv->fman) {
-		dev_err(dev, "fman_bind(%pOF) failed\n", dev_node);
+		dev_err(dev, "fman_bind(%pOF) failed\n", dev_yesde);
 		err = -ENODEV;
-		goto _return_of_node_put;
+		goto _return_of_yesde_put;
 	}
 
-	of_node_put(dev_node);
+	of_yesde_put(dev_yesde);
 
 	/* Get the address of the memory mapped registers */
-	err = of_address_to_resource(mac_node, 0, &res);
+	err = of_address_to_resource(mac_yesde, 0, &res);
 	if (err < 0) {
 		dev_err(dev, "of_address_to_resource(%pOF) = %d\n",
-			mac_node, err);
+			mac_yesde, err);
 		goto _return_of_get_parent;
 	}
 
@@ -708,79 +708,79 @@ static int mac_probe(struct platform_device *_of_dev)
 		goto _return_of_get_parent;
 	}
 
-	if (!of_device_is_available(mac_node)) {
+	if (!of_device_is_available(mac_yesde)) {
 		err = -ENODEV;
 		goto _return_of_get_parent;
 	}
 
 	/* Get the cell-index */
-	err = of_property_read_u32(mac_node, "cell-index", &val);
+	err = of_property_read_u32(mac_yesde, "cell-index", &val);
 	if (err) {
-		dev_err(dev, "failed to read cell-index for %pOF\n", mac_node);
+		dev_err(dev, "failed to read cell-index for %pOF\n", mac_yesde);
 		err = -EINVAL;
 		goto _return_of_get_parent;
 	}
 	priv->cell_index = (u8)val;
 
 	/* Get the MAC address */
-	mac_addr = of_get_mac_address(mac_node);
+	mac_addr = of_get_mac_address(mac_yesde);
 	if (IS_ERR(mac_addr)) {
-		dev_err(dev, "of_get_mac_address(%pOF) failed\n", mac_node);
+		dev_err(dev, "of_get_mac_address(%pOF) failed\n", mac_yesde);
 		err = -EINVAL;
 		goto _return_of_get_parent;
 	}
 	ether_addr_copy(mac_dev->addr, mac_addr);
 
 	/* Get the port handles */
-	nph = of_count_phandle_with_args(mac_node, "fsl,fman-ports", NULL);
+	nph = of_count_phandle_with_args(mac_yesde, "fsl,fman-ports", NULL);
 	if (unlikely(nph < 0)) {
 		dev_err(dev, "of_count_phandle_with_args(%pOF, fsl,fman-ports) failed\n",
-			mac_node);
+			mac_yesde);
 		err = nph;
 		goto _return_of_get_parent;
 	}
 
 	if (nph != ARRAY_SIZE(mac_dev->port)) {
-		dev_err(dev, "Not supported number of fman-ports handles of mac node %pOF from device tree\n",
-			mac_node);
+		dev_err(dev, "Not supported number of fman-ports handles of mac yesde %pOF from device tree\n",
+			mac_yesde);
 		err = -EINVAL;
 		goto _return_of_get_parent;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mac_dev->port); i++) {
-		/* Find the port node */
-		dev_node = of_parse_phandle(mac_node, "fsl,fman-ports", i);
-		if (!dev_node) {
+		/* Find the port yesde */
+		dev_yesde = of_parse_phandle(mac_yesde, "fsl,fman-ports", i);
+		if (!dev_yesde) {
 			dev_err(dev, "of_parse_phandle(%pOF, fsl,fman-ports) failed\n",
-				mac_node);
+				mac_yesde);
 			err = -EINVAL;
-			goto _return_of_node_put;
+			goto _return_of_yesde_put;
 		}
 
-		of_dev = of_find_device_by_node(dev_node);
+		of_dev = of_find_device_by_yesde(dev_yesde);
 		if (!of_dev) {
-			dev_err(dev, "of_find_device_by_node(%pOF) failed\n",
-				dev_node);
+			dev_err(dev, "of_find_device_by_yesde(%pOF) failed\n",
+				dev_yesde);
 			err = -EINVAL;
-			goto _return_of_node_put;
+			goto _return_of_yesde_put;
 		}
 
 		mac_dev->port[i] = fman_port_bind(&of_dev->dev);
 		if (!mac_dev->port[i]) {
 			dev_err(dev, "dev_get_drvdata(%pOF) failed\n",
-				dev_node);
+				dev_yesde);
 			err = -EINVAL;
-			goto _return_of_node_put;
+			goto _return_of_yesde_put;
 		}
-		of_node_put(dev_node);
+		of_yesde_put(dev_yesde);
 	}
 
 	/* Get the PHY connection type */
-	err = of_get_phy_mode(mac_node, &phy_if);
+	err = of_get_phy_mode(mac_yesde, &phy_if);
 	if (err) {
 		dev_warn(dev,
 			 "of_get_phy_mode() for %pOF failed. Defaulting to SGMII\n",
-			 mac_node);
+			 mac_yesde);
 		phy_if = PHY_INTERFACE_MODE_SGMII;
 	}
 	mac_dev->phy_if = phy_if;
@@ -793,7 +793,7 @@ static int mac_probe(struct platform_device *_of_dev)
 		mac_dev->if_support &= ~(SUPPORTED_10baseT_Half |
 					SUPPORTED_100baseT_Half);
 
-	/* Gigabit support (no half-duplex) */
+	/* Gigabit support (yes half-duplex) */
 	if (priv->max_speed == 1000)
 		mac_dev->if_support |= SUPPORTED_1000baseT_Full;
 
@@ -802,11 +802,11 @@ static int mac_probe(struct platform_device *_of_dev)
 		mac_dev->if_support = SUPPORTED_10000baseT_Full;
 
 	/* Get the rest of the PHY information */
-	mac_dev->phy_node = of_parse_phandle(mac_node, "phy-handle", 0);
-	if (!mac_dev->phy_node && of_phy_is_fixed_link(mac_node)) {
+	mac_dev->phy_yesde = of_parse_phandle(mac_yesde, "phy-handle", 0);
+	if (!mac_dev->phy_yesde && of_phy_is_fixed_link(mac_yesde)) {
 		struct phy_device *phy;
 
-		err = of_phy_register_fixed_link(mac_node);
+		err = of_phy_register_fixed_link(mac_yesde);
 		if (err)
 			goto _return_of_get_parent;
 
@@ -817,11 +817,11 @@ static int mac_probe(struct platform_device *_of_dev)
 			goto _return_of_get_parent;
 		}
 
-		mac_dev->phy_node = of_node_get(mac_node);
-		phy = of_phy_find_device(mac_dev->phy_node);
+		mac_dev->phy_yesde = of_yesde_get(mac_yesde);
+		phy = of_phy_find_device(mac_dev->phy_yesde);
 		if (!phy) {
 			err = -EINVAL;
-			of_node_put(mac_dev->phy_node);
+			of_yesde_put(mac_dev->phy_yesde);
 			goto _return_of_get_parent;
 		}
 
@@ -837,7 +837,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	err = mac_dev->init(mac_dev);
 	if (err < 0) {
 		dev_err(dev, "mac_dev->init() = %d\n", err);
-		of_node_put(mac_dev->phy_node);
+		of_yesde_put(mac_dev->phy_yesde);
 		goto _return_of_get_parent;
 	}
 
@@ -866,8 +866,8 @@ static int mac_probe(struct platform_device *_of_dev)
 
 	goto _return;
 
-_return_of_node_put:
-	of_node_put(dev_node);
+_return_of_yesde_put:
+	of_yesde_put(dev_yesde);
 _return_of_get_parent:
 	kfree(priv->fixed_link);
 _return:

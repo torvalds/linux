@@ -21,7 +21,7 @@
 #define NLMDBG_FACILITY		NLMDBG_XDR
 
 #if (NLMCLNT_OHSIZE > XDR_MAX_NETOBJ)
-#  error "NLM host name cannot be larger than XDR_MAX_NETOBJ!"
+#  error "NLM host name canyest be larger than XDR_MAX_NETOBJ!"
 #endif
 
 /*
@@ -42,7 +42,7 @@
 
 #define NLM_testres_sz		(NLM_cookie_sz+1+NLM_holder_sz)
 #define NLM_res_sz		(NLM_cookie_sz+1)
-#define NLM_norep_sz		(0)
+#define NLM_yesrep_sz		(0)
 
 
 static s32 loff_t_to_s32(loff_t offset)
@@ -73,7 +73,7 @@ static void nlm_compute_offsets(const struct nlm_lock *lock,
 /*
  * Encode/decode NLMv3 basic data types
  *
- * Basic NLMv3 data types are not defined in an IETF standards
+ * Basic NLMv3 data types are yest defined in an IETF standards
  * document.  X/Open has a description of these data types that
  * is useful.  See Chapter 10 of "Protocols for Interworking:
  * XNFS, Version 3W".
@@ -298,7 +298,7 @@ out_overflow:
  */
 static void encode_caller_name(struct xdr_stream *xdr, const char *name)
 {
-	/* NB: client-side does not set lock->len */
+	/* NB: client-side does yest set lock->len */
 	u32 length = strlen(name);
 	__be32 *p;
 
@@ -544,9 +544,9 @@ out:
 
 
 /*
- * For NLM, a void procedure really returns nothing
+ * For NLM, a void procedure really returns yesthing
  */
-#define nlm_xdr_dec_norep	NULL
+#define nlm_xdr_dec_yesrep	NULL
 
 #define PROC(proc, argtype, restype)	\
 [NLMPROC_##proc] = {							\
@@ -565,16 +565,16 @@ static const struct rpc_procinfo nlm_procedures[] = {
 	PROC(CANCEL,		cancargs,	res),
 	PROC(UNLOCK,		unlockargs,	res),
 	PROC(GRANTED,		testargs,	res),
-	PROC(TEST_MSG,		testargs,	norep),
-	PROC(LOCK_MSG,		lockargs,	norep),
-	PROC(CANCEL_MSG,	cancargs,	norep),
-	PROC(UNLOCK_MSG,	unlockargs,	norep),
-	PROC(GRANTED_MSG,	testargs,	norep),
-	PROC(TEST_RES,		testres,	norep),
-	PROC(LOCK_RES,		res,		norep),
-	PROC(CANCEL_RES,	res,		norep),
-	PROC(UNLOCK_RES,	res,		norep),
-	PROC(GRANTED_RES,	res,		norep),
+	PROC(TEST_MSG,		testargs,	yesrep),
+	PROC(LOCK_MSG,		lockargs,	yesrep),
+	PROC(CANCEL_MSG,	cancargs,	yesrep),
+	PROC(UNLOCK_MSG,	unlockargs,	yesrep),
+	PROC(GRANTED_MSG,	testargs,	yesrep),
+	PROC(TEST_RES,		testres,	yesrep),
+	PROC(LOCK_RES,		res,		yesrep),
+	PROC(CANCEL_RES,	res,		yesrep),
+	PROC(UNLOCK_RES,	res,		yesrep),
+	PROC(GRANTED_RES,	res,		yesrep),
 };
 
 static unsigned int nlm_version1_counts[ARRAY_SIZE(nlm_procedures)];

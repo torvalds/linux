@@ -8,7 +8,7 @@
 #define DRV_NAME	"xen_wdt"
 
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/hrtimer.h>
 #include <linux/kernel.h>
@@ -32,9 +32,9 @@ module_param(timeout, uint, S_IRUGO);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds "
 	"(default=" __MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, S_IRUGO);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, S_IRUGO);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started "
 	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static inline time64_t set_timeout(struct watchdog_device *wdd)
@@ -123,7 +123,7 @@ static int xen_wdt_probe(struct platform_device *pdev)
 	int ret = HYPERVISOR_sched_op(SCHEDOP_watchdog, &wd);
 
 	if (ret == -ENOSYS) {
-		dev_err(dev, "watchdog not supported by hypervisor\n");
+		dev_err(dev, "watchdog yest supported by hypervisor\n");
 		return -ENODEV;
 	}
 
@@ -133,7 +133,7 @@ static int xen_wdt_probe(struct platform_device *pdev)
 	}
 
 	watchdog_init_timeout(&xen_wdt_dev, timeout, NULL);
-	watchdog_set_nowayout(&xen_wdt_dev, nowayout);
+	watchdog_set_yeswayout(&xen_wdt_dev, yeswayout);
 	watchdog_stop_on_reboot(&xen_wdt_dev);
 	watchdog_stop_on_unregister(&xen_wdt_dev);
 
@@ -141,8 +141,8 @@ static int xen_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dev_info(dev, "initialized (timeout=%ds, nowayout=%d)\n",
-		 xen_wdt_dev.timeout, nowayout);
+	dev_info(dev, "initialized (timeout=%ds, yeswayout=%d)\n",
+		 xen_wdt_dev.timeout, yeswayout);
 
 	return 0;
 }
@@ -203,6 +203,6 @@ static void __exit xen_wdt_cleanup_module(void)
 module_init(xen_wdt_init_module);
 module_exit(xen_wdt_cleanup_module);
 
-MODULE_AUTHOR("Jan Beulich <jbeulich@novell.com>");
+MODULE_AUTHOR("Jan Beulich <jbeulich@yesvell.com>");
 MODULE_DESCRIPTION("Xen WatchDog Timer Driver");
 MODULE_LICENSE("GPL");

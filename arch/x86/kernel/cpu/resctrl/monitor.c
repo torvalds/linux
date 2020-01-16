@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Resource Director Technology(RDT)
+ * Resource Director Techyeslogy(RDT)
  * - Monitoring code
  *
  * Copyright (C) 2017 Intel Corporation
@@ -36,7 +36,7 @@ static LIST_HEAD(rmid_free_lru);
 /**
  * @rmid_limbo_count     count of currently unused but (potentially)
  *     dirty RMIDs.
- *     This counts RMIDs that no one is currently using but that
+ *     This counts RMIDs that yes one is currently using but that
  *     may have a occupancy value > intel_cqm_threshold. User can change
  *     the threshold occupancy value.
  */
@@ -142,7 +142,7 @@ bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d)
 }
 
 /*
- * As of now the RMIDs allocation is global.
+ * As of yesw the RMIDs allocation is global.
  * However we keep track of which packages the RMIDs
  * are used to optimize the limbo list management.
  */
@@ -420,7 +420,7 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	 * Delta values are updated dynamically package wise for each
 	 * rdtgrp everytime the throttle MSR changes value.
 	 *
-	 * This is because (1)the increase in bandwidth is not perfectly
+	 * This is because (1)the increase in bandwidth is yest perfectly
 	 * linear and only "approximately" linear even when the hardware
 	 * says it is linear.(2)Also since MBA is a core specific
 	 * mechanism, the delta values vary based on number of cores used
@@ -570,7 +570,7 @@ static int dom_data_init(struct rdt_resource *r)
 
 	/*
 	 * RMID 0 is special and is always allocated. It's used for all
-	 * tasks that are not monitored.
+	 * tasks that are yest monitored.
 	 */
 	entry = __rmid_entry(0);
 	list_del(&entry->list);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: main_usb.c
@@ -43,7 +43,7 @@
 
 /* version information */
 #define DRIVER_AUTHOR \
-	"VIA Networking Technologies, Inc., <lyndonchen@vntek.com.tw>"
+	"VIA Networking Techyeslogies, Inc., <lyndonchen@vntek.com.tw>"
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DEVICE_FULL_DRV_NAM);
@@ -125,14 +125,14 @@ static int vnt_init_registers(struct vnt_private *priv)
 		ret = vnt_download_firmware(priv);
 		if (ret) {
 			dev_dbg(&priv->usb->dev,
-				"Could not download firmware: %d.\n", ret);
+				"Could yest download firmware: %d.\n", ret);
 			goto end;
 		}
 
 		ret = vnt_firmware_branch_to_sram(priv);
 		if (ret) {
 			dev_dbg(&priv->usb->dev,
-				"Could not branch to SRAM: %d.\n", ret);
+				"Could yest branch to SRAM: %d.\n", ret);
 			goto end;
 		}
 	}
@@ -225,7 +225,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 
 	antenna &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
-	if (antenna == 0) /* if not set default is both */
+	if (antenna == 0) /* if yest set default is both */
 		antenna = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
 	if (antenna == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
@@ -449,7 +449,7 @@ static int vnt_alloc_bufs(struct vnt_private *priv)
 
 		priv->tx_context[ii] = tx_context;
 		tx_context->priv = priv;
-		tx_context->pkt_no = ii;
+		tx_context->pkt_yes = ii;
 
 		/* allocate URBs */
 		tx_context->urb = usb_alloc_urb(0, GFP_KERNEL);
@@ -977,16 +977,16 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	udev = usb_get_dev(interface_to_usbdev(intf));
 
-	dev_notice(&udev->dev, "%s Ver. %s\n",
+	dev_yestice(&udev->dev, "%s Ver. %s\n",
 		   DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
-	dev_notice(&udev->dev,
-		   "Copyright (c) 2004 VIA Networking Technologies, Inc.\n");
+	dev_yestice(&udev->dev,
+		   "Copyright (c) 2004 VIA Networking Techyeslogies, Inc.\n");
 
 	hw = ieee80211_alloc_hw(sizeof(struct vnt_private), &vnt_mac_ops);
 	if (!hw) {
-		dev_err(&udev->dev, "could not register ieee80211_hw\n");
+		dev_err(&udev->dev, "could yest register ieee80211_hw\n");
 		rc = -ENOMEM;
-		goto err_nomem;
+		goto err_yesmem;
 	}
 
 	priv = hw->priv;
@@ -1032,7 +1032,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	return 0;
 
-err_nomem:
+err_yesmem:
 	usb_put_dev(udev);
 
 	return rc;

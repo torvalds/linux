@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <linux/etherdevice.h>
 #include <linux/lockdep.h>
@@ -142,15 +142,15 @@ static void nfp_flower_internal_port_cleanup(struct nfp_flower_priv *priv)
 	idr_destroy(&priv->internal_ports.port_ids);
 }
 
-static struct nfp_flower_non_repr_priv *
-nfp_flower_non_repr_priv_lookup(struct nfp_app *app, struct net_device *netdev)
+static struct nfp_flower_yesn_repr_priv *
+nfp_flower_yesn_repr_priv_lookup(struct nfp_app *app, struct net_device *netdev)
 {
 	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_flower_non_repr_priv *entry;
+	struct nfp_flower_yesn_repr_priv *entry;
 
 	ASSERT_RTNL();
 
-	list_for_each_entry(entry, &priv->non_repr_priv, list)
+	list_for_each_entry(entry, &priv->yesn_repr_priv, list)
 		if (entry->netdev == netdev)
 			return entry;
 
@@ -158,18 +158,18 @@ nfp_flower_non_repr_priv_lookup(struct nfp_app *app, struct net_device *netdev)
 }
 
 void
-__nfp_flower_non_repr_priv_get(struct nfp_flower_non_repr_priv *non_repr_priv)
+__nfp_flower_yesn_repr_priv_get(struct nfp_flower_yesn_repr_priv *yesn_repr_priv)
 {
-	non_repr_priv->ref_count++;
+	yesn_repr_priv->ref_count++;
 }
 
-struct nfp_flower_non_repr_priv *
-nfp_flower_non_repr_priv_get(struct nfp_app *app, struct net_device *netdev)
+struct nfp_flower_yesn_repr_priv *
+nfp_flower_yesn_repr_priv_get(struct nfp_app *app, struct net_device *netdev)
 {
 	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_flower_non_repr_priv *entry;
+	struct nfp_flower_yesn_repr_priv *entry;
 
-	entry = nfp_flower_non_repr_priv_lookup(app, netdev);
+	entry = nfp_flower_yesn_repr_priv_lookup(app, netdev);
 	if (entry)
 		goto inc_ref;
 
@@ -178,33 +178,33 @@ nfp_flower_non_repr_priv_get(struct nfp_app *app, struct net_device *netdev)
 		return NULL;
 
 	entry->netdev = netdev;
-	list_add(&entry->list, &priv->non_repr_priv);
+	list_add(&entry->list, &priv->yesn_repr_priv);
 
 inc_ref:
-	__nfp_flower_non_repr_priv_get(entry);
+	__nfp_flower_yesn_repr_priv_get(entry);
 	return entry;
 }
 
 void
-__nfp_flower_non_repr_priv_put(struct nfp_flower_non_repr_priv *non_repr_priv)
+__nfp_flower_yesn_repr_priv_put(struct nfp_flower_yesn_repr_priv *yesn_repr_priv)
 {
-	if (--non_repr_priv->ref_count)
+	if (--yesn_repr_priv->ref_count)
 		return;
 
-	list_del(&non_repr_priv->list);
-	kfree(non_repr_priv);
+	list_del(&yesn_repr_priv->list);
+	kfree(yesn_repr_priv);
 }
 
 void
-nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev)
+nfp_flower_yesn_repr_priv_put(struct nfp_app *app, struct net_device *netdev)
 {
-	struct nfp_flower_non_repr_priv *entry;
+	struct nfp_flower_yesn_repr_priv *entry;
 
-	entry = nfp_flower_non_repr_priv_lookup(app, netdev);
+	entry = nfp_flower_yesn_repr_priv_lookup(app, netdev);
 	if (!entry)
 		return;
 
-	__nfp_flower_non_repr_priv_put(entry);
+	__nfp_flower_yesn_repr_priv_put(entry);
 }
 
 static enum nfp_repr_type
@@ -347,7 +347,7 @@ nfp_flower_repr_netdev_preclean(struct nfp_app *app, struct net_device *netdev)
 	atomic_set(replies, 0);
 	err = nfp_flower_cmsg_portreify(repr, false);
 	if (err) {
-		nfp_warn(app->cpp, "Failed to notify firmware about repr destruction\n");
+		nfp_warn(app->cpp, "Failed to yestify firmware about repr destruction\n");
 		return;
 	}
 
@@ -408,7 +408,7 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 		nfp_repr->app_priv = repr_priv;
 		repr_priv->nfp_repr = nfp_repr;
 
-		/* For now we only support 1 PF */
+		/* For yesw we only support 1 PF */
 		WARN_ON(repr_type == NFP_REPR_TYPE_PF && i);
 
 		port = nfp_port_alloc(app, port_type, repr);
@@ -453,7 +453,7 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 	reify_cnt = nfp_flower_reprs_reify(app, repr_type, true);
 	if (reify_cnt < 0) {
 		err = reify_cnt;
-		nfp_warn(app->cpp, "Failed to notify firmware about repr creation\n");
+		nfp_warn(app->cpp, "Failed to yestify firmware about repr creation\n");
 		goto err_reprs_remove;
 	}
 
@@ -577,7 +577,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 	reify_cnt = nfp_flower_reprs_reify(app, NFP_REPR_TYPE_PHYS_PORT, true);
 	if (reify_cnt < 0) {
 		err = reify_cnt;
-		nfp_warn(app->cpp, "Failed to notify firmware about repr creation\n");
+		nfp_warn(app->cpp, "Failed to yestify firmware about repr creation\n");
 		goto err_reprs_remove;
 	}
 
@@ -607,7 +607,7 @@ static int nfp_flower_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
 
 	eth_hw_addr_random(nn->dp.netdev);
 	netif_keep_dst(nn->dp.netdev);
-	nn->vnic_no_name = true;
+	nn->vnic_yes_name = true;
 
 	return 0;
 
@@ -720,7 +720,7 @@ static int nfp_flower_init(struct nfp_app *app)
 		ctx_count = BIT(17);
 	}
 
-	/* We need to ensure hardware has enough flower capabilities. */
+	/* We need to ensure hardware has eyesugh flower capabilities. */
 	if (version != NFP_FLOWER_ALLOWED_VER) {
 		nfp_warn(app->cpp, "FlowerNIC: unsupported firmware version\n");
 		return -EINVAL;
@@ -762,7 +762,7 @@ static int nfp_flower_init(struct nfp_app *app)
 		app_priv->flower_ext_feats |= NFP_FL_FEATS_LAG;
 		nfp_flower_lag_init(&app_priv->nfp_lag);
 	} else if (err == -ENOENT) {
-		nfp_warn(app->cpp, "LAG not supported by FW.\n");
+		nfp_warn(app->cpp, "LAG yest supported by FW.\n");
 	} else {
 		goto err_cleanup_metadata;
 	}
@@ -775,19 +775,19 @@ static int nfp_flower_init(struct nfp_app *app)
 			app_priv->flower_ext_feats |= NFP_FL_FEATS_FLOW_MERGE;
 			nfp_flower_internal_port_init(app_priv);
 		} else if (err == -ENOENT) {
-			nfp_warn(app->cpp, "Flow merge not supported by FW.\n");
+			nfp_warn(app->cpp, "Flow merge yest supported by FW.\n");
 		} else {
 			goto err_lag_clean;
 		}
 	} else {
-		nfp_warn(app->cpp, "Flow mod/merge not supported by FW.\n");
+		nfp_warn(app->cpp, "Flow mod/merge yest supported by FW.\n");
 	}
 
 	if (app_priv->flower_ext_feats & NFP_FL_FEATS_VF_RLIM)
 		nfp_flower_qos_init(app);
 
 	INIT_LIST_HEAD(&app_priv->indr_block_cb_priv);
-	INIT_LIST_HEAD(&app_priv->non_repr_priv);
+	INIT_LIST_HEAD(&app_priv->yesn_repr_priv);
 	app_priv->pre_tun_rule_cnt = 0;
 
 	return 0;
@@ -848,7 +848,7 @@ nfp_flower_repr_change_mtu(struct nfp_app *app, struct net_device *netdev,
 		return 0;
 
 	if (!(app_priv->flower_ext_feats & NFP_FL_NBI_MTU_SETTING)) {
-		nfp_err(app->cpp, "Physical port MTU setting not supported\n");
+		nfp_err(app->cpp, "Physical port MTU setting yest supported\n");
 		return -EINVAL;
 	}
 
@@ -874,7 +874,7 @@ nfp_flower_repr_change_mtu(struct nfp_app *app, struct net_device *netdev,
 		spin_lock_bh(&app_priv->mtu_conf.lock);
 		app_priv->mtu_conf.requested_val = 0;
 		spin_unlock_bh(&app_priv->mtu_conf.lock);
-		nfp_warn(app->cpp, "MTU change not verified with fw\n");
+		nfp_warn(app->cpp, "MTU change yest verified with fw\n");
 		return -EIO;
 	}
 

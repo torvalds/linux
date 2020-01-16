@@ -148,13 +148,13 @@ struct shared_hw_cfg {			 /* NVRAM Offset */
 		#define SHARED_HW_CFG_MFW_SELECT_UMP                 0x00000200
 		#define SHARED_HW_CFG_MFW_SELECT_IPMI                0x00000300
 	/* Use SPIO4 as an arbiter between: 0-NC_SI, 1-IPMI
-	  (can only be used when an add-in board, not BMC, pulls-down SPIO4) */
+	  (can only be used when an add-in board, yest BMC, pulls-down SPIO4) */
 		#define SHARED_HW_CFG_MFW_SELECT_SPIO4_NC_SI_IPMI    0x00000400
 	/* Use SPIO4 as an arbiter between: 0-UMP, 1-IPMI
-	  (can only be used when an add-in board, not BMC, pulls-down SPIO4) */
+	  (can only be used when an add-in board, yest BMC, pulls-down SPIO4) */
 		#define SHARED_HW_CFG_MFW_SELECT_SPIO4_UMP_IPMI      0x00000500
 	/* Use SPIO4 as an arbiter between: 0-NC-SI, 1-UMP
-	  (can only be used when an add-in board, not BMC, pulls-down SPIO4) */
+	  (can only be used when an add-in board, yest BMC, pulls-down SPIO4) */
 		#define SHARED_HW_CFG_MFW_SELECT_SPIO4_NC_SI_UMP     0x00000600
 
 	#define SHARED_HW_CFG_LED_MODE_MASK                 0x000f0000
@@ -232,7 +232,7 @@ struct shared_hw_cfg {			 /* NVRAM Offset */
 	/*  The fan failure mechanism is usually related to the PHY type
 	      since the power consumption of the board is determined by the PHY.
 	      Currently, fan is required for most designs with SFX7101, BCM8727
-	      and BCM8481. If a fan is not required for a board which uses one
+	      and BCM8481. If a fan is yest required for a board which uses one
 	      of those PHYs, this field should be set to "Disabled". If a fan is
 	      required for a different PHY type, this option should be set to
 	      "Enabled". The fan failure indication is expected on SPIO5 */
@@ -459,7 +459,7 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 	#define PORT_HW_CFG_E3_FAULT_MDL_LED_SHIFT                   8
 
 	/*  The input pin MOD_ABS that indicates whether SFP+ module is
-	  present or not. Use the PIN_CFG_XXX defines on top */
+	  present or yest. Use the PIN_CFG_XXX defines on top */
 	#define PORT_HW_CFG_E3_MOD_ABS_MASK                 0x00FF0000
 	#define PORT_HW_CFG_E3_MOD_ABS_SHIFT                         16
 
@@ -511,7 +511,7 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 
 	/* SFP+ Tx Equalization: NIC recommended and tested value is 0xBEB2
 	 * LOM recommended and tested value is 0xBEB2. Using a different
-	 * value means using a value not tested by BRCM
+	 * value means using a value yest tested by BRCM
 	 */
 	u32 sfi_tap_values;                                 /* 0x178 */
 	#define PORT_HW_CFG_TX_EQUALIZATION_MASK                      0x0000FFFF
@@ -519,19 +519,19 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 
 	/* SFP+ Tx driver broadcast IDRIVER: NIC recommended and tested
 	 * value is 0x2. LOM recommended and tested value is 0x2. Using a
-	 * different value means using a value not tested by BRCM
+	 * different value means using a value yest tested by BRCM
 	 */
 	#define PORT_HW_CFG_TX_DRV_BROADCAST_MASK                     0x000F0000
 	#define PORT_HW_CFG_TX_DRV_BROADCAST_SHIFT                    16
-	/*  Set non-default values for TXFIR in SFP mode. */
+	/*  Set yesn-default values for TXFIR in SFP mode. */
 	#define PORT_HW_CFG_TX_DRV_IFIR_MASK                          0x00F00000
 	#define PORT_HW_CFG_TX_DRV_IFIR_SHIFT                         20
 
-	/*  Set non-default values for IPREDRIVER in SFP mode. */
+	/*  Set yesn-default values for IPREDRIVER in SFP mode. */
 	#define PORT_HW_CFG_TX_DRV_IPREDRIVER_MASK                    0x0F000000
 	#define PORT_HW_CFG_TX_DRV_IPREDRIVER_SHIFT                   24
 
-	/*  Set non-default values for POST2 in SFP mode. */
+	/*  Set yesn-default values for POST2 in SFP mode. */
 	#define PORT_HW_CFG_TX_DRV_POST2_MASK                         0xF0000000
 	#define PORT_HW_CFG_TX_DRV_POST2_SHIFT                        28
 
@@ -550,9 +550,9 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 	#define PORT_HW_CFG_MEDIA_TYPE_PHY2_SHIFT                    16
 
 	/*  4 times 16 bits for all 4 lanes. In case external PHY is present
-	      (not direct mode), those values will not take effect on the 4 XGXS
+	      (yest direct mode), those values will yest take effect on the 4 XGXS
 	      lanes. For some external PHYs (such as 8706 and 8726) the values
-	      will be used to configure the external PHY  in those cases, not
+	      will be used to configure the external PHY  in those cases, yest
 	      all 4 values are needed. */
 	u16 xgxs_config_rx[4];			/* 0x198 */
 	u16 xgxs_config_tx[4];			/* 0x1A0 */
@@ -566,8 +566,8 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 	u32 fcoe_wwn_port_name_upper;
 	u32 fcoe_wwn_port_name_lower;
 
-	u32 fcoe_wwn_node_name_upper;
-	u32 fcoe_wwn_node_name_lower;
+	u32 fcoe_wwn_yesde_name_upper;
+	u32 fcoe_wwn_yesde_name_lower;
 
 	u32 Reserved1[49];				    /* 0x1C0 */
 
@@ -606,11 +606,11 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 		#define PORT_HW_CFG_GPIO3_CONFIG_HIGH                0x00000080
 		#define PORT_HW_CFG_GPIO3_CONFIG_INPUT               0x000000c0
 
-	/*  When KR link is required to be set to force which is not
+	/*  When KR link is required to be set to force which is yest
 	      KR-compliant, this parameter determine what is the trigger for it.
 	      When GPIO is selected, low input will force the speed. Currently
 	      default speed is 1G. In the future, it may be widen to select the
-	      forced speed in with another parameter. Note when force-1G is
+	      forced speed in with ayesther parameter. Note when force-1G is
 	      enabled, it override option 56: Link Speed option. */
 	#define PORT_HW_CFG_FORCE_KR_ENABLER_MASK           0x00000F00
 		#define PORT_HW_CFG_FORCE_KR_ENABLER_SHIFT           8
@@ -737,7 +737,7 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 
 
 	/*  4 times 16 bits for all 4 lanes. For some external PHYs (such as
-	      8706, 8726 and 8727) not all 4 values are needed. */
+	      8706, 8726 and 8727) yest all 4 values are needed. */
 	u16 xgxs_config2_rx[4];				    /* 0x296 */
 	u16 xgxs_config2_tx[4];				    /* 0x2A0 */
 
@@ -1128,7 +1128,7 @@ struct port_feat_cfg {		    /* port 0: 0x454  port 1: 0x4c8 */
  ****************************************************************************/
 struct shm_dev_info {				/* size */
 
-	u32    bc_rev; /* 8 bits each: major, minor, build */	       /* 4 */
+	u32    bc_rev; /* 8 bits each: major, miyesr, build */	       /* 4 */
 
 	struct shared_hw_cfg     shared_hw_config;	      /* 40 */
 
@@ -1176,8 +1176,8 @@ struct extended_dev_info_shared_cfg {
 #define DRV_PULSE_PERIOD_MS     250
 
 /* This value (in milliseconds) determines how long the driver should
- * wait for an acknowledgement from the firmware before timing out.  Once
- * the firmware has timed out, the driver will assume there is no firmware
+ * wait for an ackyeswledgement from the firmware before timing out.  Once
+ * the firmware has timed out, the driver will assume there is yes firmware
  * running and there won't be any firmware-driver synchronization during a
  * driver reset. */
 #define FW_ACK_TIME_OUT_MS      5000
@@ -1260,7 +1260,7 @@ struct drv_port_mb {
 
 	u32 stat_nig_timer;
 
-	/* MCP firmware does not use this field */
+	/* MCP firmware does yest use this field */
 	u32 ext_phy_fw_version;
 
 };
@@ -1422,15 +1422,15 @@ struct drv_func_mb {
 	 */
 	#define DRV_PULSE_ALWAYS_ALIVE                  0x00008000
 	/*
-	 * Indicate to the firmware not to go into the
-	 * OS-absent when it is not getting driver pulse.
+	 * Indicate to the firmware yest to go into the
+	 * OS-absent when it is yest getting driver pulse.
 	 * This is used for debugging as well for PXE(MBA).
 	 */
 
 	u32 mcp_pulse_mb;
 	#define MCP_PULSE_SEQ_MASK                      0x00007fff
 	#define MCP_PULSE_ALWAYS_ALIVE                  0x00008000
-	/* Indicates to the driver not to assert due to lack
+	/* Indicates to the driver yest to assert due to lack
 	 * of MCP response */
 	#define MCP_EVENT_MASK                          0xffff0000
 	#define MCP_EVENT_OTHER_DRIVER_RESET_REQ        0x00010000
@@ -1518,7 +1518,7 @@ struct func_mf_cfg {
 
 	u32 config;
 	/* E/R/I/D */
-	/* function 0 of each port cannot be hidden */
+	/* function 0 of each port canyest be hidden */
 	#define FUNC_MF_CFG_FUNC_HIDE                   0x00000001
 
 	#define FUNC_MF_CFG_PROTOCOL_MASK               0x00000006
@@ -1581,7 +1581,7 @@ enum mf_cfg_afex_vlan_mode {
 	FUNC_MF_CFG_AFEX_VLAN_TRUNK_TAG_NATIVE_MODE
 };
 
-/* This structure is not applicable and should not be accessed on 57711 */
+/* This structure is yest applicable and should yest be accessed on 57711 */
 struct func_ext_cfg {
 	u32 func_cfg;
 	#define MACP_FUNC_CFG_FLAGS_MASK                0x0000007F
@@ -1601,8 +1601,8 @@ struct func_ext_cfg {
 	u32 fcoe_wwn_port_name_upper;
 	u32 fcoe_wwn_port_name_lower;
 
-	u32 fcoe_wwn_node_name_upper;
-	u32 fcoe_wwn_node_name_lower;
+	u32 fcoe_wwn_yesde_name_upper;
+	u32 fcoe_wwn_yesde_name_lower;
 
 	u32 preserve_data;
 	#define MF_FUNC_CFG_PRESERVE_L2_MAC             (1<<0)
@@ -1621,8 +1621,8 @@ struct mf_cfg {
 	/* for all chips, there are 8 mf functions */
 	struct func_mf_cfg  func_mf_config[E1H_FUNC_MAX]; /* 0x18 * 8 = 0xc0 */
 	/*
-	 * Extended configuration per function  - this array does not exist and
-	 * should not be accessed on 57711
+	 * Extended configuration per function  - this array does yest exist and
+	 * should yest be accessed on 57711
 	 */
 	struct func_ext_cfg func_ext_config[E1H_FUNC_MAX]; /* 0x28 * 8 = 0x140*/
 }; /* 0x224 */
@@ -2137,7 +2137,7 @@ struct shmem2_region {
 
 	u32 ext_phy_fw_version2[PORT_MAX];		/* 0x0008 */
 	/*
-	 * For backwards compatibility, if the mf_cfg_addr does not exist
+	 * For backwards compatibility, if the mf_cfg_addr does yest exist
 	 * (the size filed is smaller than 0xc) the mf_cfg resides at the
 	 * end of struct shmem_region
 	 */
@@ -2153,7 +2153,7 @@ struct shmem2_region {
 	#define SHMEM_DCBX_REMOTE_MIB_NONE              0x00000000
 	/*
 	 * The other shmemX_base_addr holds the other path's shmem address
-	 * required for example in case of common phy init, or for path1 to know
+	 * required for example in case of common phy init, or for path1 to kyesw
 	 * the address of mcp debug trace which is located in offset from shmem
 	 * of path0
 	 */
@@ -2209,7 +2209,7 @@ struct shmem2_region {
 	u32 swim_funcs;
 	u32 swim_main_cb;
 
-	/* bitmap notifying which VIF profiles stored in nvram are enabled by
+	/* bitmap yestifying which VIF profiles stored in nvram are enabled by
 	 * switch
 	 */
 	u32 afex_profiles_enabled[2];
@@ -2365,7 +2365,7 @@ struct shmem2_region {
 	enum curr_cfg_method_e curr_cfg;			/* 0x1dc */
 
 	/* Storm FW version, shold be kept in the format 0xMMmmbbdd:
-	 * MM - Major, mm - Minor, bb - Build ,dd - Drop
+	 * MM - Major, mm - Miyesr, bb - Build ,dd - Drop
 	 */
 	u32 netproc_fw_ver;					/* 0x1e0 */
 
@@ -2386,7 +2386,7 @@ struct shmem2_region {
 	u32 mtu_size[E2_FUNC_MAX];				/* 0x1f8 */
 
 	u32 os_driver_state[E2_FUNC_MAX];			/* 0x208 */
-	#define OS_DRIVER_STATE_NOT_LOADED	0 /* not installed */
+	#define OS_DRIVER_STATE_NOT_LOADED	0 /* yest installed */
 	#define OS_DRIVER_STATE_LOADING		1 /* transition state */
 	#define OS_DRIVER_STATE_DISABLED	2 /* installed but disabled */
 	#define OS_DRIVER_STATE_ACTIVE		3 /* installed and active */
@@ -2397,7 +2397,7 @@ struct shmem2_region {
 
 
 struct emac_stats {
-	u32     rx_stat_ifhcinoctets;
+	u32     rx_stat_ifhciyesctets;
 	u32     rx_stat_ifhcinbadoctets;
 	u32     rx_stat_etherstatsfragments;
 	u32     rx_stat_ifhcinucastpkts;
@@ -2934,7 +2934,7 @@ struct host_port_stats {
 	u32            brb_drop_hi;
 	u32            brb_drop_lo;
 
-	u32            not_used; /* obsolete */
+	u32            yest_used; /* obsolete */
 	u32            pfc_frames_tx_hi;
 	u32            pfc_frames_tx_lo;
 	u32            pfc_frames_rx_hi;
@@ -3248,7 +3248,7 @@ struct host_sp_status_block {
 
 
 /*
- * IGU driver acknowledgment register
+ * IGU driver ackyeswledgment register
  */
 struct igu_ack_register {
 #if defined(__BIG_ENDIAN)
@@ -3282,7 +3282,7 @@ struct igu_ack_register {
 
 
 /*
- * IGU driver acknowledgement register
+ * IGU driver ackyeswledgement register
  */
 struct igu_backward_compatible {
 	u32 sb_id_and_flags;
@@ -3303,7 +3303,7 @@ struct igu_backward_compatible {
 
 
 /*
- * IGU driver acknowledgement register
+ * IGU driver ackyeswledgement register
  */
 struct igu_regular {
 	u32 sb_id_and_flags;
@@ -3329,7 +3329,7 @@ struct igu_regular {
 };
 
 /*
- * IGU driver acknowledgement register
+ * IGU driver ackyeswledgement register
  */
 union igu_consprod_reg {
 	struct igu_regular regular;
@@ -3728,8 +3728,8 @@ struct client_init_tx_data {
 	u8 force_default_pri_flg;
 	u8 tunnel_lso_inc_ip_id;
 	u8 refuse_outband_vlan_flg;
-	u8 tunnel_non_lso_pcsum_location;
-	u8 tunnel_non_lso_outer_ip_csum_location;
+	u8 tunnel_yesn_lso_pcsum_location;
+	u8 tunnel_yesn_lso_outer_ip_csum_location;
 };
 
 /*
@@ -4438,7 +4438,7 @@ enum eth_tunnel_lso_inc_ip_id {
 /* In case tunnel exist and L4 checksum offload,
  * the pseudo checksum location, on packet or on BD.
  */
-enum eth_tunnel_non_lso_csum_location {
+enum eth_tunnel_yesn_lso_csum_location {
 	CSUM_ON_PKT,
 	CSUM_ON_BD,
 	MAX_ETH_TUNNEL_NON_LSO_CSUM_LOCATION
@@ -5103,7 +5103,7 @@ struct cstorm_queue_zone_data {
 
 
 /*
- * Vf-PF channel data in cstorm ram (non-triggered zone)
+ * Vf-PF channel data in cstorm ram (yesn-triggered zone)
  */
 struct vf_pf_channel_zone_data {
 	u32 msg_addr_lo;
@@ -5111,9 +5111,9 @@ struct vf_pf_channel_zone_data {
 };
 
 /*
- * zone for VF non-triggered data
+ * zone for VF yesn-triggered data
  */
-struct non_trigger_vf_zone {
+struct yesn_trigger_vf_zone {
 	struct vf_pf_channel_zone_data vf_pf_channel;
 };
 
@@ -5138,7 +5138,7 @@ struct trigger_vf_zone {
  * zone B per-VF data
  */
 struct cstorm_vf_zone_data {
-	struct non_trigger_vf_zone non_trigger;
+	struct yesn_trigger_vf_zone yesn_trigger;
 	struct trigger_vf_zone trigger;
 };
 
@@ -5402,7 +5402,7 @@ struct function_start_data {
 	u8 path_id;
 	u8 network_cos_mode;
 	u8 dmae_cmd_id;
-	u8 no_added_tags;
+	u8 yes_added_tags;
 	__le16 reserved0;
 	__le32 reserved1;
 	u8 inner_clss_vxlan;
@@ -5466,11 +5466,11 @@ struct fw_version {
 #if defined(__BIG_ENDIAN)
 	u8 engineering;
 	u8 revision;
-	u8 minor;
+	u8 miyesr;
 	u8 major;
 #elif defined(__LITTLE_ENDIAN)
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	u8 revision;
 	u8 engineering;
 #endif
@@ -5736,7 +5736,7 @@ struct tstorm_per_queue_stats {
 	struct regpair rcv_mcast_bytes;
 	__le32 rcv_mcast_pkts;
 	__le32 ttl0_discard;
-	__le16 no_buff_discard;
+	__le16 yes_buff_discard;
 	__le16 reserved0;
 	__le32 reserved1;
 };
@@ -5745,12 +5745,12 @@ struct tstorm_per_queue_stats {
  * Protocol-common statistics collected by the Ustorm (per client)
  */
 struct ustorm_per_queue_stats {
-	struct regpair ucast_no_buff_bytes;
-	struct regpair mcast_no_buff_bytes;
-	struct regpair bcast_no_buff_bytes;
-	__le32 ucast_no_buff_pkts;
-	__le32 mcast_no_buff_pkts;
-	__le32 bcast_no_buff_pkts;
+	struct regpair ucast_yes_buff_bytes;
+	struct regpair mcast_yes_buff_bytes;
+	struct regpair bcast_yes_buff_bytes;
+	__le32 ucast_yes_buff_pkts;
+	__le32 mcast_yes_buff_pkts;
+	__le32 bcast_yes_buff_pkts;
 	__le32 coalesced_pkts;
 	struct regpair coalesced_bytes;
 	__le32 coalesced_events;
@@ -5785,7 +5785,7 @@ struct per_queue_stats {
  */
 struct pram_fw_version {
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	u8 revision;
 	u8 engineering;
 	u8 flags;

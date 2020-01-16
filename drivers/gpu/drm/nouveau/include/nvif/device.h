@@ -26,7 +26,7 @@ u64  nvif_device_time(struct nvif_device *);
 /* Delay based on GPU time (ie. PTIMER).
  *
  * Will return -ETIMEDOUT unless the loop was terminated with 'break',
- * where it will return the number of nanoseconds taken instead.
+ * where it will return the number of nayesseconds taken instead.
  */
 #define nvif_nsec(d,n,cond...) ({                                              \
 	struct nvif_device *_device = (d);                                     \

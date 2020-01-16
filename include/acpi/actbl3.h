@@ -14,7 +14,7 @@
  *
  * Additional ACPI Tables
  *
- * These tables are not consumed directly by the ACPICA subsystem, but are
+ * These tables are yest consumed directly by the ACPICA subsystem, but are
  * included here to support device drivers and the AML disassembler.
  *
  ******************************************************************************/
@@ -50,10 +50,10 @@
 #pragma pack(1)
 
 /*
- * Note: C bitfields are not used for this reason:
+ * Note: C bitfields are yest used for this reason:
  *
  * "Bitfields are great and easy to read, but unfortunately the C language
- * does not specify the layout of bitfields in memory, which means they are
+ * does yest specify the layout of bitfields in memory, which means they are
  * essentially useless for dealing with packed data in on-disk formats or
  * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
  * this decision was a design error in C. Ritchie could have picked an order
@@ -231,7 +231,7 @@ struct acpi_srat_mem_affinity {
 
 #define ACPI_SRAT_MEM_ENABLED       (1)	/* 00: Use affinity structure */
 #define ACPI_SRAT_MEM_HOT_PLUGGABLE (1<<1)	/* 01: Memory region is hot pluggable */
-#define ACPI_SRAT_MEM_NON_VOLATILE  (1<<2)	/* 02: Memory region is non-volatile */
+#define ACPI_SRAT_MEM_NON_VOLATILE  (1<<2)	/* 02: Memory region is yesn-volatile */
 
 /* 2: Processor Local X2_APIC Affinity (ACPI 4.0) */
 
@@ -300,7 +300,7 @@ struct acpi_srat_generic_affinity {
 
 struct acpi_table_stao {
 	struct acpi_table_header header;	/* Common ACPI table header */
-	u8 ignore_uart;
+	u8 igyesre_uart;
 };
 
 /*******************************************************************************
@@ -515,7 +515,7 @@ struct acpi_table_waet {
 
 /* Masks for Flags field above */
 
-#define ACPI_WAET_RTC_NO_ACK        (1)	/* RTC requires no int acknowledge */
+#define ACPI_WAET_RTC_NO_ACK        (1)	/* RTC requires yes int ackyeswledge */
 #define ACPI_WAET_TIMER_ONE_READ    (1<<1)	/* PM timer requires only one read */
 
 /*******************************************************************************

@@ -95,12 +95,12 @@ static int trizeps_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 	int ret = 0;
 	unsigned short power = 0;
 
-	/* we do nothing here just check a bit */
+	/* we do yesthing here just check a bit */
 	switch (state->Vcc) {
 	case 0:  power &= 0xfc; break;
 	case 33: power |= ConXS_BCR_S0_VCC_3V3; break;
 	case 50:
-		pr_err("%s(): Vcc 5V not supported in socket\n", __func__);
+		pr_err("%s(): Vcc 5V yest supported in socket\n", __func__);
 		break;
 	default:
 		pr_err("%s(): bad Vcc %u\n", __func__, state->Vcc);
@@ -111,7 +111,7 @@ static int trizeps_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 	case 0:  power &= 0xf3; break;
 	case 33: power |= ConXS_BCR_S0_VPP_3V3; break;
 	case 120:
-		pr_err("%s(): Vpp 12V not supported in socket\n", __func__);
+		pr_err("%s(): Vpp 12V yest supported in socket\n", __func__);
 		break;
 	default:
 		if (state->Vpp != state->Vcc) {

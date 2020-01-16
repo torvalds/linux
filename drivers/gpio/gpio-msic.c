@@ -145,7 +145,7 @@ static void msic_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 /*
  * This is called from genirq with mg->buslock locked and
- * irq_desc->lock held. We can not access the scu bus here, so we
+ * irq_desc->lock held. We can yest access the scu bus here, so we
  * store the change and update in the bus_sync_unlock() function below
  */
 static int msic_irq_type(struct irq_data *data, unsigned type)
@@ -204,7 +204,7 @@ out:
 	mutex_unlock(&mg->buslock);
 }
 
-/* Firmware does all the masking and unmasking for us, no masking here. */
+/* Firmware does all the masking and unmasking for us, yes masking here. */
 static void msic_irq_unmask(struct irq_data *data) { }
 
 static void msic_irq_mask(struct irq_data *data) { }
@@ -249,7 +249,7 @@ static int platform_msic_gpio_probe(struct platform_device *pdev)
 	int i;
 
 	if (irq < 0) {
-		dev_err(dev, "no IRQ line: %d\n", irq);
+		dev_err(dev, "yes IRQ line: %d\n", irq);
 		return irq;
 	}
 

@@ -3,7 +3,7 @@
 
 #include "i40e.h"
 
-/*********************notification routines***********************/
+/*********************yestification routines***********************/
 
 /**
  * i40e_vc_vf_broadcast
@@ -26,12 +26,12 @@ static void i40e_vc_vf_broadcast(struct i40e_pf *pf,
 
 	for (i = 0; i < pf->num_alloc_vfs; i++, vf++) {
 		int abs_vf_id = vf->vf_id + (int)hw->func_caps.vf_base_id;
-		/* Not all vfs are enabled so skip the ones that are not */
+		/* Not all vfs are enabled so skip the ones that are yest */
 		if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states) &&
 		    !test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states))
 			continue;
 
-		/* Ignore return value on purpose - a given VF may fail, but
+		/* Igyesre return value on purpose - a given VF may fail, but
 		 * we need to keep going and send to all of them
 		 */
 		i40e_aq_send_msg_to_vf(hw, abs_vf_id, v_opcode, v_retval,
@@ -40,12 +40,12 @@ static void i40e_vc_vf_broadcast(struct i40e_pf *pf,
 }
 
 /**
- * i40e_vc_notify_vf_link_state
+ * i40e_vc_yestify_vf_link_state
  * @vf: pointer to the VF structure
  *
  * send a link status message to a single VF
  **/
-static void i40e_vc_notify_vf_link_state(struct i40e_vf *vf)
+static void i40e_vc_yestify_vf_link_state(struct i40e_vf *vf)
 {
 	struct virtchnl_pf_event pfe;
 	struct i40e_pf *pf = vf->pf;
@@ -76,26 +76,26 @@ static void i40e_vc_notify_vf_link_state(struct i40e_vf *vf)
 }
 
 /**
- * i40e_vc_notify_link_state
+ * i40e_vc_yestify_link_state
  * @pf: pointer to the PF structure
  *
  * send a link status message to all VFs on a given PF
  **/
-void i40e_vc_notify_link_state(struct i40e_pf *pf)
+void i40e_vc_yestify_link_state(struct i40e_pf *pf)
 {
 	int i;
 
 	for (i = 0; i < pf->num_alloc_vfs; i++)
-		i40e_vc_notify_vf_link_state(&pf->vf[i]);
+		i40e_vc_yestify_vf_link_state(&pf->vf[i]);
 }
 
 /**
- * i40e_vc_notify_reset
+ * i40e_vc_yestify_reset
  * @pf: pointer to the PF structure
  *
  * indicate a pending reset to all VFs on a given PF
  **/
-void i40e_vc_notify_reset(struct i40e_pf *pf)
+void i40e_vc_yestify_reset(struct i40e_pf *pf)
 {
 	struct virtchnl_pf_event pfe;
 
@@ -106,12 +106,12 @@ void i40e_vc_notify_reset(struct i40e_pf *pf)
 }
 
 /**
- * i40e_vc_notify_vf_reset
+ * i40e_vc_yestify_vf_reset
  * @vf: pointer to the VF structure
  *
  * indicate a pending reset to the given VF
  **/
-void i40e_vc_notify_vf_reset(struct i40e_vf *vf)
+void i40e_vc_yestify_vf_reset(struct i40e_vf *vf)
 {
 	struct virtchnl_pf_event pfe;
 	int abs_vf_id;
@@ -145,10 +145,10 @@ static inline void i40e_vc_disable_vf(struct i40e_vf *vf)
 {
 	int i;
 
-	i40e_vc_notify_vf_reset(vf);
+	i40e_vc_yestify_vf_reset(vf);
 
 	/* We want to ensure that an actual reset occurs initiated after this
-	 * function was called. However, we do not want to wait forever, so
+	 * function was called. However, we do yest want to wait forever, so
 	 * we'll give a reasonable time and print a message if we failed to
 	 * ensure a reset.
 	 */
@@ -746,14 +746,14 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, u8 idx)
 						vf->default_lan_addr.addr);
 			if (!f)
 				dev_info(&pf->pdev->dev,
-					 "Could not add MAC filter %pM for VF %d\n",
+					 "Could yest add MAC filter %pM for VF %d\n",
 					vf->default_lan_addr.addr, vf->vf_id);
 		}
 		eth_broadcast_addr(broadcast);
 		f = i40e_add_mac_filter(vsi, broadcast);
 		if (!f)
 			dev_info(&pf->pdev->dev,
-				 "Could not allocate VF broadcast filter\n");
+				 "Could yest allocate VF broadcast filter\n");
 		spin_unlock_bh(&vsi->mac_filter_hash_lock);
 		wr32(&pf->hw, I40E_VFQF_HENA1(0, vf->vf_id), (u32)hena);
 		wr32(&pf->hw, I40E_VFQF_HENA1(1, vf->vf_id), (u32)(hena >> 32));
@@ -887,7 +887,7 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 	struct i40e_hw *hw = &pf->hw;
 	u32 reg;
 
-	/* Tell the hardware we're using noncontiguous mapping. HW requires
+	/* Tell the hardware we're using yesncontiguous mapping. HW requires
 	 * that VF queues be mapped using this method, even when they are
 	 * contiguous in real life
 	 */
@@ -972,7 +972,7 @@ static void i40e_free_vf_res(struct i40e_vf *vf)
 	}
 	msix_vf = pf->hw.func_caps.num_msix_vectors_vf;
 
-	/* disable interrupts so the VF starts in a known state */
+	/* disable interrupts so the VF starts in a kyeswn state */
 	for (i = 0; i < msix_vf; i++) {
 		/* format is same for both registers */
 		if (0 == i)
@@ -1042,14 +1042,14 @@ static int i40e_alloc_vf_res(struct i40e_vf *vf)
 			/* send correct number of queues */
 			total_queue_pairs = I40E_MAX_VF_QUEUES;
 		} else {
-			dev_info(&pf->pdev->dev, "VF %d: Not enough queues to allocate, disabling ADq\n",
+			dev_info(&pf->pdev->dev, "VF %d: Not eyesugh queues to allocate, disabling ADq\n",
 				 vf->vf_id);
 			vf->adq_enabled = false;
 		}
 	}
 
 	/* We account for each VF to get a default number of queue pairs.  If
-	 * the VF has now requested more, we need to account for that to make
+	 * the VF has yesw requested more, we need to account for that to make
 	 * certain we never request more queues than we actually have left in
 	 * HW.
 	 */
@@ -1067,7 +1067,7 @@ static int i40e_alloc_vf_res(struct i40e_vf *vf)
 	 */
 	vf->num_queue_pairs = total_queue_pairs;
 
-	/* VF is now completely initialized */
+	/* VF is yesw completely initialized */
 	set_bit(I40E_VF_STATE_INIT, &vf->vf_states);
 
 error_alloc:
@@ -1177,7 +1177,7 @@ static i40e_status i40e_config_vf_promiscuous_mode(struct i40e_vf *vf,
 				int aq_err = pf->hw.aq.asq_last_status;
 
 				dev_err(&pf->pdev->dev,
-					"Could not add VLAN %d to multicast promiscuous domain err %s aq_err %s\n",
+					"Could yest add VLAN %d to multicast promiscuous domain err %s aq_err %s\n",
 					f->vlan,
 					i40e_stat_str(&pf->hw, aq_ret),
 					i40e_aq_str(&pf->hw, aq_err));
@@ -1192,7 +1192,7 @@ static i40e_status i40e_config_vf_promiscuous_mode(struct i40e_vf *vf,
 				int aq_err = pf->hw.aq.asq_last_status;
 
 				dev_err(&pf->pdev->dev,
-					"Could not add VLAN %d to Unicast promiscuous domain err %s aq_err %s\n",
+					"Could yest add VLAN %d to Unicast promiscuous domain err %s aq_err %s\n",
 					f->vlan,
 					i40e_stat_str(&pf->hw, aq_ret),
 					i40e_aq_str(&pf->hw, aq_err));
@@ -1231,7 +1231,7 @@ static i40e_status i40e_config_vf_promiscuous_mode(struct i40e_vf *vf,
 /**
  * i40e_trigger_vf_reset
  * @vf: pointer to the VF structure
- * @flr: VFLR was issued or not
+ * @flr: VFLR was issued or yest
  *
  * Trigger hardware to start a reset for a particular VF. Expects the caller
  * to wait the proper amount of time to allow hardware to reset the VF before
@@ -1248,7 +1248,7 @@ static void i40e_trigger_vf_reset(struct i40e_vf *vf, bool flr)
 
 	/* Disable VF's configuration API during reset. The flag is re-enabled
 	 * in i40e_alloc_vf_res(), when it's safe again to access VF's VSI.
-	 * It's normally disabled in i40e_free_vf_res(), but it's safer
+	 * It's yesrmally disabled in i40e_free_vf_res(), but it's safer
 	 * to do it earlier to give some time to finish to any VF config
 	 * functions that may still be running at this point.
 	 */
@@ -1315,10 +1315,10 @@ static void i40e_cleanup_reset_vf(struct i40e_vf *vf)
 		i40e_enable_vf_mappings(vf);
 		set_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states);
 		clear_bit(I40E_VF_STATE_DISABLED, &vf->vf_states);
-		/* Do not notify the client during VF init */
+		/* Do yest yestify the client during VF init */
 		if (!test_and_clear_bit(I40E_VF_STATE_PRE_ENABLE,
 					&vf->vf_states))
-			i40e_notify_client_of_vf_reset(pf, abs_vf_id);
+			i40e_yestify_client_of_vf_reset(pf, abs_vf_id);
 		vf->num_vlan = 0;
 	}
 
@@ -1332,7 +1332,7 @@ static void i40e_cleanup_reset_vf(struct i40e_vf *vf)
 /**
  * i40e_reset_vf
  * @vf: pointer to the VF structure
- * @flr: VFLR was issued or not
+ * @flr: VFLR was issued or yest
  *
  * Returns true if the VF is reset, false otherwise.
  **/
@@ -1392,7 +1392,7 @@ bool i40e_reset_vf(struct i40e_vf *vf, bool flr)
 /**
  * i40e_reset_all_vfs
  * @pf: pointer to the PF structure
- * @flr: VFLR was issued or not
+ * @flr: VFLR was issued or yest
  *
  * Reset all allocated VFs in one go. First, tell the hardware to reset each
  * VF, then do all the waiting in one chunk, and finally finish restoring each
@@ -1408,11 +1408,11 @@ bool i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
 	int i, v;
 	u32 reg;
 
-	/* If we don't have any VFs, then there is nothing to reset */
+	/* If we don't have any VFs, then there is yesthing to reset */
 	if (!pf->num_alloc_vfs)
 		return false;
 
-	/* If VFs have been disabled, there is no need to reset */
+	/* If VFs have been disabled, there is yes need to reset */
 	if (test_and_set_bit(__I40E_VF_DISABLE, pf->state))
 		return false;
 
@@ -1456,7 +1456,7 @@ bool i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
 			pf->vf[v].vf_id);
 	usleep_range(10000, 20000);
 
-	/* Begin disabling all the rings associated with VFs, but do not wait
+	/* Begin disabling all the rings associated with VFs, but do yest wait
 	 * between each VF.
 	 */
 	for (v = 0; v < pf->num_alloc_vfs; v++) {
@@ -1464,10 +1464,10 @@ bool i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
 		if (pf->vf[v].lan_vsi_idx == 0)
 			continue;
 
-		i40e_vsi_stop_rings_no_wait(pf->vsi[pf->vf[v].lan_vsi_idx]);
+		i40e_vsi_stop_rings_yes_wait(pf->vsi[pf->vf[v].lan_vsi_idx]);
 	}
 
-	/* Now that we've notified HW to disable all of the VF rings, wait
+	/* Now that we've yestified HW to disable all of the VF rings, wait
 	 * until they finish.
 	 */
 	for (v = 0; v < pf->num_alloc_vfs; v++) {
@@ -1510,14 +1510,14 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	while (test_and_set_bit(__I40E_VF_DISABLE, pf->state))
 		usleep_range(1000, 2000);
 
-	i40e_notify_client_of_vf_enable(pf, 0);
+	i40e_yestify_client_of_vf_enable(pf, 0);
 
 	/* Amortize wait time by stopping all VFs at the same time */
 	for (i = 0; i < pf->num_alloc_vfs; i++) {
 		if (test_bit(I40E_VF_STATE_INIT, &pf->vf[i].vf_states))
 			continue;
 
-		i40e_vsi_stop_rings_no_wait(pf->vsi[pf->vf[i].lan_vsi_idx]);
+		i40e_vsi_stop_rings_yes_wait(pf->vsi[pf->vf[i].lan_vsi_idx]);
 	}
 
 	for (i = 0; i < pf->num_alloc_vfs; i++) {
@@ -1534,7 +1534,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	if (!pci_vfs_assigned(pf->pdev))
 		pci_disable_sriov(pf->pdev);
 	else
-		dev_warn(&pf->pdev->dev, "VFs are assigned - not disabling SR-IOV\n");
+		dev_warn(&pf->pdev->dev, "VFs are assigned - yest disabling SR-IOV\n");
 
 	/* free up VF resources */
 	tmp = pf->num_alloc_vfs;
@@ -1554,7 +1554,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	 * before this function ever gets called.
 	 */
 	if (!pci_vfs_assigned(pf->pdev)) {
-		/* Acknowledge VFLR for all VFS. Without this, VFs will fail to
+		/* Ackyeswledge VFLR for all VFS. Without this, VFs will fail to
 		 * work correctly when SR-IOV gets re-enabled.
 		 */
 		for (vf_id = 0; vf_id < tmp; vf_id++) {
@@ -1617,7 +1617,7 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 	/* VF resources get allocated during reset */
 	i40e_reset_all_vfs(pf, false);
 
-	i40e_notify_client_of_vf_enable(pf, num_alloc_vfs);
+	i40e_yestify_client_of_vf_enable(pf, num_alloc_vfs);
 
 err_alloc:
 	if (ret)
@@ -1645,7 +1645,7 @@ static int i40e_pci_sriov_enable(struct pci_dev *pdev, int num_vfs)
 
 	if (test_bit(__I40E_TESTING, pf->state)) {
 		dev_warn(&pdev->dev,
-			 "Cannot enable SR-IOV virtual functions while the device is undergoing diagnostic testing\n");
+			 "Canyest enable SR-IOV virtual functions while the device is undergoing diagyesstic testing\n");
 		err = -EPERM;
 		goto err_out;
 	}
@@ -1809,7 +1809,7 @@ static int i40e_vc_get_version_msg(struct i40e_vf *vf, u8 *msg)
 	vf->vf_ver = *(struct virtchnl_version_info *)msg;
 	/* VFs running the 1.0 API expect to get 1.0 back or they will cry. */
 	if (VF_IS_V10(&vf->vf_ver))
-		info.minor = VIRTCHNL_VERSION_MINOR_NO_VF_CAPS;
+		info.miyesr = VIRTCHNL_VERSION_MINOR_NO_VF_CAPS;
 	return i40e_vc_send_msg_to_vf(vf, VIRTCHNL_OP_VERSION,
 				      I40E_SUCCESS, (u8 *)&info,
 				      sizeof(struct virtchnl_version_info));
@@ -2018,7 +2018,7 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf, u8 *msg)
 			vf->vf_id);
 
 		/* Lie to the VF on purpose, because this is an error we can
-		 * ignore. Unprivileged VF is not a virtual channel error.
+		 * igyesre. Unprivileged VF is yest a virtual channel error.
 		 */
 		aq_ret = 0;
 		goto err_out;
@@ -2158,7 +2158,7 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 		}
 
 		/* For ADq there can be up to 4 VSIs with max 4 queues each.
-		 * VF does not know about these additional VSIs and all
+		 * VF does yest kyesw about these additional VSIs and all
 		 * it cares is about its own queues. PF configures these queues
 		 * to its appropriate VSIs based on TC mapping
 		 */
@@ -2469,7 +2469,7 @@ static int i40e_vc_request_queues_msg(struct i40e_vf *vf, u8 *msg)
 	} else {
 		/* successful request */
 		vf->num_req_queues = req_pairs;
-		i40e_vc_notify_vf_reset(vf);
+		i40e_vc_yestify_vf_reset(vf);
 		i40e_reset_vf(vf, false);
 		return 0;
 	}
@@ -2520,7 +2520,7 @@ error_param:
 				      (u8 *)&stats, sizeof(stats));
 }
 
-/* If the VF is not trusted restrict the number of MAC/VLAN it can program
+/* If the VF is yest trusted restrict the number of MAC/VLAN it can program
  * MAC filters: 16 for multicast, 1 for MAC, 1 for broadcast
  */
 #define I40E_VC_MAX_MAC_ADDR_PER_VF (16 + 1 + 1)
@@ -2532,16 +2532,16 @@ error_param:
  * @al: MAC address list from virtchnl
  *
  * Check that the given list of MAC addresses is allowed. Will return -EPERM
- * if any address in the list is not valid. Checks the following conditions:
+ * if any address in the list is yest valid. Checks the following conditions:
  *
  * 1) broadcast and zero addresses are never valid
- * 2) unicast addresses are not allowed if the VMM has administratively set
+ * 2) unicast addresses are yest allowed if the VMM has administratively set
  *    the VF MAC address, unless the VF is marked as privileged.
- * 3) There is enough space to add all the addresses.
+ * 3) There is eyesugh space to add all the addresses.
  *
  * Note that to guarantee consistency, it is expected this function be called
  * while holding the mac_filter_hash_lock, as otherwise the current number of
- * addresses might not be accurate.
+ * addresses might yest be accurate.
  **/
 static inline int i40e_check_vf_permission(struct i40e_vf *vf,
 					   struct virtchnl_ether_addr_list *al)
@@ -2567,13 +2567,13 @@ static inline int i40e_check_vf_permission(struct i40e_vf *vf,
 		 * permission to the VF to add or delete unicast MAC addresses.
 		 * Unless the VF is privileged and then it can do whatever.
 		 * The VF may request to set the MAC address filter already
-		 * assigned to it so do not return an error in that case.
+		 * assigned to it so do yest return an error in that case.
 		 */
 		if (!test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps) &&
 		    !is_multicast_ether_addr(addr) && vf->pf_set_mac &&
 		    !ether_addr_equal(addr, vf->default_lan_addr.addr)) {
 			dev_err(&pf->pdev->dev,
-				"VF attempting to override administratively set MAC address, bring down and up the VF interface to resume normal operation\n");
+				"VF attempting to override administratively set MAC address, bring down and up the VF interface to resume yesrmal operation\n");
 			return -EPERM;
 		}
 
@@ -2583,15 +2583,15 @@ static inline int i40e_check_vf_permission(struct i40e_vf *vf,
 			++mac2add_cnt;
 	}
 
-	/* If this VF is not privileged, then we can't add more than a limited
-	 * number of addresses. Check to make sure that the additions do not
+	/* If this VF is yest privileged, then we can't add more than a limited
+	 * number of addresses. Check to make sure that the additions do yest
 	 * push us over the limit.
 	 */
 	if (!test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps) &&
 	    (i40e_count_filters(vsi) + mac2add_cnt) >
 		    I40E_VC_MAX_MAC_ADDR_PER_VF) {
 		dev_err(&pf->pdev->dev,
-			"Cannot add more MAC addresses, VF is not trusted, switch the VF to trusted to add more functionality\n");
+			"Canyest add more MAC addresses, VF is yest trusted, switch the VF to trusted to add more functionality\n");
 		return -EPERM;
 	}
 	return 0;
@@ -2739,7 +2739,7 @@ static int i40e_vc_add_vlan_msg(struct i40e_vf *vf, u8 *msg)
 	if ((vf->num_vlan >= I40E_VC_MAX_VLAN_PER_VF) &&
 	    !test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps)) {
 		dev_err(&pf->pdev->dev,
-			"VF is not trusted, switch the VF to trusted to add more VLAN addresses\n");
+			"VF is yest trusted, switch the VF to trusted to add more VLAN addresses\n");
 		goto error_param;
 	}
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
@@ -2868,7 +2868,7 @@ static int i40e_vc_iwarp_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		goto error_param;
 	}
 
-	i40e_notify_client_of_vf_msg(pf->vsi[pf->lan_vsi], abs_vf_id,
+	i40e_yestify_client_of_vf_msg(pf->vsi[pf->lan_vsi], abs_vf_id,
 				     msg, msglen);
 
 error_param:
@@ -3109,7 +3109,7 @@ static int i40e_validate_cloud_filter(struct i40e_vf *vf,
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_vsi *vsi = NULL;
 	struct i40e_mac_filter *f;
-	struct hlist_node *h;
+	struct hlist_yesde *h;
 	bool found = false;
 	int bkt;
 
@@ -3167,7 +3167,7 @@ static int i40e_validate_cloud_filter(struct i40e_vf *vf,
 		/* Check if VF is trusted */
 		if (!test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps)) {
 			dev_err(&pf->pdev->dev,
-				"VF %d not trusted, make VF trusted to add advanced mode ADq cloud filters\n",
+				"VF %d yest trusted, make VF trusted to add advanced mode ADq cloud filters\n",
 				vf->vf_id);
 			return I40E_ERR_CONFIG;
 		}
@@ -3257,15 +3257,15 @@ static void i40e_del_all_cloud_filters(struct i40e_vf *vf)
 	struct i40e_cloud_filter *cfilter = NULL;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_vsi *vsi = NULL;
-	struct hlist_node *node;
+	struct hlist_yesde *yesde;
 	int ret;
 
-	hlist_for_each_entry_safe(cfilter, node,
-				  &vf->cloud_filter_list, cloud_node) {
+	hlist_for_each_entry_safe(cfilter, yesde,
+				  &vf->cloud_filter_list, cloud_yesde) {
 		vsi = i40e_find_vsi_from_seid(vf, cfilter->seid);
 
 		if (!vsi) {
-			dev_err(&pf->pdev->dev, "VF %d: no VSI found for matching %u seid, can't delete cloud filter\n",
+			dev_err(&pf->pdev->dev, "VF %d: yes VSI found for matching %u seid, can't delete cloud filter\n",
 				vf->vf_id, cfilter->seid);
 			continue;
 		}
@@ -3282,7 +3282,7 @@ static void i40e_del_all_cloud_filters(struct i40e_vf *vf)
 				i40e_aq_str(&pf->hw,
 					    pf->hw.aq.asq_last_status));
 
-		hlist_del(&cfilter->cloud_node);
+		hlist_del(&cfilter->cloud_yesde);
 		kfree(cfilter);
 		vf->num_cloud_filters--;
 	}
@@ -3303,7 +3303,7 @@ static int i40e_vc_del_cloud_filter(struct i40e_vf *vf, u8 *msg)
 	struct i40e_cloud_filter cfilter, *cf = NULL;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_vsi *vsi = NULL;
-	struct hlist_node *node;
+	struct hlist_yesde *yesde;
 	i40e_status aq_ret = 0;
 	int i, ret;
 
@@ -3314,7 +3314,7 @@ static int i40e_vc_del_cloud_filter(struct i40e_vf *vf, u8 *msg)
 
 	if (!vf->adq_enabled) {
 		dev_info(&pf->pdev->dev,
-			 "VF %d: ADq not enabled, can't apply cloud filter\n",
+			 "VF %d: ADq yest enabled, can't apply cloud filter\n",
 			 vf->vf_id);
 		aq_ret = I40E_ERR_PARAM;
 		goto err;
@@ -3362,9 +3362,9 @@ static int i40e_vc_del_cloud_filter(struct i40e_vf *vf, u8 *msg)
 		break;
 	default:
 		/* TC filter can be configured based on different combinations
-		 * and in this case IP is not a part of filter config
+		 * and in this case IP is yest a part of filter config
 		 */
-		dev_info(&pf->pdev->dev, "VF %d: Flow type not configured\n",
+		dev_info(&pf->pdev->dev, "VF %d: Flow type yest configured\n",
 			 vf->vf_id);
 	}
 
@@ -3386,8 +3386,8 @@ static int i40e_vc_del_cloud_filter(struct i40e_vf *vf, u8 *msg)
 		goto err;
 	}
 
-	hlist_for_each_entry_safe(cf, node,
-				  &vf->cloud_filter_list, cloud_node) {
+	hlist_for_each_entry_safe(cf, yesde,
+				  &vf->cloud_filter_list, cloud_yesde) {
 		if (cf->seid != cfilter.seid)
 			continue;
 		if (mask.dst_port)
@@ -3410,7 +3410,7 @@ static int i40e_vc_del_cloud_filter(struct i40e_vf *vf, u8 *msg)
 			if (cfilter.vlan_id != cf->vlan_id)
 				continue;
 
-		hlist_del(&cf->cloud_node);
+		hlist_del(&cf->cloud_yesde);
 		kfree(cf);
 		vf->num_cloud_filters--;
 	}
@@ -3445,7 +3445,7 @@ static int i40e_vc_add_cloud_filter(struct i40e_vf *vf, u8 *msg)
 
 	if (!vf->adq_enabled) {
 		dev_info(&pf->pdev->dev,
-			 "VF %d: ADq is not enabled, can't apply cloud filter\n",
+			 "VF %d: ADq is yest enabled, can't apply cloud filter\n",
 			 vf->vf_id);
 		aq_ret = I40E_ERR_PARAM;
 		goto err_out;
@@ -3496,9 +3496,9 @@ static int i40e_vc_add_cloud_filter(struct i40e_vf *vf, u8 *msg)
 		break;
 	default:
 		/* TC filter can be configured based on different combinations
-		 * and in this case IP is not a part of filter config
+		 * and in this case IP is yest a part of filter config
 		 */
-		dev_info(&pf->pdev->dev, "VF %d: Flow type not configured\n",
+		dev_info(&pf->pdev->dev, "VF %d: Flow type yest configured\n",
 			 vf->vf_id);
 	}
 
@@ -3520,8 +3520,8 @@ static int i40e_vc_add_cloud_filter(struct i40e_vf *vf, u8 *msg)
 		goto err_free;
 	}
 
-	INIT_HLIST_NODE(&cfilter->cloud_node);
-	hlist_add_head(&cfilter->cloud_node, &vf->cloud_filter_list);
+	INIT_HLIST_NODE(&cfilter->cloud_yesde);
+	hlist_add_head(&cfilter->cloud_yesde, &vf->cloud_filter_list);
 	/* release the pointer passing it to the collection */
 	cfilter = NULL;
 	vf->num_cloud_filters++;
@@ -3552,7 +3552,7 @@ static int i40e_vc_add_qch_msg(struct i40e_vf *vf, u8 *msg)
 		goto err;
 	}
 
-	/* ADq cannot be applied if spoof check is ON */
+	/* ADq canyest be applied if spoof check is ON */
 	if (vf->spoofchk) {
 		dev_err(&pf->pdev->dev,
 			"Spoof check is ON, turn it OFF to enable ADq\n");
@@ -3628,7 +3628,7 @@ static int i40e_vc_add_qch_msg(struct i40e_vf *vf, u8 *msg)
 		break;
 	default:
 		dev_err(&pf->pdev->dev,
-			"Cannot detect link speed\n");
+			"Canyest detect link speed\n");
 		aq_ret = I40E_ERR_PARAM;
 		goto err;
 	}
@@ -3661,7 +3661,7 @@ static int i40e_vc_add_qch_msg(struct i40e_vf *vf, u8 *msg)
 	vf->num_req_queues = 0;
 
 	/* reset the VF in order to allocate resources */
-	i40e_vc_notify_vf_reset(vf);
+	i40e_vc_yestify_vf_reset(vf);
 	i40e_reset_vf(vf, false);
 
 	return I40E_SUCCESS;
@@ -3702,7 +3702,7 @@ static int i40e_vc_del_qch_msg(struct i40e_vf *vf, u8 *msg)
 	}
 
 	/* reset the VF in order to allocate resources */
-	i40e_vc_notify_vf_reset(vf);
+	i40e_vc_yestify_vf_reset(vf);
 	i40e_reset_vf(vf, false);
 
 	return I40E_SUCCESS;
@@ -3762,7 +3762,7 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 		break;
 	case VIRTCHNL_OP_GET_VF_RESOURCES:
 		ret = i40e_vc_get_vf_resources_msg(vf, msg);
-		i40e_vc_notify_vf_link_state(vf);
+		i40e_vc_yestify_vf_link_state(vf);
 		break;
 	case VIRTCHNL_OP_RESET_VF:
 		i40e_vc_reset_vf_msg(vf);
@@ -3779,7 +3779,7 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 		break;
 	case VIRTCHNL_OP_ENABLE_QUEUES:
 		ret = i40e_vc_enable_queues_msg(vf, msg);
-		i40e_vc_notify_vf_link_state(vf);
+		i40e_vc_yestify_vf_link_state(vf);
 		break;
 	case VIRTCHNL_OP_DISABLE_QUEUES:
 		ret = i40e_vc_disable_queues_msg(vf, msg);
@@ -3871,7 +3871,7 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 		return 0;
 
 	/* Re-enable the VFLR interrupt cause here, before looking for which
-	 * VF got reset. Otherwise, if another VF gets a reset while the
+	 * VF got reset. Otherwise, if ayesther VF gets a reset while the
 	 * first one is being processed, that interrupt will be lost, and
 	 * that VF will be stuck in reset forever.
 	 */
@@ -3940,7 +3940,7 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	struct i40e_mac_filter *f;
 	struct i40e_vf *vf;
 	int ret = 0;
-	struct hlist_node *h;
+	struct hlist_yesde *h;
 	int bkt;
 	u8 i;
 
@@ -4035,20 +4035,20 @@ error_param:
  * @vsi: pointer to the vsi
  *
  * Check if a VSI has configured any VLANs. False if we have a port VLAN or if
- * we have no configured VLANs. Do not call while holding the
+ * we have yes configured VLANs. Do yest call while holding the
  * mac_filter_hash_lock.
  */
 static bool i40e_vsi_has_vlans(struct i40e_vsi *vsi)
 {
 	bool have_vlans;
 
-	/* If we have a port VLAN, then the VSI cannot have any VLANs
+	/* If we have a port VLAN, then the VSI canyest have any VLANs
 	 * configured, as all MAC/VLAN filters will be assigned to the PVID.
 	 */
 	if (vsi->info.pvid)
 		return false;
 
-	/* Since we don't have a PVID, we know that if the device is in VLAN
+	/* Since we don't have a PVID, we kyesw that if the device is in VLAN
 	 * mode it must be because of a VLAN filter configured on this VSI.
 	 */
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
@@ -4096,7 +4096,7 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 	}
 
 	if (vlan_proto != htons(ETH_P_8021Q)) {
-		dev_err(&pf->pdev->dev, "VF VLAN protocol is not supported\n");
+		dev_err(&pf->pdev->dev, "VF VLAN protocol is yest supported\n");
 		ret = -EPROTONOSUPPORT;
 		goto error_pvid;
 	}
@@ -4118,7 +4118,7 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 		dev_err(&pf->pdev->dev,
 			"VF %d has already configured VLAN filters and the administrator is requesting a port VLAN override.\nPlease unload and reload the VF driver for this change to take effect.\n",
 			vf_id);
-		/* Administrator Error - knock the VF offline until he does
+		/* Administrator Error - kyesck the VF offline until he does
 		 * the right thing by reconfiguring his network correctly
 		 * and then reloading the VF driver.
 		 */
@@ -4131,9 +4131,9 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
 
 	/* Check for condition where there was already a port VLAN ID
-	 * filter set and now it is being deleted by setting it to zero.
+	 * filter set and yesw it is being deleted by setting it to zero.
 	 * Additionally check for the condition where there was a port
-	 * VLAN but now there is a new and different port VLAN being set.
+	 * VLAN but yesw there is a new and different port VLAN being set.
 	 * Before deleting all the old VLAN filters we must add new ones
 	 * with -1 (I40E_VLAN_ANY) or otherwise we're left with all our
 	 * MAC addresses deleted.
@@ -4187,7 +4187,7 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 			goto error_pvid;
 		}
 
-		/* remove the previously added non-VLAN MAC filters */
+		/* remove the previously added yesn-VLAN MAC filters */
 		i40e_rm_vlan_all_mac(vsi, I40E_VLAN_ANY);
 	}
 
@@ -4496,7 +4496,7 @@ int i40e_ndo_set_vf_trust(struct net_device *netdev, int vf_id, bool setting)
 	}
 
 	if (pf->flags & I40E_FLAG_MFP_ENABLED) {
-		dev_err(&pf->pdev->dev, "Trusted VF not supported in MFP mode.\n");
+		dev_err(&pf->pdev->dev, "Trusted VF yest supported in MFP mode.\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -4508,13 +4508,13 @@ int i40e_ndo_set_vf_trust(struct net_device *netdev, int vf_id, bool setting)
 
 	vf->trusted = setting;
 	i40e_vc_disable_vf(vf);
-	dev_info(&pf->pdev->dev, "VF %u is now %strusted\n",
+	dev_info(&pf->pdev->dev, "VF %u is yesw %strusted\n",
 		 vf_id, setting ? "" : "un");
 
 	if (vf->adq_enabled) {
 		if (!vf->trusted) {
 			dev_info(&pf->pdev->dev,
-				 "VF %u no longer Trusted, deleting all cloud filters\n",
+				 "VF %u yes longer Trusted, deleting all cloud filters\n",
 				 vf_id);
 			i40e_del_all_cloud_filters(vf);
 		}

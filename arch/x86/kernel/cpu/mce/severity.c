@@ -71,22 +71,22 @@ static struct severity {
 		PANIC, "Processor context corrupt",
 		BITSET(MCI_STATUS_PCC)
 		),
-	/* When MCIP is not set something is very confused */
+	/* When MCIP is yest set something is very confused */
 	MCESEV(
-		PANIC, "MCIP not set in MCA handler",
+		PANIC, "MCIP yest set in MCA handler",
 		EXCP, MCGMASK(MCG_STATUS_MCIP, 0)
 		),
-	/* Neither return not error IP -- no chance to recover -> PANIC */
+	/* Neither return yest error IP -- yes chance to recover -> PANIC */
 	MCESEV(
-		PANIC, "Neither restart nor error IP",
+		PANIC, "Neither restart yesr error IP",
 		EXCP, MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, 0)
 		),
 	MCESEV(
-		PANIC, "In kernel and no restart IP",
+		PANIC, "In kernel and yes restart IP",
 		EXCP, KERNEL, MCGMASK(MCG_STATUS_RIPV, 0)
 		),
 	MCESEV(
-		PANIC, "In kernel and no restart IP",
+		PANIC, "In kernel and yes restart IP",
 		EXCP, KERNEL_RECOV, MCGMASK(MCG_STATUS_RIPV, 0)
 		),
 	MCESEV(
@@ -99,7 +99,7 @@ static struct severity {
 		),
 
 	/*
-	 * known AO MCACODs reported via MCE or CMC:
+	 * kyeswn AO MCACODs reported via MCE or CMC:
 	 *
 	 * SRAO could be signaled either via a machine check exception or
 	 * CMCI with the corresponding bit S 1 or 0. So we don't need to
@@ -114,9 +114,9 @@ static struct severity {
 		SER, MASK(MCI_UC_AR|MCACOD, MCI_STATUS_UC|MCACOD_L3WB)
 		),
 
-	/* ignore OVER for UCNA */
+	/* igyesre OVER for UCNA */
 	MCESEV(
-		UCNA, "Uncorrected no action required",
+		UCNA, "Uncorrected yes action required",
 		SER, MASK(MCI_UC_SAR, MCI_STATUS_UC)
 		),
 	MCESEV(
@@ -134,7 +134,7 @@ static struct severity {
 		SER, BITSET(MCI_STATUS_OVER|MCI_UC_SAR)
 		),
 
-	/* known AR MCACODs: */
+	/* kyeswn AR MCACODs: */
 #ifdef	CONFIG_MEMORY_FAILURE
 	MCESEV(
 		KEEP, "Action required but unaffected thread is continuable",
@@ -168,12 +168,12 @@ static struct severity {
 		),
 #endif
 	MCESEV(
-		PANIC, "Action required: unknown MCACOD",
+		PANIC, "Action required: unkyeswn MCACOD",
 		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_SAR)
 		),
 
 	MCESEV(
-		SOME, "Action optional: unknown MCACOD",
+		SOME, "Action optional: unkyeswn MCACOD",
 		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_S)
 		),
 	MCESEV(
@@ -200,9 +200,9 @@ static struct severity {
 
 /*
  * If mcgstatus indicated that ip/cs on the stack were
- * no good, then "m->cs" will be zero and we will have
+ * yes good, then "m->cs" will be zero and we will have
  * to assume the worst case (IN_KERNEL) as we actually
- * have no idea what we were executing when the machine
+ * have yes idea what we were executing when the machine
  * check hit.
  * If we do have a good "m->cs" (or a faked one in the
  * case we were executing in VM86 mode) we can use it to
@@ -253,7 +253,7 @@ static int mce_severity_amd(struct mce *m, int tolerant, char **msg, bool is_exc
 {
 	enum context ctx = error_context(m);
 
-	/* Processor Context Corrupt, no need to fumble too much, die! */
+	/* Processor Context Corrupt, yes need to fumble too much, die! */
 	if (m->status & MCI_STATUS_PCC)
 		return MCE_PANIC_SEVERITY;
 
@@ -263,7 +263,7 @@ static int mce_severity_amd(struct mce *m, int tolerant, char **msg, bool is_exc
 			return MCE_PANIC_SEVERITY;
 
 		/*
-		 * On older systems where overflow_recov flag is not present, we
+		 * On older systems where overflow_recov flag is yest present, we
 		 * should simply panic if an error overflow occurs. If
 		 * overflow_recov flag is present and set, then software can try
 		 * to at least kill process to prolong system operation.
@@ -275,7 +275,7 @@ static int mce_severity_amd(struct mce *m, int tolerant, char **msg, bool is_exc
 			/* kill current process */
 			return MCE_AR_SEVERITY;
 		} else {
-			/* at least one error was not logged */
+			/* at least one error was yest logged */
 			if (m->status & MCI_STATUS_OVER)
 				return MCE_PANIC_SEVERITY;
 		}
@@ -375,7 +375,7 @@ static const struct seq_operations severities_seq_ops = {
 	.show	= s_show,
 };
 
-static int severities_coverage_open(struct inode *inode, struct file *file)
+static int severities_coverage_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &severities_seq_ops);
 }

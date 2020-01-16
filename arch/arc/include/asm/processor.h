@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * vineetg: March 2009
  *  -Implemented task_pt_regs( )
  *
- * Amit Bhor, Sameer Dhavale, Ashwin Chaugule: Codito Technologies 2004
+ * Amit Bhor, Sameer Dhavale, Ashwin Chaugule: Codito Techyeslogies 2004
  */
 
 #ifndef __ASM_ARC_PROCESSOR_H
@@ -32,7 +32,7 @@ struct eznps_dp {
 #endif
 
 /* Arch specific stuff which needs to be saved per task.
- * However these items are not so important so as to earn a place in
+ * However these items are yest so important so as to earn a place in
  * struct thread_info
  */
 struct thread_struct {
@@ -61,7 +61,7 @@ struct task_struct;
 #define release_thread(thread) do { } while (0)
 
 /*
- * A lot of busy-wait loops in SMP are based off of non-volatile data otherwise
+ * A lot of busy-wait loops in SMP are based off of yesn-volatile data otherwise
  * get optimised away by gcc
  */
 #ifndef CONFIG_EZNPS_MTM_EXT
@@ -124,7 +124,7 @@ extern unsigned int get_wchan(struct task_struct *p);
 
 #ifdef CONFIG_ARC_PLAT_EZNPS
 /* NPS architecture defines special window of 129M in user address space for
- * special memory areas, when accessing this window the MMU do not use TLB.
+ * special memory areas, when accessing this window the MMU do yest use TLB.
  * Instead MMU direct the access to:
  * 0x57f00000:0x57ffffff -- 1M of closely coupled memory (aka CMEM)
  * 0x58000000:0x5fffffff -- 16 huge pages, 8M each, with fixed map (aka FMTs)

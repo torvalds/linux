@@ -165,22 +165,22 @@ static int irq_debug_show(struct seq_file *m, void *p)
 	seq_printf(m, "dstate:   0x%08x\n", irqd_get(data));
 	irq_debug_show_bits(m, 0, irqd_get(data), irqdata_states,
 			    ARRAY_SIZE(irqdata_states));
-	seq_printf(m, "node:     %d\n", irq_data_get_node(data));
+	seq_printf(m, "yesde:     %d\n", irq_data_get_yesde(data));
 	irq_debug_show_masks(m, desc);
 	irq_debug_show_data(m, data, 0);
 	raw_spin_unlock_irq(&desc->lock);
 	return 0;
 }
 
-static int irq_debug_open(struct inode *inode, struct file *file)
+static int irq_debug_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, irq_debug_show, inode->i_private);
+	return single_open(file, irq_debug_show, iyesde->i_private);
 }
 
 static ssize_t irq_debug_write(struct file *file, const char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
-	struct irq_desc *desc = file_inode(file)->i_private;
+	struct irq_desc *desc = file_iyesde(file)->i_private;
 	char buf[8] = { 0, };
 	size_t size;
 
@@ -200,13 +200,13 @@ static ssize_t irq_debug_write(struct file *file, const char __user *user_buf,
 
 		/*
 		 * Otherwise, try to inject via the resend interface,
-		 * which may or may not succeed.
+		 * which may or may yest succeed.
 		 */
 		chip_bus_lock(desc);
 		raw_spin_lock_irqsave(&desc->lock, flags);
 
 		if (irq_settings_is_level(desc) || desc->istate & IRQS_NMI) {
-			/* Can't do level nor NMIs, sorry */
+			/* Can't do level yesr NMIs, sorry */
 			err = -EINVAL;
 		} else {
 			desc->istate |= IRQS_PENDING;

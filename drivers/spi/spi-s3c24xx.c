@@ -8,7 +8,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
@@ -214,7 +214,7 @@ static inline unsigned int hw_txbyte(struct s3c24xx_spi *hw, int count)
  *
  * This code uses the assembly helper in spi_s3c24xx_spi.S which is
  * used by the FIQ core to move data between main memory and the peripheral
- * block. Since this is code running on the processor, there is no problem
+ * block. Since this is code running on the processor, there is yes problem
  * with cache coherency of the buffers, so we can use any buffer we like.
  */
 
@@ -235,10 +235,10 @@ extern struct spi_fiq_code s3c24xx_spi_fiq_tx;
 extern struct spi_fiq_code s3c24xx_spi_fiq_rx;
 
 /**
- * ack_bit - turn IRQ into IRQ acknowledgement bit
+ * ack_bit - turn IRQ into IRQ ackyeswledgement bit
  * @irq: The interrupt number
  *
- * Returns the bit to write to the interrupt acknowledge register.
+ * Returns the bit to write to the interrupt ackyeswledge register.
  */
 static inline u32 ack_bit(unsigned int irq)
 {
@@ -253,8 +253,8 @@ static inline u32 ack_bit(unsigned int irq)
  * then setup the correct transfer code for this transfer.
  *
  * This call updates all the necessary state information if successful,
- * so the caller does not need to do anything more than start the transfer
- * as normal, since the IRQ will have been re-routed to the FIQ handler.
+ * so the caller does yest need to do anything more than start the transfer
+ * as yesrmal, since the IRQ will have been re-routed to the FIQ handler.
 */
 static void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
 {
@@ -264,8 +264,8 @@ static void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
 	int ret;
 
 	if (!hw->fiq_claimed) {
-		/* try and claim fiq if we haven't got it, and if not
-		 * then return and simply use another transfer method */
+		/* try and claim fiq if we haven't got it, and if yest
+		 * then return and simply use ayesther transfer method */
 
 		ret = claim_fiq(&hw->fiq_handler);
 		if (ret)
@@ -325,8 +325,8 @@ static void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
  * @pw: Data registered with the handler
  * @release: Whether this is a release or a return.
  *
- * Called by the FIQ code when another module wants to use the FIQ, so
- * return whether we are currently using this or not and then update our
+ * Called by the FIQ code when ayesther module wants to use the FIQ, so
+ * return whether we are currently using this or yest and then update our
  * internal state.
  */
 static int s3c24xx_spi_fiqop(void *pw, int release)
@@ -338,7 +338,7 @@ static int s3c24xx_spi_fiqop(void *pw, int release)
 		if (hw->fiq_inuse)
 			ret = -EBUSY;
 
-		/* note, we do not need to unroute the FIQ, as the FIQ
+		/* yeste, we do yest need to unroute the FIQ, as the FIQ
 		 * vector code de-routes it to signal the end of transfer */
 
 		hw->fiq_mode = FIQ_MODE_NONE;
@@ -430,7 +430,7 @@ static irqreturn_t s3c24xx_spi_irq(int irq, void *dev)
 	}
 
 	if (!(spsta & S3C2410_SPSTA_READY)) {
-		dev_dbg(hw->dev, "spi not ready for tx?\n");
+		dev_dbg(hw->dev, "spi yest ready for tx?\n");
 		complete(&hw->done);
 		goto irq_done;
 	}
@@ -504,7 +504,7 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "No platform data supplied\n");
 		err = -ENOENT;
-		goto err_no_pdata;
+		goto err_yes_pdata;
 	}
 
 	platform_set_drvdata(pdev, hw);
@@ -538,27 +538,27 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	hw->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hw->regs)) {
 		err = PTR_ERR(hw->regs);
-		goto err_no_pdata;
+		goto err_yes_pdata;
 	}
 
 	hw->irq = platform_get_irq(pdev, 0);
 	if (hw->irq < 0) {
 		err = -ENOENT;
-		goto err_no_pdata;
+		goto err_yes_pdata;
 	}
 
 	err = devm_request_irq(&pdev->dev, hw->irq, s3c24xx_spi_irq, 0,
 				pdev->name, hw);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot claim IRQ\n");
-		goto err_no_pdata;
+		dev_err(&pdev->dev, "Canyest claim IRQ\n");
+		goto err_yes_pdata;
 	}
 
 	hw->clk = devm_clk_get(&pdev->dev, "spi");
 	if (IS_ERR(hw->clk)) {
 		dev_err(&pdev->dev, "No clock for device\n");
 		err = PTR_ERR(hw->clk);
-		goto err_no_pdata;
+		goto err_yes_pdata;
 	}
 
 	/* setup any gpio we can */
@@ -597,7 +597,7 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
  err_register:
 	clk_disable(hw->clk);
 
- err_no_pdata:
+ err_yes_pdata:
 	spi_master_put(hw->master);
 	return err;
 }

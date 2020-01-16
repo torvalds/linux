@@ -7,7 +7,7 @@
  *  This file contains arm architecture specific defines
  *  for the different processors.
  *
- *  Do not include any C declarations in this file - it is included by
+ *  Do yest include any C declarations in this file - it is included by
  *  assembler source.
  */
 #ifndef __ASM_ASSEMBLER_H__
@@ -72,7 +72,7 @@
 /*
  * This can be used to enable code to cacheline align the destination
  * pointer when bulk writing to memory.  Experiments on StrongARM and
- * XScale didn't show this a worthwhile thing to do when the cache is not
+ * XScale didn't show this a worthwhile thing to do when the cache is yest
  * set to write-allocate (this would need further testing on XScale when WA
  * is used).
  *
@@ -90,19 +90,19 @@
  * Enable and disable interrupts
  */
 #if __LINUX_ARM_ARCH__ >= 6
-	.macro	disable_irq_notrace
+	.macro	disable_irq_yestrace
 	cpsid	i
 	.endm
 
-	.macro	enable_irq_notrace
+	.macro	enable_irq_yestrace
 	cpsie	i
 	.endm
 #else
-	.macro	disable_irq_notrace
+	.macro	disable_irq_yestrace
 	msr	cpsr_c, #PSR_I_BIT | SVC_MODE
 	.endm
 
-	.macro	enable_irq_notrace
+	.macro	enable_irq_yestrace
 	msr	cpsr_c, #SVC_MODE
 	.endm
 #endif
@@ -136,13 +136,13 @@
 	.endm
 
 	.macro disable_irq, save=1
-	disable_irq_notrace
+	disable_irq_yestrace
 	asm_trace_hardirqs_off \save
 	.endm
 
 	.macro enable_irq
 	asm_trace_hardirqs_on
-	enable_irq_notrace
+	enable_irq_yestrace
 	.endm
 /*
  * Save the current IRQ state and disable IRQs.  Note that this macro
@@ -157,20 +157,20 @@
 	disable_irq
 	.endm
 
-	.macro	save_and_disable_irqs_notrace, oldcpsr
+	.macro	save_and_disable_irqs_yestrace, oldcpsr
 #ifdef CONFIG_CPU_V7M
 	mrs	\oldcpsr, primask
 #else
 	mrs	\oldcpsr, cpsr
 #endif
-	disable_irq_notrace
+	disable_irq_yestrace
 	.endm
 
 /*
  * Restore interrupt state previously stored in a register.  We don't
  * guarantee that this will preserve the flags.
  */
-	.macro	restore_irqs_notrace, oldcpsr
+	.macro	restore_irqs_yestrace, oldcpsr
 #ifdef CONFIG_CPU_V7M
 	msr	primask, \oldcpsr
 #else
@@ -181,7 +181,7 @@
 	.macro restore_irqs, oldcpsr
 	tst	\oldcpsr, #PSR_I_BIT
 	asm_trace_hardirqs_on cond=eq
-	restore_irqs_notrace \oldcpsr
+	restore_irqs_yestrace \oldcpsr
 	.endm
 
 /*
@@ -262,7 +262,7 @@
 	.long	9998b						;\
 9997:	instr							;\
 	.if . - 9997b == 2					;\
-		nop						;\
+		yesp						;\
 	.endif							;\
 	.if . - 9997b != 4					;\
 		.error "ALT_UP() content must assemble to exactly 4 bytes";\
@@ -308,9 +308,9 @@
 #error Incompatible SMP platform
 #endif
 	.ifeqs "\mode","arm"
-	ALT_UP(nop)
+	ALT_UP(yesp)
 	.else
-	ALT_UP(W(nop))
+	ALT_UP(W(yesp))
 	.endif
 #endif
 	.endm
@@ -338,7 +338,7 @@
  * a scratch register for the macro to overwrite.
  *
  * This macro is intended for forcing the CPU into SVC mode at boot time.
- * you cannot return to the original mode.
+ * you canyest return to the original mode.
  */
 .macro safe_svcmode_maskall reg:req
 #if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_CPU_V7M)
@@ -536,7 +536,7 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	.macro	ret.w, reg
 	ret	\reg
 #ifdef CONFIG_THUMB2_KERNEL
-	nop
+	yesp
 #endif
 	.endm
 

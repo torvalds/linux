@@ -13,7 +13,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
@@ -47,9 +47,9 @@ static void journal_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
 }
 
 /*
- * When an ext4 file is truncated, it is possible that some pages are not
+ * When an ext4 file is truncated, it is possible that some pages are yest
  * successfully freed, because they are attached to a committing transaction.
- * After the transaction commits, these pages are left on the LRU, with no
+ * After the transaction commits, these pages are left on the LRU, with yes
  * ->mapping, and with attached buffers.  These pages are trivially reclaimable
  * by the VM, but their apparent absence upsets the VM accounting, and it makes
  * the numbers in /proc/meminfo look odd.
@@ -65,18 +65,18 @@ static void release_buffer_page(struct buffer_head *bh)
 	struct page *page;
 
 	if (buffer_dirty(bh))
-		goto nope;
+		goto yespe;
 	if (atomic_read(&bh->b_count) != 1)
-		goto nope;
+		goto yespe;
 	page = bh->b_page;
 	if (!page)
-		goto nope;
+		goto yespe;
 	if (page->mapping)
-		goto nope;
+		goto yespe;
 
 	/* OK, it's a truncated page */
 	if (!trylock_page(page))
-		goto nope;
+		goto yespe;
 
 	get_page(page);
 	__brelse(bh);
@@ -85,7 +85,7 @@ static void release_buffer_page(struct buffer_head *bh)
 	put_page(page);
 	return;
 
-nope:
+yespe:
 	__brelse(bh);
 }
 
@@ -106,9 +106,9 @@ static void jbd2_commit_block_csum_set(journal_t *j, struct buffer_head *bh)
 }
 
 /*
- * Done it all: now submit the commit record.  We should have
- * cleaned up our previous buffers by now, so if we are in abort
- * mode we can now just skip the rest of the journal write
+ * Done it all: yesw submit the commit record.  We should have
+ * cleaned up our previous buffers by yesw, so if we are in abort
+ * mode we can yesw just skip the rest of the journal write
  * entirely.
  *
  * Returns 1 if the journal needs to be aborted or 0 on success
@@ -121,7 +121,7 @@ static int journal_submit_commit_record(journal_t *journal,
 	struct commit_header *tmp;
 	struct buffer_head *bh;
 	int ret;
-	struct timespec64 now;
+	struct timespec64 yesw;
 
 	*cbh = NULL;
 
@@ -134,9 +134,9 @@ static int journal_submit_commit_record(journal_t *journal,
 		return 1;
 
 	tmp = (struct commit_header *)bh->b_data;
-	ktime_get_coarse_real_ts64(&now);
-	tmp->h_commit_sec = cpu_to_be64(now.tv_sec);
-	tmp->h_commit_nsec = cpu_to_be32(now.tv_nsec);
+	ktime_get_coarse_real_ts64(&yesw);
+	tmp->h_commit_sec = cpu_to_be64(yesw.tv_sec);
+	tmp->h_commit_nsec = cpu_to_be32(yesw.tv_nsec);
 
 	if (jbd2_has_feature_checksum(journal)) {
 		tmp->h_chksum_type 	= JBD2_CRC32_CHKSUM;
@@ -164,7 +164,7 @@ static int journal_submit_commit_record(journal_t *journal,
 
 /*
  * This function along with journal_submit_commit_record
- * allows to write the commit record asynchronously.
+ * allows to write the commit record asynchroyesusly.
  */
 static int journal_wait_on_commit_record(journal_t *journal,
 					 struct buffer_head *bh)
@@ -187,7 +187,7 @@ static int journal_wait_on_commit_record(journal_t *journal,
  * use writepages() because with delayed allocation we may be doing
  * block allocation in writepages().
  */
-static int journal_submit_inode_data_buffers(struct address_space *mapping,
+static int journal_submit_iyesde_data_buffers(struct address_space *mapping,
 		loff_t dirty_start, loff_t dirty_end)
 {
 	int ret;
@@ -203,96 +203,96 @@ static int journal_submit_inode_data_buffers(struct address_space *mapping,
 }
 
 /*
- * Submit all the data buffers of inode associated with the transaction to
+ * Submit all the data buffers of iyesde associated with the transaction to
  * disk.
  *
- * We are in a committing transaction. Therefore no new inode can be added to
- * our inode list. We use JI_COMMIT_RUNNING flag to protect inode we currently
+ * We are in a committing transaction. Therefore yes new iyesde can be added to
+ * our iyesde list. We use JI_COMMIT_RUNNING flag to protect iyesde we currently
  * operate on from being released while we write out pages.
  */
 static int journal_submit_data_buffers(journal_t *journal,
 		transaction_t *commit_transaction)
 {
-	struct jbd2_inode *jinode;
+	struct jbd2_iyesde *jiyesde;
 	int err, ret = 0;
 	struct address_space *mapping;
 
 	spin_lock(&journal->j_list_lock);
-	list_for_each_entry(jinode, &commit_transaction->t_inode_list, i_list) {
-		loff_t dirty_start = jinode->i_dirty_start;
-		loff_t dirty_end = jinode->i_dirty_end;
+	list_for_each_entry(jiyesde, &commit_transaction->t_iyesde_list, i_list) {
+		loff_t dirty_start = jiyesde->i_dirty_start;
+		loff_t dirty_end = jiyesde->i_dirty_end;
 
-		if (!(jinode->i_flags & JI_WRITE_DATA))
+		if (!(jiyesde->i_flags & JI_WRITE_DATA))
 			continue;
-		mapping = jinode->i_vfs_inode->i_mapping;
-		jinode->i_flags |= JI_COMMIT_RUNNING;
+		mapping = jiyesde->i_vfs_iyesde->i_mapping;
+		jiyesde->i_flags |= JI_COMMIT_RUNNING;
 		spin_unlock(&journal->j_list_lock);
 		/*
-		 * submit the inode data buffers. We use writepage
+		 * submit the iyesde data buffers. We use writepage
 		 * instead of writepages. Because writepages can do
 		 * block allocation  with delalloc. We need to write
 		 * only allocated blocks here.
 		 */
-		trace_jbd2_submit_inode_data(jinode->i_vfs_inode);
-		err = journal_submit_inode_data_buffers(mapping, dirty_start,
+		trace_jbd2_submit_iyesde_data(jiyesde->i_vfs_iyesde);
+		err = journal_submit_iyesde_data_buffers(mapping, dirty_start,
 				dirty_end);
 		if (!ret)
 			ret = err;
 		spin_lock(&journal->j_list_lock);
-		J_ASSERT(jinode->i_transaction == commit_transaction);
-		jinode->i_flags &= ~JI_COMMIT_RUNNING;
+		J_ASSERT(jiyesde->i_transaction == commit_transaction);
+		jiyesde->i_flags &= ~JI_COMMIT_RUNNING;
 		smp_mb();
-		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
+		wake_up_bit(&jiyesde->i_flags, __JI_COMMIT_RUNNING);
 	}
 	spin_unlock(&journal->j_list_lock);
 	return ret;
 }
 
 /*
- * Wait for data submitted for writeout, refile inodes to proper
+ * Wait for data submitted for writeout, refile iyesdes to proper
  * transaction if needed.
  *
  */
-static int journal_finish_inode_data_buffers(journal_t *journal,
+static int journal_finish_iyesde_data_buffers(journal_t *journal,
 		transaction_t *commit_transaction)
 {
-	struct jbd2_inode *jinode, *next_i;
+	struct jbd2_iyesde *jiyesde, *next_i;
 	int err, ret = 0;
 
 	/* For locking, see the comment in journal_submit_data_buffers() */
 	spin_lock(&journal->j_list_lock);
-	list_for_each_entry(jinode, &commit_transaction->t_inode_list, i_list) {
-		loff_t dirty_start = jinode->i_dirty_start;
-		loff_t dirty_end = jinode->i_dirty_end;
+	list_for_each_entry(jiyesde, &commit_transaction->t_iyesde_list, i_list) {
+		loff_t dirty_start = jiyesde->i_dirty_start;
+		loff_t dirty_end = jiyesde->i_dirty_end;
 
-		if (!(jinode->i_flags & JI_WAIT_DATA))
+		if (!(jiyesde->i_flags & JI_WAIT_DATA))
 			continue;
-		jinode->i_flags |= JI_COMMIT_RUNNING;
+		jiyesde->i_flags |= JI_COMMIT_RUNNING;
 		spin_unlock(&journal->j_list_lock);
 		err = filemap_fdatawait_range_keep_errors(
-				jinode->i_vfs_inode->i_mapping, dirty_start,
+				jiyesde->i_vfs_iyesde->i_mapping, dirty_start,
 				dirty_end);
 		if (!ret)
 			ret = err;
 		spin_lock(&journal->j_list_lock);
-		jinode->i_flags &= ~JI_COMMIT_RUNNING;
+		jiyesde->i_flags &= ~JI_COMMIT_RUNNING;
 		smp_mb();
-		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
+		wake_up_bit(&jiyesde->i_flags, __JI_COMMIT_RUNNING);
 	}
 
-	/* Now refile inode to proper lists */
-	list_for_each_entry_safe(jinode, next_i,
-				 &commit_transaction->t_inode_list, i_list) {
-		list_del(&jinode->i_list);
-		if (jinode->i_next_transaction) {
-			jinode->i_transaction = jinode->i_next_transaction;
-			jinode->i_next_transaction = NULL;
-			list_add(&jinode->i_list,
-				&jinode->i_transaction->t_inode_list);
+	/* Now refile iyesde to proper lists */
+	list_for_each_entry_safe(jiyesde, next_i,
+				 &commit_transaction->t_iyesde_list, i_list) {
+		list_del(&jiyesde->i_list);
+		if (jiyesde->i_next_transaction) {
+			jiyesde->i_transaction = jiyesde->i_next_transaction;
+			jiyesde->i_next_transaction = NULL;
+			list_add(&jiyesde->i_list,
+				&jiyesde->i_transaction->t_iyesde_list);
 		} else {
-			jinode->i_transaction = NULL;
-			jinode->i_dirty_start = 0;
-			jinode->i_dirty_end = 0;
+			jiyesde->i_transaction = NULL;
+			jiyesde->i_dirty_start = 0;
+			jiyesde->i_dirty_end = 0;
 		}
 	}
 	spin_unlock(&journal->j_list_lock);
@@ -396,7 +396,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		jbd_debug(3, "super block updated\n");
 		mutex_lock_io(&journal->j_checkpoint_mutex);
 		/*
-		 * We hold j_checkpoint_mutex so tail cannot change under us.
+		 * We hold j_checkpoint_mutex so tail canyest change under us.
 		 * We don't need any special data guarantees for writing sb
 		 * since journal is empty and it is ok for write to be
 		 * flushed only with transaction commit.
@@ -407,7 +407,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 						REQ_SYNC);
 		mutex_unlock(&journal->j_checkpoint_mutex);
 	} else {
-		jbd_debug(3, "superblock not updated\n");
+		jbd_debug(3, "superblock yest updated\n");
 	}
 
 	J_ASSERT(journal->j_running_transaction != NULL);
@@ -458,8 +458,8 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 	/*
 	 * First thing we are allowed to do is to discard any remaining
-	 * BJ_Reserved buffers.  Note, it is _not_ permissible to assume
-	 * that there are no such buffers: if a large filesystem
+	 * BJ_Reserved buffers.  Note, it is _yest_ permissible to assume
+	 * that there are yes such buffers: if a large filesystem
 	 * operation like a truncate needs to split itself over multiple
 	 * transactions, then it may try to do a jbd2_journal_restart() while
 	 * there are still BJ_Reserved buffers outstanding.  These must
@@ -467,7 +467,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 *
 	 * In this case, the filesystem must still reserve write access
 	 * again before modifying the buffer in the new transaction, but
-	 * we do not require it to remember exactly which old buffers it
+	 * we do yest require it to remember exactly which old buffers it
 	 * has reserved.  This is consistent with the existing behaviour
 	 * that multiple jbd2_journal_get_write_access() calls to the same
 	 * buffer are perfectly permissible.
@@ -502,7 +502,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	jbd_debug(3, "JBD2: commit phase 1\n");
 
 	/*
-	 * Clear revoked flag to reflect there is no revoked buffers
+	 * Clear revoked flag to reflect there is yes revoked buffers
 	 * in the next transaction which is going to be started.
 	 */
 	jbd2_clear_buffer_revoked_flags(journal);
@@ -513,7 +513,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	jbd2_journal_switch_revoke_table(journal);
 
 	/*
-	 * Reserved credits cannot be claimed anymore, free them
+	 * Reserved credits canyest be claimed anymore, free them
 	 */
 	atomic_sub(atomic_read(&journal->j_reserved_credits),
 		   &commit_transaction->t_outstanding_credits);
@@ -548,7 +548,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	jbd_debug(3, "JBD2: commit phase 2b\n");
 
 	/*
-	 * Way to go: we have now written out all of the data for a
+	 * Way to go: we have yesw written out all of the data for a
 	 * transaction!  Now comes the tricky part: we need to write out
 	 * metadata.  Loop over the transaction's entire buffer list:
 	 */
@@ -588,7 +588,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 			jbd2_journal_refile_buffer(journal, jh);
 			/* If that was the last one, we need to clean up
 			 * any descriptor buffers which may have been
-			 * already allocated, even if we are now
+			 * already allocated, even if we are yesw
 			 * aborting. */
 			if (!commit_transaction->t_buffers)
 				goto start_journal_io;
@@ -689,7 +689,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 			first_tag = 0;
 		}
 
-		/* If there's no more to do, or if the descriptor is full,
+		/* If there's yes more to do, or if the descriptor is full,
 		   let the IO rip! */
 
 		if (bufs == journal->j_wbufsize ||
@@ -733,7 +733,7 @@ start_journal_io:
 		}
 	}
 
-	err = journal_finish_inode_data_buffers(journal, commit_transaction);
+	err = journal_finish_iyesde_data_buffers(journal, commit_transaction);
 	if (err) {
 		printk(KERN_WARNING
 			"JBD2: Detected IO errors while flushing file data "
@@ -768,7 +768,7 @@ start_journal_io:
 	write_unlock(&journal->j_state_lock);
 
 	/* 
-	 * If the journal is not located on the file system device,
+	 * If the journal is yest located on the file system device,
 	 * then we must flush the file system device before we issue
 	 * the commit record
 	 */
@@ -777,7 +777,7 @@ start_journal_io:
 	    (journal->j_flags & JBD2_BARRIER))
 		blkdev_issue_flush(journal->j_fs_dev, GFP_NOFS, NULL);
 
-	/* Done it all: now write the commit record asynchronously. */
+	/* Done it all: yesw write the commit record asynchroyesusly. */
 	if (jbd2_has_feature_async_commit(journal)) {
 		err = journal_submit_commit_record(journal, commit_transaction,
 						 &cbh, crc32_sum);
@@ -829,7 +829,7 @@ start_journal_io:
 		J_ASSERT_BH(bh, buffer_jbddirty(bh));
 		J_ASSERT_BH(bh, !buffer_shadow(bh));
 
-		/* The metadata is now released for reuse, but we need
+		/* The metadata is yesw released for reuse, but we need
                    to remember it against this transaction so that when
                    we finally commit, we can do any checkpointing
                    required. */
@@ -906,7 +906,7 @@ start_journal_io:
 
 	jbd_debug(3, "JBD2: commit phase 6\n");
 
-	J_ASSERT(list_empty(&commit_transaction->t_inode_list));
+	J_ASSERT(list_empty(&commit_transaction->t_iyesde_list));
 	J_ASSERT(commit_transaction->t_buffers == NULL);
 	J_ASSERT(commit_transaction->t_checkpoint_list == NULL);
 	J_ASSERT(commit_transaction->t_shadow_list == NULL);
@@ -927,7 +927,7 @@ restart_loop:
 		spin_unlock(&journal->j_list_lock);
 		bh = jh2bh(jh);
 		/*
-		 * Get a reference so that bh cannot be freed before we are
+		 * Get a reference so that bh canyest be freed before we are
 		 * done with it.
 		 */
 		get_bh(bh);
@@ -936,15 +936,15 @@ restart_loop:
 
 		/*
 		 * If there is undo-protected committed data against
-		 * this buffer, then we can remove it now.  If it is a
+		 * this buffer, then we can remove it yesw.  If it is a
 		 * buffer needing such protection, the old frozen_data
-		 * field now points to a committed version of the
+		 * field yesw points to a committed version of the
 		 * buffer, so rotate that field to the new committed
 		 * data.
 		 *
-		 * Otherwise, we can just throw away the frozen data now.
+		 * Otherwise, we can just throw away the frozen data yesw.
 		 *
-		 * We also know that the frozen data has already fired
+		 * We also kyesw that the frozen data has already fired
 		 * its triggers if they exist, so we can clear that too.
 		 */
 		if (jh->b_committed_data) {
@@ -971,8 +971,8 @@ restart_loop:
 
 		/* Only re-checkpoint the buffer_head if it is marked
 		 * dirty.  If the buffer was added to the BJ_Forget list
-		 * by jbd2_journal_forget, it may no longer be dirty and
-		 * there's no point in keeping a checkpoint record for
+		 * by jbd2_journal_forget, it may yes longer be dirty and
+		 * there's yes point in keeping a checkpoint record for
 		 * it. */
 
 		/*
@@ -985,12 +985,12 @@ restart_loop:
 			 * "add to orphan" operation (b_next_transaction !=
 			 * NULL), we have to wait for that transaction to
 			 * commit before we can really get rid of the buffer.
-			 * So just clear b_modified to not confuse transaction
+			 * So just clear b_modified to yest confuse transaction
 			 * credit accounting and refile the buffer to
 			 * BJ_Forget of the running transaction. If the just
 			 * committed transaction contains "add to orphan"
 			 * operation, we can completely invalidate the buffer
-			 * now. We are rather through in that since the
+			 * yesw. We are rather through in that since the
 			 * buffer may be still accessible when blocksize <
 			 * pagesize and it is attached to the last partial
 			 * page.
@@ -1014,9 +1014,9 @@ restart_loop:
 		} else {
 			J_ASSERT_BH(bh, !buffer_dirty(bh));
 			/*
-			 * The buffer on BJ_Forget list and not jbddirty means
+			 * The buffer on BJ_Forget list and yest jbddirty means
 			 * it has been freed by this transaction and hence it
-			 * could not have been reallocated until this
+			 * could yest have been reallocated until this
 			 * transaction has committed. *BUT* it could be
 			 * reallocated once we have written all the data to
 			 * disk and before we process the buffer on BJ_Forget
@@ -1046,7 +1046,7 @@ restart_loop:
 	write_lock(&journal->j_state_lock);
 	spin_lock(&journal->j_list_lock);
 	/*
-	 * Now recheck if some buffers did not get attached to the transaction
+	 * Now recheck if some buffers did yest get attached to the transaction
 	 * while the lock was dropped...
 	 */
 	if (commit_transaction->t_forget) {
@@ -1056,8 +1056,8 @@ restart_loop:
 	}
 
 	/* Add the transaction to the checkpoint list
-	 * __journal_remove_checkpoint() can not destroy transaction
-	 * under us because it is not marked as T_FINISHED yet */
+	 * __journal_remove_checkpoint() can yest destroy transaction
+	 * under us because it is yest marked as T_FINISHED yet */
 	if (journal->j_checkpoint_transactions == NULL) {
 		journal->j_checkpoint_transactions = commit_transaction;
 		commit_transaction->t_cpnext = commit_transaction;
@@ -1122,7 +1122,7 @@ restart_loop:
 	write_lock(&journal->j_state_lock);
 	spin_lock(&journal->j_list_lock);
 	commit_transaction->t_state = T_FINISHED;
-	/* Check if the transaction can be dropped now that we are finished */
+	/* Check if the transaction can be dropped yesw that we are finished */
 	if (commit_transaction->t_checkpoint_list == NULL &&
 	    commit_transaction->t_checkpoint_io_list == NULL) {
 		__jbd2_journal_drop_transaction(journal, commit_transaction);

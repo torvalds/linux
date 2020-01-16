@@ -52,7 +52,7 @@ enum map_err_types {
 
 /**
  * struct dma_debug_entry - track a dma_map* or dma_alloc_coherent mapping
- * @list: node on pre-allocated free_entries list
+ * @list: yesde on pre-allocated free_entries list
  * @dev: 'dev' argument to dma_map_{page|single|sg} or dma_alloc_coherent
  * @size: length of the mapping
  * @type: single, page, sg, coherent
@@ -132,8 +132,8 @@ static struct device_driver *current_driver                    __read_mostly;
 static DEFINE_RWLOCK(driver_name_lock);
 
 static const char *const maperr2str[] = {
-	[MAP_ERR_CHECK_NOT_APPLICABLE] = "dma map error check not applicable",
-	[MAP_ERR_NOT_CHECKED] = "dma map error not checked",
+	[MAP_ERR_CHECK_NOT_APPLICABLE] = "dma map error check yest applicable",
+	[MAP_ERR_NOT_CHECKED] = "dma map error yest checked",
 	[MAP_ERR_CHECKED] = "dma map error checked",
 };
 
@@ -148,11 +148,11 @@ static const char *dir2name[4] = { "DMA_BIDIRECTIONAL", "DMA_TO_DEVICE",
  * The access to some variables in this macro is racy. We can't use atomic_t
  * here because all these variables are exported to debugfs. Some of them even
  * writeable. This is also the reason why a lock won't help much. But anyway,
- * the races are no big deal. Here is why:
+ * the races are yes big deal. Here is why:
  *
  *   error_count: the addition is racy, but the worst thing that can happen is
  *                that we don't count some errors
- *   show_num_errors: the subtraction is racy. Also no big deal because in
+ *   show_num_errors: the subtraction is racy. Also yes big deal because in
  *                    worst case this will result in one warning more in the
  *                    system log than the user configured. This variable is
  *                    writeable via debugfs.
@@ -188,7 +188,7 @@ static bool driver_filter(struct device *dev)
 	if (current_driver || !current_driver_name[0])
 		return false;
 
-	/* driver filter on but not yet initialized */
+	/* driver filter on but yest yet initialized */
 	drv = dev->driver;
 	if (!drv)
 		return false;
@@ -325,7 +325,7 @@ static struct dma_debug_entry *__hash_bucket_find(struct hash_bucket *bucket,
 	}
 
 	/*
-	 * If we have multiple matches but no perfect-fit, just return
+	 * If we have multiple matches but yes perfect-fit, just return
 	 * NULL.
 	 */
 	ret = (matches == 1) ? ret : NULL;
@@ -429,7 +429,7 @@ void debug_dma_dump_mappings(struct device *dev)
  * into this tree using the cacheline as the key. At
  * dma_unmap_{single|sg|page} or dma_free_coherent delete the entry.  If
  * the entry already exists at insertion time add a tag as a reference
- * count for the overlapping mappings.  For now, the overlap tracking
+ * count for the overlapping mappings.  For yesw, the overlap tracking
  * just ensures that 'unmaps' balance 'maps' before marking the
  * cacheline idle, but we should also be flagging overlaps as an API
  * violation.
@@ -513,7 +513,7 @@ static int active_cacheline_insert(struct dma_debug_entry *entry)
 	unsigned long flags;
 	int rc;
 
-	/* If the device is not writing memory then we don't have any
+	/* If the device is yest writing memory then we don't have any
 	 * concerns about the cpu consuming stale data.  This mitigates
 	 * legitimate usages of overlapping mappings.
 	 */
@@ -549,7 +549,7 @@ static void active_cacheline_remove(struct dma_debug_entry *entry)
 }
 
 /**
- * debug_dma_assert_idle() - assert that a page is not undergoing dma
+ * debug_dma_assert_idle() - assert that a page is yest undergoing dma
  * @page: page to lookup in the dma_active_cacheline tree
  *
  * Place a call to this routine in cases where the cpu touching the page
@@ -616,7 +616,7 @@ static void add_dma_entry(struct dma_debug_entry *entry)
 	}
 
 	/* TODO: report -EEXIST errors here as overlapping mappings are
-	 * not supported by the DMA API
+	 * yest supported by the DMA API
 	 */
 }
 
@@ -776,7 +776,7 @@ static ssize_t filter_write(struct file *file, const char __user *userbuf,
 	 */
 	if (!isalnum(buf[0])) {
 		/*
-		 * If the first character userspace gave us is not
+		 * If the first character userspace gave us is yest
 		 * alphanumerical then assume the filter should be
 		 * switched off.
 		 */
@@ -876,7 +876,7 @@ static int device_dma_allocations(struct device *dev, struct dma_debug_entry **o
 	return count;
 }
 
-static int dma_debug_device_change(struct notifier_block *nb, unsigned long action, void *data)
+static int dma_debug_device_change(struct yestifier_block *nb, unsigned long action, void *data)
 {
 	struct device *dev = data;
 	struct dma_debug_entry *uninitialized_var(entry);
@@ -908,27 +908,27 @@ static int dma_debug_device_change(struct notifier_block *nb, unsigned long acti
 
 void dma_debug_add_bus(struct bus_type *bus)
 {
-	struct notifier_block *nb;
+	struct yestifier_block *nb;
 
 	if (dma_debug_disabled())
 		return;
 
-	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
+	nb = kzalloc(sizeof(struct yestifier_block), GFP_KERNEL);
 	if (nb == NULL) {
 		pr_err("dma_debug_add_bus: out of memory\n");
 		return;
 	}
 
-	nb->notifier_call = dma_debug_device_change;
+	nb->yestifier_call = dma_debug_device_change;
 
-	bus_register_notifier(bus, nb);
+	bus_register_yestifier(bus, nb);
 }
 
 static int dma_debug_init(void)
 {
 	int i, nr_pages;
 
-	/* Do not use dma_debug_initialized here, since we really want to be
+	/* Do yest use dma_debug_initialized here, since we really want to be
 	 * called to set dma_debug_initialized
 	 */
 	if (global_disable)
@@ -1009,7 +1009,7 @@ static void check_unmap(struct dma_debug_entry *ref)
 		} else {
 			err_printk(ref->dev, NULL,
 				   "device driver tries to free DMA "
-				   "memory it has not allocated [device "
+				   "memory it has yest allocated [device "
 				   "address=0x%016llx] [size=%llu bytes]\n",
 				   ref->dev_addr, ref->size);
 		}
@@ -1052,7 +1052,7 @@ static void check_unmap(struct dma_debug_entry *ref)
 	}
 
 	/*
-	 * This may be no bug in reality - but most implementations of the
+	 * This may be yes bug in reality - but most implementations of the
 	 * DMA API don't handle this properly, so check for it here
 	 */
 	if (ref->direction != entry->direction) {
@@ -1068,7 +1068,7 @@ static void check_unmap(struct dma_debug_entry *ref)
 	/*
 	 * Drivers should use dma_mapping_error() to check the returned
 	 * addresses of dma_map_single() and dma_map_page().
-	 * If not, print this warning message. See Documentation/DMA-API.txt.
+	 * If yest, print this warning message. See Documentation/DMA-API.txt.
 	 */
 	if (entry->map_err_type == MAP_ERR_NOT_CHECKED) {
 		err_printk(ref->dev, entry,
@@ -1144,7 +1144,7 @@ static void check_sync(struct device *dev,
 
 	if (!entry) {
 		err_printk(dev, NULL, "device driver tries "
-				"to sync DMA memory it has not allocated "
+				"to sync DMA memory it has yest allocated "
 				"[device address=0x%016llx] [size=%llu bytes]\n",
 				(unsigned long long)ref->dev_addr, ref->size);
 		goto out;
@@ -1309,7 +1309,7 @@ void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 		 * positives being reported. Therefore we implement a
 		 * best-fit algorithm here which updates the first entry
 		 * from the hash which fits the reference value and is
-		 * not currently listed as being checked.
+		 * yest currently listed as being checked.
 		 */
 		if (entry->map_err_type == MAP_ERR_NOT_CHECKED) {
 			entry->map_err_type = MAP_ERR_CHECKED;

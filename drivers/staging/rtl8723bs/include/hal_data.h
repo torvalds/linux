@@ -132,7 +132,7 @@ struct dm_priv {
 	/* for APK */
 	u32 APKoutput[2][2];	/* path A/B; output1_1a/output1_2a */
 	u8 bAPKdone;
-	u8 bAPKThermalMeterIgnore;
+	u8 bAPKThermalMeterIgyesre;
 	u8 bDPdone;
 	u8 bDPPathAOK;
 	u8 bDPPathBOK;
@@ -227,7 +227,7 @@ struct hal_com_data {
 	u8 EEPROMBluetoothAntIsolation;
 	u8 EEPROMBluetoothRadioShared;
 	u8 bTXPowerDataReadFromEEPORM;
-	u8 bAPKThermalMeterIgnore;
+	u8 bAPKThermalMeterIgyesre;
 	u8 bDisableSWChannelPlan; /*  flag of disable software change channel plan */
 
 	bool		EepromOrEfuse;
@@ -411,7 +411,7 @@ struct hal_com_data {
 	u8 RegIQKFWOffload;
 	struct submit_ctx	iqk_sctx;
 
-	enum RT_AMPDU_BURST	AMPDUBurstMode; /* 92C maybe not use, but for compile successfully */
+	enum RT_AMPDU_BURST	AMPDUBurstMode; /* 92C maybe yest use, but for compile successfully */
 
 	u32 		sdio_himr;
 	u32 		sdio_hisr;
@@ -441,7 +441,7 @@ struct hal_com_data {
 	u32 		SysIntrMask;
 
 #ifdef CONFIG_BACKGROUND_NOISE_MONITOR
-	s16 noise[ODM_MAX_CHANNEL_NUM];
+	s16 yesise[ODM_MAX_CHANNEL_NUM];
 #endif
 
 };

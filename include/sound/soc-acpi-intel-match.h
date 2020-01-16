@@ -11,7 +11,7 @@
 #include <linux/acpi.h>
 
 /*
- * these tables are not constants, some fields can be used for
+ * these tables are yest constants, some fields can be used for
  * pdata or machine ops
  */
 extern struct snd_soc_acpi_mach snd_soc_acpi_intel_haswell_machines[];

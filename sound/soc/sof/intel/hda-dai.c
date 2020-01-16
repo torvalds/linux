@@ -63,7 +63,7 @@ static struct hdac_ext_stream *
 	int stream_dir = substream->stream;
 
 	if (!bus->ppcap) {
-		dev_err(bus->dev, "stream type not supported\n");
+		dev_err(bus->dev, "stream type yest supported\n");
 		return NULL;
 	}
 
@@ -169,7 +169,7 @@ static int hda_link_config_ipc(struct sof_intel_hda_stream *hda_stream,
 
 			if (!config) {
 				dev_err(hda_stream->sdev->dev,
-					"error: no config for DAI %s\n",
+					"error: yes config for DAI %s\n",
 					sof_dai->name);
 				return -EINVAL;
 			}
@@ -364,7 +364,7 @@ static int hda_link_hw_free(struct snd_pcm_substream *substream,
 
 	if (!link_dev) {
 		dev_dbg(dai->dev,
-			"%s: link_dev is not assigned\n", __func__);
+			"%s: link_dev is yest assigned\n", __func__);
 		return -EINVAL;
 	}
 
@@ -406,7 +406,7 @@ static const struct snd_soc_dai_ops hda_link_dai_ops = {
 /*
  * common dai driver for skl+ platforms.
  * some products who use this DAI array only physically have a subset of
- * the DAIs, but no harm is done here by adding the whole set.
+ * the DAIs, but yes harm is done here by adding the whole set.
  */
 struct snd_soc_dai_driver skl_dai[] = {
 {

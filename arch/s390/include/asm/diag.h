@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * s390 diagnose functions
+ * s390 diagyesse functions
  *
  * Copyright IBM Corp. 2007
  * Author(s): Michael Holzheu <holzheu@de.ibm.com>
@@ -38,10 +38,10 @@ enum diag_stat_enum {
 };
 
 void diag_stat_inc(enum diag_stat_enum nr);
-void diag_stat_inc_norecursion(enum diag_stat_enum nr);
+void diag_stat_inc_yesrecursion(enum diag_stat_enum nr);
 
 /*
- * Diagnose 10: Release page range
+ * Diagyesse 10: Release page range
  */
 static inline void diag10_range(unsigned long start_pfn, unsigned long num_pfn)
 {
@@ -53,22 +53,22 @@ static inline void diag10_range(unsigned long start_pfn, unsigned long num_pfn)
 	diag_stat_inc(DIAG_STAT_X010);
 	asm volatile(
 		"0:	diag	%0,%1,0x10\n"
-		"1:	nopr	%%r7\n"
+		"1:	yespr	%%r7\n"
 		EX_TABLE(0b, 1b)
 		EX_TABLE(1b, 1b)
 		: : "a" (start_addr), "a" (end_addr));
 }
 
 /*
- * Diagnose 14: Input spool file manipulation
+ * Diagyesse 14: Input spool file manipulation
  */
 extern int diag14(unsigned long rx, unsigned long ry1, unsigned long subcode);
 
 /*
- * Diagnose 210: Get information about a virtual device
+ * Diagyesse 210: Get information about a virtual device
  */
 struct diag210 {
-	u16 vrdcdvno;	/* device number (input) */
+	u16 vrdcdvyes;	/* device number (input) */
 	u16 vrdclen;	/* data block length (input) */
 	u8 vrdcvcla;	/* virtual device class (output) */
 	u8 vrdcvtyp;	/* virtual device type (output) */
@@ -247,7 +247,7 @@ struct diag26c_vnic_req {
 	u16	vlan_id;
 	u64	sys_name;
 	u8	res[2];
-	u16	devno;
+	u16	devyes;
 } __packed __aligned(8);
 
 #define VNIC_INFO_PROT_L3	1
@@ -259,7 +259,7 @@ struct diag26c_vnic_resp {
 	/* VNIC info: */
 	u32	next_entry;
 	u64	owner;
-	u16	devno;
+	u16	devyes;
 	u8	status;
 	u8	type;
 	u64	lan_owner;
@@ -268,7 +268,7 @@ struct diag26c_vnic_resp {
 	u8	port_type;
 	u8	ext_status:6;
 	u8	protocol:2;
-	u16	base_devno;
+	u16	base_devyes;
 	u32	port_num;
 	u32	ifindex;
 	u32	maxinfo;
@@ -284,7 +284,7 @@ struct diag26c_mac_req {
 	u32	resp_buf_len;
 	u32	resp_version;
 	u16	op_code;
-	u16	devno;
+	u16	devyes;
 	u8	res[4];
 };
 

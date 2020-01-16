@@ -113,16 +113,16 @@ static __initdata struct clk_hw *atlas6_clk_hw_array[maxclk] = {
 
 static struct clk *atlas6_clks[maxclk];
 
-static void __init atlas6_clk_init(struct device_node *np)
+static void __init atlas6_clk_init(struct device_yesde *np)
 {
-	struct device_node *rscnp;
+	struct device_yesde *rscnp;
 	int i;
 
-	rscnp = of_find_compatible_node(NULL, NULL, "sirf,prima2-rsc");
+	rscnp = of_find_compatible_yesde(NULL, NULL, "sirf,prima2-rsc");
 	sirfsoc_rsc_vbase = of_iomap(rscnp, 0);
 	if (!sirfsoc_rsc_vbase)
 		panic("unable to map rsc registers\n");
-	of_node_put(rscnp);
+	of_yesde_put(rscnp);
 
 	sirfsoc_clk_vbase = of_iomap(np, 0);
 	if (!sirfsoc_clk_vbase)

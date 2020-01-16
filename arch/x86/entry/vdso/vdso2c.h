@@ -24,7 +24,7 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 	ELF(Phdr) *pt = (ELF(Phdr) *)(raw_addr + GET_LE(&hdr->e_phoff));
 
 	if (GET_LE(&hdr->e_type) != ET_DYN)
-		fail("input is not a shared object\n");
+		fail("input is yest a shared object\n");
 
 	/* Walk the segment table. */
 	for (i = 0; i < GET_LE(&hdr->e_phnum); i++) {
@@ -37,7 +37,7 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 				fail("PT_LOAD in wrong place\n");
 
 			if (GET_LE(&pt[i].p_memsz) != GET_LE(&pt[i].p_filesz))
-				fail("cannot handle memsz != filesz\n");
+				fail("canyest handle memsz != filesz\n");
 
 			load_size = GET_LE(&pt[i].p_memsz);
 			found_load = 1;
@@ -48,13 +48,13 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 		}
 	}
 	if (!found_load)
-		fail("no PT_LOAD seg\n");
+		fail("yes PT_LOAD seg\n");
 
 	if (stripped_len < load_size)
 		fail("stripped input is too short\n");
 
 	if (!dyn)
-		fail("input has no PT_DYNAMIC section -- your toolchain is buggy\n");
+		fail("input has yes PT_DYNAMIC section -- your toolchain is buggy\n");
 
 	/* Walk the dynamic table */
 	for (i = 0; dyn + i < dyn_end &&
@@ -81,7 +81,7 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 	}
 
 	if (!symtab_hdr)
-		fail("no symbol table\n");
+		fail("yes symbol table\n");
 
 	strtab_hdr = raw_addr + GET_LE(&hdr->e_shoff) +
 		GET_LE(&hdr->e_shentsize) * GET_LE(&symtab_hdr->sh_link);
@@ -120,7 +120,7 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 		INT_BITS symval = syms[special_pages[i]];
 
 		if (!symval)
-			continue;  /* The mapping isn't used; ignore it. */
+			continue;  /* The mapping isn't used; igyesre it. */
 
 		if (symval % 4096)
 			fail("%s must be a multiple of 4096\n",

@@ -93,7 +93,7 @@ static int tegra_bpmp_xlate_flags(u16 flags, u16 *out)
  * representation. Any undefined flag being set causes an error.
  *
  * The data is there only for writes. Reads have the data transferred in the
- * other direction, and thus data is not present.
+ * other direction, and thus data is yest present.
  *
  * See deserialize_i2c documentation for the data format in the other direction.
  */
@@ -299,7 +299,7 @@ static int tegra_bpmp_i2c_probe(struct platform_device *pdev)
 	if (!i2c->bpmp)
 		return -ENODEV;
 
-	err = of_property_read_u32(pdev->dev.of_node, "nvidia,bpmp-bus-id",
+	err = of_property_read_u32(pdev->dev.of_yesde, "nvidia,bpmp-bus-id",
 				   &value);
 	if (err < 0)
 		return err;
@@ -312,7 +312,7 @@ static int tegra_bpmp_i2c_probe(struct platform_device *pdev)
 		sizeof(i2c->adapter.name));
 	i2c->adapter.algo = &tegra_bpmp_i2c_algo;
 	i2c->adapter.dev.parent = &pdev->dev;
-	i2c->adapter.dev.of_node = pdev->dev.of_node;
+	i2c->adapter.dev.of_yesde = pdev->dev.of_yesde;
 
 	platform_set_drvdata(pdev, i2c);
 

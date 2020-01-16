@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliayes Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -51,7 +51,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 
 	if ((err = init_dsp_comm_page(chip))) {
 		dev_err(chip->card->dev,
-			"init_hw - could not initialize DSP comm page\n");
+			"init_hw - could yest initialize DSP comm page\n");
 		return err;
 	}
 
@@ -79,7 +79,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		chip->px_digital_in = chip->bx_digital_in = 16;
 		chip->px_num = chip->bx_num = 24;
 		chip->has_phantom_power = true;
-		chip->hasnt_input_nominal_level = true;
+		chip->hasnt_input_yesminal_level = true;
 	} else if (err == E3G_LAYLA3G_BOX_TYPE) {
 		chip->input_clock_types =	ECHO_CLOCK_BIT_INTERNAL |
 						ECHO_CLOCK_BIT_SPDIF |
@@ -107,7 +107,7 @@ static int set_mixer_defaults(struct echoaudio *chip)
 {
 	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
 	chip->professional_spdif = false;
-	chip->non_audio_spdif = false;
+	chip->yesn_audio_spdif = false;
 	chip->bad_board = false;
 	chip->phantom_power = false;
 	return init_line_levels(chip);

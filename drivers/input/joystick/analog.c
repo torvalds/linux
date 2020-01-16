@@ -157,7 +157,7 @@ static unsigned long analog_faketime = 0;
 #define GET_TIME(x)     do { x = analog_faketime++; } while(0)
 #define DELTA(x,y)	((y)-(x))
 #define TIME_NAME	"Unreliable"
-#warning Precise timer not defined for this architecture.
+#warning Precise timer yest defined for this architecture.
 #endif
 
 static inline u64 get_time(void)
@@ -234,7 +234,7 @@ static void analog_decode(struct analog *analog, int *axes, int *initial, int bu
 static int analog_cooked_read(struct analog_port *port)
 {
 	struct gameport *gameport = port->gameport;
-	u64 time[4], start, loop, now;
+	u64 time[4], start, loop, yesw;
 	unsigned int loopout, timeout;
 	unsigned char data[4], this, last;
 	unsigned long flags;
@@ -245,29 +245,29 @@ static int analog_cooked_read(struct analog_port *port)
 
 	local_irq_save(flags);
 	gameport_trigger(gameport);
-	now = get_time();
+	yesw = get_time();
 	local_irq_restore(flags);
 
-	start = now;
+	start = yesw;
 	this = port->mask;
 	i = 0;
 
 	do {
-		loop = now;
+		loop = yesw;
 		last = this;
 
 		local_irq_disable();
 		this = gameport_read(gameport) & port->mask;
-		now = get_time();
+		yesw = get_time();
 		local_irq_restore(flags);
 
-		if ((last ^ this) && (delta(loop, now) < loopout)) {
+		if ((last ^ this) && (delta(loop, yesw) < loopout)) {
 			data[i] = last ^ this;
-			time[i] = now;
+			time[i] = yesw;
 			i++;
 		}
 
-	} while (this && (i < 4) && (delta(start, now) < timeout));
+	} while (this && (i < 4) && (delta(start, yesw) < timeout));
 
 	this <<= 4;
 
@@ -544,8 +544,8 @@ static int analog_init_masks(struct analog_port *port)
 		return -1;
 
 	if ((port->mask & 3) != 3 && port->mask != 0xc) {
-		printk(KERN_WARNING "analog.c: Unknown joystick device found  "
-			"(data=%#x, %s), probably not analog joystick.\n",
+		printk(KERN_WARNING "analog.c: Unkyeswn joystick device found  "
+			"(data=%#x, %s), probably yest analog joystick.\n",
 			port->mask, port->gameport->phys);
 		return -1;
 	}
@@ -718,7 +718,7 @@ struct analog_types {
 };
 
 static struct analog_types analog_types[] = {
-	{ "none",	0x00000000 },
+	{ "yesne",	0x00000000 },
 	{ "auto",	0x000000ff },
 	{ "2btn",	0x0000003f },
 	{ "y-joy",	0x0cc00033 },

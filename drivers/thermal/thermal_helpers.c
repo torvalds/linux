@@ -50,7 +50,7 @@ get_thermal_instance(struct thermal_zone_device *tz,
 	mutex_lock(&tz->lock);
 	mutex_lock(&cdev->lock);
 
-	list_for_each_entry(pos, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(pos, &tz->thermal_instances, tz_yesde) {
 		if (pos->tz == tz && pos->trip == trip && pos->cdev == cdev) {
 			target_instance = pos;
 			break;
@@ -101,7 +101,7 @@ int thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 		/*
 		 * Only allow emulating a temperature when the real temperature
 		 * is below the critical temperature so that the emulation code
-		 * cannot hide critical conditions.
+		 * canyest hide critical conditions.
 		 */
 		if (!ret && *temp < crit_temp)
 			*temp = tz->emul_temperature;
@@ -176,7 +176,7 @@ void thermal_cdev_update(struct thermal_cooling_device *cdev)
 	}
 
 	/* Make sure cdev enters the deepest cooling state */
-	list_for_each_entry(instance, &cdev->thermal_instances, cdev_node) {
+	list_for_each_entry(instance, &cdev->thermal_instances, cdev_yesde) {
 		dev_dbg(&cdev->device, "zone%d->target=%lu\n",
 			instance->tz->id, instance->target);
 		if (instance->target == THERMAL_NO_TARGET)

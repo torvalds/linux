@@ -20,8 +20,8 @@
  * Backlight drivers can use acpi_video_get_backlight_type() to determine
  * which driver should handle the backlight.
  *
- * If CONFIG_ACPI_VIDEO is neither set as "compiled in" (y) nor as a module (m)
- * this file will not be compiled and acpi_video_get_backlight_type() will
+ * If CONFIG_ACPI_VIDEO is neither set as "compiled in" (y) yesr as a module (m)
+ * this file will yest be compiled and acpi_video_get_backlight_type() will
  * always return acpi_backlight_vendor.
  */
 
@@ -40,9 +40,9 @@ ACPI_MODULE_NAME("video");
 
 void acpi_video_unregister_backlight(void);
 
-static bool backlight_notifier_registered;
-static struct notifier_block backlight_nb;
-static struct work_struct backlight_notify_work;
+static bool backlight_yestifier_registered;
+static struct yestifier_block backlight_nb;
+static struct work_struct backlight_yestify_work;
 
 static enum acpi_backlight_type acpi_backlight_cmdline = acpi_backlight_undef;
 static enum acpi_backlight_type acpi_backlight_dmi = acpi_backlight_undef;
@@ -55,8 +55,8 @@ static void acpi_video_parse_cmdline(void)
 		acpi_backlight_cmdline = acpi_backlight_video;
 	if (!strcmp("native", acpi_video_backlight_string))
 		acpi_backlight_cmdline = acpi_backlight_native;
-	if (!strcmp("none", acpi_video_backlight_string))
-		acpi_backlight_cmdline = acpi_backlight_none;
+	if (!strcmp("yesne", acpi_video_backlight_string))
+		acpi_backlight_cmdline = acpi_backlight_yesne;
 }
 
 static acpi_status
@@ -83,7 +83,7 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK;
 }
 
-/* Force to use vendor driver when the ACPI device is known to be
+/* Force to use vendor driver when the ACPI device is kyeswn to be
  * buggy */
 static int video_detect_force_vendor(const struct dmi_system_id *d)
 {
@@ -103,9 +103,9 @@ static int video_detect_force_native(const struct dmi_system_id *d)
 	return 0;
 }
 
-static int video_detect_force_none(const struct dmi_system_id *d)
+static int video_detect_force_yesne(const struct dmi_system_id *d)
 {
-	acpi_backlight_dmi = acpi_backlight_none;
+	acpi_backlight_dmi = acpi_backlight_yesne;
 	return 0;
 }
 
@@ -152,8 +152,8 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 
 	/*
 	 * These models have a working acpi_video backlight control, and using
-	 * native backlight causes a regression where backlight does not work
-	 * when userspace is not handling brightness key events. Disable
+	 * native backlight causes a regression where backlight does yest work
+	 * when userspace is yest handling brightness key events. Disable
 	 * native_backlight on these to fix this:
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=81691
 	 */
@@ -190,7 +190,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
                 },
         },
 
-	/* The native backlight controls do not work on some older machines */
+	/* The native backlight controls do yest work on some older machines */
 	{
 	 /* https://bugs.freedesktop.org/show_bug.cgi?id=81515 */
 	 .callback = video_detect_force_video,
@@ -287,16 +287,16 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	{
 	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1201530 */
 	 .callback = video_detect_force_native,
-	 .ident = "Lenovo Ideapad S405",
+	 .ident = "Leyesvo Ideapad S405",
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_BOARD_NAME, "Lenovo IdeaPad S405"),
+		DMI_MATCH(DMI_BOARD_NAME, "Leyesvo IdeaPad S405"),
 		},
 	},
 	{
 	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1187004 */
 	 .callback = video_detect_force_native,
-	 .ident = "Lenovo Ideapad Z570",
+	 .ident = "Leyesvo Ideapad Z570",
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "102434U"),
@@ -337,7 +337,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
-	 .callback = video_detect_force_none,
+	 .callback = video_detect_force_yesne,
 	 .ident = "Dell OptiPlex 9020M",
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
@@ -348,13 +348,13 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 };
 
 /* This uses a workqueue to avoid various locking ordering issues */
-static void acpi_video_backlight_notify_work(struct work_struct *work)
+static void acpi_video_backlight_yestify_work(struct work_struct *work)
 {
 	if (acpi_video_get_backlight_type() != acpi_backlight_video)
 		acpi_video_unregister_backlight();
 }
 
-static int acpi_video_backlight_notify(struct notifier_block *nb,
+static int acpi_video_backlight_yestify(struct yestifier_block *nb,
 				       unsigned long val, void *bd)
 {
 	struct backlight_device *backlight = bd;
@@ -362,7 +362,7 @@ static int acpi_video_backlight_notify(struct notifier_block *nb,
 	/* A raw bl registering may change video -> native */
 	if (backlight->props.type == BACKLIGHT_RAW &&
 	    val == BACKLIGHT_REGISTERED)
-		schedule_work(&backlight_notify_work);
+		schedule_work(&backlight_yestify_work);
 
 	return NOTIFY_OK;
 }
@@ -373,9 +373,9 @@ static int acpi_video_backlight_notify(struct notifier_block *nb,
  *
  * The autodetect order is:
  * 1) Is the acpi-video backlight interface supported ->
- *  no, use a vendor interface
+ *  yes, use a vendor interface
  * 2) Is this a win8 "ready" BIOS and do we have a native interface ->
- *  yes, use a native interface
+ *  no, use a native interface
  * 3) Else use the acpi-video interface
  *
  * Arguably the native on win8 check should be done first, but that would
@@ -395,12 +395,12 @@ enum acpi_backlight_type acpi_video_get_backlight_type(void)
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				    ACPI_UINT32_MAX, find_video, NULL,
 				    &video_caps, NULL);
-		INIT_WORK(&backlight_notify_work,
-			  acpi_video_backlight_notify_work);
-		backlight_nb.notifier_call = acpi_video_backlight_notify;
+		INIT_WORK(&backlight_yestify_work,
+			  acpi_video_backlight_yestify_work);
+		backlight_nb.yestifier_call = acpi_video_backlight_yestify;
 		backlight_nb.priority = 0;
-		if (backlight_register_notifier(&backlight_nb) == 0)
-			backlight_notifier_registered = true;
+		if (backlight_register_yestifier(&backlight_nb) == 0)
+			backlight_yestifier_registered = true;
 		init_done = true;
 	}
 	mutex_unlock(&init_mutex);
@@ -429,7 +429,7 @@ EXPORT_SYMBOL(acpi_video_get_backlight_type);
 void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type)
 {
 	acpi_backlight_dmi = type;
-	/* Remove acpi-video backlight interface if it is no longer desired */
+	/* Remove acpi-video backlight interface if it is yes longer desired */
 	if (acpi_video_get_backlight_type() != acpi_backlight_video)
 		acpi_video_unregister_backlight();
 }
@@ -437,6 +437,6 @@ EXPORT_SYMBOL(acpi_video_set_dmi_backlight_type);
 
 void __exit acpi_video_detect_exit(void)
 {
-	if (backlight_notifier_registered)
-		backlight_unregister_notifier(&backlight_nb);
+	if (backlight_yestifier_registered)
+		backlight_unregister_yestifier(&backlight_nb);
 }

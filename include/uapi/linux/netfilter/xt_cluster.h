@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _XT_CLUSTER_MATCH_H
 #define _XT_CLUSTER_MATCH_H
 
@@ -9,8 +9,8 @@ enum xt_cluster_flags {
 };
 
 struct xt_cluster_match_info {
-	__u32 total_nodes;
-	__u32 node_mask;
+	__u32 total_yesdes;
+	__u32 yesde_mask;
 	__u32 hash_seed;
 	__u32 flags;
 };

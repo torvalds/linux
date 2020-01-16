@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/quotaops.h>
 #include <linux/xattr.h>
 #include <linux/mount.h>
@@ -23,7 +23,7 @@
 /*
  * dump debugging info about an object
  */
-static noinline
+static yesinline
 void __cachefiles_printk_object(struct cachefiles_object *object,
 				const char *prefix)
 {
@@ -66,7 +66,7 @@ void __cachefiles_printk_object(struct cachefiles_object *object,
 /*
  * dump debugging info about a pair of objects
  */
-static noinline void cachefiles_printk_object(struct cachefiles_object *object,
+static yesinline void cachefiles_printk_object(struct cachefiles_object *object,
 					      struct cachefiles_object *xobject)
 {
 	if (object)
@@ -86,15 +86,15 @@ static void cachefiles_mark_object_buried(struct cachefiles_cache *cache,
 					  enum fscache_why_object_killed why)
 {
 	struct cachefiles_object *object;
-	struct rb_node *p;
+	struct rb_yesde *p;
 
 	_enter(",'%pd'", dentry);
 
 	write_lock(&cache->active_lock);
 
-	p = cache->active_nodes.rb_node;
+	p = cache->active_yesdes.rb_yesde;
 	while (p) {
-		object = rb_entry(p, struct cachefiles_object, active_node);
+		object = rb_entry(p, struct cachefiles_object, active_yesde);
 		if (object->dentry > dentry)
 			p = p->rb_left;
 		else if (object->dentry < dentry)
@@ -105,7 +105,7 @@ static void cachefiles_mark_object_buried(struct cachefiles_cache *cache,
 
 	write_unlock(&cache->active_lock);
 	trace_cachefiles_mark_buried(NULL, dentry, why);
-	_leave(" [no owner]");
+	_leave(" [yes owner]");
 	return;
 
 	/* found the dentry for  */
@@ -131,13 +131,13 @@ found_dentry:
 }
 
 /*
- * record the fact that an object is now active
+ * record the fact that an object is yesw active
  */
 static int cachefiles_mark_object_active(struct cachefiles_cache *cache,
 					 struct cachefiles_object *object)
 {
 	struct cachefiles_object *xobject;
-	struct rb_node **_p, *_parent = NULL;
+	struct rb_yesde **_p, *_parent = NULL;
 	struct dentry *dentry;
 
 	_enter(",%p", object);
@@ -154,11 +154,11 @@ try_again:
 		BUG();
 	}
 
-	_p = &cache->active_nodes.rb_node;
+	_p = &cache->active_yesdes.rb_yesde;
 	while (*_p) {
 		_parent = *_p;
 		xobject = rb_entry(_parent,
-				   struct cachefiles_object, active_node);
+				   struct cachefiles_object, active_yesde);
 
 		ASSERT(xobject != object);
 
@@ -170,8 +170,8 @@ try_again:
 			goto wait_for_old_object;
 	}
 
-	rb_link_node(&object->active_node, _parent, _p);
-	rb_insert_color(&object->active_node, &cache->active_nodes);
+	rb_link_yesde(&object->active_yesde, _parent, _p);
+	rb_insert_color(&object->active_yesde, &cache->active_yesdes);
 
 	write_unlock(&cache->active_lock);
 	_leave(" = 0");
@@ -258,18 +258,18 @@ void cachefiles_mark_object_inactive(struct cachefiles_cache *cache,
 				     blkcnt_t i_blocks)
 {
 	struct dentry *dentry = object->dentry;
-	struct inode *inode = d_backing_inode(dentry);
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
 
-	trace_cachefiles_mark_inactive(object, dentry, inode);
+	trace_cachefiles_mark_inactive(object, dentry, iyesde);
 
 	write_lock(&cache->active_lock);
-	rb_erase(&object->active_node, &cache->active_nodes);
+	rb_erase(&object->active_yesde, &cache->active_yesdes);
 	clear_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags);
 	write_unlock(&cache->active_lock);
 
 	wake_up_bit(&object->flags, CACHEFILES_OBJECT_ACTIVE);
 
-	/* This object can now be culled, so we need to let the daemon know
+	/* This object can yesw be culled, so we need to let the daemon kyesw
 	 * that there is something it can remove if it needs to.
 	 */
 	atomic_long_add(i_blocks, &cache->b_released);
@@ -300,7 +300,7 @@ static int cachefiles_bury_object(struct cachefiles_cache *cache,
 
 	_debug("remove %p from %p", rep, dir);
 
-	/* non-directories can just be unlinked */
+	/* yesn-directories can just be unlinked */
 	if (!d_is_dir(rep)) {
 		_debug("unlink stale object");
 
@@ -311,13 +311,13 @@ static int cachefiles_bury_object(struct cachefiles_cache *cache,
 			cachefiles_io_error(cache, "Unlink security error");
 		} else {
 			trace_cachefiles_unlink(object, rep, why);
-			ret = vfs_unlink(d_inode(dir), rep, NULL);
+			ret = vfs_unlink(d_iyesde(dir), rep, NULL);
 
 			if (preemptive)
 				cachefiles_mark_object_buried(cache, rep, why);
 		}
 
-		inode_unlock(d_inode(dir));
+		iyesde_unlock(d_iyesde(dir));
 
 		if (ret == -EIO)
 			cachefiles_io_error(cache, "Unlink failed");
@@ -328,7 +328,7 @@ static int cachefiles_bury_object(struct cachefiles_cache *cache,
 
 	/* directories have to be moved to the graveyard */
 	_debug("move stale object to graveyard");
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 
 try_again:
 	/* first step is to make up a grave dentry in the graveyard */
@@ -340,7 +340,7 @@ try_again:
 	trap = lock_rename(cache->graveyard, dir);
 
 	/* do some checks before getting the grave dentry */
-	if (rep->d_parent != dir || IS_DEADDIR(d_inode(rep))) {
+	if (rep->d_parent != dir || IS_DEADDIR(d_iyesde(rep))) {
 		/* the entry was probably culled when we dropped the parent dir
 		 * lock */
 		unlock_rename(cache->graveyard, dir);
@@ -350,13 +350,13 @@ try_again:
 
 	if (!d_can_lookup(cache->graveyard)) {
 		unlock_rename(cache->graveyard, dir);
-		cachefiles_io_error(cache, "Graveyard no longer a directory");
+		cachefiles_io_error(cache, "Graveyard yes longer a directory");
 		return -EIO;
 	}
 
 	if (trap == rep) {
 		unlock_rename(cache->graveyard, dir);
-		cachefiles_io_error(cache, "May not make directory loop");
+		cachefiles_io_error(cache, "May yest make directory loop");
 		return -EIO;
 	}
 
@@ -395,11 +395,11 @@ try_again:
 		return -EIO;
 	}
 
-	/* target should not be an ancestor of source */
+	/* target should yest be an ancestor of source */
 	if (trap == grave) {
 		unlock_rename(cache->graveyard, dir);
 		dput(grave);
-		cachefiles_io_error(cache, "May not make directory loop");
+		cachefiles_io_error(cache, "May yest make directory loop");
 		return -EIO;
 	}
 
@@ -413,8 +413,8 @@ try_again:
 		cachefiles_io_error(cache, "Rename security error %d", ret);
 	} else {
 		trace_cachefiles_rename(object, rep, grave, why);
-		ret = vfs_rename(d_inode(dir), rep,
-				 d_inode(cache->graveyard), grave, NULL, 0);
+		ret = vfs_rename(d_iyesde(dir), rep,
+				 d_iyesde(cache->graveyard), grave, NULL, 0);
 		if (ret != 0 && ret != -ENOMEM)
 			cachefiles_io_error(cache,
 					    "Rename failed with error %d", ret);
@@ -441,18 +441,18 @@ int cachefiles_delete_object(struct cachefiles_cache *cache,
 	_enter(",OBJ%x{%p}", object->fscache.debug_id, object->dentry);
 
 	ASSERT(object->dentry);
-	ASSERT(d_backing_inode(object->dentry));
+	ASSERT(d_backing_iyesde(object->dentry));
 	ASSERT(object->dentry->d_parent);
 
 	dir = dget_parent(object->dentry);
 
-	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
+	iyesde_lock_nested(d_iyesde(dir), I_MUTEX_PARENT);
 
 	if (test_bit(FSCACHE_OBJECT_KILLED_BY_CACHE, &object->fscache.flags)) {
 		/* object allocation for the same key preemptively deleted this
 		 * object's file so that it could create its own file */
 		_debug("object preemptively buried");
-		inode_unlock(d_inode(dir));
+		iyesde_unlock(d_iyesde(dir));
 		ret = 0;
 	} else {
 		/* we need to check that our parent is _still_ our parent - it
@@ -463,9 +463,9 @@ int cachefiles_delete_object(struct cachefiles_cache *cache,
 						     FSCACHE_OBJECT_WAS_RETIRED);
 		} else {
 			/* it got moved, presumably by cachefilesd culling it,
-			 * so it's no longer in the key path and we can ignore
+			 * so it's yes longer in the key path and we can igyesre
 			 * it */
-			inode_unlock(d_inode(dir));
+			iyesde_unlock(d_iyesde(dir));
 			ret = 0;
 		}
 	}
@@ -486,7 +486,7 @@ int cachefiles_walk_to_object(struct cachefiles_object *parent,
 {
 	struct cachefiles_cache *cache;
 	struct dentry *dir, *next = NULL;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct path path;
 	unsigned long start;
 	const char *name;
@@ -501,11 +501,11 @@ int cachefiles_walk_to_object(struct cachefiles_object *parent,
 	path.mnt = cache->mnt;
 
 	ASSERT(parent->dentry);
-	ASSERT(d_backing_inode(parent->dentry));
+	ASSERT(d_backing_iyesde(parent->dentry));
 
 	if (!(d_is_dir(parent->dentry))) {
 		// TODO: convert file to dir
-		_leave("looking up in none directory");
+		_leave("looking up in yesne directory");
 		return -ENOBUFS;
 	}
 
@@ -525,7 +525,7 @@ lookup_again:
 	/* search the current directory for the element name */
 	_debug("lookup '%s'", name);
 
-	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
+	iyesde_lock_nested(d_iyesde(dir), I_MUTEX_PARENT);
 
 	start = jiffies;
 	next = lookup_one_len(name, dir, nlen);
@@ -535,16 +535,16 @@ lookup_again:
 		goto lookup_error;
 	}
 
-	inode = d_backing_inode(next);
-	trace_cachefiles_lookup(object, next, inode);
-	_debug("next -> %p %s", next, inode ? "positive" : "negative");
+	iyesde = d_backing_iyesde(next);
+	trace_cachefiles_lookup(object, next, iyesde);
+	_debug("next -> %p %s", next, iyesde ? "positive" : "negative");
 
 	if (!key)
-		object->new = !inode;
+		object->new = !iyesde;
 
 	/* if this element of the path doesn't exist, then the lookup phase
-	 * failed, and we can release any readers in the certain knowledge that
-	 * there's nothing for them to actually read */
+	 * failed, and we can release any readers in the certain kyeswledge that
+	 * there's yesthing for them to actually read */
 	if (d_is_negative(next))
 		fscache_object_lookup_negative(&object->fscache);
 
@@ -554,14 +554,14 @@ lookup_again:
 		if (d_is_negative(next)) {
 			ret = cachefiles_has_space(cache, 1, 0);
 			if (ret < 0)
-				goto no_space_error;
+				goto yes_space_error;
 
 			path.dentry = dir;
 			ret = security_path_mkdir(&path, next, 0);
 			if (ret < 0)
 				goto create_error;
 			start = jiffies;
-			ret = vfs_mkdir(d_inode(dir), next, 0);
+			ret = vfs_mkdir(d_iyesde(dir), next, 0);
 			cachefiles_hist(cachefiles_mkdir_histogram, start);
 			if (!key)
 				trace_cachefiles_mkdir(object, next, ret);
@@ -570,49 +570,49 @@ lookup_again:
 
 			if (unlikely(d_unhashed(next))) {
 				dput(next);
-				inode_unlock(d_inode(dir));
+				iyesde_unlock(d_iyesde(dir));
 				goto lookup_again;
 			}
-			ASSERT(d_backing_inode(next));
+			ASSERT(d_backing_iyesde(next));
 
-			_debug("mkdir -> %p{%p{ino=%lu}}",
-			       next, d_backing_inode(next), d_backing_inode(next)->i_ino);
+			_debug("mkdir -> %p{%p{iyes=%lu}}",
+			       next, d_backing_iyesde(next), d_backing_iyesde(next)->i_iyes);
 
 		} else if (!d_can_lookup(next)) {
-			pr_err("inode %lu is not a directory\n",
-			       d_backing_inode(next)->i_ino);
+			pr_err("iyesde %lu is yest a directory\n",
+			       d_backing_iyesde(next)->i_iyes);
 			ret = -ENOBUFS;
 			goto error;
 		}
 
 	} else {
-		/* non-index objects start out life as files */
+		/* yesn-index objects start out life as files */
 		if (d_is_negative(next)) {
 			ret = cachefiles_has_space(cache, 1, 0);
 			if (ret < 0)
-				goto no_space_error;
+				goto yes_space_error;
 
 			path.dentry = dir;
-			ret = security_path_mknod(&path, next, S_IFREG, 0);
+			ret = security_path_mkyesd(&path, next, S_IFREG, 0);
 			if (ret < 0)
 				goto create_error;
 			start = jiffies;
-			ret = vfs_create(d_inode(dir), next, S_IFREG, true);
+			ret = vfs_create(d_iyesde(dir), next, S_IFREG, true);
 			cachefiles_hist(cachefiles_create_histogram, start);
 			trace_cachefiles_create(object, next, ret);
 			if (ret < 0)
 				goto create_error;
 
-			ASSERT(d_backing_inode(next));
+			ASSERT(d_backing_iyesde(next));
 
-			_debug("create -> %p{%p{ino=%lu}}",
-			       next, d_backing_inode(next), d_backing_inode(next)->i_ino);
+			_debug("create -> %p{%p{iyes=%lu}}",
+			       next, d_backing_iyesde(next), d_backing_iyesde(next)->i_iyes);
 
 		} else if (!d_can_lookup(next) &&
 			   !d_is_reg(next)
 			   ) {
-			pr_err("inode %lu is not a file or directory\n",
-			       d_backing_inode(next)->i_ino);
+			pr_err("iyesde %lu is yest a file or directory\n",
+			       d_backing_iyesde(next)->i_iyes);
 			ret = -ENOBUFS;
 			goto error;
 		}
@@ -621,7 +621,7 @@ lookup_again:
 	/* process the next component */
 	if (key) {
 		_debug("advance");
-		inode_unlock(d_inode(dir));
+		iyesde_unlock(d_iyesde(dir));
 		dput(dir);
 		dir = next;
 		next = NULL;
@@ -657,10 +657,10 @@ lookup_again:
 		}
 	}
 
-	/* note that we're now using this object */
+	/* yeste that we're yesw using this object */
 	ret = cachefiles_mark_object_active(cache, object);
 
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 	dput(dir);
 	dir = NULL;
 
@@ -677,7 +677,7 @@ lookup_again:
 	} else {
 		/* always update the atime on an object we've just looked up
 		 * (this is used to keep track of culling, and atimes are only
-		 * updated by read, write and readdir but not lookup or
+		 * updated by read, write and readdir but yest lookup or
 		 * open) */
 		path.dentry = next;
 		touch_atime(&path);
@@ -689,7 +689,7 @@ lookup_again:
 			const struct address_space_operations *aops;
 
 			ret = -EPERM;
-			aops = d_backing_inode(object->dentry)->i_mapping->a_ops;
+			aops = d_backing_iyesde(object->dentry)->i_mapping->a_ops;
 			if (!aops->bmap)
 				goto check_error;
 			if (object->dentry->d_sb->s_blocksize > PAGE_SIZE)
@@ -704,10 +704,10 @@ lookup_again:
 	object->new = 0;
 	fscache_obtained_object(&object->fscache);
 
-	_leave(" = 0 [%lu]", d_backing_inode(object->dentry)->i_ino);
+	_leave(" = 0 [%lu]", d_backing_iyesde(object->dentry)->i_iyes);
 	return 0;
 
-no_space_error:
+yes_space_error:
 	fscache_object_mark_killed(&object->fscache, FSCACHE_OBJECT_NO_SPACE);
 create_error:
 	_debug("create error %d", ret);
@@ -722,7 +722,7 @@ mark_active_timed_out:
 check_error:
 	_debug("check error %d", ret);
 	cachefiles_mark_object_inactive(
-		cache, object, d_backing_inode(object->dentry)->i_blocks);
+		cache, object, d_backing_iyesde(object->dentry)->i_blocks);
 release_dentry:
 	dput(object->dentry);
 	object->dentry = NULL;
@@ -739,7 +739,7 @@ lookup_error:
 		cachefiles_io_error(cache, "Lookup failed");
 	next = NULL;
 error:
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 	dput(next);
 error_out2:
 	dput(dir);
@@ -763,7 +763,7 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	_enter(",,%s", dirname);
 
 	/* search the current directory for the element name */
-	inode_lock(d_inode(dir));
+	iyesde_lock(d_iyesde(dir));
 
 retry:
 	start = jiffies;
@@ -771,12 +771,12 @@ retry:
 	cachefiles_hist(cachefiles_lookup_histogram, start);
 	if (IS_ERR(subdir)) {
 		if (PTR_ERR(subdir) == -ENOMEM)
-			goto nomem_d_alloc;
+			goto yesmem_d_alloc;
 		goto lookup_error;
 	}
 
 	_debug("subdir -> %p %s",
-	       subdir, d_backing_inode(subdir) ? "positive" : "negative");
+	       subdir, d_backing_iyesde(subdir) ? "positive" : "negative");
 
 	/* we need to create the subdir if it doesn't exist yet */
 	if (d_is_negative(subdir)) {
@@ -791,7 +791,7 @@ retry:
 		ret = security_path_mkdir(&path, subdir, 0700);
 		if (ret < 0)
 			goto mkdir_error;
-		ret = vfs_mkdir(d_inode(dir), subdir, 0700);
+		ret = vfs_mkdir(d_iyesde(dir), subdir, 0700);
 		if (ret < 0)
 			goto mkdir_error;
 
@@ -799,36 +799,36 @@ retry:
 			dput(subdir);
 			goto retry;
 		}
-		ASSERT(d_backing_inode(subdir));
+		ASSERT(d_backing_iyesde(subdir));
 
-		_debug("mkdir -> %p{%p{ino=%lu}}",
+		_debug("mkdir -> %p{%p{iyes=%lu}}",
 		       subdir,
-		       d_backing_inode(subdir),
-		       d_backing_inode(subdir)->i_ino);
+		       d_backing_iyesde(subdir),
+		       d_backing_iyesde(subdir)->i_iyes);
 	}
 
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 
 	/* we need to make sure the subdir is a directory */
-	ASSERT(d_backing_inode(subdir));
+	ASSERT(d_backing_iyesde(subdir));
 
 	if (!d_can_lookup(subdir)) {
-		pr_err("%s is not a directory\n", dirname);
+		pr_err("%s is yest a directory\n", dirname);
 		ret = -EIO;
 		goto check_error;
 	}
 
 	ret = -EPERM;
-	if (!(d_backing_inode(subdir)->i_opflags & IOP_XATTR) ||
-	    !d_backing_inode(subdir)->i_op->lookup ||
-	    !d_backing_inode(subdir)->i_op->mkdir ||
-	    !d_backing_inode(subdir)->i_op->create ||
-	    !d_backing_inode(subdir)->i_op->rename ||
-	    !d_backing_inode(subdir)->i_op->rmdir ||
-	    !d_backing_inode(subdir)->i_op->unlink)
+	if (!(d_backing_iyesde(subdir)->i_opflags & IOP_XATTR) ||
+	    !d_backing_iyesde(subdir)->i_op->lookup ||
+	    !d_backing_iyesde(subdir)->i_op->mkdir ||
+	    !d_backing_iyesde(subdir)->i_op->create ||
+	    !d_backing_iyesde(subdir)->i_op->rename ||
+	    !d_backing_iyesde(subdir)->i_op->rmdir ||
+	    !d_backing_iyesde(subdir)->i_op->unlink)
 		goto check_error;
 
-	_leave(" = [%lu]", d_backing_inode(subdir)->i_ino);
+	_leave(" = [%lu]", d_backing_iyesde(subdir)->i_iyes);
 	return subdir;
 
 check_error:
@@ -837,26 +837,26 @@ check_error:
 	return ERR_PTR(ret);
 
 mkdir_error:
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 	dput(subdir);
 	pr_err("mkdir %s failed with error %d\n", dirname, ret);
 	return ERR_PTR(ret);
 
 lookup_error:
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 	ret = PTR_ERR(subdir);
 	pr_err("Lookup %s failed with error %d\n", dirname, ret);
 	return ERR_PTR(ret);
 
-nomem_d_alloc:
-	inode_unlock(d_inode(dir));
+yesmem_d_alloc:
+	iyesde_unlock(d_iyesde(dir));
 	_leave(" = -ENOMEM");
 	return ERR_PTR(-ENOMEM);
 }
 
 /*
- * find out if an object is in use or not
- * - if finds object and it's not in use:
+ * find out if an object is in use or yest
+ * - if finds object and it's yest in use:
  *   - returns a pointer to the object and a reference on it
  *   - returns with the directory locked
  */
@@ -865,7 +865,7 @@ static struct dentry *cachefiles_check_active(struct cachefiles_cache *cache,
 					      char *filename)
 {
 	struct cachefiles_object *object;
-	struct rb_node *_n;
+	struct rb_yesde *_n;
 	struct dentry *victim;
 	unsigned long start;
 	int ret;
@@ -874,7 +874,7 @@ static struct dentry *cachefiles_check_active(struct cachefiles_cache *cache,
 	//       dir, filename);
 
 	/* look up the victim */
-	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
+	iyesde_lock_nested(d_iyesde(dir), I_MUTEX_PARENT);
 
 	start = jiffies;
 	victim = lookup_one_len(filename, dir, strlen(filename));
@@ -883,13 +883,13 @@ static struct dentry *cachefiles_check_active(struct cachefiles_cache *cache,
 		goto lookup_error;
 
 	//_debug("victim -> %p %s",
-	//       victim, d_backing_inode(victim) ? "positive" : "negative");
+	//       victim, d_backing_iyesde(victim) ? "positive" : "negative");
 
-	/* if the object is no longer there then we probably retired the object
+	/* if the object is yes longer there then we probably retired the object
 	 * at the netfs's request whilst the cull was in progress
 	 */
 	if (d_is_negative(victim)) {
-		inode_unlock(d_inode(dir));
+		iyesde_unlock(d_iyesde(dir));
 		dput(victim);
 		_leave(" = -ENOENT [absent]");
 		return ERR_PTR(-ENOENT);
@@ -898,10 +898,10 @@ static struct dentry *cachefiles_check_active(struct cachefiles_cache *cache,
 	/* check to see if we're using this object */
 	read_lock(&cache->active_lock);
 
-	_n = cache->active_nodes.rb_node;
+	_n = cache->active_yesdes.rb_yesde;
 
 	while (_n) {
-		object = rb_entry(_n, struct cachefiles_object, active_node);
+		object = rb_entry(_n, struct cachefiles_object, active_yesde);
 
 		if (object->dentry > victim)
 			_n = _n->rb_left;
@@ -918,16 +918,16 @@ static struct dentry *cachefiles_check_active(struct cachefiles_cache *cache,
 
 object_in_use:
 	read_unlock(&cache->active_lock);
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 	dput(victim);
 	//_leave(" = -EBUSY [in use]");
 	return ERR_PTR(-EBUSY);
 
 lookup_error:
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 	ret = PTR_ERR(victim);
 	if (ret == -ENOENT) {
-		/* file or dir now absent - probably retired by netfs */
+		/* file or dir yesw absent - probably retired by netfs */
 		_leave(" = -ESTALE [absent]");
 		return ERR_PTR(-ESTALE);
 	}
@@ -944,7 +944,7 @@ lookup_error:
 }
 
 /*
- * cull an object if it's not in use
+ * cull an object if it's yest in use
  * - called only by cache manager daemon
  */
 int cachefiles_cull(struct cachefiles_cache *cache, struct dentry *dir,
@@ -960,9 +960,9 @@ int cachefiles_cull(struct cachefiles_cache *cache, struct dentry *dir,
 		return PTR_ERR(victim);
 
 	_debug("victim -> %p %s",
-	       victim, d_backing_inode(victim) ? "positive" : "negative");
+	       victim, d_backing_iyesde(victim) ? "positive" : "negative");
 
-	/* okay... the victim is not being used so we can cull it
+	/* okay... the victim is yest being used so we can cull it
 	 * - start by marking it as stale
 	 */
 	_debug("victim is cullable");
@@ -984,11 +984,11 @@ int cachefiles_cull(struct cachefiles_cache *cache, struct dentry *dir,
 	return 0;
 
 error_unlock:
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 error:
 	dput(victim);
 	if (ret == -ENOENT) {
-		/* file or dir now absent - probably retired by netfs */
+		/* file or dir yesw absent - probably retired by netfs */
 		_leave(" = -ESTALE [absent]");
 		return -ESTALE;
 	}
@@ -1003,9 +1003,9 @@ error:
 }
 
 /*
- * find out if an object is in use or not
+ * find out if an object is in use or yest
  * - called only by cache manager daemon
- * - returns -EBUSY or 0 to indicate whether an object is in use or not
+ * - returns -EBUSY or 0 to indicate whether an object is in use or yest
  */
 int cachefiles_check_in_use(struct cachefiles_cache *cache, struct dentry *dir,
 			    char *filename)
@@ -1019,7 +1019,7 @@ int cachefiles_check_in_use(struct cachefiles_cache *cache, struct dentry *dir,
 	if (IS_ERR(victim))
 		return PTR_ERR(victim);
 
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 	dput(victim);
 	//_leave(" = 0");
 	return 0;

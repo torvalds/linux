@@ -24,7 +24,7 @@
    additional cards, so I'll be verbose about what is going on.
    */
 
-/* Known cards that have old-style EEPROMs. */
+/* Kyeswn cards that have old-style EEPROMs. */
 static struct eeprom_fixup eeprom_fixups[] = {
   {"Asante", 0, 0, 0x94, {0x1e00, 0x0000, 0x0800, 0x0100, 0x018c,
 			  0x0000, 0x0000, 0xe078, 0x0001, 0x0050, 0x0018 }},
@@ -73,13 +73,13 @@ static struct eeprom_fixup eeprom_fixups[] = {
 					 0x01e0, /* Advertise all above			*/
 					 0x5000, /* FDX all above			*/
 					 0x1800, /* Set fast TTM in 100bt modes		*/
-					 0x0000, /* PHY cannot be unplugged		*/
+					 0x0000, /* PHY canyest be unplugged		*/
   }},
   {NULL}};
 
 
 static const char *const block_name[] = {
-	"21140 non-MII",
+	"21140 yesn-MII",
 	"21140 MII PHY",
 	"21142 Serial PHY",
 	"21142 MII PHY",
@@ -92,14 +92,14 @@ static const char *const block_name[] = {
  * tulip_build_fake_mediatable - Build a fake mediatable entry.
  * @tp: Ptr to the tulip private data.
  *
- * Some cards like the 3x5 HSC cards (J3514A) do not have a standard
- * srom and can not be handled under the fixup routine.  These cards
+ * Some cards like the 3x5 HSC cards (J3514A) do yest have a standard
+ * srom and can yest be handled under the fixup routine.  These cards
  * still need a valid mediatable entry for correct csr12 setup and
  * mii handling.
  *
  * Since this is currently a parisc-linux specific function, the
  * #ifdef __hppa__ should completely optimize this function away for
- * non-parisc hardware.
+ * yesn-parisc hardware.
  */
 static void tulip_build_fake_mediatable(struct tulip_private *tp)
 {
@@ -126,7 +126,7 @@ static void tulip_build_fake_mediatable(struct tulip_private *tp)
 		tp->mtable->defaultmedia = 0x800;
 		tp->mtable->leafcount = 1;
 		tp->mtable->csr12dir = 0x3f; /* inputs on bit7 for hsc-pci, bit6 for pci-fx */
-		tp->mtable->has_nonmii = 0;
+		tp->mtable->has_yesnmii = 0;
 		tp->mtable->has_reset = 0;
 		tp->mtable->has_mii = 1;
 		tp->mtable->csr15dir = tp->mtable->csr15val = 0;
@@ -142,7 +142,7 @@ static void tulip_build_fake_mediatable(struct tulip_private *tp)
 void tulip_parse_eeprom(struct net_device *dev)
 {
 	/*
-	  dev is not registered at this point, so logging messages can't
+	  dev is yest registered at this point, so logging messages can't
 	  use dev_<level> or netdev_<level> but dev->name is good via a
 	  hack in the caller
 	*/
@@ -171,7 +171,7 @@ void tulip_parse_eeprom(struct net_device *dev)
 				ee_data = last_ee_data;
 				goto subsequent_board;
 			} else
-				pr_info("%s: Missing EEPROM, this interface may not work correctly!\n",
+				pr_info("%s: Missing EEPROM, this interface may yest work correctly!\n",
 					dev->name);
 			return;
 		}
@@ -181,7 +181,7 @@ void tulip_parse_eeprom(struct net_device *dev)
 		      dev->dev_addr[1] == eeprom_fixups[i].addr1 &&
 		      dev->dev_addr[2] == eeprom_fixups[i].addr2) {
 		  if (dev->dev_addr[2] == 0xE8 && ee_data[0x1a] == 0x55)
-			  i++;			/* An Accton EN1207, not an outlaw Maxtech. */
+			  i++;			/* An Accton EN1207, yest an outlaw Maxtech. */
 		  memcpy(ee_data + 26, eeprom_fixups[i].newtable,
 				 sizeof(eeprom_fixups[i].newtable));
 		  pr_info("%s: Old format EEPROM on '%s' board.  Using substitute media control info\n",
@@ -190,7 +190,7 @@ void tulip_parse_eeprom(struct net_device *dev)
 		}
 	  }
 	  if (eeprom_fixups[i].name == NULL) { /* No fixup found. */
-		  pr_info("%s: Old style EEPROM with no media selection information\n",
+		  pr_info("%s: Old style EEPROM with yes media selection information\n",
 			  dev->name);
 		return;
 	  }
@@ -216,10 +216,10 @@ subsequent_board:
 			csr12dir = *p++;
 		count = *p++;
 
-	        /* there is no phy information, don't even try to build mtable */
+	        /* there is yes phy information, don't even try to build mtable */
 	        if (count == 0) {
 			if (tulip_debug > 0)
-				pr_warn("%s: no phy info, aborting mtable build\n",
+				pr_warn("%s: yes phy info, aborting mtable build\n",
 					dev->name);
 		        return;
 		}
@@ -231,7 +231,7 @@ subsequent_board:
 		mtable->defaultmedia = media;
 		mtable->leafcount = count;
 		mtable->csr12dir = csr12dir;
-		mtable->has_nonmii = mtable->has_mii = mtable->has_reset = 0;
+		mtable->has_yesnmii = mtable->has_mii = mtable->has_reset = 0;
 		mtable->csr15dir = mtable->csr15val = 0;
 
 		pr_info("%s: EEPROM default media type %s\n",
@@ -254,7 +254,7 @@ subsequent_board:
 					mtable->has_reset = i;
 					leaf->media = p[2] & 0x0f;
 				} else if (tp->chip_id == DM910X && p[1] == 0x80) {
-					/* Hack to ignore Davicom delay period block */
+					/* Hack to igyesre Davicom delay period block */
 					mtable->leafcount--;
 					count--;
 					i--;
@@ -270,7 +270,7 @@ subsequent_board:
 					reset_len=p[4+gpr_len]*2;
 					new_advertise |= get_u16(&p[7+gpr_len+reset_len]);
 				} else {
-					mtable->has_nonmii = 1;
+					mtable->has_yesnmii = 1;
 					leaf->media = p[2] & MEDIA_MASK;
 					/* Davicom's media number for 100BaseTX is strange */
 					if (tp->chip_id == DM910X && leaf->media == 1)
@@ -309,7 +309,7 @@ subsequent_board:
 			pr_info("%s: Index #%d - Media %s (#%d) described by a %s (%d) block\n",
 				dev->name,
 				i, medianame[leaf->media & 15], leaf->media,
-				leaf->type < ARRAY_SIZE(block_name) ? block_name[leaf->type] : "<unknown>",
+				leaf->type < ARRAY_SIZE(block_name) ? block_name[leaf->type] : "<unkyeswn>",
 				leaf->type);
 		}
 		if (new_advertise)

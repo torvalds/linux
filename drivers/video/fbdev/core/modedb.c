@@ -545,7 +545,7 @@ static int fb_try_mode(struct fb_var_screeninfo *var, struct fb_info *info,
 	int err = 0;
 
 	DPRINTK("Trying mode %s %dx%d-%d@%d\n",
-		mode->name ? mode->name : "noname",
+		mode->name ? mode->name : "yesname",
 		mode->xres, mode->yres, bpp, mode->refresh);
 	var->xres = mode->xres;
 	var->yres = mode->yres;
@@ -606,11 +606,11 @@ static int fb_try_mode(struct fb_var_screeninfo *var, struct fb_info *info,
  *
  *     1024x768MR-8@60m - Reduced blank with margins at 60Hz.
  *
- * NOTE: The passed struct @var is _not_ cleared!  This allows you
+ * NOTE: The passed struct @var is _yest_ cleared!  This allows you
  * to supply values for e.g. the grayscale and accel_flags fields.
  *
  * Returns zero for failure, 1 if using specified @mode_option,
- * 2 if using specified @mode_option with an ignored refresh rate,
+ * 2 if using specified @mode_option with an igyesred refresh rate,
  * 3 if default mode is used, 4 if fall back to any valid mode.
  */
 
@@ -746,7 +746,7 @@ done:
 		}
 
 		DPRINTK("Trying specified video mode%s %ix%i\n",
-			refresh_specified ? "" : " (ignoring refresh rate)",
+			refresh_specified ? "" : " (igyesring refresh rate)",
 			xres, yres);
 
 		if (!refresh_specified) {
@@ -916,7 +916,7 @@ void fb_videomode_to_var(struct fb_var_screeninfo *var,
  * @mode2: second videomode
  *
  * RETURNS:
- * 1 if equal, 0 if not
+ * 1 if equal, 0 if yest
  */
 int fb_mode_is_equal(const struct fb_videomode *mode1,
 		     const struct fb_videomode *mode2)
@@ -940,7 +940,7 @@ int fb_mode_is_equal(const struct fb_videomode *mode1,
  * @head: pointer to struct list_head of modelist
  *
  * RETURNS:
- * struct fb_videomode, NULL if none found
+ * struct fb_videomode, NULL if yesne found
  *
  * IMPORTANT:
  * This function assumes that all modelist entries in
@@ -1027,7 +1027,7 @@ const struct fb_videomode *fb_find_nearest_mode(const struct fb_videomode *mode,
  * @head: pointer to struct list_head of modelist
  *
  * RETURNS:
- * struct fb_videomode, NULL if none found
+ * struct fb_videomode, NULL if yesne found
  */
 const struct fb_videomode *fb_match_mode(const struct fb_var_screeninfo *var,
 					 struct list_head *head)

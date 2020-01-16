@@ -3,7 +3,7 @@
  *	Industrial Computer Source WDT500/501 driver
  *
  *	(c) Copyright 1995	CymruNET Ltd
- *				Innovation Centre
+ *				Inyesvation Centre
  *				Singleton Park
  *				Swansea
  *				Wales

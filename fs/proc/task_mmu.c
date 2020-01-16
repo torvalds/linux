@@ -14,7 +14,7 @@
 #include <linux/swap.h>
 #include <linux/sched/mm.h>
 #include <linux/swapops.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/page_idle.h>
 #include <linux/shmem_fs.h>
 #include <linux/uaccess.h>
@@ -29,10 +29,10 @@
 		seq_put_decimal_ull_width(m, str, (val) << (PAGE_SHIFT-10), 8)
 void task_mem(struct seq_file *m, struct mm_struct *mm)
 {
-	unsigned long text, lib, swap, anon, file, shmem;
+	unsigned long text, lib, swap, ayesn, file, shmem;
 	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
 
-	anon = get_mm_counter(mm, MM_ANONPAGES);
+	ayesn = get_mm_counter(mm, MM_ANONPAGES);
 	file = get_mm_counter(mm, MM_FILEPAGES);
 	shmem = get_mm_counter(mm, MM_SHMEMPAGES);
 
@@ -40,13 +40,13 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 	 * Note: to minimize their overhead, mm maintains hiwater_vm and
 	 * hiwater_rss only when about to *lower* total_vm or rss.  Any
 	 * collector of these hiwater stats must therefore get total_vm
-	 * and rss too, which will usually be the higher.  Barriers? not
+	 * and rss too, which will usually be the higher.  Barriers? yest
 	 * worth the effort, such snapshots can always be inconsistent.
 	 */
 	hiwater_vm = total_vm = mm->total_vm;
 	if (hiwater_vm < mm->hiwater_vm)
 		hiwater_vm = mm->hiwater_vm;
-	hiwater_rss = total_rss = anon + file + shmem;
+	hiwater_rss = total_rss = ayesn + file + shmem;
 	if (hiwater_rss < mm->hiwater_rss)
 		hiwater_rss = mm->hiwater_rss;
 
@@ -62,7 +62,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 	SEQ_PUT_DEC(" kB\nVmPin:\t", atomic64_read(&mm->pinned_vm));
 	SEQ_PUT_DEC(" kB\nVmHWM:\t", hiwater_rss);
 	SEQ_PUT_DEC(" kB\nVmRSS:\t", total_rss);
-	SEQ_PUT_DEC(" kB\nRssAnon:\t", anon);
+	SEQ_PUT_DEC(" kB\nRssAyesn:\t", ayesn);
 	SEQ_PUT_DEC(" kB\nRssFile:\t", file);
 	SEQ_PUT_DEC(" kB\nRssShmem:\t", shmem);
 	SEQ_PUT_DEC(" kB\nVmData:\t", mm->data_vm);
@@ -158,12 +158,12 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
 	if (last_addr == -1UL)
 		return NULL;
 
-	priv->task = get_proc_task(priv->inode);
+	priv->task = get_proc_task(priv->iyesde);
 	if (!priv->task)
 		return ERR_PTR(-ESRCH);
 
 	mm = priv->mm;
-	if (!mm || !mmget_not_zero(mm))
+	if (!mm || !mmget_yest_zero(mm))
 		return NULL;
 
 	if (down_read_killable(&mm->mmap_sem)) {
@@ -191,7 +191,7 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
 		return vma;
 	}
 
-	/* we do not bother to update m->version in this case */
+	/* we do yest bother to update m->version in this case */
 	if (pos == mm->map_count && priv->tail_vma)
 		return priv->tail_vma;
 
@@ -223,7 +223,7 @@ static void m_stop(struct seq_file *m, void *v)
 	}
 }
 
-static int proc_maps_open(struct inode *inode, struct file *file,
+static int proc_maps_open(struct iyesde *iyesde, struct file *file,
 			const struct seq_operations *ops, int psize)
 {
 	struct proc_maps_private *priv = __seq_open_private(file, ops, psize);
@@ -231,19 +231,19 @@ static int proc_maps_open(struct inode *inode, struct file *file,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->inode = inode;
-	priv->mm = proc_mem_open(inode, PTRACE_MODE_READ);
+	priv->iyesde = iyesde;
+	priv->mm = proc_mem_open(iyesde, PTRACE_MODE_READ);
 	if (IS_ERR(priv->mm)) {
 		int err = PTR_ERR(priv->mm);
 
-		seq_release_private(inode, file);
+		seq_release_private(iyesde, file);
 		return err;
 	}
 
 	return 0;
 }
 
-static int proc_map_release(struct inode *inode, struct file *file)
+static int proc_map_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	struct proc_maps_private *priv = seq->private;
@@ -251,13 +251,13 @@ static int proc_map_release(struct inode *inode, struct file *file)
 	if (priv->mm)
 		mmdrop(priv->mm);
 
-	return seq_release_private(inode, file);
+	return seq_release_private(iyesde, file);
 }
 
-static int do_maps_open(struct inode *inode, struct file *file,
+static int do_maps_open(struct iyesde *iyesde, struct file *file,
 			const struct seq_operations *ops)
 {
-	return proc_maps_open(inode, file, ops,
+	return proc_maps_open(iyesde, file, ops,
 				sizeof(struct proc_maps_private));
 }
 
@@ -268,8 +268,8 @@ static int do_maps_open(struct inode *inode, struct file *file,
 static int is_stack(struct vm_area_struct *vma)
 {
 	/*
-	 * We make no effort to guess what a given thread considers to be
-	 * its "stack".  It's not even well-defined for programs written
+	 * We make yes effort to guess what a given thread considers to be
+	 * its "stack".  It's yest even well-defined for programs written
 	 * languages like Go.
 	 */
 	return vma->vm_start <= vma->vm_mm->start_stack &&
@@ -279,7 +279,7 @@ static int is_stack(struct vm_area_struct *vma)
 static void show_vma_header_prefix(struct seq_file *m,
 				   unsigned long start, unsigned long end,
 				   vm_flags_t flags, unsigned long long pgoff,
-				   dev_t dev, unsigned long ino)
+				   dev_t dev, unsigned long iyes)
 {
 	seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
 	seq_put_hex_ll(m, NULL, start, 8);
@@ -292,7 +292,7 @@ static void show_vma_header_prefix(struct seq_file *m,
 	seq_put_hex_ll(m, " ", pgoff, 8);
 	seq_put_hex_ll(m, " ", MAJOR(dev), 2);
 	seq_put_hex_ll(m, ":", MINOR(dev), 2);
-	seq_put_decimal_ull(m, " ", ino);
+	seq_put_decimal_ull(m, " ", iyes);
 	seq_putc(m, ' ');
 }
 
@@ -302,22 +302,22 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 	struct mm_struct *mm = vma->vm_mm;
 	struct file *file = vma->vm_file;
 	vm_flags_t flags = vma->vm_flags;
-	unsigned long ino = 0;
+	unsigned long iyes = 0;
 	unsigned long long pgoff = 0;
 	unsigned long start, end;
 	dev_t dev = 0;
 	const char *name = NULL;
 
 	if (file) {
-		struct inode *inode = file_inode(vma->vm_file);
-		dev = inode->i_sb->s_dev;
-		ino = inode->i_ino;
+		struct iyesde *iyesde = file_iyesde(vma->vm_file);
+		dev = iyesde->i_sb->s_dev;
+		iyes = iyesde->i_iyes;
 		pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
 	}
 
 	start = vma->vm_start;
 	end = vma->vm_end;
-	show_vma_header_prefix(m, start, end, flags, pgoff, dev, ino);
+	show_vma_header_prefix(m, start, end, flags, pgoff, dev, iyes);
 
 	/*
 	 * Print the dentry name for named mappings, and a
@@ -374,9 +374,9 @@ static const struct seq_operations proc_pid_maps_op = {
 	.show	= show_map
 };
 
-static int pid_maps_open(struct inode *inode, struct file *file)
+static int pid_maps_open(struct iyesde *iyesde, struct file *file)
 {
-	return do_maps_open(inode, file, &proc_pid_maps_op);
+	return do_maps_open(iyesde, file, &proc_pid_maps_op);
 }
 
 const struct file_operations proc_pid_maps_operations = {
@@ -413,16 +413,16 @@ struct mem_size_stats {
 	unsigned long private_clean;
 	unsigned long private_dirty;
 	unsigned long referenced;
-	unsigned long anonymous;
+	unsigned long ayesnymous;
 	unsigned long lazyfree;
-	unsigned long anonymous_thp;
+	unsigned long ayesnymous_thp;
 	unsigned long shmem_thp;
 	unsigned long file_thp;
 	unsigned long swap;
 	unsigned long shared_hugetlb;
 	unsigned long private_hugetlb;
 	u64 pss;
-	u64 pss_anon;
+	u64 pss_ayesn;
 	u64 pss_file;
 	u64 pss_shmem;
 	u64 pss_locked;
@@ -436,8 +436,8 @@ static void smaps_page_accumulate(struct mem_size_stats *mss,
 {
 	mss->pss += pss;
 
-	if (PageAnon(page))
-		mss->pss_anon += pss;
+	if (PageAyesn(page))
+		mss->pss_ayesn += pss;
 	else if (PageSwapBacked(page))
 		mss->pss_shmem += pss;
 	else
@@ -469,8 +469,8 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
 	 * First accumulate quantities that depend only on |size| and the type
 	 * of the compound page.
 	 */
-	if (PageAnon(page)) {
-		mss->anonymous += size;
+	if (PageAyesn(page)) {
+		mss->ayesnymous += size;
 		if (!PageSwapBacked(page) && !dirty && !PageDirty(page))
 			mss->lazyfree += size;
 	}
@@ -527,11 +527,11 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
 	struct page *page = NULL;
 
 	if (pte_present(*pte)) {
-		page = vm_normal_page(vma, addr, *pte);
+		page = vm_yesrmal_page(vma, addr, *pte);
 	} else if (is_swap_pte(*pte)) {
 		swp_entry_t swpent = pte_to_swp_entry(*pte);
 
-		if (!non_swap_entry(swpent)) {
+		if (!yesn_swap_entry(swpent)) {
 			int mapcount;
 
 			mss->swap += PAGE_SIZE;
@@ -549,7 +549,7 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
 		else if (is_device_private_entry(swpent))
 			page = device_private_entry_to_page(swpent);
 	} else if (unlikely(IS_ENABLED(CONFIG_SHMEM) && mss->check_shmem_swap
-							&& pte_none(*pte))) {
+							&& pte_yesne(*pte))) {
 		page = find_get_entry(vma->vm_file->f_mapping,
 						linear_page_index(vma, addr));
 		if (!page)
@@ -582,8 +582,8 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
 	page = follow_trans_huge_pmd(vma, addr, pmd, FOLL_DUMP);
 	if (IS_ERR_OR_NULL(page))
 		return;
-	if (PageAnon(page))
-		mss->anonymous_thp += HPAGE_PMD_SIZE;
+	if (PageAyesn(page))
+		mss->ayesnymous_thp += HPAGE_PMD_SIZE;
 	else if (PageSwapBacked(page))
 		mss->shmem_thp += HPAGE_PMD_SIZE;
 	else if (is_zone_device_page(page))
@@ -637,7 +637,7 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
 	 */
 	static const char mnemonics[BITS_PER_LONG][2] = {
 		/*
-		 * In case if we meet a flag we don't know about.
+		 * In case if we meet a flag we don't kyesw about.
 		 */
 		[0 ... (BITS_PER_LONG-1)] = "??",
 
@@ -713,7 +713,7 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
 	struct page *page = NULL;
 
 	if (pte_present(*pte)) {
-		page = vm_normal_page(vma, addr, *pte);
+		page = vm_yesrmal_page(vma, addr, *pte);
 	} else if (is_swap_pte(*pte)) {
 		swp_entry_t swpent = pte_to_swp_entry(*pte);
 
@@ -755,14 +755,14 @@ static void smap_gather_stats(struct vm_area_struct *vma,
 	mss->check_shmem_swap = false;
 	if (vma->vm_file && shmem_mapping(vma->vm_file->f_mapping)) {
 		/*
-		 * For shared or readonly shmem mappings we know that all
+		 * For shared or readonly shmem mappings we kyesw that all
 		 * swapped out pages belong to the shmem object, and we can
 		 * obtain the swap value much more efficiently. For private
 		 * writable mappings, we might have COW pages that are
-		 * not affected by the parent swapped out pages of the shmem
+		 * yest affected by the parent swapped out pages of the shmem
 		 * object, so we have to distinguish them during the page walk.
-		 * Unless we know that the shmem object (or the part mapped by
-		 * our VMA) has no swapped out pages at all.
+		 * Unless we kyesw that the shmem object (or the part mapped by
+		 * our VMA) has yes swapped out pages at all.
 		 */
 		unsigned long shmem_swapped = shmem_swap_usage(vma);
 
@@ -794,8 +794,8 @@ static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss,
 		 * These are meaningful only for smaps_rollup, otherwise two of
 		 * them are zero, and the other one is the same as Pss.
 		 */
-		SEQ_PUT_DEC(" kB\nPss_Anon:       ",
-			mss->pss_anon >> PSS_SHIFT);
+		SEQ_PUT_DEC(" kB\nPss_Ayesn:       ",
+			mss->pss_ayesn >> PSS_SHIFT);
 		SEQ_PUT_DEC(" kB\nPss_File:       ",
 			mss->pss_file >> PSS_SHIFT);
 		SEQ_PUT_DEC(" kB\nPss_Shmem:      ",
@@ -806,9 +806,9 @@ static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss,
 	SEQ_PUT_DEC(" kB\nPrivate_Clean:  ", mss->private_clean);
 	SEQ_PUT_DEC(" kB\nPrivate_Dirty:  ", mss->private_dirty);
 	SEQ_PUT_DEC(" kB\nReferenced:     ", mss->referenced);
-	SEQ_PUT_DEC(" kB\nAnonymous:      ", mss->anonymous);
+	SEQ_PUT_DEC(" kB\nAyesnymous:      ", mss->ayesnymous);
 	SEQ_PUT_DEC(" kB\nLazyFree:       ", mss->lazyfree);
-	SEQ_PUT_DEC(" kB\nAnonHugePages:  ", mss->anonymous_thp);
+	SEQ_PUT_DEC(" kB\nAyesnHugePages:  ", mss->ayesnymous_thp);
 	SEQ_PUT_DEC(" kB\nShmemPmdMapped: ", mss->shmem_thp);
 	SEQ_PUT_DEC(" kB\nFilePmdMapped: ", mss->file_thp);
 	SEQ_PUT_DEC(" kB\nShared_Hugetlb: ", mss->shared_hugetlb);
@@ -861,12 +861,12 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
 	unsigned long last_vma_end = 0;
 	int ret = 0;
 
-	priv->task = get_proc_task(priv->inode);
+	priv->task = get_proc_task(priv->iyesde);
 	if (!priv->task)
 		return -ESRCH;
 
 	mm = priv->mm;
-	if (!mm || !mmget_not_zero(mm)) {
+	if (!mm || !mmget_yest_zero(mm)) {
 		ret = -ESRCH;
 		goto out_put_task;
 	}
@@ -911,12 +911,12 @@ static const struct seq_operations proc_pid_smaps_op = {
 	.show	= show_smap
 };
 
-static int pid_smaps_open(struct inode *inode, struct file *file)
+static int pid_smaps_open(struct iyesde *iyesde, struct file *file)
 {
-	return do_maps_open(inode, file, &proc_pid_smaps_op);
+	return do_maps_open(iyesde, file, &proc_pid_smaps_op);
 }
 
-static int smaps_rollup_open(struct inode *inode, struct file *file)
+static int smaps_rollup_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 	struct proc_maps_private *priv;
@@ -929,12 +929,12 @@ static int smaps_rollup_open(struct inode *inode, struct file *file)
 	if (ret)
 		goto out_free;
 
-	priv->inode = inode;
-	priv->mm = proc_mem_open(inode, PTRACE_MODE_READ);
+	priv->iyesde = iyesde;
+	priv->mm = proc_mem_open(iyesde, PTRACE_MODE_READ);
 	if (IS_ERR(priv->mm)) {
 		ret = PTR_ERR(priv->mm);
 
-		single_release(inode, file);
+		single_release(iyesde, file);
 		goto out_free;
 	}
 
@@ -945,7 +945,7 @@ out_free:
 	return ret;
 }
 
-static int smaps_rollup_release(struct inode *inode, struct file *file)
+static int smaps_rollup_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	struct proc_maps_private *priv = seq->private;
@@ -954,7 +954,7 @@ static int smaps_rollup_release(struct inode *inode, struct file *file)
 		mmdrop(priv->mm);
 
 	kfree(priv);
-	return single_release(inode, file);
+	return single_release(iyesde, file);
 }
 
 const struct file_operations proc_pid_smaps_operations = {
@@ -1090,7 +1090,7 @@ out:
 		if (!pte_present(ptent))
 			continue;
 
-		page = vm_normal_page(vma, addr, ptent);
+		page = vm_yesrmal_page(vma, addr, ptent);
 		if (!page)
 			continue;
 
@@ -1115,7 +1115,7 @@ static int clear_refs_test_walk(unsigned long start, unsigned long end,
 
 	/*
 	 * Writing 1 to /proc/pid/clear_refs affects all pages.
-	 * Writing 2 to /proc/pid/clear_refs only affects anonymous pages.
+	 * Writing 2 to /proc/pid/clear_refs only affects ayesnymous pages.
 	 * Writing 3 to /proc/pid/clear_refs only affects file mapped pages.
 	 * Writing 4 to /proc/pid/clear_refs affects all pages.
 	 */
@@ -1155,12 +1155,12 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 	if (type < CLEAR_REFS_ALL || type >= CLEAR_REFS_LAST)
 		return -EINVAL;
 
-	task = get_proc_task(file_inode(file));
+	task = get_proc_task(file_iyesde(file));
 	if (!task)
 		return -ESRCH;
 	mm = get_task_mm(task);
 	if (mm) {
-		struct mmu_notifier_range range;
+		struct mmu_yestifier_range range;
 		struct clear_refs_private cp = {
 			.type = type,
 		};
@@ -1220,14 +1220,14 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 				break;
 			}
 
-			mmu_notifier_range_init(&range, MMU_NOTIFY_SOFT_DIRTY,
+			mmu_yestifier_range_init(&range, MMU_NOTIFY_SOFT_DIRTY,
 						0, NULL, mm, 0, -1UL);
-			mmu_notifier_invalidate_range_start(&range);
+			mmu_yestifier_invalidate_range_start(&range);
 		}
 		walk_page_range(mm, 0, mm->highest_vm_end, &clear_refs_walk_ops,
 				&cp);
 		if (type == CLEAR_REFS_SOFT_DIRTY)
-			mmu_notifier_invalidate_range_end(&range);
+			mmu_yestifier_invalidate_range_end(&range);
 		tlb_finish_mmu(&tlb, 0, -1);
 		up_read(&mm->mmap_sem);
 out_mm:
@@ -1240,7 +1240,7 @@ out_mm:
 
 const struct file_operations proc_clear_refs_operations = {
 	.write		= clear_refs_write,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 typedef struct {
@@ -1248,7 +1248,7 @@ typedef struct {
 } pagemap_entry_t;
 
 struct pagemapread {
-	int pos, len;		/* units: PM_ENTRY_BYTES, not bytes */
+	int pos, len;		/* units: PM_ENTRY_BYTES, yest bytes */
 	pagemap_entry_t *buffer;
 	bool show_pfn;
 };
@@ -1291,7 +1291,7 @@ static int pagemap_pte_hole(unsigned long start, unsigned long end,
 	while (addr < end) {
 		struct vm_area_struct *vma = find_vma(walk->mm, addr);
 		pagemap_entry_t pme = make_pme(0, 0);
-		/* End of address space hole, which we mark as non-present. */
+		/* End of address space hole, which we mark as yesn-present. */
 		unsigned long hole_end;
 
 		if (vma)
@@ -1331,7 +1331,7 @@ static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
 		if (pm->show_pfn)
 			frame = pte_pfn(pte);
 		flags |= PM_PRESENT;
-		page = vm_normal_page(vma, addr, pte);
+		page = vm_yesrmal_page(vma, addr, pte);
 		if (pte_soft_dirty(pte))
 			flags |= PM_SOFT_DIRTY;
 	} else if (is_swap_pte(pte)) {
@@ -1350,7 +1350,7 @@ static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
 			page = device_private_entry_to_page(entry);
 	}
 
-	if (page && !PageAnon(page))
+	if (page && !PageAyesn(page))
 		flags |= PM_FILE;
 	if (page && page_mapcount(page) == 1)
 		flags |= PM_MMAP_EXCLUSIVE;
@@ -1471,7 +1471,7 @@ static int pagemap_hugetlb_range(pte_t *ptep, unsigned long hmask,
 	if (pte_present(pte)) {
 		struct page *page = pte_page(pte);
 
-		if (!PageAnon(page))
+		if (!PageAyesn(page))
 			flags |= PM_FILE;
 
 		if (page_mapcount(page) == 1)
@@ -1519,11 +1519,11 @@ static const struct mm_walk_ops pagemap_ops = {
  * Bit  55    pte is soft-dirty (see Documentation/admin-guide/mm/soft-dirty.rst)
  * Bit  56    page exclusively mapped
  * Bits 57-60 zero
- * Bit  61    page is file-page or shared-anon
+ * Bit  61    page is file-page or shared-ayesn
  * Bit  62    page swapped
  * Bit  63    page present
  *
- * If the page is not present but in swap, then the PFN contains an
+ * If the page is yest present but in swap, then the PFN contains an
  * encoding of the swap file number and the page's offset into the
  * swap. Unmapped pages return a null PFN. This allows determining
  * precisely which pages are mapped (or in swap) and comparing mapped
@@ -1544,7 +1544,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	unsigned long end_vaddr;
 	int ret = 0, copied = 0;
 
-	if (!mm || !mmget_not_zero(mm))
+	if (!mm || !mmget_yest_zero(mm))
 		goto out;
 
 	ret = -EINVAL;
@@ -1556,7 +1556,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	if (!count)
 		goto out_mm;
 
-	/* do not disclose physical addresses: attack vector */
+	/* do yest disclose physical addresses: attack vector */
 	pm.show_pfn = file_ns_capable(file, &init_user_ns, CAP_SYS_ADMIN);
 
 	pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
@@ -1618,18 +1618,18 @@ out:
 	return ret;
 }
 
-static int pagemap_open(struct inode *inode, struct file *file)
+static int pagemap_open(struct iyesde *iyesde, struct file *file)
 {
 	struct mm_struct *mm;
 
-	mm = proc_mem_open(inode, PTRACE_MODE_READ);
+	mm = proc_mem_open(iyesde, PTRACE_MODE_READ);
 	if (IS_ERR(mm))
 		return PTR_ERR(mm);
 	file->private_data = mm;
 	return 0;
 }
 
-static int pagemap_release(struct inode *inode, struct file *file)
+static int pagemap_release(struct iyesde *iyesde, struct file *file)
 {
 	struct mm_struct *mm = file->private_data;
 
@@ -1650,13 +1650,13 @@ const struct file_operations proc_pagemap_operations = {
 
 struct numa_maps {
 	unsigned long pages;
-	unsigned long anon;
+	unsigned long ayesn;
 	unsigned long active;
 	unsigned long writeback;
 	unsigned long mapcount_max;
 	unsigned long dirty;
 	unsigned long swapcache;
-	unsigned long node[MAX_NUMNODES];
+	unsigned long yesde[MAX_NUMNODES];
 };
 
 struct numa_maps_private {
@@ -1682,13 +1682,13 @@ static void gather_stats(struct page *page, struct numa_maps *md, int pte_dirty,
 	if (PageWriteback(page))
 		md->writeback += nr_pages;
 
-	if (PageAnon(page))
-		md->anon += nr_pages;
+	if (PageAyesn(page))
+		md->ayesn += nr_pages;
 
 	if (count > md->mapcount_max)
 		md->mapcount_max = count;
 
-	md->node[page_to_nid(page)] += nr_pages;
+	md->yesde[page_to_nid(page)] += nr_pages;
 }
 
 static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
@@ -1700,7 +1700,7 @@ static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
 	if (!pte_present(pte))
 		return NULL;
 
-	page = vm_normal_page(vma, addr, pte);
+	page = vm_yesrmal_page(vma, addr, pte);
 	if (!page)
 		return NULL;
 
@@ -1708,7 +1708,7 @@ static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
 		return NULL;
 
 	nid = page_to_nid(page);
-	if (!node_isset(nid, node_states[N_MEMORY]))
+	if (!yesde_isset(nid, yesde_states[N_MEMORY]))
 		return NULL;
 
 	return page;
@@ -1725,7 +1725,7 @@ static struct page *can_gather_numa_stats_pmd(pmd_t pmd,
 	if (!pmd_present(pmd))
 		return NULL;
 
-	page = vm_normal_page_pmd(vma, addr, pmd);
+	page = vm_yesrmal_page_pmd(vma, addr, pmd);
 	if (!page)
 		return NULL;
 
@@ -1733,7 +1733,7 @@ static struct page *can_gather_numa_stats_pmd(pmd_t pmd,
 		return NULL;
 
 	nid = page_to_nid(page);
-	if (!node_isset(nid, node_states[N_MEMORY]))
+	if (!yesde_isset(nid, yesde_states[N_MEMORY]))
 		return NULL;
 
 	return page;
@@ -1811,7 +1811,7 @@ static const struct mm_walk_ops show_numa_ops = {
 };
 
 /*
- * Display pages allocated per node and memory policy via /proc.
+ * Display pages allocated per yesde and memory policy via /proc.
  */
 static int show_numa_map(struct seq_file *m, void *v)
 {
@@ -1859,13 +1859,13 @@ static int show_numa_map(struct seq_file *m, void *v)
 	if (!md->pages)
 		goto out;
 
-	if (md->anon)
-		seq_printf(m, " anon=%lu", md->anon);
+	if (md->ayesn)
+		seq_printf(m, " ayesn=%lu", md->ayesn);
 
 	if (md->dirty)
 		seq_printf(m, " dirty=%lu", md->dirty);
 
-	if (md->pages != md->anon && md->pages != md->dirty)
+	if (md->pages != md->ayesn && md->pages != md->dirty)
 		seq_printf(m, " mapped=%lu", md->pages);
 
 	if (md->mapcount_max > 1)
@@ -1880,9 +1880,9 @@ static int show_numa_map(struct seq_file *m, void *v)
 	if (md->writeback)
 		seq_printf(m, " writeback=%lu", md->writeback);
 
-	for_each_node_state(nid, N_MEMORY)
-		if (md->node[nid])
-			seq_printf(m, " N%d=%lu", nid, md->node[nid]);
+	for_each_yesde_state(nid, N_MEMORY)
+		if (md->yesde[nid])
+			seq_printf(m, " N%d=%lu", nid, md->yesde[nid]);
 
 	seq_printf(m, " kernelpagesize_kB=%lu", vma_kernel_pagesize(vma) >> 10);
 out:
@@ -1898,9 +1898,9 @@ static const struct seq_operations proc_pid_numa_maps_op = {
 	.show   = show_numa_map,
 };
 
-static int pid_numa_maps_open(struct inode *inode, struct file *file)
+static int pid_numa_maps_open(struct iyesde *iyesde, struct file *file)
 {
-	return proc_maps_open(inode, file, &proc_pid_numa_maps_op,
+	return proc_maps_open(iyesde, file, &proc_pid_numa_maps_op,
 				sizeof(struct numa_maps_private));
 }
 

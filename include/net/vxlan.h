@@ -60,7 +60,7 @@ struct vxlanhdr {
 
 /* Remote checksum offload header option */
 #define VXLAN_RCO_MASK	cpu_to_be32(0x7f)  /* Last byte of vni field */
-#define VXLAN_RCO_UDP	cpu_to_be32(0x80)  /* Indicate UDP RCO (TCP when not set *) */
+#define VXLAN_RCO_UDP	cpu_to_be32(0x80)  /* Indicate UDP RCO (TCP when yest set *) */
 #define VXLAN_RCO_SHIFT	1		   /* Left shift of start */
 #define VXLAN_RCO_SHIFT_MASK ((1 << VXLAN_RCO_SHIFT) - 1)
 #define VXLAN_MAX_REMCSUM_START (0x7f << VXLAN_RCO_SHIFT)
@@ -178,7 +178,7 @@ struct vxlan_metadata {
 
 /* per UDP socket information */
 struct vxlan_sock {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	struct socket	 *sock;
 	struct hlist_head vni_list[VNI_HASH_SIZE];
 	refcount_t	  refcnt;
@@ -218,20 +218,20 @@ struct vxlan_config {
 	u32			flags;
 	unsigned long		age_interval;
 	unsigned int		addrmax;
-	bool			no_share;
+	bool			yes_share;
 	enum ifla_vxlan_df	df;
 };
 
-struct vxlan_dev_node {
-	struct hlist_node hlist;
+struct vxlan_dev_yesde {
+	struct hlist_yesde hlist;
 	struct vxlan_dev *vxlan;
 };
 
 /* Pseudo network device */
 struct vxlan_dev {
-	struct vxlan_dev_node hlist4;	/* vni hash table for IPv4 socket */
+	struct vxlan_dev_yesde hlist4;	/* vni hash table for IPv4 socket */
 #if IS_ENABLED(CONFIG_IPV6)
-	struct vxlan_dev_node hlist6;	/* vni hash table for IPv6 socket */
+	struct vxlan_dev_yesde hlist6;	/* vni hash table for IPv6 socket */
 #endif
 	struct list_head  next;		/* vxlan's per namespace list */
 	struct vxlan_sock __rcu *vn4_sock;	/* listening socket for IPv4 */
@@ -415,8 +415,8 @@ static inline bool netif_is_vxlan(const struct net_device *dev)
 	       !strcmp(dev->rtnl_link_ops->kind, "vxlan");
 }
 
-struct switchdev_notifier_vxlan_fdb_info {
-	struct switchdev_notifier_info info; /* must be first */
+struct switchdev_yestifier_vxlan_fdb_info {
+	struct switchdev_yestifier_info info; /* must be first */
 	union vxlan_addr remote_ip;
 	__be16 remote_port;
 	__be32 remote_vni;
@@ -429,22 +429,22 @@ struct switchdev_notifier_vxlan_fdb_info {
 
 #if IS_ENABLED(CONFIG_VXLAN)
 int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
-		      struct switchdev_notifier_vxlan_fdb_info *fdb_info);
+		      struct switchdev_yestifier_vxlan_fdb_info *fdb_info);
 int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
-		     struct notifier_block *nb,
+		     struct yestifier_block *nb,
 		     struct netlink_ext_ack *extack);
 void vxlan_fdb_clear_offload(const struct net_device *dev, __be32 vni);
 
 #else
 static inline int
 vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
-		  struct switchdev_notifier_vxlan_fdb_info *fdb_info)
+		  struct switchdev_yestifier_vxlan_fdb_info *fdb_info)
 {
 	return -ENOENT;
 }
 
 static inline int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
-				   struct notifier_block *nb,
+				   struct yestifier_block *nb,
 				   struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
@@ -462,7 +462,7 @@ static inline void vxlan_flag_attr_error(int attrtype,
 #define VXLAN_FLAG(flg) \
 	case IFLA_VXLAN_##flg: \
 		NL_SET_ERR_MSG_MOD(extack, \
-				   "cannot change " #flg " flag"); \
+				   "canyest change " #flg " flag"); \
 		break
 	switch (attrtype) {
 	VXLAN_FLAG(TTL_INHERIT);
@@ -481,7 +481,7 @@ static inline void vxlan_flag_attr_error(int attrtype,
 	VXLAN_FLAG(REMCSUM_NOPARTIAL);
 	default:
 		NL_SET_ERR_MSG_MOD(extack, \
-				   "cannot change flag");
+				   "canyest change flag");
 		break;
 	}
 #undef VXLAN_FLAG

@@ -17,7 +17,7 @@ static void pmf_gpio_set_##name(struct gpio_runtime *rt, int on)\
 	int rc;							\
 							\
 	if (unlikely(!rt)) return;				\
-	rc = pmf_call_function(rt->node, #name "-mute", &args);	\
+	rc = pmf_call_function(rt->yesde, #name "-mute", &args);	\
 	if (rc && rc != -ENODEV)				\
 		printk(KERN_WARNING "pmf_gpio_set_" #name	\
 		" failed, rc: %d\n", rc);			\
@@ -40,7 +40,7 @@ static void pmf_gpio_set_hw_reset(struct gpio_runtime *rt, int on)
 	int rc;
 
 	if (unlikely(!rt)) return;
-	rc = pmf_call_function(rt->node, "hw-reset", &args);
+	rc = pmf_call_function(rt->yesde, "hw-reset", &args);
 	if (rc)
 		printk(KERN_WARNING "pmf_gpio_set_hw_reset"
 		       " failed, rc: %d\n", rc);
@@ -69,27 +69,27 @@ static void pmf_gpio_all_amps_restore(struct gpio_runtime *rt)
 	pmf_gpio_set_lineout(rt, (s>>2)&1);
 }
 
-static void pmf_handle_notify(struct work_struct *work)
+static void pmf_handle_yestify(struct work_struct *work)
 {
-	struct gpio_notification *notif =
-		container_of(work, struct gpio_notification, work.work);
+	struct gpio_yestification *yestif =
+		container_of(work, struct gpio_yestification, work.work);
 
-	mutex_lock(&notif->mutex);
-	if (notif->notify)
-		notif->notify(notif->data);
-	mutex_unlock(&notif->mutex);
+	mutex_lock(&yestif->mutex);
+	if (yestif->yestify)
+		yestif->yestify(yestif->data);
+	mutex_unlock(&yestif->mutex);
 }
 
 static void pmf_gpio_init(struct gpio_runtime *rt)
 {
 	pmf_gpio_all_amps_off(rt);
 	rt->implementation_private = 0;
-	INIT_DELAYED_WORK(&rt->headphone_notify.work, pmf_handle_notify);
-	INIT_DELAYED_WORK(&rt->line_in_notify.work, pmf_handle_notify);
-	INIT_DELAYED_WORK(&rt->line_out_notify.work, pmf_handle_notify);
-	mutex_init(&rt->headphone_notify.mutex);
-	mutex_init(&rt->line_in_notify.mutex);
-	mutex_init(&rt->line_out_notify.mutex);
+	INIT_DELAYED_WORK(&rt->headphone_yestify.work, pmf_handle_yestify);
+	INIT_DELAYED_WORK(&rt->line_in_yestify.work, pmf_handle_yestify);
+	INIT_DELAYED_WORK(&rt->line_out_yestify.work, pmf_handle_yestify);
+	mutex_init(&rt->headphone_yestify.mutex);
+	mutex_init(&rt->line_in_yestify.mutex);
+	mutex_init(&rt->line_out_yestify.mutex);
 }
 
 static void pmf_gpio_exit(struct gpio_runtime *rt)
@@ -97,95 +97,95 @@ static void pmf_gpio_exit(struct gpio_runtime *rt)
 	pmf_gpio_all_amps_off(rt);
 	rt->implementation_private = 0;
 
-	if (rt->headphone_notify.gpio_private)
-		pmf_unregister_irq_client(rt->headphone_notify.gpio_private);
-	if (rt->line_in_notify.gpio_private)
-		pmf_unregister_irq_client(rt->line_in_notify.gpio_private);
-	if (rt->line_out_notify.gpio_private)
-		pmf_unregister_irq_client(rt->line_out_notify.gpio_private);
+	if (rt->headphone_yestify.gpio_private)
+		pmf_unregister_irq_client(rt->headphone_yestify.gpio_private);
+	if (rt->line_in_yestify.gpio_private)
+		pmf_unregister_irq_client(rt->line_in_yestify.gpio_private);
+	if (rt->line_out_yestify.gpio_private)
+		pmf_unregister_irq_client(rt->line_out_yestify.gpio_private);
 
-	/* make sure no work is pending before freeing
+	/* make sure yes work is pending before freeing
 	 * all things */
-	cancel_delayed_work_sync(&rt->headphone_notify.work);
-	cancel_delayed_work_sync(&rt->line_in_notify.work);
-	cancel_delayed_work_sync(&rt->line_out_notify.work);
+	cancel_delayed_work_sync(&rt->headphone_yestify.work);
+	cancel_delayed_work_sync(&rt->line_in_yestify.work);
+	cancel_delayed_work_sync(&rt->line_out_yestify.work);
 
-	mutex_destroy(&rt->headphone_notify.mutex);
-	mutex_destroy(&rt->line_in_notify.mutex);
-	mutex_destroy(&rt->line_out_notify.mutex);
+	mutex_destroy(&rt->headphone_yestify.mutex);
+	mutex_destroy(&rt->line_in_yestify.mutex);
+	mutex_destroy(&rt->line_out_yestify.mutex);
 
-	kfree(rt->headphone_notify.gpio_private);
-	kfree(rt->line_in_notify.gpio_private);
-	kfree(rt->line_out_notify.gpio_private);
+	kfree(rt->headphone_yestify.gpio_private);
+	kfree(rt->line_in_yestify.gpio_private);
+	kfree(rt->line_out_yestify.gpio_private);
 }
 
-static void pmf_handle_notify_irq(void *data)
+static void pmf_handle_yestify_irq(void *data)
 {
-	struct gpio_notification *notif = data;
+	struct gpio_yestification *yestif = data;
 
-	schedule_delayed_work(&notif->work, 0);
+	schedule_delayed_work(&yestif->work, 0);
 }
 
-static int pmf_set_notify(struct gpio_runtime *rt,
-			  enum notify_type type,
-			  notify_func_t notify,
+static int pmf_set_yestify(struct gpio_runtime *rt,
+			  enum yestify_type type,
+			  yestify_func_t yestify,
 			  void *data)
 {
-	struct gpio_notification *notif;
-	notify_func_t old;
+	struct gpio_yestification *yestif;
+	yestify_func_t old;
 	struct pmf_irq_client *irq_client;
 	char *name;
 	int err = -EBUSY;
 
 	switch (type) {
 	case AOA_NOTIFY_HEADPHONE:
-		notif = &rt->headphone_notify;
+		yestif = &rt->headphone_yestify;
 		name = "headphone-detect";
 		break;
 	case AOA_NOTIFY_LINE_IN:
-		notif = &rt->line_in_notify;
+		yestif = &rt->line_in_yestify;
 		name = "linein-detect";
 		break;
 	case AOA_NOTIFY_LINE_OUT:
-		notif = &rt->line_out_notify;
+		yestif = &rt->line_out_yestify;
 		name = "lineout-detect";
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	mutex_lock(&notif->mutex);
+	mutex_lock(&yestif->mutex);
 
-	old = notif->notify;
+	old = yestif->yestify;
 
-	if (!old && !notify) {
+	if (!old && !yestify) {
 		err = 0;
 		goto out_unlock;
 	}
 
-	if (old && notify) {
-		if (old == notify && notif->data == data)
+	if (old && yestify) {
+		if (old == yestify && yestif->data == data)
 			err = 0;
 		goto out_unlock;
 	}
 
-	if (old && !notify) {
-		irq_client = notif->gpio_private;
+	if (old && !yestify) {
+		irq_client = yestif->gpio_private;
 		pmf_unregister_irq_client(irq_client);
 		kfree(irq_client);
-		notif->gpio_private = NULL;
+		yestif->gpio_private = NULL;
 	}
-	if (!old && notify) {
+	if (!old && yestify) {
 		irq_client = kzalloc(sizeof(struct pmf_irq_client),
 				     GFP_KERNEL);
 		if (!irq_client) {
 			err = -ENOMEM;
 			goto out_unlock;
 		}
-		irq_client->data = notif;
-		irq_client->handler = pmf_handle_notify_irq;
+		irq_client->data = yestif;
+		irq_client->handler = pmf_handle_yestify_irq;
 		irq_client->owner = THIS_MODULE;
-		err = pmf_register_irq_client(rt->node,
+		err = pmf_register_irq_client(rt->yesde,
 					      name,
 					      irq_client);
 		if (err) {
@@ -194,19 +194,19 @@ static int pmf_set_notify(struct gpio_runtime *rt,
 			kfree(irq_client);
 			goto out_unlock;
 		}
-		notif->gpio_private = irq_client;
+		yestif->gpio_private = irq_client;
 	}
-	notif->notify = notify;
-	notif->data = data;
+	yestif->yestify = yestify;
+	yestif->data = data;
 
 	err = 0;
  out_unlock:
-	mutex_unlock(&notif->mutex);
+	mutex_unlock(&yestif->mutex);
 	return err;
 }
 
 static int pmf_get_detect(struct gpio_runtime *rt,
-			  enum notify_type type)
+			  enum yestify_type type)
 {
 	char *name;
 	int err = -EBUSY, ret;
@@ -226,7 +226,7 @@ static int pmf_get_detect(struct gpio_runtime *rt,
 		return -EINVAL;
 	}
 
-	err = pmf_call_function(rt->node, name, &args);
+	err = pmf_call_function(rt->yesde, name, &args);
 	if (err)
 		return err;
 	return ret;
@@ -244,7 +244,7 @@ static struct gpio_methods methods = {
 	.get_headphone		= pmf_gpio_get_headphone,
 	.get_speakers		= pmf_gpio_get_amp,
 	.get_lineout		= pmf_gpio_get_lineout,
-	.set_notify		= pmf_set_notify,
+	.set_yestify		= pmf_set_yestify,
 	.get_detect		= pmf_get_detect,
 };
 

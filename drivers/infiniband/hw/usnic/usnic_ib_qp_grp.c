@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -31,7 +31,7 @@
  *
  */
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 
@@ -288,7 +288,7 @@ create_udp_flow(struct usnic_ib_qp_grp *qp_grp,
 		goto out_put_sock;
 
 	if (proto != IPPROTO_UDP) {
-		usnic_err("Protocol for fd %d is not UDP", sock_fd);
+		usnic_err("Protocol for fd %d is yest UDP", sock_fd);
 		err = -EPERM;
 		goto out_put_sock;
 	}
@@ -681,7 +681,7 @@ usnic_ib_qp_grp_create(struct usnic_fwd_dev *ufdev, struct usnic_ib_vf *vf,
 	err = usnic_vnic_res_spec_satisfied(&min_transport_spec[transport],
 						res_spec);
 	if (err) {
-		usnic_err("Spec does not meet minimum req for transport %d\n",
+		usnic_err("Spec does yest meet minimum req for transport %d\n",
 				transport);
 		log_spec(res_spec);
 		return ERR_PTR(err);

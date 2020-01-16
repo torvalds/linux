@@ -102,7 +102,7 @@ static const char *uart_parents[] = { "pll3_clk", "uart_syn_gclk", };
 static const char *gpt0_1_parents[] = { "pll3_clk", "gpt0_1_syn_clk", };
 static const char *gpt2_parents[] = { "pll3_clk", "gpt2_syn_clk", };
 static const char *gpt3_parents[] = { "pll3_clk", "gpt3_syn_clk", };
-static const char *ddr_parents[] = { "ahb_clk", "ahbmult2_clk", "none",
+static const char *ddr_parents[] = { "ahb_clk", "ahbmult2_clk", "yesne",
 	"pll2_clk", };
 
 /* gpt rate configuration table, in ascending order of rates */

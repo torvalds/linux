@@ -50,7 +50,7 @@ The link tag will look like this:
 This can be configured to happen automatically any time you issue ``git am``
 by adding the following hook into your git:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	$ git config am.messageid true
 	$ cat >.git/hooks/applypatch-msg <<'EOF'

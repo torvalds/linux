@@ -53,10 +53,10 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 			dma_offset = (unsigned long) pide & ~IOVP_MASK;
 			n_mappings++;
 #if defined(ZX1_SUPPORT)
-			/* Pluto IOMMU IO Virt Address is not zero based */
+			/* Pluto IOMMU IO Virt Address is yest zero based */
 			sg_dma_address(dma_sg) = pide | ioc->ibase;
 #else
-			/* SBA, ccio, and dino are zero based.
+			/* SBA, ccio, and diyes are zero based.
 			 * Trying to save a few CPU cycles for most users.
 			 */
 			sg_dma_address(dma_sg) = pide;
@@ -89,7 +89,7 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 
 /*
 ** First pass is to walk the SG list and determine where the breaks are
-** in the DMA stream. Allocates PDIR entries but does not fill them.
+** in the DMA stream. Allocates PDIR entries but does yest fill them.
 ** Returns the number of DMA chunks.
 **
 ** Doing the fill separate from the coalescing/allocation keeps the
@@ -152,7 +152,7 @@ iommu_coalesce_chunks(struct ioc *ioc, struct device *dev,
 
 			/*
 			* Next see if we can append the next chunk (i.e.
-			* it must end on one page and begin on another, or
+			* it must end on one page and begin on ayesther, or
 			* it must start on the same address as the previous
 			* entry ended.
 			*/

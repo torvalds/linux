@@ -68,7 +68,7 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 
 	switch (op) {
 	case BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB:
-		/* Test failure to set largest cb flag (assumes not defined) */
+		/* Test failure to set largest cb flag (assumes yest defined) */
 		bad_call_rv = bpf_sock_ops_cb_flags_set(skops, 0x80);
 		/* Set callback */
 		good_call_rv = bpf_sock_ops_cb_flags_set(skops,

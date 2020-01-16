@@ -12,7 +12,7 @@
 /**
  * struct i40e_stats - definition for an ethtool statistic
  * @stat_string: statistic name to display in ethtool -S output
- * @sizeof_stat: the sizeof() the stat, must be no greater than sizeof(u64)
+ * @sizeof_stat: the sizeof() the stat, must be yes greater than sizeof(u64)
  * @stat_offset: offsetof() the stat from a base pointer
  *
  * This structure defines a statistic to be added to the ethtool stats buffer.
@@ -22,7 +22,7 @@
  * stat_offset.
  *
  * The @sizeof_stat is expected to be sizeof(u8), sizeof(u16), sizeof(u32) or
- * sizeof(u64). Other sizes are not expected and will produce a WARN_ONCE from
+ * sizeof(u64). Other sizes are yest expected and will produce a WARN_ONCE from
  * the i40e_add_ethtool_stat() helper function.
  *
  * The @stat_string is interpreted as a format string, allowing formatted
@@ -173,7 +173,7 @@ i40e_add_queue_stats(u64 **data, struct i40e_ring *ring)
 	/* To avoid invalid statistics values, ensure that we keep retrying
 	 * the copy until we get a consistent value according to
 	 * u64_stats_fetch_retry_irq. But first, make sure our ring is
-	 * non-null before attempting to access its syncp.
+	 * yesn-null before attempting to access its syncp.
 	 */
 	do {
 		start = !ring ? 0 : u64_stats_fetch_begin_irq(&ring->syncp);
@@ -263,7 +263,7 @@ static const struct i40e_stats i40e_gstrings_veb_stats[] = {
 	I40E_VEB_STAT("veb.rx_discards", stats.rx_discards),
 	I40E_VEB_STAT("veb.tx_discards", stats.tx_discards),
 	I40E_VEB_STAT("veb.tx_errors", stats.tx_errors),
-	I40E_VEB_STAT("veb.rx_unknown_protocol", stats.rx_unknown_protocol),
+	I40E_VEB_STAT("veb.rx_unkyeswn_protocol", stats.rx_unkyeswn_protocol),
 };
 
 static const struct i40e_stats i40e_gstrings_veb_tc_stats[] = {
@@ -280,7 +280,7 @@ static const struct i40e_stats i40e_gstrings_misc_stats[] = {
 	I40E_VSI_STAT("tx_multicast", eth_stats.tx_multicast),
 	I40E_VSI_STAT("rx_broadcast", eth_stats.rx_broadcast),
 	I40E_VSI_STAT("tx_broadcast", eth_stats.tx_broadcast),
-	I40E_VSI_STAT("rx_unknown_protocol", eth_stats.rx_unknown_protocol),
+	I40E_VSI_STAT("rx_unkyeswn_protocol", eth_stats.rx_unkyeswn_protocol),
 	I40E_VSI_STAT("tx_linearize", tx_linearize),
 	I40E_VSI_STAT("tx_force_wb", tx_force_wb),
 	I40E_VSI_STAT("tx_busy", tx_busy),
@@ -296,7 +296,7 @@ static const struct i40e_stats i40e_gstrings_misc_stats[] = {
  * function at the bottom of the stack hosting those netdevs.
  *
  * The PF_STATs are appended to the netdev stats only when ethtool -S
- * is queried on the base PF netdev, not on the VMDq or FCoE netdev.
+ * is queried on the base PF netdev, yest on the VMDq or FCoE netdev.
  */
 static const struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("port.rx_bytes", stats.eth.rx_bytes),
@@ -426,7 +426,7 @@ struct i40e_priv_flags {
 }
 
 static const struct i40e_priv_flags i40e_gstrings_priv_flags[] = {
-	/* NOTE: MFP setting cannot be changed */
+	/* NOTE: MFP setting canyest be changed */
 	I40E_PRIV_FLAG("MFP", I40E_FLAG_MFP_ENABLED, 1),
 	I40E_PRIV_FLAG("LinkPolling", I40E_FLAG_LINK_POLLING_ENABLED, 0),
 	I40E_PRIV_FLAG("flow-director-atr", I40E_FLAG_FD_ATR_ENABLED, 0),
@@ -968,7 +968,7 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 	default:
 		/* if we got here and link is up something bad is afoot */
 		netdev_info(netdev,
-			    "WARNING: Link is up but PHY type 0x%x is not recognized.\n",
+			    "WARNING: Link is up but PHY type 0x%x is yest recognized.\n",
 			    hw_link_info->phy_type);
 	}
 
@@ -1030,7 +1030,7 @@ static void i40e_get_settings_link_down(struct i40e_hw *hw,
 	 */
 	i40e_phy_type_to_ethtool(pf, ks);
 
-	/* With no link speed and duplex are unknown */
+	/* With yes link speed and duplex are unkyeswn */
 	ks->base.speed = SPEED_UNKNOWN;
 	ks->base.duplex = DUPLEX_UNKNOWN;
 }
@@ -1146,7 +1146,7 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 	int err = 0;
 	u8 autoneg;
 
-	/* Changing port settings is not supported if this isn't the
+	/* Changing port settings is yest supported if this isn't the
 	 * port's controlling PF
 	 */
 	if (hw->partition_id != 1) {
@@ -1167,7 +1167,7 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 	    hw->device_id == I40E_DEV_ID_20G_KR2_A ||
 	    hw->device_id == I40E_DEV_ID_25G_B ||
 	    hw->device_id == I40E_DEV_ID_KX_X722) {
-		netdev_info(netdev, "Changing settings is not supported on backplane.\n");
+		netdev_info(netdev, "Changing settings is yest supported on backplane.\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1195,8 +1195,8 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 	/* set autoneg back to what it currently is */
 	copy_ks.base.autoneg = safe_ks.base.autoneg;
 
-	/* If copy_ks.base and safe_ks.base are not the same now, then they are
-	 * trying to set something that we do not support.
+	/* If copy_ks.base and safe_ks.base are yest the same yesw, then they are
+	 * trying to set something that we do yest support.
 	 */
 	if (memcmp(&copy_ks.base, &safe_ks.base,
 		   sizeof(struct ethtool_link_settings)))
@@ -1217,7 +1217,7 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 		goto done;
 	}
 
-	/* Copy abilities to config in case autoneg is not
+	/* Copy abilities to config in case autoneg is yest
 	 * set below
 	 */
 	memset(&config, 0, sizeof(struct i40e_aq_set_phy_config));
@@ -1225,13 +1225,13 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 
 	/* Check autoneg */
 	if (autoneg == AUTONEG_ENABLE) {
-		/* If autoneg was not already enabled */
+		/* If autoneg was yest already enabled */
 		if (!(hw->phy.link_info.an_info & I40E_AQ_AN_COMPLETED)) {
-			/* If autoneg is not supported, return error */
+			/* If autoneg is yest supported, return error */
 			if (!ethtool_link_ksettings_test_link_mode(&safe_ks,
 								   supported,
 								   Autoneg)) {
-				netdev_info(netdev, "Autoneg not supported on this phy\n");
+				netdev_info(netdev, "Autoneg yest supported on this phy\n");
 				err = -EINVAL;
 				goto done;
 			}
@@ -1251,7 +1251,7 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 								  Autoneg) &&
 			    hw->phy.link_info.phy_type !=
 			    I40E_PHY_TYPE_10GBASE_T) {
-				netdev_info(netdev, "Autoneg cannot be disabled on this phy\n");
+				netdev_info(netdev, "Autoneg canyest be disabled on this phy\n");
 				err = -EINVAL;
 				goto done;
 			}
@@ -1334,7 +1334,7 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 		/* If link is up put link down */
 		if (hw->phy.link_info.link_info & I40E_AQ_LINK_UP) {
 			/* Tell the OS link is going down, the link will go
-			 * back up when fw says it is ready asynchronously
+			 * back up when fw says it is ready asynchroyesusly
 			 */
 			i40e_print_link_message(vsi, false);
 			netif_carrier_off(netdev);
@@ -1417,7 +1417,7 @@ static int i40e_set_fec_cfg(struct net_device *netdev, u8 fec_cfg)
 		if (status)
 			/* debug level message only due to relation to the link
 			 * itself rather than to the FEC settings
-			 * (e.g. no physical connection etc.)
+			 * (e.g. yes physical connection etc.)
 			 */
 			netdev_dbg(netdev,
 				   "Updating link info failed with err %s aq_err %s\n",
@@ -1593,7 +1593,7 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 	int err = 0;
 	u32 is_an;
 
-	/* Changing the port's flow control is not supported if this isn't the
+	/* Changing the port's flow control is yest supported if this isn't the
 	 * port's controlling PF
 	 */
 	if (hw->partition_id != 1) {
@@ -1612,13 +1612,13 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 
 	/* If we have link and don't have autoneg */
 	if (!test_bit(__I40E_DOWN, pf->state) && !is_an) {
-		/* Send message that it might not necessarily work*/
-		netdev_info(netdev, "Autoneg did not complete so changing settings may not result in an actual change.\n");
+		/* Send message that it might yest necessarily work*/
+		netdev_info(netdev, "Autoneg did yest complete so changing settings may yest result in an actual change.\n");
 	}
 
 	if (dcbx_cfg->pfc.pfcenable) {
 		netdev_info(netdev,
-			    "Priority flow control enabled. Cannot set link flow control.\n");
+			    "Priority flow control enabled. Canyest set link flow control.\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1634,7 +1634,7 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 		return -EINVAL;
 
 	/* Tell the OS link is going down, the link will go back up when fw
-	 * says it is ready asynchronously
+	 * says it is ready asynchroyesusly
 	 */
 	i40e_print_link_message(vsi, false);
 	netif_carrier_off(netdev);
@@ -1719,7 +1719,7 @@ static void i40e_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
 	/* Tell ethtool which driver-version-specific regs output we have.
 	 *
 	 * At some point, if we have ethtool doing special formatting of
-	 * this data, it will rely on this version number to know how to
+	 * this data, it will rely on this version number to kyesw how to
 	 * interpret things.  Hence, this needs to be updated if/when the
 	 * diags register table is changed.
 	 */
@@ -1757,28 +1757,28 @@ static int i40e_get_eeprom(struct net_device *netdev,
 	magic = hw->vendor_id | (hw->device_id << 16);
 	if (eeprom->magic && eeprom->magic != magic) {
 		struct i40e_nvm_access *cmd = (struct i40e_nvm_access *)eeprom;
-		int errno = 0;
+		int erryes = 0;
 
 		/* make sure it is the right magic for NVMUpdate */
 		if ((eeprom->magic >> 16) != hw->device_id)
-			errno = -EINVAL;
+			erryes = -EINVAL;
 		else if (test_bit(__I40E_RESET_RECOVERY_PENDING, pf->state) ||
 			 test_bit(__I40E_RESET_INTR_RECEIVED, pf->state))
-			errno = -EBUSY;
+			erryes = -EBUSY;
 		else
-			ret_val = i40e_nvmupd_command(hw, cmd, bytes, &errno);
+			ret_val = i40e_nvmupd_command(hw, cmd, bytes, &erryes);
 
-		if ((errno || ret_val) && (hw->debug_mask & I40E_DEBUG_NVM))
+		if ((erryes || ret_val) && (hw->debug_mask & I40E_DEBUG_NVM))
 			dev_info(&pf->pdev->dev,
-				 "NVMUpdate read failed err=%d status=0x%x errno=%d module=%d offset=0x%x size=%d\n",
-				 ret_val, hw->aq.asq_last_status, errno,
+				 "NVMUpdate read failed err=%d status=0x%x erryes=%d module=%d offset=0x%x size=%d\n",
+				 ret_val, hw->aq.asq_last_status, erryes,
 				 (u8)(cmd->config & I40E_NVM_MOD_PNT_MASK),
 				 cmd->offset, cmd->data_size);
 
-		return errno;
+		return erryes;
 	}
 
-	/* normal ethtool get_eeprom support */
+	/* yesrmal ethtool get_eeprom support */
 	eeprom->magic = hw->vendor_id | (hw->device_id << 16);
 
 	eeprom_buff = kzalloc(eeprom->len, GFP_KERNEL);
@@ -1859,30 +1859,30 @@ static int i40e_set_eeprom(struct net_device *netdev,
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_nvm_access *cmd = (struct i40e_nvm_access *)eeprom;
 	int ret_val = 0;
-	int errno = 0;
+	int erryes = 0;
 	u32 magic;
 
-	/* normal ethtool set_eeprom is not supported */
+	/* yesrmal ethtool set_eeprom is yest supported */
 	magic = hw->vendor_id | (hw->device_id << 16);
 	if (eeprom->magic == magic)
-		errno = -EOPNOTSUPP;
+		erryes = -EOPNOTSUPP;
 	/* check for NVMUpdate access method */
 	else if (!eeprom->magic || (eeprom->magic >> 16) != hw->device_id)
-		errno = -EINVAL;
+		erryes = -EINVAL;
 	else if (test_bit(__I40E_RESET_RECOVERY_PENDING, pf->state) ||
 		 test_bit(__I40E_RESET_INTR_RECEIVED, pf->state))
-		errno = -EBUSY;
+		erryes = -EBUSY;
 	else
-		ret_val = i40e_nvmupd_command(hw, cmd, bytes, &errno);
+		ret_val = i40e_nvmupd_command(hw, cmd, bytes, &erryes);
 
-	if ((errno || ret_val) && (hw->debug_mask & I40E_DEBUG_NVM))
+	if ((erryes || ret_val) && (hw->debug_mask & I40E_DEBUG_NVM))
 		dev_info(&pf->pdev->dev,
-			 "NVMUpdate write failed err=%d status=0x%x errno=%d module=%d offset=0x%x size=%d\n",
-			 ret_val, hw->aq.asq_last_status, errno,
+			 "NVMUpdate write failed err=%d status=0x%x erryes=%d module=%d offset=0x%x size=%d\n",
+			 ret_val, hw->aq.asq_last_status, erryes,
 			 (u8)(cmd->config & I40E_NVM_MOD_PNT_MASK),
 			 cmd->offset, cmd->data_size);
 
-	return errno;
+	return erryes;
 }
 
 static void i40e_get_drvinfo(struct net_device *netdev,
@@ -1962,14 +1962,14 @@ static int i40e_set_ringparam(struct net_device *netdev,
 	new_tx_count = ALIGN(ring->tx_pending, I40E_REQ_DESCRIPTOR_MULTIPLE);
 	new_rx_count = ALIGN(ring->rx_pending, I40E_REQ_DESCRIPTOR_MULTIPLE);
 
-	/* if nothing to do return success */
+	/* if yesthing to do return success */
 	if ((new_tx_count == vsi->tx_rings[0]->count) &&
 	    (new_rx_count == vsi->rx_rings[0]->count))
 		return 0;
 
 	/* If there is a AF_XDP UMEM attached to any of Rx rings,
 	 * disallow changing the number of descriptors -- regardless
-	 * if the netdev is running or not.
+	 * if the netdev is running or yest.
 	 */
 	if (i40e_xsk_any_rx_ring_enabled(vsi))
 		return -EBUSY;
@@ -2073,8 +2073,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			if (err)
 				goto rx_unwind;
 
-			/* now allocate the Rx buffers to make sure the OS
-			 * has enough memory, any failure here means abort
+			/* yesw allocate the Rx buffers to make sure the OS
+			 * has eyesugh memory, any failure here means abort
 			 */
 			unused = I40E_DESC_UNUSED(&rx_rings[i]);
 			err = i40e_alloc_rx_buffers(&rx_rings[i], unused);
@@ -2156,10 +2156,10 @@ done:
  * though this is a function, it is required that the count for a specific
  * netdev must never change. Basing the count on static values such as the
  * maximum number of queues or the device type is ok. However, the API for
- * obtaining stats is *not* safe against changes based on non-static
+ * obtaining stats is *yest* safe against changes based on yesn-static
  * values such as the *current* number of queues, or runtime flags.
  *
- * If a statistic is not always enabled, return it as part of the count
+ * If a statistic is yest always enabled, return it as part of the count
  * anyways, always return its string, and report its value as zero.
  **/
 static int i40e_get_stats_count(struct net_device *netdev)
@@ -2178,11 +2178,11 @@ static int i40e_get_stats_count(struct net_device *netdev)
 	 * constant throughout the life of that device.
 	 *
 	 * This is because the API for obtaining the size, strings, and stats
-	 * is spread out over three separate ethtool ioctls. There is no safe
+	 * is spread out over three separate ethtool ioctls. There is yes safe
 	 * way to lock the number of stats across these calls, so we must
 	 * assume that they will never change.
 	 *
-	 * Due to this, we report the maximum number of queues, even if not
+	 * Due to this, we report the maximum number of queues, even if yest
 	 * every queue is currently configured. Since we always allocate
 	 * queues in pairs, we'll just use netdev->num_tx_queues * 2. This
 	 * works because the num_tx_queues is set at device creation and never
@@ -2217,7 +2217,7 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
  * @pf: the PF device structure
  * @i: the priority value to copy
  *
- * The PFC stats are found as arrays in pf->stats, which is not easy to pass
+ * The PFC stats are found as arrays in pf->stats, which is yest easy to pass
  * into i40e_add_ethtool_stats. Produce a formatted i40e_pfc_stats structure
  * of the PFC stats for the given priority.
  **/
@@ -2245,10 +2245,10 @@ i40e_get_pfc_stats(struct i40e_pf *pf, unsigned int i)
  *
  * Copy the stats values for this netdev into the buffer. Expects data to be
  * pre-allocated to the size returned by i40e_get_stats_count.. Note that all
- * statistics must be copied in a static order, and the count must not change
+ * statistics must be copied in a static order, and the count must yest change
  * for a given netdev. See i40e_get_stats_count for more details.
  *
- * If a statistic is not currently valid (such as a disabled queue), this
+ * If a statistic is yest currently valid (such as a disabled queue), this
  * function reports its value as zero.
  **/
 static void i40e_get_ethtool_stats(struct net_device *netdev,
@@ -2319,7 +2319,7 @@ check_data_pointer:
  *
  * Copy the strings related to stats for this netdev. Expects data to be
  * pre-allocated with the size reported by i40e_get_stats_count. Note that the
- * strings must be copied in a static order and the total count must not
+ * strings must be copied in a static order and the total count must yest
  * change for a given netdev. See i40e_get_stats_count for more details.
  **/
 static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
@@ -2539,7 +2539,7 @@ static void i40e_diag_test(struct net_device *netdev,
 
 		if (i40e_active_vfs(pf) || i40e_active_vmdqs(pf)) {
 			dev_warn(&pf->pdev->dev,
-				 "Please take active VFs and Netqueues offline and restart the adapter before running NIC diagnostics\n");
+				 "Please take active VFs and Netqueues offline and restart the adapter before running NIC diagyesstics\n");
 			data[I40E_ETH_TEST_REG]		= 1;
 			data[I40E_ETH_TEST_EEPROM]	= 1;
 			data[I40E_ETH_TEST_INTR]	= 1;
@@ -2554,7 +2554,7 @@ static void i40e_diag_test(struct net_device *netdev,
 			/* indicate we're in test mode */
 			i40e_close(netdev);
 		else
-			/* This reset does not affect link - if it is
+			/* This reset does yest affect link - if it is
 			 * changed to a type of reset that does affect
 			 * link then the following link test would have
 			 * to be moved to before the reset
@@ -2586,7 +2586,7 @@ static void i40e_diag_test(struct net_device *netdev,
 		if (i40e_link_test(netdev, &data[I40E_ETH_TEST_LINK]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		/* Offline only tests, not run in online; pass by default */
+		/* Offline only tests, yest run in online; pass by default */
 		data[I40E_ETH_TEST_REG] = 0;
 		data[I40E_ETH_TEST_EEPROM] = 0;
 		data[I40E_ETH_TEST_INTR] = 0;
@@ -2629,7 +2629,7 @@ static int i40e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	struct i40e_hw *hw = &pf->hw;
 	u16 wol_nvm_bits;
 
-	/* WoL not supported if this isn't the controlling PF on the port */
+	/* WoL yest supported if this isn't the controlling PF on the port */
 	if (hw->partition_id != 1) {
 		i40e_partition_setting_complaint(pf);
 		return -EOPNOTSUPP;
@@ -2758,7 +2758,7 @@ static int __i40e_get_coalesce(struct net_device *netdev,
 	ec->tx_coalesce_usecs = tx_ring->itr_setting & ~I40E_ITR_DYNAMIC;
 
 	/* we use the _usecs_high to store/set the interrupt rate limit
-	 * that the hardware supports, that almost but not quite
+	 * that the hardware supports, that almost but yest quite
 	 * fits the original intent of the ethtool variable,
 	 * the rx_coalesce_usecs_high limits total interrupts
 	 * per second from both tx/rx sources.
@@ -2840,7 +2840,7 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 
 	/* The interrupt handler itself will take care of programming
 	 * the Tx and Rx ITR values based on the values we have entered
-	 * into the q_vector, no need to write the values now.
+	 * into the q_vector, yes need to write the values yesw.
 	 */
 
 	wr32(hw, I40E_PFINT_RATEN(q_vector->reg_idx), intrl);
@@ -2883,9 +2883,9 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 	cur_tx_itr &= ~I40E_ITR_DYNAMIC;
 	cur_rx_itr &= ~I40E_ITR_DYNAMIC;
 
-	/* tx_coalesce_usecs_high is ignored, use rx-usecs-high instead */
+	/* tx_coalesce_usecs_high is igyesred, use rx-usecs-high instead */
 	if (ec->tx_coalesce_usecs_high != vsi->int_rate_limit) {
-		netif_info(pf, drv, netdev, "tx-usecs-high is not used, please program rx-usecs-high\n");
+		netif_info(pf, drv, netdev, "tx-usecs-high is yest used, please program rx-usecs-high\n");
 		return -EINVAL;
 	}
 
@@ -2897,7 +2897,7 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 
 	if (ec->rx_coalesce_usecs != cur_rx_itr &&
 	    ec->use_adaptive_rx_coalesce) {
-		netif_info(pf, drv, netdev, "RX interrupt moderation cannot be changed if adaptive-rx is enabled.\n");
+		netif_info(pf, drv, netdev, "RX interrupt moderation canyest be changed if adaptive-rx is enabled.\n");
 		return -EINVAL;
 	}
 
@@ -2908,7 +2908,7 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 
 	if (ec->tx_coalesce_usecs != cur_tx_itr &&
 	    ec->use_adaptive_tx_coalesce) {
-		netif_info(pf, drv, netdev, "TX interrupt moderation cannot be changed if adaptive-tx is enabled.\n");
+		netif_info(pf, drv, netdev, "TX interrupt moderation canyest be changed if adaptive-tx is enabled.\n");
 		return -EINVAL;
 	}
 
@@ -3008,7 +3008,7 @@ static int i40e_get_rss_hash_opts(struct i40e_pf *pf, struct ethtool_rxnfc *cmd)
 	case AH_V6_FLOW:
 	case ESP_V6_FLOW:
 	case IPV6_FLOW:
-		/* Default is src/dest for IP, no matter the L4 hashing */
+		/* Default is src/dest for IP, yes matter the L4 hashing */
 		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
 		break;
 	default:
@@ -3082,9 +3082,9 @@ static int i40e_check_mask(u64 mask, u64 field)
  * be defined starting from the highest bits, while small bit field values
  * shall be defined starting from the lowest bits.
  *
- * Returns 0 if the data is valid, and non-zero if the userdef data is invalid
+ * Returns 0 if the data is valid, and yesn-zero if the userdef data is invalid
  * and the filter should be rejected. The data structure will always be
- * modified even if FLOW_EXT is not set.
+ * modified even if FLOW_EXT is yest set.
  *
  **/
 static int i40e_parse_rx_flow_user_data(struct ethtool_rx_flow_spec *fsp,
@@ -3154,21 +3154,21 @@ static void i40e_fill_rx_flow_user_data(struct ethtool_rx_flow_spec *fsp,
  * This function populates both the total and actual rule count of
  * the ethtool flow classification command
  *
- * Returns 0 on success or -EMSGSIZE if entry not found
+ * Returns 0 on success or -EMSGSIZE if entry yest found
  **/
 static int i40e_get_ethtool_fdir_all(struct i40e_pf *pf,
 				     struct ethtool_rxnfc *cmd,
 				     u32 *rule_locs)
 {
 	struct i40e_fdir_filter *rule;
-	struct hlist_node *node2;
+	struct hlist_yesde *yesde2;
 	int cnt = 0;
 
 	/* report total rule count */
 	cmd->data = i40e_get_fd_cnt_all(pf);
 
-	hlist_for_each_entry_safe(rule, node2,
-				  &pf->fdir_filter_list, fdir_node) {
+	hlist_for_each_entry_safe(rule, yesde2,
+				  &pf->fdir_filter_list, fdir_yesde) {
 		if (cnt == cmd->rule_cnt)
 			return -EMSGSIZE;
 
@@ -3189,7 +3189,7 @@ static int i40e_get_ethtool_fdir_all(struct i40e_pf *pf,
  * This function looks up a filter based on the Rx flow classification
  * command and fills the flow spec info for it if found
  *
- * Returns 0 on success or -EINVAL if filter not found
+ * Returns 0 on success or -EINVAL if filter yest found
  **/
 static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 				       struct ethtool_rxnfc *cmd)
@@ -3198,12 +3198,12 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 			(struct ethtool_rx_flow_spec *)&cmd->fs;
 	struct i40e_rx_flow_userdef userdef = {0};
 	struct i40e_fdir_filter *rule = NULL;
-	struct hlist_node *node2;
+	struct hlist_yesde *yesde2;
 	u64 input_set;
 	u16 index;
 
-	hlist_for_each_entry_safe(rule, node2,
-				  &pf->fdir_filter_list, fdir_node) {
+	hlist_for_each_entry_safe(rule, yesde2,
+				  &pf->fdir_filter_list, fdir_yesde) {
 		if (fsp->location <= rule->fd_id)
 			break;
 	}
@@ -3218,7 +3218,7 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 		fsp->m_u.usr_ip4_spec.proto = 0;
 	}
 
-	/* Reverse the src and dest notion, since the HW views them from
+	/* Reverse the src and dest yestion, since the HW views them from
 	 * Tx perspective where as the user expects it from Rx filter view.
 	 */
 	fsp->h_u.tcp_ip4_spec.psrc = rule->dst_port;
@@ -3240,7 +3240,7 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 		index = I40E_FILTER_PCTYPE_NONF_IPV4_OTHER;
 		break;
 	default:
-		/* If we have stored a filter with a flow type not listed here
+		/* If we have stored a filter with a flow type yest listed here
 		 * it is almost certainly a driver bug. WARN(), and then
 		 * assign the input_set as if all fields are enabled to avoid
 		 * reading unassigned memory.
@@ -3248,12 +3248,12 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 		WARN(1, "Missing input set index for flow_type %d\n",
 		     rule->flow_type);
 		input_set = 0xFFFFFFFFFFFFFFFFULL;
-		goto no_input_set;
+		goto yes_input_set;
 	}
 
 	input_set = i40e_read_fd_input_set(pf, index);
 
-no_input_set:
+yes_input_set:
 	if (input_set & I40E_L3_SRC_MASK)
 		fsp->m_u.tcp_ip4_spec.ip4src = htonl(0xFFFFFFFF);
 
@@ -3369,7 +3369,7 @@ static u64 i40e_get_rss_hash_bits(struct ethtool_rxnfc *nfc, u64 i_setc)
 		src_l3 = I40E_L3_SRC_MASK;
 		dst_l3 = I40E_L3_DST_MASK;
 	} else {
-		/* Any other flow type are not supported here */
+		/* Any other flow type are yest supported here */
 		return i_set;
 	}
 
@@ -3402,11 +3402,11 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 
 	if (pf->flags & I40E_FLAG_MFP_ENABLED) {
 		dev_err(&pf->pdev->dev,
-			"Change of RSS hash input set is not supported when MFP mode is enabled\n");
+			"Change of RSS hash input set is yest supported when MFP mode is enabled\n");
 		return -EOPNOTSUPP;
 	}
 
-	/* RSS does not support anything other than hashing
+	/* RSS does yest support anything other than hashing
 	 * to queues on src and dst IPs and ports
 	 */
 	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
@@ -3516,15 +3516,15 @@ static int i40e_update_ethtool_fdir_entry(struct i40e_vsi *vsi,
 {
 	struct i40e_fdir_filter *rule, *parent;
 	struct i40e_pf *pf = vsi->back;
-	struct hlist_node *node2;
+	struct hlist_yesde *yesde2;
 	int err = -EINVAL;
 
 	parent = NULL;
 	rule = NULL;
 
-	hlist_for_each_entry_safe(rule, node2,
-				  &pf->fdir_filter_list, fdir_node) {
-		/* hash found, or no matching entry */
+	hlist_for_each_entry_safe(rule, yesde2,
+				  &pf->fdir_filter_list, fdir_yesde) {
+		/* hash found, or yes matching entry */
 		if (rule->fd_id >= sw_idx)
 			break;
 		parent = rule;
@@ -3536,7 +3536,7 @@ static int i40e_update_ethtool_fdir_entry(struct i40e_vsi *vsi,
 		 * replacing it.
 		 */
 		err = i40e_add_del_fdir(vsi, rule, false);
-		hlist_del(&rule->fdir_node);
+		hlist_del(&rule->fdir_yesde);
 		kfree(rule);
 		pf->fdir_pf_active_filters--;
 	}
@@ -3548,13 +3548,13 @@ static int i40e_update_ethtool_fdir_entry(struct i40e_vsi *vsi,
 		return err;
 
 	/* Otherwise, install the new rule as requested */
-	INIT_HLIST_NODE(&input->fdir_node);
+	INIT_HLIST_NODE(&input->fdir_yesde);
 
 	/* add filter to the list */
 	if (parent)
-		hlist_add_behind(&input->fdir_node, &parent->fdir_node);
+		hlist_add_behind(&input->fdir_yesde, &parent->fdir_yesde);
 	else
-		hlist_add_head(&input->fdir_node,
+		hlist_add_head(&input->fdir_yesde,
 			       &pf->fdir_filter_list);
 
 	/* update counts */
@@ -3568,7 +3568,7 @@ static int i40e_update_ethtool_fdir_entry(struct i40e_vsi *vsi,
  * @pf: pointer to PF structure
  *
  * This function searches the list of filters and determines which FLX_PIT
- * entries are still required. It will prune any entries which are no longer
+ * entries are still required. It will prune any entries which are yes longer
  * in use after the deletion.
  **/
 static void i40e_prune_flex_pit_list(struct i40e_pf *pf)
@@ -3580,7 +3580,7 @@ static void i40e_prune_flex_pit_list(struct i40e_pf *pf)
 	list_for_each_entry_safe(entry, tmp, &pf->l3_flex_pit_list, list) {
 		bool found = false;
 
-		hlist_for_each_entry(rule, &pf->fdir_filter_list, fdir_node) {
+		hlist_for_each_entry(rule, &pf->fdir_filter_list, fdir_yesde) {
 			if (rule->flow_type != IP_USER_FLOW)
 				continue;
 			if (rule->flex_filter &&
@@ -3603,7 +3603,7 @@ static void i40e_prune_flex_pit_list(struct i40e_pf *pf)
 	list_for_each_entry_safe(entry, tmp, &pf->l4_flex_pit_list, list) {
 		bool found = false;
 
-		hlist_for_each_entry(rule, &pf->fdir_filter_list, fdir_node) {
+		hlist_for_each_entry(rule, &pf->fdir_filter_list, fdir_yesde) {
 			/* Skip this filter if it's L3, since we already
 			 * checked those in the above loop
 			 */
@@ -3692,8 +3692,8 @@ static u8 i40e_unused_pit_index(struct i40e_pf *pf)
  * @flex_pit_list: L3 or L4 flex PIT list
  * @src_offset: new src_offset to find
  *
- * Searches the flex_pit_list for an existing offset. If no offset is
- * currently programmed, then this will return an ERR_PTR if there is no space
+ * Searches the flex_pit_list for an existing offset. If yes offset is
+ * currently programmed, then this will return an ERR_PTR if there is yes space
  * to add a new offset, otherwise it returns NULL.
  **/
 static
@@ -3713,8 +3713,8 @@ struct i40e_flex_pit *i40e_find_flex_offset(struct list_head *flex_pit_list,
 	}
 
 	/* If we haven't found an entry yet, then the provided src offset has
-	 * not yet been programmed. We will program the src offset later on,
-	 * but we need to indicate whether there is enough space to do so
+	 * yest yet been programmed. We will program the src offset later on,
+	 * but we need to indicate whether there is eyesugh space to do so
 	 * here. We'll make use of ERR_PTR for this purpose.
 	 */
 	if (size >= I40E_FLEX_PIT_TABLE_SIZE)
@@ -3731,8 +3731,8 @@ struct i40e_flex_pit *i40e_find_flex_offset(struct list_head *flex_pit_list,
  *
  * This function programs the new src_offset to the list. It is expected that
  * i40e_find_flex_offset has already been tried and returned NULL, indicating
- * that this offset is not programmed, and that the list has enough space to
- * store another offset.
+ * that this offset is yest programmed, and that the list has eyesugh space to
+ * store ayesther offset.
  *
  * Returns 0 on success, and negative value on error.
  **/
@@ -3760,12 +3760,12 @@ static int i40e_add_flex_offset(struct list_head *flex_pit_list,
 
 		/* If we found an entry with our offset already programmed we
 		 * can simply return here, after freeing the memory. However,
-		 * if the pit_index does not match we need to report an error.
+		 * if the pit_index does yest match we need to report an error.
 		 */
 		if (new_pit->src_offset == entry->src_offset) {
 			int err = 0;
 
-			/* If the PIT index is not the same we can't re-use
+			/* If the PIT index is yest the same we can't re-use
 			 * the entry, so we must report an error.
 			 */
 			if (new_pit->pit_index != entry->pit_index)
@@ -3798,7 +3798,7 @@ static int i40e_add_flex_offset(struct list_head *flex_pit_list,
  * length according to the src_offset ordering.
  *
  * This function will reprogram the FLX_PIT register from a book-keeping
- * structure that we guarantee is already ordered correctly, and has no more
+ * structure that we guarantee is already ordered correctly, and has yes more
  * than 3 entries.
  *
  * To make things easier, we only support flexible values of one word length,
@@ -3825,9 +3825,9 @@ static void __i40e_reprogram_flex_pit(struct i40e_pf *pf,
 		 *
 		 * To determine this, we will use a loop from i+1 to 3, which
 		 * will determine whether the unused entries would have valid
-		 * SRC_OFFSET. Note that there cannot be extra entries past
+		 * SRC_OFFSET. Note that there canyest be extra entries past
 		 * this value, because the only valid values would have been
-		 * larger than I40E_MAX_FLEX_SRC_OFFSET, and thus would not
+		 * larger than I40E_MAX_FLEX_SRC_OFFSET, and thus would yest
 		 * have been added to the list in the first place.
 		 */
 		for (j = i + 1; j < 3; j++) {
@@ -3918,7 +3918,7 @@ static const char *i40e_flow_str(struct ethtool_rx_flow_spec *fsp)
 	case IP_USER_FLOW:
 		return "ip4";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -4031,18 +4031,18 @@ static void i40e_print_input_set(struct i40e_vsi *vsi, u64 old, u64 new)
  *
  * Ensures that a given ethtool_rx_flow_spec has a valid mask. Some support
  * for partial matches exists with a few limitations. First, hardware only
- * supports masking by word boundary (2 bytes) and not per individual bit.
- * Second, hardware is limited to using one mask for a flow type and cannot
+ * supports masking by word boundary (2 bytes) and yest per individual bit.
+ * Second, hardware is limited to using one mask for a flow type and canyest
  * use a separate mask for each filter.
  *
  * To support these limitations, if we already have a configured filter for
  * the specified type, this function enforces that new filters of the type
- * match the configured input set. Otherwise, if we do not have a filter of
+ * match the configured input set. Otherwise, if we do yest have a filter of
  * the specified type, we allow the input set to be updated to match the
  * desired filter.
  *
  * To help ensure that administrators understand why filters weren't displayed
- * as supported, we print a diagnostic message displaying how the input set
+ * as supported, we print a diagyesstic message displaying how the input set
  * would change and warning to delete the preexisting filters if required.
  *
  * Returns 0 on successful input set match, and a negative return code on
@@ -4093,7 +4093,7 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 	 * to support the provided mask.
 	 *
 	 * Hardware only supports masking at word (2 byte) granularity and does
-	 * not support full bitwise masking. This implementation simplifies
+	 * yest support full bitwise masking. This implementation simplifies
 	 * even further and only supports fully enabled or fully disabled
 	 * masks for each field, even though we could split the ip4src and
 	 * ip4dst fields.
@@ -4138,7 +4138,7 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 		else
 			return -EOPNOTSUPP;
 
-		/* Filtering on Type of Service is not supported. */
+		/* Filtering on Type of Service is yest supported. */
 		if (tcp_ip4_spec->tos)
 			return -EOPNOTSUPP;
 
@@ -4170,15 +4170,15 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 		else
 			return -EOPNOTSUPP;
 
-		/* Filtering on Type of Service is not supported. */
+		/* Filtering on Type of Service is yest supported. */
 		if (usr_ip4_spec->tos)
 			return -EOPNOTSUPP;
 
-		/* Filtering on IP version is not supported */
+		/* Filtering on IP version is yest supported */
 		if (usr_ip4_spec->ip_ver)
 			return -EINVAL;
 
-		/* Filtering on L4 protocol is not supported */
+		/* Filtering on L4 protocol is yest supported */
 		if (usr_ip4_spec->proto)
 			return -EINVAL;
 
@@ -4217,7 +4217,7 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 		}
 
 		/* See if this offset has already been programmed. If we get
-		 * an ERR_PTR, then the filter is not safe to add. Otherwise,
+		 * an ERR_PTR, then the filter is yest safe to add. Otherwise,
 		 * if we get a NULL pointer, this means we will need to add
 		 * the offset.
 		 */
@@ -4226,7 +4226,7 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 		if (IS_ERR(flex_pit))
 			return PTR_ERR(flex_pit);
 
-		/* IP_USER_FLOW filters match both L4 (ICMP) and L3 (unknown)
+		/* IP_USER_FLOW filters match both L4 (ICMP) and L3 (unkyeswn)
 		 * packet types, and thus we need to program both L3 and L4
 		 * flexible values. These must have identical flexible index,
 		 * as otherwise we can't correctly program the input set. So
@@ -4290,25 +4290,25 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 	}
 
 	/* Hardware input sets are global across multiple ports, so even the
-	 * main port cannot change them when in MFP mode as this would impact
+	 * main port canyest change them when in MFP mode as this would impact
 	 * any filters on the other ports.
 	 */
 	if (pf->flags & I40E_FLAG_MFP_ENABLED) {
-		netif_err(pf, drv, vsi->netdev, "Cannot change Flow Director input sets while MFP is enabled\n");
+		netif_err(pf, drv, vsi->netdev, "Canyest change Flow Director input sets while MFP is enabled\n");
 		return -EOPNOTSUPP;
 	}
 
 	/* This filter requires us to update the input set. However, hardware
-	 * only supports one input set per flow type, and does not support
+	 * only supports one input set per flow type, and does yest support
 	 * separate masks for each filter. This means that we can only support
 	 * a single mask for all filters of a specific type.
 	 *
 	 * If we have preexisting filters, they obviously depend on the
-	 * current programmed input set. Display a diagnostic message in this
-	 * case explaining why the filter could not be accepted.
+	 * current programmed input set. Display a diagyesstic message in this
+	 * case explaining why the filter could yest be accepted.
 	 */
 	if (*fdir_filter_count) {
-		netif_err(pf, drv, vsi->netdev, "Cannot change input set for %s flows until %d preexisting filters are removed\n",
+		netif_err(pf, drv, vsi->netdev, "Canyest change input set for %s flows until %d preexisting filters are removed\n",
 			  i40e_flow_str(fsp),
 			  *fdir_filter_count);
 		return -EOPNOTSUPP;
@@ -4360,7 +4360,7 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 static bool i40e_match_fdir_filter(struct i40e_fdir_filter *a,
 				   struct i40e_fdir_filter *b)
 {
-	/* The filters do not much if any of these criteria differ. */
+	/* The filters do yest much if any of these criteria differ. */
 	if (a->dst_ip != b->dst_ip ||
 	    a->src_ip != b->src_ip ||
 	    a->dst_port != b->dst_port ||
@@ -4377,7 +4377,7 @@ static bool i40e_match_fdir_filter(struct i40e_fdir_filter *a,
  * @vsi: pointer to the targeted VSI
  * @input: new filter to check
  *
- * Due to hardware limitations, it is not possible for two filters that match
+ * Due to hardware limitations, it is yest possible for two filters that match
  * similar criteria to be programmed at the same time. This is true for a few
  * reasons:
  *
@@ -4385,7 +4385,7 @@ static bool i40e_match_fdir_filter(struct i40e_fdir_filter *a,
  * set, that is they must match the same criteria.
  * (b) different flow types will never match the same packet, as the flow type
  * is decided by hardware before checking which rules apply.
- * (c) hardware has no way to distinguish which order filters apply in.
+ * (c) hardware has yes way to distinguish which order filters apply in.
  *
  * Due to this, we can't really support using the location data to order
  * filters in the hardware parsing. It is technically possible for the user to
@@ -4402,11 +4402,11 @@ static int i40e_disallow_matching_filters(struct i40e_vsi *vsi,
 {
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_fdir_filter *rule;
-	struct hlist_node *node2;
+	struct hlist_yesde *yesde2;
 
 	/* Loop through every filter, and check that it doesn't match */
-	hlist_for_each_entry_safe(rule, node2,
-				  &pf->fdir_filter_list, fdir_node) {
+	hlist_for_each_entry_safe(rule, yesde2,
+				  &pf->fdir_filter_list, fdir_yesde) {
 		/* Don't check the filters match if they share the same fd_id,
 		 * since the new filter is actually just updating the target
 		 * of the old filter.
@@ -4470,7 +4470,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	if (i40e_parse_rx_flow_user_data(fsp, &userdef))
 		return -EINVAL;
 
-	/* Extended MAC field is not supported */
+	/* Extended MAC field is yest supported */
 	if (fsp->flow_type & FLOW_MAC_EXT)
 		return -EINVAL;
 
@@ -4526,7 +4526,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	input->flow_type = fsp->flow_type & ~FLOW_EXT;
 	input->ip4_proto = fsp->h_u.usr_ip4_spec.proto;
 
-	/* Reverse the src and dest notion, since the HW expects them to be from
+	/* Reverse the src and dest yestion, since the HW expects them to be from
 	 * Tx perspective where as the input from user is from Rx filter view.
 	 */
 	input->dst_port = fsp->h_u.tcp_ip4_spec.psrc;
@@ -4546,7 +4546,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 		goto free_filter_memory;
 
 	/* Add the input filter to the fdir_input_list, possibly replacing
-	 * a previous filter. Do not free the input structure after adding it
+	 * a previous filter. Do yest free the input structure after adding it
 	 * to the list as this would cause a use-after-free bug.
 	 */
 	i40e_update_ethtool_fdir_entry(vsi, input, fsp->location, NULL);
@@ -4556,7 +4556,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	return 0;
 
 remove_sw_rule:
-	hlist_del(&input->fdir_node);
+	hlist_del(&input->fdir_yesde);
 	pf->fdir_pf_active_filters--;
 free_filter_memory:
 	kfree(input);
@@ -4600,7 +4600,7 @@ static int i40e_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
  **/
 static unsigned int i40e_max_channels(struct i40e_vsi *vsi)
 {
-	/* TODO: This code assumes DCB and FD is disabled for now. */
+	/* TODO: This code assumes DCB and FD is disabled for yesw. */
 	return vsi->alloc_queue_pairs;
 }
 
@@ -4611,7 +4611,7 @@ static unsigned int i40e_max_channels(struct i40e_vsi *vsi)
  *
  * We don't support separate tx and rx queues as channels. The other count
  * represents how many queues are being used for control. max_combined counts
- * how many queue pairs we can support. They may not be mapped 1 to 1 with
+ * how many queue pairs we can support. They may yest be mapped 1 to 1 with
  * q_vectors since we support a lot more queue pairs than q_vectors.
  **/
 static void i40e_get_channels(struct net_device *dev,
@@ -4628,7 +4628,7 @@ static void i40e_get_channels(struct net_device *dev,
 	ch->other_count = (pf->flags & I40E_FLAG_FD_SB_ENABLED) ? 1 : 0;
 	ch->max_other = ch->other_count;
 
-	/* Note: This code assumes DCB is disabled for now. */
+	/* Note: This code assumes DCB is disabled for yesw. */
 	ch->combined_count = vsi->num_queue_pairs;
 }
 
@@ -4637,7 +4637,7 @@ static void i40e_get_channels(struct net_device *dev,
  * @dev: network interface device structure
  * @ch: ethtool channels structure
  *
- * The new channels count may not be the same as requested by the user
+ * The new channels count may yest be the same as requested by the user
  * since it gets rounded down to a power of 2 value.
  **/
 static int i40e_set_channels(struct net_device *dev,
@@ -4649,37 +4649,37 @@ static int i40e_set_channels(struct net_device *dev,
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_fdir_filter *rule;
-	struct hlist_node *node2;
+	struct hlist_yesde *yesde2;
 	int new_count;
 	int err = 0;
 
-	/* We do not support setting channels for any other VSI at present */
+	/* We do yest support setting channels for any other VSI at present */
 	if (vsi->type != I40E_VSI_MAIN)
 		return -EINVAL;
 
-	/* We do not support setting channels via ethtool when TCs are
+	/* We do yest support setting channels via ethtool when TCs are
 	 * configured through mqprio
 	 */
 	if (pf->flags & I40E_FLAG_TC_MQPRIO)
 		return -EINVAL;
 
-	/* verify they are not requesting separate vectors */
+	/* verify they are yest requesting separate vectors */
 	if (!count || ch->rx_count || ch->tx_count)
 		return -EINVAL;
 
-	/* verify other_count has not changed */
+	/* verify other_count has yest changed */
 	if (ch->other_count != ((pf->flags & I40E_FLAG_FD_SB_ENABLED) ? 1 : 0))
 		return -EINVAL;
 
-	/* verify the number of channels does not exceed hardware limits */
+	/* verify the number of channels does yest exceed hardware limits */
 	if (count > i40e_max_channels(vsi))
 		return -EINVAL;
 
-	/* verify that the number of channels does not invalidate any current
+	/* verify that the number of channels does yest invalidate any current
 	 * flow director rules
 	 */
-	hlist_for_each_entry_safe(rule, node2,
-				  &pf->fdir_filter_list, fdir_node) {
+	hlist_for_each_entry_safe(rule, yesde2,
+				  &pf->fdir_filter_list, fdir_yesde) {
 		if (rule->dest_ctl != drop && count <= rule->q_index) {
 			dev_warn(&pf->pdev->dev,
 				 "Existing user defined filter %d assigns flow to queue %d\n",
@@ -4927,23 +4927,23 @@ flags_complete:
 	 * checks to ensure that the changes are supported and safe.
 	 */
 
-	/* ATR eviction is not supported on all devices */
+	/* ATR eviction is yest supported on all devices */
 	if ((new_flags & I40E_FLAG_HW_ATR_EVICT_ENABLED) &&
 	    !(pf->hw_features & I40E_HW_ATR_EVICT_CAPABLE))
 		return -EOPNOTSUPP;
 
 	/* If the driver detected FW LLDP was disabled on init, this flag could
-	 * be set, however we do not support _changing_ the flag:
+	 * be set, however we do yest support _changing_ the flag:
 	 * - on XL710 if NPAR is enabled or FW API version < 1.7
 	 * - on X722 with FW API version < 1.6
 	 * There are situations where older FW versions/NPAR enabled PFs could
-	 * disable LLDP, however we _must_ not allow the user to enable/disable
+	 * disable LLDP, however we _must_ yest allow the user to enable/disable
 	 * LLDP with this flag on unsupported FW versions.
 	 */
 	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
 		if (!(pf->hw.flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE)) {
 			dev_warn(&pf->pdev->dev,
-				 "Device does not support changing FW LLDP\n");
+				 "Device does yest support changing FW LLDP\n");
 			return -EOPNOTSUPP;
 		}
 	}
@@ -4953,7 +4953,7 @@ flags_complete:
 	    pf->hw.device_id != I40E_DEV_ID_25G_SFP28 &&
 	    pf->hw.device_id != I40E_DEV_ID_25G_B) {
 		dev_warn(&pf->pdev->dev,
-			 "Device does not support changing FEC configuration\n");
+			 "Device does yest support changing FEC configuration\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -4984,7 +4984,7 @@ flags_complete:
 				 i40e_stat_str(&pf->hw, ret),
 				 i40e_aq_str(&pf->hw,
 					     pf->hw.aq.asq_last_status));
-			/* not a fatal problem, just keep going */
+			/* yest a fatal problem, just keep going */
 		}
 	}
 
@@ -5003,7 +5003,7 @@ flags_complete:
 				   I40E_AQ_SET_FEC_ABILITY_KR);
 		}
 		if (i40e_set_fec_cfg(dev, fec_cfg))
-			dev_warn(&pf->pdev->dev, "Cannot change FEC config\n");
+			dev_warn(&pf->pdev->dev, "Canyest change FEC config\n");
 	}
 
 	if ((changed_flags & new_flags &
@@ -5093,7 +5093,7 @@ static int i40e_get_module_info(struct net_device *netdev,
 
 	/* Check if firmware supports reading module EEPROM. */
 	if (!(hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE)) {
-		netdev_err(vsi->netdev, "Module EEPROM memory read not supported. Please update the NVM image.\n");
+		netdev_err(vsi->netdev, "Module EEPROM memory read yest supported. Please update the NVM image.\n");
 		return -EINVAL;
 	}
 
@@ -5102,7 +5102,7 @@ static int i40e_get_module_info(struct net_device *netdev,
 		return -EIO;
 
 	if (hw->phy.link_info.phy_type == I40E_PHY_TYPE_EMPTY) {
-		netdev_err(vsi->netdev, "Cannot read module EEPROM memory. No module connected.\n");
+		netdev_err(vsi->netdev, "Canyest read module EEPROM memory. No module connected.\n");
 		return -EINVAL;
 	}
 
@@ -5130,16 +5130,16 @@ static int i40e_get_module_info(struct net_device *netdev,
 		 * the other EEPROM memory page.
 		 */
 		if (sff8472_swap & I40E_MODULE_SFF_ADDR_MODE) {
-			netdev_warn(vsi->netdev, "Module address swap to access page 0xA2 is not supported.\n");
+			netdev_warn(vsi->netdev, "Module address swap to access page 0xA2 is yest supported.\n");
 			modinfo->type = ETH_MODULE_SFF_8079;
 			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
 		} else if (sff8472_comp == 0x00) {
-			/* Module is not SFF-8472 compliant */
+			/* Module is yest SFF-8472 compliant */
 			modinfo->type = ETH_MODULE_SFF_8079;
 			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
 		} else if (!(sff8472_swap & I40E_MODULE_SFF_DDM_IMPLEMENTED)) {
 			/* Module is SFF-8472 compliant but doesn't implement
-			 * Digital Diagnostic Monitoring (DDM).
+			 * Digital Diagyesstic Monitoring (DDM).
 			 */
 			modinfo->type = ETH_MODULE_SFF_8079;
 			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;

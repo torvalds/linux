@@ -39,7 +39,7 @@ static struct platform_driver altr_sysmgr_driver;
  * @val:  Value to write
  * Return: INTEL_SIP_SMC_STATUS_OK (0) on success
  *	   INTEL_SIP_SMC_REG_ERROR on error
- *	   INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION if not supported
+ *	   INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION if yest supported
  */
 static int s10_protected_reg_write(void *base,
 				   unsigned int reg, unsigned int val)
@@ -61,7 +61,7 @@ static int s10_protected_reg_write(void *base,
  * @val:  Value read.
  * Return: INTEL_SIP_SMC_STATUS_OK (0) on success
  *	   INTEL_SIP_SMC_REG_ERROR on error
- *	   INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION if not supported
+ *	   INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION if yest supported
  */
 static int s10_protected_reg_read(void *base,
 				  unsigned int reg, unsigned int *val)
@@ -90,14 +90,14 @@ static struct regmap_config altr_sysmgr_regmap_cfg = {
 /**
  * altr_sysmgr_regmap_lookup_by_phandle
  * Find the sysmgr previous configured in probe() and return regmap property.
- * Return: regmap if found or error if not found.
+ * Return: regmap if found or error if yest found.
  */
-struct regmap *altr_sysmgr_regmap_lookup_by_phandle(struct device_node *np,
+struct regmap *altr_sysmgr_regmap_lookup_by_phandle(struct device_yesde *np,
 						    const char *property)
 {
 	struct device *dev;
 	struct altr_sysmgr *sysmgr;
-	struct device_node *sysmgr_np;
+	struct device_yesde *sysmgr_np;
 
 	if (property)
 		sysmgr_np = of_parse_phandle(np, property, 0);
@@ -107,9 +107,9 @@ struct regmap *altr_sysmgr_regmap_lookup_by_phandle(struct device_node *np,
 	if (!sysmgr_np)
 		return ERR_PTR(-ENODEV);
 
-	dev = driver_find_device_by_of_node(&altr_sysmgr_driver.driver,
+	dev = driver_find_device_by_of_yesde(&altr_sysmgr_driver.driver,
 					    (void *)sysmgr_np);
-	of_node_put(sysmgr_np);
+	of_yesde_put(sysmgr_np);
 	if (!dev)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -126,7 +126,7 @@ static int sysmgr_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct regmap_config sysmgr_config = altr_sysmgr_regmap_cfg;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	sysmgr = devm_kzalloc(dev, sizeof(*sysmgr), GFP_KERNEL);
 	if (!sysmgr)

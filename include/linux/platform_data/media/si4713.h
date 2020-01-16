@@ -4,7 +4,7 @@
  * Board related data definitions for Si4713 i2c device driver.
  *
  * Copyright (c) 2009 Nokia Corporation
- * Contact: Eduardo Valentin <eduardo.valentin@nokia.com>
+ * Contact: Eduardo Valentin <eduardo.valentin@yeskia.com>
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any

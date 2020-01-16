@@ -3,7 +3,7 @@
  * Shared application/kernel submission and completion ring pairs, for
  * supporting fast/efficient IO.
  *
- * A note on the read/write ordering memory barriers that are matched between
+ * A yeste on the read/write ordering memory barriers that are matched between
  * the application and kernel side.
  *
  * After the application reads the CQ ring tail, it must use an
@@ -41,7 +41,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/syscalls.h>
 #include <linux/compat.h>
 #include <linux/refcount.h>
@@ -63,10 +63,10 @@
 #include <net/sock.h>
 #include <net/af_unix.h>
 #include <net/scm.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/sched/mm.h>
 #include <linux/uaccess.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <linux/sizes.h>
 #include <linux/hugetlb.h>
 #include <linux/highmem.h>
@@ -145,14 +145,14 @@ struct io_rings {
 	/*
 	 * Number of completion events lost because the queue was full;
 	 * this should be avoided by the application by making sure
-	 * there are not more requests pending than there is space in
+	 * there are yest more requests pending than there is space in
 	 * the completion queue.
 	 *
 	 * Written by the kernel, shouldn't be modified by the
 	 * application (i.e. get number of "new events" by comparing to
 	 * cached value).
 	 *
-	 * As completion events come in out of order this counter is not
+	 * As completion events come in out of order this counter is yest
 	 * ordered with any other data.
 	 */
 	u32			cq_overflow;
@@ -197,7 +197,7 @@ struct io_ring_ctx {
 		 * io_uring_sqe entries to operations and only submit them to
 		 * the queue when needed.
 		 *
-		 * The kernel modifies neither the indices array nor the entries
+		 * The kernel modifies neither the indices array yesr the entries
 		 * array.
 		 */
 		u32			*sq_array;
@@ -272,7 +272,7 @@ struct io_ring_ctx {
 		 * ->poll_list is protected by the ctx->uring_lock for
 		 * io_uring instances that don't use IORING_SETUP_SQPOLL.
 		 * For SQPOLL, only the single threaded io_sq_thread() will
-		 * manipulate the list, hence no extra locking is needed there.
+		 * manipulate the list, hence yes extra locking is needed there.
 		 */
 		struct list_head	poll_list;
 		struct hlist_head	*cancel_hash;
@@ -409,12 +409,12 @@ struct io_kiocb {
 	struct io_ring_ctx	*ctx;
 	union {
 		struct list_head	list;
-		struct hlist_node	hash_node;
+		struct hlist_yesde	hash_yesde;
 	};
 	struct list_head	link_list;
 	unsigned int		flags;
 	refcount_t		refs;
-#define REQ_F_NOWAIT		1	/* must not punt to workers */
+#define REQ_F_NOWAIT		1	/* must yest punt to workers */
 #define REQ_F_IOPOLL_COMPLETED	2	/* polled IO has completed */
 #define REQ_F_FIXED_FILE	4	/* ctx owns file */
 #define REQ_F_LINK_NEXT		8	/* already grabbed next link */
@@ -427,7 +427,7 @@ struct io_kiocb {
 #define REQ_F_TIMEOUT		1024	/* timeout request */
 #define REQ_F_ISREG		2048	/* regular file */
 #define REQ_F_MUST_PUNT		4096	/* must be punted even for NONBLOCK */
-#define REQ_F_TIMEOUT_NOSEQ	8192	/* no timeout sequence */
+#define REQ_F_TIMEOUT_NOSEQ	8192	/* yes timeout sequence */
 #define REQ_F_INFLIGHT		16384	/* on inflight list */
 #define REQ_F_COMP_LOCKED	32768	/* completion under lock */
 #define REQ_F_HARDLINK		65536	/* doesn't sever on completion < 0 */
@@ -643,7 +643,7 @@ static inline bool io_prep_async_work(struct io_kiocb *req,
 	case IORING_OP_POLL_ADD:
 	case IORING_OP_CONNECT:
 		/*
-		 * We know REQ_F_ISREG is not set on some of these
+		 * We kyesw REQ_F_ISREG is yest set on some of these
 		 * opcodes, but this enables us to keep the check in
 		 * just one place.
 		 */
@@ -672,7 +672,7 @@ static inline void io_queue_async_work(struct io_kiocb *req)
 		io_wq_enqueue(ctx->io_wq, &req->work);
 	} else {
 		io_wq_enqueue_hashed(ctx->io_wq, &req->work,
-					file_inode(req->file));
+					file_iyesde(req->file));
 	}
 
 	if (link)
@@ -725,7 +725,7 @@ static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 	tail = ctx->cached_cq_tail;
 	/*
 	 * writes to the cq entry need to come after reading head; the
-	 * control dependency is enough as we're using WRITE_ONCE to
+	 * control dependency is eyesugh as we're using WRITE_ONCE to
 	 * fill the cq entry
 	 */
 	if (tail - READ_ONCE(rings->cq.head) == rings->cq_ring_entries)
@@ -745,7 +745,7 @@ static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 		eventfd_signal(ctx->cq_ev_fd, 1);
 }
 
-/* Returns true if there are no backlogged entries after the flush */
+/* Returns true if there are yes backlogged entries after the flush */
 static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 {
 	struct io_rings *rings = ctx->rings;
@@ -878,7 +878,7 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 		ret = kmem_cache_alloc_bulk(req_cachep, gfp, sz, state->reqs);
 
 		/*
-		 * Bulk alloc is all-or-nothing. If we fail to get a batch,
+		 * Bulk alloc is all-or-yesthing. If we fail to get a batch,
 		 * retry single alloc to be on the safe side.
 		 */
 		if (unlikely(ret <= 0)) {
@@ -1081,7 +1081,7 @@ static void io_free_req(struct io_kiocb *req)
  * Drop reference to request, return next in chain (if there is one) if this
  * was the last reference to this request.
  */
-__attribute__((nonnull))
+__attribute__((yesnnull))
 static void io_put_req_find_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 {
 	io_req_find_next(req, nxtptr);
@@ -1114,16 +1114,16 @@ static void io_double_put_req(struct io_kiocb *req)
 		io_free_req(req);
 }
 
-static unsigned io_cqring_events(struct io_ring_ctx *ctx, bool noflush)
+static unsigned io_cqring_events(struct io_ring_ctx *ctx, bool yesflush)
 {
 	struct io_rings *rings = ctx->rings;
 
 	/*
-	 * noflush == true is from the waitqueue handler, just ensure we wake
+	 * yesflush == true is from the waitqueue handler, just ensure we wake
 	 * up the task, and the next invocation will flush the entries. We
-	 * cannot safely to it from here.
+	 * canyest safely to it from here.
 	 */
-	if (noflush && !list_empty(&ctx->cq_overflow_list))
+	if (yesflush && !list_empty(&ctx->cq_overflow_list))
 		return -1U;
 
 	io_cqring_overflow_flush(ctx, false);
@@ -1160,10 +1160,10 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		(*nr_events)++;
 
 		if (refcount_dec_and_test(&req->refs)) {
-			/* If we're not using fixed files, we have to pair the
+			/* If we're yest using fixed files, we have to pair the
 			 * completion part with the file put. Use regular
 			 * completions for those, only batch free for fixed
-			 * file and non-linked commands.
+			 * file and yesn-linked commands.
 			 */
 			if (((req->flags & (REQ_F_FIXED_FILE|REQ_F_LINK)) ==
 			    REQ_F_FIXED_FILE) && !io_is_fallback_req(req) &&
@@ -1228,8 +1228,8 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 
 /*
  * Poll for a minimum of 'min' events. Note that if min == 0 we consider that a
- * non-spinning poll check - we'll still enter the driver poll loop, but only
- * as a non-spinning completion check.
+ * yesn-spinning poll check - we'll still enter the driver poll loop, but only
+ * as a yesn-spinning completion check.
  */
 static int io_iopoll_getevents(struct io_ring_ctx *ctx, unsigned int *nr_events,
 				long min)
@@ -1292,7 +1292,7 @@ static int __io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
 		 * application entering polling for a command before it gets
 		 * issued. That app will hold the uring_lock for the duration
 		 * of the poll right here, so we need to take a breather every
-		 * now and then to ensure that the issue has a chance to add
+		 * yesw and then to ensure that the issue has a chance to add
 		 * the poll to the issued list. Otherwise we can spin here
 		 * forever, while the workqueue is stuck trying to acquire the
 		 * very same mutex.
@@ -1337,9 +1337,9 @@ static void kiocb_end_write(struct io_kiocb *req)
 	 * thread.
 	 */
 	if (req->flags & REQ_F_ISREG) {
-		struct inode *inode = file_inode(req->file);
+		struct iyesde *iyesde = file_iyesde(req->file);
 
-		__sb_writers_acquired(inode->i_sb, SB_FREEZE_WRITE);
+		__sb_writers_acquired(iyesde->i_sb, SB_FREEZE_WRITE);
 	}
 	file_end_write(req->file);
 }
@@ -1407,7 +1407,7 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 
 	/*
 	 * Track whether we have multiple files in our lists. This will impact
-	 * how we do polling eventually, not spinning if we're on potentially
+	 * how we do polling eventually, yest spinning if we're on potentially
 	 * different devices.
 	 */
 	if (list_empty(&ctx->poll_list)) {
@@ -1473,12 +1473,12 @@ static struct file *io_file_get(struct io_submit_state *state, int fd)
 
 /*
  * If we tracked the file through the SCM inflight mechanism, we could support
- * any file. For now, just ensure that anything potentially problematic is done
+ * any file. For yesw, just ensure that anything potentially problematic is done
  * inline.
  */
 static bool io_file_supports_async(struct file *file)
 {
-	umode_t mode = file_inode(file)->i_mode;
+	umode_t mode = file_iyesde(file)->i_mode;
 
 	if (S_ISBLK(mode) || S_ISCHR(mode) || S_ISSOCK(mode))
 		return true;
@@ -1489,7 +1489,7 @@ static bool io_file_supports_async(struct file *file)
 }
 
 static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-		      bool force_nonblock)
+		      bool force_yesnblock)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct kiocb *kiocb = &req->rw.kiocb;
@@ -1499,7 +1499,7 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	if (!req->file)
 		return -EBADF;
 
-	if (S_ISREG(file_inode(req->file)->i_mode))
+	if (S_ISREG(file_iyesde(req->file)->i_mode))
 		req->flags |= REQ_F_ISREG;
 
 	kiocb->ki_pos = READ_ONCE(sqe->off);
@@ -1525,7 +1525,7 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	    (req->file->f_flags & O_NONBLOCK))
 		req->flags |= REQ_F_NOWAIT;
 
-	if (force_nonblock)
+	if (force_yesnblock)
 		kiocb->ki_flags |= IOCB_NOWAIT;
 
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
@@ -1598,19 +1598,19 @@ static ssize_t io_import_fixed(struct io_kiocb *req, int rw,
 	if (unlikely(buf_index >= ctx->nr_user_bufs))
 		return -EFAULT;
 
-	index = array_index_nospec(buf_index, ctx->nr_user_bufs);
+	index = array_index_yesspec(buf_index, ctx->nr_user_bufs);
 	imu = &ctx->user_bufs[index];
 	buf_addr = req->rw.addr;
 
 	/* overflow */
 	if (buf_addr + len < buf_addr)
 		return -EFAULT;
-	/* not inside the mapped region */
+	/* yest inside the mapped region */
 	if (buf_addr < imu->ubuf || buf_addr + len > imu->ubuf + imu->len)
 		return -EFAULT;
 
 	/*
-	 * May not be a start of buffer, set size appropriately
+	 * May yest be a start of buffer, set size appropriately
 	 * and advance us to the beginning.
 	 */
 	offset = buf_addr - imu->ubuf;
@@ -1621,7 +1621,7 @@ static ssize_t io_import_fixed(struct io_kiocb *req, int rw,
 		 * Don't use iov_iter_advance() here, as it's really slow for
 		 * using the latter parts of a big fixed buffer - it iterates
 		 * over each segment manually. We can cheat a bit here, because
-		 * we know that:
+		 * we kyesw that:
 		 *
 		 * 1) it's a BVEC iter, we set it up
 		 * 2) all bvecs are PAGE_SIZE in size, except potentially the
@@ -1630,7 +1630,7 @@ static ssize_t io_import_fixed(struct io_kiocb *req, int rw,
 		 * So just find our index, and adjust the iterator afterwards.
 		 * If the offset is within the first bvec (or the whole first
 		 * bvec, just use iov_iter_advance(). This makes it easier
-		 * since we can just skip the first segment, which may not
+		 * since we can just skip the first segment, which may yest
 		 * be PAGE_SIZE aligned.
 		 */
 		const struct bio_vec *bvec = imu->bvec;
@@ -1704,7 +1704,7 @@ static ssize_t loop_rw_iter(int rw, struct file *file, struct kiocb *kiocb,
 
 	/*
 	 * Don't support polled IO through this interface, and we can't
-	 * support non-blocking either. For the latter, this just causes
+	 * support yesn-blocking either. For the latter, this just causes
 	 * the kiocb to be handled from an async context.
 	 */
 	if (kiocb->ki_flags & IOCB_HIPRI)
@@ -1795,13 +1795,13 @@ static int io_setup_async_rw(struct io_kiocb *req, ssize_t io_size,
 }
 
 static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			bool force_nonblock)
+			bool force_yesnblock)
 {
 	struct io_async_ctx *io;
 	struct iov_iter iter;
 	ssize_t ret;
 
-	ret = io_prep_rw(req, sqe, force_nonblock);
+	ret = io_prep_rw(req, sqe, force_yesnblock);
 	if (ret)
 		return ret;
 
@@ -1824,7 +1824,7 @@ static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 }
 
 static int io_read(struct io_kiocb *req, struct io_kiocb **nxt,
-		   bool force_nonblock)
+		   bool force_yesnblock)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw.kiocb;
@@ -1836,8 +1836,8 @@ static int io_read(struct io_kiocb *req, struct io_kiocb **nxt,
 	if (ret < 0)
 		return ret;
 
-	/* Ensure we clear previously set non-block flag */
-	if (!force_nonblock)
+	/* Ensure we clear previously set yesn-block flag */
+	if (!force_yesnblock)
 		req->rw.kiocb.ki_flags &= ~IOCB_NOWAIT;
 
 	io_size = ret;
@@ -1846,9 +1846,9 @@ static int io_read(struct io_kiocb *req, struct io_kiocb **nxt,
 
 	/*
 	 * If the file doesn't support async, mark it as REQ_F_MUST_PUNT so
-	 * we know to async punt it even if it was opened O_NONBLOCK
+	 * we kyesw to async punt it even if it was opened O_NONBLOCK
 	 */
-	if (force_nonblock && !io_file_supports_async(req->file)) {
+	if (force_yesnblock && !io_file_supports_async(req->file)) {
 		req->flags |= REQ_F_MUST_PUNT;
 		goto copy_iov;
 	}
@@ -1863,8 +1863,8 @@ static int io_read(struct io_kiocb *req, struct io_kiocb **nxt,
 		else
 			ret2 = loop_rw_iter(READ, req->file, kiocb, &iter);
 
-		/* Catch -EAGAIN return for forced non-blocking submission */
-		if (!force_nonblock || ret2 != -EAGAIN) {
+		/* Catch -EAGAIN return for forced yesn-blocking submission */
+		if (!force_yesnblock || ret2 != -EAGAIN) {
 			kiocb_done(kiocb, ret2, nxt, req->in_async);
 		} else {
 copy_iov:
@@ -1882,13 +1882,13 @@ out_free:
 }
 
 static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			 bool force_nonblock)
+			 bool force_yesnblock)
 {
 	struct io_async_ctx *io;
 	struct iov_iter iter;
 	ssize_t ret;
 
-	ret = io_prep_rw(req, sqe, force_nonblock);
+	ret = io_prep_rw(req, sqe, force_yesnblock);
 	if (ret)
 		return ret;
 
@@ -1911,7 +1911,7 @@ static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 }
 
 static int io_write(struct io_kiocb *req, struct io_kiocb **nxt,
-		    bool force_nonblock)
+		    bool force_yesnblock)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw.kiocb;
@@ -1923,8 +1923,8 @@ static int io_write(struct io_kiocb *req, struct io_kiocb **nxt,
 	if (ret < 0)
 		return ret;
 
-	/* Ensure we clear previously set non-block flag */
-	if (!force_nonblock)
+	/* Ensure we clear previously set yesn-block flag */
+	if (!force_yesnblock)
 		req->rw.kiocb.ki_flags &= ~IOCB_NOWAIT;
 
 	io_size = ret;
@@ -1933,15 +1933,15 @@ static int io_write(struct io_kiocb *req, struct io_kiocb **nxt,
 
 	/*
 	 * If the file doesn't support async, mark it as REQ_F_MUST_PUNT so
-	 * we know to async punt it even if it was opened O_NONBLOCK
+	 * we kyesw to async punt it even if it was opened O_NONBLOCK
 	 */
-	if (force_nonblock && !io_file_supports_async(req->file)) {
+	if (force_yesnblock && !io_file_supports_async(req->file)) {
 		req->flags |= REQ_F_MUST_PUNT;
 		goto copy_iov;
 	}
 
-	/* file path doesn't support NOWAIT for non-direct_IO */
-	if (force_nonblock && !(kiocb->ki_flags & IOCB_DIRECT) &&
+	/* file path doesn't support NOWAIT for yesn-direct_IO */
+	if (force_yesnblock && !(kiocb->ki_flags & IOCB_DIRECT) &&
 	    (req->flags & REQ_F_ISREG))
 		goto copy_iov;
 
@@ -1952,15 +1952,15 @@ static int io_write(struct io_kiocb *req, struct io_kiocb **nxt,
 
 		/*
 		 * Open-code file_start_write here to grab freeze protection,
-		 * which will be released by another thread in
+		 * which will be released by ayesther thread in
 		 * io_complete_rw().  Fool lockdep by telling it the lock got
 		 * released so that it doesn't complain about the held lock when
 		 * we return to userspace.
 		 */
 		if (req->flags & REQ_F_ISREG) {
-			__sb_start_write(file_inode(req->file)->i_sb,
+			__sb_start_write(file_iyesde(req->file)->i_sb,
 						SB_FREEZE_WRITE, true);
-			__sb_writers_release(file_inode(req->file)->i_sb,
+			__sb_writers_release(file_iyesde(req->file)->i_sb,
 						SB_FREEZE_WRITE);
 		}
 		kiocb->ki_flags |= IOCB_WRITE;
@@ -1969,7 +1969,7 @@ static int io_write(struct io_kiocb *req, struct io_kiocb **nxt,
 			ret2 = call_write_iter(req->file, kiocb, &iter);
 		else
 			ret2 = loop_rw_iter(WRITE, req->file, kiocb, &iter);
-		if (!force_nonblock || ret2 != -EAGAIN) {
+		if (!force_yesnblock || ret2 != -EAGAIN) {
 			kiocb_done(kiocb, ret2, nxt, req->in_async);
 		} else {
 copy_iov:
@@ -1987,9 +1987,9 @@ out_free:
 }
 
 /*
- * IORING_OP_NOP just posts a completion event, nothing else.
+ * IORING_OP_NOP just posts a completion event, yesthing else.
  */
-static int io_nop(struct io_kiocb *req)
+static int io_yesp(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
@@ -2056,12 +2056,12 @@ static void io_fsync_finish(struct io_wq_work **workptr)
 }
 
 static int io_fsync(struct io_kiocb *req, struct io_kiocb **nxt,
-		    bool force_nonblock)
+		    bool force_yesnblock)
 {
 	struct io_wq_work *work, *old_work;
 
 	/* fsync always requires a blocking context */
-	if (force_nonblock) {
+	if (force_yesnblock) {
 		io_put_req(req);
 		req->work.func = io_fsync_finish;
 		return -EAGAIN;
@@ -2112,12 +2112,12 @@ static void io_sync_file_range_finish(struct io_wq_work **workptr)
 }
 
 static int io_sync_file_range(struct io_kiocb *req, struct io_kiocb **nxt,
-			      bool force_nonblock)
+			      bool force_yesnblock)
 {
 	struct io_wq_work *work, *old_work;
 
 	/* sync_file_range always requires a blocking context */
-	if (force_nonblock) {
+	if (force_yesnblock) {
 		io_put_req(req);
 		req->work.func = io_sync_file_range_finish;
 		return -EAGAIN;
@@ -2164,7 +2164,7 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 }
 
 static int io_sendmsg(struct io_kiocb *req, struct io_kiocb **nxt,
-		      bool force_nonblock)
+		      bool force_yesnblock)
 {
 #if defined(CONFIG_NET)
 	struct io_async_msghdr *kmsg = NULL;
@@ -2203,11 +2203,11 @@ static int io_sendmsg(struct io_kiocb *req, struct io_kiocb **nxt,
 		flags = req->sr_msg.msg_flags;
 		if (flags & MSG_DONTWAIT)
 			req->flags |= REQ_F_NOWAIT;
-		else if (force_nonblock)
+		else if (force_yesnblock)
 			flags |= MSG_DONTWAIT;
 
 		ret = __sys_sendmsg_sock(sock, &kmsg->msg, flags);
-		if (force_nonblock && ret == -EAGAIN) {
+		if (force_yesnblock && ret == -EAGAIN) {
 			if (req->io)
 				return -EAGAIN;
 			if (io_alloc_async_ctx(req))
@@ -2254,7 +2254,7 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 }
 
 static int io_recvmsg(struct io_kiocb *req, struct io_kiocb **nxt,
-		      bool force_nonblock)
+		      bool force_yesnblock)
 {
 #if defined(CONFIG_NET)
 	struct io_async_msghdr *kmsg = NULL;
@@ -2294,12 +2294,12 @@ static int io_recvmsg(struct io_kiocb *req, struct io_kiocb **nxt,
 		flags = req->sr_msg.msg_flags;
 		if (flags & MSG_DONTWAIT)
 			req->flags |= REQ_F_NOWAIT;
-		else if (force_nonblock)
+		else if (force_yesnblock)
 			flags |= MSG_DONTWAIT;
 
 		ret = __sys_recvmsg_sock(sock, &kmsg->msg, req->sr_msg.msg,
 						kmsg->uaddr, flags);
-		if (force_nonblock && ret == -EAGAIN) {
+		if (force_yesnblock && ret == -EAGAIN) {
 			if (req->io)
 				return -EAGAIN;
 			if (io_alloc_async_ctx(req))
@@ -2345,16 +2345,16 @@ static int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 #if defined(CONFIG_NET)
 static int __io_accept(struct io_kiocb *req, struct io_kiocb **nxt,
-		       bool force_nonblock)
+		       bool force_yesnblock)
 {
 	struct io_accept *accept = &req->accept;
 	unsigned file_flags;
 	int ret;
 
-	file_flags = force_nonblock ? O_NONBLOCK : 0;
+	file_flags = force_yesnblock ? O_NONBLOCK : 0;
 	ret = __sys_accept4_file(req->file, file_flags, accept->addr,
 					accept->addr_len, accept->flags);
-	if (ret == -EAGAIN && force_nonblock)
+	if (ret == -EAGAIN && force_yesnblock)
 		return -EAGAIN;
 	if (ret == -ERESTARTSYS)
 		ret = -EINTR;
@@ -2379,13 +2379,13 @@ static void io_accept_finish(struct io_wq_work **workptr)
 #endif
 
 static int io_accept(struct io_kiocb *req, struct io_kiocb **nxt,
-		     bool force_nonblock)
+		     bool force_yesnblock)
 {
 #if defined(CONFIG_NET)
 	int ret;
 
-	ret = __io_accept(req, nxt, force_nonblock);
-	if (ret == -EAGAIN && force_nonblock) {
+	ret = __io_accept(req, nxt, force_yesnblock);
+	if (ret == -EAGAIN && force_yesnblock) {
 		req->work.func = io_accept_finish;
 		req->work.flags |= IO_WQ_WORK_NEEDS_FILES;
 		io_put_req(req);
@@ -2422,7 +2422,7 @@ static int io_connect_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 }
 
 static int io_connect(struct io_kiocb *req, struct io_kiocb **nxt,
-		      bool force_nonblock)
+		      bool force_yesnblock)
 {
 #if defined(CONFIG_NET)
 	struct io_async_ctx __io, *io;
@@ -2440,11 +2440,11 @@ static int io_connect(struct io_kiocb *req, struct io_kiocb **nxt,
 		io = &__io;
 	}
 
-	file_flags = force_nonblock ? O_NONBLOCK : 0;
+	file_flags = force_yesnblock ? O_NONBLOCK : 0;
 
 	ret = __sys_connect_file(req->file, &io->connect.address,
 					req->connect.addr_len, file_flags);
-	if ((ret == -EAGAIN || ret == -EINPROGRESS) && force_nonblock) {
+	if ((ret == -EAGAIN || ret == -EINPROGRESS) && force_yesnblock) {
 		if (req->io)
 			return -EAGAIN;
 		if (io_alloc_async_ctx(req)) {
@@ -2478,12 +2478,12 @@ static void io_poll_remove_one(struct io_kiocb *req)
 		io_queue_async_work(req);
 	}
 	spin_unlock(&poll->head->lock);
-	hash_del(&req->hash_node);
+	hash_del(&req->hash_yesde);
 }
 
 static void io_poll_remove_all(struct io_ring_ctx *ctx)
 {
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct io_kiocb *req;
 	int i;
 
@@ -2492,7 +2492,7 @@ static void io_poll_remove_all(struct io_ring_ctx *ctx)
 		struct hlist_head *list;
 
 		list = &ctx->cancel_hash[i];
-		hlist_for_each_entry_safe(req, tmp, list, hash_node)
+		hlist_for_each_entry_safe(req, tmp, list, hash_yesde)
 			io_poll_remove_one(req);
 	}
 	spin_unlock_irq(&ctx->completion_lock);
@@ -2504,7 +2504,7 @@ static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr)
 	struct io_kiocb *req;
 
 	list = &ctx->cancel_hash[hash_long(sqe_addr, ctx->cancel_hash_bits)];
-	hlist_for_each_entry(req, list, hash_node) {
+	hlist_for_each_entry(req, list, hash_yesde) {
 		if (sqe_addr == req->user_data) {
 			io_poll_remove_one(req);
 			return 0;
@@ -2586,7 +2586,7 @@ static void io_poll_complete_work(struct io_wq_work **workptr)
 	 * Note that ->ki_cancel callers also delete iocb from active_reqs after
 	 * calling ->ki_cancel.  We need the ctx_lock roundtrip here to
 	 * synchronize with them.  In the cancellation case the list_del_init
-	 * itself is not actually needed, but harmless so we keep it in to
+	 * itself is yest actually needed, but harmless so we keep it in to
 	 * avoid further branches in the fast path.
 	 */
 	spin_lock_irq(&ctx->completion_lock);
@@ -2595,7 +2595,7 @@ static void io_poll_complete_work(struct io_wq_work **workptr)
 		spin_unlock_irq(&ctx->completion_lock);
 		return;
 	}
-	hash_del(&req->hash_node);
+	hash_del(&req->hash_yesde);
 	io_poll_complete(req, mask, ret);
 	spin_unlock_irq(&ctx->completion_lock);
 
@@ -2630,7 +2630,7 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	 * for finalizing the request, mark us as having grabbed that already.
 	 */
 	if (mask && spin_trylock_irqsave(&ctx->completion_lock, flags)) {
-		hash_del(&req->hash_node);
+		hash_del(&req->hash_yesde);
 		io_poll_complete(req, mask, 0);
 		req->flags |= REQ_F_COMP_LOCKED;
 		io_put_req(req);
@@ -2671,7 +2671,7 @@ static void io_poll_req_insert(struct io_kiocb *req)
 	struct hlist_head *list;
 
 	list = &ctx->cancel_hash[hash_long(req->user_data, ctx->cancel_hash_bits)];
-	hlist_add_head(&req->hash_node, list);
+	hlist_add_head(&req->hash_yesde, list);
 }
 
 static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -2700,7 +2700,7 @@ static int io_poll_add(struct io_kiocb *req, struct io_kiocb **nxt)
 	__poll_t mask;
 
 	INIT_IO_WORK(&req->work, io_poll_complete_work);
-	INIT_HLIST_NODE(&req->hash_node);
+	INIT_HLIST_NODE(&req->hash_yesde);
 
 	poll->head = NULL;
 	poll->done = false;
@@ -2709,7 +2709,7 @@ static int io_poll_add(struct io_kiocb *req, struct io_kiocb **nxt)
 	ipt.pt._qproc = io_poll_queue_proc;
 	ipt.pt._key = poll->events;
 	ipt.req = req;
-	ipt.error = -EINVAL; /* same as no support for IOCB_CMD_POLL */
+	ipt.error = -EINVAL; /* same as yes support for IOCB_CMD_POLL */
 
 	/* initialized the list so that we can do list_empty checks */
 	INIT_LIST_HEAD(&poll->wait.entry);
@@ -2737,7 +2737,7 @@ static int io_poll_add(struct io_kiocb *req, struct io_kiocb **nxt)
 			io_poll_req_insert(req);
 		spin_unlock(&poll->head->lock);
 	}
-	if (mask) { /* no async, we'd stolen it */
+	if (mask) { /* yes async, we'd stolen it */
 		ipt.error = 0;
 		io_poll_complete(req, mask, 0);
 	}
@@ -2772,7 +2772,7 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 		 * Adjust the reqs sequence before the current one because it
 		 * will consume a slot in the cq_ring and the cq_tail
 		 * pointer will be increased, otherwise other timeout reqs may
-		 * return in advance without waiting for enough wait_nr.
+		 * return in advance without waiting for eyesugh wait_nr.
 		 */
 		prev = req;
 		list_for_each_entry_continue_reverse(prev, &ctx->timeout_list, list)
@@ -3135,32 +3135,32 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 }
 
 static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			struct io_kiocb **nxt, bool force_nonblock)
+			struct io_kiocb **nxt, bool force_yesnblock)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
 	switch (req->opcode) {
 	case IORING_OP_NOP:
-		ret = io_nop(req);
+		ret = io_yesp(req);
 		break;
 	case IORING_OP_READV:
 	case IORING_OP_READ_FIXED:
 		if (sqe) {
-			ret = io_read_prep(req, sqe, force_nonblock);
+			ret = io_read_prep(req, sqe, force_yesnblock);
 			if (ret < 0)
 				break;
 		}
-		ret = io_read(req, nxt, force_nonblock);
+		ret = io_read(req, nxt, force_yesnblock);
 		break;
 	case IORING_OP_WRITEV:
 	case IORING_OP_WRITE_FIXED:
 		if (sqe) {
-			ret = io_write_prep(req, sqe, force_nonblock);
+			ret = io_write_prep(req, sqe, force_yesnblock);
 			if (ret < 0)
 				break;
 		}
-		ret = io_write(req, nxt, force_nonblock);
+		ret = io_write(req, nxt, force_yesnblock);
 		break;
 	case IORING_OP_FSYNC:
 		if (sqe) {
@@ -3168,7 +3168,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			if (ret < 0)
 				break;
 		}
-		ret = io_fsync(req, nxt, force_nonblock);
+		ret = io_fsync(req, nxt, force_yesnblock);
 		break;
 	case IORING_OP_POLL_ADD:
 		if (sqe) {
@@ -3192,7 +3192,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			if (ret < 0)
 				break;
 		}
-		ret = io_sync_file_range(req, nxt, force_nonblock);
+		ret = io_sync_file_range(req, nxt, force_yesnblock);
 		break;
 	case IORING_OP_SENDMSG:
 		if (sqe) {
@@ -3200,7 +3200,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			if (ret < 0)
 				break;
 		}
-		ret = io_sendmsg(req, nxt, force_nonblock);
+		ret = io_sendmsg(req, nxt, force_yesnblock);
 		break;
 	case IORING_OP_RECVMSG:
 		if (sqe) {
@@ -3208,7 +3208,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			if (ret)
 				break;
 		}
-		ret = io_recvmsg(req, nxt, force_nonblock);
+		ret = io_recvmsg(req, nxt, force_yesnblock);
 		break;
 	case IORING_OP_TIMEOUT:
 		if (sqe) {
@@ -3232,7 +3232,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			if (ret)
 				break;
 		}
-		ret = io_accept(req, nxt, force_nonblock);
+		ret = io_accept(req, nxt, force_yesnblock);
 		break;
 	case IORING_OP_CONNECT:
 		if (sqe) {
@@ -3240,7 +3240,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			if (ret)
 				break;
 		}
-		ret = io_connect(req, nxt, force_nonblock);
+		ret = io_connect(req, nxt, force_yesnblock);
 		break;
 	case IORING_OP_ASYNC_CANCEL:
 		if (sqe) {
@@ -3378,7 +3378,7 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 		if (unlikely(!ctx->file_table ||
 		    (unsigned) fd >= ctx->nr_user_files))
 			return -EBADF;
-		fd = array_index_nospec(fd, ctx->nr_user_files);
+		fd = array_index_yesspec(fd, ctx->nr_user_files);
 		req->file = io_file_from_index(ctx, fd);
 		if (!req->file)
 			return -EBADF;
@@ -3438,7 +3438,7 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	if (!list_empty(&req->link_list)) {
 		prev = list_entry(req->link_list.prev, struct io_kiocb,
 				  link_list);
-		if (refcount_inc_not_zero(&prev->refs)) {
+		if (refcount_inc_yest_zero(&prev->refs)) {
 			list_del_init(&req->link_list);
 			prev->flags &= ~REQ_F_LINK_TIMEOUT;
 		} else
@@ -3464,7 +3464,7 @@ static void io_queue_linked_timeout(struct io_kiocb *req)
 	struct io_ring_ctx *ctx = req->ctx;
 
 	/*
-	 * If the list is now empty, then our linked request finished before
+	 * If the list is yesw empty, then our linked request finished before
 	 * we got a chance to setup the timer
 	 */
 	spin_lock_irq(&ctx->completion_lock);
@@ -3510,7 +3510,7 @@ again:
 
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
-	 * doesn't support non-blocking read/write attempts
+	 * doesn't support yesn-blocking read/write attempts
 	 */
 	if (ret == -EAGAIN && (!(req->flags & REQ_F_NOWAIT) ||
 	    (req->flags & REQ_F_MUST_PUNT))) {
@@ -3610,8 +3610,8 @@ err_req:
 	 * If we already have a head request, queue this one for async
 	 * submittal once the head completes. If we don't have a head but
 	 * IOSQE_IO_LINK is set in the sqe, start a new head. This one will be
-	 * submitted sync once the chain is complete. If none of those
-	 * conditions are true (normal request), then just queue it.
+	 * submitted sync once the chain is complete. If yesne of those
+	 * conditions are true (yesrmal request), then just queue it.
 	 */
 	if (*link) {
 		struct io_kiocb *prev = *link;
@@ -3693,7 +3693,7 @@ static void io_commit_sqring(struct io_ring_ctx *ctx)
 /*
  * Fetch an sqe, if one is available. Note that sqe_ptr will point to memory
  * that is mapped by userspace. This means that care needs to be taken to
- * ensure that reads are stable, as we cannot rely on userspace always
+ * ensure that reads are stable, as we canyest rely on userspace always
  * being a good citizen. If members of the sqe are validated and then later
  * used, it's important that those reads are done through READ_ONCE() to
  * prevent a re-load down the line.
@@ -3776,7 +3776,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 		}
 
 		if (io_req_needs_user(req) && !*mm) {
-			mm_fault = mm_fault || !mmget_not_zero(ctx->sqo_mm);
+			mm_fault = mm_fault || !mmget_yest_zero(ctx->sqo_mm);
 			if (!mm_fault) {
 				use_mm(ctx->sqo_mm);
 				*mm = ctx->sqo_mm;
@@ -3844,8 +3844,8 @@ static int io_sq_thread(void *data)
 				 * inflight is the count of the maximum possible
 				 * entries we submitted, but it can be smaller
 				 * if we dropped some of them. If we don't have
-				 * poll entries available, then we know that we
-				 * have nothing left to poll for. Reset the
+				 * poll entries available, then we kyesw that we
+				 * have yesthing left to poll for. Reset the
 				 * inflight count to zero in that case.
 				 */
 				mutex_lock(&ctx->uring_lock);
@@ -3953,16 +3953,16 @@ struct io_wait_queue {
 	unsigned nr_timeouts;
 };
 
-static inline bool io_should_wake(struct io_wait_queue *iowq, bool noflush)
+static inline bool io_should_wake(struct io_wait_queue *iowq, bool yesflush)
 {
 	struct io_ring_ctx *ctx = iowq->ctx;
 
 	/*
-	 * Wake up if we have enough events, or if a timeout occurred since we
+	 * Wake up if we have eyesugh events, or if a timeout occurred since we
 	 * started waiting. For timeouts, we always want to return to userspace,
 	 * regardless of event count.
 	 */
-	return io_cqring_events(ctx, noflush) >= iowq->to_wait ||
+	return io_cqring_events(ctx, yesflush) >= iowq->to_wait ||
 			atomic_read(&ctx->cq_timeouts) != iowq->nr_timeouts;
 }
 
@@ -3972,7 +3972,7 @@ static int io_wake_function(struct wait_queue_entry *curr, unsigned int mode,
 	struct io_wait_queue *iowq = container_of(curr, struct io_wait_queue,
 							wq);
 
-	/* use noflush == true, as we can't safely rely on locking context */
+	/* use yesflush == true, as we can't safely rely on locking context */
 	if (!io_should_wake(iowq, true))
 		return -1;
 
@@ -4291,7 +4291,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		 * Don't allow io_uring instances to be registered. If UNIX
 		 * isn't enabled, then this causes a reference cycle and this
 		 * instance can never get freed. If UNIX is enabled we'll
-		 * handle it just fine, but there's still no point in allowing
+		 * handle it just fine, but there's still yes point in allowing
 		 * a ring fd as it doesn't support regular read/write anyway.
 		 */
 		if (table->files[index]->f_op == &io_uring_fops) {
@@ -4351,7 +4351,7 @@ static void io_sqe_file_unregister(struct io_ring_ctx *ctx, int index)
 			if (fp->fp[i] != file)
 				continue;
 
-			unix_notinflight(fp->user, fp->fp[i]);
+			unix_yestinflight(fp->user, fp->fp[i]);
 			left = fp->count - 1 - i;
 			if (left) {
 				memmove(&fp->fp[i], &fp->fp[i + 1],
@@ -4398,7 +4398,7 @@ static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
 
 	/*
 	 * See if we can merge this file into an existing skb SCM_RIGHTS
-	 * file set. If there's no room, fall back to allocating a new skb
+	 * file set. If there's yes room, fall back to allocating a new skb
 	 * and filling it in.
 	 */
 	spin_lock_irq(&head->lock);
@@ -4461,7 +4461,7 @@ static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
 			err = -EFAULT;
 			break;
 		}
-		i = array_index_nospec(up.offset, ctx->nr_user_files);
+		i = array_index_yesspec(up.offset, ctx->nr_user_files);
 		table = &ctx->file_table[i >> IORING_FILE_TABLE_SHIFT];
 		index = i & IORING_FILE_TABLE_MASK;
 		if (table->files[index]) {
@@ -4481,7 +4481,7 @@ static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
 			 * UNIX isn't enabled, then this causes a reference
 			 * cycle and this instance can never get freed. If UNIX
 			 * is enabled we'll handle it just fine, but there's
-			 * still no point in allowing a ring fd as it doesn't
+			 * still yes point in allowing a ring fd as it doesn't
 			 * support regular read/write anyway.
 			 */
 			if (file->f_op == &io_uring_fops) {
@@ -4968,14 +4968,14 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 		io_wq_cancel_all(ctx->io_wq);
 
 	io_iopoll_reap_events(ctx);
-	/* if we failed setting up the ctx, we might not have any rings */
+	/* if we failed setting up the ctx, we might yest have any rings */
 	if (ctx->rings)
 		io_cqring_overflow_flush(ctx, true);
 	wait_for_completion(&ctx->completions[0]);
 	io_ring_ctx_free(ctx);
 }
 
-static int io_uring_release(struct inode *inode, struct file *file)
+static int io_uring_release(struct iyesde *iyesde, struct file *file)
 {
 	struct io_ring_ctx *ctx = file->private_data;
 
@@ -4997,8 +4997,8 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 		list_for_each_entry(req, &ctx->inflight_list, inflight_entry) {
 			if (req->work.files != files)
 				continue;
-			/* req is being completed, ignore */
-			if (!refcount_inc_not_zero(&req->refs))
+			/* req is being completed, igyesre */
+			if (!refcount_inc_yest_zero(&req->refs))
 				continue;
 			cancel_req = req;
 			break;
@@ -5081,12 +5081,12 @@ static int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 	return vma->vm_flags & (VM_SHARED | VM_MAYSHARE) ? 0 : -EINVAL;
 }
 
-static unsigned int io_uring_nommu_mmap_capabilities(struct file *file)
+static unsigned int io_uring_yesmmu_mmap_capabilities(struct file *file)
 {
 	return NOMMU_MAP_DIRECT | NOMMU_MAP_READ | NOMMU_MAP_WRITE;
 }
 
-static unsigned long io_uring_nommu_get_unmapped_area(struct file *file,
+static unsigned long io_uring_yesmmu_get_unmapped_area(struct file *file,
 	unsigned long addr, unsigned long len,
 	unsigned long pgoff, unsigned long flags)
 {
@@ -5176,8 +5176,8 @@ static const struct file_operations io_uring_fops = {
 	.flush		= io_uring_flush,
 	.mmap		= io_uring_mmap,
 #ifndef CONFIG_MMU
-	.get_unmapped_area = io_uring_nommu_get_unmapped_area,
-	.mmap_capabilities = io_uring_nommu_mmap_capabilities,
+	.get_unmapped_area = io_uring_yesmmu_get_unmapped_area,
+	.mmap_capabilities = io_uring_yesmmu_mmap_capabilities,
 #endif
 	.poll		= io_uring_poll,
 	.fasync		= io_uring_fasync,
@@ -5226,7 +5226,7 @@ static int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 }
 
 /*
- * Allocate an anonymous fd, this is what constitutes the application
+ * Allocate an ayesnymous fd, this is what constitutes the application
  * visible backing of an io_uring instance. The application mmaps this
  * fd to gain access to the SQ/CQ ring details. If UNIX sockets are enabled,
  * we have to tie this fd to a socket for file garbage collection purposes.
@@ -5247,7 +5247,7 @@ static int io_uring_get_fd(struct io_ring_ctx *ctx)
 	if (ret < 0)
 		goto err;
 
-	file = anon_inode_getfile("[io_uring]", &io_uring_fops, ctx,
+	file = ayesn_iyesde_getfile("[io_uring]", &io_uring_fops, ctx,
 					O_RDWR | O_CLOEXEC);
 	if (IS_ERR(file)) {
 		put_unused_fd(ret);
@@ -5424,11 +5424,11 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	percpu_ref_kill(&ctx->refs);
 
 	/*
-	 * Drop uring mutex before waiting for references to exit. If another
+	 * Drop uring mutex before waiting for references to exit. If ayesther
 	 * thread is currently inside io_uring_enter() it might need to grab
 	 * the uring_lock to make progress. If we hold it here across the drain
 	 * wait, then we can deadlock. It's safe to drop the mutex here, since
-	 * no new references will come in after we've killed the percpu ref.
+	 * yes new references will come in after we've killed the percpu ref.
 	 */
 	mutex_unlock(&ctx->uring_lock);
 	wait_for_completion(&ctx->completions[0]);

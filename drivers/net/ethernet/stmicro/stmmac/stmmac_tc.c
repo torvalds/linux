@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syyespsys, Inc. and/or its affiliates.
  * stmmac TC Handling (HW only)
  */
 
@@ -22,7 +22,7 @@ static void tc_fill_all_pass_entry(struct stmmac_tc_entry *entry)
 	entry->val.match_data = 0x0;
 	entry->val.match_en = 0x0;
 	entry->val.af = 1;
-	entry->val.dma_ch_no = 0x0;
+	entry->val.dma_ch_yes = 0x0;
 }
 
 static struct stmmac_tc_entry *tc_find_entry(struct stmmac_priv *priv,
@@ -30,7 +30,7 @@ static struct stmmac_tc_entry *tc_find_entry(struct stmmac_priv *priv,
 					     bool free)
 {
 	struct stmmac_tc_entry *entry, *first = NULL, *dup = NULL;
-	u32 loc = cls->knode.handle;
+	u32 loc = cls->kyesde.handle;
 	int i;
 
 	for (i = 0; i < priv->tc_entries_max; i++) {
@@ -63,7 +63,7 @@ static int tc_fill_actions(struct stmmac_tc_entry *entry,
 	struct tcf_exts *exts;
 	int i;
 
-	exts = cls->knode.exts;
+	exts = cls->kyesde.exts;
 	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
 	if (frag)
@@ -92,7 +92,7 @@ static int tc_fill_entry(struct stmmac_priv *priv,
 			 struct tc_cls_u32_offload *cls)
 {
 	struct stmmac_tc_entry *entry, *frag = NULL;
-	struct tc_u32_sel *sel = cls->knode.sel;
+	struct tc_u32_sel *sel = cls->kyesde.sel;
 	u32 off, data, mask, real_off, rem;
 	u32 prio = cls->common.prio << 16;
 	int ret;
@@ -185,7 +185,7 @@ static void tc_unfill_entry(struct stmmac_priv *priv,
 	}
 }
 
-static int tc_config_knode(struct stmmac_priv *priv,
+static int tc_config_kyesde(struct stmmac_priv *priv,
 			   struct tc_cls_u32_offload *cls)
 {
 	int ret;
@@ -206,12 +206,12 @@ err_unfill:
 	return ret;
 }
 
-static int tc_delete_knode(struct stmmac_priv *priv,
+static int tc_delete_kyesde(struct stmmac_priv *priv,
 			   struct tc_cls_u32_offload *cls)
 {
 	int ret;
 
-	/* Set entry and fragments as not used */
+	/* Set entry and fragments as yest used */
 	tc_unfill_entry(priv, cls);
 
 	ret = stmmac_rxp_config(priv, priv->hw->pcsr, priv->tc_entries,
@@ -230,9 +230,9 @@ static int tc_setup_cls_u32(struct stmmac_priv *priv,
 		tc_unfill_entry(priv, cls);
 		/* Fall through */
 	case TC_CLSU32_NEW_KNODE:
-		return tc_config_knode(priv, cls);
+		return tc_config_kyesde(priv, cls);
 	case TC_CLSU32_DELETE_KNODE:
-		return tc_delete_knode(priv, cls);
+		return tc_delete_kyesde(priv, cls);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -316,7 +316,7 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 	u64 value;
 	int ret;
 
-	/* Queue 0 is not AVB capable */
+	/* Queue 0 is yest AVB capable */
 	if (queue <= 0 || queue >= tx_queues_count)
 		return -EINVAL;
 	if (!priv->dma_cap.av)

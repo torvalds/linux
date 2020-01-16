@@ -66,8 +66,8 @@ enum lochnagar_measure_mode {
  * Depending on the measurement type the hardware returns an ieee754
  * floating point value in either volts, amps or celsius. This function
  * will convert that into an integer in a smaller unit such as micro-amps
- * or milli-celsius. The hardware does not return NaN, so consideration of
- * that is not required.
+ * or milli-celsius. The hardware does yest return NaN, so consideration of
+ * that is yest required.
  */
 static long float_to_long(u32 data, u32 precision)
 {

@@ -55,7 +55,7 @@
 /* www.candapter.com Ewert Energy Systems CANdapter device */
 #define FTDI_CANDAPTER_PID 0x9F80 /* Product Id */
 
-#define FTDI_BM_ATOM_NANO_PID	0xa559	/* Basic Micro ATOM Nano USB2Serial */
+#define FTDI_BM_ATOM_NANO_PID	0xa559	/* Basic Micro ATOM Nayes USB2Serial */
 
 /*
  * Texas Instruments XDS100v2 JTAG / BeagleBone A3
@@ -73,7 +73,7 @@
 #define FTDI_USINT_RS232_PID	0xb812	/* Navigator RS232 and CONFIG lines */
 
 /* OOCDlink by Joern Kaipf <joernk@web.de>
- * (http://www.joernonline.de/) */
+ * (http://www.joeryesnline.de/) */
 #define FTDI_OOCDLINK_PID	0xbaf8	/* Amontec JTAGkey */
 
 /* Luminary Micro Stellaris Boards, VID = FTDI_VID */
@@ -113,7 +113,7 @@
 
 /*
  * Tactrix OpenPort (ECU) devices.
- * OpenPort 1.3M submitted by Donour Sizemore.
+ * OpenPort 1.3M submitted by Doyesur Sizemore.
  * OpenPort 1.3S and 1.3U submitted by Ian Abbott.
  */
 #define FTDI_TACTRIX_OPENPORT_13M_PID	0xCC48	/* OpenPort 1.3 Mitsubishi */
@@ -153,7 +153,7 @@
 #define FTDI_VARDAAN_PID	0xF070
 
 /*
- * Xsens Technologies BV products (http://www.xsens.com).
+ * Xsens Techyeslogies BV products (http://www.xsens.com).
  */
 #define XSENS_VID		0x2639
 #define XSENS_AWINDA_STATION_PID 0x0101
@@ -205,19 +205,19 @@
 #define FTDI_WESTREX_MODEL_8900F_PID	0xDC01	/* Model 8900F */
 
 /*
- * ACG Identification Technologies GmbH products (http://www.acg.de/).
+ * ACG Identification Techyeslogies GmbH products (http://www.acg.de/).
  * Submitted by anton -at- goto10 -dot- org.
  */
 #define FTDI_ACG_HFDUAL_PID		0xDD20	/* HF Dual ISO Reader (RFID) */
 
 /*
- * Definitions for Artemis astronomical USB based cameras
+ * Definitions for Artemis astroyesmical USB based cameras
  * Check it at http://www.artemisccd.co.uk/
  */
 #define FTDI_ARTEMIS_PID	0xDF28	/* All Artemis Cameras */
 
 /*
- * Definitions for ATIK Instruments astronomical USB based cameras
+ * Definitions for ATIK Instruments astroyesmical USB based cameras
  * Check it at http://www.atik-instruments.com/
  */
 #define FTDI_ATIK_ATK16_PID	0xDF30	/* ATIK ATK-16 Grayscale Camera */
@@ -250,7 +250,7 @@
 #define FTDI_ELV_WS550_PID	0xE004	/* WS 550 */
 #define FTDI_ELV_EC3000_PID	0xE006	/* ENERGY CONTROL 3000 USB */
 #define FTDI_ELV_WS888_PID	0xE008	/* WS 888 */
-#define FTDI_ELV_TWS550_PID	0xE009	/* Technoline WS 550 */
+#define FTDI_ELV_TWS550_PID	0xE009	/* Techyesline WS 550 */
 #define FTDI_ELV_FEM_PID	0xE00A	/* Funk Energie Monitor */
 #define FTDI_ELV_FHZ1300PC_PID	0xE0E8	/* FHZ 1300 PC */
 #define FTDI_ELV_WS500_PID	0xE0E9	/* PC-Wetterstation (WS 500) */
@@ -403,20 +403,20 @@
 /*
  * 4N-GALAXY.DE PIDs for CAN-USB, USB-RS232, USB-RS422, USB-RS485,
  * USB-TTY aktiv, USB-TTY passiv.  Some PIDs are used by several devices
- * and I'm not entirely sure which are used by which.
+ * and I'm yest entirely sure which are used by which.
  */
 #define FTDI_4N_GALAXY_DE_1_PID	0xF3C0
 #define FTDI_4N_GALAXY_DE_2_PID	0xF3C1
 #define FTDI_4N_GALAXY_DE_3_PID	0xF3C2
 
 /*
- * Ivium Technologies product IDs
+ * Ivium Techyeslogies product IDs
  */
 #define FTDI_PALMSENS_PID	0xf440
 #define FTDI_IVIUM_XSTAT_PID	0xf441
 
 /*
- * Linx Technologies product ids
+ * Linx Techyeslogies product ids
  */
 #define LINX_SDMUSBQSS_PID	0xF448	/* Linx SDM-USB-QS-S */
 #define LINX_MASTERDEVEL2_PID   0xF449	/* Linx Master Development 2.0 */
@@ -475,10 +475,10 @@
 /*
  * Protego product ids
  */
-#define PROTEGO_SPECIAL_1	0xFC70	/* special/unknown device */
+#define PROTEGO_SPECIAL_1	0xFC70	/* special/unkyeswn device */
 #define PROTEGO_R2X0		0xFC71	/* R200-USB TRNG unit (R210, R220, and R230) */
-#define PROTEGO_SPECIAL_3	0xFC72	/* special/unknown device */
-#define PROTEGO_SPECIAL_4	0xFC73	/* special/unknown device */
+#define PROTEGO_SPECIAL_3	0xFC72	/* special/unkyeswn device */
+#define PROTEGO_SPECIAL_4	0xFC73	/* special/unkyeswn device */
 
 /*
  * Sony Ericsson product ids
@@ -496,7 +496,7 @@
  * Ian Abbott changed the macro names for consistency.
  */
 #define FTDI_RM_CANVIEW_PID	0xfd60	/* Product Id */
-/* www.thoughttechnology.com/ TT-USB provide with procomp use ftdi_sio */
+/* www.thoughttechyeslogy.com/ TT-USB provide with procomp use ftdi_sio */
 #define FTDI_TTUSB_PID 0xFF20 /* Product Id */
 
 #define FTDI_USBX_707_PID 0xF857	/* ADSTech IR Blaster USBX-707 (FTDI_VID) */
@@ -623,7 +623,7 @@
 #define CYPRESS_WICED_WL_USB_PID	0xF900
 
 /*
- * Microchip Technology, Inc.
+ * Microchip Techyeslogy, Inc.
  *
  * MICROCHIP_VID (0x04D8) and MICROCHIP_USB_BOARD_PID (0x000A) are
  * used by single function CDC ACM class based firmware demo
@@ -643,7 +643,7 @@
 #define RATOC_PRODUCT_ID_SCU18	0xb03a
 
 /*
- * Infineon Technologies
+ * Infineon Techyeslogies
  */
 #define INFINEON_VID		        0x058b
 #define INFINEON_TRIBOARD_TC1798_PID	0x0028 /* DAS JTAG TriBoard TC1798 V1.0 */
@@ -717,7 +717,7 @@
 #define IDTECH_IDT1221U_PID	0x0300	/* IDT1221U USB to RS-232 adapter */
 
 /*
- * Definitions for Omnidirectional Control Technology, Inc. devices
+ * Definitions for Omnidirectional Control Techyeslogy, Inc. devices
  */
 #define OCT_VID			0x0B39	/* OCT vendor ID */
 /* Note: OCT US101 is also rebadged as Dick Smith Electronics (NZ) XH6381 */
@@ -906,7 +906,7 @@
 #define OLIMEX_ARM_USB_OCD_H_PID	0x002b
 
 /*
- * Telldus Technologies
+ * Telldus Techyeslogies
  */
 #define TELLDUS_VID			0x1781	/* Vendor ID */
 #define TELLDUS_TELLSTICK_PID		0x0C30	/* RF control dongle 433 MHz using FT232RL */
@@ -1439,7 +1439,7 @@
  */
 /* USB-485-Mini*/
 #define FTDI_CTI_MINI_PID	0xF608
-/* USB-Nano-485*/
+/* USB-Nayes-485*/
 #define FTDI_CTI_NANO_PID	0xF60B
 
 /*
@@ -1469,7 +1469,7 @@
 
 /*
  * Product: Comet Caller ID decoder
- * Manufacturer: Crucible Technologies
+ * Manufacturer: Crucible Techyeslogies
  */
 #define FTDI_CT_COMET_PID	0x8e08
 

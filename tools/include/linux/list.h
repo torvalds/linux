@@ -12,7 +12,7 @@
  *
  * Some of the internal functions ("__xxx") are useful when
  * manipulating whole lists rather than single entries, as
- * sometimes we already know the next/prev entries and we can
+ * sometimes we already kyesw the next/prev entries and we can
  * generate better code by using them directly rather than
  * using the generic single-entry routines.
  */
@@ -29,9 +29,9 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
 }
 
 /*
- * Insert a new entry between two known consecutive entries.
+ * Insert a new entry between two kyeswn consecutive entries.
  *
- * This is only for internal list manipulation where we know
+ * This is only for internal list manipulation where we kyesw
  * the prev/next entries already!
  */
 #ifndef CONFIG_DEBUG_LIST
@@ -81,7 +81,7 @@ static inline void list_add_tail(struct list_head *new, struct list_head *head)
  * Delete a list entry by making the prev/next entries
  * point to each other.
  *
- * This is only for internal list manipulation where we know
+ * This is only for internal list manipulation where we kyesw
  * the prev/next entries already!
  */
 static inline void __list_del(struct list_head * prev, struct list_head * next)
@@ -93,7 +93,7 @@ static inline void __list_del(struct list_head * prev, struct list_head * next)
 /**
  * list_del - deletes entry from list.
  * @entry: the element to delete from the list.
- * Note: list_empty() on entry does not return true after this, the entry is
+ * Note: list_empty() on entry does yest return true after this, the entry is
  * in an undefined state.
  */
 #ifndef CONFIG_DEBUG_LIST
@@ -147,7 +147,7 @@ static inline void list_del_init(struct list_head *entry)
 }
 
 /**
- * list_move - delete from one list and add as another's head
+ * list_move - delete from one list and add as ayesther's head
  * @list: the entry to move
  * @head: the head that will precede our entry
  */
@@ -158,7 +158,7 @@ static inline void list_move(struct list_head *list, struct list_head *head)
 }
 
 /**
- * list_move_tail - delete from one list and add as another's tail
+ * list_move_tail - delete from one list and add as ayesther's tail
  * @list: the entry to move
  * @head: the head that will follow our entry
  */
@@ -190,17 +190,17 @@ static inline int list_empty(const struct list_head *head)
 }
 
 /**
- * list_empty_careful - tests whether a list is empty and not being modified
+ * list_empty_careful - tests whether a list is empty and yest being modified
  * @head: the list to test
  *
  * Description:
- * tests whether a list is empty _and_ checks that no other CPU might be
+ * tests whether a list is empty _and_ checks that yes other CPU might be
  * in the process of modifying either member (next or prev)
  *
  * NOTE: using list_empty_careful() without synchronization
  * can only be safe if the only activity that can happen
- * to the list entry is list_del_init(). Eg. it cannot be used
- * if another CPU could re-list_add() it.
+ * to the list entry is list_del_init(). Eg. it canyest be used
+ * if ayesther CPU could re-list_add() it.
  */
 static inline int list_empty_careful(const struct list_head *head)
 {
@@ -252,8 +252,8 @@ static inline void __list_cut_position(struct list_head *list,
  *
  * This helper moves the initial part of @head, up to and
  * including @entry, from @head to @list. You should
- * pass on @entry an element you know is on @head. @list
- * should be an empty list or a list you do not care about
+ * pass on @entry an element you kyesw is on @head. @list
+ * should be an empty list or a list you do yest care about
  * losing its data.
  *
  */
@@ -357,7 +357,7 @@ static inline void list_splice_tail_init(struct list_head *list,
  * @type:	the type of the struct this is embedded in.
  * @member:	the name of the list_head within the struct.
  *
- * Note, that list is expected to be not empty.
+ * Note, that list is expected to be yest empty.
  */
 #define list_first_entry(ptr, type, member) \
 	list_entry((ptr)->next, type, member)
@@ -368,7 +368,7 @@ static inline void list_splice_tail_init(struct list_head *list,
  * @type:	the type of the struct this is embedded in.
  * @member:	the name of the list_head within the struct.
  *
- * Note, that list is expected to be not empty.
+ * Note, that list is expected to be yest empty.
  */
 #define list_last_entry(ptr, type, member) \
 	list_entry((ptr)->prev, type, member)
@@ -419,7 +419,7 @@ static inline void list_splice_tail_init(struct list_head *list,
 /**
  * list_for_each_safe - iterate over a list safe against removal of list entry
  * @pos:	the &struct list_head to use as a loop cursor.
- * @n:		another &struct list_head to use as temporary storage
+ * @n:		ayesther &struct list_head to use as temporary storage
  * @head:	the head for your list.
  */
 #define list_for_each_safe(pos, n, head) \
@@ -429,7 +429,7 @@ static inline void list_splice_tail_init(struct list_head *list,
 /**
  * list_for_each_prev_safe - iterate over a list backwards safe against removal of list entry
  * @pos:	the &struct list_head to use as a loop cursor.
- * @n:		another &struct list_head to use as temporary storage
+ * @n:		ayesther &struct list_head to use as temporary storage
  * @head:	the head for your list.
  */
 #define list_for_each_prev_safe(pos, n, head) \
@@ -513,7 +513,7 @@ static inline void list_splice_tail_init(struct list_head *list,
 /**
  * list_for_each_entry_safe - iterate over list of given type safe against removal of list entry
  * @pos:	the type * to use as a loop cursor.
- * @n:		another type * to use as temporary storage
+ * @n:		ayesther type * to use as temporary storage
  * @head:	the head for your list.
  * @member:	the name of the list_head within the struct.
  */
@@ -526,7 +526,7 @@ static inline void list_splice_tail_init(struct list_head *list,
 /**
  * list_for_each_entry_safe_continue - continue list iteration safe against removal
  * @pos:	the type * to use as a loop cursor.
- * @n:		another type * to use as temporary storage
+ * @n:		ayesther type * to use as temporary storage
  * @head:	the head for your list.
  * @member:	the name of the list_head within the struct.
  *
@@ -542,7 +542,7 @@ static inline void list_splice_tail_init(struct list_head *list,
 /**
  * list_for_each_entry_safe_from - iterate over list from current point safe against removal
  * @pos:	the type * to use as a loop cursor.
- * @n:		another type * to use as temporary storage
+ * @n:		ayesther type * to use as temporary storage
  * @head:	the head for your list.
  * @member:	the name of the list_head within the struct.
  *
@@ -557,7 +557,7 @@ static inline void list_splice_tail_init(struct list_head *list,
 /**
  * list_for_each_entry_safe_reverse - iterate backwards over list safe against removal
  * @pos:	the type * to use as a loop cursor.
- * @n:		another type * to use as temporary storage
+ * @n:		ayesther type * to use as temporary storage
  * @head:	the head for your list.
  * @member:	the name of the list_head within the struct.
  *
@@ -576,7 +576,7 @@ static inline void list_splice_tail_init(struct list_head *list,
  * @n:		temporary storage used in list_for_each_entry_safe
  * @member:	the name of the list_head within the struct.
  *
- * list_safe_reset_next is not safe to use in general if the list may be
+ * list_safe_reset_next is yest safe to use in general if the list may be
  * modified concurrently (eg. the lock is dropped in the loop body). An
  * exception to this is if the cursor element (pos) is pinned in the list,
  * and list_safe_reset_next is called after re-taking the lock and before
@@ -595,13 +595,13 @@ static inline void list_splice_tail_init(struct list_head *list,
 #define HLIST_HEAD_INIT { .first = NULL }
 #define HLIST_HEAD(name) struct hlist_head name = {  .first = NULL }
 #define INIT_HLIST_HEAD(ptr) ((ptr)->first = NULL)
-static inline void INIT_HLIST_NODE(struct hlist_node *h)
+static inline void INIT_HLIST_NODE(struct hlist_yesde *h)
 {
 	h->next = NULL;
 	h->pprev = NULL;
 }
 
-static inline int hlist_unhashed(const struct hlist_node *h)
+static inline int hlist_unhashed(const struct hlist_yesde *h)
 {
 	return !h->pprev;
 }
@@ -611,24 +611,24 @@ static inline int hlist_empty(const struct hlist_head *h)
 	return !h->first;
 }
 
-static inline void __hlist_del(struct hlist_node *n)
+static inline void __hlist_del(struct hlist_yesde *n)
 {
-	struct hlist_node *next = n->next;
-	struct hlist_node **pprev = n->pprev;
+	struct hlist_yesde *next = n->next;
+	struct hlist_yesde **pprev = n->pprev;
 
 	WRITE_ONCE(*pprev, next);
 	if (next)
 		next->pprev = pprev;
 }
 
-static inline void hlist_del(struct hlist_node *n)
+static inline void hlist_del(struct hlist_yesde *n)
 {
 	__hlist_del(n);
 	n->next = LIST_POISON1;
 	n->pprev = LIST_POISON2;
 }
 
-static inline void hlist_del_init(struct hlist_node *n)
+static inline void hlist_del_init(struct hlist_yesde *n)
 {
 	if (!hlist_unhashed(n)) {
 		__hlist_del(n);
@@ -636,9 +636,9 @@ static inline void hlist_del_init(struct hlist_node *n)
 	}
 }
 
-static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
+static inline void hlist_add_head(struct hlist_yesde *n, struct hlist_head *h)
 {
-	struct hlist_node *first = h->first;
+	struct hlist_yesde *first = h->first;
 	n->next = first;
 	if (first)
 		first->pprev = &n->next;
@@ -647,8 +647,8 @@ static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
 }
 
 /* next must be != NULL */
-static inline void hlist_add_before(struct hlist_node *n,
-					struct hlist_node *next)
+static inline void hlist_add_before(struct hlist_yesde *n,
+					struct hlist_yesde *next)
 {
 	n->pprev = next->pprev;
 	n->next = next;
@@ -656,8 +656,8 @@ static inline void hlist_add_before(struct hlist_node *n,
 	*(n->pprev) = n;
 }
 
-static inline void hlist_add_behind(struct hlist_node *n,
-				    struct hlist_node *prev)
+static inline void hlist_add_behind(struct hlist_yesde *n,
+				    struct hlist_yesde *prev)
 {
 	n->next = prev->next;
 	prev->next = n;
@@ -668,18 +668,18 @@ static inline void hlist_add_behind(struct hlist_node *n,
 }
 
 /* after that we'll appear to be on some hlist and hlist_del will work */
-static inline void hlist_add_fake(struct hlist_node *n)
+static inline void hlist_add_fake(struct hlist_yesde *n)
 {
 	n->pprev = &n->next;
 }
 
-static inline bool hlist_fake(struct hlist_node *h)
+static inline bool hlist_fake(struct hlist_yesde *h)
 {
 	return h->pprev == &h->next;
 }
 
 /*
- * Move a list from one list head to another. Fixup the pprev
+ * Move a list from one list head to ayesther. Fixup the pprev
  * reference of the first entry if it exists.
  */
 static inline void hlist_move_list(struct hlist_head *old,
@@ -709,7 +709,7 @@ static inline void hlist_move_list(struct hlist_head *old,
  * hlist_for_each_entry	- iterate over list of given type
  * @pos:	the type * to use as a loop cursor.
  * @head:	the head for your list.
- * @member:	the name of the hlist_node within the struct.
+ * @member:	the name of the hlist_yesde within the struct.
  */
 #define hlist_for_each_entry(pos, head, member)				\
 	for (pos = hlist_entry_safe((head)->first, typeof(*(pos)), member);\
@@ -719,7 +719,7 @@ static inline void hlist_move_list(struct hlist_head *old,
 /**
  * hlist_for_each_entry_continue - iterate over a hlist continuing after current point
  * @pos:	the type * to use as a loop cursor.
- * @member:	the name of the hlist_node within the struct.
+ * @member:	the name of the hlist_yesde within the struct.
  */
 #define hlist_for_each_entry_continue(pos, member)			\
 	for (pos = hlist_entry_safe((pos)->member.next, typeof(*(pos)), member);\
@@ -729,7 +729,7 @@ static inline void hlist_move_list(struct hlist_head *old,
 /**
  * hlist_for_each_entry_from - iterate over a hlist continuing from current point
  * @pos:	the type * to use as a loop cursor.
- * @member:	the name of the hlist_node within the struct.
+ * @member:	the name of the hlist_yesde within the struct.
  */
 #define hlist_for_each_entry_from(pos, member)				\
 	for (; pos;							\
@@ -738,9 +738,9 @@ static inline void hlist_move_list(struct hlist_head *old,
 /**
  * hlist_for_each_entry_safe - iterate over list of given type safe against removal of list entry
  * @pos:	the type * to use as a loop cursor.
- * @n:		another &struct hlist_node to use as temporary storage
+ * @n:		ayesther &struct hlist_yesde to use as temporary storage
  * @head:	the head for your list.
- * @member:	the name of the hlist_node within the struct.
+ * @member:	the name of the hlist_yesde within the struct.
  */
 #define hlist_for_each_entry_safe(pos, n, head, member) 		\
 	for (pos = hlist_entry_safe((head)->first, typeof(*pos), member);\
@@ -751,7 +751,7 @@ static inline void hlist_move_list(struct hlist_head *old,
  * list_del_range - deletes range of entries from list.
  * @begin: first element in the range to delete from the list.
  * @end: last element in the range to delete from the list.
- * Note: list_empty on the range of entries does not return true after this,
+ * Note: list_empty on the range of entries does yest return true after this,
  * the entries is in an undefined state.
  */
 static inline void list_del_range(struct list_head *begin,
@@ -762,7 +762,7 @@ static inline void list_del_range(struct list_head *begin,
 }
 
 /**
- * list_for_each_from	-	iterate over a list from one of its nodes
+ * list_for_each_from	-	iterate over a list from one of its yesdes
  * @pos:  the &struct list_head to use as a loop cursor, from where to start
  * @head: the head for your list.
  */

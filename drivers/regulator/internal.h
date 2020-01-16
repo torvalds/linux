@@ -55,11 +55,11 @@ static inline struct regulator_dev *dev_to_rdev(struct device *dev)
 }
 
 #ifdef CONFIG_OF
-struct regulator_dev *of_find_regulator_by_node(struct device_node *np);
+struct regulator_dev *of_find_regulator_by_yesde(struct device_yesde *np);
 struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 			         const struct regulator_desc *desc,
 				 struct regulator_config *config,
-				 struct device_node **node);
+				 struct device_yesde **yesde);
 
 struct regulator_dev *of_parse_coupled_regulator(struct regulator_dev *rdev,
 						 int index);
@@ -70,7 +70,7 @@ bool of_check_coupling_data(struct regulator_dev *rdev);
 
 #else
 static inline struct regulator_dev *
-of_find_regulator_by_node(struct device_node *np)
+of_find_regulator_by_yesde(struct device_yesde *np)
 {
 	return NULL;
 }
@@ -79,7 +79,7 @@ static inline struct regulator_init_data *
 regulator_of_get_init_data(struct device *dev,
 			   const struct regulator_desc *desc,
 			   struct regulator_config *config,
-			   struct device_node **node)
+			   struct device_yesde **yesde)
 {
 	return NULL;
 }

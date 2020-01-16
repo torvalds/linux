@@ -80,7 +80,7 @@ enum latency_range {
 
 #define IGBVF_MAX_MAC_FILTERS	3
 
-/* Number of packet split data buffers (not including the header buffer) */
+/* Number of packet split data buffers (yest including the header buffer) */
 #define PS_PAGE_BUFFERS		(MAX_PS_BUFFERS - 1)
 
 enum igbvf_boards {
@@ -176,7 +176,7 @@ struct igbvf_adapter {
 
 	/* Interrupt Throttle Rate */
 	u32 requested_itr; /* ints/sec or adaptive */
-	u32 current_itr; /* Actual ITR register value, not ints/sec */
+	u32 current_itr; /* Actual ITR register value, yest ints/sec */
 
 	/* Tx */
 	struct igbvf_ring *tx_ring /* One per active queue */

@@ -79,13 +79,13 @@ enum uis_dma_data_direction {
  * @NET_XMIT:		uisnic -> visornic. For outgoing packet.
  * @NET_XMIT_DONE:	visornic -> uisnic. Outgoing packet xmitted.
  * @NET_RCV_ENBDIS:	uisnic -> visornic. Enable/Disable packet reception.
- * @NET_RCV_ENBDIS_ACK:	visornic -> uisnic. Acknowledge enable/disable packet.
+ * @NET_RCV_ENBDIS_ACK:	visornic -> uisnic. Ackyeswledge enable/disable packet.
  * @NET_RCV_PROMISC:	uisnic -> visornic. Enable/Disable promiscuous mode.
  * @NET_CONNECT_STATUS:	visornic -> uisnic. Indicate the loss or restoration of
  *			a network connection.
  * @NET_MACADDR:	uisnic -> visornic. Indicates the client has requested
  *			to update it's MAC address.
- * @NET_MACADDR_ACK:	MAC address acknowledge.
+ * @NET_MACADDR_ACK:	MAC address ackyeswledge.
  */
 enum net_types {
 	NET_RCV_POST = 0,
@@ -169,7 +169,7 @@ struct vhba_wwnn {
  *		 is often determined by the resource of the hba.
  *		 e.g Max scatter gather list length * page size / sector size.
  *
- * WARNING: Values stored in this structure must contain maximum counts (not
+ * WARNING: Values stored in this structure must contain maximum counts (yest
  * maximum values).
  *
  * 20 bytes
@@ -201,8 +201,8 @@ struct vhba_config_max {
  *			sense_data struct. See sense_data struct for more
  *			details.
  * @*vdisk:		Pointer to the vdisk to clean up when IO completes.
- * @no_disk_result:	Used to return no disk inquiry result when
- *			no_disk_result is set to 1
+ * @yes_disk_result:	Used to return yes disk inquiry result when
+ *			yes_disk_result is set to 1
  *			scsi.scsistat is SAM_STAT_GOOD
  *			scsi.addlstat is 0
  *			scsi.linuxstat is SAM_STAT_GOOD
@@ -224,34 +224,34 @@ struct uiscmdrsp_scsi {
 	/* The following fields are need to determine the result of command. */
 	u8 sensebuf[MAX_SENSE_SIZE];
 	void *vdisk;
-	int no_disk_result;
+	int yes_disk_result;
 } __packed;
 
 /*
- * Defines to support sending correct inquiry result when no disk is
+ * Defines to support sending correct inquiry result when yes disk is
  * configured.
  *
  * From SCSI SPC2 -
  *
- * If the target is not capable of supporting a device on this logical unit, the
+ * If the target is yest capable of supporting a device on this logical unit, the
  * device server shall set this field to 7Fh (PERIPHERAL QUALIFIER set to 011b
  * and PERIPHERAL DEVICE TYPE set to 1Fh).
  *
  * The device server is capable of supporting the specified peripheral device
- * type on this logical unit. However, the physical device is not currently
+ * type on this logical unit. However, the physical device is yest currently
  * connected to this logical unit.
  */
 
 /*
  * Peripheral qualifier of 0x3
  * Peripheral type of 0x1f
- * Specifies no device but target present
+ * Specifies yes device but target present
  */
 #define DEV_NOT_CAPABLE 0x7f
 /*
  * Peripheral qualifier of 0x1
  * Peripheral type of 0 - disk
- * Specifies device capable, but not present
+ * Specifies device capable, but yest present
  */
 #define DEV_DISK_CAPABLE_NOT_PRESENT 0x20
 /* HiSup = 1; shows support for report luns must be returned for lun 0. */
@@ -260,13 +260,13 @@ struct uiscmdrsp_scsi {
 /*
  * Peripheral qualifier of 0x3
  * Peripheral type of 0x1f
- * Specifies no device but target present
+ * Specifies yes device but target present
  */
 #define DEV_NOT_CAPABLE 0x7f
 /*
  * Peripheral qualifier of 0x1
  * Peripheral type of 0 - disk
- * Specifies device capable, but not present
+ * Specifies device capable, but yest present
  */
 #define DEV_DISK_CAPABLE_NOT_PRESENT 0x20
 /* HiSup = 1; shows support for report luns must be returned for lun 0. */
@@ -282,7 +282,7 @@ struct uiscmdrsp_scsi {
 /* 5 bytes minimum for inquiry result */
 #define MIN_INQUIRY_RESULT_LEN 5
 
-/* SCSI device version for no disk inquiry result */
+/* SCSI device version for yes disk inquiry result */
 /* indicates SCSI SPC2 (SPC3 is 5) */
 #define SCSI_SPC2_VER 4
 
@@ -326,7 +326,7 @@ struct sense_data {
  * @struct phys_info frags: Physical page information.
  * @ethhdr:		    The ethernet header.
  * @struct lincsum:	    These are needed for csum at uisnic end.
- *      @valid:	    1 = struct is valid - else ignore.
+ *      @valid:	    1 = struct is valid - else igyesre.
  *      @hrawoffv:  1 = hwrafoff is valid.
  *      @nhrawoffv: 1 = nhwrafoff is valid.
  *      @protocol:  Specifies packet protocol.
@@ -375,7 +375,7 @@ struct net_pkt_xmtdone {
 	((VISOR_ETH_MAX_MTU + ETH_HLEN + RCVPOST_BUF_SIZE - 1) \
 	 / RCVPOST_BUF_SIZE)
 
-/* rcv buf size must be large enough to include ethernet data len + ethernet
+/* rcv buf size must be large eyesugh to include ethernet data len + ethernet
  * header len - we are choosing 2K because it is guaranteed to be describable.
  */
 struct net_pkt_rcvpost {
@@ -456,14 +456,14 @@ struct uiscmdrsp_net {
  * @handle:		 This is a handle that the guest has saved off for its
  *			 own use. The handle value is preserved by iopart and
  *			 returned as in task mgmt rsp.
- * @notify_handle:	 For Linux guests, this is a pointer to wait_queue_head
+ * @yestify_handle:	 For Linux guests, this is a pointer to wait_queue_head
  *			 that a thread is waiting on to see if the taskmgmt
  *			 command has completed. When the rsp is received by
  *			 guest, the thread receiving the response uses this to
- *			 notify the thread waiting for taskmgmt command
+ *			 yestify the thread waiting for taskmgmt command
  *			 completion. It's value is preserved by iopart and
  *			 returned as in the task mgmt rsp.
- * @notifyresult_handle: This is a handle to the location in the guest where
+ * @yestifyresult_handle: This is a handle to the location in the guest where
  *			 the result of the taskmgmt command (result field) is
  *			 saved to when the response is handled. It's value is
  *			 preserved by iopart and returned as is in the task mgmt
@@ -474,31 +474,31 @@ struct uiscmdrsp_scsitaskmgmt {
 	enum task_mgmt_types tasktype;
 	struct uisscsi_dest vdest;
 	u64 handle;
-	u64 notify_handle;
-	u64 notifyresult_handle;
+	u64 yestify_handle;
+	u64 yestifyresult_handle;
 	char result;
 
 #define TASK_MGMT_FAILED 0
 } __packed;
 
 /*
- * struct uiscmdrsp_disknotify - Used by uissd to send disk add/remove
- *				 notifications to Guest.
+ * struct uiscmdrsp_diskyestify - Used by uissd to send disk add/remove
+ *				 yestifications to Guest.
  * @add:     0-remove, 1-add.
  * @*v_hba:  Channel info to route msg.
  * @channel: SCSI Path of Disk to added or removed.
  * @id:	     SCSI Path of Disk to added or removed.
  * @lun:     SCSI Path of Disk to added or removed.
  *
- * Note that the vHba pointer is not used by the Client/Guest side.
+ * Note that the vHba pointer is yest used by the Client/Guest side.
  */
-struct uiscmdrsp_disknotify {
+struct uiscmdrsp_diskyestify {
 	u8 add;
 	void *v_hba;
 	u32 channel, id, lun;
 } __packed;
 
-/* Keeping cmd and rsp info in one structure for now cmd rsp packet for SCSI */
+/* Keeping cmd and rsp info in one structure for yesw cmd rsp packet for SCSI */
 struct uiscmdrsp {
 	char cmdtype;
 	/* Describes what type of information is in the struct */
@@ -510,7 +510,7 @@ struct uiscmdrsp {
 		struct uiscmdrsp_scsi scsi;
 		struct uiscmdrsp_net net;
 		struct uiscmdrsp_scsitaskmgmt scsitaskmgmt;
-		struct uiscmdrsp_disknotify disknotify;
+		struct uiscmdrsp_diskyestify diskyestify;
 	};
 	/* Send the response when the cmd is done (scsi and scsittaskmgmt). */
 	void *private_data;

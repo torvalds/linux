@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
 /*
  * Copyright (c) 2017 Hisilicon Limited.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  */
 
 #include <linux/platform_device.h>

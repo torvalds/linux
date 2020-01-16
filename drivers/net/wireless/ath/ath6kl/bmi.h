@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -39,7 +39,7 @@
  * Flow control:
  * The Host can only issue a command once the Target gives it a
  * "BMI Command Credit", using ATH6KL Counter #4.  As soon as the
- * Target has completed a command, it issues another BMI Command
+ * Target has completed a command, it issues ayesther BMI Command
  * Credit (so the Host can issue the next command).
  *
  * BMI handles all required Target-side cache flushing.
@@ -54,7 +54,7 @@
  * Semantics: Host is done using BMI
  * Request format:
  *    u32 command (BMI_DONE)
- * Response format: none
+ * Response format: yesne
  */
 
 #define BMI_READ_MEMORY                     2
@@ -76,7 +76,7 @@
  *    u32 address
  *    u32 length, at most BMI_DATASZ_MAX
  *    u8 data[length]
- * Response format: none
+ * Response format: yesne
  */
 
 #define BMI_EXECUTE                         4
@@ -96,7 +96,7 @@
  * Request format:
  *    u32 command (BMI_SET_APP_START)
  *    u32 address
- * Response format: none
+ * Response format: yesne
  */
 
 #define BMI_READ_SOC_REGISTER               6
@@ -117,7 +117,7 @@
  *    u32 address
  *    u32 value
  *
- * Response format: none
+ * Response format: yesne
  */
 
 #define BMI_GET_TARGET_ID                  8
@@ -145,7 +145,7 @@
  *    u32 Target RAM Address or Value (depending on Target Type)
  *    u32 Size, in bytes
  *    u32 Activate? 1-->activate;
- *                            0-->install but do not activate
+ *                            0-->install but do yest activate
  * Response format:
  *    u32 PatchID
  */
@@ -158,7 +158,7 @@
  *    u32 command (BMI_ROMPATCH_UNINSTALL)
  *    u32 PatchID
  *
- * Response format: none
+ * Response format: yesne
  */
 
 #define BMI_ROMPATCH_ACTIVATE              11
@@ -169,7 +169,7 @@
  *    u32 rompatch_count
  *    u32 PatchID[rompatch_count]
  *
- * Response format: none
+ * Response format: yesne
  */
 
 #define BMI_ROMPATCH_DEACTIVATE            12
@@ -180,7 +180,7 @@
  *    u32 rompatch_count
  *    u32 PatchID[rompatch_count]
  *
- * Response format: none
+ * Response format: yesne
  */
 
 
@@ -204,13 +204,13 @@
  * data which is uncompressed by the Target.  This command
  * must be preceded by a BMI_LZ_STREAM_START command. A series
  * of BMI_LZ_DATA commands are considered part of a single
- * input stream until another BMI_LZ_STREAM_START is issued.
+ * input stream until ayesther BMI_LZ_STREAM_START is issued.
  * Request format:
  *    u32 command (BMI_LZ_DATA)
  *    u32 length (of compressed data),
  *                  at most BMI_DATASZ_MAX
  *    u8 CompressedData[length]
- * Response format: none
+ * Response format: yesne
  * Note: Not supported on all versions of ROM firmware.
  */
 

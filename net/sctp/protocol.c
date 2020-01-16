@@ -320,18 +320,18 @@ static int sctp_v4_is_any(const union sctp_addr *addr)
  * SCTP binding.
  *
  * Output:
- * Return 0 - If the address is a non-unicast or an illegal address.
+ * Return 0 - If the address is a yesn-unicast or an illegal address.
  * Return 1 - If the address is a unicast.
  */
 static int sctp_v4_addr_valid(union sctp_addr *addr,
 			      struct sctp_sock *sp,
 			      const struct sk_buff *skb)
 {
-	/* IPv4 addresses not allowed */
+	/* IPv4 addresses yest allowed */
 	if (sp && ipv6_only_sock(sctp_opt2sk(sp)))
 		return 0;
 
-	/* Is this a non-unicast address or a unusable SCTP address? */
+	/* Is this a yesn-unicast address or a unusable SCTP address? */
 	if (IS_IPV4_UNUSABLE_ADDRESS(addr->v4.sin_addr.s_addr))
 		return 0;
 
@@ -352,7 +352,7 @@ static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
 	if (addr->v4.sin_addr.s_addr != htonl(INADDR_ANY) &&
 	   ret != RTN_LOCAL &&
 	   !sp->inet.freebind &&
-	   !net->ipv4.sysctl_ip_nonlocal_bind)
+	   !net->ipv4.sysctl_ip_yesnlocal_bind)
 		return 0;
 
 	if (ipv6_only_sock(sctp_opt2sk(sp)))
@@ -441,7 +441,7 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	if (!IS_ERR(rt))
 		dst = &rt->dst;
 
-	/* If there is no association or if a source address is passed, no
+	/* If there is yes association or if a source address is passed, yes
 	 * more validation is required.
 	 */
 	if (!asoc || saddr)
@@ -522,10 +522,10 @@ out:
 		pr_debug("rt_dst:%pI4, rt_src:%pI4\n",
 			 &fl4->daddr, &fl4->saddr);
 	else
-		pr_debug("no route\n");
+		pr_debug("yes route\n");
 }
 
-/* For v4, the source address is cached in the route entry(dst). So no need
+/* For v4, the source address is cached in the route entry(dst). So yes need
  * to cache it separately and hence this is an empty routine.
  */
 static void sctp_v4_get_saddr(struct sctp_sock *sk,
@@ -648,7 +648,7 @@ static void sctp_addr_wq_timeout_handler(struct timer_list *t)
 			struct sock *sk;
 
 			sk = sctp_opt2sk(sp);
-			/* ignore bound-specific endpoints */
+			/* igyesre bound-specific endpoints */
 			if (!sctp_is_ep_boundall(sk))
 				continue;
 			bh_lock_sock(sk);
@@ -752,11 +752,11 @@ void sctp_addr_wq_mgmt(struct net *net, struct sctp_sockaddr_entry *addr, int cm
 
 /* Event handler for inet address addition/deletion events.
  * The sctp_local_addr_list needs to be protocted by a spin lock since
- * multiple notifiers (say IPv4 and IPv6) may be running at the same
+ * multiple yestifiers (say IPv4 and IPv6) may be running at the same
  * time and thus corrupt the list.
  * The reader side is protected with RCU.
  */
-static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
+static int sctp_inetaddr_event(struct yestifier_block *this, unsigned long ev,
 			       void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
@@ -802,7 +802,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 }
 
 /*
- * Initialize the control inode/socket with a control endpoint data
+ * Initialize the control iyesde/socket with a control endpoint data
  * structure.  This endpoint is reserved exclusively for the OOTB processing.
  */
 static int sctp_ctl_sock_init(struct net *net)
@@ -816,7 +816,7 @@ static int sctp_ctl_sock_init(struct net *net)
 	err = inet_ctl_sock_create(&net->sctp.ctl_sock, family,
 				   SOCK_SEQPACKET, IPPROTO_SCTP, net);
 
-	/* If IPv6 socket could not be created, try the IPv4 socket */
+	/* If IPv6 socket could yest be created, try the IPv4 socket */
 	if (err < 0 && family == PF_INET6)
 		err = inet_ctl_sock_create(&net->sctp.ctl_sock, AF_INET,
 					   SOCK_SEQPACKET, IPPROTO_SCTP,
@@ -1000,8 +1000,8 @@ static struct sctp_pf sctp_pf_inet = {
 };
 
 /* Notifier for inetaddr addition/deletion events.  */
-static struct notifier_block sctp_inetaddr_notifier = {
-	.notifier_call = sctp_inetaddr_event,
+static struct yestifier_block sctp_inetaddr_yestifier = {
+	.yestifier_call = sctp_inetaddr_event,
 };
 
 /* Socket operations.  */
@@ -1011,7 +1011,7 @@ static const struct proto_ops inet_seqpacket_ops = {
 	.release	   = inet_release,	/* Needs to be wrapped... */
 	.bind		   = inet_bind,
 	.connect	   = sctp_inet_connect,
-	.socketpair	   = sock_no_socketpair,
+	.socketpair	   = sock_yes_socketpair,
 	.accept		   = inet_accept,
 	.getname	   = inet_getname,	/* Semantics are different.  */
 	.poll		   = sctp_poll,
@@ -1023,8 +1023,8 @@ static const struct proto_ops inet_seqpacket_ops = {
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = inet_recvmsg,
-	.mmap		   = sock_no_mmap,
-	.sendpage	   = sock_no_sendpage,
+	.mmap		   = sock_yes_mmap,
+	.sendpage	   = sock_yes_sendpage,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
@@ -1051,7 +1051,7 @@ static struct inet_protosw sctp_stream_protosw = {
 static const struct net_protocol sctp_protocol = {
 	.handler     = sctp_rcv,
 	.err_handler = sctp_v4_err,
-	.no_policy   = 1,
+	.yes_policy   = 1,
 	.netns_ok    = 1,
 	.icmp_strict_tag_validation = 1,
 };
@@ -1169,8 +1169,8 @@ static void sctp_v4_protosw_exit(void)
 
 static int sctp_v4_add_protocol(void)
 {
-	/* Register notifier for inet address additions/deletions. */
-	register_inetaddr_notifier(&sctp_inetaddr_notifier);
+	/* Register yestifier for inet address additions/deletions. */
+	register_inetaddr_yestifier(&sctp_inetaddr_yestifier);
 
 	/* Register SCTP with inet layer.  */
 	if (inet_add_protocol(&sctp_protocol, IPPROTO_SCTP) < 0)
@@ -1182,7 +1182,7 @@ static int sctp_v4_add_protocol(void)
 static void sctp_v4_del_protocol(void)
 {
 	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
-	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
+	unregister_inetaddr_yestifier(&sctp_inetaddr_yestifier);
 }
 
 static int __net_init sctp_defaults_init(struct net *net)
@@ -1207,7 +1207,7 @@ static int __net_init sctp_defaults_init(struct net *net)
 	/* Valid.Cookie.Life        - 60  seconds */
 	net->sctp.valid_cookie_life		= SCTP_DEFAULT_COOKIE_LIFE;
 
-	/* Whether Cookie Preservative is enabled(1) or not(0) */
+	/* Whether Cookie Preservative is enabled(1) or yest(0) */
 	net->sctp.cookie_preserve_enable 	= 1;
 
 	/* Default sctp sockets to use md5 as their hmac alg */
@@ -1228,7 +1228,7 @@ static int __net_init sctp_defaults_init(struct net *net)
 	/* Enable pf state by default */
 	net->sctp.pf_enable = 1;
 
-	/* Ignore pf exposure feature by default */
+	/* Igyesre pf exposure feature by default */
 	net->sctp.pf_expose = SCTP_PF_EXPOSE_UNSET;
 
 	/* Association.Max.Retrans  - 10 attempts
@@ -1253,7 +1253,7 @@ static int __net_init sctp_defaults_init(struct net *net)
 
 	/* Disable ADDIP by default. */
 	net->sctp.addip_enable = 0;
-	net->sctp.addip_noauth = 0;
+	net->sctp.addip_yesauth = 0;
 	net->sctp.default_auto_asconf = 0;
 
 	/* Enable PR-SCTP by default. */
@@ -1342,7 +1342,7 @@ static int __net_init sctp_ctrlsock_init(struct net *net)
 {
 	int status;
 
-	/* Initialize the control inode/socket for handling OOTB packets.  */
+	/* Initialize the control iyesde/socket for handling OOTB packets.  */
 	status = sctp_ctl_sock_init(net);
 	if (status)
 		pr_err("Failed to initialize the SCTP control sock\n");
@@ -1411,7 +1411,7 @@ static __init int sctp_init(void)
 	sysctl_sctp_mem[1] = limit;
 	sysctl_sctp_mem[2] = sysctl_sctp_mem[0] * 2;
 
-	/* Set per-socket limits to no more than 1/128 the pressure threshold*/
+	/* Set per-socket limits to yes more than 1/128 the pressure threshold*/
 	limit = (sysctl_sctp_mem[1]) << (PAGE_SHIFT - 7);
 	max_share = min(4UL*1024*1024, limit);
 
@@ -1425,7 +1425,7 @@ static __init int sctp_init(void)
 
 	/* Size and allocate the association hash table.
 	 * The methodology is similar to that of the tcp hash tables.
-	 * Though not identical.  Start by getting a goal size
+	 * Though yest identical.  Start by getting a goal size
 	 */
 	if (nr_pages >= (128 * 1024))
 		goal = nr_pages >> (22 - PAGE_SHIFT);
@@ -1532,7 +1532,7 @@ static __init int sctp_init(void)
 		goto err_v6_add_protocol;
 
 	if (sctp_offload_init() < 0)
-		pr_crit("%s: Cannot add SCTP protocol offload\n", __func__);
+		pr_crit("%s: Canyest add SCTP protocol offload\n", __func__);
 
 out:
 	return status;
@@ -1615,6 +1615,6 @@ MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-132");
 MODULE_ALIAS("net-pf-" __stringify(PF_INET6) "-proto-132");
 MODULE_AUTHOR("Linux Kernel SCTP developers <linux-sctp@vger.kernel.org>");
 MODULE_DESCRIPTION("Support for the SCTP protocol (RFC2960)");
-module_param_named(no_checksums, sctp_checksum_disable, bool, 0644);
-MODULE_PARM_DESC(no_checksums, "Disable checksums computing and verification");
+module_param_named(yes_checksums, sctp_checksum_disable, bool, 0644);
+MODULE_PARM_DESC(yes_checksums, "Disable checksums computing and verification");
 MODULE_LICENSE("GPL");

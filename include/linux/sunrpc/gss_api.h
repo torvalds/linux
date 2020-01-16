@@ -41,7 +41,7 @@ struct rpcsec_gss_info {
 	u32			service;
 };
 
-/* gss-api prototypes; note that these are somewhat simplified versions of
+/* gss-api prototypes; yeste that these are somewhat simplified versions of
  * the prototypes specified in RFC 2744. */
 int gss_import_sec_context(
 		const void*		input_token,

@@ -119,7 +119,7 @@ static struct deferred_action *action_fifo_put(struct action_fifo *fifo)
 	return &fifo->fifo[fifo->head++];
 }
 
-/* Return true if fifo is not full */
+/* Return true if fifo is yest full */
 static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
 				    const struct sw_flow_key *key,
 				    const struct nlattr *actions,
@@ -269,7 +269,7 @@ static int set_eth_addr(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
-/* pop_eth does not support VLAN packets as this action is never called
+/* pop_eth does yest support VLAN packets as this action is never called
  * for them.
  */
 static int pop_eth(struct sk_buff *skb, struct sw_flow_key *key)
@@ -488,7 +488,7 @@ static int set_ipv4(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
-static bool is_ipv6_mask_nonzero(const __be32 addr[4])
+static bool is_ipv6_mask_yesnzero(const __be32 addr[4])
 {
 	return !!(addr[0] | addr[1] | addr[2] | addr[3]);
 }
@@ -511,7 +511,7 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	 * matching on them in the current userspace implementation, so it
 	 * makes sense to check if the value actually changed.
 	 */
-	if (is_ipv6_mask_nonzero(mask->ipv6_src)) {
+	if (is_ipv6_mask_yesnzero(mask->ipv6_src)) {
 		__be32 *saddr = (__be32 *)&nh->saddr;
 		__be32 masked[4];
 
@@ -524,7 +524,7 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *flow_key,
 			       sizeof(flow_key->ipv6.addr.src));
 		}
 	}
-	if (is_ipv6_mask_nonzero(mask->ipv6_dst)) {
+	if (is_ipv6_mask_yesnzero(mask->ipv6_dst)) {
 		unsigned int offset = 0;
 		int flags = IP6_FH_F_SKIP_RH;
 		bool recalc_csum = true;
@@ -649,7 +649,7 @@ static int set_udp(struct sk_buff *skb, struct sw_flow_key *flow_key,
 		return err;
 
 	uh = udp_hdr(skb);
-	/* Either of the masks is non-zero, so do not bother checking them. */
+	/* Either of the masks is yesn-zero, so do yest bother checking them. */
 	src = OVS_MASKED(uh->source, key->udp_src, mask->udp_src);
 	dst = OVS_MASKED(uh->dest, key->udp_dst, mask->udp_dst);
 
@@ -838,7 +838,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		ovs_dst.dev = vport->dev;
 
 		orig_dst = skb->_skb_refdst;
-		skb_dst_set_noref(skb, &ovs_dst);
+		skb_dst_set_yesref(skb, &ovs_dst);
 		IPCB(skb)->frag_max_size = mru;
 
 		ip_do_fragment(net, skb->sk, skb, ovs_vport_output);
@@ -859,7 +859,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		ovs_rt.dst.dev = vport->dev;
 
 		orig_dst = skb->_skb_refdst;
-		skb_dst_set_noref(skb, &ovs_rt.dst);
+		skb_dst_set_yesref(skb, &ovs_rt.dst);
 		IP6CB(skb)->frag_max_size = mru;
 
 		v6ops->fragment(net, skb->sk, skb, ovs_vport_output);
@@ -1067,7 +1067,7 @@ static int execute_masked_set_action(struct sk_buff *skb,
 		break;
 
 	case OVS_KEY_ATTR_TUNNEL_INFO:
-		/* Masked data not supported for tunnel. */
+		/* Masked data yest supported for tunnel. */
 		err = -EINVAL;
 		break;
 
@@ -1360,9 +1360,9 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 }
 
 /* Execute the actions on the clone of the packet. The effect of the
- * execution does not affect the original 'skb' nor the original 'key'.
+ * execution does yest affect the original 'skb' yesr the original 'key'.
  *
- * The execution may be deferred in case the actions can not be executed
+ * The execution may be deferred in case the actions can yest be executed
  * immediately.
  */
 static int clone_execute(struct datapath *dp, struct sk_buff *skb,
@@ -1380,7 +1380,7 @@ static int clone_execute(struct datapath *dp, struct sk_buff *skb,
 		return 0;
 	}
 
-	/* When clone_flow_key is false, the 'key' will not be change
+	/* When clone_flow_key is false, the 'key' will yest be change
 	 * by the actions, then the 'key' can be used directly.
 	 * Otherwise, try to clone key from the next recursion level of
 	 * 'flow_keys'. If clone is successful, execute the actions
@@ -1436,7 +1436,7 @@ static void process_deferred_actions(struct datapath *dp)
 {
 	struct action_fifo *fifo = this_cpu_ptr(action_fifos);
 
-	/* Do not touch the FIFO in case there is no deferred actions. */
+	/* Do yest touch the FIFO in case there is yes deferred actions. */
 	if (action_fifo_is_empty(fifo))
 		return;
 

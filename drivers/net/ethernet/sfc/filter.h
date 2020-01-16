@@ -98,7 +98,7 @@ enum efx_filter_flags {
 };
 
 /** enum efx_encap_type - types of encapsulation
- * @EFX_ENCAP_TYPE_NONE: no encapsulation
+ * @EFX_ENCAP_TYPE_NONE: yes encapsulation
  * @EFX_ENCAP_TYPE_VXLAN: VXLAN encapsulation
  * @EFX_ENCAP_TYPE_NVGRE: NVGRE encapsulation
  * @EFX_ENCAP_TYPE_GENEVE: GENEVE encapsulation
@@ -123,7 +123,7 @@ enum efx_encap_type {
  * @priority: Priority of the filter, from &enum efx_filter_priority
  * @flags: Miscellaneous flags, from &enum efx_filter_flags
  * @rss_context: RSS context to use, if %EFX_FILTER_FLAG_RX_RSS is set.  This
- *	is a user_id (with 0 meaning the driver/default RSS context), not an
+ *	is a user_id (with 0 meaning the driver/default RSS context), yest an
  *	MCFW context_id.
  * @dmaq_id: Source/target queue index, or %EFX_FILTER_RX_DMAQ_ID_DROP for
  *	an RX drop filter

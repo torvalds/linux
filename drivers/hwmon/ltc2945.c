@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for Linear Technology LTC2945 I2C Power Monitor
+ * Driver for Linear Techyeslogy LTC2945 I2C Power Monitor
  *
  * Copyright (c) 2014 Guenter Roeck
  */

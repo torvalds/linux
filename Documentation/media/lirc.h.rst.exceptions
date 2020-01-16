@@ -1,80 +1,80 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# Ignore header name
-ignore define _LINUX_LIRC_H
+# Igyesre header name
+igyesre define _LINUX_LIRC_H
 
-# Ignore helper macros
+# Igyesre helper macros
 
-ignore define lirc_t
+igyesre define lirc_t
 
-ignore define LIRC_SPACE
-ignore define LIRC_PULSE
-ignore define LIRC_FREQUENCY
-ignore define LIRC_TIMEOUT
-ignore define LIRC_VALUE
-ignore define LIRC_MODE2
-ignore define LIRC_IS_SPACE
-ignore define LIRC_IS_PULSE
-ignore define LIRC_IS_FREQUENCY
-ignore define LIRC_IS_TIMEOUT
+igyesre define LIRC_SPACE
+igyesre define LIRC_PULSE
+igyesre define LIRC_FREQUENCY
+igyesre define LIRC_TIMEOUT
+igyesre define LIRC_VALUE
+igyesre define LIRC_MODE2
+igyesre define LIRC_IS_SPACE
+igyesre define LIRC_IS_PULSE
+igyesre define LIRC_IS_FREQUENCY
+igyesre define LIRC_IS_TIMEOUT
 
-ignore define LIRC_MODE2SEND
-ignore define LIRC_SEND2MODE
-ignore define LIRC_MODE2REC
-ignore define LIRC_REC2MODE
+igyesre define LIRC_MODE2SEND
+igyesre define LIRC_SEND2MODE
+igyesre define LIRC_MODE2REC
+igyesre define LIRC_REC2MODE
 
-ignore define LIRC_CAN_SEND
-ignore define LIRC_CAN_REC
+igyesre define LIRC_CAN_SEND
+igyesre define LIRC_CAN_REC
 
-ignore define LIRC_CAN_SEND_MASK
-ignore define LIRC_CAN_REC_MASK
-ignore define LIRC_CAN_SET_REC_DUTY_CYCLE
+igyesre define LIRC_CAN_SEND_MASK
+igyesre define LIRC_CAN_REC_MASK
+igyesre define LIRC_CAN_SET_REC_DUTY_CYCLE
 
 # Obsolete ioctls
 
-ignore ioctl LIRC_GET_LENGTH
+igyesre ioctl LIRC_GET_LENGTH
 
 # rc protocols
 
-ignore symbol RC_PROTO_UNKNOWN
-ignore symbol RC_PROTO_OTHER
-ignore symbol RC_PROTO_RC5
-ignore symbol RC_PROTO_RC5X_20
-ignore symbol RC_PROTO_RC5_SZ
-ignore symbol RC_PROTO_JVC
-ignore symbol RC_PROTO_SONY12
-ignore symbol RC_PROTO_SONY15
-ignore symbol RC_PROTO_SONY20
-ignore symbol RC_PROTO_NEC
-ignore symbol RC_PROTO_NECX
-ignore symbol RC_PROTO_NEC32
-ignore symbol RC_PROTO_SANYO
-ignore symbol RC_PROTO_MCIR2_KBD
-ignore symbol RC_PROTO_MCIR2_MSE
-ignore symbol RC_PROTO_RC6_0
-ignore symbol RC_PROTO_RC6_6A_20
-ignore symbol RC_PROTO_RC6_6A_24
-ignore symbol RC_PROTO_RC6_6A_32
-ignore symbol RC_PROTO_RC6_MCE
-ignore symbol RC_PROTO_SHARP
-ignore symbol RC_PROTO_XMP
-ignore symbol RC_PROTO_CEC
-ignore symbol RC_PROTO_IMON
-ignore symbol RC_PROTO_RCMM12
-ignore symbol RC_PROTO_RCMM24
-ignore symbol RC_PROTO_RCMM32
-ignore symbol RC_PROTO_XBOX_DVD
+igyesre symbol RC_PROTO_UNKNOWN
+igyesre symbol RC_PROTO_OTHER
+igyesre symbol RC_PROTO_RC5
+igyesre symbol RC_PROTO_RC5X_20
+igyesre symbol RC_PROTO_RC5_SZ
+igyesre symbol RC_PROTO_JVC
+igyesre symbol RC_PROTO_SONY12
+igyesre symbol RC_PROTO_SONY15
+igyesre symbol RC_PROTO_SONY20
+igyesre symbol RC_PROTO_NEC
+igyesre symbol RC_PROTO_NECX
+igyesre symbol RC_PROTO_NEC32
+igyesre symbol RC_PROTO_SANYO
+igyesre symbol RC_PROTO_MCIR2_KBD
+igyesre symbol RC_PROTO_MCIR2_MSE
+igyesre symbol RC_PROTO_RC6_0
+igyesre symbol RC_PROTO_RC6_6A_20
+igyesre symbol RC_PROTO_RC6_6A_24
+igyesre symbol RC_PROTO_RC6_6A_32
+igyesre symbol RC_PROTO_RC6_MCE
+igyesre symbol RC_PROTO_SHARP
+igyesre symbol RC_PROTO_XMP
+igyesre symbol RC_PROTO_CEC
+igyesre symbol RC_PROTO_IMON
+igyesre symbol RC_PROTO_RCMM12
+igyesre symbol RC_PROTO_RCMM24
+igyesre symbol RC_PROTO_RCMM32
+igyesre symbol RC_PROTO_XBOX_DVD
 
 # Undocumented macros
 
-ignore define PULSE_BIT
-ignore define PULSE_MASK
+igyesre define PULSE_BIT
+igyesre define PULSE_MASK
 
-ignore define LIRC_MODE2_SPACE
-ignore define LIRC_MODE2_PULSE
+igyesre define LIRC_MODE2_SPACE
+igyesre define LIRC_MODE2_PULSE
 
-ignore define LIRC_VALUE_MASK
-ignore define LIRC_MODE2_MASK
+igyesre define LIRC_VALUE_MASK
+igyesre define LIRC_MODE2_MASK
 
-ignore define LIRC_MODE_RAW
-ignore define LIRC_MODE_LIRCCODE
+igyesre define LIRC_MODE_RAW
+igyesre define LIRC_MODE_LIRCCODE

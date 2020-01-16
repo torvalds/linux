@@ -2,7 +2,7 @@
 /*
  * cpu-sa1100.c: clock scaling for the SA1100
  *
- * Copyright (C) 2000 2001, The Delft University of Technology
+ * Copyright (C) 2000 2001, The Delft University of Techyeslogy
  *
  * Authors:
  * - Johan Pouwelse (J.A.Pouwelse@its.tudelft.nl): initial version
@@ -21,8 +21,8 @@
  *
  *  Erik Mouw
  *  Information and Communication Theory Group
- *  Faculty of Information Technology and Systems
- *  Delft University of Technology
+ *  Faculty of Information Techyeslogy and Systems
+ *  Delft University of Techyeslogy
  *  P.O. Box 5031
  *  2600 GA Delft
  *  The Netherlands
@@ -51,8 +51,8 @@
  *
  * The simple solution to avoid a kernel crash is to put the actual
  * clock change in ROM and jump to that code from the kernel. The main
- * disadvantage is that the ROM has to be modified, which is not
- * possible on all SA-1100 platforms. Another disadvantage is that
+ * disadvantage is that the ROM has to be modified, which is yest
+ * possible on all SA-1100 platforms. Ayesther disadvantage is that
  * jumping to ROM makes clock switching unnecessary complicated.
  *
  * The idea behind this driver is that the memory configuration can be
@@ -127,7 +127,7 @@ static void sa1100_update_dram_timings(int current_speed, int new_speed)
 		      __func__, new_speed);
 	}
 
-	/* No risk, no fun: run with interrupts on! */
+	/* No risk, yes fun: run with interrupts on! */
 	if (new_speed > current_speed) {
 		/* We're going FASTER, so first relax the memory
 		 * timings before changing the core frequency

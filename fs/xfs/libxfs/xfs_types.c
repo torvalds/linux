@@ -16,151 +16,151 @@
 xfs_agblock_t
 xfs_ag_block_count(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
+	xfs_agnumber_t		agyes)
 {
-	ASSERT(agno < mp->m_sb.sb_agcount);
+	ASSERT(agyes < mp->m_sb.sb_agcount);
 
-	if (agno < mp->m_sb.sb_agcount - 1)
+	if (agyes < mp->m_sb.sb_agcount - 1)
 		return mp->m_sb.sb_agblocks;
-	return mp->m_sb.sb_dblocks - (agno * mp->m_sb.sb_agblocks);
+	return mp->m_sb.sb_dblocks - (agyes * mp->m_sb.sb_agblocks);
 }
 
 /*
  * Verify that an AG block number pointer neither points outside the AG
- * nor points at static metadata.
+ * yesr points at static metadata.
  */
 bool
-xfs_verify_agbno(
+xfs_verify_agbyes(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		agbno)
+	xfs_agnumber_t		agyes,
+	xfs_agblock_t		agbyes)
 {
 	xfs_agblock_t		eoag;
 
-	eoag = xfs_ag_block_count(mp, agno);
-	if (agbno >= eoag)
+	eoag = xfs_ag_block_count(mp, agyes);
+	if (agbyes >= eoag)
 		return false;
-	if (agbno <= XFS_AGFL_BLOCK(mp))
+	if (agbyes <= XFS_AGFL_BLOCK(mp))
 		return false;
 	return true;
 }
 
 /*
  * Verify that an FS block number pointer neither points outside the
- * filesystem nor points at static AG metadata.
+ * filesystem yesr points at static AG metadata.
  */
 bool
-xfs_verify_fsbno(
+xfs_verify_fsbyes(
 	struct xfs_mount	*mp,
-	xfs_fsblock_t		fsbno)
+	xfs_fsblock_t		fsbyes)
 {
-	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(mp, fsbno);
+	xfs_agnumber_t		agyes = XFS_FSB_TO_AGNO(mp, fsbyes);
 
-	if (agno >= mp->m_sb.sb_agcount)
+	if (agyes >= mp->m_sb.sb_agcount)
 		return false;
-	return xfs_verify_agbno(mp, agno, XFS_FSB_TO_AGBNO(mp, fsbno));
+	return xfs_verify_agbyes(mp, agyes, XFS_FSB_TO_AGBNO(mp, fsbyes));
 }
 
-/* Calculate the first and last possible inode number in an AG. */
+/* Calculate the first and last possible iyesde number in an AG. */
 void
-xfs_agino_range(
+xfs_agiyes_range(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agino_t		*first,
-	xfs_agino_t		*last)
+	xfs_agnumber_t		agyes,
+	xfs_agiyes_t		*first,
+	xfs_agiyes_t		*last)
 {
-	xfs_agblock_t		bno;
+	xfs_agblock_t		byes;
 	xfs_agblock_t		eoag;
 
-	eoag = xfs_ag_block_count(mp, agno);
+	eoag = xfs_ag_block_count(mp, agyes);
 
 	/*
-	 * Calculate the first inode, which will be in the first
+	 * Calculate the first iyesde, which will be in the first
 	 * cluster-aligned block after the AGFL.
 	 */
-	bno = round_up(XFS_AGFL_BLOCK(mp) + 1, M_IGEO(mp)->cluster_align);
-	*first = XFS_AGB_TO_AGINO(mp, bno);
+	byes = round_up(XFS_AGFL_BLOCK(mp) + 1, M_IGEO(mp)->cluster_align);
+	*first = XFS_AGB_TO_AGINO(mp, byes);
 
 	/*
-	 * Calculate the last inode, which will be at the end of the
+	 * Calculate the last iyesde, which will be at the end of the
 	 * last (aligned) cluster that can be allocated in the AG.
 	 */
-	bno = round_down(eoag, M_IGEO(mp)->cluster_align);
-	*last = XFS_AGB_TO_AGINO(mp, bno) - 1;
+	byes = round_down(eoag, M_IGEO(mp)->cluster_align);
+	*last = XFS_AGB_TO_AGINO(mp, byes) - 1;
 }
 
 /*
- * Verify that an AG inode number pointer neither points outside the AG
- * nor points at static metadata.
+ * Verify that an AG iyesde number pointer neither points outside the AG
+ * yesr points at static metadata.
  */
 bool
-xfs_verify_agino(
+xfs_verify_agiyes(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agino_t		agino)
+	xfs_agnumber_t		agyes,
+	xfs_agiyes_t		agiyes)
 {
-	xfs_agino_t		first;
-	xfs_agino_t		last;
+	xfs_agiyes_t		first;
+	xfs_agiyes_t		last;
 
-	xfs_agino_range(mp, agno, &first, &last);
-	return agino >= first && agino <= last;
+	xfs_agiyes_range(mp, agyes, &first, &last);
+	return agiyes >= first && agiyes <= last;
 }
 
 /*
- * Verify that an AG inode number pointer neither points outside the AG
- * nor points at static metadata, or is NULLAGINO.
+ * Verify that an AG iyesde number pointer neither points outside the AG
+ * yesr points at static metadata, or is NULLAGINO.
  */
 bool
-xfs_verify_agino_or_null(
+xfs_verify_agiyes_or_null(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agino_t		agino)
+	xfs_agnumber_t		agyes,
+	xfs_agiyes_t		agiyes)
 {
-	return agino == NULLAGINO || xfs_verify_agino(mp, agno, agino);
+	return agiyes == NULLAGINO || xfs_verify_agiyes(mp, agyes, agiyes);
 }
 
 /*
- * Verify that an FS inode number pointer neither points outside the
- * filesystem nor points at static AG metadata.
+ * Verify that an FS iyesde number pointer neither points outside the
+ * filesystem yesr points at static AG metadata.
  */
 bool
-xfs_verify_ino(
+xfs_verify_iyes(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino)
+	xfs_iyes_t		iyes)
 {
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, ino);
-	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, ino);
+	xfs_agnumber_t		agyes = XFS_INO_TO_AGNO(mp, iyes);
+	xfs_agiyes_t		agiyes = XFS_INO_TO_AGINO(mp, iyes);
 
-	if (agno >= mp->m_sb.sb_agcount)
+	if (agyes >= mp->m_sb.sb_agcount)
 		return false;
-	if (XFS_AGINO_TO_INO(mp, agno, agino) != ino)
+	if (XFS_AGINO_TO_INO(mp, agyes, agiyes) != iyes)
 		return false;
-	return xfs_verify_agino(mp, agno, agino);
+	return xfs_verify_agiyes(mp, agyes, agiyes);
 }
 
-/* Is this an internal inode number? */
+/* Is this an internal iyesde number? */
 bool
 xfs_internal_inum(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino)
+	xfs_iyes_t		iyes)
 {
-	return ino == mp->m_sb.sb_rbmino || ino == mp->m_sb.sb_rsumino ||
+	return iyes == mp->m_sb.sb_rbmiyes || iyes == mp->m_sb.sb_rsumiyes ||
 		(xfs_sb_version_hasquota(&mp->m_sb) &&
-		 xfs_is_quota_inode(&mp->m_sb, ino));
+		 xfs_is_quota_iyesde(&mp->m_sb, iyes));
 }
 
 /*
- * Verify that a directory entry's inode number doesn't point at an internal
- * inode, empty space, or static AG metadata.
+ * Verify that a directory entry's iyesde number doesn't point at an internal
+ * iyesde, empty space, or static AG metadata.
  */
 bool
-xfs_verify_dir_ino(
+xfs_verify_dir_iyes(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino)
+	xfs_iyes_t		iyes)
 {
-	if (xfs_internal_inum(mp, ino))
+	if (xfs_internal_inum(mp, iyes))
 		return false;
-	return xfs_verify_ino(mp, ino);
+	return xfs_verify_iyes(mp, iyes);
 }
 
 /*
@@ -168,11 +168,11 @@ xfs_verify_dir_ino(
  * end of the realtime device.
  */
 bool
-xfs_verify_rtbno(
+xfs_verify_rtbyes(
 	struct xfs_mount	*mp,
-	xfs_rtblock_t		rtbno)
+	xfs_rtblock_t		rtbyes)
 {
-	return rtbno < mp->m_sb.sb_rblocks;
+	return rtbyes < mp->m_sb.sb_rblocks;
 }
 
 /* Calculate the range of valid icount values. */
@@ -182,22 +182,22 @@ xfs_icount_range(
 	unsigned long long	*min,
 	unsigned long long	*max)
 {
-	unsigned long long	nr_inos = 0;
-	xfs_agnumber_t		agno;
+	unsigned long long	nr_iyess = 0;
+	xfs_agnumber_t		agyes;
 
 	/* root, rtbitmap, rtsum all live in the first chunk */
 	*min = XFS_INODES_PER_CHUNK;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		xfs_agino_t	first, last;
+	for (agyes = 0; agyes < mp->m_sb.sb_agcount; agyes++) {
+		xfs_agiyes_t	first, last;
 
-		xfs_agino_range(mp, agno, &first, &last);
-		nr_inos += last - first + 1;
+		xfs_agiyes_range(mp, agyes, &first, &last);
+		nr_iyess += last - first + 1;
 	}
-	*max = nr_inos;
+	*max = nr_iyess;
 }
 
-/* Sanity-checking of inode counts. */
+/* Sanity-checking of iyesde counts. */
 bool
 xfs_verify_icount(
 	struct xfs_mount	*mp,
@@ -213,9 +213,9 @@ xfs_verify_icount(
 bool
 xfs_verify_dablk(
 	struct xfs_mount	*mp,
-	xfs_fileoff_t		dabno)
+	xfs_fileoff_t		dabyes)
 {
 	xfs_dablk_t		max_dablk = -1U;
 
-	return dabno <= max_dablk;
+	return dabyes <= max_dablk;
 }

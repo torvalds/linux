@@ -2,7 +2,7 @@
 #include <sys/mman.h>
 #include <inttypes.h>
 #include <asm/bug.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <linux/ring_buffer.h>
 #include <linux/perf_event.h>
@@ -262,7 +262,7 @@ union perf_event *perf_mmap__read_event(struct perf_mmap *map)
 	if (!refcount_read(&map->refcnt))
 		return NULL;
 
-	/* non-overwirte doesn't pause the ringbuffer */
+	/* yesn-overwirte doesn't pause the ringbuffer */
 	if (!map->overwrite)
 		map->end = perf_mmap__read_head(map);
 

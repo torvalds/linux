@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2008-2014 Mathieu Desnoyers
+ * Copyright (C) 2008-2014 Mathieu Desyesyers
  */
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -95,7 +95,7 @@ static inline void release_probes(struct tracepoint_func *old)
 			struct tp_probes, probes[0]);
 
 		/*
-		 * We can't free probes if SRCU is not initialized yet.
+		 * We can't free probes if SRCU is yest initialized yet.
 		 * Postpone the freeing till after SRCU is initialized.
 		 */
 		if (unlikely(!ok_to_free_tracepoints)) {
@@ -260,7 +260,7 @@ static int tracepoint_add_func(struct tracepoint *tp,
 /*
  * Remove a probe function from a tracepoint.
  * Note: only waiting an RCU period after setting elem->call to the empty
- * function insures that the original callback is not used anymore. This insured
+ * function insures that the original callback is yest used anymore. This insured
  * by preempt_disable around the call site.
  */
 static int tracepoint_remove_func(struct tracepoint *tp,
@@ -299,7 +299,7 @@ static int tracepoint_remove_func(struct tracepoint *tp,
  * Returns 0 if ok, error value on error.
  * Note: if @tp is within a module, the caller is responsible for
  * unregistering the probe before the module is gone. This can be
- * performed either with a tracepoint module going notifier, or from
+ * performed either with a tracepoint module going yestifier, or from
  * within module exit functions.
  */
 int tracepoint_probe_register_prio(struct tracepoint *tp, void *probe,
@@ -327,7 +327,7 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_register_prio);
  * Returns 0 if ok, error value on error.
  * Note: if @tp is within a module, the caller is responsible for
  * unregistering the probe before the module is gone. This can be
- * performed either with a tracepoint module going notifier, or from
+ * performed either with a tracepoint module going yestifier, or from
  * within module exit functions.
  */
 int tracepoint_probe_register(struct tracepoint *tp, void *probe, void *data)
@@ -378,58 +378,58 @@ bool trace_module_has_bad_taint(struct module *mod)
 			       (1 << TAINT_UNSIGNED_MODULE));
 }
 
-static BLOCKING_NOTIFIER_HEAD(tracepoint_notify_list);
+static BLOCKING_NOTIFIER_HEAD(tracepoint_yestify_list);
 
 /**
- * register_tracepoint_notifier - register tracepoint coming/going notifier
- * @nb: notifier block
+ * register_tracepoint_yestifier - register tracepoint coming/going yestifier
+ * @nb: yestifier block
  *
  * Notifiers registered with this function are called on module
  * coming/going with the tracepoint_module_list_mutex held.
- * The notifier block callback should expect a "struct tp_module" data
+ * The yestifier block callback should expect a "struct tp_module" data
  * pointer.
  */
-int register_tracepoint_module_notifier(struct notifier_block *nb)
+int register_tracepoint_module_yestifier(struct yestifier_block *nb)
 {
 	struct tp_module *tp_mod;
 	int ret;
 
 	mutex_lock(&tracepoint_module_list_mutex);
-	ret = blocking_notifier_chain_register(&tracepoint_notify_list, nb);
+	ret = blocking_yestifier_chain_register(&tracepoint_yestify_list, nb);
 	if (ret)
 		goto end;
 	list_for_each_entry(tp_mod, &tracepoint_module_list, list)
-		(void) nb->notifier_call(nb, MODULE_STATE_COMING, tp_mod);
+		(void) nb->yestifier_call(nb, MODULE_STATE_COMING, tp_mod);
 end:
 	mutex_unlock(&tracepoint_module_list_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(register_tracepoint_module_notifier);
+EXPORT_SYMBOL_GPL(register_tracepoint_module_yestifier);
 
 /**
- * unregister_tracepoint_notifier - unregister tracepoint coming/going notifier
- * @nb: notifier block
+ * unregister_tracepoint_yestifier - unregister tracepoint coming/going yestifier
+ * @nb: yestifier block
  *
- * The notifier block callback should expect a "struct tp_module" data
+ * The yestifier block callback should expect a "struct tp_module" data
  * pointer.
  */
-int unregister_tracepoint_module_notifier(struct notifier_block *nb)
+int unregister_tracepoint_module_yestifier(struct yestifier_block *nb)
 {
 	struct tp_module *tp_mod;
 	int ret;
 
 	mutex_lock(&tracepoint_module_list_mutex);
-	ret = blocking_notifier_chain_unregister(&tracepoint_notify_list, nb);
+	ret = blocking_yestifier_chain_unregister(&tracepoint_yestify_list, nb);
 	if (ret)
 		goto end;
 	list_for_each_entry(tp_mod, &tracepoint_module_list, list)
-		(void) nb->notifier_call(nb, MODULE_STATE_GOING, tp_mod);
+		(void) nb->yestifier_call(nb, MODULE_STATE_GOING, tp_mod);
 end:
 	mutex_unlock(&tracepoint_module_list_mutex);
 	return ret;
 
 }
-EXPORT_SYMBOL_GPL(unregister_tracepoint_module_notifier);
+EXPORT_SYMBOL_GPL(unregister_tracepoint_module_yestifier);
 
 /*
  * Ensure the tracer unregistered the module's probes before the module
@@ -463,7 +463,7 @@ static int tracepoint_module_coming(struct module *mod)
 	}
 	tp_mod->mod = mod;
 	list_add_tail(&tp_mod->list, &tracepoint_module_list);
-	blocking_notifier_call_chain(&tracepoint_notify_list,
+	blocking_yestifier_call_chain(&tracepoint_yestify_list,
 			MODULE_STATE_COMING, tp_mod);
 end:
 	mutex_unlock(&tracepoint_module_list_mutex);
@@ -480,12 +480,12 @@ static void tracepoint_module_going(struct module *mod)
 	mutex_lock(&tracepoint_module_list_mutex);
 	list_for_each_entry(tp_mod, &tracepoint_module_list, list) {
 		if (tp_mod->mod == mod) {
-			blocking_notifier_call_chain(&tracepoint_notify_list,
+			blocking_yestifier_call_chain(&tracepoint_yestify_list,
 					MODULE_STATE_GOING, tp_mod);
 			list_del(&tp_mod->list);
 			kfree(tp_mod);
 			/*
-			 * Called the going notifier before checking for
+			 * Called the going yestifier before checking for
 			 * quiescence.
 			 */
 			for_each_tracepoint_range(mod->tracepoints_ptrs,
@@ -496,14 +496,14 @@ static void tracepoint_module_going(struct module *mod)
 	}
 	/*
 	 * In the case of modules that were tainted at "coming", we'll simply
-	 * walk through the list without finding it. We cannot use the "tainted"
+	 * walk through the list without finding it. We canyest use the "tainted"
 	 * flag on "going", in case a module taints the kernel only after being
 	 * loaded.
 	 */
 	mutex_unlock(&tracepoint_module_list_mutex);
 }
 
-static int tracepoint_module_notify(struct notifier_block *self,
+static int tracepoint_module_yestify(struct yestifier_block *self,
 		unsigned long val, void *data)
 {
 	struct module *mod = data;
@@ -524,8 +524,8 @@ static int tracepoint_module_notify(struct notifier_block *self,
 	return ret;
 }
 
-static struct notifier_block tracepoint_module_nb = {
-	.notifier_call = tracepoint_module_notify,
+static struct yestifier_block tracepoint_module_nb = {
+	.yestifier_call = tracepoint_module_yestify,
 	.priority = 0,
 };
 
@@ -533,9 +533,9 @@ static __init int init_tracepoints(void)
 {
 	int ret;
 
-	ret = register_module_notifier(&tracepoint_module_nb);
+	ret = register_module_yestifier(&tracepoint_module_nb);
 	if (ret)
-		pr_warn("Failed to register tracepoint module enter notifier\n");
+		pr_warn("Failed to register tracepoint module enter yestifier\n");
 
 	return ret;
 }

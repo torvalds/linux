@@ -49,7 +49,7 @@ static const char* dump_type_to_string(uint32_t type)
 	case 0x01: return "SP Dump";
 	case 0x02: return "System/Platform Dump";
 	case 0x03: return "SMA Dump";
-	default: return "unknown";
+	default: return "unkyeswn";
 	}
 }
 
@@ -66,11 +66,11 @@ static ssize_t dump_ack_show(struct dump_obj *dump_obj,
 			     struct dump_attribute *attr,
 			     char *buf)
 {
-	return sprintf(buf, "ack - acknowledge dump\n");
+	return sprintf(buf, "ack - ackyeswledge dump\n");
 }
 
 /*
- * Send acknowledgement to OPAL
+ * Send ackyeswledgement to OPAL
  */
 static int64_t dump_send_ack(uint32_t dump_id)
 {
@@ -103,7 +103,7 @@ static struct dump_attribute id_attribute =
 static struct dump_attribute type_attribute =
 	__ATTR(type, 0444, dump_type_show, NULL);
 static struct dump_attribute ack_attribute =
-	__ATTR(acknowledge, 0660, dump_ack_show, dump_ack_store);
+	__ATTR(ackyeswledge, 0660, dump_ack_show, dump_ack_store);
 
 static ssize_t init_dump_show(struct dump_obj *dump_obj,
 			      struct dump_attribute *attr,
@@ -309,10 +309,10 @@ static ssize_t dump_attr_read(struct file *filep, struct kobject *kobj,
 
 	memcpy(buffer, dump->buffer + pos, count);
 
-	/* You may think we could free the dump buffer now and retrieve
+	/* You may think we could free the dump buffer yesw and retrieve
 	 * it again later if needed, but due to current firmware limitation,
-	 * that's not the case. So, once read into userspace once,
-	 * we keep the dump around until it's acknowledged by userspace.
+	 * that's yest the case. So, once read into userspace once,
+	 * we keep the dump around until it's ackyeswledged by userspace.
 	 */
 
 	return count;
@@ -376,8 +376,8 @@ static irqreturn_t process_dump(int irq, void *data)
 
 	sprintf(name, "0x%x-0x%x", dump_type, dump_id);
 
-	/* we may get notified twice, let's handle
-	 * that gracefully and not create two conflicting
+	/* we may get yestified twice, let's handle
+	 * that gracefully and yest create two conflicting
 	 * entries.
 	 */
 	kobj = kset_find_obj(dump_kset, name);
@@ -397,7 +397,7 @@ void __init opal_platform_dump_init(void)
 	int rc;
 	int dump_irq;
 
-	/* ELOG not supported by firmware */
+	/* ELOG yest supported by firmware */
 	if (!opal_check_token(OPAL_DUMP_READ))
 		return;
 
@@ -432,5 +432,5 @@ void __init opal_platform_dump_init(void)
 	}
 
 	if (opal_check_token(OPAL_DUMP_RESEND))
-		opal_dump_resend_notification();
+		opal_dump_resend_yestification();
 }

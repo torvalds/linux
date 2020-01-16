@@ -41,7 +41,7 @@ static int islpci_alloc_memory(islpci_private *);
  * The idea there is that some tools (such as nameif) may query
  * the MAC address before the netdev is 'open'. By using a valid
  * OUI prefix, they can process the netdev properly.
- * Of course, this is not the final/real MAC address. It doesn't
+ * Of course, this is yest the final/real MAC address. It doesn't
  * matter, as you are suppose to be able to change it anytime via
  * ndev->set_mac_address. Jean II */
 static const unsigned char	dummy_mac[6] = { 0x00, 0x30, 0xB4, 0x00, 0x00, 0x00 };
@@ -94,7 +94,7 @@ isl_upload_firmware(islpci_private *priv)
 
 		if (fw_len % 4) {
 			printk(KERN_ERR
-			       "%s: firmware '%s' size is not multiple of 32bit, aborting!\n",
+			       "%s: firmware '%s' size is yest multiple of 32bit, aborting!\n",
 			       "prism54", priv->firmware);
 			release_firmware(fw_entry);
 			return -EILSEQ; /* Illegal byte sequence  */;
@@ -110,7 +110,7 @@ isl_upload_firmware(islpci_private *priv)
 			/* set the card's base address for writing the data */
 			isl38xx_w32_flush(device_base, reg,
 					  ISL38XX_DIR_MEM_BASE_REG);
-			wmb();	/* be paranoid */
+			wmb();	/* be parayesid */
 
 			/* increment the write address for next iteration */
 			reg += _fw_len;
@@ -119,7 +119,7 @@ isl_upload_firmware(islpci_private *priv)
 			/* write the data to the Direct Memory Window 32bit-wise */
 			/* memcpy_toio() doesn't guarantee 32bit writes :-| */
 			while (_fw_len > 0) {
-				/* use non-swapping writel() */
+				/* use yesn-swapping writel() */
 				__raw_writel(*fw_ptr, dev_fw_ptr);
 				fw_ptr++, dev_fw_ptr++;
 				_fw_len -= 4;
@@ -127,7 +127,7 @@ isl_upload_firmware(islpci_private *priv)
 
 			/* flush PCI posting */
 			(void) readl(device_base + ISL38XX_PCI_POSTING_FLUSH);
-			wmb();	/* be paranoid again */
+			wmb();	/* be parayesid again */
 
 			BUG_ON(_fw_len != 0);
 		}
@@ -141,7 +141,7 @@ isl_upload_firmware(islpci_private *priv)
 		release_firmware(fw_entry);
 	}
 
-	/* now reset the device
+	/* yesw reset the device
 	 * clear the Reset & ClkRun bit, set the RAMBoot bit */
 	reg = readl(device_base + ISL38XX_CTRL_STAT_REG);
 	reg &= ~ISL38XX_CTRL_STAT_CLKRUN;
@@ -281,7 +281,7 @@ islpci_interrupt(int irq, void *config)
 				/* Refill slots in receive queue */
 				islpci_mgmt_rx_fill(ndev);
 
-				/* no need to trigger the device, next
+				/* yes need to trigger the device, next
                                    islpci_mgt_transaction does it */
 			}
 
@@ -296,12 +296,12 @@ islpci_interrupt(int irq, void *config)
 
 			/* check whether the data transmit queues were full */
 			if (priv->data_low_tx_full) {
-				/* check whether the transmit is not full anymore */
+				/* check whether the transmit is yest full anymore */
 				if (ISL38XX_CB_TX_QSIZE -
 				    isl38xx_in_queue(priv->control_block,
 						     ISL38XX_CB_TX_DATA_LQ) >=
 				    ISL38XX_MIN_QTHRESHOLD) {
-					/* nope, the driver is ready for more network frames */
+					/* yespe, the driver is ready for more network frames */
 					netif_wake_queue(priv->ndev);
 
 					/* reset the full flag */
@@ -416,7 +416,7 @@ prism54_bring_down(islpci_private *priv)
 	/* disable all device interrupts in case they weren't */
 	isl38xx_disable_interrupts(priv->device_base);
 
-	/* For safety reasons, we may want to ensure that no DMA transfer is
+	/* For safety reasons, we may want to ensure that yes DMA transfer is
 	 * currently in progress by emptying the TX and RX queues. */
 
 	/* wait until interrupts have finished executing on other CPUs */
@@ -457,7 +457,7 @@ islpci_upload_fw(islpci_private *priv)
 	rc = isl_upload_firmware(priv);
 	if (rc) {
 		/* error uploading the firmware */
-		printk(KERN_ERR "%s: could not upload firmware ('%s')\n",
+		printk(KERN_ERR "%s: could yest upload firmware ('%s')\n",
 		       priv->ndev->name, priv->firmware);
 
 		islpci_set_state(priv, old_state);
@@ -482,12 +482,12 @@ islpci_reset_if(islpci_private *priv)
 	DEFINE_WAIT(wait);
 	prepare_to_wait(&priv->reset_done, &wait, TASK_UNINTERRUPTIBLE);
 
-	/* now the last step is to reset the interface */
+	/* yesw the last step is to reset the interface */
 	isl38xx_interface_reset(priv->device_base, priv->device_host_address);
 	islpci_set_state(priv, PRV_STATE_PREINIT);
 
         for(count = 0; count < 2 && result; count++) {
-		/* The software reset acknowledge needs about 220 msec here.
+		/* The software reset ackyeswledge needs about 220 msec here.
 		 * Be conservative and wait for up to one second. */
 
 		remaining = schedule_timeout_uninterruptible(HZ);
@@ -500,7 +500,7 @@ islpci_reset_if(islpci_private *priv)
 		/* If we're here it's because our IRQ hasn't yet gone through.
 		 * Retry a bit more...
 		 */
-		printk(KERN_ERR "%s: no 'reset complete' IRQ seen - retrying\n",
+		printk(KERN_ERR "%s: yes 'reset complete' IRQ seen - retrying\n",
 			priv->ndev->name);
 	}
 
@@ -515,9 +515,9 @@ islpci_reset_if(islpci_private *priv)
 
 	/* Now that the device is 100% up, let's allow
 	 * for the other interrupts --
-	 * NOTE: this is not *yet* true since we've only allowed the
+	 * NOTE: this is yest *yet* true since we've only allowed the
 	 * INIT interrupt on the IRQ line. We can perhaps poll
-	 * the IRQ line until we know for sure the reset went through */
+	 * the IRQ line until we kyesw for sure the reset went through */
 	isl38xx_enable_common_interrupts(priv->device_base);
 
 	down_write(&priv->mib_sem);
@@ -538,7 +538,7 @@ islpci_reset_if(islpci_private *priv)
 int
 islpci_reset(islpci_private *priv, int reload_firmware)
 {
-	isl38xx_control_block *cb =    /* volatile not needed */
+	isl38xx_control_block *cb =    /* volatile yest needed */
 		(isl38xx_control_block *) priv->control_block;
 	unsigned counter;
 	int rc;
@@ -576,7 +576,7 @@ islpci_reset(islpci_private *priv, int reload_firmware)
 		    cpu_to_le32((u32) priv->pci_map_rx_address[counter]);
 	}
 
-	/* since the receive queues are filled with empty fragments, now we can
+	/* since the receive queues are filled with empty fragments, yesw we can
 	 * set the corresponding indexes in the Control Block */
 	priv->control_block->driver_curr_frag[ISL38XX_CB_RX_DATA_LQ] =
 	    cpu_to_le32(ISL38XX_CB_RX_QSIZE);
@@ -589,7 +589,7 @@ islpci_reset(islpci_private *priv, int reload_firmware)
 	priv->data_low_tx_full = 0;
 
 	if (reload_firmware) { /* Should we load the firmware ? */
-	/* now that the data structures are cleaned up, upload
+	/* yesw that the data structures are cleaned up, upload
 	 * firmware and reset interface */
 		rc = islpci_upload_fw(priv);
 		if (rc) {
@@ -643,7 +643,7 @@ islpci_alloc_memory(islpci_private *priv)
 
 	if (!priv->driver_mem_address) {
 		/* error allocating the block of PCI memory */
-		printk(KERN_ERR "%s: could not allocate DMA memory, aborting!",
+		printk(KERN_ERR "%s: could yest allocate DMA memory, aborting!",
 		       "prism54");
 		return -1;
 	}
@@ -670,7 +670,7 @@ islpci_alloc_memory(islpci_private *priv)
 	if (islpci_mgmt_rx_fill(priv->ndev) < 0)
 		goto out_free;
 
-	/* now get the data rx skb's */
+	/* yesw get the data rx skb's */
 	memset(priv->data_low_rx, 0, sizeof (priv->data_low_rx));
 	memset(priv->pci_map_rx_address, 0, sizeof (priv->pci_map_rx_address));
 
@@ -827,7 +827,7 @@ islpci_setup(struct pci_dev *pdev)
 
 	/* ndev->set_multicast_list = &islpci_set_multicast_list; */
 	ndev->addr_len = ETH_ALEN;
-	/* Get a non-zero dummy MAC address for nameif. Jean II */
+	/* Get a yesn-zero dummy MAC address for nameif. Jean II */
 	memcpy(ndev->dev_addr, dummy_mac, ETH_ALEN);
 
 	ndev->watchdog_timeo = ISLPCI_TX_TIMEOUT;
@@ -931,7 +931,7 @@ islpci_set_state(islpci_private *priv, islpci_state_t new_state)
 		if (old_state == PRV_STATE_OFF)
 			priv->state_off--;
 
-		/* only if hw_unavailable is zero now it means we either
+		/* only if hw_unavailable is zero yesw it means we either
 		 * were in off#1 state, or came here from
 		 * somewhere else */
 		if (!priv->state_off)

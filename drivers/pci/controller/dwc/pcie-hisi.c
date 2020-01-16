@@ -234,7 +234,7 @@ static int hisi_add_pcie_port(struct hisi_pcie *hisi_pcie,
 	int ret;
 	u32 port_id;
 
-	if (of_property_read_u32(dev->of_node, "port-id", &port_id)) {
+	if (of_property_read_u32(dev->of_yesde, "port-id", &port_id)) {
 		dev_err(dev, "failed to read port-id\n");
 		return -EINVAL;
 	}
@@ -285,7 +285,7 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	hisi_pcie->subctrl =
 	    syscon_regmap_lookup_by_compatible("hisilicon,pcie-sas-subctrl");
 	if (IS_ERR(hisi_pcie->subctrl)) {
-		dev_err(dev, "cannot get subctrl base\n");
+		dev_err(dev, "canyest get subctrl base\n");
 		return PTR_ERR(hisi_pcie->subctrl);
 	}
 

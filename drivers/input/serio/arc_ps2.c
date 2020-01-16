@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
- * Driver is originally developed by Pavel Sokolov <psokolov@synopsys.com>
+ * Driver is originally developed by Pavel Sokolov <psokolov@syyespsys.com>
  */
 
 #include <linux/err.h>
@@ -207,7 +207,7 @@ static int arc_ps2_probe(struct platform_device *pdev)
 
 	id = ioread32(arc_ps2->addr);
 	if (id != ARC_ARC_PS2_ID) {
-		dev_err(&pdev->dev, "device id does not match\n");
+		dev_err(&pdev->dev, "device id does yest match\n");
 		return -ENXIO;
 	}
 
@@ -216,7 +216,7 @@ static int arc_ps2_probe(struct platform_device *pdev)
 	error = devm_request_irq(&pdev->dev, irq, arc_ps2_interrupt,
 				 0, "arc_ps2", arc_ps2);
 	if (error) {
-		dev_err(&pdev->dev, "Could not allocate IRQ\n");
+		dev_err(&pdev->dev, "Could yest allocate IRQ\n");
 		return error;
 	}
 
@@ -270,5 +270,5 @@ static struct platform_driver arc_ps2_driver = {
 module_platform_driver(arc_ps2_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Pavel Sokolov <psokolov@synopsys.com>");
+MODULE_AUTHOR("Pavel Sokolov <psokolov@syyespsys.com>");
 MODULE_DESCRIPTION("ARC PS/2 Driver");

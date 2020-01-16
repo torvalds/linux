@@ -70,7 +70,7 @@
  * Instead, reset authenticated devices with a SetAddress(0), followed
  * by a SetAddresss(AuthAddr).
  *
- * For unauthenticated devices just pretend to reset but do nothing.
+ * For unauthenticated devices just pretend to reset but do yesthing.
  * If the device initialization continues to fail it will eventually
  * time out after TrustTimeout and enter the UnConnected state.
  *
@@ -80,7 +80,7 @@
  * case, maybe we should move the mutex locking from
  * wusbhc_devconnect_auth() to here.
  *
- * @port_idx refers to the wusbhc's port index, not the USB port number
+ * @port_idx refers to the wusbhc's port index, yest the USB port number
  */
 static int wusbhc_rh_port_reset(struct wusbhc *wusbhc, u8 port_idx)
 {
@@ -114,7 +114,7 @@ static int wusbhc_rh_port_reset(struct wusbhc *wusbhc, u8 port_idx)
  *
  * @wusbhc is assumed referenced and @wusbhc->mutex unlocked.
  *
- * WARNING!! This gets called from atomic context; we cannot get the
+ * WARNING!! This gets called from atomic context; we canyest get the
  *           mutex--the only race condition we can find is some bit
  *           changing just after we copy it, which shouldn't be too
  *           big of a problem [and we can't make it an spinlock
@@ -172,7 +172,7 @@ static int wusbhc_rh_get_hub_descr(struct wusbhc *wusbhc, u16 wValue,
 	descr->bNbrPorts = wusbhc->ports_max;
 	descr->wHubCharacteristics = cpu_to_le16(
 		HUB_CHAR_COMMON_LPSM	/* All ports power at once */
-		| 0x00			/* not part of compound device */
+		| 0x00			/* yest part of compound device */
 		| HUB_CHAR_NO_OCPM	/* No overcurrent protection */
 		| 0x00			/* 8 FS think time FIXME ?? */
 		| 0x00);		/* No port indicators */
@@ -189,7 +189,7 @@ static int wusbhc_rh_get_hub_descr(struct wusbhc *wusbhc, u16 wValue,
  *
  * @wusbhc is assumed referenced and @wusbhc->mutex unlocked.
  *
- * Nothing to do, so no locking needed ;)
+ * Nothing to do, so yes locking needed ;)
  */
 static int wusbhc_rh_clear_hub_feat(struct wusbhc *wusbhc, u16 feature)
 {
@@ -214,7 +214,7 @@ static int wusbhc_rh_clear_hub_feat(struct wusbhc *wusbhc, u16 feature)
  *
  * @wusbhc is assumed referenced and @wusbhc->mutex unlocked.
  *
- * Nothing to do, so no locking needed ;)
+ * Nothing to do, so yes locking needed ;)
  */
 static int wusbhc_rh_get_hub_status(struct wusbhc *wusbhc, u32 *buf,
 				    u16 wLength)
@@ -239,7 +239,7 @@ static int wusbhc_rh_set_port_feat(struct wusbhc *wusbhc, u16 feature,
 
 	switch (feature) {
 		/* According to USB2.0[11.24.2.13]p2, these features
-		 * are not required to be implemented. */
+		 * are yest required to be implemented. */
 	case USB_PORT_FEAT_C_OVER_CURRENT:
 	case USB_PORT_FEAT_C_ENABLE:
 	case USB_PORT_FEAT_C_SUSPEND:
@@ -285,7 +285,7 @@ static int wusbhc_rh_clear_port_feat(struct wusbhc *wusbhc, u16 feature,
 	mutex_lock(&wusbhc->mutex);
 	switch (feature) {
 	case USB_PORT_FEAT_POWER:	/* fake port always on */
-		/* According to USB2.0[11.24.2.7.1.4], no need to implement? */
+		/* According to USB2.0[11.24.2.7.1.4], yes need to implement? */
 	case USB_PORT_FEAT_C_OVER_CURRENT:
 		break;
 	case USB_PORT_FEAT_C_RESET:

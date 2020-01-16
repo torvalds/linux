@@ -488,7 +488,7 @@ static int nft_payload_l4csum_update(const struct nft_pktinfo *pkt,
 	int l4csum_offset;
 	__sum16 sum;
 
-	/* If we cannot determine layer 4 checksum offset or this packet doesn't
+	/* If we canyest determine layer 4 checksum offset or this packet doesn't
 	 * require layer 4 checksum recalculation, skip this packet.
 	 */
 	if (nft_payload_l4csum_offset(pkt, skb, &l4csum_offset) < 0)

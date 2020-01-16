@@ -106,7 +106,7 @@ static void davinci_mdio_init_clk(struct davinci_mdio_data *data)
 	 * One mdio transaction consists of:
 	 *	32 bits of preamble
 	 *	32 bits of transferred data
-	 *	24 bits of bus yield (not needed unless shared?)
+	 *	24 bits of bus yield (yest needed unless shared?)
 	 */
 	mdio_out_khz = mdio_in / (1000 * (div + 1));
 	access_time  = (88 * 1000) / mdio_out_khz;
@@ -136,7 +136,7 @@ static int davinci_mdio_reset(struct mii_bus *bus)
 
 	ret = pm_runtime_get_sync(data->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(data->dev);
+		pm_runtime_put_yesidle(data->dev);
 		return ret;
 	}
 
@@ -161,7 +161,7 @@ static int davinci_mdio_reset(struct mii_bus *bus)
 		phy_mask = ~phy_mask;
 	} else {
 		/* desperately scan all phys */
-		dev_warn(data->dev, "no live phy, scanning all\n");
+		dev_warn(data->dev, "yes live phy, scanning all\n");
 		phy_mask = 0;
 	}
 	data->bus->phy_mask = phy_mask;
@@ -173,7 +173,7 @@ done:
 	return 0;
 }
 
-/* wait until hardware is ready for another user access */
+/* wait until hardware is ready for ayesther user access */
 static inline int wait_for_user_access(struct davinci_mdio_data *data)
 {
 	struct davinci_mdio_regs __iomem *regs = data->regs;
@@ -234,7 +234,7 @@ static int davinci_mdio_read(struct mii_bus *bus, int phy_id, int phy_reg)
 
 	ret = pm_runtime_get_sync(data->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(data->dev);
+		pm_runtime_put_yesidle(data->dev);
 		return ret;
 	}
 
@@ -278,7 +278,7 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 
 	ret = pm_runtime_get_sync(data->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(data->dev);
+		pm_runtime_put_yesidle(data->dev);
 		return ret;
 	}
 
@@ -309,13 +309,13 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 			 struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	u32 prop;
 
-	if (!node)
+	if (!yesde)
 		return -EINVAL;
 
-	if (of_property_read_u32(node, "bus_freq", &prop)) {
+	if (of_property_read_u32(yesde, "bus_freq", &prop)) {
 		dev_err(&pdev->dev, "Missing bus_freq property in the DT.\n");
 		return -EINVAL;
 	}
@@ -357,7 +357,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && dev->of_yesde) {
 		const struct of_device_id	*of_id;
 
 		ret = davinci_mdio_probe_dt(&data->pdata, pdev);
@@ -408,14 +408,14 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	/* register the mii bus
-	 * Create PHYs from DT only in case if PHY child nodes are explicitly
+	 * Create PHYs from DT only in case if PHY child yesdes are explicitly
 	 * defined to support backward compatibility with DTs which assume that
 	 * Davinci MDIO will always scan the bus for PHYs detection.
 	 */
-	if (dev->of_node && of_get_child_count(dev->of_node))
+	if (dev->of_yesde && of_get_child_count(dev->of_yesde))
 		data->skip_scan = true;
 
-	ret = of_mdiobus_register(data->bus, dev->of_node);
+	ret = of_mdiobus_register(data->bus, dev->of_yesde);
 	if (ret)
 		goto bail_out;
 
@@ -425,7 +425,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 		if (phy) {
 			dev_info(dev, "phy[%d]: device %s, driver %s\n",
 				 phy->mdio.addr, phydev_name(phy),
-				 phy->drv ? phy->drv->name : "unknown");
+				 phy->drv ? phy->drv->name : "unkyeswn");
 		}
 	}
 

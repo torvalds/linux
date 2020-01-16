@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -39,7 +39,7 @@ struct nv04_instmem {
 struct nv04_instobj {
 	struct nvkm_instobj base;
 	struct nv04_instmem *imem;
-	struct nvkm_mm_node *node;
+	struct nvkm_mm_yesde *yesde;
 };
 
 static void
@@ -47,7 +47,7 @@ nv04_instobj_wr32(struct nvkm_memory *memory, u64 offset, u32 data)
 {
 	struct nv04_instobj *iobj = nv04_instobj(memory);
 	struct nvkm_device *device = iobj->imem->base.subdev.device;
-	nvkm_wr32(device, 0x700000 + iobj->node->offset + offset, data);
+	nvkm_wr32(device, 0x700000 + iobj->yesde->offset + offset, data);
 }
 
 static u32
@@ -55,7 +55,7 @@ nv04_instobj_rd32(struct nvkm_memory *memory, u64 offset)
 {
 	struct nv04_instobj *iobj = nv04_instobj(memory);
 	struct nvkm_device *device = iobj->imem->base.subdev.device;
-	return nvkm_rd32(device, 0x700000 + iobj->node->offset + offset);
+	return nvkm_rd32(device, 0x700000 + iobj->yesde->offset + offset);
 }
 
 static const struct nvkm_memory_ptrs
@@ -74,19 +74,19 @@ nv04_instobj_acquire(struct nvkm_memory *memory)
 {
 	struct nv04_instobj *iobj = nv04_instobj(memory);
 	struct nvkm_device *device = iobj->imem->base.subdev.device;
-	return device->pri + 0x700000 + iobj->node->offset;
+	return device->pri + 0x700000 + iobj->yesde->offset;
 }
 
 static u64
 nv04_instobj_size(struct nvkm_memory *memory)
 {
-	return nv04_instobj(memory)->node->length;
+	return nv04_instobj(memory)->yesde->length;
 }
 
 static u64
 nv04_instobj_addr(struct nvkm_memory *memory)
 {
-	return nv04_instobj(memory)->node->offset;
+	return nv04_instobj(memory)->yesde->offset;
 }
 
 static enum nvkm_memory_target
@@ -100,7 +100,7 @@ nv04_instobj_dtor(struct nvkm_memory *memory)
 {
 	struct nv04_instobj *iobj = nv04_instobj(memory);
 	mutex_lock(&iobj->imem->base.subdev.mutex);
-	nvkm_mm_free(&iobj->imem->heap, &iobj->node);
+	nvkm_mm_free(&iobj->imem->heap, &iobj->yesde);
 	mutex_unlock(&iobj->imem->base.subdev.mutex);
 	nvkm_instobj_dtor(&iobj->imem->base, &iobj->base);
 	return iobj;
@@ -134,7 +134,7 @@ nv04_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 
 	mutex_lock(&imem->base.subdev.mutex);
 	ret = nvkm_mm_head(&imem->heap, 0, 1, size, size,
-			   align ? align : 1, &iobj->node);
+			   align ? align : 1, &iobj->yesde);
 	mutex_unlock(&imem->base.subdev.mutex);
 	return ret;
 }
@@ -180,7 +180,7 @@ nv04_instmem_oneinit(struct nvkm_instmem *base)
 	if (ret)
 		return ret;
 
-	/* 0x18000-0x18800: reserve for RAMFC (enough for 32 nv30 channels) */
+	/* 0x18000-0x18800: reserve for RAMFC (eyesugh for 32 nv30 channels) */
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x00800, 0, true,
 			      &imem->base.ramfc);
 	if (ret)

@@ -20,7 +20,7 @@
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
 
-/* Slightly simplified from the non-hugepage variant because by
+/* Slightly simplified from the yesn-hugepage variant because by
  * definition we don't have to worry about any page coloring stuff
  */
 
@@ -192,7 +192,7 @@ pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
 	if (vma->vm_flags & VM_SPARC_ADI)
 		return pte_mkmcd(pte);
 	else
-		return pte_mknotmcd(pte);
+		return pte_mkyestmcd(pte);
 #else
 	return pte;
 #endif
@@ -302,15 +302,15 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	pmd_t *pmd;
 
 	pgd = pgd_offset(mm, addr);
-	if (pgd_none(*pgd))
+	if (pgd_yesne(*pgd))
 		return NULL;
 	pud = pud_offset(pgd, addr);
-	if (pud_none(*pud))
+	if (pud_yesne(*pud))
 		return NULL;
 	if (is_hugetlb_pud(*pud))
 		return (pte_t *)pud;
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd))
+	if (pmd_yesne(*pmd))
 		return NULL;
 	if (is_hugetlb_pmd(*pmd))
 		return (pte_t *)pmd;
@@ -341,7 +341,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 
 	addr &= ~(size - 1);
 	orig = *ptep;
-	orig_shift = pte_none(orig) ? PAGE_SHIFT : huge_tte_to_shift(orig);
+	orig_shift = pte_yesne(orig) ? PAGE_SHIFT : huge_tte_to_shift(orig);
 
 	for (i = 0; i < nptes; i++)
 		ptep[i] = __pte(pte_val(entry) + (i << shift));
@@ -372,7 +372,7 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 		shift = PAGE_SHIFT;
 
 	nptes = size >> shift;
-	orig_shift = pte_none(entry) ? PAGE_SHIFT : huge_tte_to_shift(entry);
+	orig_shift = pte_yesne(entry) ? PAGE_SHIFT : huge_tte_to_shift(entry);
 
 	if (pte_present(entry))
 		mm->context.hugetlb_pte_count -= nptes;
@@ -392,13 +392,13 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 
 int pmd_huge(pmd_t pmd)
 {
-	return !pmd_none(pmd) &&
+	return !pmd_yesne(pmd) &&
 		(pmd_val(pmd) & (_PAGE_VALID|_PAGE_PMD_HUGE)) != _PAGE_VALID;
 }
 
 int pud_huge(pud_t pud)
 {
-	return !pud_none(pud) &&
+	return !pud_yesne(pud) &&
 		(pud_val(pud) & (_PAGE_VALID|_PAGE_PUD_HUGE)) != _PAGE_VALID;
 }
 
@@ -424,7 +424,7 @@ static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
 	pmd = pmd_offset(pud, addr);
 	do {
 		next = pmd_addr_end(addr, end);
-		if (pmd_none(*pmd))
+		if (pmd_yesne(*pmd))
 			continue;
 		if (is_hugetlb_pmd(*pmd))
 			pmd_clear(pmd);
@@ -461,7 +461,7 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
 	pud = pud_offset(pgd, addr);
 	do {
 		next = pud_addr_end(addr, end);
-		if (pud_none_or_clear_bad(pud))
+		if (pud_yesne_or_clear_bad(pud))
 			continue;
 		if (is_hugetlb_pud(*pud))
 			pud_clear(pud);
@@ -513,7 +513,7 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 	pgd = pgd_offset(tlb->mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
-		if (pgd_none_or_clear_bad(pgd))
+		if (pgd_yesne_or_clear_bad(pgd))
 			continue;
 		hugetlb_free_pud_range(tlb, pgd, addr, next, floor, ceiling);
 	} while (pgd++, addr = next, addr != end);

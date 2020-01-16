@@ -381,7 +381,7 @@ static void sdio_read_mem(
 	s32 err;
 
 	err = sdio_readN(intfhdl, addr, cnt, rmem);
-	/* TODO: Report error is err not zero */
+	/* TODO: Report error is err yest zero */
 }
 
 static void sdio_write_mem(
@@ -779,7 +779,7 @@ void EnableInterrupt8723BSdio(struct adapter *adapter)
 
 	RT_TRACE(
 		_module_hci_ops_c_,
-		_drv_notice_,
+		_drv_yestice_,
 		(
 			"%s: enable SDIO HIMR = 0x%08X\n",
 			__func__,
@@ -793,7 +793,7 @@ void EnableInterrupt8723BSdio(struct adapter *adapter)
 
 	RT_TRACE(
 		_module_hci_ops_c_,
-		_drv_notice_,
+		_drv_yestice_,
 		(
 			"%s: enable HSIMR = 0x%08X\n",
 			__func__,
@@ -803,7 +803,7 @@ void EnableInterrupt8723BSdio(struct adapter *adapter)
 
 	/*  */
 	/*  <Roger_Notes> There are some C2H CMDs have been sent before system interrupt is enabled, e.g., C2H, CPWM. */
-	/*  So we need to clear all C2H events that FW has notified, otherwise FW won't schedule any commands anymore. */
+	/*  So we need to clear all C2H events that FW has yestified, otherwise FW won't schedule any commands anymore. */
 	/*  2011.10.19. */
 	/*  */
 	rtw_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
@@ -1068,7 +1068,7 @@ void sd_int_hdl(struct adapter *adapter)
 		sd_int_dpc(adapter);
 	} else {
 		RT_TRACE(_module_hci_ops_c_, _drv_err_,
-				("%s: HISR(0x%08x) and HIMR(0x%08x) not match!\n",
+				("%s: HISR(0x%08x) and HIMR(0x%08x) yest match!\n",
 				__func__, hal->sdio_hisr, hal->sdio_himr));
 	}
 }
@@ -1093,7 +1093,7 @@ u8 HalQueryTxBufferStatus8723BSdio(struct adapter *adapter)
 	numof_free_page = SdioLocalCmd53Read4Byte(adapter, SDIO_REG_FREE_TXPG);
 
 	memcpy(hal->SdioTxFIFOFreePage, &numof_free_page, 4);
-	RT_TRACE(_module_hci_ops_c_, _drv_notice_,
+	RT_TRACE(_module_hci_ops_c_, _drv_yestice_,
 			("%s: Free page for HIQ(%#x), MIDQ(%#x), LOWQ(%#x), PUBQ(%#x)\n",
 			__func__,
 			hal->SdioTxFIFOFreePage[HI_QUEUE_IDX],

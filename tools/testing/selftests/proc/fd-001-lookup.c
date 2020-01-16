@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -18,7 +18,7 @@
 #undef NDEBUG
 #include <assert.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erryes.h>
 #include <limits.h>
 #include <sched.h>
 #include <stdio.h>
@@ -29,7 +29,7 @@
 
 #include "proc.h"
 
-/* lstat(2) has more "coverage" in case non-symlink pops up somehow. */
+/* lstat(2) has more "coverage" in case yesn-symlink pops up somehow. */
 static void test_lookup_pass(const char *pathname)
 {
 	struct stat st;
@@ -47,7 +47,7 @@ static void test_lookup_fail(const char *pathname)
 	ssize_t rv;
 
 	rv = lstat(pathname, &st);
-	assert(rv == -1 && errno == ENOENT);
+	assert(rv == -1 && erryes == ENOENT);
 }
 
 static void test_lookup(unsigned int fd)

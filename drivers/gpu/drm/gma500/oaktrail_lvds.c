@@ -20,7 +20,7 @@
 #include "psb_intel_reg.h"
 
 /* The max/min PWM frequency in BPCR[31:17] - */
-/* The smallest number is 1 (not 0) that can fit in the
+/* The smallest number is 1 (yest 0) that can fit in the
  * 15-bit field of the and then*/
 /* shifts to the left by one bit to get the actual 16-bit
  * value that the 15-bits correspond to.*/
@@ -268,7 +268,7 @@ static void oaktrail_lvds_get_configuration_mode(struct drm_device *dev,
 				drm_mode_duplicate(dev,
 					dev_priv->lfp_lvds_vbt_mode);
 
-	/* If we still got no mode then bail */
+	/* If we still got yes mode then bail */
 	if (mode_dev->panel_fixed_mode == NULL)
 		return;
 
@@ -342,9 +342,9 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	 * 1) check for EDID on DDC
 	 * 2) check for VBT data
 	 * 3) check to see if LVDS is already on
-	 *    if none of the above, no panel
+	 *    if yesne of the above, yes panel
 	 * 4) make sure lid is open
-	 *    if closed, act like it's not there for now
+	 *    if closed, act like it's yest there for yesw
 	 */
 
 	edid = NULL;
@@ -390,7 +390,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 
 	/* If we still don't have a mode after all that, give up. */
 	if (!mode_dev->panel_fixed_mode) {
-		dev_err(dev->dev, "Found no modes on the lvds, ignoring the LVDS\n");
+		dev_err(dev->dev, "Found yes modes on the lvds, igyesring the LVDS\n");
 		goto failed_find;
 	}
 

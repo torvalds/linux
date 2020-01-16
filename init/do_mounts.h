@@ -17,7 +17,7 @@ extern int root_mountflags;
 static inline int create_dev(char *name, dev_t dev)
 {
 	ksys_unlink(name);
-	return ksys_mknod(name, S_IFBLK|0600, new_encode_dev(dev));
+	return ksys_mkyesd(name, S_IFBLK|0600, new_encode_dev(dev));
 }
 
 static inline u32 bstat(char *name)

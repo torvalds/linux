@@ -32,7 +32,7 @@
 #define SW_Underflow   	Const__(0x0010)	/* underflow */
 #define SW_Overflow    	Const__(0x0008)	/* overflow */
 #define SW_Zero_Div    	Const__(0x0004)	/* divide by zero */
-#define SW_Denorm_Op   	Const__(0x0002)	/* denormalized operand */
+#define SW_Deyesrm_Op   	Const__(0x0002)	/* deyesrmalized operand */
 #define SW_Invalid     	Const__(0x0001)	/* invalid operation */
 
 #define SW_Exc_Mask     Const__(0x27f)	/* Status word exception bit mask */
@@ -43,7 +43,7 @@
 #define COMP_A_eq_B	2
 #define COMP_A_lt_B	3
 #define COMP_No_Comp	4
-#define COMP_Denormal   0x20
+#define COMP_Deyesrmal   0x20
 #define COMP_NaN	0x40
 #define COMP_SNaN	0x80
 
@@ -56,7 +56,7 @@ static inline void setcc(int cc)
 }
 
 #ifdef PECULIAR_486
-   /* Default, this conveys no information, but an 80486 does it. */
+   /* Default, this conveys yes information, but an 80486 does it. */
    /* Clear the SW_C1 bit, "other bits undefined". */
 #  define clear_C1()  { partial_status &= ~SW_C1; }
 # else

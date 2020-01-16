@@ -17,7 +17,7 @@
 #include "rvu_reg.h"
 
 struct cgx_evq_entry {
-	struct list_head evq_node;
+	struct list_head evq_yesde;
 	struct cgx_link_event link_event;
 };
 
@@ -139,7 +139,7 @@ static int rvu_cgx_send_link_info(int cgx_id, int lmac_id, struct rvu *rvu)
 	qentry->link_event.lmac_id = lmac_id;
 	if (err)
 		goto skip_add;
-	list_add_tail(&qentry->evq_node, &rvu->cgx_evq_head);
+	list_add_tail(&qentry->evq_yesde, &rvu->cgx_evq_head);
 skip_add:
 	spin_unlock_irqrestore(&rvu->cgx_evq_lock, flags);
 
@@ -161,7 +161,7 @@ static int cgx_lmac_postevent(struct cgx_link_event *event, void *data)
 		return -ENOMEM;
 	qentry->link_event = *event;
 	spin_lock(&rvu->cgx_evq_lock);
-	list_add_tail(&qentry->evq_node, &rvu->cgx_evq_head);
+	list_add_tail(&qentry->evq_yesde, &rvu->cgx_evq_head);
 	spin_unlock(&rvu->cgx_evq_lock);
 
 	/* start worker to process the events */
@@ -170,7 +170,7 @@ static int cgx_lmac_postevent(struct cgx_link_event *event, void *data)
 	return 0;
 }
 
-static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
+static void cgx_yestify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 {
 	struct cgx_link_user_info *linfo;
 	struct cgx_link_info_msg *msg;
@@ -184,8 +184,8 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 		pfid = find_first_bit(&pfmap, 16);
 		clear_bit(pfid, &pfmap);
 
-		/* check if notification is enabled */
-		if (!test_bit(pfid, &rvu->pf_notify_bmap)) {
+		/* check if yestification is enabled */
+		if (!test_bit(pfid, &rvu->pf_yestify_bmap)) {
 			dev_info(rvu->dev, "cgx %d: lmac %d Link status %s\n",
 				 event->cgx_id, event->lmac_id,
 				 linfo->link_up ? "UP" : "DOWN");
@@ -200,7 +200,7 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 		otx2_mbox_msg_send(&rvu->afpf_wq_info.mbox_up, pfid);
 		err = otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, pfid);
 		if (err)
-			dev_warn(rvu->dev, "notification to pf %d failed\n",
+			dev_warn(rvu->dev, "yestification to pf %d failed\n",
 				 pfid);
 	} while (pfmap);
 }
@@ -217,17 +217,17 @@ static void cgx_evhandler_task(struct work_struct *work)
 		spin_lock_irqsave(&rvu->cgx_evq_lock, flags);
 		qentry = list_first_entry_or_null(&rvu->cgx_evq_head,
 						  struct cgx_evq_entry,
-						  evq_node);
+						  evq_yesde);
 		if (qentry)
-			list_del(&qentry->evq_node);
+			list_del(&qentry->evq_yesde);
 		spin_unlock_irqrestore(&rvu->cgx_evq_lock, flags);
 		if (!qentry)
-			break; /* nothing more to process */
+			break; /* yesthing more to process */
 
 		event = &qentry->link_event;
 
 		/* process event */
-		cgx_notify_pfs(event, rvu);
+		cgx_yestify_pfs(event, rvu);
 		kfree(qentry);
 	} while (1);
 }
@@ -247,7 +247,7 @@ static int cgx_lmac_event_handler_init(struct rvu *rvu)
 		return -ENOMEM;
 	}
 
-	cb.notify_link_chg = cgx_lmac_postevent; /* link change call back */
+	cb.yestify_link_chg = cgx_lmac_postevent; /* link change call back */
 	cb.data = rvu;
 
 	for (cgx = 0; cgx <= rvu->cgx_cnt_max; cgx++) {
@@ -280,7 +280,7 @@ int rvu_cgx_init(struct rvu *rvu)
 	int cgx, err;
 	void *cgxd;
 
-	/* CGX port id starts from 0 and are not necessarily contiguous
+	/* CGX port id starts from 0 and are yest necessarily contiguous
 	 * Hence we allocate resources based on the maximum port id value.
 	 */
 	rvu->cgx_cnt_max = cgx_get_cgxcnt_max();
@@ -374,7 +374,7 @@ int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start)
 	u8 cgx_id, lmac_id;
 
 	/* This msg is expected only from PFs that are mapped to CGX LMACs,
-	 * if received from other PF/VF simply ACK, nothing to do.
+	 * if received from other PF/VF simply ACK, yesthing to do.
 	 */
 	if ((pcifunc & RVU_PFVF_FUNC_MASK) || !is_pf_cgxmapped(rvu, pf))
 		return -ENODEV;
@@ -478,7 +478,7 @@ int rvu_mbox_handler_cgx_promisc_enable(struct rvu *rvu, struct msg_req *req,
 	u8 cgx_id, lmac_id;
 
 	/* This msg is expected only from PFs that are mapped to CGX LMACs,
-	 * if received from other PF/VF simply ACK, nothing to do.
+	 * if received from other PF/VF simply ACK, yesthing to do.
 	 */
 	if ((req->hdr.pcifunc & RVU_PFVF_FUNC_MASK) ||
 	    !is_pf_cgxmapped(rvu, pf))
@@ -498,7 +498,7 @@ int rvu_mbox_handler_cgx_promisc_disable(struct rvu *rvu, struct msg_req *req,
 	u8 cgx_id, lmac_id;
 
 	/* This msg is expected only from PFs that are mapped to CGX LMACs,
-	 * if received from other PF/VF simply ACK, nothing to do.
+	 * if received from other PF/VF simply ACK, yesthing to do.
 	 */
 	if ((req->hdr.pcifunc & RVU_PFVF_FUNC_MASK) ||
 	    !is_pf_cgxmapped(rvu, pf))
@@ -516,7 +516,7 @@ static int rvu_cgx_config_linkevents(struct rvu *rvu, u16 pcifunc, bool en)
 	u8 cgx_id, lmac_id;
 
 	/* This msg is expected only from PFs that are mapped to CGX LMACs,
-	 * if received from other PF/VF simply ACK, nothing to do.
+	 * if received from other PF/VF simply ACK, yesthing to do.
 	 */
 	if ((pcifunc & RVU_PFVF_FUNC_MASK) || !is_pf_cgxmapped(rvu, pf))
 		return -ENODEV;
@@ -524,11 +524,11 @@ static int rvu_cgx_config_linkevents(struct rvu *rvu, u16 pcifunc, bool en)
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 
 	if (en) {
-		set_bit(pf, &rvu->pf_notify_bmap);
+		set_bit(pf, &rvu->pf_yestify_bmap);
 		/* Send the current link status to PF */
 		rvu_cgx_send_link_info(cgx_id, lmac_id, rvu);
 	} else {
-		clear_bit(pf, &rvu->pf_notify_bmap);
+		clear_bit(pf, &rvu->pf_yestify_bmap);
 	}
 
 	return 0;
@@ -572,7 +572,7 @@ static int rvu_cgx_config_intlbk(struct rvu *rvu, u16 pcifunc, bool en)
 	u8 cgx_id, lmac_id;
 
 	/* This msg is expected only from PFs that are mapped to CGX LMACs,
-	 * if received from other PF/VF simply ACK, nothing to do.
+	 * if received from other PF/VF simply ACK, yesthing to do.
 	 */
 	if ((pcifunc & RVU_PFVF_FUNC_MASK) || !is_pf_cgxmapped(rvu, pf))
 		return -ENODEV;
@@ -656,9 +656,9 @@ int rvu_cgx_start_stop_io(struct rvu *rvu, u16 pcifunc, bool start)
 	mutex_lock(&rvu->cgx_cfg_lock);
 
 	if (start && pfvf->cgx_in_use)
-		goto exit;  /* CGX is already started hence nothing to do */
+		goto exit;  /* CGX is already started hence yesthing to do */
 	if (!start && !pfvf->cgx_in_use)
-		goto exit; /* CGX is already stopped hence nothing to do */
+		goto exit; /* CGX is already stopped hence yesthing to do */
 
 	if (start) {
 		cgx_users = parent_pf->cgx_users;

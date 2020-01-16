@@ -206,7 +206,7 @@
 #define    CN6XXX_SLI_PKT_SLIST_ROR              0x1030
 
 /* 1 register (32-bit) - 1 bit for each output queue
- * - No Snoop mode for reading Output Queues descriptors
+ * - No Syesop mode for reading Output Queues descriptors
  * - SLI_PKT_SLIST_NS
  */
 #define    CN6XXX_SLI_PKT_SLIST_NS               0x1040
@@ -236,7 +236,7 @@
 #define    CN6XXX_SLI_PKT_DATA_OUT_ROR           0x1090
 
 /* 1 register (32-bit) - 1 bit for each output queue
- * - No Snoop mode for reading Output Queues data
+ * - No Syesop mode for reading Output Queues data
  * - SLI_PKT_DATA_OUT_NS
  */
 #define    CN6XXX_SLI_PKT_DATA_OUT_NS            0x10A0
@@ -470,13 +470,13 @@
 
 #define    CN6XXX_DPI_DMA_ENG0_ENB        0x0001df0000000080ULL
 
-#define    CN6XXX_DPI_DMA_ENG_ENB(q_no)   \
-	(CN6XXX_DPI_DMA_ENG0_ENB + ((q_no) * 8))
+#define    CN6XXX_DPI_DMA_ENG_ENB(q_yes)   \
+	(CN6XXX_DPI_DMA_ENG0_ENB + ((q_yes) * 8))
 
 #define    CN6XXX_DPI_DMA_ENG0_BUF        0x0001df0000000880ULL
 
-#define    CN6XXX_DPI_DMA_ENG_BUF(q_no)   \
-	(CN6XXX_DPI_DMA_ENG0_BUF + ((q_no) * 8))
+#define    CN6XXX_DPI_DMA_ENG_BUF(q_yes)   \
+	(CN6XXX_DPI_DMA_ENG0_BUF + ((q_yes) * 8))
 
 #define    CN6XXX_DPI_SLI_PRT0_CFG        0x0001df0000000900ULL
 #define    CN6XXX_DPI_SLI_PRT1_CFG        0x0001df0000000908ULL

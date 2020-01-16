@@ -18,8 +18,8 @@ DECLARE_PER_CPU(int, __preempt_count);
 #define PREEMPT_ENABLED	(0 + PREEMPT_NEED_RESCHED)
 
 /*
- * We mask the PREEMPT_NEED_RESCHED bit so as not to confuse all current users
- * that think a non-zero value indicates we cannot preempt.
+ * We mask the PREEMPT_NEED_RESCHED bit so as yest to confuse all current users
+ * that think a yesn-zero value indicates we canyest preempt.
  */
 static __always_inline int preempt_count(void)
 {
@@ -51,8 +51,8 @@ static __always_inline void preempt_count_set(int pc)
  * preempt_enable() can decrement and test for needing to reschedule with a
  * single instruction.
  *
- * We invert the actual bit, so that when the decrement hits 0 we know we both
- * need to resched (the bit is cleared) and can resched (no preempt count).
+ * We invert the actual bit, so that when the decrement hits 0 we kyesw we both
+ * need to resched (the bit is cleared) and can resched (yes preempt count).
  */
 
 static __always_inline void set_preempt_need_resched(void)
@@ -85,8 +85,8 @@ static __always_inline void __preempt_count_sub(int val)
 }
 
 /*
- * Because we keep PREEMPT_NEED_RESCHED set when we do _not_ need to reschedule
- * a decrement which hits zero means we have no preempt_count and should
+ * Because we keep PREEMPT_NEED_RESCHED set when we do _yest_ need to reschedule
+ * a decrement which hits zero means we have yes preempt_count and should
  * reschedule.
  */
 static __always_inline bool __preempt_count_dec_and_test(void)
@@ -108,11 +108,11 @@ static __always_inline bool should_resched(int preempt_offset)
 	asm volatile ("call ___preempt_schedule" : ASM_CALL_CONSTRAINT)
 
   extern asmlinkage void preempt_schedule(void);
-  extern asmlinkage void ___preempt_schedule_notrace(void);
-# define __preempt_schedule_notrace() \
-	asm volatile ("call ___preempt_schedule_notrace" : ASM_CALL_CONSTRAINT)
+  extern asmlinkage void ___preempt_schedule_yestrace(void);
+# define __preempt_schedule_yestrace() \
+	asm volatile ("call ___preempt_schedule_yestrace" : ASM_CALL_CONSTRAINT)
 
-  extern asmlinkage void preempt_schedule_notrace(void);
+  extern asmlinkage void preempt_schedule_yestrace(void);
 #endif
 
 #endif /* __ASM_PREEMPT_H */

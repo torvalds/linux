@@ -43,7 +43,7 @@ tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 
 	/* In the event of icmp, we're only guaranteed to have the first 8
 	 * bytes of the transport header, so we only check the rest of the
-	 * TCP packet for non-ICMP packets
+	 * TCP packet for yesn-ICMP packets
 	 */
 	if (likely(!ip_vs_iph_icmp(iph))) {
 		th = skb_header_pointer(skb, iph->len, sizeof(_tcph), &_tcph);
@@ -72,7 +72,7 @@ tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 					 &iph->saddr, ports[0]);
 
 	if (svc) {
-		int ignored;
+		int igyesred;
 
 		if (ip_vs_todrop(ipvs)) {
 			/*
@@ -87,9 +87,9 @@ tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb, pd, &ignored, iph);
-		if (!*cpp && ignored <= 0) {
-			if (!ignored)
+		*cpp = ip_vs_schedule(svc, skb, pd, &igyesred, iph);
+		if (!*cpp && igyesred <= 0) {
+			if (!igyesred)
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
 			else
 				*verdict = NF_DROP;
@@ -489,7 +489,7 @@ static void tcp_timeout_change(struct ip_vs_proto_data *pd, int flags)
 	/*
 	** FIXME: change secure_tcp to independent sysctl var
 	** or make it per-service or per-app because it is valid
-	** for most if not for all of the applications. Something
+	** for most if yest for all of the applications. Something
 	** like "capabilities" (flags) for each object.
 	*/
 	pd->tcp_state_table = (on ? tcp_states_dos : tcp_states);
@@ -700,7 +700,7 @@ void ip_vs_tcp_conn_listen(struct ip_vs_conn *cp)
 }
 
 /* ---------------------------------------------
- *   timeouts is netns related now.
+ *   timeouts is netns related yesw.
  * ---------------------------------------------
  */
 static int __ip_vs_tcp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd)

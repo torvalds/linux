@@ -21,11 +21,11 @@
 /**
  * struct rpmsg_device_ops - indirection table for the rpmsg_device operations
  * @create_ept:		create backend-specific endpoint, required
- * @announce_create:	announce presence of new channel, optional
- * @announce_destroy:	announce destruction of channel, optional
+ * @anyesunce_create:	anyesunce presence of new channel, optional
+ * @anyesunce_destroy:	anyesunce destruction of channel, optional
  *
  * Indirection table for the operations that a rpmsg backend should implement.
- * @announce_create and @announce_destroy are optional as the backend might
+ * @anyesunce_create and @anyesunce_destroy are optional as the backend might
  * advertise new channels implicitly by creating the endpoints.
  */
 struct rpmsg_device_ops {
@@ -33,8 +33,8 @@ struct rpmsg_device_ops {
 					    rpmsg_rx_cb_t cb, void *priv,
 					    struct rpmsg_channel_info chinfo);
 
-	int (*announce_create)(struct rpmsg_device *ept);
-	int (*announce_destroy)(struct rpmsg_device *ept);
+	int (*anyesunce_create)(struct rpmsg_device *ept);
+	int (*anyesunce_destroy)(struct rpmsg_device *ept);
 };
 
 /**

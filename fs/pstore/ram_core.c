@@ -7,7 +7,7 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -95,7 +95,7 @@ exit:
 		raw_spin_unlock_irqrestore(&prz->buffer_lock, flags);
 }
 
-static void notrace persistent_ram_encode_rs8(struct persistent_ram_zone *prz,
+static void yestrace persistent_ram_encode_rs8(struct persistent_ram_zone *prz,
 	uint8_t *data, size_t len, uint8_t *ecc)
 {
 	int i;
@@ -119,7 +119,7 @@ static int persistent_ram_decode_rs8(struct persistent_ram_zone *prz,
 				NULL, 0, NULL, 0, NULL);
 }
 
-static void notrace persistent_ram_update_ecc(struct persistent_ram_zone *prz,
+static void yestrace persistent_ram_update_ecc(struct persistent_ram_zone *prz,
 	unsigned int start, unsigned int count)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
@@ -233,7 +233,7 @@ static int persistent_ram_init_ecc(struct persistent_ram_zone *prz,
 					  sizeof(*prz->ecc_info.par),
 					  GFP_KERNEL);
 	if (!prz->ecc_info.par) {
-		pr_err("cannot allocate ECC parity workspace\n");
+		pr_err("canyest allocate ECC parity workspace\n");
 		return -ENOMEM;
 	}
 
@@ -271,7 +271,7 @@ ssize_t persistent_ram_ecc_string(struct persistent_ram_zone *prz,
 	return ret;
 }
 
-static void notrace persistent_ram_update(struct persistent_ram_zone *prz,
+static void yestrace persistent_ram_update(struct persistent_ram_zone *prz,
 	const void *s, unsigned int start, unsigned int count)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
@@ -279,7 +279,7 @@ static void notrace persistent_ram_update(struct persistent_ram_zone *prz,
 	persistent_ram_update_ecc(prz, start, count);
 }
 
-static int notrace persistent_ram_update_user(struct persistent_ram_zone *prz,
+static int yestrace persistent_ram_update_user(struct persistent_ram_zone *prz,
 	const void __user *s, unsigned int start, unsigned int count)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
@@ -312,7 +312,7 @@ void persistent_ram_save_old(struct persistent_ram_zone *prz)
 	memcpy_fromio(prz->old_log + size - start, &buffer->data[0], start);
 }
 
-int notrace persistent_ram_write(struct persistent_ram_zone *prz,
+int yestrace persistent_ram_write(struct persistent_ram_zone *prz,
 	const void *s, unsigned int count)
 {
 	int rem;
@@ -342,7 +342,7 @@ int notrace persistent_ram_write(struct persistent_ram_zone *prz,
 	return count;
 }
 
-int notrace persistent_ram_write_user(struct persistent_ram_zone *prz,
+int yestrace persistent_ram_write_user(struct persistent_ram_zone *prz,
 	const void __user *s, unsigned int count)
 {
 	int rem, ret = 0, c = count;
@@ -412,7 +412,7 @@ static void *persistent_ram_vmap(phys_addr_t start, size_t size,
 	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
 
 	if (memtype)
-		prot = pgprot_noncached(PAGE_KERNEL);
+		prot = pgprot_yesncached(PAGE_KERNEL);
 	else
 		prot = pgprot_writecombine(PAGE_KERNEL);
 
@@ -457,7 +457,7 @@ static void *persistent_ram_iomap(phys_addr_t start, size_t size,
 
 	/*
 	 * Since request_mem_region() and ioremap() are byte-granularity
-	 * there is no need handle anything special like we do when the
+	 * there is yes need handle anything special like we do when the
 	 * vmap() case in persistent_ram_vmap() above.
 	 */
 	return va;
@@ -518,7 +518,7 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 			persistent_ram_save_old(prz);
 		}
 	} else {
-		pr_debug("no valid data in buffer (sig = 0x%08x)\n",
+		pr_debug("yes valid data in buffer (sig = 0x%08x)\n",
 			 prz->buffer->sig);
 		prz->buffer->sig = sig;
 		zap = true;

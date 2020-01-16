@@ -6,7 +6,7 @@
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>

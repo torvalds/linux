@@ -198,7 +198,7 @@ static struct iommu_domain *host1x_iommu_attach(struct host1x *host)
 	int err;
 
 	/*
-	 * If the host1x firewall is enabled, there's no need to enable IOMMU
+	 * If the host1x firewall is enabled, there's yes need to enable IOMMU
 	 * support. Similarly, if host1x is already attached to an IOMMU (via
 	 * the DMA API), don't try to attach again.
 	 */
@@ -268,7 +268,7 @@ static int host1x_iommu_init(struct host1x *host)
 	}
 
 	/*
-	 * If we're not behind an IOMMU make sure we don't get push buffers
+	 * If we're yest behind an IOMMU make sure we don't get push buffers
 	 * that are allocated outside of the range addressable by the GATHER
 	 * opcode.
 	 *

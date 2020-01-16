@@ -24,13 +24,13 @@ int wusbhc_sec_create(struct wusbhc *wusbhc)
 	 * WQ is singlethread because we need to serialize rekey operations.
 	 * Use a separate workqueue for security operations instead of the
 	 * wusbd workqueue because security operations may need to communicate
-	 * directly with downstream wireless devices using synchronous URBs.
-	 * If a device is not responding, this could block other host
+	 * directly with downstream wireless devices using synchroyesus URBs.
+	 * If a device is yest responding, this could block other host
 	 * controller operations.
 	 */
 	wusbhc->wq_security = create_singlethread_workqueue("wusbd_security");
 	if (wusbhc->wq_security == NULL) {
-		pr_err("WUSB-core: Cannot create wusbd_security workqueue\n");
+		pr_err("WUSB-core: Canyest create wusbd_security workqueue\n");
 		return -ENOMEM;
 	}
 
@@ -61,8 +61,8 @@ void wusbhc_sec_destroy(struct wusbhc *wusbhc)
  *
  * The generated TKID consists of two parts: the device's authenticated
  * address (or 0 or a GTK); and an incrementing number.  This ensures
- * that TKIDs cannot be shared between devices and by the time the
- * incrementing number wraps around the older TKIDs will no longer be
+ * that TKIDs canyest be shared between devices and by the time the
+ * incrementing number wraps around the older TKIDs will yes longer be
  * in use (a maximum of two keys may be active at any one time).
  */
 static u32 wusbhc_next_tkid(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
@@ -115,7 +115,7 @@ int wusbhc_sec_start(struct wusbhc *wusbhc)
 	result = wusbhc->set_gtk(wusbhc, wusbhc->gtk_tkid,
 				&wusbhc->gtk.descr.bKeyData, key_size);
 	if (result < 0)
-		dev_err(wusbhc->dev, "cannot set GTK for the host: %d\n",
+		dev_err(wusbhc->dev, "canyest set GTK for the host: %d\n",
 			result);
 
 	return result;
@@ -141,7 +141,7 @@ const char *wusb_et_name(u8 x)
 	case USB_ENC_TYPE_WIRED:	return "wired";
 	case USB_ENC_TYPE_CCM_1:	return "CCM-1";
 	case USB_ENC_TYPE_RSA_1:	return "RSA-1";
-	default:			return "unknown";
+	default:			return "unkyeswn";
 	}
 }
 EXPORT_SYMBOL_GPL(wusb_et_name);
@@ -219,7 +219,7 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 				    0, secd, sizeof(*secd));
 	if (result < (int)sizeof(*secd)) {
 		dev_err(dev, "Can't read security descriptor or "
-			"not enough data: %d\n", result);
+			"yest eyesugh data: %d\n", result);
 		goto out;
 	}
 	secd_size = le16_to_cpu(secd->wTotalLength);
@@ -235,7 +235,7 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 				    0, secd, secd_size);
 	if (result < secd_size) {
 		dev_err(dev, "Can't read security descriptor or "
-			"not enough data: %d\n", result);
+			"yest eyesugh data: %d\n", result);
 		goto out;
 	}
 	bytes = 0;
@@ -245,7 +245,7 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 		etd = itr;
 		if (top - itr < sizeof(*etd)) {
 			dev_err(dev, "BUG: bad device security descriptor; "
-				"not enough data (%zu vs %zu bytes left)\n",
+				"yest eyesugh data (%zu vs %zu bytes left)\n",
 				top - itr, sizeof(*etd));
 			break;
 		}
@@ -264,7 +264,7 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 		if (etd->bEncryptionType == USB_ENC_TYPE_CCM_1)
 			ccm1_etd = etd;
 	}
-	/* This code only supports CCM1 as of now. */
+	/* This code only supports CCM1 as of yesw. */
 	/* FIXME: user has to choose which sec mode to use?
 	 * In theory we want CCM */
 	if (ccm1_etd == NULL) {
@@ -292,9 +292,9 @@ void wusb_dev_sec_rm(struct wusb_dev *wusb_dev)
  * Update the address of an unauthenticated WUSB device
  *
  * Once we have successfully authenticated, we take it to addr0 state
- * and then to a normal address.
+ * and then to a yesrmal address.
  *
- * Before the device's address (as known by it) was usb_dev->devnum |
+ * Before the device's address (as kyeswn by it) was usb_dev->devnum |
  * 0x80 (unauthenticated address). With this we update it to usb_dev->devnum.
  */
 int wusb_dev_update_address(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
@@ -355,7 +355,7 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 	struct device *dev = &usb_dev->dev;
 	u32 tkid;
 	struct usb_handshake *hs;
-	struct aes_ccm_nonce ccm_n;
+	struct aes_ccm_yesnce ccm_n;
 	u8 mic[8];
 	struct wusb_keydvt_in keydvt_in;
 	struct wusb_keydvt_out keydvt_out;
@@ -377,7 +377,7 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 	put_unaligned_le32(tkid, hs[0].tTKID);
 	hs[0].bReserved = 0;
 	memcpy(hs[0].CDID, &wusb_dev->cdid, sizeof(hs[0].CDID));
-	get_random_bytes(&hs[0].nonce, sizeof(hs[0].nonce));
+	get_random_bytes(&hs[0].yesnce, sizeof(hs[0].yesnce));
 	memset(hs[0].MIC, 0, sizeof(hs[0].MIC)); /* Per WUSB1.0[T7-22] */
 
 	result = usb_control_msg(
@@ -424,19 +424,19 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 		goto error_hs2;
 	}
 
-	/* Setup the CCM nonce */
+	/* Setup the CCM yesnce */
 	memset(&ccm_n.sfn, 0, sizeof(ccm_n.sfn)); /* Per WUSB1.0[6.5.2] */
 	put_unaligned_le32(tkid, ccm_n.tkid);
 	ccm_n.src_addr = wusbhc->uwb_rc->uwb_dev.dev_addr;
 	ccm_n.dest_addr.data[0] = wusb_dev->addr;
 	ccm_n.dest_addr.data[1] = 0;
 
-	/* Derive the KCK and PTK from CK, the CCM, H and D nonces */
-	memcpy(keydvt_in.hnonce, hs[0].nonce, sizeof(keydvt_in.hnonce));
-	memcpy(keydvt_in.dnonce, hs[1].nonce, sizeof(keydvt_in.dnonce));
+	/* Derive the KCK and PTK from CK, the CCM, H and D yesnces */
+	memcpy(keydvt_in.hyesnce, hs[0].yesnce, sizeof(keydvt_in.hyesnce));
+	memcpy(keydvt_in.dyesnce, hs[1].yesnce, sizeof(keydvt_in.dyesnce));
 	result = wusb_key_derive(&keydvt_out, ck->data, &ccm_n, &keydvt_in);
 	if (result < 0) {
-		dev_err(dev, "Handshake2 failed: cannot derive keys: %d\n",
+		dev_err(dev, "Handshake2 failed: canyest derive keys: %d\n",
 			result);
 		goto error_hs2;
 	}
@@ -444,7 +444,7 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 	/* Compute MIC and verify it */
 	result = wusb_oob_mic(mic, keydvt_out.kck, &ccm_n, &hs[1]);
 	if (result < 0) {
-		dev_err(dev, "Handshake2 failed: cannot compute MIC: %d\n",
+		dev_err(dev, "Handshake2 failed: canyest compute MIC: %d\n",
 			result);
 		goto error_hs2;
 	}
@@ -460,10 +460,10 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 	put_unaligned_le32(tkid, hs[2].tTKID);
 	hs[2].bReserved = 0;
 	memcpy(hs[2].CDID, &wusb_dev->cdid, sizeof(hs[2].CDID));
-	memcpy(hs[2].nonce, hs[0].nonce, sizeof(hs[2].nonce));
+	memcpy(hs[2].yesnce, hs[0].yesnce, sizeof(hs[2].yesnce));
 	result = wusb_oob_mic(hs[2].MIC, keydvt_out.kck, &ccm_n, &hs[2]);
 	if (result < 0) {
-		dev_err(dev, "Handshake3 failed: cannot compute MIC: %d\n",
+		dev_err(dev, "Handshake3 failed: canyest compute MIC: %d\n",
 			result);
 		goto error_hs2;
 	}
@@ -548,14 +548,14 @@ static void wusbhc_gtk_rekey_work(struct work_struct *work)
 			continue;
 
 		wusb_dev_get(wusb_dev);
-		list_add_tail(&wusb_dev->rekey_node, &rekey_list);
+		list_add_tail(&wusb_dev->rekey_yesde, &rekey_list);
 	}
 	mutex_unlock(&wusbhc->mutex);
 
 	/* Submit the rekey requests without holding wusbhc->mutex. */
 	list_for_each_entry_safe(wusb_dev, wusb_dev_next, &rekey_list,
-		rekey_node) {
-		list_del_init(&wusb_dev->rekey_node);
+		rekey_yesde) {
+		list_del_init(&wusb_dev->rekey_yesde);
 		dev_dbg(&wusb_dev->usb_dev->dev,
 			"%s: rekey device at port %d\n",
 			__func__, wusb_dev->port_idx);
@@ -593,7 +593,7 @@ void wusbhc_gtk_rekey(struct wusbhc *wusbhc)
 	 * change the group key.  This can't be done while holding the
 	 * wusbhc->mutex since that is also taken in the urb_enqueue routine
 	 * and will cause a deadlock.  Instead, queue a work item to do
-	 * it when the lock is not held
+	 * it when the lock is yest held
 	 */
 	queue_work(wusbhc->wq_security, &wusbhc->gtk_rekey_work);
 }

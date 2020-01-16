@@ -19,7 +19,7 @@
 /*
  * TA_CMD_GET_ENTROPY - Get Entropy from RNG
  *
- * param[0] (inout memref) - Entropy buffer memory reference
+ * param[0] (iyesut memref) - Entropy buffer memory reference
  * param[1] unused
  * param[2] unused
  * param[3] unused

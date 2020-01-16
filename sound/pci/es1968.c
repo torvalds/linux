@@ -40,13 +40,13 @@
  *	Each APU can do a number of things, but we only really use
  *	3 basic functions.  For playback we use them to convert PCM
  *	data fetched over PCI by the wavecahche into analog data that
- *	is handed to the codec.  One APU for mono, and a pair for stereo.
+ *	is handed to the codec.  One APU for moyes, and a pair for stereo.
  *	When in stereo, the combination of smarts in the APU and Wavecache
  *	decide which wavecache gets the left or right channel.
  *
- *	For record we still use the old overly mono system.  For each in
+ *	For record we still use the old overly moyes system.  For each in
  *	coming channel the data comes in from the codec, through a 'input'
- *	APU, through another rate converter APU, and then into memory via
+ *	APU, through ayesther rate converter APU, and then into memory via
  *	the wavecache and PCI.  If its stereo, we mash it back into LRLR in
  *	software.  The pass between the 2 APUs is supposedly what requires us
  *	to have a 512 byte buffer sitting around in wavecache/memory.
@@ -72,7 +72,7 @@
  *	like the APU interface that is indirect registers gotten at through
  *	the main maestro indirection.  Ouch.  We spinlock around the actual
  *	ports on a per card basis.  This means spinlock activity at each IO
- *	operation, but the only IO operation clusters are in non critical 
+ *	operation, but the only IO operation clusters are in yesn critical 
  *	paths and it makes the code far easier to follow.  Interrupts are
  *	blocked while holding the locks because the int handler has to
  *	get at some of them :(.  The mixer interface doesn't, however.
@@ -572,7 +572,7 @@ MODULE_DEVICE_TABLE(pci, snd_es1968_ids);
    * Low Level Funcs!  *
    *********************/
 
-/* no spinlock */
+/* yes spinlock */
 static void __maestro_write(struct es1968 *chip, u16 reg, u16 data)
 {
 	outw(reg, chip->io_port + ESM_INDEX);
@@ -588,7 +588,7 @@ static inline void maestro_write(struct es1968 *chip, u16 reg, u16 data)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
-/* no spinlock */
+/* yes spinlock */
 static u16 __maestro_read(struct es1968 *chip, u16 reg)
 {
 	if (READABLE_MAP & (1 << reg)) {
@@ -665,7 +665,7 @@ static unsigned short snd_es1968_ac97_read(struct snd_ac97 *ac97, unsigned short
 	return data;
 }
 
-/* no spinlock */
+/* yes spinlock */
 static void apu_index_set(struct es1968 *chip, u16 index)
 {
 	int i;
@@ -676,7 +676,7 @@ static void apu_index_set(struct es1968 *chip, u16 index)
 	dev_dbg(chip->card->dev, "APU register select failed. (Timeout)\n");
 }
 
-/* no spinlock */
+/* yes spinlock */
 static void apu_data_set(struct es1968 *chip, u16 data)
 {
 	int i;
@@ -688,7 +688,7 @@ static void apu_data_set(struct es1968 *chip, u16 data)
 	dev_dbg(chip->card->dev, "APU register set probably failed (Timeout)!\n");
 }
 
-/* no spinlock */
+/* yes spinlock */
 static void __apu_set_register(struct es1968 *chip, u16 channel, u8 reg, u16 data)
 {
 	if (snd_BUG_ON(channel >= NR_APUS))
@@ -728,7 +728,7 @@ static u16 apu_get_register(struct es1968 *chip, u16 channel, u8 reg)
 	return v;
 }
 
-#if 0 /* ASSP is not supported */
+#if 0 /* ASSP is yest supported */
 
 static void assp_set_register(struct es1968 *chip, u32 reg, u32 value)
 {
@@ -813,7 +813,7 @@ static void snd_es1968_bob_start(struct es1968 *chip)
 	}
 	divide >>= 1;
 
-	/* now fine-tune the divider for best match */
+	/* yesw fine-tune the divider for best match */
 	for (; divide < 31; divide++)
 		if (chip->bob_freq >
 		    ((ESS_SYSCLK >> (prescale + 9)) / (divide + 1))) break;
@@ -1037,12 +1037,12 @@ static void snd_es1968_playback_setup(struct es1968 *chip, struct esschan *es,
 
 		/* clear effects/env.. */
 		apu_set_register(chip, apu, 8, 0x0000);
-		/* set amp now to 0xd0 (?), low byte is 'amplitude dest'? */
+		/* set amp yesw to 0xd0 (?), low byte is 'amplitude dest'? */
 		apu_set_register(chip, apu, 9, 0xD000);
 
 		/* clear routing stuff */
 		apu_set_register(chip, apu, 11, 0x0000);
-		/* dma on, no envelopes, filter to all 1s) */
+		/* dma on, yes envelopes, filter to all 1s) */
 		apu_set_register(chip, apu, 0, 0x400F);
 
 		if (es->fmt & ESS_FMT_16BIT)
@@ -1053,9 +1053,9 @@ static void snd_es1968_playback_setup(struct es1968 *chip, struct esschan *es,
 		if (es->fmt & ESS_FMT_STEREO) {
 			/* set panning: left or right */
 			/* Check: different panning. On my Canyon 3D Chipset the
-			   Channels are swapped. I don't know, about the output
+			   Channels are swapped. I don't kyesw, about the output
 			   to the SPDif Link. Perhaps you have to change this
-			   and not the APU Regs 4-5. */
+			   and yest the APU Regs 4-5. */
 			apu_set_register(chip, apu, 10,
 					 0x8F00 | (channel ? 0 : 0x10));
 			es->apu_mode[channel] += 1;	/* stereo */
@@ -1124,13 +1124,13 @@ static void init_capture_apu(struct es1968 *chip, struct esschan *es, int channe
 	apu_set_register(chip, apu, 7, bsize);
 	/* clear effects/env.. */
 	apu_set_register(chip, apu, 8, 0x00F0);
-	/* amplitude now?  sure.  why not.  */
+	/* amplitude yesw?  sure.  why yest.  */
 	apu_set_register(chip, apu, 9, 0x0000);
 	/* set filter tune, radius, polar pan */
 	apu_set_register(chip, apu, 10, 0x8F08);
 	/* route input */
 	apu_set_register(chip, apu, 11, route);
-	/* dma on, no envelopes, filter to all 1s) */
+	/* dma on, yes envelopes, filter to all 1s) */
 	apu_set_register(chip, apu, 0, 0x400F);
 }
 
@@ -1144,21 +1144,21 @@ static void snd_es1968_capture_setup(struct es1968 *chip, struct esschan *es,
 	size = es->dma_size >> es->wav_shift;
 
 	/* APU assignments:
-	   0 = mono/left SRC
+	   0 = moyes/left SRC
 	   1 = right SRC
-	   2 = mono/left Input Mixer
+	   2 = moyes/left Input Mixer
 	   3 = right Input Mixer
 	*/
 	/* data seems to flow from the codec, through an apu into
 	   the 'mixbuf' bit of page, then through the SRC apu
 	   and out to the real 'buffer'.  ok.  sure.  */
 
-	/* input mixer (left/mono) */
+	/* input mixer (left/moyes) */
 	/* parallel in crap, see maestro reg 0xC [8-11] */
 	init_capture_apu(chip, es, 2,
 			 es->mixbuf->buf.addr, ESM_MIXBUF_SIZE/4, /* in words */
 			 ESM_APU_INPUTMIXER, 0x14);
-	/* SRC (left/mono); get input from inputing apu */
+	/* SRC (left/moyes); get input from inputing apu */
 	init_capture_apu(chip, es, 0, es->memory->buf.addr, size,
 			 ESM_APU_SRCONVERTOR, es->apu[2]);
 	if (es->fmt & ESS_FMT_STEREO) {
@@ -1475,7 +1475,7 @@ static int snd_es1968_hw_params(struct snd_pcm_substream *substream,
 	chan->memory = snd_es1968_new_memory(chip, size);
 	if (chan->memory == NULL) {
 		dev_dbg(chip->card->dev,
-			"cannot allocate dma buffer: size = %d\n", size);
+			"canyest allocate dma buffer: size = %d\n", size);
 		return -ENOMEM;
 	}
 	snd_pcm_set_runtime_buffer(substream, &chan->memory->buf);
@@ -1687,7 +1687,7 @@ static const struct snd_pcm_ops snd_es1968_capture_ops = {
 /*
  * measure clock
  */
-#define CLOCK_MEASURE_BUFSIZE	16768	/* enough large for a single shot */
+#define CLOCK_MEASURE_BUFSIZE	16768	/* eyesugh large for a single shot */
 
 static void es1968_measure_clock(struct es1968 *chip)
 {
@@ -1700,14 +1700,14 @@ static void es1968_measure_clock(struct es1968 *chip)
 	if (chip->clock == 0)
 		chip->clock = 48000; /* default clock value */
 
-	/* search 2 APUs (although one apu is enough) */
+	/* search 2 APUs (although one apu is eyesugh) */
 	if ((apu = snd_es1968_alloc_apu_pair(chip, ESM_APU_PCM_PLAY)) < 0) {
-		dev_err(chip->card->dev, "Hmm, cannot find empty APU pair!?\n");
+		dev_err(chip->card->dev, "Hmm, canyest find empty APU pair!?\n");
 		return;
 	}
 	if ((memory = snd_es1968_new_memory(chip, CLOCK_MEASURE_BUFSIZE)) == NULL) {
 		dev_warn(chip->card->dev,
-			 "cannot allocate dma buffer - using default clock %d\n",
+			 "canyest allocate dma buffer - using default clock %d\n",
 			 chip->clock);
 		snd_es1968_free_apu_pair(chip, apu);
 		return;
@@ -1873,7 +1873,7 @@ static void snd_es1968_update_pcm(struct es1968 *chip, struct esschan *es)
 /* The hardware volume works by incrementing / decrementing 2 counters
    (without wrap around) in response to volume button presses and then
    generating an interrupt. The pair of counters is stored in bits 1-3 and 5-7
-   of a byte wide register. The meaning of bits 0 and 4 is unknown. */
+   of a byte wide register. The meaning of bits 0 and 4 is unkyeswn. */
 static void es1968_update_hw_volume(struct work_struct *work)
 {
 	struct es1968 *chip = container_of(work, struct es1968, hwvol_work);
@@ -1918,7 +1918,7 @@ static void es1968_update_hw_volume(struct work_struct *work)
 		break;
 	}
 	if (snd_ac97_update(chip->ac97, AC97_MASTER, val))
-		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->master_volume->id);
 #else
 	if (!chip->input_dev)
@@ -1927,7 +1927,7 @@ static void es1968_update_hw_volume(struct work_struct *work)
 	val = 0;
 	switch (x) {
 	case 0x88:
-		/* The counters have not changed, yet we've received a HV
+		/* The counters have yest changed, yet we've received a HV
 		   interrupt. According to tests run by various people this
 		   happens when pressing the mute button. */
 		val = KEY_MUTE;
@@ -2016,7 +2016,7 @@ snd_es1968_mixer(struct es1968 *chip)
 
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus)) < 0)
 		return err;
-	pbus->no_vra = 1; /* ES1968 doesn't need VRA */
+	pbus->yes_vra = 1; /* ES1968 doesn't need VRA */
 
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
@@ -2073,12 +2073,12 @@ static void snd_es1968_ac97_reset(struct es1968 *chip)
 	outw(0x0001, ioaddr + 0x60);	/* write 1 to gpio 1 */
 	msleep(20);
 
-	outw(save_68 | 0x1, ioaddr + 0x68);	/* now restore .. */
+	outw(save_68 | 0x1, ioaddr + 0x68);	/* yesw restore .. */
 	outw((inw(ioaddr + 0x38) & 0xfffc) | 0x1, ioaddr + 0x38);
 	outw((inw(ioaddr + 0x3a) & 0xfffc) | 0x1, ioaddr + 0x3a);
 	outw((inw(ioaddr + 0x3c) & 0xfffc) | 0x1, ioaddr + 0x3c);
 
-	/* now the second codec */
+	/* yesw the second codec */
 	/* disable ac link */
 	outw(0x0000, ioaddr + 0x36);
 	outw(0xfff7, ioaddr + 0x64);	/* unmask gpio 3 */
@@ -2169,10 +2169,10 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 	u32 n;
 
 	/* We used to muck around with pci config space that
-	 * we had no business messing with.  We don't know enough
-	 * about the machine to know which DMA mode is appropriate, 
+	 * we had yes business messing with.  We don't kyesw eyesugh
+	 * about the machine to kyesw which DMA mode is appropriate, 
 	 * etc.  We were guessing wrong on some machines and making
-	 * them unhappy.  We now trust in the BIOS to do things right,
+	 * them unhappy.  We yesw trust in the BIOS to do things right,
 	 * which almost certainly means a new host of problems will
 	 * arise with broken BIOS implementations.  screw 'em. 
 	 * We're already intolerant of machines that don't assign
@@ -2183,7 +2183,7 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 	pci_read_config_word(pci, ESM_CONFIG_A, &w);
 
 	w &= ~DMA_CLEAR;	/* Clear DMA bits */
-	w &= ~(PIC_SNOOP1 | PIC_SNOOP2);	/* Clear Pic Snoop Mode Bits */
+	w &= ~(PIC_SNOOP1 | PIC_SNOOP2);	/* Clear Pic Syesop Mode Bits */
 	w &= ~SAFEGUARD;	/* Safeguard off */
 	w |= POST_WRITE;	/* Posted write */
 	w |= PCI_TIMING;	/* PCI timing on */
@@ -2200,7 +2200,7 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 	pci_read_config_word(pci, ESM_CONFIG_B, &w);
 
 	w &= ~(1 << 15);	/* Turn off internal clock multiplier */
-	/* XXX how do we know which to use? */
+	/* XXX how do we kyesw which to use? */
 	w &= ~(1 << 14);	/* External clock */
 
 	w &= ~SPDIF_CONFB;	/* disable S/PDIF output */
@@ -2275,7 +2275,7 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 	outb(0x88, iobase+0x1f);
 
 	/* it appears some maestros (dell 7500) only work if these are set,
-	   regardless of whether we use the assp or not. */
+	   regardless of whether we use the assp or yest. */
 
 	outb(0, iobase + ASSP_CONTROL_B);
 	outb(3, iobase + ASSP_CONTROL_A);	/* M: Reserved bits... */
@@ -2327,8 +2327,8 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 
 	w = inw(iobase + WC_CONTROL);
 
-	w &= ~0xFA00;		/* Seems to be reserved? I don't know */
-	w |= 0xA000;		/* reserved... I don't know */
+	w &= ~0xFA00;		/* Seems to be reserved? I don't kyesw */
+	w |= 0xA000;		/* reserved... I don't kyesw */
 	w &= ~0x0200;		/* Channels 56,57,58,59 as Extra Play,Rec Channel enable
 				   Seems to crash the Computer if enabled... */
 	w |= 0x0100;		/* Wave Cache Operation Enabled */
@@ -2447,7 +2447,7 @@ static int snd_es1968_create_gameport(struct es1968 *chip, int dev)
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		dev_err(chip->card->dev,
-			"cannot allocate memory for gameport\n");
+			"canyest allocate memory for gameport\n");
 		release_and_free_resource(r);
 		return -ENOMEM;
 	}
@@ -2675,7 +2675,7 @@ static int snd_es1968_create(struct snd_card *card,
 	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(28)) < 0 ||
 	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(28)) < 0) {
 		dev_err(card->dev,
-			"architecture does not support 28bit PCI busmaster DMA\n");
+			"architecture does yest support 28bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -2727,7 +2727,7 @@ static int snd_es1968_create(struct snd_card *card,
 	pci_set_master(pci);
 
 	if (do_pm > 1) {
-		/* disable power-management if not on the whitelist */
+		/* disable power-management if yest on the whitelist */
 		unsigned short vend;
 		pci_read_config_word(chip->pci, PCI_SUBSYSTEM_VENDOR_ID, &vend);
 		for (i = 0; i < (int)ARRAY_SIZE(pm_whitelist); i++) {
@@ -2738,8 +2738,8 @@ static int snd_es1968_create(struct snd_card *card,
 			}
 		}
 		if (do_pm > 1) {
-			/* not matched; disabling pm */
-			dev_info(card->dev, "not attempting power management.\n");
+			/* yest matched; disabling pm */
+			dev_info(card->dev, "yest attempting power management.\n");
 			do_pm = 0;
 		}
 	}
@@ -2755,7 +2755,7 @@ static int snd_es1968_create(struct snd_card *card,
 #ifdef CONFIG_SND_ES1968_RADIO
 	/* don't play with GPIOs on laptops */
 	if (chip->pci->subsystem_vendor != 0x125d)
-		goto no_radio;
+		goto yes_radio;
 	err = v4l2_device_register(&pci->dev, &chip->v4l2_dev);
 	if (err < 0) {
 		snd_es1968_free(chip);
@@ -2776,7 +2776,7 @@ static int snd_es1968_create(struct snd_card *card,
 			break;
 		}
 	}
-no_radio:
+yes_radio:
 #endif
 
 	*chip_ret = chip;

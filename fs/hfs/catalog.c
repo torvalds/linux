@@ -2,13 +2,13 @@
  *  linux/fs/hfs/catalog.c
  *
  * Copyright (C) 1995-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * This file contains the functions related to the catalog B-tree.
  *
  * Cache code shamelessly stolen from
- *     linux/fs/inode.c Copyright (C) 1991, 1992  Linus Torvalds
+ *     linux/fs/iyesde.c Copyright (C) 1991, 1992  Linus Torvalds
  *     re-shamelessly stolen Copyright (C) 1997 Linus Torvalds
  */
 
@@ -33,12 +33,12 @@ void hfs_cat_build_key(struct super_block *sb, btree_key *key, u32 parent, const
 	}
 }
 
-static int hfs_cat_build_record(hfs_cat_rec *rec, u32 cnid, struct inode *inode)
+static int hfs_cat_build_record(hfs_cat_rec *rec, u32 cnid, struct iyesde *iyesde)
 {
 	__be32 mtime = hfs_mtime();
 
 	memset(rec, 0, sizeof(*rec));
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(iyesde->i_mode)) {
 		rec->type = HFS_CDR_DIR;
 		rec->dir.DirID = cpu_to_be32(cnid);
 		rec->dir.CrDat = mtime;
@@ -50,14 +50,14 @@ static int hfs_cat_build_record(hfs_cat_rec *rec, u32 cnid, struct inode *inode)
 		/* init some fields for the file record */
 		rec->type = HFS_CDR_FIL;
 		rec->file.Flags = HFS_FIL_USED | HFS_FIL_THD;
-		if (!(inode->i_mode & S_IWUSR))
+		if (!(iyesde->i_mode & S_IWUSR))
 			rec->file.Flags |= HFS_FIL_LOCK;
 		rec->file.FlNum = cpu_to_be32(cnid);
 		rec->file.CrDat = mtime;
 		rec->file.MdDat = mtime;
 		rec->file.BkDat = 0;
-		rec->file.UsrWds.fdType = HFS_SB(inode->i_sb)->s_type;
-		rec->file.UsrWds.fdCreator = HFS_SB(inode->i_sb)->s_creator;
+		rec->file.UsrWds.fdType = HFS_SB(iyesde->i_sb)->s_type;
+		rec->file.UsrWds.fdCreator = HFS_SB(iyesde->i_sb)->s_creator;
 		return sizeof(struct hfs_cat_file);
 	}
 }
@@ -79,7 +79,7 @@ static int hfs_cat_build_thread(struct super_block *sb,
  * Add a new file or directory to the catalog B-tree and
  * return a (struct hfs_cat_entry) for it in '*result'.
  */
-int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct inode *inode)
+int hfs_cat_create(u32 cnid, struct iyesde *dir, const struct qstr *str, struct iyesde *iyesde)
 {
 	struct hfs_find_data fd;
 	struct super_block *sb;
@@ -88,7 +88,7 @@ int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct i
 	int err;
 
 	hfs_dbg(CAT_MOD, "create_cat: %s,%u(%d)\n",
-		str->name, cnid, inode->i_nlink);
+		str->name, cnid, iyesde->i_nlink);
 	if (dir->i_size >= HFS_MAX_VALENCE)
 		return -ENOSPC;
 
@@ -99,16 +99,16 @@ int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct i
 
 	/*
 	 * Fail early and avoid ENOSPC during the btree operations. We may
-	 * have to split the root node at most once.
+	 * have to split the root yesde at most once.
 	 */
 	err = hfs_bmap_reserve(fd.tree, 2 * fd.tree->depth);
 	if (err)
 		goto err2;
 
 	hfs_cat_build_key(sb, fd.search_key, cnid, NULL);
-	entry_size = hfs_cat_build_thread(sb, &entry, S_ISDIR(inode->i_mode) ?
+	entry_size = hfs_cat_build_thread(sb, &entry, S_ISDIR(iyesde->i_mode) ?
 			HFS_CDR_THD : HFS_CDR_FTH,
-			dir->i_ino, str);
+			dir->i_iyes, str);
 	err = hfs_brec_find(&fd);
 	if (err != -ENOENT) {
 		if (!err)
@@ -119,8 +119,8 @@ int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct i
 	if (err)
 		goto err2;
 
-	hfs_cat_build_key(sb, fd.search_key, dir->i_ino, str);
-	entry_size = hfs_cat_build_record(&entry, cnid, inode);
+	hfs_cat_build_key(sb, fd.search_key, dir->i_iyes, str);
+	entry_size = hfs_cat_build_record(&entry, cnid, iyesde);
 	err = hfs_brec_find(&fd);
 	if (err != -ENOENT) {
 		/* panic? */
@@ -134,7 +134,7 @@ int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct i
 
 	dir->i_size++;
 	dir->i_mtime = dir->i_ctime = current_time(dir);
-	mark_inode_dirty(dir);
+	mark_iyesde_dirty(dir);
 	hfs_find_exit(&fd);
 	return 0;
 
@@ -166,7 +166,7 @@ err2:
  * Preconditions:
  *   key1 and key2 point to "valid" (struct hfs_cat_key)s.
  * Postconditions:
- *   This function has no side-effects
+ *   This function has yes side-effects
  */
 int hfs_cat_keycmp(const btree_key *key1, const btree_key *key2)
 {
@@ -218,7 +218,7 @@ int hfs_cat_find_brec(struct super_block *sb, u32 cnid,
  * Delete the indicated file or directory.
  * The associated thread is also removed unless ('with_thread'==0).
  */
-int hfs_cat_delete(u32 cnid, struct inode *dir, const struct qstr *str)
+int hfs_cat_delete(u32 cnid, struct iyesde *dir, const struct qstr *str)
 {
 	struct super_block *sb;
 	struct hfs_find_data fd;
@@ -231,15 +231,15 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, const struct qstr *str)
 	if (res)
 		return res;
 
-	hfs_cat_build_key(sb, fd.search_key, dir->i_ino, str);
+	hfs_cat_build_key(sb, fd.search_key, dir->i_iyes, str);
 	res = hfs_brec_find(&fd);
 	if (res)
 		goto out;
 
-	type = hfs_bnode_read_u8(fd.bnode, fd.entryoffset);
+	type = hfs_byesde_read_u8(fd.byesde, fd.entryoffset);
 	if (type == HFS_CDR_FIL) {
 		struct hfs_cat_file file;
-		hfs_bnode_read(fd.bnode, &file, fd.entryoffset, sizeof(file));
+		hfs_byesde_read(fd.byesde, &file, fd.entryoffset, sizeof(file));
 		if (be32_to_cpu(file.FlNum) == cnid) {
 #if 0
 			hfs_free_fork(sb, &file, HFS_FK_DATA);
@@ -270,7 +270,7 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, const struct qstr *str)
 
 	dir->i_size--;
 	dir->i_mtime = dir->i_ctime = current_time(dir);
-	mark_inode_dirty(dir);
+	mark_iyesde_dirty(dir);
 	res = 0;
 out:
 	hfs_find_exit(&fd);
@@ -285,8 +285,8 @@ out:
  * If the destination exists it is removed and a
  * (struct hfs_cat_entry) for it is returned in '*result'.
  */
-int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
-		 struct inode *dst_dir, const struct qstr *dst_name)
+int hfs_cat_move(u32 cnid, struct iyesde *src_dir, const struct qstr *src_name,
+		 struct iyesde *dst_dir, const struct qstr *dst_name)
 {
 	struct super_block *sb;
 	struct hfs_find_data src_fd, dst_fd;
@@ -295,8 +295,8 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 	int err;
 
 	hfs_dbg(CAT_MOD, "rename_cat: %u - %lu,%s - %lu,%s\n",
-		cnid, src_dir->i_ino, src_name->name,
-		dst_dir->i_ino, dst_name->name);
+		cnid, src_dir->i_iyes, src_name->name,
+		dst_dir->i_iyes, dst_name->name);
 	sb = src_dir->i_sb;
 	err = hfs_find_init(HFS_SB(sb)->cat_tree, &src_fd);
 	if (err)
@@ -305,14 +305,14 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 
 	/*
 	 * Fail early and avoid ENOSPC during the btree operations. We may
-	 * have to split the root node at most once.
+	 * have to split the root yesde at most once.
 	 */
 	err = hfs_bmap_reserve(src_fd.tree, 2 * src_fd.tree->depth);
 	if (err)
 		goto out;
 
 	/* find the old dir entry and read the data */
-	hfs_cat_build_key(sb, src_fd.search_key, src_dir->i_ino, src_name);
+	hfs_cat_build_key(sb, src_fd.search_key, src_dir->i_iyes, src_name);
 	err = hfs_brec_find(&src_fd);
 	if (err)
 		goto out;
@@ -321,11 +321,11 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 		goto out;
 	}
 
-	hfs_bnode_read(src_fd.bnode, &entry, src_fd.entryoffset,
+	hfs_byesde_read(src_fd.byesde, &entry, src_fd.entryoffset,
 			    src_fd.entrylength);
 
 	/* create new dir entry with the data from the old entry */
-	hfs_cat_build_key(sb, dst_fd.search_key, dst_dir->i_ino, dst_name);
+	hfs_cat_build_key(sb, dst_fd.search_key, dst_dir->i_iyes, dst_name);
 	err = hfs_brec_find(&dst_fd);
 	if (err != -ENOENT) {
 		if (!err)
@@ -338,10 +338,10 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 		goto out;
 	dst_dir->i_size++;
 	dst_dir->i_mtime = dst_dir->i_ctime = current_time(dst_dir);
-	mark_inode_dirty(dst_dir);
+	mark_iyesde_dirty(dst_dir);
 
 	/* finally remove the old entry */
-	hfs_cat_build_key(sb, src_fd.search_key, src_dir->i_ino, src_name);
+	hfs_cat_build_key(sb, src_fd.search_key, src_dir->i_iyes, src_name);
 	err = hfs_brec_find(&src_fd);
 	if (err)
 		goto out;
@@ -350,7 +350,7 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 		goto out;
 	src_dir->i_size--;
 	src_dir->i_mtime = src_dir->i_ctime = current_time(src_dir);
-	mark_inode_dirty(src_dir);
+	mark_iyesde_dirty(src_dir);
 
 	type = entry.type;
 	if (type == HFS_CDR_FIL && !(entry.file.Flags & HFS_FIL_THD))
@@ -368,7 +368,7 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 	/* create new thread entry */
 	hfs_cat_build_key(sb, dst_fd.search_key, cnid, NULL);
 	entry_size = hfs_cat_build_thread(sb, &entry, type == HFS_CDR_FIL ? HFS_CDR_FTH : HFS_CDR_THD,
-					dst_dir->i_ino, dst_name);
+					dst_dir->i_iyes, dst_name);
 	err = hfs_brec_find(&dst_fd);
 	if (err != -ENOENT) {
 		if (!err)
@@ -377,7 +377,7 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 	}
 	err = hfs_brec_insert(&dst_fd, &entry, entry_size);
 out:
-	hfs_bnode_put(dst_fd.bnode);
+	hfs_byesde_put(dst_fd.byesde);
 	hfs_find_exit(&src_fd);
 	return err;
 }

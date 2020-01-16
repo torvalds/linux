@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -939,7 +939,7 @@ static int vega20_get_clk_table(struct smu_context *smu,
 static int vega20_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type type, char *buf)
 {
-	int i, now, size = 0;
+	int i, yesw, size = 0;
 	int ret = 0;
 	uint32_t gen_speed, lane_width;
 	struct amdgpu_device *adev = smu->adev;
@@ -958,7 +958,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 
 	switch (type) {
 	case SMU_SCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, &yesw);
 		if (ret) {
 			pr_err("Attempt to get current gfx clk Failed!");
 			return ret;
@@ -974,12 +974,12 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n", i,
 					clocks.data[i].clocks_in_khz / 1000,
-					(clocks.data[i].clocks_in_khz == now * 10)
+					(clocks.data[i].clocks_in_khz == yesw * 10)
 					? "*" : "");
 		break;
 
 	case SMU_MCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_UCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_UCLK, &yesw);
 		if (ret) {
 			pr_err("Attempt to get current mclk Failed!");
 			return ret;
@@ -995,12 +995,12 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz == now * 10)
+				(clocks.data[i].clocks_in_khz == yesw * 10)
 				? "*" : "");
 		break;
 
 	case SMU_SOCCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_SOCCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_SOCCLK, &yesw);
 		if (ret) {
 			pr_err("Attempt to get current socclk Failed!");
 			return ret;
@@ -1016,12 +1016,12 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz == now * 10)
+				(clocks.data[i].clocks_in_khz == yesw * 10)
 				? "*" : "");
 		break;
 
 	case SMU_FCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_FCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_FCLK, &yesw);
 		if (ret) {
 			pr_err("Attempt to get current fclk Failed!");
 			return ret;
@@ -1031,12 +1031,12 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 		for (i = 0; i < single_dpm_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, single_dpm_table->dpm_levels[i].value,
-				(single_dpm_table->dpm_levels[i].value == now / 100)
+				(single_dpm_table->dpm_levels[i].value == yesw / 100)
 				? "*" : "");
 		break;
 
 	case SMU_DCEFCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_DCEFCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_DCEFCLK, &yesw);
 		if (ret) {
 			pr_err("Attempt to get current dcefclk Failed!");
 			return ret;
@@ -1052,7 +1052,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz == now * 10) ? "*" : "");
+				(clocks.data[i].clocks_in_khz == yesw * 10) ? "*" : "");
 		break;
 
 	case SMU_PCIE:
@@ -2024,7 +2024,7 @@ vega20_set_uclk_to_highest_dpm_level(struct smu_context *smu,
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		if (dpm_table->count <= 0) {
-			pr_err("[%s] Dpm table has no entry!", __func__);
+			pr_err("[%s] Dpm table has yes entry!", __func__);
 				return -EINVAL;
 		}
 
@@ -2144,7 +2144,7 @@ static int vega20_apply_clocks_adjust_rules(struct smu_context *smu)
 			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 		}
 
-	/* honour DAL's UCLK Hardmin */
+	/* hoyesur DAL's UCLK Hardmin */
 	if (dpm_table->dpm_state.hard_min_level < (smu->display_config->min_mem_set_clock / 100))
 		dpm_table->dpm_state.hard_min_level = smu->display_config->min_mem_set_clock / 100;
 
@@ -2235,7 +2235,7 @@ static int vega20_apply_clocks_adjust_rules(struct smu_context *smu)
 }
 
 static int
-vega20_notify_smc_dispaly_config(struct smu_context *smu)
+vega20_yestify_smc_dispaly_config(struct smu_context *smu)
 {
 	struct vega20_dpm_table *dpm_table = smu->smu_dpm.dpm_context;
 	struct vega20_single_dpm_table *memtable = &dpm_table->mem_table;
@@ -2300,11 +2300,11 @@ static uint32_t vega20_find_highest_dpm_level(struct vega20_single_dpm_table *ta
 	int i = 0;
 
 	if (!table) {
-		pr_err("[%s] DPM Table does not exist!", __func__);
+		pr_err("[%s] DPM Table does yest exist!", __func__);
 		return 0;
 	}
 	if (table->count <= 0) {
-		pr_err("[%s] DPM Table has no entry!", __func__);
+		pr_err("[%s] DPM Table has yes entry!", __func__);
 		return 0;
 	}
 	if (table->count > MAX_REGULAR_DPM_NUMBER) {
@@ -2621,7 +2621,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
 		if (!(od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id &&
 		      od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].feature_id)) {
-			pr_info("Sclk min/max frequency overdrive not supported\n");
+			pr_info("Sclk min/max frequency overdrive yest supported\n");
 			return -EOPNOTSUPP;
 		}
 
@@ -2642,7 +2642,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 
 			if (input_clk < od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].min_value ||
 			    input_clk > od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].max_value) {
-				pr_info("clock freq %d is not within allowed range [%d - %d]\n",
+				pr_info("clock freq %d is yest within allowed range [%d - %d]\n",
 					input_clk,
 					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].min_value,
 					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].max_value);
@@ -2662,7 +2662,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 
 	case PP_OD_EDIT_MCLK_VDDC_TABLE:
 		if (!od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].feature_id) {
-			pr_info("Mclk max frequency overdrive not supported\n");
+			pr_info("Mclk max frequency overdrive yest supported\n");
 			return -EOPNOTSUPP;
 		}
 
@@ -2691,7 +2691,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 
 			if (input_clk < clocks.data[0].clocks_in_khz / 1000 ||
 			    input_clk > od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].max_value) {
-				pr_info("clock freq %d is not within allowed range [%d - %d]\n",
+				pr_info("clock freq %d is yest within allowed range [%d - %d]\n",
 					input_clk,
 					clocks.data[0].clocks_in_khz / 1000,
 					od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].max_value);
@@ -2713,7 +2713,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 		      od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].feature_id &&
 		      od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].feature_id &&
 		      od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].feature_id)) {
-			pr_info("Voltage curve calibrate not supported\n");
+			pr_info("Voltage curve calibrate yest supported\n");
 			return -EOPNOTSUPP;
 		}
 
@@ -2729,7 +2729,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 			input_vol = input[i + 2];
 
 			if (input_index > 2) {
-				pr_info("Setting for point %d is not supported\n",
+				pr_info("Setting for point %d is yest supported\n",
 					input_index + 1);
 				pr_info("Three supported points index by 0, 1, 2\n");
 				return -EINVAL;
@@ -2738,7 +2738,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 			od8_id = OD8_SETTING_GFXCLK_FREQ1 + 2 * input_index;
 			if (input_clk < od8_settings->od8_settings_array[od8_id].min_value ||
 			    input_clk > od8_settings->od8_settings_array[od8_id].max_value) {
-				pr_info("clock freq %d is not within allowed range [%d - %d]\n",
+				pr_info("clock freq %d is yest within allowed range [%d - %d]\n",
 					input_clk,
 					od8_settings->od8_settings_array[od8_id].min_value,
 					od8_settings->od8_settings_array[od8_id].max_value);
@@ -2748,7 +2748,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 			od8_id = OD8_SETTING_GFXCLK_VOLTAGE1 + 2 * input_index;
 			if (input_vol < od8_settings->od8_settings_array[od8_id].min_value ||
 			    input_vol > od8_settings->od8_settings_array[od8_id].max_value) {
-				pr_info("clock voltage %d is not within allowed range [%d- %d]\n",
+				pr_info("clock voltage %d is yest within allowed range [%d- %d]\n",
 					input_vol,
 					od8_settings->od8_settings_array[od8_id].min_value,
 					od8_settings->od8_settings_array[od8_id].max_value);
@@ -3203,7 +3203,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.pre_display_config_changed = vega20_pre_display_config_changed,
 	.display_config_changed = vega20_display_config_changed,
 	.apply_clocks_adjust_rules = vega20_apply_clocks_adjust_rules,
-	.notify_smc_dispaly_config = vega20_notify_smc_dispaly_config,
+	.yestify_smc_dispaly_config = vega20_yestify_smc_dispaly_config,
 	.force_dpm_limit_value = vega20_force_dpm_limit_value,
 	.unforce_dpm_levels = vega20_unforce_dpm_levels,
 	.get_profiling_clk_mask = vega20_get_profiling_clk_mask,
@@ -3232,14 +3232,14 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.write_pptable = smu_v11_0_write_pptable,
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
-	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
+	.yestify_memory_pool_location = smu_v11_0_yestify_memory_pool_location,
 	.system_features_control = smu_v11_0_system_features_control,
 	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
 	.read_smc_arg = smu_v11_0_read_arg,
 	.init_display_count = smu_v11_0_init_display_count,
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
-	.notify_display_change = smu_v11_0_notify_display_change,
+	.yestify_display_change = smu_v11_0_yestify_display_change,
 	.set_power_limit = smu_v11_0_set_power_limit,
 	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,

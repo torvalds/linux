@@ -21,12 +21,12 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 	int ret;
 
 	if (!bus->dev) {
-		pr_err("SoundWire bus has no device\n");
+		pr_err("SoundWire bus has yes device\n");
 		return -ENODEV;
 	}
 
 	if (!bus->ops) {
-		dev_err(bus->dev, "SoundWire Bus ops are not set\n");
+		dev_err(bus->dev, "SoundWire Bus ops are yest set\n");
 		return -EINVAL;
 	}
 
@@ -37,7 +37,7 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 
 	/*
 	 * Initialize multi_link flag
-	 * TODO: populate this flag by reading property from FW node
+	 * TODO: populate this flag by reading property from FW yesde
 	 */
 	bus->multi_link = false;
 	if (bus->ops->read_prop) {
@@ -54,7 +54,7 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 	/*
 	 * Device numbers in SoundWire are 0 through 15. Enumeration device
 	 * number (0), Broadcast device number (15), Group numbers (12 and
-	 * 13) and Master device number (14) are not used for assignment so
+	 * 13) and Master device number (14) are yest used for assignment so
 	 * mask these and other higher bits.
 	 */
 
@@ -79,7 +79,7 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 	 */
 	if (IS_ENABLED(CONFIG_ACPI) && ACPI_HANDLE(bus->dev))
 		ret = sdw_acpi_find_slaves(bus);
-	else if (IS_ENABLED(CONFIG_OF) && bus->dev->of_node)
+	else if (IS_ENABLED(CONFIG_OF) && bus->dev->of_yesde)
 		ret = sdw_of_find_slaves(bus);
 	else
 		ret = -ENOTSUPP; /* No ACPI/DT so error out */
@@ -120,7 +120,7 @@ static int sdw_delete_slave(struct device *dev, void *data)
 	if (slave->dev_num) /* clear dev_num if assigned */
 		clear_bit(slave->dev_num, bus->assigned);
 
-	list_del_init(&slave->node);
+	list_del_init(&slave->yesde);
 	mutex_unlock(&bus->bus_lock);
 
 	device_unregister(dev);
@@ -172,7 +172,7 @@ static inline int do_transfer(struct sdw_bus *bus, struct sdw_msg *msg)
 		resp = bus->ops->xfer_msg(bus, msg);
 		ret = find_response_code(resp);
 
-		/* if cmd is ok or ignored return */
+		/* if cmd is ok or igyesred return */
 		if (ret == 0 || ret == -ENODATA)
 			return ret;
 	}
@@ -195,7 +195,7 @@ static inline int do_transfer_defer(struct sdw_bus *bus,
 	for (i = 0; i <= retry; i++) {
 		resp = bus->ops->xfer_msg_defer(bus, msg, defer);
 		ret = find_response_code(resp);
-		/* if cmd is ok or ignored return */
+		/* if cmd is ok or igyesred return */
 		if (ret == 0 || ret == -ENODATA)
 			return ret;
 	}
@@ -212,7 +212,7 @@ static int sdw_reset_page(struct sdw_bus *bus, u16 dev_num)
 	for (i = 0; i <= retry; i++) {
 		resp = bus->ops->reset_page_addr(bus, dev_num);
 		ret = find_response_code(resp);
-		/* if cmd is ok or ignored return */
+		/* if cmd is ok or igyesred return */
 		if (ret == 0 || ret == -ENODATA)
 			return ret;
 	}
@@ -221,7 +221,7 @@ static int sdw_reset_page(struct sdw_bus *bus, u16 dev_num)
 }
 
 /**
- * sdw_transfer() - Synchronous transfer message to a SDW Slave device
+ * sdw_transfer() - Synchroyesus transfer message to a SDW Slave device
  * @bus: SDW bus
  * @msg: SDW message to be xfered
  */
@@ -245,7 +245,7 @@ int sdw_transfer(struct sdw_bus *bus, struct sdw_msg *msg)
 }
 
 /**
- * sdw_transfer_defer() - Asynchronously transfer message to a SDW Slave device
+ * sdw_transfer_defer() - Asynchroyesusly transfer message to a SDW Slave device
  * @bus: SDW bus
  * @msg: SDW message to be xfered
  * @defer: Defer block for signal completion
@@ -281,17 +281,17 @@ int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
 	msg->flags = flags;
 	msg->buf = buf;
 
-	if (addr < SDW_REG_NO_PAGE) { /* no paging area */
+	if (addr < SDW_REG_NO_PAGE) { /* yes paging area */
 		return 0;
 	} else if (addr >= SDW_REG_MAX) { /* illegal addr */
 		pr_err("SDW: Invalid address %x passed\n", addr);
 		return -EINVAL;
 	}
 
-	if (addr < SDW_REG_OPTIONAL_PAGE) { /* 32k but no page */
+	if (addr < SDW_REG_OPTIONAL_PAGE) { /* 32k but yes page */
 		if (slave && !slave->prop.paging_support)
 			return 0;
-		/* no need for else as that will fall-through to paging */
+		/* yes need for else as that will fall-through to paging */
 	}
 
 	/* paging mandatory */
@@ -305,7 +305,7 @@ int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
 		return -EINVAL;
 	} else if (!slave->prop.paging_support) {
 		dev_err(&slave->dev,
-			"address %x needs paging but no support\n", addr);
+			"address %x needs paging but yes support\n", addr);
 		return -EINVAL;
 	}
 
@@ -412,7 +412,7 @@ static struct sdw_slave *sdw_get_slave(struct sdw_bus *bus, int i)
 {
 	struct sdw_slave *slave = NULL;
 
-	list_for_each_entry(slave, &bus->slaves, node) {
+	list_for_each_entry(slave, &bus->slaves, yesde) {
 		if (slave->dev_num == i)
 			return slave;
 	}
@@ -444,7 +444,7 @@ static int sdw_get_device_num(struct sdw_slave *slave)
 	}
 
 	/*
-	 * Do not update dev_num in Slave data structure here,
+	 * Do yest update dev_num in Slave data structure here,
 	 * Update once program dev_num is successful
 	 */
 	set_bit(bit, slave->bus->assigned);
@@ -557,13 +557,13 @@ static int sdw_program_device_num(struct sdw_bus *bus)
 		sdw_extract_slave_id(bus, addr, &id);
 
 		/* Now compare with entries */
-		list_for_each_entry_safe(slave, _s, &bus->slaves, node) {
+		list_for_each_entry_safe(slave, _s, &bus->slaves, yesde) {
 			if (sdw_compare_devid(slave, id) == 0) {
 				found = true;
 
 				/*
 				 * Assign a new dev_num to this Slave and
-				 * not mark it present. It will be marked
+				 * yest mark it present. It will be marked
 				 * present after it reports ATTACHED on new
 				 * dev_num
 				 */
@@ -581,7 +581,7 @@ static int sdw_program_device_num(struct sdw_bus *bus)
 
 		if (!found) {
 			/* TODO: Park this device in Group 13 */
-			dev_err(bus->dev, "Slave Entry not found\n");
+			dev_err(bus->dev, "Slave Entry yest found\n");
 		}
 
 		count++;
@@ -654,7 +654,7 @@ static int sdw_initialize_slave(struct sdw_slave *slave)
 		return ret;
 	}
 
-	/* No need to continue if DP0 is not present */
+	/* No need to continue if DP0 is yest present */
 	if (!slave->prop.dp0_prop)
 		return 0;
 
@@ -817,7 +817,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 	u8 clear = 0, bit, port_status[15] = {0};
 	int port_num, stat, ret, count = 0;
 	unsigned long port;
-	bool slave_notify = false;
+	bool slave_yestify = false;
 	u8 buf, buf2[2], _buf, _buf2[2];
 
 	sdw_modify_slave_status(slave, SDW_SLAVE_ALERT);
@@ -863,7 +863,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		if (buf & SDW_SCP_INT1_IMPL_DEF) {
 			dev_dbg(&slave->dev, "Slave impl defined interrupt\n");
 			clear |= SDW_SCP_INT1_IMPL_DEF;
-			slave_notify = true;
+			slave_yestify = true;
 		}
 
 		/* Check port 0 - 3 interrupts */
@@ -888,7 +888,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 			}
 		}
 
-		/* now check last cascade */
+		/* yesw check last cascade */
 		if (buf2[0] & SDW_SCP_INTSTAT2_SCP3_CASCADE) {
 			port = buf2[1] & SDW_SCP_INTSTAT3_PORT11_14;
 			for_each_set_bit(bit, &port, 8) {
@@ -901,7 +901,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		}
 
 		/* Update the Slave driver */
-		if (slave_notify && slave->ops &&
+		if (slave_yestify && slave->ops &&
 		    slave->ops->interrupt_callback) {
 			slave_intr.control_port = clear;
 			memcpy(slave_intr.port, &port_status,
@@ -919,7 +919,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		}
 
 		/*
-		 * Read status again to ensure no new interrupts arrived
+		 * Read status again to ensure yes new interrupts arrived
 		 * while servicing interrupts.
 		 */
 		ret = sdw_read(slave, SDW_SCP_INT1);
@@ -937,7 +937,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 			return ret;
 		}
 
-		/* Make sure no interrupts are pending */
+		/* Make sure yes interrupts are pending */
 		buf &= _buf;
 		buf2[0] &= _buf2[0];
 		buf2[1] &= _buf2[1];

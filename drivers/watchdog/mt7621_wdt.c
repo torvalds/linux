@@ -34,10 +34,10 @@
 static void __iomem *mt7621_wdt_base;
 static struct reset_control *mt7621_wdt_reset;
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		 "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static inline void rt_wdt_w32(unsigned reg, u32 val)
@@ -143,7 +143,7 @@ static int mt7621_wdt_probe(struct platform_device *pdev)
 
 	watchdog_init_timeout(&mt7621_wdt_dev, mt7621_wdt_dev.max_timeout,
 			      dev);
-	watchdog_set_nowayout(&mt7621_wdt_dev, nowayout);
+	watchdog_set_yeswayout(&mt7621_wdt_dev, yeswayout);
 	if (mt7621_wdt_is_running(&mt7621_wdt_dev)) {
 		/*
 		 * Make sure to apply timeout from watchdog core, taking

@@ -186,12 +186,12 @@ static void lima_gp_task_mmu_error(struct lima_sched_pipe *pipe)
 
 static void lima_gp_print_version(struct lima_ip *ip)
 {
-	u32 version, major, minor;
+	u32 version, major, miyesr;
 	char *name;
 
 	version = gp_read(LIMA_GP_VERSION);
 	major = (version >> 8) & 0xFF;
-	minor = version & 0xFF;
+	miyesr = version & 0xFF;
 	switch (version >> 16) {
 	case 0xA07:
 	    name = "mali200";
@@ -206,11 +206,11 @@ static void lima_gp_print_version(struct lima_ip *ip)
 		name = "mali450";
 		break;
 	default:
-		name = "unknown";
+		name = "unkyeswn";
 		break;
 	}
-	dev_info(ip->dev->dev, "%s - %s version major %d minor %d\n",
-		 lima_ip_name(ip), name, major, minor);
+	dev_info(ip->dev->dev, "%s - %s version major %d miyesr %d\n",
+		 lima_ip_name(ip), name, major, miyesr);
 }
 
 static struct kmem_cache *lima_gp_task_slab;

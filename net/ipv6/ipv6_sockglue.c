@@ -20,7 +20,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -508,7 +508,7 @@ sticky_done:
 			goto update;
 
 		/* 1K is probably excessive
-		 * 1K is surely not enough, 2K per standard header is 16K.
+		 * 1K is surely yest eyesugh, 2K per standard header is 16K.
 		 */
 		retv = -EINVAL;
 		if (optlen > 64*1024)
@@ -1007,7 +1007,7 @@ static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_txoptions *opt,
 		hdr = opt->dst1opt;
 		break;
 	default:
-		return -EINVAL;	/* should not happen */
+		return -EINVAL;	/* should yest happen */
 	}
 
 	if (!hdr)

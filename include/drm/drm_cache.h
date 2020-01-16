@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -52,16 +52,16 @@ static inline bool drm_arch_can_wc_memory(void)
 	 * The DRM driver stack is designed to work with cache coherent devices
 	 * only, but permits an optimization to be enabled in some cases, where
 	 * for some buffers, both the CPU and the GPU use uncached mappings,
-	 * removing the need for DMA snooping and allocation in the CPU caches.
+	 * removing the need for DMA syesoping and allocation in the CPU caches.
 	 *
 	 * The use of uncached GPU mappings relies on the correct implementation
-	 * of the PCIe NoSnoop TLP attribute by the platform, otherwise the GPU
-	 * will use cached mappings nonetheless. On x86 platforms, this does not
-	 * seem to matter, as uncached CPU mappings will snoop the caches in any
+	 * of the PCIe NoSyesop TLP attribute by the platform, otherwise the GPU
+	 * will use cached mappings yesnetheless. On x86 platforms, this does yest
+	 * seem to matter, as uncached CPU mappings will syesop the caches in any
 	 * case. However, on ARM and arm64, enabling this optimization on a
-	 * platform where NoSnoop is ignored results in loss of coherency, which
-	 * breaks correct operation of the device. Since we have no way of
-	 * detecting whether NoSnoop works or not, just disable this
+	 * platform where NoSyesop is igyesred results in loss of coherency, which
+	 * breaks correct operation of the device. Since we have yes way of
+	 * detecting whether NoSyesop works or yest, just disable this
 	 * optimization entirely for ARM and arm64.
 	 */
 	return false;

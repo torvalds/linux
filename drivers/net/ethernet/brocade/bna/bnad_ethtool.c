@@ -57,7 +57,7 @@ static const char *bnad_net_stats_strings[] = {
 	"tx_skb_mss_too_long",
 	"tx_skb_tso_too_short",
 	"tx_skb_tso_prepare",
-	"tx_skb_non_tso_too_long",
+	"tx_skb_yesn_tso_too_long",
 	"tx_skb_tcp_hdr",
 	"tx_skb_udp_hdr",
 	"tx_skb_csum_err",
@@ -95,7 +95,7 @@ static const char *bnad_net_stats_strings[] = {
 	"mac_rx_broadcast",
 	"mac_rx_control_frames",
 	"mac_rx_pause",
-	"mac_rx_unknown_opcode",
+	"mac_rx_unkyeswn_opcode",
 	"mac_rx_alignment_error",
 	"mac_rx_frame_length_error",
 	"mac_rx_code_error",
@@ -118,7 +118,7 @@ static const char *bnad_net_stats_strings[] = {
 	"mac_tx_late_collision",
 	"mac_tx_excessive_collision",
 	"mac_tx_total_collision",
-	"mac_tx_pause_honored",
+	"mac_tx_pause_hoyesred",
 	"mac_tx_drop",
 	"mac_tx_jabber",
 	"mac_tx_fcs_error",
@@ -348,7 +348,7 @@ bnad_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 
 	mutex_lock(&bnad->conf_mutex);
 	/*
-	 * Do not need to store rx_coalesce_usecs here
+	 * Do yest need to store rx_coalesce_usecs here
 	 * Every time DIM is disabled, we can get it from the
 	 * stack.
 	 */

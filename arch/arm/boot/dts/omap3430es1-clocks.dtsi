@@ -64,7 +64,7 @@
 
 	ssi_ssr_gate_fck_3430es1: ssi_ssr_gate_fck_3430es1@a00 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-yes-wait-gate-clock";
 		clocks = <&corex2_fck>;
 		ti,bit-shift = <0>;
 		reg = <0x0a00>;
@@ -95,7 +95,7 @@
 
 	hsotgusb_ick_3430es1: hsotgusb_ick_3430es1@a10 {
 		#clock-cells = <0>;
-		compatible = "ti,omap3-no-wait-interface-clock";
+		compatible = "ti,omap3-yes-wait-interface-clock";
 		clocks = <&core_l3_ick>;
 		reg = <0x0a10>;
 		ti,bit-shift = <4>;
@@ -119,7 +119,7 @@
 
 	ssi_ick: ssi_ick_3430es1@a10 {
 		#clock-cells = <0>;
-		compatible = "ti,omap3-no-wait-interface-clock";
+		compatible = "ti,omap3-yes-wait-interface-clock";
 		clocks = <&ssi_l4_ick>;
 		reg = <0x0a10>;
 		ti,bit-shift = <0>;
@@ -160,7 +160,7 @@
 
 	dss_ick: dss_ick_3430es1@e10 {
 		#clock-cells = <0>;
-		compatible = "ti,omap3-no-wait-interface-clock";
+		compatible = "ti,omap3-yes-wait-interface-clock";
 		clocks = <&l4_ick>;
 		reg = <0x0e10>;
 		ti,bit-shift = <0>;

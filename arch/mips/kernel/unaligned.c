@@ -7,20 +7,20 @@
  *
  * Copyright (C) 1996, 1998, 1999, 2002 by Ralf Baechle
  * Copyright (C) 1999 Silicon Graphics, Inc.
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techyeslogies Ltd.
  *
  * This file contains exception handler for address error exception with the
  * special capability to execute faulting instructions in software.  The
- * handler does not try to handle the case when the program counter points
- * to an address not aligned to a word boundary.
+ * handler does yest try to handle the case when the program counter points
+ * to an address yest aligned to a word boundary.
  *
  * Putting data to unaligned addresses is a bad practice even on Intel where
- * only the performance is affected.  Much worse is that such code is non-
+ * only the performance is affected.  Much worse is that such code is yesn-
  * portable.  Due to several programs that die on MIPS due to alignment
  * problems I decided to implement this handler anyway though I originally
  * didn't intend to do this at all for user code.
  *
- * For now I enable fixing of address errors by default to make life easier.
+ * For yesw I enable fixing of address errors by default to make life easier.
  * I however intend to disable this somewhen in the future when the alignment
  * problems with user programs have been fixed.	 For programmers this is the
  * right way to go.
@@ -65,7 +65,7 @@
  *	   printf("\n");
  * }
  *
- * Coprocessor loads are not supported; I think this case is unimportant
+ * Coprocessor loads are yest supported; I think this case is unimportant
  * in the practice.
  *
  * TODO: Handle ndc (attempted store to doubleword in uncached memory)
@@ -111,7 +111,7 @@ extern void show_registers(struct pt_regs *regs);
 #ifdef __BIG_ENDIAN
 #define     _LoadHW(addr, value, res, type)  \
 do {                                                        \
-		__asm__ __volatile__ (".set\tnoat\n"        \
+		__asm__ __volatile__ (".set\tyesat\n"        \
 			"1:\t"type##_lb("%0", "0(%2)")"\n"  \
 			"2:\t"type##_lbu("$1", "1(%2)")"\n\t"\
 			"sll\t%0, 0x8\n\t"                  \
@@ -158,7 +158,7 @@ do {                                                        \
 do {                                                        \
 		__asm__ __volatile__ (			    \
 			".set\tpush\n"			    \
-			".set\tnoat\n\t"		    \
+			".set\tyesat\n\t"		    \
 			"1:"type##_lb("%0", "0(%2)")"\n\t"  \
 			"2:"type##_lbu("$1", "1(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
@@ -192,7 +192,7 @@ do {                                                        \
 #define     _LoadHWU(addr, value, res, type) \
 do {                                                        \
 		__asm__ __volatile__ (                      \
-			".set\tnoat\n"                      \
+			".set\tyesat\n"                      \
 			"1:\t"type##_lbu("%0", "0(%2)")"\n" \
 			"2:\t"type##_lbu("$1", "1(%2)")"\n\t"\
 			"sll\t%0, 0x8\n\t"                  \
@@ -262,7 +262,7 @@ do {                                                        \
 do {                                                        \
 		__asm__ __volatile__ (			    \
 			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
+			".set\tyesat\n\t"		    \
 			"1:"type##_lbu("%0", "0(%2)")"\n\t" \
 			"2:"type##_lbu("$1", "1(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
@@ -295,7 +295,7 @@ do {                                                        \
 do {                                                        \
 		__asm__ __volatile__ (			    \
 			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
+			".set\tyesat\n\t"		    \
 			"1:lb\t%0, 0(%2)\n\t"    	    \
 			"2:lbu\t $1, 1(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
@@ -346,7 +346,7 @@ do {                                                        \
 #define     _StoreHW(addr, value, res, type) \
 do {                                                        \
 		__asm__ __volatile__ (                      \
-			".set\tnoat\n"                      \
+			".set\tyesat\n"                      \
 			"1:\t"type##_sb("%1", "1(%2)")"\n"  \
 			"srl\t$1, %1, 0x8\n"                \
 			"2:\t"type##_sb("$1", "0(%2)")"\n"  \
@@ -412,7 +412,7 @@ do {                                                        \
 do {                                                        \
 		__asm__ __volatile__ (                      \
 			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
+			".set\tyesat\n\t"		    \
 			"1:"type##_sb("%1", "3(%2)")"\n\t"  \
 			"srl\t$1, %1, 0x8\n\t"		    \
 			"2:"type##_sb("$1", "2(%2)")"\n\t"  \
@@ -443,7 +443,7 @@ do {                                                        \
 do {                                                        \
 		__asm__ __volatile__ (                      \
 			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
+			".set\tyesat\n\t"		    \
 			"1:sb\t%1, 7(%2)\n\t"    	    \
 			"dsrl\t$1, %1, 0x8\n\t"		    \
 			"2:sb\t$1, 6(%2)\n\t"    	    \
@@ -489,7 +489,7 @@ do {                                                        \
 
 #define     _LoadHW(addr, value, res, type)  \
 do {                                                        \
-		__asm__ __volatile__ (".set\tnoat\n"        \
+		__asm__ __volatile__ (".set\tyesat\n"        \
 			"1:\t"type##_lb("%0", "1(%2)")"\n"  \
 			"2:\t"type##_lbu("$1", "0(%2)")"\n\t"\
 			"sll\t%0, 0x8\n\t"                  \
@@ -536,7 +536,7 @@ do {                                                        \
 do {                                                        \
 		__asm__ __volatile__ (			    \
 			".set\tpush\n"			    \
-			".set\tnoat\n\t"		    \
+			".set\tyesat\n\t"		    \
 			"1:"type##_lb("%0", "3(%2)")"\n\t"  \
 			"2:"type##_lbu("$1", "2(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
@@ -571,7 +571,7 @@ do {                                                        \
 #define     _LoadHWU(addr, value, res, type) \
 do {                                                        \
 		__asm__ __volatile__ (                      \
-			".set\tnoat\n"                      \
+			".set\tyesat\n"                      \
 			"1:\t"type##_lbu("%0", "1(%2)")"\n" \
 			"2:\t"type##_lbu("$1", "0(%2)")"\n\t"\
 			"sll\t%0, 0x8\n\t"                  \
@@ -641,7 +641,7 @@ do {                                                        \
 do {                                                        \
 		__asm__ __volatile__ (			    \
 			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
+			".set\tyesat\n\t"		    \
 			"1:"type##_lbu("%0", "3(%2)")"\n\t" \
 			"2:"type##_lbu("$1", "2(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
@@ -674,7 +674,7 @@ do {                                                        \
 do {                                                        \
 		__asm__ __volatile__ (			    \
 			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
+			".set\tyesat\n\t"		    \
 			"1:lb\t%0, 7(%2)\n\t"    	    \
 			"2:lbu\t$1, 6(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
@@ -723,7 +723,7 @@ do {                                                        \
 #define     _StoreHW(addr, value, res, type) \
 do {                                                        \
 		__asm__ __volatile__ (                      \
-			".set\tnoat\n"                      \
+			".set\tyesat\n"                      \
 			"1:\t"type##_sb("%1", "0(%2)")"\n"  \
 			"srl\t$1,%1, 0x8\n"                 \
 			"2:\t"type##_sb("$1", "1(%2)")"\n"  \
@@ -790,7 +790,7 @@ do {                                                        \
 do {                                                        \
 		__asm__ __volatile__ (                      \
 			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
+			".set\tyesat\n\t"		    \
 			"1:"type##_sb("%1", "0(%2)")"\n\t"  \
 			"srl\t$1, %1, 0x8\n\t"		    \
 			"2:"type##_sb("$1", "1(%2)")"\n\t"  \
@@ -821,7 +821,7 @@ do {                                                        \
 do {                                                        \
 		__asm__ __volatile__ (                      \
 			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
+			".set\tyesat\n\t"		    \
 			"1:sb\t%1, 0(%2)\n\t"    	    \
 			"dsrl\t$1, %1, 0x8\n\t"		    \
 			"2:sb\t$1, 1(%2)\n\t"    	    \
@@ -1104,7 +1104,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * A 32-bit kernel might be running on a 64-bit processor.  But
 		 * if we're on a 32-bit processor and an i-cache incoherency
 		 * or race makes us see a 64-bit instruction here the sdl/sdr
-		 * would blow up, so for now we don't handle unaligned 64-bit
+		 * would blow up, so for yesw we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
 		if (!access_ok(addr, 4))
@@ -1118,7 +1118,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		break;
 #endif /* CONFIG_64BIT */
 
-		/* Cannot handle 64-bit instructions in 32-bit kernel */
+		/* Canyest handle 64-bit instructions in 32-bit kernel */
 		goto sigill;
 
 	case ld_op:
@@ -1127,7 +1127,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * A 32-bit kernel might be running on a 64-bit processor.  But
 		 * if we're on a 32-bit processor and an i-cache incoherency
 		 * or race makes us see a 64-bit instruction here the sdl/sdr
-		 * would blow up, so for now we don't handle unaligned 64-bit
+		 * would blow up, so for yesw we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
 		if (!access_ok(addr, 8))
@@ -1141,7 +1141,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		break;
 #endif /* CONFIG_64BIT */
 
-		/* Cannot handle 64-bit instructions in 32-bit kernel */
+		/* Canyest handle 64-bit instructions in 32-bit kernel */
 		goto sigill;
 
 	case sh_op:
@@ -1190,7 +1190,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * A 32-bit kernel might be running on a 64-bit processor.  But
 		 * if we're on a 32-bit processor and an i-cache incoherency
 		 * or race makes us see a 64-bit instruction here the sdl/sdr
-		 * would blow up, so for now we don't handle unaligned 64-bit
+		 * would blow up, so for yesw we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
 		if (!access_ok(addr, 8))
@@ -1204,7 +1204,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		break;
 #endif /* CONFIG_64BIT */
 
-		/* Cannot handle 64-bit instructions in 32-bit kernel */
+		/* Canyest handle 64-bit instructions in 32-bit kernel */
 		goto sigill;
 
 #ifdef CONFIG_MIPS_FP_SUPPORT
@@ -1321,30 +1321,30 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 #ifndef CONFIG_CPU_MIPSR6
 	/*
 	 * COP2 is available to implementor for application specific use.
-	 * It's up to applications to register a notifier chain and do
+	 * It's up to applications to register a yestifier chain and do
 	 * whatever they have to do, including possible sending of signals.
 	 *
 	 * This instruction has been reallocated in Release 6
 	 */
 	case lwc2_op:
-		cu2_notifier_call_chain(CU2_LWC2_OP, regs);
+		cu2_yestifier_call_chain(CU2_LWC2_OP, regs);
 		break;
 
 	case ldc2_op:
-		cu2_notifier_call_chain(CU2_LDC2_OP, regs);
+		cu2_yestifier_call_chain(CU2_LDC2_OP, regs);
 		break;
 
 	case swc2_op:
-		cu2_notifier_call_chain(CU2_SWC2_OP, regs);
+		cu2_yestifier_call_chain(CU2_SWC2_OP, regs);
 		break;
 
 	case sdc2_op:
-		cu2_notifier_call_chain(CU2_SDC2_OP, regs);
+		cu2_yestifier_call_chain(CU2_SDC2_OP, regs);
 		break;
 #endif
 	default:
 		/*
-		 * Pheeee...  We encountered an yet unknown instruction or
+		 * Pheeee...  We encountered an yet unkyeswn instruction or
 		 * cache coherence problem.  Die sucker, die ...
 		 */
 		goto sigill;
@@ -1381,10 +1381,10 @@ sigill:
 	force_sig(SIGILL);
 }
 
-/* Recode table from 16-bit register notation to 32-bit GPR. */
+/* Recode table from 16-bit register yestation to 32-bit GPR. */
 const int reg16to32[] = { 16, 17, 2, 3, 4, 5, 6, 7 };
 
-/* Recode table from 16-bit STORE register notation to 32-bit GPR. */
+/* Recode table from 16-bit STORE register yestation to 32-bit GPR. */
 static const int reg16to32st[] = { 0, 17, 2, 3, 4, 5, 6, 7 };
 
 static void emulate_load_store_microMIPS(struct pt_regs *regs,
@@ -1697,7 +1697,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 
 			goto sigill;
 
-			/*  LWC2, SWC2, LDC2, SDC2 are not serviced */
+			/*  LWC2, SWC2, LDC2, SDC2 are yest serviced */
 		}
 
 		goto sigbus;
@@ -1709,7 +1709,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			goto loadWU;
 		}
 
-		/*  LL,SC,LLD,SCD are not serviced */
+		/*  LL,SC,LLD,SCD are yest serviced */
 		goto sigbus;
 
 #ifdef CONFIG_MIPS_FP_SUPPORT
@@ -1894,7 +1894,7 @@ loadWU:
 	 * A 32-bit kernel might be running on a 64-bit processor.  But
 	 * if we're on a 32-bit processor and an i-cache incoherency
 	 * or race makes us see a 64-bit instruction here the sdl/sdr
-	 * would blow up, so for now we don't handle unaligned 64-bit
+	 * would blow up, so for yesw we don't handle unaligned 64-bit
 	 * instructions on 32-bit kernels.
 	 */
 	if (!access_ok(addr, 4))
@@ -1907,7 +1907,7 @@ loadWU:
 	goto success;
 #endif /* CONFIG_64BIT */
 
-	/* Cannot handle 64-bit instructions in 32-bit kernel */
+	/* Canyest handle 64-bit instructions in 32-bit kernel */
 	goto sigill;
 
 loadDW:
@@ -1916,7 +1916,7 @@ loadDW:
 	 * A 32-bit kernel might be running on a 64-bit processor.  But
 	 * if we're on a 32-bit processor and an i-cache incoherency
 	 * or race makes us see a 64-bit instruction here the sdl/sdr
-	 * would blow up, so for now we don't handle unaligned 64-bit
+	 * would blow up, so for yesw we don't handle unaligned 64-bit
 	 * instructions on 32-bit kernels.
 	 */
 	if (!access_ok(addr, 8))
@@ -1929,7 +1929,7 @@ loadDW:
 	goto success;
 #endif /* CONFIG_64BIT */
 
-	/* Cannot handle 64-bit instructions in 32-bit kernel */
+	/* Canyest handle 64-bit instructions in 32-bit kernel */
 	goto sigill;
 
 storeHW:
@@ -1958,7 +1958,7 @@ storeDW:
 	 * A 32-bit kernel might be running on a 64-bit processor.  But
 	 * if we're on a 32-bit processor and an i-cache incoherency
 	 * or race makes us see a 64-bit instruction here the sdl/sdr
-	 * would blow up, so for now we don't handle unaligned 64-bit
+	 * would blow up, so for yesw we don't handle unaligned 64-bit
 	 * instructions on 32-bit kernels.
 	 */
 	if (!access_ok(addr, 8))
@@ -1971,7 +1971,7 @@ storeDW:
 	goto success;
 #endif /* CONFIG_64BIT */
 
-	/* Cannot handle 64-bit instructions in 32-bit kernel */
+	/* Canyest handle 64-bit instructions in 32-bit kernel */
 	goto sigill;
 
 success:
@@ -2159,7 +2159,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 		 * A 32-bit kernel might be running on a 64-bit processor.  But
 		 * if we're on a 32-bit processor and an i-cache incoherency
 		 * or race makes us see a 64-bit instruction here the sdl/sdr
-		 * would blow up, so for now we don't handle unaligned 64-bit
+		 * would blow up, so for yesw we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
 		if (!access_ok(addr, 4))
@@ -2173,7 +2173,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 		break;
 #endif /* CONFIG_64BIT */
 
-		/* Cannot handle 64-bit instructions in 32-bit kernel */
+		/* Canyest handle 64-bit instructions in 32-bit kernel */
 		goto sigill;
 
 	case MIPS16e_ld_op:
@@ -2183,7 +2183,7 @@ loadDW:
 		 * A 32-bit kernel might be running on a 64-bit processor.  But
 		 * if we're on a 32-bit processor and an i-cache incoherency
 		 * or race makes us see a 64-bit instruction here the sdl/sdr
-		 * would blow up, so for now we don't handle unaligned 64-bit
+		 * would blow up, so for yesw we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
 		if (!access_ok(addr, 8))
@@ -2197,7 +2197,7 @@ loadDW:
 		break;
 #endif /* CONFIG_64BIT */
 
-		/* Cannot handle 64-bit instructions in 32-bit kernel */
+		/* Canyest handle 64-bit instructions in 32-bit kernel */
 		goto sigill;
 
 	case MIPS16e_sh_op:
@@ -2231,7 +2231,7 @@ writeDW:
 		 * A 32-bit kernel might be running on a 64-bit processor.  But
 		 * if we're on a 32-bit processor and an i-cache incoherency
 		 * or race makes us see a 64-bit instruction here the sdl/sdr
-		 * would blow up, so for now we don't handle unaligned 64-bit
+		 * would blow up, so for yesw we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
 		if (!access_ok(addr, 8))
@@ -2245,12 +2245,12 @@ writeDW:
 		break;
 #endif /* CONFIG_64BIT */
 
-		/* Cannot handle 64-bit instructions in 32-bit kernel */
+		/* Canyest handle 64-bit instructions in 32-bit kernel */
 		goto sigill;
 
 	default:
 		/*
-		 * Pheeee...  We encountered an yet unknown instruction or
+		 * Pheeee...  We encountered an yet unkyeswn instruction or
 		 * cache coherence problem.  Die sucker, die ...
 		 */
 		goto sigill;

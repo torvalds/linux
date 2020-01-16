@@ -2,9 +2,9 @@
 |	setox.sa 3.1 12/10/90
 |
 |	The entry point setox computes the exponential of a value.
-|	setoxd does the same except the input value is a denormalized
+|	setoxd does the same except the input value is a deyesrmalized
 |	number.	setoxm1 computes exp(X)-1, and setoxm1d computes
-|	exp(X)-1 for denormalized X.
+|	exp(X)-1 for deyesrmalized X.
 |
 |	INPUT
 |	-----
@@ -19,14 +19,14 @@
 |	-------------------------
 |	The returned result is within 0.85 ulps in 64 significant bit, i.e.
 |	within 0.5001 ulp to 53 bits if the result is subsequently rounded
-|	to double precision. The result is provably monotonic in double
+|	to double precision. The result is provably moyestonic in double
 |	precision.
 |
 |	SPEED
 |	-----
 |	Two timings are measured, both in the copy-back mode. The
 |	first one is measured when the function is invoked the first time
-|	(so the instructions and data are not in cache), and the
+|	(so the instructions and data are yest in cache), and the
 |	second one is measured when the function is reinvoked at the same
 |	input argument.
 |
@@ -34,13 +34,13 @@
 |	argument X whose magnitude is less than 16380 log2, which
 |	is the usual situation.	For the less common arguments,
 |	depending on their values, the program may run faster or slower --
-|	but no worse than 10% slower even in the extreme cases.
+|	but yes worse than 10% slower even in the extreme cases.
 |
 |	The program setoxm1 takes approximately ??? / ??? cycles for input
 |	argument X, 0.25 <= |X| < 70log2. For |X| < 0.25, it takes
 |	approximately ??? / ??? cycles. For the less common arguments,
 |	depending on their values, the program may run faster or slower --
-|	but no worse than 10% slower even in the extreme cases.
+|	but yes worse than 10% slower even in the extreme cases.
 |
 |	ALGORITHM and IMPLEMENTATION NOTES
 |	----------------------------------
@@ -71,7 +71,7 @@
 |		 in Steps 1.1 and 1.3 can be performed by integer comparison.
 |		 Note also that the constant 16380 log(2) used in Step 1.3
 |		 is also in the compact form. Thus taking the branch
-|		 to Step 2 guarantees |X| < 16380 log(2). There is no harm
+|		 to Step 2 guarantees |X| < 16380 log(2). There is yes harm
 |		 to have a small number of cases where |X| is less than,
 |		 but close to, 16380 log(2) and the branch to Step 9 is
 |		 taken.
@@ -93,7 +93,7 @@
 |			constant := single-precision( 64/log 2 ).
 |
 |		 Using a single-precision constant avoids memory access.
-|		 Another effect of using a single-precision "constant" is
+|		 Ayesther effect of using a single-precision "constant" is
 |		 that the calculated value Z is
 |
 |			Z = X*(64/log2)*(1+eps), |eps| <= 2^(-24).
@@ -105,8 +105,8 @@
 |		3.2	R := R + N*L2, L2 := extended-precision(-log2/64 - L1).
 |	Notes:	a) The way L1 and L2 are chosen ensures L1+L2 approximate
 |		 the value	-log2/64	to 88 bits of accuracy.
-|		 b) N*L1 is exact because N is no longer than 22 bits and
-|		 L1 is no longer than 24 bits.
+|		 b) N*L1 is exact because N is yes longer than 22 bits and
+|		 L1 is yes longer than 24 bits.
 |		 c) The calculation X+N*L1 is also exact due to cancellation.
 |		 Thus, R is practically X+N(L1+L2) to full 64 bits.
 |		 d) It is important to estimate how large can |R| be after
@@ -124,7 +124,7 @@
 |					<= 0.57 log2/64.
 |		 This bound will be used in Step 4.
 |
-|	Step 4.	Approximate exp(R)-1 by a polynomial
+|	Step 4.	Approximate exp(R)-1 by a polyyesmial
 |			p = R + R*R*(A1 + R*(A2 + R*(A3 + R*(A4 + R*A5))))
 |	Notes:	a) In order to reduce memory access, the coefficients are
 |		 made as "short" as possible: A1 (which is 1/2), A4 and A5
@@ -157,14 +157,14 @@
 |		6.4	Return ans := ans * Scale. Exit.
 |	Notes:	If AdjFlag = 0, we have X = Mlog2 + Jlog2/64 + R,
 |		 |M| <= 16380, and Scale = 2^M. Moreover, exp(X) will
-|		 neither overflow nor underflow. If AdjFlag = 1, that
+|		 neither overflow yesr underflow. If AdjFlag = 1, that
 |		 means that
 |			X = (M1+M)log2 + Jlog2/64 + R, |M1+M| >= 16380.
 |		 Hence, exp(X) may overflow or underflow or neither.
 |		 When that is the case, AdjScale = 2^(M1) where M1 is
 |		 approximately M. Thus 6.2 will never cause over/underflow.
 |		 Possible exception in 6.4 is overflow or underflow.
-|		 The inexact exception is not generated in 6.4. Although
+|		 The inexact exception is yest generated in 6.4. Although
 |		 one can argue that the inexact flag should always be
 |		 raised, to simulate that exception cost to much than the
 |		 flag is worth in practical uses.
@@ -173,13 +173,13 @@
 |		7.1	ans := X
 |		7.2	Restore user FPCR.
 |		7.3	Return ans := 1 + ans. Exit
-|	Notes:	For non-zero X, the inexact exception will always be
+|	Notes:	For yesn-zero X, the inexact exception will always be
 |		 raised by 7.3. That is the only exception raised by 7.3.
 |		 Note also that we use the FMOVEM instruction to move X
 |		 in Step 7.1 to avoid unnecessary trapping. (Although
-|		 the FMOVEM may not seem relevant since X is normalized,
+|		 the FMOVEM may yest seem relevant since X is yesrmalized,
 |		 the precaution will be useful in the library version of
-|		 this code where the separate entry for denormalized inputs
+|		 this code where the separate entry for deyesrmalized inputs
 |		 will be done away with.)
 |
 |	Step 8.	Handle exp(X) where |X| >= 16380log2.
@@ -191,7 +191,7 @@
 |		8.5	Calculate the address of the stored value 2^(J/64).
 |		8.6	Create the values Scale = 2^M, AdjScale = 2^M1.
 |		8.7	Go to Step 3.
-|	Notes:	Refer to notes for 2.2 - 2.6.
+|	Notes:	Refer to yestes for 2.2 - 2.6.
 |
 |	Step 9.	Handle exp(X), |X| > 16480 log2.
 |		9.1	If X < 0, go to 9.3
@@ -227,7 +227,7 @@
 |		 However, it is conceivable |X| can be small very often
 |		 because EXPM1 is intended to evaluate exp(X)-1 accurately
 |		 when |X| is small. For further details on the comparisons,
-|		 see the notes on Step 1 of setox.
+|		 see the yestes on Step 1 of setox.
 |
 |	Step 2.	Calculate N = round-to-nearest-int( X * 64/log2 ).
 |		2.1	N := round-to-nearest-integer( X * 64/log2 ).
@@ -235,16 +235,16 @@
 |		2.3	Calculate	M = (N - J)/64; so N = 64M + J.
 |		2.4	Calculate the address of the stored value of 2^(J/64).
 |		2.5	Create the values Sc = 2^M and OnebySc := -2^(-M).
-|	Notes:	See the notes on Step 2 of setox.
+|	Notes:	See the yestes on Step 2 of setox.
 |
 |	Step 3.	Calculate X - N*log2/64.
 |		3.1	R := X + N*L1, where L1 := single-precision(-log2/64).
 |		3.2	R := R + N*L2, L2 := extended-precision(-log2/64 - L1).
 |	Notes:	Applying the analysis of Step 3 of setox in this case
-|		 shows that |R| <= 0.0055 (note that |X| <= 70 log2 in
+|		 shows that |R| <= 0.0055 (yeste that |X| <= 70 log2 in
 |		 this case).
 |
-|	Step 4.	Approximate exp(R)-1 by a polynomial
+|	Step 4.	Approximate exp(R)-1 by a polyyesmial
 |			p = R+R*R*(A1+R*(A2+R*(A3+R*(A4+R*(A5+R*A6)))))
 |	Notes:	a) In order to reduce memory access, the coefficients are
 |		 made as "short" as possible: A1 (which is 1/2), A5 and A6
@@ -267,7 +267,7 @@
 |		 to 62 bits so that the last two bits of T are zero. The
 |		 reason for such a special form is that T-1, T-2, and T-8
 |		 will all be exact --- a property that will be exploited
-|		 in Step 6 below. The total relative error in p is no
+|		 in Step 6 below. The total relative error in p is yes
 |		 bigger than 2^(-67.7) compared to the final result.
 |
 |	Step 6.	Reconstruction of exp(X)-1
@@ -294,11 +294,11 @@
 |		 Return ans := ans*2^(140). Exit
 |	Notes:	The idea is to return "X - tiny" under the user
 |		 precision and rounding modes. To avoid unnecessary
-|		 inefficiency, we stay away from denormalized numbers the
+|		 inefficiency, we stay away from deyesrmalized numbers the
 |		 best we can. For |X| >= 2^(-16312), the straightforward
 |		 8.2 generates the inexact exception as the case warrants.
 |
-|	Step 9.	Calculate exp(X)-1, |X| < 1/4, by a polynomial
+|	Step 9.	Calculate exp(X)-1, |X| < 1/4, by a polyyesmial
 |			p = X + X*X*(B1 + X*(B2 + ... + X*B12))
 |	Notes:	a) In order to reduce memory access, the coefficients are
 |		 made as "short" as possible: B1 (which is 1/2), B9 to B12
@@ -308,7 +308,7 @@
 |			|p - (exp(X)-1)| < |X| 2^(-70.6)
 |		 for all |X| <= 0.251.
 |		 Note that 0.251 is slightly bigger than 1/4.
-|		 c) To fully preserve accuracy, the polynomial is computed
+|		 c) To fully preserve accuracy, the polyyesmial is computed
 |		 as	X + ( S*B1 +	Q ) where S = X*X and
 |			Q	=	X*S*(B2 + X*(B3 + ... + X*B12))
 |		 d) To fully utilize the pipeline, Q is separated into
@@ -447,7 +447,7 @@ EXPTBL:
 
 	.global	setoxd
 setoxd:
-|--entry point for EXP(X), X is denormalized
+|--entry point for EXP(X), X is deyesrmalized
 	movel		(%a0),%d0
 	andil		#0x80000000,%d0
 	oril		#0x00800000,%d0		| ...sign(X)*2^(-126)
@@ -459,25 +459,25 @@ setoxd:
 
 	.global	setox
 setox:
-|--entry point for EXP(X), here X is finite, non-zero, and not NaN's
+|--entry point for EXP(X), here X is finite, yesn-zero, and yest NaN's
 
 |--Step 1.
 	movel		(%a0),%d0	 | ...load part of input X
 	andil		#0x7FFF0000,%d0	| ...biased expo. of X
 	cmpil		#0x3FBE0000,%d0	| ...2^(-65)
-	bges		EXPC1		| ...normal case
+	bges		EXPC1		| ...yesrmal case
 	bra		EXPSM
 
 EXPC1:
 |--The case |X| >= 2^(-65)
 	movew		4(%a0),%d0	| ...expo. and partial sig. of |X|
 	cmpil		#0x400CB167,%d0	| ...16380 log2 trunc. 16 bits
-	blts		EXPMAIN	 | ...normal case
+	blts		EXPMAIN	 | ...yesrmal case
 	bra		EXPBIG
 
 EXPMAIN:
 |--Step 2.
-|--This is the normal branch:	2^(-65) <= |X| < 16380 log2.
+|--This is the yesrmal branch:	2^(-65) <= |X| < 16380 log2.
 	fmovex		(%a0),%fp0	| ...load input from (a0)
 
 	fmovex		%fp0,%fp1
@@ -495,7 +495,7 @@ EXPMAIN:
 	movel		L_SCR1(%a6),%d0
 	asrl		#6,%d0		| ...D0 is M
 	addiw		#0x3FFF,%d0	| ...biased expo. of 2^(M)
-	movew		L2,L_SCR1(%a6)	| ...prefetch L2, no need in CB
+	movew		L2,L_SCR1(%a6)	| ...prefetch L2, yes need in CB
 
 EXPCONT1:
 |--Step 3.
@@ -569,7 +569,7 @@ NORMAL:
 
 EXPSM:
 |--Step 7
-	fmovemx	(%a0),%fp0-%fp0	| ...in case X is denormalized
+	fmovemx	(%a0),%fp0-%fp0	| ...in case X is deyesrmalized
 	fmovel		%d1,%FPCR
 	fadds		#0x3F800000,%fp0	| ...1+X in user mode
 	bra		t_frcinx
@@ -617,14 +617,14 @@ EXP2BIG:
 
 	.global	setoxm1d
 setoxm1d:
-|--entry point for EXPM1(X), here X is denormalized
+|--entry point for EXPM1(X), here X is deyesrmalized
 |--Step 0.
 	bra		t_extdnrm
 
 
 	.global	setoxm1
 setoxm1:
-|--entry point for EXPM1(X), here X is finite, non-zero, non-NaN
+|--entry point for EXPM1(X), here X is finite, yesn-zero, yesn-NaN
 
 |--Step 1.
 |--Step 1.1
@@ -796,7 +796,7 @@ EM12TINY:
 	bra		t_frcinx
 
 EM1POLY:
-|--Step 9	exp(X)-1 by a simple polynomial
+|--Step 9	exp(X)-1 by a simple polyyesmial
 	fmovex		(%a0),%fp0	| ...fp0 is X
 	fmulx		%fp0,%fp0		| ...fp0 is S := X*X
 	fmovemx	%fp2-%fp2/%fp3,-(%a7)	| ...save fp2

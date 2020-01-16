@@ -142,7 +142,7 @@ static long clk_hfpll_round_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 /*
- * For optimization reasons, assumes no downstream clocks are actively using
+ * For optimization reasons, assumes yes downstream clocks are actively using
  * it.
  */
 static int clk_hfpll_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -212,7 +212,7 @@ static void clk_hfpll_init(struct clk_hw *hw)
 	if (hd->status_reg) {
 		regmap_read(regmap, hd->status_reg, &status);
 		if (!(status & BIT(hd->lock_bit))) {
-			WARN(1, "HFPLL %s is ON, but not locked!\n",
+			WARN(1, "HFPLL %s is ON, but yest locked!\n",
 			     __clk_get_name(hw->clk));
 			clk_hfpll_disable(hw);
 			__clk_hfpll_init_once(hw);

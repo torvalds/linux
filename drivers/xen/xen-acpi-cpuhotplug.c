@@ -62,7 +62,7 @@ static int xen_acpi_processor_enable(struct acpi_device *device)
 	pr->id = xen_pcpu_id(pr->acpi_id);
 
 	if (invalid_logical_cpuid(pr->id))
-		/* This cpu is not presented at hypervisor, try to hotadd it */
+		/* This cpu is yest presented at hypervisor, try to hotadd it */
 		if (ACPI_FAILURE(xen_acpi_cpu_hotadd(pr))) {
 			pr_err(PREFIX "Hotadd CPU (acpi_id = %d) failed.\n",
 					pr->acpi_id);
@@ -130,9 +130,9 @@ static int is_processor_present(acpi_handle handle)
 	 * _STA is mandatory for a processor that supports hot plug
 	 */
 	if (status == AE_NOT_FOUND)
-		pr_info(PREFIX "Processor does not support hot plug\n");
+		pr_info(PREFIX "Processor does yest support hot plug\n");
 	else
-		pr_info(PREFIX "Processor Device is not present");
+		pr_info(PREFIX "Processor Device is yest present");
 	return 0;
 }
 
@@ -224,12 +224,12 @@ static acpi_status xen_acpi_cpu_hotadd(struct acpi_processor *pr)
 
 static int acpi_processor_device_remove(struct acpi_device *device)
 {
-	pr_debug(PREFIX "Xen does not support CPU hotremove\n");
+	pr_debug(PREFIX "Xen does yest support CPU hotremove\n");
 
 	return -ENOSYS;
 }
 
-static void acpi_processor_hotplug_notify(acpi_handle handle,
+static void acpi_processor_hotplug_yestify(acpi_handle handle,
 					  u32 event, void *data)
 {
 	struct acpi_processor *pr;
@@ -293,7 +293,7 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 
-		/* non-hotplug event; possibly handled by other handler */
+		/* yesn-hotplug event; possibly handled by other handler */
 		goto out;
 	}
 
@@ -342,19 +342,19 @@ processor_walk_namespace_cb(acpi_handle handle,
 
 	status = is_processor_device(handle);
 	if (ACPI_FAILURE(status))
-		return AE_OK;	/* not a processor; continue to walk */
+		return AE_OK;	/* yest a processor; continue to walk */
 
 	switch (*action) {
 	case INSTALL_NOTIFY_HANDLER:
-		acpi_install_notify_handler(handle,
+		acpi_install_yestify_handler(handle,
 					    ACPI_SYSTEM_NOTIFY,
-					    acpi_processor_hotplug_notify,
+					    acpi_processor_hotplug_yestify,
 					    NULL);
 		break;
 	case UNINSTALL_NOTIFY_HANDLER:
-		acpi_remove_notify_handler(handle,
+		acpi_remove_yestify_handler(handle,
 					   ACPI_SYSTEM_NOTIFY,
-					   acpi_processor_hotplug_notify);
+					   acpi_processor_hotplug_yestify);
 		break;
 	default:
 		break;
@@ -365,7 +365,7 @@ processor_walk_namespace_cb(acpi_handle handle,
 }
 
 static
-void acpi_processor_install_hotplug_notify(void)
+void acpi_processor_install_hotplug_yestify(void)
 {
 	int action = INSTALL_NOTIFY_HANDLER;
 	acpi_walk_namespace(ACPI_TYPE_ANY,
@@ -375,7 +375,7 @@ void acpi_processor_install_hotplug_notify(void)
 }
 
 static
-void acpi_processor_uninstall_hotplug_notify(void)
+void acpi_processor_uninstall_hotplug_yestify(void)
 {
 	int action = UNINSTALL_NOTIFY_HANDLER;
 	acpi_walk_namespace(ACPI_TYPE_ANY,
@@ -417,7 +417,7 @@ static int __init xen_acpi_processor_init(void)
 		return result;
 	}
 
-	acpi_processor_install_hotplug_notify();
+	acpi_processor_install_hotplug_yestify();
 	return 0;
 }
 
@@ -426,7 +426,7 @@ static void __exit xen_acpi_processor_exit(void)
 	if (!xen_initial_domain())
 		return;
 
-	acpi_processor_uninstall_hotplug_notify();
+	acpi_processor_uninstall_hotplug_yestify();
 
 	acpi_bus_unregister_driver(&xen_acpi_processor_driver);
 

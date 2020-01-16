@@ -96,7 +96,7 @@ static void __init rbtx4938_pci_setup(void)
 		txx9_clear64(&tx4938_ccfgptr->clkctr, TX4938_CLKCTR_PCIC1RST);
 		tx4938_report_pci1clk();
 
-		/* mem:64K(max), io:64K(max) (enough for ETH0,ETH1) */
+		/* mem:64K(max), io:64K(max) (eyesugh for ETH0,ETH1) */
 		c = txx9_alloc_pci_controller(NULL, 0, 0x10000, 0, 0x10000);
 		register_pci_controller(c);
 		tx4927_pcic_setup(tx4938_pcic1ptr, c, 0);

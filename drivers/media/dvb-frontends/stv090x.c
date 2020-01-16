@@ -29,7 +29,7 @@
 static unsigned int verbose;
 module_param(verbose, int, 0644);
 
-/* internal params node */
+/* internal params yesde */
 struct stv090x_dev {
 	/* pointer for internal params, one for each pair of demods */
 	struct stv090x_internal		*internal;
@@ -755,7 +755,7 @@ static int stv090x_i2c_gate_ctrl(struct stv090x_state *state, int enable)
 	/*
 	 * NOTE! A lock is used as a FSM to control the state in which
 	 * access is serialized between two tuners on the same demod.
-	 * This has nothing to do with a lock to protect a critical section
+	 * This has yesthing to do with a lock to protect a critical section
 	 * which may in some other cases be confused with protecting I/O
 	 * access to the demodulator gate.
 	 * In case of any error, the lock is unlocked and exit within the
@@ -1276,7 +1276,7 @@ static int stv090x_delivery_search(struct stv090x_state *state)
 			goto err;
 
 		/* Activate Viterbi decoder in legacy search,
-		 * do not use FRESVIT1, might impact VITERBI2
+		 * do yest use FRESVIT1, might impact VITERBI2
 		 */
 		if (stv090x_vitclk_ctl(state, 0) < 0)
 			goto err;
@@ -1557,7 +1557,7 @@ static int stv090x_start_search(struct stv090x_state *state)
 	switch (state->algo) {
 	case STV090x_WARM_SEARCH:
 		/* The symbol rate and the exact
-		 * carrier Frequency are known
+		 * carrier Frequency are kyeswn
 		 */
 		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1f) < 0)
 			goto err;
@@ -1566,7 +1566,7 @@ static int stv090x_start_search(struct stv090x_state *state)
 		break;
 
 	case STV090x_COLD_SEARCH:
-		/* The symbol rate is known */
+		/* The symbol rate is kyeswn */
 		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1f) < 0)
 			goto err;
 		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x15) < 0)
@@ -2301,7 +2301,7 @@ static int stv090x_get_loop_params(struct stv090x_state *state, s32 *freq_inc, s
 static int stv090x_chk_signal(struct stv090x_state *state)
 {
 	s32 offst_car, agc2, car_max;
-	int no_signal;
+	int yes_signal;
 
 	offst_car  = STV090x_READ_DEMOD(state, CFR2) << 8;
 	offst_car |= STV090x_READ_DEMOD(state, CFR1);
@@ -2319,19 +2319,19 @@ static int stv090x_chk_signal(struct stv090x_state *state)
 		car_max = 0x4000;
 
 	if ((agc2 > 0x2000) || (offst_car > 2 * car_max) || (offst_car < -2 * car_max)) {
-		no_signal = 1;
+		yes_signal = 1;
 		dprintk(FE_DEBUG, 1, "No Signal");
 	} else {
-		no_signal = 0;
+		yes_signal = 0;
 		dprintk(FE_DEBUG, 1, "Found Signal");
 	}
 
-	return no_signal;
+	return yes_signal;
 }
 
 static int stv090x_search_car_loop(struct stv090x_state *state, s32 inc, s32 timeout, int zigzag, s32 steps_max)
 {
-	int no_signal, lock = 0;
+	int yes_signal, lock = 0;
 	s32 cpt_step = 0, offst_freq, car_max;
 	u32 reg;
 
@@ -2374,10 +2374,10 @@ static int stv090x_search_car_loop(struct stv090x_state *state, s32 inc, s32 tim
 		cpt_step++;
 
 		lock = stv090x_get_dmdlock(state, timeout);
-		no_signal = stv090x_chk_signal(state);
+		yes_signal = stv090x_chk_signal(state);
 
 	} while ((!lock) &&
-		 (!no_signal) &&
+		 (!yes_signal) &&
 		  ((offst_freq - inc) < car_max) &&
 		  ((offst_freq + inc) > -car_max) &&
 		  (cpt_step < steps_max));
@@ -2395,7 +2395,7 @@ err:
 
 static int stv090x_sw_algo(struct stv090x_state *state)
 {
-	int no_signal, zigzag, lock = 0;
+	int yes_signal, zigzag, lock = 0;
 	u32 reg;
 
 	s32 dvbs2_fly_wheel;
@@ -2448,12 +2448,12 @@ static int stv090x_sw_algo(struct stv090x_state *state)
 	trials = 0;
 	do {
 		lock = stv090x_search_car_loop(state, inc, timeout_step, zigzag, steps_max);
-		no_signal = stv090x_chk_signal(state);
+		yes_signal = stv090x_chk_signal(state);
 		trials++;
 
 		/*run the SW search 2 times maximum*/
-		if (lock || no_signal || (trials == 2)) {
-			/*Check if the demod is not losing lock in DVBS2*/
+		if (lock || yes_signal || (trials == 2)) {
+			/*Check if the demod is yest losing lock in DVBS2*/
 			if (state->internal->dev_ver >= 0x20) {
 				if (STV090x_WRITE_DEMOD(state, CARFREQ, 0x49) < 0)
 					goto err;
@@ -2463,7 +2463,7 @@ static int stv090x_sw_algo(struct stv090x_state *state)
 
 			reg = STV090x_READ_DEMOD(state, DMDSTATE);
 			if ((lock) && (STV090x_GETFIELD_Px(reg, HEADER_MODE_FIELD) == STV090x_DVBS2)) {
-				/*Check if the demod is not losing lock in DVBS2*/
+				/*Check if the demod is yest losing lock in DVBS2*/
 				msleep(timeout_step);
 				reg = STV090x_READ_DEMOD(state, DMDFLYW);
 				dvbs2_fly_wheel = STV090x_GETFIELD_Px(reg, FLYWHEEL_CPT_FIELD);
@@ -2487,7 +2487,7 @@ static int stv090x_sw_algo(struct stv090x_state *state)
 				}
 			}
 		}
-	} while ((!lock) && (trials < 2) && (!no_signal));
+	} while ((!lock) && (trials < 2) && (!yes_signal));
 
 	return lock;
 err:
@@ -3188,7 +3188,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	stv090x_get_lock_tmg(state);
 
 	if (state->algo == STV090x_BLIND_SEARCH) {
-		state->tuner_bw = 2 * 36000000; /* wide bw for unknown srate */
+		state->tuner_bw = 2 * 36000000; /* wide bw for unkyeswn srate */
 		if (STV090x_WRITE_DEMOD(state, TMGCFG2, 0xc0) < 0) /* wider srate scan */
 			goto err;
 		if (STV090x_WRITE_DEMOD(state, CORRELMANT, 0x70) < 0)
@@ -3196,7 +3196,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 		if (stv090x_set_srate(state, 1000000) < 0) /* initial srate = 1Msps */
 			goto err;
 	} else {
-		/* known srate */
+		/* kyeswn srate */
 		if (STV090x_WRITE_DEMOD(state, DMDTOM, 0x20) < 0)
 			goto err;
 		if (STV090x_WRITE_DEMOD(state, TMGCFG, 0xd2) < 0)
@@ -3224,7 +3224,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 				state->tuner_bw = stv090x_car_width(state->srate, state->rolloff) + 10000000;
 		}
 
-		/* if cold start or warm  (Symbolrate is known)
+		/* if cold start or warm  (Symbolrate is kyeswn)
 		 * use a Narrow symbol rate scan range
 		 */
 		if (STV090x_WRITE_DEMOD(state, TMGCFG2, 0xc1) < 0) /* narrow srate scan */

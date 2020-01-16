@@ -197,7 +197,7 @@ static int tegra20_idle_lp2_coupled(struct cpuidle_device *dev,
 /*
  * Tegra20 HW appears to have a bug such that PCIe device interrupts, whether
  * they are legacy IRQs or MSI, are lost when LP2 is enabled. To work around
- * this, simply disable LP2 if the PCI driver and DT node are both enabled.
+ * this, simply disable LP2 if the PCI driver and DT yesde are both enabled.
  */
 void tegra20_cpuidle_pcie_irqs_in_use(void)
 {

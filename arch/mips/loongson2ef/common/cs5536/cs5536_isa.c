@@ -52,7 +52,7 @@ static void divil_lbar_enable(void)
 	int offset;
 
 	/*
-	 * The DIVIL IRQ is not used yet. and make the RCONF0 reserved.
+	 * The DIVIL IRQ is yest used yet. and make the RCONF0 reserved.
 	 */
 
 	for (offset = DIVIL_LBAR_SMB; offset <= DIVIL_LBAR_PMS; offset++) {
@@ -129,7 +129,7 @@ u32 pci_isa_read_bar(int n)
 /*
  * isa_write: ISA write transfer
  *
- * We assume that this is not a bus master transfer.
+ * We assume that this is yest a bus master transfer.
  */
 void pci_isa_write_reg(int reg, u32 value)
 {
@@ -223,7 +223,7 @@ void pci_isa_write_reg(int reg, u32 value)
 /*
  * isa_read: ISA read transfers
  *
- * We assume that this is not a bus master transfer.
+ * We assume that this is yest a bus master transfer.
  */
 u32 pci_isa_read_reg(int reg)
 {
@@ -268,7 +268,7 @@ u32 pci_isa_read_reg(int reg)
 		conf_data = CFG_PCI_CACHE_LINE_SIZE(PCI_BRIDGE_HEADER_TYPE, hi);
 		break;
 		/*
-		 * we only use the LBAR of DIVIL, no RCONF used.
+		 * we only use the LBAR of DIVIL, yes RCONF used.
 		 * all of them are IO space.
 		 */
 	case PCI_BAR0_REG:
@@ -302,7 +302,7 @@ u32 pci_isa_read_reg(int reg)
 		conf_data = PCI_CAPLIST_POINTER;
 		break;
 	case PCI_INTERRUPT_LINE:
-		/* no interrupt used here */
+		/* yes interrupt used here */
 		conf_data = CFG_PCI_INTERRUPT_LINE(0x00, 0x00);
 		break;
 	default:
@@ -316,7 +316,7 @@ u32 pci_isa_read_reg(int reg)
  * The mfgpt timer interrupt is running early, so we must keep the south bridge
  * mmio always enabled. Otherwise we may race with the PCI configuration which
  * may temporarily disable it. When that happens and the timer interrupt fires,
- * we are not able to clear it and the system will hang.
+ * we are yest able to clear it and the system will hang.
  */
 static void cs5536_isa_mmio_always_on(struct pci_dev *dev)
 {

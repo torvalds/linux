@@ -9,7 +9,7 @@ Required properties:
 
 Optional properties:
   - adc-reserved-channels: Bitmask of reserved channels,
-    i.e. channels that cannot be used by the OS.
+    i.e. channels that canyest be used by the OS.
 
 Example:
 adc: adc@18101600 {

@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -32,7 +32,7 @@
 #include "r600d.h"
 #include "r600_reg_safe.h"
 
-static int r600_nomm;
+static int r600_yesmm;
 extern void r600_cs_legacy_get_tiling_conf(struct drm_device *dev, u32 *npipes, u32 *nbanks, u32 *group_size);
 
 
@@ -421,7 +421,7 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 		return -EINVAL;
 	}
 	if (!IS_ALIGNED(base_offset, base_align)) {
-		dev_warn(p->dev, "%s offset[%d] 0x%llx 0x%llx, %d not aligned\n", __func__, i,
+		dev_warn(p->dev, "%s offset[%d] 0x%llx 0x%llx, %d yest aligned\n", __func__, i,
 			 base_offset, base_align, array_mode);
 		return -EINVAL;
 	}
@@ -528,7 +528,7 @@ static int r600_cs_track_validate_db(struct radeon_cs_parser *p)
 
 
 	if (track->db_bo == NULL) {
-		dev_warn(p->dev, "z/stencil with no depth buffer\n");
+		dev_warn(p->dev, "z/stencil with yes depth buffer\n");
 		return -EINVAL;
 	}
 	switch (G_028010_FORMAT(track->db_depth_info)) {
@@ -551,7 +551,7 @@ static int r600_cs_track_validate_db(struct radeon_cs_parser *p)
 	}
 	if ((track->db_depth_size & 0xFFFFFC00) == 0xFFFFFC00) {
 		if (!track->db_depth_size_idx) {
-			dev_warn(p->dev, "z/stencil buffer size not set\n");
+			dev_warn(p->dev, "z/stencil buffer size yest set\n");
 			return -EINVAL;
 		}
 		tmp = radeon_bo_size(track->db_bo) - track->db_offset;
@@ -612,7 +612,7 @@ static int r600_cs_track_validate_db(struct radeon_cs_parser *p)
 			return -EINVAL;
 		}
 		if (!IS_ALIGNED(base_offset, base_align)) {
-			dev_warn(p->dev, "%s offset 0x%llx, 0x%llx, %d not aligned\n", __func__,
+			dev_warn(p->dev, "%s offset 0x%llx, 0x%llx, %d yest aligned\n", __func__,
 					base_offset, base_align, array_mode);
 			return -EINVAL;
 		}
@@ -756,7 +756,7 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 			    (tmp >> (i * 4)) & 0xF) {
 				/* at least one component is enabled */
 				if (track->cb_color_bo[i] == NULL) {
-					dev_warn(p->dev, "%s:%d mask 0x%08X | 0x%08X no cb for %d\n",
+					dev_warn(p->dev, "%s:%d mask 0x%08X | 0x%08X yes cb for %d\n",
 						__func__, __LINE__, track->cb_target_mask, track->cb_shader_mask, i);
 					return -EINVAL;
 				}
@@ -861,7 +861,7 @@ int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
 	}
 	/* waiting for value to be equal */
 	if ((wait_reg_mem_info & 0x7) != 0x3) {
-		DRM_ERROR("vline WAIT_REG_MEM function not equal\n");
+		DRM_ERROR("vline WAIT_REG_MEM function yest equal\n");
 		return -EINVAL;
 	}
 	if ((radeon_get_ib_value(p, wait_reg_mem.idx + 2) << 2) != vline_status[0]) {
@@ -889,14 +889,14 @@ int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
 
 	crtc = drm_crtc_find(p->rdev->ddev, p->filp, crtc_id);
 	if (!crtc) {
-		DRM_ERROR("cannot find crtc %d\n", crtc_id);
+		DRM_ERROR("canyest find crtc %d\n", crtc_id);
 		return -ENOENT;
 	}
 	radeon_crtc = to_radeon_crtc(crtc);
 	crtc_id = radeon_crtc->crtc_id;
 
 	if (!crtc->enabled) {
-		/* CRTC isn't enabled - we need to nop out the WAIT_REG_MEM */
+		/* CRTC isn't enabled - we need to yesp out the WAIT_REG_MEM */
 		ib[h_idx + 2] = PACKET2(0);
 		ib[h_idx + 3] = PACKET2(0);
 		ib[h_idx + 4] = PACKET2(0);
@@ -910,7 +910,7 @@ int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
 		ib[h_idx] = header;
 		ib[h_idx + 4] = vline_status[crtc_id] >> 2;
 	} else {
-		DRM_ERROR("unknown crtc reloc\n");
+		DRM_ERROR("unkyeswn crtc reloc\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -957,13 +957,13 @@ static int r600_cs_parse_packet0(struct radeon_cs_parser *p,
 }
 
 /**
- * r600_cs_check_reg() - check if register is authorized or not
+ * r600_cs_check_reg() - check if register is authorized or yest
  * @parser: parser structure holding parsing context
  * @reg: register we are testing
  * @idx: index into the cs buffer
  *
  * This function will test against r600_reg_safe_bm and return 0
- * if register is safe. If register is not flag as safe this function
+ * if register is safe. If register is yest flag as safe this function
  * will test it against a list of register needind special handling.
  */
 static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
@@ -1031,8 +1031,8 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		break;
 	case R_028010_DB_DEPTH_INFO:
 		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS) &&
-		    radeon_cs_packet_next_is_pkt3_nop(p)) {
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		    radeon_cs_packet_next_is_pkt3_yesp(p)) {
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				dev_warn(p->dev, "bad SET_CONTEXT_REG "
 					 "0x%04X\n", reg);
@@ -1074,7 +1074,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case VGT_STRMOUT_BUFFER_BASE_1:
 	case VGT_STRMOUT_BUFFER_BASE_2:
 	case VGT_STRMOUT_BUFFER_BASE_3:
-		r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 		if (r) {
 			dev_warn(p->dev, "bad SET_CONTEXT_REG "
 					"0x%04X\n", reg);
@@ -1097,7 +1097,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		track->streamout_dirty = true;
 		break;
 	case CP_COHER_BASE:
-		r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 		if (r) {
 			dev_warn(p->dev, "missing reloc for CP_COHER_BASE "
 					"0x%04X\n", reg);
@@ -1132,8 +1132,8 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_0280B8_CB_COLOR6_INFO:
 	case R_0280BC_CB_COLOR7_INFO:
 		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS) &&
-		     radeon_cs_packet_next_is_pkt3_nop(p)) {
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		     radeon_cs_packet_next_is_pkt3_yesp(p)) {
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				dev_err(p->dev, "bad SET_CONTEXT_REG 0x%04X\n", reg);
 				return -EINVAL;
@@ -1182,7 +1182,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		 * which does provide relocation for those but set
 		 * 0 offset. In order to avoid breaking old userspace
 		 * we detect this and set address to point to last
-		 * CB_COLOR0_BASE, note that if userspace doesn't set
+		 * CB_COLOR0_BASE, yeste that if userspace doesn't set
 		 * CB_COLOR0_BASE before this register we will report
 		 * error. Old userspace always set CB_COLOR0_BASE
 		 * before any of this.
@@ -1196,16 +1196,16 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_0280F8_CB_COLOR6_FRAG:
 	case R_0280FC_CB_COLOR7_FRAG:
 		tmp = (reg - R_0280E0_CB_COLOR0_FRAG) / 4;
-		if (!radeon_cs_packet_next_is_pkt3_nop(p)) {
+		if (!radeon_cs_packet_next_is_pkt3_yesp(p)) {
 			if (!track->cb_color_base_last[tmp]) {
-				dev_err(p->dev, "Broken old userspace ? no cb_color0_base supplied before trying to write 0x%08X\n", reg);
+				dev_err(p->dev, "Broken old userspace ? yes cb_color0_base supplied before trying to write 0x%08X\n", reg);
 				return -EINVAL;
 			}
 			track->cb_color_frag_bo[tmp] = track->cb_color_bo[tmp];
 			track->cb_color_frag_offset[tmp] = track->cb_color_bo_offset[tmp];
 			ib[idx] = track->cb_color_base_last[tmp];
 		} else {
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				dev_err(p->dev, "bad SET_CONTEXT_REG 0x%04X\n", reg);
 				return -EINVAL;
@@ -1227,16 +1227,16 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_0280D8_CB_COLOR6_TILE:
 	case R_0280DC_CB_COLOR7_TILE:
 		tmp = (reg - R_0280C0_CB_COLOR0_TILE) / 4;
-		if (!radeon_cs_packet_next_is_pkt3_nop(p)) {
+		if (!radeon_cs_packet_next_is_pkt3_yesp(p)) {
 			if (!track->cb_color_base_last[tmp]) {
-				dev_err(p->dev, "Broken old userspace ? no cb_color0_base supplied before trying to write 0x%08X\n", reg);
+				dev_err(p->dev, "Broken old userspace ? yes cb_color0_base supplied before trying to write 0x%08X\n", reg);
 				return -EINVAL;
 			}
 			track->cb_color_tile_bo[tmp] = track->cb_color_bo[tmp];
 			track->cb_color_tile_offset[tmp] = track->cb_color_bo_offset[tmp];
 			ib[idx] = track->cb_color_base_last[tmp];
 		} else {
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				dev_err(p->dev, "bad SET_CONTEXT_REG 0x%04X\n", reg);
 				return -EINVAL;
@@ -1271,7 +1271,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case CB_COLOR5_BASE:
 	case CB_COLOR6_BASE:
 	case CB_COLOR7_BASE:
-		r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 		if (r) {
 			dev_warn(p->dev, "bad SET_CONTEXT_REG "
 					"0x%04X\n", reg);
@@ -1286,7 +1286,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		track->cb_dirty = true;
 		break;
 	case DB_DEPTH_BASE:
-		r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 		if (r) {
 			dev_warn(p->dev, "bad SET_CONTEXT_REG "
 					"0x%04X\n", reg);
@@ -1299,7 +1299,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		track->db_dirty = true;
 		break;
 	case DB_HTILE_DATA_BASE:
-		r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 		if (r) {
 			dev_warn(p->dev, "bad SET_CONTEXT_REG "
 					"0x%04X\n", reg);
@@ -1369,7 +1369,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case SQ_ALU_CONST_CACHE_VS_13:
 	case SQ_ALU_CONST_CACHE_VS_14:
 	case SQ_ALU_CONST_CACHE_VS_15:
-		r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 		if (r) {
 			dev_warn(p->dev, "bad SET_CONTEXT_REG "
 					"0x%04X\n", reg);
@@ -1378,7 +1378,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		ib[idx] += (u32)((reloc->gpu_offset >> 8) & 0xffffffff);
 		break;
 	case SX_MEMORY_EXPORT_BASE:
-		r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 		if (r) {
 			dev_warn(p->dev, "bad SET_CONFIG_REG "
 					"0x%04X\n", reg);
@@ -1457,14 +1457,14 @@ static void r600_texture_size(unsigned nfaces, unsigned blevel, unsigned llevel,
 }
 
 /**
- * r600_check_texture_resource() - check if register is authorized or not
+ * r600_check_texture_resource() - check if register is authorized or yest
  * @p: parser structure holding parsing context
  * @idx: index into the cs buffer
  * @texture: texture's bo structure
  * @mipmap: mipmap's bo structure
  *
  * This function will check that the resource has valid field and that
- * the texture and mipmap bo object are big enough to cover this resource.
+ * the texture and mipmap bo object are big eyesugh to cover this resource.
  */
 static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 					      struct radeon_bo *texture,
@@ -1664,7 +1664,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 
-		r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 		if (r) {
 			DRM_ERROR("bad SET PREDICATION\n");
 			return -EINVAL;
@@ -1705,7 +1705,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("bad DRAW_INDEX\n");
 			return -EINVAL;
 		}
-		r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 		if (r) {
 			DRM_ERROR("bad DRAW_INDEX\n");
 			return -EINVAL;
@@ -1757,7 +1757,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		if (idx_value & 0x10) {
 			uint64_t offset;
 
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				DRM_ERROR("bad WAIT_REG_MEM\n");
 				return -EINVAL;
@@ -1770,7 +1770,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			ib[idx+1] = (ib[idx+1] & 0x3) | (offset & 0xfffffff0);
 			ib[idx+2] = upper_32_bits(offset) & 0xff;
 		} else if (idx_value & 0x100) {
-			DRM_ERROR("cannot use PFP on REG wait\n");
+			DRM_ERROR("canyest use PFP on REG wait\n");
 			return -EINVAL;
 		}
 		break;
@@ -1786,7 +1786,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		size = command & 0x1fffff;
 		if (command & PACKET3_CP_DMA_CMD_SAS) {
 			/* src address space is register */
-			DRM_ERROR("CP DMA SAS not supported\n");
+			DRM_ERROR("CP DMA SAS yest supported\n");
 			return -EINVAL;
 		} else {
 			if (command & PACKET3_CP_DMA_CMD_SAIC) {
@@ -1794,7 +1794,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 				return -EINVAL;
 			}
 			/* src address space is memory */
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				DRM_ERROR("bad CP DMA SRC\n");
 				return -EINVAL;
@@ -1816,7 +1816,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		if (command & PACKET3_CP_DMA_CMD_DAS) {
 			/* dst address space is register */
-			DRM_ERROR("CP DMA DAS not supported\n");
+			DRM_ERROR("CP DMA DAS yest supported\n");
 			return -EINVAL;
 		} else {
 			/* dst address space is memory */
@@ -1824,7 +1824,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 				DRM_ERROR("CP DMA DAIC only supported for registers\n");
 				return -EINVAL;
 			}
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				DRM_ERROR("bad CP DMA DST\n");
 				return -EINVAL;
@@ -1854,7 +1854,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		/* 0xffffffff/0x0 is flush all cache flag */
 		if (radeon_get_ib_value(p, idx + 1) != 0xffffffff ||
 		    radeon_get_ib_value(p, idx + 2) != 0) {
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				DRM_ERROR("bad SURFACE_SYNC\n");
 				return -EINVAL;
@@ -1870,7 +1870,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		if (pkt->count) {
 			uint64_t offset;
 
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				DRM_ERROR("bad EVENT_WRITE\n");
 				return -EINVAL;
@@ -1891,7 +1891,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("bad EVENT_WRITE_EOP\n");
 			return -EINVAL;
 		}
-		r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 		if (r) {
 			DRM_ERROR("bad EVENT_WRITE\n");
 			return -EINVAL;
@@ -1957,7 +1957,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			switch (G__SQ_VTX_CONSTANT_TYPE(radeon_get_ib_value(p, idx+(i*7)+6+1))) {
 			case SQ_TEX_VTX_VALID_TEXTURE:
 				/* tex base */
-				r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+				r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 				if (r) {
 					DRM_ERROR("bad SET_RESOURCE\n");
 					return -EINVAL;
@@ -1971,7 +1971,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 				}
 				texture = reloc->robj;
 				/* tex mip base */
-				r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+				r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 				if (r) {
 					DRM_ERROR("bad SET_RESOURCE\n");
 					return -EINVAL;
@@ -1992,7 +1992,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			{
 				uint64_t offset64;
 				/* vtx base */
-				r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+				r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 				if (r) {
 					DRM_ERROR("bad SET_RESOURCE\n");
 					return -EINVAL;
@@ -2093,20 +2093,20 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		{
 			u64 offset;
 
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				DRM_ERROR("bad STRMOUT_BASE_UPDATE reloc\n");
 				return -EINVAL;
 			}
 
 			if (reloc->robj != track->vgt_strmout_bo[idx_value]) {
-				DRM_ERROR("bad STRMOUT_BASE_UPDATE, bo does not match\n");
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE, bo does yest match\n");
 				return -EINVAL;
 			}
 
 			offset = radeon_get_ib_value(p, idx+1) << 8;
 			if (offset != track->vgt_strmout_bo_offset[idx_value]) {
-				DRM_ERROR("bad STRMOUT_BASE_UPDATE, bo offset does not match: 0x%llx, 0x%x\n",
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE, bo offset does yest match: 0x%llx, 0x%x\n",
 					  offset, track->vgt_strmout_bo_offset[idx_value]);
 				return -EINVAL;
 			}
@@ -2137,7 +2137,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		/* Updating memory at DST_ADDRESS. */
 		if (idx_value & 0x1) {
 			u64 offset;
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				DRM_ERROR("bad STRMOUT_BUFFER_UPDATE (missing dst reloc)\n");
 				return -EINVAL;
@@ -2156,7 +2156,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		/* Reading data from SRC_ADDRESS. */
 		if (((idx_value >> 1) & 0x3) == 2) {
 			u64 offset;
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				DRM_ERROR("bad STRMOUT_BUFFER_UPDATE (missing src reloc)\n");
 				return -EINVAL;
@@ -2181,7 +2181,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("bad MEM_WRITE (invalid count)\n");
 			return -EINVAL;
 		}
-		r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+		r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 		if (r) {
 			DRM_ERROR("bad MEM_WRITE (missing reloc)\n");
 			return -EINVAL;
@@ -2189,7 +2189,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		offset = radeon_get_ib_value(p, idx+0);
 		offset += ((u64)(radeon_get_ib_value(p, idx+1) & 0xff)) << 32UL;
 		if (offset & 0x7) {
-			DRM_ERROR("bad MEM_WRITE (address not qwords aligned)\n");
+			DRM_ERROR("bad MEM_WRITE (address yest qwords aligned)\n");
 			return -EINVAL;
 		}
 		if ((offset + 8) > radeon_bo_size(reloc->robj)) {
@@ -2210,7 +2210,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		if (idx_value & 0x1) {
 			u64 offset;
 			/* SRC is memory. */
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				DRM_ERROR("bad COPY_DW (missing src reloc)\n");
 				return -EINVAL;
@@ -2234,7 +2234,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		if (idx_value & 0x2) {
 			u64 offset;
 			/* DST is memory. */
-			r = radeon_cs_packet_next_reloc(p, &reloc, r600_nomm);
+			r = radeon_cs_packet_next_reloc(p, &reloc, r600_yesmm);
 			if (r) {
 				DRM_ERROR("bad COPY_DW (missing dst reloc)\n");
 				return -EINVAL;
@@ -2259,7 +2259,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 	case PACKET3_NOP:
 		break;
 	default:
-		DRM_ERROR("Packet3 opcode %x not supported\n", pkt->opcode);
+		DRM_ERROR("Packet3 opcode %x yest supported\n", pkt->opcode);
 		return -EINVAL;
 	}
 	return 0;
@@ -2306,7 +2306,7 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 			r = r600_packet3_check(p, &pkt);
 			break;
 		default:
-			DRM_ERROR("Unknown packet type %d !\n", pkt.type);
+			DRM_ERROR("Unkyeswn packet type %d !\n", pkt.type);
 			kfree(p->track);
 			p->track = NULL;
 			return -EINVAL;
@@ -2387,7 +2387,7 @@ int r600_dma_cs_parse(struct radeon_cs_parser *p)
 
 	do {
 		if (p->idx >= ib_chunk->length_dw) {
-			DRM_ERROR("Can not parse packet at %d after CS end %d !\n",
+			DRM_ERROR("Can yest parse packet at %d after CS end %d !\n",
 				  p->idx, ib_chunk->length_dw);
 			return -EINVAL;
 		}
@@ -2521,7 +2521,7 @@ int r600_dma_cs_parse(struct radeon_cs_parser *p)
 			p->idx += 1;
 			break;
 		default:
-			DRM_ERROR("Unknown packet type %d at %d !\n", cmd, idx);
+			DRM_ERROR("Unkyeswn packet type %d at %d !\n", cmd, idx);
 			return -EINVAL;
 		}
 	} while (p->idx < p->chunk_ib->length_dw);

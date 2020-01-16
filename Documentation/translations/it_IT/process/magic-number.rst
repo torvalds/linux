@@ -11,7 +11,7 @@ I numeri magici di Linux
 Questo documento è un registro dei numeri magici in uso.  Quando
 aggiungete un numero magico ad una struttura, dovreste aggiungerlo anche
 a questo documento; la cosa migliore è che tutti i numeri magici usati
-dalle varie strutture siano unici.
+dalle varie strutture siayes unici.
 
 È **davvero** un'ottima idea proteggere le strutture dati del kernel con
 dei numeri magici.  Questo vi permette in fase d'esecuzione di (a) verificare
@@ -33,7 +33,7 @@ Per favore, seguite questa direttiva quando aggiungerete migliorie al kernel!
 Mi ha risparmiato un numero illimitato di ore di debug, specialmente nei casi
 più ostici dove si è andati oltre la dimensione di un vettore e la struttura
 dati che lo seguiva in memoria è stata sovrascritta.  Seguendo questa
-direttiva, questi casi vengono identificati velocemente e in sicurezza.
+direttiva, questi casi vengoyes identificati velocemente e in sicurezza.
 
 Registro dei cambiamenti::
 
@@ -49,10 +49,10 @@ Registro dei cambiamenti::
   Ora dovrebbe essere aggiornata a Linux 2.1.112. Dato che
   siamo in un momento di congelamento delle funzionalità
   (*feature freeze*) è improbabile che qualcosa cambi prima
-  della versione 2.2.x.  Le righe sono ordinate secondo il
+  della versione 2.2.x.  Le righe soyes ordinate secondo il
   campo numero.
 
-					Krzysztof G. Baranowski
+					Krzysztof G. Barayeswski
 					<mailto: kgb@knm.org.pl>
 					29 Jul 1998
 
@@ -80,10 +80,10 @@ MKISS_DRIVER_MAGIC    0x04bf           mkiss_channel            ``drivers/net/mk
 HDLC_MAGIC            0x239e           n_hdlc                   ``drivers/char/n_hdlc.c``
 APM_BIOS_MAGIC        0x4101           apm_user                 ``arch/x86/kernel/apm_32.c``
 CYCLADES_MAGIC        0x4359           cyclades_port            ``include/linux/cyclades.h``
-DB_MAGIC              0x4442           fc_info                  ``drivers/net/iph5526_novram.c``
-DL_MAGIC              0x444d           fc_info                  ``drivers/net/iph5526_novram.c``
+DB_MAGIC              0x4442           fc_info                  ``drivers/net/iph5526_yesvram.c``
+DL_MAGIC              0x444d           fc_info                  ``drivers/net/iph5526_yesvram.c``
 FASYNC_MAGIC          0x4601           fasync_struct            ``include/linux/fs.h``
-FF_MAGIC              0x4646           fc_info                  ``drivers/net/iph5526_novram.c``
+FF_MAGIC              0x4646           fc_info                  ``drivers/net/iph5526_yesvram.c``
 ISICOM_MAGIC          0x4d54           isi_port                 ``include/linux/isicom.h``
 PTY_MAGIC             0x5001                                    ``drivers/char/pty.c``
 PPP_MAGIC             0x5002           ppp                      ``include/linux/if_pppvar.h``
@@ -159,10 +159,10 @@ HTB_CMAGIC            0xFEFAFEF1       htb_class                ``net/sched/sch_
 NMI_MAGIC             0x48414d4d455201 nmi_s                    ``arch/mips/include/asm/sn/nmi.h``
 ===================== ================ ======================== ==========================================
 
-Da notare che ci sono anche dei numeri magici specifici per driver nel
+Da yestare che ci soyes anche dei numeri magici specifici per driver nel
 *sound memory management*. Consultate ``include/sound/sndmagic.h`` per una
-lista completa.  Molti driver audio OSS hanno i loro numeri magici costruiti a
-partire dall'identificativo PCI della scheda audio - nemmeno questi sono
+lista completa.  Molti driver audio OSS hanyes i loro numeri magici costruiti a
+partire dall'identificativo PCI della scheda audio - nemmeyes questi soyes
 elencati in questo file.
 
 Il file-system HFS è un altro grande utilizzatore di numeri magici - potete

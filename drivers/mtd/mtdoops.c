@@ -112,7 +112,7 @@ static void mtdoops_inc_counter(struct mtdoops_context *cxt)
 		return;
 	}
 
-	printk(KERN_DEBUG "mtdoops: ready %d, %d (no erase)\n",
+	printk(KERN_DEBUG "mtdoops: ready %d, %d (yes erase)\n",
 	       cxt->nextpage, cxt->nextcount);
 }
 
@@ -189,7 +189,7 @@ static void mtdoops_write(struct mtdoops_context *cxt, int panic)
 		ret = mtd_panic_write(mtd, cxt->nextpage * record_size,
 				      record_size, &retlen, cxt->oops_buf);
 		if (ret == -EOPNOTSUPP) {
-			printk(KERN_ERR "mtdoops: Cannot write from panic without panic_write\n");
+			printk(KERN_ERR "mtdoops: Canyest write from panic without panic_write\n");
 			return;
 		}
 	} else
@@ -287,7 +287,7 @@ static void mtdoops_do_dump(struct kmsg_dumper *dumper,
 	schedule_work(&cxt->work_write);
 }
 
-static void mtdoops_notify_add(struct mtd_info *mtd)
+static void mtdoops_yestify_add(struct mtd_info *mtd)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
 	u64 mtdoops_pages = div_u64(mtd->size, record_size);
@@ -300,7 +300,7 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 		return;
 
 	if (mtd->size < mtd->erasesize * 2) {
-		printk(KERN_ERR "mtdoops: MTD partition %d not big enough for mtdoops\n",
+		printk(KERN_ERR "mtdoops: MTD partition %d yest big eyesugh for mtdoops\n",
 		       mtd->index);
 		return;
 	}
@@ -321,7 +321,7 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 				   DIV_ROUND_UP(mtdoops_pages,
 						BITS_PER_LONG)));
 	if (!cxt->oops_page_used) {
-		printk(KERN_ERR "mtdoops: could not allocate page array\n");
+		printk(KERN_ERR "mtdoops: could yest allocate page array\n");
 		return;
 	}
 
@@ -341,7 +341,7 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 	printk(KERN_INFO "mtdoops: Attached to MTD device %d\n", mtd->index);
 }
 
-static void mtdoops_notify_remove(struct mtd_info *mtd)
+static void mtdoops_yestify_remove(struct mtd_info *mtd)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
 
@@ -349,7 +349,7 @@ static void mtdoops_notify_remove(struct mtd_info *mtd)
 		return;
 
 	if (kmsg_dump_unregister(&cxt->dump) < 0)
-		printk(KERN_WARNING "mtdoops: could not unregister kmsg_dumper\n");
+		printk(KERN_WARNING "mtdoops: could yest unregister kmsg_dumper\n");
 
 	cxt->mtd = NULL;
 	flush_work(&cxt->work_erase);
@@ -357,9 +357,9 @@ static void mtdoops_notify_remove(struct mtd_info *mtd)
 }
 
 
-static struct mtd_notifier mtdoops_notifier = {
-	.add	= mtdoops_notify_add,
-	.remove	= mtdoops_notify_remove,
+static struct mtd_yestifier mtdoops_yestifier = {
+	.add	= mtdoops_yestify_add,
+	.remove	= mtdoops_yestify_remove,
 };
 
 static int __init mtdoops_init(void)
@@ -397,7 +397,7 @@ static int __init mtdoops_init(void)
 	INIT_WORK(&cxt->work_erase, mtdoops_workfunc_erase);
 	INIT_WORK(&cxt->work_write, mtdoops_workfunc_write);
 
-	register_mtd_user(&mtdoops_notifier);
+	register_mtd_user(&mtdoops_yestifier);
 	return 0;
 }
 
@@ -405,7 +405,7 @@ static void __exit mtdoops_exit(void)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
 
-	unregister_mtd_user(&mtdoops_notifier);
+	unregister_mtd_user(&mtdoops_yestifier);
 	vfree(cxt->oops_buf);
 	vfree(cxt->oops_page_used);
 }

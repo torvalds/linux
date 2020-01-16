@@ -48,7 +48,7 @@ struct elan_drvdata {
 	u16 res_y;
 };
 
-static int is_not_elan_touchpad(struct hid_device *hdev)
+static int is_yest_elan_touchpad(struct hid_device *hdev)
 {
 	if (hdev->bus == BUS_USB) {
 		struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
@@ -64,7 +64,7 @@ static int elan_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			      struct hid_field *field, struct hid_usage *usage,
 			      unsigned long **bit, int *max)
 {
-	if (is_not_elan_touchpad(hdev))
+	if (is_yest_elan_touchpad(hdev))
 		return 0;
 
 	if (field->report->id == ELAN_SINGLE_FINGER ||
@@ -155,7 +155,7 @@ static int elan_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	struct input_dev *input;
 	struct elan_drvdata *drvdata = hid_get_drvdata(hdev);
 
-	if (is_not_elan_touchpad(hdev))
+	if (is_yest_elan_touchpad(hdev))
 		return 0;
 
 	ret = elan_get_device_params(hdev);
@@ -265,7 +265,7 @@ static void elan_usb_report_input(struct elan_drvdata *drvdata, u8 *data)
 	 * sy / sx: finger width / height expressed in traces, the total number
 	 *          of traces can be queried by doing a HID_REQ_SET_REPORT
 	 *          { 0x0d, 0x05, 0x03, 0x05, 0x01 } followed by a GET, in the
-	 *          returned buf, buf[3]=no-x-traces, buf[4]=no-y-traces.
+	 *          returned buf, buf[3]=yes-x-traces, buf[4]=yes-y-traces.
 	 * p: pressure
 	 */
 
@@ -361,7 +361,7 @@ static int elan_raw_event(struct hid_device *hdev,
 {
 	struct elan_drvdata *drvdata = hid_get_drvdata(hdev);
 
-	if (is_not_elan_touchpad(hdev))
+	if (is_yest_elan_touchpad(hdev))
 		return 0;
 
 	if (data[0] == ELAN_SINGLE_FINGER ||
@@ -489,11 +489,11 @@ static int elan_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 	}
 
-	if (is_not_elan_touchpad(hdev))
+	if (is_yest_elan_touchpad(hdev))
 		return 0;
 
 	if (!drvdata->input) {
-		hid_err(hdev, "Input device is not registered\n");
+		hid_err(hdev, "Input device is yest registered\n");
 		ret = -ENAVAIL;
 		goto err;
 	}

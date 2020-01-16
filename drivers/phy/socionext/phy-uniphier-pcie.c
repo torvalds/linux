@@ -189,11 +189,11 @@ static int uniphier_pciephy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->rst))
 		return PTR_ERR(priv->rst);
 
-	phy = devm_phy_create(dev, dev->of_node, &uniphier_pciephy_ops);
+	phy = devm_phy_create(dev, dev->of_yesde, &uniphier_pciephy_ops);
 	if (IS_ERR(phy))
 		return PTR_ERR(phy);
 
-	regmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+	regmap = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 						 "socionext,syscon");
 	if (!IS_ERR(regmap) && priv->data->has_syscon)
 		regmap_update_bits(regmap, SG_USBPCIESEL,

@@ -91,7 +91,7 @@ struct l2tp_session {
 	u32			nr_oos;		/* NR of last OOS packet */
 	int			nr_oos_count;	/* For OOS recovery */
 	int			nr_oos_count_max;
-	struct hlist_node	hlist;		/* Hash list node */
+	struct hlist_yesde	hlist;		/* Hash list yesde */
 	refcount_t		ref_count;
 
 	char			name[32];	/* for logging */
@@ -110,7 +110,7 @@ struct l2tp_session {
 	int			reorder_skip;	/* set if skip to next nr */
 	enum l2tp_pwtype	pwtype;
 	struct l2tp_stats	stats;
-	struct hlist_node	global_hlist;	/* Global hash list node */
+	struct hlist_yesde	global_hlist;	/* Global hash list yesde */
 
 	int (*build_header)(struct l2tp_session *session, void *buf);
 	void (*recv_skb)(struct l2tp_session *session, struct sk_buff *skb, int data_len);

@@ -127,14 +127,14 @@ static int __init ppc4xx_parse_dma_ranges(struct pci_controller *hose,
 		 * within 32 bits space
 		 */
 		if (cpu_addr != 0 || pci_addr > 0xffffffff) {
-			printk(KERN_WARNING "%pOF: Ignored unsupported dma range"
+			printk(KERN_WARNING "%pOF: Igyesred unsupported dma range"
 			       " 0x%016llx...0x%016llx -> 0x%016llx\n",
 			       hose->dn,
 			       pci_addr, pci_addr + size - 1, cpu_addr);
 			continue;
 		}
 
-		/* Check if not prefetchable */
+		/* Check if yest prefetchable */
 		if (!(pci_space & 0x40000000))
 			res->flags &= ~IORESOURCE_PREFETCH;
 
@@ -173,7 +173,7 @@ static int __init ppc4xx_parse_dma_ranges(struct pci_controller *hose,
 		return -ENXIO;
 	}
 
-	/* Check that we are fully contained within 32 bits space if we are not
+	/* Check that we are fully contained within 32 bits space if we are yest
 	 * running on a 460sx or 476fpe which have 64 bit bus addresses.
 	 */
 	if (res->end > 0xffffffff &&
@@ -217,10 +217,10 @@ static int __init ppc4xx_setup_one_pci_PMM(struct pci_controller	*hose,
 	 * address are actually hard wired to a value that appears to depend
 	 * on the specific SoC. For example, it's 0 on 440EP and 1 on 440EPx.
 	 *
-	 * The trick here is we just crop those top bits and ignore them when
+	 * The trick here is we just crop those top bits and igyesre them when
 	 * programming the chip. That means the device-tree has to be right
 	 * for the specific part used (we don't print a warning if it's wrong
-	 * but on the other hand, you'll crash quickly enough), but at least
+	 * but on the other hand, you'll crash quickly eyesugh), but at least
 	 * this code should work whatever the hard coded value is
 	 */
 	plb_addr &= 0xffffffffull;
@@ -284,7 +284,7 @@ static void __init ppc4xx_configure_pci_PMMs(struct pci_controller *hose,
 		}
 	}
 
-	/* Handle ISA memory hole if not already covered */
+	/* Handle ISA memory hole if yest already covered */
 	if (j <= 2 && !found_isa_hole && hose->isa_mem_size)
 		if (ppc4xx_setup_one_pci_PMM(hose, reg, hose->isa_mem_phys, 0,
 					     hose->isa_mem_size, 0, j) == 0)
@@ -303,20 +303,20 @@ static void __init ppc4xx_configure_pci_PTMs(struct pci_controller *hose,
 	sa = (0xffffffffu << ilog2(size)) | 1;
 	sa |= 0x1;
 
-	/* RAM is always at 0 local for now */
+	/* RAM is always at 0 local for yesw */
 	writel(0, reg + PCIL0_PTM1LA);
 	writel(sa, reg + PCIL0_PTM1MS);
 
 	/* Map on PCI side */
-	early_write_config_dword(hose, hose->first_busno, 0,
+	early_write_config_dword(hose, hose->first_busyes, 0,
 				 PCI_BASE_ADDRESS_1, res->start);
-	early_write_config_dword(hose, hose->first_busno, 0,
+	early_write_config_dword(hose, hose->first_busyes, 0,
 				 PCI_BASE_ADDRESS_2, 0x00000000);
-	early_write_config_word(hose, hose->first_busno, 0,
+	early_write_config_word(hose, hose->first_busyes, 0,
 				PCI_COMMAND, 0x0006);
 }
 
-static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
+static void __init ppc4xx_probe_pci_bridge(struct device_yesde *np)
 {
 	/* NYI */
 	struct resource rsrc_cfg;
@@ -365,8 +365,8 @@ static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
 	if (!hose)
 		goto fail;
 
-	hose->first_busno = bus_range ? bus_range[0] : 0x0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busyes = bus_range ? bus_range[0] : 0x0;
+	hose->last_busyes = bus_range ? bus_range[1] : 0xff;
 
 	/* Setup config space */
 	setup_indirect_pci(hose, rsrc_cfg.start, rsrc_cfg.start + 0x4, 0);
@@ -483,7 +483,7 @@ static void __init ppc4xx_configure_pcix_POMs(struct pci_controller *hose,
 		}
 	}
 
-	/* Handle ISA memory hole if not already covered */
+	/* Handle ISA memory hole if yest already covered */
 	if (j <= 1 && !found_isa_hole && hose->isa_mem_size)
 		if (ppc4xx_setup_one_pcix_POM(hose, reg, hose->isa_mem_phys, 0,
 					      hose->isa_mem_size, 0, j) == 0)
@@ -521,7 +521,7 @@ static void __init ppc4xx_configure_pcix_PIMs(struct pci_controller *hose,
 	writew(0x0006, reg + PCIX0_COMMAND);
 }
 
-static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
+static void __init ppc4xx_probe_pcix_bridge(struct device_yesde *np)
 {
 	struct resource rsrc_cfg;
 	struct resource rsrc_reg;
@@ -571,8 +571,8 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 	if (!hose)
 		goto fail;
 
-	hose->first_busno = bus_range ? bus_range[0] : 0x0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busyes = bus_range ? bus_range[0] : 0x0;
+	hose->last_busyes = bus_range ? bus_range[1] : 0xff;
 
 	/* Setup config space */
 	setup_indirect_pci(hose, rsrc_cfg.start, rsrc_cfg.start + 0x4,
@@ -625,7 +625,7 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
  * ibm,plb-pciex-405ex
  * ibm,plb-pciex-460ex
  *
- * Anything else will be rejected for now as they are all subtly
+ * Anything else will be rejected for yesw as they are all subtly
  * different unfortunately.
  *
  */
@@ -635,7 +635,7 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 struct ppc4xx_pciex_port
 {
 	struct pci_controller	*hose;
-	struct device_node	*node;
+	struct device_yesde	*yesde;
 	unsigned int		index;
 	int			endpoint;
 	int			link;
@@ -653,7 +653,7 @@ static unsigned int ppc4xx_pciex_port_count;
 struct ppc4xx_pciex_hwops
 {
 	bool want_sdr;
-	int (*core_init)(struct device_node *np);
+	int (*core_init)(struct device_yesde *np);
 	int (*port_init_hw)(struct ppc4xx_pciex_port *port);
 	int (*setup_utl)(struct ppc4xx_pciex_port *port);
 	void (*check_link)(struct ppc4xx_pciex_port *port);
@@ -697,10 +697,10 @@ static void __init ppc4xx_pciex_check_link_sdr(struct ppc4xx_pciex_port *port)
 {
 	printk(KERN_INFO "PCIE%d: Checking link...\n", port->index);
 
-	/* Check for card presence detect if supported, if not, just wait for
+	/* Check for card presence detect if supported, if yest, just wait for
 	 * link unconditionally.
 	 *
-	 * note that we don't fail if there is no link, we just filter out
+	 * yeste that we don't fail if there is yes link, we just filter out
 	 * config space accesses. That way, it will be easier to implement
 	 * hotplug later on.
 	 */
@@ -726,7 +726,7 @@ static void __init ppc4xx_pciex_check_link_sdr(struct ppc4xx_pciex_port *port)
 #ifdef CONFIG_44x
 
 /* Check various reset bits of the 440SPe PCIe core */
-static int __init ppc440spe_pciex_check_reset(struct device_node *np)
+static int __init ppc440spe_pciex_check_reset(struct device_yesde *np)
 {
 	u32 valPE0, valPE1, valPE2;
 	int err = 0;
@@ -801,7 +801,7 @@ static int __init ppc440spe_pciex_check_reset(struct device_node *np)
 }
 
 /* Global PCIe core initializations for 440SPe core */
-static int __init ppc440spe_pciex_core_init(struct device_node *np)
+static int __init ppc440spe_pciex_core_init(struct device_yesde *np)
 {
 	int time_out = 20;
 
@@ -831,7 +831,7 @@ static int __init ppc440spe_pciex_core_init(struct device_node *np)
 			break;
 	}
 	if (!time_out) {
-		printk(KERN_INFO "PCIE: VCO output not locked\n");
+		printk(KERN_INFO "PCIE: VCO output yest locked\n");
 		return -1;
 	}
 
@@ -938,7 +938,7 @@ static struct ppc4xx_pciex_hwops ppc440speB_pcie_hwops __initdata =
 	.check_link	= ppc4xx_pciex_check_link_sdr,
 };
 
-static int __init ppc460ex_pciex_core_init(struct device_node *np)
+static int __init ppc460ex_pciex_core_init(struct device_yesde *np)
 {
 	/* Nothing to do, return 2 ports */
 	return 2;
@@ -1049,7 +1049,7 @@ static struct ppc4xx_pciex_hwops ppc460ex_pcie_hwops __initdata =
 	.check_link	= ppc4xx_pciex_check_link_sdr,
 };
 
-static int __init apm821xx_pciex_core_init(struct device_node *np)
+static int __init apm821xx_pciex_core_init(struct device_yesde *np)
 {
 	/* Return the number of pcie port */
 	return 1;
@@ -1117,7 +1117,7 @@ static struct ppc4xx_pciex_hwops apm821xx_pcie_hwops __initdata = {
 	.check_link = ppc4xx_pciex_check_link_sdr,
 };
 
-static int __init ppc460sx_pciex_core_init(struct device_node *np)
+static int __init ppc460sx_pciex_core_init(struct device_yesde *np)
 {
 	/* HSS drive amplitude */
 	mtdcri(SDR0, PESDR0_460SX_HSSL0DAMP, 0xB9843211);
@@ -1189,7 +1189,7 @@ static int __init ppc460sx_pciex_core_init(struct device_node *np)
 	udelay(100);
 
 	/*
-	 * If bifurcation is not enabled, u-boot would have disabled the
+	 * If bifurcation is yest enabled, u-boot would have disabled the
 	 * third PCIe port
 	 */
 	if (((mfdcri(SDR0, PESDR1_460SX_HSSCTLSET) & 0x00000001) ==
@@ -1241,7 +1241,7 @@ static void __init ppc460sx_pciex_check_link(struct ppc4xx_pciex_port *port)
 	mbase = ioremap(port->cfg_space.start + 0x10000000, 0x1000);
 	if (mbase == NULL) {
 		printk(KERN_ERR "%pOF: Can't map internal config space !",
-			port->node);
+			port->yesde);
 		goto done;
 	}
 
@@ -1269,7 +1269,7 @@ static struct ppc4xx_pciex_hwops ppc460sx_pcie_hwops __initdata = {
 
 #ifdef CONFIG_40x
 
-static int __init ppc405ex_pciex_core_init(struct device_node *np)
+static int __init ppc405ex_pciex_core_init(struct device_yesde *np)
 {
 	/* Nothing to do, return 2 ports */
 	return 2;
@@ -1314,7 +1314,7 @@ static int __init ppc405ex_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 	mtdcri(SDR0, port->sdr_base + PESDRn_405EX_PHYSET2, 0x70600003);
 
 	/*
-	 * Only reset the PHY when no link is currently established.
+	 * Only reset the PHY when yes link is currently established.
 	 * This is for the Atheros PCIe board which has problems to establish
 	 * the link (again) after this PHY reset. All other currently tested
 	 * PCIe boards don't show this problem.
@@ -1364,7 +1364,7 @@ static struct ppc4xx_pciex_hwops ppc405ex_pcie_hwops __initdata =
 #endif /* CONFIG_40x */
 
 #ifdef CONFIG_476FPE
-static int __init ppc_476fpe_pciex_core_init(struct device_node *np)
+static int __init ppc_476fpe_pciex_core_init(struct device_yesde *np)
 {
 	return 4;
 }
@@ -1408,8 +1408,8 @@ static struct ppc4xx_pciex_hwops ppc_476fpe_pcie_hwops __initdata =
 };
 #endif /* CONFIG_476FPE */
 
-/* Check that the core has been initied and if not, do it */
-static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
+/* Check that the core has been initied and if yest, do it */
+static int __init ppc4xx_pciex_check_core_init(struct device_yesde *np)
 {
 	static int core_init;
 	int count = -ENODEV;
@@ -1441,7 +1441,7 @@ static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
 		ppc4xx_pciex_hwops = &ppc_476fpe_pcie_hwops;
 #endif
 	if (ppc4xx_pciex_hwops == NULL) {
-		printk(KERN_WARNING "PCIE: unknown host type %pOF\n", np);
+		printk(KERN_WARNING "PCIE: unkyeswn host type %pOF\n", np);
 		return -ENODEV;
 	}
 
@@ -1468,7 +1468,7 @@ static void __init ppc4xx_pciex_port_init_mapping(struct ppc4xx_pciex_port *port
 	dcr_write(port->dcrs, DCRO_PEGPL_CFGBAL,
 		  RES_TO_U32_LOW(port->cfg_space.start));
 
-	/* XXX FIXME: Use size from reg property. For now, map 512M */
+	/* XXX FIXME: Use size from reg property. For yesw, map 512M */
 	dcr_write(port->dcrs, DCRO_PEGPL_CFGMSK, 0xe0000001);
 
 	/* We map UTL registers based on the reg property */
@@ -1522,19 +1522,19 @@ static int __init ppc4xx_pciex_port_init(struct ppc4xx_pciex_port *port)
 	 * Check for VC0 active or PLL Locked and assert RDY.
 	 */
 	if (port->sdr_base) {
-		if (of_device_is_compatible(port->node,
+		if (of_device_is_compatible(port->yesde,
 				"ibm,plb-pciex-460sx")){
 			if (port->link && ppc4xx_pciex_wait_on_sdr(port,
 					PESDRn_RCSSTS,
 					1 << 12, 1 << 12, 5000)) {
-				printk(KERN_INFO "PCIE%d: PLL not locked\n",
+				printk(KERN_INFO "PCIE%d: PLL yest locked\n",
 						port->index);
 				port->link = 0;
 			}
 		} else if (port->link &&
 			ppc4xx_pciex_wait_on_sdr(port, PESDRn_RCSSTS,
 				1 << 16, 1 << 16, 5000)) {
-			printk(KERN_INFO "PCIE%d: VC0 not active\n",
+			printk(KERN_INFO "PCIE%d: VC0 yest active\n",
 					port->index);
 			port->link = 0;
 		}
@@ -1553,12 +1553,12 @@ static int ppc4xx_pciex_validate_bdf(struct ppc4xx_pciex_port *port,
 {
 	static int message;
 
-	/* Endpoint can not generate upstream(remote) config cycles */
-	if (port->endpoint && bus->number != port->hose->first_busno)
+	/* Endpoint can yest generate upstream(remote) config cycles */
+	if (port->endpoint && bus->number != port->hose->first_busyes)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Check we are within the mapped range */
-	if (bus->number > port->hose->last_busno) {
+	if (bus->number > port->hose->last_busyes) {
 		if (!message) {
 			printk(KERN_WARNING "Warning! Probing bus %u"
 			       " out of range !\n", bus->number);
@@ -1568,16 +1568,16 @@ static int ppc4xx_pciex_validate_bdf(struct ppc4xx_pciex_port *port,
 	}
 
 	/* The root complex has only one device / function */
-	if (bus->number == port->hose->first_busno && devfn != 0)
+	if (bus->number == port->hose->first_busyes && devfn != 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* The other side of the RC has only one device as well */
-	if (bus->number == (port->hose->first_busno + 1) &&
+	if (bus->number == (port->hose->first_busyes + 1) &&
 	    PCI_SLOT(devfn) != 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Check if we have a link */
-	if ((bus->number != port->hose->first_busno) && !port->link)
+	if ((bus->number != port->hose->first_busyes) && !port->link)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	return 0;
@@ -1592,10 +1592,10 @@ static void __iomem *ppc4xx_pciex_get_config_base(struct ppc4xx_pciex_port *port
 	/* Remove the casts when we finally remove the stupid volatile
 	 * in struct pci_controller
 	 */
-	if (bus->number == port->hose->first_busno)
+	if (bus->number == port->hose->first_busyes)
 		return (void __iomem *)port->hose->cfg_addr;
 
-	relbus = bus->number - (port->hose->first_busno + 1);
+	relbus = bus->number - (port->hose->first_busyes + 1);
 	return (void __iomem *)port->hose->cfg_data +
 		((relbus  << 20) | (devfn << 12));
 }
@@ -1617,14 +1617,14 @@ static int ppc4xx_pciex_read_config(struct pci_bus *bus, unsigned int devfn,
 	addr = ppc4xx_pciex_get_config_base(port, bus, devfn);
 
 	/*
-	 * Reading from configuration space of non-existing device can
+	 * Reading from configuration space of yesn-existing device can
 	 * generate transaction errors. For the read duration we suppress
 	 * assertion of machine check exceptions to avoid those.
 	 */
 	gpl_cfg = dcr_read(port->dcrs, DCRO_PEGPL_CFG);
 	dcr_write(port->dcrs, DCRO_PEGPL_CFG, gpl_cfg | GPL_DMER_MASK_DISA);
 
-	/* Make sure no CRS is recorded */
+	/* Make sure yes CRS is recorded */
 	out_be32(port->utl_base + PEUTL_RCSTA, 0x00040000);
 
 	switch (len) {
@@ -1641,7 +1641,7 @@ static int ppc4xx_pciex_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	pr_debug("pcie-config-read: bus=%3d [%3d..%3d] devfn=0x%04x"
 		 " offset=0x%04x len=%d, addr=0x%p val=0x%08x\n",
-		 bus->number, hose->first_busno, hose->last_busno,
+		 bus->number, hose->first_busyes, hose->last_busyes,
 		 devfn, offset, len, addr + offset, *val);
 
 	/* Check for CRS (440SPe rev B does that for us but heh ..) */
@@ -1672,7 +1672,7 @@ static int ppc4xx_pciex_write_config(struct pci_bus *bus, unsigned int devfn,
 	addr = ppc4xx_pciex_get_config_base(port, bus, devfn);
 
 	/*
-	 * Reading from configuration space of non-existing device can
+	 * Reading from configuration space of yesn-existing device can
 	 * generate transaction errors. For the read duration we suppress
 	 * assertion of machine check exceptions to avoid those.
 	 */
@@ -1681,7 +1681,7 @@ static int ppc4xx_pciex_write_config(struct pci_bus *bus, unsigned int devfn,
 
 	pr_debug("pcie-config-write: bus=%3d [%3d..%3d] devfn=0x%04x"
 		 " offset=0x%04x len=%d, addr=0x%p val=0x%08x\n",
-		 bus->number, hose->first_busno, hose->last_busno,
+		 bus->number, hose->first_busyes, hose->last_busyes,
 		 devfn, offset, len, addr + offset, val);
 
 	switch (len) {
@@ -1742,14 +1742,14 @@ static int __init ppc4xx_setup_one_pciex_POM(struct ppc4xx_pciex_port	*port,
 		dcr_write(port->dcrs, DCRO_PEGPL_OMR1BAL, lal);
 		dcr_write(port->dcrs, DCRO_PEGPL_OMR1MSKH, 0x7fffffff);
 		/*Enabled and single region */
-		if (of_device_is_compatible(port->node, "ibm,plb-pciex-460sx"))
+		if (of_device_is_compatible(port->yesde, "ibm,plb-pciex-460sx"))
 			dcr_write(port->dcrs, DCRO_PEGPL_OMR1MSKL,
 				sa | DCRO_PEGPL_460SX_OMR1MSKL_UOT
 					| DCRO_PEGPL_OMRxMSKL_VAL);
 		else if (of_device_is_compatible(
-				port->node, "ibm,plb-pciex-476fpe") ||
+				port->yesde, "ibm,plb-pciex-476fpe") ||
 			of_device_is_compatible(
-				port->node, "ibm,plb-pciex-476gtr"))
+				port->yesde, "ibm,plb-pciex-476gtr"))
 			dcr_write(port->dcrs, DCRO_PEGPL_OMR1MSKL,
 				sa | DCRO_PEGPL_476FPE_OMR1MSKL_UOT
 					| DCRO_PEGPL_OMRxMSKL_VAL);
@@ -1799,7 +1799,7 @@ static void __init ppc4xx_configure_pciex_POMs(struct ppc4xx_pciex_port *port,
 			continue;
 		if (j > 1) {
 			printk(KERN_WARNING "%pOF: Too many ranges\n",
-			       port->node);
+			       port->yesde);
 			break;
 		}
 
@@ -1820,7 +1820,7 @@ static void __init ppc4xx_configure_pciex_POMs(struct ppc4xx_pciex_port *port,
 		}
 	}
 
-	/* Handle ISA memory hole if not already covered */
+	/* Handle ISA memory hole if yest already covered */
 	if (j <= 1 && !found_isa_hole && hose->isa_mem_size)
 		if (ppc4xx_setup_one_pciex_POM(port, hose, mbase,
 					       hose->isa_mem_phys, 0,
@@ -1878,11 +1878,11 @@ static void __init ppc4xx_configure_pciex_PIMs(struct ppc4xx_pciex_port *port,
 		if (res->flags & IORESOURCE_PREFETCH)
 			sa |= PCI_BASE_ADDRESS_MEM_PREFETCH;
 
-		if (of_device_is_compatible(port->node, "ibm,plb-pciex-460sx") ||
+		if (of_device_is_compatible(port->yesde, "ibm,plb-pciex-460sx") ||
 		    of_device_is_compatible(
-			    port->node, "ibm,plb-pciex-476fpe") ||
+			    port->yesde, "ibm,plb-pciex-476fpe") ||
 		    of_device_is_compatible(
-			    port->node, "ibm,plb-pciex-476gtr"))
+			    port->yesde, "ibm,plb-pciex-476gtr"))
 			sa |= PCI_BASE_ADDRESS_MEM_TYPE_64;
 
 		out_le32(mbase + PECFG_BAR0HMPA, RES_TO_U32_HIGH(sa));
@@ -1922,14 +1922,14 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	u32 val;
 
 	/* Check if primary bridge */
-	if (of_get_property(port->node, "primary", NULL))
+	if (of_get_property(port->yesde, "primary", NULL))
 		primary = 1;
 
 	/* Get bus range if any */
-	bus_range = of_get_property(port->node, "bus-range", NULL);
+	bus_range = of_get_property(port->yesde, "bus-range", NULL);
 
 	/* Allocate the host controller data structure */
-	hose = pcibios_alloc_controller(port->node);
+	hose = pcibios_alloc_controller(port->yesde);
 	if (!hose)
 		goto fail;
 
@@ -1939,18 +1939,18 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	hose->indirect_type = port->index;
 
 	/* Get bus range */
-	hose->first_busno = bus_range ? bus_range[0] : 0x0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busyes = bus_range ? bus_range[0] : 0x0;
+	hose->last_busyes = bus_range ? bus_range[1] : 0xff;
 
 	/* Because of how big mapping the config space is (1M per bus), we
 	 * limit how many busses we support. In the long run, we could replace
 	 * that with something akin to kmap_atomic instead. We set aside 1 bus
 	 * for the host itself too.
 	 */
-	busses = hose->last_busno - hose->first_busno; /* This is off by 1 */
+	busses = hose->last_busyes - hose->first_busyes; /* This is off by 1 */
 	if (busses > MAX_PCIE_BUS_MAPPED) {
 		busses = MAX_PCIE_BUS_MAPPED;
-		hose->last_busno = hose->first_busno + busses;
+		hose->last_busyes = hose->first_busyes + busses;
 	}
 
 	if (!port->endpoint) {
@@ -1958,11 +1958,11 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 		 * PCIe root-complexes. External space is 1M per bus
 		 */
 		cfg_data = ioremap(port->cfg_space.start +
-				   (hose->first_busno + 1) * 0x100000,
+				   (hose->first_busyes + 1) * 0x100000,
 				   busses * 0x100000);
 		if (cfg_data == NULL) {
 			printk(KERN_ERR "%pOF: Can't map external config space !",
-			       port->node);
+			       port->yesde);
 			goto fail;
 		}
 		hose->cfg_data = cfg_data;
@@ -1974,13 +1974,13 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	mbase = ioremap(port->cfg_space.start + 0x10000000, 0x1000);
 	if (mbase == NULL) {
 		printk(KERN_ERR "%pOF: Can't map internal config space !",
-		       port->node);
+		       port->yesde);
 		goto fail;
 	}
 	hose->cfg_addr = mbase;
 
-	pr_debug("PCIE %pOF, bus %d..%d\n", port->node,
-		 hose->first_busno, hose->last_busno);
+	pr_debug("PCIE %pOF, bus %d..%d\n", port->yesde,
+		 hose->first_busyes, hose->last_busyes);
 	pr_debug("     config space mapped at: root @0x%p, other @0x%p\n",
 		 hose->cfg_addr, hose->cfg_data);
 
@@ -1993,9 +1993,9 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 		/*
 		 * Set bus numbers on our root port
 		 */
-		out_8(mbase + PCI_PRIMARY_BUS, hose->first_busno);
-		out_8(mbase + PCI_SECONDARY_BUS, hose->first_busno + 1);
-		out_8(mbase + PCI_SUBORDINATE_BUS, hose->last_busno);
+		out_8(mbase + PCI_PRIMARY_BUS, hose->first_busyes);
+		out_8(mbase + PCI_SECONDARY_BUS, hose->first_busyes + 1);
+		out_8(mbase + PCI_SUBORDINATE_BUS, hose->last_busyes);
 	}
 
 	/*
@@ -2004,7 +2004,7 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	out_le32(mbase + PECFG_PIMEN, 0);
 
 	/* Parse outbound mapping resources */
-	pci_process_bridge_OF_ranges(hose, port->node, primary);
+	pci_process_bridge_OF_ranges(hose, port->yesde, primary);
 
 	/* Parse inbound mapping resources */
 	if (ppc4xx_parse_dma_ranges(hose, mbase, &dma_window) != 0)
@@ -2020,11 +2020,11 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	 * and device IDs into it. The defaults below are the same bogus
 	 * one that the initial code in arch/ppc had. This can be
 	 * overwritten by setting the "vendor-id/device-id" properties
-	 * in the pciex node.
+	 * in the pciex yesde.
 	 */
 
 	/* Get the (optional) vendor-/device-id from the device-tree */
-	pval = of_get_property(port->node, "vendor-id", NULL);
+	pval = of_get_property(port->yesde, "vendor-id", NULL);
 	if (pval) {
 		val = *pval;
 	} else {
@@ -2035,7 +2035,7 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	}
 	out_le16(mbase + 0x200, val);
 
-	pval = of_get_property(port->node, "device-id", NULL);
+	pval = of_get_property(port->yesde, "device-id", NULL);
 	if (pval) {
 		val = *pval;
 	} else {
@@ -2047,7 +2047,7 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	out_le16(mbase + 0x202, val);
 
 	/* Enable Bus master, memory, and io space */
-	if (of_device_is_compatible(port->node, "ibm,plb-pciex-460sx"))
+	if (of_device_is_compatible(port->yesde, "ibm,plb-pciex-460sx"))
 		out_le16(mbase + 0x204, 0x7);
 
 	if (!port->endpoint) {
@@ -2074,11 +2074,11 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 		iounmap(mbase);
 }
 
-static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
+static void __init ppc4xx_probe_pciex_bridge(struct device_yesde *np)
 {
 	struct ppc4xx_pciex_port *port;
 	const u32 *pval;
-	int portno;
+	int portyes;
 	unsigned int dcrs;
 
 	/* First, proceed to core initialization as we assume there's
@@ -2093,14 +2093,14 @@ static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
 		printk(KERN_ERR "PCIE: Can't find port number for %pOF\n", np);
 		return;
 	}
-	portno = *pval;
-	if (portno >= ppc4xx_pciex_port_count) {
+	portyes = *pval;
+	if (portyes >= ppc4xx_pciex_port_count) {
 		printk(KERN_ERR "PCIE: port number out of range for %pOF\n",
 		       np);
 		return;
 	}
-	port = &ppc4xx_pciex_ports[portno];
-	port->index = portno;
+	port = &ppc4xx_pciex_ports[portyes];
+	port->index = portyes;
 
 	/*
 	 * Check if device is enabled
@@ -2110,7 +2110,7 @@ static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
 		return;
 	}
 
-	port->node = of_node_get(np);
+	port->yesde = of_yesde_get(np);
 	if (ppc4xx_pciex_hwops->want_sdr) {
 		pval = of_get_property(np, "sdr-base", NULL);
 		if (pval == NULL) {
@@ -2125,9 +2125,9 @@ static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
 	 * Resulting from this setup this PCIe port will be configured
 	 * as root-complex or as endpoint.
 	 */
-	if (of_node_is_type(port->node, "pci-endpoint")) {
+	if (of_yesde_is_type(port->yesde, "pci-endpoint")) {
 		port->endpoint = 1;
-	} else if (of_node_is_type(port->node, "pci")) {
+	} else if (of_yesde_is_type(port->yesde, "pci")) {
 		port->endpoint = 0;
 	} else {
 		printk(KERN_ERR "PCIE: missing or incorrect device_type for %pOF\n",
@@ -2168,17 +2168,17 @@ static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
 
 static int __init ppc4xx_pci_find_bridges(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	pci_add_flags(PCI_ENABLE_PROC_DOMAINS | PCI_COMPAT_DOMAIN_0);
 
 #ifdef CONFIG_PPC4xx_PCI_EXPRESS
-	for_each_compatible_node(np, NULL, "ibm,plb-pciex")
+	for_each_compatible_yesde(np, NULL, "ibm,plb-pciex")
 		ppc4xx_probe_pciex_bridge(np);
 #endif
-	for_each_compatible_node(np, NULL, "ibm,plb-pcix")
+	for_each_compatible_yesde(np, NULL, "ibm,plb-pcix")
 		ppc4xx_probe_pcix_bridge(np);
-	for_each_compatible_node(np, NULL, "ibm,plb-pci")
+	for_each_compatible_yesde(np, NULL, "ibm,plb-pci")
 		ppc4xx_probe_pci_bridge(np);
 
 	return 0;

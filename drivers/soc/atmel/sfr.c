@@ -42,7 +42,7 @@ static struct nvmem_config atmel_sfr_nvmem_config = {
 static int atmel_sfr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct nvmem_device *nvmem;
 	struct atmel_sfr_priv *priv;
 	u8 sn[SFR_SN_SIZE];
@@ -52,9 +52,9 @@ static int atmel_sfr_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->regmap = syscon_node_to_regmap(np);
+	priv->regmap = syscon_yesde_to_regmap(np);
 	if (IS_ERR(priv->regmap)) {
-		dev_err(dev, "cannot get parent's regmap\n");
+		dev_err(dev, "canyest get parent's regmap\n");
 		return PTR_ERR(priv->regmap);
 	}
 

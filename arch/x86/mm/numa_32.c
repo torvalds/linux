@@ -1,6 +1,6 @@
 /*
  * Written by: Patricia Gaughen <gone@us.ibm.com>, IBM Corporation
- * August 2002: added remote node KVA remap - Martin J. Bligh 
+ * August 2002: added remote yesde KVA remap - Martin J. Bligh 
  *
  * Copyright (C) 2002, IBM Corp.
  *
@@ -18,7 +18,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -29,19 +29,19 @@
 
 #ifdef CONFIG_DISCONTIGMEM
 /*
- * 4) physnode_map     - the mapping between a pfn and owning node
- * physnode_map keeps track of the physical memory layout of a generic
- * numa node on a 64Mb break (each element of the array will
- * represent 64Mb of memory and will be marked by the node id.  so,
- * if the first gig is on node 0, and the second gig is on node 1
- * physnode_map will contain:
+ * 4) physyesde_map     - the mapping between a pfn and owning yesde
+ * physyesde_map keeps track of the physical memory layout of a generic
+ * numa yesde on a 64Mb break (each element of the array will
+ * represent 64Mb of memory and will be marked by the yesde id.  so,
+ * if the first gig is on yesde 0, and the second gig is on yesde 1
+ * physyesde_map will contain:
  *
- *     physnode_map[0-15] = 0;
- *     physnode_map[16-31] = 1;
- *     physnode_map[32- ] = -1;
+ *     physyesde_map[0-15] = 0;
+ *     physyesde_map[16-31] = 1;
+ *     physyesde_map[32- ] = -1;
  */
-s8 physnode_map[MAX_SECTIONS] __read_mostly = { [0 ... (MAX_SECTIONS - 1)] = -1};
-EXPORT_SYMBOL(physnode_map);
+s8 physyesde_map[MAX_SECTIONS] __read_mostly = { [0 ... (MAX_SECTIONS - 1)] = -1};
+EXPORT_SYMBOL(physyesde_map);
 
 void memory_present(int nid, unsigned long start, unsigned long end)
 {
@@ -49,12 +49,12 @@ void memory_present(int nid, unsigned long start, unsigned long end)
 
 	printk(KERN_INFO "Node: %d, start_pfn: %lx, end_pfn: %lx\n",
 			nid, start, end);
-	printk(KERN_DEBUG "  Setting physnode_map array to node %d for pfns:\n", nid);
+	printk(KERN_DEBUG "  Setting physyesde_map array to yesde %d for pfns:\n", nid);
 	printk(KERN_DEBUG "  ");
 	start = round_down(start, PAGES_PER_SECTION);
 	end = round_up(end, PAGES_PER_SECTION);
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
-		physnode_map[pfn / PAGES_PER_SECTION] = nid;
+		physyesde_map[pfn / PAGES_PER_SECTION] = nid;
 		printk(KERN_CONT "%lx ", pfn);
 	}
 	printk(KERN_CONT "\n");

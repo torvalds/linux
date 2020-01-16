@@ -8,7 +8,7 @@
  * license, and/or sell copies of the Software, and to permit persons to whom
  * them Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -55,14 +55,14 @@ static void vgem_fence_release(struct dma_fence *base)
 
 static void vgem_fence_value_str(struct dma_fence *fence, char *str, int size)
 {
-	snprintf(str, size, "%llu", fence->seqno);
+	snprintf(str, size, "%llu", fence->seqyes);
 }
 
 static void vgem_fence_timeline_value_str(struct dma_fence *fence, char *str,
 					  int size)
 {
 	snprintf(str, size, "%llu",
-		 dma_fence_is_signaled(fence) ? fence->seqno : 0);
+		 dma_fence_is_signaled(fence) ? fence->seqyes : 0);
 }
 
 static const struct dma_fence_ops vgem_fence_ops = {
@@ -120,7 +120,7 @@ static struct dma_fence *vgem_fence_create(struct vgem_file *vfile,
  * seconds (or otherwise it will automatically expire). See
  * vgem_fence_signal_ioctl (DRM_IOCTL_VGEM_FENCE_SIGNAL).
  *
- * If the vGEM handle does not exist, vgem_fence_attach_ioctl returns -ENOENT.
+ * If the vGEM handle does yest exist, vgem_fence_attach_ioctl returns -ENOENT.
  */
 int vgem_fence_attach_ioctl(struct drm_device *dev,
 			    void *data,
@@ -199,7 +199,7 @@ err:
  * client has completed the operation associated with the fence, and that the
  * buffer is then ready for consumption.
  *
- * If the fence does not exist (or has already been signaled by the client),
+ * If the fence does yest exist (or has already been signaled by the client),
  * vgem_fence_signal_ioctl returns -ENOENT.
  */
 int vgem_fence_signal_ioctl(struct drm_device *dev,

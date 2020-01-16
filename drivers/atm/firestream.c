@@ -19,7 +19,7 @@
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/poison.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/sonet.h>
@@ -65,7 +65,7 @@ static int num=0x5a;
  * are appreciated. -- REW */
 
 /* The last entry should be about 64k. However, the "buffer size" is
- * passed to the chip in a 16 bit field. I don't know how "65536"
+ * passed to the chip in a 16 bit field. I don't kyesw how "65536"
  * would be interpreted. -- REW */
 
 #define NP FS_NR_FREE_POOLS
@@ -90,10 +90,10 @@ static int rx_pool_sizes[NP] = {128,  128,  128, 64,   64,   64,   32,    32};
 /* Small hardware gotcha:
 
    The FS50 CAM (VP/VC match registers) always take the lowest channel
-   number that matches. This is not a problem.
+   number that matches. This is yest a problem.
 
-   However, they also ignore whether the channel is enabled or
-   not. This means that if you allocate channel 0 to 1.2 and then
+   However, they also igyesre whether the channel is enabled or
+   yest. This means that if you allocate channel 0 to 1.2 and then
    channel 1 to 0.0, then disabeling channel 0 and writing 0 to the
    match channel for channel 0 will "steal" the traffic from channel
    1, even if you correctly disable channel 0.
@@ -102,8 +102,8 @@ static int rx_pool_sizes[NP] = {128,  128,  128, 64,   64,   64,   32,    32};
 
    - When disabling channels, write an invalid VP/VC value to the
    match register. (We use 0xffffffff, which in the worst case 
-   matches VP/VC = <maxVP>/<maxVC>, but I expect it not to match
-   anything as some "when not in use, program to 0" bits are now
+   matches VP/VC = <maxVP>/<maxVC>, but I expect it yest to match
+   anything as some "when yest in use, program to 0" bits are yesw
    programmed to 1...)
 
    - Don't initialize the match registers to 0, as 0.0 is a valid
@@ -121,8 +121,8 @@ static int rx_pool_sizes[NP] = {128,  128,  128, 64,   64,   64,   32,    32};
    performance limiting issues for this driver.
 
    You could queue up a bunch of outgoing packets without telling the
-   FireStream. I'm not sure that's going to win you much though. The
-   Linux layer won't tell us in advance when it's not going to give us
+   FireStream. I'm yest sure that's going to win you much though. The
+   Linux layer won't tell us in advance when it's yest going to give us
    any more packets in a while. So this is tricky to implement right without
    introducing extra delays. 
   
@@ -136,7 +136,7 @@ static int rx_pool_sizes[NP] = {128,  128,  128, 64,   64,   64,   32,    32};
 /* Fujitsu: Please tell me which ones can have a pointer to a 
    freepool descriptor! */
 static char *res_strings[] = {
-	"RX OK: streaming not EOP", 
+	"RX OK: streaming yest EOP", 
 	"RX OK: streaming EOP", 
 	"RX OK: Single buffer packet", 
 	"RX OK: packet mode", 
@@ -167,11 +167,11 @@ static char *res_strings[] = {
 	"reserved 28", 
 	"reserved 29", 
 	"reserved 30", /* FIXME: The strings between 30-40 might be wrong. */
-	"reassembly abort: no buffers", 
+	"reassembly abort: yes buffers", 
 	"receive buffer overflow", 
 	"change in GFC", 
 	"receive buffer full", 
-	"low priority discard - no receive descriptor", 
+	"low priority discard - yes receive descriptor", 
 	"low priority discard - missing end of packet", 
 	"reserved 37",
 	"reserved 38",
@@ -264,7 +264,7 @@ static struct reginit_item PHY_NTC_INIT[] = {
    anyway. We therefore have to disable this for production. -- REW */
 #undef IRQ_RATE_LIMIT // 100
 
-/* Interrupts work now. Unlike serial cards, ATM cards don't work all
+/* Interrupts work yesw. Unlike serial cards, ATM cards don't work all
    that great without interrupts. -- REW */
 #undef FS_POLL_FREQ // 100
 
@@ -281,7 +281,7 @@ static struct reginit_item PHY_NTC_INIT[] = {
 #ifdef DEBUG
 #define fs_dprintk(f, str...) if (fs_debug & f) printk (str)
 #else
-#define fs_dprintk(f, str...) /* nothing */
+#define fs_dprintk(f, str...) /* yesthing */
 #endif
 
 
@@ -289,7 +289,7 @@ static int fs_keystream = 0;
 
 #ifdef DEBUG
 /* I didn't forget to set this to zero before shipping. Hit me with a stick 
-   if you get this with the debug default not set to zero again. -- REW */
+   if you get this with the debug default yest set to zero again. -- REW */
 static int fs_debug = 0;
 #else
 #define fs_debug 0
@@ -378,8 +378,8 @@ static inline void fs_kfree_skb (struct sk_buff * skb)
  * here and the ambassador driver) -- REW
  */
 
-/* The good thing about this format is that it is monotonic. So, 
-   a conversion routine need not be very complicated. To be able to
+/* The good thing about this format is that it is moyestonic. So, 
+   a conversion routine need yest be very complicated. To be able to
    round "nearest" we need to take along a few extra bits. Lets
    put these after 16 bits, so that we can just return the top 16
    bits of the 32bit number as the result:
@@ -421,7 +421,7 @@ static inline void fs_kfree_skb (struct sk_buff * skb)
    }
 
    Exercise for the reader: Remove one more line-of-code, without
-   cheating. (Just joining two lines is cheating). (I know it's
+   cheating. (Just joining two lines is cheating). (I kyesw it's
    possible, don't think you've beat me if you found it... If you
    manage to lose two lines or more, keep me updated! ;-)
 
@@ -431,7 +431,7 @@ static inline void fs_kfree_skb (struct sk_buff * skb)
 #define ROUND_UP      1
 #define ROUND_DOWN    2
 #define ROUND_NEAREST 3
-/********** make rate (not quite as much fun as Horizon) **********/
+/********** make rate (yest quite as much fun as Horizon) **********/
 
 static int make_rate(unsigned int rate, int r,
 		      u16 *bits, unsigned int *actual)
@@ -445,15 +445,15 @@ static int make_rate(unsigned int rate, int r,
 	   given 5-bit e and 9-bit m:
 	   rate = EITHER (1+m/2^9)*2^e    OR 0
 	   bits = EITHER 1<<14 | e<<9 | m OR 0
-	   (bit 15 is "reserved", bit 14 "non-zero")
+	   (bit 15 is "reserved", bit 14 "yesn-zero")
 	   smallest rate is 0 (special representation)
 	   largest rate is (1+511/512)*2^31 = 4290772992 (< 2^32-1)
-	   smallest non-zero rate is (1+0/512)*2^0 = 1 (> 0)
+	   smallest yesn-zero rate is (1+0/512)*2^0 = 1 (> 0)
 	   simple algorithm:
 	   find position of top bit, this gives e
 	   remove top bit and shift (rounding if feeling clever) by 9-e
 	*/
-	/* Ambassador ucode bug: please don't set bit 14! so 0 rate not
+	/* Ambassador ucode bug: please don't set bit 14! so 0 rate yest
 	   representable. // This should move into the ambassador driver
 	   when properly merged. -- REW */
   
@@ -484,12 +484,12 @@ static int make_rate(unsigned int rate, int r,
 		   rate = (1+(man-2^31)/2^31)*2^exp 
 		*/
 		man = man<<1;
-		man &= 0xffffffffU; /* a nop on 32-bit systems */
+		man &= 0xffffffffU; /* a yesp on 32-bit systems */
 		/* rate = (1+man/2^32)*2^exp
     
 		   exp is in the range 0 to 31, man is in the range 0 to 2^32-1
 		   time to lose significance... we want m in the range 0 to 2^9-1
-		   rounding presents a minor problem... we first decide which way
+		   rounding presents a miyesr problem... we first decide which way
 		   we are rounding (based on given rounding direction and possibly
 		   the bits of the mantissa that are to be discarded).
 		*/
@@ -505,7 +505,7 @@ static int make_rate(unsigned int rate, int r,
 			if (man & (~0U>>9)) {
 				man = (man>>(32-9)) + 1;
 				if (man == (1<<9)) {
-					/* no need to check for round up outside of range */
+					/* yes need to check for round up outside of range */
 					man = 0;
 					exp += 1;
 				}
@@ -519,7 +519,7 @@ static int make_rate(unsigned int rate, int r,
 			if (man & (1<<(32-9-1))) {
 				man = (man>>(32-9)) + 1;
 				if (man == (1<<9)) {
-					/* no need to check for round up outside of range */
+					/* yes need to check for round up outside of range */
 					man = 0;
 					exp += 1;
 				}
@@ -531,7 +531,7 @@ static int make_rate(unsigned int rate, int r,
 		}
     
 	} else {
-		/* zero rate - not representable */
+		/* zero rate - yest representable */
     
 		if (r == ROUND_DOWN) {
 			return -EINVAL;
@@ -716,7 +716,7 @@ static void process_txdone_queue (struct fs_dev *dev, struct queue *q)
 			/* Process a real txdone entry. */
 			tmp = qe->p0;
 			if (tmp & 0x0f)
-				printk (KERN_WARNING "td not aligned: %ld\n", tmp);
+				printk (KERN_WARNING "td yest aligned: %ld\n", tmp);
 			tmp &= ~0x0f;
 			td = bus_to_virt (tmp);
 
@@ -765,7 +765,7 @@ static void process_incoming (struct fs_dev *dev, struct queue *q)
 	struct FS_QENTRY *qe;
 	struct FS_BPENTRY *pe;    
 	struct sk_buff *skb;
-	unsigned int channo;
+	unsigned int chanyes;
 	struct atm_vcc *atm_vcc;
 
 	while (!((rq = read_fs (dev, Q_RP(q->offset))) & Q_EMPTY)) {
@@ -784,10 +784,10 @@ static void process_incoming (struct fs_dev *dev, struct queue *q)
 			    pe->flags, pe->next, pe->bsa, pe->aal_bufsize, 
 			    pe->skb, pe->fp);
       
-		channo = qe->cmd & 0xffff;
+		chanyes = qe->cmd & 0xffff;
 
-		if (channo < dev->nchannels)
-			atm_vcc = dev->atm_vccs[channo];
+		if (chanyes < dev->nchannels)
+			atm_vcc = dev->atm_vccs[chanyes];
 		else
 			atm_vcc = NULL;
 
@@ -812,10 +812,10 @@ static void process_incoming (struct fs_dev *dev, struct queue *q)
 				fs_dprintk (FS_DEBUG_ALLOC, "Free rec-d: %p\n", pe);
 				kfree (pe);
 			} else {
-				printk (KERN_ERR "Got a receive on a non-open channel %d.\n", channo);
+				printk (KERN_ERR "Got a receive on a yesn-open channel %d.\n", chanyes);
 			}
 			break;
-		case 0x17:/* AAL 5 CRC32 error. IFF the length field is nonzero, a buffer
+		case 0x17:/* AAL 5 CRC32 error. IFF the length field is yesnzero, a buffer
 			     has been consumed and needs to be processed. -- REW */
 			if (qe->p1 & 0xffff) {
 				pe = bus_to_virt (qe->p0);
@@ -828,13 +828,13 @@ static void process_incoming (struct fs_dev *dev, struct queue *q)
 			if (atm_vcc)
 				atomic_inc(&atm_vcc->stats->rx_drop);
 			break;
-		case 0x1f: /*  Reassembly abort: no buffers. */
+		case 0x1f: /*  Reassembly abort: yes buffers. */
 			/* Silently increment error counter. */
 			if (atm_vcc)
 				atomic_inc(&atm_vcc->stats->rx_drop);
 			break;
 		default: /* Hmm. Haven't written the code to handle the others yet... -- REW */
-			printk (KERN_WARNING "Don't know what to do with RX status %x: %s.\n", 
+			printk (KERN_WARNING "Don't kyesw what to do with RX status %x: %s.\n", 
 				STATUS_CODE(qe), res_strings[STATUS_CODE (qe)]);
 		}
 		write_fs (dev, Q_RP(q->offset), Q_INCWRAP);
@@ -897,36 +897,36 @@ static int fs_open(struct atm_vcc *atm_vcc)
 	if (!test_bit(ATM_VF_PARTIAL, &atm_vcc->flags)) {
 		if (IS_FS50(dev)) {
 			/* Increment the channel numer: take a free one next time.  */
-			for (to=33;to;to--, dev->channo++) {
+			for (to=33;to;to--, dev->chanyes++) {
 				/* We only have 32 channels */
-				if (dev->channo >= 32)
-					dev->channo = 0;
+				if (dev->chanyes >= 32)
+					dev->chanyes = 0;
 				/* If we need to do RX, AND the RX is inuse, try the next */
-				if (DO_DIRECTION(rxtp) && dev->atm_vccs[dev->channo])
+				if (DO_DIRECTION(rxtp) && dev->atm_vccs[dev->chanyes])
 					continue;
 				/* If we need to do TX, AND the TX is inuse, try the next */
-				if (DO_DIRECTION(txtp) && test_bit (dev->channo, dev->tx_inuse))
+				if (DO_DIRECTION(txtp) && test_bit (dev->chanyes, dev->tx_inuse))
 					continue;
-				/* Ok, both are free! (or not needed) */
+				/* Ok, both are free! (or yest needed) */
 				break;
 			}
 			if (!to) {
 				printk ("No more free channels for FS50..\n");
 				return -EBUSY;
 			}
-			vcc->channo = dev->channo;
-			dev->channo &= dev->channel_mask;
+			vcc->chanyes = dev->chanyes;
+			dev->chanyes &= dev->channel_mask;
       
 		} else {
-			vcc->channo = (vpi << FS155_VCI_BITS) | (vci);
-			if (((DO_DIRECTION(rxtp) && dev->atm_vccs[vcc->channo])) ||
-			    ( DO_DIRECTION(txtp) && test_bit (vcc->channo, dev->tx_inuse))) {
+			vcc->chanyes = (vpi << FS155_VCI_BITS) | (vci);
+			if (((DO_DIRECTION(rxtp) && dev->atm_vccs[vcc->chanyes])) ||
+			    ( DO_DIRECTION(txtp) && test_bit (vcc->chanyes, dev->tx_inuse))) {
 				printk ("Channel is in use for FS155.\n");
 				return -EBUSY;
 			}
 		}
 		fs_dprintk (FS_DEBUG_OPEN, "OK. Allocated channel %x(%d).\n", 
-			    vcc->channo, vcc->channo);
+			    vcc->chanyes, vcc->chanyes);
 	}
 
 	if (DO_DIRECTION (txtp)) {
@@ -939,7 +939,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 		}
 
 		/* Allocate the "open" entry from the high priority txq. This makes
-		   it most likely that the chip will notice it. It also prevents us
+		   it most likely that the chip will yestice it. It also prevents us
 		   from having to wait for completion. On the other hand, we may
 		   need to wait for completion anyway, to see if it completed
 		   successfully. */
@@ -962,7 +962,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 			| TC_FLAGS_CAL0;
 		  break;
 		default:
-			printk ("Unknown aal: %d\n", atm_vcc->qos.aal);
+			printk ("Unkyeswn aal: %d\n", atm_vcc->qos.aal);
 			tc->flags = 0;
 		}
 		/* Docs are vague about this atm_hdr field. By the way, the FS
@@ -982,7 +982,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 				if (pcr > 155520000/53/8) pcr = 155520000/53/8;
 			}
 			if (!pcr) {
-				/* no rate cap */
+				/* yes rate cap */
 				tmc0 = IS_FS50(dev)?0x61BE:0x64c9; /* Just copied over the bits from Fujitsu -- REW */
 			} else {
 				int r;
@@ -1017,29 +1017,29 @@ static int fs_open(struct atm_vcc *atm_vcc)
 			my_hd (tc, sizeof (*tc));
 		}
 
-		/* We now use the "submit_command" function to submit commands to
+		/* We yesw use the "submit_command" function to submit commands to
 		   the firestream. There is a define up near the definition of
 		   that routine that switches this routine between immediate write
 		   to the immediate command registers and queuing the commands in
 		   the HPTXQ for execution. This last technique might be more
-		   efficient if we know we're going to submit a whole lot of
-		   commands in one go, but this driver is not setup to be able to
+		   efficient if we kyesw we're going to submit a whole lot of
+		   commands in one go, but this driver is yest setup to be able to
 		   use such a construct. So it probably doen't matter much right
-		   now. -- REW */
+		   yesw. -- REW */
     
 		/* The command is IMMediate and INQueue. The parameters are out-of-line.. */
 		submit_command (dev, &dev->hp_txq, 
-				QE_CMD_CONFIG_TX | QE_CMD_IMM_INQ | vcc->channo,
+				QE_CMD_CONFIG_TX | QE_CMD_IMM_INQ | vcc->chanyes,
 				virt_to_bus (tc), 0, 0);
 
 		submit_command (dev, &dev->hp_txq, 
-				QE_CMD_TX_EN | QE_CMD_IMM_INQ | vcc->channo,
+				QE_CMD_TX_EN | QE_CMD_IMM_INQ | vcc->chanyes,
 				0, 0, 0);
-		set_bit (vcc->channo, dev->tx_inuse);
+		set_bit (vcc->chanyes, dev->tx_inuse);
 	}
 
 	if (DO_DIRECTION (rxtp)) {
-		dev->atm_vccs[vcc->channo] = atm_vcc;
+		dev->atm_vccs[vcc->chanyes] = atm_vcc;
 
 		for (bfp = 0;bfp < FS_NR_FREE_POOLS; bfp++)
 			if (atm_vcc->qos.rxtp.max_sdu <= dev->rx_fp[bfp].bufsize) break;
@@ -1049,7 +1049,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 			/* XXX Cleanup? -- Would just calling fs_close work??? -- REW */
 
 			/* XXX clear tx inuse. Close TX part? */
-			dev->atm_vccs[vcc->channo] = NULL;
+			dev->atm_vccs[vcc->chanyes] = NULL;
 			kfree (vcc);
 			return -EINVAL;
 		}
@@ -1058,14 +1058,14 @@ static int fs_open(struct atm_vcc *atm_vcc)
 		case ATM_AAL0:
 		case ATM_AAL2:
 			submit_command (dev, &dev->hp_txq,
-					QE_CMD_CONFIG_RX | QE_CMD_IMM_INQ | vcc->channo,
+					QE_CMD_CONFIG_RX | QE_CMD_IMM_INQ | vcc->chanyes,
 					RC_FLAGS_TRANSP |
 					RC_FLAGS_BFPS_BFP * bfp |
 					RC_FLAGS_RXBM_PSB, 0, 0);
 			break;
 		case ATM_AAL5:
 			submit_command (dev, &dev->hp_txq,
-					QE_CMD_CONFIG_RX | QE_CMD_IMM_INQ | vcc->channo,
+					QE_CMD_CONFIG_RX | QE_CMD_IMM_INQ | vcc->chanyes,
 					RC_FLAGS_AAL5 |
 					RC_FLAGS_BFPS_BFP * bfp |
 					RC_FLAGS_RXBM_PSB, 0, 0);
@@ -1074,11 +1074,11 @@ static int fs_open(struct atm_vcc *atm_vcc)
 		if (IS_FS50 (dev)) {
 			submit_command (dev, &dev->hp_txq, 
 					QE_CMD_REG_WR | QE_CMD_IMM_INQ,
-					0x80 + vcc->channo,
+					0x80 + vcc->chanyes,
 					(vpi << 16) | vci, 0 ); /* XXX -- Use defines. */
 		}
 		submit_command (dev, &dev->hp_txq, 
-				QE_CMD_RX_EN | QE_CMD_IMM_INQ | vcc->channo,
+				QE_CMD_RX_EN | QE_CMD_IMM_INQ | vcc->chanyes,
 				0, 0, 0);
 	}
     
@@ -1106,12 +1106,12 @@ static void fs_close(struct atm_vcc *atm_vcc)
 		fs_dprintk (FS_DEBUG_QUEUE, "Waiting for skb %p to be sent.\n", 
 			    vcc->last_skb);
 		/* We're going to wait for the last packet to get sent on this VC. It would
-		   be impolite not to send them don't you think? 
+		   be impolite yest to send them don't you think? 
 		   XXX
-		   We don't know which packets didn't get sent. So if we get interrupted in 
+		   We don't kyesw which packets didn't get sent. So if we get interrupted in 
 		   this sleep_on, we'll lose any reference to these packets. Memory leak!
 		   On the other hand, it's awfully convenient that we can abort a "close" that
-		   is taking too long. Maybe just use non-interruptible sleep on? -- REW */
+		   is taking too long. Maybe just use yesn-interruptible sleep on? -- REW */
 		wait_event_interruptible(vcc->close_wait, !vcc->last_skb);
 	}
 
@@ -1119,19 +1119,19 @@ static void fs_close(struct atm_vcc *atm_vcc)
 	rxtp = &atm_vcc->qos.rxtp;
   
 
-	/* See App note XXX (Unpublished as of now) for the reason for the 
+	/* See App yeste XXX (Unpublished as of yesw) for the reason for the 
 	   removal of the "CMD_IMM_INQ" part of the TX_PURGE_INH... -- REW */
 
 	if (DO_DIRECTION (txtp)) {
 		submit_command (dev,  &dev->hp_txq,
-				QE_CMD_TX_PURGE_INH | /*QE_CMD_IMM_INQ|*/ vcc->channo, 0,0,0);
-		clear_bit (vcc->channo, dev->tx_inuse);
+				QE_CMD_TX_PURGE_INH | /*QE_CMD_IMM_INQ|*/ vcc->chanyes, 0,0,0);
+		clear_bit (vcc->chanyes, dev->tx_inuse);
 	}
 
 	if (DO_DIRECTION (rxtp)) {
 		submit_command (dev,  &dev->hp_txq,
-				QE_CMD_RX_PURGE_INH | QE_CMD_IMM_INQ | vcc->channo, 0,0,0);
-		dev->atm_vccs [vcc->channo] = NULL;
+				QE_CMD_RX_PURGE_INH | QE_CMD_IMM_INQ | vcc->chanyes, 0,0,0);
+		dev->atm_vccs [vcc->chanyes] = NULL;
   
 		/* This means that this is configured as a receive channel */
 		if (IS_FS50 (dev)) {
@@ -1140,7 +1140,7 @@ static void fs_close(struct atm_vcc *atm_vcc)
 			   (0xfff...) -- REW */
 			submit_command (dev, &dev->hp_txq, 
 					QE_CMD_REG_WR | QE_CMD_IMM_INQ,
-					0x80 + vcc->channo, -1, 0 ); 
+					0x80 + vcc->chanyes, -1, 0 ); 
 		}
 	}
 
@@ -1198,7 +1198,7 @@ static int fs_send (struct atm_vcc *atm_vcc, struct sk_buff *skb)
 #endif
 
 	submit_queue (dev, &dev->hp_txq, 
-		      QE_TRANSMIT_DE | vcc->channo,
+		      QE_TRANSMIT_DE | vcc->chanyes,
 		      virt_to_bus (td), 0, 
 		      virt_to_bus (td));
 
@@ -1278,7 +1278,7 @@ static const struct atmdev_ops ops = {
 	/* setsockopt:     fs_setsockopt, */
 	/* change_qos:     fs_change_qos, */
 
-	/* For now implement these internally here... */  
+	/* For yesw implement these internally here... */  
 	/* phy_put:        fs_phy_put, */
 	/* phy_get:        fs_phy_get, */
 };
@@ -1292,7 +1292,7 @@ static void undocumented_pci_fix(struct pci_dev *pdev)
 	/* Switch off FireStream Retry Limit Threshold 
 	 */
 
-	/* The register at 0x28 is documented as "reserved", no further
+	/* The register at 0x28 is documented as "reserved", yes further
 	   comments. */
 
 	pci_read_config_dword (pdev, 0x28, &tint);
@@ -1359,7 +1359,7 @@ static void reset_chip (struct fs_dev *dev)
 	/* The Windows driver DOES write 0 to these registers somewhere in
 	   the init sequence. However, a small hardware-feature, will
 	   prevent reception of data on VPI/VCI = 0/0 (Unless the channel
-	   allocated happens to have no disabled channels that have a lower
+	   allocated happens to have yes disabled channels that have a lower
 	   number. -- REW */
 
 	/* Clear the match channel registers. */
@@ -1383,7 +1383,7 @@ static void *aligned_kmalloc(int size, gfp_t flags, int alignment)
 		}
 		return t;
 	}
-	printk (KERN_ERR "Request for > 0x10 alignment not yet implemented (hard!)\n");
+	printk (KERN_ERR "Request for > 0x10 alignment yest yet implemented (hard!)\n");
 	return NULL;
 }
 
@@ -1409,7 +1409,7 @@ static int init_q(struct fs_dev *dev, struct queue *txq, int queue,
 	write_fs (dev, Q_RP(queue), virt_to_bus(p));
 	if (is_rq) {
 		/* Configuration for the receive queue: 0: interrupt immediately,
-		   no pre-warning to empty queues: We do our best to keep the
+		   yes pre-warning to empty queues: We do our best to keep the
 		   queue filled anyway. */
 		write_fs (dev, Q_CNF(queue), 0 ); 
 	}
@@ -1457,7 +1457,7 @@ static inline int nr_buffers_in_freepool (struct fs_dev *dev, struct freepool *f
 
 
 /* Check if this gets going again if a pool ever runs out.  -- Yes, it
-   does. I've seen "receive abort: no buffers" and things started
+   does. I've seen "receive abort: yes buffers" and things started
    working again after that...  -- REW */
 
 static void top_off_fp (struct fs_dev *dev, struct freepool *fp,
@@ -1692,7 +1692,7 @@ static int fs_init(struct fs_dev *dev)
 				   | SARMODE0_ABRVCS_1k 
 				   | SARMODE0_TXVCS_1k)));
 
-	/* 10ms * 100 is 1 second. That should be enough, as AN3:9 says it takes
+	/* 10ms * 100 is 1 second. That should be eyesugh, as AN3:9 says it takes
 	   1ms. */
 	to = 100;
 	while (--to) {
@@ -1719,7 +1719,7 @@ static int fs_init(struct fs_dev *dev)
 
 	/* XXX fix for fs155 */
 	dev->channel_mask = 0x1f; 
-	dev->channo = 0;
+	dev->chanyes = 0;
 
 	/* AN3: 10 */
 	write_fs (dev, SARMODE1, 0 
@@ -1772,7 +1772,7 @@ static int fs_init(struct fs_dev *dev)
 			  | (((1 << FS155_VPI_BITS) - 1) * RAS0_VPSEL)
 			  | (((1 << FS155_VCI_BITS) - 1) * RAS0_VCSEL));
 		/* We can chose the split arbitrarily. We might be able to 
-		   support more. Whatever. This should do for now. */
+		   support more. Whatever. This should do for yesw. */
 		dev->atm_dev->ci_range.vpi_bits = FS155_VPI_BITS;
 		dev->atm_dev->ci_range.vci_bits = FS155_VCI_BITS;
     
@@ -1835,8 +1835,8 @@ static int fs_init(struct fs_dev *dev)
 	}
 	fs_dprintk (FS_DEBUG_INIT, "Grabbed irq %d for dev at %p.\n", dev->irq, dev);
   
-	/* We want to be notified of most things. Just the statistics count
-	   overflows are not interesting */
+	/* We want to be yestified of most things. Just the statistics count
+	   overflows are yest interesting */
 	write_fs (dev, IMR, 0
 		  | ISR_RBRQ0_W 
 		  | ISR_RBRQ1_W 
@@ -1957,9 +1957,9 @@ static void firestream_remove_one(struct pci_dev *pdev)
 			if (dev->atm_vccs[i]) {
 				vcc = FS_VCC (dev->atm_vccs[i]);
 				submit_command (dev,  &dev->hp_txq,
-						QE_CMD_TX_PURGE_INH | QE_CMD_IMM_INQ | vcc->channo, 0,0,0);
+						QE_CMD_TX_PURGE_INH | QE_CMD_IMM_INQ | vcc->chanyes, 0,0,0);
 				submit_command (dev,  &dev->hp_txq,
-						QE_CMD_RX_PURGE_INH | QE_CMD_IMM_INQ | vcc->channo, 0,0,0);
+						QE_CMD_RX_PURGE_INH | QE_CMD_IMM_INQ | vcc->chanyes, 0,0,0);
 
 			}
 		}
@@ -1982,7 +1982,7 @@ static void firestream_remove_one(struct pci_dev *pdev)
 		}
 
 		/* Hang the chip in "reset", prevent it clobbering memory that is
-		   no longer ours. */
+		   yes longer ours. */
 		reset_chip (dev);
 
 		fs_dprintk (FS_DEBUG_CLEANUP, "Freeing irq%d.\n", dev->irq);

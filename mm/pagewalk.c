@@ -39,7 +39,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
 	do {
 again:
 		next = pmd_addr_end(addr, end);
-		if (pmd_none(*pmd) || !walk->vma) {
+		if (pmd_yesne(*pmd) || !walk->vma) {
 			if (ops->pte_hole)
 				err = ops->pte_hole(addr, next, walk);
 			if (err)
@@ -48,7 +48,7 @@ again:
 		}
 		/*
 		 * This implies that each ->pmd_entry() handler
-		 * needs to know about pmd_trans_huge() pmds
+		 * needs to kyesw about pmd_trans_huge() pmds
 		 */
 		if (ops->pmd_entry)
 			err = ops->pmd_entry(pmd, addr, next, walk);
@@ -85,7 +85,7 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
 	do {
  again:
 		next = pud_addr_end(addr, end);
-		if (pud_none(*pud) || !walk->vma) {
+		if (pud_yesne(*pud) || !walk->vma) {
 			if (ops->pte_hole)
 				err = ops->pte_hole(addr, next, walk);
 			if (err)
@@ -106,7 +106,7 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
 		}
 
 		split_huge_pud(walk->vma, pud, addr);
-		if (pud_none(*pud))
+		if (pud_yesne(*pud))
 			goto again;
 
 		if (ops->pmd_entry || ops->pte_entry)
@@ -129,7 +129,7 @@ static int walk_p4d_range(pgd_t *pgd, unsigned long addr, unsigned long end,
 	p4d = p4d_offset(pgd, addr);
 	do {
 		next = p4d_addr_end(addr, end);
-		if (p4d_none_or_clear_bad(p4d)) {
+		if (p4d_yesne_or_clear_bad(p4d)) {
 			if (ops->pte_hole)
 				err = ops->pte_hole(addr, next, walk);
 			if (err)
@@ -156,7 +156,7 @@ static int walk_pgd_range(unsigned long addr, unsigned long end,
 	pgd = pgd_offset(walk->mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
-		if (pgd_none_or_clear_bad(pgd)) {
+		if (pgd_yesne_or_clear_bad(pgd)) {
 			if (ops->pte_hole)
 				err = ops->pte_hole(addr, next, walk);
 			if (err)
@@ -234,9 +234,9 @@ static int walk_page_test(unsigned long start, unsigned long end,
 
 	/*
 	 * vma(VM_PFNMAP) doesn't have any valid struct pages behind VM_PFNMAP
-	 * range, so we don't walk over it as we do for normal vmas. However,
+	 * range, so we don't walk over it as we do for yesrmal vmas. However,
 	 * Some callers are interested in handling hole range and they don't
-	 * want to just ignore any single address range. Such users certainly
+	 * want to just igyesre any single address range. Such users certainly
 	 * define their ->pte_hole() callbacks, so let's delegate them to handle
 	 * vma(VM_PFNMAP).
 	 */
@@ -286,7 +286,7 @@ static int __walk_page_range(unsigned long start, unsigned long end,
  * within the virtual address range [@start, @end). During walking, we can do
  * some caller-specific works for each entry, by setting up pmd_entry(),
  * pte_entry(), and/or hugetlb_entry(). If you don't set up for some of these
- * callbacks, the associated entries/pages are just ignored.
+ * callbacks, the associated entries/pages are just igyesred.
  * The return values of these callbacks are commonly defined like below:
  *
  *  - 0  : succeeded to handle the current entry, and if you don't reach the
@@ -413,7 +413,7 @@ int walk_page_vma(struct vm_area_struct *vma, const struct mm_walk_ops *ops,
  *   since @mapping may be mapped by multiple processes. Instead
  *   @mapping->i_mmap_rwsem must be held. This might have implications in the
  *   callbacks, and it's up tho the caller to ensure that the
- *   struct mm_struct::mmap_sem is not needed.
+ *   struct mm_struct::mmap_sem is yest needed.
  *
  *   Also this means that a caller can't rely on the struct
  *   vm_area_struct::vm_flags to be constant across a call,

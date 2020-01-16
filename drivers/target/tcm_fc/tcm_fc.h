@@ -32,7 +32,7 @@ struct ft_sess {
 	u64 port_name;			/* port name for transport ID */
 	struct ft_tport *tport;
 	struct se_session *se_sess;
-	struct hlist_node hash;		/* linkage in ft_sess_hash table */
+	struct hlist_yesde hash;		/* linkage in ft_sess_hash table */
 	struct rcu_head rcu;
 	struct kref kref;		/* ref for hash and outstanding I/Os */
 };
@@ -48,7 +48,7 @@ struct ft_sess {
  * Per local port data.
  * This is created only after a TPG exists that allows target function
  * for the local port.  If the TPG exists, this is allocated when
- * we're notified that the local port has been created, or when
+ * we're yestified that the local port has been created, or when
  * the first PRLI provider callback is received.
  */
 struct ft_tport {
@@ -62,17 +62,17 @@ struct ft_tport {
 /*
  * Node ID and authentication.
  */
-struct ft_node_auth {
+struct ft_yesde_auth {
 	u64	port_name;
-	u64	node_name;
+	u64	yesde_name;
 };
 
 /*
  * Node ACL for FC remote port session.
  */
-struct ft_node_acl {
-	struct se_node_acl se_node_acl;
-	struct ft_node_auth node_auth;
+struct ft_yesde_acl {
+	struct se_yesde_acl se_yesde_acl;
+	struct ft_yesde_auth yesde_auth;
 };
 
 struct ft_lun {
@@ -95,7 +95,7 @@ struct ft_tpg {
 struct ft_lport_wwn {
 	u64 wwpn;
 	char name[FT_NAMELEN];
-	struct list_head ft_wwn_node;
+	struct list_head ft_wwn_yesde;
 	struct ft_tpg *tpg;
 	struct se_wwn se_wwn;
 };
@@ -136,7 +136,7 @@ u32 ft_sess_get_port_name(struct se_session *, unsigned char *, u32);
 
 void ft_lport_add(struct fc_lport *, void *);
 void ft_lport_del(struct fc_lport *, void *);
-int ft_lport_notify(struct notifier_block *, unsigned long, void *);
+int ft_lport_yestify(struct yestifier_block *, unsigned long, void *);
 
 /*
  * IO methods.

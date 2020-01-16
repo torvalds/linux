@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  (C) 2004 Bruno Ducrot <ducrot@poupinou.org>
+ *  (C) 2004 Bruyes Ducrot <ducrot@poupiyesu.org>
  *
  * Based on code found in
- * linux/arch/i386/kernel/cpu/cpufreq/powernow-k8.c
+ * linux/arch/i386/kernel/cpu/cpufreq/poweryesw-k8.c
  * and originally developed by Paul Devriendt
  */
 
@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 
 #include <sys/types.h>
@@ -80,8 +80,8 @@ int main (int argc, char *argv[])
 
 	if (err) {
 		printf("can't get fid, vid from MSR\n");
-		printf("Possible trouble: you don't run a powernow-k8 capable cpu\n");
-		printf("or you are not root, or the msr driver is not present\n");
+		printf("Possible trouble: you don't run a poweryesw-k8 capable cpu\n");
+		printf("or you are yest root, or the msr driver is yest present\n");
 		exit(1);
 	}
 

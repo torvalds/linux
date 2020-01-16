@@ -39,7 +39,7 @@
  * on POLARIS, since the chip itself generates Type 0 or Type 1
  * cycles automatically depending on the bus number (Bus 0 is
  * hardwired to Type 0, all others are Type 1.  Peer bridges
- * are not supported).
+ * are yest supported).
  *
  * All types:
  *
@@ -149,7 +149,7 @@ polaris_init_arch(void)
 	struct pci_controller *hose;
 
 	/* May need to initialize error reporting (see PCICTL0/1), but
-	 * for now assume that the firmware has done the right thing
+	 * for yesw assume that the firmware has done the right thing
 	 * already.
 	 */
 #if 0

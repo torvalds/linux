@@ -198,12 +198,12 @@ static struct abx500_battery_type bat_type_thermistor[] = {
 		.resis_low = 0,
 		.battery_resistance = 300,
 		.charge_full_design = 612,
-		.nominal_voltage = 3700,
+		.yesminal_voltage = 3700,
 		.termination_vol = 4050,
 		.termination_curr = 200,
 		.recharge_cap = 95,
-		.normal_cur_lvl = 400,
-		.normal_vol_lvl = 4100,
+		.yesrmal_cur_lvl = 400,
+		.yesrmal_vol_lvl = 4100,
 		.maint_a_cur_lvl = 400,
 		.maint_a_vol_lvl = 4050,
 		.maint_a_chg_timer_h = 60,
@@ -225,12 +225,12 @@ static struct abx500_battery_type bat_type_thermistor[] = {
 		.resis_low = 12500,
 		.battery_resistance = 300,
 		.charge_full_design = 900,
-		.nominal_voltage = 3600,
+		.yesminal_voltage = 3600,
 		.termination_vol = 4150,
 		.termination_curr = 80,
 		.recharge_cap = 95,
-		.normal_cur_lvl = 700,
-		.normal_vol_lvl = 4200,
+		.yesrmal_cur_lvl = 700,
+		.yesrmal_vol_lvl = 4200,
 		.maint_a_cur_lvl = 600,
 		.maint_a_vol_lvl = 4150,
 		.maint_a_chg_timer_h = 60,
@@ -253,12 +253,12 @@ static struct abx500_battery_type bat_type_thermistor[] = {
 		.resis_low = 82869,
 		.battery_resistance = 300,
 		.charge_full_design = 900,
-		.nominal_voltage = 3600,
+		.yesminal_voltage = 3600,
 		.termination_vol = 4150,
 		.termination_curr = 80,
 		.recharge_cap = 95,
-		.normal_cur_lvl = 700,
-		.normal_vol_lvl = 4200,
+		.yesrmal_cur_lvl = 700,
+		.yesrmal_vol_lvl = 4200,
 		.maint_a_cur_lvl = 600,
 		.maint_a_vol_lvl = 4150,
 		.maint_a_chg_timer_h = 60,
@@ -284,12 +284,12 @@ static struct abx500_battery_type bat_type_ext_thermistor[] = {
 		.resis_low = 0,
 		.battery_resistance = 300,
 		.charge_full_design = 612,
-		.nominal_voltage = 3700,
+		.yesminal_voltage = 3700,
 		.termination_vol = 4050,
 		.termination_curr = 200,
 		.recharge_cap = 95,
-		.normal_cur_lvl = 400,
-		.normal_vol_lvl = 4100,
+		.yesrmal_cur_lvl = 400,
+		.yesrmal_vol_lvl = 4100,
 		.maint_a_cur_lvl = 400,
 		.maint_a_vol_lvl = 4050,
 		.maint_a_chg_timer_h = 60,
@@ -316,12 +316,12 @@ static struct abx500_battery_type bat_type_ext_thermistor[] = {
 		.resis_low = 53000,
 		.battery_resistance = 300,
 		.charge_full_design = 900,
-		.nominal_voltage = 3700,
+		.yesminal_voltage = 3700,
 		.termination_vol = 4150,
 		.termination_curr = 100,
 		.recharge_cap = 95,
-		.normal_cur_lvl = 700,
-		.normal_vol_lvl = 4200,
+		.yesrmal_cur_lvl = 700,
+		.yesrmal_vol_lvl = 4200,
 		.maint_a_cur_lvl = 600,
 		.maint_a_vol_lvl = 4150,
 		.maint_a_chg_timer_h = 60,
@@ -343,12 +343,12 @@ static struct abx500_battery_type bat_type_ext_thermistor[] = {
 		.resis_low = 10000,
 		.battery_resistance = 300,
 		.charge_full_design = 950,
-		.nominal_voltage = 3700,
+		.yesminal_voltage = 3700,
 		.termination_vol = 4150,
 		.termination_curr = 100,
 		.recharge_cap = 95,
-		.normal_cur_lvl = 700,
-		.normal_vol_lvl = 4200,
+		.yesrmal_cur_lvl = 700,
+		.yesrmal_vol_lvl = 4200,
 		.maint_a_cur_lvl = 600,
 		.maint_a_vol_lvl = 4150,
 		.maint_a_chg_timer_h = 60,
@@ -370,12 +370,12 @@ static struct abx500_battery_type bat_type_ext_thermistor[] = {
 		.resis_low = 76001,
 		.battery_resistance = 300,
 		.charge_full_design = 950,
-		.nominal_voltage = 3700,
+		.yesminal_voltage = 3700,
 		.termination_vol = 4150,
 		.termination_curr = 100,
 		.recharge_cap = 95,
-		.normal_cur_lvl = 700,
-		.normal_vol_lvl = 4200,
+		.yesrmal_cur_lvl = 700,
+		.yesrmal_vol_lvl = 4200,
 		.maint_a_cur_lvl = 600,
 		.maint_a_vol_lvl = 4150,
 		.maint_a_chg_timer_h = 60,
@@ -396,7 +396,7 @@ static struct abx500_battery_type bat_type_ext_thermistor[] = {
 static const struct abx500_bm_capacity_levels cap_levels = {
 	.critical	= 2,
 	.low		= 10,
-	.normal		= 70,
+	.yesrmal		= 70,
 	.high		= 95,
 	.full		= 100,
 };
@@ -462,14 +462,14 @@ struct abx500_bm_data ab8500_bm_data = {
 	.temp_over              = 48,
 	.main_safety_tmr_h      = 4,
 	.temp_interval_chg      = 20,
-	.temp_interval_nochg    = 120,
+	.temp_interval_yeschg    = 120,
 	.usb_safety_tmr_h       = 4,
 	.bkup_bat_v             = BUP_VCH_SEL_2P6V,
 	.bkup_bat_i             = BUP_ICH_SEL_150UA,
-	.no_maintenance         = false,
+	.yes_maintenance         = false,
 	.capacity_scaling       = false,
 	.adc_therm              = ABx500_ADC_THERM_BATCTRL,
-	.chg_unknown_bat        = false,
+	.chg_unkyeswn_bat        = false,
 	.enable_overshoot       = false,
 	.fg_res                 = 100,
 	.cap_levels             = &cap_levels,
@@ -477,7 +477,7 @@ struct abx500_bm_data ab8500_bm_data = {
 	.n_btypes               = ARRAY_SIZE(bat_type_thermistor),
 	.batt_id                = 0,
 	.interval_charging      = 5,
-	.interval_not_charging  = 120,
+	.interval_yest_charging  = 120,
 	.temp_hysteresis        = 3,
 	.gnd_lift_resistance    = 34,
 	.chg_output_curr        = ab8500_charge_output_curr_map,
@@ -490,39 +490,39 @@ struct abx500_bm_data ab8500_bm_data = {
 };
 
 int ab8500_bm_of_probe(struct device *dev,
-		       struct device_node *np,
+		       struct device_yesde *np,
 		       struct abx500_bm_data *bm)
 {
 	const struct batres_vs_temp *tmp_batres_tbl;
-	struct device_node *battery_node;
+	struct device_yesde *battery_yesde;
 	const char *btech;
 	int i;
 
-	/* get phandle to 'battery-info' node */
-	battery_node = of_parse_phandle(np, "battery", 0);
-	if (!battery_node) {
-		dev_err(dev, "battery node or reference missing\n");
+	/* get phandle to 'battery-info' yesde */
+	battery_yesde = of_parse_phandle(np, "battery", 0);
+	if (!battery_yesde) {
+		dev_err(dev, "battery yesde or reference missing\n");
 		return -EINVAL;
 	}
 
-	btech = of_get_property(battery_node, "stericsson,battery-type", NULL);
+	btech = of_get_property(battery_yesde, "stericsson,battery-type", NULL);
 	if (!btech) {
 		dev_warn(dev, "missing property battery-name/type\n");
-		of_node_put(battery_node);
+		of_yesde_put(battery_yesde);
 		return -EINVAL;
 	}
 
 	if (strncmp(btech, "LION", 4) == 0) {
-		bm->no_maintenance  = true;
-		bm->chg_unknown_bat = true;
+		bm->yes_maintenance  = true;
+		bm->chg_unkyeswn_bat = true;
 		bm->bat_type[BATTERY_UNKNOWN].charge_full_design = 2600;
 		bm->bat_type[BATTERY_UNKNOWN].termination_vol    = 4150;
 		bm->bat_type[BATTERY_UNKNOWN].recharge_cap       = 95;
-		bm->bat_type[BATTERY_UNKNOWN].normal_cur_lvl     = 520;
-		bm->bat_type[BATTERY_UNKNOWN].normal_vol_lvl     = 4200;
+		bm->bat_type[BATTERY_UNKNOWN].yesrmal_cur_lvl     = 520;
+		bm->bat_type[BATTERY_UNKNOWN].yesrmal_vol_lvl     = 4200;
 	}
 
-	if (of_property_read_bool(battery_node, "thermistor-on-batctrl")) {
+	if (of_property_read_bool(battery_yesde, "thermistor-on-batctrl")) {
 		if (strncmp(btech, "LION", 4) == 0)
 			tmp_batres_tbl = temp_to_batres_tbl_9100;
 		else
@@ -538,7 +538,7 @@ int ab8500_bm_of_probe(struct device *dev,
 	for (i = 0; i < bm->n_btypes; ++i)
 		bm->bat_type[i].batres_tbl = tmp_batres_tbl;
 
-	of_node_put(battery_node);
+	of_yesde_put(battery_yesde);
 
 	return 0;
 }

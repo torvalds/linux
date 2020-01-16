@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -594,7 +594,7 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			vif_priv->encrypt_type = WCN36XX_HAL_ED_NONE;
 		} else {
 			sta_priv->is_data_encrypted = false;
-			/* do not remove key if disassociated */
+			/* do yest remove key if disassociated */
 			if (sta_priv->aid)
 				wcn36xx_smd_remove_stakey(wcn,
 					vif_priv->encrypt_type,
@@ -848,11 +848,11 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			 * Holding conf_mutex ensures mutal exclusion with
 			 * wcn36xx_sta_remove() and as such ensures that sta
 			 * won't be freed while we're operating on it. As such
-			 * we do not need to hold the rcu_read_lock().
+			 * we do yest need to hold the rcu_read_lock().
 			 */
 			sta = ieee80211_find_sta(vif, bss_conf->bssid);
 			if (!sta) {
-				wcn36xx_err("sta %pM is not found\n",
+				wcn36xx_err("sta %pM is yest found\n",
 					      bss_conf->bssid);
 				goto out;
 			}
@@ -1012,7 +1012,7 @@ static int wcn36xx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	/*
 	 * For STA mode HW will be configured on BSS_CHANGED_ASSOC because
-	 * at this stage AID is not available yet.
+	 * at this stage AID is yest available yet.
 	 */
 	if (NL80211_IFTYPE_STATION != vif->type) {
 		wcn36xx_update_allowed_rates(sta, WCN36XX_BAND(wcn));
@@ -1125,7 +1125,7 @@ static int wcn36xx_ampdu_action(struct ieee80211_hw *hw,
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	default:
-		wcn36xx_err("Unknown AMPDU action\n");
+		wcn36xx_err("Unkyeswn AMPDU action\n");
 	}
 
 	mutex_unlock(&wcn->conf_mutex);
@@ -1212,8 +1212,8 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 					  struct platform_device *pdev)
 {
-	struct device_node *mmio_node;
-	struct device_node *iris_node;
+	struct device_yesde *mmio_yesde;
+	struct device_yesde *iris_yesde;
 	struct resource *res;
 	int index;
 	int ret;
@@ -1250,26 +1250,26 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 		return PTR_ERR(wcn->tx_rings_empty_state);
 	}
 
-	mmio_node = of_parse_phandle(pdev->dev.parent->of_node, "qcom,mmio", 0);
-	if (!mmio_node) {
+	mmio_yesde = of_parse_phandle(pdev->dev.parent->of_yesde, "qcom,mmio", 0);
+	if (!mmio_yesde) {
 		wcn36xx_err("failed to acquire qcom,mmio reference\n");
 		return -EINVAL;
 	}
 
-	wcn->is_pronto = !!of_device_is_compatible(mmio_node, "qcom,pronto");
+	wcn->is_pronto = !!of_device_is_compatible(mmio_yesde, "qcom,pronto");
 
 	/* Map the CCU memory */
-	index = of_property_match_string(mmio_node, "reg-names", "ccu");
-	wcn->ccu_base = of_iomap(mmio_node, index);
+	index = of_property_match_string(mmio_yesde, "reg-names", "ccu");
+	wcn->ccu_base = of_iomap(mmio_yesde, index);
 	if (!wcn->ccu_base) {
 		wcn36xx_err("failed to map ccu memory\n");
 		ret = -ENOMEM;
-		goto put_mmio_node;
+		goto put_mmio_yesde;
 	}
 
 	/* Map the DXE memory */
-	index = of_property_match_string(mmio_node, "reg-names", "dxe");
-	wcn->dxe_base = of_iomap(mmio_node, index);
+	index = of_property_match_string(mmio_yesde, "reg-names", "dxe");
+	wcn->dxe_base = of_iomap(mmio_yesde, index);
 	if (!wcn->dxe_base) {
 		wcn36xx_err("failed to map dxe memory\n");
 		ret = -ENOMEM;
@@ -1277,20 +1277,20 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 	}
 
 	/* External RF module */
-	iris_node = of_get_child_by_name(mmio_node, "iris");
-	if (iris_node) {
-		if (of_device_is_compatible(iris_node, "qcom,wcn3620"))
+	iris_yesde = of_get_child_by_name(mmio_yesde, "iris");
+	if (iris_yesde) {
+		if (of_device_is_compatible(iris_yesde, "qcom,wcn3620"))
 			wcn->rf_id = RF_IRIS_WCN3620;
-		of_node_put(iris_node);
+		of_yesde_put(iris_yesde);
 	}
 
-	of_node_put(mmio_node);
+	of_yesde_put(mmio_yesde);
 	return 0;
 
 unmap_ccu:
 	iounmap(wcn->ccu_base);
-put_mmio_node:
-	of_node_put(mmio_node);
+put_mmio_yesde:
+	of_yesde_put(mmio_yesde);
 	return ret;
 }
 
@@ -1336,7 +1336,7 @@ static int wcn36xx_probe(struct platform_device *pdev)
 		goto out_wq;
 	}
 
-	addr = of_get_property(pdev->dev.of_node, "local-mac-address", &ret);
+	addr = of_get_property(pdev->dev.of_yesde, "local-mac-address", &ret);
 	if (addr && ret != ETH_ALEN) {
 		wcn36xx_err("invalid local-mac-address\n");
 		ret = -EINVAL;

@@ -46,7 +46,7 @@ struct fpga_irq_data {
 	u8 used_irqs;
 };
 
-/* we cannot allocate memory when the controllers are initially registered */
+/* we canyest allocate memory when the controllers are initially registered */
 static struct fpga_irq_data fpga_irq_devices[CONFIG_VERSATILE_FPGA_IRQ_NR];
 static int fpga_irq_id;
 
@@ -85,7 +85,7 @@ static void fpga_irq_handle(struct irq_desc *desc)
 }
 
 /*
- * Handle each interrupt in a single FPGA IRQ controller.  Returns non-zero
+ * Handle each interrupt in a single FPGA IRQ controller.  Returns yesn-zero
  * if we've handled at least one interrupt.  This does a single read of the
  * status register and handles all interrupts in order from LSB first.
  */
@@ -106,7 +106,7 @@ static int handle_one_fpga(struct fpga_irq_data *f, struct pt_regs *regs)
 
 /*
  * Keep iterating over all registered FPGA IRQ controllers until there are
- * no pending interrupts.
+ * yes pending interrupts.
  */
 asmlinkage void __exception_irq_entry fpga_handle_irq(struct pt_regs *regs)
 {
@@ -139,7 +139,7 @@ static const struct irq_domain_ops fpga_irqdomain_ops = {
 };
 
 void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
-			  int parent_irq, u32 valid, struct device_node *node)
+			  int parent_irq, u32 valid, struct device_yesde *yesde)
 {
 	struct fpga_irq_data *f;
 	int i;
@@ -162,7 +162,7 @@ void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
 	}
 
 	/* This will also allocate irq descriptors */
-	f->domain = irq_domain_add_simple(node, fls(valid), irq_start,
+	f->domain = irq_domain_add_simple(yesde, fls(valid), irq_start,
 					  &fpga_irqdomain_ops, f);
 
 	/* This will allocate all valid descriptors in the linear case */
@@ -184,34 +184,34 @@ void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
 }
 
 #ifdef CONFIG_OF
-int __init fpga_irq_of_init(struct device_node *node,
-			    struct device_node *parent)
+int __init fpga_irq_of_init(struct device_yesde *yesde,
+			    struct device_yesde *parent)
 {
 	void __iomem *base;
 	u32 clear_mask;
 	u32 valid_mask;
 	int parent_irq;
 
-	if (WARN_ON(!node))
+	if (WARN_ON(!yesde))
 		return -ENODEV;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	WARN(!base, "unable to map fpga irq registers\n");
 
-	if (of_property_read_u32(node, "clear-mask", &clear_mask))
+	if (of_property_read_u32(yesde, "clear-mask", &clear_mask))
 		clear_mask = 0;
 
-	if (of_property_read_u32(node, "valid-mask", &valid_mask))
+	if (of_property_read_u32(yesde, "valid-mask", &valid_mask))
 		valid_mask = 0;
 
 	/* Some chips are cascaded from a parent IRQ */
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(yesde, 0);
 	if (!parent_irq) {
 		set_handle_irq(fpga_handle_irq);
 		parent_irq = -1;
 	}
 
-	fpga_irq_init(base, node->name, 0, parent_irq, valid_mask, node);
+	fpga_irq_init(base, yesde->name, 0, parent_irq, valid_mask, yesde);
 
 	writel(clear_mask, base + IRQ_ENABLE_CLEAR);
 	writel(clear_mask, base + FIQ_ENABLE_CLEAR);
@@ -221,7 +221,7 @@ int __init fpga_irq_of_init(struct device_node *node,
 	 * pass-thru to the primary controller for IRQs 20 and 22-31 which need
 	 * to be enabled. See section 3.10 of the Versatile AB user guide.
 	 */
-	if (of_device_is_compatible(node, "arm,versatile-sic"))
+	if (of_device_is_compatible(yesde, "arm,versatile-sic"))
 		writel(0xffd00000, base + PIC_ENABLES);
 
 	return 0;

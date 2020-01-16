@@ -8,19 +8,19 @@ enum kvm_page_track_mode {
 };
 
 /*
- * The notifier represented by @kvm_page_track_notifier_node is linked into
- * the head which will be notified when guest is triggering the track event.
+ * The yestifier represented by @kvm_page_track_yestifier_yesde is linked into
+ * the head which will be yestified when guest is triggering the track event.
  *
  * Write access on the head is protected by kvm->mmu_lock, read access
  * is protected by track_srcu.
  */
-struct kvm_page_track_notifier_head {
+struct kvm_page_track_yestifier_head {
 	struct srcu_struct track_srcu;
-	struct hlist_head track_notifier_list;
+	struct hlist_head track_yestifier_list;
 };
 
-struct kvm_page_track_notifier_node {
-	struct hlist_node node;
+struct kvm_page_track_yestifier_yesde {
+	struct hlist_yesde yesde;
 
 	/*
 	 * It is called when guest is writing the write-tracked page
@@ -30,20 +30,20 @@ struct kvm_page_track_notifier_node {
 	 * @gpa: the physical address written by guest.
 	 * @new: the data was written to the address.
 	 * @bytes: the written length.
-	 * @node: this node
+	 * @yesde: this yesde
 	 */
 	void (*track_write)(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
-			    int bytes, struct kvm_page_track_notifier_node *node);
+			    int bytes, struct kvm_page_track_yestifier_yesde *yesde);
 	/*
 	 * It is called when memory slot is being moved or removed
 	 * users can drop write-protection for the pages in that memory slot
 	 *
 	 * @kvm: the kvm where memory slot being moved or removed
 	 * @slot: the memory slot being moved or removed
-	 * @node: this node
+	 * @yesde: this yesde
 	 */
 	void (*track_flush_slot)(struct kvm *kvm, struct kvm_memory_slot *slot,
-			    struct kvm_page_track_notifier_node *node);
+			    struct kvm_page_track_yestifier_yesde *yesde);
 };
 
 void kvm_page_track_init(struct kvm *kvm);
@@ -64,11 +64,11 @@ bool kvm_page_track_is_active(struct kvm_vcpu *vcpu, gfn_t gfn,
 			      enum kvm_page_track_mode mode);
 
 void
-kvm_page_track_register_notifier(struct kvm *kvm,
-				 struct kvm_page_track_notifier_node *n);
+kvm_page_track_register_yestifier(struct kvm *kvm,
+				 struct kvm_page_track_yestifier_yesde *n);
 void
-kvm_page_track_unregister_notifier(struct kvm *kvm,
-				   struct kvm_page_track_notifier_node *n);
+kvm_page_track_unregister_yestifier(struct kvm *kvm,
+				   struct kvm_page_track_yestifier_yesde *n);
 void kvm_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
 			  int bytes);
 void kvm_page_track_flush_slot(struct kvm *kvm, struct kvm_memory_slot *slot);

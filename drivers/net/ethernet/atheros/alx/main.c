@@ -12,16 +12,16 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *
  * Copyright (c) 2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -260,7 +260,7 @@ static int alx_clean_rx_irq(struct alx_rx_queue *rxq, int budget)
 		skb_put(skb, length);
 		skb->protocol = eth_type_trans(skb, rxq->netdev);
 
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 		if (alx->dev->features & NETIF_F_RXCSUM &&
 		    !(rrd->word3 & (cpu_to_le32(1 << RRD_ERR_L4_SHIFT) |
 				    cpu_to_le32(1 << RRD_ERR_IPV4_SHIFT)))) {
@@ -652,7 +652,7 @@ static int alx_alloc_rings(struct alx_priv *alx)
 
 	/* physical tx/rx ring descriptors
 	 *
-	 * Allocate them as a single chunk because they must not cross a
+	 * Allocate them as a single chunk because they must yest cross a
 	 * 4G boundary (hardware has a single register for high 32 bits
 	 * of addresses only)
 	 */
@@ -1269,7 +1269,7 @@ static const char *alx_speed_desc(struct alx_hw *hw)
 	case ADVERTISED_10baseT_Half:
 		return "10 Mbps Half";
 	default:
-		return "Unknown speed";
+		return "Unkyeswn speed";
 	}
 }
 
@@ -1308,7 +1308,7 @@ static void alx_check_link(struct alx_priv *alx)
 		if (old_speed == SPEED_UNKNOWN)
 			alx_netif_start(alx);
 	} else {
-		/* link is now down */
+		/* link is yesw down */
 		alx_netif_stop(alx);
 		netif_info(alx, link, alx->dev, "Link Down\n");
 		err = alx_reset_mac(hw);
@@ -1751,7 +1751,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hw->hw_addr = pci_ioremap_bar(pdev, 0);
 	if (!hw->hw_addr) {
-		dev_err(&pdev->dev, "cannot map device registers\n");
+		dev_err(&pdev->dev, "canyest map device registers\n");
 		err = -EIO;
 		goto out_free_netdev;
 	}
@@ -1783,7 +1783,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_unmap;
 	}
 
-	/* setup link to put it in a known good starting state */
+	/* setup link to put it in a kyeswn good starting state */
 	if (!phy_configured) {
 		err = alx_setup_speed_duplex(hw, hw->adv_cfg, hw->flowctrl);
 		if (err) {

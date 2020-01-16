@@ -12,7 +12,7 @@ config ARM64_PTDUMP_DEBUGFS
 	  Say Y here if you want to show the kernel pagetable layout in a
 	  debugfs file. This information is only useful for kernel developers
 	  who are working in architecture specific areas of the kernel.
-	  It is probably not a good idea to enable this feature in a production
+	  It is probably yest a good idea to enable this feature in a production
 	  kernel.
 
 	  If in doubt, say N.
@@ -36,8 +36,8 @@ config ARM64_RANDOMIZE_TEXT_OFFSET
 	  fuzz-test bootloaders which respect text_offset.
 
 	  This option is intended for bootloader and/or kernel testing
-	  only. Bootloaders must make no assumptions regarding the value
-	  of TEXT_OFFSET and platforms must not require a specific
+	  only. Bootloaders must make yes assumptions regarding the value
+	  of TEXT_OFFSET and platforms must yest require a specific
 	  value.
 
 config DEBUG_WX
@@ -53,18 +53,18 @@ config DEBUG_WX
 
 	  Look for a message in dmesg output like this:
 
-	    arm64/mm: Checked W+X mappings: passed, no W+X pages found.
+	    arm64/mm: Checked W+X mappings: passed, yes W+X pages found.
 
 	  or like this, if the check failed:
 
 	    arm64/mm: Checked W+X mappings: FAILED, <N> W+X pages found.
 
 	  Note that even if the check fails, your kernel is possibly
-	  still fine, as W+X mappings are not a security hole in
+	  still fine, as W+X mappings are yest a security hole in
 	  themselves, what they do is that they make the exploitation
 	  of other unfixed kernel bugs easier.
 
-	  There is no runtime or memory usage effect of this option
+	  There is yes runtime or memory usage effect of this option
 	  once the kernel has booted up - it's a one time check.
 
 	  If in doubt, say "Y".
@@ -74,7 +74,7 @@ config DEBUG_ALIGN_RODATA
 	bool "Align linker sections up to SECTION_SIZE"
 	help
 	  If this option is enabled, sections that may potentially be marked as
-	  read only or non-executable will be aligned up to the section size of
+	  read only or yesn-executable will be aligned up to the section size of
 	  the kernel. This prevents sections from being split into pages and
 	  avoids a potential TLB penalty. The downside is an increase in
 	  alignment and potentially wasted space. Turn on this option if

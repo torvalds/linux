@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -40,7 +40,7 @@
 #include "atomfirmware.h"
 #include "clk/clk_10_0_2_offset.h"
 #include "clk/clk_10_0_2_sh_mask.h"
-#include "renoir_ip_offset.h"
+#include "reyesir_ip_offset.h"
 
 
 /* Constants */
@@ -73,9 +73,9 @@ int rn_get_active_display_cnt_wa(
 		const struct dc_link *link = dc->links[i];
 
 		/*
-		 * Only notify active stream or virtual stream.
-		 * Need to notify virtual stream to work around
-		 * headless case. HPD does not fire when system is in
+		 * Only yestify active stream or virtual stream.
+		 * Need to yestify virtual stream to work around
+		 * headless case. HPD does yest fire when system is in
 		 * S0i2.
 		 */
 		/* abusing the fact that the dig and phy are coupled to see if the phy is enabled */
@@ -113,7 +113,7 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 	 * also if safe to lower is false, we just go in the higher state
 	 */
 	if (safe_to_lower) {
-		/* check that we're not already in lower */
+		/* check that we're yest already in lower */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
 
 			display_count = rn_get_active_display_cnt_wa(dc, context);
@@ -125,7 +125,7 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 			}
 		}
 	} else {
-		/* check that we're not already in D0 */
+		/* check that we're yest already in D0 */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_MISSION_MODE) {
 			rn_vbios_smu_set_dcn_low_power_state(clk_mgr, DCN_PWR_STATE_MISSION_MODE);
 			/* update power state */
@@ -171,7 +171,7 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 		// if clock is being raised, increase refclk before lowering DTO
 		if (update_dppclk || update_dispclk)
 			rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
-		// always update dtos unless clock is lowered and not safe to lower
+		// always update dtos unless clock is lowered and yest safe to lower
 		if (new_clocks->dppclk_khz >= dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz)
 			dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
 	}
@@ -212,7 +212,7 @@ static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
 	/* multiply by REFCLK period */
 	pll_req = dc_fixpt_mul_int(pll_req, clk_mgr->dfs_ref_freq_khz);
 
-	/* integer part is now VCO frequency in kHz */
+	/* integer part is yesw VCO frequency in kHz */
 	return dc_fixpt_floor(pll_req);
 }
 
@@ -404,13 +404,13 @@ void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_ra
 	num_valid_sets = 0;
 
 	for (i = 0; i < WM_SET_COUNT; i++) {
-		/* skip empty entries, the smu array has no holes*/
+		/* skip empty entries, the smu array has yes holes*/
 		if (!bw_params->wm_table.entries[i].valid)
 			continue;
 
 		ranges->reader_wm_sets[num_valid_sets].wm_inst = bw_params->wm_table.entries[i].wm_inst;
 		ranges->reader_wm_sets[num_valid_sets].wm_type = bw_params->wm_table.entries[i].wm_type;;
-		/* We will not select WM based on dcfclk, so leave it as unconstrained */
+		/* We will yest select WM based on dcfclk, so leave it as unconstrained */
 		ranges->reader_wm_sets[num_valid_sets].min_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
 		ranges->reader_wm_sets[num_valid_sets].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 		/* fclk wil be used to select WM*/
@@ -419,7 +419,7 @@ void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_ra
 			if (i == 0)
 				ranges->reader_wm_sets[num_valid_sets].min_fill_clk_mhz = 0;
 			else {
-				/* add 1 to make it non-overlapping with next lvl */
+				/* add 1 to make it yesn-overlapping with next lvl */
 				ranges->reader_wm_sets[num_valid_sets].min_fill_clk_mhz = bw_params->clk_table.entries[i - 1].fclk_mhz + 1;
 			}
 			ranges->reader_wm_sets[num_valid_sets].max_fill_clk_mhz = bw_params->clk_table.entries[i].fclk_mhz;
@@ -444,7 +444,7 @@ void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_ra
 	ranges->reader_wm_sets[ranges->num_reader_wm_sets - 1].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 	ranges->reader_wm_sets[ranges->num_reader_wm_sets - 1].max_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 
-	/* This is for writeback only, does not matter currently as no writeback support*/
+	/* This is for writeback only, does yest matter currently as yes writeback support*/
 	ranges->num_writer_wm_sets = 1;
 	ranges->writer_wm_sets[0].wm_inst = WM_A;
 	ranges->writer_wm_sets[0].min_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
@@ -454,7 +454,7 @@ void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_ra
 
 }
 
-static void rn_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
+static void rn_yestify_wm_ranges(struct clk_mgr *clk_mgr_base)
 {
 	struct dc_debug_options *debug = &clk_mgr_base->ctx->dc->debug;
 	struct pp_smu_wm_range_sets ranges = {0};
@@ -493,7 +493,7 @@ static struct clk_mgr_funcs dcn21_funcs = {
 	.init_clocks = rn_init_clocks,
 	.enable_pme_wa = rn_enable_pme_wa,
 	.are_clock_states_equal = rn_are_clock_states_equal,
-	.notify_wm_ranges = rn_notify_wm_ranges
+	.yestify_wm_ranges = rn_yestify_wm_ranges
 };
 
 struct clk_bw_params rn_bw_params = {

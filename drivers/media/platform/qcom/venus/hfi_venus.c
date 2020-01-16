@@ -255,9 +255,9 @@ static int venus_read_queue(struct venus_hfi_device *hdev,
 	rmb();
 
 	/*
-	 * Do not set receive request for debug queue, if set, Venus generates
-	 * interrupt for debug messages even when there is no response message
-	 * available. In general debug queue will not become full as it is being
+	 * Do yest set receive request for debug queue, if set, Venus generates
+	 * interrupt for debug messages even when there is yes response message
+	 * available. In general debug queue will yest become full as it is being
 	 * emptied out for every interrupt from Venus. Venus will anyway
 	 * generates interrupt if it is full.
 	 */
@@ -371,7 +371,7 @@ static void venus_soft_int(struct venus_hfi_device *hdev)
 	venus_writel(hdev, CPU_IC_SOFTINT, BIT(CPU_IC_SOFTINT_H2A_SHIFT));
 }
 
-static int venus_iface_cmdq_write_nolock(struct venus_hfi_device *hdev,
+static int venus_iface_cmdq_write_yeslock(struct venus_hfi_device *hdev,
 					 void *pkt)
 {
 	struct device *dev = hdev->core->dev;
@@ -405,7 +405,7 @@ static int venus_iface_cmdq_write(struct venus_hfi_device *hdev, void *pkt)
 	int ret;
 
 	mutex_lock(&hdev->lock);
-	ret = venus_iface_cmdq_write_nolock(hdev, pkt);
+	ret = venus_iface_cmdq_write_yeslock(hdev, pkt);
 	mutex_unlock(&hdev->lock);
 
 	return ret;
@@ -469,15 +469,15 @@ static u32 venus_hwversion(struct venus_hfi_device *hdev)
 {
 	struct device *dev = hdev->core->dev;
 	u32 ver = venus_readl(hdev, WRAPPER_HW_VERSION);
-	u32 major, minor, step;
+	u32 major, miyesr, step;
 
 	major = ver & WRAPPER_HW_VERSION_MAJOR_VERSION_MASK;
 	major = major >> WRAPPER_HW_VERSION_MAJOR_VERSION_SHIFT;
-	minor = ver & WRAPPER_HW_VERSION_MINOR_VERSION_MASK;
-	minor = minor >> WRAPPER_HW_VERSION_MINOR_VERSION_SHIFT;
+	miyesr = ver & WRAPPER_HW_VERSION_MINOR_VERSION_MASK;
+	miyesr = miyesr >> WRAPPER_HW_VERSION_MINOR_VERSION_SHIFT;
 	step = ver & WRAPPER_HW_VERSION_STEP_VERSION_MASK;
 
-	dev_dbg(dev, "venus hw version %x.%x.%x\n", major, minor, step);
+	dev_dbg(dev, "venus hw version %x.%x.%x\n", major, miyesr, step);
 
 	return major;
 }
@@ -600,7 +600,7 @@ err:
 	return ret;
 }
 
-static int venus_iface_msgq_read_nolock(struct venus_hfi_device *hdev,
+static int venus_iface_msgq_read_yeslock(struct venus_hfi_device *hdev,
 					void *pkt)
 {
 	struct iface_queue *queue;
@@ -627,13 +627,13 @@ static int venus_iface_msgq_read(struct venus_hfi_device *hdev, void *pkt)
 	int ret;
 
 	mutex_lock(&hdev->lock);
-	ret = venus_iface_msgq_read_nolock(hdev, pkt);
+	ret = venus_iface_msgq_read_yeslock(hdev, pkt);
 	mutex_unlock(&hdev->lock);
 
 	return ret;
 }
 
-static int venus_iface_dbgq_read_nolock(struct venus_hfi_device *hdev,
+static int venus_iface_dbgq_read_yeslock(struct venus_hfi_device *hdev,
 					void *pkt)
 {
 	struct iface_queue *queue;
@@ -664,7 +664,7 @@ static int venus_iface_dbgq_read(struct venus_hfi_device *hdev, void *pkt)
 		return -EINVAL;
 
 	mutex_lock(&hdev->lock);
-	ret = venus_iface_dbgq_read_nolock(hdev, pkt);
+	ret = venus_iface_dbgq_read_yeslock(hdev, pkt);
 	mutex_unlock(&hdev->lock);
 
 	return ret;
@@ -747,7 +747,7 @@ static int venus_interface_queues_init(struct venus_hfi_device *hdev)
 	tbl_hdr->num_active_q = IFACEQ_NUM;
 
 	/*
-	 * Set receive request to zero on debug queue as there is no
+	 * Set receive request to zero on debug queue as there is yes
 	 * need of interrupt from video hardware for debug messages
 	 */
 	queue = &hdev->queues[IFACEQ_DBG_IDX];
@@ -979,7 +979,7 @@ static void venus_sfr_print(struct venus_hfi_device *hdev)
 static void venus_process_msg_sys_error(struct venus_hfi_device *hdev,
 					void *packet)
 {
-	struct hfi_msg_event_notify_pkt *event_pkt = packet;
+	struct hfi_msg_event_yestify_pkt *event_pkt = packet;
 
 	if (event_pkt->event_id != HFI_EVENT_SYS_ERROR)
 		return;
@@ -1398,7 +1398,7 @@ static int venus_suspend_1xx(struct venus_core *core)
 	mutex_unlock(&hdev->lock);
 
 	if (!ret) {
-		dev_err(dev, "bad state, cannot suspend\n");
+		dev_err(dev, "bad state, canyest suspend\n");
 		return -EINVAL;
 	}
 
@@ -1484,7 +1484,7 @@ static int venus_suspend_3xx(struct venus_core *core)
 	mutex_unlock(&hdev->lock);
 
 	if (!ret) {
-		dev_err(dev, "bad state, cannot suspend\n");
+		dev_err(dev, "bad state, canyest suspend\n");
 		return -EINVAL;
 	}
 

@@ -15,15 +15,15 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
-void (*local_flush_cache_all)(void *args) = cache_noop;
-void (*local_flush_cache_mm)(void *args) = cache_noop;
-void (*local_flush_cache_dup_mm)(void *args) = cache_noop;
-void (*local_flush_cache_page)(void *args) = cache_noop;
-void (*local_flush_cache_range)(void *args) = cache_noop;
-void (*local_flush_dcache_page)(void *args) = cache_noop;
-void (*local_flush_icache_range)(void *args) = cache_noop;
-void (*local_flush_icache_page)(void *args) = cache_noop;
-void (*local_flush_cache_sigtramp)(void *args) = cache_noop;
+void (*local_flush_cache_all)(void *args) = cache_yesop;
+void (*local_flush_cache_mm)(void *args) = cache_yesop;
+void (*local_flush_cache_dup_mm)(void *args) = cache_yesop;
+void (*local_flush_cache_page)(void *args) = cache_yesop;
+void (*local_flush_cache_range)(void *args) = cache_yesop;
+void (*local_flush_dcache_page)(void *args) = cache_yesop;
+void (*local_flush_icache_range)(void *args) = cache_yesop;
+void (*local_flush_icache_page)(void *args) = cache_yesop;
+void (*local_flush_cache_sigtramp)(void *args) = cache_yesop;
 
 void (*__flush_wback_region)(void *start, int size);
 EXPORT_SYMBOL(__flush_wback_region);
@@ -32,7 +32,7 @@ EXPORT_SYMBOL(__flush_purge_region);
 void (*__flush_invalidate_region)(void *start, int size);
 EXPORT_SYMBOL(__flush_invalidate_region);
 
-static inline void noop__flush_region(void *start, int size)
+static inline void yesop__flush_region(void *start, int size)
 {
 }
 
@@ -150,7 +150,7 @@ void __update_cache(struct vm_area_struct *vma,
 	}
 }
 
-void __flush_anon_page(struct page *page, unsigned long vmaddr)
+void __flush_ayesn_page(struct page *page, unsigned long vmaddr)
 {
 	unsigned long addr = (unsigned long) page_address(page);
 
@@ -160,7 +160,7 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 			void *kaddr;
 
 			kaddr = kmap_coherent(page, vmaddr);
-			/* XXX.. For now kunmap_coherent() does a purge */
+			/* XXX.. For yesw kunmap_coherent() does a purge */
 			/* __flush_purge_region((void *)kaddr, PAGE_SIZE); */
 			kunmap_coherent(kaddr);
 		} else
@@ -300,13 +300,13 @@ void __init cpu_cache_init(void)
 	compute_alias(&boot_cpu_data.dcache);
 	compute_alias(&boot_cpu_data.scache);
 
-	__flush_wback_region		= noop__flush_region;
-	__flush_purge_region		= noop__flush_region;
-	__flush_invalidate_region	= noop__flush_region;
+	__flush_wback_region		= yesop__flush_region;
+	__flush_purge_region		= yesop__flush_region;
+	__flush_invalidate_region	= yesop__flush_region;
 
 	/*
 	 * No flushing is necessary in the disabled cache case so we can
-	 * just keep the noop functions in local_flush_..() and __flush_..()
+	 * just keep the yesop functions in local_flush_..() and __flush_..()
 	 */
 	if (unlikely(cache_disabled))
 		goto skip;

@@ -52,7 +52,7 @@ struct mei_nfc_connect_resp {
 	u8 fw_ivn;
 	u8 vendor_id;
 	u16 me_major;
-	u16 me_minor;
+	u16 me_miyesr;
 	u16 me_hotfix;
 	u16 me_build;
 } __packed;
@@ -108,7 +108,7 @@ static int mei_nfc_if_version(struct nfc_mei_phy *phy)
 	MEI_DUMP_NFC_HDR("version", &cmd.hdr);
 	r = mei_cldev_send(phy->cldev, (u8 *)&cmd, sizeof(struct mei_nfc_cmd));
 	if (r < 0) {
-		pr_err("Could not send IF version cmd\n");
+		pr_err("Could yest send IF version cmd\n");
 		return r;
 	}
 
@@ -122,7 +122,7 @@ static int mei_nfc_if_version(struct nfc_mei_phy *phy)
 
 	bytes_recv = mei_cldev_recv(phy->cldev, (u8 *)reply, if_version_length);
 	if (bytes_recv < 0 || bytes_recv < if_version_length) {
-		pr_err("Could not read IF version\n");
+		pr_err("Could yest read IF version\n");
 		r = -EIO;
 		goto err;
 	}
@@ -176,7 +176,7 @@ static int mei_nfc_connect(struct nfc_mei_phy *phy)
 	MEI_DUMP_NFC_HDR("connect request", &cmd->hdr);
 	r = mei_cldev_send(phy->cldev, (u8 *)cmd, connect_length);
 	if (r < 0) {
-		pr_err("Could not send connect cmd %d\n", r);
+		pr_err("Could yest send connect cmd %d\n", r);
 		goto err;
 	}
 
@@ -184,7 +184,7 @@ static int mei_nfc_connect(struct nfc_mei_phy *phy)
 				    connect_resp_length);
 	if (bytes_recv < 0) {
 		r = bytes_recv;
-		pr_err("Could not read connect response %d\n", r);
+		pr_err("Could yest read connect response %d\n", r);
 		goto err;
 	}
 
@@ -194,7 +194,7 @@ static int mei_nfc_connect(struct nfc_mei_phy *phy)
 		 connect_resp->fw_ivn, connect_resp->vendor_id);
 
 	pr_info("ME FW %d.%d.%d.%d\n",
-		connect_resp->me_major, connect_resp->me_minor,
+		connect_resp->me_major, connect_resp->me_miyesr,
 		connect_resp->me_hotfix, connect_resp->me_build);
 
 	r = 0;
@@ -244,9 +244,9 @@ out:
 }
 
 /*
- * Writing a frame must not return the number of written bytes.
+ * Writing a frame must yest return the number of written bytes.
  * It must return either zero for success, or <0 for error.
- * In addition, it must not alter the skb
+ * In addition, it must yest alter the skb
  */
 static int nfc_mei_phy_write(void *phy_id, struct sk_buff *skb)
 {
@@ -327,19 +327,19 @@ static int nfc_mei_phy_enable(void *phy_id)
 
 	r = mei_cldev_enable(phy->cldev);
 	if (r < 0) {
-		pr_err("Could not enable device %d\n", r);
+		pr_err("Could yest enable device %d\n", r);
 		return r;
 	}
 
 	r = mei_nfc_if_version(phy);
 	if (r < 0) {
-		pr_err("Could not enable device %d\n", r);
+		pr_err("Could yest enable device %d\n", r);
 		goto err;
 	}
 
 	r = mei_nfc_connect(phy);
 	if (r < 0) {
-		pr_err("Could not connect to device %d\n", r);
+		pr_err("Could yest connect to device %d\n", r);
 		goto err;
 	}
 

@@ -7,7 +7,7 @@
    This software may be used and distributed according to the terms
    of the GNU General Public License (GPL), incorporated herein by reference.
    Drivers based on this skeleton fall under the GPL and must retain
-   the authorship (implicit copyright) notice.
+   the authorship (implicit copyright) yestice.
 
    References:
    SiS 7016 Fast Ethernet PCI Bus 10/100 Mbps LAN Controller with OnNow Support,
@@ -17,10 +17,10 @@
    SiS 7014 Single Chip 100BASE-TX/10BASE-T Physical Layer Solution,
    preliminary Rev. 1.0 Jan. 18, 1998
 
-   Rev 1.08.10 Apr.  2 2006 Daniele Venzano add vlan (jumbo packets) support
-   Rev 1.08.09 Sep. 19 2005 Daniele Venzano add Wake on LAN support
-   Rev 1.08.08 Jan. 22 2005 Daniele Venzano use netif_msg for debugging messages
-   Rev 1.08.07 Nov.  2 2003 Daniele Venzano <venza@brownhat.org> add suspend/resume support
+   Rev 1.08.10 Apr.  2 2006 Daniele Venzayes add vlan (jumbo packets) support
+   Rev 1.08.09 Sep. 19 2005 Daniele Venzayes add Wake on LAN support
+   Rev 1.08.08 Jan. 22 2005 Daniele Venzayes use netif_msg for debugging messages
+   Rev 1.08.07 Nov.  2 2003 Daniele Venzayes <venza@brownhat.org> add suspend/resume support
    Rev 1.08.06 Sep. 24 2002 Mufasa Yang bug fix for Tx timeout & add SiS963 support
    Rev 1.08.05 Jun.  6 2002 Mufasa Yang bug fix for read_eeprom & Tx descriptor over-boundary
    Rev 1.08.04 Apr. 25 2002 Mufasa Yang <mufasa@sis.com.tw> added SiS962 support
@@ -37,7 +37,7 @@
    Rev 1.07.05 Nov.  6 2000 metapirat<metapirat@gmx.de> contribute media type select by ifconfig
    Rev 1.07.04 Sep.  6 2000 Lei-Chun Chang added ICS1893 PHY support
    Rev 1.07.03 Aug. 24 2000 Lei-Chun Chang (lcchang@sis.com.tw) modified 630E equalizer workaround rule
-   Rev 1.07.01 Aug. 08 2000 Ollie Lho minor update for SiS 630E and SiS 630E A1
+   Rev 1.07.01 Aug. 08 2000 Ollie Lho miyesr update for SiS 630E and SiS 630E A1
    Rev 1.07    Mar. 07 2000 Ollie Lho bug fix in Rx buffer ring
    Rev 1.06.04 Feb. 11 2000 Jeff Garzik <jgarzik@pobox.com> softnet and init for kernel 2.4
    Rev 1.06.03 Dec. 23 1999 Ollie Lho Third release
@@ -55,7 +55,7 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -297,7 +297,7 @@ static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
 	if (!isa_bridge)
 		isa_bridge = pci_get_device(PCI_VENDOR_ID_SI, 0x0018, isa_bridge);
 	if (!isa_bridge) {
-		printk(KERN_WARNING "%s: Can not find ISA bridge\n",
+		printk(KERN_WARNING "%s: Can yest find ISA bridge\n",
 		       pci_name(pci_dev));
 		return 0;
 	}
@@ -363,7 +363,7 @@ static int sis635_get_mac_addr(struct pci_dev *pci_dev,
  *	is shared by
  *	LAN and 1394. When accessing EEPROM, send EEREQ signal to hardware first
  *	and wait for EEGNT. If EEGNT is ON, EEPROM is permitted to be accessed
- *	by LAN, otherwise it is not. After MAC address is read from EEPROM, send
+ *	by LAN, otherwise it is yest. After MAC address is read from EEPROM, send
  *	EEDONE signal to refuse EEPROM access by LAN.
  *	The EEPROM map of SiS962 or SiS963 is different to SiS900.
  *	The signature field in SiS962 or SiS963 spec is meaningless.
@@ -448,7 +448,7 @@ static int sis900_probe(struct pci_dev *pci_dev,
 
 	i = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
 	if(i){
-		printk(KERN_ERR "sis900.c: architecture does not support "
+		printk(KERN_ERR "sis900.c: architecture does yest support "
 			"32bit PCI busmaster DMA\n");
 		return i;
 	}
@@ -618,7 +618,7 @@ static int sis900_mii_probe(struct net_device *net_dev)
 		if (mii_status == 0xffff || mii_status == 0x0000) {
 			if (netif_msg_probe(sis_priv))
 				printk(KERN_DEBUG "%s: MII at address %d"
-						" not accessible\n",
+						" yest accessible\n",
 						dev_name, phy_addr);
 			continue;
 		}
@@ -658,7 +658,7 @@ static int sis900_mii_probe(struct net_device *net_dev)
 			}
 
 		if( !mii_chip_table[i].phy_id1 ) {
-			printk(KERN_INFO "%s: Unknown PHY transceiver found at address %d.\n",
+			printk(KERN_INFO "%s: Unkyeswn PHY transceiver found at address %d.\n",
 			       dev_name, phy_addr);
 			mii_phy->phy_types = UNKNOWN;
 		}
@@ -689,7 +689,7 @@ static int sis900_mii_probe(struct net_device *net_dev)
 
 			poll_bit ^= (mdio_read(net_dev, sis_priv->cur_phy, MII_STATUS) & poll_bit);
 			if (time_after_eq(jiffies, timeout)) {
-				printk(KERN_WARNING "%s: reset phy and link down now\n",
+				printk(KERN_WARNING "%s: reset phy and link down yesw\n",
 				       dev_name);
 				return -ETIME;
 			}
@@ -718,7 +718,7 @@ static int sis900_mii_probe(struct net_device *net_dev)
  *	@net_dev: the net device to probe for
  *
  *	Select first detected PHY with link as default.
- *	If no one is link on, select PHY whose types is HOME as default.
+ *	If yes one is link on, select PHY whose types is HOME as default.
  *	If HOME doesn't exist, select LAN.
  */
 
@@ -733,7 +733,7 @@ static u16 sis900_default_phy(struct net_device * net_dev)
 		status = mdio_read(net_dev, phy->phy_addr, MII_STATUS);
 		status = mdio_read(net_dev, phy->phy_addr, MII_STATUS);
 
-		/* Link ON & Not select default PHY & not ghost PHY */
+		/* Link ON & Not select default PHY & yest ghost PHY */
 		if ((status & MII_STAT_LINK) && !default_phy &&
 		    (phy->phy_types != UNKNOWN)) {
 			default_phy = phy;
@@ -1008,7 +1008,7 @@ static u16 sis900_reset_phy(struct net_device *net_dev, int phy_addr)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
+ * without having to re-enable interrupts. It's yest called while
  * the interrupt routine is executing.
 */
 static void sis900_poll(struct net_device *dev)
@@ -1060,7 +1060,7 @@ sis900_open(struct net_device *net_dev)
 	/* Workaround for EDB */
 	sis900_set_mode(sis_priv, HW_SPEED_10_MBPS, FDX_CAPABLE_HALF_SELECTED);
 
-	/* Enable all known interrupts by setting the interrupt mask. */
+	/* Enable all kyeswn interrupts by setting the interrupt mask. */
 	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxDESC);
 	sw32(cr, RxENA | sr32(cr));
 	sw32(ier, IE);
@@ -1180,8 +1180,8 @@ sis900_init_rx_ring(struct net_device *net_dev)
 		struct sk_buff *skb;
 
 		if ((skb = netdev_alloc_skb(net_dev, RX_BUF_SIZE)) == NULL) {
-			/* not enough memory for skbuff, this makes a "hole"
-			   on the buffer ring, it is not clear how the
+			/* yest eyesugh memory for skbuff, this makes a "hole"
+			   on the buffer ring, it is yest clear how the
 			   hardware will react to this kind of degenerated
 			   buffer */
 			break;
@@ -1226,7 +1226,7 @@ sis900_init_rx_ring(struct net_device *net_dev)
  *	Link Off:Set Bit 13 to 1, Bit 14 to 0
  *	Calculate Equalizer value:
  *	When Link is ON and Bit 14 is 0, SIS900PHY will auto-detect proper equalizer value.
- *	When the equalizer is stable, this value is not a fixed value. It will be within
+ *	When the equalizer is stable, this value is yest a fixed value. It will be within
  *	a small range(eg. 7~9). Then we get a minimum and a maximum value(eg. min=7, max=9)
  *	0 <= max <= 4  --> set equalizer to max
  *	5 <= max <= 14 --> set equalizer to max+1 or set equalizer to max+2 if max == min
@@ -1395,7 +1395,7 @@ static void sis900_check_mode(struct net_device *net_dev, struct mii_phy *mii_ph
  *	Set the media mode of mac register txcfg/rxcfg according to
  *	speed and duplex of phy. Bit EDB_MASTER_EN indicates the EDB
  *	bus is used instead of PCI bus. When this bit is set 1, the
- *	Max DMA Burst Size for TX/RX DMA should be no larger than 16
+ *	Max DMA Burst Size for TX/RX DMA should be yes larger than 16
  *	double words.
  */
 
@@ -1581,7 +1581,7 @@ static void sis900_tx_timeout(struct net_device *net_dev)
 	/* load Transmit Descriptor Register */
 	sw32(txdp, sis_priv->tx_ring_dma);
 
-	/* Enable all known interrupts by setting the interrupt mask. */
+	/* Enable all kyeswn interrupts by setting the interrupt mask. */
 	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxDESC);
 }
 
@@ -1640,7 +1640,7 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 		/* Typical path, tell upper layer that more transmission is possible */
 		netif_start_queue(net_dev);
 	} else {
-		/* buffer full, tell upper layer no more transmission */
+		/* buffer full, tell upper layer yes more transmission */
 		sis_priv->tx_full = 1;
 		netif_stop_queue(net_dev);
 	}
@@ -1679,7 +1679,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 		status = sr32(isr);
 
 		if ((status & (HIBERR|TxURN|TxERR|TxDESC|RxORN|RxERR|RxOK)) == 0)
-			/* nothing interesting happened */
+			/* yesthing interesting happened */
 			break;
 		handled = 1;
 
@@ -1695,7 +1695,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 		/* something strange happened !!! */
 		if (status & HIBERR) {
 			if(netif_msg_intr(sis_priv))
-				printk(KERN_INFO "%s: Abnormal interrupt, "
+				printk(KERN_INFO "%s: Abyesrmal interrupt, "
 					"status %#8.8x.\n", net_dev->name, status);
 			break;
 		}
@@ -1782,11 +1782,11 @@ static int sis900_rx(struct net_device *net_dev)
 				sis_priv->rx_ring[entry].bufptr, RX_BUF_SIZE,
 				PCI_DMA_FROMDEVICE);
 
-			/* refill the Rx buffer, what if there is not enough
+			/* refill the Rx buffer, what if there is yest eyesugh
 			 * memory for new socket buffer ?? */
 			if ((skb = netdev_alloc_skb(net_dev, RX_BUF_SIZE)) == NULL) {
 				/*
-				 * Not enough memory to refill the buffer
+				 * Not eyesugh memory to refill the buffer
 				 * so we need to recycle the old one so
 				 * as to avoid creating a memory hole
 				 * in the rx ring
@@ -1797,7 +1797,7 @@ static int sis900_rx(struct net_device *net_dev)
 			}
 
 			/* This situation should never happen, but due to
-			   some unknown bugs, it is possible that
+			   some unkyeswn bugs, it is possible that
 			   we are working on NULL sk_buff :-( */
 			if (sis_priv->rx_skbuff[entry] == NULL) {
 				if (netif_msg_rx_err(sis_priv))
@@ -1850,8 +1850,8 @@ refill_rx_ring:
 		if (sis_priv->rx_skbuff[entry] == NULL) {
 			skb = netdev_alloc_skb(net_dev, RX_BUF_SIZE);
 			if (skb == NULL) {
-				/* not enough memory for skbuff, this makes a
-				 * "hole" on the buffer ring, it is not clear
+				/* yest eyesugh memory for skbuff, this makes a
+				 * "hole" on the buffer ring, it is yest clear
 				 * how the hardware will react to this kind
 				 * of degenerated buffer */
 				net_dev->stats.rx_dropped++;
@@ -1899,7 +1899,7 @@ static void sis900_finish_xmit (struct net_device *net_dev)
 		tx_status = sis_priv->tx_ring[entry].cmdsts;
 
 		if (tx_status & OWN) {
-			/* The packet is not transmitted yet (owned by hardware) !
+			/* The packet is yest transmitted yet (owned by hardware) !
 			 * Note: this is an almost impossible condition
 			 * on TxDESC interrupt ('descriptor interrupt') */
 			break;
@@ -1939,7 +1939,7 @@ static void sis900_finish_xmit (struct net_device *net_dev)
 
 	if (sis_priv->tx_full && netif_queue_stopped(net_dev) &&
 	    sis_priv->cur_tx - sis_priv->dirty_tx < NUM_TX_DESC - 4) {
-		/* The ring is no longer full, clear tx_full and schedule
+		/* The ring is yes longer full, clear tx_full and schedule
 		 * more transmission by netif_wake_queue(net_dev) */
 		sis_priv->tx_full = 0;
 		netif_wake_queue (net_dev);
@@ -2071,7 +2071,7 @@ static int sis900_nway_reset(struct net_device *net_dev)
  *
  *	Process ethtool command "wol" to setup wake on lan features.
  *	SiS900 supports sending WoL events if a correct packet is received,
- *	but there is no simple way to filter them to only a subset (broadcast,
+ *	but there is yes simple way to filter them to only a subset (broadcast,
  *	multicast, unicast or arp).
  */
 
@@ -2240,7 +2240,7 @@ static int mii_ioctl(struct net_device *net_dev, struct ifreq *rq, int cmd)
  *
  *	Set media type to 10baseT, 100baseT or 0(for auto) by ifconfig
  *	we support only port changes. All other runtime configuration
- *	changes will be ignored
+ *	changes will be igyesred
  */
 
 static int sis900_set_config(struct net_device *dev, struct ifmap *map)
@@ -2271,7 +2271,7 @@ static int sis900_set_config(struct net_device *dev, struct ifmap *map)
 			status = mdio_read(dev, mii_phy->phy_addr, MII_CONTROL);
 
 			/* enable auto negotiation and reset the negotioation
-			 * (I don't really know what the auto negatiotiation
+			 * (I don't really kyesw what the auto negatiotiation
 			 * reset really means, but it sounds for me right to
 			 * do one here) */
 			mdio_write(dev, mii_phy->phy_addr,
@@ -2322,7 +2322,7 @@ static int sis900_set_config(struct net_device *dev, struct ifmap *map)
 		case IF_PORT_10BASE2: /* 10Base2 */
 		case IF_PORT_AUI: /* AUI */
 		case IF_PORT_100BASEFX: /* 100BaseFx */
-                	/* These Modes are not supported (are they?)*/
+                	/* These Modes are yest supported (are they?)*/
 			return -EOPNOTSUPP;
 
 		default:
@@ -2540,7 +2540,7 @@ static int sis900_resume(struct pci_dev *pci_dev)
 	/* Workaround for EDB */
 	sis900_set_mode(sis_priv, HW_SPEED_10_MBPS, FDX_CAPABLE_HALF_SELECTED);
 
-	/* Enable all known interrupts by setting the interrupt mask. */
+	/* Enable all kyeswn interrupts by setting the interrupt mask. */
 	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxDESC);
 	sw32(cr, RxENA | sr32(cr));
 	sw32(ier, IE);
@@ -2564,7 +2564,7 @@ static struct pci_driver sis900_pci_driver = {
 
 static int __init sis900_init_module(void)
 {
-/* when a module, this is printed whether or not devices are found in probe */
+/* when a module, this is printed whether or yest devices are found in probe */
 #ifdef MODULE
 	printk(version);
 #endif

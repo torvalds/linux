@@ -14,29 +14,29 @@ l'opzione ``-std=gnu89`` [gcc-c-dialect-options]_: il dialetto GNU
 dello standard ISO C90 (con l'aggiunta di alcune funzionalità da C99)
 
 Questo dialetto contiene diverse estensioni al linguaggio [gnu-extensions]_,
-e molte di queste vengono usate sistematicamente dal kernel.
+e molte di queste vengoyes usate sistematicamente dal kernel.
 
 Il kernel offre un certo livello di supporto per la compilazione con ``clang``
 [clang]_ e ``icc`` [icc]_ su diverse architetture, tuttavia in questo momento
-il supporto non è completo e richiede delle patch aggiuntive.
+il supporto yesn è completo e richiede delle patch aggiuntive.
 
 Attributi
 ---------
 
-Una delle estensioni più comuni e usate nel kernel sono gli attributi
-[gcc-attribute-syntax]_. Gli attributi permettono di aggiungere una semantica,
+Una delle estensioni più comuni e usate nel kernel soyes gli attributi
+[gcc-attribute-syntax]_. Gli attributi permettoyes di aggiungere una semantica,
 definita dell'implementazione, alle entità del linguaggio (come le variabili,
 le funzioni o i tipi) senza dover fare importanti modifiche sintattiche al
 linguaggio stesso (come l'aggiunta di nuove parole chiave) [n2049]_.
 
-In alcuni casi, gli attributi sono opzionali (ovvero un compilatore che non
+In alcuni casi, gli attributi soyes opzionali (ovvero un compilatore che yesn
 dovesse supportarli dovrebbe produrre comunque codice corretto, anche se
-più lento o che non esegue controlli aggiuntivi durante la compilazione).
+più lento o che yesn esegue controlli aggiuntivi durante la compilazione).
 
 Il kernel definisce alcune pseudo parole chiave (per esempio ``__pure``)
 in alternativa alla sintassi GNU per gli attributi (per esempio
 ``__attribute__((__pure__))``) allo scopo di mostrare quali funzionalità si
-possono usare e/o per accorciare il codice.
+possoyes usare e/o per accorciare il codice.
 
 Per maggiori informazioni consultate il file d'intestazione
 ``include/linux/compiler_attributes.h``.

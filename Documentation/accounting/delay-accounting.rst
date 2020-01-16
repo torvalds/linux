@@ -10,7 +10,7 @@ The per-task delay accounting functionality measures
 the delays experienced by a task while
 
 a) waiting for a CPU (while being runnable)
-b) completion of synchronous block I/O initiated by the task
+b) completion of synchroyesus block I/O initiated by the task
 c) swapping in pages
 d) memory reclaim
 
@@ -72,10 +72,10 @@ Compile the kernel with::
 Delay accounting is enabled by default at boot up.
 To disable, add::
 
-   nodelayacct
+   yesdelayacct
 
 to the kernel boot options. The rest of the instructions
-below assume this has not been done.
+below assume this has yest been done.
 
 After the system has booted up, use a utility
 similar to  getdelays.c to access the delays

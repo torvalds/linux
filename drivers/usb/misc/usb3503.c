@@ -140,7 +140,7 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 		break;
 
 	default:
-		dev_err(dev, "unknown mode is requested\n");
+		dev_err(dev, "unkyeswn mode is requested\n");
 		err = -EINVAL;
 		break;
 	}
@@ -159,7 +159,7 @@ static int usb3503_probe(struct usb3503 *hub)
 {
 	struct device *dev = hub->dev;
 	struct usb3503_platform_data *pdata = dev_get_platdata(dev);
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int err;
 	u32 mode = USB3503_MODE_HUB;
 	const u32 *property;
@@ -244,7 +244,7 @@ static int usb3503_probe(struct usb3503 *hub)
 	}
 
 	if (hub->port_off_mask && !hub->regmap)
-		dev_err(dev, "Ports disabled with no control interface\n");
+		dev_err(dev, "Ports disabled with yes control interface\n");
 
 	if (gpio_is_valid(hub->gpio_intn)) {
 		int val = hub->secondary_ref_clk ? GPIOF_OUT_INIT_LOW :

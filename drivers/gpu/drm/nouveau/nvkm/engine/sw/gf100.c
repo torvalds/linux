@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -36,10 +36,10 @@
  ******************************************************************************/
 
 static int
-gf100_sw_chan_vblsem_release(struct nvkm_notify *notify)
+gf100_sw_chan_vblsem_release(struct nvkm_yestify *yestify)
 {
 	struct nv50_sw_chan *chan =
-		container_of(notify, typeof(*chan), vblank.notify[notify->index]);
+		container_of(yestify, typeof(*chan), vblank.yestify[yestify->index]);
 	struct nvkm_sw *sw = chan->base.sw;
 	struct nvkm_device *device = sw->engine.subdev.device;
 	u32 inst = chan->base.fifo->inst->addr >> 12;
@@ -73,7 +73,7 @@ gf100_sw_chan_mthd(struct nvkm_sw_chan *base, int subc, u32 mthd, u32 data)
 		return true;
 	case 0x040c:
 		if (data < device->disp->vblank.index_nr) {
-			nvkm_notify_get(&chan->vblank.notify[data]);
+			nvkm_yestify_get(&chan->vblank.yestify[data]);
 			return true;
 		}
 		break;
@@ -120,14 +120,14 @@ gf100_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifoch,
 		return ret;
 
 	for (i = 0; disp && i < disp->vblank.index_nr; i++) {
-		ret = nvkm_notify_init(NULL, &disp->vblank,
+		ret = nvkm_yestify_init(NULL, &disp->vblank,
 				       gf100_sw_chan_vblsem_release, false,
-				       &(struct nvif_notify_head_req_v0) {
+				       &(struct nvif_yestify_head_req_v0) {
 					.head = i,
 				       },
-				       sizeof(struct nvif_notify_head_req_v0),
-				       sizeof(struct nvif_notify_head_rep_v0),
-				       &chan->vblank.notify[i]);
+				       sizeof(struct nvif_yestify_head_req_v0),
+				       sizeof(struct nvif_yestify_head_rep_v0),
+				       &chan->vblank.yestify[i]);
 		if (ret)
 			return ret;
 	}

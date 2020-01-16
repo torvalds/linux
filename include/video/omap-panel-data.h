@@ -7,10 +7,10 @@
  *	   Archit Taneja <archit@ti.com>
  *
  * Copyright (C) 2011 Texas Instruments
- * Author: Mayuresh Janorkar <mayur@ti.com>
+ * Author: Mayuresh Jayesrkar <mayur@ti.com>
  *
- * Copyright (C) 2010 Canonical Ltd.
- * Author: Bryan Wu <bryan.wu@canonical.com>
+ * Copyright (C) 2010 Cayesnical Ltd.
+ * Author: Bryan Wu <bryan.wu@cayesnical.com>
  */
 
 #ifndef __OMAP_PANEL_DATA_H

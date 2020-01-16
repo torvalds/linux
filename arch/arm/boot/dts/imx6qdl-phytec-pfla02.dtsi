@@ -74,7 +74,7 @@
 	cs-gpios = <&gpio4 24 0>;
 
 	som_flash: flash@0 {
-		compatible = "m25p80", "jedec,spi-nor";
+		compatible = "m25p80", "jedec,spi-yesr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};

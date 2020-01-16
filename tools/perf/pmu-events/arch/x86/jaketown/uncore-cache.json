@@ -138,7 +138,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "PCIe non-snoop reads. Derived from unc_c_tor_inserts.opcode.pcie_read",
+        "BriefDescription": "PCIe yesn-syesop reads. Derived from unc_c_tor_inserts.opcode.pcie_read",
         "Counter": "0,1",
         "EventCode": "0x35",
         "EventName": "LLC_REFERENCES.PCIE_NS_READ",
@@ -149,7 +149,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "PCIe non-snoop writes (partial). Derived from unc_c_tor_inserts.opcode.pcie_partial_write",
+        "BriefDescription": "PCIe yesn-syesop writes (partial). Derived from unc_c_tor_inserts.opcode.pcie_partial_write",
         "Counter": "0,1",
         "EventCode": "0x35",
         "EventName": "LLC_REFERENCES.PCIE_NS_PARTIAL_WRITE",
@@ -160,7 +160,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "PCIe non-snoop writes (full line). Derived from unc_c_tor_inserts.opcode.pcie_full_write",
+        "BriefDescription": "PCIe yesn-syesop writes (full line). Derived from unc_c_tor_inserts.opcode.pcie_full_write",
         "Counter": "0,1",
         "EventCode": "0x35",
         "EventName": "LLC_REFERENCES.PCIE_NS_WRITE",

@@ -95,7 +95,7 @@ static void propagate_rate(struct clk *root)
 {
 	struct clk *clk;
 
-	list_for_each_entry(clk, &root->children, childnode) {
+	list_for_each_entry(clk, &root->children, childyesde) {
 		if (clk->recalc)
 			clk->rate = clk->recalc(clk);
 		propagate_rate(clk);
@@ -132,14 +132,14 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
 
-	/* Cannot change parent on enabled clock */
+	/* Canyest change parent on enabled clock */
 	if (WARN_ON(clk->usecount))
 		return -EINVAL;
 
 	mutex_lock(&clocks_mutex);
 	clk->parent = parent;
-	list_del_init(&clk->childnode);
-	list_add(&clk->childnode, &clk->parent->children);
+	list_del_init(&clk->childyesde);
+	list_add(&clk->childyesde, &clk->parent->children);
 	mutex_unlock(&clocks_mutex);
 
 	spin_lock_irqsave(&clockfw_lock, flags);
@@ -158,14 +158,14 @@ int clk_register(struct clk *clk)
 		return -EINVAL;
 
 	if (WARN(clk->parent && !clk->parent->rate,
-		 "CLK: %s parent %s has no rate!\n",
+		 "CLK: %s parent %s has yes rate!\n",
 		 clk->name, clk->parent->name))
 		return -EINVAL;
 
 	mutex_lock(&clocks_mutex);
-	list_add_tail(&clk->node, &clocks);
+	list_add_tail(&clk->yesde, &clocks);
 	if (clk->parent)
-		list_add_tail(&clk->childnode, &clk->parent->children);
+		list_add_tail(&clk->childyesde, &clk->parent->children);
 	mutex_unlock(&clocks_mutex);
 
 	/* If rate is already set, use it */
@@ -190,8 +190,8 @@ void clk_unregister(struct clk *clk)
 		return;
 
 	mutex_lock(&clocks_mutex);
-	list_del(&clk->node);
-	list_del(&clk->childnode);
+	list_del(&clk->yesde);
+	list_del(&clk->childyesde);
 	mutex_unlock(&clocks_mutex);
 }
 EXPORT_SYMBOL(clk_unregister);
@@ -224,7 +224,7 @@ static unsigned long clk_sysclk_recalc(struct clk *clk)
 		rate = pll->input_rate;
 
 	if (!clk->div) {
-		pr_debug("%s: (no divider) rate = %lu KHz\n",
+		pr_debug("%s: (yes divider) rate = %lu KHz\n",
 			 clk->name, rate / 1000);
 		return rate;
 	}
@@ -321,9 +321,9 @@ static unsigned long clk_pllclk_recalc(struct clk *clk)
 
 static void __init __init_clk(struct clk *clk)
 {
-	INIT_LIST_HEAD(&clk->node);
+	INIT_LIST_HEAD(&clk->yesde);
 	INIT_LIST_HEAD(&clk->children);
-	INIT_LIST_HEAD(&clk->childnode);
+	INIT_LIST_HEAD(&clk->childyesde);
 
 	if (!clk->recalc) {
 
@@ -395,8 +395,8 @@ dump_clock(struct seq_file *s, unsigned nest, struct clk *parent)
 		   buf, parent->usecount, state, clk_get_rate(parent));
 	/* REVISIT show device associations too */
 
-	/* cost is now small, but not linear... */
-	list_for_each_entry(clk, &parent->children, childnode) {
+	/* cost is yesw small, but yest linear... */
+	list_for_each_entry(clk, &parent->children, childyesde) {
 		dump_clock(s, nest + NEST_DELTA, clk);
 	}
 }
@@ -406,10 +406,10 @@ static int c6x_ck_show(struct seq_file *m, void *v)
 	struct clk *clk;
 
 	/*
-	 * Show clock tree; We trust nonzero usecounts equate to PSC enables...
+	 * Show clock tree; We trust yesnzero usecounts equate to PSC enables...
 	 */
 	mutex_lock(&clocks_mutex);
-	list_for_each_entry(clk, &clocks, node)
+	list_for_each_entry(clk, &clocks, yesde)
 		if (!clk->parent)
 			dump_clock(m, 0, clk);
 	mutex_unlock(&clocks_mutex);
@@ -417,7 +417,7 @@ static int c6x_ck_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int c6x_ck_open(struct inode *inode, struct file *file)
+static int c6x_ck_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, c6x_ck_show, NULL);
 }

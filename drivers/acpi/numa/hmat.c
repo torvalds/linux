@@ -5,7 +5,7 @@
  * Heterogeneous Memory Attributes Table (HMAT) representation
  *
  * This program parses and reports the platform's HMAT tables, and registers
- * the applicable attributes with the node's interfaces.
+ * the applicable attributes with the yesde's interfaces.
  */
 
 #define pr_fmt(fmt) "acpi/hmat: " fmt
@@ -22,7 +22,7 @@
 #include <linux/memregion.h>
 #include <linux/memory.h>
 #include <linux/mutex.h>
-#include <linux/node.h>
+#include <linux/yesde.h>
 #include <linux/sysfs.h>
 
 static u8 hmat_revision;
@@ -35,7 +35,7 @@ static DEFINE_MUTEX(target_lock);
 
 /*
  * The defined enum order is used to prioritize attributes to break ties when
- * selecting the best performing node.
+ * selecting the best performing yesde.
  */
 enum locality_types {
 	WRITE_LATENCY,
@@ -47,28 +47,28 @@ enum locality_types {
 static struct memory_locality *localities_types[4];
 
 struct target_cache {
-	struct list_head node;
-	struct node_cache_attrs cache_attrs;
+	struct list_head yesde;
+	struct yesde_cache_attrs cache_attrs;
 };
 
 struct memory_target {
-	struct list_head node;
+	struct list_head yesde;
 	unsigned int memory_pxm;
 	unsigned int processor_pxm;
 	struct resource memregions;
-	struct node_hmem_attrs hmem_attrs;
+	struct yesde_hmem_attrs hmem_attrs;
 	struct list_head caches;
-	struct node_cache_attrs cache_attrs;
+	struct yesde_cache_attrs cache_attrs;
 	bool registered;
 };
 
 struct memory_initiator {
-	struct list_head node;
+	struct list_head yesde;
 	unsigned int processor_pxm;
 };
 
 struct memory_locality {
-	struct list_head node;
+	struct list_head yesde;
 	struct acpi_hmat_locality *hmat_loc;
 };
 
@@ -76,7 +76,7 @@ static struct memory_initiator *find_mem_initiator(unsigned int cpu_pxm)
 {
 	struct memory_initiator *initiator;
 
-	list_for_each_entry(initiator, &initiators, node)
+	list_for_each_entry(initiator, &initiators, yesde)
 		if (initiator->processor_pxm == cpu_pxm)
 			return initiator;
 	return NULL;
@@ -86,7 +86,7 @@ static struct memory_target *find_mem_target(unsigned int mem_pxm)
 {
 	struct memory_target *target;
 
-	list_for_each_entry(target, &targets, node)
+	list_for_each_entry(target, &targets, yesde)
 		if (target->memory_pxm == mem_pxm)
 			return target;
 	return NULL;
@@ -96,7 +96,7 @@ static __init void alloc_memory_initiator(unsigned int cpu_pxm)
 {
 	struct memory_initiator *initiator;
 
-	if (pxm_to_node(cpu_pxm) == NUMA_NO_NODE)
+	if (pxm_to_yesde(cpu_pxm) == NUMA_NO_NODE)
 		return;
 
 	initiator = find_mem_initiator(cpu_pxm);
@@ -108,7 +108,7 @@ static __init void alloc_memory_initiator(unsigned int cpu_pxm)
 		return;
 
 	initiator->processor_pxm = cpu_pxm;
-	list_add_tail(&initiator->node, &initiators);
+	list_add_tail(&initiator->yesde, &initiators);
 }
 
 static __init void alloc_memory_target(unsigned int mem_pxm,
@@ -129,7 +129,7 @@ static __init void alloc_memory_target(unsigned int mem_pxm,
 			.end	= -1,
 			.flags	= IORESOURCE_MEM,
 		};
-		list_add_tail(&target->node, &targets);
+		list_add_tail(&target->yesde, &targets);
 		INIT_LIST_HEAD(&target->caches);
 	}
 
@@ -179,7 +179,7 @@ static __init const char *hmat_data_type_suffix(u8 type)
 	}
 }
 
-static u32 hmat_normalize(u16 entry, u64 base, u8 type)
+static u32 hmat_yesrmalize(u16 entry, u64 base, u8 type)
 {
 	u32 value;
 
@@ -193,7 +193,7 @@ static u32 hmat_normalize(u16 entry, u64 base, u8 type)
 
 	/*
 	 * Divide by the base unit for version 1, convert latency from
-	 * picosenonds to nanoseconds if revision 2.
+	 * picoseyesnds to nayesseconds if revision 2.
 	 */
 	value = entry * base;
 	if (hmat_revision == 1) {
@@ -249,12 +249,12 @@ static __init void hmat_add_locality(struct acpi_hmat_locality *hmat_loc)
 
 	loc = kzalloc(sizeof(*loc), GFP_KERNEL);
 	if (!loc) {
-		pr_notice_once("Failed to allocate HMAT locality\n");
+		pr_yestice_once("Failed to allocate HMAT locality\n");
 		return;
 	}
 
 	loc->hmat_loc = hmat_loc;
-	list_add_tail(&loc->node, &localities);
+	list_add_tail(&loc->yesde, &localities);
 
 	switch (hmat_loc->data_type) {
 	case ACPI_HMAT_ACCESS_LATENCY:
@@ -293,7 +293,7 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 	u8 type, mem_hier;
 
 	if (hmat_loc->header.length < sizeof(*hmat_loc)) {
-		pr_notice("HMAT: Unexpected locality header length: %u\n",
+		pr_yestice("HMAT: Unexpected locality header length: %u\n",
 			 hmat_loc->header.length);
 		return -EINVAL;
 	}
@@ -305,7 +305,7 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 	total_size = sizeof(*hmat_loc) + sizeof(*entries) * ipds * tpds +
 		     sizeof(*inits) * ipds + sizeof(*targs) * tpds;
 	if (hmat_loc->header.length < total_size) {
-		pr_notice("HMAT: Unexpected locality header length:%u, minimum required:%u\n",
+		pr_yestice("HMAT: Unexpected locality header length:%u, minimum required:%u\n",
 			 hmat_loc->header.length, total_size);
 		return -EINVAL;
 	}
@@ -320,7 +320,7 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 	for (init = 0; init < ipds; init++) {
 		alloc_memory_initiator(inits[init]);
 		for (targ = 0; targ < tpds; targ++) {
-			value = hmat_normalize(entries[init * tpds + targ],
+			value = hmat_yesrmalize(entries[init * tpds + targ],
 					       hmat_loc->entry_base_unit,
 					       type);
 			pr_info("  Initiator-Target[%u-%u]:%u%s\n",
@@ -350,7 +350,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
 	u32 attrs;
 
 	if (cache->header.length < sizeof(*cache)) {
-		pr_notice("HMAT: Unexpected cache header length: %u\n",
+		pr_yestice("HMAT: Unexpected cache header length: %u\n",
 			 cache->header.length);
 		return -EINVAL;
 	}
@@ -366,7 +366,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
 
 	tcache = kzalloc(sizeof(*tcache), GFP_KERNEL);
 	if (!tcache) {
-		pr_notice_once("Failed to allocate HMAT cache info\n");
+		pr_yestice_once("Failed to allocate HMAT cache info\n");
 		return 0;
 	}
 
@@ -399,7 +399,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
 		tcache->cache_attrs.write_policy = NODE_CACHE_WRITE_OTHER;
 		break;
 	}
-	list_add_tail(&tcache->node, &target->caches);
+	list_add_tail(&tcache->yesde, &target->caches);
 
 	return 0;
 }
@@ -411,7 +411,7 @@ static int __init hmat_parse_proximity_domain(union acpi_subtable_headers *heade
 	struct memory_target *target = NULL;
 
 	if (p->header.length != sizeof(*p)) {
-		pr_notice("HMAT: Unexpected address range header length: %u\n",
+		pr_yestice("HMAT: Unexpected address range header length: %u\n",
 			 p->header.length);
 		return -EINVAL;
 	}
@@ -432,9 +432,9 @@ static int __init hmat_parse_proximity_domain(union acpi_subtable_headers *heade
 		}
 	}
 	if (target && p->flags & ACPI_HMAT_PROCESSOR_PD_VALID) {
-		int p_node = pxm_to_node(p->processor_PD);
+		int p_yesde = pxm_to_yesde(p->processor_PD);
 
-		if (p_node == NUMA_NO_NODE) {
+		if (p_yesde == NUMA_NO_NODE) {
 			pr_debug("HMAT: Invalid Processor Domain\n");
 			return -EINVAL;
 		}
@@ -510,7 +510,7 @@ static u32 hmat_initiator_perf(struct memory_target *target,
 	if (i == tpds)
 		return 0;
 
-	return hmat_normalize(entries[idx * tpds + tdx],
+	return hmat_yesrmalize(entries[idx * tpds + tdx],
 			      hmat_loc->entry_base_unit,
 			      hmat_loc->data_type);
 }
@@ -548,35 +548,35 @@ static int initiator_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
 	struct memory_initiator *ia;
 	struct memory_initiator *ib;
-	unsigned long *p_nodes = priv;
+	unsigned long *p_yesdes = priv;
 
-	ia = list_entry(a, struct memory_initiator, node);
-	ib = list_entry(b, struct memory_initiator, node);
+	ia = list_entry(a, struct memory_initiator, yesde);
+	ib = list_entry(b, struct memory_initiator, yesde);
 
-	set_bit(ia->processor_pxm, p_nodes);
-	set_bit(ib->processor_pxm, p_nodes);
+	set_bit(ia->processor_pxm, p_yesdes);
+	set_bit(ib->processor_pxm, p_yesdes);
 
 	return ia->processor_pxm - ib->processor_pxm;
 }
 
 static void hmat_register_target_initiators(struct memory_target *target)
 {
-	static DECLARE_BITMAP(p_nodes, MAX_NUMNODES);
+	static DECLARE_BITMAP(p_yesdes, MAX_NUMNODES);
 	struct memory_initiator *initiator;
 	unsigned int mem_nid, cpu_nid;
 	struct memory_locality *loc = NULL;
 	u32 best = 0;
 	int i;
 
-	mem_nid = pxm_to_node(target->memory_pxm);
+	mem_nid = pxm_to_yesde(target->memory_pxm);
 	/*
 	 * If the Address Range Structure provides a local processor pxm, link
 	 * only that one. Otherwise, find the best performance attributes and
 	 * register all initiators that match.
 	 */
 	if (target->processor_pxm != PXM_INVAL) {
-		cpu_nid = pxm_to_node(target->processor_pxm);
-		register_memory_node_under_compute_node(mem_nid, cpu_nid, 0);
+		cpu_nid = pxm_to_yesde(target->processor_pxm);
+		register_memory_yesde_under_compute_yesde(mem_nid, cpu_nid, 0);
 		return;
 	}
 
@@ -586,58 +586,58 @@ static void hmat_register_target_initiators(struct memory_target *target)
 	/*
 	 * We need the initiator list sorted so we can use bitmap_clear for
 	 * previously set initiators when we find a better memory accessor.
-	 * We'll also use the sorting to prime the candidate nodes with known
+	 * We'll also use the sorting to prime the candidate yesdes with kyeswn
 	 * initiators.
 	 */
-	bitmap_zero(p_nodes, MAX_NUMNODES);
-	list_sort(p_nodes, &initiators, initiator_cmp);
+	bitmap_zero(p_yesdes, MAX_NUMNODES);
+	list_sort(p_yesdes, &initiators, initiator_cmp);
 	for (i = WRITE_LATENCY; i <= READ_BANDWIDTH; i++) {
 		loc = localities_types[i];
 		if (!loc)
 			continue;
 
 		best = 0;
-		list_for_each_entry(initiator, &initiators, node) {
+		list_for_each_entry(initiator, &initiators, yesde) {
 			u32 value;
 
-			if (!test_bit(initiator->processor_pxm, p_nodes))
+			if (!test_bit(initiator->processor_pxm, p_yesdes))
 				continue;
 
 			value = hmat_initiator_perf(target, initiator, loc->hmat_loc);
 			if (hmat_update_best(loc->hmat_loc->data_type, value, &best))
-				bitmap_clear(p_nodes, 0, initiator->processor_pxm);
+				bitmap_clear(p_yesdes, 0, initiator->processor_pxm);
 			if (value != best)
-				clear_bit(initiator->processor_pxm, p_nodes);
+				clear_bit(initiator->processor_pxm, p_yesdes);
 		}
 		if (best)
 			hmat_update_target_access(target, loc->hmat_loc->data_type, best);
 	}
 
-	for_each_set_bit(i, p_nodes, MAX_NUMNODES) {
-		cpu_nid = pxm_to_node(i);
-		register_memory_node_under_compute_node(mem_nid, cpu_nid, 0);
+	for_each_set_bit(i, p_yesdes, MAX_NUMNODES) {
+		cpu_nid = pxm_to_yesde(i);
+		register_memory_yesde_under_compute_yesde(mem_nid, cpu_nid, 0);
 	}
 }
 
 static void hmat_register_target_cache(struct memory_target *target)
 {
-	unsigned mem_nid = pxm_to_node(target->memory_pxm);
+	unsigned mem_nid = pxm_to_yesde(target->memory_pxm);
 	struct target_cache *tcache;
 
-	list_for_each_entry(tcache, &target->caches, node)
-		node_add_cache(mem_nid, &tcache->cache_attrs);
+	list_for_each_entry(tcache, &target->caches, yesde)
+		yesde_add_cache(mem_nid, &tcache->cache_attrs);
 }
 
 static void hmat_register_target_perf(struct memory_target *target)
 {
-	unsigned mem_nid = pxm_to_node(target->memory_pxm);
-	node_set_perf_attrs(mem_nid, &target->hmem_attrs, 0);
+	unsigned mem_nid = pxm_to_yesde(target->memory_pxm);
+	yesde_set_perf_attrs(mem_nid, &target->hmem_attrs, 0);
 }
 
 static void hmat_register_target_device(struct memory_target *target,
 		struct resource *r)
 {
-	/* define a clean / non-busy resource for the platform device */
+	/* define a clean / yesn-busy resource for the platform device */
 	struct resource res = {
 		.start = r->start,
 		.end = r->end,
@@ -664,9 +664,9 @@ static void hmat_register_target_device(struct memory_target *target,
 		goto out_pdev;
 	}
 
-	pdev->dev.numa_node = acpi_map_pxm_to_online_node(target->memory_pxm);
+	pdev->dev.numa_yesde = acpi_map_pxm_to_online_yesde(target->memory_pxm);
 	info = (struct memregion_info) {
-		.target_node = acpi_map_pxm_to_node(target->memory_pxm),
+		.target_yesde = acpi_map_pxm_to_yesde(target->memory_pxm),
 	};
 	rc = platform_device_add_data(pdev, &info, sizeof(info));
 	if (rc < 0) {
@@ -699,7 +699,7 @@ static void hmat_register_target_devices(struct memory_target *target)
 	struct resource *res;
 
 	/*
-	 * Do not bother creating devices if no driver is available to
+	 * Do yest bother creating devices if yes driver is available to
 	 * consume them.
 	 */
 	if (!IS_ENABLED(CONFIG_DEV_DAX_HMEM))
@@ -711,22 +711,22 @@ static void hmat_register_target_devices(struct memory_target *target)
 
 static void hmat_register_target(struct memory_target *target)
 {
-	int nid = pxm_to_node(target->memory_pxm);
+	int nid = pxm_to_yesde(target->memory_pxm);
 
 	/*
 	 * Devices may belong to either an offline or online
-	 * node, so unconditionally add them.
+	 * yesde, so unconditionally add them.
 	 */
 	hmat_register_target_devices(target);
 
 	/*
-	 * Skip offline nodes. This can happen when memory
+	 * Skip offline yesdes. This can happen when memory
 	 * marked EFI_MEMORY_SP, "specific purpose", is applied
 	 * to all the memory in a promixity domain leading to
-	 * the node being marked offline / unplugged, or if
-	 * memory-only "hotplug" node is offline.
+	 * the yesde being marked offline / unplugged, or if
+	 * memory-only "hotplug" yesde is offline.
 	 */
-	if (nid == NUMA_NO_NODE || !node_online(nid))
+	if (nid == NUMA_NO_NODE || !yesde_online(nid))
 		return;
 
 	mutex_lock(&target_lock);
@@ -743,21 +743,21 @@ static void hmat_register_targets(void)
 {
 	struct memory_target *target;
 
-	list_for_each_entry(target, &targets, node)
+	list_for_each_entry(target, &targets, yesde)
 		hmat_register_target(target);
 }
 
-static int hmat_callback(struct notifier_block *self,
+static int hmat_callback(struct yestifier_block *self,
 			 unsigned long action, void *arg)
 {
 	struct memory_target *target;
-	struct memory_notify *mnb = arg;
+	struct memory_yestify *mnb = arg;
 	int pxm, nid = mnb->status_change_nid;
 
 	if (nid == NUMA_NO_NODE || action != MEM_ONLINE)
 		return NOTIFY_OK;
 
-	pxm = node_to_pxm(nid);
+	pxm = yesde_to_pxm(nid);
 	target = find_mem_target(pxm);
 	if (!target)
 		return NOTIFY_OK;
@@ -766,8 +766,8 @@ static int hmat_callback(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block hmat_callback_nb = {
-	.notifier_call = hmat_callback,
+static struct yestifier_block hmat_callback_nb = {
+	.yestifier_call = hmat_callback,
 	.priority = 2,
 };
 
@@ -778,15 +778,15 @@ static __init void hmat_free_structures(void)
 	struct memory_initiator *initiator, *inext;
 	struct target_cache *tcache, *cnext;
 
-	list_for_each_entry_safe(target, tnext, &targets, node) {
+	list_for_each_entry_safe(target, tnext, &targets, yesde) {
 		struct resource *res, *res_next;
 
-		list_for_each_entry_safe(tcache, cnext, &target->caches, node) {
-			list_del(&tcache->node);
+		list_for_each_entry_safe(tcache, cnext, &target->caches, yesde) {
+			list_del(&tcache->yesde);
 			kfree(tcache);
 		}
 
-		list_del(&target->node);
+		list_del(&target->yesde);
 		res = target->memregions.child;
 		while (res) {
 			res_next = res->sibling;
@@ -797,13 +797,13 @@ static __init void hmat_free_structures(void)
 		kfree(target);
 	}
 
-	list_for_each_entry_safe(initiator, inext, &initiators, node) {
-		list_del(&initiator->node);
+	list_for_each_entry_safe(initiator, inext, &initiators, yesde) {
+		list_del(&initiator->yesde);
 		kfree(initiator);
 	}
 
-	list_for_each_entry_safe(loc, lnext, &localities, node) {
-		list_del(&loc->node);
+	list_for_each_entry_safe(loc, lnext, &localities, yesde) {
+		list_del(&loc->yesde);
 		kfree(loc);
 	}
 }
@@ -838,7 +838,7 @@ static __init int hmat_init(void)
 	case 2:
 		break;
 	default:
-		pr_notice("Ignoring HMAT: Unknown revision:%d\n", hmat_revision);
+		pr_yestice("Igyesring HMAT: Unkyeswn revision:%d\n", hmat_revision);
 		goto out_put;
 	}
 
@@ -846,14 +846,14 @@ static __init int hmat_init(void)
 		if (acpi_table_parse_entries(ACPI_SIG_HMAT,
 					     sizeof(struct acpi_table_hmat), i,
 					     hmat_parse_subtable, 0) < 0) {
-			pr_notice("Ignoring HMAT: Invalid table");
+			pr_yestice("Igyesring HMAT: Invalid table");
 			goto out_put;
 		}
 	}
 	hmat_register_targets();
 
-	/* Keep the table and structures if the notifier may use them */
-	if (!register_hotmemory_notifier(&hmat_callback_nb))
+	/* Keep the table and structures if the yestifier may use them */
+	if (!register_hotmemory_yestifier(&hmat_callback_nb))
 		return 0;
 out_put:
 	hmat_free_structures();

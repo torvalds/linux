@@ -4,7 +4,7 @@
 #define __PIDFD_H
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <signal.h>
@@ -61,7 +61,7 @@ int wait_for_pid(pid_t pid)
 again:
 	ret = waitpid(pid, &status, 0);
 	if (ret == -1) {
-		if (errno == EINTR)
+		if (erryes == EINTR)
 			goto again;
 
 		return -1;

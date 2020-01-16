@@ -140,7 +140,7 @@ int rpi_firmware_property(struct rpi_firmware *fw,
 			  u32 tag, void *data, size_t len);
 int rpi_firmware_property_list(struct rpi_firmware *fw,
 			       void *data, size_t tag_size);
-struct rpi_firmware *rpi_firmware_get(struct device_node *firmware_node);
+struct rpi_firmware *rpi_firmware_get(struct device_yesde *firmware_yesde);
 #else
 static inline int rpi_firmware_property(struct rpi_firmware *fw, u32 tag,
 					void *data, size_t len)
@@ -154,7 +154,7 @@ static inline int rpi_firmware_property_list(struct rpi_firmware *fw,
 	return -ENOSYS;
 }
 
-static inline struct rpi_firmware *rpi_firmware_get(struct device_node *firmware_node)
+static inline struct rpi_firmware *rpi_firmware_get(struct device_yesde *firmware_yesde)
 {
 	return NULL;
 }

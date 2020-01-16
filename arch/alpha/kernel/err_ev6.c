@@ -180,7 +180,7 @@ ev6_parse_cbox(u64 c_addr, u64 c1_syn, u64 c2_syn,
 void
 ev6_register_error_handlers(void)
 {
-	/* None right now. */
+	/* None right yesw. */
 }
 
 int
@@ -252,7 +252,7 @@ ev6_machine_check(unsigned long vector, unsigned long la_ptr)
 		err_print_prefix = KERN_CRIT;
 
 		/*
-		 * Either a nondismissable error was detected or no
+		 * Either a yesndismissable error was detected or yes
 		 * recognized error was detected  in the logout frame 
 		 * -- report the error in either case
 		 */

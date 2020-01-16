@@ -352,7 +352,7 @@ void ODM_TxPwrTrackSetPwr_8723B(
 			}
 		}
 	} else
-		return; /*  This method is not supported. */
+		return; /*  This method is yest supported. */
 }
 
 static void GetDeltaSwingTable_8723B(
@@ -530,7 +530,7 @@ static u8 phy_PathA_IQK_8723B(
 		(tmp < 0xf)
 	)
 		result |= 0x01;
-	else					/* if Tx not OK, ignore Rx */
+	else					/* if Tx yest OK, igyesre Rx */
 		return result;
 
 	return result;
@@ -642,7 +642,7 @@ static u8 phy_PathA_RxIQK8723B(
 		(tmp < 0xf)
 	)
 		result |= 0x01;
-	else				/* if Tx not OK, ignore Rx */
+	else				/* if Tx yest OK, igyesre Rx */
 		return result;
 
 	u4tmp = 0x80007C00 | (regE94&0x3FF0000) | ((regE9C&0x3FF0000) >> 16);
@@ -747,7 +747,7 @@ static u8 phy_PathA_RxIQK8723B(
 		(tmp < 0xf)
 	)
 		result |= 0x02;
-	else							/* if Tx not OK, ignore Rx */
+	else							/* if Tx yest OK, igyesre Rx */
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("Path A Rx IQK fail!!\n"));
 	return result;
 }
@@ -966,7 +966,7 @@ static u8 phy_PathB_RxIQK8723B(struct adapter *padapter, bool configPathB)
 		(tmp < 0xf)
 	)
 			result |= 0x01;
-	else	/* if Tx not OK, ignore Rx */
+	else	/* if Tx yest OK, igyesre Rx */
 		return result;
 
 	u4tmp = 0x80007C00 | (regE94&0x3FF0000)  | ((regE9C&0x3FF0000) >> 16);
@@ -1131,7 +1131,7 @@ static void _PHY_PathAFillIQKMatrix8723B(
 		if (bTxOnly) {
 			ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("_PHY_PathAFillIQKMatrix8723B only Tx OK\n"));
 
-			/*  <20130226, Kordan> Saving RxIQC, otherwise not initialized. */
+			/*  <20130226, Kordan> Saving RxIQC, otherwise yest initialized. */
 			pRFCalibrateInfo->RxIQC_8723B[PATH_S1][IDX_0xCA0][KEY] = rOFDM0_RxIQExtAnta;
 			pRFCalibrateInfo->RxIQC_8723B[PATH_S1][IDX_0xCA0][VAL] = 0xfffffff & PHY_QueryBBReg(pDM_Odm->Adapter, rOFDM0_RxIQExtAnta, bMaskDWord);
 			pRFCalibrateInfo->RxIQC_8723B[PATH_S1][IDX_0xC14][KEY] = rOFDM0_XARxIQImbalance;
@@ -1555,7 +1555,7 @@ static void phy_IQCalibrate_8723B(
 
 	_PHY_PathADDAOn8723B(padapter, ADDA_REG, is2T);
 
-/* no serial mode */
+/* yes serial mode */
 
 	/* save RF path for 8723B */
 /* 	Path_SEL_BB = PHY_QueryBBReg(pDM_Odm->Adapter, 0x948, bMaskDWord); */
@@ -1848,7 +1848,7 @@ void PHY_IQCalibrate_8723B(
 				bResult = FAIL;
 				break;
 			}
-			/* RT_TRACE(_module_mp_, _drv_notice_, ("Switch to S1 TxIQC(offset, data) = (0x%X, 0x%X)\n", offset, data)); */
+			/* RT_TRACE(_module_mp_, _drv_yestice_, ("Switch to S1 TxIQC(offset, data) = (0x%X, 0x%X)\n", offset, data)); */
 			PHY_SetBBReg(pDM_Odm->Adapter, offset, bMaskDWord, data);
 		}
 
@@ -1865,7 +1865,7 @@ void PHY_IQCalibrate_8723B(
 				bResult = FAIL;
 				break;
 			}
-			/* RT_TRACE(_module_mp_, _drv_notice_, ("Switch to S1 RxIQC (offset, data) = (0x%X, 0x%X)\n", offset, data)); */
+			/* RT_TRACE(_module_mp_, _drv_yestice_, ("Switch to S1 RxIQC (offset, data) = (0x%X, 0x%X)\n", offset, data)); */
 			PHY_SetBBReg(pDM_Odm->Adapter, offset, bMaskDWord, data);
 		}
 

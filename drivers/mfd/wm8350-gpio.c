@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <linux/mfd/wm8350/core.h>
 #include <linux/mfd/wm8350/gpio.h>

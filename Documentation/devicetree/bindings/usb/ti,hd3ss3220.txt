@@ -5,9 +5,9 @@ Required properties:
  - reg: I2C slave address, must be 0x47 or 0x67 based on ADDR pin.
  - interrupts: An interrupt specifier.
 
-Required sub-node:
+Required sub-yesde:
  - connector: The "usb-c-connector" attached to the hd3ss3220 chip. The
-   bindings of the connector node are specified in:
+   bindings of the connector yesde are specified in:
 
 	Documentation/devicetree/bindings/connector/usb-connector.txt
 

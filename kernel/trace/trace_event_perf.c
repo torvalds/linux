@@ -21,7 +21,7 @@ static char __percpu *perf_trace_buf[PERF_NR_CONTEXTS];
 typedef typeof(unsigned long [PERF_MAX_TRACE_SIZE / sizeof(unsigned long)])
 	perf_trace_t;
 
-/* Count the events in use (per event id, not per instance) */
+/* Count the events in use (per event id, yest per instance) */
 static int	total_ref_count;
 
 static int perf_trace_event_perm(struct trace_event_call *tp_event,
@@ -72,11 +72,11 @@ static int perf_trace_event_perm(struct trace_event_call *tp_event,
 			return -EINVAL;
 	}
 
-	/* No tracing, just counting, so no obvious leak */
+	/* No tracing, just counting, so yes obvious leak */
 	if (!(p_event->attr.sample_type & PERF_SAMPLE_RAW))
 		return 0;
 
-	/* Some events are ok to be traced by non-root users... */
+	/* Some events are ok to be traced by yesn-root users... */
 	if (p_event->attach_state == PERF_ATTACH_TASK) {
 		if (tp_event->flags & TRACE_EVENT_FL_CAP_ANY)
 			return 0;
@@ -330,7 +330,7 @@ int perf_uprobe_init(struct perf_event *p_event,
 	/*
 	 * local trace_uprobe need to hold event_mutex to call
 	 * uprobe_buffer_enable() and uprobe_buffer_disable().
-	 * event_mutex is not required for local trace_kprobes.
+	 * event_mutex is yest required for local trace_kprobes.
 	 */
 	mutex_lock(&event_mutex);
 	ret = perf_trace_event_init(tp_event, p_event);
@@ -360,7 +360,7 @@ int perf_trace_add(struct perf_event *p_event, int flags)
 		p_event->hw.state = PERF_HES_STOPPED;
 
 	/*
-	 * If TRACE_REG_PERF_ADD returns false; no custom action was performed
+	 * If TRACE_REG_PERF_ADD returns false; yes custom action was performed
 	 * and we need to take the default action of enqueueing our event on
 	 * the right per-cpu hlist.
 	 */
@@ -384,7 +384,7 @@ void perf_trace_del(struct perf_event *p_event, int flags)
 	struct trace_event_call *tp_event = p_event->tp_event;
 
 	/*
-	 * If TRACE_REG_PERF_DEL returns false; no custom action was performed
+	 * If TRACE_REG_PERF_DEL returns false; yes custom action was performed
 	 * and we need to take the default action of dequeueing our event from
 	 * the right per-cpu hlist.
 	 */
@@ -400,7 +400,7 @@ void *perf_trace_buf_alloc(int size, struct pt_regs **regs, int *rctxp)
 	BUILD_BUG_ON(PERF_MAX_TRACE_SIZE % sizeof(unsigned long));
 
 	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE,
-		      "perf buffer not large enough"))
+		      "perf buffer yest large eyesugh"))
 		return NULL;
 
 	*rctxp = rctx = perf_swevent_get_recursion_context();
@@ -411,7 +411,7 @@ void *perf_trace_buf_alloc(int size, struct pt_regs **regs, int *rctxp)
 		*regs = this_cpu_ptr(&__perf_regs[rctx]);
 	raw_data = this_cpu_ptr(perf_trace_buf[rctx]);
 
-	/* zero the dead bytes from align to not leak stack to user */
+	/* zero the dead bytes from align to yest leak stack to user */
 	memset(&raw_data[size - sizeof(u64)], 0, sizeof(u64));
 	return raw_data;
 }

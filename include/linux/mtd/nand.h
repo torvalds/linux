@@ -21,7 +21,7 @@
  * @eraseblocks_per_lun: number of eraseblocks per LUN (Logical Unit Number)
  * @max_bad_eraseblocks_per_lun: maximum number of eraseblocks per LUN
  * @planes_per_lun: number of planes per LUN
- * @luns_per_target: number of LUN per target (target is a synonym for die)
+ * @luns_per_target: number of LUN per target (target is a syyesnym for die)
  * @ntargets: total number of targets exposed by the NAND device
  */
 struct nand_memory_organization {
@@ -144,8 +144,8 @@ struct nand_device;
  *	     NAND layer. This method should just write the BBM (Bad Block
  *	     Marker) so that future call to struct_nand_ops->isbad() return
  *	     true
- * @isbad: check whether a block is bad or not. This method should just read
- *	   the BBM and return whether the block is bad or not based on what it
+ * @isbad: check whether a block is bad or yest. This method should just read
+ *	   the BBM and return whether the block is bad or yest based on what it
  *	   reads
  *
  * These are all low level operations that should be implemented by specialized
@@ -418,27 +418,27 @@ static inline int nanddev_unregister(struct nand_device *nand)
 }
 
 /**
- * nanddev_set_of_node() - Attach a DT node to a NAND device
+ * nanddev_set_of_yesde() - Attach a DT yesde to a NAND device
  * @nand: NAND device
- * @np: DT node
+ * @np: DT yesde
  *
- * Attach a DT node to a NAND device.
+ * Attach a DT yesde to a NAND device.
  */
-static inline void nanddev_set_of_node(struct nand_device *nand,
-				       struct device_node *np)
+static inline void nanddev_set_of_yesde(struct nand_device *nand,
+				       struct device_yesde *np)
 {
-	mtd_set_of_node(&nand->mtd, np);
+	mtd_set_of_yesde(&nand->mtd, np);
 }
 
 /**
- * nanddev_get_of_node() - Retrieve the DT node attached to a NAND device
+ * nanddev_get_of_yesde() - Retrieve the DT yesde attached to a NAND device
  * @nand: NAND device
  *
- * Return: the DT node attached to @nand.
+ * Return: the DT yesde attached to @nand.
  */
-static inline struct device_node *nanddev_get_of_node(struct nand_device *nand)
+static inline struct device_yesde *nanddev_get_of_yesde(struct nand_device *nand)
 {
-	return mtd_get_of_node(&nand->mtd);
+	return mtd_get_of_yesde(&nand->mtd);
 }
 
 /**
@@ -669,12 +669,12 @@ static inline void nanddev_io_iter_next_page(struct nand_device *nand,
 }
 
 /**
- * nand_io_iter_end - Should end iteration or not
+ * nand_io_iter_end - Should end iteration or yest
  * @nand: NAND device
  * @iter: NAND I/O iterator
  *
  * Check whether @iter has reached the end of the NAND portion it was asked to
- * iterate on or not.
+ * iterate on or yest.
  *
  * Return: true if @iter has reached the end of the iteration request, false
  *	   otherwise.

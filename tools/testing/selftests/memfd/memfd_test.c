@@ -2,7 +2,7 @@
 #define _GNU_SOURCE
 #define __EXPORTED_HEADERS__
 
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <linux/falloc.h>
@@ -29,7 +29,7 @@
 #define STACK_SIZE 65536
 
 /*
- * Default is not to test hugetlbfs
+ * Default is yest to test hugetlbfs
  */
 static size_t mfd_def_size = MFD_DEF_SIZE;
 static const char *memfd_str = MEMFD_STR;
@@ -331,7 +331,7 @@ static void mfd_assert_write(int fd)
 	int r;
 
 	/*
-	 * huegtlbfs does not support write, but we want to
+	 * huegtlbfs does yest support write, but we want to
 	 * verify everything else here.
 	 */
 	if (!hugetlbfs_test) {
@@ -417,7 +417,7 @@ static void mfd_fail_write(int fd)
 		abort();
 	}
 
-	/* verify PROT_READ | PROT_WRITE is not allowed */
+	/* verify PROT_READ | PROT_WRITE is yest allowed */
 	p = mmap(NULL,
 		 mfd_def_size,
 		 PROT_READ | PROT_WRITE,
@@ -429,7 +429,7 @@ static void mfd_fail_write(int fd)
 		abort();
 	}
 
-	/* verify PROT_WRITE is not allowed */
+	/* verify PROT_WRITE is yest allowed */
 	p = mmap(NULL,
 		 mfd_def_size,
 		 PROT_WRITE,
@@ -441,7 +441,7 @@ static void mfd_fail_write(int fd)
 		abort();
 	}
 
-	/* Verify PROT_READ with MAP_SHARED with a following mprotect is not
+	/* Verify PROT_READ with MAP_SHARED with a following mprotect is yest
 	 * allowed. Note that for r/w the kernel already prevents the mmap. */
 	p = mmap(NULL,
 		 mfd_def_size,
@@ -552,7 +552,7 @@ static void mfd_assert_grow_write(int fd)
 	static char *buf;
 	ssize_t l;
 
-	/* hugetlbfs does not support write */
+	/* hugetlbfs does yest support write */
 	if (hugetlbfs_test)
 		return;
 
@@ -576,7 +576,7 @@ static void mfd_fail_grow_write(int fd)
 	static char *buf;
 	ssize_t l;
 
-	/* hugetlbfs does not support write */
+	/* hugetlbfs does yest support write */
 	if (hugetlbfs_test)
 		return;
 
@@ -650,7 +650,7 @@ static void test_create(void)
 	/* test NULL name */
 	mfd_fail_new(NULL, 0);
 
-	/* test over-long name (not zero-terminated) */
+	/* test over-long name (yest zero-terminated) */
 	memset(buf, 0xff, sizeof(buf));
 	mfd_fail_new(buf, 0);
 
@@ -717,13 +717,13 @@ static void test_basic(void)
 				 F_SEAL_WRITE |
 				 F_SEAL_SEAL);
 
-	/* verify that sealing no longer works */
+	/* verify that sealing yes longer works */
 	mfd_fail_add_seals(fd, F_SEAL_GROW);
 	mfd_fail_add_seals(fd, 0);
 
 	close(fd);
 
-	/* verify sealing does not work without MFD_ALLOW_SEALING */
+	/* verify sealing does yest work without MFD_ALLOW_SEALING */
 	fd = mfd_assert_new("kern_memfd_basic",
 			    mfd_def_size,
 			    MFD_CLOEXEC);
@@ -922,7 +922,7 @@ static void test_share_dup(char *banner, char *b_suffix)
 
 /*
  * Test sealing with active mmap()s
- * Modifying seals is only allowed if no other mmap() refs exist.
+ * Modifying seals is only allowed if yes other mmap() refs exist.
  */
 static void test_share_mmap(char *banner, char *b_suffix)
 {
@@ -956,7 +956,7 @@ static void test_share_mmap(char *banner, char *b_suffix)
 /*
  * Test sealing with open(/proc/self/fd/%d)
  * Via /proc we can get access to a separate file-context for the same memfd.
- * This is *not* like dup(), but like a real separate open(). Make sure the
+ * This is *yest* like dup(), but like a real separate open(). Make sure the
  * semantics are as expected and we correctly check for RDONLY / WRONLY / RDWR.
  */
 static void test_share_open(char *banner, char *b_suffix)
@@ -1045,7 +1045,7 @@ int main(int argc, char **argv)
 			memfd_str = MEMFD_HUGE_STR;
 			mfd_def_size = hpage_size * 2;
 		} else {
-			printf("Unknown option: %s\n", argv[1]);
+			printf("Unkyeswn option: %s\n", argv[1]);
 			abort();
 		}
 	}

@@ -21,14 +21,14 @@
  * - Replace the use of kfifo_put into kfifo_in_spinlocked and kfifo_get
  *   into kfifo_out_spinlocked
  *   Note: the spinlock pointer formerly passed to kfifo_init/kfifo_alloc
- *   must be passed now to the kfifo_in_spinlocked and kfifo_out_spinlocked
+ *   must be passed yesw to the kfifo_in_spinlocked and kfifo_out_spinlocked
  *   as the last parameter
  * - The formerly __kfifo_* functions are renamed into kfifo_*
  */
 
 /*
- * Note about locking: There is no locking required until only one reader
- * and one writer is using the fifo and no kfifo_reset() will be called.
+ * Note about locking: There is yes locking required until only one reader
+ * and one writer is using the fifo and yes kfifo_reset() will be called.
  * kfifo_reset_out() can be safely used, until it will be only called
  * in the reader thread.
  * For multiple writer and one reader there is only a need to lock the writer.
@@ -203,7 +203,7 @@ __kfifo_int_must_check_helper(int val)
  * @fifo: address of the fifo to be used
  *
  * Note: usage of kfifo_reset() is dangerous. It should be only called when the
- * fifo is exclusived locked or when it is secured that no other thread is
+ * fifo is exclusived locked or when it is secured that yes other thread is
  * accessing the fifo.
  */
 #define kfifo_reset(fifo) \
@@ -314,7 +314,7 @@ __kfifo_uint_must_check_helper( \
  *
  * The number of elements will be rounded-up to a power of 2.
  * The fifo will be release with kfifo_free().
- * Return 0 if no error, otherwise an error code.
+ * Return 0 if yes error, otherwise an error code.
  */
 #define kfifo_alloc(fifo, size, gfp_mask) \
 __kfifo_int_must_check_helper( \
@@ -348,7 +348,7 @@ __kfifo_int_must_check_helper( \
  * This macro initializes a fifo using a preallocated buffer.
  *
  * The number of elements will be rounded-up to a power of 2.
- * Return 0 if no error, otherwise an error code.
+ * Return 0 if yes error, otherwise an error code.
  */
 #define kfifo_init(fifo, buffer, size) \
 ({ \
@@ -688,7 +688,7 @@ __kfifo_uint_must_check_helper( \
  * This macro fills a scatterlist for DMA output which at most @len bytes
  * to transfer.
  * It returns the number entries in the scatterlist array.
- * A zero means there is no space available and the scatterlist is not filled.
+ * A zero means there is yes space available and the scatterlist is yest filled.
  *
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macros.
@@ -736,7 +736,7 @@ __kfifo_uint_must_check_helper( \
  * @n: max. number of elements to get
  *
  * This macro get the data from the fifo and return the numbers of elements
- * copied. The data is not removed from the fifo.
+ * copied. The data is yest removed from the fifo.
  *
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macro.

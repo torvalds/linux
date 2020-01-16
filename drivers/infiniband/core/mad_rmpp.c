@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -713,7 +713,7 @@ static void process_rmpp_ack(struct ib_mad_agent_private *agent,
 	}
 	mad_send_wr->newwin = newwin;
 	if (mad_send_wr->last_ack == mad_send_wr->send_buf.seg_count) {
-		/* If no response is expected, the ACK completes the send */
+		/* If yes response is expected, the ACK completes the send */
 		if (!mad_send_wr->send_buf.timeout_ms) {
 			struct ib_mad_send_wc wc;
 
@@ -915,7 +915,7 @@ int ib_process_rmpp_send_wc(struct ib_mad_send_wr_private *mad_send_wr,
 	rmpp_mad = mad_send_wr->send_buf.mad;
 	if (!(ib_get_rmpp_flags(&rmpp_mad->rmpp_hdr) &
 	      IB_MGMT_RMPP_FLAG_ACTIVE))
-		return IB_RMPP_RESULT_UNHANDLED; /* RMPP not active */
+		return IB_RMPP_RESULT_UNHANDLED; /* RMPP yest active */
 
 	if (rmpp_mad->rmpp_hdr.rmpp_type != IB_MGMT_RMPP_TYPE_DATA)
 		return IB_RMPP_RESULT_INTERNAL;	 /* ACK, STOP, or ABORT */
@@ -953,7 +953,7 @@ int ib_retry_rmpp(struct ib_mad_send_wr_private *mad_send_wr)
 	rmpp_mad = mad_send_wr->send_buf.mad;
 	if (!(ib_get_rmpp_flags(&rmpp_mad->rmpp_hdr) &
 	      IB_MGMT_RMPP_FLAG_ACTIVE))
-		return IB_RMPP_RESULT_UNHANDLED; /* RMPP not active */
+		return IB_RMPP_RESULT_UNHANDLED; /* RMPP yest active */
 
 	if (mad_send_wr->last_ack == mad_send_wr->send_buf.seg_count)
 		return IB_RMPP_RESULT_PROCESSED;

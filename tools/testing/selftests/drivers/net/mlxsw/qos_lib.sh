@@ -38,7 +38,7 @@ start_traffic()
 
 stop_traffic()
 {
-	# Suppress noise from killing mausezahn.
+	# Suppress yesise from killing mausezahn.
 	{ kill %% && wait %%; } 2>/dev/null
 }
 
@@ -59,7 +59,7 @@ check_rate()
 measure_rate()
 {
 	local sw_in=$1; shift   # Where the traffic ingresses the switch
-	local host_in=$1; shift # Where it ingresses another host
+	local host_in=$1; shift # Where it ingresses ayesther host
 	local counter=$1; shift # Counter to use for measurement
 	local what=$1; shift
 

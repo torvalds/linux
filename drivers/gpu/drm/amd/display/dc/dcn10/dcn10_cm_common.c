@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -420,7 +420,7 @@ bool cm_helper_translate_curve_to_hw_format(
 			corner_points[0].blue.x);
 
 	/* see comment above, m_arrPoints[1].y should be the Y value for the
-	 * region end (m_numOfHwPoints), not last HW point(m_numOfHwPoints - 1)
+	 * region end (m_numOfHwPoints), yest last HW point(m_numOfHwPoints - 1)
 	 */
 	corner_points[1].red.y = rgb_resulted[hw_points - 1].red;
 	corner_points[1].green.y = rgb_resulted[hw_points - 1].green;
@@ -577,7 +577,7 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 	corner_points[0].blue.y = rgb_resulted[0].blue;
 
 	/* see comment above, m_arrPoints[1].y should be the Y value for the
-	 * region end (m_numOfHwPoints), not last HW point(m_numOfHwPoints - 1)
+	 * region end (m_numOfHwPoints), yest last HW point(m_numOfHwPoints - 1)
 	 */
 	corner_points[1].red.y = rgb_resulted[hw_points - 1].red;
 	corner_points[1].green.y = rgb_resulted[hw_points - 1].green;

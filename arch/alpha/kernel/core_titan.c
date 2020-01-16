@@ -81,13 +81,13 @@ titan_write_tig(int offset, u8 value)
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address
- * accordingly.  It is therefore not safe to have concurrent
+ * accordingly.  It is therefore yest safe to have concurrent
  * invocations to configuration space access routines, but there
  * really shouldn't be any need for this.
  *
  * Note that all config space accesses use Type 1 address format.
  *
- * Note also that type 1 is determined by non-zero bus number.
+ * Note also that type 1 is determined by yesn-zero bus number.
  *
  * Type 1:
  *
@@ -512,7 +512,7 @@ titan_ioremap(unsigned long addr, unsigned long size)
 		 */
 		area = get_vm_area(size, VM_IOREMAP);
 		if (!area) {
-			printk("ioremap failed... no vm_area...\n");
+			printk("ioremap failed... yes vm_area...\n");
 			return NULL;
 		}
 
@@ -522,7 +522,7 @@ titan_ioremap(unsigned long addr, unsigned long size)
 		    baddr += PAGE_SIZE, vaddr += PAGE_SIZE) {
 			pfn = ptes[baddr >> PAGE_SHIFT];
 			if (!(pfn & 1)) {
-				printk("ioremap failed... pte not valid...\n");
+				printk("ioremap failed... pte yest valid...\n");
 				vfree(area->addr);
 				return NULL;
 			}
@@ -711,7 +711,7 @@ titan_agp_translate(alpha_agp_info *agp, dma_addr_t addr)
 
 	pte = aper->arena->ptes[baddr >> PAGE_SHIFT];
 	if (!(pte & 1)) {
-		printk("%s: pte not valid\n", __func__);
+		printk("%s: pte yest valid\n", __func__);
 		return -EINVAL;
 	}
 
@@ -773,7 +773,7 @@ titan_agp_info(void)
 	agp->ops = &titan_agp_ops;
 
 	/*
-	 * Aperture - not configured until ops.setup().
+	 * Aperture - yest configured until ops.setup().
 	 *
 	 * FIXME - should we go ahead and allocate it here?
 	 */

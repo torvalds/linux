@@ -8,12 +8,12 @@ fail() { #msg
 }
 
 if [ ! -f set_event ]; then
-    echo "event tracing is not supported"
+    echo "event tracing is yest supported"
     exit_unsupported
 fi
 
 if [ ! -f synthetic_events ]; then
-    echo "synthetic event is not supported"
+    echo "synthetic event is yest supported"
     exit_unsupported
 fi
 

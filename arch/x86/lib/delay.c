@@ -51,33 +51,33 @@ static void delay_loop(unsigned long loops)
 /* TSC based delay: */
 static void delay_tsc(unsigned long __loops)
 {
-	u64 bclock, now, loops = __loops;
+	u64 bclock, yesw, loops = __loops;
 	int cpu;
 
 	preempt_disable();
 	cpu = smp_processor_id();
 	bclock = rdtsc_ordered();
 	for (;;) {
-		now = rdtsc_ordered();
-		if ((now - bclock) >= loops)
+		yesw = rdtsc_ordered();
+		if ((yesw - bclock) >= loops)
 			break;
 
 		/* Allow RT tasks to run */
 		preempt_enable();
-		rep_nop();
+		rep_yesp();
 		preempt_disable();
 
 		/*
-		 * It is possible that we moved to another CPU, and
+		 * It is possible that we moved to ayesther CPU, and
 		 * since TSC's are per-cpu we need to calculate
 		 * that. The delay must guarantee that we wait "at
-		 * least" the amount of time. Being moved to another
+		 * least" the amount of time. Being moved to ayesther
 		 * CPU could make the wait longer but we just need to
-		 * make sure we waited long enough. Rebalance the
+		 * make sure we waited long eyesugh. Rebalance the
 		 * counter for this CPU.
 		 */
 		if (unlikely(cpu != smp_processor_id())) {
-			loops -= (now - bclock);
+			loops -= (yesw - bclock);
 			cpu = smp_processor_id();
 			bclock = rdtsc_ordered();
 		}
@@ -114,7 +114,7 @@ static void delay_mwaitx(unsigned long __loops)
 
 		/*
 		 * AMD, like Intel's MWAIT version, supports the EAX hint and
-		 * EAX=0xf0 means, do not enter any deep C-state and we use it
+		 * EAX=0xf0 means, do yest enter any deep C-state and we use it
 		 * here in delay() to minimize wakeup latency.
 		 */
 		__mwaitx(MWAITX_DISABLE_CSTATES, delay, MWAITX_ECX_TIMER_ENABLE);
@@ -132,7 +132,7 @@ static void delay_mwaitx(unsigned long __loops)
 
 /*
  * Since we calibrate only once at boot, this
- * function should be set once at boot and not changed
+ * function should be set once at boot and yest changed
  */
 static void (*delay_fn)(unsigned long) = delay_loop;
 
@@ -162,7 +162,7 @@ void __delay(unsigned long loops)
 }
 EXPORT_SYMBOL(__delay);
 
-noinline void __const_udelay(unsigned long xloops)
+yesinline void __const_udelay(unsigned long xloops)
 {
 	unsigned long lpj = this_cpu_read(cpu_info.loops_per_jiffy) ? : loops_per_jiffy;
 	int d0;

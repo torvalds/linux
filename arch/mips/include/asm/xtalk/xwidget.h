@@ -120,7 +120,7 @@ struct widget_ident {
 	char *revs[16];
 };
 
-/* Known Xtalk Widgets */
+/* Kyeswn Xtalk Widgets */
 static const struct widget_ident __initconst widget_idents[] = {
 	{
 		WIDGET_XBOW_MFGR_NUM,
@@ -199,8 +199,8 @@ static const struct widget_ident __initconst widget_idents[] = {
 /*
  * according to the crosstalk spec, only 32-bits access to the widget
  * configuration registers is allowed.	some widgets may allow 64-bits
- * access but software should not depend on it.	 registers beyond the
- * widget target flush register are widget dependent thus will not be
+ * access but software should yest depend on it.	 registers beyond the
+ * widget target flush register are widget dependent thus will yest be
  * defined here
  */
 #ifndef __ASSEMBLY__

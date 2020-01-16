@@ -7,7 +7,7 @@
  * that are specific to architecture <arch>.
  *
  * Definitions that are specified in the Hyper-V Top Level Functional
- * Spec (TLFS) should not go in this file, but should instead go in
+ * Spec (TLFS) should yest go in this file, but should instead go in
  * hyperv-tlfs.h.
  *
  * Copyright (C) 2019, Microsoft, Inc.
@@ -76,13 +76,13 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 	 * ensure the write to MessageType (ie set to
 	 * HVMSG_NONE) happens before we read the
 	 * MessagePending and EOMing. Otherwise, the EOMing
-	 * will not deliver any more messages since there is
-	 * no empty slot
+	 * will yest deliver any more messages since there is
+	 * yes empty slot
 	 */
 	if (msg->header.message_flags.msg_pending) {
 		/*
 		 * This will cause message queue rescan to
-		 * possibly deliver another msg from the
+		 * possibly deliver ayesther msg from the
 		 * hypervisor
 		 */
 		hv_signal_eom();
@@ -101,8 +101,8 @@ void hv_remove_crash_handler(void);
 
 #if IS_ENABLED(CONFIG_HYPERV)
 /*
- * Hypervisor's notion of virtual processor ID is different from
- * Linux' notion of CPU ID. This information can only be retrieved
+ * Hypervisor's yestion of virtual processor ID is different from
+ * Linux' yestion of CPU ID. This information can only be retrieved
  * in the context of the calling CPU. Setup a map for easy access
  * to this information.
  */
@@ -139,7 +139,7 @@ static inline int cpumask_to_vpset(struct hv_vpset *vpset,
 
 	/*
 	 * Clear all banks up to the maximum possible bank as hv_tlb_flush_ex
-	 * structs are not cleared between calls, we risk flushing unneeded
+	 * structs are yest cleared between calls, we risk flushing unneeded
 	 * vCPUs otherwise.
 	 */
 	for (vcpu_bank = 0; vcpu_bank <= hv_max_vp_index / 64; vcpu_bank++)

@@ -109,14 +109,14 @@ struct ci_hdrc_imx_data {
 static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 {
 	struct platform_device *misc_pdev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_phandle_args args;
 	struct imx_usbmisc_data *data;
 	int ret;
 
 	/*
-	 * In case the fsl,usbmisc property is not present this device doesn't
-	 * need usbmisc. Return NULL (which is no error here)
+	 * In case the fsl,usbmisc property is yest present this device doesn't
+	 * need usbmisc. Return NULL (which is yes error here)
 	 */
 	if (!of_get_property(np, "fsl,usbmisc", NULL))
 		return NULL;
@@ -128,15 +128,15 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 	ret = of_parse_phandle_with_args(np, "fsl,usbmisc", "#index-cells",
 					0, &args);
 	if (ret) {
-		dev_err(dev, "Failed to parse property fsl,usbmisc, errno %d\n",
+		dev_err(dev, "Failed to parse property fsl,usbmisc, erryes %d\n",
 			ret);
 		return ERR_PTR(ret);
 	}
 
 	data->index = args.args[0];
 
-	misc_pdev = of_find_device_by_node(args.np);
-	of_node_put(args.np);
+	misc_pdev = of_find_device_by_yesde(args.np);
+	of_yesde_put(args.np);
 
 	if (!misc_pdev || !platform_get_drvdata(misc_pdev))
 		return ERR_PTR(-EPROBE_DEFER);
@@ -145,7 +145,7 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 
 	/*
 	 * Check the various over current related properties. If over current
-	 * detection is disabled we're not interested in the polarity.
+	 * detection is disabled we're yest interested in the polarity.
 	 */
 	if (of_find_property(np, "disable-over-current", NULL)) {
 		data->disable_oc = 1;
@@ -266,7 +266,7 @@ static void imx_disable_unprepare_clks(struct device *dev)
 	}
 }
 
-static int ci_hdrc_imx_notify_event(struct ci_hdrc *ci, unsigned int event)
+static int ci_hdrc_imx_yestify_event(struct ci_hdrc *ci, unsigned int event)
 {
 	struct device *dev = ci->dev->parent;
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
@@ -302,12 +302,12 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	struct ci_hdrc_platform_data pdata = {
 		.name		= dev_name(&pdev->dev),
 		.capoffset	= DEF_CAPOFFSET,
-		.notify_event	= ci_hdrc_imx_notify_event,
+		.yestify_event	= ci_hdrc_imx_yestify_event,
 	};
 	int ret;
 	const struct of_device_id *of_id;
 	const struct ci_hdrc_imx_platform_flag *imx_platform_flag;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 
 	of_id = of_match_device(ci_hdrc_imx_dt_ids, dev);
@@ -327,7 +327,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	if (IS_ERR(data->usbmisc_data))
 		return PTR_ERR(data->usbmisc_data);
 
-	if ((of_usb_get_phy_mode(dev->of_node) == USBPHY_INTERFACE_MODE_HSIC)
+	if ((of_usb_get_phy_mode(dev->of_yesde) == USBPHY_INTERFACE_MODE_HSIC)
 		&& data->usbmisc_data) {
 		pdata.flags |= CI_HDRC_IMX_IS_HSIC;
 		data->usbmisc_data->hsic = 1;
@@ -344,7 +344,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		data->hsic_pad_regulator =
 				devm_regulator_get_optional(dev, "hsic");
 		if (PTR_ERR(data->hsic_pad_regulator) == -ENODEV) {
-			/* no pad regualator is needed */
+			/* yes pad regualator is needed */
 			data->hsic_pad_regulator = NULL;
 		} else if (IS_ERR(data->hsic_pad_regulator)) {
 			if (PTR_ERR(data->hsic_pad_regulator) != -EPROBE_DEFER)
@@ -407,7 +407,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	data->phy = devm_usb_get_phy_by_phandle(dev, "fsl,usbphy", 0);
 	if (IS_ERR(data->phy)) {
 		ret = PTR_ERR(data->phy);
-		/* Return -EINVAL if no usbphy is available */
+		/* Return -EINVAL if yes usbphy is available */
 		if (ret == -ENODEV)
 			data->phy = NULL;
 		else
@@ -490,7 +490,7 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 	if (data->supports_runtime_pm) {
 		pm_runtime_get_sync(&pdev->dev);
 		pm_runtime_disable(&pdev->dev);
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 	}
 	if (data->ci_pdev)
 		ci_hdrc_remove_device(data->ci_pdev);

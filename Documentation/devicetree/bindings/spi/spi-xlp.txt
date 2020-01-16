@@ -14,7 +14,7 @@ Required properties:
 - clocks		: Phandle of the spi clock
 - interrupts		: Interrupt number used by this controller.
 
-SPI slave nodes must be children of the SPI master node and can contain
+SPI slave yesdes must be children of the SPI master yesde and can contain
 properties described in Documentation/devicetree/bindings/spi/spi-bus.txt.
 
 Example:
@@ -28,7 +28,7 @@ Example:
 		interrupts = <34>;
 		interrupt-parent = <&pic>;
 
-		spi_nor@1 {
+		spi_yesr@1 {
 			compatible = "spansion,s25sl12801";
 			#address-cells = <1>;
 			#size-cells = <1>;

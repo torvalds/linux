@@ -18,9 +18,9 @@
 
 static const struct dentry_operations proc_sys_dentry_operations;
 static const struct file_operations proc_sys_file_operations;
-static const struct inode_operations proc_sys_inode_operations;
+static const struct iyesde_operations proc_sys_iyesde_operations;
 static const struct file_operations proc_sys_dir_file_operations;
-static const struct inode_operations proc_sys_dir_operations;
+static const struct iyesde_operations proc_sys_dir_operations;
 
 /* shared constants to be used in various sysctls */
 const int sysctl_vals[] = { 0, 1, INT_MAX };
@@ -48,7 +48,7 @@ static void clear_empty_dir(struct ctl_dir *dir)
 	dir->header.ctl_table[0].child = NULL;
 }
 
-void proc_sys_poll_notify(struct ctl_table_poll *poll)
+void proc_sys_poll_yestify(struct ctl_table_poll *poll)
 {
 	if (!poll)
 		return;
@@ -111,24 +111,24 @@ static struct ctl_table *find_entry(struct ctl_table_header **phead,
 {
 	struct ctl_table_header *head;
 	struct ctl_table *entry;
-	struct rb_node *node = dir->root.rb_node;
+	struct rb_yesde *yesde = dir->root.rb_yesde;
 
-	while (node)
+	while (yesde)
 	{
-		struct ctl_node *ctl_node;
+		struct ctl_yesde *ctl_yesde;
 		const char *procname;
 		int cmp;
 
-		ctl_node = rb_entry(node, struct ctl_node, node);
-		head = ctl_node->header;
-		entry = &head->ctl_table[ctl_node - head->node];
+		ctl_yesde = rb_entry(yesde, struct ctl_yesde, yesde);
+		head = ctl_yesde->header;
+		entry = &head->ctl_table[ctl_yesde - head->yesde];
 		procname = entry->procname;
 
 		cmp = namecmp(name, namelen, procname, strlen(procname));
 		if (cmp < 0)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (cmp > 0)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else {
 			*phead = head;
 			return entry;
@@ -139,23 +139,23 @@ static struct ctl_table *find_entry(struct ctl_table_header **phead,
 
 static int insert_entry(struct ctl_table_header *head, struct ctl_table *entry)
 {
-	struct rb_node *node = &head->node[entry - head->ctl_table].node;
-	struct rb_node **p = &head->parent->root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde *yesde = &head->yesde[entry - head->ctl_table].yesde;
+	struct rb_yesde **p = &head->parent->root.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	const char *name = entry->procname;
 	int namelen = strlen(name);
 
 	while (*p) {
 		struct ctl_table_header *parent_head;
 		struct ctl_table *parent_entry;
-		struct ctl_node *parent_node;
+		struct ctl_yesde *parent_yesde;
 		const char *parent_name;
 		int cmp;
 
 		parent = *p;
-		parent_node = rb_entry(parent, struct ctl_node, node);
-		parent_head = parent_node->header;
-		parent_entry = &parent_head->ctl_table[parent_node - parent_head->node];
+		parent_yesde = rb_entry(parent, struct ctl_yesde, yesde);
+		parent_head = parent_yesde->header;
+		parent_entry = &parent_head->ctl_table[parent_yesde - parent_head->yesde];
 		parent_name = parent_entry->procname;
 
 		cmp = namecmp(name, namelen, parent_name, strlen(parent_name));
@@ -171,21 +171,21 @@ static int insert_entry(struct ctl_table_header *head, struct ctl_table *entry)
 		}
 	}
 
-	rb_link_node(node, parent, p);
-	rb_insert_color(node, &head->parent->root);
+	rb_link_yesde(yesde, parent, p);
+	rb_insert_color(yesde, &head->parent->root);
 	return 0;
 }
 
 static void erase_entry(struct ctl_table_header *head, struct ctl_table *entry)
 {
-	struct rb_node *node = &head->node[entry - head->ctl_table].node;
+	struct rb_yesde *yesde = &head->yesde[entry - head->ctl_table].yesde;
 
-	rb_erase(node, &head->parent->root);
+	rb_erase(yesde, &head->parent->root);
 }
 
 static void init_header(struct ctl_table_header *head,
 	struct ctl_table_root *root, struct ctl_table_set *set,
-	struct ctl_node *node, struct ctl_table *table)
+	struct ctl_yesde *yesde, struct ctl_table *table)
 {
 	head->ctl_table = table;
 	head->ctl_table_arg = table;
@@ -196,12 +196,12 @@ static void init_header(struct ctl_table_header *head,
 	head->root = root;
 	head->set = set;
 	head->parent = NULL;
-	head->node = node;
-	INIT_HLIST_HEAD(&head->inodes);
-	if (node) {
+	head->yesde = yesde;
+	INIT_HLIST_HEAD(&head->iyesdes);
+	if (yesde) {
 		struct ctl_table *entry;
-		for (entry = table; entry->procname; entry++, node++)
-			node->header = head;
+		for (entry = table; entry->procname; entry++, yesde++)
+			yesde->header = head;
 	}
 }
 
@@ -269,35 +269,35 @@ static void unuse_table(struct ctl_table_header *p)
 
 static void proc_sys_prune_dcache(struct ctl_table_header *head)
 {
-	struct inode *inode;
-	struct proc_inode *ei;
-	struct hlist_node *node;
+	struct iyesde *iyesde;
+	struct proc_iyesde *ei;
+	struct hlist_yesde *yesde;
 	struct super_block *sb;
 
 	rcu_read_lock();
 	for (;;) {
-		node = hlist_first_rcu(&head->inodes);
-		if (!node)
+		yesde = hlist_first_rcu(&head->iyesdes);
+		if (!yesde)
 			break;
-		ei = hlist_entry(node, struct proc_inode, sysctl_inodes);
+		ei = hlist_entry(yesde, struct proc_iyesde, sysctl_iyesdes);
 		spin_lock(&sysctl_lock);
-		hlist_del_init_rcu(&ei->sysctl_inodes);
+		hlist_del_init_rcu(&ei->sysctl_iyesdes);
 		spin_unlock(&sysctl_lock);
 
-		inode = &ei->vfs_inode;
-		sb = inode->i_sb;
-		if (!atomic_inc_not_zero(&sb->s_active))
+		iyesde = &ei->vfs_iyesde;
+		sb = iyesde->i_sb;
+		if (!atomic_inc_yest_zero(&sb->s_active))
 			continue;
-		inode = igrab(inode);
+		iyesde = igrab(iyesde);
 		rcu_read_unlock();
-		if (unlikely(!inode)) {
+		if (unlikely(!iyesde)) {
 			deactivate_super(sb);
 			rcu_read_lock();
 			continue;
 		}
 
-		d_prune_aliases(inode);
-		iput(inode);
+		d_prune_aliases(iyesde);
+		iput(iyesde);
 		deactivate_super(sb);
 
 		rcu_read_lock();
@@ -309,7 +309,7 @@ static void proc_sys_prune_dcache(struct ctl_table_header *head)
 static void start_unregistering(struct ctl_table_header *p)
 {
 	/*
-	 * if p->used is 0, nobody will ever touch that entry again;
+	 * if p->used is 0, yesbody will ever touch that entry again;
 	 * we'll eliminate all paths to it before dropping sysctl_lock
 	 */
 	if (unlikely(p->used)) {
@@ -319,7 +319,7 @@ static void start_unregistering(struct ctl_table_header *p)
 		spin_unlock(&sysctl_lock);
 		wait_for_completion(&wait);
 	} else {
-		/* anything non-NULL; we'll never dereference it */
+		/* anything yesn-NULL; we'll never dereference it */
 		p->unregistering = ERR_PTR(-EINVAL);
 		spin_unlock(&sysctl_lock);
 	}
@@ -329,7 +329,7 @@ static void start_unregistering(struct ctl_table_header *p)
 	 */
 	proc_sys_prune_dcache(p);
 	/*
-	 * do not remove from the list until nobody holds it; walking the
+	 * do yest remove from the list until yesbody holds it; walking the
 	 * list in do_sysctl() relies on that.
 	 */
 	spin_lock(&sysctl_lock);
@@ -381,14 +381,14 @@ static struct ctl_table *lookup_entry(struct ctl_table_header **phead,
 	return entry;
 }
 
-static struct ctl_node *first_usable_entry(struct rb_node *node)
+static struct ctl_yesde *first_usable_entry(struct rb_yesde *yesde)
 {
-	struct ctl_node *ctl_node;
+	struct ctl_yesde *ctl_yesde;
 
-	for (;node; node = rb_next(node)) {
-		ctl_node = rb_entry(node, struct ctl_node, node);
-		if (use_table(ctl_node->header))
-			return ctl_node;
+	for (;yesde; yesde = rb_next(yesde)) {
+		ctl_yesde = rb_entry(yesde, struct ctl_yesde, yesde);
+		if (use_table(ctl_yesde->header))
+			return ctl_yesde;
 	}
 	return NULL;
 }
@@ -398,14 +398,14 @@ static void first_entry(struct ctl_dir *dir,
 {
 	struct ctl_table_header *head = NULL;
 	struct ctl_table *entry = NULL;
-	struct ctl_node *ctl_node;
+	struct ctl_yesde *ctl_yesde;
 
 	spin_lock(&sysctl_lock);
-	ctl_node = first_usable_entry(rb_first(&dir->root));
+	ctl_yesde = first_usable_entry(rb_first(&dir->root));
 	spin_unlock(&sysctl_lock);
-	if (ctl_node) {
-		head = ctl_node->header;
-		entry = &head->ctl_table[ctl_node - head->node];
+	if (ctl_yesde) {
+		head = ctl_yesde->header;
+		entry = &head->ctl_table[ctl_yesde - head->yesde];
 	}
 	*phead = head;
 	*pentry = entry;
@@ -415,17 +415,17 @@ static void next_entry(struct ctl_table_header **phead, struct ctl_table **pentr
 {
 	struct ctl_table_header *head = *phead;
 	struct ctl_table *entry = *pentry;
-	struct ctl_node *ctl_node = &head->node[entry - head->ctl_table];
+	struct ctl_yesde *ctl_yesde = &head->yesde[entry - head->ctl_table];
 
 	spin_lock(&sysctl_lock);
 	unuse_table(head);
 
-	ctl_node = first_usable_entry(rb_next(&ctl_node->node));
+	ctl_yesde = first_usable_entry(rb_next(&ctl_yesde->yesde));
 	spin_unlock(&sysctl_lock);
 	head = NULL;
-	if (ctl_node) {
-		head = ctl_node->header;
-		entry = &head->ctl_table[ctl_node - head->node];
+	if (ctl_yesde) {
+		head = ctl_yesde->header;
+		entry = &head->ctl_table[ctl_yesde - head->yesde];
 	}
 	*phead = head;
 	*pentry = entry;
@@ -460,82 +460,82 @@ static int sysctl_perm(struct ctl_table_header *head, struct ctl_table *table, i
 	return test_perm(mode, op);
 }
 
-static struct inode *proc_sys_make_inode(struct super_block *sb,
+static struct iyesde *proc_sys_make_iyesde(struct super_block *sb,
 		struct ctl_table_header *head, struct ctl_table *table)
 {
 	struct ctl_table_root *root = head->root;
-	struct inode *inode;
-	struct proc_inode *ei;
+	struct iyesde *iyesde;
+	struct proc_iyesde *ei;
 
-	inode = new_inode(sb);
-	if (!inode)
+	iyesde = new_iyesde(sb);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
 
-	inode->i_ino = get_next_ino();
+	iyesde->i_iyes = get_next_iyes();
 
-	ei = PROC_I(inode);
+	ei = PROC_I(iyesde);
 
 	spin_lock(&sysctl_lock);
 	if (unlikely(head->unregistering)) {
 		spin_unlock(&sysctl_lock);
-		iput(inode);
+		iput(iyesde);
 		return ERR_PTR(-ENOENT);
 	}
 	ei->sysctl = head;
 	ei->sysctl_entry = table;
-	hlist_add_head_rcu(&ei->sysctl_inodes, &head->inodes);
+	hlist_add_head_rcu(&ei->sysctl_iyesdes, &head->iyesdes);
 	head->count++;
 	spin_unlock(&sysctl_lock);
 
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
-	inode->i_mode = table->mode;
+	iyesde->i_mtime = iyesde->i_atime = iyesde->i_ctime = current_time(iyesde);
+	iyesde->i_mode = table->mode;
 	if (!S_ISDIR(table->mode)) {
-		inode->i_mode |= S_IFREG;
-		inode->i_op = &proc_sys_inode_operations;
-		inode->i_fop = &proc_sys_file_operations;
+		iyesde->i_mode |= S_IFREG;
+		iyesde->i_op = &proc_sys_iyesde_operations;
+		iyesde->i_fop = &proc_sys_file_operations;
 	} else {
-		inode->i_mode |= S_IFDIR;
-		inode->i_op = &proc_sys_dir_operations;
-		inode->i_fop = &proc_sys_dir_file_operations;
+		iyesde->i_mode |= S_IFDIR;
+		iyesde->i_op = &proc_sys_dir_operations;
+		iyesde->i_fop = &proc_sys_dir_file_operations;
 		if (is_empty_dir(head))
-			make_empty_dir_inode(inode);
+			make_empty_dir_iyesde(iyesde);
 	}
 
 	if (root->set_ownership)
-		root->set_ownership(head, table, &inode->i_uid, &inode->i_gid);
+		root->set_ownership(head, table, &iyesde->i_uid, &iyesde->i_gid);
 	else {
-		inode->i_uid = GLOBAL_ROOT_UID;
-		inode->i_gid = GLOBAL_ROOT_GID;
+		iyesde->i_uid = GLOBAL_ROOT_UID;
+		iyesde->i_gid = GLOBAL_ROOT_GID;
 	}
 
-	return inode;
+	return iyesde;
 }
 
-void proc_sys_evict_inode(struct inode *inode, struct ctl_table_header *head)
+void proc_sys_evict_iyesde(struct iyesde *iyesde, struct ctl_table_header *head)
 {
 	spin_lock(&sysctl_lock);
-	hlist_del_init_rcu(&PROC_I(inode)->sysctl_inodes);
+	hlist_del_init_rcu(&PROC_I(iyesde)->sysctl_iyesdes);
 	if (!--head->count)
 		kfree_rcu(head, rcu);
 	spin_unlock(&sysctl_lock);
 }
 
-static struct ctl_table_header *grab_header(struct inode *inode)
+static struct ctl_table_header *grab_header(struct iyesde *iyesde)
 {
-	struct ctl_table_header *head = PROC_I(inode)->sysctl;
+	struct ctl_table_header *head = PROC_I(iyesde)->sysctl;
 	if (!head)
 		head = &sysctl_table_root.default_set.dir.header;
 	return sysctl_head_grab(head);
 }
 
-static struct dentry *proc_sys_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *proc_sys_lookup(struct iyesde *dir, struct dentry *dentry,
 					unsigned int flags)
 {
 	struct ctl_table_header *head = grab_header(dir);
 	struct ctl_table_header *h = NULL;
 	const struct qstr *name = &dentry->d_name;
 	struct ctl_table *p;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct dentry *err = ERR_PTR(-ENOENT);
 	struct ctl_dir *ctl_dir;
 	int ret;
@@ -556,14 +556,14 @@ static struct dentry *proc_sys_lookup(struct inode *dir, struct dentry *dentry,
 			goto out;
 	}
 
-	inode = proc_sys_make_inode(dir->i_sb, h ? h : head, p);
-	if (IS_ERR(inode)) {
-		err = ERR_CAST(inode);
+	iyesde = proc_sys_make_iyesde(dir->i_sb, h ? h : head, p);
+	if (IS_ERR(iyesde)) {
+		err = ERR_CAST(iyesde);
 		goto out;
 	}
 
 	d_set_d_op(dentry, &proc_sys_dentry_operations);
-	err = d_splice_alias(inode, dentry);
+	err = d_splice_alias(iyesde, dentry);
 
 out:
 	if (h)
@@ -575,9 +575,9 @@ out:
 static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 		size_t count, loff_t *ppos, int write)
 {
-	struct inode *inode = file_inode(filp);
-	struct ctl_table_header *head = grab_header(inode);
-	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct ctl_table_header *head = grab_header(iyesde);
+	struct ctl_table *table = PROC_I(iyesde)->sysctl_entry;
 	void *new_buf = NULL;
 	ssize_t error;
 
@@ -585,14 +585,14 @@ static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 		return PTR_ERR(head);
 
 	/*
-	 * At this point we know that the sysctl was not unregistered
+	 * At this point we kyesw that the sysctl was yest unregistered
 	 * and won't be until we finish.
 	 */
 	error = -EPERM;
 	if (sysctl_perm(head, table, write ? MAY_WRITE : MAY_READ))
 		goto out;
 
-	/* if that can happen at all, it should be -EINVAL, not -EISDIR */
+	/* if that can happen at all, it should be -EINVAL, yest -EISDIR */
 	error = -EINVAL;
 	if (!table->proc_handler)
 		goto out;
@@ -636,10 +636,10 @@ static ssize_t proc_sys_write(struct file *filp, const char __user *buf,
 	return proc_sys_call_handler(filp, (void __user *)buf, count, ppos, 1);
 }
 
-static int proc_sys_open(struct inode *inode, struct file *filp)
+static int proc_sys_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct ctl_table_header *head = grab_header(inode);
-	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct ctl_table_header *head = grab_header(iyesde);
+	struct ctl_table *table = PROC_I(iyesde)->sysctl_entry;
 
 	/* sysctl was unregistered */
 	if (IS_ERR(head))
@@ -655,9 +655,9 @@ static int proc_sys_open(struct inode *inode, struct file *filp)
 
 static __poll_t proc_sys_poll(struct file *filp, poll_table *wait)
 {
-	struct inode *inode = file_inode(filp);
-	struct ctl_table_header *head = grab_header(inode);
-	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct ctl_table_header *head = grab_header(iyesde);
+	struct ctl_table *table = PROC_I(iyesde)->sysctl_entry;
 	__poll_t ret = DEFAULT_POLLMASK;
 	unsigned long event;
 
@@ -691,9 +691,9 @@ static bool proc_sys_fill_cache(struct file *file,
 				struct ctl_table *table)
 {
 	struct dentry *child, *dir = file->f_path.dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct qstr qname;
-	ino_t ino = 0;
+	iyes_t iyes = 0;
 	unsigned type = DT_UNKNOWN;
 
 	qname.name = table->procname;
@@ -708,14 +708,14 @@ static bool proc_sys_fill_cache(struct file *file,
 			return false;
 		if (d_in_lookup(child)) {
 			struct dentry *res;
-			inode = proc_sys_make_inode(dir->d_sb, head, table);
-			if (IS_ERR(inode)) {
+			iyesde = proc_sys_make_iyesde(dir->d_sb, head, table);
+			if (IS_ERR(iyesde)) {
 				d_lookup_done(child);
 				dput(child);
 				return false;
 			}
 			d_set_d_op(child, &proc_sys_dentry_operations);
-			res = d_splice_alias(inode, child);
+			res = d_splice_alias(iyesde, child);
 			d_lookup_done(child);
 			if (unlikely(res)) {
 				if (IS_ERR(res)) {
@@ -727,11 +727,11 @@ static bool proc_sys_fill_cache(struct file *file,
 			}
 		}
 	}
-	inode = d_inode(child);
-	ino  = inode->i_ino;
-	type = inode->i_mode >> 12;
+	iyesde = d_iyesde(child);
+	iyes  = iyesde->i_iyes;
+	type = iyesde->i_mode >> 12;
 	dput(child);
-	return dir_emit(ctx, qname.name, qname.len, ino, type);
+	return dir_emit(ctx, qname.name, qname.len, iyes, type);
 }
 
 static bool proc_sys_link_fill_cache(struct file *file,
@@ -745,7 +745,7 @@ static bool proc_sys_link_fill_cache(struct file *file,
 	if (IS_ERR(head))
 		return false;
 
-	/* It is not an error if we can not follow the link ignore it */
+	/* It is yest an error if we can yest follow the link igyesre it */
 	if (sysctl_follow_link(&head, &table))
 		goto out;
 
@@ -777,7 +777,7 @@ static int scan(struct ctl_table_header *head, struct ctl_table *table,
 
 static int proc_sys_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct ctl_table_header *head = grab_header(file_inode(file));
+	struct ctl_table_header *head = grab_header(file_iyesde(file));
 	struct ctl_table_header *h = NULL;
 	struct ctl_table *entry;
 	struct ctl_dir *ctl_dir;
@@ -804,25 +804,25 @@ out:
 	return 0;
 }
 
-static int proc_sys_permission(struct inode *inode, int mask)
+static int proc_sys_permission(struct iyesde *iyesde, int mask)
 {
 	/*
-	 * sysctl entries that are not writeable,
-	 * are _NOT_ writeable, capabilities or not.
+	 * sysctl entries that are yest writeable,
+	 * are _NOT_ writeable, capabilities or yest.
 	 */
 	struct ctl_table_header *head;
 	struct ctl_table *table;
 	int error;
 
-	/* Executable files are not allowed under /proc/sys/ */
-	if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode))
+	/* Executable files are yest allowed under /proc/sys/ */
+	if ((mask & MAY_EXEC) && S_ISREG(iyesde->i_mode))
 		return -EACCES;
 
-	head = grab_header(inode);
+	head = grab_header(iyesde);
 	if (IS_ERR(head))
 		return PTR_ERR(head);
 
-	table = PROC_I(inode)->sysctl_entry;
+	table = PROC_I(iyesde)->sysctl_entry;
 	if (!table) /* global root - r-xr-xr-x */
 		error = mask & MAY_WRITE ? -EACCES : 0;
 	else /* Use the permissions on the sysctl table entry */
@@ -834,7 +834,7 @@ static int proc_sys_permission(struct inode *inode, int mask)
 
 static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 	int error;
 
 	if (attr->ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
@@ -844,22 +844,22 @@ static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		return error;
 
-	setattr_copy(inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(iyesde, attr);
+	mark_iyesde_dirty(iyesde);
 	return 0;
 }
 
 static int proc_sys_getattr(const struct path *path, struct kstat *stat,
 			    u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
-	struct ctl_table_header *head = grab_header(inode);
-	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct iyesde *iyesde = d_iyesde(path->dentry);
+	struct ctl_table_header *head = grab_header(iyesde);
+	struct ctl_table *table = PROC_I(iyesde)->sysctl_entry;
 
 	if (IS_ERR(head))
 		return PTR_ERR(head);
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(iyesde, stat);
 	if (table)
 		stat->mode = (stat->mode & S_IFMT) | table->mode;
 
@@ -881,13 +881,13 @@ static const struct file_operations proc_sys_dir_file_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-static const struct inode_operations proc_sys_inode_operations = {
+static const struct iyesde_operations proc_sys_iyesde_operations = {
 	.permission	= proc_sys_permission,
 	.setattr	= proc_sys_setattr,
 	.getattr	= proc_sys_getattr,
 };
 
-static const struct inode_operations proc_sys_dir_operations = {
+static const struct iyesde_operations proc_sys_dir_operations = {
 	.lookup		= proc_sys_lookup,
 	.permission	= proc_sys_permission,
 	.setattr	= proc_sys_setattr,
@@ -898,12 +898,12 @@ static int proc_sys_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
-	return !PROC_I(d_inode(dentry))->sysctl->unregistering;
+	return !PROC_I(d_iyesde(dentry))->sysctl->unregistering;
 }
 
 static int proc_sys_delete(const struct dentry *dentry)
 {
-	return !!PROC_I(d_inode(dentry))->sysctl->unregistering;
+	return !!PROC_I(d_iyesde(dentry))->sysctl->unregistering;
 }
 
 static int sysctl_is_seen(struct ctl_table_header *p)
@@ -925,19 +925,19 @@ static int proc_sys_compare(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	struct ctl_table_header *head;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	/* Although proc doesn't have negative dentries, rcu-walk means
-	 * that inode here can be NULL */
+	 * that iyesde here can be NULL */
 	/* AV: can it, indeed? */
-	inode = d_inode_rcu(dentry);
-	if (!inode)
+	iyesde = d_iyesde_rcu(dentry);
+	if (!iyesde)
 		return 1;
 	if (name->len != len)
 		return 1;
 	if (memcmp(name->name, str, len))
 		return 1;
-	head = rcu_dereference(PROC_I(inode)->sysctl);
+	head = rcu_dereference(PROC_I(iyesde)->sysctl);
 	return !head || !sysctl_is_seen(head);
 }
 
@@ -966,23 +966,23 @@ static struct ctl_dir *new_dir(struct ctl_table_set *set,
 {
 	struct ctl_table *table;
 	struct ctl_dir *new;
-	struct ctl_node *node;
+	struct ctl_yesde *yesde;
 	char *new_name;
 
-	new = kzalloc(sizeof(*new) + sizeof(struct ctl_node) +
+	new = kzalloc(sizeof(*new) + sizeof(struct ctl_yesde) +
 		      sizeof(struct ctl_table)*2 +  namelen + 1,
 		      GFP_KERNEL);
 	if (!new)
 		return NULL;
 
-	node = (struct ctl_node *)(new + 1);
-	table = (struct ctl_table *)(node + 1);
+	yesde = (struct ctl_yesde *)(new + 1);
+	table = (struct ctl_table *)(yesde + 1);
 	new_name = (char *)(table + 2);
 	memcpy(new_name, name, namelen);
 	new_name[namelen] = '\0';
 	table[0].procname = new_name;
 	table[0].mode = S_IFDIR|S_IRUGO|S_IXUGO;
-	init_header(&new->header, set->dir.header.root, set, node, table);
+	init_header(&new->header, set->dir.header.root, set, yesde, table);
 
 	return new;
 }
@@ -993,8 +993,8 @@ static struct ctl_dir *new_dir(struct ctl_table_set *set,
  * @name: The name of the subdirectory to find or create
  * @namelen: The length of name
  *
- * Takes a directory with an elevated reference count so we know that
- * if we drop the lock the directory will not go away.  Upon success
+ * Takes a directory with an elevated reference count so we kyesw that
+ * if we drop the lock the directory will yest go away.  Upon success
  * the reference is moved from @dir to the returned subdirectory.
  * Upon error an error code is returned and the reference on @dir is
  * simply dropped.
@@ -1037,7 +1037,7 @@ found:
 	subdir->header.nreg++;
 failed:
 	if (IS_ERR(subdir)) {
-		pr_err("sysctl could not get directory: ");
+		pr_err("sysctl could yest get directory: ");
 		sysctl_print_dir(dir);
 		pr_cont("/%*.*s %ld\n",
 			namelen, namelen, name, PTR_ERR(subdir));
@@ -1119,7 +1119,7 @@ static int sysctl_check_table_array(const char *path, struct ctl_table *table)
 	if ((table->proc_handler == proc_douintvec) ||
 	    (table->proc_handler == proc_douintvec_minmax)) {
 		if (table->maxlen != sizeof(unsigned int))
-			err |= sysctl_err(path, table, "array not allowed");
+			err |= sysctl_err(path, table, "array yest allowed");
 	}
 
 	return err;
@@ -1164,7 +1164,7 @@ static struct ctl_table_header *new_links(struct ctl_dir *dir, struct ctl_table 
 {
 	struct ctl_table *link_table, *entry, *link;
 	struct ctl_table_header *links;
-	struct ctl_node *node;
+	struct ctl_yesde *yesde;
 	char *link_name;
 	int nr_entries, name_bytes;
 
@@ -1176,7 +1176,7 @@ static struct ctl_table_header *new_links(struct ctl_dir *dir, struct ctl_table 
 	}
 
 	links = kzalloc(sizeof(struct ctl_table_header) +
-			sizeof(struct ctl_node)*nr_entries +
+			sizeof(struct ctl_yesde)*nr_entries +
 			sizeof(struct ctl_table)*(nr_entries + 1) +
 			name_bytes,
 			GFP_KERNEL);
@@ -1184,8 +1184,8 @@ static struct ctl_table_header *new_links(struct ctl_dir *dir, struct ctl_table 
 	if (!links)
 		return NULL;
 
-	node = (struct ctl_node *)(links + 1);
-	link_table = (struct ctl_table *)(node + nr_entries);
+	yesde = (struct ctl_yesde *)(links + 1);
+	link_table = (struct ctl_table *)(yesde + nr_entries);
 	link_name = (char *)&link_table[nr_entries + 1];
 
 	for (link = link_table, entry = table; entry->procname; link++, entry++) {
@@ -1196,7 +1196,7 @@ static struct ctl_table_header *new_links(struct ctl_dir *dir, struct ctl_table 
 		link->data = link_root;
 		link_name += len;
 	}
-	init_header(links, dir->header.root, dir->header.set, node, link_table);
+	init_header(links, dir->header.root, dir->header.set, yesde, link_table);
 	links->nreg = nr_entries;
 
 	return links;
@@ -1282,7 +1282,7 @@ out:
  *
  * The members of the &struct ctl_table structure are used as follows:
  *
- * procname - the name of the sysctl file under /proc/sys. Set to %NULL to not
+ * procname - the name of the sysctl file under /proc/sys. Set to %NULL to yest
  *            enter a sysctl file
  *
  * data - a pointer to data for use by proc_handler
@@ -1297,10 +1297,10 @@ out:
  *
  * extra1, extra2 - extra pointers usable by the proc handler routines
  *
- * Leaf nodes in the sysctl tree will be represented by a single file
- * under /proc; non-leaf nodes will be represented by directories.
+ * Leaf yesdes in the sysctl tree will be represented by a single file
+ * under /proc; yesn-leaf yesdes will be represented by directories.
  *
- * There must be a proc_handler routine for any terminal nodes.
+ * There must be a proc_handler routine for any terminal yesdes.
  * Several default handlers are available to cover common cases -
  *
  * proc_dostring(), proc_dointvec(), proc_dointvec_jiffies(),
@@ -1322,19 +1322,19 @@ struct ctl_table_header *__register_sysctl_table(
 	const char *name, *nextname;
 	struct ctl_dir *dir;
 	struct ctl_table *entry;
-	struct ctl_node *node;
+	struct ctl_yesde *yesde;
 	int nr_entries = 0;
 
 	for (entry = table; entry->procname; entry++)
 		nr_entries++;
 
 	header = kzalloc(sizeof(struct ctl_table_header) +
-			 sizeof(struct ctl_node)*nr_entries, GFP_KERNEL);
+			 sizeof(struct ctl_yesde)*nr_entries, GFP_KERNEL);
 	if (!header)
 		return NULL;
 
-	node = (struct ctl_node *)(header + 1);
-	init_header(header, root, set, node, table);
+	yesde = (struct ctl_yesde *)(header + 1);
+	init_header(header, root, set, yesde, table);
 	if (sysctl_check_table(path, table))
 		goto fail;
 
@@ -1416,7 +1416,7 @@ static int count_subheaders(struct ctl_table *table)
 	int nr_subheaders = 0;
 	struct ctl_table *entry;
 
-	/* special case: no directory and empty directory */
+	/* special case: yes directory and empty directory */
 	if (!table || !table->procname)
 		return 1;
 
@@ -1667,8 +1667,8 @@ static void drop_sysctl_table(struct ctl_table_header *header)
  * unregister_sysctl_table - unregister a sysctl table hierarchy
  * @header: the header returned from register_sysctl_table
  *
- * Unregisters the sysctl table and all children. proc entries may not
- * actually be removed until they are no longer used by anyone.
+ * Unregisters the sysctl table and all children. proc entries may yest
+ * actually be removed until they are yes longer used by anyone.
  */
 void unregister_sysctl_table(struct ctl_table_header * header)
 {

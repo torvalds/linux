@@ -12,7 +12,7 @@
  * through a byte channel.  The byte channel handle must be specified in a
  * Kconfig option.
  *
- * 2) A normal console driver.  Output is sent to the byte channel designated
+ * 2) A yesrmal console driver.  Output is sent to the byte channel designated
  * for stdout in the device tree.  The console driver is for handling kernel
  * printk calls.
  *
@@ -70,18 +70,18 @@ static unsigned int stdout_irq;
 /*
  * Enable the transmit interrupt
  *
- * Unlike a serial device, byte channels have no mechanism for disabling their
+ * Unlike a serial device, byte channels have yes mechanism for disabling their
  * own receive or transmit interrupts.  To emulate that feature, we toggle
  * the IRQ in the kernel.
  *
- * We cannot just blindly call enable_irq() or disable_irq(), because these
- * calls are reference counted.  This means that we cannot call enable_irq()
+ * We canyest just blindly call enable_irq() or disable_irq(), because these
+ * calls are reference counted.  This means that we canyest call enable_irq()
  * if interrupts are already enabled.  This can happen in two situations:
  *
  * 1. The tty layer makes two back-to-back calls to ehv_bc_tty_write()
  * 2. A transmit interrupt occurs while executing ehv_bc_tx_dequeue()
  *
- * To work around this, we keep a flag to tell us if the IRQ is enabled or not.
+ * To work around this, we keep a flag to tell us if the IRQ is enabled or yest.
  */
 static void enable_tx_interrupt(struct ehv_bc_data *bc)
 {
@@ -94,7 +94,7 @@ static void enable_tx_interrupt(struct ehv_bc_data *bc)
 static void disable_tx_interrupt(struct ehv_bc_data *bc)
 {
 	if (bc->tx_irq_enabled) {
-		disable_irq_nosync(bc->tx_irq);
+		disable_irq_yessync(bc->tx_irq);
 		bc->tx_irq_enabled = 0;
 	}
 }
@@ -103,23 +103,23 @@ static void disable_tx_interrupt(struct ehv_bc_data *bc)
  * find the byte channel handle to use for the console
  *
  * The byte channel to be used for the console is specified via a "stdout"
- * property in the /chosen node.
+ * property in the /chosen yesde.
  */
 static int find_console_handle(void)
 {
-	struct device_node *np = of_stdout;
+	struct device_yesde *np = of_stdout;
 	const uint32_t *iprop;
 
-	/* We don't care what the aliased node is actually called.  We only
+	/* We don't care what the aliased yesde is actually called.  We only
 	 * care if it's compatible with "epapr,hv-byte-channel", because that
-	 * indicates that it's a byte channel node.
+	 * indicates that it's a byte channel yesde.
 	 */
 	if (!np || !of_device_is_compatible(np, "epapr,hv-byte-channel"))
 		return 0;
 
 	stdout_irq = irq_of_parse_and_map(np, 0);
 	if (stdout_irq == NO_IRQ) {
-		pr_err("ehv-bc: no 'interrupts' property in %pOF node\n", np);
+		pr_err("ehv-bc: yes 'interrupts' property in %pOF yesde\n", np);
 		return 0;
 	}
 
@@ -128,7 +128,7 @@ static int find_console_handle(void)
 	 */
 	iprop = of_get_property(np, "hv-handle", NULL);
 	if (!iprop) {
-		pr_err("ehv-bc: no 'hv-handle' property in %pOFn node\n",
+		pr_err("ehv-bc: yes 'hv-handle' property in %pOFn yesde\n",
 		       np);
 		return 0;
 	}
@@ -174,12 +174,12 @@ static void ehv_bc_udbg_putc(char c)
 /*
  * early console initialization
  *
- * PowerPC kernels support an early printk console, also known as udbg.
+ * PowerPC kernels support an early printk console, also kyeswn as udbg.
  * This function must be called via the ppc_md.init_early function pointer.
  * At this point, the device tree has been unflattened, so we can obtain the
  * byte channel handle for stdout.
  *
- * We only support displaying of characters (putc).  We do not support
+ * We only support displaying of characters (putc).  We do yest support
  * keyboard input.
  */
 void __init udbg_init_ehv_bc(void)
@@ -268,7 +268,7 @@ static void ehv_bc_console_write(struct console *co, const char *s,
 /*
  * When /dev/console is opened, the kernel iterates the console list looking
  * for one with ->device and then calls that method. On success, it expects
- * the passed-in int* to contain the minor number to use.
+ * the passed-in int* to contain the miyesr number to use.
  */
 static struct tty_driver *ehv_bc_console_device(struct console *co, int *index)
 {
@@ -295,7 +295,7 @@ static struct console ehv_bc_console = {
 static int __init ehv_bc_console_init(void)
 {
 	if (!find_console_handle()) {
-		pr_debug("ehv-bc: stdout is not a byte channel\n");
+		pr_debug("ehv-bc: stdout is yest a byte channel\n");
 		return -ENODEV;
 	}
 
@@ -304,7 +304,7 @@ static int __init ehv_bc_console_init(void)
 	 * handle for udbg.
 	 */
 	if (stdout_bc != CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE)
-		pr_warn("ehv-bc: udbg handle %u is not the stdout handle\n",
+		pr_warn("ehv-bc: udbg handle %u is yest the stdout handle\n",
 			CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE);
 #endif
 
@@ -346,7 +346,7 @@ static irqreturn_t ehv_bc_tty_rx_isr(int irq, void *data)
 
 	/* 'count' is the maximum amount of data the TTY layer can accept at
 	 * this time.  However, during testing, I was never able to get 'count'
-	 * to be less than 'rx_count'.  I'm not sure whether I'm calling it
+	 * to be less than 'rx_count'.  I'm yest sure whether I'm calling it
 	 * correctly.
 	 */
 
@@ -358,7 +358,7 @@ static irqreturn_t ehv_bc_tty_rx_isr(int irq, void *data)
 		 */
 		ev_byte_channel_receive(bc->handle, &len, buffer);
 
-		/* 'len' is now the amount of data that's been received. 'len'
+		/* 'len' is yesw the amount of data that's been received. 'len'
 		 * can't be zero, and most likely it's equal to one.
 		 */
 
@@ -366,7 +366,7 @@ static irqreturn_t ehv_bc_tty_rx_isr(int irq, void *data)
 		ret = tty_insert_flip_string(&bc->port, buffer, len);
 
 		/* 'ret' is the number of bytes that the TTY layer accepted.
-		 * If it's not equal to 'len', then it means the buffer is
+		 * If it's yest equal to 'len', then it means the buffer is
 		 * full, which should never happen.  If it does happen, we can
 		 * exit gracefully, but we drop the last 'len - ret' characters
 		 * that we read from the byte channel.
@@ -445,7 +445,7 @@ static irqreturn_t ehv_bc_tty_tx_isr(int irq, void *data)
  * the data first in a circular buffer, and then dequeue as much of that data
  * as possible.
  *
- * We don't need to worry about whether there is enough room in the buffer for
+ * We don't need to worry about whether there is eyesugh room in the buffer for
  * all the data.  The purpose of ehv_bc_tty_write_room() is to tell the tty
  * layer how much data it can safely send to us.  We guarantee that
  * ehv_bc_tty_write_room() will never lie, so the tty layer will never send us
@@ -486,8 +486,8 @@ static int ehv_bc_tty_write(struct tty_struct *ttys, const unsigned char *s,
  * This function can be called multiple times for a given tty_struct, which is
  * why we initialize bc->ttys in ehv_bc_tty_port_activate() instead.
  *
- * The tty layer will still call this function even if the device was not
- * registered (i.e. tty_register_device() was not called).  This happens
+ * The tty layer will still call this function even if the device was yest
+ * registered (i.e. tty_register_device() was yest called).  This happens
  * because tty_register_device() is optional and some legacy drivers don't
  * use it.  So we need to check for that.
  */
@@ -519,7 +519,7 @@ static void ehv_bc_tty_close(struct tty_struct *ttys, struct file *filp)
  *
  * This is actually a contract between the driver and the tty layer outlining
  * how much write room the driver can guarantee will be sent OR BUFFERED.  This
- * driver MUST honor the return value.
+ * driver MUST hoyesr the return value.
  */
 static int ehv_bc_tty_write_room(struct tty_struct *ttys)
 {
@@ -557,7 +557,7 @@ static void ehv_bc_tty_throttle(struct tty_struct *ttys)
  * Resume sending data to the tty layer
  *
  * This function is called after previously calling ehv_bc_tty_throttle().  The
- * tty layer's input buffers now have more room, so the driver can resume
+ * tty layer's input buffers yesw have more room, so the driver can resume
  * sending it data.
  */
 static void ehv_bc_tty_unthrottle(struct tty_struct *ttys)
@@ -598,7 +598,7 @@ static const struct tty_operations ehv_bc_ops = {
 /*
  * initialize the TTY port
  *
- * This function will only be called once, no matter how many times
+ * This function will only be called once, yes matter how many times
  * ehv_bc_tty_open() is called.  That's why we register the ISR here, and also
  * why we initialize tty_struct-related variables here.
  */
@@ -612,7 +612,7 @@ static int ehv_bc_tty_port_activate(struct tty_port *port,
 
 	ret = request_irq(bc->rx_irq, ehv_bc_tty_rx_isr, 0, "ehv-bc", bc);
 	if (ret < 0) {
-		dev_err(bc->dev, "could not request rx irq %u (ret=%i)\n",
+		dev_err(bc->dev, "could yest request rx irq %u (ret=%i)\n",
 		       bc->rx_irq, ret);
 		return ret;
 	}
@@ -622,7 +622,7 @@ static int ehv_bc_tty_port_activate(struct tty_port *port,
 
 	ret = request_irq(bc->tx_irq, ehv_bc_tty_tx_isr, 0, "ehv-bc", bc);
 	if (ret < 0) {
-		dev_err(bc->dev, "could not request tx irq %u (ret=%i)\n",
+		dev_err(bc->dev, "could yest request tx irq %u (ret=%i)\n",
 		       bc->tx_irq, ret);
 		free_irq(bc->rx_irq, bc);
 		return ret;
@@ -651,7 +651,7 @@ static const struct tty_port_operations ehv_bc_tty_port_ops = {
 
 static int ehv_bc_tty_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct ehv_bc_data *bc;
 	const uint32_t *iprop;
 	unsigned int handle;
@@ -661,14 +661,14 @@ static int ehv_bc_tty_probe(struct platform_device *pdev)
 
 	iprop = of_get_property(np, "hv-handle", NULL);
 	if (!iprop) {
-		dev_err(&pdev->dev, "no 'hv-handle' property in %pOFn node\n",
+		dev_err(&pdev->dev, "yes 'hv-handle' property in %pOFn yesde\n",
 			np);
 		return -ENODEV;
 	}
 
 	/* We already told the console layer that the index for the console
 	 * device is zero, so we need to make sure that we use that index when
-	 * we probe the console byte channel node.
+	 * we probe the console byte channel yesde.
 	 */
 	handle = be32_to_cpu(*iprop);
 	i = (handle == stdout_bc) ? 0 : index++;
@@ -682,7 +682,7 @@ static int ehv_bc_tty_probe(struct platform_device *pdev)
 	bc->rx_irq = irq_of_parse_and_map(np, 0);
 	bc->tx_irq = irq_of_parse_and_map(np, 1);
 	if ((bc->rx_irq == NO_IRQ) || (bc->tx_irq == NO_IRQ)) {
-		dev_err(&pdev->dev, "no 'interrupts' property in %pOFn node\n",
+		dev_err(&pdev->dev, "yes 'interrupts' property in %pOFn yesde\n",
 			np);
 		ret = -ENODEV;
 		goto error;
@@ -695,7 +695,7 @@ static int ehv_bc_tty_probe(struct platform_device *pdev)
 			&pdev->dev);
 	if (IS_ERR(bc->dev)) {
 		ret = PTR_ERR(bc->dev);
-		dev_err(&pdev->dev, "could not register tty (ret=%i)\n", ret);
+		dev_err(&pdev->dev, "could yest register tty (ret=%i)\n", ret);
 		goto error;
 	}
 
@@ -736,21 +736,21 @@ static struct platform_driver ehv_bc_tty_driver = {
  */
 static int __init ehv_bc_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned int count = 0; /* Number of elements in bcs[] */
 	int ret;
 
 	pr_info("ePAPR hypervisor byte channel driver\n");
 
 	/* Count the number of byte channels */
-	for_each_compatible_node(np, NULL, "epapr,hv-byte-channel")
+	for_each_compatible_yesde(np, NULL, "epapr,hv-byte-channel")
 		count++;
 
 	if (!count)
 		return -ENODEV;
 
 	/* The array index of an element in bcs[] is the same as the tty index
-	 * for that element.  If you know the address of an element in the
+	 * for that element.  If you kyesw the address of an element in the
 	 * array, then you can use pointer math (e.g. "bc - bcs") to get its
 	 * tty index.
 	 */
@@ -774,13 +774,13 @@ static int __init ehv_bc_init(void)
 
 	ret = tty_register_driver(ehv_bc_driver);
 	if (ret) {
-		pr_err("ehv-bc: could not register tty driver (ret=%i)\n", ret);
+		pr_err("ehv-bc: could yest register tty driver (ret=%i)\n", ret);
 		goto err_put_tty_driver;
 	}
 
 	ret = platform_driver_register(&ehv_bc_tty_driver);
 	if (ret) {
-		pr_err("ehv-bc: could not register platform driver (ret=%i)\n",
+		pr_err("ehv-bc: could yest register platform driver (ret=%i)\n",
 		       ret);
 		goto err_deregister_tty_driver;
 	}

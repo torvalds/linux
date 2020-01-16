@@ -8,16 +8,16 @@
  */
 
 /dts-v1/;
-#include "exynos5410.dtsi"
+#include "exyyess5410.dtsi"
 #include <dt-bindings/clock/maxim,max77802.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/sound/samsung-i2s.h>
-#include "exynos54xx-odroidxu-leds.dtsi"
+#include "exyyess54xx-odroidxu-leds.dtsi"
 
 / {
 	model = "Hardkernel Odroid XU";
-	compatible = "hardkernel,odroid-xu", "samsung,exynos5410", "samsung,exynos5";
+	compatible = "hardkernel,odroid-xu", "samsung,exyyess5410", "samsung,exyyess5";
 
 	memory@40000000 {
 		device_type = "memory";
@@ -195,7 +195,7 @@
 		inl5-supply = <&buck9_reg>;
 		inl6-supply = <&buck10_reg>;
 		inl7-supply = <&buck9_reg>;
-		/* inl9 supply is BOOST, not configured here */
+		/* inl9 supply is BOOST, yest configured here */
 		inl10-supply = <&buck7_reg>;
 
 		regulators {

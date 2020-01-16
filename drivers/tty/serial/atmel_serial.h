@@ -25,7 +25,7 @@
 #define	ATMEL_US_STTTO		BIT(11)	/* Start Time-out */
 #define	ATMEL_US_SENDA		BIT(12)	/* Send Address */
 #define	ATMEL_US_RSTIT		BIT(13)	/* Reset Iterations */
-#define	ATMEL_US_RSTNACK	BIT(14)	/* Reset Non Acknowledge */
+#define	ATMEL_US_RSTNACK	BIT(14)	/* Reset Non Ackyeswledge */
 #define	ATMEL_US_RETTO		BIT(15)	/* Rearm Time-out */
 #define	ATMEL_US_DTREN		BIT(16)	/* Data Terminal Ready Enable */
 #define	ATMEL_US_DTRDIS		BIT(17)	/* Data Terminal Ready Disable */
@@ -55,7 +55,7 @@
 #define		ATMEL_US_CHRL_6			(1 <<  6)
 #define		ATMEL_US_CHRL_7			(2 <<  6)
 #define		ATMEL_US_CHRL_8			(3 <<  6)
-#define	ATMEL_US_SYNC		BIT(8)		/* Synchronous Mode Select */
+#define	ATMEL_US_SYNC		BIT(8)		/* Synchroyesus Mode Select */
 #define	ATMEL_US_PAR		GENMASK(11, 9)	/* Parity Type */
 #define		ATMEL_US_PAR_EVEN		(0 <<  9)
 #define		ATMEL_US_PAR_ODD		(1 <<  9)
@@ -76,7 +76,7 @@
 #define	ATMEL_US_MODE9		BIT(17)	/* 9-bit Character Length */
 #define	ATMEL_US_CLKO		BIT(18)	/* Clock Output Select */
 #define	ATMEL_US_OVER		BIT(19)	/* Oversampling Mode */
-#define	ATMEL_US_INACK		BIT(20)	/* Inhibit Non Acknowledge */
+#define	ATMEL_US_INACK		BIT(20)	/* Inhibit Non Ackyeswledge */
 #define	ATMEL_US_DSNACK		BIT(21)	/* Disable Successive NACK */
 #define	ATMEL_US_MAX_ITER_MASK	GENMASK(26, 24)	/* Max Iterations */
 #define	ATMEL_US_MAX_ITER(n)	(((n) << 24) & ATMEL_US_MAX_ITER_MASK)
@@ -96,7 +96,7 @@
 #define	ATMEL_US_ITERATION	BIT(10)	/* Max number of Repetitions Reached */
 #define	ATMEL_US_TXBUFE		BIT(11)	/* Transmission Buffer Empty */
 #define	ATMEL_US_RXBUFF		BIT(12)	/* Reception Buffer Full */
-#define	ATMEL_US_NACK		BIT(13)	/* Non Acknowledge */
+#define	ATMEL_US_NACK		BIT(13)	/* Non Ackyeswledge */
 #define	ATMEL_US_RIIC		BIT(16)	/* Ring Indicator Input Change */
 #define	ATMEL_US_DSRIC		BIT(17)	/* Data Set Ready Input Change */
 #define	ATMEL_US_DCDIC		BIT(18)	/* Data Carrier Detect Input Change */

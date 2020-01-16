@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>
@@ -90,7 +90,7 @@ static inline void set_page_stable_dat(struct page *page, int order)
 			       "i" (ESSA_SET_STABLE));
 }
 
-static inline void set_page_stable_nodat(struct page *page, int order)
+static inline void set_page_stable_yesdat(struct page *page, int order)
 {
 	int i, rc;
 
@@ -110,7 +110,7 @@ static void mark_kernel_pmd(pud_t *pud, unsigned long addr, unsigned long end)
 	pmd = pmd_offset(pud, addr);
 	do {
 		next = pmd_addr_end(addr, end);
-		if (pmd_none(*pmd) || pmd_large(*pmd))
+		if (pmd_yesne(*pmd) || pmd_large(*pmd))
 			continue;
 		page = virt_to_page(pmd_val(*pmd));
 		set_bit(PG_arch_1, &page->flags);
@@ -127,7 +127,7 @@ static void mark_kernel_pud(p4d_t *p4d, unsigned long addr, unsigned long end)
 	pud = pud_offset(p4d, addr);
 	do {
 		next = pud_addr_end(addr, end);
-		if (pud_none(*pud) || pud_large(*pud))
+		if (pud_yesne(*pud) || pud_large(*pud))
 			continue;
 		if (!pud_folded(*pud)) {
 			page = virt_to_page(pud_val(*pud));
@@ -148,7 +148,7 @@ static void mark_kernel_p4d(pgd_t *pgd, unsigned long addr, unsigned long end)
 	p4d = p4d_offset(pgd, addr);
 	do {
 		next = p4d_addr_end(addr, end);
-		if (p4d_none(*p4d))
+		if (p4d_yesne(*p4d))
 			continue;
 		if (!p4d_folded(*p4d)) {
 			page = virt_to_page(p4d_val(*p4d));
@@ -170,7 +170,7 @@ static void mark_kernel_pgd(void)
 	pgd = pgd_offset_k(addr);
 	do {
 		next = pgd_addr_end(addr, MODULES_END);
-		if (pgd_none(*pgd))
+		if (pgd_yesne(*pgd))
 			continue;
 		if (!pgd_folded(*pgd)) {
 			page = virt_to_page(pgd_val(*pgd));
@@ -181,7 +181,7 @@ static void mark_kernel_pgd(void)
 	} while (pgd++, addr = next, addr != MODULES_END);
 }
 
-void __init cmma_init_nodat(void)
+void __init cmma_init_yesdat(void)
 {
 	struct memblock_region *reg;
 	struct page *page;
@@ -192,7 +192,7 @@ void __init cmma_init_nodat(void)
 	/* Mark pages used in kernel page tables */
 	mark_kernel_pgd();
 
-	/* Set all kernel pages not used for page tables to stable/no-dat */
+	/* Set all kernel pages yest used for page tables to stable/yes-dat */
 	for_each_memblock(memory, reg) {
 		start = memblock_region_memory_base_pfn(reg);
 		end = memblock_region_memory_end_pfn(reg);
@@ -202,7 +202,7 @@ void __init cmma_init_nodat(void)
 				continue;	/* skip page table pages */
 			if (!list_empty(&page->lru))
 				continue;	/* skip free pages */
-			set_page_stable_nodat(page, 0);
+			set_page_stable_yesdat(page, 0);
 		}
 	}
 }
@@ -221,7 +221,7 @@ void arch_alloc_page(struct page *page, int order)
 	if (cmma_flag < 2)
 		set_page_stable_dat(page, order);
 	else
-		set_page_stable_nodat(page, order);
+		set_page_stable_yesdat(page, order);
 }
 
 void arch_set_page_dat(struct page *page, int order)
@@ -231,14 +231,14 @@ void arch_set_page_dat(struct page *page, int order)
 	set_page_stable_dat(page, order);
 }
 
-void arch_set_page_nodat(struct page *page, int order)
+void arch_set_page_yesdat(struct page *page, int order)
 {
 	if (cmma_flag < 2)
 		return;
-	set_page_stable_nodat(page, order);
+	set_page_stable_yesdat(page, order);
 }
 
-int arch_test_page_nodat(struct page *page)
+int arch_test_page_yesdat(struct page *page)
 {
 	unsigned char state;
 

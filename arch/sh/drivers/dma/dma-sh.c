@@ -80,7 +80,7 @@ static inline unsigned int get_dmte_irq(unsigned int chan)
 
 /*
  * We determine the correct shift size based off of the CHCR transmit size
- * for the given channel. Since we know that it will take:
+ * for the given channel. Since we kyesw that it will take:
  *
  *	info->count >> ts_shift[transmit_size]
  *
@@ -200,7 +200,7 @@ static int sh_dmac_xfer_dma(struct dma_channel *chan)
 	sh_dmac_disable_dma(chan);
 
 	/*
-	 * Single-address mode usage note!
+	 * Single-address mode usage yeste!
 	 *
 	 * It's important that we don't accidentally write any value to SAR/DAR
 	 * (this includes 0) that hasn't been directly specified by the user if
@@ -257,19 +257,19 @@ static int sh_dmac_get_dma_residue(struct dma_channel *chan)
 #define dmaor_read_reg(n)		__raw_readw(dma_find_base((n)*6))
 #define dmaor_write_reg(n, data)	__raw_writew(data, dma_find_base(n)*6)
 
-static inline int dmaor_reset(int no)
+static inline int dmaor_reset(int yes)
 {
-	unsigned long dmaor = dmaor_read_reg(no);
+	unsigned long dmaor = dmaor_read_reg(yes);
 
 	/* Try to clear the error flags first, incase they are set */
 	dmaor &= ~(DMAOR_NMIF | DMAOR_AE);
-	dmaor_write_reg(no, dmaor);
+	dmaor_write_reg(yes, dmaor);
 
 	dmaor |= DMAOR_INIT;
-	dmaor_write_reg(no, dmaor);
+	dmaor_write_reg(yes, dmaor);
 
 	/* See if we got an error again */
-	if ((dmaor_read_reg(no) & (DMAOR_AE | DMAOR_NMIF))) {
+	if ((dmaor_read_reg(yes) & (DMAOR_AE | DMAOR_NMIF))) {
 		printk(KERN_ERR "dma-sh: Can't initialize DMAOR.\n");
 		return -EINVAL;
 	}

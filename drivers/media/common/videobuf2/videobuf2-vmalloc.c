@@ -98,14 +98,14 @@ static void *vb2_vmalloc_get_userptr(struct device *dev, unsigned long vaddr,
 		unsigned long *nums = frame_vector_pfns(vec);
 
 		/*
-		 * We cannot get page pointers for these pfns. Check memory is
+		 * We canyest get page pointers for these pfns. Check memory is
 		 * physically contiguous and use direct mapping.
 		 */
 		for (i = 1; i < n_pages; i++)
 			if (nums[i-1] + 1 != nums[i])
 				goto fail_map;
 		buf->vaddr = (__force void *)
-			ioremap_nocache(__pfn_to_phys(nums[0]), size + offset);
+			ioremap_yescache(__pfn_to_phys(nums[0]), size + offset);
 	} else {
 		buf->vaddr = vm_map_ram(frame_vector_pages(vec), n_pages, -1,
 					PAGE_KERNEL);
@@ -153,7 +153,7 @@ static void *vb2_vmalloc_vaddr(void *buf_priv)
 	struct vb2_vmalloc_buf *buf = buf_priv;
 
 	if (!buf->vaddr) {
-		pr_err("Address of an unallocated plane requested or cannot map user pointer\n");
+		pr_err("Address of an unallocated plane requested or canyest map user pointer\n");
 		return NULL;
 	}
 
@@ -310,7 +310,7 @@ static struct sg_table *vb2_vmalloc_dmabuf_ops_map(
 static void vb2_vmalloc_dmabuf_ops_unmap(struct dma_buf_attachment *db_attach,
 	struct sg_table *sgt, enum dma_data_direction dma_dir)
 {
-	/* nothing to be done here */
+	/* yesthing to be done here */
 }
 
 static void vb2_vmalloc_dmabuf_ops_release(struct dma_buf *dbuf)

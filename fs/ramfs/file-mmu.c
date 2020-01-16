@@ -11,14 +11,14 @@
 
 /*
  * NOTE! This filesystem is probably most useful
- * not as a real filesystem, but as an example of
+ * yest as a real filesystem, but as an example of
  * how virtual filesystems can be written.
  *
  * It doesn't get much simpler than this. Consider
  * that this file implements the full semantics of
  * a POSIX-compliant read-write filesystem.
  *
- * Note in particular how the filesystem does not
+ * Note in particular how the filesystem does yest
  * need to implement any data structures of its own
  * to keep track of the virtual data: using the VFS
  * caches is sufficient.
@@ -42,14 +42,14 @@ const struct file_operations ramfs_file_operations = {
 	.read_iter	= generic_file_read_iter,
 	.write_iter	= generic_file_write_iter,
 	.mmap		= generic_file_mmap,
-	.fsync		= noop_fsync,
+	.fsync		= yesop_fsync,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.llseek		= generic_file_llseek,
 	.get_unmapped_area	= ramfs_mmu_get_unmapped_area,
 };
 
-const struct inode_operations ramfs_file_inode_operations = {
+const struct iyesde_operations ramfs_file_iyesde_operations = {
 	.setattr	= simple_setattr,
 	.getattr	= simple_getattr,
 };

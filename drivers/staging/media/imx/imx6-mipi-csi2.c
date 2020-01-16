@@ -13,7 +13,7 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 #include "imx-media.h"
 
@@ -28,7 +28,7 @@
 
 /*
  * The default maximum bit-rate per lane in Mbps, if the
- * source subdev does not provide V4L2_CID_LINK_FREQ.
+ * source subdev does yest provide V4L2_CID_LINK_FREQ.
  */
 #define CSI2_DEFAULT_MAX_MBPS 849
 
@@ -40,7 +40,7 @@ struct csi2_dev {
 	struct clk             *pllref_clk;
 	struct clk             *pix_clk; /* what is this? */
 	void __iomem           *base;
-	struct v4l2_fwnode_bus_mipi_csi2 bus;
+	struct v4l2_fwyesde_bus_mipi_csi2 bus;
 
 	/* lock to protect all members below */
 	struct mutex lock;
@@ -79,7 +79,7 @@ struct csi2_dev {
 #define PHY_TESTEN		BIT(16)
 /*
  * i.MX CSI2IPU Gasket registers follow. The CSI2IPU gasket is
- * not part of the MIPI CSI-2 core, but its registers fall in the
+ * yest part of the MIPI CSI-2 core, but its registers fall in the
  * same register map range.
  */
 #define CSI2IPU_GASKET		0xf00
@@ -95,7 +95,7 @@ static inline struct csi2_dev *sd_to_dev(struct v4l2_subdev *sdev)
  * reference manual is as follows:
  *
  * 1. Deassert presetn signal (global reset).
- *        It's not clear what this "global reset" signal is (maybe APB
+ *        It's yest clear what this "global reset" signal is (maybe APB
  *        global reset), but in any case this step would be probably
  *        be carried out during driver load in csi2_probe().
  *
@@ -216,7 +216,7 @@ static int csi2_dphy_init(struct csi2_dev *csi2)
 
 /*
  * Waits for ultra-low-power state on D-PHY clock lane. This is currently
- * unused and may not be needed at all, but keep around just in case.
+ * unused and may yest be needed at all, but keep around just in case.
  */
 static int __maybe_unused csi2_dphy_wait_ulp(struct csi2_dev *csi2)
 {
@@ -231,7 +231,7 @@ static int __maybe_unused csi2_dphy_wait_ulp(struct csi2_dev *csi2)
 		return ret;
 	}
 
-	/* wait until no errors on bus */
+	/* wait until yes errors on bus */
 	ret = readl_poll_timeout(csi2->base + CSI2_ERR1, reg,
 				 reg == 0x0, 0, 500000);
 	if (ret) {
@@ -485,7 +485,7 @@ static int csi2_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 	}
 
-	/* Output pads mirror active input pad, no limits on input pads */
+	/* Output pads mirror active input pad, yes limits on input pads */
 	if (sdformat->pad != CSI2_SINK_PAD)
 		sdformat->format = csi2->format_mbus;
 
@@ -531,14 +531,14 @@ static const struct v4l2_subdev_internal_ops csi2_internal_ops = {
 };
 
 static int csi2_parse_endpoint(struct device *dev,
-			       struct v4l2_fwnode_endpoint *vep,
+			       struct v4l2_fwyesde_endpoint *vep,
 			       struct v4l2_async_subdev *asd)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csi2_dev *csi2 = sd_to_dev(sd);
 
-	if (!fwnode_device_is_available(asd->match.fwnode)) {
-		v4l2_err(&csi2->sd, "remote is not available\n");
+	if (!fwyesde_device_is_available(asd->match.fwyesde)) {
+		v4l2_err(&csi2->sd, "remote is yest available\n");
 		return -EINVAL;
 	}
 
@@ -636,7 +636,7 @@ static int csi2_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, &csi2->sd);
 
-	ret = v4l2_async_register_fwnode_subdev(
+	ret = v4l2_async_register_fwyesde_subdev(
 		&csi2->sd, sizeof(struct v4l2_async_subdev),
 		&sink_port, 1, csi2_parse_endpoint);
 	if (ret)

@@ -29,7 +29,7 @@ static DEFINE_SPINLOCK(syscon_list_slock);
 static LIST_HEAD(syscon_list);
 
 struct syscon {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct regmap *regmap;
 	struct list_head list;
 };
@@ -40,7 +40,7 @@ static const struct regmap_config syscon_regmap_config = {
 	.reg_stride = 4,
 };
 
-static struct syscon *of_syscon_register(struct device_node *np, bool check_clk)
+static struct syscon *of_syscon_register(struct device_yesde *np, bool check_clk)
 {
 	struct clk *clk;
 	struct syscon *syscon;
@@ -66,7 +66,7 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_clk)
 		goto err_map;
 	}
 
-	/* Parse the device's DT node for an endianness specification */
+	/* Parse the device's DT yesde for an endianness specification */
 	if (of_property_read_bool(np, "big-endian"))
 		syscon_config.val_format_endian = REGMAP_ENDIAN_BIG;
 	else if (of_property_read_bool(np, "little-endian"))
@@ -75,9 +75,9 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_clk)
 		syscon_config.val_format_endian = REGMAP_ENDIAN_NATIVE;
 
 	/*
-	 * search for reg-io-width property in DT. If it is not provided,
+	 * search for reg-io-width property in DT. If it is yest provided,
 	 * default to 4 bytes. regmap_init_mmio will return an error if values
-	 * are invalid so there is no need to check them here.
+	 * are invalid so there is yes need to check them here.
 	 */
 	ret = of_property_read_u32(np, "reg-io-width", &reg_io_width);
 	if (ret)
@@ -91,7 +91,7 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_clk)
 	} else if (ret < 0) {
 		switch (ret) {
 		case -ENOENT:
-			/* Ignore missing hwlock, it's optional. */
+			/* Igyesre missing hwlock, it's optional. */
 			break;
 		default:
 			pr_err("Failed to retrieve valid hwlock: %d\n", ret);
@@ -101,7 +101,7 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_clk)
 		}
 	}
 
-	syscon_config.name = of_node_full_name(np);
+	syscon_config.name = of_yesde_full_name(np);
 	syscon_config.reg_stride = reg_io_width;
 	syscon_config.val_bits = reg_io_width * 8;
 	syscon_config.max_register = resource_size(&res) - reg_io_width;
@@ -148,7 +148,7 @@ err_map:
 	return ERR_PTR(ret);
 }
 
-static struct regmap *device_node_get_regmap(struct device_node *np,
+static struct regmap *device_yesde_get_regmap(struct device_yesde *np,
 					     bool check_clk)
 {
 	struct syscon *entry, *syscon = NULL;
@@ -172,41 +172,41 @@ static struct regmap *device_node_get_regmap(struct device_node *np,
 	return syscon->regmap;
 }
 
-struct regmap *device_node_to_regmap(struct device_node *np)
+struct regmap *device_yesde_to_regmap(struct device_yesde *np)
 {
-	return device_node_get_regmap(np, false);
+	return device_yesde_get_regmap(np, false);
 }
-EXPORT_SYMBOL_GPL(device_node_to_regmap);
+EXPORT_SYMBOL_GPL(device_yesde_to_regmap);
 
-struct regmap *syscon_node_to_regmap(struct device_node *np)
+struct regmap *syscon_yesde_to_regmap(struct device_yesde *np)
 {
 	if (!of_device_is_compatible(np, "syscon"))
 		return ERR_PTR(-EINVAL);
 
-	return device_node_get_regmap(np, true);
+	return device_yesde_get_regmap(np, true);
 }
-EXPORT_SYMBOL_GPL(syscon_node_to_regmap);
+EXPORT_SYMBOL_GPL(syscon_yesde_to_regmap);
 
 struct regmap *syscon_regmap_lookup_by_compatible(const char *s)
 {
-	struct device_node *syscon_np;
+	struct device_yesde *syscon_np;
 	struct regmap *regmap;
 
-	syscon_np = of_find_compatible_node(NULL, NULL, s);
+	syscon_np = of_find_compatible_yesde(NULL, NULL, s);
 	if (!syscon_np)
 		return ERR_PTR(-ENODEV);
 
-	regmap = syscon_node_to_regmap(syscon_np);
-	of_node_put(syscon_np);
+	regmap = syscon_yesde_to_regmap(syscon_np);
+	of_yesde_put(syscon_np);
 
 	return regmap;
 }
 EXPORT_SYMBOL_GPL(syscon_regmap_lookup_by_compatible);
 
-struct regmap *syscon_regmap_lookup_by_phandle(struct device_node *np,
+struct regmap *syscon_regmap_lookup_by_phandle(struct device_yesde *np,
 					const char *property)
 {
-	struct device_node *syscon_np;
+	struct device_yesde *syscon_np;
 	struct regmap *regmap;
 
 	if (property)
@@ -217,8 +217,8 @@ struct regmap *syscon_regmap_lookup_by_phandle(struct device_node *np,
 	if (!syscon_np)
 		return ERR_PTR(-ENODEV);
 
-	regmap = syscon_node_to_regmap(syscon_np);
-	of_node_put(syscon_np);
+	regmap = syscon_yesde_to_regmap(syscon_np);
+	of_yesde_put(syscon_np);
 
 	return regmap;
 }

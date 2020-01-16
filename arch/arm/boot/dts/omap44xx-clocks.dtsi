@@ -301,7 +301,7 @@
 
 	dpll_core_m3x2_gate_ck: dpll_core_m3x2_gate_ck@134 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-yes-wait-gate-clock";
 		clocks = <&dpll_core_x2_ck>;
 		ti,bit-shift = <8>;
 		reg = <0x0134>;
@@ -597,7 +597,7 @@
 
 	dpll_per_m3x2_gate_ck: dpll_per_m3x2_gate_ck@154 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-yes-wait-gate-clock";
 		clocks = <&dpll_per_x2_ck>;
 		ti,bit-shift = <8>;
 		reg = <0x0154>;
@@ -797,7 +797,7 @@
 &scrm_clocks {
 	auxclk0_src_gate_ck: auxclk0_src_gate_ck@310 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-yes-wait-gate-clock";
 		clocks = <&dpll_core_m3x2_ck>;
 		ti,bit-shift = <8>;
 		reg = <0x0310>;
@@ -828,7 +828,7 @@
 
 	auxclk1_src_gate_ck: auxclk1_src_gate_ck@314 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-yes-wait-gate-clock";
 		clocks = <&dpll_core_m3x2_ck>;
 		ti,bit-shift = <8>;
 		reg = <0x0314>;
@@ -859,7 +859,7 @@
 
 	auxclk2_src_gate_ck: auxclk2_src_gate_ck@318 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-yes-wait-gate-clock";
 		clocks = <&dpll_core_m3x2_ck>;
 		ti,bit-shift = <8>;
 		reg = <0x0318>;
@@ -890,7 +890,7 @@
 
 	auxclk3_src_gate_ck: auxclk3_src_gate_ck@31c {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-yes-wait-gate-clock";
 		clocks = <&dpll_core_m3x2_ck>;
 		ti,bit-shift = <8>;
 		reg = <0x031c>;
@@ -921,7 +921,7 @@
 
 	auxclk4_src_gate_ck: auxclk4_src_gate_ck@320 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-yes-wait-gate-clock";
 		clocks = <&dpll_core_m3x2_ck>;
 		ti,bit-shift = <8>;
 		reg = <0x0320>;
@@ -952,7 +952,7 @@
 
 	auxclk5_src_gate_ck: auxclk5_src_gate_ck@324 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-yes-wait-gate-clock";
 		clocks = <&dpll_core_m3x2_ck>;
 		ti,bit-shift = <8>;
 		reg = <0x0324>;

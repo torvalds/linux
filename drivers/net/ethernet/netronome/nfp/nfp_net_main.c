@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_net_main.c
- * Netronome network device driver: Main entry point
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Alejandro Lucero <alejandro.lucero@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Netroyesme network device driver: Main entry point
+ * Authors: Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *          Alejandro Lucero <alejandro.lucero@netroyesme.com>
+ *          Jason McMullan <jason.mcmullan@netroyesme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroyesme.com>
  */
 
 #include <linux/etherdevice.h>
@@ -530,7 +530,7 @@ nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 	eth_port = nfp_net_find_port(eth_table, port->eth_id);
 	if (!eth_port) {
 		set_bit(NFP_PORT_CHANGED, &port->flags);
-		nfp_warn(cpp, "Warning: port #%d not present after reconfig\n",
+		nfp_warn(cpp, "Warning: port #%d yest present after reconfig\n",
 			 port->eth_id);
 		return -EIO;
 	}
@@ -673,8 +673,8 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 
 	nfp_net_get_fw_version(&fw_ver, ctrl_bar);
 	if (fw_ver.resv || fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
-		nfp_err(pf->cpp, "Unknown Firmware ABI %d.%d.%d.%d\n",
-			fw_ver.resv, fw_ver.class, fw_ver.major, fw_ver.minor);
+		nfp_err(pf->cpp, "Unkyeswn Firmware ABI %d.%d.%d.%d\n",
+			fw_ver.resv, fw_ver.class, fw_ver.major, fw_ver.miyesr);
 		err = -EINVAL;
 		goto err_unmap;
 	}
@@ -682,7 +682,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	/* Determine stride */
 	if (nfp_net_fw_ver_eq(&fw_ver, 0, 0, 0, 1)) {
 		stride = 2;
-		nfp_warn(pf->cpp, "OBSOLETE Firmware detected - VF isolation not available\n");
+		nfp_warn(pf->cpp, "OBSOLETE Firmware detected - VF isolation yest available\n");
 	} else {
 		switch (fw_ver.major) {
 		case 1 ... 5:
@@ -691,7 +691,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		default:
 			nfp_err(pf->cpp, "Unsupported Firmware ABI %d.%d.%d.%d\n",
 				fw_ver.resv, fw_ver.class,
-				fw_ver.major, fw_ver.minor);
+				fw_ver.major, fw_ver.miyesr);
 			err = -EINVAL;
 			goto err_unmap;
 		}

@@ -18,14 +18,14 @@ struct ctl_table_header;
 struct mempolicy;
 
 /*
- * This is not completely implemented yet. The idea is to
+ * This is yest completely implemented yet. The idea is to
  * create an in-memory tree (like the actual /proc filesystem
  * tree) of these proc_dir_entries, so that we can dynamically
  * add new files to /proc.
  *
  * parent/subdir are used for the directory structure (every /proc file has a
- * parent, but "subdir" is empty for all non-directory entries).
- * subdir_node is used to build the rb tree "subdir" of the parent.
+ * parent, but "subdir" is empty for all yesn-directory entries).
+ * subdir_yesde is used to build the rb tree "subdir" of the parent.
  */
 struct proc_dir_entry {
 	/*
@@ -34,11 +34,11 @@ struct proc_dir_entry {
 	 */
 	atomic_t in_use;
 	refcount_t refcnt;
-	struct list_head pde_openers;	/* who did ->open, but not ->release */
+	struct list_head pde_openers;	/* who did ->open, but yest ->release */
 	/* protects ->pde_openers and all struct pde_opener instances */
 	spinlock_t pde_unload_lock;
 	struct completion *pde_unload_completion;
-	const struct inode_operations *proc_iops;
+	const struct iyesde_operations *proc_iops;
 	const struct file_operations *proc_fops;
 	const struct dentry_operations *proc_dops;
 	union {
@@ -48,14 +48,14 @@ struct proc_dir_entry {
 	proc_write_t write;
 	void *data;
 	unsigned int state_size;
-	unsigned int low_ino;
+	unsigned int low_iyes;
 	nlink_t nlink;
 	kuid_t uid;
 	kgid_t gid;
 	loff_t size;
 	struct proc_dir_entry *parent;
 	struct rb_root subdir;
-	struct rb_node subdir_node;
+	struct rb_yesde subdir_yesde;
 	char *name;
 	umode_t mode;
 	u8 namelen;
@@ -81,44 +81,44 @@ union proc_op {
 	const char *lsm;
 };
 
-struct proc_inode {
+struct proc_iyesde {
 	struct pid *pid;
 	unsigned int fd;
 	union proc_op op;
 	struct proc_dir_entry *pde;
 	struct ctl_table_header *sysctl;
 	struct ctl_table *sysctl_entry;
-	struct hlist_node sysctl_inodes;
+	struct hlist_yesde sysctl_iyesdes;
 	const struct proc_ns_operations *ns_ops;
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 } __randomize_layout;
 
 /*
  * General functions
  */
-static inline struct proc_inode *PROC_I(const struct inode *inode)
+static inline struct proc_iyesde *PROC_I(const struct iyesde *iyesde)
 {
-	return container_of(inode, struct proc_inode, vfs_inode);
+	return container_of(iyesde, struct proc_iyesde, vfs_iyesde);
 }
 
-static inline struct proc_dir_entry *PDE(const struct inode *inode)
+static inline struct proc_dir_entry *PDE(const struct iyesde *iyesde)
 {
-	return PROC_I(inode)->pde;
+	return PROC_I(iyesde)->pde;
 }
 
-static inline void *__PDE_DATA(const struct inode *inode)
+static inline void *__PDE_DATA(const struct iyesde *iyesde)
 {
-	return PDE(inode)->data;
+	return PDE(iyesde)->data;
 }
 
-static inline struct pid *proc_pid(const struct inode *inode)
+static inline struct pid *proc_pid(const struct iyesde *iyesde)
 {
-	return PROC_I(inode)->pid;
+	return PROC_I(iyesde)->pid;
 }
 
-static inline struct task_struct *get_proc_task(const struct inode *inode)
+static inline struct task_struct *get_proc_task(const struct iyesde *iyesde)
 {
-	return get_pid_task(proc_pid(inode), PIDTYPE_PID);
+	return get_pid_task(proc_pid(iyesde), PIDTYPE_PID);
 }
 
 void task_dump_owner(struct task_struct *task, umode_t mode,
@@ -155,8 +155,8 @@ extern int proc_pid_statm(struct seq_file *, struct pid_namespace *,
 extern const struct dentry_operations pid_dentry_operations;
 extern int pid_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern int proc_setattr(struct dentry *, struct iattr *);
-extern struct inode *proc_pid_make_inode(struct super_block *, struct task_struct *, umode_t);
-extern void pid_update_inode(struct task_struct *, struct inode *);
+extern struct iyesde *proc_pid_make_iyesde(struct super_block *, struct task_struct *, umode_t);
+extern void pid_update_iyesde(struct task_struct *, struct iyesde *);
 extern int pid_delete_dentry(const struct dentry *);
 extern int proc_pid_readdir(struct file *, struct dir_context *);
 struct dentry *proc_pid_lookup(struct dentry *, unsigned int);
@@ -175,8 +175,8 @@ struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
 		struct proc_dir_entry **parent, void *data);
 struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
 		struct proc_dir_entry *dp);
-extern struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
-struct dentry *proc_lookup_de(struct inode *, struct dentry *, struct proc_dir_entry *);
+extern struct dentry *proc_lookup(struct iyesde *, struct dentry *, unsigned int);
+struct dentry *proc_lookup_de(struct iyesde *, struct dentry *, struct proc_dir_entry *);
 extern int proc_readdir(struct file *, struct dir_context *);
 int proc_readdir_de(struct file *, struct dir_context *, struct proc_dir_entry *);
 
@@ -194,7 +194,7 @@ static inline bool is_empty_pde(const struct proc_dir_entry *pde)
 extern ssize_t proc_simple_write(struct file *, const char __user *, size_t, loff_t *);
 
 /*
- * inode.c
+ * iyesde.c
  */
 struct pde_opener {
 	struct list_head lh;
@@ -202,26 +202,26 @@ struct pde_opener {
 	bool closing;
 	struct completion *c;
 } __randomize_layout;
-extern const struct inode_operations proc_link_inode_operations;
-extern const struct inode_operations proc_pid_link_inode_operations;
+extern const struct iyesde_operations proc_link_iyesde_operations;
+extern const struct iyesde_operations proc_pid_link_iyesde_operations;
 extern const struct super_operations proc_sops;
 
 void proc_init_kmemcache(void);
 void set_proc_pid_nlink(void);
-extern struct inode *proc_get_inode(struct super_block *, struct proc_dir_entry *);
+extern struct iyesde *proc_get_iyesde(struct super_block *, struct proc_dir_entry *);
 extern void proc_entry_rundown(struct proc_dir_entry *);
 
 /*
  * proc_namespaces.c
  */
-extern const struct inode_operations proc_ns_dir_inode_operations;
+extern const struct iyesde_operations proc_ns_dir_iyesde_operations;
 extern const struct file_operations proc_ns_dir_operations;
 
 /*
  * proc_net.c
  */
 extern const struct file_operations proc_net_operations;
-extern const struct inode_operations proc_net_inode_operations;
+extern const struct iyesde_operations proc_net_iyesde_operations;
 
 #ifdef CONFIG_NET
 extern int proc_net_init(void);
@@ -245,11 +245,11 @@ extern void proc_thread_self_init(void);
  */
 #ifdef CONFIG_PROC_SYSCTL
 extern int proc_sys_init(void);
-extern void proc_sys_evict_inode(struct inode *inode,
+extern void proc_sys_evict_iyesde(struct iyesde *iyesde,
 				 struct ctl_table_header *head);
 #else
 static inline void proc_sys_init(void) { }
-static inline void proc_sys_evict_inode(struct  inode *inode,
+static inline void proc_sys_evict_iyesde(struct  iyesde *iyesde,
 					struct ctl_table_header *head) { }
 #endif
 
@@ -270,11 +270,11 @@ extern struct proc_dir_entry proc_root;
 extern void proc_self_init(void);
 
 /*
- * task_[no]mmu.c
+ * task_[yes]mmu.c
  */
 struct mem_size_stats;
 struct proc_maps_private {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct task_struct *task;
 	struct mm_struct *mm;
 #ifdef CONFIG_MMU
@@ -285,7 +285,7 @@ struct proc_maps_private {
 #endif
 } __randomize_layout;
 
-struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode);
+struct mm_struct *proc_mem_open(struct iyesde *iyesde, unsigned int mode);
 
 extern const struct file_operations proc_pid_maps_operations;
 extern const struct file_operations proc_pid_numa_maps_operations;

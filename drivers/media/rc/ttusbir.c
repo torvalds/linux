@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * TechnoTrend USB IR Receiver
+ * TechyesTrend USB IR Receiver
  *
  * Copyright (C) 2012 Sean Young <sean@mess.org>
  */
@@ -13,11 +13,11 @@
 #include <media/rc-core.h>
 
 #define DRIVER_NAME	"ttusbir"
-#define DRIVER_DESC	"TechnoTrend USB IR Receiver"
+#define DRIVER_DESC	"TechyesTrend USB IR Receiver"
 /*
  * The Windows driver uses 8 URBS, the original lirc drivers has a
  * configurable amount (2 default, 4 max). This device generates about 125
- * messages per second (!), whether IR is idle or not.
+ * messages per second (!), whether IR is idle or yest.
  */
 #define NUM_URBS	4
 #define NS_PER_BYTE	62500
@@ -76,7 +76,7 @@ static void ttusbir_brightness_set(struct led_classdev *led_dev, enum
 }
 
 /*
- * The urb cannot be reused until the urb completes
+ * The urb canyest be reused until the urb completes
  */
 static void ttusbir_bulk_complete(struct urb *urb)
 {
@@ -149,7 +149,7 @@ static void ttusbir_process_ir_data(struct ttusbir *tt, uint8_t *buf)
 		}
 	}
 
-	/* don't wakeup when there's nothing to do */
+	/* don't wakeup when there's yesthing to do */
 	if (event)
 		ir_raw_event_handle(tt->rc);
 }
@@ -224,7 +224,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 	}
 
 	if (altsetting == -1) {
-		dev_err(&intf->dev, "cannot find expected altsetting\n");
+		dev_err(&intf->dev, "canyest find expected altsetting\n");
 		ret = -ENODEV;
 		goto out;
 	}

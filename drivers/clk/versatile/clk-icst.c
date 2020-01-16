@@ -238,7 +238,7 @@ static unsigned long icst_recalc_rate(struct clk_hw *hw,
 		icst->params->ref = parent_rate;
 	ret = vco_get(icst, &vco);
 	if (ret) {
-		pr_err("ICST: could not get VCO setting\n");
+		pr_err("ICST: could yest get VCO setting\n");
 		return 0;
 	}
 	icst->rate = icst_hz(icst->params, vco);
@@ -311,7 +311,7 @@ static int icst_set_rate(struct clk_hw *hw, unsigned long rate,
 		} else if (rate == 33000000) {
 			val = INTEGRATOR_AP_PCI_25_33_MHZ;
 		} else {
-			pr_err("ICST: cannot set PCI frequency %lu\n",
+			pr_err("ICST: canyest set PCI frequency %lu\n",
 			       rate);
 			return -EINVAL;
 		}
@@ -402,7 +402,7 @@ struct clk *icst_clk_register(struct device *dev,
 
 	map = regmap_init_mmio(dev, base, &icst_regmap_conf);
 	if (IS_ERR(map)) {
-		pr_err("could not initialize ICST regmap\n");
+		pr_err("could yest initialize ICST regmap\n");
 		return ERR_CAST(map);
 	}
 	return icst_clk_setup(dev, desc, name, parent_name, map,
@@ -413,7 +413,7 @@ EXPORT_SYMBOL_GPL(icst_clk_register);
 #ifdef CONFIG_OF
 /*
  * In a device tree, an memory-mapped ICST clock appear as a child
- * of a syscon node. Assume this and probe it only as a child of a
+ * of a syscon yesde. Assume this and probe it only as a child of a
  * syscon.
  */
 
@@ -489,9 +489,9 @@ static const struct icst_params icst525_ap_pci_params = {
 	.idx2s		= icst525_idx2s,
 };
 
-static void __init of_syscon_icst_setup(struct device_node *np)
+static void __init of_syscon_icst_setup(struct device_yesde *np)
 {
-	struct device_node *parent;
+	struct device_yesde *parent;
 	struct regmap *map;
 	struct clk_icst_desc icst_desc;
 	const char *name = np->name;
@@ -499,24 +499,24 @@ static void __init of_syscon_icst_setup(struct device_node *np)
 	struct clk *regclk;
 	enum icst_control_type ctype;
 
-	/* We do not release this reference, we are using it perpetually */
+	/* We do yest release this reference, we are using it perpetually */
 	parent = of_get_parent(np);
 	if (!parent) {
-		pr_err("no parent node for syscon ICST clock\n");
+		pr_err("yes parent yesde for syscon ICST clock\n");
 		return;
 	}
-	map = syscon_node_to_regmap(parent);
+	map = syscon_yesde_to_regmap(parent);
 	if (IS_ERR(map)) {
-		pr_err("no regmap for syscon ICST clock parent\n");
+		pr_err("yes regmap for syscon ICST clock parent\n");
 		return;
 	}
 
 	if (of_property_read_u32(np, "vco-offset", &icst_desc.vco_offset)) {
-		pr_err("no VCO register offset for ICST clock\n");
+		pr_err("yes VCO register offset for ICST clock\n");
 		return;
 	}
 	if (of_property_read_u32(np, "lock-offset", &icst_desc.lock_offset)) {
-		pr_err("no lock register offset for ICST clock\n");
+		pr_err("yes lock register offset for ICST clock\n");
 		return;
 	}
 
@@ -542,11 +542,11 @@ static void __init of_syscon_icst_setup(struct device_node *np)
 		icst_desc.params = &icst525_apcp_cm_params;
 		ctype = ICST_INTEGRATOR_CP_CM_MEM;
 	} else {
-		pr_err("unknown ICST clock %s\n", name);
+		pr_err("unkyeswn ICST clock %s\n", name);
 		return;
 	}
 
-	/* Parent clock name is not the same as node parent */
+	/* Parent clock name is yest the same as yesde parent */
 	parent_name = of_clk_get_parent_name(np, 0);
 
 	regclk = icst_clk_setup(NULL, &icst_desc, name, parent_name, map, ctype);

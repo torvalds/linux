@@ -46,7 +46,7 @@ Please refer to slimbus/bus.txt for details of the common SLIMBus bindings.
 	Definition: Should be 0
 
 = NGD Devices
-Each subnode represents an instance of NGD, must contain the following
+Each subyesde represents an instance of NGD, must contain the following
 properties:
 
 - reg:

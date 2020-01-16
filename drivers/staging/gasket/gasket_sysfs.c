@@ -22,7 +22,7 @@ struct gasket_sysfs_mapping {
 	/* The Gasket descriptor for this device. */
 	struct gasket_dev *gasket_dev;
 
-	/* This device's set of sysfs attributes/nodes. */
+	/* This device's set of sysfs attributes/yesdes. */
 	struct gasket_sysfs_attribute *attributes;
 
 	/* The number of live elements in "attributes". */
@@ -68,7 +68,7 @@ static struct gasket_sysfs_mapping *get_mapping(struct device *device)
 		mutex_unlock(&dev_mappings[i].mutex);
 	}
 
-	dev_dbg(device, "%s: Mapping to device %s not found\n",
+	dev_dbg(device, "%s: Mapping to device %s yest found\n",
 		__func__, device->kobj.name);
 	return NULL;
 }
@@ -82,7 +82,7 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 	struct device *device;
 
 	if (!mapping) {
-		pr_debug("%s: Mapping should not be NULL\n", __func__);
+		pr_debug("%s: Mapping should yest be NULL\n", __func__);
 		return;
 	}
 
@@ -90,11 +90,11 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 	if (kref_put(&mapping->refcount, release_entry)) {
 		dev_dbg(mapping->device, "Removing Gasket sysfs mapping\n");
 		/*
-		 * We can't remove the sysfs nodes in the kref callback, since
-		 * device_remove_file() blocks until the node is free.
-		 * Readers/writers of sysfs nodes, though, will be blocked on
+		 * We can't remove the sysfs yesdes in the kref callback, since
+		 * device_remove_file() blocks until the yesde is free.
+		 * Readers/writers of sysfs yesdes, though, will be blocked on
 		 * the mapping mutex, resulting in deadlock. To fix this, the
-		 * sysfs nodes are removed outside the lock.
+		 * sysfs yesdes are removed outside the lock.
 		 */
 		device = mapping->device;
 		num_files_to_remove = mapping->attribute_count;
@@ -232,7 +232,7 @@ int gasket_sysfs_create_entries(struct device *device,
 		i++) {
 		if (mapping->attribute_count == GASKET_SYSFS_MAX_NODES) {
 			dev_err(device,
-				"Maximum number of sysfs nodes reached for device\n");
+				"Maximum number of sysfs yesdes reached for device\n");
 			mutex_unlock(&mapping->mutex);
 			put_mapping(mapping);
 			return -ENOMEM;
@@ -262,7 +262,7 @@ void gasket_sysfs_remove_mapping(struct device *device)
 
 	if (!mapping) {
 		dev_err(device,
-			"Attempted to remove non-existent sysfs mapping to device\n");
+			"Attempted to remove yesn-existent sysfs mapping to device\n");
 		return;
 	}
 
@@ -274,7 +274,7 @@ struct gasket_dev *gasket_sysfs_get_device_data(struct device *device)
 	struct gasket_sysfs_mapping *mapping = get_mapping(device);
 
 	if (!mapping) {
-		dev_err(device, "device not registered\n");
+		dev_err(device, "device yest registered\n");
 		return NULL;
 	}
 
@@ -338,7 +338,7 @@ void gasket_sysfs_put_attr(struct device *device,
 		}
 	}
 
-	dev_err(device, "Unable to put unknown attribute: %s\n",
+	dev_err(device, "Unable to put unkyeswn attribute: %s\n",
 		attr->attr.attr.name);
 }
 EXPORT_SYMBOL(gasket_sysfs_put_attr);

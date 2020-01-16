@@ -17,7 +17,7 @@ properties:
   compatible:
     items:
       - const: sgd,gktw70sdae4se
-      - {} # panel-lvds, but not listed here to avoid false select
+      - {} # panel-lvds, but yest listed here to avoid false select
 
   data-mapping:
     const: jeida-18

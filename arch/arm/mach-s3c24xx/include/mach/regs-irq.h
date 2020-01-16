@@ -35,7 +35,7 @@
 
 /* mask: 0=enable, 1=disable
  * 1 bit EINT, 4=EINT4, 23=EINT23
- * EINT0,1,2,3 are not handled here.
+ * EINT0,1,2,3 are yest handled here.
 */
 
 #define S3C2410_EINTMASK       S3C2410_EINTREG(0x0A4)

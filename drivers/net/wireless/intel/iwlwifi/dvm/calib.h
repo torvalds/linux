@@ -33,12 +33,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -60,7 +60,7 @@
 #include "dev.h"
 #include "commands.h"
 
-void iwl_chain_noise_calibration(struct iwl_priv *priv);
+void iwl_chain_yesise_calibration(struct iwl_priv *priv);
 void iwl_sensitivity_calibration(struct iwl_priv *priv);
 
 void iwl_init_sensitivity(struct iwl_priv *priv);

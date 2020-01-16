@@ -75,14 +75,14 @@ static const struct thermal_zone_of_device_ops gadc_thermal_ops = {
 static int gadc_thermal_read_linear_lookup_table(struct device *dev,
 						 struct gadc_thermal_info *gti)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int ntable;
 	int ret;
 
 	ntable = of_property_count_elems_of_size(np, "temperature-lookup-table",
 						 sizeof(u32));
 	if (ntable <= 0) {
-		dev_notice(dev, "no lookup table, assuming DAC channel returns milliCelcius\n");
+		dev_yestice(dev, "yes lookup table, assuming DAC channel returns milliCelcius\n");
 		return 0;
 	}
 
@@ -115,7 +115,7 @@ static int gadc_thermal_probe(struct platform_device *pdev)
 	struct gadc_thermal_info *gti;
 	int ret;
 
-	if (!pdev->dev.of_node) {
+	if (!pdev->dev.of_yesde) {
 		dev_err(&pdev->dev, "Only DT based supported\n");
 		return -ENODEV;
 	}
@@ -135,7 +135,7 @@ static int gadc_thermal_probe(struct platform_device *pdev)
 	if (IS_ERR(gti->channel)) {
 		ret = PTR_ERR(gti->channel);
 		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "IIO channel not found: %d\n", ret);
+			dev_err(&pdev->dev, "IIO channel yest found: %d\n", ret);
 		return ret;
 	}
 

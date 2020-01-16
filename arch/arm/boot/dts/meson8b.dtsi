@@ -161,7 +161,7 @@
 		/* 2 MiB reserved for Hardware ROM Firmware? */
 		hwrom@0 {
 			reg = <0x0 0x200000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -479,8 +479,8 @@
 		clocks = <&clkc CLKID_PERIPH>;
 
 		/*
-		 * the arm_global_timer driver currently does not handle clock
-		 * rate changes. Keep it disabled for now.
+		 * the arm_global_timer driver currently does yest handle clock
+		 * rate changes. Keep it disabled for yesw.
 		 */
 		status = "disabled";
 	};

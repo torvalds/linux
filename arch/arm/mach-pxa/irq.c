@@ -140,13 +140,13 @@ static const struct irq_domain_ops pxa_irq_ops = {
 };
 
 static __init void
-pxa_init_irq_common(struct device_node *node, int irq_nr,
+pxa_init_irq_common(struct device_yesde *yesde, int irq_nr,
 		    int (*fn)(struct irq_data *, unsigned int))
 {
 	int n;
 
 	pxa_internal_irq_nr = irq_nr;
-	pxa_irq_domain = irq_domain_add_legacy(node, irq_nr,
+	pxa_irq_domain = irq_domain_add_legacy(yesde, irq_nr,
 					       PXA_IRQ(0), 0,
 					       &pxa_irq_ops, NULL);
 	if (!pxa_irq_domain)
@@ -157,7 +157,7 @@ pxa_init_irq_common(struct device_node *node, int irq_nr,
 		void __iomem *base = irq_base(n >> 5);
 
 		__raw_writel(0, base + ICMR);	/* disable all IRQs */
-		__raw_writel(0, base + ICLR);	/* all IRQs are IRQ, not FIQ */
+		__raw_writel(0, base + ICLR);	/* all IRQs are IRQ, yest FIQ */
 	}
 	/* only unmasked interrupts kick us out of idle */
 	__raw_writel(1, irq_base(0) + ICCR);
@@ -232,31 +232,31 @@ static const struct of_device_id intc_ids[] __initconst = {
 
 void __init pxa_dt_irq_init(int (*fn)(struct irq_data *, unsigned int))
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct resource res;
 	int ret;
 
-	node = of_find_matching_node(NULL, intc_ids);
-	if (!node) {
+	yesde = of_find_matching_yesde(NULL, intc_ids);
+	if (!yesde) {
 		pr_err("Failed to find interrupt controller in arch-pxa\n");
 		return;
 	}
 
-	ret = of_property_read_u32(node, "marvell,intc-nr-irqs",
+	ret = of_property_read_u32(yesde, "marvell,intc-nr-irqs",
 				   &pxa_internal_irq_nr);
 	if (ret) {
 		pr_err("Not found marvell,intc-nr-irqs property\n");
 		return;
 	}
 
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(yesde, 0, &res);
 	if (ret < 0) {
-		pr_err("No registers defined for node\n");
+		pr_err("No registers defined for yesde\n");
 		return;
 	}
 	pxa_irq_base = io_p2v(res.start);
 
-	if (of_find_property(node, "marvell,intc-priority", NULL))
+	if (of_find_property(yesde, "marvell,intc-priority", NULL))
 		cpu_has_ipr = 1;
 
 	ret = irq_alloc_descs(-1, 0, pxa_internal_irq_nr, 0);
@@ -265,6 +265,6 @@ void __init pxa_dt_irq_init(int (*fn)(struct irq_data *, unsigned int))
 		return;
 	}
 
-	pxa_init_irq_common(node, pxa_internal_irq_nr, fn);
+	pxa_init_irq_common(yesde, pxa_internal_irq_nr, fn);
 }
 #endif /* CONFIG_OF */

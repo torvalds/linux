@@ -146,16 +146,16 @@ static int ptp_ixp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 
 static int ptp_ixp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
-	s64 now;
+	s64 yesw;
 	unsigned long flags;
 	struct ixp_clock *ixp_clock = container_of(ptp, struct ixp_clock, caps);
 	struct ixp46x_ts_regs *regs = ixp_clock->regs;
 
 	spin_lock_irqsave(&register_lock, flags);
 
-	now = ixp_systime_read(regs);
-	now += delta;
-	ixp_systime_write(regs, now);
+	yesw = ixp_systime_read(regs);
+	yesw += delta;
+	ixp_systime_write(regs, yesw);
 
 	spin_unlock_irqrestore(&register_lock, flags);
 
@@ -260,7 +260,7 @@ static int setup_interrupt(int gpio)
 
 	err = irq_set_irq_type(irq, IRQF_TRIGGER_FALLING);
 	if (err) {
-		pr_err("cannot set trigger type for irq %d\n", irq);
+		pr_err("canyest set trigger type for irq %d\n", irq);
 		return err;
 	}
 
@@ -305,17 +305,17 @@ static int __init ptp_ixp_init(void)
 
 	if (MASTER_IRQ != setup_interrupt(MASTER_GPIO)) {
 		pr_err("failed to setup gpio %d as irq\n", MASTER_GPIO);
-		goto no_master;
+		goto yes_master;
 	}
 	if (SLAVE_IRQ != setup_interrupt(SLAVE_GPIO)) {
 		pr_err("failed to setup gpio %d as irq\n", SLAVE_GPIO);
-		goto no_slave;
+		goto yes_slave;
 	}
 
 	return 0;
-no_slave:
+yes_slave:
 	free_irq(MASTER_IRQ, &ixp_clock);
-no_master:
+yes_master:
 	ptp_clock_unregister(ixp_clock.ptp_clock);
 	return -ENODEV;
 }

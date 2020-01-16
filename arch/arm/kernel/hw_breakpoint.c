@@ -12,7 +12,7 @@
  */
 #define pr_fmt(fmt) "hw-breakpoint: " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hardirq.h>
 #include <linux/perf_event.h>
 #include <linux/hw_breakpoint.h>
@@ -101,7 +101,7 @@ static u32 read_wb_reg(int n)
 	GEN_READ_WB_REG_CASES(ARM_OP2_WVR, val);
 	GEN_READ_WB_REG_CASES(ARM_OP2_WCR, val);
 	default:
-		pr_warn("attempt to read from unknown breakpoint register %d\n",
+		pr_warn("attempt to read from unkyeswn breakpoint register %d\n",
 			n);
 	}
 
@@ -116,7 +116,7 @@ static void write_wb_reg(int n, u32 val)
 	GEN_WRITE_WB_REG_CASES(ARM_OP2_WVR, val);
 	GEN_WRITE_WB_REG_CASES(ARM_OP2_WCR, val);
 	default:
-		pr_warn("attempt to write to unknown breakpoint register %d\n",
+		pr_warn("attempt to write to unkyeswn breakpoint register %d\n",
 			n);
 	}
 	isb();
@@ -129,7 +129,7 @@ static u8 get_debug_arch(void)
 
 	/* Do we implement the extended CPUID interface? */
 	if (((read_cpuid_id() >> 16) & 0xf) != 0xf) {
-		pr_warn_once("CPUID feature registers not supported. "
+		pr_warn_once("CPUID feature registers yest supported. "
 			     "Assuming v6 debug is present.\n");
 		return ARM_DEBUG_ARCH_V6;
 	}
@@ -196,7 +196,7 @@ static int get_num_wrps(void)
 	 *
 	 * Providing we have more than 1 breakpoint register, we only report
 	 * a single watchpoint register for the time being. This way, we always
-	 * know which watchpoint fired. In the future we can either add a
+	 * kyesw which watchpoint fired. In the future we can either add a
 	 * disassembler and address generation emulator, or we can insert a
 	 * check to see if the DFAR is set on watchpoint exception entry
 	 * [the ARM ARM states that the DFAR is UNKNOWN, but experience shows
@@ -219,7 +219,7 @@ static int get_num_brps(void)
  * In order to access the breakpoint/watchpoint control registers,
  * we must be running in debug monitor mode. Unfortunately, we can
  * be put into halting debug mode at any time by an external debugger
- * but there is nothing we can do to prevent that.
+ * but there is yesthing we can do to prevent that.
  */
 static int monitor_mode_enabled(void)
 {
@@ -283,7 +283,7 @@ int hw_breakpoint_slots(int type)
 	case TYPE_DATA:
 		return get_num_wrps();
 	default:
-		pr_warn("unknown slot type: %d\n", type);
+		pr_warn("unkyeswn slot type: %d\n", type);
 		return 0;
 	}
 }
@@ -639,7 +639,7 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 			return -EPERM;
 
 		/*
-		 * Per-cpu breakpoints are not supported by our stepping
+		 * Per-cpu breakpoints are yest supported by our stepping
 		 * mechanism.
 		 */
 		if (!bp->hw.target)
@@ -704,7 +704,7 @@ static void watchpoint_handler(unsigned long addr, unsigned int fsr,
 
 		info = counter_arch_bp(wp);
 		/*
-		 * The DFAR is an unknown value on debug architectures prior
+		 * The DFAR is an unkyeswn value on debug architectures prior
 		 * to 7.1. Since we only allow a single watchpoint on these
 		 * older CPUs, we can set the trigger to the lowest possible
 		 * faulting address.
@@ -745,7 +745,7 @@ static void watchpoint_handler(unsigned long addr, unsigned int fsr,
 		perf_bp_event(wp, regs);
 
 		/*
-		 * If no overflow handler is present, insert a temporary
+		 * If yes overflow handler is present, insert a temporary
 		 * mismatch breakpoint so we can single-step over the
 		 * watchpoint trigger.
 		 */
@@ -789,7 +789,7 @@ unlock:
 	}
 }
 
-static void breakpoint_handler(unsigned long unknown, struct pt_regs *regs)
+static void breakpoint_handler(unsigned long unkyeswn, struct pt_regs *regs)
 {
 	int i;
 	u32 ctrl_reg, val, addr;
@@ -831,7 +831,7 @@ static void breakpoint_handler(unsigned long unknown, struct pt_regs *regs)
 		}
 
 mismatch:
-		/* If we're stepping a breakpoint, it can now be restored. */
+		/* If we're stepping a breakpoint, it can yesw be restored. */
 		if (info->step_ctrl.enabled)
 			disable_single_step(bp);
 unlock:
@@ -866,7 +866,7 @@ static int hw_breakpoint_pending(unsigned long addr, unsigned int fsr,
 		breakpoint_handler(addr, regs);
 		break;
 	case ARM_ENTRY_ASYNC_WATCHPOINT:
-		WARN(1, "Asynchronous watchpoint exception taken. Debugging results may be unreliable\n");
+		WARN(1, "Asynchroyesus watchpoint exception taken. Debugging results may be unreliable\n");
 		/* Fall through */
 	case ARM_ENTRY_SYNC_WATCHPOINT:
 		watchpoint_handler(addr, fsr, regs);
@@ -1026,7 +1026,7 @@ static int dbg_reset_online(unsigned int cpu)
 }
 
 #ifdef CONFIG_CPU_PM
-static int dbg_cpu_pm_notify(struct notifier_block *self, unsigned long action,
+static int dbg_cpu_pm_yestify(struct yestifier_block *self, unsigned long action,
 			     void *v)
 {
 	if (action == CPU_PM_EXIT)
@@ -1035,13 +1035,13 @@ static int dbg_cpu_pm_notify(struct notifier_block *self, unsigned long action,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block dbg_cpu_pm_nb = {
-	.notifier_call = dbg_cpu_pm_notify,
+static struct yestifier_block dbg_cpu_pm_nb = {
+	.yestifier_call = dbg_cpu_pm_yestify,
 };
 
 static void __init pm_init(void)
 {
-	cpu_pm_register_notifier(&dbg_cpu_pm_nb);
+	cpu_pm_register_yestifier(&dbg_cpu_pm_nb);
 }
 #else
 static inline void pm_init(void)
@@ -1062,13 +1062,13 @@ static int __init arch_hw_breakpoint_init(void)
 
 	/*
 	 * Scorpion CPUs (at least those in APQ8060) seem to set DBGPRSR.SPD
-	 * whenever a WFI is issued, even if the core is not powered down, in
+	 * whenever a WFI is issued, even if the core is yest powered down, in
 	 * violation of the architecture.  When DBGPRSR.SPD is set, accesses to
 	 * breakpoint and watchpoint registers are treated as undefined, so
 	 * this results in boot time and runtime failures when these are
 	 * accessed and we unexpectedly take a trap.
 	 *
-	 * It's not clear if/how this can be worked around, so we blacklist
+	 * It's yest clear if/how this can be worked around, so we blacklist
 	 * Scorpion CPUs to avoid these issues.
 	*/
 	if (read_cpuid_part() == ARM_CPU_PART_SCORPION) {
@@ -1091,7 +1091,7 @@ static int __init arch_hw_breakpoint_init(void)
 	register_undef_hook(&debug_reg_hook);
 
 	/*
-	 * Register CPU notifier which resets the breakpoint resources. We
+	 * Register CPU yestifier which resets the breakpoint resources. We
 	 * assume that a halting debugger will leave the world in a nice state
 	 * for us.
 	 */
@@ -1103,7 +1103,7 @@ static int __init arch_hw_breakpoint_init(void)
 		core_num_brps = 0;
 		core_num_wrps = 0;
 		if (ret > 0)
-			cpuhp_remove_state_nocalls_cpuslocked(ret);
+			cpuhp_remove_state_yescalls_cpuslocked(ret);
 		cpus_read_unlock();
 		return 0;
 	}
@@ -1124,7 +1124,7 @@ static int __init arch_hw_breakpoint_init(void)
 			TRAP_HWBKPT, "breakpoint debug exception");
 	cpus_read_unlock();
 
-	/* Register PM notifiers. */
+	/* Register PM yestifiers. */
 	pm_init();
 	return 0;
 }
@@ -1135,9 +1135,9 @@ void hw_breakpoint_pmu_read(struct perf_event *bp)
 }
 
 /*
- * Dummy function to register with die_notifier.
+ * Dummy function to register with die_yestifier.
  */
-int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
+int hw_breakpoint_exceptions_yestify(struct yestifier_block *unused,
 					unsigned long val, void *data)
 {
 	return NOTIFY_DONE;

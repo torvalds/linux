@@ -64,8 +64,8 @@
 #define	SPIE_RXT		BIT(13)	/* RX FIFO threshold */
 #define	SPIE_RXF		BIT(12)	/* RX FIFO full */
 #define	SPIE_TXT		BIT(11)	/* TX FIFO threshold*/
-#define	SPIE_RNE		BIT(9)	/* RX FIFO not empty */
-#define	SPIE_TNF		BIT(8)	/* TX FIFO not full */
+#define	SPIE_RNE		BIT(9)	/* RX FIFO yest empty */
+#define	SPIE_TNF		BIT(8)	/* TX FIFO yest full */
 
 /* SPIM register values */
 #define	SPIM_TXE		BIT(15)	/* TX FIFO empty */
@@ -73,8 +73,8 @@
 #define	SPIM_RXT		BIT(13)	/* RX FIFO threshold */
 #define	SPIM_RXF		BIT(12)	/* RX FIFO full */
 #define	SPIM_TXT		BIT(11)	/* TX FIFO threshold*/
-#define	SPIM_RNE		BIT(9)	/* RX FIFO not empty */
-#define	SPIM_TNF		BIT(8)	/* TX FIFO not full */
+#define	SPIM_RNE		BIT(9)	/* RX FIFO yest empty */
+#define	SPIM_TNF		BIT(8)	/* TX FIFO yest full */
 
 /* SPCOM register values */
 #define SPCOM_CS(x)		((x) << 30)
@@ -172,7 +172,7 @@ static int fsl_espi_check_message(struct spi_message *m)
 	if (!(m->spi->mode & SPI_LSB_FIRST) && first->bits_per_word != 8 &&
 	    first->bits_per_word != 16) {
 		dev_err(espi->dev,
-			"MSB-first transfer not supported for wordsize %u\n",
+			"MSB-first transfer yest supported for wordsize %u\n",
 			first->bits_per_word);
 		return -EINVAL;
 	}
@@ -217,7 +217,7 @@ static void fsl_espi_fill_tx_fifo(struct fsl_espi *espi, u32 events)
 	unsigned int tx_left;
 	const void *tx_buf;
 
-	/* if events is zero transfer has not started and tx fifo is empty */
+	/* if events is zero transfer has yest started and tx fifo is empty */
 	tx_fifo_avail = events ? SPIE_TXCNT(events) :  FSL_ESPI_FIFO_SIZE;
 start:
 	tx_left = espi->tx_t->len - espi->tx_pos;
@@ -262,7 +262,7 @@ start:
 		}
 		espi->tx_t = list_next_entry(espi->tx_t, transfer_list);
 		espi->tx_pos = 0;
-		/* continue with next transfer if tx fifo is not full */
+		/* continue with next transfer if tx fifo is yest full */
 		if (tx_fifo_avail)
 			goto start;
 	}
@@ -314,7 +314,7 @@ start:
 		}
 		espi->rx_t = list_next_entry(espi->rx_t, transfer_list);
 		espi->rx_pos = 0;
-		/* continue with next transfer if rx fifo is not empty */
+		/* continue with next transfer if rx fifo is yest empty */
 		if (rx_fifo_avail)
 			goto start;
 	}
@@ -624,7 +624,7 @@ static void fsl_espi_init_regs(struct device *dev, bool initial)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct fsl_espi *espi = spi_master_get_devdata(master);
-	struct device_node *nc;
+	struct device_yesde *nc;
 	u32 csmode, cs, prop;
 	int ret;
 
@@ -635,7 +635,7 @@ static void fsl_espi_init_regs(struct device *dev, bool initial)
 	fsl_espi_write_reg(espi, ESPI_SPIE, 0xffffffff);
 
 	/* Init eSPI CS mode register */
-	for_each_available_child_of_node(master->dev.of_node, nc) {
+	for_each_available_child_of_yesde(master->dev.of_yesde, nc) {
 		/* get chip select */
 		ret = of_property_read_u32(nc, "reg", &cs);
 		if (ret || cs >= master->num_chipselect)
@@ -682,7 +682,7 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 
 	master->mode_bits = SPI_RX_DUAL | SPI_CPOL | SPI_CPHA | SPI_CS_HIGH |
 			    SPI_LSB_FIRST | SPI_LOOP;
-	master->dev.of_node = dev->of_node;
+	master->dev.of_yesde = dev->of_yesde;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 	master->setup = fsl_espi_setup;
 	master->cleanup = fsl_espi_cleanup;
@@ -738,7 +738,7 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 	return 0;
 
 err_pm:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
 err_probe:
@@ -748,7 +748,7 @@ err_probe:
 
 static int of_fsl_espi_get_chipselects(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	u32 num_cs;
 	int ret;
 
@@ -764,13 +764,13 @@ static int of_fsl_espi_get_chipselects(struct device *dev)
 static int of_fsl_espi_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct resource mem;
 	unsigned int irq, num_cs;
 	int ret;
 
 	if (of_property_read_bool(np, "mode")) {
-		dev_err(dev, "mode property is not supported on ESPI!\n");
+		dev_err(dev, "mode property is yest supported on ESPI!\n");
 		return -EINVAL;
 	}
 

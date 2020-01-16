@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -59,11 +59,11 @@ struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev, int npages)
 	if (ibmr)
 		return ibmr;
 
-	ibmr = kzalloc_node(sizeof(*ibmr), GFP_KERNEL,
-			    rdsibdev_to_node(rds_ibdev));
+	ibmr = kzalloc_yesde(sizeof(*ibmr), GFP_KERNEL,
+			    rdsibdev_to_yesde(rds_ibdev));
 	if (!ibmr) {
 		err = -ENOMEM;
-		goto out_no_cigar;
+		goto out_yes_cigar;
 	}
 
 	fmr = &ibmr->u.fmr;
@@ -77,7 +77,7 @@ struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev, int npages)
 		err = PTR_ERR(fmr->fmr);
 		fmr->fmr = NULL;
 		pr_warn("RDS/IB: %s failed (err=%d)\n", __func__, err);
-		goto out_no_cigar;
+		goto out_yes_cigar;
 	}
 
 	ibmr->pool = pool;
@@ -88,7 +88,7 @@ struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev, int npages)
 
 	return ibmr;
 
-out_no_cigar:
+out_yes_cigar:
 	kfree(ibmr);
 	atomic_dec(&pool->item_count);
 
@@ -150,8 +150,8 @@ static int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev,
 		return -EINVAL;
 	}
 
-	dma_pages = kmalloc_array_node(sizeof(u64), page_cnt, GFP_ATOMIC,
-				       rdsibdev_to_node(rds_ibdev));
+	dma_pages = kmalloc_array_yesde(sizeof(u64), page_cnt, GFP_ATOMIC,
+				       rdsibdev_to_yesde(rds_ibdev));
 	if (!dma_pages) {
 		ib_dma_unmap_sg(dev, sg, nents, DMA_BIDIRECTIONAL);
 		return -ENOMEM;
@@ -263,7 +263,7 @@ void rds_ib_free_fmr_list(struct rds_ib_mr *ibmr)
 	struct rds_ib_mr_pool *pool = ibmr->pool;
 
 	if (ibmr->remap_count >= pool->fmr_attr.max_maps)
-		llist_add(&ibmr->llnode, &pool->drop_list);
+		llist_add(&ibmr->llyesde, &pool->drop_list);
 	else
-		llist_add(&ibmr->llnode, &pool->free_list);
+		llist_add(&ibmr->llyesde, &pool->free_list);
 }

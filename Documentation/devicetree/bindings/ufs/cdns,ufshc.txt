@@ -1,7 +1,7 @@
 * Cadence Universal Flash Storage (UFS) Controller
 
-UFS nodes are defined to describe on-chip UFS host controllers.
-Each UFS controller instance should have its own node.
+UFS yesdes are defined to describe on-chip UFS host controllers.
+Each UFS controller instance should have its own yesde.
 Please see the ufshcd-pltfrm.txt for a list of all available properties.
 
 Required properties:

@@ -4,7 +4,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -218,7 +218,7 @@
 		wakeup-source;
 		debounce-delay-ms = <100>;
 		col-scan-delay-us = <5000>;
-		linux,no-autorepeat;
+		linux,yes-autorepeat;
 	};
 
 	spi_gpio: spi-gpio {
@@ -497,7 +497,7 @@
 	phy-mode = "rmii";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mac1_pins_a>;
-	/* not enabled by default */
+	/* yest enabled by default */
 };
 
 &mxs_rtc {

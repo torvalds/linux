@@ -6,7 +6,7 @@
  *	https://github.com/yuq/sunxi-nfc-mtd
  *	Copyright (C) 2013 Qiang Yu <yuq825@gmail.com>
  *
- *	https://github.com/hno/Allwinner-Info
+ *	https://github.com/hyes/Allwinner-Info
  *	Copyright (C) 2013 Henrik Nordström <Henrik Nordström>
  *
  *	Copyright (C) 2013 Dmitriy B. <rzk333@gmail.com>
@@ -161,7 +161,7 @@
  * struct sunxi_nand_chip_sel - stores information related to NAND Chip Select
  *
  * @cs: the NAND CS id used to communicate with a NAND Chip
- * @rb: the Ready/Busy pin ID. -1 means no R/B pin connected to the NFC
+ * @rb: the Ready/Busy pin ID. -1 means yes R/B pin connected to the NFC
  */
 struct sunxi_nand_chip_sel {
 	u8 cs;
@@ -180,7 +180,7 @@ struct sunxi_nand_hw_ecc {
 /**
  * struct sunxi_nand_chip - stores NAND chip device related information
  *
- * @node: used to store NAND chips into a list
+ * @yesde: used to store NAND chips into a list
  * @nand: base NAND chip structure
  * @clk_rate: clk_rate required for this NAND chip
  * @timing_cfg: TIMING_CFG register value for this NAND chip
@@ -189,7 +189,7 @@ struct sunxi_nand_hw_ecc {
  * @sels: array of CS lines descriptions
  */
 struct sunxi_nand_chip {
-	struct list_head node;
+	struct list_head yesde;
 	struct nand_chip nand;
 	unsigned long clk_rate;
 	u32 timing_cfg;
@@ -580,7 +580,7 @@ static u16 sunxi_nfc_randomizer_step(u16 state, int count)
 
 	/*
 	 * This loop is just a simple implementation of a Fibonacci LFSR using
-	 * the x16 + x15 + 1 polynomial.
+	 * the x16 + x15 + 1 polyyesmial.
 	 */
 	while (count--)
 		state = ((state >> 1) |
@@ -1464,9 +1464,9 @@ static int sunxi_nfc_setup_data_interface(struct nand_chip *nand, int csline,
 		min_clk_period = DIV_ROUND_UP(timings->tRHW_min, 20);
 
 	/*
-	 * In non-EDO, tREA should be less than tRP to guarantee that the
-	 * controller does not sample the IO lines too early. Unfortunately,
-	 * the sunxi NAND controller does not allow us to have different
+	 * In yesn-EDO, tREA should be less than tRP to guarantee that the
+	 * controller does yest sample the IO lines too early. Unfortunately,
+	 * the sunxi NAND controller does yest allow us to have different
 	 * values for tRP and tREH (tRP = tREH = tRW / 2).
 	 *
 	 * We have 2 options to overcome this limitation:
@@ -1508,19 +1508,19 @@ static int sunxi_nfc_setup_data_interface(struct nand_chip *nand, int csline,
 
 	/*
 	 * TODO: according to ONFI specs this value only applies for DDR NAND,
-	 * but Allwinner seems to set this to 0x7. Mimic them for now.
+	 * but Allwinner seems to set this to 0x7. Mimic them for yesw.
 	 */
 	tCAD = 0x7;
 
 	/* TODO: A83 has some more bits for CDQSS, CS, CLHZ, CCS, WC */
 	sunxi_nand->timing_cfg = NFC_TIMING_CFG(tWB, tADL, tWHR, tRHW, tCAD);
 
-	/* Convert min_clk_period from picoseconds to nanoseconds */
+	/* Convert min_clk_period from picoseconds to nayesseconds */
 	min_clk_period = DIV_ROUND_UP(min_clk_period, 1000);
 
 	/*
 	 * Unlike what is stated in Allwinner datasheet, the clk_rate should
-	 * be set to (1 / min_clk_period), and not (2 / min_clk_period).
+	 * be set to (1 / min_clk_period), and yest (2 / min_clk_period).
 	 * This new formula was verified with a scope and validated by
 	 * Allwinner engineers.
 	 */
@@ -1604,7 +1604,7 @@ static void sunxi_nand_hw_ecc_ctrl_cleanup(struct nand_ecc_ctrl *ecc)
 
 static int sunxi_nand_hw_ecc_ctrl_init(struct nand_chip *nand,
 				       struct nand_ecc_ctrl *ecc,
-				       struct device_node *np)
+				       struct device_yesde *np)
 {
 	static const u8 strengths[] = { 16, 24, 28, 32, 40, 48, 56, 60, 64 };
 	struct sunxi_nfc *nfc = to_sunxi_nfc(nand->controller);
@@ -1623,7 +1623,7 @@ static int sunxi_nand_hw_ecc_ctrl_init(struct nand_chip *nand,
 		/* Reserve 2 bytes for the BBM */
 		bytes = (mtd->oobsize - 2) / nsectors;
 
-		/* 4 non-ECC bytes are added before each ECC bytes section */
+		/* 4 yesn-ECC bytes are added before each ECC bytes section */
 		bytes -= 4;
 
 		/* and bytes has to be even. */
@@ -1733,7 +1733,7 @@ static void sunxi_nand_ecc_cleanup(struct nand_ecc_ctrl *ecc)
 static int sunxi_nand_attach_chip(struct nand_chip *nand)
 {
 	struct nand_ecc_ctrl *ecc = &nand->ecc;
-	struct device_node *np = nand_get_flash_node(nand);
+	struct device_yesde *np = nand_get_flash_yesde(nand);
 	int ret;
 
 	if (nand->bbt_options & NAND_BBT_USE_FLASH)
@@ -1886,7 +1886,7 @@ static const struct nand_op_parser sunxi_nfc_op_parser = NAND_OP_PARSER(
 			       NAND_OP_PARSER_PAT_WAITRDY_ELEM(true)),
 );
 
-static const struct nand_op_parser sunxi_nfc_norb_op_parser = NAND_OP_PARSER(
+static const struct nand_op_parser sunxi_nfc_yesrb_op_parser = NAND_OP_PARSER(
 	NAND_OP_PARSER_PATTERN(sunxi_nfc_exec_subop,
 			       NAND_OP_PARSER_PAT_CMD_ELEM(true),
 			       NAND_OP_PARSER_PAT_ADDR_ELEM(true, 8),
@@ -1912,7 +1912,7 @@ static int sunxi_nfc_exec_op(struct nand_chip *nand,
 	if (sunxi_nand->sels[op->cs].rb >= 0)
 		parser = &sunxi_nfc_op_parser;
 	else
-		parser = &sunxi_nfc_norb_op_parser;
+		parser = &sunxi_nfc_yesrb_op_parser;
 
 	return nand_op_parser_exec_op(nand, parser, op, check_only);
 }
@@ -1924,7 +1924,7 @@ static const struct nand_controller_ops sunxi_nand_controller_ops = {
 };
 
 static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
-				struct device_node *np)
+				struct device_yesde *np)
 {
 	struct sunxi_nand_chip *sunxi_nand;
 	struct mtd_info *mtd;
@@ -1946,7 +1946,7 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 	sunxi_nand = devm_kzalloc(dev, struct_size(sunxi_nand, sels, nsels),
 				  GFP_KERNEL);
 	if (!sunxi_nand) {
-		dev_err(dev, "could not allocate chip\n");
+		dev_err(dev, "could yest allocate chip\n");
 		return -ENOMEM;
 	}
 
@@ -1955,7 +1955,7 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 	for (i = 0; i < nsels; i++) {
 		ret = of_property_read_u32_index(np, "reg", i, &tmp);
 		if (ret) {
-			dev_err(dev, "could not retrieve reg property: %d\n",
+			dev_err(dev, "could yest retrieve reg property: %d\n",
 				ret);
 			return ret;
 		}
@@ -1987,11 +1987,11 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 	nand->controller->ops = &sunxi_nand_controller_ops;
 
 	/*
-	 * Set the ECC mode to the default value in case nothing is specified
+	 * Set the ECC mode to the default value in case yesthing is specified
 	 * in the DT.
 	 */
 	nand->ecc.mode = NAND_ECC_HW;
-	nand_set_flash_node(nand, np);
+	nand_set_flash_yesde(nand, np);
 
 	mtd = nand_to_mtd(nand);
 	mtd->dev.parent = dev;
@@ -2007,15 +2007,15 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 		return ret;
 	}
 
-	list_add_tail(&sunxi_nand->node, &nfc->chips);
+	list_add_tail(&sunxi_nand->yesde, &nfc->chips);
 
 	return 0;
 }
 
 static int sunxi_nand_chips_init(struct device *dev, struct sunxi_nfc *nfc)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *nand_np;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *nand_np;
 	int nchips = of_get_child_count(np);
 	int ret;
 
@@ -2024,10 +2024,10 @@ static int sunxi_nand_chips_init(struct device *dev, struct sunxi_nfc *nfc)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_yesde(np, nand_np) {
 		ret = sunxi_nand_chip_init(dev, nfc, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
+			of_yesde_put(nand_np);
 			return ret;
 		}
 	}
@@ -2042,10 +2042,10 @@ static void sunxi_nand_chips_cleanup(struct sunxi_nfc *nfc)
 	while (!list_empty(&nfc->chips)) {
 		sunxi_nand = list_first_entry(&nfc->chips,
 					      struct sunxi_nand_chip,
-					      node);
+					      yesde);
 		nand_release(&sunxi_nand->nand);
 		sunxi_nand_ecc_cleanup(&sunxi_nand->nand.ecc);
-		list_del(&sunxi_nand->node);
+		list_del(&sunxi_nand->yesde);
 	}
 }
 

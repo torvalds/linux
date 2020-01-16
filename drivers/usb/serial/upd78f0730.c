@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2014,2016 Maksim Salau <maksim.salau@gmail.com>
  *
- * Protocol of the adaptor is described in the application note U19660EJ1V0AN00
+ * Protocol of the adaptor is described in the application yeste U19660EJ1V0AN00
  * μPD78F0730 8-bit Single-Chip Microcontroller
  * USB-to-Serial Conversion Software
  * <https://www.renesas.com/en-eu/doc/DocumentServer/026/U19660EJ1V0AN00.pdf>
@@ -12,8 +12,8 @@
  * The adaptor functionality is limited to the following:
  * - data bits: 7 or 8
  * - stop bits: 1 or 2
- * - parity: even, odd or none
- * - flow control: none
+ * - parity: even, odd or yesne
+ * - flow control: yesne
  * - baud rates: 0, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 153600
  * - signals: DTR, RTS and BREAK
  */
@@ -295,7 +295,7 @@ static speed_t upd78f0730_get_baud_rate(struct tty_struct *tty)
 			return baud_rate;
 	}
 
-	/* If the baud rate is not supported, switch to the default one */
+	/* If the baud rate is yest supported, switch to the default one */
 	tty_encode_baud_rate(tty, 9600, 9600);
 
 	return tty_get_baud_rate(tty);
@@ -331,7 +331,7 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 	default:
 		tty->termios.c_cflag &= ~CSIZE;
 		tty->termios.c_cflag |= CS8;
-		dev_warn(dev, "data size is not supported, using 8 bits\n");
+		dev_warn(dev, "data size is yest supported, using 8 bits\n");
 		/* fall through */
 	case CS8:
 		request.params |= UPD78F0730_DATA_SIZE_8_BITS;
@@ -350,11 +350,11 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 
 		if (C_CMSPAR(tty)) {
 			tty->termios.c_cflag &= ~CMSPAR;
-			dev_warn(dev, "MARK/SPACE parity is not supported\n");
+			dev_warn(dev, "MARK/SPACE parity is yest supported\n");
 		}
 	} else {
 		request.params |= UPD78F0730_PARITY_NONE;
-		dev_dbg(dev, "%s - no parity\n", __func__);
+		dev_dbg(dev, "%s - yes parity\n", __func__);
 	}
 
 	if (C_CSTOPB(tty)) {
@@ -367,14 +367,14 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 
 	if (C_CRTSCTS(tty)) {
 		tty->termios.c_cflag &= ~CRTSCTS;
-		dev_warn(dev, "RTSCTS flow control is not supported\n");
+		dev_warn(dev, "RTSCTS flow control is yest supported\n");
 	}
 	if (I_IXOFF(tty) || I_IXON(tty)) {
 		tty->termios.c_iflag &= ~(IXOFF | IXON);
-		dev_warn(dev, "XON/XOFF flow control is not supported\n");
+		dev_warn(dev, "XON/XOFF flow control is yest supported\n");
 	}
 	request.params |= UPD78F0730_FLOW_CONTROL_NONE;
-	dev_dbg(dev, "%s - no flow control\n", __func__);
+	dev_dbg(dev, "%s - yes flow control\n", __func__);
 
 	upd78f0730_send_ctl(port, &request, sizeof(request));
 }

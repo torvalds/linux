@@ -269,7 +269,7 @@ static void pcm990_unmask_irq(struct irq_data *d)
 	int pcm990_irq = (d->irq - PCM027_IRQ(0));
 	u8 val;
 
-	/* the irq can be acknowledged only if deasserted, so it's done here */
+	/* the irq can be ackyeswledged only if deasserted, so it's done here */
 
 	pcm990_irq_enabled |= (1 << pcm990_irq);
 

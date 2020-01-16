@@ -36,7 +36,7 @@
 	sethi	%hi(is_sun4v), %tmp1;		\
 	lduw	[%tmp1 + %lo(is_sun4v)], %tmp1; \
 	brnz,pn	%tmp1, label;			\
-	 nop
+	 yesp
 
 #define BRANCH_IF_CHEETAH_BASE(tmp1,tmp2,label)	\
 	rdpr	%ver, %tmp1;			\
@@ -45,7 +45,7 @@
 	or	%tmp2, %lo(__CHEETAH_ID), %tmp2;\
 	cmp	%tmp1, %tmp2;			\
 	be,pn	%icc, label;			\
-	 nop;
+	 yesp;
 
 #define BRANCH_IF_JALAPENO(tmp1,tmp2,label)	\
 	rdpr	%ver, %tmp1;			\
@@ -54,7 +54,7 @@
 	or	%tmp2, %lo(__JALAPENO_ID), %tmp2;\
 	cmp	%tmp1, %tmp2;			\
 	be,pn	%icc, label;			\
-	 nop;
+	 yesp;
 
 #define BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(tmp1,tmp2,label)	\
 	rdpr	%ver, %tmp1;			\
@@ -65,7 +65,7 @@
 	srlx	%tmp1, (32 + 16), %tmp2;	\
 	cmp	%tmp2, CHEETAH_PLUS_IMPL;	\
 	bgeu,pt	%xcc, label;			\
-99:	 nop;
+99:	 yesp;
 
 #define BRANCH_IF_ANY_CHEETAH(tmp1,tmp2,label)	\
 	rdpr	%ver, %tmp1;			\
@@ -76,6 +76,6 @@
 	srlx	%tmp1, (32 + 16), %tmp2;	\
 	cmp	%tmp2, CHEETAH_IMPL;		\
 	bgeu,pt	%xcc, label;			\
-99:	 nop;
+99:	 yesp;
 
 #endif /* !(_SPARC64_HEAD_H) */

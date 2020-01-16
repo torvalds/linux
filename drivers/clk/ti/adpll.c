@@ -167,7 +167,7 @@ struct ti_adpll_clkout_data {
 struct ti_adpll_data {
 	struct device *dev;
 	const struct ti_adpll_platform_data *c;
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned long pa;
 	void __iomem *iobase;
 	void __iomem *regs;
@@ -226,7 +226,7 @@ static int ti_adpll_setup_clock(struct ti_adpll_data *d, struct clk *clock,
 			return -ENOMEM;
 		d->clocks[index].cl = cl;
 	} else {
-		dev_warn(d->dev, "no con_id for clock %s\n", name);
+		dev_warn(d->dev, "yes con_id for clock %s\n", name);
 	}
 
 	if (output_index < 0)
@@ -385,8 +385,8 @@ static bool ti_adpll_clock_is_bypass(struct ti_adpll_data *d)
 }
 
 /*
- * Locked and bypass are not actually mutually exclusive:  if you only care
- * about the DCO clock and not CLKOUT you can clear M2PWDNZ before enabling
+ * Locked and bypass are yest actually mutually exclusive:  if you only care
+ * about the DCO clock and yest CLKOUT you can clear M2PWDNZ before enabling
  * the PLL, resulting in status (FREQLOCK | PHASELOCK | BYPASS) after lock.
  */
 static bool ti_adpll_is_locked(struct ti_adpll_data *d)
@@ -820,14 +820,14 @@ static int ti_adpll_init_inputs(struct ti_adpll_data *d)
 
 	clock = devm_clk_get(d->dev, d->parent_names[0]);
 	if (IS_ERR(clock)) {
-		dev_err(d->dev, "could not get clkinp\n");
+		dev_err(d->dev, "could yest get clkinp\n");
 		return PTR_ERR(clock);
 	}
 	d->parent_clocks[TI_ADPLL_CLKINP] = clock;
 
 	clock = devm_clk_get(d->dev, d->parent_names[1]);
 	if (IS_ERR(clock)) {
-		dev_err(d->dev, "could not get clkinpulow clock\n");
+		dev_err(d->dev, "could yest get clkinpulow clock\n");
 		return PTR_ERR(clock);
 	}
 	d->parent_clocks[TI_ADPLL_CLKINPULOW] = clock;
@@ -835,7 +835,7 @@ static int ti_adpll_init_inputs(struct ti_adpll_data *d)
 	if (d->c->is_type_s) {
 		clock =  devm_clk_get(d->dev, d->parent_names[2]);
 		if (IS_ERR(clock)) {
-			dev_err(d->dev, "could not get clkinphif clock\n");
+			dev_err(d->dev, "could yest get clkinphif clock\n");
 			return PTR_ERR(clock);
 		}
 		d->parent_clocks[TI_ADPLL_CLKINPHIF] = clock;
@@ -867,7 +867,7 @@ MODULE_DEVICE_TABLE(of, ti_adpll_match);
 
 static int ti_adpll_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
 	const struct ti_adpll_platform_data *pdata;
@@ -885,7 +885,7 @@ static int ti_adpll_probe(struct platform_device *pdev)
 	if (!d)
 		return -ENOMEM;
 	d->dev = dev;
-	d->np = node;
+	d->np = yesde;
 	d->c = pdata;
 	dev_set_drvdata(d->dev, d);
 	spin_lock_init(&d->lock);
@@ -897,7 +897,7 @@ static int ti_adpll_probe(struct platform_device *pdev)
 
 	d->iobase = devm_ioremap_resource(dev, res);
 	if (IS_ERR(d->iobase)) {
-		dev_err(dev, "could not get IO base: %li\n",
+		dev_err(dev, "could yest get IO base: %li\n",
 			PTR_ERR(d->iobase));
 		return PTR_ERR(d->iobase);
 	}
@@ -919,7 +919,7 @@ static int ti_adpll_probe(struct platform_device *pdev)
 
 	err = ti_adpll_init_dco(d);
 	if (err) {
-		dev_err(dev, "could not register dco: %i\n", err);
+		dev_err(dev, "could yest register dco: %i\n", err);
 		goto free;
 	}
 

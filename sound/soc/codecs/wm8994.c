@@ -624,7 +624,7 @@ SOC_SINGLE("AIF2DAC 3D Stereo Switch", WM8994_AIF2_DAC_FILTERS_2,
 	   8, 1, 0),
 };
 
-/* Controls not available on WM1811 */
+/* Controls yest available on WM1811 */
 static const struct snd_kcontrol_new wm8994_snd_controls[] = {
 SOC_DOUBLE_R_TLV("AIF1ADC2 Volume", WM8994_AIF1_ADC2_LEFT_VOLUME,
 		 WM8994_AIF1_ADC2_RIGHT_VOLUME,
@@ -772,7 +772,7 @@ static void active_reference(struct snd_soc_component *component)
 
 	wm8994->active_refcount++;
 
-	dev_dbg(component->dev, "Active refcount incremented, now %d\n",
+	dev_dbg(component->dev, "Active refcount incremented, yesw %d\n",
 		wm8994->active_refcount);
 
 	/* If we're using jack detection go into audio mode */
@@ -790,7 +790,7 @@ static void active_dereference(struct snd_soc_component *component)
 
 	wm8994->active_refcount--;
 
-	dev_dbg(component->dev, "Active refcount decremented, now %d\n",
+	dev_dbg(component->dev, "Active refcount decremented, yesw %d\n",
 		wm8994->active_refcount);
 
 	if (wm8994->active_refcount == 0) {
@@ -819,9 +819,9 @@ static int clk_sys_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		/*
 		 * JACKDET won't run until we start the clock and it
-		 * only reports deltas, make sure we notify the state
+		 * only reports deltas, make sure we yestify the state
 		 * up the stack on startup.  Use a *very* generous
-		 * timeout for paranoia, there's no urgency and we
+		 * timeout for parayesia, there's yes urgency and we
 		 * don't want false reports.
 		 */
 		if (wm8994->jackdet && !wm8994->clk_has_run) {
@@ -848,7 +848,7 @@ static void vmid_reference(struct snd_soc_component *component)
 
 	wm8994->vmid_refcount++;
 
-	dev_dbg(component->dev, "Referencing VMID, refcount is now %d\n",
+	dev_dbg(component->dev, "Referencing VMID, refcount is yesw %d\n",
 		wm8994->vmid_refcount);
 
 	if (wm8994->vmid_refcount == 1) {
@@ -925,7 +925,7 @@ static void vmid_dereference(struct snd_soc_component *component)
 
 	wm8994->vmid_refcount--;
 
-	dev_dbg(component->dev, "Dereferencing VMID, refcount is now %d\n",
+	dev_dbg(component->dev, "Dereferencing VMID, refcount is yesw %d\n",
 		wm8994->vmid_refcount);
 
 	if (wm8994->vmid_refcount == 0) {
@@ -1104,7 +1104,7 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 		if (ret < 0)
 			return ret;
 
-		/* Don't enable timeslot 2 if not in use */
+		/* Don't enable timeslot 2 if yest in use */
 		if (wm8994->channels[0] <= 2)
 			mask &= ~(WM8994_AIF1DAC2L_ENA | WM8994_AIF1DAC2R_ENA);
 
@@ -1606,7 +1606,7 @@ static const struct snd_kcontrol_new aif2adc_mux =
 	SOC_DAPM_ENUM("AIF2ADC Mux", aif2adc_enum);
 
 static const char *aif3adc_text[] = {
-	"AIF1ADCDAT", "AIF2ADCDAT", "AIF2DACDAT", "Mono PCM",
+	"AIF1ADCDAT", "AIF2ADCDAT", "AIF2DACDAT", "Moyes PCM",
 };
 
 static SOC_ENUM_SINGLE_DECL(wm8994_aif3adc_enum,
@@ -1621,15 +1621,15 @@ static SOC_ENUM_SINGLE_DECL(wm8958_aif3adc_enum,
 static const struct snd_kcontrol_new wm8958_aif3adc_mux =
 	SOC_DAPM_ENUM("AIF3ADC Mux", wm8958_aif3adc_enum);
 
-static const char *mono_pcm_out_text[] = {
+static const char *moyes_pcm_out_text[] = {
 	"None", "AIF2ADCL", "AIF2ADCR",
 };
 
-static SOC_ENUM_SINGLE_DECL(mono_pcm_out_enum,
-			    WM8994_POWER_MANAGEMENT_6, 9, mono_pcm_out_text);
+static SOC_ENUM_SINGLE_DECL(moyes_pcm_out_enum,
+			    WM8994_POWER_MANAGEMENT_6, 9, moyes_pcm_out_text);
 
-static const struct snd_kcontrol_new mono_pcm_out_mux =
-	SOC_DAPM_ENUM("Mono PCM Out Mux", mono_pcm_out_enum);
+static const struct snd_kcontrol_new moyes_pcm_out_mux =
+	SOC_DAPM_ENUM("Moyes PCM Out Mux", moyes_pcm_out_enum);
 
 static const char *aif2dac_src_text[] = {
 	"AIF2", "AIF3",
@@ -1837,7 +1837,7 @@ SND_SOC_DAPM_MUX("AIF3ADC Mux", SND_SOC_NOPM, 0, 0, &wm8994_aif3adc_mux),
 
 static const struct snd_soc_dapm_widget wm8958_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("AIF3", WM8994_POWER_MANAGEMENT_6, 5, 1, NULL, 0),
-SND_SOC_DAPM_MUX("Mono PCM Out Mux", SND_SOC_NOPM, 0, 0, &mono_pcm_out_mux),
+SND_SOC_DAPM_MUX("Moyes PCM Out Mux", SND_SOC_NOPM, 0, 0, &moyes_pcm_out_mux),
 SND_SOC_DAPM_MUX("AIF2DACL Mux", SND_SOC_NOPM, 0, 0, &aif2dacl_src_mux),
 SND_SOC_DAPM_MUX("AIF2DACR Mux", SND_SOC_NOPM, 0, 0, &aif2dacr_src_mux),
 SND_SOC_DAPM_MUX("AIF3ADC Mux", SND_SOC_NOPM, 0, 0, &wm8958_aif3adc_mux),
@@ -2088,10 +2088,10 @@ static const struct snd_soc_dapm_route wm8958_intercon[] = {
 	{ "AIF3DACDAT", NULL, "AIF3" },
 	{ "AIF3ADCDAT", NULL, "AIF3" },
 
-	{ "Mono PCM Out Mux", "AIF2ADCL", "AIF2ADCL" },
-	{ "Mono PCM Out Mux", "AIF2ADCR", "AIF2ADCR" },
+	{ "Moyes PCM Out Mux", "AIF2ADCL", "AIF2ADCL" },
+	{ "Moyes PCM Out Mux", "AIF2ADCR", "AIF2ADCR" },
 
-	{ "AIF3ADC Mux", "Mono PCM", "Mono PCM Out Mux" },
+	{ "AIF3ADC Mux", "Moyes PCM", "Moyes PCM Out Mux" },
 };
 
 /* The size in bits of the FLL divide multiplied by 10
@@ -2172,7 +2172,7 @@ static int wm8994_get_fll_config(struct wm8994 *control, struct fll_div *fll,
 		if ((K % 10) >= 5)
 			K += 5;
 
-		/* Move down to proper range now rounding is done */
+		/* Move down to proper range yesw rounding is done */
 		fll->k = K / 10;
 		fll->lambda = 0;
 
@@ -2222,7 +2222,7 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 
 	switch (src) {
 	case 0:
-		/* Allow no source specification when stopping */
+		/* Allow yes source specification when stopping */
 		if (freq_out)
 			return -EINVAL;
 		src = wm8994->fll[id].src;
@@ -2245,7 +2245,7 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 	    wm8994->fll[id].in == freq_in && wm8994->fll[id].out == freq_out)
 		return 0;
 
-	/* If we're stopping the FLL redo the old config - no
+	/* If we're stopping the FLL redo the old config - yes
 	 * registers will actually be written but we avoid GCC flow
 	 * analysis bugs spewing warnings.
 	 */
@@ -2257,7 +2257,7 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 	if (ret < 0)
 		return ret;
 
-	/* Make sure that we're not providing SYSCLK right now */
+	/* Make sure that we're yest providing SYSCLK right yesw */
 	clk1 = snd_soc_component_read32(component, WM8994_CLOCKING_1);
 	if (clk1 & WM8994_SYSCLK_SRC)
 		aif_reg = WM8994_AIF2_CLOCKING_1;
@@ -2544,7 +2544,7 @@ static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
 
 	case WM8994_SYSCLK_OPCLK:
 		/* Special case - a division (times 10) is given and
-		 * no effect on main clocking.
+		 * yes effect on main clocking.
 		 */
 		if (freq) {
 			for (i = 0; i < ARRAY_SIZE(opclk_divs); i++)
@@ -2803,7 +2803,7 @@ static int wm8994_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion yest valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -3003,7 +3003,7 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 		aif2 |= WM8994_AIF1_MONO;
 
 	if (wm8994->aifclk[id] == 0) {
-		dev_err(dai->dev, "AIF%dCLK not configured\n", dai->id);
+		dev_err(dai->dev, "AIF%dCLK yest configured\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -3023,9 +3023,9 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 		dai->id, fs_ratios[best]);
 	rate_val |= best;
 
-	/* We may not get quite the right frequency if using
+	/* We may yest get quite the right frequency if using
 	 * approximate clocks so look for the closest match that is
-	 * higher than the target (we need to ensure that there enough
+	 * higher than the target (we need to ensure that there eyesugh
 	 * BCLKs to clock out the samples).
 	 */
 	best = 0;
@@ -3706,9 +3706,9 @@ static void wm8958_mic_id(void *data, u16 status)
 	struct snd_soc_component *component = data;
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
-	/* Either nothing present or just starting detection */
+	/* Either yesthing present or just starting detection */
 	if (!(status & WM8958_MICD_STS)) {
-		/* If nothing present then clear our statuses */
+		/* If yesthing present then clear our statuses */
 		dev_dbg(component->dev, "Detected open circuit\n");
 
 		queue_delayed_work(system_power_efficient_wq,
@@ -3832,7 +3832,7 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 				   &wm8994->mic_work,
 				   msecs_to_jiffies(delay));
 	} else {
-		dev_dbg(component->dev, "Jack not detected\n");
+		dev_dbg(component->dev, "Jack yest detected\n");
 
 		cancel_delayed_work_sync(&wm8994->mic_work);
 
@@ -4012,7 +4012,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	/*
 	 * Jack detection may have detected a removal simulataneously
 	 * with an update of the MICDET status; if so it will have
-	 * stopped detection and we can ignore this interrupt.
+	 * stopped detection and we can igyesre this interrupt.
 	 */
 	if (!(snd_soc_component_read32(component, WM8958_MIC_DETECT_1) & WM8958_MICD_ENA))
 		return IRQ_HANDLED;
@@ -4037,7 +4037,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 		}
 
 		if (!(reg & WM8958_MICD_VALID)) {
-			dev_dbg(component->dev, "Mic detect data not valid\n");
+			dev_dbg(component->dev, "Mic detect data yest valid\n");
 			goto out;
 		}
 
@@ -4061,7 +4061,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 			dev_err(component->dev, "Failed to read jack status: %d\n",
 				ret);
 		} else if (!(ret & WM1811_JACKDET_LVL)) {
-			dev_dbg(component->dev, "Ignoring removed jack\n");
+			dev_dbg(component->dev, "Igyesring removed jack\n");
 			goto out;
 		}
 	} else if (!(reg & WM8958_MICD_STS)) {
@@ -4191,9 +4191,9 @@ static int wm8994_component_probe(struct snd_soc_component *component)
 
 	case WM1811:
 		wm8994->hubs.dcs_readback_mode = 2;
-		wm8994->hubs.no_series_update = 1;
+		wm8994->hubs.yes_series_update = 1;
 		wm8994->hubs.hp_startup_mode = 1;
-		wm8994->hubs.no_cache_dac_hp_direct = true;
+		wm8994->hubs.yes_cache_dac_hp_direct = true;
 		wm8994->fll_byp = true;
 
 		wm8994->hubs.dcs_codes_l = -9;
@@ -4577,7 +4577,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8994 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int wm8994_probe(struct platform_device *pdev)

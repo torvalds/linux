@@ -604,7 +604,7 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u32 mask, u32 reset_mask,
 
 	memset(req, 0, sizeof(*req));
 
-	/* currently we support only max 24 bit masks so no need to worry
+	/* currently we support only max 24 bit masks so yes need to worry
 	 * about endian support
 	 */
 	memcpy(req->upload_types, &mask, 3);
@@ -1284,13 +1284,13 @@ static int ath10k_htt_tx_hl(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txm
 	}
 
 	/* Prepend the HTT header and TX desc struct to the data message
-	 * and realloc the skb if it does not have enough headroom.
+	 * and realloc the skb if it does yest have eyesugh headroom.
 	 */
 	if (skb_headroom(msdu) < HTT_TX_HL_NEEDED_HEADROOM) {
 		tmp_skb = msdu;
 
 		ath10k_dbg(htt->ar, ATH10K_DBG_HTT,
-			   "Not enough headroom in skb. Current headroom: %u, needed: %u. Reallocating...\n",
+			   "Not eyesugh headroom in skb. Current headroom: %u, needed: %u. Reallocating...\n",
 			   skb_headroom(msdu), HTT_TX_HL_NEEDED_HEADROOM);
 		msdu = skb_realloc_headroom(msdu, HTT_TX_HL_NEEDED_HEADROOM);
 		kfree_skb(tmp_skb);
@@ -1442,17 +1442,17 @@ static int ath10k_htt_tx_32(struct ath10k_htt *htt,
 	}
 
 	/* Normally all commands go through HTC which manages tx credits for
-	 * each endpoint and notifies when tx is completed.
+	 * each endpoint and yestifies when tx is completed.
 	 *
-	 * HTT endpoint is creditless so there's no need to care about HTC
+	 * HTT endpoint is creditless so there's yes need to care about HTC
 	 * flags. In that case it is trivial to fill the HTC header here.
 	 *
 	 * MSDU transmission is considered completed upon HTT event. This
-	 * implies no relevant resources can be freed until after the event is
-	 * received. That's why HTC tx completion handler itself is ignored by
+	 * implies yes relevant resources can be freed until after the event is
+	 * received. That's why HTC tx completion handler itself is igyesred by
 	 * setting NULL to transfer_context for all sg items.
 	 *
-	 * There is simply no point in pushing HTT TX_FRM through HTC tx path
+	 * There is simply yes point in pushing HTT TX_FRM through HTC tx path
 	 * as it's a waste of resources. By bypassing HTC it is possible to
 	 * avoid extra memory allocations, compress data structures and thus
 	 * improve performance.
@@ -1478,7 +1478,7 @@ static int ath10k_htt_tx_32(struct ath10k_htt *htt,
 	}
 
 	/* Prevent firmware from sending up tx inspection requests. There's
-	 * nothing ath10k can do with frames requested for inspection so force
+	 * yesthing ath10k can do with frames requested for inspection so force
 	 * it to simply rely a regular tx completion with discard status.
 	 */
 	flags1 |= HTT_DATA_TX_DESC_FLAGS1_POSTPONED;
@@ -1644,17 +1644,17 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 	}
 
 	/* Normally all commands go through HTC which manages tx credits for
-	 * each endpoint and notifies when tx is completed.
+	 * each endpoint and yestifies when tx is completed.
 	 *
-	 * HTT endpoint is creditless so there's no need to care about HTC
+	 * HTT endpoint is creditless so there's yes need to care about HTC
 	 * flags. In that case it is trivial to fill the HTC header here.
 	 *
 	 * MSDU transmission is considered completed upon HTT event. This
-	 * implies no relevant resources can be freed until after the event is
-	 * received. That's why HTC tx completion handler itself is ignored by
+	 * implies yes relevant resources can be freed until after the event is
+	 * received. That's why HTC tx completion handler itself is igyesred by
 	 * setting NULL to transfer_context for all sg items.
 	 *
-	 * There is simply no point in pushing HTT TX_FRM through HTC tx path
+	 * There is simply yes point in pushing HTT TX_FRM through HTC tx path
 	 * as it's a waste of resources. By bypassing HTC it is possible to
 	 * avoid extra memory allocations, compress data structures and thus
 	 * improve performance.
@@ -1683,7 +1683,7 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 	}
 
 	/* Prevent firmware from sending up tx inspection requests. There's
-	 * nothing ath10k can do with frames requested for inspection so force
+	 * yesthing ath10k can do with frames requested for inspection so force
 	 * it to simply rely a regular tx completion with discard status.
 	 */
 	flags1 |= HTT_DATA_TX_DESC_FLAGS1_POSTPONED;

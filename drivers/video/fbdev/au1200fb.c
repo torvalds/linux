@@ -26,7 +26,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/fb.h>
@@ -182,8 +182,8 @@ static int window_index = DEFAULT_WINDOW_INDEX;	/* default is zero */
 static int panel_index = 2; /* default is zero */
 static struct window_settings *win;
 static struct panel_settings *panel;
-static int noblanking = 1;
-static int nohwcursor = 0;
+static int yesblanking = 1;
+static int yeshwcursor = 0;
 
 struct window_settings {
 	unsigned char name[64];
@@ -346,18 +346,18 @@ struct panel_settings
 /********************************************************************/
 /* fixme: Maybe a modedb for the CRT ? otherwise panels should be as-is */
 
-/* List of panels known to work with the AU1200 LCD controller.
+/* List of panels kyeswn to work with the AU1200 LCD controller.
  * To add a new panel, enter the same specifications as the
  * Generic_TFT one, and MAKE SURE that it doesn't conflicts
  * with the controller restrictions. Restrictions are:
  *
  * STN color panels: max_bpp <= 12
- * STN mono panels: max_bpp <= 4
+ * STN moyes panels: max_bpp <= 4
  * TFT panels: max_bpp <= 16
  * max_xres <= 800
  * max_yres <= 600
  */
-static struct panel_settings known_lcd_panels[] =
+static struct panel_settings kyeswn_lcd_panels[] =
 {
 	[0] = { /* QVGA 320x240 H:33.3kHz V:110Hz */
 		.name = "QVGA_320x240",
@@ -646,7 +646,7 @@ static struct panel_settings known_lcd_panels[] =
 	},
 };
 
-#define NUM_PANELS (ARRAY_SIZE(known_lcd_panels))
+#define NUM_PANELS (ARRAY_SIZE(kyeswn_lcd_panels))
 
 /********************************************************************/
 
@@ -800,7 +800,7 @@ static void au1200_setpanel(struct panel_settings *newpanel,
 
 		/* Call shutdown of current panel (if up) */
 		/* this must occur last, because if an external clock is driving
-		    the controller, the clock cannot be turned off before first
+		    the controller, the clock canyest be turned off before first
 			shutting down the controller.
 		 */
 		if (pd->panel_shutdown)
@@ -857,7 +857,7 @@ static void au1200_setpanel(struct panel_settings *newpanel,
 	lcd->winenable = winenable;
 
 	/*
-	 * Re-enable screen now that it is configured
+	 * Re-enable screen yesw that it is configured
 	 */
 	lcd->screen |= LCD_SCREEN_SEN;
 	wmb(); /* drain writebuffer */
@@ -866,7 +866,7 @@ static void au1200_setpanel(struct panel_settings *newpanel,
 	if (pd->panel_init)
 		pd->panel_init();
 
-	/* FIX!!!! not appropriate on panel change!!! Global setup/init */
+	/* FIX!!!! yest appropriate on panel change!!! Global setup/init */
 	lcd->intenable = 0;
 	lcd->intstatus = ~0;
 	lcd->backcolor = win->mode_backcolor;
@@ -1011,12 +1011,12 @@ static void au1200fb_update_fbinfo(struct fb_info *fbi)
 			fbi->fix.line_length = fbi->var.xres_virtual /
 				(8/fbi->var.bits_per_pixel);
 		} else {
-			/* non-palettized */
+			/* yesn-palettized */
 			fbi->fix.visual = FB_VISUAL_TRUECOLOR;
 			fbi->fix.line_length = fbi->var.xres_virtual * (fbi->var.bits_per_pixel / 8);
 		}
 	} else {
-		/* mono FIX!!! mono 8 and 4 bits */
+		/* moyes FIX!!! moyes 8 and 4 bits */
 		fbi->fix.visual = FB_VISUAL_MONO10;
 		fbi->fix.line_length = fbi->var.xres_virtual / 8;
 	}
@@ -1060,7 +1060,7 @@ static int au1200fb_fb_check_var(struct fb_var_screeninfo *var,
 	if (fbdev->fb_len < screen_size)
 		return -EINVAL; /* Virtual screen is to big, abort */
 
-	/* FIX!!!! what are the implicaitons of ignoring this for windows ??? */
+	/* FIX!!!! what are the implicaitons of igyesring this for windows ??? */
 	/* The max LCD clock is fixed to 48MHz (value of AUX_CLK). The pixel
 	 * clock can only be obtain by dividing this value by an even integer.
 	 * Fallback to a slower pixel clock if necessary. */
@@ -1079,7 +1079,7 @@ static int au1200fb_fb_check_var(struct fb_var_screeninfo *var,
 
 		if (!panel_is_color(panel)
 			&& (panel->control_base & LCD_CONTROL_MPI) && (pcd < 3)) {
-			/* STN 8bit mono panel support is up to 6MHz pixclock */
+			/* STN 8bit moyes panel support is up to 6MHz pixclock */
 			var->pixclock = KHZ2PICOS(6000);
 		} else if (!pcd) {
 			/* Other STN panel support is up to 12MHz  */
@@ -1124,7 +1124,7 @@ static int au1200fb_fb_check_var(struct fb_var_screeninfo *var,
 
 /* fb_set_par
  * Set hardware with var settings. This will enable the controller with a
- * specific mode, normally validated with the fb_check_var method
+ * specific mode, yesrmally validated with the fb_check_var method
  */
 static int au1200fb_fb_set_par(struct fb_info *fbi)
 {
@@ -1139,13 +1139,13 @@ static int au1200fb_fb_set_par(struct fb_info *fbi)
 /* fb_setcolreg
  * Set color in LCD palette.
  */
-static int au1200fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int au1200fb_fb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 	unsigned blue, unsigned transp, struct fb_info *fbi)
 {
 	volatile u32 *palette = lcd->palette;
 	u32 value;
 
-	if (regno > (AU1200_LCD_NBR_PALETTE_ENTRIES - 1))
+	if (regyes > (AU1200_LCD_NBR_PALETTE_ENTRIES - 1))
 		return -EINVAL;
 
 	if (fbi->var.grayscale) {
@@ -1156,7 +1156,7 @@ static int au1200fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	if (fbi->fix.visual == FB_VISUAL_TRUECOLOR) {
 		/* Place color in the pseudopalette */
-		if (regno > 16)
+		if (regyes > 16)
 			return -EINVAL;
 
 		palette = (u32*) fbi->pseudo_palette;
@@ -1186,7 +1186,7 @@ static int au1200fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		value &= 0xF;
 	}
 
-	palette[regno] = value;
+	palette[regyes] = value;
 
 	return 0;
 }
@@ -1200,7 +1200,7 @@ static int au1200fb_fb_blank(int blank_mode, struct fb_info *fbi)
 	struct au1200fb_device *fbdev = fbi->par;
 
 	/* Short-circuit screen blanking */
-	if (noblanking)
+	if (yesblanking)
 		return 0;
 
 	switch (blank_mode) {
@@ -1242,7 +1242,7 @@ static void set_global(u_int cmd, struct au1200_lcd_global_regs_t *pdata)
 
 	unsigned int hi1, divider;
 
-	/* SCREEN_SIZE: user cannot reset size, must switch panel choice */
+	/* SCREEN_SIZE: user canyest reset size, must switch panel choice */
 
 	if (pdata->flags & SCREEN_BACKCOLOR)
 		lcd->backcolor = pdata->backcolor;
@@ -1458,7 +1458,7 @@ static int au1200fb_ioctl(struct fb_info *info, unsigned int cmd,
 			{
 				struct panel_settings *newpanel;
 				panel_index = iodata.global.panel_choice;
-				newpanel = &known_lcd_panels[panel_index];
+				newpanel = &kyeswn_lcd_panels[panel_index];
 				au1200_setpanel(newpanel, fbdev->pd);
 			}
 			break;
@@ -1474,7 +1474,7 @@ static int au1200fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 		val = copy_to_user((void __user *) arg, &iodata, sizeof(iodata));
 		if (val) {
-			print_dbg("error: could not copy %d bytes\n", val);
+			print_dbg("error: could yest copy %d bytes\n", val);
 			return -EFAULT;
 		}
 	}
@@ -1503,7 +1503,7 @@ static struct fb_ops au1200fb_fb_ops = {
 
 static irqreturn_t au1200fb_handle_irq(int irq, void* dev_id)
 {
-	/* Nothing to do for now, just clear any pending interrupt */
+	/* Nothing to do for yesw, just clear any pending interrupt */
 	lcd->intstatus = lcd->intstatus;
 	wmb(); /* drain writebuffer */
 
@@ -1530,7 +1530,7 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 	memcpy(&fbi->monspecs, &panel->monspecs, sizeof(struct fb_monspecs));
 
 	/* We first try the user mode passed in argument. If that failed,
-	 * or if no one has been specified, we default to the first mode of the
+	 * or if yes one has been specified, we default to the first mode of the
 	 * panel list. Note that after this call, var data will be set */
 	if (!fb_find_mode(&fbi->var,
 			  fbi,
@@ -1540,7 +1540,7 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 			  fbi->monspecs.modedb,
 			  bpp)) {
 
-		print_err("Cannot find valid mode for panel %s", panel->name);
+		print_err("Canyest find valid mode for panel %s", panel->name);
 		return -EFAULT;
 	}
 
@@ -1579,7 +1579,7 @@ static int au1200fb_setup(struct au1200fb_platdata *pd)
 {
 	char *options = NULL;
 	char *this_opt, *endptr;
-	int num_panels = ARRAY_SIZE(known_lcd_panels);
+	int num_panels = ARRAY_SIZE(kyeswn_lcd_panels);
 	int panel_idx = -1;
 
 	fb_get_options(DRIVER_NAME, &options);
@@ -1605,19 +1605,19 @@ static int au1200fb_setup(struct au1200fb_platdata *pd)
 			else {
 				for (i = 0; i < num_panels; i++) {
 					if (!strcmp(this_opt,
-						    known_lcd_panels[i].name)) {
+						    kyeswn_lcd_panels[i].name)) {
 						panel_idx = i;
 						break;
 					}
 				}
 			}
 			if ((panel_idx < 0) || (panel_idx >= num_panels))
-				print_warn("Panel %s not supported!", this_opt);
+				print_warn("Panel %s yest supported!", this_opt);
 			else
 				panel_index = panel_idx;
 
-		} else if (strncmp(this_opt, "nohwcursor", 10) == 0)
-			nohwcursor = 1;
+		} else if (strncmp(this_opt, "yeshwcursor", 10) == 0)
+			yeshwcursor = 1;
 		else if (strncmp(this_opt, "devices:", 8) == 0) {
 			this_opt += 8;
 			device_count = simple_strtol(this_opt, &endptr, 0);
@@ -1659,7 +1659,7 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 		return -ENODEV;
 
 	/* Point to the panel selected */
-	panel = &known_lcd_panels[panel_index];
+	panel = &kyeswn_lcd_panels[panel_index];
 	win = &windows[window_index];
 
 	printk(DRIVER_NAME ": Panel %d %s\n", panel_index, panel->name);
@@ -1711,7 +1711,7 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 		/* Register new framebuffer */
 		ret = register_framebuffer(fbi);
 		if (ret < 0) {
-			print_err("cannot register new framebuffer");
+			print_err("canyest register new framebuffer");
 			goto failed;
 		}
 

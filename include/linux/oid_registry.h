@@ -11,9 +11,9 @@
 #include <linux/types.h>
 
 /*
- * OIDs are turned into these values if possible, or OID__NR if not held here.
+ * OIDs are turned into these values if possible, or OID__NR if yest held here.
  *
- * NOTE!  Do not mess with the format of each line as this is read by
+ * NOTE!  Do yest mess with the format of each line as this is read by
  *	  build_OID_registry.pl to generate the data for look_up_OID().
  */
 enum OID {

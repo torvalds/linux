@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2012 Heiko Stuebner <heiko@sntech.de>
 //
-// based on mach-exynos/mach-exynos4-dt.c
+// based on mach-exyyess/mach-exyyess4-dt.c
 //
 // Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
 //		http://www.samsung.com

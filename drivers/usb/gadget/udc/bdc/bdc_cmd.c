@@ -98,7 +98,7 @@ static int bdc_submit_cmd(struct bdc *bdc, u32 cmd_sc,
 		ret = -ECONNRESET;
 		break;
 	default:
-		dev_dbg(bdc->dev, "Unknown command completion code:%x\n", ret);
+		dev_dbg(bdc->dev, "Unkyeswn command completion code:%x\n", ret);
 	}
 
 	return ret;
@@ -251,7 +251,7 @@ int bdc_address_device(struct bdc *bdc, u32 add)
 	return bdc_submit_cmd(bdc, cmd_sc, 0, 0, param2);
 }
 
-/* Send a Function Wake notification packet using FH command */
+/* Send a Function Wake yestification packet using FH command */
 int bdc_function_wake_fh(struct bdc *bdc, u8 intf)
 {
 	u32 param0, param1;
@@ -269,7 +269,7 @@ int bdc_function_wake_fh(struct bdc *bdc, u8 intf)
 	return bdc_submit_cmd(bdc, cmd_sc, param0, param1, 0);
 }
 
-/* Send a Function Wake notification packet using DNC command */
+/* Send a Function Wake yestification packet using DNC command */
 int bdc_function_wake(struct bdc *bdc, u8 intf)
 {
 	u32 cmd_sc = 0;
@@ -304,11 +304,11 @@ int bdc_ep_clear_stall(struct bdc *bdc, int epnum)
 	dev_dbg(bdc->dev, "%s: epnum=%d\n", __func__, epnum);
 	ep = bdc->bdc_ep_array[epnum];
 	/*
-	 * If we are not in stalled then stall Endpoint and issue clear stall,
-	 * his will reset the seq number for non EP0.
+	 * If we are yest in stalled then stall Endpoint and issue clear stall,
+	 * his will reset the seq number for yesn EP0.
 	 */
 	if (epnum != 1) {
-		/* if the endpoint it not stallled */
+		/* if the endpoint it yest stallled */
 		if (!(ep->flags & BDC_EP_STALL)) {
 			ret = bdc_ep_set_stall(bdc, epnum);
 			if (ret)
@@ -327,7 +327,7 @@ int bdc_ep_clear_stall(struct bdc *bdc, int epnum)
 		dev_err(bdc->dev, "command failed:%x\n", ret);
 		return ret;
 	}
-	bdc_notify_xfr(bdc, epnum);
+	bdc_yestify_xfr(bdc, epnum);
 
 	return ret;
 }

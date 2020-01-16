@@ -30,7 +30,7 @@
 
 
 /*  *********************************************************************
-    *  Some general notes:
+    *  Some general yestes:
     *
     *  Register addresses are grouped by function and follow the order
     *  of the User Manual.
@@ -55,7 +55,7 @@
     *  for blocks that are different between the two chip families.
     *  All BCM1480-specific symbols have _BCM1480_ in their names,
     *  and all BCM1250-specific and "base" functions that are common in
-    *  both chips have no special names (this is for compatibility with
+    *  both chips have yes special names (this is for compatibility with
     *  older include files).  Therefore, if you're working with the
     *  SCD, which is very different on each chip, A_SCD_xxx implies
     *  the BCM1250 version and A_BCM1480_SCD_xxx implies the BCM1480
@@ -361,7 +361,7 @@
 #define A_BCM1480_IMR_MAPPER(cpu)	(A_BCM1480_IMR_CPU0_BASE+(cpu)*BCM1480_IMR_REGISTER_SPACING)
 #define A_BCM1480_IMR_REGISTER(cpu, reg) (A_BCM1480_IMR_MAPPER(cpu)+(reg))
 
-/* Most IMR registers are 128 bits, implemented as non-contiguous
+/* Most IMR registers are 128 bits, implemented as yesn-contiguous
    64-bit registers high (_H) and low (_L) */
 #define BCM1480_IMR_HL_SPACING			0x1000
 

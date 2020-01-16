@@ -90,7 +90,7 @@ static int fd_configure_device(struct se_device *dev)
 	struct fd_dev *fd_dev = FD_DEV(dev);
 	struct fd_host *fd_host = dev->se_hba->hba_ptr;
 	struct file *file;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	int flags, ret = -EINVAL;
 
 	if (!(fd_dev->fbd_flags & FBDF_HAS_PATH)) {
@@ -109,7 +109,7 @@ static int fd_configure_device(struct se_device *dev)
 	 * who want use the fs buffer cache as an WriteCache mechanism.
 	 *
 	 * This means that in event of a hard failure, there is a risk
-	 * of silent data-loss if the SCSI client has *not* performed a
+	 * of silent data-loss if the SCSI client has *yest* performed a
 	 * forced unit access (FUA) write, or issued SYNCHRONIZE_CACHE
 	 * to write-out the entire device cache.
 	 */
@@ -131,12 +131,12 @@ static int fd_configure_device(struct se_device *dev)
 	 *
 	 * Otherwise, we use the passed fd_size= from configfs
 	 */
-	inode = file->f_mapping->host;
-	if (S_ISBLK(inode->i_mode)) {
-		struct request_queue *q = bdev_get_queue(inode->i_bdev);
+	iyesde = file->f_mapping->host;
+	if (S_ISBLK(iyesde->i_mode)) {
+		struct request_queue *q = bdev_get_queue(iyesde->i_bdev);
 		unsigned long long dev_size;
 
-		fd_dev->fd_block_size = bdev_logical_block_size(inode->i_bdev);
+		fd_dev->fd_block_size = bdev_logical_block_size(iyesde->i_bdev);
 		/*
 		 * Determine the number of bytes from i_size_read() minus
 		 * one (1) logical sector from underlying struct block_device
@@ -158,12 +158,12 @@ static int fd_configure_device(struct se_device *dev)
 		 */
 		dev->dev_attrib.max_write_same_len = 0xFFFF;
 
-		if (blk_queue_nonrot(q))
-			dev->dev_attrib.is_nonrot = 1;
+		if (blk_queue_yesnrot(q))
+			dev->dev_attrib.is_yesnrot = 1;
 	} else {
 		if (!(fd_dev->fbd_flags & FBDF_HAS_SIZE)) {
 			pr_err("FILEIO: Missing fd_dev_size="
-				" parameter, and no backing struct"
+				" parameter, and yes backing struct"
 				" block_device\n");
 			goto fail;
 		}
@@ -354,11 +354,11 @@ static int fd_do_rw(struct se_cmd *cmd, struct file *fd,
 		}
 	} else {
 		/*
-		 * Return zeros and GOOD status even if the READ did not return
+		 * Return zeros and GOOD status even if the READ did yest return
 		 * the expected virt_size for struct file w/o a backing struct
 		 * block_device.
 		 */
-		if (S_ISBLK(file_inode(fd)->i_mode)) {
+		if (S_ISBLK(file_iyesde(fd)->i_mode)) {
 			if (ret < 0 || ret != data_length) {
 				pr_err("%s() returned %d, expecting %u for "
 						"S_ISBLK\n", __func__, ret,
@@ -368,7 +368,7 @@ static int fd_do_rw(struct se_cmd *cmd, struct file *fd,
 			}
 		} else {
 			if (ret < 0) {
-				pr_err("%s() returned %d for non S_ISBLK\n",
+				pr_err("%s() returned %d for yesn S_ISBLK\n",
 						__func__, ret);
 			} else if (ret != data_length) {
 				/*
@@ -439,19 +439,19 @@ fd_execute_write_same(struct se_cmd *cmd)
 	struct se_device *se_dev = cmd->se_dev;
 	struct fd_dev *fd_dev = FD_DEV(se_dev);
 	loff_t pos = cmd->t_task_lba * se_dev->dev_attrib.block_size;
-	sector_t nolb = sbc_get_write_same_sectors(cmd);
+	sector_t yeslb = sbc_get_write_same_sectors(cmd);
 	struct iov_iter iter;
 	struct bio_vec *bvec;
 	unsigned int len = 0, i;
 	ssize_t ret;
 
-	if (!nolb) {
+	if (!yeslb) {
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
 		return 0;
 	}
 	if (cmd->prot_op) {
 		pr_err("WRITE_SAME: Protection information with FILEIO"
-		       " backends not supported\n");
+		       " backends yest supported\n");
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
@@ -465,11 +465,11 @@ fd_execute_write_same(struct se_cmd *cmd)
 		return TCM_INVALID_CDB_FIELD;
 	}
 
-	bvec = kcalloc(nolb, sizeof(struct bio_vec), GFP_KERNEL);
+	bvec = kcalloc(yeslb, sizeof(struct bio_vec), GFP_KERNEL);
 	if (!bvec)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
-	for (i = 0; i < nolb; i++) {
+	for (i = 0; i < yeslb; i++) {
 		bvec[i].bv_page = sg_page(&cmd->t_data_sg[0]);
 		bvec[i].bv_len = cmd->t_data_sg[0].length;
 		bvec[i].bv_offset = cmd->t_data_sg[0].offset;
@@ -477,7 +477,7 @@ fd_execute_write_same(struct se_cmd *cmd)
 		len += se_dev->dev_attrib.block_size;
 	}
 
-	iov_iter_bvec(&iter, READ, bvec, nolb, len);
+	iov_iter_bvec(&iter, READ, bvec, yeslb, len);
 	ret = vfs_iter_write(fd_dev->fd_file, &iter, &pos, 0);
 
 	kfree(bvec);
@@ -491,7 +491,7 @@ fd_execute_write_same(struct se_cmd *cmd)
 }
 
 static int
-fd_do_prot_fill(struct se_device *se_dev, sector_t lba, sector_t nolb,
+fd_do_prot_fill(struct se_device *se_dev, sector_t lba, sector_t yeslb,
 		void *buf, size_t bufsize)
 {
 	struct fd_dev *fd_dev = FD_DEV(se_dev);
@@ -504,7 +504,7 @@ fd_do_prot_fill(struct se_device *se_dev, sector_t lba, sector_t nolb,
 		return -ENODEV;
 	}
 
-	prot_length = nolb * se_dev->prot_length;
+	prot_length = yeslb * se_dev->prot_length;
 
 	for (prot = 0; prot < prot_length;) {
 		sector_t len = min_t(sector_t, bufsize, prot_length - prot);
@@ -521,7 +521,7 @@ fd_do_prot_fill(struct se_device *se_dev, sector_t lba, sector_t nolb,
 }
 
 static int
-fd_do_prot_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
+fd_do_prot_unmap(struct se_cmd *cmd, sector_t lba, sector_t yeslb)
 {
 	void *buf;
 	int rc;
@@ -533,7 +533,7 @@ fd_do_prot_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 	}
 	memset(buf, 0xff, PAGE_SIZE);
 
-	rc = fd_do_prot_fill(cmd->se_dev, lba, nolb, buf, PAGE_SIZE);
+	rc = fd_do_prot_fill(cmd->se_dev, lba, yeslb, buf, PAGE_SIZE);
 
 	free_page((unsigned long)buf);
 
@@ -541,30 +541,30 @@ fd_do_prot_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 }
 
 static sense_reason_t
-fd_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
+fd_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t yeslb)
 {
 	struct file *file = FD_DEV(cmd->se_dev)->fd_file;
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 	int ret;
 
-	if (!nolb) {
+	if (!yeslb) {
 		return 0;
 	}
 
 	if (cmd->se_dev->dev_attrib.pi_prot_type) {
-		ret = fd_do_prot_unmap(cmd, lba, nolb);
+		ret = fd_do_prot_unmap(cmd, lba, yeslb);
 		if (ret)
 			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
-	if (S_ISBLK(inode->i_mode)) {
+	if (S_ISBLK(iyesde->i_mode)) {
 		/* The backend is block device, use discard */
-		struct block_device *bdev = inode->i_bdev;
+		struct block_device *bdev = iyesde->i_bdev;
 		struct se_device *dev = cmd->se_dev;
 
 		ret = blkdev_issue_discard(bdev,
 					   target_to_linux_sector(dev, lba),
-					   target_to_linux_sector(dev,  nolb),
+					   target_to_linux_sector(dev,  yeslb),
 					   GFP_KERNEL, 0);
 		if (ret < 0) {
 			pr_warn("FILEIO: blkdev_issue_discard() failed: %d\n",
@@ -572,10 +572,10 @@ fd_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		}
 	} else {
-		/* The backend is normal file, use fallocate */
+		/* The backend is yesrmal file, use fallocate */
 		struct se_device *se_dev = cmd->se_dev;
 		loff_t pos = lba * se_dev->dev_attrib.block_size;
-		unsigned int len = nolb * se_dev->dev_attrib.block_size;
+		unsigned int len = yeslb * se_dev->dev_attrib.block_size;
 		int mode = FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE;
 
 		if (!file->f_op->fallocate)
@@ -816,11 +816,11 @@ static sector_t fd_get_blocks(struct se_device *dev)
 {
 	struct fd_dev *fd_dev = FD_DEV(dev);
 	struct file *f = fd_dev->fd_file;
-	struct inode *i = f->f_mapping->host;
+	struct iyesde *i = f->f_mapping->host;
 	unsigned long long dev_size;
 	/*
 	 * When using a file that references an underlying struct block_device,
-	 * ensure dev_size is always based on the current inode size in order
+	 * ensure dev_size is always based on the current iyesde size in order
 	 * to handle underlying block_device resize operations.
 	 */
 	if (S_ISBLK(i->i_mode))
@@ -836,7 +836,7 @@ static int fd_init_prot(struct se_device *dev)
 {
 	struct fd_dev *fd_dev = FD_DEV(dev);
 	struct file *prot_file, *file = fd_dev->fd_file;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int ret, flags = O_RDWR | O_CREAT | O_LARGEFILE | O_DSYNC;
 	char buf[FD_MAX_DEV_PROT_NAME];
 
@@ -845,8 +845,8 @@ static int fd_init_prot(struct se_device *dev)
 		return -ENODEV;
 	}
 
-	inode = file->f_mapping->host;
-	if (S_ISBLK(inode->i_mode)) {
+	iyesde = file->f_mapping->host;
+	if (S_ISBLK(iyesde->i_mode)) {
 		pr_err("FILEIO Protection emulation only supported on"
 		       " !S_ISBLK\n");
 		return -ENOSYS;

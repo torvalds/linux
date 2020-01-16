@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -74,7 +74,7 @@ static struct sk_buff *ath9k_build_tx99_skb(struct ath_softc *sc)
 
 	if (sc->tx99_vif) {
 		avp = (struct ath_vif *) sc->tx99_vif->drv_priv;
-		hdr->seq_ctrl |= cpu_to_le16(avp->seq_no);
+		hdr->seq_ctrl |= cpu_to_le16(avp->seq_yes);
 	}
 
 	tx_info = IEEE80211_SKB_CB(skb);

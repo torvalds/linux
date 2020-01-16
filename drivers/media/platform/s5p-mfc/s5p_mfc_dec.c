@@ -236,7 +236,7 @@ static int s5p_mfc_ctx_ready(struct s5p_mfc_ctx *ctx)
 	if (ctx->state == MFCINST_RES_CHANGE_END &&
 		ctx->src_queue_cnt >= 1)
 		return 1;
-	mfc_debug(2, "ctx is not ready\n");
+	mfc_debug(2, "ctx is yest ready\n");
 	return 0;
 }
 
@@ -335,7 +335,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		/* This is run on OUTPUT
 		   The buffer contains compressed image
-		   so width and height have no meaning */
+		   so width and height have yes meaning */
 		pix_mp->width = 0;
 		pix_mp->height = 0;
 		pix_mp->field = V4L2_FIELD_NONE;
@@ -344,7 +344,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		pix_mp->pixelformat = ctx->src_fmt->fourcc;
 		pix_mp->num_planes = ctx->src_fmt->num_planes;
 	} else {
-		mfc_err("Format could not be read\n");
+		mfc_err("Format could yest be read\n");
 		mfc_debug(2, "%s-- with error\n", __func__);
 		return -EINVAL;
 	}
@@ -366,7 +366,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 			return -EINVAL;
 		}
 		if (fmt->codec_mode == S5P_FIMV_CODEC_NONE) {
-			mfc_err("Unknown codec\n");
+			mfc_err("Unkyeswn codec\n");
 			return -EINVAL;
 		}
 		if ((dev->variant->version_bit & fmt->versions) == 0) {
@@ -721,7 +721,7 @@ static int s5p_mfc_dec_g_v_ctrl(struct v4l2_ctrl *ctrl)
 			break;
 		} else if (ctx->state != MFCINST_INIT &&
 				ctx->state != MFCINST_RES_CHANGE_END) {
-			v4l2_err(&dev->v4l2_dev, "Decoding not initialised\n");
+			v4l2_err(&dev->v4l2_dev, "Decoding yest initialised\n");
 			return -EINVAL;
 		}
 		/* Should wait for the header to be parsed */
@@ -731,7 +731,7 @@ static int s5p_mfc_dec_g_v_ctrl(struct v4l2_ctrl *ctrl)
 		    ctx->state < MFCINST_ABORT) {
 			ctrl->val = ctx->pb_count;
 		} else {
-			v4l2_err(&dev->v4l2_dev, "Decoding not initialised\n");
+			v4l2_err(&dev->v4l2_dev, "Decoding yest initialised\n");
 			return -EINVAL;
 		}
 		break;
@@ -761,7 +761,7 @@ static int vidioc_g_selection(struct file *file, void *priv,
 	    ctx->state != MFCINST_RUNNING &&
 	    ctx->state != MFCINST_FINISHING &&
 	    ctx->state != MFCINST_FINISHED) {
-		mfc_err("Can not get compose information\n");
+		mfc_err("Can yest get compose information\n");
 		return -EINVAL;
 	}
 	if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_H264) {
@@ -933,7 +933,7 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		psize[0] = ctx->dec_src_buf_size;
 		alloc_devs[0] = ctx->dev->mem_dev[BANK_L_CTX];
 	} else {
-		mfc_err("This video node is dedicated to decoding. Decoding not initialized\n");
+		mfc_err("This video yesde is dedicated to decoding. Decoding yest initialized\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -952,7 +952,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 		for (i = 0; i < ctx->dst_fmt->num_planes; i++) {
 			if (IS_ERR_OR_NULL(ERR_PTR(
 					vb2_dma_contig_plane_dma_addr(vb, i)))) {
-				mfc_err("Plane mem not allocated\n");
+				mfc_err("Plane mem yest allocated\n");
 				return -EINVAL;
 			}
 		}
@@ -971,7 +971,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		if (IS_ERR_OR_NULL(ERR_PTR(
 					vb2_dma_contig_plane_dma_addr(vb, 0)))) {
-			mfc_err("Plane memory not allocated\n");
+			mfc_err("Plane memory yest allocated\n");
 			return -EINVAL;
 		}
 		if (vb2_plane_size(vb, 0) < ctx->dec_src_buf_size) {
@@ -985,7 +985,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 					vb2_dma_contig_plane_dma_addr(vb, 0);
 		ctx->src_bufs_cnt++;
 	} else {
-		mfc_err("s5p_mfc_buf_init: unknown queue type\n");
+		mfc_err("s5p_mfc_buf_init: unkyeswn queue type\n");
 		return -EINVAL;
 	}
 	return 0;

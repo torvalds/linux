@@ -6,7 +6,7 @@
  *	Copyright (C) IBM Corporation, 2004. All rights reserved
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/crash_dump.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
@@ -36,7 +36,7 @@ static ssize_t __copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
 	} else
 		memcpy(buf, vaddr + offset, csize);
 
-	set_iounmap_nonlazy();
+	set_iounmap_yesnlazy();
 	iounmap((void __iomem *)vaddr);
 	return csize;
 }
@@ -51,7 +51,7 @@ static ssize_t __copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
  * @userbuf: if set, @buf is in user address space, use copy_to_user(),
  *	otherwise @buf is in kernel address space, use memcpy().
  *
- * Copy a page from the old kernel's memory. For this page, there is no pte
+ * Copy a page from the old kernel's memory. For this page, there is yes pte
  * mapped in the current kernel. We stitch up a pte, similar to kmap_atomic.
  */
 ssize_t copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,

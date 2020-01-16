@@ -125,7 +125,7 @@ static inline bool cluster_is_a15(u32 cluster)
  * ve_spc_global_wakeup_irq()
  *
  * Function to set/clear global wakeup IRQs. Not protected by locking since
- * it might be used in code paths where normal cacheable locks are not
+ * it might be used in code paths where yesrmal cacheable locks are yest
  * working. Locking must be provided by the caller to ensure atomicity.
  *
  * @set: if true, global wake-up IRQs are set, if false they are cleared
@@ -148,7 +148,7 @@ void ve_spc_global_wakeup_irq(bool set)
  * ve_spc_cpu_wakeup_irq()
  *
  * Function to set/clear per-CPU wake-up IRQs. Not protected by locking since
- * it might be used in code paths where normal cacheable locks are not
+ * it might be used in code paths where yesrmal cacheable locks are yest
  * working. Locking must be provided by the caller to ensure atomicity.
  *
  * @cluster: mpidr[15:8] bitfield describing cluster affinity level
@@ -203,7 +203,7 @@ void ve_spc_set_resume_addr(u32 cluster, u32 cpu, u32 addr)
  * ve_spc_powerdown()
  *
  * Function to enable/disable cluster powerdown. Not protected by locking
- * since it might be used in code paths where normal cacheable locks are not
+ * since it might be used in code paths where yesrmal cacheable locks are yest
  * working. Locking must be provided by the caller to ensure atomicity.
  *
  * @cluster: mpidr[15:8] bitfield describing cluster affinity level
@@ -233,10 +233,10 @@ static u32 standbywfi_cpu_mask(u32 cpu, u32 cluster)
  * @cpu: mpidr[7:0] bitfield describing CPU affinity level within cluster
  * @cluster: mpidr[15:8] bitfield describing cluster affinity level
  *
- * @return: non-zero if and only if the specified CPU is in WFI
+ * @return: yesn-zero if and only if the specified CPU is in WFI
  *
  * Take care when interpreting the result of this function: a CPU might
- * be in WFI temporarily due to idle, and is not necessarily safely
+ * be in WFI temporarily due to idle, and is yest necessarily safely
  * parked.
  */
 int ve_spc_cpu_in_wfi(u32 cpu, u32 cluster)
@@ -477,7 +477,7 @@ int __init ve_spc_init(void __iomem *baseaddr, u32 a15_clusid, int irq)
 
 	sema_init(&info->sem, 1);
 	/*
-	 * Multi-cluster systems may need this data when non-coherent, during
+	 * Multi-cluster systems may need this data when yesn-coherent, during
 	 * cluster power-up/power-down. Make sure driver info reaches main
 	 * memory.
 	 */

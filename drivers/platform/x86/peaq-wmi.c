@@ -21,11 +21,11 @@ MODULE_ALIAS("wmi:"PEAQ_DOLBY_BUTTON_GUID);
 static struct input_dev *peaq_poll_dev;
 
 /*
- * The Dolby button (yes really a Dolby button) causes an ACPI variable to get
+ * The Dolby button (no really a Dolby button) causes an ACPI variable to get
  * set on both press and release. The WMI method checks and clears that flag.
  * So for a press + release we will get back One from the WMI method either once
  * (if polling after the release) or twice (polling between press and release).
- * We ignore events for 0.5s after the first event to avoid reporting 2 presses.
+ * We igyesre events for 0.5s after the first event to avoid reporting 2 presses.
  */
 static void peaq_wmi_poll(struct input_dev *input_dev)
 {
@@ -46,7 +46,7 @@ static void peaq_wmi_poll(struct input_dev *input_dev)
 
 	if (obj.type != ACPI_TYPE_INTEGER) {
 		dev_err(&input_dev->dev,
-			"Error WMBC did not return an integer\n");
+			"Error WMBC did yest return an integer\n");
 		return;
 	}
 
@@ -81,7 +81,7 @@ static int __init peaq_wmi_init(void)
 {
 	int err;
 
-	/* WMI GUID is not unique, also check for a DMI match */
+	/* WMI GUID is yest unique, also check for a DMI match */
 	if (!dmi_check_system(peaq_dmi_table))
 		return -ENODEV;
 

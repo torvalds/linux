@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: card.c
@@ -52,7 +52,7 @@ static const u16 cw_rxbcntsf_off[MAX_RATE] = {
  *      pDevice             - The adapter to be set
  *      connection_channel  - Channel to be set
  *  Out:
- *      none
+ *      yesne
  */
 void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 {
@@ -62,7 +62,7 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 	/* clear NAV */
 	vnt_mac_reg_bits_on(priv, MAC_REG_MACCR, MACCR_CLRNAV);
 
-	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
+	/* Set Channel[7] = 0 to tell H/W channel is changing yesw. */
 	vnt_mac_reg_bits_off(priv, MAC_REG_CHANNEL, 0xb0);
 
 	vnt_control_out(priv, MESSAGE_TYPE_SELECT_CHANNEL,
@@ -80,7 +80,7 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
  *      priv		- The adapter to be set
  *      rate_idx	- Receiving data rate
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: response Control frame rate
  *
@@ -106,7 +106,7 @@ static u16 vnt_get_cck_rate(struct vnt_private *priv, u16 rate_idx)
  *      priv		- The adapter to be set
  *      rate_idx	- Receiving data rate
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: response Control frame rate
  *
@@ -151,7 +151,7 @@ static u16 vnt_get_ofdm_rate(struct vnt_private *priv, u16 rate_idx)
  *	tx_rate	- pointer to RSPINF TxRate field
  *	rsv_time- pointer to RSPINF RsvTime field
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 static void vnt_calculate_ofdm_rate(u16 rate, u8 bb_type,
@@ -241,7 +241,7 @@ static void vnt_calculate_ofdm_rate(u16 rate, u8 bb_type,
  *  In:
  *      pDevice             - The adapter to be set
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: None.
  *
@@ -334,7 +334,7 @@ void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
  *  In:
  *	priv - The adapter to be set
  * Out:
- *	none
+ *	yesne
  *
  * Return Value: None.
  *
@@ -469,7 +469,7 @@ u8 vnt_get_pkt_type(struct vnt_private *priv)
  *      tsf1	- Rx BCN's TSF
  *      tsf2	- Local TSF
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: TSF Offset value
  *
@@ -489,9 +489,9 @@ u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2)
  *      time_stamp	- Rx BCN's TSF
  *      local_tsf	- Local TSF
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
@@ -596,9 +596,9 @@ u64 vnt_get_next_tbtt(u64 tsf, u16 beacon_interval)
  *      dwIoBase        - IO Base
  *	beacon_interval - Beacon Interval
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval)
@@ -633,9 +633,9 @@ void vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval)
  *      tsf		- Current TSF counter
  *      beacon_interval - Beacon Interval
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
@@ -667,7 +667,7 @@ void vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
  *  In:
  *      priv         - The adapter to be turned off
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if success; otherwise false
  *
@@ -712,7 +712,7 @@ end:
  *  In:
  *      priv         - The adapter to be turned on
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if success; otherwise false
  *

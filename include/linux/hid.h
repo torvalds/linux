@@ -455,7 +455,7 @@ struct hid_field {
 	unsigned  report_size;		/* size of this field in the report */
 	unsigned  report_count;		/* number of this field in the report */
 	unsigned  report_type;		/* (input,output,feature) */
-	__s32    *value;		/* last known value(s) */
+	__s32    *value;		/* last kyeswn value(s) */
 	__s32     logical_minimum;
 	__s32     logical_maximum;
 	__s32     physical_minimum;
@@ -573,7 +573,7 @@ struct hid_device {							/* device report descriptor */
 	/*
 	 * Power supply information for HID devices which report
 	 * battery strength. power_supply was successfully registered if
-	 * battery is non-NULL.
+	 * battery is yesn-NULL.
 	 */
 	struct power_supply *battery;
 	__s32 battery_capacity;
@@ -695,41 +695,41 @@ struct hid_usage_id {
 /**
  * struct hid_driver
  * @name: driver name (e.g. "Footech_bar-wheel")
- * @id_table: which devices is this driver for (must be non-NULL for probe
+ * @id_table: which devices is this driver for (must be yesn-NULL for probe
  * 	      to be called)
  * @dyn_list: list of dynamically added device ids
  * @dyn_lock: lock protecting @dyn_list
  * @match: check if the given device is handled by this driver
  * @probe: new device inserted
- * @remove: device removed (NULL if not a hot-plug capable driver)
+ * @remove: device removed (NULL if yest a hot-plug capable driver)
  * @report_table: on which reports to call raw_event (NULL means all)
- * @raw_event: if report in report_table, this hook is called (NULL means nop)
+ * @raw_event: if report in report_table, this hook is called (NULL means yesp)
  * @usage_table: on which events to call event (NULL means all)
- * @event: if usage in usage_table, this hook is called (NULL means nop)
- * @report: this hook is called after parsing a report (NULL means nop)
- * @report_fixup: called before report descriptor parsing (NULL means nop)
+ * @event: if usage in usage_table, this hook is called (NULL means yesp)
+ * @report: this hook is called after parsing a report (NULL means yesp)
+ * @report_fixup: called before report descriptor parsing (NULL means yesp)
  * @input_mapping: invoked on input registering before mapping an usage
  * @input_mapped: invoked on input registering after mapping an usage
  * @input_configured: invoked just before the device is registered
  * @feature_mapping: invoked on feature registering
- * @suspend: invoked on suspend (NULL means nop)
- * @resume: invoked on resume if device was not reset (NULL means nop)
- * @reset_resume: invoked on resume if device was reset (NULL means nop)
+ * @suspend: invoked on suspend (NULL means yesp)
+ * @resume: invoked on resume if device was yest reset (NULL means yesp)
+ * @reset_resume: invoked on resume if device was reset (NULL means yesp)
  *
- * probe should return -errno on error, or 0 on success. During probe,
- * input will not be passed to raw_event unless hid_device_io_start is
+ * probe should return -erryes on error, or 0 on success. During probe,
+ * input will yest be passed to raw_event unless hid_device_io_start is
  * called.
  *
  * raw_event and event should return negative on error, any other value will
  * pass the event on to .event() typically return 0 for success.
  *
- * input_mapping shall return a negative value to completely ignore this usage
+ * input_mapping shall return a negative value to completely igyesre this usage
  * (e.g. doubled or invalid usage), zero to continue with parsing of this
- * usage by generic code (no special handling needed) or positive to skip
+ * usage by generic code (yes special handling needed) or positive to skip
  * generic parsing (needed special handling which was done in the hook already)
  * input_mapped shall return negative to inform the layer that this usage
- * should not be considered for further processing or zero to notify that
- * no processing was performed and should be done in a generic manner
+ * should yest be considered for further processing or zero to yestify that
+ * yes processing was performed and should be done in a generic manner
  * Both these functions may be NULL which means the same behavior as returning
  * zero from them.
  */
@@ -740,7 +740,7 @@ struct hid_driver {
 	struct list_head dyn_list;
 	spinlock_t dyn_lock;
 
-	bool (*match)(struct hid_device *dev, bool ignore_special_driver);
+	bool (*match)(struct hid_device *dev, bool igyesre_special_driver);
 	int (*probe)(struct hid_device *dev, const struct hid_device_id *id);
 	void (*remove)(struct hid_device *dev);
 
@@ -786,7 +786,7 @@ struct hid_driver {
  * @close: called by input layer on close
  * @power: request underlying hardware to enter requested power mode
  * @parse: this method is called only once to parse the device data,
- *	   shouldn't allocate anything to not leak memory
+ *	   shouldn't allocate anything to yest leak memory
  * @request: send report request to device (e.g. feature report)
  * @wait: wait for buffered io to complete (send/recv reports)
  * @raw_request: send raw report request to device (e.g. feature report)
@@ -833,7 +833,7 @@ static inline bool hid_is_using_ll_driver(struct hid_device *hdev,
 #define PM_HINT_NORMAL	1<<1
 
 /* Applications from HID Usage Tables 4/8/99 Version 1.1 */
-/* We ignore a few input applications that are not widely used */
+/* We igyesre a few input applications that are yest widely used */
 #define IS_INPUT_APPLICATION(a) \
 		(((a >= HID_UP_GENDESK) && (a <= HID_GD_MULTIAXIS)) \
 		|| ((a >= HID_DG_PEN) && (a <= HID_DG_WHITEBOARD)) \
@@ -844,7 +844,7 @@ static inline bool hid_is_using_ll_driver(struct hid_device *hdev,
 
 extern int hid_debug;
 
-extern bool hid_ignore(struct hid_device *);
+extern bool hid_igyesre(struct hid_device *);
 extern int hid_add_device(struct hid_device *);
 extern void hid_destroy_device(struct hid_device *);
 
@@ -863,7 +863,7 @@ extern void hid_unregister_driver(struct hid_driver *);
  * module_hid_driver() - Helper macro for registering a HID driver
  * @__hid_driver: hid_driver struct
  *
- * Helper macro for HID drivers which do not do anything special in module
+ * Helper macro for HID drivers which do yest do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */
@@ -1009,7 +1009,7 @@ static inline void hid_map_usage_clear(struct hid_input *hidinput,
  * @hdev: hid device
  *
  * Call this from probe after you set up the device (if needed). Your
- * report_fixup will be called (if non-NULL) after reading raw report from
+ * report_fixup will be called (if yesn-NULL) after reading raw report from
  * device before passing it to hid layer for real parsing.
  */
 static inline int __must_check hid_parse(struct hid_device *hdev)
@@ -1132,7 +1132,7 @@ static inline void hid_hw_wait(struct hid_device *hdev)
 /**
  * hid_report_len - calculate the report length
  *
- * @report: the report we want to know the length
+ * @report: the report we want to kyesw the length
  */
 static inline u32 hid_report_len(struct hid_report *report)
 {
@@ -1162,8 +1162,8 @@ do {									\
 
 #define hid_err(hid, fmt, ...)				\
 	dev_err(&(hid)->dev, fmt, ##__VA_ARGS__)
-#define hid_notice(hid, fmt, ...)			\
-	dev_notice(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_yestice(hid, fmt, ...)			\
+	dev_yestice(&(hid)->dev, fmt, ##__VA_ARGS__)
 #define hid_warn(hid, fmt, ...)				\
 	dev_warn(&(hid)->dev, fmt, ##__VA_ARGS__)
 #define hid_info(hid, fmt, ...)				\
@@ -1173,8 +1173,8 @@ do {									\
 
 #define hid_err_once(hid, fmt, ...)			\
 	dev_err_once(&(hid)->dev, fmt, ##__VA_ARGS__)
-#define hid_notice_once(hid, fmt, ...)			\
-	dev_notice_once(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_yestice_once(hid, fmt, ...)			\
+	dev_yestice_once(&(hid)->dev, fmt, ##__VA_ARGS__)
 #define hid_warn_once(hid, fmt, ...)			\
 	dev_warn_once(&(hid)->dev, fmt, ##__VA_ARGS__)
 #define hid_info_once(hid, fmt, ...)			\

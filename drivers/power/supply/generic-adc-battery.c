@@ -16,7 +16,7 @@
 #include <linux/err.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -24,7 +24,7 @@
 #include <linux/iio/types.h>
 #include <linux/power/generic-adc-battery.h>
 
-#define JITTER_DEFAULT 10 /* hope 10ms is enough */
+#define JITTER_DEFAULT 10 /* hope 10ms is eyesugh */
 
 enum gab_chan_type {
 	GAB_VOLTAGE = 0,
@@ -152,7 +152,7 @@ static int gab_get_property(struct power_supply *psy,
 
 	adc_bat = to_generic_bat(psy);
 	if (!adc_bat) {
-		dev_err(&psy->dev, "no battery infos ?!\n");
+		dev_err(&psy->dev, "yes battery infos ?!\n");
 		return -EINVAL;
 	}
 	pdata = adc_bat->pdata;
@@ -177,7 +177,7 @@ static int gab_get_property(struct power_supply *psy,
 		val->intval = result;
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = bat_info->technology;
+		val->intval = bat_info->techyeslogy;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		val->intval = bat_info->voltage_min_design;
@@ -296,7 +296,7 @@ static int gab_probe(struct platform_device *pdev)
 			for (index2 = 0; index2 < index; index2++) {
 				if (psy_desc->properties[index2] ==
 				    gab_dyn_props[chan])
-					break;	/* already known */
+					break;	/* already kyeswn */
 			}
 			if (index2 == index)	/* really new */
 				psy_desc->properties[index++] =
@@ -305,7 +305,7 @@ static int gab_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* none of the channels are supported so let's bail out */
+	/* yesne of the channels are supported so let's bail out */
 	if (!any) {
 		ret = -ENODEV;
 		goto second_mem_fail;
@@ -313,8 +313,8 @@ static int gab_probe(struct platform_device *pdev)
 
 	/*
 	 * Total number of properties is equal to static properties
-	 * plus the dynamic properties.Some properties may not be set
-	 * as come channels may be not be supported by the device.So
+	 * plus the dynamic properties.Some properties may yest be set
+	 * as come channels may be yest be supported by the device.So
 	 * we need to take care of that.
 	 */
 	psy_desc->num_properties = index;

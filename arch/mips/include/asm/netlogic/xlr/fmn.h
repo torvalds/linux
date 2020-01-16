@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -203,8 +203,8 @@ static inline void nlm_msgsnd(unsigned int stid)
 {
 	__asm__ volatile (
 	    ".set	push\n"
-	    ".set	noreorder\n"
-	    ".set	noat\n"
+	    ".set	yesreorder\n"
+	    ".set	yesat\n"
 	    "move	$1, %0\n"
 	    "c2		0x10001\n"	/* msgsnd $1 */
 	    ".set	pop\n"
@@ -216,8 +216,8 @@ static inline void nlm_msgld(unsigned int pri)
 {
 	__asm__ volatile (
 	    ".set	push\n"
-	    ".set	noreorder\n"
-	    ".set	noat\n"
+	    ".set	yesreorder\n"
+	    ".set	yesat\n"
 	    "move	$1, %0\n"
 	    "c2		0x10002\n"    /* msgld $1 */
 	    ".set	pop\n"
@@ -229,8 +229,8 @@ static inline void nlm_msgwait(unsigned int mask)
 {
 	__asm__ volatile (
 	    ".set	push\n"
-	    ".set	noreorder\n"
-	    ".set	noat\n"
+	    ".set	yesreorder\n"
+	    ".set	yesat\n"
 	    "move	$8, %0\n"
 	    "c2		0x10003\n"    /* msgwait $1 */
 	    ".set	pop\n"
@@ -281,8 +281,8 @@ static inline int nlm_fmn_send(unsigned int size, unsigned int code,
 
 	/*
 	 * Make sure that all the writes pending at the cpu are flushed.
-	 * Any writes pending on CPU will not be see by devices. L1/L2
-	 * caches are coherent with IO, so no cache flush needed.
+	 * Any writes pending on CPU will yest be see by devices. L1/L2
+	 * caches are coherent with IO, so yes cache flush needed.
 	 */
 	__asm __volatile("sync");
 

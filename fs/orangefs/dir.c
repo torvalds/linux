@@ -51,14 +51,14 @@ struct orangefs_dir {
  * part list.  Data is parsed from the current position as it is needed.
  * When data is determined to be corrupt, it is either because the
  * userspace component has sent back corrupt data or because the file
- * pointer has been moved to an invalid location.  Since the two cannot
+ * pointer has been moved to an invalid location.  Since the two canyest
  * be differentiated, return EIO.
  *
  * Part zero is synthesized to contains `.' and `..'.  Part one is the
  * first part of the part list.
  */
 
-static int do_readdir(struct orangefs_inode_s *oi,
+static int do_readdir(struct orangefs_iyesde_s *oi,
     struct orangefs_dir *od, struct dentry *dentry,
     struct orangefs_kernel_op_s *op)
 {
@@ -66,7 +66,7 @@ static int do_readdir(struct orangefs_inode_s *oi,
 	int bufi, r;
 
 	/*
-	 * Despite the badly named field, readdir does not use shared
+	 * Despite the badly named field, readdir does yest use shared
 	 * memory.  However, there are a limited number of readdir
 	 * slots, which must be allocated here.  This flag simply tells
 	 * the op scheduler to return the op here for retry.
@@ -87,7 +87,7 @@ again:
 	op->upcall.req.readdir.buf_index = bufi;
 
 	r = service_operation(op, "orangefs_readdir",
-	    get_interruptible_flag(dentry->d_inode));
+	    get_interruptible_flag(dentry->d_iyesde));
 
 	orangefs_readdir_index_put(bufi);
 
@@ -158,7 +158,7 @@ static int parse_readdir(struct orangefs_dir *od,
 	return 0;
 }
 
-static int orangefs_dir_more(struct orangefs_inode_s *oi,
+static int orangefs_dir_more(struct orangefs_iyesde_s *oi,
     struct orangefs_dir *od, struct dentry *dentry)
 {
 	struct orangefs_kernel_op_s *op;
@@ -224,7 +224,7 @@ static int fill_from_part(struct orangefs_dir_part *part,
 			goto next;
 		khandle = (void *)part + offset + i + padlen;
 		if (!dir_emit(ctx, s, *len,
-		    orangefs_khandle_to_ino(khandle),
+		    orangefs_khandle_to_iyes(khandle),
 		    DT_UNKNOWN))
 			return 0;
 		i += padlen + sizeof *khandle;
@@ -238,7 +238,7 @@ next:
 	return 1;
 }
 
-static int orangefs_dir_fill(struct orangefs_inode_s *oi,
+static int orangefs_dir_fill(struct orangefs_iyesde_s *oi,
     struct orangefs_dir *od, struct dentry *dentry,
     struct dir_context *ctx)
 {
@@ -304,13 +304,13 @@ static loff_t orangefs_dir_llseek(struct file *file, loff_t offset,
 static int orangefs_dir_iterate(struct file *file,
     struct dir_context *ctx)
 {
-	struct orangefs_inode_s *oi;
+	struct orangefs_iyesde_s *oi;
 	struct orangefs_dir *od;
 	struct dentry *dentry;
 	int r;
 
 	dentry = file->f_path.dentry;
-	oi = ORANGEFS_I(dentry->d_inode);
+	oi = ORANGEFS_I(dentry->d_iyesde);
 	od = file->private_data;
 
 	if (od->error)
@@ -328,7 +328,7 @@ static int orangefs_dir_iterate(struct file *file,
 	}
 
 	/*
-	 * The seek position is in the first synthesized part but is not
+	 * The seek position is in the first synthesized part but is yest
 	 * valid.
 	 */
 	if ((ctx->pos & PART_MASK) == 0)
@@ -367,7 +367,7 @@ static int orangefs_dir_iterate(struct file *file,
 	return r;
 }
 
-static int orangefs_dir_open(struct inode *inode, struct file *file)
+static int orangefs_dir_open(struct iyesde *iyesde, struct file *file)
 {
 	struct orangefs_dir *od;
 	file->private_data = kmalloc(sizeof(struct orangefs_dir),
@@ -382,7 +382,7 @@ static int orangefs_dir_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int orangefs_dir_release(struct inode *inode, struct file *file)
+static int orangefs_dir_release(struct iyesde *iyesde, struct file *file)
 {
 	struct orangefs_dir *od = file->private_data;
 	struct orangefs_dir_part *part = od->part;

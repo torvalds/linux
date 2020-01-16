@@ -7,7 +7,7 @@
 #include <linux/bug.h>
 #include <linux/mutex.h>
 #include <linux/cpumask.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/fs.h>
 #include <linux/cred.h>
 
@@ -59,7 +59,7 @@ static inline bool seq_has_overflowed(struct seq_file *m)
  * @bufp: the beginning of the buffer is stored here
  *
  * Return the number of bytes available in the buffer, or zero if
- * there's no space.
+ * there's yes space.
  */
 static inline size_t seq_get_buf(struct seq_file *m, char **bufp)
 {
@@ -109,7 +109,7 @@ char *mangle_path(char *s, const char *p, const char *esc);
 int seq_open(struct file *, const struct seq_operations *);
 ssize_t seq_read(struct file *, char __user *, size_t, loff_t *);
 loff_t seq_lseek(struct file *, loff_t, int);
-int seq_release(struct inode *, struct file *);
+int seq_release(struct iyesde *, struct file *);
 int seq_write(struct seq_file *seq, const void *data, size_t len);
 
 __printf(2, 0)
@@ -141,15 +141,15 @@ int seq_path_root(struct seq_file *m, const struct path *path,
 
 int single_open(struct file *, int (*)(struct seq_file *, void *), void *);
 int single_open_size(struct file *, int (*)(struct seq_file *, void *), void *, size_t);
-int single_release(struct inode *, struct file *);
+int single_release(struct iyesde *, struct file *);
 void *__seq_open_private(struct file *, const struct seq_operations *, int);
 int seq_open_private(struct file *, const struct seq_operations *, int);
-int seq_release_private(struct inode *, struct file *);
+int seq_release_private(struct iyesde *, struct file *);
 
 #define DEFINE_SHOW_ATTRIBUTE(__name)					\
-static int __name ## _open(struct inode *inode, struct file *file)	\
+static int __name ## _open(struct iyesde *iyesde, struct file *file)	\
 {									\
-	return single_open(file, __name ## _show, inode->i_private);	\
+	return single_open(file, __name ## _show, iyesde->i_private);	\
 }									\
 									\
 static const struct file_operations __name ## _fops = {			\
@@ -192,7 +192,7 @@ static inline void seq_show_option(struct seq_file *m, const char *name,
  *		       where @value must be a specific length.
  * @m: the seq_file handle
  * @name: the mount option name
- * @value: the mount option name's value, cannot be NULL
+ * @value: the mount option name's value, canyest be NULL
  * @length: the length of @value to display
  *
  * This is a macro since this uses "length" to define the size of the
@@ -221,25 +221,25 @@ extern struct list_head *seq_list_next(void *v, struct list_head *head,
  * Helpers for iteration over hlist_head-s in seq_files
  */
 
-extern struct hlist_node *seq_hlist_start(struct hlist_head *head,
+extern struct hlist_yesde *seq_hlist_start(struct hlist_head *head,
 					  loff_t pos);
-extern struct hlist_node *seq_hlist_start_head(struct hlist_head *head,
+extern struct hlist_yesde *seq_hlist_start_head(struct hlist_head *head,
 					       loff_t pos);
-extern struct hlist_node *seq_hlist_next(void *v, struct hlist_head *head,
+extern struct hlist_yesde *seq_hlist_next(void *v, struct hlist_head *head,
 					 loff_t *ppos);
 
-extern struct hlist_node *seq_hlist_start_rcu(struct hlist_head *head,
+extern struct hlist_yesde *seq_hlist_start_rcu(struct hlist_head *head,
 					      loff_t pos);
-extern struct hlist_node *seq_hlist_start_head_rcu(struct hlist_head *head,
+extern struct hlist_yesde *seq_hlist_start_head_rcu(struct hlist_head *head,
 						   loff_t pos);
-extern struct hlist_node *seq_hlist_next_rcu(void *v,
+extern struct hlist_yesde *seq_hlist_next_rcu(void *v,
 						   struct hlist_head *head,
 						   loff_t *ppos);
 
 /* Helpers for iterating over per-cpu hlist_head-s in seq_files */
-extern struct hlist_node *seq_hlist_start_percpu(struct hlist_head __percpu *head, int *cpu, loff_t pos);
+extern struct hlist_yesde *seq_hlist_start_percpu(struct hlist_head __percpu *head, int *cpu, loff_t pos);
 
-extern struct hlist_node *seq_hlist_next_percpu(void *v, struct hlist_head __percpu *head, int *cpu, loff_t *pos);
+extern struct hlist_yesde *seq_hlist_next_percpu(void *v, struct hlist_head __percpu *head, int *cpu, loff_t *pos);
 
 void seq_file_init(void);
 #endif

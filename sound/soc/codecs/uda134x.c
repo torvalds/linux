@@ -183,7 +183,7 @@ static int uda134x_hw_params(struct snd_pcm_substream *substream,
 	unsigned int hw_params = 0;
 
 	if (substream == uda134x->slave_substream) {
-		pr_debug("%s ignoring hw_params for slave substream\n",
+		pr_debug("%s igyesring hw_params for slave substream\n",
 			 __func__);
 		return 0;
 	}
@@ -254,7 +254,7 @@ static int uda134x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	/* Anything between 256fs*8Khz and 512fs*48Khz should be acceptable
 	   because the codec is slave. Of course limitations of the clock
 	   master (the IIS controller) apply.
-	   We'll error out on set_hw_params if it's not OK */
+	   We'll error out on set_hw_params if it's yest OK */
 	if ((freq >= (256 * 8000)) && (freq <= (512 * 48000))) {
 		uda134x->sysclk = freq;
 		return 0;
@@ -278,7 +278,7 @@ static int uda134x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	/* no support for clock inversion */
+	/* yes support for clock inversion */
 	if ((fmt & SND_SOC_DAIFMT_INV_MASK) != SND_SOC_DAIFMT_NB_NF) {
 		printk(KERN_ERR "%s unsupported clock inversion\n", __func__);
 		return -EINVAL;
@@ -502,7 +502,7 @@ static int uda134x_soc_probe(struct snd_soc_component *component)
 					ARRAY_SIZE(uda1345_snd_controls));
 	break;
 	default:
-		printk(KERN_ERR "%s unknown codec type: %d",
+		printk(KERN_ERR "%s unkyeswn codec type: %d",
 			__func__, pd->model);
 		return -EINVAL;
 	}
@@ -526,7 +526,7 @@ static const struct snd_soc_component_driver soc_component_dev_uda134x = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config uda134x_regmap_config = {

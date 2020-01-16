@@ -74,8 +74,8 @@
 };
 
 &soc {
-	/delete-node/ dma-controller@e6460000;
-	/delete-node/ dma-controller@e6470000;
+	/delete-yesde/ dma-controller@e6460000;
+	/delete-yesde/ dma-controller@e6470000;
 
 	ipmmu_mp1: mmu@ec680000 {
 		compatible = "renesas,ipmmu-r8a7795";
@@ -93,11 +93,11 @@
 		#iommu-cells = <1>;
 	};
 
-	/delete-node/ mmu@fd950000;
-	/delete-node/ mmu@fd960000;
-	/delete-node/ mmu@fd970000;
-	/delete-node/ mmu@febe0000;
-	/delete-node/ mmu@fe980000;
+	/delete-yesde/ mmu@fd950000;
+	/delete-yesde/ mmu@fd960000;
+	/delete-yesde/ mmu@fd970000;
+	/delete-yesde/ mmu@febe0000;
+	/delete-yesde/ mmu@fe980000;
 
 	xhci1: usb@ee040000 {
 		compatible = "renesas,xhci-r8a7795", "renesas,rcar-gen3-xhci";
@@ -109,11 +109,11 @@
 		status = "disabled";
 	};
 
-	/delete-node/ usb@e659c000;
-	/delete-node/ usb@ee0e0000;
-	/delete-node/ usb@ee0e0100;
+	/delete-yesde/ usb@e659c000;
+	/delete-yesde/ usb@ee0e0000;
+	/delete-yesde/ usb@ee0e0100;
 
-	/delete-node/ usb-phy@ee0e0200;
+	/delete-yesde/ usb-phy@ee0e0200;
 
 	fdp1@fe948000 {
 		compatible = "renesas,fdp1";

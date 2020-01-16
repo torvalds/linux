@@ -139,7 +139,7 @@ truncate:
 	return true;
 }
 
-static inline bool no_range_check(struct vringh *vrh, u64 addr, size_t *len,
+static inline bool yes_range_check(struct vringh *vrh, u64 addr, size_t *len,
 				  struct vringh_range *range,
 				  bool (*getrange)(struct vringh *,
 						   u64, struct vringh_range *))
@@ -417,7 +417,7 @@ static inline int __vringh_complete(struct vringh *vrh,
 
 	off = used_idx % vrh->vring.num;
 
-	/* Compiler knows num_used == 1 sometimes, hence extra check */
+	/* Compiler kyesws num_used == 1 sometimes, hence extra check */
 	if (num_used > 1 && unlikely(off + num_used >= vrh->vring.num)) {
 		u16 part = vrh->vring.num - off;
 		err = putused(&used_ring->ring[off], used, part);
@@ -448,12 +448,12 @@ static inline int __vringh_complete(struct vringh *vrh,
 }
 
 
-static inline int __vringh_need_notify(struct vringh *vrh,
+static inline int __vringh_need_yestify(struct vringh *vrh,
 				       int (*getu16)(const struct vringh *vrh,
 						     u16 *val,
 						     const __virtio16 *p))
 {
-	bool notify;
+	bool yestify;
 	u16 used_event;
 	int err;
 
@@ -474,7 +474,7 @@ static inline int __vringh_need_notify(struct vringh *vrh,
 		return (!(flags & VRING_AVAIL_F_NO_INTERRUPT));
 	}
 
-	/* Modern: we know when other side wants to know. */
+	/* Modern: we kyesw when other side wants to kyesw. */
 	err = getu16(vrh, &used_event, &vring_used_event(&vrh->vring));
 	if (err) {
 		vringh_bad("Failed to get used event idx at %p",
@@ -484,18 +484,18 @@ static inline int __vringh_need_notify(struct vringh *vrh,
 
 	/* Just in case we added so many that we wrap. */
 	if (unlikely(vrh->completed > 0xffff))
-		notify = true;
+		yestify = true;
 	else
-		notify = vring_need_event(used_event,
+		yestify = vring_need_event(used_event,
 					  vrh->last_used_idx + vrh->completed,
 					  vrh->last_used_idx);
 
 	vrh->last_used_idx += vrh->completed;
 	vrh->completed = 0;
-	return notify;
+	return yestify;
 }
 
-static inline bool __vringh_notify_enable(struct vringh *vrh,
+static inline bool __vringh_yestify_enable(struct vringh *vrh,
 					  int (*getu16)(const struct vringh *vrh,
 							u16 *val, const __virtio16 *p),
 					  int (*putu16)(const struct vringh *vrh,
@@ -529,13 +529,13 @@ static inline bool __vringh_notify_enable(struct vringh *vrh,
 		return true;
 	}
 
-	/* This is unlikely, so we just leave notifications enabled
+	/* This is unlikely, so we just leave yestifications enabled
 	 * (if we're using event_indices, we'll only get one
-	 * notification anyway). */
+	 * yestification anyway). */
 	return avail == vrh->last_avail_idx;
 }
 
-static inline void __vringh_notify_disable(struct vringh *vrh,
+static inline void __vringh_yestify_disable(struct vringh *vrh,
 					   int (*putu16)(const struct vringh *vrh,
 							 __virtio16 *p, u16 val))
 {
@@ -595,7 +595,7 @@ static inline int xfer_to_user(void *dst, void *src, size_t len)
  * @vrh: the vringh to initialize.
  * @features: the feature bits for this ring.
  * @num: the number of elements.
- * @weak_barriers: true if we only need memory barriers, not I/O.
+ * @weak_barriers: true if we only need memory barriers, yest I/O.
  * @desc: the userpace descriptor pointer.
  * @avail: the userpace avail pointer.
  * @used: the userpace used pointer.
@@ -638,12 +638,12 @@ EXPORT_SYMBOL(vringh_init_user);
  * @getrange: function to call to check ranges.
  * @head: head index we received, for passing to vringh_complete_user().
  *
- * Returns 0 if there was no descriptor, 1 if there was, or -errno.
+ * Returns 0 if there was yes descriptor, 1 if there was, or -erryes.
  *
  * Note that on error return, you can tell the difference between an
  * invalid ring and a single invalid descriptor: in the former case,
- * *head will be vrh->vring.num.  You may be able to ignore an invalid
- * descriptor, but there's not much you can do with an invalid ring.
+ * *head will be vrh->vring.num.  You may be able to igyesre an invalid
+ * descriptor, but there's yest much you can do with an invalid ring.
  *
  * Note that you may need to clean up riov and wiov, even on error!
  */
@@ -702,7 +702,7 @@ EXPORT_SYMBOL(vringh_getdesc_user);
  * @dst: the place to copy.
  * @len: the maximum length to copy.
  *
- * Returns the bytes copied <= len or a negative errno.
+ * Returns the bytes copied <= len or a negative erryes.
  */
 ssize_t vringh_iov_pull_user(struct vringh_iov *riov, void *dst, size_t len)
 {
@@ -717,7 +717,7 @@ EXPORT_SYMBOL(vringh_iov_pull_user);
  * @dst: the place to copy.
  * @len: the maximum length to copy.
  *
- * Returns the bytes copied <= len or a negative errno.
+ * Returns the bytes copied <= len or a negative erryes.
  */
 ssize_t vringh_iov_push_user(struct vringh_iov *wiov,
 			     const void *src, size_t len)
@@ -728,7 +728,7 @@ ssize_t vringh_iov_push_user(struct vringh_iov *wiov,
 EXPORT_SYMBOL(vringh_iov_push_user);
 
 /**
- * vringh_abandon_user - we've decided not to handle the descriptor(s).
+ * vringh_abandon_user - we've decided yest to handle the descriptor(s).
  * @vrh: the vring.
  * @num: the number of descriptors to put back (ie. num
  *	 vringh_get_user() to undo).
@@ -737,7 +737,7 @@ EXPORT_SYMBOL(vringh_iov_push_user);
  */
 void vringh_abandon_user(struct vringh *vrh, unsigned int num)
 {
-	/* We only update vring_avail_event(vr) when we want to be notified,
+	/* We only update vring_avail_event(vr) when we want to be yestified,
 	 * so we haven't changed that yet. */
 	vrh->last_avail_idx -= num;
 }
@@ -749,7 +749,7 @@ EXPORT_SYMBOL(vringh_abandon_user);
  * @head: the head as filled in by vringh_getdesc_user.
  * @len: the length of data we have written.
  *
- * You should check vringh_need_notify_user() after one or more calls
+ * You should check vringh_need_yestify_user() after one or more calls
  * to this function.
  */
 int vringh_complete_user(struct vringh *vrh, u16 head, u32 len)
@@ -768,7 +768,7 @@ EXPORT_SYMBOL(vringh_complete_user);
  * @used: the head, length pairs.
  * @num_used: the number of used elements.
  *
- * You should check vringh_need_notify_user() after one or more calls
+ * You should check vringh_need_yestify_user() after one or more calls
  * to this function.
  */
 int vringh_complete_multi_user(struct vringh *vrh,
@@ -781,42 +781,42 @@ int vringh_complete_multi_user(struct vringh *vrh,
 EXPORT_SYMBOL(vringh_complete_multi_user);
 
 /**
- * vringh_notify_enable_user - we want to know if something changes.
+ * vringh_yestify_enable_user - we want to kyesw if something changes.
  * @vrh: the vring.
  *
- * This always enables notifications, but returns false if there are
- * now more buffers available in the vring.
+ * This always enables yestifications, but returns false if there are
+ * yesw more buffers available in the vring.
  */
-bool vringh_notify_enable_user(struct vringh *vrh)
+bool vringh_yestify_enable_user(struct vringh *vrh)
 {
-	return __vringh_notify_enable(vrh, getu16_user, putu16_user);
+	return __vringh_yestify_enable(vrh, getu16_user, putu16_user);
 }
-EXPORT_SYMBOL(vringh_notify_enable_user);
+EXPORT_SYMBOL(vringh_yestify_enable_user);
 
 /**
- * vringh_notify_disable_user - don't tell us if something changes.
+ * vringh_yestify_disable_user - don't tell us if something changes.
  * @vrh: the vring.
  *
- * This is our normal running state: we disable and then only enable when
+ * This is our yesrmal running state: we disable and then only enable when
  * we're going to sleep.
  */
-void vringh_notify_disable_user(struct vringh *vrh)
+void vringh_yestify_disable_user(struct vringh *vrh)
 {
-	__vringh_notify_disable(vrh, putu16_user);
+	__vringh_yestify_disable(vrh, putu16_user);
 }
-EXPORT_SYMBOL(vringh_notify_disable_user);
+EXPORT_SYMBOL(vringh_yestify_disable_user);
 
 /**
- * vringh_need_notify_user - must we tell the other side about used buffers?
+ * vringh_need_yestify_user - must we tell the other side about used buffers?
  * @vrh: the vring we've called vringh_complete_user() on.
  *
- * Returns -errno or 0 if we don't need to tell the other side, 1 if we do.
+ * Returns -erryes or 0 if we don't need to tell the other side, 1 if we do.
  */
-int vringh_need_notify_user(struct vringh *vrh)
+int vringh_need_yestify_user(struct vringh *vrh)
 {
-	return __vringh_need_notify(vrh, getu16_user);
+	return __vringh_need_yestify(vrh, getu16_user);
 }
-EXPORT_SYMBOL(vringh_need_notify_user);
+EXPORT_SYMBOL(vringh_need_yestify_user);
 
 /* Kernelspace access helpers. */
 static inline int getu16_kern(const struct vringh *vrh,
@@ -863,7 +863,7 @@ static inline int kern_xfer(void *dst, void *src, size_t len)
  * @vrh: the vringh to initialize.
  * @features: the feature bits for this ring.
  * @num: the number of elements.
- * @weak_barriers: true if we only need memory barriers, not I/O.
+ * @weak_barriers: true if we only need memory barriers, yest I/O.
  * @desc: the userpace descriptor pointer.
  * @avail: the userpace avail pointer.
  * @used: the userpace used pointer.
@@ -904,12 +904,12 @@ EXPORT_SYMBOL(vringh_init_kern);
  * @head: head index we received, for passing to vringh_complete_kern().
  * @gfp: flags for allocating larger riov/wiov.
  *
- * Returns 0 if there was no descriptor, 1 if there was, or -errno.
+ * Returns 0 if there was yes descriptor, 1 if there was, or -erryes.
  *
  * Note that on error return, you can tell the difference between an
  * invalid ring and a single invalid descriptor: in the former case,
- * *head will be vrh->vring.num.  You may be able to ignore an invalid
- * descriptor, but there's not much you can do with an invalid ring.
+ * *head will be vrh->vring.num.  You may be able to igyesre an invalid
+ * descriptor, but there's yest much you can do with an invalid ring.
  *
  * Note that you may need to clean up riov and wiov, even on error!
  */
@@ -930,7 +930,7 @@ int vringh_getdesc_kern(struct vringh *vrh,
 		return 0;
 
 	*head = err;
-	err = __vringh_iov(vrh, *head, riov, wiov, no_range_check, NULL,
+	err = __vringh_iov(vrh, *head, riov, wiov, yes_range_check, NULL,
 			   gfp, copydesc_kern);
 	if (err)
 		return err;
@@ -945,7 +945,7 @@ EXPORT_SYMBOL(vringh_getdesc_kern);
  * @dst: the place to copy.
  * @len: the maximum length to copy.
  *
- * Returns the bytes copied <= len or a negative errno.
+ * Returns the bytes copied <= len or a negative erryes.
  */
 ssize_t vringh_iov_pull_kern(struct vringh_kiov *riov, void *dst, size_t len)
 {
@@ -959,7 +959,7 @@ EXPORT_SYMBOL(vringh_iov_pull_kern);
  * @dst: the place to copy.
  * @len: the maximum length to copy.
  *
- * Returns the bytes copied <= len or a negative errno.
+ * Returns the bytes copied <= len or a negative erryes.
  */
 ssize_t vringh_iov_push_kern(struct vringh_kiov *wiov,
 			     const void *src, size_t len)
@@ -969,7 +969,7 @@ ssize_t vringh_iov_push_kern(struct vringh_kiov *wiov,
 EXPORT_SYMBOL(vringh_iov_push_kern);
 
 /**
- * vringh_abandon_kern - we've decided not to handle the descriptor(s).
+ * vringh_abandon_kern - we've decided yest to handle the descriptor(s).
  * @vrh: the vring.
  * @num: the number of descriptors to put back (ie. num
  *	 vringh_get_kern() to undo).
@@ -978,7 +978,7 @@ EXPORT_SYMBOL(vringh_iov_push_kern);
  */
 void vringh_abandon_kern(struct vringh *vrh, unsigned int num)
 {
-	/* We only update vring_avail_event(vr) when we want to be notified,
+	/* We only update vring_avail_event(vr) when we want to be yestified,
 	 * so we haven't changed that yet. */
 	vrh->last_avail_idx -= num;
 }
@@ -990,7 +990,7 @@ EXPORT_SYMBOL(vringh_abandon_kern);
  * @head: the head as filled in by vringh_getdesc_kern.
  * @len: the length of data we have written.
  *
- * You should check vringh_need_notify_kern() after one or more calls
+ * You should check vringh_need_yestify_kern() after one or more calls
  * to this function.
  */
 int vringh_complete_kern(struct vringh *vrh, u16 head, u32 len)
@@ -1005,41 +1005,41 @@ int vringh_complete_kern(struct vringh *vrh, u16 head, u32 len)
 EXPORT_SYMBOL(vringh_complete_kern);
 
 /**
- * vringh_notify_enable_kern - we want to know if something changes.
+ * vringh_yestify_enable_kern - we want to kyesw if something changes.
  * @vrh: the vring.
  *
- * This always enables notifications, but returns false if there are
- * now more buffers available in the vring.
+ * This always enables yestifications, but returns false if there are
+ * yesw more buffers available in the vring.
  */
-bool vringh_notify_enable_kern(struct vringh *vrh)
+bool vringh_yestify_enable_kern(struct vringh *vrh)
 {
-	return __vringh_notify_enable(vrh, getu16_kern, putu16_kern);
+	return __vringh_yestify_enable(vrh, getu16_kern, putu16_kern);
 }
-EXPORT_SYMBOL(vringh_notify_enable_kern);
+EXPORT_SYMBOL(vringh_yestify_enable_kern);
 
 /**
- * vringh_notify_disable_kern - don't tell us if something changes.
+ * vringh_yestify_disable_kern - don't tell us if something changes.
  * @vrh: the vring.
  *
- * This is our normal running state: we disable and then only enable when
+ * This is our yesrmal running state: we disable and then only enable when
  * we're going to sleep.
  */
-void vringh_notify_disable_kern(struct vringh *vrh)
+void vringh_yestify_disable_kern(struct vringh *vrh)
 {
-	__vringh_notify_disable(vrh, putu16_kern);
+	__vringh_yestify_disable(vrh, putu16_kern);
 }
-EXPORT_SYMBOL(vringh_notify_disable_kern);
+EXPORT_SYMBOL(vringh_yestify_disable_kern);
 
 /**
- * vringh_need_notify_kern - must we tell the other side about used buffers?
+ * vringh_need_yestify_kern - must we tell the other side about used buffers?
  * @vrh: the vring we've called vringh_complete_kern() on.
  *
- * Returns -errno or 0 if we don't need to tell the other side, 1 if we do.
+ * Returns -erryes or 0 if we don't need to tell the other side, 1 if we do.
  */
-int vringh_need_notify_kern(struct vringh *vrh)
+int vringh_need_yestify_kern(struct vringh *vrh)
 {
-	return __vringh_need_notify(vrh, getu16_kern);
+	return __vringh_need_yestify(vrh, getu16_kern);
 }
-EXPORT_SYMBOL(vringh_need_notify_kern);
+EXPORT_SYMBOL(vringh_need_yestify_kern);
 
 MODULE_LICENSE("GPL");

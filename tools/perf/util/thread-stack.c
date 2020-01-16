@@ -8,7 +8,7 @@
 #include <linux/list.h>
 #include <linux/log2.h>
 #include <linux/zalloc.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <string.h>
 #include "thread.h"
@@ -26,7 +26,7 @@
 /*
  * State of retpoline detection.
  *
- * RETPOLINE_NONE: no retpoline detection
+ * RETPOLINE_NONE: yes retpoline detection
  * X86_RETPOLINE_POSSIBLE: x86 retpoline possible
  * X86_RETPOLINE_DETECTED: x86 retpoline detected
  */
@@ -39,16 +39,16 @@ enum retpoline_state_t {
 /**
  * struct thread_stack_entry - thread stack entry.
  * @ret_addr: return address
- * @timestamp: timestamp (if known)
+ * @timestamp: timestamp (if kyeswn)
  * @ref: external reference (e.g. db_id of sample)
  * @branch_count: the branch count when the entry was created
  * @insn_count: the instruction count when the entry was created
  * @cyc_count the cycle count when the entry was created
  * @db_id: id used for db-export
  * @cp: call path
- * @no_call: a 'call' was not seen
+ * @yes_call: a 'call' was yest seen
  * @trace_end: a 'call' but trace ended
- * @non_call: a branch but not a 'call' to the start of a different symbol
+ * @yesn_call: a branch but yest a 'call' to the start of a different symbol
  */
 struct thread_stack_entry {
 	u64 ret_addr;
@@ -59,9 +59,9 @@ struct thread_stack_entry {
 	u64 cyc_count;
 	u64 db_id;
 	struct call_path *cp;
-	bool no_call;
+	bool yes_call;
 	bool trace_end;
-	bool non_call;
+	bool yesn_call;
 };
 
 /**
@@ -236,11 +236,11 @@ static void thread_stack__pop(struct thread_stack *ts, u64 ret_addr)
 	size_t i;
 
 	/*
-	 * In some cases there may be functions which are not seen to return.
+	 * In some cases there may be functions which are yest seen to return.
 	 * For example when setjmp / longjmp has been used.  Or the perf context
 	 * switch in the kernel which doesn't stop and start tracing in exactly
 	 * the same code path.  When that happens the return address will be
-	 * further down the stack.  If the return address is not found at all,
+	 * further down the stack.  If the return address is yest found at all,
 	 * we assume the opposite (i.e. this is a return for a call that wasn't
 	 * seen for some reason) and leave the stack alone.
 	 */
@@ -274,7 +274,7 @@ static bool thread_stack__in_kernel(struct thread_stack *ts)
 
 static int thread_stack__call_return(struct thread *thread,
 				     struct thread_stack *ts, size_t idx,
-				     u64 timestamp, u64 ref, bool no_return)
+				     u64 timestamp, u64 ref, bool yes_return)
 {
 	struct call_return_processor *crp = ts->crp;
 	struct thread_stack_entry *tse;
@@ -295,17 +295,17 @@ static int thread_stack__call_return(struct thread *thread,
 	cr.db_id = tse->db_id;
 	cr.call_ref = tse->ref;
 	cr.return_ref = ref;
-	if (tse->no_call)
+	if (tse->yes_call)
 		cr.flags |= CALL_RETURN_NO_CALL;
-	if (no_return)
+	if (yes_return)
 		cr.flags |= CALL_RETURN_NO_RETURN;
-	if (tse->non_call)
+	if (tse->yesn_call)
 		cr.flags |= CALL_RETURN_NON_CALL;
 
 	/*
 	 * The parent db_id must be assigned before exporting the child. Note
-	 * it is not possible to export the parent first because its information
-	 * is not yet complete because its 'return' has not yet been processed.
+	 * it is yest possible to export the parent first because its information
+	 * is yest yet complete because its 'return' has yest yet been processed.
 	 */
 	parent_db_id = idx ? &(tse - 1)->db_id : NULL;
 
@@ -364,7 +364,7 @@ int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 	if (!ts) {
 		ts = thread_stack__new(thread, cpu, NULL);
 		if (!ts) {
-			pr_warning("Out of memory: no thread stack\n");
+			pr_warning("Out of memory: yes thread stack\n");
 			return -ENOMEM;
 		}
 		ts->trace_nr = trace_nr;
@@ -372,7 +372,7 @@ int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 
 	/*
 	 * When the trace is discontinuous, the trace_nr changes.  In that case
-	 * the stack might be completely invalid.  Better to report nothing than
+	 * the stack might be completely invalid.  Better to report yesthing than
 	 * to report something misleading, so flush the stack.
 	 */
 	if (trace_nr != ts->trace_nr) {
@@ -397,10 +397,10 @@ int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 					  flags & PERF_IP_FLAG_TRACE_END);
 	} else if (flags & PERF_IP_FLAG_TRACE_BEGIN) {
 		/*
-		 * If the caller did not change the trace number (which would
+		 * If the caller did yest change the trace number (which would
 		 * have flushed the stack) then try to make sense of the stack.
 		 * Possibly, tracing began after returning to the current
-		 * address, so try to pop that. Also, do not expect a call made
+		 * address, so try to pop that. Also, do yest expect a call made
 		 * when the trace ended, to return, so pop that.
 		 */
 		thread_stack__pop(ts, to_ip);
@@ -528,7 +528,7 @@ void call_return_processor__free(struct call_return_processor *crp)
 
 static int thread_stack__push_cp(struct thread_stack *ts, u64 ret_addr,
 				 u64 timestamp, u64 ref, struct call_path *cp,
-				 bool no_call, bool trace_end)
+				 bool yes_call, bool trace_end)
 {
 	struct thread_stack_entry *tse;
 	int err;
@@ -550,9 +550,9 @@ static int thread_stack__push_cp(struct thread_stack *ts, u64 ret_addr,
 	tse->insn_count = ts->insn_count;
 	tse->cyc_count = ts->cyc_count;
 	tse->cp = cp;
-	tse->no_call = no_call;
+	tse->yes_call = yes_call;
 	tse->trace_end = trace_end;
-	tse->non_call = false;
+	tse->yesn_call = false;
 	tse->db_id = 0;
 
 	return 0;
@@ -576,7 +576,7 @@ static int thread_stack__pop_cp(struct thread *thread, struct thread_stack *ts,
 	}
 
 	if (ts->stack[ts->cnt - 1].ret_addr == ret_addr &&
-	    !ts->stack[ts->cnt - 1].non_call) {
+	    !ts->stack[ts->cnt - 1].yesn_call) {
 		return thread_stack__call_return(thread, ts, --ts->cnt,
 						 timestamp, ref, false);
 	} else {
@@ -584,7 +584,7 @@ static int thread_stack__pop_cp(struct thread *thread, struct thread_stack *ts,
 
 		while (i--) {
 			if (ts->stack[i].ret_addr != ret_addr ||
-			    ts->stack[i].non_call)
+			    ts->stack[i].yesn_call)
 				continue;
 			i += 1;
 			while (ts->cnt > i) {
@@ -647,7 +647,7 @@ static int thread_stack__pop_ks(struct thread *thread, struct thread_stack *ts,
 	return 0;
 }
 
-static int thread_stack__no_call_return(struct thread *thread,
+static int thread_stack__yes_call_return(struct thread *thread,
 					struct thread_stack *ts,
 					struct perf_sample *sample,
 					struct addr_location *from_al,
@@ -716,13 +716,13 @@ static int thread_stack__no_call_return(struct thread *thread,
 
 		err = thread_stack__push_cp(ts, 0, tm, ref, cp, true, false);
 		if (!err)
-			ts->stack[ts->cnt - 1].non_call = true;
+			ts->stack[ts->cnt - 1].yesn_call = true;
 
 		return err;
 	}
 
 	/*
-	 * Assume 'parent' has not yet returned, so push 'to', and then push and
+	 * Assume 'parent' has yest yet returned, so push 'to', and then push and
 	 * pop 'from'.
 	 */
 
@@ -792,7 +792,7 @@ static bool is_x86_retpoline(const char *name)
 
 /*
  * x86 retpoline functions pollute the call graph. This function removes them.
- * This does not handle function return thunks, nor is there any improvement
+ * This does yest handle function return thunks, yesr is there any improvement
  * for the handling of inline thunks or extern thunks.
  */
 static int thread_stack__x86_retpoline(struct thread_stack *ts,
@@ -809,10 +809,10 @@ static int thread_stack__x86_retpoline(struct thread_stack *ts,
 		/*
 		 * This is a x86 retpoline fn. It pollutes the call graph by
 		 * showing up everywhere there is an indirect branch, but does
-		 * not itself mean anything. Here the top-of-stack is removed,
+		 * yest itself mean anything. Here the top-of-stack is removed,
 		 * by decrementing the stack count, and then further down, the
 		 * resulting top-of-stack is replaced with the actual target.
-		 * The result is that the retpoline functions will no longer
+		 * The result is that the retpoline functions will yes longer
 		 * appear in the call graph. Note this only affects the call
 		 * graph, since all the original branches are left unchanged.
 		 */
@@ -914,7 +914,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 					    cp, false, trace_end);
 
 		/*
-		 * A call to the same symbol but not the start of the symbol,
+		 * A call to the same symbol but yest the start of the symbol,
 		 * may be the start of a x86 retpoline.
 		 */
 		if (!err && rstate == X86_RETPOLINE_POSSIBLE && to_al->sym &&
@@ -947,7 +947,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 		if (err) {
 			if (err < 0)
 				return err;
-			err = thread_stack__no_call_return(thread, ts, sample,
+			err = thread_stack__yes_call_return(thread, ts, sample,
 							   from_al, to_al, ref);
 		}
 	} else if (sample->flags & PERF_IP_FLAG_TRACE_BEGIN) {
@@ -972,7 +972,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 		err = thread_stack__push_cp(ts, 0, sample->time, ref, cp, false,
 					    false);
 		if (!err)
-			ts->stack[ts->cnt - 1].non_call = true;
+			ts->stack[ts->cnt - 1].yesn_call = true;
 	}
 
 	return err;

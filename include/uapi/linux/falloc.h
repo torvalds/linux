@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_FALLOC_H_
 #define _UAPI_FALLOC_H_
 
@@ -37,7 +37,7 @@
  * while the range remains allocated for the file.
  *
  * This can be also used to preallocate blocks past EOF in the same way as
- * with fallocate. Flag FALLOC_FL_KEEP_SIZE should cause the inode
+ * with fallocate. Flag FALLOC_FL_KEEP_SIZE should cause the iyesde
  * size to remain the same.
  */
 #define FALLOC_FL_ZERO_RANGE		0x10
@@ -72,7 +72,7 @@
  * or file.
  *
  * This flag can only be used with allocate-mode fallocate, which is
- * to say that it cannot be used with the punch, zero, collapse, or
+ * to say that it canyest be used with the punch, zero, collapse, or
  * insert range modes.
  */
 #define FALLOC_FL_UNSHARE_RANGE		0x40

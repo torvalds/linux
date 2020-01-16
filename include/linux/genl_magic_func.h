@@ -13,8 +13,8 @@
 #undef GENL_mc_group
 #define GENL_mc_group(group)
 
-#undef GENL_notification
-#define GENL_notification(op_name, op_num, mcast_group, tla_list)
+#undef GENL_yestification
+#define GENL_yestification(op_name, op_num, mcast_group, tla_list)
 
 #undef GENL_op
 #define GENL_op(op_name, op_num, handler, tla_list)
@@ -95,7 +95,7 @@ static void dprint_array(const char *dir, int nla_type,
 #define DPRINT_TLA(a, op, b) pr_info("%s %s %s\n", a, op, b);
 
 /* Name is a member field name of the struct s.
- * If s is NULL (only parsing, no copy requested in *_from_attrs()),
+ * If s is NULL (only parsing, yes copy requested in *_from_attrs()),
  * nla is supposed to point to the attribute containing the information
  * corresponding to that struct member. */
 #define DPRINT_FIELD(dir, nla_type, name, s, nla)			\
@@ -170,7 +170,7 @@ static int s_name ## _from_attrs_for_change(struct s_name *s,		\
 		nla = ntb[attr_nr];						\
 		if (nla) {						\
 			if (exclude_invariants && !!((attr_flag) & DRBD_F_INVARIANT)) {		\
-				pr_info("<< must not change invariant attr: %s\n", #name);	\
+				pr_info("<< must yest change invariant attr: %s\n", #name);	\
 				return -EEXIST;				\
 			}						\
 			assignment;					\
@@ -217,7 +217,7 @@ const char *CONCAT_(GENL_MAGIC_FAMILY, _genl_cmd_to_str)(__u8 cmd)
 	case op_num: return #op_name;
 #include GENL_MAGIC_INCLUDE_FILE
 	default:
-		     return "unknown";
+		     return "unkyeswn";
 	}
 }
 
@@ -404,4 +404,4 @@ s_fields								\
 
 /* }}}1 */
 #endif /* GENL_MAGIC_FUNC_H */
-/* vim: set foldmethod=marker foldlevel=1 nofoldenable : */
+/* vim: set foldmethod=marker foldlevel=1 yesfoldenable : */

@@ -17,16 +17,16 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
+along with this program; if yest, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 Permission to use, copy, modify, distribute, and sell this software and its
 documentation for any purpose is hereby granted without fee, provided that
-the above copyright notice appear in all copies and that both that
-copyright notice and this permission notice appear in supporting
-documentation, and that the name of GTCO-CalComp not be used in advertising
+the above copyright yestice appear in all copies and that both that
+copyright yestice and this permission yestice appear in supporting
+documentation, and that the name of GTCO-CalComp yest be used in advertising
 or publicity pertaining to distribution of the software without specific,
-written prior permission. GTCO-CalComp makes no representations about the
+written prior permission. GTCO-CalComp makes yes representations about the
 suitability of this software for any purpose.  It is provided "as is"
 without express or implied warranty.
 
@@ -52,7 +52,7 @@ Scott Hill shill@gtcocalcomp.com
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/usb.h>
@@ -185,12 +185,12 @@ struct hid_descriptor
 
 /*
  *   This is an abbreviated parser for the HID Report Descriptor.  We
- *   know what devices we are talking to, so this is by no means meant
+ *   kyesw what devices we are talking to, so this is by yes means meant
  *   to be generic.  We can make some safe assumptions:
  *
- *   - We know there are no LONG tags, all short
- *   - We know that we have no MAIN Feature and MAIN Output items
- *   - We know what the IRQ reports are supposed to look like.
+ *   - We kyesw there are yes LONG tags, all short
+ *   - We kyesw that we have yes MAIN Feature and MAIN Output items
+ *   - We kyesw what the IRQ reports are supposed to look like.
  *
  *   The main purpose of this is to use the HID report desc to figure
  *   out the mins and maxs of the fields in the IRQ reports.  The IRQ
@@ -236,7 +236,7 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 		size = (1U << PREF_SIZE(prefix)) >> 1;
 		if (i + size > length) {
 			dev_err(ddev,
-				"Not enough data (need %d, have %d)\n",
+				"Not eyesugh data (need %d, have %d)\n",
 				i + size, length);
 			break;
 		}
@@ -645,14 +645,14 @@ static void gtco_urb_callback(struct urb *urbinfo)
 
 	if (urbinfo->status != 0) {
 		/*
-		 * Some unknown error.  Hopefully temporary. Just go and
+		 * Some unkyeswn error.  Hopefully temporary. Just go and
 		 * requeue an URB
 		 */
 		goto resubmit;
 	}
 
 	/*
-	 * Good URB, now process
+	 * Good URB, yesw process
 	 */
 
 	/* PID dependent when we interpret the report */
@@ -710,7 +710,7 @@ static void gtco_urb_callback(struct urb *urbinfo)
 			input_report_abs(inputdev, ABS_DISTANCE, val);
 
 			/* Report 1 is an exception to how we handle buttons */
-			/* Buttons are an index, not a bitmask */
+			/* Buttons are an index, yest a bitmask */
 			if (device->buffer[0] == 1) {
 
 				/*
@@ -883,7 +883,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	}
 
 	/*
-	 * The endpoint is always altsetting 0, we know this since we know
+	 * The endpoint is always altsetting 0, we kyesw this since we kyesw
 	 * this device only has one interrupt endpoint
 	 */
 	endpoint = &usbinterface->altsetting[0].endpoint[0].desc;
@@ -951,7 +951,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 		goto err_free_urb;
 	}
 
-	/* Create a device file node */
+	/* Create a device file yesde */
 	usb_make_path(udev, gtco->usbpath, sizeof(gtco->usbpath));
 	strlcat(gtco->usbpath, "/input0", sizeof(gtco->usbpath));
 
@@ -991,7 +991,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	/* Save gtco pointer in USB interface gtco */
 	usb_set_intfdata(usbinterface, gtco);
 
-	/* All done, now register the input device */
+	/* All done, yesw register the input device */
 	error = input_register_device(input_dev);
 	if (error)
 		goto err_free_urb;

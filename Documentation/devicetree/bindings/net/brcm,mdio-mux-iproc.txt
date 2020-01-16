@@ -7,10 +7,10 @@ properties as well to generate desired MDIO transaction on appropriate bus.
 
 Required properties in addition to the generic multiplexer properties:
 
-MDIO multiplexer node:
+MDIO multiplexer yesde:
 - compatible: brcm,mdio-mux-iproc.
 
-Every non-ethernet PHY requires a compatible so that it could be probed based
+Every yesn-ethernet PHY requires a compatible so that it could be probed based
 on this compatible string.
 
 Optional properties:

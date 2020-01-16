@@ -18,7 +18,7 @@
  *					skbuff comments. May be overdone,
  *					better to prove they can be removed
  *					than the reverse.
- *		Alan Cox	:	Added a zapped field for tcp to note
+ *		Alan Cox	:	Added a zapped field for tcp to yeste
  *					a socket is reset and must stay shut up
  *		Alan Cox	:	New fields for options
  *	Pauline Middelink	:	identd support
@@ -28,7 +28,7 @@
  *              Arnaldo C. Melo :	removed net_pinfo, tp_pinfo and made
  *              			protinfo be just a void pointer, as the
  *              			protocol specific parts were moved to
- *              			respective headers and ipv4/v6, etc now
+ *              			respective headers and ipv4/v6, etc yesw
  *              			use private slabcaches for its socks
  *              Pedro Hortas	:	New flags field for socket options
  */
@@ -70,7 +70,7 @@
 
 /*
  * This structure really needs to be cleaned up.
- * Most of it is for TCP, and not used by any of
+ * Most of it is for TCP, and yest used by any of
  * the other protocols.
  */
 
@@ -80,7 +80,7 @@
 #define SOCK_DEBUG(sk, msg...) do { if ((sk) && sock_flag((sk), SOCK_DBG)) \
 					printk(KERN_DEBUG msg); } while (0)
 #else
-/* Validate arguments and do nothing */
+/* Validate arguments and do yesthing */
 static inline __printf(2, 3)
 void SOCK_DEBUG(const struct sock *sk, const char *msg, ...)
 {
@@ -126,16 +126,16 @@ typedef __u64 __bitwise __addrpair;
  *	@skc_reuse: %SO_REUSEADDR setting
  *	@skc_reuseport: %SO_REUSEPORT setting
  *	@skc_bound_dev_if: bound device index if != 0
- *	@skc_bind_node: bind hash linkage for various protocol lookup tables
- *	@skc_portaddr_node: second hash linkage for UDP/UDP-Lite protocol
+ *	@skc_bind_yesde: bind hash linkage for various protocol lookup tables
+ *	@skc_portaddr_yesde: second hash linkage for UDP/UDP-Lite protocol
  *	@skc_prot: protocol handlers inside a network family
  *	@skc_net: reference to the network namespace of this socket
- *	@skc_node: main hash linkage for various protocol lookup tables
- *	@skc_nulls_node: main hash linkage for TCP/UDP/UDP-Lite protocol
+ *	@skc_yesde: main hash linkage for various protocol lookup tables
+ *	@skc_nulls_yesde: main hash linkage for TCP/UDP/UDP-Lite protocol
  *	@skc_tx_queue_mapping: tx queue number for this connection
  *	@skc_rx_queue_mapping: rx queue number for this connection
  *	@skc_flags: place holder for sk_flags
- *		%SO_LINGER (l_onoff), %SO_BROADCAST, %SO_KEEPALIVE,
+ *		%SO_LINGER (l_oyesff), %SO_BROADCAST, %SO_KEEPALIVE,
  *		%SO_OOBINLINE settings, %SO_TIMESTAMPING settings
  *	@skc_incoming_cpu: record/match cpu processing incoming packets
  *	@skc_refcnt: reference count
@@ -175,8 +175,8 @@ struct sock_common {
 	unsigned char		skc_net_refcnt:1;
 	int			skc_bound_dev_if;
 	union {
-		struct hlist_node	skc_bind_node;
-		struct hlist_node	skc_portaddr_node;
+		struct hlist_yesde	skc_bind_yesde;
+		struct hlist_yesde	skc_portaddr_yesde;
 	};
 	struct proto		*skc_prot;
 	possible_net_t		skc_net;
@@ -200,14 +200,14 @@ struct sock_common {
 	};
 	/*
 	 * fields between dontcopy_begin/dontcopy_end
-	 * are not copied in sock_copy()
+	 * are yest copied in sock_copy()
 	 */
 	/* private: */
 	int			skc_dontcopy_begin[0];
 	/* public: */
 	union {
-		struct hlist_node	skc_node;
-		struct hlist_nulls_node skc_nulls_node;
+		struct hlist_yesde	skc_yesde;
+		struct hlist_nulls_yesde skc_nulls_yesde;
 	};
 	unsigned short		skc_tx_queue_mapping;
 #ifdef CONFIG_XPS
@@ -253,7 +253,7 @@ struct bpf_sk_storage;
   *	@sk_wmem_queued: persistent queue size
   *	@sk_forward_alloc: space allocated forward
   *	@sk_napi_id: id of the last napi context to receive data for sk
-  *	@sk_ll_usec: usecs to busypoll when there is no data
+  *	@sk_ll_usec: usecs to busypoll when there is yes data
   *	@sk_allocation: allocation mode
   *	@sk_pacing_rate: Pacing rate (if supported by transport/packet scheduler)
   *	@sk_pacing_status: Pacing status (requested, handled by sch_fq)
@@ -261,10 +261,10 @@ struct bpf_sk_storage;
   *	@sk_sndbuf: size of send buffer in bytes
   *	@__sk_flags_offset: empty field used to determine location of bitfield
   *	@sk_padding: unused element for alignment
-  *	@sk_no_check_tx: %SO_NO_CHECK setting, set checksum in TX packets
-  *	@sk_no_check_rx: allow zero checksum in RX packets
+  *	@sk_yes_check_tx: %SO_NO_CHECK setting, set checksum in TX packets
+  *	@sk_yes_check_rx: allow zero checksum in RX packets
   *	@sk_route_caps: route capabilities (e.g. %NETIF_F_TSO)
-  *	@sk_route_nocaps: forbidden route capabilities (e.g NETIF_F_GSO_MASK)
+  *	@sk_route_yescaps: forbidden route capabilities (e.g NETIF_F_GSO_MASK)
   *	@sk_gso_type: GSO type (e.g. %SKB_GSO_TCPV4)
   *	@sk_gso_max_size: Maximum GSO segment size to build
   *	@sk_gso_max_segs: Maximum number of GSO segments
@@ -277,7 +277,7 @@ struct bpf_sk_storage;
   *			  IPV6_ADDRFORM for instance)
   *	@sk_err: last error
   *	@sk_err_soft: errors that don't cause failure but are the cause of a
-  *		      persistent failure not just 'timed out'
+  *		      persistent failure yest just 'timed out'
   *	@sk_drops: raw/udp drops counter
   *	@sk_ack_backlog: current listen backlog
   *	@sk_max_ack_backlog: listen backlog set in listen()
@@ -297,7 +297,7 @@ struct bpf_sk_storage;
   *	@sk_stamp_seq: lock for accessing sk_stamp on 32 bit architectures only
   *	@sk_tsflags: SO_TIMESTAMPING socket options
   *	@sk_tskey: counter to disambiguate concurrent tstamp requests
-  *	@sk_zckey: counter to order MSG_ZEROCOPY notifications
+  *	@sk_zckey: counter to order MSG_ZEROCOPY yestifications
   *	@sk_socket: Identd and reporting IO signals
   *	@sk_user_data: RPC layer private data
   *	@sk_frag: cached page frag
@@ -323,11 +323,11 @@ struct bpf_sk_storage;
 struct sock {
 	/*
 	 * Now struct inet_timewait_sock also uses sock_common, so please just
-	 * don't add nothing before this first member (__sk_common) --acme
+	 * don't add yesthing before this first member (__sk_common) --acme
 	 */
 	struct sock_common	__sk_common;
-#define sk_node			__sk_common.skc_node
-#define sk_nulls_node		__sk_common.skc_nulls_node
+#define sk_yesde			__sk_common.skc_yesde
+#define sk_nulls_yesde		__sk_common.skc_nulls_yesde
 #define sk_refcnt		__sk_common.skc_refcnt
 #define sk_tx_queue_mapping	__sk_common.skc_tx_queue_mapping
 #ifdef CONFIG_XPS
@@ -350,7 +350,7 @@ struct sock {
 #define sk_ipv6only		__sk_common.skc_ipv6only
 #define sk_net_refcnt		__sk_common.skc_net_refcnt
 #define sk_bound_dev_if		__sk_common.skc_bound_dev_if
-#define sk_bind_node		__sk_common.skc_bind_node
+#define sk_bind_yesde		__sk_common.skc_bind_yesde
 #define sk_prot			__sk_common.skc_prot
 #define sk_net			__sk_common.skc_net
 #define sk_v6_daddr		__sk_common.skc_v6_daddr
@@ -371,7 +371,7 @@ struct sock {
 	 * the per-socket spinlock held and requires low latency
 	 * access. Therefore we special case it's implementation.
 	 * Note : rmem_alloc is in this structure to fill a hole
-	 * on 64bit arches, not because its logically part of
+	 * on 64bit arches, yest because its logically part of
 	 * backlog.
 	 */
 	struct {
@@ -425,7 +425,7 @@ struct sock {
 	unsigned long		sk_max_pacing_rate;
 	struct page_frag	sk_frag;
 	netdev_features_t	sk_route_caps;
-	netdev_features_t	sk_route_nocaps;
+	netdev_features_t	sk_route_yescaps;
 	netdev_features_t	sk_route_forced_caps;
 	int			sk_gso_type;
 	unsigned int		sk_gso_max_size;
@@ -433,7 +433,7 @@ struct sock {
 	__u32			sk_txhash;
 
 	/*
-	 * Because of non atomicity rules, all
+	 * Because of yesn atomicity rules, all
 	 * changes are protected by socket lock.
 	 */
 	unsigned int		__sk_flags_offset[0];
@@ -453,8 +453,8 @@ struct sock {
 
 	unsigned int		sk_padding : 1,
 				sk_kern_sock : 1,
-				sk_no_check_tx : 1,
-				sk_no_check_rx : 1,
+				sk_yes_check_tx : 1,
+				sk_yes_check_rx : 1,
 				sk_userlocks : 4,
 				sk_protocol  : 8,
 				sk_type      : 16;
@@ -525,7 +525,7 @@ enum sk_pacing {
 
 /*
  * SK_CAN_REUSE and SK_NO_REUSE on a socket mean that the socket is OK
- * or not whether his port will be reused by someone else. SK_FORCE_REUSE
+ * or yest whether his port will be reused by someone else. SK_FORCE_REUSE
  * on a socket means that the socket will reuse everybody else's port
  * without looking at the other's sk_reuse value.
  */
@@ -563,14 +563,14 @@ static inline void sk_peek_offset_fwd(struct sock *sk, int val)
 /*
  * Hashed lists helper routines
  */
-static inline struct sock *sk_entry(const struct hlist_node *node)
+static inline struct sock *sk_entry(const struct hlist_yesde *yesde)
 {
-	return hlist_entry(node, struct sock, sk_node);
+	return hlist_entry(yesde, struct sock, sk_yesde);
 }
 
 static inline struct sock *__sk_head(const struct hlist_head *head)
 {
-	return hlist_entry(head->first, struct sock, sk_node);
+	return hlist_entry(head->first, struct sock, sk_yesde);
 }
 
 static inline struct sock *sk_head(const struct hlist_head *head)
@@ -580,7 +580,7 @@ static inline struct sock *sk_head(const struct hlist_head *head)
 
 static inline struct sock *__sk_nulls_head(const struct hlist_nulls_head *head)
 {
-	return hlist_nulls_entry(head->first, struct sock, sk_nulls_node);
+	return hlist_nulls_entry(head->first, struct sock, sk_nulls_yesde);
 }
 
 static inline struct sock *sk_nulls_head(const struct hlist_nulls_head *head)
@@ -590,20 +590,20 @@ static inline struct sock *sk_nulls_head(const struct hlist_nulls_head *head)
 
 static inline struct sock *sk_next(const struct sock *sk)
 {
-	return hlist_entry_safe(sk->sk_node.next, struct sock, sk_node);
+	return hlist_entry_safe(sk->sk_yesde.next, struct sock, sk_yesde);
 }
 
 static inline struct sock *sk_nulls_next(const struct sock *sk)
 {
-	return (!is_a_nulls(sk->sk_nulls_node.next)) ?
-		hlist_nulls_entry(sk->sk_nulls_node.next,
-				  struct sock, sk_nulls_node) :
+	return (!is_a_nulls(sk->sk_nulls_yesde.next)) ?
+		hlist_nulls_entry(sk->sk_nulls_yesde.next,
+				  struct sock, sk_nulls_yesde) :
 		NULL;
 }
 
 static inline bool sk_unhashed(const struct sock *sk)
 {
-	return hlist_unhashed(&sk->sk_node);
+	return hlist_unhashed(&sk->sk_yesde);
 }
 
 static inline bool sk_hashed(const struct sock *sk)
@@ -611,27 +611,27 @@ static inline bool sk_hashed(const struct sock *sk)
 	return !sk_unhashed(sk);
 }
 
-static inline void sk_node_init(struct hlist_node *node)
+static inline void sk_yesde_init(struct hlist_yesde *yesde)
 {
-	node->pprev = NULL;
+	yesde->pprev = NULL;
 }
 
-static inline void sk_nulls_node_init(struct hlist_nulls_node *node)
+static inline void sk_nulls_yesde_init(struct hlist_nulls_yesde *yesde)
 {
-	node->pprev = NULL;
+	yesde->pprev = NULL;
 }
 
-static inline void __sk_del_node(struct sock *sk)
+static inline void __sk_del_yesde(struct sock *sk)
 {
-	__hlist_del(&sk->sk_node);
+	__hlist_del(&sk->sk_yesde);
 }
 
 /* NB: equivalent to hlist_del_init_rcu */
-static inline bool __sk_del_node_init(struct sock *sk)
+static inline bool __sk_del_yesde_init(struct sock *sk)
 {
 	if (sk_hashed(sk)) {
-		__sk_del_node(sk);
-		sk_node_init(&sk->sk_node);
+		__sk_del_yesde(sk);
+		sk_yesde_init(&sk->sk_yesde);
 		return true;
 	}
 	return false;
@@ -649,125 +649,125 @@ static __always_inline void sock_hold(struct sock *sk)
 }
 
 /* Ungrab socket in the context, which assumes that socket refcnt
-   cannot hit zero, f.e. it is true in context of any socketcall.
+   canyest hit zero, f.e. it is true in context of any socketcall.
  */
 static __always_inline void __sock_put(struct sock *sk)
 {
 	refcount_dec(&sk->sk_refcnt);
 }
 
-static inline bool sk_del_node_init(struct sock *sk)
+static inline bool sk_del_yesde_init(struct sock *sk)
 {
-	bool rc = __sk_del_node_init(sk);
+	bool rc = __sk_del_yesde_init(sk);
 
 	if (rc) {
-		/* paranoid for a while -acme */
+		/* parayesid for a while -acme */
 		WARN_ON(refcount_read(&sk->sk_refcnt) == 1);
 		__sock_put(sk);
 	}
 	return rc;
 }
-#define sk_del_node_init_rcu(sk)	sk_del_node_init(sk)
+#define sk_del_yesde_init_rcu(sk)	sk_del_yesde_init(sk)
 
-static inline bool __sk_nulls_del_node_init_rcu(struct sock *sk)
+static inline bool __sk_nulls_del_yesde_init_rcu(struct sock *sk)
 {
 	if (sk_hashed(sk)) {
-		hlist_nulls_del_init_rcu(&sk->sk_nulls_node);
+		hlist_nulls_del_init_rcu(&sk->sk_nulls_yesde);
 		return true;
 	}
 	return false;
 }
 
-static inline bool sk_nulls_del_node_init_rcu(struct sock *sk)
+static inline bool sk_nulls_del_yesde_init_rcu(struct sock *sk)
 {
-	bool rc = __sk_nulls_del_node_init_rcu(sk);
+	bool rc = __sk_nulls_del_yesde_init_rcu(sk);
 
 	if (rc) {
-		/* paranoid for a while -acme */
+		/* parayesid for a while -acme */
 		WARN_ON(refcount_read(&sk->sk_refcnt) == 1);
 		__sock_put(sk);
 	}
 	return rc;
 }
 
-static inline void __sk_add_node(struct sock *sk, struct hlist_head *list)
+static inline void __sk_add_yesde(struct sock *sk, struct hlist_head *list)
 {
-	hlist_add_head(&sk->sk_node, list);
+	hlist_add_head(&sk->sk_yesde, list);
 }
 
-static inline void sk_add_node(struct sock *sk, struct hlist_head *list)
+static inline void sk_add_yesde(struct sock *sk, struct hlist_head *list)
 {
 	sock_hold(sk);
-	__sk_add_node(sk, list);
+	__sk_add_yesde(sk, list);
 }
 
-static inline void sk_add_node_rcu(struct sock *sk, struct hlist_head *list)
+static inline void sk_add_yesde_rcu(struct sock *sk, struct hlist_head *list)
 {
 	sock_hold(sk);
 	if (IS_ENABLED(CONFIG_IPV6) && sk->sk_reuseport &&
 	    sk->sk_family == AF_INET6)
-		hlist_add_tail_rcu(&sk->sk_node, list);
+		hlist_add_tail_rcu(&sk->sk_yesde, list);
 	else
-		hlist_add_head_rcu(&sk->sk_node, list);
+		hlist_add_head_rcu(&sk->sk_yesde, list);
 }
 
-static inline void sk_add_node_tail_rcu(struct sock *sk, struct hlist_head *list)
+static inline void sk_add_yesde_tail_rcu(struct sock *sk, struct hlist_head *list)
 {
 	sock_hold(sk);
-	hlist_add_tail_rcu(&sk->sk_node, list);
+	hlist_add_tail_rcu(&sk->sk_yesde, list);
 }
 
-static inline void __sk_nulls_add_node_rcu(struct sock *sk, struct hlist_nulls_head *list)
+static inline void __sk_nulls_add_yesde_rcu(struct sock *sk, struct hlist_nulls_head *list)
 {
-	hlist_nulls_add_head_rcu(&sk->sk_nulls_node, list);
+	hlist_nulls_add_head_rcu(&sk->sk_nulls_yesde, list);
 }
 
-static inline void __sk_nulls_add_node_tail_rcu(struct sock *sk, struct hlist_nulls_head *list)
+static inline void __sk_nulls_add_yesde_tail_rcu(struct sock *sk, struct hlist_nulls_head *list)
 {
-	hlist_nulls_add_tail_rcu(&sk->sk_nulls_node, list);
+	hlist_nulls_add_tail_rcu(&sk->sk_nulls_yesde, list);
 }
 
-static inline void sk_nulls_add_node_rcu(struct sock *sk, struct hlist_nulls_head *list)
+static inline void sk_nulls_add_yesde_rcu(struct sock *sk, struct hlist_nulls_head *list)
 {
 	sock_hold(sk);
-	__sk_nulls_add_node_rcu(sk, list);
+	__sk_nulls_add_yesde_rcu(sk, list);
 }
 
-static inline void __sk_del_bind_node(struct sock *sk)
+static inline void __sk_del_bind_yesde(struct sock *sk)
 {
-	__hlist_del(&sk->sk_bind_node);
+	__hlist_del(&sk->sk_bind_yesde);
 }
 
-static inline void sk_add_bind_node(struct sock *sk,
+static inline void sk_add_bind_yesde(struct sock *sk,
 					struct hlist_head *list)
 {
-	hlist_add_head(&sk->sk_bind_node, list);
+	hlist_add_head(&sk->sk_bind_yesde, list);
 }
 
 #define sk_for_each(__sk, list) \
-	hlist_for_each_entry(__sk, list, sk_node)
+	hlist_for_each_entry(__sk, list, sk_yesde)
 #define sk_for_each_rcu(__sk, list) \
-	hlist_for_each_entry_rcu(__sk, list, sk_node)
-#define sk_nulls_for_each(__sk, node, list) \
-	hlist_nulls_for_each_entry(__sk, node, list, sk_nulls_node)
-#define sk_nulls_for_each_rcu(__sk, node, list) \
-	hlist_nulls_for_each_entry_rcu(__sk, node, list, sk_nulls_node)
+	hlist_for_each_entry_rcu(__sk, list, sk_yesde)
+#define sk_nulls_for_each(__sk, yesde, list) \
+	hlist_nulls_for_each_entry(__sk, yesde, list, sk_nulls_yesde)
+#define sk_nulls_for_each_rcu(__sk, yesde, list) \
+	hlist_nulls_for_each_entry_rcu(__sk, yesde, list, sk_nulls_yesde)
 #define sk_for_each_from(__sk) \
-	hlist_for_each_entry_from(__sk, sk_node)
-#define sk_nulls_for_each_from(__sk, node) \
-	if (__sk && ({ node = &(__sk)->sk_nulls_node; 1; })) \
-		hlist_nulls_for_each_entry_from(__sk, node, sk_nulls_node)
+	hlist_for_each_entry_from(__sk, sk_yesde)
+#define sk_nulls_for_each_from(__sk, yesde) \
+	if (__sk && ({ yesde = &(__sk)->sk_nulls_yesde; 1; })) \
+		hlist_nulls_for_each_entry_from(__sk, yesde, sk_nulls_yesde)
 #define sk_for_each_safe(__sk, tmp, list) \
-	hlist_for_each_entry_safe(__sk, tmp, list, sk_node)
+	hlist_for_each_entry_safe(__sk, tmp, list, sk_yesde)
 #define sk_for_each_bound(__sk, list) \
-	hlist_for_each_entry(__sk, list, sk_bind_node)
+	hlist_for_each_entry(__sk, list, sk_bind_yesde)
 
 /**
  * sk_for_each_entry_offset_rcu - iterate over a list at a given struct offset
  * @tpos:	the type * to use as a loop cursor.
- * @pos:	the &struct hlist_node to use as a loop cursor.
+ * @pos:	the &struct hlist_yesde to use as a loop cursor.
  * @head:	the head for your list.
- * @offset:	offset of hlist_node within the struct.
+ * @offset:	offset of hlist_yesde within the struct.
  *
  */
 #define sk_for_each_entry_offset_rcu(tpos, pos, head, offset)		       \
@@ -779,7 +779,7 @@ static inline void sk_add_bind_node(struct sock *sk,
 static inline struct user_namespace *sk_user_ns(struct sock *sk)
 {
 	/* Careful only use this in a context where these parameters
-	 * can not change and must all be valid, such as recvmsg from
+	 * can yest change and must all be valid, such as recvmsg from
 	 * userspace.
 	 */
 	return sk->sk_socket->file->f_cred->user_ns;
@@ -808,11 +808,11 @@ enum sock_flags {
 	SOCK_RXQ_OVFL,
 	SOCK_ZEROCOPY, /* buffers from userspace */
 	SOCK_WIFI_STATUS, /* push wifi status to userspace */
-	SOCK_NOFCS, /* Tell NIC not to do the Ethernet FCS.
+	SOCK_NOFCS, /* Tell NIC yest to do the Ethernet FCS.
 		     * Will use last 4 bytes of packet sent from
 		     * user-space instead.
 		     */
-	SOCK_FILTER_LOCKED, /* Filter cannot be changed anymore */
+	SOCK_FILTER_LOCKED, /* Filter canyest be changed anymore */
 	SOCK_SELECT_ERR_QUEUE, /* Wake select on error queue */
 	SOCK_RCU_FREE, /* wait rcu grace period in sk_destruct() */
 	SOCK_TXTIME,
@@ -900,7 +900,7 @@ void sk_stream_write_space(struct sock *sk);
 /* OOB backlog add */
 static inline void __sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
-	/* dont let skb dst not refcounted, we are going to leave rcu lock */
+	/* dont let skb dst yest refcounted, we are going to leave rcu lock */
 	skb_dst_force(skb);
 
 	if (!sk->sk_backlog.tail)
@@ -914,7 +914,7 @@ static inline void __sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 
 /*
  * Take into account size of receive queue and backlog queue
- * Do not take into account this skb truesize,
+ * Do yest take into account this skb truesize,
  * to allow even a single big packet to come.
  */
 static inline bool sk_rcvqueues_full(const struct sock *sk, unsigned int limit)
@@ -1019,7 +1019,7 @@ static inline void sock_rps_reset_rxhash(struct sock *sk)
 						TASK_INTERRUPTIBLE,	\
 						*(__timeo));		\
 		}							\
-		sched_annotate_sleep();					\
+		sched_anyestate_sleep();					\
 		lock_sock(__sk);					\
 		__rc = __condition;					\
 		__rc;							\
@@ -1054,15 +1054,15 @@ struct smc_hashinfo;
 struct module;
 
 /*
- * caches using SLAB_TYPESAFE_BY_RCU should let .next pointer from nulls nodes
+ * caches using SLAB_TYPESAFE_BY_RCU should let .next pointer from nulls yesdes
  * un-modified. Special care is taken when initializing object to zero.
  */
 static inline void sk_prot_clear_nulls(struct sock *sk, int size)
 {
-	if (offsetof(struct sock, sk_node.next) != 0)
-		memset(sk, 0, offsetof(struct sock, sk_node.next));
-	memset(&sk->sk_node.pprev, 0,
-	       size - offsetof(struct sock, sk_node.pprev));
+	if (offsetof(struct sock, sk_yesde.next) != 0)
+		memset(sk, 0, offsetof(struct sock, sk_yesde.next));
+	memset(&sk->sk_yesde.pprev, 0,
+	       size - offsetof(struct sock, sk_yesde.pprev));
 }
 
 /* Networking protocol blocks we attach to sockets.
@@ -1109,7 +1109,7 @@ struct proto {
 	int			(*sendmsg)(struct sock *sk, struct msghdr *msg,
 					   size_t len);
 	int			(*recvmsg)(struct sock *sk, struct msghdr *msg,
-					   size_t len, int noblock, int flags,
+					   size_t len, int yesblock, int flags,
 					   int *addr_len);
 	int			(*sendpage)(struct sock *sk, struct page *page,
 					int offset, size_t size, int flags);
@@ -1141,7 +1141,7 @@ struct proto {
 	struct percpu_counter	*sockets_allocated;	/* Current number of sockets. */
 	/*
 	 * Pressure flag: try to collapse.
-	 * Technical note: it is used by multiple contexts non atomically.
+	 * Technical yeste: it is used by multiple contexts yesn atomically.
 	 * All the __sk_mem_schedule() is of this nature: accounting
 	 * is strict, actions are advisory and have some latency.
 	 */
@@ -1154,7 +1154,7 @@ struct proto {
 	u32			sysctl_rmem_offset;
 
 	int			max_header;
-	bool			no_autobind;
+	bool			yes_autobind;
 
 	struct kmem_cache	*slab;
 	unsigned int		obj_size;
@@ -1178,7 +1178,7 @@ struct proto {
 
 	char			name[32];
 
-	struct list_head	node;
+	struct list_head	yesde;
 #ifdef SOCK_REFCNT_DEBUG
 	atomic_t		socks;
 #endif
@@ -1335,8 +1335,8 @@ static inline void sock_prot_inuse_add(struct net *net, struct proto *prot,
 #endif
 
 
-/* With per-bucket locks this operation is not-atomic, so that
- * this version is not worse.
+/* With per-bucket locks this operation is yest-atomic, so that
+ * this version is yest worse.
  */
 static inline int __sk_prot_rehash(struct sock *sk)
 {
@@ -1361,17 +1361,17 @@ static inline int __sk_prot_rehash(struct sock *sk)
 
 struct socket_alloc {
 	struct socket socket;
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 };
 
-static inline struct socket *SOCKET_I(struct inode *inode)
+static inline struct socket *SOCKET_I(struct iyesde *iyesde)
 {
-	return &container_of(inode, struct socket_alloc, vfs_inode)->socket;
+	return &container_of(iyesde, struct socket_alloc, vfs_iyesde)->socket;
 }
 
-static inline struct inode *SOCK_INODE(struct socket *socket)
+static inline struct iyesde *SOCK_INODE(struct socket *socket)
 {
-	return &container_of(socket, struct socket_alloc, socket)->vfs_inode;
+	return &container_of(socket, struct socket_alloc, socket)->vfs_iyesde;
 }
 
 /*
@@ -1383,7 +1383,7 @@ void __sk_mem_reduce_allocated(struct sock *sk, int amount);
 void __sk_mem_reclaim(struct sock *sk, int amount);
 
 /* We used to have PAGE_SIZE here, but systems with 64KB pages
- * do not necessarily have 16x time more memory than 4KB ones.
+ * do yest necessarily have 16x time more memory than 4KB ones.
  */
 #define SK_MEM_QUANTUM 4096
 #define SK_MEM_QUANTUM_SHIFT ilog2(SK_MEM_QUANTUM)
@@ -1463,10 +1463,10 @@ static inline void sk_mem_uncharge(struct sock *sk, int size)
 
 	/* Avoid a possible overflow.
 	 * TCP send queues can make this happen, if sk_mem_reclaim()
-	 * is not called and more than 2 GBytes are released at once.
+	 * is yest called and more than 2 GBytes are released at once.
 	 *
-	 * If we reach 2 MBytes, reclaim 1 MBytes right now, there is
-	 * no need to hold that much forward allocation anyway.
+	 * If we reach 2 MBytes, reclaim 1 MBytes right yesw, there is
+	 * yes need to hold that much forward allocation anyway.
 	 */
 	if (unlikely(sk->sk_forward_alloc >= 1 << 21))
 		__sk_mem_reclaim(sk, 1 << 20);
@@ -1498,8 +1498,8 @@ static inline void sock_release_ownership(struct sock *sk)
 }
 
 /*
- * Macro so as to not evaluate some arguments when
- * lockdep is not enabled.
+ * Macro so as to yest evaluate some arguments when
+ * lockdep is yest enabled.
  *
  * Mark both the sk_lock and the sk_lock.slock as a
  * per-address-family lock class.
@@ -1509,7 +1509,7 @@ do {									\
 	sk->sk_lock.owned = 0;						\
 	init_waitqueue_head(&sk->sk_lock.wq);				\
 	spin_lock_init(&(sk)->sk_lock.slock);				\
-	debug_check_no_locks_freed((void *)&(sk)->sk_lock,		\
+	debug_check_yes_locks_freed((void *)&(sk)->sk_lock,		\
 			sizeof((sk)->sk_lock));				\
 	lockdep_set_class_and_name(&(sk)->sk_lock.slock,		\
 				(skey), (sname));				\
@@ -1585,12 +1585,12 @@ static inline bool sock_owned_by_user(const struct sock *sk)
 	return sk->sk_lock.owned;
 }
 
-static inline bool sock_owned_by_user_nocheck(const struct sock *sk)
+static inline bool sock_owned_by_user_yescheck(const struct sock *sk)
 {
 	return sk->sk_lock.owned;
 }
 
-/* no reclassification while locks are held */
+/* yes reclassification while locks are held */
 static inline bool sock_allow_reclassification(const struct sock *csk)
 {
 	struct sock *sk = (struct sock *)csk;
@@ -1628,9 +1628,9 @@ int sock_getsockopt(struct socket *sock, int level, int op,
 int sock_gettstamp(struct socket *sock, void __user *userstamp,
 		   bool timeval, bool time32);
 struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
-				    int noblock, int *errcode);
+				    int yesblock, int *errcode);
 struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
-				     unsigned long data_len, int noblock,
+				     unsigned long data_len, int yesblock,
 				     int *errcode, int max_page_order);
 void *sock_kmalloc(struct sock *sk, int size, gfp_t priority);
 void sock_kfree_s(struct sock *sk, void *mem, int size);
@@ -1656,26 +1656,26 @@ int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
 
 /*
  * Functions to fill in entries in struct proto_ops when a protocol
- * does not implement a particular function.
+ * does yest implement a particular function.
  */
-int sock_no_bind(struct socket *, struct sockaddr *, int);
-int sock_no_connect(struct socket *, struct sockaddr *, int, int);
-int sock_no_socketpair(struct socket *, struct socket *);
-int sock_no_accept(struct socket *, struct socket *, int, bool);
-int sock_no_getname(struct socket *, struct sockaddr *, int);
-int sock_no_ioctl(struct socket *, unsigned int, unsigned long);
-int sock_no_listen(struct socket *, int);
-int sock_no_shutdown(struct socket *, int);
-int sock_no_getsockopt(struct socket *, int , int, char __user *, int __user *);
-int sock_no_setsockopt(struct socket *, int, int, char __user *, unsigned int);
-int sock_no_sendmsg(struct socket *, struct msghdr *, size_t);
-int sock_no_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t len);
-int sock_no_recvmsg(struct socket *, struct msghdr *, size_t, int);
-int sock_no_mmap(struct file *file, struct socket *sock,
+int sock_yes_bind(struct socket *, struct sockaddr *, int);
+int sock_yes_connect(struct socket *, struct sockaddr *, int, int);
+int sock_yes_socketpair(struct socket *, struct socket *);
+int sock_yes_accept(struct socket *, struct socket *, int, bool);
+int sock_yes_getname(struct socket *, struct sockaddr *, int);
+int sock_yes_ioctl(struct socket *, unsigned int, unsigned long);
+int sock_yes_listen(struct socket *, int);
+int sock_yes_shutdown(struct socket *, int);
+int sock_yes_getsockopt(struct socket *, int , int, char __user *, int __user *);
+int sock_yes_setsockopt(struct socket *, int, int, char __user *, unsigned int);
+int sock_yes_sendmsg(struct socket *, struct msghdr *, size_t);
+int sock_yes_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t len);
+int sock_yes_recvmsg(struct socket *, struct msghdr *, size_t, int);
+int sock_yes_mmap(struct file *file, struct socket *sock,
 		 struct vm_area_struct *vma);
-ssize_t sock_no_sendpage(struct socket *sock, struct page *page, int offset,
+ssize_t sock_yes_sendpage(struct socket *sock, struct page *page, int offset,
 			 size_t size, int flags);
-ssize_t sock_no_sendpage_locked(struct sock *sk, struct page *page,
+ssize_t sock_yes_sendpage_locked(struct sock *sk, struct page *page,
 				int offset, size_t size, int flags);
 
 /*
@@ -1709,21 +1709,21 @@ void sock_init_data(struct socket *sock, struct sock *sk);
  * * Each access point to socket (an hash table bucket, reference from a list,
  *   running timer, skb in flight MUST hold a reference count.
  * * When reference count hits 0, it means it will never increase back.
- * * When reference count hits 0, it means that no references from
+ * * When reference count hits 0, it means that yes references from
  *   outside exist to this socket and current process on current CPU
  *   is last user and may/should destroy this socket.
  * * sk_free is called from any context: process, BH, IRQ. When
- *   it is called, socket has no references from outside -> sk_free
+ *   it is called, socket has yes references from outside -> sk_free
  *   may release descendant resources allocated by the socket, but
  *   to the time when it is called, socket is NOT referenced by any
  *   hash tables, lists etc.
- * * Packets, delivered from outside (from network or from another process)
+ * * Packets, delivered from outside (from network or from ayesther process)
  *   and enqueued on receive/error queues SHOULD NOT grab reference count,
  *   when they sit in queue. Otherwise, packets will leak to hole, when
- *   socket is looked up by one cpu and unhasing is made by another CPU.
+ *   socket is looked up by one cpu and unhasing is made by ayesther CPU.
  *   It is true for udp/raw, netlink (leak to receive and error queues), tcp
  *   (leak to backlog). Packet socket does all the processing inside
- *   BR_NETPROTO_LOCK, so that it has not this race condition. UNIX sockets
+ *   BR_NETPROTO_LOCK, so that it has yest this race condition. UNIX sockets
  *   use separate SMP lock, so that they are prone too.
  */
 
@@ -1812,9 +1812,9 @@ static inline wait_queue_head_t *sk_sleep(struct sock *sk)
 	return &rcu_dereference_raw(sk->sk_wq)->wait;
 }
 /* Detach socket from process context.
- * Announce socket dead, detach it from wait queue and inode.
- * Note that parent inode held reference count on this struct sock,
- * we do not release it in this function, because protocol
+ * Anyesunce socket dead, detach it from wait queue and iyesde.
+ * Note that parent iyesde held reference count on this struct sock,
+ * we do yest release it in this function, because protocol
  * probably wants some additional cleanups or even continuing
  * to work with this socket (TCP).
  */
@@ -1840,7 +1840,7 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 }
 
 kuid_t sock_i_uid(struct sock *sk);
-unsigned long sock_i_ino(struct sock *sk);
+unsigned long sock_i_iyes(struct sock *sk);
 
 static inline kuid_t sock_net_uid(const struct net *net, const struct sock *sk)
 {
@@ -1879,7 +1879,7 @@ sk_dst_get(struct sock *sk)
 
 	rcu_read_lock();
 	dst = rcu_dereference(sk->sk_dst_cache);
-	if (dst && !atomic_inc_not_zero(&dst->__refcnt))
+	if (dst && !atomic_inc_yest_zero(&dst->__refcnt))
 		dst = NULL;
 	rcu_read_unlock();
 	return dst;
@@ -1952,11 +1952,11 @@ static inline void sock_confirm_neigh(struct sk_buff *skb, struct neighbour *n)
 {
 	if (skb_get_dst_pending_confirm(skb)) {
 		struct sock *sk = skb->sk;
-		unsigned long now = jiffies;
+		unsigned long yesw = jiffies;
 
 		/* avoid dirtying neighbour */
-		if (READ_ONCE(n->confirmed) != now)
-			WRITE_ONCE(n->confirmed, now);
+		if (READ_ONCE(n->confirmed) != yesw)
+			WRITE_ONCE(n->confirmed, yesw);
 		if (sk && READ_ONCE(sk->sk_dst_pending_confirm))
 			WRITE_ONCE(sk->sk_dst_pending_confirm, 0);
 	}
@@ -1971,13 +1971,13 @@ static inline bool sk_can_gso(const struct sock *sk)
 
 void sk_setup_caps(struct sock *sk, struct dst_entry *dst);
 
-static inline void sk_nocaps_add(struct sock *sk, netdev_features_t flags)
+static inline void sk_yescaps_add(struct sock *sk, netdev_features_t flags)
 {
-	sk->sk_route_nocaps |= flags;
+	sk->sk_route_yescaps |= flags;
 	sk->sk_route_caps &= ~flags;
 }
 
-static inline int skb_do_copy_data_nocache(struct sock *sk, struct sk_buff *skb,
+static inline int skb_do_copy_data_yescache(struct sock *sk, struct sk_buff *skb,
 					   struct iov_iter *from, char *to,
 					   int copy, int offset)
 {
@@ -1987,7 +1987,7 @@ static inline int skb_do_copy_data_nocache(struct sock *sk, struct sk_buff *skb,
 			return -EFAULT;
 		skb->csum = csum_block_add(skb->csum, csum, offset);
 	} else if (sk->sk_route_caps & NETIF_F_NOCACHE_COPY) {
-		if (!copy_from_iter_full_nocache(to, copy, from))
+		if (!copy_from_iter_full_yescache(to, copy, from))
 			return -EFAULT;
 	} else if (!copy_from_iter_full(to, copy, from))
 		return -EFAULT;
@@ -1995,12 +1995,12 @@ static inline int skb_do_copy_data_nocache(struct sock *sk, struct sk_buff *skb,
 	return 0;
 }
 
-static inline int skb_add_data_nocache(struct sock *sk, struct sk_buff *skb,
+static inline int skb_add_data_yescache(struct sock *sk, struct sk_buff *skb,
 				       struct iov_iter *from, int copy)
 {
 	int err, offset = skb->len;
 
-	err = skb_do_copy_data_nocache(sk, skb, from, skb_put(skb, copy),
+	err = skb_do_copy_data_yescache(sk, skb, from, skb_put(skb, copy),
 				       copy, offset);
 	if (err)
 		__skb_trim(skb, offset);
@@ -2008,14 +2008,14 @@ static inline int skb_add_data_nocache(struct sock *sk, struct sk_buff *skb,
 	return err;
 }
 
-static inline int skb_copy_to_page_nocache(struct sock *sk, struct iov_iter *from,
+static inline int skb_copy_to_page_yescache(struct sock *sk, struct iov_iter *from,
 					   struct sk_buff *skb,
 					   struct page *page,
 					   int off, int copy)
 {
 	int err;
 
-	err = skb_do_copy_data_nocache(sk, skb, from, page_address(page) + off,
+	err = skb_do_copy_data_yescache(sk, skb, from, page_address(page) + off,
 				       copy, skb->len);
 	if (err)
 		return err;
@@ -2088,7 +2088,7 @@ static inline bool sk_has_allocations(const struct sock *sk)
  *
  * The race for tcp fires when the __add_wait_queue changes done by CPU1 stay
  * in its cache, and so does the tp->rcv_nxt update on CPU2 side.  The CPU1
- * could then endup calling schedule and sleep forever if there are no more
+ * could then endup calling schedule and sleep forever if there are yes more
  * data on the socket.
  *
  */
@@ -2108,7 +2108,7 @@ static inline bool skwq_has_sleeper(struct socket_wq *wq)
 static inline void sock_poll_wait(struct file *filp, struct socket *sock,
 				  poll_table *p)
 {
-	if (!poll_does_not_wait(p)) {
+	if (!poll_does_yest_wait(p)) {
 		poll_wait(filp, &sock->wq.wait, p);
 		/* We need to be sure we are in sync with the
 		 * socket flags modification.
@@ -2131,7 +2131,7 @@ void skb_set_owner_w(struct sk_buff *skb, struct sock *sk);
 
 /*
  *	Queue a received datagram if it will fit. Stream and sequenced
- *	protocols can't normally use this as they need to fit buffers in
+ *	protocols can't yesrmally use this as they need to fit buffers in
  *	and play with them.
  *
  *	Inlined as it's very short and called for pretty much every
@@ -2187,8 +2187,8 @@ static inline unsigned long sock_wspace(struct sock *sk)
 }
 
 /* Note:
- *  We use sk->sk_wq_raw, from contexts knowing this
- *  pointer is not NULL and cannot disappear/change.
+ *  We use sk->sk_wq_raw, from contexts kyeswing this
+ *  pointer is yest NULL and canyest disappear/change.
  */
 static inline void sk_set_bit(int nr, struct sock *sk)
 {
@@ -2247,16 +2247,16 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
  * @sk: socket
  *
  * Use the per task page_frag instead of the per socket one for
- * optimization when we know that we're in the normal context and owns
+ * optimization when we kyesw that we're in the yesrmal context and owns
  * everything that's associated with %current.
  *
- * gfpflags_allow_blocking() isn't enough here as direct reclaim may nest
+ * gfpflags_allow_blocking() isn't eyesugh here as direct reclaim may nest
  * inside other socket operations and end up recursing into sk_page_frag()
  * while it's already in use.
  */
 static inline struct page_frag *sk_page_frag(struct sock *sk)
 {
-	if (gfpflags_normal_context(sk->sk_allocation))
+	if (gfpflags_yesrmal_context(sk->sk_allocation))
 		return &current->task_frag;
 
 	return &sk->sk_frag;
@@ -2277,14 +2277,14 @@ static inline gfp_t gfp_any(void)
 	return in_softirq() ? GFP_ATOMIC : GFP_KERNEL;
 }
 
-static inline long sock_rcvtimeo(const struct sock *sk, bool noblock)
+static inline long sock_rcvtimeo(const struct sock *sk, bool yesblock)
 {
-	return noblock ? 0 : sk->sk_rcvtimeo;
+	return yesblock ? 0 : sk->sk_rcvtimeo;
 }
 
-static inline long sock_sndtimeo(const struct sock *sk, bool noblock)
+static inline long sock_sndtimeo(const struct sock *sk, bool yesblock)
 {
-	return noblock ? 0 : sk->sk_sndtimeo;
+	return yesblock ? 0 : sk->sk_sndtimeo;
 }
 
 static inline int sock_rcvlowat(const struct sock *sk, int waitall, int len)
@@ -2294,10 +2294,10 @@ static inline int sock_rcvlowat(const struct sock *sk, int waitall, int len)
 	return v ?: 1;
 }
 
-/* Alas, with timeout socket operations are not restartable.
+/* Alas, with timeout socket operations are yest restartable.
  * Compare this to poll().
  */
-static inline int sock_intr_errno(long timeo)
+static inline int sock_intr_erryes(long timeo)
 {
 	return timeo == MAX_SCHEDULE_TIMEOUT ? -ERESTARTSYS : -EINTR;
 }
@@ -2418,7 +2418,7 @@ void __sock_tx_timestamp(__u16 tsflags, __u8 *tx_flags);
  * @sk:		socket sending this packet
  * @tsflags:	timestamping flags to use
  * @tx_flags:	completed with instructions for time stamping
- * @tskey:      filled in with next sk_tskey (not for TCP, which uses seqno)
+ * @tskey:      filled in with next sk_tskey (yest for TCP, which uses seqyes)
  *
  * Note: callers should take care of initial ``*tx_flags`` value (usually 0)
  */
@@ -2448,7 +2448,7 @@ static inline void skb_setup_tx_timestamp(struct sk_buff *skb, __u16 tsflags)
 }
 
 /**
- * sk_eat_skb - Release a skb if it is no longer needed
+ * sk_eat_skb - Release a skb if it is yes longer needed
  * @sk: socket to eat this skb from
  * @skb: socket buffer to eat
  *
@@ -2493,7 +2493,7 @@ static inline struct sock *skb_steal_sock(struct sk_buff *skb)
 }
 
 /* This helper checks if a socket is a full socket,
- * ie _not_ a timewait or request socket.
+ * ie _yest_ a timewait or request socket.
  */
 static inline bool sk_fullsock(const struct sock *sk)
 {
@@ -2514,7 +2514,7 @@ static inline struct sk_buff *sk_validate_xmit_skb(struct sk_buff *skb,
 		skb = sk->sk_validate_xmit_skb(sk, dev, skb);
 #ifdef CONFIG_TLS_DEVICE
 	} else if (unlikely(skb->decrypted)) {
-		pr_warn_ratelimited("unencrypted skb with no associated socket - dropping\n");
+		pr_warn_ratelimited("unencrypted skb with yes associated socket - dropping\n");
 		kfree_skb(skb);
 		skb = NULL;
 #endif
@@ -2544,9 +2544,9 @@ bool sk_net_capable(const struct sock *sk, int cap);
 void sk_get_meminfo(const struct sock *sk, u32 *meminfo);
 
 /* Take into consideration the size of the struct sk_buff overhead in the
- * determination of these values, since that is non-constant across
+ * determination of these values, since that is yesn-constant across
  * platforms.  This makes socket queueing behavior and performance
- * not depend upon such differences.
+ * yest depend upon such differences.
  */
 #define _SK_MEM_PACKETS		256
 #define _SK_MEM_OVERHEAD	SKB_TRUESIZE(256)

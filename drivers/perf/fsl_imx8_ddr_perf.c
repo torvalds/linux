@@ -74,7 +74,7 @@ struct ddr_pmu {
 	struct pmu pmu;
 	void __iomem *base;
 	unsigned int cpu;
-	struct	hlist_node node;
+	struct	hlist_yesde yesde;
 	struct	device *dev;
 	struct perf_event *events[NUM_COUNTERS];
 	int active_events;
@@ -101,7 +101,7 @@ static u32 ddr_perf_filter_cap_get(struct ddr_pmu *pmu, int cap)
 		quirks &= DDR_CAP_AXI_ID_FILTER_ENHANCED;
 		return quirks == DDR_CAP_AXI_ID_FILTER_ENHANCED;
 	default:
-		WARN(1, "unknown filter cap %d\n", cap);
+		WARN(1, "unkyeswn filter cap %d\n", cap);
 	}
 
 	return 0;
@@ -189,9 +189,9 @@ static struct attribute *ddr_perf_events_attrs[] = {
 	IMX8_DDR_PMU_EVENT_ATTR(write-command, 0x21),
 	IMX8_DDR_PMU_EVENT_ATTR(read-modify-write-command, 0x22),
 	IMX8_DDR_PMU_EVENT_ATTR(hp-read, 0x23),
-	IMX8_DDR_PMU_EVENT_ATTR(hp-req-nocredit, 0x24),
+	IMX8_DDR_PMU_EVENT_ATTR(hp-req-yescredit, 0x24),
 	IMX8_DDR_PMU_EVENT_ATTR(hp-xact-credit, 0x25),
-	IMX8_DDR_PMU_EVENT_ATTR(lp-req-nocredit, 0x26),
+	IMX8_DDR_PMU_EVENT_ATTR(lp-req-yescredit, 0x26),
 	IMX8_DDR_PMU_EVENT_ATTR(lp-xact-credit, 0x27),
 	IMX8_DDR_PMU_EVENT_ATTR(wr-xact-credit, 0x29),
 	IMX8_DDR_PMU_EVENT_ATTR(read-cycles, 0x2a),
@@ -389,7 +389,7 @@ static void ddr_perf_counter_enable(struct ddr_pmu *pmu, int config,
 	if (enable) {
 		/*
 		 * must disable first, then enable again
-		 * otherwise, cycle counter will not work
+		 * otherwise, cycle counter will yest work
 		 * if previous state is enabled.
 		 */
 		writel(0, pmu->base + reg);
@@ -441,7 +441,7 @@ static int ddr_perf_event_add(struct perf_event *event, int flags)
 
 	counter = ddr_perf_alloc_counter(pmu, cfg);
 	if (counter < 0) {
-		dev_dbg(pmu->dev, "There are not enough counters\n");
+		dev_dbg(pmu->dev, "There are yest eyesugh counters\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -486,7 +486,7 @@ static void ddr_perf_pmu_enable(struct pmu *pmu)
 {
 	struct ddr_pmu *ddr_pmu = to_ddr_pmu(pmu);
 
-	/* enable cycle counter if cycle is not active event list */
+	/* enable cycle counter if cycle is yest active event list */
 	if (ddr_pmu->events[EVENT_CYCLES_COUNTER] == NULL)
 		ddr_perf_counter_enable(ddr_pmu,
 				      EVENT_CYCLES_ID,
@@ -544,10 +544,10 @@ static irqreturn_t ddr_perf_irq_handler(int irq, void *p)
 	/*
 	 * When the cycle counter overflows, all counters are stopped,
 	 * and an IRQ is raised. If any other counter overflows, it
-	 * continues counting, and no IRQ is raised.
+	 * continues counting, and yes IRQ is raised.
 	 *
 	 * Cycles occur at least 4 times as often as other events, so we
-	 * can update all events on a cycle counter overflow and not
+	 * can update all events on a cycle counter overflow and yest
 	 * lose events.
 	 *
 	 */
@@ -574,9 +574,9 @@ static irqreturn_t ddr_perf_irq_handler(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct ddr_pmu *pmu = hlist_entry_safe(node, struct ddr_pmu, node);
+	struct ddr_pmu *pmu = hlist_entry_safe(yesde, struct ddr_pmu, yesde);
 	int target;
 
 	if (cpu != pmu->cpu)
@@ -597,7 +597,7 @@ static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
 static int ddr_perf_probe(struct platform_device *pdev)
 {
 	struct ddr_pmu *pmu;
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *base;
 	char *name;
 	int num;
@@ -608,7 +608,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_yesde;
 
 	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
@@ -639,7 +639,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	pmu->cpuhp_state = ret;
 
 	/* Register the pmu instance for cpu hotplug */
-	cpuhp_state_add_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+	cpuhp_state_add_instance_yescalls(pmu->cpuhp_state, &pmu->yesde);
 
 	/* Request irq */
 	irq = of_irq_get(np, 0);
@@ -674,7 +674,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 
 ddr_perf_err:
 	if (pmu->cpuhp_state)
-		cpuhp_state_remove_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+		cpuhp_state_remove_instance_yescalls(pmu->cpuhp_state, &pmu->yesde);
 
 	ida_simple_remove(&ddr_ida, pmu->id);
 	dev_warn(&pdev->dev, "i.MX8 DDR Perf PMU failed (%d), disabled\n", ret);
@@ -685,7 +685,7 @@ static int ddr_perf_remove(struct platform_device *pdev)
 {
 	struct ddr_pmu *pmu = platform_get_drvdata(pdev);
 
-	cpuhp_state_remove_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+	cpuhp_state_remove_instance_yescalls(pmu->cpuhp_state, &pmu->yesde);
 	irq_set_affinity_hint(pmu->irq, NULL);
 
 	perf_pmu_unregister(&pmu->pmu);

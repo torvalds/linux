@@ -6,7 +6,7 @@
  * linux/include/asm-sh/sh7763drp.h
  *
  * Copyright (C) 2008 Renesas Solutions
- * Copyright (C) 2008 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ * Copyright (C) 2008 Nobuhiro Iwamatsu <iwamatsu.yesbuhiro@renesas.com>
  */
 #include <asm/addrspace.h>
 

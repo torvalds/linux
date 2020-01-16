@@ -1,14 +1,14 @@
 * Andestech Internal Vector Interrupt Controller
 
 The Internal Vector Interrupt Controller (IVIC) is a basic interrupt controller
-suitable for a simpler SoC platform not requiring a more sophisticated and
+suitable for a simpler SoC platform yest requiring a more sophisticated and
 bigger External Vector Interrupt Controller.
 
 
-Main node required properties:
+Main yesde required properties:
 
 - compatible : should at least contain  "andestech,ativic32".
-- interrupt-controller : Identifies the node as an interrupt controller
+- interrupt-controller : Identifies the yesde as an interrupt controller
 - #interrupt-cells: 1 cells and refer to interrupt-controller/interrupts
 
 Examples:

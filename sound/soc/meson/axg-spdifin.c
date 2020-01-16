@@ -59,15 +59,15 @@ struct axg_spdifin {
 /*
  * TODO:
  * It would have been nice to check the actual rate against the sample rate
- * requested in hw_params(). Unfortunately, I was not able to make the mode
+ * requested in hw_params(). Unfortunately, I was yest able to make the mode
  * detection and IRQ work reliably:
  *
- * 1. IRQs are generated on mode change only, so there is no notification
- *    on transition between no signal and mode 0 (32kHz).
+ * 1. IRQs are generated on mode change only, so there is yes yestification
+ *    on transition between yes signal and mode 0 (32kHz).
  * 2. Mode detection very often has glitches, and may detects the
  *    lowest or the highest mode before zeroing in on the actual mode.
  *
- * This makes calling snd_pcm_stop() difficult to get right. Even notifying
+ * This makes calling snd_pcm_stop() difficult to get right. Even yestifying
  * the kcontrol would be very unreliable at this point.
  * Let's keep things simple until the magic spell that makes this work is
  * found.
@@ -81,9 +81,9 @@ static unsigned int axg_spdifin_get_rate(struct axg_spdifin *priv)
 	mode = FIELD_GET(SPDIFIN_STAT0_MODE, stat);
 
 	/*
-	 * If max width is zero, we are not capturing anything.
-	 * Also Sometimes, when the capture is on but there is no data,
-	 * mode is SPDIFIN_MODE_NUM, but not always ...
+	 * If max width is zero, we are yest capturing anything.
+	 * Also Sometimes, when the capture is on but there is yes data,
+	 * mode is SPDIFIN_MODE_NUM, but yest always ...
 	 */
 	if (FIELD_GET(SPDIFIN_STAT0_MAXW, stat) &&
 	    mode < SPDIFIN_MODE_NUM)
@@ -211,7 +211,7 @@ static int axg_spdifin_sample_mode_config(struct snd_soc_dai *dai,
 	regmap_update_bits(priv->map, SPDIFIN_CTRL0,
 			   SPDIFIN_CTRL0_WIDTH_SEL, SPDIFIN_CTRL0_WIDTH_SEL);
 
-	/* Calculate the last timer which has no threshold */
+	/* Calculate the last timer which has yes threshold */
 	t_next = axg_spdifin_mode_timer(priv, i, rate);
 	axg_spdifin_write_timer(priv->map, i, t_next);
 

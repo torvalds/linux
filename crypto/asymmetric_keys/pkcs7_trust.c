@@ -63,10 +63,10 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 			return -ENOMEM;
 
 		 /* Self-signed certificates form roots of their own, and if we
-		  * don't know them, then we can't accept them.
+		  * don't kyesw them, then we can't accept them.
 		  */
 		if (x509->signer == x509) {
-			kleave(" = -ENOKEY [unknown self-signed]");
+			kleave(" = -ENOKEY [unkyeswn self-signed]");
 			return -ENOKEY;
 		}
 
@@ -108,7 +108,7 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 	if (PTR_ERR(key) != -ENOKEY)
 		return PTR_ERR(key);
 
-	kleave(" = -ENOKEY [no backref]");
+	kleave(" = -ENOKEY [yes backref]");
 	return -ENOKEY;
 
 matched:
@@ -137,7 +137,7 @@ verified:
  * @trust_keyring: Signing certificates to use as starting points
  *
  * Validate that the certificate chain inside the PKCS#7 message intersects
- * keys we already know and trust.
+ * keys we already kyesw and trust.
  *
  * Returns, in order of descending priority:
  *

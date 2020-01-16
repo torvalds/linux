@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -55,7 +55,7 @@ static int amdgpu_vm_sdma_map_table(struct amdgpu_bo *table)
  * @exclusive: exclusive move fence we need to sync to
  *
  * Returns:
- * Negativ errno, 0 for success.
+ * Negativ erryes, 0 for success.
  */
 static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 				  void *owner, struct dma_fence *exclusive)
@@ -90,7 +90,7 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
  * @fence: resulting fence
  *
  * Returns:
- * Negativ errno, 0 for success.
+ * Negativ erryes, 0 for success.
  */
 static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 				 struct dma_fence **fence)

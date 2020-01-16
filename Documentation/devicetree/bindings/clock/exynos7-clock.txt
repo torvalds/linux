@@ -1,14 +1,14 @@
-* Samsung Exynos7 Clock Controller
+* Samsung Exyyess7 Clock Controller
 
-Exynos7 clock controller has various blocks which are instantiated
+Exyyess7 clock controller has various blocks which are instantiated
 independently from the device-tree. These clock controllers
 generate and supply clocks to various hardware blocks within
 the SoC.
 
-Each clock is assigned an identifier and client nodes can use
+Each clock is assigned an identifier and client yesdes can use
 this identifier to specify the clock which they consume. All
 available clocks are defined as preprocessor macros in
-dt-bindings/clock/exynos7-clk.h header and can be used in
+dt-bindings/clock/exyyess7-clk.h header and can be used in
 device tree sources.
 
 External clocks:
@@ -25,17 +25,17 @@ Required Properties for Clock Controller:
 	compatible strings to indicate the clock controller
 	functionality.
 
-	- "samsung,exynos7-clock-topc"
-	- "samsung,exynos7-clock-top0"
-	- "samsung,exynos7-clock-top1"
-	- "samsung,exynos7-clock-ccore"
-	- "samsung,exynos7-clock-peric0"
-	- "samsung,exynos7-clock-peric1"
-	- "samsung,exynos7-clock-peris"
-	- "samsung,exynos7-clock-fsys0"
-	- "samsung,exynos7-clock-fsys1"
-	- "samsung,exynos7-clock-mscl"
-	- "samsung,exynos7-clock-aud"
+	- "samsung,exyyess7-clock-topc"
+	- "samsung,exyyess7-clock-top0"
+	- "samsung,exyyess7-clock-top1"
+	- "samsung,exyyess7-clock-ccore"
+	- "samsung,exyyess7-clock-peric0"
+	- "samsung,exyyess7-clock-peric1"
+	- "samsung,exyyess7-clock-peris"
+	- "samsung,exyyess7-clock-fsys0"
+	- "samsung,exyyess7-clock-fsys1"
+	- "samsung,exyyess7-clock-mscl"
+	- "samsung,exyyess7-clock-aud"
 
  - reg: physical base address of the controller and the length of
 	memory mapped region.

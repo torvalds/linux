@@ -2479,7 +2479,7 @@
 #define ARIZONA_MICDET_ADCVAL_WIDTH                   7  /* MICDET_ADCVAL - [15:8] */
 
 /*
- * R707 (0x2C3) - Mic noise mix control 1
+ * R707 (0x2C3) - Mic yesise mix control 1
  */
 #define ARIZONA_MICMUTE_RATE_MASK                0x7800  /* MICMUTE_RATE - [14:11] */
 #define ARIZONA_MICMUTE_RATE_SHIFT                   11  /* MICMUTE_RATE - [14:11] */
@@ -5159,7 +5159,7 @@
 /*
  * R3331 (0xD03) - Interrupt Status 4 (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, yeste only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_AIF3_ERR_EINT1                  0x8000  /* AIF3_ERR_EINT1 */
@@ -5230,7 +5230,7 @@
 /*
  * R3332 (0xD05) - Interrupt Status 5 (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, yeste only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_ASRC_CFG_ERR_EINT1            0x0008  /* ASRC_CFG_ERR_EINT1 */
@@ -5477,7 +5477,7 @@
 /*
  * R3339 (0xD0B) - Interrupt Status 4 Mask (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, yeste only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_IM_AIF3_ERR_EINT1                  0x8000  /* IM_AIF3_ERR_EINT1 */
@@ -5548,7 +5548,7 @@
 /*
  * R3340 (0xD0C) - Interrupt Status 5 Mask (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, yeste only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT1         0x0008  /* IM_ASRC_CFG_ERR_EINT1 */
@@ -5803,7 +5803,7 @@
 /*
  * R3347 (0xD13) - IRQ2 Status 4 (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, yeste only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_AIF3_ERR_EINT2                  0x8000  /* AIF3_ERR_EINT2 */
@@ -5874,7 +5874,7 @@
 /*
  * R3348 (0xD14) - IRQ2 Status 5 (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, yeste only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_ASRC_CFG_ERR_EINT2            0x0008  /* ASRC_CFG_ERR_EINT2 */
@@ -6121,7 +6121,7 @@
 /*
  * R3355 (0xD1B) - IRQ2 Status 4 Mask (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, yeste only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_IM_AIF3_ERR_EINT2                  0x8000  /* IM_AIF3_ERR_EINT2 */
@@ -6193,7 +6193,7 @@
 /*
  * R3340 (0xD0C) - Interrupt Status 5 Mask (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, yeste only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT2         0x0008  /* IM_ASRC_CFG_ERR_EINT2 */

@@ -37,9 +37,9 @@ static int intc_irq_xlate_debug(struct seq_file *m, void *priv)
 	return 0;
 }
 
-static int intc_irq_xlate_open(struct inode *inode, struct file *file)
+static int intc_irq_xlate_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, intc_irq_xlate_debug, inode->i_private);
+	return single_open(file, intc_irq_xlate_debug, iyesde->i_private);
 }
 
 static const struct file_operations intc_irq_xlate_fops = {

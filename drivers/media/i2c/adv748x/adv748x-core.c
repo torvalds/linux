@@ -11,7 +11,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -23,7 +23,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-dv-timings.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-ioctl.h>
 
 #include "adv748x.h"
@@ -138,7 +138,7 @@ static int adv748x_write_check(struct adv748x_state *state, u8 page, u8 reg,
 /* adv748x_write_block(): Write raw data with a maximum of I2C_SMBUS_BLOCK_MAX
  * size to one or more registers.
  *
- * A value of zero will be returned on success, a negative errno will
+ * A value of zero will be returned on success, a negative erryes will
  * be returned in error cases.
  */
 int adv748x_write_block(struct adv748x_state *state, int client_page,
@@ -315,12 +315,12 @@ int adv748x_tx_power(struct adv748x_csi2 *tx, bool on)
 		return val;
 
 	/*
-	 * This test against BIT(6) is not documented by the datasheet, but was
+	 * This test against BIT(6) is yest documented by the datasheet, but was
 	 * specified in the downstream driver.
 	 * Track with a WARN_ONCE to determine if it is ever set by HW.
 	 */
 	WARN_ONCE((on && val & ADV748X_CSI_FS_AS_LS_UNKNOWN),
-			"Enabling with unknown bit set");
+			"Enabling with unkyeswn bit set");
 
 	return on ? adv748x_power_up_tx(tx) : adv748x_power_down_tx(tx);
 }
@@ -572,9 +572,9 @@ void adv748x_subdev_init(struct v4l2_subdev *sd, struct adv748x_state *state,
 
 static int adv748x_parse_csi2_lanes(struct adv748x_state *state,
 				    unsigned int port,
-				    struct device_node *ep)
+				    struct device_yesde *ep)
 {
-	struct v4l2_fwnode_endpoint vep;
+	struct v4l2_fwyesde_endpoint vep;
 	unsigned int num_lanes;
 	int ret;
 
@@ -582,7 +582,7 @@ static int adv748x_parse_csi2_lanes(struct adv748x_state *state,
 		return 0;
 
 	vep.bus_type = V4L2_MBUS_CSI2_DPHY;
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &vep);
+	ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(ep), &vep);
 	if (ret)
 		return ret;
 
@@ -615,31 +615,31 @@ static int adv748x_parse_csi2_lanes(struct adv748x_state *state,
 
 static int adv748x_parse_dt(struct adv748x_state *state)
 {
-	struct device_node *ep_np = NULL;
+	struct device_yesde *ep_np = NULL;
 	struct of_endpoint ep;
 	bool out_found = false;
 	bool in_found = false;
 	int ret;
 
-	for_each_endpoint_of_node(state->dev->of_node, ep_np) {
+	for_each_endpoint_of_yesde(state->dev->of_yesde, ep_np) {
 		of_graph_parse_endpoint(ep_np, &ep);
-		adv_info(state, "Endpoint %pOF on port %d", ep.local_node,
+		adv_info(state, "Endpoint %pOF on port %d", ep.local_yesde,
 			 ep.port);
 
 		if (ep.port >= ADV748X_PORT_MAX) {
 			adv_err(state, "Invalid endpoint %pOF on port %d",
-				ep.local_node, ep.port);
+				ep.local_yesde, ep.port);
 
 			continue;
 		}
 
 		if (state->endpoints[ep.port]) {
 			adv_err(state,
-				"Multiple port endpoints are not supported");
+				"Multiple port endpoints are yest supported");
 			continue;
 		}
 
-		of_node_get(ep_np);
+		of_yesde_get(ep_np);
 		state->endpoints[ep.port] = ep_np;
 
 		/*
@@ -665,7 +665,7 @@ static void adv748x_dt_cleanup(struct adv748x_state *state)
 	unsigned int i;
 
 	for (i = 0; i < ADV748X_PORT_MAX; i++)
-		of_node_put(state->endpoints[i]);
+		of_yesde_put(state->endpoints[i]);
 }
 
 static int adv748x_probe(struct i2c_client *client)
@@ -689,7 +689,7 @@ static int adv748x_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, state);
 
 	/*
-	 * We can not use container_of to get back to the state with two TXs;
+	 * We can yest use container_of to get back to the state with two TXs;
 	 * Initialize the TXs's fields unconditionally on the endpoint
 	 * presence to access them later.
 	 */

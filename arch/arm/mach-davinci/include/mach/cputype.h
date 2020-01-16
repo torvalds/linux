@@ -4,7 +4,7 @@
  * Author: Kevin Hilman, Deep Root Systems, LLC
  *
  * Defines the cpu_is_*() macros for runtime detection of DaVinci
- * device type.  In addition, if support for a given device is not
+ * device type.  In addition, if support for a given device is yest
  * compiled in to the kernel, the macros return 0 so that
  * resulting code can be optimized out.
  *
@@ -20,7 +20,7 @@
 
 struct davinci_id {
 	u8	variant;	/* JTAG ID bits 31:28 */
-	u16	part_no;	/* JTAG ID bits 27:12 */
+	u16	part_yes;	/* JTAG ID bits 27:12 */
 	u16	manufacturer;	/* JTAG ID bits 11:1 */
 	u32	cpu_id;
 	char	*name;

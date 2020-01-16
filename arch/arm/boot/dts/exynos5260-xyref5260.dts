@@ -7,11 +7,11 @@
  */
 
 /dts-v1/;
-#include "exynos5260.dtsi"
+#include "exyyess5260.dtsi"
 
 / {
 	model = "SAMSUNG XYREF5260 board based on EXYNOS5260";
-	compatible = "samsung,xyref5260", "samsung,exynos5260", "samsung,exynos5";
+	compatible = "samsung,xyref5260", "samsung,exyyess5260", "samsung,exyyess5";
 
 	memory@20000000 {
 		device_type = "memory";

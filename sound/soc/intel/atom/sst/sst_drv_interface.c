@@ -3,7 +3,7 @@
  *  sst_drv_interface.c - Intel SST Driver for audio engine
  *
  *  Copyright (C) 2008-14 Intel Corp
- *  Authors:	Vinod Koul <vinod.koul@intel.com>
+ *  Authors:	Viyesd Koul <viyesd.koul@intel.com>
  *		Harsha Priya <priya.harsha@intel.com>
  *		Dharageswari R <dharageswari.r@intel.com)
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -120,7 +120,7 @@ int sst_get_stream(struct intel_sst_drv *ctx,
 	int retval;
 	struct stream_info *str_info;
 
-	/* stream is not allocated, we are allocating */
+	/* stream is yest allocated, we are allocating */
 	retval = ctx->ops->alloc_stream(ctx, str_param);
 	if (retval <= 0) {
 		return -EIO;
@@ -208,7 +208,7 @@ static int sst_cdev_open(struct device *dev,
 		stream = &ctx->streams[str_id];
 		stream->compr_cb = cb->compr_cb;
 		stream->compr_cb_param = cb->param;
-		stream->drain_notify = cb->drain_notify;
+		stream->drain_yestify = cb->drain_yestify;
 		stream->drain_cb_param = cb->drain_cb_param;
 	} else {
 		dev_err(dev, "stream encountered error during alloc %d\n", str_id);

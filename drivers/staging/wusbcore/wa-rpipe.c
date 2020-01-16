@@ -18,7 +18,7 @@
  *   0)--need to schedule them then.
  *
  * Each bit in wa->rpipe_bm represents if an rpipe is being used or
- * not. Rpipes are represented with a 'struct wa_rpipe' that is
+ * yest. Rpipes are represented with a 'struct wa_rpipe' that is
  * attached to the hcpriv member of a 'struct usb_host_endpoint'.
  *
  * When you need to xfer data to an endpoint, you get an rpipe for it
@@ -26,12 +26,12 @@
  * and keeps a single one (the first one) with the endpoint. When you
  * are done transferring, you drop that reference. At the end the
  * rpipe is always allocated and bound to the endpoint. There it might
- * be recycled when not used.
+ * be recycled when yest used.
  *
  * Addresses:
  *
  *  We use a 1:1 mapping mechanism between port address (0 based
- *  index, actually) and the address. The USB stack knows about this.
+ *  index, actually) and the address. The USB stack kyesws about this.
  *
  *  USB Stack port number    4 (1 based)
  *  WUSB code port index     3 (0 based)
@@ -57,7 +57,7 @@ static int __rpipe_get_descr(struct wahc *wa,
 	ssize_t result;
 	struct device *dev = &wa->usb_iface->dev;
 
-	/* Get the RPIPE descriptor -- we cannot use the usb_get_descriptor()
+	/* Get the RPIPE descriptor -- we canyest use the usb_get_descriptor()
 	 * function because the arguments are different.
 	 */
 	result = usb_control_msg(
@@ -95,7 +95,7 @@ static int __rpipe_set_descr(struct wahc *wa,
 	ssize_t result;
 	struct device *dev = &wa->usb_iface->dev;
 
-	/* we cannot use the usb_get_descriptor() function because the
+	/* we canyest use the usb_get_descriptor() function because the
 	 * arguments are different.
 	 */
 	result = usb_control_msg(
@@ -128,7 +128,7 @@ static void rpipe_init(struct wa_rpipe *rpipe)
 	kref_init(&rpipe->refcnt);
 	spin_lock_init(&rpipe->seg_lock);
 	INIT_LIST_HEAD(&rpipe->seg_list);
-	INIT_LIST_HEAD(&rpipe->list_node);
+	INIT_LIST_HEAD(&rpipe->list_yesde);
 }
 
 static unsigned rpipe_get_idx(struct wahc *wa, unsigned rpipe_idx)
@@ -172,7 +172,7 @@ EXPORT_SYMBOL_GPL(rpipe_destroy);
  * @wa	  is referenced and unlocked
  * @crs   enum rpipe_attr, required endpoint characteristics
  *
- * The rpipe can be used only sequentially (not in parallel).
+ * The rpipe can be used only sequentially (yest in parallel).
  *
  * The rpipe is moved into the "ready" state.
  */
@@ -192,7 +192,7 @@ static int rpipe_get_idle(struct wa_rpipe **prpipe, struct wahc *wa, u8 crs,
 	/* Look for an idle pipe */
 	for (rpipe_idx = 0; rpipe_idx < wa->rpipes; rpipe_idx++) {
 		rpipe_idx = rpipe_get_idx(wa, rpipe_idx);
-		if (rpipe_idx >= wa->rpipes)	/* no more pipes :( */
+		if (rpipe_idx >= wa->rpipes)	/* yes more pipes :( */
 			break;
 		result =  __rpipe_get_descr(wa, &rpipe->descr, rpipe_idx);
 		if (result < 0)
@@ -294,7 +294,7 @@ out:
  * Aim an rpipe to its device & endpoint destination
  *
  * Make sure we change the address to unauthenticated if the device
- * is WUSB and it is not authenticated.
+ * is WUSB and it is yest authenticated.
  */
 static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 		     struct usb_host_endpoint *ep, struct urb *urb, gfp_t gfp)
@@ -328,7 +328,7 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 	rpipe->descr.hwa_bMaxBurst = max(min_t(unsigned int,
 				epcd->bMaxBurst, 16U), 1U);
 	rpipe->descr.hwa_bDeviceInfoIndex =
-			wusb_port_no_to_idx(urb->dev->portnum);
+			wusb_port_yes_to_idx(urb->dev->portnum);
 	/* FIXME: use maximum speed as supported or recommended by device */
 	rpipe->descr.bSpeed = usb_pipeendpoint(urb->pipe) == 0 ?
 		UWB_PHY_RATE_53 : UWB_PHY_RATE_200;
@@ -354,7 +354,7 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 	if (usb_endpoint_xfer_isoc(&ep->desc))
 		rpipe->descr.bOverTheAirInterval = epcd->bOverTheAirInterval;
 	else
-		rpipe->descr.bOverTheAirInterval = 0;	/* 0 if not isoc */
+		rpipe->descr.bOverTheAirInterval = 0;	/* 0 if yest isoc */
 	/* FIXME: xmit power & preamble blah blah */
 	rpipe->descr.bmAttribute = (ep->desc.bmAttributes &
 					USB_ENDPOINT_XFERTYPE_MASK);
@@ -365,7 +365,7 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 	result = __rpipe_set_descr(wa, &rpipe->descr,
 				   le16_to_cpu(rpipe->descr.wRPipeIndex));
 	if (result < 0) {
-		dev_err(dev, "Cannot aim rpipe: %d\n", result);
+		dev_err(dev, "Canyest aim rpipe: %d\n", result);
 		goto error;
 	}
 	result = 0;
@@ -385,7 +385,7 @@ static int rpipe_check_aim(const struct wa_rpipe *rpipe, const struct wahc *wa,
 {
 	int result = 0;
 	struct device *dev = &wa->usb_iface->dev;
-	u8 portnum = wusb_port_no_to_idx(urb->dev->portnum);
+	u8 portnum = wusb_port_yes_to_idx(urb->dev->portnum);
 
 #define AIM_CHECK(rdf, val, text)					\
 	do {								\
@@ -415,7 +415,7 @@ static int rpipe_check_aim(const struct wa_rpipe *rpipe, const struct wahc *wa,
 /*
  * Make sure there is an rpipe allocated for an endpoint
  *
- * If already allocated, we just refcount it; if not, we get an
+ * If already allocated, we just refcount it; if yest, we get an
  * idle one, aim it to the right location and take it.
  *
  * Attaches to ep->hcpriv and rpipe->ep to ep.
@@ -482,7 +482,7 @@ void wa_rpipes_destroy(struct wahc *wa)
 
 	if (!bitmap_empty(wa->rpipe_bm, wa->rpipes)) {
 		WARN_ON(1);
-		dev_err(dev, "BUG: pipes not released on exit: %*pb\n",
+		dev_err(dev, "BUG: pipes yest released on exit: %*pb\n",
 			wa->rpipes, wa->rpipe_bm);
 	}
 	bitmap_free(wa->rpipe_bm);

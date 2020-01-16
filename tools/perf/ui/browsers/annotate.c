@@ -2,7 +2,7 @@
 #include "../browser.h"
 #include "../helpline.h"
 #include "../ui.h"
-#include "../../util/annotate.h"
+#include "../../util/anyestate.h"
 #include "../../util/debug.h"
 #include "../../util/dso.h"
 #include "../../util/hist.h"
@@ -26,37 +26,37 @@ struct disasm_line_samples {
 
 struct arch;
 
-struct annotate_browser {
+struct anyestate_browser {
 	struct ui_browser	    b;
 	struct rb_root		    entries;
-	struct rb_node		   *curr_hot;
-	struct annotation_line	   *selection;
+	struct rb_yesde		   *curr_hot;
+	struct anyestation_line	   *selection;
 	struct arch		   *arch;
-	struct annotation_options  *opts;
+	struct anyestation_options  *opts;
 	bool			    searching_backwards;
 	char			    search_bf[128];
 };
 
-static inline struct annotation *browser__annotation(struct ui_browser *browser)
+static inline struct anyestation *browser__anyestation(struct ui_browser *browser)
 {
 	struct map_symbol *ms = browser->priv;
-	return symbol__annotation(ms->sym);
+	return symbol__anyestation(ms->sym);
 }
 
 static bool disasm_line__filter(struct ui_browser *browser, void *entry)
 {
-	struct annotation *notes = browser__annotation(browser);
-	struct annotation_line *al = list_entry(entry, struct annotation_line, node);
-	return annotation_line__filter(al, notes);
+	struct anyestation *yestes = browser__anyestation(browser);
+	struct anyestation_line *al = list_entry(entry, struct anyestation_line, yesde);
+	return anyestation_line__filter(al, yestes);
 }
 
 static int ui_browser__jumps_percent_color(struct ui_browser *browser, int nr, bool current)
 {
-	struct annotation *notes = browser__annotation(browser);
+	struct anyestation *yestes = browser__anyestation(browser);
 
 	if (current && (!browser->use_navkeypressed || browser->navkeypressed))
 		return HE_COLORSET_SELECTED;
-	if (nr == notes->max_jump_sources)
+	if (nr == yestes->max_jump_sources)
 		return HE_COLORSET_TOP;
 	if (nr > 1)
 		return HE_COLORSET_MEDIUM;
@@ -69,22 +69,22 @@ static int ui_browser__set_jumps_percent_color(void *browser, int nr, bool curre
 	 return ui_browser__set_color(browser, color);
 }
 
-static int annotate_browser__set_color(void *browser, int color)
+static int anyestate_browser__set_color(void *browser, int color)
 {
 	return ui_browser__set_color(browser, color);
 }
 
-static void annotate_browser__write_graph(void *browser, int graph)
+static void anyestate_browser__write_graph(void *browser, int graph)
 {
 	ui_browser__write_graph(browser, graph);
 }
 
-static void annotate_browser__set_percent_color(void *browser, double percent, bool current)
+static void anyestate_browser__set_percent_color(void *browser, double percent, bool current)
 {
 	ui_browser__set_percent_color(browser, percent, current);
 }
 
-static void annotate_browser__printf(void *browser, const char *fmt, ...)
+static void anyestate_browser__printf(void *browser, const char *fmt, ...)
 {
 	va_list args;
 
@@ -93,41 +93,41 @@ static void annotate_browser__printf(void *browser, const char *fmt, ...)
 	va_end(args);
 }
 
-static void annotate_browser__write(struct ui_browser *browser, void *entry, int row)
+static void anyestate_browser__write(struct ui_browser *browser, void *entry, int row)
 {
-	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
-	struct annotation *notes = browser__annotation(browser);
-	struct annotation_line *al = list_entry(entry, struct annotation_line, node);
+	struct anyestate_browser *ab = container_of(browser, struct anyestate_browser, b);
+	struct anyestation *yestes = browser__anyestation(browser);
+	struct anyestation_line *al = list_entry(entry, struct anyestation_line, yesde);
 	const bool is_current_entry = ui_browser__is_current_entry(browser, row);
-	struct annotation_write_ops ops = {
+	struct anyestation_write_ops ops = {
 		.first_line		 = row == 0,
 		.current_entry		 = is_current_entry,
-		.change_color		 = (!notes->options->hide_src_code &&
+		.change_color		 = (!yestes->options->hide_src_code &&
 					    (!is_current_entry ||
 					     (browser->use_navkeypressed &&
 					      !browser->navkeypressed))),
 		.width			 = browser->width,
 		.obj			 = browser,
-		.set_color		 = annotate_browser__set_color,
-		.set_percent_color	 = annotate_browser__set_percent_color,
+		.set_color		 = anyestate_browser__set_color,
+		.set_percent_color	 = anyestate_browser__set_percent_color,
 		.set_jumps_percent_color = ui_browser__set_jumps_percent_color,
-		.printf			 = annotate_browser__printf,
-		.write_graph		 = annotate_browser__write_graph,
+		.printf			 = anyestate_browser__printf,
+		.write_graph		 = anyestate_browser__write_graph,
 	};
 
 	/* The scroll bar isn't being used */
 	if (!browser->navkeypressed)
 		ops.width += 1;
 
-	annotation_line__write(al, notes, &ops, ab->opts);
+	anyestation_line__write(al, yestes, &ops, ab->opts);
 
 	if (ops.current_entry)
 		ab->selection = al;
 }
 
-static bool is_fused(struct annotate_browser *ab, struct disasm_line *cursor)
+static bool is_fused(struct anyestate_browser *ab, struct disasm_line *cursor)
 {
-	struct disasm_line *pos = list_prev_entry(cursor, al.node);
+	struct disasm_line *pos = list_prev_entry(cursor, al.yesde);
 	const char *name;
 
 	if (!pos)
@@ -144,16 +144,16 @@ static bool is_fused(struct annotate_browser *ab, struct disasm_line *cursor)
 	return ins__is_fused(ab->arch, name, cursor->ins.name);
 }
 
-static void annotate_browser__draw_current_jump(struct ui_browser *browser)
+static void anyestate_browser__draw_current_jump(struct ui_browser *browser)
 {
-	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
+	struct anyestate_browser *ab = container_of(browser, struct anyestate_browser, b);
 	struct disasm_line *cursor = disasm_line(ab->selection);
-	struct annotation_line *target;
+	struct anyestation_line *target;
 	unsigned int from, to;
 	struct map_symbol *ms = ab->b.priv;
 	struct symbol *sym = ms->sym;
-	struct annotation *notes = symbol__annotation(sym);
-	u8 pcnt_width = annotation__pcnt_width(notes);
+	struct anyestation *yestes = symbol__anyestation(sym);
+	u8 pcnt_width = anyestation__pcnt_width(yestes);
 	int width;
 
 	/* PLT symbols contain external offsets */
@@ -174,8 +174,8 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	 *
 	 *  │1159e8b: ↓ jne    c469be <cpp_named_operator2name@@Base+0xa72>
 	 *
-	 *  I.e. jumps to another function, outside _cpp_lex_token, which
-	 *  are not being correctly handled generating as a side effect references
+	 *  I.e. jumps to ayesther function, outside _cpp_lex_token, which
+	 *  are yest being correctly handled generating as a side effect references
 	 *  to ab->offset[] entries that are set to NULL, so to make this code
 	 *  more robust, check that here.
 	 *
@@ -183,14 +183,14 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	 *  name right after the '<' token and probably treating this like a
 	 *  'call' instruction.
 	 */
-	target = notes->offsets[cursor->ops.target.offset];
+	target = yestes->offsets[cursor->ops.target.offset];
 	if (target == NULL) {
-		ui_helpline__printf("WARN: jump target inconsistency, press 'o', notes->offsets[%#x] = NULL\n",
+		ui_helpline__printf("WARN: jump target inconsistency, press 'o', yestes->offsets[%#x] = NULL\n",
 				    cursor->ops.target.offset);
 		return;
 	}
 
-	if (notes->options->hide_src_code) {
+	if (yestes->options->hide_src_code) {
 		from = cursor->al.idx_asm;
 		to = target->idx_asm;
 	} else {
@@ -198,36 +198,36 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 		to = (u64)target->idx;
 	}
 
-	width = annotation__cycles_width(notes);
+	width = anyestation__cycles_width(yestes);
 
 	ui_browser__set_color(browser, HE_COLORSET_JUMP_ARROWS);
 	__ui_browser__line_arrow(browser,
-				 pcnt_width + 2 + notes->widths.addr + width,
+				 pcnt_width + 2 + yestes->widths.addr + width,
 				 from, to);
 
 	if (is_fused(ab, cursor)) {
 		ui_browser__mark_fused(browser,
-				       pcnt_width + 3 + notes->widths.addr + width,
+				       pcnt_width + 3 + yestes->widths.addr + width,
 				       from - 1,
 				       to > from ? true : false);
 	}
 }
 
-static unsigned int annotate_browser__refresh(struct ui_browser *browser)
+static unsigned int anyestate_browser__refresh(struct ui_browser *browser)
 {
-	struct annotation *notes = browser__annotation(browser);
+	struct anyestation *yestes = browser__anyestation(browser);
 	int ret = ui_browser__list_head_refresh(browser);
-	int pcnt_width = annotation__pcnt_width(notes);
+	int pcnt_width = anyestation__pcnt_width(yestes);
 
-	if (notes->options->jump_arrows)
-		annotate_browser__draw_current_jump(browser);
+	if (yestes->options->jump_arrows)
+		anyestate_browser__draw_current_jump(browser);
 
 	ui_browser__set_color(browser, HE_COLORSET_NORMAL);
 	__ui_browser__vline(browser, pcnt_width, 0, browser->rows - 1);
 	return ret;
 }
 
-static double disasm__cmp(struct annotation_line *a, struct annotation_line *b,
+static double disasm__cmp(struct anyestation_line *a, struct anyestation_line *b,
 						  int percent_type)
 {
 	int i;
@@ -241,31 +241,31 @@ static double disasm__cmp(struct annotation_line *a, struct annotation_line *b,
 	return 0;
 }
 
-static void disasm_rb_tree__insert(struct annotate_browser *browser,
-				struct annotation_line *al)
+static void disasm_rb_tree__insert(struct anyestate_browser *browser,
+				struct anyestation_line *al)
 {
 	struct rb_root *root = &browser->entries;
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
-	struct annotation_line *l;
+	struct rb_yesde **p = &root->rb_yesde;
+	struct rb_yesde *parent = NULL;
+	struct anyestation_line *l;
 
 	while (*p != NULL) {
 		parent = *p;
-		l = rb_entry(parent, struct annotation_line, rb_node);
+		l = rb_entry(parent, struct anyestation_line, rb_yesde);
 
 		if (disasm__cmp(al, l, browser->opts->percent_type) < 0)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
 	}
-	rb_link_node(&al->rb_node, parent, p);
-	rb_insert_color(&al->rb_node, root);
+	rb_link_yesde(&al->rb_yesde, parent, p);
+	rb_insert_color(&al->rb_yesde, root);
 }
 
-static void annotate_browser__set_top(struct annotate_browser *browser,
-				      struct annotation_line *pos, u32 idx)
+static void anyestate_browser__set_top(struct anyestate_browser *browser,
+				      struct anyestation_line *pos, u32 idx)
 {
-	struct annotation *notes = browser__annotation(&browser->b);
+	struct anyestation *yestes = browser__anyestation(&browser->b);
 	unsigned back;
 
 	ui_browser__refresh_dimensions(&browser->b);
@@ -273,9 +273,9 @@ static void annotate_browser__set_top(struct annotate_browser *browser,
 	browser->b.top_idx = browser->b.index = idx;
 
 	while (browser->b.top_idx != 0 && back != 0) {
-		pos = list_entry(pos->node.prev, struct annotation_line, node);
+		pos = list_entry(pos->yesde.prev, struct anyestation_line, yesde);
 
-		if (annotation_line__filter(pos, notes))
+		if (anyestation_line__filter(pos, yestes))
 			continue;
 
 		--browser->b.top_idx;
@@ -286,46 +286,46 @@ static void annotate_browser__set_top(struct annotate_browser *browser,
 	browser->b.navkeypressed = true;
 }
 
-static void annotate_browser__set_rb_top(struct annotate_browser *browser,
-					 struct rb_node *nd)
+static void anyestate_browser__set_rb_top(struct anyestate_browser *browser,
+					 struct rb_yesde *nd)
 {
-	struct annotation *notes = browser__annotation(&browser->b);
-	struct annotation_line * pos = rb_entry(nd, struct annotation_line, rb_node);
+	struct anyestation *yestes = browser__anyestation(&browser->b);
+	struct anyestation_line * pos = rb_entry(nd, struct anyestation_line, rb_yesde);
 	u32 idx = pos->idx;
 
-	if (notes->options->hide_src_code)
+	if (yestes->options->hide_src_code)
 		idx = pos->idx_asm;
-	annotate_browser__set_top(browser, pos, idx);
+	anyestate_browser__set_top(browser, pos, idx);
 	browser->curr_hot = nd;
 }
 
-static void annotate_browser__calc_percent(struct annotate_browser *browser,
+static void anyestate_browser__calc_percent(struct anyestate_browser *browser,
 					   struct evsel *evsel)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
-	struct annotation *notes = symbol__annotation(sym);
+	struct anyestation *yestes = symbol__anyestation(sym);
 	struct disasm_line *pos;
 
 	browser->entries = RB_ROOT;
 
-	pthread_mutex_lock(&notes->lock);
+	pthread_mutex_lock(&yestes->lock);
 
 	symbol__calc_percent(sym, evsel);
 
-	list_for_each_entry(pos, &notes->src->source, al.node) {
+	list_for_each_entry(pos, &yestes->src->source, al.yesde) {
 		double max_percent = 0.0;
 		int i;
 
 		if (pos->al.offset == -1) {
-			RB_CLEAR_NODE(&pos->al.rb_node);
+			RB_CLEAR_NODE(&pos->al.rb_yesde);
 			continue;
 		}
 
 		for (i = 0; i < pos->al.data_nr; i++) {
 			double percent;
 
-			percent = annotation_data__percent(&pos->al.data[i],
+			percent = anyestation_data__percent(&pos->al.data[i],
 							   browser->opts->percent_type);
 
 			if (max_percent < percent)
@@ -333,31 +333,31 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 		}
 
 		if (max_percent < 0.01 && pos->al.ipc == 0) {
-			RB_CLEAR_NODE(&pos->al.rb_node);
+			RB_CLEAR_NODE(&pos->al.rb_yesde);
 			continue;
 		}
 		disasm_rb_tree__insert(browser, &pos->al);
 	}
-	pthread_mutex_unlock(&notes->lock);
+	pthread_mutex_unlock(&yestes->lock);
 
 	browser->curr_hot = rb_last(&browser->entries);
 }
 
-static bool annotate_browser__toggle_source(struct annotate_browser *browser)
+static bool anyestate_browser__toggle_source(struct anyestate_browser *browser)
 {
-	struct annotation *notes = browser__annotation(&browser->b);
-	struct annotation_line *al;
+	struct anyestation *yestes = browser__anyestation(&browser->b);
+	struct anyestation_line *al;
 	off_t offset = browser->b.index - browser->b.top_idx;
 
 	browser->b.seek(&browser->b, offset, SEEK_CUR);
-	al = list_entry(browser->b.top, struct annotation_line, node);
+	al = list_entry(browser->b.top, struct anyestation_line, yesde);
 
-	if (notes->options->hide_src_code) {
+	if (yestes->options->hide_src_code) {
 		if (al->idx_asm < offset)
 			offset = al->idx;
 
-		browser->b.nr_entries = notes->nr_entries;
-		notes->options->hide_src_code = false;
+		browser->b.nr_entries = yestes->nr_entries;
+		yestes->options->hide_src_code = false;
 		browser->b.seek(&browser->b, -offset, SEEK_CUR);
 		browser->b.top_idx = al->idx - offset;
 		browser->b.index = al->idx;
@@ -371,8 +371,8 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 		if (al->idx_asm < offset)
 			offset = al->idx_asm;
 
-		browser->b.nr_entries = notes->nr_asm_entries;
-		notes->options->hide_src_code = true;
+		browser->b.nr_entries = yestes->nr_asm_entries;
+		yestes->options->hide_src_code = true;
 		browser->b.seek(&browser->b, -offset, SEEK_CUR);
 		browser->b.top_idx = al->idx_asm - offset;
 		browser->b.index = al->idx_asm;
@@ -383,9 +383,9 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 
 static void ui_browser__init_asm_mode(struct ui_browser *browser)
 {
-	struct annotation *notes = browser__annotation(browser);
+	struct anyestation *yestes = browser__anyestation(browser);
 	ui_browser__reset_index(browser);
-	browser->nr_entries = notes->nr_asm_entries;
+	browser->nr_entries = yestes->nr_asm_entries;
 }
 
 #define SYM_TITLE_MAX_SIZE (PATH_MAX + 64)
@@ -399,33 +399,33 @@ static int sym_title(struct symbol *sym, struct map *map, char *title,
 
 /*
  * This can be called from external jumps, i.e. jumps from one functon
- * to another, like from the kernel's entry_SYSCALL_64 function to the
+ * to ayesther, like from the kernel's entry_SYSCALL_64 function to the
  * swapgs_restore_regs_and_return_to_usermode() function.
  *
  * So all we check here is that dl->ops.target.sym is set, if it is, just
  * go to that function and when exiting from its disassembly, come back
  * to the calling function.
  */
-static bool annotate_browser__callq(struct annotate_browser *browser,
+static bool anyestate_browser__callq(struct anyestate_browser *browser,
 				    struct evsel *evsel,
 				    struct hist_browser_timer *hbt)
 {
 	struct map_symbol *ms = browser->b.priv, target_ms;
 	struct disasm_line *dl = disasm_line(browser->selection);
-	struct annotation *notes;
+	struct anyestation *yestes;
 	char title[SYM_TITLE_MAX_SIZE];
 
 	if (!dl->ops.target.sym) {
-		ui_helpline__puts("The called function was not found.");
+		ui_helpline__puts("The called function was yest found.");
 		return true;
 	}
 
-	notes = symbol__annotation(dl->ops.target.sym);
-	pthread_mutex_lock(&notes->lock);
+	yestes = symbol__anyestation(dl->ops.target.sym);
+	pthread_mutex_lock(&yestes->lock);
 
 	if (!symbol__hists(dl->ops.target.sym, evsel->evlist->core.nr_entries)) {
-		pthread_mutex_unlock(&notes->lock);
-		ui__warning("Not enough memory for annotating '%s' symbol!\n",
+		pthread_mutex_unlock(&yestes->lock);
+		ui__warning("Not eyesugh memory for anyestating '%s' symbol!\n",
 			    dl->ops.target.sym->name);
 		return true;
 	}
@@ -433,32 +433,32 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	target_ms.maps = ms->maps;
 	target_ms.map = ms->map;
 	target_ms.sym = dl->ops.target.sym;
-	pthread_mutex_unlock(&notes->lock);
-	symbol__tui_annotate(&target_ms, evsel, hbt, browser->opts);
+	pthread_mutex_unlock(&yestes->lock);
+	symbol__tui_anyestate(&target_ms, evsel, hbt, browser->opts);
 	sym_title(ms->sym, ms->map, title, sizeof(title), browser->opts->percent_type);
 	ui_browser__show_title(&browser->b, title);
 	return true;
 }
 
 static
-struct disasm_line *annotate_browser__find_offset(struct annotate_browser *browser,
+struct disasm_line *anyestate_browser__find_offset(struct anyestate_browser *browser,
 					  s64 offset, s64 *idx)
 {
-	struct annotation *notes = browser__annotation(&browser->b);
+	struct anyestation *yestes = browser__anyestation(&browser->b);
 	struct disasm_line *pos;
 
 	*idx = 0;
-	list_for_each_entry(pos, &notes->src->source, al.node) {
+	list_for_each_entry(pos, &yestes->src->source, al.yesde) {
 		if (pos->al.offset == offset)
 			return pos;
-		if (!annotation_line__filter(&pos->al, notes))
+		if (!anyestation_line__filter(&pos->al, yestes))
 			++*idx;
 	}
 
 	return NULL;
 }
 
-static bool annotate_browser__jump(struct annotate_browser *browser,
+static bool anyestate_browser__jump(struct anyestate_browser *browser,
 				   struct evsel *evsel,
 				   struct hist_browser_timer *hbt)
 {
@@ -470,32 +470,32 @@ static bool annotate_browser__jump(struct annotate_browser *browser,
 		return false;
 
 	if (dl->ops.target.outside) {
-		annotate_browser__callq(browser, evsel, hbt);
+		anyestate_browser__callq(browser, evsel, hbt);
 		return true;
 	}
 
 	offset = dl->ops.target.offset;
-	dl = annotate_browser__find_offset(browser, offset, &idx);
+	dl = anyestate_browser__find_offset(browser, offset, &idx);
 	if (dl == NULL) {
 		ui_helpline__printf("Invalid jump offset: %" PRIx64, offset);
 		return true;
 	}
 
-	annotate_browser__set_top(browser, &dl->al, idx);
+	anyestate_browser__set_top(browser, &dl->al, idx);
 
 	return true;
 }
 
 static
-struct annotation_line *annotate_browser__find_string(struct annotate_browser *browser,
+struct anyestation_line *anyestate_browser__find_string(struct anyestate_browser *browser,
 					  char *s, s64 *idx)
 {
-	struct annotation *notes = browser__annotation(&browser->b);
-	struct annotation_line *al = browser->selection;
+	struct anyestation *yestes = browser__anyestation(&browser->b);
+	struct anyestation_line *al = browser->selection;
 
 	*idx = browser->b.index;
-	list_for_each_entry_continue(al, &notes->src->source, node) {
-		if (annotation_line__filter(al, notes))
+	list_for_each_entry_continue(al, &yestes->src->source, yesde) {
+		if (anyestation_line__filter(al, yestes))
 			continue;
 
 		++*idx;
@@ -507,32 +507,32 @@ struct annotation_line *annotate_browser__find_string(struct annotate_browser *b
 	return NULL;
 }
 
-static bool __annotate_browser__search(struct annotate_browser *browser)
+static bool __anyestate_browser__search(struct anyestate_browser *browser)
 {
-	struct annotation_line *al;
+	struct anyestation_line *al;
 	s64 idx;
 
-	al = annotate_browser__find_string(browser, browser->search_bf, &idx);
+	al = anyestate_browser__find_string(browser, browser->search_bf, &idx);
 	if (al == NULL) {
-		ui_helpline__puts("String not found!");
+		ui_helpline__puts("String yest found!");
 		return false;
 	}
 
-	annotate_browser__set_top(browser, al, idx);
+	anyestate_browser__set_top(browser, al, idx);
 	browser->searching_backwards = false;
 	return true;
 }
 
 static
-struct annotation_line *annotate_browser__find_string_reverse(struct annotate_browser *browser,
+struct anyestation_line *anyestate_browser__find_string_reverse(struct anyestate_browser *browser,
 						  char *s, s64 *idx)
 {
-	struct annotation *notes = browser__annotation(&browser->b);
-	struct annotation_line *al = browser->selection;
+	struct anyestation *yestes = browser__anyestation(&browser->b);
+	struct anyestation_line *al = browser->selection;
 
 	*idx = browser->b.index;
-	list_for_each_entry_continue_reverse(al, &notes->src->source, node) {
-		if (annotation_line__filter(al, notes))
+	list_for_each_entry_continue_reverse(al, &yestes->src->source, yesde) {
+		if (anyestation_line__filter(al, yestes))
 			continue;
 
 		--*idx;
@@ -544,23 +544,23 @@ struct annotation_line *annotate_browser__find_string_reverse(struct annotate_br
 	return NULL;
 }
 
-static bool __annotate_browser__search_reverse(struct annotate_browser *browser)
+static bool __anyestate_browser__search_reverse(struct anyestate_browser *browser)
 {
-	struct annotation_line *al;
+	struct anyestation_line *al;
 	s64 idx;
 
-	al = annotate_browser__find_string_reverse(browser, browser->search_bf, &idx);
+	al = anyestate_browser__find_string_reverse(browser, browser->search_bf, &idx);
 	if (al == NULL) {
-		ui_helpline__puts("String not found!");
+		ui_helpline__puts("String yest found!");
 		return false;
 	}
 
-	annotate_browser__set_top(browser, al, idx);
+	anyestate_browser__set_top(browser, al, idx);
 	browser->searching_backwards = true;
 	return true;
 }
 
-static bool annotate_browser__search_window(struct annotate_browser *browser,
+static bool anyestate_browser__search_window(struct anyestate_browser *browser,
 					    int delay_secs)
 {
 	if (ui_browser__input_window("Search", "String: ", browser->search_bf,
@@ -572,45 +572,45 @@ static bool annotate_browser__search_window(struct annotate_browser *browser,
 	return true;
 }
 
-static bool annotate_browser__search(struct annotate_browser *browser, int delay_secs)
+static bool anyestate_browser__search(struct anyestate_browser *browser, int delay_secs)
 {
-	if (annotate_browser__search_window(browser, delay_secs))
-		return __annotate_browser__search(browser);
+	if (anyestate_browser__search_window(browser, delay_secs))
+		return __anyestate_browser__search(browser);
 
 	return false;
 }
 
-static bool annotate_browser__continue_search(struct annotate_browser *browser,
+static bool anyestate_browser__continue_search(struct anyestate_browser *browser,
 					      int delay_secs)
 {
 	if (!*browser->search_bf)
-		return annotate_browser__search(browser, delay_secs);
+		return anyestate_browser__search(browser, delay_secs);
 
-	return __annotate_browser__search(browser);
+	return __anyestate_browser__search(browser);
 }
 
-static bool annotate_browser__search_reverse(struct annotate_browser *browser,
+static bool anyestate_browser__search_reverse(struct anyestate_browser *browser,
 					   int delay_secs)
 {
-	if (annotate_browser__search_window(browser, delay_secs))
-		return __annotate_browser__search_reverse(browser);
+	if (anyestate_browser__search_window(browser, delay_secs))
+		return __anyestate_browser__search_reverse(browser);
 
 	return false;
 }
 
 static
-bool annotate_browser__continue_search_reverse(struct annotate_browser *browser,
+bool anyestate_browser__continue_search_reverse(struct anyestate_browser *browser,
 					       int delay_secs)
 {
 	if (!*browser->search_bf)
-		return annotate_browser__search_reverse(browser, delay_secs);
+		return anyestate_browser__search_reverse(browser, delay_secs);
 
-	return __annotate_browser__search_reverse(browser);
+	return __anyestate_browser__search_reverse(browser);
 }
 
-static int annotate_browser__show(struct ui_browser *browser, char *title, const char *help)
+static int anyestate_browser__show(struct ui_browser *browser, char *title, const char *help)
 {
-	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
+	struct anyestate_browser *ab = container_of(browser, struct anyestate_browser, b);
 	struct map_symbol *ms = browser->priv;
 	struct symbol *sym = ms->sym;
 	char symbol_dso[SYM_TITLE_MAX_SIZE];
@@ -627,7 +627,7 @@ static int annotate_browser__show(struct ui_browser *browser, char *title, const
 }
 
 static void
-switch_percent_type(struct annotation_options *opts, bool base)
+switch_percent_type(struct anyestation_options *opts, bool base)
 {
 	switch (opts->percent_type) {
 	case PERCENT_HITS_LOCAL:
@@ -659,28 +659,28 @@ switch_percent_type(struct annotation_options *opts, bool base)
 	}
 }
 
-static int annotate_browser__run(struct annotate_browser *browser,
+static int anyestate_browser__run(struct anyestate_browser *browser,
 				 struct evsel *evsel,
 				 struct hist_browser_timer *hbt)
 {
-	struct rb_node *nd = NULL;
+	struct rb_yesde *nd = NULL;
 	struct hists *hists = evsel__hists(evsel);
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
-	struct annotation *notes = symbol__annotation(ms->sym);
+	struct anyestation *yestes = symbol__anyestation(ms->sym);
 	const char *help = "Press 'h' for help on key bindings";
 	int delay_secs = hbt ? hbt->refresh : 0;
 	char title[256];
 	int key;
 
 	hists__scnprintf_title(hists, title, sizeof(title));
-	if (annotate_browser__show(&browser->b, title, help) < 0)
+	if (anyestate_browser__show(&browser->b, title, help) < 0)
 		return -1;
 
-	annotate_browser__calc_percent(browser, evsel);
+	anyestate_browser__calc_percent(browser, evsel);
 
 	if (browser->curr_hot) {
-		annotate_browser__set_rb_top(browser, browser->curr_hot);
+		anyestate_browser__set_rb_top(browser, browser->curr_hot);
 		browser->b.navkeypressed = false;
 	}
 
@@ -690,7 +690,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		key = ui_browser__run(&browser->b, delay_secs);
 
 		if (delay_secs != 0) {
-			annotate_browser__calc_percent(browser, evsel);
+			anyestate_browser__calc_percent(browser, evsel);
 			/*
 			 * Current line focus got out of the list of most active
 			 * lines, NULL it so that if TAB|UNTAB is pressed, we
@@ -706,9 +706,9 @@ static int annotate_browser__run(struct annotate_browser *browser,
 				hbt->timer(hbt->arg);
 
 			if (delay_secs != 0) {
-				symbol__annotate_decay_histogram(sym, evsel->idx);
+				symbol__anyestate_decay_histogram(sym, evsel->idx);
 				hists__scnprintf_title(hists, title, sizeof(title));
-				annotate_browser__show(&browser->b, title, help);
+				anyestate_browser__show(&browser->b, title, help);
 			}
 			continue;
 		case K_TAB:
@@ -747,7 +747,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"c             Show min/max cycle\n"
 		"/             Search string\n"
 		"k             Toggle line numbers\n"
-		"P             Print to [symbol_name].annotation file.\n"
+		"P             Print to [symbol_name].anyestation file.\n"
 		"r             Run available scripts\n"
 		"p             Toggle percent type [local/global]\n"
 		"b             Toggle percent base [period/hits]\n"
@@ -759,44 +759,44 @@ static int annotate_browser__run(struct annotate_browser *browser,
 				continue;
 			}
 		case 'k':
-			notes->options->show_linenr = !notes->options->show_linenr;
+			yestes->options->show_linenr = !yestes->options->show_linenr;
 			break;
 		case 'H':
 			nd = browser->curr_hot;
 			break;
 		case 's':
-			if (annotate_browser__toggle_source(browser))
+			if (anyestate_browser__toggle_source(browser))
 				ui_helpline__puts(help);
 			continue;
 		case 'o':
-			notes->options->use_offset = !notes->options->use_offset;
-			annotation__update_column_widths(notes);
+			yestes->options->use_offset = !yestes->options->use_offset;
+			anyestation__update_column_widths(yestes);
 			continue;
 		case 'O':
-			if (++notes->options->offset_level > ANNOTATION__MAX_OFFSET_LEVEL)
-				notes->options->offset_level = ANNOTATION__MIN_OFFSET_LEVEL;
+			if (++yestes->options->offset_level > ANNOTATION__MAX_OFFSET_LEVEL)
+				yestes->options->offset_level = ANNOTATION__MIN_OFFSET_LEVEL;
 			continue;
 		case 'j':
-			notes->options->jump_arrows = !notes->options->jump_arrows;
+			yestes->options->jump_arrows = !yestes->options->jump_arrows;
 			continue;
 		case 'J':
-			notes->options->show_nr_jumps = !notes->options->show_nr_jumps;
-			annotation__update_column_widths(notes);
+			yestes->options->show_nr_jumps = !yestes->options->show_nr_jumps;
+			anyestation__update_column_widths(yestes);
 			continue;
 		case '/':
-			if (annotate_browser__search(browser, delay_secs)) {
+			if (anyestate_browser__search(browser, delay_secs)) {
 show_help:
 				ui_helpline__puts(help);
 			}
 			continue;
 		case 'n':
 			if (browser->searching_backwards ?
-			    annotate_browser__continue_search_reverse(browser, delay_secs) :
-			    annotate_browser__continue_search(browser, delay_secs))
+			    anyestate_browser__continue_search_reverse(browser, delay_secs) :
+			    anyestate_browser__continue_search(browser, delay_secs))
 				goto show_help;
 			continue;
 		case '?':
-			if (annotate_browser__search_reverse(browser, delay_secs))
+			if (anyestate_browser__search_reverse(browser, delay_secs))
 				goto show_help;
 			continue;
 		case 'D': {
@@ -807,7 +807,7 @@ show_help:
 					   browser->b.height,
 					   browser->b.index,
 					   browser->b.top_idx,
-					   notes->nr_asm_entries);
+					   yestes->nr_asm_entries);
 		}
 			continue;
 		case K_ENTER:
@@ -823,38 +823,38 @@ show_help:
 				goto show_sup_ins;
 			else if (ins__is_ret(&dl->ins))
 				goto out;
-			else if (!(annotate_browser__jump(browser, evsel, hbt) ||
-				     annotate_browser__callq(browser, evsel, hbt))) {
+			else if (!(anyestate_browser__jump(browser, evsel, hbt) ||
+				     anyestate_browser__callq(browser, evsel, hbt))) {
 show_sup_ins:
 				ui_helpline__puts("Actions are only available for function call/return & jump/branch instructions.");
 			}
 			continue;
 		}
 		case 'P':
-			map_symbol__annotation_dump(ms, evsel, browser->opts);
+			map_symbol__anyestation_dump(ms, evsel, browser->opts);
 			continue;
 		case 't':
-			if (notes->options->show_total_period) {
-				notes->options->show_total_period = false;
-				notes->options->show_nr_samples = true;
-			} else if (notes->options->show_nr_samples)
-				notes->options->show_nr_samples = false;
+			if (yestes->options->show_total_period) {
+				yestes->options->show_total_period = false;
+				yestes->options->show_nr_samples = true;
+			} else if (yestes->options->show_nr_samples)
+				yestes->options->show_nr_samples = false;
 			else
-				notes->options->show_total_period = true;
-			annotation__update_column_widths(notes);
+				yestes->options->show_total_period = true;
+			anyestation__update_column_widths(yestes);
 			continue;
 		case 'c':
-			if (notes->options->show_minmax_cycle)
-				notes->options->show_minmax_cycle = false;
+			if (yestes->options->show_minmax_cycle)
+				yestes->options->show_minmax_cycle = false;
 			else
-				notes->options->show_minmax_cycle = true;
-			annotation__update_column_widths(notes);
+				yestes->options->show_minmax_cycle = true;
+			anyestation__update_column_widths(yestes);
 			continue;
 		case 'p':
 		case 'b':
 			switch_percent_type(browser->opts, key == 'b');
 			hists__scnprintf_title(hists, title, sizeof(title));
-			annotate_browser__show(&browser->b, title, help);
+			anyestate_browser__show(&browser->b, title, help);
 			continue;
 		case K_LEFT:
 		case K_ESC:
@@ -866,42 +866,42 @@ show_sup_ins:
 		}
 
 		if (nd != NULL)
-			annotate_browser__set_rb_top(browser, nd);
+			anyestate_browser__set_rb_top(browser, nd);
 	}
 out:
 	ui_browser__hide(&browser->b);
 	return key;
 }
 
-int map_symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
+int map_symbol__tui_anyestate(struct map_symbol *ms, struct evsel *evsel,
 			     struct hist_browser_timer *hbt,
-			     struct annotation_options *opts)
+			     struct anyestation_options *opts)
 {
-	return symbol__tui_annotate(ms, evsel, hbt, opts);
+	return symbol__tui_anyestate(ms, evsel, hbt, opts);
 }
 
-int hist_entry__tui_annotate(struct hist_entry *he, struct evsel *evsel,
+int hist_entry__tui_anyestate(struct hist_entry *he, struct evsel *evsel,
 			     struct hist_browser_timer *hbt,
-			     struct annotation_options *opts)
+			     struct anyestation_options *opts)
 {
 	/* reset abort key so that it can get Ctrl-C as a key */
 	SLang_reset_tty();
 	SLang_init_tty(0, 0, 0);
 
-	return map_symbol__tui_annotate(&he->ms, evsel, hbt, opts);
+	return map_symbol__tui_anyestate(&he->ms, evsel, hbt, opts);
 }
 
-int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
+int symbol__tui_anyestate(struct map_symbol *ms, struct evsel *evsel,
 			 struct hist_browser_timer *hbt,
-			 struct annotation_options *opts)
+			 struct anyestation_options *opts)
 {
 	struct symbol *sym = ms->sym;
-	struct annotation *notes = symbol__annotation(sym);
-	struct annotate_browser browser = {
+	struct anyestation *yestes = symbol__anyestation(sym);
+	struct anyestate_browser browser = {
 		.b = {
-			.refresh = annotate_browser__refresh,
+			.refresh = anyestate_browser__refresh,
 			.seek	 = ui_browser__list_head_seek,
-			.write	 = annotate_browser__write,
+			.write	 = anyestate_browser__write,
 			.filter  = disasm_line__filter,
 			.extra_title_lines = 1, /* for hists__scnprintf_title() */
 			.priv	 = ms,
@@ -914,32 +914,32 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 	if (sym == NULL)
 		return -1;
 
-	if (ms->map->dso->annotate_warned)
+	if (ms->map->dso->anyestate_warned)
 		return -1;
 
-	err = symbol__annotate2(ms, evsel, opts, &browser.arch);
+	err = symbol__anyestate2(ms, evsel, opts, &browser.arch);
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
-		ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
+		ui__error("Couldn't anyestate %s:\n%s", sym->name, msg);
 		goto out_free_offsets;
 	}
 
 	ui_helpline__push("Press ESC to exit");
 
-	browser.b.width = notes->max_line_len;
-	browser.b.nr_entries = notes->nr_entries;
-	browser.b.entries = &notes->src->source,
+	browser.b.width = yestes->max_line_len;
+	browser.b.nr_entries = yestes->nr_entries;
+	browser.b.entries = &yestes->src->source,
 	browser.b.width += 18; /* Percentage */
 
-	if (notes->options->hide_src_code)
+	if (yestes->options->hide_src_code)
 		ui_browser__init_asm_mode(&browser.b);
 
-	ret = annotate_browser__run(&browser, evsel, hbt);
+	ret = anyestate_browser__run(&browser, evsel, hbt);
 
-	annotated_source__purge(notes->src);
+	anyestated_source__purge(yestes->src);
 
 out_free_offsets:
-	zfree(&notes->offsets);
+	zfree(&yestes->offsets);
 	return ret;
 }

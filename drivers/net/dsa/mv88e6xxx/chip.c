@@ -44,7 +44,7 @@
 static void assert_reg_lock(struct mv88e6xxx_chip *chip)
 {
 	if (unlikely(!mutex_is_locked(&chip->reg_lock))) {
-		dev_err(chip->dev, "Switch registers lock not held!\n");
+		dev_err(chip->dev, "Switch registers lock yest held!\n");
 		dump_stack();
 	}
 }
@@ -88,7 +88,7 @@ int mv88e6xxx_wait_mask(struct mv88e6xxx_chip *chip, int addr, int reg,
 	int err;
 	int i;
 
-	/* There's no bus specific operation to wait for a mask */
+	/* There's yes bus specific operation to wait for a mask */
 	for (i = 0; i < 16; i++) {
 		err = mv88e6xxx_read(chip, addr, reg, &data);
 		if (err)
@@ -233,7 +233,7 @@ static int mv88e6xxx_g1_irq_domain_map(struct irq_domain *d,
 
 	irq_set_chip_data(irq, d->host_data);
 	irq_set_chip_and_handler(irq, &chip->g1_irq.chip, handle_level_irq);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 
 	return 0;
 }
@@ -422,7 +422,7 @@ int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 	     state.interface == PHY_INTERFACE_MODE_NA))
 		return 0;
 
-	/* Port's MAC control must not be changed unless the link is down */
+	/* Port's MAC control must yest be changed unless the link is down */
 	err = chip->info->ops->port_set_link(chip, port, LINK_FORCED_DOWN);
 	if (err)
 		return err;
@@ -480,7 +480,7 @@ static void mv88e6065_phylink_validate(struct mv88e6xxx_chip *chip, int port,
 				       struct phylink_link_state *state)
 {
 	if (!phy_interface_mode_is_8023z(state->interface)) {
-		/* 10M and 100M are only supported in non-802.3z mode */
+		/* 10M and 100M are only supported in yesn-802.3z mode */
 		phylink_set(mask, 10baseT_Half);
 		phylink_set(mask, 10baseT_Full);
 		phylink_set(mask, 100baseT_Half);
@@ -712,7 +712,7 @@ static struct mv88e6xxx_hw_stat mv88e6xxx_hw_stats[] = {
 	{ "tcam_counter_1",		4, 0x09, STATS_TYPE_BANK1, },
 	{ "tcam_counter_2",		4, 0x0a, STATS_TYPE_BANK1, },
 	{ "tcam_counter_3",		4, 0x0b, STATS_TYPE_BANK1, },
-	{ "in_da_unknown",		4, 0x0e, STATS_TYPE_BANK1, },
+	{ "in_da_unkyeswn",		4, 0x0e, STATS_TYPE_BANK1, },
 	{ "in_management",		4, 0x0f, STATS_TYPE_BANK1, },
 	{ "out_queue_0",		4, 0x10, STATS_TYPE_BANK1, },
 	{ "out_queue_1",		4, 0x11, STATS_TYPE_BANK1, },
@@ -1074,7 +1074,7 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 		}
 	}
 
-	/* Prevent frames from unknown switch or port */
+	/* Prevent frames from unkyeswn switch or port */
 	if (!found)
 		return 0;
 
@@ -1368,7 +1368,7 @@ static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
 	} while (vlan.vid < chip->info->max_vid);
 
 	/* The reset value 0x000 is used to indicate that multiple address
-	 * databases are not needed. Return the next positive available.
+	 * databases are yest needed. Return the next positive available.
 	 */
 	*fid = find_next_zero_bit(fid_bitmap, MV88E6XXX_N_FID, 1);
 	if (unlikely(*fid >= mv88e6xxx_num_databases(chip)))
@@ -1479,7 +1479,7 @@ mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 		return -EOPNOTSUPP;
 
 	/* If the requested port doesn't belong to the same bridge as the VLAN
-	 * members, do not support it (yet) and fallback to software VLAN.
+	 * members, do yest support it (yet) and fallback to software VLAN.
 	 */
 	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_port_check_hw_vlan(ds, port, vlan->vid_begin,
@@ -1514,7 +1514,7 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		if (err)
 			return err;
 
-		/* switchdev expects -EOPNOTSUPP to honor software VLANs */
+		/* switchdev expects -EOPNOTSUPP to hoyesr software VLANs */
 		if (vlan.vid != vid || !vlan.valid)
 			return -EOPNOTSUPP;
 
@@ -1535,7 +1535,7 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		ether_addr_copy(entry.mac, addr);
 	}
 
-	/* Purge the ATU entry only if no port is using it anymore */
+	/* Purge the ATU entry only if yes port is using it anymore */
 	if (!state) {
 		entry.portvec &= ~BIT(port);
 		if (!entry.portvec)
@@ -1628,7 +1628,7 @@ static int mv88e6xxx_policy_insert(struct mv88e6xxx_chip *chip, int port,
 			mapping = MV88E6XXX_POLICY_MAPPING_SA;
 			addr = mac_entry->h_source;
 		} else {
-			/* Cannot support DA and SA mapping in the same rule */
+			/* Canyest support DA and SA mapping in the same rule */
 			return -EOPNOTSUPP;
 		}
 		break;
@@ -1784,7 +1784,7 @@ static int mv88e6xxx_broadcast_setup(struct mv88e6xxx_chip *chip, u16 vid)
 static int mv88e6xxx_port_vlan_join(struct mv88e6xxx_chip *chip, int port,
 				    u16 vid, u8 member)
 {
-	const u8 non_member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER;
+	const u8 yesn_member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 	struct mv88e6xxx_vtu_entry vlan;
 	int i, err;
 
@@ -1809,7 +1809,7 @@ static int mv88e6xxx_port_vlan_join(struct mv88e6xxx_chip *chip, int port,
 			if (i == port)
 				vlan.member[i] = member;
 			else
-				vlan.member[i] = non_member;
+				vlan.member[i] = yesn_member;
 
 		vlan.vid = vid;
 		vlan.valid = true;
@@ -2213,7 +2213,7 @@ static int mv88e6xxx_set_port_mode(struct mv88e6xxx_chip *chip, int port,
 	return 0;
 }
 
-static int mv88e6xxx_set_port_mode_normal(struct mv88e6xxx_chip *chip, int port)
+static int mv88e6xxx_set_port_mode_yesrmal(struct mv88e6xxx_chip *chip, int port)
 {
 	return mv88e6xxx_set_port_mode(chip, port, MV88E6XXX_FRAME_MODE_NORMAL,
 				       MV88E6XXX_EGRESS_MODE_UNMODIFIED,
@@ -2241,7 +2241,7 @@ static int mv88e6xxx_setup_port_mode(struct mv88e6xxx_chip *chip, int port)
 		return mv88e6xxx_set_port_mode_dsa(chip, port);
 
 	if (dsa_is_user_port(chip->ds, port))
-		return mv88e6xxx_set_port_mode_normal(chip, port);
+		return mv88e6xxx_set_port_mode_yesrmal(chip, port);
 
 	/* Setup CPU port mode depending on its supported tag format */
 	if (chip->info->tag_protocol == DSA_TAG_PROTO_DSA)
@@ -2265,7 +2265,7 @@ static int mv88e6xxx_setup_egress_floods(struct mv88e6xxx_chip *chip, int port)
 	struct dsa_switch *ds = chip->ds;
 	bool flood;
 
-	/* Upstream ports flood frames with unknown unicast or multicast DA */
+	/* Upstream ports flood frames with unkyeswn unicast or multicast DA */
 	flood = dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port);
 	if (chip->info->ops->port_set_egress_floods)
 		return chip->info->ops->port_set_egress_floods(chip, port,
@@ -2298,7 +2298,7 @@ static int mv88e6xxx_serdes_irq_request(struct mv88e6xxx_chip *chip, int port,
 	unsigned int irq;
 	int err;
 
-	/* Nothing to request if this SERDES port has no IRQ */
+	/* Nothing to request if this SERDES port has yes IRQ */
 	irq = mv88e6xxx_serdes_irq_mapping(chip, port);
 	if (!irq)
 		return 0;
@@ -2323,7 +2323,7 @@ static int mv88e6xxx_serdes_irq_free(struct mv88e6xxx_chip *chip, int port,
 	unsigned int irq = dev_id->serdes_irq;
 	int err;
 
-	/* Nothing to free if no IRQ has been requested */
+	/* Nothing to free if yes IRQ has been requested */
 	if (!irq)
 		return 0;
 
@@ -2433,7 +2433,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		return err;
 
 	/* Port Control: disable Drop-on-Unlock, disable Drop-on-Lock,
-	 * disable Header mode, enable IGMP/MLD snooping, disable VLAN
+	 * disable Header mode, enable IGMP/MLD syesoping, disable VLAN
 	 * tunneling, determine priority by looking at 802.1p and IP
 	 * priority fields (IP prio has precedence), and set STP state
 	 * to Forwarding.
@@ -2441,10 +2441,10 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 * If this is the CPU link, use DSA or EDSA tagging depending
 	 * on which tagging mode was configured.
 	 *
-	 * If this is a link to another switch, use DSA tagging mode.
+	 * If this is a link to ayesther switch, use DSA tagging mode.
 	 *
 	 * If this is the upstream port for this switch, enable
-	 * forwarding of unknown unicasts and multicasts.
+	 * forwarding of unkyeswn unicasts and multicasts.
 	 */
 	reg = MV88E6XXX_PORT_CTL0_IGMP_MLD_SNOOP |
 		MV88E6185_PORT_CTL0_USE_TAG | MV88E6185_PORT_CTL0_USE_IP |
@@ -3058,7 +3058,7 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 			 * PHYs correct. But it can also have two
 			 * SERDES interfaces in the PHY address
 			 * space. And these don't have a model
-			 * number. But they are not PHYs, so we don't
+			 * number. But they are yest PHYs, so we don't
 			 * want to give them something a PHY driver
 			 * will recognise.
 			 *
@@ -3090,7 +3090,7 @@ static int mv88e6xxx_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 }
 
 static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
-				   struct device_node *np,
+				   struct device_yesde *np,
 				   bool external)
 {
 	static int index;
@@ -3137,7 +3137,7 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 
 	err = of_mdiobus_register(bus, np);
 	if (err) {
-		dev_err(chip->dev, "Cannot register MDIO bus (%d)\n", err);
+		dev_err(chip->dev, "Canyest register MDIO bus (%d)\n", err);
 		mv88e6xxx_g2_irq_mdio_free(chip, bus);
 		return err;
 	}
@@ -3173,10 +3173,10 @@ static void mv88e6xxx_mdios_unregister(struct mv88e6xxx_chip *chip)
 }
 
 static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
-				    struct device_node *np)
+				    struct device_yesde *np)
 {
 	const struct of_device_id *match;
-	struct device_node *child;
+	struct device_yesde *child;
 	int err;
 
 	/* Always register one mdio bus for the internal/default mdio
@@ -3188,17 +3188,17 @@ static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
 	if (err)
 		return err;
 
-	/* Walk the device tree, and see if there are any other nodes
+	/* Walk the device tree, and see if there are any other yesdes
 	 * which say they are compatible with the external mdio
 	 * bus.
 	 */
-	for_each_available_child_of_node(np, child) {
-		match = of_match_node(mv88e6xxx_mdio_external_match, child);
+	for_each_available_child_of_yesde(np, child) {
+		match = of_match_yesde(mv88e6xxx_mdio_external_match, child);
 		if (match) {
 			err = mv88e6xxx_mdio_register(chip, child, true);
 			if (err) {
 				mv88e6xxx_mdios_unregister(chip);
-				of_node_put(child);
+				of_yesde_put(child);
 				return err;
 			}
 		}
@@ -4859,7 +4859,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.name = "Marvell 88E6220",
 		.num_databases = 64,
 
-		/* Ports 2-4 are not routed to pins
+		/* Ports 2-4 are yest routed to pins
 		 * => usable ports 0, 1, 5, 6
 		 */
 		.num_ports = 7,
@@ -5312,7 +5312,7 @@ static void mv88e6xxx_port_mirror_del(struct dsa_switch *ds, int port,
 				 chip->ports[i].mirror_ingress :
 				 chip->ports[i].mirror_egress;
 
-	/* Reset egress port when no other mirror is active */
+	/* Reset egress port when yes other mirror is active */
 	if (!other_mirrors) {
 		if (chip->info->ops->set_egress_port(chip,
 						     direction,
@@ -5432,7 +5432,7 @@ static const void *pdata_device_get_match_data(struct device *dev)
 	return NULL;
 }
 
-/* There is no suspend to RAM support at DSA level yet, the switch configuration
+/* There is yes suspend to RAM support at DSA level yet, the switch configuration
  * would be lost after a power cycle so prevent it to be suspended.
  */
 static int __maybe_unused mv88e6xxx_suspend(struct device *dev)
@@ -5452,7 +5452,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	struct dsa_mv88e6xxx_pdata *pdata = mdiodev->dev.platform_data;
 	const struct mv88e6xxx_info *compat_info = NULL;
 	struct device *dev = &mdiodev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct mv88e6xxx_chip *chip;
 	int port;
 	int err;

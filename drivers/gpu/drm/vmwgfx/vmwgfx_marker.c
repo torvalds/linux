@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -30,7 +30,7 @@
 
 struct vmw_marker {
 	struct list_head head;
-	uint32_t seqno;
+	uint32_t seqyes;
 	u64 submitted;
 };
 
@@ -54,14 +54,14 @@ void vmw_marker_queue_takedown(struct vmw_marker_queue *queue)
 }
 
 int vmw_marker_push(struct vmw_marker_queue *queue,
-		   uint32_t seqno)
+		   uint32_t seqyes)
 {
 	struct vmw_marker *marker = kmalloc(sizeof(*marker), GFP_KERNEL);
 
 	if (unlikely(!marker))
 		return -ENOMEM;
 
-	marker->seqno = seqno;
+	marker->seqyes = seqyes;
 	marker->submitted = ktime_get_raw_ns();
 	spin_lock(&queue->lock);
 	list_add_tail(&marker->head, &queue->head);
@@ -71,28 +71,28 @@ int vmw_marker_push(struct vmw_marker_queue *queue,
 }
 
 int vmw_marker_pull(struct vmw_marker_queue *queue,
-		   uint32_t signaled_seqno)
+		   uint32_t signaled_seqyes)
 {
 	struct vmw_marker *marker, *next;
 	bool updated = false;
-	u64 now;
+	u64 yesw;
 
 	spin_lock(&queue->lock);
-	now = ktime_get_raw_ns();
+	yesw = ktime_get_raw_ns();
 
 	if (list_empty(&queue->head)) {
 		queue->lag = 0;
-		queue->lag_time = now;
+		queue->lag_time = yesw;
 		updated = true;
 		goto out_unlock;
 	}
 
 	list_for_each_entry_safe(marker, next, &queue->head, head) {
-		if (signaled_seqno - marker->seqno > (1 << 30))
+		if (signaled_seqyes - marker->seqyes > (1 << 30))
 			continue;
 
-		queue->lag = now - marker->submitted;
-		queue->lag_time = now;
+		queue->lag = yesw - marker->submitted;
+		queue->lag_time = yesw;
 		updated = true;
 		list_del(&marker->head);
 		kfree(marker);
@@ -106,12 +106,12 @@ out_unlock:
 
 static u64 vmw_fifo_lag(struct vmw_marker_queue *queue)
 {
-	u64 now;
+	u64 yesw;
 
 	spin_lock(&queue->lock);
-	now = ktime_get_raw_ns();
-	queue->lag += now - queue->lag_time;
-	queue->lag_time = now;
+	yesw = ktime_get_raw_ns();
+	queue->lag += yesw - queue->lag_time;
+	queue->lag_time = yesw;
 	spin_unlock(&queue->lock);
 	return queue->lag;
 }
@@ -129,27 +129,27 @@ int vmw_wait_lag(struct vmw_private *dev_priv,
 		 struct vmw_marker_queue *queue, uint32_t us)
 {
 	struct vmw_marker *marker;
-	uint32_t seqno;
+	uint32_t seqyes;
 	int ret;
 
 	while (!vmw_lag_lt(queue, us)) {
 		spin_lock(&queue->lock);
 		if (list_empty(&queue->head))
-			seqno = atomic_read(&dev_priv->marker_seq);
+			seqyes = atomic_read(&dev_priv->marker_seq);
 		else {
 			marker = list_first_entry(&queue->head,
 						 struct vmw_marker, head);
-			seqno = marker->seqno;
+			seqyes = marker->seqyes;
 		}
 		spin_unlock(&queue->lock);
 
-		ret = vmw_wait_seqno(dev_priv, false, seqno, true,
+		ret = vmw_wait_seqyes(dev_priv, false, seqyes, true,
 					3*HZ);
 
 		if (unlikely(ret != 0))
 			return ret;
 
-		(void) vmw_marker_pull(queue, seqno);
+		(void) vmw_marker_pull(queue, seqyes);
 	}
 	return 0;
 }

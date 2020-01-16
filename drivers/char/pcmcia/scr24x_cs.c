@@ -35,14 +35,14 @@ struct scr24x_dev {
 	struct device *dev;
 	struct cdev c_dev;
 	unsigned char buf[CCID_MAX_LEN];
-	int devno;
+	int devyes;
 	struct mutex lock;
 	struct kref refcnt;
 	u8 __iomem *regs;
 };
 
 #define SCR24X_DEVS 8
-static DECLARE_BITMAP(scr24x_minors, SCR24X_DEVS);
+static DECLARE_BITMAP(scr24x_miyesrs, SCR24X_DEVS);
 
 static struct class *scr24x_class;
 static dev_t scr24x_devt;
@@ -71,26 +71,26 @@ static int scr24x_wait_ready(struct scr24x_dev *dev)
 	return -EIO;
 }
 
-static int scr24x_open(struct inode *inode, struct file *filp)
+static int scr24x_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct scr24x_dev *dev = container_of(inode->i_cdev,
+	struct scr24x_dev *dev = container_of(iyesde->i_cdev,
 				struct scr24x_dev, c_dev);
 
 	kref_get(&dev->refcnt);
 	filp->private_data = dev;
 
-	return stream_open(inode, filp);
+	return stream_open(iyesde, filp);
 }
 
-static int scr24x_release(struct inode *inode, struct file *filp)
+static int scr24x_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct scr24x_dev *dev = filp->private_data;
 
-	/* We must not take the dev->lock here as scr24x_delete()
+	/* We must yest take the dev->lock here as scr24x_delete()
 	 * might be called to remove the dev structure altogether.
 	 * We don't need the lock anyway, since after the reference
 	 * acquired in probe() is released in remove() the chrdev
-	 * is already unregistered and noone can possibly acquire
+	 * is already unregistered and yesone can possibly acquire
 	 * a reference via open() anymore. */
 	kref_put(&dev->refcnt, scr24x_delete);
 	return 0;
@@ -219,7 +219,7 @@ static const struct file_operations scr24x_fops = {
 	.write		= scr24x_write,
 	.open		= scr24x_open,
 	.release	= scr24x_release,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static int scr24x_config_check(struct pcmcia_device *link, void *priv_data)
@@ -238,8 +238,8 @@ static int scr24x_probe(struct pcmcia_device *link)
 	if (!dev)
 		return -ENOMEM;
 
-	dev->devno = find_first_zero_bit(scr24x_minors, SCR24X_DEVS);
-	if (dev->devno >= SCR24X_DEVS) {
+	dev->devyes = find_first_zero_bit(scr24x_miyesrs, SCR24X_DEVS);
+	if (dev->devyes >= SCR24X_DEVS) {
 		ret = -EBUSY;
 		goto err;
 	}
@@ -266,7 +266,7 @@ static int scr24x_probe(struct pcmcia_device *link)
 	cdev_init(&dev->c_dev, &scr24x_fops);
 	dev->c_dev.owner = THIS_MODULE;
 	dev->c_dev.ops = &scr24x_fops;
-	ret = cdev_add(&dev->c_dev, MKDEV(MAJOR(scr24x_devt), dev->devno), 1);
+	ret = cdev_add(&dev->c_dev, MKDEV(MAJOR(scr24x_devt), dev->devyes), 1);
 	if (ret < 0)
 		goto err;
 
@@ -276,15 +276,15 @@ static int scr24x_probe(struct pcmcia_device *link)
 		goto err;
 	}
 
-	device_create(scr24x_class, NULL, MKDEV(MAJOR(scr24x_devt), dev->devno),
-		      NULL, "scr24x%d", dev->devno);
+	device_create(scr24x_class, NULL, MKDEV(MAJOR(scr24x_devt), dev->devyes),
+		      NULL, "scr24x%d", dev->devyes);
 
 	dev_info(&link->dev, "SCR24x Chip Card Interface\n");
 	return 0;
 
 err:
-	if (dev->devno < SCR24X_DEVS)
-		clear_bit(dev->devno, scr24x_minors);
+	if (dev->devyes < SCR24X_DEVS)
+		clear_bit(dev->devyes, scr24x_miyesrs);
 	kfree (dev);
 	return ret;
 }
@@ -293,11 +293,11 @@ static void scr24x_remove(struct pcmcia_device *link)
 {
 	struct scr24x_dev *dev = (struct scr24x_dev *)link->priv;
 
-	device_destroy(scr24x_class, MKDEV(MAJOR(scr24x_devt), dev->devno));
+	device_destroy(scr24x_class, MKDEV(MAJOR(scr24x_devt), dev->devyes));
 	mutex_lock(&dev->lock);
 	pcmcia_disable_device(link);
 	cdev_del(&dev->c_dev);
-	clear_bit(dev->devno, scr24x_minors);
+	clear_bit(dev->devyes, scr24x_miyesrs);
 	dev->dev = NULL;
 	mutex_unlock(&dev->lock);
 

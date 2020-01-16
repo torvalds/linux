@@ -12,7 +12,7 @@
  *
  * Rewritten version based on pata_ixp4xx_cf.c:
  * ixp4xx PATA/Compact Flash driver
- * Copyright (C) 2006-07 Tower Technologies
+ * Copyright (C) 2006-07 Tower Techyeslogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  */
 

@@ -2074,7 +2074,7 @@ int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM8996_AIF1RX_CHAN5_START_SLOT_WIDTH         6  /* AIF1RX_CHAN5_START_SLOT - [5:0] */
 
 /*
- * R789 (0x315) - AIF1RX Mono Configuration
+ * R789 (0x315) - AIF1RX Moyes Configuration
  */
 #define WM8996_AIF1RX_CHAN4_MONO_MODE           0x0004  /* AIF1RX_CHAN4_MONO_MODE */
 #define WM8996_AIF1RX_CHAN4_MONO_MODE_MASK      0x0004  /* AIF1RX_CHAN4_MONO_MODE */
@@ -2282,7 +2282,7 @@ int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM8996_AIF2RX_CHAN1_START_SLOT_WIDTH         6  /* AIF2RX_CHAN1_START_SLOT - [5:0] */
 
 /*
- * R813 (0x32D) - AIF2RX Mono Configuration
+ * R813 (0x32D) - AIF2RX Moyes Configuration
  */
 #define WM8996_AIF2RX_CHAN0_MONO_MODE           0x0001  /* AIF2RX_CHAN0_MONO_MODE */
 #define WM8996_AIF2RX_CHAN0_MONO_MODE_MASK      0x0001  /* AIF2RX_CHAN0_MONO_MODE */

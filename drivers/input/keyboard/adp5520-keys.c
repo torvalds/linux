@@ -15,7 +15,7 @@
 
 struct adp5520_keys {
 	struct input_dev *input;
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	struct device *master;
 	unsigned short keycode[ADP5520_KEYMAPSIZE];
 };
@@ -32,14 +32,14 @@ static void adp5520_keys_report_event(struct adp5520_keys *dev,
 	input_sync(dev->input);
 }
 
-static int adp5520_keys_notifier(struct notifier_block *nb,
+static int adp5520_keys_yestifier(struct yestifier_block *nb,
 				 unsigned long event, void *data)
 {
 	struct adp5520_keys *dev;
 	uint8_t reg_val_lo, reg_val_hi;
 	unsigned short keymask;
 
-	dev = container_of(nb, struct adp5520_keys, notifier);
+	dev = container_of(nb, struct adp5520_keys, yestifier);
 
 	if (event & ADP5520_KP_INT) {
 		adp5520_read(dev->master, ADP5520_KP_INT_STAT_1, &reg_val_lo);
@@ -156,11 +156,11 @@ static int adp5520_keys_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 
-	dev->notifier.notifier_call = adp5520_keys_notifier;
-	ret = adp5520_register_notifier(dev->master, &dev->notifier,
+	dev->yestifier.yestifier_call = adp5520_keys_yestifier;
+	ret = adp5520_register_yestifier(dev->master, &dev->yestifier,
 			ADP5520_KP_IEN | ADP5520_KR_IEN);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register notifier\n");
+		dev_err(&pdev->dev, "failed to register yestifier\n");
 		return ret;
 	}
 
@@ -172,7 +172,7 @@ static int adp5520_keys_remove(struct platform_device *pdev)
 {
 	struct adp5520_keys *dev = platform_get_drvdata(pdev);
 
-	adp5520_unregister_notifier(dev->master, &dev->notifier,
+	adp5520_unregister_yestifier(dev->master, &dev->yestifier,
 				ADP5520_KP_IEN | ADP5520_KR_IEN);
 
 	return 0;

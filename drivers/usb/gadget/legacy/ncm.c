@@ -3,7 +3,7 @@
  * ncm.c -- NCM gadget driver
  *
  * Copyright (C) 2010 Nokia Corporation
- * Contact: Yauheni Kaliuta <yauheni.kaliuta@nokia.com>
+ * Contact: Yauheni Kaliuta <yauheni.kaliuta@yeskia.com>
  *
  * The driver borrows from ether.c which is:
  *
@@ -27,10 +27,10 @@
 /*-------------------------------------------------------------------------*/
 
 /* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+ * Instead:  allocate your own, using yesrmal USB-IF procedures.
  */
 
-/* Thanks to NetChip Technologies for donating this product ID.
+/* Thanks to NetChip Techyeslogies for donating this product ID.
  * It's for devices with only CDC Ethernet configurations.
  */
 #define CDC_VENDOR_NUM		0x0525	/* NetChip */
@@ -142,7 +142,7 @@ static int gncm_bind(struct usb_composite_dev *cdev)
 	if (!gether_set_dev_addr(ncm_opts->net, dev_addr))
 		pr_info("using self ethernet address: %s", dev_addr);
 
-	/* Allocate string descriptor numbers ... note that string
+	/* Allocate string descriptor numbers ... yeste that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 

@@ -61,7 +61,7 @@ int fix_aperture __initdata = 1;
 #if defined(CONFIG_PROC_VMCORE) || defined(CONFIG_PROC_KCORE)
 /*
  * If the first kernel maps the aperture over e820 RAM, the kdump kernel will
- * use the same range because it will remain configured in the northbridge.
+ * use the same range because it will remain configured in the yesrthbridge.
  * Trying to dump this area via /proc/vmcore may crash the machine, so exclude
  * it from vmcore.
  */
@@ -91,7 +91,7 @@ static void exclude_from_core(u64 aper_base, u32 aper_order)
 #endif
 
 /* This code runs before the PCI subsystem is initialized, so just
-   access the northbridge directly. */
+   access the yesrthbridge directly. */
 
 static u32 __init allocate_aperture(void)
 {
@@ -106,20 +106,20 @@ static u32 __init allocate_aperture(void)
 	/*
 	 * Aperture has to be naturally aligned. This means a 2GB aperture
 	 * won't have much chance of finding a place in the lower 4GB of
-	 * memory. Unfortunately we cannot move it up because that would
+	 * memory. Unfortunately we canyest move it up because that would
 	 * make the IOMMU useless.
 	 */
 	addr = memblock_find_in_range(GART_MIN_ADDR, GART_MAX_ADDR,
 				      aper_size, aper_size);
 	if (!addr) {
-		pr_err("Cannot allocate aperture memory hole [mem %#010lx-%#010lx] (%uKB)\n",
+		pr_err("Canyest allocate aperture memory hole [mem %#010lx-%#010lx] (%uKB)\n",
 		       addr, addr + aper_size - 1, aper_size >> 10);
 		return 0;
 	}
 	memblock_reserve(addr, aper_size);
 	pr_info("Mapping aperture over RAM [mem %#010lx-%#010lx] (%uKB)\n",
 		addr, addr + aper_size - 1, aper_size >> 10);
-	register_nosave_region(addr >> PAGE_SHIFT,
+	register_yessave_region(addr >> PAGE_SHIFT,
 			       (addr+aper_size) >> PAGE_SHIFT);
 
 	return (u32)addr;
@@ -174,7 +174,7 @@ static u32 __init read_agp(int bus, int slot, int func, int cap, u32 *order)
 	old_order = *order;
 
 	apsize = apsizereg & 0xfff;
-	/* Some BIOS use weird encodings not in the AGPv3 table. */
+	/* Some BIOS use weird encodings yest in the AGPv3 table. */
 	if (apsize & 0xff)
 		apsize |= 0xf00;
 	nbits = hweight16(apsize);
@@ -194,7 +194,7 @@ static u32 __init read_agp(int bus, int slot, int func, int cap, u32 *order)
 		bus, slot, func, aper, aper + (32ULL << (old_order + 20)) - 1,
 		32 << old_order);
 	if (aper + (32ULL<<(20 + *order)) > 0x100000000ULL) {
-		pr_info("pci 0000:%02x:%02x.%d: AGP aperture size %uMB (APSIZE %#x) is not right, using settings from NB\n",
+		pr_info("pci 0000:%02x:%02x.%d: AGP aperture size %uMB (APSIZE %#x) is yest right, using settings from NB\n",
 			bus, slot, func, 32 << *order, apsizereg);
 		*order = old_order;
 	}
@@ -276,7 +276,7 @@ early_param("gart_fix_e820", parse_gart_mem);
  * overlapping GART regions present:
  *
  * - the first still used by the GART initialized in the first kernel.
- * - (sub-)set of it used as normal RAM by the second kernel.
+ * - (sub-)set of it used as yesrmal RAM by the second kernel.
  *
  * which leads to memory corruptions and a kernel panic eventually.
  *
@@ -388,7 +388,7 @@ int __init gart_iommu_hole_init(void)
 	u32 aper_size, aper_alloc = 0, aper_order = 0, last_aper_order = 0;
 	u64 aper_base, last_aper_base = 0;
 	int fix, slot, valid_agp = 0;
-	int i, node;
+	int i, yesde;
 
 	if (!amd_gart_present())
 		return -ENODEV;
@@ -403,7 +403,7 @@ int __init gart_iommu_hole_init(void)
 		agp_aper_base = search_agp_bridge(&agp_aper_order, &valid_agp);
 
 	fix = 0;
-	node = 0;
+	yesde = 0;
 	for (i = 0; i < amd_nb_bus_dev_ranges[i].dev_limit; i++) {
 		int bus;
 		int dev_base, dev_limit;
@@ -428,7 +428,7 @@ int __init gart_iommu_hole_init(void)
 			 * Before we do anything else disable the GART. It may
 			 * still be enabled if we boot into a crash-kernel here.
 			 * Reconfiguring the GART while it is enabled could have
-			 * unknown side-effects.
+			 * unkyeswn side-effects.
 			 */
 			ctl &= ~GARTEN;
 			write_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL, ctl);
@@ -439,16 +439,16 @@ int __init gart_iommu_hole_init(void)
 			aper_base <<= 25;
 
 			pr_info("Node %d: aperture [bus addr %#010Lx-%#010Lx] (%uMB)\n",
-				node, aper_base, aper_base + aper_size - 1,
+				yesde, aper_base, aper_base + aper_size - 1,
 				aper_size >> 20);
-			node++;
+			yesde++;
 
 			if (!aperture_valid(aper_base, aper_size, 64<<20)) {
 				if (valid_agp && agp_aper_base &&
 				    agp_aper_base == aper_base &&
 				    agp_aper_order == aper_order) {
 					/* the same between two setting from NB and agp */
-					if (!no_iommu &&
+					if (!yes_iommu &&
 					    max_pfn > MAX_DMA32_PFN &&
 					    !printed_gart_size_msg) {
 						pr_err("you are using iommu with agp, but GART size is less than 64MB\n");
@@ -478,7 +478,7 @@ out:
 			/*
 			 * If this is the kdump kernel, the first kernel
 			 * may have allocated the range over its e820 RAM
-			 * and fixed up the northbridge
+			 * and fixed up the yesrthbridge
 			 */
 			exclude_from_core(last_aper_base, last_aper_order);
 
@@ -494,7 +494,7 @@ out:
 
 	if (aper_alloc) {
 		/* Got the aperture from the AGP bridge */
-	} else if ((!no_iommu && max_pfn > MAX_DMA32_PFN) ||
+	} else if ((!yes_iommu && max_pfn > MAX_DMA32_PFN) ||
 		   force_iommu ||
 		   valid_agp ||
 		   fallback_aper_force) {
@@ -508,27 +508,27 @@ out:
 		if (!aper_alloc) {
 			/*
 			 * Could disable AGP and IOMMU here, but it's
-			 * probably not worth it. But the later users
-			 * cannot deal with bad apertures and turning
+			 * probably yest worth it. But the later users
+			 * canyest deal with bad apertures and turning
 			 * on the aperture over memory causes very
 			 * strange problems, so it's better to panic
 			 * early.
 			 */
-			panic("Not enough memory for aperture");
+			panic("Not eyesugh memory for aperture");
 		}
 	} else {
 		return 0;
 	}
 
 	/*
-	 * If this is the kdump kernel _and_ the first kernel did not
-	 * configure the aperture in the northbridge, this range may
+	 * If this is the kdump kernel _and_ the first kernel did yest
+	 * configure the aperture in the yesrthbridge, this range may
 	 * overlap with the first kernel's memory. We can't access the
 	 * range through vmcore even though it should be part of the dump.
 	 */
 	exclude_from_core(aper_alloc, aper_order);
 
-	/* Fix up the north bridges */
+	/* Fix up the yesrth bridges */
 	for (i = 0; i < amd_nb_bus_dev_ranges[i].dev_limit; i++) {
 		int bus, dev_base, dev_limit;
 

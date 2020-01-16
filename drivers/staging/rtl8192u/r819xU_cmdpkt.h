@@ -87,7 +87,7 @@ struct cmd_pkt_set_configuration {
 
 /* 5. Multi packet feedback status. */
 typedef struct tag_tx_stats_feedback {
-	/* For endian transfer --> Driver will not the same as
+	/* For endian transfer --> Driver will yest the same as
 	 *  firmware structure.
 	 */
 	/* DW 0 */

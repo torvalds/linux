@@ -133,13 +133,13 @@ enum rdtgrp_mode {
 
 /**
  * struct mongroup - store mon group's data in resctrl fs.
- * @mon_data_kn		kernlfs node for the mon_data directory
+ * @mon_data_kn		kernlfs yesde for the mon_data directory
  * @parent:			parent rdtgrp
- * @crdtgrp_list:		child rdtgroup node list
+ * @crdtgrp_list:		child rdtgroup yesde list
  * @rmid:			rmid for this rdtgroup
  */
 struct mongroup {
-	struct kernfs_node	*mon_data_kn;
+	struct kernfs_yesde	*mon_data_kn;
 	struct rdtgroup		*parent;
 	struct list_head	crdtgrp_list;
 	u32			rmid;
@@ -161,7 +161,7 @@ struct mongroup {
  * @line_size:		size of the cache lines
  * @size:		size of pseudo-locked region in bytes
  * @kmem:		the kernel memory associated with pseudo-locked region
- * @minor:		minor number of character device associated with this
+ * @miyesr:		miyesr number of character device associated with this
  *			region
  * @debugfs_dir:	pointer to this region's directory in the debugfs
  *			filesystem
@@ -177,14 +177,14 @@ struct pseudo_lock_region {
 	unsigned int		line_size;
 	unsigned int		size;
 	void			*kmem;
-	unsigned int		minor;
+	unsigned int		miyesr;
 	struct dentry		*debugfs_dir;
 	struct list_head	pm_reqs;
 };
 
 /**
  * struct rdtgroup - store rdtgroup's data in resctrl file system.
- * @kn:				kernfs node
+ * @kn:				kernfs yesde
  * @rdtgroup_list:		linked list for all rdtgroups
  * @closid:			closid for this rdtgroup
  * @cpu_mask:			CPUs assigned to this rdtgroup
@@ -198,7 +198,7 @@ struct pseudo_lock_region {
  * @plr:			pseudo-locked region
  */
 struct rdtgroup {
-	struct kernfs_node		*kn;
+	struct kernfs_yesde		*kn;
 	struct list_head		rdtgroup_list;
 	u32				closid;
 	struct cpumask			cpu_mask;
@@ -548,8 +548,8 @@ void rdt_last_cmd_puts(const char *s);
 void rdt_last_cmd_printf(const char *fmt, ...);
 
 void rdt_ctrl_update(void *arg);
-struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn);
-void rdtgroup_kn_unlock(struct kernfs_node *kn);
+struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_yesde *kn);
+void rdtgroup_kn_unlock(struct kernfs_yesde *kn);
 int rdtgroup_kn_mode_restrict(struct rdtgroup *r, const char *name);
 int rdtgroup_kn_mode_restore(struct rdtgroup *r, const char *name,
 			     umode_t mask);

@@ -78,23 +78,23 @@
 #define WDT_TOV1	0x80
 #define WDT_KRST	0x40
 #define WDT_TOVE	0x20
-#define WDT_PWROK	0x10 /* not in it8721 */
+#define WDT_PWROK	0x10 /* yest in it8721 */
 #define WDT_INT_MASK	0x0f
 
 static unsigned int max_units, chip_type;
 
 static unsigned int timeout = DEFAULT_TIMEOUT;
 static int testmode = DEFAULT_TESTMODE;
-static bool nowayout = DEFAULT_NOWAYOUT;
+static bool yeswayout = DEFAULT_NOWAYOUT;
 
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds, default="
 		__MODULE_STRING(DEFAULT_TIMEOUT));
 module_param(testmode, int, 0);
-MODULE_PARM_DESC(testmode, "Watchdog test mode (1 = no reboot), default="
+MODULE_PARM_DESC(testmode, "Watchdog test mode (1 = yes reboot), default="
 		__MODULE_STRING(DEFAULT_TESTMODE));
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started, default="
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started, default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT));
 
 /* Superio Chip */
@@ -301,10 +301,10 @@ static int __init it87_wdt_init(void)
 		       chip_type, chip_rev);
 		return -ENODEV;
 	case NO_DEV_ID:
-		pr_err("no device\n");
+		pr_err("yes device\n");
 		return -ENODEV;
 	default:
-		pr_err("Unknown Chip found, Chip %04x Revision %04x\n",
+		pr_err("Unkyeswn Chip found, Chip %04x Revision %04x\n",
 		       chip_type, chip_rev);
 		return -ENODEV;
 	}
@@ -333,12 +333,12 @@ static int __init it87_wdt_init(void)
 	watchdog_stop_on_reboot(&wdt_dev);
 	rc = watchdog_register_device(&wdt_dev);
 	if (rc) {
-		pr_err("Cannot register watchdog device (err=%d)\n", rc);
+		pr_err("Canyest register watchdog device (err=%d)\n", rc);
 		return rc;
 	}
 
-	pr_info("Chip IT%04x revision %d initialized. timeout=%d sec (nowayout=%d testmode=%d)\n",
-		chip_type, chip_rev, timeout, nowayout, testmode);
+	pr_info("Chip IT%04x revision %d initialized. timeout=%d sec (yeswayout=%d testmode=%d)\n",
+		chip_type, chip_rev, timeout, yeswayout, testmode);
 
 	return 0;
 }

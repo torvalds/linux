@@ -200,7 +200,7 @@ int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm)
 		}
 		break;
 
-	/* No messaging from userspace, or class unknown/unhandled */
+	/* No messaging from userspace, or class unkyeswn/unhandled */
 	default:
 		err = -ENOENT;
 		break;

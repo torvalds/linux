@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/video/kyro/STG4000OverlayDevice.c
  *
- *  Copyright (C) 2000 Imagination Technologies Ltd
+ *  Copyright (C) 2000 Imagination Techyeslogies Ltd
  *  Copyright (C) 2002 STMicroelectronics
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -10,7 +10,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 
 #include "STG4000Reg.h"
@@ -116,14 +116,14 @@ void ResetOverlayRegisters(volatile STG4000REG __iomem *pSTGReg)
 	tmp = STG_READ_REG(DACVerticalScal);
 	CLEAR_BITS_FRM_TO(0, 11);
 	CLEAR_BITS_FRM_TO(16, 22);
-	tmp |= STG4000_NO_SCALING;	/* Set to no scaling */
+	tmp |= STG4000_NO_SCALING;	/* Set to yes scaling */
 	STG_WRITE_REG(DACVerticalScal, tmp);
 
 	/* Set Horizontal Scaling to default */
 	tmp = STG_READ_REG(DACHorizontalScal);
 	CLEAR_BITS_FRM_TO(0, 11);
 	CLEAR_BITS_FRM_TO(16, 17);
-	tmp |= STG4000_NO_SCALING;	/* Set to no scaling */
+	tmp |= STG4000_NO_SCALING;	/* Set to yes scaling */
 	STG_WRITE_REG(DACHorizontalScal, tmp);
 
 	/* Set Blend mode to Alpha Blend */
@@ -223,7 +223,7 @@ int CreateOverlaySurface(volatile STG4000REG __iomem *pSTGReg,
 
 
 	/* Set Overlay YUV pixel format
-	 * Make sure that LUT not used - ??????
+	 * Make sure that LUT yest used - ??????
 	 */
 	tmp = STG_READ_REG(DACPixelFormat);
 	/* Only support Planer or UYVY linear formats */
@@ -425,7 +425,7 @@ int SetOverlayViewPort(volatile STG4000REG __iomem *pSTGReg,
 	 * lowest to the next lowest 128 bit boundary, and the right hand edge
 	 * to the next largets boundary, (in a similar way to how we didi it in
 	 * PMX1) as the left and right hand edges are aligned to these
-	 * boundaries normally this only becomes an issue when we are chopping
+	 * boundaries yesrmally this only becomes an issue when we are chopping
 	 * of one of the sides We shall work out vertical stuff first
 	 */
 	ulSrc = srcDest.ulSrcX2 - srcDest.ulSrcX1;
@@ -512,7 +512,7 @@ int SetOverlayViewPort(volatile STG4000REG __iomem *pSTGReg,
 
 		/*
 		 * use unclipped value to work out scale factror this is the
-		 * scale factor we want we shall now work out the horizonal
+		 * scale factor we want we shall yesw work out the horizonal
 		 * decimation and scaling
 		 */
 		ulsVal = ((ulWidth / 8) >> ulhDecim);

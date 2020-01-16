@@ -38,7 +38,7 @@ struct ioctl_gntalloc_alloc_gref {
 
 /*
  * Deallocates the grant reference, allowing the associated page to be freed if
- * no other domains are using it.
+ * yes other domains are using it.
  */
 #define IOCTL_GNTALLOC_DEALLOC_GREF \
 _IOC(_IOC_NONE, 'G', 6, sizeof(struct ioctl_gntalloc_dealloc_gref))
@@ -51,28 +51,28 @@ struct ioctl_gntalloc_dealloc_gref {
 };
 
 /*
- * Sets up an unmap notification within the page, so that the other side can do
+ * Sets up an unmap yestification within the page, so that the other side can do
  * cleanup if this side crashes. Required to implement cross-domain robust
- * mutexes or close notification on communication channels.
+ * mutexes or close yestification on communication channels.
  *
- * Each mapped page only supports one notification; multiple calls referring to
- * the same page overwrite the previous notification. You must clear the
- * notification prior to the IOCTL_GNTALLOC_DEALLOC_GREF if you do not want it
+ * Each mapped page only supports one yestification; multiple calls referring to
+ * the same page overwrite the previous yestification. You must clear the
+ * yestification prior to the IOCTL_GNTALLOC_DEALLOC_GREF if you do yest want it
  * to occur.
  */
 #define IOCTL_GNTALLOC_SET_UNMAP_NOTIFY \
-_IOC(_IOC_NONE, 'G', 7, sizeof(struct ioctl_gntalloc_unmap_notify))
-struct ioctl_gntalloc_unmap_notify {
+_IOC(_IOC_NONE, 'G', 7, sizeof(struct ioctl_gntalloc_unmap_yestify))
+struct ioctl_gntalloc_unmap_yestify {
 	/* IN parameters */
 	/* Offset in the file descriptor for a byte within the page (same as
 	 * used in mmap). If using UNMAP_NOTIFY_CLEAR_BYTE, this is the byte to
 	 * be cleared. Otherwise, it can be any byte in the page whose
-	 * notification we are adjusting.
+	 * yestification we are adjusting.
 	 */
 	__u64 index;
 	/* Action(s) to take on unmap */
 	__u32 action;
-	/* Event channel to notify */
+	/* Event channel to yestify */
 	__u32 event_channel_port;
 };
 

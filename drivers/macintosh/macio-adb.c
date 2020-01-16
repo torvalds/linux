@@ -4,7 +4,7 @@
  */
 #include <stdarg.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
@@ -45,7 +45,7 @@ struct adb_regs {
 #define APD	0x10		/* auto-poll data */
 
 /* Bits in error register */
-#define NRE	1		/* no response error */
+#define NRE	1		/* yes response error */
 #define DLE	2		/* data lost error */
 
 /* Bits in ctrl register */
@@ -81,11 +81,11 @@ struct adb_driver macio_adb_driver = {
 
 int macio_probe(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, "adb", "chrp,adb0");
+	np = of_find_compatible_yesde(NULL, "adb", "chrp,adb0");
 	if (np) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return 0;
 	}
 	return -ENODEV;
@@ -93,16 +93,16 @@ int macio_probe(void)
 
 int macio_init(void)
 {
-	struct device_node *adbs;
+	struct device_yesde *adbs;
 	struct resource r;
 	unsigned int irq;
 
-	adbs = of_find_compatible_node(NULL, "adb", "chrp,adb0");
+	adbs = of_find_compatible_yesde(NULL, "adb", "chrp,adb0");
 	if (adbs == 0)
 		return -ENXIO;
 
 	if (of_address_to_resource(adbs, 0, &r)) {
-		of_node_put(adbs);
+		of_yesde_put(adbs);
 		return -ENXIO;
 	}
 	adb = ioremap(r.start, sizeof(struct adb_regs));
@@ -110,12 +110,12 @@ int macio_init(void)
 	out_8(&adb->ctrl.r, 0);
 	out_8(&adb->intr.r, 0);
 	out_8(&adb->error.r, 0);
-	out_8(&adb->active_hi.r, 0xff); /* for now, set all devices active */
+	out_8(&adb->active_hi.r, 0xff); /* for yesw, set all devices active */
 	out_8(&adb->active_lo.r, 0xff);
 	out_8(&adb->autopoll.r, APE);
 
 	irq = irq_of_parse_and_map(adbs, 0);
-	of_node_put(adbs);
+	of_yesde_put(adbs);
 	if (request_irq(irq, macio_adb_interrupt, 0, "ADB", (void *)0)) {
 		printk(KERN_ERR "ADB: can't get irq %d\n", irq);
 		return -EAGAIN;
@@ -144,7 +144,7 @@ static int macio_adb_reset_bus(void)
 	unsigned long flags;
 	int timeout = 1000000;
 
-	/* Hrm... we may want to not lock interrupts for so
+	/* Hrm... we may want to yest lock interrupts for so
 	 * long ... oh well, who uses that chip anyway ? :)
 	 * That function will be seldom used during boot
 	 * on rare machines, so...

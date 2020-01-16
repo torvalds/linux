@@ -3,8 +3,8 @@
  * OMAP2 McSPI controller driver
  *
  * Copyright (C) 2005, 2006 Nokia Corporation
- * Author:	Samuel Ortiz <samuel.ortiz@nokia.com> and
- *		Juha Yrj�l� <juha.yrjola@nokia.com>
+ * Author:	Samuel Ortiz <samuel.ortiz@yeskia.com> and
+ *		Juha Yrj�l� <juha.yrjola@yeskia.com>
  */
 
 #include <linux/kernel.h>
@@ -137,7 +137,7 @@ struct omap2_mcspi_cs {
 	unsigned long		phys;
 	int			word_len;
 	u16			mode;
-	struct list_head	node;
+	struct list_head	yesde;
 	/* Context save and restore shadow register */
 	u32			chconf0, chctrl0;
 };
@@ -249,7 +249,7 @@ static void omap2_mcspi_set_cs(struct spi_device *spi, bool enable)
 	if (spi->controller_state) {
 		int err = pm_runtime_get_sync(mcspi->dev);
 		if (err < 0) {
-			pm_runtime_put_noidle(mcspi->dev);
+			pm_runtime_put_yesidle(mcspi->dev);
 			dev_err(mcspi->dev, "failed to get sync: %d\n", err);
 			return;
 		}
@@ -444,7 +444,7 @@ omap2_mcspi_rx_dma(struct spi_device *spi, struct spi_transfer *xfer,
 	/*
 	 *  In the "End-of-Transfer Procedure" section for DMA RX in OMAP35x TRM
 	 *  it mentions reducing DMA transfer length by one element in master
-	 *  normal mode.
+	 *  yesrmal mode.
 	 */
 	if (mcspi->fifo_depth == 0)
 		transfer_reduction = es;
@@ -614,7 +614,7 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 	reinit_completion(&mcspi_dma->dma_rx_completion);
 	reinit_completion(&mcspi->txdone);
 	if (tx) {
-		/* Enable EOW IRQ to know end of tx in slave mode */
+		/* Enable EOW IRQ to kyesw end of tx in slave mode */
 		if (spi_controller_is_slave(spi->master))
 			mcspi_write_reg(spi->master,
 					OMAP2_MCSPI_IRQENABLE,
@@ -877,7 +877,7 @@ static u32 omap2_mcspi_calc_divisor(u32 speed_hz)
 	return 15;
 }
 
-/* called only when no transfer is active to this device */
+/* called only when yes transfer is active to this device */
 static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 		struct spi_transfer *t)
 {
@@ -931,7 +931,7 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 
 	/* set chipselect polarity; manage with FORCE */
 	if (!(spi->mode & SPI_CS_HIGH))
-		l |= OMAP2_MCSPI_CHCONF_EPOL;	/* active-low; normal */
+		l |= OMAP2_MCSPI_CHCONF_EPOL;	/* active-low; yesrmal */
 	else
 		l &= ~OMAP2_MCSPI_CHCONF_EPOL;
 
@@ -965,7 +965,7 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 	dev_dbg(&spi->dev, "setup: speed %d, sample %s edge, clk %s\n",
 			speed_hz,
 			(spi->mode & SPI_CPHA) ? "trailing" : "leading",
-			(spi->mode & SPI_CPOL) ? "inverted" : "normal");
+			(spi->mode & SPI_CPOL) ? "inverted" : "yesrmal");
 
 	return 0;
 }
@@ -992,7 +992,7 @@ static int omap2_mcspi_request_dma(struct spi_device *spi)
 	if (IS_ERR(mcspi_dma->dma_rx)) {
 		ret = PTR_ERR(mcspi_dma->dma_rx);
 		mcspi_dma->dma_rx = NULL;
-		goto no_dma;
+		goto yes_dma;
 	}
 
 	mcspi_dma->dma_tx = dma_request_chan(&master->dev,
@@ -1004,7 +1004,7 @@ static int omap2_mcspi_request_dma(struct spi_device *spi)
 		mcspi_dma->dma_rx = NULL;
 	}
 
-no_dma:
+yes_dma:
 	return ret;
 }
 
@@ -1029,7 +1029,7 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 		cs->chctrl0 = 0;
 		spi->controller_state = cs;
 		/* Link this to context save list */
-		list_add_tail(&cs->node, &ctx->cs);
+		list_add_tail(&cs->yesde, &ctx->cs);
 
 		if (gpio_is_valid(spi->cs_gpio)) {
 			ret = gpio_request(spi->cs_gpio, dev_name(&spi->dev));
@@ -1045,13 +1045,13 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 	if (!mcspi_dma->dma_rx || !mcspi_dma->dma_tx) {
 		ret = omap2_mcspi_request_dma(spi);
 		if (ret)
-			dev_warn(&spi->dev, "not using DMA for McSPI (%d)\n",
+			dev_warn(&spi->dev, "yest using DMA for McSPI (%d)\n",
 				 ret);
 	}
 
 	ret = pm_runtime_get_sync(mcspi->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(mcspi->dev);
+		pm_runtime_put_yesidle(mcspi->dev);
 
 		return ret;
 	}
@@ -1074,7 +1074,7 @@ static void omap2_mcspi_cleanup(struct spi_device *spi)
 	if (spi->controller_state) {
 		/* Unlink controller state from context save list */
 		cs = spi->controller_state;
-		list_del(&cs->node);
+		list_del(&cs->yesde);
 
 		kfree(cs);
 	}
@@ -1154,7 +1154,7 @@ static int omap2_mcspi_transfer_one(struct spi_master *master,
 	/*
 	 * The slave driver could have changed spi->mode in which case
 	 * it will be different from cs->mode (the current hardware setup).
-	 * If so, set par_override (even though its not a parity issue) so
+	 * If so, set par_override (even though its yest a parity issue) so
 	 * omap2_mcspi_setup_transfer will be called to configure the hardware
 	 * with the correct mode on the first iteration of the loop below.
 	 */
@@ -1273,7 +1273,7 @@ static int omap2_mcspi_prepare_message(struct spi_master *master,
 	 * Scan all channels and disable them except the current one.
 	 * A FORCE can remain from a last transfer having cs_change enabled
 	 */
-	list_for_each_entry(cs, &ctx->cs, node) {
+	list_for_each_entry(cs, &ctx->cs, yesde) {
 		if (msg->spi->controller_state == cs)
 			continue;
 
@@ -1313,7 +1313,7 @@ static int omap2_mcspi_controller_setup(struct omap2_mcspi *mcspi)
 
 	ret = pm_runtime_get_sync(mcspi->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(mcspi->dev);
+		pm_runtime_put_yesidle(mcspi->dev);
 
 		return ret;
 	}
@@ -1344,7 +1344,7 @@ static int omap_mcspi_runtime_resume(struct device *dev)
 	mcspi_write_reg(master, OMAP2_MCSPI_MODULCTRL, ctx->modulctrl);
 	mcspi_write_reg(master, OMAP2_MCSPI_WAKEUPENABLE, ctx->wakeupenable);
 
-	list_for_each_entry(cs, &ctx->cs, node) {
+	list_for_each_entry(cs, &ctx->cs, yesde) {
 		/*
 		 * We need to toggle CS state for OMAP take this
 		 * change in account.
@@ -1394,10 +1394,10 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	struct resource		*r;
 	int			status = 0, i;
 	u32			regs_offset = 0;
-	struct device_node	*node = pdev->dev.of_node;
+	struct device_yesde	*yesde = pdev->dev.of_yesde;
 	const struct of_device_id *match;
 
-	if (of_property_read_bool(node, "spi-slave"))
+	if (of_property_read_bool(yesde, "spi-slave"))
 		master = spi_alloc_slave(&pdev->dev, sizeof(*mcspi));
 	else
 		master = spi_alloc_master(&pdev->dev, sizeof(*mcspi));
@@ -1415,7 +1415,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	master->set_cs = omap2_mcspi_set_cs;
 	master->cleanup = omap2_mcspi_cleanup;
 	master->slave_abort = omap2_mcspi_slave_abort;
-	master->dev.of_node = node;
+	master->dev.of_yesde = yesde;
 	master->max_speed_hz = OMAP2_MCSPI_MAX_FREQ;
 	master->min_speed_hz = OMAP2_MCSPI_MAX_FREQ >> 15;
 
@@ -1429,9 +1429,9 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 		u32 num_cs = 1; /* default number of chipselect */
 		pdata = match->data;
 
-		of_property_read_u32(node, "ti,spi-num-cs", &num_cs);
+		of_property_read_u32(yesde, "ti,spi-num-cs", &num_cs);
 		master->num_chipselect = num_cs;
-		if (of_get_property(node, "ti,pindir-d0-out-d1-in", NULL))
+		if (of_get_property(yesde, "ti,pindir-d0-out-d1-in", NULL))
 			mcspi->pin_dir = MCSPI_PINDIR_D0_OUT_D1_IN;
 	} else {
 		pdata = dev_get_platdata(&pdev->dev);
@@ -1470,7 +1470,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	if (status == -EPROBE_DEFER)
 		goto free_master;
 	if (status < 0) {
-		dev_err(&pdev->dev, "no irq resource found\n");
+		dev_err(&pdev->dev, "yes irq resource found\n");
 		goto free_master;
 	}
 	init_completion(&mcspi->txdone);
@@ -1478,7 +1478,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 				  omap2_mcspi_irq_handler, 0, pdev->name,
 				  mcspi);
 	if (status) {
-		dev_err(&pdev->dev, "Cannot request IRQ");
+		dev_err(&pdev->dev, "Canyest request IRQ");
 		goto free_master;
 	}
 

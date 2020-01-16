@@ -47,12 +47,12 @@ struct msm_dsi_host_cfg_ops {
 
 struct msm_dsi_cfg_handler {
 	u32 major;
-	u32 minor;
+	u32 miyesr;
 	const struct msm_dsi_config *cfg;
 	const struct msm_dsi_host_cfg_ops *ops;
 };
 
-const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 minor);
+const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 miyesr);
 
 #endif /* __MSM_DSI_CFG_H__ */
 

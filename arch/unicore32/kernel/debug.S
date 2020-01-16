@@ -15,7 +15,7 @@
 
 /*
  * Some debugging routines (useful if you've got MM problems and
- * printk isn't working).  For DEBUGGING ONLY!!!  Do not leave
+ * printk isn't working).  For DEBUGGING ONLY!!!  Do yest leave
  * references to these in a production kernel!
  */
 #include "debug-macro.S"

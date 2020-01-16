@@ -127,7 +127,7 @@ struct trace_event_functions {
 };
 
 struct trace_event {
-	struct hlist_node		node;
+	struct hlist_yesde		yesde;
 	struct list_head		list;
 	int				type;
 	struct trace_event_functions	*funcs;
@@ -141,7 +141,7 @@ enum print_line_t {
 	TRACE_TYPE_PARTIAL_LINE	= 0,	/* Retry after flushing the seq */
 	TRACE_TYPE_HANDLED	= 1,
 	TRACE_TYPE_UNHANDLED	= 2,	/* Relay to other output functions */
-	TRACE_TYPE_NO_CONSUME	= 3	/* Handled but ask to not consume */
+	TRACE_TYPE_NO_CONSUME	= 3	/* Handled but ask to yest consume */
 };
 
 enum print_line_t trace_handle_return(struct trace_seq *s);
@@ -182,7 +182,7 @@ enum trace_reg {
 	TRACE_REG_PERF_CLOSE,
 	/*
 	 * These (ADD/DEL) use a 'boolean' return value, where 1 (true) means a
-	 * custom action was taken and the default action is not to be
+	 * custom action was taken and the default action is yest to be
 	 * performed.
 	 */
 	TRACE_REG_PERF_ADD,
@@ -238,8 +238,8 @@ enum {
  * Event flags:
  *  FILTERED	  - The event has a filter attached
  *  CAP_ANY	  - Any user can enable for perf
- *  NO_SET_FILTER - Set when filter has error and is to be ignored
- *  IGNORE_ENABLE - For trace internal events, do not enable with debugfs file
+ *  NO_SET_FILTER - Set when filter has error and is to be igyesred
+ *  IGNORE_ENABLE - For trace internal events, do yest enable with debugfs file
  *  TRACEPOINT    - Event is a tracepoint
  *  KPROBE        - Event is a kprobe
  *  UPROBE        - Event is a uprobe
@@ -271,9 +271,9 @@ struct trace_event_call {
 	void			*data;
 	/*
 	 *   bit 0:		filter_active
-	 *   bit 1:		allow trace by non root (cap any)
+	 *   bit 1:		allow trace by yesn root (cap any)
 	 *   bit 2:		failed to apply filter
-	 *   bit 3:		trace internal event (do not enable)
+	 *   bit 3:		trace internal event (do yest enable)
 	 *   bit 4:		Event was enabled by module
 	 *   bit 5:		use call filter rather than file filter
 	 *   bit 6:		Event is a tracepoint
@@ -295,7 +295,7 @@ static inline bool bpf_prog_array_valid(struct trace_event_call *call)
 {
 	/*
 	 * This inline function checks whether call->prog_array
-	 * is valid or not. The function is called in various places,
+	 * is valid or yest. The function is called in various places,
 	 * outside rcu_read_lock/unlock, as a heuristic to speed up execution.
 	 *
 	 * If this function returns true, and later call->prog_array
@@ -303,7 +303,7 @@ static inline bool bpf_prog_array_valid(struct trace_event_call *call)
 	 * we bail out then. If this function return false,
 	 * there is a risk that we might miss a few events if the checking
 	 * were delayed until inside rcu_read_lock/unlock region and
-	 * call->prog_array happened to become non-NULL then.
+	 * call->prog_array happened to become yesn-NULL then.
 	 *
 	 * Here, READ_ONCE() is used instead of rcu_access_pointer().
 	 * rcu_access_pointer() requires the actual definition of
@@ -354,14 +354,14 @@ enum {
  *  RECORDED_CMD  - The comms should be recorded at sched_switch
  *  RECORDED_TGID - The tgids should be recorded at sched_switch
  *  FILTERED	  - The event has a filter attached
- *  NO_SET_FILTER - Set when filter has error and is to be ignored
+ *  NO_SET_FILTER - Set when filter has error and is to be igyesred
  *  SOFT_MODE     - The event is enabled/disabled by SOFT_DISABLED
- *  SOFT_DISABLED - When set, do not trace the event (even though its
+ *  SOFT_DISABLED - When set, do yest trace the event (even though its
  *                   tracepoint may be enabled)
  *  TRIGGER_MODE  - When set, invoke the triggers associated with the event
  *  TRIGGER_COND  - When set, one or more triggers has an associated filter
  *  PID_FILTER    - When set, the event is filtered based on pid
- *  WAS_ENABLED   - Set when enabled to know to clear trace on module removal
+ *  WAS_ENABLED   - Set when enabled to kyesw to clear trace on module removal
  */
 enum {
 	EVENT_FILE_FL_ENABLED		= (1 << EVENT_FILE_FL_ENABLED_BIT),
@@ -395,9 +395,9 @@ struct trace_event_file {
 	 *   bit 4:		trigger enabled
 	 *
 	 * Note: The bits must be set atomically to prevent races
-	 * from other writers. Reads of flags do not need to be in
+	 * from other writers. Reads of flags do yest need to be in
 	 * sync as they occur in critical sections. But the way flags
-	 * is currently used, these changes do not affect the code
+	 * is currently used, these changes do yest affect the code
 	 * except that when a change is made, it may have a slight
 	 * delay in propagating the changes to other CPUs due to
 	 * caching and such. Which is mostly OK ;-)
@@ -451,14 +451,14 @@ extern void
 event_triggers_post_call(struct trace_event_file *file,
 			 enum event_trigger_type tt);
 
-bool trace_event_ignore_this_pid(struct trace_event_file *trace_file);
+bool trace_event_igyesre_this_pid(struct trace_event_file *trace_file);
 
 /**
  * trace_trigger_soft_disabled - do triggers and test if soft disabled
  * @file: The file pointer of the event to test
  *
  * If any triggers without filters are attached to this event, they
- * will be called here. If the event is soft disabled and has no
+ * will be called here. If the event is soft disabled and has yes
  * triggers that require testing the fields, it will return true,
  * otherwise false.
  */
@@ -473,7 +473,7 @@ trace_trigger_soft_disabled(struct trace_event_file *file)
 		if (eflags & EVENT_FILE_FL_SOFT_DISABLED)
 			return true;
 		if (eflags & EVENT_FILE_FL_PID_FILTER)
-			return trace_event_ignore_this_pid(file);
+			return trace_event_igyesre_this_pid(file);
 	}
 	return false;
 }
@@ -559,7 +559,7 @@ int trace_array_set_clr_event(struct trace_array *tr, const char *system,
 		const char *event, bool enable);
 /*
  * The double __builtin_constant_p is because gcc will give us an error
- * if we try to allocate the static variable to fmt if it is not a
+ * if we try to allocate the static variable to fmt if it is yest a
  * constant. Even with the outer if statement optimizing out.
  */
 #define event_trace_printk(ip, fmt, args...)				\

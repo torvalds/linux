@@ -35,7 +35,7 @@ static uint64_t pud_index(struct kvm_vm *vm, vm_vaddr_t gva)
 	uint64_t mask = (1UL << (vm->page_shift - 3)) - 1;
 
 	TEST_ASSERT(vm->pgtable_levels == 4,
-		"Mode %d does not have 4 page table levels", vm->mode);
+		"Mode %d does yest have 4 page table levels", vm->mode);
 
 	return (gva >> shift) & mask;
 }
@@ -46,7 +46,7 @@ static uint64_t pmd_index(struct kvm_vm *vm, vm_vaddr_t gva)
 	uint64_t mask = (1UL << (vm->page_shift - 3)) - 1;
 
 	TEST_ASSERT(vm->pgtable_levels >= 3,
-		"Mode %d does not have >= 3 page table levels", vm->mode);
+		"Mode %d does yest have >= 3 page table levels", vm->mode);
 
 	return (gva >> shift) & mask;
 }
@@ -92,13 +92,13 @@ void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	uint64_t *ptep;
 
 	TEST_ASSERT((vaddr % vm->page_size) == 0,
-		"Virtual address not on page boundary,\n"
+		"Virtual address yest on page boundary,\n"
 		"  vaddr: 0x%lx vm->page_size: 0x%x", vaddr, vm->page_size);
 	TEST_ASSERT(sparsebit_is_set(vm->vpages_valid,
 		(vaddr >> vm->page_shift)),
 		"Invalid virtual address, vaddr: 0x%lx", vaddr);
 	TEST_ASSERT((paddr % vm->page_size) == 0,
-		"Physical address not on page boundary,\n"
+		"Physical address yest on page boundary,\n"
 		"  paddr: 0x%lx vm->page_size: 0x%x", paddr, vm->page_size);
 	TEST_ASSERT((paddr >> vm->page_shift) <= vm->max_gfn,
 		"Physical address beyond beyond maximum supported,\n"
@@ -262,10 +262,10 @@ void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *ini
 
 	switch (vm->mode) {
 	case VM_MODE_P52V48_4K:
-		TEST_ASSERT(false, "AArch64 does not support 4K sized pages "
+		TEST_ASSERT(false, "AArch64 does yest support 4K sized pages "
 				   "with 52-bit physical address ranges");
 	case VM_MODE_PXXV48_4K:
-		TEST_ASSERT(false, "AArch64 does not support 4K sized pages "
+		TEST_ASSERT(false, "AArch64 does yest support 4K sized pages "
 				   "with ANY-bit physical address ranges");
 	case VM_MODE_P52V48_64K:
 		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
@@ -288,7 +288,7 @@ void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *ini
 		tcr_el1 |= 2ul << 32; /* IPS = 40 bits */
 		break;
 	default:
-		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", vm->mode);
+		TEST_ASSERT(false, "Unkyeswn guest mode, mode: 0x%x", vm->mode);
 	}
 
 	sctlr_el1 |= (1 << 0) | (1 << 2) | (1 << 12) /* M | C | I */;

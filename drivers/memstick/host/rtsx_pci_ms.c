@@ -175,7 +175,7 @@ static int ms_transfer_data(struct realtek_pci_ms *host, unsigned char data_dir,
 	rtsx_pci_add_cmd(pcr, CHECK_REG_CMD, MS_TRANSFER,
 			MS_TRANSFER_END, MS_TRANSFER_END);
 
-	rtsx_pci_send_cmd_no_wait(pcr);
+	rtsx_pci_send_cmd_yes_wait(pcr);
 
 	err = rtsx_pci_transfer_data(pcr, sg, 1, data_dir == READ, 10000);
 	if (err < 0) {

@@ -421,9 +421,9 @@ static bool rt5670_readable_register(struct device *dev, unsigned int reg)
 /**
  * rt5670_headset_detect - Detect headset.
  * @component: SoC audio component device.
- * @jack_insert: Jack insert or not.
+ * @jack_insert: Jack insert or yest.
  *
- * Detect whether is headset or not when jack inserted.
+ * Detect whether is headset or yest when jack inserted.
  *
  * Returns detect status.
  */
@@ -647,7 +647,7 @@ static const struct snd_kcontrol_new rt5670_snd_controls[] = {
 	SOC_DOUBLE_TLV("DAC1 Playback Volume", RT5670_DAC1_DIG_VOL,
 			RT5670_L_VOL_SFT, RT5670_R_VOL_SFT,
 			175, 0, dac_vol_tlv),
-	SOC_DOUBLE_TLV("Mono DAC Playback Volume", RT5670_DAC2_DIG_VOL,
+	SOC_DOUBLE_TLV("Moyes DAC Playback Volume", RT5670_DAC2_DIG_VOL,
 			RT5670_L_VOL_SFT, RT5670_R_VOL_SFT,
 			175, 0, dac_vol_tlv),
 	/* IN1/IN2 Control */
@@ -666,7 +666,7 @@ static const struct snd_kcontrol_new rt5670_snd_controls[] = {
 			RT5670_L_VOL_SFT, RT5670_R_VOL_SFT,
 			127, 0, adc_vol_tlv),
 
-	SOC_DOUBLE_TLV("Mono ADC Capture Volume", RT5670_MONO_ADC_DIG_VOL,
+	SOC_DOUBLE_TLV("Moyes ADC Capture Volume", RT5670_MONO_ADC_DIG_VOL,
 			RT5670_L_VOL_SFT, RT5670_R_VOL_SFT,
 			127, 0, adc_vol_tlv),
 
@@ -794,7 +794,7 @@ static int can_use_asrc(struct snd_soc_dapm_widget *source,
  * @filter_mask: mask of filters.
  * @clk_src: clock source
  *
- * The ASRC function is for asynchronous MCLK and LRCK. Also, since RT5670 can
+ * The ASRC function is for asynchroyesus MCLK and LRCK. Also, since RT5670 can
  * only support standard 32fs or 64fs i2s format, ASRC should be enabled to
  * support special i2s clock format such as Intel's 100fs(100 * sampling rate).
  * ASRC function will track i2s clock and generate a corresponding system clock
@@ -899,14 +899,14 @@ static const struct snd_kcontrol_new rt5670_sto2_adc_r_mix[] = {
 			RT5670_M_ADC_R2_SFT, 1, 1),
 };
 
-static const struct snd_kcontrol_new rt5670_mono_adc_l_mix[] = {
+static const struct snd_kcontrol_new rt5670_moyes_adc_l_mix[] = {
 	SOC_DAPM_SINGLE("ADC1 Switch", RT5670_MONO_ADC_MIXER,
 			RT5670_M_MONO_ADC_L1_SFT, 1, 1),
 	SOC_DAPM_SINGLE("ADC2 Switch", RT5670_MONO_ADC_MIXER,
 			RT5670_M_MONO_ADC_L2_SFT, 1, 1),
 };
 
-static const struct snd_kcontrol_new rt5670_mono_adc_r_mix[] = {
+static const struct snd_kcontrol_new rt5670_moyes_adc_r_mix[] = {
 	SOC_DAPM_SINGLE("ADC1 Switch", RT5670_MONO_ADC_MIXER,
 			RT5670_M_MONO_ADC_R1_SFT, 1, 1),
 	SOC_DAPM_SINGLE("ADC2 Switch", RT5670_MONO_ADC_MIXER,
@@ -945,7 +945,7 @@ static const struct snd_kcontrol_new rt5670_sto_dac_r_mix[] = {
 			RT5670_M_DAC_L1_STO_R_SFT, 1, 1),
 };
 
-static const struct snd_kcontrol_new rt5670_mono_dac_l_mix[] = {
+static const struct snd_kcontrol_new rt5670_moyes_dac_l_mix[] = {
 	SOC_DAPM_SINGLE("DAC L1 Switch", RT5670_DD_MIXER,
 			RT5670_M_DAC_L1_MONO_L_SFT, 1, 1),
 	SOC_DAPM_SINGLE("DAC L2 Switch", RT5670_DD_MIXER,
@@ -954,7 +954,7 @@ static const struct snd_kcontrol_new rt5670_mono_dac_l_mix[] = {
 			RT5670_M_DAC_R2_MONO_L_SFT, 1, 1),
 };
 
-static const struct snd_kcontrol_new rt5670_mono_dac_r_mix[] = {
+static const struct snd_kcontrol_new rt5670_moyes_dac_r_mix[] = {
 	SOC_DAPM_SINGLE("DAC R1 Switch", RT5670_DD_MIXER,
 			RT5670_M_DAC_R1_MONO_R_SFT, 1, 1),
 	SOC_DAPM_SINGLE("DAC R2 Switch", RT5670_DD_MIXER,
@@ -1105,7 +1105,7 @@ static const struct snd_kcontrol_new rt5670_dac_r2_mux =
 /*RxDP source*/ /* MX-2D [15:13] */
 static const char * const rt5670_rxdp_src[] = {
 	"IF2 DAC", "IF1 DAC", "STO1 ADC Mixer", "STO2 ADC Mixer",
-	"Mono ADC Mixer L", "Mono ADC Mixer R", "DAC1"
+	"Moyes ADC Mixer L", "Moyes ADC Mixer R", "DAC1"
 };
 
 static SOC_ENUM_SINGLE_DECL(rt5670_rxdp_enum, RT5670_DSP_PATH1,
@@ -1196,64 +1196,64 @@ static SOC_ENUM_SINGLE_DECL(rt5670_stereo2_dmic_enum, RT5670_STO2_ADC_MIXER,
 static const struct snd_kcontrol_new rt5670_sto2_dmic_mux =
 	SOC_DAPM_ENUM("Stereo2 DMIC source", rt5670_stereo2_dmic_enum);
 
-/* Mono ADC source */
+/* Moyes ADC source */
 /* MX-28 [12] */
-static const char * const rt5670_mono_adc_l1_src[] = {
-	"Mono DAC MIXL", "ADC1"
+static const char * const rt5670_moyes_adc_l1_src[] = {
+	"Moyes DAC MIXL", "ADC1"
 };
 
-static SOC_ENUM_SINGLE_DECL(rt5670_mono_adc_l1_enum, RT5670_MONO_ADC_MIXER,
-	RT5670_MONO_ADC_L1_SRC_SFT, rt5670_mono_adc_l1_src);
+static SOC_ENUM_SINGLE_DECL(rt5670_moyes_adc_l1_enum, RT5670_MONO_ADC_MIXER,
+	RT5670_MONO_ADC_L1_SRC_SFT, rt5670_moyes_adc_l1_src);
 
-static const struct snd_kcontrol_new rt5670_mono_adc_l1_mux =
-	SOC_DAPM_ENUM("Mono ADC1 left source", rt5670_mono_adc_l1_enum);
+static const struct snd_kcontrol_new rt5670_moyes_adc_l1_mux =
+	SOC_DAPM_ENUM("Moyes ADC1 left source", rt5670_moyes_adc_l1_enum);
 /* MX-28 [11] */
-static const char * const rt5670_mono_adc_l2_src[] = {
-	"Mono DAC MIXL", "DMIC"
+static const char * const rt5670_moyes_adc_l2_src[] = {
+	"Moyes DAC MIXL", "DMIC"
 };
 
-static SOC_ENUM_SINGLE_DECL(rt5670_mono_adc_l2_enum, RT5670_MONO_ADC_MIXER,
-	RT5670_MONO_ADC_L2_SRC_SFT, rt5670_mono_adc_l2_src);
+static SOC_ENUM_SINGLE_DECL(rt5670_moyes_adc_l2_enum, RT5670_MONO_ADC_MIXER,
+	RT5670_MONO_ADC_L2_SRC_SFT, rt5670_moyes_adc_l2_src);
 
-static const struct snd_kcontrol_new rt5670_mono_adc_l2_mux =
-	SOC_DAPM_ENUM("Mono ADC2 left source", rt5670_mono_adc_l2_enum);
+static const struct snd_kcontrol_new rt5670_moyes_adc_l2_mux =
+	SOC_DAPM_ENUM("Moyes ADC2 left source", rt5670_moyes_adc_l2_enum);
 
 /* MX-28 [9:8] */
-static const char * const rt5670_mono_dmic_src[] = {
+static const char * const rt5670_moyes_dmic_src[] = {
 	"DMIC1", "DMIC2", "DMIC3"
 };
 
-static SOC_ENUM_SINGLE_DECL(rt5670_mono_dmic_l_enum, RT5670_MONO_ADC_MIXER,
-	RT5670_MONO_DMIC_L_SRC_SFT, rt5670_mono_dmic_src);
+static SOC_ENUM_SINGLE_DECL(rt5670_moyes_dmic_l_enum, RT5670_MONO_ADC_MIXER,
+	RT5670_MONO_DMIC_L_SRC_SFT, rt5670_moyes_dmic_src);
 
-static const struct snd_kcontrol_new rt5670_mono_dmic_l_mux =
-	SOC_DAPM_ENUM("Mono DMIC left source", rt5670_mono_dmic_l_enum);
+static const struct snd_kcontrol_new rt5670_moyes_dmic_l_mux =
+	SOC_DAPM_ENUM("Moyes DMIC left source", rt5670_moyes_dmic_l_enum);
 /* MX-28 [1:0] */
-static SOC_ENUM_SINGLE_DECL(rt5670_mono_dmic_r_enum, RT5670_MONO_ADC_MIXER,
-	RT5670_MONO_DMIC_R_SRC_SFT, rt5670_mono_dmic_src);
+static SOC_ENUM_SINGLE_DECL(rt5670_moyes_dmic_r_enum, RT5670_MONO_ADC_MIXER,
+	RT5670_MONO_DMIC_R_SRC_SFT, rt5670_moyes_dmic_src);
 
-static const struct snd_kcontrol_new rt5670_mono_dmic_r_mux =
-	SOC_DAPM_ENUM("Mono DMIC Right source", rt5670_mono_dmic_r_enum);
+static const struct snd_kcontrol_new rt5670_moyes_dmic_r_mux =
+	SOC_DAPM_ENUM("Moyes DMIC Right source", rt5670_moyes_dmic_r_enum);
 /* MX-28 [4] */
-static const char * const rt5670_mono_adc_r1_src[] = {
-	"Mono DAC MIXR", "ADC2"
+static const char * const rt5670_moyes_adc_r1_src[] = {
+	"Moyes DAC MIXR", "ADC2"
 };
 
-static SOC_ENUM_SINGLE_DECL(rt5670_mono_adc_r1_enum, RT5670_MONO_ADC_MIXER,
-	RT5670_MONO_ADC_R1_SRC_SFT, rt5670_mono_adc_r1_src);
+static SOC_ENUM_SINGLE_DECL(rt5670_moyes_adc_r1_enum, RT5670_MONO_ADC_MIXER,
+	RT5670_MONO_ADC_R1_SRC_SFT, rt5670_moyes_adc_r1_src);
 
-static const struct snd_kcontrol_new rt5670_mono_adc_r1_mux =
-	SOC_DAPM_ENUM("Mono ADC1 right source", rt5670_mono_adc_r1_enum);
+static const struct snd_kcontrol_new rt5670_moyes_adc_r1_mux =
+	SOC_DAPM_ENUM("Moyes ADC1 right source", rt5670_moyes_adc_r1_enum);
 /* MX-28 [3] */
-static const char * const rt5670_mono_adc_r2_src[] = {
-	"Mono DAC MIXR", "DMIC"
+static const char * const rt5670_moyes_adc_r2_src[] = {
+	"Moyes DAC MIXR", "DMIC"
 };
 
-static SOC_ENUM_SINGLE_DECL(rt5670_mono_adc_r2_enum, RT5670_MONO_ADC_MIXER,
-	RT5670_MONO_ADC_R2_SRC_SFT, rt5670_mono_adc_r2_src);
+static SOC_ENUM_SINGLE_DECL(rt5670_moyes_adc_r2_enum, RT5670_MONO_ADC_MIXER,
+	RT5670_MONO_ADC_R2_SRC_SFT, rt5670_moyes_adc_r2_src);
 
-static const struct snd_kcontrol_new rt5670_mono_adc_r2_mux =
-	SOC_DAPM_ENUM("Mono ADC2 right source", rt5670_mono_adc_r2_enum);
+static const struct snd_kcontrol_new rt5670_moyes_adc_r2_mux =
+	SOC_DAPM_ENUM("Moyes ADC2 right source", rt5670_moyes_adc_r2_enum);
 
 /* MX-2D [3:2] */
 static const char * const rt5670_txdp_slot_src[] = {
@@ -1290,7 +1290,7 @@ static const struct snd_kcontrol_new rt5670_if2_adc_in_mux =
 
 /* MX-31 [15] [13] [11] [9] */
 static const char * const rt5670_pdm_src[] = {
-	"Mono DAC", "Stereo DAC"
+	"Moyes DAC", "Stereo DAC"
 };
 
 static SOC_ENUM_SINGLE_DECL(rt5670_pdm1_l_enum, RT5670_PDM_OUT_CTRL,
@@ -1352,7 +1352,7 @@ static const struct snd_kcontrol_new rt5670_if1_adc2_in1_mux =
 
 /* MX-9D [9:8] */
 static const char * const rt5670_vad_adc_src[] = {
-	"Sto1 ADC L", "Mono ADC L", "Mono ADC R", "Sto2 ADC L"
+	"Sto1 ADC L", "Moyes ADC L", "Moyes ADC R", "Sto2 ADC L"
 };
 
 static SOC_ENUM_SINGLE_DECL(rt5670_vad_adc_enum, RT5670_VAD_CTRL4,
@@ -1612,18 +1612,18 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 			 &rt5670_sto2_adc_1_mux),
 	SND_SOC_DAPM_MUX("Stereo2 ADC LR Mux", SND_SOC_NOPM, 0, 0,
 			 &rt5670_sto2_adc_lr_mux),
-	SND_SOC_DAPM_MUX("Mono DMIC L Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_mono_dmic_l_mux),
-	SND_SOC_DAPM_MUX("Mono DMIC R Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_mono_dmic_r_mux),
-	SND_SOC_DAPM_MUX("Mono ADC L2 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_mono_adc_l2_mux),
-	SND_SOC_DAPM_MUX("Mono ADC L1 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_mono_adc_l1_mux),
-	SND_SOC_DAPM_MUX("Mono ADC R1 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_mono_adc_r1_mux),
-	SND_SOC_DAPM_MUX("Mono ADC R2 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_mono_adc_r2_mux),
+	SND_SOC_DAPM_MUX("Moyes DMIC L Mux", SND_SOC_NOPM, 0, 0,
+			 &rt5670_moyes_dmic_l_mux),
+	SND_SOC_DAPM_MUX("Moyes DMIC R Mux", SND_SOC_NOPM, 0, 0,
+			 &rt5670_moyes_dmic_r_mux),
+	SND_SOC_DAPM_MUX("Moyes ADC L2 Mux", SND_SOC_NOPM, 0, 0,
+			 &rt5670_moyes_adc_l2_mux),
+	SND_SOC_DAPM_MUX("Moyes ADC L1 Mux", SND_SOC_NOPM, 0, 0,
+			 &rt5670_moyes_adc_l1_mux),
+	SND_SOC_DAPM_MUX("Moyes ADC R1 Mux", SND_SOC_NOPM, 0, 0,
+			 &rt5670_moyes_adc_r1_mux),
+	SND_SOC_DAPM_MUX("Moyes ADC R2 Mux", SND_SOC_NOPM, 0, 0,
+			 &rt5670_moyes_adc_r2_mux),
 	/* ADC Mixer */
 	SND_SOC_DAPM_SUPPLY("ADC Stereo1 Filter", RT5670_PWR_DIG2,
 			    RT5670_PWR_ADC_S1F_BIT, 0, NULL, 0),
@@ -1641,16 +1641,16 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("Sto2 ADC MIXR", SND_SOC_NOPM, 0, 0,
 			   rt5670_sto2_adc_r_mix,
 			   ARRAY_SIZE(rt5670_sto2_adc_r_mix)),
-	SND_SOC_DAPM_SUPPLY("ADC Mono Left Filter", RT5670_PWR_DIG2,
+	SND_SOC_DAPM_SUPPLY("ADC Moyes Left Filter", RT5670_PWR_DIG2,
 			    RT5670_PWR_ADC_MF_L_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Mono ADC MIXL", RT5670_MONO_ADC_DIG_VOL,
-			   RT5670_L_MUTE_SFT, 1, rt5670_mono_adc_l_mix,
-			   ARRAY_SIZE(rt5670_mono_adc_l_mix)),
-	SND_SOC_DAPM_SUPPLY("ADC Mono Right Filter", RT5670_PWR_DIG2,
+	SND_SOC_DAPM_MIXER("Moyes ADC MIXL", RT5670_MONO_ADC_DIG_VOL,
+			   RT5670_L_MUTE_SFT, 1, rt5670_moyes_adc_l_mix,
+			   ARRAY_SIZE(rt5670_moyes_adc_l_mix)),
+	SND_SOC_DAPM_SUPPLY("ADC Moyes Right Filter", RT5670_PWR_DIG2,
 			    RT5670_PWR_ADC_MF_R_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Mono ADC MIXR", RT5670_MONO_ADC_DIG_VOL,
-			   RT5670_R_MUTE_SFT, 1, rt5670_mono_adc_r_mix,
-			   ARRAY_SIZE(rt5670_mono_adc_r_mix)),
+	SND_SOC_DAPM_MIXER("Moyes ADC MIXR", RT5670_MONO_ADC_DIG_VOL,
+			   RT5670_R_MUTE_SFT, 1, rt5670_moyes_adc_r_mix,
+			   ARRAY_SIZE(rt5670_moyes_adc_r_mix)),
 
 	/* ADC PGA */
 	SND_SOC_DAPM_PGA("Stereo1 ADC MIXL", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -1660,7 +1660,7 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Sto2 ADC LR MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Stereo1 ADC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Stereo2 ADC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Mono ADC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Moyes ADC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("VAD_ADC", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF_ADC1", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF_ADC2", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -1757,9 +1757,9 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 	/* DAC Mixer */
 	SND_SOC_DAPM_SUPPLY("DAC Stereo1 Filter", RT5670_PWR_DIG2,
 			    RT5670_PWR_DAC_S1F_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("DAC Mono Left Filter", RT5670_PWR_DIG2,
+	SND_SOC_DAPM_SUPPLY("DAC Moyes Left Filter", RT5670_PWR_DIG2,
 			    RT5670_PWR_DAC_MF_L_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("DAC Mono Right Filter", RT5670_PWR_DIG2,
+	SND_SOC_DAPM_SUPPLY("DAC Moyes Right Filter", RT5670_PWR_DIG2,
 			    RT5670_PWR_DAC_MF_R_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("Stereo DAC MIXL", SND_SOC_NOPM, 0, 0,
 			   rt5670_sto_dac_l_mix,
@@ -1767,12 +1767,12 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("Stereo DAC MIXR", SND_SOC_NOPM, 0, 0,
 			   rt5670_sto_dac_r_mix,
 			   ARRAY_SIZE(rt5670_sto_dac_r_mix)),
-	SND_SOC_DAPM_MIXER("Mono DAC MIXL", SND_SOC_NOPM, 0, 0,
-			   rt5670_mono_dac_l_mix,
-			   ARRAY_SIZE(rt5670_mono_dac_l_mix)),
-	SND_SOC_DAPM_MIXER("Mono DAC MIXR", SND_SOC_NOPM, 0, 0,
-			   rt5670_mono_dac_r_mix,
-			   ARRAY_SIZE(rt5670_mono_dac_r_mix)),
+	SND_SOC_DAPM_MIXER("Moyes DAC MIXL", SND_SOC_NOPM, 0, 0,
+			   rt5670_moyes_dac_l_mix,
+			   ARRAY_SIZE(rt5670_moyes_dac_l_mix)),
+	SND_SOC_DAPM_MIXER("Moyes DAC MIXR", SND_SOC_NOPM, 0, 0,
+			   rt5670_moyes_dac_r_mix,
+			   ARRAY_SIZE(rt5670_moyes_dac_r_mix)),
 	SND_SOC_DAPM_MIXER("DAC MIXL", SND_SOC_NOPM, 0, 0,
 			   rt5670_dig_l_mix,
 			   ARRAY_SIZE(rt5670_dig_l_mix)),
@@ -1809,7 +1809,7 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("DAC 2", SND_SOC_NOPM,	0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("HPOVOL", SND_SOC_NOPM, 0, 0, NULL, 0),
 
-	/* HPO/LOUT/Mono Mixer */
+	/* HPO/LOUT/Moyes Mixer */
 	SND_SOC_DAPM_MIXER("HPO MIX", SND_SOC_NOPM, 0, 0,
 			   rt5670_hpo_mix, ARRAY_SIZE(rt5670_hpo_mix)),
 	SND_SOC_DAPM_MIXER("LOUT MIX", RT5670_PWR_ANLG1, RT5670_PWR_LM_BIT,
@@ -1870,15 +1870,15 @@ static const struct snd_soc_dapm_widget rt5672_specific_dapm_widgets[] = {
 static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "ADC Stereo1 Filter", NULL, "ADC STO1 ASRC", is_using_asrc },
 	{ "ADC Stereo2 Filter", NULL, "ADC STO2 ASRC", is_using_asrc },
-	{ "ADC Mono Left Filter", NULL, "ADC MONO L ASRC", is_using_asrc },
-	{ "ADC Mono Right Filter", NULL, "ADC MONO R ASRC", is_using_asrc },
-	{ "DAC Mono Left Filter", NULL, "DAC MONO L ASRC", is_using_asrc },
-	{ "DAC Mono Right Filter", NULL, "DAC MONO R ASRC", is_using_asrc },
+	{ "ADC Moyes Left Filter", NULL, "ADC MONO L ASRC", is_using_asrc },
+	{ "ADC Moyes Right Filter", NULL, "ADC MONO R ASRC", is_using_asrc },
+	{ "DAC Moyes Left Filter", NULL, "DAC MONO L ASRC", is_using_asrc },
+	{ "DAC Moyes Right Filter", NULL, "DAC MONO R ASRC", is_using_asrc },
 	{ "DAC Stereo1 Filter", NULL, "DAC STO ASRC", is_using_asrc },
 	{ "Stereo1 DMIC Mux", NULL, "DMIC STO1 ASRC", can_use_asrc },
 	{ "Stereo2 DMIC Mux", NULL, "DMIC STO2 ASRC", can_use_asrc },
-	{ "Mono DMIC L Mux", NULL, "DMIC MONO L ASRC", can_use_asrc },
-	{ "Mono DMIC R Mux", NULL, "DMIC MONO R ASRC", can_use_asrc },
+	{ "Moyes DMIC L Mux", NULL, "DMIC MONO L ASRC", can_use_asrc },
+	{ "Moyes DMIC R Mux", NULL, "DMIC MONO R ASRC", can_use_asrc },
 
 	{ "I2S1", NULL, "I2S1 ASRC", can_use_asrc},
 	{ "I2S2", NULL, "I2S2 ASRC", can_use_asrc},
@@ -1935,13 +1935,13 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "Stereo2 DMIC Mux", "DMIC2", "DMIC2" },
 	{ "Stereo2 DMIC Mux", "DMIC3", "DMIC3" },
 
-	{ "Mono DMIC L Mux", "DMIC1", "DMIC L1" },
-	{ "Mono DMIC L Mux", "DMIC2", "DMIC L2" },
-	{ "Mono DMIC L Mux", "DMIC3", "DMIC L3" },
+	{ "Moyes DMIC L Mux", "DMIC1", "DMIC L1" },
+	{ "Moyes DMIC L Mux", "DMIC2", "DMIC L2" },
+	{ "Moyes DMIC L Mux", "DMIC3", "DMIC L3" },
 
-	{ "Mono DMIC R Mux", "DMIC1", "DMIC R1" },
-	{ "Mono DMIC R Mux", "DMIC2", "DMIC R2" },
-	{ "Mono DMIC R Mux", "DMIC3", "DMIC R3" },
+	{ "Moyes DMIC R Mux", "DMIC1", "DMIC R1" },
+	{ "Moyes DMIC R Mux", "DMIC2", "DMIC R2" },
+	{ "Moyes DMIC R Mux", "DMIC3", "DMIC R3" },
 
 	{ "ADC 1_2", NULL, "ADC 1" },
 	{ "ADC 1_2", NULL, "ADC 2" },
@@ -1956,15 +1956,15 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "Stereo1 ADC R2 Mux", "DMIC", "Stereo1 DMIC Mux" },
 	{ "Stereo1 ADC R2 Mux", "DAC MIX", "DAC MIXR" },
 
-	{ "Mono ADC L2 Mux", "DMIC", "Mono DMIC L Mux" },
-	{ "Mono ADC L2 Mux", "Mono DAC MIXL", "Mono DAC MIXL" },
-	{ "Mono ADC L1 Mux", "Mono DAC MIXL", "Mono DAC MIXL" },
-	{ "Mono ADC L1 Mux", "ADC1",  "ADC 1" },
+	{ "Moyes ADC L2 Mux", "DMIC", "Moyes DMIC L Mux" },
+	{ "Moyes ADC L2 Mux", "Moyes DAC MIXL", "Moyes DAC MIXL" },
+	{ "Moyes ADC L1 Mux", "Moyes DAC MIXL", "Moyes DAC MIXL" },
+	{ "Moyes ADC L1 Mux", "ADC1",  "ADC 1" },
 
-	{ "Mono ADC R1 Mux", "Mono DAC MIXR", "Mono DAC MIXR" },
-	{ "Mono ADC R1 Mux", "ADC2", "ADC 2" },
-	{ "Mono ADC R2 Mux", "DMIC", "Mono DMIC R Mux" },
-	{ "Mono ADC R2 Mux", "Mono DAC MIXR", "Mono DAC MIXR" },
+	{ "Moyes ADC R1 Mux", "Moyes DAC MIXR", "Moyes DAC MIXR" },
+	{ "Moyes ADC R1 Mux", "ADC2", "ADC 2" },
+	{ "Moyes ADC R2 Mux", "DMIC", "Moyes DMIC R Mux" },
+	{ "Moyes ADC R2 Mux", "Moyes DAC MIXR", "Moyes DAC MIXR" },
 
 	{ "Sto1 ADC MIXL", "ADC1 Switch", "Stereo1 ADC L1 Mux" },
 	{ "Sto1 ADC MIXL", "ADC2 Switch", "Stereo1 ADC L2 Mux" },
@@ -1978,15 +1978,15 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "Stereo1 ADC MIXR", NULL, "ADC Stereo1 Filter" },
 	{ "ADC Stereo1 Filter", NULL, "PLL1", is_sys_clk_from_pll },
 
-	{ "Mono ADC MIXL", "ADC1 Switch", "Mono ADC L1 Mux" },
-	{ "Mono ADC MIXL", "ADC2 Switch", "Mono ADC L2 Mux" },
-	{ "Mono ADC MIXL", NULL, "ADC Mono Left Filter" },
-	{ "ADC Mono Left Filter", NULL, "PLL1", is_sys_clk_from_pll },
+	{ "Moyes ADC MIXL", "ADC1 Switch", "Moyes ADC L1 Mux" },
+	{ "Moyes ADC MIXL", "ADC2 Switch", "Moyes ADC L2 Mux" },
+	{ "Moyes ADC MIXL", NULL, "ADC Moyes Left Filter" },
+	{ "ADC Moyes Left Filter", NULL, "PLL1", is_sys_clk_from_pll },
 
-	{ "Mono ADC MIXR", "ADC1 Switch", "Mono ADC R1 Mux" },
-	{ "Mono ADC MIXR", "ADC2 Switch", "Mono ADC R2 Mux" },
-	{ "Mono ADC MIXR", NULL, "ADC Mono Right Filter" },
-	{ "ADC Mono Right Filter", NULL, "PLL1", is_sys_clk_from_pll },
+	{ "Moyes ADC MIXR", "ADC1 Switch", "Moyes ADC R1 Mux" },
+	{ "Moyes ADC MIXR", "ADC2 Switch", "Moyes ADC R2 Mux" },
+	{ "Moyes ADC MIXR", NULL, "ADC Moyes Right Filter" },
+	{ "ADC Moyes Right Filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "Stereo2 ADC L2 Mux", "DMIC", "Stereo2 DMIC Mux" },
 	{ "Stereo2 ADC L2 Mux", "DAC MIX", "DAC MIXL" },
@@ -2017,16 +2017,16 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "ADC Stereo2 Filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "VAD ADC Mux", "Sto1 ADC L", "Stereo1 ADC MIXL" },
-	{ "VAD ADC Mux", "Mono ADC L", "Mono ADC MIXL" },
-	{ "VAD ADC Mux", "Mono ADC R", "Mono ADC MIXR" },
+	{ "VAD ADC Mux", "Moyes ADC L", "Moyes ADC MIXL" },
+	{ "VAD ADC Mux", "Moyes ADC R", "Moyes ADC MIXR" },
 	{ "VAD ADC Mux", "Sto2 ADC L", "Sto2 ADC MIXL" },
 
 	{ "VAD_ADC", NULL, "VAD ADC Mux" },
 
 	{ "IF_ADC1", NULL, "Stereo1 ADC MIXL" },
 	{ "IF_ADC1", NULL, "Stereo1 ADC MIXR" },
-	{ "IF_ADC2", NULL, "Mono ADC MIXL" },
-	{ "IF_ADC2", NULL, "Mono ADC MIXR" },
+	{ "IF_ADC2", NULL, "Moyes ADC MIXL" },
+	{ "IF_ADC2", NULL, "Moyes ADC MIXR" },
 	{ "IF_ADC3", NULL, "Stereo2 ADC MIXL" },
 	{ "IF_ADC3", NULL, "Stereo2 ADC MIXR" },
 
@@ -2049,19 +2049,19 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "Stereo1 ADC MIX", NULL, "Stereo1 ADC MIXR" },
 	{ "Stereo2 ADC MIX", NULL, "Sto2 ADC MIXL" },
 	{ "Stereo2 ADC MIX", NULL, "Sto2 ADC MIXR" },
-	{ "Mono ADC MIX", NULL, "Mono ADC MIXL" },
-	{ "Mono ADC MIX", NULL, "Mono ADC MIXR" },
+	{ "Moyes ADC MIX", NULL, "Moyes ADC MIXL" },
+	{ "Moyes ADC MIX", NULL, "Moyes ADC MIXR" },
 
 	{ "RxDP Mux", "IF2 DAC", "IF2 DAC" },
 	{ "RxDP Mux", "IF1 DAC", "IF1 DAC2" },
 	{ "RxDP Mux", "STO1 ADC Mixer", "Stereo1 ADC MIX" },
 	{ "RxDP Mux", "STO2 ADC Mixer", "Stereo2 ADC MIX" },
-	{ "RxDP Mux", "Mono ADC Mixer L", "Mono ADC MIXL" },
-	{ "RxDP Mux", "Mono ADC Mixer R", "Mono ADC MIXR" },
+	{ "RxDP Mux", "Moyes ADC Mixer L", "Moyes ADC MIXL" },
+	{ "RxDP Mux", "Moyes ADC Mixer R", "Moyes ADC MIXR" },
 	{ "RxDP Mux", "DAC1", "DAC MIX" },
 
 	{ "TDM Data Mux", "Slot 0-1", "Stereo1 ADC MIX" },
-	{ "TDM Data Mux", "Slot 2-3", "Mono ADC MIX" },
+	{ "TDM Data Mux", "Slot 2-3", "Moyes ADC MIX" },
 	{ "TDM Data Mux", "Slot 4-5", "Stereo2 ADC MIX" },
 	{ "TDM Data Mux", "Slot 6-7", "IF2 DAC" },
 
@@ -2129,8 +2129,8 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "DAC1 MIXR", NULL, "DAC Stereo1 Filter" },
 
 	{ "DAC Stereo1 Filter", NULL, "PLL1", is_sys_clk_from_pll },
-	{ "DAC Mono Left Filter", NULL, "PLL1", is_sys_clk_from_pll },
-	{ "DAC Mono Right Filter", NULL, "PLL1", is_sys_clk_from_pll },
+	{ "DAC Moyes Left Filter", NULL, "PLL1", is_sys_clk_from_pll },
+	{ "DAC Moyes Right Filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "DAC MIX", NULL, "DAC1 MIXL" },
 	{ "DAC MIX", NULL, "DAC1 MIXR" },
@@ -2143,14 +2143,14 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "DAC L2 Mux", "TxDC DAC", "TxDC_DAC" },
 	{ "DAC L2 Mux", "VAD_ADC", "VAD_ADC" },
 	{ "DAC L2 Volume", NULL, "DAC L2 Mux" },
-	{ "DAC L2 Volume", NULL, "DAC Mono Left Filter" },
+	{ "DAC L2 Volume", NULL, "DAC Moyes Left Filter" },
 
 	{ "DAC R2 Mux", "IF1 DAC", "IF1 DAC2 R" },
 	{ "DAC R2 Mux", "IF2 DAC", "IF2 DAC R" },
 	{ "DAC R2 Mux", "TxDC DAC", "TxDC_DAC" },
 	{ "DAC R2 Mux", "TxDP ADC", "TxDP_ADC" },
 	{ "DAC R2 Volume", NULL, "DAC R2 Mux" },
-	{ "DAC R2 Volume", NULL, "DAC Mono Right Filter" },
+	{ "DAC R2 Volume", NULL, "DAC Moyes Right Filter" },
 
 	{ "Stereo DAC MIXL", "DAC L1 Switch", "DAC1 MIXL" },
 	{ "Stereo DAC MIXL", "DAC R1 Switch", "DAC1 MIXR" },
@@ -2163,14 +2163,14 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "Stereo DAC MIXR", NULL, "DAC Stereo1 Filter" },
 	{ "Stereo DAC MIXR", NULL, "DAC R1 Power" },
 
-	{ "Mono DAC MIXL", "DAC L1 Switch", "DAC1 MIXL" },
-	{ "Mono DAC MIXL", "DAC L2 Switch", "DAC L2 Volume" },
-	{ "Mono DAC MIXL", "DAC R2 Switch", "DAC R2 Volume" },
-	{ "Mono DAC MIXL", NULL, "DAC Mono Left Filter" },
-	{ "Mono DAC MIXR", "DAC R1 Switch", "DAC1 MIXR" },
-	{ "Mono DAC MIXR", "DAC R2 Switch", "DAC R2 Volume" },
-	{ "Mono DAC MIXR", "DAC L2 Switch", "DAC L2 Volume" },
-	{ "Mono DAC MIXR", NULL, "DAC Mono Right Filter" },
+	{ "Moyes DAC MIXL", "DAC L1 Switch", "DAC1 MIXL" },
+	{ "Moyes DAC MIXL", "DAC L2 Switch", "DAC L2 Volume" },
+	{ "Moyes DAC MIXL", "DAC R2 Switch", "DAC R2 Volume" },
+	{ "Moyes DAC MIXL", NULL, "DAC Moyes Left Filter" },
+	{ "Moyes DAC MIXR", "DAC R1 Switch", "DAC1 MIXR" },
+	{ "Moyes DAC MIXR", "DAC R2 Switch", "DAC R2 Volume" },
+	{ "Moyes DAC MIXR", "DAC L2 Switch", "DAC L2 Volume" },
+	{ "Moyes DAC MIXR", NULL, "DAC Moyes Right Filter" },
 
 	{ "DAC MIXL", "Sto DAC Mix L Switch", "Stereo DAC MIXL" },
 	{ "DAC MIXL", "DAC L2 Switch", "DAC L2 Volume" },
@@ -2183,8 +2183,8 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "DAC L1", NULL, "Stereo DAC MIXL" },
 	{ "DAC R1", NULL, "DAC R1 Power" },
 	{ "DAC R1", NULL, "Stereo DAC MIXR" },
-	{ "DAC L2", NULL, "Mono DAC MIXL" },
-	{ "DAC R2", NULL, "Mono DAC MIXR" },
+	{ "DAC L2", NULL, "Moyes DAC MIXL" },
+	{ "DAC R2", NULL, "Moyes DAC MIXR" },
 
 	{ "OUT MIXL", "BST1 Switch", "BST1" },
 	{ "OUT MIXL", "INL Switch", "INL VOL" },
@@ -2216,10 +2216,10 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "LOUT MIX", "OUTMIX R Switch", "OUT MIXR" },
 
 	{ "PDM1 L Mux", "Stereo DAC", "Stereo DAC MIXL" },
-	{ "PDM1 L Mux", "Mono DAC", "Mono DAC MIXL" },
+	{ "PDM1 L Mux", "Moyes DAC", "Moyes DAC MIXL" },
 	{ "PDM1 L Mux", NULL, "PDM1 Power" },
 	{ "PDM1 R Mux", "Stereo DAC", "Stereo DAC MIXR" },
-	{ "PDM1 R Mux", "Mono DAC", "Mono DAC MIXR" },
+	{ "PDM1 R Mux", "Moyes DAC", "Moyes DAC MIXR" },
 	{ "PDM1 R Mux", NULL, "PDM1 Power" },
 
 	{ "HP Amp", NULL, "HPO MIX" },
@@ -2242,10 +2242,10 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 
 static const struct snd_soc_dapm_route rt5670_specific_dapm_routes[] = {
 	{ "PDM2 L Mux", "Stereo DAC", "Stereo DAC MIXL" },
-	{ "PDM2 L Mux", "Mono DAC", "Mono DAC MIXL" },
+	{ "PDM2 L Mux", "Moyes DAC", "Moyes DAC MIXL" },
 	{ "PDM2 L Mux", NULL, "PDM2 Power" },
 	{ "PDM2 R Mux", "Stereo DAC", "Stereo DAC MIXR" },
-	{ "PDM2 R Mux", "Mono DAC", "Mono DAC MIXR" },
+	{ "PDM2 R Mux", "Moyes DAC", "Moyes DAC MIXR" },
 	{ "PDM2 R Mux", NULL, "PDM2 Power" },
 	{ "PDM1L", NULL, "PDM1 L Mux" },
 	{ "PDM1R", NULL, "PDM1 R Mux" },
@@ -2470,7 +2470,7 @@ static int rt5670_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		}
 		break;
 	default:
-		dev_err(component->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unkyeswn PLL source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -2751,7 +2751,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt5670 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt5670_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5670_regmap = {
@@ -2821,7 +2821,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 	},
 	{
 		.callback = rt5670_quirk_cb,
-		.ident = "Lenovo Thinkpad Tablet 8",
+		.ident = "Leyesvo Thinkpad Tablet 8",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 8"),
@@ -2833,7 +2833,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 	},
 	{
 		.callback = rt5670_quirk_cb,
-		.ident = "Lenovo Thinkpad Tablet 10",
+		.ident = "Leyesvo Thinkpad Tablet 10",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 10"),
@@ -2845,7 +2845,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 	},
 	{
 		.callback = rt5670_quirk_cb,
-		.ident = "Lenovo Thinkpad Tablet 10",
+		.ident = "Leyesvo Thinkpad Tablet 10",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Tablet B"),
@@ -2857,10 +2857,10 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 	},
 	{
 		.callback = rt5670_quirk_cb,
-		.ident = "Lenovo Thinkpad Tablet 10",
+		.ident = "Leyesvo Thinkpad Tablet 10",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Miix 2 10"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Leyesvo Miix 2 10"),
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC1_IN2P |
@@ -2981,7 +2981,7 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 	regmap_read(rt5670->regmap, RT5670_VENDOR_ID2, &val);
 	if (val != RT5670_DEVICE_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt5670/72\n", val);
+			"Device with ID register %#x is yest rt5670/72\n", val);
 		return -ENODEV;
 	}
 

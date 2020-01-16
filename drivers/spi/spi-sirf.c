@@ -277,7 +277,7 @@ struct sirfsoc_spi {
 	int word_width; /* in bytes */
 
 	/*
-	 * if tx size is not more than 4 and rx size is NULL, use
+	 * if tx size is yest more than 4 and rx size is NULL, use
 	 * command model
 	 */
 	bool	tx_by_cmd;
@@ -881,7 +881,7 @@ spi_sirfsoc_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	usp_mode2 = regval = (sspi->ctrl_freq / (2 * hz)) - 1;
 	if (regval > 0xFFFF || regval < 0) {
-		dev_err(&spi->dev, "Speed %d not supported\n", hz);
+		dev_err(&spi->dev, "Speed %d yest supported\n", hz);
 		return -EINVAL;
 	}
 	switch (bits_per_word) {
@@ -904,7 +904,7 @@ spi_sirfsoc_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		sspi->tx_word = spi_sirfsoc_tx_word_u32;
 		break;
 	default:
-		dev_err(&spi->dev, "bpw %d not supported\n", bits_per_word);
+		dev_err(&spi->dev, "bpw %d yest supported\n", bits_per_word);
 		return -EINVAL;
 	}
 	sspi->word_width = DIV_ROUND_UP(bits_per_word, 8);
@@ -1009,7 +1009,7 @@ static int spi_sirfsoc_setup(struct spi_device *spi)
 			}
 			ret = gpio_is_valid(spi->cs_gpio);
 			if (!ret) {
-				dev_err(&spi->dev, "no valid gpio\n");
+				dev_err(&spi->dev, "yes valid gpio\n");
 				ret = -ENOENT;
 				goto exit;
 			}
@@ -1086,7 +1086,7 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Unable to allocate SPI master\n");
 		return -ENOMEM;
 	}
-	match = of_match_node(spi_sirfsoc_of_match, pdev->dev.of_node);
+	match = of_match_yesde(spi_sirfsoc_of_match, pdev->dev.of_yesde);
 	platform_set_drvdata(pdev, master);
 	sspi = spi_master_get_devdata(master);
 	sspi->fifo_full_offset = ilog2(sspi->fifo_size);
@@ -1123,18 +1123,18 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 					SPI_BPW_MASK(16) | SPI_BPW_MASK(32);
 	master->max_speed_hz = SIRFSOC_SPI_DEFAULT_FRQ;
 	master->flags = SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX;
-	sspi->bitbang.master->dev.of_node = pdev->dev.of_node;
+	sspi->bitbang.master->dev.of_yesde = pdev->dev.of_yesde;
 
 	/* request DMA channels */
 	sspi->rx_chan = dma_request_slave_channel(&pdev->dev, "rx");
 	if (!sspi->rx_chan) {
-		dev_err(&pdev->dev, "can not allocate rx dma channel\n");
+		dev_err(&pdev->dev, "can yest allocate rx dma channel\n");
 		ret = -ENODEV;
 		goto free_master;
 	}
 	sspi->tx_chan = dma_request_slave_channel(&pdev->dev, "tx");
 	if (!sspi->tx_chan) {
-		dev_err(&pdev->dev, "can not allocate tx dma channel\n");
+		dev_err(&pdev->dev, "can yest allocate tx dma channel\n");
 		ret = -ENODEV;
 		goto free_rx_dma;
 	}

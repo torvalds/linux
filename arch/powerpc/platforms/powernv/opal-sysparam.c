@@ -142,34 +142,34 @@ static ssize_t sys_param_store(struct kobject *kobj,
 
 void __init opal_sys_param_init(void)
 {
-	struct device_node *sysparam;
+	struct device_yesde *sysparam;
 	struct param_attr *attr;
 	u32 *id, *size;
 	int count, i;
 	u8 *perm;
 
 	if (!opal_kobj) {
-		pr_warn("SYSPARAM: opal kobject is not available\n");
+		pr_warn("SYSPARAM: opal kobject is yest available\n");
 		goto out;
 	}
 
-	/* Some systems do not use sysparams; this is not an error */
-	sysparam = of_find_node_by_path("/ibm,opal/sysparams");
+	/* Some systems do yest use sysparams; this is yest an error */
+	sysparam = of_find_yesde_by_path("/ibm,opal/sysparams");
 	if (!sysparam)
 		goto out;
 
 	if (!of_device_is_compatible(sysparam, "ibm,opal-sysparams")) {
-		pr_err("SYSPARAM: Opal sysparam node not compatible\n");
-		goto out_node_put;
+		pr_err("SYSPARAM: Opal sysparam yesde yest compatible\n");
+		goto out_yesde_put;
 	}
 
 	sysparam_kobj = kobject_create_and_add("sysparams", opal_kobj);
 	if (!sysparam_kobj) {
 		pr_err("SYSPARAM: Failed to create sysparam kobject\n");
-		goto out_node_put;
+		goto out_yesde_put;
 	}
 
-	/* Allocate big enough buffer for any get/set transactions */
+	/* Allocate big eyesugh buffer for any get/set transactions */
 	param_data_buf = kzalloc(MAX_PARAM_DATA_LEN, GFP_KERNEL);
 	if (!param_data_buf) {
 		pr_err("SYSPARAM: Failed to allocate memory for param data "
@@ -181,7 +181,7 @@ void __init opal_sys_param_init(void)
 	count = of_property_count_strings(sysparam, "param-name");
 	if (count < 0) {
 		pr_err("SYSPARAM: No string found of property param-name in "
-				"the node %pOFn\n", sysparam);
+				"the yesde %pOFn\n", sysparam);
 		goto out_param_buf;
 	}
 
@@ -272,7 +272,7 @@ void __init opal_sys_param_init(void)
 	kfree(perm);
 	kfree(size);
 	kfree(id);
-	of_node_put(sysparam);
+	of_yesde_put(sysparam);
 	return;
 
 out_free_attr:
@@ -287,8 +287,8 @@ out_param_buf:
 	kfree(param_data_buf);
 out_kobj_put:
 	kobject_put(sysparam_kobj);
-out_node_put:
-	of_node_put(sysparam);
+out_yesde_put:
+	of_yesde_put(sysparam);
 out:
 	return;
 }

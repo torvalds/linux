@@ -60,7 +60,7 @@ FILE *prepare_output(const char *dirname)
 	if (dir == NULL) {
 		if (mkdir(dirname, 0755)) {
 			perror("mkdir");
-			fprintf(stderr, "error: Cannot create dir %s\n",
+			fprintf(stderr, "error: Canyest create dir %s\n",
 				dirname);
 			return NULL;
 		}
@@ -74,7 +74,7 @@ FILE *prepare_output(const char *dirname)
 	}
 
 	if (uname(&sysdata) == 0) {
-		len += strlen(sysdata.nodename) + strlen(sysdata.release);
+		len += strlen(sysdata.yesdename) + strlen(sysdata.release);
 		filename_tmp = realloc(filename, sizeof(*filename) * len);
 
 		if (filename_tmp == NULL) {
@@ -85,7 +85,7 @@ FILE *prepare_output(const char *dirname)
 
 		filename = filename_tmp;
 		snprintf(filename, len - 1, "%s/benchmark_%s_%s_%li.log",
-			dirname, sysdata.nodename, sysdata.release, time(NULL));
+			dirname, sysdata.yesdename, sysdata.release, time(NULL));
 	} else {
 		snprintf(filename, len - 1, "%s/benchmark_%li.log",
 			dirname, time(NULL));
@@ -132,7 +132,7 @@ struct config *prepare_default_config()
 	config->cpu = 0;
 	config->prio = SCHED_HIGH;
 	config->verbose = 0;
-	strncpy(config->governor, "ondemand", sizeof(config->governor));
+	strncpy(config->goveryesr, "ondemand", sizeof(config->goveryesr));
 
 	config->output = stdout;
 
@@ -207,10 +207,10 @@ int prepare_config(const char *path, struct config *config)
 		else if (strcmp("cpu", opt) == 0)
 			sscanf(val, "%u", &config->cpu);
 
-		else if (strcmp("governor", opt) == 0) {
-			strncpy(config->governor, val,
-					sizeof(config->governor));
-			config->governor[sizeof(config->governor) - 1] = '\0';
+		else if (strcmp("goveryesr", opt) == 0) {
+			strncpy(config->goveryesr, val,
+					sizeof(config->goveryesr));
+			config->goveryesr[sizeof(config->goveryesr) - 1] = '\0';
 		}
 
 		else if (strcmp("priority", opt) == 0) {

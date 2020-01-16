@@ -85,8 +85,8 @@ struct chv_alternate_function {
  * @pins: An array of pins in this group
  * @npins: Number of pins in this group
  * @altfunc: Alternate function applied to all pins in this group
- * @overrides: Alternate function override per pin or %NULL if not used
- * @noverrides: Number of per pin alternate function overrides if
+ * @overrides: Alternate function override per pin or %NULL if yest used
+ * @yesverrides: Number of per pin alternate function overrides if
  *              @overrides != NULL.
  */
 struct chv_pingroup {
@@ -95,7 +95,7 @@ struct chv_pingroup {
 	size_t npins;
 	struct chv_alternate_function altfunc;
 	const struct chv_alternate_function *overrides;
-	size_t noverrides;
+	size_t yesverrides;
 };
 
 /**
@@ -197,7 +197,7 @@ struct chv_pinctrl {
 		.altfunc.mode = (m),		\
 		.altfunc.invert_oe = (i),	\
 		.overrides = (o),		\
-		.noverrides = ARRAY_SIZE((o)),	\
+		.yesverrides = ARRAY_SIZE((o)),	\
 	}
 
 #define GPIO_PINRANGE(start, end)		\
@@ -340,7 +340,7 @@ static const char * const southwest_i2c_nfc_groups[] = { "i2c_nfc_grp" };
 static const char * const southwest_spi3_groups[] = { "spi3_grp" };
 
 /*
- * Only do pinmuxing for certain LPSS devices for now. Rest of the pins are
+ * Only do pinmuxing for certain LPSS devices for yesw. Rest of the pins are
  * enabled only as GPIOs.
  */
 static const struct intel_function southwest_functions[] = {
@@ -389,7 +389,7 @@ static const struct chv_community southwest_community = {
 	.acpi_space_id = 0x91,
 };
 
-static const struct pinctrl_pin_desc north_pins[] = {
+static const struct pinctrl_pin_desc yesrth_pins[] = {
 	PINCTRL_PIN(0, "GPIO_DFX_0"),
 	PINCTRL_PIN(1, "GPIO_DFX_3"),
 	PINCTRL_PIN(2, "GPIO_DFX_7"),
@@ -455,7 +455,7 @@ static const struct pinctrl_pin_desc north_pins[] = {
 	PINCTRL_PIN(72, "PANEL0_VDDEN"),
 };
 
-static const struct chv_gpio_pinrange north_gpio_ranges[] = {
+static const struct chv_gpio_pinrange yesrth_gpio_ranges[] = {
 	GPIO_PINRANGE(0, 8),
 	GPIO_PINRANGE(15, 27),
 	GPIO_PINRANGE(30, 41),
@@ -463,12 +463,12 @@ static const struct chv_gpio_pinrange north_gpio_ranges[] = {
 	GPIO_PINRANGE(60, 72),
 };
 
-static const struct chv_community north_community = {
+static const struct chv_community yesrth_community = {
 	.uid = "2",
-	.pins = north_pins,
-	.npins = ARRAY_SIZE(north_pins),
-	.gpio_ranges = north_gpio_ranges,
-	.ngpio_ranges = ARRAY_SIZE(north_gpio_ranges),
+	.pins = yesrth_pins,
+	.npins = ARRAY_SIZE(yesrth_pins),
+	.gpio_ranges = yesrth_gpio_ranges,
+	.ngpio_ranges = ARRAY_SIZE(yesrth_gpio_ranges),
 	/*
 	 * North community can generate GPIO interrupts only for the first
 	 * 8 interrupts. The upper half (8-15) can only be used to trigger
@@ -649,7 +649,7 @@ static const struct chv_community southeast_community = {
 
 static const struct chv_community *chv_communities[] = {
 	&southwest_community,
-	&north_community,
+	&yesrth_community,
 	&east_community,
 	&southeast_community,
 };
@@ -668,11 +668,11 @@ static DEFINE_RAW_SPINLOCK(chv_lock);
 static void __iomem *chv_padreg(struct chv_pinctrl *pctrl, unsigned int offset,
 				unsigned int reg)
 {
-	unsigned int family_no = offset / MAX_FAMILY_PAD_GPIO_NO;
-	unsigned int pad_no = offset % MAX_FAMILY_PAD_GPIO_NO;
+	unsigned int family_yes = offset / MAX_FAMILY_PAD_GPIO_NO;
+	unsigned int pad_yes = offset % MAX_FAMILY_PAD_GPIO_NO;
 
-	offset = FAMILY_PAD_REGS_OFF + FAMILY_PAD_REGS_SIZE * family_no +
-		 GPIO_REGS_SIZE * pad_no;
+	offset = FAMILY_PAD_REGS_OFF + FAMILY_PAD_REGS_SIZE * family_yes +
+		 GPIO_REGS_SIZE * pad_yes;
 
 	return pctrl->regs + offset + reg;
 }
@@ -797,7 +797,7 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 
 	raw_spin_lock_irqsave(&chv_lock, flags);
 
-	/* Check first that the pad is not locked */
+	/* Check first that the pad is yest locked */
 	for (i = 0; i < grp->npins; i++) {
 		if (chv_pad_locked(pctrl, grp->pins[i])) {
 			dev_warn(pctrl->dev, "unable to set mode for locked pin %u\n",
@@ -817,7 +817,7 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 		if (grp->overrides) {
 			int j;
 
-			for (j = 0; j < grp->noverrides; j++) {
+			for (j = 0; j < grp->yesverrides; j++) {
 				if (grp->overrides[j].pin == pin) {
 					altfunc = &grp->overrides[j];
 					break;
@@ -842,7 +842,7 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 		chv_writel(value, reg);
 
 		dev_dbg(pctrl->dev, "configured pin %u mode %u OE %sinverted\n",
-			pin, altfunc->mode, altfunc->invert_oe ? "" : "not ");
+			pin, altfunc->mode, altfunc->invert_oe ? "" : "yest ");
 	}
 
 	raw_spin_unlock_irqrestore(&chv_lock, flags);
@@ -877,7 +877,7 @@ static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 	if (chv_pad_locked(pctrl, offset)) {
 		value = readl(chv_padreg(pctrl, offset, CHV_PADCTRL0));
 		if (!(value & CHV_PADCTRL0_GPIOEN)) {
-			/* Locked so cannot enable */
+			/* Locked so canyest enable */
 			raw_spin_unlock_irqrestore(&chv_lock, flags);
 			return -EBUSY;
 		}
@@ -900,7 +900,7 @@ static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 		/*
 		 * If the pin is in HiZ mode (both TX and RX buffers are
-		 * disabled) we turn it to be input now.
+		 * disabled) we turn it to be input yesw.
 		 */
 		if ((value & CHV_PADCTRL0_GPIOCFG_MASK) ==
 		     (CHV_PADCTRL0_GPIOCFG_HIZ << CHV_PADCTRL0_GPIOCFG_SHIFT)) {
@@ -1375,7 +1375,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 	 * defaults).
 	 *
 	 * In that case ->irq_set_type() will never be called so we need to
-	 * read back the values from hardware now, set correct flow handler
+	 * read back the values from hardware yesw, set correct flow handler
 	 * and update mappings before the interrupt is being used.
 	 */
 	if (irqd_get_trigger_type(d) == IRQ_TYPE_NONE) {
@@ -1428,7 +1428,7 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned int type)
 	 * 1. If the pin cfg is locked in BIOS:
 	 *	Trust BIOS has programmed IntWakeCfg bits correctly,
 	 *	driver just needs to save the mapping.
-	 * 2. If the pin cfg is not locked in BIOS:
+	 * 2. If the pin cfg is yest locked in BIOS:
 	 *	Driver programs the IntWakeCfg bits and save the mapping.
 	 */
 	if (!chv_pad_locked(pctrl, pin)) {
@@ -1494,13 +1494,13 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 
 /*
  * Certain machines seem to hardcode Linux IRQ numbers in their ACPI
- * tables. Since we leave GPIOs that are not capable of generating
+ * tables. Since we leave GPIOs that are yest capable of generating
  * interrupts out of the irqdomain the numbering will be different and
- * cause devices using the hardcoded IRQ numbers fail. In order not to
+ * cause devices using the hardcoded IRQ numbers fail. In order yest to
  * break such machines we will only mask pins from irqdomain if the machine
- * is not listed below.
+ * is yest listed below.
  */
-static const struct dmi_system_id chv_no_valid_mask[] = {
+static const struct dmi_system_id chv_yes_valid_mask[] = {
 	/* See https://bugzilla.kernel.org/show_bug.cgi?id=194945 */
 	{
 		.ident = "Intel_Strago based Chromebooks (All models)",
@@ -1541,7 +1541,7 @@ static void chv_init_irq_valid_mask(struct gpio_chip *chip,
 	const struct chv_community *community = pctrl->community;
 	int i;
 
-	/* Do not add GPIOs that can only generate GPEs to the IRQ domain */
+	/* Do yest add GPIOs that can only generate GPEs to the IRQ domain */
 	for (i = 0; i < community->npins; i++) {
 		const struct pinctrl_pin_desc *desc;
 		u32 intsel;
@@ -1562,9 +1562,9 @@ static int chv_gpio_irq_init_hw(struct gpio_chip *chip)
 	struct chv_pinctrl *pctrl = gpiochip_get_data(chip);
 
 	/*
-	 * The same set of machines in chv_no_valid_mask[] have incorrectly
+	 * The same set of machines in chv_yes_valid_mask[] have incorrectly
 	 * configured GPIOs that generate spurious interrupts so we use
-	 * this same list to apply another quirk for them.
+	 * this same list to apply ayesther quirk for them.
 	 *
 	 * See also https://bugzilla.kernel.org/show_bug.cgi?id=197953.
 	 */
@@ -1608,7 +1608,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 {
 	const struct chv_gpio_pinrange *range;
 	struct gpio_chip *chip = &pctrl->chip;
-	bool need_valid_mask = !dmi_check_system(chv_no_valid_mask);
+	bool need_valid_mask = !dmi_check_system(chv_yes_valid_mask);
 	const struct chv_community *community = pctrl->community;
 	int ret, i, irq_base;
 
@@ -1769,7 +1769,7 @@ static int chv_pinctrl_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int chv_pinctrl_suspend_noirq(struct device *dev)
+static int chv_pinctrl_suspend_yesirq(struct device *dev)
 {
 	struct chv_pinctrl *pctrl = dev_get_drvdata(dev);
 	unsigned long flags;
@@ -1802,7 +1802,7 @@ static int chv_pinctrl_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int chv_pinctrl_resume_noirq(struct device *dev)
+static int chv_pinctrl_resume_yesirq(struct device *dev)
 {
 	struct chv_pinctrl *pctrl = dev_get_drvdata(dev);
 	unsigned long flags;
@@ -1812,7 +1812,7 @@ static int chv_pinctrl_resume_noirq(struct device *dev)
 
 	/*
 	 * Mask all interrupts before restoring per-pin configuration
-	 * registers because we don't know in which state BIOS left them
+	 * registers because we don't kyesw in which state BIOS left them
 	 * upon exiting suspend.
 	 */
 	chv_writel(0, pctrl->regs + CHV_INTMASK);
@@ -1848,7 +1848,7 @@ static int chv_pinctrl_resume_noirq(struct device *dev)
 	}
 
 	/*
-	 * Now that all pins are restored to known state, we can restore
+	 * Now that all pins are restored to kyeswn state, we can restore
 	 * the interrupt mask register as well.
 	 */
 	chv_writel(0xffff, pctrl->regs + CHV_INTSTAT);
@@ -1861,8 +1861,8 @@ static int chv_pinctrl_resume_noirq(struct device *dev)
 #endif
 
 static const struct dev_pm_ops chv_pinctrl_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(chv_pinctrl_suspend_noirq,
-				      chv_pinctrl_resume_noirq)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(chv_pinctrl_suspend_yesirq,
+				      chv_pinctrl_resume_yesirq)
 };
 
 static const struct acpi_device_id chv_pinctrl_acpi_match[] = {

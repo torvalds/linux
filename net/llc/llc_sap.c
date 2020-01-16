@@ -1,7 +1,7 @@
 /*
  * llc_sap.c - driver routines for SAP component.
  *
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techyeslogy, Inc.
  * 		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -122,7 +122,7 @@ static struct llc_sap_state_trans *llc_find_sap_trans(struct llc_sap *sap,
 	struct llc_sap_state *curr_state = &llc_sap_state_table[sap->state - 1];
 	/*
 	 * Search thru events for this state until list exhausted or until
-	 * its obvious the event is not valid for the current state
+	 * its obvious the event is yest valid for the current state
 	 */
 	for (next_trans = curr_state->transitions; next_trans[i]->ev; i++)
 		if (!next_trans[i]->ev(sap, skb)) {
@@ -313,16 +313,16 @@ static struct sock *llc_lookup_dgram(struct llc_sap *sap,
 				     const struct llc_addr *laddr)
 {
 	struct sock *rc;
-	struct hlist_nulls_node *node;
+	struct hlist_nulls_yesde *yesde;
 	int slot = llc_sk_laddr_hashfn(sap, laddr);
 	struct hlist_nulls_head *laddr_hb = &sap->sk_laddr_hash[slot];
 
 	rcu_read_lock_bh();
 again:
-	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
+	sk_nulls_for_each_rcu(rc, yesde, laddr_hb) {
 		if (llc_dgram_match(sap, laddr, rc)) {
 			/* Extra checks required by SLAB_TYPESAFE_BY_RCU */
-			if (unlikely(!refcount_inc_not_zero(&rc->sk_refcnt)))
+			if (unlikely(!refcount_inc_yest_zero(&rc->sk_refcnt)))
 				goto again;
 			if (unlikely(llc_sk(rc)->sap != sap ||
 				     !llc_dgram_match(sap, laddr, rc))) {
@@ -335,10 +335,10 @@ again:
 	rc = NULL;
 	/*
 	 * if the nulls value we got at the end of this lookup is
-	 * not the expected one, we must restart lookup.
-	 * We probably met an item that was moved to another chain.
+	 * yest the expected one, we must restart lookup.
+	 * We probably met an item that was moved to ayesther chain.
 	 */
-	if (unlikely(get_nulls_value(node) != slot))
+	if (unlikely(get_nulls_value(yesde) != slot))
 		goto again;
 found:
 	rcu_read_unlock_bh();
@@ -394,7 +394,7 @@ static void llc_sap_mcast(struct llc_sap *sap,
 	struct hlist_head *dev_hb = llc_sk_dev_hash(sap, skb->dev->ifindex);
 
 	spin_lock_bh(&sap->sk_lock);
-	hlist_for_each_entry(llc, dev_hb, dev_hash_node) {
+	hlist_for_each_entry(llc, dev_hb, dev_hash_yesde) {
 
 		sk = &llc->sk;
 

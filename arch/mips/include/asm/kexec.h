@@ -38,7 +38,7 @@ extern int (*_machine_kexec_prepare)(struct kimage *);
 extern void (*_machine_kexec_shutdown)(void);
 extern void (*_machine_crash_shutdown)(struct pt_regs *regs);
 void default_machine_crash_shutdown(struct pt_regs *regs);
-void kexec_nonboot_cpu_jump(void);
+void kexec_yesnboot_cpu_jump(void);
 void kexec_reboot(void);
 #ifdef CONFIG_SMP
 extern const unsigned char kexec_smp_wait[];

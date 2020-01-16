@@ -45,7 +45,7 @@ static int em28xx_initialize_mt9m111(struct em28xx *dev)
 		{ 0x0d, 0x00, 0x01, },  /* reset and use defaults */
 		{ 0x0d, 0x00, 0x00, },
 		{ 0x0a, 0x00, 0x21, },
-		{ 0x21, 0x04, 0x00, },  /* full readout spd, no row/col skip */
+		{ 0x21, 0x04, 0x00, },  /* full readout spd, yes row/col skip */
 	};
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++)
@@ -153,7 +153,7 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 			break;
 		default:
 			dev_info(&dev->intf->dev,
-				 "unknown Micron sensor detected: 0x%04x\n",
+				 "unkyeswn Micron sensor detected: 0x%04x\n",
 				 id);
 			return 0;
 		}
@@ -266,7 +266,7 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 			break;
 		default:
 			dev_info(&dev->intf->dev,
-				 "unknown OmniVision sensor detected: 0x%04x\n",
+				 "unkyeswn OmniVision sensor detected: 0x%04x\n",
 				id);
 			return 0;
 		}

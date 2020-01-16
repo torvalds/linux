@@ -94,7 +94,7 @@ struct cdns_sierra_phy {
 	struct reset_control *phy_rst;
 	struct reset_control *apb_rst;
 	struct clk *clk;
-	int nsubnodes;
+	int nsubyesdes;
 	bool autoconf;
 };
 
@@ -143,7 +143,7 @@ static const struct phy_ops ops = {
 };
 
 static int cdns_sierra_get_optional(struct cdns_sierra_inst *inst,
-				    struct device_node *child)
+				    struct device_yesde *child)
 {
 	if (of_property_read_u32(child, "reg", &inst->mlane))
 		return -EINVAL;
@@ -166,8 +166,8 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
 	struct resource *res;
-	int i, ret, node = 0;
-	struct device_node *dn = dev->of_node, *child;
+	int i, ret, yesde = 0;
+	struct device_yesde *dn = dev->of_yesde, *child;
 
 	if (of_get_child_count(dn) == 0)
 		return -ENODEV;
@@ -226,23 +226,23 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 
 	sp->autoconf = of_property_read_bool(dn, "cdns,autoconf");
 
-	for_each_available_child_of_node(dn, child) {
+	for_each_available_child_of_yesde(dn, child) {
 		struct phy *gphy;
 
-		sp->phys[node].lnk_rst =
+		sp->phys[yesde].lnk_rst =
 			of_reset_control_get_exclusive_by_index(child, 0);
 
-		if (IS_ERR(sp->phys[node].lnk_rst)) {
+		if (IS_ERR(sp->phys[yesde].lnk_rst)) {
 			dev_err(dev, "failed to get reset %s\n",
 				child->full_name);
-			ret = PTR_ERR(sp->phys[node].lnk_rst);
+			ret = PTR_ERR(sp->phys[yesde].lnk_rst);
 			goto put_child2;
 		}
 
 		if (!sp->autoconf) {
-			ret = cdns_sierra_get_optional(&sp->phys[node], child);
+			ret = cdns_sierra_get_optional(&sp->phys[yesde], child);
 			if (ret) {
-				dev_err(dev, "missing property in node %s\n",
+				dev_err(dev, "missing property in yesde %s\n",
 					child->name);
 				goto put_child;
 			}
@@ -254,19 +254,19 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 			ret = PTR_ERR(gphy);
 			goto put_child;
 		}
-		sp->phys[node].phy = gphy;
-		phy_set_drvdata(gphy, &sp->phys[node]);
+		sp->phys[yesde].phy = gphy;
+		phy_set_drvdata(gphy, &sp->phys[yesde]);
 
 		/* Initialise the PHY registers, unless auto configured */
 		if (!sp->autoconf)
 			cdns_sierra_phy_init(gphy);
 
-		node++;
+		yesde++;
 	}
-	sp->nsubnodes = node;
+	sp->nsubyesdes = yesde;
 
-	/* If more than one subnode, configure the PHY as multilink */
-	if (!sp->autoconf && sp->nsubnodes > 1)
+	/* If more than one subyesde, configure the PHY as multilink */
+	if (!sp->autoconf && sp->nsubyesdes > 1)
 		writel(2, sp->base + SIERRA_PHY_PLL_CFG);
 
 	pm_runtime_enable(dev);
@@ -275,11 +275,11 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 
 put_child:
-	node++;
+	yesde++;
 put_child2:
-	for (i = 0; i < node; i++)
+	for (i = 0; i < yesde; i++)
 		reset_control_put(sp->phys[i].lnk_rst);
-	of_node_put(child);
+	of_yesde_put(child);
 clk_disable:
 	clk_disable_unprepare(sp->clk);
 	reset_control_assert(sp->apb_rst);
@@ -297,9 +297,9 @@ static int cdns_sierra_phy_remove(struct platform_device *pdev)
 
 	/*
 	 * The device level resets will be put automatically.
-	 * Need to put the subnode resets here though.
+	 * Need to put the subyesde resets here though.
 	 */
-	for (i = 0; i < phy->nsubnodes; i++) {
+	for (i = 0; i < phy->nsubyesdes; i++) {
 		reset_control_assert(phy->phys[i].lnk_rst);
 		reset_control_put(phy->phys[i].lnk_rst);
 	}

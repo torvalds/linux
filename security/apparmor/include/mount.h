@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor file mediation function definitions.
  *
- * Copyright 2017 Canonical Ltd.
+ * Copyright 2017 Cayesnical Ltd.
  */
 
 #ifndef __AA_MOUNT_H

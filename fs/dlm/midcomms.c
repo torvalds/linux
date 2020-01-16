@@ -53,7 +53,7 @@ static void copy_from_cb(void *dst, const void *base, unsigned offset,
  * for packets to come in when there is useful work to be done.
  */
 
-int dlm_process_incoming_buffer(int nodeid, const void *base,
+int dlm_process_incoming_buffer(int yesdeid, const void *base,
 				unsigned offset, unsigned len, unsigned limit)
 {
 	union {
@@ -92,15 +92,15 @@ int dlm_process_incoming_buffer(int nodeid, const void *base,
 		err = -E2BIG;
 		if (msglen > dlm_config.ci_buffer_size) {
 			log_print("message size %d from %d too big, buf len %d",
-				  msglen, nodeid, len);
+				  msglen, yesdeid, len);
 			break;
 		}
 		err = 0;
 
 		/* If only part of the full message is contained in this
-		   buffer, then do nothing and wait for lowcomms to call
+		   buffer, then do yesthing and wait for lowcomms to call
 		   us again later with more data.  We return 0 meaning
-		   we've consumed none of the input buffer. */
+		   we've consumed yesne of the input buffer. */
 
 		if (msglen > len)
 			break;
@@ -124,7 +124,7 @@ int dlm_process_incoming_buffer(int nodeid, const void *base,
 		offset &= (limit - 1);
 		len -= msglen;
 
-		dlm_receive_buffer(p, nodeid);
+		dlm_receive_buffer(p, yesdeid);
 	}
 
 	if (p != &__tmp.p)

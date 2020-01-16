@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -57,7 +57,7 @@ enum drm_sched_priority {
  * @num_rq_list: number of run queues in the rq_list
  * @rq_lock: lock to modify the runqueue to which this entity belongs.
  * @job_queue: the list of jobs of this entity.
- * @fence_seq: a linearly increasing seqno incremented with each
+ * @fence_seq: a linearly increasing seqyes incremented with each
  *             new &drm_sched_fence which is part of the entity.
  * @fence_context: a unique context for all the fences which belong
  *                 to this entity.
@@ -72,7 +72,7 @@ enum drm_sched_priority {
  * @last_scheduled: points to the finished fence of the last scheduled job.
  * @last_user: last group leader pushing a job into the entity.
  * @stopped: Marks the enity as removed from rq and destined for termination.
- * @entity_idle: Signals when enityt is not in use
+ * @entity_idle: Signals when enityt is yest in use
  *
  * Entities will emit jobs in order to their corresponding hardware
  * ring, and the scheduler will alternate between entities based on
@@ -166,14 +166,14 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
 /**
  * struct drm_sched_job - A job to be run by an entity.
  *
- * @queue_node: used to append this struct to the queue of jobs in an entity.
+ * @queue_yesde: used to append this struct to the queue of jobs in an entity.
  * @sched: the scheduler instance on which this job is scheduled.
  * @s_fence: contains the fences for the scheduling of job.
  * @finish_cb: the callback for the finished fence.
- * @node: used to append this struct to the @drm_gpu_scheduler.ring_mirror_list.
+ * @yesde: used to append this struct to the @drm_gpu_scheduler.ring_mirror_list.
  * @id: a unique id assigned to each job scheduled on the scheduler.
  * @karma: increment on every hang caused by this job. If this exceeds the hang
- *         limit of the scheduler then the job is marked guilty and will not
+ *         limit of the scheduler then the job is marked guilty and will yest
  *         be scheduled further.
  * @s_priority: the priority of the job.
  * @entity: the entity to which this job belongs.
@@ -184,11 +184,11 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  * to schedule the job.
  */
 struct drm_sched_job {
-	struct spsc_node		queue_node;
+	struct spsc_yesde		queue_yesde;
 	struct drm_gpu_scheduler	*sched;
 	struct drm_sched_fence		*s_fence;
 	struct dma_fence_cb		finish_cb;
-	struct list_head		node;
+	struct list_head		yesde;
 	uint64_t			id;
 	atomic_t			karma;
 	enum drm_sched_priority		s_priority;
@@ -211,7 +211,7 @@ static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
 struct drm_sched_backend_ops {
 	/**
          * @dependency: Called when the scheduler is considering scheduling
-         * this job next, to get another struct dma_fence for this job to
+         * this job next, to get ayesther struct dma_fence for this job to
 	 * block on.  Once it returns NULL, run_job() may be called.
 	 */
 	struct dma_fence *(*dependency)(struct drm_sched_job *sched_job,

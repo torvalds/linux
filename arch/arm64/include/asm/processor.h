@@ -13,7 +13,7 @@
 
 /*
  * On arm64 systems, unaligned accesses by the CPU are cheap, and so there is
- * no point in shifting all network buffers by 2 bytes just to make some IP
+ * yes point in shifting all network buffers by 2 bytes just to make some IP
  * header fields appear aligned in memory, potentially sacrificing some DMA
  * performance on some platforms.
  */
@@ -129,7 +129,7 @@ struct thread_struct {
 
 	/*
 	 * Whitelisted fields for hardened usercopy:
-	 * Maintainers must ensure manually that this contains no
+	 * Maintainers must ensure manually that this contains yes
 	 * implicit padding.
 	 */
 	struct {
@@ -153,7 +153,7 @@ struct thread_struct {
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
 						unsigned long *size)
 {
-	/* Verify that there is no padding among the whitelisted fields: */
+	/* Verify that there is yes padding among the whitelisted fields: */
 	BUILD_BUG_ON(sizeof_field(struct thread_struct, uw) !=
 		     sizeof_field(struct thread_struct, uw.tp_value) +
 		     sizeof_field(struct thread_struct, uw.tp2_value) +
@@ -291,7 +291,7 @@ static inline void spin_lock_prefetch(const void *ptr)
 {
 	asm volatile(ARM64_LSE_ATOMIC_INSN(
 		     "prfm pstl1strm, %a0",
-		     "nop") : : "p" (ptr));
+		     "yesp") : : "p" (ptr));
 }
 
 extern unsigned long __ro_after_init signal_minsigstksz; /* sigframe size */

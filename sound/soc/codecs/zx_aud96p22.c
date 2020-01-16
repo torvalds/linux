@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2017 Sanechips Technology Co., Ltd.
+ * Copyright (C) 2017 Sanechips Techyeslogy Co., Ltd.
  * Copyright 2017 Linaro Ltd.
  *
  * Author: Baoyou Xie <baoyou.xie@linaro.org>
@@ -268,7 +268,7 @@ static const struct snd_soc_component_driver aud96p22_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int aud96p22_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)

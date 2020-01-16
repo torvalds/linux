@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -359,7 +359,7 @@ sil164_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int rev = sil164_read(client, SIL164_REVISION);
 
 	if (vendor != 0x1 || device != 0x6) {
-		sil164_dbg(client, "Unknown device %x:%x.%x\n",
+		sil164_dbg(client, "Unkyeswn device %x:%x.%x\n",
 			   vendor, device, rev);
 		return -ENODEV;
 	}

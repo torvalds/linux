@@ -1,6 +1,6 @@
 * Renesas R-Car generation 2 USB PHY
 
-This file provides information on what the device node for the R-Car generation
+This file provides information on what the device yesde for the R-Car generation
 2 USB PHY contains.
 
 Required properties:
@@ -14,19 +14,19 @@ Required properties:
 	      "renesas,rcar-gen2-usb-phy" for a generic R-Car Gen2 or
 					  RZ/G1 compatible device.
 
-	      When compatible with the generic version, nodes must list the
+	      When compatible with the generic version, yesdes must list the
 	      SoC-specific version corresponding to the platform first
 	      followed by the generic version.
 
 - reg: offset and length of the register block.
-- #address-cells: number of address cells for the USB channel subnodes, must
+- #address-cells: number of address cells for the USB channel subyesdes, must
 		  be <1>.
-- #size-cells: number of size cells for the USB channel subnodes, must be <0>.
+- #size-cells: number of size cells for the USB channel subyesdes, must be <0>.
 - clocks: clock phandle and specifier pair.
 - clock-names: string, clock input name, must be "usbhs".
 
-The USB PHY device tree node should have the subnodes corresponding to the USB
-channels. These subnodes must contain the following properties:
+The USB PHY device tree yesde should have the subyesdes corresponding to the USB
+channels. These subyesdes must contain the following properties:
 - reg: the USB controller selector; see the table below for the values.
 - #phy-cells: see phy-bindings.txt in the same directory, must be <1>.
 

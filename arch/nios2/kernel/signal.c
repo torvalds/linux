@@ -10,7 +10,7 @@
  */
 
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <linux/unistd.h>
@@ -43,7 +43,7 @@ static inline int rt_restore_ucontext(struct pt_regs *regs,
 	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	err = __get_user(temp, &uc->uc_mcontext.version);
 	if (temp != MCONTEXT_VERSION)
@@ -78,7 +78,7 @@ static inline int rt_restore_ucontext(struct pt_regs *regs,
 	err |= __get_user(sw->gp, &gregs[25]);  /* Verify, should this be
 							settable */
 
-	err |= __get_user(temp, &gregs[26]);  /* Not really necessary no user
+	err |= __get_user(temp, &gregs[26]);  /* Not really necessary yes user
 							settable bits */
 	err |= __get_user(regs->ea, &gregs[27]);
 
@@ -167,7 +167,7 @@ static inline void *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 {
 	unsigned long usp;
 
-	/* Default to using normal stack.  */
+	/* Default to using yesrmal stack.  */
 	usp = regs->sp;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
@@ -288,14 +288,14 @@ static int do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	* If there's no signal to deliver, we just put the saved sigmask back.
+	* If there's yes signal to deliver, we just put the saved sigmask back.
 	*/
 	restore_saved_sigmask();
 
 	return restart;
 }
 
-asmlinkage int do_notify_resume(struct pt_regs *regs)
+asmlinkage int do_yestify_resume(struct pt_regs *regs)
 {
 	/*
 	 * We want the common case to go fast, which is why we may in certain
@@ -317,7 +317,7 @@ asmlinkage int do_notify_resume(struct pt_regs *regs)
 			return restart;
 		}
 	} else if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 
 	return 0;
 }

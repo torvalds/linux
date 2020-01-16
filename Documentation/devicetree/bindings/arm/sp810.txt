@@ -26,7 +26,7 @@ Required properties:
 
 - assigned-clocks: from the common clock binding;
 		should be: clock specifier for each output clock of this
-		provider node
+		provider yesde
 
 - assigned-clock-parents: from the common clock binding;
 		should be: phandle of input clock listed in clocks

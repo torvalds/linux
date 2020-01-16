@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -77,7 +77,7 @@ const static char DC_BUILD_ID[] = "production-build";
 /**
  * DOC: Overview
  *
- * DC is the OS-agnostic component of the amdgpu DC driver.
+ * DC is the OS-agyesstic component of the amdgpu DC driver.
  *
  * DC maintains and validates a set of structs representing the state of the
  * driver and writes that state to AMD hardware
@@ -98,7 +98,7 @@ const static char DC_BUILD_ID[] = "production-build";
  * (the display directly attached).  It may also have one or more remote
  * sinks (in the Multi-Stream Transport case)
  *
- * struct resource_pool - One per driver.  Represents the hw blocks not in the
+ * struct resource_pool - One per driver.  Represents the hw blocks yest in the
  * main pipeline.  Not directly accessible by dm.
  *
  * Main dc state structs:
@@ -184,12 +184,12 @@ static bool create_links(
 			bool should_destory_link = false;
 
 			if (link->connector_signal == SIGNAL_TYPE_EDP) {
-				if (dc->config.edp_not_connected)
+				if (dc->config.edp_yest_connected)
 					should_destory_link = true;
 				else if (dc->debug.remove_disconnect_edp) {
 					enum dc_connection_type type;
 					dc_link_detect_sink(link, &type);
-					if (type == dc_connection_none)
+					if (type == dc_connection_yesne)
 						should_destory_link = true;
 				}
 			}
@@ -303,7 +303,7 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 
 bool dc_stream_get_crtc_position(struct dc *dc,
 		struct dc_stream_state **streams, int num_streams,
-		unsigned int *v_pos, unsigned int *nom_v_pos)
+		unsigned int *v_pos, unsigned int *yesm_v_pos)
 {
 	/* TODO: Support multiple streams */
 	const struct dc_stream_state *stream = streams[0];
@@ -319,7 +319,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 			dc->hwss.get_position(&pipe, 1, &position);
 
 			*v_pos = position.vertical_count;
-			*nom_v_pos = position.nominal_vcount;
+			*yesm_v_pos = position.yesminal_vcount;
 			ret = true;
 		}
 	}
@@ -350,7 +350,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 		if (pipe->stream == stream)
 			break;
 	}
-	/* Stream not found */
+	/* Stream yest found */
 	if (i == MAX_PIPES)
 		return false;
 
@@ -374,7 +374,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	/* Only call if supported */
 	if (tg->funcs->configure_crc)
 		return tg->funcs->configure_crc(tg, &param);
-	DC_LOG_WARNING("CRC capture not supported.");
+	DC_LOG_WARNING("CRC capture yest supported.");
 	return false;
 }
 
@@ -385,7 +385,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
  * @r_cr, g_y, b_cb: CRC values for the three channels are stored here.
  *
  * dc_stream_configure_crc needs to be called beforehand to enable CRCs.
- * Return false if stream is not found, or if CRCs are not enabled.
+ * Return false if stream is yest found, or if CRCs are yest enabled.
  */
 bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 		       uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
@@ -399,7 +399,7 @@ bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 		if (pipe->stream == stream)
 			break;
 	}
-	/* Stream not found */
+	/* Stream yest found */
 	if (i == MAX_PIPES)
 		return false;
 
@@ -407,7 +407,7 @@ bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 
 	if (tg->funcs->get_crc)
 		return tg->funcs->get_crc(tg, r_cr, g_y, b_cb);
-	DC_LOG_WARNING("CRC capture not supported.");
+	DC_LOG_WARNING("CRC capture yest supported.");
 	return false;
 }
 
@@ -1036,7 +1036,7 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 		}
 	}
 
-	// tg_inst not found
+	// tg_inst yest found
 	if (i == dc->res_pool->stream_enc_count)
 		return false;
 
@@ -1145,7 +1145,7 @@ bool dc_enable_stereo(
  * Applies given context to HW and copy it into current context.
  * It's up to the user to release the src context afterwards.
  */
-static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *context)
+static enum dc_status dc_commit_state_yes_check(struct dc *dc, struct dc_state *context)
 {
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
@@ -1274,7 +1274,7 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 		dc_stream_log(dc, stream);
 	}
 
-	result = dc_commit_state_no_check(dc, context);
+	result = dc_commit_state_yes_check(dc, context);
 
 	return (result == DC_OK);
 }
@@ -1532,7 +1532,7 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 		}
 	}
 
-	/* This should be UPDATE_TYPE_FAST if nothing has changed. */
+	/* This should be UPDATE_TYPE_FAST if yesthing has changed. */
 	return update_type;
 }
 
@@ -1921,7 +1921,7 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	if (update->gamut_remap)
 		stream->gamut_remap_matrix = *update->gamut_remap;
 
-	/* Note: this being updated after mode set is currently not a use case
+	/* Note: this being updated after mode set is currently yest a use case
 	 * however if it arises OCSC would need to be reprogrammed at the
 	 * minimum
 	 */
@@ -2097,7 +2097,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	if (dc->optimize_seamless_boot && surface_count > 0) {
 		/* Optimize seamless boot flag keeps clocks and watermarks high until
 		 * first flip. After first flip, optimization is required to lower
-		 * bandwidth. Important to note that it is expected UEFI will
+		 * bandwidth. Important to yeste that it is expected UEFI will
 		 * only light up a single display on POST, therefore we only expect
 		 * one stream with seamless boot flag set.
 		 */
@@ -2119,7 +2119,7 @@ static void commit_planes_for_stream(struct dc *dc,
 
 	if (surface_count == 0) {
 		/*
-		 * In case of turning off screen, no need to program front end a second time.
+		 * In case of turning off screen, yes need to program front end a second time.
 		 * just return after program blank.
 		 */
 		if (dc->hwss.apply_ctx_for_surface)
@@ -2420,7 +2420,7 @@ void dc_set_power_state(
 	default:
 		ASSERT(dc->current_state->stream_count == 0);
 		/* Zero out the current context so that on resume we start with
-		 * clean state, and dc hw programming optimizations will not
+		 * clean state, and dc hw programming optimizations will yest
 		 * cause any trouble.
 		 */
 
@@ -2557,7 +2557,7 @@ struct dc_sink *dc_link_add_remote_sink(
 			&dc_sink->edid_caps);
 
 	/*
-	 * Treat device as no EDID device if EDID
+	 * Treat device as yes EDID device if EDID
 	 * parsing fails
 	 */
 	if (edid_status != EDID_OK) {

@@ -47,7 +47,7 @@ static struct scsi_host_template pata_bk3710_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
-static unsigned int ideclk_period; /* in nanoseconds */
+static unsigned int ideclk_period; /* in nayesseconds */
 
 struct pata_bk3710_udmatiming {
 	unsigned int rptime;	/* tRP -- Ready to pause time (nsec) */
@@ -134,7 +134,7 @@ static void pata_bk3710_set_dmamode(struct ata_port *ap,
 				    struct ata_device *adev)
 {
 	void __iomem *base = (void __iomem *)ap->ioaddr.bmdma_addr;
-	int is_slave = adev->devno;
+	int is_slave = adev->devyes;
 	const u8 xferspeed = adev->dma_mode;
 
 	if (xferspeed >= XFER_UDMA_0)
@@ -203,7 +203,7 @@ static void pata_bk3710_set_piomode(struct ata_port *ap,
 	const struct ata_timing *t = ata_timing_find_mode(adev->pio_mode);
 	const u16 *id = adev->id;
 	unsigned int cycle_time = 0;
-	int is_slave = adev->devno;
+	int is_slave = adev->devyes;
 	const u8 pio = adev->pio_mode - XFER_PIO_0;
 
 	if (id[ATA_ID_FIELD_VALID] & 2) {
@@ -239,7 +239,7 @@ static void pata_bk3710_chipinit(void __iomem *base)
 	 * (ATA_IDETIMP_PREPOST1	, DISABLE) |
 	 * (ATA_IDETIMP_PREPOST0	, DISABLE) |
 	 *
-	 * DM6446 silicon rev 2.1 and earlier have no observed net benefit
+	 * DM6446 silicon rev 2.1 and earlier have yes observed net benefit
 	 * from enabling prefetch/postwrite.
 	 */
 	iowrite16(BIT(15), base + BK3710_IDETIMP);

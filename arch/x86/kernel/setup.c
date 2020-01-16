@@ -41,7 +41,7 @@
 #include <linux/init.h>
 #include <linux/edd.h>
 #include <linux/iscsi_ibft.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/kexec.h>
 #include <linux/dmi.h>
 #include <linux/pfn.h>
@@ -53,7 +53,7 @@
 #include <xen/xen.h>
 #include <uapi/linux/mount.h>
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
@@ -289,7 +289,7 @@ static void __init reserve_brk(void)
 		memblock_reserve(__pa_symbol(_brk_start),
 				 _brk_end - _brk_start);
 
-	/* Mark brk area as locked down and no longer taking any
+	/* Mark brk area as locked down and yes longer taking any
 	   new allocations */
 	_brk_start = 0;
 }
@@ -317,7 +317,7 @@ static u64 __init get_ramdisk_size(void)
 
 static void __init relocate_initrd(void)
 {
-	/* Assume only end is not page aligned */
+	/* Assume only end is yest page aligned */
 	u64 ramdisk_image = get_ramdisk_image();
 	u64 ramdisk_size  = get_ramdisk_size();
 	u64 area_size     = PAGE_ALIGN(ramdisk_size);
@@ -327,7 +327,7 @@ static void __init relocate_initrd(void)
 						   area_size, PAGE_SIZE);
 
 	if (!relocated_ramdisk)
-		panic("Cannot find place for new RAMDISK of size %lld\n",
+		panic("Canyest find place for new RAMDISK of size %lld\n",
 		      ramdisk_size);
 
 	/* Note: this includes all the mem currently occupied by
@@ -348,7 +348,7 @@ static void __init relocate_initrd(void)
 
 static void __init early_reserve_initrd(void)
 {
-	/* Assume only end is not page aligned */
+	/* Assume only end is yest page aligned */
 	u64 ramdisk_image = get_ramdisk_image();
 	u64 ramdisk_size  = get_ramdisk_size();
 	u64 ramdisk_end   = PAGE_ALIGN(ramdisk_image + ramdisk_size);
@@ -361,7 +361,7 @@ static void __init early_reserve_initrd(void)
 }
 static void __init reserve_initrd(void)
 {
-	/* Assume only end is not page aligned */
+	/* Assume only end is yest page aligned */
 	u64 ramdisk_image = get_ramdisk_image();
 	u64 ramdisk_size  = get_ramdisk_size();
 	u64 ramdisk_end   = PAGE_ALIGN(ramdisk_image + ramdisk_size);
@@ -474,7 +474,7 @@ static void __init memblock_x86_reserve_range_setup_data(void)
  * On 64bit, kdump kernel need be restricted to be under 64TB, which is
  * the upper limit of system RAM in 4-level paging mode. Since the kdump
  * jumping could be from 5-level to 4-level, the jumping will fail if
- * kernel is put above 64TB, and there's no way to detect the paging mode
+ * kernel is put above 64TB, and there's yes way to detect the paging mode
  * of the kernel which will be loaded for dumping during the 1st kernel
  * bootup.
  */
@@ -502,9 +502,9 @@ static int __init reserve_crashkernel_low(void)
 		 * two parts from kernel/dma/swiotlb.c:
 		 * -swiotlb size: user-specified with swiotlb= or default.
 		 *
-		 * -swiotlb overflow buffer: now hardcoded to 32k. We round it
+		 * -swiotlb overflow buffer: yesw hardcoded to 32k. We round it
 		 * to 8M for other buffers that may need to stay low too. Also
-		 * make sure we allocate enough extra low memory so that we
+		 * make sure we allocate eyesugh extra low memory so that we
 		 * don't run out of DMA buffers for 32-bit devices.
 		 */
 		low_size = max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
@@ -516,7 +516,7 @@ static int __init reserve_crashkernel_low(void)
 
 	low_base = memblock_find_in_range(0, 1ULL << 32, low_size, CRASH_ALIGN);
 	if (!low_base) {
-		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
+		pr_err("Canyest reserve %ldMB crashkernel low memory, please try smaller size.\n",
 		       (unsigned long)(low_size >> 20));
 		return -ENOMEM;
 	}
@@ -559,7 +559,7 @@ static void __init reserve_crashkernel(void)
 	}
 
 	if (xen_pv_domain()) {
-		pr_info("Ignoring crashkernel for a Xen PV domain\n");
+		pr_info("Igyesring crashkernel for a Xen PV domain\n");
 		return;
 	}
 
@@ -569,7 +569,7 @@ static void __init reserve_crashkernel(void)
 		 * Set CRASH_ADDR_LOW_MAX upper bound for crash memory,
 		 * crashkernel=x,high reserves memory over 4G, also allocates
 		 * 256M extra low memory for DMA buffers and swiotlb.
-		 * But the extra memory is not required for all machines.
+		 * But the extra memory is yest required for all machines.
 		 * So try low memory first and fall back to high memory
 		 * unless "crashkernel=size[KMG],high" is specified.
 		 */
@@ -680,7 +680,7 @@ static bool __init snb_gfx_workaround_needed(void)
 		0x010a,
 	};
 
-	/* Assume no if something weird is going on with PCI */
+	/* Assume yes if something weird is going on with PCI */
 	if (!early_pci_allowed())
 		return false;
 
@@ -718,7 +718,7 @@ static void __init trim_snb_memory(void)
 	printk(KERN_DEBUG "reserving inaccessible SNB gfx pages\n");
 
 	/*
-	 * Reserve all memory below the 1 MB mark that has not
+	 * Reserve all memory below the 1 MB mark that has yest
 	 * already been reserved.
 	 */
 	memblock_reserve(0, 1<<20);
@@ -732,7 +732,7 @@ static void __init trim_snb_memory(void)
 
 /*
  * Here we put platform-specific memory range workarounds, i.e.
- * memory known to be corrupt or otherwise in need to be reserved on
+ * memory kyeswn to be corrupt or otherwise in need to be reserved on
  * specific platforms.
  *
  * If this gets used more widely it could use a real dispatch mechanism.
@@ -746,18 +746,18 @@ static void __init trim_bios_range(void)
 {
 	/*
 	 * A special case is the first 4Kb of memory;
-	 * This is a BIOS owned area, not kernel ram, but generally
-	 * not listed as such in the E820 table.
+	 * This is a BIOS owned area, yest kernel ram, but generally
+	 * yest listed as such in the E820 table.
 	 *
 	 * This typically reserves additional memory (64KiB by default)
-	 * since some BIOSes are known to corrupt low memory.  See the
+	 * since some BIOSes are kyeswn to corrupt low memory.  See the
 	 * Kconfig help text for X86_RESERVE_LOW.
 	 */
 	e820__range_update(0, PAGE_SIZE, E820_TYPE_RAM, E820_TYPE_RESERVED);
 
 	/*
 	 * special case: Some BIOSes report the PC BIOS
-	 * area (640Kb -> 1Mb) as RAM even though it is not.
+	 * area (640Kb -> 1Mb) as RAM even though it is yest.
 	 * take them out.
 	 */
 	e820__range_remove(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_TYPE_RAM, 1);
@@ -772,16 +772,16 @@ static void __init e820_add_kernel_range(void)
 	u64 size = __pa_symbol(_end) - start;
 
 	/*
-	 * Complain if .text .data and .bss are not marked as E820_TYPE_RAM and
+	 * Complain if .text .data and .bss are yest marked as E820_TYPE_RAM and
 	 * attempt to fix it by adding the range. We may have a confused BIOS,
 	 * or the user may have used memmap=exactmap or memmap=xxM$yyM to
-	 * exclude kernel range. If we really are running on top non-RAM,
+	 * exclude kernel range. If we really are running on top yesn-RAM,
 	 * we will crash later anyways.
 	 */
 	if (e820__mapped_all(start, start + size, E820_TYPE_RAM))
 		return;
 
-	pr_warn(".text .data .bss are not marked as E820_TYPE_RAM!\n");
+	pr_warn(".text .data .bss are yest marked as E820_TYPE_RAM!\n");
 	e820__range_remove(start, size, E820_TYPE_RAM, 0);
 	e820__range_add(start, size, E820_TYPE_RAM);
 }
@@ -819,7 +819,7 @@ static void __init trim_low_memory_range(void)
  * Dump out kernel offset information on panic.
  */
 static int
-dump_kernel_offset(struct notifier_block *self, unsigned long v, void *p)
+dump_kernel_offset(struct yestifier_block *self, unsigned long v, void *p)
 {
 	if (kaslr_enabled()) {
 		pr_emerg("Kernel Offset: 0x%lx from 0x%lx (relocation range: 0x%lx-0x%lx)\n",
@@ -868,7 +868,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * At this point everything still needed from the boot loader
-	 * or BIOS or kernel text should be early reserved or marked not
+	 * or BIOS or kernel text should be early reserved or marked yest
 	 * RAM in e820. All other memory is free game.
 	 */
 
@@ -887,8 +887,8 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * Note: Quark X1000 CPUs advertise PGE incorrectly and require
 	 * a cr3 based tlb flush, so the following __flush_tlb_all()
-	 * will not flush anything because the cpu quirk which clears
-	 * X86_FEATURE_PGE has not been invoked yet. Though due to the
+	 * will yest flush anything because the cpu quirk which clears
+	 * X86_FEATURE_PGE has yest been invoked yet. Though due to the
 	 * load_cr3() above the TLB has been flushed already. The
 	 * quirk is invoked before subsequent calls to __flush_tlb_all()
 	 * so proper operation is guaranteed.
@@ -907,7 +907,7 @@ void __init setup_arch(char **cmdline_p)
 
 	idt_setup_early_traps();
 	early_cpu_init();
-	arch_init_ideal_nops();
+	arch_init_ideal_yesps();
 	jump_label_init();
 	early_ioremap_init();
 
@@ -991,8 +991,8 @@ void __init setup_arch(char **cmdline_p)
 	 * x86_configure_nx() is called before parse_early_param() to detect
 	 * whether hardware doesn't support NX (so that the early EHCI debug
 	 * console setup can safely call set_fixmap()). It may then be called
-	 * again from within noexec_setup() during parsing early parameters
-	 * to honor the respective command line option.
+	 * again from within yesexec_setup() during parsing early parameters
+	 * to hoyesr the respective command line option.
 	 */
 	x86_configure_nx();
 
@@ -1002,25 +1002,25 @@ void __init setup_arch(char **cmdline_p)
 		efi_memblock_x86_reserve_range();
 #ifdef CONFIG_MEMORY_HOTPLUG
 	/*
-	 * Memory used by the kernel cannot be hot-removed because Linux
-	 * cannot migrate the kernel pages. When memory hotplug is
+	 * Memory used by the kernel canyest be hot-removed because Linux
+	 * canyest migrate the kernel pages. When memory hotplug is
 	 * enabled, we should prevent memblock from allocating memory
 	 * for the kernel.
 	 *
 	 * ACPI SRAT records all hotpluggable memory ranges. But before
-	 * SRAT is parsed, we don't know about it.
+	 * SRAT is parsed, we don't kyesw about it.
 	 *
 	 * The kernel image is loaded into memory at very early time. We
-	 * cannot prevent this anyway. So on NUMA system, we set any
-	 * node the kernel resides in as un-hotpluggable.
+	 * canyest prevent this anyway. So on NUMA system, we set any
+	 * yesde the kernel resides in as un-hotpluggable.
 	 *
-	 * Since on modern servers, one node could have double-digit
+	 * Since on modern servers, one yesde could have double-digit
 	 * gigabytes memory, we can assume the memory around the kernel
 	 * image is also un-hotpluggable. So before SRAT is parsed, just
 	 * allocate memory near the kernel image to try the best to keep
 	 * the kernel away from hotpluggable memory.
 	 */
-	if (movable_node_is_enabled())
+	if (movable_yesde_is_enabled())
 		memblock_set_bottom_up(true);
 #endif
 
@@ -1074,12 +1074,12 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	/*
-	 * partially used pages are not usable - thus
+	 * partially used pages are yest usable - thus
 	 * we are rounding upwards:
 	 */
 	max_pfn = e820__end_of_ram_pfn();
 
-	/* update e820 for memory not covered by WB MTRRs */
+	/* update e820 for memory yest covered by WB MTRRs */
 	mtrr_bp_init();
 	if (mtrr_trim_uncached_memory(max_pfn))
 		max_pfn = e820__end_of_ram_pfn();
@@ -1087,8 +1087,8 @@ void __init setup_arch(char **cmdline_p)
 	max_possible_pfn = max_pfn;
 
 	/*
-	 * This call is required when the CPU does not support PAT. If
-	 * mtrr_bp_init() invoked it already via pat_init() the call has no
+	 * This call is required when the CPU does yest support PAT. If
+	 * mtrr_bp_init() invoked it already via pat_init() the call has yes
 	 * effect.
 	 */
 	init_cache_modes();
@@ -1171,12 +1171,12 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * Update mmu_cr4_features (and, indirectly, trampoline_cr4_features)
-	 * with the current CR4 value.  This may not be necessary, but
+	 * with the current CR4 value.  This may yest be necessary, but
 	 * auditing all the early-boot CR4 manipulation would be needed to
 	 * rule it out.
 	 *
 	 * Mask off features that don't work outside long mode (just
-	 * PCIDE for now).
+	 * PCIDE for yesw).
 	 */
 	mmu_cr4_features = __read_cr4() & ~X86_CR4_PCIDE;
 
@@ -1202,7 +1202,7 @@ void __init setup_arch(char **cmdline_p)
 			pr_info("Secure boot enabled\n");
 			break;
 		default:
-			pr_info("Secure boot could not be determined\n");
+			pr_info("Secure boot could yest be determined\n");
 			break;
 		}
 	}
@@ -1271,21 +1271,21 @@ void __init setup_arch(char **cmdline_p)
 	get_smp_config();
 
 	/*
-	 * Systems w/o ACPI and mptables might not have it mapped the local
+	 * Systems w/o ACPI and mptables might yest have it mapped the local
 	 * APIC yet, but prefill_possible_map() might need to access it.
 	 */
 	init_apic_mappings();
 
 	prefill_possible_map();
 
-	init_cpu_to_node();
+	init_cpu_to_yesde();
 
 	io_apic_init_mappings();
 
 	x86_init.hyper.guest_late_init();
 
 	e820__reserve_resources();
-	e820__register_nosave_regions(max_pfn);
+	e820__register_yessave_regions(max_pfn);
 
 	x86_init.resources.reserve_resources();
 
@@ -1332,14 +1332,14 @@ void __init i386_reserve_resources(void)
 
 #endif /* CONFIG_X86_32 */
 
-static struct notifier_block kernel_offset_notifier = {
-	.notifier_call = dump_kernel_offset
+static struct yestifier_block kernel_offset_yestifier = {
+	.yestifier_call = dump_kernel_offset
 };
 
 static int __init register_kernel_offset_dumper(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-					&kernel_offset_notifier);
+	atomic_yestifier_chain_register(&panic_yestifier_list,
+					&kernel_offset_yestifier);
 	return 0;
 }
 __initcall(register_kernel_offset_dumper);

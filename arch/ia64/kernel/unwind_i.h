@@ -116,7 +116,7 @@ struct unw_state_record {
 };
 
 enum unw_nat_type {
-	UNW_NAT_NONE,		/* NaT not represented */
+	UNW_NAT_NONE,		/* NaT yest represented */
 	UNW_NAT_VAL,		/* NaT represented by NaT value (fp reg) */
 	UNW_NAT_MEMSTK,		/* NaT value is in unat word at offset OFF  */
 	UNW_NAT_REGSTK		/* NaT is in rnat */

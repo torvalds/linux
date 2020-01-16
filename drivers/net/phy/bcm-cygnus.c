@@ -26,7 +26,7 @@ static int bcm_cygnus_afe_config(struct phy_device *phydev)
 	if (rc < 0)
 		return rc;
 
-	/* AFE_VDAC_ICTRL_0 bit 7:4 Iq=1100 for 1g 10bt, normal modes */
+	/* AFE_VDAC_ICTRL_0 bit 7:4 Iq=1100 for 1g 10bt, yesrmal modes */
 	rc = bcm_phy_write_misc(phydev, 0x39, 0x01, 0xA7C8);
 	if (rc < 0)
 		return rc;
@@ -136,7 +136,7 @@ static int bcm_omega_config_init(struct phy_device *phydev)
 		     phydev_name(phydev), phydev->drv->name, rev);
 
 	/* Dummy read to a register to workaround an issue upon reset where the
-	 * internal inverter may not allow the first MDIO transaction to pass
+	 * internal inverter may yest allow the first MDIO transaction to pass
 	 * the MDIO management controller and make us return 0xffff for such
 	 * reads.
 	 */
@@ -175,7 +175,7 @@ static int bcm_omega_resume(struct phy_device *phydev)
 		return ret;
 
 	/* 28nm Gigabit PHYs come out of reset without any half-duplex
-	 * or "hub" compliant advertised mode, fix that. This does not
+	 * or "hub" compliant advertised mode, fix that. This does yest
 	 * cause any problems with the PHY library since genphy_config_aneg()
 	 * gracefully handles auto-negotiated and forced modes.
 	 */

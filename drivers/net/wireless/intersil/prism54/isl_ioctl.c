@@ -14,7 +14,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *  along with this program; if yest, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -57,7 +57,7 @@ static const unsigned char scan_rate_list[] = { 2, 4, 11, 22,
  * @mib: the &struct islpci_mib object to modify
  * @iw_mode: new mode (%IW_MODE_*)
  *
- *  This is a helper function, hence it does not lock. Make sure
+ *  This is a helper function, hence it does yest lock. Make sure
  *  caller deals with locking *if* necessary. This function sets the
  *  mode-dependent mib values and does the mapping of the Linux
  *  Wireless API modes to Device firmware modes. It also checks for
@@ -69,11 +69,11 @@ prism54_mib_mode_helper(islpci_private *priv, u32 iw_mode)
 	u32 config = INL_CONFIG_MANUALRUN;
 	u32 mode, bsstype;
 
-	/* For now, just catch early the Repeater and Secondary modes here */
+	/* For yesw, just catch early the Repeater and Secondary modes here */
 	if (iw_mode == IW_MODE_REPEAT || iw_mode == IW_MODE_SECOND) {
 		printk(KERN_DEBUG
 		       "%s(): Sorry, Repeater mode and Secondary mode "
-		       "are not yet supported by this driver.\n", __func__);
+		       "are yest yet supported by this driver.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -134,7 +134,7 @@ prism54_mib_init(islpci_private *priv)
 	channel = CARD_DEFAULT_CHANNEL;
 	authen = CARD_DEFAULT_AUTHEN;
 	wep = CARD_DEFAULT_WEP;
-	filter = CARD_DEFAULT_FILTER; /* (0) Do not filter un-encrypted data */
+	filter = CARD_DEFAULT_FILTER; /* (0) Do yest filter un-encrypted data */
 	dot1x = CARD_DEFAULT_DOT1X;
 	mlme = CARD_DEFAULT_MLME_MODE;
 	conformance = CARD_DEFAULT_CONFORMANCE;
@@ -170,11 +170,11 @@ prism54_update_stats(struct work_struct *work)
 	mutex_lock(&priv->stats_lock);
 
 /* Noise floor.
- * I'm not sure if the unit is dBm.
- * Note : If we are not connected, this value seems to be irrelevant. */
+ * I'm yest sure if the unit is dBm.
+ * Note : If we are yest connected, this value seems to be irrelevant. */
 
 	mgt_get_request(priv, DOT11_OID_NOISEFLOOR, 0, NULL, &r);
-	priv->local_iwstatistics.qual.noise = r.u;
+	priv->local_iwstatistics.qual.yesise = r.u;
 
 /* Get the rssi of the link. To do this we need to retrieve a bss. */
 
@@ -186,15 +186,15 @@ prism54_update_stats(struct work_struct *work)
 	memcpy(bss.address, data, ETH_ALEN);
 	kfree(data);
 
-	/* now ask for the corresponding bss */
+	/* yesw ask for the corresponding bss */
 	j = mgt_get_request(priv, DOT11_OID_BSSFIND, 0, (void *) &bss, &r);
 	bss2 = r.ptr;
 	/* report the rssi and use it to calculate
-	 *  link quality through a signal-noise
+	 *  link quality through a signal-yesise
 	 *  ratio */
 	priv->local_iwstatistics.qual.level = bss2->rssi;
 	priv->local_iwstatistics.qual.qual =
-	    bss2->rssi - priv->iwstatistics.qual.noise;
+	    bss2->rssi - priv->iwstatistics.qual.yesise;
 
 	kfree(bss2);
 
@@ -227,7 +227,7 @@ prism54_get_wireless_stats(struct net_device *ndev)
 	} else
 		priv->iwstatistics.qual.updated = 0;
 
-	/* Update our wireless stats, but do not schedule to often
+	/* Update our wireless stats, but do yest schedule to often
 	 * (max 1 HZ) */
 	if ((priv->stats_timestamp == 0) ||
 	    time_after(jiffies, priv->stats_timestamp + 1 * HZ)) {
@@ -246,8 +246,8 @@ prism54_commit(struct net_device *ndev, struct iw_request_info *info,
 
 	/* simply re-set the last set SSID, this should commit most stuff */
 
-	/* Commit in Monitor mode is not necessary, also setting essid
-	 * in Monitor mode does not make sense and isn't allowed for this
+	/* Commit in Monitor mode is yest necessary, also setting essid
+	 * in Monitor mode does yest make sense and isn't allowed for this
 	 * device's firmware */
 	if (priv->iw_mode != IW_MODE_MONITOR)
 		return mgt_set_request(priv, DOT11_OID_SSID, 0, NULL);
@@ -332,7 +332,7 @@ prism54_set_mode(struct net_device *ndev, struct iw_request_info *info,
 	/* Let's see if the user passed a valid Linux Wireless mode */
 	if (*uwrq > IW_MODE_MONITOR || *uwrq < IW_MODE_AUTO) {
 		printk(KERN_DEBUG
-		       "%s: %s() You passed a non-valid init_mode.\n",
+		       "%s: %s() You passed a yesn-valid init_mode.\n",
 		       priv->ndev->name, __func__);
 		return -EINVAL;
 	}
@@ -379,9 +379,9 @@ prism54_get_mode(struct net_device *ndev, struct iw_request_info *info,
 	return 0;
 }
 
-/* we use DOT11_OID_EDTHRESHOLD. From what I guess the card will not try to
- * emit data if (sensitivity > rssi - noise) (in dBm).
- * prism54_set_sens does not seem to work.
+/* we use DOT11_OID_EDTHRESHOLD. From what I guess the card will yest try to
+ * emit data if (sensitivity > rssi - yesise) (in dBm).
+ * prism54_set_sens does yest seem to work.
  */
 
 static int
@@ -443,13 +443,13 @@ prism54_get_range(struct net_device *ndev, struct iw_request_info *info,
 	/* 4 keys are allowed */
 	range->max_encoding_tokens = 4;
 
-	/* we don't know the quality range... */
+	/* we don't kyesw the quality range... */
 	range->max_qual.level = 0;
-	range->max_qual.noise = 0;
+	range->max_qual.yesise = 0;
 	range->max_qual.qual = 0;
 	/* these value describe an average quality. Needs more tweaking... */
 	range->avg_qual.level = -80;	/* -80 dBm */
-	range->avg_qual.noise = 0;	/* don't know what to put here */
+	range->avg_qual.yesise = 0;	/* don't kyesw what to put here */
 	range->avg_qual.qual = 0;
 
 	range->sensitivity = 200;
@@ -459,7 +459,7 @@ prism54_get_range(struct net_device *ndev, struct iw_request_info *info,
 	range->retry_flags = IW_RETRY_LIMIT;
 	range->r_time_flags = IW_RETRY_LIFETIME;
 
-	/* I don't know the range. Put stupid things here */
+	/* I don't kyesw the range. Put stupid things here */
 	range->min_retry = 1;
 	range->max_retry = 65535;
 	range->min_r_time = 1024;
@@ -482,7 +482,7 @@ prism54_get_range(struct net_device *ndev, struct iw_request_info *info,
 		return 0;
 
 	/* Request the device for the supported frequencies
-	 * not really relevant since some devices will report the 5 GHz band
+	 * yest really relevant since some devices will report the 5 GHz band
 	 * frequencies even if they don't support them.
 	 */
 	rvalue =
@@ -573,7 +573,7 @@ prism54_set_scan(struct net_device *dev, struct iw_request_info *info,
 static char *
 prism54_translate_bss(struct net_device *ndev, struct iw_request_info *info,
 		      char *current_ev, char *end_buf, struct obj_bss *bss,
-		      char noise)
+		      char yesise)
 {
 	struct iw_event iwe;	/* Temporary buffer */
 	short cap;
@@ -633,9 +633,9 @@ prism54_translate_bss(struct net_device *ndev, struct iw_request_info *info,
 
 	/* Add quality statistics */
 	iwe.u.qual.level = bss->rssi;
-	iwe.u.qual.noise = noise;
+	iwe.u.qual.yesise = yesise;
 	/* do a simple SNR for quality */
-	iwe.u.qual.qual = bss->rssi - noise;
+	iwe.u.qual.qual = bss->rssi - yesise;
 	iwe.cmd = IWEVQUAL;
 	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
 					  &iwe, IW_EV_QUAL_LEN);
@@ -655,7 +655,7 @@ prism54_translate_bss(struct net_device *ndev, struct iw_request_info *info,
 		int mask;
 
 		iwe.cmd = SIOCGIWRATE;
-		/* Those two flags are ignored... */
+		/* Those two flags are igyesred... */
 		iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
 
 		/* Parse the bitmask */
@@ -684,21 +684,21 @@ prism54_get_scan(struct net_device *ndev, struct iw_request_info *info,
 	islpci_private *priv = netdev_priv(ndev);
 	int i, rvalue;
 	struct obj_bsslist *bsslist;
-	u32 noise = 0;
+	u32 yesise = 0;
 	char *current_ev = extra;
 	union oid_res_t r;
 
 	if (islpci_get_state(priv) < PRV_STATE_INIT) {
-		/* device is not ready, fail gently */
+		/* device is yest ready, fail gently */
 		dwrq->length = 0;
 		return 0;
 	}
 
-	/* first get the noise value. We will use it to report the link quality */
+	/* first get the yesise value. We will use it to report the link quality */
 	rvalue = mgt_get_request(priv, DOT11_OID_NOISEFLOOR, 0, NULL, &r);
-	noise = r.u;
+	yesise = r.u;
 
-	/* Ask the device for a list of known bss.
+	/* Ask the device for a list of kyeswn bss.
 	* The old API, using SIOCGIWAPLIST, had a hard limit of IW_MAX_AP=64.
 	* The new API, using SIOCGIWSCAN, is only limited by the buffer size.
 	* WE-14->WE-16, the buffer is limited to IW_SCAN_MAX_DATA bytes.
@@ -709,12 +709,12 @@ prism54_get_scan(struct net_device *ndev, struct iw_request_info *info,
 	rvalue |= mgt_get_request(priv, DOT11_OID_BSSLIST, 0, NULL, &r);
 	bsslist = r.ptr;
 
-	/* ok now, scan the list and translate its info */
+	/* ok yesw, scan the list and translate its info */
 	for (i = 0; i < (int) bsslist->nr; i++) {
 		current_ev = prism54_translate_bss(ndev, info, current_ev,
 						   extra + dwrq->length,
 						   &(bsslist->bsslist[i]),
-						   noise);
+						   yesise);
 
 		/* Check if there is space for one more entry */
 		if((extra + dwrq->length - current_ev) <= IW_EV_ADDR_LEN) {
@@ -785,7 +785,7 @@ prism54_get_essid(struct net_device *ndev, struct iw_request_info *info,
 	return rvalue;
 }
 
-/* Provides no functionality, just completes the ioctl. In essence this is a
+/* Provides yes functionality, just completes the ioctl. In essence this is a
  * just a cosmetic ioctl.
  */
 static int
@@ -974,7 +974,7 @@ prism54_get_frag(struct net_device *ndev, struct iw_request_info *info,
 /* Here we have (min,max) = max retries for (small frames, big frames). Where
  * big frame <=>  bigger than the rts threshold
  * small frame <=>  smaller than the rts threshold
- * This is not really the behavior expected by the wireless tool but it seems
+ * This is yest really the behavior expected by the wireless tool but it seems
  * to be a common behavior in other drivers.
  */
 
@@ -988,7 +988,7 @@ prism54_set_retry(struct net_device *ndev, struct iw_request_info *info,
 	int rvalue = 0;
 
 	if (vwrq->disabled)
-		/* we cannot disable this feature */
+		/* we canyest disable this feature */
 		return -EINVAL;
 
 	if (vwrq->flags & IW_RETRY_LIMIT) {
@@ -1006,7 +1006,7 @@ prism54_set_retry(struct net_device *ndev, struct iw_request_info *info,
 		/* Wireless tools use us unit while the device uses 1024 us unit */
 		lifetime = vwrq->value / 1024;
 
-	/* now set what is requested */
+	/* yesw set what is requested */
 	if (slimit)
 		rvalue =
 		    mgt_set_request(priv, DOT11_OID_SHORTRETRIES, 0, &slimit);
@@ -1027,7 +1027,7 @@ prism54_get_retry(struct net_device *ndev, struct iw_request_info *info,
 	islpci_private *priv = netdev_priv(ndev);
 	union oid_res_t r;
 	int rvalue = 0;
-	vwrq->disabled = 0;	/* It cannot be disabled */
+	vwrq->disabled = 0;	/* It canyest be disabled */
 
 	if ((vwrq->flags & IW_RETRY_TYPE) == IW_RETRY_LIFETIME) {
 		/* we are asked for the life time */
@@ -1063,7 +1063,7 @@ prism54_set_encode(struct net_device *ndev, struct iw_request_info *info,
 
 	/* with the new API, it's impossible to get a NULL pointer.
 	 * New version of iwconfig set the IW_ENCODE_NOKEY flag
-	 * when no key is given, but older versions don't. */
+	 * when yes key is given, but older versions don't. */
 
 	if (dwrq->length > 0) {
 		/* we have a key to set */
@@ -1074,7 +1074,7 @@ prism54_set_encode(struct net_device *ndev, struct iw_request_info *info,
 		/* get the current key index */
 		rvalue = mgt_get_request(priv, DOT11_OID_DEFKEYID, 0, NULL, &r);
 		current_index = r.u;
-		/* Verify that the key is not marked as invalid */
+		/* Verify that the key is yest marked as invalid */
 		if (!(dwrq->flags & IW_ENCODE_NOKEY)) {
 			if (dwrq->length > KEY_SIZE_TKIP) {
 				/* User-provided key data too big */
@@ -1095,10 +1095,10 @@ prism54_set_encode(struct net_device *ndev, struct iw_request_info *info,
 			memcpy(key.key, extra, dwrq->length);
 
 			if ((index < 0) || (index > 3))
-				/* no index provided use the current one */
+				/* yes index provided use the current one */
 				index = current_index;
 
-			/* now send the key to the card  */
+			/* yesw send the key to the card  */
 			rvalue |=
 			    mgt_set_request(priv, DOT11_OID_DEFKEYX, index,
 					    &key);
@@ -1119,12 +1119,12 @@ prism54_set_encode(struct net_device *ndev, struct iw_request_info *info,
 					    &index);
 		} else {
 			if (!(dwrq->flags & IW_ENCODE_MODE)) {
-				/* we cannot do anything. Complain. */
+				/* we canyest do anything. Complain. */
 				return -EINVAL;
 			}
 		}
 	}
-	/* now read the flags */
+	/* yesw read the flags */
 	if (dwrq->flags & IW_ENCODE_DISABLED) {
 		/* Encoding disabled,
 		 * authen = DOT11_AUTH_OS;
@@ -1132,10 +1132,10 @@ prism54_set_encode(struct net_device *ndev, struct iw_request_info *info,
 		 * exunencrypt = 0; */
 	}
 	if (dwrq->flags & IW_ENCODE_OPEN)
-		/* Encode but accept non-encoded packets. No auth */
+		/* Encode but accept yesn-encoded packets. No auth */
 		invoke = 1;
 	if ((dwrq->flags & IW_ENCODE_RESTRICTED) || force) {
-		/* Refuse non-encoded packets. Auth */
+		/* Refuse yesn-encoded packets. Auth */
 		authen = DOT11_AUTH_BOTH;
 		invoke = 1;
 		exunencrypt = 1;
@@ -1180,7 +1180,7 @@ prism54_get_encode(struct net_device *ndev, struct iw_request_info *info,
 		else
 			dwrq->flags = IW_ENCODE_DISABLED;
 	} else
-		/* The card should not work in this state */
+		/* The card should yest work in this state */
 		dwrq->flags = 0;
 
 	/* get the current device key index */
@@ -1188,7 +1188,7 @@ prism54_get_encode(struct net_device *ndev, struct iw_request_info *info,
 	devindex = r.u;
 	/* Now get the key, return it */
 	if (index == -1 || index > 3)
-		/* no index provided, use the current one */
+		/* yes index provided, use the current one */
 		index = devindex;
 	rvalue |= mgt_get_request(priv, DOT11_OID_DEFKEYX, index, NULL, &r);
 	key = r.ptr;
@@ -1213,7 +1213,7 @@ prism54_get_txpower(struct net_device *ndev, struct iw_request_info *info,
 	/* intersil firmware operates in 0.25 dBm (1/4 dBm) */
 	vwrq->value = (s32) r.u / 4;
 	vwrq->fixed = 1;
-	/* radio is not turned of
+	/* radio is yest turned of
 	 * btw: how is possible to turn off only the radio
 	 */
 	vwrq->disabled = 0;
@@ -1231,9 +1231,9 @@ prism54_set_txpower(struct net_device *ndev, struct iw_request_info *info,
 	/* intersil firmware operates in 0.25 dBm (1/4) */
 	u *= 4;
 	if (vwrq->disabled) {
-		/* don't know how to disable radio */
+		/* don't kyesw how to disable radio */
 		printk(KERN_DEBUG
-		       "%s: %s() disabling radio is not yet supported.\n",
+		       "%s: %s() disabling radio is yest yet supported.\n",
 		       priv->ndev->name, __func__);
 		return -ENOTSUPP;
 	} else if (vwrq->fixed)
@@ -1368,7 +1368,7 @@ static int prism54_set_auth(struct net_device *ndev,
 		} else {
 			wpa = 0;
 			privinvoked = 0;
-			exunencrypt = 0; /* Do not filter un-encrypted data */
+			exunencrypt = 0; /* Do yest filter un-encrypted data */
 			dot1x = 0;
 			mlmelevel = DOT11_MLME_AUTO;
 		}
@@ -1378,7 +1378,7 @@ static int prism54_set_auth(struct net_device *ndev,
 		if (param->value & IW_AUTH_WPA_VERSION_DISABLED) {
 			wpa = 0;
 			privinvoked = 0;
-			exunencrypt = 0; /* Do not filter un-encrypted data */
+			exunencrypt = 0; /* Do yest filter un-encrypted data */
 			dot1x = 0;
 			mlmelevel = DOT11_MLME_AUTO;
 		} else {
@@ -1618,11 +1618,11 @@ static int prism54_set_encodeext(struct net_device *ndev,
 		 * exunencrypt = 0; */
 	}
 	if (encoding->flags & IW_ENCODE_OPEN) {
-		/* Encode but accept non-encoded packets. No auth */
+		/* Encode but accept yesn-encoded packets. No auth */
 		invoke = 1;
 	}
 	if (encoding->flags & IW_ENCODE_RESTRICTED) {
-		/* Refuse non-encoded packets. Auth */
+		/* Refuse yesn-encoded packets. Auth */
 		authen = DOT11_AUTH_BOTH;
 		invoke = 1;
 		exunencrypt = 1;
@@ -2273,7 +2273,7 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
 	 * Some oids have a EX version. The difference is that they are emitted
 	 * in DOT11_MLME_EXTENDED mode (set with DOT11_OID_MLMEAUTOLEVEL)
 	 * with more info.
-	 * The few events already defined by the wireless tools are not really
+	 * The few events already defined by the wireless tools are yest really
 	 * suited. We use the more flexible custom event facility.
 	 */
 
@@ -2324,7 +2324,7 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
 
 	case DOT11_OID_BEACON:
 		send_formatted_event(priv,
-				     "Received a beacon from an unknown AP",
+				     "Received a beacon from an unkyeswn AP",
 				     mlme, 0);
 		break;
 
@@ -2359,7 +2359,7 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
 		printk(KERN_DEBUG "Authenticate from: address:\t%pM\n",
 		       mlmeex->address);
 		confirm->id = -1; /* or mlmeex->id ? */
-		confirm->state = 0; /* not used */
+		confirm->state = 0; /* yest used */
 		confirm->code = 0;
 		confirm->size = 6;
 		confirm->data[0] = 0x00;
@@ -2396,7 +2396,7 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
 		memcpy(&confirm->address, mlmeex->address, ETH_ALEN);
 
 		confirm->id = ((struct obj_mlmeex *)mlme)->id;
-		confirm->state = 0; /* not used */
+		confirm->state = 0; /* yest used */
 		confirm->code = 0;
 
 		wpa_ie_len = prism54_wpa_bss_ie_get(priv, mlmeex->address, wpa_ie);
@@ -2433,7 +2433,7 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
 		memcpy(&confirm->address, mlmeex->address, ETH_ALEN);
 
 		confirm->id = mlmeex->id;
-		confirm->state = 0; /* not used */
+		confirm->state = 0; /* yest used */
 		confirm->code = 0;
 
 		wpa_ie_len = prism54_wpa_bss_ie_get(priv, mlmeex->address, wpa_ie);
@@ -2463,7 +2463,7 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
 
 /*
  * Process a device trap.  This is called via schedule_work(), outside of
- * interrupt context, no locks held.
+ * interrupt context, yes locks held.
  */
 void
 prism54_process_trap(struct work_struct *work)
@@ -2520,7 +2520,7 @@ prism54_set_wpa(struct net_device *ndev, struct iw_request_info *info,
 		default:
 		case 0: /* Clears/disables WPA and friends */
 			wep = 0;
-			filter = 0; /* Do not filter un-encrypted data */
+			filter = 0; /* Do yest filter un-encrypted data */
 			dot1x = 0;
 			mlme = DOT11_MLME_AUTO;
 			printk("%s: Disabling WPA\n", ndev->name);
@@ -2856,9 +2856,9 @@ static const struct iw_priv_args prism54_private_args[] = {
 	IWPRIV_GET(DOT11_OID_SUPPORTEDRATES, "supprates"),
 	IWPRIV_GET(DOT11_OID_SUPPORTEDFREQUENCIES, "suppfreq"),
 
-	IWPRIV_U32(DOT11_OID_NOISEFLOOR, "noisefloor"),
+	IWPRIV_U32(DOT11_OID_NOISEFLOOR, "yesisefloor"),
 	IWPRIV_GET(DOT11_OID_FREQUENCYACTIVITY, "freqactivity"),
-	IWPRIV_U32(DOT11_OID_NONERPPROTECTION, "nonerpprotec"),
+	IWPRIV_U32(DOT11_OID_NONERPPROTECTION, "yesnerpprotec"),
 	IWPRIV_U32(DOT11_OID_PROFILES, "profile"),
 	IWPRIV_GET(DOT11_OID_EXTENDEDRATES, "extrates"),
 	IWPRIV_U32(DOT11_OID_MLMEAUTOLEVEL, "mlmelevel"),

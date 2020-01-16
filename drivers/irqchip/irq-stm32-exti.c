@@ -286,7 +286,7 @@ static int stm32_exti_hwspin_lock(struct stm32_exti_chip_data *chip_data)
 
 	/*
 	 * Use the x_raw API since we are under spin_lock protection.
-	 * Do not use the x_timeout API because we are under irq_disable
+	 * Do yest use the x_timeout API because we are under irq_disable
 	 * mode (see __setup_irq())
 	 */
 	do {
@@ -636,7 +636,7 @@ static int stm32_exti_h_domain_alloc(struct irq_domain *dm,
 
 	p_irq = stm32_exti_to_irq(host_data->drv_data, hwirq);
 	if (p_irq >= 0) {
-		p_fwspec.fwnode = dm->parent->fwnode;
+		p_fwspec.fwyesde = dm->parent->fwyesde;
 		p_fwspec.param_count = 3;
 		p_fwspec.param[0] = GIC_SPI;
 		p_fwspec.param[1] = p_irq;
@@ -650,7 +650,7 @@ static int stm32_exti_h_domain_alloc(struct irq_domain *dm,
 
 static struct
 stm32_exti_host_data *stm32_exti_host_init(const struct stm32_exti_drv_data *dd,
-					   struct device_node *node)
+					   struct device_yesde *yesde)
 {
 	struct stm32_exti_host_data *host_data;
 
@@ -665,9 +665,9 @@ stm32_exti_host_data *stm32_exti_host_init(const struct stm32_exti_drv_data *dd,
 	if (!host_data->chips_data)
 		goto free_host_data;
 
-	host_data->base = of_iomap(node, 0);
+	host_data->base = of_iomap(yesde, 0);
 	if (!host_data->base) {
-		pr_err("%pOF: Unable to map registers\n", node);
+		pr_err("%pOF: Unable to map registers\n", yesde);
 		goto free_chips_data;
 	}
 
@@ -686,7 +686,7 @@ free_host_data:
 static struct
 stm32_exti_chip_data *stm32_exti_chip_init(struct stm32_exti_host_data *h_data,
 					   u32 bank_idx,
-					   struct device_node *node)
+					   struct device_yesde *yesde)
 {
 	const struct stm32_exti_bank *stm32_bank;
 	struct stm32_exti_chip_data *chip_data;
@@ -700,19 +700,19 @@ stm32_exti_chip_data *stm32_exti_chip_init(struct stm32_exti_host_data *h_data,
 	raw_spin_lock_init(&chip_data->rlock);
 
 	/*
-	 * This IP has no reset, so after hot reboot we should
+	 * This IP has yes reset, so after hot reboot we should
 	 * clear registers to avoid residue
 	 */
 	writel_relaxed(0, base + stm32_bank->imr_ofst);
 	writel_relaxed(0, base + stm32_bank->emr_ofst);
 
-	pr_info("%pOF: bank%d\n", node, bank_idx);
+	pr_info("%pOF: bank%d\n", yesde, bank_idx);
 
 	return chip_data;
 }
 
 static int __init stm32_exti_init(const struct stm32_exti_drv_data *drv_data,
-				  struct device_node *node)
+				  struct device_yesde *yesde)
 {
 	struct stm32_exti_host_data *host_data;
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
@@ -720,15 +720,15 @@ static int __init stm32_exti_init(const struct stm32_exti_drv_data *drv_data,
 	struct irq_chip_generic *gc;
 	struct irq_domain *domain;
 
-	host_data = stm32_exti_host_init(drv_data, node);
+	host_data = stm32_exti_host_init(drv_data, yesde);
 	if (!host_data)
 		return -ENOMEM;
 
-	domain = irq_domain_add_linear(node, drv_data->bank_nr * IRQS_PER_BANK,
+	domain = irq_domain_add_linear(yesde, drv_data->bank_nr * IRQS_PER_BANK,
 				       &irq_exti_domain_ops, NULL);
 	if (!domain) {
-		pr_err("%pOFn: Could not register interrupt domain.\n",
-		       node);
+		pr_err("%pOFn: Could yest register interrupt domain.\n",
+		       yesde);
 		ret = -ENOMEM;
 		goto out_unmap;
 	}
@@ -736,8 +736,8 @@ static int __init stm32_exti_init(const struct stm32_exti_drv_data *drv_data,
 	ret = irq_alloc_domain_generic_chips(domain, IRQS_PER_BANK, 1, "exti",
 					     handle_edge_irq, clr, 0, 0);
 	if (ret) {
-		pr_err("%pOF: Could not allocate generic interrupt chip.\n",
-		       node);
+		pr_err("%pOF: Could yest allocate generic interrupt chip.\n",
+		       yesde);
 		goto out_free_domain;
 	}
 
@@ -746,7 +746,7 @@ static int __init stm32_exti_init(const struct stm32_exti_drv_data *drv_data,
 		struct stm32_exti_chip_data *chip_data;
 
 		stm32_bank = drv_data->exti_banks[i];
-		chip_data = stm32_exti_chip_init(host_data, i, node);
+		chip_data = stm32_exti_chip_init(host_data, i, yesde);
 
 		gc = irq_get_domain_generic_chip(domain, i * IRQS_PER_BANK);
 
@@ -765,9 +765,9 @@ static int __init stm32_exti_init(const struct stm32_exti_drv_data *drv_data,
 		gc->private = (void *)chip_data;
 	}
 
-	nr_irqs = of_irq_count(node);
+	nr_irqs = of_irq_count(yesde);
 	for (i = 0; i < nr_irqs; i++) {
-		unsigned int irq = irq_of_parse_and_map(node, i);
+		unsigned int irq = irq_of_parse_and_map(yesde, i);
 
 		irq_set_handler_data(irq, domain);
 		irq_set_chained_handler(irq, stm32_irq_handler);
@@ -807,7 +807,7 @@ static int stm32_exti_probe(struct platform_device *pdev)
 {
 	int ret, i;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct irq_domain *parent_domain, *domain;
 	struct stm32_exti_host_data *host_data;
 	const struct stm32_exti_drv_data *drv_data;
@@ -817,10 +817,10 @@ static int stm32_exti_probe(struct platform_device *pdev)
 	if (!host_data)
 		return -ENOMEM;
 
-	/* check for optional hwspinlock which may be not available yet */
+	/* check for optional hwspinlock which may be yest available yet */
 	ret = of_hwspin_lock_get_id(np, 0);
 	if (ret == -EPROBE_DEFER)
-		/* hwspinlock framework not yet ready */
+		/* hwspinlock framework yest yet ready */
 		return ret;
 
 	if (ret >= 0) {
@@ -830,7 +830,7 @@ static int stm32_exti_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 	} else if (ret != -ENOENT) {
-		/* note: ENOENT is a valid case (means 'no hwspinlock') */
+		/* yeste: ENOENT is a valid case (means 'yes hwspinlock') */
 		dev_err(dev, "Failed to get hwspinlock\n");
 		return ret;
 	}
@@ -838,7 +838,7 @@ static int stm32_exti_probe(struct platform_device *pdev)
 	/* initialize host_data */
 	drv_data = of_device_get_match_data(dev);
 	if (!drv_data) {
-		dev_err(dev, "no of match data\n");
+		dev_err(dev, "yes of match data\n");
 		return -ENODEV;
 	}
 	host_data->drv_data = drv_data;
@@ -861,7 +861,7 @@ static int stm32_exti_probe(struct platform_device *pdev)
 
 	parent_domain = irq_find_host(of_irq_find_parent(np));
 	if (!parent_domain) {
-		dev_err(dev, "GIC interrupt-parent not found\n");
+		dev_err(dev, "GIC interrupt-parent yest found\n");
 		return -EINVAL;
 	}
 
@@ -871,7 +871,7 @@ static int stm32_exti_probe(struct platform_device *pdev)
 					  host_data);
 
 	if (!domain) {
-		dev_err(dev, "Could not register exti domain\n");
+		dev_err(dev, "Could yest register exti domain\n");
 		return -ENOMEM;
 	}
 
@@ -913,17 +913,17 @@ static void __exit stm32_exti_arch_exit(void)
 arch_initcall(stm32_exti_arch_init);
 module_exit(stm32_exti_arch_exit);
 
-/* no platform driver for F4 and H7 */
-static int __init stm32f4_exti_of_init(struct device_node *np,
-				       struct device_node *parent)
+/* yes platform driver for F4 and H7 */
+static int __init stm32f4_exti_of_init(struct device_yesde *np,
+				       struct device_yesde *parent)
 {
 	return stm32_exti_init(&stm32f4xx_drv_data, np);
 }
 
 IRQCHIP_DECLARE(stm32f4_exti, "st,stm32-exti", stm32f4_exti_of_init);
 
-static int __init stm32h7_exti_of_init(struct device_node *np,
-				       struct device_node *parent)
+static int __init stm32h7_exti_of_init(struct device_yesde *np,
+				       struct device_yesde *parent)
 {
 	return stm32_exti_init(&stm32h7xx_drv_data, np);
 }

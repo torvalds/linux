@@ -22,7 +22,7 @@
  *	http://www.diamondsystems.com/products/diamondmm32at
  *
  * It is being used on several projects inside NASA, without
- * problems so far. For analog input commands, TRIG_EXT is not
+ * problems so far. For analog input commands, TRIG_EXT is yest
  * yet supported.
  */
 
@@ -373,7 +373,7 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/*
 	 * wait for circuit to settle
-	 * we don't have the 'insn' here but it's not needed
+	 * we don't have the 'insn' here but it's yest needed
 	 */
 	ret = comedi_timeout(dev, s, NULL, dmm32at_ai_status,
 			     DMM32AT_AI_READBACK_REG);
@@ -492,7 +492,7 @@ static int dmm32at_8255_io(struct comedi_device *dev,
 	return inb(dev->iobase + regbase + port);
 }
 
-/* Make sure the board is there and put it to a known state */
+/* Make sure the board is there and put it to a kyeswn state */
 static int dmm32at_reset(struct comedi_device *dev)
 {
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;

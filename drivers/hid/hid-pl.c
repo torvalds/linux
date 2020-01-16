@@ -13,7 +13,7 @@
  *   - tested with König Gaming gamepad
  *
  *  0e8f:0003 "GASIA USB Gamepad"
- *   - another version of the König gamepad
+ *   - ayesther version of the König gamepad
  *
  *  0f30:0111 "Saitek Color Rumble Pad"
  *
@@ -86,7 +86,7 @@ static int plff_init(struct hid_device *hid)
 
 	   The input reports also contain a field which contains
 	   8 ff00.0001 usages and 8 boolean values. Their meaning is
-	   currently unknown.
+	   currently unkyeswn.
 	   
 	   A version of the 0e8f:0003 exists that has all the values in
 	   separate fields and misses the extra input field, thus resembling
@@ -94,7 +94,7 @@ static int plff_init(struct hid_device *hid)
 	*/
 
 	if (list_empty(report_list)) {
-		hid_err(hid, "no output reports found\n");
+		hid_err(hid, "yes output reports found\n");
 		return -ENODEV;
 	}
 
@@ -109,7 +109,7 @@ static int plff_init(struct hid_device *hid)
 
 		report = list_entry(report_ptr, struct hid_report, list);
 		if (report->maxfield < 1) {
-			hid_err(hid, "no fields in the report\n");
+			hid_err(hid, "yes fields in the report\n");
 			return -ENODEV;
 		}
 
@@ -136,7 +136,7 @@ static int plff_init(struct hid_device *hid)
 				maxval = 0xff;
 			debug("detected 4-field device");
 		} else {
-			hid_err(hid, "not enough fields or values\n");
+			hid_err(hid, "yest eyesugh fields or values\n");
 			return -ENODEV;
 		}
 

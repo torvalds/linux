@@ -90,7 +90,7 @@
 #define MAX310X_LSR_RXPAR_BIT		(1 << 2) /* RX parity error */
 #define MAX310X_LSR_FRERR_BIT		(1 << 3) /* Frame error */
 #define MAX310X_LSR_RXBRK_BIT		(1 << 4) /* RX break */
-#define MAX310X_LSR_RXNOISE_BIT		(1 << 5) /* RX noise */
+#define MAX310X_LSR_RXNOISE_BIT		(1 << 5) /* RX yesise */
 #define MAX310X_LSR_CTS_BIT		(1 << 7) /* CTS pin state */
 
 /* Special character register bits */
@@ -181,7 +181,7 @@
 #define MAX310X_FLOWCTRL_SWFLOW1_BIT	(1 << 5) /* SWFLOW bit 1
 						  *
 						  * SWFLOW bits 1 & 0 table:
-						  * 00 -> no transmitter flow
+						  * 00 -> yes transmitter flow
 						  *       control
 						  * 01 -> receiver compares
 						  *       XON2 and XOFF2
@@ -200,7 +200,7 @@
 #define MAX310X_FLOWCTRL_SWFLOW3_BIT	(1 << 7) /* SWFLOW bit 3
 						  *
 						  * SWFLOW bits 3 & 2 table:
-						  * 00 -> no received flow
+						  * 00 -> yes received flow
 						  *       control
 						  * 01 -> transmitter generates
 						  *       XON2 and XOFF2
@@ -281,7 +281,7 @@ static struct uart_driver max310x_uart = {
 	.driver_name	= MAX310X_NAME,
 	.dev_name	= "ttyMAX",
 	.major		= MAX310X_MAJOR,
-	.minor		= MAX310X_MINOR,
+	.miyesr		= MAX310X_MINOR,
 	.nr		= MAX310X_UART_NRMAX,
 };
 
@@ -323,7 +323,7 @@ static int max3107_detect(struct device *dev)
 
 	if (((val & MAX310x_REV_MASK) != MAX3107_REV_ID)) {
 		dev_err(dev,
-			"%s ID 0x%02x does not match\n", s->devtype->name, val);
+			"%s ID 0x%02x does yest match\n", s->devtype->name, val);
 		return -ENODEV;
 	}
 
@@ -336,7 +336,7 @@ static int max3108_detect(struct device *dev)
 	unsigned int val = 0;
 	int ret;
 
-	/* MAX3108 have not REV ID register, we just check default value
+	/* MAX3108 have yest REV ID register, we just check default value
 	 * from clocksource register to make sure everything works.
 	 */
 	ret = regmap_read(s->regmap, MAX310X_CLKSRC_REG, &val);
@@ -344,7 +344,7 @@ static int max3108_detect(struct device *dev)
 		return ret;
 
 	if (val != (MAX310X_CLKSRC_EXTCLK_BIT | MAX310X_CLKSRC_PLLBYP_BIT)) {
-		dev_err(dev, "%s not present\n", s->devtype->name);
+		dev_err(dev, "%s yest present\n", s->devtype->name);
 		return -ENODEV;
 	}
 
@@ -366,7 +366,7 @@ static int max3109_detect(struct device *dev)
 	regmap_write(s->regmap, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
 	if (((val & MAX310x_REV_MASK) != MAX3109_REV_ID)) {
 		dev_err(dev,
-			"%s ID 0x%02x does not match\n", s->devtype->name, val);
+			"%s ID 0x%02x does yest match\n", s->devtype->name, val);
 		return -ENODEV;
 	}
 
@@ -397,7 +397,7 @@ static int max14830_detect(struct device *dev)
 	regmap_write(s->regmap, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
 	if (((val & MAX310x_REV_MASK) != MAX14830_REV_ID)) {
 		dev_err(dev,
-			"%s ID 0x%02x does not match\n", s->devtype->name, val);
+			"%s ID 0x%02x does yest match\n", s->devtype->name, val);
 		return -ENODEV;
 	}
 
@@ -614,7 +614,7 @@ static int max310x_set_ref_clk(struct device *dev, struct max310x_port *s,
 		msleep(10);
 		regmap_read(s->regmap, MAX310X_STS_IRQSTS_REG, &val);
 		if (!(val & MAX310X_STS_CLKREADY_BIT)) {
-			dev_warn(dev, "clock is not stable yet\n");
+			dev_warn(dev, "clock is yest stable yet\n");
 		}
 	}
 
@@ -657,14 +657,14 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 	unsigned int sts, ch, flag, i;
 
 	if (port->read_status_mask == MAX310X_LSR_RXOVR_BIT) {
-		/* We are just reading, happily ignoring any error conditions.
+		/* We are just reading, happily igyesring any error conditions.
 		 * Break condition, parity checking, framing errors -- they
-		 * are all ignored. That means that we can do a batch-read.
+		 * are all igyesred. That means that we can do a batch-read.
 		 *
 		 * There is a small opportunity for race if the RX FIFO
 		 * overruns while we're reading the buffer; the datasheets says
 		 * that the LSR register applies to the "current" character.
-		 * That's also the reason why we cannot do batched reads when
+		 * That's also the reason why we canyest do batched reads when
 		 * asked to check the individual statuses.
 		 * */
 
@@ -735,7 +735,7 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 			if (uart_handle_sysrq_char(port, ch))
 				continue;
 
-			if (sts & port->ignore_status_mask)
+			if (sts & port->igyesre_status_mask)
 				continue;
 
 			uart_insert_char(port, sts, MAX310X_LSR_RXOVR_BIT, ch, flag);
@@ -794,9 +794,9 @@ static void max310x_start_tx(struct uart_port *port)
 	schedule_work(&one->tx_work);
 }
 
-static irqreturn_t max310x_port_irq(struct max310x_port *s, int portno)
+static irqreturn_t max310x_port_irq(struct max310x_port *s, int portyes)
 {
-	struct uart_port *port = &s->p[portno].port;
+	struct uart_port *port = &s->p[portyes].port;
 	irqreturn_t res = IRQ_NONE;
 
 	do {
@@ -864,7 +864,7 @@ static unsigned int max310x_tx_empty(struct uart_port *port)
 
 static unsigned int max310x_get_mctrl(struct uart_port *port)
 {
-	/* DCD and DSR are not wired and CTS/RTS is handled automatically
+	/* DCD and DSR are yest wired and CTS/RTS is handled automatically
 	 * so just indicate DSR and CAR asserted
 	 */
 	return TIOCM_DSR | TIOCM_CAR;
@@ -942,12 +942,12 @@ static void max310x_set_termios(struct uart_port *port,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= MAX310X_LSR_RXBRK_BIT;
 
-	/* Set status ignore mask */
-	port->ignore_status_mask = 0;
+	/* Set status igyesre mask */
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNBRK)
-		port->ignore_status_mask |= MAX310X_LSR_RXBRK_BIT;
+		port->igyesre_status_mask |= MAX310X_LSR_RXBRK_BIT;
 	if (!(termios->c_cflag & CREAD))
-		port->ignore_status_mask |= MAX310X_LSR_RXPAR_BIT |
+		port->igyesre_status_mask |= MAX310X_LSR_RXPAR_BIT |
 					    MAX310X_LSR_RXOVR_BIT |
 					    MAX310X_LSR_FRERR_BIT |
 					    MAX310X_LSR_RXBRK_BIT;
@@ -1112,7 +1112,7 @@ static const char *max310x_type(struct uart_port *port)
 
 static int max310x_request_port(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do yesthing */
 	return 0;
 }
 
@@ -1134,7 +1134,7 @@ static int max310x_verify_port(struct uart_port *port, struct serial_struct *s)
 
 static void max310x_null_void(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do yesthing */
 }
 
 static const struct uart_ops max310x_ops = {
@@ -1283,7 +1283,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		   PTR_ERR(clk_xtal) == -EPROBE_DEFER) {
 		return -EPROBE_DEFER;
 	} else {
-		dev_err(dev, "Cannot get clock\n");
+		dev_err(dev, "Canyest get clock\n");
 		return -EINVAL;
 	}
 
@@ -1471,7 +1471,7 @@ static int max310x_spi_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	if (spi->dev.of_node) {
+	if (spi->dev.of_yesde) {
 		const struct of_device_id *of_id =
 			of_match_device(max310x_dt_ids, &spi->dev);
 		if (!of_id)

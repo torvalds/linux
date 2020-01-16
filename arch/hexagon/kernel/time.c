@@ -214,7 +214,7 @@ EXPORT_SYMBOL(__delay);
 
 /*
  * This could become parametric or perhaps even computed at run-time,
- * but for now we take the observed simulator jitter.
+ * but for yesw we take the observed simulator jitter.
  */
 static long long fudgefactor = 350;  /* Maybe lower if kernel optimized. */
 
@@ -224,6 +224,6 @@ void __udelay(unsigned long usecs)
 	unsigned long long finish = (pcycle_freq_mhz * usecs) - fudgefactor;
 
 	while ((__vmgettime() - start) < finish)
-		cpu_relax(); /*  not sure how this improves readability  */
+		cpu_relax(); /*  yest sure how this improves readability  */
 }
 EXPORT_SYMBOL(__udelay);

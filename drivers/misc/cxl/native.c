@@ -55,7 +55,7 @@ static int afu_control(struct cxl_afu *afu, u64 command, u64 clear,
 
 	if (AFU_Cntl & CXL_AFU_Cntl_An_RA) {
 		/*
-		 * Workaround for a bug in the XSL used in the Mellanox CX4
+		 * Workaround for a bug in the XSL used in the Mellayesx CX4
 		 * that fails to clear the RA bit after an AFU reset,
 		 * preventing subsequent AFU resets from working.
 		 */
@@ -103,7 +103,7 @@ static int native_afu_reset(struct cxl_afu *afu)
 			   false);
 
 	/*
-	 * Re-enable any masked interrupts when the AFU is not
+	 * Re-enable any masked interrupts when the AFU is yest
 	 * activated to avoid side effects after attaching a process
 	 * in dedicated mode.
 	 */
@@ -147,13 +147,13 @@ int cxl_psl_purge(struct cxl_afu *afu)
 		trans_fault = CXL_PSL9_DSISR_An_TF;
 
 	if (!cxl_ops->link_ok(afu->adapter, afu)) {
-		dev_warn(&afu->dev, "PSL Purge called with link down, ignoring\n");
+		dev_warn(&afu->dev, "PSL Purge called with link down, igyesring\n");
 		rc = -EIO;
 		goto out;
 	}
 
 	if ((AFU_Cntl & CXL_AFU_Cntl_An_ES_MASK) != CXL_AFU_Cntl_An_ES_Disabled) {
-		WARN(1, "psl_purge request while AFU not disabled!\n");
+		WARN(1, "psl_purge request while AFU yest disabled!\n");
 		cxl_afu_disable(afu);
 	}
 
@@ -179,11 +179,11 @@ int cxl_psl_purge(struct cxl_afu *afu)
 
 		if (dsisr & trans_fault) {
 			dar = cxl_p2n_read(afu, CXL_PSL_DAR_An);
-			dev_notice(&afu->dev, "PSL purge terminating pending translation, DSISR: 0x%016llx, DAR: 0x%016llx\n",
+			dev_yestice(&afu->dev, "PSL purge terminating pending translation, DSISR: 0x%016llx, DAR: 0x%016llx\n",
 				   dsisr, dar);
 			cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_AE);
 		} else if (dsisr) {
-			dev_notice(&afu->dev, "PSL purge acknowledging pending non-translation fault, DSISR: 0x%016llx\n",
+			dev_yestice(&afu->dev, "PSL purge ackyeswledging pending yesn-translation fault, DSISR: 0x%016llx\n",
 				   dsisr);
 			cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_A);
 		} else {
@@ -213,7 +213,7 @@ static int spa_max_procs(int spa_size)
 	 *    end_of_PSL_queue_area = SPA_Base + ((n+4) * 128) + (n*8) - 1
 	 * so
 	 *    sizeof(SPA) = ((n+4) * 128) + (n*8) + __aligned(128) 256
-	 * Ignore the alignment (which is safe in this case as long as we are
+	 * Igyesre the alignment (which is safe in this case as long as we are
 	 * careful with our rounding) and solve for n:
 	 */
 	return ((spa_size / 8) - 96) / 17;
@@ -283,7 +283,7 @@ void cxl_release_spa(struct cxl_afu *afu)
 }
 
 /*
- * Invalidation of all ERAT entries is no longer required by CAIA2. Use
+ * Invalidation of all ERAT entries is yes longer required by CAIA2. Use
  * only for debug.
  */
 int cxl_invalidate_all_psl9(struct cxl *adapter)
@@ -354,8 +354,8 @@ int cxl_data_cache_flush(struct cxl *adapter)
 	 * In case of PSL9D datacache absent hence flush operation.
 	 * would timeout.
 	 */
-	if (adapter->native->no_data_cache) {
-		pr_devel("No PSL data cache. Ignoring cache flush req.\n");
+	if (adapter->native->yes_data_cache) {
+		pr_devel("No PSL data cache. Igyesring cache flush req.\n");
 		return 0;
 	}
 
@@ -502,7 +502,7 @@ static int terminate_process_element(struct cxl_context *ctx)
 	mutex_lock(&ctx->afu->native->spa_mutex);
 	pr_devel("%s Terminate pe: %i started\n", __func__, ctx->pe);
 	/* We could be asked to terminate when the hw is down. That
-	 * should always succeed: it's not running if the hw has gone
+	 * should always succeed: it's yest running if the hw has gone
 	 * away and is being reset.
 	 */
 	if (cxl_ops->link_ok(ctx->afu->adapter, ctx->afu))
@@ -650,8 +650,8 @@ static void update_ivtes_directed(struct cxl_context *ctx)
 	 * terminate/remove/add (or if an atomic update was required we could
 	 * do a suspend/update/resume), however it seems there might be issues
 	 * with the update llcmd on some cards (including those using an XSL on
-	 * an ASIC) so for now it's safest to go with the commands that are
-	 * known to work. In the future if we come across a situation where the
+	 * an ASIC) so for yesw it's safest to go with the commands that are
+	 * kyeswn to work. In the future if we come across a situation where the
 	 * card may be performing transactions using the same PE while we are
 	 * doing this update we might need to revisit this.
 	 */
@@ -701,7 +701,7 @@ static int process_element_entry_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
 
 	/*
 	 * Ensure we have the multiplexed PSL interrupt set up to take faults
-	 * for kernel contexts that may not have allocated any AFU IRQs at all:
+	 * for kernel contexts that may yest have allocated any AFU IRQs at all:
 	 */
 	if (ctx->irqs.range[0] == 0) {
 		ctx->irqs.offset[0] = ctx->afu->native->psl_hwirq;
@@ -764,7 +764,7 @@ int cxl_attach_afu_directed_psl8(struct cxl_context *ctx, u64 wed, u64 amr)
 
 	/*
 	 * Ensure we have the multiplexed PSL interrupt set up to take faults
-	 * for kernel contexts that may not have allocated any AFU IRQs at all:
+	 * for kernel contexts that may yest have allocated any AFU IRQs at all:
 	 */
 	if (ctx->irqs.range[0] == 0) {
 		ctx->irqs.offset[0] = ctx->afu->native->psl_hwirq;
@@ -795,9 +795,9 @@ static int deactivate_afu_directed(struct cxl_afu *afu)
 
 	/*
 	 * The CAIA section 2.2.1 indicates that the procedure for starting and
-	 * stopping an AFU in AFU directed mode is AFU specific, which is not
-	 * ideal since this code is generic and with one exception has no
-	 * knowledge of the AFU. This is in contrast to the procedure for
+	 * stopping an AFU in AFU directed mode is AFU specific, which is yest
+	 * ideal since this code is generic and with one exception has yes
+	 * kyeswledge of the AFU. This is in contrast to the procedure for
 	 * disabling a dedicated process AFU, which is documented to just
 	 * require a reset. The architecture does indicate that both an AFU
 	 * reset and an AFU disable should result in the AFU being disabled and
@@ -811,11 +811,11 @@ static int deactivate_afu_directed(struct cxl_afu *afu)
 	 * is recommended if anyone attempts to remove or reorder these
 	 * operations.
 	 *
-	 * The XSL on the Mellanox CX4 behaves a little differently from the
+	 * The XSL on the Mellayesx CX4 behaves a little differently from the
 	 * PSL based cards and will time out an AFU reset if the AFU is still
 	 * enabled. That card is special in that we do have a means to identify
 	 * it from this code, so in that case we skip the reset and just use a
-	 * disable/purge to avoid the timeout and corresponding noise in the
+	 * disable/purge to avoid the timeout and corresponding yesise in the
 	 * kernel log.
 	 */
 	if (afu->adapter->native->sl_ops->needs_reset_before_disable)
@@ -1029,8 +1029,8 @@ static inline int detach_process_native_dedicated(struct cxl_context *ctx)
 {
 	/*
 	 * The CAIA section 2.1.1 indicates that we need to do an AFU reset to
-	 * stop the AFU in dedicated mode (we therefore do not make that
-	 * optional like we do in the afu directed path). It does not indicate
+	 * stop the AFU in dedicated mode (we therefore do yest make that
+	 * optional like we do in the afu directed path). It does yest indicate
 	 * that we need to do an explicit disable (which should occur
 	 * implicitly as part of the reset) or purge, but we do these as well
 	 * to be on the safe side.
@@ -1181,7 +1181,7 @@ static irqreturn_t native_irq_multiplexed(int irq, void *data)
 	/* check if eeh kicked in while the interrupt was in flight */
 	if (unlikely(phreg == ~0ULL)) {
 		dev_warn(&afu->dev,
-			 "Ignoring slice interrupt(%d) due to fenced card",
+			 "Igyesring slice interrupt(%d) due to fenced card",
 			 irq);
 		return IRQ_HANDLED;
 	}
@@ -1220,7 +1220,7 @@ static void native_irq_wait(struct cxl_context *ctx)
 	int ph;
 
 	/*
-	 * Wait until no further interrupts are presented by the PSL
+	 * Wait until yes further interrupts are presented by the PSL
 	 * for this context.
 	 */
 	while (timeout--) {
@@ -1253,7 +1253,7 @@ static irqreturn_t native_slice_irq_err(int irq, void *data)
 	u64 fir_slice, afu_debug, irq_mask;
 
 	/*
-	 * slice err interrupt is only used with full PSL (no XSL)
+	 * slice err interrupt is only used with full PSL (yes XSL)
 	 */
 	serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
 	errstat = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);

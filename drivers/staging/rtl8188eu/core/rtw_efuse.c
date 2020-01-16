@@ -217,7 +217,7 @@ static void efuse_read_phymap_from_txpktbuf(
 
 	u8 *pos = content;
 
-	if (bcnhead < 0) /* if not valid */
+	if (bcnhead < 0) /* if yest valid */
 		bcnhead = usb_read8(adapter, REG_TDECTRL + 1);
 
 	DBG_88E("%s bcnhead:%d\n", __func__, bcnhead);
@@ -421,7 +421,7 @@ int Efuse_PgPacketRead(struct adapter *pAdapter, u8 offset, u8 *data)
 
 	/*  <Roger_TODO> Efuse has been pre-programmed dummy 5Bytes at the end of Efuse by CP. */
 	/*  Skip dummy parts to prevent unexpected data read from Efuse. */
-	/*  By pass right now. 2009.02.19. */
+	/*  By pass right yesw. 2009.02.19. */
 	while (bContinual && AVAILABLE_EFUSE_ADDR(efuse_addr)) {
 		/*   Header Read ------------- */
 		if (ReadState & PG_STATE_HEADER) {
@@ -725,7 +725,7 @@ static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u
 			}
 
 			curPkt.word_cnts = Efuse_CalculateWordCnts(curPkt.word_en);
-			/*  if same header is found but no data followed */
+			/*  if same header is found but yes data followed */
 			/*  write some part of data followed by the header. */
 			if ((curPkt.offset == pTargetPkt->offset) &&
 			    (!hal_EfuseCheckIfDatafollowed(pAdapter, curPkt.word_cnts, startAddr + 1)) &&
@@ -753,7 +753,7 @@ static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u
 			/*  read from next header */
 			startAddr = startAddr + (curPkt.word_cnts * 2) + 1;
 		} else {
-			/*  not used header, 0xff */
+			/*  yest used header, 0xff */
 			*pAddr = startAddr;
 			ret = true;
 			break;

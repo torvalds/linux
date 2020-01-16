@@ -34,7 +34,7 @@ static struct dentry *rproc_dbg;
  *
  * We will most probably improve the rproc tracing facilities later on,
  * but this kind of lightweight and simple mechanism is always good to have,
- * as it provides very early tracing with little to no dependencies at all.
+ * as it provides very early tracing with little to yes dependencies at all.
  */
 static ssize_t rproc_trace_read(struct file *filp, char __user *userbuf,
 				size_t count, loff_t *ppos)
@@ -48,7 +48,7 @@ static ssize_t rproc_trace_read(struct file *filp, char __user *userbuf,
 	va = rproc_da_to_va(data->rproc, trace->da, trace->len);
 
 	if (!va) {
-		len = scnprintf(buf, sizeof(buf), "Trace %s not available\n",
+		len = scnprintf(buf, sizeof(buf), "Trace %s yest available\n",
 				trace->name);
 		va = buf;
 	} else {
@@ -240,7 +240,7 @@ static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 			seq_printf(seq, "Entry %d is of type %s\n", i, types[hdr->type]);
 
 			seq_printf(seq, "  ID %d\n", v->id);
-			seq_printf(seq, "  Notify ID %d\n", v->notifyid);
+			seq_printf(seq, "  Notify ID %d\n", v->yestifyid);
 			seq_printf(seq, "  Device features 0x%x\n", v->dfeatures);
 			seq_printf(seq, "  Guest features 0x%x\n", v->gfeatures);
 			seq_printf(seq, "  Config length 0x%x\n", v->config_len);
@@ -254,13 +254,13 @@ static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 				seq_printf(seq, "    Device Address 0x%x\n", v->vring[j].da);
 				seq_printf(seq, "    Alignment %d\n", v->vring[j].align);
 				seq_printf(seq, "    Number of buffers %d\n", v->vring[j].num);
-				seq_printf(seq, "    Notify ID %d\n", v->vring[j].notifyid);
+				seq_printf(seq, "    Notify ID %d\n", v->vring[j].yestifyid);
 				seq_printf(seq, "    Physical Address 0x%x\n\n",
 					   v->vring[j].pa);
 			}
 			break;
 		default:
-			seq_printf(seq, "Unknown resource type found: %d [hdr: %pK]\n",
+			seq_printf(seq, "Unkyeswn resource type found: %d [hdr: %pK]\n",
 				   hdr->type, hdr);
 			break;
 		}
@@ -269,9 +269,9 @@ static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 	return 0;
 }
 
-static int rproc_rsc_table_open(struct inode *inode, struct file *file)
+static int rproc_rsc_table_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, rproc_rsc_table_show, inode->i_private);
+	return single_open(file, rproc_rsc_table_show, iyesde->i_private);
 }
 
 static const struct file_operations rproc_rsc_table_ops = {
@@ -287,7 +287,7 @@ static int rproc_carveouts_show(struct seq_file *seq, void *p)
 	struct rproc *rproc = seq->private;
 	struct rproc_mem_entry *carveout;
 
-	list_for_each_entry(carveout, &rproc->carveouts, node) {
+	list_for_each_entry(carveout, &rproc->carveouts, yesde) {
 		seq_puts(seq, "Carveout memory entry:\n");
 		seq_printf(seq, "\tName: %s\n", carveout->name);
 		seq_printf(seq, "\tVirtual address: %pK\n", carveout->va);
@@ -299,9 +299,9 @@ static int rproc_carveouts_show(struct seq_file *seq, void *p)
 	return 0;
 }
 
-static int rproc_carveouts_open(struct inode *inode, struct file *file)
+static int rproc_carveouts_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, rproc_carveouts_show, inode->i_private);
+	return single_open(file, rproc_carveouts_show, iyesde->i_private);
 }
 
 static const struct file_operations rproc_carveouts_ops = {

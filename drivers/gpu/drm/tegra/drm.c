@@ -366,7 +366,7 @@ static int tegra_gem_mmap(struct drm_device *drm, void *data,
 
 	bo = to_tegra_bo(gem);
 
-	args->offset = drm_vma_node_offset_addr(&bo->gem.vma_node);
+	args->offset = drm_vma_yesde_offset_addr(&bo->gem.vma_yesde);
 
 	drm_gem_object_put_unlocked(gem);
 
@@ -771,7 +771,7 @@ static const struct file_operations tegra_drm_fops = {
 	.poll = drm_poll,
 	.read = drm_read,
 	.compat_ioctl = drm_compat_ioctl,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static int tegra_drm_context_cleanup(int id, void *p, void *data)
@@ -799,8 +799,8 @@ static void tegra_drm_postclose(struct drm_device *drm, struct drm_file *file)
 #ifdef CONFIG_DEBUG_FS
 static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)s->private;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)s->private;
+	struct drm_device *drm = yesde->miyesr->dev;
 	struct drm_framebuffer *fb;
 
 	mutex_lock(&drm->mode_config.fb_lock);
@@ -820,8 +820,8 @@ static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 
 static int tegra_debugfs_iova(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)s->private;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)s->private;
+	struct drm_device *drm = yesde->miyesr->dev;
 	struct tegra_drm *tegra = drm->dev_private;
 	struct drm_printer p = drm_seq_file_printer(s);
 
@@ -839,11 +839,11 @@ static struct drm_info_list tegra_debugfs_list[] = {
 	{ "iova", tegra_debugfs_iova, 0 },
 };
 
-static int tegra_debugfs_init(struct drm_minor *minor)
+static int tegra_debugfs_init(struct drm_miyesr *miyesr)
 {
 	return drm_debugfs_create_files(tegra_debugfs_list,
 					ARRAY_SIZE(tegra_debugfs_list),
-					minor->debugfs_root, minor);
+					miyesr->debugfs_root, miyesr);
 }
 #endif
 
@@ -876,7 +876,7 @@ static struct drm_driver tegra_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
@@ -912,7 +912,7 @@ int host1x_client_iommu_attach(struct host1x_client *client)
 
 	/*
 	 * If the host1x client is already attached to an IOMMU domain that is
-	 * not the shared IOMMU domain, don't try to attach it to a different
+	 * yest the shared IOMMU domain, don't try to attach it to a different
 	 * domain. This allows using the IOMMU-backed DMA API.
 	 */
 	if (domain && domain != tegra->domain)
@@ -947,7 +947,7 @@ void host1x_client_iommu_detach(struct host1x_client *client)
 
 	if (client->group) {
 		/*
-		 * Devices that are part of the same group may no longer be
+		 * Devices that are part of the same group may yes longer be
 		 * attached to a domain at this point because their group may
 		 * have been detached by an earlier client.
 		 */
@@ -976,7 +976,7 @@ void *tegra_drm_alloc(struct tegra_drm *tegra, size_t size, dma_addr_t *dma)
 	if (!tegra->domain) {
 		/*
 		 * Many units only support 32-bit addresses, even on 64-bit
-		 * SoCs. If there is no IOMMU to translate into a 32-bit IO
+		 * SoCs. If there is yes IOMMU to translate into a 32-bit IO
 		 * virtual address space, force allocations to be in the
 		 * lower 32-bit range.
 		 */
@@ -1066,7 +1066,7 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	 *
 	 * The DMA API will use bounce buffers in this case, so that could
 	 * perhaps still be made to work, even if less efficient, but there
-	 * is another catch: in order to perform cache maintenance on pages
+	 * is ayesther catch: in order to perform cache maintenance on pages
 	 * allocated for discontiguous buffers we need to map and unmap the
 	 * SG table representing these buffers. This is fine for something
 	 * small like a push buffer, but it exhausts the bounce buffer pool
@@ -1077,7 +1077,7 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	 * an IOMMU if the parent host1x also uses an IOMMU.
 	 *
 	 * Note that there's still a small gap here that we don't cover: if
-	 * the DMA API is backed by an IOMMU there's no way to control which
+	 * the DMA API is backed by an IOMMU there's yes way to control which
 	 * device is attached to an IOMMU and which isn't, except via wiring
 	 * up the device tree appropriately. This is considered an problem
 	 * of integration, so care must be taken for the DT to be consistent.
@@ -1113,7 +1113,7 @@ static int host1x_drm_probe(struct host1x_device *dev)
 
 	drm->mode_config.allow_fb_modifiers = true;
 
-	drm->mode_config.normalize_zpos = true;
+	drm->mode_config.yesrmalize_zpos = true;
 
 	drm->mode_config.funcs = &tegra_drm_mode_config_funcs;
 	drm->mode_config.helper_private = &tegra_drm_mode_config_helpers;

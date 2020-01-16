@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/mtd/partitions.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/nvmem-provider.h>
 #include <linux/regulator/machine.h>
@@ -55,38 +55,38 @@ struct factory_config {
 static struct factory_config factory_config;
 
 #ifdef CONFIG_CPU_FREQ
-struct part_no_info {
-	const char	*part_no;	/* part number string of interest */
+struct part_yes_info {
+	const char	*part_yes;	/* part number string of interest */
 	int		max_freq;	/* khz */
 };
 
-static struct part_no_info mityomapl138_pn_info[] = {
+static struct part_yes_info mityomapl138_pn_info[] = {
 	{
-		.part_no	= "L138-C",
+		.part_yes	= "L138-C",
 		.max_freq	= 300000,
 	},
 	{
-		.part_no	= "L138-D",
+		.part_yes	= "L138-D",
 		.max_freq	= 375000,
 	},
 	{
-		.part_no	= "L138-F",
+		.part_yes	= "L138-F",
 		.max_freq	= 456000,
 	},
 	{
-		.part_no	= "1808-C",
+		.part_yes	= "1808-C",
 		.max_freq	= 300000,
 	},
 	{
-		.part_no	= "1808-D",
+		.part_yes	= "1808-D",
 		.max_freq	= 375000,
 	},
 	{
-		.part_no	= "1808-F",
+		.part_yes	= "1808-F",
 		.max_freq	= 456000,
 	},
 	{
-		.part_no	= "1810-D",
+		.part_yes	= "1810-D",
 		.max_freq	= 375000,
 	},
 };
@@ -98,13 +98,13 @@ static void mityomapl138_cpufreq_init(const char *partnum)
 	for (i = 0; partnum && i < ARRAY_SIZE(mityomapl138_pn_info); i++) {
 		/*
 		 * the part number has additional characters beyond what is
-		 * stored in the table.  This information is not needed for
+		 * stored in the table.  This information is yest needed for
 		 * determining the speed grade, and would require several
 		 * more table entries.  Only check the first N characters
 		 * for a match.
 		 */
-		if (!strncmp(partnum, mityomapl138_pn_info[i].part_no,
-			     strlen(mityomapl138_pn_info[i].part_no))) {
+		if (!strncmp(partnum, mityomapl138_pn_info[i].part_yes,
+			     strlen(mityomapl138_pn_info[i].part_yes))) {
 			da850_max_speed = mityomapl138_pn_info[i].max_freq;
 			break;
 		}
@@ -118,7 +118,7 @@ static void mityomapl138_cpufreq_init(const char *partnum)
 static void mityomapl138_cpufreq_init(const char *partnum) { }
 #endif
 
-static int read_factory_config(struct notifier_block *nb,
+static int read_factory_config(struct yestifier_block *nb,
 			       unsigned long event, void *data)
 {
 	int ret;
@@ -129,7 +129,7 @@ static int read_factory_config(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	if (!IS_BUILTIN(CONFIG_NVMEM)) {
-		pr_warn("Factory Config not available without CONFIG_NVMEM\n");
+		pr_warn("Factory Config yest available without CONFIG_NVMEM\n");
 		goto bad_config;
 	}
 
@@ -162,13 +162,13 @@ bad_config:
 	return NOTIFY_STOP;
 }
 
-static struct notifier_block mityomapl138_nvmem_notifier = {
-	.notifier_call = read_factory_config,
+static struct yestifier_block mityomapl138_nvmem_yestifier = {
+	.yestifier_call = read_factory_config,
 };
 
 /*
  * We don't define a cell for factory config as it will be accessed from the
- * board file using the nvmem notifier chain.
+ * board file using the nvmem yestifier chain.
  */
 static struct nvmem_cell_info mityomapl138_nvmem_cells[] = {
 	{
@@ -242,7 +242,7 @@ static struct regulator_consumer_supply tps65023_dcdc3_consumers[] = {
 	},
 };
 
-/* 1.8V Aux LDO, not used */
+/* 1.8V Aux LDO, yest used */
 static struct regulator_consumer_supply tps65023_ldo1_consumers[] = {
 	{
 		.supply = "1.8v_aux",
@@ -435,7 +435,7 @@ static struct davinci_nand_pdata mityomapl138_nandflash_data = {
 	.ecc_mode	= NAND_ECC_HW,
 	.bbt_options	= NAND_BBT_USE_FLASH,
 	.options	= NAND_BUSWIDTH_16,
-	.ecc_bits	= 1, /* 4 bit mode is not supported with 16 bit NAND */
+	.ecc_bits	= 1, /* 4 bit mode is yest supported with 16 bit NAND */
 };
 
 static struct resource mityomapl138_nandflash_resource[] = {
@@ -497,7 +497,7 @@ static struct platform_device mityomapl138_aemif_device = {
 static void __init mityomapl138_setup_nand(void)
 {
 	if (platform_device_register(&mityomapl138_aemif_device))
-		pr_warn("%s: Cannot register AEMIF device\n", __func__);
+		pr_warn("%s: Canyest register AEMIF device\n", __func__);
 }
 
 static const short mityomap_mii_pins[] = {
@@ -524,7 +524,7 @@ static void __init mityomapl138_config_emac(void)
 	u32 val;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
-	soc_info->emac_pdata->rmii_en = 0; /* hardcoded for now */
+	soc_info->emac_pdata->rmii_en = 0; /* hardcoded for yesw */
 
 	cfg_chip3_base = DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP3_REG);
 	val = __raw_readl(cfg_chip3_base);
@@ -560,7 +560,7 @@ static void __init mityomapl138_init(void)
 
 	da850_register_clocks();
 
-	/* for now, no special EDMA channels are reserved */
+	/* for yesw, yes special EDMA channels are reserved */
 	ret = da850_register_edma(NULL);
 	if (ret)
 		pr_warn("edma registration failed: %d\n", ret);
@@ -571,7 +571,7 @@ static void __init mityomapl138_init(void)
 
 	davinci_serial_init(da8xx_serial_device);
 
-	nvmem_register_notifier(&mityomapl138_nvmem_notifier);
+	nvmem_register_yestifier(&mityomapl138_nvmem_yestifier);
 	nvmem_add_cell_table(&mityomapl138_nvmem_cell_table);
 	nvmem_add_cell_lookups(&mityomapl138_nvmem_cell_lookup, 1);
 

@@ -52,11 +52,11 @@ static irqreturn_t aac_rx_intr_producer(int irq, void *dev_id)
 		}
 		else if (unlikely(bellbits & DoorBellAdapterNormCmdReady)) {
 			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdReady);
-			aac_command_normal(&dev->queues->queue[HostNormCmdQueue]);
+			aac_command_yesrmal(&dev->queues->queue[HostNormCmdQueue]);
 		}
 		else if (likely(bellbits & DoorBellAdapterNormRespReady)) {
 			rx_writel(dev, MUnit.ODR,DoorBellAdapterNormRespReady);
-			aac_response_normal(&dev->queues->queue[HostNormRespQueue]);
+			aac_response_yesrmal(&dev->queues->queue[HostNormRespQueue]);
 		}
 		else if (unlikely(bellbits & DoorBellAdapterNormCmdNotFull)) {
 			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdNotFull);
@@ -91,7 +91,7 @@ static irqreturn_t aac_rx_intr_message(int irq, void *dev_id)
 				Index >>= 2;
 			}
 			if (!isSpecial) {
-				if (unlikely(aac_intr_normal(dev,
+				if (unlikely(aac_intr_yesrmal(dev,
 						Index, isAif,
 						isFastResponse, NULL))) {
 					rx_writel(dev,
@@ -146,7 +146,7 @@ static void aac_rx_enable_interrupt_message(struct aac_dev *dev)
  *	@p1: first parameter
  *	@ret: adapter status
  *
- *	This routine will send a synchronous command to the adapter and wait 
+ *	This routine will send a synchroyesus command to the adapter and wait 
  *	for its	completion.
  */
 
@@ -255,7 +255,7 @@ static void aac_rx_interrupt_adapter(struct aac_dev *dev)
 }
 
 /**
- *	aac_rx_notify_adapter		-	send an event to the adapter
+ *	aac_rx_yestify_adapter		-	send an event to the adapter
  *	@dev: Adapter
  *	@event: Event to send
  *
@@ -263,7 +263,7 @@ static void aac_rx_interrupt_adapter(struct aac_dev *dev)
  *	happened.
  */
 
-static void aac_rx_notify_adapter(struct aac_dev *dev, u32 event)
+static void aac_rx_yestify_adapter(struct aac_dev *dev, u32 event)
 {
 	switch (event) {
 
@@ -390,14 +390,14 @@ int aac_rx_deliver_producer(struct fib * fib)
 	struct aac_dev *dev = fib->dev;
 	struct aac_queue *q = &dev->queues->queue[AdapNormCmdQueue];
 	u32 Index;
-	unsigned long nointr = 0;
+	unsigned long yesintr = 0;
 
-	aac_queue_get( dev, &Index, AdapNormCmdQueue, fib->hw_fib_va, 1, fib, &nointr);
+	aac_queue_get( dev, &Index, AdapNormCmdQueue, fib->hw_fib_va, 1, fib, &yesintr);
 
 	atomic_inc(&q->numpending);
 	*(q->headers.producer) = cpu_to_le32(Index + 1);
-	if (!(nointr & aac_config.irq_mod))
-		aac_adapter_notify(dev, AdapNormCmdQueue);
+	if (!(yesintr & aac_config.irq_mod))
+		aac_adapter_yestify(dev, AdapNormCmdQueue);
 
 	return 0;
 }
@@ -615,7 +615,7 @@ int _aac_rx_init(struct aac_dev *dev)
 	 */
 	dev->a_ops.adapter_interrupt = aac_rx_interrupt_adapter;
 	dev->a_ops.adapter_disable_int = aac_rx_disable_interrupt;
-	dev->a_ops.adapter_notify = aac_rx_notify_adapter;
+	dev->a_ops.adapter_yestify = aac_rx_yestify_adapter;
 	dev->a_ops.adapter_sync_cmd = rx_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_rx_check_health;
 	dev->a_ops.adapter_restart = aac_rx_restart_adapter;
@@ -633,7 +633,7 @@ int _aac_rx_init(struct aac_dev *dev)
 	if (aac_init_adapter(dev) == NULL)
 		goto error_iounmap;
 	aac_adapter_comm(dev, dev->comm_interface);
-	dev->sync_mode = 0;	/* sync. mode not supported */
+	dev->sync_mode = 0;	/* sync. mode yest supported */
 	dev->msi = aac_msi && !pci_enable_msi(dev->pdev);
 	if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
 			IRQF_SHARED, "aacraid", dev) < 0) {

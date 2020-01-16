@@ -2,18 +2,18 @@
 /*
  * hcd_intr.c - DesignWare HS OTG Controller host-mode interrupt handling
  *
- * Copyright (C) 2004-2013 Synopsys, Inc.
+ * Copyright (C) 2004-2013 Syyespsys, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
+ * 3. The names of the above-listed copyright holders may yest be used
  *    to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -226,19 +226,19 @@ static void dwc2_rx_fifo_level_intr(struct dwc2_hsotg *hsotg)
 	case GRXSTS_PKTSTS_HCHIN_XFER_COMP:
 	case GRXSTS_PKTSTS_DATATOGGLEERR:
 	case GRXSTS_PKTSTS_HCHHALTED:
-		/* Handled in interrupt, just ignore data */
+		/* Handled in interrupt, just igyesre data */
 		break;
 	default:
 		dev_err(hsotg->dev,
-			"RxFIFO Level Interrupt: Unknown status %d\n", pktsts);
+			"RxFIFO Level Interrupt: Unkyeswn status %d\n", pktsts);
 		break;
 	}
 }
 
 /*
- * This interrupt occurs when the non-periodic Tx FIFO is half-empty. More
+ * This interrupt occurs when the yesn-periodic Tx FIFO is half-empty. More
  * data packets may be written to the FIFO for OUT transfers. More requests
- * may be written to the non-periodic request queue for IN transfers. This
+ * may be written to the yesn-periodic request queue for IN transfers. This
  * interrupt is enabled only in Slave mode.
  */
 static void dwc2_np_tx_fifo_empty_intr(struct dwc2_hsotg *hsotg)
@@ -394,7 +394,7 @@ static void dwc2_port_intr(struct dwc2_hsotg *hsotg)
 	if (hprt0 & HPRT0_ENACHG) {
 		dwc2_writel(hsotg, hprt0_modify | HPRT0_ENACHG, HPRT0);
 		dev_vdbg(hsotg->dev,
-			 "  --Port Interrupt HPRT0=0x%08x Port Enable Changed (now %d)--\n",
+			 "  --Port Interrupt HPRT0=0x%08x Port Enable Changed (yesw %d)--\n",
 			 hprt0, !!(hprt0 & HPRT0_ENA));
 		if (hprt0 & HPRT0_ENA) {
 			hsotg->new_connection = true;
@@ -461,9 +461,9 @@ static u32 dwc2_get_actual_xfer_length(struct dwc2_hsotg *hsotg,
 		 * has been transferred. This field reflects the number of
 		 * packets that have been transferred via the USB. This is
 		 * always an integral number of packets if the transfer was
-		 * halted before its normal completion. (Can't use the
+		 * halted before its yesrmal completion. (Can't use the
 		 * hctsiz.xfersize field because that reflects the number of
-		 * bytes transferred via the AHB, not the USB).
+		 * bytes transferred via the AHB, yest the USB).
 		 */
 		count = (hctsiz & TSIZ_PKTCNT_MASK) >> TSIZ_PKTCNT_SHIFT;
 		length = (chan->start_pkt_count - count) * chan->max_packet;
@@ -534,7 +534,7 @@ static int dwc2_update_urb_state(struct dwc2_hsotg *hsotg,
 
 /*
  * Save the starting data toggle for the next transfer. The data toggle is
- * saved in the QH for non-control transfers and it's saved in the QTD for
+ * saved in the QH for yesn-control transfers and it's saved in the QTD for
  * control transfers.
  */
 void dwc2_hcd_save_data_toggle(struct dwc2_hsotg *hsotg,
@@ -546,7 +546,7 @@ void dwc2_hcd_save_data_toggle(struct dwc2_hsotg *hsotg,
 
 	if (chan->ep_type != USB_ENDPOINT_XFER_CONTROL) {
 		if (WARN(!chan || !chan->qh,
-			 "chan->qh must be specified for non-control eps\n"))
+			 "chan->qh must be specified for yesn-control eps\n"))
 			return;
 
 		if (pid == TSIZ_SC_MC_PID_DATA0)
@@ -566,10 +566,10 @@ void dwc2_hcd_save_data_toggle(struct dwc2_hsotg *hsotg,
 }
 
 /**
- * dwc2_update_isoc_urb_state() - Updates the state of an Isochronous URB when
+ * dwc2_update_isoc_urb_state() - Updates the state of an Isochroyesus URB when
  * the transfer is stopped for any reason. The fields of the current entry in
  * the frame descriptor array are set based on the transfer state and the input
- * halt_status. Completes the Isochronous URB if all the URB frames have been
+ * halt_status. Completes the Isochroyesus URB if all the URB frames have been
  * completed.
  *
  * @hsotg: Programming view of the DWC_otg controller
@@ -636,7 +636,7 @@ static enum dwc2_halt_status dwc2_update_isoc_urb_state(
 
 	if (++qtd->isoc_frame_index == urb->packet_count) {
 		/*
-		 * urb->status is not used for isoc transfers. The individual
+		 * urb->status is yest used for isoc transfers. The individual
 		 * frame_desc statuses are used instead.
 		 */
 		dwc2_host_complete(hsotg, qtd, 0);
@@ -649,11 +649,11 @@ static enum dwc2_halt_status dwc2_update_isoc_urb_state(
 }
 
 /*
- * Frees the first QTD in the QH's list if free_qtd is 1. For non-periodic
- * QHs, removes the QH from the active non-periodic schedule. If any QTDs are
+ * Frees the first QTD in the QH's list if free_qtd is 1. For yesn-periodic
+ * QHs, removes the QH from the active yesn-periodic schedule. If any QTDs are
  * still linked to the QH, the QH is added to the end of the inactive
- * non-periodic schedule. For periodic QHs, removes the QH from the periodic
- * schedule if no more QTDs are linked to the QH.
+ * yesn-periodic schedule. For periodic QHs, removes the QH from the periodic
+ * schedule if yes more QTDs are linked to the QH.
  */
 static void dwc2_deactivate_qh(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 			       int free_qtd)
@@ -667,7 +667,7 @@ static void dwc2_deactivate_qh(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 
 	if (list_empty(&qh->qtd_list)) {
 		dev_dbg(hsotg->dev, "## QTD list empty ##\n");
-		goto no_qtd;
+		goto yes_qtd;
 	}
 
 	qtd = list_first_entry(&qh->qtd_list, struct dwc2_qtd, qtd_list_entry);
@@ -683,7 +683,7 @@ static void dwc2_deactivate_qh(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 		continue_split = 0;
 	}
 
-no_qtd:
+yes_qtd:
 	qh->channel = NULL;
 	dwc2_hcd_qh_deactivate(hsotg, qh, continue_split);
 }
@@ -754,7 +754,7 @@ cleanup:
 	/*
 	 * Release the host channel for use by other transfers. The cleanup
 	 * function clears the channel interrupt enables and conditions, so
-	 * there's no need to clear the Channel Halted interrupt separately.
+	 * there's yes need to clear the Channel Halted interrupt separately.
 	 */
 	if (!list_empty(&chan->hc_list_entry))
 		list_del(&chan->hc_list_entry);
@@ -767,7 +767,7 @@ cleanup:
 		switch (chan->ep_type) {
 		case USB_ENDPOINT_XFER_CONTROL:
 		case USB_ENDPOINT_XFER_BULK:
-			hsotg->non_periodic_channels--;
+			hsotg->yesn_periodic_channels--;
 			break;
 		default:
 			/*
@@ -784,14 +784,14 @@ cleanup:
 	haintmsk &= ~(1 << chan->hc_num);
 	dwc2_writel(hsotg, haintmsk, HAINTMSK);
 
-	/* Try to queue more transfers now that there's a free channel */
+	/* Try to queue more transfers yesw that there's a free channel */
 	tr_type = dwc2_hcd_select_transactions(hsotg);
 	if (tr_type != DWC2_TRANSACTION_NONE)
 		dwc2_hcd_queue_transactions(hsotg, tr_type);
 }
 
 /*
- * Halts a host channel. If the channel cannot be halted immediately because
+ * Halts a host channel. If the channel canyest be halted immediately because
  * the request queue is full, this function ensures that the FIFO empty
  * interrupt for the appropriate queue is enabled so that the halt request can
  * be queued when there is space in the request queue.
@@ -826,7 +826,7 @@ static void dwc2_halt_channel(struct dwc2_hsotg *hsotg,
 			dev_vdbg(hsotg->dev, "control/bulk\n");
 			/*
 			 * Make sure the Non-periodic Tx FIFO empty interrupt
-			 * is enabled so that the non-periodic schedule will
+			 * is enabled so that the yesn-periodic schedule will
 			 * be processed
 			 */
 			gintmsk = dwc2_readl(hsotg, GINTMSK);
@@ -856,11 +856,11 @@ static void dwc2_halt_channel(struct dwc2_hsotg *hsotg,
 }
 
 /*
- * Performs common cleanup for non-periodic transfers after a Transfer
+ * Performs common cleanup for yesn-periodic transfers after a Transfer
  * Complete interrupt. This function should be called after any endpoint type
  * specific handling is finished to release the host channel.
  */
-static void dwc2_complete_non_periodic_xfer(struct dwc2_hsotg *hsotg,
+static void dwc2_complete_yesn_periodic_xfer(struct dwc2_hsotg *hsotg,
 					    struct dwc2_host_chan *chan,
 					    int chnum, struct dwc2_qtd *qtd,
 					    enum dwc2_halt_status halt_status)
@@ -884,7 +884,7 @@ static void dwc2_complete_non_periodic_xfer(struct dwc2_hsotg *hsotg,
 	 * more transfers. There may still be more phases for a control
 	 * transfer or more data packets for a bulk transfer at this point,
 	 * but the host channel is still halted. A channel will be reassigned
-	 * to the transfer when the non-periodic schedule is processed after
+	 * to the transfer when the yesn-periodic schedule is processed after
 	 * the channel is released. This allows transactions to be queued
 	 * properly via dwc2_hcd_queue_transactions, which also enables the
 	 * Tx FIFO Empty interrupt if necessary.
@@ -950,7 +950,7 @@ static int dwc2_xfercomp_isoc_split_in(struct dwc2_hsotg *hsotg,
 	frame_desc->actual_length += len;
 
 	if (chan->align_buf) {
-		dev_vdbg(hsotg->dev, "non-aligned buffer\n");
+		dev_vdbg(hsotg->dev, "yesn-aligned buffer\n");
 		dma_unmap_single(hsotg->dev, chan->qh->dw_align_buf_dma,
 				 DWC2_KMEM_UNALIGNED_BUF_SIZE, DMA_FROM_DEVICE);
 		memcpy(qtd->urb->buf + (chan->xfer_dma - qtd->urb->dma),
@@ -1007,7 +1007,7 @@ static void dwc2_hc_xfercomp_intr(struct dwc2_hsotg *hsotg,
 	if (hsotg->params.dma_desc_enable) {
 		dwc2_hcd_complete_xfer_ddma(hsotg, chan, chnum, halt_status);
 		if (pipe_type == USB_ENDPOINT_XFER_ISOC)
-			/* Do not disable the interrupt, just clear it */
+			/* Do yest disable the interrupt, just clear it */
 			return;
 		goto handle_xfercomp_done;
 	}
@@ -1060,7 +1060,7 @@ static void dwc2_hc_xfercomp_intr(struct dwc2_hsotg *hsotg,
 			break;
 		}
 
-		dwc2_complete_non_periodic_xfer(hsotg, chan, chnum, qtd,
+		dwc2_complete_yesn_periodic_xfer(hsotg, chan, chnum, qtd,
 						halt_status);
 		break;
 	case USB_ENDPOINT_XFER_BULK:
@@ -1075,7 +1075,7 @@ static void dwc2_hc_xfercomp_intr(struct dwc2_hsotg *hsotg,
 		}
 
 		dwc2_hcd_save_data_toggle(hsotg, chan, chnum, qtd);
-		dwc2_complete_non_periodic_xfer(hsotg, chan, chnum, qtd,
+		dwc2_complete_yesn_periodic_xfer(hsotg, chan, chnum, qtd,
 						halt_status);
 		break;
 	case USB_ENDPOINT_XFER_INT:
@@ -1100,7 +1100,7 @@ static void dwc2_hc_xfercomp_intr(struct dwc2_hsotg *hsotg,
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		if (dbg_perio())
-			dev_vdbg(hsotg->dev, "  Isochronous transfer complete\n");
+			dev_vdbg(hsotg->dev, "  Isochroyesus transfer complete\n");
 		if (qtd->isoc_split_pos == DWC2_HCSPLT_XACTPOS_ALL)
 			halt_status = dwc2_update_isoc_urb_state(hsotg, chan,
 							chnum, qtd,
@@ -1150,7 +1150,7 @@ static void dwc2_hc_stall_intr(struct dwc2_hsotg *hsotg,
 		 * and interrupt endpoints when a CLEAR_FEATURE(ENDPOINT_HALT)
 		 * setup command is issued to the endpoint. Anticipate the
 		 * CLEAR_FEATURE command since a STALL has occurred and reset
-		 * the data toggle now.
+		 * the data toggle yesw.
 		 */
 		chan->qh->data_toggle = 0;
 	}
@@ -1164,7 +1164,7 @@ handle_stall_done:
 
 /*
  * Updates the state of the URB when a transfer has been stopped due to an
- * abnormal condition before the transfer completes. Modifies the
+ * abyesrmal condition before the transfer completes. Modifies the
  * actual_length field of the URB to reflect the number of bytes that have
  * actually been transferred via the host channel.
  */
@@ -1227,18 +1227,18 @@ static void dwc2_hc_nak_intr(struct dwc2_hsotg *hsotg,
 	 * Handle NAK for IN/OUT SSPLIT/CSPLIT transfers, bulk, control, and
 	 * interrupt. Re-start the SSPLIT transfer.
 	 *
-	 * Normally for non-periodic transfers we'll retry right away, but to
+	 * Normally for yesn-periodic transfers we'll retry right away, but to
 	 * avoid interrupt storms we'll wait before retrying if we've got
 	 * several NAKs. If we didn't do this we'd retry directly from the
-	 * interrupt handler and could end up quickly getting another
-	 * interrupt (another NAK), which we'd retry. Note that we do not
+	 * interrupt handler and could end up quickly getting ayesther
+	 * interrupt (ayesther NAK), which we'd retry. Note that we do yest
 	 * delay retries for IN parts of control requests, as those are expected
 	 * to complete fairly quickly, and if we delay them we risk confusing
 	 * the device and cause it issue STALL.
 	 *
 	 * Note that in DMA mode software only gets involved to re-send NAKed
 	 * transfers for split transactions, so we only need to apply this
-	 * delaying logic when handling splits. In non-DMA mode presumably we
+	 * delaying logic when handling splits. In yesn-DMA mode presumably we
 	 * might want a similar delay if someone can demonstrate this problem
 	 * affects that code path too.
 	 */
@@ -1269,7 +1269,7 @@ static void dwc2_hc_nak_intr(struct dwc2_hsotg *hsotg,
 		}
 
 		/*
-		 * NAK interrupts normally occur during OUT transfers in DMA
+		 * NAK interrupts yesrmally occur during OUT transfers in DMA
 		 * or Slave mode. For IN transfers, more requests will be
 		 * queued as request queue space is available.
 		 */
@@ -1296,7 +1296,7 @@ static void dwc2_hc_nak_intr(struct dwc2_hsotg *hsotg,
 		dwc2_halt_channel(hsotg, chan, qtd, DWC2_HC_XFER_NAK);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		/* Should never get called for isochronous transfers */
+		/* Should never get called for isochroyesus transfers */
 		dev_err(hsotg->dev, "NACK interrupt for ISOC transfer\n");
 		break;
 	}
@@ -1321,7 +1321,7 @@ static void dwc2_hc_ack_intr(struct dwc2_hsotg *hsotg,
 			 chnum);
 
 	if (chan->do_split) {
-		/* Handle ACK on SSPLIT. ACK should not occur in CSPLIT. */
+		/* Handle ACK on SSPLIT. ACK should yest occur in CSPLIT. */
 		if (!chan->ep_is_in &&
 		    chan->data_pid_start != DWC2_HC_PID_SETUP)
 			qtd->ssplit_out_xfer_count = chan->xfer_len;
@@ -1376,7 +1376,7 @@ static void dwc2_hc_ack_intr(struct dwc2_hsotg *hsotg,
 	}
 
 	/*
-	 * If the ACK occurred when _not_ in the PING state, let the channel
+	 * If the ACK occurred when _yest_ in the PING state, let the channel
 	 * continue transferring data after clearing the error count
 	 */
 	disable_hc_int(hsotg, chnum, HCINTMSK_ACK);
@@ -1386,7 +1386,7 @@ static void dwc2_hc_ack_intr(struct dwc2_hsotg *hsotg,
  * Handles a host channel NYET interrupt. This interrupt should only occur on
  * Bulk and Control OUT endpoints and for complete split transactions. If a
  * NYET occurs at the same time as a Transfer Complete interrupt, it is
- * handled in the xfercomp interrupt handler, not here. This handler may be
+ * handled in the xfercomp interrupt handler, yest here. This handler may be
  * called in either DMA mode or Slave mode.
  */
 static void dwc2_hc_nyet_intr(struct dwc2_hsotg *hsotg,
@@ -1399,7 +1399,7 @@ static void dwc2_hc_nyet_intr(struct dwc2_hsotg *hsotg,
 
 	/*
 	 * NYET on CSPLIT
-	 * re-do the CSPLIT immediately on non-periodic
+	 * re-do the CSPLIT immediately on yesn-periodic
 	 */
 	if (chan->do_split && chan->complete_split) {
 		if (chan->ep_is_in && chan->ep_type == USB_ENDPOINT_XFER_ISOC &&
@@ -1473,8 +1473,8 @@ static void dwc2_hc_nyet_intr(struct dwc2_hsotg *hsotg,
 #if 0
 				/*
 				 * Todo: Fix system performance so this can
-				 * be treated as an error. Right now complete
-				 * splits cannot be scheduled precisely enough
+				 * be treated as an error. Right yesw complete
+				 * splits canyest be scheduled precisely eyesugh
 				 * due to other system activity, so this error
 				 * occurs regularly in Slave mode.
 				 */
@@ -1780,7 +1780,7 @@ static bool dwc2_halt_status_ok(struct dwc2_hsotg *hsotg,
 	if (chan->halt_status == DWC2_HC_XFER_NO_HALT_STATUS) {
 		/*
 		 * This code is here only as a check. This condition should
-		 * never happen. Ignore the halt if it does occur.
+		 * never happen. Igyesre the halt if it does occur.
 		 */
 		hcchar = dwc2_readl(hsotg, HCCHAR(chnum));
 		hctsiz = dwc2_readl(hsotg, HCTSIZ(chnum));
@@ -1799,7 +1799,7 @@ static bool dwc2_halt_status_ok(struct dwc2_hsotg *hsotg,
 			dev_dbg(hsotg->dev, "qtd->complete_split %d\n",
 				qtd->complete_split);
 		dev_warn(hsotg->dev,
-			 "%s: no halt status, channel %d, ignoring interrupt\n",
+			 "%s: yes halt status, channel %d, igyesring interrupt\n",
 			 __func__, chnum);
 		return false;
 	}
@@ -1861,7 +1861,7 @@ static void dwc2_hc_chhltd_intr_dma(struct dwc2_hsotg *hsotg,
 			/*
 			 * Just release the channel. A dequeue can happen on a
 			 * transfer timeout. In the case of an AHB Error, the
-			 * channel was forced to halt because there's no way to
+			 * channel was forced to halt because there's yes way to
 			 * gracefully recover.
 			 */
 			dwc2_release_channel(hsotg, chan, qtd,
@@ -1926,9 +1926,9 @@ static void dwc2_hc_chhltd_intr_dma(struct dwc2_hsotg *hsotg,
 		} else if ((chan->hcint & HCINTMSK_NAK) &&
 			   !(hcintmsk & HCINTMSK_NAK)) {
 			/*
-			 * If nak is not masked, it's because a non-split IN
+			 * If nak is yest masked, it's because a yesn-split IN
 			 * transfer is in an error state. In that case, the nak
-			 * is handled by the nak interrupt handler, not here.
+			 * is handled by the nak interrupt handler, yest here.
 			 * Handle nak here for BULK/CONTROL OUT transfers, which
 			 * halt on a NAK to allow rewinding the buffer pointer.
 			 */
@@ -1936,9 +1936,9 @@ static void dwc2_hc_chhltd_intr_dma(struct dwc2_hsotg *hsotg,
 		} else if ((chan->hcint & HCINTMSK_ACK) &&
 			   !(hcintmsk & HCINTMSK_ACK)) {
 			/*
-			 * If ack is not masked, it's because a non-split IN
+			 * If ack is yest masked, it's because a yesn-split IN
 			 * transfer is in an error state. In that case, the ack
-			 * is handled by the ack interrupt handler, not here.
+			 * is handled by the ack interrupt handler, yest here.
 			 * Handle ack here for split transfers. Start splits
 			 * halt on ACK.
 			 */
@@ -1947,9 +1947,9 @@ static void dwc2_hc_chhltd_intr_dma(struct dwc2_hsotg *hsotg,
 			if (chan->ep_type == USB_ENDPOINT_XFER_INT ||
 			    chan->ep_type == USB_ENDPOINT_XFER_ISOC) {
 				/*
-				 * A periodic transfer halted with no other
+				 * A periodic transfer halted with yes other
 				 * channel interrupts set. Assume it was halted
-				 * by the core because it could not be completed
+				 * by the core because it could yest be completed
 				 * in its scheduled (micro)frame.
 				 */
 				dev_dbg(hsotg->dev,
@@ -1959,7 +1959,7 @@ static void dwc2_hc_chhltd_intr_dma(struct dwc2_hsotg *hsotg,
 					DWC2_HC_XFER_PERIODIC_INCOMPLETE);
 			} else {
 				dev_err(hsotg->dev,
-					"%s: Channel %d - ChHltd set, but reason is unknown\n",
+					"%s: Channel %d - ChHltd set, but reason is unkyeswn\n",
 					__func__, chnum);
 				dev_err(hsotg->dev,
 					"hcint 0x%08x, intsts 0x%08x\n",
@@ -1970,7 +1970,7 @@ static void dwc2_hc_chhltd_intr_dma(struct dwc2_hsotg *hsotg,
 		}
 	} else {
 		dev_info(hsotg->dev,
-			 "NYET/NAK/ACK/other in non-error case, 0x%08x\n",
+			 "NYET/NAK/ACK/other in yesn-error case, 0x%08x\n",
 			 chan->hcint);
 error:
 		/* Failthrough: use 3-strikes rule */
@@ -2069,7 +2069,7 @@ static void dwc2_hc_n_intr(struct dwc2_hsotg *hsotg, int chnum)
 
 	/*
 	 * If the channel was halted due to a dequeue, the qtd list might
-	 * be empty or at least the first entry will not be the active qtd.
+	 * be empty or at least the first entry will yest be the active qtd.
 	 * In this case, take a shortcut and just release the channel.
 	 */
 	if (chan->halt_status == DWC2_HC_XFER_URB_DEQUEUE) {
@@ -2092,7 +2092,7 @@ static void dwc2_hc_n_intr(struct dwc2_hsotg *hsotg, int chnum)
 		 * TODO: Will this ever happen with the
 		 * DWC2_HC_XFER_URB_DEQUEUE handling above?
 		 */
-		dev_dbg(hsotg->dev, "## no QTD queued for channel %d ##\n",
+		dev_dbg(hsotg->dev, "## yes QTD queued for channel %d ##\n",
 			chnum);
 		dev_dbg(hsotg->dev,
 			"  hcint 0x%08x, hcintmsk 0x%08x, hcint&hcintmsk 0x%08x\n",
@@ -2248,7 +2248,7 @@ irqreturn_t dwc2_handle_hcd_intr(struct dwc2_hsotg *hsotg)
 			dbg_gintsts &= ~(GINTSTS_HCHINT | GINTSTS_RXFLVL |
 					 GINTSTS_PTXFEMP);
 
-		/* Only print if there are any non-suppressed interrupts left */
+		/* Only print if there are any yesn-suppressed interrupts left */
 		if (dbg_gintsts)
 			dev_vdbg(hsotg->dev,
 				 "DWC OTG HCD Interrupt Detected gintsts&gintmsk=0x%08x\n",

@@ -74,7 +74,7 @@ serdes0: serdes@900000 {
 	#clock-cells = <1>;
 };
 
-Example for PCIe consumer node using the SERDES PHY specifier is given below.
+Example for PCIe consumer yesde using the SERDES PHY specifier is given below.
 &pcie0_rc {
         num-lanes = <2>;
         phys = <&serdes0 PHY_TYPE_PCIE 1>, <&serdes1 PHY_TYPE_PCIE 1>;

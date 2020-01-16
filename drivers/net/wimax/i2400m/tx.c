@@ -1,6 +1,6 @@
 /*
  * Intel Wireless WiMAX Connection 2400m
- * Generic (non-bus specific) TX handling
+ * Generic (yesn-bus specific) TX handling
  *
  *
  * Copyright (C) 2007-2008 Intel Corporation. All rights reserved.
@@ -10,12 +10,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -64,7 +64,7 @@
  *
  * Because we need the send payload descriptors and then payloads and
  * because it is kind of expensive to do scatterlists in USB (one URB
- * per node), it becomes cheaper to append all the data to a FIFO
+ * per yesde), it becomes cheaper to append all the data to a FIFO
  * (copying to a FIFO potentially in cache is cheaper).
  *
  * Then the bus-specific code takes the parts of that FIFO that are
@@ -84,7 +84,7 @@
  *     Open: it is marked as active (i2400m->tx_msg is valid) and we
  *       can keep adding payloads to it.
  *
- *     Closed: we are not appending more payloads to this TX message
+ *     Closed: we are yest appending more payloads to this TX message
  *       (exahusted space in the queue, too many payloads or
  *       whichever).  We have appended padding so the whole message
  *       length is aligned to i2400m->bus_tx_block_size (as set by the
@@ -93,7 +93,7 @@
  * - Most of the time we keep a TX message open to which we append
  *   payloads.
  *
- * - If we are going to append and there is no more space (we are at
+ * - If we are going to append and there is yes more space (we are at
  *   the end of the FIFO), we close the message, mark the rest of the
  *   FIFO space unusable (skip_tail), create a new message at the
  *   beginning of the FIFO (if there is space) and append the message
@@ -105,7 +105,7 @@
  *
  * - We overload one of the fields in the message header to use it as
  *   'size' of the TX message, so we can iterate over them. It also
- *   contains a flag that indicates if we have to skip it or not.
+ *   contains a flag that indicates if we have to skip it or yest.
  *   When we send the buffer, we update that to its real on-the-wire
  *   value.
  *
@@ -123,7 +123,7 @@
  *   if we fill up only (eg) 2, our header becomes 32 bytes only. So
  *   the TX engine has to shift those 32 bytes of msg header and 2
  *   payloads and padding so that right after it the payloads start
- *   and the TX engine has to know about that.
+ *   and the TX engine has to kyesw about that.
  *
  *   It is cheaper to move the header up than the whole payloads down.
  *
@@ -313,7 +313,7 @@ enum {
  *
  * When calculating the tail_room, tx_in might get to be zero if
  * i2400m->tx_in is right at the end of the buffer (really full
- * buffer) if there is no head room. In this case, tail_room would be
+ * buffer) if there is yes head room. In this case, tail_room would be
  * I2400M_TX_BUF_SIZE, although it is actually zero. Hence the final
  * mod (%) operation. However, when doing this kind of optimization,
  * i2400m->tx_in being zero would fail, so we treat is an a special
@@ -347,14 +347,14 @@ size_t __i2400m_tx_tail_room(struct i2400m *i2400m)
  *     due to an infinite loop caused by i2400m_tx_fifo_push().
  *     The caller must always try to allocate tail room space first by
  *     calling this routine with try_head = 0. In case if there
- *     is not enough tail room space but there is enough head room space,
+ *     is yest eyesugh tail room space but there is eyesugh head room space,
  *     (i2400m_tx_fifo_push() returns TAIL_FULL) try to allocate head
  *     room space, by calling this routine again with try_head = 1.
  *
  * Returns:
  *
- *     Pointer to the allocated space. NULL if there is no
- *     space. TAIL_FULL if there is no space at the tail but there is at
+ *     Pointer to the allocated space. NULL if there is yes
+ *     space. TAIL_FULL if there is yes space at the tail but there is at
  *     the head (Case B below).
  *
  * These are the two basic cases we need to keep an eye for -- it is
@@ -377,7 +377,7 @@ size_t __i2400m_tx_tail_room(struct i2400m *i2400m)
  * We allocate only *contiguous* space.
  *
  * We can allocate only from 'room'. In Case B, it is simple; in case
- * A, we only try from the tail room; if it is not enough, we just
+ * A, we only try from the tail room; if it is yest eyesugh, we just
  * fail and return TAIL_FULL and let the caller figure out if we wants to
  * skip the tail room and try to allocate from the head.
  *
@@ -412,11 +412,11 @@ size_t __i2400m_tx_tail_room(struct i2400m *i2400m)
  *                    |<----  goto try_head;
  *
  * i2400m_tx() calls i2400m_tx_close() to close the message, since there
- * is no tail room to accommodate the payload and calls
+ * is yes tail room to accommodate the payload and calls
  * i2400m_tx_skip_tail() to skip the tail space. Now i2400m_tx() calls
  * i2400m_tx_new() to allocate space for new message header calling
- * i2400m_tx_fifo_push() that returns TAIL_FULL, since there is no tail space
- * to accommodate the message header, but there is enough head space.
+ * i2400m_tx_fifo_push() that returns TAIL_FULL, since there is yes tail space
+ * to accommodate the message header, but there is eyesugh head space.
  * The i2400m_tx_new() keeps re-retrying by calling i2400m_tx_fifo_push()
  * ending up in a loop causing system freeze.
  *
@@ -441,7 +441,7 @@ void *i2400m_tx_fifo_push(struct i2400m *i2400m, size_t size,
 	needed_size = size + padding;
 	room = I2400M_TX_BUF_SIZE - (i2400m->tx_in - i2400m->tx_out);
 	if (room < needed_size)	{ /* this takes care of Case B */
-		d_printf(2, dev, "fifo push %zu/%zu: no space\n",
+		d_printf(2, dev, "fifo push %zu/%zu: yes space\n",
 			 size, padding);
 		return NULL;
 	}
@@ -449,26 +449,26 @@ void *i2400m_tx_fifo_push(struct i2400m *i2400m, size_t size,
 	tail_room = __i2400m_tx_tail_room(i2400m);
 	if (!try_head && tail_room < needed_size) {
 		/*
-		 * If the tail room space is not enough to push the message
+		 * If the tail room space is yest eyesugh to push the message
 		 * in the TX FIFO, then there are two possibilities:
-		 * 1. There is enough head room space to accommodate
+		 * 1. There is eyesugh head room space to accommodate
 		 * this message in the TX FIFO.
-		 * 2. There is not enough space in the head room and
+		 * 2. There is yest eyesugh space in the head room and
 		 * in tail room of the TX FIFO to accommodate the message.
 		 * In the case (1), return TAIL_FULL so that the caller
 		 * can figure out, if the caller wants to push the message
 		 * into the head room space.
 		 * In the case (2), return NULL, indicating that the TX FIFO
-		 * cannot accommodate the message.
+		 * canyest accommodate the message.
 		 */
 		if (room - tail_room >= needed_size) {
 			d_printf(2, dev, "fifo push %zu/%zu: tail full\n",
 				 size, padding);
 			return TAIL_FULL;	/* There might be head space */
 		} else {
-			d_printf(2, dev, "fifo push %zu/%zu: no head space\n",
+			d_printf(2, dev, "fifo push %zu/%zu: yes head space\n",
 				 size, padding);
-			return NULL;	/* There is no space */
+			return NULL;	/* There is yes space */
 		}
 	}
 	ptr = i2400m->tx_buf + i2400m->tx_in % I2400M_TX_BUF_SIZE;
@@ -489,8 +489,8 @@ void *i2400m_tx_fifo_push(struct i2400m *i2400m, size_t size,
  *
  * Tail room can get to be zero if a message was opened when there was
  * space only for a header. _tx_close() will mark it as to-skip (as it
- * will have no payloads) and there will be no more space to flush, so
- * nothing has to be done here. This is probably cheaper than ensuring
+ * will have yes payloads) and there will be yes more space to flush, so
+ * yesthing has to be done here. This is probably cheaper than ensuring
  * in _tx_new() that there is some space for payloads...as we could
  * always possibly hit the same problem if the payload wouldn't fit.
  *
@@ -553,7 +553,7 @@ unsigned i2400m_tx_fits(struct i2400m *i2400m)
  * NOTE:
  *
  *     Assumes that the previous message is CLOSED (eg: either
- *     there was none or 'i2400m_tx_close()' was called on it).
+ *     there was yesne or 'i2400m_tx_close()' was called on it).
  *
  *     Assumes i2400m->tx_lock is taken, and we use that as a barrier
  */
@@ -565,9 +565,9 @@ void i2400m_tx_new(struct i2400m *i2400m)
 	bool try_head = false;
 	BUG_ON(i2400m->tx_msg != NULL);
 	/*
-	 * In certain situations, TX queue might have enough space to
+	 * In certain situations, TX queue might have eyesugh space to
 	 * accommodate the new message header I2400M_TX_PLD_SIZE, but
-	 * might not have enough space to accommodate the payloads.
+	 * might yest have eyesugh space to accommodate the payloads.
 	 * Adding bus_tx_room_min padding while allocating a new TX message
 	 * increases the possibilities of including at least one payload of the
 	 * size <= bus_tx_room_min.
@@ -601,8 +601,8 @@ out:
  *
  * Appends padding bytes to make sure the whole TX message (counting
  * from the 'relocated' message header) is aligned to
- * tx_block_size. We assume the _append() code has left enough space
- * in the FIFO for that. If there are no payloads, just pass, as it
+ * tx_block_size. We assume the _append() code has left eyesugh space
+ * in the FIFO for that. If there are yes payloads, just pass, as it
  * won't be transferred.
  *
  * The amount of padding bytes depends on how many payloads are in the
@@ -619,11 +619,11 @@ void i2400m_tx_close(struct i2400m *i2400m)
 	void *pad_buf;
 	unsigned num_pls;
 
-	if (tx_msg->size & I2400M_TX_SKIP)	/* a skipper? nothing to do */
+	if (tx_msg->size & I2400M_TX_SKIP)	/* a skipper? yesthing to do */
 		goto out;
 	num_pls = le16_to_cpu(tx_msg->num_pls);
 	/* We can get this situation when a new message was started
-	 * and there was no space to add payloads before hitting the
+	 * and there was yes space to add payloads before hitting the
 	 tail (and taking padding into consideration). */
 	if (num_pls == 0) {
 		tx_msg->size |= I2400M_TX_SKIP;
@@ -655,12 +655,12 @@ void i2400m_tx_close(struct i2400m *i2400m)
 	if (padding > 0) {
 		pad_buf = i2400m_tx_fifo_push(i2400m, padding, 0, 0);
 		if (WARN_ON(pad_buf == NULL || pad_buf == TAIL_FULL)) {
-			/* This should not happen -- append should verify
+			/* This should yest happen -- append should verify
 			 * there is always space left at least to append
 			 * tx_block_size */
 			dev_err(dev,
 				"SW BUG! Possible data leakage from memory the "
-				"device should not read for padding - "
+				"device should yest read for padding - "
 				"size %lu aligned_size %zu tx_buf %p in "
 				"%zu out %zu\n",
 				(unsigned long) tx_msg_moved->size,
@@ -688,10 +688,10 @@ out:
  * @pl_type: type of the payload we are sending.
  *
  * Returns:
- *     0 if ok, < 0 errno code on error (-ENOSPC, if there is no more
+ *     0 if ok, < 0 erryes code on error (-ENOSPC, if there is yes more
  *     room for the message in the queue).
  *
- * Appends the buffer to the TX FIFO and notifies the bus-specific
+ * Appends the buffer to the TX FIFO and yestifies the bus-specific
  * part of the driver that there is new data ready to transmit.
  * Once this function returns, the buffer has been copied, so it can
  * be reused.
@@ -726,7 +726,7 @@ int i2400m_tx(struct i2400m *i2400m, const void *buf, size_t buf_len,
 		  i2400m, buf, buf_len, pl_type);
 	padded_len = ALIGN(buf_len, I2400M_PL_ALIGN);
 	d_printf(5, dev, "padded_len %zd buf_len %zd\n", padded_len, buf_len);
-	/* If there is no current TX message, create one; if the
+	/* If there is yes current TX message, create one; if the
 	 * current one is out of payload slots or we have a singleton,
 	 * close it and start a new one */
 	spin_lock_irqsave(&i2400m->tx_lock, flags);
@@ -750,7 +750,7 @@ try_new:
 		goto error_tx_new;
 	/*
 	 * Check if this skb will fit in the TX queue's current active
-	 * TX message. The total message size must not exceed the maximum
+	 * TX message. The total message size must yest exceed the maximum
 	 * size of each message I2400M_TX_MSG_SIZE. If it exceeds,
 	 * close the current message and push this skb into the new message.
 	 */
@@ -761,8 +761,8 @@ try_new:
 	}
 	if (i2400m->tx_msg == NULL)
 		goto error_tx_new;
-	/* So we have a current message header; now append space for
-	 * the message -- if there is not enough, try the head */
+	/* So we have a current message header; yesw append space for
+	 * the message -- if there is yest eyesugh, try the head */
 	ptr = i2400m_tx_fifo_push(i2400m, padded_len,
 				  i2400m->bus_tx_block_size, try_head);
 	if (ptr == TAIL_FULL) {	/* Tail is full, try head */
@@ -828,7 +828,7 @@ EXPORT_SYMBOL_GPL(i2400m_tx);
  *     that of the TX message in the FIFO (in case the header was
  *     shorter). Hence, we copy it in @bus_size, for the bus layer to
  *     use. We keep the message's size in i2400m->tx_msg_size so that
- *     when the bus later is done transferring we know how much to
+ *     when the bus later is done transferring we kyesw how much to
  *     advance the fifo.
  *
  *     We collect statistics here as all the data is available and we
@@ -968,7 +968,7 @@ int i2400m_tx_setup(struct i2400m *i2400m)
 
 	/* Do this here only once -- can't do on
 	 * i2400m_hard_start_xmit() as we'll cause race conditions if
-	 * the WS was scheduled on another CPU */
+	 * the WS was scheduled on ayesther CPU */
 	INIT_WORK(&i2400m->wake_tx_ws, i2400m_wake_tx_work);
 
 	tx_buf = kmalloc(I2400M_TX_BUF_SIZE, GFP_ATOMIC);

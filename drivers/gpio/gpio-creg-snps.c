@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0+
 //
-// Synopsys CREG (Control REGisters) GPIO driver
+// Syyespsys CREG (Control REGisters) GPIO driver
 //
-// Copyright (C) 2018 Synopsys
-// Author: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+// Copyright (C) 2018 Syyespsys
+// Author: Eugeniy Paltsev <Eugeniy.Paltsev@syyespsys.com>
 
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
@@ -148,12 +148,12 @@ static int creg_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(hcg->regs))
 		return PTR_ERR(hcg->regs);
 
-	match = of_match_node(creg_gpio_ids, pdev->dev.of_node);
+	match = of_match_yesde(creg_gpio_ids, pdev->dev.of_yesde);
 	hcg->layout = match->data;
 	if (!hcg->layout)
 		return -EINVAL;
 
-	ret = of_property_read_u32(dev->of_node, "ngpios", &ngpios);
+	ret = of_property_read_u32(dev->of_yesde, "ngpios", &ngpios);
 	if (ret)
 		return ret;
 
@@ -168,7 +168,7 @@ static int creg_gpio_probe(struct platform_device *pdev)
 	hcg->gc.ngpio = ngpios;
 	hcg->gc.set = creg_gpio_set;
 	hcg->gc.direction_output = creg_gpio_dir_out;
-	hcg->gc.of_node = dev->of_node;
+	hcg->gc.of_yesde = dev->of_yesde;
 
 	ret = devm_gpiochip_add_data(dev, &hcg->gc, hcg);
 	if (ret)

@@ -210,7 +210,7 @@ static irqreturn_t rv3028_handle_irq(int irq, void *dev_id)
 	}
 
 	if (status & RV3028_STATUS_EVF) {
-		sysfs_notify(&rv3028->rtc->dev.kobj, NULL,
+		sysfs_yestify(&rv3028->rtc->dev.kobj, NULL,
 			     dev_attr_timestamp0.attr.name);
 		dev_warn(&rv3028->rtc->dev, "event detected");
 	}
@@ -314,7 +314,7 @@ static int rv3028_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u8 ctrl = 0;
 	int ret;
 
-	/* The alarm has no seconds, round up to nearest minute */
+	/* The alarm has yes seconds, round up to nearest minute */
 	if (alrm->time.tm_sec) {
 		time64_t alarm_time = rtc_tm_to_time64(&alrm->time);
 
@@ -698,7 +698,7 @@ static int rv3028_clkout_register_clk(struct rv3028_data *rv3028,
 	int ret;
 	struct clk *clk;
 	struct clk_init_data init;
-	struct device_node *node = client->dev.of_node;
+	struct device_yesde *yesde = client->dev.of_yesde;
 
 	ret = regmap_update_bits(rv3028->regmap, RV3028_STATUS,
 				 RV3028_STATUS_CLKF, 0);
@@ -713,12 +713,12 @@ static int rv3028_clkout_register_clk(struct rv3028_data *rv3028,
 	rv3028->clkout_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string(node, "clock-output-names", &init.name);
+	of_property_read_string(yesde, "clock-output-names", &init.name);
 
 	/* register the clock */
 	clk = devm_clk_register(&client->dev, &rv3028->clkout_hw);
 	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 
 	return 0;
 }

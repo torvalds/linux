@@ -38,12 +38,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -82,10 +82,10 @@ struct mvm_statistics_div {
 } __packed; /* STATISTICS_SLOW_DIV_API_S_VER_2 */
 
 /**
- * struct mvm_statistics_rx_non_phy
- * @bogus_cts: CTS received when not expecting CTS
- * @bogus_ack: ACK received when not expecting ACK
- * @non_channel_beacons: beacons with our bss id but not on our serving channel
+ * struct mvm_statistics_rx_yesn_phy
+ * @bogus_cts: CTS received when yest expecting CTS
+ * @bogus_ack: ACK received when yest expecting ACK
+ * @yesn_channel_beacons: beacons with our bss id but yest on our serving channel
  * @channel_beacons: beacons with our bss id and in our serving channel
  * @num_missed_bcon: number of missed beacons
  * @adc_rx_saturation_time: count in 0.8us units the time the ADC was in
@@ -106,10 +106,10 @@ struct mvm_statistics_div {
  * @num_bt_kills: number of BT "kills" (frame TX aborts)
  * @mac_id: mac ID
  */
-struct mvm_statistics_rx_non_phy {
+struct mvm_statistics_rx_yesn_phy {
 	__le32 bogus_cts;
 	__le32 bogus_ack;
-	__le32 non_channel_beacons;
+	__le32 yesn_channel_beacons;
 	__le32 channel_beacons;
 	__le32 num_missed_bcon;
 	__le32 adc_rx_saturation_time;
@@ -129,14 +129,14 @@ struct mvm_statistics_rx_non_phy {
 	__le32 mac_id;
 } __packed; /* STATISTICS_RX_NON_PHY_API_S_VER_4 */
 
-struct mvm_statistics_rx_non_phy_v3 {
-	__le32 bogus_cts;	/* CTS received when not expecting CTS */
-	__le32 bogus_ack;	/* ACK received when not expecting ACK */
-	__le32 non_bssid_frames;	/* number of frames with BSSID that
+struct mvm_statistics_rx_yesn_phy_v3 {
+	__le32 bogus_cts;	/* CTS received when yest expecting CTS */
+	__le32 bogus_ack;	/* ACK received when yest expecting ACK */
+	__le32 yesn_bssid_frames;	/* number of frames with BSSID that
 					 * doesn't belong to the STA BSSID */
 	__le32 filtered_frames;	/* count frames that were dumped in the
 				 * filtering process */
-	__le32 non_channel_beacons;	/* beacons with our bss id but not on
+	__le32 yesn_channel_beacons;	/* beacons with our bss id but yest on
 					 * our serving channel */
 	__le32 channel_beacons;	/* beacons with our bss id and in our
 				 * serving channel */
@@ -216,7 +216,7 @@ struct mvm_statistics_rx_ht_phy {
 	__le32 unsupport_mcs;
 } __packed;  /* STATISTICS_HT_RX_PHY_API_S_VER_2 */
 
-struct mvm_statistics_tx_non_phy_v3 {
+struct mvm_statistics_tx_yesn_phy_v3 {
 	__le32 preamble_cnt;
 	__le32 rx_detected_cnt;
 	__le32 bt_prio_defer_cnt;
@@ -233,7 +233,7 @@ struct mvm_statistics_tx_non_phy_v3 {
 	__le32 ack_or_ba_timeout_collision;
 } __packed; /* STATISTICS_TX_NON_PHY_API_S_VER_3 */
 
-struct mvm_statistics_tx_non_phy {
+struct mvm_statistics_tx_yesn_phy {
 	__le32 bt_prio_defer_cnt;
 	__le32 bt_prio_kill_cnt;
 	__le32 few_bytes_cnt;
@@ -248,14 +248,14 @@ struct mvm_statistics_tx_non_phy {
 
 #define MAX_CHAINS 3
 
-struct mvm_statistics_tx_non_phy_agg {
+struct mvm_statistics_tx_yesn_phy_agg {
 	__le32 ba_timeout;
 	__le32 ba_reschedule_frames;
 	__le32 scd_query_agg_frame_cnt;
-	__le32 scd_query_no_agg;
+	__le32 scd_query_yes_agg;
 	__le32 scd_query_agg;
 	__le32 scd_query_mismatch;
-	__le32 frame_not_ready;
+	__le32 frame_yest_ready;
 	__le32 underrun;
 	__le32 bt_prio_kill;
 	__le32 rx_ba_rsp_cnt;
@@ -276,14 +276,14 @@ struct mvm_statistics_tx_channel_width {
 }; /* STATISTICS_TX_CHANNEL_WIDTH_API_S_VER_1 */
 
 struct mvm_statistics_tx_v4 {
-	struct mvm_statistics_tx_non_phy_v3 general;
-	struct mvm_statistics_tx_non_phy_agg agg;
+	struct mvm_statistics_tx_yesn_phy_v3 general;
+	struct mvm_statistics_tx_yesn_phy_agg agg;
 	struct mvm_statistics_tx_channel_width channel_width;
 } __packed; /* STATISTICS_TX_API_S_VER_4 */
 
 struct mvm_statistics_tx {
-	struct mvm_statistics_tx_non_phy general;
-	struct mvm_statistics_tx_non_phy_agg agg;
+	struct mvm_statistics_tx_yesn_phy general;
+	struct mvm_statistics_tx_yesn_phy_agg agg;
 	struct mvm_statistics_tx_channel_width channel_width;
 } __packed; /* STATISTICS_TX_API_S_VER_5 */
 
@@ -396,33 +396,33 @@ struct mvm_statistics_load_v1 {
 struct mvm_statistics_rx {
 	struct mvm_statistics_rx_phy ofdm;
 	struct mvm_statistics_rx_phy cck;
-	struct mvm_statistics_rx_non_phy general;
+	struct mvm_statistics_rx_yesn_phy general;
 	struct mvm_statistics_rx_ht_phy ofdm_ht;
 } __packed; /* STATISTICS_RX_API_S_VER_4 */
 
 struct mvm_statistics_rx_v3 {
 	struct mvm_statistics_rx_phy_v2 ofdm;
 	struct mvm_statistics_rx_phy_v2 cck;
-	struct mvm_statistics_rx_non_phy_v3 general;
+	struct mvm_statistics_rx_yesn_phy_v3 general;
 	struct mvm_statistics_rx_ht_phy_v1 ofdm_ht;
 } __packed; /* STATISTICS_RX_API_S_VER_3 */
 
 /*
- * STATISTICS_NOTIFICATION = 0x9d (notification only, not a command)
+ * STATISTICS_NOTIFICATION = 0x9d (yestification only, yest a command)
  *
- * By default, uCode issues this notification after receiving a beacon
+ * By default, uCode issues this yestification after receiving a beacon
  * while associated.  To disable this behavior, set DISABLE_NOTIF flag in the
  * STATISTICS_CMD (0x9c), below.
  */
 
-struct iwl_notif_statistics_v10 {
+struct iwl_yestif_statistics_v10 {
 	__le32 flag;
 	struct mvm_statistics_rx_v3 rx;
 	struct mvm_statistics_tx_v4 tx;
 	struct mvm_statistics_general_v8 general;
 } __packed; /* STATISTICS_NTFY_API_S_VER_10 */
 
-struct iwl_notif_statistics_v11 {
+struct iwl_yestif_statistics_v11 {
 	__le32 flag;
 	struct mvm_statistics_rx_v3 rx;
 	struct mvm_statistics_tx_v4 tx;
@@ -430,7 +430,7 @@ struct iwl_notif_statistics_v11 {
 	struct mvm_statistics_load_v1 load_stats;
 } __packed; /* STATISTICS_NTFY_API_S_VER_11 */
 
-struct iwl_notif_statistics {
+struct iwl_yestif_statistics {
 	__le32 flag;
 	struct mvm_statistics_rx rx;
 	struct mvm_statistics_tx tx;
@@ -439,10 +439,10 @@ struct iwl_notif_statistics {
 } __packed; /* STATISTICS_NTFY_API_S_VER_13 */
 
 /**
- * enum iwl_statistics_notif_flags - flags used in statistics notification
+ * enum iwl_statistics_yestif_flags - flags used in statistics yestification
  * @IWL_STATISTICS_REPLY_FLG_CLEAR: statistics were cleared after this report
  */
-enum iwl_statistics_notif_flags {
+enum iwl_statistics_yestif_flags {
 	IWL_STATISTICS_REPLY_FLG_CLEAR		= 0x1,
 };
 
@@ -451,7 +451,7 @@ enum iwl_statistics_notif_flags {
  * @IWL_STATISTICS_FLG_CLEAR: request to clear statistics after the report
  *	that's sent after this command
  * @IWL_STATISTICS_FLG_DISABLE_NOTIF: disable unilateral statistics
- *	notifications
+ *	yestifications
  */
 enum iwl_statistics_cmd_flags {
 	IWL_STATISTICS_FLG_CLEAR		= 0x1,

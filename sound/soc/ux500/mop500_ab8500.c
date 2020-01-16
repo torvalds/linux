@@ -77,7 +77,7 @@ static inline const char *get_mclk_str(enum mclk mclk_sel)
 	case MCLK_ULPCLK:
 		return "ULPCLK";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -89,7 +89,7 @@ static int mop500_ab8500_set_mclk(struct device *dev,
 
 	if (IS_ERR(drvdata->clk_ptr_intclk)) {
 		dev_err(dev,
-			"%s: ERROR: intclk not initialized!\n", __func__);
+			"%s: ERROR: intclk yest initialized!\n", __func__);
 		return -EIO;
 	}
 
@@ -105,7 +105,7 @@ static int mop500_ab8500_set_mclk(struct device *dev,
 	}
 
 	if (IS_ERR(clk_ptr)) {
-		dev_err(dev, "%s: ERROR: %s not initialized!\n", __func__,
+		dev_err(dev, "%s: ERROR: %s yest initialized!\n", __func__,
 			get_mclk_str(drvdata->mclk_sel));
 		return -EIO;
 	}

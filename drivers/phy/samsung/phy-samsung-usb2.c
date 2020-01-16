@@ -106,26 +106,26 @@ static struct phy *samsung_usb2_phy_xlate(struct device *dev,
 static const struct of_device_id samsung_usb2_phy_of_match[] = {
 #ifdef CONFIG_PHY_EXYNOS4X12_USB2
 	{
-		.compatible = "samsung,exynos3250-usb2-phy",
-		.data = &exynos3250_usb2_phy_config,
+		.compatible = "samsung,exyyess3250-usb2-phy",
+		.data = &exyyess3250_usb2_phy_config,
 	},
 #endif
 #ifdef CONFIG_PHY_EXYNOS4210_USB2
 	{
-		.compatible = "samsung,exynos4210-usb2-phy",
-		.data = &exynos4210_usb2_phy_config,
+		.compatible = "samsung,exyyess4210-usb2-phy",
+		.data = &exyyess4210_usb2_phy_config,
 	},
 #endif
 #ifdef CONFIG_PHY_EXYNOS4X12_USB2
 	{
-		.compatible = "samsung,exynos4x12-usb2-phy",
-		.data = &exynos4x12_usb2_phy_config,
+		.compatible = "samsung,exyyess4x12-usb2-phy",
+		.data = &exyyess4x12_usb2_phy_config,
 	},
 #endif
 #ifdef CONFIG_PHY_EXYNOS5250_USB2
 	{
-		.compatible = "samsung,exynos5250-usb2-phy",
-		.data = &exynos5250_usb2_phy_config,
+		.compatible = "samsung,exyyess5250-usb2-phy",
+		.data = &exyyess5250_usb2_phy_config,
 	},
 #endif
 #ifdef CONFIG_PHY_S5PV210_USB2
@@ -147,7 +147,7 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 	struct samsung_usb2_phy_driver *drv;
 	int i, ret;
 
-	if (!pdev->dev.of_node) {
+	if (!pdev->dev.of_yesde) {
 		dev_err(dev, "This driver is required to be instantiated from device tree\n");
 		return -EINVAL;
 	}
@@ -174,7 +174,7 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(drv->reg_phy);
 	}
 
-	drv->reg_pmu = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	drv->reg_pmu = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 		"samsung,pmureg-phandle");
 	if (IS_ERR(drv->reg_pmu)) {
 		dev_err(dev, "Failed to map PMU registers (via syscon)\n");
@@ -183,7 +183,7 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 
 	if (drv->cfg->has_mode_switch) {
 		drv->reg_sys = syscon_regmap_lookup_by_phandle(
-				pdev->dev.of_node, "samsung,sysreg-phandle");
+				pdev->dev.of_yesde, "samsung,sysreg-phandle");
 		if (IS_ERR(drv->reg_sys)) {
 			dev_err(dev, "Failed to map system registers (via syscon)\n");
 			return PTR_ERR(drv->reg_sys);

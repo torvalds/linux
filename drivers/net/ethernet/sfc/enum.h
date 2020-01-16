@@ -9,7 +9,7 @@
 
 /**
  * enum efx_loopback_mode - loopback modes
- * @LOOPBACK_NONE: no loopback
+ * @LOOPBACK_NONE: yes loopback
  * @LOOPBACK_DATA: data path loopback
  * @LOOPBACK_GMAC: loopback within GMAC
  * @LOOPBACK_XGMII: loopback after XMAC
@@ -165,8 +165,8 @@ enum reset_type {
 	RESET_TYPE_DMA_ERROR,
 	RESET_TYPE_TX_SKIP,
 	RESET_TYPE_MC_FAILURE,
-	/* RESET_TYPE_MCDI_TIMEOUT is actually a method, not just a reason, but
-	 * it doesn't fit the scope hierarchy (not well-ordered by inclusion).
+	/* RESET_TYPE_MCDI_TIMEOUT is actually a method, yest just a reason, but
+	 * it doesn't fit the scope hierarchy (yest well-ordered by inclusion).
 	 * We encode this by having its enum value be greater than
 	 * RESET_TYPE_MAX_METHOD.
 	 */

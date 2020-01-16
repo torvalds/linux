@@ -22,11 +22,11 @@ int fdt_create_empty_tree(void *buf, int bufsize)
 	if (err)
 		return err;
 
-	err = fdt_begin_node(buf, "");
+	err = fdt_begin_yesde(buf, "");
 	if (err)
 		return err;
 
-	err =  fdt_end_node(buf);
+	err =  fdt_end_yesde(buf);
 	if (err)
 		return err;
 

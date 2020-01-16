@@ -11,10 +11,10 @@ Required properties:
 - reg: address and length of the register
 - clocks: reference to the clock entry
 
-Sub-nodes:
-Each PHY should be represented as a sub-node.
+Sub-yesdes:
+Each PHY should be represented as a sub-yesde.
 
-Sub-nodes required properties:
+Sub-yesdes required properties:
 - reg: the PHY number
 
 Example:

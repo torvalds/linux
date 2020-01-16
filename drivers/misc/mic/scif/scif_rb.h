@@ -26,12 +26,12 @@
  * are met:
  *
  * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   yestice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the
  *   distribution.
- * * Neither the name of Intel Corporation nor the names of its
+ * * Neither the name of Intel Corporation yesr the names of its
  *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
  *
@@ -56,7 +56,7 @@
  * ring buffer need to synchronize using a lock. The same is true for readers,
  * although in practice, the ring buffer has a single reader. It is lockless
  * between producer and consumer so it can handle being used across the PCIe
- * bus. The ring buffer ensures that there are no reads across the PCIe bus for
+ * bus. The ring buffer ensures that there are yes reads across the PCIe bus for
  * performance reasons. Two of these are used to form a single bidirectional
  * queue-pair across PCIe.
  */

@@ -82,7 +82,7 @@ enum rtw_supported_band {
 	RTW_BAND_MAX,
 };
 
-/* now, support upto 80M bw */
+/* yesw, support upto 80M bw */
 #define RTW_MAX_CHANNEL_WIDTH RTW_CHANNEL_WIDTH_80
 
 enum rtw_bandwidth {
@@ -1200,7 +1200,7 @@ struct rtw_coex_stat {
 	u8 bt_a2dp_bitpool;
 	u8 bt_iqk_state;
 
-	u8 wl_noisy_level;
+	u8 wl_yesisy_level;
 	u8 wl_fw_dbg_info[10];
 	u8 wl_fw_dbg_info_pre[10];
 	u8 wl_coex_mode;

@@ -18,7 +18,7 @@
 #ifndef __PLAT_UNCOMPRESS_H
 #define __PLAT_UNCOMPRESS_H
 /*
- * This does not append a newline
+ * This does yest append a newline
  */
 static inline void putc(int c)
 {
@@ -35,7 +35,7 @@ static inline void flush(void)
 }
 
 /*
- * nothing to do
+ * yesthing to do
  */
 #define arch_decomp_setup()
 

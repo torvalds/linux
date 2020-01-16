@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -46,19 +46,19 @@
 
 #include "csio_hw.h"
 #include "csio_mb.h"
-#include "csio_lnode.h"
-#include "csio_rnode.h"
+#include "csio_lyesde.h"
+#include "csio_ryesde.h"
 
-int csio_fcoe_rnodes = 1024;
+int csio_fcoe_ryesdes = 1024;
 int csio_fdmi_enable = 1;
 
 #define PORT_ID_PTR(_x)         ((uint8_t *)(&_x) + 1)
 
-/* Lnode SM declarations */
-static void csio_lns_uninit(struct csio_lnode *, enum csio_ln_ev);
-static void csio_lns_online(struct csio_lnode *, enum csio_ln_ev);
-static void csio_lns_ready(struct csio_lnode *, enum csio_ln_ev);
-static void csio_lns_offline(struct csio_lnode *, enum csio_ln_ev);
+/* Lyesde SM declarations */
+static void csio_lns_uninit(struct csio_lyesde *, enum csio_ln_ev);
+static void csio_lns_online(struct csio_lyesde *, enum csio_ln_ev);
+static void csio_lns_ready(struct csio_lyesde *, enum csio_ln_ev);
+static void csio_lns_offline(struct csio_lyesde *, enum csio_ln_ev);
 
 static int csio_ln_mgmt_submit_req(struct csio_ioreq *,
 		void (*io_cbfn) (struct csio_hw *, struct csio_ioreq *),
@@ -105,21 +105,21 @@ static enum csio_ln_ev fwevt_to_lnevt[] = {
 #define csio_ct_get_pld(cp)	((void *)(((uint8_t *)cp) + FC_CT_HDR_LEN))
 
 /*
- * csio_ln_match_by_portid - lookup lnode using given portid.
+ * csio_ln_match_by_portid - lookup lyesde using given portid.
  * @hw: HW module
  * @portid: port-id.
  *
- * If found, returns lnode matching given portid otherwise returns NULL.
+ * If found, returns lyesde matching given portid otherwise returns NULL.
  */
-static struct csio_lnode *
+static struct csio_lyesde *
 csio_ln_lookup_by_portid(struct csio_hw *hw, uint8_t portid)
 {
-	struct csio_lnode *ln;
+	struct csio_lyesde *ln;
 	struct list_head *tmp;
 
-	/* Match siblings lnode with portid */
+	/* Match siblings lyesde with portid */
 	list_for_each(tmp, &hw->sln_head) {
-		ln = (struct csio_lnode *) tmp;
+		ln = (struct csio_lyesde *) tmp;
 		if (ln->portid == portid)
 			return ln;
 	}
@@ -128,36 +128,36 @@ csio_ln_lookup_by_portid(struct csio_hw *hw, uint8_t portid)
 }
 
 /*
- * csio_ln_lookup_by_vnpi - Lookup lnode using given vnp id.
+ * csio_ln_lookup_by_vnpi - Lookup lyesde using given vnp id.
  * @hw - HW module
  * @vnpi - vnp index.
- * Returns - If found, returns lnode matching given vnp id
+ * Returns - If found, returns lyesde matching given vnp id
  * otherwise returns NULL.
  */
-static struct csio_lnode *
+static struct csio_lyesde *
 csio_ln_lookup_by_vnpi(struct csio_hw *hw, uint32_t vnp_id)
 {
 	struct list_head *tmp1, *tmp2;
-	struct csio_lnode *sln = NULL, *cln = NULL;
+	struct csio_lyesde *sln = NULL, *cln = NULL;
 
 	if (list_empty(&hw->sln_head)) {
 		CSIO_INC_STATS(hw, n_lnlkup_miss);
 		return NULL;
 	}
-	/* Traverse sibling lnodes */
+	/* Traverse sibling lyesdes */
 	list_for_each(tmp1, &hw->sln_head) {
-		sln = (struct csio_lnode *) tmp1;
+		sln = (struct csio_lyesde *) tmp1;
 
-		/* Match sibling lnode */
+		/* Match sibling lyesde */
 		if (sln->vnp_flowid == vnp_id)
 			return sln;
 
 		if (list_empty(&sln->cln_head))
 			continue;
 
-		/* Traverse children lnodes */
+		/* Traverse children lyesdes */
 		list_for_each(tmp2, &sln->cln_head) {
-			cln = (struct csio_lnode *) tmp2;
+			cln = (struct csio_lyesde *) tmp2;
 
 			if (cln->vnp_flowid == vnp_id)
 				return cln;
@@ -168,36 +168,36 @@ csio_ln_lookup_by_vnpi(struct csio_hw *hw, uint32_t vnp_id)
 }
 
 /**
- * csio_lnode_lookup_by_wwpn - Lookup lnode using given wwpn.
+ * csio_lyesde_lookup_by_wwpn - Lookup lyesde using given wwpn.
  * @hw:		HW module.
  * @wwpn:	WWPN.
  *
- * If found, returns lnode matching given wwpn, returns NULL otherwise.
+ * If found, returns lyesde matching given wwpn, returns NULL otherwise.
  */
-struct csio_lnode *
-csio_lnode_lookup_by_wwpn(struct csio_hw *hw, uint8_t *wwpn)
+struct csio_lyesde *
+csio_lyesde_lookup_by_wwpn(struct csio_hw *hw, uint8_t *wwpn)
 {
 	struct list_head *tmp1, *tmp2;
-	struct csio_lnode *sln = NULL, *cln = NULL;
+	struct csio_lyesde *sln = NULL, *cln = NULL;
 
 	if (list_empty(&hw->sln_head)) {
 		CSIO_INC_STATS(hw, n_lnlkup_miss);
 		return NULL;
 	}
-	/* Traverse sibling lnodes */
+	/* Traverse sibling lyesdes */
 	list_for_each(tmp1, &hw->sln_head) {
-		sln = (struct csio_lnode *) tmp1;
+		sln = (struct csio_lyesde *) tmp1;
 
-		/* Match sibling lnode */
+		/* Match sibling lyesde */
 		if (!memcmp(csio_ln_wwpn(sln), wwpn, 8))
 			return sln;
 
 		if (list_empty(&sln->cln_head))
 			continue;
 
-		/* Traverse children lnodes */
+		/* Traverse children lyesdes */
 		list_for_each(tmp2, &sln->cln_head) {
-			cln = (struct csio_lnode *) tmp2;
+			cln = (struct csio_lyesde *) tmp2;
 
 			if (!memcmp(csio_ln_wwpn(cln), wwpn, 8))
 				return cln;
@@ -220,7 +220,7 @@ csio_fill_ct_iu(void *buf, uint8_t type, uint8_t sub_type, uint16_t op)
 static int
 csio_hostname(uint8_t *buf, size_t buf_len)
 {
-	if (snprintf(buf, buf_len, "%s", init_utsname()->nodename) > 0)
+	if (snprintf(buf, buf_len, "%s", init_utsname()->yesdename) > 0)
 		return 0;
 	return -1;
 }
@@ -267,7 +267,7 @@ static void
 csio_ln_fdmi_done(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 {
 	void *cmd;
-	struct csio_lnode *ln = fdmi_req->lnode;
+	struct csio_lyesde *ln = fdmi_req->lyesde;
 
 	if (fdmi_req->wr_status != FW_SUCCESS) {
 		csio_ln_dbg(ln, "WR error:%x in processing fdmi rpa cmd\n",
@@ -296,7 +296,7 @@ csio_ln_fdmi_rhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 	__be32 val;
 	__be16 mfs;
 	uint32_t numattrs = 0;
-	struct csio_lnode *ln = fdmi_req->lnode;
+	struct csio_lyesde *ln = fdmi_req->lyesde;
 	struct fs_fdmi_attrs *attrib_blk;
 	struct fc_fdmi_port_name *port_name;
 	uint8_t buf[64];
@@ -315,7 +315,7 @@ csio_ln_fdmi_rhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 			    csio_ct_reason(cmd), csio_ct_expl(cmd));
 	}
 
-	if (!csio_is_rnode_ready(fdmi_req->rnode)) {
+	if (!csio_is_ryesde_ready(fdmi_req->ryesde)) {
 		CSIO_INC_STATS(ln, n_fdmi_err);
 		return;
 	}
@@ -409,7 +409,7 @@ csio_ln_fdmi_dprt_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 	uint32_t numattrs = 0;
 	__be32  maxpayload = htonl(65536);
 	struct fc_fdmi_hba_identifier *hbaid;
-	struct csio_lnode *ln = fdmi_req->lnode;
+	struct csio_lyesde *ln = fdmi_req->lyesde;
 	struct fc_fdmi_rpl *reg_pl;
 	struct fs_fdmi_attrs *attrib_blk;
 	uint8_t buf[64];
@@ -421,7 +421,7 @@ csio_ln_fdmi_dprt_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 		CSIO_INC_STATS(ln, n_fdmi_err);
 	}
 
-	if (!csio_is_rnode_ready(fdmi_req->rnode)) {
+	if (!csio_is_ryesde_ready(fdmi_req->ryesde)) {
 		CSIO_INC_STATS(ln, n_fdmi_err);
 		return;
 	}
@@ -510,7 +510,7 @@ csio_ln_fdmi_dprt_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 static void
 csio_ln_fdmi_dhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 {
-	struct csio_lnode *ln = fdmi_req->lnode;
+	struct csio_lyesde *ln = fdmi_req->lyesde;
 	void *cmd;
 	struct fc_fdmi_port_name *port_name;
 	uint32_t len;
@@ -522,7 +522,7 @@ csio_ln_fdmi_dhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 		CSIO_INC_STATS(ln, n_fdmi_err);
 	}
 
-	if (!csio_is_rnode_ready(fdmi_req->rnode)) {
+	if (!csio_is_ryesde_ready(fdmi_req->ryesde)) {
 		CSIO_INC_STATS(ln, n_fdmi_err);
 		return;
 	}
@@ -556,16 +556,16 @@ csio_ln_fdmi_dhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 
 /**
  * csio_ln_fdmi_start - Start an FDMI request.
- * @ln:		lnode
+ * @ln:		lyesde
  * @context:	session context
  *
  * Issued with lock held.
  */
 int
-csio_ln_fdmi_start(struct csio_lnode *ln, void *context)
+csio_ln_fdmi_start(struct csio_lyesde *ln, void *context)
 {
 	struct csio_ioreq *fdmi_req;
-	struct csio_rnode *fdmi_rn = (struct csio_rnode *)context;
+	struct csio_ryesde *fdmi_rn = (struct csio_ryesde *)context;
 	void *cmd;
 	struct fc_fdmi_hba_identifier *hbaid;
 	uint32_t len;
@@ -573,7 +573,7 @@ csio_ln_fdmi_start(struct csio_lnode *ln, void *context)
 	if (!(ln->flags & CSIO_LNF_FDMI_ENABLE))
 		return -EPROTONOSUPPORT;
 
-	if (!csio_is_rnode_ready(fdmi_rn))
+	if (!csio_is_ryesde_ready(fdmi_rn))
 		CSIO_INC_STATS(ln, n_fdmi_err);
 
 	/* Send FDMI cmd to de-register any HBA attributes if registered
@@ -581,8 +581,8 @@ csio_ln_fdmi_start(struct csio_lnode *ln, void *context)
 	 */
 
 	fdmi_req = ln->mgmt_req;
-	fdmi_req->lnode = ln;
-	fdmi_req->rnode = fdmi_rn;
+	fdmi_req->lyesde = ln;
+	fdmi_req->ryesde = fdmi_rn;
 
 	/* Prepare FDMI DHBA cmd */
 	cmd = fdmi_req->dma_buf.vaddr;
@@ -606,7 +606,7 @@ csio_ln_fdmi_start(struct csio_lnode *ln, void *context)
 
 /*
  * csio_ln_vnp_read_cbfn - vnp read completion handler.
- * @hw: HW lnode
+ * @hw: HW lyesde
  * @cbfn: Completion handler.
  *
  * Reads vnp response and updates ln parameters.
@@ -614,7 +614,7 @@ csio_ln_fdmi_start(struct csio_lnode *ln, void *context)
 static void
 csio_ln_vnp_read_cbfn(struct csio_hw *hw, struct csio_mb *mbp)
 {
-	struct csio_lnode *ln = ((struct csio_lnode *)mbp->priv);
+	struct csio_lyesde *ln = ((struct csio_lyesde *)mbp->priv);
 	struct fw_fcoe_vnp_cmd *rsp = (struct fw_fcoe_vnp_cmd *)(mbp->mb);
 	struct fc_els_csp *csp;
 	struct fc_els_cssp *clsp;
@@ -666,18 +666,18 @@ csio_ln_vnp_read_cbfn(struct csio_hw *hw, struct csio_mb *mbp)
 	mempool_free(mbp, hw->mb_mempool);
 
 	/* Send an event to update local attribs */
-	csio_lnode_async_event(ln, CSIO_LN_FC_ATTRIB_UPDATE);
+	csio_lyesde_async_event(ln, CSIO_LN_FC_ATTRIB_UPDATE);
 }
 
 /*
  * csio_ln_vnp_read - Read vnp params.
- * @ln: lnode
+ * @ln: lyesde
  * @cbfn: Completion handler.
  *
  * Issued with lock held.
  */
 static int
-csio_ln_vnp_read(struct csio_lnode *ln,
+csio_ln_vnp_read(struct csio_lyesde *ln,
 		void (*cbfn) (struct csio_hw *, struct csio_mb *))
 {
 	struct csio_hw *hw = ln->hwp;
@@ -686,7 +686,7 @@ csio_ln_vnp_read(struct csio_lnode *ln,
 	/* Allocate Mbox request */
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 
@@ -709,13 +709,13 @@ csio_ln_vnp_read(struct csio_lnode *ln,
 
 /*
  * csio_fcoe_enable_link - Enable fcoe link.
- * @ln: lnode
+ * @ln: lyesde
  * @enable: enable/disable
  * Issued with lock held.
  * Issues mbox cmd to bring up FCOE link on port associated with given ln.
  */
 static int
-csio_fcoe_enable_link(struct csio_lnode *ln, bool enable)
+csio_fcoe_enable_link(struct csio_lyesde *ln, bool enable)
 {
 	struct csio_hw *hw = ln->hwp;
 	struct csio_mb  *mbp;
@@ -727,7 +727,7 @@ csio_fcoe_enable_link(struct csio_lnode *ln, bool enable)
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 
@@ -775,14 +775,14 @@ out:
 
 /*
  * csio_ln_read_fcf_cbfn - Read fcf parameters
- * @ln: lnode
+ * @ln: lyesde
  *
  * read fcf response and Update ln fcf information.
  */
 static void
 csio_ln_read_fcf_cbfn(struct csio_hw *hw, struct csio_mb *mbp)
 {
-	struct csio_lnode *ln = (struct csio_lnode *)mbp->priv;
+	struct csio_lyesde *ln = (struct csio_lyesde *)mbp->priv;
 	struct csio_fcf_info	*fcf_info;
 	struct fw_fcoe_fcf_cmd *rsp =
 				(struct fw_fcoe_fcf_cmd *)(mbp->mb);
@@ -822,13 +822,13 @@ csio_ln_read_fcf_cbfn(struct csio_hw *hw, struct csio_mb *mbp)
 
 /*
  * csio_ln_read_fcf_entry - Read fcf entry.
- * @ln: lnode
+ * @ln: lyesde
  * @cbfn: Completion handler.
  *
  * Issued with lock held.
  */
 static int
-csio_ln_read_fcf_entry(struct csio_lnode *ln,
+csio_ln_read_fcf_entry(struct csio_lyesde *ln,
 			void (*cbfn) (struct csio_hw *, struct csio_mb *))
 {
 	struct csio_hw *hw = ln->hwp;
@@ -836,7 +836,7 @@ csio_ln_read_fcf_entry(struct csio_lnode *ln,
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 
@@ -859,13 +859,13 @@ csio_ln_read_fcf_entry(struct csio_lnode *ln,
  * @portid - Physical port number
  * @fcfi - FCF index.
  * @vnpi - VNP index.
- * Returns - none.
+ * Returns - yesne.
  *
  * This event is received from FW, when virtual link is established between
- * Physical port[ENode] and FCF. If its new vnpi, then local node object is
+ * Physical port[ENode] and FCF. If its new vnpi, then local yesde object is
  * created on this FCF and set to [ONLINE] state.
- * Lnode waits for FW_RDEV_CMD event to be received indicating that
- * Fabric login is completed and lnode moves to [READY] state.
+ * Lyesde waits for FW_RDEV_CMD event to be received indicating that
+ * Fabric login is completed and lyesde moves to [READY] state.
  *
  * This called with hw lock held
  */
@@ -873,29 +873,29 @@ static void
 csio_handle_link_up(struct csio_hw *hw, uint8_t portid, uint32_t fcfi,
 		    uint32_t vnpi)
 {
-	struct csio_lnode *ln = NULL;
+	struct csio_lyesde *ln = NULL;
 
-	/* Lookup lnode based on vnpi */
+	/* Lookup lyesde based on vnpi */
 	ln = csio_ln_lookup_by_vnpi(hw, vnpi);
 	if (!ln) {
-		/* Pick lnode based on portid */
+		/* Pick lyesde based on portid */
 		ln = csio_ln_lookup_by_portid(hw, portid);
 		if (!ln) {
-			csio_err(hw, "failed to lookup fcoe lnode on port:%d\n",
+			csio_err(hw, "failed to lookup fcoe lyesde on port:%d\n",
 				portid);
 			CSIO_DB_ASSERT(0);
 			return;
 		}
 
-		/* Check if lnode has valid vnp flowid */
+		/* Check if lyesde has valid vnp flowid */
 		if (ln->vnp_flowid != CSIO_INVALID_IDX) {
 			/* New VN-Port */
 			spin_unlock_irq(&hw->lock);
-			csio_lnode_alloc(hw);
+			csio_lyesde_alloc(hw);
 			spin_lock_irq(&hw->lock);
 			if (!ln) {
 				csio_err(hw,
-					 "failed to allocate fcoe lnode"
+					 "failed to allocate fcoe lyesde"
 					 "for port:%d vnpi:x%x\n",
 					 portid, vnpi);
 				CSIO_DB_ASSERT(0);
@@ -921,98 +921,98 @@ csio_handle_link_up(struct csio_hw *hw, uint8_t portid, uint32_t fcfi,
 
 /*
  * csio_post_event_rns
- * @ln - FCOE lnode
- * @evt - Given rnode event
- * Returns - none
+ * @ln - FCOE lyesde
+ * @evt - Given ryesde event
+ * Returns - yesne
  *
- * Posts given rnode event to all FCOE rnodes connected with given Lnode.
- * This routine is invoked when lnode receives LINK_DOWN/DOWN_LINK/CLOSE
+ * Posts given ryesde event to all FCOE ryesdes connected with given Lyesde.
+ * This routine is invoked when lyesde receives LINK_DOWN/DOWN_LINK/CLOSE
  * event.
  *
  * This called with hw lock held
  */
 static void
-csio_post_event_rns(struct csio_lnode *ln, enum csio_rn_ev evt)
+csio_post_event_rns(struct csio_lyesde *ln, enum csio_rn_ev evt)
 {
-	struct csio_rnode *rnhead = (struct csio_rnode *) &ln->rnhead;
+	struct csio_ryesde *rnhead = (struct csio_ryesde *) &ln->rnhead;
 	struct list_head *tmp, *next;
-	struct csio_rnode *rn;
+	struct csio_ryesde *rn;
 
 	list_for_each_safe(tmp, next, &rnhead->sm.sm_list) {
-		rn = (struct csio_rnode *) tmp;
+		rn = (struct csio_ryesde *) tmp;
 		csio_post_event(&rn->sm, evt);
 	}
 }
 
 /*
  * csio_cleanup_rns
- * @ln - FCOE lnode
- * Returns - none
+ * @ln - FCOE lyesde
+ * Returns - yesne
  *
- * Frees all FCOE rnodes connected with given Lnode.
+ * Frees all FCOE ryesdes connected with given Lyesde.
  *
  * This called with hw lock held
  */
 static void
-csio_cleanup_rns(struct csio_lnode *ln)
+csio_cleanup_rns(struct csio_lyesde *ln)
 {
-	struct csio_rnode *rnhead = (struct csio_rnode *) &ln->rnhead;
+	struct csio_ryesde *rnhead = (struct csio_ryesde *) &ln->rnhead;
 	struct list_head *tmp, *next_rn;
-	struct csio_rnode *rn;
+	struct csio_ryesde *rn;
 
 	list_for_each_safe(tmp, next_rn, &rnhead->sm.sm_list) {
-		rn = (struct csio_rnode *) tmp;
-		csio_put_rnode(ln, rn);
+		rn = (struct csio_ryesde *) tmp;
+		csio_put_ryesde(ln, rn);
 	}
 
 }
 
 /*
  * csio_post_event_lns
- * @ln - FCOE lnode
- * @evt - Given lnode event
- * Returns - none
+ * @ln - FCOE lyesde
+ * @evt - Given lyesde event
+ * Returns - yesne
  *
- * Posts given lnode event to all FCOE lnodes connected with given Lnode.
- * This routine is invoked when lnode receives LINK_DOWN/DOWN_LINK/CLOSE
+ * Posts given lyesde event to all FCOE lyesdes connected with given Lyesde.
+ * This routine is invoked when lyesde receives LINK_DOWN/DOWN_LINK/CLOSE
  * event.
  *
  * This called with hw lock held
  */
 static void
-csio_post_event_lns(struct csio_lnode *ln, enum csio_ln_ev evt)
+csio_post_event_lns(struct csio_lyesde *ln, enum csio_ln_ev evt)
 {
 	struct list_head *tmp;
-	struct csio_lnode *cln, *sln;
+	struct csio_lyesde *cln, *sln;
 
-	/* If NPIV lnode, send evt only to that and return */
+	/* If NPIV lyesde, send evt only to that and return */
 	if (csio_is_npiv_ln(ln)) {
 		csio_post_event(&ln->sm, evt);
 		return;
 	}
 
 	sln = ln;
-	/* Traverse children lnodes list and send evt */
+	/* Traverse children lyesdes list and send evt */
 	list_for_each(tmp, &sln->cln_head) {
-		cln = (struct csio_lnode *) tmp;
+		cln = (struct csio_lyesde *) tmp;
 		csio_post_event(&cln->sm, evt);
 	}
 
-	/* Send evt to parent lnode */
+	/* Send evt to parent lyesde */
 	csio_post_event(&ln->sm, evt);
 }
 
 /*
  * csio_ln_down - Lcoal nport is down
- * @ln - FCOE Lnode
- * Returns - none
+ * @ln - FCOE Lyesde
+ * Returns - yesne
  *
- * Sends LINK_DOWN events to Lnode and its associated NPIVs lnodes.
+ * Sends LINK_DOWN events to Lyesde and its associated NPIVs lyesdes.
  *
  * This called with hw lock held
  */
 static void
-csio_ln_down(struct csio_lnode *ln)
+csio_ln_down(struct csio_lyesde *ln)
 {
 	csio_post_event_lns(ln, CSIO_LNE_LINK_DOWN);
 }
@@ -1023,10 +1023,10 @@ csio_ln_down(struct csio_lnode *ln)
  * @portid - Physical port number
  * @fcfi - FCF index.
  * @vnpi - VNP index.
- * Returns - none
+ * Returns - yesne
  *
  * This event is received from FW, when virtual link goes down between
- * Physical port[ENode] and FCF. Lnode and its associated NPIVs lnode hosted on
+ * Physical port[ENode] and FCF. Lyesde and its associated NPIVs lyesde hosted on
  * this vnpi[VN-Port] will be de-instantiated.
  *
  * This called with hw lock held
@@ -1036,19 +1036,19 @@ csio_handle_link_down(struct csio_hw *hw, uint8_t portid, uint32_t fcfi,
 		      uint32_t vnpi)
 {
 	struct csio_fcf_info *fp;
-	struct csio_lnode *ln;
+	struct csio_lyesde *ln;
 
-	/* Lookup lnode based on vnpi */
+	/* Lookup lyesde based on vnpi */
 	ln = csio_ln_lookup_by_vnpi(hw, vnpi);
 	if (ln) {
 		fp = ln->fcfinfo;
 		CSIO_INC_STATS(ln, n_link_down);
 
-		/*Warn if linkdown received if lnode is not in ready state */
-		if (!csio_is_lnode_ready(ln)) {
+		/*Warn if linkdown received if lyesde is yest in ready state */
+		if (!csio_is_lyesde_ready(ln)) {
 			csio_ln_warn(ln,
 				"warn: FCOE link is already in offline "
-				"Ignoring Fcoe linkdown event on portid %d\n",
+				"Igyesring Fcoe linkdown event on portid %d\n",
 				 portid);
 			CSIO_INC_STATS(ln, n_evt_drop);
 			return;
@@ -1074,7 +1074,7 @@ csio_handle_link_down(struct csio_hw *hw, uint8_t portid, uint32_t fcfi,
 
 		csio_info(hw, "Port:%d - FCOE LINK DOWN\n", portid);
 
-		/* Send LINK_DOWN event to lnode s/m */
+		/* Send LINK_DOWN event to lyesde s/m */
 		csio_ln_down(ln);
 
 		return;
@@ -1087,41 +1087,41 @@ csio_handle_link_down(struct csio_hw *hw, uint8_t portid, uint32_t fcfi,
 }
 
 /*
- * csio_is_lnode_ready - Checks FCOE lnode is in ready state.
- * @ln: Lnode module
+ * csio_is_lyesde_ready - Checks FCOE lyesde is in ready state.
+ * @ln: Lyesde module
  *
- * Returns True if FCOE lnode is in ready state.
+ * Returns True if FCOE lyesde is in ready state.
  */
 int
-csio_is_lnode_ready(struct csio_lnode *ln)
+csio_is_lyesde_ready(struct csio_lyesde *ln)
 {
 	return (csio_get_state(ln) == ((csio_sm_state_t)csio_lns_ready));
 }
 
 /*****************************************************************************/
-/* START: Lnode SM                                                           */
+/* START: Lyesde SM                                                           */
 /*****************************************************************************/
 /*
  * csio_lns_uninit - The request in uninit state.
- * @ln - FCOE lnode.
+ * @ln - FCOE lyesde.
  * @evt - Event to be processed.
  *
- * Process the given lnode event which is currently in "uninit" state.
+ * Process the given lyesde event which is currently in "uninit" state.
  * Invoked with HW lock held.
- * Return - none.
+ * Return - yesne.
  */
 static void
-csio_lns_uninit(struct csio_lnode *ln, enum csio_ln_ev evt)
+csio_lns_uninit(struct csio_lyesde *ln, enum csio_ln_ev evt)
 {
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
-	struct csio_lnode *rln = hw->rln;
+	struct csio_hw *hw = csio_lyesde_to_hw(ln);
+	struct csio_lyesde *rln = hw->rln;
 	int rv;
 
 	CSIO_INC_STATS(ln, n_evt_sm[evt]);
 	switch (evt) {
 	case CSIO_LNE_LINKUP:
 		csio_set_state(&ln->sm, csio_lns_online);
-		/* Read FCF only for physical lnode */
+		/* Read FCF only for physical lyesde */
 		if (csio_is_phys_ln(ln)) {
 			rv = csio_ln_read_fcf_entry(ln,
 					csio_ln_read_fcf_cbfn);
@@ -1156,24 +1156,24 @@ csio_lns_uninit(struct csio_lnode *ln, enum csio_ln_ev evt)
 
 /*
  * csio_lns_online - The request in online state.
- * @ln - FCOE lnode.
+ * @ln - FCOE lyesde.
  * @evt - Event to be processed.
  *
- * Process the given lnode event which is currently in "online" state.
+ * Process the given lyesde event which is currently in "online" state.
  * Invoked with HW lock held.
- * Return - none.
+ * Return - yesne.
  */
 static void
-csio_lns_online(struct csio_lnode *ln, enum csio_ln_ev evt)
+csio_lns_online(struct csio_lyesde *ln, enum csio_ln_ev evt)
 {
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_hw *hw = csio_lyesde_to_hw(ln);
 
 	CSIO_INC_STATS(ln, n_evt_sm[evt]);
 	switch (evt) {
 	case CSIO_LNE_LINKUP:
 		csio_ln_warn(ln,
 			     "warn: FCOE link is up already "
-			     "Ignoring linkup on port:%d\n", ln->portid);
+			     "Igyesring linkup on port:%d\n", ln->portid);
 		CSIO_INC_STATS(ln, n_evt_drop);
 		break;
 
@@ -1181,7 +1181,7 @@ csio_lns_online(struct csio_lnode *ln, enum csio_ln_ev evt)
 		csio_set_state(&ln->sm, csio_lns_ready);
 
 		spin_unlock_irq(&hw->lock);
-		csio_lnode_async_event(ln, CSIO_LN_FC_LINKUP);
+		csio_lyesde_async_event(ln, CSIO_LN_FC_LINKUP);
 		spin_lock_irq(&hw->lock);
 
 		break;
@@ -1208,23 +1208,23 @@ csio_lns_online(struct csio_lnode *ln, enum csio_ln_ev evt)
 
 /*
  * csio_lns_ready - The request in ready state.
- * @ln - FCOE lnode.
+ * @ln - FCOE lyesde.
  * @evt - Event to be processed.
  *
- * Process the given lnode event which is currently in "ready" state.
+ * Process the given lyesde event which is currently in "ready" state.
  * Invoked with HW lock held.
- * Return - none.
+ * Return - yesne.
  */
 static void
-csio_lns_ready(struct csio_lnode *ln, enum csio_ln_ev evt)
+csio_lns_ready(struct csio_lyesde *ln, enum csio_ln_ev evt)
 {
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_hw *hw = csio_lyesde_to_hw(ln);
 
 	CSIO_INC_STATS(ln, n_evt_sm[evt]);
 	switch (evt) {
 	case CSIO_LNE_FAB_INIT_DONE:
 		csio_ln_dbg(ln,
-			    "ignoring event %d recv from did x%x"
+			    "igyesring event %d recv from did x%x"
 			    "in ln state[ready].\n", evt, ln->nport_id);
 		CSIO_INC_STATS(ln, n_evt_drop);
 		break;
@@ -1234,7 +1234,7 @@ csio_lns_ready(struct csio_lnode *ln, enum csio_ln_ev evt)
 		csio_post_event_rns(ln, CSIO_RNFE_DOWN);
 
 		spin_unlock_irq(&hw->lock);
-		csio_lnode_async_event(ln, CSIO_LN_FC_LINKDOWN);
+		csio_lyesde_async_event(ln, CSIO_LN_FC_LINKDOWN);
 		spin_lock_irq(&hw->lock);
 
 		if (csio_is_phys_ln(ln)) {
@@ -1247,11 +1247,11 @@ csio_lns_ready(struct csio_lnode *ln, enum csio_ln_ev evt)
 		csio_set_state(&ln->sm, csio_lns_offline);
 		csio_post_event_rns(ln, CSIO_RNFE_DOWN);
 
-		/* Host need to issue aborts in case if FW has not returned
+		/* Host need to issue aborts in case if FW has yest returned
 		 * WRs with status "ABORTED"
 		 */
 		spin_unlock_irq(&hw->lock);
-		csio_lnode_async_event(ln, CSIO_LN_FC_LINKDOWN);
+		csio_lyesde_async_event(ln, CSIO_LN_FC_LINKDOWN);
 		spin_lock_irq(&hw->lock);
 
 		if (csio_is_phys_ln(ln)) {
@@ -1282,25 +1282,25 @@ csio_lns_ready(struct csio_lnode *ln, enum csio_ln_ev evt)
 
 /*
  * csio_lns_offline - The request in offline state.
- * @ln - FCOE lnode.
+ * @ln - FCOE lyesde.
  * @evt - Event to be processed.
  *
- * Process the given lnode event which is currently in "offline" state.
+ * Process the given lyesde event which is currently in "offline" state.
  * Invoked with HW lock held.
- * Return - none.
+ * Return - yesne.
  */
 static void
-csio_lns_offline(struct csio_lnode *ln, enum csio_ln_ev evt)
+csio_lns_offline(struct csio_lyesde *ln, enum csio_ln_ev evt)
 {
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
-	struct csio_lnode *rln = hw->rln;
+	struct csio_hw *hw = csio_lyesde_to_hw(ln);
+	struct csio_lyesde *rln = hw->rln;
 	int rv;
 
 	CSIO_INC_STATS(ln, n_evt_sm[evt]);
 	switch (evt) {
 	case CSIO_LNE_LINKUP:
 		csio_set_state(&ln->sm, csio_lns_online);
-		/* Read FCF only for physical lnode */
+		/* Read FCF only for physical lyesde */
 		if (csio_is_phys_ln(ln)) {
 			rv = csio_ln_read_fcf_entry(ln,
 					csio_ln_read_fcf_cbfn);
@@ -1325,7 +1325,7 @@ csio_lns_offline(struct csio_lnode *ln, enum csio_ln_ev evt)
 	case CSIO_LNE_DOWN_LINK:
 	case CSIO_LNE_LOGO:
 		csio_ln_dbg(ln,
-			    "ignoring event %d recv from did x%x"
+			    "igyesring event %d recv from did x%x"
 			    "in ln state[offline].\n", evt, ln->nport_id);
 		CSIO_INC_STATS(ln, n_evt_drop);
 		break;
@@ -1346,7 +1346,7 @@ csio_lns_offline(struct csio_lnode *ln, enum csio_ln_ev evt)
 }
 
 /*****************************************************************************/
-/* END: Lnode SM                                                             */
+/* END: Lyesde SM                                                             */
 /*****************************************************************************/
 
 static void
@@ -1359,13 +1359,13 @@ csio_free_fcfinfo(struct kref *kref)
 
 /* Helper routines for attributes  */
 /*
- * csio_lnode_state_to_str - Get current state of FCOE lnode.
- * @ln - lnode
- * @str - state of lnode.
+ * csio_lyesde_state_to_str - Get current state of FCOE lyesde.
+ * @ln - lyesde
+ * @str - state of lyesde.
  *
  */
 void
-csio_lnode_state_to_str(struct csio_lnode *ln, int8_t *str)
+csio_lyesde_state_to_str(struct csio_lyesde *ln, int8_t *str)
 {
 	if (csio_get_state(ln) == ((csio_sm_state_t)csio_lns_uninit)) {
 		strcpy(str, "UNINIT");
@@ -1380,7 +1380,7 @@ csio_lnode_state_to_str(struct csio_lnode *ln, int8_t *str)
 		return;
 	}
 	strcpy(str, "UNKNOWN");
-} /* csio_lnode_state_to_str */
+} /* csio_lyesde_state_to_str */
 
 
 int
@@ -1426,7 +1426,7 @@ csio_get_phy_port_stats(struct csio_hw *hw, uint8_t portid,
  * This handler is invoked when an outstanding mgmt WR is completed.
  * Its invoked in the context of FW event worker thread for every
  * mgmt event received.
- * Return - none.
+ * Return - yesne.
  */
 
 static void
@@ -1483,8 +1483,8 @@ csio_ln_mgmt_wr_handler(struct csio_hw *hw, void *wr, uint32_t len)
 void
 csio_fcoe_fwevt_handler(struct csio_hw *hw, __u8 cpl_op, __be64 *cmd)
 {
-	struct csio_lnode *ln;
-	struct csio_rnode *rn;
+	struct csio_lyesde *ln;
+	struct csio_ryesde *rn;
 	uint8_t portid, opcode = *(uint8_t *)cmd;
 	struct fw_fcoe_link_cmd *lcmd;
 	struct fw_wr_hdr *wr;
@@ -1560,11 +1560,11 @@ csio_fcoe_fwevt_handler(struct csio_hw *hw, __u8 cpl_op, __be64 *cmd)
 				goto out_pld;
 			}
 
-			rn = csio_confirm_rnode(ln, rdev_flowid,
+			rn = csio_confirm_ryesde(ln, rdev_flowid,
 					&rdev_wr->u.fcoe_rdev);
 			if (!rn) {
 				csio_ln_dbg(ln,
-					"Failed to confirm rnode "
+					"Failed to confirm ryesde "
 					"for flowid:x%x\n", rdev_flowid);
 				CSIO_INC_STATS(hw, n_evt_drop);
 				goto out_pld;
@@ -1575,18 +1575,18 @@ csio_fcoe_fwevt_handler(struct csio_hw *hw, __u8 cpl_op, __be64 *cmd)
 			ln->cur_evt = rdev_wr->event_cause;
 			CSIO_INC_STATS(ln, n_evt_fw[rdev_wr->event_cause]);
 
-			/* Translate all the fabric events to lnode SM events */
+			/* Translate all the fabric events to lyesde SM events */
 			evt = CSIO_FWE_TO_LNE(rdev_wr->event_cause);
 			if (evt) {
 				csio_ln_dbg(ln,
-					"Posting event to lnode event:%d "
+					"Posting event to lyesde event:%d "
 					"cause:%d flowid:x%x\n", evt,
 					rdev_wr->event_cause, rdev_flowid);
 				csio_post_event(&ln->sm, evt);
 			}
 
 			/* Handover event to rn SM here. */
-			csio_rnode_fwevt_handler(rn, rdev_wr->event_cause);
+			csio_ryesde_fwevt_handler(rn, rdev_wr->event_cause);
 out_pld:
 			spin_unlock_irq(&hw->lock);
 			return;
@@ -1612,13 +1612,13 @@ out_pld:
 }
 
 /**
- * csio_lnode_start - Kickstart lnode discovery.
- * @ln:		lnode
+ * csio_lyesde_start - Kickstart lyesde discovery.
+ * @ln:		lyesde
  *
  * This routine kickstarts the discovery by issuing an FCOE_LINK (up) command.
  */
 int
-csio_lnode_start(struct csio_lnode *ln)
+csio_lyesde_start(struct csio_lyesde *ln)
 {
 	int rv = 0;
 	if (csio_is_phys_ln(ln) && !(ln->flags & CSIO_LNF_LINK_ENABLE)) {
@@ -1630,14 +1630,14 @@ csio_lnode_start(struct csio_lnode *ln)
 }
 
 /**
- * csio_lnode_stop - Stop the lnode.
- * @ln:		lnode
+ * csio_lyesde_stop - Stop the lyesde.
+ * @ln:		lyesde
  *
- * This routine is invoked by HW module to stop lnode and its associated NPIV
- * lnodes.
+ * This routine is invoked by HW module to stop lyesde and its associated NPIV
+ * lyesdes.
  */
 void
-csio_lnode_stop(struct csio_lnode *ln)
+csio_lyesde_stop(struct csio_lyesde *ln)
 {
 	csio_post_event_lns(ln, CSIO_LNE_DOWN_LINK);
 	if (csio_is_phys_ln(ln) && (ln->flags & CSIO_LNF_LINK_ENABLE)) {
@@ -1648,15 +1648,15 @@ csio_lnode_stop(struct csio_lnode *ln)
 }
 
 /**
- * csio_lnode_close - Close an lnode.
- * @ln:		lnode
+ * csio_lyesde_close - Close an lyesde.
+ * @ln:		lyesde
  *
- * This routine is invoked by HW module to close an lnode and its
- * associated NPIV lnodes. Lnode and its associated NPIV lnodes are
+ * This routine is invoked by HW module to close an lyesde and its
+ * associated NPIV lyesdes. Lyesde and its associated NPIV lyesdes are
  * set to uninitialized state.
  */
 void
-csio_lnode_close(struct csio_lnode *ln)
+csio_lyesde_close(struct csio_lyesde *ln)
 {
 	csio_post_event_lns(ln, CSIO_LNE_CLOSE);
 	if (csio_is_phys_ln(ln))
@@ -1697,7 +1697,7 @@ csio_ln_prep_ecwr(struct csio_ioreq *io_req, uint32_t wr_len,
 	wr->cp_en_class = 0;
 	wr->cookie = io_req->fw_handle;
 	wr->iqid = cpu_to_be16(csio_q_physiqid(
-					io_req->lnode->hwp, io_req->iq_idx));
+					io_req->lyesde->hwp, io_req->iq_idx));
 	wr->fl_to_sp =  FW_FCOE_ELS_CT_WR_SP(1);
 	wr->tmo_val = (uint8_t) io_req->tmo;
 	port_id = htonl(sid);
@@ -1727,8 +1727,8 @@ csio_ln_mgmt_submit_wr(struct csio_mgmtm *mgmtm, struct csio_ioreq *io_req,
 		uint32_t pld_len)
 {
 	struct csio_wr_pair wrp;
-	struct csio_lnode *ln = io_req->lnode;
-	struct csio_rnode *rn = io_req->rnode;
+	struct csio_lyesde *ln = io_req->lyesde;
+	struct csio_ryesde *rn = io_req->ryesde;
 	struct	csio_hw	*hw = mgmtm->hw;
 	uint8_t fw_wr[64];
 	struct ulptx_sgl dsgl;
@@ -1808,7 +1808,7 @@ csio_ln_mgmt_submit_req(struct csio_ioreq *io_req,
 		enum fcoe_cmn_type req_type, struct csio_dma_buf *pld,
 		uint32_t pld_len)
 {
-	struct csio_hw *hw = csio_lnode_to_hw(io_req->lnode);
+	struct csio_hw *hw = csio_lyesde_to_hw(io_req->lyesde);
 	struct csio_mgmtm *mgmtm = csio_hw_to_mgmtm(hw);
 	int rv;
 
@@ -1829,19 +1829,19 @@ csio_ln_mgmt_submit_req(struct csio_ioreq *io_req,
 
 /*
  * csio_ln_fdmi_init - FDMI Init entry point.
- * @ln: lnode
+ * @ln: lyesde
  */
 static int
-csio_ln_fdmi_init(struct csio_lnode *ln)
+csio_ln_fdmi_init(struct csio_lyesde *ln)
 {
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_hw *hw = csio_lyesde_to_hw(ln);
 	struct csio_dma_buf	*dma_buf;
 
 	/* Allocate MGMT request required for FDMI */
 	ln->mgmt_req = kzalloc(sizeof(struct csio_ioreq), GFP_KERNEL);
 	if (!ln->mgmt_req) {
 		csio_ln_err(ln, "Failed to alloc ioreq for FDMI\n");
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 
@@ -1863,13 +1863,13 @@ csio_ln_fdmi_init(struct csio_lnode *ln)
 
 /*
  * csio_ln_fdmi_exit - FDMI exit entry point.
- * @ln: lnode
+ * @ln: lyesde
  */
 static int
-csio_ln_fdmi_exit(struct csio_lnode *ln)
+csio_ln_fdmi_exit(struct csio_lyesde *ln)
 {
 	struct csio_dma_buf *dma_buf;
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_hw *hw = csio_lyesde_to_hw(ln);
 
 	if (!ln->mgmt_req)
 		return 0;
@@ -1884,7 +1884,7 @@ csio_ln_fdmi_exit(struct csio_lnode *ln)
 }
 
 int
-csio_scan_done(struct csio_lnode *ln, unsigned long ticks,
+csio_scan_done(struct csio_lyesde *ln, unsigned long ticks,
 		unsigned long time, unsigned long max_scan_ticks,
 		unsigned long delta_scan_ticks)
 {
@@ -1911,39 +1911,39 @@ csio_scan_done(struct csio_lnode *ln, unsigned long ticks,
 }
 
 /*
- * csio_notify_lnodes:
+ * csio_yestify_lyesdes:
  * @hw: HW module
- * @note: Notification
+ * @yeste: Notification
  *
- * Called from the HW SM to fan out notifications to the
- * Lnode SM. Since the HW SM is entered with lock held,
- * there is no need to hold locks here.
+ * Called from the HW SM to fan out yestifications to the
+ * Lyesde SM. Since the HW SM is entered with lock held,
+ * there is yes need to hold locks here.
  *
  */
 void
-csio_notify_lnodes(struct csio_hw *hw, enum csio_ln_notify note)
+csio_yestify_lyesdes(struct csio_hw *hw, enum csio_ln_yestify yeste)
 {
 	struct list_head *tmp;
-	struct csio_lnode *ln;
+	struct csio_lyesde *ln;
 
-	csio_dbg(hw, "Notifying all nodes of event %d\n", note);
+	csio_dbg(hw, "Notifying all yesdes of event %d\n", yeste);
 
-	/* Traverse children lnodes list and send evt */
+	/* Traverse children lyesdes list and send evt */
 	list_for_each(tmp, &hw->sln_head) {
-		ln = (struct csio_lnode *) tmp;
+		ln = (struct csio_lyesde *) tmp;
 
-		switch (note) {
+		switch (yeste) {
 		case CSIO_LN_NOTIFY_HWREADY:
-			csio_lnode_start(ln);
+			csio_lyesde_start(ln);
 			break;
 
 		case CSIO_LN_NOTIFY_HWRESET:
 		case CSIO_LN_NOTIFY_HWREMOVE:
-			csio_lnode_close(ln);
+			csio_lyesde_close(ln);
 			break;
 
 		case CSIO_LN_NOTIFY_HWSTOP:
-			csio_lnode_stop(ln);
+			csio_lyesde_stop(ln);
 			break;
 
 		default:
@@ -1954,46 +1954,46 @@ csio_notify_lnodes(struct csio_hw *hw, enum csio_ln_notify note)
 }
 
 /*
- * csio_disable_lnodes:
+ * csio_disable_lyesdes:
  * @hw: HW module
  * @portid:port id
  * @disable: disable/enable flag.
- * If disable=1, disables all lnode hosted on given physical port.
- * otherwise enables all the lnodes on given phsysical port.
+ * If disable=1, disables all lyesde hosted on given physical port.
+ * otherwise enables all the lyesdes on given phsysical port.
  * This routine need to called with hw lock held.
  */
 void
-csio_disable_lnodes(struct csio_hw *hw, uint8_t portid, bool disable)
+csio_disable_lyesdes(struct csio_hw *hw, uint8_t portid, bool disable)
 {
 	struct list_head *tmp;
-	struct csio_lnode *ln;
+	struct csio_lyesde *ln;
 
-	csio_dbg(hw, "Notifying event to all nodes of port:%d\n", portid);
+	csio_dbg(hw, "Notifying event to all yesdes of port:%d\n", portid);
 
-	/* Traverse sibling lnodes list and send evt */
+	/* Traverse sibling lyesdes list and send evt */
 	list_for_each(tmp, &hw->sln_head) {
-		ln = (struct csio_lnode *) tmp;
+		ln = (struct csio_lyesde *) tmp;
 		if (ln->portid != portid)
 			continue;
 
 		if (disable)
-			csio_lnode_stop(ln);
+			csio_lyesde_stop(ln);
 		else
-			csio_lnode_start(ln);
+			csio_lyesde_start(ln);
 	}
 }
 
 /*
- * csio_ln_init - Initialize an lnode.
- * @ln:		lnode
+ * csio_ln_init - Initialize an lyesde.
+ * @ln:		lyesde
  *
  */
 static int
-csio_ln_init(struct csio_lnode *ln)
+csio_ln_init(struct csio_lyesde *ln)
 {
 	int rv = -EINVAL;
-	struct csio_lnode *pln;
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_lyesde *pln;
+	struct csio_hw *hw = csio_lyesde_to_hw(ln);
 
 	csio_init_state(&ln->sm, csio_lns_uninit);
 	ln->vnp_flowid = CSIO_INVALID_IDX;
@@ -2001,12 +2001,12 @@ csio_ln_init(struct csio_lnode *ln)
 
 	if (csio_is_root_ln(ln)) {
 
-		/* This is the lnode used during initialization */
+		/* This is the lyesde used during initialization */
 
 		ln->fcfinfo = kzalloc(sizeof(struct csio_fcf_info), GFP_KERNEL);
 		if (!ln->fcfinfo) {
 			csio_ln_err(ln, "Failed to alloc FCF record\n");
-			CSIO_INC_STATS(hw, n_err_nomem);
+			CSIO_INC_STATS(hw, n_err_yesmem);
 			goto err;
 		}
 
@@ -2016,25 +2016,25 @@ csio_ln_init(struct csio_lnode *ln)
 		if (csio_fdmi_enable && csio_ln_fdmi_init(ln))
 			goto err;
 
-	} else { /* Either a non-root physical or a virtual lnode */
+	} else { /* Either a yesn-root physical or a virtual lyesde */
 
 		/*
-		 * THe rest is common for non-root physical and NPIV lnodes.
+		 * THe rest is common for yesn-root physical and NPIV lyesdes.
 		 * Just get references to all other modules
 		 */
 
 		if (csio_is_npiv_ln(ln)) {
 			/* NPIV */
-			pln = csio_parent_lnode(ln);
+			pln = csio_parent_lyesde(ln);
 			kref_get(&pln->fcfinfo->kref);
 			ln->fcfinfo = pln->fcfinfo;
 		} else {
-			/* Another non-root physical lnode (FCF) */
+			/* Ayesther yesn-root physical lyesde (FCF) */
 			ln->fcfinfo = kzalloc(sizeof(struct csio_fcf_info),
 								GFP_KERNEL);
 			if (!ln->fcfinfo) {
 				csio_ln_err(ln, "Failed to alloc FCF info\n");
-				CSIO_INC_STATS(hw, n_err_nomem);
+				CSIO_INC_STATS(hw, n_err_yesmem);
 				goto err;
 			}
 
@@ -2052,13 +2052,13 @@ err:
 }
 
 static void
-csio_ln_exit(struct csio_lnode *ln)
+csio_ln_exit(struct csio_lyesde *ln)
 {
-	struct csio_lnode *pln;
+	struct csio_lyesde *pln;
 
 	csio_cleanup_rns(ln);
 	if (csio_is_npiv_ln(ln)) {
-		pln = csio_parent_lnode(ln);
+		pln = csio_parent_lyesde(ln);
 		kref_put(&pln->fcfinfo->kref, csio_free_fcfinfo);
 	} else {
 		kref_put(&ln->fcfinfo->kref, csio_free_fcfinfo);
@@ -2069,20 +2069,20 @@ csio_ln_exit(struct csio_lnode *ln)
 }
 
 /**
- * csio_lnode_init - Initialize the members of an lnode.
- * @ln:		lnode
+ * csio_lyesde_init - Initialize the members of an lyesde.
+ * @ln:		lyesde
  *
  */
 int
-csio_lnode_init(struct csio_lnode *ln, struct csio_hw *hw,
-		struct csio_lnode *pln)
+csio_lyesde_init(struct csio_lyesde *ln, struct csio_hw *hw,
+		struct csio_lyesde *pln)
 {
 	int rv = -EINVAL;
 
-	/* Link this lnode to hw */
-	csio_lnode_to_hw(ln)	= hw;
+	/* Link this lyesde to hw */
+	csio_lyesde_to_hw(ln)	= hw;
 
-	/* Link child to parent if child lnode */
+	/* Link child to parent if child lyesde */
 	if (pln)
 		ln->pln = pln;
 	else
@@ -2093,7 +2093,7 @@ csio_lnode_init(struct csio_lnode *ln, struct csio_hw *hw,
 	ln->last_scan_ntgts = 0;
 	ln->tgt_scan_tick = 0;
 
-	/* Initialize rnode list */
+	/* Initialize ryesde list */
 	INIT_LIST_HEAD(&ln->rnhead);
 	INIT_LIST_HEAD(&ln->cln_head);
 
@@ -2103,7 +2103,7 @@ csio_lnode_init(struct csio_lnode *ln, struct csio_hw *hw,
 	if (csio_ln_init(ln))
 		goto err;
 
-	/* Add lnode to list of sibling or children lnodes */
+	/* Add lyesde to list of sibling or children lyesdes */
 	spin_lock_irq(&hw->lock);
 	list_add_tail(&ln->sm.sm_list, pln ? &pln->cln_head : &hw->sln_head);
 	if (pln)
@@ -2114,41 +2114,41 @@ csio_lnode_init(struct csio_lnode *ln, struct csio_hw *hw,
 
 	return 0;
 err:
-	csio_lnode_to_hw(ln) = NULL;
+	csio_lyesde_to_hw(ln) = NULL;
 	return rv;
 }
 
 /**
- * csio_lnode_exit - De-instantiate an lnode.
- * @ln:		lnode
+ * csio_lyesde_exit - De-instantiate an lyesde.
+ * @ln:		lyesde
  *
  */
 void
-csio_lnode_exit(struct csio_lnode *ln)
+csio_lyesde_exit(struct csio_lyesde *ln)
 {
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_hw *hw = csio_lyesde_to_hw(ln);
 
 	csio_ln_exit(ln);
 
-	/* Remove this lnode from hw->sln_head */
+	/* Remove this lyesde from hw->sln_head */
 	spin_lock_irq(&hw->lock);
 
 	list_del_init(&ln->sm.sm_list);
 
-	/* If it is children lnode, decrement the
-	 * counter in its parent lnode
+	/* If it is children lyesde, decrement the
+	 * counter in its parent lyesde
 	 */
 	if (ln->pln)
 		ln->pln->num_vports--;
 
-	/* Update root lnode pointer */
+	/* Update root lyesde pointer */
 	if (list_empty(&hw->sln_head))
 		hw->rln = NULL;
 	else
-		hw->rln = (struct csio_lnode *)csio_list_next(&hw->sln_head);
+		hw->rln = (struct csio_lyesde *)csio_list_next(&hw->sln_head);
 
 	spin_unlock_irq(&hw->lock);
 
-	csio_lnode_to_hw(ln)	= NULL;
+	csio_lyesde_to_hw(ln)	= NULL;
 	hw->num_lns--;
 }

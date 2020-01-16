@@ -147,7 +147,7 @@
 
 /* Device Status */
 #define IGC_STATUS_FD		0x00000001      /* Full duplex.0=half,1=full */
-#define IGC_STATUS_LU		0x00000002      /* Link up.0=no,1=link */
+#define IGC_STATUS_LU		0x00000002      /* Link up.0=yes,1=link */
 #define IGC_STATUS_FUNC_MASK	0x0000000C      /* PCI Function Mask */
 #define IGC_STATUS_FUNC_SHIFT	2
 #define IGC_STATUS_FUNC_1	0x00000004      /* Function 1 */
@@ -163,7 +163,7 @@
 #define HALF_DUPLEX		1
 #define FULL_DUPLEX		2
 
-/* 1Gbps and 2.5Gbps half duplex is not supported, nor spec-compliant. */
+/* 1Gbps and 2.5Gbps half duplex is yest supported, yesr spec-compliant. */
 #define ADVERTISE_10_HALF		0x0001
 #define ADVERTISE_10_FULL		0x0002
 #define ADVERTISE_100_HALF		0x0004
@@ -283,7 +283,7 @@
 
 /* Receive Descriptor bit definitions */
 #define IGC_RXD_STAT_EOP	0x02	/* End of Packet */
-#define IGC_RXD_STAT_IXSM	0x04	/* Ignore checksum */
+#define IGC_RXD_STAT_IXSM	0x04	/* Igyesre checksum */
 #define IGC_RXD_STAT_UDPCS	0x10	/* UDP xsum calculated */
 #define IGC_RXD_STAT_TCPCS	0x20	/* TCP xsum calculated */
 
@@ -316,7 +316,7 @@
 #define IGC_RCTL_SZ_256		0x00030000 /* Rx buffer size 256 */
 
 #define IGC_RCTL_MO_SHIFT	12 /* multicast offset shift */
-#define IGC_RCTL_CFIEN		0x00080000 /* canonical form enable */
+#define IGC_RCTL_CFIEN		0x00080000 /* cayesnical form enable */
 #define IGC_RCTL_DPF		0x00400000 /* discard pause frames */
 #define IGC_RCTL_PMCF		0x00800000 /* pass MAC control frames */
 #define IGC_RCTL_SECRC		0x04000000 /* Strip Ethernet CRC */
@@ -333,7 +333,7 @@
 #define GPY_MMD_SHIFT		16
 #define GPY_REG_MASK		0x0000FFFF
 
-#define IGC_MMDAC_FUNC_DATA	0x4000 /* Data, no post increment */
+#define IGC_MMDAC_FUNC_DATA	0x4000 /* Data, yes post increment */
 
 /* MAC definitions */
 #define IGC_FACTPS_MNGCG	0x20000000
@@ -354,8 +354,8 @@
 #define MII_CR_RESTART_AUTO_NEG	0x0200  /* Restart auto negotiation */
 #define MII_CR_POWER_DOWN	0x0800  /* Power down */
 #define MII_CR_AUTO_NEG_EN	0x1000  /* Auto Neg Enable */
-#define MII_CR_LOOPBACK		0x4000  /* 0 = normal, 1 = loopback */
-#define MII_CR_RESET		0x8000  /* 0 = normal, 1 = PHY reset */
+#define MII_CR_LOOPBACK		0x4000  /* 0 = yesrmal, 1 = loopback */
+#define MII_CR_RESET		0x8000  /* 0 = yesrmal, 1 = PHY reset */
 #define MII_CR_SPEED_1000	0x0040
 #define MII_CR_SPEED_100	0x2000
 #define MII_CR_SPEED_10		0x0000

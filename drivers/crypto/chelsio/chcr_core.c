@@ -8,10 +8,10 @@
  * the Free Software Foundation.
  *
  * Written and Maintained by:
- * Manoj Malviya (manojmalviya@chelsio.com)
+ * Mayesj Malviya (mayesjmalviya@chelsio.com)
  * Atul Gupta (atul.gupta@chelsio.com)
  * Jitendra Lulla (jlulla@chelsio.com)
- * Yeshaswi M R Gowda (yeshaswi@chelsio.com)
+ * Yeshaswi M R Gowda (nohaswi@chelsio.com)
  * Harsh Jain (harsh@chelsio.com)
  */
 

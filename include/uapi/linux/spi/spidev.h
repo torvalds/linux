@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * include/linux/spi/spidev.h
  *
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
   */
 
@@ -58,17 +58,17 @@
 /**
  * struct spi_ioc_transfer - describes a single SPI transfer
  * @tx_buf: Holds pointer to userspace buffer with transmit data, or null.
- *	If no data is provided, zeroes are shifted out.
+ *	If yes data is provided, zeroes are shifted out.
  * @rx_buf: Holds pointer to userspace buffer for receive data, or null.
  * @len: Length of tx and rx buffers, in bytes.
  * @speed_hz: Temporary override of the device's bitrate.
  * @bits_per_word: Temporary override of the device's wordsize.
- * @delay_usecs: If nonzero, how long to delay after the last bit transfer
+ * @delay_usecs: If yesnzero, how long to delay after the last bit transfer
  *	before optionally deselecting the device before the next transfer.
  * @cs_change: True to deselect device before starting the next transfer.
- * @word_delay_usecs: If nonzero, how long to wait between words within one
+ * @word_delay_usecs: If yesnzero, how long to wait between words within one
  *	transfer. This property needs explicit support in the SPI controller,
- *	otherwise it is silently ignored.
+ *	otherwise it is silently igyesred.
  *
  * This structure is mapped directly to the kernel spi_transfer structure;
  * the fields have the same meanings, except of course that the pointers
@@ -115,7 +115,7 @@ struct spi_ioc_transfer {
 	 */
 };
 
-/* not all platforms use <asm-generic/ioctl.h> or _IOC_TYPECHECK() ... */
+/* yest all platforms use <asm-generic/ioctl.h> or _IOC_TYPECHECK() ... */
 #define SPI_MSGSIZE(N) \
 	((((N)*(sizeof (struct spi_ioc_transfer))) < (1 << _IOC_SIZEBITS)) \
 		? ((N)*(sizeof (struct spi_ioc_transfer))) : 0)

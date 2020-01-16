@@ -50,8 +50,8 @@
 				status = "okay";
 
 				bus-width = <8>;
-				no-1-8-v;
-				non-removable;
+				yes-1-8-v;
+				yesn-removable;
 			};
 
 			usb3@f0000 {
@@ -317,8 +317,8 @@
 	pinctrl-0 = <&spi0_pins &spi0cs0_pins>;
 	status = "okay";
 
-	spi-nor@0 {
-		compatible = "spansion,s25fl164k", "jedec,spi-nor";
+	spi-yesr@0 {
+		compatible = "spansion,s25fl164k", "jedec,spi-yesr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;

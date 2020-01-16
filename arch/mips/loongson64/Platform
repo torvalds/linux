@@ -6,7 +6,7 @@
 cflags-$(CONFIG_CPU_LOONGSON64)	+= -Wa,--trap
 
 #
-# Some versions of binutils, not currently mainline as of 2019/02/04, support
+# Some versions of binutils, yest currently mainline as of 2019/02/04, support
 # an -mfix-loongson3-llsc flag which emits a sync prior to each ll instruction
 # to work around a CPU bug (see __SYNC_loongson3_war in asm/sync.h for a
 # description).
@@ -18,14 +18,14 @@ cflags-$(CONFIG_CPU_LOONGSON64)	+= -Wa,--trap
 #
 # ...then with the assembler fix applied the label may actually point at a sync
 # instruction inserted by the assembler, and if we were using the label in an
-# exception table the table would no longer contain the address of the ll
+# exception table the table would yes longer contain the address of the ll
 # instruction.
 #
 # Avoid this by explicitly disabling that assembler behaviour. If upstream
-# binutils does not merge support for the flag then we can revisit & remove
-# this later - for now it ensures vendor toolchains don't cause problems.
+# binutils does yest merge support for the flag then we can revisit & remove
+# this later - for yesw it ensures vendor toolchains don't cause problems.
 #
-cflags-$(CONFIG_CPU_LOONGSON64)	+= $(call as-option,-Wa$(comma)-mno-fix-loongson3-llsc,)
+cflags-$(CONFIG_CPU_LOONGSON64)	+= $(call as-option,-Wa$(comma)-myes-fix-loongson3-llsc,)
 
 #
 # binutils from v2.25 on and gcc starting from v4.9.0 treat -march=loongson3a
@@ -49,12 +49,12 @@ endif
 
 # Some -march= flags enable MMI instructions, and GCC complains about that
 # support being enabled alongside -msoft-float. Thus explicitly disable MMI.
-cflags-y += $(call cc-option,-mno-loongson-mmi)
+cflags-y += $(call cc-option,-myes-loongson-mmi)
 
 #
 # Loongson Machines' Support
 #
 
 platform-$(CONFIG_MACH_LOONGSON64) += loongson64/
-cflags-$(CONFIG_MACH_LOONGSON64) += -I$(srctree)/arch/mips/include/asm/mach-loongson64 -mno-branch-likely
+cflags-$(CONFIG_MACH_LOONGSON64) += -I$(srctree)/arch/mips/include/asm/mach-loongson64 -myes-branch-likely
 load-$(CONFIG_CPU_LOONGSON64) += 0xffffffff80200000

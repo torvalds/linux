@@ -3,7 +3,7 @@
 How to set up the Technisat/B2C2 Flexcop devices
 ================================================
 
-.. note::
+.. yeste::
 
    This documentation is outdated.
 
@@ -16,7 +16,7 @@ Important Notice: The driver does NOT support Technisat USB 2 devices!
 
 First start your linux box with a shipped kernel:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	lspci -vvv for a PCI device (lsusb -vvv for an USB device) will show you for example:
 	02:0b.0 Network controller: Techsan Electronics Co Ltd B2C2 FlexCopII DVB chip /

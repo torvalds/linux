@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -262,29 +262,29 @@ void print__dlg_regs_st(struct display_mode_lib *mode_lib, display_dlg_regs_st d
 			"DML_RQ_DLG_CALC:    refcyc_per_meta_chunk_flip_c    = 0x%0x\n",
 			dlg_regs.refcyc_per_meta_chunk_flip_c);
 	dml_print(
-			"DML_RQ_DLG_CALC:    dst_y_per_pte_row_nom_l         = 0x%0x\n",
-			dlg_regs.dst_y_per_pte_row_nom_l);
+			"DML_RQ_DLG_CALC:    dst_y_per_pte_row_yesm_l         = 0x%0x\n",
+			dlg_regs.dst_y_per_pte_row_yesm_l);
 	dml_print(
-			"DML_RQ_DLG_CALC:    dst_y_per_pte_row_nom_c         = 0x%0x\n",
-			dlg_regs.dst_y_per_pte_row_nom_c);
+			"DML_RQ_DLG_CALC:    dst_y_per_pte_row_yesm_c         = 0x%0x\n",
+			dlg_regs.dst_y_per_pte_row_yesm_c);
 	dml_print(
-			"DML_RQ_DLG_CALC:    refcyc_per_pte_group_nom_l      = 0x%0x\n",
-			dlg_regs.refcyc_per_pte_group_nom_l);
+			"DML_RQ_DLG_CALC:    refcyc_per_pte_group_yesm_l      = 0x%0x\n",
+			dlg_regs.refcyc_per_pte_group_yesm_l);
 	dml_print(
-			"DML_RQ_DLG_CALC:    refcyc_per_pte_group_nom_c      = 0x%0x\n",
-			dlg_regs.refcyc_per_pte_group_nom_c);
+			"DML_RQ_DLG_CALC:    refcyc_per_pte_group_yesm_c      = 0x%0x\n",
+			dlg_regs.refcyc_per_pte_group_yesm_c);
 	dml_print(
-			"DML_RQ_DLG_CALC:    dst_y_per_meta_row_nom_l        = 0x%0x\n",
-			dlg_regs.dst_y_per_meta_row_nom_l);
+			"DML_RQ_DLG_CALC:    dst_y_per_meta_row_yesm_l        = 0x%0x\n",
+			dlg_regs.dst_y_per_meta_row_yesm_l);
 	dml_print(
-			"DML_RQ_DLG_CALC:    dst_y_per_meta_row_nom_c        = 0x%0x\n",
-			dlg_regs.dst_y_per_meta_row_nom_c);
+			"DML_RQ_DLG_CALC:    dst_y_per_meta_row_yesm_c        = 0x%0x\n",
+			dlg_regs.dst_y_per_meta_row_yesm_c);
 	dml_print(
-			"DML_RQ_DLG_CALC:    refcyc_per_meta_chunk_nom_l     = 0x%0x\n",
-			dlg_regs.refcyc_per_meta_chunk_nom_l);
+			"DML_RQ_DLG_CALC:    refcyc_per_meta_chunk_yesm_l     = 0x%0x\n",
+			dlg_regs.refcyc_per_meta_chunk_yesm_l);
 	dml_print(
-			"DML_RQ_DLG_CALC:    refcyc_per_meta_chunk_nom_c     = 0x%0x\n",
-			dlg_regs.refcyc_per_meta_chunk_nom_c);
+			"DML_RQ_DLG_CALC:    refcyc_per_meta_chunk_yesm_c     = 0x%0x\n",
+			dlg_regs.refcyc_per_meta_chunk_yesm_c);
 	dml_print(
 			"DML_RQ_DLG_CALC:    refcyc_per_line_delivery_pre_l  = 0x%0x\n",
 			dlg_regs.refcyc_per_line_delivery_pre_l);

@@ -9,7 +9,7 @@
  *  in the early extended-partition checks and added DM partitions
  *
  *  Support for DiskManager v6.0x added by Mark Lord,
- *  with information provided by OnTrack.  This now works for linux fdisk
+ *  with information provided by OnTrack.  This yesw works for linux fdisk
  *  and LILO, as well as loadlin and bootln.  Note that disks other than
  *  /dev/hda *must* have a "DOS" type 0x51 partition in the first slot (hda1).
  *
@@ -114,7 +114,7 @@ static void set_info(struct parsed_partitions *state, int slot,
  * is the real data partition (with a start relative to the partition
  * table start).  The second is a pointer to the next logical partition
  * (with a start relative to the entire extended partition).
- * We do not create a Linux partition for the partition tables, but
+ * We do yest create a Linux partition for the partition tables, but
  * only for the actual data partitions.
  */
 
@@ -190,7 +190,7 @@ static void parse_extended(struct parsed_partitions *state,
 		}
 		/*
 		 * Next, process the (first) extended partition, if present.
-		 * (So far, there seems to be no reason to make
+		 * (So far, there seems to be yes reason to make
 		 *  parse_extended()  recursive and allow a tree
 		 *  of extended partitions.)
 		 * It should be a link to the next logical partition.
@@ -200,7 +200,7 @@ static void parse_extended(struct parsed_partitions *state,
 			if (nr_sects(p) && is_extended_partition(p))
 				break;
 		if (i == 4)
-			goto done;	 /* nothing left to do */
+			goto done;	 /* yesthing left to do */
 
 		this_sector = first_sector + start_sect(p) * sector_size;
 		this_size = nr_sects(p) * sector_size;
@@ -238,7 +238,7 @@ static void parse_solaris_x86(struct parsed_partitions *state,
 	if (le32_to_cpu(v->v_version) != 1) {
 		char tmp[64];
 
-		snprintf(tmp, sizeof(tmp), "  cannot handle version %d vtoc>\n",
+		snprintf(tmp, sizeof(tmp), "  canyest handle version %d vtoc>\n",
 			 le32_to_cpu(v->v_version));
 		strlcat(state->pp_buf, tmp, PAGE_SIZE);
 		put_dev_sector(sect);
@@ -309,14 +309,14 @@ static void parse_bsd(struct parsed_partitions *state,
 			/* full parent partition, we have it already */
 			continue;
 		if (offset > bsd_start || offset+size < bsd_start+bsd_size) {
-			strlcat(state->pp_buf, "bad subpartition - ignored\n", PAGE_SIZE);
+			strlcat(state->pp_buf, "bad subpartition - igyesred\n", PAGE_SIZE);
 			continue;
 		}
 		put_partition(state, state->next++, bsd_start, bsd_size);
 	}
 	put_dev_sector(sect);
 	if (le16_to_cpu(l->d_npartitions) > max_partitions) {
-		snprintf(tmp, sizeof(tmp), " (ignored %d more)",
+		snprintf(tmp, sizeof(tmp), " (igyesred %d more)",
 			 le16_to_cpu(l->d_npartitions) - max_partitions);
 		strlcat(state->pp_buf, tmp, PAGE_SIZE);
 	}
@@ -414,7 +414,7 @@ static void parse_minix(struct parsed_partitions *state,
 
 	/* The first sector of a Minix partition can have either
 	 * a secondary MBR describing its subpartitions, or
-	 * the normal boot sector. */
+	 * the yesrmal boot sector. */
 	if (msdos_magic_present(data + 510) &&
 	    SYS_IND(p) == MINIX_PARTITION) { /* subpartition table present */
 		char tmp[1 + BDEVNAME_SIZE + 10 + 9 + 1];
@@ -465,7 +465,7 @@ int msdos_partition(struct parsed_partitions *state)
 
 	/*
 	 * Note order! (some AIX disks, e.g. unbootable kind,
-	 * have no MSDOS 55aa)
+	 * have yes MSDOS 55aa)
 	 */
 	if (aix_magic_present(state, data)) {
 		put_dev_sector(sect);
@@ -486,7 +486,7 @@ int msdos_partition(struct parsed_partitions *state)
 	 * Now that the 55aa signature is present, this is probably
 	 * either the boot sector of a FAT filesystem or a DOS-type
 	 * partition table. Reject this in case the boot indicator
-	 * is not 0 or 0x80.
+	 * is yest 0 or 0x80.
 	 */
 	p = (struct partition *) (data + 0x1be);
 	for (slot = 1; slot <= 4; slot++, p++) {
@@ -512,7 +512,7 @@ int msdos_partition(struct parsed_partitions *state)
 #ifdef CONFIG_EFI_PARTITION
 	p = (struct partition *) (data + 0x1be);
 	for (slot = 1 ; slot <= 4 ; slot++, p++) {
-		/* If this is an EFI GPT disk, msdos should ignore it. */
+		/* If this is an EFI GPT disk, msdos should igyesre it. */
 		if (SYS_IND(p) == EFI_PMBR_OSTYPE_EFI_GPT) {
 			put_dev_sector(sect);
 			return 0;
@@ -541,7 +541,7 @@ int msdos_partition(struct parsed_partitions *state)
 			 * prevent someone doing mkfs or mkswap on an
 			 * extended partition, but leave room for LILO
 			 * FIXME: this uses one logical sector for > 512b
-			 * sector, although it may not be enough/proper.
+			 * sector, although it may yest be eyesugh/proper.
 			 */
 			sector_t n = 2;
 

@@ -19,7 +19,7 @@
 
 #include "i2c-core.h"
 
-int of_i2c_get_board_info(struct device *dev, struct device_node *node,
+int of_i2c_get_board_info(struct device *dev, struct device_yesde *yesde,
 			  struct i2c_board_info *info)
 {
 	u32 addr;
@@ -27,14 +27,14 @@ int of_i2c_get_board_info(struct device *dev, struct device_node *node,
 
 	memset(info, 0, sizeof(*info));
 
-	if (of_modalias_node(node, info->type, sizeof(info->type)) < 0) {
-		dev_err(dev, "of_i2c: modalias failure on %pOF\n", node);
+	if (of_modalias_yesde(yesde, info->type, sizeof(info->type)) < 0) {
+		dev_err(dev, "of_i2c: modalias failure on %pOF\n", yesde);
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(node, "reg", &addr);
+	ret = of_property_read_u32(yesde, "reg", &addr);
 	if (ret) {
-		dev_err(dev, "of_i2c: invalid reg on %pOF\n", node);
+		dev_err(dev, "of_i2c: invalid reg on %pOF\n", yesde);
 		return ret;
 	}
 
@@ -49,13 +49,13 @@ int of_i2c_get_board_info(struct device *dev, struct device_node *node,
 	}
 
 	info->addr = addr;
-	info->of_node = node;
-	info->fwnode = of_fwnode_handle(node);
+	info->of_yesde = yesde;
+	info->fwyesde = of_fwyesde_handle(yesde);
 
-	if (of_property_read_bool(node, "host-notify"))
+	if (of_property_read_bool(yesde, "host-yestify"))
 		info->flags |= I2C_CLIENT_HOST_NOTIFY;
 
-	if (of_get_property(node, "wakeup-source", NULL))
+	if (of_get_property(yesde, "wakeup-source", NULL))
 		info->flags |= I2C_CLIENT_WAKE;
 
 	return 0;
@@ -63,21 +63,21 @@ int of_i2c_get_board_info(struct device *dev, struct device_node *node,
 EXPORT_SYMBOL_GPL(of_i2c_get_board_info);
 
 static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
-						 struct device_node *node)
+						 struct device_yesde *yesde)
 {
 	struct i2c_client *client;
 	struct i2c_board_info info;
 	int ret;
 
-	dev_dbg(&adap->dev, "of_i2c: register %pOF\n", node);
+	dev_dbg(&adap->dev, "of_i2c: register %pOF\n", yesde);
 
-	ret = of_i2c_get_board_info(&adap->dev, node, &info);
+	ret = of_i2c_get_board_info(&adap->dev, yesde, &info);
 	if (ret)
 		return ERR_PTR(ret);
 
 	client = i2c_new_device(adap, &info);
 	if (!client) {
-		dev_err(&adap->dev, "of_i2c: Failure registering %pOF\n", node);
+		dev_err(&adap->dev, "of_i2c: Failure registering %pOF\n", yesde);
 		return ERR_PTR(-EINVAL);
 	}
 	return client;
@@ -85,53 +85,53 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 
 void of_i2c_register_devices(struct i2c_adapter *adap)
 {
-	struct device_node *bus, *node;
+	struct device_yesde *bus, *yesde;
 	struct i2c_client *client;
 
-	/* Only register child devices if the adapter has a node pointer set */
-	if (!adap->dev.of_node)
+	/* Only register child devices if the adapter has a yesde pointer set */
+	if (!adap->dev.of_yesde)
 		return;
 
-	dev_dbg(&adap->dev, "of_i2c: walking child nodes\n");
+	dev_dbg(&adap->dev, "of_i2c: walking child yesdes\n");
 
-	bus = of_get_child_by_name(adap->dev.of_node, "i2c-bus");
+	bus = of_get_child_by_name(adap->dev.of_yesde, "i2c-bus");
 	if (!bus)
-		bus = of_node_get(adap->dev.of_node);
+		bus = of_yesde_get(adap->dev.of_yesde);
 
-	for_each_available_child_of_node(bus, node) {
-		if (of_node_test_and_set_flag(node, OF_POPULATED))
+	for_each_available_child_of_yesde(bus, yesde) {
+		if (of_yesde_test_and_set_flag(yesde, OF_POPULATED))
 			continue;
 
-		client = of_i2c_register_device(adap, node);
+		client = of_i2c_register_device(adap, yesde);
 		if (IS_ERR(client)) {
 			dev_err(&adap->dev,
 				 "Failed to create I2C device for %pOF\n",
-				 node);
-			of_node_clear_flag(node, OF_POPULATED);
+				 yesde);
+			of_yesde_clear_flag(yesde, OF_POPULATED);
 		}
 	}
 
-	of_node_put(bus);
+	of_yesde_put(bus);
 }
 
-static int of_dev_or_parent_node_match(struct device *dev, const void *data)
+static int of_dev_or_parent_yesde_match(struct device *dev, const void *data)
 {
-	if (dev->of_node == data)
+	if (dev->of_yesde == data)
 		return 1;
 
 	if (dev->parent)
-		return dev->parent->of_node == data;
+		return dev->parent->of_yesde == data;
 
 	return 0;
 }
 
 /* must call put_device() when done with returned i2c_client device */
-struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
+struct i2c_client *of_find_i2c_device_by_yesde(struct device_yesde *yesde)
 {
 	struct device *dev;
 	struct i2c_client *client;
 
-	dev = bus_find_device_by_of_node(&i2c_bus_type, node);
+	dev = bus_find_device_by_of_yesde(&i2c_bus_type, yesde);
 	if (!dev)
 		return NULL;
 
@@ -141,16 +141,16 @@ struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
 
 	return client;
 }
-EXPORT_SYMBOL(of_find_i2c_device_by_node);
+EXPORT_SYMBOL(of_find_i2c_device_by_yesde);
 
 /* must call put_device() when done with returned i2c_adapter device */
-struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
+struct i2c_adapter *of_find_i2c_adapter_by_yesde(struct device_yesde *yesde)
 {
 	struct device *dev;
 	struct i2c_adapter *adapter;
 
-	dev = bus_find_device(&i2c_bus_type, NULL, node,
-			      of_dev_or_parent_node_match);
+	dev = bus_find_device(&i2c_bus_type, NULL, yesde,
+			      of_dev_or_parent_yesde_match);
 	if (!dev)
 		return NULL;
 
@@ -160,14 +160,14 @@ struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
 
 	return adapter;
 }
-EXPORT_SYMBOL(of_find_i2c_adapter_by_node);
+EXPORT_SYMBOL(of_find_i2c_adapter_by_yesde);
 
 /* must call i2c_put_adapter() when done with returned i2c_adapter device */
-struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node)
+struct i2c_adapter *of_get_i2c_adapter_by_yesde(struct device_yesde *yesde)
 {
 	struct i2c_adapter *adapter;
 
-	adapter = of_find_i2c_adapter_by_node(node);
+	adapter = of_find_i2c_adapter_by_yesde(yesde);
 	if (!adapter)
 		return NULL;
 
@@ -178,7 +178,7 @@ struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node)
 
 	return adapter;
 }
-EXPORT_SYMBOL(of_get_i2c_adapter_by_node);
+EXPORT_SYMBOL(of_get_i2c_adapter_by_yesde);
 
 static const struct of_device_id*
 i2c_of_match_device_sysfs(const struct of_device_id *matches,
@@ -190,8 +190,8 @@ i2c_of_match_device_sysfs(const struct of_device_id *matches,
 		/*
 		 * Adding devices through the i2c sysfs interface provides us
 		 * a string to match which may be compatible with the device
-		 * tree compatible strings, however with no actual of_node the
-		 * of_match_device() will not match
+		 * tree compatible strings, however with yes actual of_yesde the
+		 * of_match_device() will yest match
 		 */
 		if (sysfs_streq(client->name, matches->compatible))
 			return matches;
@@ -227,7 +227,7 @@ const struct of_device_id
 EXPORT_SYMBOL_GPL(i2c_of_match_device);
 
 #if IS_ENABLED(CONFIG_OF_DYNAMIC)
-static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
+static int of_i2c_yestify(struct yestifier_block *nb, unsigned long action,
 			 void *arg)
 {
 	struct of_reconfig_data *rd = arg;
@@ -236,11 +236,11 @@ static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
 
 	switch (of_reconfig_get_state_change(action, rd)) {
 	case OF_RECONFIG_CHANGE_ADD:
-		adap = of_find_i2c_adapter_by_node(rd->dn->parent);
+		adap = of_find_i2c_adapter_by_yesde(rd->dn->parent);
 		if (adap == NULL)
-			return NOTIFY_OK;	/* not for us */
+			return NOTIFY_OK;	/* yest for us */
 
-		if (of_node_test_and_set_flag(rd->dn, OF_POPULATED)) {
+		if (of_yesde_test_and_set_flag(rd->dn, OF_POPULATED)) {
 			put_device(&adap->dev);
 			return NOTIFY_OK;
 		}
@@ -250,20 +250,20 @@ static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
 			dev_err(&adap->dev, "failed to create client for '%pOF'\n",
 				 rd->dn);
 			put_device(&adap->dev);
-			of_node_clear_flag(rd->dn, OF_POPULATED);
-			return notifier_from_errno(PTR_ERR(client));
+			of_yesde_clear_flag(rd->dn, OF_POPULATED);
+			return yestifier_from_erryes(PTR_ERR(client));
 		}
 		put_device(&adap->dev);
 		break;
 	case OF_RECONFIG_CHANGE_REMOVE:
 		/* already depopulated? */
-		if (!of_node_check_flag(rd->dn, OF_POPULATED))
+		if (!of_yesde_check_flag(rd->dn, OF_POPULATED))
 			return NOTIFY_OK;
 
-		/* find our device by node */
-		client = of_find_i2c_device_by_node(rd->dn);
+		/* find our device by yesde */
+		client = of_find_i2c_device_by_yesde(rd->dn);
 		if (client == NULL)
-			return NOTIFY_OK;	/* no? not meant for us */
+			return NOTIFY_OK;	/* yes? yest meant for us */
 
 		/* unregister takes one ref away */
 		i2c_unregister_device(client);
@@ -276,7 +276,7 @@ static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_OK;
 }
 
-struct notifier_block i2c_of_notifier = {
-	.notifier_call = of_i2c_notify,
+struct yestifier_block i2c_of_yestifier = {
+	.yestifier_call = of_i2c_yestify,
 };
 #endif /* CONFIG_OF_DYNAMIC */

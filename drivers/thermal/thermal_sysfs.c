@@ -114,7 +114,7 @@ trip_point_type_show(struct device *dev, struct device_attribute *attr,
 	case THERMAL_TRIP_ACTIVE:
 		return sprintf(buf, "active\n");
 	default:
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkyeswn\n");
 	}
 }
 
@@ -184,7 +184,7 @@ trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	/*
-	 * We are not doing any check on the 'temperature' value
+	 * We are yest doing any check on the 'temperature' value
 	 * here. The driver implementing 'set_trip_hyst' has to
 	 * take care of this.
 	 */
@@ -280,7 +280,7 @@ policy_show(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 
-	return sprintf(buf, "%s\n", tz->governor->name);
+	return sprintf(buf, "%s\n", tz->goveryesr->name);
 }
 
 static ssize_t
@@ -436,7 +436,7 @@ static struct attribute *thermal_zone_mode_attrs[] = {
 
 static umode_t thermal_zone_mode_is_visible(struct kobject *kobj,
 					    struct attribute *attr,
-					    int attrno)
+					    int attryes)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct thermal_zone_device *tz;
@@ -462,7 +462,7 @@ static struct attribute *thermal_zone_passive_attrs[] = {
 
 static umode_t thermal_zone_passive_is_visible(struct kobject *kobj,
 					       struct attribute *attr,
-					       int attrno)
+					       int attryes)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct thermal_zone_device *tz;
@@ -493,7 +493,7 @@ static const struct attribute_group *thermal_zone_attribute_groups[] = {
 	&thermal_zone_attribute_group,
 	&thermal_zone_mode_attribute_group,
 	&thermal_zone_passive_attribute_group,
-	/* This is not NULL terminated as we create the group dynamically */
+	/* This is yest NULL terminated as we create the group dynamically */
 };
 
 /**
@@ -757,12 +757,12 @@ struct cooling_dev_stats {
 
 static void update_time_in_state(struct cooling_dev_stats *stats)
 {
-	ktime_t now = ktime_get(), delta;
+	ktime_t yesw = ktime_get(), delta;
 
-	delta = ktime_sub(now, stats->last_time);
+	delta = ktime_sub(yesw, stats->last_time);
 	stats->time_in_state[stats->state] =
 		ktime_add(stats->time_in_state[stats->state], delta);
-	stats->last_time = now;
+	stats->last_time = yesw;
 }
 
 void thermal_cooling_device_stats_update(struct thermal_cooling_device *cdev,

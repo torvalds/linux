@@ -70,7 +70,7 @@ static unsigned long page_cache4v_flag;
  * All sun4v chips support 256MB pages.  Only SPARC-T4 and later
  * support 2GB pages, and hopefully future cpus will support the 16GB
  * pages as well.  For slots 2 and 3, we encode a 256MB TTE xor there
- * if these larger page sizes are not supported by the cpu.
+ * if these larger page sizes are yest supported by the cpu.
  *
  * It would be nice to determine this from the machine description
  * 'cpu' properties, but we need to have this table setup before the
@@ -110,8 +110,8 @@ static void __init read_obp_memory(const char *property,
 				   struct linux_prom64_registers *regs,
 				   int *num_ents)
 {
-	phandle node = prom_finddevice("/memory");
-	int prop_size = prom_getproplen(node, property);
+	phandle yesde = prom_finddevice("/memory");
+	int prop_size = prom_getproplen(yesde, property);
 	int ents, ret, i;
 
 	ents = prop_size / sizeof(struct linux_prom64_registers);
@@ -122,7 +122,7 @@ static void __init read_obp_memory(const char *property,
 		prom_halt();
 	}
 
-	ret = prom_getproperty(node, property, (char *) regs, prop_size);
+	ret = prom_getproperty(yesde, property, (char *) regs, prop_size);
 	if (ret == -1) {
 		prom_printf("Couldn't get %s property from /memory.\n",
 				property);
@@ -224,9 +224,9 @@ inline void flush_dcache_page_impl(struct page *page)
 static inline void set_dcache_dirty(struct page *page, int this_cpu)
 {
 	unsigned long mask = this_cpu;
-	unsigned long non_cpu_bits;
+	unsigned long yesn_cpu_bits;
 
-	non_cpu_bits = ~(PG_dcache_cpu_mask << PG_dcache_cpu_shift);
+	yesn_cpu_bits = ~(PG_dcache_cpu_mask << PG_dcache_cpu_shift);
 	mask = (mask << PG_dcache_cpu_shift) | (1UL << PG_dcache_dirty);
 
 	__asm__ __volatile__("1:\n\t"
@@ -236,9 +236,9 @@ static inline void set_dcache_dirty(struct page *page, int this_cpu)
 			     "casx	[%2], %%g7, %%g1\n\t"
 			     "cmp	%%g7, %%g1\n\t"
 			     "bne,pn	%%xcc, 1b\n\t"
-			     " nop"
-			     : /* no outputs */
-			     : "r" (mask), "r" (non_cpu_bits), "r" (&page->flags)
+			     " yesp"
+			     : /* yes outputs */
+			     : "r" (mask), "r" (yesn_cpu_bits), "r" (&page->flags)
 			     : "g1", "g7");
 }
 
@@ -257,9 +257,9 @@ static inline void clear_dcache_dirty_cpu(struct page *page, unsigned long cpu)
 			     "casx	[%2], %%g7, %%g1\n\t"
 			     "cmp	%%g7, %%g1\n\t"
 			     "bne,pn	%%xcc, 1b\n\t"
-			     " nop\n"
+			     " yesp\n"
 			     "2:"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (cpu), "r" (mask), "r" (&page->flags),
 			       "i" (PG_dcache_cpu_mask),
 			       "i" (PG_dcache_cpu_shift)
@@ -399,7 +399,7 @@ static int __init setup_hugepagesz(char *string)
 
 	if ((hv_pgsz_mask & cpu_pgsz_mask) == 0U) {
 		hugetlb_bad_size();
-		pr_err("hugepagesz=%llu not supported by MMU.\n",
+		pr_err("hugepagesz=%llu yest supported by MMU.\n",
 			hugepage_size);
 		goto out;
 	}
@@ -429,7 +429,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *
 
 	mm = vma->vm_mm;
 
-	/* Don't insert a non-valid PTE into the TSB, we'll deadlock.  */
+	/* Don't insert a yesn-valid PTE into the TSB, we'll deadlock.  */
 	if (!pte_accessible(mm, pte))
 		return;
 
@@ -480,7 +480,7 @@ void flush_dcache_page(struct page *page)
 	if (tlb_type == hypervisor)
 		return;
 
-	/* Do not bother with the expensive D-cache flush if it
+	/* Do yest bother with the expensive D-cache flush if it
 	 * is merely the zero page.  The 'bigcore' testcase in GDB
 	 * causes this case to run millions of times.
 	 */
@@ -611,10 +611,10 @@ static int cmp_ptrans(const void *a, const void *b)
 /* Read OBP translations property into 'prom_trans[]'.  */
 static void __init read_obp_translations(void)
 {
-	int n, node, ents, first, last, i;
+	int n, yesde, ents, first, last, i;
 
-	node = prom_finddevice("/virtual-memory");
-	n = prom_getproplen(node, "translations");
+	yesde = prom_finddevice("/virtual-memory");
+	n = prom_getproplen(yesde, "translations");
 	if (unlikely(n == 0 || n == -1)) {
 		prom_printf("prom_mappings: Couldn't get size.\n");
 		prom_halt();
@@ -624,7 +624,7 @@ static void __init read_obp_translations(void)
 		prom_halt();
 	}
 
-	if ((n = prom_getproperty(node, "translations",
+	if ((n = prom_getproperty(yesde, "translations",
 				  (char *)&prom_trans[0],
 				  sizeof(prom_trans))) == -1) {
 		prom_printf("prom_mappings: Couldn't get property.\n");
@@ -638,7 +638,7 @@ static void __init read_obp_translations(void)
 	sort(prom_trans, ents, sizeof(struct linux_prom_translation),
 	     cmp_ptrans, NULL);
 
-	/* Now kick out all the non-OBP entries.  */
+	/* Now kick out all the yesn-OBP entries.  */
 	for (i = 0; i < ents; i++) {
 		if (in_obp_range(prom_trans[i].virt))
 			break;
@@ -761,7 +761,7 @@ void __flush_dcache_range(unsigned long start, unsigned long end)
 		for (va = start; va < end; va += 32)
 			__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
 					     "membar #Sync"
-					     : /* no outputs */
+					     : /* yes outputs */
 					     : "r" (va),
 					       "i" (ASI_DCACHE_INVALIDATE));
 	}
@@ -828,7 +828,7 @@ static void mmu_context_wrap(void)
  *
  * We must be careful about boundary cases so that we never
  * let the user have CTX 0 (nucleus) or we ever use a CTX
- * version of zero (and thus NO_CONTEXT would not be caught
+ * version of zero (and thus NO_CONTEXT would yest be caught
  * by version mis-match tests in mmu_context.h).
  *
  * Always invoked with interrupts disabled.
@@ -903,7 +903,7 @@ static void __init find_ramdisk(unsigned long phys_base)
 		if (!ramdisk_image)
 			ramdisk_image = sparc_ramdisk_image64;
 
-		/* Another bootloader quirk.  The bootloader normalizes
+		/* Ayesther bootloader quirk.  The bootloader yesrmalizes
 		 * the physical address to KERNBASE, so we have to
 		 * factor that back out and add in the lowest valid
 		 * physical page address to get the true physical address.
@@ -925,17 +925,17 @@ static void __init find_ramdisk(unsigned long phys_base)
 #endif
 }
 
-struct node_mem_mask {
+struct yesde_mem_mask {
 	unsigned long mask;
 	unsigned long match;
 };
-static struct node_mem_mask node_masks[MAX_NUMNODES];
-static int num_node_masks;
+static struct yesde_mem_mask yesde_masks[MAX_NUMNODES];
+static int num_yesde_masks;
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
 
 struct mdesc_mlgroup {
-	u64	node;
+	u64	yesde;
 	u64	latency;
 	u64	match;
 	u64	mask;
@@ -978,8 +978,8 @@ static u64 __init memblock_nid_range_sun4u(u64 start, u64 end, int *nid)
 
 	prev_nid = NUMA_NO_NODE;
 	for ( ; start < end; start += PAGE_SIZE) {
-		for (new_nid = 0; new_nid < num_node_masks; new_nid++) {
-			struct node_mem_mask *p = &node_masks[new_nid];
+		for (new_nid = 0; new_nid < num_yesde_masks; new_nid++) {
+			struct yesde_mem_mask *p = &yesde_masks[new_nid];
 
 			if ((start & p->mask) == p->match) {
 				if (prev_nid == NUMA_NO_NODE)
@@ -988,9 +988,9 @@ static u64 __init memblock_nid_range_sun4u(u64 start, u64 end, int *nid)
 			}
 		}
 
-		if (new_nid == num_node_masks) {
+		if (new_nid == num_yesde_masks) {
 			prev_nid = 0;
-			WARN_ONCE(1, "addr[%Lx] doesn't match a NUMA node rule. Some memory will be owned by node 0.",
+			WARN_ONCE(1, "addr[%Lx] doesn't match a NUMA yesde rule. Some memory will be owned by yesde 0.",
 				  start);
 			break;
 		}
@@ -1026,8 +1026,8 @@ static u64 __init memblock_nid_range(u64 start, u64 end, int *nid)
 	m_match = 0;
 	m_mask = 0;
 
-	for (_nid = 0; _nid < num_node_masks; _nid++) {
-		struct node_mem_mask *const m = &node_masks[_nid];
+	for (_nid = 0; _nid < num_yesde_masks; _nid++) {
+		struct yesde_mem_mask *const m = &yesde_masks[_nid];
 
 		if ((pa_start & m->mask) == m->match) {
 			m_match = m->match;
@@ -1036,8 +1036,8 @@ static u64 __init memblock_nid_range(u64 start, u64 end, int *nid)
 		}
 	}
 
-	if (num_node_masks == _nid) {
-		/* We could not find NUMA group, so default to 0, but lets
+	if (num_yesde_masks == _nid) {
+		/* We could yest find NUMA group, so default to 0, but lets
 		 * search for latency group, so we could calculate the correct
 		 * end address that we return
 		 */
@@ -1081,43 +1081,43 @@ done:
 #endif
 
 /* This must be invoked after performing all of the necessary
- * memblock_set_node() calls for 'nid'.  We need to be able to get
+ * memblock_set_yesde() calls for 'nid'.  We need to be able to get
  * correct data from get_pfn_range_for_nid().
  */
-static void __init allocate_node_data(int nid)
+static void __init allocate_yesde_data(int nid)
 {
 	struct pglist_data *p;
 	unsigned long start_pfn, end_pfn;
 #ifdef CONFIG_NEED_MULTIPLE_NODES
 
-	NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
+	NODE_DATA(nid) = memblock_alloc_yesde(sizeof(struct pglist_data),
 					     SMP_CACHE_BYTES, nid);
 	if (!NODE_DATA(nid)) {
-		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
+		prom_printf("Canyest allocate pglist_data for nid[%d]\n", nid);
 		prom_halt();
 	}
 
-	NODE_DATA(nid)->node_id = nid;
+	NODE_DATA(nid)->yesde_id = nid;
 #endif
 
 	p = NODE_DATA(nid);
 
 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
-	p->node_start_pfn = start_pfn;
-	p->node_spanned_pages = end_pfn - start_pfn;
+	p->yesde_start_pfn = start_pfn;
+	p->yesde_spanned_pages = end_pfn - start_pfn;
 }
 
-static void init_node_masks_nonnuma(void)
+static void init_yesde_masks_yesnnuma(void)
 {
 #ifdef CONFIG_NEED_MULTIPLE_NODES
 	int i;
 #endif
 
-	numadbg("Initializing tables for non-numa.\n");
+	numadbg("Initializing tables for yesn-numa.\n");
 
-	node_masks[0].mask = 0;
-	node_masks[0].match = 0;
-	num_node_masks = 1;
+	yesde_masks[0].mask = 0;
+	yesde_masks[0].match = 0;
+	num_yesde_masks = 1;
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
 	for (i = 0; i < NR_CPUS; i++)
@@ -1128,11 +1128,11 @@ static void init_node_masks_nonnuma(void)
 }
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
-struct pglist_data *node_data[MAX_NUMNODES];
+struct pglist_data *yesde_data[MAX_NUMNODES];
 
 EXPORT_SYMBOL(numa_cpu_lookup_table);
 EXPORT_SYMBOL(numa_cpumask_lookup_table);
-EXPORT_SYMBOL(node_data);
+EXPORT_SYMBOL(yesde_data);
 
 static int scan_pio_for_cfg_handle(struct mdesc_handle *md, u64 pio,
 				   u32 cfg_handle)
@@ -1159,7 +1159,7 @@ static int scan_arcs_for_cfg_handle(struct mdesc_handle *md, u64 grp,
 	candidate = MDESC_NODE_NULL;
 	mdesc_for_each_arc(arc, md, grp, MDESC_ARC_TYPE_FWD) {
 		u64 target = mdesc_arc_target(md, arc);
-		const char *name = mdesc_node_name(md, target);
+		const char *name = mdesc_yesde_name(md, target);
 		const u64 *val;
 
 		if (strcmp(name, "pio-latency-group"))
@@ -1181,7 +1181,7 @@ static int scan_arcs_for_cfg_handle(struct mdesc_handle *md, u64 grp,
 	return scan_pio_for_cfg_handle(md, candidate, cfg_handle);
 }
 
-int of_node_to_nid(struct device_node *dp)
+int of_yesde_to_nid(struct device_yesde *dp)
 {
 	const struct linux_prom64_registers *regs;
 	struct mdesc_handle *md;
@@ -1191,7 +1191,7 @@ int of_node_to_nid(struct device_node *dp)
 
 	/* This is the right thing to do on currently supported
 	 * SUN4U NUMA platforms as well, as the PCI controller does
-	 * not sit behind any particular memory controller.
+	 * yest sit behind any particular memory controller.
 	 */
 	if (!mlgroups)
 		return -1;
@@ -1206,7 +1206,7 @@ int of_node_to_nid(struct device_node *dp)
 
 	count = 0;
 	nid = NUMA_NO_NODE;
-	mdesc_for_each_node_by_name(md, grp, "group") {
+	mdesc_for_each_yesde_by_name(md, grp, "group") {
 		if (!scan_arcs_for_cfg_handle(md, grp, cfg_handle)) {
 			nid = count;
 			break;
@@ -1219,7 +1219,7 @@ int of_node_to_nid(struct device_node *dp)
 	return nid;
 }
 
-static void __init add_node_ranges(void)
+static void __init add_yesde_ranges(void)
 {
 	struct memblock_region *reg;
 	unsigned long prev_max;
@@ -1239,11 +1239,11 @@ memblock_resized:
 
 			this_end = memblock_nid_range(start, end, &nid);
 
-			numadbg("Setting memblock NUMA node nid[%d] "
+			numadbg("Setting memblock NUMA yesde nid[%d] "
 				"start[%lx] end[%lx]\n",
 				nid, start, this_end);
 
-			memblock_set_node(start, this_end - start,
+			memblock_set_yesde(start, this_end - start,
 					  &memblock.memory, nid);
 			if (memblock.memory.max != prev_max)
 				goto memblock_resized;
@@ -1256,9 +1256,9 @@ static int __init grab_mlgroups(struct mdesc_handle *md)
 {
 	unsigned long paddr;
 	int count = 0;
-	u64 node;
+	u64 yesde;
 
-	mdesc_for_each_node_by_name(md, node, "memory-latency-group")
+	mdesc_for_each_yesde_by_name(md, yesde, "memory-latency-group")
 		count++;
 	if (!count)
 		return -ENOENT;
@@ -1272,22 +1272,22 @@ static int __init grab_mlgroups(struct mdesc_handle *md)
 	num_mlgroups = count;
 
 	count = 0;
-	mdesc_for_each_node_by_name(md, node, "memory-latency-group") {
+	mdesc_for_each_yesde_by_name(md, yesde, "memory-latency-group") {
 		struct mdesc_mlgroup *m = &mlgroups[count++];
 		const u64 *val;
 
-		m->node = node;
+		m->yesde = yesde;
 
-		val = mdesc_get_property(md, node, "latency", NULL);
+		val = mdesc_get_property(md, yesde, "latency", NULL);
 		m->latency = *val;
-		val = mdesc_get_property(md, node, "address-match", NULL);
+		val = mdesc_get_property(md, yesde, "address-match", NULL);
 		m->match = *val;
-		val = mdesc_get_property(md, node, "address-mask", NULL);
+		val = mdesc_get_property(md, yesde, "address-mask", NULL);
 		m->mask = *val;
 
-		numadbg("MLGROUP[%d]: node[%llx] latency[%llx] "
+		numadbg("MLGROUP[%d]: yesde[%llx] latency[%llx] "
 			"match[%llx] mask[%llx]\n",
-			count - 1, m->node, m->latency, m->match, m->mask);
+			count - 1, m->yesde, m->latency, m->match, m->mask);
 	}
 
 	return 0;
@@ -1297,9 +1297,9 @@ static int __init grab_mblocks(struct mdesc_handle *md)
 {
 	unsigned long paddr;
 	int count = 0;
-	u64 node;
+	u64 yesde;
 
-	mdesc_for_each_node_by_name(md, node, "mblock")
+	mdesc_for_each_yesde_by_name(md, yesde, "mblock")
 		count++;
 	if (!count)
 		return -ENOENT;
@@ -1313,15 +1313,15 @@ static int __init grab_mblocks(struct mdesc_handle *md)
 	num_mblocks = count;
 
 	count = 0;
-	mdesc_for_each_node_by_name(md, node, "mblock") {
+	mdesc_for_each_yesde_by_name(md, yesde, "mblock") {
 		struct mdesc_mblock *m = &mblocks[count++];
 		const u64 *val;
 
-		val = mdesc_get_property(md, node, "base", NULL);
+		val = mdesc_get_property(md, yesde, "base", NULL);
 		m->base = *val;
-		val = mdesc_get_property(md, node, "size", NULL);
+		val = mdesc_get_property(md, yesde, "size", NULL);
 		m->size = *val;
-		val = mdesc_get_property(md, node,
+		val = mdesc_get_property(md, yesde,
 					 "address-congruence-offset", NULL);
 
 		/* The address-congruence-offset property is optional.
@@ -1348,7 +1348,7 @@ static void __init numa_parse_mdesc_group_cpus(struct mdesc_handle *md,
 
 	mdesc_for_each_arc(arc, md, grp, MDESC_ARC_TYPE_BACK) {
 		u64 target = mdesc_arc_target(md, arc);
-		const char *name = mdesc_node_name(md, target);
+		const char *name = mdesc_yesde_name(md, target);
 		const u64 *id;
 
 		if (strcmp(name, "cpu"))
@@ -1359,19 +1359,19 @@ static void __init numa_parse_mdesc_group_cpus(struct mdesc_handle *md,
 	}
 }
 
-static struct mdesc_mlgroup * __init find_mlgroup(u64 node)
+static struct mdesc_mlgroup * __init find_mlgroup(u64 yesde)
 {
 	int i;
 
 	for (i = 0; i < num_mlgroups; i++) {
 		struct mdesc_mlgroup *m = &mlgroups[i];
-		if (m->node == node)
+		if (m->yesde == yesde)
 			return m;
 	}
 	return NULL;
 }
 
-int __node_distance(int from, int to)
+int __yesde_distance(int from, int to)
 {
 	if ((from >= MAX_NUMNODES) || (to >= MAX_NUMNODES)) {
 		pr_warn("Returning default NUMA distance value for %d->%d\n",
@@ -1380,14 +1380,14 @@ int __node_distance(int from, int to)
 	}
 	return numa_latency[from][to];
 }
-EXPORT_SYMBOL(__node_distance);
+EXPORT_SYMBOL(__yesde_distance);
 
-static int __init find_best_numa_node_for_mlgroup(struct mdesc_mlgroup *grp)
+static int __init find_best_numa_yesde_for_mlgroup(struct mdesc_mlgroup *grp)
 {
 	int i;
 
 	for (i = 0; i < MAX_NUMNODES; i++) {
-		struct node_mem_mask *n = &node_masks[i];
+		struct yesde_mem_mask *n = &yesde_masks[i];
 
 		if ((grp->mask == n->mask) && (grp->match == n->match))
 			break;
@@ -1401,16 +1401,16 @@ static void __init find_numa_latencies_for_group(struct mdesc_handle *md,
 	u64 arc;
 
 	mdesc_for_each_arc(arc, md, grp, MDESC_ARC_TYPE_FWD) {
-		int tnode;
+		int tyesde;
 		u64 target = mdesc_arc_target(md, arc);
 		struct mdesc_mlgroup *m = find_mlgroup(target);
 
 		if (!m)
 			continue;
-		tnode = find_best_numa_node_for_mlgroup(m);
-		if (tnode == MAX_NUMNODES)
+		tyesde = find_best_numa_yesde_for_mlgroup(m);
+		if (tyesde == MAX_NUMNODES)
 			continue;
-		numa_latency[index][tnode] = m->latency;
+		numa_latency[index][tyesde] = m->latency;
 	}
 }
 
@@ -1419,7 +1419,7 @@ static int __init numa_attach_mlgroup(struct mdesc_handle *md, u64 grp,
 {
 	struct mdesc_mlgroup *candidate = NULL;
 	u64 arc, best_latency = ~(u64)0;
-	struct node_mem_mask *n;
+	struct yesde_mem_mask *n;
 
 	mdesc_for_each_arc(arc, md, grp, MDESC_ARC_TYPE_FWD) {
 		u64 target = mdesc_arc_target(md, arc);
@@ -1434,14 +1434,14 @@ static int __init numa_attach_mlgroup(struct mdesc_handle *md, u64 grp,
 	if (!candidate)
 		return -ENOENT;
 
-	if (num_node_masks != index) {
+	if (num_yesde_masks != index) {
 		printk(KERN_ERR "Inconsistent NUMA state, "
-		       "index[%d] != num_node_masks[%d]\n",
-		       index, num_node_masks);
+		       "index[%d] != num_yesde_masks[%d]\n",
+		       index, num_yesde_masks);
 		return -EINVAL;
 	}
 
-	n = &node_masks[num_node_masks++];
+	n = &yesde_masks[num_yesde_masks++];
 
 	n->mask = candidate->mask;
 	n->match = candidate->match;
@@ -1478,10 +1478,10 @@ static int __init numa_parse_mdesc(void)
 {
 	struct mdesc_handle *md = mdesc_grab();
 	int i, j, err, count;
-	u64 node;
+	u64 yesde;
 
-	node = mdesc_node_by_name(md, MDESC_NODE_NULL, "latency-groups");
-	if (node == MDESC_NODE_NULL) {
+	yesde = mdesc_yesde_by_name(md, MDESC_NODE_NULL, "latency-groups");
+	if (yesde == MDESC_NODE_NULL) {
 		mdesc_release(md);
 		return -ENOENT;
 	}
@@ -1495,16 +1495,16 @@ static int __init numa_parse_mdesc(void)
 		goto out;
 
 	count = 0;
-	mdesc_for_each_node_by_name(md, node, "group") {
-		err = numa_parse_mdesc_group(md, node, count);
+	mdesc_for_each_yesde_by_name(md, yesde, "group") {
+		err = numa_parse_mdesc_group(md, yesde, count);
 		if (err < 0)
 			break;
 		count++;
 	}
 
 	count = 0;
-	mdesc_for_each_node_by_name(md, node, "group") {
-		find_numa_latencies_for_group(md, node, count);
+	mdesc_for_each_yesde_by_name(md, yesde, "group") {
+		find_numa_latencies_for_group(md, yesde, count);
 		count++;
 	}
 
@@ -1519,11 +1519,11 @@ static int __init numa_parse_mdesc(void)
 		}
 	}
 
-	add_node_ranges();
+	add_yesde_ranges();
 
-	for (i = 0; i < num_node_masks; i++) {
-		allocate_node_data(i);
-		node_set_online(i);
+	for (i = 0; i < num_yesde_masks; i++) {
+		allocate_yesde_data(i);
+		yesde_set_online(i);
 	}
 
 	err = 0;
@@ -1536,25 +1536,25 @@ static int __init numa_parse_jbus(void)
 {
 	unsigned long cpu, index;
 
-	/* NUMA node id is encoded in bits 36 and higher, and there is
-	 * a 1-to-1 mapping from CPU ID to NUMA node ID.
+	/* NUMA yesde id is encoded in bits 36 and higher, and there is
+	 * a 1-to-1 mapping from CPU ID to NUMA yesde ID.
 	 */
 	index = 0;
 	for_each_present_cpu(cpu) {
 		numa_cpu_lookup_table[cpu] = index;
 		cpumask_copy(&numa_cpumask_lookup_table[index], cpumask_of(cpu));
-		node_masks[index].mask = ~((1UL << 36UL) - 1UL);
-		node_masks[index].match = cpu << 36UL;
+		yesde_masks[index].mask = ~((1UL << 36UL) - 1UL);
+		yesde_masks[index].match = cpu << 36UL;
 
 		index++;
 	}
-	num_node_masks = index;
+	num_yesde_masks = index;
 
-	add_node_ranges();
+	add_yesde_ranges();
 
-	for (index = 0; index < num_node_masks; index++) {
-		allocate_node_data(index);
-		node_set_online(index);
+	for (index = 0; index < num_yesde_masks; index++) {
+		allocate_yesde_data(index);
+		yesde_set_online(index);
 	}
 
 	return 0;
@@ -1605,22 +1605,22 @@ static int bootmem_init_numa(void)
 
 #endif
 
-static void __init bootmem_init_nonnuma(void)
+static void __init bootmem_init_yesnnuma(void)
 {
 	unsigned long top_of_ram = memblock_end_of_DRAM();
 	unsigned long total_ram = memblock_phys_mem_size();
 
-	numadbg("bootmem_init_nonnuma()\n");
+	numadbg("bootmem_init_yesnnuma()\n");
 
 	printk(KERN_INFO "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
 	       top_of_ram, total_ram);
 	printk(KERN_INFO "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 
-	init_node_masks_nonnuma();
-	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
-	allocate_node_data(0);
-	node_set_online(0);
+	init_yesde_masks_yesnnuma();
+	memblock_set_yesde(0, PHYS_ADDR_MAX, &memblock.memory, 0);
+	allocate_yesde_data(0);
+	yesde_set_online(0);
 }
 
 static unsigned long __init bootmem_init(unsigned long phys_base)
@@ -1632,12 +1632,12 @@ static unsigned long __init bootmem_init(unsigned long phys_base)
 	min_low_pfn = (phys_base >> PAGE_SHIFT);
 
 	if (bootmem_init_numa() < 0)
-		bootmem_init_nonnuma();
+		bootmem_init_yesnnuma();
 
-	/* Dump memblock with node info. */
+	/* Dump memblock with yesde info. */
 	memblock_dump_all();
 
-	/* XXX cpu notifier XXX */
+	/* XXX cpu yestifier XXX */
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
@@ -1671,25 +1671,25 @@ bool kern_addr_valid(unsigned long addr)
 		return true;
 
 	pgd = pgd_offset_k(addr);
-	if (pgd_none(*pgd))
+	if (pgd_yesne(*pgd))
 		return 0;
 
 	pud = pud_offset(pgd, addr);
-	if (pud_none(*pud))
+	if (pud_yesne(*pud))
 		return 0;
 
 	if (pud_large(*pud))
 		return pfn_valid(pud_pfn(*pud));
 
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd))
+	if (pmd_yesne(*pmd))
 		return 0;
 
 	if (pmd_large(*pmd))
 		return pfn_valid(pmd_pfn(*pmd));
 
 	pte = pte_offset_kernel(pmd, addr);
-	if (pte_none(*pte))
+	if (pte_yesne(*pte))
 		return 0;
 
 	return pfn_valid(pte_pfn(*pte));
@@ -1804,7 +1804,7 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 		pmd_t *pmd;
 		pte_t *pte;
 
-		if (pgd_none(*pgd)) {
+		if (pgd_yesne(*pgd)) {
 			pud_t *new;
 
 			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
@@ -1815,7 +1815,7 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 			pgd_populate(&init_mm, pgd, new);
 		}
 		pud = pud_offset(pgd, vstart);
-		if (pud_none(*pud)) {
+		if (pud_yesne(*pud)) {
 			pmd_t *new;
 
 			if (kernel_can_map_hugepud(vstart, vend, use_huge)) {
@@ -1831,7 +1831,7 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 		}
 
 		pmd = pmd_offset(pud, vstart);
-		if (pmd_none(*pmd)) {
+		if (pmd_yesne(*pmd)) {
 			pte_t *new;
 
 			if (kernel_can_map_hugepmd(vstart, vend, use_huge)) {
@@ -1909,7 +1909,7 @@ static void __init kernel_physical_mapping_init(void)
 	printk("Allocated %ld bytes for kernel page tables.\n",
 	       mem_alloced);
 
-	kvmap_linear_patch[0] = 0x01000000; /* nop */
+	kvmap_linear_patch[0] = 0x01000000; /* yesp */
 	flushi(&kvmap_linear_patch[0]);
 
 	flush_all_kernel_tsbs();
@@ -2006,7 +2006,7 @@ static void __init setup_page_offset(void)
 		default:
 			/* M8 and later support 54-bit virtual addresses.
 			 * However, restricting M8 and above VA bits to 53
-			 * as 4-level page table cannot support more than
+			 * as 4-level page table canyest support more than
 			 * 53 VA bits.
 			 */
 			sparc64_va_hole_top =    0xfff0000000000000UL;
@@ -2049,7 +2049,7 @@ static void __init tsb_phys_patch(void)
 			*(unsigned int *) addr = pquad->sun4u_insn;
 		wmb();
 		__asm__ __volatile__("flush	%0"
-				     : /* no outputs */
+				     : /* yes outputs */
 				     : "r" (addr));
 
 		pquad++;
@@ -2062,7 +2062,7 @@ static void __init tsb_phys_patch(void)
 		*(unsigned int *) addr = p->insn;
 		wmb();
 		__asm__ __volatile__("flush	%0"
-				     : /* no outputs */
+				     : /* yes outputs */
 				     : "r" (addr));
 
 		p++;
@@ -2219,8 +2219,8 @@ static void __init sun4v_linear_pte_xor_finalize(void)
 {
 	unsigned long pagecv_flag;
 
-	/* Bit 9 of TTE is no longer CV bit on M7 processor and it instead
-	 * enables MCD error. Do not set bit 9 on M7 processor.
+	/* Bit 9 of TTE is yes longer CV bit on M7 processor and it instead
+	 * enables MCD error. Do yest set bit 9 on M7 processor.
 	 */
 	switch (sun4v_chip_type) {
 	case SUN4V_CHIP_SPARC_M7:
@@ -2303,14 +2303,14 @@ void __init paging_init(void)
 	 */
 
 	/*
-	 * Page flags must not reach into upper 32 bits that are used
+	 * Page flags must yest reach into upper 32 bits that are used
 	 * for the cpu number
 	 */
 	BUILD_BUG_ON(NR_PAGEFLAGS > 32);
 
 	/*
-	 * The bit fields placed in the high range must not reach below
-	 * the 32 bit boundary. Otherwise we cannot place the cpu field
+	 * The bit fields placed in the high range must yest reach below
+	 * the 32 bit boundary. Otherwise we canyest place the cpu field
 	 * at the 32 bit boundary.
 	 */
 	BUILD_BUG_ON(SECTIONS_WIDTH + NODES_WIDTH + ZONES_WIDTH +
@@ -2331,9 +2331,9 @@ void __init paging_init(void)
 	 * bit on M7 processor. This is a conflicting usage of the same
 	 * bit. Enabling TTE.cv on M7 would turn on Memory Corruption
 	 * Detection error on all pages and this will lead to problems
-	 * later. Kernel does not run with MCD enabled and hence rest
+	 * later. Kernel does yest run with MCD enabled and hence rest
 	 * of the required steps to fully configure memory corruption
-	 * detection are not taken. We need to ensure TTE.mcde is not
+	 * detection are yest taken. We need to ensure TTE.mcde is yest
 	 * set on M7 processor. Compute the value of cacheability
 	 * flag for use later taking this into consideration.
 	 */
@@ -2468,7 +2468,7 @@ void __init paging_init(void)
 
 		max_zone_pfns[ZONE_NORMAL] = end_pfn;
 
-		free_area_init_nodes(max_zone_pfns);
+		free_area_init_yesdes(max_zone_pfns);
 	}
 
 	printk("Booting Linux...\n");
@@ -2505,9 +2505,9 @@ static void __init register_page_bootmem_info(void)
 #ifdef CONFIG_NEED_MULTIPLE_NODES
 	int i;
 
-	for_each_online_node(i)
-		if (NODE_DATA(i)->node_spanned_pages)
-			register_page_bootmem_info_node(NODE_DATA(i));
+	for_each_online_yesde(i)
+		if (NODE_DATA(i)->yesde_spanned_pages)
+			register_page_bootmem_info_yesde(NODE_DATA(i));
 #endif
 }
 void __init mem_init(void)
@@ -2518,7 +2518,7 @@ void __init mem_init(void)
 
 	/*
 	 * Must be done after boot memory is put on freelist, because here we
-	 * might set fields in deferred struct pages that have not yet been
+	 * might set fields in deferred struct pages that have yest yet been
 	 * initialized, and memblock_free_all() initializes all the reserved
 	 * deferred pages for us.
 	 */
@@ -2526,11 +2526,11 @@ void __init mem_init(void)
 
 	/*
 	 * Set up the zero page, mark it reserved, so that page count
-	 * is not manipulated when freeing the page from user ptes.
+	 * is yest manipulated when freeing the page from user ptes.
 	 */
 	mem_map_zero = alloc_pages(GFP_KERNEL|__GFP_ZERO, 0);
 	if (mem_map_zero == NULL) {
-		prom_printf("paging_init: Cannot alloc zero page.\n");
+		prom_printf("paging_init: Canyest alloc zero page.\n");
 		prom_halt();
 	}
 	mark_page_reserved(mem_map_zero);
@@ -2594,7 +2594,7 @@ EXPORT_SYMBOL(_PAGE_CACHE);
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
-			       int node, struct vmem_altmap *altmap)
+			       int yesde, struct vmem_altmap *altmap)
 {
 	unsigned long pte_base;
 
@@ -2610,7 +2610,7 @@ int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
 	vstart = vstart & PMD_MASK;
 	vend = ALIGN(vend, PMD_SIZE);
 	for (; vstart < vend; vstart += PMD_SIZE) {
-		pgd_t *pgd = vmemmap_pgd_populate(vstart, node);
+		pgd_t *pgd = vmemmap_pgd_populate(vstart, yesde);
 		unsigned long pte;
 		pud_t *pud;
 		pmd_t *pmd;
@@ -2618,14 +2618,14 @@ int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
 		if (!pgd)
 			return -ENOMEM;
 
-		pud = vmemmap_pud_populate(pgd, vstart, node);
+		pud = vmemmap_pud_populate(pgd, vstart, yesde);
 		if (!pud)
 			return -ENOMEM;
 
 		pmd = pmd_offset(pud, vstart);
 		pte = pmd_val(*pmd);
 		if (!(pte & _PAGE_VALID)) {
-			void *block = vmemmap_alloc_block(PMD_SIZE, node);
+			void *block = vmemmap_alloc_block(PMD_SIZE, yesde);
 
 			if (!block)
 				return -ENOMEM;
@@ -2643,7 +2643,7 @@ void vmemmap_free(unsigned long start, unsigned long end,
 }
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-static void prot_init_common(unsigned long page_none,
+static void prot_init_common(unsigned long page_yesne,
 			     unsigned long page_shared,
 			     unsigned long page_copy,
 			     unsigned long page_readonly,
@@ -2652,7 +2652,7 @@ static void prot_init_common(unsigned long page_none,
 	PAGE_COPY = __pgprot(page_copy);
 	PAGE_SHARED = __pgprot(page_shared);
 
-	protection_map[0x0] = __pgprot(page_none);
+	protection_map[0x0] = __pgprot(page_yesne);
 	protection_map[0x1] = __pgprot(page_readonly & ~page_exec_bit);
 	protection_map[0x2] = __pgprot(page_copy & ~page_exec_bit);
 	protection_map[0x3] = __pgprot(page_copy & ~page_exec_bit);
@@ -2660,7 +2660,7 @@ static void prot_init_common(unsigned long page_none,
 	protection_map[0x5] = __pgprot(page_readonly);
 	protection_map[0x6] = __pgprot(page_copy);
 	protection_map[0x7] = __pgprot(page_copy);
-	protection_map[0x8] = __pgprot(page_none);
+	protection_map[0x8] = __pgprot(page_yesne);
 	protection_map[0x9] = __pgprot(page_readonly & ~page_exec_bit);
 	protection_map[0xa] = __pgprot(page_shared & ~page_exec_bit);
 	protection_map[0xb] = __pgprot(page_shared & ~page_exec_bit);
@@ -2672,7 +2672,7 @@ static void prot_init_common(unsigned long page_none,
 
 static void __init sun4u_pgprot_init(void)
 {
-	unsigned long page_none, page_shared, page_copy, page_readonly;
+	unsigned long page_yesne, page_shared, page_copy, page_readonly;
 	unsigned long page_exec_bit;
 	int i;
 
@@ -2709,7 +2709,7 @@ static void __init sun4u_pgprot_init(void)
 			      _PAGE_SZ32MB_4U | _PAGE_SZ256MB_4U);
 
 
-	page_none = _PAGE_PRESENT_4U | _PAGE_ACCESSED_4U | _PAGE_CACHE_4U;
+	page_yesne = _PAGE_PRESENT_4U | _PAGE_ACCESSED_4U | _PAGE_CACHE_4U;
 	page_shared = (_PAGE_VALID | _PAGE_PRESENT_4U | _PAGE_CACHE_4U |
 		       __ACCESS_BITS_4U | _PAGE_WRITE_4U | _PAGE_EXEC_4U);
 	page_copy   = (_PAGE_VALID | _PAGE_PRESENT_4U | _PAGE_CACHE_4U |
@@ -2719,13 +2719,13 @@ static void __init sun4u_pgprot_init(void)
 
 	page_exec_bit = _PAGE_EXEC_4U;
 
-	prot_init_common(page_none, page_shared, page_copy, page_readonly,
+	prot_init_common(page_yesne, page_shared, page_copy, page_readonly,
 			 page_exec_bit);
 }
 
 static void __init sun4v_pgprot_init(void)
 {
-	unsigned long page_none, page_shared, page_copy, page_readonly;
+	unsigned long page_yesne, page_shared, page_copy, page_readonly;
 	unsigned long page_exec_bit;
 	int i;
 
@@ -2759,7 +2759,7 @@ static void __init sun4v_pgprot_init(void)
 			     _PAGE_SZ4MB_4V | _PAGE_SZ512K_4V |
 			     _PAGE_SZ64K_4V | _PAGE_SZ8K_4V);
 
-	page_none = _PAGE_PRESENT_4V | _PAGE_ACCESSED_4V | page_cache4v_flag;
+	page_yesne = _PAGE_PRESENT_4V | _PAGE_ACCESSED_4V | page_cache4v_flag;
 	page_shared = (_PAGE_VALID | _PAGE_PRESENT_4V | page_cache4v_flag |
 		       __ACCESS_BITS_4V | _PAGE_WRITE_4V | _PAGE_EXEC_4V);
 	page_copy   = (_PAGE_VALID | _PAGE_PRESENT_4V | page_cache4v_flag |
@@ -2769,7 +2769,7 @@ static void __init sun4v_pgprot_init(void)
 
 	page_exec_bit = _PAGE_EXEC_4V;
 
-	prot_init_common(page_none, page_shared, page_copy, page_readonly,
+	prot_init_common(page_yesne, page_shared, page_copy, page_readonly,
 			 page_exec_bit);
 }
 
@@ -2806,7 +2806,7 @@ pte_t mk_pte_io(unsigned long page, pgprot_t prot, int space, unsigned long page
 {
 	pte_t pte;
 
-	pte_val(pte)  = page | pgprot_val(pgprot_noncached(prot));
+	pte_val(pte)  = page | pgprot_val(pgprot_yesncached(prot));
 	pte_val(pte) |= (((unsigned long)space) << 32);
 	pte_val(pte) |= pte_sz_bits(page_size);
 
@@ -2828,7 +2828,7 @@ static unsigned long kern_large_tte(unsigned long paddr)
 	return val | paddr;
 }
 
-/* If not locked, zap it. */
+/* If yest locked, zap it. */
 void __flush_tlb_all(void)
 {
 	unsigned long pstate;
@@ -2844,7 +2844,7 @@ void __flush_tlb_all(void)
 	} else if (tlb_type == spitfire) {
 		for (i = 0; i < 64; i++) {
 			/* Spitfire Errata #32 workaround */
-			/* NOTE: Always runs on spitfire, so no
+			/* NOTE: Always runs on spitfire, so yes
 			 *       cheetah+ page size encodings.
 			 */
 			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
@@ -2856,13 +2856,13 @@ void __flush_tlb_all(void)
 			if (!(spitfire_get_dtlb_data(i) & _PAGE_L_4U)) {
 				__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
 						     "membar #Sync"
-						     : /* no outputs */
+						     : /* yes outputs */
 						     : "r" (TLB_TAG_ACCESS), "i" (ASI_DMMU));
 				spitfire_put_dtlb_data(i, 0x0UL);
 			}
 
 			/* Spitfire Errata #32 workaround */
-			/* NOTE: Always runs on spitfire, so no
+			/* NOTE: Always runs on spitfire, so yes
 			 *       cheetah+ page size encodings.
 			 */
 			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
@@ -2874,7 +2874,7 @@ void __flush_tlb_all(void)
 			if (!(spitfire_get_itlb_data(i) & _PAGE_L_4U)) {
 				__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
 						     "membar #Sync"
-						     : /* no outputs */
+						     : /* yes outputs */
 						     : "r" (TLB_TAG_ACCESS), "i" (ASI_IMMU));
 				spitfire_put_itlb_data(i, 0x0UL);
 			}
@@ -2949,7 +2949,7 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 
 	pte = pmd_val(entry);
 
-	/* Don't insert a non-valid PMD into the TSB, we'll deadlock.  */
+	/* Don't insert a yesn-valid PMD into the TSB, we'll deadlock.  */
 	if (!(pte & _PAGE_VALID))
 		return;
 
@@ -3017,7 +3017,7 @@ void hugetlb_setup(struct pt_regs *regs)
 
 		if (ctx != mm->context.sparc64_ctx_val) {
 			/* When changing the page size fields, we
-			 * must perform a context flush so that no
+			 * must perform a context flush so that yes
 			 * stale entries match.  This flush must
 			 * occur with the original context register
 			 * settings.

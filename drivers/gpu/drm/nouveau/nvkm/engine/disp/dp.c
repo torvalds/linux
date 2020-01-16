@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -94,7 +94,7 @@ nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 		if (lpc2 >= hipc)
 			lpc2 = hipc | DPCD_LC0F_LANE0_MAX_POST_CURSOR2_REACHED;
 		if (lpre >= hipe) {
-			lpre = hipe | DPCD_LC03_MAX_SWING_REACHED; /* yes. */
+			lpre = hipe | DPCD_LC03_MAX_SWING_REACHED; /* no. */
 			lvsw = hivs = 3 - (lpre & 3);
 		} else
 		if (lvsw >= hivs) {
@@ -381,7 +381,7 @@ nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 	if (WARN_ON(!failsafe))
 		return ret;
 
-	/* Ensure sink is not in a low-power state. */
+	/* Ensure sink is yest in a low-power state. */
 	if (!nvkm_rdaux(dp->aux, DPCD_SC00, &pwr, 1)) {
 		if ((pwr & DPCD_SC00_SET_POWER) != DPCD_SC00_SET_POWER_D0) {
 			pwr &= ~DPCD_SC00_SET_POWER;
@@ -395,7 +395,7 @@ nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 		 failsafe->nr, failsafe->bw * 27);
 	nvkm_dp_train_init(dp);
 	for (cfg = nvkm_dp_rates; ret < 0 && cfg <= failsafe; cfg++) {
-		/* Skip configurations not supported by both OR and sink. */
+		/* Skip configurations yest supported by both OR and sink. */
 		if ((cfg->nr > outp_nr || cfg->bw > outp_bw ||
 		     cfg->nr > sink_nr || cfg->bw > sink_bw)) {
 			if (cfg != failsafe)
@@ -478,7 +478,7 @@ nvkm_dp_acquire(struct nvkm_outp *outp)
 	ret = nvkm_rdaux(dp->aux, DPCD_LS02, stat, 3);
 	if (ret) {
 		OUTP_DBG(&dp->outp,
-			 "failed to read link status, assuming no sink");
+			 "failed to read link status, assuming yes sink");
 		goto done;
 	}
 
@@ -489,13 +489,13 @@ nvkm_dp_acquire(struct nvkm_outp *outp)
 			    !(lane & DPCD_LS02_LANE0_CHANNEL_EQ_DONE) ||
 			    !(lane & DPCD_LS02_LANE0_SYMBOL_LOCKED)) {
 				OUTP_DBG(&dp->outp,
-					 "lane %d not equalised", lane);
+					 "lane %d yest equalised", lane);
 				goto done;
 			}
 		}
 		retrain = false;
 	} else {
-		OUTP_DBG(&dp->outp, "no inter-lane alignment");
+		OUTP_DBG(&dp->outp, "yes inter-lane alignment");
 	}
 
 done:
@@ -533,13 +533,13 @@ nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
 }
 
 static int
-nvkm_dp_hpd(struct nvkm_notify *notify)
+nvkm_dp_hpd(struct nvkm_yestify *yestify)
 {
-	const struct nvkm_i2c_ntfy_rep *line = notify->data;
-	struct nvkm_dp *dp = container_of(notify, typeof(*dp), hpd);
+	const struct nvkm_i2c_ntfy_rep *line = yestify->data;
+	struct nvkm_dp *dp = container_of(yestify, typeof(*dp), hpd);
 	struct nvkm_conn *conn = dp->outp.conn;
 	struct nvkm_disp *disp = dp->outp.disp;
-	struct nvif_notify_conn_rep_v0 rep = {};
+	struct nvif_yestify_conn_rep_v0 rep = {};
 
 	OUTP_DBG(&dp->outp, "HPD: %d", line->mask);
 	if (line->mask & NVKM_I2C_IRQ) {
@@ -563,7 +563,7 @@ static void
 nvkm_dp_fini(struct nvkm_outp *outp)
 {
 	struct nvkm_dp *dp = nvkm_dp(outp);
-	nvkm_notify_put(&dp->hpd);
+	nvkm_yestify_put(&dp->hpd);
 	nvkm_dp_enable(dp, false);
 }
 
@@ -573,11 +573,11 @@ nvkm_dp_init(struct nvkm_outp *outp)
 	struct nvkm_gpio *gpio = outp->disp->engine.subdev.device->gpio;
 	struct nvkm_dp *dp = nvkm_dp(outp);
 
-	nvkm_notify_put(&dp->outp.conn->hpd);
+	nvkm_yestify_put(&dp->outp.conn->hpd);
 
 	/* eDP panels need powering on by us (if the VBIOS doesn't default it
 	 * to on) before doing any AUX channel transactions.  LVDS panel power
-	 * is handled by the SOR itself, and not required for LVDS DDC.
+	 * is handled by the SOR itself, and yest required for LVDS DDC.
 	 */
 	if (dp->outp.conn->info.type == DCB_CONNECTOR_eDP) {
 		int power = nvkm_gpio_get(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff);
@@ -588,13 +588,13 @@ nvkm_dp_init(struct nvkm_outp *outp)
 		 * because some laptop panels having a significant resume
 		 * delay before the panel begins responding.
 		 *
-		 * This is likely a bit of a hack, but no better idea for
+		 * This is likely a bit of a hack, but yes better idea for
 		 * handling this at the moment.
 		 */
 		msleep(300);
 
 		/* If the eDP panel can't be detected, we need to restore
-		 * the panel power GPIO to avoid breaking another output.
+		 * the panel power GPIO to avoid breaking ayesther output.
 		 */
 		if (!nvkm_dp_enable(dp, true) && power == 0)
 			nvkm_gpio_set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 0);
@@ -602,14 +602,14 @@ nvkm_dp_init(struct nvkm_outp *outp)
 		nvkm_dp_enable(dp, true);
 	}
 
-	nvkm_notify_get(&dp->hpd);
+	nvkm_yestify_get(&dp->hpd);
 }
 
 static void *
 nvkm_dp_dtor(struct nvkm_outp *outp)
 {
 	struct nvkm_dp *dp = nvkm_dp(outp);
-	nvkm_notify_fini(&dp->hpd);
+	nvkm_yestify_fini(&dp->hpd);
 	return dp;
 }
 
@@ -640,16 +640,16 @@ nvkm_dp_ctor(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 
 	dp->aux = aux;
 	if (!dp->aux) {
-		OUTP_ERR(&dp->outp, "no aux");
+		OUTP_ERR(&dp->outp, "yes aux");
 		return -EINVAL;
 	}
 
-	/* bios data is not optional */
+	/* bios data is yest optional */
 	data = nvbios_dpout_match(bios, dp->outp.info.hasht,
 				  dp->outp.info.hashm, &dp->version,
 				  &hdr, &cnt, &len, &dp->info);
 	if (!data) {
-		OUTP_ERR(&dp->outp, "no bios dp data");
+		OUTP_ERR(&dp->outp, "yes bios dp data");
 		return -EINVAL;
 	}
 
@@ -657,7 +657,7 @@ nvkm_dp_ctor(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 		 dp->version, hdr, cnt, len);
 
 	/* hotplug detect, replaces gpio-based mechanism with aux events */
-	ret = nvkm_notify_init(NULL, &i2c->event, nvkm_dp_hpd, true,
+	ret = nvkm_yestify_init(NULL, &i2c->event, nvkm_dp_hpd, true,
 			       &(struct nvkm_i2c_ntfy_req) {
 				.mask = NVKM_I2C_PLUG | NVKM_I2C_UNPLUG |
 					NVKM_I2C_IRQ,

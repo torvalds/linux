@@ -274,7 +274,7 @@ u64 pch_tx_snap_read(struct pci_dev *pdev)
 EXPORT_SYMBOL(pch_tx_snap_read);
 
 /* This function enables all 64 bits in system time registers [high & low].
-This is a work-around for non continuous value in the SystemTime Register*/
+This is a work-around for yesn continuous value in the SystemTime Register*/
 static void pch_set_system_time_count(struct pch_dev *chip)
 {
 	iowrite32(0x01, &chip->regs->stl_max_set_en);
@@ -423,15 +423,15 @@ static int ptp_pch_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 
 static int ptp_pch_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
-	s64 now;
+	s64 yesw;
 	unsigned long flags;
 	struct pch_dev *pch_dev = container_of(ptp, struct pch_dev, caps);
 	struct pch_ts_regs __iomem *regs = pch_dev->regs;
 
 	spin_lock_irqsave(&pch_dev->register_lock, flags);
-	now = pch_systime_read(regs);
-	now += delta;
-	pch_systime_write(regs, now);
+	yesw = pch_systime_read(regs);
+	yesw += delta;
+	pch_systime_write(regs, yesw);
 	spin_unlock_irqrestore(&pch_dev->register_lock, flags);
 
 	return 0;
@@ -516,7 +516,7 @@ static s32 pch_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_enable_wake(pdev, PCI_D3hot, 0);
 
 	if (pci_save_state(pdev) != 0) {
-		dev_err(&pdev->dev, "could not save PCI config state\n");
+		dev_err(&pdev->dev, "could yest save PCI config state\n");
 		return -ENOMEM;
 	}
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
@@ -581,13 +581,13 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* enable the 1588 pci device */
 	ret = pci_enable_device(pdev);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "could not enable the pci device\n");
+		dev_err(&pdev->dev, "could yest enable the pci device\n");
 		goto err_pci_en;
 	}
 
 	chip->mem_base = pci_resource_start(pdev, IO_MEM_BAR);
 	if (!chip->mem_base) {
-		dev_err(&pdev->dev, "could not locate IO memory address\n");
+		dev_err(&pdev->dev, "could yest locate IO memory address\n");
 		ret = -ENODEV;
 		goto err_pci_start;
 	}
@@ -598,7 +598,7 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* allocate the memory for the device registers */
 	if (!request_mem_region(chip->mem_base, chip->mem_size, "1588_regs")) {
 		dev_err(&pdev->dev,
-			"could not allocate register memory space\n");
+			"could yest allocate register memory space\n");
 		ret = -EBUSY;
 		goto err_req_mem_region;
 	}
@@ -607,7 +607,7 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	chip->regs = ioremap(chip->mem_base, chip->mem_size);
 
 	if (!chip->regs) {
-		dev_err(&pdev->dev, "Could not get virtual address\n");
+		dev_err(&pdev->dev, "Could yest get virtual address\n");
 		ret = -ENOMEM;
 		goto err_ioremap;
 	}
@@ -647,7 +647,7 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		if (pch_set_station_address(pch_param.station, pdev) != 0) {
 			dev_err(&pdev->dev,
 			"Invalid station address parameter\n"
-			"Module loaded but station address not set correctly\n"
+			"Module loaded but station address yest set correctly\n"
 			);
 		}
 	}

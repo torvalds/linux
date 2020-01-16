@@ -15,7 +15,7 @@
 #include <linux/kgdb.h>
 #include "../debug_core.h"
 
-/* Kernel Debugger Command codes.  Must not overlap with error codes. */
+/* Kernel Debugger Command codes.  Must yest overlap with error codes. */
 #define KDB_CMD_GO	(-1001)
 #define KDB_CMD_CPU	(-1002)
 #define KDB_CMD_SS	(-1003)
@@ -92,7 +92,7 @@ extern int kdb_putarea_size(unsigned long, void *, size_t);
 
 /*
  * Like get_user and put_user, kdb_getarea and kdb_putarea take variable
- * names, not pointers.  The underlying *_size functions take pointers.
+ * names, yest pointers.  The underlying *_size functions take pointers.
  */
 #define kdb_getarea(x, addr) kdb_getarea_size(&(x), addr, sizeof((x)))
 #define kdb_putarea(addr, x) kdb_putarea_size(addr, &(x), sizeof((x)))
@@ -140,7 +140,7 @@ extern int kdb_state;
 #define KDB_STATE_KEYBOARD	0x00020000	/* kdb entered via
 						 * keyboard on this cpu */
 #define KDB_STATE_KEXEC		0x00040000	/* kexec issued */
-#define KDB_STATE_DOING_KGDB	0x00080000	/* kgdb enter now issued */
+#define KDB_STATE_DOING_KGDB	0x00080000	/* kgdb enter yesw issued */
 #define KDB_STATE_KGDB_TRANS	0x00200000	/* Transition to kgdb */
 #define KDB_STATE_ARCH		0xff000000	/* Reserved for arch
 						 * specific use */

@@ -8,7 +8,7 @@
 #ifndef __LINUX_LOGIC_PIO_H
 #define __LINUX_LOGIC_PIO_H
 
-#include <linux/fwnode.h>
+#include <linux/fwyesde.h>
 
 enum {
 	LOGIC_PIO_INDIRECT,		/* Indirect IO flag */
@@ -17,7 +17,7 @@ enum {
 
 struct logic_pio_hwaddr {
 	struct list_head list;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	resource_size_t hw_start;
 	resource_size_t io_start;
 	resource_size_t size; /* range size populated */
@@ -113,8 +113,8 @@ void logic_outsl(unsigned long addr, const void *buffer, unsigned int count);
 #endif /* CONFIG_INDIRECT_PIO */
 #define MMIO_UPPER_LIMIT (IO_SPACE_LIMIT - PIO_INDIRECT_SIZE)
 
-struct logic_pio_hwaddr *find_io_range_by_fwnode(struct fwnode_handle *fwnode);
-unsigned long logic_pio_trans_hwaddr(struct fwnode_handle *fwnode,
+struct logic_pio_hwaddr *find_io_range_by_fwyesde(struct fwyesde_handle *fwyesde);
+unsigned long logic_pio_trans_hwaddr(struct fwyesde_handle *fwyesde,
 			resource_size_t hw_addr, resource_size_t size);
 int logic_pio_register_range(struct logic_pio_hwaddr *newrange);
 void logic_pio_unregister_range(struct logic_pio_hwaddr *range);

@@ -212,10 +212,10 @@ static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 					((index < 2) ? powerbase0[rf] : powerbase1[rf]);
 			break;
 		}
-/*  20100427 Joseph: Driver dynamic Tx power shall not affect Tx power. It shall be determined by power training mechanism. */
-/*  Currently, we cannot fully disable driver dynamic tx power mechanism because it is referenced by BT coexist mechanism. */
+/*  20100427 Joseph: Driver dynamic Tx power shall yest affect Tx power. It shall be determined by power training mechanism. */
+/*  Currently, we canyest fully disable driver dynamic tx power mechanism because it is referenced by BT coexist mechanism. */
 /*  In the future, two mechanism shall be separated from each other and maintained independently. Thanks for Lanhsin's reminder. */
-		/* 92d do not need this */
+		/* 92d do yest need this */
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1)
 			write_val = 0x14141414;
 		else if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level2)

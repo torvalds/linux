@@ -25,7 +25,7 @@
 
 #define CLCD_IRQ_NEXTBASE_UPDATE BIT(2)
 
-struct drm_minor;
+struct drm_miyesr;
 
 /**
  * struct pl111_variant_data - encodes IP differences
@@ -84,6 +84,6 @@ struct pl111_drm_dev_private {
 
 int pl111_display_init(struct drm_device *dev);
 irqreturn_t pl111_irq(int irq, void *data);
-int pl111_debugfs_init(struct drm_minor *minor);
+int pl111_debugfs_init(struct drm_miyesr *miyesr);
 
 #endif /* _PL111_DRM_H_ */

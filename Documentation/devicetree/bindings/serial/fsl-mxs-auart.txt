@@ -7,7 +7,7 @@ Required properties for all SoCs:
 	"alphascale,asm9260-auart" - Alphascale ASM9260
 - reg : Address and length of the register set for the device
 - interrupts : Should contain the auart interrupt numbers
-- dmas: DMA specifier, consisting of a phandle to DMA controller node
+- dmas: DMA specifier, consisting of a phandle to DMA controller yesde
   and AUART DMA channel ID.
   Refer to dma.txt and fsl-mxs-dma.txt for details.
 - dma-names: "rx" for RX channel, "tx" for TX channel.
@@ -40,7 +40,7 @@ auart0: serial@8006a000 {
 };
 
 Note: Each auart port should have an alias correctly numbered in "aliases"
-node.
+yesde.
 
 Example:
 

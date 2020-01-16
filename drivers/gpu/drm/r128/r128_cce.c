@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -244,7 +244,7 @@ static void r128_do_cce_start(drm_r128_private_t *dev_priv)
 	dev_priv->cce_running = 1;
 }
 
-/* Reset the Concurrent Command Engine.  This will not flush any pending
+/* Reset the Concurrent Command Engine.  This will yest flush any pending
  * commands, so you must wait for the CCE command stream to complete
  * before calling this routine.
  */
@@ -255,7 +255,7 @@ static void r128_do_cce_reset(drm_r128_private_t *dev_priv)
 	dev_priv->ring.tail = 0;
 }
 
-/* Stop the Concurrent Command Engine.  This will not flush any pending
+/* Stop the Concurrent Command Engine.  This will yest flush any pending
  * commands, so you must flush the command stream and wait for the CCE
  * to go idle before calling this routine.
  */
@@ -285,7 +285,7 @@ static int r128_do_engine_reset(struct drm_device *dev)
 
 	gen_reset_cntl = R128_READ(R128_GEN_RESET_CNTL);
 
-	/* Taken from the sample code - do not change */
+	/* Taken from the sample code - do yest change */
 	R128_WRITE(R128_GEN_RESET_CNTL, gen_reset_cntl | R128_SOFT_RESET_GUI);
 	R128_READ(R128_GEN_RESET_CNTL);
 	R128_WRITE(R128_GEN_RESET_CNTL, gen_reset_cntl & ~R128_SOFT_RESET_GUI);
@@ -298,7 +298,7 @@ static int r128_do_engine_reset(struct drm_device *dev)
 	/* Reset the CCE ring */
 	r128_do_cce_reset(dev_priv);
 
-	/* The CCE is no longer running after an engine reset */
+	/* The CCE is yes longer running after an engine reset */
 	dev_priv->cce_running = 0;
 
 	/* Reset any pending vertex, indirect buffers */
@@ -365,7 +365,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 	dev_priv->is_pci = init->is_pci;
 
 	if (dev_priv->is_pci && !dev->sg) {
-		DRM_ERROR("PCI GART memory not allocated!\n");
+		DRM_ERROR("PCI GART memory yest allocated!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce(dev);
 		return -EINVAL;
@@ -461,7 +461,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 
 	dev_priv->sarea = drm_legacy_getsarea(dev);
 	if (!dev_priv->sarea) {
-		DRM_ERROR("could not find sarea!\n");
+		DRM_ERROR("could yest find sarea!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce(dev);
 		return -EINVAL;
@@ -469,21 +469,21 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 
 	dev_priv->mmio = drm_legacy_findmap(dev, init->mmio_offset);
 	if (!dev_priv->mmio) {
-		DRM_ERROR("could not find mmio region!\n");
+		DRM_ERROR("could yest find mmio region!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce(dev);
 		return -EINVAL;
 	}
 	dev_priv->cce_ring = drm_legacy_findmap(dev, init->ring_offset);
 	if (!dev_priv->cce_ring) {
-		DRM_ERROR("could not find cce ring region!\n");
+		DRM_ERROR("could yest find cce ring region!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce(dev);
 		return -EINVAL;
 	}
 	dev_priv->ring_rptr = drm_legacy_findmap(dev, init->ring_rptr_offset);
 	if (!dev_priv->ring_rptr) {
-		DRM_ERROR("could not find ring read pointer!\n");
+		DRM_ERROR("could yest find ring read pointer!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce(dev);
 		return -EINVAL;
@@ -491,7 +491,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 	dev->agp_buffer_token = init->buffers_offset;
 	dev->agp_buffer_map = drm_legacy_findmap(dev, init->buffers_offset);
 	if (!dev->agp_buffer_map) {
-		DRM_ERROR("could not find dma buffer region!\n");
+		DRM_ERROR("could yest find dma buffer region!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce(dev);
 		return -EINVAL;
@@ -501,7 +501,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 		dev_priv->agp_textures =
 		    drm_legacy_findmap(dev, init->agp_textures_offset);
 		if (!dev_priv->agp_textures) {
-			DRM_ERROR("could not find agp texture region!\n");
+			DRM_ERROR("could yest find agp texture region!\n");
 			dev->dev_private = (void *)dev_priv;
 			r128_do_cleanup_cce(dev);
 			return -EINVAL;
@@ -520,7 +520,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 		if (!dev_priv->cce_ring->handle ||
 		    !dev_priv->ring_rptr->handle ||
 		    !dev->agp_buffer_map->handle) {
-			DRM_ERROR("Could not ioremap agp regions!\n");
+			DRM_ERROR("Could yest ioremap agp regions!\n");
 			dev->dev_private = (void *)dev_priv;
 			r128_do_cleanup_cce(dev);
 			return -ENOMEM;
@@ -599,7 +599,7 @@ int r128_do_cleanup_cce(struct drm_device *dev)
 {
 
 	/* Make sure interrupts are disabled here because the uninstall ioctl
-	 * may not have been called from userspace and after dev_private
+	 * may yest have been called from userspace and after dev_private
 	 * is freed, it's too late.
 	 */
 	if (dev->irq_enabled)
@@ -726,7 +726,7 @@ int r128_cce_reset(struct drm_device *dev, void *data, struct drm_file *file_pri
 
 	r128_do_cce_reset(dev_priv);
 
-	/* The CCE is no longer running after an engine reset */
+	/* The CCE is yes longer running after an engine reset */
 	dev_priv->cce_running = 0;
 
 	return 0;
@@ -840,7 +840,7 @@ static struct drm_buf *r128_freelist_get(struct drm_device * dev)
 			buf_priv = buf->dev_private;
 			if (buf->pending && buf_priv->age <= done_age) {
 				/* The buffer has been processed, so it
-				 * can now be used.
+				 * can yesw be used.
 				 */
 				buf->pending = 0;
 				return buf;
@@ -881,7 +881,7 @@ int r128_wait_ring(drm_r128_private_t *dev_priv, int n)
 		udelay(1);
 	}
 
-	/* FIXME: This is being ignored... */
+	/* FIXME: This is being igyesred... */
 	DRM_ERROR("failed!\n");
 	return -EBUSY;
 }

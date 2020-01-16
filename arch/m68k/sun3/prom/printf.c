@@ -5,7 +5,7 @@
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  */
 
-/* This routine is internal to the prom library, no one else should know
+/* This routine is internal to the prom library, yes one else should kyesw
  * about or use it!  It's simple and smelly anyway....
  */
 

@@ -24,7 +24,7 @@ u"""
 
     Substrings of the form $name or ${name} are replaced by the value of
     environment variable name. Malformed variable names and references to
-    non-existing variables are left unchanged.
+    yesn-existing variables are left unchanged.
 """
 
 # ==============================================================================
@@ -33,7 +33,7 @@ u"""
 
 import os.path
 
-from docutils import io, nodes, statemachine
+from docutils import io, yesdes, statemachine
 from docutils.utils.error_reporting import SafeString, ErrorString
 from docutils.parsers.rst import directives
 from docutils.parsers.rst.directives.body import CodeBlock, NumberLines
@@ -76,25 +76,25 @@ class KernelInclude(Include):
     def _run(self):
         """Include a file as part of the content of this reST file."""
 
-        # HINT: I had to copy&paste the whole Include.run method. I'am not happy
+        # HINT: I had to copy&paste the whole Include.run method. I'am yest happy
         # with this, but due to security reasons, the Include.run method does
-        # not allow absolute or relative pathnames pointing to locations *above*
+        # yest allow absolute or relative pathnames pointing to locations *above*
         # the filesystem tree where the reST document is placed.
 
-        if not self.state.document.settings.file_insertion_enabled:
+        if yest self.state.document.settings.file_insertion_enabled:
             raise self.warning('"%s" directive disabled.' % self.name)
         source = self.state_machine.input_lines.source(
-            self.lineno - self.state_machine.input_offset - 1)
+            self.lineyes - self.state_machine.input_offset - 1)
         source_dir = os.path.dirname(os.path.abspath(source))
         path = directives.path(self.arguments[0])
         if path.startswith('<') and path.endswith('>'):
             path = os.path.join(self.standard_include_path, path[1:-1])
-        path = os.path.normpath(os.path.join(source_dir, path))
+        path = os.path.yesrmpath(os.path.join(source_dir, path))
 
         # HINT: this is the only line I had to change / commented out:
         #path = utils.relative_path(None, path)
 
-        path = nodes.reprunicode(path)
+        path = yesdes.reprunicode(path)
         encoding = self.options.get(
             'encoding', self.state.document.settings.input_encoding)
         e_handler=self.state.document.settings.input_encoding_error_handler
@@ -107,7 +107,7 @@ class KernelInclude(Include):
                                         error_handler=e_handler)
         except UnicodeEncodeError as error:
             raise self.severe('Problems with "%s" directive path:\n'
-                              'Cannot encode input file path "%s" '
+                              'Canyest encode input file path "%s" '
                               '(wrong locale?).' %
                               (self.name, SafeString(path)))
         except IOError as error:
@@ -116,7 +116,7 @@ class KernelInclude(Include):
         startline = self.options.get('start-line', None)
         endline = self.options.get('end-line', None)
         try:
-            if startline or (endline is not None):
+            if startline or (endline is yest None):
                 lines = include_file.readlines()
                 rawtext = ''.join(lines[startline:endline])
             else:
@@ -124,15 +124,15 @@ class KernelInclude(Include):
         except UnicodeError as error:
             raise self.severe('Problem with "%s" directive:\n%s' %
                               (self.name, ErrorString(error)))
-        # start-after/end-before: no restrictions on newlines in match-text,
-        # and no restrictions on matching inside lines vs. line boundaries
+        # start-after/end-before: yes restrictions on newlines in match-text,
+        # and yes restrictions on matching inside lines vs. line boundaries
         after_text = self.options.get('start-after', None)
         if after_text:
             # skip content in rawtext before *and incl.* a matching text
             after_index = rawtext.find(after_text)
             if after_index < 0:
                 raise self.severe('Problem with "start-after" option of "%s" '
-                                  'directive:\nText not found.' % self.name)
+                                  'directive:\nText yest found.' % self.name)
             rawtext = rawtext[after_index + len(after_text):]
         before_text = self.options.get('end-before', None)
         if before_text:
@@ -140,7 +140,7 @@ class KernelInclude(Include):
             before_index = rawtext.find(before_text)
             if before_index < 0:
                 raise self.severe('Problem with "end-before" option of "%s" '
-                                  'directive:\nText not found.' % self.name)
+                                  'directive:\nText yest found.' % self.name)
             rawtext = rawtext[:before_index]
 
         include_lines = statemachine.string2lines(rawtext, tab_width,
@@ -151,7 +151,7 @@ class KernelInclude(Include):
                 text = rawtext.expandtabs(tab_width)
             else:
                 text = rawtext
-            literal_block = nodes.literal_block(rawtext, source=path,
+            literal_block = yesdes.literal_block(rawtext, source=path,
                                     classes=self.options.get('class', []))
             literal_block.line = 1
             self.add_name(literal_block)
@@ -159,7 +159,7 @@ class KernelInclude(Include):
                 try:
                     startline = int(self.options['number-lines'] or 1)
                 except ValueError:
-                    raise self.error(':number-lines: with non-integer '
+                    raise self.error(':number-lines: with yesn-integer '
                                      'start value')
                 endline = startline + len(include_lines)
                 if text.endswith('\n'):
@@ -167,12 +167,12 @@ class KernelInclude(Include):
                 tokens = NumberLines([([], text)], startline, endline)
                 for classes, value in tokens:
                     if classes:
-                        literal_block += nodes.inline(value, value,
+                        literal_block += yesdes.inline(value, value,
                                                       classes=classes)
                     else:
-                        literal_block += nodes.Text(value, value)
+                        literal_block += yesdes.Text(value, value)
             else:
-                literal_block += nodes.Text(text, text)
+                literal_block += yesdes.Text(text, text)
             return [literal_block]
         if 'code' in self.options:
             self.options['source'] = path
@@ -180,7 +180,7 @@ class KernelInclude(Include):
                                   [self.options.pop('code')], # arguments
                                   self.options,
                                   include_lines, # content
-                                  self.lineno,
+                                  self.lineyes,
                                   self.content_offset,
                                   self.block_text,
                                   self.state,

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  * Copyright (C) 2002-2006 Novell, Inc.
- *	Jan Beulich <jbeulich@novell.com>
+ *	Jan Beulich <jbeulich@yesvell.com>
  *
  * A simple API for unwinding kernel stacks.  This is used for
  * debugging and error reporting purposes.  The kernel doesn't need
  * full-blown stack unwinding with all the bells and whistles, so there
- * is not much point in implementing the full Dwarf2 unwind API.
+ * is yest much point in implementing the full Dwarf2 unwind API.
  */
 
 #include <linux/sched.h>
@@ -62,7 +62,7 @@ UNW_REGISTER_INFO};
 #define REG_INVALID(r) (reg_info[r].width == 0)
 #endif
 
-#define DW_CFA_nop                          0x00
+#define DW_CFA_yesp                          0x00
 #define DW_CFA_set_loc                      0x01
 #define DW_CFA_advance_loc1                 0x02
 #define DW_CFA_advance_loc2                 0x03
@@ -223,7 +223,7 @@ void __init arc_unwind_init(void)
 	init_unwind_hdr(&root_table, unw_hdr_alloc_early);
 }
 
-static const u32 bad_cie, not_fde;
+static const u32 bad_cie, yest_fde;
 static const u32 *cie_for_fde(const u32 *fde, const struct unwind_table *);
 static const u32 *__cie_for_fde(const u32 *fde);
 static signed fde_pointer_type(const u32 *cie);
@@ -287,7 +287,7 @@ static void init_unwind_hdr(struct unwind_table *table,
 		const u32 *cie = cie_for_fde(fde, table);
 		signed ptrType;
 
-		if (cie == &not_fde)
+		if (cie == &yest_fde)
 			continue;
 		if (cie == NULL || cie == &bad_cie)
 			goto ret_err;
@@ -324,11 +324,11 @@ static void init_unwind_hdr(struct unwind_table *table,
 	header->table_enc = DW_EH_PE_abs | DW_EH_PE_native;
 	put_unaligned((unsigned long)table->address, &header->eh_frame_ptr);
 	BUILD_BUG_ON(offsetof(typeof(*header), fde_count)
-		     % __alignof(typeof(header->fde_count)));
+		     % __aligyesf(typeof(header->fde_count)));
 	header->fde_count = n;
 
 	BUILD_BUG_ON(offsetof(typeof(*header), table)
-		     % __alignof(typeof(*header->table)));
+		     % __aligyesf(typeof(*header->table)));
 	for (fde = table->address, tableSize = table->size, n = 0;
 	     tableSize;
 	     tableSize -= sizeof(*fde) + *fde, fde += 1 + *fde / sizeof(*fde)) {
@@ -518,18 +518,18 @@ static const u32 *cie_for_fde(const u32 *fde, const struct unwind_table *table)
 		return &bad_cie;
 
 	if (fde[1] == CIE_ID)
-		return &not_fde;	/* this is a CIE */
+		return &yest_fde;	/* this is a CIE */
 
 	if ((fde[1] & (sizeof(*fde) - 1)))
 /* || fde[1] > (unsigned long)(fde + 1) - (unsigned long)table->address) */
-		return NULL;	/* this is not a valid FDE */
+		return NULL;	/* this is yest a valid FDE */
 
 	cie = __cie_for_fde(fde);
 
 	if (*cie <= sizeof(*cie) + 4 || *cie >= fde[1] - sizeof(*fde)
 	    || (*cie & (sizeof(*cie) - 1))
 	    || (cie[1] != CIE_ID))
-		return NULL;	/* this is not a (valid) CIE */
+		return NULL;	/* this is yest a (valid) CIE */
 	return cie;
 }
 
@@ -728,8 +728,8 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 			opcode = *ptr.p8++;
 
 			switch (opcode) {
-			case DW_CFA_nop:
-				unw_debug("cfa nop ");
+			case DW_CFA_yesp:
+				unw_debug("cfa yesp ");
 				break;
 			case DW_CFA_set_loc:
 				state->loc = read_pointer(&ptr.p8, end,
@@ -992,7 +992,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 			ptr = (const u8 *)(fde + 2);
 			if (cie != NULL
 			    && cie != &bad_cie
-			    && cie != &not_fde
+			    && cie != &yest_fde
 			    && (ptrType = fde_pointer_type(cie)) >= 0
 			    && read_pointer(&ptr,
 					    (const u8 *)(fde + 1) + *fde,
@@ -1026,7 +1026,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 			if (*ptr == 'z') {
 				while (++ptr < end && *ptr) {
 					switch (*ptr) {
-					/* chk for ignorable or already handled
+					/* chk for igyesrable or already handled
 					 * nul-terminated augmentation string */
 					case 'L':
 					case 'P':
@@ -1139,7 +1139,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 
 	/* process instructions
 	 * For ARC, we optimize by having blink(retAddrReg) with
-	 * the sameValue in the leaf function, so we should not check
+	 * the sameValue in the leaf function, so we should yest check
 	 * state.regs[retAddrReg].where == Nowhere
 	 */
 	if (!processCFI(ptr, end, pc, ptrType, &state)

@@ -58,7 +58,7 @@ struct fsl_dma_domain {
 	/* stash_id obtained from the stash attribute details */
 	u32				stash_id;
 	struct pamu_stash_attribute	dma_stash;
-	u32				snoop_id;
+	u32				syesop_id;
 	struct iommu_domain		iommu_domain;
 	spinlock_t			domain_lock;
 };

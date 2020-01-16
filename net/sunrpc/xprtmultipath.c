@@ -185,7 +185,7 @@ const struct rpc_xprt_iter_ops *xprt_iter_ops(const struct rpc_xprt_iter *xpi)
 }
 
 static
-void xprt_iter_no_rewind(struct rpc_xprt_iter *xpi)
+void xprt_iter_yes_rewind(struct rpc_xprt_iter *xpi)
 {
 }
 
@@ -519,7 +519,7 @@ struct rpc_xprt *xprt_iter_get_next(struct rpc_xprt_iter *xpi)
 /* Policy for always returning the first entry in the rpc_xprt_switch */
 static
 const struct rpc_xprt_iter_ops rpc_xprt_iter_singular = {
-	.xpi_rewind = xprt_iter_no_rewind,
+	.xpi_rewind = xprt_iter_yes_rewind,
 	.xpi_xprt = xprt_iter_first_entry,
 	.xpi_next = xprt_iter_first_entry,
 };

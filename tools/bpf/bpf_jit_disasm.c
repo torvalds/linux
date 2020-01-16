@@ -289,7 +289,7 @@ int main(int argc, char **argv)
 
 	kbuff = get_log_buff(file, &klen);
 	if (!kbuff) {
-		fprintf(stderr, "Could not retrieve log buffer!\n");
+		fprintf(stderr, "Could yest retrieve log buffer!\n");
 		return -1;
 	}
 
@@ -305,7 +305,7 @@ int main(int argc, char **argv)
 
 	ofd = open(ofile, O_WRONLY | O_CREAT | O_TRUNC, DEFFILEMODE);
 	if (ofd < 0) {
-		fprintf(stderr, "Could not open file %s for writing: ", ofile);
+		fprintf(stderr, "Could yest open file %s for writing: ", ofile);
 		perror(NULL);
 		goto done;
 	}
@@ -313,7 +313,7 @@ int main(int argc, char **argv)
 	do {
 		nr = write(ofd, pos, len);
 		if (nr < 0) {
-			fprintf(stderr, "Could not write data to %s: ", ofile);
+			fprintf(stderr, "Could yest write data to %s: ", ofile);
 			perror(NULL);
 			goto done;
 		}

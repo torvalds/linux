@@ -110,7 +110,7 @@
 
 #define STATUS_REG		4	/* ro */
 /*
- * Note : a set bit indicates an active signal, driven by us or another 
+ * Note : a set bit indicates an active signal, driven by us or ayesther 
  * device.
  */
 #define SR_RST			0x80
@@ -301,19 +301,19 @@ static int NCR5380_dma_recv_setup(struct NCR5380_hostdata *,
                                   unsigned char *, int);
 static int NCR5380_dma_residual(struct NCR5380_hostdata *);
 
-static inline int NCR5380_dma_xfer_none(struct NCR5380_hostdata *hostdata,
+static inline int NCR5380_dma_xfer_yesne(struct NCR5380_hostdata *hostdata,
                                         struct scsi_cmnd *cmd)
 {
 	return 0;
 }
 
-static inline int NCR5380_dma_setup_none(struct NCR5380_hostdata *hostdata,
+static inline int NCR5380_dma_setup_yesne(struct NCR5380_hostdata *hostdata,
                                          unsigned char *data, int count)
 {
 	return 0;
 }
 
-static inline int NCR5380_dma_residual_none(struct NCR5380_hostdata *hostdata)
+static inline int NCR5380_dma_residual_yesne(struct NCR5380_hostdata *hostdata)
 {
 	return 0;
 }

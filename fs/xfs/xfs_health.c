@@ -11,13 +11,13 @@
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trace.h"
 #include "xfs_health.h"
 
 /*
  * Warn about metadata corruption that we detected but haven't fixed, and
- * make sure we're not sitting on anything that would get in the way of
+ * make sure we're yest sitting on anything that would get in the way of
  * recovery.
  */
 void
@@ -25,7 +25,7 @@ xfs_health_unmount(
 	struct xfs_mount	*mp)
 {
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agyes;
 	unsigned int		sick = 0;
 	unsigned int		checked = 0;
 	bool			warn = false;
@@ -34,11 +34,11 @@ xfs_health_unmount(
 		return;
 
 	/* Measure AG corruption levels. */
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		pag = xfs_perag_get(mp, agno);
+	for (agyes = 0; agyes < mp->m_sb.sb_agcount; agyes++) {
+		pag = xfs_perag_get(mp, agyes);
 		xfs_ag_measure_sickness(pag, &sick, &checked);
 		if (sick) {
-			trace_xfs_ag_unfixed_corruption(mp, agno, sick);
+			trace_xfs_ag_unfixed_corruption(mp, agyes, sick);
 			warn = true;
 		}
 		xfs_perag_put(pag);
@@ -53,7 +53,7 @@ xfs_health_unmount(
 
 	/*
 	 * Measure fs corruption and keep the sample around for the warning.
-	 * See the note below for why we exempt FS_COUNTERS.
+	 * See the yeste below for why we exempt FS_COUNTERS.
 	 */
 	xfs_fs_measure_sickness(mp, &sick, &checked);
 	if (sick & ~XFS_SICK_FS_COUNTERS) {
@@ -76,7 +76,7 @@ xfs_health_unmount(
 		 * recovery and recompute the summary counters.  In other
 		 * words, we leave a dirty log to get the counters fixed.
 		 *
-		 * Unfortunately, xfs_repair cannot recover dirty logs, so if
+		 * Unfortunately, xfs_repair canyest recover dirty logs, so if
 		 * there were filesystem problems, FSCOUNTERS was flagged, and
 		 * the administrator takes our advice to run xfs_repair,
 		 * they'll have to zap the log before repairing structures.
@@ -182,7 +182,7 @@ xfs_ag_mark_sick(
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_AG_PRIMARY));
-	trace_xfs_ag_mark_sick(pag->pag_mount, pag->pag_agno, mask);
+	trace_xfs_ag_mark_sick(pag->pag_mount, pag->pag_agyes, mask);
 
 	spin_lock(&pag->pag_state_lock);
 	pag->pag_sick |= mask;
@@ -197,7 +197,7 @@ xfs_ag_mark_healthy(
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_AG_PRIMARY));
-	trace_xfs_ag_mark_healthy(pag->pag_mount, pag->pag_agno, mask);
+	trace_xfs_ag_mark_healthy(pag->pag_mount, pag->pag_agyes, mask);
 
 	spin_lock(&pag->pag_state_lock);
 	pag->pag_sick &= ~mask;
@@ -218,14 +218,14 @@ xfs_ag_measure_sickness(
 	spin_unlock(&pag->pag_state_lock);
 }
 
-/* Mark the unhealthy parts of an inode. */
+/* Mark the unhealthy parts of an iyesde. */
 void
-xfs_inode_mark_sick(
-	struct xfs_inode	*ip,
+xfs_iyesde_mark_sick(
+	struct xfs_iyesde	*ip,
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_INO_PRIMARY));
-	trace_xfs_inode_mark_sick(ip, mask);
+	trace_xfs_iyesde_mark_sick(ip, mask);
 
 	spin_lock(&ip->i_flags_lock);
 	ip->i_sick |= mask;
@@ -233,14 +233,14 @@ xfs_inode_mark_sick(
 	spin_unlock(&ip->i_flags_lock);
 }
 
-/* Mark parts of an inode healed. */
+/* Mark parts of an iyesde healed. */
 void
-xfs_inode_mark_healthy(
-	struct xfs_inode	*ip,
+xfs_iyesde_mark_healthy(
+	struct xfs_iyesde	*ip,
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_INO_PRIMARY));
-	trace_xfs_inode_mark_healthy(ip, mask);
+	trace_xfs_iyesde_mark_healthy(ip, mask);
 
 	spin_lock(&ip->i_flags_lock);
 	ip->i_sick &= ~mask;
@@ -248,10 +248,10 @@ xfs_inode_mark_healthy(
 	spin_unlock(&ip->i_flags_lock);
 }
 
-/* Sample which parts of an inode are unhealthy. */
+/* Sample which parts of an iyesde are unhealthy. */
 void
-xfs_inode_measure_sickness(
-	struct xfs_inode	*ip,
+xfs_iyesde_measure_sickness(
+	struct xfs_iyesde	*ip,
 	unsigned int		*sick,
 	unsigned int		*checked)
 {
@@ -353,7 +353,7 @@ xfs_ag_geom_health(
 	}
 }
 
-static const struct ioctl_sick_map ino_map[] = {
+static const struct ioctl_sick_map iyes_map[] = {
 	{ XFS_SICK_INO_CORE,	XFS_BS_SICK_INODE },
 	{ XFS_SICK_INO_BMBTD,	XFS_BS_SICK_BMBTD },
 	{ XFS_SICK_INO_BMBTA,	XFS_BS_SICK_BMBTA },
@@ -368,7 +368,7 @@ static const struct ioctl_sick_map ino_map[] = {
 /* Fill out bulkstat health info. */
 void
 xfs_bulkstat_health(
-	struct xfs_inode		*ip,
+	struct xfs_iyesde		*ip,
 	struct xfs_bulkstat		*bs)
 {
 	const struct ioctl_sick_map	*m;
@@ -378,8 +378,8 @@ xfs_bulkstat_health(
 	bs->bs_sick = 0;
 	bs->bs_checked = 0;
 
-	xfs_inode_measure_sickness(ip, &sick, &checked);
-	for (m = ino_map; m->sick_mask; m++) {
+	xfs_iyesde_measure_sickness(ip, &sick, &checked);
+	for (m = iyes_map; m->sick_mask; m++) {
 		if (checked & m->sick_mask)
 			bs->bs_checked |= m->ioctl_mask;
 		if (sick & m->sick_mask)

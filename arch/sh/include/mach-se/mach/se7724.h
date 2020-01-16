@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
  *
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  *
  * Hitachi UL SolutionEngine 7724 Support.
  *

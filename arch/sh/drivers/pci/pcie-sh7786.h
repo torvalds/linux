@@ -2,7 +2,7 @@
  *
  * SH7786 PCI-Express controller definitions.
  *
- * Copyright (C) 2008, 2009 Renesas Technology Corp.
+ * Copyright (C) 2008, 2009 Renesas Techyeslogy Corp.
  * All rights reserved.
  */
 #ifndef __PCI_SH7786_H

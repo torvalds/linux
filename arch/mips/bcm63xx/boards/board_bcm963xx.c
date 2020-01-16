@@ -38,7 +38,7 @@
 static struct board_info board;
 
 /*
- * known 3368 boards
+ * kyeswn 3368 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_3368
 static struct board_info __initdata board_cvg834g = {
@@ -70,7 +70,7 @@ static struct board_info __initdata board_cvg834g = {
 #endif
 
 /*
- * known 6328 boards
+ * kyeswn 6328 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6328
 static struct board_info __initdata board_96328avng = {
@@ -83,7 +83,7 @@ static struct board_info __initdata board_96328avng = {
 
 	.usbd = {
 		.use_fullspeed		= 0,
-		.port_no		= 0,
+		.port_yes		= 0,
 	},
 
 	.leds = {
@@ -118,7 +118,7 @@ static struct board_info __initdata board_96328avng = {
 #endif
 
 /*
- * known 6338 boards
+ * kyeswn 6338 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6338
 static struct board_info __initdata board_96338gw = {
@@ -207,7 +207,7 @@ static struct board_info __initdata board_96338w = {
 #endif
 
 /*
- * known 6345 boards
+ * kyeswn 6345 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6345
 static struct board_info __initdata board_96345gw2 = {
@@ -219,7 +219,7 @@ static struct board_info __initdata board_96345gw2 = {
 #endif
 
 /*
- * known 6348 boards
+ * kyeswn 6348 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6348
 static struct board_info __initdata board_96348r = {
@@ -508,7 +508,7 @@ static struct board_info __initdata board_96348gw_a = {
 #endif
 
 /*
- * known 6358 boards
+ * kyeswn 6358 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6358
 static struct board_info __initdata board_96358vw = {
@@ -751,7 +751,7 @@ void __init board_prom_init(void)
 	struct bcm_hcs *hcs;
 
 	/* read base address of boot chip select (0)
-	 * 6328/6362 do not have MPI but boot from a fixed address
+	 * 6328/6362 do yest have MPI but boot from a fixed address
 	 */
 	if (BCMCPU_IS_6328() || BCMCPU_IS_6362()) {
 		val = 0x18000000;
@@ -767,7 +767,7 @@ void __init board_prom_init(void)
 		snprintf(cfe_version, sizeof(cfe_version), "%u.%u.%u-%u.%u",
 			 cfe[5], cfe[6], cfe[7], cfe[8], cfe[9]);
 	else
-		strcpy(cfe_version, "unknown");
+		strcpy(cfe_version, "unkyeswn");
 	pr_info("CFE version: %s\n", cfe_version);
 
 	bcm63xx_nvram_init(boot_addr + BCM963XX_NVRAM_OFFSET);
@@ -787,12 +787,12 @@ void __init board_prom_init(void)
 		break;
 	}
 
-	/* bail out if board is not found, will complain later */
+	/* bail out if board is yest found, will complain later */
 	if (!board.name[0]) {
 		char name[17];
 		memcpy(name, board_name, 16);
 		name[16] = 0;
-		pr_err("unknown bcm963xx board: %s\n", name);
+		pr_err("unkyeswn bcm963xx board: %s\n", name);
 		return;
 	}
 

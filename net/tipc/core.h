@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -42,7 +42,7 @@
 #include <linux/tipc_netlink.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/string.h>
@@ -67,7 +67,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-struct tipc_node;
+struct tipc_yesde;
 struct tipc_bearer;
 struct tipc_bc_base;
 struct tipc_link;
@@ -91,20 +91,20 @@ extern int sysctl_tipc_rmem[3] __read_mostly;
 extern int sysctl_tipc_named_timeout __read_mostly;
 
 struct tipc_net {
-	u8  node_id[NODE_ID_LEN];
-	u32 node_addr;
+	u8  yesde_id[NODE_ID_LEN];
+	u32 yesde_addr;
 	u32 trial_addr;
 	unsigned long addr_trial_end;
-	char node_id_string[NODE_ID_STR_LEN];
+	char yesde_id_string[NODE_ID_STR_LEN];
 	int net_id;
 	int random;
 	bool legacy_addr_format;
 
-	/* Node table and node list */
-	spinlock_t node_list_lock;
-	struct hlist_head node_htable[NODE_HTABLE_SIZE];
-	struct list_head node_list;
-	u32 num_nodes;
+	/* Node table and yesde list */
+	spinlock_t yesde_list_lock;
+	struct hlist_head yesde_htable[NODE_HTABLE_SIZE];
+	struct list_head yesde_list;
+	u32 num_yesdes;
 	u32 num_links;
 
 	/* Neighbor monitoring list */
@@ -136,7 +136,7 @@ struct tipc_net {
 	/* Cluster capabilities */
 	u16 capabilities;
 
-	/* Tracing of node internal messages */
+	/* Tracing of yesde internal messages */
 	struct packet_type loopback_pt;
 
 #ifdef CONFIG_TIPC_CRYPTO
@@ -155,9 +155,9 @@ static inline int tipc_netid(struct net *net)
 	return tipc_net(net)->net_id;
 }
 
-static inline struct list_head *tipc_nodes(struct net *net)
+static inline struct list_head *tipc_yesdes(struct net *net)
 {
-	return &tipc_net(net)->node_list;
+	return &tipc_net(net)->yesde_list;
 }
 
 static inline struct name_table *tipc_name_table(struct net *net)

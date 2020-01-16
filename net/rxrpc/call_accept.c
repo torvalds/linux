@@ -28,7 +28,7 @@
  */
 static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 				      struct rxrpc_backlog *b,
-				      rxrpc_notify_rx_t notify_rx,
+				      rxrpc_yestify_rx_t yestify_rx,
 				      rxrpc_user_attach_call_t user_attach_call,
 				      unsigned long user_call_ID, gfp_t gfp,
 				      unsigned int debug_id)
@@ -56,7 +56,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	call_tail = READ_ONCE(b->call_backlog_tail);
 	tmp = CIRC_CNT(call_head, call_tail, size);
 	if (tmp >= max) {
-		_leave(" = -ENOBUFS [enough %u]", tmp);
+		_leave(" = -ENOBUFS [eyesugh %u]", tmp);
 		return -ENOBUFS;
 	}
 	max = tmp + 1;
@@ -104,14 +104,14 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	write_lock(&rx->call_lock);
 	if (user_attach_call) {
 		struct rxrpc_call *xcall;
-		struct rb_node *parent, **pp;
+		struct rb_yesde *parent, **pp;
 
 		/* Check the user ID isn't already in use */
-		pp = &rx->calls.rb_node;
+		pp = &rx->calls.rb_yesde;
 		parent = NULL;
 		while (*pp) {
 			parent = *pp;
-			xcall = rb_entry(parent, struct rxrpc_call, sock_node);
+			xcall = rb_entry(parent, struct rxrpc_call, sock_yesde);
 			if (user_call_ID < xcall->user_call_ID)
 				pp = &(*pp)->rb_left;
 			else if (user_call_ID > xcall->user_call_ID)
@@ -121,12 +121,12 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 		}
 
 		call->user_call_ID = user_call_ID;
-		call->notify_rx = notify_rx;
+		call->yestify_rx = yestify_rx;
 		rxrpc_get_call(call, rxrpc_call_got_kernel);
 		user_attach_call(call, user_call_ID);
 		rxrpc_get_call(call, rxrpc_call_got_userid);
-		rb_link_node(&call->sock_node, parent, pp);
-		rb_insert_color(&call->sock_node, &rx->calls);
+		rb_link_yesde(&call->sock_yesde, parent, pp);
+		rb_insert_color(&call->sock_yesde, &rx->calls);
 		set_bit(RXRPC_CALL_HAS_USERID, &call->flags);
 	}
 
@@ -154,7 +154,7 @@ id_in_use:
 /*
  * Preallocate sufficient service connections, calls and peers to cover the
  * entire backlog of a socket.  When a new call comes in, if we don't have
- * sufficient of each available, the call gets rejected as busy or ignored.
+ * sufficient of each available, the call gets rejected as busy or igyesred.
  *
  * The backlog is replenished when a connection is accepted or rejected.
  */
@@ -246,10 +246,10 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 static void rxrpc_send_ping(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	ktime_t now = skb->tstamp;
+	ktime_t yesw = skb->tstamp;
 
 	if (call->peer->rtt_usage < 3 ||
-	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000), now))
+	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000), yesw))
 		rxrpc_propose_ACK(call, RXRPC_ACK_PING, sp->hdr.serial,
 				  true, true,
 				  rxrpc_propose_ack_ping_for_params);
@@ -317,7 +317,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		rxrpc_get_connection(conn);
 	}
 
-	/* And now we can allocate and set up a new call */
+	/* And yesw we can allocate and set up a new call */
 	call = b->call_backlog[call_tail];
 	b->call_backlog[call_tail] = NULL;
 	smp_store_release(&b->call_backlog_tail,
@@ -339,7 +339,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
  * three refs on it: (1) the kernel service, (2) the user_call_ID tree, (3) the
  * retainer ref obtained from the backlog buffer.  Prealloc calls for userspace
  * services only have the ref from the backlog buffer.  We want to pass this
- * ref to non-BH context to dispose of.
+ * ref to yesn-BH context to dispose of.
  *
  * If we want to report an error, we mark the skb with the packet type and
  * abort code and return NULL.
@@ -366,24 +366,24 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 				  sp->hdr.seq, RX_INVALID_OPERATION, ESHUTDOWN);
 		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
 		skb->priority = RX_INVALID_OPERATION;
-		goto no_call;
+		goto yes_call;
 	}
 
 	/* The peer, connection and call may all have sprung into existence due
-	 * to a duplicate packet being handled on another CPU in parallel, so
-	 * we have to recheck the routing.  However, we're now holding
+	 * to a duplicate packet being handled on ayesther CPU in parallel, so
+	 * we have to recheck the routing.  However, we're yesw holding
 	 * rx->incoming_lock, so the values should remain stable.
 	 */
 	conn = rxrpc_find_connection_rcu(local, skb, &peer);
 
 	if (!conn && !rxrpc_look_up_server_security(local, rx, &sec, &key, skb))
-		goto no_call;
+		goto yes_call;
 
 	call = rxrpc_alloc_incoming_call(rx, local, peer, conn, sec, key, skb);
 	key_put(key);
 	if (!call) {
 		skb->mark = RXRPC_SKB_MARK_REJECT_BUSY;
-		goto no_call;
+		goto yes_call;
 	}
 
 	trace_rxrpc_receive(call, rxrpc_receive_incoming,
@@ -393,8 +393,8 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	rxrpc_incoming_call(rx, call, skb);
 	conn = call->conn;
 
-	if (rx->notify_new_call)
-		rx->notify_new_call(&rx->sk, call, call->user_call_ID);
+	if (rx->yestify_new_call)
+		rx->yestify_new_call(&rx->sk, call, call->user_call_ID);
 	else
 		sk_acceptq_added(&rx->sk);
 
@@ -434,7 +434,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	rxrpc_send_ping(call, skb);
 
 	if (call->state == RXRPC_CALL_SERVER_ACCEPTING)
-		rxrpc_notify_socket(call);
+		rxrpc_yestify_socket(call);
 
 	/* We have to discard the prealloc queue's ref here and rely on a
 	 * combination of the RCU read lock and refs held either by the socket
@@ -446,7 +446,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	_leave(" = %p{%d}", call, call->debug_id);
 	return call;
 
-no_call:
+yes_call:
 	spin_unlock(&rx->incoming_lock);
 	_leave(" = NULL [%u]", skb->mark);
 	return NULL;
@@ -459,12 +459,12 @@ no_call:
  */
 struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 				     unsigned long user_call_ID,
-				     rxrpc_notify_rx_t notify_rx)
+				     rxrpc_yestify_rx_t yestify_rx)
 	__releases(&rx->sk.sk_lock.slock)
 	__acquires(call->user_mutex)
 {
 	struct rxrpc_call *call;
-	struct rb_node *parent, **pp;
+	struct rb_yesde *parent, **pp;
 	int ret;
 
 	_enter(",%lx", user_call_ID);
@@ -481,11 +481,11 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	}
 
 	/* check the user ID isn't already in use */
-	pp = &rx->calls.rb_node;
+	pp = &rx->calls.rb_yesde;
 	parent = NULL;
 	while (*pp) {
 		parent = *pp;
-		call = rb_entry(parent, struct rxrpc_call, sock_node);
+		call = rb_entry(parent, struct rxrpc_call, sock_yesde);
 
 		if (user_call_ID < call->user_call_ID)
 			pp = &(*pp)->rb_left;
@@ -505,7 +505,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	/* We need to gain the mutex from the interrupt handler without
 	 * upsetting lockdep, so we have to release it there and take it here.
 	 * We are, however, still holding the socket lock, so other accepts
-	 * must wait for us and no one can add the user ID behind our backs.
+	 * must wait for us and yes one can add the user ID behind our backs.
 	 */
 	if (mutex_lock_interruptible(&call->user_mutex) < 0) {
 		release_sock(&rx->sk);
@@ -519,11 +519,11 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	rxrpc_see_call(call);
 
 	/* Find the user ID insertion point. */
-	pp = &rx->calls.rb_node;
+	pp = &rx->calls.rb_yesde;
 	parent = NULL;
 	while (*pp) {
 		parent = *pp;
-		call = rb_entry(parent, struct rxrpc_call, sock_node);
+		call = rb_entry(parent, struct rxrpc_call, sock_yesde);
 
 		if (user_call_ID < call->user_call_ID)
 			pp = &(*pp)->rb_left;
@@ -546,17 +546,17 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	}
 
 	/* formalise the acceptance */
-	call->notify_rx = notify_rx;
+	call->yestify_rx = yestify_rx;
 	call->user_call_ID = user_call_ID;
 	rxrpc_get_call(call, rxrpc_call_got_userid);
-	rb_link_node(&call->sock_node, parent, pp);
-	rb_insert_color(&call->sock_node, &rx->calls);
+	rb_link_yesde(&call->sock_yesde, parent, pp);
+	rb_insert_color(&call->sock_yesde, &rx->calls);
 	if (test_and_set_bit(RXRPC_CALL_HAS_USERID, &call->flags))
 		BUG();
 
 	write_unlock_bh(&call->state_lock);
 	write_unlock(&rx->call_lock);
-	rxrpc_notify_socket(call);
+	rxrpc_yestify_socket(call);
 	rxrpc_service_prealloc(rx, GFP_KERNEL);
 	release_sock(&rx->sk);
 	_leave(" = %p{%d}", call, call->debug_id);
@@ -639,7 +639,7 @@ out_discard:
 /*
  * rxrpc_kernel_charge_accept - Charge up socket with preallocated calls
  * @sock: The socket on which to preallocate
- * @notify_rx: Event notification function for the call
+ * @yestify_rx: Event yestification function for the call
  * @user_attach_call: Func to attach call to user_call_ID
  * @user_call_ID: The tag to attach to the preallocated call
  * @gfp: The allocation conditions.
@@ -652,7 +652,7 @@ out_discard:
  * Note that the call may be come connected before this function returns.
  */
 int rxrpc_kernel_charge_accept(struct socket *sock,
-			       rxrpc_notify_rx_t notify_rx,
+			       rxrpc_yestify_rx_t yestify_rx,
 			       rxrpc_user_attach_call_t user_attach_call,
 			       unsigned long user_call_ID, gfp_t gfp,
 			       unsigned int debug_id)
@@ -663,7 +663,7 @@ int rxrpc_kernel_charge_accept(struct socket *sock,
 	if (sock->sk->sk_state == RXRPC_CLOSE)
 		return -ESHUTDOWN;
 
-	return rxrpc_service_prealloc_one(rx, b, notify_rx,
+	return rxrpc_service_prealloc_one(rx, b, yestify_rx,
 					  user_attach_call, user_call_ID,
 					  gfp, debug_id);
 }

@@ -24,7 +24,7 @@
 	r platform_##f a __attribute__((weak, alias("__platform_"#f)))
 
 /*
- * Default functions that are used if no platform specific function is defined.
+ * Default functions that are used if yes platform specific function is defined.
  * (Please, refer to include/asm-xtensa/platform.h for more information)
  */
 
@@ -38,7 +38,7 @@ _F(void, heartbeat, (void), { });
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 _F(void, calibrate_ccount, (void),
 {
-	pr_err("ERROR: Cannot calibrate cpu frequency! Assuming 10MHz.\n");
+	pr_err("ERROR: Canyest calibrate cpu frequency! Assuming 10MHz.\n");
 	ccount_freq = 10 * 1000000UL;
 });
 #endif

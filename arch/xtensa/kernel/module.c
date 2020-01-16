@@ -126,14 +126,14 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 				location[2] = (value >> 8) & 0xff;
 #endif
 			}
-			/* FIXME: Ignore any other opcodes.  The Xtensa
+			/* FIXME: Igyesre any other opcodes.  The Xtensa
 			   assembler currently assumes that the linker will
 			   always do relaxation and so all PC-relative
 			   operands need relocations.  (The assembler also
 			   writes out the tentative PC-relative values,
-			   assuming no link-time relaxation, so it is usually
-			   safe to ignore the relocations.)  If the
-			   assembler's "--no-link-relax" flag can be made to
+			   assuming yes link-time relaxation, so it is usually
+			   safe to igyesre the relocations.)  If the
+			   assembler's "--yes-link-relax" flag can be made to
 			   work, and if all kernel modules can be assembled
 			   with that flag, then unexpected relocations could
 			   be detected here.  */

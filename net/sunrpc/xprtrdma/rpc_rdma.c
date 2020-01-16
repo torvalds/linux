@@ -14,14 +14,14 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      yestice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright yestice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. yesr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
@@ -153,7 +153,7 @@ static bool rpcrdma_args_inline(struct rpcrdma_xprt *r_xprt,
 	return true;
 }
 
-/* The client can't know how large the actual reply will be. Thus it
+/* The client can't kyesw how large the actual reply will be. Thus it
  * plans for the largest possible reply for that particular ULP
  * operation. If the maximum combined reply message size exceeds that
  * limit, the client must provide a write list or a reply chunk for
@@ -166,11 +166,11 @@ static bool rpcrdma_results_inline(struct rpcrdma_xprt *r_xprt,
 }
 
 /* The client is required to provide a Reply chunk if the maximum
- * size of the non-payload part of the RPC Reply is larger than
+ * size of the yesn-payload part of the RPC Reply is larger than
  * the inline threshold.
  */
 static bool
-rpcrdma_nonpayload_inline(const struct rpcrdma_xprt *r_xprt,
+rpcrdma_yesnpayload_inline(const struct rpcrdma_xprt *r_xprt,
 			  const struct rpc_rqst *rqst)
 {
 	const struct xdr_buf *buf = &rqst->rq_rcv_buf;
@@ -179,7 +179,7 @@ rpcrdma_nonpayload_inline(const struct rpcrdma_xprt *r_xprt,
 		r_xprt->rx_ep.rep_max_inline_recv;
 }
 
-/* Split @vec on page boundaries into SGEs. FMR registers pages, not
+/* Split @vec on page boundaries into SGEs. FMR registers pages, yest
  * a byte range. Other modes coalesce these SGEs into a single MR
  * when they can.
  *
@@ -209,11 +209,11 @@ rpcrdma_convert_kvec(struct kvec *vec, struct rpcrdma_mr_seg *seg,
 	return seg;
 }
 
-/* Convert @xdrbuf into SGEs no larger than a page each. As they
+/* Convert @xdrbuf into SGEs yes larger than a page each. As they
  * are registered, these SGEs are then coalesced into RDMA segments
  * when the selected memreg mode supports it.
  *
- * Returns positive number of SGEs consumed, or a negative errno.
+ * Returns positive number of SGEs consumed, or a negative erryes.
  */
 
 static int
@@ -259,7 +259,7 @@ rpcrdma_convert_iovs(struct rpcrdma_xprt *r_xprt, struct xdr_buf *xdrbuf,
 		goto out;
 
 	/* When encoding a Write chunk, some servers need to see an
-	 * extra segment for non-XDR-aligned Write chunks. The upper
+	 * extra segment for yesn-XDR-aligned Write chunks. The upper
 	 * layer provides space in the tail iovec that may be used
 	 * for this purpose.
 	 */
@@ -289,7 +289,7 @@ encode_item_present(struct xdr_stream *xdr)
 }
 
 static inline int
-encode_item_not_present(struct xdr_stream *xdr)
+encode_item_yest_present(struct xdr_stream *xdr)
 {
 	__be32 *p;
 
@@ -357,7 +357,7 @@ static struct rpcrdma_mr_seg *rpcrdma_mr_prepare(struct rpcrdma_xprt *r_xprt,
 	return frwr_map(r_xprt, seg, nsegs, writing, req->rl_slot.rq_xid, *mr);
 
 out_getmr_err:
-	trace_xprtrdma_nomrs(req);
+	trace_xprtrdma_yesmrs(req);
 	xprt_wait_for_buffer_space(&r_xprt->rx_xprt);
 	rpcrdma_mrs_refresh(r_xprt);
 	return ERR_PTR(-EAGAIN);
@@ -372,7 +372,7 @@ out_getmr_err:
  *   N elements, position P (same P for all chunks of same arg!):
  *    1 - PHLOO - 1 - PHLOO - ... - 1 - PHLOO - 0
  *
- * Returns zero on success, or a negative errno if a failure occurred.
+ * Returns zero on success, or a negative erryes if a failure occurred.
  * @xdr is advanced to the next position in the stream.
  *
  * Only a single @pos value is currently supported.
@@ -388,7 +388,7 @@ static int rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 	unsigned int pos;
 	int nsegs;
 
-	if (rtype == rpcrdma_noch_pullup || rtype == rpcrdma_noch_mapped)
+	if (rtype == rpcrdma_yesch_pullup || rtype == rpcrdma_yesch_mapped)
 		goto done;
 
 	pos = rqst->rq_snd_buf.head[0].iov_len;
@@ -414,7 +414,7 @@ static int rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 	} while (nsegs);
 
 done:
-	return encode_item_not_present(xdr);
+	return encode_item_yest_present(xdr);
 }
 
 /* Register and XDR encode the Write list. Supports encoding a list
@@ -427,7 +427,7 @@ done:
  *   N elements:
  *    1 - N - HLOO - HLOO - ... - HLOO - 0
  *
- * Returns zero on success, or a negative errno if a failure occurred.
+ * Returns zero on success, or a negative erryes if a failure occurred.
  * @xdr is advanced to the next position in the stream.
  *
  * Only a single Write chunk is currently supported.
@@ -480,7 +480,7 @@ static int rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt,
 	*segcount = cpu_to_be32(nchunks);
 
 done:
-	return encode_item_not_present(xdr);
+	return encode_item_yest_present(xdr);
 }
 
 /* Register and XDR encode the Reply chunk. Supports encoding an array
@@ -492,7 +492,7 @@ done:
  *   N elements:
  *    1 - N - HLOO - HLOO - ... - HLOO
  *
- * Returns zero on success, or a negative errno if a failure occurred.
+ * Returns zero on success, or a negative erryes if a failure occurred.
  * @xdr is advanced to the next position in the stream.
  */
 static int rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
@@ -507,7 +507,7 @@ static int rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 	__be32 *segcount;
 
 	if (wtype != rpcrdma_replych)
-		return encode_item_not_present(xdr);
+		return encode_item_yest_present(xdr);
 
 	seg = req->rl_segments;
 	nsegs = rpcrdma_convert_iovs(r_xprt, &rqst->rq_rcv_buf, 0, wtype, seg);
@@ -660,7 +660,7 @@ out_mapping_err:
 }
 
 /* The tail iovec may include an XDR pad for the page list,
- * as well as additional content, and may not reside in the
+ * as well as additional content, and may yest reside in the
  * same page as the head iovec.
  */
 static bool rpcrdma_prepare_tail_iov(struct rpcrdma_req *req,
@@ -739,7 +739,7 @@ static void rpcrdma_pullup_pagelist(struct rpcrdma_xprt *r_xprt,
  *  - the caller has already verified that the total length
  *    of the RPC Call body will fit into @rl_sendbuf.
  */
-static bool rpcrdma_prepare_noch_pullup(struct rpcrdma_xprt *r_xprt,
+static bool rpcrdma_prepare_yesch_pullup(struct rpcrdma_xprt *r_xprt,
 					struct rpcrdma_req *req,
 					struct xdr_buf *xdr)
 {
@@ -749,11 +749,11 @@ static bool rpcrdma_prepare_noch_pullup(struct rpcrdma_xprt *r_xprt,
 	if (unlikely(xdr->page_len))
 		rpcrdma_pullup_pagelist(r_xprt, req, xdr);
 
-	/* The whole RPC message resides in the head iovec now */
+	/* The whole RPC message resides in the head iovec yesw */
 	return rpcrdma_prepare_head_iov(r_xprt, req, xdr->len);
 }
 
-static bool rpcrdma_prepare_noch_mapped(struct rpcrdma_xprt *r_xprt,
+static bool rpcrdma_prepare_yesch_mapped(struct rpcrdma_xprt *r_xprt,
 					struct rpcrdma_req *req,
 					struct xdr_buf *xdr)
 {
@@ -786,13 +786,13 @@ static bool rpcrdma_prepare_readch(struct rpcrdma_xprt *r_xprt,
 	 * via explicit RDMA, and thus is skipped here.
 	 */
 
-	/* Do not include the tail if it is only an XDR pad */
+	/* Do yest include the tail if it is only an XDR pad */
 	if (xdr->tail[0].iov_len > 3) {
 		unsigned int page_base, len;
 
 		/* If the content in the page list is an odd length,
 		 * xdr_write_pages() adds a pad at the beginning of
-		 * the tail iovec. Force the tail's non-pad content to
+		 * the tail iovec. Force the tail's yesn-pad content to
 		 * land at the next XDR position in the Send message.
 		 */
 		page_base = offset_in_page(xdr->tail[0].iov_base);
@@ -815,7 +815,7 @@ static bool rpcrdma_prepare_readch(struct rpcrdma_xprt *r_xprt,
  * @xdr: xdr_buf containing RPC Call
  * @rtype: chunk type being encoded
  *
- * Returns 0 on success; otherwise a negative errno is returned.
+ * Returns 0 on success; otherwise a negative erryes is returned.
  */
 inline int rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 				     struct rpcrdma_req *req, u32 hdrlen,
@@ -827,7 +827,7 @@ inline int rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 	ret = -EAGAIN;
 	req->rl_sendctx = rpcrdma_sendctx_get_locked(r_xprt);
 	if (!req->rl_sendctx)
-		goto out_nosc;
+		goto out_yessc;
 	req->rl_sendctx->sc_unmap_count = 0;
 	req->rl_sendctx->sc_req = req;
 	kref_init(&req->rl_kref);
@@ -841,12 +841,12 @@ inline int rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 		goto out_unmap;
 
 	switch (rtype) {
-	case rpcrdma_noch_pullup:
-		if (!rpcrdma_prepare_noch_pullup(r_xprt, req, xdr))
+	case rpcrdma_yesch_pullup:
+		if (!rpcrdma_prepare_yesch_pullup(r_xprt, req, xdr))
 			goto out_unmap;
 		break;
-	case rpcrdma_noch_mapped:
-		if (!rpcrdma_prepare_noch_mapped(r_xprt, req, xdr))
+	case rpcrdma_yesch_mapped:
+		if (!rpcrdma_prepare_yesch_mapped(r_xprt, req, xdr))
 			goto out_unmap;
 		break;
 	case rpcrdma_readch:
@@ -863,7 +863,7 @@ inline int rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 
 out_unmap:
 	rpcrdma_sendctx_unmap(req->rl_sendctx);
-out_nosc:
+out_yessc:
 	trace_xprtrdma_prepsend_failed(&req->rl_slot, ret);
 	return ret;
 }
@@ -913,7 +913,7 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 
 	/* When the ULP employs a GSS flavor that guarantees integrity
 	 * or privacy, direct data placement of individual data items
-	 * is not allowed.
+	 * is yest allowed.
 	 */
 	ddp_allowed = !(rqst->rq_cred->cr_auth->au_flags &
 						RPCAUTH_AUTH_DATATOUCH);
@@ -925,12 +925,12 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	 *   return as inline.
 	 * o Large read ops return data as write chunk(s), header as
 	 *   inline.
-	 * o Large non-read ops return as a single reply chunk.
+	 * o Large yesn-read ops return as a single reply chunk.
 	 */
 	if (rpcrdma_results_inline(r_xprt, rqst))
-		wtype = rpcrdma_noch;
+		wtype = rpcrdma_yesch;
 	else if ((ddp_allowed && rqst->rq_rcv_buf.flags & XDRBUF_READ) &&
-		 rpcrdma_nonpayload_inline(r_xprt, rqst))
+		 rpcrdma_yesnpayload_inline(r_xprt, rqst))
 		wtype = rpcrdma_writech;
 	else
 		wtype = rpcrdma_replych;
@@ -942,23 +942,23 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	 *   are sent as inline.
 	 * o Large write ops transmit data as read chunk(s), header as
 	 *   inline.
-	 * o Large non-write ops are sent with the entire message as a
+	 * o Large yesn-write ops are sent with the entire message as a
 	 *   single read chunk (protocol 0-position special case).
 	 *
-	 * This assumes that the upper layer does not present a request
-	 * that both has a data payload, and whose non-data arguments
+	 * This assumes that the upper layer does yest present a request
+	 * that both has a data payload, and whose yesn-data arguments
 	 * by themselves are larger than the inline threshold.
 	 */
 	if (rpcrdma_args_inline(r_xprt, rqst)) {
 		*p++ = rdma_msg;
 		rtype = buf->len < rdmab_length(req->rl_sendbuf) ?
-			rpcrdma_noch_pullup : rpcrdma_noch_mapped;
+			rpcrdma_yesch_pullup : rpcrdma_yesch_mapped;
 	} else if (ddp_allowed && buf->flags & XDRBUF_WRITE) {
 		*p++ = rdma_msg;
 		rtype = rpcrdma_readch;
 	} else {
-		r_xprt->rx_stats.nomsg_call_count++;
-		*p++ = rdma_nomsg;
+		r_xprt->rx_stats.yesmsg_call_count++;
+		*p++ = rdma_yesmsg;
 		rtype = rpcrdma_areadch;
 	}
 
@@ -970,17 +970,17 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	 *   - Reply chunk
 	 *   - Read list + Reply chunk
 	 *
-	 * It might not yet support the following combinations:
+	 * It might yest yet support the following combinations:
 	 *
 	 *   - Read list + Write list
 	 *
-	 * It does not support the following combinations:
+	 * It does yest support the following combinations:
 	 *
 	 *   - Write list + Reply chunk
 	 *   - Read list + Write list + Reply chunk
 	 *
 	 * This implementation supports only a single chunk in each
-	 * Read or Write list. Thus for example the client cannot
+	 * Read or Write list. Thus for example the client canyest
 	 * send a Call message with a Position Zero Read chunk and a
 	 * regular Read chunk at the same time.
 	 */
@@ -1116,7 +1116,7 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 
 		/* Implicit padding for the last segment in a Write
 		 * chunk is inserted inline at the front of the tail
-		 * iovec. The upper layer ignores the content of
+		 * iovec. The upper layer igyesres the content of
 		 * the pad. Simply ensure inline content in the tail
 		 * that follows the Write chunk is properly aligned.
 		 */
@@ -1315,8 +1315,8 @@ rpcrdma_decode_msg(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep,
 	return rpclen + xdr_align_size(writelist);
 }
 
-static noinline int
-rpcrdma_decode_nomsg(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep)
+static yesinline int
+rpcrdma_decode_yesmsg(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep)
 {
 	struct xdr_stream *xdr = &rep->rr_stream;
 	u32 writelist, replychunk;
@@ -1340,7 +1340,7 @@ rpcrdma_decode_nomsg(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep)
 	return replychunk;
 }
 
-static noinline int
+static yesinline int
 rpcrdma_decode_error(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep,
 		     struct rpc_rqst *rqst)
 {
@@ -1391,8 +1391,8 @@ void rpcrdma_complete_rqst(struct rpcrdma_rep *rep)
 	case rdma_msg:
 		status = rpcrdma_decode_msg(r_xprt, rep, rqst);
 		break;
-	case rdma_nomsg:
-		status = rpcrdma_decode_nomsg(r_xprt, rep);
+	case rdma_yesmsg:
+		status = rpcrdma_decode_yesmsg(r_xprt, rep);
 		break;
 	case rdma_error:
 		status = rpcrdma_decode_error(r_xprt, rep, rqst);
@@ -1474,7 +1474,7 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	spin_lock(&xprt->queue_lock);
 	rqst = xprt_lookup_rqst(xprt, rep->rr_xid);
 	if (!rqst)
-		goto out_norqst;
+		goto out_yesrqst;
 	xprt_pin_rqst(rqst);
 	spin_unlock(&xprt->queue_lock);
 
@@ -1509,7 +1509,7 @@ out_badversion:
 	trace_xprtrdma_reply_vers(rep);
 	goto out;
 
-out_norqst:
+out_yesrqst:
 	spin_unlock(&xprt->queue_lock);
 	trace_xprtrdma_reply_rqst(rep);
 	goto out;

@@ -220,22 +220,22 @@ static struct of_regulator_match max8907_matches[] = {
 
 static int max8907_regulator_parse_dt(struct platform_device *pdev)
 {
-	struct device_node *np, *regulators;
+	struct device_yesde *np, *regulators;
 	int ret;
 
-	np = pdev->dev.parent->of_node;
+	np = pdev->dev.parent->of_yesde;
 	if (!np)
 		return 0;
 
 	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
-		dev_err(&pdev->dev, "regulators node not found\n");
+		dev_err(&pdev->dev, "regulators yesde yest found\n");
 		return -EINVAL;
 	}
 
 	ret = of_regulator_match(&pdev->dev, regulators, max8907_matches,
 				 ARRAY_SIZE(max8907_matches));
-	of_node_put(regulators);
+	of_yesde_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
 			ret);
@@ -250,9 +250,9 @@ static inline struct regulator_init_data *match_init_data(int index)
 	return max8907_matches[index].init_data;
 }
 
-static inline struct device_node *match_of_node(int index)
+static inline struct device_yesde *match_of_yesde(int index)
 {
-	return max8907_matches[index].of_node;
+	return max8907_matches[index].of_yesde;
 }
 #else
 static int max8907_regulator_parse_dt(struct platform_device *pdev)
@@ -265,7 +265,7 @@ static inline struct regulator_init_data *match_init_data(int index)
 	return NULL;
 }
 
-static inline struct device_node *match_of_node(int index)
+static inline struct device_yesde *match_of_yesde(int index)
 {
 	return NULL;
 }
@@ -319,7 +319,7 @@ static int max8907_regulator_probe(struct platform_device *pdev)
 		config.init_data = idata;
 		config.driver_data = pmic;
 		config.regmap = max8907->regmap_gen;
-		config.of_node = match_of_node(i);
+		config.of_yesde = match_of_yesde(i);
 
 		switch (pmic->desc[i].id) {
 		case MAX8907_MBATT:

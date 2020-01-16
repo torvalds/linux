@@ -94,7 +94,7 @@ extern unsigned long end_iomem;
 
 #define pte_clear(mm,addr,xp) pte_set_val(*(xp), (phys_t) 0, __pgprot(_PAGE_NEWPAGE))
 
-#define pmd_none(x)	(!((unsigned long)pmd_val(x) & ~_PAGE_NEWPAGE))
+#define pmd_yesne(x)	(!((unsigned long)pmd_val(x) & ~_PAGE_NEWPAGE))
 #define	pmd_bad(x)	((pmd_val(x) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
 
 #define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
@@ -121,14 +121,14 @@ extern unsigned long end_iomem;
  * =================================
  */
 
-static inline int pte_none(pte_t pte)
+static inline int pte_yesne(pte_t pte)
 {
 	return pte_is_zero(pte);
 }
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 static inline int pte_read(pte_t pte)
 { 
@@ -257,7 +257,7 @@ static inline void set_pte(pte_t *pteptr, pte_t pteval)
 	pte_copy(*pteptr, pteval);
 
 	/* If it's a swap entry, it needs to be marked _PAGE_NEWPAGE so
-	 * fix_range knows to unmap it.  _PAGE_NEWPROT is specific to
+	 * fix_range kyesws to unmap it.  _PAGE_NEWPROT is specific to
 	 * mapped pages.
 	 */
 

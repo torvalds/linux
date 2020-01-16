@@ -17,7 +17,7 @@
  * Architecture
  *
  * OPFN involves the communication between two QPs on the HFI
- * level on an Omni-Path fabric, and ULPs have no knowledge of
+ * level on an Omni-Path fabric, and ULPs have yes kyeswledge of
  * OPFN at all.
  *
  * Implementation

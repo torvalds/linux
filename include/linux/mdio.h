@@ -13,7 +13,7 @@ struct gpio_desc;
 struct mii_bus;
 
 /* Multiple levels of nesting are possible. However typically this is
- * limited to nested DSA like layer, a MUX layer, and the normal
+ * limited to nested DSA like layer, a MUX layer, and the yesrmal
  * user. Instead of trying to handle the general case, just define
  * these cases.
  */
@@ -105,9 +105,9 @@ static inline __u16 mdio_phy_id_devad(int phy_id)
 
 /**
  * struct mdio_if_info - Ethernet controller MDIO interface
- * @prtad: PRTAD of the PHY (%MDIO_PRTAD_NONE if not present/unknown)
+ * @prtad: PRTAD of the PHY (%MDIO_PRTAD_NONE if yest present/unkyeswn)
  * @mmds: Mask of MMDs expected to be present in the PHY.  This must be
- *	non-zero unless @prtad = %MDIO_PRTAD_NONE.
+ *	yesn-zero unless @prtad = %MDIO_PRTAD_NONE.
  * @mode_support: MDIO modes supported.  If %MDIO_SUPPORTS_C22 is set then
  *	MII register access will be passed through with @devad =
  *	%MDIO_DEVAD_NONE.  If %MDIO_EMULATE_C22 is set then access to
@@ -156,8 +156,8 @@ mdio45_ethtool_ksettings_get_npage(const struct mdio_if_info *mdio,
  * @mdio: MDIO interface
  * @ecmd: Ethtool request structure
  *
- * Since the CSRs for auto-negotiation using next pages are not fully
- * standardised, this function does not attempt to decode them.  Use
+ * Since the CSRs for auto-negotiation using next pages are yest fully
+ * standardised, this function does yest attempt to decode them.  Use
  * mdio45_ethtool_gset_npage() to specify advertisement bits from next
  * pages.
  */
@@ -172,8 +172,8 @@ static inline void mdio45_ethtool_gset(const struct mdio_if_info *mdio,
  * @mdio: MDIO interface
  * @cmd: Ethtool request structure
  *
- * Since the CSRs for auto-negotiation using next pages are not fully
- * standardised, this function does not attempt to decode them.  Use
+ * Since the CSRs for auto-negotiation using next pages are yest fully
+ * standardised, this function does yest attempt to decode them.  Use
  * mdio45_ethtool_ksettings_get_npage() to specify advertisement bits
  * from next pages.
  */
@@ -330,7 +330,7 @@ struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr);
 /**
  * mdio_module_driver() - Helper macro for registering mdio drivers
  *
- * Helper macro for MDIO drivers which do not do anything special in module
+ * Helper macro for MDIO drivers which do yest do anything special in module
  * init/exit. Each module may only use this macro once, and calling it
  * replaces module_init() and module_exit().
  */

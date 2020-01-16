@@ -283,9 +283,9 @@ static void kxtj9_input_close(struct input_dev *dev)
  * to change the output data rate of the part.  For consistency, we are using
  * the set_poll method, which accepts a poll interval in milliseconds, and then
  * calls update_odr() while passing this value as an argument.  In IRQ mode, the
- * data outputs will not be read AT the requested poll interval, rather, the
+ * data outputs will yest be read AT the requested poll interval, rather, the
  * lowest ODR that can support the requested interval.  The client application
- * will be responsible for retrieving data from the input node at the desired
+ * will be responsible for retrieving data from the input yesde at the desired
  * interval.
  */
 
@@ -396,7 +396,7 @@ static int kxtj9_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter,
 				I2C_FUNC_I2C | I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev, "client is not i2c capable\n");
+		dev_err(&client->dev, "client is yest i2c capable\n");
 		return -ENXIO;
 	}
 
@@ -427,7 +427,7 @@ static int kxtj9_probe(struct i2c_client *client,
 
 	err = kxtj9_verify(tj9);
 	if (err < 0) {
-		dev_err(&client->dev, "device not recognized\n");
+		dev_err(&client->dev, "device yest recognized\n");
 		return err;
 	}
 

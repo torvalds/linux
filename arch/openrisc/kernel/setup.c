@@ -13,7 +13,7 @@
  * This file handles the architecture-dependent parts of initialization
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -68,7 +68,7 @@ static void __init setup_memory(void)
 	ram_start_pfn = PFN_UP(memory_start);
 	ram_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
 
-	/* setup bootmem globals (we use no_bootmem, but mm still depends on this) */
+	/* setup bootmem globals (we use yes_bootmem, but mm still depends on this) */
 	min_low_pfn = ram_start_pfn;
 	max_low_pfn = ram_end_pfn;
 	max_pfn = ram_end_pfn;
@@ -105,7 +105,7 @@ static void print_cpuinfo(void)
 
 	if (!(upr & SPR_UPR_UP)) {
 		printk(KERN_INFO
-		       "-- no UPR register... unable to detect configuration\n");
+		       "-- yes UPR register... unable to detect configuration\n");
 		return;
 	}
 
@@ -148,12 +148,12 @@ static void print_cpuinfo(void)
 		printk(KERN_INFO "-- custom unit(s)\n");
 }
 
-static struct device_node *setup_find_cpu_node(int cpu)
+static struct device_yesde *setup_find_cpu_yesde(int cpu)
 {
 	u32 hwid;
-	struct device_node *cpun;
+	struct device_yesde *cpun;
 
-	for_each_of_cpu_node(cpun) {
+	for_each_of_cpu_yesde(cpun) {
 		if (of_property_read_u32(cpun, "reg", &hwid))
 			continue;
 		if (hwid == cpu)
@@ -165,13 +165,13 @@ static struct device_node *setup_find_cpu_node(int cpu)
 
 void __init setup_cpuinfo(void)
 {
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 	unsigned long iccfgr, dccfgr;
 	unsigned long cache_set_size;
 	int cpu_id = smp_processor_id();
 	struct cpuinfo_or1k *cpuinfo = &cpuinfo_or1k[cpu_id];
 
-	cpu = setup_find_cpu_node(cpu_id);
+	cpu = setup_find_cpu_yesde(cpu_id);
 	if (!cpu)
 		panic("Couldn't find CPU%d in device tree...\n", cpu_id);
 
@@ -194,12 +194,12 @@ void __init setup_cpuinfo(void)
 		printk(KERN_WARNING
 		       "Device tree missing CPU 'clock-frequency' parameter."
 		       "Assuming frequency 25MHZ"
-		       "This is probably not what you want.");
+		       "This is probably yest what you want.");
 	}
 
 	cpuinfo->coreid = mfspr(SPR_COREID);
 
-	of_node_put(cpu);
+	of_yesde_put(cpu);
 
 	print_cpuinfo();
 }
@@ -251,7 +251,7 @@ void __init detect_unit_config(unsigned long upr, unsigned long mask,
 		else
 			printk("present\n");
 	} else
-		printk("not present\n");
+		printk("yest present\n");
 }
 
 /*
@@ -265,11 +265,11 @@ void __init detect_unit_config(unsigned long upr, unsigned long mask,
 void calibrate_delay(void)
 {
 	const int *val;
-	struct device_node *cpu = setup_find_cpu_node(smp_processor_id());
+	struct device_yesde *cpu = setup_find_cpu_yesde(smp_processor_id());
 
 	val = of_get_property(cpu, "clock-frequency", NULL);
 	if (!val)
-		panic("no cpu 'clock-frequency' parameter in device tree");
+		panic("yes cpu 'clock-frequency' parameter in device tree");
 	loops_per_jiffy = *val / HZ;
 	pr_cont("%lu.%02lu BogoMIPS (lpj=%lu)\n",
 		loops_per_jiffy / (500000 / HZ),

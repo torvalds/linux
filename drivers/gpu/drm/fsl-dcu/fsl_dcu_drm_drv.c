@@ -156,7 +156,7 @@ static struct drm_driver fsl_dcu_drm_driver = {
 	.desc			= "Freescale DCU DRM",
 	.date			= "20160425",
 	.major			= 1,
-	.minor			= 1,
+	.miyesr			= 1,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -255,7 +255,7 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	if (!fsl_dev)
 		return -ENOMEM;
 
-	id = of_match_node(fsl_dcu_of_match, pdev->dev.of_node);
+	id = of_match_yesde(fsl_dcu_of_match, pdev->dev.of_yesde);
 	if (!id)
 		return -ENODEV;
 	fsl_dev->soc = id->data;
@@ -297,7 +297,7 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 		pix_clk_in = fsl_dev->clk;
 	}
 
-	if (of_property_read_bool(dev->of_node, "big-endian"))
+	if (of_property_read_bool(dev->of_yesde, "big-endian"))
 		div_ratio_shift = 24;
 
 	pix_clk_in_name = __clk_get_name(pix_clk_in);
@@ -321,7 +321,7 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 
 	fsl_dev->dev = dev;
 	fsl_dev->drm = drm;
-	fsl_dev->np = dev->of_node;
+	fsl_dev->np = dev->of_yesde;
 	drm->dev_private = fsl_dev;
 	dev_set_drvdata(dev, fsl_dev);
 

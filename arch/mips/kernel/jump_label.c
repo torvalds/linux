@@ -73,7 +73,7 @@ void arch_jump_label_transform(struct jump_entry *e,
 			insn.j_format.target = e->target >> J_RANGE_SHIFT;
 		}
 	} else {
-		insn.word = 0; /* nop */
+		insn.word = 0; /* yesp */
 	}
 
 	mutex_lock(&text_mutex);

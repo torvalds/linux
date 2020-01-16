@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Ethernet device driver for Cortina Systems Gemini SoC
- * Also known as the StorLink SL3512 and SL3516 (SL351x) or Lepus
+ * Also kyeswn as the StorLink SL3512 and SL3516 (SL351x) or Lepus
  * Net Engine and Gigabit Ethernet MAC (GMAC)
  * This hardware contains a TCP Offload Engine (TOE) but currently the
- * driver does not make use of it.
+ * driver does yest make use of it.
  *
  * Authors:
  * Linus Walleij <linus.walleij@linaro.org>
@@ -49,7 +49,7 @@
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 static int debug = -1;
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=yesne,...,16=all)");
 
 #define HSIZE_8			0x00
 #define HSIZE_16		0x01
@@ -96,7 +96,7 @@ struct gmac_txq {
 	struct gmac_txdesc *ring;
 	struct sk_buff	**skb;
 	unsigned int	cptr;
-	unsigned int	noirq_packets;
+	unsigned int	yesirq_packets;
 };
 
 struct gemini_ethernet;
@@ -349,7 +349,7 @@ static void gmac_speed_set(struct net_device *netdev)
 		netdev_info(netdev, "link flow control: %s\n",
 			    phydev->pause
 			    ? (phydev->asym_pause ? "tx" : "both")
-			    : (phydev->asym_pause ? "rx" : "none")
+			    : (phydev->asym_pause ? "rx" : "yesne")
 		);
 	}
 
@@ -366,7 +366,7 @@ static int gmac_setup_phy(struct net_device *netdev)
 	struct phy_device *phy;
 
 	phy = of_phy_get_and_connect(netdev,
-				     dev->of_node,
+				     dev->of_yesde,
 				     gmac_speed_set);
 	if (!phy)
 		return -ENODEV;
@@ -406,7 +406,7 @@ static int gmac_setup_phy(struct net_device *netdev)
 	return 0;
 }
 
-/* The maximum frame length is not logically enumerated in the
+/* The maximum frame length is yest logically enumerated in the
  * hardware, so we do a table lookup to find the applicable max
  * frame length.
  */
@@ -575,7 +575,7 @@ static int gmac_setup_txqs(struct net_device *netdev)
 	}
 
 	if (port->txq_dma_base & ~DMA_Q_BASE_MASK) {
-		dev_warn(geth->dev, "TX queue base is not aligned\n");
+		dev_warn(geth->dev, "TX queue base is yest aligned\n");
 		dma_free_coherent(geth->dev, len * sizeof(*desc_ring),
 				  desc_ring, port->txq_dma_base);
 		kfree(skb_tab);
@@ -588,7 +588,7 @@ static int gmac_setup_txqs(struct net_device *netdev)
 	for (i = 0; i < n_txq; i++) {
 		txq->ring = desc_ring;
 		txq->skb = skb_tab;
-		txq->noirq_packets = 0;
+		txq->yesirq_packets = 0;
 
 		r = readw(rwptr_reg);
 		rwptr_reg += 2;
@@ -706,7 +706,7 @@ static int gmac_setup_rxq(struct net_device *netdev)
 {
 	struct gemini_ethernet_port *port = netdev_priv(netdev);
 	struct gemini_ethernet *geth = port->geth;
-	struct nontoe_qhdr __iomem *qhdr;
+	struct yesntoe_qhdr __iomem *qhdr;
 
 	qhdr = geth->base + TOE_DEFAULT_Q_HDR_BASE(netdev->dev_id);
 	port->rxq_rwptr = &qhdr->word1;
@@ -718,7 +718,7 @@ static int gmac_setup_rxq(struct net_device *netdev)
 	if (!port->rxq_ring)
 		return -ENOMEM;
 	if (port->rxq_dma_base & ~NONTOE_QHDR0_BASE_MASK) {
-		dev_warn(geth->dev, "RX queue base is not aligned\n");
+		dev_warn(geth->dev, "RX queue base is yest aligned\n");
 		return -ENOMEM;
 	}
 
@@ -740,7 +740,7 @@ gmac_get_queue_page(struct gemini_ethernet *geth,
 	mapping = addr & PAGE_MASK;
 
 	if (!geth->freeq_pages) {
-		dev_err(geth->dev, "try to get page with no page list\n");
+		dev_err(geth->dev, "try to get page with yes page list\n");
 		return NULL;
 	}
 
@@ -760,7 +760,7 @@ static void gmac_cleanup_rxq(struct net_device *netdev)
 	struct gemini_ethernet *geth = port->geth;
 	struct gmac_rxdesc *rxd = port->rxq_ring;
 	static struct gmac_queue_page *gpage;
-	struct nontoe_qhdr __iomem *qhdr;
+	struct yesntoe_qhdr __iomem *qhdr;
 	void __iomem *dma_reg;
 	void __iomem *ptr_reg;
 	dma_addr_t mapping;
@@ -793,7 +793,7 @@ static void gmac_cleanup_rxq(struct net_device *netdev)
 		/* Freeq pointers are one page off */
 		gpage = gmac_get_queue_page(geth, port, mapping + PAGE_SIZE);
 		if (!gpage) {
-			dev_err(geth->dev, "could not find page\n");
+			dev_err(geth->dev, "could yest find page\n");
 			continue;
 		}
 		/* Release the RX queue reference to the page */
@@ -831,7 +831,7 @@ static struct page *geth_freeq_alloc_map_page(struct gemini_ethernet *geth,
 	 * in the hardware queue. PAGE_SHIFT on ARM is 12 (1 page is 4096 bytes,
 	 * 4k), and the default RX frag order is 11 (fragments are up 20 2048
 	 * bytes, 2k) so fpp_order (fragments per page order) is default 1. Thus
-	 * each page normally needs two entries in the queue.
+	 * each page yesrmally needs two entries in the queue.
 	 */
 	frag_len = 1 << geth->freeq_frag_order; /* Usually 2048 */
 	fpp_order = PAGE_SHIFT - geth->freeq_frag_order;
@@ -943,7 +943,7 @@ static int geth_setup_freeq(struct gemini_ethernet *geth)
 	if (!geth->freeq_ring)
 		return -ENOMEM;
 	if (geth->freeq_dma_base & ~DMA_Q_BASE_MASK) {
-		dev_warn(geth->dev, "queue ring base is not aligned\n");
+		dev_warn(geth->dev, "queue ring base is yest aligned\n");
 		goto err_freeq;
 	}
 
@@ -1442,7 +1442,7 @@ static unsigned int gmac_rx(struct net_device *netdev, unsigned int budget)
 		/* Freeq pointers are one page off */
 		gpage = gmac_get_queue_page(geth, port, mapping + PAGE_SIZE);
 		if (!gpage) {
-			dev_err(geth->dev, "could not find mapping\n");
+			dev_err(geth->dev, "could yest find mapping\n");
 			continue;
 		}
 		page = gpage->page;
@@ -1686,7 +1686,7 @@ static irqreturn_t gmac_irq(int irq, void *data)
 		netdev_err(netdev, "hw failure/sw bug\n");
 		gmac_dump_dma_state(netdev);
 
-		/* don't know how to recover, just reduce losses */
+		/* don't kyesw how to recover, just reduce losses */
 		gmac_enable_irq(netdev, 0);
 		return IRQ_HANDLED;
 	}
@@ -1780,7 +1780,7 @@ static int gmac_open(struct net_device *netdev)
 	err = request_irq(netdev->irq, gmac_irq,
 			  IRQF_SHARED, netdev->name, netdev);
 	if (err) {
-		netdev_err(netdev, "no IRQ\n");
+		netdev_err(netdev, "yes IRQ\n");
 		return err;
 	}
 
@@ -1792,19 +1792,19 @@ static int gmac_open(struct net_device *netdev)
 	 * the freeq in that case.
 	 */
 	if (err && (err != -EBUSY)) {
-		netdev_err(netdev, "could not resize freeq\n");
+		netdev_err(netdev, "could yest resize freeq\n");
 		goto err_stop_phy;
 	}
 
 	err = gmac_setup_rxq(netdev);
 	if (err) {
-		netdev_err(netdev, "could not setup RXQ\n");
+		netdev_err(netdev, "could yest setup RXQ\n");
 		goto err_stop_phy;
 	}
 
 	err = gmac_setup_txqs(netdev);
 	if (err) {
-		netdev_err(netdev, "could not setup TXQs\n");
+		netdev_err(netdev, "could yest setup TXQs\n");
 		gmac_cleanup_rxq(netdev);
 		goto err_stop_phy;
 	}
@@ -2279,7 +2279,7 @@ static irqreturn_t gemini_port_irq(int irq, void *data)
 	if (val & en & SWFQ_EMPTY_INT_BIT) {
 		/* Disable the queue empty interrupt while we work on
 		 * processing the queue. Also disable overrun interrupts
-		 * as there is not much we can do about it here.
+		 * as there is yest much we can do about it here.
 		 */
 		en &= ~(SWFQ_EMPTY_INT_BIT | GMAC0_RX_OVERRUN_INT_BIT
 					   | GMAC1_RX_OVERRUN_INT_BIT);
@@ -2405,7 +2405,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	/* DMA memory */
 	dmares = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!dmares) {
-		dev_err(dev, "no DMA resource\n");
+		dev_err(dev, "yes DMA resource\n");
 		return -ENODEV;
 	}
 	port->dma_base = devm_ioremap_resource(dev, dmares);
@@ -2415,7 +2415,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	/* GMAC config memory */
 	gmacres = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!gmacres) {
-		dev_err(dev, "no GMAC resource\n");
+		dev_err(dev, "yes GMAC resource\n");
 		return -ENODEV;
 	}
 	port->gmac_base = devm_ioremap_resource(dev, gmacres);
@@ -2431,7 +2431,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	/* Clock the port */
 	port->pclk = devm_clk_get(dev, "PCLK");
 	if (IS_ERR(port->pclk)) {
-		dev_err(dev, "no PCLK\n");
+		dev_err(dev, "yes PCLK\n");
 		return PTR_ERR(port->pclk);
 	}
 	ret = clk_prepare_enable(port->pclk);
@@ -2444,7 +2444,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	/* Reset the port */
 	port->reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(port->reset)) {
-		dev_err(dev, "no reset\n");
+		dev_err(dev, "yes reset\n");
 		return PTR_ERR(port->reset);
 	}
 	reset_control_reset(port->reset);

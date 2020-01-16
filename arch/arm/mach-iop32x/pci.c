@@ -52,7 +52,7 @@ static u32 iop3xx_cfg_address(struct pci_bus *bus, int devfn, int where)
  * This routine checks the status of the last configuration cycle.  If an error
  * was detected it returns a 1, else it returns a 0.  The errors being checked
  * are parity, master abort, target abort (master and target).  These types of
- * errors occur during a config cycle where there is no device, like during
+ * errors occur during a config cycle where there is yes device, like during
  * the discovery stage.
  */
 static int iop3xx_pci_status(void)
@@ -82,7 +82,7 @@ static int iop3xx_pci_status(void)
 
 /*
  * Simply write the address register and read the configuration
- * data.  Note that the 4 nops ensure that we are able to handle
+ * data.  Note that the 4 yesps ensure that we are able to handle
  * a delayed abort (in theory.)
  */
 static u32 iop3xx_read(unsigned long addr)
@@ -92,10 +92,10 @@ static u32 iop3xx_read(unsigned long addr)
 	__asm__ __volatile__(
 		"str	%1, [%2]\n\t"
 		"ldr	%0, [%3]\n\t"
-		"nop\n\t"
-		"nop\n\t"
-		"nop\n\t"
-		"nop\n\t"
+		"yesp\n\t"
+		"yesp\n\t"
+		"yesp\n\t"
+		"yesp\n\t"
 		: "=r" (val)
 		: "r" (addr), "r" (IOP3XX_OCCAR), "r" (IOP3XX_OCCDR));
 
@@ -145,10 +145,10 @@ iop3xx_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 		asm volatile(
 			"str	%1, [%2]\n\t"
 			"str	%0, [%3]\n\t"
-			"nop\n\t"
-			"nop\n\t"
-			"nop\n\t"
-			"nop\n\t"
+			"yesp\n\t"
+			"yesp\n\t"
+			"yesp\n\t"
+			"yesp\n\t"
 			:
 			: "r" (value), "r" (addr),
 			  "r" (IOP3XX_OCCAR), "r" (IOP3XX_OCCDR));
@@ -163,7 +163,7 @@ struct pci_ops iop3xx_ops = {
 };
 
 /*
- * When a PCI device does not exist during config cycles, the 80200 gets a
+ * When a PCI device does yest exist during config cycles, the 80200 gets a
  * bus error instead of returning 0xffffffff. This handler simply returns.
  */
 static int

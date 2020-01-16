@@ -40,7 +40,7 @@ void kvmppc_set_pending_interrupt(struct kvm_vcpu *vcpu, enum int_class type)
 		dbell_type = PPC_G_DBELL_MC;
 		break;
 	default:
-		WARN_ONCE(1, "%s: unknown int type %d\n", __func__, type);
+		WARN_ONCE(1, "%s: unkyeswn int type %d\n", __func__, type);
 		return;
 	}
 
@@ -51,7 +51,7 @@ void kvmppc_set_pending_interrupt(struct kvm_vcpu *vcpu, enum int_class type)
 	preempt_enable();
 }
 
-/* gtlbe must not be mapped by more than one host tlb entry */
+/* gtlbe must yest be mapped by more than one host tlb entry */
 void kvmppc_e500_tlbil_one(struct kvmppc_vcpu_e500 *vcpu_e500,
 			   struct kvm_book3e_206_tlb_entry *gtlbe)
 {
@@ -102,7 +102,7 @@ void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid)
 	vcpu->arch.pid = pid;
 }
 
-void kvmppc_mmu_msr_notify(struct kvm_vcpu *vcpu, u32 old_msr)
+void kvmppc_mmu_msr_yestify(struct kvm_vcpu *vcpu, u32 old_msr)
 {
 }
 

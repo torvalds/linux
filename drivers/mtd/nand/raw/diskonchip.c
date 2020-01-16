@@ -94,11 +94,11 @@ module_param(debug, int, 0);
 static int try_dword = 1;
 module_param(try_dword, int, 0);
 
-static int no_ecc_failures = 0;
-module_param(no_ecc_failures, int, 0);
+static int yes_ecc_failures = 0;
+module_param(yes_ecc_failures, int, 0);
 
-static int no_autopart = 0;
-module_param(no_autopart, int, 0);
+static int yes_autopart = 0;
+module_param(yes_autopart, int, 0);
 
 static int show_firmware_partition = 0;
 module_param(show_firmware_partition, int, 0);
@@ -131,7 +131,7 @@ MODULE_PARM_DESC(doc_config_location, "Physical memory address at which to probe
  * Reed-Solomon library code.
  *
  * Fabrice Bellard figured this out in the old docecc code. I added
- * some comments, improved a minor bit and converted it to make use
+ * some comments, improved a miyesr bit and converted it to make use
  * of the generic Reed-Solomon library. tglx
  */
 static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
@@ -190,7 +190,7 @@ static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
 		if (pos < NB_DATA) {
 			/* extract bit position (MSB first) */
 			pos = 10 * (NB_DATA - 1 - pos) - 6;
-			/* now correct the following 10 bits. At most two bytes
+			/* yesw correct the following 10 bits. At most two bytes
 			   can be modified since pos is even */
 			index = (pos >> 3) ^ 1;
 			bitpos = pos & 7;
@@ -212,7 +212,7 @@ static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
 			}
 		}
 	}
-	/* If the parity is wrong, no rescue possible */
+	/* If the parity is wrong, yes rescue possible */
 	return parity ? -EBADMSG : nerr;
 }
 
@@ -704,7 +704,7 @@ static void doc2001plus_command(struct nand_chip *this, unsigned command,
 
 	/*
 	 * program and erase have their own busy handlers
-	 * status and sequential in needs no delay
+	 * status and sequential in needs yes delay
 	 */
 	switch (command) {
 
@@ -754,7 +754,7 @@ static int doc200x_dev_ready(struct nand_chip *this)
 		DoC_Delay(doc, 4);
 		if ((ReadDOC(docptr, Mplus_FlashControl) & CDSN_CTRL_FR_B_MASK) != CDSN_CTRL_FR_B_MASK) {
 			if (debug)
-				printk("not ready\n");
+				printk("yest ready\n");
 			return 0;
 		}
 		if (debug)
@@ -765,7 +765,7 @@ static int doc200x_dev_ready(struct nand_chip *this)
 		DoC_Delay(doc, 4);
 		if (!(ReadDOC(docptr, CDSNControl) & CDSN_CTRL_FR_B)) {
 			if (debug)
-				printk("not ready\n");
+				printk("yest ready\n");
 			return 0;
 		}
 		/* 11.4.2 -- Must NOP twice if it's ready */
@@ -860,7 +860,7 @@ static int doc200x_calculate_ecc(struct nand_chip *this, const u_char *dat,
 #if 0
 	/* If emptymatch=1, we might have an all-0xff data buffer.  Check. */
 	if (emptymatch) {
-		/* Note: this somewhat expensive test should not be triggered
+		/* Note: this somewhat expensive test should yest be triggered
 		   often.  It could be optimized away by examining the data in
 		   the writebuf routine, and remembering the result. */
 		for (i = 0; i < 512; i++) {
@@ -921,7 +921,7 @@ static int doc200x_correct_data(struct nand_chip *this, u_char *dat,
 		WriteDOC(DOC_ECC_DIS, docptr, Mplus_ECCConf);
 	else
 		WriteDOC(DOC_ECC_DIS, docptr, ECCConf);
-	if (no_ecc_failures && mtd_is_eccerr(ret)) {
+	if (yes_ecc_failures && mtd_is_eccerr(ret)) {
 		pr_err("suppressing ECC failure\n");
 		ret = 0;
 	}
@@ -1010,7 +1010,7 @@ static int __init find_media_headers(struct mtd_info *mtd, u_char *buf, const ch
 		return 2;
 	}
 	if (doc->mh0_page == -1) {
-		pr_warn("DiskOnChip %s Media Header not found.\n", id);
+		pr_warn("DiskOnChip %s Media Header yest found.\n", id);
 		return 0;
 	}
 	/* Only one mediaheader was found.  We want buf to contain a
@@ -1081,7 +1081,7 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 
 	/* NOTE: The lines below modify internal variables of the NAND and MTD
 	   layers; variables with have already been configured by nand_scan.
-	   Unfortunately, we didn't know before this point what these values
+	   Unfortunately, we didn't kyesw before this point what these values
 	   should be.  Thus, this code is somewhat dependent on the exact
 	   implementation of the NAND layer.  */
 	if (mh->UnitSizeFactor != 0xff) {
@@ -1193,7 +1193,7 @@ static inline int __init inftl_partscan(struct mtd_info *mtd, struct mtd_partiti
 
 	blocks = doc->chips_per_floor << (this->chip_shift - this->phys_erase_shift);
 	if (inftl_bbt_write && (blocks > mtd->erasesize)) {
-		pr_err("Writeable BBTs spanning more than one erase block are not yet supported.  FIX ME!\n");
+		pr_err("Writeable BBTs spanning more than one erase block are yest yet supported.  FIX ME!\n");
 		goto out;
 	}
 
@@ -1282,7 +1282,7 @@ static int __init nftl_scan_bbt(struct mtd_info *mtd)
 	if (ret)
 		return ret;
 
-	return mtd_device_register(mtd, parts, no_autopart ? 0 : numparts);
+	return mtd_device_register(mtd, parts, yes_autopart ? 0 : numparts);
 }
 
 static int __init inftl_scan_bbt(struct mtd_info *mtd)
@@ -1293,7 +1293,7 @@ static int __init inftl_scan_bbt(struct mtd_info *mtd)
 	struct mtd_partition parts[5];
 
 	if (nanddev_ntargets(&this->base) > doc->chips_per_floor) {
-		pr_err("Multi-floor INFTL devices not yet supported.\n");
+		pr_err("Multi-floor INFTL devices yest yet supported.\n");
 		return -EIO;
 	}
 
@@ -1331,12 +1331,12 @@ static int __init inftl_scan_bbt(struct mtd_info *mtd)
 
 	memset((char *)parts, 0, sizeof(parts));
 	numparts = inftl_partscan(mtd, parts);
-	/* At least for now, require the INFTL Media Header.  We could probably
-	   do without it for non-INFTL use, since all it gives us is
+	/* At least for yesw, require the INFTL Media Header.  We could probably
+	   do without it for yesn-INFTL use, since all it gives us is
 	   autopartitioning, but I want to give it more thought. */
 	if (!numparts)
 		return -EIO;
-	return mtd_device_register(mtd, parts, no_autopart ? 0 : numparts);
+	return mtd_device_register(mtd, parts, yes_autopart ? 0 : numparts);
 }
 
 static inline int __init doc2000_init(struct mtd_info *mtd)
@@ -1368,7 +1368,7 @@ static inline int __init doc2001_init(struct mtd_info *mtd)
 	ReadDOC(doc->virtadr, ChipID);
 	ReadDOC(doc->virtadr, ChipID);
 	if (ReadDOC(doc->virtadr, ChipID) != DOC_ChipID_DocMil) {
-		/* It's not a Millennium; it's one of the newer
+		/* It's yest a Millennium; it's one of the newer
 		   DiskOnChip 2000 units with a similar ASIC.
 		   Treat it like a Millennium, except that it
 		   can have multiple chips. */
@@ -1427,12 +1427,12 @@ static int __init doc_probe(unsigned long physadr)
 		goto error_ioremap;
 	}
 
-	/* It's not possible to cleanly detect the DiskOnChip - the
+	/* It's yest possible to cleanly detect the DiskOnChip - the
 	 * bootup procedure will put the device into reset mode, and
-	 * it's not possible to talk to it without actually writing
+	 * it's yest possible to talk to it without actually writing
 	 * to the DOCControl register. So we store the current contents
 	 * of the DOCControl register's location, in case we later decide
-	 * that it's not a DiskOnChip, and want to put it back how we
+	 * that it's yest a DiskOnChip, and want to put it back how we
 	 * found it.
 	 */
 	save_control = ReadDOC(virtadr, DOCControl);
@@ -1481,17 +1481,17 @@ static int __init doc_probe(unsigned long physadr)
 			reg = DoC_Mplus_Toggle;
 			break;
 		case DOC_ChipID_DocMilPlus32:
-			pr_err("DiskOnChip Millennium Plus 32MB is not supported, ignoring.\n");
+			pr_err("DiskOnChip Millennium Plus 32MB is yest supported, igyesring.\n");
 			/* fall through */
 		default:
 			ret = -ENODEV;
-			goto notfound;
+			goto yestfound;
 		}
 		break;
 
 	default:
 		ret = -ENODEV;
-		goto notfound;
+		goto yestfound;
 	}
 	/* Check the TOGGLE bit in the ECC register */
 	tmp = ReadDOC_(virtadr, reg) & DOC_TOGGLE_BIT;
@@ -1500,7 +1500,7 @@ static int __init doc_probe(unsigned long physadr)
 	if ((tmp == tmpb) || (tmp != tmpc)) {
 		pr_warn("Possible DiskOnChip at 0x%lx failed TOGGLE test, dropping.\n", physadr);
 		ret = -ENODEV;
-		goto notfound;
+		goto yestfound;
 	}
 
 	for (mtd = doclist; mtd; mtd = doc->nextdoc) {
@@ -1534,11 +1534,11 @@ static int __init doc_probe(unsigned long physadr)
 		if (oldval == newval) {
 			pr_debug("Found alias of DOC at 0x%lx to 0x%lx\n",
 				 doc->physadr, physadr);
-			goto notfound;
+			goto yestfound;
 		}
 	}
 
-	pr_notice("DiskOnChip found at 0x%lx\n", physadr);
+	pr_yestice("DiskOnChip found at 0x%lx\n", physadr);
 
 	len = sizeof(struct nand_chip) + sizeof(struct doc_priv) +
 	      (2 * sizeof(struct nand_bbt_descr));
@@ -1553,15 +1553,15 @@ static int __init doc_probe(unsigned long physadr)
 	 * Allocate a RS codec instance
 	 *
 	 * Symbolsize is 10 (bits)
-	 * Primitve polynomial is x^10+x^3+1
+	 * Primitve polyyesmial is x^10+x^3+1
 	 * First consecutive root is 510
 	 * Primitve element to generate roots = 1
-	 * Generator polinomial degree = 4
+	 * Generator poliyesmial degree = 4
 	 */
 	doc = (struct doc_priv *) (nand + 1);
 	doc->rs_decoder = init_rs(10, 0x409, FCR, 1, NROOTS);
 	if (!doc->rs_decoder) {
-		pr_err("DiskOnChip: Could not create a RS codec\n");
+		pr_err("DiskOnChip: Could yest create a RS codec\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1609,7 +1609,7 @@ static int __init doc_probe(unsigned long physadr)
 		numchips = doc2001_init(mtd);
 
 	if ((ret = nand_scan(nand, numchips)) || (ret = doc->late_init(mtd))) {
-		/* DBB note: i believe nand_release is necessary here, as
+		/* DBB yeste: i believe nand_release is necessary here, as
 		   buffers may have been allocated in nand_base.  Check with
 		   Thomas. FIX ME! */
 		/* nand_release will call mtd_device_unregister, but we
@@ -1623,8 +1623,8 @@ static int __init doc_probe(unsigned long physadr)
 	doclist = mtd;
 	return 0;
 
- notfound:
-	/* Put back the contents of the DOCControl register, in case it's not
+ yestfound:
+	/* Put back the contents of the DOCControl register, in case it's yest
 	   actually a DiskOnChip.  */
 	WriteDOC(save_control, virtadr, DOCControl);
  fail:
@@ -1673,8 +1673,8 @@ static int __init init_nanddoc(void)
 			doc_probe(doc_locations[i]);
 		}
 	}
-	/* No banner message any more. Print a message if no DiskOnChip
-	   found, so the user knows we at least tried. */
+	/* No banner message any more. Print a message if yes DiskOnChip
+	   found, so the user kyesws we at least tried. */
 	if (!doclist) {
 		pr_info("No valid DiskOnChip devices found\n");
 		ret = -ENODEV;

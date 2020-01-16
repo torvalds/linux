@@ -16,9 +16,9 @@
 static int orangefs_revalidate_lookup(struct dentry *dentry)
 {
 	struct dentry *parent_dentry = dget_parent(dentry);
-	struct inode *parent_inode = parent_dentry->d_inode;
-	struct orangefs_inode_s *parent = ORANGEFS_I(parent_inode);
-	struct inode *inode = dentry->d_inode;
+	struct iyesde *parent_iyesde = parent_dentry->d_iyesde;
+	struct orangefs_iyesde_s *parent = ORANGEFS_I(parent_iyesde);
+	struct iyesde *iyesde = dentry->d_iyesde;
 	struct orangefs_kernel_op_s *new_op;
 	int ret = 0;
 	int err = 0;
@@ -40,13 +40,13 @@ static int orangefs_revalidate_lookup(struct dentry *dentry)
 		     __FILE__,
 		     __func__,
 		     __LINE__,
-		     get_interruptible_flag(parent_inode));
+		     get_interruptible_flag(parent_iyesde));
 
 	err = service_operation(new_op, "orangefs_lookup",
-			get_interruptible_flag(parent_inode));
+			get_interruptible_flag(parent_iyesde));
 
-	/* Positive dentry: reject if error or not the same inode. */
-	if (inode) {
+	/* Positive dentry: reject if error or yest the same iyesde. */
+	if (iyesde) {
 		if (err) {
 			gossip_debug(GOSSIP_DCACHE_DEBUG,
 			    "%s:%s:%d lookup failure.\n",
@@ -54,9 +54,9 @@ static int orangefs_revalidate_lookup(struct dentry *dentry)
 			goto out_drop;
 		}
 		if (!match_handle(new_op->downcall.resp.lookup.refn.khandle,
-		    inode)) {
+		    iyesde)) {
 			gossip_debug(GOSSIP_DCACHE_DEBUG,
-			    "%s:%s:%d no match.\n",
+			    "%s:%s:%d yes match.\n",
 			    __FILE__, __func__, __LINE__);
 			goto out_drop;
 		}
@@ -107,27 +107,27 @@ static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		     __func__, dentry);
 
 	/* skip root handle lookups. */
-	if (dentry->d_inode && is_root_handle(dentry->d_inode))
+	if (dentry->d_iyesde && is_root_handle(dentry->d_iyesde))
 		return 1;
 
 	/*
 	 * If this passes, the positive dentry still exists or the negative
-	 * dentry still does not exist.
+	 * dentry still does yest exist.
 	 */
 	if (!orangefs_revalidate_lookup(dentry))
 		return 0;
 
-	/* We do not need to continue with negative dentries. */
-	if (!dentry->d_inode) {
+	/* We do yest need to continue with negative dentries. */
+	if (!dentry->d_iyesde) {
 		gossip_debug(GOSSIP_DCACHE_DEBUG,
-		    "%s: negative dentry or positive dentry and inode valid.\n",
+		    "%s: negative dentry or positive dentry and iyesde valid.\n",
 		    __func__);
 		return 1;
 	}
 
-	/* Now we must perform a getattr to validate the inode contents. */
+	/* Now we must perform a getattr to validate the iyesde contents. */
 
-	ret = orangefs_inode_check_changed(dentry->d_inode);
+	ret = orangefs_iyesde_check_changed(dentry->d_iyesde);
 	if (ret < 0) {
 		gossip_debug(GOSSIP_DCACHE_DEBUG, "%s:%s:%d getattr failure.\n",
 		    __FILE__, __func__, __LINE__);

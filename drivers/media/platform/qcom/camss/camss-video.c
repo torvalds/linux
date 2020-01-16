@@ -2,7 +2,7 @@
 /*
  * camss-video.c
  *
- * Qualcomm MSM Camera Subsystem - V4L2 device node
+ * Qualcomm MSM Camera Subsystem - V4L2 device yesde
  *
  * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015-2018 Linaro Ltd.
@@ -20,7 +20,7 @@
 
 struct fract {
 	u8 numerator;
-	u8 denominator;
+	u8 deyesminator;
 };
 
 /*
@@ -255,11 +255,11 @@ static int video_mbus_to_pix_mp(const struct v4l2_mbus_framefmt *mbus,
 	pix->num_planes = f->planes;
 	for (i = 0; i < pix->num_planes; i++) {
 		bytesperline = pix->width / f->hsub[i].numerator *
-			f->hsub[i].denominator * f->bpp[i] / 8;
+			f->hsub[i].deyesminator * f->bpp[i] / 8;
 		bytesperline = ALIGN(bytesperline, alignment);
 		pix->plane_fmt[i].bytesperline = bytesperline;
 		pix->plane_fmt[i].sizeimage = pix->height /
-				f->vsub[i].numerator * f->vsub[i].denominator *
+				f->vsub[i].numerator * f->vsub[i].deyesminator *
 				bytesperline;
 	}
 
@@ -615,11 +615,11 @@ static int __video_try_fmt(struct camss_video *video, struct v4l2_format *f)
 	pix_mp->num_planes = fi->planes;
 	for (i = 0; i < pix_mp->num_planes; i++) {
 		bpl = pix_mp->width / fi->hsub[i].numerator *
-			fi->hsub[i].denominator * fi->bpp[i] / 8;
+			fi->hsub[i].deyesminator * fi->bpp[i] / 8;
 		bpl = ALIGN(bpl, video->bpl_alignment);
 		pix_mp->plane_fmt[i].bytesperline = bpl;
 		pix_mp->plane_fmt[i].sizeimage = pix_mp->height /
-			fi->vsub[i].numerator * fi->vsub[i].denominator * bpl;
+			fi->vsub[i].numerator * fi->vsub[i].deyesminator * bpl;
 	}
 
 	pix_mp->field = V4L2_FIELD_NONE;
@@ -835,12 +835,12 @@ static int msm_video_init_format(struct camss_video *video)
 }
 
 /*
- * msm_video_register - Register a video device node
+ * msm_video_register - Register a video device yesde
  * @video: struct camss_video
  * @v4l2_dev: V4L2 device
- * @name: name to be used for the video device node
+ * @name: name to be used for the video device yesde
  *
- * Initialize and register a video device node to a V4L2 device. Also
+ * Initialize and register a video device yesde to a V4L2 device. Also
  * initialize the vb2 queue.
  *
  * Return 0 on success or a negative error code otherwise

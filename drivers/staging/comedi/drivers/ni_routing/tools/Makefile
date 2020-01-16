@@ -66,10 +66,10 @@ clean : partial_clean
 	$(RM) -rf c/ csv/
 
 # Note:  One could also use ctypeslib in order to generate these files.  The
-# caveat is that ctypeslib does not do a great job at handling macro functions.
+# caveat is that ctypeslib does yest do a great job at handling macro functions.
 # The make rules are as follows:
 # comedi.h.xml : ../../comedi.h
-# 	# note that we have to use PWD here to avoid h2xml finding a system
+# 	# yeste that we have to use PWD here to avoid h2xml finding a system
 # 	# installed version of the comedilib/comedi.h file
 # 	h2xml ${PWD}/../../comedi.h -c -D__user="" -D"BIT(x)=(1<<(x))" \
 # 		-o comedi.h.xml

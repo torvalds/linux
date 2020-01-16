@@ -46,9 +46,9 @@ struct optee_wait_queue {
  *			if !NULL the supplicant device is available for use,
  *			else busy
  * @mutex:		held while accessing content of this struct
- * @req_id:		current request id if supplicant is doing synchronous
+ * @req_id:		current request id if supplicant is doing synchroyesus
  *			communication, else -1
- * @reqs:		queued request not yet retrieved by supplicant
+ * @reqs:		queued request yest yet retrieved by supplicant
  * @idr:		IDR holding all requests currently being processed
  *			by supplicant
  * @reqs_c:		completion used by supplicant when waiting for a
@@ -92,7 +92,7 @@ struct optee {
 };
 
 struct optee_session {
-	struct list_head list_node;
+	struct list_head list_yesde;
 	u32 session_id;
 };
 

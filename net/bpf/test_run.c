@@ -82,7 +82,7 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 	u32 copy_size = size;
 
 	/* Clamp copy if the user has provided a size hint, but copy the full
-	 * buffer if not to retain old behaviour.
+	 * buffer if yest to retain old behaviour.
 	 */
 	if (kattr->test.data_size_out &&
 	    copy_size > kattr->test.data_size_out) {
@@ -109,32 +109,32 @@ out:
  * architecture dependent calling conventions. 7+ can be supported in the
  * future.
  */
-int noinline bpf_fentry_test1(int a)
+int yesinline bpf_fentry_test1(int a)
 {
 	return a + 1;
 }
 
-int noinline bpf_fentry_test2(int a, u64 b)
+int yesinline bpf_fentry_test2(int a, u64 b)
 {
 	return a + b;
 }
 
-int noinline bpf_fentry_test3(char a, int b, u64 c)
+int yesinline bpf_fentry_test3(char a, int b, u64 c)
 {
 	return a + b + c;
 }
 
-int noinline bpf_fentry_test4(void *a, char b, int c, u64 d)
+int yesinline bpf_fentry_test4(void *a, char b, int c, u64 d)
 {
 	return (long)a + b + c + d;
 }
 
-int noinline bpf_fentry_test5(u64 a, void *b, short c, int d, u64 e)
+int yesinline bpf_fentry_test5(u64 a, void *b, short c, int d, u64 e)
 {
 	return a + (long)b + c + d + e;
 }
 
-int noinline bpf_fentry_test6(u64 a, void *b, short c, int d, void *e, u64 f)
+int yesinline bpf_fentry_test6(u64 a, void *b, short c, int d, void *e, u64 f)
 {
 	return a + (long)b + c + d + (long)e + f;
 }
@@ -231,7 +231,7 @@ out:
  * @from: check from this position
  * @to: check up until (excluding) this position
  *
- * This function returns true if the there is a non-zero byte
+ * This function returns true if the there is a yesn-zero byte
  * in the buf in the range [from,to).
  */
 static inline bool range_is_zero(void *buf, size_t from, size_t to)
@@ -376,8 +376,8 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 	convert_skb_to___skb(skb, ctx);
 
 	size = skb->len;
-	/* bpf program can never convert linear skb to non-linear */
-	if (WARN_ON_ONCE(skb_is_nonlinear(skb)))
+	/* bpf program can never convert linear skb to yesn-linear */
+	if (WARN_ON_ONCE(skb_is_yesnlinear(skb)))
 		size = skb_headlen(skb);
 	ret = bpf_test_finish(kattr, uattr, skb->data, size, retval, duration);
 	if (!ret)

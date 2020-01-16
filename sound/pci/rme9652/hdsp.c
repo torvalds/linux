@@ -16,7 +16,7 @@
 #include <linux/math64.h>
 #include <linux/vmalloc.h>
 #include <linux/io.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -62,7 +62,7 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define MULTIFACE_DS_CHANNELS    14
 #define H9652_SS_CHANNELS        26
 #define H9652_DS_CHANNELS        14
-/* This does not include possible Analog Extension Boards
+/* This does yest include possible Analog Extension Boards
    AEBs are detected at card initialization
 */
 #define H9632_SS_CHANNELS	 12
@@ -117,7 +117,7 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
    Rms values are read upward
    There are rms values for the outputs too
    26*3 values are read in ss mode
-   14*3 in ds mode, with no gap between values
+   14*3 in ds mode, with yes gap between values
 */
 #define HDSP_9652_peakBase	7164
 #define HDSP_9652_rmsBase	4096
@@ -142,7 +142,7 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define HDSP_RD_MULTIPLE        0x400
 #define HDSP_9652_ENABLE_MIXER  0x800
 #define HDSP_S200		0x800
-#define HDSP_S300		(0x100 | HDSP_S200) /* dummy, purpose of 0x100 unknown */
+#define HDSP_S300		(0x100 | HDSP_S200) /* dummy, purpose of 0x100 unkyeswn */
 #define HDSP_CYCLIC_MODE	0x1000
 #define HDSP_TDO                0x10000000
 
@@ -159,11 +159,11 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define HDSP_AudioInterruptEnable (1<<5)  /* what do you think ? */
 #define HDSP_Frequency0           (1<<6)  /* 0=44.1kHz/88.2kHz/176.4kHz 1=48kHz/96kHz/192kHz */
 #define HDSP_Frequency1           (1<<7)  /* 0=32kHz/64kHz/128kHz */
-#define HDSP_DoubleSpeed          (1<<8)  /* 0=normal speed, 1=double speed */
+#define HDSP_DoubleSpeed          (1<<8)  /* 0=yesrmal speed, 1=double speed */
 #define HDSP_SPDIFProfessional    (1<<9)  /* 0=consumer, 1=professional */
-#define HDSP_SPDIFEmphasis        (1<<10) /* 0=none, 1=on */
+#define HDSP_SPDIFEmphasis        (1<<10) /* 0=yesne, 1=on */
 #define HDSP_SPDIFNonAudio        (1<<11) /* 0=off, 1=on */
-#define HDSP_SPDIFOpticalOut      (1<<12) /* 1=use 1st ADAT connector for SPDIF, 0=do not */
+#define HDSP_SPDIFOpticalOut      (1<<12) /* 1=use 1st ADAT connector for SPDIF, 0=do yest */
 #define HDSP_SyncRef2             (1<<13)
 #define HDSP_SPDIFInputSelect0    (1<<14)
 #define HDSP_SPDIFInputSelect1    (1<<15)
@@ -395,7 +395,7 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define UNITY_GAIN                       32768
 #define MINUS_INFINITY_GAIN              0
 
-/* the size of a substream (1 mono data stream) */
+/* the size of a substream (1 moyes data stream) */
 
 #define HDSP_CHANNEL_BUFFER_SAMPLES  (16*1024)
 #define HDSP_CHANNEL_BUFFER_BYTES    (4*HDSP_CHANNEL_BUFFER_SAMPLES)
@@ -665,7 +665,7 @@ static int hdsp_check_for_iobox (struct hdsp *hdsp)
 		}
 		msleep(20);
 	}
-	dev_err(hdsp->card->dev, "no IO box connected!\n");
+	dev_err(hdsp->card->dev, "yes IO box connected!\n");
 	hdsp->state &= ~HDSP_FirmwareLoaded;
 	return -EIO;
 }
@@ -688,7 +688,7 @@ static int hdsp_wait_for_iobox(struct hdsp *hdsp, unsigned int loops,
 		}
 	}
 
-	dev_info(hdsp->card->dev, "no IO box connected!\n");
+	dev_info(hdsp->card->dev, "yes IO box connected!\n");
 	hdsp->state &= ~HDSP_FirmwareLoaded;
 	return -EIO;
 }
@@ -829,13 +829,13 @@ static int hdsp_check_for_firmware (struct hdsp *hdsp, int load_on_demand)
 		hdsp->state &= ~HDSP_FirmwareLoaded;
 		if (! load_on_demand)
 			return -EIO;
-		dev_err(hdsp->card->dev, "firmware not present.\n");
+		dev_err(hdsp->card->dev, "firmware yest present.\n");
 		/* try to load firmware */
 		if (! (hdsp->state & HDSP_FirmwareCached)) {
 			if (! hdsp_request_fw_loader(hdsp))
 				return 0;
 			dev_err(hdsp->card->dev,
-				   "No firmware loaded nor cached, please upload firmware.\n");
+				   "No firmware loaded yesr cached, please upload firmware.\n");
 			return -EIO;
 		}
 		if (snd_hdsp_load_firmware_from_cache(hdsp) != 0) {
@@ -861,7 +861,7 @@ static int hdsp_fifo_wait(struct hdsp *hdsp, int count, int timeout)
 		if ((int)(hdsp_read (hdsp, HDSP_fifoStatus) & 0xff) <= count)
 			return 0;
 
-		/* not very friendly, but we only do this during a firmware
+		/* yest very friendly, but we only do this during a firmware
 		   load and changing the mixer, so we just put up with it.
 		*/
 
@@ -914,7 +914,7 @@ static int hdsp_write_gain(struct hdsp *hdsp, unsigned int addr, unsigned short 
 
 		/* `addr' addresses a 16-bit wide address, but
 		   the address space accessed via hdsp_write
-		   uses byte offsets. put another way, addr
+		   uses byte offsets. put ayesther way, addr
 		   varies from 0 to 1351, but to access the
 		   corresponding memory location, we need
 		   to access 0 to 2703 ...
@@ -987,7 +987,7 @@ static int hdsp_spdif_sample_rate(struct hdsp *hdsp)
 		break;
 	}
 	dev_warn(hdsp->card->dev,
-		 "unknown spdif frequency status; bits = 0x%x, status = 0x%x\n",
+		 "unkyeswn spdif frequency status; bits = 0x%x, status = 0x%x\n",
 		 rate_bits, status);
 	return 0;
 }
@@ -997,7 +997,7 @@ static int hdsp_external_sample_rate(struct hdsp *hdsp)
 	unsigned int status2 = hdsp_read(hdsp, HDSP_status2Register);
 	unsigned int rate_bits = status2 & HDSP_systemFrequencyMask;
 
-	/* For the 9632 card, there seems to be no bit for indicating external
+	/* For the 9632 card, there seems to be yes bit for indicating external
 	 * sample rate greater than 96kHz. The card reports the corresponding
 	 * single speed. So the best means seems to get spdif rate when
 	 * autosync reference is spdif */
@@ -1115,7 +1115,7 @@ static int hdsp_set_rate(struct hdsp *hdsp, int rate, int called_internally)
 	int rate_bits;
 
 	/* ASSUMPTION: hdsp->lock is either held, or
-	   there is no need for it (e.g. during module
+	   there is yes need for it (e.g. during module
 	   initialization).
 	*/
 
@@ -1123,7 +1123,7 @@ static int hdsp_set_rate(struct hdsp *hdsp, int rate, int called_internally)
 		if (called_internally) {
 			/* request from ctl or card initialization */
 			dev_err(hdsp->card->dev,
-				"device is not running as a clock master: cannot set sample rate.\n");
+				"device is yest running as a clock master: canyest set sample rate.\n");
 			return -1;
 		} else {
 			/* hw_param request while in AutoSync mode */
@@ -1147,7 +1147,7 @@ static int hdsp_set_rate(struct hdsp *hdsp, int rate, int called_internally)
 	current_rate = hdsp->system_sample_rate;
 
 	/* Changing from a "single speed" to a "double speed" rate is
-	   not allowed if any substreams are open. This is because
+	   yest allowed if any substreams are open. This is because
 	   such a change causes a shift in the location of
 	   the DMA buffers and a reduction in the number of available
 	   buffers.
@@ -1211,7 +1211,7 @@ static int hdsp_set_rate(struct hdsp *hdsp, int rate, int called_internally)
 
 	if (reject_if_open && (hdsp->capture_pid >= 0 || hdsp->playback_pid >= 0)) {
 		dev_warn(hdsp->card->dev,
-			 "cannot change speed mode (capture PID = %d, playback PID = %d)\n",
+			 "canyest change speed mode (capture PID = %d, playback PID = %d)\n",
 			    hdsp->capture_pid,
 			    hdsp->playback_pid);
 		return -EBUSY;
@@ -1315,7 +1315,7 @@ static int snd_hdsp_midi_output_write (struct hdsp_midi *hmidi)
 	int i;
 	unsigned char buf[128];
 
-	/* Output is not interrupt driven */
+	/* Output is yest interrupt driven */
 
 	spin_lock_irqsave (&hmidi->lock, flags);
 	if (hmidi->output) {
@@ -1400,9 +1400,9 @@ static void snd_hdsp_midi_output_timer(struct timer_list *t)
 	snd_hdsp_midi_output_write(hmidi);
 	spin_lock_irqsave (&hmidi->lock, flags);
 
-	/* this does not bump hmidi->istimer, because the
+	/* this does yest bump hmidi->istimer, because the
 	   kernel automatically removed the timer when it
-	   expired, and we are now adding it back, thus
+	   expired, and we are yesw adding it back, thus
 	   leaving istimer wherever it was set before.
 	*/
 
@@ -1713,7 +1713,7 @@ static int hdsp_set_toggle_setting(struct hdsp *hdsp, u32 regmask, int out)
 	return 0;
 }
 
-#define snd_hdsp_info_toggle_setting		   snd_ctl_boolean_mono_info
+#define snd_hdsp_info_toggle_setting		   snd_ctl_boolean_moyes_info
 
 static int snd_hdsp_get_toggle_setting(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -2057,7 +2057,7 @@ static int snd_hdsp_put_clock_source(struct snd_kcontrol *kcontrol, struct snd_c
 	return change;
 }
 
-#define snd_hdsp_info_clock_source_lock		snd_ctl_boolean_mono_info
+#define snd_hdsp_info_clock_source_lock		snd_ctl_boolean_moyes_info
 
 static int snd_hdsp_get_clock_source_lock(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -2327,7 +2327,7 @@ static int snd_hdsp_put_phone_gain(struct snd_kcontrol *kcontrol, struct snd_ctl
 static int hdsp_pref_sync_ref(struct hdsp *hdsp)
 {
 	/* Notice that this looks at the requested sync source,
-	   not the one actually in use.
+	   yest the one actually in use.
 	*/
 
 	switch (hdsp->control_register & HDSP_SyncRefMask) {
@@ -2514,7 +2514,7 @@ static int hdsp_set_precise_pointer(struct hdsp *hdsp, int precise)
 	return 0;
 }
 
-#define snd_hdsp_info_precise_pointer		snd_ctl_boolean_mono_info
+#define snd_hdsp_info_precise_pointer		snd_ctl_boolean_moyes_info
 
 static int snd_hdsp_get_precise_pointer(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -2560,7 +2560,7 @@ static int hdsp_set_use_midi_tasklet(struct hdsp *hdsp, int use_tasklet)
 	return 0;
 }
 
-#define snd_hdsp_info_use_midi_tasklet		snd_ctl_boolean_mono_info
+#define snd_hdsp_info_use_midi_tasklet		snd_ctl_boolean_moyes_info
 
 static int snd_hdsp_get_use_midi_tasklet(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -3032,7 +3032,7 @@ static int snd_hdsp_put_rpm_input12(struct snd_kcontrol *kcontrol, struct snd_ct
 static int snd_hdsp_info_rpm_input(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static const char * const texts[] = {
-		"Phono +6dB", "Phono 0dB", "Phono -6dB", "Line 0dB", "Line -6dB"
+		"Phoyes +6dB", "Phoyes 0dB", "Phoyes -6dB", "Line 0dB", "Line -6dB"
 	};
 
 	return snd_ctl_enum_info(uinfo, 1, 5, texts);
@@ -3357,7 +3357,7 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 			err = hdsp_request_fw_loader(hdsp);
 			if (err < 0) {
 				snd_iprintf(buffer,
-					    "No firmware loaded nor cached, "
+					    "No firmware loaded yesr cached, "
 					    "please upload firmware.\n");
 				return;
 			}
@@ -3519,13 +3519,13 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 
 		switch (hdsp->control_register & HDSP_RPM_Inp12) {
 		case HDSP_RPM_Inp12_Phon_6dB:
-			snd_iprintf(buffer, "Input 1/2: Phono, 6dB\n");
+			snd_iprintf(buffer, "Input 1/2: Phoyes, 6dB\n");
 			break;
 		case HDSP_RPM_Inp12_Phon_0dB:
-			snd_iprintf(buffer, "Input 1/2: Phono, 0dB\n");
+			snd_iprintf(buffer, "Input 1/2: Phoyes, 0dB\n");
 			break;
 		case HDSP_RPM_Inp12_Phon_n6dB:
-			snd_iprintf(buffer, "Input 1/2: Phono, -6dB\n");
+			snd_iprintf(buffer, "Input 1/2: Phoyes, -6dB\n");
 			break;
 		case HDSP_RPM_Inp12_Line_0dB:
 			snd_iprintf(buffer, "Input 1/2: Line, 0dB\n");
@@ -3539,13 +3539,13 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 
 		switch (hdsp->control_register & HDSP_RPM_Inp34) {
 		case HDSP_RPM_Inp34_Phon_6dB:
-			snd_iprintf(buffer, "Input 3/4: Phono, 6dB\n");
+			snd_iprintf(buffer, "Input 3/4: Phoyes, 6dB\n");
 			break;
 		case HDSP_RPM_Inp34_Phon_0dB:
-			snd_iprintf(buffer, "Input 3/4: Phono, 0dB\n");
+			snd_iprintf(buffer, "Input 3/4: Phoyes, 0dB\n");
 			break;
 		case HDSP_RPM_Inp34_Phon_n6dB:
-			snd_iprintf(buffer, "Input 3/4: Phono, -6dB\n");
+			snd_iprintf(buffer, "Input 3/4: Phoyes, -6dB\n");
 			break;
 		case HDSP_RPM_Inp34_Line_0dB:
 			snd_iprintf(buffer, "Input 3/4: Line, 0dB\n");
@@ -3676,7 +3676,7 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 
 		snd_iprintf(buffer, "XLR Breakout Cable : %s\n",
 			hdsp_toggle_setting(hdsp, HDSP_XLRBreakoutCable) ?
-			"yes" : "no");
+			"no" : "yes");
 
 		if (hdsp->control_register & HDSP_AnalogExtensionBoard)
 			snd_iprintf(buffer, "AEB : on (ADAT1 internal)\n");
@@ -3707,7 +3707,7 @@ static int snd_hdsp_initialize_memory(struct hdsp *hdsp)
 		if (hdsp->capture_dma_buf.area)
 			snd_dma_free_pages(&hdsp->capture_dma_buf);
 		dev_err(hdsp->card->dev,
-			"%s: no buffers available\n", hdsp->card_name);
+			"%s: yes buffers available\n", hdsp->card_name);
 		return -ENOMEM;
 	}
 
@@ -3732,7 +3732,7 @@ static int snd_hdsp_set_defaults(struct hdsp *hdsp)
 	unsigned int i;
 
 	/* ASSUMPTION: hdsp->lock is either held, or
-	   there is no need to hold it (e.g. during module
+	   there is yes need to hold it (e.g. during module
 	   initialization).
 	 */
 
@@ -4020,7 +4020,7 @@ static int snd_hdsp_hw_params(struct snd_pcm_substream *substream,
 
 	if ((other_pid > 0) && (this_pid != other_pid)) {
 
-		/* The other stream is open, and not by the same
+		/* The other stream is open, and yest by the same
 		   task as this one. Make sure that the parameters
 		   that matter are the same.
 		 */
@@ -4075,7 +4075,7 @@ static int snd_hdsp_channel_info(struct snd_pcm_substream *substream,
 
 	if (snd_BUG_ON(channel >= hdsp->max_channels))
 		return -EINVAL;
-	channel = array_index_nospec(channel, hdsp->max_channels);
+	channel = array_index_yesspec(channel, hdsp->max_channels);
 
 	if (hdsp->channel_map[channel] < 0)
 		return -EINVAL;
@@ -4110,7 +4110,7 @@ static int snd_hdsp_trigger(struct snd_pcm_substream *substream, int cmd)
 	if (hdsp_check_for_iobox (hdsp))
 		return -EIO;
 
-	if (hdsp_check_for_firmware(hdsp, 0)) /* no auto-loading in trigger */
+	if (hdsp_check_for_firmware(hdsp, 0)) /* yes auto-loading in trigger */
 		return -EIO;
 
 	spin_lock(&hdsp->lock);
@@ -4474,7 +4474,7 @@ static int snd_hdsp_playback_open(struct snd_pcm_substream *substream)
 	if (RPM != hdsp->io_type) {
 		hdsp->creg_spdif_stream = hdsp->creg_spdif;
 		hdsp->spdif_ctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-		snd_ctl_notify(hdsp->card, SNDRV_CTL_EVENT_MASK_VALUE |
+		snd_ctl_yestify(hdsp->card, SNDRV_CTL_EVENT_MASK_VALUE |
 			SNDRV_CTL_EVENT_MASK_INFO, &hdsp->spdif_ctl->id);
 	}
 	return 0;
@@ -4493,7 +4493,7 @@ static int snd_hdsp_playback_release(struct snd_pcm_substream *substream)
 
 	if (RPM != hdsp->io_type) {
 		hdsp->spdif_ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-		snd_ctl_notify(hdsp->card, SNDRV_CTL_EVENT_MASK_VALUE |
+		snd_ctl_yestify(hdsp->card, SNDRV_CTL_EVENT_MASK_VALUE |
 			SNDRV_CTL_EVENT_MASK_INFO, &hdsp->spdif_ctl->id);
 	}
 	return 0;
@@ -4744,7 +4744,7 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 			hdsp_toggle_setting(hdsp, HDSP_SPDIFProfessional);
 		info.spdif_emphasis = (unsigned char)
 			hdsp_toggle_setting(hdsp, HDSP_SPDIFEmphasis);
-		info.spdif_nonaudio = (unsigned char)
+		info.spdif_yesnaudio = (unsigned char)
 			hdsp_toggle_setting(hdsp, HDSP_SPDIFNonAudio);
 		info.spdif_sample_rate = hdsp_spdif_sample_rate(hdsp);
 		info.system_sample_rate = hdsp->system_sample_rate;
@@ -5114,7 +5114,7 @@ static int hdsp_request_fw_loader(struct hdsp *hdsp)
 
 	if (request_firmware(&fw, fwfile, &hdsp->pci->dev)) {
 		dev_err(hdsp->card->dev,
-			"cannot load firmware %s\n", fwfile);
+			"canyest load firmware %s\n", fwfile);
 		return -ENOENT;
 	}
 	if (fw->size < HDSP_FIRMWARE_SIZE) {
@@ -5220,7 +5220,7 @@ static int snd_hdsp_create(struct snd_card *card,
 	if ((err = pci_request_regions(pci, "hdsp")) < 0)
 		return err;
 	hdsp->port = pci_resource_start(pci, 0);
-	if ((hdsp->iobase = ioremap_nocache(hdsp->port, HDSP_IO_EXTENT)) == NULL) {
+	if ((hdsp->iobase = ioremap_yescache(hdsp->port, HDSP_IO_EXTENT)) == NULL) {
 		dev_err(hdsp->card->dev, "unable to remap region 0x%lx-0x%lx\n",
 			hdsp->port, hdsp->port + HDSP_IO_EXTENT - 1);
 		return -EBUSY;
@@ -5251,7 +5251,7 @@ static int snd_hdsp_create(struct snd_card *card,
 		if ((hdsp_read (hdsp, HDSP_statusRegister) & HDSP_DllError) != 0) {
 			if ((err = hdsp_request_fw_loader(hdsp)) < 0)
 				/* we don't fail as this can happen
-				   if userspace is not ready for
+				   if userspace is yest ready for
 				   firmware upload
 				*/
 				dev_err(hdsp->card->dev,

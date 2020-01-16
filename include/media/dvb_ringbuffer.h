@@ -230,11 +230,11 @@ extern ssize_t dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8 *buf,
  *
  * Return: Number of bytes read, or -EFAULT.
  *
- * .. note::
+ * .. yeste::
  *
  *    unlike dvb_ringbuffer_read(), this does **NOT** update the read pointer
  *    in the ringbuffer. You must use dvb_ringbuffer_pkt_dispose() to mark a
- *    packet as no longer required.
+ *    packet as yes longer required.
  */
 extern ssize_t dvb_ringbuffer_pkt_read_user(struct dvb_ringbuffer *rbuf,
 					    size_t idx,
@@ -272,7 +272,7 @@ extern void dvb_ringbuffer_pkt_dispose(struct dvb_ringbuffer *rbuf, size_t idx);
  * @idx: Previous packet index, or -1 to return the first packet index.
  * @pktlen: On success, will be updated to contain the length of the packet
  *          in bytes.
- * returns Packet index (if >=0), or -1 if no packets available.
+ * returns Packet index (if >=0), or -1 if yes packets available.
  */
 extern ssize_t dvb_ringbuffer_pkt_next(struct dvb_ringbuffer *rbuf,
 				       size_t idx, size_t *pktlen);

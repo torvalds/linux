@@ -16,11 +16,11 @@ struct linux_romvec *romvec;
 enum prom_major_version prom_vers;
 unsigned int prom_rev, prom_prev;
 
-/* The root node of the prom device tree. */
-int prom_root_node;
+/* The root yesde of the prom device tree. */
+int prom_root_yesde;
 
 /* Pointer to the device tree operations structure. */
-struct linux_nodeops *prom_nodeops;
+struct linux_yesdeops *prom_yesdeops;
 
 /* You must call prom_init() before you attempt to use any of the
  * routines in the prom library.

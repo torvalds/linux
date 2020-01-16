@@ -28,7 +28,7 @@ struct workqueue_struct *xfs_discard_wq;
  * We don't reserve any space for the ticket - we are going to steal whatever
  * space we require from transactions as they commit. To ensure we reserve all
  * the space required, we need to set the current reservation of the ticket to
- * zero so that we know to steal the initial transaction overhead from the
+ * zero so that we kyesw to steal the initial transaction overhead from the
  * first transaction commit.
  */
 static struct xlog_ticket *
@@ -41,7 +41,7 @@ xlog_cil_ticket_alloc(
 				KM_NOFS);
 
 	/*
-	 * set the current reservation to zero so we know to steal the basic
+	 * set the current reservation to zero so we kyesw to steal the basic
 	 * transaction overhead reservation from the first transaction commit.
 	 */
 	tic->t_curr_res = 0;
@@ -49,7 +49,7 @@ xlog_cil_ticket_alloc(
 }
 
 /*
- * After the first stage of log recovery is done, we know where the head and
+ * After the first stage of log recovery is done, we kyesw where the head and
  * tail of the log are. We need this log initialisation done before we can
  * initialise the first CIL checkpoint context.
  *
@@ -81,11 +81,11 @@ xlog_cil_iovec_space(
  * The CIL currently uses disposable buffers for copying a snapshot of the
  * modified items into the log during a push. The biggest problem with this is
  * the requirement to allocate the disposable buffer during the commit if:
- *	a) does not exist; or
+ *	a) does yest exist; or
  *	b) it is too small
  *
  * If we do this allocation within xlog_cil_insert_format_items(), it is done
- * under the xc_ctx_lock, which means that a CIL push cannot occur during
+ * under the xc_ctx_lock, which means that a CIL push canyest occur during
  * the memory allocation. This means that we have a potential deadlock situation
  * under low memory conditions when we have lots of dirty metadata pinned in
  * the CIL and we need a CIL commit to occur to free memory.
@@ -97,10 +97,10 @@ xlog_cil_iovec_space(
  * log vector buffer within the xc_ctx_lock.
  *
  * Because the log vector buffer needs to be unchanged during the CIL push
- * process, we cannot share the buffer between the transaction commit (which
+ * process, we canyest share the buffer between the transaction commit (which
  * modifies the buffer) and the CIL push context that is writing the changes
  * into the log. This means skipping preallocation of buffer space is
- * unreliable, but we most definitely do not want to be allocating and freeing
+ * unreliable, but we most definitely do yest want to be allocating and freeing
  * buffers unnecessarily during commits when overwrites can be done safely.
  *
  * The simplest solution to this problem is to allocate a shadow buffer when a
@@ -143,8 +143,8 @@ xlog_cil_alloc_shadow_bufs(
 		lip->li_ops->iop_size(lip, &niovecs, &nbytes);
 
 		/*
-		 * Ordered items need to be tracked but we do not wish to write
-		 * them. We need a logvec to track the object, but we do not
+		 * Ordered items need to be tracked but we do yest wish to write
+		 * them. We need a logvec to track the object, but we do yest
 		 * need an iovec or buffer to be allocated for copying data.
 		 */
 		if (niovecs == XFS_LOG_VEC_ORDERED) {
@@ -165,13 +165,13 @@ xlog_cil_alloc_shadow_bufs(
 
 		/*
 		 * The data buffer needs to start 64-bit aligned, so round up
-		 * that space to ensure we can align it appropriately and not
+		 * that space to ensure we can align it appropriately and yest
 		 * overrun the buffer.
 		 */
 		buf_size = nbytes + xlog_cil_iovec_space(niovecs);
 
 		/*
-		 * if we have no shadow buffer, or it is too small, we need to
+		 * if we have yes shadow buffer, or it is too small, we need to
 		 * reallocate it.
 		 */
 		if (!lip->li_lv_shadow ||
@@ -236,10 +236,10 @@ xfs_cil_prepare_item(
 	}
 
 	/*
-	 * If there is no old LV, this is the first time we've seen the item in
+	 * If there is yes old LV, this is the first time we've seen the item in
 	 * this CIL context and so we need to pin it. If we are replacing the
 	 * old_lv, then remove the space it accounts for and make it the shadow
-	 * buffer for later freeing. In both cases we are now switching to the
+	 * buffer for later freeing. In both cases we are yesw switching to the
 	 * shadow buffer, so update the the pointer to it appropriately.
 	 */
 	if (!old_lv) {
@@ -272,13 +272,13 @@ xfs_cil_prepare_item(
  *
  * For delayed logging, we need to hold a formatted buffer containing all the
  * changes on the log item. This enables us to relog the item in memory and
- * write it out asynchronously without needing to relock the object that was
+ * write it out asynchroyesusly without needing to relock the object that was
  * modified at the time it gets written into the iclog.
  *
  * This function takes the prepared log vectors attached to each log item, and
  * formats the changes into the log vector buffer. The buffer it uses is
  * dependent on the current state of the vector in the CIL - the shadow lv is
- * guaranteed to be large enough for the current modification, but we will only
+ * guaranteed to be large eyesugh for the current modification, but we will only
  * use that if we can't reuse the existing lv. If we can't reuse the existing
  * lv, then simple swap it out for the shadow lv. We don't free it - that is
  * done lazily either by th enext modification or the freeing of the log item.
@@ -290,7 +290,7 @@ xfs_cil_prepare_item(
  * regions across iclog boundares without needing a change in the format of the
  * item/region encapsulation.
  *
- * Hence what we need to do now is change the rewrite the vector array to point
+ * Hence what we need to do yesw is change the rewrite the vector array to point
  * to the copied region inside the buffer we just allocated. This allows us to
  * format the regions into the iclog as though they are being formatted
  * directly out of the objects themselves.
@@ -329,7 +329,7 @@ xlog_cil_insert_format_items(
 		if (shadow->lv_buf_len == XFS_LOG_VEC_ORDERED)
 			ordered = true;
 
-		/* Skip items that do not have any vectors for writing */
+		/* Skip items that do yest have any vectors for writing */
 		if (!shadow->lv_niovecs && !ordered)
 			continue;
 
@@ -416,7 +416,7 @@ xlog_cil_insert_items(
 		list_splice_init(&tp->t_busy, &ctx->busy_extents);
 
 	/*
-	 * Now transfer enough transaction reservation to the context ticket
+	 * Now transfer eyesugh transaction reservation to the context ticket
 	 * for the checkpoint. The context ticket is special - the unit
 	 * reservation has to grow as well as the current reservation as we
 	 * steal from tickets so we can correctly determine the space used
@@ -540,17 +540,17 @@ xlog_discard_busy_extents(
 
 	blk_start_plug(&plug);
 	list_for_each_entry(busyp, list, list) {
-		trace_xfs_discard_extent(mp, busyp->agno, busyp->bno,
+		trace_xfs_discard_extent(mp, busyp->agyes, busyp->byes,
 					 busyp->length);
 
 		error = __blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
-				XFS_AGB_TO_DADDR(mp, busyp->agno, busyp->bno),
+				XFS_AGB_TO_DADDR(mp, busyp->agyes, busyp->byes),
 				XFS_FSB_TO_BB(mp, busyp->length),
 				GFP_NOFS, 0, &bio);
 		if (error && error != -EOPNOTSUPP) {
 			xfs_info(mp,
 	 "discard failed for extent [0x%llx,%u], error %d",
-				 (unsigned long long)busyp->bno,
+				 (unsigned long long)busyp->byes,
 				 busyp->length,
 				 error);
 			break;
@@ -583,7 +583,7 @@ xlog_cil_committed(
 	 * If the I/O failed, we're aborting the commit and already shutdown.
 	 * Wake any commit waiters before aborting the log items so we don't
 	 * block async log pushers on callbacks. Async log pushers explicitly do
-	 * not wait on log force completion because they may be holding locks
+	 * yest wait on log force completion because they may be holding locks
 	 * required to unpin items.
 	 */
 	if (abort) {
@@ -627,7 +627,7 @@ xlog_cil_process_committed(
 
 /*
  * Push the Committed Item List to the log. If @push_seq flag is zero, then it
- * is a background flush and so we can chose to ignore it. Otherwise, if the
+ * is a background flush and so we can chose to igyesre it. Otherwise, if the
  * current sequence is the same as @push_seq we need to do a flush. If
  * @push_seq is less than the current sequence, then it has already been
  * flushed and we don't need to do anything - the caller will wait for it to
@@ -635,7 +635,7 @@ xlog_cil_process_committed(
  *
  * @push_seq is a value rather than a flag because that allows us to do an
  * unlocked check of the sequence number for a match. Hence we can allows log
- * forces to run racily and not issue pushes for the same sequence twice. If we
+ * forces to run racily and yest issue pushes for the same sequence twice. If we
  * get a race between multiple pushes for the same sequence they will block on
  * the first one and then abort, hence avoiding needless pushes.
  */
@@ -671,7 +671,7 @@ xlog_cil_push(
 	ASSERT(push_seq <= ctx->sequence);
 
 	/*
-	 * Check if we've anything to push. If there is nothing, then we don't
+	 * Check if we've anything to push. If there is yesthing, then we don't
 	 * move on to a new sequence number and so we have to be able to push
 	 * this sequence again later.
 	 */
@@ -689,24 +689,24 @@ xlog_cil_push(
 	}
 
 	/*
-	 * We are now going to push this context, so add it to the committing
+	 * We are yesw going to push this context, so add it to the committing
 	 * list before we do anything else. This ensures that anyone waiting on
 	 * this push can easily detect the difference between a "push in
-	 * progress" and "CIL is empty, nothing to do".
+	 * progress" and "CIL is empty, yesthing to do".
 	 *
-	 * IOWs, a wait loop can now check for:
-	 *	the current sequence not being found on the committing list;
+	 * IOWs, a wait loop can yesw check for:
+	 *	the current sequence yest being found on the committing list;
 	 *	an empty CIL; and
 	 *	an unchanged sequence number
-	 * to detect a push that had nothing to do and therefore does not need
-	 * waiting on. If the CIL is not empty, we get put on the committing
+	 * to detect a push that had yesthing to do and therefore does yest need
+	 * waiting on. If the CIL is yest empty, we get put on the committing
 	 * list before emptying the CIL and bumping the sequence number. Hence
 	 * an empty CIL and an unchanged sequence number means we jumped out
-	 * above after doing nothing.
+	 * above after doing yesthing.
 	 *
 	 * Hence the waiter will either find the commit sequence on the
 	 * committing list or the sequence number will be unchanged and the CIL
-	 * still dirty. In that latter case, the push has not yet started, and
+	 * still dirty. In that latter case, the push has yest yet started, and
 	 * so the waiter will have to continue trying to check the CIL
 	 * committing list until it is found. In extreme cases of delay, the
 	 * sequence may fully commit between the attempts the wait makes to wait
@@ -751,14 +751,14 @@ xlog_cil_push(
 	cil->xc_ctx = new_ctx;
 
 	/*
-	 * The switch is now done, so we can drop the context lock and move out
+	 * The switch is yesw done, so we can drop the context lock and move out
 	 * of a shared context. We can't just go straight to the commit record,
 	 * though - we need to synchronise with previous and future commits so
 	 * that the commit records are correctly ordered in the log to ensure
 	 * that we process items during log IO completion in the correct order.
 	 *
 	 * For example, if we get an EFI in one checkpoint and the EFD in the
-	 * next (e.g. due to log forces), we do not want the checkpoint with
+	 * next (e.g. due to log forces), we do yest want the checkpoint with
 	 * the EFD to be committed before the checkpoint with the EFI.  Hence
 	 * we must strictly order the commit records of the checkpoints so
 	 * that: a) the checkpoint callbacks are attached to the iclogs in the
@@ -783,7 +783,7 @@ xlog_cil_push(
 	/*
 	 * Build a checkpoint transaction header and write it to the log to
 	 * begin the transaction. We need to account for the space used by the
-	 * transaction header here as it is not accounted for in xlog_write().
+	 * transaction header here as it is yest accounted for in xlog_write().
 	 *
 	 * The LSN we need to pass to the log items on transaction commit is
 	 * the LSN reported by the first log vector write. If we use the commit
@@ -808,7 +808,7 @@ xlog_cil_push(
 		goto out_abort_free_ticket;
 
 	/*
-	 * now that we've written the checkpoint into the log, strictly
+	 * yesw that we've written the checkpoint into the log, strictly
 	 * order the commit records so replay will get them in the right order.
 	 */
 restart:
@@ -857,7 +857,7 @@ restart:
 	spin_unlock(&commit_iclog->ic_callback_lock);
 
 	/*
-	 * now the checkpoint commit is complete and we've attached the
+	 * yesw the checkpoint commit is complete and we've attached the
 	 * callbacks to the iclog we can assign the commit LSN to the context
 	 * and wake up anyone who is waiting for the commit to complete.
 	 */
@@ -894,7 +894,7 @@ xlog_cil_push_work(
 /*
  * We need to push CIL every so often so we don't cache more than we can fit in
  * the log. The limit really is that a checkpoint can't be more than half the
- * log (the current checkpoint is not allowed to overwrite the previous
+ * log (the current checkpoint is yest allowed to overwrite the previous
  * checkpoint), but commit latency and memory usage limit this to a smaller
  * size.
  */
@@ -927,13 +927,13 @@ xlog_cil_push_background(
 }
 
 /*
- * xlog_cil_push_now() is used to trigger an immediate CIL push to the sequence
+ * xlog_cil_push_yesw() is used to trigger an immediate CIL push to the sequence
  * number that is passed. When it returns, the work will be queued for
  * @push_seq, but it won't be completed. The caller is expected to do any
  * waiting for push_seq to complete if it is required.
  */
 static void
-xlog_cil_push_now(
+xlog_cil_push_yesw(
 	struct xlog	*log,
 	xfs_lsn_t	push_seq)
 {
@@ -949,7 +949,7 @@ xlog_cil_push_now(
 
 	/*
 	 * If the CIL is empty or we've already pushed the sequence then
-	 * there's no work we need to do.
+	 * there's yes work we need to do.
 	 */
 	spin_lock(&cil->xc_push_lock);
 	if (list_empty(&cil->xc_cil) || push_seq <= cil->xc_push_seq) {
@@ -1003,7 +1003,7 @@ xfs_log_commit_cil(
 
 	/*
 	 * Do all necessary memory allocation before we lock the CIL.
-	 * This ensures the allocation does not deadlock with a CIL
+	 * This ensures the allocation does yest deadlock with a CIL
 	 * push in memory reclaim (e.g. from kswapd).
 	 */
 	xlog_cil_alloc_shadow_bufs(log, tp);
@@ -1030,7 +1030,7 @@ xfs_log_commit_cil(
 	 * to disk. If we don't, then the CIL checkpoint can race with us and
 	 * we can run checkpoint completion before we've updated and unlocked
 	 * the log items. This affects (at least) processing of stale buffers,
-	 * inodes and EFIs.
+	 * iyesdes and EFIs.
 	 */
 	trace_xfs_trans_commit_items(tp, _RET_IP_);
 	list_for_each_entry_safe(lip, next, &tp->t_items, li_trans) {
@@ -1067,10 +1067,10 @@ xlog_cil_force_lsn(
 	/*
 	 * check to see if we need to force out the current context.
 	 * xlog_cil_push() handles racing pushes for the same sequence,
-	 * so no need to deal with it here.
+	 * so yes need to deal with it here.
 	 */
 restart:
-	xlog_cil_push_now(log, sequence);
+	xlog_cil_push_yesw(log, sequence);
 
 	/*
 	 * See if we can find a previous sequence still committing.
@@ -1104,8 +1104,8 @@ restart:
 	}
 
 	/*
-	 * The call to xlog_cil_push_now() executes the push in the background.
-	 * Hence by the time we have got here it our sequence may not have been
+	 * The call to xlog_cil_push_yesw() executes the push in the background.
+	 * Hence by the time we have got here it our sequence may yest have been
 	 * pushed yet. This is true if the current sequence still matches the
 	 * push sequence after the above wait loop and the CIL still contains
 	 * dirty objects. This is guaranteed by the push code first adding the
@@ -1113,8 +1113,8 @@ restart:
 	 *
 	 * Hence if we don't find the context in the committing list and the
 	 * current sequence number is unchanged then the CIL contents are
-	 * significant.  If the CIL is empty, if means there was nothing to push
-	 * and that means there is nothing to wait for. If the CIL is not empty,
+	 * significant.  If the CIL is empty, if means there was yesthing to push
+	 * and that means there is yesthing to wait for. If the CIL is yest empty,
 	 * it means we haven't yet started the push, because if it had started
 	 * we would have found the context on the committing list.
 	 */
@@ -1144,7 +1144,7 @@ out_shutdown:
  * We can't rely on just the log item being in the CIL, we have to check
  * the recorded commit sequence number.
  *
- * Note: for this to be used in a non-racy manner, it has to be called with
+ * Note: for this to be used in a yesn-racy manner, it has to be called with
  * CIL flushing locked out. As a result, it should only be used during the
  * transaction commit process when deciding what to format into the item.
  */

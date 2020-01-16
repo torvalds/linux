@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _dvb_frontend:
 
@@ -30,7 +30,7 @@ The Digital TV frontend controls several sub-devices including:
 
 -  Digital TV demodulator
 
--  Low noise amplifier (LNA)
+-  Low yesise amplifier (LNA)
 
 -  Satellite Equipment Control (SEC) [#f1]_.
 
@@ -38,10 +38,10 @@ The frontend can be accessed through ``/dev/dvb/adapter?/frontend?``.
 Data types and ioctl definitions can be accessed by including
 ``linux/dvb/frontend.h`` in your application.
 
-.. note::
+.. yeste::
 
    Transmission via the internet (DVB-IP) and MMT (MPEG Media Transport)
-   is not yet handled by this API but a future extension is possible.
+   is yest yet handled by this API but a future extension is possible.
 
 .. [#f1]
 

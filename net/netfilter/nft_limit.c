@@ -27,16 +27,16 @@ struct nft_limit {
 
 static inline bool nft_limit_eval(struct nft_limit *limit, u64 cost)
 {
-	u64 now, tokens;
+	u64 yesw, tokens;
 	s64 delta;
 
 	spin_lock_bh(&limit->lock);
-	now = ktime_get_ns();
-	tokens = limit->tokens + now - limit->last;
+	yesw = ktime_get_ns();
+	tokens = limit->tokens + yesw - limit->last;
 	if (tokens > limit->tokens_max)
 		tokens = limit->tokens_max;
 
-	limit->last = now;
+	limit->last = yesw;
 	delta = tokens - cost;
 	if (delta >= 0) {
 		limit->tokens = delta;

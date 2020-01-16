@@ -10,12 +10,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -57,7 +57,7 @@ enum {
 	/**
 	 * Version of the interface (unsigned decimal, MMm, max 25.5)
 	 * M - Major: change if removing or modifying an existing call.
-	 * m - minor: change when adding a new call
+	 * m - miyesr: change when adding a new call
 	 */
 	WIMAX_GNL_VERSION = 01,
 	/* Generic NetLink attributes */
@@ -122,7 +122,7 @@ enum {
 /*
  * Attributes for the Report State Change
  *
- * For now we just have the old and new states; new attributes might
+ * For yesw we just have the old and new states; new attributes might
  * be added later on.
  */
 enum {
@@ -135,10 +135,10 @@ enum {
 /**
  * enum wimax_st - The different states of a WiMAX device
  * @__WIMAX_ST_NULL: The device structure has been allocated and zeroed,
- *     but still wimax_dev_add() hasn't been called. There is no state.
+ *     but still wimax_dev_add() hasn't been called. There is yes state.
  *
  * @WIMAX_ST_DOWN: The device has been registered with the WiMAX and
- *     networking stacks, but it is not initialized (normally that is
+ *     networking stacks, but it is yest initialized (yesrmally that is
  *     done with 'ifconfig DEV up' [or equivalent], which can upload
  *     firmware and enable communications with the device).
  *     In this state, the device is powered down and using as less
@@ -151,7 +151,7 @@ enum {
  *     calling 'ifconfig DEV up' and enters it back on 'ifconfig DEV
  *     down'.
  *
- * @__WIMAX_ST_QUIESCING: The device is being torn down, so no API
+ * @__WIMAX_ST_QUIESCING: The device is being torn down, so yes API
  *     operations are allowed to proceed except the ones needed to
  *     complete the device clean up process.
  *
@@ -168,13 +168,13 @@ enum {
  * @WIMAX_ST_READY: The device is fully up and radio is on.
  *
  * @WIMAX_ST_SCANNING: [optional] The device has been instructed to
- *     scan. In this state, the device cannot be actively connected to
+ *     scan. In this state, the device canyest be actively connected to
  *     a network.
  *
  * @WIMAX_ST_CONNECTING: The device is connecting to a network. This
  *     state exists because in some devices, the connect process can
  *     include a number of negotiations between user space, kernel
- *     space and the device. User space needs to know what the device
+ *     space and the device. User space needs to kyesw what the device
  *     is doing. If the connect sequence in a device is atomic and
  *     fast, the device can transition directly to CONNECTED
  *
@@ -185,13 +185,13 @@ enum {
  *
  * Description:
  *
- * Transitions from one state to another one are atomic and can only
+ * Transitions from one state to ayesther one are atomic and can only
  * be caused in kernel space with wimax_state_change(). To read the
  * state, use wimax_state_get().
  *
- * States starting with __ are internal and shall not be used or
+ * States starting with __ are internal and shall yest be used or
  * referred to by drivers or userspace. They look ugly, but that's the
- * point -- if any use is made non-internal to the stack, it is easier
+ * point -- if any use is made yesn-internal to the stack, it is easier
  * to catch on review.
  *
  * All API operations [with well defined exceptions] will take the
@@ -201,7 +201,7 @@ enum {
  * -%EINVAL, -%ENOMEDIUM, -%ENOTCONN or -%ESHUTDOWN.
  *
  * The order of the definitions is important, so we can do numerical
- * comparisons (eg: < %WIMAX_ST_RADIO_OFF means the device is not ready
+ * comparisons (eg: < %WIMAX_ST_RADIO_OFF means the device is yest ready
  * to operate).
  */
 /*
@@ -220,7 +220,7 @@ enum {
  * CONNECTING               x                x     x     x     -      x
  * CONNECTED                x                x     x                  -
  *
- * This table not available in kernel-doc because the formatting messes it up.
+ * This table yest available in kernel-doc because the formatting messes it up.
  */
  enum wimax_st {
 	__WIMAX_ST_NULL = 0,

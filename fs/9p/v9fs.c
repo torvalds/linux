@@ -11,7 +11,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/cred.h>
@@ -28,7 +28,7 @@
 
 static DEFINE_SPINLOCK(v9fs_sessionlist_lock);
 static LIST_HEAD(v9fs_sessionlist);
-struct kmem_cache *v9fs_inode_cache;
+struct kmem_cache *v9fs_iyesde_cache;
 
 /*
  * Option Parsing (code inspired by NFS code)
@@ -40,8 +40,8 @@ enum {
 	Opt_debug, Opt_dfltuid, Opt_dfltgid, Opt_afid,
 	/* String options */
 	Opt_uname, Opt_remotename, Opt_cache, Opt_cachetag,
-	/* Options that take no arguments */
-	Opt_nodevmap,
+	/* Options that take yes arguments */
+	Opt_yesdevmap,
 	/* Cache options */
 	Opt_cache_loose, Opt_fscache, Opt_mmap,
 	/* Access options */
@@ -59,7 +59,7 @@ static const match_table_t tokens = {
 	{Opt_afid, "afid=%u"},
 	{Opt_uname, "uname=%s"},
 	{Opt_remotename, "aname=%s"},
-	{Opt_nodevmap, "nodevmap"},
+	{Opt_yesdevmap, "yesdevmap"},
 	{Opt_cache, "cache=%s"},
 	{Opt_cache_loose, "loose"},
 	{Opt_fscache, "fscache"},
@@ -72,7 +72,7 @@ static const match_table_t tokens = {
 };
 
 static const char *const v9fs_cache_modes[nr__p9_cache_modes] = {
-	[CACHE_NONE]	= "none",
+	[CACHE_NONE]	= "yesne",
 	[CACHE_MMAP]	= "mmap",
 	[CACHE_LOOSE]	= "loose",
 	[CACHE_FSCACHE]	= "fscache",
@@ -92,11 +92,11 @@ static int get_cache_mode(char *s)
 	} else if (!strcmp(s, "mmap")) {
 		version = CACHE_MMAP;
 		p9_debug(P9_DEBUG_9P, "Cache mode: mmap\n");
-	} else if (!strcmp(s, "none")) {
+	} else if (!strcmp(s, "yesne")) {
 		version = CACHE_NONE;
-		p9_debug(P9_DEBUG_9P, "Cache mode: none\n");
+		p9_debug(P9_DEBUG_9P, "Cache mode: yesne\n");
 	} else
-		pr_info("Unknown Cache mode %s\n", s);
+		pr_info("Unkyeswn Cache mode %s\n", s);
 	return version;
 }
 
@@ -121,8 +121,8 @@ int v9fs_show_options(struct seq_file *m, struct dentry *root)
 		seq_printf(m, ",uname=%s", v9ses->uname);
 	if (strcmp(v9ses->aname, V9FS_DEFANAME) != 0)
 		seq_printf(m, ",aname=%s", v9ses->aname);
-	if (v9ses->nodev)
-		seq_puts(m, ",nodevmap");
+	if (v9ses->yesdev)
+		seq_puts(m, ",yesdevmap");
 	if (v9ses->cache)
 		seq_printf(m, ",%s", v9fs_cache_modes[v9ses->cache]);
 #ifdef CONFIG_9P_FSCACHE
@@ -197,7 +197,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but yes integer?\n");
 				ret = r;
 			} else {
 				v9ses->debug = option;
@@ -211,14 +211,14 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but yes integer?\n");
 				ret = r;
 				continue;
 			}
 			v9ses->dfltuid = make_kuid(current_user_ns(), option);
 			if (!uid_valid(v9ses->dfltuid)) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "uid field, but not a uid?\n");
+					 "uid field, but yest a uid?\n");
 				ret = -EINVAL;
 			}
 			break;
@@ -226,14 +226,14 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but yes integer?\n");
 				ret = r;
 				continue;
 			}
 			v9ses->dfltgid = make_kgid(current_user_ns(), option);
 			if (!gid_valid(v9ses->dfltgid)) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "gid field, but not a gid?\n");
+					 "gid field, but yest a gid?\n");
 				ret = -EINVAL;
 			}
 			break;
@@ -241,7 +241,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but yes integer?\n");
 				ret = r;
 			} else {
 				v9ses->afid = option;
@@ -263,8 +263,8 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 				goto free_and_return;
 			}
 			break;
-		case Opt_nodevmap:
-			v9ses->nodev = 1;
+		case Opt_yesdevmap:
+			v9ses->yesdev = 1;
 			break;
 		case Opt_cache_loose:
 			v9ses->cache = CACHE_LOOSE;
@@ -324,7 +324,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 				uid = simple_strtoul(s, &e, 10);
 				if (*e != '\0') {
 					ret = -EINVAL;
-					pr_info("Unknown access argument %s\n",
+					pr_info("Unkyeswn access argument %s\n",
 						s);
 					kfree(s);
 					continue;
@@ -332,7 +332,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 				v9ses->uid = make_kuid(current_user_ns(), uid);
 				if (!uid_valid(v9ses->uid)) {
 					ret = -EINVAL;
-					pr_info("Unknown uid %s\n", s);
+					pr_info("Unkyeswn uid %s\n", s);
 				}
 			}
 
@@ -344,7 +344,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			v9ses->flags |= V9FS_POSIX_ACL;
 #else
 			p9_debug(P9_DEBUG_ERROR,
-				 "Not defined CONFIG_9P_FS_POSIX_ACL. Ignoring posixacl option\n");
+				 "Not defined CONFIG_9P_FS_POSIX_ACL. Igyesring posixacl option\n");
 #endif
 			break;
 
@@ -352,7 +352,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but yes integer?\n");
 				ret = r;
 				continue;
 			}
@@ -456,7 +456,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 							v9ses->aname);
 	if (IS_ERR(fid)) {
 		rc = PTR_ERR(fid);
-		p9_debug(P9_DEBUG_ERROR, "cannot attach\n");
+		p9_debug(P9_DEBUG_ERROR, "canyest attach\n");
 		goto err_clnt;
 	}
 
@@ -618,64 +618,64 @@ static void v9fs_sysfs_cleanup(void)
 	kobject_put(v9fs_kobj);
 }
 
-static void v9fs_inode_init_once(void *foo)
+static void v9fs_iyesde_init_once(void *foo)
 {
-	struct v9fs_inode *v9inode = (struct v9fs_inode *)foo;
+	struct v9fs_iyesde *v9iyesde = (struct v9fs_iyesde *)foo;
 #ifdef CONFIG_9P_FSCACHE
-	v9inode->fscache = NULL;
+	v9iyesde->fscache = NULL;
 #endif
-	memset(&v9inode->qid, 0, sizeof(v9inode->qid));
-	inode_init_once(&v9inode->vfs_inode);
+	memset(&v9iyesde->qid, 0, sizeof(v9iyesde->qid));
+	iyesde_init_once(&v9iyesde->vfs_iyesde);
 }
 
 /**
- * v9fs_init_inode_cache - initialize a cache for 9P
+ * v9fs_init_iyesde_cache - initialize a cache for 9P
  * Returns 0 on success.
  */
-static int v9fs_init_inode_cache(void)
+static int v9fs_init_iyesde_cache(void)
 {
-	v9fs_inode_cache = kmem_cache_create("v9fs_inode_cache",
-					  sizeof(struct v9fs_inode),
+	v9fs_iyesde_cache = kmem_cache_create("v9fs_iyesde_cache",
+					  sizeof(struct v9fs_iyesde),
 					  0, (SLAB_RECLAIM_ACCOUNT|
 					      SLAB_MEM_SPREAD|SLAB_ACCOUNT),
-					  v9fs_inode_init_once);
-	if (!v9fs_inode_cache)
+					  v9fs_iyesde_init_once);
+	if (!v9fs_iyesde_cache)
 		return -ENOMEM;
 
 	return 0;
 }
 
 /**
- * v9fs_destroy_inode_cache - destroy the cache of 9P inode
+ * v9fs_destroy_iyesde_cache - destroy the cache of 9P iyesde
  *
  */
-static void v9fs_destroy_inode_cache(void)
+static void v9fs_destroy_iyesde_cache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(v9fs_inode_cache);
+	kmem_cache_destroy(v9fs_iyesde_cache);
 }
 
 static int v9fs_cache_register(void)
 {
 	int ret;
-	ret = v9fs_init_inode_cache();
+	ret = v9fs_init_iyesde_cache();
 	if (ret < 0)
 		return ret;
 #ifdef CONFIG_9P_FSCACHE
 	ret = fscache_register_netfs(&v9fs_cache_netfs);
 	if (ret < 0)
-		v9fs_destroy_inode_cache();
+		v9fs_destroy_iyesde_cache();
 #endif
 	return ret;
 }
 
 static void v9fs_cache_unregister(void)
 {
-	v9fs_destroy_inode_cache();
+	v9fs_destroy_iyesde_cache();
 #ifdef CONFIG_9P_FSCACHE
 	fscache_unregister_netfs(&v9fs_cache_netfs);
 #endif

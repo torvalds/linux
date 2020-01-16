@@ -15,17 +15,17 @@ extern __thread int preempt_disable_count;
 void preempt_disable(void);
 void preempt_enable(void);
 
-static inline void preempt_disable_notrace(void)
+static inline void preempt_disable_yestrace(void)
 {
 	preempt_disable();
 }
 
-static inline void preempt_enable_no_resched(void)
+static inline void preempt_enable_yes_resched(void)
 {
 	preempt_enable();
 }
 
-static inline void preempt_enable_notrace(void)
+static inline void preempt_enable_yestrace(void)
 {
 	preempt_enable();
 }

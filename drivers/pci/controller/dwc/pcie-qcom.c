@@ -5,7 +5,7 @@
  * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
  * Copyright 2015 Linaro Limited.
  *
- * Author: Stanimir Varbanov <svarbanov@mm-sol.com>
+ * Author: Stanimir Varbayesv <svarbayesv@mm-sol.com>
  */
 
 #include <linux/clk.h>
@@ -280,37 +280,37 @@ static int qcom_pcie_init_2_1_0(struct qcom_pcie *pcie)
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(res->supplies), res->supplies);
 	if (ret < 0) {
-		dev_err(dev, "cannot enable regulators\n");
+		dev_err(dev, "canyest enable regulators\n");
 		return ret;
 	}
 
 	ret = reset_control_assert(res->ahb_reset);
 	if (ret) {
-		dev_err(dev, "cannot assert ahb reset\n");
+		dev_err(dev, "canyest assert ahb reset\n");
 		goto err_assert_ahb;
 	}
 
 	ret = clk_prepare_enable(res->iface_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable iface clock\n");
+		dev_err(dev, "canyest prepare/enable iface clock\n");
 		goto err_assert_ahb;
 	}
 
 	ret = clk_prepare_enable(res->phy_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable phy clock\n");
+		dev_err(dev, "canyest prepare/enable phy clock\n");
 		goto err_clk_phy;
 	}
 
 	ret = clk_prepare_enable(res->core_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable core clock\n");
+		dev_err(dev, "canyest prepare/enable core clock\n");
 		goto err_clk_core;
 	}
 
 	ret = reset_control_deassert(res->ahb_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert ahb reset\n");
+		dev_err(dev, "canyest deassert ahb reset\n");
 		goto err_deassert_ahb;
 	}
 
@@ -326,25 +326,25 @@ static int qcom_pcie_init_2_1_0(struct qcom_pcie *pcie)
 
 	ret = reset_control_deassert(res->phy_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert phy reset\n");
+		dev_err(dev, "canyest deassert phy reset\n");
 		return ret;
 	}
 
 	ret = reset_control_deassert(res->pci_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert pci reset\n");
+		dev_err(dev, "canyest deassert pci reset\n");
 		return ret;
 	}
 
 	ret = reset_control_deassert(res->por_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert por reset\n");
+		dev_err(dev, "canyest deassert por reset\n");
 		return ret;
 	}
 
 	ret = reset_control_deassert(res->axi_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert axi reset\n");
+		dev_err(dev, "canyest deassert axi reset\n");
 		return ret;
 	}
 
@@ -423,37 +423,37 @@ static int qcom_pcie_init_1_0_0(struct qcom_pcie *pcie)
 
 	ret = reset_control_deassert(res->core);
 	if (ret) {
-		dev_err(dev, "cannot deassert core reset\n");
+		dev_err(dev, "canyest deassert core reset\n");
 		return ret;
 	}
 
 	ret = clk_prepare_enable(res->aux);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable aux clock\n");
+		dev_err(dev, "canyest prepare/enable aux clock\n");
 		goto err_res;
 	}
 
 	ret = clk_prepare_enable(res->iface);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable iface clock\n");
+		dev_err(dev, "canyest prepare/enable iface clock\n");
 		goto err_aux;
 	}
 
 	ret = clk_prepare_enable(res->master_bus);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable master_bus clock\n");
+		dev_err(dev, "canyest prepare/enable master_bus clock\n");
 		goto err_iface;
 	}
 
 	ret = clk_prepare_enable(res->slave_bus);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable slave_bus clock\n");
+		dev_err(dev, "canyest prepare/enable slave_bus clock\n");
 		goto err_master;
 	}
 
 	ret = regulator_enable(res->vdda);
 	if (ret) {
-		dev_err(dev, "cannot enable vdda regulator\n");
+		dev_err(dev, "canyest enable vdda regulator\n");
 		goto err_slave;
 	}
 
@@ -555,31 +555,31 @@ static int qcom_pcie_init_2_3_2(struct qcom_pcie *pcie)
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(res->supplies), res->supplies);
 	if (ret < 0) {
-		dev_err(dev, "cannot enable regulators\n");
+		dev_err(dev, "canyest enable regulators\n");
 		return ret;
 	}
 
 	ret = clk_prepare_enable(res->aux_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable aux clock\n");
+		dev_err(dev, "canyest prepare/enable aux clock\n");
 		goto err_aux_clk;
 	}
 
 	ret = clk_prepare_enable(res->cfg_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable cfg clock\n");
+		dev_err(dev, "canyest prepare/enable cfg clock\n");
 		goto err_cfg_clk;
 	}
 
 	ret = clk_prepare_enable(res->master_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable master clock\n");
+		dev_err(dev, "canyest prepare/enable master clock\n");
 		goto err_master_clk;
 	}
 
 	ret = clk_prepare_enable(res->slave_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable slave clock\n");
+		dev_err(dev, "canyest prepare/enable slave clock\n");
 		goto err_slave_clk;
 	}
 
@@ -628,7 +628,7 @@ static int qcom_pcie_post_init_2_3_2(struct qcom_pcie *pcie)
 
 	ret = clk_prepare_enable(res->pipe_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable pipe clock\n");
+		dev_err(dev, "canyest prepare/enable pipe clock\n");
 		return ret;
 	}
 
@@ -640,7 +640,7 @@ static int qcom_pcie_get_resources_2_4_0(struct qcom_pcie *pcie)
 	struct qcom_pcie_resources_2_4_0 *res = &pcie->res.v2_4_0;
 	struct dw_pcie *pci = pcie->pci;
 	struct device *dev = pci->dev;
-	bool is_ipq = of_device_is_compatible(dev->of_node, "qcom,pcie-ipq4019");
+	bool is_ipq = of_device_is_compatible(dev->of_yesde, "qcom,pcie-ipq4019");
 	int ret;
 
 	res->clks[0].id = "aux";
@@ -744,13 +744,13 @@ static int qcom_pcie_init_2_4_0(struct qcom_pcie *pcie)
 
 	ret = reset_control_assert(res->axi_m_reset);
 	if (ret) {
-		dev_err(dev, "cannot assert axi master reset\n");
+		dev_err(dev, "canyest assert axi master reset\n");
 		return ret;
 	}
 
 	ret = reset_control_assert(res->axi_s_reset);
 	if (ret) {
-		dev_err(dev, "cannot assert axi slave reset\n");
+		dev_err(dev, "canyest assert axi slave reset\n");
 		return ret;
 	}
 
@@ -758,25 +758,25 @@ static int qcom_pcie_init_2_4_0(struct qcom_pcie *pcie)
 
 	ret = reset_control_assert(res->pipe_reset);
 	if (ret) {
-		dev_err(dev, "cannot assert pipe reset\n");
+		dev_err(dev, "canyest assert pipe reset\n");
 		return ret;
 	}
 
 	ret = reset_control_assert(res->pipe_sticky_reset);
 	if (ret) {
-		dev_err(dev, "cannot assert pipe sticky reset\n");
+		dev_err(dev, "canyest assert pipe sticky reset\n");
 		return ret;
 	}
 
 	ret = reset_control_assert(res->phy_reset);
 	if (ret) {
-		dev_err(dev, "cannot assert phy reset\n");
+		dev_err(dev, "canyest assert phy reset\n");
 		return ret;
 	}
 
 	ret = reset_control_assert(res->phy_ahb_reset);
 	if (ret) {
-		dev_err(dev, "cannot assert phy ahb reset\n");
+		dev_err(dev, "canyest assert phy ahb reset\n");
 		return ret;
 	}
 
@@ -784,19 +784,19 @@ static int qcom_pcie_init_2_4_0(struct qcom_pcie *pcie)
 
 	ret = reset_control_assert(res->axi_m_sticky_reset);
 	if (ret) {
-		dev_err(dev, "cannot assert axi master sticky reset\n");
+		dev_err(dev, "canyest assert axi master sticky reset\n");
 		return ret;
 	}
 
 	ret = reset_control_assert(res->pwr_reset);
 	if (ret) {
-		dev_err(dev, "cannot assert power reset\n");
+		dev_err(dev, "canyest assert power reset\n");
 		return ret;
 	}
 
 	ret = reset_control_assert(res->ahb_reset);
 	if (ret) {
-		dev_err(dev, "cannot assert ahb reset\n");
+		dev_err(dev, "canyest assert ahb reset\n");
 		return ret;
 	}
 
@@ -804,25 +804,25 @@ static int qcom_pcie_init_2_4_0(struct qcom_pcie *pcie)
 
 	ret = reset_control_deassert(res->phy_ahb_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert phy ahb reset\n");
+		dev_err(dev, "canyest deassert phy ahb reset\n");
 		return ret;
 	}
 
 	ret = reset_control_deassert(res->phy_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert phy reset\n");
+		dev_err(dev, "canyest deassert phy reset\n");
 		goto err_rst_phy;
 	}
 
 	ret = reset_control_deassert(res->pipe_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert pipe reset\n");
+		dev_err(dev, "canyest deassert pipe reset\n");
 		goto err_rst_pipe;
 	}
 
 	ret = reset_control_deassert(res->pipe_sticky_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert pipe sticky reset\n");
+		dev_err(dev, "canyest deassert pipe sticky reset\n");
 		goto err_rst_pipe_sticky;
 	}
 
@@ -830,31 +830,31 @@ static int qcom_pcie_init_2_4_0(struct qcom_pcie *pcie)
 
 	ret = reset_control_deassert(res->axi_m_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert axi master reset\n");
+		dev_err(dev, "canyest deassert axi master reset\n");
 		goto err_rst_axi_m;
 	}
 
 	ret = reset_control_deassert(res->axi_m_sticky_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert axi master sticky reset\n");
+		dev_err(dev, "canyest deassert axi master sticky reset\n");
 		goto err_rst_axi_m_sticky;
 	}
 
 	ret = reset_control_deassert(res->axi_s_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert axi slave reset\n");
+		dev_err(dev, "canyest deassert axi slave reset\n");
 		goto err_rst_axi_s;
 	}
 
 	ret = reset_control_deassert(res->pwr_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert power reset\n");
+		dev_err(dev, "canyest deassert power reset\n");
 		goto err_rst_pwr;
 	}
 
 	ret = reset_control_deassert(res->ahb_reset);
 	if (ret) {
-		dev_err(dev, "cannot deassert ahb reset\n");
+		dev_err(dev, "canyest deassert ahb reset\n");
 		goto err_rst_ahb;
 	}
 
@@ -993,31 +993,31 @@ static int qcom_pcie_init_2_3_3(struct qcom_pcie *pcie)
 
 	ret = clk_prepare_enable(res->iface);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable core clock\n");
+		dev_err(dev, "canyest prepare/enable core clock\n");
 		goto err_clk_iface;
 	}
 
 	ret = clk_prepare_enable(res->axi_m_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable core clock\n");
+		dev_err(dev, "canyest prepare/enable core clock\n");
 		goto err_clk_axi_m;
 	}
 
 	ret = clk_prepare_enable(res->axi_s_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable axi slave clock\n");
+		dev_err(dev, "canyest prepare/enable axi slave clock\n");
 		goto err_clk_axi_s;
 	}
 
 	ret = clk_prepare_enable(res->ahb_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable ahb clock\n");
+		dev_err(dev, "canyest prepare/enable ahb clock\n");
 		goto err_clk_ahb;
 	}
 
 	ret = clk_prepare_enable(res->aux_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable aux clock\n");
+		dev_err(dev, "canyest prepare/enable aux clock\n");
 		goto err_clk_aux;
 	}
 
@@ -1125,7 +1125,7 @@ static const struct dw_pcie_host_ops qcom_pcie_dw_ops = {
 	.host_init = qcom_pcie_host_init,
 };
 
-/* Qcom IP rev.: 2.1.0	Synopsys IP rev.: 4.01a */
+/* Qcom IP rev.: 2.1.0	Syyespsys IP rev.: 4.01a */
 static const struct qcom_pcie_ops ops_2_1_0 = {
 	.get_resources = qcom_pcie_get_resources_2_1_0,
 	.init = qcom_pcie_init_2_1_0,
@@ -1133,7 +1133,7 @@ static const struct qcom_pcie_ops ops_2_1_0 = {
 	.ltssm_enable = qcom_pcie_2_1_0_ltssm_enable,
 };
 
-/* Qcom IP rev.: 1.0.0	Synopsys IP rev.: 4.11a */
+/* Qcom IP rev.: 1.0.0	Syyespsys IP rev.: 4.11a */
 static const struct qcom_pcie_ops ops_1_0_0 = {
 	.get_resources = qcom_pcie_get_resources_1_0_0,
 	.init = qcom_pcie_init_1_0_0,
@@ -1141,7 +1141,7 @@ static const struct qcom_pcie_ops ops_1_0_0 = {
 	.ltssm_enable = qcom_pcie_2_1_0_ltssm_enable,
 };
 
-/* Qcom IP rev.: 2.3.2	Synopsys IP rev.: 4.21a */
+/* Qcom IP rev.: 2.3.2	Syyespsys IP rev.: 4.21a */
 static const struct qcom_pcie_ops ops_2_3_2 = {
 	.get_resources = qcom_pcie_get_resources_2_3_2,
 	.init = qcom_pcie_init_2_3_2,
@@ -1151,7 +1151,7 @@ static const struct qcom_pcie_ops ops_2_3_2 = {
 	.ltssm_enable = qcom_pcie_2_3_2_ltssm_enable,
 };
 
-/* Qcom IP rev.: 2.4.0	Synopsys IP rev.: 4.20a */
+/* Qcom IP rev.: 2.4.0	Syyespsys IP rev.: 4.20a */
 static const struct qcom_pcie_ops ops_2_4_0 = {
 	.get_resources = qcom_pcie_get_resources_2_4_0,
 	.init = qcom_pcie_init_2_4_0,
@@ -1159,7 +1159,7 @@ static const struct qcom_pcie_ops ops_2_4_0 = {
 	.ltssm_enable = qcom_pcie_2_3_2_ltssm_enable,
 };
 
-/* Qcom IP rev.: 2.3.3	Synopsys IP rev.: 4.30a */
+/* Qcom IP rev.: 2.3.3	Syyespsys IP rev.: 4.30a */
 static const struct qcom_pcie_ops ops_2_3_3 = {
 	.get_resources = qcom_pcie_get_resources_2_3_3,
 	.init = qcom_pcie_init_2_3_3,
@@ -1260,7 +1260,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
-		dev_err(dev, "cannot initialize host\n");
+		dev_err(dev, "canyest initialize host\n");
 		pm_runtime_disable(&pdev->dev);
 		goto err_pm_runtime_put;
 	}

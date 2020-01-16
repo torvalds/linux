@@ -31,13 +31,13 @@
 #include <linux/sysfs.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c, 0x4d,
+static const unsigned short yesrmal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c, 0x4d,
 	0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { tmp401, tmp411, tmp431, tmp432, tmp435, tmp461 };
 
 /*
- * The TMP401 registers, note some registers have different addresses for
+ * The TMP401 registers, yeste some registers have different addresses for
  * reading and writing
  */
 #define TMP401_STATUS				0x02
@@ -407,7 +407,7 @@ static ssize_t reset_temp_history_store(struct device *dev,
 
 	if (val != 1) {
 		dev_err(dev,
-			"temp_reset_history value %ld not supported. Use 1 to reset the history!\n",
+			"temp_reset_history value %ld yest supported. Use 1 to reset the history!\n",
 			val);
 		return -EINVAL;
 	}
@@ -586,7 +586,7 @@ static const struct attribute_group tmp461_group = {
 };
 
 /*
- * Begin non sysfs callback code (aka Real code)
+ * Begin yesn sysfs callback code (aka Real code)
  */
 
 static int tmp401_init_client(struct tmp401_data *data,
@@ -739,7 +739,7 @@ static struct i2c_driver tmp401_driver = {
 	.probe		= tmp401_probe,
 	.id_table	= tmp401_id,
 	.detect		= tmp401_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(tmp401_driver);

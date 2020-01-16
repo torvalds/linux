@@ -1,7 +1,7 @@
 
 Fault Injection
 ===============
-Fault injection is a method for forcing errors that may not normally occur, or
+Fault injection is a method for forcing errors that may yest yesrmally occur, or
 may be difficult to reproduce.  Forcing these errors in a controlled environment
 can help the developer find and fix bugs before their code is shipped in a
 production system.  Injecting an error on the Linux NFS server will allow us to
@@ -33,10 +33,10 @@ Available Faults
 ================
 forget_clients:
      The NFS server keeps a list of clients that have placed a mount call.  If
-     this list is cleared, the server will have no knowledge of who the client
+     this list is cleared, the server will have yes kyeswledge of who the client
      is, forcing the client to reauthenticate with the server.
 
-forget_openowners:
+forget_opeyeswners:
      The NFS server keeps a list of what files are currently opened and who
      they were opened by.  Clearing this list will force the client to reopen
      its files.
@@ -48,13 +48,13 @@ forget_locks:
 
 forget_delegations:
      A delegation is used to assure the client that a file, or part of a file,
-     has not changed since the delegation was awarded.  Clearing this list will
+     has yest changed since the delegation was awarded.  Clearing this list will
      force the client to reacquire its delegation before accessing the file
      again.
 
 recall_delegations:
-     Delegations can be recalled by the server when another client attempts to
-     access a file.  This test will notify the client that its delegation has
+     Delegations can be recalled by the server when ayesther client attempts to
+     access a file.  This test will yestify the client that its delegation has
      been revoked, forcing the client to reacquire the delegation before using
      the file again.
 

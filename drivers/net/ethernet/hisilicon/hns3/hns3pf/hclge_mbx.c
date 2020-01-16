@@ -5,7 +5,7 @@
 #include "hclge_mbx.h"
 #include "hnae3.h"
 
-/* hclge_gen_resp_to_vf: used to generate a synchronous response to VF when PF
+/* hclge_gen_resp_to_vf: used to generate a synchroyesus response to VF when PF
  * receives a mailbox message from VF.
  * @vport: pointer to struct hclge_vport
  * @vf_to_pf_req: pointer to hclge_mbx_vf_to_pf_cmd of the original mailbox
@@ -106,9 +106,9 @@ int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 				  HCLGE_MBX_ASSERTING_RESET, dest_vfid);
 }
 
-static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
+static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_yesde *head)
 {
-	struct hnae3_ring_chain_node *chain_tmp, *chain;
+	struct hnae3_ring_chain_yesde *chain_tmp, *chain;
 
 	chain = head->next;
 
@@ -122,7 +122,7 @@ static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
 /* hclge_get_ring_chain_from_mbx: get ring type & tqp id & int_gl idx
  * from mailbox message
  * msg[0]: opcode
- * msg[1]: <not relevant to this function>
+ * msg[1]: <yest relevant to this function>
  * msg[2]: ring_num
  * msg[3]: first ring type (TX|RX)
  * msg[4]: first tqp id
@@ -131,10 +131,10 @@ static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
  */
 static int hclge_get_ring_chain_from_mbx(
 			struct hclge_mbx_vf_to_pf_cmd *req,
-			struct hnae3_ring_chain_node *ring_chain,
+			struct hnae3_ring_chain_yesde *ring_chain,
 			struct hclge_vport *vport)
 {
-	struct hnae3_ring_chain_node *cur_chain, *new_chain;
+	struct hnae3_ring_chain_yesde *cur_chain, *new_chain;
 	int ring_num;
 	int i;
 
@@ -186,7 +186,7 @@ err:
 static int hclge_map_unmap_ring_to_vf_vector(struct hclge_vport *vport, bool en,
 					     struct hclge_mbx_vf_to_pf_cmd *req)
 {
-	struct hnae3_ring_chain_node ring_chain;
+	struct hnae3_ring_chain_yesde ring_chain;
 	int vector_id = req->msg[1];
 	int ret;
 
@@ -250,7 +250,7 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 		const u8 *old_addr = (const u8 *)(&mbx_req->msg[8]);
 
 		/* If VF MAC has been configured by the host then it
-		 * cannot be overridden by the MAC specified by the VM.
+		 * canyest be overridden by the MAC specified by the VM.
 		 */
 		if (!is_zero_ether_addr(vport->vf_info.mac) &&
 		    !ether_addr_equal(mac_addr, vport->vf_info.mac)) {
@@ -285,7 +285,7 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 						 false, HCLGE_MAC_ADDR_UC);
 	} else {
 		dev_err(&hdev->pdev->dev,
-			"failed to set unicast mac addr, unknown subcode %u\n",
+			"failed to set unicast mac addr, unkyeswn subcode %u\n",
 			mbx_req->msg[1]);
 		return -EIO;
 	}
@@ -319,7 +319,7 @@ static int hclge_set_vf_mc_mac_addr(struct hclge_vport *vport,
 						 false, HCLGE_MAC_ADDR_MC);
 	} else {
 		dev_err(&hdev->pdev->dev,
-			"failed to set mcast mac addr, unknown subcode %u\n",
+			"failed to set mcast mac addr, unkyeswn subcode %u\n",
 			mbx_req->msg[1]);
 		return -EIO;
 	}
@@ -684,7 +684,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 				 "dropped invalid mailbox message, code = %u\n",
 				 req->msg[0]);
 
-			/* dropping/not processing this invalid message */
+			/* dropping/yest processing this invalid message */
 			crq->desc[crq->next_to_use].flag = 0;
 			hclge_mbx_ring_ptr_move_crq(crq);
 			continue;

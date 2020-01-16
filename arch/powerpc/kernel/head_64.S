@@ -88,8 +88,8 @@ END_FTR_SECTION(0, 1)
 	/* Catch branch to 0 in real mode */
 	trap
 
-	/* Secondary processors spin on this value until it becomes non-zero.
-	 * When non-zero, it contains the real address of the function the cpu
+	/* Secondary processors spin on this value until it becomes yesn-zero.
+	 * When yesn-zero, it contains the real address of the function the cpu
 	 * should jump to.
 	 */
 	.balign 8
@@ -99,8 +99,8 @@ __secondary_hold_spinloop:
 
 	/* Secondary processors write this value with their cpu # */
 	/* after they enter the spin loop immediately below.	  */
-	.globl	__secondary_hold_acknowledge
-__secondary_hold_acknowledge:
+	.globl	__secondary_hold_ackyeswledge
+__secondary_hold_ackyeswledge:
 	.8byte	0x0
 
 #ifdef CONFIG_RELOCATABLE
@@ -112,12 +112,12 @@ __secondary_hold_acknowledge:
 	 */
 
 #ifdef CONFIG_RELOCATABLE_TEST
-#define RUN_AT_LOAD_DEFAULT 1		/* Test relocation, do not copy to 0 */
+#define RUN_AT_LOAD_DEFAULT 1		/* Test relocation, do yest copy to 0 */
 #else
 #define RUN_AT_LOAD_DEFAULT 0x72756e30  /* "run0" -- relocate to 0 by default */
 #endif
 
-	/* Do not move this variable as kexec-tools knows about it. */
+	/* Do yest move this variable as kexec-tools kyesws about it. */
 	. = 0x5c
 	.globl	__run_at_load
 __run_at_load:
@@ -132,8 +132,8 @@ DEFINE_FIXED_SYMBOL(__run_at_load)
  * before the bulk of the kernel has been relocated.  This code
  * is relocated to physical address 0x60 before prom_init is run.
  * All of it must fit below the first exception vector at 0x100.
- * Use .globl here not _GLOBAL because we want __secondary_hold
- * to be the actual text address, not a descriptor.
+ * Use .globl here yest _GLOBAL because we want __secondary_hold
+ * to be the actual text address, yest a descriptor.
  */
 	.globl	__secondary_hold
 __secondary_hold:
@@ -151,7 +151,7 @@ __secondary_hold:
 	/* Tell the master cpu we're here */
 	/* Relocation is off & we are located at an address less */
 	/* than 0x100, so only need to grab low order offset.    */
-	std	r24,(ABS_ADDR(__secondary_hold_acknowledge))(0)
+	std	r24,(ABS_ADDR(__secondary_hold_ackyeswledge))(0)
 	sync
 
 	li	r26,0
@@ -171,7 +171,7 @@ __secondary_hold:
 	mr	r3,r24
 	/*
 	 * it may be the case that other platforms have r4 right to
-	 * begin with, this gives us some safety in case it is not
+	 * begin with, this gives us some safety in case it is yest
 	 */
 #ifdef CONFIG_PPC_BOOK3E
 	mr	r4,r25
@@ -283,7 +283,7 @@ _GLOBAL(fsl_secondary_thread_init)
 	 * but the low bit right by two bits so that the cpu numbering is
 	 * continuous.
 	 *
-	 * If the old value of BUCSR is non-zero, this thread has run
+	 * If the old value of BUCSR is yesn-zero, this thread has run
 	 * before.  Thus, we assume we are coming from kexec or a similar
 	 * scenario, and PIR is already set to the correct value.  This
 	 * is a bit of a hack, but there are limited opportunities for
@@ -348,7 +348,7 @@ _GLOBAL(generic_secondary_smp_init)
 
 /*
  * After common core init has finished, check if the current thread is the
- * one we wanted to boot. If not, start the specified thread and stop the
+ * one we wanted to boot. If yest, start the specified thread and stop the
  * current thread.
  */
 	LOAD_REG_ADDR(r4, booting_thread_hwid)
@@ -365,7 +365,7 @@ _GLOBAL(generic_secondary_smp_init)
 
 	/*
 	 * Get the current thread id and check if it is the one we wanted.
-	 * If not, start the one specified in booting_thread_hwid and stop
+	 * If yest, start the one specified in booting_thread_hwid and stop
 	 * the current thread.
 	 */
 	mfspr	r8, SPRN_TIR
@@ -408,16 +408,16 @@ generic_secondary_common_init:
 	cmpw	r5,r7			/* Check if more pacas exist     */
 	blt	1b
 
-	mr	r3,r24			/* not found, copy phys to r3	 */
+	mr	r3,r24			/* yest found, copy phys to r3	 */
 	b	kexec_wait		/* next kernel might do better	 */
 
 2:	SET_PACA(r13)
 #ifdef CONFIG_PPC_BOOK3E
-	addi	r12,r13,PACA_EXTLB	/* and TLB exc frame in another  */
+	addi	r12,r13,PACA_EXTLB	/* and TLB exc frame in ayesther  */
 	mtspr	SPRN_SPRG_TLB_EXFRAME,r12
 #endif
 
-	/* From now on, r24 is expected to be logical cpuid */
+	/* From yesw on, r24 is expected to be logical cpuid */
 	mr	r24,r5
 
 	/* See if we need to call a cpu state restore handler */
@@ -492,7 +492,7 @@ __start_initialization_multiplatform:
 	/* Get TOC pointer (current runtime address) */
 	bl	relative_toc
 
-	/* find out where we are now */
+	/* find out where we are yesw */
 	bcl	20,31,$+4
 0:	mflr	r26			/* r26 = runtime addr here */
 	addis	r26,r26,(_stext - 0b)@ha
@@ -503,7 +503,7 @@ __start_initialization_multiplatform:
 	 */
 	cmpldi	cr0,r5,0
 	beq	1f
-	b	__boot_from_prom		/* yes -> prom */
+	b	__boot_from_prom		/* no -> prom */
 1:
 	/* Save parameters */
 	mr	r31,r3
@@ -532,7 +532,7 @@ __start_initialization_multiplatform:
 1:	bl	__cpu_preinit_ppc970
 2:
 
-	/* Switch off MMU if not already off */
+	/* Switch off MMU if yest already off */
 	bl	__mmu_off
 	b	__after_prom_start
 #endif /* CONFIG_PPC_BOOK3E */
@@ -554,7 +554,7 @@ __boot_from_prom:
 	rldicr	r1,r1,0,59
 
 #ifdef CONFIG_RELOCATABLE
-	/* Relocate code for where we are now */
+	/* Relocate code for where we are yesw */
 	mr	r3,r26
 	bl	relocate
 #endif
@@ -681,7 +681,7 @@ _GLOBAL(copy_and_flush)
 	addi	r5,r5,-8
 	addi	r6,r6,-8
 4:	li	r0,8			/* Use the smallest common	*/
-					/* denominator cache line	*/
+					/* deyesminator cache line	*/
 					/* size.  This results in	*/
 					/* extra cache line flushes	*/
 					/* but operation is correct.	*/
@@ -807,8 +807,8 @@ __secondary_start:
 
 	/*
 	 * The primary has initialized our kernel stack for us in the paca, grab
-	 * it and put it in r1. We must *not* use it until we turn on the MMU
-	 * below, because it may not be inside the RMO.
+	 * it and put it in r1. We must *yest* use it until we turn on the MMU
+	 * below, because it may yest be inside the RMO.
 	 */
 	ld	r1, PACAKSAVE(r13)
 
@@ -910,7 +910,7 @@ start_here_multiplatform:
 	/* Clear out the BSS. It may have been done in prom_init,
 	 * already but that's irrelevant since prom_init will soon
 	 * be detached from the kernel completely. Besides, we need
-	 * to clear it now for kexec-style entry.
+	 * to clear it yesw for kexec-style entry.
 	 */
 	LOAD_REG_ADDR(r11,__bss_stop)
 	LOAD_REG_ADDR(r8,__bss_start)

@@ -188,7 +188,7 @@ static int gve_set_channels(struct net_device *netdev,
 
 	gve_get_channels(netdev, &old_settings);
 
-	/* Changing combined is not allowed allowed */
+	/* Changing combined is yest allowed allowed */
 	if (cmd->combined_count != old_settings.combined_count)
 		return -EINVAL;
 

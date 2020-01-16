@@ -107,7 +107,7 @@ ohci_s3c2410_hub_status_data(struct usb_hcd *hcd, char *buf)
 	struct s3c2410_hcd_info *info = to_s3c2410_info(hcd);
 	struct s3c2410_hcd_port *port;
 	int orig;
-	int portno;
+	int portyes;
 
 	orig = ohci_hub_status_data(hcd, buf);
 
@@ -118,16 +118,16 @@ ohci_s3c2410_hub_status_data(struct usb_hcd *hcd, char *buf)
 
 	/* mark any changed port as changed */
 
-	for (portno = 0; portno < 2; port++, portno++) {
+	for (portyes = 0; portyes < 2; port++, portyes++) {
 		if (port->oc_changed == 1 &&
 		    port->flags & S3C_HCDFLG_USED) {
 			dev_dbg(hcd->self.controller,
-				"oc change on port %d\n", portno);
+				"oc change on port %d\n", portyes);
 
 			if (orig < 1)
 				orig = 1;
 
-			buf[0] |= 1<<(portno+1);
+			buf[0] |= 1<<(portyes+1);
 		}
 	}
 
@@ -294,7 +294,7 @@ static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc)
 {
 	struct s3c2410_hcd_port *port;
 	unsigned long flags;
-	int portno;
+	int portyes;
 
 	if (info == NULL)
 		return;
@@ -303,15 +303,15 @@ static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc)
 
 	local_irq_save(flags);
 
-	for (portno = 0; portno < 2; port++, portno++) {
-		if (port_oc & (1<<portno) &&
+	for (portyes = 0; portyes < 2; port++, portyes++) {
+		if (port_oc & (1<<portyes) &&
 		    port->flags & S3C_HCDFLG_USED) {
 			port->oc_status = 1;
 			port->oc_changed = 1;
 
 			/* ok, once over-current is detected,
 			   the port needs to be powered down */
-			s3c2410_usb_set_power(info, portno+1, 0);
+			s3c2410_usb_set_power(info, portyes+1, 0);
 		}
 	}
 
@@ -328,7 +328,7 @@ static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc)
  *
  * Reverses the effect of ohci_hcd_3c2410_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
- * context, normally "rmmod", "apmd", or something similar.
+ * context, yesrmally "rmmod", "apmd", or something similar.
  *
 */
 
@@ -376,14 +376,14 @@ static int ohci_hcd_s3c2410_probe(struct platform_device *dev)
 
 	clk = devm_clk_get(&dev->dev, "usb-host");
 	if (IS_ERR(clk)) {
-		dev_err(&dev->dev, "cannot get usb-host clock\n");
+		dev_err(&dev->dev, "canyest get usb-host clock\n");
 		retval = PTR_ERR(clk);
 		goto err_put;
 	}
 
 	usb_clk = devm_clk_get(&dev->dev, "usb-bus-host");
 	if (IS_ERR(usb_clk)) {
-		dev_err(&dev->dev, "cannot get usb-bus-host clock\n");
+		dev_err(&dev->dev, "canyest get usb-bus-host clock\n");
 		retval = PTR_ERR(usb_clk);
 		goto err_put;
 	}
@@ -474,7 +474,7 @@ static int __init ohci_s3c2410_init(void)
 	/*
 	 * The Samsung HW has some unusual quirks, which require
 	 * Sumsung-specific workarounds. We override certain hc_driver
-	 * functions here to achieve that. We explicitly do not enhance
+	 * functions here to achieve that. We explicitly do yest enhance
 	 * ohci_driver_overrides to allow this more easily, since this
 	 * is an unusual case, and we don't want to encourage others to
 	 * override these functions by making it too easy.

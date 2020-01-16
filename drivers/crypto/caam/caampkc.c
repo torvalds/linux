@@ -5,7 +5,7 @@
  * Copyright 2016 Freescale Semiconductor, Inc.
  * Copyright 2018-2019 NXP
  *
- * There is no Shared Descriptor for PKC so that the Job Descriptor must carry
+ * There is yes Shared Descriptor for PKC so that the Job Descriptor must carry
  * all the desired key parameters, input and output pointers.
  */
 #include "compat.h"
@@ -215,7 +215,7 @@ static int caam_rsa_count_leading_zeros(struct scatterlist *sgl,
 	lzeros = 0;
 	len = 0;
 	while (nbytes > 0) {
-		/* do not strip more than given bytes */
+		/* do yest strip more than given bytes */
 		while (len && !*buff && lzeros < nbytes) {
 			lzeros++;
 			len--;
@@ -299,7 +299,7 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 	}
 
 	if (!diff_size && mapped_src_nents == 1)
-		sec4_sg_len = 0; /* no need for an input hw s/g table */
+		sec4_sg_len = 0; /* yes need for an input hw s/g table */
 	else
 		sec4_sg_len = mapped_src_nents + !!diff_size;
 	sec4_sg_index = sec4_sg_len;
@@ -1104,7 +1104,7 @@ int caam_pkc_init(struct device *ctrldev)
 	else
 		pk_inst = rd_reg32(&priv->ctrl->vreg.pkha) & CHA_VER_NUM_MASK;
 
-	/* Do not register algorithms if PKHA is not present. */
+	/* Do yest register algorithms if PKHA is yest present. */
 	if (!pk_inst)
 		return 0;
 

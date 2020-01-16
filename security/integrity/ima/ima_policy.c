@@ -83,14 +83,14 @@ struct ima_rule_entry {
 };
 
 /*
- * Without LSM specific knowledge, the default policy can only be
+ * Without LSM specific kyeswledge, the default policy can only be
  * written in terms of .action, .func, .mask, .fsmagic, .uid, and .fowner
  */
 
 /*
  * The minimum rule set to allow for full TCB coverage.  Measures all files
  * opened or mmap for exec and everything read by root.  Dangerous because
- * normal users can easily run the machine out of memory simply building
+ * yesrmal users can easily run the machine out of memory simply building
  * and running executables.
  */
 static struct ima_rule_entry dont_measure_rules[] __ro_after_init = {
@@ -346,7 +346,7 @@ static void ima_lsm_update_rules(void)
 	}
 }
 
-int ima_lsm_policy_change(struct notifier_block *nb, unsigned long event,
+int ima_lsm_policy_change(struct yestifier_block *nb, unsigned long event,
 			  void *lsm_data)
 {
 	if (event != LSM_POLICY_CHANGE)
@@ -357,9 +357,9 @@ int ima_lsm_policy_change(struct notifier_block *nb, unsigned long event,
 }
 
 /**
- * ima_match_rules - determine whether an inode matches the measure rule.
+ * ima_match_rules - determine whether an iyesde matches the measure rule.
  * @rule: a pointer to a rule
- * @inode: a pointer to an inode
+ * @iyesde: a pointer to an iyesde
  * @cred: a pointer to a credentials structure for user validation
  * @secid: the secid of the task to be validated
  * @func: LIM hook identifier
@@ -367,7 +367,7 @@ int ima_lsm_policy_change(struct notifier_block *nb, unsigned long event,
  *
  * Returns true on rule match, false on failure.
  */
-static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
+static bool ima_match_rules(struct ima_rule_entry *rule, struct iyesde *iyesde,
 			    const struct cred *cred, u32 secid,
 			    enum ima_hooks func, int mask)
 {
@@ -388,18 +388,18 @@ static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
 	    (!(rule->mask & mask) && func != POST_SETATTR))
 		return false;
 	if ((rule->flags & IMA_FSMAGIC)
-	    && rule->fsmagic != inode->i_sb->s_magic)
+	    && rule->fsmagic != iyesde->i_sb->s_magic)
 		return false;
 	if ((rule->flags & IMA_FSNAME)
-	    && strcmp(rule->fsname, inode->i_sb->s_type->name))
+	    && strcmp(rule->fsname, iyesde->i_sb->s_type->name))
 		return false;
 	if ((rule->flags & IMA_FSUUID) &&
-	    !uuid_equal(&rule->fsuuid, &inode->i_sb->s_uuid))
+	    !uuid_equal(&rule->fsuuid, &iyesde->i_sb->s_uuid))
 		return false;
 	if ((rule->flags & IMA_UID) && !rule->uid_op(cred->uid, rule->uid))
 		return false;
 	if (rule->flags & IMA_EUID) {
-		if (has_capability_noaudit(current, CAP_SETUID)) {
+		if (has_capability_yesaudit(current, CAP_SETUID)) {
 			if (!rule->uid_op(cred->euid, rule->uid)
 			    && !rule->uid_op(cred->suid, rule->uid)
 			    && !rule->uid_op(cred->uid, rule->uid))
@@ -409,7 +409,7 @@ static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
 	}
 
 	if ((rule->flags & IMA_FOWNER) &&
-	    !rule->fowner_op(inode->i_uid, rule->fowner))
+	    !rule->fowner_op(iyesde->i_uid, rule->fowner))
 		return false;
 	for (i = 0; i < MAX_LSM_RULES; i++) {
 		int rc = 0;
@@ -422,7 +422,7 @@ static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
 		case LSM_OBJ_USER:
 		case LSM_OBJ_ROLE:
 		case LSM_OBJ_TYPE:
-			security_inode_getsecid(inode, &osid);
+			security_iyesde_getsecid(iyesde, &osid);
 			rc = security_filter_rule_match(osid,
 							rule->lsm[i].type,
 							Audit_equal,
@@ -445,7 +445,7 @@ static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
 }
 
 /*
- * In addition to knowing that we need to appraise the file in general,
+ * In addition to kyeswing that we need to appraise the file in general,
  * we need to differentiate between calling hooks, for hook specific rules.
  */
 static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
@@ -471,7 +471,7 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
 
 /**
  * ima_match_policy - decision based on LSM and other conditions
- * @inode: pointer to an inode for which the policy decision is being made
+ * @iyesde: pointer to an iyesde for which the policy decision is being made
  * @cred: pointer to a credentials structure for which the policy decision is
  *        being made
  * @secid: LSM secid of the task to be validated
@@ -487,7 +487,7 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  * list when walking it.  Reads are many orders of magnitude more numerous
  * than writes so ima_match_policy() is classical RCU candidate.
  */
-int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
+int ima_match_policy(struct iyesde *iyesde, const struct cred *cred, u32 secid,
 		     enum ima_hooks func, int mask, int flags, int *pcr,
 		     struct ima_template_desc **template_desc)
 {
@@ -503,7 +503,7 @@ int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
 		if (!(entry->action & actmask))
 			continue;
 
-		if (!ima_match_rules(entry, inode, cred, secid, func, mask))
+		if (!ima_match_rules(entry, iyesde, cred, secid, func, mask))
 			continue;
 
 		action |= entry->flags & IMA_ACTION_FLAGS;
@@ -539,7 +539,7 @@ int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
 /*
  * Initialize the ima_policy_flag variable based on the currently
  * loaded policy.  Based on this flag, the decision to short circuit
- * out of a function or not call the function in the first place
+ * out of a function or yest call the function in the first place
  * can be made earlier.
  */
 void ima_update_policy_flag(void)
@@ -628,7 +628,7 @@ static int __init ima_init_arch_policy(void)
 		INIT_LIST_HEAD(&arch_policy_entry[i].list);
 		result = ima_parse_rule(rule, &arch_policy_entry[i]);
 		if (result) {
-			pr_warn("Skipping unknown architecture policy rule: %s\n",
+			pr_warn("Skipping unkyeswn architecture policy rule: %s\n",
 				rule);
 			memset(&arch_policy_entry[i], 0,
 			       sizeof(*arch_policy_entry));
@@ -693,7 +693,7 @@ void __init ima_init_policy(void)
 	 * Insert the build time appraise rules requiring file signatures
 	 * for both the initial and custom policies, prior to other appraise
 	 * rules. As the secure boot rules includes all of the build time
-	 * rules, include either one or the other set of rules, but not both.
+	 * rules, include either one or the other set of rules, but yest both.
 	 */
 	build_appraise_entries = ARRAY_SIZE(build_appraise_rules);
 	if (build_appraise_entries) {
@@ -852,7 +852,7 @@ static void ima_log_string(struct audit_buffer *ab, char *key, char *value)
 /*
  * Validating the appended signature included in the measurement list requires
  * the file hash calculated without the appended signature (i.e., the 'd-modsig'
- * field). Therefore, notify the user if they have the 'modsig' field but not
+ * field). Therefore, yestify the user if they have the 'modsig' field but yest
  * the 'd-modsig' field in the template.
  */
 static void check_template_modsig(const struct ima_template_desc *template)
@@ -862,7 +862,7 @@ static void check_template_modsig(const struct ima_template_desc *template)
 	static bool checked;
 	int i;
 
-	/* We only need to notify the user once. */
+	/* We only need to yestify the user once. */
 	if (checked)
 		return;
 
@@ -875,7 +875,7 @@ static void check_template_modsig(const struct ima_template_desc *template)
 	}
 
 	if (has_modsig && !has_dmodsig)
-		pr_notice(MSG);
+		pr_yestice(MSG);
 
 	checked = true;
 #undef MSG
@@ -1208,7 +1208,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			}
 
 			/*
-			 * template_desc_init_fields() does nothing if
+			 * template_desc_init_fields() does yesthing if
 			 * the template is already initialised, so
 			 * it's safe to do this unconditionally
 			 */
@@ -1547,14 +1547,14 @@ bool ima_appraise_signature(enum kernel_read_file_id id)
 			continue;
 
 		/*
-		 * We require this to be a digital signature, not a raw IMA
+		 * We require this to be a digital signature, yest a raw IMA
 		 * hash.
 		 */
 		if (entry->flags & IMA_DIGSIG_REQUIRED)
 			found = true;
 
 		/*
-		 * We've found a rule that matches, so break now even if it
+		 * We've found a rule that matches, so break yesw even if it
 		 * didn't require a digital signature - a later rule that does
 		 * won't override it, so would be a false positive.
 		 */

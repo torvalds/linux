@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR MIT) */
 /******************************************************************************
  * evtchn.h
  *
@@ -19,7 +19,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -77,8 +77,8 @@ struct ioctl_evtchn_unbind {
  * Unbind previously allocated @port.
  */
 #define IOCTL_EVTCHN_NOTIFY				\
-	_IOC(_IOC_NONE, 'E', 4, sizeof(struct ioctl_evtchn_notify))
-struct ioctl_evtchn_notify {
+	_IOC(_IOC_NONE, 'E', 4, sizeof(struct ioctl_evtchn_yestify))
+struct ioctl_evtchn_yestify {
 	unsigned int port;
 };
 
@@ -90,10 +90,10 @@ struct ioctl_evtchn_notify {
  * Restrict this file descriptor so that it can only be used to bind
  * new interdomain events from one domain.
  *
- * Once a file descriptor has been restricted it cannot be
+ * Once a file descriptor has been restricted it canyest be
  * de-restricted, and must be closed and re-opened.  Event channels
  * which were bound before restricting remain bound afterwards, and
- * can be notified as usual.
+ * can be yestified as usual.
  */
 #define IOCTL_EVTCHN_RESTRICT_DOMID			\
 	_IOC(_IOC_NONE, 'E', 6, sizeof(struct ioctl_evtchn_restrict_domid))

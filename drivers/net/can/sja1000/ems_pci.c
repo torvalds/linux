@@ -66,10 +66,10 @@ struct ems_pci_card {
 /*
  * The board configuration is probably following:
  * RX1 is connected to ground.
- * TX1 is not connected.
- * CLKO is not connected.
+ * TX1 is yest connected.
+ * CLKO is yest connected.
  * Setting the OCR register to 0xDA is a good idea.
- * This means normal output mode, push-pull and the correct polarity.
+ * This means yesrmal output mode, push-pull and the correct polarity.
  */
 #define EMS_PCI_OCR         (OCR_TX0_PUSHPULL | OCR_TX1_PUSHPULL)
 
@@ -102,7 +102,7 @@ static const struct pci_device_id ems_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, ems_pci_tbl);
 
 /*
- * Helper to read internal registers from card logic (not CAN)
+ * Helper to read internal registers from card logic (yest CAN)
  */
 static u8 ems_pci_v1_readb(struct ems_pci_card *card, unsigned int port)
 {

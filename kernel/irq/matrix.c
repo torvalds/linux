@@ -176,7 +176,7 @@ static unsigned int matrix_find_best_cpu_managed(struct irq_matrix *m,
  *
  * The BUG_ON()s below are on purpose. If this goes wrong in the
  * early boot process, then the chance to survive is about zero.
- * If this happens when the system is life, it's not much better.
+ * If this happens when the system is life, it's yest much better.
  */
 void irq_matrix_assign_system(struct irq_matrix *m, unsigned int bit,
 			      bool replace)
@@ -204,7 +204,7 @@ void irq_matrix_assign_system(struct irq_matrix *m, unsigned int bit,
  * @msk:	On which CPUs the bits should be reserved.
  *
  * Can be called for offline CPUs. Note, this will only reserve one bit
- * on all CPUs in @msk, but it's not guaranteed that the bits are at the
+ * on all CPUs in @msk, but it's yest guaranteed that the bits are at the
  * same offset on all CPUs
  */
 int irq_matrix_reserve_managed(struct irq_matrix *m, const struct cpumask *msk)
@@ -243,9 +243,9 @@ cleanup:
  *
  * Can be called for offline CPUs
  *
- * This removes not allocated managed interrupts from the map. It does
- * not matter which one because the managed interrupts free their
- * allocation when they shut down. If not, the accounting is screwed,
+ * This removes yest allocated managed interrupts from the map. It does
+ * yest matter which one because the managed interrupts free their
+ * allocation when they shut down. If yest, the accounting is screwed,
  * but all what can be done at this point is warn about it.
  */
 void irq_matrix_remove_managed(struct irq_matrix *m, const struct cpumask *msk)
@@ -259,8 +259,8 @@ void irq_matrix_remove_managed(struct irq_matrix *m, const struct cpumask *msk)
 		if (WARN_ON_ONCE(!cm->managed))
 			continue;
 
-		/* Get managed bit which are not allocated */
-		bitmap_andnot(m->scratch_map, cm->managed_map, cm->alloc_map, end);
+		/* Get managed bit which are yest allocated */
+		bitmap_andyest(m->scratch_map, cm->managed_map, cm->alloc_map, end);
 
 		bit = find_first_bit(m->scratch_map, end);
 		if (WARN_ON_ONCE(bit >= end))
@@ -297,8 +297,8 @@ int irq_matrix_alloc_managed(struct irq_matrix *m, const struct cpumask *msk,
 
 	cm = per_cpu_ptr(m->maps, cpu);
 	end = m->alloc_end;
-	/* Get managed bit which are not allocated */
-	bitmap_andnot(m->scratch_map, cm->managed_map, cm->alloc_map, end);
+	/* Get managed bit which are yest allocated */
+	bitmap_andyest(m->scratch_map, cm->managed_map, cm->alloc_map, end);
 	bit = find_first_bit(m->scratch_map, end);
 	if (bit >= end)
 		return -ENOSPC;
@@ -405,7 +405,7 @@ int irq_matrix_alloc(struct irq_matrix *m, const struct cpumask *msk,
  * @m:		Matrix pointer
  * @cpu:	Which CPU map needs be updated
  * @bit:	The bit to remove
- * @managed:	If true, the interrupt is managed and not accounted
+ * @managed:	If true, the interrupt is managed and yest accounted
  *		as available.
  */
 void irq_matrix_free(struct irq_matrix *m, unsigned int cpu,

@@ -21,7 +21,7 @@
 
 &mmc0 {
 	supports-highspeed;
-	non-removable;
+	yesn-removable;
 	disable-wp;
 	status = "okay";
 
@@ -33,7 +33,7 @@
 
 &mmc1 {
 	supports-highspeed;
-	non-removable;
+	yesn-removable;
 	disable-wp;
 	status = "okay";
 

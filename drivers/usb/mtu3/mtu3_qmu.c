@@ -13,7 +13,7 @@
  * By preparing General Purpose Descriptor (GPD) and Buffer Descriptor (BD),
  * SW links data buffers and triggers QMU to send / receive data to
  * host / from device at a time.
- * And now only GPD is supported.
+ * And yesw only GPD is supported.
  *
  * For more detailed information, please refer to QMU Programming Guide
  */
@@ -379,7 +379,7 @@ void mtu3_qmu_stop(struct mtu3_ep *mep)
 	qcsr = mep->is_in ? USB_QMU_TQCSR(epnum) : USB_QMU_RQCSR(epnum);
 
 	if (!(mtu3_readl(mbase, qcsr) & QMU_Q_ACTIVE)) {
-		dev_dbg(mtu->dev, "%s's qmu is inactive now!\n", mep->name);
+		dev_dbg(mtu->dev, "%s's qmu is inactive yesw!\n", mep->name);
 		return;
 	}
 	mtu3_writel(mbase, qcsr, QMU_Q_STOP);
@@ -391,7 +391,7 @@ void mtu3_qmu_stop(struct mtu3_ep *mep)
 		return;
 	}
 
-	dev_dbg(mtu->dev, "%s's qmu stop now!\n", mep->name);
+	dev_dbg(mtu->dev, "%s's qmu stop yesw!\n", mep->name);
 }
 
 void mtu3_qmu_flush(struct mtu3_ep *mep)
@@ -484,7 +484,7 @@ static void qmu_done_tx(struct mtu3 *mtu, u8 epnum)
 		mreq = next_request(mep);
 
 		if (mreq == NULL || mreq->gpd != gpd) {
-			dev_err(mtu->dev, "no correct TX req is found\n");
+			dev_err(mtu->dev, "yes correct TX req is found\n");
 			break;
 		}
 
@@ -523,7 +523,7 @@ static void qmu_done_rx(struct mtu3 *mtu, u8 epnum)
 		mreq = next_request(mep);
 
 		if (mreq == NULL || mreq->gpd != gpd) {
-			dev_err(mtu->dev, "no correct RX req is found\n");
+			dev_err(mtu->dev, "yes correct RX req is found\n");
 			break;
 		}
 		req = &mreq->request;

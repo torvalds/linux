@@ -51,12 +51,12 @@
  *
  * To the question why we've chosen a page and moving elements around with
  * memmove(), it is because it is a very simple structure to handle and max data
- * movement is 4K which on highly optimized modern CPUs is almost unnoticeable.
+ * movement is 4K which on highly optimized modern CPUs is almost unyesticeable.
  * We wanted to avoid the pointer traversal of more complex structures like a
  * linked list or some sort of a balancing search tree.
  *
  * Deleting an element takes O(n) but since it is only a single page, it should
- * be fast enough and it shouldn't happen all too often depending on error
+ * be fast eyesugh and it shouldn't happen all too often depending on error
  * patterns.
  */
 
@@ -136,7 +136,7 @@ static struct delayed_work cec_work;
 static u64 decay_interval = CEC_DECAY_DEFAULT_INTERVAL;
 
 /*
- * Decrement decay value. We're using DECAY_BITS bits to denote decay of an
+ * Decrement decay value. We're using DECAY_BITS bits to deyeste decay of an
  * element in the array. On insertion and any access, it gets reset to max.
  */
 static void do_spring_cleaning(struct ce_array *ca)
@@ -262,7 +262,7 @@ static u64 del_lru_elem_unlocked(struct ce_array *ca)
 }
 
 /*
- * We return the 0th pfn in the error case under the assumption that it cannot
+ * We return the 0th pfn in the error case under the assumption that it canyest
  * be poisoned and excessive CEs in there are a serious deal anyway.
  */
 static u64 __maybe_unused del_lru_elem(void)
@@ -317,7 +317,7 @@ int cec_add_elem(u64 pfn)
 
 	/*
 	 * We can be called very early on the identify_cpu() path where we are
-	 * not initialized yet. We ignore the error for simplicity.
+	 * yest initialized yet. We igyesre the error for simplicity.
 	 */
 	if (!ce_arr.array || ce_arr.disabled)
 		return -ENODEV;
@@ -364,7 +364,7 @@ int cec_add_elem(u64 pfn)
 		del_elem(ca, to);
 
 		/*
-		 * Return a >0 value to callers, to denote that we've reached
+		 * Return a >0 value to callers, to deyeste that we've reached
 		 * the offlining threshold.
 		 */
 		ret = 1;
@@ -452,7 +452,7 @@ static int array_dump(struct seq_file *m, void *v)
 
 	seq_printf(m, "}\n");
 
-	seq_printf(m, "Stats:\nCEs: %llu\nofflined pages: %llu\n",
+	seq_printf(m, "Stats:\nCEs: %llu\yesfflined pages: %llu\n",
 		   ca->ces_entered, ca->pfns_poisoned);
 
 	seq_printf(m, "Flags: 0x%x\n", ca->flags);
@@ -467,7 +467,7 @@ static int array_dump(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int array_open(struct inode *inode, struct file *filp)
+static int array_open(struct iyesde *iyesde, struct file *filp)
 {
 	return single_open(filp, array_dump, NULL);
 }
@@ -480,27 +480,27 @@ static const struct file_operations array_ops = {
 	.release = single_release,
 };
 
-static int __init create_debugfs_nodes(void)
+static int __init create_debugfs_yesdes(void)
 {
 	struct dentry *d, *pfn, *decay, *count, *array;
 
 	d = debugfs_create_dir("cec", ras_debugfs_dir);
 	if (!d) {
-		pr_warn("Error creating cec debugfs node!\n");
+		pr_warn("Error creating cec debugfs yesde!\n");
 		return -1;
 	}
 
 	decay = debugfs_create_file("decay_interval", S_IRUSR | S_IWUSR, d,
 				    &decay_interval, &decay_interval_ops);
 	if (!decay) {
-		pr_warn("Error creating decay_interval debugfs node!\n");
+		pr_warn("Error creating decay_interval debugfs yesde!\n");
 		goto err;
 	}
 
 	count = debugfs_create_file("action_threshold", S_IRUSR | S_IWUSR, d,
 				    &action_threshold, &action_threshold_ops);
 	if (!count) {
-		pr_warn("Error creating action_threshold debugfs node!\n");
+		pr_warn("Error creating action_threshold debugfs yesde!\n");
 		goto err;
 	}
 
@@ -509,13 +509,13 @@ static int __init create_debugfs_nodes(void)
 
 	pfn = debugfs_create_file("pfn", S_IRUSR | S_IWUSR, d, &dfs_pfn, &pfn_ops);
 	if (!pfn) {
-		pr_warn("Error creating pfn debugfs node!\n");
+		pr_warn("Error creating pfn debugfs yesde!\n");
 		goto err;
 	}
 
 	array = debugfs_create_file("array", S_IRUSR, d, NULL, &array_ops);
 	if (!array) {
-		pr_warn("Error creating array debugfs node!\n");
+		pr_warn("Error creating array debugfs yesde!\n");
 		goto err;
 	}
 
@@ -538,7 +538,7 @@ void __init cec_init(void)
 		return;
 	}
 
-	if (create_debugfs_nodes()) {
+	if (create_debugfs_yesdes()) {
 		free_page((unsigned long)ce_arr.array);
 		return;
 	}

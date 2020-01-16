@@ -193,7 +193,7 @@ static int u2fzero_rng_read(struct hwrng *rng, void *data,
 	size_t actual_length;
 
 	if (!dev->present) {
-		hid_dbg(dev->hdev, "device not present");
+		hid_dbg(dev->hdev, "device yest present");
 		return 0;
 	}
 
@@ -211,10 +211,10 @@ static int u2fzero_rng_read(struct hwrng *rng, void *data,
 }
 
 static int u2fzero_init_led(struct u2fzero_device *dev,
-			    unsigned int minor)
+			    unsigned int miyesr)
 {
 	dev->led_name = devm_kasprintf(&dev->hdev->dev, GFP_KERNEL,
-		"%s%u", DRIVER_SHORT, minor);
+		"%s%u", DRIVER_SHORT, miyesr);
 	if (dev->led_name == NULL)
 		return -ENOMEM;
 
@@ -227,10 +227,10 @@ static int u2fzero_init_led(struct u2fzero_device *dev,
 }
 
 static int u2fzero_init_hwrng(struct u2fzero_device *dev,
-			      unsigned int minor)
+			      unsigned int miyesr)
 {
 	dev->rng_name = devm_kasprintf(&dev->hdev->dev, GFP_KERNEL,
-		"%s-rng%u", DRIVER_SHORT, minor);
+		"%s-rng%u", DRIVER_SHORT, miyesr);
 	if (dev->rng_name == NULL)
 		return -ENOMEM;
 
@@ -283,7 +283,7 @@ static int u2fzero_probe(struct hid_device *hdev,
 			 const struct hid_device_id *id)
 {
 	struct u2fzero_device *dev;
-	unsigned int minor;
+	unsigned int miyesr;
 	int ret;
 
 	if (!hid_is_using_ll_driver(hdev, &usb_hid_driver))
@@ -319,9 +319,9 @@ static int u2fzero_probe(struct hid_device *hdev,
 
 	dev->present = true;
 
-	minor = ((struct hidraw *) hdev->hidraw)->minor;
+	miyesr = ((struct hidraw *) hdev->hidraw)->miyesr;
 
-	ret = u2fzero_init_led(dev, minor);
+	ret = u2fzero_init_led(dev, miyesr);
 	if (ret) {
 		hid_hw_stop(hdev);
 		return ret;
@@ -329,7 +329,7 @@ static int u2fzero_probe(struct hid_device *hdev,
 
 	hid_info(hdev, "U2F Zero LED initialised\n");
 
-	ret = u2fzero_init_hwrng(dev, minor);
+	ret = u2fzero_init_hwrng(dev, miyesr);
 	if (ret) {
 		hid_hw_stop(hdev);
 		return ret;

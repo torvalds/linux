@@ -8,10 +8,10 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/mman.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/memblock.h>
 #include <linux/fs.h>
 #include <linux/io.h>
@@ -45,14 +45,14 @@ EXPORT_SYMBOL(pgprot_user);
 pgprot_t pgprot_kernel;
 EXPORT_SYMBOL(pgprot_kernel);
 
-static int __init noalign_setup(char *__unused)
+static int __init yesalign_setup(char *__unused)
 {
 	cr_alignment &= ~CR_A;
-	cr_no_alignment &= ~CR_A;
+	cr_yes_alignment &= ~CR_A;
 	set_cr(cr_alignment);
 	return 1;
 }
-__setup("noalign", noalign_setup);
+__setup("yesalign", yesalign_setup);
 
 void adjust_cr(unsigned long mask, unsigned long set)
 {
@@ -64,7 +64,7 @@ void adjust_cr(unsigned long mask, unsigned long set)
 
 	local_irq_save(flags);
 
-	cr_no_alignment = (cr_no_alignment & ~mask) | set;
+	cr_yes_alignment = (cr_yes_alignment & ~mask) | set;
 	cr_alignment = (cr_alignment & ~mask) | set;
 
 	set_cr((get_cr() & ~mask) | set);
@@ -92,7 +92,7 @@ static struct mem_type mem_types[] = {
 	},
 	/*
 	 * MT_KUSER: pte for vecpage -- cacheable,
-	 *       and sect for unigfx mmap -- noncacheable
+	 *       and sect for unigfx mmap -- yesncacheable
 	 */
 	[MT_KUSER] = {
 		.prot_pte  = PTE_PRESENT | PTE_YOUNG | PTE_DIRTY |
@@ -141,7 +141,7 @@ static void __init build_mem_type_table(void)
 static pte_t * __init early_pte_alloc(pmd_t *pmd, unsigned long addr,
 		unsigned long prot)
 {
-	if (pmd_none(*pmd)) {
+	if (pmd_yesne(*pmd)) {
 		size_t size = PTRS_PER_PTE * sizeof(pte_t);
 		pte_t *pte = memblock_alloc(size, size);
 
@@ -207,7 +207,7 @@ static void __init create_mapping(struct map_desc *md)
 	pgd_t *pgd;
 
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
-		printk(KERN_WARNING "BUG: not creating mapping for "
+		printk(KERN_WARNING "BUG: yest creating mapping for "
 		       "0x%08llx at 0x%08lx in user region\n",
 		       __pfn_to_phys((u64)md->pfn), md->virtual);
 		return;
@@ -227,8 +227,8 @@ static void __init create_mapping(struct map_desc *md)
 	length = PAGE_ALIGN(md->length + (md->virtual & ~PAGE_MASK));
 
 	if (type->prot_l1 == 0 && ((addr | phys | length) & ~SECTION_MASK)) {
-		printk(KERN_WARNING "BUG: map for 0x%08lx at 0x%08lx can not "
-		       "be mapped using pages, ignoring.\n",
+		printk(KERN_WARNING "BUG: map for 0x%08lx at 0x%08lx can yest "
+		       "be mapped using pages, igyesring.\n",
 		       __pfn_to_phys(md->pfn), addr);
 		return;
 	}
@@ -329,7 +329,7 @@ void __init uc32_mm_memblock_reserve(void)
 {
 	/*
 	 * Reserve the page tables.  These are already in use,
-	 * and can only be in node 0.
+	 * and can only be in yesde 0.
 	 */
 	memblock_reserve(__pa(swapper_pg_dir), PTRS_PER_PGD * sizeof(pgd_t));
 }
@@ -478,7 +478,7 @@ void setup_mm_for_reboot(void)
  * a page table, or changing an existing PTE.  Basically, there are two
  * things that we need to take care of:
  *
- *  1. If PG_dcache_clean is not set for the page, we need to ensure
+ *  1. If PG_dcache_clean is yest set for the page, we need to ensure
  *     that any cache entries for the kernels virtual memory
  *     range are written back to the page.
  *  2. If we have multiple shared mappings of the same space in

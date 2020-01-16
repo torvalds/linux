@@ -16,7 +16,7 @@ x:
 
 globl(ftr_fixup_test1)
 	or	1,1,1
-	or	2,2,2	/* fixup will nop out this instruction */
+	or	2,2,2	/* fixup will yesp out this instruction */
 	or	3,3,3
 
 globl(end_ftr_fixup_test1)
@@ -28,7 +28,7 @@ globl(ftr_fixup_test1_orig)
 
 globl(ftr_fixup_test1_expected)
 	or	1,1,1
-	nop
+	yesp
 	or	3,3,3
 
 globl(ftr_fixup_test2)
@@ -81,8 +81,8 @@ globl(ftr_fixup_test4_expected)
 	or	1,1,1
 	or	31,31,31
 	or	31,31,31
-	nop
-	nop
+	yesp
+	yesp
 	or	3,3,3
 
 globl(ftr_fixup_test4_orig)
@@ -191,7 +191,7 @@ ALT_FTR_SECTION_END(0, 1)
 	or	1,1,1
 
 globl(end_ftr_fixup_test7)
-	nop
+	yesp
 
 globl(ftr_fixup_test7_expected)
 	or	1,1,1
@@ -206,7 +206,7 @@ globl(ftr_fixup_test7_expected)
 
 #if 0
 /* Test that if we have a larger else case the assembler spots it and
- * reports an error. #if 0'ed so as not to break the build normally.
+ * reports an error. #if 0'ed so as yest to break the build yesrmally.
  */
 ftr_fixup_test_too_big:
 	or	1,1,1
@@ -226,7 +226,7 @@ ALT_FTR_SECTION_END(0, 1)
 #define	MAKE_MACRO_TEST(TYPE)						\
 globl(ftr_fixup_test_ ##TYPE##_macros)					\
 	or	1,1,1;							\
-	/* Basic test, this section should all be nop'ed */		\
+	/* Basic test, this section should all be yesp'ed */		\
 BEGIN_##TYPE##_SECTION							\
 	or	2,2,2;							\
 	or	2,2,2;							\
@@ -234,7 +234,7 @@ BEGIN_##TYPE##_SECTION							\
 END_##TYPE##_SECTION(0, 1)						\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Basic test, this section should NOT be nop'ed */		\
+	/* Basic test, this section should NOT be yesp'ed */		\
 BEGIN_##TYPE##_SECTION							\
 	or	2,2,2;							\
 	or	2,2,2;							\
@@ -242,7 +242,7 @@ BEGIN_##TYPE##_SECTION							\
 END_##TYPE##_SECTION(0, 0)						\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Nesting test, inner section should be nop'ed */		\
+	/* Nesting test, inner section should be yesp'ed */		\
 BEGIN_##TYPE##_SECTION							\
 	or	2,2,2;							\
 	or	2,2,2;							\
@@ -255,7 +255,7 @@ END_##TYPE##_SECTION_NESTED(0, 1, 80)					\
 END_##TYPE##_SECTION(0, 0)						\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Nesting test, whole section should be nop'ed */		\
+	/* Nesting test, whole section should be yesp'ed */		\
 BEGIN_##TYPE##_SECTION							\
 	or	2,2,2;							\
 	or	2,2,2;							\
@@ -268,7 +268,7 @@ END_##TYPE##_SECTION_NESTED(0, 0, 80)					\
 END_##TYPE##_SECTION(0, 1)						\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Nesting test, none should be nop'ed */			\
+	/* Nesting test, yesne should be yesp'ed */			\
 BEGIN_##TYPE##_SECTION							\
 	or	2,2,2;							\
 	or	2,2,2;							\
@@ -304,7 +304,7 @@ BEGIN_##TYPE##_SECTION							\
 ALT_##TYPE##_SECTION_END(0, 1)						\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Alt with smaller else case, should be padded with nops */	\
+	/* Alt with smaller else case, should be padded with yesps */	\
 BEGIN_##TYPE##_SECTION							\
 	or	3,3,3;							\
 	or	3,3,3;							\
@@ -315,7 +315,7 @@ ALT_##TYPE##_SECTION_END(0, 1)						\
 	or	1,1,1;							\
 	or	1,1,1;							\
 	/* Alt section with nested section in default case */		\
-	/* Default case should be taken, with nop'ed inner section */	\
+	/* Default case should be taken, with yesp'ed inner section */	\
 BEGIN_##TYPE##_SECTION							\
 	or	3,3,3;							\
 BEGIN_##TYPE##_SECTION_NESTED(95)					\
@@ -343,7 +343,7 @@ END_##TYPE##_SECTION_NESTED(0, 1, 95)					\
 ALT_##TYPE##_SECTION_END(0, 0)						\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Alt section with nested section in else, else taken & nop */	\
+	/* Alt section with nested section in else, else taken & yesp */	\
 BEGIN_##TYPE##_SECTION							\
 	or	3,3,3;							\
 	or	3,3,3;							\
@@ -381,7 +381,7 @@ ALT_##TYPE##_SECTION_END_NESTED(0, 1, 95)				\
 END_##TYPE##_SECTION(0, 0)						\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Feature section with nested alt section, all nop'ed */	\
+	/* Feature section with nested alt section, all yesp'ed */	\
 BEGIN_##TYPE##_SECTION							\
 	or	2,2,2;							\
 BEGIN_##TYPE##_SECTION_NESTED(95)					\
@@ -498,15 +498,15 @@ ALT_##TYPE##_SECTION_END(0, 1)						\
 #define	MAKE_MACRO_TEST_EXPECTED(TYPE)					\
 globl(ftr_fixup_test_ ##TYPE##_macros_expected)				\
 	or	1,1,1;							\
-	/* Basic test, this section should all be nop'ed */		\
+	/* Basic test, this section should all be yesp'ed */		\
 /* BEGIN_##TYPE##_SECTION */						\
-	nop;								\
-	nop;								\
-	nop;								\
+	yesp;								\
+	yesp;								\
+	yesp;								\
 /* END_##TYPE##_SECTION(0, 1) */					\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Basic test, this section should NOT be nop'ed */		\
+	/* Basic test, this section should NOT be yesp'ed */		\
 /* BEGIN_##TYPE##_SECTION */						\
 	or	2,2,2;							\
 	or	2,2,2;							\
@@ -514,34 +514,34 @@ globl(ftr_fixup_test_ ##TYPE##_macros_expected)				\
 /* END_##TYPE##_SECTION(0, 0) */					\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Nesting test, inner section should be nop'ed */		\
+	/* Nesting test, inner section should be yesp'ed */		\
 /* BEGIN_##TYPE##_SECTION */						\
 	or	2,2,2;							\
 	or	2,2,2;							\
 /* BEGIN_##TYPE##_SECTION_NESTED(80) */					\
-	nop;								\
-	nop;								\
+	yesp;								\
+	yesp;								\
 /* END_##TYPE##_SECTION_NESTED(0, 1, 80) */				\
 	or	2,2,2;							\
 	or	2,2,2;							\
 /* END_##TYPE##_SECTION(0, 0) */					\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Nesting test, whole section should be nop'ed */		\
-	/* NB. inner section is not nop'ed, but then entire outer is */	\
+	/* Nesting test, whole section should be yesp'ed */		\
+	/* NB. inner section is yest yesp'ed, but then entire outer is */	\
 /* BEGIN_##TYPE##_SECTION */						\
-	nop;								\
-	nop;								\
+	yesp;								\
+	yesp;								\
 /* BEGIN_##TYPE##_SECTION_NESTED(80) */					\
-	nop;								\
-	nop;								\
+	yesp;								\
+	yesp;								\
 /* END_##TYPE##_SECTION_NESTED(0, 0, 80) */				\
-	nop;								\
-	nop;								\
+	yesp;								\
+	yesp;								\
 /* END_##TYPE##_SECTION(0, 1) */					\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Nesting test, none should be nop'ed */			\
+	/* Nesting test, yesne should be yesp'ed */			\
 /* BEGIN_##TYPE##_SECTION */						\
 	or	2,2,2;							\
 	or	2,2,2;							\
@@ -577,25 +577,25 @@ globl(ftr_fixup_test_ ##TYPE##_macros_expected)				\
 /* ALT_##TYPE##_SECTION_END(0, 1) */					\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Alt with smaller else case, should be padded with nops */	\
+	/* Alt with smaller else case, should be padded with yesps */	\
 /* BEGIN_##TYPE##_SECTION */						\
 	/* or	3,3,3; */						\
 	/* or	3,3,3; */						\
 	/* or	3,3,3; */						\
 /* ##TYPE##_SECTION_ELSE */						\
 	or	31,31,31;						\
-	nop;								\
-	nop;								\
+	yesp;								\
+	yesp;								\
 /* ALT_##TYPE##_SECTION_END(0, 1) */					\
 	or	1,1,1;							\
 	or	1,1,1;							\
 	/* Alt section with nested section in default case */		\
-	/* Default case should be taken, with nop'ed inner section */	\
+	/* Default case should be taken, with yesp'ed inner section */	\
 /* BEGIN_##TYPE##_SECTION */						\
 	or	3,3,3;							\
 /* BEGIN_##TYPE##_SECTION_NESTED(95) */					\
-	nop;								\
-	nop;								\
+	yesp;								\
+	yesp;								\
 /* END_##TYPE##_SECTION_NESTED(0, 1, 95) */				\
 	or	3,3,3;							\
 /* ##TYPE##_SECTION_ELSE */						\
@@ -618,7 +618,7 @@ globl(ftr_fixup_test_ ##TYPE##_macros_expected)				\
 /* ALT_##TYPE##_SECTION_END(0, 0) */					\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Alt section with nested section in else, else taken & nop */	\
+	/* Alt section with nested section in else, else taken & yesp */	\
 /* BEGIN_##TYPE##_SECTION */						\
 	/* or	3,3,3; */						\
 	/* or	3,3,3; */						\
@@ -626,7 +626,7 @@ globl(ftr_fixup_test_ ##TYPE##_macros_expected)				\
 /* ##TYPE##_SECTION_ELSE */						\
 	or	5,5,5;							\
 /* BEGIN_##TYPE##_SECTION_NESTED(95) */					\
-	nop;								\
+	yesp;								\
 /* END_##TYPE##_SECTION_NESTED(0, 1, 95) */				\
 	or	5,5,5;							\
 /* ALT_##TYPE##_SECTION_END(0, 1) */					\
@@ -656,15 +656,15 @@ globl(ftr_fixup_test_ ##TYPE##_macros_expected)				\
 /* END_##TYPE##_SECTION(0, 0) */					\
 	or	1,1,1;							\
 	or	1,1,1;							\
-	/* Feature section with nested alt section, all nop'ed */	\
+	/* Feature section with nested alt section, all yesp'ed */	\
 /* BEGIN_##TYPE##_SECTION */						\
-	nop;								\
+	yesp;								\
 /* BEGIN_##TYPE##_SECTION_NESTED(95) */					\
-	nop;								\
+	yesp;								\
 /* ##TYPE##_SECTION_ELSE_NESTED(95) */					\
 	/* or	5,5,5; */						\
 /* ALT_##TYPE##_SECTION_END_NESTED(0, 0, 95) */				\
-	nop;								\
+	yesp;								\
 /* END_##TYPE##_SECTION(0, 1) */					\
 	or	1,1,1;							\
 	or	1,1,1;							\

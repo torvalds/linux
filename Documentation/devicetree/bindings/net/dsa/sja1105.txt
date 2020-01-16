@@ -15,29 +15,29 @@ Required properties:
 	Although the device ID could be detected at runtime, explicit bindings
 	are required in order to be able to statically check their validity.
 	For example, SGMII can only be specified on port 4 of R and S devices,
-	and the non-SGMII devices, while pin-compatible, are not equal in terms
-	of support for RGMII internal delays (supported on P/Q/R/S, but not on
+	and the yesn-SGMII devices, while pin-compatible, are yest equal in terms
+	of support for RGMII internal delays (supported on P/Q/R/S, but yest on
 	E/T).
 
 Optional properties:
 
 - sja1105,role-mac:
 - sja1105,role-phy:
-	Boolean properties that can be assigned under each port node. By
+	Boolean properties that can be assigned under each port yesde. By
 	default (unless otherwise specified) a port is configured as MAC if it
 	is driving a PHY (phy-handle is present) or as PHY if it is PHY-less
 	(fixed-link specified, presumably because it is connected to a MAC).
 	The effect of this property (in either its implicit or explicit form)
 	is:
 	- In the case of MII or RMII it specifies whether the SJA1105 port is a
-	  clock source or sink for this interface (not applicable for RGMII
+	  clock source or sink for this interface (yest applicable for RGMII
 	  where there is a Tx and an Rx clock).
 	- In the case of RGMII it affects the behavior regarding internal
 	  delays:
 	  1. If sja1105,role-mac is specified, and the phy-mode property is one
 	     of "rgmii-id", "rgmii-txid" or "rgmii-rxid", then the entity
 	     designated to apply the delay/clock skew necessary for RGMII
-	     is the PHY. The SJA1105 MAC does not apply any internal delays.
+	     is the PHY. The SJA1105 MAC does yest apply any internal delays.
 	  2. If sja1105,role-phy is specified, and the phy-mode property is one
 	     of the above, the designated entity to apply the internal delays
 	     is the SJA1105 MAC (if hardware-supported). This is only supported

@@ -26,7 +26,7 @@ const struct tcphdr *nf_reject_ip6_tcphdr_get(struct sk_buff *oldskb,
 				   &proto, &frag_off);
 
 	if ((tcphoff < 0) || (tcphoff > oldskb->len)) {
-		pr_debug("Cannot get TCP header.\n");
+		pr_debug("Canyest get TCP header.\n");
 		return NULL;
 	}
 
@@ -93,7 +93,7 @@ void nf_reject_ip6_tcphdr_put(struct sk_buff *nskb,
 
 	skb_reset_transport_header(nskb);
 	tcph = skb_put(nskb, sizeof(struct tcphdr));
-	/* Truncate to length (no data) */
+	/* Truncate to length (yes data) */
 	tcph->doff = sizeof(struct tcphdr)/4;
 	tcph->source = oth->dest;
 	tcph->dest = oth->source;
@@ -140,7 +140,7 @@ void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 
 	if ((!(ipv6_addr_type(&oip6h->saddr) & IPV6_ADDR_UNICAST)) ||
 	    (!(ipv6_addr_type(&oip6h->daddr) & IPV6_ADDR_UNICAST))) {
-		pr_debug("addr is not unicast.\n");
+		pr_debug("addr is yest unicast.\n");
 		return;
 	}
 
@@ -172,7 +172,7 @@ void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 			 GFP_ATOMIC);
 
 	if (!nskb) {
-		net_dbg_ratelimited("cannot alloc skb\n");
+		net_dbg_ratelimited("canyest alloc skb\n");
 		dst_release(dst);
 		return;
 	}

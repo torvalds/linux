@@ -15,7 +15,7 @@ trapbase:
 trapbase_cpu0:
 #endif
 /* We get control passed to us here at t_zero. */
-t_zero:	b gokernel; nop; nop; nop;
+t_zero:	b gokernel; yesp; yesp; yesp;
 t_tflt:	SRMMU_TFAULT                        /* Inst. Access Exception        */
 t_bins:	TRAP_ENTRY(0x2, bad_instruction)    /* Illegal Instruction           */
 t_pins:	TRAP_ENTRY(0x3, priv_instruction)   /* Privileged Instruction        */

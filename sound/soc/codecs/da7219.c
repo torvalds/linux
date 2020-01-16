@@ -775,7 +775,7 @@ static int da7219_mic_pga_event(struct snd_soc_dapm_widget *w,
 		if (da7219->micbias_on_event) {
 			/*
 			 * Delay only for first capture after bias enabled to
-			 * avoid possible DC offset related noise.
+			 * avoid possible DC offset related yesise.
 			 */
 			da7219->micbias_on_event = false;
 			msleep(da7219->mic_pga_delay);
@@ -821,7 +821,7 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component, DA7219_PC_COUNT,
 				    DA7219_PC_FREERUN_MASK, 0);
 
-		/* Slave mode, if SRM not enabled no need for status checks */
+		/* Slave mode, if SRM yest enabled yes need for status checks */
 		pll_ctrl = snd_soc_component_read32(component, DA7219_PLL_CTRL);
 		if ((pll_ctrl & DA7219_PLL_MODE_MASK) != DA7219_PLL_MODE_SRM)
 			return 0;
@@ -926,7 +926,7 @@ static int da7219_gain_ramp_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 	case SND_SOC_DAPM_PRE_PMD:
-		/* Ensure nominal gain ramping for DAPM sequence */
+		/* Ensure yesminal gain ramping for DAPM sequence */
 		da7219->gain_ramp_ctrl =
 			snd_soc_component_read32(component, DA7219_GAIN_RAMP_CTRL);
 		snd_soc_component_write(component, DA7219_GAIN_RAMP_CTRL,
@@ -1183,7 +1183,7 @@ static int da7219_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				    DA7219_PLL_MCLK_SQR_EN_MASK, 0);
 		break;
 	default:
-		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(codec_dai->dev, "Unkyeswn clock source %d\n", clk_id);
 		mutex_unlock(&da7219->pll_lock);
 		return -EINVAL;
 	}
@@ -1828,7 +1828,7 @@ static int da7219_set_bias_level(struct snd_soc_component *component,
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		/* Only disable master bias if we're not a wake-up source */
+		/* Only disable master bias if we're yest a wake-up source */
 		if (!da7219->wakeup_source)
 			snd_soc_component_update_bits(component, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK, 0);
@@ -2172,7 +2172,7 @@ static int da7219_register_dai_clks(struct snd_soc_component *component)
 		da7219->dai_clks[i] = dai_clk;
 
 		/* If we're using DT, then register as provider accordingly */
-		if (dev->of_node) {
+		if (dev->of_yesde) {
 			devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
 						    dai_clk_hw);
 		} else {
@@ -2381,7 +2381,7 @@ static int da7219_suspend(struct snd_soc_component *component)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
 
-	/* Suspend AAD if we're not a wake-up source */
+	/* Suspend AAD if we're yest a wake-up source */
 	if (!da7219->wakeup_source)
 		da7219_aad_suspend(component);
 
@@ -2422,7 +2422,7 @@ static const struct snd_soc_component_driver soc_component_dev_da7219 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 

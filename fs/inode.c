@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 1997 Linus Torvalds
- * (C) 1999 Andrea Arcangeli <andrea@suse.de> (dynamic inode allocation)
+ * (C) 1999 Andrea Arcangeli <andrea@suse.de> (dynamic iyesde allocation)
  */
 #include <linux/export.h>
 #include <linux/fs.h>
@@ -12,11 +12,11 @@
 #include <linux/security.h>
 #include <linux/cdev.h>
 #include <linux/memblock.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/mount.h>
 #include <linux/posix_acl.h>
 #include <linux/prefetch.h>
-#include <linux/buffer_head.h> /* for inode_has_buffers */
+#include <linux/buffer_head.h> /* for iyesde_has_buffers */
 #include <linux/ratelimit.h>
 #include <linux/list_lru.h>
 #include <linux/iversion.h>
@@ -24,43 +24,43 @@
 #include "internal.h"
 
 /*
- * Inode locking rules:
+ * Iyesde locking rules:
  *
- * inode->i_lock protects:
- *   inode->i_state, inode->i_hash, __iget()
- * Inode LRU list locks protect:
- *   inode->i_sb->s_inode_lru, inode->i_lru
- * inode->i_sb->s_inode_list_lock protects:
- *   inode->i_sb->s_inodes, inode->i_sb_list
+ * iyesde->i_lock protects:
+ *   iyesde->i_state, iyesde->i_hash, __iget()
+ * Iyesde LRU list locks protect:
+ *   iyesde->i_sb->s_iyesde_lru, iyesde->i_lru
+ * iyesde->i_sb->s_iyesde_list_lock protects:
+ *   iyesde->i_sb->s_iyesdes, iyesde->i_sb_list
  * bdi->wb.list_lock protects:
- *   bdi->wb.b_{dirty,io,more_io,dirty_time}, inode->i_io_list
- * inode_hash_lock protects:
- *   inode_hashtable, inode->i_hash
+ *   bdi->wb.b_{dirty,io,more_io,dirty_time}, iyesde->i_io_list
+ * iyesde_hash_lock protects:
+ *   iyesde_hashtable, iyesde->i_hash
  *
  * Lock ordering:
  *
- * inode->i_sb->s_inode_list_lock
- *   inode->i_lock
- *     Inode LRU list locks
+ * iyesde->i_sb->s_iyesde_list_lock
+ *   iyesde->i_lock
+ *     Iyesde LRU list locks
  *
  * bdi->wb.list_lock
- *   inode->i_lock
+ *   iyesde->i_lock
  *
- * inode_hash_lock
- *   inode->i_sb->s_inode_list_lock
- *   inode->i_lock
+ * iyesde_hash_lock
+ *   iyesde->i_sb->s_iyesde_list_lock
+ *   iyesde->i_lock
  *
  * iunique_lock
- *   inode_hash_lock
+ *   iyesde_hash_lock
  */
 
 static unsigned int i_hash_mask __read_mostly;
 static unsigned int i_hash_shift __read_mostly;
-static struct hlist_head *inode_hashtable __read_mostly;
-static __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_hash_lock);
+static struct hlist_head *iyesde_hashtable __read_mostly;
+static __cacheline_aligned_in_smp DEFINE_SPINLOCK(iyesde_hash_lock);
 
 /*
- * Empty aops. Can be used for the cases where the user does not
+ * Empty aops. Can be used for the cases where the user does yest
  * define any of the address_space operations.
  */
 const struct address_space_operations empty_aops = {
@@ -70,23 +70,23 @@ EXPORT_SYMBOL(empty_aops);
 /*
  * Statistics gathering..
  */
-struct inodes_stat_t inodes_stat;
+struct iyesdes_stat_t iyesdes_stat;
 
-static DEFINE_PER_CPU(unsigned long, nr_inodes);
+static DEFINE_PER_CPU(unsigned long, nr_iyesdes);
 static DEFINE_PER_CPU(unsigned long, nr_unused);
 
-static struct kmem_cache *inode_cachep __read_mostly;
+static struct kmem_cache *iyesde_cachep __read_mostly;
 
-static long get_nr_inodes(void)
+static long get_nr_iyesdes(void)
 {
 	int i;
 	long sum = 0;
 	for_each_possible_cpu(i)
-		sum += per_cpu(nr_inodes, i);
+		sum += per_cpu(nr_iyesdes, i);
 	return sum < 0 ? 0 : sum;
 }
 
-static inline long get_nr_inodes_unused(void)
+static inline long get_nr_iyesdes_unused(void)
 {
 	int i;
 	long sum = 0;
@@ -95,89 +95,89 @@ static inline long get_nr_inodes_unused(void)
 	return sum < 0 ? 0 : sum;
 }
 
-long get_nr_dirty_inodes(void)
+long get_nr_dirty_iyesdes(void)
 {
-	/* not actually dirty inodes, but a wild approximation */
-	long nr_dirty = get_nr_inodes() - get_nr_inodes_unused();
+	/* yest actually dirty iyesdes, but a wild approximation */
+	long nr_dirty = get_nr_iyesdes() - get_nr_iyesdes_unused();
 	return nr_dirty > 0 ? nr_dirty : 0;
 }
 
 /*
- * Handle nr_inode sysctl
+ * Handle nr_iyesde sysctl
  */
 #ifdef CONFIG_SYSCTL
-int proc_nr_inodes(struct ctl_table *table, int write,
+int proc_nr_iyesdes(struct ctl_table *table, int write,
 		   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	inodes_stat.nr_inodes = get_nr_inodes();
-	inodes_stat.nr_unused = get_nr_inodes_unused();
+	iyesdes_stat.nr_iyesdes = get_nr_iyesdes();
+	iyesdes_stat.nr_unused = get_nr_iyesdes_unused();
 	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
 }
 #endif
 
-static int no_open(struct inode *inode, struct file *file)
+static int yes_open(struct iyesde *iyesde, struct file *file)
 {
 	return -ENXIO;
 }
 
 /**
- * inode_init_always - perform inode structure initialisation
- * @sb: superblock inode belongs to
- * @inode: inode to initialise
+ * iyesde_init_always - perform iyesde structure initialisation
+ * @sb: superblock iyesde belongs to
+ * @iyesde: iyesde to initialise
  *
- * These are initializations that need to be done on every inode
- * allocation as the fields are not initialised by slab allocation.
+ * These are initializations that need to be done on every iyesde
+ * allocation as the fields are yest initialised by slab allocation.
  */
-int inode_init_always(struct super_block *sb, struct inode *inode)
+int iyesde_init_always(struct super_block *sb, struct iyesde *iyesde)
 {
-	static const struct inode_operations empty_iops;
-	static const struct file_operations no_open_fops = {.open = no_open};
-	struct address_space *const mapping = &inode->i_data;
+	static const struct iyesde_operations empty_iops;
+	static const struct file_operations yes_open_fops = {.open = yes_open};
+	struct address_space *const mapping = &iyesde->i_data;
 
-	inode->i_sb = sb;
-	inode->i_blkbits = sb->s_blocksize_bits;
-	inode->i_flags = 0;
-	atomic_set(&inode->i_count, 1);
-	inode->i_op = &empty_iops;
-	inode->i_fop = &no_open_fops;
-	inode->__i_nlink = 1;
-	inode->i_opflags = 0;
+	iyesde->i_sb = sb;
+	iyesde->i_blkbits = sb->s_blocksize_bits;
+	iyesde->i_flags = 0;
+	atomic_set(&iyesde->i_count, 1);
+	iyesde->i_op = &empty_iops;
+	iyesde->i_fop = &yes_open_fops;
+	iyesde->__i_nlink = 1;
+	iyesde->i_opflags = 0;
 	if (sb->s_xattr)
-		inode->i_opflags |= IOP_XATTR;
-	i_uid_write(inode, 0);
-	i_gid_write(inode, 0);
-	atomic_set(&inode->i_writecount, 0);
-	inode->i_size = 0;
-	inode->i_write_hint = WRITE_LIFE_NOT_SET;
-	inode->i_blocks = 0;
-	inode->i_bytes = 0;
-	inode->i_generation = 0;
-	inode->i_pipe = NULL;
-	inode->i_bdev = NULL;
-	inode->i_cdev = NULL;
-	inode->i_link = NULL;
-	inode->i_dir_seq = 0;
-	inode->i_rdev = 0;
-	inode->dirtied_when = 0;
+		iyesde->i_opflags |= IOP_XATTR;
+	i_uid_write(iyesde, 0);
+	i_gid_write(iyesde, 0);
+	atomic_set(&iyesde->i_writecount, 0);
+	iyesde->i_size = 0;
+	iyesde->i_write_hint = WRITE_LIFE_NOT_SET;
+	iyesde->i_blocks = 0;
+	iyesde->i_bytes = 0;
+	iyesde->i_generation = 0;
+	iyesde->i_pipe = NULL;
+	iyesde->i_bdev = NULL;
+	iyesde->i_cdev = NULL;
+	iyesde->i_link = NULL;
+	iyesde->i_dir_seq = 0;
+	iyesde->i_rdev = 0;
+	iyesde->dirtied_when = 0;
 
 #ifdef CONFIG_CGROUP_WRITEBACK
-	inode->i_wb_frn_winner = 0;
-	inode->i_wb_frn_avg_time = 0;
-	inode->i_wb_frn_history = 0;
+	iyesde->i_wb_frn_winner = 0;
+	iyesde->i_wb_frn_avg_time = 0;
+	iyesde->i_wb_frn_history = 0;
 #endif
 
-	if (security_inode_alloc(inode))
+	if (security_iyesde_alloc(iyesde))
 		goto out;
-	spin_lock_init(&inode->i_lock);
-	lockdep_set_class(&inode->i_lock, &sb->s_type->i_lock_key);
+	spin_lock_init(&iyesde->i_lock);
+	lockdep_set_class(&iyesde->i_lock, &sb->s_type->i_lock_key);
 
-	init_rwsem(&inode->i_rwsem);
-	lockdep_set_class(&inode->i_rwsem, &sb->s_type->i_mutex_key);
+	init_rwsem(&iyesde->i_rwsem);
+	lockdep_set_class(&iyesde->i_rwsem, &sb->s_type->i_mutex_key);
 
-	atomic_set(&inode->i_dio_count, 0);
+	atomic_set(&iyesde->i_dio_count, 0);
 
 	mapping->a_ops = &empty_aops;
-	mapping->host = inode;
+	mapping->host = iyesde;
 	mapping->flags = 0;
 	mapping->wb_err = 0;
 	atomic_set(&mapping->i_mmap_writable, 0);
@@ -187,107 +187,107 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
 	mapping->private_data = NULL;
 	mapping->writeback_index = 0;
-	inode->i_private = NULL;
-	inode->i_mapping = mapping;
-	INIT_HLIST_HEAD(&inode->i_dentry);	/* buggered by rcu freeing */
+	iyesde->i_private = NULL;
+	iyesde->i_mapping = mapping;
+	INIT_HLIST_HEAD(&iyesde->i_dentry);	/* buggered by rcu freeing */
 #ifdef CONFIG_FS_POSIX_ACL
-	inode->i_acl = inode->i_default_acl = ACL_NOT_CACHED;
+	iyesde->i_acl = iyesde->i_default_acl = ACL_NOT_CACHED;
 #endif
 
 #ifdef CONFIG_FSNOTIFY
-	inode->i_fsnotify_mask = 0;
+	iyesde->i_fsyestify_mask = 0;
 #endif
-	inode->i_flctx = NULL;
-	this_cpu_inc(nr_inodes);
+	iyesde->i_flctx = NULL;
+	this_cpu_inc(nr_iyesdes);
 
 	return 0;
 out:
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(inode_init_always);
+EXPORT_SYMBOL(iyesde_init_always);
 
-void free_inode_nonrcu(struct inode *inode)
+void free_iyesde_yesnrcu(struct iyesde *iyesde)
 {
-	kmem_cache_free(inode_cachep, inode);
+	kmem_cache_free(iyesde_cachep, iyesde);
 }
-EXPORT_SYMBOL(free_inode_nonrcu);
+EXPORT_SYMBOL(free_iyesde_yesnrcu);
 
 static void i_callback(struct rcu_head *head)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	if (inode->free_inode)
-		inode->free_inode(inode);
+	struct iyesde *iyesde = container_of(head, struct iyesde, i_rcu);
+	if (iyesde->free_iyesde)
+		iyesde->free_iyesde(iyesde);
 	else
-		free_inode_nonrcu(inode);
+		free_iyesde_yesnrcu(iyesde);
 }
 
-static struct inode *alloc_inode(struct super_block *sb)
+static struct iyesde *alloc_iyesde(struct super_block *sb)
 {
 	const struct super_operations *ops = sb->s_op;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	if (ops->alloc_inode)
-		inode = ops->alloc_inode(sb);
+	if (ops->alloc_iyesde)
+		iyesde = ops->alloc_iyesde(sb);
 	else
-		inode = kmem_cache_alloc(inode_cachep, GFP_KERNEL);
+		iyesde = kmem_cache_alloc(iyesde_cachep, GFP_KERNEL);
 
-	if (!inode)
+	if (!iyesde)
 		return NULL;
 
-	if (unlikely(inode_init_always(sb, inode))) {
-		if (ops->destroy_inode) {
-			ops->destroy_inode(inode);
-			if (!ops->free_inode)
+	if (unlikely(iyesde_init_always(sb, iyesde))) {
+		if (ops->destroy_iyesde) {
+			ops->destroy_iyesde(iyesde);
+			if (!ops->free_iyesde)
 				return NULL;
 		}
-		inode->free_inode = ops->free_inode;
-		i_callback(&inode->i_rcu);
+		iyesde->free_iyesde = ops->free_iyesde;
+		i_callback(&iyesde->i_rcu);
 		return NULL;
 	}
 
-	return inode;
+	return iyesde;
 }
 
-void __destroy_inode(struct inode *inode)
+void __destroy_iyesde(struct iyesde *iyesde)
 {
-	BUG_ON(inode_has_buffers(inode));
-	inode_detach_wb(inode);
-	security_inode_free(inode);
-	fsnotify_inode_delete(inode);
-	locks_free_lock_context(inode);
-	if (!inode->i_nlink) {
-		WARN_ON(atomic_long_read(&inode->i_sb->s_remove_count) == 0);
-		atomic_long_dec(&inode->i_sb->s_remove_count);
+	BUG_ON(iyesde_has_buffers(iyesde));
+	iyesde_detach_wb(iyesde);
+	security_iyesde_free(iyesde);
+	fsyestify_iyesde_delete(iyesde);
+	locks_free_lock_context(iyesde);
+	if (!iyesde->i_nlink) {
+		WARN_ON(atomic_long_read(&iyesde->i_sb->s_remove_count) == 0);
+		atomic_long_dec(&iyesde->i_sb->s_remove_count);
 	}
 
 #ifdef CONFIG_FS_POSIX_ACL
-	if (inode->i_acl && !is_uncached_acl(inode->i_acl))
-		posix_acl_release(inode->i_acl);
-	if (inode->i_default_acl && !is_uncached_acl(inode->i_default_acl))
-		posix_acl_release(inode->i_default_acl);
+	if (iyesde->i_acl && !is_uncached_acl(iyesde->i_acl))
+		posix_acl_release(iyesde->i_acl);
+	if (iyesde->i_default_acl && !is_uncached_acl(iyesde->i_default_acl))
+		posix_acl_release(iyesde->i_default_acl);
 #endif
-	this_cpu_dec(nr_inodes);
+	this_cpu_dec(nr_iyesdes);
 }
-EXPORT_SYMBOL(__destroy_inode);
+EXPORT_SYMBOL(__destroy_iyesde);
 
-static void destroy_inode(struct inode *inode)
+static void destroy_iyesde(struct iyesde *iyesde)
 {
-	const struct super_operations *ops = inode->i_sb->s_op;
+	const struct super_operations *ops = iyesde->i_sb->s_op;
 
-	BUG_ON(!list_empty(&inode->i_lru));
-	__destroy_inode(inode);
-	if (ops->destroy_inode) {
-		ops->destroy_inode(inode);
-		if (!ops->free_inode)
+	BUG_ON(!list_empty(&iyesde->i_lru));
+	__destroy_iyesde(iyesde);
+	if (ops->destroy_iyesde) {
+		ops->destroy_iyesde(iyesde);
+		if (!ops->free_iyesde)
 			return;
 	}
-	inode->free_inode = ops->free_inode;
-	call_rcu(&inode->i_rcu, i_callback);
+	iyesde->free_iyesde = ops->free_iyesde;
+	call_rcu(&iyesde->i_rcu, i_callback);
 }
 
 /**
- * drop_nlink - directly drop an inode's link count
- * @inode: inode
+ * drop_nlink - directly drop an iyesde's link count
+ * @iyesde: iyesde
  *
  * This is a low-level filesystem helper to replace any
  * direct filesystem manipulation of i_nlink.  In cases
@@ -296,70 +296,70 @@ static void destroy_inode(struct inode *inode)
  * write when the file is truncated and actually unlinked
  * on the filesystem.
  */
-void drop_nlink(struct inode *inode)
+void drop_nlink(struct iyesde *iyesde)
 {
-	WARN_ON(inode->i_nlink == 0);
-	inode->__i_nlink--;
-	if (!inode->i_nlink)
-		atomic_long_inc(&inode->i_sb->s_remove_count);
+	WARN_ON(iyesde->i_nlink == 0);
+	iyesde->__i_nlink--;
+	if (!iyesde->i_nlink)
+		atomic_long_inc(&iyesde->i_sb->s_remove_count);
 }
 EXPORT_SYMBOL(drop_nlink);
 
 /**
- * clear_nlink - directly zero an inode's link count
- * @inode: inode
+ * clear_nlink - directly zero an iyesde's link count
+ * @iyesde: iyesde
  *
  * This is a low-level filesystem helper to replace any
  * direct filesystem manipulation of i_nlink.  See
  * drop_nlink() for why we care about i_nlink hitting zero.
  */
-void clear_nlink(struct inode *inode)
+void clear_nlink(struct iyesde *iyesde)
 {
-	if (inode->i_nlink) {
-		inode->__i_nlink = 0;
-		atomic_long_inc(&inode->i_sb->s_remove_count);
+	if (iyesde->i_nlink) {
+		iyesde->__i_nlink = 0;
+		atomic_long_inc(&iyesde->i_sb->s_remove_count);
 	}
 }
 EXPORT_SYMBOL(clear_nlink);
 
 /**
- * set_nlink - directly set an inode's link count
- * @inode: inode
- * @nlink: new nlink (should be non-zero)
+ * set_nlink - directly set an iyesde's link count
+ * @iyesde: iyesde
+ * @nlink: new nlink (should be yesn-zero)
  *
  * This is a low-level filesystem helper to replace any
  * direct filesystem manipulation of i_nlink.
  */
-void set_nlink(struct inode *inode, unsigned int nlink)
+void set_nlink(struct iyesde *iyesde, unsigned int nlink)
 {
 	if (!nlink) {
-		clear_nlink(inode);
+		clear_nlink(iyesde);
 	} else {
 		/* Yes, some filesystems do change nlink from zero to one */
-		if (inode->i_nlink == 0)
-			atomic_long_dec(&inode->i_sb->s_remove_count);
+		if (iyesde->i_nlink == 0)
+			atomic_long_dec(&iyesde->i_sb->s_remove_count);
 
-		inode->__i_nlink = nlink;
+		iyesde->__i_nlink = nlink;
 	}
 }
 EXPORT_SYMBOL(set_nlink);
 
 /**
- * inc_nlink - directly increment an inode's link count
- * @inode: inode
+ * inc_nlink - directly increment an iyesde's link count
+ * @iyesde: iyesde
  *
  * This is a low-level filesystem helper to replace any
  * direct filesystem manipulation of i_nlink.  Currently,
  * it is only here for parity with dec_nlink().
  */
-void inc_nlink(struct inode *inode)
+void inc_nlink(struct iyesde *iyesde)
 {
-	if (unlikely(inode->i_nlink == 0)) {
-		WARN_ON(!(inode->i_state & I_LINKABLE));
-		atomic_long_dec(&inode->i_sb->s_remove_count);
+	if (unlikely(iyesde->i_nlink == 0)) {
+		WARN_ON(!(iyesde->i_state & I_LINKABLE));
+		atomic_long_dec(&iyesde->i_sb->s_remove_count);
 	}
 
-	inode->__i_nlink++;
+	iyesde->__i_nlink++;
 }
 EXPORT_SYMBOL(inc_nlink);
 
@@ -382,92 +382,92 @@ EXPORT_SYMBOL(address_space_init_once);
 /*
  * These are initializations that only need to be done
  * once, because the fields are idempotent across use
- * of the inode, so let the slab aware of that.
+ * of the iyesde, so let the slab aware of that.
  */
-void inode_init_once(struct inode *inode)
+void iyesde_init_once(struct iyesde *iyesde)
 {
-	memset(inode, 0, sizeof(*inode));
-	INIT_HLIST_NODE(&inode->i_hash);
-	INIT_LIST_HEAD(&inode->i_devices);
-	INIT_LIST_HEAD(&inode->i_io_list);
-	INIT_LIST_HEAD(&inode->i_wb_list);
-	INIT_LIST_HEAD(&inode->i_lru);
-	__address_space_init_once(&inode->i_data);
-	i_size_ordered_init(inode);
+	memset(iyesde, 0, sizeof(*iyesde));
+	INIT_HLIST_NODE(&iyesde->i_hash);
+	INIT_LIST_HEAD(&iyesde->i_devices);
+	INIT_LIST_HEAD(&iyesde->i_io_list);
+	INIT_LIST_HEAD(&iyesde->i_wb_list);
+	INIT_LIST_HEAD(&iyesde->i_lru);
+	__address_space_init_once(&iyesde->i_data);
+	i_size_ordered_init(iyesde);
 }
-EXPORT_SYMBOL(inode_init_once);
+EXPORT_SYMBOL(iyesde_init_once);
 
 static void init_once(void *foo)
 {
-	struct inode *inode = (struct inode *) foo;
+	struct iyesde *iyesde = (struct iyesde *) foo;
 
-	inode_init_once(inode);
+	iyesde_init_once(iyesde);
 }
 
 /*
- * inode->i_lock must be held
+ * iyesde->i_lock must be held
  */
-void __iget(struct inode *inode)
+void __iget(struct iyesde *iyesde)
 {
-	atomic_inc(&inode->i_count);
+	atomic_inc(&iyesde->i_count);
 }
 
 /*
- * get additional reference to inode; caller must already hold one.
+ * get additional reference to iyesde; caller must already hold one.
  */
-void ihold(struct inode *inode)
+void ihold(struct iyesde *iyesde)
 {
-	WARN_ON(atomic_inc_return(&inode->i_count) < 2);
+	WARN_ON(atomic_inc_return(&iyesde->i_count) < 2);
 }
 EXPORT_SYMBOL(ihold);
 
-static void inode_lru_list_add(struct inode *inode)
+static void iyesde_lru_list_add(struct iyesde *iyesde)
 {
-	if (list_lru_add(&inode->i_sb->s_inode_lru, &inode->i_lru))
+	if (list_lru_add(&iyesde->i_sb->s_iyesde_lru, &iyesde->i_lru))
 		this_cpu_inc(nr_unused);
 	else
-		inode->i_state |= I_REFERENCED;
+		iyesde->i_state |= I_REFERENCED;
 }
 
 /*
- * Add inode to LRU if needed (inode is unused and clean).
+ * Add iyesde to LRU if needed (iyesde is unused and clean).
  *
- * Needs inode->i_lock held.
+ * Needs iyesde->i_lock held.
  */
-void inode_add_lru(struct inode *inode)
+void iyesde_add_lru(struct iyesde *iyesde)
 {
-	if (!(inode->i_state & (I_DIRTY_ALL | I_SYNC |
+	if (!(iyesde->i_state & (I_DIRTY_ALL | I_SYNC |
 				I_FREEING | I_WILL_FREE)) &&
-	    !atomic_read(&inode->i_count) && inode->i_sb->s_flags & SB_ACTIVE)
-		inode_lru_list_add(inode);
+	    !atomic_read(&iyesde->i_count) && iyesde->i_sb->s_flags & SB_ACTIVE)
+		iyesde_lru_list_add(iyesde);
 }
 
 
-static void inode_lru_list_del(struct inode *inode)
+static void iyesde_lru_list_del(struct iyesde *iyesde)
 {
 
-	if (list_lru_del(&inode->i_sb->s_inode_lru, &inode->i_lru))
+	if (list_lru_del(&iyesde->i_sb->s_iyesde_lru, &iyesde->i_lru))
 		this_cpu_dec(nr_unused);
 }
 
 /**
- * inode_sb_list_add - add inode to the superblock list of inodes
- * @inode: inode to add
+ * iyesde_sb_list_add - add iyesde to the superblock list of iyesdes
+ * @iyesde: iyesde to add
  */
-void inode_sb_list_add(struct inode *inode)
+void iyesde_sb_list_add(struct iyesde *iyesde)
 {
-	spin_lock(&inode->i_sb->s_inode_list_lock);
-	list_add(&inode->i_sb_list, &inode->i_sb->s_inodes);
-	spin_unlock(&inode->i_sb->s_inode_list_lock);
+	spin_lock(&iyesde->i_sb->s_iyesde_list_lock);
+	list_add(&iyesde->i_sb_list, &iyesde->i_sb->s_iyesdes);
+	spin_unlock(&iyesde->i_sb->s_iyesde_list_lock);
 }
-EXPORT_SYMBOL_GPL(inode_sb_list_add);
+EXPORT_SYMBOL_GPL(iyesde_sb_list_add);
 
-static inline void inode_sb_list_del(struct inode *inode)
+static inline void iyesde_sb_list_del(struct iyesde *iyesde)
 {
-	if (!list_empty(&inode->i_sb_list)) {
-		spin_lock(&inode->i_sb->s_inode_list_lock);
-		list_del_init(&inode->i_sb_list);
-		spin_unlock(&inode->i_sb->s_inode_list_lock);
+	if (!list_empty(&iyesde->i_sb_list)) {
+		spin_lock(&iyesde->i_sb->s_iyesde_list_lock);
+		list_del_init(&iyesde->i_sb_list);
+		spin_unlock(&iyesde->i_sb->s_iyesde_list_lock);
 	}
 }
 
@@ -482,231 +482,231 @@ static unsigned long hash(struct super_block *sb, unsigned long hashval)
 }
 
 /**
- *	__insert_inode_hash - hash an inode
- *	@inode: unhashed inode
+ *	__insert_iyesde_hash - hash an iyesde
+ *	@iyesde: unhashed iyesde
  *	@hashval: unsigned long value used to locate this object in the
- *		inode_hashtable.
+ *		iyesde_hashtable.
  *
- *	Add an inode to the inode hash for this superblock.
+ *	Add an iyesde to the iyesde hash for this superblock.
  */
-void __insert_inode_hash(struct inode *inode, unsigned long hashval)
+void __insert_iyesde_hash(struct iyesde *iyesde, unsigned long hashval)
 {
-	struct hlist_head *b = inode_hashtable + hash(inode->i_sb, hashval);
+	struct hlist_head *b = iyesde_hashtable + hash(iyesde->i_sb, hashval);
 
-	spin_lock(&inode_hash_lock);
-	spin_lock(&inode->i_lock);
-	hlist_add_head(&inode->i_hash, b);
-	spin_unlock(&inode->i_lock);
-	spin_unlock(&inode_hash_lock);
+	spin_lock(&iyesde_hash_lock);
+	spin_lock(&iyesde->i_lock);
+	hlist_add_head(&iyesde->i_hash, b);
+	spin_unlock(&iyesde->i_lock);
+	spin_unlock(&iyesde_hash_lock);
 }
-EXPORT_SYMBOL(__insert_inode_hash);
+EXPORT_SYMBOL(__insert_iyesde_hash);
 
 /**
- *	__remove_inode_hash - remove an inode from the hash
- *	@inode: inode to unhash
+ *	__remove_iyesde_hash - remove an iyesde from the hash
+ *	@iyesde: iyesde to unhash
  *
- *	Remove an inode from the superblock.
+ *	Remove an iyesde from the superblock.
  */
-void __remove_inode_hash(struct inode *inode)
+void __remove_iyesde_hash(struct iyesde *iyesde)
 {
-	spin_lock(&inode_hash_lock);
-	spin_lock(&inode->i_lock);
-	hlist_del_init(&inode->i_hash);
-	spin_unlock(&inode->i_lock);
-	spin_unlock(&inode_hash_lock);
+	spin_lock(&iyesde_hash_lock);
+	spin_lock(&iyesde->i_lock);
+	hlist_del_init(&iyesde->i_hash);
+	spin_unlock(&iyesde->i_lock);
+	spin_unlock(&iyesde_hash_lock);
 }
-EXPORT_SYMBOL(__remove_inode_hash);
+EXPORT_SYMBOL(__remove_iyesde_hash);
 
-void clear_inode(struct inode *inode)
+void clear_iyesde(struct iyesde *iyesde)
 {
 	/*
 	 * We have to cycle the i_pages lock here because reclaim can be in the
 	 * process of removing the last page (in __delete_from_page_cache())
-	 * and we must not free the mapping under it.
+	 * and we must yest free the mapping under it.
 	 */
-	xa_lock_irq(&inode->i_data.i_pages);
-	BUG_ON(inode->i_data.nrpages);
-	BUG_ON(inode->i_data.nrexceptional);
-	xa_unlock_irq(&inode->i_data.i_pages);
-	BUG_ON(!list_empty(&inode->i_data.private_list));
-	BUG_ON(!(inode->i_state & I_FREEING));
-	BUG_ON(inode->i_state & I_CLEAR);
-	BUG_ON(!list_empty(&inode->i_wb_list));
-	/* don't need i_lock here, no concurrent mods to i_state */
-	inode->i_state = I_FREEING | I_CLEAR;
+	xa_lock_irq(&iyesde->i_data.i_pages);
+	BUG_ON(iyesde->i_data.nrpages);
+	BUG_ON(iyesde->i_data.nrexceptional);
+	xa_unlock_irq(&iyesde->i_data.i_pages);
+	BUG_ON(!list_empty(&iyesde->i_data.private_list));
+	BUG_ON(!(iyesde->i_state & I_FREEING));
+	BUG_ON(iyesde->i_state & I_CLEAR);
+	BUG_ON(!list_empty(&iyesde->i_wb_list));
+	/* don't need i_lock here, yes concurrent mods to i_state */
+	iyesde->i_state = I_FREEING | I_CLEAR;
 }
-EXPORT_SYMBOL(clear_inode);
+EXPORT_SYMBOL(clear_iyesde);
 
 /*
- * Free the inode passed in, removing it from the lists it is still connected
- * to. We remove any pages still attached to the inode and wait for any IO that
- * is still in progress before finally destroying the inode.
+ * Free the iyesde passed in, removing it from the lists it is still connected
+ * to. We remove any pages still attached to the iyesde and wait for any IO that
+ * is still in progress before finally destroying the iyesde.
  *
- * An inode must already be marked I_FREEING so that we avoid the inode being
+ * An iyesde must already be marked I_FREEING so that we avoid the iyesde being
  * moved back onto lists if we race with other code that manipulates the lists
- * (e.g. writeback_single_inode). The caller is responsible for setting this.
+ * (e.g. writeback_single_iyesde). The caller is responsible for setting this.
  *
- * An inode must already be removed from the LRU list before being evicted from
+ * An iyesde must already be removed from the LRU list before being evicted from
  * the cache. This should occur atomically with setting the I_FREEING state
- * flag, so no inodes here should ever be on the LRU when being evicted.
+ * flag, so yes iyesdes here should ever be on the LRU when being evicted.
  */
-static void evict(struct inode *inode)
+static void evict(struct iyesde *iyesde)
 {
-	const struct super_operations *op = inode->i_sb->s_op;
+	const struct super_operations *op = iyesde->i_sb->s_op;
 
-	BUG_ON(!(inode->i_state & I_FREEING));
-	BUG_ON(!list_empty(&inode->i_lru));
+	BUG_ON(!(iyesde->i_state & I_FREEING));
+	BUG_ON(!list_empty(&iyesde->i_lru));
 
-	if (!list_empty(&inode->i_io_list))
-		inode_io_list_del(inode);
+	if (!list_empty(&iyesde->i_io_list))
+		iyesde_io_list_del(iyesde);
 
-	inode_sb_list_del(inode);
+	iyesde_sb_list_del(iyesde);
 
 	/*
-	 * Wait for flusher thread to be done with the inode so that filesystem
-	 * does not start destroying it while writeback is still running. Since
-	 * the inode has I_FREEING set, flusher thread won't start new work on
-	 * the inode.  We just have to wait for running writeback to finish.
+	 * Wait for flusher thread to be done with the iyesde so that filesystem
+	 * does yest start destroying it while writeback is still running. Since
+	 * the iyesde has I_FREEING set, flusher thread won't start new work on
+	 * the iyesde.  We just have to wait for running writeback to finish.
 	 */
-	inode_wait_for_writeback(inode);
+	iyesde_wait_for_writeback(iyesde);
 
-	if (op->evict_inode) {
-		op->evict_inode(inode);
+	if (op->evict_iyesde) {
+		op->evict_iyesde(iyesde);
 	} else {
-		truncate_inode_pages_final(&inode->i_data);
-		clear_inode(inode);
+		truncate_iyesde_pages_final(&iyesde->i_data);
+		clear_iyesde(iyesde);
 	}
-	if (S_ISBLK(inode->i_mode) && inode->i_bdev)
-		bd_forget(inode);
-	if (S_ISCHR(inode->i_mode) && inode->i_cdev)
-		cd_forget(inode);
+	if (S_ISBLK(iyesde->i_mode) && iyesde->i_bdev)
+		bd_forget(iyesde);
+	if (S_ISCHR(iyesde->i_mode) && iyesde->i_cdev)
+		cd_forget(iyesde);
 
-	remove_inode_hash(inode);
+	remove_iyesde_hash(iyesde);
 
-	spin_lock(&inode->i_lock);
-	wake_up_bit(&inode->i_state, __I_NEW);
-	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
-	spin_unlock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
+	wake_up_bit(&iyesde->i_state, __I_NEW);
+	BUG_ON(iyesde->i_state != (I_FREEING | I_CLEAR));
+	spin_unlock(&iyesde->i_lock);
 
-	destroy_inode(inode);
+	destroy_iyesde(iyesde);
 }
 
 /*
  * dispose_list - dispose of the contents of a local list
  * @head: the head of the list to free
  *
- * Dispose-list gets a local list with local inodes in it, so it doesn't
+ * Dispose-list gets a local list with local iyesdes in it, so it doesn't
  * need to worry about list corruption and SMP locks.
  */
 static void dispose_list(struct list_head *head)
 {
 	while (!list_empty(head)) {
-		struct inode *inode;
+		struct iyesde *iyesde;
 
-		inode = list_first_entry(head, struct inode, i_lru);
-		list_del_init(&inode->i_lru);
+		iyesde = list_first_entry(head, struct iyesde, i_lru);
+		list_del_init(&iyesde->i_lru);
 
-		evict(inode);
+		evict(iyesde);
 		cond_resched();
 	}
 }
 
 /**
- * evict_inodes	- evict all evictable inodes for a superblock
+ * evict_iyesdes	- evict all evictable iyesdes for a superblock
  * @sb:		superblock to operate on
  *
- * Make sure that no inodes with zero refcount are retained.  This is
+ * Make sure that yes iyesdes with zero refcount are retained.  This is
  * called by superblock shutdown after having SB_ACTIVE flag removed,
- * so any inode reaching zero refcount during or after that call will
+ * so any iyesde reaching zero refcount during or after that call will
  * be immediately evicted.
  */
-void evict_inodes(struct super_block *sb)
+void evict_iyesdes(struct super_block *sb)
 {
-	struct inode *inode, *next;
+	struct iyesde *iyesde, *next;
 	LIST_HEAD(dispose);
 
 again:
-	spin_lock(&sb->s_inode_list_lock);
-	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
-		if (atomic_read(&inode->i_count))
+	spin_lock(&sb->s_iyesde_list_lock);
+	list_for_each_entry_safe(iyesde, next, &sb->s_iyesdes, i_sb_list) {
+		if (atomic_read(&iyesde->i_count))
 			continue;
 
-		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
-			spin_unlock(&inode->i_lock);
+		spin_lock(&iyesde->i_lock);
+		if (iyesde->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
+			spin_unlock(&iyesde->i_lock);
 			continue;
 		}
 
-		inode->i_state |= I_FREEING;
-		inode_lru_list_del(inode);
-		spin_unlock(&inode->i_lock);
-		list_add(&inode->i_lru, &dispose);
+		iyesde->i_state |= I_FREEING;
+		iyesde_lru_list_del(iyesde);
+		spin_unlock(&iyesde->i_lock);
+		list_add(&iyesde->i_lru, &dispose);
 
 		/*
-		 * We can have a ton of inodes to evict at unmount time given
-		 * enough memory, check to see if we need to go to sleep for a
+		 * We can have a ton of iyesdes to evict at unmount time given
+		 * eyesugh memory, check to see if we need to go to sleep for a
 		 * bit so we don't livelock.
 		 */
 		if (need_resched()) {
-			spin_unlock(&sb->s_inode_list_lock);
+			spin_unlock(&sb->s_iyesde_list_lock);
 			cond_resched();
 			dispose_list(&dispose);
 			goto again;
 		}
 	}
-	spin_unlock(&sb->s_inode_list_lock);
+	spin_unlock(&sb->s_iyesde_list_lock);
 
 	dispose_list(&dispose);
 }
-EXPORT_SYMBOL_GPL(evict_inodes);
+EXPORT_SYMBOL_GPL(evict_iyesdes);
 
 /**
- * invalidate_inodes	- attempt to free all inodes on a superblock
+ * invalidate_iyesdes	- attempt to free all iyesdes on a superblock
  * @sb:		superblock to operate on
- * @kill_dirty: flag to guide handling of dirty inodes
+ * @kill_dirty: flag to guide handling of dirty iyesdes
  *
- * Attempts to free all inodes for a given superblock.  If there were any
- * busy inodes return a non-zero value, else zero.
- * If @kill_dirty is set, discard dirty inodes too, otherwise treat
+ * Attempts to free all iyesdes for a given superblock.  If there were any
+ * busy iyesdes return a yesn-zero value, else zero.
+ * If @kill_dirty is set, discard dirty iyesdes too, otherwise treat
  * them as busy.
  */
-int invalidate_inodes(struct super_block *sb, bool kill_dirty)
+int invalidate_iyesdes(struct super_block *sb, bool kill_dirty)
 {
 	int busy = 0;
-	struct inode *inode, *next;
+	struct iyesde *iyesde, *next;
 	LIST_HEAD(dispose);
 
 again:
-	spin_lock(&sb->s_inode_list_lock);
-	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
-		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
-			spin_unlock(&inode->i_lock);
+	spin_lock(&sb->s_iyesde_list_lock);
+	list_for_each_entry_safe(iyesde, next, &sb->s_iyesdes, i_sb_list) {
+		spin_lock(&iyesde->i_lock);
+		if (iyesde->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
+			spin_unlock(&iyesde->i_lock);
 			continue;
 		}
-		if (inode->i_state & I_DIRTY_ALL && !kill_dirty) {
-			spin_unlock(&inode->i_lock);
+		if (iyesde->i_state & I_DIRTY_ALL && !kill_dirty) {
+			spin_unlock(&iyesde->i_lock);
 			busy = 1;
 			continue;
 		}
-		if (atomic_read(&inode->i_count)) {
-			spin_unlock(&inode->i_lock);
+		if (atomic_read(&iyesde->i_count)) {
+			spin_unlock(&iyesde->i_lock);
 			busy = 1;
 			continue;
 		}
 
-		inode->i_state |= I_FREEING;
-		inode_lru_list_del(inode);
-		spin_unlock(&inode->i_lock);
-		list_add(&inode->i_lru, &dispose);
+		iyesde->i_state |= I_FREEING;
+		iyesde_lru_list_del(iyesde);
+		spin_unlock(&iyesde->i_lock);
+		list_add(&iyesde->i_lru, &dispose);
 		if (need_resched()) {
-			spin_unlock(&sb->s_inode_list_lock);
+			spin_unlock(&sb->s_iyesde_list_lock);
 			cond_resched();
 			dispose_list(&dispose);
 			goto again;
 		}
 	}
-	spin_unlock(&sb->s_inode_list_lock);
+	spin_unlock(&sb->s_iyesde_list_lock);
 
 	dispose_list(&dispose);
 
@@ -714,59 +714,59 @@ again:
 }
 
 /*
- * Isolate the inode from the LRU in preparation for freeing it.
+ * Isolate the iyesde from the LRU in preparation for freeing it.
  *
- * Any inodes which are pinned purely because of attached pagecache have their
- * pagecache removed.  If the inode has metadata buffers attached to
+ * Any iyesdes which are pinned purely because of attached pagecache have their
+ * pagecache removed.  If the iyesde has metadata buffers attached to
  * mapping->private_list then try to remove them.
  *
- * If the inode has the I_REFERENCED flag set, then it means that it has been
+ * If the iyesde has the I_REFERENCED flag set, then it means that it has been
  * used recently - the flag is set in iput_final(). When we encounter such an
- * inode, clear the flag and move it to the back of the LRU so it gets another
+ * iyesde, clear the flag and move it to the back of the LRU so it gets ayesther
  * pass through the LRU before it gets reclaimed. This is necessary because of
  * the fact we are doing lazy LRU updates to minimise lock contention so the
- * LRU does not have strict ordering. Hence we don't want to reclaim inodes
- * with this flag set because they are the inodes that are out of order.
+ * LRU does yest have strict ordering. Hence we don't want to reclaim iyesdes
+ * with this flag set because they are the iyesdes that are out of order.
  */
-static enum lru_status inode_lru_isolate(struct list_head *item,
+static enum lru_status iyesde_lru_isolate(struct list_head *item,
 		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
 {
 	struct list_head *freeable = arg;
-	struct inode	*inode = container_of(item, struct inode, i_lru);
+	struct iyesde	*iyesde = container_of(item, struct iyesde, i_lru);
 
 	/*
-	 * we are inverting the lru lock/inode->i_lock here, so use a trylock.
+	 * we are inverting the lru lock/iyesde->i_lock here, so use a trylock.
 	 * If we fail to get the lock, just skip it.
 	 */
-	if (!spin_trylock(&inode->i_lock))
+	if (!spin_trylock(&iyesde->i_lock))
 		return LRU_SKIP;
 
 	/*
-	 * Referenced or dirty inodes are still in use. Give them another pass
-	 * through the LRU as we canot reclaim them now.
+	 * Referenced or dirty iyesdes are still in use. Give them ayesther pass
+	 * through the LRU as we cayest reclaim them yesw.
 	 */
-	if (atomic_read(&inode->i_count) ||
-	    (inode->i_state & ~I_REFERENCED)) {
-		list_lru_isolate(lru, &inode->i_lru);
-		spin_unlock(&inode->i_lock);
+	if (atomic_read(&iyesde->i_count) ||
+	    (iyesde->i_state & ~I_REFERENCED)) {
+		list_lru_isolate(lru, &iyesde->i_lru);
+		spin_unlock(&iyesde->i_lock);
 		this_cpu_dec(nr_unused);
 		return LRU_REMOVED;
 	}
 
-	/* recently referenced inodes get one more pass */
-	if (inode->i_state & I_REFERENCED) {
-		inode->i_state &= ~I_REFERENCED;
-		spin_unlock(&inode->i_lock);
+	/* recently referenced iyesdes get one more pass */
+	if (iyesde->i_state & I_REFERENCED) {
+		iyesde->i_state &= ~I_REFERENCED;
+		spin_unlock(&iyesde->i_lock);
 		return LRU_ROTATE;
 	}
 
-	if (inode_has_buffers(inode) || inode->i_data.nrpages) {
-		__iget(inode);
-		spin_unlock(&inode->i_lock);
+	if (iyesde_has_buffers(iyesde) || iyesde->i_data.nrpages) {
+		__iget(iyesde);
+		spin_unlock(&iyesde->i_lock);
 		spin_unlock(lru_lock);
-		if (remove_inode_buffers(inode)) {
+		if (remove_iyesde_buffers(iyesde)) {
 			unsigned long reap;
-			reap = invalidate_mapping_pages(&inode->i_data, 0, -1);
+			reap = invalidate_mapping_pages(&iyesde->i_data, 0, -1);
 			if (current_is_kswapd())
 				__count_vm_events(KSWAPD_INODESTEAL, reap);
 			else
@@ -774,697 +774,697 @@ static enum lru_status inode_lru_isolate(struct list_head *item,
 			if (current->reclaim_state)
 				current->reclaim_state->reclaimed_slab += reap;
 		}
-		iput(inode);
+		iput(iyesde);
 		spin_lock(lru_lock);
 		return LRU_RETRY;
 	}
 
-	WARN_ON(inode->i_state & I_NEW);
-	inode->i_state |= I_FREEING;
-	list_lru_isolate_move(lru, &inode->i_lru, freeable);
-	spin_unlock(&inode->i_lock);
+	WARN_ON(iyesde->i_state & I_NEW);
+	iyesde->i_state |= I_FREEING;
+	list_lru_isolate_move(lru, &iyesde->i_lru, freeable);
+	spin_unlock(&iyesde->i_lock);
 
 	this_cpu_dec(nr_unused);
 	return LRU_REMOVED;
 }
 
 /*
- * Walk the superblock inode LRU for freeable inodes and attempt to free them.
- * This is called from the superblock shrinker function with a number of inodes
- * to trim from the LRU. Inodes to be freed are moved to a temporary list and
- * then are freed outside inode_lock by dispose_list().
+ * Walk the superblock iyesde LRU for freeable iyesdes and attempt to free them.
+ * This is called from the superblock shrinker function with a number of iyesdes
+ * to trim from the LRU. Iyesdes to be freed are moved to a temporary list and
+ * then are freed outside iyesde_lock by dispose_list().
  */
 long prune_icache_sb(struct super_block *sb, struct shrink_control *sc)
 {
 	LIST_HEAD(freeable);
 	long freed;
 
-	freed = list_lru_shrink_walk(&sb->s_inode_lru, sc,
-				     inode_lru_isolate, &freeable);
+	freed = list_lru_shrink_walk(&sb->s_iyesde_lru, sc,
+				     iyesde_lru_isolate, &freeable);
 	dispose_list(&freeable);
 	return freed;
 }
 
-static void __wait_on_freeing_inode(struct inode *inode);
+static void __wait_on_freeing_iyesde(struct iyesde *iyesde);
 /*
- * Called with the inode lock held.
+ * Called with the iyesde lock held.
  */
-static struct inode *find_inode(struct super_block *sb,
+static struct iyesde *find_iyesde(struct super_block *sb,
 				struct hlist_head *head,
-				int (*test)(struct inode *, void *),
+				int (*test)(struct iyesde *, void *),
 				void *data)
 {
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 
 repeat:
-	hlist_for_each_entry(inode, head, i_hash) {
-		if (inode->i_sb != sb)
+	hlist_for_each_entry(iyesde, head, i_hash) {
+		if (iyesde->i_sb != sb)
 			continue;
-		if (!test(inode, data))
+		if (!test(iyesde, data))
 			continue;
-		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_FREEING|I_WILL_FREE)) {
-			__wait_on_freeing_inode(inode);
+		spin_lock(&iyesde->i_lock);
+		if (iyesde->i_state & (I_FREEING|I_WILL_FREE)) {
+			__wait_on_freeing_iyesde(iyesde);
 			goto repeat;
 		}
-		if (unlikely(inode->i_state & I_CREATING)) {
-			spin_unlock(&inode->i_lock);
+		if (unlikely(iyesde->i_state & I_CREATING)) {
+			spin_unlock(&iyesde->i_lock);
 			return ERR_PTR(-ESTALE);
 		}
-		__iget(inode);
-		spin_unlock(&inode->i_lock);
-		return inode;
+		__iget(iyesde);
+		spin_unlock(&iyesde->i_lock);
+		return iyesde;
 	}
 	return NULL;
 }
 
 /*
- * find_inode_fast is the fast path version of find_inode, see the comment at
+ * find_iyesde_fast is the fast path version of find_iyesde, see the comment at
  * iget_locked for details.
  */
-static struct inode *find_inode_fast(struct super_block *sb,
-				struct hlist_head *head, unsigned long ino)
+static struct iyesde *find_iyesde_fast(struct super_block *sb,
+				struct hlist_head *head, unsigned long iyes)
 {
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 
 repeat:
-	hlist_for_each_entry(inode, head, i_hash) {
-		if (inode->i_ino != ino)
+	hlist_for_each_entry(iyesde, head, i_hash) {
+		if (iyesde->i_iyes != iyes)
 			continue;
-		if (inode->i_sb != sb)
+		if (iyesde->i_sb != sb)
 			continue;
-		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_FREEING|I_WILL_FREE)) {
-			__wait_on_freeing_inode(inode);
+		spin_lock(&iyesde->i_lock);
+		if (iyesde->i_state & (I_FREEING|I_WILL_FREE)) {
+			__wait_on_freeing_iyesde(iyesde);
 			goto repeat;
 		}
-		if (unlikely(inode->i_state & I_CREATING)) {
-			spin_unlock(&inode->i_lock);
+		if (unlikely(iyesde->i_state & I_CREATING)) {
+			spin_unlock(&iyesde->i_lock);
 			return ERR_PTR(-ESTALE);
 		}
-		__iget(inode);
-		spin_unlock(&inode->i_lock);
-		return inode;
+		__iget(iyesde);
+		spin_unlock(&iyesde->i_lock);
+		return iyesde;
 	}
 	return NULL;
 }
 
 /*
  * Each cpu owns a range of LAST_INO_BATCH numbers.
- * 'shared_last_ino' is dirtied only once out of LAST_INO_BATCH allocations,
+ * 'shared_last_iyes' is dirtied only once out of LAST_INO_BATCH allocations,
  * to renew the exhausted range.
  *
- * This does not significantly increase overflow rate because every CPU can
- * consume at most LAST_INO_BATCH-1 unused inode numbers. So there is
+ * This does yest significantly increase overflow rate because every CPU can
+ * consume at most LAST_INO_BATCH-1 unused iyesde numbers. So there is
  * NR_CPUS*(LAST_INO_BATCH-1) wastage. At 4096 and 1024, this is ~0.1% of the
  * 2^32 range, and is a worst-case. Even a 50% wastage would only increase
- * overflow rate by 2x, which does not seem too significant.
+ * overflow rate by 2x, which does yest seem too significant.
  *
- * On a 32bit, non LFS stat() call, glibc will generate an EOVERFLOW
- * error if st_ino won't fit in target struct field. Use 32bit counter
+ * On a 32bit, yesn LFS stat() call, glibc will generate an EOVERFLOW
+ * error if st_iyes won't fit in target struct field. Use 32bit counter
  * here to attempt to avoid that.
  */
 #define LAST_INO_BATCH 1024
-static DEFINE_PER_CPU(unsigned int, last_ino);
+static DEFINE_PER_CPU(unsigned int, last_iyes);
 
-unsigned int get_next_ino(void)
+unsigned int get_next_iyes(void)
 {
-	unsigned int *p = &get_cpu_var(last_ino);
+	unsigned int *p = &get_cpu_var(last_iyes);
 	unsigned int res = *p;
 
 #ifdef CONFIG_SMP
 	if (unlikely((res & (LAST_INO_BATCH-1)) == 0)) {
-		static atomic_t shared_last_ino;
-		int next = atomic_add_return(LAST_INO_BATCH, &shared_last_ino);
+		static atomic_t shared_last_iyes;
+		int next = atomic_add_return(LAST_INO_BATCH, &shared_last_iyes);
 
 		res = next - LAST_INO_BATCH;
 	}
 #endif
 
 	res++;
-	/* get_next_ino should not provide a 0 inode number */
+	/* get_next_iyes should yest provide a 0 iyesde number */
 	if (unlikely(!res))
 		res++;
 	*p = res;
-	put_cpu_var(last_ino);
+	put_cpu_var(last_iyes);
 	return res;
 }
-EXPORT_SYMBOL(get_next_ino);
+EXPORT_SYMBOL(get_next_iyes);
 
 /**
- *	new_inode_pseudo 	- obtain an inode
+ *	new_iyesde_pseudo 	- obtain an iyesde
  *	@sb: superblock
  *
- *	Allocates a new inode for given superblock.
- *	Inode wont be chained in superblock s_inodes list
+ *	Allocates a new iyesde for given superblock.
+ *	Iyesde wont be chained in superblock s_iyesdes list
  *	This means :
  *	- fs can't be unmount
- *	- quotas, fsnotify, writeback can't work
+ *	- quotas, fsyestify, writeback can't work
  */
-struct inode *new_inode_pseudo(struct super_block *sb)
+struct iyesde *new_iyesde_pseudo(struct super_block *sb)
 {
-	struct inode *inode = alloc_inode(sb);
+	struct iyesde *iyesde = alloc_iyesde(sb);
 
-	if (inode) {
-		spin_lock(&inode->i_lock);
-		inode->i_state = 0;
-		spin_unlock(&inode->i_lock);
-		INIT_LIST_HEAD(&inode->i_sb_list);
+	if (iyesde) {
+		spin_lock(&iyesde->i_lock);
+		iyesde->i_state = 0;
+		spin_unlock(&iyesde->i_lock);
+		INIT_LIST_HEAD(&iyesde->i_sb_list);
 	}
-	return inode;
+	return iyesde;
 }
 
 /**
- *	new_inode 	- obtain an inode
+ *	new_iyesde 	- obtain an iyesde
  *	@sb: superblock
  *
- *	Allocates a new inode for given superblock. The default gfp_mask
- *	for allocations related to inode->i_mapping is GFP_HIGHUSER_MOVABLE.
- *	If HIGHMEM pages are unsuitable or it is known that pages allocated
- *	for the page cache are not reclaimable or migratable,
+ *	Allocates a new iyesde for given superblock. The default gfp_mask
+ *	for allocations related to iyesde->i_mapping is GFP_HIGHUSER_MOVABLE.
+ *	If HIGHMEM pages are unsuitable or it is kyeswn that pages allocated
+ *	for the page cache are yest reclaimable or migratable,
  *	mapping_set_gfp_mask() must be called with suitable flags on the
- *	newly created inode's mapping
+ *	newly created iyesde's mapping
  *
  */
-struct inode *new_inode(struct super_block *sb)
+struct iyesde *new_iyesde(struct super_block *sb)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	spin_lock_prefetch(&sb->s_inode_list_lock);
+	spin_lock_prefetch(&sb->s_iyesde_list_lock);
 
-	inode = new_inode_pseudo(sb);
-	if (inode)
-		inode_sb_list_add(inode);
-	return inode;
+	iyesde = new_iyesde_pseudo(sb);
+	if (iyesde)
+		iyesde_sb_list_add(iyesde);
+	return iyesde;
 }
-EXPORT_SYMBOL(new_inode);
+EXPORT_SYMBOL(new_iyesde);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-void lockdep_annotate_inode_mutex_key(struct inode *inode)
+void lockdep_anyestate_iyesde_mutex_key(struct iyesde *iyesde)
 {
-	if (S_ISDIR(inode->i_mode)) {
-		struct file_system_type *type = inode->i_sb->s_type;
+	if (S_ISDIR(iyesde->i_mode)) {
+		struct file_system_type *type = iyesde->i_sb->s_type;
 
 		/* Set new key only if filesystem hasn't already changed it */
-		if (lockdep_match_class(&inode->i_rwsem, &type->i_mutex_key)) {
+		if (lockdep_match_class(&iyesde->i_rwsem, &type->i_mutex_key)) {
 			/*
-			 * ensure nobody is actually holding i_mutex
+			 * ensure yesbody is actually holding i_mutex
 			 */
-			// mutex_destroy(&inode->i_mutex);
-			init_rwsem(&inode->i_rwsem);
-			lockdep_set_class(&inode->i_rwsem,
+			// mutex_destroy(&iyesde->i_mutex);
+			init_rwsem(&iyesde->i_rwsem);
+			lockdep_set_class(&iyesde->i_rwsem,
 					  &type->i_mutex_dir_key);
 		}
 	}
 }
-EXPORT_SYMBOL(lockdep_annotate_inode_mutex_key);
+EXPORT_SYMBOL(lockdep_anyestate_iyesde_mutex_key);
 #endif
 
 /**
- * unlock_new_inode - clear the I_NEW state and wake up any waiters
- * @inode:	new inode to unlock
+ * unlock_new_iyesde - clear the I_NEW state and wake up any waiters
+ * @iyesde:	new iyesde to unlock
  *
- * Called when the inode is fully initialised to clear the new state of the
- * inode and wake up anyone waiting for the inode to finish initialisation.
+ * Called when the iyesde is fully initialised to clear the new state of the
+ * iyesde and wake up anyone waiting for the iyesde to finish initialisation.
  */
-void unlock_new_inode(struct inode *inode)
+void unlock_new_iyesde(struct iyesde *iyesde)
 {
-	lockdep_annotate_inode_mutex_key(inode);
-	spin_lock(&inode->i_lock);
-	WARN_ON(!(inode->i_state & I_NEW));
-	inode->i_state &= ~I_NEW & ~I_CREATING;
+	lockdep_anyestate_iyesde_mutex_key(iyesde);
+	spin_lock(&iyesde->i_lock);
+	WARN_ON(!(iyesde->i_state & I_NEW));
+	iyesde->i_state &= ~I_NEW & ~I_CREATING;
 	smp_mb();
-	wake_up_bit(&inode->i_state, __I_NEW);
-	spin_unlock(&inode->i_lock);
+	wake_up_bit(&iyesde->i_state, __I_NEW);
+	spin_unlock(&iyesde->i_lock);
 }
-EXPORT_SYMBOL(unlock_new_inode);
+EXPORT_SYMBOL(unlock_new_iyesde);
 
-void discard_new_inode(struct inode *inode)
+void discard_new_iyesde(struct iyesde *iyesde)
 {
-	lockdep_annotate_inode_mutex_key(inode);
-	spin_lock(&inode->i_lock);
-	WARN_ON(!(inode->i_state & I_NEW));
-	inode->i_state &= ~I_NEW;
+	lockdep_anyestate_iyesde_mutex_key(iyesde);
+	spin_lock(&iyesde->i_lock);
+	WARN_ON(!(iyesde->i_state & I_NEW));
+	iyesde->i_state &= ~I_NEW;
 	smp_mb();
-	wake_up_bit(&inode->i_state, __I_NEW);
-	spin_unlock(&inode->i_lock);
-	iput(inode);
+	wake_up_bit(&iyesde->i_state, __I_NEW);
+	spin_unlock(&iyesde->i_lock);
+	iput(iyesde);
 }
-EXPORT_SYMBOL(discard_new_inode);
+EXPORT_SYMBOL(discard_new_iyesde);
 
 /**
- * lock_two_nondirectories - take two i_mutexes on non-directory objects
+ * lock_two_yesndirectories - take two i_mutexes on yesn-directory objects
  *
- * Lock any non-NULL argument that is not a directory.
+ * Lock any yesn-NULL argument that is yest a directory.
  * Zero, one or two objects may be locked by this function.
  *
- * @inode1: first inode to lock
- * @inode2: second inode to lock
+ * @iyesde1: first iyesde to lock
+ * @iyesde2: second iyesde to lock
  */
-void lock_two_nondirectories(struct inode *inode1, struct inode *inode2)
+void lock_two_yesndirectories(struct iyesde *iyesde1, struct iyesde *iyesde2)
 {
-	if (inode1 > inode2)
-		swap(inode1, inode2);
+	if (iyesde1 > iyesde2)
+		swap(iyesde1, iyesde2);
 
-	if (inode1 && !S_ISDIR(inode1->i_mode))
-		inode_lock(inode1);
-	if (inode2 && !S_ISDIR(inode2->i_mode) && inode2 != inode1)
-		inode_lock_nested(inode2, I_MUTEX_NONDIR2);
+	if (iyesde1 && !S_ISDIR(iyesde1->i_mode))
+		iyesde_lock(iyesde1);
+	if (iyesde2 && !S_ISDIR(iyesde2->i_mode) && iyesde2 != iyesde1)
+		iyesde_lock_nested(iyesde2, I_MUTEX_NONDIR2);
 }
-EXPORT_SYMBOL(lock_two_nondirectories);
+EXPORT_SYMBOL(lock_two_yesndirectories);
 
 /**
- * unlock_two_nondirectories - release locks from lock_two_nondirectories()
- * @inode1: first inode to unlock
- * @inode2: second inode to unlock
+ * unlock_two_yesndirectories - release locks from lock_two_yesndirectories()
+ * @iyesde1: first iyesde to unlock
+ * @iyesde2: second iyesde to unlock
  */
-void unlock_two_nondirectories(struct inode *inode1, struct inode *inode2)
+void unlock_two_yesndirectories(struct iyesde *iyesde1, struct iyesde *iyesde2)
 {
-	if (inode1 && !S_ISDIR(inode1->i_mode))
-		inode_unlock(inode1);
-	if (inode2 && !S_ISDIR(inode2->i_mode) && inode2 != inode1)
-		inode_unlock(inode2);
+	if (iyesde1 && !S_ISDIR(iyesde1->i_mode))
+		iyesde_unlock(iyesde1);
+	if (iyesde2 && !S_ISDIR(iyesde2->i_mode) && iyesde2 != iyesde1)
+		iyesde_unlock(iyesde2);
 }
-EXPORT_SYMBOL(unlock_two_nondirectories);
+EXPORT_SYMBOL(unlock_two_yesndirectories);
 
 /**
- * inode_insert5 - obtain an inode from a mounted file system
- * @inode:	pre-allocated inode to use for insert to cache
- * @hashval:	hash value (usually inode number) to get
- * @test:	callback used for comparisons between inodes
- * @set:	callback used to initialize a new struct inode
+ * iyesde_insert5 - obtain an iyesde from a mounted file system
+ * @iyesde:	pre-allocated iyesde to use for insert to cache
+ * @hashval:	hash value (usually iyesde number) to get
+ * @test:	callback used for comparisons between iyesdes
+ * @set:	callback used to initialize a new struct iyesde
  * @data:	opaque data pointer to pass to @test and @set
  *
- * Search for the inode specified by @hashval and @data in the inode cache,
+ * Search for the iyesde specified by @hashval and @data in the iyesde cache,
  * and if present it is return it with an increased reference count. This is
  * a variant of iget5_locked() for callers that don't want to fail on memory
- * allocation of inode.
+ * allocation of iyesde.
  *
- * If the inode is not in cache, insert the pre-allocated inode to cache and
+ * If the iyesde is yest in cache, insert the pre-allocated iyesde to cache and
  * return it locked, hashed, and with the I_NEW flag set. The file system gets
- * to fill it in before unlocking it via unlock_new_inode().
+ * to fill it in before unlocking it via unlock_new_iyesde().
  *
- * Note both @test and @set are called with the inode_hash_lock held, so can't
+ * Note both @test and @set are called with the iyesde_hash_lock held, so can't
  * sleep.
  */
-struct inode *inode_insert5(struct inode *inode, unsigned long hashval,
-			    int (*test)(struct inode *, void *),
-			    int (*set)(struct inode *, void *), void *data)
+struct iyesde *iyesde_insert5(struct iyesde *iyesde, unsigned long hashval,
+			    int (*test)(struct iyesde *, void *),
+			    int (*set)(struct iyesde *, void *), void *data)
 {
-	struct hlist_head *head = inode_hashtable + hash(inode->i_sb, hashval);
-	struct inode *old;
-	bool creating = inode->i_state & I_CREATING;
+	struct hlist_head *head = iyesde_hashtable + hash(iyesde->i_sb, hashval);
+	struct iyesde *old;
+	bool creating = iyesde->i_state & I_CREATING;
 
 again:
-	spin_lock(&inode_hash_lock);
-	old = find_inode(inode->i_sb, head, test, data);
+	spin_lock(&iyesde_hash_lock);
+	old = find_iyesde(iyesde->i_sb, head, test, data);
 	if (unlikely(old)) {
 		/*
-		 * Uhhuh, somebody else created the same inode under us.
-		 * Use the old inode instead of the preallocated one.
+		 * Uhhuh, somebody else created the same iyesde under us.
+		 * Use the old iyesde instead of the preallocated one.
 		 */
-		spin_unlock(&inode_hash_lock);
+		spin_unlock(&iyesde_hash_lock);
 		if (IS_ERR(old))
 			return NULL;
-		wait_on_inode(old);
-		if (unlikely(inode_unhashed(old))) {
+		wait_on_iyesde(old);
+		if (unlikely(iyesde_unhashed(old))) {
 			iput(old);
 			goto again;
 		}
 		return old;
 	}
 
-	if (set && unlikely(set(inode, data))) {
-		inode = NULL;
+	if (set && unlikely(set(iyesde, data))) {
+		iyesde = NULL;
 		goto unlock;
 	}
 
 	/*
-	 * Return the locked inode with I_NEW set, the
+	 * Return the locked iyesde with I_NEW set, the
 	 * caller is responsible for filling in the contents
 	 */
-	spin_lock(&inode->i_lock);
-	inode->i_state |= I_NEW;
-	hlist_add_head(&inode->i_hash, head);
-	spin_unlock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
+	iyesde->i_state |= I_NEW;
+	hlist_add_head(&iyesde->i_hash, head);
+	spin_unlock(&iyesde->i_lock);
 	if (!creating)
-		inode_sb_list_add(inode);
+		iyesde_sb_list_add(iyesde);
 unlock:
-	spin_unlock(&inode_hash_lock);
+	spin_unlock(&iyesde_hash_lock);
 
-	return inode;
+	return iyesde;
 }
-EXPORT_SYMBOL(inode_insert5);
+EXPORT_SYMBOL(iyesde_insert5);
 
 /**
- * iget5_locked - obtain an inode from a mounted file system
+ * iget5_locked - obtain an iyesde from a mounted file system
  * @sb:		super block of file system
- * @hashval:	hash value (usually inode number) to get
- * @test:	callback used for comparisons between inodes
- * @set:	callback used to initialize a new struct inode
+ * @hashval:	hash value (usually iyesde number) to get
+ * @test:	callback used for comparisons between iyesdes
+ * @set:	callback used to initialize a new struct iyesde
  * @data:	opaque data pointer to pass to @test and @set
  *
- * Search for the inode specified by @hashval and @data in the inode cache,
+ * Search for the iyesde specified by @hashval and @data in the iyesde cache,
  * and if present it is return it with an increased reference count. This is
- * a generalized version of iget_locked() for file systems where the inode
- * number is not sufficient for unique identification of an inode.
+ * a generalized version of iget_locked() for file systems where the iyesde
+ * number is yest sufficient for unique identification of an iyesde.
  *
- * If the inode is not in cache, allocate a new inode and return it locked,
+ * If the iyesde is yest in cache, allocate a new iyesde and return it locked,
  * hashed, and with the I_NEW flag set. The file system gets to fill it in
- * before unlocking it via unlock_new_inode().
+ * before unlocking it via unlock_new_iyesde().
  *
- * Note both @test and @set are called with the inode_hash_lock held, so can't
+ * Note both @test and @set are called with the iyesde_hash_lock held, so can't
  * sleep.
  */
-struct inode *iget5_locked(struct super_block *sb, unsigned long hashval,
-		int (*test)(struct inode *, void *),
-		int (*set)(struct inode *, void *), void *data)
+struct iyesde *iget5_locked(struct super_block *sb, unsigned long hashval,
+		int (*test)(struct iyesde *, void *),
+		int (*set)(struct iyesde *, void *), void *data)
 {
-	struct inode *inode = ilookup5(sb, hashval, test, data);
+	struct iyesde *iyesde = ilookup5(sb, hashval, test, data);
 
-	if (!inode) {
-		struct inode *new = alloc_inode(sb);
+	if (!iyesde) {
+		struct iyesde *new = alloc_iyesde(sb);
 
 		if (new) {
 			new->i_state = 0;
-			inode = inode_insert5(new, hashval, test, set, data);
-			if (unlikely(inode != new))
-				destroy_inode(new);
+			iyesde = iyesde_insert5(new, hashval, test, set, data);
+			if (unlikely(iyesde != new))
+				destroy_iyesde(new);
 		}
 	}
-	return inode;
+	return iyesde;
 }
 EXPORT_SYMBOL(iget5_locked);
 
 /**
- * iget_locked - obtain an inode from a mounted file system
+ * iget_locked - obtain an iyesde from a mounted file system
  * @sb:		super block of file system
- * @ino:	inode number to get
+ * @iyes:	iyesde number to get
  *
- * Search for the inode specified by @ino in the inode cache and if present
+ * Search for the iyesde specified by @iyes in the iyesde cache and if present
  * return it with an increased reference count. This is for file systems
- * where the inode number is sufficient for unique identification of an inode.
+ * where the iyesde number is sufficient for unique identification of an iyesde.
  *
- * If the inode is not in cache, allocate a new inode and return it locked,
+ * If the iyesde is yest in cache, allocate a new iyesde and return it locked,
  * hashed, and with the I_NEW flag set.  The file system gets to fill it in
- * before unlocking it via unlock_new_inode().
+ * before unlocking it via unlock_new_iyesde().
  */
-struct inode *iget_locked(struct super_block *sb, unsigned long ino)
+struct iyesde *iget_locked(struct super_block *sb, unsigned long iyes)
 {
-	struct hlist_head *head = inode_hashtable + hash(sb, ino);
-	struct inode *inode;
+	struct hlist_head *head = iyesde_hashtable + hash(sb, iyes);
+	struct iyesde *iyesde;
 again:
-	spin_lock(&inode_hash_lock);
-	inode = find_inode_fast(sb, head, ino);
-	spin_unlock(&inode_hash_lock);
-	if (inode) {
-		if (IS_ERR(inode))
+	spin_lock(&iyesde_hash_lock);
+	iyesde = find_iyesde_fast(sb, head, iyes);
+	spin_unlock(&iyesde_hash_lock);
+	if (iyesde) {
+		if (IS_ERR(iyesde))
 			return NULL;
-		wait_on_inode(inode);
-		if (unlikely(inode_unhashed(inode))) {
-			iput(inode);
+		wait_on_iyesde(iyesde);
+		if (unlikely(iyesde_unhashed(iyesde))) {
+			iput(iyesde);
 			goto again;
 		}
-		return inode;
+		return iyesde;
 	}
 
-	inode = alloc_inode(sb);
-	if (inode) {
-		struct inode *old;
+	iyesde = alloc_iyesde(sb);
+	if (iyesde) {
+		struct iyesde *old;
 
-		spin_lock(&inode_hash_lock);
+		spin_lock(&iyesde_hash_lock);
 		/* We released the lock, so.. */
-		old = find_inode_fast(sb, head, ino);
+		old = find_iyesde_fast(sb, head, iyes);
 		if (!old) {
-			inode->i_ino = ino;
-			spin_lock(&inode->i_lock);
-			inode->i_state = I_NEW;
-			hlist_add_head(&inode->i_hash, head);
-			spin_unlock(&inode->i_lock);
-			inode_sb_list_add(inode);
-			spin_unlock(&inode_hash_lock);
+			iyesde->i_iyes = iyes;
+			spin_lock(&iyesde->i_lock);
+			iyesde->i_state = I_NEW;
+			hlist_add_head(&iyesde->i_hash, head);
+			spin_unlock(&iyesde->i_lock);
+			iyesde_sb_list_add(iyesde);
+			spin_unlock(&iyesde_hash_lock);
 
-			/* Return the locked inode with I_NEW set, the
+			/* Return the locked iyesde with I_NEW set, the
 			 * caller is responsible for filling in the contents
 			 */
-			return inode;
+			return iyesde;
 		}
 
 		/*
-		 * Uhhuh, somebody else created the same inode under
-		 * us. Use the old inode instead of the one we just
+		 * Uhhuh, somebody else created the same iyesde under
+		 * us. Use the old iyesde instead of the one we just
 		 * allocated.
 		 */
-		spin_unlock(&inode_hash_lock);
-		destroy_inode(inode);
+		spin_unlock(&iyesde_hash_lock);
+		destroy_iyesde(iyesde);
 		if (IS_ERR(old))
 			return NULL;
-		inode = old;
-		wait_on_inode(inode);
-		if (unlikely(inode_unhashed(inode))) {
-			iput(inode);
+		iyesde = old;
+		wait_on_iyesde(iyesde);
+		if (unlikely(iyesde_unhashed(iyesde))) {
+			iput(iyesde);
 			goto again;
 		}
 	}
-	return inode;
+	return iyesde;
 }
 EXPORT_SYMBOL(iget_locked);
 
 /*
- * search the inode cache for a matching inode number.
- * If we find one, then the inode number we are trying to
- * allocate is not unique and so we should not use it.
+ * search the iyesde cache for a matching iyesde number.
+ * If we find one, then the iyesde number we are trying to
+ * allocate is yest unique and so we should yest use it.
  *
- * Returns 1 if the inode number is unique, 0 if it is not.
+ * Returns 1 if the iyesde number is unique, 0 if it is yest.
  */
-static int test_inode_iunique(struct super_block *sb, unsigned long ino)
+static int test_iyesde_iunique(struct super_block *sb, unsigned long iyes)
 {
-	struct hlist_head *b = inode_hashtable + hash(sb, ino);
-	struct inode *inode;
+	struct hlist_head *b = iyesde_hashtable + hash(sb, iyes);
+	struct iyesde *iyesde;
 
-	spin_lock(&inode_hash_lock);
-	hlist_for_each_entry(inode, b, i_hash) {
-		if (inode->i_ino == ino && inode->i_sb == sb) {
-			spin_unlock(&inode_hash_lock);
+	spin_lock(&iyesde_hash_lock);
+	hlist_for_each_entry(iyesde, b, i_hash) {
+		if (iyesde->i_iyes == iyes && iyesde->i_sb == sb) {
+			spin_unlock(&iyesde_hash_lock);
 			return 0;
 		}
 	}
-	spin_unlock(&inode_hash_lock);
+	spin_unlock(&iyesde_hash_lock);
 
 	return 1;
 }
 
 /**
- *	iunique - get a unique inode number
+ *	iunique - get a unique iyesde number
  *	@sb: superblock
- *	@max_reserved: highest reserved inode number
+ *	@max_reserved: highest reserved iyesde number
  *
- *	Obtain an inode number that is unique on the system for a given
- *	superblock. This is used by file systems that have no natural
- *	permanent inode numbering system. An inode number is returned that
+ *	Obtain an iyesde number that is unique on the system for a given
+ *	superblock. This is used by file systems that have yes natural
+ *	permanent iyesde numbering system. An iyesde number is returned that
  *	is higher than the reserved limit but unique.
  *
  *	BUGS:
- *	With a large number of inodes live on the file system this function
+ *	With a large number of iyesdes live on the file system this function
  *	currently becomes quite slow.
  */
-ino_t iunique(struct super_block *sb, ino_t max_reserved)
+iyes_t iunique(struct super_block *sb, iyes_t max_reserved)
 {
 	/*
-	 * On a 32bit, non LFS stat() call, glibc will generate an EOVERFLOW
-	 * error if st_ino won't fit in target struct field. Use 32bit counter
+	 * On a 32bit, yesn LFS stat() call, glibc will generate an EOVERFLOW
+	 * error if st_iyes won't fit in target struct field. Use 32bit counter
 	 * here to attempt to avoid that.
 	 */
 	static DEFINE_SPINLOCK(iunique_lock);
 	static unsigned int counter;
-	ino_t res;
+	iyes_t res;
 
 	spin_lock(&iunique_lock);
 	do {
 		if (counter <= max_reserved)
 			counter = max_reserved + 1;
 		res = counter++;
-	} while (!test_inode_iunique(sb, res));
+	} while (!test_iyesde_iunique(sb, res));
 	spin_unlock(&iunique_lock);
 
 	return res;
 }
 EXPORT_SYMBOL(iunique);
 
-struct inode *igrab(struct inode *inode)
+struct iyesde *igrab(struct iyesde *iyesde)
 {
-	spin_lock(&inode->i_lock);
-	if (!(inode->i_state & (I_FREEING|I_WILL_FREE))) {
-		__iget(inode);
-		spin_unlock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
+	if (!(iyesde->i_state & (I_FREEING|I_WILL_FREE))) {
+		__iget(iyesde);
+		spin_unlock(&iyesde->i_lock);
 	} else {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		/*
-		 * Handle the case where s_op->clear_inode is not been
+		 * Handle the case where s_op->clear_iyesde is yest been
 		 * called yet, and somebody is calling igrab
-		 * while the inode is getting freed.
+		 * while the iyesde is getting freed.
 		 */
-		inode = NULL;
+		iyesde = NULL;
 	}
-	return inode;
+	return iyesde;
 }
 EXPORT_SYMBOL(igrab);
 
 /**
- * ilookup5_nowait - search for an inode in the inode cache
+ * ilookup5_yeswait - search for an iyesde in the iyesde cache
  * @sb:		super block of file system to search
- * @hashval:	hash value (usually inode number) to search for
- * @test:	callback used for comparisons between inodes
+ * @hashval:	hash value (usually iyesde number) to search for
+ * @test:	callback used for comparisons between iyesdes
  * @data:	opaque data pointer to pass to @test
  *
- * Search for the inode specified by @hashval and @data in the inode cache.
- * If the inode is in the cache, the inode is returned with an incremented
+ * Search for the iyesde specified by @hashval and @data in the iyesde cache.
+ * If the iyesde is in the cache, the iyesde is returned with an incremented
  * reference count.
  *
- * Note: I_NEW is not waited upon so you have to be very careful what you do
- * with the returned inode.  You probably should be using ilookup5() instead.
+ * Note: I_NEW is yest waited upon so you have to be very careful what you do
+ * with the returned iyesde.  You probably should be using ilookup5() instead.
  *
- * Note2: @test is called with the inode_hash_lock held, so can't sleep.
+ * Note2: @test is called with the iyesde_hash_lock held, so can't sleep.
  */
-struct inode *ilookup5_nowait(struct super_block *sb, unsigned long hashval,
-		int (*test)(struct inode *, void *), void *data)
+struct iyesde *ilookup5_yeswait(struct super_block *sb, unsigned long hashval,
+		int (*test)(struct iyesde *, void *), void *data)
 {
-	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
-	struct inode *inode;
+	struct hlist_head *head = iyesde_hashtable + hash(sb, hashval);
+	struct iyesde *iyesde;
 
-	spin_lock(&inode_hash_lock);
-	inode = find_inode(sb, head, test, data);
-	spin_unlock(&inode_hash_lock);
+	spin_lock(&iyesde_hash_lock);
+	iyesde = find_iyesde(sb, head, test, data);
+	spin_unlock(&iyesde_hash_lock);
 
-	return IS_ERR(inode) ? NULL : inode;
+	return IS_ERR(iyesde) ? NULL : iyesde;
 }
-EXPORT_SYMBOL(ilookup5_nowait);
+EXPORT_SYMBOL(ilookup5_yeswait);
 
 /**
- * ilookup5 - search for an inode in the inode cache
+ * ilookup5 - search for an iyesde in the iyesde cache
  * @sb:		super block of file system to search
- * @hashval:	hash value (usually inode number) to search for
- * @test:	callback used for comparisons between inodes
+ * @hashval:	hash value (usually iyesde number) to search for
+ * @test:	callback used for comparisons between iyesdes
  * @data:	opaque data pointer to pass to @test
  *
- * Search for the inode specified by @hashval and @data in the inode cache,
- * and if the inode is in the cache, return the inode with an incremented
- * reference count.  Waits on I_NEW before returning the inode.
+ * Search for the iyesde specified by @hashval and @data in the iyesde cache,
+ * and if the iyesde is in the cache, return the iyesde with an incremented
+ * reference count.  Waits on I_NEW before returning the iyesde.
  * returned with an incremented reference count.
  *
  * This is a generalized version of ilookup() for file systems where the
- * inode number is not sufficient for unique identification of an inode.
+ * iyesde number is yest sufficient for unique identification of an iyesde.
  *
- * Note: @test is called with the inode_hash_lock held, so can't sleep.
+ * Note: @test is called with the iyesde_hash_lock held, so can't sleep.
  */
-struct inode *ilookup5(struct super_block *sb, unsigned long hashval,
-		int (*test)(struct inode *, void *), void *data)
+struct iyesde *ilookup5(struct super_block *sb, unsigned long hashval,
+		int (*test)(struct iyesde *, void *), void *data)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 again:
-	inode = ilookup5_nowait(sb, hashval, test, data);
-	if (inode) {
-		wait_on_inode(inode);
-		if (unlikely(inode_unhashed(inode))) {
-			iput(inode);
+	iyesde = ilookup5_yeswait(sb, hashval, test, data);
+	if (iyesde) {
+		wait_on_iyesde(iyesde);
+		if (unlikely(iyesde_unhashed(iyesde))) {
+			iput(iyesde);
 			goto again;
 		}
 	}
-	return inode;
+	return iyesde;
 }
 EXPORT_SYMBOL(ilookup5);
 
 /**
- * ilookup - search for an inode in the inode cache
+ * ilookup - search for an iyesde in the iyesde cache
  * @sb:		super block of file system to search
- * @ino:	inode number to search for
+ * @iyes:	iyesde number to search for
  *
- * Search for the inode @ino in the inode cache, and if the inode is in the
- * cache, the inode is returned with an incremented reference count.
+ * Search for the iyesde @iyes in the iyesde cache, and if the iyesde is in the
+ * cache, the iyesde is returned with an incremented reference count.
  */
-struct inode *ilookup(struct super_block *sb, unsigned long ino)
+struct iyesde *ilookup(struct super_block *sb, unsigned long iyes)
 {
-	struct hlist_head *head = inode_hashtable + hash(sb, ino);
-	struct inode *inode;
+	struct hlist_head *head = iyesde_hashtable + hash(sb, iyes);
+	struct iyesde *iyesde;
 again:
-	spin_lock(&inode_hash_lock);
-	inode = find_inode_fast(sb, head, ino);
-	spin_unlock(&inode_hash_lock);
+	spin_lock(&iyesde_hash_lock);
+	iyesde = find_iyesde_fast(sb, head, iyes);
+	spin_unlock(&iyesde_hash_lock);
 
-	if (inode) {
-		if (IS_ERR(inode))
+	if (iyesde) {
+		if (IS_ERR(iyesde))
 			return NULL;
-		wait_on_inode(inode);
-		if (unlikely(inode_unhashed(inode))) {
-			iput(inode);
+		wait_on_iyesde(iyesde);
+		if (unlikely(iyesde_unhashed(iyesde))) {
+			iput(iyesde);
 			goto again;
 		}
 	}
-	return inode;
+	return iyesde;
 }
 EXPORT_SYMBOL(ilookup);
 
 /**
- * find_inode_nowait - find an inode in the inode cache
+ * find_iyesde_yeswait - find an iyesde in the iyesde cache
  * @sb:		super block of file system to search
- * @hashval:	hash value (usually inode number) to search for
- * @match:	callback used for comparisons between inodes
+ * @hashval:	hash value (usually iyesde number) to search for
+ * @match:	callback used for comparisons between iyesdes
  * @data:	opaque data pointer to pass to @match
  *
- * Search for the inode specified by @hashval and @data in the inode
- * cache, where the helper function @match will return 0 if the inode
- * does not match, 1 if the inode does match, and -1 if the search
+ * Search for the iyesde specified by @hashval and @data in the iyesde
+ * cache, where the helper function @match will return 0 if the iyesde
+ * does yest match, 1 if the iyesde does match, and -1 if the search
  * should be stopped.  The @match function must be responsible for
- * taking the i_lock spin_lock and checking i_state for an inode being
+ * taking the i_lock spin_lock and checking i_state for an iyesde being
  * freed or being initialized, and incrementing the reference count
- * before returning 1.  It also must not sleep, since it is called with
- * the inode_hash_lock spinlock held.
+ * before returning 1.  It also must yest sleep, since it is called with
+ * the iyesde_hash_lock spinlock held.
  *
  * This is a even more generalized version of ilookup5() when the
- * function must never block --- find_inode() can block in
- * __wait_on_freeing_inode() --- or when the caller can not increment
+ * function must never block --- find_iyesde() can block in
+ * __wait_on_freeing_iyesde() --- or when the caller can yest increment
  * the reference count because the resulting iput() might cause an
- * inode eviction.  The tradeoff is that the @match funtion must be
+ * iyesde eviction.  The tradeoff is that the @match funtion must be
  * very carefully implemented.
  */
-struct inode *find_inode_nowait(struct super_block *sb,
+struct iyesde *find_iyesde_yeswait(struct super_block *sb,
 				unsigned long hashval,
-				int (*match)(struct inode *, unsigned long,
+				int (*match)(struct iyesde *, unsigned long,
 					     void *),
 				void *data)
 {
-	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
-	struct inode *inode, *ret_inode = NULL;
+	struct hlist_head *head = iyesde_hashtable + hash(sb, hashval);
+	struct iyesde *iyesde, *ret_iyesde = NULL;
 	int mval;
 
-	spin_lock(&inode_hash_lock);
-	hlist_for_each_entry(inode, head, i_hash) {
-		if (inode->i_sb != sb)
+	spin_lock(&iyesde_hash_lock);
+	hlist_for_each_entry(iyesde, head, i_hash) {
+		if (iyesde->i_sb != sb)
 			continue;
-		mval = match(inode, hashval, data);
+		mval = match(iyesde, hashval, data);
 		if (mval == 0)
 			continue;
 		if (mval == 1)
-			ret_inode = inode;
+			ret_iyesde = iyesde;
 		goto out;
 	}
 out:
-	spin_unlock(&inode_hash_lock);
-	return ret_inode;
+	spin_unlock(&iyesde_hash_lock);
+	return ret_iyesde;
 }
-EXPORT_SYMBOL(find_inode_nowait);
+EXPORT_SYMBOL(find_iyesde_yeswait);
 
-int insert_inode_locked(struct inode *inode)
+int insert_iyesde_locked(struct iyesde *iyesde)
 {
-	struct super_block *sb = inode->i_sb;
-	ino_t ino = inode->i_ino;
-	struct hlist_head *head = inode_hashtable + hash(sb, ino);
+	struct super_block *sb = iyesde->i_sb;
+	iyes_t iyes = iyesde->i_iyes;
+	struct hlist_head *head = iyesde_hashtable + hash(sb, iyes);
 
 	while (1) {
-		struct inode *old = NULL;
-		spin_lock(&inode_hash_lock);
+		struct iyesde *old = NULL;
+		spin_lock(&iyesde_hash_lock);
 		hlist_for_each_entry(old, head, i_hash) {
-			if (old->i_ino != ino)
+			if (old->i_iyes != iyes)
 				continue;
 			if (old->i_sb != sb)
 				continue;
@@ -1476,144 +1476,144 @@ int insert_inode_locked(struct inode *inode)
 			break;
 		}
 		if (likely(!old)) {
-			spin_lock(&inode->i_lock);
-			inode->i_state |= I_NEW | I_CREATING;
-			hlist_add_head(&inode->i_hash, head);
-			spin_unlock(&inode->i_lock);
-			spin_unlock(&inode_hash_lock);
+			spin_lock(&iyesde->i_lock);
+			iyesde->i_state |= I_NEW | I_CREATING;
+			hlist_add_head(&iyesde->i_hash, head);
+			spin_unlock(&iyesde->i_lock);
+			spin_unlock(&iyesde_hash_lock);
 			return 0;
 		}
 		if (unlikely(old->i_state & I_CREATING)) {
 			spin_unlock(&old->i_lock);
-			spin_unlock(&inode_hash_lock);
+			spin_unlock(&iyesde_hash_lock);
 			return -EBUSY;
 		}
 		__iget(old);
 		spin_unlock(&old->i_lock);
-		spin_unlock(&inode_hash_lock);
-		wait_on_inode(old);
-		if (unlikely(!inode_unhashed(old))) {
+		spin_unlock(&iyesde_hash_lock);
+		wait_on_iyesde(old);
+		if (unlikely(!iyesde_unhashed(old))) {
 			iput(old);
 			return -EBUSY;
 		}
 		iput(old);
 	}
 }
-EXPORT_SYMBOL(insert_inode_locked);
+EXPORT_SYMBOL(insert_iyesde_locked);
 
-int insert_inode_locked4(struct inode *inode, unsigned long hashval,
-		int (*test)(struct inode *, void *), void *data)
+int insert_iyesde_locked4(struct iyesde *iyesde, unsigned long hashval,
+		int (*test)(struct iyesde *, void *), void *data)
 {
-	struct inode *old;
+	struct iyesde *old;
 
-	inode->i_state |= I_CREATING;
-	old = inode_insert5(inode, hashval, test, NULL, data);
+	iyesde->i_state |= I_CREATING;
+	old = iyesde_insert5(iyesde, hashval, test, NULL, data);
 
-	if (old != inode) {
+	if (old != iyesde) {
 		iput(old);
 		return -EBUSY;
 	}
 	return 0;
 }
-EXPORT_SYMBOL(insert_inode_locked4);
+EXPORT_SYMBOL(insert_iyesde_locked4);
 
 
-int generic_delete_inode(struct inode *inode)
+int generic_delete_iyesde(struct iyesde *iyesde)
 {
 	return 1;
 }
-EXPORT_SYMBOL(generic_delete_inode);
+EXPORT_SYMBOL(generic_delete_iyesde);
 
 /*
  * Called when we're dropping the last reference
- * to an inode.
+ * to an iyesde.
  *
- * Call the FS "drop_inode()" function, defaulting to
+ * Call the FS "drop_iyesde()" function, defaulting to
  * the legacy UNIX filesystem behaviour.  If it tells
- * us to evict inode, do so.  Otherwise, retain inode
+ * us to evict iyesde, do so.  Otherwise, retain iyesde
  * in cache if fs is alive, sync and evict if fs is
  * shutting down.
  */
-static void iput_final(struct inode *inode)
+static void iput_final(struct iyesde *iyesde)
 {
-	struct super_block *sb = inode->i_sb;
-	const struct super_operations *op = inode->i_sb->s_op;
+	struct super_block *sb = iyesde->i_sb;
+	const struct super_operations *op = iyesde->i_sb->s_op;
 	int drop;
 
-	WARN_ON(inode->i_state & I_NEW);
+	WARN_ON(iyesde->i_state & I_NEW);
 
-	if (op->drop_inode)
-		drop = op->drop_inode(inode);
+	if (op->drop_iyesde)
+		drop = op->drop_iyesde(iyesde);
 	else
-		drop = generic_drop_inode(inode);
+		drop = generic_drop_iyesde(iyesde);
 
 	if (!drop && (sb->s_flags & SB_ACTIVE)) {
-		inode_add_lru(inode);
-		spin_unlock(&inode->i_lock);
+		iyesde_add_lru(iyesde);
+		spin_unlock(&iyesde->i_lock);
 		return;
 	}
 
 	if (!drop) {
-		inode->i_state |= I_WILL_FREE;
-		spin_unlock(&inode->i_lock);
-		write_inode_now(inode, 1);
-		spin_lock(&inode->i_lock);
-		WARN_ON(inode->i_state & I_NEW);
-		inode->i_state &= ~I_WILL_FREE;
+		iyesde->i_state |= I_WILL_FREE;
+		spin_unlock(&iyesde->i_lock);
+		write_iyesde_yesw(iyesde, 1);
+		spin_lock(&iyesde->i_lock);
+		WARN_ON(iyesde->i_state & I_NEW);
+		iyesde->i_state &= ~I_WILL_FREE;
 	}
 
-	inode->i_state |= I_FREEING;
-	if (!list_empty(&inode->i_lru))
-		inode_lru_list_del(inode);
-	spin_unlock(&inode->i_lock);
+	iyesde->i_state |= I_FREEING;
+	if (!list_empty(&iyesde->i_lru))
+		iyesde_lru_list_del(iyesde);
+	spin_unlock(&iyesde->i_lock);
 
-	evict(inode);
+	evict(iyesde);
 }
 
 /**
- *	iput	- put an inode
- *	@inode: inode to put
+ *	iput	- put an iyesde
+ *	@iyesde: iyesde to put
  *
- *	Puts an inode, dropping its usage count. If the inode use count hits
- *	zero, the inode is then freed and may also be destroyed.
+ *	Puts an iyesde, dropping its usage count. If the iyesde use count hits
+ *	zero, the iyesde is then freed and may also be destroyed.
  *
  *	Consequently, iput() can sleep.
  */
-void iput(struct inode *inode)
+void iput(struct iyesde *iyesde)
 {
-	if (!inode)
+	if (!iyesde)
 		return;
-	BUG_ON(inode->i_state & I_CLEAR);
+	BUG_ON(iyesde->i_state & I_CLEAR);
 retry:
-	if (atomic_dec_and_lock(&inode->i_count, &inode->i_lock)) {
-		if (inode->i_nlink && (inode->i_state & I_DIRTY_TIME)) {
-			atomic_inc(&inode->i_count);
-			spin_unlock(&inode->i_lock);
-			trace_writeback_lazytime_iput(inode);
-			mark_inode_dirty_sync(inode);
+	if (atomic_dec_and_lock(&iyesde->i_count, &iyesde->i_lock)) {
+		if (iyesde->i_nlink && (iyesde->i_state & I_DIRTY_TIME)) {
+			atomic_inc(&iyesde->i_count);
+			spin_unlock(&iyesde->i_lock);
+			trace_writeback_lazytime_iput(iyesde);
+			mark_iyesde_dirty_sync(iyesde);
 			goto retry;
 		}
-		iput_final(inode);
+		iput_final(iyesde);
 	}
 }
 EXPORT_SYMBOL(iput);
 
 /**
  *	bmap	- find a block number in a file
- *	@inode: inode of file
+ *	@iyesde: iyesde of file
  *	@block: block to find
  *
- *	Returns the block number on the device holding the inode that
+ *	Returns the block number on the device holding the iyesde that
  *	is the disk block number for the block of the file requested.
- *	That is, asked for block 4 of inode 1 the function will return the
+ *	That is, asked for block 4 of iyesde 1 the function will return the
  *	disk block relative to the disk start that holds that block of the
  *	file.
  */
-sector_t bmap(struct inode *inode, sector_t block)
+sector_t bmap(struct iyesde *iyesde, sector_t block)
 {
 	sector_t res = 0;
-	if (inode->i_mapping->a_ops->bmap)
-		res = inode->i_mapping->a_ops->bmap(inode->i_mapping, block);
+	if (iyesde->i_mapping->a_ops->bmap)
+		res = iyesde->i_mapping->a_ops->bmap(iyesde->i_mapping, block);
 	return res;
 }
 EXPORT_SYMBOL(bmap);
@@ -1623,28 +1623,28 @@ EXPORT_SYMBOL(bmap);
  * earlier than either the ctime or mtime or if at least a day has
  * passed since the last atime update.
  */
-static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
-			     struct timespec64 now)
+static int relatime_need_update(struct vfsmount *mnt, struct iyesde *iyesde,
+			     struct timespec64 yesw)
 {
 
 	if (!(mnt->mnt_flags & MNT_RELATIME))
 		return 1;
 	/*
-	 * Is mtime younger than atime? If yes, update atime:
+	 * Is mtime younger than atime? If no, update atime:
 	 */
-	if (timespec64_compare(&inode->i_mtime, &inode->i_atime) >= 0)
+	if (timespec64_compare(&iyesde->i_mtime, &iyesde->i_atime) >= 0)
 		return 1;
 	/*
-	 * Is ctime younger than atime? If yes, update atime:
+	 * Is ctime younger than atime? If no, update atime:
 	 */
-	if (timespec64_compare(&inode->i_ctime, &inode->i_atime) >= 0)
+	if (timespec64_compare(&iyesde->i_ctime, &iyesde->i_atime) >= 0)
 		return 1;
 
 	/*
-	 * Is the previous atime value older than a day? If yes,
+	 * Is the previous atime value older than a day? If no,
 	 * update atime:
 	 */
-	if ((long)(now.tv_sec - inode->i_atime.tv_sec) >= 24*60*60)
+	if ((long)(yesw.tv_sec - iyesde->i_atime.tv_sec) >= 24*60*60)
 		return 1;
 	/*
 	 * Good, we can skip the atime update:
@@ -1652,83 +1652,83 @@ static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
 	return 0;
 }
 
-int generic_update_time(struct inode *inode, struct timespec64 *time, int flags)
+int generic_update_time(struct iyesde *iyesde, struct timespec64 *time, int flags)
 {
 	int iflags = I_DIRTY_TIME;
 	bool dirty = false;
 
 	if (flags & S_ATIME)
-		inode->i_atime = *time;
+		iyesde->i_atime = *time;
 	if (flags & S_VERSION)
-		dirty = inode_maybe_inc_iversion(inode, false);
+		dirty = iyesde_maybe_inc_iversion(iyesde, false);
 	if (flags & S_CTIME)
-		inode->i_ctime = *time;
+		iyesde->i_ctime = *time;
 	if (flags & S_MTIME)
-		inode->i_mtime = *time;
+		iyesde->i_mtime = *time;
 	if ((flags & (S_ATIME | S_CTIME | S_MTIME)) &&
-	    !(inode->i_sb->s_flags & SB_LAZYTIME))
+	    !(iyesde->i_sb->s_flags & SB_LAZYTIME))
 		dirty = true;
 
 	if (dirty)
 		iflags |= I_DIRTY_SYNC;
-	__mark_inode_dirty(inode, iflags);
+	__mark_iyesde_dirty(iyesde, iflags);
 	return 0;
 }
 EXPORT_SYMBOL(generic_update_time);
 
 /*
- * This does the actual work of updating an inodes time or version.  Must have
+ * This does the actual work of updating an iyesdes time or version.  Must have
  * had called mnt_want_write() before calling this.
  */
-static int update_time(struct inode *inode, struct timespec64 *time, int flags)
+static int update_time(struct iyesde *iyesde, struct timespec64 *time, int flags)
 {
-	int (*update_time)(struct inode *, struct timespec64 *, int);
+	int (*update_time)(struct iyesde *, struct timespec64 *, int);
 
-	update_time = inode->i_op->update_time ? inode->i_op->update_time :
+	update_time = iyesde->i_op->update_time ? iyesde->i_op->update_time :
 		generic_update_time;
 
-	return update_time(inode, time, flags);
+	return update_time(iyesde, time, flags);
 }
 
 /**
  *	touch_atime	-	update the access time
  *	@path: the &struct path to update
- *	@inode: inode to update
+ *	@iyesde: iyesde to update
  *
- *	Update the accessed time on an inode and mark it for writeback.
+ *	Update the accessed time on an iyesde and mark it for writeback.
  *	This function automatically handles read only file systems and media,
- *	as well as the "noatime" flag and inode specific "noatime" markers.
+ *	as well as the "yesatime" flag and iyesde specific "yesatime" markers.
  */
-bool atime_needs_update(const struct path *path, struct inode *inode)
+bool atime_needs_update(const struct path *path, struct iyesde *iyesde)
 {
 	struct vfsmount *mnt = path->mnt;
-	struct timespec64 now;
+	struct timespec64 yesw;
 
-	if (inode->i_flags & S_NOATIME)
+	if (iyesde->i_flags & S_NOATIME)
 		return false;
 
 	/* Atime updates will likely cause i_uid and i_gid to be written
-	 * back improprely if their true value is unknown to the vfs.
+	 * back improprely if their true value is unkyeswn to the vfs.
 	 */
-	if (HAS_UNMAPPED_ID(inode))
+	if (HAS_UNMAPPED_ID(iyesde))
 		return false;
 
-	if (IS_NOATIME(inode))
+	if (IS_NOATIME(iyesde))
 		return false;
-	if ((inode->i_sb->s_flags & SB_NODIRATIME) && S_ISDIR(inode->i_mode))
+	if ((iyesde->i_sb->s_flags & SB_NODIRATIME) && S_ISDIR(iyesde->i_mode))
 		return false;
 
 	if (mnt->mnt_flags & MNT_NOATIME)
 		return false;
-	if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
+	if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(iyesde->i_mode))
 		return false;
 
-	now = current_time(inode);
+	yesw = current_time(iyesde);
 
-	if (!relatime_need_update(mnt, inode, now))
+	if (!relatime_need_update(mnt, iyesde, yesw))
 		return false;
 
-	if (timespec64_equal(&inode->i_atime, &now))
+	if (timespec64_equal(&iyesde->i_atime, &yesw))
 		return false;
 
 	return true;
@@ -1737,31 +1737,31 @@ bool atime_needs_update(const struct path *path, struct inode *inode)
 void touch_atime(const struct path *path)
 {
 	struct vfsmount *mnt = path->mnt;
-	struct inode *inode = d_inode(path->dentry);
-	struct timespec64 now;
+	struct iyesde *iyesde = d_iyesde(path->dentry);
+	struct timespec64 yesw;
 
-	if (!atime_needs_update(path, inode))
+	if (!atime_needs_update(path, iyesde))
 		return;
 
-	if (!sb_start_write_trylock(inode->i_sb))
+	if (!sb_start_write_trylock(iyesde->i_sb))
 		return;
 
 	if (__mnt_want_write(mnt) != 0)
 		goto skip_update;
 	/*
-	 * File systems can error out when updating inodes if they need to
-	 * allocate new space to modify an inode (such is the case for
+	 * File systems can error out when updating iyesdes if they need to
+	 * allocate new space to modify an iyesde (such is the case for
 	 * Btrfs), but since we touch atime while walking down the path we
 	 * really don't care if we failed to update the atime of the file,
-	 * so just ignore the return value.
+	 * so just igyesre the return value.
 	 * We may also fail on filesystems that have the ability to make parts
 	 * of the fs read only, e.g. subvolumes in Btrfs.
 	 */
-	now = current_time(inode);
-	update_time(inode, &now, S_ATIME);
+	yesw = current_time(iyesde);
+	update_time(iyesde, &yesw, S_ATIME);
 	__mnt_drop_write(mnt);
 skip_update:
-	sb_end_write(inode->i_sb);
+	sb_end_write(iyesde->i_sb);
 }
 EXPORT_SYMBOL(touch_atime);
 
@@ -1773,7 +1773,7 @@ EXPORT_SYMBOL(touch_atime);
  */
 int should_remove_suid(struct dentry *dentry)
 {
-	umode_t mode = d_inode(dentry)->i_mode;
+	umode_t mode = d_iyesde(dentry)->i_mode;
 	int kill = 0;
 
 	/* suid always must be killed */
@@ -1795,21 +1795,21 @@ int should_remove_suid(struct dentry *dentry)
 EXPORT_SYMBOL(should_remove_suid);
 
 /*
- * Return mask of changes for notify_change() that need to be done as a
- * response to write or truncate. Return 0 if nothing has to be changed.
+ * Return mask of changes for yestify_change() that need to be done as a
+ * response to write or truncate. Return 0 if yesthing has to be changed.
  * Negative value on error (change should be denied).
  */
 int dentry_needs_remove_privs(struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 	int mask = 0;
 	int ret;
 
-	if (IS_NOSEC(inode))
+	if (IS_NOSEC(iyesde))
 		return 0;
 
 	mask = should_remove_suid(dentry);
-	ret = security_inode_need_killpriv(dentry);
+	ret = security_iyesde_need_killpriv(dentry);
 	if (ret < 0)
 		return ret;
 	if (ret)
@@ -1823,10 +1823,10 @@ static int __remove_privs(struct dentry *dentry, int kill)
 
 	newattrs.ia_valid = ATTR_FORCE | kill;
 	/*
-	 * Note we call this on write, so notify_change will not
+	 * Note we call this on write, so yestify_change will yest
 	 * encounter any conflicting delegations:
 	 */
-	return notify_change(dentry, &newattrs, NULL);
+	return yestify_change(dentry, &newattrs, NULL);
 }
 
 /*
@@ -1836,17 +1836,17 @@ static int __remove_privs(struct dentry *dentry, int kill)
 int file_remove_privs(struct file *file)
 {
 	struct dentry *dentry = file_dentry(file);
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	int kill;
 	int error = 0;
 
 	/*
-	 * Fast path for nothing security related.
-	 * As well for non-regular files, e.g. blkdev inodes.
+	 * Fast path for yesthing security related.
+	 * As well for yesn-regular files, e.g. blkdev iyesdes.
 	 * For example, blkdev_write_iter() might get here
-	 * trying to remove privs which it is not allowed to.
+	 * trying to remove privs which it is yest allowed to.
 	 */
-	if (IS_NOSEC(inode) || !S_ISREG(inode->i_mode))
+	if (IS_NOSEC(iyesde) || !S_ISREG(iyesde->i_mode))
 		return 0;
 
 	kill = dentry_needs_remove_privs(dentry);
@@ -1855,7 +1855,7 @@ int file_remove_privs(struct file *file)
 	if (kill)
 		error = __remove_privs(dentry, kill);
 	if (!error)
-		inode_has_no_xattr(inode);
+		iyesde_has_yes_xattr(iyesde);
 
 	return error;
 }
@@ -1865,34 +1865,34 @@ EXPORT_SYMBOL(file_remove_privs);
  *	file_update_time	-	update mtime and ctime time
  *	@file: file accessed
  *
- *	Update the mtime and ctime members of an inode and mark the inode
+ *	Update the mtime and ctime members of an iyesde and mark the iyesde
  *	for writeback.  Note that this function is meant exclusively for
  *	usage in the file write path of filesystems, and filesystems may
- *	choose to explicitly ignore update via this function with the
- *	S_NOCMTIME inode flag, e.g. for network filesystem where these
+ *	choose to explicitly igyesre update via this function with the
+ *	S_NOCMTIME iyesde flag, e.g. for network filesystem where these
  *	timestamps are handled by the server.  This can return an error for
- *	file systems who need to allocate space in order to update an inode.
+ *	file systems who need to allocate space in order to update an iyesde.
  */
 
 int file_update_time(struct file *file)
 {
-	struct inode *inode = file_inode(file);
-	struct timespec64 now;
+	struct iyesde *iyesde = file_iyesde(file);
+	struct timespec64 yesw;
 	int sync_it = 0;
 	int ret;
 
-	/* First try to exhaust all avenues to not sync */
-	if (IS_NOCMTIME(inode))
+	/* First try to exhaust all avenues to yest sync */
+	if (IS_NOCMTIME(iyesde))
 		return 0;
 
-	now = current_time(inode);
-	if (!timespec64_equal(&inode->i_mtime, &now))
+	yesw = current_time(iyesde);
+	if (!timespec64_equal(&iyesde->i_mtime, &yesw))
 		sync_it = S_MTIME;
 
-	if (!timespec64_equal(&inode->i_ctime, &now))
+	if (!timespec64_equal(&iyesde->i_ctime, &yesw))
 		sync_it |= S_CTIME;
 
-	if (IS_I_VERSION(inode) && inode_iversion_need_inc(inode))
+	if (IS_I_VERSION(iyesde) && iyesde_iversion_need_inc(iyesde))
 		sync_it |= S_VERSION;
 
 	if (!sync_it)
@@ -1902,20 +1902,20 @@ int file_update_time(struct file *file)
 	if (__mnt_want_write_file(file))
 		return 0;
 
-	ret = update_time(inode, &now, sync_it);
+	ret = update_time(iyesde, &yesw, sync_it);
 	__mnt_drop_write_file(file);
 
 	return ret;
 }
 EXPORT_SYMBOL(file_update_time);
 
-/* Caller must hold the file's inode lock */
+/* Caller must hold the file's iyesde lock */
 int file_modified(struct file *file)
 {
 	int err;
 
 	/*
-	 * Clear the security bits if the process is not being run by root.
+	 * Clear the security bits if the process is yest being run by root.
 	 * This keeps people from modifying setuid and setgid binaries.
 	 */
 	err = file_remove_privs(file);
@@ -1929,38 +1929,38 @@ int file_modified(struct file *file)
 }
 EXPORT_SYMBOL(file_modified);
 
-int inode_needs_sync(struct inode *inode)
+int iyesde_needs_sync(struct iyesde *iyesde)
 {
-	if (IS_SYNC(inode))
+	if (IS_SYNC(iyesde))
 		return 1;
-	if (S_ISDIR(inode->i_mode) && IS_DIRSYNC(inode))
+	if (S_ISDIR(iyesde->i_mode) && IS_DIRSYNC(iyesde))
 		return 1;
 	return 0;
 }
-EXPORT_SYMBOL(inode_needs_sync);
+EXPORT_SYMBOL(iyesde_needs_sync);
 
 /*
- * If we try to find an inode in the inode hash while it is being
+ * If we try to find an iyesde in the iyesde hash while it is being
  * deleted, we have to wait until the filesystem completes its
  * deletion before reporting that it isn't found.  This function waits
  * until the deletion _might_ have completed.  Callers are responsible
- * to recheck inode state.
+ * to recheck iyesde state.
  *
- * It doesn't matter if I_NEW is not set initially, a call to
- * wake_up_bit(&inode->i_state, __I_NEW) after removing from the hash list
+ * It doesn't matter if I_NEW is yest set initially, a call to
+ * wake_up_bit(&iyesde->i_state, __I_NEW) after removing from the hash list
  * will DTRT.
  */
-static void __wait_on_freeing_inode(struct inode *inode)
+static void __wait_on_freeing_iyesde(struct iyesde *iyesde)
 {
 	wait_queue_head_t *wq;
-	DEFINE_WAIT_BIT(wait, &inode->i_state, __I_NEW);
-	wq = bit_waitqueue(&inode->i_state, __I_NEW);
+	DEFINE_WAIT_BIT(wait, &iyesde->i_state, __I_NEW);
+	wq = bit_waitqueue(&iyesde->i_state, __I_NEW);
 	prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
-	spin_unlock(&inode->i_lock);
-	spin_unlock(&inode_hash_lock);
+	spin_unlock(&iyesde->i_lock);
+	spin_unlock(&iyesde_hash_lock);
 	schedule();
 	finish_wait(wq, &wait.wq_entry);
-	spin_lock(&inode_hash_lock);
+	spin_lock(&iyesde_hash_lock);
 }
 
 static __initdata unsigned long ihash_entries;
@@ -1974,18 +1974,18 @@ static int __init set_ihash_entries(char *str)
 __setup("ihash_entries=", set_ihash_entries);
 
 /*
- * Initialize the waitqueues and inode hash table.
+ * Initialize the waitqueues and iyesde hash table.
  */
-void __init inode_init_early(void)
+void __init iyesde_init_early(void)
 {
-	/* If hashes are distributed across NUMA nodes, defer
+	/* If hashes are distributed across NUMA yesdes, defer
 	 * hash allocation until vmalloc space is available.
 	 */
 	if (hashdist)
 		return;
 
-	inode_hashtable =
-		alloc_large_system_hash("Inode-cache",
+	iyesde_hashtable =
+		alloc_large_system_hash("Iyesde-cache",
 					sizeof(struct hlist_head),
 					ihash_entries,
 					14,
@@ -1996,22 +1996,22 @@ void __init inode_init_early(void)
 					0);
 }
 
-void __init inode_init(void)
+void __init iyesde_init(void)
 {
-	/* inode slab cache */
-	inode_cachep = kmem_cache_create("inode_cache",
-					 sizeof(struct inode),
+	/* iyesde slab cache */
+	iyesde_cachep = kmem_cache_create("iyesde_cache",
+					 sizeof(struct iyesde),
 					 0,
 					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
 					 SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					 init_once);
 
-	/* Hash may have been set up in inode_init_early */
+	/* Hash may have been set up in iyesde_init_early */
 	if (!hashdist)
 		return;
 
-	inode_hashtable =
-		alloc_large_system_hash("Inode-cache",
+	iyesde_hashtable =
+		alloc_large_system_hash("Iyesde-cache",
 					sizeof(struct hlist_head),
 					ihash_entries,
 					14,
@@ -2022,112 +2022,112 @@ void __init inode_init(void)
 					0);
 }
 
-void init_special_inode(struct inode *inode, umode_t mode, dev_t rdev)
+void init_special_iyesde(struct iyesde *iyesde, umode_t mode, dev_t rdev)
 {
-	inode->i_mode = mode;
+	iyesde->i_mode = mode;
 	if (S_ISCHR(mode)) {
-		inode->i_fop = &def_chr_fops;
-		inode->i_rdev = rdev;
+		iyesde->i_fop = &def_chr_fops;
+		iyesde->i_rdev = rdev;
 	} else if (S_ISBLK(mode)) {
-		inode->i_fop = &def_blk_fops;
-		inode->i_rdev = rdev;
+		iyesde->i_fop = &def_blk_fops;
+		iyesde->i_rdev = rdev;
 	} else if (S_ISFIFO(mode))
-		inode->i_fop = &pipefifo_fops;
+		iyesde->i_fop = &pipefifo_fops;
 	else if (S_ISSOCK(mode))
-		;	/* leave it no_open_fops */
+		;	/* leave it yes_open_fops */
 	else
-		printk(KERN_DEBUG "init_special_inode: bogus i_mode (%o) for"
-				  " inode %s:%lu\n", mode, inode->i_sb->s_id,
-				  inode->i_ino);
+		printk(KERN_DEBUG "init_special_iyesde: bogus i_mode (%o) for"
+				  " iyesde %s:%lu\n", mode, iyesde->i_sb->s_id,
+				  iyesde->i_iyes);
 }
-EXPORT_SYMBOL(init_special_inode);
+EXPORT_SYMBOL(init_special_iyesde);
 
 /**
- * inode_init_owner - Init uid,gid,mode for new inode according to posix standards
- * @inode: New inode
- * @dir: Directory inode
- * @mode: mode of the new inode
+ * iyesde_init_owner - Init uid,gid,mode for new iyesde according to posix standards
+ * @iyesde: New iyesde
+ * @dir: Directory iyesde
+ * @mode: mode of the new iyesde
  */
-void inode_init_owner(struct inode *inode, const struct inode *dir,
+void iyesde_init_owner(struct iyesde *iyesde, const struct iyesde *dir,
 			umode_t mode)
 {
-	inode->i_uid = current_fsuid();
+	iyesde->i_uid = current_fsuid();
 	if (dir && dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
+		iyesde->i_gid = dir->i_gid;
 
 		/* Directories are special, and always inherit S_ISGID */
 		if (S_ISDIR(mode))
 			mode |= S_ISGID;
 		else if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP) &&
-			 !in_group_p(inode->i_gid) &&
-			 !capable_wrt_inode_uidgid(dir, CAP_FSETID))
+			 !in_group_p(iyesde->i_gid) &&
+			 !capable_wrt_iyesde_uidgid(dir, CAP_FSETID))
 			mode &= ~S_ISGID;
 	} else
-		inode->i_gid = current_fsgid();
-	inode->i_mode = mode;
+		iyesde->i_gid = current_fsgid();
+	iyesde->i_mode = mode;
 }
-EXPORT_SYMBOL(inode_init_owner);
+EXPORT_SYMBOL(iyesde_init_owner);
 
 /**
- * inode_owner_or_capable - check current task permissions to inode
- * @inode: inode being checked
+ * iyesde_owner_or_capable - check current task permissions to iyesde
+ * @iyesde: iyesde being checked
  *
  * Return true if current either has CAP_FOWNER in a namespace with the
- * inode owner uid mapped, or owns the file.
+ * iyesde owner uid mapped, or owns the file.
  */
-bool inode_owner_or_capable(const struct inode *inode)
+bool iyesde_owner_or_capable(const struct iyesde *iyesde)
 {
 	struct user_namespace *ns;
 
-	if (uid_eq(current_fsuid(), inode->i_uid))
+	if (uid_eq(current_fsuid(), iyesde->i_uid))
 		return true;
 
 	ns = current_user_ns();
-	if (kuid_has_mapping(ns, inode->i_uid) && ns_capable(ns, CAP_FOWNER))
+	if (kuid_has_mapping(ns, iyesde->i_uid) && ns_capable(ns, CAP_FOWNER))
 		return true;
 	return false;
 }
-EXPORT_SYMBOL(inode_owner_or_capable);
+EXPORT_SYMBOL(iyesde_owner_or_capable);
 
 /*
  * Direct i/o helper functions
  */
-static void __inode_dio_wait(struct inode *inode)
+static void __iyesde_dio_wait(struct iyesde *iyesde)
 {
-	wait_queue_head_t *wq = bit_waitqueue(&inode->i_state, __I_DIO_WAKEUP);
-	DEFINE_WAIT_BIT(q, &inode->i_state, __I_DIO_WAKEUP);
+	wait_queue_head_t *wq = bit_waitqueue(&iyesde->i_state, __I_DIO_WAKEUP);
+	DEFINE_WAIT_BIT(q, &iyesde->i_state, __I_DIO_WAKEUP);
 
 	do {
 		prepare_to_wait(wq, &q.wq_entry, TASK_UNINTERRUPTIBLE);
-		if (atomic_read(&inode->i_dio_count))
+		if (atomic_read(&iyesde->i_dio_count))
 			schedule();
-	} while (atomic_read(&inode->i_dio_count));
+	} while (atomic_read(&iyesde->i_dio_count));
 	finish_wait(wq, &q.wq_entry);
 }
 
 /**
- * inode_dio_wait - wait for outstanding DIO requests to finish
- * @inode: inode to wait for
+ * iyesde_dio_wait - wait for outstanding DIO requests to finish
+ * @iyesde: iyesde to wait for
  *
  * Waits for all pending direct I/O requests to finish so that we can
  * proceed with a truncate or equivalent operation.
  *
  * Must be called under a lock that serializes taking new references
- * to i_dio_count, usually by inode->i_mutex.
+ * to i_dio_count, usually by iyesde->i_mutex.
  */
-void inode_dio_wait(struct inode *inode)
+void iyesde_dio_wait(struct iyesde *iyesde)
 {
-	if (atomic_read(&inode->i_dio_count))
-		__inode_dio_wait(inode);
+	if (atomic_read(&iyesde->i_dio_count))
+		__iyesde_dio_wait(iyesde);
 }
-EXPORT_SYMBOL(inode_dio_wait);
+EXPORT_SYMBOL(iyesde_dio_wait);
 
 /*
- * inode_set_flags - atomically set some inode flags
+ * iyesde_set_flags - atomically set some iyesde flags
  *
  * Note: the caller should be holding i_mutex, or else be sure that
- * they have exclusive access to the inode structure (i.e., while the
- * inode is being instantiated).  The reason for the cmpxchg() loop
+ * they have exclusive access to the iyesde structure (i.e., while the
+ * iyesde is being instantiated).  The reason for the cmpxchg() loop
  * --- which wouldn't be necessary if all code paths which modify
  * i_flags actually followed this rule, is that there is at least one
  * code path which doesn't today so we use cmpxchg() out of an abundance
@@ -2138,19 +2138,19 @@ EXPORT_SYMBOL(inode_dio_wait);
  * it is so documented in include/linux/fs.h and that all code follows
  * the locking convention!!
  */
-void inode_set_flags(struct inode *inode, unsigned int flags,
+void iyesde_set_flags(struct iyesde *iyesde, unsigned int flags,
 		     unsigned int mask)
 {
 	WARN_ON_ONCE(flags & ~mask);
-	set_mask_bits(&inode->i_flags, mask, flags);
+	set_mask_bits(&iyesde->i_flags, mask, flags);
 }
-EXPORT_SYMBOL(inode_set_flags);
+EXPORT_SYMBOL(iyesde_set_flags);
 
-void inode_nohighmem(struct inode *inode)
+void iyesde_yeshighmem(struct iyesde *iyesde)
 {
-	mapping_set_gfp_mask(inode->i_mapping, GFP_USER);
+	mapping_set_gfp_mask(iyesde->i_mapping, GFP_USER);
 }
-EXPORT_SYMBOL(inode_nohighmem);
+EXPORT_SYMBOL(iyesde_yeshighmem);
 
 /**
  * timespec64_trunc - Truncate timespec64 to a granularity
@@ -2158,13 +2158,13 @@ EXPORT_SYMBOL(inode_nohighmem);
  * @gran: Granularity in ns.
  *
  * Truncate a timespec64 to a granularity. Always rounds down. gran must
- * not be 0 nor greater than a second (NSEC_PER_SEC, or 10^9 ns).
+ * yest be 0 yesr greater than a second (NSEC_PER_SEC, or 10^9 ns).
  */
 struct timespec64 timespec64_trunc(struct timespec64 t, unsigned gran)
 {
 	/* Avoid division in the common cases 1 ns and 1 s. */
 	if (gran == 1) {
-		/* nothing */
+		/* yesthing */
 	} else if (gran == NSEC_PER_SEC) {
 		t.tv_nsec = 0;
 	} else if (gran > 1 && gran < NSEC_PER_SEC) {
@@ -2179,15 +2179,15 @@ EXPORT_SYMBOL(timespec64_trunc);
 /**
  * timestamp_truncate - Truncate timespec to a granularity
  * @t: Timespec
- * @inode: inode being updated
+ * @iyesde: iyesde being updated
  *
  * Truncate a timespec to the granularity supported by the fs
- * containing the inode. Always rounds down. gran must
- * not be 0 nor greater than a second (NSEC_PER_SEC, or 10^9 ns).
+ * containing the iyesde. Always rounds down. gran must
+ * yest be 0 yesr greater than a second (NSEC_PER_SEC, or 10^9 ns).
  */
-struct timespec64 timestamp_truncate(struct timespec64 t, struct inode *inode)
+struct timespec64 timestamp_truncate(struct timespec64 t, struct iyesde *iyesde)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	unsigned int gran = sb->s_time_gran;
 
 	t.tv_sec = clamp(t.tv_sec, sb->s_time_min, sb->s_time_max);
@@ -2196,7 +2196,7 @@ struct timespec64 timestamp_truncate(struct timespec64 t, struct inode *inode)
 
 	/* Avoid division in the common cases 1 ns and 1 s. */
 	if (gran == 1)
-		; /* nothing */
+		; /* yesthing */
 	else if (gran == NSEC_PER_SEC)
 		t.tv_nsec = 0;
 	else if (gran > 1 && gran < NSEC_PER_SEC)
@@ -2209,26 +2209,26 @@ EXPORT_SYMBOL(timestamp_truncate);
 
 /**
  * current_time - Return FS time
- * @inode: inode.
+ * @iyesde: iyesde.
  *
  * Return the current time truncated to the time granularity supported by
  * the fs.
  *
- * Note that inode and inode->sb cannot be NULL.
+ * Note that iyesde and iyesde->sb canyest be NULL.
  * Otherwise, the function warns and returns time without truncation.
  */
-struct timespec64 current_time(struct inode *inode)
+struct timespec64 current_time(struct iyesde *iyesde)
 {
-	struct timespec64 now;
+	struct timespec64 yesw;
 
-	ktime_get_coarse_real_ts64(&now);
+	ktime_get_coarse_real_ts64(&yesw);
 
-	if (unlikely(!inode->i_sb)) {
-		WARN(1, "current_time() called with uninitialized super_block in the inode");
-		return now;
+	if (unlikely(!iyesde->i_sb)) {
+		WARN(1, "current_time() called with uninitialized super_block in the iyesde");
+		return yesw;
 	}
 
-	return timestamp_truncate(now, inode);
+	return timestamp_truncate(yesw, iyesde);
 }
 EXPORT_SYMBOL(current_time);
 
@@ -2237,9 +2237,9 @@ EXPORT_SYMBOL(current_time);
  * configurations.
  *
  * Note: the caller should be holding i_mutex, or else be sure that they have
- * exclusive access to the inode structure.
+ * exclusive access to the iyesde structure.
  */
-int vfs_ioc_setflags_prepare(struct inode *inode, unsigned int oldflags,
+int vfs_ioc_setflags_prepare(struct iyesde *iyesde, unsigned int oldflags,
 			     unsigned int flags)
 {
 	/*
@@ -2261,9 +2261,9 @@ EXPORT_SYMBOL(vfs_ioc_setflags_prepare);
  * configurations.
  *
  * Note: the caller should be holding i_mutex, or else be sure that they have
- * exclusive access to the inode structure.
+ * exclusive access to the iyesde structure.
  */
-int vfs_ioc_fssetxattr_check(struct inode *inode, const struct fsxattr *old_fa,
+int vfs_ioc_fssetxattr_check(struct iyesde *iyesde, const struct fsxattr *old_fa,
 			     struct fsxattr *fa)
 {
 	/*
@@ -2289,15 +2289,15 @@ int vfs_ioc_fssetxattr_check(struct inode *inode, const struct fsxattr *old_fa,
 	}
 
 	/* Check extent size hints. */
-	if ((fa->fsx_xflags & FS_XFLAG_EXTSIZE) && !S_ISREG(inode->i_mode))
+	if ((fa->fsx_xflags & FS_XFLAG_EXTSIZE) && !S_ISREG(iyesde->i_mode))
 		return -EINVAL;
 
 	if ((fa->fsx_xflags & FS_XFLAG_EXTSZINHERIT) &&
-			!S_ISDIR(inode->i_mode))
+			!S_ISDIR(iyesde->i_mode))
 		return -EINVAL;
 
 	if ((fa->fsx_xflags & FS_XFLAG_COWEXTSIZE) &&
-	    !S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
+	    !S_ISREG(iyesde->i_mode) && !S_ISDIR(iyesde->i_mode))
 		return -EINVAL;
 
 	/*
@@ -2305,7 +2305,7 @@ int vfs_ioc_fssetxattr_check(struct inode *inode, const struct fsxattr *old_fa,
 	 * directories on filesystems.
 	 */
 	if ((fa->fsx_xflags & FS_XFLAG_DAX) &&
-	    !(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)))
+	    !(S_ISREG(iyesde->i_mode) || S_ISDIR(iyesde->i_mode)))
 		return -EINVAL;
 
 	/* Extent size hints of zero turn off the flags. */

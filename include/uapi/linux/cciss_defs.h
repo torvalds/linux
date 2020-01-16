@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef CCISS_DEFS_H
 #define CCISS_DEFS_H
 
 #include <linux/types.h>
 
 /* general boundary definitions */
-#define SENSEINFOBYTES          32 /* note that this value may vary
+#define SENSEINFOBYTES          32 /* yeste that this value may vary
 				      between host implementations */
 
 /* Command Status value */

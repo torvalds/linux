@@ -78,12 +78,12 @@ static void __crst_table_upgrade(void *arg)
 int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 {
 	unsigned long *table, *pgd;
-	int rc, notify;
+	int rc, yestify;
 
 	/* upgrade should only happen from 3 to 4, 3 to 5, or 4 to 5 levels */
 	VM_BUG_ON(mm->context.asce_limit < _REGION2_SIZE);
 	rc = 0;
-	notify = 0;
+	yestify = 0;
 	while (mm->context.asce_limit < end) {
 		table = crst_table_alloc(mm);
 		if (!table) {
@@ -108,10 +108,10 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 			mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				_ASCE_USER_BITS | _ASCE_TYPE_REGION1;
 		}
-		notify = 1;
+		yestify = 1;
 		spin_unlock_bh(&mm->page_table_lock);
 	}
-	if (notify)
+	if (yestify)
 		on_each_cpu(__crst_table_upgrade, mm, 0);
 	return rc;
 }
@@ -316,7 +316,7 @@ void __tlb_remove_table(void *_table)
 
 /*
  * Base infrastructure required to generate basic asces, region, segment,
- * and page tables that do not make use of enhanced features like EDAT1.
+ * and page tables that do yest make use of enhanced features like EDAT1.
  */
 
 static struct kmem_cache *base_pgt_cache;
@@ -556,7 +556,7 @@ static int base_pgt_cache_init(void)
  *
  * Generate an asce, including all required region, segment and page tables,
  * that can be used to access the virtual kernel mapping. The difference is
- * that the returned asce does not make use of any enhanced DAT features like
+ * that the returned asce does yest make use of any enhanced DAT features like
  * e.g. large pages. This is required for some I/O functions that pass an
  * asce, like e.g. some service call requests.
  *

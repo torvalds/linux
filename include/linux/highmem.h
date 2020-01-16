@@ -12,7 +12,7 @@
 #include <asm/cacheflush.h>
 
 #ifndef ARCH_HAS_FLUSH_ANON_PAGE
-static inline void flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
+static inline void flush_ayesn_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
 {
 }
 #endif
@@ -144,7 +144,7 @@ static inline void kmap_atomic_idx_pop(void)
 
 /*
  * Prevent people trying to call kunmap_atomic() as if it were kunmap()
- * kunmap_atomic() should get the return value of kmap_atomic, not the page.
+ * kunmap_atomic() should get the return value of kmap_atomic, yest the page.
  */
 #define kunmap_atomic(addr)                                     \
 do {                                                            \
@@ -153,7 +153,7 @@ do {                                                            \
 } while (0)
 
 
-/* when CONFIG_HIGHMEM is not set these will be plain clear/copy_page */
+/* when CONFIG_HIGHMEM is yest set these will be plain clear/copy_page */
 #ifndef clear_user_highpage
 static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
 {
@@ -172,7 +172,7 @@ static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
  *
  * This function will allocate a page for a VMA but the caller is expected
  * to specify via movableflags whether the page will be movable in the
- * future or not
+ * future or yest
  *
  * An architecture may override this function by defining
  * __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE and providing their own
@@ -194,11 +194,11 @@ __alloc_zeroed_user_highpage(gfp_t movableflags,
 #endif
 
 /**
- * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for a VMA that the caller knows can move
+ * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for a VMA that the caller kyesws can move
  * @vma: The VMA the page is to be allocated for
  * @vaddr: The virtual address the page will be inserted into
  *
- * This function will allocate a page for a VMA that the caller knows will
+ * This function will allocate a page for a VMA that the caller kyesws will
  * be able to migrate in the future using move_pages() or reclaimed
  */
 static inline struct page *

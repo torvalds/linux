@@ -87,7 +87,7 @@ static void int_irq(struct urb *urb)
 	case 0:
 		if (gspca_dev->sd_desc->int_pkt_scan(gspca_dev,
 		    urb->transfer_buffer, urb->actual_length) < 0) {
-			gspca_err(gspca_dev, "Unknown packet received\n");
+			gspca_err(gspca_dev, "Unkyeswn packet received\n");
 		}
 		break;
 
@@ -96,7 +96,7 @@ static void int_irq(struct urb *urb)
 	case -ENODEV:
 	case -ESHUTDOWN:
 		/* Stop is requested either by software or hardware is gone,
-		 * keep the ret value non-zero and don't resubmit later.
+		 * keep the ret value yesn-zero and don't resubmit later.
 		 */
 		break;
 
@@ -397,7 +397,7 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	spin_unlock_irqrestore(&gspca_dev->qlock, flags);
 
 	if (packet_type == FIRST_PACKET) {
-		/* if there is no queued buffer, discard the whole frame */
+		/* if there is yes queued buffer, discard the whole frame */
 		if (!buf) {
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			gspca_dev->sequence++;
@@ -468,7 +468,7 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
 
 	gspca_dbg(gspca_dev, D_STREAM, "kill transfer\n");
 
-	/* Killing all URBs guarantee that no URB completion
+	/* Killing all URBs guarantee that yes URB completion
 	 * handler is running. Therefore, there shouldn't
 	 * be anyone trying to access gspca_dev->urb[i]
 	 */
@@ -544,7 +544,7 @@ static u32 which_bandwidth(struct gspca_dev *gspca_dev)
 		struct v4l2_streamparm parm;
 
 		gspca_dev->sd_desc->get_streamparm(gspca_dev, &parm);
-		bandwidth *= parm.parm.capture.timeperframe.denominator;
+		bandwidth *= parm.parm.capture.timeperframe.deyesminator;
 		bandwidth /= parm.parm.capture.timeperframe.numerator;
 	} else {
 
@@ -793,7 +793,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		 * and build the endpoint table */
 		alt_idx = build_isoc_ep_tb(gspca_dev, intf, ep_tb);
 		if (alt_idx <= 0) {
-			pr_err("no transfer endpoint found\n");
+			pr_err("yes transfer endpoint found\n");
 			return -EIO;
 		}
 	}
@@ -819,7 +819,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 				}
 			}
 		}
-		if (!gspca_dev->cam.no_urb_create) {
+		if (!gspca_dev->cam.yes_urb_create) {
 			gspca_dbg(gspca_dev, D_STREAM, "init transfer alt %d\n",
 				  alt);
 			ret = create_urbs(gspca_dev,
@@ -870,10 +870,10 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 			goto out;
 		}
 
-		/* the bandwidth is not wide enough
+		/* the bandwidth is yest wide eyesugh
 		 * negotiate or try a lower alternate setting */
 retry:
-		gspca_err(gspca_dev, "alt %d - bandwidth not wide enough, trying again\n",
+		gspca_err(gspca_dev, "alt %d - bandwidth yest wide eyesugh, trying again\n",
 			  alt);
 		msleep(20);	/* wait for kill complete */
 		if (gspca_dev->sd_desc->isoc_nego) {
@@ -882,7 +882,7 @@ retry:
 				goto out;
 		} else {
 			if (alt_idx <= 0) {
-				pr_err("no transfer endpoint found\n");
+				pr_err("yes transfer endpoint found\n");
 				ret = -EIO;
 				goto out;
 			}
@@ -902,7 +902,7 @@ static void gspca_set_default_mode(struct gspca_dev *gspca_dev)
 	gspca_dev->curr_mode = i;
 	gspca_dev->pixfmt = gspca_dev->cam.cam_mode[i];
 
-	/* does nothing if ctrl_handler == NULL */
+	/* does yesthing if ctrl_handler == NULL */
 	v4l2_ctrl_handler_setup(gspca_dev->vdev.ctrl_handler);
 }
 
@@ -1021,7 +1021,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 		}
 	}
 	if (i < 0)
-		return -EINVAL;		/* no more format */
+		return -EINVAL;		/* yes more format */
 
 	fmtdesc->pixelformat = fmt_tb[index];
 	return 0;
@@ -1164,7 +1164,7 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 		if (fival->index == i) {
 			fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 			fival->discrete.numerator = 1;
-			fival->discrete.denominator =
+			fival->discrete.deyesminator =
 				gspca_dev->cam.mode_framerates[mode].rates[i];
 			return 0;
 		}
@@ -1337,11 +1337,11 @@ static void gspca_buffer_queue(struct vb2_buffer *vb)
 static void gspca_return_all_buffers(struct gspca_dev *gspca_dev,
 				     enum vb2_buffer_state state)
 {
-	struct gspca_buffer *buf, *node;
+	struct gspca_buffer *buf, *yesde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gspca_dev->qlock, flags);
-	list_for_each_entry_safe(buf, node, &gspca_dev->buf_list, list) {
+	list_for_each_entry_safe(buf, yesde, &gspca_dev->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -1564,7 +1564,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, gspca_dev);
 	gspca_dbg(gspca_dev, D_PROBE, "%s created\n",
-		  video_device_node_name(&gspca_dev->vdev));
+		  video_device_yesde_name(&gspca_dev->vdev));
 
 	gspca_input_create_urb(gspca_dev);
 
@@ -1620,7 +1620,7 @@ void gspca_disconnect(struct usb_interface *intf)
 #endif
 
 	gspca_dbg(gspca_dev, D_PROBE, "%s disconnect\n",
-		  video_device_node_name(&gspca_dev->vdev));
+		  video_device_yesde_name(&gspca_dev->vdev));
 
 	mutex_lock(&gspca_dev->usb_lock);
 	gspca_dev->present = false;

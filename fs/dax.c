@@ -23,7 +23,7 @@
 #include <linux/vmstat.h>
 #include <linux/pfn_t.h>
 #include <linux/sizes.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/iomap.h>
 #include <asm/pgalloc.h>
 
@@ -71,7 +71,7 @@ fs_initcall(init_dax_wait_table);
  * is just used for locking.  In total four special bits.
  *
  * If the PMD bit isn't set the entry has size PAGE_SIZE, and if the ZERO_PAGE
- * and EMPTY bits aren't set the entry is a normal DAX entry with a filesystem
+ * and EMPTY bits aren't set the entry is a yesrmal DAX entry with a filesystem
  * block allocation.
  */
 #define DAX_SHIFT	(4)
@@ -178,7 +178,7 @@ static int wake_exceptional_entry_func(wait_queue_entry_t *wait,
 }
 
 /*
- * @entry may no longer be the entry at the index in the mapping.
+ * @entry may yes longer be the entry at the index in the mapping.
  * The important information it's conveying is whether the entry at
  * this index used to be a PMD entry.
  */
@@ -202,7 +202,7 @@ static void dax_wake_entry(struct xa_state *xas, void *entry, bool wake_all)
 /*
  * Look up entry in page cache, wait for it to become unlocked if it
  * is a DAX entry and return it.  The caller must subsequently call
- * put_unlocked_entry() if it did not lock the entry or dax_unlock_entry()
+ * put_unlocked_entry() if it did yest lock the entry or dax_unlock_entry()
  * if it did.  The entry returned may have a larger order than @order.
  * If @order is larger than the order of the entry found in i_pages, this
  * function returns a dax_is_conflict entry.
@@ -240,8 +240,8 @@ static void *get_unlocked_entry(struct xa_state *xas, unsigned int order)
 
 /*
  * The only thing keeping the address space around is the i_pages lock
- * (it's cycled in clear_inode() after removing the entries from i_pages)
- * After we call xas_unlock_irq(), we cannot touch xas->xa.
+ * (it's cycled in clear_iyesde() after removing the entries from i_pages)
+ * After we call xas_unlock_irq(), we canyest touch xas->xa.
  */
 static void wait_entry_unlocked(struct xa_state *xas, void *entry)
 {
@@ -253,9 +253,9 @@ static void wait_entry_unlocked(struct xa_state *xas, void *entry)
 
 	wq = dax_entry_waitqueue(xas, entry, &ewait.key);
 	/*
-	 * Unlike get_unlocked_entry() there is no guarantee that this
+	 * Unlike get_unlocked_entry() there is yes guarantee that this
 	 * path ever successfully retrieves an unlocked entry before an
-	 * inode dies. Perform a non-exclusive wait in case this path
+	 * iyesde dies. Perform a yesn-exclusive wait in case this path
 	 * never successfully performs its own wake up.
 	 */
 	prepare_to_wait(wq, &ewait.wait, TASK_UNINTERRUPTIBLE);
@@ -273,7 +273,7 @@ static void put_unlocked_entry(struct xa_state *xas, void *entry)
 
 /*
  * We used the xa_state to get the entry, but then we locked the entry and
- * dropped the xa_lock, so we know the xa_state is stale and must be reset
+ * dropped the xa_lock, so we kyesw the xa_state is stale and must be reset
  * before use.
  */
 static void dax_unlock_entry(struct xa_state *xas, void *entry)
@@ -384,7 +384,7 @@ static struct page *dax_busy_page(void *entry)
  *
  * Context: Process context.
  * Return: A cookie to pass to dax_unlock_page() or 0 if the entry could
- * not be locked.
+ * yest be locked.
  */
 dax_entry_t dax_lock_page(struct page *page)
 {
@@ -401,10 +401,10 @@ dax_entry_t dax_lock_page(struct page *page)
 			break;
 
 		/*
-		 * In the device-dax case there's no need to lock, a
+		 * In the device-dax case there's yes need to lock, a
 		 * struct dev_pagemap pin is sufficient to keep the
-		 * inode alive, and we assume we have dev_pagemap pin
-		 * otherwise we would not have a valid pfn_to_page()
+		 * iyesde alive, and we assume we have dev_pagemap pin
+		 * otherwise we would yest have a valid pfn_to_page()
 		 * translation.
 		 */
 		entry = (void *)~0UL;
@@ -465,11 +465,11 @@ void dax_unlock_page(struct page *page, dax_entry_t cookie)
  * real storage backing them.  We will leave these real PMD entries in
  * the tree, and PTE writes will simply dirty the entire PMD entry.
  *
- * Note: Unlike filemap_fault() we don't honor FAULT_FLAG_RETRY flags. For
+ * Note: Unlike filemap_fault() we don't hoyesr FAULT_FLAG_RETRY flags. For
  * persistent memory the benefit is doubtful. We can add that later if we can
  * show it helps.
  *
- * On error, this function does not return an ERR_PTR.  Instead it returns
+ * On error, this function does yest return an ERR_PTR.  Instead it returns
  * a VM_FAULT code, encoded as an xarray internal entry.  The ERR_PTR values
  * overlap with xarray value entries.
  */
@@ -546,9 +546,9 @@ retry:
 
 out_unlock:
 	xas_unlock_irq(xas);
-	if (xas_nomem(xas, mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM))
+	if (xas_yesmem(xas, mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM))
 		goto retry;
-	if (xas->xa_node == XA_ERROR(-ENOMEM))
+	if (xas->xa_yesde == XA_ERROR(-ENOMEM))
 		return xa_mk_internal(VM_FAULT_OOM);
 	if (xas_error(xas))
 		return xa_mk_internal(VM_FAULT_SIGBUS);
@@ -570,7 +570,7 @@ fallback:
  *
  * It is expected that the filesystem is holding locks to block the
  * establishment of new mappings in this address_space. I.e. it expects
- * to be able to run unmap_mapping_range() and subsequently not race
+ * to be able to run unmap_mapping_range() and subsequently yest race
  * mapping_mapped() becoming true.
  */
 struct page *dax_layout_busy_page(struct address_space *mapping)
@@ -593,10 +593,10 @@ struct page *dax_layout_busy_page(struct address_space *mapping)
 	 * If we race get_user_pages_fast() here either we'll see the
 	 * elevated page count in the iteration and wait, or
 	 * get_user_pages_fast() will see that the page it took a reference
-	 * against is no longer mapped in the page tables and bail to the
+	 * against is yes longer mapped in the page tables and bail to the
 	 * get_user_pages() slow path.  The slow path is protected by
-	 * pte_lock() and pmd_lock(). New references are not taken without
-	 * holding those locks, and unmap_mapping_range() will not zero the
+	 * pte_lock() and pmd_lock(). New references are yest taken without
+	 * holding those locks, and unmap_mapping_range() will yest zero the
 	 * pte or pmd without holding the respective lock, so we are
 	 * guaranteed to either see new references or prevent new
 	 * references from being established.
@@ -720,7 +720,7 @@ static void *dax_insert_entry(struct xa_state *xas,
 	void *new_entry = dax_make_entry(pfn, flags);
 
 	if (dirty)
-		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+		__mark_iyesde_dirty(mapping->host, I_DIRTY_PAGES);
 
 	if (dax_is_zero_entry(entry) && !(flags & DAX_ZERO_PAGE)) {
 		unsigned long index = xas->xa_index;
@@ -741,7 +741,7 @@ static void *dax_insert_entry(struct xa_state *xas,
 		dax_associate_entry(new_entry, mapping, vmf->vma, vmf->address);
 		/*
 		 * Only swap our new entry into the page cache if the current
-		 * entry is a zero page or an empty entry.  If a normal PTE or
+		 * entry is a zero page or an empty entry.  If a yesrmal PTE or
 		 * PMD entry is already in the cache, we leave it alone.  This
 		 * means that if we are trying to insert a PTE and the
 		 * existing entry is a PMD, we will just leave the PMD in the
@@ -783,7 +783,7 @@ static void dax_entry_mkclean(struct address_space *mapping, pgoff_t index,
 
 	i_mmap_lock_read(mapping);
 	vma_interval_tree_foreach(vma, &mapping->i_mmap, index, index) {
-		struct mmu_notifier_range range;
+		struct mmu_yestifier_range range;
 		unsigned long address;
 
 		cond_resched();
@@ -795,7 +795,7 @@ static void dax_entry_mkclean(struct address_space *mapping, pgoff_t index,
 
 		/*
 		 * Note because we provide range to follow_pte_pmd it will
-		 * call mmu_notifier_invalidate_range_start() on our behalf
+		 * call mmu_yestifier_invalidate_range_start() on our behalf
 		 * before taking any lock.
 		 */
 		if (follow_pte_pmd(vma->vm_mm, address, &range,
@@ -803,11 +803,11 @@ static void dax_entry_mkclean(struct address_space *mapping, pgoff_t index,
 			continue;
 
 		/*
-		 * No need to call mmu_notifier_invalidate_range() as we are
-		 * downgrading page table protection not changing it to point
+		 * No need to call mmu_yestifier_invalidate_range() as we are
+		 * downgrading page table protection yest changing it to point
 		 * to a new page.
 		 *
-		 * See Documentation/vm/mmu_notifier.rst
+		 * See Documentation/vm/mmu_yestifier.rst
 		 */
 		if (pmdp) {
 #ifdef CONFIG_FS_DAX_PMD
@@ -841,7 +841,7 @@ unlock_pte:
 			pte_unmap_unlock(ptep, ptl);
 		}
 
-		mmu_notifier_invalidate_range_end(&range);
+		mmu_yestifier_invalidate_range_end(&range);
 	}
 	i_mmap_unlock_read(mapping);
 }
@@ -869,7 +869,7 @@ static int dax_writeback_one(struct xa_state *xas, struct dax_device *dax_dev,
 			goto put_unlocked;
 		/*
 		 * Entry got reallocated elsewhere? No need to writeback.
-		 * We have to compare pfns as we must not bail out due to
+		 * We have to compare pfns as we must yest bail out due to
 		 * difference in lockbit or entry type.
 		 */
 		if (dax_to_pfn(old_entry) != dax_to_pfn(entry))
@@ -880,7 +880,7 @@ static int dax_writeback_one(struct xa_state *xas, struct dax_device *dax_dev,
 			goto put_unlocked;
 		}
 
-		/* Another fsync thread may have already done this entry */
+		/* Ayesther fsync thread may have already done this entry */
 		if (!xas_get_mark(xas, PAGECACHE_TAG_TOWRITE))
 			goto put_unlocked;
 	}
@@ -889,8 +889,8 @@ static int dax_writeback_one(struct xa_state *xas, struct dax_device *dax_dev,
 	dax_lock_entry(xas, entry);
 
 	/*
-	 * We can clear the tag now but we have to be careful so that concurrent
-	 * dax_writeback_one() calls for the same index cannot finish before we
+	 * We can clear the tag yesw but we have to be careful so that concurrent
+	 * dax_writeback_one() calls for the same index canyest finish before we
 	 * actually flush the caches. This is achieved as the calls will look
 	 * at the entry only under the i_pages lock and once they do that
 	 * they will see the entry locked and wait for it to unlock.
@@ -902,7 +902,7 @@ static int dax_writeback_one(struct xa_state *xas, struct dax_device *dax_dev,
 	 * If dax_writeback_mapping_range() was given a wbc->range_start
 	 * in the middle of a PMD, the 'index' we use needs to be
 	 * aligned to the start of the PMD.
-	 * This allows us to flush for PMD_SIZE and not have to worry about
+	 * This allows us to flush for PMD_SIZE and yest have to worry about
 	 * partial PMD writebacks.
 	 */
 	pfn = dax_to_pfn(entry);
@@ -913,7 +913,7 @@ static int dax_writeback_one(struct xa_state *xas, struct dax_device *dax_dev,
 	dax_flush(dax_dev, page_address(pfn_to_page(pfn)), count * PAGE_SIZE);
 	/*
 	 * After we have flushed the cache, we can clear the dirty tag. There
-	 * cannot be new dirty data in the pfn after the flush has completed as
+	 * canyest be new dirty data in the pfn after the flush has completed as
 	 * the pfn mappings are writeprotected and fault waits for mapping
 	 * entry lock.
 	 */
@@ -940,14 +940,14 @@ int dax_writeback_mapping_range(struct address_space *mapping,
 		struct block_device *bdev, struct writeback_control *wbc)
 {
 	XA_STATE(xas, &mapping->i_pages, wbc->range_start >> PAGE_SHIFT);
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	pgoff_t end_index = wbc->range_end >> PAGE_SHIFT;
 	struct dax_device *dax_dev;
 	void *entry;
 	int ret = 0;
 	unsigned int scanned = 0;
 
-	if (WARN_ON_ONCE(inode->i_blkbits != PAGE_SHIFT))
+	if (WARN_ON_ONCE(iyesde->i_blkbits != PAGE_SHIFT))
 		return -EIO;
 
 	if (!mapping->nrexceptional || wbc->sync_mode != WB_SYNC_ALL)
@@ -957,7 +957,7 @@ int dax_writeback_mapping_range(struct address_space *mapping,
 	if (!dax_dev)
 		return -EIO;
 
-	trace_dax_writeback_range(inode, xas.xa_index, end_index);
+	trace_dax_writeback_range(iyesde, xas.xa_index, end_index);
 
 	tag_pages_for_writeback(mapping, xas.xa_index, end_index);
 
@@ -978,7 +978,7 @@ int dax_writeback_mapping_range(struct address_space *mapping,
 	}
 	xas_unlock_irq(&xas);
 	put_dax(dax_dev);
-	trace_dax_writeback_range_done(inode, xas.xa_index, end_index);
+	trace_dax_writeback_range_done(iyesde, xas.xa_index, end_index);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dax_writeback_mapping_range);
@@ -1031,7 +1031,7 @@ static vm_fault_t dax_load_hole(struct xa_state *xas,
 		struct address_space *mapping, void **entry,
 		struct vm_fault *vmf)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	unsigned long vaddr = vmf->address;
 	pfn_t pfn = pfn_to_pfn_t(my_zero_pfn(vaddr));
 	vm_fault_t ret;
@@ -1040,7 +1040,7 @@ static vm_fault_t dax_load_hole(struct xa_state *xas,
 			DAX_ZERO_PAGE, false);
 
 	ret = vmf_insert_mixed(vmf->vma, vaddr, pfn);
-	trace_dax_load_hole(inode, vmf, ret);
+	trace_dax_load_hole(iyesde, vmf, ret);
 	return ret;
 }
 
@@ -1090,7 +1090,7 @@ int __dax_zero_page_range(struct block_device *bdev,
 EXPORT_SYMBOL_GPL(__dax_zero_page_range);
 
 static loff_t
-dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+dax_iomap_actor(struct iyesde *iyesde, loff_t pos, loff_t length, void *data,
 		struct iomap *iomap, struct iomap *srcmap)
 {
 	struct block_device *bdev = iomap->bdev;
@@ -1102,7 +1102,7 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	int id;
 
 	if (iov_iter_rw(iter) == READ) {
-		end = min(end, i_size_read(inode));
+		end = min(end, i_size_read(iyesde));
 		if (pos >= end)
 			return 0;
 
@@ -1119,7 +1119,7 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	 * written by write(2) is visible in mmap.
 	 */
 	if (iomap->flags & IOMAP_F_NEW) {
-		invalidate_inode_pages2_range(inode->i_mapping,
+		invalidate_iyesde_pages2_range(iyesde->i_mapping,
 					      pos >> PAGE_SHIFT,
 					      (end - 1) >> PAGE_SHIFT);
 	}
@@ -1196,19 +1196,19 @@ dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
 		const struct iomap_ops *ops)
 {
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	loff_t pos = iocb->ki_pos, ret = 0, done = 0;
 	unsigned flags = 0;
 
 	if (iov_iter_rw(iter) == WRITE) {
-		lockdep_assert_held_write(&inode->i_rwsem);
+		lockdep_assert_held_write(&iyesde->i_rwsem);
 		flags |= IOMAP_WRITE;
 	} else {
-		lockdep_assert_held(&inode->i_rwsem);
+		lockdep_assert_held(&iyesde->i_rwsem);
 	}
 
 	while (iov_iter_count(iter)) {
-		ret = iomap_apply(inode, pos, iov_iter_count(iter), flags, ops,
+		ret = iomap_apply(iyesde, pos, iov_iter_count(iter), flags, ops,
 				iter, dax_iomap_actor);
 		if (ret <= 0)
 			break;
@@ -1230,9 +1230,9 @@ static vm_fault_t dax_fault_return(int error)
 
 /*
  * MAP_SYNC on a dax mapping guarantees dirty metadata is
- * flushed on write-faults (non-cow), but not read-faults.
+ * flushed on write-faults (yesn-cow), but yest read-faults.
  */
-static bool dax_fault_is_synchronous(unsigned long flags,
+static bool dax_fault_is_synchroyesus(unsigned long flags,
 		struct vm_area_struct *vma, struct iomap *iomap)
 {
 	return (flags & IOMAP_WRITE) && (vma->vm_flags & VM_SYNC)
@@ -1245,7 +1245,7 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	struct vm_area_struct *vma = vmf->vma;
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	XA_STATE(xas, &mapping->i_pages, vmf->pgoff);
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	unsigned long vaddr = vmf->address;
 	loff_t pos = (loff_t)vmf->pgoff << PAGE_SHIFT;
 	struct iomap iomap = { .type = IOMAP_HOLE };
@@ -1258,13 +1258,13 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	void *entry;
 	pfn_t pfn;
 
-	trace_dax_pte_fault(inode, vmf, ret);
+	trace_dax_pte_fault(iyesde, vmf, ret);
 	/*
-	 * Check whether offset isn't beyond end of file now. Caller is supposed
+	 * Check whether offset isn't beyond end of file yesw. Caller is supposed
 	 * to hold locks serializing us with truncate / punch hole so this is
 	 * a reliable test.
 	 */
-	if (pos >= i_size_read(inode)) {
+	if (pos >= i_size_read(iyesde)) {
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
@@ -1294,7 +1294,7 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	 * the file system block size to be equal the page size, which means
 	 * that we never have to deal with more than a single extent here.
 	 */
-	error = ops->iomap_begin(inode, pos, PAGE_SIZE, flags, &iomap, &srcmap);
+	error = ops->iomap_begin(iyesde, pos, PAGE_SIZE, flags, &iomap, &srcmap);
 	if (iomap_errp)
 		*iomap_errp = error;
 	if (error) {
@@ -1334,7 +1334,7 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 		goto finish_iomap;
 	}
 
-	sync = dax_fault_is_synchronous(flags, vma, &iomap);
+	sync = dax_fault_is_synchroyesus(flags, vma, &iomap);
 
 	switch (iomap.type) {
 	case IOMAP_MAPPED:
@@ -1351,9 +1351,9 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 						 0, write && !sync);
 
 		/*
-		 * If we are doing synchronous page fault and inode needs fsync,
+		 * If we are doing synchroyesus page fault and iyesde needs fsync,
 		 * we can insert PTE into page tables only after that happens.
-		 * Skip insertion for now and return the pfn so that caller can
+		 * Skip insertion for yesw and return the pfn so that caller can
 		 * insert it after fsync is done.
 		 */
 		if (sync) {
@@ -1365,7 +1365,7 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 			ret = VM_FAULT_NEEDDSYNC | major;
 			goto finish_iomap;
 		}
-		trace_dax_insert_mapping(inode, vmf, entry);
+		trace_dax_insert_mapping(iyesde, vmf, entry);
 		if (write)
 			ret = vmf_insert_mixed_mkwrite(vma, vaddr, pfn);
 		else
@@ -1394,17 +1394,17 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 		if (ret & VM_FAULT_ERROR)
 			copied = 0;
 		/*
-		 * The fault is done by now and there's no way back (other
+		 * The fault is done by yesw and there's yes way back (other
 		 * thread may be already happily using PTE we have installed).
-		 * Just ignore error from ->iomap_end since we cannot do much
+		 * Just igyesre error from ->iomap_end since we canyest do much
 		 * with it.
 		 */
-		ops->iomap_end(inode, pos, PAGE_SIZE, copied, flags, &iomap);
+		ops->iomap_end(iyesde, pos, PAGE_SIZE, copied, flags, &iomap);
 	}
  unlock_entry:
 	dax_unlock_entry(&xas, entry);
  out:
-	trace_dax_pte_fault_done(inode, vmf, ret);
+	trace_dax_pte_fault_done(iyesde, vmf, ret);
 	return ret | major;
 }
 
@@ -1415,7 +1415,7 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
 	unsigned long pmd_addr = vmf->address & PMD_MASK;
 	struct vm_area_struct *vma = vmf->vma;
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	pgtable_t pgtable = NULL;
 	struct page *zero_page;
 	spinlock_t *ptl;
@@ -1438,7 +1438,7 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
 	}
 
 	ptl = pmd_lock(vmf->vma->vm_mm, vmf->pmd);
-	if (!pmd_none(*(vmf->pmd))) {
+	if (!pmd_yesne(*(vmf->pmd))) {
 		spin_unlock(ptl);
 		goto fallback;
 	}
@@ -1451,13 +1451,13 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
 	pmd_entry = pmd_mkhuge(pmd_entry);
 	set_pmd_at(vmf->vma->vm_mm, pmd_addr, vmf->pmd, pmd_entry);
 	spin_unlock(ptl);
-	trace_dax_pmd_load_hole(inode, vmf, zero_page, *entry);
+	trace_dax_pmd_load_hole(iyesde, vmf, zero_page, *entry);
 	return VM_FAULT_NOPAGE;
 
 fallback:
 	if (pgtable)
 		pte_free(vma->vm_mm, pgtable);
-	trace_dax_pmd_load_hole_fallback(inode, vmf, zero_page, *entry);
+	trace_dax_pmd_load_hole_fallback(iyesde, vmf, zero_page, *entry);
 	return VM_FAULT_FALLBACK;
 }
 
@@ -1471,7 +1471,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	bool write = vmf->flags & FAULT_FLAG_WRITE;
 	bool sync;
 	unsigned int iomap_flags = (write ? IOMAP_WRITE : 0) | IOMAP_FAULT;
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	vm_fault_t result = VM_FAULT_FALLBACK;
 	struct iomap iomap = { .type = IOMAP_HOLE };
 	struct iomap srcmap = { .type = IOMAP_HOLE };
@@ -1482,13 +1482,13 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	pfn_t pfn;
 
 	/*
-	 * Check whether offset isn't beyond end of file now. Caller is
+	 * Check whether offset isn't beyond end of file yesw. Caller is
 	 * supposed to hold locks serializing us with truncate / punch hole so
 	 * this is a reliable test.
 	 */
-	max_pgoff = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+	max_pgoff = DIV_ROUND_UP(i_size_read(iyesde), PAGE_SIZE);
 
-	trace_dax_pmd_fault(inode, vmf, max_pgoff, 0);
+	trace_dax_pmd_fault(iyesde, vmf, max_pgoff, 0);
 
 	/*
 	 * Make sure that the faulting address's PMD offset (color) matches
@@ -1537,7 +1537,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	 * the PMD we need to set up.  If so just return and the fault will be
 	 * retried.
 	 */
-	if (!pmd_none(*vmf->pmd) && !pmd_trans_huge(*vmf->pmd) &&
+	if (!pmd_yesne(*vmf->pmd) && !pmd_trans_huge(*vmf->pmd) &&
 			!pmd_devmap(*vmf->pmd)) {
 		result = 0;
 		goto unlock_entry;
@@ -1549,7 +1549,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	 * to look up our filesystem block.
 	 */
 	pos = (loff_t)xas.xa_index << PAGE_SHIFT;
-	error = ops->iomap_begin(inode, pos, PMD_SIZE, iomap_flags, &iomap,
+	error = ops->iomap_begin(iyesde, pos, PMD_SIZE, iomap_flags, &iomap,
 			&srcmap);
 	if (error)
 		goto unlock_entry;
@@ -1557,7 +1557,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	if (iomap.offset + iomap.length < pos + PMD_SIZE)
 		goto finish_iomap;
 
-	sync = dax_fault_is_synchronous(iomap_flags, vma, &iomap);
+	sync = dax_fault_is_synchroyesus(iomap_flags, vma, &iomap);
 
 	switch (iomap.type) {
 	case IOMAP_MAPPED:
@@ -1569,9 +1569,9 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 						DAX_PMD, write && !sync);
 
 		/*
-		 * If we are doing synchronous page fault and inode needs fsync,
+		 * If we are doing synchroyesus page fault and iyesde needs fsync,
 		 * we can insert PMD into page tables only after that happens.
-		 * Skip insertion for now and return the pfn so that caller can
+		 * Skip insertion for yesw and return the pfn so that caller can
 		 * insert it after fsync is done.
 		 */
 		if (sync) {
@@ -1582,7 +1582,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 			goto finish_iomap;
 		}
 
-		trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
+		trace_dax_pmd_insert_mapping(iyesde, vmf, PMD_SIZE, pfn, entry);
 		result = vmf_insert_pfn_pmd(vmf, pfn, write);
 		break;
 	case IOMAP_UNWRITTEN:
@@ -1603,12 +1603,12 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 		if (result == VM_FAULT_FALLBACK)
 			copied = 0;
 		/*
-		 * The fault is done by now and there's no way back (other
+		 * The fault is done by yesw and there's yes way back (other
 		 * thread may be already happily using PMD we have installed).
-		 * Just ignore error from ->iomap_end since we cannot do much
+		 * Just igyesre error from ->iomap_end since we canyest do much
 		 * with it.
 		 */
-		ops->iomap_end(inode, pos, PMD_SIZE, copied, iomap_flags,
+		ops->iomap_end(iyesde, pos, PMD_SIZE, copied, iomap_flags,
 				&iomap);
 	}
  unlock_entry:
@@ -1619,7 +1619,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 		count_vm_event(THP_FAULT_FALLBACK);
 	}
 out:
-	trace_dax_pmd_fault_done(inode, vmf, max_pgoff, result);
+	trace_dax_pmd_fault_done(iyesde, vmf, max_pgoff, result);
 	return result;
 }
 #else
@@ -1634,7 +1634,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
  * dax_iomap_fault - handle a page fault on a DAX file
  * @vmf: The description of the fault
  * @pe_size: Size of the page to fault in
- * @pfnp: PFN to insert for synchronous faults if fsync is required
+ * @pfnp: PFN to insert for synchroyesus faults if fsync is required
  * @iomap_errp: Storage for detailed error code in case of error
  * @ops: Iomap ops passed from the file system
  *
@@ -1681,7 +1681,7 @@ dax_insert_pfn_mkwrite(struct vm_fault *vmf, pfn_t pfn, unsigned int order)
 	    (order == 0 && !dax_is_pte_entry(entry))) {
 		put_unlocked_entry(&xas, entry);
 		xas_unlock_irq(&xas);
-		trace_dax_insert_pfn_mkwrite_no_entry(mapping->host, vmf,
+		trace_dax_insert_pfn_mkwrite_yes_entry(mapping->host, vmf,
 						      VM_FAULT_NOPAGE);
 		return VM_FAULT_NOPAGE;
 	}
@@ -1702,7 +1702,7 @@ dax_insert_pfn_mkwrite(struct vm_fault *vmf, pfn_t pfn, unsigned int order)
 }
 
 /**
- * dax_finish_sync_fault - finish synchronous page fault
+ * dax_finish_sync_fault - finish synchroyesus page fault
  * @vmf: The description of the fault
  * @pe_size: Size of entry to be inserted
  * @pfn: PFN to insert

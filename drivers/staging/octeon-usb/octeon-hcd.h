@@ -16,14 +16,14 @@
  * met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *
  *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
+ *     copyright yestice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
  *
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Networks yesr the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -104,11 +104,11 @@
  * This register can be used to configure the core after power-on or a change in
  * mode of operation. This register mainly contains AHB system-related
  * configuration parameters. The AHB is the processor interface to the O2P USB
- * core. In general, software need not know about this interface except to
+ * core. In general, software need yest kyesw about this interface except to
  * program the values as specified.
  *
  * The application must program this register as part of the O2P USB core
- * initialization. Do not change this register after the initial programming.
+ * initialization. Do yest change this register after the initial programming.
  */
 union cvmx_usbcx_gahbcfg {
 	u32 u32;
@@ -136,7 +136,7 @@ union cvmx_usbcx_gahbcfg {
 	 *	* 1'b0: Core operates in Slave mode
 	 *	* 1'b1: Core operates in a DMA mode
 	 * @hbstlen: Burst Length/Type (HBstLen)
-	 *	This field has not effect and should be left as 0x0.
+	 *	This field has yest effect and should be left as 0x0.
 	 * @glblintrmsk: Global Interrupt Mask (GlblIntrMsk)
 	 *	Software should set this field to 0x1.
 	 *	The application uses this bit to mask or unmask the interrupt
@@ -172,24 +172,24 @@ union cvmx_usbcx_ghwcfg3 {
 	 *	This value is in terms of 32-bit words.
 	 *	* Minimum value is 32
 	 *	* Maximum value is 32768
-	 * @ahbphysync: AHB and PHY Synchronous (AhbPhySync)
-	 *	Indicates whether AHB and PHY clocks are synchronous to
+	 * @ahbphysync: AHB and PHY Synchroyesus (AhbPhySync)
+	 *	Indicates whether AHB and PHY clocks are synchroyesus to
 	 *	each other.
 	 *	* 1'b0: No
 	 *	* 1'b1: Yes
 	 *	This bit is tied to 1.
 	 * @rsttype: Reset Style for Clocked always Blocks in RTL (RstType)
-	 *	* 1'b0: Asynchronous reset is used in the core
-	 *	* 1'b1: Synchronous reset is used in the core
+	 *	* 1'b0: Asynchroyesus reset is used in the core
+	 *	* 1'b1: Synchroyesus reset is used in the core
 	 * @optfeature: Optional Features Removed (OptFeature)
 	 *	Indicates whether the User ID register, GPIO interface ports,
 	 *	and SOF toggle and counter ports were removed for gate count
 	 *	optimization.
 	 * @vendor_control_interface_support: Vendor Control Interface Support
-	 *	* 1'b0: Vendor Control Interface is not available on the core.
+	 *	* 1'b0: Vendor Control Interface is yest available on the core.
 	 *	* 1'b1: Vendor Control Interface is available.
 	 * @i2c_selection: I2C Selection
-	 *	* 1'b0: I2C Interface is not available on the core.
+	 *	* 1'b0: I2C Interface is yest available on the core.
 	 *	* 1'b1: I2C Interface is available on the core.
 	 * @otgen: OTG Function Enabled (OtgEn)
 	 *	The application uses this bit to indicate the O2P USB core's
@@ -234,7 +234,7 @@ union cvmx_usbcx_ghwcfg3 {
  *
  * This register works with the Core Interrupt register to interrupt the
  * application. When an interrupt bit is masked, the interrupt associated with
- * that bit will not be generated. However, the Core Interrupt (GINTSTS)
+ * that bit will yest be generated. However, the Core Interrupt (GINTSTS)
  * register bit corresponding to that interrupt will still be set.
  * Mask interrupt: 1'b0, Unmask interrupt: 1'b1
  */
@@ -253,15 +253,15 @@ union cvmx_usbcx_gintmsk {
 	 * @prtintmsk: Host Port Interrupt Mask (PrtIntMsk)
 	 * @fetsuspmsk: Data Fetch Suspended Mask (FetSuspMsk)
 	 * @incomplpmsk: Incomplete Periodic Transfer Mask (incomplPMsk)
-	 *	Incomplete Isochronous OUT Transfer Mask
+	 *	Incomplete Isochroyesus OUT Transfer Mask
 	 *	(incompISOOUTMsk)
-	 * @incompisoinmsk: Incomplete Isochronous IN Transfer Mask
+	 * @incompisoinmsk: Incomplete Isochroyesus IN Transfer Mask
 	 *		    (incompISOINMsk)
 	 * @oepintmsk: OUT Endpoints Interrupt Mask (OEPIntMsk)
 	 * @inepintmsk: IN Endpoints Interrupt Mask (INEPIntMsk)
 	 * @epmismsk: Endpoint Mismatch Interrupt Mask (EPMisMsk)
 	 * @eopfmsk: End of Periodic Frame Interrupt Mask (EOPFMsk)
-	 * @isooutdropmsk: Isochronous OUT Packet Dropped Interrupt Mask
+	 * @isooutdropmsk: Isochroyesus OUT Packet Dropped Interrupt Mask
 	 *	(ISOOutDropMsk)
 	 * @enumdonemsk: Enumeration Done Mask (EnumDoneMsk)
 	 * @usbrstmsk: USB Reset Mask (USBRstMsk)
@@ -388,15 +388,15 @@ union cvmx_usbcx_gintsts {
 	 *	In Host mode, the core sets this interrupt bit when there are
 	 *	incomplete periodic transactions still pending which are
 	 *	scheduled for the current microframe.
-	 *	Incomplete Isochronous OUT Transfer (incompISOOUT)
+	 *	Incomplete Isochroyesus OUT Transfer (incompISOOUT)
 	 *	The Device mode, the core sets this interrupt to indicate that
-	 *	there is at least one isochronous OUT endpoint on which the
-	 *	transfer is not completed in the current microframe. This
+	 *	there is at least one isochroyesus OUT endpoint on which the
+	 *	transfer is yest completed in the current microframe. This
 	 *	interrupt is asserted along with the End of Periodic Frame
 	 *	Interrupt (EOPF) bit in this register.
-	 * @incompisoin: Incomplete Isochronous IN Transfer (incompISOIN)
+	 * @incompisoin: Incomplete Isochroyesus IN Transfer (incompISOIN)
 	 *	The core sets this interrupt to indicate that there is at least
-	 *	one isochronous IN endpoint on which the transfer is not
+	 *	one isochroyesus IN endpoint on which the transfer is yest
 	 *	completed in the current microframe. This interrupt is asserted
 	 *	along with the End of Periodic Frame Interrupt (EOPF) bit in
 	 *	this register.
@@ -421,19 +421,19 @@ union cvmx_usbcx_gintsts {
 	 *	application must clear the appropriate status bit in the
 	 *	corresponding DIEPINTn register to clear this bit.
 	 * @epmis: Endpoint Mismatch Interrupt (EPMis)
-	 *	Indicates that an IN token has been received for a non-periodic
-	 *	endpoint, but the data for another endpoint is present in the
+	 *	Indicates that an IN token has been received for a yesn-periodic
+	 *	endpoint, but the data for ayesther endpoint is present in the
 	 *	top of the Non-Periodic Transmit FIFO and the IN endpoint
 	 *	mismatch count programmed by the application has expired.
 	 * @eopf: End of Periodic Frame Interrupt (EOPF)
 	 *	Indicates that the period specified in the Periodic Frame
 	 *	Interval field of the Device Configuration register
 	 *	(DCFG.PerFrInt) has been reached in the current microframe.
-	 * @isooutdrop: Isochronous OUT Packet Dropped Interrupt (ISOOutDrop)
-	 *	The core sets this bit when it fails to write an isochronous OUT
+	 * @isooutdrop: Isochroyesus OUT Packet Dropped Interrupt (ISOOutDrop)
+	 *	The core sets this bit when it fails to write an isochroyesus OUT
 	 *	packet into the RxFIFO because the RxFIFO doesn't have
-	 *	enough space to accommodate a maximum packet size packet
-	 *	for the isochronous OUT endpoint.
+	 *	eyesugh space to accommodate a maximum packet size packet
+	 *	for the isochroyesus OUT endpoint.
 	 * @enumdone: Enumeration Done (EnumDone)
 	 *	The core sets this bit to indicate that speed enumeration is
 	 *	complete. The application must read the Device Status (DSTS)
@@ -444,7 +444,7 @@ union cvmx_usbcx_gintsts {
 	 * @usbsusp: USB Suspend (USBSusp)
 	 *	The core sets this bit to indicate that a suspend was detected
 	 *	on the USB. The core enters the Suspended state when there
-	 *	is no activity on the phy_line_state_i signal for an extended
+	 *	is yes activity on the phy_line_state_i signal for an extended
 	 *	period of time.
 	 * @erlysusp: Early Suspend (ErlySusp)
 	 *	The core sets this bit to indicate that an Idle state has been
@@ -466,7 +466,7 @@ union cvmx_usbcx_gintsts {
 	 *	sampled the Global IN NAK bit set by the application. This bit
 	 *	can be cleared by clearing the Clear Global Non-Periodic IN
 	 *	NAK bit in the Device Control register (DCTL.CGNPInNak).
-	 *	This interrupt does not necessarily mean that a NAK handshake
+	 *	This interrupt does yest necessarily mean that a NAK handshake
 	 *	is sent out on the USB. The STALL bit takes precedence over
 	 *	the NAK bit.
 	 * @nptxfemp: Non-Periodic TxFIFO Empty (NPTxFEmp)
@@ -502,7 +502,7 @@ union cvmx_usbcx_gintsts {
 	 *	* A Device mode register, when the core is operating in Host
 	 *	mode
 	 *	The register access is completed on the AHB with an OKAY
-	 *	response, but is ignored by the core internally and doesn't
+	 *	response, but is igyesred by the core internally and doesn't
 	 *	affect the operation of the core.
 	 * @curmod: Current Mode of Operation (CurMod)
 	 *	Indicates the current mode of operation.
@@ -645,7 +645,7 @@ union cvmx_usbcx_grstctl {
 	 *	Indicates that the DMA request is in progress. Used for debug.
 	 * @txfnum: TxFIFO Number (TxFNum)
 	 *	This is the FIFO number that must be flushed using the TxFIFO
-	 *	Flush bit. This field must not be changed until the core clears
+	 *	Flush bit. This field must yest be changed until the core clears
 	 *	the TxFIFO Flush bit.
 	 *	* 5'h0: Non-Periodic TxFIFO flush
 	 *	* 5'h1: Periodic TxFIFO 1 flush in Device mode or Periodic
@@ -657,19 +657,19 @@ union cvmx_usbcx_grstctl {
 	 *	core
 	 * @txfflsh: TxFIFO Flush (TxFFlsh)
 	 *	This bit selectively flushes a single or all transmit FIFOs, but
-	 *	cannot do so if the core is in the midst of a transaction.
+	 *	canyest do so if the core is in the midst of a transaction.
 	 *	The application must only write this bit after checking that the
-	 *	core is neither writing to the TxFIFO nor reading from the
+	 *	core is neither writing to the TxFIFO yesr reading from the
 	 *	TxFIFO.
 	 *	The application must wait until the core clears this bit before
 	 *	performing any operations. This bit takes 8 clocks (of phy_clk
 	 *	or hclk, whichever is slower) to clear.
 	 * @rxfflsh: RxFIFO Flush (RxFFlsh)
 	 *	The application can flush the entire RxFIFO using this bit, but
-	 *	must first ensure that the core is not in the middle of a
+	 *	must first ensure that the core is yest in the middle of a
 	 *	transaction.
 	 *	The application must only write to this bit after checking that
-	 *	the core is neither reading from the RxFIFO nor writing to the
+	 *	the core is neither reading from the RxFIFO yesr writing to the
 	 *	RxFIFO.
 	 *	The application must wait until the bit is cleared before
 	 *	performing any other operations. This bit will take 8 clocks
@@ -685,7 +685,7 @@ union cvmx_usbcx_grstctl {
 	 * @hsftrst: HClk Soft Reset (HSftRst)
 	 *	The application uses this bit to flush the control logic in the
 	 *	AHB Clock domain. Only AHB Clock Domain pipelines are reset.
-	 *	* FIFOs are not flushed with this bit.
+	 *	* FIFOs are yest flushed with this bit.
 	 *	* All state machines in the AHB clock domain are reset to the
 	 *	Idle state after terminating the transactions on the AHB,
 	 *	following the protocol.
@@ -694,7 +694,7 @@ union cvmx_usbcx_grstctl {
 	 *	* To clear this interrupt, status mask bits that control the
 	 *	interrupt status and are generated by the AHB clock domain
 	 *	state machine are cleared.
-	 *	* Because interrupt status bits are not cleared, the application
+	 *	* Because interrupt status bits are yest cleared, the application
 	 *	can get the status of any core events that occurred after it set
 	 *	this bit.
 	 *	This is a self-clearing bit that the core clears after all
@@ -789,7 +789,7 @@ union cvmx_usbcx_grxfsiz {
  * use USBC_GRXSTSPD instead.
  * NOTE: GRXSTSPH and GRXSTSPD are physically the same register and share the
  *	 same offset in the O2P USB core. The offset difference shown in this
- *	 document is for software clarity and is actually ignored by the
+ *	 document is for software clarity and is actually igyesred by the
  *       hardware.
  */
 union cvmx_usbcx_grxstsph {
@@ -832,7 +832,7 @@ union cvmx_usbcx_grxstsph {
  * This register can be used to configure the core after power-on or a changing
  * to Host mode or Device mode. It contains USB and USB-PHY related
  * configuration parameters. The application must program this register before
- * starting any transactions on either the AHB or the USB. Do not make changes
+ * starting any transactions on either the AHB or the USB. Do yest make changes
  * to this register after the initial programming.
  */
 union cvmx_usbcx_gusbcfg {
@@ -880,7 +880,7 @@ union cvmx_usbcx_gusbcfg {
 	 *	duration in the core to account for any additional delays
 	 *	introduced by the PHY. This may be required, since the delay
 	 *	introduced by the PHY in generating the linestate condition may
-	 *	vary from one PHY to another.
+	 *	vary from one PHY to ayesther.
 	 *	The USB standard timeout value for high-speed operation is
 	 *	736 to 816 (inclusive) bit times. The USB standard timeout
 	 *	value for full-speed operation is 16 to 18 (inclusive) bit
@@ -987,7 +987,7 @@ union cvmx_usbcx_hccharx {
 	 * @oddfrm: Odd Frame (OddFrm)
 	 *	This field is set (reset) by the application to indicate that
 	 *	the OTG host must perform a transfer in an odd (micro)frame.
-	 *	This field is applicable for only periodic (isochronous and
+	 *	This field is applicable for only periodic (isochroyesus and
 	 *	interrupt) transactions.
 	 *	* 1'b0: Even (micro)frame
 	 *	* 1'b1: Odd (micro)frame
@@ -1012,7 +1012,7 @@ union cvmx_usbcx_hccharx {
 	 * @eptype: Endpoint Type (EPType)
 	 *	Indicates the transfer type selected.
 	 *	* 2'b00: Control
-	 *	* 2'b01: Isochronous
+	 *	* 2'b01: Isochroyesus
 	 *	* 2'b10: Bulk
 	 *	* 2'b11: Interrupt
 	 * @lspddev: Low-Speed Device (LSpdDev)
@@ -1049,7 +1049,7 @@ union cvmx_usbcx_hccharx {
  *
  * Host Configuration Register (HCFG)
  *
- * This register configures the core after power-on. Do not make changes to this
+ * This register configures the core after power-on. Do yest make changes to this
  * register after initializing the host.
  */
 union cvmx_usbcx_hcfg {
@@ -1060,7 +1060,7 @@ union cvmx_usbcx_hcfg {
 	 *	The application uses this bit to control the core's enumeration
 	 *	speed. Using this bit, the application can make the core
 	 *	enumerate as a FS host, even if the connected device supports
-	 *	HS traffic. Do not make changes to this field after initial
+	 *	HS traffic. Do yest make changes to this field after initial
 	 *	programming.
 	 *	* 1'b0: HS/FS/LS, based on the maximum speed supported by
 	 *	the connected device
@@ -1072,7 +1072,7 @@ union cvmx_usbcx_hcfg {
 	 *	* Others: Reserved
 	 *	When the core is in LS Host mode
 	 *	* 2'b00: PHY clock is running at 30/60 MHz. When the
-	 *	UTMI+/ULPI PHY Low Power mode is not selected, use
+	 *	UTMI+/ULPI PHY Low Power mode is yest selected, use
 	 *	30/60 MHz.
 	 *	* 2'b01: PHY clock is running at 48 MHz. When the UTMI+
 	 *	PHY Low Power mode is selected, use 48MHz if the PHY
@@ -1120,11 +1120,11 @@ union cvmx_usbcx_hcintx {
 	 * @stall: STALL Response Received Interrupt (STALL)
 	 * @ahberr: This bit is always 0x0.
 	 * @chhltd: Channel Halted (ChHltd)
-	 *	Indicates the transfer completed abnormally either because of
+	 *	Indicates the transfer completed abyesrmally either because of
 	 *	any USB transaction error or in response to disable request by
 	 *	the application.
 	 * @xfercompl: Transfer Completed (XferCompl)
-	 *	Transfer completed normally without any errors.
+	 *	Transfer completed yesrmally without any errors.
 	 */
 	struct cvmx_usbcx_hcintx_s {
 		__BITFIELD_FIELD(u32 reserved_11_31	: 21,
@@ -1249,13 +1249,13 @@ union cvmx_usbcx_hctsizx {
 	 *	* 2'b00: DATA0
 	 *	* 2'b01: DATA2
 	 *	* 2'b10: DATA1
-	 *	* 2'b11: MDATA (non-control)/SETUP (control)
+	 *	* 2'b11: MDATA (yesn-control)/SETUP (control)
 	 * @pktcnt: Packet Count (PktCnt)
 	 *	This field is programmed by the application with the expected
 	 *	number of packets to be transmitted (OUT) or received (IN).
 	 *	The host decrements this count on every successful
 	 *	transmission or reception of an OUT/IN packet. Once this count
-	 *	reaches zero, the application is interrupted to indicate normal
+	 *	reaches zero, the application is interrupted to indicate yesrmal
 	 *	completion.
 	 * @xfersize: Transfer Size (XferSize)
 	 *	For an OUT, this field is the number of data bytes the host will
@@ -1263,7 +1263,7 @@ union cvmx_usbcx_hctsizx {
 	 *	For an IN, this field is the buffer size that the application
 	 *	has reserved for the transfer. The application is expected to
 	 *	program this field as an integer multiple of the maximum packet
-	 *	size for IN transactions (periodic and non-periodic).
+	 *	size for IN transactions (periodic and yesn-periodic).
 	 */
 	struct cvmx_usbcx_hctsizx_s {
 		__BITFIELD_FIELD(u32 dopng		: 1,
@@ -1295,10 +1295,10 @@ union cvmx_usbcx_hfir {
 	 *	when the PHY clock frequency is 60 MHz. The application can
 	 *	write a value to this register only after the Port Enable bit of
 	 *	the Host Port Control and Status register (HPRT.PrtEnaPort)
-	 *	has been set. If no value is programmed, the core calculates
+	 *	has been set. If yes value is programmed, the core calculates
 	 *	the value based on the PHY clock specified in the FS/LS PHY
 	 *	Clock Select field of the Host Configuration register
-	 *	(HCFG.FSLSPclkSel). Do not change the value of this field
+	 *	(HCFG.FSLSPclkSel). Do yest change the value of this field
 	 *	after the initial configuration.
 	 *	* 125 us (PHY clock frequency for HS)
 	 *	* 1 ms (PHY clock frequency for FS/LS)
@@ -1366,7 +1366,7 @@ union cvmx_usbcx_hprt {
 	 *	* 2'b10: Low speed
 	 *	* 2'b11: Reserved
 	 * @prttstctl: Port Test Control (PrtTstCtl)
-	 *	The application writes a nonzero value to this field to put
+	 *	The application writes a yesnzero value to this field to put
 	 *	the port into a Test mode, and the corresponding pattern is
 	 *	signaled on the port.
 	 *	* 4'b0000: Test mode disabled
@@ -1392,13 +1392,13 @@ union cvmx_usbcx_hprt {
 	 *	started on this port. The application must time the reset
 	 *	period and clear this bit after the reset sequence is
 	 *	complete.
-	 *	* 1'b0: Port not in reset
+	 *	* 1'b0: Port yest in reset
 	 *	* 1'b1: Port in reset
 	 *	The application must leave this bit set for at least a
 	 *	minimum duration mentioned below to start a reset on the
-	 *	port. The application can leave it set for another 10 ms in
+	 *	port. The application can leave it set for ayesther 10 ms in
 	 *	addition to the required minimum duration, before clearing
-	 *	the bit, even though there is no maximum limit set by the
+	 *	the bit, even though there is yes maximum limit set by the
 	 *	USB standard.
 	 *	* High speed: 50 ms
 	 *	* Full speed/Low speed: 10 ms
@@ -1416,7 +1416,7 @@ union cvmx_usbcx_hprt {
 	 *	Disconnect Detected Interrupt bit in the Core Interrupt
 	 *	register (GINTSTS.WkUpInt or GINTSTS.DisconnInt,
 	 *	respectively).
-	 *	* 1'b0: Port not in Suspend mode
+	 *	* 1'b0: Port yest in Suspend mode
 	 *	* 1'b1: Port in Suspend mode
 	 * @prtres: Port Resume (PrtRes)
 	 *	The application sets this bit to drive resume signaling on
@@ -1446,8 +1446,8 @@ union cvmx_usbcx_hprt {
 	 *	A port is enabled only by the core after a reset sequence,
 	 *	and is disabled by an overcurrent condition, a disconnect
 	 *	condition, or by the application clearing this bit. The
-	 *	application cannot set this bit by a register write. It can only
-	 *	clear it to disable the port. This bit does not trigger any
+	 *	application canyest set this bit by a register write. It can only
+	 *	clear it to disable the port. This bit does yest trigger any
 	 *	interrupt to the application.
 	 *	* 1'b0: Port disabled
 	 *	* 1'b1: Port enabled
@@ -1578,7 +1578,7 @@ union cvmx_usbnx_clk_ctl {
 	 * @divide2: The 'hclk' used by the USB subsystem is derived
 	 *	from the eclk.
 	 *	Also see the field DIVIDE. DIVIDE2<1> must currently
-	 *	be zero because it is not implemented, so the maximum
+	 *	be zero because it is yest implemented, so the maximum
 	 *	ratio of eclk/hclk is currently 16.
 	 *	The actual divide number for hclk is:
 	 *	(DIVIDE2 + 1) * (DIVIDE + 1)
@@ -1630,27 +1630,27 @@ union cvmx_usbnx_clk_ctl {
 	 *	this field must be set to 12 MHz.
 	 * @cdiv_byp: Used to enable the bypass input to the USB_CLK_DIV.
 	 * @sd_mode: Scaledown mode for the USBC. Control timing events
-	 *	in the USBC, for normal operation this must be '0'.
+	 *	in the USBC, for yesrmal operation this must be '0'.
 	 * @s_bist: Starts bist on the hclk memories, during the '0'
 	 *	to '1' transition.
 	 * @por: Power On Reset for the PHY.
 	 *	Resets all the PHYS registers and state machines.
 	 * @enable: When '1' allows the generation of the hclk. When
-	 *	'0' the hclk will not be generated. SEE DIVIDE
+	 *	'0' the hclk will yest be generated. SEE DIVIDE
 	 *	field of this register.
 	 * @prst: When this field is '0' the reset associated with
 	 *	the phy_clk functionality in the USB Subsystem is
-	 *	help in reset. This bit should not be set to '1'
+	 *	help in reset. This bit should yest be set to '1'
 	 *	until the time it takes 6 clocks (hclk or phy_clk,
-	 *	whichever is slower) has passed. Under normal
-	 *	operation once this bit is set to '1' it should not
+	 *	whichever is slower) has passed. Under yesrmal
+	 *	operation once this bit is set to '1' it should yest
 	 *	be set to '0'.
 	 * @hrst: When this field is '0' the reset associated with
 	 *	the hclk functioanlity in the USB Subsystem is
-	 *	held in reset.This bit should not be set to '1'
-	 *	until 12ms after phy_clk is stable. Under normal
+	 *	held in reset.This bit should yest be set to '1'
+	 *	until 12ms after phy_clk is stable. Under yesrmal
 	 *	operation, once this bit is set to '1' it should
-	 *	not be set to '0'.
+	 *	yest be set to '0'.
 	 * @divide: The frequency of 'hclk' used by the USB subsystem
 	 *	is the eclk frequency divided by the value of
 	 *	(DIVIDE2 + 1) * (DIVIDE + 1), also see the field
@@ -1658,7 +1658,7 @@ union cvmx_usbnx_clk_ctl {
 	 *	The hclk frequency should be less than 125Mhz.
 	 *	After writing a value to this field the SW should
 	 *	read the field for the value written.
-	 *	The ENABLE field of this register should not be set
+	 *	The ENABLE field of this register should yest be set
 	 *	until AFTER this field is set and then read.
 	 */
 	struct cvmx_usbnx_clk_ctl_s {
@@ -1716,7 +1716,7 @@ union cvmx_usbnx_usbp_ctl_status {
 	 *	test_data_out_sel.
 	 * @siddq: Drives the USBP (USB-PHY) SIDDQ input.
 	 *	Normally should be set to zero.
-	 *	When customers have no intent to use USB PHY
+	 *	When customers have yes intent to use USB PHY
 	 *	interface, they should:
 	 *	- still provide 3.3V to USB_VDD33, and
 	 *	- tie USB_REXT to 3.3V supply, and
@@ -1733,19 +1733,19 @@ union cvmx_usbnx_usbp_ctl_status {
 	 * @dp_pulld: PHY DP_PULLDOWN input to the USB-PHY.
 	 *	This signal enables the pull-down resistance on
 	 *	the D+ line. '1' pull down-resistance is connected
-	 *	to D+/ '0' pull down resistance is not connected
+	 *	to D+/ '0' pull down resistance is yest connected
 	 *	to D+. When an A/B device is acting as a host
 	 *	(downstream-facing port), dp_pulldown and
-	 *	dm_pulldown are enabled. This must not toggle
-	 *	during normal operation.
+	 *	dm_pulldown are enabled. This must yest toggle
+	 *	during yesrmal operation.
 	 * @dm_pulld: PHY DM_PULLDOWN input to the USB-PHY.
 	 *	This signal enables the pull-down resistance on
 	 *	the D- line. '1' pull down-resistance is connected
-	 *	to D-. '0' pull down resistance is not connected
+	 *	to D-. '0' pull down resistance is yest connected
 	 *	to D-. When an A/B device is acting as a host
 	 *	(downstream-facing port), dp_pulldown and
-	 *	dm_pulldown are enabled. This must not toggle
-	 *	during normal operation.
+	 *	dm_pulldown are enabled. This must yest toggle
+	 *	during yesrmal operation.
 	 * @hst_mode: When '0' the USB is acting as HOST, when '1'
 	 *	USB is acting as device. This field needs to be
 	 *	set while the USB is in reset.
@@ -1775,7 +1775,7 @@ union cvmx_usbnx_usbp_ctl_status {
 	 *	enabled.
 	 *	'0': During data transmission the receive is
 	 *	disabled.
-	 *	Must be '0' for normal operation.
+	 *	Must be '0' for yesrmal operation.
 	 * @vtest_enb: Analog Test Pin Enable.
 	 *	'1' The PHY's analog_test pin is enabled for the
 	 *	input and output of applicable analog test signals.
@@ -1795,7 +1795,7 @@ union cvmx_usbnx_usbp_ctl_status {
 	 *	on bits [7:4].
 	 * @ate_reset: Reset input from automatic test equipment.
 	 *	This is a test signal. When the USB Core is
-	 *	powered up (not in Susned Mode), an automatic
+	 *	powered up (yest in Susned Mode), an automatic
 	 *	tester can use this to disable phy_clock and
 	 *	free_clk, then re-enable them with an aligned
 	 *	phase.

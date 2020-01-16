@@ -13,7 +13,7 @@
 #include <linux/rculist.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <net/netlink.h>
 #include <net/sock.h>
 
@@ -412,7 +412,7 @@ struct nf_acct *nfnl_acct_find_get(struct net *net, const char *acct_name)
 		if (!try_module_get(THIS_MODULE))
 			goto err;
 
-		if (!refcount_inc_not_zero(&cur->refcnt)) {
+		if (!refcount_inc_yest_zero(&cur->refcnt)) {
 			module_put(THIS_MODULE);
 			goto err;
 		}
@@ -463,21 +463,21 @@ static void nfnl_overquota_report(struct net *net, struct nf_acct *nfacct)
 
 int nfnl_acct_overquota(struct net *net, struct nf_acct *nfacct)
 {
-	u64 now;
+	u64 yesw;
 	u64 *quota;
 	int ret = NFACCT_UNDERQUOTA;
 
-	/* no place here if we don't have a quota */
+	/* yes place here if we don't have a quota */
 	if (!(nfacct->flags & NFACCT_F_QUOTA))
 		return NFACCT_NO_QUOTA;
 
 	quota = (u64 *)nfacct->data;
-	now = (nfacct->flags & NFACCT_F_QUOTA_PKTS) ?
+	yesw = (nfacct->flags & NFACCT_F_QUOTA_PKTS) ?
 	       atomic64_read(&nfacct->pkts) : atomic64_read(&nfacct->bytes);
 
-	ret = now > *quota;
+	ret = yesw > *quota;
 
-	if (now >= *quota &&
+	if (yesw >= *quota &&
 	    !test_and_set_bit(NFACCT_OVERQUOTA_BIT, &nfacct->flags)) {
 		nfnl_overquota_report(net, nfacct);
 	}
@@ -522,7 +522,7 @@ static int __init nfnl_acct_init(void)
 
 	ret = nfnetlink_subsys_register(&nfnl_acct_subsys);
 	if (ret < 0) {
-		pr_err("nfnl_acct_init: cannot register with nfnetlink.\n");
+		pr_err("nfnl_acct_init: canyest register with nfnetlink.\n");
 		goto cleanup_pernet;
 	}
 	return 0;

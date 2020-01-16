@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002-2010, Ralink Techyeslogy, Inc.
  * Copyright (C) 2018 Stanislaw Gruszka <stf_xl@wp.pl>
  */
 #ifndef _MT76X0_PHY_H_
@@ -59,7 +59,7 @@ struct mt76x0_freq_item {
 	u8 pllR34;
 	u8 pllR33;
 	u8 pllR32_b7b5;
-	u8 pllR32_b4b0; /* PLL_DEN (Denomina - 8) */
+	u8 pllR32_b4b0; /* PLL_DEN (Deyesmina - 8) */
 	u8 pllR31_b7b5;
 	u8 pllR31_b4b0; /* PLL_K (Nominator *)*/
 	u8 pllR30_b7;	/* sdm_reset_n */

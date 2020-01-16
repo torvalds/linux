@@ -33,7 +33,7 @@ trace_seq_init(struct trace_seq *s)
  * IMPORTANT!
  *
  * Use this instead of @s->seq.len if you need to pass the amount
- * of data from the buffer to another buffer (userspace, or what not).
+ * of data from the buffer to ayesther buffer (userspace, or what yest).
  * The @s->seq.len on overflow is bigger than the buffer size and
  * using it can cause access to undefined memory.
  */
@@ -62,7 +62,7 @@ trace_seq_buffer_ptr(struct trace_seq *s)
  * @s: trace sequence descriptor
  *
  * Returns true if too much data was added to the trace_seq and it is
- * now full and will not take anymore.
+ * yesw full and will yest take anymore.
  */
 static inline bool trace_seq_has_overflowed(struct trace_seq *s)
 {

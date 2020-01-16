@@ -87,8 +87,8 @@ static int alloc_callchain_buffers(void)
 	size = perf_callchain_entry__sizeof() * PERF_NR_CONTEXTS;
 
 	for_each_possible_cpu(cpu) {
-		entries->cpu_entries[cpu] = kmalloc_node(size, GFP_KERNEL,
-							 cpu_to_node(cpu));
+		entries->cpu_entries[cpu] = kmalloc_yesde(size, GFP_KERNEL,
+							 cpu_to_yesde(cpu));
 		if (!entries->cpu_entries[cpu])
 			goto fail;
 	}

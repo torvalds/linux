@@ -88,16 +88,16 @@ void ath10k_sta_update_rx_tid_stats(struct ath10k *ar, u8 *first_hdr,
 	struct ieee80211_hdr *hdr;
 	struct ath10k_sta_tid_stats *stats;
 	u8 tid = IEEE80211_NUM_TIDS;
-	bool non_data_frm = false;
+	bool yesn_data_frm = false;
 
 	hdr = (struct ieee80211_hdr *)first_hdr;
 	if (!ieee80211_is_data(hdr->frame_control))
-		non_data_frm = true;
+		yesn_data_frm = true;
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
 		tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
 
-	if (!(ar->sta_tid_stats_mask & BIT(tid)) || non_data_frm)
+	if (!(ar->sta_tid_stats_mask & BIT(tid)) || yesn_data_frm)
 		return;
 
 	rcu_read_lock();
@@ -488,10 +488,10 @@ static char *get_err_str(enum ath10k_pkt_rx_err i)
 	case ATH10K_PKT_RX_ERR_PEER_IDX_INVAL:
 		return "peer_idx_inval";
 	case ATH10K_PKT_RX_ERR_MAX:
-		return "unknown";
+		return "unkyeswn";
 	}
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 static char *get_num_ampdu_subfrm_str(enum ath10k_ampdu_subfrm_num i)

@@ -33,8 +33,8 @@ static phys_addr_t __init __efi_memmap_alloc_late(unsigned long size)
  * efi_memmap_alloc - Allocate memory for the EFI memory map
  * @num_entries: Number of entries in the allocated map.
  *
- * Depending on whether mm_init() has already been invoked or not,
- * either memblock or "normal" page allocation is used.
+ * Depending on whether mm_init() has already been invoked or yest,
+ * either memblock or "yesrmal" page allocation is used.
  *
  * Returns the physical address of the allocated memory map on
  * success, zero on failure.
@@ -82,7 +82,7 @@ __efi_memmap_init(struct efi_memory_map_data *data, bool late)
 		map.map = early_memremap(phys_map, data->size);
 
 	if (!map.map) {
-		pr_err("Could not map the memory map!\n");
+		pr_err("Could yest map the memory map!\n");
 		return -ENOMEM;
 	}
 
@@ -110,7 +110,7 @@ __efi_memmap_init(struct efi_memory_map_data *data, bool late)
  */
 int __init efi_memmap_init_early(struct efi_memory_map_data *data)
 {
-	/* Cannot go backwards */
+	/* Canyest go backwards */
 	WARN_ON(efi.memmap.late);
 
 	return __efi_memmap_init(data, false);
@@ -141,7 +141,7 @@ void __init efi_memmap_unmap(void)
  *
  * Setup a mapping of the EFI memory map using ioremap_cache(). This
  * function should only be called once the vmalloc space has been
- * setup and is therefore not suitable for calling during early EFI
+ * setup and is therefore yest suitable for calling during early EFI
  * initialise, e.g. in efi_init(). Additionally, it expects
  * efi_memmap_init_early() to have already been called.
  *
@@ -171,7 +171,7 @@ int __init efi_memmap_init_late(phys_addr_t addr, unsigned long size)
 	WARN_ON(efi.memmap.late);
 
 	/*
-	 * It makes no sense to allow callers to register different
+	 * It makes yes sense to allow callers to register different
 	 * values for the following fields. Copy them out of the
 	 * existing early EFI memmap.
 	 */
@@ -186,7 +186,7 @@ int __init efi_memmap_init_late(phys_addr_t addr, unsigned long size)
  * @addr: Physical address of the memory map
  * @nr_map: Number of entries in the memory map
  *
- * Unlike efi_memmap_init_*(), this function does not allow the caller
+ * Unlike efi_memmap_init_*(), this function does yest allow the caller
  * to switch from early to late mappings. It simply uses the existing
  * mapping function and installs the new memmap.
  *

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -31,7 +31,7 @@
 #include "dc.h"
 
 static const char *const pipe_crc_sources[] = {
-	"none",
+	"yesne",
 	"crtc",
 	"crtc dither",
 	"dprx",
@@ -41,7 +41,7 @@ static const char *const pipe_crc_sources[] = {
 
 static enum amdgpu_dm_pipe_crc_source dm_parse_crc_source(const char *source)
 {
-	if (!source || !strcmp(source, "none"))
+	if (!source || !strcmp(source, "yesne"))
 		return AMDGPU_DM_PIPE_CRC_SOURCE_NONE;
 	if (!strcmp(source, "auto") || !strcmp(source, "crtc"))
 		return AMDGPU_DM_PIPE_CRC_SOURCE_CRTC;
@@ -88,7 +88,7 @@ amdgpu_dm_crtc_verify_crc_source(struct drm_crtc *crtc, const char *src_name,
 	enum amdgpu_dm_pipe_crc_source source = dm_parse_crc_source(src_name);
 
 	if (source < 0) {
-		DRM_DEBUG_DRIVER("Unknown CRC source %s for CRTC%d\n",
+		DRM_DEBUG_DRIVER("Unkyeswn CRC source %s for CRTC%d\n",
 				 src_name, crtc->index);
 		return -EINVAL;
 	}
@@ -150,7 +150,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	int ret = 0;
 
 	if (source < 0) {
-		DRM_DEBUG_DRIVER("Unknown CRC source %s for CRTC%d\n",
+		DRM_DEBUG_DRIVER("Unkyeswn CRC source %s for CRTC%d\n",
 				 src_name, crtc->index);
 		return -EINVAL;
 	}
@@ -171,7 +171,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 		 * Need to wait for all outstanding programming to complete
 		 * in commit tail since it can modify CRC related fields and
 		 * hardware state. Since we're holding the CRTC lock we're
-		 * guaranteed that no other commit work can be queued off
+		 * guaranteed that yes other commit work can be queued off
 		 * before we modify the state below.
 		 */
 		ret = wait_for_completion_interruptible_timeout(
@@ -186,13 +186,13 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	/*
 	 * USER REQ SRC | CURRENT SRC | BEHAVIOR
 	 * -----------------------------
-	 * None         | None        | Do nothing
+	 * None         | None        | Do yesthing
 	 * None         | CRTC        | Disable CRTC CRC, set default to dither
 	 * None         | DPRX        | Disable DPRX CRC, need 'aux', set default to dither
 	 * None         | CRTC DITHER | Disable CRTC CRC
 	 * None         | DPRX DITHER | Disable DPRX CRC, need 'aux'
-	 * CRTC         | XXXX        | Enable CRTC CRC, no dither
-	 * DPRX         | XXXX        | Enable DPRX CRC, need 'aux', no dither
+	 * CRTC         | XXXX        | Enable CRTC CRC, yes dither
+	 * DPRX         | XXXX        | Enable DPRX CRC, need 'aux', yes dither
 	 * CRTC DITHER  | XXXX        | Enable CRTC CRC, set dither
 	 * DPRX DITHER  | XXXX        | Enable DPRX CRC, need 'aux', set dither
 	 */
@@ -294,13 +294,13 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 	crtc_state = to_dm_crtc_state(crtc->state);
 	stream_state = crtc_state->stream;
 
-	/* Early return if CRC capture is not enabled. */
+	/* Early return if CRC capture is yest enabled. */
 	if (!amdgpu_dm_is_valid_crc_source(crtc_state->crc_src))
 		return;
 
 	/*
-	 * Since flipping and crc enablement happen asynchronously, we - more
-	 * often than not - will be returning an 'uncooked' crc on first frame.
+	 * Since flipping and crc enablement happen asynchroyesusly, we - more
+	 * often than yest - will be returning an 'uncooked' crc on first frame.
 	 * Probably because hw isn't ready yet. For added security, skip the
 	 * first two CRC values.
 	 */

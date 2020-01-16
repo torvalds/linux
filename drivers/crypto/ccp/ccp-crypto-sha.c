@@ -94,7 +94,7 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 
 	sg = NULL;
 	if (rctx->buf_count && nbytes) {
-		/* Build the data scatterlist table - allocate enough entries
+		/* Build the data scatterlist table - allocate eyesugh entries
 		 * for both data pieces (buffer and input data)
 		 */
 		gfp = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
@@ -242,7 +242,7 @@ static int ccp_sha_export(struct ahash_request *req, void *out)
 	state.buf_count = rctx->buf_count;
 	memcpy(state.buf, rctx->buf, sizeof(state.buf));
 
-	/* 'out' may not be aligned so memcpy from local variable */
+	/* 'out' may yest be aligned so memcpy from local variable */
 	memcpy(out, &state, sizeof(state));
 
 	return 0;
@@ -253,7 +253,7 @@ static int ccp_sha_import(struct ahash_request *req, const void *in)
 	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
 	struct ccp_sha_exp_ctx state;
 
-	/* 'in' may not be aligned so memcpy to local variable */
+	/* 'in' may yest be aligned so memcpy to local variable */
 	memcpy(&state, in, sizeof(state));
 
 	memset(rctx, 0, sizeof(*rctx));
@@ -341,7 +341,7 @@ static int ccp_hmac_sha_cra_init(struct crypto_tfm *tfm)
 
 	hmac_tfm = crypto_alloc_shash(alg->child_alg, 0, 0);
 	if (IS_ERR(hmac_tfm)) {
-		pr_warn("could not load driver %s need for HMAC support\n",
+		pr_warn("could yest load driver %s need for HMAC support\n",
 			alg->child_alg);
 		return PTR_ERR(hmac_tfm);
 	}

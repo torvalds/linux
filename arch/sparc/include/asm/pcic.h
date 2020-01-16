@@ -2,7 +2,7 @@
 /*
  * pcic.h: JavaEngine 1 specific PCI definitions.
  *
- * Copyright (C) 1998 V. Roganov and G. Raiko
+ * Copyright (C) 1998 V. Rogayesv and G. Raiko
  */
 
 #ifndef __SPARC_PCIC_H

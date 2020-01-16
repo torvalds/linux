@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2008-2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #ifndef __PS_H__

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver for Marvell Xenon SDHC as a platform device
+ * Driver for Marvell Xeyesn SDHC as a platform device
  *
  * Copyright (C) 2016 Marvell, All Rights Reserved.
  *
@@ -19,9 +19,9 @@
 #include <linux/pm_runtime.h>
 
 #include "sdhci-pltfm.h"
-#include "sdhci-xenon.h"
+#include "sdhci-xeyesn.h"
 
-static int xenon_enable_internal_clk(struct sdhci_host *host)
+static int xeyesn_enable_internal_clk(struct sdhci_host *host)
 {
 	u32 reg;
 	ktime_t timeout;
@@ -48,7 +48,7 @@ static int xenon_enable_internal_clk(struct sdhci_host *host)
 }
 
 /* Set SDCLK-off-while-idle */
-static void xenon_set_sdclk_off_idle(struct sdhci_host *host,
+static void xeyesn_set_sdclk_off_idle(struct sdhci_host *host,
 				     unsigned char sdhc_id, bool enable)
 {
 	u32 reg;
@@ -66,7 +66,7 @@ static void xenon_set_sdclk_off_idle(struct sdhci_host *host,
 }
 
 /* Enable/Disable the Auto Clock Gating function */
-static void xenon_set_acg(struct sdhci_host *host, bool enable)
+static void xeyesn_set_acg(struct sdhci_host *host, bool enable)
 {
 	u32 reg;
 
@@ -79,7 +79,7 @@ static void xenon_set_acg(struct sdhci_host *host, bool enable)
 }
 
 /* Enable this SDHC */
-static void xenon_enable_sdhc(struct sdhci_host *host,
+static void xeyesn_enable_sdhc(struct sdhci_host *host,
 			      unsigned char sdhc_id)
 {
 	u32 reg;
@@ -97,7 +97,7 @@ static void xenon_enable_sdhc(struct sdhci_host *host,
 }
 
 /* Disable this SDHC */
-static void xenon_disable_sdhc(struct sdhci_host *host,
+static void xeyesn_disable_sdhc(struct sdhci_host *host,
 			       unsigned char sdhc_id)
 {
 	u32 reg;
@@ -108,7 +108,7 @@ static void xenon_disable_sdhc(struct sdhci_host *host,
 }
 
 /* Enable Parallel Transfer Mode */
-static void xenon_enable_sdhc_parallel_tran(struct sdhci_host *host,
+static void xeyesn_enable_sdhc_parallel_tran(struct sdhci_host *host,
 					    unsigned char sdhc_id)
 {
 	u32 reg;
@@ -119,7 +119,7 @@ static void xenon_enable_sdhc_parallel_tran(struct sdhci_host *host,
 }
 
 /* Mask command conflict error */
-static void xenon_mask_cmd_conflict_err(struct sdhci_host *host)
+static void xeyesn_mask_cmd_conflict_err(struct sdhci_host *host)
 {
 	u32  reg;
 
@@ -128,10 +128,10 @@ static void xenon_mask_cmd_conflict_err(struct sdhci_host *host)
 	sdhci_writel(host, reg, XENON_SYS_EXT_OP_CTRL);
 }
 
-static void xenon_retune_setup(struct sdhci_host *host)
+static void xeyesn_retune_setup(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	u32 reg;
 
 	/* Disable the Re-Tuning Request functionality */
@@ -157,7 +157,7 @@ static void xenon_retune_setup(struct sdhci_host *host)
  * Operations inside struct sdhci_ops
  */
 /* Recover the Register Setting cleared during SOFTWARE_RESET_ALL */
-static void xenon_reset_exit(struct sdhci_host *host,
+static void xeyesn_reset_exit(struct sdhci_host *host,
 			     unsigned char sdhc_id, u8 mask)
 {
 	/* Only SOFTWARE RESET ALL will clear the register setting */
@@ -165,29 +165,29 @@ static void xenon_reset_exit(struct sdhci_host *host,
 		return;
 
 	/* Disable tuning request and auto-retuning again */
-	xenon_retune_setup(host);
+	xeyesn_retune_setup(host);
 
-	xenon_set_acg(host, true);
+	xeyesn_set_acg(host, true);
 
-	xenon_set_sdclk_off_idle(host, sdhc_id, false);
+	xeyesn_set_sdclk_off_idle(host, sdhc_id, false);
 
-	xenon_mask_cmd_conflict_err(host);
+	xeyesn_mask_cmd_conflict_err(host);
 }
 
-static void xenon_reset(struct sdhci_host *host, u8 mask)
+static void xeyesn_reset(struct sdhci_host *host, u8 mask)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 
 	sdhci_reset(host, mask);
-	xenon_reset_exit(host, priv->sdhc_id, mask);
+	xeyesn_reset_exit(host, priv->sdhc_id, mask);
 }
 
 /*
- * Xenon defines different values for HS200 and HS400
+ * Xeyesn defines different values for HS200 and HS400
  * in Host_Control_2
  */
-static void xenon_set_uhs_signaling(struct sdhci_host *host,
+static void xeyesn_set_uhs_signaling(struct sdhci_host *host,
 				    unsigned int timing)
 {
 	u16 ctrl_2;
@@ -213,13 +213,13 @@ static void xenon_set_uhs_signaling(struct sdhci_host *host,
 	sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
 }
 
-static void xenon_set_power(struct sdhci_host *host, unsigned char mode,
+static void xeyesn_set_power(struct sdhci_host *host, unsigned char mode,
 		unsigned short vdd)
 {
 	struct mmc_host *mmc = host->mmc;
 	u8 pwr = host->pwr;
 
-	sdhci_set_power_noreg(host, mode, vdd);
+	sdhci_set_power_yesreg(host, mode, vdd);
 
 	if (host->pwr == pwr)
 		return;
@@ -231,37 +231,37 @@ static void xenon_set_power(struct sdhci_host *host, unsigned char mode,
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
 }
 
-static void xenon_voltage_switch(struct sdhci_host *host)
+static void xeyesn_voltage_switch(struct sdhci_host *host)
 {
 	/* Wait for 5ms after set 1.8V signal enable bit */
 	usleep_range(5000, 5500);
 }
 
-static const struct sdhci_ops sdhci_xenon_ops = {
-	.voltage_switch		= xenon_voltage_switch,
+static const struct sdhci_ops sdhci_xeyesn_ops = {
+	.voltage_switch		= xeyesn_voltage_switch,
 	.set_clock		= sdhci_set_clock,
-	.set_power		= xenon_set_power,
+	.set_power		= xeyesn_set_power,
 	.set_bus_width		= sdhci_set_bus_width,
-	.reset			= xenon_reset,
-	.set_uhs_signaling	= xenon_set_uhs_signaling,
+	.reset			= xeyesn_reset,
+	.set_uhs_signaling	= xeyesn_set_uhs_signaling,
 	.get_max_clock		= sdhci_pltfm_clk_get_max_clock,
 };
 
-static const struct sdhci_pltfm_data sdhci_xenon_pdata = {
-	.ops = &sdhci_xenon_ops,
+static const struct sdhci_pltfm_data sdhci_xeyesn_pdata = {
+	.ops = &sdhci_xeyesn_ops,
 	.quirks = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
 		  SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 };
 
 /*
- * Xenon Specific Operations in mmc_host_ops
+ * Xeyesn Specific Operations in mmc_host_ops
  */
-static void xenon_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+static void xeyesn_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	u32 reg;
 
 	/*
@@ -286,13 +286,13 @@ static void xenon_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	sdhci_set_ios(mmc, ios);
-	xenon_phy_adj(host, ios);
+	xeyesn_phy_adj(host, ios);
 
 	if (host->clock > XENON_DEFAULT_SDCLK_FREQ)
-		xenon_set_sdclk_off_idle(host, priv->sdhc_id, true);
+		xeyesn_set_sdclk_off_idle(host, priv->sdhc_id, true);
 }
 
-static int xenon_start_signal_voltage_switch(struct mmc_host *mmc,
+static int xeyesn_start_signal_voltage_switch(struct mmc_host *mmc,
 					     struct mmc_ios *ios)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
@@ -301,19 +301,19 @@ static int xenon_start_signal_voltage_switch(struct mmc_host *mmc,
 	 * Before SD/SDIO set signal voltage, SD bus clock should be
 	 * disabled. However, sdhci_set_clock will also disable the Internal
 	 * clock in mmc_set_signal_voltage().
-	 * If Internal clock is disabled, the 3.3V/1.8V bit can not be updated.
+	 * If Internal clock is disabled, the 3.3V/1.8V bit can yest be updated.
 	 * Thus here manually enable internal clock.
 	 *
 	 * After switch completes, it is unnecessary to disable internal clock,
 	 * since keeping internal clock active obeys SD spec.
 	 */
-	xenon_enable_internal_clk(host);
+	xeyesn_enable_internal_clk(host);
 
-	xenon_soc_pad_ctrl(host, ios->signal_voltage);
+	xeyesn_soc_pad_ctrl(host, ios->signal_voltage);
 
 	/*
 	 * If Vqmmc is fixed on platform, vqmmc regulator should be unavailable.
-	 * Thus SDHCI_CTRL_VDD_180 bit might not work then.
+	 * Thus SDHCI_CTRL_VDD_180 bit might yest work then.
 	 * Skip the standard voltage switch to avoid any issue.
 	 */
 	if (PTR_ERR(mmc->supply.vqmmc) == -ENODEV)
@@ -326,17 +326,17 @@ static int xenon_start_signal_voltage_switch(struct mmc_host *mmc,
  * Update card type.
  * priv->init_card_type will be used in PHY timing adjustment.
  */
-static void xenon_init_card(struct mmc_host *mmc, struct mmc_card *card)
+static void xeyesn_init_card(struct mmc_host *mmc, struct mmc_card *card)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 
 	/* Update card type*/
 	priv->init_card_type = card->type;
 }
 
-static int xenon_execute_tuning(struct mmc_host *mmc, u32 opcode)
+static int xeyesn_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 
@@ -345,21 +345,21 @@ static int xenon_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		return 0;
 
 	/*
-	 * Currently force Xenon driver back to support mode 1 only,
-	 * even though Xenon might claim to support mode 2 or mode 3.
+	 * Currently force Xeyesn driver back to support mode 1 only,
+	 * even though Xeyesn might claim to support mode 2 or mode 3.
 	 * It requires more time to test mode 2/mode 3 on more platforms.
 	 */
 	if (host->tuning_mode != SDHCI_TUNING_MODE_1)
-		xenon_retune_setup(host);
+		xeyesn_retune_setup(host);
 
 	return sdhci_execute_tuning(mmc, opcode);
 }
 
-static void xenon_enable_sdio_irq(struct mmc_host *mmc, int enable)
+static void xeyesn_enable_sdio_irq(struct mmc_host *mmc, int enable)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	u32 reg;
 	u8 sdhc_id = priv->sdhc_id;
 
@@ -381,29 +381,29 @@ static void xenon_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	}
 }
 
-static void xenon_replace_mmc_host_ops(struct sdhci_host *host)
+static void xeyesn_replace_mmc_host_ops(struct sdhci_host *host)
 {
-	host->mmc_host_ops.set_ios = xenon_set_ios;
+	host->mmc_host_ops.set_ios = xeyesn_set_ios;
 	host->mmc_host_ops.start_signal_voltage_switch =
-			xenon_start_signal_voltage_switch;
-	host->mmc_host_ops.init_card = xenon_init_card;
-	host->mmc_host_ops.execute_tuning = xenon_execute_tuning;
-	host->mmc_host_ops.enable_sdio_irq = xenon_enable_sdio_irq;
+			xeyesn_start_signal_voltage_switch;
+	host->mmc_host_ops.init_card = xeyesn_init_card;
+	host->mmc_host_ops.execute_tuning = xeyesn_execute_tuning;
+	host->mmc_host_ops.enable_sdio_irq = xeyesn_enable_sdio_irq;
 }
 
 /*
- * Parse Xenon specific DT properties:
+ * Parse Xeyesn specific DT properties:
  * sdhc-id: the index of current SDHC.
  *	    Refer to XENON_SYS_CFG_INFO register
  * tun-count: the interval between re-tuning
  */
-static int xenon_probe_dt(struct platform_device *pdev)
+static int xeyesn_probe_dt(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct mmc_host *mmc = host->mmc;
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	u32 sdhc_id, nr_sdhc;
 	u32 tuning_count;
 
@@ -412,7 +412,7 @@ static int xenon_probe_dt(struct platform_device *pdev)
 		host->quirks2 |= SDHCI_QUIRK2_BROKEN_HS200;
 
 	sdhc_id = 0x0;
-	if (!of_property_read_u32(np, "marvell,xenon-sdhc-id", &sdhc_id)) {
+	if (!of_property_read_u32(np, "marvell,xeyesn-sdhc-id", &sdhc_id)) {
 		nr_sdhc = sdhci_readl(host, XENON_SYS_CFG_INFO);
 		nr_sdhc &= XENON_NR_SUPPORTED_SLOT_MASK;
 		if (unlikely(sdhc_id > nr_sdhc)) {
@@ -424,7 +424,7 @@ static int xenon_probe_dt(struct platform_device *pdev)
 	priv->sdhc_id = sdhc_id;
 
 	tuning_count = XENON_DEF_TUNING_COUNT;
-	if (!of_property_read_u32(np, "marvell,xenon-tun-count",
+	if (!of_property_read_u32(np, "marvell,xeyesn-tun-count",
 				  &tuning_count)) {
 		if (unlikely(tuning_count >= XENON_TMR_RETUN_NO_PRESENT)) {
 			dev_err(mmc_dev(mmc), "Wrong Re-tuning Count. Set default value %d\n",
@@ -434,51 +434,51 @@ static int xenon_probe_dt(struct platform_device *pdev)
 	}
 	priv->tuning_count = tuning_count;
 
-	return xenon_phy_parse_dt(np, host);
+	return xeyesn_phy_parse_dt(np, host);
 }
 
-static int xenon_sdhc_prepare(struct sdhci_host *host)
+static int xeyesn_sdhc_prepare(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	u8 sdhc_id = priv->sdhc_id;
 
 	/* Enable SDHC */
-	xenon_enable_sdhc(host, sdhc_id);
+	xeyesn_enable_sdhc(host, sdhc_id);
 
 	/* Enable ACG */
-	xenon_set_acg(host, true);
+	xeyesn_set_acg(host, true);
 
 	/* Enable Parallel Transfer Mode */
-	xenon_enable_sdhc_parallel_tran(host, sdhc_id);
+	xeyesn_enable_sdhc_parallel_tran(host, sdhc_id);
 
 	/* Disable SDCLK-Off-While-Idle before card init */
-	xenon_set_sdclk_off_idle(host, sdhc_id, false);
+	xeyesn_set_sdclk_off_idle(host, sdhc_id, false);
 
-	xenon_mask_cmd_conflict_err(host);
+	xeyesn_mask_cmd_conflict_err(host);
 
 	return 0;
 }
 
-static void xenon_sdhc_unprepare(struct sdhci_host *host)
+static void xeyesn_sdhc_unprepare(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	u8 sdhc_id = priv->sdhc_id;
 
 	/* disable SDHC */
-	xenon_disable_sdhc(host, sdhc_id);
+	xeyesn_disable_sdhc(host, sdhc_id);
 }
 
-static int xenon_probe(struct platform_device *pdev)
+static int xeyesn_probe(struct platform_device *pdev)
 {
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_host *host;
-	struct xenon_priv *priv;
+	struct xeyesn_priv *priv;
 	int err;
 
-	host = sdhci_pltfm_init(pdev, &sdhci_xenon_pdata,
-				sizeof(struct xenon_priv));
+	host = sdhci_pltfm_init(pdev, &sdhci_xeyesn_pdata,
+				sizeof(struct xeyesn_priv));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
@@ -486,10 +486,10 @@ static int xenon_probe(struct platform_device *pdev)
 	priv = sdhci_pltfm_priv(pltfm_host);
 
 	/*
-	 * Link Xenon specific mmc_host_ops function,
+	 * Link Xeyesn specific mmc_host_ops function,
 	 * to replace standard ones in sdhci_ops.
 	 */
-	xenon_replace_mmc_host_ops(host);
+	xeyesn_replace_mmc_host_ops(host);
 
 	pltfm_host->clk = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(pltfm_host->clk)) {
@@ -518,23 +518,23 @@ static int xenon_probe(struct platform_device *pdev)
 
 	sdhci_get_of_property(pdev);
 
-	xenon_set_acg(host, false);
+	xeyesn_set_acg(host, false);
 
-	/* Xenon specific dt parse */
-	err = xenon_probe_dt(pdev);
+	/* Xeyesn specific dt parse */
+	err = xeyesn_probe_dt(pdev);
 	if (err)
 		goto err_clk_axi;
 
-	err = xenon_sdhc_prepare(host);
+	err = xeyesn_sdhc_prepare(host);
 	if (err)
 		goto err_clk_axi;
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_suspend_ignore_children(&pdev->dev, 1);
+	pm_suspend_igyesre_children(&pdev->dev, 1);
 
 	err = sdhci_add_host(host);
 	if (err)
@@ -546,8 +546,8 @@ static int xenon_probe(struct platform_device *pdev)
 
 remove_sdhc:
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
-	xenon_sdhc_unprepare(host);
+	pm_runtime_put_yesidle(&pdev->dev);
+	xeyesn_sdhc_unprepare(host);
 err_clk_axi:
 	clk_disable_unprepare(priv->axi_clk);
 err_clk:
@@ -557,19 +557,19 @@ free_pltfm:
 	return err;
 }
 
-static int xenon_remove(struct platform_device *pdev)
+static int xeyesn_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	sdhci_remove_host(host, 0);
 
-	xenon_sdhc_unprepare(host);
+	xeyesn_sdhc_unprepare(host);
 	clk_disable_unprepare(priv->axi_clk);
 	clk_disable_unprepare(pltfm_host->clk);
 
@@ -579,11 +579,11 @@ static int xenon_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int xenon_suspend(struct device *dev)
+static int xeyesn_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	int ret;
 
 	ret = pm_runtime_force_suspend(dev);
@@ -594,11 +594,11 @@ static int xenon_suspend(struct device *dev)
 #endif
 
 #ifdef CONFIG_PM
-static int xenon_runtime_suspend(struct device *dev)
+static int xeyesn_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	int ret;
 
 	ret = sdhci_runtime_suspend_host(host);
@@ -618,11 +618,11 @@ static int xenon_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int xenon_runtime_resume(struct device *dev)
+static int xeyesn_runtime_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	int ret;
 
 	ret = clk_prepare_enable(pltfm_host->clk);
@@ -632,7 +632,7 @@ static int xenon_runtime_resume(struct device *dev)
 	}
 
 	if (priv->restore_needed) {
-		ret = xenon_sdhc_prepare(host);
+		ret = xeyesn_sdhc_prepare(host);
 		if (ret)
 			goto out;
 		priv->restore_needed = false;
@@ -648,34 +648,34 @@ out:
 }
 #endif /* CONFIG_PM */
 
-static const struct dev_pm_ops sdhci_xenon_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(xenon_suspend,
+static const struct dev_pm_ops sdhci_xeyesn_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(xeyesn_suspend,
 				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(xenon_runtime_suspend,
-			   xenon_runtime_resume,
+	SET_RUNTIME_PM_OPS(xeyesn_runtime_suspend,
+			   xeyesn_runtime_resume,
 			   NULL)
 };
 
-static const struct of_device_id sdhci_xenon_dt_ids[] = {
+static const struct of_device_id sdhci_xeyesn_dt_ids[] = {
 	{ .compatible = "marvell,armada-ap806-sdhci",},
 	{ .compatible = "marvell,armada-cp110-sdhci",},
 	{ .compatible = "marvell,armada-3700-sdhci",},
 	{}
 };
-MODULE_DEVICE_TABLE(of, sdhci_xenon_dt_ids);
+MODULE_DEVICE_TABLE(of, sdhci_xeyesn_dt_ids);
 
-static struct platform_driver sdhci_xenon_driver = {
+static struct platform_driver sdhci_xeyesn_driver = {
 	.driver	= {
-		.name	= "xenon-sdhci",
-		.of_match_table = sdhci_xenon_dt_ids,
-		.pm = &sdhci_xenon_dev_pm_ops,
+		.name	= "xeyesn-sdhci",
+		.of_match_table = sdhci_xeyesn_dt_ids,
+		.pm = &sdhci_xeyesn_dev_pm_ops,
 	},
-	.probe	= xenon_probe,
-	.remove	= xenon_remove,
+	.probe	= xeyesn_probe,
+	.remove	= xeyesn_remove,
 };
 
-module_platform_driver(sdhci_xenon_driver);
+module_platform_driver(sdhci_xeyesn_driver);
 
-MODULE_DESCRIPTION("SDHCI platform driver for Marvell Xenon SDHC");
+MODULE_DESCRIPTION("SDHCI platform driver for Marvell Xeyesn SDHC");
 MODULE_AUTHOR("Hu Ziji <huziji@marvell.com>");
 MODULE_LICENSE("GPL v2");

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_FCNTL_H
 #define _UAPI_LINUX_FCNTL_H
 
@@ -9,7 +9,7 @@
 
 /*
  * Cancel a blocking posix lock; internal use only until we expose an
- * asynchronous lock api to userspace:
+ * asynchroyesus lock api to userspace:
  */
 #define F_CANCELLK	(F_LINUX_SPECIFIC_BASE + 5)
 
@@ -17,8 +17,8 @@
 #define F_DUPFD_CLOEXEC	(F_LINUX_SPECIFIC_BASE + 6)
 
 /*
- * Request nofications on a directory.
- * See below for events that may be notified.
+ * Request yesfications on a directory.
+ * See below for events that may be yestified.
  */
 #define F_NOTIFY	(F_LINUX_SPECIFIC_BASE+2)
 
@@ -46,7 +46,7 @@
 
 /*
  * Set/Get write life time hints. {GET,SET}_RW_HINT operate on the
- * underlying inode, while {GET,SET}_FILE_RW_HINT operate only on
+ * underlying iyesde, while {GET,SET}_FILE_RW_HINT operate only on
  * the specific file.
  */
 #define F_GET_RW_HINT		(F_LINUX_SPECIFIC_BASE + 11)
@@ -55,7 +55,7 @@
 #define F_SET_FILE_RW_HINT	(F_LINUX_SPECIFIC_BASE + 14)
 
 /*
- * Valid hint values for F_{GET,SET}_RW_HINT. 0 is "not set", or can be
+ * Valid hint values for F_{GET,SET}_RW_HINT. 0 is "yest set", or can be
  * used to clear any hints previously set.
  */
 #define RWH_WRITE_LIFE_NOT_SET	0
@@ -73,7 +73,7 @@
 #define RWF_WRITE_LIFE_NOT_SET	RWH_WRITE_LIFE_NOT_SET
 
 /*
- * Types of directory notifications that may be requested.
+ * Types of directory yestifications that may be requested.
  */
 #define DN_ACCESS	0x00000001	/* File accessed */
 #define DN_MODIFY	0x00000002	/* File modified */
@@ -81,12 +81,12 @@
 #define DN_DELETE	0x00000008	/* File removed */
 #define DN_RENAME	0x00000010	/* File renamed */
 #define DN_ATTRIB	0x00000020	/* File changed attibutes */
-#define DN_MULTISHOT	0x80000000	/* Don't remove notifier */
+#define DN_MULTISHOT	0x80000000	/* Don't remove yestifier */
 
 #define AT_FDCWD		-100    /* Special value used to indicate
                                            openat should use the current
                                            working directory. */
-#define AT_SYMLINK_NOFOLLOW	0x100   /* Do not follow symbolic links.  */
+#define AT_SYMLINK_NOFOLLOW	0x100   /* Do yest follow symbolic links.  */
 #define AT_REMOVEDIR		0x200   /* Remove directory instead of
                                            unlinking file.  */
 #define AT_SYMLINK_FOLLOW	0x400   /* Follow symbolic links.  */

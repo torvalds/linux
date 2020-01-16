@@ -13,7 +13,7 @@
 /*  */
 /*	Define the debug levels */
 /*  */
-/*	1. DBG_TRACE and DBG_LOUD are used for normal cases. */
+/*	1. DBG_TRACE and DBG_LOUD are used for yesrmal cases. */
 /*	They can help SW engineer to develop or trace states changed */
 /*	and also help HW enginner to trace every operation to and from HW, */
 /*	e.g IO, Tx, Rx. */
@@ -29,7 +29,7 @@
 /*	resource allocation failed, unexpected HW behavior, HW BUG and so on. */
 #define ODM_DBG_SERIOUS				2
 
-/*	Abnormal, rare, or unexpected cases. */
+/*	Abyesrmal, rare, or unexpected cases. */
 /*	For example, IRP/Packet/OID canceled, device suprisely unremoved and so on. */
 #define ODM_DBG_WARNING				3
 

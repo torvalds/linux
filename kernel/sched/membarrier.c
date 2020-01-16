@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2010-2017 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * Copyright (C) 2010-2017 Mathieu Desyesyers <mathieu.desyesyers@efficios.com>
  *
  * membarrier system call
  */
@@ -27,7 +27,7 @@
 
 static void ipi_mb(void *info)
 {
-	smp_mb();	/* IPIs should be serializing but paranoid. */
+	smp_mb();	/* IPIs should be serializing but parayesid. */
 }
 
 static void ipi_sync_rq_state(void *info)
@@ -41,7 +41,7 @@ static void ipi_sync_rq_state(void *info)
 	/*
 	 * Issue a memory barrier after setting
 	 * MEMBARRIER_STATE_GLOBAL_EXPEDITED in the current runqueue to
-	 * guarantee that no memory access following registration is reordered
+	 * guarantee that yes memory access following registration is reordered
 	 * before registration.
 	 */
 	smp_mb();
@@ -51,7 +51,7 @@ void membarrier_exec_mmap(struct mm_struct *mm)
 {
 	/*
 	 * Issue a memory barrier before clearing membarrier_state to
-	 * guarantee that no memory access prior to exec is reordered after
+	 * guarantee that yes memory access prior to exec is reordered after
 	 * clearing this state.
 	 */
 	smp_mb();
@@ -75,7 +75,7 @@ static int membarrier_global_expedited(void)
 	 * Matches memory barriers around rq->curr modification in
 	 * scheduler.
 	 */
-	smp_mb();	/* system call entry is not a mb. */
+	smp_mb();	/* system call entry is yest a mb. */
 
 	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
 		return -ENOMEM;
@@ -125,7 +125,7 @@ static int membarrier_global_expedited(void)
 	 * waiting for the last IPI. Matches memory barriers around
 	 * rq->curr modification in scheduler.
 	 */
-	smp_mb();	/* exit from system call is not a mb */
+	smp_mb();	/* exit from system call is yest a mb */
 	return 0;
 }
 
@@ -154,7 +154,7 @@ static int membarrier_private_expedited(int flags)
 	 * Matches memory barriers around rq->curr modification in
 	 * scheduler.
 	 */
-	smp_mb();	/* system call entry is not a mb. */
+	smp_mb();	/* system call entry is yest a mb. */
 
 	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
 		return -ENOMEM;
@@ -192,7 +192,7 @@ static int membarrier_private_expedited(int flags)
 	 * waiting for the last IPI. Matches memory barriers around
 	 * rq->curr modification in scheduler.
 	 */
-	smp_mb();	/* exit from system call is not a mb */
+	smp_mb();	/* exit from system call is yest a mb */
 
 	return 0;
 }
@@ -209,7 +209,7 @@ static int sync_runqueues_membarrier_state(struct mm_struct *mm)
 		/*
 		 * For single mm user, we can simply issue a memory barrier
 		 * after setting MEMBARRIER_STATE_GLOBAL_EXPEDITED in the
-		 * mm and in the current runqueue to guarantee that no memory
+		 * mm and in the current runqueue to guarantee that yes memory
 		 * access following registration is reordered before
 		 * registration.
 		 */
@@ -292,7 +292,7 @@ static int membarrier_register_private_expedited(int flags)
 
 	/*
 	 * We need to consider threads belonging to different thread
-	 * groups, which use the same mm. (CLONE_VM but not
+	 * groups, which use the same mm. (CLONE_VM but yest
 	 * CLONE_THREAD).
 	 */
 	if ((atomic_read(&mm->membarrier_state) & ready_state) == ready_state)
@@ -313,13 +313,13 @@ static int membarrier_register_private_expedited(int flags)
  * @cmd:   Takes command values defined in enum membarrier_cmd.
  * @flags: Currently needs to be 0. For future extensions.
  *
- * If this system call is not implemented, -ENOSYS is returned. If the
- * command specified does not exist, not available on the running
+ * If this system call is yest implemented, -ENOSYS is returned. If the
+ * command specified does yest exist, yest available on the running
  * kernel, or if the command argument is invalid, this system call
  * returns -EINVAL. For a given command, with flags argument set to 0,
  * if this system call returns -ENOSYS or -EINVAL, it is guaranteed to
  * always return the same value until reboot. In addition, it can return
- * -ENOMEM if there is not enough memory available to perform the system
+ * -ENOMEM if there is yest eyesugh memory available to perform the system
  * call.
  *
  * All memory accesses performed in program order from each targeted thread
@@ -330,7 +330,7 @@ static int membarrier_register_private_expedited(int flags)
  * ordering across the barrier, we have the following ordering table for
  * each pair of barrier(), sys_membarrier() and smp_mb():
  *
- * The pair ordering is detailed as (O: ordered, X: not ordered):
+ * The pair ordering is detailed as (O: ordered, X: yest ordered):
  *
  *                        barrier()   smp_mb() sys_membarrier()
  *        barrier()          X           X            O
@@ -346,13 +346,13 @@ SYSCALL_DEFINE2(membarrier, int, cmd, int, flags)
 	{
 		int cmd_mask = MEMBARRIER_CMD_BITMASK;
 
-		if (tick_nohz_full_enabled())
+		if (tick_yeshz_full_enabled())
 			cmd_mask &= ~MEMBARRIER_CMD_GLOBAL;
 		return cmd_mask;
 	}
 	case MEMBARRIER_CMD_GLOBAL:
-		/* MEMBARRIER_CMD_GLOBAL is not compatible with nohz_full. */
-		if (tick_nohz_full_enabled())
+		/* MEMBARRIER_CMD_GLOBAL is yest compatible with yeshz_full. */
+		if (tick_yeshz_full_enabled())
 			return -EINVAL;
 		if (num_online_cpus() > 1)
 			synchronize_rcu();

@@ -101,7 +101,7 @@
 
 /*
  * The year parameter passed to the driver is usually an offset relative to
- * the year 1900. This macro is used to convert this offset to another one
+ * the year 1900. This macro is used to convert this offset to ayesther one
  * relative to the minimum year allowed by the hardware.
  *
  * The year range is 1970 - 2033. This range is selected to match Allwinner's
@@ -122,7 +122,7 @@
  *   - DCXO controls (H6)
  *   - RC oscillator calibration (H6)
  *
- * These functions are not covered by this driver.
+ * These functions are yest covered by this driver.
  */
 struct sun6i_rtc_clk_data {
 	unsigned long rc_osc_rate;
@@ -210,7 +210,7 @@ static const struct clk_ops sun6i_rtc_osc_ops = {
 	.set_parent	= sun6i_rtc_osc_set_parent,
 };
 
-static void __init sun6i_rtc_clk_init(struct device_node *node,
+static void __init sun6i_rtc_clk_init(struct device_yesde *yesde,
 				      const struct sun6i_rtc_clk_data *data)
 {
 	struct clk_hw_onecell_data *clk_data;
@@ -237,7 +237,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 
 	spin_lock_init(&rtc->lock);
 
-	rtc->base = of_io_request_and_map(node, 0, of_node_full_name(node));
+	rtc->base = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(rtc->base)) {
 		pr_crit("Can't map RTC registers");
 		goto err;
@@ -256,16 +256,16 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 		reg |= SUN6I_LOSC_CTRL_EXT_LOSC_EN;
 	writel(reg, rtc->base + SUN6I_LOSC_CTRL);
 
-	/* Yes, I know, this is ugly. */
+	/* Yes, I kyesw, this is ugly. */
 	sun6i_rtc = rtc;
 
 	/* Deal with old DTs */
-	if (!of_get_property(node, "clocks", NULL))
+	if (!of_get_property(yesde, "clocks", NULL))
 		goto err;
 
 	/* Only read IOSC name from device tree if it is exported */
 	if (rtc->data->export_iosc)
-		of_property_read_string_index(node, "clock-output-names", 2,
+		of_property_read_string_index(yesde, "clock-output-names", 2,
 					      &iosc_name);
 
 	rtc->int_osc = clk_hw_register_fixed_rate_with_accuracy(NULL,
@@ -279,13 +279,13 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 	}
 
 	parents[0] = clk_hw_get_name(rtc->int_osc);
-	parents[1] = of_clk_get_parent_name(node, 0);
+	parents[1] = of_clk_get_parent_name(yesde, 0);
 
 	rtc->hw.init = &init;
 
 	init.parent_names = parents;
-	init.num_parents = of_clk_get_parent_count(node) + 1;
-	of_property_read_string_index(node, "clock-output-names", 0,
+	init.num_parents = of_clk_get_parent_count(yesde) + 1;
+	of_property_read_string_index(yesde, "clock-output-names", 0,
 				      &init.name);
 
 	rtc->losc = clk_register(NULL, &rtc->hw);
@@ -294,7 +294,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 		return;
 	}
 
-	of_property_read_string_index(node, "clock-output-names", 1,
+	of_property_read_string_index(yesde, "clock-output-names", 1,
 				      &clkout_name);
 	rtc->ext_losc = clk_register_gate(NULL, clkout_name, init.name,
 					  0, rtc->base + SUN6I_LOSC_OUT_GATING,
@@ -312,7 +312,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 		clk_data->hws[2] = rtc->int_osc;
 		clk_data->num = 3;
 	}
-	of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	of_clk_add_hw_provider(yesde, of_clk_hw_onecell_get, clk_data);
 	return;
 
 err:
@@ -324,9 +324,9 @@ static const struct sun6i_rtc_clk_data sun6i_a31_rtc_data = {
 	.has_prescaler = 1,
 };
 
-static void __init sun6i_a31_rtc_clk_init(struct device_node *node)
+static void __init sun6i_a31_rtc_clk_init(struct device_yesde *yesde)
 {
-	sun6i_rtc_clk_init(node, &sun6i_a31_rtc_data);
+	sun6i_rtc_clk_init(yesde, &sun6i_a31_rtc_data);
 }
 CLK_OF_DECLARE_DRIVER(sun6i_a31_rtc_clk, "allwinner,sun6i-a31-rtc",
 		      sun6i_a31_rtc_clk_init);
@@ -337,9 +337,9 @@ static const struct sun6i_rtc_clk_data sun8i_a23_rtc_data = {
 	.has_out_clk = 1,
 };
 
-static void __init sun8i_a23_rtc_clk_init(struct device_node *node)
+static void __init sun8i_a23_rtc_clk_init(struct device_yesde *yesde)
 {
-	sun6i_rtc_clk_init(node, &sun8i_a23_rtc_data);
+	sun6i_rtc_clk_init(yesde, &sun8i_a23_rtc_data);
 }
 CLK_OF_DECLARE_DRIVER(sun8i_a23_rtc_clk, "allwinner,sun8i-a23-rtc",
 		      sun8i_a23_rtc_clk_init);
@@ -352,9 +352,9 @@ static const struct sun6i_rtc_clk_data sun8i_h3_rtc_data = {
 	.export_iosc = 1,
 };
 
-static void __init sun8i_h3_rtc_clk_init(struct device_node *node)
+static void __init sun8i_h3_rtc_clk_init(struct device_yesde *yesde)
 {
-	sun6i_rtc_clk_init(node, &sun8i_h3_rtc_data);
+	sun6i_rtc_clk_init(yesde, &sun8i_h3_rtc_data);
 }
 CLK_OF_DECLARE_DRIVER(sun8i_h3_rtc_clk, "allwinner,sun8i-h3-rtc",
 		      sun8i_h3_rtc_clk_init);
@@ -372,9 +372,9 @@ static const struct sun6i_rtc_clk_data sun50i_h6_rtc_data = {
 	.has_auto_swt = 1,
 };
 
-static void __init sun50i_h6_rtc_clk_init(struct device_node *node)
+static void __init sun50i_h6_rtc_clk_init(struct device_yesde *yesde)
 {
-	sun6i_rtc_clk_init(node, &sun50i_h6_rtc_data);
+	sun6i_rtc_clk_init(yesde, &sun50i_h6_rtc_data);
 }
 CLK_OF_DECLARE_DRIVER(sun50i_h6_rtc_clk, "allwinner,sun50i-h6-rtc",
 		      sun50i_h6_rtc_clk_init);
@@ -388,9 +388,9 @@ static const struct sun6i_rtc_clk_data sun8i_r40_rtc_data = {
 	.rc_osc_rate = 16000000,
 	.fixed_prescaler = 512,
 };
-static void __init sun8i_r40_rtc_clk_init(struct device_node *node)
+static void __init sun8i_r40_rtc_clk_init(struct device_yesde *yesde)
 {
-	sun6i_rtc_clk_init(node, &sun8i_r40_rtc_data);
+	sun6i_rtc_clk_init(yesde, &sun8i_r40_rtc_data);
 }
 CLK_OF_DECLARE_DRIVER(sun8i_r40_rtc_clk, "allwinner,sun8i-r40-rtc",
 		      sun8i_r40_rtc_clk_init);
@@ -400,9 +400,9 @@ static const struct sun6i_rtc_clk_data sun8i_v3_rtc_data = {
 	.has_out_clk = 1,
 };
 
-static void __init sun8i_v3_rtc_clk_init(struct device_node *node)
+static void __init sun8i_v3_rtc_clk_init(struct device_yesde *yesde)
 {
-	sun6i_rtc_clk_init(node, &sun8i_v3_rtc_data);
+	sun6i_rtc_clk_init(yesde, &sun8i_v3_rtc_data);
 }
 CLK_OF_DECLARE_DRIVER(sun8i_v3_rtc_clk, "allwinner,sun8i-v3-rtc",
 		      sun8i_v3_rtc_clk_init);
@@ -508,26 +508,26 @@ static int sun6i_rtc_setalarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 {
 	struct sun6i_rtc_dev *chip = dev_get_drvdata(dev);
 	struct rtc_time *alrm_tm = &wkalrm->time;
-	struct rtc_time tm_now;
-	unsigned long time_now = 0;
+	struct rtc_time tm_yesw;
+	unsigned long time_yesw = 0;
 	unsigned long time_set = 0;
 	unsigned long time_gap = 0;
 	int ret = 0;
 
-	ret = sun6i_rtc_gettime(dev, &tm_now);
+	ret = sun6i_rtc_gettime(dev, &tm_yesw);
 	if (ret < 0) {
 		dev_err(dev, "Error in getting time\n");
 		return -EINVAL;
 	}
 
 	rtc_tm_to_time(alrm_tm, &time_set);
-	rtc_tm_to_time(&tm_now, &time_now);
-	if (time_set <= time_now) {
+	rtc_tm_to_time(&tm_yesw, &time_yesw);
+	if (time_set <= time_yesw) {
 		dev_err(dev, "Date to set in the past\n");
 		return -EINVAL;
 	}
 
-	time_gap = time_set - time_now;
+	time_gap = time_set - time_yesw;
 
 	if (time_gap > U32_MAX) {
 		dev_err(dev, "Date too far in the future\n");
@@ -603,7 +603,7 @@ static int sun6i_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 
 	/*
 	 * After writing the RTC HH-MM-SS register, the
-	 * SUN6I_LOSC_CTRL_RTC_HMS_ACC bit is set and it will not
+	 * SUN6I_LOSC_CTRL_RTC_HMS_ACC bit is set and it will yest
 	 * be cleared until the real writing operation is finished
 	 */
 
@@ -617,7 +617,7 @@ static int sun6i_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 
 	/*
 	 * After writing the RTC YY-MM-DD register, the
-	 * SUN6I_LOSC_CTRL_RTC_YMD_ACC bit is set and it will not
+	 * SUN6I_LOSC_CTRL_RTC_YMD_ACC bit is set and it will yest
 	 * be cleared until the real writing operation is finished
 	 */
 
@@ -692,7 +692,7 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, chip->irq, sun6i_rtc_alarmirq,
 			       0, dev_name(&pdev->dev), chip);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request IRQ\n");
+		dev_err(&pdev->dev, "Could yest request IRQ\n");
 		return ret;
 	}
 
@@ -741,7 +741,7 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 /*
  * As far as RTC functionality goes, all models are the same. The
  * datasheets claim that different models have different number of
- * registers available for non-volatile storage, but experiments show
+ * registers available for yesn-volatile storage, but experiments show
  * that all SoCs have 16 registers available for this purpose.
  */
 static const struct of_device_id sun6i_rtc_dt_ids[] = {

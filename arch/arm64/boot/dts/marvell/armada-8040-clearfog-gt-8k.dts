@@ -110,10 +110,10 @@
 
 &ap_sdhci0 {
 	bus-width = <8>;
-	no-1-8-v;
-	no-sd;
-	no-sdio;
-	non-removable;
+	yes-1-8-v;
+	yes-sd;
+	yes-sdio;
+	yesn-removable;
 	status = "okay";
 	vqmmc-supply = <&v_3_3>;
 };

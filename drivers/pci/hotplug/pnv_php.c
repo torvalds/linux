@@ -27,9 +27,9 @@ struct pnv_php_event {
 static LIST_HEAD(pnv_php_slot_list);
 static DEFINE_SPINLOCK(pnv_php_lock);
 
-static void pnv_php_register(struct device_node *dn);
-static void pnv_php_unregister_one(struct device_node *dn);
-static void pnv_php_unregister(struct device_node *dn);
+static void pnv_php_register(struct device_yesde *dn);
+static void pnv_php_unregister_one(struct device_yesde *dn);
+static void pnv_php_unregister(struct device_yesde *dn);
 
 static void pnv_php_disable_irq(struct pnv_php_slot *php_slot,
 				bool disable_device)
@@ -84,7 +84,7 @@ static inline void pnv_php_put_slot(struct pnv_php_slot *php_slot)
 	kref_put(&php_slot->kref, pnv_php_free_slot);
 }
 
-static struct pnv_php_slot *pnv_php_match(struct device_node *dn,
+static struct pnv_php_slot *pnv_php_match(struct device_yesde *dn,
 					  struct pnv_php_slot *php_slot)
 {
 	struct pnv_php_slot *target, *tmp;
@@ -103,7 +103,7 @@ static struct pnv_php_slot *pnv_php_match(struct device_node *dn,
 	return NULL;
 }
 
-struct pnv_php_slot *pnv_php_find_slot(struct device_node *dn)
+struct pnv_php_slot *pnv_php_find_slot(struct device_yesde *dn)
 {
 	struct pnv_php_slot *php_slot, *tmp;
 	unsigned long flags;
@@ -123,46 +123,46 @@ struct pnv_php_slot *pnv_php_find_slot(struct device_node *dn)
 EXPORT_SYMBOL_GPL(pnv_php_find_slot);
 
 /*
- * Remove pdn for all children of the indicated device node.
+ * Remove pdn for all children of the indicated device yesde.
  * The function should remove pdn in a depth-first manner.
  */
-static void pnv_php_rmv_pdns(struct device_node *dn)
+static void pnv_php_rmv_pdns(struct device_yesde *dn)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 
-	for_each_child_of_node(dn, child) {
+	for_each_child_of_yesde(dn, child) {
 		pnv_php_rmv_pdns(child);
 
-		pci_remove_device_node_info(child);
+		pci_remove_device_yesde_info(child);
 	}
 }
 
 /*
- * Detach all child nodes of the indicated device nodes. The
- * function should handle device nodes in depth-first manner.
+ * Detach all child yesdes of the indicated device yesdes. The
+ * function should handle device yesdes in depth-first manner.
  *
- * We should not invoke of_node_release() as the memory for
- * individual device node is part of large memory block. The
+ * We should yest invoke of_yesde_release() as the memory for
+ * individual device yesde is part of large memory block. The
  * large block is allocated from memblock (system bootup) or
  * kmalloc() when unflattening the device tree by OF changeset.
- * We can not free the large block allocated from memblock. For
+ * We can yest free the large block allocated from memblock. For
  * later case, it should be released at once.
  */
-static void pnv_php_detach_device_nodes(struct device_node *parent)
+static void pnv_php_detach_device_yesdes(struct device_yesde *parent)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int refcount;
 
-	for_each_child_of_node(parent, dn) {
-		pnv_php_detach_device_nodes(dn);
+	for_each_child_of_yesde(parent, dn) {
+		pnv_php_detach_device_yesdes(dn);
 
-		of_node_put(dn);
+		of_yesde_put(dn);
 		refcount = kref_read(&dn->kobj.kref);
 		if (refcount != 1)
 			pr_warn("Invalid refcount %d on <%pOF>\n",
 				refcount, dn);
 
-		of_detach_node(dn);
+		of_detach_yesde(dn);
 	}
 }
 
@@ -171,12 +171,12 @@ static void pnv_php_rmv_devtree(struct pnv_php_slot *php_slot)
 	pnv_php_rmv_pdns(php_slot->dn);
 
 	/*
-	 * Decrease the refcount if the device nodes were created
+	 * Decrease the refcount if the device yesdes were created
 	 * through OF changeset before detaching them.
 	 */
 	if (php_slot->fdt)
 		of_changeset_destroy(&php_slot->ocs);
-	pnv_php_detach_device_nodes(php_slot->dn);
+	pnv_php_detach_device_yesdes(php_slot->dn);
 
 	if (php_slot->fdt) {
 		kfree(php_slot->dt);
@@ -188,19 +188,19 @@ static void pnv_php_rmv_devtree(struct pnv_php_slot *php_slot)
 }
 
 /*
- * As the nodes in OF changeset are applied in reverse order, we
- * need revert the nodes in advance so that we have correct node
+ * As the yesdes in OF changeset are applied in reverse order, we
+ * need revert the yesdes in advance so that we have correct yesde
  * order after the changeset is applied.
  */
-static void pnv_php_reverse_nodes(struct device_node *parent)
+static void pnv_php_reverse_yesdes(struct device_yesde *parent)
 {
-	struct device_node *child, *next;
+	struct device_yesde *child, *next;
 
 	/* In-depth first */
-	for_each_child_of_node(parent, child)
-		pnv_php_reverse_nodes(child);
+	for_each_child_of_yesde(parent, child)
+		pnv_php_reverse_yesdes(child);
 
-	/* Reverse the nodes in the child list */
+	/* Reverse the yesdes in the child list */
 	child = parent->child;
 	parent->child = NULL;
 	while (child) {
@@ -213,21 +213,21 @@ static void pnv_php_reverse_nodes(struct device_node *parent)
 }
 
 static int pnv_php_populate_changeset(struct of_changeset *ocs,
-				      struct device_node *dn)
+				      struct device_yesde *dn)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	int ret = 0;
 
-	for_each_child_of_node(dn, child) {
-		ret = of_changeset_attach_node(ocs, child);
+	for_each_child_of_yesde(dn, child) {
+		ret = of_changeset_attach_yesde(ocs, child);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			break;
 		}
 
 		ret = pnv_php_populate_changeset(ocs, child);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			break;
 		}
 	}
@@ -235,12 +235,12 @@ static int pnv_php_populate_changeset(struct of_changeset *ocs,
 	return ret;
 }
 
-static void *pnv_php_add_one_pdn(struct device_node *dn, void *data)
+static void *pnv_php_add_one_pdn(struct device_yesde *dn, void *data)
 {
 	struct pci_controller *hose = (struct pci_controller *)data;
 	struct pci_dn *pdn;
 
-	pdn = pci_add_device_node_info(hose, dn);
+	pdn = pci_add_device_yesde_info(hose, dn);
 	if (!pdn)
 		return ERR_PTR(-ENOMEM);
 
@@ -251,7 +251,7 @@ static void pnv_php_add_pdns(struct pnv_php_slot *slot)
 {
 	struct pci_controller *hose = pci_bus_to_host(slot->bus);
 
-	pci_traverse_device_nodes(slot->dn, pnv_php_add_one_pdn, hose);
+	pci_traverse_device_yesdes(slot->dn, pnv_php_add_one_pdn, hose);
 }
 
 static int pnv_php_add_devtree(struct pnv_php_slot *php_slot)
@@ -259,8 +259,8 @@ static int pnv_php_add_devtree(struct pnv_php_slot *php_slot)
 	void *fdt, *fdt1, *dt;
 	int ret;
 
-	/* We don't know the FDT blob size. We try to get it through
-	 * maximal memory chunk and then copy it to another chunk that
+	/* We don't kyesw the FDT blob size. We try to get it through
+	 * maximal memory chunk and then copy it to ayesther chunk that
 	 * fits the real size.
 	 */
 	fdt1 = kzalloc(0x10000, GFP_KERNEL);
@@ -285,16 +285,16 @@ static int pnv_php_add_devtree(struct pnv_php_slot *php_slot)
 	dt = of_fdt_unflatten_tree(fdt, php_slot->dn, NULL);
 	if (!dt) {
 		ret = -EINVAL;
-		pci_warn(php_slot->pdev, "Cannot unflatten FDT\n");
+		pci_warn(php_slot->pdev, "Canyest unflatten FDT\n");
 		goto free_fdt;
 	}
 
 	/* Initialize and apply the changeset */
 	of_changeset_init(&php_slot->ocs);
-	pnv_php_reverse_nodes(php_slot->dn);
+	pnv_php_reverse_yesdes(php_slot->dn);
 	ret = pnv_php_populate_changeset(&php_slot->ocs, php_slot->dn);
 	if (ret) {
-		pnv_php_reverse_nodes(php_slot->dn);
+		pnv_php_reverse_yesdes(php_slot->dn);
 		pci_warn(php_slot->pdev, "Error %d populating changeset\n",
 			 ret);
 		goto free_dt;
@@ -307,7 +307,7 @@ static int pnv_php_add_devtree(struct pnv_php_slot *php_slot)
 		goto destroy_changeset;
 	}
 
-	/* Add device node firmware data */
+	/* Add device yesde firmware data */
 	pnv_php_add_pdns(php_slot);
 	php_slot->fdt = fdt;
 	php_slot->dt  = dt;
@@ -455,7 +455,7 @@ static int pnv_php_enable(struct pnv_php_slot *php_slot, bool rescan)
 		return ret;
 
 	/*
-	 * Proceed if there have nothing behind the slot. However,
+	 * Proceed if there have yesthing behind the slot. However,
 	 * we should leave the slot in registered state at the
 	 * beginning. Otherwise, the PCI devices inserted afterwards
 	 * won't be probed and populated.
@@ -478,7 +478,7 @@ static int pnv_php_enable(struct pnv_php_slot *php_slot, bool rescan)
 	 * On the first time, we don't change the power status to
 	 * boost system boot with assumption that the firmware
 	 * supplies consistent slot power status: empty slot always
-	 * has its power off and non-empty slot has its power on.
+	 * has its power off and yesn-empty slot has its power on.
 	 */
 	if (!php_slot->power_state_check) {
 		php_slot->power_state_check = true;
@@ -532,7 +532,7 @@ static int pnv_php_reset_slot(struct hotplug_slot *slot, int probe)
 	/*
 	 * The CAPI folks want pnv_php to drive OpenCAPI slots
 	 * which don't have a bridge. Only claim to support
-	 * reset_slot() if we have a bridge device (for now...)
+	 * reset_slot() if we have a bridge device (for yesw...)
 	 */
 	if (probe)
 		return !bridge;
@@ -577,7 +577,7 @@ static int pnv_php_disable_slot(struct hotplug_slot *slot)
 	/* Detach the child hotpluggable slots */
 	pnv_php_unregister(php_slot->dn);
 
-	/* Notify firmware and remove device nodes */
+	/* Notify firmware and remove device yesdes */
 	ret = pnv_php_set_slot_power_state(slot, OPAL_PCI_SLOT_POWER_OFF);
 
 	php_slot->state = PNV_PHP_STATE_REGISTERED;
@@ -608,7 +608,7 @@ static void pnv_php_release(struct pnv_php_slot *php_slot)
 	pnv_php_put_slot(php_slot->parent);
 }
 
-static struct pnv_php_slot *pnv_php_alloc_slot(struct device_node *dn)
+static struct pnv_php_slot *pnv_php_alloc_slot(struct device_yesde *dn)
 {
 	struct pnv_php_slot *php_slot;
 	struct pci_bus *bus;
@@ -623,7 +623,7 @@ static struct pnv_php_slot *pnv_php_alloc_slot(struct device_node *dn)
 	if (pnv_pci_get_slot_id(dn, &id))
 		return NULL;
 
-	bus = pci_find_bus_by_node(dn);
+	bus = pci_find_bus_by_yesde(dn);
 	if (!bus)
 		return NULL;
 
@@ -638,9 +638,9 @@ static struct pnv_php_slot *pnv_php_alloc_slot(struct device_node *dn)
 	}
 
 	if (dn->child && PCI_DN(dn->child))
-		php_slot->slot_no = PCI_SLOT(PCI_DN(dn->child)->devfn);
+		php_slot->slot_yes = PCI_SLOT(PCI_DN(dn->child)->devfn);
 	else
-		php_slot->slot_no = -1;   /* Placeholder slot */
+		php_slot->slot_yes = -1;   /* Placeholder slot */
 
 	kref_init(&php_slot->kref);
 	php_slot->state	                = PNV_PHP_STATE_INITIALIZED;
@@ -660,11 +660,11 @@ static struct pnv_php_slot *pnv_php_alloc_slot(struct device_node *dn)
 static int pnv_php_register_slot(struct pnv_php_slot *php_slot)
 {
 	struct pnv_php_slot *parent;
-	struct device_node *dn = php_slot->dn;
+	struct device_yesde *dn = php_slot->dn;
 	unsigned long flags;
 	int ret;
 
-	/* Check if the slot is registered or not */
+	/* Check if the slot is registered or yest */
 	parent = pnv_php_find_slot(php_slot->dn);
 	if (parent) {
 		pnv_php_put_slot(parent);
@@ -673,7 +673,7 @@ static int pnv_php_register_slot(struct pnv_php_slot *php_slot)
 
 	/* Register PCI slot */
 	ret = pci_hp_register(&php_slot->slot, php_slot->bus,
-			      php_slot->slot_no, php_slot->name);
+			      php_slot->slot_yes, php_slot->name);
 	if (ret) {
 		pci_warn(php_slot->pdev, "Error %d registering slot\n", ret);
 		return ret;
@@ -682,17 +682,17 @@ static int pnv_php_register_slot(struct pnv_php_slot *php_slot)
 	/* Attach to the parent's child list or global list */
 	while ((dn = of_get_parent(dn))) {
 		if (!PCI_DN(dn)) {
-			of_node_put(dn);
+			of_yesde_put(dn);
 			break;
 		}
 
 		parent = pnv_php_find_slot(dn);
 		if (parent) {
-			of_node_put(dn);
+			of_yesde_put(dn);
 			break;
 		}
 
-		of_node_put(dn);
+		of_yesde_put(dn);
 	}
 
 	spin_lock_irqsave(&pnv_php_lock, flags);
@@ -834,12 +834,12 @@ static void pnv_php_init_irq(struct pnv_php_slot *php_slot, int irq)
 	/* Allocate workqueue */
 	php_slot->wq = alloc_workqueue("pciehp-%s", 0, 0, php_slot->name);
 	if (!php_slot->wq) {
-		pci_warn(pdev, "Cannot alloc workqueue\n");
+		pci_warn(pdev, "Canyest alloc workqueue\n");
 		pnv_php_disable_irq(php_slot, true);
 		return;
 	}
 
-	/* Check PDC (Presence Detection Change) is broken or not */
+	/* Check PDC (Presence Detection Change) is broken or yest */
 	ret = of_property_read_u32(php_slot->dn, "ibm,slot-broken-pdc",
 				   &broken_pdc);
 	if (!ret && broken_pdc)
@@ -918,7 +918,7 @@ static void pnv_php_enable_irq(struct pnv_php_slot *php_slot)
 	}
 }
 
-static int pnv_php_register_one(struct device_node *dn)
+static int pnv_php_register_one(struct device_yesde *dn)
 {
 	struct pnv_php_slot *php_slot;
 	u32 prop32;
@@ -959,21 +959,21 @@ free_slot:
 	return ret;
 }
 
-static void pnv_php_register(struct device_node *dn)
+static void pnv_php_register(struct device_yesde *dn)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 
 	/*
 	 * The parent slots should be registered before their
 	 * child slots.
 	 */
-	for_each_child_of_node(dn, child) {
+	for_each_child_of_yesde(dn, child) {
 		pnv_php_register_one(child);
 		pnv_php_register(child);
 	}
 }
 
-static void pnv_php_unregister_one(struct device_node *dn)
+static void pnv_php_unregister_one(struct device_yesde *dn)
 {
 	struct pnv_php_slot *php_slot;
 
@@ -987,12 +987,12 @@ static void pnv_php_unregister_one(struct device_node *dn)
 	pnv_php_put_slot(php_slot);
 }
 
-static void pnv_php_unregister(struct device_node *dn)
+static void pnv_php_unregister(struct device_yesde *dn)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 
 	/* The child slots should go before their parent slots */
-	for_each_child_of_node(dn, child) {
+	for_each_child_of_yesde(dn, child) {
 		pnv_php_unregister(child);
 		pnv_php_unregister_one(child);
 	}
@@ -1000,13 +1000,13 @@ static void pnv_php_unregister(struct device_node *dn)
 
 static int __init pnv_php_init(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
 	pr_info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
-	for_each_compatible_node(dn, NULL, "ibm,ioda2-phb")
+	for_each_compatible_yesde(dn, NULL, "ibm,ioda2-phb")
 		pnv_php_register(dn);
 
-	for_each_compatible_node(dn, NULL, "ibm,ioda3-phb")
+	for_each_compatible_yesde(dn, NULL, "ibm,ioda3-phb")
 		pnv_php_register(dn);
 
 	return 0;
@@ -1014,12 +1014,12 @@ static int __init pnv_php_init(void)
 
 static void __exit pnv_php_exit(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
-	for_each_compatible_node(dn, NULL, "ibm,ioda2-phb")
+	for_each_compatible_yesde(dn, NULL, "ibm,ioda2-phb")
 		pnv_php_unregister(dn);
 
-	for_each_compatible_node(dn, NULL, "ibm,ioda3-phb")
+	for_each_compatible_yesde(dn, NULL, "ibm,ioda3-phb")
 		pnv_php_unregister(dn);
 }
 

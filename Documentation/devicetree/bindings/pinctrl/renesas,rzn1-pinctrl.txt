@@ -1,6 +1,6 @@
-Renesas RZ/N1 SoC Pinctrl node description.
+Renesas RZ/N1 SoC Pinctrl yesde description.
 
-Pin controller node
+Pin controller yesde
 -------------------
 Required properties:
 - compatible: SoC-specific compatible string "renesas,<soc-specific>-pinctrl"
@@ -22,58 +22,58 @@ Example:
 	    clock-names = "bus";
 	};
 
-Sub-nodes
+Sub-yesdes
 ---------
 
-The child nodes of the pin controller node describe a pin multiplexing
+The child yesdes of the pin controller yesde describe a pin multiplexing
 function.
 
-- Pin multiplexing sub-nodes:
-  A pin multiplexing sub-node describes how to configure a set of
+- Pin multiplexing sub-yesdes:
+  A pin multiplexing sub-yesde describes how to configure a set of
   (or a single) pin in some desired alternate function mode.
-  A single sub-node may define several pin configurations.
-  Please refer to pinctrl-bindings.txt to get to know more on generic
+  A single sub-yesde may define several pin configurations.
+  Please refer to pinctrl-bindings.txt to get to kyesw more on generic
   pin properties usage.
 
-  The allowed generic formats for a pin multiplexing sub-node are the
+  The allowed generic formats for a pin multiplexing sub-yesde are the
   following ones:
 
-  node-1 {
+  yesde-1 {
       pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ... ;
       GENERIC_PINCONFIG;
   };
 
-  node-2 {
-      sub-node-1 {
+  yesde-2 {
+      sub-yesde-1 {
           pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ... ;
           GENERIC_PINCONFIG;
       };
 
-      sub-node-2 {
+      sub-yesde-2 {
           pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ... ;
           GENERIC_PINCONFIG;
       };
 
       ...
 
-      sub-node-n {
+      sub-yesde-n {
           pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ... ;
           GENERIC_PINCONFIG;
       };
   };
 
-  node-3 {
+  yesde-3 {
       pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ... ;
       GENERIC_PINCONFIG;
 
-      sub-node-1 {
+      sub-yesde-1 {
           pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ... ;
           GENERIC_PINCONFIG;
       };
 
       ...
 
-      sub-node-n {
+      sub-yesde-n {
           pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ... ;
           GENERIC_PINCONFIG;
       };
@@ -81,22 +81,22 @@ function.
 
   Use the latter two formats when pins part of the same logical group need to
   have different generic pin configuration flags applied. Note that the generic
-  pinconfig in node-3 does not apply to the sub-nodes.
+  pinconfig in yesde-3 does yest apply to the sub-yesdes.
 
-  Client sub-nodes shall refer to pin multiplexing sub-nodes using the phandle
+  Client sub-yesdes shall refer to pin multiplexing sub-yesdes using the phandle
   of the most external one.
 
   Eg.
 
   client-1 {
       ...
-      pinctrl-0 = <&node-1>;
+      pinctrl-0 = <&yesde-1>;
       ...
   };
 
   client-2 {
       ...
-      pinctrl-0 = <&node-2>;
+      pinctrl-0 = <&yesde-2>;
       ...
   };
 

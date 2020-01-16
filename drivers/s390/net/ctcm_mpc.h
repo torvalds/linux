@@ -193,7 +193,7 @@ struct mpc_group {
 	void 		(*estconnfunc)(int, int, int);
 	int		estconn_callback_retries;
 	int		estconn_called;
-	int		xidnogood;
+	int		xidyesgood;
 	int		send_qllc_disc;
 	fsm_timer	timer;
 	fsm_instance	*fsm; /* group xid fsm */

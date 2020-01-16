@@ -98,10 +98,10 @@ struct kvm_arch {
 
 /*
  * We don't want allocation failures within the mmu code, so we preallocate
- * enough memory for a single page fault in a cache.
+ * eyesugh memory for a single page fault in a cache.
  */
 struct kvm_mmu_memory_cache {
-	int nobjs;
+	int yesbjs;
 	void *objects[KVM_NR_MEM_OBJS];
 };
 
@@ -304,7 +304,7 @@ struct kvm_vcpu_arch {
 	struct kvm_pmu pmu;
 
 	/*
-	 * Anything that is not used directly from assembly code goes
+	 * Anything that is yest used directly from assembly code goes
 	 * here.
 	 */
 
@@ -394,8 +394,8 @@ struct kvm_vcpu_arch {
 #define vcpu_gp_regs(v)		(&(v)->arch.ctxt.gp_regs)
 
 /*
- * Only use __vcpu_sys_reg if you know you want the memory backed version of a
- * register, and not the one most recently accessed by a running VCPU.  For
+ * Only use __vcpu_sys_reg if you kyesw you want the memory backed version of a
+ * register, and yest the one most recently accessed by a running VCPU.  For
  * example, for userspace access or for system registers that are never context
  * switched, but only emulated.
  */
@@ -551,7 +551,7 @@ static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 	__kvm_call_hyp((void *)pgd_ptr, hyp_stack_ptr, vector_ptr, tpidr_el2);
 
 	/*
-	 * Disabling SSBD on a non-VHE system requires us to enable SSBS
+	 * Disabling SSBD on a yesn-VHE system requires us to enable SSBS
 	 * at EL2.
 	 */
 	if (!has_vhe() && this_cpu_has_cap(ARM64_SSBS) &&
@@ -630,7 +630,7 @@ static inline void kvm_arm_vhe_guest_enter(void)
 
 	/*
 	 * Having IRQs masked via PMR when entering the guest means the GIC
-	 * will not signal the CPU of interrupts of lower priority, and the
+	 * will yest signal the CPU of interrupts of lower priority, and the
 	 * only way to get out will be via guest exceptions.
 	 * Naturally, we want to avoid this.
 	 *

@@ -14,7 +14,7 @@
 * and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
 * subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in all copies or substantial
+* The above copyright yestice and this permission yestice shall be included in all copies or substantial
 * portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -231,7 +231,7 @@ CONNECTOR_OPM_ENUM_ID6							=( DISPLAY_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHI
 /****************************************************
 * PROTECTION Object ID definition - Shared with BIOS
 *****************************************************/
-//No need,in future we ever need, all display path are capable of protection now.
+//No need,in future we ever need, all display path are capable of protection yesw.
 
 /****************************************************
 * Generic Object ID definition - Shared with BIOS

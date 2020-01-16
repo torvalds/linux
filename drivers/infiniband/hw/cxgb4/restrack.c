@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -145,11 +145,11 @@ static int fill_res_qp_entry(struct sk_buff *msg,
 	struct nlattr *table_attr;
 	struct t4_wq wq;
 
-	/* User qp state is not available, so don't dump user qps */
+	/* User qp state is yest available, so don't dump user qps */
 	if (qhp->ucontext)
 		return 0;
 
-	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_yesflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err;
 
@@ -216,7 +216,7 @@ static int fill_res_ep_entry(struct sk_buff *msg,
 	if (!uep)
 		return 0;
 
-	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_yesflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err_free_uep;
 
@@ -383,11 +383,11 @@ static int fill_res_cq_entry(struct sk_buff *msg,
 	struct t4_cq cq;
 	u16 idx;
 
-	/* User cq state is not available, so don't dump user cqs */
+	/* User cq state is yest available, so don't dump user cqs */
 	if (ibcq->uobject)
 		return 0;
 
-	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_yesflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err;
 
@@ -447,7 +447,7 @@ static int fill_res_mr_entry(struct sk_buff *msg,
 	if (!stag)
 		return 0;
 
-	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_yesflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err;
 
@@ -481,7 +481,7 @@ static int fill_res_mr_entry(struct sk_buff *msg,
 		      ((u64)ntohl(tpte.len_hi) << 32) | ntohl(tpte.len_lo)))
 		goto err_cancel_table;
 	if (rdma_nl_put_driver_u32_hex(msg, "pbl_addr",
-			FW_RI_TPTE_PBLADDR_G(ntohl(tpte.nosnoop_pbladdr))))
+			FW_RI_TPTE_PBLADDR_G(ntohl(tpte.yessyesop_pbladdr))))
 		goto err_cancel_table;
 
 	nla_nest_end(msg, table_attr);

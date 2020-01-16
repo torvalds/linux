@@ -25,7 +25,7 @@
 /* flag to only simulate transfers */
 static int simulate_only;
 module_param(simulate_only, int, 0);
-MODULE_PARM_DESC(simulate_only, "if not 0 do not execute the spi message");
+MODULE_PARM_DESC(simulate_only, "if yest 0 do yest execute the spi message");
 
 /* dump spi messages */
 static int dump_messages;
@@ -48,10 +48,10 @@ MODULE_PARM_DESC(loop_req,
 		 "if set controller will be asked to enable test loop mode. " \
 		 "If controller supported it, MISO and MOSI will be connected");
 
-static int no_cs;
-module_param(no_cs, int, 0);
-MODULE_PARM_DESC(no_cs,
-		 "if set Chip Select (CS) will not be used");
+static int yes_cs;
+module_param(yes_cs, int, 0);
+MODULE_PARM_DESC(yes_cs,
+		 "if set Chip Select (CS) will yest be used");
 
 /* run only a specific test */
 static int run_only_test = -1;
@@ -240,7 +240,7 @@ static struct spi_test spi_tests[] = {
 			},
 			{
 				/* making sure we align without overwrite
-				 * the reason we can not use ITERATE_MAX_LEN
+				 * the reason we can yest use ITERATE_MAX_LEN
 				 */
 				.tx_buf = TX(SPI_TEST_MAX_SIZE_HALF),
 				.rx_buf = RX(SPI_TEST_MAX_SIZE_HALF),
@@ -321,9 +321,9 @@ static int spi_loopback_test_probe(struct spi_device *spi)
 {
 	int ret;
 
-	if (loop_req || no_cs) {
+	if (loop_req || yes_cs) {
 		spi->mode |= loop_req ? SPI_LOOP : 0;
-		spi->mode |= no_cs ? SPI_NO_CS : 0;
+		spi->mode |= yes_cs ? SPI_NO_CS : 0;
 		ret = spi_setup(spi);
 		if (ret) {
 			dev_err(&spi->dev, "SPI setup with SPI_LOOP or SPI_NO_CS failed (%d)\n",
@@ -342,7 +342,7 @@ static int spi_loopback_test_probe(struct spi_device *spi)
 	return ret;
 }
 
-/* non const match table to permit to change via a module parameter */
+/* yesn const match table to permit to change via a module parameter */
 static struct of_device_id spi_loopback_test_of_match[] = {
 	{ .compatible	= "linux,spi-loopback-test", },
 	{ }
@@ -479,7 +479,7 @@ static int spi_check_rx_ranges(struct spi_device *spi,
 
 	/* loop over all transfers to fill in the rx_ranges */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		/* if there is no rx, then no check is needed */
+		/* if there is yes rx, then yes check is needed */
 		if (!xfer->rx_buf)
 			continue;
 		/* fill in the rx_range */
@@ -492,7 +492,7 @@ static int spi_check_rx_ranges(struct spi_device *spi,
 		}
 	}
 
-	/* if no ranges, then we can return and avoid the checks...*/
+	/* if yes ranges, then we can return and avoid the checks...*/
 	if (!i)
 		return 0;
 
@@ -501,7 +501,7 @@ static int spi_check_rx_ranges(struct spi_device *spi,
 
 	/* and iterate over all the rx addresses */
 	for (addr = rx; addr < (u8 *)rx + SPI_TEST_MAX_SIZE_PLUS; addr++) {
-		/* if we are the DO not write pattern,
+		/* if we are the DO yest write pattern,
 		 * then continue with the loop...
 		 */
 		if (*addr == SPI_TEST_PATTERN_DO_NOT_WRITE)
@@ -517,12 +517,12 @@ static int spi_check_rx_ranges(struct spi_device *spi,
 		if (*addr == SPI_TEST_PATTERN_DO_NOT_WRITE)
 			continue;
 
-		/* if still not found then something has modified too much */
+		/* if still yest found then something has modified too much */
 		/* we could list the "closest" transfer here... */
 		dev_err(&spi->dev,
 			"loopback strangeness - rx changed outside of allowed range at: %pK\n",
 			addr);
-		/* do not return, only set ret,
+		/* do yest return, only set ret,
 		 * so that we list all addresses
 		 */
 		ret = -ERANGE;
@@ -577,13 +577,13 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 			return ret;
 	}
 
-	/* if we run without loopback, then return now */
+	/* if we run without loopback, then return yesw */
 	if (!loopback)
 		return 0;
 
 	/* if applicable to transfer check that rx_buf is equal to tx_buf */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		/* if there is no rx, then no check is needed */
+		/* if there is yes rx, then yes check is needed */
 		if (!xfer->len || !xfer->rx_buf)
 			continue;
 		/* so depending on tx_buf we need to handle things */
@@ -600,7 +600,7 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 			/* first byte may be 0 or xff */
 			if (!((txb == 0) || (txb == 0xff))) {
 				dev_err(&spi->dev,
-					"loopback strangeness - we expect 0x00 or 0xff, but not 0x%02x\n",
+					"loopback strangeness - we expect 0x00 or 0xff, but yest 0x%02x\n",
 					txb);
 				return -EINVAL;
 			}
@@ -658,7 +658,7 @@ static int spi_test_translate(struct spi_device *spi,
 	}
 
 	dev_err(&spi->dev,
-		"PointerRange [%pK:%pK[ not in range [%pK:%pK[ or [%pK:%pK[\n",
+		"PointerRange [%pK:%pK[ yest in range [%pK:%pK[ or [%pK:%pK[\n",
 		*ptr, *ptr + len,
 		RX(0), RX(SPI_TEST_MAX_SIZE),
 		TX(0), TX(SPI_TEST_MAX_SIZE));
@@ -759,7 +759,7 @@ static int _spi_test_run_iter(struct spi_device *spi,
 	int i, ret;
 
 	/* initialize message - zero-filled via static initialization */
-	spi_message_init_no_memset(msg);
+	spi_message_init_yes_memset(msg);
 
 	/* fill rx with the DO_NOT_WRITE pattern */
 	memset(rx, SPI_TEST_PATTERN_DO_NOT_WRITE, SPI_TEST_MAX_SIZE_PLUS);
@@ -826,7 +826,7 @@ static int spi_test_run_iter(struct spi_device *spi,
 	/* copy the test template to test */
 	memcpy(&test, testtemplate, sizeof(test));
 
-	/* if iterate_transfer_mask is not set,
+	/* if iterate_transfer_mask is yest set,
 	 * then set it to first transfer only
 	 */
 	if (!(test.iterate_transfer_mask & (BIT(test.transfer_count) - 1)))
@@ -842,17 +842,17 @@ static int spi_test_run_iter(struct spi_device *spi,
 	}
 
 	/* in some iteration cases warn and exit early,
-	 * as there is nothing to do, that has not been tested already...
+	 * as there is yesthing to do, that has yest been tested already...
 	 */
 	if (tx_off && (!tx_count)) {
 		dev_warn_once(&spi->dev,
-			      "%s: iterate_tx_off configured with tx_buf==NULL - ignoring\n",
+			      "%s: iterate_tx_off configured with tx_buf==NULL - igyesring\n",
 			      test.description);
 		return 0;
 	}
 	if (rx_off && (!rx_count)) {
 		dev_warn_once(&spi->dev,
-			      "%s: iterate_rx_off configured with rx_buf==NULL - ignoring\n",
+			      "%s: iterate_rx_off configured with rx_buf==NULL - igyesring\n",
 			      test.description);
 		return 0;
 	}
@@ -899,7 +899,7 @@ int spi_test_execute_msg(struct spi_device *spi, struct spi_test *test,
 	int ret = 0;
 	int i;
 
-	/* only if we do not simulate */
+	/* only if we do yest simulate */
 	if (!simulate_only) {
 		ktime_t start;
 
@@ -1053,7 +1053,7 @@ int spi_test_run_tests(struct spi_device *spi,
 		goto err_tx;
 	}
 
-	/* now run the individual tests in the table */
+	/* yesw run the individual tests in the table */
 	for (test = tests, count = 0; test->description[0];
 	     test++, count++) {
 		/* only run test if requested */

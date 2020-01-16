@@ -159,7 +159,7 @@ struct safexcel_command_desc *safexcel_add_cdesc(struct safexcel_crypto_priv *pr
 		cdesc->control_data.refresh = 2;
 
 		for (i = 0; i < EIP197_MAX_TOKENS; i++)
-			eip197_noop_token(&token[i]);
+			eip197_yesop_token(&token[i]);
 	}
 
 	return cdesc;

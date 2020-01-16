@@ -57,13 +57,13 @@ int mvebu_get_soc_id(u32 *dev, u32 *rev)
 
 static int __init get_soc_id_by_pci(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret = 0;
 	void __iomem *pci_base;
 	struct clk *clk;
-	struct device_node *child;
+	struct device_yesde *child;
 
-	np = of_find_matching_node(NULL, mvebu_pcie_of_match_table);
+	np = of_find_matching_yesde(NULL, mvebu_pcie_of_match_table);
 	if (!np)
 		return ret;
 
@@ -73,27 +73,27 @@ static int __init get_soc_id_by_pci(void)
 	 */
 	child = of_get_next_child(np, NULL);
 	if (child == NULL) {
-		pr_err("cannot get pci node\n");
+		pr_err("canyest get pci yesde\n");
 		ret = -ENOMEM;
 		goto clk_err;
 	}
 
 	clk = of_clk_get_by_name(child, NULL);
 	if (IS_ERR(clk)) {
-		pr_err("cannot get clock\n");
+		pr_err("canyest get clock\n");
 		ret = -ENOMEM;
 		goto clk_err;
 	}
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {
-		pr_err("cannot enable clock\n");
+		pr_err("canyest enable clock\n");
 		goto clk_err;
 	}
 
 	pci_base = of_iomap(child, 0);
 	if (pci_base == NULL) {
-		pr_err("cannot map registers\n");
+		pr_err("canyest map registers\n");
 		ret = -ENOMEM;
 		goto res_ioremap;
 	}
@@ -113,10 +113,10 @@ static int __init get_soc_id_by_pci(void)
 res_ioremap:
 	/*
 	 * If the PCIe unit is actually enabled and we have PCI
-	 * support in the kernel, we intentionally do not release the
+	 * support in the kernel, we intentionally do yest release the
 	 * reference to the clock. We want to keep it running since
 	 * the bootloader does some PCIe link configuration that the
-	 * kernel is for now unable to do, and gating the clock would
+	 * kernel is for yesw unable to do, and gating the clock would
 	 * make us loose this precious configuration.
 	 */
 	if (!of_device_is_available(child) || !IS_ENABLED(CONFIG_PCI_MVEBU)) {
@@ -125,8 +125,8 @@ res_ioremap:
 	}
 
 clk_err:
-	of_node_put(child);
-	of_node_put(np);
+	of_yesde_put(child);
+	of_yesde_put(np);
 
 	return ret;
 }
@@ -136,7 +136,7 @@ static int __init mvebu_soc_id_init(void)
 
 	/*
 	 * First try to get the ID and the revision by the system
-	 * register and use PCI registers only if it is not possible
+	 * register and use PCI registers only if it is yest possible
 	 */
 	if (!mvebu_system_controller_get_soc_id(&soc_dev_id, &soc_rev)) {
 		is_id_valid = true;
@@ -153,7 +153,7 @@ static int __init mvebu_soc_device(void)
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
 
-	/* Also protects against running on non-mvebu systems */
+	/* Also protects against running on yesn-mvebu systems */
 	if (!is_id_valid)
 		return 0;
 

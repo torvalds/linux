@@ -1,8 +1,8 @@
 /*
- * Scsi Host Layer for MPT (Message Passing Technology) based controllers
+ * Scsi Host Layer for MPT (Message Passing Techyeslogy) based controllers
  *
  * Copyright (C) 2012-2014  LSI Corporation
- * Copyright (C) 2013-2015 Avago Technologies
+ * Copyright (C) 2013-2015 Avago Techyeslogies
  *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
 
@@ -40,7 +40,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <asm/unaligned.h>
 
@@ -191,8 +191,8 @@ mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 	}
 
 	/*
-	 * Assumption for WD: Direct I/O is not supported if the volume is
-	 * not RAID0
+	 * Assumption for WD: Direct I/O is yest supported if the volume is
+	 * yest RAID0
 	 */
 	if (raid_device->volume_type != MPI2_RAID_VOL_TYPE_RAID0) {
 		ioc_info(ioc, "WarpDrive : Direct IO is disabled for the drive with handle(0x%04x): type=%d, s_sz=%uK, blk_size=%u\n",
@@ -226,7 +226,7 @@ mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 	ioc_info(ioc, "WarpDrive : Direct IO is Enabled for the drive with handle(0x%04x)\n",
 		 raid_device->handle);
 	/*
-	 * WARPDRIVE: Though the following fields are not used for direct IO,
+	 * WARPDRIVE: Though the following fields are yest used for direct IO,
 	 * stored for future purpose:
 	 */
 	raid_device->max_lba = le64_to_cpu(vol_pg0->MaxLBA);

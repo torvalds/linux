@@ -28,7 +28,7 @@ static void device_wakeup(struct wfx_dev *wdev)
 		if (!completion_done(&wdev->hif.ctrl_ready))
 			udelay(2000);
 	} else {
-		// completion.h does not provide any function to wait
+		// completion.h does yest provide any function to wait
 		// completion without consume it (a kind of
 		// wait_for_completion_done_timeout()). So we have to emulate
 		// it.
@@ -154,7 +154,7 @@ static int bh_work_rx(struct wfx_dev *wdev, int max_msg, int *num_cnf)
 		if (piggyback < 0)
 			return i;
 		if (!(piggyback & CTRL_WLAN_READY))
-			dev_err(wdev->dev, "unexpected piggyback value: ready bit not set: %04x\n",
+			dev_err(wdev->dev, "unexpected piggyback value: ready bit yest set: %04x\n",
 				piggyback);
 	}
 	if (piggyback & CTRL_NEXT_LEN_MASK) {
@@ -233,8 +233,8 @@ static int bh_work_tx(struct wfx_dev *wdev, int max_msg)
 	return i;
 }
 
-/* In SDIO mode, it is necessary to make an access to a register to acknowledge
- * last received message. It could be possible to restrict this acknowledge to
+/* In SDIO mode, it is necessary to make an access to a register to ackyeswledge
+ * last received message. It could be possible to restrict this ackyeswledge to
  * SDIO mode and only if last operation was rx.
  */
 static void ack_sdio_data(struct wfx_dev *wdev)
@@ -296,7 +296,7 @@ void wfx_bh_request_rx(struct wfx_dev *wdev)
 		dev_err(wdev->dev, "unexpected control register value: length field is 0: %04x\n",
 			cur);
 	if (prev != 0)
-		dev_err(wdev->dev, "received IRQ but previous data was not (yet) read: %04x/%04x\n",
+		dev_err(wdev->dev, "received IRQ but previous data was yest (yet) read: %04x/%04x\n",
 			prev, cur);
 }
 

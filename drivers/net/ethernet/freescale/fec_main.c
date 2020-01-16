@@ -3,9 +3,9 @@
  * Fast Ethernet Controller (FEC) driver for Motorola MPC8xx.
  * Copyright (c) 1997 Dan Malek (dmalek@jlc.net)
  *
- * Right now, I am very wasteful with the buffers.  I allocate memory
- * pages and then divide them into 2K frame buffers.  This way I know I
- * have buffers large enough to hold one frame within one buffer descriptor.
+ * Right yesw, I am very wasteful with the buffers.  I allocate memory
+ * pages and then divide them into 2K frame buffers.  This way I kyesw I
+ * have buffers large eyesugh to hold one frame within one buffer descriptor.
  * Once I get this working, I will use 64 or 128 byte CPM buffers, which
  * will be much more memory efficient and will easily handle lots of
  * small packets.
@@ -27,7 +27,7 @@
 #include <linux/string.h>
 #include <linux/pm_runtime.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -159,7 +159,7 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 #if defined(CONFIG_M5272)
 /*
  * Some hardware gets it MAC address out of local flash memory.
- * if this is non-zero then assume it is the address to get MAC from.
+ * if this is yesn-zero then assume it is the address to get MAC from.
  */
 #if defined(CONFIG_NETtel)
 #define	FEC_FLASHMAC	0xf0006006
@@ -195,7 +195,7 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 
 /*
  * The 5270/5271/5280/5282/532x RX control register also contains maximum frame
- * size bits. Other FEC hardware does not, so we need to take that into
+ * size bits. Other FEC hardware does yest, so we need to take that into
  * account when setting it.
  */
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
@@ -448,7 +448,7 @@ static int fec_enet_txq_submit_skb(struct fec_enet_priv_tx_q *txq,
 	if (entries_free < MAX_SKB_FRAGS + 1) {
 		dev_kfree_skb_any(skb);
 		if (net_ratelimit())
-			netdev_err(ndev, "NOT enough BD for SG!\n");
+			netdev_err(ndev, "NOT eyesugh BD for SG!\n");
 		return NETDEV_TX_OK;
 	}
 
@@ -478,7 +478,7 @@ static int fec_enet_txq_submit_skb(struct fec_enet_priv_tx_q *txq,
 			swap_buffer(bufaddr, buflen);
 	}
 
-	/* Push the data cache so the CPM does not get stale memory data. */
+	/* Push the data cache so the CPM does yest get stale memory data. */
 	addr = dma_map_single(&fep->pdev->dev, bufaddr, buflen, DMA_TO_DEVICE);
 	if (dma_mapping_error(&fep->pdev->dev, addr)) {
 		dev_kfree_skb_any(skb);
@@ -686,7 +686,7 @@ static int fec_enet_txq_submit_tso(struct fec_enet_priv_tx_q *txq,
 	if (tso_count_descs(skb) >= fec_enet_get_free_txdesc_num(txq)) {
 		dev_kfree_skb_any(skb);
 		if (net_ratelimit())
-			netdev_err(ndev, "NOT enough BD for TSO!\n");
+			netdev_err(ndev, "NOT eyesugh BD for TSO!\n");
 		return NETDEV_TX_OK;
 	}
 
@@ -1015,8 +1015,8 @@ fec_restart(struct net_device *ndev)
 
 			/*
 			 * configure the gasket:
-			 *   RMII, 50 MHz, no loopback, no echo
-			 *   MII, 25 MHz, no loopback, no echo
+			 *   RMII, 50 MHz, yes loopback, yes echo
+			 *   MII, 25 MHz, yes loopback, yes echo
 			 */
 			cfgr = (fep->phy_interface == PHY_INTERFACE_MODE_RMII)
 				? BM_MIIGSK_CFGR_RMII : BM_MIIGSK_CFGR_MII;
@@ -1100,12 +1100,12 @@ fec_stop(struct net_device *ndev)
 	u32 rmii_mode = readl(fep->hwp + FEC_R_CNTRL) & (1 << 8);
 	u32 val;
 
-	/* We cannot expect a graceful transmit stop without link !!! */
+	/* We canyest expect a graceful transmit stop without link !!! */
 	if (fep->link) {
 		writel(1, fep->hwp + FEC_X_CNTRL); /* Graceful transmit stop */
 		udelay(10);
 		if (!(readl(fep->hwp + FEC_IEVENT) & FEC_ENET_GRA))
-			netdev_err(ndev, "Graceful transmit stop did not complete!\n");
+			netdev_err(ndev, "Graceful transmit stop did yest complete!\n");
 	}
 
 	/* Whack a reset.  We should wait for this.
@@ -1276,7 +1276,7 @@ skb_done:
 		/* Update pointer to next buffer descriptor to be transmitted */
 		bdp = fec_enet_get_nextdesc(bdp, &txq->bd);
 
-		/* Since we have freed up a buffer, the ring is no longer full
+		/* Since we have freed up a buffer, the ring is yes longer full
 		 */
 		if (netif_tx_queue_stopped(nq)) {
 			entries_free = fec_enet_get_free_txdesc_num(txq);
@@ -1352,7 +1352,7 @@ static bool fec_enet_copybreak(struct net_device *ndev, struct sk_buff **skb,
 
 /* During a receive, the bd_rx.cur points to the current incoming buffer.
  * When we update through the ring, if the next incoming buffer has
- * not been given to the system, we just set the empty indicator,
+ * yest been given to the system, we just set the empty indicator,
  * effectively tossing the packet.
  */
 static int
@@ -1409,7 +1409,7 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 				/* Frame too long or too short. */
 				ndev->stats.rx_length_errors++;
 				if (status & BD_ENET_RX_LAST)
-					netdev_err(ndev, "rcv is not +last\n");
+					netdev_err(ndev, "rcv is yest +last\n");
 			}
 			if (status & BD_ENET_RX_CR)	/* CRC Error */
 				ndev->stats.rx_crc_errors++;
@@ -1491,7 +1491,7 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 				/* don't check it */
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 			} else {
-				skb_checksum_none_assert(skb);
+				skb_checksum_yesne_assert(skb);
 			}
 		}
 
@@ -1655,7 +1655,7 @@ static void fec_get_mac(struct net_device *ndev)
 	 * 2) from device tree data
 	 */
 	if (!is_valid_ether_addr(iap)) {
-		struct device_node *np = fep->pdev->dev.of_node;
+		struct device_yesde *np = fep->pdev->dev.of_yesde;
 		if (np) {
 			const char *mac = of_get_mac_address(np);
 			if (!IS_ERR(mac))
@@ -1718,9 +1718,9 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 	int status_change = 0;
 
 	/*
-	 * If the netdev is down, or is going down, we're not interested
+	 * If the netdev is down, or is going down, we're yest interested
 	 * in link state events, so just mark our idea of the link as down
-	 * and ignore the event.
+	 * and igyesre the event.
 	 */
 	if (!netif_running(ndev) || !netif_device_present(ndev)) {
 		fep->link = 0;
@@ -1951,8 +1951,8 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 	int phy_id;
 	int dev_id = fep->dev_id;
 
-	if (fep->phy_node) {
-		phy_dev = of_phy_connect(ndev, fep->phy_node,
+	if (fep->phy_yesde) {
+		phy_dev = of_phy_connect(ndev, fep->phy_yesde,
 					 &fec_enet_adjust_link, 0,
 					 fep->phy_interface);
 		if (!phy_dev) {
@@ -1971,7 +1971,7 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 		}
 
 		if (phy_id >= PHY_MAX_ADDR) {
-			netdev_info(ndev, "no PHY, assuming direct connection to switch\n");
+			netdev_info(ndev, "yes PHY, assuming direct connection to switch\n");
 			strlcpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE);
 			phy_id = 0;
 		}
@@ -1983,7 +1983,7 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 	}
 
 	if (IS_ERR(phy_dev)) {
-		netdev_err(ndev, "could not attach to PHY\n");
+		netdev_err(ndev, "could yest attach to PHY\n");
 		return PTR_ERR(phy_dev);
 	}
 
@@ -2012,19 +2012,19 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	static struct mii_bus *fec0_mii_bus;
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int err = -ENXIO;
 	u32 mii_speed, holdtime;
 
 	/*
-	 * The i.MX28 dual fec interfaces are not equal.
+	 * The i.MX28 dual fec interfaces are yest equal.
 	 * Here are the differences:
 	 *
 	 *  - fec0 supports MII & RMII modes while fec1 only supports RMII
 	 *  - fec0 acts as the 1588 time master while fec1 is slave
 	 *  - external phys can only be configured by fec0
 	 *
-	 * That is to say fec1 can not work independently. It only works
+	 * That is to say fec1 can yest work independently. It only works
 	 * when fec0 is working. The reason behind this design is that the
 	 * second interface is added primarily for Switch mode.
 	 *
@@ -2062,16 +2062,16 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	}
 
 	/*
-	 * The i.MX28 and i.MX6 types have another filed in the MSCR (aka
+	 * The i.MX28 and i.MX6 types have ayesther filed in the MSCR (aka
 	 * MII_SPEED) register that defines the MDIO output hold time. Earlier
-	 * versions are RAZ there, so just ignore the difference and write the
+	 * versions are RAZ there, so just igyesre the difference and write the
 	 * register always.
 	 * The minimal hold time according to IEE802.3 (clause 22) is 10 ns.
 	 * HOLDTIME + 1 is the number of clk cycles the fec is holding the
 	 * output.
 	 * The HOLDTIME bitfield takes values between 0 and 7 (inclusive).
 	 * Given that ceil(clkrate / 5000000) <= 64, the calculation for
-	 * holdtime cannot result in a value greater than 3.
+	 * holdtime canyest result in a value greater than 3.
 	 */
 	holdtime = DIV_ROUND_UP(clk_get_rate(fep->clk_ipg), 100000000) - 1;
 
@@ -2093,9 +2093,9 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	fep->mii_bus->priv = fep;
 	fep->mii_bus->parent = &pdev->dev;
 
-	node = of_get_child_by_name(pdev->dev.of_node, "mdio");
-	err = of_mdiobus_register(fep->mii_bus, node);
-	of_node_put(node);
+	yesde = of_get_child_by_name(pdev->dev.of_yesde, "mdio");
+	err = of_mdiobus_register(fep->mii_bus, yesde);
+	of_yesde_put(yesde);
 	if (err)
 		goto err_out_free_mdiobus;
 
@@ -2917,7 +2917,7 @@ fec_enet_open(struct net_device *ndev)
 	else
 		reset_again = true;
 
-	/* I should reset the ring buffers here, but I don't yet know
+	/* I should reset the ring buffers here, but I don't yet kyesw
 	 * a simple way to do that.
 	 */
 
@@ -2996,8 +2996,8 @@ fec_enet_close(struct net_device *ndev)
  * Skeleton taken from sunlance driver.
  * The CPM Ethernet implementation allows Multicast as well as individual
  * MAC address filtering.  Some of the drivers check to make sure it is
- * a group multicast address, and discard those that are not.  I guess I
- * will do the same for now, but just remove the test if you want
+ * a group multicast address, and discard those that are yest.  I guess I
+ * will do the same for yesw, but just remove the test if you want
  * individual filtering as well (do the upper net layers want or support
  * this kind of feature?).
  */
@@ -3087,7 +3087,7 @@ fec_set_mac_address(struct net_device *ndev, void *p)
  * fec_poll_controller - FEC Poll controller function
  * @dev: The FEC network adapter
  *
- * Polled functionality used by netconsole and others in non interrupt mode
+ * Polled functionality used by netconsole and others in yesn interrupt mode
  *
  */
 static void fec_poll_controller(struct net_device *dev)
@@ -3293,13 +3293,13 @@ static int fec_reset_phy(struct platform_device *pdev)
 	int err, phy_reset;
 	bool active_high = false;
 	int msec = 1, phy_post_delay = 0;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	if (!np)
 		return 0;
 
 	err = of_property_read_u32(np, "phy-reset-duration", &msec);
-	/* A sane reset duration should not be longer than 1s */
+	/* A sane reset duration should yest be longer than 1s */
 	if (!err && msec > 1000)
 		msec = 1;
 
@@ -3356,7 +3356,7 @@ static int fec_reset_phy(struct platform_device *pdev)
 static void
 fec_enet_get_queue_num(struct platform_device *pdev, int *num_tx, int *num_rx)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	*num_tx = *num_rx = 1;
 
@@ -3407,7 +3407,7 @@ fec_probe(struct platform_device *pdev)
 	int i, irq, ret = 0;
 	const struct of_device_id *of_id;
 	static int dev_id;
-	struct device_node *np = pdev->dev.of_node, *phy_node;
+	struct device_yesde *np = pdev->dev.of_yesde, *phy_yesde;
 	int num_tx_qs;
 	int num_rx_qs;
 	char irq_name[8];
@@ -3463,19 +3463,19 @@ fec_probe(struct platform_device *pdev)
 	if (of_get_property(np, "fsl,magic-packet", NULL))
 		fep->wol_flag |= FEC_WOL_HAS_MAGIC_PACKET;
 
-	phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!phy_node && of_phy_is_fixed_link(np)) {
+	phy_yesde = of_parse_phandle(np, "phy-handle", 0);
+	if (!phy_yesde && of_phy_is_fixed_link(np)) {
 		ret = of_phy_register_fixed_link(np);
 		if (ret < 0) {
 			dev_err(&pdev->dev,
 				"broken fixed-link specification\n");
 			goto failed_phy;
 		}
-		phy_node = of_node_get(np);
+		phy_yesde = of_yesde_get(np);
 	}
-	fep->phy_node = phy_node;
+	fep->phy_yesde = phy_yesde;
 
-	ret = of_get_phy_mode(pdev->dev.of_node, &interface);
+	ret = of_get_phy_mode(pdev->dev.of_yesde, &interface);
 	if (ret) {
 		pdata = dev_get_platdata(&pdev->dev);
 		if (pdata)
@@ -3549,7 +3549,7 @@ fec_probe(struct platform_device *pdev)
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, FEC_MDIO_PM_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -3619,7 +3619,7 @@ failed_init:
 	if (fep->reg_phy)
 		regulator_disable(fep->reg_phy);
 failed_reset:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 failed_regulator:
 	clk_disable_unprepare(fep->clk_ahb);
@@ -3630,7 +3630,7 @@ failed_clk_ipg:
 failed_clk:
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
-	of_node_put(phy_node);
+	of_yesde_put(phy_yesde);
 failed_phy:
 	dev_id--;
 failed_ioremap:
@@ -3644,7 +3644,7 @@ fec_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	ret = pm_runtime_get_sync(&pdev->dev);
@@ -3660,12 +3660,12 @@ fec_drv_remove(struct platform_device *pdev)
 
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
-	of_node_put(fep->phy_node);
+	of_yesde_put(fep->phy_yesde);
 	free_netdev(ndev);
 
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;

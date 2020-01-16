@@ -11,7 +11,7 @@
  * ??-12-1998: Initial implementation.
  * 31-01-1999: Make port-cloning transparent.
  * 13-02-1999: Move DeviceID technique from parport_probe.
- * 13-03-1999: Get DeviceID from non-IEEE 1284.3 devices too.
+ * 13-03-1999: Get DeviceID from yesn-IEEE 1284.3 devices too.
  * 22-02-2000: Count devices that are actually detected.
  *
  * Any part of this program may be used in documents licensed under
@@ -121,7 +121,7 @@ int parport_daisy_init(struct parport *port)
 		/*
 		 * flag should be marked true first as
 		 * parport_register_driver() might try to load the low
-		 * level driver which will lead to announcing new ports
+		 * level driver which will lead to anyesuncing new ports
 		 * and which will again come back here at
 		 * parport_daisy_init()
 		 */
@@ -138,7 +138,7 @@ again:
 	/* Because this is called before any other devices exist,
 	 * we don't have to claim exclusive access.  */
 
-	/* If mux present on normal port, need to create new
+	/* If mux present on yesrmal port, need to create new
 	 * parports for each extra port. */
 	if (port->muxport < 0 && mux_present(port) &&
 	    /* don't be fooled: a mux must have 2 or 4 ports. */
@@ -233,8 +233,8 @@ void parport_daisy_fini(struct parport *port)
 }
 
 /**
- *	parport_open - find a device by canonical device number
- *	@devnum: canonical device number
+ *	parport_open - find a device by cayesnical device number
+ *	@devnum: cayesnical device number
  *	@name: name to associate with the device
  *
  *	This function is similar to parport_register_device(), except
@@ -496,9 +496,9 @@ static int assign_addrs(struct parport *port)
 		if (!(s & PARPORT_STATUS_BUSY))
 			break;
 
-		/* We are seeing pass through status now. We see
-		   last_dev from next device or if last_dev does not
-		   work status lines from some non-daisy chain
+		/* We are seeing pass through status yesw. We see
+		   last_dev from next device or if last_dev does yest
+		   work status lines from some yesn-daisy chain
 		   device. */
 		s = parport_read_status(port);
 	}

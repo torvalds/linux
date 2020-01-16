@@ -8,7 +8,7 @@ Introduction:
 This is a test utility to verify ION buffer sharing in user space
 between 2 independent processes.
 It uses unix domain socket (with SCM_RIGHTS) as IPC to transfer an FD to
-another process to share the same buffer.
+ayesther process to share the same buffer.
 This utility demonstrates how ION buffer sharing can be implemented between
 two user space processes, using various heap types.
 The following heap types are supported by ION driver.
@@ -24,7 +24,7 @@ This utility is designed in the form of client/server program.
 The server part (ionapp_export) is the exporter of the buffer.
 It is responsible for creating an ION client, allocating the buffer based on
 the heap id, writing some data to this buffer and then exporting the FD
-(associated with this buffer) to another process using socket IPC.
+(associated with this buffer) to ayesther process using socket IPC.
 This FD is called as buffer FD (which is different than the ION client FD).
 
 The client part (ionapp_import) is the importer of the buffer.

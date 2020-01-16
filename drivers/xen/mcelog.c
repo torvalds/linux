@@ -20,7 +20,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -71,7 +71,7 @@ static int xen_mce_chrdev_open_exclu;	/* already open exclusive? */
 
 static DECLARE_WAIT_QUEUE_HEAD(xen_mce_chrdev_wait);
 
-static int xen_mce_chrdev_open(struct inode *inode, struct file *file)
+static int xen_mce_chrdev_open(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock(&xen_mce_chrdev_state_lock);
 
@@ -88,10 +88,10 @@ static int xen_mce_chrdev_open(struct inode *inode, struct file *file)
 
 	spin_unlock(&xen_mce_chrdev_state_lock);
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
-static int xen_mce_chrdev_release(struct inode *inode, struct file *file)
+static int xen_mce_chrdev_release(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock(&xen_mce_chrdev_state_lock);
 
@@ -114,7 +114,7 @@ static ssize_t xen_mce_chrdev_read(struct file *filp, char __user *ubuf,
 
 	num = xen_mcelog.next;
 
-	/* Only supports full reads right now */
+	/* Only supports full reads right yesw */
 	err = -EINVAL;
 	if (*off != 0 || usize < XEN_MCE_LOG_LEN*sizeof(struct xen_mce))
 		goto out;
@@ -182,7 +182,7 @@ static const struct file_operations xen_mce_chrdev_ops = {
 	.read			= xen_mce_chrdev_read,
 	.poll			= xen_mce_chrdev_poll,
 	.unlocked_ioctl		= xen_mce_chrdev_ioctl,
-	.llseek			= no_llseek,
+	.llseek			= yes_llseek,
 };
 
 static struct miscdevice xen_mce_chrdev_device = {
@@ -304,7 +304,7 @@ static int mc_queue_handle(uint32_t flags)
 		ret = HYPERVISOR_mca(&mc_op);
 		if (ret) {
 			pr_err("Failed to fetch %surgent error log\n",
-			       flags == XEN_MC_URGENT ? "" : "non");
+			       flags == XEN_MC_URGENT ? "" : "yesn");
 			break;
 		}
 
@@ -338,12 +338,12 @@ static void xen_mce_work_fn(struct work_struct *work)
 	/* urgent mc_info */
 	err = mc_queue_handle(XEN_MC_URGENT);
 	if (err)
-		pr_err("Failed to handle urgent mc_info queue, continue handling nonurgent mc_info queue anyway\n");
+		pr_err("Failed to handle urgent mc_info queue, continue handling yesnurgent mc_info queue anyway\n");
 
-	/* nonurgent mc_info */
+	/* yesnurgent mc_info */
 	err = mc_queue_handle(XEN_MC_NONURGENT);
 	if (err)
-		pr_err("Failed to handle nonurgent mc_info queue\n");
+		pr_err("Failed to handle yesnurgent mc_info queue\n");
 
 	/* wake processes polling /dev/mcelog */
 	wake_up_interruptible(&xen_mce_chrdev_wait);

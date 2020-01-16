@@ -137,7 +137,7 @@ static int get_key(int data)
 	 * 0x5e or 0x5f (   >"   )	key: 15		-> KEY_PLAYPAUSE
 	 *
 	 * Packets starting with 0x5 are part of a two-packets message,
-	 * we notify the caller by sending a negative value.
+	 * we yestify the caller by sending a negative value.
 	 */
 	int key = (data >> 1) & KEY_MASK;
 

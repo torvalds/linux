@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -232,9 +232,9 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
 		struct ieee80211_hdr *hdr =
 			(struct ieee80211_hdr *) beacon->data;
-		avp->seq_no += 0x10;
+		avp->seq_yes += 0x10;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		hdr->seq_ctrl |= cpu_to_le16(avp->seq_no);
+		hdr->seq_ctrl |= cpu_to_le16(avp->seq_yes);
 	}
 
 	tx_ctl = HTC_SKB_CB(beacon);
@@ -251,7 +251,7 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 	if (ret != 0) {
 		if (ret == -ENOMEM) {
 			ath_dbg(common, BSTUCK,
-				"Failed to send beacon, no free TX buffer\n");
+				"Failed to send beacon, yes free TX buffer\n");
 		}
 		dev_kfree_skb_any(beacon);
 	}
@@ -371,7 +371,7 @@ void ath9k_htc_set_tsfadjust(struct ath9k_htc_priv *priv,
 		return;
 
 	/*
-	 * The beacon interval cannot be different for multi-AP mode,
+	 * The beacon interval canyest be different for multi-AP mode,
 	 * and we reach here only for VIF slots greater than zero,
 	 * so beacon_interval is guaranteed to be set in cur_conf.
 	 */
@@ -416,12 +416,12 @@ static bool ath9k_htc_check_beacon_config(struct ath9k_htc_priv *priv,
 
 	/*
 	 * If the HW is operating in AP mode, any new station interfaces that
-	 * are added cannot change the beacon parameters.
+	 * are added canyest change the beacon parameters.
 	 */
 	if (priv->num_ap_vif &&
 	    (vif->type != NL80211_IFTYPE_AP)) {
 		ath_dbg(common, CONFIG,
-			"HW in AP mode, cannot set STA beacon parameters\n");
+			"HW in AP mode, canyest set STA beacon parameters\n");
 		return false;
 	}
 

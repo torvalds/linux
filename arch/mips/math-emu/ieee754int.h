@@ -118,7 +118,7 @@ static inline int ieee754_class_nan(int xc)
 
 #define FLUSHDP(v, vc, vs, ve, vm)					\
 	if (vc==IEEE754_CLASS_DNORM) {					\
-		if (ieee754_csr.nod) {					\
+		if (ieee754_csr.yesd) {					\
 			ieee754_setcx(IEEE754_INEXACT);			\
 			vc = IEEE754_CLASS_ZERO;			\
 			ve = DP_EMIN-1+DP_EBIAS;			\
@@ -129,7 +129,7 @@ static inline int ieee754_class_nan(int xc)
 
 #define FLUSHSP(v, vc, vs, ve, vm)					\
 	if (vc==IEEE754_CLASS_DNORM) {					\
-		if (ieee754_csr.nod) {					\
+		if (ieee754_csr.yesd) {					\
 			ieee754_setcx(IEEE754_INEXACT);			\
 			vc = IEEE754_CLASS_ZERO;			\
 			ve = SP_EMIN-1+SP_EBIAS;			\

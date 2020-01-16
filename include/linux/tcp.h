@@ -63,7 +63,7 @@ struct tcp_fastopen_cookie {
 	bool	exp;	/* In RFC6994 experimental option format */
 };
 
-/* This defines a selective acknowledgement block. */
+/* This defines a selective ackyeswledgement block. */
 struct tcp_sack_block_wire {
 	__be32	start_seq;
 	__be32	end_seq;
@@ -191,13 +191,13 @@ struct tcp_sock {
 
 	u32	tsoffset;	/* timestamp offset */
 
-	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
+	struct list_head tsq_yesde; /* anchor in tsq_tasklet.head list */
 	struct list_head tsorted_sent_queue; /* time-sorted sent but un-SACKed skbs */
 
 	u32	snd_wl1;	/* Sequence for window update		*/
 	u32	snd_wnd;	/* The window we expect to receive	*/
 	u32	max_window;	/* Maximal window ever seen from peer	*/
-	u32	mss_cache;	/* Cached effective mss, not including SACKS */
+	u32	mss_cache;	/* Cached effective mss, yest including SACKS */
 
 	u32	window_clamp;	/* Maximal window to advertise		*/
 	u32	rcv_ssthresh;	/* Current window clamp			*/
@@ -216,15 +216,15 @@ struct tcp_sock {
 	} rack;
 	u16	advmss;		/* Advertised MSS			*/
 	u8	compressed_ack;
-	u32	chrono_start;	/* Start time in jiffies of a TCP chrono */
-	u32	chrono_stat[3];	/* Time in jiffies for chrono_stat stats */
-	u8	chrono_type:2,	/* current chronograph type */
+	u32	chroyes_start;	/* Start time in jiffies of a TCP chroyes */
+	u32	chroyes_stat[3];	/* Time in jiffies for chroyes_stat stats */
+	u8	chroyes_type:2,	/* current chroyesgraph type */
 		rate_app_limited:1,  /* rate_{delivered,interval_us} limited? */
 		fastopen_connect:1, /* FASTOPEN_CONNECT sockopt */
-		fastopen_no_cookie:1, /* Allow send/recv SYN+data without a cookie */
+		fastopen_yes_cookie:1, /* Allow send/recv SYN+data without a cookie */
 		is_sack_reneg:1,    /* in recovery from loss with SACK reneg? */
 		fastopen_client_fail:2; /* reason why fastopen failed */
-	u8	nonagle     : 4,/* Disable Nagle algorithm?             */
+	u8	yesnagle     : 4,/* Disable Nagle algorithm?             */
 		thin_lto    : 1,/* Use linear timeouts for thin streams */
 		recvmsg_inq : 1,/* Indicate # of bytes in queue upon recvmsg */
 		repair      : 1,
@@ -276,7 +276,7 @@ struct tcp_sock {
  	u32	snd_ssthresh;	/* Slow start size threshold		*/
  	u32	snd_cwnd;	/* Sending congestion window		*/
 	u32	snd_cwnd_cnt;	/* Linear increase counter		*/
-	u32	snd_cwnd_clamp; /* Do not allow snd_cwnd to grow above this */
+	u32	snd_cwnd_clamp; /* Do yest allow snd_cwnd to grow above this */
 	u32	snd_cwnd_used;
 	u32	snd_cwnd_stamp;
 	u32	prior_cwnd;	/* cwnd right before starting loss recovery */
@@ -294,7 +294,7 @@ struct tcp_sock {
 
  	u32	rcv_wnd;	/* Current receiver window		*/
 	u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */
-	u32	notsent_lowat;	/* TCP_NOTSENT_LOWAT */
+	u32	yestsent_lowat;	/* TCP_NOTSENT_LOWAT */
 	u32	pushed_seq;	/* Last pushed seq, required to talk to windows */
 	u32	lost_out;	/* Lost packets			*/
 	u32	sacked_out;	/* SACK'd packets			*/
@@ -403,7 +403,7 @@ enum tsq_enum {
 	TCP_TSQ_DEFERRED,	   /* tcp_tasklet_func() found socket was owned */
 	TCP_WRITE_TIMER_DEFERRED,  /* tcp_write_timer() found socket was owned */
 	TCP_DELACK_TIMER_DEFERRED, /* tcp_delack_timer() found socket was owned */
-	TCP_MTU_REDUCED_DEFERRED,  /* tcp_v{4|6}_err() could not call
+	TCP_MTU_REDUCED_DEFERRED,  /* tcp_v{4|6}_err() could yest call
 				    * tcp_v{4|6}_mtu_reduced()
 				    */
 };
@@ -476,7 +476,7 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk);
 
 static inline u16 tcp_mss_clamp(const struct tcp_sock *tp, u16 mss)
 {
-	/* We use READ_ONCE() here because socket might not be locked.
+	/* We use READ_ONCE() here because socket might yest be locked.
 	 * This happens for listeners.
 	 */
 	u16 user_mss = READ_ONCE(tp->rx_opt.user_mss);

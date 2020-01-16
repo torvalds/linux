@@ -39,7 +39,7 @@ struct intf_prog_fetch {
 };
 
 struct intf_status {
-	u8 is_en;		/* interface timing engine is enabled or not */
+	u8 is_en;		/* interface timing engine is enabled or yest */
 	u32 frame_count;	/* frame count since timing engine enabled */
 	u32 line_count;		/* current line count including blanking */
 };
@@ -50,7 +50,7 @@ struct intf_status {
  * @ setup_timing_gen : programs the timing engine
  * @ setup_prog_fetch : enables/disables the programmable fetch logic
  * @ enable_timing: enable/disable timing engine
- * @ get_status: returns if timing engine is enabled or not
+ * @ get_status: returns if timing engine is enabled or yest
  * @ get_line_count: reads current vertical line counter
  */
 struct dpu_hw_intf_ops {

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -206,7 +206,7 @@ static int allocate_vmid(struct device_queue_manager *dqm,
 	}
 
 	if (allocated_vmid < 0) {
-		pr_err("no more vmid to allocate\n");
+		pr_err("yes more vmid to allocate\n");
 		return -ENOSPC;
 	}
 
@@ -237,7 +237,7 @@ static int allocate_vmid(struct device_queue_manager *dqm,
 	return 0;
 }
 
-static int flush_texture_cache_nocpsch(struct kfd_dev *kdev,
+static int flush_texture_cache_yescpsch(struct kfd_dev *kdev,
 				struct qcm_process_device *qpd)
 {
 	const struct packet_manager_funcs *pmf = qpd->dqm->packets.pmf;
@@ -261,7 +261,7 @@ static void deallocate_vmid(struct device_queue_manager *dqm,
 {
 	/* On GFX v7, CP doesn't flush TC at dequeue */
 	if (q->device->device_info->asic_family == CHIP_HAWAII)
-		if (flush_texture_cache_nocpsch(q->device, qpd))
+		if (flush_texture_cache_yescpsch(q->device, qpd))
 			pr_err("Failed to flush TC\n");
 
 	kfd_flush_tlb(qpd_to_pdd(qpd));
@@ -274,7 +274,7 @@ static void deallocate_vmid(struct device_queue_manager *dqm,
 	q->properties.vmid = 0;
 }
 
-static int create_queue_nocpsch(struct device_queue_manager *dqm,
+static int create_queue_yescpsch(struct device_queue_manager *dqm,
 				struct queue *q,
 				struct qcm_process_device *qpd)
 {
@@ -300,8 +300,8 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	q->properties.vmid = qpd->vmid;
 	/*
 	 * Eviction state logic: mark all queues as evicted, even ones
-	 * not currently active. Restoring inactive queues later only
-	 * updates the is_evicted flag but is a no-op otherwise.
+	 * yest currently active. Restoring inactive queues later only
+	 * updates the is_evicted flag but is a yes-op otherwise.
 	 */
 	q->properties.is_evicted = !!qpd->evicted;
 
@@ -341,7 +341,7 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 				&q->gart_mqd_addr, &q->properties);
 	if (q->properties.is_active) {
 		if (!dqm->sched_running) {
-			WARN_ONCE(1, "Load non-HWS mqd while stopped\n");
+			WARN_ONCE(1, "Load yesn-HWS mqd while stopped\n");
 			goto add_queue_to_list;
 		}
 
@@ -433,10 +433,10 @@ static inline void deallocate_hqd(struct device_queue_manager *dqm,
 	dqm->allocated_queues[q->pipe] |= (1 << q->queue);
 }
 
-/* Access to DQM has to be locked before calling destroy_queue_nocpsch_locked
+/* Access to DQM has to be locked before calling destroy_queue_yescpsch_locked
  * to avoid asynchronized access
  */
-static int destroy_queue_nocpsch_locked(struct device_queue_manager *dqm,
+static int destroy_queue_yescpsch_locked(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd,
 				struct queue *q)
 {
@@ -464,7 +464,7 @@ static int destroy_queue_nocpsch_locked(struct device_queue_manager *dqm,
 	deallocate_doorbell(qpd, q);
 
 	if (!dqm->sched_running) {
-		WARN_ONCE(1, "Destroy non-HWS queue while stopped\n");
+		WARN_ONCE(1, "Destroy yesn-HWS queue while stopped\n");
 		return 0;
 	}
 
@@ -480,7 +480,7 @@ static int destroy_queue_nocpsch_locked(struct device_queue_manager *dqm,
 	list_del(&q->list);
 	if (list_empty(&qpd->queues_list)) {
 		if (qpd->reset_wavefronts) {
-			pr_warn("Resetting wave fronts (nocpsch) on dev %p\n",
+			pr_warn("Resetting wave fronts (yescpsch) on dev %p\n",
 					dqm->dev);
 			/* dbgdev_wave_reset_wavefronts has to be called before
 			 * deallocate_vmid(), i.e. when vmid is still in use.
@@ -499,14 +499,14 @@ static int destroy_queue_nocpsch_locked(struct device_queue_manager *dqm,
 	return retval;
 }
 
-static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
+static int destroy_queue_yescpsch(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd,
 				struct queue *q)
 {
 	int retval;
 
 	dqm_lock(dqm);
-	retval = destroy_queue_nocpsch_locked(dqm, qpd, q);
+	retval = destroy_queue_yescpsch_locked(dqm, qpd, q);
 	dqm_unlock(dqm);
 
 	return retval;
@@ -545,7 +545,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 		    q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI)) {
 
 		if (!dqm->sched_running) {
-			WARN_ONCE(1, "Update non-HWS queue while stopped\n");
+			WARN_ONCE(1, "Update yesn-HWS queue while stopped\n");
 			goto out_unlock;
 		}
 
@@ -591,7 +591,7 @@ out_unlock:
 	return retval;
 }
 
-static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
+static int evict_process_queues_yescpsch(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
 	struct queue *q;
@@ -600,7 +600,7 @@ static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 	int retval, ret = 0;
 
 	dqm_lock(dqm);
-	if (qpd->evicted++ > 0) /* already evicted, do nothing */
+	if (qpd->evicted++ > 0) /* already evicted, do yesthing */
 		goto out;
 
 	pdd = qpd_to_pdd(qpd);
@@ -646,7 +646,7 @@ static int evict_process_queues_cpsch(struct device_queue_manager *dqm,
 	int retval = 0;
 
 	dqm_lock(dqm);
-	if (qpd->evicted++ > 0) /* already evicted, do nothing */
+	if (qpd->evicted++ > 0) /* already evicted, do yesthing */
 		goto out;
 
 	pdd = qpd_to_pdd(qpd);
@@ -674,7 +674,7 @@ out:
 	return retval;
 }
 
-static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
+static int restore_process_queues_yescpsch(struct device_queue_manager *dqm,
 					  struct qcm_process_device *qpd)
 {
 	struct mm_struct *mm = NULL;
@@ -689,7 +689,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 	pd_base = amdgpu_amdkfd_gpuvm_get_process_page_dir(pdd->vm);
 
 	dqm_lock(dqm);
-	if (WARN_ON_ONCE(!qpd->evicted)) /* already restored, do nothing */
+	if (WARN_ON_ONCE(!qpd->evicted)) /* already restored, do yesthing */
 		goto out;
 	if (qpd->evicted > 1) { /* ref count still > 0, decrement & quit */
 		qpd->evicted--;
@@ -720,7 +720,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 		goto out;
 	}
 
-	/* Remove the eviction flags. Activate queues that are not
+	/* Remove the eviction flags. Activate queues that are yest
 	 * inactive for other reasons.
 	 */
 	list_for_each_entry(q, &qpd->queues_list, list) {
@@ -765,7 +765,7 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 	pd_base = amdgpu_amdkfd_gpuvm_get_process_page_dir(pdd->vm);
 
 	dqm_lock(dqm);
-	if (WARN_ON_ONCE(!qpd->evicted)) /* already restored, do nothing */
+	if (WARN_ON_ONCE(!qpd->evicted)) /* already restored, do yesthing */
 		goto out;
 	if (qpd->evicted > 1) { /* ref count still > 0, decrement & quit */
 		qpd->evicted--;
@@ -799,7 +799,7 @@ out:
 static int register_process(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
-	struct device_process_node *n;
+	struct device_process_yesde *n;
 	struct kfd_process_device *pdd;
 	uint64_t pd_base;
 	int retval;
@@ -839,10 +839,10 @@ static int unregister_process(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
 	int retval;
-	struct device_process_node *cur, *next;
+	struct device_process_yesde *cur, *next;
 
 	pr_debug("qpd->queues_list is %s\n",
-			list_empty(&qpd->queues_list) ? "empty" : "not empty");
+			list_empty(&qpd->queues_list) ? "empty" : "yest empty");
 
 	retval = 0;
 	dqm_lock(dqm);
@@ -855,7 +855,7 @@ static int unregister_process(struct device_queue_manager *dqm,
 			goto out;
 		}
 	}
-	/* qpd not found in dqm list */
+	/* qpd yest found in dqm list */
 	retval = 1;
 out:
 	dqm_unlock(dqm);
@@ -886,7 +886,7 @@ static void init_interrupts(struct device_queue_manager *dqm)
 			dqm->dev->kfd2kgd->init_interrupts(dqm->dev->kgd, i);
 }
 
-static int initialize_nocpsch(struct device_queue_manager *dqm)
+static int initialize_yescpsch(struct device_queue_manager *dqm)
 {
 	int pipe, queue;
 
@@ -933,7 +933,7 @@ static void uninitialize(struct device_queue_manager *dqm)
 	kfd_gtt_sa_free(dqm->dev, dqm->pipeline_mem);
 }
 
-static int start_nocpsch(struct device_queue_manager *dqm)
+static int start_yescpsch(struct device_queue_manager *dqm)
 {
 	init_interrupts(dqm);
 	
@@ -944,7 +944,7 @@ static int start_nocpsch(struct device_queue_manager *dqm)
 	return 0;
 }
 
-static int stop_nocpsch(struct device_queue_manager *dqm)
+static int stop_yescpsch(struct device_queue_manager *dqm)
 {
 	if (dqm->dev->device_info->asic_family == CHIP_HAWAII)
 		pm_uninit(&dqm->packets);
@@ -1216,8 +1216,8 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	dqm_lock(dqm);
 	/*
 	 * Eviction state logic: mark all queues as evicted, even ones
-	 * not currently active. Restoring inactive queues later only
-	 * updates the is_evicted flag but is a no-op otherwise.
+	 * yest currently active. Restoring inactive queues later only
+	 * updates the is_evicted flag but is a yes-op otherwise.
 	 */
 	q->properties.is_evicted = !!qpd->evicted;
 	mqd_mgr->init_mqd(mqd_mgr, &q->mqd, q->mqd_mem_obj,
@@ -1270,7 +1270,7 @@ int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 		if (time_after(jiffies, end_jiffies)) {
 			pr_err("qcm fence wait loop timeout expired\n");
 			/* In HWS case, this is used to halt the driver thread
-			 * in order not to mess up CP states before doing
+			 * in order yest to mess up CP states before doing
 			 * scandumps for FW debugging.
 			 */
 			while (halt_if_hws_hang)
@@ -1395,7 +1395,7 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 
 	if (qpd->is_debug) {
 		/*
-		 * error, currently we do not allow to destroy a queue
+		 * error, currently we do yest allow to destroy a queue
 		 * of a currently debugged process
 		 */
 		retval = -EBUSY;
@@ -1537,11 +1537,11 @@ static int set_trap_handler(struct device_queue_manager *dqm,
 	return 0;
 }
 
-static int process_termination_nocpsch(struct device_queue_manager *dqm,
+static int process_termination_yescpsch(struct device_queue_manager *dqm,
 		struct qcm_process_device *qpd)
 {
 	struct queue *q, *next;
-	struct device_process_node *cur, *next_dpn;
+	struct device_process_yesde *cur, *next_dpn;
 	int retval = 0;
 	bool found = false;
 
@@ -1551,7 +1551,7 @@ static int process_termination_nocpsch(struct device_queue_manager *dqm,
 	list_for_each_entry_safe(q, next, &qpd->queues_list, list) {
 		int ret;
 
-		ret = destroy_queue_nocpsch_locked(dqm, qpd, q);
+		ret = destroy_queue_yescpsch_locked(dqm, qpd, q);
 		if (ret)
 			retval = ret;
 	}
@@ -1617,7 +1617,7 @@ static int process_termination_cpsch(struct device_queue_manager *dqm,
 	struct queue *q, *next;
 	struct kernel_queue *kq, *kq_next;
 	struct mqd_manager *mqd_mgr;
-	struct device_process_node *cur, *next_dpn;
+	struct device_process_yesde *cur, *next_dpn;
 	enum kfd_unmap_queues_filter filter =
 		KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES;
 	bool found = false;
@@ -1746,9 +1746,9 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		return NULL;
 
 	switch (dev->device_info->asic_family) {
-	/* HWS is not available on Hawaii. */
+	/* HWS is yest available on Hawaii. */
 	case CHIP_HAWAII:
-	/* HWS depends on CWSR for timely dequeue. CWSR is not
+	/* HWS depends on CWSR for timely dequeue. CWSR is yest
 	 * available on Tonga.
 	 *
 	 * FIXME: This argument also applies to Kaveri.
@@ -1785,22 +1785,22 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.get_wave_state = get_wave_state;
 		break;
 	case KFD_SCHED_POLICY_NO_HWS:
-		/* initialize dqm for no cp scheduling */
-		dqm->ops.start = start_nocpsch;
-		dqm->ops.stop = stop_nocpsch;
-		dqm->ops.create_queue = create_queue_nocpsch;
-		dqm->ops.destroy_queue = destroy_queue_nocpsch;
+		/* initialize dqm for yes cp scheduling */
+		dqm->ops.start = start_yescpsch;
+		dqm->ops.stop = stop_yescpsch;
+		dqm->ops.create_queue = create_queue_yescpsch;
+		dqm->ops.destroy_queue = destroy_queue_yescpsch;
 		dqm->ops.update_queue = update_queue;
 		dqm->ops.register_process = register_process;
 		dqm->ops.unregister_process = unregister_process;
-		dqm->ops.initialize = initialize_nocpsch;
+		dqm->ops.initialize = initialize_yescpsch;
 		dqm->ops.uninitialize = uninitialize;
 		dqm->ops.set_cache_memory_policy = set_cache_memory_policy;
 		dqm->ops.set_trap_handler = set_trap_handler;
-		dqm->ops.process_termination = process_termination_nocpsch;
-		dqm->ops.evict_process_queues = evict_process_queues_nocpsch;
+		dqm->ops.process_termination = process_termination_yescpsch;
+		dqm->ops.evict_process_queues = evict_process_queues_yescpsch;
 		dqm->ops.restore_process_queues =
-			restore_process_queues_nocpsch;
+			restore_process_queues_yescpsch;
 		dqm->ops.get_wave_state = get_wave_state;
 		break;
 	default:

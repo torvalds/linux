@@ -26,7 +26,7 @@
 			label = "devkit8000::led2";
 			gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>;	/* 163 -> LED2 */
 			default-state = "on";
-			linux,default-trigger = "none";
+			linux,default-trigger = "yesne";
 		};
 
 		usr {
@@ -262,7 +262,7 @@
 		bank-width = <2>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <25 IRQ_TYPE_LEVEL_LOW>;
-		davicom,no-eeprom;
+		davicom,yes-eeprom;
 
 		gpmc,mux-add-data = <0>;
 		gpmc,device-width = <1>;

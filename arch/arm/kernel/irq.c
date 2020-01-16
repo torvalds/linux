@@ -16,7 +16,7 @@
  *  should be easier.
  *
  *  IRQ's are in fact implemented a bit like signal handlers for the kernel.
- *  Naturally it's not a 1:1 relation, but there are similarities.
+ *  Naturally it's yest a 1:1 relation, but there are similarities.
  */
 #include <linux/kernel_stat.h>
 #include <linux/signal.h>
@@ -28,7 +28,7 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/kallsyms.h>
 #include <linux/proc_fs.h>
@@ -58,7 +58,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 
 /*
  * handle_IRQ handles all hardware IRQ's.  Decoded IRQs should
- * not come via this function.  Instead, they should provide their
+ * yest come via this function.  Instead, they should provide their
  * own 'handler'.  Used by platform code implementing C-based 1st
  * level decoding.
  */

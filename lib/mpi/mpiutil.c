@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
@@ -22,7 +22,7 @@
 
 /****************
  * Note:  It was a bad idea to use the number of limbs to allocate
- *	  because on a alpha the limbs are large but we normally need
+ *	  because on a alpha the limbs are large but we yesrmally need
  *	  integers of n bits - So we should chnage this to bits (or bytes).
  *
  *	  But mpi_alloc is used in a lot of places :-)
@@ -88,7 +88,7 @@ int mpi_resize(MPI a, unsigned nlimbs)
 	void *p;
 
 	if (nlimbs <= a->alloced)
-		return 0;	/* no need to do it */
+		return 0;	/* yes need to do it */
 
 	if (a->d) {
 		p = kmalloc_array(nlimbs, sizeof(mpi_limb_t), GFP_KERNEL);

@@ -147,7 +147,7 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 		}
 
 		kfree(iov);
-		/* This is only for isochronous case */
+		/* This is only for isochroyesus case */
 		kfree(iso_buffer);
 		iso_buffer = NULL;
 
@@ -249,7 +249,7 @@ int vhci_tx_loop(void *data)
 					  !list_empty(&vdev->unlink_tx) ||
 					  kthread_should_stop()));
 
-		usbip_dbg_vhci_tx("pending urbs ?, now wake up\n");
+		usbip_dbg_vhci_tx("pending urbs ?, yesw wake up\n");
 	}
 
 	return 0;

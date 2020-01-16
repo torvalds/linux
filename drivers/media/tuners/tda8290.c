@@ -157,8 +157,8 @@ static struct {
 	{ { 0x0b, 0x4b} },
 	{ { 0x0c, 0x68} },
 
-	{ { 0x0d, 0x00} },	/* PLL off, no video carrier detect */
-	{ { 0x14, 0x00} },	/* disable auto mute if no video */
+	{ { 0x0d, 0x00} },	/* PLL off, yes video carrier detect */
+	{ { 0x14, 0x00} },	/* disable auto mute if yes video */
 };
 
 static void tda8290_set_params(struct dvb_frontend *fe,
@@ -175,7 +175,7 @@ static void tda8290_set_params(struct dvb_frontend *fe,
 	static unsigned char adc_head_6[]  = { 0x05, 0x04 };
 	static unsigned char adc_head_9[]  = { 0x05, 0x02 };
 	static unsigned char adc_head_12[] = { 0x05, 0x01 };
-	static unsigned char pll_bw_nom[]  = { 0x0d, 0x47 };
+	static unsigned char pll_bw_yesm[]  = { 0x0d, 0x47 };
 	static unsigned char pll_bw_low[]  = { 0x0d, 0x27 };
 	static unsigned char gainset_2[]   = { 0x28, 0x64 };
 	static unsigned char agc_rst_on[]  = { 0x0e, 0x0b };
@@ -218,7 +218,7 @@ static void tda8290_set_params(struct dvb_frontend *fe,
 			tuner_i2c_xfer_send(&priv->i2c_props, adc_head_9, 2);
 		else
 			tuner_i2c_xfer_send(&priv->i2c_props, adc_head_6, 2);
-		tuner_i2c_xfer_send(&priv->i2c_props, pll_bw_nom, 2);
+		tuner_i2c_xfer_send(&priv->i2c_props, pll_bw_yesm, 2);
 	}
 
 
@@ -241,7 +241,7 @@ static void tda8290_set_params(struct dvb_frontend *fe,
 			tuner_dbg("tda8290 is locked, AGC: %d\n", agc_stat);
 			break;
 		} else {
-			tuner_dbg("tda8290 not locked, no signal?\n");
+			tuner_dbg("tda8290 yest locked, yes signal?\n");
 			msleep(100);
 		}
 	}
@@ -429,7 +429,7 @@ static void tda8295_set_params(struct dvb_frontend *fe,
 	if (signal)
 		tuner_dbg("tda8295 is locked\n");
 	else
-		tuner_dbg("tda8295 not locked, no signal?\n");
+		tuner_dbg("tda8295 yest locked, yes signal?\n");
 
 	if (fe->ops.analog_ops.i2c_gate_ctrl)
 		fe->ops.analog_ops.i2c_gate_ctrl(fe, 0);
@@ -589,7 +589,7 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 	}
 	/* if there is more than one tuner, we expect the right one is
 	   behind the bridge and we choose the highest address that doesn't
-	   give a response now
+	   give a response yesw
 	 */
 
 	if (fe->ops.analog_ops.i2c_gate_ctrl)
@@ -607,7 +607,7 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 
 	if (tuner_addrs == 0) {
 		tuner_addrs = 0x60;
-		tuner_info("could not clearly identify tuner address, defaulting to %x\n",
+		tuner_info("could yest clearly identify tuner address, defaulting to %x\n",
 			   tuner_addrs);
 	} else {
 		tuner_addrs = tuner_addrs & 0xff;
@@ -759,7 +759,7 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 		       sizeof(struct analog_demod_ops));
 	}
 
-	if (cfg && cfg->no_i2c_gate)
+	if (cfg && cfg->yes_i2c_gate)
 		fe->ops.analog_ops.i2c_gate_ctrl = NULL;
 
 	if (!(cfg) || (TDA829X_PROBE_TUNER == cfg->probe_tuner)) {
@@ -842,7 +842,7 @@ int tda829x_probe(struct i2c_adapter *i2c_adap, u8 i2c_addr)
 			break;
 	}
 
-	/* all bytes are equal, not a tda829x - probably a tda9887 */
+	/* all bytes are equal, yest a tda829x - probably a tda9887 */
 	if (i == PROBE_BUFFER_SIZE)
 		return -ENODEV;
 
@@ -869,5 +869,5 @@ int tda829x_probe(struct i2c_adapter *i2c_adap, u8 i2c_addr)
 EXPORT_SYMBOL_GPL(tda829x_probe);
 
 MODULE_DESCRIPTION("Philips/NXP TDA8290/TDA8295 analog IF demodulator driver");
-MODULE_AUTHOR("Gerd Knorr, Hartmut Hackmann, Michael Krufky");
+MODULE_AUTHOR("Gerd Kyesrr, Hartmut Hackmann, Michael Krufky");
 MODULE_LICENSE("GPL");

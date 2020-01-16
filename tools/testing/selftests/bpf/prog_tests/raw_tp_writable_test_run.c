@@ -26,7 +26,7 @@ void test_raw_tp_writable_test_run(void)
 
 	int bpf_fd = bpf_load_program_xattr(&load_attr, error, sizeof(error));
 	if (CHECK(bpf_fd < 0, "bpf_raw_tracepoint_writable loaded",
-		  "failed: %d errno %d\n", bpf_fd, errno))
+		  "failed: %d erryes %d\n", bpf_fd, erryes))
 		return;
 
 	const struct bpf_insn skb_program[] = {
@@ -43,13 +43,13 @@ void test_raw_tp_writable_test_run(void)
 
 	int filter_fd =
 		bpf_load_program_xattr(&skb_load_attr, error, sizeof(error));
-	if (CHECK(filter_fd < 0, "test_program_loaded", "failed: %d errno %d\n",
-		  filter_fd, errno))
+	if (CHECK(filter_fd < 0, "test_program_loaded", "failed: %d erryes %d\n",
+		  filter_fd, erryes))
 		goto out_bpffd;
 
 	int tp_fd = bpf_raw_tracepoint_open("bpf_test_finish", bpf_fd);
 	if (CHECK(tp_fd < 0, "bpf_raw_tracepoint_writable opened",
-		  "failed: %d errno %d\n", tp_fd, errno))
+		  "failed: %d erryes %d\n", tp_fd, erryes))
 		goto out_filterfd;
 
 	char test_skb[128] = {
@@ -60,18 +60,18 @@ void test_raw_tp_writable_test_run(void)
 	int err = bpf_prog_test_run(filter_fd, 1, test_skb, sizeof(test_skb), 0,
 				    0, &prog_ret, 0);
 	CHECK(err != 42, "test_run",
-	      "tracepoint did not modify return value\n");
+	      "tracepoint did yest modify return value\n");
 	CHECK(prog_ret != 0, "test_run_ret",
-	      "socket_filter did not return 0\n");
+	      "socket_filter did yest return 0\n");
 
 	close(tp_fd);
 
 	err = bpf_prog_test_run(filter_fd, 1, test_skb, sizeof(test_skb), 0, 0,
 				&prog_ret, 0);
-	CHECK(err != 0, "test_run_notrace",
-	      "test_run failed with %d errno %d\n", err, errno);
-	CHECK(prog_ret != 0, "test_run_ret_notrace",
-	      "socket_filter did not return 0\n");
+	CHECK(err != 0, "test_run_yestrace",
+	      "test_run failed with %d erryes %d\n", err, erryes);
+	CHECK(prog_ret != 0, "test_run_ret_yestrace",
+	      "socket_filter did yest return 0\n");
 
 out_filterfd:
 	close(filter_fd);

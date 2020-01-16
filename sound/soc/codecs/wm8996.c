@@ -69,7 +69,7 @@ struct wm8996_priv {
 	u16 hpout_pending;
 
 	struct regulator_bulk_data supplies[WM8996_NUM_SUPPLIES];
-	struct notifier_block disable_nb[WM8996_NUM_SUPPLIES];
+	struct yestifier_block disable_nb[WM8996_NUM_SUPPLIES];
 	int bg_ena;
 
 	struct wm8996_pdata pdata;
@@ -94,12 +94,12 @@ struct wm8996_priv {
 #endif
 };
 
-/* We can't use the same notifier block for more than one supply and
- * there's no way I can see to get from a callback to the caller
+/* We can't use the same yestifier block for more than one supply and
+ * there's yes way I can see to get from a callback to the caller
  * except container_of().
  */
 #define WM8996_REGULATOR_EVENT(n) \
-static int wm8996_regulator_event_##n(struct notifier_block *nb, \
+static int wm8996_regulator_event_##n(struct yestifier_block *nb, \
 				    unsigned long event, void *data)	\
 { \
 	struct wm8996_priv *wm8996 = container_of(nb, struct wm8996_priv, \
@@ -682,7 +682,7 @@ static void wait_for_dc_servo(struct snd_soc_component *component, u16 mask)
 		dev_dbg(component->dev, "DC servo complete for %x\n", mask);
 }
 
-static void wm8996_seq_notifier(struct snd_soc_component *component,
+static void wm8996_seq_yestifier(struct snd_soc_component *component,
 				enum snd_soc_dapm_type event, int subseq)
 {
 	struct wm8996_priv *wm8996 = snd_soc_component_get_drvdata(component);
@@ -1012,7 +1012,7 @@ SND_SOC_DAPM_AIF_OUT("AIF1TX1", NULL, 1, WM8996_POWER_MANAGEMENT_6, 1, 0),
 SND_SOC_DAPM_AIF_OUT("AIF1TX0", NULL, 0, WM8996_POWER_MANAGEMENT_6, 0, 0),
 
 /* We route as stereo pairs so define some dummy widgets to squash
- * things down for now.  RXA = 0,1, RXB = 2,3 and so on */
+ * things down for yesw.  RXA = 0,1, RXB = 2,3 and so on */
 SND_SOC_DAPM_PGA("AIF1RXA", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_PGA("AIF1RXB", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_PGA("AIF1RXC", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -2044,7 +2044,7 @@ static int wm8996_set_fll(struct snd_soc_component *component, int fll_id, int s
 		reg = 3;
 		break;
 	default:
-		dev_err(component->dev, "Unknown FLL source %d\n", ret);
+		dev_err(component->dev, "Unkyeswn FLL source %d\n", ret);
 		return -EINVAL;
 	}
 
@@ -2077,7 +2077,7 @@ static int wm8996_set_fll(struct snd_soc_component *component, int fll_id, int s
 
 	snd_soc_component_write(component, WM8996_FLL_EFS_1, fll_div.lambda);
 
-	/* Enable the bandgap if it's not already enabled */
+	/* Enable the bandgap if it's yest already enabled */
 	ret = snd_soc_component_read32(component, WM8996_FLL_CONTROL_1);
 	if (!(ret & WM8996_FLL_ENA))
 		wm8996_bg_enable(component);
@@ -2247,7 +2247,7 @@ int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 	if (wm8996->polarity_cb)
 		wm8996->polarity_cb(component, 0);
 
-	/* Clear discarge to avoid noise during detection */
+	/* Clear discarge to avoid yesise during detection */
 	snd_soc_component_update_bits(component, WM8996_MICBIAS_1,
 			    WM8996_MICB1_DISCH, 0);
 	snd_soc_component_update_bits(component, WM8996_MICBIAS_2,
@@ -2306,7 +2306,7 @@ static void wm8996_hpdet_irq(struct snd_soc_component *component)
 
 	dev_dbg(component->dev, "HPDET measured %d ohms\n", val);
 
-	/* If we've got high enough impedence then report as line,
+	/* If we've got high eyesugh impedence then report as line,
 	 * otherwise assume headphone.
 	 */
 	if (val >= 126)
@@ -2682,7 +2682,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8996 = {
 	.probe			= wm8996_probe,
 	.remove			= wm8996_remove,
 	.set_bias_level		= wm8996_set_bias_level,
-	.seq_notifier		= wm8996_seq_notifier,
+	.seq_yestifier		= wm8996_seq_yestifier,
 	.controls		= wm8996_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm8996_snd_controls),
 	.dapm_widgets		= wm8996_dapm_widgets,
@@ -2692,7 +2692,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8996 = {
 	.set_pll		= wm8996_set_fll,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 
 };
 
@@ -2791,18 +2791,18 @@ static int wm8996_i2c_probe(struct i2c_client *i2c,
 		goto err_gpio;
 	}
 
-	wm8996->disable_nb[0].notifier_call = wm8996_regulator_event_0;
-	wm8996->disable_nb[1].notifier_call = wm8996_regulator_event_1;
-	wm8996->disable_nb[2].notifier_call = wm8996_regulator_event_2;
+	wm8996->disable_nb[0].yestifier_call = wm8996_regulator_event_0;
+	wm8996->disable_nb[1].yestifier_call = wm8996_regulator_event_1;
+	wm8996->disable_nb[2].yestifier_call = wm8996_regulator_event_2;
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++) {
-		ret = devm_regulator_register_notifier(
+		ret = devm_regulator_register_yestifier(
 						wm8996->supplies[i].consumer,
 						&wm8996->disable_nb[i]);
 		if (ret != 0) {
 			dev_err(&i2c->dev,
-				"Failed to register regulator notifier: %d\n",
+				"Failed to register regulator yestifier: %d\n",
 				ret);
 		}
 	}
@@ -2832,7 +2832,7 @@ static int wm8996_i2c_probe(struct i2c_client *i2c,
 		goto err_regmap;
 	}
 	if (reg != 0x8915) {
-		dev_err(&i2c->dev, "Device is not a WM8996, ID %x\n", reg);
+		dev_err(&i2c->dev, "Device is yest a WM8996, ID %x\n", reg);
 		ret = -EINVAL;
 		goto err_regmap;
 	}
@@ -3015,7 +3015,7 @@ static int wm8996_i2c_probe(struct i2c_client *i2c,
 			   WM8996_AIF2TX_CHAN1_START_SLOT_MASK,
 			   1 << WM8996_AIF1TX_CHAN1_SLOTS_SHIFT | 1);
 
-	/* If the TX LRCLK pins are not in LRCLK mode configure the
+	/* If the TX LRCLK pins are yest in LRCLK mode configure the
 	 * AIFs to source their clocks from the RX LRCLKs.
 	 */
 	ret = regmap_read(wm8996->regmap, WM8996_GPIO_1, &reg);

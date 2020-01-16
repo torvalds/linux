@@ -745,7 +745,7 @@ static const struct file_operations vd_fops = {
 
 static void mdpy_device_release(struct device *dev)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 static int __init mdpy_dev_init(void)

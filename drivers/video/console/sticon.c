@@ -38,7 +38,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/console.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/vt_kern.h>
 #include <linux/kd.h>
 #include <linux/selection.h>
@@ -279,7 +279,7 @@ static unsigned long sticon_getxy(struct vc_data *conp, unsigned long pos,
 	if (ret == softback_in)
 	    ret = conp->vc_origin;
     } else {
-    	/* Should not happen */
+    	/* Should yest happen */
     	x = y = 0;
     	ret = conp->vc_origin;
     }

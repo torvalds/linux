@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -111,27 +111,27 @@ enum iwl_data_path_subcmd_ids {
 	CHEST_COLLECTOR_FILTER_CONFIG_CMD = 0x14,
 
 	/**
-	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_no_data
+	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_yes_data
 	 */
 	RX_NO_DATA_NOTIF = 0xF5,
 
 	/**
-	 * @TLC_MNG_UPDATE_NOTIF: &struct iwl_tlc_update_notif
+	 * @TLC_MNG_UPDATE_NOTIF: &struct iwl_tlc_update_yestif
 	 */
 	TLC_MNG_UPDATE_NOTIF = 0xF7,
 
 	/**
-	 * @STA_PM_NOTIF: &struct iwl_mvm_pm_state_notification
+	 * @STA_PM_NOTIF: &struct iwl_mvm_pm_state_yestification
 	 */
 	STA_PM_NOTIF = 0xFD,
 
 	/**
-	 * @MU_GROUP_MGMT_NOTIF: &struct iwl_mu_group_mgmt_notif
+	 * @MU_GROUP_MGMT_NOTIF: &struct iwl_mu_group_mgmt_yestif
 	 */
 	MU_GROUP_MGMT_NOTIF = 0xFE,
 
 	/**
-	 * @RX_QUEUES_NOTIFICATION: &struct iwl_rxq_sync_notification
+	 * @RX_QUEUES_NOTIFICATION: &struct iwl_rxq_sync_yestification
 	 */
 	RX_QUEUES_NOTIFICATION = 0xFF,
 };
@@ -151,13 +151,13 @@ struct iwl_mu_group_mgmt_cmd {
 } __packed; /* MU_GROUP_ID_MNG_TABLE_API_S_VER_1 */
 
 /**
- * struct iwl_mu_group_mgmt_notif - VHT MU-MIMO group id notification
+ * struct iwl_mu_group_mgmt_yestif - VHT MU-MIMO group id yestification
  *
  * @membership_status: a bitmap of MU groups
  * @user_position: the position of station in a group. If the station is in the
  *	group then bits (group * 2) is the position -1
  */
-struct iwl_mu_group_mgmt_notif {
+struct iwl_mu_group_mgmt_yestif {
 	__le32 membership_status[2];
 	__le32 user_position[4];
 } __packed; /* MU_GROUP_MNG_NTFY_API_S_VER_1 */

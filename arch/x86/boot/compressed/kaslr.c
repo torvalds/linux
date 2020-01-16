@@ -303,7 +303,7 @@ static void handle_mem_options(void)
 		} else if (!strcmp(param, "mem")) {
 			char *p = val;
 
-			if (!strcmp(p, "nopentium"))
+			if (!strcmp(p, "yespentium"))
 				continue;
 			mem_size = memparse(p, &p);
 			if (mem_size == 0)
@@ -333,7 +333,7 @@ out:
  * avoiding. They are MEM_AVOID_INITRD, MEM_AVOID_CMDLINE, and
  * MEM_AVOID_BOOTPARAMS respectively below.
  *
- * What is not obvious how to avoid is the range of memory that is used
+ * What is yest obvious how to avoid is the range of memory that is used
  * during decompression (MEM_AVOID_ZO_RANGE below). This range must cover
  * the compressed kernel (ZO) and its run space, which is used to extract
  * the uncompressed kernel (VO) and relocs.
@@ -352,7 +352,7 @@ out:
  *  - kernel_total_size <= output_size (see Note below)
  *  - output + init_size >= output + output_size
  *
- * (Note that kernel_total_size and output_size have no fundamental
+ * (Note that kernel_total_size and output_size have yes fundamental
  * relationship, but output_size is passed to choose_random_location
  * as a maximum of the two. The diagram is showing a case where
  * kernel_total_size is larger than output_size, but this case is
@@ -383,7 +383,7 @@ out:
  * covered backwards of size ZO_INIT_SIZE, starting from output+init_size.)
  *
  * [input, input+input_size) is the original copied compressed image (ZO)
- * (i.e. it does not include its run size). This range must be avoided
+ * (i.e. it does yest include its run size). This range must be avoided
  * because it contains the data used for decompression.
  *
  * [input+input_size, output+init_size) is [_text, _end) for ZO. This
@@ -453,7 +453,7 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 }
 
 /*
- * Does this memory vector overlap a known avoided area? If so, record the
+ * Does this memory vector overlap a kyeswn avoided area? If so, record the
  * overlap region with the lowest address.
  */
 static bool mem_avoid_overlap(struct mem_vector *img,
@@ -594,7 +594,7 @@ static unsigned long slots_fetch_random(void)
 	unsigned long slot;
 	int i;
 
-	/* Handle case of no slots stored. */
+	/* Handle case of yes slots stored. */
 	if (slot_max == 0)
 		return 0;
 
@@ -621,15 +621,15 @@ static void __process_mem_region(struct mem_vector *entry,
 	unsigned long start_orig, end;
 	struct mem_vector cur_entry;
 
-	/* On 32-bit, ignore entries entirely above our maximum. */
+	/* On 32-bit, igyesre entries entirely above our maximum. */
 	if (IS_ENABLED(CONFIG_X86_32) && entry->start >= KERNEL_IMAGE_SIZE)
 		return;
 
-	/* Ignore entries entirely below our minimum. */
+	/* Igyesre entries entirely below our minimum. */
 	if (entry->start + entry->size < minimum)
 		return;
 
-	/* Ignore entries above memory limit */
+	/* Igyesre entries above memory limit */
 	end = min(entry->size + entry->start, mem_limit);
 	if (entry->start >= end)
 		return;
@@ -666,7 +666,7 @@ static void __process_mem_region(struct mem_vector *entry,
 		if (region.size < image_size)
 			return;
 
-		/* If nothing overlaps, store the region and return. */
+		/* If yesthing overlaps, store the region and return. */
 		if (!mem_avoid_overlap(&region, &overlap)) {
 			process_gb_huge_pages(&region, image_size);
 			return;
@@ -697,7 +697,7 @@ static bool process_mem_region(struct mem_vector *region,
 {
 	int i;
 	/*
-	 * If no immovable memory found, or MEMORY_HOTREMOVE disabled,
+	 * If yes immovable memory found, or MEMORY_HOTREMOVE disabled,
 	 * use @region directly.
 	 */
 	if (!num_immovable_mem) {
@@ -766,7 +766,7 @@ process_efi_entries(unsigned long minimum, unsigned long image_size)
 #ifdef CONFIG_X86_32
 	/* Can't handle data above 4GB at this time */
 	if (e->efi_memmap_hi) {
-		warn("EFI memmap is above 4GB, can't be handled now on x86_32. EFI should be disabled.\n");
+		warn("EFI memmap is above 4GB, can't be handled yesw on x86_32. EFI should be disabled.\n");
 		return false;
 	}
 	pmap =  e->efi_memmap;
@@ -833,7 +833,7 @@ static void process_e820_entries(unsigned long minimum,
 	/* Verify potential e820 positions, appending to slots list. */
 	for (i = 0; i < boot_params->e820_entries; i++) {
 		entry = &boot_params->e820_table[i];
-		/* Skip non-RAM entries. */
+		/* Skip yesn-RAM entries. */
 		if (entry->type != E820_TYPE_RAM)
 			continue;
 		region.start = entry->addr;
@@ -897,8 +897,8 @@ void choose_random_location(unsigned long input,
 {
 	unsigned long random_addr, min_addr;
 
-	if (cmdline_find_option_bool("nokaslr")) {
-		warn("KASLR disabled: 'nokaslr' on cmdline.");
+	if (cmdline_find_option_bool("yeskaslr")) {
+		warn("KASLR disabled: 'yeskaslr' on cmdline.");
 		return;
 	}
 
@@ -915,7 +915,7 @@ void choose_random_location(unsigned long input,
 	/* Prepare to add new identity pagetables on demand. */
 	initialize_identity_maps();
 
-	/* Record the various known unsafe memory ranges. */
+	/* Record the various kyeswn unsafe memory ranges. */
 	mem_avoid_init(input, input_size, *output);
 
 	/*
@@ -928,7 +928,7 @@ void choose_random_location(unsigned long input,
 	/* Walk available memory entries to find a random address. */
 	random_addr = find_random_phys_addr(min_addr, output_size);
 	if (!random_addr) {
-		warn("Physical KASLR disabled: no suitable memory region!");
+		warn("Physical KASLR disabled: yes suitable memory region!");
 	} else {
 		/* Update the new physical address location. */
 		if (*output != random_addr) {
@@ -940,7 +940,7 @@ void choose_random_location(unsigned long input,
 		 * This loads the identity mapping page table.
 		 * This should only be done if a new physical address
 		 * is found for the kernel, otherwise we should keep
-		 * the old page table to make it be like the "nokaslr"
+		 * the old page table to make it be like the "yeskaslr"
 		 * case.
 		 */
 		finalize_identity_maps();

@@ -10,7 +10,7 @@
 #define _LINUX_NVMEM_PROVIDER_H
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 struct nvmem_device;
 struct nvmem_cell_info;
@@ -31,14 +31,14 @@ enum nvmem_type {
  *
  * @dev:	Parent device.
  * @name:	Optional name.
- * @id:		Optional device ID used in full name. Ignored if name is NULL.
+ * @id:		Optional device ID used in full name. Igyesred if name is NULL.
  * @owner:	Pointer to exporter module. Used for refcounting.
  * @cells:	Optional array of pre-defined NVMEM cells.
  * @ncells:	Number of elements in cells.
  * @type:	Type of the nvmem storage
  * @read_only:	Device is read-only.
  * @root_only:	Device is accessibly to root only.
- * @no_of_node:	Device should not use the parent's of_node even if it's !NULL.
+ * @yes_of_yesde:	Device should yest use the parent's of_yesde even if it's !NULL.
  * @reg_read:	Callback to read data.
  * @reg_write:	Callback to write data.
  * @size:	Device size.
@@ -47,8 +47,8 @@ enum nvmem_type {
  * @priv:	User context passed to read/write callbacks.
  *
  * Note: A default "nvmem<id>" name will be assigned to the device if
- * no name is specified in its configuration. In such case "<id>" is
- * generated with ida_simple_get() and provided id field is ignored.
+ * yes name is specified in its configuration. In such case "<id>" is
+ * generated with ida_simple_get() and provided id field is igyesred.
  *
  * Note: Specifying name and setting id to -1 implies a unique device
  * whose name is provided as-is (kept unaltered).
@@ -63,7 +63,7 @@ struct nvmem_config {
 	enum nvmem_type		type;
 	bool			read_only;
 	bool			root_only;
-	bool			no_of_node;
+	bool			yes_of_yesde;
 	nvmem_reg_read_t	reg_read;
 	nvmem_reg_write_t	reg_write;
 	int	size;
@@ -81,7 +81,7 @@ struct nvmem_config {
  * @nvmem_name:		Provider name.
  * @cells:		Array of cell definitions.
  * @ncells:		Number of cell definitions in the array.
- * @node:		List node.
+ * @yesde:		List yesde.
  *
  * This structure together with related helper functions is provided for users
  * that don't can't access the nvmem provided structure but wish to register
@@ -91,7 +91,7 @@ struct nvmem_cell_table {
 	const char		*nvmem_name;
 	const struct nvmem_cell_info	*cells;
 	size_t			ncells;
-	struct list_head	node;
+	struct list_head	yesde;
 };
 
 #if IS_ENABLED(CONFIG_NVMEM)

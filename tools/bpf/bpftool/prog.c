@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -89,21 +89,21 @@ static int prog_fd_by_tag(unsigned char *tag)
 
 		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
-			p_err("%s", strerror(errno));
+			p_err("%s", strerror(erryes));
 			return -1;
 		}
 
 		fd = bpf_prog_get_fd_by_id(id);
 		if (fd < 0) {
 			p_err("can't get prog by id (%u): %s",
-			      id, strerror(errno));
+			      id, strerror(erryes));
 			return -1;
 		}
 
 		err = bpf_obj_get_info_by_fd(fd, &info, &len);
 		if (err) {
 			p_err("can't get prog info (%u): %s",
-			      id, strerror(errno));
+			      id, strerror(erryes));
 			close(fd);
 			return -1;
 		}
@@ -134,7 +134,7 @@ int prog_parse_fd(int *argc, char ***argv)
 
 		fd = bpf_prog_get_fd_by_id(id);
 		if (fd < 0)
-			p_err("get by id (%u): %s", id, strerror(errno));
+			p_err("get by id (%u): %s", id, strerror(erryes));
 		return fd;
 	} else if (is_prefix(**argv, "tag")) {
 		unsigned char tag[BPF_TAG_SIZE];
@@ -220,7 +220,7 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		jsonw_uint_field(json_wtr, "run_cnt", info->run_cnt);
 	}
 
-	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
+	print_dev_json(info->ifindex, info->netns_dev, info->netns_iyes);
 
 	if (info->load_time) {
 		char buf[32];
@@ -283,7 +283,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 
 	printf("tag ");
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
-	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ino);
+	print_dev_plain(info->ifindex, info->netns_dev, info->netns_iyes);
 	printf("%s", info->gpl_compatible ? "  gpl" : "");
 	if (info->run_time_ns)
 		printf(" run_time_ns %lld run_cnt %lld",
@@ -304,7 +304,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	if (info->jited_prog_len)
 		printf("  jited %uB", info->jited_prog_len);
 	else
-		printf("  not jited");
+		printf("  yest jited");
 
 	memlock = get_fdinfo(fd, "memlock");
 	if (memlock)
@@ -337,7 +337,7 @@ static int show_prog(int fd)
 
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	if (err) {
-		p_err("can't get prog info: %s", strerror(errno));
+		p_err("can't get prog info: %s", strerror(erryes));
 		return -1;
 	}
 
@@ -376,22 +376,22 @@ static int do_show(int argc, char **argv)
 	while (true) {
 		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT) {
+			if (erryes == ENOENT) {
 				err = 0;
 				break;
 			}
-			p_err("can't get next program: %s%s", strerror(errno),
-			      errno == EINVAL ? " -- kernel too old?" : "");
+			p_err("can't get next program: %s%s", strerror(erryes),
+			      erryes == EINVAL ? " -- kernel too old?" : "");
 			err = -1;
 			break;
 		}
 
 		fd = bpf_prog_get_fd_by_id(id);
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erryes == ENOENT)
 				continue;
 			p_err("can't get prog by id (%u): %s",
-			      id, strerror(errno));
+			      id, strerror(erryes));
 			err = -1;
 			break;
 		}
@@ -487,14 +487,14 @@ static int do_dump(int argc, char **argv)
 	info_linear = bpf_program__get_prog_info_linear(fd, arrays);
 	close(fd);
 	if (IS_ERR_OR_NULL(info_linear)) {
-		p_err("can't get prog info: %s", strerror(errno));
+		p_err("can't get prog info: %s", strerror(erryes));
 		return -1;
 	}
 
 	info = &info_linear->info;
 	if (mode == DUMP_JITED) {
 		if (info->jited_prog_len == 0 || !info->jited_prog_insns) {
-			p_info("no instructions returned");
+			p_info("yes instructions returned");
 			goto err_free;
 		}
 		buf = (unsigned char *)(info->jited_prog_insns);
@@ -525,7 +525,7 @@ static int do_dump(int argc, char **argv)
 		fd = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 		if (fd < 0) {
 			p_err("can't open file %s: %s", filepath,
-			      strerror(errno));
+			      strerror(erryes));
 			goto err_free;
 		}
 
@@ -533,7 +533,7 @@ static int do_dump(int argc, char **argv)
 		close(fd);
 		if (n != member_len) {
 			p_err("error writing output file: %s",
-			      n < 0 ? strerror(errno) : "short write");
+			      n < 0 ? strerror(erryes) : "short write");
 			goto err_free;
 		}
 
@@ -545,7 +545,7 @@ static int do_dump(int argc, char **argv)
 		if (info->ifindex) {
 			name = ifindex_to_bfd_params(info->ifindex,
 						     info->netns_dev,
-						     info->netns_ino,
+						     info->netns_iyes,
 						     &disasm_opt);
 			if (!name)
 				goto err_free;
@@ -576,7 +576,7 @@ static int do_dump(int argc, char **argv)
 					else
 						sprintf(sym_name, "0x%016llx", ksyms[i]);
 				} else {
-					strcpy(sym_name, "unknown");
+					strcpy(sym_name, "unkyeswn");
 				}
 
 				if (func_info) {
@@ -755,7 +755,7 @@ static int check_single_stdin(char *file_data_in, char *file_ctx_in)
 {
 	if (file_data_in && file_ctx_in &&
 	    !strcmp(file_data_in, "-") && !strcmp(file_ctx_in, "-")) {
-		p_err("cannot use standard input for both data_in and ctx_in");
+		p_err("canyest use standard input for both data_in and ctx_in");
 		return -1;
 	}
 
@@ -781,14 +781,14 @@ static int get_run_data(const char *fname, void **data_ptr, unsigned int *size)
 	else
 		f = fopen(fname, "r");
 	if (!f) {
-		p_err("failed to open %s: %s", fname, strerror(errno));
+		p_err("failed to open %s: %s", fname, strerror(erryes));
 		return -1;
 	}
 
 	*data_ptr = malloc(block_size);
 	if (!*data_ptr) {
 		p_err("failed to allocate memory for data_in/ctx_in: %s",
-		      strerror(errno));
+		      strerror(erryes));
 		goto err_fclose;
 	}
 
@@ -797,7 +797,7 @@ static int get_run_data(const char *fname, void **data_ptr, unsigned int *size)
 			break;
 		if (ferror(f)) {
 			p_err("failed to read data_in/ctx_in from %s: %s",
-			      fname, strerror(errno));
+			      fname, strerror(erryes));
 			goto err_free;
 		}
 		if (nb_read > buf_size - block_size) {
@@ -811,7 +811,7 @@ static int get_run_data(const char *fname, void **data_ptr, unsigned int *size)
 			tmp = realloc(*data_ptr, buf_size);
 			if (!tmp) {
 				p_err("failed to reallocate data_in/ctx_in: %s",
-				      strerror(errno));
+				      strerror(erryes));
 				goto err_free;
 			}
 			*data_ptr = tmp;
@@ -884,14 +884,14 @@ print_run_output(void *data, unsigned int size, const char *fname,
 
 	f = fopen(fname, "w");
 	if (!f) {
-		p_err("failed to open %s: %s", fname, strerror(errno));
+		p_err("failed to open %s: %s", fname, strerror(erryes));
 		return -1;
 	}
 
 	nb_written = fwrite(data, 1, size, f);
 	fclose(f);
 	if (nb_written != size) {
-		p_err("failed to write output data/ctx: %s", strerror(errno));
+		p_err("failed to write output data/ctx: %s", strerror(erryes));
 		return -1;
 	}
 
@@ -903,7 +903,7 @@ static int alloc_run_data(void **data_ptr, unsigned int size_out)
 	*data_ptr = calloc(size_out, 1);
 	if (!*data_ptr) {
 		p_err("failed to allocate memory for output data/ctx: %s",
-		      strerror(errno));
+		      strerror(erryes));
 		return -1;
 	}
 
@@ -1007,7 +1007,7 @@ static int do_run(int argc, char **argv)
 			}
 			NEXT_ARG();
 		} else {
-			p_err("expected no more arguments, 'data_in', 'data_out', 'data_size_out', 'ctx_in', 'ctx_out', 'ctx_size_out' or 'repeat', got: '%s'?",
+			p_err("expected yes more arguments, 'data_in', 'data_out', 'data_size_out', 'ctx_in', 'ctx_out', 'ctx_size_out' or 'repeat', got: '%s'?",
 			      *argv);
 			return -1;
 		}
@@ -1046,7 +1046,7 @@ static int do_run(int argc, char **argv)
 
 	err = bpf_prog_test_run_xattr(&test_attr);
 	if (err) {
-		p_err("failed to run program: %s", strerror(errno));
+		p_err("failed to run program: %s", strerror(erryes));
 		goto free_ctx_out;
 	}
 
@@ -1055,7 +1055,7 @@ static int do_run(int argc, char **argv)
 	if (json_output)
 		jsonw_start_object(json_wtr);	/* root */
 
-	/* Do not exit on errors occurring when printing output data/context,
+	/* Do yest exit on errors occurring when printing output data/context,
 	 * we still want to print return value and duration for program run.
 	 */
 	if (test_attr.data_size_out)
@@ -1206,7 +1206,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			ifindex = if_nametoindex(*argv);
 			if (!ifindex) {
 				p_err("unrecognized netdevice '%s': %s",
-				      *argv, strerror(errno));
+				      *argv, strerror(erryes));
 				goto err_free_reuse_maps;
 			}
 			NEXT_ARG();
@@ -1218,7 +1218,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 
 			pinmaps = GET_ARG();
 		} else {
-			p_err("expected no more arguments, 'type', 'map' or 'dev', got: '%s'?",
+			p_err("expected yes more arguments, 'type', 'map' or 'dev', got: '%s'?",
 			      *argv);
 			goto err_free_reuse_maps;
 		}
@@ -1301,13 +1301,13 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		idx++;
 	}
 	if (j < old_map_fds) {
-		p_err("map idx '%d' not used", map_replace[j].idx);
+		p_err("map idx '%d' yest used", map_replace[j].idx);
 		goto err_close_obj;
 	}
 
 	load_attr.obj = obj;
 	if (verifier_logs)
-		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		/* log_level1 + log_level2 + stats, but yest stable UAPI */
 		load_attr.log_level = 1 + 2 + 4;
 
 	err = bpf_object__load_xattr(&load_attr);

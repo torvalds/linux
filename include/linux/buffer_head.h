@@ -30,16 +30,16 @@ enum bh_state_bits {
 	BH_New,		/* Disk mapping was newly created by get_block */
 	BH_Async_Read,	/* Is under end_buffer_async_read I/O */
 	BH_Async_Write,	/* Is under end_buffer_async_write I/O */
-	BH_Delay,	/* Buffer is not yet allocated on disk */
+	BH_Delay,	/* Buffer is yest yet allocated on disk */
 	BH_Boundary,	/* Block is followed by a discontiguity */
 	BH_Write_EIO,	/* I/O error on write */
-	BH_Unwritten,	/* Buffer is allocated on disk but not written */
+	BH_Unwritten,	/* Buffer is allocated on disk but yest written */
 	BH_Quiet,	/* Buffer Error Prinks to be quiet */
 	BH_Meta,	/* Buffer contains metadata */
 	BH_Prio,	/* Buffer should be submitted with REQ_PRIO */
 	BH_Defer_Completion, /* Defer AIO completion to workqueue */
 
-	BH_PrivateStart,/* not a state bit, but the first bit available
+	BH_PrivateStart,/* yest a state bit, but the first bit available
 			 * for private allocation by other entities
 			 */
 };
@@ -72,7 +72,7 @@ struct buffer_head {
 	struct block_device *b_bdev;
 	bh_end_io_t *b_end_io;		/* I/O completion */
  	void *b_private;		/* reserved for b_end_io */
-	struct list_head b_assoc_buffers; /* associated with another mapping */
+	struct list_head b_assoc_buffers; /* associated with ayesther mapping */
 	struct address_space *b_assoc_map;	/* mapping this buffer is
 						   associated with */
 	atomic_t b_count;		/* users using this buffer_head */
@@ -137,7 +137,7 @@ BUFFER_FNS(Defer_Completion, defer_completion)
 
 #define bh_offset(bh)		((unsigned long)(bh)->b_data & ~PAGE_MASK)
 
-/* If we *know* page->private refers to buffer_heads */
+/* If we *kyesw* page->private refers to buffer_heads */
 #define page_buffers(page)					\
 	({							\
 		BUG_ON(!PagePrivate(page));			\
@@ -167,10 +167,10 @@ void end_buffer_write_sync(struct buffer_head *bh, int uptodate);
 void end_buffer_async_write(struct buffer_head *bh, int uptodate);
 
 /* Things to do with buffers at mapping->private_list */
-void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode);
-int inode_has_buffers(struct inode *);
-void invalidate_inode_buffers(struct inode *);
-int remove_inode_buffers(struct inode *inode);
+void mark_buffer_dirty_iyesde(struct buffer_head *bh, struct iyesde *iyesde);
+int iyesde_has_buffers(struct iyesde *);
+void invalidate_iyesde_buffers(struct iyesde *);
+int remove_iyesde_buffers(struct iyesde *iyesde);
 int sync_mapping_buffers(struct address_space *mapping);
 void clean_bdev_aliases(struct block_device *bdev, sector_t block,
 			sector_t len);
@@ -216,7 +216,7 @@ void block_invalidatepage(struct page *page, unsigned int offset,
 			  unsigned int length);
 int block_write_full_page(struct page *page, get_block_t *get_block,
 				struct writeback_control *wbc);
-int __block_write_full_page(struct inode *inode, struct page *page,
+int __block_write_full_page(struct iyesde *iyesde, struct page *page,
 			get_block_t *get_block, struct writeback_control *wbc,
 			bh_end_io_t *handler);
 int block_read_full_page(struct page*, get_block_t*);
@@ -237,11 +237,11 @@ void clean_page_buffers(struct page *page);
 int cont_write_begin(struct file *, struct address_space *, loff_t,
 			unsigned, unsigned, struct page **, void **,
 			get_block_t *, loff_t *);
-int generic_cont_expand_simple(struct inode *inode, loff_t size);
+int generic_cont_expand_simple(struct iyesde *iyesde, loff_t size);
 int block_commit_write(struct page *page, unsigned from, unsigned to);
 int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 				get_block_t get_block);
-/* Convert errno to return value from ->page_mkwrite() call */
+/* Convert erryes to return value from ->page_mkwrite() call */
 static inline vm_fault_t block_page_mkwrite_return(int err)
 {
 	if (err == 0)
@@ -255,13 +255,13 @@ static inline vm_fault_t block_page_mkwrite_return(int err)
 }
 sector_t generic_block_bmap(struct address_space *, sector_t, get_block_t *);
 int block_truncate_page(struct address_space *, loff_t, get_block_t *);
-int nobh_write_begin(struct address_space *, loff_t, unsigned, unsigned,
+int yesbh_write_begin(struct address_space *, loff_t, unsigned, unsigned,
 				struct page **, void **, get_block_t*);
-int nobh_write_end(struct file *, struct address_space *,
+int yesbh_write_end(struct file *, struct address_space *,
 				loff_t, unsigned, unsigned,
 				struct page *, void *);
-int nobh_truncate_page(struct address_space *, loff_t, get_block_t *);
-int nobh_writepage(struct page *page, get_block_t *get_block,
+int yesbh_truncate_page(struct address_space *, loff_t, get_block_t *);
+int yesbh_writepage(struct page *page, get_block_t *get_block,
                         struct writeback_control *wbc);
 
 void buffer_init(void);
@@ -402,9 +402,9 @@ extern int __set_page_dirty_buffers(struct page *page);
 
 static inline void buffer_init(void) {}
 static inline int try_to_free_buffers(struct page *page) { return 1; }
-static inline int inode_has_buffers(struct inode *inode) { return 0; }
-static inline void invalidate_inode_buffers(struct inode *inode) {}
-static inline int remove_inode_buffers(struct inode *inode) { return 1; }
+static inline int iyesde_has_buffers(struct iyesde *iyesde) { return 0; }
+static inline void invalidate_iyesde_buffers(struct iyesde *iyesde) {}
+static inline int remove_iyesde_buffers(struct iyesde *iyesde) { return 1; }
 static inline int sync_mapping_buffers(struct address_space *mapping) { return 0; }
 
 #endif /* CONFIG_BLOCK */

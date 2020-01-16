@@ -52,8 +52,8 @@ int vfio_ccw_sch_quiesce(struct subchannel *sch)
 		ret = cio_cancel_halt_clear(sch, &iretry);
 
 		if (ret == -EIO) {
-			pr_err("vfio_ccw: could not quiesce subchannel 0.%x.%04x!\n",
-			       sch->schid.ssid, sch->schid.sch_no);
+			pr_err("vfio_ccw: could yest quiesce subchannel 0.%x.%04x!\n",
+			       sch->schid.ssid, sch->schid.sch_yes);
 			break;
 		}
 
@@ -123,7 +123,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 	int ret = -ENOMEM;
 
 	if (pmcw->qf) {
-		dev_warn(&sch->dev, "vfio: ccw: does not support QDIO: %s\n",
+		dev_warn(&sch->dev, "vfio: ccw: does yest support QDIO: %s\n",
 			 dev_name(&sch->dev));
 		return -ENODEV;
 	}
@@ -169,7 +169,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 
 	VFIO_CCW_MSG_EVENT(4, "bound to subchannel %x.%x.%04x\n",
 			   sch->schid.cssid, sch->schid.ssid,
-			   sch->schid.sch_no);
+			   sch->schid.sch_yes);
 	return 0;
 
 out_disable:
@@ -202,7 +202,7 @@ static int vfio_ccw_sch_remove(struct subchannel *sch)
 
 	VFIO_CCW_MSG_EVENT(4, "unbound from subchannel %x.%x.%04x\n",
 			   sch->schid.cssid, sch->schid.ssid,
-			   sch->schid.sch_no);
+			   sch->schid.sch_yes);
 	return 0;
 }
 
@@ -214,7 +214,7 @@ static void vfio_ccw_sch_shutdown(struct subchannel *sch)
 /**
  * vfio_ccw_sch_event - process subchannel event
  * @sch: subchannel
- * @process: non-zero if function is called in process context
+ * @process: yesn-zero if function is called in process context
  *
  * An unspecified event occurred for this subchannel. Adjust data according
  * to the current operational state of the subchannel. Return zero when the

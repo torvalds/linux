@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -131,7 +131,7 @@ static void bnxt_re_limit_pf_res(struct bnxt_re_dev *rdev)
 	ctx->qpc_count = min_t(u32, BNXT_RE_MAX_QPC_COUNT,
 			       attr->max_qp);
 	ctx->mrw_count = BNXT_RE_MAX_MRW_COUNT_256K;
-	/* Use max_mr from fw since max_mrw does not get set */
+	/* Use max_mr from fw since max_mrw does yest get set */
 	ctx->mrw_count = min_t(u32, ctx->mrw_count, attr->max_mr);
 	ctx->srqc_count = min_t(u32, BNXT_RE_MAX_SRQC_COUNT,
 				attr->max_srq);
@@ -277,7 +277,7 @@ static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
 }
 
 static struct bnxt_ulp_ops bnxt_re_ulp_ops = {
-	.ulp_async_notifier = NULL,
+	.ulp_async_yestifier = NULL,
 	.ulp_stop = bnxt_re_stop,
 	.ulp_start = bnxt_re_start,
 	.ulp_sriov_config = bnxt_re_sriov_config,
@@ -289,7 +289,7 @@ static struct bnxt_ulp_ops bnxt_re_ulp_ops = {
 /* RoCE -> Net driver */
 
 /* Driver registration routines used to let the networking driver (bnxt_en)
- * to know that the RoCE driver is now installed
+ * to kyesw that the RoCE driver is yesw installed
  */
 static int bnxt_re_unregister_netdev(struct bnxt_re_dev *rdev)
 {
@@ -564,7 +564,7 @@ static struct bnxt_en_dev *bnxt_re_dev_probe(struct net_device *netdev)
 
 	if (!(en_dev->flags & BNXT_EN_FLAG_ROCE_CAP)) {
 		dev_info(&pdev->dev,
-			"%s: probe error: RoCE is not supported on this device",
+			"%s: probe error: RoCE is yest supported on this device",
 			ROCE_DRV_MODULE_NAME);
 		return ERR_PTR(-ENODEV);
 	}
@@ -594,7 +594,7 @@ static ssize_t hca_type_show(struct device *device,
 	struct bnxt_re_dev *rdev =
 		rdma_device_to_drv_device(device, struct bnxt_re_dev, ibdev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->ibdev.node_desc);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->ibdev.yesde_desc);
 }
 static DEVICE_ATTR_RO(hca_type);
 
@@ -656,7 +656,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.query_qp = bnxt_re_query_qp,
 	.query_srq = bnxt_re_query_srq,
 	.reg_user_mr = bnxt_re_reg_user_mr,
-	.req_notify_cq = bnxt_re_req_notify_cq,
+	.req_yestify_cq = bnxt_re_req_yestify_cq,
 	INIT_RDMA_OBJ_SIZE(ib_ah, bnxt_re_ah, ib_ah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, bnxt_re_cq, ib_cq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, bnxt_re_pd, ib_pd),
@@ -670,12 +670,12 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	int ret;
 
 	/* ib device init */
-	ibdev->node_type = RDMA_NODE_IB_CA;
-	strlcpy(ibdev->node_desc, BNXT_RE_DESC " HCA",
+	ibdev->yesde_type = RDMA_NODE_IB_CA;
+	strlcpy(ibdev->yesde_desc, BNXT_RE_DESC " HCA",
 		strlen(BNXT_RE_DESC) + 5);
 	ibdev->phys_port_cnt = 1;
 
-	bnxt_qplib_get_guid(rdev->netdev->dev_addr, (u8 *)&ibdev->node_guid);
+	bnxt_qplib_get_guid(rdev->netdev->dev_addr, (u8 *)&ibdev->yesde_guid);
 
 	ibdev->num_comp_vectors	= 1;
 	ibdev->dev.parent = &rdev->en_dev->pdev->dev;
@@ -872,7 +872,7 @@ static int bnxt_re_srqn_handler(struct bnxt_qplib_nq *nq,
 	int rc = 0;
 
 	if (!srq) {
-		dev_err(NULL, "%s: SRQ is NULL, SRQN not handled",
+		dev_err(NULL, "%s: SRQ is NULL, SRQN yest handled",
 			ROCE_DRV_MODULE_NAME);
 		rc = -EINVAL;
 		goto done;
@@ -900,7 +900,7 @@ static int bnxt_re_cqn_handler(struct bnxt_qplib_nq *nq,
 					     qplib_cq);
 
 	if (!cq) {
-		dev_err(NULL, "%s: CQ is NULL, CQN not handled",
+		dev_err(NULL, "%s: CQ is NULL, CQN yest handled",
 			ROCE_DRV_MODULE_NAME);
 		return -EINVAL;
 	}
@@ -1112,7 +1112,7 @@ static int bnxt_re_query_hwrm_pri2cos(struct bnxt_re_dev *rdev, u8 dir,
 		dev_warn(rdev_to_dev(rdev),
 			 "Asymmetric cos queue configuration detected");
 		dev_warn(rdev_to_dev(rdev),
-			 " on device, QoS may not be fully functional\n");
+			 " on device, QoS may yest be fully functional\n");
 	}
 	qcfgmap = &resp.pri0_cos_queue_id;
 	tmp_map = (u8 *)cid_map;
@@ -1164,7 +1164,7 @@ static int bnxt_re_update_gid(struct bnxt_re_dev *rdev)
 		return 0;
 
 	if (!sgid_tbl) {
-		dev_err(rdev_to_dev(rdev), "QPLIB: SGID table not allocated");
+		dev_err(rdev_to_dev(rdev), "QPLIB: SGID table yest allocated");
 		return -EINVAL;
 	}
 
@@ -1174,7 +1174,7 @@ static int bnxt_re_update_gid(struct bnxt_re_dev *rdev)
 		if (!memcmp(&sgid_tbl->tbl[index], &bnxt_qplib_gid_zero,
 			    sizeof(bnxt_qplib_gid_zero)))
 			continue;
-		/* need to modify the VLAN enable setting of non VLAN GID only
+		/* need to modify the VLAN enable setting of yesn VLAN GID only
 		 * as setting is done for VLAN GID while adding GID
 		 */
 		if (sgid_tbl->vlan[index])
@@ -1241,7 +1241,7 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 	/* Get cosq id for this priority */
 	rc = bnxt_re_query_hwrm_pri2cos(rdev, 0, &cid_map);
 	if (rc) {
-		dev_warn(rdev_to_dev(rdev), "no cos for p_mask %x\n", prio_map);
+		dev_warn(rdev_to_dev(rdev), "yes cos for p_mask %x\n", prio_map);
 		return rc;
 	}
 	/* Parse CoS IDs for app priority */
@@ -1250,12 +1250,12 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 	/* Config BONO. */
 	rc = bnxt_qplib_map_tc2cos(&rdev->qplib_res, rdev->cosq);
 	if (rc) {
-		dev_warn(rdev_to_dev(rdev), "no tc for cos{%x, %x}\n",
+		dev_warn(rdev_to_dev(rdev), "yes tc for cos{%x, %x}\n",
 			 rdev->cosq[0], rdev->cosq[1]);
 		return rc;
 	}
 
-	/* Actual priorities are not programmed as they are already
+	/* Actual priorities are yest programmed as they are already
 	 * done by L2 driver; just enable or disable priority vlan tagging
 	 */
 	if ((prio_map == 0 && rdev->qplib_res.prio) ||
@@ -1292,7 +1292,7 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 	}
 	rdev->qplib_ctx.hwrm_intf_ver =
 		(u64)le16_to_cpu(resp.hwrm_intf_major) << 48 |
-		(u64)le16_to_cpu(resp.hwrm_intf_minor) << 32 |
+		(u64)le16_to_cpu(resp.hwrm_intf_miyesr) << 32 |
 		(u64)le16_to_cpu(resp.hwrm_intf_build) << 16 |
 		le16_to_cpu(resp.hwrm_intf_patch);
 }
@@ -1472,7 +1472,7 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	if (!rdev->is_virtfn) {
 		rc = bnxt_re_setup_qos(rdev);
 		if (rc)
-			pr_info("RoCE priority not yet configured\n");
+			pr_info("RoCE priority yest yet configured\n");
 
 		INIT_DELAYED_WORK(&rdev->worker, bnxt_re_worker);
 		set_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags);
@@ -1617,19 +1617,19 @@ static void bnxt_re_init_one(struct bnxt_re_dev *rdev)
  * different CPUs at the same time".
  *
  * For cases when the netdev is already present, our call to the
- * register_netdevice_notifier() will actually get the rtnl_lock()
+ * register_netdevice_yestifier() will actually get the rtnl_lock()
  * before sending NETDEV_REGISTER and (if up) NETDEV_UP
  * events.
  *
- * But for cases when the netdev is not already present, the notifier
+ * But for cases when the netdev is yest already present, the yestifier
  * chain is subjected to be invoked from different CPUs simultaneously.
  *
  * This is protected by the netdev_mutex.
  */
-static int bnxt_re_netdev_event(struct notifier_block *notifier,
+static int bnxt_re_netdev_event(struct yestifier_block *yestifier,
 				unsigned long event, void *ptr)
 {
-	struct net_device *real_dev, *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *real_dev, *netdev = netdev_yestifier_info_to_dev(ptr);
 	struct bnxt_re_work *re_work;
 	struct bnxt_re_dev *rdev;
 	int rc = 0;
@@ -1662,7 +1662,7 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 		break;
 
 	case NETDEV_UNREGISTER:
-		/* netdev notifier will call NETDEV_UNREGISTER again later since
+		/* netdev yestifier will call NETDEV_UNREGISTER again later since
 		 * we are still holding the reference to the netdev
 		 */
 		if (atomic_read(&rdev->sched_count) > 0)
@@ -1694,8 +1694,8 @@ exit:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block bnxt_re_netdev_notifier = {
-	.notifier_call = bnxt_re_netdev_event
+static struct yestifier_block bnxt_re_netdev_yestifier = {
+	.yestifier_call = bnxt_re_netdev_event
 };
 
 static int __init bnxt_re_mod_init(void)
@@ -1710,9 +1710,9 @@ static int __init bnxt_re_mod_init(void)
 
 	INIT_LIST_HEAD(&bnxt_re_dev_list);
 
-	rc = register_netdevice_notifier(&bnxt_re_netdev_notifier);
+	rc = register_netdevice_yestifier(&bnxt_re_netdev_yestifier);
 	if (rc) {
-		pr_err("%s: Cannot register to netdevice_notifier",
+		pr_err("%s: Canyest register to netdevice_yestifier",
 		       ROCE_DRV_MODULE_NAME);
 		goto err_netdev;
 	}
@@ -1753,7 +1753,7 @@ static void __exit bnxt_re_mod_exit(void)
 		bnxt_re_remove_one(rdev);
 		bnxt_re_dev_unreg(rdev);
 	}
-	unregister_netdevice_notifier(&bnxt_re_netdev_notifier);
+	unregister_netdevice_yestifier(&bnxt_re_netdev_yestifier);
 	if (bnxt_re_wq)
 		destroy_workqueue(bnxt_re_wq);
 }

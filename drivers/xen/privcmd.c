@@ -14,7 +14,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/uaccess.h>
@@ -227,7 +227,7 @@ static int mmap_gfn_range(void *data, void *state)
 	struct vm_area_struct *vma = st->vma;
 	int rc;
 
-	/* Do not allow range to wrap the address space. */
+	/* Do yest allow range to wrap the address space. */
 	if ((msg->npages > (LONG_MAX >> PAGE_SHIFT)) ||
 	    ((unsigned long)(msg->npages << PAGE_SHIFT) >= -st->va))
 		return -EINVAL;
@@ -317,8 +317,8 @@ struct mmap_batch_state {
 	struct vm_area_struct *vma;
 	int index;
 	/* A tristate:
-	 *      0 for no errors
-	 *      1 if at least one error has happened (and no
+	 *      0 for yes errors
+	 *      1 if at least one error has happened (and yes
 	 *          -ENOENT errors have happened)
 	 *      -ENOENT if at least 1 -ENOENT has happened.
 	 */
@@ -331,7 +331,7 @@ struct mmap_batch_state {
 	int __user *user_err;
 };
 
-/* auto translated dom0 note: if domU being created is PV, then gfn is
+/* auto translated dom0 yeste: if domU being created is PV, then gfn is
  * mfn(addr on bus). If it's auto xlated, then gfn is pfn (input to HAP).
  */
 static int mmap_batch_fn(void *data, int nr, void *state)
@@ -380,7 +380,7 @@ static int mmap_return_error(int err, struct mmap_batch_state *st)
 				return ret;
 			/*
 			 * V1 encodes the error codes in the 32bit top
-			 * nibble of the gfn (with its known
+			 * nibble of the gfn (with its kyeswn
 			 * limitations vis-a-vis 64 bit callers).
 			 */
 			gfn |= (err == -ENOENT) ?
@@ -416,7 +416,7 @@ static int mmap_return_errors(void *data, int nr, void *state)
 
 /* Allocate pfns that are then mapped with gfns from foreign domid. Update
  * the vma with the page info to use later.
- * Returns: 0 if success, otherwise -errno
+ * Returns: 0 if success, otherwise -erryes
  */
 static int alloc_empty_pages(struct vm_area_struct *vma, int numpgs)
 {
@@ -429,7 +429,7 @@ static int alloc_empty_pages(struct vm_area_struct *vma, int numpgs)
 
 	rc = alloc_xenballooned_pages(numpgs, pages);
 	if (rc != 0) {
-		pr_warn("%s Could not alloc %d pfns rc:%d\n", __func__,
+		pr_warn("%s Could yest alloc %d pfns rc:%d\n", __func__,
 			numpgs, rc);
 		kfree(pages);
 		return -ENOMEM;
@@ -492,7 +492,7 @@ static long privcmd_ioctl_mmap_batch(
 	}
 
 	if (version == 2) {
-		/* Zero error array now to only copy back actual errors. */
+		/* Zero error array yesw to only copy back actual errors. */
 		if (clear_user(m.err, sizeof(int) * m.num)) {
 			ret = -EFAULT;
 			goto out;
@@ -566,7 +566,7 @@ static long privcmd_ioctl_mmap_batch(
 	} else
 		ret = 0;
 
-	/* If we have not had any EFAULT-like global errors then set the global
+	/* If we have yest had any EFAULT-like global errors then set the global
 	 * error to -ENOENT if necessary. */
 	if ((ret == 0) && (state.global_error == -ENOENT))
 		ret = -ENOENT;
@@ -868,21 +868,21 @@ static long privcmd_ioctl(struct file *file,
 	return ret;
 }
 
-static int privcmd_open(struct inode *ino, struct file *file)
+static int privcmd_open(struct iyesde *iyes, struct file *file)
 {
 	struct privcmd_data *data = kzalloc(sizeof(*data), GFP_KERNEL);
 
 	if (!data)
 		return -ENOMEM;
 
-	/* DOMID_INVALID implies no restriction */
+	/* DOMID_INVALID implies yes restriction */
 	data->domid = DOMID_INVALID;
 
 	file->private_data = data;
 	return 0;
 }
 
-static int privcmd_release(struct inode *ino, struct file *file)
+static int privcmd_release(struct iyesde *iyes, struct file *file)
 {
 	struct privcmd_data *data = file->private_data;
 
@@ -925,7 +925,7 @@ static const struct vm_operations_struct privcmd_vm_ops = {
 
 static int privcmd_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	/* DONTCOPY is essential for Xen because copy_page_range doesn't know
+	/* DONTCOPY is essential for Xen because copy_page_range doesn't kyesw
 	 * how to recreate these mappings */
 	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTCOPY |
 			 VM_DONTEXPAND | VM_DONTDUMP;
@@ -942,7 +942,7 @@ static int privcmd_mmap(struct file *file, struct vm_area_struct *vma)
  */
 static int is_mapped_fn(pte_t *pte, unsigned long addr, void *data)
 {
-	return pte_none(*pte) ? 0 : -EBUSY;
+	return pte_yesne(*pte) ? 0 : -EBUSY;
 }
 
 static int privcmd_vma_range_is_mapped(
@@ -964,7 +964,7 @@ const struct file_operations xen_privcmd_fops = {
 EXPORT_SYMBOL_GPL(xen_privcmd_fops);
 
 static struct miscdevice privcmd_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "xen/privcmd",
 	.fops = &xen_privcmd_fops,
 };
@@ -978,13 +978,13 @@ static int __init privcmd_init(void)
 
 	err = misc_register(&privcmd_dev);
 	if (err != 0) {
-		pr_err("Could not register Xen privcmd device\n");
+		pr_err("Could yest register Xen privcmd device\n");
 		return err;
 	}
 
 	err = misc_register(&xen_privcmdbuf_dev);
 	if (err != 0) {
-		pr_err("Could not register Xen hypercall-buf device\n");
+		pr_err("Could yest register Xen hypercall-buf device\n");
 		misc_deregister(&privcmd_dev);
 		return err;
 	}

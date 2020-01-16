@@ -35,7 +35,7 @@ MODULE_PARM_DESC(timeout_locked,
 
 module_param(reset_on_lockup, int, 0444);
 MODULE_PARM_DESC(reset_on_lockup,
-	"Do device reset on lockup (0 = no, 1 = yes, default yes)");
+	"Do device reset on lockup (0 = yes, 1 = no, default no)");
 
 #define PCI_VENDOR_ID_HABANALABS	0x1da3
 
@@ -74,24 +74,24 @@ static enum hl_asic_type get_asic_type(u16 device)
 /*
  * hl_device_open - open function for habanalabs device
  *
- * @inode: pointer to inode structure
+ * @iyesde: pointer to iyesde structure
  * @filp: pointer to file structure
  *
  * Called when process opens an habanalabs device.
  */
-int hl_device_open(struct inode *inode, struct file *filp)
+int hl_device_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct hl_device *hdev;
 	struct hl_fpriv *hpriv;
 	int rc;
 
 	mutex_lock(&hl_devs_idr_lock);
-	hdev = idr_find(&hl_devs_idr, iminor(inode));
+	hdev = idr_find(&hl_devs_idr, imiyesr(iyesde));
 	mutex_unlock(&hl_devs_idr_lock);
 
 	if (!hdev) {
 		pr_err("Couldn't find device %d:%d\n",
-			imajor(inode), iminor(inode));
+			imajor(iyesde), imiyesr(iyesde));
 		return -ENXIO;
 	}
 
@@ -104,7 +104,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	hpriv->filp = filp;
 	mutex_init(&hpriv->restore_phase_mutex);
 	kref_init(&hpriv->refcount);
-	nonseekable_open(inode, filp);
+	yesnseekable_open(iyesde, filp);
 
 	hl_cb_mgr_init(&hpriv->cb_mgr);
 	hl_ctx_mgr_init(&hpriv->ctx_mgr);
@@ -123,7 +123,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	if (hdev->in_debug) {
 		dev_err_ratelimited(hdev->dev,
-			"Can't open %s because it is being debugged by another user\n",
+			"Can't open %s because it is being debugged by ayesther user\n",
 			dev_name(hdev->dev));
 		rc = -EPERM;
 		goto out_err;
@@ -131,7 +131,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	if (hdev->compute_ctx) {
 		dev_dbg_ratelimited(hdev->dev,
-			"Can't open %s because another user is working on it\n",
+			"Can't open %s because ayesther user is working on it\n",
 			dev_name(hdev->dev));
 		rc = -EBUSY;
 		goto out_err;
@@ -144,13 +144,13 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	}
 
 	/* Device is IDLE at this point so it is legal to change PLLs.
-	 * There is no need to check anything because if the PLL is
+	 * There is yes need to check anything because if the PLL is
 	 * already HIGH, the set function will return without doing
 	 * anything
 	 */
 	hl_device_set_frequency(hdev, PLL_HIGH);
 
-	list_add(&hpriv->dev_node, &hdev->fpriv_list);
+	list_add(&hpriv->dev_yesde, &hdev->fpriv_list);
 	mutex_unlock(&hdev->fpriv_list_lock);
 
 	hl_debugfs_add_file(hpriv);
@@ -170,19 +170,19 @@ out_err:
 	return rc;
 }
 
-int hl_device_open_ctrl(struct inode *inode, struct file *filp)
+int hl_device_open_ctrl(struct iyesde *iyesde, struct file *filp)
 {
 	struct hl_device *hdev;
 	struct hl_fpriv *hpriv;
 	int rc;
 
 	mutex_lock(&hl_devs_idr_lock);
-	hdev = idr_find(&hl_devs_idr, iminor(inode));
+	hdev = idr_find(&hl_devs_idr, imiyesr(iyesde));
 	mutex_unlock(&hl_devs_idr_lock);
 
 	if (!hdev) {
 		pr_err("Couldn't find device %d:%d\n",
-			imajor(inode), iminor(inode));
+			imajor(iyesde), imiyesr(iyesde));
 		return -ENXIO;
 	}
 
@@ -200,14 +200,14 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 		goto out_err;
 	}
 
-	list_add(&hpriv->dev_node, &hdev->fpriv_list);
+	list_add(&hpriv->dev_yesde, &hdev->fpriv_list);
 	mutex_unlock(&hdev->fpriv_list_lock);
 
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
 	hpriv->filp = filp;
 	hpriv->is_control = true;
-	nonseekable_open(inode, filp);
+	yesnseekable_open(iyesde, filp);
 
 	hpriv->taskpid = find_get_pid(current->pid);
 
@@ -236,14 +236,14 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
  * @dev: will hold the pointer to the new habanalabs device structure
  * @pdev: pointer to the pci device
  * @asic_type: in case of simulator device, which device is it
- * @minor: in case of simulator device, the minor of the device
+ * @miyesr: in case of simulator device, the miyesr of the device
  *
  * Allocate memory for habanalabs device and initialize basic fields
  * Identify the ASIC type
- * Allocate ID (minor) for the device (only for real devices)
+ * Allocate ID (miyesr) for the device (only for real devices)
  */
 int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
-		enum hl_asic_type asic_type, int minor)
+		enum hl_asic_type asic_type, int miyesr)
 {
 	struct hl_device *hdev;
 	int rc, main_id, ctrl_id = 0;

@@ -11,7 +11,7 @@
 #include <linux/list.h>
 #include <linux/err.h>
 
-/* conf_field_init can return an errno in a ptr with ERR_PTR() */
+/* conf_field_init can return an erryes in a ptr with ERR_PTR() */
 typedef void *(*conf_field_init) (struct pci_dev *dev, int offset);
 typedef void (*conf_field_reset) (struct pci_dev *dev, int offset, void *data);
 typedef void (*conf_field_free) (struct pci_dev *dev, int offset, void *data);

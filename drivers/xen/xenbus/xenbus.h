@@ -17,7 +17,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -41,7 +41,7 @@
 struct xen_bus_type {
 	char *root;
 	unsigned int levels;
-	int (*get_bus_id)(char bus_id[XEN_BUS_ID_SIZE], const char *nodename);
+	int (*get_bus_id)(char bus_id[XEN_BUS_ID_SIZE], const char *yesdename);
 	int (*probe)(struct xen_bus_type *bus, const char *type,
 		     const char *dir);
 	void (*otherend_changed)(struct xenbus_watch *watch, const char *path,
@@ -109,12 +109,12 @@ int xenbus_register_driver_common(struct xenbus_driver *drv,
 				  struct xen_bus_type *bus,
 				  struct module *owner,
 				  const char *mod_name);
-int xenbus_probe_node(struct xen_bus_type *bus,
+int xenbus_probe_yesde(struct xen_bus_type *bus,
 		      const char *type,
-		      const char *nodename);
+		      const char *yesdename);
 int xenbus_probe_devices(struct xen_bus_type *bus);
 
-void xenbus_dev_changed(const char *node, struct xen_bus_type *bus);
+void xenbus_dev_changed(const char *yesde, struct xen_bus_type *bus);
 
 int xenbus_dev_suspend(struct device *dev);
 int xenbus_dev_resume(struct device *dev);
@@ -122,10 +122,10 @@ int xenbus_dev_cancel(struct device *dev);
 
 void xenbus_otherend_changed(struct xenbus_watch *watch,
 			     const char *path, const char *token,
-			     int ignore_on_shutdown);
+			     int igyesre_on_shutdown);
 
 int xenbus_read_otherend_details(struct xenbus_device *xendev,
-				 char *id_node, char *path_node);
+				 char *id_yesde, char *path_yesde);
 
 void xenbus_ring_ops_init(void);
 

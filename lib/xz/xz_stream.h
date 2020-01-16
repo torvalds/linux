@@ -33,10 +33,10 @@
 
 /*
  * Variable-length integer can hold a 63-bit unsigned integer or a special
- * value indicating that the value is unknown.
+ * value indicating that the value is unkyeswn.
  *
  * Experimental: vli_type can be defined to uint32_t to save a few bytes
- * in code size (no effect on speed). Doing so limits the uncompressed and
+ * in code size (yes effect on speed). Doing so limits the uncompressed and
  * compressed size of the file to less than 256 MiB and may also weaken
  * error detection slightly.
  */

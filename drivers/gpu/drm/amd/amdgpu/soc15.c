@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -663,7 +663,7 @@ static const struct amdgpu_ip_block_version vega10_common_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_COMMON,
 	.major = 2,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &soc15_common_ip_funcs,
 };
@@ -857,7 +857,7 @@ static void soc15_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	int tmp;
 
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
-	 * that may or may not be different from their GPU counterparts
+	 * that may or may yest be different from their GPU counterparts
 	 */
 	if (adev->flags & AMD_IS_APU)
 		return;
@@ -904,7 +904,7 @@ static void vega20_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	int tmp;
 
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
-	 * that may or may not be different from their GPU counterparts
+	 * that may or may yest be different from their GPU counterparts
 	 */
 	if (adev->flags & AMD_IS_APU)
 		return;
@@ -949,7 +949,7 @@ static bool soc15_need_reset_on_init(struct amdgpu_device *adev)
 {
 	u32 sol_reg;
 
-	/* Just return false for soc15 GPUs.  Reset does not seem to
+	/* Just return false for soc15 GPUs.  Reset does yest seem to
 	 * be necessary.
 	 */
 	if (!amdgpu_passthrough(adev))
@@ -1239,7 +1239,7 @@ static int soc15_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x91;
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: yest supported yet */
 		return -EINVAL;
 	}
 
@@ -1324,7 +1324,7 @@ static int soc15_common_hw_init(void *handle)
 
 	/* enable the doorbell aperture */
 	soc15_enable_doorbell_aperture(adev, true);
-	/* HW doorbell routing policy: doorbell writing not
+	/* HW doorbell routing policy: doorbell writing yest
 	 * in SDMA/IH/MM/ACV range will be routed to CP. So
 	 * we need to init SDMA/IH/MM/ACV doorbell range prior
 	 * to CP ip block init and ring test.

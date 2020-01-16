@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/signal.h>	/* IRQF_SHARED */
@@ -62,7 +62,7 @@ static int zt5550_hc_config(struct pci_dev *pdev)
 {
 	int ret;
 
-	/* Since we know that no boards exist with two HC chips, treat it as an error */
+	/* Since we kyesw that yes boards exist with two HC chips, treat it as an error */
 	if (hc_dev) {
 		err("too many host controller devices?");
 		return -EBUSY;
@@ -70,7 +70,7 @@ static int zt5550_hc_config(struct pci_dev *pdev)
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
-		err("cannot enable %s\n", pci_name(pdev));
+		err("canyest enable %s\n", pci_name(pdev));
 		return ret;
 	}
 
@@ -81,7 +81,7 @@ static int zt5550_hc_config(struct pci_dev *pdev)
 
 	if (!request_mem_region(pci_resource_start(hc_dev, 1),
 				pci_resource_len(hc_dev, 1), MY_NAME)) {
-		err("cannot reserve MMIO region");
+		err("canyest reserve MMIO region");
 		ret = -ENOMEM;
 		goto exit_disable_device;
 	}
@@ -89,7 +89,7 @@ static int zt5550_hc_config(struct pci_dev *pdev)
 	hc_registers =
 	    ioremap(pci_resource_start(hc_dev, 1), pci_resource_len(hc_dev, 1));
 	if (!hc_registers) {
-		err("cannot remap MMIO region %llx @ %llx",
+		err("canyest remap MMIO region %llx @ %llx",
 			(unsigned long long)pci_resource_len(hc_dev, 1),
 			(unsigned long long)pci_resource_start(hc_dev, 1));
 		ret = -ENODEV;
@@ -212,7 +212,7 @@ static int zt5550_hc_init_one(struct pci_dev *pdev, const struct pci_device_id *
 
 	status = cpci_hp_register_controller(&zt5550_hpc);
 	if (status != 0) {
-		err("could not register cPCI hotplug controller");
+		err("could yest register cPCI hotplug controller");
 		goto init_hc_error;
 	}
 	dbg("registered controller");
@@ -229,14 +229,14 @@ static int zt5550_hc_init_one(struct pci_dev *pdev, const struct pci_device_id *
 
 	status = cpci_hp_register_bus(bus0, 0x0a, 0x0f);
 	if (status != 0) {
-		err("could not register cPCI hotplug bus");
+		err("could yest register cPCI hotplug bus");
 		goto init_register_error;
 	}
 	dbg("registered bus");
 
 	status = cpci_hp_start();
 	if (status != 0) {
-		err("could not started cPCI hotplug system");
+		err("could yest started cPCI hotplug system");
 		cpci_hp_unregister_bus(bus0);
 		goto init_register_error;
 	}
@@ -304,6 +304,6 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
+MODULE_PARM_DESC(debug, "Debugging mode enabled or yest");
 module_param(poll, bool, 0644);
-MODULE_PARM_DESC(poll, "#ENUM polling mode enabled or not");
+MODULE_PARM_DESC(poll, "#ENUM polling mode enabled or yest");

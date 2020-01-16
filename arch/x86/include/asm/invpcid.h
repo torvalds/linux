@@ -25,14 +25,14 @@ static inline void __invpcid(unsigned long pcid, unsigned long addr,
 #define INVPCID_TYPE_ALL_INCL_GLOBAL	2
 #define INVPCID_TYPE_ALL_NON_GLOBAL	3
 
-/* Flush all mappings for a given pcid and addr, not including globals. */
+/* Flush all mappings for a given pcid and addr, yest including globals. */
 static inline void invpcid_flush_one(unsigned long pcid,
 				     unsigned long addr)
 {
 	__invpcid(pcid, addr, INVPCID_TYPE_INDIV_ADDR);
 }
 
-/* Flush all mappings for a given PCID, not including globals. */
+/* Flush all mappings for a given PCID, yest including globals. */
 static inline void invpcid_flush_single_context(unsigned long pcid)
 {
 	__invpcid(pcid, 0, INVPCID_TYPE_SINGLE_CTXT);
@@ -45,7 +45,7 @@ static inline void invpcid_flush_all(void)
 }
 
 /* Flush all mappings for all PCIDs except globals. */
-static inline void invpcid_flush_all_nonglobals(void)
+static inline void invpcid_flush_all_yesnglobals(void)
 {
 	__invpcid(0, 0, INVPCID_TYPE_ALL_NON_GLOBAL);
 }

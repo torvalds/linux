@@ -213,7 +213,7 @@
 #define B43legacy_MACCMD_BEACON1_VALID	0x00000002 /* Beacon 1 in template RAM is busy/valid */
 #define B43legacy_MACCMD_DFQ_VALID	0x00000004 /* Directed frame queue valid (IBSS PS mode, ATIM) */
 #define B43legacy_MACCMD_CCA		0x00000008 /* Clear channel assessment */
-#define B43legacy_MACCMD_BGNOISE	0x00000010 /* Background noise */
+#define B43legacy_MACCMD_BGNOISE	0x00000010 /* Background yesise */
 
 /* 802.11 core specific TM State Low flags */
 #define B43legacy_TMSLOW_GMODE		0x20000000 /* G Mode Enable */
@@ -346,7 +346,7 @@ enum {
 /* This will evaluate the argument even if debugging is disabled. */
 static inline bool __b43legacy_warn_on_dummy(bool x) { return x; }
 # define B43legacy_WARN_ON(x)	__b43legacy_warn_on_dummy(unlikely(!!(x)))
-# define B43legacy_BUG_ON(x)	do { /* nothing */ } while (0)
+# define B43legacy_BUG_ON(x)	do { /* yesthing */ } while (0)
 # define B43legacy_DEBUG	0
 #endif
 
@@ -541,8 +541,8 @@ struct b43legacy_pio {
 	struct b43legacy_pioqueue *queue3;
 };
 
-/* Context information for a noise calculation (Link Quality). */
-struct b43legacy_noise_calculation {
+/* Context information for a yesise calculation (Link Quality). */
+struct b43legacy_yesise_calculation {
 	u8 channel_at_start;
 	bool calculation_running;
 	u8 nr_samples;
@@ -550,7 +550,7 @@ struct b43legacy_noise_calculation {
 };
 
 struct b43legacy_stats {
-	u8 link_noise;
+	u8 link_yesise;
 	/* Store the last TX/RX times here for updating the leds. */
 	unsigned long last_tx;
 	unsigned long last_rx;
@@ -657,7 +657,7 @@ struct b43legacy_firmware {
 /* Device (802.11 core) initialization status. */
 enum {
 	B43legacy_STAT_UNINIT		= 0, /* Uninitialized. */
-	B43legacy_STAT_INITIALIZED	= 1, /* Initialized, not yet started. */
+	B43legacy_STAT_INITIALIZED	= 1, /* Initialized, yest yet started. */
 	B43legacy_STAT_STARTED	= 2, /* Up and running. */
 };
 #define b43legacy_status(wldev)	atomic_read(&(wldev)->__init_status)
@@ -715,7 +715,7 @@ struct b43legacy_wldev {
 	/* The currently active generic-interrupt mask. */
 	u32 irq_mask;
 	/* Link Quality calculation context. */
-	struct b43legacy_noise_calculation noisecalc;
+	struct b43legacy_yesise_calculation yesisecalc;
 	/* if > 0 MAC is suspended. if == 0 MAC is enabled. */
 	int mac_suspended;
 
@@ -778,7 +778,7 @@ int b43legacy_using_pio(struct b43legacy_wldev *dev)
 	return 1;
 }
 #else
-# error "Using neither DMA nor PIO? Confused..."
+# error "Using neither DMA yesr PIO? Confused..."
 #endif
 
 
@@ -849,7 +849,7 @@ void b43legacywarn(struct b43legacy_wl *wl, const char *fmt, ...);
 __printf(2, 3)
 void b43legacydbg(struct b43legacy_wl *wl, const char *fmt, ...);
 #else /* DEBUG */
-# define b43legacydbg(wl, fmt...) do { /* nothing */ } while (0)
+# define b43legacydbg(wl, fmt...) do { /* yesthing */ } while (0)
 #endif /* DEBUG */
 
 /* Macros for printing a value in Q5.2 format */

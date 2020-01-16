@@ -35,16 +35,16 @@ struct psc724_spec {
  *
  *  system configuration ICE_EEP2_SYSCONF=0x42
  *    XIN1 49.152MHz
- *    no MPU401
- *    one stereo ADC, no S/PDIF receiver
+ *    yes MPU401
+ *    one stereo ADC, yes S/PDIF receiver
  *    three stereo DACs (FRONT, REAR, CENTER+LFE)
  *
  *  AC-Link configuration ICE_EEP2_ACLINK=0x80
- *    use I2S, not AC97
+ *    use I2S, yest AC97
  *
  *  I2S converters feature ICE_EEP2_I2S=0x30
- *    I2S codec has no volume/mute control feature (bug!)
- *    I2S codec does not support 96KHz or 192KHz (bug!)
+ *    I2S codec has yes volume/mute control feature (bug!)
+ *    I2S codec does yest support 96KHz or 192KHz (bug!)
  *    I2S codec 24bits
  *
  *  S/PDIF configuration ICE_EEP2_SPDIF=0xc1
@@ -186,18 +186,18 @@ static void psc724_set_jack_state(struct snd_ice1712 *ice, bool hp_connected)
 		power |= WM8776_PWR_HPPD;
 	snd_wm8776_set_power(&spec->wm8776, power);
 	spec->hp_connected = hp_connected;
-	/* notify about master speaker mute change */
+	/* yestify about master speaker mute change */
 	memset(&elem_id, 0, sizeof(elem_id));
 	elem_id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	strlcpy(elem_id.name, "Master Speakers Playback Switch",
 						sizeof(elem_id.name));
 	kctl = snd_ctl_find_id(ice->card, &elem_id);
-	snd_ctl_notify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
+	snd_ctl_yestify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 	/* and headphone mute change */
 	strlcpy(elem_id.name, spec->wm8776.ctl[WM8776_CTL_HP_SW].name,
 						sizeof(elem_id.name));
 	kctl = snd_ctl_find_id(ice->card, &elem_id);
-	snd_ctl_notify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
+	snd_ctl_yestify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 }
 
 static void psc724_update_hp_jack_state(struct work_struct *work)
@@ -344,7 +344,7 @@ static int psc724_add_controls(struct snd_ice1712 *ice)
 		cont.private_value = i;
 		cont.name = psc724_cont[i].name;
 		cont.access = SNDRV_CTL_ELEM_ACCESS_READWRITE;
-		cont.info = snd_ctl_boolean_mono_info;
+		cont.info = snd_ctl_boolean_moyes_info;
 		cont.get = psc724_ctl_get;
 		cont.put = psc724_ctl_put;
 		ctl = snd_ctl_new1(&cont, ice);
@@ -419,12 +419,12 @@ static void psc724_exit(struct snd_ice1712 *ice)
 	cancel_delayed_work_sync(&spec->hp_work);
 }
 
-/* PSC724 has buggy EEPROM (no 96&192kHz, all FFh GPIOs), so override it here */
+/* PSC724 has buggy EEPROM (yes 96&192kHz, all FFh GPIOs), so override it here */
 static unsigned char psc724_eeprom[] = {
 	[ICE_EEP2_SYSCONF]	= 0x42,	/* 49.152MHz, 1 ADC, 3 DACs */
 	[ICE_EEP2_ACLINK]	= 0x80,	/* I2S */
 	[ICE_EEP2_I2S]		= 0xf0,	/* I2S volume, 96kHz, 24bit */
-	[ICE_EEP2_SPDIF]	= 0xc1,	/* spdif out-en, out-int, no input */
+	[ICE_EEP2_SPDIF]	= 0xc1,	/* spdif out-en, out-int, yes input */
 	/* GPIO outputs */
 	[ICE_EEP2_GPIO_DIR2]	= 0x5f, /* MUTE_ALL,WM8766 MUTE/MODE/ML/MC/MD */
 	/* GPIO write enable */

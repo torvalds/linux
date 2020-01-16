@@ -36,7 +36,7 @@ static __init int set_corruption_check(char *arg)
 	unsigned long val;
 
 	if (!arg) {
-		pr_err("memory_corruption_check config string not provided\n");
+		pr_err("memory_corruption_check config string yest provided\n");
 		return -EINVAL;
 	}
 
@@ -56,7 +56,7 @@ static __init int set_corruption_check_period(char *arg)
 	unsigned long val;
 
 	if (!arg) {
-		pr_err("memory_corruption_check_period config string not provided\n");
+		pr_err("memory_corruption_check_period config string yest provided\n");
 		return -EINVAL;
 	}
 
@@ -75,7 +75,7 @@ static __init int set_corruption_check_size(char *arg)
 	unsigned size;
 
 	if (!arg) {
-		pr_err("memory_corruption_check_size config string not provided\n");
+		pr_err("memory_corruption_check_size config string yest provided\n");
 		return -EINVAL;
 	}
 

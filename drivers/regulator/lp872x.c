@@ -824,7 +824,7 @@ static struct of_regulator_match lp8725_matches[] = {
 static struct lp872x_platform_data
 *lp872x_populate_pdata_from_dt(struct device *dev, enum lp872x_id which)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct lp872x_platform_data *pdata;
 	struct of_regulator_match *match;
 	int num_matches;
@@ -897,7 +897,7 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 		[LP8725] = LP8725_NUM_REGULATORS,
 	};
 
-	if (cl->dev.of_node) {
+	if (cl->dev.of_yesde) {
 		pdata = lp872x_populate_pdata_from_dt(&cl->dev,
 					      (enum lp872x_id)id->driver_data);
 		if (IS_ERR(pdata))

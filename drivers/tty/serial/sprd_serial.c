@@ -558,10 +558,10 @@ static void sprd_start_tx(struct uart_port *port)
 	}
 }
 
-/* The Sprd serial does not support this function. */
+/* The Sprd serial does yest support this function. */
 static void sprd_break_ctl(struct uart_port *port, int break_state)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 static int handle_lsr_errors(struct uart_port *port,
@@ -584,7 +584,7 @@ static int handle_lsr_errors(struct uart_port *port,
 	if (*lsr & SPRD_LSR_OE)
 		port->icount.overrun++;
 
-	/* mask off conditions which should be ignored */
+	/* mask off conditions which should be igyesred */
 	*lsr &= port->read_status_mask;
 	if (*lsr & SPRD_LSR_BI)
 		*flag = TTY_BREAK;
@@ -814,7 +814,7 @@ static void sprd_set_termios(struct uart_port *port,
 
 	/* calculate parity */
 	lcr &= ~SPRD_LCR_PARITY;
-	termios->c_cflag &= ~CMSPAR;	/* no support mark/space */
+	termios->c_cflag &= ~CMSPAR;	/* yes support mark/space */
 	if (termios->c_cflag & PARENB) {
 		lcr |= SPRD_LCR_PARITY_EN;
 		if (termios->c_cflag & PARODD)
@@ -834,18 +834,18 @@ static void sprd_set_termios(struct uart_port *port,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= SPRD_LSR_BI;
 
-	/* characters to ignore */
-	port->ignore_status_mask = 0;
+	/* characters to igyesre */
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= SPRD_LSR_PE | SPRD_LSR_FE;
+		port->igyesre_status_mask |= SPRD_LSR_PE | SPRD_LSR_FE;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= SPRD_LSR_BI;
+		port->igyesre_status_mask |= SPRD_LSR_BI;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= SPRD_LSR_OE;
+			port->igyesre_status_mask |= SPRD_LSR_OE;
 	}
 
 	/* flow control */
@@ -881,7 +881,7 @@ static const char *sprd_type(struct uart_port *port)
 
 static void sprd_release_port(struct uart_port *port)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 static int sprd_request_port(struct uart_port *port)
@@ -1030,7 +1030,7 @@ static int __init sprd_console_setup(struct console *co, char *options)
 
 	sprd_uart_port = sprd_port[co->index];
 	if (!sprd_uart_port || !sprd_uart_port->port.membase) {
-		pr_info("serial port %d not yet initialized\n", co->index);
+		pr_info("serial port %d yest yet initialized\n", co->index);
 		return -ENODEV;
 	}
 
@@ -1101,20 +1101,20 @@ static struct uart_driver sprd_uart_driver = {
 	.driver_name = "sprd_serial",
 	.dev_name = SPRD_TTY_NAME,
 	.major = 0,
-	.minor = 0,
+	.miyesr = 0,
 	.nr = UART_NR_MAX,
 	.cons = SPRD_CONSOLE,
 };
 
 static int sprd_probe_dt_alias(int index, struct device *dev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret = index;
 
 	if (!IS_ENABLED(CONFIG_OF))
 		return ret;
 
-	np = dev->of_node;
+	np = dev->of_yesde;
 	if (!np)
 		return ret;
 
@@ -1122,7 +1122,7 @@ static int sprd_probe_dt_alias(int index, struct device *dev)
 	if (ret < 0)
 		ret = index;
 	else if (ret >= ARRAY_SIZE(sprd_port) || sprd_port[ret] != NULL) {
-		dev_warn(dev, "requested serial port %d not available.\n", ret);
+		dev_warn(dev, "requested serial port %d yest available.\n", ret);
 		ret = index;
 	}
 

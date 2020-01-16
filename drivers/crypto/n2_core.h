@@ -4,14 +4,14 @@
 
 #ifndef __ASSEMBLY__
 
-struct ino_blob {
+struct iyes_blob {
 	u64			intr;
-	u64			ino;
+	u64			iyes;
 };
 
 struct spu_mdesc_info {
 	u64			cfg_handle;
-	struct ino_blob		*ino_table;
+	struct iyes_blob		*iyes_table;
 	int			num_intrs;
 };
 
@@ -190,12 +190,12 @@ struct cwq_final_entry {
  */
 #define HV_FAST_NCS_SETTAIL		0x115
 
-/* ncs_qhandle_to_devino()
+/* ncs_qhandle_to_deviyes()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_NCS_QHANDLE_TO_DEVINO
  * ARG0:	Queue handle
  * RET0:	status
- * RET1:	devino
+ * RET1:	deviyes
  */
 #define HV_FAST_NCS_QHANDLE_TO_DEVINO	0x116
 
@@ -223,8 +223,8 @@ extern unsigned long sun4v_ncs_gettail(unsigned long qhandle,
 				       unsigned long *tail);
 extern unsigned long sun4v_ncs_settail(unsigned long qhandle,
 				       unsigned long tail);
-extern unsigned long sun4v_ncs_qhandle_to_devino(unsigned long qhandle,
-						 unsigned long *devino);
+extern unsigned long sun4v_ncs_qhandle_to_deviyes(unsigned long qhandle,
+						 unsigned long *deviyes);
 extern unsigned long sun4v_ncs_sethead_marker(unsigned long qhandle,
 					      unsigned long head);
 #endif /* !(__ASSEMBLY__) */

@@ -124,7 +124,7 @@ static int ip_vs_ftp_get_addrport(char *data, char *data_limit,
 			if (s == data_limit)
 				return -1;
 			if (!found) {
-				/* "(" is optional for non-extended format,
+				/* "(" is optional for yesn-extended format,
 				 * so catch the start of IPv4 address
 				 */
 				if (!ext && isdigit(*s))
@@ -234,7 +234,7 @@ static int ip_vs_ftp_get_addrport(char *data, char *data_limit,
 /* Look at outgoing ftp packets to catch the response to a PASV/EPSV command
  * from the server (inside-to-outside).
  * When we see one, we build a connection entry with the client address,
- * client port 0 (unknown at the moment), the server address and the
+ * client port 0 (unkyeswn at the moment), the server address and the
  * server port.  Mark the current connection entry as a control channel
  * of the new entry. All this work is just to make the data connection
  * can be scheduled to the right server later.
@@ -294,7 +294,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		if (!data || data >= data_limit)
 			return 1;
 
-		/* Usually, data address is not specified but
+		/* Usually, data address is yest specified but
 		 * we support different address, so pre-set it.
 		 */
 		from = cp->daddr;
@@ -410,7 +410,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
  *	"EPSV\r\n" when client requests server address from same family
  *	"EPSV 1\r\n" when client requests IPv4 server address
  *	"EPSV 2\r\n" when client requests IPv6 server address
- *	"EPSV ALL\r\n" - not supported
+ *	"EPSV ALL\r\n" - yest supported
  *	EPRT with specified delimiter (ASCII 33..126), "|" by default:
  *	"EPRT |1|IPv4ADDR|PORT|\r\n" when client provides IPv4 addrport
  *	"EPRT |2|IPv6ADDR|PORT|\r\n" when client provides IPv6 addrport
@@ -425,7 +425,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	__be16 port;
 	struct ip_vs_conn *n_cp;
 
-	/* no diff required for incoming packets */
+	/* yes diff required for incoming packets */
 	*diff = 0;
 
 	/* Only useful for established sessions */

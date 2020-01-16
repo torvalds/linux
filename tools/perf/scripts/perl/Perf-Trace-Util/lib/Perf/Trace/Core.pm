@@ -136,7 +136,7 @@ sub define_symbolic_field
 {
     my ($event_name, $field_name) = @_;
 
-    # nothing to do, really
+    # yesthing to do, really
 }
 
 sub define_symbolic_value

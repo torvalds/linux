@@ -76,13 +76,13 @@ static int vexpress_osc_probe(struct platform_device *pdev)
 	if (IS_ERR(osc->reg))
 		return PTR_ERR(osc->reg);
 
-	if (of_property_read_u32_array(pdev->dev.of_node, "freq-range", range,
+	if (of_property_read_u32_array(pdev->dev.of_yesde, "freq-range", range,
 			ARRAY_SIZE(range)) == 0) {
 		osc->rate_min = range[0];
 		osc->rate_max = range[1];
 	}
 
-	if (of_property_read_string(pdev->dev.of_node, "clock-output-names",
+	if (of_property_read_string(pdev->dev.of_yesde, "clock-output-names",
 			&init.name) != 0)
 		init.name = dev_name(&pdev->dev);
 
@@ -96,7 +96,7 @@ static int vexpress_osc_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	of_clk_add_provider(pdev->dev.of_node, of_clk_src_simple_get, clk);
+	of_clk_add_provider(pdev->dev.of_yesde, of_clk_src_simple_get, clk);
 	clk_hw_set_rate_range(&osc->hw, osc->rate_min, osc->rate_max);
 
 	dev_dbg(&pdev->dev, "Registered clock '%s'\n", init.name);

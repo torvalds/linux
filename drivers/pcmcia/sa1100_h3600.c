@@ -110,7 +110,7 @@ h3600_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_state_
 
 	gpio_set_value(H3XXX_EGPIO_CARD_RESET, !!(state->flags & SS_RESET));
 
-	/* Silently ignore Vpp, output enable, speaker enable. */
+	/* Silently igyesre Vpp, output enable, speaker enable. */
 
 	return 0;
 }

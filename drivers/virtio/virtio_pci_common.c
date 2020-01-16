@@ -37,16 +37,16 @@ void vp_synchronize_vectors(struct virtio_device *vdev)
 		synchronize_irq(pci_irq_vector(vp_dev->pci_dev, i));
 }
 
-/* the notify function used when creating a virt queue */
-bool vp_notify(struct virtqueue *vq)
+/* the yestify function used when creating a virt queue */
+bool vp_yestify(struct virtqueue *vq)
 {
-	/* we write the queue's selector into the notification register to
+	/* we write the queue's selector into the yestification register to
 	 * signal the other end */
 	iowrite16(vq->index, (void __iomem *)vq->priv);
 	return true;
 }
 
-/* Handle a configuration change: Tell driver if it wants to know. */
+/* Handle a configuration change: Tell driver if it wants to kyesw. */
 static irqreturn_t vp_config_changed(int irq, void *opaque)
 {
 	struct virtio_pci_device *vp_dev = opaque;
@@ -64,7 +64,7 @@ static irqreturn_t vp_vring_interrupt(int irq, void *opaque)
 	unsigned long flags;
 
 	spin_lock_irqsave(&vp_dev->lock, flags);
-	list_for_each_entry(info, &vp_dev->virtqueues, node) {
+	list_for_each_entry(info, &vp_dev->virtqueues, yesde) {
 		if (vring_interrupt(irq, info->vq) == IRQ_HANDLED)
 			ret = IRQ_HANDLED;
 	}
@@ -73,11 +73,11 @@ static irqreturn_t vp_vring_interrupt(int irq, void *opaque)
 	return ret;
 }
 
-/* A small wrapper to also acknowledge the interrupt when it's handled.
+/* A small wrapper to also ackyeswledge the interrupt when it's handled.
  * I really need an EIO hook for the vring so I can ack the interrupt once we
- * know that we'll be handling the IRQ but before we invoke the callback since
- * the callback may notify the host which results in the host attempting to
- * raise an interrupt that we would then mask once we acknowledged the
+ * kyesw that we'll be handling the IRQ but before we invoke the callback since
+ * the callback may yestify the host which results in the host attempting to
+ * raise an interrupt that we would then mask once we ackyeswledged the
  * interrupt. */
 static irqreturn_t vp_interrupt(int irq, void *opaque)
 {
@@ -88,11 +88,11 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
 	 * important to save off the value. */
 	isr = ioread8(vp_dev->isr);
 
-	/* It's definitely not us if the ISR was not high */
+	/* It's definitely yest us if the ISR was yest high */
 	if (!isr)
 		return IRQ_NONE;
 
-	/* Configuration change?  Tell driver if it wants to know. */
+	/* Configuration change?  Tell driver if it wants to kyesw. */
 	if (isr & VIRTIO_PCI_ISR_CONFIG)
 		vp_config_changed(irq, opaque);
 
@@ -148,7 +148,7 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 	++vp_dev->msix_used_vectors;
 
 	v = vp_dev->config_vector(vp_dev, v);
-	/* Verify we had enough resources to assign the vector */
+	/* Verify we had eyesugh resources to assign the vector */
 	if (v == VIRTIO_MSI_NO_VECTOR) {
 		err = -EBUSY;
 		goto error;
@@ -194,10 +194,10 @@ static struct virtqueue *vp_setup_vq(struct virtio_device *vdev, unsigned index,
 	info->vq = vq;
 	if (callback) {
 		spin_lock_irqsave(&vp_dev->lock, flags);
-		list_add(&info->node, &vp_dev->virtqueues);
+		list_add(&info->yesde, &vp_dev->virtqueues);
 		spin_unlock_irqrestore(&vp_dev->lock, flags);
 	} else {
-		INIT_LIST_HEAD(&info->node);
+		INIT_LIST_HEAD(&info->yesde);
 	}
 
 	vp_dev->vqs[index] = info;
@@ -215,7 +215,7 @@ static void vp_del_vq(struct virtqueue *vq)
 	unsigned long flags;
 
 	spin_lock_irqsave(&vp_dev->lock, flags);
-	list_del(&info->node);
+	list_del(&info->yesde);
 	spin_unlock_irqrestore(&vp_dev->lock, flags);
 
 	vp_dev->del_vq(info);
@@ -418,7 +418,7 @@ const char *vp_bus_name(struct virtio_device *vdev)
 /* Setup the affinity for a virtqueue:
  * - force the affinity for per vq vector
  * - OR over all affinities for shared MSI
- * - ignore the affinity request if we're using INTX
+ * - igyesre the affinity request if we're using INTX
  */
 int vp_set_vq_affinity(struct virtqueue *vq, const struct cpumask *cpu_mask)
 {
@@ -503,7 +503,7 @@ static void virtio_pci_release_dev(struct device *_d)
 	struct virtio_device *vdev = dev_to_virtio(_d);
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 
-	/* As struct device is a kobject, it's not safe to
+	/* As struct device is a kobject, it's yest safe to
 	 * free the memory (including the reference counter itself)
 	 * until it's release callback. */
 	kfree(vp_dev);
@@ -534,7 +534,7 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 
 	if (force_legacy) {
 		rc = virtio_pci_legacy_probe(vp_dev);
-		/* Also try modern mode if we can't map BAR0 (no IO space). */
+		/* Also try modern mode if we can't map BAR0 (yes IO space). */
 		if (rc == -ENODEV || rc == -ENOMEM)
 			rc = virtio_pci_modern_probe(vp_dev);
 		if (rc)

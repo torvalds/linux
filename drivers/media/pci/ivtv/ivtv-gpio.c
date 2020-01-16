@@ -31,11 +31,11 @@
  *   AM* : Audio Mode
  *          AM3  0: Normal        1: Mixed(Sub+Main channel)
  *          AM2  0: Subchannel    1: Main channel
- *          AM1  0: Stereo        1: Mono
+ *          AM1  0: Stereo        1: Moyes
  *          AM0  0: Normal        1: Mute
  *
  *   DM* : Detected tuner audio Mode
- *          DM1  0: Stereo        1: Mono
+ *          DM1  0: Stereo        1: Moyes
  *          DM0  0: Multiplex     1: Normal
  *
  * GPIO Initial Settings
@@ -43,7 +43,7 @@
  *     DIR   0x3080   0x7080
  *  OUTPUT   0x000C   0x400C
  *
- *  Special thanks to Makoto Iguchi <iguchi@tahoo.org> and Mr. Anonymous
+ *  Special thanks to Makoto Iguchi <iguchi@tahoo.org> and Mr. Ayesnymous
  *  for analyzing GPIO of MPG160.
  *
  *****************************************************************************
@@ -68,7 +68,7 @@
  *           0   0   1  TV Tuner Audio: L_OUT=R_OUT=SAP   (SAP)
  *           0   1   0  TV Tuner Audio: L_OUT=L, R_OUT=R   (stereo)
  *           0   1   1  TV Tuner Audio: mute
- *           1   *   *  TV Tuner Audio: L_OUT=R_OUT=(L+R)/2   (mono)
+ *           1   *   *  TV Tuner Audio: L_OUT=R_OUT=(L+R)/2   (moyes)
  *
  *   BR* : Audio Sample Rate (BR stands for bitrate for some reason)
  *          BR0 BR1
@@ -77,9 +77,9 @@
  *           1   0   48 kHz
  *
  *   DM* : Detected tuner audio Mode
- *         Unknown currently
+ *         Unkyeswn currently
  *
- * Special thanks to AVerMedia Technologies, Inc. and Jiun-Kuei Jung at
+ * Special thanks to AVerMedia Techyeslogies, Inc. and Jiun-Kuei Jung at
  * AVerMedia for providing the GPIO information used to add support
  * for the M179 cards.
  */
@@ -194,7 +194,7 @@ static int subdev_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 		data = itv->card->gpio_audio_mode.lang2;
 		break;
 	case V4L2_TUNER_MODE_MONO:
-		data = itv->card->gpio_audio_mode.mono;
+		data = itv->card->gpio_audio_mode.moyes;
 		break;
 	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1_LANG2:

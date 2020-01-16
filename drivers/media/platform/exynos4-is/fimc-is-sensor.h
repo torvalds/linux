@@ -48,6 +48,6 @@ struct fimc_is_sensor {
 };
 
 const struct sensor_drv_data *fimc_is_sensor_get_drvdata(
-				struct device_node *node);
+				struct device_yesde *yesde);
 
 #endif /* FIMC_IS_SENSOR_H_ */

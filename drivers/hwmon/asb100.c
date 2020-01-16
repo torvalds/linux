@@ -16,11 +16,11 @@
  * This driver supports the hardware sensor chips: Asus ASB100 and
  * ASB100-A "BACH".
  *
- * ASB100-A supports pwm1, while plain ASB100 does not.  There is no known
+ * ASB100-A supports pwm1, while plain ASB100 does yest.  There is yes kyeswn
  * way for the driver to tell which one is there.
  *
  * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
- * asb100	7	3	1	4	0x31	0x0694	yes	no
+ * asb100	7	3	1	4	0x31	0x0694	no	yes
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -38,7 +38,7 @@
 #include "lm75.h"
 
 /* I2C addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2d, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2d, I2C_CLIENT_END };
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
@@ -228,7 +228,7 @@ static struct i2c_driver asb100_driver = {
 	.remove		= asb100_remove,
 	.id_table	= asb100_id,
 	.detect		= asb100_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 /* 7 Voltages */
@@ -741,7 +741,7 @@ static int asb100_detect(struct i2c_client *client,
 	int val1, val2;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("detect failed, smbus byte data not supported!\n");
+		pr_debug("detect failed, smbus byte data yest supported!\n");
 		return -ENODEV;
 	}
 
@@ -758,7 +758,7 @@ static int asb100_detect(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	/* Put it now into bank 0 and Vendor ID High Byte */
+	/* Put it yesw into bank 0 and Vendor ID High Byte */
 	i2c_smbus_write_byte_data(client, ASB100_REG_BANK,
 		(i2c_smbus_read_byte_data(client, ASB100_REG_BANK) & 0x78)
 		| 0x80);
@@ -838,7 +838,7 @@ static int asb100_remove(struct i2c_client *client)
 }
 
 /*
- * The SMBus locks itself, usually, but nothing may access the chip between
+ * The SMBus locks itself, usually, but yesthing may access the chip between
  * bank switches.
  */
 static int asb100_read_value(struct i2c_client *client, u16 reg)

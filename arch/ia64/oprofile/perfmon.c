@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 #include <asm/perfmon.h>
 #include <asm/ptrace.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 static int allow_ints;
 

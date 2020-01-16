@@ -26,17 +26,17 @@
                 <pro>   is the protocol number for the adapter that
                         supports this drive.  These numbers are
                         logged by 'paride' when the protocol modules
-                        are initialised.  (0 if not given)
+                        are initialised.  (0 if yest given)
 
                 <uni>   for those adapters that support chained
                         devices, this is the unit selector for the
                         chain of devices on the given port.  It should
                         be zero for devices that don't support chaining.
-                        (0 if not given)
+                        (0 if yest given)
 
                 <mod>   this can be -1 to choose the best mode, or one
                         of the mode numbers supported by the adapter.
-                        (-1 if not given)
+                        (-1 if yest given)
 
                 <slv>   ATAPI CDroms can be jumpered to master or slave.
                         Set this to 0 to choose the master drive, 1 to
@@ -77,7 +77,7 @@
 
             verbose     This parameter controls the amount of logging
                         that the driver will do.  Set it to 0 for
-                        normal operation, 1 to see autoprobe progress
+                        yesrmal operation, 1 to see autoprobe progress
                         messages, or 2 to see additional debugging
                         output.  (default 0)
  
@@ -316,7 +316,7 @@ static void __init pf_init_units(void)
 		pf->lun = (*drives[unit])[D_LUN];
 		snprintf(pf->name, PF_NAMELEN, "%s%d", name, unit);
 		disk->major = major;
-		disk->first_minor = unit;
+		disk->first_miyesr = unit;
 		strcpy(disk->disk_name, pf->name);
 		disk->fops = &pf_fops;
 		disk->events = DISK_EVENT_MEDIA_CHANGE;
@@ -682,7 +682,7 @@ static int pf_identify(struct pf_unit *pf)
 	if (pf->removable)
 		printk(", removable");
 	if (pf->media_status == PF_NM)
-		printk(", no media\n");
+		printk(", yes media\n");
 	else {
 		if (pf->media_status == PF_RO)
 			printk(", RO");

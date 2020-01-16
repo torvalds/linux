@@ -647,13 +647,13 @@ static int wcove_typec_probe(struct platform_device *pdev)
 	wcove->tcpc.set_roles = wcove_set_roles;
 	wcove->tcpc.pd_transmit = wcove_pd_transmit;
 
-	wcove->tcpc.fwnode = fwnode_create_software_node(wcove_props, NULL);
-	if (IS_ERR(wcove->tcpc.fwnode))
-		return PTR_ERR(wcove->tcpc.fwnode);
+	wcove->tcpc.fwyesde = fwyesde_create_software_yesde(wcove_props, NULL);
+	if (IS_ERR(wcove->tcpc.fwyesde))
+		return PTR_ERR(wcove->tcpc.fwyesde);
 
 	wcove->tcpm = tcpm_register_port(wcove->dev, &wcove->tcpc);
 	if (IS_ERR(wcove->tcpm)) {
-		fwnode_remove_software_node(wcove->tcpc.fwnode);
+		fwyesde_remove_software_yesde(wcove->tcpc.fwyesde);
 		return PTR_ERR(wcove->tcpm);
 	}
 
@@ -662,7 +662,7 @@ static int wcove_typec_probe(struct platform_device *pdev)
 					"wcove_typec", wcove);
 	if (ret) {
 		tcpm_unregister_port(wcove->tcpm);
-		fwnode_remove_software_node(wcove->tcpc.fwnode);
+		fwyesde_remove_software_yesde(wcove->tcpc.fwyesde);
 		return ret;
 	}
 
@@ -682,7 +682,7 @@ static int wcove_typec_remove(struct platform_device *pdev)
 	regmap_write(wcove->regmap, USBC_IRQMASK2, val | USBC_IRQMASK2_ALL);
 
 	tcpm_unregister_port(wcove->tcpm);
-	fwnode_remove_software_node(wcove->tcpc.fwnode);
+	fwyesde_remove_software_yesde(wcove->tcpc.fwyesde);
 
 	return 0;
 }

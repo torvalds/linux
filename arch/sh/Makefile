@@ -11,7 +11,7 @@
 #
 ifneq ($(SUBARCH),$(ARCH))
   ifeq ($(CROSS_COMPILE),)
-    CROSS_COMPILE := $(call cc-cross-prefix, $(UTS_MACHINE)-linux-  $(UTS_MACHINE)-linux-gnu-  $(UTS_MACHINE)-unknown-linux-gnu-)
+    CROSS_COMPILE := $(call cc-cross-prefix, $(UTS_MACHINE)-linux-  $(UTS_MACHINE)-linux-gnu-  $(UTS_MACHINE)-unkyeswn-linux-gnu-)
   endif
 endif
 
@@ -39,28 +39,28 @@ endif
 cflags-$(CONFIG_CPU_SH2)		:= $(call cc-option,-m2,)
 cflags-$(CONFIG_CPU_J2)			+= $(call cc-option,-mj2,)
 cflags-$(CONFIG_CPU_SH2A)		+= $(call cc-option,-m2a,) \
-					   $(call cc-option,-m2a-nofpu,) \
-					   $(call cc-option,-m4-nofpu,)
+					   $(call cc-option,-m2a-yesfpu,) \
+					   $(call cc-option,-m4-yesfpu,)
 cflags-$(CONFIG_CPU_SH3)		:= $(call cc-option,-m3,)
 cflags-$(CONFIG_CPU_SH4)		:= $(call cc-option,-m4,) \
-	$(call cc-option,-mno-implicit-fp,-m4-nofpu)
+	$(call cc-option,-myes-implicit-fp,-m4-yesfpu)
 cflags-$(CONFIG_CPU_SH4A)		+= $(call cc-option,-m4a,) \
-					   $(call cc-option,-m4a-nofpu,)
+					   $(call cc-option,-m4a-yesfpu,)
 cflags-$(CONFIG_CPU_SH4AL_DSP)		+= $(call cc-option,-m4al,)
-cflags-$(CONFIG_CPU_SH5)		:= $(call cc-option,-m5-32media-nofpu,)
+cflags-$(CONFIG_CPU_SH5)		:= $(call cc-option,-m5-32media-yesfpu,)
 
 ifeq ($(cflags-y),)
 #
 # In the case where we are stuck with a compiler that has been uselessly
 # restricted to a particular ISA, a favourite default of newer GCCs when
-# extensive multilib targets are not provided, ensure we get the best fit
+# extensive multilib targets are yest provided, ensure we get the best fit
 # regarding FP generation. This is intentionally stupid (albeit many
 # orders of magnitude less than GCC's default behaviour), as anything
 # with a large number of multilib targets better have been built
 # correctly for the target in mind.
 #
 cflags-y	+= $(shell $(CC) $(KBUILD_CFLAGS) -print-multi-lib | \
-		     grep nofpu | sed q | sed -e 's/^/-/;s/;.*$$//')
+		     grep yesfpu | sed q | sed -e 's/^/-/;s/;.*$$//')
 # At this point, anything goes.
 isaflags-y	:= $(call as-option,-Wa$(comma)-isa=any,)
 else
@@ -81,10 +81,10 @@ endif
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
 
-cflags-y	+= $(call cc-option,-mno-fdpic)
+cflags-y	+= $(call cc-option,-myes-fdpic)
 cflags-y	+= $(isaflags-y) -ffreestanding
 
-OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment \
+OBJCOPYFLAGS	:= -O binary -R .yeste -R .yeste.gnu.build-id -R .comment \
 		   -R .stab -R .stabstr -S
 
 # Give the various platforms the opportunity to set default image types
@@ -174,8 +174,8 @@ core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/
 # CPU header paths
 #
 # These are ordered by optimization level. A CPU family that is a subset
-# of another (ie, SH-2A / SH-2), is picked up first, with increasing
-# levels of genericness if nothing more suitable is situated in the
+# of ayesther (ie, SH-2A / SH-2), is picked up first, with increasing
+# levels of genericness if yesthing more suitable is situated in the
 # hierarchy.
 #
 # As an example, in order of preference, SH-2A > SH-2 > common definitions.
@@ -203,7 +203,7 @@ ifeq ($(CONFIG_MCOUNT),y)
 endif
 
 ifeq ($(CONFIG_DWARF_UNWINDER),y)
-  KBUILD_CFLAGS += -fasynchronous-unwind-tables
+  KBUILD_CFLAGS += -fasynchroyesus-unwind-tables
 endif
 
 libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
@@ -214,7 +214,7 @@ BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.xz uImage.lzo \
 	       romImage
 PHONY += $(BOOT_TARGETS)
 
-all: $(notdir $(KBUILD_IMAGE))
+all: $(yestdir $(KBUILD_IMAGE))
 
 $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@

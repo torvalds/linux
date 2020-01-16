@@ -18,7 +18,7 @@
  *	pin is configured as an output.
  * @scl_is_open_drain: SCL is set up as open drain. Same requirements
  *	as for sda_is_open_drain apply.
- * @scl_is_output_only: SCL output drivers cannot be turned off.
+ * @scl_is_output_only: SCL output drivers canyest be turned off.
  */
 struct i2c_gpio_platform_data {
 	int		udelay;

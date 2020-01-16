@@ -15,29 +15,29 @@
  * This is the "low-level" comms layer.
  *
  * It is responsible for sending/receiving messages
- * from other nodes in the cluster.
+ * from other yesdes in the cluster.
  *
- * Cluster nodes are referred to by their nodeids. nodeids are
+ * Cluster yesdes are referred to by their yesdeids. yesdeids are
  * simply 32 bit numbers to the locking module - if they need to
  * be expanded for the cluster infrastructure then that is its
  * responsibility. It is this layer's
  * responsibility to resolve these into IP address or
- * whatever it needs for inter-node communication.
+ * whatever it needs for inter-yesde communication.
  *
  * The comms level is two kernel threads that deal mainly with
- * the receiving of messages from other nodes and passing them
+ * the receiving of messages from other yesdes and passing them
  * up to the mid-level comms layer (which understands the
  * message format) for execution by the locking core, and
  * a send thread which does all the setting up of connections
- * to remote nodes and the sending of data. Threads are not allowed
+ * to remote yesdes and the sending of data. Threads are yest allowed
  * to send their own data because it may cause them to wait in times
  * of high load. Also, this way, the sending thread can collect together
- * messages bound for one node and send them in one block.
+ * messages bound for one yesde and send them in one block.
  *
  * lowcomms will choose to use either TCP or SCTP as its transport layer
  * depending on the configuration variable 'protocol'. This should be set
  * to 0 (default) for TCP or 1 for SCTP. It should be configured using a
- * cluster-wide mechanism as it must be the same on all nodes of the cluster
+ * cluster-wide mechanism as it must be the same on all yesdes of the cluster
  * for the DLM to function.
  *
  */
@@ -99,8 +99,8 @@ static bool cbuf_empty(struct cbuf *cb)
 }
 
 struct connection {
-	struct socket *sock;	/* NULL if not connected */
-	uint32_t nodeid;	/* So we know who we are in the list */
+	struct socket *sock;	/* NULL if yest connected */
+	uint32_t yesdeid;	/* So we kyesw who we are in the list */
 	struct mutex sock_mutex;
 	unsigned long flags;
 #define CF_READ_PENDING 1
@@ -118,7 +118,7 @@ struct connection {
 	struct cbuf cb;
 	int retries;
 #define MAX_CONNECT_RETRIES 3
-	struct hlist_node list;
+	struct hlist_yesde list;
 	struct connection *othercon;
 	struct work_struct rwork; /* Receive workqueue */
 	struct work_struct swork; /* Send workqueue */
@@ -136,9 +136,9 @@ struct writequeue_entry {
 	struct connection *con;
 };
 
-struct dlm_node_addr {
+struct dlm_yesde_addr {
 	struct list_head list;
-	int nodeid;
+	int yesdeid;
 	int addr_count;
 	int curr_addr_index;
 	struct sockaddr_storage *addr[DLM_MAX_ADDR_COUNT];
@@ -151,8 +151,8 @@ static struct listen_sock_callbacks {
 	void (*sk_write_space)(struct sock *);
 } listen_sock;
 
-static LIST_HEAD(dlm_node_addrs);
-static DEFINE_SPINLOCK(dlm_node_addrs_spin);
+static LIST_HEAD(dlm_yesde_addrs);
+static DEFINE_SPINLOCK(dlm_yesde_addrs_spin);
 
 static struct sockaddr_storage *dlm_local_addr[DLM_MAX_ADDR_COUNT];
 static int dlm_local_count;
@@ -171,22 +171,22 @@ static void process_send_sockets(struct work_struct *work);
 
 
 /* This is deliberately very simple because most clusters have simple
-   sequential nodeids, so we should be able to go straight to a connection
+   sequential yesdeids, so we should be able to go straight to a connection
    struct in the array */
-static inline int nodeid_hash(int nodeid)
+static inline int yesdeid_hash(int yesdeid)
 {
-	return nodeid & (CONN_HASH_SIZE-1);
+	return yesdeid & (CONN_HASH_SIZE-1);
 }
 
-static struct connection *__find_con(int nodeid)
+static struct connection *__find_con(int yesdeid)
 {
 	int r;
 	struct connection *con;
 
-	r = nodeid_hash(nodeid);
+	r = yesdeid_hash(yesdeid);
 
 	hlist_for_each_entry(con, &connection_hash[r], list) {
-		if (con->nodeid == nodeid)
+		if (con->yesdeid == yesdeid)
 			return con;
 	}
 	return NULL;
@@ -194,14 +194,14 @@ static struct connection *__find_con(int nodeid)
 
 /*
  * If 'allocation' is zero then we don't attempt to create a new
- * connection structure for this node.
+ * connection structure for this yesde.
  */
-static struct connection *__nodeid2con(int nodeid, gfp_t alloc)
+static struct connection *__yesdeid2con(int yesdeid, gfp_t alloc)
 {
 	struct connection *con = NULL;
 	int r;
 
-	con = __find_con(nodeid);
+	con = __find_con(yesdeid);
 	if (con || !alloc)
 		return con;
 
@@ -209,10 +209,10 @@ static struct connection *__nodeid2con(int nodeid, gfp_t alloc)
 	if (!con)
 		return NULL;
 
-	r = nodeid_hash(nodeid);
+	r = yesdeid_hash(yesdeid);
 	hlist_add_head(&con->list, &connection_hash[r]);
 
-	con->nodeid = nodeid;
+	con->yesdeid = yesdeid;
 	mutex_init(&con->sock_mutex);
 	INIT_LIST_HEAD(&con->writequeue);
 	spin_lock_init(&con->writequeue_lock);
@@ -220,7 +220,7 @@ static struct connection *__nodeid2con(int nodeid, gfp_t alloc)
 	INIT_WORK(&con->rwork, process_recv_sockets);
 
 	/* Setup action pointers for child sockets */
-	if (con->nodeid) {
+	if (con->yesdeid) {
 		struct connection *zerocon = __find_con(0);
 
 		con->connect_action = zerocon->connect_action;
@@ -235,7 +235,7 @@ static struct connection *__nodeid2con(int nodeid, gfp_t alloc)
 static void foreach_conn(void (*conn_func)(struct connection *c))
 {
 	int i;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct connection *con;
 
 	for (i = 0; i < CONN_HASH_SIZE; i++) {
@@ -244,23 +244,23 @@ static void foreach_conn(void (*conn_func)(struct connection *c))
 	}
 }
 
-static struct connection *nodeid2con(int nodeid, gfp_t allocation)
+static struct connection *yesdeid2con(int yesdeid, gfp_t allocation)
 {
 	struct connection *con;
 
 	mutex_lock(&connections_lock);
-	con = __nodeid2con(nodeid, allocation);
+	con = __yesdeid2con(yesdeid, allocation);
 	mutex_unlock(&connections_lock);
 
 	return con;
 }
 
-static struct dlm_node_addr *find_node_addr(int nodeid)
+static struct dlm_yesde_addr *find_yesde_addr(int yesdeid)
 {
-	struct dlm_node_addr *na;
+	struct dlm_yesde_addr *na;
 
-	list_for_each_entry(na, &dlm_node_addrs, list) {
-		if (na->nodeid == nodeid)
+	list_for_each_entry(na, &dlm_yesde_addrs, list) {
+		if (na->yesdeid == yesdeid)
 			return na;
 	}
 	return NULL;
@@ -293,17 +293,17 @@ static int addr_compare(struct sockaddr_storage *x, struct sockaddr_storage *y)
 	return 1;
 }
 
-static int nodeid_to_addr(int nodeid, struct sockaddr_storage *sas_out,
+static int yesdeid_to_addr(int yesdeid, struct sockaddr_storage *sas_out,
 			  struct sockaddr *sa_out, bool try_new_addr)
 {
 	struct sockaddr_storage sas;
-	struct dlm_node_addr *na;
+	struct dlm_yesde_addr *na;
 
 	if (!dlm_local_count)
 		return -1;
 
-	spin_lock(&dlm_node_addrs_spin);
-	na = find_node_addr(nodeid);
+	spin_lock(&dlm_yesde_addrs_spin);
+	na = find_yesde_addr(yesdeid);
 	if (na && na->addr_count) {
 		memcpy(&sas, na->addr[na->curr_addr_index],
 		       sizeof(struct sockaddr_storage));
@@ -314,7 +314,7 @@ static int nodeid_to_addr(int nodeid, struct sockaddr_storage *sas_out,
 				na->curr_addr_index = 0;
 		}
 	}
-	spin_unlock(&dlm_node_addrs_spin);
+	spin_unlock(&dlm_yesde_addrs_spin);
 
 	if (!na)
 		return -EEXIST;
@@ -341,68 +341,68 @@ static int nodeid_to_addr(int nodeid, struct sockaddr_storage *sas_out,
 	return 0;
 }
 
-static int addr_to_nodeid(struct sockaddr_storage *addr, int *nodeid)
+static int addr_to_yesdeid(struct sockaddr_storage *addr, int *yesdeid)
 {
-	struct dlm_node_addr *na;
+	struct dlm_yesde_addr *na;
 	int rv = -EEXIST;
 	int addr_i;
 
-	spin_lock(&dlm_node_addrs_spin);
-	list_for_each_entry(na, &dlm_node_addrs, list) {
+	spin_lock(&dlm_yesde_addrs_spin);
+	list_for_each_entry(na, &dlm_yesde_addrs, list) {
 		if (!na->addr_count)
 			continue;
 
 		for (addr_i = 0; addr_i < na->addr_count; addr_i++) {
 			if (addr_compare(na->addr[addr_i], addr)) {
-				*nodeid = na->nodeid;
+				*yesdeid = na->yesdeid;
 				rv = 0;
 				goto unlock;
 			}
 		}
 	}
 unlock:
-	spin_unlock(&dlm_node_addrs_spin);
+	spin_unlock(&dlm_yesde_addrs_spin);
 	return rv;
 }
 
-int dlm_lowcomms_addr(int nodeid, struct sockaddr_storage *addr, int len)
+int dlm_lowcomms_addr(int yesdeid, struct sockaddr_storage *addr, int len)
 {
 	struct sockaddr_storage *new_addr;
-	struct dlm_node_addr *new_node, *na;
+	struct dlm_yesde_addr *new_yesde, *na;
 
-	new_node = kzalloc(sizeof(struct dlm_node_addr), GFP_NOFS);
-	if (!new_node)
+	new_yesde = kzalloc(sizeof(struct dlm_yesde_addr), GFP_NOFS);
+	if (!new_yesde)
 		return -ENOMEM;
 
 	new_addr = kzalloc(sizeof(struct sockaddr_storage), GFP_NOFS);
 	if (!new_addr) {
-		kfree(new_node);
+		kfree(new_yesde);
 		return -ENOMEM;
 	}
 
 	memcpy(new_addr, addr, len);
 
-	spin_lock(&dlm_node_addrs_spin);
-	na = find_node_addr(nodeid);
+	spin_lock(&dlm_yesde_addrs_spin);
+	na = find_yesde_addr(yesdeid);
 	if (!na) {
-		new_node->nodeid = nodeid;
-		new_node->addr[0] = new_addr;
-		new_node->addr_count = 1;
-		list_add(&new_node->list, &dlm_node_addrs);
-		spin_unlock(&dlm_node_addrs_spin);
+		new_yesde->yesdeid = yesdeid;
+		new_yesde->addr[0] = new_addr;
+		new_yesde->addr_count = 1;
+		list_add(&new_yesde->list, &dlm_yesde_addrs);
+		spin_unlock(&dlm_yesde_addrs_spin);
 		return 0;
 	}
 
 	if (na->addr_count >= DLM_MAX_ADDR_COUNT) {
-		spin_unlock(&dlm_node_addrs_spin);
+		spin_unlock(&dlm_yesde_addrs_spin);
 		kfree(new_addr);
-		kfree(new_node);
+		kfree(new_yesde);
 		return -ENOSPC;
 	}
 
 	na->addr[na->addr_count++] = new_addr;
-	spin_unlock(&dlm_node_addrs_spin);
-	kfree(new_node);
+	spin_unlock(&dlm_yesde_addrs_spin);
+	kfree(new_yesde);
 	return 0;
 }
 
@@ -449,7 +449,7 @@ static inline void lowcomms_connect_sock(struct connection *con)
 
 static void lowcomms_state_change(struct sock *sk)
 {
-	/* SCTP layer is not calling sk_data_ready when the connection
+	/* SCTP layer is yest calling sk_data_ready when the connection
 	 * is done, so we catch the signal through here. Also, it
 	 * doesn't switch socket state when entering shutdown, so we
 	 * skip the write in that case.
@@ -462,14 +462,14 @@ static void lowcomms_state_change(struct sock *sk)
 	}
 }
 
-int dlm_lowcomms_connect_node(int nodeid)
+int dlm_lowcomms_connect_yesde(int yesdeid)
 {
 	struct connection *con;
 
-	if (nodeid == dlm_our_nodeid())
+	if (yesdeid == dlm_our_yesdeid())
 		return 0;
 
-	con = nodeid2con(nodeid, GFP_NOFS);
+	con = yesdeid2con(yesdeid, GFP_NOFS);
 	if (!con)
 		return -ENOMEM;
 	lowcomms_connect_sock(con);
@@ -490,27 +490,27 @@ static void lowcomms_error_report(struct sock *sk)
 	orig_report = listen_sock.sk_error_report;
 	if (con->sock == NULL ||
 	    kernel_getpeername(con->sock, (struct sockaddr *)&saddr) < 0) {
-		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
-				   "sending to node %d, port %d, "
-				   "sk_err=%d/%d\n", dlm_our_nodeid(),
-				   con->nodeid, dlm_config.ci_tcp_port,
+		printk_ratelimited(KERN_ERR "dlm: yesde %d: socket error "
+				   "sending to yesde %d, port %d, "
+				   "sk_err=%d/%d\n", dlm_our_yesdeid(),
+				   con->yesdeid, dlm_config.ci_tcp_port,
 				   sk->sk_err, sk->sk_err_soft);
 	} else if (saddr.ss_family == AF_INET) {
 		struct sockaddr_in *sin4 = (struct sockaddr_in *)&saddr;
 
-		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
-				   "sending to node %d at %pI4, port %d, "
-				   "sk_err=%d/%d\n", dlm_our_nodeid(),
-				   con->nodeid, &sin4->sin_addr.s_addr,
+		printk_ratelimited(KERN_ERR "dlm: yesde %d: socket error "
+				   "sending to yesde %d at %pI4, port %d, "
+				   "sk_err=%d/%d\n", dlm_our_yesdeid(),
+				   con->yesdeid, &sin4->sin_addr.s_addr,
 				   dlm_config.ci_tcp_port, sk->sk_err,
 				   sk->sk_err_soft);
 	} else {
 		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&saddr;
 
-		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
-				   "sending to node %d at %u.%u.%u.%u, "
-				   "port %d, sk_err=%d/%d\n", dlm_our_nodeid(),
-				   con->nodeid, sin6->sin6_addr.s6_addr32[0],
+		printk_ratelimited(KERN_ERR "dlm: yesde %d: socket error "
+				   "sending to yesde %d at %u.%u.%u.%u, "
+				   "port %d, sk_err=%d/%d\n", dlm_our_yesdeid(),
+				   con->yesdeid, sin6->sin6_addr.s6_addr32[0],
 				   sin6->sin6_addr.s6_addr32[1],
 				   sin6->sin6_addr.s6_addr32[2],
 				   sin6->sin6_addr.s6_addr32[3],
@@ -591,11 +591,11 @@ static void close_connection(struct connection *con, bool and_other,
 	bool closing = test_and_set_bit(CF_CLOSING, &con->flags);
 
 	if (tx && !closing && cancel_work_sync(&con->swork)) {
-		log_print("canceled swork for node %d", con->nodeid);
+		log_print("canceled swork for yesde %d", con->yesdeid);
 		clear_bit(CF_WRITE_PENDING, &con->flags);
 	}
 	if (rx && !closing && cancel_work_sync(&con->rwork)) {
-		log_print("canceled rwork for node %d", con->nodeid);
+		log_print("canceled rwork for yesde %d", con->yesdeid);
 		clear_bit(CF_READ_PENDING, &con->flags);
 	}
 
@@ -636,7 +636,7 @@ static int receive_from_sock(struct connection *con)
 		ret = -EAGAIN;
 		goto out_close;
 	}
-	if (con->nodeid == 0) {
+	if (con->yesdeid == 0) {
 		ret = -EINVAL;
 		goto out_close;
 	}
@@ -681,7 +681,7 @@ static int receive_from_sock(struct connection *con)
 		call_again_soon = 1;
 
 	cbuf_add(&con->cb, ret);
-	ret = dlm_process_incoming_buffer(con->nodeid,
+	ret = dlm_process_incoming_buffer(con->yesdeid,
 					  page_address(con->rx_page),
 					  con->cb.base, con->cb.len,
 					  PAGE_SIZE);
@@ -730,7 +730,7 @@ static int tcp_accept_from_sock(struct connection *con)
 	struct sockaddr_storage peeraddr;
 	struct socket *newsock;
 	int len;
-	int nodeid;
+	int yesdeid;
 	struct connection *newcon;
 	struct connection *addcon;
 
@@ -760,11 +760,11 @@ static int tcp_accept_from_sock(struct connection *con)
 		goto accept_err;
 	}
 
-	/* Get the new node's NODEID */
+	/* Get the new yesde's NODEID */
 	make_sockaddr(&peeraddr, 0, &len);
-	if (addr_to_nodeid(&peeraddr, &nodeid)) {
+	if (addr_to_yesdeid(&peeraddr, &yesdeid)) {
 		unsigned char *b=(unsigned char *)&peeraddr;
-		log_print("connect from non cluster node");
+		log_print("connect from yesn cluster yesde");
 		print_hex_dump_bytes("ss: ", DUMP_PREFIX_NONE, 
 				     b, sizeof(struct sockaddr_storage));
 		sock_release(newsock);
@@ -772,14 +772,14 @@ static int tcp_accept_from_sock(struct connection *con)
 		return -1;
 	}
 
-	log_print("got connection from %d", nodeid);
+	log_print("got connection from %d", yesdeid);
 
-	/*  Check to see if we already have a connection to this node. This
-	 *  could happen if the two nodes initiate a connection at roughly
+	/*  Check to see if we already have a connection to this yesde. This
+	 *  could happen if the two yesdes initiate a connection at roughly
 	 *  the same time and the connections cross on the wire.
 	 *  In this case we store the incoming one in "othercon"
 	 */
-	newcon = nodeid2con(nodeid, GFP_NOFS);
+	newcon = yesdeid2con(yesdeid, GFP_NOFS);
 	if (!newcon) {
 		result = -ENOMEM;
 		goto accept_err;
@@ -796,7 +796,7 @@ static int tcp_accept_from_sock(struct connection *con)
 				result = -ENOMEM;
 				goto accept_err;
 			}
-			othercon->nodeid = nodeid;
+			othercon->yesdeid = yesdeid;
 			othercon->rx_action = receive_from_sock;
 			mutex_init(&othercon->sock_mutex);
 			INIT_LIST_HEAD(&othercon->writequeue);
@@ -813,7 +813,7 @@ static int tcp_accept_from_sock(struct connection *con)
 			mutex_unlock(&othercon->sock_mutex);
 		}
 		else {
-			printk("Extra connection from node %d attempted\n", nodeid);
+			printk("Extra connection from yesde %d attempted\n", yesdeid);
 			result = -EAGAIN;
 			mutex_unlock(&othercon->sock_mutex);
 			mutex_unlock(&newcon->sock_mutex);
@@ -848,15 +848,15 @@ accept_err:
 		sock_release(newsock);
 
 	if (result != -EAGAIN)
-		log_print("error accepting connection from node: %d", result);
+		log_print("error accepting connection from yesde: %d", result);
 	return result;
 }
 
 static int sctp_accept_from_sock(struct connection *con)
 {
-	/* Check that the new node is in the lockspace */
+	/* Check that the new yesde is in the lockspace */
 	struct sctp_prim prim;
-	int nodeid;
+	int yesdeid;
 	int prim_len, ret;
 	int addr_len;
 	struct connection *newcon;
@@ -887,17 +887,17 @@ static int sctp_accept_from_sock(struct connection *con)
 	}
 
 	make_sockaddr(&prim.ssp_addr, 0, &addr_len);
-	ret = addr_to_nodeid(&prim.ssp_addr, &nodeid);
+	ret = addr_to_yesdeid(&prim.ssp_addr, &yesdeid);
 	if (ret) {
 		unsigned char *b = (unsigned char *)&prim.ssp_addr;
 
-		log_print("reject connect from unknown addr");
+		log_print("reject connect from unkyeswn addr");
 		print_hex_dump_bytes("ss: ", DUMP_PREFIX_NONE,
 				     b, sizeof(struct sockaddr_storage));
 		goto accept_err;
 	}
 
-	newcon = nodeid2con(nodeid, GFP_NOFS);
+	newcon = yesdeid2con(yesdeid, GFP_NOFS);
 	if (!newcon) {
 		ret = -ENOMEM;
 		goto accept_err;
@@ -916,7 +916,7 @@ static int sctp_accept_from_sock(struct connection *con)
 				ret = -ENOMEM;
 				goto accept_err;
 			}
-			othercon->nodeid = nodeid;
+			othercon->yesdeid = yesdeid;
 			othercon->rx_action = receive_from_sock;
 			mutex_init(&othercon->sock_mutex);
 			INIT_LIST_HEAD(&othercon->writequeue);
@@ -932,7 +932,7 @@ static int sctp_accept_from_sock(struct connection *con)
 			addcon = othercon;
 			mutex_unlock(&othercon->sock_mutex);
 		} else {
-			printk("Extra connection from node %d attempted\n", nodeid);
+			printk("Extra connection from yesde %d attempted\n", yesdeid);
 			ret = -EAGAIN;
 			mutex_unlock(&othercon->sock_mutex);
 			mutex_unlock(&newcon->sock_mutex);
@@ -944,7 +944,7 @@ static int sctp_accept_from_sock(struct connection *con)
 		addcon = newcon;
 	}
 
-	log_print("connected to %d", nodeid);
+	log_print("connected to %d", yesdeid);
 
 	mutex_unlock(&newcon->sock_mutex);
 
@@ -964,7 +964,7 @@ accept_err:
 	if (newsock)
 		sock_release(newsock);
 	if (ret != -EAGAIN)
-		log_print("error accepting connection from node: %d", ret);
+		log_print("error accepting connection from yesde: %d", ret);
 
 	return ret;
 }
@@ -1026,7 +1026,7 @@ static int sctp_bind_addrs(struct connection *con, uint16_t port)
 /* Initiate an SCTP association.
    This is a special case of send_to_sock() in that we don't yet have a
    peeled-off socket for this association, so we use the listening socket
-   and add the primary IP address of the remote node.
+   and add the primary IP address of the remote yesde.
  */
 static void sctp_connect_to_sock(struct connection *con)
 {
@@ -1037,26 +1037,26 @@ static void sctp_connect_to_sock(struct connection *con)
 	struct socket *sock;
 	struct timeval tv = { .tv_sec = 5, .tv_usec = 0 };
 
-	if (con->nodeid == 0) {
+	if (con->yesdeid == 0) {
 		log_print("attempt to connect sock 0 foiled");
 		return;
 	}
 
 	mutex_lock(&con->sock_mutex);
 
-	/* Some odd races can cause double-connects, ignore them */
+	/* Some odd races can cause double-connects, igyesre them */
 	if (con->retries++ > MAX_CONNECT_RETRIES)
 		goto out;
 
 	if (con->sock) {
-		log_print("node %d already connected.", con->nodeid);
+		log_print("yesde %d already connected.", con->yesdeid);
 		goto out;
 	}
 
 	memset(&daddr, 0, sizeof(daddr));
-	result = nodeid_to_addr(con->nodeid, &daddr, NULL, true);
+	result = yesdeid_to_addr(con->yesdeid, &daddr, NULL, true);
 	if (result < 0) {
-		log_print("no address for nodeid %d", con->nodeid);
+		log_print("yes address for yesdeid %d", con->yesdeid);
 		goto out;
 	}
 
@@ -1076,7 +1076,7 @@ static void sctp_connect_to_sock(struct connection *con)
 
 	make_sockaddr(&daddr, dlm_config.ci_tcp_port, &addr_len);
 
-	log_print("connecting to %d", con->nodeid);
+	log_print("connecting to %d", con->yesdeid);
 
 	/* Turn off Nagle's algorithm */
 	kernel_setsockopt(sock, SOL_SCTP, SCTP_NODELAY, (char *)&one,
@@ -1084,7 +1084,7 @@ static void sctp_connect_to_sock(struct connection *con)
 
 	/*
 	 * Make sock->ops->connect() function return in specified time,
-	 * since O_NONBLOCK argument in connect() function does not work here,
+	 * since O_NONBLOCK argument in connect() function does yest work here,
 	 * then, we should restore the default value of this attribute.
 	 */
 	kernel_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO_OLD, (char *)&tv,
@@ -1114,7 +1114,7 @@ socket_err:
 	    result != -ENETDOWN &&
 	    result != -EINVAL &&
 	    result != -EPROTONOSUPPORT) {
-		log_print("connect %d try %d error %d", con->nodeid,
+		log_print("connect %d try %d error %d", con->yesdeid,
 			  con->retries, result);
 		mutex_unlock(&con->sock_mutex);
 		msleep(1000);
@@ -1135,7 +1135,7 @@ static void tcp_connect_to_sock(struct connection *con)
 	int one = 1;
 	int result;
 
-	if (con->nodeid == 0) {
+	if (con->yesdeid == 0) {
 		log_print("attempt to connect sock 0 foiled");
 		return;
 	}
@@ -1144,7 +1144,7 @@ static void tcp_connect_to_sock(struct connection *con)
 	if (con->retries++ > MAX_CONNECT_RETRIES)
 		goto out;
 
-	/* Some odd races can cause double-connects, ignore them */
+	/* Some odd races can cause double-connects, igyesre them */
 	if (con->sock)
 		goto out;
 
@@ -1155,9 +1155,9 @@ static void tcp_connect_to_sock(struct connection *con)
 		goto out_err;
 
 	memset(&saddr, 0, sizeof(saddr));
-	result = nodeid_to_addr(con->nodeid, &saddr, NULL, false);
+	result = yesdeid_to_addr(con->yesdeid, &saddr, NULL, false);
 	if (result < 0) {
-		log_print("no address for nodeid %d", con->nodeid);
+		log_print("yes address for yesdeid %d", con->yesdeid);
 		goto out_err;
 	}
 
@@ -1165,20 +1165,20 @@ static void tcp_connect_to_sock(struct connection *con)
 	con->connect_action = tcp_connect_to_sock;
 	add_sock(sock, con);
 
-	/* Bind to our cluster-known address connecting to avoid
+	/* Bind to our cluster-kyeswn address connecting to avoid
 	   routing problems */
 	memcpy(&src_addr, dlm_local_addr[0], sizeof(src_addr));
 	make_sockaddr(&src_addr, 0, &addr_len);
 	result = sock->ops->bind(sock, (struct sockaddr *) &src_addr,
 				 addr_len);
 	if (result < 0) {
-		log_print("could not bind for connect: %d", result);
-		/* This *may* not indicate a critical error */
+		log_print("could yest bind for connect: %d", result);
+		/* This *may* yest indicate a critical error */
 	}
 
 	make_sockaddr(&saddr, dlm_config.ci_tcp_port, &addr_len);
 
-	log_print("connecting to %d", con->nodeid);
+	log_print("connecting to %d", con->yesdeid);
 
 	/* Turn off Nagle's algorithm */
 	kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY, (char *)&one,
@@ -1207,7 +1207,7 @@ out_err:
 	    result != -ENETDOWN && 
 	    result != -EINVAL &&
 	    result != -EPROTONOSUPPORT) {
-		log_print("connect %d try %d error %d", con->nodeid,
+		log_print("connect %d try %d error %d", con->yesdeid,
 			  con->retries, result);
 		mutex_unlock(&con->sock_mutex);
 		msleep(1000);
@@ -1308,7 +1308,7 @@ static int sctp_listen_for_all(void)
 {
 	struct socket *sock = NULL;
 	int result = -EINVAL;
-	struct connection *con = nodeid2con(0, GFP_NOFS);
+	struct connection *con = yesdeid2con(0, GFP_NOFS);
 	int bufsize = NEEDED_RMEM;
 	int one = 1;
 
@@ -1332,7 +1332,7 @@ static int sctp_listen_for_all(void)
 	result = kernel_setsockopt(sock, SOL_SCTP, SCTP_NODELAY, (char *)&one,
 				   sizeof(one));
 	if (result < 0)
-		log_print("Could not set SCTP NODELAY error %d\n", result);
+		log_print("Could yest set SCTP NODELAY error %d\n", result);
 
 	write_lock_bh(&sock->sk->sk_callback_lock);
 	/* Init con struct */
@@ -1367,7 +1367,7 @@ out:
 static int tcp_listen_for_all(void)
 {
 	struct socket *sock = NULL;
-	struct connection *con = nodeid2con(0, GFP_NOFS);
+	struct connection *con = yesdeid2con(0, GFP_NOFS);
 	int result = -EINVAL;
 
 	if (!con)
@@ -1420,13 +1420,13 @@ static struct writequeue_entry *new_writequeue_entry(struct connection *con,
 	return entry;
 }
 
-void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
+void *dlm_lowcomms_get_buffer(int yesdeid, int len, gfp_t allocation, char **ppc)
 {
 	struct connection *con;
 	struct writequeue_entry *e;
 	int offset = 0;
 
-	con = nodeid2con(nodeid, allocation);
+	con = yesdeid2con(yesdeid, allocation);
 	if (!con)
 		return NULL;
 
@@ -1567,30 +1567,30 @@ static void clean_one_writequeue(struct connection *con)
 	spin_unlock(&con->writequeue_lock);
 }
 
-/* Called from recovery when it knows that a node has
+/* Called from recovery when it kyesws that a yesde has
    left the cluster */
-int dlm_lowcomms_close(int nodeid)
+int dlm_lowcomms_close(int yesdeid)
 {
 	struct connection *con;
-	struct dlm_node_addr *na;
+	struct dlm_yesde_addr *na;
 
-	log_print("closing connection to node %d", nodeid);
-	con = nodeid2con(nodeid, 0);
+	log_print("closing connection to yesde %d", yesdeid);
+	con = yesdeid2con(yesdeid, 0);
 	if (con) {
 		set_bit(CF_CLOSE, &con->flags);
 		close_connection(con, true, true, true);
 		clean_one_writequeue(con);
 	}
 
-	spin_lock(&dlm_node_addrs_spin);
-	na = find_node_addr(nodeid);
+	spin_lock(&dlm_yesde_addrs_spin);
+	na = find_yesde_addr(yesdeid);
 	if (na) {
 		list_del(&na->list);
 		while (na->addr_count--)
 			kfree(na->addr[na->addr_count]);
 		kfree(na);
 	}
-	spin_unlock(&dlm_node_addrs_spin);
+	spin_unlock(&dlm_yesde_addrs_spin);
 
 	return 0;
 }
@@ -1613,7 +1613,7 @@ static void process_send_sockets(struct work_struct *work)
 	struct connection *con = container_of(work, struct connection, swork);
 
 	clear_bit(CF_WRITE_PENDING, &con->flags);
-	if (con->sock == NULL) /* not mutex protected so check it inside too */
+	if (con->sock == NULL) /* yest mutex protected so check it inside too */
 		con->connect_action(con);
 	if (!list_empty(&con->writequeue))
 		send_to_sock(con);
@@ -1688,7 +1688,7 @@ static void work_flush(void)
 {
 	int ok;
 	int i;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct connection *con;
 
 	if (recv_workqueue)
@@ -1746,13 +1746,13 @@ int dlm_lowcomms_start(void)
 	init_local();
 	if (!dlm_local_count) {
 		error = -ENOTCONN;
-		log_print("no local IP address has been set");
+		log_print("yes local IP address has been set");
 		goto fail;
 	}
 
 	error = -ENOMEM;
 	con_cache = kmem_cache_create("dlm_conn", sizeof(struct connection),
-				      __alignof__(struct connection), 0,
+				      __aligyesf__(struct connection), 0,
 				      NULL);
 	if (!con_cache)
 		goto fail;
@@ -1775,7 +1775,7 @@ int dlm_lowcomms_start(void)
 
 fail_unlisten:
 	dlm_allow_conn = 0;
-	con = nodeid2con(0,0);
+	con = yesdeid2con(0,0);
 	if (con) {
 		close_connection(con, false, true, true);
 		kmem_cache_free(con_cache, con);
@@ -1788,14 +1788,14 @@ fail:
 
 void dlm_lowcomms_exit(void)
 {
-	struct dlm_node_addr *na, *safe;
+	struct dlm_yesde_addr *na, *safe;
 
-	spin_lock(&dlm_node_addrs_spin);
-	list_for_each_entry_safe(na, safe, &dlm_node_addrs, list) {
+	spin_lock(&dlm_yesde_addrs_spin);
+	list_for_each_entry_safe(na, safe, &dlm_yesde_addrs, list) {
 		list_del(&na->list);
 		while (na->addr_count--)
 			kfree(na->addr[na->addr_count]);
 		kfree(na);
 	}
-	spin_unlock(&dlm_node_addrs_spin);
+	spin_unlock(&dlm_yesde_addrs_spin);
 }

@@ -28,7 +28,7 @@ struct brcmstb_waketmr {
 	struct device *dev;
 	void __iomem *base;
 	int irq;
-	struct notifier_block reboot_notifier;
+	struct yestifier_block reboot_yestifier;
 	struct clk *clk;
 	u32 rate;
 };
@@ -102,12 +102,12 @@ static int brcmstb_waketmr_prepare_suspend(struct brcmstb_waketmr *timer)
 }
 
 /* If enabled as a wakeup-source, arm the timer when powering off */
-static int brcmstb_waketmr_reboot(struct notifier_block *nb,
+static int brcmstb_waketmr_reboot(struct yestifier_block *nb,
 		unsigned long action, void *data)
 {
 	struct brcmstb_waketmr *timer;
 
-	timer = container_of(nb, struct brcmstb_waketmr, reboot_notifier);
+	timer = container_of(nb, struct brcmstb_waketmr, reboot_yestifier);
 
 	/* Set timer for cold boot */
 	if (action == SYS_POWER_OFF)
@@ -120,11 +120,11 @@ static int brcmstb_waketmr_gettime(struct device *dev,
 				   struct rtc_time *tm)
 {
 	struct brcmstb_waketmr *timer = dev_get_drvdata(dev);
-	struct wktmr_time now;
+	struct wktmr_time yesw;
 
-	wktmr_read(timer, &now);
+	wktmr_read(timer, &yesw);
 
-	rtc_time64_to_tm(now.sec, tm);
+	rtc_time64_to_tm(yesw.sec, tm);
 
 	return 0;
 }
@@ -179,7 +179,7 @@ static int brcmstb_waketmr_setalarm(struct device *dev,
 }
 
 /*
- * Does not do much but keep the RTC class happy. We always support
+ * Does yest do much but keep the RTC class happy. We always support
  * alarms.
  */
 static int brcmstb_waketmr_alarm_enable(struct device *dev,
@@ -246,22 +246,22 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_clk;
 
-	timer->reboot_notifier.notifier_call = brcmstb_waketmr_reboot;
-	register_reboot_notifier(&timer->reboot_notifier);
+	timer->reboot_yestifier.yestifier_call = brcmstb_waketmr_reboot;
+	register_reboot_yestifier(&timer->reboot_yestifier);
 
 	timer->rtc->ops = &brcmstb_waketmr_ops;
 	timer->rtc->range_max = U32_MAX;
 
 	ret = rtc_register_device(timer->rtc);
 	if (ret)
-		goto err_notifier;
+		goto err_yestifier;
 
 	dev_info(dev, "registered, with irq %d\n", timer->irq);
 
 	return 0;
 
-err_notifier:
-	unregister_reboot_notifier(&timer->reboot_notifier);
+err_yestifier:
+	unregister_reboot_yestifier(&timer->reboot_yestifier);
 
 err_clk:
 	if (timer->clk)
@@ -274,7 +274,7 @@ static int brcmstb_waketmr_remove(struct platform_device *pdev)
 {
 	struct brcmstb_waketmr *timer = dev_get_drvdata(&pdev->dev);
 
-	unregister_reboot_notifier(&timer->reboot_notifier);
+	unregister_reboot_yestifier(&timer->reboot_yestifier);
 	clk_disable_unprepare(timer->clk);
 
 	return 0;

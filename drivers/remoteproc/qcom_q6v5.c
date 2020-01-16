@@ -19,7 +19,7 @@
  * qcom_q6v5_prepare() - reinitialize the qcom_q6v5 context before start
  * @q6v5:	reference to qcom_q6v5 context to be reinitialized
  *
- * Return: 0 on success, negative errno on failure
+ * Return: 0 on success, negative erryes on failure
  */
 int qcom_q6v5_prepare(struct qcom_q6v5 *q6v5)
 {
@@ -104,7 +104,7 @@ static irqreturn_t q6v5_ready_interrupt(int irq, void *data)
  * @q6v5:	reference to qcom_q6v5 context
  * @timeout:	timeout to wait for the event, in jiffies
  *
- * qcom_q6v5_unprepare() should not be called when this function fails.
+ * qcom_q6v5_unprepare() should yest be called when this function fails.
  *
  * Return: 0 on success, -ETIMEDOUT on timeout
  */
@@ -145,7 +145,7 @@ static irqreturn_t q6v5_stop_interrupt(int irq, void *data)
  * qcom_q6v5_request_stop() - request the remote processor to stop
  * @q6v5:	reference to qcom_q6v5 context
  *
- * Return: 0 on success, negative errno on failure
+ * Return: 0 on success, negative erryes on failure
  */
 int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5)
 {
@@ -167,10 +167,10 @@ EXPORT_SYMBOL_GPL(qcom_q6v5_request_stop);
  * @q6v5:	handle to be initialized
  * @pdev:	platform_device reference for acquiring resources
  * @rproc:	associated remoteproc instance
- * @crash_reason: SMEM id for crash reason string, or 0 if none
+ * @crash_reason: SMEM id for crash reason string, or 0 if yesne
  * @handover:	function to be called when proxy resources should be released
  *
- * Return: 0 on success, negative errno on failure
+ * Return: 0 on success, negative erryes on failure
  */
 int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 		   struct rproc *rproc, int crash_reason,

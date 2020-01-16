@@ -85,7 +85,7 @@ enum lbtf_mode {
 /*	The size of SQ memory PPA, DPA are 8 DWORDs, that keep the physical
 *	addresses of TxPD buffers. Station has only 8 TxPD available, Whereas
 *	driver has more local TxPDs. Each TxPD on the host memory is associated
-*	with a Tx control node. The driver maintains 8 RxPD descriptors for
+*	with a Tx control yesde. The driver maintains 8 RxPD descriptors for
 *	station firmware to store Rx packet information.
 *
 *	Current version of MAC has a 32x6 multicast address buffer.
@@ -206,9 +206,9 @@ struct lbtf_private {
 	u16 seqnum;
 	/* protected by big lock */
 
-	struct cmd_ctrl_node *cmd_array;
+	struct cmd_ctrl_yesde *cmd_array;
 	/** Current command */
-	struct cmd_ctrl_node *cur_cmd;
+	struct cmd_ctrl_yesde *cur_cmd;
 	/** command Queues */
 	/** Free command buffers */
 	struct list_head cmdfreeq;
@@ -253,8 +253,8 @@ struct lbtf_private {
 	u8 surpriseremoved;
 	struct sk_buff_head bc_ps_buf;
 
-	/* Most recently reported noise in dBm */
-	s8 noise;
+	/* Most recently reported yesise in dBm */
+	s8 yesise;
 };
 
 /* 802.11-related definitions */
@@ -320,7 +320,7 @@ struct cmd_header {
 	__le16 result;
 } __packed;
 
-struct cmd_ctrl_node {
+struct cmd_ctrl_yesde {
 	struct list_head list;
 	int result;
 	/* command response */
@@ -347,7 +347,7 @@ struct cmd_ds_get_hw_spec {
 	__le16 version;
 	/* Max number of TxPD FW can handle */
 	__le16 nr_txpd;
-	/* Max no of Multicast address */
+	/* Max yes of Multicast address */
 	__le16 nr_mcast_adr;
 	/* MAC address */
 	u8 permanentaddr[6];
@@ -454,7 +454,7 @@ struct cmd_ds_802_11_beacon_set {
 };
 
 struct lbtf_private;
-struct cmd_ctrl_node;
+struct cmd_ctrl_yesde;
 
 /** Function Prototype Declaration */
 void lbtf_set_mac_control(struct lbtf_private *priv);
@@ -478,13 +478,13 @@ int lbtf_beacon_ctrl(struct lbtf_private *priv, bool beacon_enable,
 
 
 int lbtf_process_rx_command(struct lbtf_private *priv);
-void lbtf_complete_command(struct lbtf_private *priv, struct cmd_ctrl_node *cmd,
+void lbtf_complete_command(struct lbtf_private *priv, struct cmd_ctrl_yesde *cmd,
 			  int result);
 void lbtf_cmd_response_rx(struct lbtf_private *priv);
 
 /* main.c */
 struct chan_freq_power *lbtf_get_region_cfp_table(u8 region,
-	int *cfp_no);
+	int *cfp_yes);
 struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev,
 				   const struct lbtf_ops *ops);
 int lbtf_remove_card(struct lbtf_private *priv);

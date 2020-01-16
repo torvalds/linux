@@ -49,7 +49,7 @@ static int hda_setup_bdle(struct snd_sof_dev *sdev,
 		bdl->addr_h = cpu_to_le32(upper_32_bits(addr));
 		/* program BDL size */
 		chunk = snd_sgbuf_get_chunk_size(dmab, offset, size);
-		/* one BDLE should not cross 4K boundary */
+		/* one BDLE should yest cross 4K boundary */
 		if (bus->align_bdle_4k) {
 			u32 remain = 0x1000 - (offset & 0xfff);
 
@@ -107,8 +107,8 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 	 * set IOC if don't use position IPC
 	 * and period_wakeup needed.
 	 */
-	ioc = hda->no_ipc_position ?
-	      !stream->no_period_wakeup : 0;
+	ioc = hda->yes_ipc_position ?
+	      !stream->yes_period_wakeup : 0;
 
 	for (i = 0; i < periods; i++) {
 		if (i == (periods - 1) && remain)
@@ -181,13 +181,13 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction)
 
 	/* stream found ? */
 	if (!stream)
-		dev_err(sdev->dev, "error: no free %s streams\n",
+		dev_err(sdev->dev, "error: yes free %s streams\n",
 			direction == SNDRV_PCM_STREAM_PLAYBACK ?
 			"playback" : "capture");
 
 	/*
 	 * Disable DMI Link L1 entry when capture stream is opened.
-	 * Workaround to address a known issue with host DMA that results
+	 * Workaround to address a kyeswn issue with host DMA that results
 	 * in xruns during pause/release in capture scenarios.
 	 */
 	if (!IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_ALWAYS_ENABLE_DMI_L1))
@@ -227,7 +227,7 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 
 	spin_unlock_irq(&bus->reg_lock);
 
-	/* Enable DMI L1 entry if there are no capture streams open */
+	/* Enable DMI L1 entry if there are yes capture streams open */
 	if (!IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_ALWAYS_ENABLE_DMI_L1))
 		if (!active_capture_stream)
 			snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
@@ -236,7 +236,7 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 						HDA_VS_INTEL_EM2_L1SEN);
 
 	if (!found) {
-		dev_dbg(sdev->dev, "stream_tag %d not opened!\n", stream_tag);
+		dev_dbg(sdev->dev, "stream_tag %d yest opened!\n", stream_tag);
 		return -ENODEV;
 	}
 
@@ -314,7 +314,7 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 					1 << hstream->index, 0x0);
 		break;
 	default:
-		dev_err(sdev->dev, "error: unknown command: %d\n", cmd);
+		dev_err(sdev->dev, "error: unkyeswn command: %d\n", cmd);
 		return -EINVAL;
 	}
 
@@ -323,7 +323,7 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 
 /*
  * prepare for common hdac registers settings, for both code loader
- * and normal stream.
+ * and yesrmal stream.
  */
 int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			     struct hdac_ext_stream *stream,
@@ -339,7 +339,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	u32 run;
 
 	if (!stream) {
-		dev_err(sdev->dev, "error: no stream available\n");
+		dev_err(sdev->dev, "error: yes stream available\n");
 		return -ENODEV;
 	}
 
@@ -349,7 +349,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 				mask, mask);
 
 	if (!dmab) {
-		dev_err(sdev->dev, "error: no dma buffer allocated!\n");
+		dev_err(sdev->dev, "error: yes dma buffer allocated!\n");
 		return -ENODEV;
 	}
 
@@ -560,7 +560,7 @@ irqreturn_t hda_dsp_stream_interrupt(int irq, void *context)
 	status = snd_hdac_chip_readl(bus, INTSTS);
 	dev_vdbg(bus->dev, "stream irq, INTSTS status: 0x%x\n", status);
 
-	/* Register inaccessible, ignore it.*/
+	/* Register inaccessible, igyesre it.*/
 	if (status == 0xffffffff)
 		ret = IRQ_NONE;
 
@@ -591,8 +591,8 @@ static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 			    (sd_status & SOF_HDA_CL_DMA_SD_INT_COMPLETE) == 0)
 				continue;
 
-			/* Inform ALSA only in case not do that with IPC */
-			if (sof_hda->no_ipc_position)
+			/* Inform ALSA only in case yest do that with IPC */
+			if (sof_hda->yes_ipc_position)
 				snd_sof_pcm_period_elapsed(s->substream);
 		}
 	}

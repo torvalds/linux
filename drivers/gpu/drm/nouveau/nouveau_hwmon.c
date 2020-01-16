@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -29,8 +29,8 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_hwmon.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_hwmon.h"
 
 #include <nvkm/subdev/iccsense.h>
 #include <nvkm/subdev/volt.h>
@@ -38,32 +38,32 @@
 #if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 
 static ssize_t
-nouveau_hwmon_show_temp1_auto_point1_pwm(struct device *d,
+yesuveau_hwmon_show_temp1_auto_point1_pwm(struct device *d,
 					 struct device_attribute *a, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", 100);
 }
 static SENSOR_DEVICE_ATTR(temp1_auto_point1_pwm, 0444,
-			  nouveau_hwmon_show_temp1_auto_point1_pwm, NULL, 0);
+			  yesuveau_hwmon_show_temp1_auto_point1_pwm, NULL, 0);
 
 static ssize_t
-nouveau_hwmon_temp1_auto_point1_temp(struct device *d,
+yesuveau_hwmon_temp1_auto_point1_temp(struct device *d,
 				     struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 	      therm->attr_get(therm, NVKM_THERM_ATTR_THRS_FAN_BOOST) * 1000);
 }
 static ssize_t
-nouveau_hwmon_set_temp1_auto_point1_temp(struct device *d,
+yesuveau_hwmon_set_temp1_auto_point1_temp(struct device *d,
 					 struct device_attribute *a,
 					 const char *buf, size_t count)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	long value;
 
@@ -76,27 +76,27 @@ nouveau_hwmon_set_temp1_auto_point1_temp(struct device *d,
 	return count;
 }
 static SENSOR_DEVICE_ATTR(temp1_auto_point1_temp, 0644,
-			  nouveau_hwmon_temp1_auto_point1_temp,
-			  nouveau_hwmon_set_temp1_auto_point1_temp, 0);
+			  yesuveau_hwmon_temp1_auto_point1_temp,
+			  yesuveau_hwmon_set_temp1_auto_point1_temp, 0);
 
 static ssize_t
-nouveau_hwmon_temp1_auto_point1_temp_hyst(struct device *d,
+yesuveau_hwmon_temp1_auto_point1_temp_hyst(struct device *d,
 					  struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 	 therm->attr_get(therm, NVKM_THERM_ATTR_THRS_FAN_BOOST_HYST) * 1000);
 }
 static ssize_t
-nouveau_hwmon_set_temp1_auto_point1_temp_hyst(struct device *d,
+yesuveau_hwmon_set_temp1_auto_point1_temp_hyst(struct device *d,
 					      struct device_attribute *a,
 					      const char *buf, size_t count)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	long value;
 
@@ -109,15 +109,15 @@ nouveau_hwmon_set_temp1_auto_point1_temp_hyst(struct device *d,
 	return count;
 }
 static SENSOR_DEVICE_ATTR(temp1_auto_point1_temp_hyst, 0644,
-			  nouveau_hwmon_temp1_auto_point1_temp_hyst,
-			  nouveau_hwmon_set_temp1_auto_point1_temp_hyst, 0);
+			  yesuveau_hwmon_temp1_auto_point1_temp_hyst,
+			  yesuveau_hwmon_set_temp1_auto_point1_temp_hyst, 0);
 
 static ssize_t
-nouveau_hwmon_get_pwm1_max(struct device *d,
+yesuveau_hwmon_get_pwm1_max(struct device *d,
 			   struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	int ret;
 
@@ -129,11 +129,11 @@ nouveau_hwmon_get_pwm1_max(struct device *d,
 }
 
 static ssize_t
-nouveau_hwmon_get_pwm1_min(struct device *d,
+yesuveau_hwmon_get_pwm1_min(struct device *d,
 			   struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	int ret;
 
@@ -145,11 +145,11 @@ nouveau_hwmon_get_pwm1_min(struct device *d,
 }
 
 static ssize_t
-nouveau_hwmon_set_pwm1_min(struct device *d, struct device_attribute *a,
+yesuveau_hwmon_set_pwm1_min(struct device *d, struct device_attribute *a,
 			   const char *buf, size_t count)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	long value;
 	int ret;
@@ -164,15 +164,15 @@ nouveau_hwmon_set_pwm1_min(struct device *d, struct device_attribute *a,
 	return count;
 }
 static SENSOR_DEVICE_ATTR(pwm1_min, 0644,
-			  nouveau_hwmon_get_pwm1_min,
-			  nouveau_hwmon_set_pwm1_min, 0);
+			  yesuveau_hwmon_get_pwm1_min,
+			  yesuveau_hwmon_set_pwm1_min, 0);
 
 static ssize_t
-nouveau_hwmon_set_pwm1_max(struct device *d, struct device_attribute *a,
+yesuveau_hwmon_set_pwm1_max(struct device *d, struct device_attribute *a,
 			   const char *buf, size_t count)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	long value;
 	int ret;
@@ -187,8 +187,8 @@ nouveau_hwmon_set_pwm1_max(struct device *d, struct device_attribute *a,
 	return count;
 }
 static SENSOR_DEVICE_ATTR(pwm1_max, 0644,
-			  nouveau_hwmon_get_pwm1_max,
-			  nouveau_hwmon_set_pwm1_max, 0);
+			  yesuveau_hwmon_get_pwm1_max,
+			  yesuveau_hwmon_set_pwm1_max, 0);
 
 static struct attribute *pwm_fan_sensor_attrs[] = {
 	&sensor_dev_attr_pwm1_min.dev_attr.attr,
@@ -211,80 +211,80 @@ static const struct attribute_group temp1_auto_point_sensor_group = {
 
 #define N_ATTR_GROUPS   3
 
-static const u32 nouveau_config_chip[] = {
+static const u32 yesuveau_config_chip[] = {
 	HWMON_C_UPDATE_INTERVAL,
 	0
 };
 
-static const u32 nouveau_config_in[] = {
+static const u32 yesuveau_config_in[] = {
 	HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_LABEL,
 	0
 };
 
-static const u32 nouveau_config_temp[] = {
+static const u32 yesuveau_config_temp[] = {
 	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
 	HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_EMERGENCY |
 	HWMON_T_EMERGENCY_HYST,
 	0
 };
 
-static const u32 nouveau_config_fan[] = {
+static const u32 yesuveau_config_fan[] = {
 	HWMON_F_INPUT,
 	0
 };
 
-static const u32 nouveau_config_pwm[] = {
+static const u32 yesuveau_config_pwm[] = {
 	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
 	0
 };
 
-static const u32 nouveau_config_power[] = {
+static const u32 yesuveau_config_power[] = {
 	HWMON_P_INPUT | HWMON_P_CAP_MAX | HWMON_P_CRIT,
 	0
 };
 
-static const struct hwmon_channel_info nouveau_chip = {
+static const struct hwmon_channel_info yesuveau_chip = {
 	.type = hwmon_chip,
-	.config = nouveau_config_chip,
+	.config = yesuveau_config_chip,
 };
 
-static const struct hwmon_channel_info nouveau_temp = {
+static const struct hwmon_channel_info yesuveau_temp = {
 	.type = hwmon_temp,
-	.config = nouveau_config_temp,
+	.config = yesuveau_config_temp,
 };
 
-static const struct hwmon_channel_info nouveau_fan = {
+static const struct hwmon_channel_info yesuveau_fan = {
 	.type = hwmon_fan,
-	.config = nouveau_config_fan,
+	.config = yesuveau_config_fan,
 };
 
-static const struct hwmon_channel_info nouveau_in = {
+static const struct hwmon_channel_info yesuveau_in = {
 	.type = hwmon_in,
-	.config = nouveau_config_in,
+	.config = yesuveau_config_in,
 };
 
-static const struct hwmon_channel_info nouveau_pwm = {
+static const struct hwmon_channel_info yesuveau_pwm = {
 	.type = hwmon_pwm,
-	.config = nouveau_config_pwm,
+	.config = yesuveau_config_pwm,
 };
 
-static const struct hwmon_channel_info nouveau_power = {
+static const struct hwmon_channel_info yesuveau_power = {
 	.type = hwmon_power,
-	.config = nouveau_config_power,
+	.config = yesuveau_config_power,
 };
 
-static const struct hwmon_channel_info *nouveau_info[] = {
-	&nouveau_chip,
-	&nouveau_temp,
-	&nouveau_fan,
-	&nouveau_in,
-	&nouveau_pwm,
-	&nouveau_power,
+static const struct hwmon_channel_info *yesuveau_info[] = {
+	&yesuveau_chip,
+	&yesuveau_temp,
+	&yesuveau_fan,
+	&yesuveau_in,
+	&yesuveau_pwm,
+	&yesuveau_power,
 	NULL
 };
 
 static umode_t
-nouveau_chip_is_visible(const void *data, u32 attr, int channel)
+yesuveau_chip_is_visible(const void *data, u32 attr, int channel)
 {
 	switch (attr) {
 	case hwmon_chip_update_interval:
@@ -295,9 +295,9 @@ nouveau_chip_is_visible(const void *data, u32 attr, int channel)
 }
 
 static umode_t
-nouveau_power_is_visible(const void *data, u32 attr, int channel)
+yesuveau_power_is_visible(const void *data, u32 attr, int channel)
 {
-	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct yesuveau_drm *drm = yesuveau_drm((struct drm_device *)data);
 	struct nvkm_iccsense *iccsense = nvxx_iccsense(&drm->client.device);
 
 	if (!iccsense || !iccsense->data_valid || list_empty(&iccsense->rails))
@@ -320,9 +320,9 @@ nouveau_power_is_visible(const void *data, u32 attr, int channel)
 }
 
 static umode_t
-nouveau_temp_is_visible(const void *data, u32 attr, int channel)
+yesuveau_temp_is_visible(const void *data, u32 attr, int channel)
 {
-	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct yesuveau_drm *drm = yesuveau_drm((struct drm_device *)data);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_get || nvkm_therm_temp_get(therm) < 0)
@@ -344,9 +344,9 @@ nouveau_temp_is_visible(const void *data, u32 attr, int channel)
 }
 
 static umode_t
-nouveau_pwm_is_visible(const void *data, u32 attr, int channel)
+yesuveau_pwm_is_visible(const void *data, u32 attr, int channel)
 {
-	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct yesuveau_drm *drm = yesuveau_drm((struct drm_device *)data);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_get || !therm->fan_get ||
@@ -363,9 +363,9 @@ nouveau_pwm_is_visible(const void *data, u32 attr, int channel)
 }
 
 static umode_t
-nouveau_input_is_visible(const void *data, u32 attr, int channel)
+yesuveau_input_is_visible(const void *data, u32 attr, int channel)
 {
-	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct yesuveau_drm *drm = yesuveau_drm((struct drm_device *)data);
 	struct nvkm_volt *volt = nvxx_volt(&drm->client.device);
 
 	if (!volt || nvkm_volt_get(volt) < 0)
@@ -383,9 +383,9 @@ nouveau_input_is_visible(const void *data, u32 attr, int channel)
 }
 
 static umode_t
-nouveau_fan_is_visible(const void *data, u32 attr, int channel)
+yesuveau_fan_is_visible(const void *data, u32 attr, int channel)
 {
-	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct yesuveau_drm *drm = yesuveau_drm((struct drm_device *)data);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_get || nvkm_therm_fan_sense(therm) < 0)
@@ -400,7 +400,7 @@ nouveau_fan_is_visible(const void *data, u32 attr, int channel)
 }
 
 static int
-nouveau_chip_read(struct device *dev, u32 attr, int channel, long *val)
+yesuveau_chip_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	switch (attr) {
 	case hwmon_chip_update_interval:
@@ -414,10 +414,10 @@ nouveau_chip_read(struct device *dev, u32 attr, int channel, long *val)
 }
 
 static int
-nouveau_temp_read(struct device *dev, u32 attr, int channel, long *val)
+yesuveau_temp_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct yesuveau_drm *drm = yesuveau_drm(drm_dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	int ret;
 
@@ -463,10 +463,10 @@ nouveau_temp_read(struct device *dev, u32 attr, int channel, long *val)
 }
 
 static int
-nouveau_fan_read(struct device *dev, u32 attr, int channel, long *val)
+yesuveau_fan_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct yesuveau_drm *drm = yesuveau_drm(drm_dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm)
@@ -486,10 +486,10 @@ nouveau_fan_read(struct device *dev, u32 attr, int channel, long *val)
 }
 
 static int
-nouveau_in_read(struct device *dev, u32 attr, int channel, long *val)
+yesuveau_in_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct yesuveau_drm *drm = yesuveau_drm(drm_dev);
 	struct nvkm_volt *volt = nvxx_volt(&drm->client.device);
 	int ret;
 
@@ -517,10 +517,10 @@ nouveau_in_read(struct device *dev, u32 attr, int channel, long *val)
 }
 
 static int
-nouveau_pwm_read(struct device *dev, u32 attr, int channel, long *val)
+yesuveau_pwm_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct yesuveau_drm *drm = yesuveau_drm(drm_dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_get || !therm->fan_get)
@@ -543,10 +543,10 @@ nouveau_pwm_read(struct device *dev, u32 attr, int channel, long *val)
 }
 
 static int
-nouveau_power_read(struct device *dev, u32 attr, int channel, long *val)
+yesuveau_power_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct yesuveau_drm *drm = yesuveau_drm(drm_dev);
 	struct nvkm_iccsense *iccsense = nvxx_iccsense(&drm->client.device);
 
 	if (!iccsense)
@@ -572,10 +572,10 @@ nouveau_power_read(struct device *dev, u32 attr, int channel, long *val)
 }
 
 static int
-nouveau_temp_write(struct device *dev, u32 attr, int channel, long val)
+yesuveau_temp_write(struct device *dev, u32 attr, int channel, long val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct yesuveau_drm *drm = yesuveau_drm(drm_dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_set)
@@ -606,10 +606,10 @@ nouveau_temp_write(struct device *dev, u32 attr, int channel, long val)
 }
 
 static int
-nouveau_pwm_write(struct device *dev, u32 attr, int channel, long val)
+yesuveau_pwm_write(struct device *dev, u32 attr, int channel, long val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct yesuveau_drm *drm = yesuveau_drm(drm_dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_set)
@@ -626,22 +626,22 @@ nouveau_pwm_write(struct device *dev, u32 attr, int channel, long val)
 }
 
 static umode_t
-nouveau_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
+yesuveau_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
 			int channel)
 {
 	switch (type) {
 	case hwmon_chip:
-		return nouveau_chip_is_visible(data, attr, channel);
+		return yesuveau_chip_is_visible(data, attr, channel);
 	case hwmon_temp:
-		return nouveau_temp_is_visible(data, attr, channel);
+		return yesuveau_temp_is_visible(data, attr, channel);
 	case hwmon_fan:
-		return nouveau_fan_is_visible(data, attr, channel);
+		return yesuveau_fan_is_visible(data, attr, channel);
 	case hwmon_in:
-		return nouveau_input_is_visible(data, attr, channel);
+		return yesuveau_input_is_visible(data, attr, channel);
 	case hwmon_pwm:
-		return nouveau_pwm_is_visible(data, attr, channel);
+		return yesuveau_pwm_is_visible(data, attr, channel);
 	case hwmon_power:
-		return nouveau_power_is_visible(data, attr, channel);
+		return yesuveau_power_is_visible(data, attr, channel);
 	default:
 		return 0;
 	}
@@ -650,7 +650,7 @@ nouveau_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
 static const char input_label[] = "GPU core";
 
 static int
-nouveau_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+yesuveau_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		    int channel, const char **buf)
 {
 	if (type == hwmon_in && attr == hwmon_in_label) {
@@ -662,64 +662,64 @@ nouveau_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 }
 
 static int
-nouveau_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+yesuveau_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 							int channel, long *val)
 {
 	switch (type) {
 	case hwmon_chip:
-		return nouveau_chip_read(dev, attr, channel, val);
+		return yesuveau_chip_read(dev, attr, channel, val);
 	case hwmon_temp:
-		return nouveau_temp_read(dev, attr, channel, val);
+		return yesuveau_temp_read(dev, attr, channel, val);
 	case hwmon_fan:
-		return nouveau_fan_read(dev, attr, channel, val);
+		return yesuveau_fan_read(dev, attr, channel, val);
 	case hwmon_in:
-		return nouveau_in_read(dev, attr, channel, val);
+		return yesuveau_in_read(dev, attr, channel, val);
 	case hwmon_pwm:
-		return nouveau_pwm_read(dev, attr, channel, val);
+		return yesuveau_pwm_read(dev, attr, channel, val);
 	case hwmon_power:
-		return nouveau_power_read(dev, attr, channel, val);
+		return yesuveau_power_read(dev, attr, channel, val);
 	default:
 		return -EOPNOTSUPP;
 	}
 }
 
 static int
-nouveau_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+yesuveau_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 							int channel, long val)
 {
 	switch (type) {
 	case hwmon_temp:
-		return nouveau_temp_write(dev, attr, channel, val);
+		return yesuveau_temp_write(dev, attr, channel, val);
 	case hwmon_pwm:
-		return nouveau_pwm_write(dev, attr, channel, val);
+		return yesuveau_pwm_write(dev, attr, channel, val);
 	default:
 		return -EOPNOTSUPP;
 	}
 }
 
-static const struct hwmon_ops nouveau_hwmon_ops = {
-	.is_visible = nouveau_is_visible,
-	.read = nouveau_read,
-	.read_string = nouveau_read_string,
-	.write = nouveau_write,
+static const struct hwmon_ops yesuveau_hwmon_ops = {
+	.is_visible = yesuveau_is_visible,
+	.read = yesuveau_read,
+	.read_string = yesuveau_read_string,
+	.write = yesuveau_write,
 };
 
-static const struct hwmon_chip_info nouveau_chip_info = {
-	.ops = &nouveau_hwmon_ops,
-	.info = nouveau_info,
+static const struct hwmon_chip_info yesuveau_chip_info = {
+	.ops = &yesuveau_hwmon_ops,
+	.info = yesuveau_info,
 };
 #endif
 
 int
-nouveau_hwmon_init(struct drm_device *dev)
+yesuveau_hwmon_init(struct drm_device *dev)
 {
 #if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_iccsense *iccsense = nvxx_iccsense(&drm->client.device);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	struct nvkm_volt *volt = nvxx_volt(&drm->client.device);
 	const struct attribute_group *special_groups[N_ATTR_GROUPS];
-	struct nouveau_hwmon *hwmon;
+	struct yesuveau_hwmon *hwmon;
 	struct device *hwmon_dev;
 	int ret = 0;
 	int i = 0;
@@ -742,8 +742,8 @@ nouveau_hwmon_init(struct drm_device *dev)
 	}
 
 	special_groups[i] = 0;
-	hwmon_dev = hwmon_device_register_with_info(dev->dev, "nouveau", dev,
-							&nouveau_chip_info,
+	hwmon_dev = hwmon_device_register_with_info(dev->dev, "yesuveau", dev,
+							&yesuveau_chip_info,
 							special_groups);
 	if (IS_ERR(hwmon_dev)) {
 		ret = PTR_ERR(hwmon_dev);
@@ -759,10 +759,10 @@ nouveau_hwmon_init(struct drm_device *dev)
 }
 
 void
-nouveau_hwmon_fini(struct drm_device *dev)
+yesuveau_hwmon_fini(struct drm_device *dev)
 {
 #if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
-	struct nouveau_hwmon *hwmon = nouveau_hwmon(dev);
+	struct yesuveau_hwmon *hwmon = yesuveau_hwmon(dev);
 
 	if (!hwmon)
 		return;
@@ -770,7 +770,7 @@ nouveau_hwmon_fini(struct drm_device *dev)
 	if (hwmon->hwmon)
 		hwmon_device_unregister(hwmon->hwmon);
 
-	nouveau_drm(dev)->hwmon = NULL;
+	yesuveau_drm(dev)->hwmon = NULL;
 	kfree(hwmon);
 #endif
 }

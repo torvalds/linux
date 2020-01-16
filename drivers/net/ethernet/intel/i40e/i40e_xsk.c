@@ -325,7 +325,7 @@ __i40e_alloc_rx_buffers_zc(struct i40e_ring *rx_ring, u16 count,
 	do {
 		if (!alloc(rx_ring, bi)) {
 			ok = false;
-			goto no_buffers;
+			goto yes_buffers;
 		}
 
 		dma_sync_single_range_for_device(rx_ring->dev, bi->dma, 0,
@@ -348,7 +348,7 @@ __i40e_alloc_rx_buffers_zc(struct i40e_ring *rx_ring, u16 count,
 		count--;
 	} while (count);
 
-no_buffers:
+yes_buffers:
 	if (rx_ring->next_to_use != ntu)
 		i40e_release_rx_desc(rx_ring, ntu);
 
@@ -599,10 +599,10 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 
 		/* XDP_PASS path */
 
-		/* NB! We are not checking for errors using
+		/* NB! We are yest checking for errors using
 		 * i40e_test_staterr with
 		 * BIT(I40E_RXD_QW1_ERROR_SHIFT). This is due to that
-		 * SBP is *not* set in PRT_SBPVSI (default not set).
+		 * SBP is *yest* set in PRT_SBPVSI (default yest set).
 		 */
 		skb = i40e_construct_skb_zc(rx_ring, bi, &xdp);
 		if (!skb) {
@@ -779,7 +779,7 @@ out_xmit:
  * i40e_xsk_wakeup - Implements the ndo_xsk_wakeup
  * @dev: the netdevice
  * @queue_id: queue id to wake up
- * @flags: ignored in our case since we have Rx and Tx in the same NAPI.
+ * @flags: igyesred in our case since we have Rx and Tx in the same NAPI.
  *
  * Returns <0 for errors, 0 otherwise.
  **/
@@ -808,10 +808,10 @@ int i40e_xsk_wakeup(struct net_device *dev, u32 queue_id, u32 flags)
 	ring = vsi->xdp_rings[queue_id];
 
 	/* The idea here is that if NAPI is running, mark a miss, so
-	 * it will run again. If not, trigger an interrupt and
+	 * it will run again. If yest, trigger an interrupt and
 	 * schedule the NAPI from interrupt context. If NAPI would be
-	 * scheduled here, the interrupt affinity would not be
-	 * honored.
+	 * scheduled here, the interrupt affinity would yest be
+	 * hoyesred.
 	 */
 	if (!napi_if_scheduled_mark_missed(&ring->q_vector->napi))
 		i40e_force_wb(vsi, ring->q_vector);

@@ -51,7 +51,7 @@ extern void __init chrdev_init(void);
  * fs_context.c
  */
 extern const struct fs_context_operations legacy_fs_context_ops;
-extern int parse_monolithic_mount_data(struct fs_context *, void *);
+extern int parse_moyeslithic_mount_data(struct fs_context *, void *);
 extern void fc_drop_locked(struct fs_context *);
 extern void vfs_clean_context(struct fs_context *fc);
 extern int finish_clean_context(struct fs_context *fc);
@@ -64,7 +64,7 @@ extern int filename_lookup(int dfd, struct filename *name, unsigned flags,
 extern int user_path_mountpoint_at(int, const char __user *, unsigned int, struct path *);
 extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 			   const char *, unsigned int, struct path *);
-long do_mknodat(int dfd, const char __user *filename, umode_t mode,
+long do_mkyesdat(int dfd, const char __user *filename, umode_t mode,
 		unsigned int dev);
 long do_mkdirat(int dfd, const char __user *pathname, umode_t mode);
 long do_rmdir(int dfd, const char __user *pathname);
@@ -100,7 +100,7 @@ extern void chroot_fs_refs(const struct path *, const struct path *);
  * file_table.c
  */
 extern struct file *alloc_empty_file(int, const struct cred *);
-extern struct file *alloc_empty_file_noaccount(int, const struct cred *);
+extern struct file *alloc_empty_file_yesaccount(int, const struct cred *);
 
 /*
  * super.c
@@ -134,19 +134,19 @@ int do_fchownat(int dfd, const char __user *filename, uid_t user, gid_t group,
 extern int vfs_open(const struct path *, struct file *);
 
 /*
- * inode.c
+ * iyesde.c
  */
 extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
-extern void inode_add_lru(struct inode *inode);
+extern void iyesde_add_lru(struct iyesde *iyesde);
 extern int dentry_needs_remove_privs(struct dentry *dentry);
 
 /*
  * fs-writeback.c
  */
-extern void inode_io_list_del(struct inode *inode);
+extern void iyesde_io_list_del(struct iyesde *iyesde);
 
-extern long get_nr_dirty_inodes(void);
-extern int invalidate_inodes(struct super_block *, bool);
+extern long get_nr_dirty_iyesdes(void);
+extern int invalidate_iyesdes(struct super_block *, bool);
 
 /*
  * dcache.c

@@ -225,7 +225,7 @@ static int xgmac_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 	if (ret)
 		return ret;
 
-	/* Return all Fs if nothing was there */
+	/* Return all Fs if yesthing was there */
 	if (xgmac_read32(&regs->mdio_stat, endian) & MDIO_STAT_RD_ER) {
 		dev_err(&bus->dev,
 			"Error while reading PHY%d reg at %d.%hhu\n",
@@ -241,7 +241,7 @@ static int xgmac_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 
 static int xgmac_mdio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct mii_bus *bus;
 	struct resource res;
 	struct mdio_fsl_priv *priv;
@@ -249,7 +249,7 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret) {
-		dev_err(&pdev->dev, "could not obtain address\n");
+		dev_err(&pdev->dev, "could yest obtain address\n");
 		return ret;
 	}
 
@@ -271,12 +271,12 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 		goto err_ioremap;
 	}
 
-	priv->is_little_endian = of_property_read_bool(pdev->dev.of_node,
+	priv->is_little_endian = of_property_read_bool(pdev->dev.of_yesde,
 						       "little-endian");
 
 	ret = of_mdiobus_register(bus, np);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot register MDIO bus\n");
+		dev_err(&pdev->dev, "canyest register MDIO bus\n");
 		goto err_registration;
 	}
 

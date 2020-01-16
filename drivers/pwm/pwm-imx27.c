@@ -204,7 +204,7 @@ static void pwm_imx27_wait_fifo_slot(struct pwm_chip *chip,
 
 		sr = readl(imx->mmio_base + MX3_PWMSR);
 		if (fifoav == FIELD_GET(MX3_PWMSR_FIFOAV, sr))
-			dev_warn(dev, "there is no free FIFO slot\n");
+			dev_warn(dev, "there is yes free FIFO slot\n");
 	}
 }
 

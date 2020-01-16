@@ -99,7 +99,7 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 		return -ENOMEM;
 
 	/*
-	 * Some synchronisation notes:
+	 * Some synchronisation yestes:
 	 *
 	 * The net_generic explores the net->gen array inside rcu
 	 * read section. Besides once set the net->gen->ptr[x]
@@ -199,8 +199,8 @@ static int alloc_netid(struct net *net, struct net *peer, int reqid)
 }
 
 /* This function is used by idr_for_each(). If net is equal to peer, the
- * function returns the id so that idr_for_each() stops. Because we cannot
- * returns the id 0 (idr_for_each() will not stop), we return the magic value
+ * function returns the id so that idr_for_each() stops. Because we canyest
+ * returns the id 0 (idr_for_each() will yest stop), we return the magic value
  * NET_ID_ZERO (-1) for it.
  */
 #define NET_ID_ZERO -1
@@ -212,7 +212,7 @@ static int net_eq_idr(int id, void *net, void *peer)
 }
 
 /* Should be called with nsid_lock held. If a new id is assigned, the bool alloc
- * is set to true, thus the caller knows that the new id must be notified via
+ * is set to true, thus the caller kyesws that the new id must be yestified via
  * rtnl.
  */
 static int __peernet2id_alloc(struct net *net, struct net *peer, bool *alloc)
@@ -240,14 +240,14 @@ static int __peernet2id_alloc(struct net *net, struct net *peer, bool *alloc)
 /* should be called with nsid_lock held */
 static int __peernet2id(struct net *net, struct net *peer)
 {
-	bool no = false;
+	bool yes = false;
 
-	return __peernet2id_alloc(net, peer, &no);
+	return __peernet2id_alloc(net, peer, &yes);
 }
 
-static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
+static void rtnl_net_yestifyid(struct net *net, int cmd, int id, u32 portid,
 			      struct nlmsghdr *nlh, gfp_t gfp);
-/* This function returns the id of a peer netns. If no id is assigned, one will
+/* This function returns the id of a peer netns. If yes id is assigned, one will
  * be allocated and returned.
  */
 int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
@@ -269,7 +269,7 @@ int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 	id = __peernet2id_alloc(net, peer, &alloc);
 	spin_unlock_bh(&net->nsid_lock);
 	if (alloc && id >= 0)
-		rtnl_net_notifyid(net, RTM_NEWNSID, id, 0, NULL, gfp);
+		rtnl_net_yestifyid(net, RTM_NEWNSID, id, 0, NULL, gfp);
 	if (alive)
 		put_net(peer);
 	return id;
@@ -344,7 +344,7 @@ out:
 
 out_undo:
 	/* Walk through the list backwards calling the exit functions
-	 * for the pernet modules whose init functions did not fail.
+	 * for the pernet modules whose init functions did yest fail.
 	 */
 	list_add(&net->exit_list, &net_exit_list);
 	saved_ops = ops;
@@ -378,7 +378,7 @@ static struct pernet_operations net_defaults_ops = {
 static __init int net_defaults_init(void)
 {
 	if (register_pernet_subsys(&net_defaults_ops))
-		panic("Cannot initialize net default settings");
+		panic("Canyest initialize net default settings");
 
 	return 0;
 }
@@ -522,7 +522,7 @@ static void unhash_nsid(struct net *net, struct net *last)
 	/* This function is only called from cleanup_net() work,
 	 * and this work is the only process, that may delete
 	 * a net from net_namespace_list. So, when the below
-	 * is executing, the list may only grow. Thus, we do not
+	 * is executing, the list may only grow. Thus, we do yest
 	 * use for_each_net_rcu() or net_rwsem.
 	 */
 	for_each_net(tmp) {
@@ -534,7 +534,7 @@ static void unhash_nsid(struct net *net, struct net *last)
 			idr_remove(&tmp->netns_ids, id);
 		spin_unlock_bh(&tmp->nsid_lock);
 		if (id >= 0)
-			rtnl_net_notifyid(tmp, RTM_DELNSID, id, 0, NULL,
+			rtnl_net_yestifyid(tmp, RTM_DELNSID, id, 0, NULL,
 					  GFP_KERNEL);
 		if (tmp == last)
 			break;
@@ -550,7 +550,7 @@ static void cleanup_net(struct work_struct *work)
 {
 	const struct pernet_operations *ops;
 	struct net *net, *tmp, *last;
-	struct llist_node *net_kill_list;
+	struct llist_yesde *net_kill_list;
 	LIST_HEAD(net_exit_list);
 
 	/* Atomically snapshot the list of namespaces to cleanup */
@@ -562,12 +562,12 @@ static void cleanup_net(struct work_struct *work)
 	down_write(&net_rwsem);
 	llist_for_each_entry(net, net_kill_list, cleanup_list)
 		list_del_rcu(&net->list);
-	/* Cache last net. After we unlock rtnl, no one new net
+	/* Cache last net. After we unlock rtnl, yes one new net
 	 * added to net_namespace_list can assign nsid pointer
 	 * to a net from net_kill_list (see peernet2id_alloc()).
 	 * So, we skip them in unhash_nsid().
 	 *
-	 * Note, that unhash_nsid() does not delete nsid links
+	 * Note, that unhash_nsid() does yest delete nsid links
 	 * between net_kill_list's nets, as they've already
 	 * deleted from net_namespace_list. But, this would be
 	 * useless anyway, as netns_ids are destroyed there.
@@ -585,8 +585,8 @@ static void cleanup_net(struct work_struct *work)
 		ops_pre_exit_list(ops, &net_exit_list);
 
 	/*
-	 * Another CPU might be rcu-iterating the list, wait for it.
-	 * This needs to be before calling the exit() notifiers, so
+	 * Ayesther CPU might be rcu-iterating the list, wait for it.
+	 * This needs to be before calling the exit() yestifiers, so
 	 * the rcu_barrier() below isn't sufficient alone.
 	 * Also the pre_exit() and exit() methods need this barrier.
 	 */
@@ -602,7 +602,7 @@ static void cleanup_net(struct work_struct *work)
 
 	up_read(&pernet_ops_rwsem);
 
-	/* Ensure there are no outstanding rcu callbacks using this
+	/* Ensure there are yes outstanding rcu callbacks using this
 	 * network namespace.
 	 */
 	rcu_barrier();
@@ -653,7 +653,7 @@ struct net *get_net_ns_by_fd(int fd)
 	if (IS_ERR(file))
 		return ERR_CAST(file);
 
-	ns = get_proc_ns(file_inode(file));
+	ns = get_proc_ns(file_iyesde(file));
 	if (ns->ops == &netns_operations)
 		net = get_net(container_of(ns, struct net, ns));
 	else
@@ -767,7 +767,7 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh,
 	err = alloc_netid(net, peer, nsid);
 	spin_unlock_bh(&net->nsid_lock);
 	if (err >= 0) {
-		rtnl_net_notifyid(net, RTM_NEWNSID, err, NETLINK_CB(skb).portid,
+		rtnl_net_yestifyid(net, RTM_NEWNSID, err, NETLINK_CB(skb).portid,
 				  nlh, GFP_KERNEL);
 		err = 0;
 	} else if (err == -ENOSPC && nsid >= 0) {
@@ -1055,7 +1055,7 @@ end:
 	return err < 0 ? err : skb->len;
 }
 
-static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
+static void rtnl_net_yestifyid(struct net *net, int cmd, int id, u32 portid,
 			      struct nlmsghdr *nlh, gfp_t gfp)
 {
 	struct net_fill_args fillargs = {
@@ -1075,7 +1075,7 @@ static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
 	if (err < 0)
 		goto err_out;
 
-	rtnl_notify(msg, net, portid, RTNLGRP_NSID, nlh, gfp);
+	rtnl_yestify(msg, net, portid, RTNLGRP_NSID, nlh, gfp);
 	return;
 
 err_out:
@@ -1096,24 +1096,24 @@ static int __init net_ns_init(void)
 	/* Create workqueue for cleanup */
 	netns_wq = create_singlethread_workqueue("netns");
 	if (!netns_wq)
-		panic("Could not create netns workq");
+		panic("Could yest create netns workq");
 #endif
 
 	ng = net_alloc_generic();
 	if (!ng)
-		panic("Could not allocate generic netns");
+		panic("Could yest allocate generic netns");
 
 	rcu_assign_pointer(init_net.gen, ng);
 
 	down_write(&pernet_ops_rwsem);
 	if (setup_net(&init_net, &init_user_ns))
-		panic("Could not setup the initial network namespace");
+		panic("Could yest setup the initial network namespace");
 
 	init_net_initialized = true;
 	up_write(&pernet_ops_rwsem);
 
 	if (register_pernet_subsys(&net_ns_ops))
-		panic("Could not register network namespace subsystems");
+		panic("Could yest register network namespace subsystems");
 
 	rtnl_register(PF_UNSPEC, RTM_NEWNSID, rtnl_net_newid, NULL,
 		      RTNL_FLAG_DOIT_UNLOCKED);
@@ -1136,7 +1136,7 @@ static int __register_pernet_operations(struct list_head *list,
 	list_add_tail(&ops->list, list);
 	if (ops->init || (ops->id && ops->size)) {
 		/* We held write locked pernet_ops_rwsem, and parallel
-		 * setup_net() and cleanup_net() are not possible.
+		 * setup_net() and cleanup_net() are yest possible.
 		 */
 		for_each_net(net) {
 			error = ops_init(ops, net);

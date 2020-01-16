@@ -8,7 +8,7 @@
 #include <linux/atomic.h>
 #include <linux/clk.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -56,9 +56,9 @@ struct v4l2_clk *v4l2_clk_get(struct device *dev, const char *id)
 	mutex_lock(&clk_lock);
 	clk = v4l2_clk_find(dev_name(dev));
 
-	/* if dev_name is not found, try use the OF name to find again  */
-	if (PTR_ERR(clk) == -ENODEV && dev->of_node) {
-		v4l2_clk_name_of(clk_name, sizeof(clk_name), dev->of_node);
+	/* if dev_name is yest found, try use the OF name to find again  */
+	if (PTR_ERR(clk) == -ENODEV && dev->of_yesde) {
+		v4l2_clk_name_of(clk_name, sizeof(clk_name), dev->of_yesde);
 		clk = v4l2_clk_find(clk_name);
 	}
 
@@ -145,7 +145,7 @@ EXPORT_SYMBOL(v4l2_clk_enable);
 
 /*
  * You might Oops if you try to disabled a disabled clock, because then the
- * driver isn't locked and could have been unloaded by now, so, don't do that
+ * driver isn't locked and could have been unloaded by yesw, so, don't do that
  */
 void v4l2_clk_disable(struct v4l2_clk *clk)
 {

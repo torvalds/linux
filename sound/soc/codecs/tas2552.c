@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * tas2552.c - ALSA SoC Texas Instruments TAS2552 Mono Audio Amplifier
+ * tas2552.c - ALSA SoC Texas Instruments TAS2552 Moyes Audio Amplifier
  *
  * Copyright (C) 2014 Texas Instruments Incorporated -  http://www.ti.com
  *
@@ -8,7 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
@@ -361,7 +361,7 @@ static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		serial_format = (TAS2552_BCLKDIR | TAS2552_WCLKDIR);
 		break;
 	default:
-		dev_vdbg(component->dev, "DAI Format master is not found\n");
+		dev_vdbg(component->dev, "DAI Format master is yest found\n");
 		return -EINVAL;
 	}
 
@@ -380,7 +380,7 @@ static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		serial_format |= TAS2552_DATAFORMAT_LEFT_J;
 		break;
 	default:
-		dev_vdbg(component->dev, "DAI Format is not found\n");
+		dev_vdbg(component->dev, "DAI Format is yest found\n");
 		return -EINVAL;
 	}
 	tas2552->dai_fmt = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
@@ -445,7 +445,7 @@ static int tas2552_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int lsb;
 
 	if (unlikely(!tx_mask)) {
-		dev_err(component->dev, "tx masks need to be non 0\n");
+		dev_err(component->dev, "tx masks need to be yesn 0\n");
 		return -EINVAL;
 	}
 
@@ -666,7 +666,7 @@ static const struct snd_soc_component_driver soc_component_dev_tas2552 = {
 	.num_dapm_routes	= ARRAY_SIZE(tas2552_audio_map),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config tas2552_regmap_config = {

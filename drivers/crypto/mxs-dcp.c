@@ -506,7 +506,7 @@ static int mxs_dcp_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	}
 
 	/*
-	 * If the requested AES key size is not supported by the hardware,
+	 * If the requested AES key size is yest supported by the hardware,
 	 * but is supported by in-kernel software implementation, we use
 	 * software fallback.
 	 */
@@ -732,7 +732,7 @@ static int dcp_sha_init(struct ahash_request *req)
 
 	/*
 	 * Start hashing session. The code below only inits the
-	 * hashing session context, nothing more.
+	 * hashing session context, yesthing more.
 	 */
 	memset(actx, 0, sizeof(*actx));
 
@@ -761,7 +761,7 @@ static int dcp_sha_update_fx(struct ahash_request *req, int fini)
 	int ret;
 
 	/*
-	 * Ignore requests that have no data in them and are not
+	 * Igyesre requests that have yes data in them and are yest
 	 * the trailing requests in the stream of requests.
 	 */
 	if (!req->nbytes && !fini)
@@ -1052,10 +1052,10 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	       sdcp->base + MXS_DCP_CHANNELCTRL);
 
 	/*
-	 * We do not enable context switching. Give the context buffer a
+	 * We do yest enable context switching. Give the context buffer a
 	 * pointer to an illegal address so if context switching is
 	 * inadvertantly enabled, the DCP will return an error instead of
-	 * trashing good memory. The DCP DMA cannot access ROM, so any ROM
+	 * trashing good memory. The DCP DMA canyest access ROM, so any ROM
 	 * address will do.
 	 */
 	writel(0xffff0000, sdcp->base + MXS_DCP_CONTEXT);

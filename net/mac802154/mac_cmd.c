@@ -7,7 +7,7 @@
  * Written by:
  * Sergey Lapin <slapin@ossfans.org>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 #include <linux/skbuff.h>

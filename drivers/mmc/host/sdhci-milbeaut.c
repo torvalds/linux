@@ -129,7 +129,7 @@ static void sdhci_milbeaut_set_power(struct sdhci_host *host,
 
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
 	}
-	sdhci_set_power_noreg(host, mode, vdd);
+	sdhci_set_power_yesreg(host, mode, vdd);
 }
 
 static const struct sdhci_ops sdhci_milbeaut_ops = {
@@ -248,7 +248,7 @@ static int sdhci_milbeaut_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "%s: no irq specified\n", __func__);
+		dev_err(dev, "%s: yes irq specified\n", __func__);
 		return irq;
 	}
 
@@ -287,7 +287,7 @@ static int sdhci_milbeaut_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if (dev_of_node(dev)) {
+	if (dev_of_yesde(dev)) {
 		sdhci_get_of_property(pdev);
 
 		priv->clk_iface = devm_clk_get(&pdev->dev, "iface");

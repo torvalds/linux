@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -56,7 +56,7 @@ uint32_t virtio_gpu_translate_format(uint32_t drm_fourcc)
 		break;
 	default:
 		/*
-		 * This should not happen, we handle everything listed
+		 * This should yest happen, we handle everything listed
 		 * in virtio_gpu_formats[].
 		 */
 		format = 0;
@@ -149,7 +149,7 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 		  plane->state->src_h >> 16,
 		  plane->state->src_x >> 16,
 		  plane->state->src_y >> 16);
-	virtio_gpu_cmd_set_scanout(vgdev, output->index, handle,
+	virtio_gpu_cmd_set_scayesut(vgdev, output->index, handle,
 				   plane->state->src_w >> 16,
 				   plane->state->src_h >> 16,
 				   plane->state->src_x >> 16,

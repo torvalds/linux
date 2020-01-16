@@ -204,7 +204,7 @@
 #define RT5616_ADC_R_VOL_MASK			(0x7f)
 #define RT5616_ADC_R_VOL_SFT			0
 
-/* Mono ADC Digital Volume Control (0x1d) */
+/* Moyes ADC Digital Volume Control (0x1d) */
 #define RT5616_M_MONO_ADC_L			(0x1 << 15)
 #define RT5616_M_MONO_ADC_L_SFT			15
 #define RT5616_MONO_ADC_L_VOL_MASK		(0x7f << 8)
@@ -487,7 +487,7 @@
 #define RT5616_SPO_CLSD_RATIO_MASK		(0x7)
 #define RT5616_SPO_CLSD_RATIO_SFT		0
 
-/* Mono Output Mixer Control (0x4c) */
+/* Moyes Output Mixer Control (0x4c) */
 #define RT5616_M_DAC_R2_MM			(0x1 << 15)
 #define RT5616_M_DAC_R2_MM_SFT			15
 #define RT5616_M_DAC_L2_MM			(0x1 << 14)

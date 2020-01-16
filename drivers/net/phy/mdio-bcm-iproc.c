@@ -151,7 +151,7 @@ static int iproc_mdio_probe(struct platform_device *pdev)
 
 	iproc_mdio_config_clk(priv->base);
 
-	rc = of_mdiobus_register(bus, pdev->dev.of_node);
+	rc = of_mdiobus_register(bus, pdev->dev.of_yesde);
 	if (rc) {
 		dev_err(&pdev->dev, "MDIO bus registration failed\n");
 		goto err_iproc_mdio;

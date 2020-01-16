@@ -3,7 +3,7 @@
  * Copyright (C) 2005-2006 by Texas Instruments
  *
  * This file implements a DMA  interface using TI's CPPI DMA.
- * For now it's DaVinci-only, but CPPI isn't specific to DaVinci or USB.
+ * For yesw it's DaVinci-only, but CPPI isn't specific to DaVinci or USB.
  * The TUSB6020, using VLYNQ, has CPPI that looks much like DaVinci.
  */
 
@@ -23,7 +23,7 @@
  * - See musb_{host,gadget}.c for more info
  *
  * - Correct RX DMA generally forces the engine into irq-per-packet mode,
- *   which can easily saturate the CPU under non-mass-storage loads.
+ *   which can easily saturate the CPU under yesn-mass-storage loads.
  *
  * NOTES 24-aug-2006 (2.6.18-rc4):
  *
@@ -40,8 +40,8 @@
  * been started.
  */
 
-/* REVISIT now we can avoid preallocating these descriptors; or
- * more simply, switch to a global freelist not per-channel ones.
+/* REVISIT yesw we can avoid preallocating these descriptors; or
+ * more simply, switch to a global freelist yest per-channel ones.
  * Note: at full speed, 64 descriptors == 4K bulk data.
  */
 #define NUM_TXCHAN_BD       64
@@ -51,7 +51,7 @@ static inline void cpu_drain_writebuffer(void)
 {
 	wmb();
 #ifdef	CONFIG_CPU_ARM926T
-	/* REVISIT this "should not be needed",
+	/* REVISIT this "should yest be needed",
 	 * but lack of it sure seemed to hurt ...
 	 */
 	asm("mcr p15, 0, r0, c7, c10, 4 @ drain write buffer\n");
@@ -245,7 +245,7 @@ static void cppi_controller_stop(struct cppi *controller)
 
 	/* in Tx Case proper teardown is supported. We resort to disabling
 	 * Tx/Rx CPPI after cleanup of Tx channels. Before TX teardown is
-	 * complete TX CPPI cannot be disabled.
+	 * complete TX CPPI canyest be disabled.
 	 */
 	/*disable tx/rx cppi */
 	musb_writel(tibase, DAVINCI_TXCPPI_CTRL_REG, DAVINCI_DMA_CTRL_DISABLE);
@@ -258,7 +258,7 @@ static void cppi_controller_stop(struct cppi *controller)
  *
  * NOTE: docs don't say either way, but irq masking **enables** irqs.
  *
- * REVISIT same issue applies to pure PIO usage too, and non-cppi dma...
+ * REVISIT same issue applies to pure PIO usage too, and yesn-cppi dma...
  */
 static inline void core_rxirq_disable(void __iomem *tibase, unsigned epnum)
 {
@@ -273,8 +273,8 @@ static inline void core_rxirq_enable(void __iomem *tibase, unsigned epnum)
 
 /*
  * Allocate a CPPI Channel for DMA.  With CPPI, channels are bound to
- * each transfer direction of a non-control endpoint, so allocating
- * (and deallocating) is mostly a way to notice bad housekeeping on
+ * each transfer direction of a yesn-control endpoint, so allocating
+ * (and deallocating) is mostly a way to yestice bad housekeeping on
  * the software side.  We assume the irqs are always active.
  */
 static struct dma_channel *
@@ -295,17 +295,17 @@ cppi_channel_allocate(struct dma_controller *c,
 	index = ep->epnum - 1;
 
 	/* return the corresponding CPPI Channel Handle, and
-	 * probably disable the non-CPPI irq until we need it.
+	 * probably disable the yesn-CPPI irq until we need it.
 	 */
 	if (transmit) {
 		if (index >= ARRAY_SIZE(controller->tx)) {
-			musb_dbg(musb, "no %cX%d CPPI channel", 'T', index);
+			musb_dbg(musb, "yes %cX%d CPPI channel", 'T', index);
 			return NULL;
 		}
 		cppi_ch = controller->tx + index;
 	} else {
 		if (index >= ARRAY_SIZE(controller->rx)) {
-			musb_dbg(musb, "no %cX%d CPPI channel", 'R', index);
+			musb_dbg(musb, "yes %cX%d CPPI channel", 'R', index);
 			return NULL;
 		}
 		cppi_ch = controller->rx + index;
@@ -332,7 +332,7 @@ static void cppi_channel_release(struct dma_channel *channel)
 	struct cppi_channel	*c;
 	void __iomem		*tibase;
 
-	/* REVISIT:  for paranoia, check state and abort if needed... */
+	/* REVISIT:  for parayesia, check state and abort if needed... */
 
 	c = container_of(channel, struct cppi_channel, channel);
 	tibase = c->controller->tibase;
@@ -342,7 +342,7 @@ static void cppi_channel_release(struct dma_channel *channel)
 	else if (!c->transmit)
 		core_rxirq_enable(tibase, c->index + 1);
 
-	/* for now, leave its cppi IRQ enabled (we won't trigger it) */
+	/* for yesw, leave its cppi IRQ enabled (we won't trigger it) */
 	c->hw_ep = NULL;
 	channel->status = MUSB_DMA_STATUS_UNKNOWN;
 }
@@ -447,7 +447,7 @@ static void cppi_dump_rxq(int level, const char *tag, struct cppi_channel *rx)
 }
 
 
-/* NOTE:  DaVinci autoreq is ignored except for host side "RNDIS" mode RX;
+/* NOTE:  DaVinci autoreq is igyesred except for host side "RNDIS" mode RX;
  * so we won't ever use it (see "CPPI RX Woes" below).
  */
 static inline int cppi_autoreq_update(struct cppi_channel *rx,
@@ -513,16 +513,16 @@ static inline int cppi_autoreq_update(struct cppi_channel *rx,
  *    termination" cases (faults, including errors and short reads)
  *    more correctly.
  *
- *  - for now, TX reuses the same queue of BDs every time
+ *  - for yesw, TX reuses the same queue of BDs every time
  *
- * REVISIT long term, we want a normal dynamic model.
+ * REVISIT long term, we want a yesrmal dynamic model.
  * ... the goal will be to append to the
  * existing queue, processing completed "dma buffers" (segments) on the fly.
  *
  * Otherwise we force an IRQ latency between requests, which slows us a lot
  * (especially in "transparent" dma).  Unfortunately that model seems to be
  * inherent in the DMA model from the Mentor code, except in the rare case
- * of transfers big enough (~128+ KB) that we could append "middle" segments
+ * of transfers big eyesugh (~128+ KB) that we could append "middle" segments
  * in the TX paths.  (RX can't do this, see below.)
  *
  * That's true even in the CPPI- friendly iso case, where most urbs have
@@ -542,7 +542,7 @@ static inline int cppi_autoreq_update(struct cppi_channel *rx,
  * The main issue with TX mode RNDIS relates to transfer lengths that
  * are an exact multiple of the packet length.  It appears that there's
  * a hiccup in that case (maybe the DMA completes before the ZLP gets
- * written?) boiling down to not being able to rely on CPPI writing any
+ * written?) boiling down to yest being able to rely on CPPI writing any
  * terminating zero length packet before the next transfer is written.
  * So that's punted to PIO; better yet, gadget drivers can avoid it.
  *
@@ -602,7 +602,7 @@ cppi_next_tx_segment(struct musb *musb, struct cppi_channel *tx)
 
 	/* assuming here that channel_program is called during
 	 * transfer initiation ... current code maintains state
-	 * for one outstanding request only (no queues, not even
+	 * for one outstanding request only (yes queues, yest even
 	 * the implicit ones of an iso urb).
 	 */
 
@@ -678,19 +678,19 @@ cppi_next_tx_segment(struct musb *musb, struct cppi_channel *tx)
  * the buffer with 1024 bytes.  How to do that with CPPI?
  *
  * - RX queues in "rndis" mode -- one single BD -- handle (a) correctly, but
- *   (b) loses **BADLY** because nothing (!) happens when that second packet
+ *   (b) loses **BADLY** because yesthing (!) happens when that second packet
  *   fills the buffer, much less when a third one arrives.  (Which makes this
- *   not a "true" RNDIS mode.  In the RNDIS protocol short-packet termination
- *   is optional, and it's fine if peripherals -- not hosts! -- pad messages
+ *   yest a "true" RNDIS mode.  In the RNDIS protocol short-packet termination
+ *   is optional, and it's fine if peripherals -- yest hosts! -- pad messages
  *   out to end-of-buffer.  Standard PCI host controller DMA descriptors
- *   implement that mode by default ... which is no accident.)
+ *   implement that mode by default ... which is yes accident.)
  *
  * - RX queues in "transparent" mode -- two BDs with 512 bytes each -- have
  *   converse problems:  (b) is handled right, but (a) loses badly.  CPPI RX
- *   ignores SOP/EOP markings and processes both of those BDs; so both packets
+ *   igyesres SOP/EOP markings and processes both of those BDs; so both packets
  *   are loaded into the buffer (with a 212 byte gap between them), and the next
  *   buffer queued will NOT get its 300 bytes of data. (It seems like SOP/EOP
- *   are intended as outputs for RX queues, not inputs...)
+ *   are intended as outputs for RX queues, yest inputs...)
  *
  * - A variant of "transparent" mode -- one BD at a time -- is the only way to
  *   reliably make both cases work, with software handling both cases correctly
@@ -703,7 +703,7 @@ cppi_next_tx_segment(struct musb *musb, struct cppi_channel *tx)
  * with guaranteed driver level fault recovery and scrubbing out what's left
  * of that garbaged datastream.
  *
- * But there seems to be no way to identify the cases where CPPI RNDIS mode
+ * But there seems to be yes way to identify the cases where CPPI RNDIS mode
  * is appropriate -- which do NOT include RNDIS host drivers, but do include
  * the CDC Ethernet driver! -- and the documentation is incomplete/wrong.
  * So we can't _ever_ use RX RNDIS mode ... except by using a heuristic
@@ -720,19 +720,19 @@ cppi_next_tx_segment(struct musb *musb, struct cppi_channel *tx)
  * IFF
  *  (a)	peripheral mode ... since rndis peripherals could pad their
  *	writes to hosts, causing i/o failure; or we'd have to cope with
- *	a largely unknowable variety of host side protocol variants
+ *	a largely unkyeswable variety of host side protocol variants
  *  (b)	and short reads are NOT errors ... since full reads would
  *	cause those same i/o failures
  *  (c)	and read length is
  *	- less than 64KB (max per cppi descriptor)
- *	- not a multiple of 4096 (g_zero default, full reads typical)
- *	- N (>1) packets long, ditto (full reads not EXPECTED)
+ *	- yest a multiple of 4096 (g_zero default, full reads typical)
+ *	- N (>1) packets long, ditto (full reads yest EXPECTED)
  * THEN
  *   try rx rndis mode
  *
  * Cost of heuristic failing:  RXDMA wedges at the end of transfers that
  * fill out the whole buffer.  Buggy host side usb network drivers could
- * trigger that, but "in the field" such bugs seem to be all but unknown.
+ * trigger that, but "in the field" such bugs seem to be all but unkyeswn.
  *
  * So this module parameter lets the heuristic be disabled.  When using
  * gadgetfs, the heuristic will probably need to be disabled.
@@ -751,9 +751,9 @@ MODULE_PARM_DESC(cppi_rx_rndis, "enable/disable RX RNDIS heuristic");
  *	performs fault recovery above usbcore.
  * Context: controller irqlocked
  *
- * See above notes about why we can't use multi-BD RX queues except in
+ * See above yestes about why we can't use multi-BD RX queues except in
  * rare cases (mass storage class), and can never use the hardware "rndis"
- * mode (since it's not a "true" RNDIS mode) with complete safety..
+ * mode (since it's yest a "true" RNDIS mode) with complete safety..
  *
  * It's ESSENTIAL that callers specify "onepacket" mode unless they kick in
  * code to recover from corrupted datastreams after each short transfer.
@@ -787,7 +787,7 @@ cppi_next_rx_segment(struct musb *musb, struct cppi_channel *rx, int onepacket)
 			is_rndis = 1;
 		}
 	} else {
-		/* virtually nothing except mass storage class */
+		/* virtually yesthing except mass storage class */
 		if (length > 0xffff) {
 			n_bds = 0xffff / maxpacket;
 			length = n_bds * maxpacket;
@@ -803,7 +803,7 @@ cppi_next_rx_segment(struct musb *musb, struct cppi_channel *rx, int onepacket)
 	/* In host mode, autorequest logic can generate some IN tokens; it's
 	 * tricky since we can't leave REQPKT set in RXCSR after the transfer
 	 * finishes. So:  multipacket transfers involve two or more segments.
-	 * And always at least two IRQs ... RNDIS mode is not an option.
+	 * And always at least two IRQs ... RNDIS mode is yest an option.
 	 */
 	if (is_host_active(musb))
 		n_bds = cppi_autoreq_update(rx, tibase, onepacket, n_bds);
@@ -863,7 +863,7 @@ cppi_next_rx_segment(struct musb *musb, struct cppi_channel *rx, int onepacket)
 
 	/* we always expect at least one reusable BD! */
 	if (!tail) {
-		WARNING("rx dma%d -- no BDs? need %d\n", rx->index, n_bds);
+		WARNING("rx dma%d -- yes BDs? need %d\n", rx->index, n_bds);
 		return;
 	} else if (i < n_bds)
 		WARNING("rx dma%d -- only %d of %d BDs\n", rx->index, i, n_bds);
@@ -875,9 +875,9 @@ cppi_next_rx_segment(struct musb *musb, struct cppi_channel *rx, int onepacket)
 	rx->tail = tail;
 
 	/* short reads and other faults should terminate this entire
-	 * dma segment.  we want one "dma packet" per dma segment, not
+	 * dma segment.  we want one "dma packet" per dma segment, yest
 	 * one per USB packet, terminating the whole queue at once...
-	 * NOTE that current hardware seems to ignore SOP and EOP.
+	 * NOTE that current hardware seems to igyesre SOP and EOP.
 	 */
 	bd->hw_options |= CPPI_SOP_SET;
 	tail->hw_options |= CPPI_EOP_SET;
@@ -939,7 +939,7 @@ cppi_next_rx_segment(struct musb *musb, struct cppi_channel *rx, int onepacket)
  * @maxpacket: max packet size
  * @mode: For RX, 1 unless the usb protocol driver promised to treat
  *	all short reads as errors and kick in high level fault recovery.
- *	For TX, ignored because of RNDIS mode races/glitches.
+ *	For TX, igyesred because of RNDIS mode races/glitches.
  * @dma_addr: dma address of buffer
  * @len: length of buffer
  * Context: controller irqlocked
@@ -960,7 +960,7 @@ static int cppi_channel_program(struct dma_channel *ch,
 	case MUSB_DMA_STATUS_BUS_ABORT:
 	case MUSB_DMA_STATUS_CORE_ABORT:
 		/* fault irq handler should have handled cleanup */
-		WARNING("%cX DMA%d not cleaned up after abort!\n",
+		WARNING("%cX DMA%d yest cleaned up after abort!\n",
 				cppi_ch->transmit ? 'T' : 'R',
 				cppi_ch->index);
 		/* WARN_ON(1); */
@@ -972,7 +972,7 @@ static int cppi_channel_program(struct dma_channel *ch,
 		/* WARN_ON(1); */
 		break;
 	case MUSB_DMA_STATUS_UNKNOWN:
-		musb_dbg(musb, "%cX DMA%d not allocated!",
+		musb_dbg(musb, "%cX DMA%d yest allocated!",
 				cppi_ch->transmit ? 'T' : 'R',
 				cppi_ch->index);
 		/* FALLTHROUGH */
@@ -1045,9 +1045,9 @@ static bool cppi_rx_scan(struct cppi *cppi, unsigned ch)
 
 		if (!completed && len < bd->buflen) {
 			/* NOTE:  when we get a short packet, RXCSR_H_REQPKT
-			 * must have been cleared, and no more DMA packets may
+			 * must have been cleared, and yes more DMA packets may
 			 * active be in the queue... TI docs didn't say, but
-			 * CPPI ignores those BDs even though OWN is still set.
+			 * CPPI igyesres those BDs even though OWN is still set.
 			 */
 			completed = true;
 			musb_dbg(musb, "rx short %d/%d (%d)",
@@ -1058,7 +1058,7 @@ static bool cppi_rx_scan(struct cppi *cppi, unsigned ch)
 		/* If we got here, we expect to ack at least one BD; meanwhile
 		 * CPPI may completing other BDs while we scan this list...
 		 *
-		 * RACE: we can notice OWN cleared before CPPI raises the
+		 * RACE: we can yestice OWN cleared before CPPI raises the
 		 * matching irq by writing that BD as the completion pointer.
 		 * In such cases, stop scanning and wait for the irq, avoiding
 		 * lost acks and states where BD ownership is unclear.
@@ -1188,7 +1188,7 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 
 		/*
 		 * If Head is null then this could mean that a abort interrupt
-		 * that needs to be acknowledged.
+		 * that needs to be ackyeswledged.
 		 */
 		if (NULL == bd) {
 			musb_dbg(musb, "null BD");
@@ -1215,9 +1215,9 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 
 			tx_ch->last_processed = bd;
 
-			/* write completion register to acknowledge
+			/* write completion register to ackyeswledge
 			 * processing of completed BDs, and possibly
-			 * release the IRQ; EOQ might not be set ...
+			 * release the IRQ; EOQ might yest be set ...
 			 *
 			 * REVISIT use the same ack strategy as rx
 			 *
@@ -1267,7 +1267,7 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 			if (!cppi_rx_scan(cppi, index))
 				continue;
 
-			/* start another dma segment if needed */
+			/* start ayesther dma segment if needed */
 			if (rx_ch->channel.actual_len != rx_ch->buf_len
 					&& rx_ch->channel.actual_len
 						== rx_ch->offset) {
@@ -1409,7 +1409,7 @@ static int cppi_channel_abort(struct dma_channel *channel)
 	cppi_ch->tail = NULL;
 
 	/* REVISIT should rely on caller having done this,
-	 * and caller should rely on us not changing it.
+	 * and caller should rely on us yest changing it.
 	 * peripheral code is safe ... check host too.
 	 */
 	musb_ep_select(mbase, cppi_ch->index + 1);
@@ -1454,7 +1454,7 @@ static int cppi_channel_abort(struct dma_channel *channel)
 		cppi_dump_tx(5, cppi_ch, " (done teardown)");
 
 		/* REVISIT tx side _should_ clean up the same way
-		 * as the RX side ... this does no cleanup at all!
+		 * as the RX side ... this does yes cleanup at all!
 		 */
 
 	} else /* RX */ {
@@ -1489,9 +1489,9 @@ static int cppi_channel_abort(struct dma_channel *channel)
 		musb_writew(regs, MUSB_RXCSR, csr);
 		csr = musb_readw(regs, MUSB_RXCSR);
 
-		/* Quiesce: wait for current dma to finish (if not cleanup).
+		/* Quiesce: wait for current dma to finish (if yest cleanup).
 		 * We can't use bit zero of stateram->rx_sop, since that
-		 * refers to an entire "DMA packet" not just emptying the
+		 * refers to an entire "DMA packet" yest just emptying the
 		 * current fifo.  Most segments need multiple usb packets.
 		 */
 		if (channel->status == MUSB_DMA_STATUS_BUSY)

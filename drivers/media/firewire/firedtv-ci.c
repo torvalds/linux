@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * FireDTV driver (formerly known as FireSAT)
+ * FireDTV driver (formerly kyeswn as FireSAT)
  *
  * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
  * Copyright (C) 2008 Henrik Kurelid <henrik@kurelid.se>
@@ -214,7 +214,7 @@ static const struct file_operations fdtv_ca_fops = {
 	.open		= dvb_generic_open,
 	.release	= dvb_generic_release,
 	.poll		= fdtv_ca_io_poll,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static const struct dvb_device fdtv_ca = {
@@ -240,7 +240,7 @@ int fdtv_ca_register(struct firedtv *fdtv)
 				  &fdtv_ca, fdtv, DVB_DEVICE_CA, 0);
 
 	if (stat.ca_application_info == 0)
-		dev_err(fdtv->device, "CaApplicationInfo is not set\n");
+		dev_err(fdtv->device, "CaApplicationInfo is yest set\n");
 	if (stat.ca_date_time_request == 1)
 		avc_ca_get_time_date(fdtv, &fdtv->ca_time_interval);
 

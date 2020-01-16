@@ -4,11 +4,11 @@
 |*                                                                           *|
 |*     NOTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
 |*     international laws.  Users and possessors of this source code are     *|
-|*     hereby granted a nonexclusive,  royalty-free copyright license to     *|
+|*     hereby granted a yesnexclusive,  royalty-free copyright license to     *|
 |*     use this code in individual and commercial software.                  *|
 |*                                                                           *|
 |*     Any use of this source code must include,  in the user documenta-     *|
-|*     tion and  internal comments to the code,  notices to the end user     *|
+|*     tion and  internal comments to the code,  yestices to the end user     *|
 |*     as follows:                                                           *|
 |*                                                                           *|
 |*       Copyright 1993-2003 NVIDIA, Corporation.  All rights reserved.      *|
@@ -41,10 +41,10 @@
  * GPL Licensing Note - According to Mark Vojkovich, author of the Xorg/
  * XFree86 'nv' driver, this source code is provided under MIT-style licensing
  * where the source code is provided "as is" without warranty of any kind.
- * The only usage restriction is for the copyright notices to be retained
+ * The only usage restriction is for the copyright yestices to be retained
  * whenever code is used.
  *
- * Antonino Daplas <adaplas@pol.net> 2005-03-11
+ * Antoniyes Daplas <adaplas@pol.net> 2005-03-11
  */
 
 #include <linux/fb.h>
@@ -57,7 +57,7 @@
 
 /* There is a HW race condition with videoram command buffers.
    You can't jump to the location of your put offset.  We write put
-   at the jump offset + SKIPS dwords with noop padding in between
+   at the jump offset + SKIPS dwords with yesop padding in between
    to solve this problem */
 #define SKIPS  8
 
@@ -349,7 +349,7 @@ void nvidiafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		NVSetRopSolid(info, ROP_COPY, ~0);
 }
 
-static void nvidiafb_mono_color_expand(struct fb_info *info,
+static void nvidiafb_moyes_color_expand(struct fb_info *info,
 				       const struct fb_image *image)
 {
 	struct nvidia_par *par = info->par;
@@ -412,7 +412,7 @@ void nvidiafb_imageblit(struct fb_info *info, const struct fb_image *image)
 		return;
 
 	if (image->depth == 1 && !par->lockup)
-		nvidiafb_mono_color_expand(info, image);
+		nvidiafb_moyes_color_expand(info, image);
 	else
 		cfb_imageblit(info, image);
 }

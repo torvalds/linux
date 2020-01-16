@@ -6,7 +6,7 @@
  * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Author:
- *	Gregory Haskins <ghaskins@novell.com>
+ *	Gregory Haskins <ghaskins@yesvell.com>
  */
 
 #include <linux/kvm_host.h>
@@ -57,11 +57,11 @@ irqfd_inject(struct work_struct *work)
 
 /*
  * Since resampler irqfds share an IRQ source ID, we de-assert once
- * then notify all of the resampler irqfds using this GSI.  We can't
+ * then yestify all of the resampler irqfds using this GSI.  We can't
  * do multiple de-asserts or we risk racing with incoming re-asserts.
  */
 static void
-irqfd_resampler_ack(struct kvm_irq_ack_notifier *kian)
+irqfd_resampler_ack(struct kvm_irq_ack_yestifier *kian)
 {
 	struct kvm_kernel_irqfd_resampler *resampler;
 	struct kvm *kvm;
@@ -69,11 +69,11 @@ irqfd_resampler_ack(struct kvm_irq_ack_notifier *kian)
 	int idx;
 
 	resampler = container_of(kian,
-			struct kvm_kernel_irqfd_resampler, notifier);
+			struct kvm_kernel_irqfd_resampler, yestifier);
 	kvm = resampler->kvm;
 
 	kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
-		    resampler->notifier.gsi, 0, false);
+		    resampler->yestifier.gsi, 0, false);
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
 
@@ -96,9 +96,9 @@ irqfd_resampler_shutdown(struct kvm_kernel_irqfd *irqfd)
 
 	if (list_empty(&resampler->list)) {
 		list_del(&resampler->link);
-		kvm_unregister_irq_ack_notifier(kvm, &resampler->notifier);
+		kvm_unregister_irq_ack_yestifier(kvm, &resampler->yestifier);
 		kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
-			    resampler->notifier.gsi, 0, false);
+			    resampler->yestifier.gsi, 0, false);
 		kfree(resampler);
 	}
 
@@ -126,7 +126,7 @@ irqfd_shutdown(struct work_struct *work)
 	eventfd_ctx_remove_wait_queue(irqfd->eventfd, &irqfd->wait, &cnt);
 
 	/*
-	 * We know no new events will be scheduled at this point, so block
+	 * We kyesw yes new events will be scheduled at this point, so block
 	 * until all previously outstanding events have completed
 	 */
 	flush_work(&irqfd->inject);
@@ -137,7 +137,7 @@ irqfd_shutdown(struct work_struct *work)
 	}
 
 	/*
-	 * It is now safe to release the object's resources
+	 * It is yesw safe to release the object's resources
 	 */
 #ifdef CONFIG_HAVE_KVM_IRQ_BYPASS
 	irq_bypass_unregister_consumer(&irqfd->consumer);
@@ -217,8 +217,8 @@ irqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 		 * we could acquire the irqfds.lock since the item is
 		 * deactivated from the KVM side before it is unhooked from
 		 * the wait-queue.  If it is already deactivated, we can
-		 * simply return knowing the other side will cleanup for us.
-		 * We cannot race against the irqfd going away since the
+		 * simply return kyeswing the other side will cleanup for us.
+		 * We canyest race against the irqfd going away since the
 		 * other side is required to acquire wqh->lock, which we hold
 		 */
 		if (irqfd_is_active(irqfd))
@@ -335,7 +335,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 
 		list_for_each_entry(resampler,
 				    &kvm->irqfds.resampler_list, link) {
-			if (resampler->notifier.gsi == irqfd->gsi) {
+			if (resampler->yestifier.gsi == irqfd->gsi) {
 				irqfd->resampler = resampler;
 				break;
 			}
@@ -352,13 +352,13 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 
 			resampler->kvm = kvm;
 			INIT_LIST_HEAD(&resampler->list);
-			resampler->notifier.gsi = irqfd->gsi;
-			resampler->notifier.irq_acked = irqfd_resampler_ack;
+			resampler->yestifier.gsi = irqfd->gsi;
+			resampler->yestifier.irq_acked = irqfd_resampler_ack;
 			INIT_LIST_HEAD(&resampler->link);
 
 			list_add(&resampler->link, &kvm->irqfds.resampler_list);
-			kvm_register_irq_ack_notifier(kvm,
-						      &resampler->notifier);
+			kvm_register_irq_ack_yestifier(kvm,
+						      &resampler->yestifier);
 			irqfd->resampler = resampler;
 		}
 
@@ -369,7 +369,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	}
 
 	/*
-	 * Install our own custom wake-up handling so we are notified via
+	 * Install our own custom wake-up handling so we are yestified via
 	 * a callback whenever someone signals the underlying eventfd
 	 */
 	init_waitqueue_func_entry(&irqfd->wait, irqfd_wakeup);
@@ -381,7 +381,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	list_for_each_entry(tmp, &kvm->irqfds.items, list) {
 		if (irqfd->eventfd != tmp->eventfd)
 			continue;
-		/* This fd is used for another irq already. */
+		/* This fd is used for ayesther irq already. */
 		ret = -EBUSY;
 		spin_unlock_irq(&kvm->irqfds.lock);
 		goto fail;
@@ -420,7 +420,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 
 	/*
-	 * do not drop the file until the irqfd is fully initialized, otherwise
+	 * do yest drop the file until the irqfd is fully initialized, otherwise
 	 * we might race against the EPOLLHUP
 	 */
 	fdput(f);
@@ -443,15 +443,15 @@ out:
 	return ret;
 }
 
-bool kvm_irq_has_notifier(struct kvm *kvm, unsigned irqchip, unsigned pin)
+bool kvm_irq_has_yestifier(struct kvm *kvm, unsigned irqchip, unsigned pin)
 {
-	struct kvm_irq_ack_notifier *kian;
+	struct kvm_irq_ack_yestifier *kian;
 	int gsi, idx;
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
 	if (gsi != -1)
-		hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
+		hlist_for_each_entry_rcu(kian, &kvm->irq_ack_yestifier_list,
 					 link)
 			if (kian->gsi == gsi) {
 				srcu_read_unlock(&kvm->irq_srcu, idx);
@@ -462,19 +462,19 @@ bool kvm_irq_has_notifier(struct kvm *kvm, unsigned irqchip, unsigned pin)
 
 	return false;
 }
-EXPORT_SYMBOL_GPL(kvm_irq_has_notifier);
+EXPORT_SYMBOL_GPL(kvm_irq_has_yestifier);
 
-void kvm_notify_acked_gsi(struct kvm *kvm, int gsi)
+void kvm_yestify_acked_gsi(struct kvm *kvm, int gsi)
 {
-	struct kvm_irq_ack_notifier *kian;
+	struct kvm_irq_ack_yestifier *kian;
 
-	hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
+	hlist_for_each_entry_rcu(kian, &kvm->irq_ack_yestifier_list,
 				 link)
 		if (kian->gsi == gsi)
 			kian->irq_acked(kian);
 }
 
-void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
+void kvm_yestify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
 {
 	int gsi, idx;
 
@@ -483,27 +483,27 @@ void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
 	if (gsi != -1)
-		kvm_notify_acked_gsi(kvm, gsi);
+		kvm_yestify_acked_gsi(kvm, gsi);
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
-void kvm_register_irq_ack_notifier(struct kvm *kvm,
-				   struct kvm_irq_ack_notifier *kian)
+void kvm_register_irq_ack_yestifier(struct kvm *kvm,
+				   struct kvm_irq_ack_yestifier *kian)
 {
 	mutex_lock(&kvm->irq_lock);
-	hlist_add_head_rcu(&kian->link, &kvm->irq_ack_notifier_list);
+	hlist_add_head_rcu(&kian->link, &kvm->irq_ack_yestifier_list);
 	mutex_unlock(&kvm->irq_lock);
-	kvm_arch_post_irq_ack_notifier_list_update(kvm);
+	kvm_arch_post_irq_ack_yestifier_list_update(kvm);
 }
 
-void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
-				    struct kvm_irq_ack_notifier *kian)
+void kvm_unregister_irq_ack_yestifier(struct kvm *kvm,
+				    struct kvm_irq_ack_yestifier *kian)
 {
 	mutex_lock(&kvm->irq_lock);
 	hlist_del_init_rcu(&kian->link);
 	mutex_unlock(&kvm->irq_lock);
 	synchronize_srcu(&kvm->irq_srcu);
-	kvm_arch_post_irq_ack_notifier_list_update(kvm);
+	kvm_arch_post_irq_ack_yestifier_list_update(kvm);
 }
 #endif
 
@@ -539,7 +539,7 @@ kvm_irqfd_deassign(struct kvm *kvm, struct kvm_irqfd *args)
 		if (irqfd->eventfd == eventfd && irqfd->gsi == args->gsi) {
 			/*
 			 * This clearing of irq_entry.type is needed for when
-			 * another thread calls kvm_irq_routing_update before
+			 * ayesther thread calls kvm_irq_routing_update before
 			 * we flush workqueue below (we synchronize with
 			 * kvm_irq_routing_update using irqfds.lock).
 			 */
@@ -554,8 +554,8 @@ kvm_irqfd_deassign(struct kvm *kvm, struct kvm_irqfd *args)
 	eventfd_ctx_put(eventfd);
 
 	/*
-	 * Block until we know all outstanding shutdown jobs have completed
-	 * so that we guarantee there will not be any more interrupts on this
+	 * Block until we kyesw all outstanding shutdown jobs have completed
+	 * so that we guarantee there will yest be any more interrupts on this
 	 * gsi once this deassign function returns.
 	 */
 	flush_workqueue(irqfd_cleanup_wq);
@@ -592,15 +592,15 @@ kvm_irqfd_release(struct kvm *kvm)
 	spin_unlock_irq(&kvm->irqfds.lock);
 
 	/*
-	 * Block until we know all outstanding shutdown jobs have completed
-	 * since we do not take a kvm* reference.
+	 * Block until we kyesw all outstanding shutdown jobs have completed
+	 * since we do yest take a kvm* reference.
 	 */
 	flush_workqueue(irqfd_cleanup_wq);
 
 }
 
 /*
- * Take note of a change in irq routing.
+ * Take yeste of a change in irq routing.
  * Caller must invoke synchronize_srcu(&kvm->irq_srcu) afterwards.
  */
 void kvm_irq_routing_update(struct kvm *kvm)
@@ -650,7 +650,7 @@ void kvm_irqfd_exit(void)
  * ioeventfd: translate a PIO/MMIO memory write to an eventfd signal.
  *
  * userspace can register a PIO/MMIO address with an eventfd for receiving
- * notification when the memory has been touched.
+ * yestification when the memory has been touched.
  * --------------------------------------------------------------------
  */
 
@@ -739,7 +739,7 @@ ioeventfd_write(struct kvm_vcpu *vcpu, struct kvm_io_device *this, gpa_t addr,
 }
 
 /*
- * This function is called as KVM is completely shutting down.  We do not
+ * This function is called as KVM is completely shutting down.  We do yest
  * need to worry about locking just nuke anything we have as quickly as possible
  */
 static void
@@ -907,7 +907,7 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	int ret;
 
 	bus_idx = ioeventfd_bus_from_flags(args->flags);
-	/* must be natural-word sized, or 0 to ignore length */
+	/* must be natural-word sized, or 0 to igyesre length */
 	switch (args->len) {
 	case 0:
 	case 1:
@@ -927,7 +927,7 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	if (args->flags & ~KVM_IOEVENTFD_VALID_FLAG_MASK)
 		return -EINVAL;
 
-	/* ioeventfd with no length can't be combined with DATAMATCH */
+	/* ioeventfd with yes length can't be combined with DATAMATCH */
 	if (!args->len && (args->flags & KVM_IOEVENTFD_FLAG_DATAMATCH))
 		return -EINVAL;
 
@@ -935,7 +935,7 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	if (ret)
 		goto fail;
 
-	/* When length is ignored, MMIO is also put on a separate bus, for
+	/* When length is igyesred, MMIO is also put on a separate bus, for
 	 * faster lookups.
 	 */
 	if (!args->len && bus_idx == KVM_MMIO_BUS) {

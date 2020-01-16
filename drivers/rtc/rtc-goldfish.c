@@ -2,7 +2,7 @@
 /* drivers/rtc/rtc-goldfish.c
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (C) 2017 Imagination Technologies Ltd.
+ * Copyright (C) 2017 Imagination Techyeslogies Ltd.
  */
 
 #include <linux/io.h>
@@ -142,14 +142,14 @@ static int goldfish_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct goldfish_rtc *rtcdrv;
 	void __iomem *base;
-	u64 now64;
+	u64 yesw64;
 
 	rtcdrv = dev_get_drvdata(dev);
 	base = rtcdrv->base;
 
-	now64 = rtc_tm_to_time64(tm) * NSEC_PER_SEC;
-	writel((now64 >> 32), base + TIMER_TIME_HIGH);
-	writel(now64, base + TIMER_TIME_LOW);
+	yesw64 = rtc_tm_to_time64(tm) * NSEC_PER_SEC;
+	writel((yesw64 >> 32), base + TIMER_TIME_HIGH);
+	writel(yesw64, base + TIMER_TIME_LOW);
 
 	return 0;
 }

@@ -18,7 +18,7 @@
  *
  *	Permission is hereby granted for the distribution of this firmware
  *	data in hexadecimal or equivalent format, provided this copyright
- *	notice is accompanying it.
+ *	yestice is accompanying it.
  */
 
 
@@ -144,10 +144,10 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 	 TG3_RX_JMB_MAX_SIZE_5717 : TG3_RX_JMB_MAX_SIZE_5700)
 #define TG3_DEF_RX_JUMBO_RING_PENDING	100
 
-/* Do not place this n-ring entries value into the tp struct itself,
+/* Do yest place this n-ring entries value into the tp struct itself,
  * we really want to expose these constants to GCC so that modulo et
  * al.  operations are done with shifts and masks instead of with
- * hw multiply/modulo instructions.  Another solution would be to
+ * hw multiply/modulo instructions.  Ayesther solution would be to
  * replace things like '% foo' with '& (foo - 1)'.
  */
 
@@ -183,12 +183,12 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 /* Due to a hardware bug, the 5701 can only DMA to memory addresses
  * that are at least dword aligned when used in PCIX mode.  The driver
  * works around this bug by double copying the packet.  This workaround
- * is built into the normal double copy length check for efficiency.
+ * is built into the yesrmal double copy length check for efficiency.
  *
  * However, the double copy is only necessary on those architectures
  * where unaligned memory accesses are inefficient.  For those architectures
  * where unaligned memory accesses incur little penalty, we can reintegrate
- * the 5701 in the normal rx path.  Doing so saves a device structure
+ * the 5701 in the yesrmal rx path.  Doing so saves a device structure
  * dereference by hardcoding the double copy threshold in place.
  */
 #define TG3_RX_COPY_THRESHOLD		256
@@ -564,7 +564,7 @@ static u32 tg3_read_indirect_mbox(struct tg3 *tp, u32 off)
 /* usec_wait specifies the wait time in usec when writing to certain registers
  * where it is unsafe to read back the register without some delay.
  * GRC_LOCAL_CTRL is one example if the GPIOs are toggled to switch power.
- * TG3PCI_CLOCK_CTRL is another example if the clock frequencies are changed.
+ * TG3PCI_CLOCK_CTRL is ayesther example if the clock frequencies are changed.
  */
 static void _tw32_flush(struct tg3 *tp, u32 off, u32 val, u32 usec_wait)
 {
@@ -1018,7 +1018,7 @@ static void tg3_enable_ints(struct tg3 *tp)
 	tw32(TG3PCI_MISC_HOST_CTRL,
 	     (tp->misc_host_ctrl & ~MISC_HOST_CTRL_MASK_PCI_INT));
 
-	tp->coal_now = tp->coalesce_mode | HOSTCC_MODE_ENABLE;
+	tp->coal_yesw = tp->coalesce_mode | HOSTCC_MODE_ENABLE;
 	for (i = 0; i < tp->irq_cnt; i++) {
 		struct tg3_napi *tnapi = &tp->napi[i];
 
@@ -1026,7 +1026,7 @@ static void tg3_enable_ints(struct tg3 *tp)
 		if (tg3_flag(tp, 1SHOT_MSI))
 			tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
 
-		tp->coal_now |= tnapi->coal_now;
+		tp->coal_yesw |= tnapi->coal_yesw;
 	}
 
 	/* Force an initial interrupt */
@@ -1034,9 +1034,9 @@ static void tg3_enable_ints(struct tg3 *tp)
 	    (tp->napi[0].hw_status->status & SD_STATUS_UPDATED))
 		tw32(GRC_LOCAL_CTRL, tp->grc_local_ctrl | GRC_LCLCTRL_SETINT);
 	else
-		tw32(HOSTCC_MODE, tp->coal_now);
+		tw32(HOSTCC_MODE, tp->coal_yesw);
 
-	tp->coal_now &= ~(tp->napi[0].coal_now | tp->napi[1].coal_now);
+	tp->coal_yesw &= ~(tp->napi[0].coal_yesw | tp->napi[1].coal_yesw);
 }
 
 static inline unsigned int tg3_has_work(struct tg3_napi *tnapi)
@@ -1080,7 +1080,7 @@ static void tg3_int_reenable(struct tg3_napi *tnapi)
 	 */
 	if (!tg3_flag(tp, TAGGED_STATUS) && tg3_has_work(tnapi))
 		tw32(HOSTCC_MODE, tp->coalesce_mode |
-		     HOSTCC_MODE_ENABLE | tnapi->coal_now);
+		     HOSTCC_MODE_ENABLE | tnapi->coal_yesw);
 }
 
 static void tg3_switch_clocks(struct tg3 *tp)
@@ -1552,7 +1552,7 @@ static int tg3_mdio_init(struct tg3 *tp)
 	tp->mdio_bus->phy_mask = ~(1 << tp->phy_addr);
 
 	/* The bus registration will look for all the PHYs on the mdio bus.
-	 * Unfortunately, it does not ensure the PHY is powered up before
+	 * Unfortunately, it does yest ensure the PHY is powered up before
 	 * accessing the PHY ID registers.  A chip reset is the
 	 * quickest way to bring the device back to an operational state..
 	 */
@@ -1642,7 +1642,7 @@ static void tg3_wait_for_event_ack(struct tg3 *tp)
 	unsigned int delay_cnt;
 	long time_remain;
 
-	/* If enough time has passed, no wait is necessary. */
+	/* If eyesugh time has passed, yes wait is necessary. */
 	time_remain = (long)(tp->last_event_jiffies + 1 +
 		      usecs_to_jiffies(TG3_FW_EVENT_TIMEOUT_USEC)) -
 		      (long)jiffies;
@@ -1857,7 +1857,7 @@ static int tg3_poll_fw(struct tg3 *tp)
 		udelay(10);
 	}
 
-	/* Chip might not be fitted with firmware.  Some Sun onboard
+	/* Chip might yest be fitted with firmware.  Some Sun onboard
 	 * parts are configured like that.  So don't signal the timeout
 	 * of the above loop as an error, but do report the lack of
 	 * running firmware once.
@@ -2098,7 +2098,7 @@ static int tg3_phy_init(struct tg3 *tp)
 	if (tp->phy_flags & TG3_PHYFLG_IS_CONNECTED)
 		return 0;
 
-	/* Bring the PHY back to a known state. */
+	/* Bring the PHY back to a kyeswn state. */
 	tg3_bmcr_reset(tp);
 
 	phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
@@ -2107,7 +2107,7 @@ static int tg3_phy_init(struct tg3 *tp)
 	phydev = phy_connect(tp->dev, phydev_name(phydev),
 			     tg3_adjust_link, phydev->interface);
 	if (IS_ERR(phydev)) {
-		dev_err(&tp->pdev->dev, "Could not attach to PHY\n");
+		dev_err(&tp->pdev->dev, "Could yest attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
@@ -2185,7 +2185,7 @@ static int tg3_phy_set_extloopbk(struct tg3 *tp)
 		return 0;
 
 	if ((tp->phy_id & TG3_PHY_ID_MASK) == TG3_PHY_ID_BCM5401) {
-		/* Cannot do read-modify-write on 5401 */
+		/* Canyest do read-modify-write on 5401 */
 		err = tg3_phy_auxctl_write(tp,
 					   MII_TG3_AUXCTL_SHDWSEL_AUXCTL,
 					   MII_TG3_AUXCTL_ACTL_EXTLOOPBK |
@@ -2633,8 +2633,8 @@ static void tg3_warn_mgmt_link_flap(struct tg3 *tp)
 			    "Management side-band traffic will be interrupted during phy settings change\n");
 }
 
-/* This will reset the tigon3 PHY if there is no valid
- * link unless the FORCE argument is non-zero.
+/* This will reset the tigon3 PHY if there is yes valid
+ * link unless the FORCE argument is yesn-zero.
  */
 static int tg3_phy_reset(struct tg3 *tp)
 {
@@ -2744,7 +2744,7 @@ out:
 	/* Set Extended packet length bit (bit 14) on all chips that */
 	/* support jumbo frames */
 	if ((tp->phy_id & TG3_PHY_ID_MASK) == TG3_PHY_ID_BCM5401) {
-		/* Cannot do read-modify-write on 5401 */
+		/* Canyest do read-modify-write on 5401 */
 		tg3_phy_auxctl_write(tp, MII_TG3_AUXCTL_SHDWSEL_AUXCTL, 0x4c20);
 	} else if (tg3_flag(tp, JUMBO_CAPABLE)) {
 		/* Set bit 14 with read-modify-write to preserve other bits */
@@ -2881,7 +2881,7 @@ static void tg3_pwrsrc_switch_to_vaux(struct tg3 *tp)
 			    TG3_GRC_LCLCTL_PWRSW_DELAY);
 	} else if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5761 ||
 		   tp->pdev->device == TG3PCI_DEVICE_TIGON3_5761S) {
-		/* The 5761 non-e device swaps GPIO 0 and GPIO 2. */
+		/* The 5761 yesn-e device swaps GPIO 0 and GPIO 2. */
 		u32 grc_local_ctrl = GRC_LCLCTRL_GPIO_OE0 |
 				     GRC_LCLCTRL_GPIO_OE1 |
 				     GRC_LCLCTRL_GPIO_OE2 |
@@ -2899,7 +2899,7 @@ static void tg3_pwrsrc_switch_to_vaux(struct tg3 *tp)
 		tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl,
 			    TG3_GRC_LCLCTL_PWRSW_DELAY);
 	} else {
-		u32 no_gpio2;
+		u32 yes_gpio2;
 		u32 grc_local_ctrl = 0;
 
 		/* Workaround to prevent overdrawing Amps. */
@@ -2910,8 +2910,8 @@ static void tg3_pwrsrc_switch_to_vaux(struct tg3 *tp)
 				    TG3_GRC_LCLCTL_PWRSW_DELAY);
 		}
 
-		/* On 5753 and variants, GPIO2 cannot be used. */
-		no_gpio2 = tp->nic_sram_data_cfg &
+		/* On 5753 and variants, GPIO2 canyest be used. */
+		yes_gpio2 = tp->nic_sram_data_cfg &
 			   NIC_SRAM_DATA_CFG_NO_GPIO2;
 
 		grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE0 |
@@ -2919,7 +2919,7 @@ static void tg3_pwrsrc_switch_to_vaux(struct tg3 *tp)
 				  GRC_LCLCTRL_GPIO_OE2 |
 				  GRC_LCLCTRL_GPIO_OUTPUT1 |
 				  GRC_LCLCTRL_GPIO_OUTPUT2;
-		if (no_gpio2) {
+		if (yes_gpio2) {
 			grc_local_ctrl &= ~(GRC_LCLCTRL_GPIO_OE2 |
 					    GRC_LCLCTRL_GPIO_OUTPUT2);
 		}
@@ -2933,7 +2933,7 @@ static void tg3_pwrsrc_switch_to_vaux(struct tg3 *tp)
 			    tp->grc_local_ctrl | grc_local_ctrl,
 			    TG3_GRC_LCLCTL_PWRSW_DELAY);
 
-		if (!no_gpio2) {
+		if (!yes_gpio2) {
 			grc_local_ctrl &= ~GRC_LCLCTRL_GPIO_OUTPUT2;
 			tw32_wait_f(GRC_LOCAL_CTRL,
 				    tp->grc_local_ctrl | grc_local_ctrl,
@@ -3120,7 +3120,7 @@ static void tg3_power_down_phy(struct tg3 *tp, bool do_low_power)
 		tg3_phy_auxctl_write(tp, MII_TG3_AUXCTL_SHDWSEL_PWRCTL, val);
 	}
 
-	/* The PHY should not be powered down on some chips because
+	/* The PHY should yest be powered down on some chips because
 	 * of bugs.
 	 */
 	if (tg3_phy_power_bug(tp))
@@ -3439,7 +3439,7 @@ static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
 		if (tg3_nvram_exec_cmd(tp, nvram_cmd))
 			break;
 
-		/* Issue another write enable to start the write. */
+		/* Issue ayesther write enable to start the write. */
 		nvram_cmd = NVRAM_CMD_WREN | NVRAM_CMD_GO | NVRAM_CMD_DONE;
 
 		if (tg3_nvram_exec_cmd(tp, nvram_cmd))
@@ -3682,12 +3682,12 @@ static int tg3_fw_data_len(struct tg3 *tp,
 
 	/* Non fragmented firmware have one firmware header followed by a
 	 * contiguous chunk of data to be written. The length field in that
-	 * header is not the length of data to be written but the complete
+	 * header is yest the length of data to be written but the complete
 	 * length of the bss. The data length is determined based on
 	 * tp->fw->size minus headers.
 	 *
 	 * Fragmented firmware have a main header followed by multiple
-	 * fragments. Each fragment is identical to non fragmented firmware
+	 * fragments. Each fragment is identical to yesn fragmented firmware
 	 * with a firmware header followed by a contiguous chunk of data. In
 	 * the main header, the length field is unused and set to 0xffffffff.
 	 * In each fragment header the length is the entire size of that
@@ -3848,7 +3848,7 @@ static int tg3_validate_rxcpu_state(struct tg3 *tp)
 	}
 
 	if (i == iters) {
-		netdev_err(tp->dev, "Boot code not ready for service patches\n");
+		netdev_err(tp->dev, "Boot code yest ready for service patches\n");
 		return -EBUSY;
 	}
 
@@ -3878,7 +3878,7 @@ static void tg3_load_57766_firmware(struct tg3 *tp)
 
 	/* This firmware blob has a different format than older firmware
 	 * releases as given below. The main difference is we have fragmented
-	 * data to be written to non-contiguous locations.
+	 * data to be written to yesn-contiguous locations.
 	 *
 	 * In the beginning we have a firmware header identical to other
 	 * firmware which consists of version, base addr and length. The length
@@ -4205,7 +4205,7 @@ static int tg3_power_down_prepare(struct tg3 *tp)
 	} else if (tg3_flag(tp, 5780_CLASS) ||
 		   tg3_flag(tp, CPMU_PRESENT) ||
 		   tg3_asic_rev(tp) == ASIC_REV_5906) {
-		/* do nothing */
+		/* do yesthing */
 	} else if (!(tg3_flag(tp, 5750_PLUS) && tg3_flag(tp, ENABLE_ASF))) {
 		u32 newbits1, newbits2;
 
@@ -4943,7 +4943,7 @@ static int tg3_setup_copper_phy(struct tg3 *tp, bool force_reset)
 
 			/* EEE settings changes take effect only after a phy
 			 * reset.  If we have skipped a reset due to Link Flap
-			 * Avoidance being enabled, do it now.
+			 * Avoidance being enabled, do it yesw.
 			 */
 			if (!eee_config_ok &&
 			    (tp->phy_flags & TG3_PHYFLG_KEEP_LINK_ON_PWRDN) &&
@@ -5041,7 +5041,7 @@ relink:
 			tp->mac_mode &= ~MAC_MODE_LINK_POLARITY;
 	}
 
-	/* ??? Without this setting Netgear GA302T PHY does not
+	/* ??? Without this setting Netgear GA302T PHY does yest
 	 * ??? send/receive packets...
 	 */
 	if ((tp->phy_id & TG3_PHY_ID_MASK) == TG3_PHY_ID_BCM5411 &&
@@ -5384,7 +5384,7 @@ static int tg3_fiber_aneg_smachine(struct tg3 *tp,
 		}
 		delta = ap->cur_time - ap->link_time;
 		if (delta > ANEG_STATE_SETTLE_TIME) {
-			/* XXX another gem from the Broadcom driver :( */
+			/* XXX ayesther gem from the Broadcom driver :( */
 			ap->state = ANEG_STATE_LINK_OK;
 		}
 		break;
@@ -5626,7 +5626,7 @@ restart_autoneg:
 				udelay(40);
 
 				/* Link parallel detection - link is up */
-				/* only if we have PCS_SYNC and not */
+				/* only if we have PCS_SYNC and yest */
 				/* receiving config code words */
 				mac_status = tr32(MAC_STATUS);
 				if ((mac_status & MAC_STATUS_PCS_SYNCED) &&
@@ -5808,8 +5808,8 @@ static int tg3_setup_fiber_phy(struct tg3 *tp, bool force_reset)
 	}
 
 	if (!tg3_test_and_report_link_chg(tp, current_link_up)) {
-		u32 now_pause_cfg = tp->link_config.active_flowctrl;
-		if (orig_pause_cfg != now_pause_cfg ||
+		u32 yesw_pause_cfg = tp->link_config.active_flowctrl;
+		if (orig_pause_cfg != yesw_pause_cfg ||
 		    orig_active_speed != tp->link_config.active_speed ||
 		    orig_active_duplex != tp->link_config.active_duplex)
 			tg3_link_report(tp);
@@ -5890,7 +5890,7 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, bool force_reset)
 
 	if ((tp->link_config.autoneg == AUTONEG_ENABLE) && !force_reset &&
 	    (tp->phy_flags & TG3_PHYFLG_PARALLEL_DETECT)) {
-		/* do nothing, just check for link up at the end */
+		/* do yesthing, just check for link up at the end */
 	} else if (tp->link_config.autoneg == AUTONEG_ENABLE) {
 		u32 adv, newadv;
 
@@ -6039,7 +6039,7 @@ static void tg3_serdes_parallel_detect(struct tg3 *tp)
 			tg3_readphy(tp, MII_TG3_DSP_RW_PORT, &phy2);
 
 			if ((phy1 & 0x10) && !(phy2 & 0x20)) {
-				/* We have signal detect and not receiving
+				/* We have signal detect and yest receiving
 				 * config code words, link is up by parallel
 				 * detection.
 				 */
@@ -6464,7 +6464,7 @@ static void tg3_dump_state(struct tg3 *tp)
 		return;
 
 	if (tg3_flag(tp, PCI_EXPRESS)) {
-		/* Read up to but not including private PCI registers */
+		/* Read up to but yest including private PCI registers */
 		for (i = 0; i < TG3_PCIE_TLDLPL_PORT; i += sizeof(u32))
 			regs[i / sizeof(u32)] = tr32(i);
 	} else
@@ -6538,8 +6538,8 @@ static inline u32 tg3_tx_avail(struct tg3_napi *tnapi)
 	       ((tnapi->tx_prod - tnapi->tx_cons) & (TG3_TX_RING_SIZE - 1));
 }
 
-/* Tigon3 never reports partial packet sends.  So we do not
- * need special logic to handle SKBs that have not had all
+/* Tigon3 never reports partial packet sends.  So we do yest
+ * need special logic to handle SKBs that have yest had all
  * of their frags sent yet, like SunGEM does.
  */
 static void tg3_tx(struct tg3_napi *tnapi)
@@ -6705,7 +6705,7 @@ static int tg3_alloc_rx_data(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
 		return -EINVAL;
 	}
 
-	/* Do not overwrite any of the map or rp information
+	/* Do yest overwrite any of the map or rp information
 	 * until we are sure we can commit to a new buffer.
 	 *
 	 * Callers depend upon this behavior and assume that
@@ -6742,7 +6742,7 @@ static int tg3_alloc_rx_data(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
 }
 
 /* We only need to move over in the address because the other
- * members of the RX descriptor are invariant.  See notes above
+ * members of the RX descriptor are invariant.  See yestes above
  * tg3_alloc_rx_data for full details.
  */
 static void tg3_recycle_rx(struct tg3_napi *tnapi,
@@ -6796,7 +6796,7 @@ static void tg3_recycle_rx(struct tg3_napi *tnapi,
  * status back to the host.
  *
  * The special ring reports the status of received packets to the
- * host.  The chip does not write into the original descriptor the
+ * host.  The chip does yest write into the original descriptor the
  * RX buffer was obtained from.  The chip simply takes the original
  * descriptor as provided by the host, updates the status and length
  * field, then writes this into the next status ring entry.
@@ -6804,7 +6804,7 @@ static void tg3_recycle_rx(struct tg3_napi *tnapi,
  * Each ring the host uses to post buffers to the chip is described
  * by a TG3_BDINFO entry in the chips SRAM area.  When a packet arrives,
  * it is first placed into the on-chip ram.  When the packet's length
- * is known, it walks down the TG3_BDINFO entries to select the ring.
+ * is kyeswn, it walks down the TG3_BDINFO entries to select the ring.
  * Each TG3_BDINFO specifies a MAXLEN field and the first TG3_BDINFO
  * which is within the range of the new packet's length is chosen.
  *
@@ -6859,7 +6859,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 			data = ri->data;
 			post_ptr = &jmb_prod_idx;
 		} else
-			goto next_pkt_nopost;
+			goto next_pkt_yespost;
 
 		work_mask |= opaque_key;
 
@@ -6867,7 +6867,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		drop_it:
 			tg3_recycle_rx(tnapi, tpr, opaque_key,
 				       desc_idx, *post_ptr);
-		drop_it_no_recycle:
+		drop_it_yes_recycle:
 			/* Other statistics kept track of by card. */
 			tp->rx_dropped++;
 			goto next_pkt;
@@ -6907,7 +6907,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 			skb = build_skb(data, frag_size);
 			if (!skb) {
 				tg3_frag_free(frag_size != 0, data);
-				goto drop_it_no_recycle;
+				goto drop_it_yes_recycle;
 			}
 			skb_reserve(skb, TG3_RX_OFFSET(tp));
 		} else {
@@ -6917,7 +6917,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 			skb = netdev_alloc_skb(tp->dev,
 					       len + TG3_RAW_IP_ALIGN);
 			if (skb == NULL)
-				goto drop_it_no_recycle;
+				goto drop_it_yes_recycle;
 
 			skb_reserve(skb, TG3_RAW_IP_ALIGN);
 			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
@@ -6938,7 +6938,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		      >> RXD_TCPCSUM_SHIFT) == 0xffff))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
-			skb_checksum_none_assert(skb);
+			skb_checksum_yesne_assert(skb);
 
 		skb->protocol = eth_type_trans(skb, tp->dev);
 
@@ -6946,7 +6946,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		    skb->protocol != htons(ETH_P_8021Q) &&
 		    skb->protocol != htons(ETH_P_8021AD)) {
 			dev_kfree_skb_any(skb);
-			goto drop_it_no_recycle;
+			goto drop_it_yes_recycle;
 		}
 
 		if (desc->type_flags & RXD_FLAG_VLAN &&
@@ -6970,7 +6970,7 @@ next_pkt:
 			work_mask &= ~RXD_OPAQUE_RING_STD;
 			rx_std_posted = 0;
 		}
-next_pkt_nopost:
+next_pkt_yespost:
 		sw_idx++;
 		sw_idx &= tp->rx_ret_ring_mask;
 
@@ -7213,7 +7213,7 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 				     dpr->rx_jmb_prod_idx);
 
 		if (err)
-			tw32_f(HOSTCC_MODE, tp->coal_now);
+			tw32_f(HOSTCC_MODE, tp->coal_yesw);
 	}
 
 	return work_done;
@@ -7260,7 +7260,7 @@ static int tg3_poll_msix(struct napi_struct *napi, int budget)
 		if (likely(sblk->idx[0].tx_consumer == tnapi->tx_cons &&
 			   *(tnapi->rx_rcb_prod_idx) == tnapi->rx_rcb_ptr)) {
 
-			/* This test here is not race free, but will reduce
+			/* This test here is yest race free, but will reduce
 			 * the number of interrupts by looping again.
 			 */
 			if (tnapi == &tp->napi[1] && tp->rx_refill)
@@ -7276,7 +7276,7 @@ static int tg3_poll_msix(struct napi_struct *napi, int budget)
 			if (unlikely(tnapi == &tp->napi[1] && tp->rx_refill)) {
 				tw32(HOSTCC_MODE, tp->coalesce_mode |
 						  HOSTCC_MODE_ENABLE |
-						  tnapi->coal_now);
+						  tnapi->coal_yesw);
 			}
 			break;
 		}
@@ -7455,8 +7455,8 @@ static void tg3_irq_quiesce(struct tg3 *tp)
 }
 
 /* Fully shutdown all tg3 driver activity elsewhere in the system.
- * If irq_sync is non-zero, then the IRQ handler must be synchronized
- * with as well.  Most of the time, this is not necessary except when
+ * If irq_sync is yesn-zero, then the IRQ handler must be synchronized
+ * with as well.  Most of the time, this is yest necessary except when
  * shutting down the device.
  */
 static inline void tg3_full_lock(struct tg3 *tp, int irq_sync)
@@ -7489,7 +7489,7 @@ static irqreturn_t tg3_msi_1shot(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* MSI ISR - No need to check for interrupt sharing and no need to
+/* MSI ISR - No need to check for interrupt sharing and yes need to
  * flush status block and interrupt mailbox. PCI ordering rules
  * guarantee that MSI will arrive after the status block.
  */
@@ -7504,7 +7504,7 @@ static irqreturn_t tg3_msi(int irq, void *dev_id)
 	/*
 	 * Writing any value to intr-mbox-0 clears PCI INTA# and
 	 * chip-internal interrupt pending events.
-	 * Writing non-zero to intr-mbox-0 additional tells the
+	 * Writing yesn-zero to intr-mbox-0 additional tells the
 	 * NIC to stop sending us irqs, engaging "in-intr-handler"
 	 * event coalescing.
 	 */
@@ -7538,7 +7538,7 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id)
 	/*
 	 * Writing any value to intr-mbox-0 clears PCI INTA# and
 	 * chip-internal interrupt pending events.
-	 * Writing non-zero to intr-mbox-0 additional tells the
+	 * Writing yesn-zero to intr-mbox-0 additional tells the
 	 * NIC to stop sending us irqs, engaging "in-intr-handler"
 	 * event coalescing.
 	 *
@@ -7587,7 +7587,7 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id)
 	/*
 	 * writing any value to intr-mbox-0 clears PCI INTA# and
 	 * chip-internal interrupt pending events.
-	 * writing non-zero to intr-mbox-0 additional tells the
+	 * writing yesn-zero to intr-mbox-0 additional tells the
 	 * NIC to stop sending us irqs, engaging "in-intr-handler"
 	 * event coalescing.
 	 *
@@ -7860,7 +7860,7 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 
 static bool tg3_tso_bug_gso_check(struct tg3_napi *tnapi, struct sk_buff *skb)
 {
-	/* Check if we will never have enough descriptors,
+	/* Check if we will never have eyesugh descriptors,
 	 * as gso_segs can be more than current ring size
 	 */
 	return skb_shinfo(skb)->gso_segs < tnapi->tx_pending / 3;
@@ -7937,7 +7937,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* We are running in BH disabled context with netif_tx_lock
 	 * and TX reclaim runs via tp->napi.poll inside of a software
 	 * interrupt.  Furthermore, IRQ processing runs lockless so we have
-	 * no IRQ context deadlocks to worry about either.  Rejoice!
+	 * yes IRQ context deadlocks to worry about either.  Rejoice!
 	 */
 	if (unlikely(budget <= (skb_shinfo(skb)->nr_frags + 1))) {
 		if (!netif_tx_queue_stopped(txq)) {
@@ -7965,7 +7965,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb) - ETH_HLEN;
 
-		/* HW/FW can not correctly segment packets that have been
+		/* HW/FW can yest correctly segment packets that have been
 		 * vlan encapsulated.
 		 */
 		if (skb->protocol == htons(ETH_P_8021Q) ||
@@ -8028,7 +8028,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			}
 		}
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		/* HW/FW can not correctly checksum packets that have been
+		/* HW/FW can yest correctly checksum packets that have been
 		 * vlan encapsulated.
 		 */
 		if (skb->protocol == htons(ETH_P_8021Q) ||
@@ -8132,7 +8132,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		budget = tg3_tx_avail(tnapi);
 		if (tigon3_dma_hwbug_workaround(tnapi, &skb, &entry, &budget,
 						base_flags, mss, vlan))
-			goto drop_nofree;
+			goto drop_yesfree;
 	}
 
 	skb_tx_timestamp(skb);
@@ -8167,7 +8167,7 @@ dma_error:
 	tnapi->tx_buffers[tnapi->tx_prod].skb = NULL;
 drop:
 	dev_kfree_skb_any(skb);
-drop_nofree:
+drop_yesfree:
 	tp->tx_dropped++;
 	return NETDEV_TX_OK;
 }
@@ -8377,9 +8377,9 @@ static void tg3_rx_prodring_free(struct tg3 *tp,
 /* Initialize rx rings for packet processing.
  *
  * The chip has been shut down and the driver detached from
- * the networking, so no interrupts or new tx packets will
+ * the networking, so yes interrupts or new tx packets will
  * end up in the driver.  tp->{tx,}lock are held and thus
- * we may not sleep.
+ * we may yest sleep.
  */
 static int tg3_rx_prodring_alloc(struct tg3 *tp,
 				 struct tg3_rx_prodring_set *tpr)
@@ -8410,7 +8410,7 @@ static int tg3_rx_prodring_alloc(struct tg3 *tp,
 	tp->rx_pkt_map_sz = TG3_RX_DMA_TO_MAP_SZ(rx_pkt_dma_sz);
 
 	/* Initialize invariants of the rings, we only set this
-	 * stuff once.  This works because the card does not
+	 * stuff once.  This works because the card does yest
 	 * write into the rx buffer posting rings.
 	 */
 	for (i = 0; i <= tp->rx_std_ring_mask; i++) {
@@ -8541,8 +8541,8 @@ err_out:
 /* Free up pending packets in all rx/tx rings.
  *
  * The chip has been shut down and the driver detached from
- * the networking, so no interrupts or new tx packets will
- * end up in the driver.  tp->{tx,}lock is not held and we are not
+ * the networking, so yes interrupts or new tx packets will
+ * end up in the driver.  tp->{tx,}lock is yest held and we are yest
  * in an interrupt context and thus may sleep.
  */
 static void tg3_free_rings(struct tg3 *tp)
@@ -8575,9 +8575,9 @@ static void tg3_free_rings(struct tg3 *tp)
 /* Initialize tx/rx rings for packet processing.
  *
  * The chip has been shut down and the driver detached from
- * the networking, so no interrupts or new tx packets will
+ * the networking, so yes interrupts or new tx packets will
  * end up in the driver.  tp->{tx,}lock are held and thus
- * we may not sleep.
+ * we may yest sleep.
  */
 static int tg3_init_rings(struct tg3 *tp)
 {
@@ -8637,7 +8637,7 @@ static int tg3_mem_tx_acquire(struct tg3 *tp)
 	int i;
 	struct tg3_napi *tnapi = &tp->napi[0];
 
-	/* If multivector TSS is enabled, vector 0 does not handle
+	/* If multivector TSS is enabled, vector 0 does yest handle
 	 * tx interrupts.  Don't allocate any resources for it.
 	 */
 	if (tg3_flag(tp, ENABLE_TSS))
@@ -8704,7 +8704,7 @@ static int tg3_mem_rx_acquire(struct tg3 *tp)
 			goto err_out;
 
 		/* If multivector RSS is enabled, vector 0
-		 * does not handle rx or tx interrupts.
+		 * does yest handle rx or tx interrupts.
 		 * Don't allocate any resources for it.
 		 */
 		if (!i && tg3_flag(tp, ENABLE_RSS))
@@ -8726,7 +8726,7 @@ err_out:
 }
 
 /*
- * Must not be invoked with interrupt sources disabled and
+ * Must yest be invoked with interrupt sources disabled and
  * the hardware shutdown down.
  */
 static void tg3_free_consistent(struct tg3 *tp)
@@ -8759,7 +8759,7 @@ static void tg3_free_consistent(struct tg3 *tp)
 }
 
 /*
- * Must not be invoked with interrupt sources disabled and
+ * Must yest be invoked with interrupt sources disabled and
  * the hardware shutdown down.  Can sleep.
  */
 static int tg3_alloc_consistent(struct tg3 *tp)
@@ -8891,7 +8891,7 @@ static int tg3_abort_hw(struct tg3 *tp, bool silent)
 		tp->rx_mode &= ~(RX_MODE_ENABLE | TX_MODE_ENABLE);
 		tp->mac_mode &= ~MAC_MODE_TDE_ENABLE;
 		err = -ENODEV;
-		goto err_no_dev;
+		goto err_yes_dev;
 	}
 
 	tp->rx_mode &= ~RX_MODE_ENABLE;
@@ -8927,7 +8927,7 @@ static int tg3_abort_hw(struct tg3 *tp, bool silent)
 	}
 	if (i >= MAX_WAIT_CNT) {
 		dev_err(&tp->pdev->dev,
-			"%s timed out, TX_MODE_ENABLE will not clear "
+			"%s timed out, TX_MODE_ENABLE will yest clear "
 			"MAC_TX_MODE=%08x\n", __func__, tr32(MAC_TX_MODE));
 		err |= -ENODEV;
 	}
@@ -8942,7 +8942,7 @@ static int tg3_abort_hw(struct tg3 *tp, bool silent)
 	err |= tg3_stop_block(tp, BUFMGR_MODE, BUFMGR_MODE_ENABLE, silent);
 	err |= tg3_stop_block(tp, MEMARB_MODE, MEMARB_MODE_ENABLE, silent);
 
-err_no_dev:
+err_yes_dev:
 	for (i = 0; i < tp->irq_cnt; i++) {
 		struct tg3_napi *tnapi = &tp->napi[i];
 		if (tnapi->hw_status)
@@ -9094,7 +9094,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 		tw32(GRC_FASTBOOT_PC, 0);
 
 	/*
-	 * We must avoid the readl() that normally takes place.
+	 * We must avoid the readl() that yesrmally takes place.
 	 * It locks machines, causes machine checks, and other
 	 * fun things.  So, temporarily disable the 5701
 	 * hardware workaround, while we do the reset.
@@ -9105,7 +9105,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	/* Prevent the irq handler from reading or writing PCI registers
 	 * during chip reset when the memory enable bit in the PCI command
-	 * register may be cleared.  The chip does not generate interrupt
+	 * register may be cleared.  The chip does yest generate interrupt
 	 * at this time, but the irq handler may still be called due to irq
 	 * sharing or irqpoll.
 	 */
@@ -9157,7 +9157,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 	}
 
 	/* Set the clock to the highest frequency to avoid timeouts. With link
-	 * aware mode, the clock speed could be slow and bootcode does not
+	 * aware mode, the clock speed could be slow and bootcode does yest
 	 * complete within the expected time. Override the clock to allow the
 	 * bootcode to finish sooner and then restore it.
 	 */
@@ -9173,7 +9173,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 	tp->write32 = write_op;
 
 	/* Unfortunately, we have to delay before the PCI read back.
-	 * Some 575X chips even will not respond to a PCI cfg access
+	 * Some 575X chips even will yest respond to a PCI cfg access
 	 * when the reset command is given to the chip.
 	 *
 	 * How do these hardware designers expect things to work
@@ -9187,9 +9187,9 @@ static int tg3_chip_reset(struct tg3 *tp)
 	 */
 	udelay(120);
 
-	/* Flush PCI posted writes.  The normal MMIO registers
+	/* Flush PCI posted writes.  The yesrmal MMIO registers
 	 * are inaccessible at this time so this is the only
-	 * way to make this reliably (actually, this is no longer
+	 * way to make this reliably (actually, this is yes longer
 	 * the case, see above).  I tried to use indirect
 	 * register read/write but this upset some 5701 variants.
 	 */
@@ -9213,7 +9213,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 					       cfg_val | (1 << 15));
 		}
 
-		/* Clear the "no snoop" and "relaxed ordering" bits. */
+		/* Clear the "yes syesop" and "relaxed ordering" bits. */
 		val16 = PCI_EXP_DEVCTL_RELAX_EN | PCI_EXP_DEVCTL_NOSNOOP_EN;
 		/*
 		 * Older PCIe devices only support the 128 byte
@@ -9250,7 +9250,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 		/*
 		 * BCM4785: In order to avoid repercussions from using
 		 * potentially defective internal ROM, stop the Rx RISC CPU,
-		 * which is not required.
+		 * which is yest required.
 		 */
 		tg3_stop_fw(tp);
 		tg3_halt_cpu(tp, RX_CPU_BASE);
@@ -10000,8 +10000,8 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	}
 
 	/* This works around an issue with Athlon chipsets on
-	 * B3 tigon3 silicon.  This bit has no effect on any
-	 * other revision.  But do not set this on PCI Express
+	 * B3 tigon3 silicon.  This bit has yes effect on any
+	 * other revision.  But do yest set this on PCI Express
 	 * chips and don't even touch the clocks if the CPMU is present.
 	 */
 	if (!tg3_flag(tp, CPMU_PRESENT)) {
@@ -10068,7 +10068,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 			  GRC_MODE_NO_RX_PHDR_CSUM);
 	tp->grc_mode |= GRC_MODE_HOST_SENDBDS;
 
-	/* Pseudo-header checksum is done by hardware logic and not
+	/* Pseudo-header checksum is done by hardware logic and yest
 	 * the offload processers, so make the chip do the pseudo-
 	 * header checksums on receive.  For transmit it is more
 	 * convenient to do the pseudo-header checksum in software
@@ -10104,7 +10104,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 
 	/* Initialize MBUF/DESC pool. */
 	if (tg3_flag(tp, 5750_PLUS)) {
-		/* Do nothing.  */
+		/* Do yesthing.  */
 	} else if (tg3_asic_rev(tp) != ASIC_REV_5705) {
 		tw32(BUFMGR_MB_POOL_ADDR, NIC_SRAM_MBUF_POOL_BASE);
 		if (tg3_asic_rev(tp) == ASIC_REV_5704)
@@ -10159,7 +10159,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 		udelay(10);
 	}
 	if (i >= 2000) {
-		netdev_err(tp->dev, "%s cannot enable BUFMGR\n", __func__);
+		netdev_err(tp->dev, "%s canyest enable BUFMGR\n", __func__);
 		return -ENODEV;
 	}
 
@@ -10171,7 +10171,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	/* Initialize TG3_BDINFO's at:
 	 *  RCVDBDI_STD_BD:	standard eth size rx ring
 	 *  RCVDBDI_JUMBO_BD:	jumbo frame rx ring
-	 *  RCVDBDI_MINI_BD:	small frame rx ring (??? does not work)
+	 *  RCVDBDI_MINI_BD:	small frame rx ring (??? does yest work)
 	 *
 	 * like so:
 	 *  TG3_BDINFO_HOST_ADDR:	high/low parts of DMA address of ring
@@ -10499,7 +10499,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 		if (tg3_flag(tp, TSO_CAPABLE) &&
 		    (tg3_chip_rev_id(tp) == CHIPREV_ID_5705_A1 ||
 		     tg3_chip_rev_id(tp) == CHIPREV_ID_5705_A2)) {
-			/* nothing */
+			/* yesthing */
 		} else if (!(tr32(TG3PCI_PCISTATE) & PCISTATE_BUS_SPEED_HIGH) &&
 			   !tg3_flag(tp, IS_5788)) {
 			val |= WDMAC_MODE_RX_ACCEL;
@@ -10583,7 +10583,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	}
 
 	if (tg3_asic_rev(tp) == ASIC_REV_57766) {
-		/* Ignore any errors for the firmware download. If download
+		/* Igyesre any errors for the firmware download. If download
 		 * fails, the device will operate with EEE disabled
 		 */
 		tg3_load_57766_firmware(tp);
@@ -10654,7 +10654,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 		if ((tg3_asic_rev(tp) == ASIC_REV_5704) &&
 		    !(tp->phy_flags & TG3_PHYFLG_SERDES_PREEMPHASIS)) {
 			/* Set drive transmission level to 1.2V  */
-			/* only if the signal pre-emphasis bit is not set  */
+			/* only if the signal pre-emphasis bit is yest set  */
 			val = tr32(MAC_SERDES_CFG);
 			val &= 0xfffff000;
 			val |= 0x880;
@@ -10882,7 +10882,7 @@ static void tg3_hwmon_open(struct tg3 *tp)
 							  tp, tg3_groups);
 	if (IS_ERR(tp->hwmon_dev)) {
 		tp->hwmon_dev = NULL;
-		dev_err(&pdev->dev, "Cannot register hwmon device, aborting\n");
+		dev_err(&pdev->dev, "Canyest register hwmon device, aborting\n");
 	}
 }
 #else
@@ -11008,7 +11008,7 @@ static void tg3_timer(struct timer_list *t)
 	}
 
 	if (!tg3_flag(tp, TAGGED_STATUS)) {
-		/* All of this garbage is because when using non-tagged
+		/* All of this garbage is because when using yesn-tagged
 		 * IRQ status the mailbox/status_block protocol the chip
 		 * uses with the cpu is race prone.
 		 */
@@ -11095,7 +11095,7 @@ static void tg3_timer(struct timer_list *t)
 	 * driver is still alive.  In the event that the OS crashes,
 	 * ASF needs to reset the hardware to free up the FIFO space
 	 * that may be filled with rx packets destined for the host.
-	 * If the FIFO is full, ASF will no longer function properly.
+	 * If the FIFO is full, ASF will yes longer function properly.
 	 *
 	 * Unintended resets have been reported on real time kernels
 	 * where the timer doesn't run on time.  Netpoll will also have
@@ -11290,8 +11290,8 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	free_irq(tnapi->irq_vec, tnapi);
 
 	/*
-	 * Turn off MSI one shot mode.  Otherwise this test has no
-	 * observable way to know whether the interrupt was delivered.
+	 * Turn off MSI one shot mode.  Otherwise this test has yes
+	 * observable way to kyesw whether the interrupt was delivered.
 	 */
 	if (tg3_flag(tp, 57765_PLUS)) {
 		val = tr32(MSGINT_MODE) | MSGINT_MODE_ONE_SHOT_DISABLE;
@@ -11307,7 +11307,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	tg3_enable_ints(tp);
 
 	tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
-	       tnapi->coal_now);
+	       tnapi->coal_yesw);
 
 	for (i = 0; i < 5; i++) {
 		u32 int_mbox, misc_host_ctrl;
@@ -11436,7 +11436,7 @@ static int tg3_request_firmware(struct tg3 *tp)
 		return -EINVAL;
 	}
 
-	/* We no longer need firmware; we have it. */
+	/* We yes longer need firmware; we have it. */
 	tp->fw_needed = NULL;
 	return 0;
 }
@@ -11487,7 +11487,7 @@ static bool tg3_enable_msix(struct tg3 *tp)
 	if (rc < 0) {
 		return false;
 	} else if (rc < tp->irq_cnt) {
-		netdev_notice(tp->dev, "Requested %d MSI-X vectors, received %d\n",
+		netdev_yestice(tp->dev, "Requested %d MSI-X vectors, received %d\n",
 			      tp->irq_cnt, rc);
 		tp->irq_cnt = rc;
 		tp->rxq_cnt = max(rc - 1, 1);
@@ -11574,7 +11574,7 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 	int i, err;
 
 	/*
-	 * Setup interrupts first so we know how
+	 * Setup interrupts first so we kyesw how
 	 * many NAPI resources to allocate
 	 */
 	tg3_ints_init(tp);
@@ -11658,7 +11658,7 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 
 	/*
 	 * Reset loopback feature if it was turned on while the device was down
-	 * make sure that it's installed properly now.
+	 * make sure that it's installed properly yesw.
 	 */
 	if (dev->features & NETIF_F_LOOPBACK)
 		tg3_set_loopback(dev, dev->features);
@@ -11745,7 +11745,7 @@ static int tg3_open(struct net_device *dev)
 			netdev_warn(tp->dev, "TSO capability disabled\n");
 			tg3_flag_clear(tp, TSO_CAPABLE);
 		} else if (!tg3_flag(tp, TSO_CAPABLE)) {
-			netdev_notice(tp->dev, "TSO capability restored\n");
+			netdev_yestice(tp->dev, "TSO capability restored\n");
 			tg3_flag_set(tp, TSO_CAPABLE);
 		}
 	}
@@ -12066,7 +12066,7 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	eeprom->len += i;
 
 	if (len & 3) {
-		/* read last bytes not ending on 4 byte boundary */
+		/* read last bytes yest ending on 4 byte boundary */
 		pd = &data[eeprom->len];
 		b_count = len & 3;
 		b_offset = offset + len - b_count;
@@ -12663,7 +12663,7 @@ static int tg3_set_rxfh(struct net_device *dev, const u32 *indir, const u8 *key,
 	struct tg3 *tp = netdev_priv(dev);
 	size_t i;
 
-	/* We require at least one supported parameter to be changed and no
+	/* We require at least one supported parameter to be changed and yes
 	 * change in any of the unsupported parameters
 	 */
 	if (key ||
@@ -13272,7 +13272,7 @@ static int tg3_test_registers(struct tg3 *tp)
 		read_val = save_val & read_mask;
 
 		/* Write zero to the register, then make sure the read-only bits
-		 * are not changed and the read/write bits are all zeros.
+		 * are yest changed and the read/write bits are all zeros.
 		 */
 		tw32(offset, 0);
 
@@ -13283,7 +13283,7 @@ static int tg3_test_registers(struct tg3 *tp)
 			goto out;
 
 		/* Write ones to all the bits defined by RdMask and WrMask, then
-		 * make sure the read-only bits are not changed and the
+		 * make sure the read-only bits are yest changed and the
 		 * read/write bits are all ones.
 		 */
 		tw32(offset, read_mask | write_mask);
@@ -13426,7 +13426,7 @@ static const u8 tg3_tso_header[] = {
 static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, bool tso_loopback)
 {
 	u32 rx_start_idx, rx_idx, tx_idx, opaque_key;
-	u32 base_flags = 0, mss = 0, desc_idx, coal_now, data_off, val;
+	u32 base_flags = 0, mss = 0, desc_idx, coal_yesw, data_off, val;
 	u32 budget;
 	struct sk_buff *skb;
 	u8 *tx_data, *rx_data;
@@ -13444,7 +13444,7 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, bool tso_loopback)
 		if (tg3_flag(tp, ENABLE_TSS))
 			tnapi = &tp->napi[1];
 	}
-	coal_now = tnapi->coal_now | rnapi->coal_now;
+	coal_yesw = tnapi->coal_yesw | rnapi->coal_yesw;
 
 	err = -EIO;
 
@@ -13526,7 +13526,7 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, bool tso_loopback)
 	dma_unmap_addr_set(&tnapi->tx_buffers[val], mapping, map);
 
 	tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
-	       rnapi->coal_now);
+	       rnapi->coal_yesw);
 
 	udelay(10);
 
@@ -13550,10 +13550,10 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, bool tso_loopback)
 
 	udelay(10);
 
-	/* 350 usec to allow enough time on some 10/100 Mbps devices.  */
+	/* 350 usec to allow eyesugh time on some 10/100 Mbps devices.  */
 	for (i = 0; i < 35; i++) {
 		tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
-		       coal_now);
+		       coal_yesw);
 
 		udelay(10);
 
@@ -13678,7 +13678,7 @@ static int tg3_test_loopback(struct tg3 *tp, u64 *data, bool do_extlpbk)
 	}
 
 	/* HW errata - mac loopback fails in some cases on 5780.
-	 * Normal traffic and PHY loopback are not affected by
+	 * Normal traffic and PHY loopback are yest affected by
 	 * errata.  Also, the MAC loopback test is deprecated for
 	 * all newer ASIC revisions.
 	 */
@@ -14014,7 +14014,7 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		u32 mii_regval;
 
 		if (tp->phy_flags & TG3_PHYFLG_PHY_SERDES)
-			break;			/* We have no PHY */
+			break;			/* We have yes PHY */
 
 		if (!netif_running(dev))
 			return -EAGAIN;
@@ -14031,7 +14031,7 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	case SIOCSMIIREG:
 		if (tp->phy_flags & TG3_PHYFLG_PHY_SERDES)
-			break;			/* We have no PHY */
+			break;			/* We have yes PHY */
 
 		if (!netif_running(dev))
 			return -EAGAIN;
@@ -14050,7 +14050,7 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return tg3_hwtstamp_get(dev, ifr);
 
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 	return -EOPNOTSUPP;
@@ -14091,7 +14091,7 @@ static int tg3_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	    (ec->stats_block_coalesce_usecs < min_stat_coal_ticks))
 		return -EINVAL;
 
-	/* Only copy relevant parameters, ignore all others. */
+	/* Only copy relevant parameters, igyesre all others. */
 	tp->coal.rx_coalesce_usecs = ec->rx_coalesce_usecs;
 	tp->coal.tx_coalesce_usecs = ec->tx_coalesce_usecs;
 	tp->coal.rx_max_coalesced_frames = ec->rx_max_coalesced_frames;
@@ -14115,13 +14115,13 @@ static int tg3_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	struct tg3 *tp = netdev_priv(dev);
 
 	if (!(tp->phy_flags & TG3_PHYFLG_EEE_CAP)) {
-		netdev_warn(tp->dev, "Board does not support EEE!\n");
+		netdev_warn(tp->dev, "Board does yest support EEE!\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (edata->advertised != tp->eee.advertised) {
 		netdev_warn(tp->dev,
-			    "Direct manipulation of EEE advertisement is not supported\n");
+			    "Direct manipulation of EEE advertisement is yest supported\n");
 		return -EINVAL;
 	}
 
@@ -14153,7 +14153,7 @@ static int tg3_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 
 	if (!(tp->phy_flags & TG3_PHYFLG_EEE_CAP)) {
 		netdev_warn(tp->dev,
-			    "Board does not support EEE!\n");
+			    "Board does yest support EEE!\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -14327,7 +14327,7 @@ static void tg3_get_eeprom_size(struct tg3 *tp)
 
 	/*
 	 * Size the chip by reading offsets at increasing powers of two.
-	 * When we encounter our validation signature, we know the addressing
+	 * When we encounter our validation signature, we kyesw the addressing
 	 * has wrapped around, and thus have our chip size.
 	 */
 	cursize = 0x10;
@@ -15017,7 +15017,7 @@ static void tg3_nvram_init(struct tg3 *tp)
 
 		if (tg3_nvram_lock(tp)) {
 			netdev_warn(tp->dev,
-				    "Cannot get nvram lock, %s failed\n",
+				    "Canyest get nvram lock, %s failed\n",
 				    __func__);
 			return;
 		}
@@ -15540,7 +15540,7 @@ static int tg3_phy_probe(struct tg3 *tp)
 			tp->phy_flags &= ~TG3_PHYFLG_PHY_SERDES;
 	} else {
 		if (tp->phy_id != TG3_PHY_ID_INVALID) {
-			/* Do nothing, phy ID already set up in
+			/* Do yesthing, phy ID already set up in
 			 * tg3_get_eeprom_hw_cfg().
 			 */
 		} else {
@@ -15553,12 +15553,12 @@ static int tg3_phy_probe(struct tg3 *tp)
 			if (p) {
 				tp->phy_id = p->phy_id;
 			} else if (!tg3_flag(tp, IS_SSB_CORE)) {
-				/* For now we saw the IDs 0xbc050cd0,
+				/* For yesw we saw the IDs 0xbc050cd0,
 				 * 0xbc050f80 and 0xbc050c30 on devices
 				 * connected to an BCM4785 and there are
 				 * probably more. Just assume that the phy is
 				 * supported when it is connected to a SSB core
-				 * for now.
+				 * for yesw.
 				 */
 				return -ENODEV;
 			}
@@ -15638,18 +15638,18 @@ static void tg3_read_vpd(struct tg3 *tp)
 
 	vpd_data = (u8 *)tg3_vpd_readblock(tp, &vpdlen);
 	if (!vpd_data)
-		goto out_no_vpd;
+		goto out_yes_vpd;
 
 	i = pci_vpd_find_tag(vpd_data, 0, vpdlen, PCI_VPD_LRDT_RO_DATA);
 	if (i < 0)
-		goto out_not_found;
+		goto out_yest_found;
 
 	rosize = pci_vpd_lrdt_size(&vpd_data[i]);
 	block_end = i + PCI_VPD_LRDT_TAG_SIZE + rosize;
 	i += PCI_VPD_LRDT_TAG_SIZE;
 
 	if (block_end > vpdlen)
-		goto out_not_found;
+		goto out_yest_found;
 
 	j = pci_vpd_find_info_keyword(vpd_data, i, rosize,
 				      PCI_VPD_RO_KEYWORD_MFR_ID);
@@ -15659,18 +15659,18 @@ static void tg3_read_vpd(struct tg3 *tp)
 		j += PCI_VPD_INFO_FLD_HDR_SIZE;
 		if (j + len > block_end || len != 4 ||
 		    memcmp(&vpd_data[j], "1028", 4))
-			goto partno;
+			goto partyes;
 
 		j = pci_vpd_find_info_keyword(vpd_data, i, rosize,
 					      PCI_VPD_RO_KEYWORD_VENDOR0);
 		if (j < 0)
-			goto partno;
+			goto partyes;
 
 		len = pci_vpd_info_field_size(&vpd_data[j]);
 
 		j += PCI_VPD_INFO_FLD_HDR_SIZE;
 		if (j + len > block_end)
-			goto partno;
+			goto partyes;
 
 		if (len >= sizeof(tp->fw_ver))
 			len = sizeof(tp->fw_ver) - 1;
@@ -15679,27 +15679,27 @@ static void tg3_read_vpd(struct tg3 *tp)
 			 &vpd_data[j]);
 	}
 
-partno:
+partyes:
 	i = pci_vpd_find_info_keyword(vpd_data, i, rosize,
 				      PCI_VPD_RO_KEYWORD_PARTNO);
 	if (i < 0)
-		goto out_not_found;
+		goto out_yest_found;
 
 	len = pci_vpd_info_field_size(&vpd_data[i]);
 
 	i += PCI_VPD_INFO_FLD_HDR_SIZE;
 	if (len > TG3_BPN_SIZE ||
 	    (len + i) > vpdlen)
-		goto out_not_found;
+		goto out_yest_found;
 
 	memcpy(tp->board_part_number, &vpd_data[i], len);
 
-out_not_found:
+out_yest_found:
 	kfree(vpd_data);
 	if (tp->board_part_number[0])
 		return;
 
-out_no_vpd:
+out_yes_vpd:
 	if (tg3_asic_rev(tp) == ASIC_REV_5717) {
 		if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_5717 ||
 		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5717_C)
@@ -15707,7 +15707,7 @@ out_no_vpd:
 		else if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_5718)
 			strcpy(tp->board_part_number, "BCM5718");
 		else
-			goto nomatch;
+			goto yesmatch;
 	} else if (tg3_asic_rev(tp) == ASIC_REV_57780) {
 		if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_57780)
 			strcpy(tp->board_part_number, "BCM57780");
@@ -15718,7 +15718,7 @@ out_no_vpd:
 		else if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_57788)
 			strcpy(tp->board_part_number, "BCM57788");
 		else
-			goto nomatch;
+			goto yesmatch;
 	} else if (tg3_asic_rev(tp) == ASIC_REV_57765) {
 		if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_57761)
 			strcpy(tp->board_part_number, "BCM57761");
@@ -15733,7 +15733,7 @@ out_no_vpd:
 		else if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_57795)
 			strcpy(tp->board_part_number, "BCM57795");
 		else
-			goto nomatch;
+			goto yesmatch;
 	} else if (tg3_asic_rev(tp) == ASIC_REV_57766) {
 		if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_57762)
 			strcpy(tp->board_part_number, "BCM57762");
@@ -15744,12 +15744,12 @@ out_no_vpd:
 		else if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_57786)
 			strcpy(tp->board_part_number, "BCM57786");
 		else
-			goto nomatch;
+			goto yesmatch;
 	} else if (tg3_asic_rev(tp) == ASIC_REV_5906) {
 		strcpy(tp->board_part_number, "BCM95906");
 	} else {
-nomatch:
-		strcpy(tp->board_part_number, "none");
+yesmatch:
+		strcpy(tp->board_part_number, "yesne");
 	}
 }
 
@@ -15805,22 +15805,22 @@ static void tg3_read_bc_ver(struct tg3 *tp)
 			memcpy(tp->fw_ver + dst_off + i, &v, sizeof(v));
 		}
 	} else {
-		u32 major, minor;
+		u32 major, miyesr;
 
 		if (tg3_nvram_read(tp, TG3_NVM_PTREV_BCVER, &ver_offset))
 			return;
 
 		major = (ver_offset & TG3_NVM_BCVER_MAJMSK) >>
 			TG3_NVM_BCVER_MAJSFT;
-		minor = ver_offset & TG3_NVM_BCVER_MINMSK;
+		miyesr = ver_offset & TG3_NVM_BCVER_MINMSK;
 		snprintf(&tp->fw_ver[dst_off], TG3_VER_SIZE - dst_off,
-			 "v%d.%02d", major, minor);
+			 "v%d.%02d", major, miyesr);
 	}
 }
 
 static void tg3_read_hwsb_ver(struct tg3 *tp)
 {
-	u32 val, major, minor;
+	u32 val, major, miyesr;
 
 	/* Use native endian representation */
 	if (tg3_nvram_read(tp, TG3_NVM_HWSB_CFG1, &val))
@@ -15828,15 +15828,15 @@ static void tg3_read_hwsb_ver(struct tg3 *tp)
 
 	major = (val & TG3_NVM_HWSB_CFG1_MAJMSK) >>
 		TG3_NVM_HWSB_CFG1_MAJSFT;
-	minor = (val & TG3_NVM_HWSB_CFG1_MINMSK) >>
+	miyesr = (val & TG3_NVM_HWSB_CFG1_MINMSK) >>
 		TG3_NVM_HWSB_CFG1_MINSFT;
 
-	snprintf(&tp->fw_ver[0], 32, "sb v%d.%02d", major, minor);
+	snprintf(&tp->fw_ver[0], 32, "sb v%d.%02d", major, miyesr);
 }
 
 static void tg3_read_sb_ver(struct tg3 *tp, u32 val)
 {
-	u32 offset, major, minor, build;
+	u32 offset, major, miyesr, build;
 
 	strncat(tp->fw_ver, "sb", TG3_VER_SIZE - strlen(tp->fw_ver) - 1);
 
@@ -15873,14 +15873,14 @@ static void tg3_read_sb_ver(struct tg3 *tp, u32 val)
 		TG3_EEPROM_SB_EDH_BLD_SHFT;
 	major = (val & TG3_EEPROM_SB_EDH_MAJ_MASK) >>
 		TG3_EEPROM_SB_EDH_MAJ_SHFT;
-	minor =  val & TG3_EEPROM_SB_EDH_MIN_MASK;
+	miyesr =  val & TG3_EEPROM_SB_EDH_MIN_MASK;
 
-	if (minor > 99 || build > 26)
+	if (miyesr > 99 || build > 26)
 		return;
 
 	offset = strlen(tp->fw_ver);
 	snprintf(&tp->fw_ver[offset], TG3_VER_SIZE - offset,
-		 " v%d.%02d", major, minor);
+		 " v%d.%02d", major, miyesr);
 
 	if (build > 0) {
 		offset = strlen(tp->fw_ver);
@@ -16081,7 +16081,7 @@ static struct pci_dev *tg3_find_peer(struct tg3 *tp)
 	}
 
 	/*
-	 * We don't need to keep the refcount elevated; there's no way
+	 * We don't need to keep the refcount elevated; there's yes way
 	 * to remove one half of this device without removing the other
 	 */
 	pci_dev_put(peer);
@@ -16130,7 +16130,7 @@ static void tg3_detect_asic_rev(struct tg3 *tp, u32 misc_ctrl_reg)
 	}
 
 	/* Wrong chip ID in 5752 A0. This code can be removed later
-	 * as A0 is not in production.
+	 * as A0 is yest in production.
 	 */
 	if (tg3_chip_rev_id(tp) == CHIPREV_ID_5752_A0_HW)
 		tp->pci_chip_rev_id = CHIPREV_ID_5752_A0;
@@ -16238,14 +16238,14 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 	 * can mistakenly decode the special cycles from the
 	 * ICH chipsets as memory write cycles, causing corruption
 	 * of register and memory space. Only certain ICH bridges
-	 * will drive special cycles with non-zero data during the
+	 * will drive special cycles with yesn-zero data during the
 	 * address phase which can fall within the 5703's address
-	 * range. This is not an ICH bug as the PCI spec allows
-	 * non-zero address during special cycles. However, only
-	 * these ICH bridges are known to drive non-zero addresses
+	 * range. This is yest an ICH bug as the PCI spec allows
+	 * yesn-zero address during special cycles. However, only
+	 * these ICH bridges are kyeswn to drive yesn-zero addresses
 	 * during special cycles.
 	 *
-	 * Since special cycles do not cross PCI bridges, we only
+	 * Since special cycles do yest cross PCI bridges, we only
 	 * enable this workaround if the 5703 is on the secondary
 	 * bus of these ICH bridges.
 	 */
@@ -16322,7 +16322,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 		}
 	}
 
-	/* The EPB bridge inside 5714, 5715, and 5780 cannot support
+	/* The EPB bridge inside 5714, 5715, and 5780 canyest support
 	 * DMA addresses > 40-bit. This bridge may have other additional
 	 * 57xx devices behind it in some 4-port NIC designs for example.
 	 * Any tg3 device found behind the bridge will also need the 40-bit
@@ -16356,7 +16356,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 
 	/* Determine TSO capabilities */
 	if (tg3_chip_rev_id(tp) == CHIPREV_ID_5719_A0)
-		; /* Do nothing. HW bug. */
+		; /* Do yesthing. HW bug. */
 	else if (tg3_flag(tp, 57765_PLUS))
 		tg3_flag_set(tp, HW_TSO_3);
 	else if (tg3_flag(tp, 5755_PLUS) ||
@@ -16480,7 +16480,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 		}
 	} else if (tg3_asic_rev(tp) == ASIC_REV_5785) {
 		/* BCM5785 devices are effectively PCIe devices, and should
-		 * follow PCIe codepaths, but do not have a PCIe capabilities
+		 * follow PCIe codepaths, but do yest have a PCIe capabilities
 		 * section.
 		 */
 		tg3_flag_set(tp, PCI_EXPRESS);
@@ -16489,7 +16489,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 		tp->pcix_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_PCIX);
 		if (!tp->pcix_cap) {
 			dev_err(&tp->pdev->dev,
-				"Cannot find PCI-X capability, aborting\n");
+				"Canyest find PCI-X capability, aborting\n");
 			return -EIO;
 		}
 
@@ -16530,7 +16530,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 		/* If we are in PCI-X mode, enable register write workaround.
 		 *
 		 * The workaround is to use indirect register accesses
-		 * for all chip writes not to mailbox registers.
+		 * for all chip writes yest to mailbox registers.
 		 */
 		if (tg3_flag(tp, PCIX_MODE)) {
 			u32 pm_reg;
@@ -16666,10 +16666,10 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 	/* Get eeprom hw config before calling tg3_set_power_state().
 	 * In particular, the TG3_FLAG_IS_NIC flag must be
 	 * determined before calling tg3_set_power_state() so that
-	 * we know whether or not to switch out of Vaux power.
+	 * we kyesw whether or yest to switch out of Vaux power.
 	 * When the flag is set, it means that GPIO1 is used for eeprom
 	 * write protect and also implies that it is a LOM where GPIOs
-	 * are not used to switch power.
+	 * are yest used to switch power.
 	 */
 	tg3_get_eeprom_hw_cfg(tp);
 
@@ -16705,7 +16705,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 		tp->grc_local_ctrl |= (GRC_LCLCTRL_GPIO_OE1 |
 				       GRC_LCLCTRL_GPIO_OUTPUT1);
 	/* Unused GPIO3 must be driven as output on 5752 because there
-	 * are no pull-up resistors on unused GPIO pins.
+	 * are yes pull-up resistors on unused GPIO pins.
 	 */
 	else if (tg3_asic_rev(tp) == ASIC_REV_5752)
 		tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE3;
@@ -16867,7 +16867,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 	udelay(50);
 	tg3_nvram_init(tp);
 
-	/* If the device has an NVRAM, no need to load patch firmware */
+	/* If the device has an NVRAM, yes need to load patch firmware */
 	if (tg3_asic_rev(tp) == ASIC_REV_57766 &&
 	    !tg3_flag(tp, NO_NVRAM))
 		tp->fw_needed = NULL;
@@ -16904,7 +16904,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 	err = tg3_phy_probe(tp);
 	if (err) {
 		dev_err(&tp->pdev->dev, "phy probe failed, err %d\n", err);
-		/* ... but do not return immediately ... */
+		/* ... but do yest return immediately ... */
 		tg3_mdio_fini(tp);
 	}
 
@@ -17070,7 +17070,7 @@ static u32 tg3_calc_dma_bndry(struct tg3 *tp, u32 val)
 	else
 		cacheline_size = (int) byte * 4;
 
-	/* On 5703 and later chips, the boundary bits have no
+	/* On 5703 and later chips, the boundary bits have yes
 	 * effect.
 	 */
 	if (tg3_asic_rev(tp) != ASIC_REV_5700 &&
@@ -17104,7 +17104,7 @@ static u32 tg3_calc_dma_bndry(struct tg3 *tp, u32 val)
 	 * write-side controls for this, and thus for reads
 	 * we will still get the disconnects.  We'll also waste
 	 * these PCI cycles for both read and write for chips
-	 * other than 5700 and 5701 which do not implement the
+	 * other than 5700 and 5701 which do yest implement the
 	 * boundary bits.
 	 */
 	if (tg3_flag(tp, PCIX_MODE) && !tg3_flag(tp, PCI_EXPRESS)) {
@@ -17229,9 +17229,9 @@ static int tg3_do_test_dma(struct tg3 *tp, u32 *buf, dma_addr_t buf_dma,
 	 * Broadcom tells me:
 	 *   ...the DMA engine is connected to the GRC block and a DMA
 	 *   reset may affect the GRC block in some unpredictable way...
-	 *   The behavior of resets to individual blocks has not been tested.
+	 *   The behavior of resets to individual blocks has yest been tested.
 	 *
-	 * Broadcom noted the GRC reset will also reset all sub-components.
+	 * Broadcom yested the GRC reset will also reset all sub-components.
 	 */
 	if (to_device) {
 		test_desc.cqid_sqid = (13 << 8) | 2;
@@ -17297,7 +17297,7 @@ static int tg3_test_dma(struct tg3 *tp)
 				 &buf_dma, GFP_KERNEL);
 	if (!buf) {
 		ret = -ENOMEM;
-		goto out_nofree;
+		goto out_yesfree;
 	}
 
 	tp->dma_rwctrl = ((0x7 << DMA_RWCTRL_PCI_WRITE_CMD_SHIFT) |
@@ -17309,7 +17309,7 @@ static int tg3_test_dma(struct tg3 *tp)
 		goto out;
 
 	if (tg3_flag(tp, PCI_EXPRESS)) {
-		/* DMA read watermark not used on PCIE */
+		/* DMA read watermark yest used on PCIE */
 		tp->dma_rwctrl |= 0x00180000;
 	} else if (!tg3_flag(tp, PCIX_MODE)) {
 		if (tg3_asic_rev(tp) == ASIC_REV_5705 ||
@@ -17364,7 +17364,7 @@ static int tg3_test_dma(struct tg3 *tp)
 
 		/* On 5700/5701 chips, we need to set this bit.
 		 * Otherwise the chip will issue cacheline transactions
-		 * to streamable DMA memory with not all the byte
+		 * to streamable DMA memory with yest all the byte
 		 * enables turned on.  This is an error on several
 		 * RISC PCI controllers, in particular sparc64.
 		 *
@@ -17441,7 +17441,7 @@ static int tg3_test_dma(struct tg3 *tp)
 	if ((tp->dma_rwctrl & DMA_RWCTRL_WRITE_BNDRY_MASK) !=
 	    DMA_RWCTRL_WRITE_BNDRY_16) {
 		/* DMA test passed without adjusting DMA boundary,
-		 * now look for chipsets that are known to expose the
+		 * yesw look for chipsets that are kyeswn to expose the
 		 * DMA bug without failing the test.
 		 */
 		if (pci_dev_present(tg3_dma_wait_state_chipsets)) {
@@ -17457,7 +17457,7 @@ static int tg3_test_dma(struct tg3 *tp)
 
 out:
 	dma_free_coherent(&tp->pdev->dev, TEST_BUFFER_SIZE, buf, buf_dma);
-out_nofree:
+out_yesfree:
 	return ret;
 }
 
@@ -17545,7 +17545,7 @@ static char *tg3_phy_string(struct tg3 *tp)
 	case TG3_PHY_ID_BCM5762:	return "5762C";
 	case TG3_PHY_ID_BCM8002:	return "8002/serdes";
 	case 0:			return "serdes";
-	default:		return "unknown";
+	default:		return "unkyeswn";
 	}
 }
 
@@ -17631,13 +17631,13 @@ static int tg3_init_one(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable PCI device, aborting\n");
+		dev_err(&pdev->dev, "Canyest enable PCI device, aborting\n");
 		return err;
 	}
 
 	err = pci_request_regions(pdev, DRV_MODULE_NAME);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot obtain PCI resources, aborting\n");
+		dev_err(&pdev->dev, "Canyest obtain PCI resources, aborting\n");
 		goto err_out_disable_pdev;
 	}
 
@@ -17688,7 +17688,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 		MISC_HOST_CTRL_INDIR_ACCESS |
 		MISC_HOST_CTRL_PCISTATE_RW;
 
-	/* The NONFRM (non-frame) byte/word swap controls take effect
+	/* The NONFRM (yesn-frame) byte/word swap controls take effect
 	 * on descriptor entries, anything which isn't packet data.
 	 *
 	 * The StrongARM chips on the board (one for tx, one for rx)
@@ -17705,7 +17705,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 
 	tp->regs = pci_ioremap_bar(pdev, BAR_0);
 	if (!tp->regs) {
-		dev_err(&pdev->dev, "Cannot map device registers, aborting\n");
+		dev_err(&pdev->dev, "Canyest map device registers, aborting\n");
 		err = -ENOMEM;
 		goto err_out_free_dev;
 	}
@@ -17729,7 +17729,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 		tp->aperegs = pci_ioremap_bar(pdev, BAR_2);
 		if (!tp->aperegs) {
 			dev_err(&pdev->dev,
-				"Cannot map APE registers, aborting\n");
+				"Canyest map APE registers, aborting\n");
 			err = -ENOMEM;
 			goto err_out_iounmap;
 		}
@@ -17751,7 +17751,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 	}
 
 	/* The EPB bridge inside 5714, 5715, and 5780 and any
-	 * device behind the EPB cannot support DMA addresses > 40-bit.
+	 * device behind the EPB canyest support DMA addresses > 40-bit.
 	 * On 64-bit systems with IOMMU, use 40-bit dma_mask.
 	 * On 64-bit systems without IOMMU, use 64-bit dma_mask and
 	 * do DMA address check in tg3_start_xmit().
@@ -17791,7 +17791,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 
 	tg3_init_bufmgr_config(tp);
 
-	/* 5700 B0 chips do not support checksumming correctly due
+	/* 5700 B0 chips do yest support checksumming correctly due
 	 * to hardware bugs.
 	 */
 	if (tg3_chip_rev_id(tp) != CHIPREV_ID_5700_B0) {
@@ -17853,7 +17853,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 	err = tg3_get_device_address(tp);
 	if (err) {
 		dev_err(&pdev->dev,
-			"Could not obtain valid ethernet address, aborting\n");
+			"Could yest obtain valid ethernet address, aborting\n");
 		goto err_out_apeunmap;
 	}
 
@@ -17876,9 +17876,9 @@ static int tg3_init_one(struct pci_dev *pdev,
 		tnapi->prodmbox = sndmbx;
 
 		if (i)
-			tnapi->coal_now = HOSTCC_MODE_COAL_VEC1_NOW << (i - 1);
+			tnapi->coal_yesw = HOSTCC_MODE_COAL_VEC1_NOW << (i - 1);
 		else
-			tnapi->coal_now = HOSTCC_MODE_NOW;
+			tnapi->coal_yesw = HOSTCC_MODE_NOW;
 
 		if (!tg3_flag(tp, SUPPORT_MSIX))
 			break;
@@ -17902,7 +17902,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 	}
 
 	/*
-	 * Reset chip in case UNDI or EFI driver did not shutdown
+	 * Reset chip in case UNDI or EFI driver did yest shutdown
 	 * DMA self test will enable WDMAC and we'll see (spurious)
 	 * pending DMA on the PCI bus at that point.
 	 */
@@ -17935,7 +17935,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot register net device, aborting\n");
+		dev_err(&pdev->dev, "Canyest register net device, aborting\n");
 		goto err_out_apeunmap;
 	}
 
@@ -17947,7 +17947,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 			tp->ptp_clock = NULL;
 	}
 
-	netdev_info(dev, "Tigon3 [partno(%s) rev %04x] (%s) MAC address %pM\n",
+	netdev_info(dev, "Tigon3 [partyes(%s) rev %04x] (%s) MAC address %pM\n",
 		    tp->board_part_number,
 		    tg3_chip_rev_id(tp),
 		    tg3_bus_string(tp, str),
@@ -18236,7 +18236,7 @@ static pci_ers_result_t tg3_io_slot_reset(struct pci_dev *pdev)
 
 	if (pci_enable_device(pdev)) {
 		dev_err(&pdev->dev,
-			"Cannot re-enable PCI device after reset.\n");
+			"Canyest re-enable PCI device after reset.\n");
 		goto done;
 	}
 
@@ -18270,7 +18270,7 @@ done:
  * @pdev: Pointer to PCI device
  *
  * This callback is called when the error recovery driver tells
- * us that its OK to resume normal operation.
+ * us that its OK to resume yesrmal operation.
  */
 static void tg3_io_resume(struct pci_dev *pdev)
 {
@@ -18289,7 +18289,7 @@ static void tg3_io_resume(struct pci_dev *pdev)
 	err = tg3_restart_hw(tp, true);
 	if (err) {
 		tg3_full_unlock(tp);
-		netdev_err(netdev, "Cannot restart hardware after reset.\n");
+		netdev_err(netdev, "Canyest restart hardware after reset.\n");
 		goto done;
 	}
 

@@ -114,7 +114,7 @@ mctrl_gpio_get_outputs(struct mctrl_gpios *gpios, unsigned int *mctrl)
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_get_outputs);
 
-struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
+struct mctrl_gpios *mctrl_gpio_init_yesauto(struct device *dev, unsigned int idx)
 {
 	struct mctrl_gpios *gpios;
 	enum mctrl_gpio_idx i;
@@ -127,7 +127,7 @@ struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 		char *gpio_str;
 		bool present;
 
-		/* Check if GPIO property exists and continue if not */
+		/* Check if GPIO property exists and continue if yest */
 		gpio_str = kasprintf(GFP_KERNEL, "%s-gpios",
 				     mctrl_gpios_desc[i].name);
 		if (!gpio_str)
@@ -150,7 +150,7 @@ struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 
 	return gpios;
 }
-EXPORT_SYMBOL_GPL(mctrl_gpio_init_noauto);
+EXPORT_SYMBOL_GPL(mctrl_gpio_init_yesauto);
 
 #define MCTRL_ANY_DELTA (TIOCM_RI | TIOCM_DSR | TIOCM_CD | TIOCM_CTS)
 static irqreturn_t mctrl_gpio_irq_handle(int irq, void *context)
@@ -194,7 +194,7 @@ struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx)
 	struct mctrl_gpios *gpios;
 	enum mctrl_gpio_idx i;
 
-	gpios = mctrl_gpio_init_noauto(port->dev, idx);
+	gpios = mctrl_gpio_init_yesauto(port->dev, idx);
 	if (IS_ERR(gpios))
 		return gpios;
 

@@ -46,7 +46,7 @@ static int check_offs_len(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 	/* Length must align on block boundary */
 	if (mtd_mod_by_eb(len, mtd)) {
-		pr_debug("%s: length not block aligned\n", __func__);
+		pr_debug("%s: length yest block aligned\n", __func__);
 		ret = -EINVAL;
 	}
 

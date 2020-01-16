@@ -109,7 +109,7 @@ qedf_sysfs_read_grcdump(struct file *filep, struct kobject *kobj,
 		ret = memory_read_from_buffer(buf, count, &off,
 		    qedf->grcdump, qedf->grcdump_size);
 	} else {
-		QEDF_ERR(&(qedf->dbg_ctx), "GRC Dump not captured!\n");
+		QEDF_ERR(&(qedf->dbg_ctx), "GRC Dump yest captured!\n");
 	}
 
 	return ret;

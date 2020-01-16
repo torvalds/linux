@@ -15,7 +15,7 @@
  * parts of the code. This is complicated by the fact that FC is set by the
  * hardware when the event overflows. We may take the EBB after we have set FC,
  * so we have to be careful about whether we clear FC at the end of the EBB
- * handler or not.
+ * handler or yest.
  */
 
 static bool counters_frozen = false;

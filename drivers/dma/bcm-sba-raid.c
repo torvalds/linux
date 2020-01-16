@@ -28,11 +28,11 @@
  * multiple small size requests and executed parallely on multiple SBA
  * hardware devices for achieving high through-put.
  *
- * The Broadcom SBA RAID driver does not require any register programming
+ * The Broadcom SBA RAID driver does yest require any register programming
  * except submitting request to SBA hardware device via mailbox channels.
  * This driver implements a DMA device with one DMA channel using a single
  * mailbox channel provided by Broadcom SoC specific ring manager driver.
- * For having more SBA DMA channels, we can create more SBA device nodes
+ * For having more SBA DMA channels, we can create more SBA device yesdes
  * in Broadcom SoC specific DTS based on number of hardware rings supported
  * by Broadcom SoC ring manager.
  */
@@ -109,7 +109,7 @@ enum sba_request_flags {
 
 struct sba_request {
 	/* Global state */
-	struct list_head node;
+	struct list_head yesde;
 	struct sba_device *sba;
 	u32 flags;
 	/* Chained requests management */
@@ -207,9 +207,9 @@ static struct sba_request *sba_alloc_request(struct sba_device *sba)
 	struct sba_request *req = NULL;
 
 	spin_lock_irqsave(&sba->reqs_lock, flags);
-	list_for_each_entry(req, &sba->reqs_free_list, node) {
+	list_for_each_entry(req, &sba->reqs_free_list, yesde) {
 		if (async_tx_test_ack(&req->tx)) {
-			list_move_tail(&req->node, &sba->reqs_alloc_list);
+			list_move_tail(&req->yesde, &sba->reqs_alloc_list);
 			found = true;
 			break;
 		}
@@ -218,7 +218,7 @@ static struct sba_request *sba_alloc_request(struct sba_device *sba)
 
 	if (!found) {
 		/*
-		 * We have no more free requests so, we peek
+		 * We have yes more free requests so, we peek
 		 * mailbox channels hoping few active requests
 		 * would have completed which will create more
 		 * room for new requests.
@@ -245,7 +245,7 @@ static void _sba_pending_request(struct sba_device *sba,
 	lockdep_assert_held(&sba->reqs_lock);
 	req->flags &= ~SBA_REQUEST_STATE_MASK;
 	req->flags |= SBA_REQUEST_STATE_PENDING;
-	list_move_tail(&req->node, &sba->reqs_pending_list);
+	list_move_tail(&req->yesde, &sba->reqs_pending_list);
 	if (list_empty(&sba->reqs_active_list))
 		sba->reqs_fence = false;
 }
@@ -261,7 +261,7 @@ static bool _sba_active_request(struct sba_device *sba,
 		return false;
 	req->flags &= ~SBA_REQUEST_STATE_MASK;
 	req->flags |= SBA_REQUEST_STATE_ACTIVE;
-	list_move_tail(&req->node, &sba->reqs_active_list);
+	list_move_tail(&req->yesde, &sba->reqs_active_list);
 	if (req->flags & SBA_REQUEST_FENCE)
 		sba->reqs_fence = true;
 	return true;
@@ -274,7 +274,7 @@ static void _sba_abort_request(struct sba_device *sba,
 	lockdep_assert_held(&sba->reqs_lock);
 	req->flags &= ~SBA_REQUEST_STATE_MASK;
 	req->flags |= SBA_REQUEST_STATE_ABORTED;
-	list_move_tail(&req->node, &sba->reqs_aborted_list);
+	list_move_tail(&req->yesde, &sba->reqs_aborted_list);
 	if (list_empty(&sba->reqs_active_list))
 		sba->reqs_fence = false;
 }
@@ -286,7 +286,7 @@ static void _sba_free_request(struct sba_device *sba,
 	lockdep_assert_held(&sba->reqs_lock);
 	req->flags &= ~SBA_REQUEST_STATE_MASK;
 	req->flags |= SBA_REQUEST_STATE_FREE;
-	list_move_tail(&req->node, &sba->reqs_free_list);
+	list_move_tail(&req->yesde, &sba->reqs_free_list);
 	if (list_empty(&sba->reqs_active_list))
 		sba->reqs_fence = false;
 }
@@ -321,7 +321,7 @@ static void sba_chain_request(struct sba_request *first,
 	spin_unlock_irqrestore(&sba->reqs_lock, flags);
 }
 
-static void sba_cleanup_nonpending_requests(struct sba_device *sba)
+static void sba_cleanup_yesnpending_requests(struct sba_device *sba)
 {
 	unsigned long flags;
 	struct sba_request *req, *req1;
@@ -329,11 +329,11 @@ static void sba_cleanup_nonpending_requests(struct sba_device *sba)
 	spin_lock_irqsave(&sba->reqs_lock, flags);
 
 	/* Freeup all alloced request */
-	list_for_each_entry_safe(req, req1, &sba->reqs_alloc_list, node)
+	list_for_each_entry_safe(req, req1, &sba->reqs_alloc_list, yesde)
 		_sba_free_request(sba, req);
 
 	/* Set all active requests as aborted */
-	list_for_each_entry_safe(req, req1, &sba->reqs_active_list, node)
+	list_for_each_entry_safe(req, req1, &sba->reqs_active_list, yesde)
 		_sba_abort_request(sba, req);
 
 	/*
@@ -352,7 +352,7 @@ static void sba_cleanup_pending_requests(struct sba_device *sba)
 	spin_lock_irqsave(&sba->reqs_lock, flags);
 
 	/* Freeup all pending request */
-	list_for_each_entry_safe(req, req1, &sba->reqs_pending_list, node)
+	list_for_each_entry_safe(req, req1, &sba->reqs_pending_list, yesde)
 		_sba_free_request(sba, req);
 
 	spin_unlock_irqrestore(&sba->reqs_lock, flags);
@@ -395,7 +395,7 @@ static void _sba_process_pending_requests(struct sba_device *sba)
 	while (!list_empty(&sba->reqs_pending_list) && count) {
 		/* Get the first pending request */
 		req = list_first_entry(&sba->reqs_pending_list,
-				       struct sba_request, node);
+				       struct sba_request, yesde);
 
 		/* Try to make request active */
 		if (!_sba_active_request(sba, req))
@@ -463,20 +463,20 @@ static void sba_write_stats_in_seqfile(struct sba_device *sba,
 
 	spin_lock_irqsave(&sba->reqs_lock, flags);
 
-	list_for_each_entry(req, &sba->reqs_free_list, node)
+	list_for_each_entry(req, &sba->reqs_free_list, yesde)
 		if (async_tx_test_ack(&req->tx))
 			free_count++;
 
-	list_for_each_entry(req, &sba->reqs_alloc_list, node)
+	list_for_each_entry(req, &sba->reqs_alloc_list, yesde)
 		alloced_count++;
 
-	list_for_each_entry(req, &sba->reqs_pending_list, node)
+	list_for_each_entry(req, &sba->reqs_pending_list, yesde)
 		pending_count++;
 
-	list_for_each_entry(req, &sba->reqs_active_list, node)
+	list_for_each_entry(req, &sba->reqs_active_list, yesde)
 		active_count++;
 
-	list_for_each_entry(req, &sba->reqs_aborted_list, node)
+	list_for_each_entry(req, &sba->reqs_aborted_list, yesde)
 		aborted_count++;
 
 	spin_unlock_irqrestore(&sba->reqs_lock, flags);
@@ -498,7 +498,7 @@ static void sba_free_chan_resources(struct dma_chan *dchan)
 	 * whatever we can so that we can re-use pre-alloced
 	 * channel resources next time.
 	 */
-	sba_cleanup_nonpending_requests(to_sba_device(dchan));
+	sba_cleanup_yesnpending_requests(to_sba_device(dchan));
 }
 
 static int sba_device_terminate_all(struct dma_chan *dchan)
@@ -631,7 +631,7 @@ sba_prep_dma_interrupt(struct dma_chan *dchan, unsigned long flags)
 		return NULL;
 
 	/*
-	 * Force fence so that no requests are submitted
+	 * Force fence so that yes requests are submitted
 	 * until DMA callback for this request is invoked.
 	 */
 	req->flags |= SBA_REQUEST_FENCE;
@@ -1503,7 +1503,7 @@ static int sba_prealloc_channel_resources(struct sba_device *sba)
 			ret = -ENOMEM;
 			goto fail_free_cmds_pool;
 		}
-		INIT_LIST_HEAD(&req->node);
+		INIT_LIST_HEAD(&req->yesde);
 		req->sba = sba;
 		req->flags = SBA_REQUEST_STATE_FREE;
 		INIT_LIST_HEAD(&req->next);
@@ -1521,7 +1521,7 @@ static int sba_prealloc_channel_resources(struct sba_device *sba)
 		async_tx_ack(&req->tx);
 		req->tx.tx_submit = sba_tx_submit;
 		req->tx.phys = sba->resp_dma_base + i * sba->hw_resp_size;
-		list_add_tail(&req->node, &sba->reqs_free_list);
+		list_add_tail(&req->yesde, &sba->reqs_free_list);
 	}
 
 	return 0;
@@ -1599,7 +1599,7 @@ static int sba_async_register(struct sba_device *sba)
 
 	/* Initialize DMA device channel list */
 	INIT_LIST_HEAD(&dma_dev->channels);
-	list_add_tail(&sba->dma_chan.device_node, &dma_dev->channels);
+	list_add_tail(&sba->dma_chan.device_yesde, &dma_dev->channels);
 
 	/* Register with Linux async DMA framework*/
 	ret = dma_async_device_register(dma_dev);
@@ -1634,15 +1634,15 @@ static int sba_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sba);
 
 	/* Number of mailbox channels should be atleast 1 */
-	ret = of_count_phandle_with_args(pdev->dev.of_node,
+	ret = of_count_phandle_with_args(pdev->dev.of_yesde,
 					 "mboxes", "#mbox-cells");
 	if (ret <= 0)
 		return -ENODEV;
 
 	/* Determine SBA version from DT compatible string */
-	if (of_device_is_compatible(sba->dev->of_node, "brcm,iproc-sba"))
+	if (of_device_is_compatible(sba->dev->of_yesde, "brcm,iproc-sba"))
 		sba->ver = SBA_VER_1;
-	else if (of_device_is_compatible(sba->dev->of_node,
+	else if (of_device_is_compatible(sba->dev->of_yesde,
 					 "brcm,iproc-sba-v2"))
 		sba->ver = SBA_VER_2;
 	else
@@ -1681,7 +1681,7 @@ static int sba_probe(struct platform_device *pdev)
 	sba->client.dev			= &pdev->dev;
 	sba->client.rx_callback		= sba_receive_message;
 	sba->client.tx_block		= false;
-	sba->client.knows_txdone	= true;
+	sba->client.kyesws_txdone	= true;
 	sba->client.tx_tout		= 0;
 
 	/* Request mailbox channel */
@@ -1692,12 +1692,12 @@ static int sba_probe(struct platform_device *pdev)
 	}
 
 	/* Find-out underlying mailbox device */
-	ret = of_parse_phandle_with_args(pdev->dev.of_node,
+	ret = of_parse_phandle_with_args(pdev->dev.of_yesde,
 					 "mboxes", "#mbox-cells", 0, &args);
 	if (ret)
 		goto fail_free_mchan;
-	mbox_pdev = of_find_device_by_node(args.np);
-	of_node_put(args.np);
+	mbox_pdev = of_find_device_by_yesde(args.np);
+	of_yesde_put(args.np);
 	if (!mbox_pdev) {
 		ret = -ENODEV;
 		goto fail_free_mchan;

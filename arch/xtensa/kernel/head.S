@@ -49,7 +49,7 @@
 	 */
 
 	__HEAD
-	.begin	no-absolute-literals
+	.begin	yes-absolute-literals
 
 ENTRY(_start)
 
@@ -100,7 +100,7 @@ _SetupMMU:
 	jx	a0
 
 ENDPROC(_start)
-	.end	no-absolute-literals
+	.end	yes-absolute-literals
 
 	__REF
 	.literal_position
@@ -133,9 +133,9 @@ ENTRY(_startup)
 	.endr
 #endif
 
-	/* Clear CCOUNT (not really necessary, but nice) */
+	/* Clear CCOUNT (yest really necessary, but nice) */
 
-	wsr	a0, ccount	# not really necessary, but nice
+	wsr	a0, ccount	# yest really necessary, but nice
 
 	/* Disable zero-loops. */
 
@@ -220,7 +220,7 @@ ENTRY(_startup)
 	movi	a2, __boot_reloc_table_start
 	movi	a3, __boot_reloc_table_end
 
-1:	beq	a2, a3, 3f	# no more entries?
+1:	beq	a2, a3, 3f	# yes more entries?
 	l32i	a4, a2, 0	# start destination (in RAM)
 	l32i	a5, a2, 4	# end desination (in RAM)
 	l32i	a6, a2, 8	# start source (in ROM)

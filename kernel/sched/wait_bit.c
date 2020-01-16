@@ -33,7 +33,7 @@ int wake_bit_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync
 EXPORT_SYMBOL(wake_bit_function);
 
 /*
- * To allow interruptible waiting and asynchronous (i.e. nonblocking)
+ * To allow interruptible waiting and asynchroyesus (i.e. yesnblocking)
  * waiting, the actions of __wait_on_bit() and __wait_on_bit_lock() are
  * permitted return codes. Nonzero return codes halt waiting and return.
  */
@@ -90,7 +90,7 @@ __wait_on_bit_lock(struct wait_queue_head *wq_head, struct wait_bit_queue_entry 
 			ret = action(&wbq_entry->key, mode);
 			/*
 			 * See the comment in prepare_to_wait_event().
-			 * finish_wait() does not necessarily takes wwq_head->lock,
+			 * finish_wait() does yest necessarily takes wwq_head->lock,
 			 * but test_and_set_bit() implies mb() which pairs with
 			 * smp_mb__after_atomic() before wake_up_page().
 			 */
@@ -140,9 +140,9 @@ EXPORT_SYMBOL(__wake_up_bit);
  * In order for this to function properly, as it uses waitqueue_active()
  * internally, some kind of memory barrier must be done prior to calling
  * this. Typically, this will be smp_mb__after_atomic(), but in some
- * cases where bitflags are manipulated non-atomically under a lock, one
- * may need to use a less regular barrier, such fs/inode.c's smp_mb(),
- * because spin_unlock() does not guarantee a memory barrier.
+ * cases where bitflags are manipulated yesn-atomically under a lock, one
+ * may need to use a less regular barrier, such fs/iyesde.c's smp_mb(),
+ * because spin_unlock() does yest guarantee a memory barrier.
  */
 void wake_up_bit(void *word, int bit)
 {
@@ -215,11 +215,11 @@ EXPORT_SYMBOL(bit_wait_io);
 
 __sched int bit_wait_timeout(struct wait_bit_key *word, int mode)
 {
-	unsigned long now = READ_ONCE(jiffies);
+	unsigned long yesw = READ_ONCE(jiffies);
 
-	if (time_after_eq(now, word->timeout))
+	if (time_after_eq(yesw, word->timeout))
 		return -EAGAIN;
-	schedule_timeout(word->timeout - now);
+	schedule_timeout(word->timeout - yesw);
 	if (signal_pending_state(mode, current))
 		return -EINTR;
 
@@ -229,11 +229,11 @@ EXPORT_SYMBOL_GPL(bit_wait_timeout);
 
 __sched int bit_wait_io_timeout(struct wait_bit_key *word, int mode)
 {
-	unsigned long now = READ_ONCE(jiffies);
+	unsigned long yesw = READ_ONCE(jiffies);
 
-	if (time_after_eq(now, word->timeout))
+	if (time_after_eq(yesw, word->timeout))
 		return -EAGAIN;
-	io_schedule_timeout(word->timeout - now);
+	io_schedule_timeout(word->timeout - yesw);
 	if (signal_pending_state(mode, current))
 		return -EINTR;
 

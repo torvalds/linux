@@ -24,7 +24,7 @@ config USB_CATC
 	  CATC NetMate II
 	  smartBridges smartNIC
 
-	  This driver makes the adapter appear as a normal Ethernet interface,
+	  This driver makes the adapter appear as a yesrmal Ethernet interface,
 	  typically on eth0, if it is the only ethernet device, or perhaps on
 	  eth1, if you have a PCI or ISA ethernet card installed.
 
@@ -46,7 +46,7 @@ config USB_KAWETH
 	  Entrega / Portgear E45
 	  I-O DATA USB-ET/T
 	  Jaton USB Ethernet Device Adapter
-	  Kingston Technology USB Ethernet Adapter
+	  Kingston Techyeslogy USB Ethernet Adapter
 	  Linksys USB10T
 	  Mobility USB-Ethernet Adapter
 	  NetGear EA-101
@@ -57,13 +57,13 @@ config USB_KAWETH
 	  Sony Vaio port extender
 
 	  This driver is likely to work with most 10Mbps only USB Ethernet
-	  adapters, including some "no brand" devices. It does NOT work on
+	  adapters, including some "yes brand" devices. It does NOT work on
 	  SmartBridges smartNIC or on Belkin F5U111 devices - you should use
-	  the CATC NetMate driver for those. If you are not sure which one
+	  the CATC NetMate driver for those. If you are yest sure which one
 	  you need, select both, and the correct one should be selected for
 	  you.
 
-	  This driver makes the adapter appear as a normal Ethernet interface,
+	  This driver makes the adapter appear as a yesrmal Ethernet interface,
 	  typically on eth0, if it is the only ethernet device, or perhaps on
 	  eth1, if you have a PCI or ISA ethernet card installed.
 
@@ -74,11 +74,11 @@ config USB_PEGASUS
 	tristate "USB Pegasus/Pegasus-II based ethernet device support"
 	select MII
 	---help---
-	  Say Y here if you know you have Pegasus or Pegasus-II based adapter.
+	  Say Y here if you kyesw you have Pegasus or Pegasus-II based adapter.
 	  If in doubt then look at <file:drivers/net/usb/pegasus.h> for the
 	  complete list of supported devices.
 
-	  If your particular adapter is not in the list and you are _sure_ it
+	  If your particular adapter is yest in the list and you are _sure_ it
 	  is Pegasus or Pegasus II based then send me
 	  <petkan@users.sourceforge.net> vendor and device IDs.
 
@@ -136,7 +136,7 @@ config USB_USBNET
 
 	  The USB host runs "usbnet", and the other end of the link might be:
 
-	  - Another USB host, when using USB "network" or "data transfer"
+	  - Ayesther USB host, when using USB "network" or "data transfer"
 	    cables.  These are often used to network laptops to PCs, like
 	    "Laplink" parallel cables or some motherboards.  These rely
 	    on specialized chips from many suppliers.
@@ -150,8 +150,8 @@ config USB_USBNET
 	    uses this driver framework.
 
 	  The link will appear with a name like "usb0", when the link is
-	  a two-node link, or "eth0" for most CDC-Ethernet devices.  Those
-	  two-node links are most easily managed with Ethernet Bridging
+	  a two-yesde link, or "eth0" for most CDC-Ethernet devices.  Those
+	  two-yesde links are most easily managed with Ethernet Bridging
 	  (CONFIG_BRIDGE) instead of routing.
 
 	  For more information see <http://www.linux-usb.org/usbnet/>.
@@ -218,7 +218,7 @@ config USB_NET_CDCETHER
 	  from <http://www.usb.org/>.
 
 	  CDC Ethernet is an implementation option for DOCSIS cable modems
-	  that support USB connectivity, used for non-Microsoft USB hosts.
+	  that support USB connectivity, used for yesn-Microsoft USB hosts.
 	  The Linux-USB CDC Ethernet Gadget driver is an open implementation.
  	  This driver should work with at least the following devices:
 
@@ -325,7 +325,7 @@ config USB_NET_SR9800
 	  Say Y if you want to use one of the following 100Mbps USB Ethernet
 	  device based on the CoreChip-sz SR9800 chip.
 
-	  This driver makes the adapter appear as a normal Ethernet interface,
+	  This driver makes the adapter appear as a yesrmal Ethernet interface,
 	  typically on eth0, if it is the only ethernet device, or perhaps on
 	  eth1, if you have a PCI or ISA ethernet card installed.
 
@@ -359,7 +359,7 @@ config USB_NET_GL620A
 	  Choose this option if you're using a host-to-host cable,
 	  or PC2PC motherboard, with this chip.
 
-	  Note that the half-duplex "GL620USB" is not supported.
+	  Note that the half-duplex "GL620USB" is yest supported.
 
 config USB_NET_NET1080
 	tristate "NetChip 1080 based cables (Laplink, ...)"
@@ -398,7 +398,7 @@ config USB_NET_RNDIS_HOST
 	  of this protocol (with even less public documentation) seems to
 	  be at the root of Microsoft's "ActiveSync" too.
 
-	  Avoid using this protocol unless you have no better options.
+	  Avoid using this protocol unless you have yes better options.
 	  The protocol specification is incomplete, and is controlled by
 	  (and for) Microsoft; it isn't an "Open" ecosystem or market.
 
@@ -416,10 +416,10 @@ config USB_NET_CDC_SUBSET
 	  one of these drivers.
 
 	  Note that while many USB host-to-host cables can work in this mode,
-	  that may mean not being able to talk to Win32 systems or more
-	  commonly not being able to handle certain events (like replugging
+	  that may mean yest being able to talk to Win32 systems or more
+	  commonly yest being able to handle certain events (like replugging
 	  the host on the other end) very well.  Also, these devices will
-	  not generally have permanently assigned Ethernet addresses.
+	  yest generally have permanently assigned Ethernet addresses.
 
 config USB_ALI_M5632
 	bool "ALi M5632 based 'USB 2.0 Data Link' cables"
@@ -435,7 +435,7 @@ config USB_AN2720
 	select USB_NET_CDC_SUBSET_ENABLE
 	help
 	  Choose this option if you're using a host-to-host cable
-	  based on this design.  Note that AnchorChips is now a
+	  based on this design.  Note that AnchorChips is yesw a
 	  Cypress brand.
 
 config USB_BELKIN
@@ -475,7 +475,7 @@ config USB_EPSON2888
 	  by some sample firmware from Epson.
 
 config USB_KC2190
-	bool "KT Technology KC2190 based cables (InstaNet)"
+	bool "KT Techyeslogy KC2190 based cables (InstaNet)"
 	depends on USB_NET_CDC_SUBSET
 	select USB_NET_CDC_SUBSET_ENABLE
 	help
@@ -495,10 +495,10 @@ config USB_NET_ZAURUS
 	  PDAs from Olympus and some cell phones from Motorola.
 
 	  If you install an alternate image, such as the Linux 2.6 based
-	  versions of OpenZaurus, you should no longer need to support this
+	  versions of OpenZaurus, you should yes longer need to support this
 	  protocol.  Only the "eth-fd" or "net_fd" drivers in these devices
-	  really need this non-conformant variant of CDC Ethernet (or in
-	  some cases CDC MDLM) protocol, not "g_ether".
+	  really need this yesn-conformant variant of CDC Ethernet (or in
+	  some cases CDC MDLM) protocol, yest "g_ether".
 
 config USB_NET_CX82310_ETH
 	tristate "Conexant CX82310 USB ethernet port"
@@ -506,7 +506,7 @@ config USB_NET_CX82310_ETH
 	help
 	  Choose this option if you're using a Conexant CX82310-based ADSL
 	  router with USB ethernet port. This driver is for routers only,
-	  it will not work with ADSL modems (use cxacru driver instead).
+	  it will yest work with ADSL modems (use cxacru driver instead).
 
 config USB_NET_KALMIA
 	tristate "Samsung Kalmia based LTE USB modem"

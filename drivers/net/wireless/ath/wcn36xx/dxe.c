@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -361,7 +361,7 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 	/*
 	 * Make at least one loop of do-while because in case ring is
 	 * completely full head and tail are pointing to the same element
-	 * and while-do will not make any cycles.
+	 * and while-do will yest make any cycles.
 	 */
 	spin_lock_irqsave(&ch->lock, flags);
 	ctl = ch->tail_blk_ctl;
@@ -573,7 +573,7 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 			dma_unmap_single(wcn->dev, dma_addr, WCN36XX_PKT_SIZE,
 					DMA_FROM_DEVICE);
 			wcn36xx_rx_skb(wcn, skb);
-		} /* else keep old skb not submitted and use it for rx DMA */
+		} /* else keep old skb yest submitted and use it for rx DMA */
 
 		dxe->ctrl = ctrl;
 		ctl = ctl->next;
@@ -692,7 +692,7 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	ctl_skb = ctl_bd->next;
 
 	/*
-	 * If skb is not null that means that we reached the tail of the ring
+	 * If skb is yest null that means that we reached the tail of the ring
 	 * hence ring is full. Stop queues to let mac80211 back off until ring
 	 * has an empty slot again.
 	 */
@@ -704,7 +704,7 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	}
 
 	if (unlikely(ctl_skb->bd_cpu_addr)) {
-		wcn36xx_err("bd_cpu_addr cannot be NULL for skb DXE\n");
+		wcn36xx_err("bd_cpu_addr canyest be NULL for skb DXE\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -760,8 +760,8 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 
 	/*
 	 * When connected and trying to send data frame chip can be in sleep
-	 * mode and writing to the register will not wake up the chip. Instead
-	 * notify chip about new frame through SMSM bus.
+	 * mode and writing to the register will yest wake up the chip. Instead
+	 * yestify chip about new frame through SMSM bus.
 	 */
 	if (is_low &&  vif_priv->pw_state == WCN36XX_BMPS) {
 		qcom_smem_state_update_bits(wcn->tx_rings_empty_state,

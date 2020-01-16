@@ -5,7 +5,7 @@
 
 #include <linux/types.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <asm/unaligned.h>
@@ -100,7 +100,7 @@ EXPORT_SYMBOL(bin2hex);
  * The amount of bytes placed in the buffer without terminating NUL. If the
  * output was truncated, then the return value is the number of bytes
  * (excluding the terminating NUL) which would have been written to the final
- * string if enough space had been available.
+ * string if eyesugh space had been available.
  */
 int hex_dump_to_buffer(const void *buf, size_t len, int rowsize, int groupsize,
 		       char *linebuf, size_t linebuflen, bool ascii)
@@ -119,7 +119,7 @@ int hex_dump_to_buffer(const void *buf, size_t len, int rowsize, int groupsize,
 		len = rowsize;
 	if (!is_power_of_2(groupsize) || groupsize > 8)
 		groupsize = 1;
-	if ((len % groupsize) != 0)	/* no mixed size output */
+	if ((len % groupsize) != 0)	/* yes mixed size output */
 		groupsize = 1;
 
 	ngroups = len / groupsize;
@@ -210,7 +210,7 @@ EXPORT_SYMBOL(hex_dump_to_buffer);
  * @level: kernel log level (e.g. KERN_DEBUG)
  * @prefix_str: string to prefix each line with;
  *  caller supplies trailing spaces for alignment if desired
- * @prefix_type: controls whether prefix of an offset, address, or none
+ * @prefix_type: controls whether prefix of an offset, address, or yesne
  *  is printed (%DUMP_PREFIX_OFFSET, %DUMP_PREFIX_ADDRESS, %DUMP_PREFIX_NONE)
  * @rowsize: number of bytes to print per line; must be 16 or 32
  * @groupsize: number of bytes to print at a time (1, 2, 4, 8; default = 1)

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2016 ARM Limited
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hrtimer.h>
 #include <linux/io.h>
 #include <linux/list.h>
@@ -137,7 +137,7 @@ static void l2x0_pmu_event_configure(struct perf_event *event)
 	/*
 	 * The L2X0 counters saturate at 0xffffffff rather than wrapping, so we
 	 * will *always* lose some number of events when a counter saturates,
-	 * and have no way of detecting how many were lost.
+	 * and have yes way of detecting how many were lost.
 	 *
 	 * To minimize the impact of this, we try to maximize the period by
 	 * always starting counters at zero. To ensure that group ratios are
@@ -169,7 +169,7 @@ static enum hrtimer_restart l2x0_pmu_poll(struct hrtimer *hrtimer)
 	__l2x0_pmu_enable();
 	local_irq_restore(flags);
 
-	hrtimer_forward_now(hrtimer, l2x0_pmu_poll_period);
+	hrtimer_forward_yesw(hrtimer, l2x0_pmu_poll_period);
 	return HRTIMER_RESTART;
 }
 
@@ -479,11 +479,11 @@ void __init l2x0_pmu_register(void __iomem *base, u32 part)
 	 * which events to display, as the PL310 PMU supports a superset of
 	 * L220 events.
 	 *
-	 * The L210 PMU has a different programmer's interface, and is not
+	 * The L210 PMU has a different programmer's interface, and is yest
 	 * supported by this driver.
 	 *
 	 * We must defer registering the PMU until the perf subsystem is up and
-	 * running, so just stash the name and base, and leave that to another
+	 * running, so just stash the name and base, and leave that to ayesther
 	 * initcall.
 	 */
 	switch (part & L2X0_CACHE_ID_PART_MASK) {
@@ -543,7 +543,7 @@ static __init int l2x0_pmu_init(void)
 	l2x0_pmu_hrtimer.function = l2x0_pmu_poll;
 
 	cpumask_set_cpu(0, &pmu_cpu);
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_L2X0_ONLINE,
+	ret = cpuhp_setup_state_yescalls(CPUHP_AP_PERF_ARM_L2X0_ONLINE,
 					"perf/arm/l2x0:online", NULL,
 					l2x0_pmu_offline_cpu);
 	if (ret)
@@ -556,7 +556,7 @@ static __init int l2x0_pmu_init(void)
 	return 0;
 
 out_cpuhp:
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_ARM_L2X0_ONLINE);
+	cpuhp_remove_state_yescalls(CPUHP_AP_PERF_ARM_L2X0_ONLINE);
 out_pmu:
 	kfree(l2x0_pmu);
 	l2x0_pmu = NULL;

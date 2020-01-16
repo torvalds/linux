@@ -116,7 +116,7 @@ static u8 mtrr_disabled_type(struct kvm_vcpu *vcpu)
 	 * memory type is applied to all of physical memory.
 	 *
 	 * However, virtual machines can be run with CPUID such that
-	 * there are no MTRRs.  In that case, the firmware will never
+	 * there are yes MTRRs.  In that case, the firmware will never
 	 * enable MTRRs and it is obviously undesirable to run the
 	 * guest entirely with UC memory and we use WB.
 	 */
@@ -297,7 +297,7 @@ static void var_mtrr_range(struct kvm_mtrr_range *range, u64 *start, u64 *end)
 
 	mask = range->mask & PAGE_MASK;
 
-	/* This cannot overflow because writing to the reserved bits of
+	/* This canyest overflow because writing to the reserved bits of
 	 * variable MTRRs causes a #GP.
 	 */
 	*end = (*start | ~mask) + 1;
@@ -310,7 +310,7 @@ static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 	int index;
 
 	if (msr == MSR_IA32_CR_PAT || !tdp_enabled ||
-	      !kvm_arch_has_noncoherent_dma(vcpu->kvm))
+	      !kvm_arch_has_yesncoherent_dma(vcpu->kvm))
 		return;
 
 	if (!mtrr_is_enabled(mtrr_state) && msr != MSR_MTRRdefType)
@@ -349,7 +349,7 @@ static void set_var_mtrr_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 	/* remove the entry if it's in the list. */
 	if (var_mtrr_range_is_valid(cur))
-		list_del(&mtrr_state->var_ranges[index].node);
+		list_del(&mtrr_state->var_ranges[index].yesde);
 
 	/* Extend the mask with all 1 bits to the left, since those
 	 * bits must implicitly be 0.  The bits are then cleared
@@ -362,10 +362,10 @@ static void set_var_mtrr_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 	/* add it to the list if it's enabled. */
 	if (var_mtrr_range_is_valid(cur)) {
-		list_for_each_entry(tmp, &mtrr_state->head, node)
+		list_for_each_entry(tmp, &mtrr_state->head, yesde)
 			if (cur->base >= tmp->base)
 				break;
-		list_add_tail(&cur->node, &tmp->node);
+		list_add_tail(&cur->yesde, &tmp->yesde);
 	}
 }
 
@@ -447,7 +447,7 @@ struct mtrr_iter {
 	int mem_type;
 	/* mtrr is completely disabled? */
 	bool mtrr_disabled;
-	/* [start, end) is not fully covered in MTRRs? */
+	/* [start, end) is yest fully covered in MTRRs? */
 	bool partial_map;
 
 	/* private fields. */
@@ -515,7 +515,7 @@ static void __mtrr_lookup_var_next(struct mtrr_iter *iter)
 {
 	struct kvm_mtrr *mtrr_state = iter->mtrr_state;
 
-	list_for_each_entry_continue(iter->range, &mtrr_state->head, node)
+	list_for_each_entry_continue(iter->range, &mtrr_state->head, yesde)
 		if (match_var_range(iter, iter->range))
 			return;
 
@@ -530,7 +530,7 @@ static void mtrr_lookup_var_start(struct mtrr_iter *iter)
 	iter->fixed = false;
 	iter->start_max = iter->start;
 	iter->range = NULL;
-	iter->range = list_prepare_entry(iter->range, &mtrr_state->head, node);
+	iter->range = list_prepare_entry(iter->range, &mtrr_state->head, yesde);
 
 	__mtrr_lookup_var_next(iter);
 }
@@ -663,7 +663,7 @@ u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 		}
 
 		/*
-		 * For overlaps not defined by the above rules, processor
+		 * For overlaps yest defined by the above rules, processor
 		 * behavior is undefined.
 		 */
 
@@ -674,7 +674,7 @@ u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 	if (iter.mtrr_disabled)
 		return mtrr_disabled_type(vcpu);
 
-	/* not contained in any MTRRs. */
+	/* yest contained in any MTRRs. */
 	if (type == -1)
 		return mtrr_default_type(mtrr_state);
 

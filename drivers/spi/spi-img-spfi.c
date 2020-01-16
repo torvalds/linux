@@ -2,7 +2,7 @@
 /*
  * IMG SPFI controller driver
  *
- * Copyright (C) 2007,2008,2013 Imagination Technologies Ltd.
+ * Copyright (C) 2007,2008,2013 Imagination Techyeslogies Ltd.
  * Copyright (C) 2014 Google, Inc.
  */
 
@@ -639,9 +639,9 @@ static int img_spfi_probe(struct platform_device *pdev)
 	master->auto_runtime_pm = true;
 	master->bus_num = pdev->id;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_TX_DUAL | SPI_RX_DUAL;
-	if (of_property_read_bool(spfi->dev->of_node, "img,supports-quad-mode"))
+	if (of_property_read_bool(spfi->dev->of_yesde, "img,supports-quad-mode"))
 		master->mode_bits |= SPI_TX_QUAD | SPI_RX_QUAD;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(8);
 	master->max_speed_hz = clk_get_rate(spfi->spfi_clk) / 4;
 	master->min_speed_hz = clk_get_rate(spfi->spfi_clk) / 512;
@@ -650,10 +650,10 @@ static int img_spfi_probe(struct platform_device *pdev)
 	 * Maximum speed supported by spfi is limited to the lower value
 	 * between 1/4 of the SPFI clock or to "spfi-max-frequency"
 	 * defined in the device tree.
-	 * If no value is defined in the device tree assume the maximum
+	 * If yes value is defined in the device tree assume the maximum
 	 * speed supported to be 1/4 of the SPFI clock.
 	 */
-	if (!of_property_read_u32(spfi->dev->of_node, "spfi-max-frequency",
+	if (!of_property_read_u32(spfi->dev->of_yesde, "spfi-max-frequency",
 				  &max_speed_hz)) {
 		if (master->max_speed_hz > max_speed_hz)
 			master->max_speed_hz = max_speed_hz;

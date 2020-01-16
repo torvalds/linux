@@ -52,7 +52,7 @@ EXPORT_SYMBOL_GPL(dprc_open);
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPRC object
  *
- * After this function is called, no further operations are
+ * After this function is called, yes further operations are
  * allowed on the object without opening a new control session.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -115,7 +115,7 @@ int dprc_set_irq(struct fsl_mc_io *mc_io,
  *
  * Allows GPP software to control when interrupts are generated.
  * Each interrupt can have up to 32 causes.  The enable/disable control's the
- * overall interrupt state. if the interrupt is disabled no causes will cause
+ * overall interrupt state. if the interrupt is disabled yes causes will cause
  * an interrupt.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -148,7 +148,7 @@ int dprc_set_irq_enable(struct fsl_mc_io *mc_io,
  * @irq_index:	The interrupt index to configure
  * @mask:	event mask to trigger interrupt;
  *			each bit:
- *				0 = ignore event
+ *				0 = igyesre event
  *				1 = consider event for asserting irq
  *
  * Every interrupt can have up to 32 causes and the interrupt model supports
@@ -183,7 +183,7 @@ int dprc_set_irq_mask(struct fsl_mc_io *mc_io,
  * @token:	Token of DPRC object
  * @irq_index:	The interrupt index to configure
  * @status:	Returned interrupts status - one bit per cause:
- *			0 = no interrupt pending
+ *			0 = yes interrupt pending
  *			1 = interrupt pending
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -332,7 +332,7 @@ EXPORT_SYMBOL_GPL(dprc_get_obj_count);
  * @obj_desc:	Returns the requested object descriptor
  *
  * The object descriptors are retrieved one by one by incrementing
- * obj_index up to (not including) the value of obj_count returned
+ * obj_index up to (yest including) the value of obj_count returned
  * from dprc_get_obj_count(). dprc_get_obj_count() must
  * be called prior to dprc_get_obj().
  *
@@ -369,7 +369,7 @@ int dprc_get_obj(struct fsl_mc_io *mc_io,
 	obj_desc->region_count = rsp_params->region_count;
 	obj_desc->state = le32_to_cpu(rsp_params->state);
 	obj_desc->ver_major = le16_to_cpu(rsp_params->version_major);
-	obj_desc->ver_minor = le16_to_cpu(rsp_params->version_minor);
+	obj_desc->ver_miyesr = le16_to_cpu(rsp_params->version_miyesr);
 	obj_desc->flags = le16_to_cpu(rsp_params->flags);
 	strncpy(obj_desc->type, rsp_params->type, 16);
 	obj_desc->type[15] = '\0';
@@ -443,13 +443,13 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_get_obj_region *cmd_params;
 	struct dprc_rsp_get_obj_region *rsp_params;
-	u16 major_ver, minor_ver;
+	u16 major_ver, miyesr_ver;
 	int err;
 
 	/* prepare command */
 	err = dprc_get_api_version(mc_io, 0,
 				     &major_ver,
-				     &minor_ver);
+				     &miyesr_ver);
 	if (err)
 		return err;
 
@@ -459,7 +459,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	 * address is set to zero to indicate it needs to be obtained elsewhere
 	 * (typically the device tree).
 	 */
-	if (major_ver > 6 || (major_ver == 6 && minor_ver >= 3))
+	if (major_ver > 6 || (major_ver == 6 && miyesr_ver >= 3))
 		cmd.header =
 			mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG_V2,
 					     cmd_flags, token);
@@ -483,7 +483,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	rsp_params = (struct dprc_rsp_get_obj_region *)cmd.params;
 	region_desc->base_offset = le64_to_cpu(rsp_params->base_offset);
 	region_desc->size = le32_to_cpu(rsp_params->size);
-	if (major_ver > 6 || (major_ver == 6 && minor_ver >= 3))
+	if (major_ver > 6 || (major_ver == 6 && miyesr_ver >= 3))
 		region_desc->base_address = le64_to_cpu(rsp_params->base_addr);
 	else
 		region_desc->base_address = 0;
@@ -497,14 +497,14 @@ EXPORT_SYMBOL_GPL(dprc_get_obj_region);
  * @mc_io:	Pointer to Mc portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @major_ver:	Major version of Data Path Resource Container API
- * @minor_ver:	Minor version of Data Path Resource Container API
+ * @miyesr_ver:	Miyesr version of Data Path Resource Container API
  *
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,
-			 u16 *minor_ver)
+			 u16 *miyesr_ver)
 {
 	struct fsl_mc_command cmd = { 0 };
 	int err;
@@ -519,7 +519,7 @@ int dprc_get_api_version(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	mc_cmd_read_api_version(&cmd, major_ver, minor_ver);
+	mc_cmd_read_api_version(&cmd, major_ver, miyesr_ver);
 
 	return 0;
 }
@@ -566,9 +566,9 @@ int dprc_get_container_id(struct fsl_mc_io *mc_io,
  * @state:	Returned link state:
  *		1 - link is up;
  *		0 - link is down;
- *		-1 - no connection (endpoint2 information is irrelevant)
+ *		-1 - yes connection (endpoint2 information is irrelevant)
  *
- * Return:     '0' on Success; -ENOTCONN if connection does not exist.
+ * Return:     '0' on Success; -ENOTCONN if connection does yest exist.
  */
 int dprc_get_connection(struct fsl_mc_io *mc_io,
 			u32 cmd_flags,

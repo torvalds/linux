@@ -252,7 +252,7 @@ static int sharp_nt_panel_add(struct sharp_nt_panel *sharp_nt)
 
 	sharp_nt->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(sharp_nt->reset_gpio)) {
-		dev_err(dev, "cannot get reset-gpios %ld\n",
+		dev_err(dev, "canyest get reset-gpios %ld\n",
 			PTR_ERR(sharp_nt->reset_gpio));
 		sharp_nt->reset_gpio = NULL;
 	} else {

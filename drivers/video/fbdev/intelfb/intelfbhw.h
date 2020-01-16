@@ -357,7 +357,7 @@
 #define CURSOR_MOBILE_GAMMA_ENABLE	(1 << 26)
 #define CURSOR_MEM_TYPE_LOCAL		(1 << 25)
 
-/* All platforms (desktop has no pipe B) */
+/* All platforms (desktop has yes pipe B) */
 #define CURSOR_A_BASEADDR	0x70084
 #define CURSOR_B_BASEADDR	0x700c4
 #define CURSOR_BASE_MASK		0xffffff00
@@ -561,14 +561,14 @@
 extern int intelfbhw_get_chipset(struct pci_dev *pdev, struct intelfb_info *dinfo);
 extern int intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 				int *stolen_size);
-extern int intelfbhw_check_non_crt(struct intelfb_info *dinfo);
+extern int intelfbhw_check_yesn_crt(struct intelfb_info *dinfo);
 extern const char *intelfbhw_dvo_to_string(int dvo);
 extern int intelfbhw_validate_mode(struct intelfb_info *dinfo,
 				   struct fb_var_screeninfo *var);
 extern int intelfbhw_pan_display(struct fb_var_screeninfo *var,
 				 struct fb_info *info);
 extern void intelfbhw_do_blank(int blank, struct fb_info *info);
-extern void intelfbhw_setcolreg(struct intelfb_info *dinfo, unsigned regno,
+extern void intelfbhw_setcolreg(struct intelfb_info *dinfo, unsigned regyes,
 				unsigned red, unsigned green, unsigned blue,
 				unsigned transp);
 extern int intelfbhw_read_hw_state(struct intelfb_info *dinfo,

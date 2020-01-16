@@ -10,8 +10,8 @@
  * mpi2_sas.h Version:  02.00.10
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
- *       prefix are for use only on MPI v2.5 products, and must not be used
- *       with MPI v2.0 products. Unless otherwise noted, names beginning with
+ *       prefix are for use only on MPI v2.5 products, and must yest be used
+ *       with MPI v2.0 products. Unless otherwise yested, names beginning with
  *       MPI2 or Mpi2 are for use with both MPI v2.0 and MPI v2.5 products.
  *
  * Version History

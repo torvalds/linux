@@ -42,7 +42,7 @@
 #define	INQD_PDT_PROC	0x03	/* Processor device */
 #define	INQD_PDT_CHNGR	0x08	/* Changer (jukebox, scsi2) */
 #define	INQD_PDT_COMM	0x09	/* Communication device (scsi2) */
-#define	INQD_PDT_NOLUN2 0x1f	/* Unknown Device (scsi2) */
+#define	INQD_PDT_NOLUN2 0x1f	/* Unkyeswn Device (scsi2) */
 #define	INQD_PDT_NOLUN	0x7f	/* Logical Unit Not Present */
 
 #define	INQD_PDT_DMASK	0x1F	/* Peripheral Device Type Mask */
@@ -231,10 +231,10 @@ static char *aac_get_status_string(u32 status);
 #endif
 
 /*
- *	Non dasd selection is handled entirely in aachba now
+ *	Non dasd selection is handled entirely in aachba yesw
  */
 
-static int nondasd = -1;
+static int yesndasd = -1;
 static int aac_cache = 2;	/* WCE=0 to avoid performance problems */
 static int dacmode = -1;
 int aac_msi;
@@ -242,16 +242,16 @@ int aac_commit = -1;
 int startup_timeout = 180;
 int aif_timeout = 120;
 int aac_sync_mode;  /* Only Sync. transfer - disabled */
-int aac_convert_sgl = 1;	/* convert non-conformable s/g list - enabled */
+int aac_convert_sgl = 1;	/* convert yesn-conformable s/g list - enabled */
 
 module_param(aac_sync_mode, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(aac_sync_mode, "Force sync. transfer mode"
 	" 0=off, 1=on");
 module_param(aac_convert_sgl, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(aac_convert_sgl, "Convert non-conformable s/g list"
+MODULE_PARM_DESC(aac_convert_sgl, "Convert yesn-conformable s/g list"
 	" 0=off, 1=on");
-module_param(nondasd, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(nondasd, "Control scanning of hba for nondasd devices."
+module_param(yesndasd, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(yesndasd, "Control scanning of hba for yesndasd devices."
 	" 0=off, 1=on");
 module_param_named(cache, aac_cache, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(cache, "Disable Queue Flush commands:\n"
@@ -264,7 +264,7 @@ MODULE_PARM_DESC(dacmode, "Control whether dma addressing is using 64 bit DAC."
 module_param_named(commit, aac_commit, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(commit, "Control whether a COMMIT_CONFIG is issued to the"
 	" adapter for foreign arrays.\n"
-	"This is typically needed in systems that do not have a BIOS."
+	"This is typically needed in systems that do yest have a BIOS."
 	" 0=off, 1=on");
 module_param_named(msi, aac_msi, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(msi, "IRQ handling."
@@ -272,7 +272,7 @@ MODULE_PARM_DESC(msi, "IRQ handling."
 module_param(startup_timeout, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(startup_timeout, "The duration of time in seconds to wait for"
 	" adapter to have it's kernel up and\n"
-	"running. This is typically adjusted for large systems that do not"
+	"running. This is typically adjusted for large systems that do yest"
 	" have a BIOS.");
 module_param(aif_timeout, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(aif_timeout, "The duration of time in seconds to wait for"
@@ -310,7 +310,7 @@ int aac_check_reset = 1;
 module_param_named(check_reset, aac_check_reset, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(check_reset, "If adapter fails health check, reset the"
 	" adapter. a value of -1 forces the reset to adapters programmed to"
-	" ignore it.");
+	" igyesre it.");
 
 int expose_physicals = -1;
 module_param(expose_physicals, int, S_IRUGO|S_IWUSR);
@@ -391,11 +391,11 @@ int aac_get_config_status(struct aac_dev *dev, int commit_flag)
 		if ((le32_to_cpu(reply->response) != ST_OK) ||
 		     (le32_to_cpu(reply->status) != CT_OK) ||
 		     (le32_to_cpu(reply->data.action) > CFACT_PAUSE)) {
-			printk(KERN_WARNING "aac_get_config_status: Will not issue the Commit Configuration\n");
+			printk(KERN_WARNING "aac_get_config_status: Will yest issue the Commit Configuration\n");
 			status = -EINVAL;
 		}
 	}
-	/* Do not set XferState to zero unless receives a response from F/W */
+	/* Do yest set XferState to zero unless receives a response from F/W */
 	if (status >= 0)
 		aac_fib_complete(fibptr);
 
@@ -415,13 +415,13 @@ int aac_get_config_status(struct aac_dev *dev, int commit_flag)
 				    FsaNormal,
 				    1, 1,
 				    NULL, NULL);
-			/* Do not set XferState to zero unless
+			/* Do yest set XferState to zero unless
 			 * receives a response from F/W */
 			if (status >= 0)
 				aac_fib_complete(fibptr);
 		} else if (aac_commit == 0) {
 			printk(KERN_WARNING
-			  "aac_get_config_status: Foreign device configurations are being ignored\n");
+			  "aac_get_config_status: Foreign device configurations are being igyesred\n");
 		}
 	}
 	/* FIB should be freed only after getting the response from the F/W */
@@ -562,7 +562,7 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 }
 
 /**
- *	aac_get_container_name	-	get container name, none blocking.
+ *	aac_get_container_name	-	get container name, yesne blocking.
  */
 static int aac_get_container_name(struct scsi_cmnd * scsicmd)
 {
@@ -838,7 +838,7 @@ struct scsi_inq {
  *	@a:	string to copy from
  *	@b:	string to copy to
  *
- *	Copy a String from one location to another
+ *	Copy a String from one location to ayesther
  *	without copying \0
  */
 
@@ -870,7 +870,7 @@ static char *container_types[] = {
 	"RAID1E",
 	"RAID6",
 	"RAID60",
-	"Unknown"
+	"Unkyeswn"
 };
 
 char * get_container_type(unsigned tindex)
@@ -1010,7 +1010,7 @@ static void get_container_serial_callback(void *context, struct fib * fibptr)
 				sizeof(vpdpage83data.type1) +
 				sizeof(vpdpage83data.type2);
 
-			/* VPD 83 Type 3 is not supported for ARC */
+			/* VPD 83 Type 3 is yest supported for ARC */
 			if (dev->sa_firmware)
 				vpdpage83data.PageLength +=
 				sizeof(vpdpage83data.type3);
@@ -1064,7 +1064,7 @@ static void get_container_serial_callback(void *context, struct fib * fibptr)
 
 			/*
 			 * VpdIdentifierTypeFCPHName
-			 * VPD 0x83 Type 3 not supported for ARC
+			 * VPD 0x83 Type 3 yest supported for ARC
 			 */
 			if (dev->sa_firmware) {
 				build_vpd83_type3(&vpdpage83data,
@@ -1095,7 +1095,7 @@ static void get_container_serial_callback(void *context, struct fib * fibptr)
 }
 
 /**
- *	aac_get_container_serial - get container serial, none blocking.
+ *	aac_get_container_serial - get container serial, yesne blocking.
  */
 static int aac_get_container_serial(struct scsi_cmnd * scsicmd)
 {
@@ -1450,7 +1450,7 @@ static int aac_write_block(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u3
 	writecmd->count = cpu_to_le32(count *
 		dev->fsa_dev[scmd_id(cmd)].block_size);
 	writecmd->sg.count = cpu_to_le32(1);
-	/* ->stable is not used - it did mean which type of write */
+	/* ->stable is yest used - it did mean which type of write */
 
 	ret = aac_build_sg(cmd, &writecmd->sg);
 	if (ret < 0)
@@ -1522,7 +1522,7 @@ static struct aac_hba_cmd_req *aac_construct_hbacmd(struct fib *fib,
 	dev = (struct aac_dev *)cmd->device->host->hostdata;
 
 	hbacmd = (struct aac_hba_cmd_req *)fib->hw_fib_va;
-	memset(hbacmd, 0, 96);	/* sizeof(*hbacmd) is not necessary */
+	memset(hbacmd, 0, 96);	/* sizeof(*hbacmd) is yest necessary */
 	/* iu_type is a parameter of aac_hba_send */
 	switch (cmd->sc_data_direction) {
 	case DMA_TO_DEVICE:
@@ -1870,17 +1870,17 @@ static inline u32 aac_get_safw_phys_expose_flag(struct aac_dev *dev, int lun)
 
 static inline u32 aac_get_safw_phys_attribs(struct aac_dev *dev, int lun)
 {
-	return dev->safw_phys_luns->lun[lun].node_ident[9];
+	return dev->safw_phys_luns->lun[lun].yesde_ident[9];
 }
 
 static inline u32 aac_get_safw_phys_nexus(struct aac_dev *dev, int lun)
 {
-	return *((u32 *)&dev->safw_phys_luns->lun[lun].node_ident[12]);
+	return *((u32 *)&dev->safw_phys_luns->lun[lun].yesde_ident[12]);
 }
 
 static inline u32 aac_get_safw_phys_device_type(struct aac_dev *dev, int lun)
 {
-	return dev->safw_phys_luns->lun[lun].node_ident[8];
+	return dev->safw_phys_luns->lun[lun].yesde_ident[8];
 }
 
 static inline void aac_free_safw_identify_resp(struct aac_dev *dev,
@@ -2165,7 +2165,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 		if (!aac_check_reset || ((aac_check_reset == 1) &&
 		  (dev->supplement_adapter_info.supported_options2 &
 		  AAC_OPTION_IGNORE_RESET))) {
-			printk(KERN_INFO "%s%d: Reset Adapter Ignored\n",
+			printk(KERN_INFO "%s%d: Reset Adapter Igyesred\n",
 			  dev->name, dev->id);
 		}
 	}
@@ -2173,34 +2173,34 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	dev->cache_protected = 0;
 	dev->jbod = ((dev->supplement_adapter_info.feature_bits &
 		AAC_FEATURE_JBOD) != 0);
-	dev->nondasd_support = 0;
+	dev->yesndasd_support = 0;
 	dev->raid_scsi_mode = 0;
 	if(dev->adapter_info.options & AAC_OPT_NONDASD)
-		dev->nondasd_support = 1;
+		dev->yesndasd_support = 1;
 
 	/*
 	 * If the firmware supports ROMB RAID/SCSI mode and we are currently
-	 * in RAID/SCSI mode, set the flag. For now if in this mode we will
-	 * force nondasd support on. If we decide to allow the non-dasd flag
+	 * in RAID/SCSI mode, set the flag. For yesw if in this mode we will
+	 * force yesndasd support on. If we decide to allow the yesn-dasd flag
 	 * additional changes changes will have to be made to support
 	 * RAID/SCSI.  the function aac_scsi_cmd in this module will have to be
 	 * changed to support the new dev->raid_scsi_mode flag instead of
-	 * leaching off of the dev->nondasd_support flag. Also in linit.c the
+	 * leaching off of the dev->yesndasd_support flag. Also in linit.c the
 	 * function aac_detect will have to be modified where it sets up the
-	 * max number of channels based on the aac->nondasd_support flag only.
+	 * max number of channels based on the aac->yesndasd_support flag only.
 	 */
 	if ((dev->adapter_info.options & AAC_OPT_SCSI_MANAGED) &&
 	    (dev->adapter_info.options & AAC_OPT_RAID_SCSI_MODE)) {
-		dev->nondasd_support = 1;
+		dev->yesndasd_support = 1;
 		dev->raid_scsi_mode = 1;
 	}
 	if (dev->raid_scsi_mode != 0)
 		printk(KERN_INFO "%s%d: ROMB RAID/SCSI mode enabled\n",
 				dev->name, dev->id);
 
-	if (nondasd != -1)
-		dev->nondasd_support = (nondasd!=0);
-	if (dev->nondasd_support && !dev->in_reset)
+	if (yesndasd != -1)
+		dev->yesndasd_support = (yesndasd!=0);
+	if (dev->yesndasd_support && !dev->in_reset)
 		printk(KERN_INFO "%s%d: Non-DASD support enabled.\n",dev->name, dev->id);
 
 	if (dma_get_required_mask(&dev->pdev->dev) > DMA_BIT_MASK(32))
@@ -2221,7 +2221,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	/* avoid problems with AAC_QUIRK_SCSI_32 controllers */
 	if (dev->dac_support &&	(aac_get_driver_ident(dev->cardtype)->quirks
 		& AAC_QUIRK_SCSI_32)) {
-		dev->nondasd_support = 0;
+		dev->yesndasd_support = 0;
 		dev->jbod = 0;
 		expose_physicals = 0;
 	}
@@ -2805,7 +2805,7 @@ static int aac_start_stop(struct scsi_cmnd *scsicmd)
 	pmcmd = fib_data(cmd_fibcontext);
 	pmcmd->command = cpu_to_le32(VM_ContainerConfig);
 	pmcmd->type = cpu_to_le32(CT_POWER_MANAGEMENT);
-	/* Eject bit ignored, not relevant */
+	/* Eject bit igyesred, yest relevant */
 	pmcmd->sub = (scsicmd->cmnd[4] & 1) ?
 		cpu_to_le32(CT_PM_START_UNIT) : cpu_to_le32(CT_PM_STOP_UNIT);
 	pmcmd->cid = cpu_to_le32(sdev_id(sdev));
@@ -2854,7 +2854,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		return -1;
 	/*
 	 *	If the bus, id or lun is out of range, return fail
-	 *	Test does not apply to ID 16, the pseudo id for the controller
+	 *	Test does yest apply to ID 16, the pseudo id for the controller
 	 *	itself.
 	 */
 	cid = scmd_id(scsicmd);
@@ -2891,7 +2891,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 					break;
 				}
 			}
-		} else {  /* check for physical non-dasd devices */
+		} else {  /* check for physical yesn-dasd devices */
 			bus = aac_logical_to_phys(scmd_channel(scsicmd));
 
 			if (bus < AAC_MAX_BUSES && cid < AAC_MAX_TARGETS &&
@@ -2900,7 +2900,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 				if (dev->in_reset)
 					return -1;
 				return aac_send_hba_fib(scsicmd);
-			} else if (dev->nondasd_support || expose_physicals ||
+			} else if (dev->yesndasd_support || expose_physicals ||
 				dev->jbod) {
 				if (dev->in_reset)
 					return -1;
@@ -2995,8 +2995,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 						  SAM_STAT_GOOD;
 			} else if (scsicmd->cmnd[2] == 0x83) {
 				/* vpd page 0x83 - Device Identification Page */
-				char *sno = (char *)&inq_data;
-				sno[3] = setinqserial(dev, &sno[4],
+				char *syes = (char *)&inq_data;
+				syes[3] = setinqserial(dev, &syes[4],
 						      scmd_id(scsicmd));
 				if (aac_wwn != 2)
 					return aac_get_container_serial(
@@ -3005,7 +3005,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 						  COMMAND_COMPLETE << 8 |
 						  SAM_STAT_GOOD;
 			} else {
-				/* vpd page not implemented */
+				/* vpd page yest implemented */
 				scsicmd->result = DID_OK << 16 |
 				  COMMAND_COMPLETE << 8 |
 				  SAM_STAT_CHECK_CONDITION;
@@ -3081,7 +3081,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			scsi_set_resid(scsicmd,
 				       scsi_bufflen(scsicmd) - alloc_len);
 
-		/* Do not cache partition table for arrays */
+		/* Do yest cache partition table for arrays */
 		scsicmd->device->removable = 1;
 
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
@@ -3109,7 +3109,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		cp[6] = (fsa_dev_ptr[cid].block_size >> 8) & 0xff;
 		cp[7] = (fsa_dev_ptr[cid].block_size) & 0xff;
 		scsi_sg_copy_from_buffer(scsicmd, cp, sizeof(cp));
-		/* Do not cache partition table for arrays */
+		/* Do yest cache partition table for arrays */
 		scsicmd->device->removable = 1;
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
 				  SAM_STAT_GOOD;
@@ -3364,7 +3364,7 @@ static int query_disk(struct aac_dev *dev, void __user *arg)
 	} else if ((qd.bus == -1) && (qd.id == -1) && (qd.lun == -1)) {
 		if (qd.cnum < 0 || qd.cnum >= dev->maximum_num_containers)
 			return -EINVAL;
-		qd.instance = dev->scsi_host_ptr->host_no;
+		qd.instance = dev->scsi_host_ptr->host_yes;
 		qd.bus = 0;
 		qd.id = CONTAINER_TO_ID(qd.cnum);
 		qd.lun = CONTAINER_TO_LUN(qd.cnum);
@@ -3407,7 +3407,7 @@ static int force_delete_disk(struct aac_dev *dev, void __user *arg)
 	 */
 	fsa_dev_ptr[dd.cnum].deleted = 1;
 	/*
-	 *	Mark the container as no longer valid
+	 *	Mark the container as yes longer valid
 	 */
 	fsa_dev_ptr[dd.cnum].valid = 0;
 	return 0;
@@ -3428,13 +3428,13 @@ static int delete_disk(struct aac_dev *dev, void __user *arg)
 	if (dd.cnum >= dev->maximum_num_containers)
 		return -EINVAL;
 	/*
-	 *	If the container is locked, it can not be deleted by the API.
+	 *	If the container is locked, it can yest be deleted by the API.
 	 */
 	if (fsa_dev_ptr[dd.cnum].locked)
 		return -EBUSY;
 	else {
 		/*
-		 *	Mark the container as no longer being valid.
+		 *	Mark the container as yes longer being valid.
 		 */
 		fsa_dev_ptr[dd.cnum].valid = 0;
 		fsa_dev_ptr[dd.cnum].devname[0] = '\0';
@@ -3464,7 +3464,7 @@ int aac_dev_ioctl(struct aac_dev *dev, unsigned int cmd, void __user *arg)
  * @context: the context set in the fib - here it is scsi cmd
  * @fibptr: pointer to the fib
  *
- * Handles the completion of a scsi command to a non dasd device
+ * Handles the completion of a scsi command to a yesn dasd device
  *
  */
 
@@ -4084,7 +4084,7 @@ static long aac_build_sgraw2(struct scsi_cmnd *scsicmd,
 
 	rio2->sgeCnt = cpu_to_le32(nseg);
 	rio2->flags |= cpu_to_le16(RIO2_SG_FORMAT_IEEE1212);
-	/* not conformable: evaluate required sg elements */
+	/* yest conformable: evaluate required sg elements */
 	if (!conformable) {
 		int j, nseg_new = nseg, err_found;
 		for (i = min_size / PAGE_SIZE; i >= 1; --i) {
@@ -4205,7 +4205,7 @@ static long aac_build_sghba(struct scsi_cmnd *scsicmd,
 		hbacmd->emb_data_desc_count = cpu_to_le32(nseg);
 		sge->flags = cpu_to_le32(0x40000000);
 	} else {
-		/* not embedded */
+		/* yest embedded */
 		hbacmd->sge[0].flags = cpu_to_le32(0x80000000);
 		hbacmd->emb_data_desc_count = (u8)cpu_to_le32(1);
 		hbacmd->sge[0].addr_hi = (u32)cpu_to_le32(sg_address >> 32);
@@ -4262,7 +4262,7 @@ static struct aac_srb_status_info srb_status_info[] = {
 	{ SRB_STATUS_NOT_IN_USE,	"Not In Use"},
 	{ SRB_STATUS_FORCE_ABORT,	"Force Abort"},
 	{ SRB_STATUS_DOMAIN_VALIDATION_FAIL,"Domain Validation Failure"},
-	{ 0xff,				"Unknown Error"}
+	{ 0xff,				"Unkyeswn Error"}
 };
 
 char *aac_get_status_string(u32 status)

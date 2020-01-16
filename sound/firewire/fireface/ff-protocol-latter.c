@@ -259,7 +259,7 @@ static void latter_dump_status(struct snd_ff *ff, struct snd_info_buffer *buffer
 			else
 				snd_iprintf(buffer, "lock\n");
 		} else {
-			snd_iprintf(buffer, "none\n");
+			snd_iprintf(buffer, "yesne\n");
 		}
 	}
 
@@ -286,7 +286,7 @@ static void latter_dump_status(struct snd_ff *ff, struct snd_info_buffer *buffer
 // - 0x00008000: 0x'....'....'0000'0100
 // - 0x00010000: 0x'....'....'0000'0180
 //
-// Drivers can suppress the device to transfer asynchronous transactions by
+// Drivers can suppress the device to transfer asynchroyesus transactions by
 // clear these bit flags.
 //
 // Actually, the register is write-only and includes the other settings such as
@@ -334,7 +334,7 @@ static void latter_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
 }
 
 /*
- * When return minus value, given argument is not MIDI status.
+ * When return minus value, given argument is yest MIDI status.
  * When return 0, given argument is a beginning of system exclusive.
  * When return the others, given argument is MIDI data.
  */

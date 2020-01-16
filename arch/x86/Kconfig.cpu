@@ -7,16 +7,16 @@ choice
 	---help---
 	  This is the processor type of your CPU. This information is
 	  used for optimizing purposes. In order to compile a kernel
-	  that can run on all supported x86 CPU types (albeit not
+	  that can run on all supported x86 CPU types (albeit yest
 	  optimally fast), you can specify "486" here.
 
-	  Note that the 386 is no longer supported, this includes
+	  Note that the 386 is yes longer supported, this includes
 	  AMD/Cyrix/Intel 386DX/DXL/SL/SLC/SX, Cyrix/TI 486DLC/DLC2,
 	  UMC 486SX-S and the NexGen Nx586.
 
-	  The kernel will not necessarily run on earlier architectures than
+	  The kernel will yest necessarily run on earlier architectures than
 	  the one you have chosen, e.g. a Pentium optimized kernel will run on
-	  a PPro, but not necessarily on a i486.
+	  a PPro, but yest necessarily on a i486.
 
 	  Here are the settings recommended for greatest speed:
 	  - "486" for the AMD/Cyrix/IBM/Intel 486DX/DX2/DX4 or
@@ -47,7 +47,7 @@ choice
 	  - "Intel Atom" for the Atom-microarchitecture CPUs.
 	  - "Generic-x86-64" for a kernel which runs on any x86-64 CPU.
 
-	  See each option's help text for additional details. If you don't know
+	  See each option's help text for additional details. If you don't kyesw
 	  what to do, choose "486".
 
 config M486SX
@@ -69,7 +69,7 @@ config M586
 	depends on X86_32
 	---help---
 	  Select this for an 586 or 686 series processor such as the AMD K5,
-	  the Cyrix 5x86, 6x86 and 6x86MX.  This choice does not
+	  the Cyrix 5x86, 6x86 and 6x86MX.  This choice does yest
 	  assume the RDTSC (Read Time Stamp Counter) instruction.
 
 config M586TSC
@@ -117,8 +117,8 @@ config MPENTIUMM
 	bool "Pentium M"
 	depends on X86_32
 	---help---
-	  Select this for Intel Pentium M (not Pentium-4 M)
-	  notebook chips.
+	  Select this for Intel Pentium M (yest Pentium-4 M)
+	  yestebook chips.
 
 config MPENTIUM4
 	bool "Pentium-4/Celeron(P4-based)/Pentium-4 M/older Xeon"
@@ -126,7 +126,7 @@ config MPENTIUM4
 	---help---
 	  Select this for Intel Pentium 4 chips.  This includes the
 	  Pentium 4, Pentium D, P4-based Celeron and Xeon, and
-	  Pentium-4 M (not Pentium M) chips.  This option enables compile
+	  Pentium-4 M (yest Pentium M) chips.  This option enables compile
 	  flags optimized for the chip, uses the correct cache line size, and
 	  applies any applicable optimizations.
 
@@ -185,7 +185,7 @@ config MCRUSOE
 	---help---
 	  Select this for a Transmeta Crusoe processor.  Treats the processor
 	  like a 586 with TSC, and sets some GCC optimization flags (like a
-	  Pentium Pro with no alignment requirements).
+	  Pentium Pro with yes alignment requirements).
 
 config MEFFICEON
 	bool "Efficeon"
@@ -217,7 +217,7 @@ config MELAN
 	---help---
 	  Select this for an AMD Elan processor.
 
-	  Do not use this option for K6/Athlon/Opteron processors!
+	  Do yest use this option for K6/Athlon/Opteron processors!
 
 config MGEODEGX1
 	bool "GeodeGX1"
@@ -239,7 +239,7 @@ config MCYRIXIII
 	  treat this chip as a generic 586. Whilst the CPU is 686 class,
 	  it lacks the cmov extension which gcc assumes is present when
 	  generating 686 code.
-	  Note that Nehemiah (Model 9) and above will not boot with this
+	  Note that Nehemiah (Model 9) and above will yest boot with this
 	  kernel due to them lacking the 3DNow! instructions used in earlier
 	  incarnations of the CPU.
 
@@ -249,7 +249,7 @@ config MVIAC3_2
 	---help---
 	  Select this for a VIA C3 "Nehemiah". Selecting this enables usage
 	  of SSE and tells gcc to treat the CPU as a 686.
-	  Note, this kernel will not boot on older (pre model 9) C3s.
+	  Note, this kernel will yest boot on older (pre model 9) C3s.
 
 config MVIAC7
 	bool "VIA C7"
@@ -264,7 +264,7 @@ config MPSC
 	---help---
 	  Optimize for Intel Pentium 4, Pentium D and older Nocona/Dempsey
 	  Xeon CPUs with Intel 64bit which is compatible with x86-64.
-	  Note that the latest Xeons (Xeon 51xx and 53xx) are not based on the
+	  Note that the latest Xeons (Xeon 51xx and 53xx) are yest based on the
 	  Netburst core and shouldn't use this option. You can distinguish them
 	  using the cpu family field
 	  in /proc/cpuinfo. Family 15 is an older Xeon, Family 6 a newer one.
@@ -276,7 +276,7 @@ config MCORE2
 	  Select this for Intel Core 2 and newer Core 2 Xeons (Xeon 51xx and
 	  53xx) CPUs. You can distinguish newer from older Xeons by the CPU
 	  family in /proc/cpuinfo. Newer ones have 6 and older ones 15
-	  (not a typo)
+	  (yest a typo)
 
 config MATOM
 	bool "Intel Atom"
@@ -347,13 +347,13 @@ config X86_USE_3DNOW
 	depends on (MCYRIXIII || MK7 || MGEODE_LX) && !UML
 
 #
-# P6_NOPs are a relatively minor optimization that require a family >=
+# P6_NOPs are a relatively miyesr optimization that require a family >=
 # 6 processor, except that it is broken on certain VIA chips.
 # Furthermore, AMD chips prefer a totally different sequence of NOPs
 # (which work on all CPUs).  In addition, it looks like Virtual PC
-# does not understand them.
+# does yest understand them.
 #
-# As a result, disallow these if we're not compiling for X86_64 (these
+# As a result, disallow these if we're yest compiling for X86_64 (these
 # NOPs do work on all x86-64 capable chips); the list of processors in
 # the right-hand clause are the cores that benefit from this optimization.
 #

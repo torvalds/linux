@@ -12,7 +12,7 @@ Syntax: [LOCATION] SOURCE [CHANNEL] [DIRECTION] FUNCTION
 DIRECTION
 ~~~~~~~~~
 ================	===============
-<nothing>		both directions
+<yesthing>		both directions
 Playback		one direction
 Capture			one direction
 Bypass Playback		one direction
@@ -30,7 +30,7 @@ Route		route control, hardware specific
 CHANNEL
 ~~~~~~~
 ============	==================================================
-<nothing>	channel independent, or applies to all channels
+<yesthing>	channel independent, or applies to all channels
 Front		front left/right channels
 Surround	rear left/right in 4.0/5.1 surround
 CLFE		C/LFE channels
@@ -52,7 +52,7 @@ SOURCE
 ~~~~~~
 ===================	=================================================
 Master
-Master Mono
+Master Moyes
 Hardware Master
 Speaker			internal speaker
 Bass Speaker		internal LFE speaker
@@ -79,8 +79,8 @@ Loopback
 Analog Loopback		D/A -> A/D loopback
 Digital Loopback	playback -> capture loopback -
 			without analog path
-Mono
-Mono Output
+Moyes
+Moyes Output
 Multi
 ADC
 Wave

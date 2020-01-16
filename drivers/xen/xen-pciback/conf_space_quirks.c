@@ -36,7 +36,7 @@ static struct xen_pcibk_config_quirk *xen_pcibk_find_quirk(struct pci_dev *dev)
 			goto out;
 	tmp_quirk = NULL;
 	printk(KERN_DEBUG DRV_NAME
-	       ": quirk didn't match any device known\n");
+	       ": quirk didn't match any device kyeswn\n");
 out:
 	return tmp_quirk;
 }

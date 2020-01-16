@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -76,7 +76,7 @@ struct ttm_mem_type_manager_func {
 	int  (*takedown)(struct ttm_mem_type_manager *man);
 
 	/**
-	 * struct ttm_mem_type_manager member get_node
+	 * struct ttm_mem_type_manager member get_yesde
 	 *
 	 * @man: Pointer to a memory type manager.
 	 * @bo: Pointer to the buffer object we're allocating space for.
@@ -87,38 +87,38 @@ struct ttm_mem_type_manager_func {
 	 * This function should allocate space in the memory type managed
 	 * by @man. Placement details if
 	 * applicable are given by @placement. If successful,
-	 * @mem::mm_node should be set to a non-null value, and
+	 * @mem::mm_yesde should be set to a yesn-null value, and
 	 * @mem::start should be set to a value identifying the beginning
 	 * of the range allocated, and the function should return zero.
-	 * If the memory region accommodate the buffer object, @mem::mm_node
+	 * If the memory region accommodate the buffer object, @mem::mm_yesde
 	 * should be set to NULL, and the function should return 0.
 	 * If a system error occurred, preventing the request to be fulfilled,
 	 * the function should return a negative error code.
 	 *
-	 * Note that @mem::mm_node will only be dereferenced by
+	 * Note that @mem::mm_yesde will only be dereferenced by
 	 * struct ttm_mem_type_manager functions and optionally by the driver,
-	 * which has knowledge of the underlying type.
+	 * which has kyeswledge of the underlying type.
 	 *
-	 * This function may not be called from within atomic context, so
+	 * This function may yest be called from within atomic context, so
 	 * an implementation can and must use either a mutex or a spinlock to
 	 * protect any data structures managing the space.
 	 */
-	int  (*get_node)(struct ttm_mem_type_manager *man,
+	int  (*get_yesde)(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
 			 struct ttm_mem_reg *mem);
 
 	/**
-	 * struct ttm_mem_type_manager member put_node
+	 * struct ttm_mem_type_manager member put_yesde
 	 *
 	 * @man: Pointer to a memory type manager.
 	 * @mem: Pointer to a struct ttm_mem_reg to be filled in.
 	 *
 	 * This function frees memory type resources previously allocated
-	 * and that are identified by @mem::mm_node and @mem::start. May not
+	 * and that are identified by @mem::mm_yesde and @mem::start. May yest
 	 * be called from within atomic context.
 	 */
-	void (*put_node)(struct ttm_mem_type_manager *man,
+	void (*put_yesde)(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem);
 
 	/**
@@ -129,7 +129,7 @@ struct ttm_mem_type_manager_func {
 	 *
 	 * This function is called to print out the state of the memory
 	 * type manager to aid debugging of out-of-memory conditions.
-	 * It may not be called from within atomic context.
+	 * It may yest be called from within atomic context.
 	 */
 	void (*debug)(struct ttm_mem_type_manager *man,
 		      struct drm_printer *printer);
@@ -288,7 +288,7 @@ struct ttm_bo_driver {
 	 *
 	 * @bo: the buffer object to be evicted
 	 *
-	 * Return the bo flags for a buffer which is not mapped to the hardware.
+	 * Return the bo flags for a buffer which is yest mapped to the hardware.
 	 * These will be placed in proposed_flags so that when the move is
 	 * finished, they'll end up in bo->mem.flags
 	 */
@@ -327,28 +327,28 @@ struct ttm_bo_driver {
 			     struct file *filp);
 
 	/**
-	 * Hook to notify driver about a driver move so it
+	 * Hook to yestify driver about a driver move so it
 	 * can do tiling things and book-keeping.
 	 *
 	 * @evict: whether this move is evicting the buffer from the graphics
 	 * address space
 	 */
-	void (*move_notify)(struct ttm_buffer_object *bo,
+	void (*move_yestify)(struct ttm_buffer_object *bo,
 			    bool evict,
 			    struct ttm_mem_reg *new_mem);
-	/* notify the driver we are taking a fault on this BO
+	/* yestify the driver we are taking a fault on this BO
 	 * and have reserved it */
-	int (*fault_reserve_notify)(struct ttm_buffer_object *bo);
+	int (*fault_reserve_yestify)(struct ttm_buffer_object *bo);
 
 	/**
-	 * notify the driver that we're about to swap out this bo
+	 * yestify the driver that we're about to swap out this bo
 	 */
-	void (*swap_notify)(struct ttm_buffer_object *bo);
+	void (*swap_yestify)(struct ttm_buffer_object *bo);
 
 	/**
 	 * Driver callback on when mapping io memory (for bo_move_memcpy
 	 * for instance). TTM will take care to call io_mem_free whenever
-	 * the mapping is not use anymore. io_mem_reserve & io_mem_free
+	 * the mapping is yest use anymore. io_mem_reserve & io_mem_free
 	 * are balanced.
 	 */
 	int (*io_mem_reserve)(struct ttm_bo_device *bdev,
@@ -372,7 +372,7 @@ struct ttm_bo_driver {
 	 * @offset: the offset from the start of the BO
 	 * @buf: pointer to source/destination buffer
 	 * @len: number of bytes to copy
-	 * @write: whether to read (0) from or write (non-0) to BO
+	 * @write: whether to read (0) from or write (yesn-0) to BO
 	 *
 	 * If successful, this function should return the number of
 	 * bytes copied, -EIO otherwise. If the number of bytes
@@ -383,13 +383,13 @@ struct ttm_bo_driver {
 			     void *buf, int len, int write);
 
 	/**
-	 * struct ttm_bo_driver member del_from_lru_notify
+	 * struct ttm_bo_driver member del_from_lru_yestify
 	 *
 	 * @bo: the buffer object deleted from lru
 	 *
-	 * notify driver that a BO was deleted from LRU.
+	 * yestify driver that a BO was deleted from LRU.
 	 */
-	void (*del_from_lru_notify)(struct ttm_buffer_object *bo);
+	void (*del_from_lru_yestify)(struct ttm_buffer_object *bo);
 
 	/**
 	 * Notify the driver that we're about to release a BO
@@ -399,7 +399,7 @@ struct ttm_bo_driver {
 	 * Gives the driver a chance to do any cleanup, including
 	 * adding fences that may force a delayed delete
 	 */
-	void (*release_notify)(struct ttm_buffer_object *bo);
+	void (*release_yestify)(struct ttm_buffer_object *bo);
 };
 
 /**
@@ -456,7 +456,7 @@ extern struct ttm_bo_global {
  * @dev_mapping: A pointer to the struct address_space representing the
  * device address space.
  * @wq: Work queue structure for the delayed delete workqueue.
- * @no_retry: Don't retry allocation if it fails
+ * @yes_retry: Don't retry allocation if it fails
  *
  */
 
@@ -493,7 +493,7 @@ struct ttm_bo_device {
 
 	bool need_dma32;
 
-	bool no_retry;
+	bool yes_retry;
 };
 
 /**
@@ -564,14 +564,14 @@ bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
  * @proposed_placement: Proposed new placement for the buffer object.
  * @mem: A struct ttm_mem_reg.
  * @interruptible: Sleep interruptible when sliping.
- * @no_wait_gpu: Return immediately if the GPU is busy.
+ * @yes_wait_gpu: Return immediately if the GPU is busy.
  *
  * Allocate memory space for the buffer object pointed to by @bo, using
  * the placement flags in @mem, potentially evicting other idle buffer objects.
  * This function may sleep while waiting for space to become available.
  * Returns:
- * -EBUSY: No space available (only if no_wait == 1).
- * -ENOMEM: Could not allocate memory for the buffer object, either due to
+ * -EBUSY: No space available (only if yes_wait == 1).
+ * -ENOMEM: Could yest allocate memory for the buffer object, either due to
  * fragmentation or concurrent allocators.
  * -ERESTARTSYS: An interruptible sleep was interrupted by a signal.
  */
@@ -634,10 +634,10 @@ void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
- * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
+ * @yes_wait: Don't sleep while trying to reserve, rather return -EBUSY.
  * @ticket: ticket used to acquire the ww_mutex.
  *
- * Will not remove reserved buffers from the lru lists.
+ * Will yest remove reserved buffers from the lru lists.
  * Otherwise identical to ttm_bo_reserve.
  *
  * Returns:
@@ -646,17 +646,17 @@ void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
  * try again. (only if use_sequence == 1).
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
- * -EBUSY: The function needed to sleep, but @no_wait was true
+ * -EBUSY: The function needed to sleep, but @yes_wait was true
  * -EALREADY: Bo already reserved using @ticket. This error code will only
  * be returned if @use_ticket is set to true.
  */
 static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
-				   bool interruptible, bool no_wait,
+				   bool interruptible, bool yes_wait,
 				   struct ww_acquire_ctx *ticket)
 {
 	int ret = 0;
 
-	if (no_wait) {
+	if (yes_wait) {
 		bool success;
 		if (WARN_ON(ticket))
 			return -EBUSY;
@@ -679,7 +679,7 @@ static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
- * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
+ * @yes_wait: Don't sleep while trying to reserve, rather return -EBUSY.
  * @ticket: ticket used to acquire the ww_mutex.
  *
  * Locks a buffer object for validation. (Or prevents other processes from
@@ -714,17 +714,17 @@ static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
  * try again. (only if use_sequence == 1).
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
- * -EBUSY: The function needed to sleep, but @no_wait was true
+ * -EBUSY: The function needed to sleep, but @yes_wait was true
  * -EALREADY: Bo already reserved using @ticket. This error code will only
  * be returned if @use_ticket is set to true.
  */
 static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
-				 bool interruptible, bool no_wait,
+				 bool interruptible, bool yes_wait,
 				 struct ww_acquire_ctx *ticket)
 {
 	WARN_ON(!kref_read(&bo->kref));
 
-	return __ttm_bo_reserve(bo, interruptible, no_wait, ticket);
+	return __ttm_bo_reserve(bo, interruptible, yes_wait, ticket);
 }
 
 /**
@@ -734,8 +734,8 @@ static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
  * @sequence: Set (@bo)->sequence to this value after lock
  *
  * This is called after ttm_bo_reserve returns -EAGAIN and we backed off
- * from all our other reservations. Because there are no other reservations
- * held by us, this function cannot deadlock any more.
+ * from all our other reservations. Because there are yes other reservations
+ * held by us, this function canyest deadlock any more.
  */
 static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 					  bool interruptible,
@@ -785,12 +785,12 @@ void ttm_mem_io_free(struct ttm_bo_device *bdev,
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
- * @no_wait_gpu: Return immediately if the GPU is busy.
+ * @yes_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
  *
  * Optimized move function for a buffer object with both old and
  * new placement backed by a TTM. The function will, if successful,
- * free any old aperture space, and set (@new_mem)->mm_node to NULL,
+ * free any old aperture space, and set (@new_mem)->mm_yesde to NULL,
  * and update the (@bo)->mem placement flags. If unsuccessful, the old
  * data remains untouched, and it's up to the caller to free the
  * memory space indicated by @new_mem.
@@ -807,12 +807,12 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
- * @no_wait_gpu: Return immediately if the GPU is busy.
+ * @yes_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
  *
  * Fallback move function for a mappable buffer object in mappable memory.
  * The function will, if successful,
- * free any old aperture space, and set (@new_mem)->mm_node to NULL,
+ * free any old aperture space, and set (@new_mem)->mm_yesde to NULL,
  * and update the (@bo)->mem placement flags. If unsuccessful, the old
  * data remains untouched, and it's up to the caller to free the
  * memory space indicated by @new_mem.
@@ -825,13 +825,13 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 		       struct ttm_mem_reg *new_mem);
 
 /**
- * ttm_bo_free_old_node
+ * ttm_bo_free_old_yesde
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  *
  * Utility function to free an old placement after a successful move.
  */
-void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
+void ttm_bo_free_old_yesde(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_move_accel_cleanup.
@@ -880,7 +880,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo);
  * ttm_io_prot
  *
  * @c_state: Caching state.
- * @tmp: Page protection flag for a normal, cached mapping.
+ * @tmp: Page protection flag for a yesrmal, cached mapping.
  *
  * Utility function that returns the pgprot_t that should be used for
  * setting up a PTE with the caching model indicated by @c_state.

@@ -263,12 +263,12 @@ static int do_op(struct sw842_param *p, u8 o)
  * sw842_decompress
  *
  * Decompress the 842-compressed buffer of length @ilen at @in
- * to the output buffer @out, using no more than @olen bytes.
+ * to the output buffer @out, using yes more than @olen bytes.
  *
  * The compressed buffer must be only a single 842-compressed buffer,
  * with the standard format described in the comments in 842.h
  * Processing will stop when the 842 "END" template is detected,
- * not the end of the buffer.
+ * yest the end of the buffer.
  *
  * Returns: 0 on success, error on failure.  The @olen parameter
  * will contain the number of output bytes written on success, or
@@ -306,7 +306,7 @@ int sw842_decompress(const u8 *in, unsigned int ilen,
 			if (ret)
 				return ret;
 
-			if (p.out == out) /* no previous bytes */
+			if (p.out == out) /* yes previous bytes */
 				return -EINVAL;
 
 			/* copy rep + 1 */

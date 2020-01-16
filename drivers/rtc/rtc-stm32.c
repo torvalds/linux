@@ -483,7 +483,7 @@ static int stm32_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	}
 
 	alrmar = 0;
-	/* tm_year and tm_mon are not used because not supported by RTC */
+	/* tm_year and tm_mon are yest used because yest supported by RTC */
 	alrmar |= (tm->tm_mday << STM32_RTC_ALRMXR_DATE_SHIFT) &
 		  STM32_RTC_ALRMXR_DATE;
 	/* 24-hour format */
@@ -512,7 +512,7 @@ static int stm32_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 						10, 100000);
 
 	if (ret) {
-		dev_err(dev, "Alarm update not allowed\n");
+		dev_err(dev, "Alarm update yest allowed\n");
 		goto end;
 	}
 
@@ -708,21 +708,21 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 	regs = &rtc->data->regs;
 
 	if (rtc->data->need_dbp) {
-		rtc->dbp = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+		rtc->dbp = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							   "st,syscfg");
 		if (IS_ERR(rtc->dbp)) {
-			dev_err(&pdev->dev, "no st,syscfg\n");
+			dev_err(&pdev->dev, "yes st,syscfg\n");
 			return PTR_ERR(rtc->dbp);
 		}
 
-		ret = of_property_read_u32_index(pdev->dev.of_node, "st,syscfg",
+		ret = of_property_read_u32_index(pdev->dev.of_yesde, "st,syscfg",
 						 1, &rtc->dbp_reg);
 		if (ret) {
 			dev_err(&pdev->dev, "can't read DBP register offset\n");
 			return ret;
 		}
 
-		ret = of_property_read_u32_index(pdev->dev.of_node, "st,syscfg",
+		ret = of_property_read_u32_index(pdev->dev.of_yesde, "st,syscfg",
 						 2, &rtc->dbp_mask);
 		if (ret) {
 			dev_err(&pdev->dev, "can't read DBP register mask\n");
@@ -736,13 +736,13 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 	} else {
 		rtc->pclk = devm_clk_get(&pdev->dev, "pclk");
 		if (IS_ERR(rtc->pclk)) {
-			dev_err(&pdev->dev, "no pclk clock");
+			dev_err(&pdev->dev, "yes pclk clock");
 			return PTR_ERR(rtc->pclk);
 		}
 		rtc->rtc_ck = devm_clk_get(&pdev->dev, "rtc_ck");
 	}
 	if (IS_ERR(rtc->rtc_ck)) {
-		dev_err(&pdev->dev, "no rtc_ck clock");
+		dev_err(&pdev->dev, "yes rtc_ck clock");
 		return PTR_ERR(rtc->rtc_ck);
 	}
 
@@ -762,10 +762,10 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 
 	/*
 	 * After a system reset, RTC_ISR.INITS flag can be read to check if
-	 * the calendar has been initialized or not. INITS flag is reset by a
-	 * power-on reset (no vbat, no power-supply). It is not reset if
+	 * the calendar has been initialized or yest. INITS flag is reset by a
+	 * power-on reset (yes vbat, yes power-supply). It is yest reset if
 	 * rtc_ck parent clock has changed (so RTC prescalers need to be
-	 * changed). That's why we cannot rely on this flag to know if RTC
+	 * changed). That's why we canyest rely on this flag to kyesw if RTC
 	 * init has to be done.
 	 */
 	ret = stm32_rtc_init(pdev, rtc);

@@ -3,7 +3,7 @@
 // ak4642.c  --  AK4642/AK4643 ALSA Soc Audio driver
 //
 // Copyright (C) 2009 Renesas Solutions Corp.
-// Kuninori Morimoto <morimoto.kuninori@renesas.com>
+// Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
 //
 // Based on wm8731.c by Richard Purdie
 // Based on ak4535.c by Richard Purdie
@@ -559,7 +559,7 @@ static const struct snd_soc_component_driver soc_component_dev_ak4642 = {
 	.num_dapm_routes	= ARRAY_SIZE(ak4642_intercon),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4642_regmap = {
@@ -605,7 +605,7 @@ static const struct ak4642_drvdata ak4648_drvdata = {
 #ifdef CONFIG_COMMON_CLK
 static struct clk *ak4642_of_parse_mcko(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct clk *clk;
 	const char *clk_name = np->name;
 	const char *parent_clk_name = NULL;
@@ -634,7 +634,7 @@ static int ak4642_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct device *dev = &i2c->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct ak4642_drvdata *drvdata = NULL;
 	struct regmap *regmap;
 	struct ak4642_priv *priv;
@@ -655,7 +655,7 @@ static int ak4642_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (!drvdata) {
-		dev_err(dev, "Unknown device type\n");
+		dev_err(dev, "Unkyeswn device type\n");
 		return -EINVAL;
 	}
 
@@ -704,5 +704,5 @@ static struct i2c_driver ak4642_i2c_driver = {
 module_i2c_driver(ak4642_i2c_driver);
 
 MODULE_DESCRIPTION("Soc AK4642 driver");
-MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
+MODULE_AUTHOR("Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>");
 MODULE_LICENSE("GPL v2");

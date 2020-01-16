@@ -3,7 +3,7 @@
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * 	Author: Tomasz Figa <t.figa@samsung.com>
  *
- * Device Tree binding constants for Samsung Exynos3250 clock controllers.
+ * Device Tree binding constants for Samsung Exyyess3250 clock controllers.
  */
 
 #ifndef _DT_BINDINGS_CLOCK_SAMSUNG_EXYNOS3250_CLOCK_H
@@ -12,7 +12,7 @@
 /*
  * Let each exported clock get a unique index, which is used on DT-enabled
  * platforms to lookup the clock from a clock specifier. These indices are
- * therefore considered an ABI and so must not be changed. This implies
+ * therefore considered an ABI and so must yest be changed. This implies
  * that new clocks should be added either in free spaces between clock groups
  * or at the end.
  */

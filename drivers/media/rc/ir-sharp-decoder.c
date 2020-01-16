@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* ir-sharp-decoder.c - handle Sharp IR Pulse/Space protocol
  *
- * Copyright (C) 2013-2014 Imagination Technologies Ltd.
+ * Copyright (C) 2013-2014 Imagination Techyeslogies Ltd.
  *
  * Based on NEC decoder:
  * Copyright (C) 2010 by Mauro Carvalho Chehab
@@ -184,7 +184,7 @@ static const struct ir_raw_timings_pd ir_sharp_timings = {
  * @max:	maximum size of @events
  *
  * Returns:	The number of events written.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-ENOBUFS if there isn't eyesugh space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  */
 static int ir_sharp_encode(enum rc_proto protocol, u32 scancode,

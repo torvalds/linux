@@ -6,7 +6,7 @@
  * Copyright (C) 2016 Alexander Kurz <akurz@blala.de>
  *
  * Components from Maxim AL32 Charger detection Driver for MX50 Yoshi Board
- * Copyright (C) Amazon Technologies Inc. All rights reserved.
+ * Copyright (C) Amazon Techyeslogies Inc. All rights reserved.
  * Manish Lachwani (lachwani@lab126.com)
  */
 #include <linux/module.h>

@@ -13,5 +13,5 @@
 
 /*
  * All legacy serial ports should be enumerated via ACPI namespace, so
- * we need not list them here.
+ * we need yest list them here.
  */

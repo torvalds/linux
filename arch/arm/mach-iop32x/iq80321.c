@@ -86,7 +86,7 @@ iq80321_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		/* Gig-E */
 		irq = IRQ_IOP32X_XINT0;
 	} else {
-		printk(KERN_ERR "iq80321_pci_map_irq() called for unknown "
+		printk(KERN_ERR "iq80321_pci_map_irq() called for unkyeswn "
 			"device PCI:%d:%d:%d\n", dev->bus->number,
 			PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 		irq = -1;

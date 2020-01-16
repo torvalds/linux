@@ -9,7 +9,7 @@
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
 			   & Marcus Metzler (mocm@thp.uni-koeln.de)
-    (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
+    (c) 1999-2003 Gerd Kyesrr <kraxel@bytesex.org>
 
 
 */
@@ -126,7 +126,7 @@ EXPORT_SYMBOL(bttv_sub_unregister);
 /* ----------------------------------------------------------------------- */
 /* external: gpio access functions                                         */
 
-void bttv_gpio_inout(struct bttv_core *core, u32 mask, u32 outbits)
+void bttv_gpio_iyesut(struct bttv_core *core, u32 mask, u32 outbits)
 {
 	struct bttv *btv = container_of(core, struct bttv, c);
 	unsigned long flags;

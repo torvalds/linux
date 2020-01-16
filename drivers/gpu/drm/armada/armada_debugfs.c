@@ -17,8 +17,8 @@
 
 static int armada_debugfs_gem_linear_show(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct armada_private *priv = dev->dev_private;
 	struct drm_printer p = drm_seq_file_printer(m);
 
@@ -42,10 +42,10 @@ static int armada_debugfs_crtc_reg_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int armada_debugfs_crtc_reg_open(struct inode *inode, struct file *file)
+static int armada_debugfs_crtc_reg_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, armada_debugfs_crtc_reg_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static int armada_debugfs_crtc_reg_write(struct file *file,
@@ -102,10 +102,10 @@ static struct drm_info_list armada_debugfs_list[] = {
 };
 #define ARMADA_DEBUGFS_ENTRIES ARRAY_SIZE(armada_debugfs_list)
 
-int armada_drm_debugfs_init(struct drm_minor *minor)
+int armada_drm_debugfs_init(struct drm_miyesr *miyesr)
 {
 	drm_debugfs_create_files(armada_debugfs_list, ARMADA_DEBUGFS_ENTRIES,
-				 minor->debugfs_root, minor);
+				 miyesr->debugfs_root, miyesr);
 
 	return 0;
 }

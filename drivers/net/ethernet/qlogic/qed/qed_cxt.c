@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -33,7 +33,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/log2.h>
@@ -163,7 +163,7 @@ struct ilt_cfg_pair {
 };
 
 struct qed_ilt_cli_blk {
-	u32 total_size; /* 0 means not active */
+	u32 total_size; /* 0 means yest active */
 	u32 real_size_in_page;
 	u32 start_line;
 	u32 dynamic_line_cnt;
@@ -347,14 +347,14 @@ static void qed_cxt_tm_iids(struct qed_hwfn *p_hwfn,
 			struct qed_tid_seg *segs = p_cfg->tid_seg;
 
 			/* for each segment there is at most one
-			 * protocol for which count is not 0.
+			 * protocol for which count is yest 0.
 			 */
 			for (j = 0; j < NUM_TASK_PF_SEGMENTS; j++)
 				iids->pf_tids[j] += segs[j].count;
 
 			/* The last array elelment is for the VFs. As for PF
 			 * segments there can be only one protocol for
-			 * which this value is not 0.
+			 * which this value is yest 0.
 			 */
 			iids->per_vf_tids += segs[NUM_TASK_PF_SEGMENTS].count;
 		}
@@ -384,14 +384,14 @@ static void qed_cxt_qm_iids(struct qed_hwfn *p_hwfn,
 
 		segs = p_mngr->conn_cfg[type].tid_seg;
 		/* for each segment there is at most one
-		 * protocol for which count is not 0.
+		 * protocol for which count is yest 0.
 		 */
 		for (j = 0; j < NUM_TASK_PF_SEGMENTS; j++)
 			iids->tids += segs[j].count;
 
 		/* The last array elelment is for the VFs. As for PF
 		 * segments there can be only one protocol for
-		 * which this value is not 0.
+		 * which this value is yest 0.
 		 */
 		vf_tids += segs[NUM_TASK_PF_SEGMENTS].count;
 	}
@@ -659,12 +659,12 @@ int qed_cxt_cfg_ilt_compute(struct qed_hwfn *p_hwfn, u32 *line_count)
 
 		if (!p_seg->has_fl_mem) {
 			/* The segment is active (total size pf 'working'
-			 * memory is > 0) but has no FL (forced-load, Init)
+			 * memory is > 0) but has yes FL (forced-load, Init)
 			 * memory. Thus:
 			 *
 			 * 1.   The total-size in the corrsponding FL block of
 			 *      the ILT client is set to 0 - No ILT line are
-			 *      provisioned and no ILT memory allocated.
+			 *      provisioned and yes ILT memory allocated.
 			 *
 			 * 2.   The start-line of said block is set to the
 			 *      start line of the matching working memory
@@ -908,7 +908,7 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 
 	memset(&src_iids, 0, sizeof(src_iids));
 
-	/* if the SRC ILT client is inactive - there are no connection
+	/* if the SRC ILT client is inactive - there are yes connection
 	 * requiring the searcer, leave.
 	 */
 	p_src = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_SRC];
@@ -1579,7 +1579,7 @@ static void qed_dq_init_pf(struct qed_hwfn *p_hwfn)
 	dq_vf_max_cid += (p_mngr->conn_cfg[5].cids_per_vf >> DQ_RANGE_SHIFT);
 	STORE_RT_REG(p_hwfn, DORQ_REG_VF_MAX_ICID_5_RT_OFFSET, dq_vf_max_cid);
 
-	/* Connection types 6 & 7 are not in use, yet they must be configured
+	/* Connection types 6 & 7 are yest in use, yet they must be configured
 	 * as the highest possible connection. Not configuring them means the
 	 * defaults will be  used, and with a large number of cids a bug may
 	 * occur, if the defaults will be smaller than dq_pf_max_cid /
@@ -1768,7 +1768,7 @@ static void qed_tm_init_pf(struct qed_hwfn *p_hwfn)
 	memset(&tm_iids, 0, sizeof(tm_iids));
 	qed_cxt_tm_iids(p_hwfn, p_mngr, &tm_iids);
 
-	/* @@@TBD No pre-scan for now */
+	/* @@@TBD No pre-scan for yesw */
 
 	/* Note: We assume consecutive VFs for a PF */
 	for (i = 0; i < p_mngr->vf_count; i++) {
@@ -1927,7 +1927,7 @@ int _qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
 	rel_cid = find_first_zero_bit(p_map->cid_map, p_map->max_count);
 
 	if (rel_cid >= p_map->max_count) {
-		DP_NOTICE(p_hwfn, "no CID available for protocol %d\n", type);
+		DP_NOTICE(p_hwfn, "yes CID available for protocol %d\n", type);
 		return -EINVAL;
 	}
 
@@ -1978,7 +1978,7 @@ static bool qed_cxt_test_cid_acquired(struct qed_hwfn *p_hwfn,
 
 	rel_cid = cid - (*pp_map)->start_cid;
 	if (!test_bit(rel_cid, (*pp_map)->cid_map)) {
-		DP_NOTICE(p_hwfn, "CID %d [vifd %02x] not acquired",
+		DP_NOTICE(p_hwfn, "CID %d [vifd %02x] yest acquired",
 			  cid, vfid);
 		goto fail;
 	}
@@ -2127,7 +2127,7 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 					       &p_hwfn->
 					       pf_params.rdma_pf_params,
 					       rdma_tasks);
-		/* no need for break since RoCE coexist with Ethernet */
+		/* yes need for break since RoCE coexist with Ethernet */
 	}
 	/* fall through */
 	case QED_PCI_ETH:
@@ -2245,7 +2245,7 @@ int qed_cxt_get_tid_mem_info(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-/* This function is very RoCE oriented, if another protocol in the future
+/* This function is very RoCE oriented, if ayesther protocol in the future
  * will want this feature we'll need to modify the function to be more generic
  */
 int
@@ -2288,7 +2288,7 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 	line = p_blk->start_line + (iid / elems_per_p);
 	shadow_line = line - p_hwfn->p_cxt_mngr->pf_start_line;
 
-	/* If line is already allocated, do nothing, otherwise allocate it and
+	/* If line is already allocated, do yesthing, otherwise allocate it and
 	 * write it to the PSWRQ2 registers.
 	 * This section can be run in parallel from different contexts and thus
 	 * a mutex protection is needed.
@@ -2316,7 +2316,7 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 	}
 
 	/* configuration of refTagMask to 0xF is required for RoCE DIF MR only,
-	 * to compensate for a HW bug, but it is configured even if DIF is not
+	 * to compensate for a HW bug, but it is configured even if DIF is yest
 	 * enabled. This is harmless and allows us to avoid a dedicated API. We
 	 * configure the field for all of the contexts on the newly allocated
 	 * page.
@@ -2377,7 +2377,7 @@ out0:
 	return rc;
 }
 
-/* This function is very RoCE oriented, if another protocol in the future
+/* This function is very RoCE oriented, if ayesther protocol in the future
  * will want this feature we'll need to modify the function to be more generic
  */
 static int

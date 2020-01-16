@@ -139,7 +139,7 @@ static int af9005_get_post_vit_err_cw_count(struct dvb_frontend *fe,
 	if (ret)
 		return ret;
 	if (!temp) {
-		deb_info("rsd counter not ready\n");
+		deb_info("rsd counter yest ready\n");
 		return 100;
 	}
 	/* get abort count */
@@ -236,7 +236,7 @@ static int af9005_get_pre_vit_err_bit_count(struct dvb_frontend *fe,
 	if (ret)
 		return ret;
 	if (!temp) {
-		deb_info("viterbi counter not ready\n");
+		deb_info("viterbi counter yest ready\n");
 		return 101;	/* ERR_APO_VTB_COUNTER_NOT_READY; */
 	}
 	ret =
@@ -370,14 +370,14 @@ static int af9005_get_statistic(struct dvb_frontend *fe)
 {
 	struct af9005_fe_state *state = fe->demodulator_priv;
 	int ret, fecavailable;
-	u64 numerator, denominator;
+	u64 numerator, deyesminator;
 
 	deb_info("GET STATISTIC\n");
 	ret = af9005_is_fecmon_available(fe, &fecavailable);
 	if (ret)
 		return ret;
 	if (!fecavailable) {
-		deb_info("fecmon not available\n");
+		deb_info("fecmon yest available\n");
 		return 0;
 	}
 
@@ -391,8 +391,8 @@ static int af9005_get_statistic(struct dvb_frontend *fe)
 			   10E9=1000000000 */
 			numerator =
 			    (u64) state->pre_vit_error_count * (u64) 1000000000;
-			denominator = (u64) state->pre_vit_bit_count;
-			state->ber = do_div(numerator, denominator);
+			deyesminator = (u64) state->pre_vit_bit_count;
+			state->ber = do_div(numerator, deyesminator);
 		} else {
 			state->ber = 0xffffffff;
 		}
@@ -513,7 +513,7 @@ static int af9005_fe_read_signal_strength(struct dvb_frontend *fe,
 				      &if_gain);
 	if (ret)
 		return ret;
-	/* this value has no real meaning, but i don't have the tables that relate
+	/* this value has yes real meaning, but i don't have the tables that relate
 	   the rf and if gain with the dbm, so I just scale the value */
 	*strength = (512 - rf_gain - if_gain) << 7;
 	return 0;
@@ -870,7 +870,7 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 
 	if (ret)
 		return ret;
-	/* don't know what register aefc is, but this is what the windows driver does */
+	/* don't kyesw what register aefc is, but this is what the windows driver does */
 	ret = af9005_write_ofdm_register(state->d, 0xaefc, 0);
 	if (ret)
 		return ret;
@@ -908,7 +908,7 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 	     af9005_write_register_bits(state->d, xd_p_reg_dca_en,
 					reg_dca_en_pos, reg_dca_en_len, 0)))
 		return ret;
-	/* FIXME these are register bits, but I don't know which ones */
+	/* FIXME these are register bits, but I don't kyesw which ones */
 	ret = af9005_write_ofdm_register(state->d, 0xa16c, 1);
 	if (ret)
 		return ret;
@@ -948,7 +948,7 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 					fec_vtb_rsd_mon_en_len, 1)))
 		return ret;
 
-	/* FIXME should be register bits, I don't know which ones */
+	/* FIXME should be register bits, I don't kyesw which ones */
 	ret = af9005_write_ofdm_register(state->d, 0xa601, 0);
 
 	/* set api_retrain_never_freeze */
@@ -1098,16 +1098,16 @@ static int af9005_fe_set_frontend(struct dvb_frontend *fe)
 	deb_info("af9005_fe_set_frontend freq %d bw %d\n", fep->frequency,
 		 fep->bandwidth_hz);
 	if (fe->ops.tuner_ops.release == NULL) {
-		err("Tuner not attached");
+		err("Tuner yest attached");
 		return -ENODEV;
 	}
 
 	deb_info("turn off led\n");
-	/* not in the log */
+	/* yest in the log */
 	ret = af9005_led_control(state->d, 0);
 	if (ret)
 		return ret;
-	/* not sure about the bits */
+	/* yest sure about the bits */
 	ret = af9005_write_register_bits(state->d, XD_MP2IF_MISC, 2, 1, 0);
 	if (ret)
 		return ret;

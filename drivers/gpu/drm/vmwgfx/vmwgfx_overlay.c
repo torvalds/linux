@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -219,7 +219,7 @@ static int vmw_overlay_send_stop(struct vmw_private *dev_priv,
 /**
  * Move a buffer to vram or gmr if @pin is set, else unpin the buffer.
  *
- * With the introduction of screen objects buffers could now be
+ * With the introduction of screen objects buffers could yesw be
  * used with GMRs instead of being locked to vram.
  */
 static int vmw_overlay_move_buffer(struct vmw_private *dev_priv,
@@ -238,7 +238,7 @@ static int vmw_overlay_move_buffer(struct vmw_private *dev_priv,
 /**
  * Stop or pause a stream.
  *
- * If the stream is paused the no evict flag is removed from the buffer
+ * If the stream is paused the yes evict flag is removed from the buffer
  * but left in vram. This allows for instance mode_set to evict it
  * should it need to.
  *
@@ -255,7 +255,7 @@ static int vmw_overlay_stop(struct vmw_private *dev_priv,
 	struct vmw_stream *stream = &overlay->stream[stream_id];
 	int ret;
 
-	/* no buffer attached the stream is completely stopped */
+	/* yes buffer attached the stream is completely stopped */
 	if (!stream->buf)
 		return 0;
 
@@ -266,7 +266,7 @@ static int vmw_overlay_stop(struct vmw_private *dev_priv,
 		if (ret)
 			return ret;
 
-		/* We just remove the NO_EVICT flag so no -ENOMEM */
+		/* We just remove the NO_EVICT flag so yes -ENOMEM */
 		ret = vmw_overlay_move_buffer(dev_priv, stream->buf, false,
 					      interruptible);
 		if (interruptible && ret == -ERESTARTSYS)
@@ -307,7 +307,7 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 		return -EINVAL;
 
 	DRM_DEBUG("   %s: old %p, new %p, %spaused\n", __func__,
-		  stream->buf, buf, stream->paused ? "" : "not ");
+		  stream->buf, buf, stream->paused ? "" : "yest ");
 
 	if (stream->buf != buf) {
 		ret = vmw_overlay_stop(dev_priv, arg->stream_id,
@@ -315,8 +315,8 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 		if (ret)
 			return ret;
 	} else if (!stream->paused) {
-		/* If the buffers match and not paused then just send
-		 * the put command, no need to do anything else.
+		/* If the buffers match and yest paused then just send
+		 * the put command, yes need to do anything else.
 		 */
 		ret = vmw_overlay_send_put(dev_priv, buf, arg, interruptible);
 		if (ret == 0)
@@ -336,7 +336,7 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 
 	ret = vmw_overlay_send_put(dev_priv, buf, arg, interruptible);
 	if (ret) {
-		/* This one needs to happen no matter what. We only remove
+		/* This one needs to happen yes matter what. We only remove
 		 * the NO_EVICT flag so this is safe from -ENOMEM.
 		 */
 		BUG_ON(vmw_overlay_move_buffer(dev_priv, buf, false, false)
@@ -347,7 +347,7 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 	if (stream->buf != buf)
 		stream->buf = vmw_bo_reference(buf);
 	stream->saved = *arg;
-	/* stream is no longer stopped/paused */
+	/* stream is yes longer stopped/paused */
 	stream->paused = false;
 
 	return 0;
@@ -387,7 +387,7 @@ int vmw_overlay_stop_all(struct vmw_private *dev_priv)
 /**
  * Try to resume all paused streams.
  *
- * Used by the kms code after moving a new scanout buffer to vram.
+ * Used by the kms code after moving a new scayesut buffer to vram.
  *
  * Takes the overlay lock.
  */
@@ -421,7 +421,7 @@ int vmw_overlay_resume_all(struct vmw_private *dev_priv)
 /**
  * Pauses all active streams.
  *
- * Used by the kms code when moving a new scanout buffer to vram.
+ * Used by the kms code when moving a new scayesut buffer to vram.
  *
  * Takes the overlay lock.
  */

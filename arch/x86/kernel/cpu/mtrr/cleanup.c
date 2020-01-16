@@ -14,7 +14,7 @@
  * Library General Public License for more details.
  *
  * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the Free
+ * License along with this library; if yest, write to the Free
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/init.h>
@@ -337,7 +337,7 @@ range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek,
 		return 0;
 	}
 
-	/* Only cut back when it is not the last: */
+	/* Only cut back when it is yest the last: */
 	if (sizek) {
 		while (range0_basek + range0_sizek > (basek + sizek)) {
 			if (range0_sizek >= chunk_sizek)
@@ -596,7 +596,7 @@ mtrr_calc_range_state(u64 chunk_size, u64 gran_size,
 	 * putting 4096 bytes on the stack is frowned upon, to put it
 	 * mildly. It is safe to make it a static __initdata variable,
 	 * since mtrr_calc_range_state is only called during init and
-	 * there's no way it will call itself recursively.
+	 * there's yes way it will call itself recursively.
 	 */
 	static struct range range_new[RANGE_NUM] __initdata;
 	unsigned long range_sums_new;
@@ -796,7 +796,7 @@ int __init mtrr_cleanup(unsigned address_bits)
 			mtrr_print_out_one_result(i);
 	}
 
-	pr_info("mtrr_cleanup: can not find optimal value\n");
+	pr_info("mtrr_cleanup: can yest find optimal value\n");
 	pr_info("please specify mtrr_gran_size/mtrr_chunk_size\n");
 
 	return 0;
@@ -821,7 +821,7 @@ early_param("disable_mtrr_trim", disable_mtrr_trim_setup);
  * Newer AMD K8s and later CPUs have a special magic MSR way to force WB
  * for memory >4GB. Check for that here.
  * Note this won't check if the MTRRs < 4GB where the magic bit doesn't
- * apply to are wrong, but so far we don't know of any such case in the wild.
+ * apply to are wrong, but so far we don't kyesw of any such case in the wild.
  */
 #define Tom2Enabled		(1U << 21)
 #define Tom2ForceMemTypeWB	(1U << 22)
@@ -864,15 +864,15 @@ real_trim_memory(unsigned long start_pfn, unsigned long limit_pfn)
 }
 
 /**
- * mtrr_trim_uncached_memory - trim RAM not covered by MTRRs
+ * mtrr_trim_uncached_memory - trim RAM yest covered by MTRRs
  * @end_pfn: ending page frame number
  *
  * Some buggy BIOSes don't setup the MTRRs properly for systems with certain
  * memory configurations.  This routine checks that the highest MTRR matches
  * the end of memory, to make sure the MTRRs having a write back type cover
- * all of the memory the kernel is intending to use.  If not, it'll trim any
+ * all of the memory the kernel is intending to use.  If yest, it'll trim any
  * memory off the end by adjusting end_pfn, removing it from the kernel's
- * allocation pools, warning the user with an obnoxious message.
+ * allocation pools, warning the user with an obyesxious message.
  */
 int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 {

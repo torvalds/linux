@@ -43,7 +43,7 @@ int selinux_xfrm_postroute_last(u32 sk_sid, struct sk_buff *skb,
 int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall);
 int selinux_xfrm_skb_sid(struct sk_buff *skb, u32 *sid);
 
-static inline void selinux_xfrm_notify_policyload(void)
+static inline void selinux_xfrm_yestify_policyload(void)
 {
 	struct net *net;
 
@@ -78,7 +78,7 @@ static inline int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid,
 	return 0;
 }
 
-static inline void selinux_xfrm_notify_policyload(void)
+static inline void selinux_xfrm_yestify_policyload(void)
 {
 }
 

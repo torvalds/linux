@@ -346,7 +346,7 @@ int axg_fifo_probe(struct platform_device *pdev)
 		return PTR_ERR(fifo->arb);
 	}
 
-	fifo->irq = of_irq_get(dev->of_node, 0);
+	fifo->irq = of_irq_get(dev->of_yesde, 0);
 	if (fifo->irq <= 0) {
 		dev_err(dev, "failed to get irq: %d\n", fifo->irq);
 		return fifo->irq;

@@ -19,11 +19,11 @@
 #     conditions are met:
 #
 #      - Redistributions of source code must retain the above
-#        copyright notice, this list of conditions and the following
+#        copyright yestice, this list of conditions and the following
 #        disclaimer.
 #
 #      - Redistributions in binary form must reproduce the above
-#        copyright notice, this list of conditions and the following
+#        copyright yestice, this list of conditions and the following
 #        disclaimer in the documentation and/or other materials
 #        provided with the distribution.
 #
@@ -51,7 +51,7 @@
 #ifdef CONFIG_AS_AVX2
 #include <linux/linkage.h>
 
-## assume buffers not aligned
+## assume buffers yest aligned
 #define	VMOVDQ vmovdqu
 
 ################################ Define Macros
@@ -613,7 +613,7 @@ loop1:
 	jb	loop1
 
 loop2:
-	## Do last 16 rounds with no scheduling
+	## Do last 16 rounds with yes scheduling
 	vpaddd	K256+0*32(SRND), X0, XFER
 	vmovdqa XFER, 0*32+_XFER(%rsp, SRND)
 	DO_4ROUNDS	_XFER + 0*32

@@ -159,13 +159,13 @@ void rtw_hal_set_odm_var(struct adapter *Adapter, enum hal_odm_variable eVariabl
 	}
 }
 
-void rtw_hal_notch_filter(struct adapter *adapter, bool enable)
+void rtw_hal_yestch_filter(struct adapter *adapter, bool enable)
 {
 	if (enable) {
-		DBG_88E("Enable notch filter\n");
+		DBG_88E("Enable yestch filter\n");
 		usb_write8(adapter, rOFDM0_RxDSP+1, usb_read8(adapter, rOFDM0_RxDSP+1) | BIT(1));
 	} else {
-		DBG_88E("Disable notch filter\n");
+		DBG_88E("Disable yestch filter\n");
 		usb_write8(adapter, rOFDM0_RxDSP+1, usb_read8(adapter, rOFDM0_RxDSP+1) & ~BIT(1));
 	}
 }
@@ -249,7 +249,7 @@ void Hal_InitPGData88E(struct adapter *padapter)
 			EFUSE_ShadowMapUpdate(padapter, EFUSE_WIFI);
 		}
 	} else {/* autoload fail */
-		RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("AutoLoad Fail reported from CR9346!!\n"));
+		RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("AutoLoad Fail reported from CR9346!!\n"));
 		/* update to default value 0xFF */
 		if (!is_boot_from_eeprom(padapter))
 			EFUSE_ShadowMapUpdate(padapter, EFUSE_WIFI);
@@ -549,7 +549,7 @@ void Hal_ReadAntennaDiversity88E(struct adapter *pAdapter, u8 *PROMContent, bool
 		}
 
 		if (pHalData->TRxAntDivType == CG_TRX_HW_ANTDIV || pHalData->TRxAntDivType == CGCS_RX_HW_ANTDIV)
-			pHalData->AntDivCfg = 1; /*  0xC1[3] is ignored. */
+			pHalData->AntDivCfg = 1; /*  0xC1[3] is igyesred. */
 	} else {
 		pHalData->AntDivCfg = 0;
 	}
@@ -567,7 +567,7 @@ void Hal_ReadThermalMeter_88E(struct adapter *Adapter, u8 *PROMContent, bool Aut
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter_88E;
 
 	if (pHalData->EEPROMThermalMeter == 0xff || AutoloadFail) {
-		pHalData->bAPKThermalMeterIgnore = true;
+		pHalData->bAPKThermalMeterIgyesre = true;
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter_88E;
 	}
 	DBG_88E("ThermalMeter = 0x%x\n", pHalData->EEPROMThermalMeter);

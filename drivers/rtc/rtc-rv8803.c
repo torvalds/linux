@@ -72,7 +72,7 @@ static int rv8803_read_reg(const struct i2c_client *client, u8 reg)
 	s32 ret;
 
 	/*
-	 * There is a 61µs window during which the RTC does not acknowledge I2C
+	 * There is a 61µs window during which the RTC does yest ackyeswledge I2C
 	 * transfers. In that case, ensure that there are multiple attempts.
 	 */
 	do
@@ -310,7 +310,7 @@ static int rv8803_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u8 ctrl[2];
 	int ret, err;
 
-	/* The alarm has no seconds, round up to nearest minute */
+	/* The alarm has yes seconds, round up to nearest minute */
 	if (alrm->time.tm_sec) {
 		time64_t alarm_time = rtc_tm_to_time64(&alrm->time);
 
@@ -488,11 +488,11 @@ static struct rtc_class_ops rv8803_rtc_ops = {
 static int rx8900_trickle_charger_init(struct rv8803_data *rv8803)
 {
 	struct i2c_client *client = rv8803->client;
-	struct device_node *node = client->dev.of_node;
+	struct device_yesde *yesde = client->dev.of_yesde;
 	int err;
 	u8 flags;
 
-	if (!node)
+	if (!yesde)
 		return 0;
 
 	if (rv8803->type != rx_8900)
@@ -504,10 +504,10 @@ static int rx8900_trickle_charger_init(struct rv8803_data *rv8803)
 
 	flags = ~(RX8900_FLAG_VDETOFF | RX8900_FLAG_SWOFF) & (u8)err;
 
-	if (of_property_read_bool(node, "epson,vdet-disable"))
+	if (of_property_read_bool(yesde, "epson,vdet-disable"))
 		flags |= RX8900_FLAG_VDETOFF;
 
-	if (of_property_read_bool(node, "trickle-diode-disable"))
+	if (of_property_read_bool(yesde, "trickle-diode-disable"))
 		flags |= RX8900_FLAG_SWOFF;
 
 	return i2c_smbus_write_byte_data(rv8803->client, RX8900_BACKUP_CTRL,
@@ -543,7 +543,7 @@ static int rv8803_probe(struct i2c_client *client,
 
 	mutex_init(&rv8803->flags_lock);
 	rv8803->client = client;
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		rv8803->type = (enum rv8803_type)
 			of_device_get_match_data(&client->dev);
 	else

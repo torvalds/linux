@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*----------------------------------------
   PERFORMANCE INSTRUMENTATION  
   Guillaume Thouvenin           08/10/98
@@ -11,7 +11,7 @@
  * from enumeration below.  The meaning of further arguments
  * are determined by the operation code.
  *
- * NOTE: This system call is no longer provided, use the perf_events
+ * NOTE: This system call is yes longer provided, use the perf_events
  *       infrastructure.
  *
  * Pointers which are passed by the user are pointers to 64-bit

@@ -116,7 +116,7 @@ int erofs_register_workgroup(struct super_block *sb,
 	if (err)
 		/*
 		 * it's safe to decrease since the workgroup isn't visible
-		 * and refcount >= 2 (cannot be freezed).
+		 * and refcount >= 2 (canyest be freezed).
 		 */
 		__erofs_workgroup_put(grp);
 
@@ -154,7 +154,7 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 	/*
 	 * If managed cache is on, refcount of workgroups
 	 * themselves could be < 0 (freezed). In other words,
-	 * there is no guarantee that all refcounts > 0.
+	 * there is yes guarantee that all refcounts > 0.
 	 */
 	if (!erofs_workgroup_try_to_freeze(grp, 1))
 		return false;
@@ -221,7 +221,7 @@ repeat:
 }
 
 /* protected by 'erofs_sb_list_lock' */
-static unsigned int shrinker_run_no;
+static unsigned int shrinker_run_yes;
 
 /* protects the mounted 'erofs_sb_list' */
 static DEFINE_SPINLOCK(erofs_sb_list_lock);
@@ -265,13 +265,13 @@ static unsigned long erofs_shrink_scan(struct shrinker *shrink,
 	struct list_head *p;
 
 	unsigned long nr = sc->nr_to_scan;
-	unsigned int run_no;
+	unsigned int run_yes;
 	unsigned long freed = 0;
 
 	spin_lock(&erofs_sb_list_lock);
 	do {
-		run_no = ++shrinker_run_no;
-	} while (run_no == 0);
+		run_yes = ++shrinker_run_yes;
+	} while (run_yes == 0);
 
 	/* Iterate over all mounted superblocks and try to shrink them */
 	p = erofs_sb_list.next;
@@ -282,7 +282,7 @@ static unsigned long erofs_shrink_scan(struct shrinker *shrink,
 		 * We move the ones we do to the end of the list, so we stop
 		 * when we see one we have already done.
 		 */
-		if (sbi->shrinker_run_no == run_no)
+		if (sbi->shrinker_run_yes == run_yes)
 			break;
 
 		if (!mutex_trylock(&sbi->umount_mutex)) {
@@ -291,7 +291,7 @@ static unsigned long erofs_shrink_scan(struct shrinker *shrink,
 		}
 
 		spin_unlock(&erofs_sb_list_lock);
-		sbi->shrinker_run_no = run_no;
+		sbi->shrinker_run_yes = run_yes;
 
 		freed += erofs_shrink_workstation(sbi, nr);
 

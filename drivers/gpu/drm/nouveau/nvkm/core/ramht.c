@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -61,7 +61,7 @@ nvkm_ramht_update(struct nvkm_ramht *ramht, int co, struct nvkm_object *object,
 		  int chid, int addr, u32 handle, u32 context)
 {
 	struct nvkm_ramht_data *data = &ramht->data[co];
-	u64 inst = 0x00000040; /* just non-zero for <=g8x fifo ramht */
+	u64 inst = 0x00000040; /* just yesn-zero for <=g8x fifo ramht */
 	int ret;
 
 	nvkm_gpuobj_del(&data->inst);
@@ -80,7 +80,7 @@ nvkm_ramht_update(struct nvkm_ramht *ramht, int co, struct nvkm_object *object,
 
 		if (data->inst) {
 			if (ramht->device->card_type >= NV_50)
-				inst = data->inst->node->offset;
+				inst = data->inst->yesde->offset;
 			else
 				inst = data->inst->addr;
 		}

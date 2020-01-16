@@ -239,8 +239,8 @@ static void _rtl_usb_io_handler_release(struct ieee80211_hw *hw)
 	mutex_destroy(&rtlpriv->io.bb_mutex);
 }
 
-/*	Default aggregation handler. Do nothing and just return the oldest skb.  */
-static struct sk_buff *_none_usb_tx_aggregate_hdl(struct ieee80211_hw *hw,
+/*	Default aggregation handler. Do yesthing and just return the oldest skb.  */
+static struct sk_buff *_yesne_usb_tx_aggregate_hdl(struct ieee80211_hw *hw,
 						  struct sk_buff_head *list)
 {
 	return skb_dequeue(list);
@@ -279,7 +279,7 @@ static int _rtl_usb_init_tx(struct ieee80211_hw *hw)
 	rtlusb->usb_tx_aggregate_hdl =
 		 (rtlpriv->cfg->usb_interface_cfg->usb_tx_aggregate_hdl)
 		 ? rtlpriv->cfg->usb_interface_cfg->usb_tx_aggregate_hdl
-		 : &_none_usb_tx_aggregate_hdl;
+		 : &_yesne_usb_tx_aggregate_hdl;
 
 	init_usb_anchor(&rtlusb->tx_submitted);
 	for (i = 0; i < RTL_USB_MAX_EP_NUM; i++) {
@@ -459,7 +459,7 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 	}
 }
 
-static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
+static void _rtl_usb_rx_process_yesagg(struct ieee80211_hw *hw,
 				      struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -541,11 +541,11 @@ static void _rtl_rx_work(unsigned long param)
 		}
 
 		if (likely(!rtlusb->usb_rx_segregate_hdl)) {
-			_rtl_usb_rx_process_noagg(hw, skb);
+			_rtl_usb_rx_process_yesagg(hw, skb);
 		} else {
 			/* TO DO */
 			_rtl_rx_pre_process(hw, skb);
-			pr_err("rx agg not supported\n");
+			pr_err("rx agg yest supported\n");
 		}
 	}
 }
@@ -557,7 +557,7 @@ static unsigned int _rtl_rx_get_padding(struct ieee80211_hdr *hdr,
 	unsigned int padding = 0;
 #endif
 
-	/* make function no-op when possible */
+	/* make function yes-op when possible */
 	if (NET_IP_ALIGN == 0 || len < sizeof(*hdr))
 		return 0;
 
@@ -661,7 +661,7 @@ resubmit:
 	return;
 
 free:
-	/* On some architectures, usb_free_coherent must not be called from
+	/* On some architectures, usb_free_coherent must yest be called from
 	 * hardirq context. Queue urb to cleanup list.
 	 */
 	usb_anchor_urb(_urb, &rtlusb->rx_cleanup_urbs);
@@ -868,7 +868,7 @@ static void _rtl_tx_complete(struct urb *urb)
 		return;
 	err = _usb_tx_post(hw, urb, skb);
 	if (err) {
-		/* Ignore error and keep issuiing other urbs */
+		/* Igyesre error and keep issuiing other urbs */
 		return;
 	}
 }

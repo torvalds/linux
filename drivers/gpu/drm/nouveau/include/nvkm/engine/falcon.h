@@ -51,7 +51,7 @@ struct nvkm_falcon {
 };
 
 /* This constructor must be called from the owner's oneinit() hook and
- * *not* its constructor.  This is to ensure that DEVINIT has been
+ * *yest* its constructor.  This is to ensure that DEVINIT has been
  * completed, and that the device is correctly enabled before we touch
  * falcon registers.
  */

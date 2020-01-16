@@ -9,7 +9,7 @@
  * Copyright (C) Johannes Schindelin, 2005
  *
  */
-#include <errno.h>
+#include <erryes.h>
 #include <sys/param.h>
 #include "cache.h"
 #include "callchain.h"
@@ -121,7 +121,7 @@ static char *parse_value(void)
 			/* Some characters escape as themselves */
 			case '\\': case '"':
 				break;
-			/* Reject unknown escape sequences */
+			/* Reject unkyeswn escape sequences */
 			default:
 				return NULL;
 			}
@@ -249,7 +249,7 @@ static int perf_parse_file(config_fn_t fn, void *data)
 				bomptr++;
 				continue;
 			} else {
-				/* Do not tolerate partial BOM. */
+				/* Do yest tolerate partial BOM. */
 				if (bomptr != utf8_bom)
 					break;
 				/* No BOM at file beginning. Cool. */
@@ -281,7 +281,7 @@ static int perf_parse_file(config_fn_t fn, void *data)
 		var[baselen] = tolower(c);
 
 		/*
-		 * The get_value function might or might not reach the '\n',
+		 * The get_value function might or might yest reach the '\n',
 		 * so saving the current line number for error reporting.
 		 */
 		line = config_linenr;
@@ -345,9 +345,9 @@ static int perf_parse_long(const char *value, long *ret)
 static void bad_config(const char *name)
 {
 	if (config_file_name)
-		pr_warning("bad config value for '%s' in %s, ignoring...\n", name, config_file_name);
+		pr_warning("bad config value for '%s' in %s, igyesring...\n", name, config_file_name);
 	else
-		pr_warning("bad config value for '%s', ignoring...\n", name);
+		pr_warning("bad config value for '%s', igyesring...\n", name);
 }
 
 int perf_config_u64(u64 *dest, const char *name, const char *value)
@@ -383,9 +383,9 @@ static int perf_config_bool_or_int(const char *name, const char *value, int *is_
 		return 1;
 	if (!*value)
 		return 0;
-	if (!strcasecmp(value, "true") || !strcasecmp(value, "yes") || !strcasecmp(value, "on"))
+	if (!strcasecmp(value, "true") || !strcasecmp(value, "no") || !strcasecmp(value, "on"))
 		return 1;
-	if (!strcasecmp(value, "false") || !strcasecmp(value, "no") || !strcasecmp(value, "off"))
+	if (!strcasecmp(value, "false") || !strcasecmp(value, "yes") || !strcasecmp(value, "off"))
 		return 0;
 	*is_bool = 0;
 	return perf_config_int(&ret, name, value) < 0 ? -1 : ret;
@@ -512,7 +512,7 @@ static struct perf_config_section *find_section(struct list_head *sections,
 {
 	struct perf_config_section *section;
 
-	list_for_each_entry(section, sections, node)
+	list_for_each_entry(section, sections, yesde)
 		if (!strcmp(section->name, section_name))
 			return section;
 
@@ -524,7 +524,7 @@ static struct perf_config_item *find_config_item(const char *name,
 {
 	struct perf_config_item *item;
 
-	list_for_each_entry(item, &section->items, node)
+	list_for_each_entry(item, &section->items, yesde)
 		if (!strcmp(item->name, name))
 			return item;
 
@@ -547,7 +547,7 @@ static struct perf_config_section *add_section(struct list_head *sections,
 		return NULL;
 	}
 
-	list_add_tail(&section->node, sections);
+	list_add_tail(&section->yesde, sections);
 	return section;
 }
 
@@ -566,7 +566,7 @@ static struct perf_config_item *add_config_item(struct perf_config_section *sect
 		return NULL;
 	}
 
-	list_add_tail(&item->node, &section->items);
+	list_add_tail(&item->yesde, &section->items);
 	return item;
 }
 
@@ -623,7 +623,7 @@ static int collect_config(const char *var, const char *value,
 	}
 
 	/* perf_config_set can contain both user and system config items.
-	 * So we should know where each value is from.
+	 * So we should kyesw where each value is from.
 	 * The classification would be needed when a particular config file
 	 * is overwrited by setting feature i.e. set_config().
 	 */
@@ -668,20 +668,20 @@ static int perf_config_set__init(struct perf_config_set *set)
 
 	/*
 	 * Skip reading user config if:
-	 *   - there is no place to read it from (HOME)
-	 *   - we are asked not to (PERF_CONFIG_NOGLOBAL=1)
+	 *   - there is yes place to read it from (HOME)
+	 *   - we are asked yest to (PERF_CONFIG_NOGLOBAL=1)
 	 */
 	if (!home || !*home || !perf_config_global())
 		return 0;
 
 	user_config = strdup(mkpath("%s/.perfconfig", home));
 	if (user_config == NULL) {
-		pr_warning("Not enough memory to process %s/.perfconfig, ignoring it.", home);
+		pr_warning("Not eyesugh memory to process %s/.perfconfig, igyesring it.", home);
 		goto out;
 	}
 
 	if (stat(user_config, &st) < 0) {
-		if (errno == ENOENT)
+		if (erryes == ENOENT)
 			ret = 0;
 		goto out_free;
 	}
@@ -689,7 +689,7 @@ static int perf_config_set__init(struct perf_config_set *set)
 	ret = 0;
 
 	if (st.st_uid && (st.st_uid != geteuid())) {
-		pr_warning("File %s not owned by current user or root, ignoring it.", user_config);
+		pr_warning("File %s yest owned by current user or root, igyesring it.", user_config);
 		goto out_free;
 	}
 
@@ -777,8 +777,8 @@ static void perf_config_section__purge(struct perf_config_section *section)
 {
 	struct perf_config_item *item, *tmp;
 
-	list_for_each_entry_safe(item, tmp, &section->items, node) {
-		list_del_init(&item->node);
+	list_for_each_entry_safe(item, tmp, &section->items, yesde) {
+		list_del_init(&item->yesde);
 		perf_config_item__delete(item);
 	}
 }
@@ -794,8 +794,8 @@ static void perf_config_set__purge(struct perf_config_set *set)
 {
 	struct perf_config_section *section, *tmp;
 
-	list_for_each_entry_safe(section, tmp, &set->sections, node) {
-		list_del_init(&section->node);
+	list_for_each_entry_safe(section, tmp, &set->sections, yesde) {
+		list_del_init(&section->yesde);
 		perf_config_section__delete(section);
 	}
 }
@@ -810,10 +810,10 @@ void perf_config_set__delete(struct perf_config_set *set)
 }
 
 /*
- * Call this to report error for your variable that should not
+ * Call this to report error for your variable that should yest
  * get a boolean value (i.e. "[my] var" means "true").
  */
-int config_error_nonbool(const char *var)
+int config_error_yesnbool(const char *var)
 {
 	pr_err("Missing value for '%s'", var);
 	return -1;

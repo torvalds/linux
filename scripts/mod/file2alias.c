@@ -70,14 +70,14 @@ struct devtable {
 
 /* Define a variable v that holds the address of field f of struct devid
  * based at address m.  Due to the way typeof works, for a field of type
- * T[N] the variable has type T(*)[N], _not_ T*.
+ * T[N] the variable has type T(*)[N], _yest_ T*.
  */
 #define DEF_FIELD_ADDR_VAR(m, devid, f, v) \
 	typeof(((struct devid *)0)->f) *v = ((m) + OFF_##devid##_##f)
 
 /* Define a variable f that holds the address of field f of struct devid
  * based at address m.  Due to the way typeof works, for a field of type
- * T[N] the variable has type T(*)[N], _not_ T*.
+ * T[N] the variable has type T(*)[N], _yest_ T*.
  */
 #define DEF_FIELD_ADDR(m, devid, f) \
 	DEF_FIELD_ADDR_VAR(m, devid, f, f)
@@ -117,10 +117,10 @@ static inline void add_uuid(char *str, uuid_le uuid)
 
 /**
  * Check that sizeof(device_id type) are consistent with size of section
- * in .o file. If in-consistent then userspace and kernel does not agree
+ * in .o file. If in-consistent then userspace and kernel does yest agree
  * on actual size which is a bug.
  * Also verify that the final entry in the table is all zeros.
- * Ignore both checks if build host differ from target host and size differs.
+ * Igyesre both checks if build host differ from target host and size differs.
  **/
 static void device_id_check(const char *modname, const char *device_id,
 			    unsigned long size, unsigned long id_size,
@@ -129,7 +129,7 @@ static void device_id_check(const char *modname, const char *device_id,
 	int i;
 
 	if (size % id_size || size < id_size) {
-		fatal("%s: sizeof(struct %s_device_id)=%lu is not a modulo "
+		fatal("%s: sizeof(struct %s_device_id)=%lu is yest a modulo "
 		      "of the size of "
 		      "section __mod_%s__<identifier>_device_table=%lu.\n"
 		      "Fix definition of struct %s_device_id "
@@ -146,7 +146,7 @@ static void device_id_check(const char *modname, const char *device_id,
 				fprintf(stderr,"0x%02x ",
 					*(uint8_t*)(symval+size-id_size+i) );
 			fprintf(stderr,"\n");
-			fatal("%s: struct %s_device_id is not terminated "
+			fatal("%s: struct %s_device_id is yest terminated "
 				"with a NULL entry!\n", modname, device_id);
 		}
 	}
@@ -232,7 +232,7 @@ static unsigned int incbcd(unsigned int *bcd,
 	unsigned int init = *bcd, i, j;
 	unsigned long long c, dec = 0;
 
-	/* If bcd is not in BCD format, just increment */
+	/* If bcd is yest in BCD format, just increment */
 	if (max > 0x9) {
 		*bcd += inc;
 		return init;
@@ -664,7 +664,7 @@ static int do_pcmcia_entry(const char *filename,
 	DEF_FIELD(symval, pcmcia_device_id, card_id);
 	DEF_FIELD(symval, pcmcia_device_id, func_id);
 	DEF_FIELD(symval, pcmcia_device_id, function);
-	DEF_FIELD(symval, pcmcia_device_id, device_no);
+	DEF_FIELD(symval, pcmcia_device_id, device_yes);
 	DEF_FIELD_ADDR(symval, pcmcia_device_id, prod_id_hash);
 
 	for (i=0; i<4; i++) {
@@ -681,7 +681,7 @@ static int do_pcmcia_entry(const char *filename,
 	ADD(alias, "fn", match_flags & PCMCIA_DEV_ID_MATCH_FUNCTION,
 	    function);
 	ADD(alias, "pfn", match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO,
-	    device_no);
+	    device_yes);
 	ADD(alias, "pa", match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID1, (*prod_id_hash)[0]);
 	ADD(alias, "pb", match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID2, (*prod_id_hash)[1]);
 	ADD(alias, "pc", match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID3, (*prod_id_hash)[2]);
@@ -1112,7 +1112,7 @@ static int do_amba_entry(const char *filename,
 	DEF_FIELD(symval, amba_id, mask);
 
 	if ((id & mask) != id)
-		fatal("%s: Masked-off bit(s) of AMBA device ID are non-zero: "
+		fatal("%s: Masked-off bit(s) of AMBA device ID are yesn-zero: "
 		      "id=0x%08X, mask=0x%08X.  Please fix this driver.\n",
 		      filename, id, mask);
 
@@ -1328,7 +1328,7 @@ static int do_wmi_entry(const char *filename, void *symval, char *alias)
 
 	len = snprintf(alias, ALIAS_SIZE, WMI_MODULE_PREFIX "%s", *guid_string);
 	if (len < 0 || len >= ALIAS_SIZE) {
-		warn("Could not generate all MODULE_ALIAS's in '%s'\n",
+		warn("Could yest generate all MODULE_ALIAS's in '%s'\n",
 				filename);
 		return 0;
 	}
@@ -1410,7 +1410,7 @@ static const struct devtable devtable[] = {
 };
 
 /* Create MODULE_ALIAS() statements.
- * At this time, we cannot write the actual output C source yet,
+ * At this time, we canyest write the actual output C source yet,
  * so we write into the mod->dev_table_buf buffer. */
 void handle_moddevtable(struct module *mod, struct elf_info *info,
 			Elf_Sym *sym, const char *symname)

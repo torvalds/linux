@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright(c) 2006 - 2007 Atheros Corporation. All rights reserved.
- * Copyright(c) 2007 - 2008 Chris Snook <csnook@redhat.com>
+ * Copyright(c) 2007 - 2008 Chris Syesok <csyesok@redhat.com>
  *
  * Derived from Intel e1000 driver
  * Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
@@ -44,7 +44,7 @@ static const char atl2_copyright[] = "Copyright (c) 2007 Atheros Corporation.";
 static const char atl2_driver_version[] = ATL2_DRV_VERSION;
 static const struct ethtool_ops atl2_ethtool_ops;
 
-MODULE_AUTHOR("Atheros Corporation <xiong.huang@atheros.com>, Chris Snook <csnook@redhat.com>");
+MODULE_AUTHOR("Atheros Corporation <xiong.huang@atheros.com>, Chris Syesok <csyesok@redhat.com>");
 MODULE_DESCRIPTION("Atheros Fast Ethernet Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ATL2_DRV_VERSION);
@@ -381,7 +381,7 @@ static netdev_features_t atl2_fix_features(struct net_device *netdev,
 	netdev_features_t features)
 {
 	/*
-	 * Since there is no support for separate rx/tx vlan accel
+	 * Since there is yes support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -423,7 +423,7 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 			skb = netdev_alloc_skb_ip_align(netdev, rx_size);
 			if (NULL == skb) {
 				/*
-				 * Check that some rx space is free. If not,
+				 * Check that some rx space is free. If yest,
 				 * free one and mark stats->rx_dropped++.
 				 */
 				netdev->stats.rx_dropped++;
@@ -494,7 +494,7 @@ static void atl2_intr_tx(struct atl2_adapter *adapter)
 		if (txph->pkt_size != txs->pkt_size) {
 			struct tx_pkt_status *old_txs = txs;
 			printk(KERN_WARNING
-				"%s: txs packet size not consistent with txd"
+				"%s: txs packet size yest consistent with txd"
 				" txd_:0x%08x, txs_:0x%08x!\n",
 				adapter->netdev->name,
 				*(u32 *)txph, *(u32 *)txs);
@@ -560,7 +560,7 @@ static void atl2_check_for_link(struct atl2_adapter *adapter)
 	atl2_read_phy_reg(&adapter->hw, MII_BMSR, &phy_data);
 	spin_unlock(&adapter->stats_lock);
 
-	/* notify upper layer link down ASAP */
+	/* yestify upper layer link down ASAP */
 	if (!(phy_data & BMSR_LSTATUS)) { /* Link Down */
 		if (netif_carrier_ok(netdev)) { /* old link state: Up */
 		printk(KERN_INFO "%s: %s NIC Link is Down\n",
@@ -683,7 +683,7 @@ static void atl2_free_ring_resources(struct atl2_adapter *adapter)
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is yestified that the interface is ready.
  */
 static int atl2_open(struct net_device *netdev)
 {
@@ -746,7 +746,7 @@ static void atl2_down(struct atl2_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
-	/* signal that we're down so the interrupt handler does not
+	/* signal that we're down so the interrupt handler does yest
 	 * reschedule our watchdog timer */
 	set_bit(__ATL2_DOWN, &adapter->flags);
 
@@ -783,7 +783,7 @@ static void atl2_free_irq(struct atl2_adapter *adapter)
  * atl2_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is yest allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -847,7 +847,7 @@ static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
 
 	if (skb->len + sizeof(struct tx_pkt_header) + 4  > txbuf_unused ||
 		txs_unused < 1) {
-		/* not enough resources */
+		/* yest eyesugh resources */
 		netif_stop_queue(netdev);
 		return NETDEV_TX_BUSY;
 	}
@@ -1273,7 +1273,7 @@ static void atl2_setup_pcicmd(struct pci_dev *pdev)
 	/*
 	 * some motherboards BIOS(PXE/EFI) driver may set PME
 	 * while they transfer control to OS (Windows/Linux)
-	 * so we should clear this bit before NIC work normally
+	 * so we should clear this bit before NIC work yesrmally
 	 */
 	pci_write_config_dword(pdev, REG_PM_CTRLSTAT, 0);
 }
@@ -1401,7 +1401,7 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	atl2_phy_init(&adapter->hw);
 
 	/* reset the controller to
-	 * put the device in a known good starting state */
+	 * put the device in a kyeswn good starting state */
 
 	if (atl2_reset_hw(&adapter->hw)) {
 		err = -EIO;
@@ -1430,7 +1430,7 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_register;
 
-	/* assume we have no link for now */
+	/* assume we have yes link for yesw */
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
@@ -1538,7 +1538,7 @@ static int atl2_suspend(struct pci_dev *pdev, pm_message_t state)
 		if (wufc & ATLX_WUFC_MAG)
 			ctrl |= (WOL_MAGIC_EN | WOL_MAGIC_PME_EN);
 
-		/* ignore Link Chg event when Link is up */
+		/* igyesre Link Chg event when Link is up */
 		ATL2_WRITE_REG(hw, REG_WOL_CTRL, ctrl);
 
 		/* Config MAC CTRL Register */
@@ -1632,7 +1632,7 @@ static int atl2_resume(struct pci_dev *pdev)
 	err = pci_enable_device(pdev);
 	if (err) {
 		printk(KERN_ERR
-			"atl2: Cannot enable PCI device from suspend\n");
+			"atl2: Canyest enable PCI device from suspend\n");
 		return err;
 	}
 
@@ -2119,7 +2119,7 @@ static s32 atl2_reset_hw(struct atl2_hw *hw)
 	/* ATL2_WRITE_REG(hw, REG_ISR, 0xffffffff); */
 
 	/* Issue Soft Reset to the MAC.  This will reset the chip's
-	 * transmit, receive, DMA.  It will not effect
+	 * transmit, receive, DMA.  It will yest effect
 	 * the current PCI configuration.  The global reset bit is self-
 	 * clearing, and should clear within a microsecond.
 	 */
@@ -2747,7 +2747,7 @@ static bool atl2_read_eeprom(struct atl2_hw *hw, u32 Offset, u32 *pValue)
 	u32    Control;
 
 	if (Offset & 0x3)
-		return false; /* address do not align */
+		return false; /* address do yest align */
 
 	ATL2_WRITE_REG(hw, REG_VPD_DATA, 0);
 	Control = (Offset & VPD_CAP_VPD_ADDR_MASK) << VPD_CAP_VPD_ADDR_SHIFT;
@@ -2797,7 +2797,7 @@ static void atl2_force_ps(struct atl2_hw *hw)
 #define ATL2_PARAM_INIT {[0 ... ATL2_MAX_NIC] = OPTION_UNSET}
 #ifndef module_param_array
 /* Module Parameters are always initialized to -1, so that the driver
- * can tell the difference between no user specified value or the
+ * can tell the difference between yes user specified value or the
  * user asking for the default value.
  * The true default values are loaded in when atl2_check_options is called.
  *
@@ -2948,7 +2948,7 @@ static int atl2_validate_option(int *value, struct atl2_option *opt)
  * @adapter: board private structure
  *
  * This routine checks all command line parameters for valid user
- * input.  If an invalid value is given, or if no user specified
+ * input.  If an invalid value is given, or if yes user specified
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  */
@@ -2958,7 +2958,7 @@ static void atl2_check_options(struct atl2_adapter *adapter)
 	struct atl2_option opt;
 	int bd = adapter->bd_number;
 	if (bd >= ATL2_MAX_NIC) {
-		printk(KERN_NOTICE "Warning: no configuration for board #%i\n",
+		printk(KERN_NOTICE "Warning: yes configuration for board #%i\n",
 			bd);
 		printk(KERN_NOTICE "Using defaults for all values\n");
 #ifndef module_param_array

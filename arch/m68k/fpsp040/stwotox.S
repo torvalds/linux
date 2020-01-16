@@ -2,19 +2,19 @@
 |	stwotox.sa 3.1 12/10/90
 |
 |	stwotox  --- 2**X
-|	stwotoxd --- 2**X for denormalized X
+|	stwotoxd --- 2**X for deyesrmalized X
 |	stentox  --- 10**X
-|	stentoxd --- 10**X for denormalized X
+|	stentoxd --- 10**X for deyesrmalized X
 |
 |	Input: Double-extended number X in location pointed to
 |		by address register a0.
 |
 |	Output: The function values are returned in Fp0.
 |
-|	Accuracy and Monotonicity: The returned result is within 2 ulps in
+|	Accuracy and Moyestonicity: The returned result is within 2 ulps in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moyestonic in double precision.
 |
 |	Speed: The program stwotox takes approximately 190 cycles and the
 |		program stentox takes approximately 200 cycles.
@@ -206,7 +206,7 @@ stwotoxd:
 	.global	stwotox
 stwotox:
 |--ENTRY POINT FOR 2**(X), HERE X IS FINITE, NON-ZERO, AND NOT NAN'S
-	fmovemx	(%a0),%fp0-%fp0	| ...LOAD INPUT, do not set cc's
+	fmovemx	(%a0),%fp0-%fp0	| ...LOAD INPUT, do yest set cc's
 
 	movel		(%a0),%d0
 	movew		4(%a0),%d0
@@ -310,7 +310,7 @@ stentoxd:
 	.global	stentox
 stentox:
 |--ENTRY POINT FOR 10**(X), HERE X IS FINITE, NON-ZERO, AND NOT NAN'S
-	fmovemx	(%a0),%fp0-%fp0	| ...LOAD INPUT, do not set cc's
+	fmovemx	(%a0),%fp0-%fp0	| ...LOAD INPUT, do yest set cc's
 
 	movel		(%a0),%d0
 	movew		4(%a0),%d0

@@ -14,7 +14,7 @@ Optional properties:
                 video bus interface.
  - clock-output-names: Optional clock source for sensors. Shall be "mclk".
 
-Required subnodes:
+Required subyesdes:
  - port: The parallel bus interface port with a single endpoint linked to
          the sensor's endpoint as described in
          Documentation/devicetree/bindings/media/video-interfaces.txt.

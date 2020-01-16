@@ -147,7 +147,7 @@ static int ls1x_rtc_probe(struct platform_device *pdev)
 
 	v = readl(SYS_COUNTER_CNTRL);
 	if (!(v & RTC_CNTR_OK)) {
-		dev_err(&pdev->dev, "rtc counters not working\n");
+		dev_err(&pdev->dev, "rtc counters yest working\n");
 		return -ENODEV;
 	}
 

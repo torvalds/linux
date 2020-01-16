@@ -25,10 +25,10 @@ static const char * const gpll0_a53cc[] = {
 };
 
 /*
- * We use the notifier function for switching to a temporary safe configuration
+ * We use the yestifier function for switching to a temporary safe configuration
  * (mux and divider), while the A53 PLL is reconfigured.
  */
-static int a53cc_notifier_cb(struct notifier_block *nb, unsigned long event,
+static int a53cc_yestifier_cb(struct yestifier_block *nb, unsigned long event,
 			     void *data)
 {
 	int ret = 0;
@@ -39,7 +39,7 @@ static int a53cc_notifier_cb(struct notifier_block *nb, unsigned long event,
 		/* set the mux and divider to safe frequency (400mhz) */
 		ret = mux_div_set_src_div(md, 4, 3);
 
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
 static int qcom_apcs_msm8916_clk_probe(struct platform_device *pdev)
@@ -83,10 +83,10 @@ static int qcom_apcs_msm8916_clk_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	a53cc->clk_nb.notifier_call = a53cc_notifier_cb;
-	ret = clk_notifier_register(a53cc->pclk, &a53cc->clk_nb);
+	a53cc->clk_nb.yestifier_call = a53cc_yestifier_cb;
+	ret = clk_yestifier_register(a53cc->pclk, &a53cc->clk_nb);
 	if (ret) {
-		dev_err(dev, "failed to register clock notifier: %d\n", ret);
+		dev_err(dev, "failed to register clock yestifier: %d\n", ret);
 		return ret;
 	}
 
@@ -108,7 +108,7 @@ static int qcom_apcs_msm8916_clk_probe(struct platform_device *pdev)
 	return 0;
 
 err:
-	clk_notifier_unregister(a53cc->pclk, &a53cc->clk_nb);
+	clk_yestifier_unregister(a53cc->pclk, &a53cc->clk_nb);
 	return ret;
 }
 
@@ -116,7 +116,7 @@ static int qcom_apcs_msm8916_clk_remove(struct platform_device *pdev)
 {
 	struct clk_regmap_mux_div *a53cc = platform_get_drvdata(pdev);
 
-	clk_notifier_unregister(a53cc->pclk, &a53cc->clk_nb);
+	clk_yestifier_unregister(a53cc->pclk, &a53cc->clk_nb);
 
 	return 0;
 }

@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -38,12 +38,12 @@
 
 /* SMB command codes:
  * Note some commands have minimal (wct=0,bcc=0), or uninteresting, responses
- * (ie which include no useful data other than the SMB error code itself).
+ * (ie which include yes useful data other than the SMB error code itself).
  * This can allow us to avoid response buffer allocations and copy in some cases
  */
 #define SMB_COM_CREATE_DIRECTORY      0x00 /* trivial response */
 #define SMB_COM_DELETE_DIRECTORY      0x01 /* trivial response */
-#define SMB_COM_CLOSE                 0x04 /* triv req/rsp, timestamp ignored */
+#define SMB_COM_CLOSE                 0x04 /* triv req/rsp, timestamp igyesred */
 #define SMB_COM_FLUSH                 0x05 /* triv req/rsp */
 #define SMB_COM_DELETE                0x06 /* trivial response */
 #define SMB_COM_RENAME                0x07 /* trivial response */
@@ -66,7 +66,7 @@
 #define SMB_COM_NT_TRANSACT           0xA0
 #define SMB_COM_NT_TRANSACT_SECONDARY 0xA1
 #define SMB_COM_NT_CREATE_ANDX        0xA2
-#define SMB_COM_NT_CANCEL             0xA4 /* no response */
+#define SMB_COM_NT_CANCEL             0xA4 /* yes response */
 #define SMB_COM_NT_RENAME             0xA5 /* trivial response */
 
 /* Transact2 subcommand codes */
@@ -105,7 +105,7 @@
 #define NT_TRANSACT_GET_USER_QUOTA    0x07
 #define NT_TRANSACT_SET_USER_QUOTA    0x08
 
-#define MAX_CIFS_SMALL_BUFFER_SIZE 448 /* big enough for most */
+#define MAX_CIFS_SMALL_BUFFER_SIZE 448 /* big eyesugh for most */
 /* future chained NTCreateXReadX bigger, but for time being NTCreateX biggest */
 /* among the requests (NTCreateX response is bigger with wct of 34) */
 #define MAX_CIFS_HDR_SIZE 0x58 /* 4 len + 32 hdr + (2*24 wct) + 2 bct + 2 pad */
@@ -191,7 +191,7 @@
 /*
  * SMB flag2 definitions
  */
-#define SMBFLG2_KNOWS_LONG_NAMES cpu_to_le16(1)	/* can send long (non-8.3)
+#define SMBFLG2_KNOWS_LONG_NAMES cpu_to_le16(1)	/* can send long (yesn-8.3)
 						   path names in response */
 #define SMBFLG2_KNOWS_EAS cpu_to_le16(2)
 #define SMBFLG2_SECURITY_SIGNATURE cpu_to_le16(4)
@@ -320,7 +320,7 @@
 #define ATTR_SPARSE    0x0200
 #define ATTR_REPARSE   0x0400
 #define ATTR_COMPRESSED 0x0800
-#define ATTR_OFFLINE    0x1000	/* ie file not immediately available -
+#define ATTR_OFFLINE    0x1000	/* ie file yest immediately available -
 					on offline storage */
 #define ATTR_NOT_CONTENT_INDEXED 0x2000
 #define ATTR_ENCRYPTED  0x4000
@@ -348,13 +348,13 @@
 #define FILE_OVERWRITE_IF 0x00000005
 
 /* CreateOptions */
-#define CREATE_NOT_FILE		0x00000001	/* if set must not be file */
+#define CREATE_NOT_FILE		0x00000001	/* if set must yest be file */
 #define CREATE_WRITE_THROUGH	0x00000002
 #define CREATE_SEQUENTIAL       0x00000004
-#define CREATE_NO_BUFFER        0x00000008      /* should not buffer on srv */
+#define CREATE_NO_BUFFER        0x00000008      /* should yest buffer on srv */
 #define CREATE_SYNC_ALERT       0x00000010	/* MBZ */
 #define CREATE_ASYNC_ALERT      0x00000020	/* MBZ */
-#define CREATE_NOT_DIR		0x00000040    /* if set must not be directory */
+#define CREATE_NOT_DIR		0x00000040    /* if set must yest be directory */
 #define CREATE_TREE_CONNECTION  0x00000080	/* should be zero */
 #define CREATE_COMPLETE_IF_OPLK 0x00000100	/* should be zero */
 #define CREATE_NO_EA_KNOWLEDGE  0x00000200
@@ -373,7 +373,7 @@
 #define OPEN_FREE_SPACE_QUERY   0x00800000	/* should be zero */
 #define CREATE_OPTIONS_MASK     0x007FFFFF
 #define CREATE_OPTION_READONLY	0x10000000
-#define CREATE_OPTION_SPECIAL   0x20000000   /* system. NB not sent over wire */
+#define CREATE_OPTION_SPECIAL   0x20000000   /* system. NB yest sent over wire */
 
 /* ImpersonationLevel flags */
 #define SECURITY_ANONYMOUS      0
@@ -386,7 +386,7 @@
 #define SECURITY_EFFECTIVE_ONLY   0x02
 
 /*
- * Default PID value, used in all SMBs where the PID is not important
+ * Default PID value, used in all SMBs where the PID is yest important
  */
 #define CIFS_DFT_PID  0x1234
 
@@ -415,7 +415,7 @@ struct smb_hdr {
 		__le32 CifsError;
 	} __attribute__((packed)) Status;
 	__u8 Flags;
-	__le16 Flags2;		/* note: le */
+	__le16 Flags2;		/* yeste: le */
 	__le16 PidHigh;
 	union {
 		struct {
@@ -462,7 +462,7 @@ put_bcc(__u16 count, struct smb_hdr *hdr)
 
 /*
  * Computer Name Length (since Netbios name was length 16 with last byte 0x20)
- * No longer as important, now that TCP names are more commonly used to
+ * No longer as important, yesw that TCP names are more commonly used to
  * resolve hosts.
  */
 #define CNLEN 15
@@ -472,7 +472,7 @@ put_bcc(__u16 count, struct smb_hdr *hdr)
  * Note:  This length was limited by the SMB used to get
  *        the Share info.   NetShareEnum only returned 13
  *        chars, including the null termination.
- * This was removed because it no longer is limiting.
+ * This was removed because it yes longer is limiting.
  */
 
 /*
@@ -492,13 +492,13 @@ put_bcc(__u16 count, struct smb_hdr *hdr)
  *  The Naming convention is the lower case version of the
  *  smb command code name for the struct and this is typedef to the
  *  uppercase version of the same name with the prefix SMB_ removed
- *  for brevity.  Although typedefs are not commonly used for
+ *  for brevity.  Although typedefs are yest commonly used for
  *  structure definitions in the Linux kernel, their use in the
  *  CIFS standards document, which this code is based on, may
  *  make this one of the cases where typedefs for structures make
  *  sense to improve readability for readers of the standards doc.
  *  Typedefs can always be removed later if they are too distracting
- *  and they are only used for the CIFSs PDUs themselves, not
+ *  and they are only used for the CIFSs PDUs themselves, yest
  *  internal cifs vfs structures
  *
  */
@@ -539,7 +539,7 @@ typedef struct lanman_neg_rsp {
 #define SMB1_CLIENT_GUID_SIZE (16)
 typedef struct negotiate_rsp {
 	struct smb_hdr hdr;	/* wct = 17 */
-	__le16 DialectIndex; /* 0xFFFF = no dialect acceptable */
+	__le16 DialectIndex; /* 0xFFFF = yes dialect acceptable */
 	__u8 SecurityMode;
 	__le16 MaxMpxCount;
 	__le16 MaxNumberVcs;
@@ -632,7 +632,7 @@ typedef union smb_com_session_setup_andx {
 		/* STRING PrimaryDomain */
 		/* STRING NativeOS */
 		/* STRING NativeLanMan */
-	} __attribute__((packed)) req_no_secext; /* NTLM request format (without
+	} __attribute__((packed)) req_yes_secext; /* NTLM request format (without
 							extended security */
 
 	struct {		/* default (NTLM) response format */
@@ -743,13 +743,13 @@ typedef struct smb_com_tconx_req {
 } __attribute__((packed)) TCONX_REQ;
 
 typedef struct smb_com_tconx_rsp {
-	struct smb_hdr hdr;	/* wct = 3 , not extended response */
+	struct smb_hdr hdr;	/* wct = 3 , yest extended response */
 	__u8 AndXCommand;
 	__u8 AndXReserved;
 	__le16 AndXOffset;
 	__le16 OptionalSupport;	/* see below */
 	__u16 ByteCount;
-	unsigned char Service[1];	/* always ASCII, not Unicode */
+	unsigned char Service[1];	/* always ASCII, yest Unicode */
 	/* STRING NativeFileSystem */
 } __attribute__((packed)) TCONX_RSP;
 
@@ -762,7 +762,7 @@ typedef struct smb_com_tconx_rsp_ext {
 	__le32 MaximalShareAccessRights;
 	__le32 GuestMaximalShareAccessRights;
 	__u16 ByteCount;
-	unsigned char Service[1];	/* always ASCII, not Unicode */
+	unsigned char Service[1];	/* always ASCII, yest Unicode */
 	/* STRING NativeFileSystem */
 } __attribute__((packed)) TCONX_RSP_EXT;
 
@@ -958,7 +958,7 @@ typedef struct smb_com_open_rsp_ext {
 	__le16 DeviceState;
 	__u8 DirectoryFlag;
 	__u8 VolumeGUID[16];
-	__u64 FileId; /* note no endian conversion - is opaque UniqueID */
+	__u64 FileId; /* yeste yes endian conversion - is opaque UniqueID */
 	__le32 MaximalAccessRights;
 	__le32 GuestMaximalAccessRights;
 	__u16 ByteCount;        /* bct = 0 */
@@ -1166,8 +1166,8 @@ typedef struct smb_com_rename_req {
 	/* copy request flags */
 #define COPY_MUST_BE_FILE      0x0001
 #define COPY_MUST_BE_DIR       0x0002
-#define COPY_TARGET_MODE_ASCII 0x0004 /* if not set, binary */
-#define COPY_SOURCE_MODE_ASCII 0x0008 /* if not set, binary */
+#define COPY_TARGET_MODE_ASCII 0x0004 /* if yest set, binary */
+#define COPY_SOURCE_MODE_ASCII 0x0008 /* if yest set, binary */
 #define COPY_VERIFY_WRITES     0x0010
 #define COPY_TREE              0x0020
 
@@ -1286,7 +1286,7 @@ typedef struct smb_com_setattr_rsp {
 /*******************************************************/
 /* NT Transact structure definitions follow            */
 /* Currently only ioctl, acl (get security descriptor) */
-/* and notify are implemented                          */
+/* and yestify are implemented                          */
 /*******************************************************/
 typedef struct smb_com_ntransact_req {
 	struct smb_hdr hdr; /* wct >= 19 */
@@ -1420,7 +1420,7 @@ typedef struct smb_com_transaction_qsec_req {
 	__le32 ParameterOffset;
 	__le32 DataCount;
 	__le32 DataOffset;
-	__u8 SetupCount; /* no setup words follow subcommand */
+	__u8 SetupCount; /* yes setup words follow subcommand */
 	/* SNIA spec incorrectly included spurious pad here */
 	__le16 SubCommand; /* 6 = QUERY_SECURITY_DESC */
 	__le16 ByteCount; /* bcc = 3 + 8 */
@@ -1443,7 +1443,7 @@ typedef struct smb_com_transaction_ssec_req {
 	__le32 ParameterOffset;
 	__le32 DataCount;
 	__le32 DataOffset;
-	__u8 SetupCount; /* no setup words follow subcommand */
+	__u8 SetupCount; /* yes setup words follow subcommand */
 	/* SNIA spec incorrectly included spurious pad here */
 	__le16 SubCommand; /* 3 = SET_SECURITY_DESC */
 	__le16 ByteCount; /* bcc = 3 + 8 */
@@ -1453,7 +1453,7 @@ typedef struct smb_com_transaction_ssec_req {
 	__le32 AclFlags;
 } __attribute__((packed)) SET_SEC_DESC_REQ;
 
-typedef struct smb_com_transaction_change_notify_req {
+typedef struct smb_com_transaction_change_yestify_req {
 	struct smb_hdr hdr;     /* wct = 23 */
 	__u8 MaxSetupCount;
 	__u16 Reserved;
@@ -1479,7 +1479,7 @@ typedef struct smb_com_transaction_change_notify_req {
 
 /* BB eventually change to use generic ntransact rsp struct
       and validation routine */
-typedef struct smb_com_transaction_change_notify_rsp {
+typedef struct smb_com_transaction_change_yestify_rsp {
 	struct smb_hdr hdr;	/* wct = 18 */
 	__u8 Reserved[3];
 	__le32 TotalParameterCount;
@@ -1519,7 +1519,7 @@ typedef struct smb_com_transaction_change_notify_rsp {
 #define FILE_ACTION_MODIFIED_STREAM	0x00000008
 
 /* response contains array of the following structures */
-struct file_notify_information {
+struct file_yestify_information {
 	__le32 NextEntryOffset;
 	__le32 Action;
 	__le32 FileNameLength;
@@ -1552,7 +1552,7 @@ struct reparse_posix_data {
 	__le32	ReparseTag;
 	__le16	ReparseDataLength;
 	__u16	Reserved;
-	__le64	InodeType; /* LNK, FIFO, CHR etc. */
+	__le64	IyesdeType; /* LNK, FIFO, CHR etc. */
 	char	PathBuffer[0];
 } __attribute__((packed));
 
@@ -2004,7 +2004,7 @@ typedef struct smb_com_transaction2_setfsi_req {
 	__u16 FileNum;		/* Parameters start. */
 	__le16 InformationLevel;/* Parameters end. */
 	__le16 ClientUnixMajor; /* Data start. */
-	__le16 ClientUnixMinor;
+	__le16 ClientUnixMiyesr;
 	__le64 ClientUnixCap;   /* Data end */
 } __attribute__((packed)) TRANSACTION2_SETFSI_REQ;
 
@@ -2086,7 +2086,7 @@ typedef struct dfs_referral_level_3 { /* version 4 is same, + one flag bit */
 	__le16 DfsPathOffset;
 	__le16 DfsAlternatePathOffset;
 	__le16 NetworkAddressOffset; /* offset of the link target */
-	__u8   ServiceSiteGuid[16];  /* MBZ, ignored */
+	__u8   ServiceSiteGuid[16];  /* MBZ, igyesred */
 } __attribute__((packed)) REFERRAL3;
 
 struct get_dfs_referral_rsp {
@@ -2107,7 +2107,7 @@ typedef struct smb_com_transaction_get_dfs_refer_rsp {
 
 /* DFS Flags */
 #define DFSREF_REFERRAL_SERVER  0x00000001 /* all targets are DFS roots */
-#define DFSREF_STORAGE_SERVER   0x00000002 /* no further ref requests needed */
+#define DFSREF_STORAGE_SERVER   0x00000002 /* yes further ref requests needed */
 #define DFSREF_TARGET_FAILBACK  0x00000004 /* only for DFS referral version 4 */
 
 /*
@@ -2124,7 +2124,7 @@ typedef struct smb_com_transaction_get_dfs_refer_rsp {
 struct serverInfo {
 	char name[16];
 	unsigned char versionMajor;
-	unsigned char versionMinor;
+	unsigned char versionMiyesr;
 	unsigned long type;
 	unsigned int commentOffset;
 } __attribute__((packed));
@@ -2171,11 +2171,11 @@ typedef struct {
 
 typedef struct {
 	__le16 MajorVersionNumber;
-	__le16 MinorVersionNumber;
+	__le16 MiyesrVersionNumber;
 	__le64 Capability;
 } __attribute__((packed)) FILE_SYSTEM_UNIX_INFO; /* Unix extension level 0x200*/
 
-/* Version numbers for CIFS UNIX major and minor. */
+/* Version numbers for CIFS UNIX major and miyesr. */
 #define CIFS_UNIX_MAJOR_VERSION 1
 #define CIFS_UNIX_MINOR_VERSION 0
 
@@ -2197,7 +2197,7 @@ typedef struct {
 						      QFS PROXY call */
 #ifdef CONFIG_CIFS_POSIX
 /* presumably don't need the 0x20 POSIX_PATH_OPS_CAP since we never send
-   LockingX instead of posix locking call on unix sess (and we do not expect
+   LockingX instead of posix locking call on unix sess (and we do yest expect
    LockingX to use different (ie Windows) semantics than posix locking on
    the same session (if WINE needs to do this later, we can add this cap
    back in later */
@@ -2215,12 +2215,12 @@ typedef struct {
 	__le32 OptimalTransferSize;  /* bsize on some os, iosize on other os */
 	__le32 BlockSize;
     /* The next three fields are in terms of the block size.
-	(above). If block size is unknown, 4096 would be a
+	(above). If block size is unkyeswn, 4096 would be a
 	reasonable block size for a server to report.
 	Note that returning the blocks/blocksavail removes need
 	to make a second call (to QFSInfo level 0x103 to get this info.
 	UserBlockAvail is typically less than or equal to BlocksAvail,
-	if no distinction is made return the same value in each */
+	if yes distinction is made return the same value in each */
 	__le64 TotalBlocks;
 	__le64 BlocksAvail;       /* bfree */
 	__le64 UserBlocksAvail;   /* bavail */
@@ -2276,7 +2276,7 @@ typedef struct {
 
 
 /* List of FileSystemAttributes - see 2.5.1 of MS-FSCC */
-#define FILE_SUPPORTS_SPARSE_VDL	0x10000000 /* faster nonsparse extend */
+#define FILE_SUPPORTS_SPARSE_VDL	0x10000000 /* faster yesnsparse extend */
 #define FILE_SUPPORTS_BLOCK_REFCOUNTING	0x08000000 /* allow ioctl dup extents */
 #define FILE_SUPPORT_INTEGRITY_STREAMS	0x04000000
 #define FILE_SUPPORTS_USN_JOURNAL	0x02000000
@@ -2303,7 +2303,7 @@ typedef struct {
 	__le32 Attributes;
 	__le32 MaxPathNameComponentLength;
 	__le32 FileSystemNameLen;
-	char FileSystemName[52]; /* do not have to save this - get subset? */
+	char FileSystemName[52]; /* do yest have to save this - get subset? */
 } __attribute__((packed)) FILE_SYSTEM_ATTRIBUTE_INFO;
 
 /******************************************************************************/
@@ -2361,7 +2361,7 @@ typedef struct {
 	__le64 Gid;
 	__le32 Type;
 	__le64 DevMajor;
-	__le64 DevMinor;
+	__le64 DevMiyesr;
 	__le64 UniqueId;
 	__le64 Permissions;
 	__le64 Nlinks;
@@ -2395,7 +2395,7 @@ typedef struct {
 	__le16 LastWriteTime;
 	__le32 DataSize; /* File Size (EOF) */
 	__le32 AllocationSize;
-	__le16 Attributes; /* verify not u32 */
+	__le16 Attributes; /* verify yest u32 */
 	__le32 EASize;
 } __attribute__((packed)) FILE_INFO_STANDARD;  /* level 1 SetPath/FileInfo */
 
@@ -2507,7 +2507,7 @@ struct unlink_psx_rq { /* level 0x20a SetPathInfo */
 } __attribute__((packed));
 
 struct file_internal_info {
-	__le64  UniqueId; /* inode number */
+	__le64  UniqueId; /* iyesde number */
 } __attribute__((packed));      /* level 0x3ee */
 
 struct file_mode_info {
@@ -2526,7 +2526,7 @@ struct file_attrib_tag {
 
 typedef struct {
 	__le32 NextEntryOffset;
-	__u32 ResumeKey; /* as with FileIndex - no need to convert */
+	__u32 ResumeKey; /* as with FileIndex - yes need to convert */
 	FILE_UNIX_BASIC_INFO basic;
 	char FileName[1];
 } __attribute__((packed)) FILE_UNIX_INFO; /* level 0x202 */
@@ -2573,7 +2573,7 @@ typedef struct {
 	__le32 FileNameLength;
 	__le32 EaSize; /* EA size */
 	__le32 Reserved;
-	__le64 UniqueId; /* inode num - le since Samba puts ino in low 32 bit*/
+	__le64 UniqueId; /* iyesde num - le since Samba puts iyes in low 32 bit*/
 	char FileName[1];
 } __attribute__((packed)) SEARCH_ID_FULL_DIR_INFO; /* level 0x105 FF rsp data */
 
@@ -2605,7 +2605,7 @@ typedef struct {
 	__le16 LastWriteTime;
 	__le32 DataSize; /* File Size (EOF) */
 	__le32 AllocationSize;
-	__le16 Attributes; /* verify not u32 */
+	__le16 Attributes; /* verify yest u32 */
 	__u8   FileNameLength;
 	char FileName[1];
 } __attribute__((packed)) FIND_FILE_STANDARD_INFO; /* level 0x1 FF resp data */
@@ -2614,7 +2614,7 @@ typedef struct {
 struct win_dev {
 	unsigned char type[8]; /* IntxCHR or IntxBLK */
 	__le64 major;
-	__le64 minor;
+	__le64 miyesr;
 } __attribute__((packed));
 
 struct gea {
@@ -2655,18 +2655,18 @@ struct data_blob {
 	For better POSIX semantics from Linux client, (even better
 	than the existing CIFS Unix Extensions) we need updated PDUs for:
 
-	1) PosixCreateX - to set and return the mode, inode#, device info and
-	perhaps add a CreateDevice - to create Pipes and other special .inodes
-	Also note POSIX open flags
+	1) PosixCreateX - to set and return the mode, iyesde#, device info and
+	perhaps add a CreateDevice - to create Pipes and other special .iyesdes
+	Also yeste POSIX open flags
 	2) Close - to return the last write time to do cache across close
 		more safely
-	3) FindFirst return unique inode number - what about resume key, two
-	forms short (matches readdir) and full (enough info to cache inodes)
+	3) FindFirst return unique iyesde number - what about resume key, two
+	forms short (matches readdir) and full (eyesugh info to cache iyesdes)
 	4) Mkdir - set mode
 
 	And under consideration:
-	5) FindClose2 (return nanosecond timestamp ??)
-	6) Use nanosecond timestamps throughout all time fields if
+	5) FindClose2 (return nayessecond timestamp ??)
+	6) Use nayessecond timestamps throughout all time fields if
 	   corresponding attribute flag is set
 	7) sendfile - handle based copy
 
@@ -2681,13 +2681,13 @@ struct data_blob {
 	TREE_CONNECT_ANDX (BB which wct?)
 	TREE_DISCONNECT (BB add volume timestamp on response)
 	LOGOFF_ANDX
-	DELETE (note delete open file behavior)
+	DELETE (yeste delete open file behavior)
 	DELETE_DIRECTORY
 	READ_AND_X
 	WRITE_AND_X
-	LOCKING_AND_X (note posix lock semantics)
-	RENAME (note rename across dirs and open file rename posix behaviors)
-	NT_RENAME (for hardlinks) Is this good enough for all features?
+	LOCKING_AND_X (yeste posix lock semantics)
+	RENAME (yeste rename across dirs and open file rename posix behaviors)
+	NT_RENAME (for hardlinks) Is this good eyesugh for all features?
 	FIND_CLOSE2
 	TRANSACTION2 (18 cases)
 		SMB_SET_FILE_END_OF_FILE_INFO2 SMB_SET_PATH_END_OF_FILE_INFO2
@@ -2695,10 +2695,10 @@ struct data_blob {
 		SMB_SET_FILE_BASIC_INFO2 (setting times - BB can it be done via
 			 Unix ext?)
 
-	COPY (note support for copy across directories) - FUTURE, OPTIONAL
+	COPY (yeste support for copy across directories) - FUTURE, OPTIONAL
 	setting/getting OS/2 EAs - FUTURE (BB can this handle
 	setting Linux xattrs perfectly)         - OPTIONAL
-	dnotify                                 - FUTURE, OPTIONAL
+	dyestify                                 - FUTURE, OPTIONAL
 	quota                                   - FUTURE, OPTIONAL
 
 	Note that various requests implemented for NT interop such as
@@ -2711,13 +2711,13 @@ struct data_blob {
 	T2 SET_PATH_INFO (SMB_SET_FILE_BASIC_INFO2)
 	T2 QUERY_PATH_INFO (SMB_QUERY_FILE_UNIX_LINK)
 	T2 QUERY_PATH_INFO (SMB_QUERY_FILE_UNIX_BASIC)	BB check for missing
-							inode fields
+							iyesde fields
 				Actually a need QUERY_FILE_UNIX_INFO
-				since has inode num
+				since has iyesde num
 				BB what about a) blksize/blkbits/blocks
 							  b) i_version
 							  c) i_rdev
-							  d) notify mask?
+							  d) yestify mask?
 							  e) generation
 							  f) size_seqcount
 	T2 FIND_FIRST/FIND_NEXT FIND_FILE_UNIX
@@ -2727,7 +2727,7 @@ struct data_blob {
 
 /* xsymlink is a symlink format (used by MacOS) that can be used
    to save symlink info in a regular file when
-   mounted to operating systems that do not
+   mounted to operating systems that do yest
    support the cifs Unix extensions or EAs (for xattr
    based symlinks).  For such a file to be recognized
    as containing symlink data:
@@ -2740,24 +2740,24 @@ struct data_blob {
 
 struct xsymlink {
 	/* 1067 bytes */
-	char signature[4]; /* XSym */ /* not null terminated */
+	char signature[4]; /* XSym */ /* yest null terminated */
 	char cr0;         /* \n */
-/* ASCII representation of length (4 bytes decimal) terminated by \n not null */
+/* ASCII representation of length (4 bytes decimal) terminated by \n yest null */
 	char length[4];
 	char cr1;         /* \n */
 /* md5 of valid subset of path ie path[0] through path[length-1] */
 	__u8 md5[32];
 	char cr2;        /* \n */
-/* if room left, then end with \n then 0x20s by convention but not required */
+/* if room left, then end with \n then 0x20s by convention but yest required */
 	char path[1024];
 } __attribute__((packed));
 
 typedef struct file_xattr_info {
-	/* BB do we need another field for flags? BB */
+	/* BB do we need ayesther field for flags? BB */
 	__u32 xattr_name_len;
 	__u32 xattr_value_len;
 	char  xattr_name[0];
-	/* followed by xattr_value[xattr_value_len], no pad */
+	/* followed by xattr_value[xattr_value_len], yes pad */
 } __attribute__((packed)) FILE_XATTR_INFO; /* extended attribute info
 					      level 0x205 */
 
@@ -2765,7 +2765,7 @@ typedef struct file_xattr_info {
 
 typedef struct file_chattr_info {
 	__le64	mask; /* list of all possible attribute bits */
-	__le64	mode; /* list of actual attribute bits on this inode */
+	__le64	mode; /* list of actual attribute bits on this iyesde */
 } __attribute__((packed)) FILE_CHATTR_INFO;  /* ext attributes
 						(chattr, chflags) level 0x206 */
 #endif 				/* POSIX */

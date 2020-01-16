@@ -3,7 +3,7 @@
  * f_obex.c -- USB CDC OBEX function driver
  *
  * Copyright (C) 2008 Nokia Corporation
- * Contact: Felipe Balbi <felipe.balbi@nokia.com>
+ * Contact: Felipe Balbi <felipe.balbi@yeskia.com>
  *
  * Based on f_acm.c by Al Borchers and David Brownell.
  */
@@ -78,8 +78,8 @@ static struct usb_interface_descriptor obex_control_intf = {
 	.bInterfaceSubClass	= USB_CDC_SUBCLASS_OBEX,
 };
 
-static struct usb_interface_descriptor obex_data_nop_intf = {
-	.bLength		= sizeof(obex_data_nop_intf),
+static struct usb_interface_descriptor obex_data_yesp_intf = {
+	.bLength		= sizeof(obex_data_yesp_intf),
 	.bDescriptorType	= USB_DT_INTERFACE,
 	.bInterfaceNumber	= 1,
 
@@ -146,7 +146,7 @@ static struct usb_descriptor_header *hs_function[] = {
 	(struct usb_descriptor_header *) &obex_desc,
 	(struct usb_descriptor_header *) &obex_cdc_union_desc,
 
-	(struct usb_descriptor_header *) &obex_data_nop_intf,
+	(struct usb_descriptor_header *) &obex_data_yesp_intf,
 	(struct usb_descriptor_header *) &obex_data_intf,
 	(struct usb_descriptor_header *) &obex_hs_ep_in_desc,
 	(struct usb_descriptor_header *) &obex_hs_ep_out_desc,
@@ -177,7 +177,7 @@ static struct usb_descriptor_header *fs_function[] = {
 	(struct usb_descriptor_header *) &obex_desc,
 	(struct usb_descriptor_header *) &obex_cdc_union_desc,
 
-	(struct usb_descriptor_header *) &obex_data_nop_intf,
+	(struct usb_descriptor_header *) &obex_data_yesp_intf,
 	(struct usb_descriptor_header *) &obex_data_intf,
 	(struct usb_descriptor_header *) &obex_fs_ep_in_desc,
 	(struct usb_descriptor_header *) &obex_fs_ep_out_desc,
@@ -287,7 +287,7 @@ static void obex_disconnect(struct gserial *g)
 /* Some controllers can't support CDC OBEX ... */
 static inline bool can_support_obex(struct usb_configuration *c)
 {
-	/* Since the first interface is a NOP, we can ignore the
+	/* Since the first interface is a NOP, we can igyesre the
 	 * issue of multi-interface support on most controllers.
 	 *
 	 * Altsettings are mandatory, however...
@@ -315,7 +315,7 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	if (IS_ERR(us))
 		return PTR_ERR(us);
 	obex_control_intf.iInterface = us[OBEX_CTRL_IDX].id;
-	obex_data_nop_intf.iInterface = us[OBEX_DATA_IDX].id;
+	obex_data_yesp_intf.iInterface = us[OBEX_DATA_IDX].id;
 	obex_data_intf.iInterface = us[OBEX_DATA_IDX].id;
 
 	/* allocate instance-specific interface IDs, and patch descriptors */
@@ -333,7 +333,7 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	obex->data_id = status;
 
-	obex_data_nop_intf.bInterfaceNumber = status;
+	obex_data_yesp_intf.bInterfaceNumber = status;
 	obex_data_intf.bInterfaceNumber = status;
 	obex_cdc_union_desc.bSlaveInterface0 = status;
 
@@ -432,7 +432,7 @@ static struct usb_function_instance *obex_alloc_inst(void)
 		return ERR_PTR(-ENOMEM);
 
 	opts->func_inst.free_func_inst = obex_free_inst;
-	ret = gserial_alloc_line_no_console(&opts->port_num);
+	ret = gserial_alloc_line_yes_console(&opts->port_num);
 	if (ret) {
 		kfree(opts);
 		return ERR_PTR(ret);

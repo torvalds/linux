@@ -75,7 +75,7 @@ static inline void local_daif_restore(unsigned long flags)
 		if (!(flags & PSR_A_BIT)) {
 			/*
 			 * If interrupts are disabled but we can take
-			 * asynchronous errors, we can take NMIs
+			 * asynchroyesus errors, we can take NMIs
 			 */
 			flags &= ~PSR_I_BIT;
 			pmr = GIC_PRIO_IRQOFF;
@@ -96,7 +96,7 @@ static inline void local_daif_restore(unsigned long flags)
 		 *     - To be visible to later instructions in the
 		 *       execution stream
 		 *
-		 * Also, writes to PMR are self-synchronizing, so no
+		 * Also, writes to PMR are self-synchronizing, so yes
 		 * interrupts with a lower priority than PMR is signaled
 		 * to the PE after the write.
 		 *
@@ -112,7 +112,7 @@ static inline void local_daif_restore(unsigned long flags)
 }
 
 /*
- * Called by synchronous exception handlers to restore the DAIF bits that were
+ * Called by synchroyesus exception handlers to restore the DAIF bits that were
  * modified by taking an exception.
  */
 static inline void local_daif_inherit(struct pt_regs *regs)

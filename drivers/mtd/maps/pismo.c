@@ -127,7 +127,7 @@ static int pismo_add_device(struct pismo_data *pismo, int i,
 	return ret;
 }
 
-static int pismo_add_nor(struct pismo_data *pismo, int i,
+static int pismo_add_yesr(struct pismo_data *pismo, int i,
 			 struct pismo_mem *region)
 {
 	struct physmap_flash_data data = {
@@ -165,7 +165,7 @@ static void pismo_add_one(struct pismo_data *pismo, int i,
 	region.size = le32_to_cpu(cs->size);
 
 	if (region.width == 0) {
-		dev_err(dev, "cs%u: bad width: %02x, ignoring\n", i, cs->width);
+		dev_err(dev, "cs%u: bad width: %02x, igyesring\n", i, cs->width);
 		return;
 	}
 
@@ -186,7 +186,7 @@ static void pismo_add_one(struct pismo_data *pismo, int i,
 		break;
 	case 2:
 		/* static NOR */
-		pismo_add_nor(pismo, i, &region);
+		pismo_add_yesr(pismo, i, &region);
 		break;
 	case 3:
 		/* static RAM */

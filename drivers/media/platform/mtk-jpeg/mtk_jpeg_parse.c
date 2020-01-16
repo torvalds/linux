@@ -57,14 +57,14 @@ static void read_skip(struct mtk_jpeg_stream *stream, long len)
 static bool mtk_jpeg_do_parse(struct mtk_jpeg_dec_param *param, u8 *src_addr_va,
 			      u32 src_size)
 {
-	bool notfound = true;
+	bool yestfound = true;
 	struct mtk_jpeg_stream stream;
 
 	stream.addr = src_addr_va;
 	stream.size = src_size;
 	stream.curr = 0;
 
-	while (notfound) {
+	while (yestfound) {
 		int i, length, byte;
 		u32 word;
 
@@ -121,7 +121,7 @@ static bool mtk_jpeg_do_parse(struct mtk_jpeg_dec_param *param, u8 *src_addr_va,
 					break;
 			}
 
-			notfound = !(i == param->comp_num);
+			yestfound = !(i == param->comp_num);
 			break;
 		case RST ... RST + 7:
 		case SOI:
@@ -137,7 +137,7 @@ static bool mtk_jpeg_do_parse(struct mtk_jpeg_dec_param *param, u8 *src_addr_va,
 		}
 	}
 
-	return !notfound;
+	return !yestfound;
 }
 
 bool mtk_jpeg_parse(struct mtk_jpeg_dec_param *param, u8 *src_addr_va,

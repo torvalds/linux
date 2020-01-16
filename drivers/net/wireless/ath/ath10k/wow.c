@@ -168,65 +168,65 @@ static void ath10k_wow_convert_8023_to_80211(struct cfg80211_pkt_pattern *new,
 	}
 }
 
-static int ath10k_wmi_pno_check(struct ath10k *ar, u32 vdev_id,
+static int ath10k_wmi_pyes_check(struct ath10k *ar, u32 vdev_id,
 				struct cfg80211_sched_scan_request *nd_config,
-				struct wmi_pno_scan_req *pno)
+				struct wmi_pyes_scan_req *pyes)
 {
 	int i, j, ret = 0;
 	u8 ssid_len;
 
-	pno->enable = 1;
-	pno->vdev_id = vdev_id;
-	pno->uc_networks_count = nd_config->n_match_sets;
+	pyes->enable = 1;
+	pyes->vdev_id = vdev_id;
+	pyes->uc_networks_count = nd_config->n_match_sets;
 
-	if (!pno->uc_networks_count ||
-	    pno->uc_networks_count > WMI_PNO_MAX_SUPP_NETWORKS)
+	if (!pyes->uc_networks_count ||
+	    pyes->uc_networks_count > WMI_PNO_MAX_SUPP_NETWORKS)
 		return -EINVAL;
 
 	if (nd_config->n_channels > WMI_PNO_MAX_NETW_CHANNELS_EX)
 		return -EINVAL;
 
 	/* Filling per profile  params */
-	for (i = 0; i < pno->uc_networks_count; i++) {
+	for (i = 0; i < pyes->uc_networks_count; i++) {
 		ssid_len = nd_config->match_sets[i].ssid.ssid_len;
 
 		if (ssid_len == 0 || ssid_len > 32)
 			return -EINVAL;
 
-		pno->a_networks[i].ssid.ssid_len = __cpu_to_le32(ssid_len);
+		pyes->a_networks[i].ssid.ssid_len = __cpu_to_le32(ssid_len);
 
-		memcpy(pno->a_networks[i].ssid.ssid,
+		memcpy(pyes->a_networks[i].ssid.ssid,
 		       nd_config->match_sets[i].ssid.ssid,
 		       nd_config->match_sets[i].ssid.ssid_len);
-		pno->a_networks[i].authentication = 0;
-		pno->a_networks[i].encryption     = 0;
-		pno->a_networks[i].bcast_nw_type  = 0;
+		pyes->a_networks[i].authentication = 0;
+		pyes->a_networks[i].encryption     = 0;
+		pyes->a_networks[i].bcast_nw_type  = 0;
 
 		/*Copying list of valid channel into request */
-		pno->a_networks[i].channel_count = nd_config->n_channels;
-		pno->a_networks[i].rssi_threshold = nd_config->match_sets[i].rssi_thold;
+		pyes->a_networks[i].channel_count = nd_config->n_channels;
+		pyes->a_networks[i].rssi_threshold = nd_config->match_sets[i].rssi_thold;
 
 		for (j = 0; j < nd_config->n_channels; j++) {
-			pno->a_networks[i].channels[j] =
+			pyes->a_networks[i].channels[j] =
 					nd_config->channels[j]->center_freq;
 		}
 	}
 
-	/* set scan to passive if no SSIDs are specified in the request */
+	/* set scan to passive if yes SSIDs are specified in the request */
 	if (nd_config->n_ssids == 0)
-		pno->do_passive_scan = true;
+		pyes->do_passive_scan = true;
 	else
-		pno->do_passive_scan = false;
+		pyes->do_passive_scan = false;
 
 	for (i = 0; i < nd_config->n_ssids; i++) {
 		j = 0;
-		while (j < pno->uc_networks_count) {
-			if (__le32_to_cpu(pno->a_networks[j].ssid.ssid_len) ==
+		while (j < pyes->uc_networks_count) {
+			if (__le32_to_cpu(pyes->a_networks[j].ssid.ssid_len) ==
 				nd_config->ssids[i].ssid_len &&
-			(memcmp(pno->a_networks[j].ssid.ssid,
+			(memcmp(pyes->a_networks[j].ssid.ssid,
 				nd_config->ssids[i].ssid,
-				__le32_to_cpu(pno->a_networks[j].ssid.ssid_len)) == 0)) {
-				pno->a_networks[j].bcast_nw_type = BCAST_HIDDEN;
+				__le32_to_cpu(pyes->a_networks[j].ssid.ssid_len)) == 0)) {
+				pyes->a_networks[j].bcast_nw_type = BCAST_HIDDEN;
 				break;
 			}
 			j++;
@@ -234,14 +234,14 @@ static int ath10k_wmi_pno_check(struct ath10k *ar, u32 vdev_id,
 	}
 
 	if (nd_config->n_scan_plans == 2) {
-		pno->fast_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
-		pno->fast_scan_max_cycles = nd_config->scan_plans[0].iterations;
-		pno->slow_scan_period =
+		pyes->fast_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
+		pyes->fast_scan_max_cycles = nd_config->scan_plans[0].iterations;
+		pyes->slow_scan_period =
 			nd_config->scan_plans[1].interval * MSEC_PER_SEC;
 	} else if (nd_config->n_scan_plans == 1) {
-		pno->fast_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
-		pno->fast_scan_max_cycles = 1;
-		pno->slow_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
+		pyes->fast_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
+		pyes->fast_scan_max_cycles = 1;
+		pyes->slow_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
 	} else {
 		ath10k_warn(ar, "Invalid number of scan plans %d !!",
 			    nd_config->n_scan_plans);
@@ -249,16 +249,16 @@ static int ath10k_wmi_pno_check(struct ath10k *ar, u32 vdev_id,
 
 	if (nd_config->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
 		/* enable mac randomization */
-		pno->enable_pno_scan_randomization = 1;
-		memcpy(pno->mac_addr, nd_config->mac_addr, ETH_ALEN);
-		memcpy(pno->mac_addr_mask, nd_config->mac_addr_mask, ETH_ALEN);
+		pyes->enable_pyes_scan_randomization = 1;
+		memcpy(pyes->mac_addr, nd_config->mac_addr, ETH_ALEN);
+		memcpy(pyes->mac_addr_mask, nd_config->mac_addr_mask, ETH_ALEN);
 	}
 
-	pno->delay_start_time = nd_config->delay;
+	pyes->delay_start_time = nd_config->delay;
 
-	/* Current FW does not support min-max range for dwell time */
-	pno->active_max_time = WMI_ACTIVE_MAX_CHANNEL_TIME;
-	pno->passive_max_time = WMI_PASSIVE_MAX_CHANNEL_TIME;
+	/* Current FW does yest support min-max range for dwell time */
+	pyes->active_max_time = WMI_ACTIVE_MAX_CHANNEL_TIME;
+	pyes->passive_max_time = WMI_PASSIVE_MAX_CHANNEL_TIME;
 	return ret;
 }
 
@@ -297,23 +297,23 @@ static int ath10k_vif_wow_set_wakeups(struct ath10k_vif *arvif,
 			__set_bit(WOW_MAGIC_PKT_RECVD_EVENT, &wow_mask);
 
 		if (wowlan->nd_config) {
-			struct wmi_pno_scan_req *pno;
+			struct wmi_pyes_scan_req *pyes;
 			int ret;
 
-			pno = kzalloc(sizeof(*pno), GFP_KERNEL);
-			if (!pno)
+			pyes = kzalloc(sizeof(*pyes), GFP_KERNEL);
+			if (!pyes)
 				return -ENOMEM;
 
 			ar->nlo_enabled = true;
 
-			ret = ath10k_wmi_pno_check(ar, arvif->vdev_id,
-						   wowlan->nd_config, pno);
+			ret = ath10k_wmi_pyes_check(ar, arvif->vdev_id,
+						   wowlan->nd_config, pyes);
 			if (!ret) {
-				ath10k_wmi_wow_config_pno(ar, arvif->vdev_id, pno);
+				ath10k_wmi_wow_config_pyes(ar, arvif->vdev_id, pyes);
 				__set_bit(WOW_NLO_DETECTED_EVENT, &wow_mask);
 			}
 
-			kfree(pno);
+			kfree(pyes);
 		}
 		break;
 	default:
@@ -409,16 +409,16 @@ static int ath10k_vif_wow_clean_nlo(struct ath10k_vif *arvif)
 	switch (arvif->vdev_type) {
 	case WMI_VDEV_TYPE_STA:
 		if (ar->nlo_enabled) {
-			struct wmi_pno_scan_req *pno;
+			struct wmi_pyes_scan_req *pyes;
 
-			pno = kzalloc(sizeof(*pno), GFP_KERNEL);
-			if (!pno)
+			pyes = kzalloc(sizeof(*pyes), GFP_KERNEL);
+			if (!pyes)
 				return -ENOMEM;
 
-			pno->enable = 0;
+			pyes->enable = 0;
 			ar->nlo_enabled = false;
-			ret = ath10k_wmi_wow_config_pno(ar, arvif->vdev_id, pno);
-			kfree(pno);
+			ret = ath10k_wmi_wow_config_pyes(ar, arvif->vdev_id, pyes);
+			kfree(pyes);
 		}
 		break;
 	default:
@@ -599,7 +599,7 @@ exit:
 		case ATH10K_STATE_RESTARTED:
 		case ATH10K_STATE_UTF:
 		case ATH10K_STATE_WEDGED:
-			ath10k_warn(ar, "encountered unexpected device state %d on resume, cannot recover\n",
+			ath10k_warn(ar, "encountered unexpected device state %d on resume, canyest recover\n",
 				    ar->state);
 			ret = -EIO;
 			break;

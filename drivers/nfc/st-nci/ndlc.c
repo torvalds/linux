@@ -108,7 +108,7 @@ static void llt_ndlc_send_queue(struct llt_ndlc *ndlc)
 
 		skb_queue_tail(&ndlc->ack_pending_q, skb);
 
-		/* start timer t1 for ndlc aknowledge */
+		/* start timer t1 for ndlc akyeswledge */
 		ndlc->t1_active = true;
 		mod_timer(&ndlc->t1_timer, time_sent +
 			msecs_to_jiffies(NDLC_TIMER_T1));
@@ -169,7 +169,7 @@ static void llt_ndlc_rcv_queue(struct llt_ndlc *ndlc)
 			case PCB_SYNC_NACK:
 				llt_ndlc_requeue_data_pending(ndlc);
 				llt_ndlc_send_queue(ndlc);
-				/* start timer t1 for ndlc aknowledge */
+				/* start timer t1 for ndlc akyeswledge */
 				time_sent = jiffies;
 				ndlc->t1_active = true;
 				mod_timer(&ndlc->t1_timer, time_sent +
@@ -202,7 +202,7 @@ static void llt_ndlc_sm_work(struct work_struct *work)
 
 	if (ndlc->t1_active && timer_pending(&ndlc->t1_timer) == 0) {
 		pr_debug
-		    ("Handle T1(recv SUPERVISOR) elapsed (T1 now inactive)\n");
+		    ("Handle T1(recv SUPERVISOR) elapsed (T1 yesw inactive)\n");
 		ndlc->t1_active = false;
 
 		llt_ndlc_requeue_data_pending(ndlc);
@@ -210,7 +210,7 @@ static void llt_ndlc_sm_work(struct work_struct *work)
 	}
 
 	if (ndlc->t2_active && timer_pending(&ndlc->t2_timer) == 0) {
-		pr_debug("Handle T2(recv DATA) elapsed (T2 now inactive)\n");
+		pr_debug("Handle T2(recv DATA) elapsed (T2 yesw inactive)\n");
 		ndlc->t2_active = false;
 		ndlc->t1_active = false;
 		del_timer_sync(&ndlc->t1_timer);

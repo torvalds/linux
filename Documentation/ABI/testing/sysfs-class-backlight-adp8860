@@ -37,7 +37,7 @@ Description:
 		(RW) Maximum current setting for the backlight when brightness
 		is at one of the three levels (daylight, office or dark). This
 		is an input code between 0 and 127, which is transformed to a
-		value between 0 mA and 30 mA using linear or non-linear
+		value between 0 mA and 30 mA using linear or yesn-linear
 		algorithms.
 
 
@@ -51,4 +51,4 @@ Description:
 		(RW) Dim current setting for the backlight when brightness is at
 		one of the three levels (daylight, office or dark). This is an
 		input code between 0 and 127, which is transformed to a value
-		between 0 mA and 30 mA using linear or non-linear algorithms.
+		between 0 mA and 30 mA using linear or yesn-linear algorithms.

@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,7 +33,7 @@ struct drm_modeset_lock;
  * @ww_ctx: base acquire ctx
  * @contended: used internally for -EDEADLK handling
  * @locked: list of held locks
- * @trylock_only: trylock mode used in atomic contexts/panic notifiers
+ * @trylock_only: trylock mode used in atomic contexts/panic yestifiers
  * @interruptible: whether interruptible locking should be used.
  *
  * Each thread competing for a set of locks must use one acquire
@@ -81,7 +81,7 @@ struct drm_modeset_lock {
 
 	/*
 	 * Resources that are locked as part of an atomic update are added
-	 * to a list (so we know what to unlock at the end).
+	 * to a list (so we kyesw what to unlock at the end).
 	 */
 	struct list_head head;
 };
@@ -134,7 +134,7 @@ struct drm_plane;
 
 void drm_modeset_lock_all(struct drm_device *dev);
 void drm_modeset_unlock_all(struct drm_device *dev);
-void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
+void drm_warn_on_modeset_yest_all_locked(struct drm_device *dev);
 
 int drm_modeset_lock_all_ctx(struct drm_device *dev,
 			     struct drm_modeset_acquire_ctx *ctx);
@@ -161,7 +161,7 @@ int drm_modeset_lock_all_ctx(struct drm_device *dev,
  *
  * Returns:
  * The only possible value of ret immediately after DRM_MODESET_LOCK_ALL_BEGIN()
- * is 0, so no error checking is necessary
+ * is 0, so yes error checking is necessary
  */
 #define DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, flags, ret)		\
 	drm_modeset_acquire_init(&ctx, flags);				\
@@ -185,7 +185,7 @@ modeset_lock_retry:							\
  * ret will be untouched unless it is -EDEADLK on entry. That means that if you
  * successfully acquire the locks, ret will be whatever your code sets it to. If
  * there is a deadlock or other failure with acquire or backoff, ret will be set
- * to that failure. In both of these cases the code between BEGIN/END will not
+ * to that failure. In both of these cases the code between BEGIN/END will yest
  * be run, so the failure will reflect the inability to grab the locks.
  */
 #define DRM_MODESET_LOCK_ALL_END(ctx, ret)				\

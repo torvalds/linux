@@ -123,14 +123,14 @@ int sctp_ulpq_tail_data(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 
 /* Add a new event for propagation to the ULP.  */
 /* Clear the partial delivery mode for this socket.   Note: This
- * assumes that no association is currently in partial delivery mode.
+ * assumes that yes association is currently in partial delivery mode.
  */
 int sctp_clear_pd(struct sock *sk, struct sctp_association *asoc)
 {
 	struct sctp_sock *sp = sctp_sk(sk);
 
 	if (atomic_dec_and_test(&sp->pd_mode)) {
-		/* This means there are no other associations in PD, so
+		/* This means there are yes other associations in PD, so
 		 * we can go ahead and clear out the lobby in one shot
 		 */
 		if (!skb_queue_empty(&sp->pd_lobby)) {
@@ -141,7 +141,7 @@ int sctp_clear_pd(struct sock *sk, struct sctp_association *asoc)
 	} else {
 		/* There are other associations in PD, so we only need to
 		 * pull stuff out of the lobby that belongs to the
-		 * associations that is exiting PD (all of its notifications
+		 * associations that is exiting PD (all of its yestifications
 		 * are posted here).
 		 */
 		if (!skb_queue_empty(&sp->pd_lobby) && asoc) {
@@ -191,15 +191,15 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sk_buff_head *skb_list)
 	skb = __skb_peek(skb_list);
 	event = sctp_skb2event(skb);
 
-	/* If the socket is just going to throw this away, do not
+	/* If the socket is just going to throw this away, do yest
 	 * even try to deliver it.
 	 */
 	if (sk->sk_shutdown & RCV_SHUTDOWN &&
 	    (sk->sk_shutdown & SEND_SHUTDOWN ||
-	     !sctp_ulpevent_is_notification(event)))
+	     !sctp_ulpevent_is_yestification(event)))
 		goto out_free;
 
-	if (!sctp_ulpevent_is_notification(event)) {
+	if (!sctp_ulpevent_is_yestification(event)) {
 		sk_mark_napi_id(sk, skb);
 		sk_incoming_cpu_update(sk);
 	}
@@ -311,7 +311,7 @@ static void sctp_ulpq_store_reasm(struct sctp_ulpq *ulpq,
 /* Helper function to return an event corresponding to the reassembled
  * datagram.
  * This routine creates a re-assembled skb given the first and last skb's
- * as stored in the reassembly queue. The skb's may be non-linear if the sctp
+ * as stored in the reassembly queue. The skb's may be yesn-linear if the sctp
  * payload was fragmented on the way and ip had to reassemble them.
  * We add the rest of skb's to the first skb's fraglist.
  */
@@ -421,8 +421,8 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_ulpq *ul
 	 * 'first_frag' and next_tsn are reset when we find a chunk which
 	 * is the first fragment of a datagram. Once these 2 fields are set
 	 * we expect to find the remaining middle fragments and the last
-	 * fragment in order. If not, first_frag is reset to NULL and we
-	 * start the next pass when we find another first fragment.
+	 * fragment in order. If yest, first_frag is reset to NULL and we
+	 * start the next pass when we find ayesther first fragment.
 	 *
 	 * There is a potential to do partial delivery if user sets
 	 * SCTP_PARTIAL_DELIVERY_POINT option. Lets count some things here
@@ -476,7 +476,7 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_ulpq *ul
 	if (pd_first) {
 		/* Make sure we can enter partial deliver.
 		 * We can trigger partial delivery only if framgent
-		 * interleave is set, or the socket is not already
+		 * interleave is set, or the socket is yest already
 		 * in  partial delivery.
 		 */
 		if (!sctp_sk(asoc->base.sk)->frag_interleave &&
@@ -559,7 +559,7 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_partial(struct sctp_ulpq *ulpq)
 		}
 	}
 
-	/* We have the reassembled event. There is no need to look
+	/* We have the reassembled event. There is yes need to look
 	 * further.
 	 */
 done:
@@ -592,7 +592,7 @@ static struct sctp_ulpevent *sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
 	else {
 		__u32 ctsn, ctsnap;
 
-		/* Do not even bother unless this is the next tsn to
+		/* Do yest even bother unless this is the next tsn to
 		 * be delivered.
 		 */
 		ctsn = event->tsn;
@@ -660,7 +660,7 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_first(struct sctp_ulpq *ulpq)
 		}
 	}
 
-	/* We have the reassembled event. There is no need to look
+	/* We have the reassembled event. There is yes need to look
 	 * further.
 	 */
 done:
@@ -680,7 +680,7 @@ done:
  * remove any partially reassembled message, which is still missing one
  * or more TSNs earlier than or equal to the new cumulative TSN point.
  * In the event that the receiver has invoked the partial delivery API,
- * a notification SHOULD also be generated to inform the upper layer API
+ * a yestification SHOULD also be generated to inform the upper layer API
  * that the message being partially delivered will NOT be completed.
  */
 void sctp_ulpq_reasm_flushtsn(struct sctp_ulpq *ulpq, __u32 fwd_tsn)
@@ -767,7 +767,7 @@ static void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
 		if (csid > sid)
 			break;
 
-		/* Have we not gone far enough?  */
+		/* Have we yest gone far eyesugh?  */
 		if (csid < sid)
 			continue;
 
@@ -896,7 +896,7 @@ static void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
 		if (csid > sid)
 			break;
 
-		/* Have we not gone far enough?  */
+		/* Have we yest gone far eyesugh?  */
 		if (csid < sid)
 			continue;
 
@@ -949,11 +949,11 @@ void sctp_ulpq_skip(struct sctp_ulpq *ulpq, __u16 sid, __u16 ssn)
 	/* Note: The stream ID must be verified before this routine.  */
 	stream  = &ulpq->asoc->stream;
 
-	/* Is this an old SSN?  If so ignore. */
+	/* Is this an old SSN?  If so igyesre. */
 	if (SSN_lt(ssn, sctp_ssn_peek(stream, in, sid)))
 		return;
 
-	/* Mark that we are no longer expecting this SSN or lower. */
+	/* Mark that we are yes longer expecting this SSN or lower. */
 	sctp_ssn_skip(stream, in, sid, ssn);
 
 	/* Go find any other chunks that were waiting for
@@ -1036,7 +1036,7 @@ void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
 	sp = sctp_sk(asoc->base.sk);
 
 	/* If the association is already in Partial Delivery mode
-	 * we have nothing to do.
+	 * we have yesthing to do.
 	 */
 	if (ulpq->pd_mode)
 		return;
@@ -1054,7 +1054,7 @@ void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
 	/* If the user enabled fragment interleave socket option,
 	 * multiple associations can enter partial delivery.
 	 * Otherwise, we can only enter partial delivery if the
-	 * socket is not in partial deliver mode.
+	 * socket is yest in partial deliver mode.
 	 */
 	if (sp->frag_interleave || atomic_read(&sp->pd_mode) == 0) {
 		/* Is partial delivery possible?  */
@@ -1088,12 +1088,12 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 		if (freed < needed)
 			freed += sctp_ulpq_renege_frags(ulpq, needed - freed);
 	}
-	/* If able to free enough room, accept this chunk. */
+	/* If able to free eyesugh room, accept this chunk. */
 	if (sk_rmem_schedule(asoc->base.sk, chunk->skb, needed) &&
 	    freed >= needed) {
 		int retval = sctp_ulpq_tail_data(ulpq, chunk, gfp);
 		/*
-		 * Enter partial delivery if chunk has not been
+		 * Enter partial delivery if chunk has yest been
 		 * delivered; otherwise, drain the reassembly queue.
 		 */
 		if (retval <= 0)
@@ -1129,7 +1129,7 @@ void sctp_ulpq_abort_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
 	if (ev)
 		__skb_queue_tail(&sk->sk_receive_queue, sctp_event2skb(ev));
 
-	/* If there is data waiting, send it up the socket now. */
+	/* If there is data waiting, send it up the socket yesw. */
 	if ((sctp_ulpq_clear_pd(ulpq) || ev) && !sp->data_ready_signalled) {
 		sp->data_ready_signalled = 1;
 		sk->sk_data_ready(sk);

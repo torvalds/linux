@@ -17,15 +17,15 @@ struct target {
 	bool	     per_thread;
 };
 
-enum target_errno {
+enum target_erryes {
 	TARGET_ERRNO__SUCCESS		= 0,
 
 	/*
-	 * Choose an arbitrary negative big number not to clash with standard
-	 * errno since SUS requires the errno has distinct positive values.
+	 * Choose an arbitrary negative big number yest to clash with standard
+	 * erryes since SUS requires the erryes has distinct positive values.
 	 * See 'Issue 6' in the link below.
 	 *
-	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/erryes.h.html
 	 */
 	__TARGET_ERRNO__START		= -10000,
 
@@ -44,8 +44,8 @@ enum target_errno {
 	__TARGET_ERRNO__END,
 };
 
-enum target_errno target__validate(struct target *target);
-enum target_errno target__parse_uid(struct target *target);
+enum target_erryes target__validate(struct target *target);
+enum target_erryes target__parse_uid(struct target *target);
 
 int target__strerror(struct target *target, int errnum, char *buf, size_t buflen);
 
@@ -59,7 +59,7 @@ static inline bool target__has_cpu(struct target *target)
 	return target->system_wide || target->cpu_list;
 }
 
-static inline bool target__none(struct target *target)
+static inline bool target__yesne(struct target *target)
 {
 	return !target__has_task(target) && !target__has_cpu(target);
 }

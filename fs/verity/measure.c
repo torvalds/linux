@@ -16,19 +16,19 @@
  * verity file.  See the "FS_IOC_MEASURE_VERITY" section of
  * Documentation/filesystems/fsverity.rst for the documentation.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int fsverity_ioctl_measure(struct file *filp, void __user *_uarg)
 {
-	const struct inode *inode = file_inode(filp);
+	const struct iyesde *iyesde = file_iyesde(filp);
 	struct fsverity_digest __user *uarg = _uarg;
 	const struct fsverity_info *vi;
 	const struct fsverity_hash_alg *hash_alg;
 	struct fsverity_digest arg;
 
-	vi = fsverity_get_info(inode);
+	vi = fsverity_get_info(iyesde);
 	if (!vi)
-		return -ENODATA; /* not a verity file */
+		return -ENODATA; /* yest a verity file */
 	hash_alg = vi->tree_params.hash_alg;
 
 	/*

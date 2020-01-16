@@ -3,7 +3,7 @@
  * LPDDR2-NVM MTD driver. This module provides read, write, erase, lock/unlock
  * support for LPDDR2-NVM PCM memories
  *
- * Copyright © 2012 Micron Technology, Inc.
+ * Copyright © 2012 Micron Techyeslogy, Inc.
  *
  * Vincenzo Aliberti <vincenzo.aliberti@gmail.com>
  * Domenico Manna <domenico.manna@gmail.com>
@@ -463,7 +463,7 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 
 	/* Verify the presence of the device looking for PFOW string */
 	if (!lpddr2_nvm_pfow_present(map)) {
-		pr_err("device not recognized\n");
+		pr_err("device yest recognized\n");
 		return -EINVAL;
 	}
 	/* Parse partitions and register the MTD device */

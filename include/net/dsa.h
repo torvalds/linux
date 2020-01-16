@@ -10,7 +10,7 @@
 #include <linux/if.h>
 #include <linux/if_ether.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
@@ -105,7 +105,7 @@ struct dsa_switch_tree {
 	struct list_head	list;
 
 	/* Notifier chain for switch-wide events */
-	struct raw_notifier_head	nh;
+	struct raw_yestifier_head	nh;
 
 	/* Tree identifier */
 	unsigned int index;
@@ -129,7 +129,7 @@ struct dsa_switch_tree {
 	struct list_head rtable;
 };
 
-/* TC matchall action types, only mirroring for now */
+/* TC matchall action types, only mirroring for yesw */
 enum dsa_port_mall_action_type {
 	DSA_PORT_MALL_MIRROR,
 };
@@ -181,7 +181,7 @@ struct dsa_port {
 	const char		*name;
 	struct dsa_port		*cpu_dp;
 	const char		*mac;
-	struct device_node	*dn;
+	struct device_yesde	*dn;
 	unsigned int		ageing_time;
 	bool			vlan_filtering;
 	u8			stp_state;
@@ -215,7 +215,7 @@ struct dsa_port {
 };
 
 /* TODO: ideally DSA ports would have a single dp->link_dp member,
- * and no dst->rtable nor this struct dsa_link would be needed,
+ * and yes dst->rtable yesr this struct dsa_link would be needed,
  * but this would require some more complex tree walking,
  * so keep it stupid at the moment and list them all.
  */
@@ -237,7 +237,7 @@ struct dsa_switch {
 	unsigned int		index;
 
 	/* Listener for switch fabric events */
-	struct notifier_block	nb;
+	struct yestifier_block	nb;
 
 	/*
 	 * Give the switch driver somewhere to hang its private data
@@ -272,12 +272,12 @@ struct dsa_switch {
 	unsigned int		num_tx_queues;
 
 	/* Disallow bridge core from requesting different VLAN awareness
-	 * settings on ports if not hardware-supported
+	 * settings on ports if yest hardware-supported
 	 */
 	bool			vlan_filtering_is_global;
 
 	/* In case vlan_filtering_is_global is set, the VLAN awareness state
-	 * should be retrieved from here and not from the per-port settings.
+	 * should be retrieved from here and yest from the per-port settings.
 	 */
 	bool			vlan_filtering;
 
@@ -649,46 +649,46 @@ static inline int dsa_switch_resume(struct dsa_switch *ds)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-enum dsa_notifier_type {
+enum dsa_yestifier_type {
 	DSA_PORT_REGISTER,
 	DSA_PORT_UNREGISTER,
 };
 
-struct dsa_notifier_info {
+struct dsa_yestifier_info {
 	struct net_device *dev;
 };
 
-struct dsa_notifier_register_info {
-	struct dsa_notifier_info info;	/* must be first */
+struct dsa_yestifier_register_info {
+	struct dsa_yestifier_info info;	/* must be first */
 	struct net_device *master;
 	unsigned int port_number;
 	unsigned int switch_number;
 };
 
 static inline struct net_device *
-dsa_notifier_info_to_dev(const struct dsa_notifier_info *info)
+dsa_yestifier_info_to_dev(const struct dsa_yestifier_info *info)
 {
 	return info->dev;
 }
 
 #if IS_ENABLED(CONFIG_NET_DSA)
-int register_dsa_notifier(struct notifier_block *nb);
-int unregister_dsa_notifier(struct notifier_block *nb);
-int call_dsa_notifiers(unsigned long val, struct net_device *dev,
-		       struct dsa_notifier_info *info);
+int register_dsa_yestifier(struct yestifier_block *nb);
+int unregister_dsa_yestifier(struct yestifier_block *nb);
+int call_dsa_yestifiers(unsigned long val, struct net_device *dev,
+		       struct dsa_yestifier_info *info);
 #else
-static inline int register_dsa_notifier(struct notifier_block *nb)
+static inline int register_dsa_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }
 
-static inline int unregister_dsa_notifier(struct notifier_block *nb)
+static inline int unregister_dsa_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }
 
-static inline int call_dsa_notifiers(unsigned long val, struct net_device *dev,
-				     struct dsa_notifier_info *info)
+static inline int call_dsa_yestifiers(unsigned long val, struct net_device *dev,
+				     struct dsa_yestifier_info *info)
 {
 	return NOTIFY_DONE;
 }
@@ -738,7 +738,7 @@ module_exit(dsa_tag_driver_module_exit)
  * drivers
  * @__ops_array: Array of tag driver strucutres
  *
- * Helper macro for DSA tag drivers which do not do anything special
+ * Helper macro for DSA tag drivers which do yest do anything special
  * in module init/exit. Each module may only use this macro once, and
  * calling it replaces module_init() and module_exit().
  */
@@ -760,7 +760,7 @@ static struct dsa_tag_driver DSA_TAG_DRIVER_NAME(__ops) = {		\
  * driver
  * @__ops: Single tag driver structures
  *
- * Helper macro for DSA tag drivers which do not do anything special
+ * Helper macro for DSA tag drivers which do yest do anything special
  * in module init/exit. Each module may only use this macro once, and
  * calling it replaces module_init() and module_exit().
  */

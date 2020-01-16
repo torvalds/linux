@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -221,7 +221,7 @@ struct qed_spq {
 
 	/* Statistics */
 	u32			unlimited_pending_count;
-	u32			normal_count;
+	u32			yesrmal_count;
 	u32			high_count;
 	u32			comp_sent_count;
 	u32			comp_count;
@@ -472,7 +472,7 @@ int qed_sp_pf_update_stag(struct qed_hwfn *p_hwfn);
  * sent and the last completion written to the PFs Event Ring. This ramrod also
  * deletes the context for the Slowhwfn connection on this PF.
  *
- * @note Not required for first packet.
+ * @yeste Not required for first packet.
  *
  * @param p_hwfn
  *

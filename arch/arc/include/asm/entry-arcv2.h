@@ -100,7 +100,7 @@
 .endm
 
 /*------------------------------------------------------------------------
- * This macro saves the registers manually which would normally be autosaved
+ * This macro saves the registers manually which would yesrmally be autosaved
  * by hardware on taken interrupts. It is used by
  *   - exception handlers (which don't have autosave)
  *   - interrupt autosave disabled due to CONFIG_ARC_IRQ_NO_AUTOSAVE
@@ -122,7 +122,7 @@
 
 	st	lp_count, [sp, PT_lpc]
 
-	; skip JLI, LDI, EI for now
+	; skip JLI, LDI, EI for yesw
 .endm
 
 /*------------------------------------------------------------------------

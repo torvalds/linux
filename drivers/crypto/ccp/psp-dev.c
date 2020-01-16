@@ -49,7 +49,7 @@ static inline bool sev_version_greater_or_equal(u8 maj, u8 min)
 {
 	if (psp_master->api_major > maj)
 		return true;
-	if (psp_master->api_major == maj && psp_master->api_minor >= min)
+	if (psp_master->api_major == maj && psp_master->api_miyesr >= min)
 		return true;
 	return false;
 }
@@ -433,7 +433,7 @@ void *psp_copy_user_blob(u64 __user uaddr, u32 len)
 	if (!uaddr || !len)
 		return ERR_PTR(-EINVAL);
 
-	/* verify that blob length does not exceed our limit */
+	/* verify that blob length does yest exceed our limit */
 	if (len > SEV_FW_BLOB_MAX_SIZE)
 		return ERR_PTR(-EINVAL);
 
@@ -455,7 +455,7 @@ static int sev_get_api_version(void)
 	}
 
 	psp_master->api_major = status->api_major;
-	psp_master->api_minor = status->api_minor;
+	psp_master->api_miyesr = status->api_miyesr;
 	psp_master->build = status->build;
 	psp_master->sev_state = status->state;
 
@@ -489,9 +489,9 @@ static int sev_get_firmware(struct device *dev,
 	 *
 	 * Fall-back to using generic name: sev.fw
 	 */
-	if ((firmware_request_nowarn(firmware, fw_name_specific, dev) >= 0) ||
-	    (firmware_request_nowarn(firmware, fw_name_subset, dev) >= 0) ||
-	    (firmware_request_nowarn(firmware, SEV_FW_FILE, dev) >= 0))
+	if ((firmware_request_yeswarn(firmware, fw_name_specific, dev) >= 0) ||
+	    (firmware_request_yeswarn(firmware, fw_name_subset, dev) >= 0) ||
+	    (firmware_request_yeswarn(firmware, SEV_FW_FILE, dev) >= 0))
 		return 0;
 
 	return -ENOENT;
@@ -515,7 +515,7 @@ static int sev_update_firmware(struct device *dev)
 	 * SEV FW expects the physical address given to it to be 32
 	 * byte aligned. Memory allocated has structure placed at the
 	 * beginning followed by the firmware being passed to the SEV
-	 * FW. Allocate enough memory for data structure + alignment
+	 * FW. Allocate eyesugh memory for data structure + alignment
 	 * padding + SEV FW.
 	 */
 	data_size = ALIGN(sizeof(struct sev_data_download_firmware), 32);
@@ -588,7 +588,7 @@ static int sev_ioctl_do_pek_import(struct sev_issue_cmd *argp)
 	data->oca_cert_address = __psp_pa(oca_blob);
 	data->oca_cert_len = input.oca_cert_len;
 
-	/* If platform is not in INIT state then transition it to INIT */
+	/* If platform is yest in INIT state then transition it to INIT */
 	if (psp_master->sev_state != SEV_STATE_INIT) {
 		ret = __sev_platform_init_locked(&argp->error);
 		if (ret)
@@ -681,7 +681,7 @@ static int sev_ioctl_do_get_id(struct sev_issue_cmd *argp)
 		return -ENOTSUPP;
 
 	/* SEV FW expects the buffer it fills with the ID to be
-	 * 8-byte aligned. Memory allocated should be enough to
+	 * 8-byte aligned. Memory allocated should be eyesugh to
 	 * hold data structure + alignment padding + memory
 	 * where SEV FW writes the ID.
 	 */
@@ -716,7 +716,7 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp)
 	struct sev_data_pdh_cert_export *data;
 	int ret;
 
-	/* If platform is not in INIT state then transition it to INIT. */
+	/* If platform is yest in INIT state then transition it to INIT. */
 	if (psp_master->sev_state != SEV_STATE_INIT) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
@@ -918,8 +918,8 @@ static int sev_misc_init(struct psp_device *psp)
 
 	/*
 	 * SEV feature support can be detected on multiple devices but the SEV
-	 * FW commands must be issued on the master. During probe, we do not
-	 * know the master hence we create /dev/sev on the first device probe.
+	 * FW commands must be issued on the master. During probe, we do yest
+	 * kyesw the master hence we create /dev/sev on the first device probe.
 	 * sev_do_cmd() finds the right master device to which to issue the
 	 * command to the firmware.
 	 */
@@ -931,7 +931,7 @@ static int sev_misc_init(struct psp_device *psp)
 			return -ENOMEM;
 
 		misc = &misc_dev->misc;
-		misc->minor = MISC_DYNAMIC_MINOR;
+		misc->miyesr = MISC_DYNAMIC_MINOR;
 		misc->name = DEVICE_NAME;
 		misc->fops = &sev_fops;
 
@@ -959,17 +959,17 @@ static int psp_check_sev_support(struct psp_device *psp)
 	 * Check for a access to the registers.  If this read returns
 	 * 0xffffffff, it's likely that the system is running a broken
 	 * BIOS which disallows access to the device. Stop here and
-	 * fail the PSP initialization (but not the load, as the CCP
+	 * fail the PSP initialization (but yest the load, as the CCP
 	 * could get properly initialized).
 	 */
 	if (val == 0xffffffff) {
-		dev_notice(psp->dev, "psp: unable to access the device: you might be running a broken BIOS.\n");
+		dev_yestice(psp->dev, "psp: unable to access the device: you might be running a broken BIOS.\n");
 		return -ENODEV;
 	}
 
 	if (!(val & 1)) {
-		/* Device does not support the SEV feature */
-		dev_dbg(psp->dev, "psp does not support SEV\n");
+		/* Device does yest support the SEV feature */
+		dev_dbg(psp->dev, "psp does yest support SEV\n");
 		return -ENODEV;
 	}
 
@@ -1023,7 +1023,7 @@ int psp_dev_init(struct sp_device *sp)
 	/* Enable interrupt */
 	iowrite32(-1, psp->io_regs + psp->vdata->inten_reg);
 
-	dev_notice(dev, "psp enabled\n");
+	dev_yestice(dev, "psp enabled\n");
 
 	return 0;
 
@@ -1032,7 +1032,7 @@ e_irq:
 e_err:
 	sp->psp_data = NULL;
 
-	dev_notice(dev, "psp initialization failed\n");
+	dev_yestice(dev, "psp initialization failed\n");
 
 	return ret;
 
@@ -1082,12 +1082,12 @@ void psp_pci_init(void)
 		goto err;
 
 	/*
-	 * If platform is not in UNINIT state then firmware upgrade and/or
+	 * If platform is yest in UNINIT state then firmware upgrade and/or
 	 * platform INIT command will fail. These command require UNINIT state.
 	 *
-	 * In a normal boot we should never run into case where the firmware
-	 * is not in UNINIT state on boot. But in case of kexec boot, a reboot
-	 * may not go through a typical shutdown sequence and may leave the
+	 * In a yesrmal boot we should never run into case where the firmware
+	 * is yest in UNINIT state on boot. But in case of kexec boot, a reboot
+	 * may yest go through a typical shutdown sequence and may leave the
 	 * firmware in INIT or WORKING state.
 	 */
 
@@ -1120,7 +1120,7 @@ void psp_pci_init(void)
 	}
 
 	dev_info(sp->dev, "SEV API:%d.%d build:%d\n", psp_master->api_major,
-		 psp_master->api_minor, psp_master->build);
+		 psp_master->api_miyesr, psp_master->build);
 
 	return;
 

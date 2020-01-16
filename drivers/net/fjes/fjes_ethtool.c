@@ -72,7 +72,7 @@ static void fjes_get_ethtool_stats(struct net_device *netdev,
 				.recv_intr_zoneupdate;
 		data[i++] = hw->ep_shm_info[epidx].ep_stats.tx_buffer_full;
 		data[i++] = hw->ep_shm_info[epidx].ep_stats
-				.tx_dropped_not_shared;
+				.tx_dropped_yest_shared;
 		data[i++] = hw->ep_shm_info[epidx].ep_stats
 				.tx_dropped_ver_mismatch;
 		data[i++] = hw->ep_shm_info[epidx].ep_stats
@@ -120,7 +120,7 @@ static void fjes_get_strings(struct net_device *netdev,
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "ep%u_tx_buffer_full", i);
 			p += ETH_GSTRING_LEN;
-			sprintf(p, "ep%u_tx_dropped_not_shared", i);
+			sprintf(p, "ep%u_tx_dropped_yest_shared", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "ep%u_tx_dropped_ver_mismatch", i);
 			p += ETH_GSTRING_LEN;
@@ -155,7 +155,7 @@ static void fjes_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->version, fjes_driver_version,
 		sizeof(drvinfo->version));
 
-	strlcpy(drvinfo->fw_version, "none", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->fw_version, "yesne", sizeof(drvinfo->fw_version));
 	snprintf(drvinfo->bus_info, sizeof(drvinfo->bus_info),
 		 "platform:%s", plat_dev->name);
 }

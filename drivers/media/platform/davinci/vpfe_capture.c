@@ -30,7 +30,7 @@
  *    and to the input of VPFE through an optional MUX (if more inputs are
  *    to be interfaced on the EVM). The input data is first passed through
  *    CCDC (CCD Controller, a.k.a Image Sensor Interface, ISIF). The CCDC
- *    does very little or no processing on YUV data and does pre-process Raw
+ *    does very little or yes processing on YUV data and does pre-process Raw
  *    Bayer RGB data through modules such as Defect Pixel Correction (DFC)
  *    Color Space Conversion (CSC), data gain/offset etc. After this, data
  *    can be written to SDRAM or can be connected to the image processing
@@ -191,13 +191,13 @@ int vpfe_register_ccdc_device(const struct ccdc_hw_device *dev)
 		 * Proabably we need to add the request to a linked list and
 		 * walk through it during vpfe probe
 		 */
-		printk(KERN_ERR "vpfe capture not initialized\n");
+		printk(KERN_ERR "vpfe capture yest initialized\n");
 		ret = -EFAULT;
 		goto unlock;
 	}
 
 	if (strcmp(dev->name, ccdc_cfg->name)) {
-		/* ignore this ccdc */
+		/* igyesre this ccdc */
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -230,7 +230,7 @@ void vpfe_unregister_ccdc_device(const struct ccdc_hw_device *dev)
 		dev->name);
 
 	if (strcmp(dev->name, ccdc_cfg->name)) {
-		/* ignore this ccdc */
+		/* igyesre this ccdc */
 		return;
 	}
 
@@ -260,7 +260,7 @@ static int vpfe_config_ccdc_image_format(struct vpfe_device *vpfe_dev)
 
 	switch (vpfe_dev->fmt.fmt.pix.field) {
 	case V4L2_FIELD_INTERLACED:
-		/* do nothing, since it is default */
+		/* do yesthing, since it is default */
 		ret = ccdc_dev->hw_ops.set_buftype(
 				CCDC_BUFTYPE_FLD_INTERLEAVED);
 		break;
@@ -316,7 +316,7 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 	}
 
 	if (i ==  ARRAY_SIZE(vpfe_standards)) {
-		v4l2_err(&vpfe_dev->v4l2_dev, "standard not supported\n");
+		v4l2_err(&vpfe_dev->v4l2_dev, "standard yest supported\n");
 		return -EINVAL;
 	}
 
@@ -383,10 +383,10 @@ static int vpfe_initialize_device(struct vpfe_device *vpfe_dev)
 	if (ret)
 		return ret;
 
-	/* now open the ccdc device to initialize it */
+	/* yesw open the ccdc device to initialize it */
 	mutex_lock(&ccdc_lock);
 	if (!ccdc_dev) {
-		v4l2_err(&vpfe_dev->v4l2_dev, "ccdc device not registered\n");
+		v4l2_err(&vpfe_dev->v4l2_dev, "ccdc device yest registered\n");
 		ret = -ENODEV;
 		goto unlock;
 	}
@@ -436,7 +436,7 @@ static int vpfe_open(struct file *file)
 	fh->vpfe_dev = vpfe_dev;
 	v4l2_fh_init(&fh->fh, vdev);
 	mutex_lock(&vpfe_dev->lock);
-	/* If decoder is not initialized. initialize it */
+	/* If decoder is yest initialized. initialize it */
 	if (!vpfe_dev->initialized) {
 		if (vpfe_initialize_device(vpfe_dev)) {
 			mutex_unlock(&vpfe_dev->lock);
@@ -495,7 +495,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "\nStarting vpfe_isr...\n");
 	field = vpfe_dev->fmt.fmt.pix.field;
 
-	/* if streaming not started, don't do anything */
+	/* if streaming yest started, don't do anything */
 	if (!vpfe_dev->started)
 		goto clear_intr;
 
@@ -540,7 +540,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 		/*
 		 * if one field is just being captured configure
 		 * the next frame get the next frame from the empty
-		 * queue if no frame is available hold on to the
+		 * queue if yes frame is available hold on to the
 		 * current buffer
 		 */
 		spin_lock(&vpfe_dev->dma_queue_lock);
@@ -569,7 +569,7 @@ static irqreturn_t vdint1_isr(int irq, void *dev_id)
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "\nInside vdint1_isr...\n");
 
-	/* if streaming not started, don't do anything */
+	/* if streaming yest started, don't do anything */
 	if (!vpfe_dev->started) {
 		if (vpfe_dev->cfg->clr_intr)
 			vpfe_dev->cfg->clr_intr(irq);
@@ -718,10 +718,10 @@ static const struct v4l2_file_operations vpfe_fops = {
  * capabilities and update the same in pixfmt.
  * Following algorithm used :-
  *
- *	If given pixformat is not in the vpfe list of pix formats or not
+ *	If given pixformat is yest in the vpfe list of pix formats or yest
  *	supported by the hardware, current value of pixformat in the device
  *	is used
- *	If given field is not supported, then current field is used. If field
+ *	If given field is yest supported, then current field is used. If field
  *	is different from current, then it is matched with that from sub device.
  *	Minimum height is 2 lines for interlaced or tb field and 1 line for
  *	progressive. Maximum height is clamped to active active lines of scan
@@ -776,12 +776,12 @@ static const struct vpfe_pixel_format *
 	}
 
 	/*
-	 * if field is not same as current field in the vpfe device
+	 * if field is yest same as current field in the vpfe device
 	 * try matching the field with the sub device field
 	 */
 	if (vpfe_dev->fmt.fmt.pix.field != pixfmt->field) {
 		/*
-		 * If field value is not in the supported fields, use current
+		 * If field value is yest in the supported fields, use current
 		 * field used in the device as default
 		 */
 		switch (pixfmt->field) {
@@ -996,7 +996,7 @@ static int vpfe_enum_input(struct file *file, void *priv,
 					&subdev,
 					&index,
 					inp->index) < 0) {
-		v4l2_err(&vpfe_dev->v4l2_dev, "input information not found for the subdev\n");
+		v4l2_err(&vpfe_dev->v4l2_dev, "input information yest found for the subdev\n");
 		return -EINVAL;
 	}
 	sdinfo = &vpfe_dev->cfg->sub_devs[subdev];
@@ -1183,7 +1183,7 @@ static int vpfe_videobuf_prepare(struct videobuf_queue *vq,
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buffer_prepare\n");
 
-	/* If buffer is not initialized, initialize it */
+	/* If buffer is yest initialized, initialize it */
 	if (VIDEOBUF_NEEDS_INIT == vb->state) {
 		vb->width = vpfe_dev->fmt.fmt.pix.width;
 		vb->height = vpfe_dev->fmt.fmt.pix.height;
@@ -1331,7 +1331,7 @@ static int vpfe_qbuf(struct file *file, void *priv,
 	}
 
 	/*
-	 * If this file handle is not allowed to do IO,
+	 * If this file handle is yest allowed to do IO,
 	 * return error
 	 */
 	if (!fh->io_allowed) {
@@ -1380,9 +1380,9 @@ static void vpfe_start_ccdc_capture(struct vpfe_device *vpfe_dev)
 }
 
 /*
- * vpfe_streamon. Assume the DMA queue is not empty.
+ * vpfe_streamon. Assume the DMA queue is yest empty.
  * application is expected to call QBUF before calling
- * this ioctl. If not, driver returns error
+ * this ioctl. If yest, driver returns error
  */
 static int vpfe_streamon(struct file *file, void *priv,
 			 enum v4l2_buf_type buf_type)
@@ -1400,7 +1400,7 @@ static int vpfe_streamon(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	/* If file handle is not allowed IO, return error */
+	/* If file handle is yest allowed IO, return error */
 	if (!fh->io_allowed) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "fh->io_allowed\n");
 		return -EACCES;
@@ -1489,7 +1489,7 @@ static int vpfe_streamoff(struct file *file, void *priv,
 		return -EACCES;
 	}
 
-	/* If streaming is not started, return error */
+	/* If streaming is yest started, return error */
 	if (!vpfe_dev->started) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "device started\n");
 		return -EINVAL;
@@ -1569,9 +1569,9 @@ static int vpfe_s_selection(struct file *file, void *priv,
 		return -EINVAL;
 
 	if (vpfe_dev->started) {
-		/* make sure streaming is not started */
+		/* make sure streaming is yest started */
 		v4l2_err(&vpfe_dev->v4l2_dev,
-			"Cannot change crop when streaming is ON\n");
+			"Canyest change crop when streaming is ON\n");
 		return -EBUSY;
 	}
 
@@ -1748,7 +1748,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	vfd->release		= video_device_release_empty;
 	vfd->fops		= &vpfe_fops;
 	vfd->ioctl_ops		= &vpfe_ioctl_ops;
-	vfd->tvnorms		= 0;
+	vfd->tvyesrms		= 0;
 	vfd->v4l2_dev		= &vpfe_dev->v4l2_dev;
 	vfd->device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	snprintf(vfd->name, sizeof(vfd->name),
@@ -1818,10 +1818,10 @@ static int vpfe_probe(struct platform_device *pdev)
 				  "v4l2 sub device %s registered\n",
 				  sdinfo->name);
 			vpfe_dev->sd[i]->grp_id = sdinfo->grp_id;
-			/* update tvnorms from the sub devices */
+			/* update tvyesrms from the sub devices */
 			for (j = 0; j < sdinfo->num_inputs; j++) {
 				inps = &sdinfo->inputs[j];
-				vfd->tvnorms |= inps->std;
+				vfd->tvyesrms |= inps->std;
 			}
 		} else {
 			v4l2_info(&vpfe_dev->v4l2_dev,

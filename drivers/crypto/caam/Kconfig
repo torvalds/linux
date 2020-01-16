@@ -15,7 +15,7 @@ config CRYPTO_DEV_FSL_CAAM
 	select CRYPTO_DEV_FSL_CAAM_COMMON
 	help
 	  Enables the driver module for Freescale's Cryptographic Accelerator
-	  and Assurance Module (CAAM), also known as the SEC version 4 (SEC4).
+	  and Assurance Module (CAAM), also kyeswn as the SEC version 4 (SEC4).
 	  This module creates job ring devices, and configures h/w
 	  to operate as a DPAA component automatically, depending
 	  on h/w feature availability.

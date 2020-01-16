@@ -33,7 +33,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
  *
  * FUNCTION:    acpi_ds_initialize_region
  *
- * PARAMETERS:  obj_handle      - Region namespace node
+ * PARAMETERS:  obj_handle      - Region namespace yesde
  *
  * RETURN:      Status
  *
@@ -91,7 +91,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	if (buffer_desc->common.type != ACPI_TYPE_BUFFER) {
 		ACPI_ERROR((AE_INFO,
-			    "Target of Create Field is not a Buffer object - %s",
+			    "Target of Create Field is yest a Buffer object - %s",
 			    acpi_ut_get_object_type_name(buffer_desc)));
 
 		status = AE_AML_OPERAND_TYPE;
@@ -100,12 +100,12 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	/*
 	 * The last parameter to all of these opcodes (result_desc) started
-	 * out as a name_string, and should therefore now be a NS node
+	 * out as a name_string, and should therefore yesw be a NS yesde
 	 * after resolution in acpi_ex_resolve_operands().
 	 */
 	if (ACPI_GET_DESCRIPTOR_TYPE(result_desc) != ACPI_DESC_TYPE_NAMED) {
 		ACPI_ERROR((AE_INFO,
-			    "(%s) destination not a NS Node [%s]",
+			    "(%s) destination yest a NS Node [%s]",
 			    acpi_ps_get_opcode_name(aml_opcode),
 			    acpi_ut_get_descriptor_name(result_desc)));
 
@@ -185,7 +185,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	default:
 
 		ACPI_ERROR((AE_INFO,
-			    "Unknown field creation opcode 0x%02X",
+			    "Unkyeswn field creation opcode 0x%02X",
 			    aml_opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
@@ -198,7 +198,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 		ACPI_BIOS_EXCEPTION((AE_INFO, status,
 				     "Field [%4.4s] at bit offset/length %u/%u "
 				     "exceeds size of target Buffer (%u bits)",
-				     acpi_ut_get_node_name(result_desc),
+				     acpi_ut_get_yesde_name(result_desc),
 				     bit_offset, bit_count,
 				     8 * (u32)buffer_desc->buffer.length));
 		goto cleanup;
@@ -268,7 +268,7 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 {
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_parse_object *next_op;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_eval_buffer_field_operands, op);
@@ -277,7 +277,7 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 	 * This is where we evaluate the address and length fields of the
 	 * create_xxx_field declaration
 	 */
-	node = op->common.node;
+	yesde = op->common.yesde;
 
 	/* next_op points to the op that holds the Buffer */
 
@@ -290,7 +290,7 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(status);
 	}
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(yesde);
 	if (!obj_desc) {
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
@@ -354,7 +354,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
 	union acpi_operand_object *operand_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_parse_object *next_op;
 	acpi_adr_space_type space_id;
 
@@ -364,7 +364,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	 * This is where we evaluate the address and length fields of the
 	 * op_region declaration
 	 */
-	node = op->common.node;
+	yesde = op->common.yesde;
 
 	/* next_op points to the op that holds the space_ID */
 
@@ -391,7 +391,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(status);
 	}
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(yesde);
 	if (!obj_desc) {
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
@@ -411,7 +411,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	    && (space_id < ACPI_NUM_PREDEFINED_REGIONS)) {
 		ACPI_WARNING((AE_INFO,
 			      "Operation Region [%4.4s] has zero length (SpaceId %X)",
-			      node->name.ascii, space_id));
+			      yesde->name.ascii, space_id));
 	}
 
 	/*
@@ -431,7 +431,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 
 	status = acpi_ut_add_address_range(obj_desc->region.space_id,
 					   obj_desc->region.address,
-					   obj_desc->region.length, node);
+					   obj_desc->region.length, yesde);
 
 	/* Now the address and length are valid for this opregion */
 
@@ -461,7 +461,7 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
 	union acpi_operand_object **operand;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_parse_object *next_op;
 	struct acpi_table_header *table;
 	u32 table_index;
@@ -472,7 +472,7 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 	 * This is where we evaluate the Signature string, oem_id string,
 	 * and oem_table_id string of the Data Table Region declaration
 	 */
-	node = op->common.node;
+	yesde = op->common.yesde;
 
 	/* next_op points to Signature string op */
 
@@ -508,7 +508,7 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_FOUND) {
 			ACPI_ERROR((AE_INFO,
-				    "ACPI Table [%4.4s] OEM:(%s, %s) not found in RSDT/XSDT",
+				    "ACPI Table [%4.4s] OEM:(%s, %s) yest found in RSDT/XSDT",
 				    operand[0]->string.pointer,
 				    operand[1]->string.pointer,
 				    operand[2]->string.pointer));
@@ -521,7 +521,7 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 		goto cleanup;
 	}
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(yesde);
 	if (!obj_desc) {
 		status = AE_NOT_EXIST;
 		goto cleanup;
@@ -581,7 +581,7 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 	 */
 	walk_state->operand_index = walk_state->num_operands;
 
-	/* Ignore if child is not valid */
+	/* Igyesre if child is yest valid */
 
 	if (!op->common.value.arg) {
 		ACPI_ERROR((AE_INFO,
@@ -681,7 +681,7 @@ acpi_ds_eval_bank_field_operands(struct acpi_walk_state *walk_state,
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
 	union acpi_operand_object *operand_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_parse_object *next_op;
 	union acpi_parse_object *arg;
 
@@ -735,12 +735,12 @@ acpi_ds_eval_bank_field_operands(struct acpi_walk_state *walk_state,
 	arg = acpi_ps_get_arg(op, 4);
 	while (arg) {
 
-		/* Ignore OFFSET and ACCESSAS terms here */
+		/* Igyesre OFFSET and ACCESSAS terms here */
 
 		if (arg->common.aml_opcode == AML_INT_NAMEDFIELD_OP) {
-			node = arg->common.node;
+			yesde = arg->common.yesde;
 
-			obj_desc = acpi_ns_get_attached_object(node);
+			obj_desc = acpi_ns_get_attached_object(yesde);
 			if (!obj_desc) {
 				return_ACPI_STATUS(AE_NOT_EXIST);
 			}

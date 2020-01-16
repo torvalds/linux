@@ -66,8 +66,8 @@ extern unsigned long pci_dram_offset;
 extern resource_size_t isa_mem_base;
 
 /* Boolean set by platform if PIO accesses are suppored while _IO_BASE
- * is not set or addresses cannot be translated to MMIO. This is typically
- * set when the platform supports "special" PIO accesses via a non memory
+ * is yest set or addresses canyest be translated to MMIO. This is typically
+ * set when the platform supports "special" PIO accesses via a yesn memory
  * mapped mechanism, and allows things like the early udbg UART code to
  * function.
  */
@@ -75,7 +75,7 @@ extern bool isa_io_special;
 
 #ifdef CONFIG_PPC32
 #if defined(CONFIG_PPC_INDIRECT_PIO) || defined(CONFIG_PPC_INDIRECT_MMIO)
-#error CONFIG_PPC_INDIRECT_{PIO,MMIO} are not yet supported on 32 bits
+#error CONFIG_PPC_INDIRECT_{PIO,MMIO} are yest yet supported on 32 bits
 #endif
 #endif
 
@@ -83,7 +83,7 @@ extern bool isa_io_special;
  *
  * Low level MMIO accessors
  *
- * This provides the non-bus specific accessors to MMIO. Those are PowerPC
+ * This provides the yesn-bus specific accessors to MMIO. Those are PowerPC
  * specific and thus shouldn't be used in generic code. The accessors
  * provided here are:
  *
@@ -97,7 +97,7 @@ extern bool isa_io_special;
  * next.
  *
  * Note: I might drop the _ns suffix on the stream operations soon as it is
- * simply normal for stream operations to not swap in the first place.
+ * simply yesrmal for stream operations to yest swap in the first place.
  *
  */
 
@@ -167,7 +167,7 @@ DEF_MMIO_OUT_D(out_le32, 32, stw);
 DEF_MMIO_OUT_D(out_be64, 64, std);
 DEF_MMIO_IN_D(in_be64, 64, ld);
 
-/* There is no asm instructions for 64 bits reverse loads and stores */
+/* There is yes asm instructions for 64 bits reverse loads and stores */
 static inline u64 in_le64(const volatile u64 __iomem *addr)
 {
 	return swab64(in_be64(addr));
@@ -181,7 +181,7 @@ static inline void out_le64(volatile u64 __iomem *addr, u64 val)
 DEF_MMIO_OUT_D(out_le64, 64, std);
 DEF_MMIO_IN_D(in_le64, 64, ld);
 
-/* There is no asm instructions for 64 bits reverse loads and stores */
+/* There is yes asm instructions for 64 bits reverse loads and stores */
 static inline u64 in_be64(const volatile u64 __iomem *addr)
 {
 	return swab64(in_le64(addr));
@@ -196,7 +196,7 @@ static inline void out_be64(volatile u64 __iomem *addr, u64 val)
 #endif /* __powerpc64__ */
 
 /*
- * Low level IO stream instructions are defined out of line for now
+ * Low level IO stream instructions are defined out of line for yesw
  */
 extern void _insb(const volatile u8 __iomem *addr, void *buf, long count);
 extern void _outsb(volatile u8 __iomem *addr,const void *buf,long count);
@@ -205,8 +205,8 @@ extern void _outsw_ns(volatile u16 __iomem *addr, const void *buf, long count);
 extern void _insl_ns(const volatile u32 __iomem *addr, void *buf, long count);
 extern void _outsl_ns(volatile u32 __iomem *addr, const void *buf, long count);
 
-/* The _ns naming is historical and will be removed. For now, just #define
- * the non _ns equivalent names
+/* The _ns naming is historical and will be removed. For yesw, just #define
+ * the yesn _ns equivalent names
  */
 #define _insw	_insw_ns
 #define _insl	_insl_ns
@@ -231,7 +231,7 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
  * Those are globally defined linux accessors for devices on PCI or ISA
  * busses. They follow the Linux defined semantics. The current implementation
  * for PowerPC is as close as possible to the x86 version of these, and thus
- * provides fairly heavy weight barriers for the non-raw versions
+ * provides fairly heavy weight barriers for the yesn-raw versions
  *
  * In addition, they support a hook mechanism when CONFIG_PPC_INDIRECT_MMIO
  * or CONFIG_PPC_INDIRECT_PIO are set allowing the platform to provide its
@@ -252,11 +252,11 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
 /* Indirect IO address tokens:
  *
  * When CONFIG_PPC_INDIRECT_MMIO is set, the platform can provide hooks
- * on all MMIOs. (Note that this is all 64 bits only for now)
+ * on all MMIOs. (Note that this is all 64 bits only for yesw)
  *
  * To help platforms who may need to differentiate MMIO addresses in
  * their hooks, a bitfield is reserved for use by the platform near the
- * top of MMIO addresses (not PIO, those have to cope the hard way).
+ * top of MMIO addresses (yest PIO, those have to cope the hard way).
  *
  * The highest address in the kernel virtual space are:
  *
@@ -296,7 +296,7 @@ do {									\
 
 
 /*
- * Non ordered and non-swapping "raw" accessors
+ * Non ordered and yesn-swapping "raw" accessors
  */
 
 static inline unsigned char __raw_readb(const volatile void __iomem *addr)
@@ -411,11 +411,11 @@ static inline u64 __raw_rm_readq(volatile void __iomem *paddr)
  *
  *
  * On 32 bits, PIO operations have a recovery mechanism in case they trigger
- * machine checks (which they occasionally do when probing non existing
+ * machine checks (which they occasionally do when probing yesn existing
  * IO ports on some platforms, like PowerMac and 8xx).
  * I always found it to be of dubious reliability and I am tempted to get
  * rid of it one of these days. So if you think it's important to keep it,
- * please voice up asap. We never had it for 64 bits and I do not intend
+ * please voice up asap. We never had it for 64 bits and I do yest intend
  * to port it over
  */
 
@@ -430,7 +430,7 @@ static inline unsigned int name(unsigned int port)	\
 		"0:"	op "	%0,0,%1\n"		\
 		"1:	twi	0,%0,0\n"		\
 		"2:	isync\n"			\
-		"3:	nop\n"				\
+		"3:	yesp\n"				\
 		"4:\n"					\
 		".section .fixup,\"ax\"\n"		\
 		"5:	li	%0,-1\n"		\
@@ -627,7 +627,7 @@ static inline void name at					\
 #define xlate_dev_kmem_ptr(p)	p
 
 /*
- * We don't do relaxed operations yet, at least not with this semantic
+ * We don't do relaxed operations yet, at least yest with this semantic
  */
 #define readb_relaxed(addr)	readb(addr)
 #define readw_relaxed(addr)	readw(addr)
@@ -648,7 +648,7 @@ static inline void iosync(void)
 /* Enforce in-order execution of data I/O.
  * No distinction between read/write on PPC; use eieio for all three.
  * Those are fairly week though. They don't provide a barrier between
- * MMIO and cacheable storage nor do they provide a barrier vs. locks,
+ * MMIO and cacheable storage yesr do they provide a barrier vs. locks,
  * they only provide barriers between 2 __raw MMIO operations and
  * possibly break write combining.
  */
@@ -680,18 +680,18 @@ static inline void iosync(void)
  * ioremap performs a platform specific sequence of operations to
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
- * address is not guaranteed to be usable directly as a virtual
+ * address is yest guaranteed to be usable directly as a virtual
  * address.
  *
  * We provide a few variations of it:
  *
- * * ioremap is the standard one and provides non-cacheable guarded mappings
+ * * ioremap is the standard one and provides yesn-cacheable guarded mappings
  *   and can be hooked by the platform via ppc_md
  *
  * * ioremap_prot allows to specify the page flags as an argument and can
  *   also be hooked by the platform via ppc_md.
  *
- * * ioremap_nocache is identical to ioremap
+ * * ioremap_yescache is identical to ioremap
  *
  * * ioremap_wc enables write combining
  *
@@ -702,7 +702,7 @@ static inline void iosync(void)
  * * iounmap undoes such a mapping and can be hooked
  *
  * * __ioremap_at (and the pending __iounmap_at) are low level functions to
- *   create hand-made mappings for use only by the PCI code and cannot
+ *   create hand-made mappings for use only by the PCI code and canyest
  *   currently be hooked. Must be page aligned.
  *
  * * __ioremap_caller is the same as above but takes an explicit caller
@@ -715,7 +715,7 @@ extern void __iomem *ioremap_prot(phys_addr_t address, unsigned long size,
 extern void __iomem *ioremap_wc(phys_addr_t address, unsigned long size);
 void __iomem *ioremap_wt(phys_addr_t address, unsigned long size);
 void __iomem *ioremap_coherent(phys_addr_t address, unsigned long size);
-#define ioremap_nocache(addr, size)	ioremap((addr), (size))
+#define ioremap_yescache(addr, size)	ioremap((addr), (size))
 #define ioremap_uc(addr, size)		ioremap((addr), (size))
 #define ioremap_cache(addr, size) \
 	ioremap_prot((addr), (size), pgprot_val(PAGE_KERNEL))
@@ -766,8 +766,8 @@ extern void __iounmap_at(void *ea, unsigned long size);
  *	the memory address given. It is only valid to use this function on
  *	addresses directly mapped or allocated via kmalloc.
  *
- *	This function does not give bus mappings for DMA transfers. In
- *	almost all conceivable cases a device driver should not be using
+ *	This function does yest give bus mappings for DMA transfers. In
+ *	almost all conceivable cases a device driver should yest be using
  *	this function
  */
 static inline unsigned long virt_to_phys(volatile void * address)
@@ -785,8 +785,8 @@ static inline unsigned long virt_to_phys(volatile void * address)
  *	the memory address given. It is only valid to use this function on
  *	addresses that have a kernel mapping
  *
- *	This function does not handle bus mappings for DMA transfers. In
- *	almost all conceivable cases a device driver should not be using
+ *	This function does yest handle bus mappings for DMA transfers. In
+ *	almost all conceivable cases a device driver should yest be using
  *	this function
  */
 static inline void * phys_to_virt(unsigned long address)

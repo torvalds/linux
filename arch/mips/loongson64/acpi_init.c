@@ -115,7 +115,7 @@ void acpi_registers_setup(void)
 	/* Set GPM9 as input */
 	pm_iowrite(0x8d, pm_ioread(0x8d) & (~(1 << 1)));
 
-	/* Set GPM9 as non-output */
+	/* Set GPM9 as yesn-output */
 	pm_iowrite(0x94, pm_ioread(0x94) | (1 << 3));
 
 	/* GPM3 config ACPI trigger SCIOUT */

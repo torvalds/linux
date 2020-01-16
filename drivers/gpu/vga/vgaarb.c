@@ -4,7 +4,7 @@
  *
  *
  * (C) Copyright 2005 Benjamin Herrenschmidt <benh@kernel.crashing.org>
- * (C) Copyright 2007 Paulo R. Zanoni <przanoni@gmail.com>
+ * (C) Copyright 2007 Paulo R. Zayesni <przayesni@gmail.com>
  * (C) Copyright 2007, 2009 Tiago Vignatti <vignatti@freedesktop.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -14,7 +14,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -38,7 +38,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/sched/signal.h>
@@ -55,7 +55,7 @@
 
 #include <linux/vgaarb.h>
 
-static void vga_arbiter_notify_clients(void);
+static void vga_arbiter_yestify_clients(void);
 /*
  * We keep a list of all vga devices in the system to speed
  * up the various operations of the arbiter
@@ -68,8 +68,8 @@ struct vga_device {
 	unsigned int locks;	/* what does it locks */
 	unsigned int io_lock_cnt;	/* legacy IO lock count */
 	unsigned int mem_lock_cnt;	/* legacy MEM lock count */
-	unsigned int io_norm_cnt;	/* normal IO count */
-	unsigned int mem_norm_cnt;	/* normal MEM count */
+	unsigned int io_yesrm_cnt;	/* yesrmal IO count */
+	unsigned int mem_yesrm_cnt;	/* yesrmal MEM count */
 	bool bridge_has_one_vga;
 	/* allow IRQ enable/disable hook */
 	void *cookie;
@@ -86,7 +86,7 @@ static DECLARE_WAIT_QUEUE_HEAD(vga_wait_queue);
 
 static const char *vga_iostate_to_str(unsigned int iostate)
 {
-	/* Ignore VGA_RSRC_IO and VGA_RSRC_MEM */
+	/* Igyesre VGA_RSRC_IO and VGA_RSRC_MEM */
 	iostate &= VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM;
 	switch (iostate) {
 	case VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM:
@@ -96,19 +96,19 @@ static const char *vga_iostate_to_str(unsigned int iostate)
 	case VGA_RSRC_LEGACY_MEM:
 		return "mem";
 	}
-	return "none";
+	return "yesne";
 }
 
 static int vga_str_to_iostate(char *buf, int str_size, int *io_state)
 {
 	/* we could in theory hand out locks on IO and mem
 	 * separately to userspace but it can cause deadlocks */
-	if (strncmp(buf, "none", 4) == 0) {
+	if (strncmp(buf, "yesne", 4) == 0) {
 		*io_state = VGA_RSRC_NONE;
 		return 1;
 	}
 
-	/* XXX We're not chekcing the str_size! */
+	/* XXX We're yest chekcing the str_size! */
 	if (strncmp(buf, "io+mem", 6) == 0)
 		goto both;
 	else if (strncmp(buf, "io", 2) == 0)
@@ -121,7 +121,7 @@ both:
 	return 1;
 }
 
-/* this is only used a cookie - it should not be dereferenced */
+/* this is only used a cookie - it should yest be dereferenced */
 static struct pci_dev *vga_default;
 
 static void vga_arb_device_card_gone(struct pci_dev *pdev);
@@ -144,13 +144,13 @@ static struct vga_device *vgadev_find(struct pci_dev *pdev)
  * is rather dumb and will probably only work properly on single
  * vga card setups and/or x86 platforms.
  *
- * If your VGA default device is not PCI, you'll have to return
- * NULL here. In this case, I assume it will not conflict with
- * any PCI card. If this is not true, I'll have to define two archs
+ * If your VGA default device is yest PCI, you'll have to return
+ * NULL here. In this case, I assume it will yest conflict with
+ * any PCI card. If this is yest true, I'll have to define two archs
  * hooks for enabling/disabling the VGA default device if that is
  * possible. This may be a problem with real _ISA_ VGA cards, in
- * addition to a PCI one. I don't know at this point how to deal
- * with that card. Can theirs IOs be disabled at all ? If not, then
+ * addition to a PCI one. I don't kyesw at this point how to deal
+ * with that card. Can theirs IOs be disabled at all ? If yest, then
  * I suppose it's a matter of having the proper arch hook telling
  * us about it, so we basically never allow anybody to succeed a
  * vga_get()...
@@ -175,7 +175,7 @@ void vga_set_default_device(struct pci_dev *pdev)
  *
  * Unbind and unregister vgacon in case pdev is the default vga
  * device.  Can be called by gpu drivers on initialization to make
- * sure vga register access done by vgacon will not disturb the
+ * sure vga register access done by vgacon will yest disturb the
  * device.
  *
  * @pdev: pci device.
@@ -206,7 +206,7 @@ int vga_remove_vgacon(struct pci_dev *pdev)
 	if (ret == 0) {
 		ret = do_unregister_con_driver(&vga_con);
 
-		/* Ignore "already unregistered". */
+		/* Igyesre "already unregistered". */
 		if (ret == -ENODEV)
 			ret = 0;
 	}
@@ -226,7 +226,7 @@ static inline void vga_irq_set_state(struct vga_device *vgadev, bool state)
 
 /* If we don't ever use VGA arb we should avoid
    turning off anything anywhere due to old X servers getting
-   confused about the boot device not being VGA */
+   confused about the boot device yest being VGA */
 static void vga_check_first_use(void)
 {
 	/* we should inform all GPUs in the system that
@@ -234,7 +234,7 @@ static void vga_check_first_use(void)
 	 * if they can */
 	if (!vga_arbiter_used) {
 		vga_arbiter_used = true;
-		vga_arbiter_notify_clients();
+		vga_arbiter_yestify_clients();
 	}
 }
 
@@ -247,7 +247,7 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 	unsigned int pci_bits;
 	u32 flags = 0;
 
-	/* Account for "normal" resources to lock. If we decode the legacy,
+	/* Account for "yesrmal" resources to lock. If we decode the legacy,
 	 * counterpart, we need to request it as well
 	 */
 	if ((rsrc & VGA_RSRC_NORMAL_IO) &&
@@ -306,8 +306,8 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 		if (conflict->locks & lwants)
 			return conflict;
 
-		/* Ok, now check if it owns the resource we want.  We can
-		 * lock resources that are not decoded, therefore a device
+		/* Ok, yesw check if it owns the resource we want.  We can
+		 * lock resources that are yest decoded, therefore a device
 		 * can own resources it doesn't decode.
 		 */
 		match = lwants & conflict->owns;
@@ -322,7 +322,7 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 		pci_bits = 0;
 
 		/* If we can't control legacy resources via the bridge, we
-		 * also need to disable normal decoding.
+		 * also need to disable yesrmal decoding.
 		 */
 		if (!conflict->bridge_has_one_vga) {
 			if ((match & conflict->decodes) & VGA_RSRC_LEGACY_MEM)
@@ -342,7 +342,7 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 		pci_set_vga_state(conflict->pdev, false, pci_bits, flags);
 		conflict->owns &= ~match;
 
-		/* If we disabled normal decoding, reflect it in owns */
+		/* If we disabled yesrmal decoding, reflect it in owns */
 		if (pci_bits & PCI_COMMAND_MEMORY)
 			conflict->owns &= ~VGA_RSRC_NORMAL_MEM;
 		if (pci_bits & PCI_COMMAND_IO)
@@ -381,9 +381,9 @@ lock_them:
 	if (rsrc & VGA_RSRC_LEGACY_MEM)
 		vgadev->mem_lock_cnt++;
 	if (rsrc & VGA_RSRC_NORMAL_IO)
-		vgadev->io_norm_cnt++;
+		vgadev->io_yesrm_cnt++;
 	if (rsrc & VGA_RSRC_NORMAL_MEM)
-		vgadev->mem_norm_cnt++;
+		vgadev->mem_yesrm_cnt++;
 
 	return NULL;
 }
@@ -398,13 +398,13 @@ static void __vga_put(struct vga_device *vgadev, unsigned int rsrc)
 	/* Update our counters, and account for equivalent legacy resources
 	 * if we decode them
 	 */
-	if ((rsrc & VGA_RSRC_NORMAL_IO) && vgadev->io_norm_cnt > 0) {
-		vgadev->io_norm_cnt--;
+	if ((rsrc & VGA_RSRC_NORMAL_IO) && vgadev->io_yesrm_cnt > 0) {
+		vgadev->io_yesrm_cnt--;
 		if (vgadev->decodes & VGA_RSRC_LEGACY_IO)
 			rsrc |= VGA_RSRC_LEGACY_IO;
 	}
-	if ((rsrc & VGA_RSRC_NORMAL_MEM) && vgadev->mem_norm_cnt > 0) {
-		vgadev->mem_norm_cnt--;
+	if ((rsrc & VGA_RSRC_NORMAL_MEM) && vgadev->mem_yesrm_cnt > 0) {
+		vgadev->mem_yesrm_cnt--;
 		if (vgadev->decodes & VGA_RSRC_LEGACY_MEM)
 			rsrc |= VGA_RSRC_LEGACY_MEM;
 	}
@@ -435,9 +435,9 @@ static void __vga_put(struct vga_device *vgadev, unsigned int rsrc)
  * @interruptible: blocking should be interruptible by signals ?
  *
  * This function acquires VGA resources for the given card and mark those
- * resources locked. If the resource requested are "normal" (and not legacy)
+ * resources locked. If the resource requested are "yesrmal" (and yest legacy)
  * resources, the arbiter will first check whether the card is doing legacy
- * decoding for that type of resource. If yes, the lock is "converted" into a
+ * decoding for that type of resource. If no, the lock is "converted" into a
  * legacy resource lock.
  *
  * The arbiter will first look for all VGA cards that might conflict and disable
@@ -450,9 +450,9 @@ static void __vga_put(struct vga_device *vgadev, unsigned int rsrc)
  * the required resources (or any resource on a different bus segment, since P2P
  * bridges don't differentiate VGA memory and IO afaik). You can indicate
  * whether this blocking should be interruptible by a signal (for userland
- * interface) or not.
+ * interface) or yest.
  *
- * Must not be called at interrupt time or in atomic context.  If the card
+ * Must yest be called at interrupt time or in atomic context.  If the card
  * already owns the resources, the function succeeds.  Nested calls are
  * supported (a per-resource counter is maintained)
  *
@@ -521,7 +521,7 @@ EXPORT_SYMBOL(vga_get);
  *
  * This function performs the same operation as vga_get(), but will return an
  * error (-EBUSY) instead of blocking if the resources are already locked by
- * another card. It can be called in any context
+ * ayesther card. It can be called in any context
  *
  * On success, release the VGA resource again with vga_put().
  *
@@ -591,7 +591,7 @@ EXPORT_SYMBOL(vga_put);
  * has only one VGA descendant then it can be used to control the VGA routing
  * for that device. It should always use the bridge closest to the device to
  * control it. If a bridge has a direct VGA descendant, but also have a sub-
- * bridge VGA descendant then we cannot use that bridge to control the direct
+ * bridge VGA descendant then we canyest use that bridge to control the direct
  * VGA descendant. So for every device we register, we need to iterate all
  * its parent bridges so we can invalidate any devices using them properly.
  */
@@ -647,8 +647,8 @@ static void vga_arbiter_check_bridge_sharing(struct vga_device *vgadev)
 
 /*
  * Currently, we assume that the "initial" setup of the system is
- * not sane, that is we come up with conflicting devices and let
- * the arbiter's client decides if devices decodes or not legacy
+ * yest sane, that is we come up with conflicting devices and let
+ * the arbiter's client decides if devices decodes or yest legacy
  * things.
  */
 static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
@@ -668,8 +668,8 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 	if (vgadev == NULL) {
 		vgaarb_err(&pdev->dev, "failed to allocate VGA arbiter data\n");
 		/*
-		 * What to do on allocation failure ? For now, let's just do
-		 * nothing, I'm not sure there is anything saner to be done.
+		 * What to do on allocation failure ? For yesw, let's just do
+		 * yesthing, I'm yest sure there is anything saner to be done.
 		 */
 		return false;
 	}
@@ -808,7 +808,7 @@ static inline void vga_update_device_decodes(struct vga_device *vgadev,
 	if (!(old_decodes & VGA_RSRC_LEGACY_MASK) &&
 	    new_decodes & VGA_RSRC_LEGACY_MASK)
 		vga_decode_count++;
-	vgaarb_dbg(dev, "decoding count now is: %d\n", vga_decode_count);
+	vgaarb_dbg(dev, "decoding count yesw is: %d\n", vga_decode_count);
 }
 
 static void __vga_set_legacy_decoding(struct pci_dev *pdev,
@@ -834,7 +834,7 @@ static void __vga_set_legacy_decoding(struct pci_dev *pdev,
 
 	/* XXX if somebody is going from "doesn't decode" to "decodes" state
 	 * here, additional care must be taken as we may have pending owner
-	 * ship of non-legacy region ...
+	 * ship of yesn-legacy region ...
 	 */
 bail:
 	spin_unlock_irqrestore(&vga_lock, flags);
@@ -862,14 +862,14 @@ EXPORT_SYMBOL(vga_set_legacy_decoding);
  * @set_vga_decode callback: If a client can disable its GPU VGA resource, it
  * will get a callback from this to set the encode/decode state.
  *
- * Rationale: we cannot disable VGA decode resources unconditionally some single
+ * Rationale: we canyest disable VGA decode resources unconditionally some single
  * GPU laptops seem to require ACPI or BIOS access to the VGA registers to
  * control things like backlights etc.  Hopefully newer multi-GPU laptops do
  * something saner, and desktops won't have any special ACPI for this. The
  * driver will get a callback when VGA arbitration is first used by userspace
  * since some older X servers have issues.
  *
- * This function does not check whether a client for @pdev has been registered
+ * This function does yest check whether a client for @pdev has been registered
  * already.
  *
  * To unregister just call this function with @irq_set_state and @set_vga_decode
@@ -914,9 +914,9 @@ EXPORT_SYMBOL(vga_client_register);
  *  close      : close user instance, release locks
  *
  *  read       : return a string indicating the status of the target.
- *                an IO state string is of the form {io,mem,io+mem,none},
+ *                an IO state string is of the form {io,mem,io+mem,yesne},
  *                mc and ic are respectively mem and io lock counts (for
- *                debugging/diagnostic only). "decodes" indicate what the
+ *                debugging/diagyesstic only). "decodes" indicate what the
  *                card currently decodes, "owns" indicates what is currently
  *                enabled on it, and "locks" indicates what is locked by this
  *                card. If the card is unplugged, we get "invalid" then for
@@ -928,16 +928,16 @@ EXPORT_SYMBOL(vga_client_register);
  * write       : write a command to the arbiter. List of commands is:
  *
  *   target <card_ID>   : switch target to card <card_ID> (see below)
- *   lock <io_state>    : acquires locks on target ("none" is invalid io_state)
- *   trylock <io_state> : non-blocking acquire locks on target
+ *   lock <io_state>    : acquires locks on target ("yesne" is invalid io_state)
+ *   trylock <io_state> : yesn-blocking acquire locks on target
  *   unlock <io_state>  : release locks on target
  *   unlock all         : release all locks on target held by this user
  *   decodes <io_state> : set the legacy decoding attributes for the card
  *
- * poll         : event if something change on any card (not just the target)
+ * poll         : event if something change on any card (yest just the target)
  *
  * card_ID is of the form "PCI:domain:bus:dev.fn". It can be set to "default"
- * to go back to the system default card (TODO: not implemented yet).
+ * to go back to the system default card (TODO: yest implemented yet).
  * Currently, only PCI is supported as a prefix, but the userland API may
  * support other bus types in the future, even if the current kernel
  * implementation doesn't.
@@ -951,7 +951,7 @@ EXPORT_SYMBOL(vga_client_register);
  * Currently, a max of 16 cards simultaneously can have locks issued from
  * userspace for a given user (file descriptor instance) of the arbiter.
  *
- * If the device is hot-unplugged, there is a hook inside the module to notify
+ * If the device is hot-unplugged, there is a hook inside the module to yestify
  * they being added/removed in the system and automatically added/removed in
  * the arbiter.
  */
@@ -981,7 +981,7 @@ static DEFINE_SPINLOCK(vga_user_lock);
 
 /*
  * This function gets a string in the format: "PCI:domain:bus:dev.fn" and
- * returns the respective values. If the string is not in this format,
+ * returns the respective values. If the string is yest in this format,
  * it returns 0.
  */
 static int vga_pci_str_to_vars(char *buf, int count, unsigned int *domain,
@@ -1031,7 +1031,7 @@ static ssize_t vga_arb_read(struct file *file, char __user *buf,
 	/* Find card vgadev structure */
 	vgadev = vgadev_find(pdev);
 	if (vgadev == NULL) {
-		/* Wow, it's not in the list, that shouldn't happen,
+		/* Wow, it's yest in the list, that shouldn't happen,
 		 * let's fix us up and return invalid card
 		 */
 		if (pdev == priv->target)
@@ -1256,7 +1256,7 @@ static ssize_t vga_arb_write(struct file *file, const char __user *buf,
 		pr_debug("vgadev %p\n", vgadev);
 		if (vgadev == NULL) {
 			if (pdev) {
-				vgaarb_dbg(&pdev->dev, "not a VGA device\n");
+				vgaarb_dbg(&pdev->dev, "yest a VGA device\n");
 				pci_dev_put(pdev);
 			}
 
@@ -1276,7 +1276,7 @@ static ssize_t vga_arb_write(struct file *file, const char __user *buf,
 			}
 		}
 		if (i == MAX_USER_CARDS) {
-			vgaarb_dbg(&pdev->dev, "maximum user cards (%d) number reached, ignoring this one!\n",
+			vgaarb_dbg(&pdev->dev, "maximum user cards (%d) number reached, igyesring this one!\n",
 				MAX_USER_CARDS);
 			pci_dev_put(pdev);
 			/* XXX: which value to return? */
@@ -1308,7 +1308,7 @@ static ssize_t vga_arb_write(struct file *file, const char __user *buf,
 		ret_val = count;
 		goto done;
 	}
-	/* If we got here, the message written is not part of the protocol! */
+	/* If we got here, the message written is yest part of the protocol! */
 	return -EPROTO;
 
 done:
@@ -1323,7 +1323,7 @@ static __poll_t vga_arb_fpoll(struct file *file, poll_table *wait)
 	return EPOLLIN;
 }
 
-static int vga_arb_open(struct inode *inode, struct file *file)
+static int vga_arb_open(struct iyesde *iyesde, struct file *file)
 {
 	struct vga_arb_private *priv;
 	unsigned long flags;
@@ -1350,7 +1350,7 @@ static int vga_arb_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int vga_arb_release(struct inode *inode, struct file *file)
+static int vga_arb_release(struct iyesde *iyesde, struct file *file)
 {
 	struct vga_arb_private *priv = file->private_data;
 	struct vga_arb_user_card *uc;
@@ -1384,10 +1384,10 @@ static void vga_arb_device_card_gone(struct pci_dev *pdev)
 }
 
 /*
- * callback any registered clients to let them know we have a
+ * callback any registered clients to let them kyesw we have a
  * change in VGA cards
  */
-static void vga_arbiter_notify_clients(void)
+static void vga_arbiter_yestify_clients(void)
 {
 	struct vga_device *vgadev;
 	unsigned long flags;
@@ -1412,30 +1412,30 @@ static void vga_arbiter_notify_clients(void)
 	spin_unlock_irqrestore(&vga_lock, flags);
 }
 
-static int pci_notify(struct notifier_block *nb, unsigned long action,
+static int pci_yestify(struct yestifier_block *nb, unsigned long action,
 		      void *data)
 {
 	struct device *dev = data;
 	struct pci_dev *pdev = to_pci_dev(dev);
-	bool notify = false;
+	bool yestify = false;
 
 	vgaarb_dbg(dev, "%s\n", __func__);
 
-	/* For now we're only intereted in devices added and removed. I didn't
+	/* For yesw we're only intereted in devices added and removed. I didn't
 	 * test this thing here, so someone needs to double check for the
 	 * cases of hotplugable vga cards. */
 	if (action == BUS_NOTIFY_ADD_DEVICE)
-		notify = vga_arbiter_add_pci_device(pdev);
+		yestify = vga_arbiter_add_pci_device(pdev);
 	else if (action == BUS_NOTIFY_DEL_DEVICE)
-		notify = vga_arbiter_del_pci_device(pdev);
+		yestify = vga_arbiter_del_pci_device(pdev);
 
-	if (notify)
-		vga_arbiter_notify_clients();
+	if (yestify)
+		vga_arbiter_yestify_clients();
 	return 0;
 }
 
-static struct notifier_block pci_notifier = {
-	.notifier_call = pci_notify,
+static struct yestifier_block pci_yestifier = {
+	.yestifier_call = pci_yestify,
 };
 
 static const struct file_operations vga_arb_device_fops = {
@@ -1444,7 +1444,7 @@ static const struct file_operations vga_arb_device_fops = {
 	.poll = vga_arb_fpoll,
 	.open = vga_arb_open,
 	.release = vga_arb_release,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct miscdevice vga_arb_device = {
@@ -1513,7 +1513,7 @@ static void __init vga_arb_select_default_device(void)
 			pdev = vgadev->pdev;
 			pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 			if (cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
-				vgaarb_info(dev, "setting as boot device (VGA legacy resources not available)\n");
+				vgaarb_info(dev, "setting as boot device (VGA legacy resources yest available)\n");
 				vga_set_default_device(pdev);
 				break;
 			}
@@ -1525,7 +1525,7 @@ static void __init vga_arb_select_default_device(void)
 						  struct vga_device, list);
 		if (vgadev) {
 			struct device *dev = &vgadev->pdev->dev;
-			vgaarb_info(dev, "setting as boot device (VGA legacy resources not available)\n");
+			vgaarb_info(dev, "setting as boot device (VGA legacy resources yest available)\n");
 			vga_set_default_device(vgadev->pdev);
 		}
 	}
@@ -1541,7 +1541,7 @@ static int __init vga_arb_device_init(void)
 	if (rc < 0)
 		pr_err("error %d registering device\n", rc);
 
-	bus_register_notifier(&pci_bus_type, &pci_notifier);
+	bus_register_yestifier(&pci_bus_type, &pci_yestifier);
 
 	/* We add all PCI devices satisfying VGA class in the arbiter by
 	 * default */
@@ -1557,7 +1557,7 @@ static int __init vga_arb_device_init(void)
 		if (vgadev->bridge_has_one_vga)
 			vgaarb_info(dev, "bridge control possible\n");
 		else
-			vgaarb_info(dev, "no bridge control possible\n");
+			vgaarb_info(dev, "yes bridge control possible\n");
 	}
 
 	vga_arb_select_default_device();

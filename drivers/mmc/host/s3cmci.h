@@ -70,6 +70,6 @@ struct s3cmci_host {
 #endif
 
 #ifdef CONFIG_ARM_S3C24XX_CPUFREQ
-	struct notifier_block	freq_transition;
+	struct yestifier_block	freq_transition;
 #endif
 };

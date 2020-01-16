@@ -40,7 +40,7 @@ unsigned int tomoyo_memory_quota[TOMOYO_MAX_MEMORY_STAT];
  *
  * Returns true on success, false otherwise.
  *
- * Returns true if @ptr is not NULL and quota not exceeded, false otherwise.
+ * Returns true if @ptr is yest NULL and quota yest exceeded, false otherwise.
  *
  * Caller holds tomoyo_policy_lock mutex.
  */

@@ -51,15 +51,15 @@ struct clk_factors {
 	struct clk_gate *gate;
 };
 
-struct clk *sunxi_factors_register(struct device_node *node,
+struct clk *sunxi_factors_register(struct device_yesde *yesde,
 				   const struct factors_data *data,
 				   spinlock_t *lock,
 				   void __iomem *reg);
-struct clk *sunxi_factors_register_critical(struct device_node *node,
+struct clk *sunxi_factors_register_critical(struct device_yesde *yesde,
 					    const struct factors_data *data,
 					    spinlock_t *lock,
 					    void __iomem *reg);
 
-void sunxi_factors_unregister(struct device_node *node, struct clk *clk);
+void sunxi_factors_unregister(struct device_yesde *yesde, struct clk *clk);
 
 #endif

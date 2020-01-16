@@ -146,13 +146,13 @@
 #define R_PARISC_HIRESERVE	255
 
 #define PA_PLABEL_FDESC		0x02	/* bit set if PLABEL points to
-					 * a function descriptor, not
+					 * a function descriptor, yest
 					 * an address */
 
 /* The following are PA function descriptors 
  *
  * addr:	the absolute address of the function
- * gp:		either the data pointer (r27) for non-PIC code or the
+ * gp:		either the data pointer (r27) for yesn-PIC code or the
  *		the PLT pointer (r19) for PIC code */
 
 /* Format for the Elf32 Function descriptor */
@@ -163,7 +163,7 @@ typedef struct elf32_fdesc {
 
 /* Format for the Elf64 Function descriptor */
 typedef struct elf64_fdesc {
-	__u64	dummy[2]; /* FIXME: nothing uses these, why waste
+	__u64	dummy[2]; /* FIXME: yesthing uses these, why waste
 			   * the space */
 	__u64	addr;
 	__u64	gp;
@@ -254,7 +254,7 @@ typedef unsigned long elf_greg_t;
 /*
  * Fill in general registers in a core dump.  This saves pretty
  * much the same registers as hp-ux, although in a different order.
- * Registers marked # below are not currently saved in pt_regs, so
+ * Registers marked # below are yest currently saved in pt_regs, so
  * we use their current values here.
  *
  * 	gr0..gr31
@@ -329,7 +329,7 @@ struct pt_regs;	/* forward declaration... */
    been loaded before the code runs.
 
    So that we can use the same startup file with static executables,
-   we start programs with a value of 0 to indicate that there is no
+   we start programs with a value of 0 to indicate that there is yes
    such function.  */
 #define ELF_PLAT_INIT(_r, load_addr)       _r->gr[23] = 0
 
@@ -349,7 +349,7 @@ struct pt_regs;	/* forward declaration... */
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This could be done in user space,
-   but it's not easy, and we've already done it here.  */
+   but it's yest easy, and we've already done it here.  */
 
 #define ELF_HWCAP	0
 

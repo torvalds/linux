@@ -98,9 +98,9 @@ struct dmz_map {
  * Meta data block descriptor (for cached metadata blocks).
  */
 struct dmz_mblock {
-	struct rb_node		node;
+	struct rb_yesde		yesde;
 	struct list_head	link;
-	sector_t		no;
+	sector_t		yes;
 	unsigned int		ref;
 	unsigned long		state;
 	struct page		*page;
@@ -266,7 +266,7 @@ void dmz_unlock_flush(struct dmz_metadata *zmd)
  * Allocate a metadata block.
  */
 static struct dmz_mblock *dmz_alloc_mblock(struct dmz_metadata *zmd,
-					   sector_t mblk_no)
+					   sector_t mblk_yes)
 {
 	struct dmz_mblock *mblk = NULL;
 
@@ -277,8 +277,8 @@ static struct dmz_mblock *dmz_alloc_mblock(struct dmz_metadata *zmd,
 						struct dmz_mblock, link);
 		if (mblk) {
 			list_del_init(&mblk->link);
-			rb_erase(&mblk->node, &zmd->mblk_rbtree);
-			mblk->no = mblk_no;
+			rb_erase(&mblk->yesde, &zmd->mblk_rbtree);
+			mblk->yes = mblk_yes;
 		}
 		spin_unlock(&zmd->mblk_lock);
 		if (mblk)
@@ -296,11 +296,11 @@ static struct dmz_mblock *dmz_alloc_mblock(struct dmz_metadata *zmd,
 		return NULL;
 	}
 
-	RB_CLEAR_NODE(&mblk->node);
+	RB_CLEAR_NODE(&mblk->yesde);
 	INIT_LIST_HEAD(&mblk->link);
 	mblk->ref = 0;
 	mblk->state = 0;
-	mblk->no = mblk_no;
+	mblk->yes = mblk_yes;
 	mblk->data = page_address(mblk->page);
 
 	atomic_inc(&zmd->nr_mblks);
@@ -325,19 +325,19 @@ static void dmz_free_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk)
 static void dmz_insert_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk)
 {
 	struct rb_root *root = &zmd->mblk_rbtree;
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct rb_yesde **new = &(root->rb_yesde), *parent = NULL;
 	struct dmz_mblock *b;
 
-	/* Figure out where to put the new node */
+	/* Figure out where to put the new yesde */
 	while (*new) {
-		b = container_of(*new, struct dmz_mblock, node);
+		b = container_of(*new, struct dmz_mblock, yesde);
 		parent = *new;
-		new = (b->no < mblk->no) ? &((*new)->rb_left) : &((*new)->rb_right);
+		new = (b->yes < mblk->yes) ? &((*new)->rb_left) : &((*new)->rb_right);
 	}
 
-	/* Add new node and rebalance tree */
-	rb_link_node(&mblk->node, parent, new);
-	rb_insert_color(&mblk->node, root);
+	/* Add new yesde and rebalance tree */
+	rb_link_yesde(&mblk->yesde, parent, new);
+	rb_insert_color(&mblk->yesde, root);
 }
 
 /*
@@ -345,15 +345,15 @@ static void dmz_insert_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk)
  * its reference count.
  */
 static struct dmz_mblock *dmz_get_mblock_fast(struct dmz_metadata *zmd,
-					      sector_t mblk_no)
+					      sector_t mblk_yes)
 {
 	struct rb_root *root = &zmd->mblk_rbtree;
-	struct rb_node *node = root->rb_node;
+	struct rb_yesde *yesde = root->rb_yesde;
 	struct dmz_mblock *mblk;
 
-	while (node) {
-		mblk = container_of(node, struct dmz_mblock, node);
-		if (mblk->no == mblk_no) {
+	while (yesde) {
+		mblk = container_of(yesde, struct dmz_mblock, yesde);
+		if (mblk->yes == mblk_yes) {
 			/*
 			 * If this is the first reference to the block,
 			 * remove it from the LRU list.
@@ -364,7 +364,7 @@ static struct dmz_mblock *dmz_get_mblock_fast(struct dmz_metadata *zmd,
 				list_del_init(&mblk->link);
 			return mblk;
 		}
-		node = (mblk->no < mblk_no) ? node->rb_left : node->rb_right;
+		yesde = (mblk->yes < mblk_yes) ? yesde->rb_left : yesde->rb_right;
 	}
 
 	return NULL;
@@ -397,17 +397,17 @@ static void dmz_mblock_bio_end_io(struct bio *bio)
  * Read an uncached metadata block from disk and add it to the cache.
  */
 static struct dmz_mblock *dmz_get_mblock_slow(struct dmz_metadata *zmd,
-					      sector_t mblk_no)
+					      sector_t mblk_yes)
 {
 	struct dmz_mblock *mblk, *m;
-	sector_t block = zmd->sb[zmd->mblk_primary].block + mblk_no;
+	sector_t block = zmd->sb[zmd->mblk_primary].block + mblk_yes;
 	struct bio *bio;
 
 	if (dmz_bdev_is_dying(zmd->dev))
 		return ERR_PTR(-EIO);
 
 	/* Get a new block and a BIO to read it */
-	mblk = dmz_alloc_mblock(zmd, mblk_no);
+	mblk = dmz_alloc_mblock(zmd, mblk_yes);
 	if (!mblk)
 		return ERR_PTR(-ENOMEM);
 
@@ -420,10 +420,10 @@ static struct dmz_mblock *dmz_get_mblock_slow(struct dmz_metadata *zmd,
 	spin_lock(&zmd->mblk_lock);
 
 	/*
-	 * Make sure that another context did not start reading
+	 * Make sure that ayesther context did yest start reading
 	 * the block already.
 	 */
-	m = dmz_get_mblock_fast(zmd, mblk_no);
+	m = dmz_get_mblock_fast(zmd, mblk_yes);
 	if (m) {
 		spin_unlock(&zmd->mblk_lock);
 		dmz_free_mblock(zmd, mblk);
@@ -467,7 +467,7 @@ static unsigned long dmz_shrink_mblock_cache(struct dmz_metadata *zmd,
 		mblk = list_first_entry(&zmd->mblk_lru_list,
 					struct dmz_mblock, link);
 		list_del_init(&mblk->link);
-		rb_erase(&mblk->node, &zmd->mblk_rbtree);
+		rb_erase(&mblk->yesde, &zmd->mblk_rbtree);
 		dmz_free_mblock(zmd, mblk);
 		count++;
 	}
@@ -517,7 +517,7 @@ static void dmz_release_mblock(struct dmz_metadata *zmd,
 	mblk->ref--;
 	if (mblk->ref == 0) {
 		if (test_bit(DMZ_META_ERROR, &mblk->state)) {
-			rb_erase(&mblk->node, &zmd->mblk_rbtree);
+			rb_erase(&mblk->yesde, &zmd->mblk_rbtree);
 			dmz_free_mblock(zmd, mblk);
 		} else if (!test_bit(DMZ_META_DIRTY, &mblk->state)) {
 			list_add_tail(&mblk->link, &zmd->mblk_lru_list);
@@ -530,21 +530,21 @@ static void dmz_release_mblock(struct dmz_metadata *zmd,
 
 /*
  * Get a metadata block from the rbtree. If the block
- * is not present, read it from disk.
+ * is yest present, read it from disk.
  */
 static struct dmz_mblock *dmz_get_mblock(struct dmz_metadata *zmd,
-					 sector_t mblk_no)
+					 sector_t mblk_yes)
 {
 	struct dmz_mblock *mblk;
 
 	/* Check rbtree */
 	spin_lock(&zmd->mblk_lock);
-	mblk = dmz_get_mblock_fast(zmd, mblk_no);
+	mblk = dmz_get_mblock_fast(zmd, mblk_yes);
 	spin_unlock(&zmd->mblk_lock);
 
 	if (!mblk) {
 		/* Cache miss: read the block from disk */
-		mblk = dmz_get_mblock_slow(zmd, mblk_no);
+		mblk = dmz_get_mblock_slow(zmd, mblk_yes);
 		if (IS_ERR(mblk))
 			return mblk;
 	}
@@ -578,7 +578,7 @@ static void dmz_dirty_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk)
 static int dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
 			    unsigned int set)
 {
-	sector_t block = zmd->sb[set].block + mblk->no;
+	sector_t block = zmd->sb[set].block + mblk->yes;
 	struct bio *bio;
 
 	if (dmz_bdev_is_dying(zmd->dev))
@@ -722,7 +722,7 @@ static int dmz_log_dirty_mblocks(struct dmz_metadata *zmd,
 		return ret;
 
 	/*
-	 * No error so far: now validate the log by updating the
+	 * No error so far: yesw validate the log by updating the
 	 * log index super block generation.
 	 */
 	ret = dmz_write_sb(zmd, log_set);
@@ -755,7 +755,7 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 
 	/*
 	 * This is called from the target flush work and reclaim work.
-	 * Concurrent execution is not allowed.
+	 * Concurrent execution is yest allowed.
 	 */
 	dmz_lock_flush(zmd);
 
@@ -769,7 +769,7 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 	list_splice_init(&zmd->mblk_dirty_list, &write_list);
 	spin_unlock(&zmd->mblk_lock);
 
-	/* If there are no dirty metadata blocks, just flush the device cache */
+	/* If there are yes dirty metadata blocks, just flush the device cache */
 	if (list_empty(&write_list)) {
 		ret = blkdev_issue_flush(zmd->dev->bdev, GFP_NOIO, NULL);
 		goto err;
@@ -785,7 +785,7 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 		goto err;
 
 	/*
-	 * The log is on disk. It is now safe to update in place
+	 * The log is on disk. It is yesw safe to update in place
 	 * in the primary metadata set.
 	 */
 	ret = dmz_write_dirty_mblocks(zmd, &write_list, zmd->mblk_primary);
@@ -1094,7 +1094,7 @@ static int dmz_init_zone(struct blk_zone *blkz, unsigned int idx, void *data)
 	struct dm_zone *zone = &zmd->zones[idx];
 	struct dmz_dev *dev = zmd->dev;
 
-	/* Ignore the eventual last runt (smaller) zone */
+	/* Igyesre the eventual last runt (smaller) zone */
 	if (blkz->len != dev->zone_nr_sectors) {
 		if (blkz->start + blkz->len == dev->capacity)
 			return 0;
@@ -1210,7 +1210,7 @@ static int dmz_update_zone_cb(struct blk_zone *blkz, unsigned int idx,
  */
 static int dmz_update_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 {
-	unsigned int noio_flag;
+	unsigned int yesio_flag;
 	int ret;
 
 	/*
@@ -1219,10 +1219,10 @@ static int dmz_update_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 	 * PF_MEMALLOC_NOIO flag so that all allocations are done as if
 	 * GFP_NOIO was specified.
 	 */
-	noio_flag = memalloc_noio_save();
+	yesio_flag = memalloc_yesio_save();
 	ret = blkdev_report_zones(zmd->dev->bdev, dmz_start_sect(zmd, zone), 1,
 				  dmz_update_zone_cb, zone);
-	memalloc_noio_restore(noio_flag);
+	memalloc_yesio_restore(yesio_flag);
 
 	if (ret == 0)
 		ret = -EIO;
@@ -1275,7 +1275,7 @@ static int dmz_reset_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 	int ret;
 
 	/*
-	 * Ignore offline zones, read only zones,
+	 * Igyesre offline zones, read only zones,
 	 * and conventional zones.
 	 */
 	if (dmz_is_offline(zone) ||
@@ -1494,12 +1494,12 @@ static void dmz_wait_for_free_zones(struct dmz_metadata *zmd)
 
 /*
  * Lock a zone for reclaim (set the zone RECLAIM bit).
- * Returns false if the zone cannot be locked or if it is already locked
+ * Returns false if the zone canyest be locked or if it is already locked
  * and 1 otherwise.
  */
 int dmz_lock_zone_reclaim(struct dm_zone *zone)
 {
-	/* Active zones cannot be reclaimed */
+	/* Active zones canyest be reclaimed */
 	if (dmz_is_active(zone))
 		return 0;
 
@@ -1583,8 +1583,8 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd)
 
 	/*
 	 * Search for a zone candidate to reclaim: 2 cases are possible.
-	 * (1) There is no free sequential zones. Then a random data zone
-	 *     cannot be reclaimed. So choose a sequential zone to reclaim so
+	 * (1) There is yes free sequential zones. Then a random data zone
+	 *     canyest be reclaimed. So choose a sequential zone to reclaim so
 	 *     that afterward a random zone can be reclaimed.
 	 * (2) At least one free sequential zone is available, then choose
 	 *     the oldest random zone (data or buffer) that can be locked.
@@ -1601,7 +1601,7 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd)
 
 /*
  * Get the zone mapping a chunk, if the chunk is mapped already.
- * If no mapping exist and the operation is WRITE, a zone is
+ * If yes mapping exist and the operation is WRITE, a zone is
  * allocated and used to map the chunk.
  * The zone returned will be set to the active state.
  */
@@ -1869,7 +1869,7 @@ void dmz_unmap_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 	} else {
 		/*
 		 * Unmapping the chunk data zone: the zone must
-		 * not be buffered.
+		 * yest be buffered.
 		 */
 		if (WARN_ON(zone->bzone)) {
 			zone->bzone->bzone = NULL;
@@ -2323,9 +2323,9 @@ static void dmz_cleanup_metadata(struct dmz_metadata *zmd)
 		mblk = list_first_entry(&zmd->mblk_dirty_list,
 					struct dmz_mblock, link);
 		dmz_dev_warn(zmd->dev, "mblock %llu still in dirty list (ref %u)",
-			     (u64)mblk->no, mblk->ref);
+			     (u64)mblk->yes, mblk->ref);
 		list_del_init(&mblk->link);
-		rb_erase(&mblk->node, &zmd->mblk_rbtree);
+		rb_erase(&mblk->yesde, &zmd->mblk_rbtree);
 		dmz_free_mblock(zmd, mblk);
 	}
 
@@ -2333,15 +2333,15 @@ static void dmz_cleanup_metadata(struct dmz_metadata *zmd)
 		mblk = list_first_entry(&zmd->mblk_lru_list,
 					struct dmz_mblock, link);
 		list_del_init(&mblk->link);
-		rb_erase(&mblk->node, &zmd->mblk_rbtree);
+		rb_erase(&mblk->yesde, &zmd->mblk_rbtree);
 		dmz_free_mblock(zmd, mblk);
 	}
 
-	/* Sanity checks: the mblock rbtree should now be empty */
+	/* Sanity checks: the mblock rbtree should yesw be empty */
 	root = &zmd->mblk_rbtree;
-	rbtree_postorder_for_each_entry_safe(mblk, next, root, node) {
+	rbtree_postorder_for_each_entry_safe(mblk, next, root, yesde) {
 		dmz_dev_warn(zmd->dev, "mblock %llu ref %u still in rbtree",
-			     (u64)mblk->no, mblk->ref);
+			     (u64)mblk->yes, mblk->ref);
 		mblk->ref = 0;
 		dmz_free_mblock(zmd, mblk);
 	}
@@ -2415,7 +2415,7 @@ int dmz_ctr_metadata(struct dmz_dev *dev, struct dmz_metadata **metadata)
 
 	/*
 	 * Cache size boundaries: allow at least 2 super blocks, the chunk map
-	 * blocks and enough blocks to be able to cache the bitmap blocks of
+	 * blocks and eyesugh blocks to be able to cache the bitmap blocks of
 	 * up to 16 zones when idle (min_nr_mblks). Otherwise, if busy, allow
 	 * the cache to add 512 more metadata blocks.
 	 */

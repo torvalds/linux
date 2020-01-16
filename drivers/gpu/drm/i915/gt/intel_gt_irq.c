@@ -49,7 +49,7 @@ gen11_gt_engine_identity(struct intel_gt *gt,
 	raw_reg_write(regs, GEN11_IIR_REG_SELECTOR(bank), BIT(bit));
 
 	/*
-	 * NB: Specs do not specify how long to spin wait,
+	 * NB: Specs do yest specify how long to spin wait,
 	 * so we do ~100us as an educated guess.
 	 */
 	timeout_ts = (local_clock() >> 10) + 100;
@@ -59,7 +59,7 @@ gen11_gt_engine_identity(struct intel_gt *gt,
 		 !time_after32(local_clock() >> 10, timeout_ts));
 
 	if (unlikely(!(ident & GEN11_INTR_DATA_VALID))) {
-		DRM_ERROR("INTR_IDENTITY_REG%u:%u 0x%08x not valid!\n",
+		DRM_ERROR("INTR_IDENTITY_REG%u:%u 0x%08x yest valid!\n",
 			  bank, bit, ident);
 		return 0;
 	}
@@ -118,7 +118,7 @@ gen11_gt_identity_handler(struct intel_gt *gt, const u32 identity)
 	if (class == OTHER_CLASS)
 		return gen11_other_irq_handler(gt, instance, intr);
 
-	WARN_ONCE(1, "unknown interrupt class=0x%x, instance=0x%x, intr=0x%x\n",
+	WARN_ONCE(1, "unkyeswn interrupt class=0x%x, instance=0x%x, intr=0x%x\n",
 		  class, instance, intr);
 }
 
@@ -168,7 +168,7 @@ bool gen11_gt_reset_one_iir(struct intel_gt *gt,
 	dw = raw_reg_read(regs, GEN11_GT_INTR_DW(bank));
 	if (dw & BIT(bit)) {
 		/*
-		 * According to the BSpec, DW_IIR bits cannot be cleared without
+		 * According to the BSpec, DW_IIR bits canyest be cleared without
 		 * first servicing the Selector & Shared IIR registers.
 		 */
 		gen11_gt_engine_identity(gt, bank, bit);

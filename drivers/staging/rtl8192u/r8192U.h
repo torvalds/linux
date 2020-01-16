@@ -529,7 +529,7 @@ typedef struct Stats {
 	unsigned long txvookint;
 	unsigned long txvodrop;
 	unsigned long txvoerr;
-	unsigned long txbeaconokint;
+	unsigned long txbeacoyeskint;
 	unsigned long txbeacondrop;
 	unsigned long txbeaconerr;
 	unsigned long txmanageokint;
@@ -566,12 +566,12 @@ typedef struct Stats {
 	unsigned long slide_rssi_total;
 	/* For recording sliding window's EVM value */
 	unsigned long slide_evm_total;
-	/* Transformed in dbm. Beautified signal strength for UI, not correct */
+	/* Transformed in dbm. Beautified signal strength for UI, yest correct */
 	long signal_strength;
 	long signal_quality;
 	long last_signal_strength_inpercent;
 	/* Correct smoothed ss in dbm, only used in driver
-	 * to report real power now
+	 * to report real power yesw
 	 */
 	long recv_signal_power;
 	u8 rx_rssi_percentage[4];
@@ -637,7 +637,7 @@ typedef struct _BB_REGISTER_DEFINITION {
 	 *                              0xc24~0xc27, 0xc2c~0xc2f [16 bytes]
 	 */
 	u32 rfRxIQImbalance;
-	/* Rx IQ DC offset and Rx digital filter, Rx DC notch filter:
+	/* Rx IQ DC offset and Rx digital filter, Rx DC yestch filter:
 	 *                              0xc10~0xc13, 0xc18~0xc1b,
 	 *                              0xc20~0xc23, 0xc28~0xc2b [16 bytes]
 	 */
@@ -1010,11 +1010,11 @@ typedef struct r8192_priv {
 	init_gain initgain_backup;
 	u8 DefaultInitialGain[4];
 	/* For EDCA Turbo mode */
-	bool		bis_any_nonbepkts;
+	bool		bis_any_yesnbepkts;
 	bool		bcurrent_turbo_EDCA;
 	bool		bis_cur_rdlstate;
 	struct timer_list fsync_timer;
-	bool bfsync_processing;	/* 500ms Fsync timer is active or not */
+	bool bfsync_processing;	/* 500ms Fsync timer is active or yest */
 	u32	rate_record;
 	u32	rateCountDiffRecord;
 	u32	ContinueDiffCount;
@@ -1035,7 +1035,7 @@ typedef struct r8192_priv {
 	u32 txpower_tracking_callback_cnt;
 	u8 thermal_read_val[40];
 	u8 thermal_readback_index;
-	u32 ccktxpower_adjustcnt_not_ch14;
+	u32 ccktxpower_adjustcnt_yest_ch14;
 	u32 ccktxpower_adjustcnt_ch14;
 	u8 tx_fwinfo_force_subcarriermode;
 	u8 tx_fwinfo_force_subcarrierval;

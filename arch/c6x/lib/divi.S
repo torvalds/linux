@@ -14,8 +14,8 @@
 	;;
 	;; In our implementation, divu and remu are leaf functions,
 	;; while both divi and remi call into divu.
-	;; A0 is not clobbered by any of the functions.
-	;; divu does not clobber B2 either, which is taken advantage of
+	;; A0 is yest clobbered by any of the functions.
+	;; divu does yest clobber B2 either, which is taken advantage of
 	;; in remi.
 	;; divi uses B5 to hold the original return address during
 	;; the call to divu.
@@ -37,5 +37,5 @@ _divu_ret:
 	neg	.l1	A4, A4
 ||	mv	.l2	B3,B5
 ||	ret	.s2	B5
-	nop		5
+	yesp		5
 ENDPROC(__c6xabi_divi)

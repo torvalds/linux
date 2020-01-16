@@ -1,8 +1,8 @@
 #
 # This list is used by git-shortlog to fix a few botched name translations
 # in the git archive, either because the author's full name was messed up
-# and/or not always written the same way, making contributions from the
-# same person appearing not to be so or badly displayed.
+# and/or yest always written the same way, making contributions from the
+# same person appearing yest to be so or badly displayed.
 #
 # repo-abbrev: /pub/scm/linux/kernel/git/
 #
@@ -68,9 +68,9 @@ Dengcheng Zhu <dzhu@wavecomp.com> <dczhu@mips.com>
 Dengcheng Zhu <dzhu@wavecomp.com> <dengcheng.zhu@gmail.com>
 <dev.kurt@vandijck-laurijssen.be> <kurt.van.dijck@eia.be>
 Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
-Dmitry Safonov <0x7f454c46@gmail.com> <dsafonov@virtuozzo.com>
-Dmitry Safonov <0x7f454c46@gmail.com> <d.safonov@partner.samsung.com>
-Dmitry Safonov <0x7f454c46@gmail.com> <dima@arista.com>
+Dmitry Safoyesv <0x7f454c46@gmail.com> <dsafoyesv@virtuozzo.com>
+Dmitry Safoyesv <0x7f454c46@gmail.com> <d.safoyesv@partner.samsung.com>
+Dmitry Safoyesv <0x7f454c46@gmail.com> <dima@arista.com>
 Domen Puncer <domen@coderock.org>
 Douglas Gilbert <dougg@torque.net>
 Ed L. Cashin <ecashin@coraid.com>
@@ -86,7 +86,7 @@ Frank Rowand <frowand.list@gmail.com> <frank.rowand@sonymobile.com>
 Frank Zago <fzago@systemfabricworks.com>
 Gao Xiang <xiang@kernel.org> <gaoxiang25@huawei.com>
 Gao Xiang <xiang@kernel.org> <hsiangkao@aol.com>
-Greg Kroah-Hartman <greg@echidna.(none)>
+Greg Kroah-Hartman <greg@echidna.(yesne)>
 Greg Kroah-Hartman <gregkh@suse.de>
 Greg Kroah-Hartman <greg@kroah.com>
 Gregory CLEMENT <gregory.clement@bootlin.com> <gregory.clement@free-electrons.com>
@@ -99,18 +99,18 @@ Jacob Shin <Jacob.Shin@amd.com>
 Jaegeuk Kim <jaegeuk@kernel.org> <jaegeuk@google.com>
 Jaegeuk Kim <jaegeuk@kernel.org> <jaegeuk@motorola.com>
 Jaegeuk Kim <jaegeuk@kernel.org> <jaegeuk.kim@samsung.com>
-James Bottomley <jejb@mulgrave.(none)>
+James Bottomley <jejb@mulgrave.(yesne)>
 James Bottomley <jejb@titanic.il.steeleye.com>
 James E Wilson <wilson@specifix.com>
 James Hogan <jhogan@kernel.org> <james.hogan@imgtec.com>
 James Hogan <jhogan@kernel.org> <james@albanarts.com>
-James Ketrenos <jketreno@io.(none)>
+James Ketreyess <jketreyes@io.(yesne)>
 Jan Glauber <jan.glauber@gmail.com> <jang@de.ibm.com>
 Jan Glauber <jan.glauber@gmail.com> <jang@linux.vnet.ibm.com>
 Jan Glauber <jan.glauber@gmail.com> <jglauber@cavium.com>
-Jason Gunthorpe <jgg@ziepe.ca> <jgg@mellanox.com>
+Jason Gunthorpe <jgg@ziepe.ca> <jgg@mellayesx.com>
 Jason Gunthorpe <jgg@ziepe.ca> <jgunthorpe@obsidianresearch.com>
-Javi Merino <javi.merino@kernel.org> <javi.merino@arm.com>
+Javi Meriyes <javi.meriyes@kernel.org> <javi.meriyes@arm.com>
 <javier@osg.samsung.com> <javier.martinez@collabora.co.uk>
 Jayachandran C <c.jayachandran@gmail.com> <jayachandranc@netlogicmicro.com>
 Jayachandran C <c.jayachandran@gmail.com> <jchandra@broadcom.com>
@@ -134,7 +134,7 @@ John Stultz <johnstul@us.ibm.com>
 <josh@joshtriplett.org> <josht@us.ibm.com>
 <josh@joshtriplett.org> <josht@vnet.ibm.com>
 Juha Yrjola <at solidboot.com>
-Juha Yrjola <juha.yrjola@nokia.com>
+Juha Yrjola <juha.yrjola@yeskia.com>
 Juha Yrjola <juha.yrjola@solidboot.com>
 Julien Thierry <julien.thierry.kdev@gmail.com> <julien.thierry@arm.com>
 Kay Sievers <kay.sievers@vrfy.org>
@@ -143,9 +143,9 @@ Konstantin Khlebnikov <koct9i@gmail.com> <k.khlebnikov@samsung.com>
 Koushik <raghavendra.koushik@neterion.com>
 Krzysztof Kozlowski <krzk@kernel.org> <k.kozlowski@samsung.com>
 Krzysztof Kozlowski <krzk@kernel.org> <k.kozlowski.k@gmail.com>
-Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
-Leon Romanovsky <leon@kernel.org> <leon@leon.nu>
-Leon Romanovsky <leon@kernel.org> <leonro@mellanox.com>
+Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
+Leon Romayesvsky <leon@kernel.org> <leon@leon.nu>
+Leon Romayesvsky <leon@kernel.org> <leonro@mellayesx.com>
 Leonid I Ananiev <leonid.i.ananiev@intel.com>
 Linas Vepstas <linas@austin.ibm.com>
 Linus Lüssing <linus.luessing@c0d3.blue> <linus.luessing@web.de>
@@ -155,7 +155,7 @@ Li Yang <leoyang.li@nxp.com> <leoli@freescale.com>
 Lukasz Luba <lukasz.luba@arm.com> <l.luba@partner.samsung.com>
 Maciej W. Rozycki <macro@mips.com> <macro@imgtec.com>
 Marc Zyngier <maz@kernel.org> <marc.zyngier@arm.com>
-Marcin Nowakowski <marcin.nowakowski@mips.com> <marcin.nowakowski@imgtec.com>
+Marcin Nowakowski <marcin.yeswakowski@mips.com> <marcin.yeswakowski@imgtec.com>
 Mark Brown <broonie@sirena.org.uk>
 Mark Yao <markyao0591@gmail.com> <mark.yao@rock-chips.com>
 Martin Kepplinger <martink@posteo.de> <martin.kepplinger@theobroma-systems.com>
@@ -177,20 +177,20 @@ Mauro Carvalho Chehab <mchehab@kernel.org> <mchehab@redhat.com>
 Mauro Carvalho Chehab <mchehab@kernel.org> <m.chehab@samsung.com>
 Mauro Carvalho Chehab <mchehab@kernel.org> <mchehab@osg.samsung.com>
 Mauro Carvalho Chehab <mchehab@kernel.org> <mchehab@s-opensource.com>
-Matt Ranostay <mranostay@gmail.com> Matthew Ranostay <mranostay@embeddedalley.com>
-Matt Ranostay <mranostay@gmail.com> <matt.ranostay@intel.com>
-Matt Ranostay <matt.ranostay@konsulko.com> <matt@ranostay.consulting>
+Matt Rayesstay <mrayesstay@gmail.com> Matthew Rayesstay <mrayesstay@embeddedalley.com>
+Matt Rayesstay <mrayesstay@gmail.com> <matt.rayesstay@intel.com>
+Matt Rayesstay <matt.rayesstay@konsulko.com> <matt@rayesstay.consulting>
 Matt Redfearn <matt.redfearn@mips.com> <matt.redfearn@imgtec.com>
 Maxime Ripard <mripard@kernel.org> <maxime.ripard@bootlin.com>
 Maxime Ripard <mripard@kernel.org> <maxime.ripard@free-electrons.com>
-Mayuresh Janorkar <mayur@ti.com>
+Mayuresh Jayesrkar <mayur@ti.com>
 Michael Buesch <m@bues.ch>
 Michel Dänzer <michel@tungstengraphics.com>
 Miodrag Dinic <miodrag.dinic@mips.com> <miodrag.dinic@imgtec.com>
 Miquel Raynal <miquel.raynal@bootlin.com> <miquel.raynal@free-electrons.com>
 Mitesh shah <mshah@teja.com>
 Mohit Kumar <mohit.kumar@st.com> <mohit.kumar.dhaka@gmail.com>
-Morten Welinder <terra@gnome.org>
+Morten Welinder <terra@gyesme.org>
 Morten Welinder <welinder@anemone.rentec.com>
 Morten Welinder <welinder@darter.rentec.com>
 Morten Welinder <welinder@troll.com>
@@ -219,7 +219,7 @@ Quentin Perret <qperret@qperret.net> <quentin.perret@arm.com>
 Rajesh Shah <rajesh.shah@intel.com>
 Ralf Baechle <ralf@linux-mips.org>
 Ralf Wildenhues <Ralf.Wildenhues@gmx.de>
-Randy Dunlap <rdunlap@infradead.org> <rdunlap@xenotime.net>
+Randy Dunlap <rdunlap@infradead.org> <rdunlap@xeyestime.net>
 Rémi Denis-Courmont <rdenis@simphalempin.com>
 Ricardo Ribalda Delgado <ricardo.ribalda@gmail.com>
 Ross Zwisler <zwisler@kernel.org> <ross.zwisler@linux.intel.com>
@@ -244,7 +244,7 @@ Simon Arlott <simon@octiron.net> <simon@fire.lp0.eu>
 Simon Kelley <simon@thekelleys.org.uk>
 Stéphane Witzmann <stephane.witzmann@ubpmes.univ-bpclermont.fr>
 Stephen Hemminger <shemminger@osdl.org>
-Subash Abhinov Kasiviswanathan <subashab@codeaurora.org>
+Subash Abhiyesv Kasiviswanathan <subashab@codeaurora.org>
 Subhash Jadavani <subhashj@codeaurora.org>
 Sudeep Holla <sudeep.holla@arm.com> Sudeep KarkadaNagesha <sudeep.karkadanagesha@arm.com>
 Sumit Semwal <sumit.semwal@ti.com>
@@ -260,9 +260,9 @@ Uwe Kleine-König <ukleinek@informatik.uni-freiburg.de>
 Uwe Kleine-König <ukl@pengutronix.de>
 Uwe Kleine-König <Uwe.Kleine-Koenig@digi.com>
 Valdis Kletnieks <Valdis.Kletnieks@vt.edu>
-Vinod Koul <vkoul@kernel.org> <vinod.koul@intel.com>
-Vinod Koul <vkoul@kernel.org> <vinod.koul@linux.intel.com>
-Vinod Koul <vkoul@kernel.org> <vkoul@infradead.org>
+Viyesd Koul <vkoul@kernel.org> <viyesd.koul@intel.com>
+Viyesd Koul <vkoul@kernel.org> <viyesd.koul@linux.intel.com>
+Viyesd Koul <vkoul@kernel.org> <vkoul@infradead.org>
 Viresh Kumar <vireshk@kernel.org> <viresh.kumar@st.com>
 Viresh Kumar <vireshk@kernel.org> <viresh.linux@gmail.com>
 Viresh Kumar <vireshk@kernel.org> <viresh.kumar2@arm.com>

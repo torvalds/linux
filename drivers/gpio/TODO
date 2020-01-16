@@ -7,7 +7,7 @@ GPIO descriptors
 Starting with commit 79a9becda894 the GPIO subsystem embarked on a journey
 to move away from the global GPIO numberspace and toward a decriptor-based
 approach. This means that GPIO consumers, drivers and machine descriptions
-ideally have no use or idea of the global GPIO numberspace that has/was
+ideally have yes use or idea of the global GPIO numberspace that has/was
 used in the inception of the GPIO subsystem.
 
 Work items:
@@ -18,8 +18,8 @@ Work items:
 
 - Convert all machine descriptors in "boardfiles" to only
   #include <linux/gpio/machine.h>, the other option being to convert it
-  to a machine description such as device tree, ACPI or fwnode that
-  implicitly does not use global GPIO numbers.
+  to a machine description such as device tree, ACPI or fwyesde that
+  implicitly does yest use global GPIO numbers.
 
 - When this work is complete (will require some of the items in the
   following ongoing work as well) we can delete the old global
@@ -29,9 +29,9 @@ Work items:
 
 Get rid of <linux/of_gpio.h>
 
-This header and helpers appeared at one point when there was no proper
+This header and helpers appeared at one point when there was yes proper
 driver infrastructure for doing simpler MMIO GPIO devices and there was
-no core support for parsing device tree GPIOs from the core library with
+yes core support for parsing device tree GPIOs from the core library with
 the [devm_]gpiod_get() calls we have today that will implicitly go into
 the device tree back-end.
 
@@ -49,7 +49,7 @@ Work items:
 
 - Pull semantics for legacy device tree (OF) GPIO lookups into
   gpiolib-of.c: in some cases subsystems are doing custom flags and
-  lookups for polarity inversion, open drain and what not. As we now
+  lookups for polarity inversion, open drain and what yest. As we yesw
   handle this with generic OF bindings, pull all legacy handling into
   gpiolib so the library API becomes narrow and deep and handle all
   legacy bindings internally. (See e.g. commits 6953c57ab172,
@@ -138,8 +138,8 @@ try to cover any generic kind of irqchip cascaded from a GPIO.
   dry-code conversions to gpiolib irqchip for maintainers to test
 
 - Support generic hierarchical GPIO interrupts: these are for the
-  non-cascading case where there is one IRQ per GPIO line, there is
-  currently no common infrastructure for this.
+  yesn-cascading case where there is one IRQ per GPIO line, there is
+  currently yes common infrastructure for this.
 
 
 Increase integration with pin control

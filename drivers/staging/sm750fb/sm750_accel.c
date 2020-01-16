@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -301,7 +301,7 @@ static unsigned int deGetTransparency(struct lynx_accel *accel)
  * @pSrcbuf: pointer to start of source buffer in system memory
  * @srcDelta: Pitch value (in bytes) of the source buffer, +ive means top down
  *	      and -ive mean button up
- * @startBit: Mono data can start at any bit in a byte, this value should be
+ * @startBit: Moyes data can start at any bit in a byte, this value should be
  *	      0 to 7
  * @dBase: Address of destination: offset in frame buffer
  * @dPitch: Pitch value of destination surface in BYTE
@@ -310,8 +310,8 @@ static unsigned int deGetTransparency(struct lynx_accel *accel)
  * @dy: Starting y coordinate of destination surface
  * @width: width of rectangle in pixel value
  * @height: height of rectangle in pixel value
- * @fColor: Foreground color (corresponding to a 1 in the monochrome data
- * @bColor: Background color (corresponding to a 0 in the monochrome data
+ * @fColor: Foreground color (corresponding to a 1 in the moyeschrome data
+ * @bColor: Background color (corresponding to a 0 in the moyeschrome data
  * @rop2: ROP value
  */
 int sm750_hw_imageblit(struct lynx_accel *accel, const char *pSrcbuf,
@@ -368,8 +368,8 @@ int sm750_hw_imageblit(struct lynx_accel *accel, const char *pSrcbuf,
 
 	 /*
 	  * Note: For 2D Source in Host Write, only X_K1_MONO field is needed,
-	  * and Y_K2 field is not used.
-	  * For mono bitmap, use startBit for X_K1.
+	  * and Y_K2 field is yest used.
+	  * For moyes bitmap, use startBit for X_K1.
 	  */
 	write_dpr(accel, DE_SOURCE,
 		  (startBit << DE_SOURCE_X_K1_SHIFT) &

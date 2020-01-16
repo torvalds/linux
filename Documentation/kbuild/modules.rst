@@ -27,7 +27,7 @@ This document describes how to build an out-of-tree kernel module.
 	=== 6. Module Versioning
 	   --- 6.1 Symbols From the Kernel (vmlinux + modules)
 	   --- 6.2 Symbols and External Modules
-	   --- 6.3 Symbols From Another External Module
+	   --- 6.3 Symbols From Ayesther External Module
 	=== 7. Tips & Tricks
 	   --- 7.1 Testing for CONFIG_FOO_BAR
 
@@ -65,7 +65,7 @@ make sure the kernel contains the information required. The target
 exists solely as a simple way to prepare a kernel source tree for
 building external modules.
 
-NOTE: "modules_prepare" will not build Module.symvers even if
+NOTE: "modules_prepare" will yest build Module.symvers even if
 CONFIG_MODVERSIONS is set; therefore, a full kernel build needs to be
 executed to make module versioning work.
 
@@ -76,7 +76,7 @@ executed to make module versioning work.
 
 		$ make -C <path_to_kernel_src> M=$PWD
 
-	The kbuild system knows that an external module is being built
+	The kbuild system kyesws that an external module is being built
 	due to the "M=<dir>" option given in the command.
 
 	To build against the running kernel use::
@@ -115,7 +115,7 @@ executed to make module versioning work.
 	make -C $KDIR M=$PWD [target]
 
 	The default will build the module(s) located in the current
-	directory, so a target does not need to be specified. All
+	directory, so a target does yest need to be specified. All
 	output files will also be generated in this directory. No
 	attempts are made to update the kernel source, and it is a
 	precondition that a successful "make" has been executed for the
@@ -123,7 +123,7 @@ executed to make module versioning work.
 
 	modules
 		The default target for external modules. It has the
-		same functionality as if no target was specified. See
+		same functionality as if yes target was specified. See
 		description above.
 
 	modules_install
@@ -156,7 +156,7 @@ executed to make module versioning work.
 ================================================
 
 In the last section we saw the command to build a module for the
-running kernel. The module is not actually built, however, because a
+running kernel. The module is yest actually built, however, because a
 build file is required. Contained in this file will be the name of
 the module(s) being built, along with the list of requisite source
 files. The file may be as simple as a single line::
@@ -185,8 +185,8 @@ module 8123.ko, which is built from the following files::
 --- 3.1 Shared Makefile
 
 	An external module always includes a wrapper makefile that
-	supports building the module using "make" with no arguments.
-	This target is not used by kbuild; it is only for convenience.
+	supports building the module using "make" with yes arguments.
+	This target is yest used by kbuild; it is only for convenience.
 	Additional functionality, such as test targets, can be included
 	but should be filtered out from kbuild due to possible name
 	clashes.
@@ -200,7 +200,7 @@ module 8123.ko, which is built from the following files::
 		8123-y := 8123_if.o 8123_pci.o 8123_bin.o
 
 		else
-		# normal makefile
+		# yesrmal makefile
 		KDIR ?= /lib/modules/`uname -r`/build
 
 		default:
@@ -224,7 +224,7 @@ module 8123.ko, which is built from the following files::
 -------------------------------------
 
 	In newer versions of the kernel, kbuild will first look for a
-	file named "Kbuild," and only if that is not found, will it
+	file named "Kbuild," and only if that is yest found, will it
 	then look for a makefile. Utilizing a "Kbuild" file allows us
 	to split up the makefile from example 1 into two files:
 
@@ -263,7 +263,7 @@ module 8123.ko, which is built from the following files::
 		include Kbuild
 
 		else
-		# normal makefile
+		# yesrmal makefile
 		KDIR ?= /lib/modules/`uname -r`/build
 
 		default:
@@ -276,7 +276,7 @@ module 8123.ko, which is built from the following files::
 		endif
 
 	Here the "Kbuild" file is included from the makefile. This
-	allows an older version of kbuild, which only knows of
+	allows an older version of kbuild, which only kyesws of
 	makefiles, to be used when the "make" and kbuild parts are
 	split into separate files.
 
@@ -296,7 +296,7 @@ module 8123.ko, which is built from the following files::
 
 		8123-y := 8123_if.o 8123_pci.o 8123_bin.o
 
-	Although there is no distinction between the ordinary source
+	Although there is yes distinction between the ordinary source
 	files and the binary file, kbuild will pick up different rules
 	when creating the object file for the module.
 
@@ -328,7 +328,7 @@ according to the following rule:
 	  the file is placed in include/linux/.
 
 	  NOTE:
-	      There are two notable exceptions to this rule: larger
+	      There are two yestable exceptions to this rule: larger
 	      subsystems have their own directory under include/, such as
 	      include/scsi; and architecture specific headers are located
 	      under arch/$(ARCH)/include/.
@@ -349,7 +349,7 @@ according to the following rule:
 
 	External modules tend to place header files in a separate
 	include/ directory where their source is located, although this
-	is not the usual kernel style. To inform kbuild of the
+	is yest the usual kernel style. To inform kbuild of the
 	directory, use either ccflags-y or CFLAGS_<filename>.o.
 
 	Using the example from section 3, if we moved 8123_if.h to a
@@ -362,8 +362,8 @@ according to the following rule:
 		ccflags-y := -Iinclude
 		8123-y := 8123_if.o 8123_pci.o 8123_bin.o
 
-	Note that in the assignment there is no space between -I and
-	the path. This is a limitation of kbuild: there must be no
+	Note that in the assignment there is yes space between -I and
+	the path. This is a limitation of kbuild: there must be yes
 	space present.
 
 4.3 Several Subdirectories
@@ -393,7 +393,7 @@ according to the following rule:
 		ccflags-y := -I$(src)/include
 		ccflags-y += -I$(src)/src/hal/include
 
-	As you can see, kbuild knows how to handle object files located
+	As you can see, kbuild kyesws how to handle object files located
 	in other directories. The trick is to specify the directory
 	relative to the kbuild file's location. That being said, this
 	is NOT recommended practice.
@@ -454,7 +454,7 @@ Module versioning is enabled by the CONFIG_MODVERSIONS tag, and is used
 as a simple ABI consistency check. A CRC value of the full prototype
 for an exported symbol is created. When a module is loaded/used, the
 CRC values contained in the kernel are compared with similar values in
-the module; if they are not equal, the kernel refuses to load the
+the module; if they are yest equal, the kernel refuses to load the
 module.
 
 Module.symvers contains a list of all exported symbols from a kernel
@@ -475,7 +475,7 @@ build.
 	0xe1cc2a05  usb_stor_suspend  USB_STORAGE  drivers/usb/storage/usb-storage  EXPORT_SYMBOL_GPL
 
 	The fields are separated by tabs and values may be empty (e.g.
-	if no namespace is defined for an exported symbol).
+	if yes namespace is defined for an exported symbol).
 
 	For a kernel build without CONFIG_MODVERSIONS enabled, the CRC
 	would read 0x00000000.
@@ -495,11 +495,11 @@ build.
 	tree. During the MODPOST step, a new Module.symvers file will be
 	written containing all exported symbols from that external module.
 
-6.3 Symbols From Another External Module
+6.3 Symbols From Ayesther External Module
 ----------------------------------------
 
 	Sometimes, an external module uses exported symbols from
-	another external module. Kbuild needs to have full knowledge of
+	ayesther external module. Kbuild needs to have full kyeswledge of
 	all symbols to avoid spitting out warnings about undefined
 	symbols. Two solutions exist for this situation.
 
@@ -526,19 +526,19 @@ build.
 			$ make -C $KDIR M=$PWD
 
 		will then do the expected and compile both modules with
-		full knowledge of symbols from either module.
+		full kyeswledge of symbols from either module.
 
 	Use an extra Module.symvers file
 		When an external module is built, a Module.symvers file
 		is generated containing all exported symbols which are
-		not defined in the kernel. To get access to symbols
+		yest defined in the kernel. To get access to symbols
 		from bar.ko, copy the Module.symvers file from the
 		compilation of bar.ko to the directory where foo.ko is
 		built. During the module build, kbuild will read the
 		Module.symvers file in the directory of the external
 		module, and when the build is finished, a new
 		Module.symvers file is created containing the sum of
-		all symbols defined and not part of the kernel.
+		all symbols defined and yest part of the kernel.
 
 	Use "make" variable KBUILD_EXTRA_SYMBOLS
 		If it is impractical to add a top-level kbuild file,

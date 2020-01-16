@@ -55,7 +55,7 @@ static void class_release(struct kobject *kobj)
 	if (class->class_release)
 		class->class_release(class);
 	else
-		pr_debug("class '%s' does not have a release() function, "
+		pr_debug("class '%s' does yest have a release() function, "
 			 "be careful\n", class->name);
 
 	kfree(cp);
@@ -117,20 +117,20 @@ static void class_put(struct class *cls)
 		kset_put(&cls->p->subsys);
 }
 
-static struct device *klist_class_to_dev(struct klist_node *n)
+static struct device *klist_class_to_dev(struct klist_yesde *n)
 {
 	struct device_private *p = to_device_private_class(n);
 	return p->device;
 }
 
-static void klist_class_dev_get(struct klist_node *n)
+static void klist_class_dev_get(struct klist_yesde *n)
 {
 	struct device *dev = klist_class_to_dev(n);
 
 	get_device(dev);
 }
 
-static void klist_class_dev_put(struct klist_node *n)
+static void klist_class_dev_put(struct klist_yesde *n)
 {
 	struct device *dev = klist_class_to_dev(n);
 
@@ -280,11 +280,11 @@ void class_destroy(struct class *cls)
 void class_dev_iter_init(struct class_dev_iter *iter, struct class *class,
 			 struct device *start, const struct device_type *type)
 {
-	struct klist_node *start_knode = NULL;
+	struct klist_yesde *start_kyesde = NULL;
 
 	if (start)
-		start_knode = &start->p->knode_class;
-	klist_iter_init_node(&class->p->klist_devices, &iter->ki, start_knode);
+		start_kyesde = &start->p->kyesde_class;
+	klist_iter_init_yesde(&class->p->klist_devices, &iter->ki, start_kyesde);
 	iter->type = type;
 }
 EXPORT_SYMBOL_GPL(class_dev_iter_init);
@@ -303,14 +303,14 @@ EXPORT_SYMBOL_GPL(class_dev_iter_init);
  */
 struct device *class_dev_iter_next(struct class_dev_iter *iter)
 {
-	struct klist_node *knode;
+	struct klist_yesde *kyesde;
 	struct device *dev;
 
 	while (1) {
-		knode = klist_next(&iter->ki);
-		if (!knode)
+		kyesde = klist_next(&iter->ki);
+		if (!kyesde)
 			return NULL;
-		dev = klist_class_to_dev(knode);
+		dev = klist_class_to_dev(kyesde);
 		if (!iter->type || iter->type == dev->type)
 			return dev;
 	}
@@ -322,7 +322,7 @@ EXPORT_SYMBOL_GPL(class_dev_iter_next);
  * @iter: class iterator to finish
  *
  * Finish an iteration.  Always call this function after iteration is
- * complete whether the iteration ran till the end or not.
+ * complete whether the iteration ran till the end or yest.
  */
 void class_dev_iter_exit(struct class_dev_iter *iter)
 {
@@ -346,7 +346,7 @@ EXPORT_SYMBOL_GPL(class_dev_iter_exit);
  * other than 0, we break out and return that value.
  *
  * @fn is allowed to do anything including calling back into class
- * code.  There's no locking restriction.
+ * code.  There's yes locking restriction.
  */
 int class_for_each_device(struct class *class, struct device *start,
 			  void *data, int (*fn)(struct device *, void *))
@@ -386,14 +386,14 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
  * returns a reference to a device that is 'found' for later use, as
  * determined by the @match callback.
  *
- * The callback should return 0 if the device doesn't match and non-zero
- * if it does.  If the callback returns non-zero, this function will
- * return to the caller and not iterate over any more devices.
+ * The callback should return 0 if the device doesn't match and yesn-zero
+ * if it does.  If the callback returns yesn-zero, this function will
+ * return to the caller and yest iterate over any more devices.
  *
  * Note, you will need to drop the reference with put_device() after use.
  *
  * @match is allowed to do anything including calling back into class
- * code.  There's no locking restriction.
+ * code.  There's yes locking restriction.
  */
 struct device *class_find_device(struct class *class, struct device *start,
 				 const void *data,
@@ -437,7 +437,7 @@ int class_interface_register(struct class_interface *class_intf)
 		return -EINVAL;
 
 	mutex_lock(&parent->p->mutex);
-	list_add_tail(&class_intf->node, &parent->p->interfaces);
+	list_add_tail(&class_intf->yesde, &parent->p->interfaces);
 	if (class_intf->add_dev) {
 		class_dev_iter_init(&iter, parent, NULL, NULL);
 		while ((dev = class_dev_iter_next(&iter)))
@@ -459,7 +459,7 @@ void class_interface_unregister(struct class_interface *class_intf)
 		return;
 
 	mutex_lock(&parent->p->mutex);
-	list_del_init(&class_intf->node);
+	list_del_init(&class_intf->yesde);
 	if (class_intf->remove_dev) {
 		class_dev_iter_init(&iter, parent, NULL, NULL);
 		while ((dev = class_dev_iter_next(&iter)))

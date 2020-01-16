@@ -9,7 +9,7 @@
 	 - The driver for the Riebl Lance card by the TU Vienna.
 	 - The modified TUW driver for PAM's VME cards
 	 - The PC-Linux driver for Lance cards (but this is for bus master
-       cards, not the shared memory ones)
+       cards, yest the shared memory ones)
 	 - The Amiga Ariadne driver
 
 	v1.0: (in 1.2.13pl4/0.9.13)
@@ -21,14 +21,14 @@
 		  following AMD, CSR0_STRT should be set only after IDON is detected
 		  use memcpy() for data transfers, that also employs long word moves
 		  better probe procedure for 24-bit systems
-          non-VME-RieblCards need extra delays in memcpy
+          yesn-VME-RieblCards need extra delays in memcpy
 		  must also do write test, since 0xfxe00000 may hit ROM
 		  use 8/32 tx/rx buffers, which should give better NFS performance;
 		    this is made possible by shifting the last packet buffer after the
 		    RieblCard reserved area
     v1.2: (in 1.2.13pl8)
 	      again fixed probing for the Falcon; 0xfe01000 hits phys. 0x00010000
-		  and thus RAM, in case of no Lance found all memory contents have to
+		  and thus RAM, in case of yes Lance found all memory contents have to
 		  be restored!
 		  Now possible to compile as module.
 	v1.3: 03/30/96 Jes Sorensen, Roman (in 1.3)
@@ -37,7 +37,7 @@
 		  mode. It is therefore necessary to put it back where it
 		  belongs, in big endian mode, in order to make things work.
 		  This might be the reason why multicast-mode didn't work
-		  before, but I'm not able to test it as I only got an Amiga
+		  before, but I'm yest able to test it as I only got an Amiga
 		  (we had similar problems with the A2065 driver).
 
 */
@@ -51,7 +51,7 @@ static const char version[] = "atarilance.c: v1.3 04/04/96 "
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -65,7 +65,7 @@ static const char version[] = "atarilance.c: v1.3 04/04/96 "
 
 /* Debug level:
  *  0 = silent, print only serious errors
- *  1 = normal, print error messages
+ *  1 = yesrmal, print error messages
  *  2 = debug, print debug infos
  *  3 = debug, print even more debug infos (packet data)
  */
@@ -124,7 +124,7 @@ struct lance_rx_head {
 	volatile unsigned char	flag;
 	unsigned char			base_hi;	/* High word of base addr (unused) */
 	short					buf_length;	/* This length is 2s complement! */
-	volatile short			msg_length;	/* This length is "normal". */
+	volatile short			msg_length;	/* This length is "yesrmal". */
 };
 
 struct lance_tx_head {
@@ -177,7 +177,7 @@ struct lance_memory {
 #define RIEBL_IVEC_ADDR		((unsigned short *)(((char *)MEM) + 0xfffe))
 
 /* This is a default address for the old RieblCards without a battery
- * that have no ethernet address at boot time. 00:00:36:04 is the
+ * that have yes ethernet address at boot time. 00:00:36:04 is the
  * prefix for Riebl cards, the 00:00 at the end is arbitrary.
  */
 
@@ -284,7 +284,7 @@ static struct lance_addr {
 #define TMD3_LCAR		0x0800	/* carrier lost */
 #define TMD3_LCOL		0x1000	/* late collision */
 #define TMD3_UFLO		0x4000	/* underflow (late memory) */
-#define TMD3_BUFF		0x8000	/* buffering error (no ENP) */
+#define TMD3_BUFF		0x8000	/* buffering error (yes ENP) */
 
 /* rx_head flags */
 #define RMD1_ENP		0x01	/* end of packet */
@@ -322,7 +322,7 @@ static struct lance_addr {
 #define CSR0_RINT	0x0400		/* receiver interrupt (RC) */
 #define CSR0_MERR	0x0800		/* memory error (RC) */
 #define CSR0_MISS	0x1000		/* missed frame (RC) */
-#define CSR0_CERR	0x2000		/* carrier error (no heartbeat :-) (RC) */
+#define CSR0_CERR	0x2000		/* carrier error (yes heartbeat :-) (RC) */
 #define CSR0_BABL	0x4000		/* babble: tx-ed too many bits (RC) */
 #define CSR0_ERR	0x8000		/* error (RC) */
 
@@ -376,7 +376,7 @@ struct net_device * __init atarilance_probe(int unit)
 
 	if (!MACH_IS_ATARI || found)
 		/* Assume there's only one board possible... That seems true, since
-		 * the Riebl/PAM board's address cannot be changed. */
+		 * the Riebl/PAM board's address canyest be changed. */
 		return ERR_PTR(-ENODEV);
 
 	dev = alloc_etherdev(sizeof(struct lance_private));
@@ -404,7 +404,7 @@ struct net_device * __init atarilance_probe(int unit)
 
 /* Derived from hwreg_present() in atari/config.c: */
 
-static noinline int __init addr_accessible(volatile void *regp, int wordflag,
+static yesinline int __init addr_accessible(volatile void *regp, int wordflag,
 					   int writeflag)
 {
 	int		ret;
@@ -423,23 +423,23 @@ static noinline int __init addr_accessible(volatile void *regp, int wordflag,
 		"tstl   %3\n\t"
 		"bne	1f\n\t"
 		"moveb	%1@,%/d0\n\t"
-		"nop	\n\t"
+		"yesp	\n\t"
 		"bra	2f\n"
 "1:		 movew	%1@,%/d0\n\t"
-		"nop	\n"
+		"yesp	\n"
 "2:		 tstl   %4\n\t"
 		"beq	2f\n\t"
 		"tstl	%3\n\t"
 		"bne	1f\n\t"
 		"clrb	%1@\n\t"
-		"nop	\n\t"
+		"yesp	\n\t"
 		"moveb	%/d0,%1@\n\t"
-		"nop	\n\t"
+		"yesp	\n\t"
 		"bra	2f\n"
 "1:		 clrw	%1@\n\t"
-		"nop	\n\t"
+		"yesp	\n\t"
 		"movew	%/d0,%1@\n\t"
-		"nop	\n"
+		"yesp	\n"
 "2:		 moveq	#1,%0\n"
 "Lberr:	 movel	%/d1,%/sp"
 		: "=&d" (ret)
@@ -503,7 +503,7 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	ioaddr[1] = 0x0001;
 	if (ioaddr[1] != 0x0001) goto probe_fail;
 
-	/* The CSR0_INIT bit should not be readable */
+	/* The CSR0_INIT bit should yest be readable */
 	PROBE_PRINT(( "lance_probe1: testing CSR0 register function (1)\n" ));
 	save1 = ioaddr[0];
 	ioaddr[1] = CSR0;
@@ -653,7 +653,7 @@ static int lance_open( struct net_device *dev )
 	REGA( CSR2 ) = 0;
 	REGA( CSR1 ) = 0;
 	REGA( CSR0 ) = CSR0_INIT;
-	/* From now on, AREG is kept to point to CSR0 */
+	/* From yesw on, AREG is kept to point to CSR0 */
 
 	i = 1000000;
 	while (--i > 0)
@@ -807,7 +807,7 @@ lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				(int)skb->data, (int)skb->len );
 	}
 
-	/* We're not prepared for the int until the last flags are set/reset. And
+	/* We're yest prepared for the int until the last flags are set/reset. And
 	 * the int may happen already after setting the OWN_CHIP... */
 	spin_lock_irqsave (&lp->devlock, flags);
 
@@ -856,7 +856,7 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id )
 	int handled = 0;
 
 	if (dev == NULL) {
-		DPRINTK( 1, ( "lance_interrupt(): interrupt for unknown device.\n" ));
+		DPRINTK( 1, ( "lance_interrupt(): interrupt for unkyeswn device.\n" ));
 		return IRQ_NONE;
 	}
 
@@ -869,7 +869,7 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id )
 	while( ((csr0 = DREG) & (CSR0_ERR | CSR0_TINT | CSR0_RINT)) &&
 		   --boguscnt >= 0) {
 		handled = 1;
-		/* Acknowledge all of the current interrupt sources ASAP. */
+		/* Ackyeswledge all of the current interrupt sources ASAP. */
 		DREG = csr0 & ~(CSR0_INIT | CSR0_STRT | CSR0_STOP |
 									CSR0_TDMD | CSR0_INEA);
 
@@ -928,7 +928,7 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id )
 
 			if (lp->tx_full && (netif_queue_stopped(dev)) &&
 				dirty_tx > lp->cur_tx - TX_RING_SIZE + 2) {
-				/* The ring is no longer full, clear tbusy. */
+				/* The ring is yes longer full, clear tbusy. */
 				lp->tx_full = 0;
 				netif_wake_queue (dev);
 			}
@@ -974,10 +974,10 @@ static int lance_rx( struct net_device *dev )
 		int status = head->flag;
 
 		if (status != (RMD1_ENP|RMD1_STP)) {		/* There was an error. */
-			/* There is a tricky error noted by John Murphy,
+			/* There is a tricky error yested by John Murphy,
 			   <murf@perftech.com> to Russ Nelson: Even with full-sized
 			   buffers it's possible for a jabber packet to use two
-			   buffers, with only the last correctly noting the error. */
+			   buffers, with only the last correctly yesting the error. */
 			if (status & RMD1_ENP)	/* Only count a general error at the */
 				dev->stats.rx_errors++; /* end of a packet.*/
 			if (status & RMD1_FRAM) dev->stats.rx_frame_errors++;
@@ -1035,7 +1035,7 @@ static int lance_rx( struct net_device *dev )
 	lp->cur_rx &= RX_RING_MOD_MASK;
 
 	/* From lance.c (Donald Becker): */
-	/* We should check that at least two ring entries are free.	 If not,
+	/* We should check that at least two ring entries are free.	 If yest,
 	   we should free one and mark stats->rx_dropped++. */
 
 	return 0;
@@ -1065,7 +1065,7 @@ static int lance_close( struct net_device *dev )
 /* Set or clear the multicast filter for this adaptor.
    num_addrs == -1		Promiscuous mode, receive all packets
    num_addrs == 0		Normal mode, clear multicast list
-   num_addrs > 0		Multicast mode, receive normal and MC packets, and do
+   num_addrs > 0		Multicast mode, receive yesrmal and MC packets, and do
 						best-effort filtering.
  */
 
@@ -1104,7 +1104,7 @@ static void set_multicast_list( struct net_device *dev )
 	 */
 	REGA( CSR3 ) = CSR3_BSWP | (lp->cardtype == PAM_CARD ? CSR3_ACON : 0);
 
-	/* Resume normal operation and reset AREG to CSR0 */
+	/* Resume yesrmal operation and reset AREG to CSR0 */
 	REGA( CSR0 ) = CSR0_IDON | CSR0_INEA | CSR0_STRT;
 }
 

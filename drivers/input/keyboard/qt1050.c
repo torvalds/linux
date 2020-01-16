@@ -188,8 +188,8 @@ static const struct regmap_range qt1050_readable_ranges[] = {
 };
 
 static const struct regmap_access_table qt1050_readable_table = {
-	.yes_ranges = qt1050_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(qt1050_readable_ranges),
+	.no_ranges = qt1050_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(qt1050_readable_ranges),
 };
 
 static const struct regmap_range qt1050_writeable_ranges[] = {
@@ -204,8 +204,8 @@ static const struct regmap_range qt1050_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table qt1050_writeable_table = {
-	.yes_ranges = qt1050_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(qt1050_writeable_ranges),
+	.no_ranges = qt1050_writeable_ranges,
+	.n_no_ranges = ARRAY_SIZE(qt1050_writeable_ranges),
 };
 
 static struct regmap_config qt1050_regmap_config = {
@@ -228,14 +228,14 @@ static bool qt1050_identify(struct qt1050_priv *ts)
 	/* Read Chip ID */
 	regmap_read(ts->regmap, QT1050_CHIP_ID, &val);
 	if (val != QT1050_CHIP_ID_VER) {
-		dev_err(&ts->client->dev, "ID %d not supported\n", val);
+		dev_err(&ts->client->dev, "ID %d yest supported\n", val);
 		return false;
 	}
 
 	/* Read firmware version */
 	err = regmap_read(ts->regmap, QT1050_FW_VERSION, &val);
 	if (err) {
-		dev_err(&ts->client->dev, "could not read the firmware version\n");
+		dev_err(&ts->client->dev, "could yest read the firmware version\n");
 		return false;
 	}
 
@@ -261,7 +261,7 @@ static irqreturn_t qt1050_irq_threaded(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	/* Read which key changed, keys are not continuous */
+	/* Read which key changed, keys are yest continuous */
 	err = regmap_read(ts->regmap, QT1050_KEY_STATUS, &val);
 	if (err) {
 		dev_err(&ts->client->dev,
@@ -341,18 +341,18 @@ static int qt1050_apply_fw_data(struct qt1050_priv *ts)
 static int qt1050_parse_fw(struct qt1050_priv *ts)
 {
 	struct device *dev = &ts->client->dev;
-	struct fwnode_handle *child;
+	struct fwyesde_handle *child;
 	int nbuttons;
 
-	nbuttons = device_get_child_node_count(dev);
+	nbuttons = device_get_child_yesde_count(dev);
 	if (nbuttons == 0 || nbuttons > QT1050_MAX_KEYS)
 		return -ENODEV;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_yesde(dev, child) {
 		struct qt1050_key button;
 
 		/* Required properties */
-		if (fwnode_property_read_u32(child, "linux,code",
+		if (fwyesde_property_read_u32(child, "linux,code",
 					     &button.keycode)) {
 			dev_err(dev, "Button without keycode\n");
 			goto err;
@@ -363,7 +363,7 @@ static int qt1050_parse_fw(struct qt1050_priv *ts)
 			goto err;
 		}
 
-		if (fwnode_property_read_u32(child, "reg",
+		if (fwyesde_property_read_u32(child, "reg",
 					     &button.num)) {
 			dev_err(dev, "Button without pad number\n");
 			goto err;
@@ -374,7 +374,7 @@ static int qt1050_parse_fw(struct qt1050_priv *ts)
 		ts->reg_keys |= BIT(button.num);
 
 		/* Optional properties */
-		if (fwnode_property_read_u32(child,
+		if (fwyesde_property_read_u32(child,
 					     "microchip,pre-charge-time-ns",
 					     &button.charge_delay)) {
 			button.charge_delay = 0;
@@ -386,7 +386,7 @@ static int qt1050_parse_fw(struct qt1050_priv *ts)
 				button.charge_delay = 0;
 		}
 
-		if (fwnode_property_read_u32(child, "microchip,average-samples",
+		if (fwyesde_property_read_u32(child, "microchip,average-samples",
 					 &button.samples)) {
 			button.samples = 0;
 		} else {
@@ -396,7 +396,7 @@ static int qt1050_parse_fw(struct qt1050_priv *ts)
 				button.samples = 0;
 		}
 
-		if (fwnode_property_read_u32(child, "microchip,average-scaling",
+		if (fwyesde_property_read_u32(child, "microchip,average-scaling",
 					     &button.scale)) {
 			button.scale = 0;
 		} else {
@@ -407,7 +407,7 @@ static int qt1050_parse_fw(struct qt1050_priv *ts)
 
 		}
 
-		if (fwnode_property_read_u32(child, "microchip,threshold",
+		if (fwyesde_property_read_u32(child, "microchip,threshold",
 					 &button.thr_cnt)) {
 			button.thr_cnt = 20;
 		} else {
@@ -421,7 +421,7 @@ static int qt1050_parse_fw(struct qt1050_priv *ts)
 	return 0;
 
 err:
-	fwnode_handle_put(child);
+	fwyesde_handle_put(child);
 	return -EINVAL;
 }
 
@@ -437,7 +437,7 @@ static int qt1050_probe(struct i2c_client *client)
 	/* Check basic functionality */
 	err = i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE);
 	if (!err) {
-		dev_err(&client->dev, "%s adapter not supported\n",
+		dev_err(&client->dev, "%s adapter yest supported\n",
 			dev_driver_string(&client->adapter->dev));
 		return -ENODEV;
 	}

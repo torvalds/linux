@@ -90,7 +90,7 @@ void flush_thread(void)
 
 void release_thread(struct task_struct *dead_task)
 {
-	/* do nothing */
+	/* do yesthing */
 }
 
 /* Fill in the fpu structure for a core dump.. */
@@ -169,7 +169,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
  *	switch_to(x,y) should switch tasks from x to y.
  *
  */
-__notrace_funcgraph struct task_struct *
+__yestrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev, struct task_struct *next)
 {
 	struct thread_struct *next_t = &next->thread;
@@ -190,14 +190,14 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 	 *	k7 (r7_bank1)
 	 */
 	asm volatile("ldc	%0, r7_bank"
-		     : /* no output */
+		     : /* yes output */
 		     : "r" (task_thread_info(next)));
 #endif
 
 	/*
 	 * If the task has used fpu the last 5 timeslices, just do a full
 	 * restore of the math state immediately to avoid the trap; the
-	 * chances of needing FPU soon are obviously high now
+	 * chances of needing FPU soon are obviously high yesw
 	 */
 	if (next->thread.fpu_counter > 5)
 		__fpu_state_restore();

@@ -2,7 +2,7 @@
 /*
  * drivers/mtd/maps/ixp4xx.c
  *
- * MTD Map file for IXP4XX based systems. Please do not make per-board
+ * MTD Map file for IXP4XX based systems. Please do yest make per-board
  * changes in here. If your board needs special setup, do it in your
  * platform level code in arch/arm/mach-ixp4xx/board-setup.c
  *
@@ -126,7 +126,7 @@ static void ixp4xx_copy_from(struct map_info *map, void *to,
 }
 
 /*
- * Unaligned writes are ignored, causing the 8-bit
+ * Unaligned writes are igyesred, causing the 8-bit
  * probe to fail and proceed to the 16-bit probe (which succeeds).
  */
 static void ixp4xx_probe_write16(struct map_info *map, map_word d, unsigned long adr)
@@ -198,14 +198,14 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 	platform_set_drvdata(dev, info);
 
 	/*
-	 * Tell the MTD layer we're not 1:1 mapped so that it does
-	 * not attempt to do a direct access on us.
+	 * Tell the MTD layer we're yest 1:1 mapped so that it does
+	 * yest attempt to do a direct access on us.
 	 */
 	info->map.phys = NO_XIP;
 	info->map.size = resource_size(dev->resource);
 
 	/*
-	 * We only support 16-bit accesses for now. If and when
+	 * We only support 16-bit accesses for yesw. If and when
 	 * any board use 8-bit access, we'll fixup the driver to
 	 * handle that.
 	 */
@@ -235,7 +235,7 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 	err = mtd_device_parse_register(info->mtd, probes, &ppdata,
 			plat->parts, plat->nr_parts);
 	if (err) {
-		printk(KERN_ERR "Could not parse partitions\n");
+		printk(KERN_ERR "Could yest parse partitions\n");
 		goto Error;
 	}
 

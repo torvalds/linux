@@ -7,7 +7,7 @@ status.
 Required properties:
   - compatible: Should contain a chip-specific compatible string,
 	Chip-specific strings are of the form "fsl,<chip>-scfg",
-	The following <chip>s are known to be supported:
+	The following <chip>s are kyeswn to be supported:
 	ls1012a, ls1021a, ls1043a, ls1046a, ls2080a.
 
   - reg: should contain base address and length of SCFG memory-mapped registers

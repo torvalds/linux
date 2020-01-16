@@ -3,7 +3,7 @@
  *  Copyright (C) 2000-2002	   Michael Cornwell <cornwell@acm.org>
  *  Copyright (C) 2000-2002	   Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2001-2002	   Klaus Smolin
- *					IBM Storage Technology Division
+ *					IBM Storage Techyeslogy Division
  *  Copyright (C) 2003-2004, 2007  Bartlomiej Zolnierkiewicz
  *
  *  The big the bad and the ugly.
@@ -15,7 +15,7 @@
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/hdreg.h>
@@ -73,7 +73,7 @@ int taskfile_lib_get_identify(ide_drive_t *drive, u8 *buf)
 	return ide_raw_taskfile(drive, &cmd, buf, 1);
 }
 
-static ide_startstop_t task_no_data_intr(ide_drive_t *);
+static ide_startstop_t task_yes_data_intr(ide_drive_t *);
 static ide_startstop_t pre_task_out_intr(ide_drive_t *, struct ide_cmd *);
 static ide_startstop_t task_pio_intr(ide_drive_t *);
 
@@ -89,7 +89,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 	if (orig_cmd->protocol == ATA_PROT_PIO &&
 	    (orig_cmd->tf_flags & IDE_TFLAG_MULTI_PIO) &&
 	    drive->mult_count == 0) {
-		pr_err("%s: multimode not set!\n", drive->name);
+		pr_err("%s: multimode yest set!\n", drive->name);
 		return ide_stopped;
 	}
 
@@ -132,7 +132,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 		/* fall through */
 	case ATA_PROT_NODATA:
 		if (handler == NULL)
-			handler = task_no_data_intr;
+			handler = task_yes_data_intr;
 		ide_execute_command(drive, cmd, handler, WAIT_WORSTCASE);
 		return ide_started;
 	case ATA_PROT_DMA:
@@ -148,7 +148,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 }
 EXPORT_SYMBOL_GPL(do_rw_taskfile);
 
-static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
+static ide_startstop_t task_yes_data_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_cmd *cmd = &hwif->cmd;
@@ -174,12 +174,12 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 			return ide_stopped;
 		} else if (custom && tf->command == ATA_CMD_INIT_DEV_PARAMS) {
 			if ((stat & (ATA_ERR | ATA_DRQ)) == 0) {
-				ide_set_handler(drive, &task_no_data_intr,
+				ide_set_handler(drive, &task_yes_data_intr,
 						WAIT_WORSTCASE);
 				return ide_started;
 			}
 		}
-		return ide_error(drive, "task_no_data_intr", stat);
+		return ide_error(drive, "task_yes_data_intr", stat);
 	}
 
 	if (custom && tf->command == ATA_CMD_SET_MULTI)
@@ -198,7 +198,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 	return ide_stopped;
 }
 
-static u8 wait_drive_not_busy(ide_drive_t *drive)
+static u8 wait_drive_yest_busy(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	int retries;
@@ -373,7 +373,7 @@ static ide_startstop_t task_pio_intr(ide_drive_t *drive)
 
 	/* Are we done? Check status and finish transfer. */
 	if (write == 0 && cmd->nleft == 0) {
-		stat = wait_drive_not_busy(drive);
+		stat = wait_drive_yest_busy(drive);
 		if (!OK_STAT(stat, 0, BAD_STAT))
 			goto out_err;
 
@@ -401,7 +401,7 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive,
 
 	if (ide_wait_stat(&startstop, drive, ATA_DRQ,
 			  drive->bad_wstat, WAIT_DRQ)) {
-		pr_err("%s: no DRQ after issuing %sWRITE%s\n", drive->name,
+		pr_err("%s: yes DRQ after issuing %sWRITE%s\n", drive->name,
 			(cmd->tf_flags & IDE_TFLAG_MULTI_PIO) ? "MULT" : "",
 			(drive->dev_flags & IDE_DFLAG_LBA48) ? "_EXT" : "");
 		return startstop;
@@ -430,7 +430,7 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 
 	/*
 	 * (ks) We transfer currently only whole sectors.
-	 * This is suffient for now.  But, it would be great,
+	 * This is suffient for yesw.  But, it would be great,
 	 * if we would find a solution to transfer any size.
 	 * To support special commands like READ LONG.
 	 */
@@ -452,13 +452,13 @@ put_req:
 }
 EXPORT_SYMBOL(ide_raw_taskfile);
 
-int ide_no_data_taskfile(ide_drive_t *drive, struct ide_cmd *cmd)
+int ide_yes_data_taskfile(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	cmd->protocol = ATA_PROT_NODATA;
 
 	return ide_raw_taskfile(drive, cmd, NULL, 0);
 }
-EXPORT_SYMBOL_GPL(ide_no_data_taskfile);
+EXPORT_SYMBOL_GPL(ide_yes_data_taskfile);
 
 #ifdef CONFIG_IDE_TASK_IOCTL
 int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
@@ -573,8 +573,8 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 	switch (req_task->data_phase) {
 	case TASKFILE_MULTI_OUT:
 		if (!drive->mult_count) {
-			/* (hs): give up if multcount is not set */
-			pr_err("%s: %s Multimode Write multcount is not set\n",
+			/* (hs): give up if multcount is yest set */
+			pr_err("%s: %s Multimode Write multcount is yest set\n",
 				drive->name, __func__);
 			err = -EPERM;
 			goto abort;
@@ -592,8 +592,8 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 		break;
 	case TASKFILE_MULTI_IN:
 		if (!drive->mult_count) {
-			/* (hs): give up if multcount is not set */
-			pr_err("%s: %s Multimode Read multcount is not set\n",
+			/* (hs): give up if multcount is yest set */
+			pr_err("%s: %s Multimode Read multcount is yest set\n",
 				drive->name, __func__);
 			err = -EPERM;
 			goto abort;

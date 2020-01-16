@@ -90,7 +90,7 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
  * @addr:       address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If yest, returns false.
  */
 static inline int regs_within_kernel_stack(struct pt_regs *regs,
                                            unsigned long addr)
@@ -159,7 +159,7 @@ static inline long regs_return_value(struct pt_regs *regs)
 extern asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall);
 extern asmlinkage void syscall_trace_leave(struct pt_regs *regs);
 
-extern void die(const char *, struct pt_regs *) __noreturn;
+extern void die(const char *, struct pt_regs *) __yesreturn;
 
 static inline void die_if_kernel(const char *str, struct pt_regs *regs)
 {

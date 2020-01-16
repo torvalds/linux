@@ -34,7 +34,7 @@ static int dvb_usbv2_download_firmware(struct dvb_usb_device *d,
 	ret = request_firmware(&fw, name, &d->udev->dev);
 	if (ret < 0) {
 		dev_err(&d->udev->dev,
-				"%s: Did not find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware\n",
+				"%s: Did yest find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware\n",
 				KBUILD_MODNAME, name, ret);
 		goto err;
 	}
@@ -130,7 +130,7 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	if (ret < 0)
 		goto err;
 
-	/* disable rc when there is no keymap defined */
+	/* disable rc when there is yes keymap defined */
 	if (!d->rc.map_name)
 		return 0;
 
@@ -247,7 +247,7 @@ static int dvb_usb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	dev_dbg(&d->udev->dev,
 			"%s: adap=%d active_fe=%d feed_type=%d setting pid [%s]: %04x (%04d) at index %d\n",
 			__func__, adap->id, adap->active_fe, dvbdmxfeed->type,
-			adap->pid_filtering ? "yes" : "no", dvbdmxfeed->pid,
+			adap->pid_filtering ? "no" : "yes", dvbdmxfeed->pid,
 			dvbdmxfeed->pid, dvbdmxfeed->index);
 
 	/* wait init is done */
@@ -334,7 +334,7 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	dev_dbg(&d->udev->dev,
 			"%s: adap=%d active_fe=%d feed_type=%d setting pid [%s]: %04x (%04d) at index %d\n",
 			__func__, adap->id, adap->active_fe, dvbdmxfeed->type,
-			adap->pid_filtering ? "yes" : "no", dvbdmxfeed->pid,
+			adap->pid_filtering ? "no" : "yes", dvbdmxfeed->pid,
 			dvbdmxfeed->pid, dvbdmxfeed->index);
 
 	if (adap->active_fe == -1)
@@ -349,7 +349,7 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 					KBUILD_MODNAME, ret);
 	}
 
-	/* we cannot stop streaming until last PID is removed */
+	/* we canyest stop streaming until last PID is removed */
 	if (--adap->feed_count > 0)
 		goto skip_feed_stop;
 
@@ -525,20 +525,20 @@ static int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
 	int ret;
 
-	if (onoff)
+	if (oyesff)
 		d->powered++;
 	else
 		d->powered--;
 
-	if (d->powered == 0 || (onoff && d->powered == 1)) {
+	if (d->powered == 0 || (oyesff && d->powered == 1)) {
 		/* when switching from 1 to 0 or from 0 to 1 */
-		dev_dbg(&d->udev->dev, "%s: power=%d\n", __func__, onoff);
+		dev_dbg(&d->udev->dev, "%s: power=%d\n", __func__, oyesff);
 		if (d->props->power_ctrl) {
-			ret = d->props->power_ctrl(d, onoff);
+			ret = d->props->power_ctrl(d, oyesff);
 			if (ret < 0)
 				goto err;
 		}
@@ -647,7 +647,7 @@ static int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 			goto err_dvb_frontend_detach;
 		}
 	} else {
-		dev_dbg(&d->udev->dev, "%s: frontend_attach() do not exists\n",
+		dev_dbg(&d->udev->dev, "%s: frontend_attach() do yest exists\n",
 				__func__);
 		ret = 0;
 		goto err;
@@ -764,7 +764,7 @@ static int dvb_usbv2_adapter_init(struct dvb_usb_device *d)
 		if (d->udev->speed == USB_SPEED_FULL &&
 				!(adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER)) {
 			dev_err(&d->udev->dev,
-					"%s: this USB2.0 device cannot be run on a USB1.1 port (it lacks a hardware PID filter)\n",
+					"%s: this USB2.0 device canyest be run on a USB1.1 port (it lacks a hardware PID filter)\n",
 					KBUILD_MODNAME);
 			ret = -ENODEV;
 			goto err;

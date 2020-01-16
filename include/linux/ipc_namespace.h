@@ -5,7 +5,7 @@
 #include <linux/err.h>
 #include <linux/idr.h>
 #include <linux/rwsem.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/refcount.h>
@@ -49,7 +49,7 @@ struct ipc_namespace {
 	 */
 	int		shm_rmid_forced;
 
-	struct notifier_block ipcns_nb;
+	struct yestifier_block ipcns_nb;
 
 	/* The kern_mount of the mqueuefs sb.  We take a ref on it */
 	struct vfsmount	*mq_mnt;
@@ -94,10 +94,10 @@ extern int mq_init_ns(struct ipc_namespace *ns);
  *   suitably high)
  *
  * POSIX Requirements:
- *   Per app minimum openable message queues - 8.  This does not map well
+ *   Per app minimum openable message queues - 8.  This does yest map well
  *     to the fact that we limit the number of queues on a per namespace
- *     basis instead of a per app basis.  So, make the default high enough
- *     that no given app should have a hard time opening 8 queues.
+ *     basis instead of a per app basis.  So, make the default high eyesugh
+ *     that yes given app should have a hard time opening 8 queues.
  *   Minimum maximum for HARD_MSGMAX - 32767.  I bumped this to 65536.
  *   Minimum maximum for HARD_MSGSIZEMAX - POSIX is silent on this.  However,
  *     we have run into a situation where running applications in the wild

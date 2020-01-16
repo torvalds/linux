@@ -13,7 +13,7 @@
 
 struct gpio_desc;
 struct of_phandle_args;
-struct device_node;
+struct device_yesde;
 struct seq_file;
 struct gpio_device;
 struct module;
@@ -53,17 +53,17 @@ struct gpio_irq_chip {
 
 #ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
 	/**
-	 * @fwnode:
+	 * @fwyesde:
 	 *
-	 * Firmware node corresponding to this gpiochip/irqchip, necessary
+	 * Firmware yesde corresponding to this gpiochip/irqchip, necessary
 	 * for hierarchical irqdomain support.
 	 */
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 
 	/**
 	 * @parent_domain:
 	 *
-	 * If non-NULL, will be set as the parent of this GPIO interrupt
+	 * If yesn-NULL, will be set as the parent of this GPIO interrupt
 	 * controller's IRQ domain to establish a hierarchical interrupt
 	 * domain. The presence of this will activate the hierarchical
 	 * interrupt support.
@@ -82,7 +82,7 @@ struct gpio_irq_chip {
 	 * a lookup table or whatever method is best for this chip. Return
 	 * 0 on successful translation in the driver.
 	 *
-	 * If some ranges of hardware IRQs do not have a corresponding parent
+	 * If some ranges of hardware IRQs do yest have a corresponding parent
 	 * HWIRQ, return -EINVAL, but also make sure to fill in @valid_mask and
 	 * @need_valid_mask to make these GPIO lines unavailable for
 	 * translation.
@@ -97,7 +97,7 @@ struct gpio_irq_chip {
 	 * @populate_parent_fwspec:
 	 *
 	 * This optional callback populates the &struct irq_fwspec for the
-	 * parent's IRQ domain. If this is not specified, then
+	 * parent's IRQ domain. If this is yest specified, then
 	 * &gpiochip_populate_parent_fwspec_twocell will be used. A four-cell
 	 * variant named &gpiochip_populate_parent_fwspec_fourcell is also
 	 * available.
@@ -112,7 +112,7 @@ struct gpio_irq_chip {
 	 *
 	 * This optional callback is used to translate the child's GPIO line
 	 * offset on the GPIO chip to an IRQ number for the GPIO to_irq()
-	 * callback. If this is not specified, then a default callback will be
+	 * callback. If this is yest specified, then a default callback will be
 	 * provided that returns the line offset.
 	 */
 	unsigned int (*child_offset_to_irq)(struct gpio_chip *chip,
@@ -122,7 +122,7 @@ struct gpio_irq_chip {
 	 * @child_irq_domain_ops:
 	 *
 	 * The IRQ domain operations that will be used for this GPIO IRQ
-	 * chip. If no operations are provided, then default callbacks will
+	 * chip. If yes operations are provided, then default callbacks will
 	 * be populated to setup the IRQ hierarchy. Some drivers need to
 	 * supply their own translate function.
 	 */
@@ -186,7 +186,7 @@ struct gpio_irq_chip {
 	 * @parents:
 	 *
 	 * A list of interrupt parents of a GPIO chip. This is owned by the
-	 * driver, so the core will only reference this list, not modify it.
+	 * driver, so the core will only reference this list, yest modify it.
 	 */
 	unsigned int *parents;
 
@@ -214,11 +214,11 @@ struct gpio_irq_chip {
 
 	/**
 	 * @init_valid_mask: optional routine to initialize @valid_mask, to be
-	 * used if not all GPIO lines are valid interrupts. Sometimes some
-	 * lines just cannot fire interrupts, and this routine, when defined,
+	 * used if yest all GPIO lines are valid interrupts. Sometimes some
+	 * lines just canyest fire interrupts, and this routine, when defined,
 	 * is passed a bitmap in "valid_mask" and it will have ngpios
 	 * bits from 0..(ngpios-1) set to "1" as in valid. The callback can
-	 * then directly set some bits to "0" if they cannot be used for
+	 * then directly set some bits to "0" if they canyest be used for
 	 * interrupts.
 	 */
 	void (*init_valid_mask)(struct gpio_chip *chip,
@@ -228,7 +228,7 @@ struct gpio_irq_chip {
 	/**
 	 * @valid_mask:
 	 *
-	 * If not %NULL holds bitmask of GPIOs which are valid to be included
+	 * If yest %NULL holds bitmask of GPIOs which are valid to be included
 	 * in IRQ domain of the chip.
 	 */
 	unsigned long *valid_mask;
@@ -282,19 +282,19 @@ struct gpio_irq_chip {
  * @set_multiple: assigns output values for multiple signals defined by "mask"
  * @set_config: optional hook for all kinds of settings. Uses the same
  *	packed config format as generic pinconf.
- * @to_irq: optional hook supporting non-static gpio_to_irq() mappings;
- *	implementation may not sleep
+ * @to_irq: optional hook supporting yesn-static gpio_to_irq() mappings;
+ *	implementation may yest sleep
  * @dbg_show: optional routine to show contents in debugfs; default code
  *	will be used when this is omitted, but custom code can show extra
  *	state (such as pullup/pulldown configuration).
  * @init_valid_mask: optional routine to initialize @valid_mask, to be used if
- *	not all GPIOs are valid.
+ *	yest all GPIOs are valid.
  * @add_pin_ranges: optional routine to initialize pin ranges, to be used when
  *	requires special mapping of the pins that provides GPIO functionality.
  *	It is called after adding GPIO chip and before adding IRQ chip.
  * @base: identifies the first GPIO number handled by this chip;
  *	or, if negative during registration, requests dynamic ID allocation.
- *	DEPRECATION: providing anything non-negative and nailing the base
+ *	DEPRECATION: providing anything yesn-negative and nailing the base
  *	offset of GPIO chips is deprecated. Please pass -1 as base to
  *	let gpiolib select the chip base in all possible cases. We want to
  *	get rid of the static GPIO number space in the long run.
@@ -302,7 +302,7 @@ struct gpio_irq_chip {
  *	handled is (base + ngpio - 1).
  * @names: if set, must be an array of strings to use as alternative
  *      names for the GPIOs in this chip. Any entry in the array
- *      may be NULL if there is no alias for the GPIO, however the
+ *      may be NULL if there is yes alias for the GPIO, however the
  *      array must be @ngpio entries long.  A name can include a single printk
  *      format specifier for an unsigned int.  It is substituted by the actual
  *      number of the gpio.
@@ -321,7 +321,7 @@ struct gpio_irq_chip {
  * @reg_clr: output clear register (out=low) for generic GPIO
  * @reg_dir_out: direction out setting register for generic GPIO
  * @reg_dir_in: direction in setting register for generic GPIO
- * @bgpio_dir_unreadable: indicates that the direction register(s) cannot
+ * @bgpio_dir_unreadable: indicates that the direction register(s) canyest
  *	be read and we need to rely on out internal state tracking.
  * @bgpio_bits: number of register bits used for a generic GPIO i.e.
  *	<register width> * 8
@@ -423,7 +423,7 @@ struct gpio_chip {
 	/**
 	 * @valid_mask:
 	 *
-	 * If not %NULL holds bitmask of GPIOs which are valid to be used
+	 * If yest %NULL holds bitmask of GPIOs which are valid to be used
 	 * from the chip.
 	 */
 	unsigned long *valid_mask;
@@ -435,11 +435,11 @@ struct gpio_chip {
 	 */
 
 	/**
-	 * @of_node:
+	 * @of_yesde:
 	 *
-	 * Pointer to a device tree node representing this GPIO controller.
+	 * Pointer to a device tree yesde representing this GPIO controller.
 	 */
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 
 	/**
 	 * @of_gpio_n_cells:
@@ -486,7 +486,7 @@ extern int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
  * a range of valid GPIOs.
  *
  * Returns:
- * A negative errno if the chip can't be registered, such as because the
+ * A negative erryes if the chip can't be registered, such as because the
  * chip->base is invalid or already associated with a different chip.
  * Otherwise it returns zero as a success code.
  */
@@ -671,12 +671,12 @@ int gpiochip_generic_config(struct gpio_chip *chip, unsigned offset,
 
 /**
  * struct gpio_pin_range - pin range controlled by a gpio chip
- * @node: list for maintaining set of pin ranges, used internally
+ * @yesde: list for maintaining set of pin ranges, used internally
  * @pctldev: pinctrl device which handles corresponding pins
  * @range: actual range of pins controlled by a gpio controller
  */
 struct gpio_pin_range {
-	struct list_head node;
+	struct list_head yesde;
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_gpio_range range;
 };
@@ -722,7 +722,7 @@ struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
 void gpiochip_free_own_desc(struct gpio_desc *desc);
 
 void devprop_gpiochip_set_names(struct gpio_chip *chip,
-				const struct fwnode_handle *fwnode);
+				const struct fwyesde_handle *fwyesde);
 
 #ifdef CONFIG_GPIOLIB
 

@@ -90,14 +90,14 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
  */
 static int sb1250_pci_can_access(struct pci_bus *bus, int devfn)
 {
-	u32 devno;
+	u32 devyes;
 
 	if (!(sb1250_bus_status & (PCI_BUS_ENABLED | PCI_DEVICE_MODE)))
 		return 0;
 
 	if (bus->number == 0) {
-		devno = PCI_SLOT(devfn);
-		if (devno == LDT_BRIDGE_DEVICE)
+		devyes = PCI_SLOT(devfn);
+		if (devyes == LDT_BRIDGE_DEVICE)
 			return (sb1250_bus_status & LDT_BUS_ENABLED) != 0;
 		else if (sb1250_bus_status & PCI_DEVICE_MODE)
 			return 0;
@@ -208,7 +208,7 @@ static int __init sb1250_pcibios_init(void)
 
 	/* Set I/O resource limits.  */
 	ioport_resource.end = 0x01ffffffUL;	/* 32MB accessible by sb1250 */
-	iomem_resource.end = 0xffffffffUL;	/* no HT support yet */
+	iomem_resource.end = 0xffffffffUL;	/* yes HT support yet */
 
 	cfg_space =
 	    ioremap(A_PHYS_LDTPCI_CFG_MATCH_BITS, 16 * 1024 * 1024);
@@ -226,7 +226,7 @@ static int __init sb1250_pcibios_init(void)
 			       PCI_COMMAND));
 		if (!(cmdreg & PCI_COMMAND_MASTER)) {
 			printk
-			    ("PCI: Skipping PCI probe.	Bus is not initialized.\n");
+			    ("PCI: Skipping PCI probe.	Bus is yest initialized.\n");
 			iounmap(cfg_space);
 			return 0;
 		}

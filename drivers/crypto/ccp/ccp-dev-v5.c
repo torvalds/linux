@@ -19,7 +19,7 @@
 /* Allocate the requested number of contiguous LSB slots
  * from the LSB bitmap. Look in the private range for this
  * queue first; failing that, check the public area.
- * If no space is available, wait around.
+ * If yes space is available, wait around.
  * Return: first slot number
  */
 static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
@@ -590,7 +590,7 @@ static int ccp_find_lsb_regions(struct ccp_cmd_queue *cmd_q, u64 status)
 	int queues = 0;
 	int j;
 
-	/* Build a bit mask to know which LSBs this queue has access to.
+	/* Build a bit mask to kyesw which LSBs this queue has access to.
 	 * Don't bother with segment 0 as it has special privileges.
 	 */
 	for (j = 1; j < MAX_LSB_CNT; j++) {
@@ -610,7 +610,7 @@ static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 					unsigned long *lsb_pub)
 {
 	DECLARE_BITMAP(qlsb, MAX_LSB_CNT);
-	int bitno;
+	int bityes;
 	int qlsb_wgt;
 	int i;
 
@@ -621,8 +621,8 @@ static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 	 * For each bit in qlsb, see if the corresponding bit in the
 	 * aggregation mask is set; if so, we have a match.
 	 *     If we have a match, clear the bit in the aggregation to
-	 *     mark it as no longer available.
-	 *     If there is no match, clear the bit in qlsb and keep looking.
+	 *     mark it as yes longer available.
+	 *     If there is yes match, clear the bit in qlsb and keep looking.
 	 */
 	for (i = 0; i < ccp->cmd_q_count; i++) {
 		struct ccp_cmd_queue *cmd_q = &ccp->cmd_q[i];
@@ -632,23 +632,23 @@ static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 		if (qlsb_wgt == lsb_cnt) {
 			bitmap_copy(qlsb, cmd_q->lsbmask, MAX_LSB_CNT);
 
-			bitno = find_first_bit(qlsb, MAX_LSB_CNT);
-			while (bitno < MAX_LSB_CNT) {
-				if (test_bit(bitno, lsb_pub)) {
+			bityes = find_first_bit(qlsb, MAX_LSB_CNT);
+			while (bityes < MAX_LSB_CNT) {
+				if (test_bit(bityes, lsb_pub)) {
 					/* We found an available LSB
 					 * that this queue can access
 					 */
-					cmd_q->lsb = bitno;
-					bitmap_clear(lsb_pub, bitno, 1);
+					cmd_q->lsb = bityes;
+					bitmap_clear(lsb_pub, bityes, 1);
 					dev_dbg(ccp->dev,
 						 "Queue %d gets LSB %d\n",
-						 i, bitno);
+						 i, bityes);
 					break;
 				}
-				bitmap_clear(qlsb, bitno, 1);
-				bitno = find_first_bit(qlsb, MAX_LSB_CNT);
+				bitmap_clear(qlsb, bityes, 1);
+				bityes = find_first_bit(qlsb, MAX_LSB_CNT);
 			}
-			if (bitno >= MAX_LSB_CNT)
+			if (bityes >= MAX_LSB_CNT)
 				return -EINVAL;
 			n_lsbs--;
 		}
@@ -667,7 +667,7 @@ static int ccp_assign_lsbs(struct ccp_device *ccp)
 	DECLARE_BITMAP(lsb_pub, MAX_LSB_CNT);
 	DECLARE_BITMAP(qlsb, MAX_LSB_CNT);
 	int n_lsbs = 0;
-	int bitno;
+	int bityes;
 	int i, lsb_cnt;
 	int rc = 0;
 
@@ -682,7 +682,7 @@ static int ccp_assign_lsbs(struct ccp_device *ccp)
 	n_lsbs = bitmap_weight(lsb_pub, MAX_LSB_CNT);
 
 	if (n_lsbs >= ccp->cmd_q_count) {
-		/* We have enough LSBS to give every queue a private LSB.
+		/* We have eyesugh LSBS to give every queue a private LSB.
 		 * Brute force search to start with the queues that are more
 		 * constrained in LSB choice. When an LSB is privately
 		 * assigned, it is removed from the public mask.
@@ -700,18 +700,18 @@ static int ccp_assign_lsbs(struct ccp_device *ccp)
 	}
 
 	rc = 0;
-	/* What's left of the LSBs, according to the public mask, now become
+	/* What's left of the LSBs, according to the public mask, yesw become
 	 * shared. Any zero bits in the lsb_pub mask represent an LSB region
 	 * that can't be used as a shared resource, so mark the LSB slots for
 	 * them as "in use".
 	 */
 	bitmap_copy(qlsb, lsb_pub, MAX_LSB_CNT);
 
-	bitno = find_first_zero_bit(qlsb, MAX_LSB_CNT);
-	while (bitno < MAX_LSB_CNT) {
-		bitmap_set(ccp->lsbmap, bitno * LSB_SIZE, LSB_SIZE);
-		bitmap_set(qlsb, bitno, 1);
-		bitno = find_first_zero_bit(qlsb, MAX_LSB_CNT);
+	bityes = find_first_zero_bit(qlsb, MAX_LSB_CNT);
+	while (bityes < MAX_LSB_CNT) {
+		bitmap_set(ccp->lsbmap, bityes * LSB_SIZE, LSB_SIZE);
+		bitmap_set(qlsb, bityes, 1);
+		bityes = find_first_zero_bit(qlsb, MAX_LSB_CNT);
 	}
 
 	return rc;
@@ -755,7 +755,7 @@ static void ccp5_irq_bh(unsigned long data)
 
 			cmd_q->int_rcvd = 1;
 
-			/* Acknowledge the interrupt and wake the kthread */
+			/* Ackyeswledge the interrupt and wake the kthread */
 			iowrite32(status, cmd_q->reg_interrupt_status);
 			wake_up_interruptible(&cmd_q->int_queue);
 		}
@@ -793,11 +793,11 @@ static int ccp5_init(struct ccp_device *ccp)
 	 * Check for a access to the registers.  If this read returns
 	 * 0xffffffff, it's likely that the system is running a broken
 	 * BIOS which disallows access to the device. Stop here and fail
-	 * the initialization (but not the load, as the PSP could get
+	 * the initialization (but yest the load, as the PSP could get
 	 * properly initialized).
 	 */
 	if (qmr == 0xffffffff) {
-		dev_notice(dev, "ccp: unable to access the device: you might be running a broken BIOS.\n");
+		dev_yestice(dev, "ccp: unable to access the device: you might be running a broken BIOS.\n");
 		return 1;
 	}
 
@@ -865,7 +865,7 @@ static int ccp5_init(struct ccp_device *ccp)
 	}
 
 	if (ccp->cmd_q_count == 0) {
-		dev_notice(dev, "no command queues available\n");
+		dev_yestice(dev, "yes command queues available\n");
 		ret = 1;
 		goto e_pool;
 	}
@@ -875,7 +875,7 @@ static int ccp5_init(struct ccp_device *ccp)
 	for (i = 0; i < ccp->cmd_q_count; i++) {
 		cmd_q = &ccp->cmd_q[i];
 
-		cmd_q->qcontrol = 0; /* Start with nothing */
+		cmd_q->qcontrol = 0; /* Start with yesthing */
 		iowrite32(cmd_q->qcontrol, cmd_q->reg_control);
 
 		ioread32(cmd_q->reg_int_status);

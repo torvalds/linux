@@ -49,7 +49,7 @@ static void snd_wm8776_activate_ctl(struct snd_wm8776 *wm,
 		vd->access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	else
 		vd->access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO, &kctl->id);
+	snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_INFO, &kctl->id);
 }
 
 static void snd_wm8776_update_agc_ctl(struct snd_wm8776 *wm)
@@ -79,7 +79,7 @@ static void snd_wm8776_update_agc_ctl(struct snd_wm8776 *wm)
 			snd_wm8776_activate_ctl(wm, wm->ctl[i].name, true);
 }
 
-static void snd_wm8776_set_agc(struct snd_wm8776 *wm, u16 agc, u16 nothing)
+static void snd_wm8776_set_agc(struct snd_wm8776 *wm, u16 agc, u16 yesthing)
 {
 	u16 alc1 = wm->regs[WM8776_REG_ALCCTRL1] & ~WM8776_ALC1_LCT_MASK;
 	u16 alc2 = wm->regs[WM8776_REG_ALCCTRL2] & ~WM8776_ALC2_LCEN;
@@ -113,7 +113,7 @@ static void snd_wm8776_set_agc(struct snd_wm8776 *wm, u16 agc, u16 nothing)
 	snd_wm8776_update_agc_ctl(wm);
 }
 
-static void snd_wm8776_get_agc(struct snd_wm8776 *wm, u16 *mode, u16 *nothing)
+static void snd_wm8776_get_agc(struct snd_wm8776 *wm, u16 *mode, u16 *yesthing)
 {
 	*mode = wm->agc_mode;
 }
@@ -575,7 +575,7 @@ static int snd_wm8776_add_control(struct snd_wm8776 *wm, int num)
 		if (wm->ctl[num].flags & WM8776_FLAG_STEREO)
 			cont.info = snd_ctl_boolean_stereo_info;
 		else
-			cont.info = snd_ctl_boolean_mono_info;
+			cont.info = snd_ctl_boolean_moyes_info;
 		break;
 	case SNDRV_CTL_ELEM_TYPE_ENUMERATED:
 		cont.info = snd_wm8776_enum_info;

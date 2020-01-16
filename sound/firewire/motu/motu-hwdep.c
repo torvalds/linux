@@ -8,8 +8,8 @@
 /*
  * This codes have five functionalities.
  *
- * 1.get information about firewire node
- * 2.get notification about starting/stopping stream
+ * 1.get information about firewire yesde
+ * 2.get yestification about starting/stopping stream
  * 3.lock/unlock streaming
  *
  */
@@ -43,11 +43,11 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 
 		count = min_t(long, count, sizeof(event.lock_status));
 	} else {
-		event.motu_notification.type = SNDRV_FIREWIRE_EVENT_MOTU_NOTIFICATION;
-		event.motu_notification.message = motu->msg;
+		event.motu_yestification.type = SNDRV_FIREWIRE_EVENT_MOTU_NOTIFICATION;
+		event.motu_yestification.message = motu->msg;
 		motu->msg = 0;
 
-		count = min_t(long, count, sizeof(event.motu_notification));
+		count = min_t(long, count, sizeof(event.motu_yestification));
 	}
 
 	spin_unlock_irq(&motu->lock);

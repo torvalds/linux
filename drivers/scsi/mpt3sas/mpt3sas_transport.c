@@ -1,9 +1,9 @@
 /*
- * SAS Transport Layer for MPT (Message Passing Technology) based controllers
+ * SAS Transport Layer for MPT (Message Passing Techyeslogy) based controllers
  *
  * This code is based on drivers/scsi/mpt3sas/mpt3sas_transport.c
  * Copyright (C) 2012-2014  LSI Corporation
- * Copyright (C) 2013-2014 Avago Technologies
+ * Copyright (C) 2013-2014 Avago Techyeslogies
  *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
 
@@ -37,7 +37,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -45,7 +45,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
@@ -61,16 +61,16 @@
 #include "mpt3sas_base.h"
 
 /**
- * _transport_sas_node_find_by_sas_address - sas node search
+ * _transport_sas_yesde_find_by_sas_address - sas yesde search
  * @ioc: per adapter object
  * @sas_address: sas address of expander or sas host
- * Context: Calling function should acquire ioc->sas_node_lock.
+ * Context: Calling function should acquire ioc->sas_yesde_lock.
  *
  * Search for either hba phys or expander device based on handle, then returns
- * the sas_node object.
+ * the sas_yesde object.
  */
-static struct _sas_node *
-_transport_sas_node_find_by_sas_address(struct MPT3SAS_ADAPTER *ioc,
+static struct _sas_yesde *
+_transport_sas_yesde_find_by_sas_address(struct MPT3SAS_ADAPTER *ioc,
 	u64 sas_address)
 {
 	if (ioc->sas_hba.sas_address == sas_address)
@@ -134,7 +134,7 @@ _transport_convert_phy_link_rate(u8 link_rate)
  *
  * Populates sas identify info.
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  */
 static int
 _transport_set_identify(struct MPT3SAS_ADAPTER *ioc, u16 handle,
@@ -284,7 +284,7 @@ struct rep_manu_reply {
  *
  * Fills in the sas_expander_device object when SMP port is created.
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  */
 static int
 _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
@@ -413,7 +413,7 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
 		}
 	} else
 		dtransportprintk(ioc,
-				 ioc_info(ioc, "report_manufacture - no reply\n"));
+				 ioc_info(ioc, "report_manufacture - yes reply\n"));
 
  issue_host_reset:
 	if (issue_reset)
@@ -502,13 +502,13 @@ _transport_add_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_port *mpt3sas_port,
 /**
  * _transport_add_phy_to_an_existing_port - adding new phy to existing port
  * @ioc: per adapter object
- * @sas_node: sas node object (either expander or sas host)
+ * @sas_yesde: sas yesde object (either expander or sas host)
  * @mpt3sas_phy: mpt3sas per phy object
  * @sas_address: sas address of device/expander were phy needs to be added to
  */
 static void
 _transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
-	struct _sas_node *sas_node, struct _sas_phy *mpt3sas_phy,
+	struct _sas_yesde *sas_yesde, struct _sas_phy *mpt3sas_phy,
 	u64 sas_address)
 {
 	struct _sas_port *mpt3sas_port;
@@ -517,7 +517,7 @@ _transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
 	if (mpt3sas_phy->phy_belongs_to_port == 1)
 		return;
 
-	list_for_each_entry(mpt3sas_port, &sas_node->sas_port_list,
+	list_for_each_entry(mpt3sas_port, &sas_yesde->sas_port_list,
 	    port_list) {
 		if (mpt3sas_port->remote_identify.sas_address !=
 		    sas_address)
@@ -536,12 +536,12 @@ _transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
 /**
  * _transport_del_phy_from_an_existing_port - delete phy from existing port
  * @ioc: per adapter object
- * @sas_node: sas node object (either expander or sas host)
+ * @sas_yesde: sas yesde object (either expander or sas host)
  * @mpt3sas_phy: mpt3sas per phy object
  */
 static void
 _transport_del_phy_from_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
-	struct _sas_node *sas_node, struct _sas_phy *mpt3sas_phy)
+	struct _sas_yesde *sas_yesde, struct _sas_phy *mpt3sas_phy)
 {
 	struct _sas_port *mpt3sas_port, *next;
 	struct _sas_phy *phy_srch;
@@ -549,7 +549,7 @@ _transport_del_phy_from_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
 	if (mpt3sas_phy->phy_belongs_to_port == 0)
 		return;
 
-	list_for_each_entry_safe(mpt3sas_port, next, &sas_node->sas_port_list,
+	list_for_each_entry_safe(mpt3sas_port, next, &sas_yesde->sas_port_list,
 	    port_list) {
 		list_for_each_entry(phy_srch, &mpt3sas_port->phy_list,
 		    port_siblings) {
@@ -569,23 +569,23 @@ _transport_del_phy_from_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
 /**
  * _transport_sanity_check - sanity check when adding a new port
  * @ioc: per adapter object
- * @sas_node: sas node object (either expander or sas host)
+ * @sas_yesde: sas yesde object (either expander or sas host)
  * @sas_address: sas address of device being added
  *
  * See the explanation above from _transport_delete_duplicate_port
  */
 static void
-_transport_sanity_check(struct MPT3SAS_ADAPTER *ioc, struct _sas_node *sas_node,
+_transport_sanity_check(struct MPT3SAS_ADAPTER *ioc, struct _sas_yesde *sas_yesde,
 	u64 sas_address)
 {
 	int i;
 
-	for (i = 0; i < sas_node->num_phys; i++) {
-		if (sas_node->phy[i].remote_identify.sas_address != sas_address)
+	for (i = 0; i < sas_yesde->num_phys; i++) {
+		if (sas_yesde->phy[i].remote_identify.sas_address != sas_address)
 			continue;
-		if (sas_node->phy[i].phy_belongs_to_port == 1)
-			_transport_del_phy_from_an_existing_port(ioc, sas_node,
-			    &sas_node->phy[i]);
+		if (sas_yesde->phy[i].phy_belongs_to_port == 1)
+			_transport_del_phy_from_an_existing_port(ioc, sas_yesde,
+			    &sas_yesde->phy[i]);
 	}
 }
 
@@ -594,9 +594,9 @@ _transport_sanity_check(struct MPT3SAS_ADAPTER *ioc, struct _sas_node *sas_node,
  * @ioc: per adapter object
  * @handle: handle of attached device
  * @sas_address: sas address of parent expander or sas host
- * Context: This function will acquire ioc->sas_node_lock.
+ * Context: This function will acquire ioc->sas_yesde_lock.
  *
- * Adding new port object to the sas_node->sas_port_list.
+ * Adding new port object to the sas_yesde->sas_port_list.
  *
  * Return: mpt3sas_port.
  */
@@ -607,7 +607,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	struct _sas_phy *mpt3sas_phy, *next;
 	struct _sas_port *mpt3sas_port;
 	unsigned long flags;
-	struct _sas_node *sas_node;
+	struct _sas_yesde *sas_yesde;
 	struct sas_rphy *rphy;
 	struct _sas_device *sas_device = NULL;
 	int i;
@@ -623,12 +623,12 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 
 	INIT_LIST_HEAD(&mpt3sas_port->port_list);
 	INIT_LIST_HEAD(&mpt3sas_port->phy_list);
-	spin_lock_irqsave(&ioc->sas_node_lock, flags);
-	sas_node = _transport_sas_node_find_by_sas_address(ioc, sas_address);
-	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	spin_lock_irqsave(&ioc->sas_yesde_lock, flags);
+	sas_yesde = _transport_sas_yesde_find_by_sas_address(ioc, sas_address);
+	spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 
-	if (!sas_node) {
-		ioc_err(ioc, "%s: Could not find parent sas_address(0x%016llx)!\n",
+	if (!sas_yesde) {
+		ioc_err(ioc, "%s: Could yest find parent sas_address(0x%016llx)!\n",
 			__func__, (u64)sas_address);
 		goto out_fail;
 	}
@@ -646,14 +646,14 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 		goto out_fail;
 	}
 
-	_transport_sanity_check(ioc, sas_node,
+	_transport_sanity_check(ioc, sas_yesde,
 	    mpt3sas_port->remote_identify.sas_address);
 
-	for (i = 0; i < sas_node->num_phys; i++) {
-		if (sas_node->phy[i].remote_identify.sas_address !=
+	for (i = 0; i < sas_yesde->num_phys; i++) {
+		if (sas_yesde->phy[i].remote_identify.sas_address !=
 		    mpt3sas_port->remote_identify.sas_address)
 			continue;
-		list_add_tail(&sas_node->phy[i].port_siblings,
+		list_add_tail(&sas_yesde->phy[i].port_siblings,
 		    &mpt3sas_port->phy_list);
 		mpt3sas_port->num_phys++;
 	}
@@ -664,12 +664,12 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 		goto out_fail;
 	}
 
-	if (!sas_node->parent_dev) {
+	if (!sas_yesde->parent_dev) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
 		goto out_fail;
 	}
-	port = sas_port_alloc_num(sas_node->parent_dev);
+	port = sas_port_alloc_num(sas_yesde->parent_dev);
 	if ((sas_port_add(port))) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
@@ -725,9 +725,9 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 			handle, (unsigned long long)
 		    mpt3sas_port->remote_identify.sas_address);
 	mpt3sas_port->rphy = rphy;
-	spin_lock_irqsave(&ioc->sas_node_lock, flags);
-	list_add_tail(&mpt3sas_port->port_list, &sas_node->sas_port_list);
-	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	spin_lock_irqsave(&ioc->sas_yesde_lock, flags);
+	list_add_tail(&mpt3sas_port->port_list, &sas_yesde->sas_port_list);
+	spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 
 	/* fill in report manufacture */
 	if (mpt3sas_port->remote_identify.device_type ==
@@ -752,7 +752,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
  * @ioc: per adapter object
  * @sas_address: sas address of attached device
  * @sas_address_parent: sas address of parent expander or sas host
- * Context: This function will acquire ioc->sas_node_lock.
+ * Context: This function will acquire ioc->sas_yesde_lock.
  *
  * Removing object and freeing associated memory from the
  * ioc->sas_port_list.
@@ -764,18 +764,18 @@ mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 	int i;
 	unsigned long flags;
 	struct _sas_port *mpt3sas_port, *next;
-	struct _sas_node *sas_node;
+	struct _sas_yesde *sas_yesde;
 	u8 found = 0;
 	struct _sas_phy *mpt3sas_phy, *next_phy;
 
-	spin_lock_irqsave(&ioc->sas_node_lock, flags);
-	sas_node = _transport_sas_node_find_by_sas_address(ioc,
+	spin_lock_irqsave(&ioc->sas_yesde_lock, flags);
+	sas_yesde = _transport_sas_yesde_find_by_sas_address(ioc,
 	    sas_address_parent);
-	if (!sas_node) {
-		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	if (!sas_yesde) {
+		spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 		return;
 	}
-	list_for_each_entry_safe(mpt3sas_port, next, &sas_node->sas_port_list,
+	list_for_each_entry_safe(mpt3sas_port, next, &sas_yesde->sas_port_list,
 	    port_list) {
 		if (mpt3sas_port->remote_identify.sas_address != sas_address)
 			continue;
@@ -785,17 +785,17 @@ mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 	}
  out:
 	if (!found) {
-		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+		spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 		return;
 	}
 
-	for (i = 0; i < sas_node->num_phys; i++) {
-		if (sas_node->phy[i].remote_identify.sas_address == sas_address)
-			memset(&sas_node->phy[i].remote_identify, 0 ,
+	for (i = 0; i < sas_yesde->num_phys; i++) {
+		if (sas_yesde->phy[i].remote_identify.sas_address == sas_address)
+			memset(&sas_yesde->phy[i].remote_identify, 0 ,
 			    sizeof(struct sas_identify));
 	}
 
-	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 
 	list_for_each_entry_safe(mpt3sas_phy, next_phy,
 	    &mpt3sas_port->phy_list, port_siblings) {
@@ -823,7 +823,7 @@ mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
  * @phy_pg0: sas phy page 0
  * @parent_dev: parent device class object
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  */
 int
 mpt3sas_transport_add_host_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
@@ -891,7 +891,7 @@ mpt3sas_transport_add_host_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
  * @expander_pg1: expander page 1
  * @parent_dev: parent device class object
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  */
 int
 mpt3sas_transport_add_expander_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
@@ -966,26 +966,26 @@ mpt3sas_transport_update_links(struct MPT3SAS_ADAPTER *ioc,
 	u64 sas_address, u16 handle, u8 phy_number, u8 link_rate)
 {
 	unsigned long flags;
-	struct _sas_node *sas_node;
+	struct _sas_yesde *sas_yesde;
 	struct _sas_phy *mpt3sas_phy;
 
 	if (ioc->shost_recovery || ioc->pci_error_recovery)
 		return;
 
-	spin_lock_irqsave(&ioc->sas_node_lock, flags);
-	sas_node = _transport_sas_node_find_by_sas_address(ioc, sas_address);
-	if (!sas_node) {
-		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	spin_lock_irqsave(&ioc->sas_yesde_lock, flags);
+	sas_yesde = _transport_sas_yesde_find_by_sas_address(ioc, sas_address);
+	if (!sas_yesde) {
+		spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 		return;
 	}
 
-	mpt3sas_phy = &sas_node->phy[phy_number];
+	mpt3sas_phy = &sas_yesde->phy[phy_number];
 	mpt3sas_phy->attached_handle = handle;
-	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 	if (handle && (link_rate >= MPI2_SAS_NEG_LINK_RATE_1_5)) {
 		_transport_set_identify(ioc, handle,
 		    &mpt3sas_phy->remote_identify);
-		_transport_add_phy_to_an_existing_port(ioc, sas_node,
+		_transport_add_phy_to_an_existing_port(ioc, sas_yesde,
 		    mpt3sas_phy, mpt3sas_phy->remote_identify.sas_address);
 	} else
 		memset(&mpt3sas_phy->remote_identify, 0 , sizeof(struct
@@ -1051,7 +1051,7 @@ struct phy_error_log_reply {
  * @ioc: per adapter object
  * @phy: The sas phy object
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  *
  */
 static int
@@ -1183,7 +1183,7 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
 		rc = 0;
 	} else
 		dtransportprintk(ioc,
-				 ioc_info(ioc, "phy_error_log - no reply\n"));
+				 ioc_info(ioc, "phy_error_log - yes reply\n"));
 
  issue_host_reset:
 	if (issue_reset)
@@ -1201,7 +1201,7 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
  * _transport_get_linkerrors - return phy counters for both hba and expanders
  * @phy: The sas phy object
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  *
  */
 static int
@@ -1212,13 +1212,13 @@ _transport_get_linkerrors(struct sas_phy *phy)
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasPhyPage1_t phy_pg1;
 
-	spin_lock_irqsave(&ioc->sas_node_lock, flags);
-	if (_transport_sas_node_find_by_sas_address(ioc,
+	spin_lock_irqsave(&ioc->sas_yesde_lock, flags);
+	if (_transport_sas_yesde_find_by_sas_address(ioc,
 	    phy->identify.sas_address) == NULL) {
-		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+		spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 
 	if (phy->identify.sas_address != ioc->sas_hba.sas_address)
 		return _transport_get_expander_phy_error_log(ioc, phy);
@@ -1253,7 +1253,7 @@ _transport_get_linkerrors(struct sas_phy *phy)
  * @identifier: ?
  *
  * Obtain the enclosure logical id for an expander.
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  */
 static int
 _transport_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
@@ -1341,7 +1341,7 @@ struct phy_control_reply {
  * @phy: The sas phy object
  * @phy_operation: ?
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  *
  */
 static int
@@ -1470,7 +1470,7 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 		rc = 0;
 	} else
 		dtransportprintk(ioc,
-				 ioc_info(ioc, "phy_control - no reply\n"));
+				 ioc_info(ioc, "phy_control - yes reply\n"));
 
  issue_host_reset:
 	if (issue_reset)
@@ -1490,7 +1490,7 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
  * @phy: The sas phy object
  * @hard_reset:
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  */
 static int
 _transport_phy_reset(struct sas_phy *phy, int hard_reset)
@@ -1500,13 +1500,13 @@ _transport_phy_reset(struct sas_phy *phy, int hard_reset)
 	Mpi2SasIoUnitControlRequest_t mpi_request;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ioc->sas_node_lock, flags);
-	if (_transport_sas_node_find_by_sas_address(ioc,
+	spin_lock_irqsave(&ioc->sas_yesde_lock, flags);
+	if (_transport_sas_yesde_find_by_sas_address(ioc,
 	    phy->identify.sas_address) == NULL) {
-		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+		spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 
 	/* handle expander phys */
 	if (phy->identify.sas_address != ioc->sas_hba.sas_address)
@@ -1541,7 +1541,7 @@ _transport_phy_reset(struct sas_phy *phy, int hard_reset)
  * @enable: enable phy when true
  *
  * Only support sas_host direct attached phys.
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  */
 static int
 _transport_phy_enable(struct sas_phy *phy, int enable)
@@ -1556,13 +1556,13 @@ _transport_phy_enable(struct sas_phy *phy, int enable)
 	unsigned long flags;
 	int i, discovery_active;
 
-	spin_lock_irqsave(&ioc->sas_node_lock, flags);
-	if (_transport_sas_node_find_by_sas_address(ioc,
+	spin_lock_irqsave(&ioc->sas_yesde_lock, flags);
+	if (_transport_sas_yesde_find_by_sas_address(ioc,
 	    phy->identify.sas_address) == NULL) {
-		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+		spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 
 	/* handle expander phys */
 	if (phy->identify.sas_address != ioc->sas_hba.sas_address)
@@ -1678,7 +1678,7 @@ _transport_phy_enable(struct sas_phy *phy, int enable)
  *
  * Only support sas_host direct attached phys.
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  */
 static int
 _transport_phy_speed(struct sas_phy *phy, struct sas_phy_linkrates *rates)
@@ -1693,13 +1693,13 @@ _transport_phy_speed(struct sas_phy *phy, struct sas_phy_linkrates *rates)
 	int rc = 0;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ioc->sas_node_lock, flags);
-	if (_transport_sas_node_find_by_sas_address(ioc,
+	spin_lock_irqsave(&ioc->sas_yesde_lock, flags);
+	if (_transport_sas_yesde_find_by_sas_address(ioc,
 	    phy->identify.sas_address) == NULL) {
-		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+		spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	spin_unlock_irqrestore(&ioc->sas_yesde_lock, flags);
 
 	if (!rates->minimum_linkrate)
 		rates->minimum_linkrate = phy->minimum_linkrate;
@@ -1929,7 +1929,7 @@ _transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 
 	if (!(ioc->transport_cmds.status & MPT3_CMD_REPLY_VALID)) {
 		dtransportprintk(ioc,
-				 ioc_info(ioc, "%s: no reply\n", __func__));
+				 ioc_info(ioc, "%s: yes reply\n", __func__));
 		rc = -ENXIO;
 		goto unmap_in;
 	}

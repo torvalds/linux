@@ -25,10 +25,10 @@ config NOUVEAU_LEGACY_CTX_SUPPORT
 	select DRM_LEGACY
 	default y
 	help
-	  There was a version of the nouveau DDX that relied on legacy
-	  ctx ioctls not erroring out. But that was back in time a long
-	  ways, so offer a way to disable it now. For uapi compat with
-	  old nouveau ddx this should be on by default, but modern distros
+	  There was a version of the yesuveau DDX that relied on legacy
+	  ctx ioctls yest erroring out. But that was back in time a long
+	  ways, so offer a way to disable it yesw. For uapi compat with
+	  old yesuveau ddx this should be on by default, but modern distros
 	  should consider turning it off.
 
 config NOUVEAU_PLATFORM_DRIVER
@@ -53,10 +53,10 @@ config NOUVEAU_DEBUG
 	  3 - info
 	  4 - debug
 	  5 - trace (recommended)
-	  6 - paranoia
+	  6 - parayesia
 	  7 - spam
 
-	  The paranoia and spam levels will add a lot of extra checks which
+	  The parayesia and spam levels will add a lot of extra checks which
 	  may potentially slow down driver operation.
 
 config NOUVEAU_DEBUG_DEFAULT

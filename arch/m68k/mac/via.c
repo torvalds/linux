@@ -56,33 +56,33 @@ static __u8 rbv_clear;
 static int gIER,gIFR,gBufA,gBufB;
 
 /*
- * On Macs with a genuine VIA chip there is no way to mask an individual slot
+ * On Macs with a genuine VIA chip there is yes way to mask an individual slot
  * interrupt. This limitation also seems to apply to VIA clone logic cores in
  * Quadra-like ASICs. (RBV and OSS machines don't have this limitation.)
  *
  * We used to fake it by configuring the relevant VIA pin as an output
- * (to mask the interrupt) or input (to unmask). That scheme did not work on
+ * (to mask the interrupt) or input (to unmask). That scheme did yest work on
  * (at least) the Quadra 700. A NuBus card's /NMRQ signal is an open-collector
  * circuit (see Designing Cards and Drivers for Macintosh II and Macintosh SE,
- * p. 10-11 etc) but VIA outputs are not (see datasheet).
+ * p. 10-11 etc) but VIA outputs are yest (see datasheet).
  *
  * Driving these outputs high must cause the VIA to source current and the
  * card to sink current when it asserts /NMRQ. Current will flow but the pin
  * voltage is uncertain and so the /NMRQ condition may still cause a transition
  * at the VIA2 CA1 input (which explains the lost interrupts). A side effect
- * is that a disabled slot IRQ can never be tested as pending or not.
+ * is that a disabled slot IRQ can never be tested as pending or yest.
  *
  * Driving these outputs low doesn't work either. All the slot /NMRQ lines are
  * (active low) OR'd together to generate the CA1 (aka "SLOTS") interrupt (see
  * The Guide To Macintosh Family Hardware, 2nd edition p. 167). If we drive a
  * disabled /NMRQ line low, the falling edge immediately triggers a CA1
- * interrupt and all slot interrupts after that will generate no transition
- * and therefore no interrupt, even after being re-enabled.
+ * interrupt and all slot interrupts after that will generate yes transition
+ * and therefore yes interrupt, even after being re-enabled.
  *
  * So we make the VIA port A I/O lines inputs and use nubus_disabled to keep
  * track of their states. When any slot IRQ becomes disabled we mask the CA1
  * umbrella interrupt. Only when all slot IRQs become enabled do we unmask
- * the CA1 interrupt. It must remain enabled even when cards have no interrupt
+ * the CA1 interrupt. It must remain enabled even when cards have yes interrupt
  * handler registered. Drivers must therefore disable a slot interrupt at the
  * device before they call free_irq (like shared and autovector interrupts).
  *
@@ -91,7 +91,7 @@ static int gIER,gIFR,gBufA,gBufB;
  * This can be fatal since it can't be handled until the right driver loads
  * (if such a driver exists at all). Apparently related to this hardware
  * limitation, "Designing Cards and Drivers", p. 9-8, says that a slot
- * interrupt with no driver would crash MacOS (the book was written before
+ * interrupt with yes driver would crash MacOS (the book was written before
  * the appearance of Macs with RBV or OSS).
  */
 
@@ -175,7 +175,7 @@ void __init via_init(void)
 	via1[vT1CH] = 0;
 	via1[vT2CL] = 0;
 	via1[vT2CH] = 0;
-	via1[vACR] &= ~0xC0; /* setup T1 timer with no PB7 output */
+	via1[vACR] &= ~0xC0; /* setup T1 timer with yes PB7 output */
 	via1[vACR] &= ~0x03; /* disable port A & B latches */
 
 	/*
@@ -192,8 +192,8 @@ void __init via_init(void)
 	case MAC_ADB_II:
 	case MAC_ADB_PB1:
 		/*
-		 * Set the RTC bits to a known state: all lines to outputs and
-		 * RTC disabled (yes that's 0 to enable and 1 to disable).
+		 * Set the RTC bits to a kyeswn state: all lines to outputs and
+		 * RTC disabled (no that's 0 to enable and 1 to disable).
 		 */
 		via1[vDirB] |= VIA1B_vRTCEnb | VIA1B_vRTCClk | VIA1B_vRTCData;
 		via1[vBufB] |= VIA1B_vRTCEnb | VIA1B_vRTCClk;
@@ -231,7 +231,7 @@ void __init via_init(void)
 		via2[vT1CH] = 0;
 		via2[vT2CL] = 0;
 		via2[vT2CH] = 0;
-		via2[vACR] &= ~0xC0; /* setup T1 timer with no PB7 output */
+		via2[vACR] &= ~0xC0; /* setup T1 timer with yes PB7 output */
 		via2[vACR] &= ~0x03; /* disable port A & B latches */
 	}
 
@@ -308,7 +308,7 @@ int via_get_cache_disable(void)
 {
 	/* Safeguard against being called accidentally */
 	if (!via2) {
-		printk(KERN_ERR "via_get_cache_disable called on a non-VIA machine!\n");
+		printk(KERN_ERR "via_get_cache_disable called on a yesn-VIA machine!\n");
 		return 1;
 	}
 
@@ -325,7 +325,7 @@ static void __init via_nubus_init(void)
 
 	if ((macintosh_config->adb_type != MAC_ADB_PB1) &&
 	    (macintosh_config->adb_type != MAC_ADB_PB2)) {
-		/* set the line to be an output on non-RBV machines */
+		/* set the line to be an output on yesn-RBV machines */
 		if (!rbv_present)
 			via2[vDirB] |= 0x02;
 
@@ -335,7 +335,7 @@ static void __init via_nubus_init(void)
 	}
 
 	/*
-	 * Disable the slot interrupts. On some hardware that's not possible.
+	 * Disable the slot interrupts. On some hardware that's yest possible.
 	 * On some hardware it's unclear what all of these I/O lines do.
 	 */
 
@@ -481,7 +481,7 @@ static void via_nubus_irq(struct irq_desc *desc)
 			slot_bit >>= 1;
 		} while (events);
 
- 		/* clear the CA1 interrupt and make certain there's no more. */
+ 		/* clear the CA1 interrupt and make certain there's yes more. */
 		via2[gIFR] = 0x02 | rbv_clear;
 		events = ~via2[gBufA] & 0x7F;
 		if (rbv_present)
@@ -523,7 +523,7 @@ void via_irq_enable(int irq) {
 		case MAC_VIA_II:
 		case MAC_VIA_QUADRA:
 			nubus_disabled &= ~(1 << irq_idx);
-			/* Enable the CA1 interrupt when no slot is disabled. */
+			/* Enable the CA1 interrupt when yes slot is disabled. */
 			if (!nubus_disabled)
 				via2[gIER] = IER_SET_BIT(1);
 			break;
@@ -635,7 +635,7 @@ static u64 mac_read_clk(struct clocksource *cs)
 	 * Timer counter wrap-around is detected with the timer interrupt flag
 	 * but reading the counter low byte (vT1CL) would reset the flag.
 	 * Also, accessing both counter registers is essentially a data race.
-	 * These problems are avoided by ignoring the low byte. Clock accuracy
+	 * These problems are avoided by igyesring the low byte. Clock accuracy
 	 * is 256 times worse (error can reach 0.327 ms) but CPU overhead is
 	 * reduced by avoiding slow VIA register accesses.
 	 */

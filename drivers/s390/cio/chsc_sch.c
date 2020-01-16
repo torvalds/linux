@@ -62,8 +62,8 @@ static void chsc_subchannel_irq(struct subchannel *sch)
 
 	/* Copy irb to provided request and set done. */
 	if (!request) {
-		CHSC_MSG(0, "Interrupt on sch 0.%x.%04x with no request\n",
-			 sch->schid.ssid, sch->schid.sch_no);
+		CHSC_MSG(0, "Interrupt on sch 0.%x.%04x with yes request\n",
+			 sch->schid.ssid, sch->schid.sch_yes);
 		return;
 	}
 	private->request = NULL;
@@ -79,7 +79,7 @@ static int chsc_subchannel_probe(struct subchannel *sch)
 	int ret;
 
 	CHSC_MSG(6, "Detected chsc subchannel 0.%x.%04x\n",
-		 sch->schid.ssid, sch->schid.sch_no);
+		 sch->schid.ssid, sch->schid.sch_yes);
 	sch->isc = CHSC_SCH_ISC;
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private)
@@ -88,7 +88,7 @@ static int chsc_subchannel_probe(struct subchannel *sch)
 	ret = cio_enable_subchannel(sch, (u32)(unsigned long)sch);
 	if (ret) {
 		CHSC_MSG(0, "Failed to enable 0.%x.%04x: %d\n",
-			 sch->schid.ssid, sch->schid.sch_no, ret);
+			 sch->schid.ssid, sch->schid.sch_yes, ret);
 		dev_set_drvdata(&sch->dev, NULL);
 		kfree(private);
 	} else {
@@ -125,9 +125,9 @@ static int chsc_subchannel_prepare(struct subchannel *sch)
 	int cc;
 	struct schib schib;
 	/*
-	 * Don't allow suspend while the subchannel is not idle
+	 * Don't allow suspend while the subchannel is yest idle
 	 * since we don't have a way to clear the subchannel and
-	 * cannot disable it with a request running.
+	 * canyest disable it with a request running.
 	 */
 	cc = stsch(sch->schid, &schib);
 	if (!cc && scsw_stctl(&schib.scsw))
@@ -221,16 +221,16 @@ static struct subchannel *chsc_get_next_subchannel(struct subchannel *sch)
 }
 
 /**
- * chsc_async() - try to start a chsc request asynchronously
+ * chsc_async() - try to start a chsc request asynchroyesusly
  * @chsc_area: request to be started
  * @request: request structure to associate
  *
  * Tries to start a chsc request on one of the existing chsc subchannels.
  * Returns:
- *  %0 if the request was performed synchronously
+ *  %0 if the request was performed synchroyesusly
  *  %-EINPROGRESS if the request was successfully started
  *  %-EBUSY if all chsc subchannels are busy
- *  %-ENODEV if no chsc subchannels are available
+ *  %-ENODEV if yes chsc subchannels are available
  * Context:
  *  interrupts disabled, chsc_lock held
  */
@@ -275,7 +275,7 @@ static int chsc_async(struct chsc_async_area *chsc_area,
 		}
 		spin_unlock(sch->lock);
 		CHSC_MSG(2, "chsc on 0.%x.%04x returned cc=%d\n",
-			 sch->schid.ssid, sch->schid.sch_no, cc);
+			 sch->schid.ssid, sch->schid.sch_yes, cc);
 		if (ret == -EINPROGRESS)
 			return -EINPROGRESS;
 		put_device(&sch->dev);
@@ -325,7 +325,7 @@ static int chsc_ioctl_start(void __user *user_area)
 	char dbf[10];
 
 	if (!css_general_characteristics.dynio)
-		/* It makes no sense to try. */
+		/* It makes yes sense to try. */
 		return -EOPNOTSUPP;
 	chsc_area = (void *)get_zeroed_page(GFP_DMA | GFP_KERNEL);
 	if (!chsc_area)
@@ -615,9 +615,9 @@ static int chsc_ioctl_info_sch_cu(void __user *user_cud)
 	sscud_area->m = cud->schid.m;
 	sscud_area->fmt1 = cud->fmt;
 	sscud_area->ssid = cud->schid.ssid;
-	sscud_area->first_sch = cud->schid.sch_no;
+	sscud_area->first_sch = cud->schid.sch_yes;
 	sscud_area->cssid = cud->schid.cssid;
-	sscud_area->last_sch = cud->schid.sch_no;
+	sscud_area->last_sch = cud->schid.sch_yes;
 
 	ccode = chsc(sscud_area);
 	if (ccode != 0) {
@@ -906,23 +906,23 @@ static long chsc_ioctl(struct file *filp, unsigned int cmd,
 		return chsc_ioctl_on_close_set(argp);
 	case CHSC_ON_CLOSE_REMOVE:
 		return chsc_ioctl_on_close_remove();
-	default: /* unknown ioctl number */
+	default: /* unkyeswn ioctl number */
 		return -ENOIOCTLCMD;
 	}
 }
 
 static atomic_t chsc_ready_for_use = ATOMIC_INIT(1);
 
-static int chsc_open(struct inode *inode, struct file *file)
+static int chsc_open(struct iyesde *iyesde, struct file *file)
 {
 	if (!atomic_dec_and_test(&chsc_ready_for_use)) {
 		atomic_inc(&chsc_ready_for_use);
 		return -EBUSY;
 	}
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
-static int chsc_release(struct inode *inode, struct file *filp)
+static int chsc_release(struct iyesde *iyesde, struct file *filp)
 {
 	char dbf[13];
 	int ret;
@@ -958,11 +958,11 @@ static const struct file_operations chsc_fops = {
 	.release = chsc_release,
 	.unlocked_ioctl = chsc_ioctl,
 	.compat_ioctl = chsc_ioctl,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static struct miscdevice chsc_misc_device = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "chsc",
 	.fops = &chsc_fops,
 };

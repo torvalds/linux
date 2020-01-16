@@ -105,7 +105,7 @@ struct snd_emux {
 	int used;	/* use counter */
 	char *name;	/* name of the device (internal) */
 	struct snd_rawmidi **vmidi;
-	struct timer_list tlist;	/* for pending note-offs */
+	struct timer_list tlist;	/* for pending yeste-offs */
 	int timer_active;
 
 	struct snd_util_memhdr *memhdr;	/* memory chunk information */
@@ -141,7 +141,7 @@ struct snd_emux_port {
 };
 
 /* port_mode */
-#define SNDRV_EMUX_PORT_MODE_MIDI		0	/* normal MIDI port */
+#define SNDRV_EMUX_PORT_MODE_MIDI		0	/* yesrmal MIDI port */
 #define SNDRV_EMUX_PORT_MODE_OSS_SYNTH	1	/* OSS synth port */
 #define SNDRV_EMUX_PORT_MODE_OSS_MIDI	2	/* OSS multi channel synth port */
 
@@ -161,17 +161,17 @@ struct snd_emux_voice {
 #define SNDRV_EMUX_ST_LOCKED		0x100	/* Not accessible */
 
 	unsigned int  time;	/* An allocation time */
-	unsigned char note;	/* Note currently assigned to this voice */
+	unsigned char yeste;	/* Note currently assigned to this voice */
 	unsigned char key;
-	unsigned char velocity;	/* Velocity of current note */
+	unsigned char velocity;	/* Velocity of current yeste */
 
-	struct snd_sf_zone *zone;	/* Zone assigned to this note */
+	struct snd_sf_zone *zone;	/* Zone assigned to this yeste */
 	void *block;		/* sample block pointer (optional) */
-	struct snd_midi_channel *chan;	/* Midi channel for this note */
+	struct snd_midi_channel *chan;	/* Midi channel for this yeste */
 	struct snd_emux_port *port;	/* associated port */
 	struct snd_emux *emu;	/* assigned root info */
 	void *hw;		/* hardware pointer (emu8000 or emu10k1) */
-	unsigned long ontime;	/* jiffies at note triggered */
+	unsigned long ontime;	/* jiffies at yeste triggered */
 	
 	/* Emu8k/Emu10k1 registers */
 	struct soundfont_voice_info reg;

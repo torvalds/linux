@@ -9,7 +9,7 @@ This file is part of GDB, GAS, and the GNU binutils.
 
 #include <asm/cputable.h>
 #include <asm/cpu_has_feature.h>
-#include "nonstdio.h"
+#include "yesnstdio.h"
 #include "ansidecl.h"
 #include "ppc.h"
 #include "dis-asm.h"
@@ -185,7 +185,7 @@ int print_insn_powerpc (unsigned long insn, unsigned long memaddr)
 
 	  operand = powerpc_operands + *opindex;
 
-	  /* Operands that are marked FAKE are simply ignored.  We
+	  /* Operands that are marked FAKE are simply igyesred.  We
 	     already made sure that the extract function considered
 	     the instruction to be valid.  */
 	  if ((operand->flags & PPC_OPERAND_FAKE) != 0)
@@ -278,7 +278,7 @@ int print_insn_powerpc (unsigned long insn, unsigned long memaddr)
         return 4;
     }
 
-  /* We could not find a match.  */
+  /* We could yest find a match.  */
   printf(".long 0x%lx", insn);
 
   return 4;

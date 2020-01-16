@@ -34,12 +34,12 @@ static irqreturn_t gpio_trig_irq(int irq, void *_led)
 
 	if (tmp) {
 		if (gpio_data->desired_brightness)
-			led_set_brightness_nosleep(gpio_data->led,
+			led_set_brightness_yessleep(gpio_data->led,
 					   gpio_data->desired_brightness);
 		else
-			led_set_brightness_nosleep(gpio_data->led, LED_FULL);
+			led_set_brightness_yessleep(gpio_data->led, LED_FULL);
 	} else {
-		led_set_brightness_nosleep(gpio_data->led, LED_OFF);
+		led_set_brightness_yessleep(gpio_data->led, LED_OFF);
 	}
 
 	return IRQ_HANDLED;

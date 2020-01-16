@@ -9,7 +9,7 @@
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
@@ -39,7 +39,7 @@ struct intel_gt {
 		spinlock_t lock; /* protects active_list */
 		struct list_head active_list;
 
-		/* Pack multiple timelines' seqnos into the same page */
+		/* Pack multiple timelines' seqyess into the same page */
 		spinlock_t hwsp_lock;
 		struct list_head hwsp_free_list;
 	} timelines;

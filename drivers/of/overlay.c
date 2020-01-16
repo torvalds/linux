@@ -15,7 +15,7 @@
 #include <linux/of_fdt.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/libfdt.h>
 #include <linux/err.h>
@@ -24,33 +24,33 @@
 #include "of_private.h"
 
 /**
- * struct target - info about current target node as recursing through overlay
- * @np:			node where current level of overlay will be applied
- * @in_livetree:	@np is a node in the live devicetree
+ * struct target - info about current target yesde as recursing through overlay
+ * @np:			yesde where current level of overlay will be applied
+ * @in_livetree:	@np is a yesde in the live devicetree
  *
  * Used in the algorithm to create the portion of a changeset that describes
- * an overlay fragment, which is a devicetree subtree.  Initially @np is a node
+ * an overlay fragment, which is a devicetree subtree.  Initially @np is a yesde
  * in the live devicetree where the overlay subtree is targeted to be grafted
  * into.  When recursing to the next level of the overlay subtree, the target
  * also recurses to the next level of the live devicetree, as long as overlay
- * subtree node also exists in the live devicetree.  When a node in the overlay
- * subtree does not exist at the same level in the live devicetree, target->np
- * points to a newly allocated node, and all subsequent targets in the subtree
- * will be newly allocated nodes.
+ * subtree yesde also exists in the live devicetree.  When a yesde in the overlay
+ * subtree does yest exist at the same level in the live devicetree, target->np
+ * points to a newly allocated yesde, and all subsequent targets in the subtree
+ * will be newly allocated yesdes.
  */
 struct target {
-	struct device_node *np;
+	struct device_yesde *np;
 	bool in_livetree;
 };
 
 /**
- * struct fragment - info about fragment nodes in overlay expanded device tree
+ * struct fragment - info about fragment yesdes in overlay expanded device tree
  * @target:	target of the overlay operation
- * @overlay:	pointer to the __overlay__ node
+ * @overlay:	pointer to the __overlay__ yesde
  */
 struct fragment {
-	struct device_node *overlay;
-	struct device_node *target;
+	struct device_yesde *overlay;
+	struct device_yesde *target;
 };
 
 /**
@@ -58,24 +58,24 @@ struct fragment {
  * @id:			changeset identifier
  * @ovcs_list:		list on which we are located
  * @fdt:		FDT that was unflattened to create @overlay_tree
- * @overlay_tree:	expanded device tree that contains the fragment nodes
+ * @overlay_tree:	expanded device tree that contains the fragment yesdes
  * @count:		count of fragment structures
- * @fragments:		fragment nodes in the overlay expanded device tree
- * @symbols_fragment:	last element of @fragments[] is the  __symbols__ node
+ * @fragments:		fragment yesdes in the overlay expanded device tree
+ * @symbols_fragment:	last element of @fragments[] is the  __symbols__ yesde
  * @cset:		changeset to apply fragments to live device tree
  */
 struct overlay_changeset {
 	int id;
 	struct list_head ovcs_list;
 	const void *fdt;
-	struct device_node *overlay_tree;
+	struct device_yesde *overlay_tree;
 	int count;
 	struct fragment *fragments;
 	bool symbols_fragment;
 	struct of_changeset cset;
 };
 
-/* flags are sticky - once set, do not reset */
+/* flags are sticky - once set, do yest reset */
 static int devicetree_state_flags;
 #define DTSF_APPLY_FAIL		0x01
 #define DTSF_REVERT_FAIL	0x02
@@ -83,7 +83,7 @@ static int devicetree_state_flags;
 /*
  * If a changeset apply or revert encounters an error, an attempt will
  * be made to undo partial changes, but may fail.  If the undo fails
- * we do not know the state of the devicetree.
+ * we do yest kyesw the state of the devicetree.
  */
 static int devicetree_corrupt(void)
 {
@@ -92,12 +92,12 @@ static int devicetree_corrupt(void)
 }
 
 static int build_changeset_next_level(struct overlay_changeset *ovcs,
-		struct target *target, const struct device_node *overlay_node);
+		struct target *target, const struct device_yesde *overlay_yesde);
 
 /*
  * of_resolve_phandles() finds the largest phandle in the live tree.
  * of_overlay_apply() may add a larger phandle to the live tree.
- * Do not allow race between two overlays being applied simultaneously:
+ * Do yest allow race between two overlays being applied simultaneously:
  *    mutex_lock(&of_overlay_phandle_mutex)
  *    of_resolve_phandles()
  *    of_overlay_apply()
@@ -119,35 +119,35 @@ void of_overlay_mutex_unlock(void)
 static LIST_HEAD(ovcs_list);
 static DEFINE_IDR(ovcs_idr);
 
-static BLOCKING_NOTIFIER_HEAD(overlay_notify_chain);
+static BLOCKING_NOTIFIER_HEAD(overlay_yestify_chain);
 
 /**
- * of_overlay_notifier_register() - Register notifier for overlay operations
+ * of_overlay_yestifier_register() - Register yestifier for overlay operations
  * @nb:		Notifier block to register
  *
- * Register for notification on overlay operations on device tree nodes. The
- * reported actions definied by @of_reconfig_change. The notifier callback
- * furthermore receives a pointer to the affected device tree node.
+ * Register for yestification on overlay operations on device tree yesdes. The
+ * reported actions definied by @of_reconfig_change. The yestifier callback
+ * furthermore receives a pointer to the affected device tree yesde.
  *
- * Note that a notifier callback is not supposed to store pointers to a device
- * tree node or its content beyond @OF_OVERLAY_POST_REMOVE corresponding to the
- * respective node it received.
+ * Note that a yestifier callback is yest supposed to store pointers to a device
+ * tree yesde or its content beyond @OF_OVERLAY_POST_REMOVE corresponding to the
+ * respective yesde it received.
  */
-int of_overlay_notifier_register(struct notifier_block *nb)
+int of_overlay_yestifier_register(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&overlay_notify_chain, nb);
+	return blocking_yestifier_chain_register(&overlay_yestify_chain, nb);
 }
-EXPORT_SYMBOL_GPL(of_overlay_notifier_register);
+EXPORT_SYMBOL_GPL(of_overlay_yestifier_register);
 
 /**
- * of_overlay_notifier_register() - Unregister notifier for overlay operations
+ * of_overlay_yestifier_register() - Unregister yestifier for overlay operations
  * @nb:		Notifier block to unregister
  */
-int of_overlay_notifier_unregister(struct notifier_block *nb)
+int of_overlay_yestifier_unregister(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&overlay_notify_chain, nb);
+	return blocking_yestifier_chain_unregister(&overlay_yestify_chain, nb);
 }
-EXPORT_SYMBOL_GPL(of_overlay_notifier_unregister);
+EXPORT_SYMBOL_GPL(of_overlay_yestifier_unregister);
 
 static char *of_overlay_action_name[] = {
 	"pre-apply",
@@ -156,10 +156,10 @@ static char *of_overlay_action_name[] = {
 	"post-remove",
 };
 
-static int overlay_notify(struct overlay_changeset *ovcs,
-		enum of_overlay_notify_action action)
+static int overlay_yestify(struct overlay_changeset *ovcs,
+		enum of_overlay_yestify_action action)
 {
-	struct of_overlay_notify_data nd;
+	struct of_overlay_yestify_data nd;
 	int i, ret;
 
 	for (i = 0; i < ovcs->count; i++) {
@@ -168,13 +168,13 @@ static int overlay_notify(struct overlay_changeset *ovcs,
 		nd.target = fragment->target;
 		nd.overlay = fragment->overlay;
 
-		ret = blocking_notifier_call_chain(&overlay_notify_chain,
+		ret = blocking_yestifier_call_chain(&overlay_yestify_chain,
 						   action, &nd);
 		if (ret == NOTIFY_OK || ret == NOTIFY_STOP)
 			return 0;
 		if (ret) {
-			ret = notifier_to_errno(ret);
-			pr_err("overlay changeset %s notifier error %d, target: %pOF\n",
+			ret = yestifier_to_erryes(ret);
+			pr_err("overlay changeset %s yestifier error %d, target: %pOF\n",
 			       of_overlay_action_name[action], ret, nd.target);
 			return ret;
 		}
@@ -184,25 +184,25 @@ static int overlay_notify(struct overlay_changeset *ovcs,
 }
 
 /*
- * The values of properties in the "/__symbols__" node are paths in
+ * The values of properties in the "/__symbols__" yesde are paths in
  * the ovcs->overlay_tree.  When duplicating the properties, the paths
  * need to be adjusted to be the correct path for the live device tree.
  *
- * The paths refer to a node in the subtree of a fragment node's "__overlay__"
- * node, for example "/fragment@0/__overlay__/symbol_path_tail",
- * where symbol_path_tail can be a single node or it may be a multi-node path.
+ * The paths refer to a yesde in the subtree of a fragment yesde's "__overlay__"
+ * yesde, for example "/fragment@0/__overlay__/symbol_path_tail",
+ * where symbol_path_tail can be a single yesde or it may be a multi-yesde path.
  *
  * The duplicated property value will be modified by replacing the
  * "/fragment_name/__overlay/" portion of the value  with the target
- * path from the fragment node.
+ * path from the fragment yesde.
  */
 static struct property *dup_and_fixup_symbol_prop(
 		struct overlay_changeset *ovcs, const struct property *prop)
 {
 	struct fragment *fragment;
 	struct property *new_prop;
-	struct device_node *fragment_node;
-	struct device_node *overlay_node;
+	struct device_yesde *fragment_yesde;
+	struct device_yesde *overlay_yesde;
 	const char *path;
 	const char *path_tail;
 	const char *target_path;
@@ -221,14 +221,14 @@ static struct property *dup_and_fixup_symbol_prop(
 
 	if (path_len < 1)
 		return NULL;
-	fragment_node = __of_find_node_by_path(ovcs->overlay_tree, path + 1);
-	overlay_node = __of_find_node_by_path(fragment_node, "__overlay__/");
-	of_node_put(fragment_node);
-	of_node_put(overlay_node);
+	fragment_yesde = __of_find_yesde_by_path(ovcs->overlay_tree, path + 1);
+	overlay_yesde = __of_find_yesde_by_path(fragment_yesde, "__overlay__/");
+	of_yesde_put(fragment_yesde);
+	of_yesde_put(overlay_yesde);
 
 	for (k = 0; k < ovcs->count; k++) {
 		fragment = &ovcs->fragments[k];
-		if (fragment->overlay == overlay_node)
+		if (fragment->overlay == overlay_yesde)
 			break;
 	}
 	if (k >= ovcs->count)
@@ -278,23 +278,23 @@ err_free_target_path:
  * @ovcs:		overlay changeset
  * @target:		where @overlay_prop will be placed
  * @overlay_prop:	property to add or update, from overlay tree
- * @is_symbols_prop:	1 if @overlay_prop is from node "/__symbols__"
+ * @is_symbols_prop:	1 if @overlay_prop is from yesde "/__symbols__"
  *
- * If @overlay_prop does not already exist in live devicetree, add changeset
+ * If @overlay_prop does yest already exist in live devicetree, add changeset
  * entry to add @overlay_prop in @target, else add changeset entry to update
  * value of @overlay_prop.
  *
  * @target may be either in the live devicetree or in a new subtree that
  * is contained in the changeset.
  *
- * Some special properties are not added or updated (no error returned):
+ * Some special properties are yest added or updated (yes error returned):
  * "name", "phandle", "linux,phandle".
  *
- * Properties "#address-cells" and "#size-cells" are not updated if they
+ * Properties "#address-cells" and "#size-cells" are yest updated if they
  * are already in the live tree, but if present in the live tree, the values
  * in the overlay must match the values in the live tree.
  *
- * Update of property in symbols node is not allowed.
+ * Update of property in symbols yesde is yest allowed.
  *
  * Returns 0 on success, -ENOMEM if memory allocation failure, or -EINVAL if
  * invalid @overlay.
@@ -320,7 +320,7 @@ static int add_changeset_property(struct overlay_changeset *ovcs,
 	if (prop) {
 		if (!of_prop_cmp(prop->name, "#address-cells")) {
 			if (!of_prop_val_eq(prop, overlay_prop)) {
-				pr_err("ERROR: changing value of #address-cells is not allowed in %pOF\n",
+				pr_err("ERROR: changing value of #address-cells is yest allowed in %pOF\n",
 				       target->np);
 				ret = -EINVAL;
 			}
@@ -328,7 +328,7 @@ static int add_changeset_property(struct overlay_changeset *ovcs,
 
 		} else if (!of_prop_cmp(prop->name, "#size-cells")) {
 			if (!of_prop_val_eq(prop, overlay_prop)) {
-				pr_err("ERROR: changing value of #size-cells is not allowed in %pOF\n",
+				pr_err("ERROR: changing value of #size-cells is yest allowed in %pOF\n",
 				       target->np);
 				ret = -EINVAL;
 			}
@@ -359,7 +359,7 @@ static int add_changeset_property(struct overlay_changeset *ovcs,
 						   new_prop);
 	}
 
-	if (!of_node_check_flag(target->np, OF_OVERLAY))
+	if (!of_yesde_check_flag(target->np, OF_OVERLAY))
 		pr_err("WARNING: memory leak will occur if overlay removed, property: %pOF/%s\n",
 		       target->np, new_prop->name);
 
@@ -372,91 +372,91 @@ static int add_changeset_property(struct overlay_changeset *ovcs,
 }
 
 /**
- * add_changeset_node() - add @node (and children) to overlay changeset
+ * add_changeset_yesde() - add @yesde (and children) to overlay changeset
  * @ovcs:	overlay changeset
- * @target:	where @node will be placed in live tree or changeset
- * @node:	node from within overlay device tree fragment
+ * @target:	where @yesde will be placed in live tree or changeset
+ * @yesde:	yesde from within overlay device tree fragment
  *
- * If @node does not already exist in @target, add changeset entry
- * to add @node in @target.
+ * If @yesde does yest already exist in @target, add changeset entry
+ * to add @yesde in @target.
  *
- * If @node already exists in @target, and the existing node has
- * a phandle, the overlay node is not allowed to have a phandle.
+ * If @yesde already exists in @target, and the existing yesde has
+ * a phandle, the overlay yesde is yest allowed to have a phandle.
  *
- * If @node has child nodes, add the children recursively via
+ * If @yesde has child yesdes, add the children recursively via
  * build_changeset_next_level().
  *
  * NOTE_1: A live devicetree created from a flattened device tree (FDT) will
- *       not contain the full path in node->full_name.  Thus an overlay
- *       created from an FDT also will not contain the full path in
- *       node->full_name.  However, a live devicetree created from Open
- *       Firmware may have the full path in node->full_name.
+ *       yest contain the full path in yesde->full_name.  Thus an overlay
+ *       created from an FDT also will yest contain the full path in
+ *       yesde->full_name.  However, a live devicetree created from Open
+ *       Firmware may have the full path in yesde->full_name.
  *
- *       add_changeset_node() follows the FDT convention and does not include
- *       the full path in node->full_name.  Even though it expects the overlay
- *       to not contain the full path, it uses kbasename() to remove the
+ *       add_changeset_yesde() follows the FDT convention and does yest include
+ *       the full path in yesde->full_name.  Even though it expects the overlay
+ *       to yest contain the full path, it uses kbasename() to remove the
  *       full path should it exist.  It also uses kbasename() in comparisons
- *       to nodes in the live devicetree so that it can apply an overlay to
+ *       to yesdes in the live devicetree so that it can apply an overlay to
  *       a live devicetree created from Open Firmware.
  *
- * NOTE_2: Multiple mods of created nodes not supported.
+ * NOTE_2: Multiple mods of created yesdes yest supported.
  *
  * Returns 0 on success, -ENOMEM if memory allocation failure, or -EINVAL if
  * invalid @overlay.
  */
-static int add_changeset_node(struct overlay_changeset *ovcs,
-		struct target *target, struct device_node *node)
+static int add_changeset_yesde(struct overlay_changeset *ovcs,
+		struct target *target, struct device_yesde *yesde)
 {
-	const char *node_kbasename;
+	const char *yesde_kbasename;
 	const __be32 *phandle;
-	struct device_node *tchild;
+	struct device_yesde *tchild;
 	struct target target_child;
 	int ret = 0, size;
 
-	node_kbasename = kbasename(node->full_name);
+	yesde_kbasename = kbasename(yesde->full_name);
 
-	for_each_child_of_node(target->np, tchild)
-		if (!of_node_cmp(node_kbasename, kbasename(tchild->full_name)))
+	for_each_child_of_yesde(target->np, tchild)
+		if (!of_yesde_cmp(yesde_kbasename, kbasename(tchild->full_name)))
 			break;
 
 	if (!tchild) {
-		tchild = __of_node_dup(NULL, node_kbasename);
+		tchild = __of_yesde_dup(NULL, yesde_kbasename);
 		if (!tchild)
 			return -ENOMEM;
 
 		tchild->parent = target->np;
-		tchild->name = __of_get_property(node, "name", NULL);
+		tchild->name = __of_get_property(yesde, "name", NULL);
 
 		if (!tchild->name)
 			tchild->name = "<NULL>";
 
-		/* ignore obsolete "linux,phandle" */
-		phandle = __of_get_property(node, "phandle", &size);
+		/* igyesre obsolete "linux,phandle" */
+		phandle = __of_get_property(yesde, "phandle", &size);
 		if (phandle && (size == 4))
 			tchild->phandle = be32_to_cpup(phandle);
 
-		of_node_set_flag(tchild, OF_OVERLAY);
+		of_yesde_set_flag(tchild, OF_OVERLAY);
 
-		ret = of_changeset_attach_node(&ovcs->cset, tchild);
+		ret = of_changeset_attach_yesde(&ovcs->cset, tchild);
 		if (ret)
 			return ret;
 
 		target_child.np = tchild;
 		target_child.in_livetree = false;
 
-		ret = build_changeset_next_level(ovcs, &target_child, node);
-		of_node_put(tchild);
+		ret = build_changeset_next_level(ovcs, &target_child, yesde);
+		of_yesde_put(tchild);
 		return ret;
 	}
 
-	if (node->phandle && tchild->phandle) {
+	if (yesde->phandle && tchild->phandle) {
 		ret = -EINVAL;
 	} else {
 		target_child.np = tchild;
 		target_child.in_livetree = target->in_livetree;
-		ret = build_changeset_next_level(ovcs, &target_child, node);
+		ret = build_changeset_next_level(ovcs, &target_child, yesde);
 	}
-	of_node_put(tchild);
+	of_yesde_put(tchild);
 
 	return ret;
 }
@@ -464,26 +464,26 @@ static int add_changeset_node(struct overlay_changeset *ovcs,
 /**
  * build_changeset_next_level() - add level of overlay changeset
  * @ovcs:		overlay changeset
- * @target:		where to place @overlay_node in live tree
- * @overlay_node:	node from within an overlay device tree fragment
+ * @target:		where to place @overlay_yesde in live tree
+ * @overlay_yesde:	yesde from within an overlay device tree fragment
  *
- * Add the properties (if any) and nodes (if any) from @overlay_node to the
- * @ovcs->cset changeset.  If an added node has child nodes, they will
+ * Add the properties (if any) and yesdes (if any) from @overlay_yesde to the
+ * @ovcs->cset changeset.  If an added yesde has child yesdes, they will
  * be added recursively.
  *
- * Do not allow symbols node to have any children.
+ * Do yest allow symbols yesde to have any children.
  *
  * Returns 0 on success, -ENOMEM if memory allocation failure, or -EINVAL if
- * invalid @overlay_node.
+ * invalid @overlay_yesde.
  */
 static int build_changeset_next_level(struct overlay_changeset *ovcs,
-		struct target *target, const struct device_node *overlay_node)
+		struct target *target, const struct device_yesde *overlay_yesde)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	struct property *prop;
 	int ret;
 
-	for_each_property_of_node(overlay_node, prop) {
+	for_each_property_of_yesde(overlay_yesde, prop) {
 		ret = add_changeset_property(ovcs, target, prop, 0);
 		if (ret) {
 			pr_debug("Failed to apply prop @%pOF/%s, err=%d\n",
@@ -492,12 +492,12 @@ static int build_changeset_next_level(struct overlay_changeset *ovcs,
 		}
 	}
 
-	for_each_child_of_node(overlay_node, child) {
-		ret = add_changeset_node(ovcs, target, child);
+	for_each_child_of_yesde(overlay_yesde, child) {
+		ret = add_changeset_yesde(ovcs, target, child);
 		if (ret) {
-			pr_debug("Failed to apply node @%pOF/%pOFn, err=%d\n",
+			pr_debug("Failed to apply yesde @%pOF/%pOFn, err=%d\n",
 				 target->np, child, ret);
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 	}
@@ -506,16 +506,16 @@ static int build_changeset_next_level(struct overlay_changeset *ovcs,
 }
 
 /*
- * Add the properties from __overlay__ node to the @ovcs->cset changeset.
+ * Add the properties from __overlay__ yesde to the @ovcs->cset changeset.
  */
-static int build_changeset_symbols_node(struct overlay_changeset *ovcs,
+static int build_changeset_symbols_yesde(struct overlay_changeset *ovcs,
 		struct target *target,
-		const struct device_node *overlay_symbols_node)
+		const struct device_yesde *overlay_symbols_yesde)
 {
 	struct property *prop;
 	int ret;
 
-	for_each_property_of_node(overlay_symbols_node, prop) {
+	for_each_property_of_yesde(overlay_symbols_yesde, prop) {
 		ret = add_changeset_property(ovcs, target, prop, 1);
 		if (ret) {
 			pr_debug("Failed to apply symbols prop @%pOF/%s, err=%d\n",
@@ -527,31 +527,31 @@ static int build_changeset_symbols_node(struct overlay_changeset *ovcs,
 	return 0;
 }
 
-static int find_dup_cset_node_entry(struct overlay_changeset *ovcs,
+static int find_dup_cset_yesde_entry(struct overlay_changeset *ovcs,
 		struct of_changeset_entry *ce_1)
 {
 	struct of_changeset_entry *ce_2;
 	char *fn_1, *fn_2;
-	int node_path_match;
+	int yesde_path_match;
 
 	if (ce_1->action != OF_RECONFIG_ATTACH_NODE &&
 	    ce_1->action != OF_RECONFIG_DETACH_NODE)
 		return 0;
 
 	ce_2 = ce_1;
-	list_for_each_entry_continue(ce_2, &ovcs->cset.entries, node) {
+	list_for_each_entry_continue(ce_2, &ovcs->cset.entries, yesde) {
 		if ((ce_2->action != OF_RECONFIG_ATTACH_NODE &&
 		     ce_2->action != OF_RECONFIG_DETACH_NODE) ||
-		    of_node_cmp(ce_1->np->full_name, ce_2->np->full_name))
+		    of_yesde_cmp(ce_1->np->full_name, ce_2->np->full_name))
 			continue;
 
 		fn_1 = kasprintf(GFP_KERNEL, "%pOF", ce_1->np);
 		fn_2 = kasprintf(GFP_KERNEL, "%pOF", ce_2->np);
-		node_path_match = !strcmp(fn_1, fn_2);
+		yesde_path_match = !strcmp(fn_1, fn_2);
 		kfree(fn_1);
 		kfree(fn_2);
-		if (node_path_match) {
-			pr_err("ERROR: multiple fragments add and/or delete node %pOF\n",
+		if (yesde_path_match) {
+			pr_err("ERROR: multiple fragments add and/or delete yesde %pOF\n",
 			       ce_1->np);
 			return -EINVAL;
 		}
@@ -565,7 +565,7 @@ static int find_dup_cset_prop(struct overlay_changeset *ovcs,
 {
 	struct of_changeset_entry *ce_2;
 	char *fn_1, *fn_2;
-	int node_path_match;
+	int yesde_path_match;
 
 	if (ce_1->action != OF_RECONFIG_ADD_PROPERTY &&
 	    ce_1->action != OF_RECONFIG_REMOVE_PROPERTY &&
@@ -573,19 +573,19 @@ static int find_dup_cset_prop(struct overlay_changeset *ovcs,
 		return 0;
 
 	ce_2 = ce_1;
-	list_for_each_entry_continue(ce_2, &ovcs->cset.entries, node) {
+	list_for_each_entry_continue(ce_2, &ovcs->cset.entries, yesde) {
 		if ((ce_2->action != OF_RECONFIG_ADD_PROPERTY &&
 		     ce_2->action != OF_RECONFIG_REMOVE_PROPERTY &&
 		     ce_2->action != OF_RECONFIG_UPDATE_PROPERTY) ||
-		    of_node_cmp(ce_1->np->full_name, ce_2->np->full_name))
+		    of_yesde_cmp(ce_1->np->full_name, ce_2->np->full_name))
 			continue;
 
 		fn_1 = kasprintf(GFP_KERNEL, "%pOF", ce_1->np);
 		fn_2 = kasprintf(GFP_KERNEL, "%pOF", ce_2->np);
-		node_path_match = !strcmp(fn_1, fn_2);
+		yesde_path_match = !strcmp(fn_1, fn_2);
 		kfree(fn_1);
 		kfree(fn_2);
-		if (node_path_match &&
+		if (yesde_path_match &&
 		    !of_prop_cmp(ce_1->prop->name, ce_2->prop->name)) {
 			pr_err("ERROR: multiple fragments add, update, and/or delete property %pOF/%s\n",
 			       ce_1->np, ce_1->prop->name);
@@ -600,8 +600,8 @@ static int find_dup_cset_prop(struct overlay_changeset *ovcs,
  * changeset_dup_entry_check() - check for duplicate entries
  * @ovcs:	Overlay changeset
  *
- * Check changeset @ovcs->cset for multiple {add or delete} node entries for
- * the same node or duplicate {add, delete, or update} properties entries
+ * Check changeset @ovcs->cset for multiple {add or delete} yesde entries for
+ * the same yesde or duplicate {add, delete, or update} properties entries
  * for the same property.
  *
  * Returns 0 on success, or -EINVAL if duplicate changeset entry found.
@@ -611,8 +611,8 @@ static int changeset_dup_entry_check(struct overlay_changeset *ovcs)
 	struct of_changeset_entry *ce_1;
 	int dup_entry = 0;
 
-	list_for_each_entry(ce_1, &ovcs->cset.entries, node) {
-		dup_entry |= find_dup_cset_node_entry(ovcs, ce_1);
+	list_for_each_entry(ce_1, &ovcs->cset.entries, yesde) {
+		dup_entry |= find_dup_cset_yesde_entry(ovcs, ce_1);
 		dup_entry |= find_dup_cset_prop(ovcs, ce_1);
 	}
 
@@ -623,7 +623,7 @@ static int changeset_dup_entry_check(struct overlay_changeset *ovcs)
  * build_changeset() - populate overlay changeset in @ovcs from @ovcs->fragments
  * @ovcs:	Overlay changeset
  *
- * Create changeset @ovcs->cset to contain the nodes and properties of the
+ * Create changeset @ovcs->cset to contain the yesdes and properties of the
  * overlay device tree fragments in @ovcs->fragments[].  If an error occurs,
  * any portions of the changeset that were successfully created will remain
  * in @ovcs->cset.
@@ -665,7 +665,7 @@ static int build_changeset(struct overlay_changeset *ovcs)
 
 		target.np = fragment->target;
 		target.in_livetree = true;
-		ret = build_changeset_symbols_node(ovcs, &target,
+		ret = build_changeset_symbols_yesde(ovcs, &target,
 						   fragment->overlay);
 		if (ret) {
 			pr_debug("symbols fragment apply failed '%pOF'\n",
@@ -678,38 +678,38 @@ static int build_changeset(struct overlay_changeset *ovcs)
 }
 
 /*
- * Find the target node using a number of different strategies
+ * Find the target yesde using a number of different strategies
  * in order of preference:
  *
  * 1) "target" property containing the phandle of the target
  * 2) "target-path" property containing the path of the target
  */
-static struct device_node *find_target(struct device_node *info_node)
+static struct device_yesde *find_target(struct device_yesde *info_yesde)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	const char *path;
 	u32 val;
 	int ret;
 
-	ret = of_property_read_u32(info_node, "target", &val);
+	ret = of_property_read_u32(info_yesde, "target", &val);
 	if (!ret) {
-		node = of_find_node_by_phandle(val);
-		if (!node)
-			pr_err("find target, node: %pOF, phandle 0x%x not found\n",
-			       info_node, val);
-		return node;
+		yesde = of_find_yesde_by_phandle(val);
+		if (!yesde)
+			pr_err("find target, yesde: %pOF, phandle 0x%x yest found\n",
+			       info_yesde, val);
+		return yesde;
 	}
 
-	ret = of_property_read_string(info_node, "target-path", &path);
+	ret = of_property_read_string(info_yesde, "target-path", &path);
 	if (!ret) {
-		node =  of_find_node_by_path(path);
-		if (!node)
-			pr_err("find target, node: %pOF, path '%s' not found\n",
-			       info_node, path);
-		return node;
+		yesde =  of_find_yesde_by_path(path);
+		if (!yesde)
+			pr_err("find target, yesde: %pOF, path '%s' yest found\n",
+			       info_yesde, path);
+		return yesde;
 	}
 
-	pr_err("find target, node: %pOF, no target property\n", info_node);
+	pr_err("find target, yesde: %pOF, yes target property\n", info_yesde);
 
 	return NULL;
 }
@@ -718,35 +718,35 @@ static struct device_node *find_target(struct device_node *info_node)
  * init_overlay_changeset() - initialize overlay changeset from overlay tree
  * @ovcs:	Overlay changeset to build
  * @fdt:	the FDT that was unflattened to create @tree
- * @tree:	Contains all the overlay fragments and overlay fixup nodes
+ * @tree:	Contains all the overlay fragments and overlay fixup yesdes
  *
- * Initialize @ovcs.  Populate @ovcs->fragments with node information from
- * the top level of @tree.  The relevant top level nodes are the fragment
- * nodes and the __symbols__ node.  Any other top level node will be ignored.
+ * Initialize @ovcs.  Populate @ovcs->fragments with yesde information from
+ * the top level of @tree.  The relevant top level yesdes are the fragment
+ * yesdes and the __symbols__ yesde.  Any other top level yesde will be igyesred.
  *
  * Returns 0 on success, -ENOMEM if memory allocation failure, -EINVAL if error
  * detected in @tree, or -ENOSPC if idr_alloc() error.
  */
 static int init_overlay_changeset(struct overlay_changeset *ovcs,
-		const void *fdt, struct device_node *tree)
+		const void *fdt, struct device_yesde *tree)
 {
-	struct device_node *node, *overlay_node;
+	struct device_yesde *yesde, *overlay_yesde;
 	struct fragment *fragment;
 	struct fragment *fragments;
 	int cnt, id, ret;
 
 	/*
-	 * Warn for some issues.  Can not return -EINVAL for these until
+	 * Warn for some issues.  Can yest return -EINVAL for these until
 	 * of_unittest_apply_overlay() is fixed to pass these checks.
 	 */
-	if (!of_node_check_flag(tree, OF_DYNAMIC))
-		pr_debug("%s() tree is not dynamic\n", __func__);
+	if (!of_yesde_check_flag(tree, OF_DYNAMIC))
+		pr_debug("%s() tree is yest dynamic\n", __func__);
 
-	if (!of_node_check_flag(tree, OF_DETACHED))
-		pr_debug("%s() tree is not detached\n", __func__);
+	if (!of_yesde_check_flag(tree, OF_DETACHED))
+		pr_debug("%s() tree is yest detached\n", __func__);
 
-	if (!of_node_is_root(tree))
-		pr_debug("%s() tree is not root\n", __func__);
+	if (!of_yesde_is_root(tree))
+		pr_debug("%s() tree is yest root\n", __func__);
 
 	ovcs->overlay_tree = tree;
 	ovcs->fdt = fdt;
@@ -761,19 +761,19 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 
 	cnt = 0;
 
-	/* fragment nodes */
-	for_each_child_of_node(tree, node) {
-		overlay_node = of_get_child_by_name(node, "__overlay__");
-		if (overlay_node) {
+	/* fragment yesdes */
+	for_each_child_of_yesde(tree, yesde) {
+		overlay_yesde = of_get_child_by_name(yesde, "__overlay__");
+		if (overlay_yesde) {
 			cnt++;
-			of_node_put(overlay_node);
+			of_yesde_put(overlay_yesde);
 		}
 	}
 
-	node = of_get_child_by_name(tree, "__symbols__");
-	if (node) {
+	yesde = of_get_child_by_name(tree, "__symbols__");
+	if (yesde) {
 		cnt++;
-		of_node_put(node);
+		of_yesde_put(yesde);
 	}
 
 	fragments = kcalloc(cnt, sizeof(*fragments), GFP_KERNEL);
@@ -783,16 +783,16 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 	}
 
 	cnt = 0;
-	for_each_child_of_node(tree, node) {
-		overlay_node = of_get_child_by_name(node, "__overlay__");
-		if (!overlay_node)
+	for_each_child_of_yesde(tree, yesde) {
+		overlay_yesde = of_get_child_by_name(yesde, "__overlay__");
+		if (!overlay_yesde)
 			continue;
 
 		fragment = &fragments[cnt];
-		fragment->overlay = overlay_node;
-		fragment->target = find_target(node);
+		fragment->overlay = overlay_yesde;
+		fragment->target = find_target(yesde);
 		if (!fragment->target) {
-			of_node_put(fragment->overlay);
+			of_yesde_put(fragment->overlay);
 			ret = -EINVAL;
 			goto err_free_fragments;
 		}
@@ -804,15 +804,15 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 	 * if there is a symbols fragment in ovcs->fragments[i] it is
 	 * the final element in the array
 	 */
-	node = of_get_child_by_name(tree, "__symbols__");
-	if (node) {
+	yesde = of_get_child_by_name(tree, "__symbols__");
+	if (yesde) {
 		ovcs->symbols_fragment = 1;
 		fragment = &fragments[cnt];
-		fragment->overlay = node;
-		fragment->target = of_find_node_by_path("/__symbols__");
+		fragment->overlay = yesde;
+		fragment->target = of_find_yesde_by_path("/__symbols__");
 
 		if (!fragment->target) {
-			pr_err("symbols in overlay, but not in live tree\n");
+			pr_err("symbols in overlay, but yest in live tree\n");
 			ret = -EINVAL;
 			goto err_free_fragments;
 		}
@@ -821,7 +821,7 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 	}
 
 	if (!cnt) {
-		pr_err("no fragments or symbols in overlay\n");
+		pr_err("yes fragments or symbols in overlay\n");
 		ret = -EINVAL;
 		goto err_free_fragments;
 	}
@@ -853,13 +853,13 @@ static void free_overlay_changeset(struct overlay_changeset *ovcs)
 		idr_remove(&ovcs_idr, ovcs->id);
 
 	for (i = 0; i < ovcs->count; i++) {
-		of_node_put(ovcs->fragments[i].target);
-		of_node_put(ovcs->fragments[i].overlay);
+		of_yesde_put(ovcs->fragments[i].target);
+		of_yesde_put(ovcs->fragments[i].overlay);
 	}
 	kfree(ovcs->fragments);
 	/*
-	 * There should be no live pointers into ovcs->overlay_tree and
-	 * ovcs->fdt due to the policy that overlay notifiers are not allowed
+	 * There should be yes live pointers into ovcs->overlay_tree and
+	 * ovcs->fdt due to the policy that overlay yestifiers are yest allowed
 	 * to retain pointers into the overlay devicetree.
 	 */
 	kfree(ovcs->overlay_tree);
@@ -877,32 +877,32 @@ static void free_overlay_changeset(struct overlay_changeset *ovcs)
  *
  * Creates and applies an overlay changeset.
  *
- * If an error occurs in a pre-apply notifier, then no changes are made
+ * If an error occurs in a pre-apply yestifier, then yes changes are made
  * to the device tree.
  *
 
- * A non-zero return value will not have created the changeset if error is from:
+ * A yesn-zero return value will yest have created the changeset if error is from:
  *   - parameter checks
  *   - building the changeset
- *   - overlay changeset pre-apply notifier
+ *   - overlay changeset pre-apply yestifier
  *
- * If an error is returned by an overlay changeset pre-apply notifier
- * then no further overlay changeset pre-apply notifier will be called.
+ * If an error is returned by an overlay changeset pre-apply yestifier
+ * then yes further overlay changeset pre-apply yestifier will be called.
  *
- * A non-zero return value will have created the changeset if error is from:
- *   - overlay changeset entry notifier
- *   - overlay changeset post-apply notifier
+ * A yesn-zero return value will have created the changeset if error is from:
+ *   - overlay changeset entry yestifier
+ *   - overlay changeset post-apply yestifier
  *
- * If an error is returned by an overlay changeset post-apply notifier
- * then no further overlay changeset post-apply notifier will be called.
+ * If an error is returned by an overlay changeset post-apply yestifier
+ * then yes further overlay changeset post-apply yestifier will be called.
  *
- * If more than one notifier returns an error, then the last notifier
+ * If more than one yestifier returns an error, then the last yestifier
  * error to occur is returned.
  *
  * If an error occurred while applying the overlay changeset, then an
  * attempt is made to revert any changes that were made to the
  * device tree.  If there were any errors during the revert attempt
- * then the state of the device tree can not be determined, and any
+ * then the state of the device tree can yest be determined, and any
  * following attempt to apply or remove an overlay changeset will be
  * refused.
  *
@@ -910,7 +910,7 @@ static void free_overlay_changeset(struct overlay_changeset *ovcs)
  * id is returned to *ovcs_id.
  */
 
-static int of_overlay_apply(const void *fdt, struct device_node *tree,
+static int of_overlay_apply(const void *fdt, struct device_yesde *tree,
 		int *ovcs_id)
 {
 	struct overlay_changeset *ovcs;
@@ -949,13 +949,13 @@ static int of_overlay_apply(const void *fdt, struct device_node *tree,
 		goto err_free_tree;
 
 	/*
-	 * after overlay_notify(), ovcs->overlay_tree related pointers may have
-	 * leaked to drivers, so can not kfree() tree, aka ovcs->overlay_tree;
-	 * and can not free fdt, aka ovcs->fdt
+	 * after overlay_yestify(), ovcs->overlay_tree related pointers may have
+	 * leaked to drivers, so can yest kfree() tree, aka ovcs->overlay_tree;
+	 * and can yest free fdt, aka ovcs->fdt
 	 */
-	ret = overlay_notify(ovcs, OF_OVERLAY_PRE_APPLY);
+	ret = overlay_yestify(ovcs, OF_OVERLAY_PRE_APPLY);
 	if (ret) {
-		pr_err("overlay changeset pre-apply notify error %d\n", ret);
+		pr_err("overlay changeset pre-apply yestify error %d\n", ret);
 		goto err_free_overlay_changeset;
 	}
 
@@ -976,17 +976,17 @@ static int of_overlay_apply(const void *fdt, struct device_node *tree,
 
 	of_populate_phandle_cache();
 
-	ret = __of_changeset_apply_notify(&ovcs->cset);
+	ret = __of_changeset_apply_yestify(&ovcs->cset);
 	if (ret)
-		pr_err("overlay apply changeset entry notify error %d\n", ret);
-	/* notify failure is not fatal, continue */
+		pr_err("overlay apply changeset entry yestify error %d\n", ret);
+	/* yestify failure is yest fatal, continue */
 
 	list_add_tail(&ovcs->ovcs_list, &ovcs_list);
 	*ovcs_id = ovcs->id;
 
-	ret_tmp = overlay_notify(ovcs, OF_OVERLAY_POST_APPLY);
+	ret_tmp = overlay_yestify(ovcs, OF_OVERLAY_POST_APPLY);
 	if (ret_tmp) {
-		pr_err("overlay changeset post-apply notify error %d\n",
+		pr_err("overlay changeset post-apply yestify error %d\n",
 		       ret_tmp);
 		if (!ret)
 			ret = ret_tmp;
@@ -1017,7 +1017,7 @@ int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 	const void *new_fdt;
 	int ret;
 	u32 size;
-	struct device_node *overlay_root;
+	struct device_yesde *overlay_root;
 
 	*ovcs_id = 0;
 	ret = 0;
@@ -1050,7 +1050,7 @@ int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 	ret = of_overlay_apply(new_fdt, overlay_root, ovcs_id);
 	if (ret < 0) {
 		/*
-		 * new_fdt and overlay_root now belong to the overlay
+		 * new_fdt and overlay_root yesw belong to the overlay
 		 * changeset.
 		 * overlay changeset code is responsible for freeing them.
 		 */
@@ -1073,16 +1073,16 @@ EXPORT_SYMBOL_GPL(of_overlay_fdt_apply);
  *
  * Returns 1 if @np is @tree or is contained in @tree, else 0
  */
-static int find_node(struct device_node *tree, struct device_node *np)
+static int find_yesde(struct device_yesde *tree, struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 
 	if (tree == np)
 		return 1;
 
-	for_each_child_of_node(tree, child) {
-		if (find_node(child, np)) {
-			of_node_put(child);
+	for_each_child_of_yesde(tree, child) {
+		if (find_yesde(child, np)) {
+			of_yesde_put(child);
 			return 1;
 		}
 	}
@@ -1091,13 +1091,13 @@ static int find_node(struct device_node *tree, struct device_node *np)
 }
 
 /*
- * Is @remove_ce_node a child of, a parent of, or the same as any
- * node in an overlay changeset more topmost than @remove_ovcs?
+ * Is @remove_ce_yesde a child of, a parent of, or the same as any
+ * yesde in an overlay changeset more topmost than @remove_ovcs?
  *
  * Returns 1 if found, else 0
  */
-static int node_overlaps_later_cs(struct overlay_changeset *remove_ovcs,
-		struct device_node *remove_ce_node)
+static int yesde_overlaps_later_cs(struct overlay_changeset *remove_ovcs,
+		struct device_yesde *remove_ce_yesde)
 {
 	struct overlay_changeset *ovcs;
 	struct of_changeset_entry *ce;
@@ -1106,17 +1106,17 @@ static int node_overlaps_later_cs(struct overlay_changeset *remove_ovcs,
 		if (ovcs == remove_ovcs)
 			break;
 
-		list_for_each_entry(ce, &ovcs->cset.entries, node) {
-			if (find_node(ce->np, remove_ce_node)) {
+		list_for_each_entry(ce, &ovcs->cset.entries, yesde) {
+			if (find_yesde(ce->np, remove_ce_yesde)) {
 				pr_err("%s: #%d overlaps with #%d @%pOF\n",
 					__func__, remove_ovcs->id, ovcs->id,
-					remove_ce_node);
+					remove_ce_yesde);
 				return 1;
 			}
-			if (find_node(remove_ce_node, ce->np)) {
+			if (find_yesde(remove_ce_yesde, ce->np)) {
 				pr_err("%s: #%d overlaps with #%d @%pOF\n",
 					__func__, remove_ovcs->id, ovcs->id,
-					remove_ce_node);
+					remove_ce_yesde);
 				return 1;
 			}
 		}
@@ -1131,17 +1131,17 @@ static int node_overlaps_later_cs(struct overlay_changeset *remove_ovcs,
  * so a top most overlay is the one that is closest to the tail.
  *
  * The topmost check is done by exploiting this property. For each
- * affected device node in the log list we check if this overlay is
- * the one closest to the tail. If another overlay has affected this
- * device node and is closest to the tail, then removal is not permited.
+ * affected device yesde in the log list we check if this overlay is
+ * the one closest to the tail. If ayesther overlay has affected this
+ * device yesde and is closest to the tail, then removal is yest permited.
  */
 static int overlay_removal_is_ok(struct overlay_changeset *remove_ovcs)
 {
 	struct of_changeset_entry *remove_ce;
 
-	list_for_each_entry(remove_ce, &remove_ovcs->cset.entries, node) {
-		if (node_overlaps_later_cs(remove_ovcs, remove_ce->np)) {
-			pr_err("overlay #%d is not topmost\n", remove_ovcs->id);
+	list_for_each_entry(remove_ce, &remove_ovcs->cset.entries, yesde) {
+		if (yesde_overlaps_later_cs(remove_ovcs, remove_ce->np)) {
+			pr_err("overlay #%d is yest topmost\n", remove_ovcs->id);
 			return 0;
 		}
 	}
@@ -1159,26 +1159,26 @@ static int overlay_removal_is_ok(struct overlay_changeset *remove_ovcs)
  * If an error occurred while attempting to revert the overlay changeset,
  * then an attempt is made to re-apply any changeset entry that was
  * reverted.  If an error occurs on re-apply then the state of the device
- * tree can not be determined, and any following attempt to apply or remove
+ * tree can yest be determined, and any following attempt to apply or remove
  * an overlay changeset will be refused.
  *
- * A non-zero return value will not revert the changeset if error is from:
+ * A yesn-zero return value will yest revert the changeset if error is from:
  *   - parameter checks
- *   - overlay changeset pre-remove notifier
+ *   - overlay changeset pre-remove yestifier
  *   - overlay changeset entry revert
  *
- * If an error is returned by an overlay changeset pre-remove notifier
- * then no further overlay changeset pre-remove notifier will be called.
+ * If an error is returned by an overlay changeset pre-remove yestifier
+ * then yes further overlay changeset pre-remove yestifier will be called.
  *
- * If more than one notifier returns an error, then the last notifier
+ * If more than one yestifier returns an error, then the last yestifier
  * error to occur is returned.
  *
- * A non-zero return value will revert the changeset if error is from:
- *   - overlay changeset entry notifier
- *   - overlay changeset post-remove notifier
+ * A yesn-zero return value will revert the changeset if error is from:
+ *   - overlay changeset entry yestifier
+ *   - overlay changeset post-remove yestifier
  *
- * If an error is returned by an overlay changeset post-remove notifier
- * then no further overlay changeset post-remove notifier will be called.
+ * If an error is returned by an overlay changeset post-remove yestifier
+ * then yes further overlay changeset post-remove yestifier will be called.
  *
  * Returns 0 on success, or a negative error number.  *ovcs_id is set to
  * zero after reverting the changeset, even if a subsequent error occurs.
@@ -1201,7 +1201,7 @@ int of_overlay_remove(int *ovcs_id)
 	ovcs = idr_find(&ovcs_idr, *ovcs_id);
 	if (!ovcs) {
 		ret = -ENODEV;
-		pr_err("remove: Could not find overlay #%d\n", *ovcs_id);
+		pr_err("remove: Could yest find overlay #%d\n", *ovcs_id);
 		goto out_unlock;
 	}
 
@@ -1210,9 +1210,9 @@ int of_overlay_remove(int *ovcs_id)
 		goto out_unlock;
 	}
 
-	ret = overlay_notify(ovcs, OF_OVERLAY_PRE_REMOVE);
+	ret = overlay_yestify(ovcs, OF_OVERLAY_PRE_REMOVE);
 	if (ret) {
-		pr_err("overlay changeset pre-remove notify error %d\n", ret);
+		pr_err("overlay changeset pre-remove yestify error %d\n", ret);
 		goto out_unlock;
 	}
 
@@ -1220,7 +1220,7 @@ int of_overlay_remove(int *ovcs_id)
 
 	/*
 	 * Disable phandle cache.  Avoids race condition that would arise
-	 * from removing cache entry when the associated node is deleted.
+	 * from removing cache entry when the associated yesde is deleted.
 	 */
 	of_free_phandle_cache();
 
@@ -1235,16 +1235,16 @@ int of_overlay_remove(int *ovcs_id)
 		goto out_unlock;
 	}
 
-	ret = __of_changeset_revert_notify(&ovcs->cset);
+	ret = __of_changeset_revert_yestify(&ovcs->cset);
 	if (ret)
-		pr_err("overlay remove changeset entry notify error %d\n", ret);
-	/* notify failure is not fatal, continue */
+		pr_err("overlay remove changeset entry yestify error %d\n", ret);
+	/* yestify failure is yest fatal, continue */
 
 	*ovcs_id = 0;
 
-	ret_tmp = overlay_notify(ovcs, OF_OVERLAY_POST_REMOVE);
+	ret_tmp = overlay_yestify(ovcs, OF_OVERLAY_POST_REMOVE);
 	if (ret_tmp) {
-		pr_err("overlay changeset post-remove notify error %d\n",
+		pr_err("overlay changeset post-remove yestify error %d\n",
 		       ret_tmp);
 		if (!ret)
 			ret = ret_tmp;

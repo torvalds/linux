@@ -89,7 +89,7 @@ static void edac_subsys_exit(void)
 	bus_unregister(&edac_subsys);
 }
 
-/* return pointer to the 'edac' node in sysfs */
+/* return pointer to the 'edac' yesde in sysfs */
 struct bus_type *edac_get_sysfs_subsys(void)
 {
 	return &edac_subsys;

@@ -14,7 +14,7 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 /* Used for the temporal inet entries and routing */
 #include <linux/socket.h>

@@ -69,11 +69,11 @@ struct acpi_battery {
 	u16 design_voltage;
 	u16 serial_number;
 	u16 cycle_count;
-	u16 temp_now;
-	u16 voltage_now;
-	s16 rate_now;
+	u16 temp_yesw;
+	u16 voltage_yesw;
+	s16 rate_yesw;
 	s16 rate_avg;
-	u16 capacity_now;
+	u16 capacity_yesw;
 	u16 state_of_charge;
 	u16 state;
 	u16 mode;
@@ -146,7 +146,7 @@ static int sbs_get_ac_property(struct power_supply *psy,
 	return 0;
 }
 
-static int acpi_battery_technology(struct acpi_battery *battery)
+static int acpi_battery_techyeslogy(struct acpi_battery *battery)
 {
 	if (!strcasecmp("NiCd", battery->device_chemistry))
 		return POWER_SUPPLY_TECHNOLOGY_NiCd;
@@ -171,9 +171,9 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 	acpi_battery_get_state(battery);
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		if (battery->rate_now < 0)
+		if (battery->rate_yesw < 0)
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
-		else if (battery->rate_now > 0)
+		else if (battery->rate_yesw > 0)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_FULL;
@@ -182,7 +182,7 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 		val->intval = battery->present;
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = acpi_battery_technology(battery);
+		val->intval = acpi_battery_techyeslogy(battery);
 		break;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		val->intval = battery->cycle_count;
@@ -192,15 +192,15 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 			acpi_battery_vscale(battery) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = battery->voltage_now *
+		val->intval = battery->voltage_yesw *
 				acpi_battery_vscale(battery) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 	case POWER_SUPPLY_PROP_POWER_NOW:
-		val->intval = abs(battery->rate_now) *
+		val->intval = abs(battery->rate_yesw) *
 				acpi_battery_ipscale(battery) * 1000;
 		val->intval *= (acpi_battery_mode(battery)) ?
-				(battery->voltage_now *
+				(battery->voltage_yesw *
 				acpi_battery_vscale(battery) / 1000) : 1;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
@@ -208,7 +208,7 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 		val->intval = abs(battery->rate_avg) *
 				acpi_battery_ipscale(battery) * 1000;
 		val->intval *= (acpi_battery_mode(battery)) ?
-				(battery->voltage_now *
+				(battery->voltage_yesw *
 				acpi_battery_vscale(battery) / 1000) : 1;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -226,11 +226,11 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
-		val->intval = battery->capacity_now *
+		val->intval = battery->capacity_yesw *
 				acpi_battery_scale(battery) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
-		val->intval = battery->temp_now - 2730;	// dK -> dC
+		val->intval = battery->temp_yesw - 2730;	// dK -> dC
 		break;
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		val->strval = battery->device_name;
@@ -318,11 +318,11 @@ static struct acpi_battery_reader info_readers[] = {
 };
 
 static struct acpi_battery_reader state_readers[] = {
-	{0x08, SMBUS_READ_WORD, offsetof(struct acpi_battery, temp_now)},
-	{0x09, SMBUS_READ_WORD, offsetof(struct acpi_battery, voltage_now)},
-	{0x0a, SMBUS_READ_WORD, offsetof(struct acpi_battery, rate_now)},
+	{0x08, SMBUS_READ_WORD, offsetof(struct acpi_battery, temp_yesw)},
+	{0x09, SMBUS_READ_WORD, offsetof(struct acpi_battery, voltage_yesw)},
+	{0x0a, SMBUS_READ_WORD, offsetof(struct acpi_battery, rate_yesw)},
 	{0x0b, SMBUS_READ_WORD, offsetof(struct acpi_battery, rate_avg)},
-	{0x0f, SMBUS_READ_WORD, offsetof(struct acpi_battery, capacity_now)},
+	{0x0f, SMBUS_READ_WORD, offsetof(struct acpi_battery, capacity_yesw)},
 	{0x0e, SMBUS_READ_WORD, offsetof(struct acpi_battery, state_of_charge)},
 	{0x16, SMBUS_READ_WORD, offsetof(struct acpi_battery, state)},
 };
@@ -427,12 +427,12 @@ static int acpi_ac_get_present(struct acpi_sbs *sbs)
 		return result;
 
 	/*
-	 * The spec requires that bit 4 always be 1. If it's not set, assume
+	 * The spec requires that bit 4 always be 1. If it's yest set, assume
 	 * that the implementation doesn't support an SBS charger.
 	 *
-	 * And on some MacBooks a status of 0xffff is always returned, no
-	 * matter whether the charger is plugged in or not, which is also
-	 * wrong, so ignore the SBS charger for those too.
+	 * And on some MacBooks a status of 0xffff is always returned, yes
+	 * matter whether the charger is plugged in or yest, which is also
+	 * wrong, so igyesre the SBS charger for those too.
 	 */
 	if (!((status >> 4) & 0x1) || status == 0xffff)
 		return -ENODEV;

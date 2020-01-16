@@ -45,11 +45,11 @@
  * @ccb			: command control block for individual driver
  * @list		: list of control blocks
  * @gp			: general purpose field for LLDs
- * @sno			: all SCBs have a serial number
+ * @syes			: all SCBs have a serial number
  * @scp			: associated scsi command
  * @state		: current state of scb
  * @dma_dir		: direction of data transfer
- * @dma_type		: transfer with sg list, buffer, or no data transfer
+ * @dma_type		: transfer with sg list, buffer, or yes data transfer
  * @dev_channel		: actual channel on the device
  * @dev_target		: actual target on the device
  * @status		: completion status
@@ -65,7 +65,7 @@ typedef struct {
 	caddr_t			ccb;
 	struct list_head	list;
 	unsigned long		gp;
-	unsigned int		sno;
+	unsigned int		syes;
 	struct scsi_cmnd	*scp;
 	uint32_t		state;
 	uint32_t		dma_direction;
@@ -76,7 +76,7 @@ typedef struct {
 } scb_t;
 
 /*
- * SCB states as it transitions from one state to another
+ * SCB states as it transitions from one state to ayesther
  */
 #define SCB_FREE	0x0000	/* on the free list */
 #define SCB_ACTIVE	0x0001	/* off the free list */
@@ -88,7 +88,7 @@ typedef struct {
 /*
  * DMA types for scb
  */
-#define MRAID_DMA_NONE	0x0000	/* no data transfer for this command */
+#define MRAID_DMA_NONE	0x0000	/* yes data transfer for this command */
 #define MRAID_DMA_WSG	0x0001	/* data transfer using a sg list */
 #define MRAID_DMA_WBUF	0x0002	/* data transfer using a contiguous buffer */
 
@@ -99,7 +99,7 @@ typedef struct {
  * @pdev			: pci configuration pointer for kernel
  * @host			: pointer to host structure of mid-layer
  * @lock			: synchronization lock for mid-layer and driver
- * @quiescent			: driver is quiescent for now.
+ * @quiescent			: driver is quiescent for yesw.
  * @outstanding_cmds		: number of commands pending in the driver
  * @kscb_list			: pointer to the bulk of SCBs pointers for IO
  * @kscb_pool			: pool of free scbs for IO
@@ -116,7 +116,7 @@ typedef struct {
  * @max_lun			: max lun supported - inclusive
  * @unique_id			: unique identifier for each adapter
  * @irq				: IRQ for this adapter
- * @ito				: internal timeout value, (-1) means no timeout
+ * @ito				: internal timeout value, (-1) means yes timeout
  * @ibuf			: buffer to issue internal commands
  * @ibuf_dma_h			: dma handle for the above buffer
  * @uscb_list			: SCB pointers for user cmds, common mgmt module
@@ -130,7 +130,7 @@ typedef struct {
  * @init_id			: initiator ID, the default value should be 7
  * @max_sectors			: max sectors per request
  * @cmd_per_lun			: max outstanding commands per LUN
- * @being_detached		: set when unloading, no more mgmt calls
+ * @being_detached		: set when unloading, yes more mgmt calls
  *
  *
  * mraid_setup_device_map() can be called anytime after the device map is
@@ -139,7 +139,7 @@ typedef struct {
  * MRAID_IS_LOGICAL(adapter_t *, struct scsi_cmnd *) to find out if the
  * device in question is a logical drive.
  *
- * quiescent flag should be set by the driver if it is not accepting more
+ * quiescent flag should be set by the driver if it is yest accepting more
  * commands
  *
  * NOTE: The fields of this structures are placed to minimize cache misses
@@ -273,7 +273,7 @@ typedef struct {
  * @dma_addr		: DMA handle to a memory block
  *
  * This structure is filled up for the caller. It is the responsibilty of the
- * caller to allocate this array big enough to store addresses for all
+ * caller to allocate this array big eyesugh to store addresses for all
  * requested elements
  */
 struct mraid_pci_blk {

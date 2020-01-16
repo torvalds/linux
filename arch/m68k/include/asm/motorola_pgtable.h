@@ -14,9 +14,9 @@
 #define _PAGE_DIRTY	0x010
 #define _PAGE_SUPER	0x080	/* 68040 supervisor only */
 #define _PAGE_GLOBAL040	0x400	/* 68040 global bit, used for kva descs */
-#define _PAGE_NOCACHE030 0x040	/* 68030 no-cache mode */
-#define _PAGE_NOCACHE	0x060	/* 68040 cache mode, non-serialized */
-#define _PAGE_NOCACHE_S	0x040	/* 68040 no-cache mode, serialized */
+#define _PAGE_NOCACHE030 0x040	/* 68030 yes-cache mode */
+#define _PAGE_NOCACHE	0x060	/* 68040 cache mode, yesn-serialized */
+#define _PAGE_NOCACHE_S	0x040	/* 68040 yes-cache mode, serialized */
 #define _PAGE_CACHE040	0x020	/* 68040 cache mode, cachable, copyback */
 #define _PAGE_CACHE040W	0x000	/* 68040 cache mode, cachable, write-through */
 
@@ -33,11 +33,11 @@
 #ifndef __ASSEMBLY__
 
 /* This is the cache mode to be used for pages containing page descriptors for
- * processors >= '040. It is in pte_mknocache(), and the variable is defined
+ * processors >= '040. It is in pte_mkyescache(), and the variable is defined
  * and initialized in head.S */
 extern int m68k_pgtable_cachemode;
 
-/* This is the cache mode for normal pages, for supervisor access on
+/* This is the cache mode for yesrmal pages, for supervisor access on
  * processors >= '040. It is used in pte_mkcache(), and the variable is
  * defined and initialized in head.S */
 
@@ -127,7 +127,7 @@ static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
 #define pud_page_vaddr(pud) ((unsigned long)__va(pud_val(pud) & _TABLE_MASK))
 
 
-#define pte_none(pte)		(!pte_val(pte))
+#define pte_yesne(pte)		(!pte_val(pte))
 #define pte_present(pte)	(pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROTNONE))
 #define pte_clear(mm,addr,ptep)		({ pte_val(*(ptep)) = 0; })
 
@@ -135,7 +135,7 @@ static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
 #define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
 #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_yesne(pmd)		(!pmd_val(pmd))
 #define pmd_bad(pmd)		((pmd_val(pmd) & _DESCTYPE_MASK) != _PAGE_TABLE)
 #define pmd_present(pmd)	(pmd_val(pmd) & _PAGE_TABLE)
 #define pmd_clear(pmdp) ({			\
@@ -147,7 +147,7 @@ static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
 #define pmd_page(pmd)		virt_to_page(__va(pmd_val(pmd)))
 
 
-#define pud_none(pud)		(!pud_val(pud))
+#define pud_yesne(pud)		(!pud_val(pud))
 #define pud_bad(pud)		((pud_val(pud) & _DESCTYPE_MASK) != _PAGE_TABLE)
 #define pud_present(pud)	(pud_val(pud) & _PAGE_TABLE)
 #define pud_clear(pudp)		({ pud_val(*pudp) = 0; })
@@ -163,7 +163,7 @@ static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 static inline int pte_write(pte_t pte)		{ return !(pte_val(pte) & _PAGE_RONLY); }
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
@@ -176,7 +176,7 @@ static inline pte_t pte_mkold(pte_t pte)	{ pte_val(pte) &= ~_PAGE_ACCESSED; retu
 static inline pte_t pte_mkwrite(pte_t pte)	{ pte_val(pte) &= ~_PAGE_RONLY; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= _PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= _PAGE_ACCESSED; return pte; }
-static inline pte_t pte_mknocache(pte_t pte)
+static inline pte_t pte_mkyescache(pte_t pte)
 {
 	pte_val(pte) = (pte_val(pte) & _CACHEMASK040) | m68k_pgtable_cachemode;
 	return pte;
@@ -230,10 +230,10 @@ static inline pte_t *pte_offset_kernel(pmd_t *pmdp, unsigned long address)
  */
 
 /* Prior to calling these routines, the page should have been flushed
- * from both the cache and ATC, or the CPU might not notice that the
+ * from both the cache and ATC, or the CPU might yest yestice that the
  * cache setting for the page has been changed. -jskov
  */
-static inline void nocache_page(void *vaddr)
+static inline void yescache_page(void *vaddr)
 {
 	unsigned long addr = (unsigned long)vaddr;
 
@@ -249,7 +249,7 @@ static inline void nocache_page(void *vaddr)
 		pudp = pud_offset(p4dp, addr);
 		pmdp = pmd_offset(pudp, addr);
 		ptep = pte_offset_kernel(pmdp, addr);
-		*ptep = pte_mknocache(*ptep);
+		*ptep = pte_mkyescache(*ptep);
 	}
 }
 
@@ -273,7 +273,7 @@ static inline void cache_page(void *vaddr)
 	}
 }
 
-/* Encode and de-code a swap entry (must be !pte_none(e) && !pte_present(e)) */
+/* Encode and de-code a swap entry (must be !pte_yesne(e) && !pte_present(e)) */
 #define __swp_type(x)		(((x).val >> 4) & 0xff)
 #define __swp_offset(x)		((x).val >> 12)
 #define __swp_entry(type, offset) ((swp_entry_t) { ((type) << 4) | ((offset) << 12) })

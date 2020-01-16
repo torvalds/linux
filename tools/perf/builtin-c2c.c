@@ -10,7 +10,7 @@
  *   Dick Fowles <fowles@inreach.com>
  *   Joe Mario <jmario@redhat.com>
  */
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/err.h>
@@ -37,7 +37,7 @@
 #include "evsel.h"
 #include "ui/browsers/hists.h"
 #include "thread.h"
-#include "mem2node.h"
+#include "mem2yesde.h"
 #include "symbol.h"
 #include "ui/ui.h"
 #include "ui/progress.h"
@@ -59,8 +59,8 @@ struct c2c_hist_entry {
 	struct c2c_hists	*hists;
 	struct c2c_stats	 stats;
 	unsigned long		*cpuset;
-	unsigned long		*nodeset;
-	struct c2c_stats	*node_stats;
+	unsigned long		*yesdeset;
+	struct c2c_stats	*yesde_stats;
 	unsigned int		 cacheline_idx;
 
 	struct compute_stats	 cstats;
@@ -68,7 +68,7 @@ struct c2c_hist_entry {
 	unsigned long		 paddr;
 	unsigned long		 paddr_cnt;
 	bool			 paddr_zero;
-	char			*nodestr;
+	char			*yesdestr;
 
 	/*
 	 * must be at the end,
@@ -82,13 +82,13 @@ static char const *coalesce_default = "iaddr";
 struct perf_c2c {
 	struct perf_tool	tool;
 	struct c2c_hists	hists;
-	struct mem2node		mem2node;
+	struct mem2yesde		mem2yesde;
 
-	unsigned long		**nodes;
-	int			 nodes_cnt;
+	unsigned long		**yesdes;
+	int			 yesdes_cnt;
 	int			 cpus_cnt;
-	int			*cpu2node;
-	int			 node_info;
+	int			*cpu2yesde;
+	int			 yesde_info;
 
 	bool			 show_src;
 	bool			 show_all;
@@ -140,12 +140,12 @@ static void *c2c_he_zalloc(size_t size)
 	if (!c2c_he->cpuset)
 		return NULL;
 
-	c2c_he->nodeset = bitmap_alloc(c2c.nodes_cnt);
-	if (!c2c_he->nodeset)
+	c2c_he->yesdeset = bitmap_alloc(c2c.yesdes_cnt);
+	if (!c2c_he->yesdeset)
 		return NULL;
 
-	c2c_he->node_stats = zalloc(c2c.nodes_cnt * sizeof(*c2c_he->node_stats));
-	if (!c2c_he->node_stats)
+	c2c_he->yesde_stats = zalloc(c2c.yesdes_cnt * sizeof(*c2c_he->yesde_stats));
+	if (!c2c_he->yesde_stats)
 		return NULL;
 
 	init_stats(&c2c_he->cstats.lcl_hitm);
@@ -166,9 +166,9 @@ static void c2c_he_free(void *he)
 	}
 
 	free(c2c_he->cpuset);
-	free(c2c_he->nodeset);
-	free(c2c_he->nodestr);
-	free(c2c_he->node_stats);
+	free(c2c_he->yesdeset);
+	free(c2c_he->yesdestr);
+	free(c2c_he->yesde_stats);
 	free(c2c_he);
 }
 
@@ -211,27 +211,27 @@ static void c2c_he__set_cpu(struct c2c_hist_entry *c2c_he,
 			    struct perf_sample *sample)
 {
 	if (WARN_ONCE(sample->cpu == (unsigned int) -1,
-		      "WARNING: no sample cpu value"))
+		      "WARNING: yes sample cpu value"))
 		return;
 
 	set_bit(sample->cpu, c2c_he->cpuset);
 }
 
-static void c2c_he__set_node(struct c2c_hist_entry *c2c_he,
+static void c2c_he__set_yesde(struct c2c_hist_entry *c2c_he,
 			     struct perf_sample *sample)
 {
-	int node;
+	int yesde;
 
 	if (!sample->phys_addr) {
 		c2c_he->paddr_zero = true;
 		return;
 	}
 
-	node = mem2node__node(&c2c.mem2node, sample->phys_addr);
-	if (WARN_ONCE(node < 0, "WARNING: failed to find node\n"))
+	yesde = mem2yesde__yesde(&c2c.mem2yesde, sample->phys_addr);
+	if (WARN_ONCE(yesde < 0, "WARNING: failed to find yesde\n"))
 		return;
 
-	set_bit(node, c2c_he->nodeset);
+	set_bit(yesde, c2c_he->yesdeset);
 
 	if (c2c_he->paddr != sample->phys_addr) {
 		c2c_he->paddr_cnt++;
@@ -285,7 +285,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	/*
 	 * The mi object is released in hists__add_entry_ops,
 	 * if it gets sorted out into existing data, so we need
-	 * to take the copy now.
+	 * to take the copy yesw.
 	 */
 	mi_dup = mem_info__get(mi);
 
@@ -302,7 +302,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	c2c_add_stats(&c2c_hists->stats, &stats);
 
 	c2c_he__set_cpu(c2c_he, sample);
-	c2c_he__set_node(c2c_he, sample);
+	c2c_he__set_yesde(c2c_he, sample);
 
 	hists__inc_nr_samples(&c2c_hists->hists, he->filtered);
 	ret = hist_entry__append_callchain(he, sample);
@@ -311,13 +311,13 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 		/*
 		 * There's already been warning about missing
 		 * sample's cpu value. Let's account all to
-		 * node 0 in this case, without any further
+		 * yesde 0 in this case, without any further
 		 * warning.
 		 *
-		 * Doing node stats only for single callchain data.
+		 * Doing yesde stats only for single callchain data.
 		 */
 		int cpu = sample->cpu == (unsigned int) -1 ? 0 : sample->cpu;
-		int node = c2c.cpu2node[cpu];
+		int yesde = c2c.cpu2yesde[cpu];
 
 		mi = mi_dup;
 
@@ -334,12 +334,12 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 		c2c_he = container_of(he, struct c2c_hist_entry, he);
 		c2c_add_stats(&c2c_he->stats, &stats);
 		c2c_add_stats(&c2c_hists->stats, &stats);
-		c2c_add_stats(&c2c_he->node_stats[node], &stats);
+		c2c_add_stats(&c2c_he->yesde_stats[yesde], &stats);
 
 		compute_stats(c2c_he, &stats, sample->weight);
 
 		c2c_he__set_cpu(c2c_he, sample);
-		c2c_he__set_node(c2c_he, sample);
+		c2c_he__set_yesde(c2c_he, sample);
 
 		hists__inc_nr_samples(&c2c_hists->hists, he->filtered);
 		ret = hist_entry__append_callchain(he, sample);
@@ -456,7 +456,7 @@ static int c2c_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 
 	if (dim->se) {
 		text = dim->header.line[line].text;
-		/* Use the last line from sort_entry if not defined. */
+		/* Use the last line from sort_entry if yest defined. */
 		if (!text && (line == hpp_list->nr_header_lines - 1))
 			text = dim->se->se_header;
 	} else {
@@ -503,21 +503,21 @@ static int dcacheline_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 }
 
 static int
-dcacheline_node_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+dcacheline_yesde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		      struct hist_entry *he)
 {
 	struct c2c_hist_entry *c2c_he;
 	int width = c2c_width(fmt, hpp, he->hists);
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
-	if (WARN_ON_ONCE(!c2c_he->nodestr))
+	if (WARN_ON_ONCE(!c2c_he->yesdestr))
 		return 0;
 
-	return scnprintf(hpp->buf, hpp->size, "%*s", width, c2c_he->nodestr);
+	return scnprintf(hpp->buf, hpp->size, "%*s", width, c2c_he->yesdestr);
 }
 
 static int
-dcacheline_node_count(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+dcacheline_yesde_count(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		      struct hist_entry *he)
 {
 	struct c2c_hist_entry *c2c_he;
@@ -1078,24 +1078,24 @@ empty_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 }
 
 static int
-node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
+yesde_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 	   struct hist_entry *he)
 {
 	struct c2c_hist_entry *c2c_he;
 	bool first = true;
-	int node;
+	int yesde;
 	int ret = 0;
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 
-	for (node = 0; node < c2c.nodes_cnt; node++) {
+	for (yesde = 0; yesde < c2c.yesdes_cnt; yesde++) {
 		DECLARE_BITMAP(set, c2c.cpus_cnt);
 
 		bitmap_zero(set, c2c.cpus_cnt);
-		bitmap_and(set, c2c_he->cpuset, c2c.nodes[node], c2c.cpus_cnt);
+		bitmap_and(set, c2c_he->cpuset, c2c.yesdes[yesde], c2c.cpus_cnt);
 
 		if (!bitmap_weight(set, c2c.cpus_cnt)) {
-			if (c2c.node_info == 1) {
+			if (c2c.yesde_info == 1) {
 				ret = scnprintf(hpp->buf, hpp->size, "%21s", " ");
 				advance_hpp(hpp, ret);
 			}
@@ -1107,17 +1107,17 @@ node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 			advance_hpp(hpp, ret);
 		}
 
-		switch (c2c.node_info) {
+		switch (c2c.yesde_info) {
 		case 0:
-			ret = scnprintf(hpp->buf, hpp->size, "%2d", node);
+			ret = scnprintf(hpp->buf, hpp->size, "%2d", yesde);
 			advance_hpp(hpp, ret);
 			break;
 		case 1:
 		{
 			int num = bitmap_weight(set, c2c.cpus_cnt);
-			struct c2c_stats *stats = &c2c_he->node_stats[node];
+			struct c2c_stats *stats = &c2c_he->yesde_stats[yesde];
 
-			ret = scnprintf(hpp->buf, hpp->size, "%2d{%2d ", node, num);
+			ret = scnprintf(hpp->buf, hpp->size, "%2d{%2d ", yesde, num);
 			advance_hpp(hpp, ret);
 
 		#define DISPLAY_HITM(__h)						\
@@ -1156,7 +1156,7 @@ node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 			break;
 		}
 		case 2:
-			ret = scnprintf(hpp->buf, hpp->size, "%2d{", node);
+			ret = scnprintf(hpp->buf, hpp->size, "%2d{", yesde);
 			advance_hpp(hpp, ret);
 
 			ret = bitmap_scnprintf(set, c2c.cpus_cnt, hpp->buf, hpp->size);
@@ -1279,11 +1279,11 @@ static struct c2c_dimension dim_dcacheline = {
 	.width		= 18,
 };
 
-static struct c2c_dimension dim_dcacheline_node = {
+static struct c2c_dimension dim_dcacheline_yesde = {
 	.header		= HEADER_LOW("Node"),
-	.name		= "dcacheline_node",
+	.name		= "dcacheline_yesde",
 	.cmp		= empty_cmp,
-	.entry		= dcacheline_node_entry,
+	.entry		= dcacheline_yesde_entry,
 	.width		= 4,
 };
 
@@ -1291,7 +1291,7 @@ static struct c2c_dimension dim_dcacheline_count = {
 	.header		= HEADER_LOW("PA cnt"),
 	.name		= "dcacheline_count",
 	.cmp		= empty_cmp,
-	.entry		= dcacheline_node_count,
+	.entry		= dcacheline_yesde_count,
 	.width		= 6,
 };
 
@@ -1305,11 +1305,11 @@ static struct c2c_dimension dim_offset = {
 	.width		= 18,
 };
 
-static struct c2c_dimension dim_offset_node = {
+static struct c2c_dimension dim_offset_yesde = {
 	.header		= HEADER_LOW("Node"),
-	.name		= "offset_node",
+	.name		= "offset_yesde",
 	.cmp		= empty_cmp,
-	.entry		= dcacheline_node_entry,
+	.entry		= dcacheline_yesde_entry,
 	.width		= 4,
 };
 
@@ -1556,16 +1556,16 @@ static struct c2c_dimension dim_dso = {
 	.se		= &sort_dso,
 };
 
-static struct c2c_header header_node[3] = {
+static struct c2c_header header_yesde[3] = {
 	HEADER_LOW("Node"),
 	HEADER_LOW("Node{cpus %hitms %stores}"),
 	HEADER_LOW("Node{cpu list}"),
 };
 
-static struct c2c_dimension dim_node = {
-	.name		= "node",
+static struct c2c_dimension dim_yesde = {
+	.name		= "yesde",
 	.cmp		= empty_cmp,
-	.entry		= node_entry,
+	.entry		= yesde_entry,
 	.width		= 4,
 };
 
@@ -1632,10 +1632,10 @@ static struct c2c_dimension dim_dcacheline_num_empty = {
 
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
-	&dim_dcacheline_node,
+	&dim_dcacheline_yesde,
 	&dim_dcacheline_count,
 	&dim_offset,
-	&dim_offset_node,
+	&dim_offset_yesde,
 	&dim_iaddr,
 	&dim_tot_hitm,
 	&dim_lcl_hitm,
@@ -1666,7 +1666,7 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_tid,
 	&dim_symbol,
 	&dim_dso,
-	&dim_node,
+	&dim_yesde,
 	&dim_mean_rmt,
 	&dim_mean_lcl,
 	&dim_mean_load,
@@ -1823,7 +1823,7 @@ static int c2c_hists__init_sort(struct perf_hpp_list *hpp_list, char *name)
 				pr_err("Invalid --fields key: `%s'", tok);	\
 				break;						\
 			} else if (ret == -ESRCH) {				\
-				pr_err("Unknown --fields key: `%s'", tok);	\
+				pr_err("Unkyeswn --fields key: `%s'", tok);	\
 				break;						\
 			}							\
 		}								\
@@ -1938,35 +1938,35 @@ static inline int valid_hitm_or_store(struct hist_entry *he)
 	return has_hitm || c2c_he->stats.store;
 }
 
-static void set_node_width(struct c2c_hist_entry *c2c_he, int len)
+static void set_yesde_width(struct c2c_hist_entry *c2c_he, int len)
 {
 	struct c2c_dimension *dim;
 
 	dim = &c2c.hists == c2c_he->hists ?
-	      &dim_dcacheline_node : &dim_offset_node;
+	      &dim_dcacheline_yesde : &dim_offset_yesde;
 
 	if (len > dim->width)
 		dim->width = len;
 }
 
-static int set_nodestr(struct c2c_hist_entry *c2c_he)
+static int set_yesdestr(struct c2c_hist_entry *c2c_he)
 {
 	char buf[30];
 	int len;
 
-	if (c2c_he->nodestr)
+	if (c2c_he->yesdestr)
 		return 0;
 
-	if (bitmap_weight(c2c_he->nodeset, c2c.nodes_cnt)) {
-		len = bitmap_scnprintf(c2c_he->nodeset, c2c.nodes_cnt,
+	if (bitmap_weight(c2c_he->yesdeset, c2c.yesdes_cnt)) {
+		len = bitmap_scnprintf(c2c_he->yesdeset, c2c.yesdes_cnt,
 				      buf, sizeof(buf));
 	} else {
 		len = scnprintf(buf, sizeof(buf), "N/A");
 	}
 
-	set_node_width(c2c_he, len);
-	c2c_he->nodestr = strdup(buf);
-	return c2c_he->nodestr ? 0 : -ENOMEM;
+	set_yesde_width(c2c_he, len);
+	c2c_he->yesdestr = strdup(buf);
+	return c2c_he->yesdestr ? 0 : -ENOMEM;
 }
 
 static void calc_width(struct c2c_hist_entry *c2c_he)
@@ -1975,7 +1975,7 @@ static void calc_width(struct c2c_hist_entry *c2c_he)
 
 	c2c_hists = container_of(c2c_he->he.hists, struct c2c_hists, hists);
 	hists__calc_col_len(&c2c_hists->hists, &c2c_he->he);
-	set_nodestr(c2c_he);
+	set_yesdestr(c2c_he);
 }
 
 static int filter_cb(struct hist_entry *he, void *arg __maybe_unused)
@@ -2019,68 +2019,68 @@ static int resort_cl_cb(struct hist_entry *he, void *arg __maybe_unused)
 	return 0;
 }
 
-static void setup_nodes_header(void)
+static void setup_yesdes_header(void)
 {
-	dim_node.header = header_node[c2c.node_info];
+	dim_yesde.header = header_yesde[c2c.yesde_info];
 }
 
-static int setup_nodes(struct perf_session *session)
+static int setup_yesdes(struct perf_session *session)
 {
-	struct numa_node *n;
-	unsigned long **nodes;
-	int node, cpu;
-	int *cpu2node;
+	struct numa_yesde *n;
+	unsigned long **yesdes;
+	int yesde, cpu;
+	int *cpu2yesde;
 
-	if (c2c.node_info > 2)
-		c2c.node_info = 2;
+	if (c2c.yesde_info > 2)
+		c2c.yesde_info = 2;
 
-	c2c.nodes_cnt = session->header.env.nr_numa_nodes;
+	c2c.yesdes_cnt = session->header.env.nr_numa_yesdes;
 	c2c.cpus_cnt  = session->header.env.nr_cpus_avail;
 
-	n = session->header.env.numa_nodes;
+	n = session->header.env.numa_yesdes;
 	if (!n)
 		return -EINVAL;
 
-	nodes = zalloc(sizeof(unsigned long *) * c2c.nodes_cnt);
-	if (!nodes)
+	yesdes = zalloc(sizeof(unsigned long *) * c2c.yesdes_cnt);
+	if (!yesdes)
 		return -ENOMEM;
 
-	c2c.nodes = nodes;
+	c2c.yesdes = yesdes;
 
-	cpu2node = zalloc(sizeof(int) * c2c.cpus_cnt);
-	if (!cpu2node)
+	cpu2yesde = zalloc(sizeof(int) * c2c.cpus_cnt);
+	if (!cpu2yesde)
 		return -ENOMEM;
 
 	for (cpu = 0; cpu < c2c.cpus_cnt; cpu++)
-		cpu2node[cpu] = -1;
+		cpu2yesde[cpu] = -1;
 
-	c2c.cpu2node = cpu2node;
+	c2c.cpu2yesde = cpu2yesde;
 
-	for (node = 0; node < c2c.nodes_cnt; node++) {
-		struct perf_cpu_map *map = n[node].map;
+	for (yesde = 0; yesde < c2c.yesdes_cnt; yesde++) {
+		struct perf_cpu_map *map = n[yesde].map;
 		unsigned long *set;
 
 		set = bitmap_alloc(c2c.cpus_cnt);
 		if (!set)
 			return -ENOMEM;
 
-		nodes[node] = set;
+		yesdes[yesde] = set;
 
-		/* empty node, skip */
+		/* empty yesde, skip */
 		if (perf_cpu_map__empty(map))
 			continue;
 
 		for (cpu = 0; cpu < map->nr; cpu++) {
 			set_bit(map->map[cpu], set);
 
-			if (WARN_ONCE(cpu2node[map->map[cpu]] != -1, "node/cpu topology bug"))
+			if (WARN_ONCE(cpu2yesde[map->map[cpu]] != -1, "yesde/cpu topology bug"))
 				return -EINVAL;
 
-			cpu2node[map->map[cpu]] = node;
+			cpu2yesde[map->map[cpu]] = yesde;
 		}
 	}
 
-	setup_nodes_header();
+	setup_yesdes_header();
 	return 0;
 }
 
@@ -2101,17 +2101,17 @@ static int resort_hitm_cb(struct hist_entry *he, void *arg __maybe_unused)
 
 static int hists__iterate_cb(struct hists *hists, hists__resort_cb_t cb)
 {
-	struct rb_node *next = rb_first_cached(&hists->entries);
+	struct rb_yesde *next = rb_first_cached(&hists->entries);
 	int ret = 0;
 
 	while (next) {
 		struct hist_entry *he;
 
-		he = rb_entry(next, struct hist_entry, rb_node);
+		he = rb_entry(next, struct hist_entry, rb_yesde);
 		ret = cb(he, NULL);
 		if (ret)
 			break;
-		next = rb_next(&he->rb_node);
+		next = rb_next(&he->rb_yesde);
 	}
 
 	return ret;
@@ -2136,7 +2136,7 @@ static void print_c2c__display_stats(FILE *out)
 	fprintf(out, "  Loads - uncacheable               : %10d\n", stats->ld_uncache);
 	fprintf(out, "  Loads - IO                        : %10d\n", stats->ld_io);
 	fprintf(out, "  Loads - Miss                      : %10d\n", stats->ld_miss);
-	fprintf(out, "  Loads - no mapping                : %10d\n", stats->ld_noadrs);
+	fprintf(out, "  Loads - yes mapping                : %10d\n", stats->ld_yesadrs);
 	fprintf(out, "  Load Fill Buffer Hit              : %10d\n", stats->ld_fbhit);
 	fprintf(out, "  Load L1D hit                      : %10d\n", stats->ld_l1hit);
 	fprintf(out, "  Load L2D hit                      : %10d\n", stats->ld_l2hit);
@@ -2155,11 +2155,11 @@ static void print_c2c__display_stats(FILE *out)
 	fprintf(out, "  LLC Misses to Remote cache (HITM) : %10.1f%%\n", ((double)stats->rmt_hitm/(double)llc_misses) * 100.);
 	fprintf(out, "  Store Operations                  : %10d\n", stats->store);
 	fprintf(out, "  Store - uncacheable               : %10d\n", stats->st_uncache);
-	fprintf(out, "  Store - no mapping                : %10d\n", stats->st_noadrs);
+	fprintf(out, "  Store - yes mapping                : %10d\n", stats->st_yesadrs);
 	fprintf(out, "  Store L1D Hit                     : %10d\n", stats->st_l1hit);
 	fprintf(out, "  Store L1D Miss                    : %10d\n", stats->st_l1miss);
-	fprintf(out, "  No Page Map Rejects               : %10d\n", stats->nomap);
-	fprintf(out, "  Unable to parse data source       : %10d\n", stats->noparse);
+	fprintf(out, "  No Page Map Rejects               : %10d\n", stats->yesmap);
+	fprintf(out, "  Unable to parse data source       : %10d\n", stats->yesparse);
 }
 
 static void print_shared_cacheline_info(FILE *out)
@@ -2212,7 +2212,7 @@ static void print_cacheline(struct c2c_hists *c2c_hists,
 static void print_pareto(FILE *out)
 {
 	struct perf_hpp_list hpp_list;
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	int ret;
 
 	perf_hpp_list__init(&hpp_list);
@@ -2231,7 +2231,7 @@ static void print_pareto(FILE *out)
 	nd = rb_first_cached(&c2c.hists.hists.entries);
 
 	for (; nd; nd = rb_next(nd)) {
-		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
+		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_yesde);
 		struct c2c_hist_entry *c2c_he;
 
 		if (he->filtered)
@@ -2296,10 +2296,10 @@ static void perf_c2c__hists_fprintf(FILE *out, struct perf_session *session)
 static void c2c_browser__update_nr_entries(struct hist_browser *hb)
 {
 	u64 nr_entries = 0;
-	struct rb_node *nd = rb_first_cached(&hb->hists->entries);
+	struct rb_yesde *nd = rb_first_cached(&hb->hists->entries);
 
 	while (nd) {
-		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
+		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_yesde);
 
 		if (!he->filtered)
 			nr_entries++;
@@ -2307,7 +2307,7 @@ static void c2c_browser__update_nr_entries(struct hist_browser *hb)
 		nd = rb_next(nd);
 	}
 
-	hb->nr_non_filtered_entries = nr_entries;
+	hb->nr_yesn_filtered_entries = nr_entries;
 }
 
 struct c2c_cacheline_browser {
@@ -2391,8 +2391,8 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 			c2c.symbol_full = !c2c.symbol_full;
 			break;
 		case 'n':
-			c2c.node_info = (c2c.node_info + 1) % 3;
-			setup_nodes_header();
+			c2c.yesde_info = (c2c.yesde_info + 1) % 3;
+			setup_yesdes_header();
 			break;
 		case 'q':
 			goto out;
@@ -2415,7 +2415,7 @@ static int perf_c2c_browser__title(struct hist_browser *browser,
 	scnprintf(bf, size,
 		  "Shared Data Cache Line Table     "
 		  "(%lu entries, sorted on %s HITMs)",
-		  browser->nr_non_filtered_entries,
+		  browser->nr_yesn_filtered_entries,
 		  display_str[c2c.display]);
 	return 0;
 }
@@ -2519,20 +2519,20 @@ static char *fill_line(const char *orig, int len)
 
 static int ui_quirks(void)
 {
-	const char *nodestr = "Data address";
+	const char *yesdestr = "Data address";
 	char *buf;
 
 	if (!c2c.use_stdio) {
 		dim_offset.width  = 5;
 		dim_offset.header = header_offset_tui;
-		nodestr = "CL";
+		yesdestr = "CL";
 	}
 
 	dim_percent_hitm.header = percent_hitm_header[c2c.display];
 
 	/* Fix the zero line for dcacheline column. */
 	buf = fill_line("Cacheline", dim_dcacheline.width +
-				     dim_dcacheline_node.width +
+				     dim_dcacheline_yesde.width +
 				     dim_dcacheline_count.width + 4);
 	if (!buf)
 		return -ENOMEM;
@@ -2540,8 +2540,8 @@ static int ui_quirks(void)
 	dim_dcacheline.header.line[0].text = buf;
 
 	/* Fix the zero line for offset column. */
-	buf = fill_line(nodestr, dim_offset.width +
-			         dim_offset_node.width +
+	buf = fill_line(yesdestr, dim_offset.width +
+			         dim_offset_yesde.width +
 				 dim_dcacheline_count.width + 4);
 	if (!buf)
 		return -ENOMEM;
@@ -2564,7 +2564,7 @@ parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 
 	callchain->enabled = !unset;
 	/*
-	 * --no-call-graph
+	 * --yes-call-graph
 	 */
 	if (unset) {
 		symbol_conf.use_callchain = false;
@@ -2615,7 +2615,7 @@ static int setup_display(const char *str)
 	else if (!strcmp(display, "lcl"))
 		c2c.display = DISPLAY_LCL;
 	else {
-		pr_err("failed: unknown display type: %s\n", str);
+		pr_err("failed: unkyeswn display type: %s\n", str);
 		return -1;
 	}
 
@@ -2626,7 +2626,7 @@ static int setup_display(const char *str)
 	for (__tok = strtok_r(__buf, __sep, &__tmp); __tok;	\
 	     __tok = strtok_r(NULL,  __sep, &__tmp))
 
-static int build_cl_output(char *cl_sort, bool no_source)
+static int build_cl_output(char *cl_sort, bool yes_source)
 {
 	char *tok, *tmp, *buf = strdup(cl_sort);
 	bool add_pid   = false;
@@ -2649,7 +2649,7 @@ static int build_cl_output(char *cl_sort, bool no_source)
 			add_iaddr = true;
 			add_sym   = true;
 			add_dso   = true;
-			add_src   = no_source ? false : true;
+			add_src   = yes_source ? false : true;
 		} else if (!strcmp(tok, "dso")) {
 			add_dso = true;
 		} else if (strcmp(tok, "offset")) {
@@ -2666,7 +2666,7 @@ static int build_cl_output(char *cl_sort, bool no_source)
 		"percent_lcl_hitm,"
 		"percent_stores_l1hit,"
 		"percent_stores_l1miss,"
-		"offset,offset_node,dcacheline_count,",
+		"offset,offset_yesde,dcacheline_count,",
 		add_pid   ? "pid," : "",
 		add_tid   ? "tid," : "",
 		add_iaddr ? "iaddr," : "",
@@ -2678,7 +2678,7 @@ static int build_cl_output(char *cl_sort, bool no_source)
 		add_sym ? "symbol," : "",
 		add_dso ? "dso," : "",
 		add_src ? "cl_srcline," : "",
-		"node") < 0) {
+		"yesde") < 0) {
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -2689,14 +2689,14 @@ err:
 	return ret;
 }
 
-static int setup_coalesce(const char *coalesce, bool no_source)
+static int setup_coalesce(const char *coalesce, bool yes_source)
 {
 	const char *c = coalesce ?: coalesce_default;
 
 	if (asprintf(&c2c.cl_sort, "offset,%s", c) < 0)
 		return -ENOMEM;
 
-	if (build_cl_output(c2c.cl_sort, no_source))
+	if (build_cl_output(c2c.cl_sort, yes_source))
 		return -1;
 
 	if (asprintf(&c2c.cl_resort, "offset,%s",
@@ -2723,14 +2723,14 @@ static int perf_c2c__report(int argc, const char **argv)
 	char callchain_default_opt[] = CALLCHAIN_DEFAULT_OPT;
 	const char *display = NULL;
 	const char *coalesce = NULL;
-	bool no_source = false;
+	bool yes_source = false;
 	const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_STRING('i', "input", &input_name, "file",
 		   "the input file to process"),
-	OPT_INCR('N', "node-info", &c2c.node_info,
-		 "show extra node info in report (repeat for more info)"),
+	OPT_INCR('N', "yesde-info", &c2c.yesde_info,
+		 "show extra yesde info in report (repeat for more info)"),
 #ifdef HAVE_SLANG_SUPPORT
 	OPT_BOOLEAN(0, "stdio", &c2c.use_stdio, "Use the stdio interface"),
 #endif
@@ -2738,8 +2738,8 @@ static int perf_c2c__report(int argc, const char **argv)
 		    "Display only statistic tables (implies --stdio)"),
 	OPT_BOOLEAN(0, "full-symbols", &c2c.symbol_full,
 		    "Display full length of symbols"),
-	OPT_BOOLEAN(0, "no-source", &no_source,
-		    "Do not display Source Line column"),
+	OPT_BOOLEAN(0, "yes-source", &yes_source,
+		    "Do yest display Source Line column"),
 	OPT_BOOLEAN(0, "show-all", &c2c.show_all,
 		    "Show all captured HITM lines."),
 	OPT_CALLBACK_DEFAULT('g', "call-graph", &callchain_param,
@@ -2773,7 +2773,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	if (err)
 		goto out;
 
-	err = setup_coalesce(coalesce, no_source);
+	err = setup_coalesce(coalesce, yes_source);
 	if (err) {
 		pr_debug("Failed to initialize hists\n");
 		goto out;
@@ -2792,27 +2792,27 @@ static int perf_c2c__report(int argc, const char **argv)
 		goto out;
 	}
 
-	err = setup_nodes(session);
+	err = setup_yesdes(session);
 	if (err) {
-		pr_err("Failed setup nodes\n");
+		pr_err("Failed setup yesdes\n");
 		goto out;
 	}
 
-	err = mem2node__init(&c2c.mem2node, &session->header.env);
+	err = mem2yesde__init(&c2c.mem2yesde, &session->header.env);
 	if (err)
 		goto out_session;
 
 	err = setup_callchain(session->evlist);
 	if (err)
-		goto out_mem2node;
+		goto out_mem2yesde;
 
 	if (symbol__init(&session->header.env) < 0)
-		goto out_mem2node;
+		goto out_mem2yesde;
 
 	/* No pipe support at the moment. */
 	if (perf_data__is_pipe(session->data)) {
 		pr_debug("No pipe support at the moment.\n");
-		goto out_mem2node;
+		goto out_mem2yesde;
 	}
 
 	if (c2c.use_stdio)
@@ -2825,13 +2825,13 @@ static int perf_c2c__report(int argc, const char **argv)
 	err = perf_session__process_events(session);
 	if (err) {
 		pr_err("failed to process sample\n");
-		goto out_mem2node;
+		goto out_mem2yesde;
 	}
 
 	c2c_hists__reinit(&c2c.hists,
 			"cl_idx,"
 			"dcacheline,"
-			"dcacheline_node,"
+			"dcacheline_yesde,"
 			"dcacheline_count,"
 			"tot_recs,"
 			"percent_hitm,"
@@ -2856,13 +2856,13 @@ static int perf_c2c__report(int argc, const char **argv)
 
 	if (ui_quirks()) {
 		pr_err("failed to setup UI\n");
-		goto out_mem2node;
+		goto out_mem2yesde;
 	}
 
 	perf_c2c_display(session);
 
-out_mem2node:
-	mem2node__exit(&c2c.mem2node);
+out_mem2yesde:
+	mem2yesde__exit(&c2c.mem2yesde);
 out_session:
 	perf_session__delete(session);
 out:
@@ -2906,7 +2906,7 @@ static int perf_c2c__record(int argc, const char **argv)
 	};
 
 	if (perf_mem_events__init()) {
-		pr_err("failed: memory events not supported\n");
+		pr_err("failed: memory events yest supported\n");
 		return -1;
 	}
 
@@ -2937,7 +2937,7 @@ static int perf_c2c__record(int argc, const char **argv)
 			continue;
 
 		if (!perf_mem_events[j].supported) {
-			pr_err("failed: event '%s' not supported\n",
+			pr_err("failed: event '%s' yest supported\n",
 			       perf_mem_events[j].name);
 			free(rec_argv);
 			return -1;

@@ -215,7 +215,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		goto out;
 	}
 
-	/* M09/M12 does not send header or CRC */
+	/* M09/M12 does yest send header or CRC */
 	if (tsdata->version == EDT_M06) {
 		if (rdbuf[0] != 0xaa || rdbuf[1] != 0xaa ||
 			rdbuf[2] != datalen) {
@@ -233,7 +233,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		u8 *buf = &rdbuf[i * tplen + offset];
 
 		type = buf[0] >> 6;
-		/* ignore Reserved events */
+		/* igyesre Reserved events */
 		if (type == TOUCH_EVENT_RESERVED)
 			continue;
 
@@ -499,10 +499,10 @@ static EDT_ATTR(gain, S_IWUSR | S_IRUGO, WORK_REGISTER_GAIN,
 /* m06, m09: range 0-31, m12: range 0-16 */
 static EDT_ATTR(offset, S_IWUSR | S_IRUGO, WORK_REGISTER_OFFSET,
 		M09_REGISTER_OFFSET, NO_REGISTER, 0, 31);
-/* m06, m09, m12: no supported, ev_ft: range 0-80 */
+/* m06, m09, m12: yes supported, ev_ft: range 0-80 */
 static EDT_ATTR(offset_x, S_IWUSR | S_IRUGO, NO_REGISTER, NO_REGISTER,
 		EV_REGISTER_OFFSET_X, 0, 80);
-/* m06, m09, m12: no supported, ev_ft: range 0-80 */
+/* m06, m09, m12: yes supported, ev_ft: range 0-80 */
 static EDT_ATTR(offset_y, S_IWUSR | S_IRUGO, NO_REGISTER, NO_REGISTER,
 		EV_REGISTER_OFFSET_Y, 0, 80);
 /* m06: range 20 to 80, m09: range 0 to 30, m12: range 1 to 255... */
@@ -536,7 +536,7 @@ static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 
 	if (tsdata->version != EDT_M06) {
 		dev_err(&client->dev,
-			"No factory mode support for non-M06 devices\n");
+			"No factory mode support for yesn-M06 devices\n");
 		return -EINVAL;
 	}
 
@@ -570,7 +570,7 @@ static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 	} while (--retries > 0);
 
 	if (retries == 0) {
-		dev_err(&client->dev, "not in factory mode after %dms.\n",
+		dev_err(&client->dev, "yest in factory mode after %dms.\n",
 			EDT_SWITCH_MODE_RETRIES * EDT_SWITCH_MODE_DELAY);
 		error = -EIO;
 		goto err_out;
@@ -614,7 +614,7 @@ static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
 	} while (--retries > 0);
 
 	if (retries == 0) {
-		dev_err(&client->dev, "not in work mode after %dms.\n",
+		dev_err(&client->dev, "yest in work mode after %dms.\n",
 			EDT_SWITCH_MODE_RETRIES * EDT_SWITCH_MODE_DELAY);
 		tsdata->factory_mode = true;
 		return -EIO;
@@ -819,7 +819,7 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 
 	/* Probe content for something consistent.
 	 * M06 starts with a response byte, M12 gives the data directly.
-	 * M09/Generic does not provide model number information.
+	 * M09/Generic does yest provide model number information.
 	 */
 	if (!strncasecmp(rdbuf + 1, "EP0", 3)) {
 		tsdata->version = EDT_M06;
@@ -850,13 +850,13 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		strlcpy(model_name, rdbuf, EDT_NAME_LEN);
 		strlcpy(fw_version, p ? p : "", EDT_NAME_LEN);
 	} else {
-		/* If it is not an EDT M06/M12 touchscreen, then the model
+		/* If it is yest an EDT M06/M12 touchscreen, then the model
 		 * detection is a bit hairy. The different ft5x06
 		 * firmares around don't reliably implement the
 		 * identification registers. Well, we'll take a shot.
 		 *
 		 * The main difference between generic focaltec based
-		 * touches and EDT M09 is that we know how to retrieve
+		 * touches and EDT M09 is that we kyesw how to retrieve
 		 * the max coordinates for the latter.
 		 */
 		tsdata->version = GENERIC_FT;
@@ -873,8 +873,8 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		if (error)
 			return error;
 
-		/* This "model identification" is not exact. Unfortunately
-		 * not all firmwares for the ft5x06 put useful values in
+		/* This "model identification" is yest exact. Unfortunately
+		 * yest all firmwares for the ft5x06 put useful values in
 		 * the identification registers.
 		 */
 		switch (rdbuf[0]) {
@@ -1160,7 +1160,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		input_set_abs_params(input, ABS_MT_POSITION_Y,
 				     0, tsdata->num_y * 64 - 1, 0, 0);
 	} else {
-		/* Unknown maximum values. Specify via devicetree */
+		/* Unkyeswn maximum values. Specify via devicetree */
 		input_set_abs_params(input, ABS_MT_POSITION_X,
 				     0, 65535, 0, 0);
 		input_set_abs_params(input, ABS_MT_POSITION_Y,
@@ -1259,7 +1259,7 @@ static const struct i2c_device_id edt_ft5x06_ts_id[] = {
 	{ .name = "edt-ft5x06", .driver_data = (long)&edt_ft5x06_data },
 	{ .name = "edt-ft5506", .driver_data = (long)&edt_ft5506_data },
 	{ .name = "ev-ft5726", .driver_data = (long)&edt_ft5506_data },
-	/* Note no edt- prefix for compatibility with the ft6236.c driver */
+	/* Note yes edt- prefix for compatibility with the ft6236.c driver */
 	{ .name = "ft6236", .driver_data = (long)&edt_ft6236_data },
 	{ /* sentinel */ }
 };

@@ -7,7 +7,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
@@ -47,7 +47,7 @@ static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 
 	for (idlestate = 0; idlestate < idlestates; idlestate++) {
 		int disabled = cpuidle_is_state_disabled(cpu, idlestate);
-		/* Disabled interface not supported on older kernels */
+		/* Disabled interface yest supported on older kernels */
 		if (disabled < 0)
 			disabled = 0;
 		tmp = cpuidle_state_name(cpu, idlestate);
@@ -77,20 +77,20 @@ static void cpuidle_general_output(void)
 
 	tmp = cpuidle_get_driver();
 	if (!tmp) {
-		printf(_("Could not determine cpuidle driver\n"));
+		printf(_("Could yest determine cpuidle driver\n"));
 		return;
 	}
 
 	printf(_("CPUidle driver: %s\n"), tmp);
 	free(tmp);
 
-	tmp = cpuidle_get_governor();
+	tmp = cpuidle_get_goveryesr();
 	if (!tmp) {
-		printf(_("Could not determine cpuidle governor\n"));
+		printf(_("Could yest determine cpuidle goveryesr\n"));
 		return;
 	}
 
-	printf(_("CPUidle governor: %s\n"), tmp);
+	printf(_("CPUidle goveryesr: %s\n"), tmp);
 	free(tmp);
 }
 
@@ -123,8 +123,8 @@ static void proc_cpuidle_cpu_output(unsigned int cpu)
 }
 
 static struct option info_opts[] = {
-	{"silent", no_argument, NULL, 's'},
-	{"proc", no_argument, NULL, 'o'},
+	{"silent", yes_argument, NULL, 's'},
+	{"proc", yes_argument, NULL, 'o'},
 	{ },
 };
 
@@ -172,7 +172,7 @@ int cmd_idle_info(int argc, char **argv)
 			 "output-specific argument\n"));
 		cpuidle_exit(EXIT_FAILURE);
 	case '?':
-		printf(_("invalid or unknown argument\n"));
+		printf(_("invalid or unkyeswn argument\n"));
 		cpuidle_exit(EXIT_FAILURE);
 	}
 

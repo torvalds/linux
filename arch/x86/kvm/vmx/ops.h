@@ -2,7 +2,7 @@
 #ifndef __KVM_X86_VMX_INSN_H
 #define __KVM_X86_VMX_INSN_H
 
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <asm/kvm_host.h>
 #include <asm/vmx.h>
@@ -125,7 +125,7 @@ static __always_inline unsigned long vmcs_readl(unsigned long field)
 #define vmx_asm1(insn, op1, error_args...)				\
 do {									\
 	asm_volatile_goto("1: " __stringify(insn) " %0\n\t"		\
-			  ".byte 0x2e\n\t" /* branch not taken hint */	\
+			  ".byte 0x2e\n\t" /* branch yest taken hint */	\
 			  "jna %l[error]\n\t"				\
 			  _ASM_EXTABLE(1b, %l[fault])			\
 			  : : op1 : "cc" : error, fault);		\
@@ -140,7 +140,7 @@ fault:									\
 #define vmx_asm2(insn, op1, op2, error_args...)				\
 do {									\
 	asm_volatile_goto("1: "  __stringify(insn) " %1, %0\n\t"	\
-			  ".byte 0x2e\n\t" /* branch not taken hint */	\
+			  ".byte 0x2e\n\t" /* branch yest taken hint */	\
 			  "jna %l[error]\n\t"				\
 			  _ASM_EXTABLE(1b, %l[fault])			\
 			  : : op1, op2 : "cc" : error, fault);		\
@@ -199,7 +199,7 @@ static __always_inline void vmcs_writel(unsigned long field, unsigned long value
 static __always_inline void vmcs_clear_bits(unsigned long field, u32 mask)
 {
 	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
-			 "vmcs_clear_bits does not support 64-bit fields");
+			 "vmcs_clear_bits does yest support 64-bit fields");
 	if (static_branch_unlikely(&enable_evmcs))
 		return evmcs_write32(field, evmcs_read32(field) & ~mask);
 
@@ -209,7 +209,7 @@ static __always_inline void vmcs_clear_bits(unsigned long field, u32 mask)
 static __always_inline void vmcs_set_bits(unsigned long field, u32 mask)
 {
 	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
-			 "vmcs_set_bits does not support 64-bit fields");
+			 "vmcs_set_bits does yest support 64-bit fields");
 	if (static_branch_unlikely(&enable_evmcs))
 		return evmcs_write32(field, evmcs_read32(field) | mask);
 

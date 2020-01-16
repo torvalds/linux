@@ -3,7 +3,7 @@
  * PTP hardware clock driver for the IDT ClockMatrix(TM) family of timing and
  * synchronization devices.
  *
- * Copyright (C) 2019 Integrated Device Technology, Inc., a Renesas Company.
+ * Copyright (C) 2019 Integrated Device Techyeslogy, Inc., a Renesas Company.
  */
 #include <linux/firmware.h>
 #include <linux/i2c.h>
@@ -35,7 +35,7 @@ static int char_array_to_timespec(u8 *buf,
 	if (count < TOD_BYTE_COUNT)
 		return 1;
 
-	/* Sub-nanoseconds are in buf[0]. */
+	/* Sub-nayesseconds are in buf[0]. */
 	nsec = buf[4];
 	for (i = 0; i < 3; i++) {
 		nsec <<= 8;
@@ -68,7 +68,7 @@ static int timespec_to_char_array(struct timespec64 const *ts,
 	nsec = ts->tv_nsec;
 	sec = ts->tv_sec;
 
-	/* Sub-nanoseconds are in buf[0]. */
+	/* Sub-nayesseconds are in buf[0]. */
 	buf[0] = 0;
 	for (i = 1; i < 5; i++) {
 		buf[i] = nsec & 0xff;
@@ -558,7 +558,7 @@ static int _idtcm_adjtime(struct idtcm_channel *channel, s64 delta)
 	int err;
 	struct idtcm *idtcm = channel->idtcm;
 	struct timespec64 ts;
-	s64 now;
+	s64 yesw;
 
 	if (abs(delta) < PHASE_PULL_IN_THRESHOLD_NS) {
 		err = idtcm_do_phase_pull_in(channel, delta, 0);
@@ -570,10 +570,10 @@ static int _idtcm_adjtime(struct idtcm_channel *channel, s64 delta)
 		if (err)
 			return err;
 
-		now = timespec64_to_ns(&ts);
-		now += delta;
+		yesw = timespec64_to_ns(&ts);
+		yesw += delta;
 
-		ts = ns_to_timespec64(now);
+		ts = ns_to_timespec64(yesw);
 
 		err = _idtcm_settime(channel, &ts, HW_TOD_WR_TRIG_SEL_MSB);
 	}
@@ -660,9 +660,9 @@ static int idtcm_read_major_release(struct idtcm *idtcm, u8 *major)
 	return err;
 }
 
-static int idtcm_read_minor_release(struct idtcm *idtcm, u8 *minor)
+static int idtcm_read_miyesr_release(struct idtcm *idtcm, u8 *miyesr)
 {
-	return idtcm_read(idtcm, GENERAL_STATUS, MIN_REL, minor, sizeof(u8));
+	return idtcm_read(idtcm, GENERAL_STATUS, MIN_REL, miyesr, sizeof(u8));
 }
 
 static int idtcm_read_hotfix_release(struct idtcm *idtcm, u8 *hotfix)
@@ -803,7 +803,7 @@ static int idtcm_load_firmware(struct idtcm *idtcm,
 
 		if (rec->reserved) {
 			dev_err(&idtcm->client->dev,
-				"bad firmware, reserved field non-zero\n");
+				"bad firmware, reserved field yesn-zero\n");
 			err = -EINVAL;
 		} else {
 			regaddr = rec->hiaddr << 8;
@@ -1076,7 +1076,7 @@ static int idtcm_enable_tod(struct idtcm_channel *channel)
 static void idtcm_display_version_info(struct idtcm *idtcm)
 {
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	u8 hotfix;
 	u32 pipeline;
 	u16 product_id;
@@ -1086,7 +1086,7 @@ static void idtcm_display_version_info(struct idtcm *idtcm)
 	u8 bond_id;
 
 	idtcm_read_major_release(idtcm, &major);
-	idtcm_read_minor_release(idtcm, &minor);
+	idtcm_read_miyesr_release(idtcm, &miyesr);
 	idtcm_read_hotfix_release(idtcm, &hotfix);
 	idtcm_read_pipeline(idtcm, &pipeline);
 
@@ -1098,7 +1098,7 @@ static void idtcm_display_version_info(struct idtcm *idtcm)
 
 	dev_info(&idtcm->client->dev, "Version:  %d.%d.%d, Pipeline %u\t"
 		 "0x%04x, Rev %d, Bond %d, CSR %d, IRQ %d\n",
-		 major, minor, hotfix, pipeline,
+		 major, miyesr, hotfix, pipeline,
 		 product_id, hw_rev_id, bond_id, csr_id, irq_id);
 }
 
@@ -1273,7 +1273,7 @@ static int idtcm_probe(struct i2c_client *client,
 	int err;
 	u8 i;
 
-	/* Unused for now */
+	/* Unused for yesw */
 	(void)id;
 
 	idtcm = devm_kzalloc(&client->dev, sizeof(struct idtcm), GFP_KERNEL);
@@ -1315,7 +1315,7 @@ static int idtcm_probe(struct i2c_client *client,
 		}
 	} else {
 		dev_err(&idtcm->client->dev,
-			"no PLLs flagged as PHCs, nothing to do\n");
+			"yes PLLs flagged as PHCs, yesthing to do\n");
 		err = -ENODEV;
 	}
 

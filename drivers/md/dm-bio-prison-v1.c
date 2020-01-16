@@ -113,11 +113,11 @@ static int __bio_detain(struct dm_bio_prison *prison,
 			struct dm_bio_prison_cell **cell_result)
 {
 	int r;
-	struct rb_node **new = &prison->cells.rb_node, *parent = NULL;
+	struct rb_yesde **new = &prison->cells.rb_yesde, *parent = NULL;
 
 	while (*new) {
 		struct dm_bio_prison_cell *cell =
-			rb_entry(*new, struct dm_bio_prison_cell, node);
+			rb_entry(*new, struct dm_bio_prison_cell, yesde);
 
 		r = cmp_keys(key, &cell->key);
 
@@ -137,8 +137,8 @@ static int __bio_detain(struct dm_bio_prison *prison,
 	__setup_new_cell(key, inmate, cell_prealloc);
 	*cell_result = cell_prealloc;
 
-	rb_link_node(&cell_prealloc->node, parent, new);
-	rb_insert_color(&cell_prealloc->node, &prison->cells);
+	rb_link_yesde(&cell_prealloc->yesde, parent, new);
+	rb_insert_color(&cell_prealloc->yesde, &prison->cells);
 
 	return 0;
 }
@@ -184,7 +184,7 @@ static void __cell_release(struct dm_bio_prison *prison,
 			   struct dm_bio_prison_cell *cell,
 			   struct bio_list *inmates)
 {
-	rb_erase(&cell->node, &prison->cells);
+	rb_erase(&cell->yesde, &prison->cells);
 
 	if (inmates) {
 		if (cell->holder)
@@ -206,25 +206,25 @@ EXPORT_SYMBOL_GPL(dm_cell_release);
 /*
  * Sometimes we don't want the holder, just the additional bios.
  */
-static void __cell_release_no_holder(struct dm_bio_prison *prison,
+static void __cell_release_yes_holder(struct dm_bio_prison *prison,
 				     struct dm_bio_prison_cell *cell,
 				     struct bio_list *inmates)
 {
-	rb_erase(&cell->node, &prison->cells);
+	rb_erase(&cell->yesde, &prison->cells);
 	bio_list_merge(inmates, &cell->bios);
 }
 
-void dm_cell_release_no_holder(struct dm_bio_prison *prison,
+void dm_cell_release_yes_holder(struct dm_bio_prison *prison,
 			       struct dm_bio_prison_cell *cell,
 			       struct bio_list *inmates)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&prison->lock, flags);
-	__cell_release_no_holder(prison, cell, inmates);
+	__cell_release_yes_holder(prison, cell, inmates);
 	spin_unlock_irqrestore(&prison->lock, flags);
 }
-EXPORT_SYMBOL_GPL(dm_cell_release_no_holder);
+EXPORT_SYMBOL_GPL(dm_cell_release_yes_holder);
 
 void dm_cell_error(struct dm_bio_prison *prison,
 		   struct dm_bio_prison_cell *cell, blk_status_t error)
@@ -249,7 +249,7 @@ void dm_cell_visit_release(struct dm_bio_prison *prison,
 {
 	spin_lock_irq(&prison->lock);
 	visit_fn(context, cell);
-	rb_erase(&cell->node, &prison->cells);
+	rb_erase(&cell->yesde, &prison->cells);
 	spin_unlock_irq(&prison->lock);
 }
 EXPORT_SYMBOL_GPL(dm_cell_visit_release);
@@ -258,7 +258,7 @@ static int __promote_or_release(struct dm_bio_prison *prison,
 				struct dm_bio_prison_cell *cell)
 {
 	if (bio_list_empty(&cell->bios)) {
-		rb_erase(&cell->node, &prison->cells);
+		rb_erase(&cell->yesde, &prison->cells);
 		return 1;
 	}
 
@@ -368,7 +368,7 @@ void dm_deferred_entry_dec(struct dm_deferred_entry *entry, struct list_head *he
 EXPORT_SYMBOL_GPL(dm_deferred_entry_dec);
 
 /*
- * Returns 1 if deferred or 0 if no pending items to delay job.
+ * Returns 1 if deferred or 0 if yes pending items to delay job.
  */
 int dm_deferred_set_add_work(struct dm_deferred_set *ds, struct list_head *work)
 {

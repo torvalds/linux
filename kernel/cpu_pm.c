@@ -9,94 +9,94 @@
 #include <linux/kernel.h>
 #include <linux/cpu_pm.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
 
-static ATOMIC_NOTIFIER_HEAD(cpu_pm_notifier_chain);
+static ATOMIC_NOTIFIER_HEAD(cpu_pm_yestifier_chain);
 
-static int cpu_pm_notify(enum cpu_pm_event event, int nr_to_call, int *nr_calls)
+static int cpu_pm_yestify(enum cpu_pm_event event, int nr_to_call, int *nr_calls)
 {
 	int ret;
 
 	/*
-	 * __atomic_notifier_call_chain has a RCU read critical section, which
+	 * __atomic_yestifier_call_chain has a RCU read critical section, which
 	 * could be disfunctional in cpu idle. Copy RCU_NONIDLE code to let
-	 * RCU know this.
+	 * RCU kyesw this.
 	 */
 	rcu_irq_enter_irqson();
-	ret = __atomic_notifier_call_chain(&cpu_pm_notifier_chain, event, NULL,
+	ret = __atomic_yestifier_call_chain(&cpu_pm_yestifier_chain, event, NULL,
 		nr_to_call, nr_calls);
 	rcu_irq_exit_irqson();
 
-	return notifier_to_errno(ret);
+	return yestifier_to_erryes(ret);
 }
 
 /**
- * cpu_pm_register_notifier - register a driver with cpu_pm
- * @nb: notifier block to register
+ * cpu_pm_register_yestifier - register a driver with cpu_pm
+ * @nb: yestifier block to register
  *
- * Add a driver to a list of drivers that are notified about
+ * Add a driver to a list of drivers that are yestified about
  * CPU and CPU cluster low power entry and exit.
  *
  * This function may sleep, and has the same return conditions as
- * raw_notifier_chain_register.
+ * raw_yestifier_chain_register.
  */
-int cpu_pm_register_notifier(struct notifier_block *nb)
+int cpu_pm_register_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&cpu_pm_notifier_chain, nb);
+	return atomic_yestifier_chain_register(&cpu_pm_yestifier_chain, nb);
 }
-EXPORT_SYMBOL_GPL(cpu_pm_register_notifier);
+EXPORT_SYMBOL_GPL(cpu_pm_register_yestifier);
 
 /**
- * cpu_pm_unregister_notifier - unregister a driver with cpu_pm
- * @nb: notifier block to be unregistered
+ * cpu_pm_unregister_yestifier - unregister a driver with cpu_pm
+ * @nb: yestifier block to be unregistered
  *
- * Remove a driver from the CPU PM notifier list.
+ * Remove a driver from the CPU PM yestifier list.
  *
  * This function may sleep, and has the same return conditions as
- * raw_notifier_chain_unregister.
+ * raw_yestifier_chain_unregister.
  */
-int cpu_pm_unregister_notifier(struct notifier_block *nb)
+int cpu_pm_unregister_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&cpu_pm_notifier_chain, nb);
+	return atomic_yestifier_chain_unregister(&cpu_pm_yestifier_chain, nb);
 }
-EXPORT_SYMBOL_GPL(cpu_pm_unregister_notifier);
+EXPORT_SYMBOL_GPL(cpu_pm_unregister_yestifier);
 
 /**
- * cpu_pm_enter - CPU low power entry notifier
+ * cpu_pm_enter - CPU low power entry yestifier
  *
  * Notifies listeners that a single CPU is entering a low power state that may
  * cause some blocks in the same power domain as the cpu to reset.
  *
  * Must be called on the affected CPU with interrupts disabled.  Platform is
- * responsible for ensuring that cpu_pm_enter is not called twice on the same
+ * responsible for ensuring that cpu_pm_enter is yest called twice on the same
  * CPU before cpu_pm_exit is called. Notified drivers can include VFP
  * co-processor, interrupt controller and its PM extensions, local CPU
  * timers context save/restore which shouldn't be interrupted. Hence it
  * must be called with interrupts disabled.
  *
- * Return conditions are same as __raw_notifier_call_chain.
+ * Return conditions are same as __raw_yestifier_call_chain.
  */
 int cpu_pm_enter(void)
 {
 	int nr_calls;
 	int ret = 0;
 
-	ret = cpu_pm_notify(CPU_PM_ENTER, -1, &nr_calls);
+	ret = cpu_pm_yestify(CPU_PM_ENTER, -1, &nr_calls);
 	if (ret)
 		/*
 		 * Inform listeners (nr_calls - 1) about failure of CPU PM
-		 * PM entry who are notified earlier to prepare for it.
+		 * PM entry who are yestified earlier to prepare for it.
 		 */
-		cpu_pm_notify(CPU_PM_ENTER_FAILED, nr_calls - 1, NULL);
+		cpu_pm_yestify(CPU_PM_ENTER_FAILED, nr_calls - 1, NULL);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpu_pm_enter);
 
 /**
- * cpu_pm_exit - CPU low power exit notifier
+ * cpu_pm_exit - CPU low power exit yestifier
  *
  * Notifies listeners that a single CPU is exiting a low power state that may
  * have caused some blocks in the same power domain as the cpu to reset.
@@ -105,16 +105,16 @@ EXPORT_SYMBOL_GPL(cpu_pm_enter);
  * and its PM extensions, local CPU timers context save/restore which
  * shouldn't be interrupted. Hence it must be called with interrupts disabled.
  *
- * Return conditions are same as __raw_notifier_call_chain.
+ * Return conditions are same as __raw_yestifier_call_chain.
  */
 int cpu_pm_exit(void)
 {
-	return cpu_pm_notify(CPU_PM_EXIT, -1, NULL);
+	return cpu_pm_yestify(CPU_PM_EXIT, -1, NULL);
 }
 EXPORT_SYMBOL_GPL(cpu_pm_exit);
 
 /**
- * cpu_cluster_pm_enter - CPU cluster low power entry notifier
+ * cpu_cluster_pm_enter - CPU cluster low power entry yestifier
  *
  * Notifies listeners that all cpus in a power domain are entering a low power
  * state that may cause some blocks in the same power domain to reset.
@@ -127,27 +127,27 @@ EXPORT_SYMBOL_GPL(cpu_pm_exit);
  *
  * Must be called with interrupts disabled.
  *
- * Return conditions are same as __raw_notifier_call_chain.
+ * Return conditions are same as __raw_yestifier_call_chain.
  */
 int cpu_cluster_pm_enter(void)
 {
 	int nr_calls;
 	int ret = 0;
 
-	ret = cpu_pm_notify(CPU_CLUSTER_PM_ENTER, -1, &nr_calls);
+	ret = cpu_pm_yestify(CPU_CLUSTER_PM_ENTER, -1, &nr_calls);
 	if (ret)
 		/*
 		 * Inform listeners (nr_calls - 1) about failure of CPU cluster
-		 * PM entry who are notified earlier to prepare for it.
+		 * PM entry who are yestified earlier to prepare for it.
 		 */
-		cpu_pm_notify(CPU_CLUSTER_PM_ENTER_FAILED, nr_calls - 1, NULL);
+		cpu_pm_yestify(CPU_CLUSTER_PM_ENTER_FAILED, nr_calls - 1, NULL);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpu_cluster_pm_enter);
 
 /**
- * cpu_cluster_pm_exit - CPU cluster low power exit notifier
+ * cpu_cluster_pm_exit - CPU cluster low power exit yestifier
  *
  * Notifies listeners that all cpus in a power domain are exiting form a
  * low power state that may have caused some blocks in the same power domain
@@ -159,11 +159,11 @@ EXPORT_SYMBOL_GPL(cpu_cluster_pm_enter);
  * and its PM extensions, local CPU timers context save/restore which
  * shouldn't be interrupted. Hence it must be called with interrupts disabled.
  *
- * Return conditions are same as __raw_notifier_call_chain.
+ * Return conditions are same as __raw_yestifier_call_chain.
  */
 int cpu_cluster_pm_exit(void)
 {
-	return cpu_pm_notify(CPU_CLUSTER_PM_EXIT, -1, NULL);
+	return cpu_pm_yestify(CPU_CLUSTER_PM_EXIT, -1, NULL);
 }
 EXPORT_SYMBOL_GPL(cpu_cluster_pm_exit);
 

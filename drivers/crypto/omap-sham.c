@@ -5,7 +5,7 @@
  * Support for OMAP SHA1/MD5 HW acceleration.
  *
  * Copyright (c) 2010 Nokia Corporation
- * Author: Dmitry Kasatkin <dmitry.kasatkin@nokia.com>
+ * Author: Dmitry Kasatkin <dmitry.kasatkin@yeskia.com>
  * Copyright (c) 2011 Texas Instruments Incorporated
  *
  * Some ideas are from old omap-sha1-md5.c driver.
@@ -17,7 +17,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
@@ -208,8 +208,8 @@ struct omap_sham_pdata {
 
 	u32		major_mask;
 	u32		major_shift;
-	u32		minor_mask;
-	u32		minor_shift;
+	u32		miyesr_mask;
+	u32		miyesr_shift;
 };
 
 struct omap_sham_dev {
@@ -527,7 +527,7 @@ static int omap_sham_xmit_cpu(struct omap_sham_dev *dd, size_t length,
 	dd->pdata->write_ctrl(dd, length, final, 0);
 	dd->pdata->trigger(dd, length);
 
-	/* should be non-zero before next lines to disable clocks later */
+	/* should be yesn-zero before next lines to disable clocks later */
 	ctx->digcnt += length;
 	ctx->total -= length;
 
@@ -1027,7 +1027,7 @@ static int omap_sham_final_req(struct omap_sham_dev *dd)
 	if ((ctx->total <= get_block_size(ctx)) || dd->polling_mode)
 		/*
 		 * faster to handle last block with cpu or
-		 * use cpu when dma is not present.
+		 * use cpu when dma is yest present.
 		 */
 		use_dma = 0;
 
@@ -1100,7 +1100,7 @@ static void omap_sham_finish_req(struct ahash_request *req, int err)
 		ctx->flags |= BIT(FLAGS_ERROR);
 	}
 
-	/* atomic operation is not needed here */
+	/* atomic operation is yest needed here */
 	dd->flags &= ~(BIT(FLAGS_BUSY) | BIT(FLAGS_FINAL) | BIT(FLAGS_CPU) |
 			BIT(FLAGS_DMA_READY) | BIT(FLAGS_OUTPUT_READY));
 
@@ -1161,7 +1161,7 @@ retry:
 	if (ctx->op == OP_UPDATE) {
 		err = omap_sham_update_req(dd);
 		if (err != -EINPROGRESS && (ctx->flags & BIT(FLAGS_FINUP)))
-			/* no final() after finup() */
+			/* yes final() after finup() */
 			err = omap_sham_final_req(dd);
 	} else if (ctx->op == OP_FINAL) {
 		err = omap_sham_final_req(dd);
@@ -1170,7 +1170,7 @@ err1:
 	dev_dbg(dd->dev, "exit, err: %d\n", err);
 
 	if (err != -EINPROGRESS) {
-		/* done_task will not finish it, so do it here */
+		/* done_task will yest finish it, so do it here */
 		omap_sham_finish_req(req, err);
 		req = NULL;
 
@@ -1253,7 +1253,7 @@ static int omap_sham_final(struct ahash_request *req)
 	ctx->flags |= BIT(FLAGS_FINUP);
 
 	if (ctx->flags & BIT(FLAGS_ERROR))
-		return 0; /* uncompleted hash is not needed */
+		return 0; /* uncompleted hash is yest needed */
 
 	/*
 	 * OMAP HW accel works only with buffers >= 9.
@@ -1356,7 +1356,7 @@ static int omap_sham_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 					    CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(tctx->fallback)) {
 		pr_err("omap-sham: fallback driver '%s' "
-				"could not be loaded.\n", alg_name);
+				"could yest be loaded.\n", alg_name);
 		return PTR_ERR(tctx->fallback);
 	}
 
@@ -1370,7 +1370,7 @@ static int omap_sham_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 						CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(bctx->shash)) {
 			pr_err("omap-sham: base driver '%s' "
-					"could not be loaded.\n", alg_base);
+					"could yest be loaded.\n", alg_base);
 			crypto_free_shash(tctx->fallback);
 			return PTR_ERR(bctx->shash);
 		}
@@ -1760,7 +1760,7 @@ finish:
 	/* finish curent request */
 	omap_sham_finish_req(dd->req, err);
 
-	/* If we are not busy, process next req */
+	/* If we are yest busy, process next req */
 	if (!test_bit(FLAGS_BUSY, &dd->flags))
 		omap_sham_handle_queue(dd, NULL);
 }
@@ -1768,7 +1768,7 @@ finish:
 static irqreturn_t omap_sham_irq_common(struct omap_sham_dev *dd)
 {
 	if (!test_bit(FLAGS_BUSY, &dd->flags)) {
-		dev_warn(dd->dev, "Interrupt when no active requests.\n");
+		dev_warn(dd->dev, "Interrupt when yes active requests.\n");
 	} else {
 		set_bit(FLAGS_OUTPUT_READY, &dd->flags);
 		tasklet_schedule(&dd->done_task);
@@ -1826,8 +1826,8 @@ static const struct omap_sham_pdata omap_sham_pdata_omap2 = {
 	.sysstatus_ofs	= 0x64,
 	.major_mask	= 0xf0,
 	.major_shift	= 4,
-	.minor_mask	= 0x0f,
-	.minor_shift	= 0,
+	.miyesr_mask	= 0x0f,
+	.miyesr_shift	= 0,
 };
 
 #ifdef CONFIG_OF
@@ -1863,8 +1863,8 @@ static const struct omap_sham_pdata omap_sham_pdata_omap4 = {
 	.length_ofs	= 0x48,
 	.major_mask	= 0x0700,
 	.major_shift	= 8,
-	.minor_mask	= 0x003f,
-	.minor_shift	= 0,
+	.miyesr_mask	= 0x003f,
+	.miyesr_shift	= 0,
 };
 
 static struct omap_sham_algs_info omap_sham_algs_info_omap5[] = {
@@ -1903,8 +1903,8 @@ static const struct omap_sham_pdata omap_sham_pdata_omap5 = {
 	.length_ofs	= 0x288,
 	.major_mask	= 0x0700,
 	.major_shift	= 8,
-	.minor_mask	= 0x003f,
-	.minor_shift	= 0,
+	.miyesr_mask	= 0x003f,
+	.miyesr_shift	= 0,
 };
 
 static const struct of_device_id omap_sham_of_match[] = {
@@ -1931,24 +1931,24 @@ MODULE_DEVICE_TABLE(of, omap_sham_of_match);
 static int omap_sham_get_res_of(struct omap_sham_dev *dd,
 		struct device *dev, struct resource *res)
 {
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	int err = 0;
 
 	dd->pdata = of_device_get_match_data(dev);
 	if (!dd->pdata) {
-		dev_err(dev, "no compatible OF match\n");
+		dev_err(dev, "yes compatible OF match\n");
 		err = -EINVAL;
 		goto err;
 	}
 
-	err = of_address_to_resource(node, 0, res);
+	err = of_address_to_resource(yesde, 0, res);
 	if (err < 0) {
-		dev_err(dev, "can't translate OF node address\n");
+		dev_err(dev, "can't translate OF yesde address\n");
 		err = -EINVAL;
 		goto err;
 	}
 
-	dd->irq = irq_of_parse_and_map(node, 0);
+	dd->irq = irq_of_parse_and_map(yesde, 0);
 	if (!dd->irq) {
 		dev_err(dev, "can't translate OF irq value\n");
 		err = -EINVAL;
@@ -1980,7 +1980,7 @@ static int omap_sham_get_res_pdev(struct omap_sham_dev *dd,
 	/* Get the base address */
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(dev, "no MEM resource info\n");
+		dev_err(dev, "yes MEM resource info\n");
 		err = -ENODEV;
 		goto err;
 	}
@@ -1993,7 +1993,7 @@ static int omap_sham_get_res_pdev(struct omap_sham_dev *dd,
 		goto err;
 	}
 
-	/* Only OMAP2/3 can be non-DT */
+	/* Only OMAP2/3 can be yesn-DT */
 	dd->pdata = &omap_sham_pdata_omap2;
 
 err:
@@ -2056,8 +2056,8 @@ static ssize_t queue_len_store(struct device *dev,
 
 	/*
 	 * Changing the queue size in fly is safe, if size becomes smaller
-	 * than current size, it will just not accept new entries until
-	 * it has shrank enough.
+	 * than current size, it will just yest accept new entries until
+	 * it has shrank eyesugh.
 	 */
 	spin_lock_irqsave(&dd->lock, flags);
 	dd->queue.max_qlen = value;
@@ -2102,7 +2102,7 @@ static int omap_sham_probe(struct platform_device *pdev)
 	tasklet_init(&dd->done_task, omap_sham_done_task, (unsigned long)dd);
 	crypto_init_queue(&dd->queue, OMAP_SHAM_QUEUE_LENGTH);
 
-	err = (dev->of_node) ? omap_sham_get_res_of(dd, dev, &res) :
+	err = (dev->of_yesde) ? omap_sham_get_res_of(dd, dev, &res) :
 			       omap_sham_get_res_pdev(dd, pdev, &res);
 	if (err)
 		goto data_err;
@@ -2156,7 +2156,7 @@ static int omap_sham_probe(struct platform_device *pdev)
 
 	dev_info(dev, "hw accel on OMAP rev %u.%u\n",
 		(rev & dd->pdata->major_mask) >> dd->pdata->major_shift,
-		(rev & dd->pdata->minor_mask) >> dd->pdata->minor_shift);
+		(rev & dd->pdata->miyesr_mask) >> dd->pdata->miyesr_shift);
 
 	spin_lock(&sham.lock);
 	list_add_tail(&dd->list, &sham.dev_list);
@@ -2181,7 +2181,7 @@ static int omap_sham_probe(struct platform_device *pdev)
 
 	err = sysfs_create_group(&dev->kobj, &omap_sham_attr_group);
 	if (err) {
-		dev_err(dev, "could not create sysfs device attrs\n");
+		dev_err(dev, "could yest create sysfs device attrs\n");
 		goto err_algs;
 	}
 

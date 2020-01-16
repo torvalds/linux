@@ -13,11 +13,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * - Redistributions of source code must retain the above copyright notice,
+ * - Redistributions of source code must retain the above copyright yestice,
  *   this list of conditions and the following disclaimer.
  *
  * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
@@ -111,20 +111,20 @@ static char *ocrdma_resource_stats(struct ocrdma_dev *dev)
 	pcur = stats;
 	pcur += ocrdma_add_stat(stats, pcur, "active_dpp_pds",
 				(u64)rsrc_stats->dpp_pds);
-	pcur += ocrdma_add_stat(stats, pcur, "active_non_dpp_pds",
-				(u64)rsrc_stats->non_dpp_pds);
+	pcur += ocrdma_add_stat(stats, pcur, "active_yesn_dpp_pds",
+				(u64)rsrc_stats->yesn_dpp_pds);
 	pcur += ocrdma_add_stat(stats, pcur, "active_rc_dpp_qps",
 				(u64)rsrc_stats->rc_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "active_uc_dpp_qps",
 				(u64)rsrc_stats->uc_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "active_ud_dpp_qps",
 				(u64)rsrc_stats->ud_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "active_rc_non_dpp_qps",
-				(u64)rsrc_stats->rc_non_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "active_uc_non_dpp_qps",
-				(u64)rsrc_stats->uc_non_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "active_ud_non_dpp_qps",
-				(u64)rsrc_stats->ud_non_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "active_rc_yesn_dpp_qps",
+				(u64)rsrc_stats->rc_yesn_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "active_uc_yesn_dpp_qps",
+				(u64)rsrc_stats->uc_yesn_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "active_ud_yesn_dpp_qps",
+				(u64)rsrc_stats->ud_yesn_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "active_srqs",
 				(u64)rsrc_stats->srqs);
 	pcur += ocrdma_add_stat(stats, pcur, "active_rbqs",
@@ -165,20 +165,20 @@ static char *ocrdma_resource_stats(struct ocrdma_dev *dev)
 
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_dpp_pds",
 				(u64)rsrc_stats->dpp_pds);
-	pcur += ocrdma_add_stat(stats, pcur, "threshold_non_dpp_pds",
-				(u64)rsrc_stats->non_dpp_pds);
+	pcur += ocrdma_add_stat(stats, pcur, "threshold_yesn_dpp_pds",
+				(u64)rsrc_stats->yesn_dpp_pds);
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_rc_dpp_qps",
 				(u64)rsrc_stats->rc_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_uc_dpp_qps",
 				(u64)rsrc_stats->uc_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_ud_dpp_qps",
 				(u64)rsrc_stats->ud_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "threshold_rc_non_dpp_qps",
-				(u64)rsrc_stats->rc_non_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "threshold_uc_non_dpp_qps",
-				(u64)rsrc_stats->uc_non_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "threshold_ud_non_dpp_qps",
-				(u64)rsrc_stats->ud_non_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "threshold_rc_yesn_dpp_qps",
+				(u64)rsrc_stats->rc_yesn_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "threshold_uc_yesn_dpp_qps",
+				(u64)rsrc_stats->uc_yesn_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "threshold_ud_yesn_dpp_qps",
+				(u64)rsrc_stats->ud_yesn_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_srqs",
 				(u64)rsrc_stats->srqs);
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_rbqs",
@@ -605,13 +605,13 @@ static char *ocrdma_driver_dbg_stats(struct ocrdma_dev *dev)
 
 static void ocrdma_update_stats(struct ocrdma_dev *dev)
 {
-	ulong now = jiffies, secs;
+	ulong yesw = jiffies, secs;
 	int status;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 		      (struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_rsrc_stats *rsrc_stats = &rdma_stats->act_rsrc_stats;
 
-	secs = jiffies_to_msecs(now - dev->last_stats_time) / 1000U;
+	secs = jiffies_to_msecs(yesw - dev->last_stats_time) / 1000U;
 	if (secs) {
 		/* update */
 		status = ocrdma_mbx_rdma_stats(dev, false);
@@ -621,11 +621,11 @@ static void ocrdma_update_stats(struct ocrdma_dev *dev)
 		/* Update PD counters from PD resource manager */
 		if (dev->pd_mgr->pd_prealloc_valid) {
 			rsrc_stats->dpp_pds = dev->pd_mgr->pd_dpp_count;
-			rsrc_stats->non_dpp_pds = dev->pd_mgr->pd_norm_count;
+			rsrc_stats->yesn_dpp_pds = dev->pd_mgr->pd_yesrm_count;
 			/* Threshold stata*/
 			rsrc_stats = &rdma_stats->th_rsrc_stats;
 			rsrc_stats->dpp_pds = dev->pd_mgr->pd_dpp_thrsh;
-			rsrc_stats->non_dpp_pds = dev->pd_mgr->pd_norm_thrsh;
+			rsrc_stats->yesn_dpp_pds = dev->pd_mgr->pd_yesrm_thrsh;
 		}
 		dev->last_stats_time = jiffies;
 	}

@@ -4,7 +4,7 @@
  * MPEG Transport Stream (DVB) routines
  *
  * (c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
- * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2004 Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "cx88.h"
@@ -50,7 +50,7 @@
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
@@ -293,7 +293,7 @@ static const struct mt352_config dvico_fusionhdtv_dual = {
 
 static const struct zl10353_config cx88_terratec_cinergy_ht_pci_mkii_config = {
 	.demod_address = (0x1e >> 1),
-	.no_tuner      = 1,
+	.yes_tuner      = 1,
 	.if2           = 45600,
 };
 
@@ -327,26 +327,26 @@ static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend *fe)
 
 static const struct mt352_config dntv_live_dvbt_pro_config = {
 	.demod_address = 0x0f,
-	.no_tuner      = 1,
+	.yes_tuner      = 1,
 	.demod_init    = dntv_live_dvbt_pro_demod_init,
 };
 #endif
 
 static const struct zl10353_config dvico_fusionhdtv_hybrid = {
 	.demod_address = 0x0f,
-	.no_tuner      = 1,
+	.yes_tuner      = 1,
 };
 
 static const struct zl10353_config dvico_fusionhdtv_xc3028 = {
 	.demod_address = 0x0f,
 	.if2           = 45600,
-	.no_tuner      = 1,
+	.yes_tuner      = 1,
 };
 
 static const struct mt352_config dvico_fusionhdtv_mt352_xc3028 = {
 	.demod_address = 0x0f,
 	.if2 = 4560,
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.demod_init = dvico_fusionhdtv_demod_init,
 };
 
@@ -528,7 +528,7 @@ static const struct cx24123_config geniatech_dvbs_config = {
 	.set_ts_params = cx24123_set_ts_param,
 };
 
-static const struct cx24123_config hauppauge_novas_config = {
+static const struct cx24123_config hauppauge_yesvas_config = {
 	.demod_address = 0x55,
 	.set_ts_params = cx24123_set_ts_param,
 };
@@ -549,7 +549,7 @@ static const struct s5h1409_config pinnacle_pctv_hd_800i_config = {
 	.mpeg_timing   = S5H1409_MPEGTIMING_NONCONTINUOUS_NONINVERTING_CLOCK,
 };
 
-static const struct s5h1409_config dvico_hdtv5_pci_nano_config = {
+static const struct s5h1409_config dvico_hdtv5_pci_nayes_config = {
 	.demod_address = 0x32 >> 1,
 	.output_mode   = S5H1409_SERIAL_OUTPUT,
 	.gpio          = S5H1409_GPIO_OFF,
@@ -574,13 +574,13 @@ static const struct xc5000_config pinnacle_pctv_hd_800i_tuner_config = {
 
 static const struct zl10353_config cx88_pinnacle_hybrid_pctv = {
 	.demod_address = (0x1e >> 1),
-	.no_tuner      = 1,
+	.yes_tuner      = 1,
 	.if2           = 45600,
 };
 
 static const struct zl10353_config cx88_geniatech_x8000_mt = {
 	.demod_address = (0x1e >> 1),
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.disable_i2c_gate_ctrl = 1,
 };
 
@@ -616,12 +616,12 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 		return -EINVAL;
 
 	if (!fe0->dvb.frontend) {
-		pr_err("dvb frontend not attached. Can't attach xc3028\n");
+		pr_err("dvb frontend yest attached. Can't attach xc3028\n");
 		return -EINVAL;
 	}
 
 	/*
-	 * Some xc3028 devices may be hidden by an I2C gate. This is known
+	 * Some xc3028 devices may be hidden by an I2C gate. This is kyeswn
 	 * to happen with some s5h1409-based devices.
 	 * Now that I2C gate is open, sets up xc3028 configuration
 	 */
@@ -652,7 +652,7 @@ static int attach_xc4000(struct cx8802_dev *dev, struct xc4000_config *cfg)
 		return -EINVAL;
 
 	if (!fe0->dvb.frontend) {
-		pr_err("dvb frontend not attached. Can't attach xc4000\n");
+		pr_err("dvb frontend yest attached. Can't attach xc4000\n");
 		return -EINVAL;
 	}
 
@@ -988,11 +988,11 @@ static int dvb_register(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
 	struct vb2_dvb_frontend *fe0, *fe1 = NULL;
-	int mfe_shared = 0; /* bus not shared by default */
+	int mfe_shared = 0; /* bus yest shared by default */
 	int res = -EINVAL;
 
 	if (core->i2c_rc != 0) {
-		pr_err("no i2c-bus available, cannot attach dvb drivers\n");
+		pr_err("yes i2c-bus available, canyest attach dvb drivers\n");
 		goto frontend_detach;
 	}
 
@@ -1065,7 +1065,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->frontends.gate = 2;
 		/* DVB-S init */
 		fe0->dvb.frontend = dvb_attach(cx24123_attach,
-					       &hauppauge_novas_config,
+					       &hauppauge_yesvas_config,
 					       &dev->core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(isl6421_attach,
@@ -1194,8 +1194,8 @@ static int dvb_register(struct cx8802_dev *dev)
 						&core->i2c_adap);
 		/*
 		 * On this board, the demod provides the I2C bus pullup.
-		 * We must not permit gate_ctrl to be performed, or
-		 * the xc3028 cannot communicate on the bus.
+		 * We must yest permit gate_ctrl to be performed, or
+		 * the xc3028 canyest communicate on the bus.
 		 */
 		if (fe0->dvb.frontend)
 			fe0->dvb.frontend->ops.i2c_gate_ctrl = NULL;
@@ -1311,7 +1311,7 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
 		fe0->dvb.frontend = dvb_attach(cx24123_attach,
-					       &hauppauge_novas_config,
+					       &hauppauge_yesvas_config,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			bool override_tone;
@@ -1358,7 +1358,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		fe0->dvb.frontend = dvb_attach(s5h1409_attach,
-					       &dvico_hdtv5_pci_nano_config,
+					       &dvico_hdtv5_pci_nayes_config,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			struct dvb_frontend *fe;
@@ -1708,7 +1708,7 @@ static int cx8802_dvb_advise_acquire(struct cx8802_driver *drv)
 	return err;
 }
 
-/* CX8802 MPEG -> mini driver - We no longer have the hardware */
+/* CX8802 MPEG -> mini driver - We yes longer have the hardware */
 static int cx8802_dvb_advise_release(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;

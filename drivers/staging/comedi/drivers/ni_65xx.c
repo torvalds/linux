@@ -26,14 +26,14 @@
  *   PCI-6528 (pci-6528), PXI-6528 (pxi-6528)
  * Updated: Mon, 21 Jul 2014 12:49:58 +0000
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: yest applicable, uses PCI auto config
  *
  * Based on the PCI-6527 driver by ds.
  * The interrupt subdevice (subdevice 3) is probably broken for all
  * boards except maybe the 6514.
  *
  * This driver previously inverted the outputs on PCI-6513 through to
- * PCI-6519 and on PXI-6513 through to PXI-6515.  It no longer inverts
+ * PCI-6519 and on PXI-6513 through to PXI-6515.  It yes longer inverts
  * outputs on those cards by default as it didn't make much sense.  If
  * you require the outputs to be inverted on those cards for legacy
  * reasons, set the module parameter "legacy_invert_outputs=true" when
@@ -56,7 +56,7 @@
  * PCI BAR1 Register Map
  */
 
-/* Non-recurring Registers (8-bit except where noted) */
+/* Non-recurring Registers (8-bit except where yested) */
 #define NI_65XX_ID_REG			0x00
 #define NI_65XX_CLR_REG			0x01
 #define NI_65XX_CLR_WDOG_INT		BIT(6)
@@ -358,7 +358,7 @@ static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_FILTER:
 		/*
-		 * The deglitch filter interval is specified in nanoseconds.
+		 * The deglitch filter interval is specified in nayesseconds.
 		 * The hardware supports intervals in 200ns increments. Round
 		 * the user values up and return the actual interval.
 		 */

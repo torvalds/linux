@@ -14,20 +14,20 @@
 
 #include "msm_gpu.h"
 
-#include "adreno_common.xml.h"
-#include "adreno_pm4.xml.h"
+#include "adreyes_common.xml.h"
+#include "adreyes_pm4.xml.h"
 
 #define REG_ADRENO_DEFINE(_offset, _reg) [_offset] = (_reg) + 1
 #define REG_SKIP ~0
 #define REG_ADRENO_SKIP(_offset) [_offset] = REG_SKIP
 
 /**
- * adreno_regs: List of registers that are used in across all
+ * adreyes_regs: List of registers that are used in across all
  * 3D devices. Each device type has different offset value for the same
  * register, so an array of register offsets are declared for every device
  * and are indexed by the enumeration values defined in this enum
  */
-enum adreno_regs {
+enum adreyes_regs {
 	REG_ADRENO_CP_RB_BASE,
 	REG_ADRENO_CP_RB_BASE_HI,
 	REG_ADRENO_CP_RB_RPTR_ADDR,
@@ -47,48 +47,48 @@ enum {
 	ADRENO_FW_MAX,
 };
 
-enum adreno_quirks {
+enum adreyes_quirks {
 	ADRENO_QUIRK_TWO_PASS_USE_WFI = 1,
 	ADRENO_QUIRK_FAULT_DETECT_MASK = 2,
 	ADRENO_QUIRK_LMLOADKILL_DISABLE = 3,
 };
 
-struct adreno_rev {
+struct adreyes_rev {
 	uint8_t  core;
 	uint8_t  major;
-	uint8_t  minor;
+	uint8_t  miyesr;
 	uint8_t  patchid;
 };
 
-#define ADRENO_REV(core, major, minor, patchid) \
-	((struct adreno_rev){ core, major, minor, patchid })
+#define ADRENO_REV(core, major, miyesr, patchid) \
+	((struct adreyes_rev){ core, major, miyesr, patchid })
 
-struct adreno_gpu_funcs {
+struct adreyes_gpu_funcs {
 	struct msm_gpu_funcs base;
 	int (*get_timestamp)(struct msm_gpu *gpu, uint64_t *value);
 };
 
-struct adreno_info {
-	struct adreno_rev rev;
+struct adreyes_info {
+	struct adreyes_rev rev;
 	uint32_t revn;
 	const char *name;
 	const char *fw[ADRENO_FW_MAX];
 	uint32_t gmem;
-	enum adreno_quirks quirks;
+	enum adreyes_quirks quirks;
 	struct msm_gpu *(*init)(struct drm_device *dev);
 	const char *zapfw;
 	u32 inactive_period;
 };
 
-const struct adreno_info *adreno_info(struct adreno_rev rev);
+const struct adreyes_info *adreyes_info(struct adreyes_rev rev);
 
-struct adreno_gpu {
+struct adreyes_gpu {
 	struct msm_gpu base;
-	struct adreno_rev rev;
-	const struct adreno_info *info;
+	struct adreyes_rev rev;
+	const struct adreyes_info *info;
 	uint32_t gmem;  /* actual gmem size */
 	uint32_t revn;  /* numeric revision name */
-	const struct adreno_gpu_funcs *funcs;
+	const struct adreyes_gpu_funcs *funcs;
 
 	/* interesting register offsets to dump: */
 	const unsigned int *registers;
@@ -124,17 +124,17 @@ struct adreno_gpu {
 	 */
 	const unsigned int *reg_offsets;
 };
-#define to_adreno_gpu(x) container_of(x, struct adreno_gpu, base)
+#define to_adreyes_gpu(x) container_of(x, struct adreyes_gpu, base)
 
-struct adreno_ocmem {
+struct adreyes_ocmem {
 	struct ocmem *ocmem;
 	unsigned long base;
 	void *hdl;
 };
 
 /* platform config data (ie. from DT, or pdata) */
-struct adreno_platform_config {
-	struct adreno_rev rev;
+struct adreyes_platform_config {
+	struct adreyes_rev rev;
 };
 
 #define ADRENO_IDLE_TIMEOUT msecs_to_jiffies(1000)
@@ -151,144 +151,144 @@ struct adreno_platform_config {
 	__ret;                                             \
 })
 
-static inline bool adreno_is_a2xx(struct adreno_gpu *gpu)
+static inline bool adreyes_is_a2xx(struct adreyes_gpu *gpu)
 {
 	return (gpu->revn < 300);
 }
 
-static inline bool adreno_is_a20x(struct adreno_gpu *gpu)
+static inline bool adreyes_is_a20x(struct adreyes_gpu *gpu)
 {
 	return (gpu->revn < 210);
 }
 
-static inline bool adreno_is_a225(struct adreno_gpu *gpu)
+static inline bool adreyes_is_a225(struct adreyes_gpu *gpu)
 {
 	return gpu->revn == 225;
 }
 
-static inline bool adreno_is_a3xx(struct adreno_gpu *gpu)
+static inline bool adreyes_is_a3xx(struct adreyes_gpu *gpu)
 {
 	return (gpu->revn >= 300) && (gpu->revn < 400);
 }
 
-static inline bool adreno_is_a305(struct adreno_gpu *gpu)
+static inline bool adreyes_is_a305(struct adreyes_gpu *gpu)
 {
 	return gpu->revn == 305;
 }
 
-static inline bool adreno_is_a306(struct adreno_gpu *gpu)
+static inline bool adreyes_is_a306(struct adreyes_gpu *gpu)
 {
-	/* yes, 307, because a305c is 306 */
+	/* no, 307, because a305c is 306 */
 	return gpu->revn == 307;
 }
 
-static inline bool adreno_is_a320(struct adreno_gpu *gpu)
+static inline bool adreyes_is_a320(struct adreyes_gpu *gpu)
 {
 	return gpu->revn == 320;
 }
 
-static inline bool adreno_is_a330(struct adreno_gpu *gpu)
+static inline bool adreyes_is_a330(struct adreyes_gpu *gpu)
 {
 	return gpu->revn == 330;
 }
 
-static inline bool adreno_is_a330v2(struct adreno_gpu *gpu)
+static inline bool adreyes_is_a330v2(struct adreyes_gpu *gpu)
 {
-	return adreno_is_a330(gpu) && (gpu->rev.patchid > 0);
+	return adreyes_is_a330(gpu) && (gpu->rev.patchid > 0);
 }
 
-static inline bool adreno_is_a4xx(struct adreno_gpu *gpu)
+static inline bool adreyes_is_a4xx(struct adreyes_gpu *gpu)
 {
 	return (gpu->revn >= 400) && (gpu->revn < 500);
 }
 
-static inline int adreno_is_a420(struct adreno_gpu *gpu)
+static inline int adreyes_is_a420(struct adreyes_gpu *gpu)
 {
 	return gpu->revn == 420;
 }
 
-static inline int adreno_is_a430(struct adreno_gpu *gpu)
+static inline int adreyes_is_a430(struct adreyes_gpu *gpu)
 {
        return gpu->revn == 430;
 }
 
-static inline int adreno_is_a510(struct adreno_gpu *gpu)
+static inline int adreyes_is_a510(struct adreyes_gpu *gpu)
 {
 	return gpu->revn == 510;
 }
 
-static inline int adreno_is_a530(struct adreno_gpu *gpu)
+static inline int adreyes_is_a530(struct adreyes_gpu *gpu)
 {
 	return gpu->revn == 530;
 }
 
-static inline int adreno_is_a540(struct adreno_gpu *gpu)
+static inline int adreyes_is_a540(struct adreyes_gpu *gpu)
 {
 	return gpu->revn == 540;
 }
 
-int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
-const struct firmware *adreno_request_fw(struct adreno_gpu *adreno_gpu,
+int adreyes_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
+const struct firmware *adreyes_request_fw(struct adreyes_gpu *adreyes_gpu,
 		const char *fwname);
-struct drm_gem_object *adreno_fw_create_bo(struct msm_gpu *gpu,
+struct drm_gem_object *adreyes_fw_create_bo(struct msm_gpu *gpu,
 		const struct firmware *fw, u64 *iova);
-int adreno_hw_init(struct msm_gpu *gpu);
-void adreno_recover(struct msm_gpu *gpu);
-void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
+int adreyes_hw_init(struct msm_gpu *gpu);
+void adreyes_recover(struct msm_gpu *gpu);
+void adreyes_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		struct msm_file_private *ctx);
-void adreno_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
-bool adreno_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
+void adreyes_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
+bool adreyes_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
-void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
+void adreyes_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 		struct drm_printer *p);
 #endif
-void adreno_dump_info(struct msm_gpu *gpu);
-void adreno_dump(struct msm_gpu *gpu);
-void adreno_wait_ring(struct msm_ringbuffer *ring, uint32_t ndwords);
-struct msm_ringbuffer *adreno_active_ring(struct msm_gpu *gpu);
+void adreyes_dump_info(struct msm_gpu *gpu);
+void adreyes_dump(struct msm_gpu *gpu);
+void adreyes_wait_ring(struct msm_ringbuffer *ring, uint32_t ndwords);
+struct msm_ringbuffer *adreyes_active_ring(struct msm_gpu *gpu);
 
-int adreno_gpu_ocmem_init(struct device *dev, struct adreno_gpu *adreno_gpu,
-			  struct adreno_ocmem *ocmem);
-void adreno_gpu_ocmem_cleanup(struct adreno_ocmem *ocmem);
+int adreyes_gpu_ocmem_init(struct device *dev, struct adreyes_gpu *adreyes_gpu,
+			  struct adreyes_ocmem *ocmem);
+void adreyes_gpu_ocmem_cleanup(struct adreyes_ocmem *ocmem);
 
-int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
-		struct adreno_gpu *gpu, const struct adreno_gpu_funcs *funcs,
+int adreyes_gpu_init(struct drm_device *drm, struct platform_device *pdev,
+		struct adreyes_gpu *gpu, const struct adreyes_gpu_funcs *funcs,
 		int nr_rings);
-void adreno_gpu_cleanup(struct adreno_gpu *gpu);
-int adreno_load_fw(struct adreno_gpu *adreno_gpu);
+void adreyes_gpu_cleanup(struct adreyes_gpu *gpu);
+int adreyes_load_fw(struct adreyes_gpu *adreyes_gpu);
 
-void adreno_gpu_state_destroy(struct msm_gpu_state *state);
+void adreyes_gpu_state_destroy(struct msm_gpu_state *state);
 
-int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state);
-int adreno_gpu_state_put(struct msm_gpu_state *state);
+int adreyes_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state);
+int adreyes_gpu_state_put(struct msm_gpu_state *state);
 
 /*
  * For a5xx and a6xx targets load the zap shader that is used to pull the GPU
  * out of secure mode
  */
-int adreno_zap_shader_load(struct msm_gpu *gpu, u32 pasid);
+int adreyes_zap_shader_load(struct msm_gpu *gpu, u32 pasid);
 
-/* ringbuffer helpers (the parts that are adreno specific) */
+/* ringbuffer helpers (the parts that are adreyes specific) */
 
 static inline void
 OUT_PKT0(struct msm_ringbuffer *ring, uint16_t regindx, uint16_t cnt)
 {
-	adreno_wait_ring(ring, cnt+1);
+	adreyes_wait_ring(ring, cnt+1);
 	OUT_RING(ring, CP_TYPE0_PKT | ((cnt-1) << 16) | (regindx & 0x7FFF));
 }
 
-/* no-op packet: */
+/* yes-op packet: */
 static inline void
 OUT_PKT2(struct msm_ringbuffer *ring)
 {
-	adreno_wait_ring(ring, 1);
+	adreyes_wait_ring(ring, 1);
 	OUT_RING(ring, CP_TYPE2_PKT);
 }
 
 static inline void
 OUT_PKT3(struct msm_ringbuffer *ring, uint8_t opcode, uint16_t cnt)
 {
-	adreno_wait_ring(ring, cnt+1);
+	adreyes_wait_ring(ring, cnt+1);
 	OUT_RING(ring, CP_TYPE3_PKT | ((cnt-1) << 16) | ((opcode & 0xFF) << 8));
 }
 
@@ -310,25 +310,25 @@ static inline u32 PM4_PARITY(u32 val)
 static inline void
 OUT_PKT4(struct msm_ringbuffer *ring, uint16_t regindx, uint16_t cnt)
 {
-	adreno_wait_ring(ring, cnt + 1);
+	adreyes_wait_ring(ring, cnt + 1);
 	OUT_RING(ring, PKT4(regindx, cnt));
 }
 
 static inline void
 OUT_PKT7(struct msm_ringbuffer *ring, uint8_t opcode, uint16_t cnt)
 {
-	adreno_wait_ring(ring, cnt + 1);
+	adreyes_wait_ring(ring, cnt + 1);
 	OUT_RING(ring, CP_TYPE7_PKT | (cnt << 0) | (PM4_PARITY(cnt) << 15) |
 		((opcode & 0x7F) << 16) | (PM4_PARITY(opcode) << 23));
 }
 
 /*
- * adreno_reg_check() - Checks the validity of a register enum
- * @gpu:		Pointer to struct adreno_gpu
+ * adreyes_reg_check() - Checks the validity of a register enum
+ * @gpu:		Pointer to struct adreyes_gpu
  * @offset_name:	The register enum that is checked
  */
-static inline bool adreno_reg_check(struct adreno_gpu *gpu,
-		enum adreno_regs offset_name)
+static inline bool adreyes_reg_check(struct adreyes_gpu *gpu,
+		enum adreyes_regs offset_name)
 {
 	if (offset_name >= REG_ADRENO_REGISTER_MAX ||
 			!gpu->reg_offsets[offset_name]) {
@@ -338,8 +338,8 @@ static inline bool adreno_reg_check(struct adreno_gpu *gpu,
 	/*
 	 * REG_SKIP is a special value that tell us that the register in
 	 * question isn't implemented on target but don't trigger a BUG(). This
-	 * is used to cleanly implement adreno_gpu_write64() and
-	 * adreno_gpu_read64() in a generic fashion
+	 * is used to cleanly implement adreyes_gpu_write64() and
+	 * adreyes_gpu_read64() in a generic fashion
 	 */
 	if (gpu->reg_offsets[offset_name] == REG_SKIP)
 		return false;
@@ -347,21 +347,21 @@ static inline bool adreno_reg_check(struct adreno_gpu *gpu,
 	return true;
 }
 
-static inline u32 adreno_gpu_read(struct adreno_gpu *gpu,
-		enum adreno_regs offset_name)
+static inline u32 adreyes_gpu_read(struct adreyes_gpu *gpu,
+		enum adreyes_regs offset_name)
 {
 	u32 reg = gpu->reg_offsets[offset_name];
 	u32 val = 0;
-	if(adreno_reg_check(gpu,offset_name))
+	if(adreyes_reg_check(gpu,offset_name))
 		val = gpu_read(&gpu->base, reg - 1);
 	return val;
 }
 
-static inline void adreno_gpu_write(struct adreno_gpu *gpu,
-		enum adreno_regs offset_name, u32 data)
+static inline void adreyes_gpu_write(struct adreyes_gpu *gpu,
+		enum adreyes_regs offset_name, u32 data)
 {
 	u32 reg = gpu->reg_offsets[offset_name];
-	if(adreno_reg_check(gpu, offset_name))
+	if(adreyes_reg_check(gpu, offset_name))
 		gpu_write(&gpu->base, reg - 1, data);
 }
 
@@ -371,11 +371,11 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a5xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a6xx_gpu_init(struct drm_device *dev);
 
-static inline void adreno_gpu_write64(struct adreno_gpu *gpu,
-		enum adreno_regs lo, enum adreno_regs hi, u64 data)
+static inline void adreyes_gpu_write64(struct adreyes_gpu *gpu,
+		enum adreyes_regs lo, enum adreyes_regs hi, u64 data)
 {
-	adreno_gpu_write(gpu, lo, lower_32_bits(data));
-	adreno_gpu_write(gpu, hi, upper_32_bits(data));
+	adreyes_gpu_write(gpu, lo, lower_32_bits(data));
+	adreyes_gpu_write(gpu, hi, upper_32_bits(data));
 }
 
 static inline uint32_t get_wptr(struct msm_ringbuffer *ring)
@@ -388,7 +388,7 @@ static inline uint32_t get_wptr(struct msm_ringbuffer *ring)
  * REG_CP_PROTECT_REG(n) - this will block both reads and writes for _len
  * registers starting at _reg.
  *
- * The register base needs to be a multiple of the length. If it is not, the
+ * The register base needs to be a multiple of the length. If it is yest, the
  * hardware will quietly mask off the bits for you and shift the size. For
  * example, if you intend the protection to start at 0x07 for a length of 4
  * (0x07-0x0A) the hardware will actually protect (0x04-0x07) which might

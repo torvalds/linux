@@ -25,7 +25,7 @@ static int xge_get_resources(struct xge_pdata *pdata)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(dev, "Resource enet_csr not defined\n");
+		dev_err(dev, "Resource enet_csr yest defined\n");
 		return -ENODEV;
 	}
 

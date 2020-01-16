@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -1566,9 +1566,9 @@ static enum drm_connector_status radeon_legacy_tv_dac_detect(struct drm_encoder 
 		return found;
 	}
 
-	/* don't probe if the encoder is being used for something else not CRT related */
+	/* don't probe if the encoder is being used for something else yest CRT related */
 	if (radeon_encoder->active_device && !(radeon_encoder->active_device & ATOM_DEVICE_CRT_SUPPORT)) {
-		DRM_INFO("not detecting due to %08x\n", radeon_encoder->active_device);
+		DRM_INFO("yest detecting due to %08x\n", radeon_encoder->active_device);
 		return connector_status_disconnected;
 	}
 
